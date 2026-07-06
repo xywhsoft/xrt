@@ -2,7 +2,7 @@
 
 [English](README.en.md) | 简体中文 | [项目首页](../README.md) | [文档入口](../docs/README.md)
 
-本目录当前包含 `166` 个可独立构建的范例程序，分布在 `39` 个模块目录下。本文档按当前 `examples/*/*/main.c` 的实际实现整理，面向使用者阅读和检索。
+本目录当前包含 `168` 个可独立构建的范例程序，分布在 `41` 个模块目录下。本文档按当前 `examples/*/*/main.c` 的实际实现整理，面向使用者阅读和检索。
 
 `examples/bin` 是批量构建后的输出目录，不计入范例数量。`example_common.h`、`example_wait.h`、`example_tls_fixture.h` 是部分范例共用的辅助头文件，也不是独立范例。
 
@@ -254,6 +254,10 @@
 ### xhttpd（2）
 - `xhttpd/server_async`：演示使用 xhttpd 的 `OnRequestAsync`，通过后台线程 future 延迟返回 HTTP 响应。
 - `xhttpd/server_basic`：演示启动本地 xhttpd 服务、处理请求，并通过本地 HTTP 客户端请求验证响应。
+
+### xweb（2）
+- `xweb/app_reload_vhost`：演示 `xwebapp`、默认 app reload、Host 虚拟主机和移除虚拟主机后的回退。
+- `xweb/server_basic`：演示使用 xweb 处理路由变量、query、POST 请求体、ANY 路由和静态文件。
 
 ### xid（1）
 - `xid/generate_xid`：演示 XID 的生成、编码、解码与比较。

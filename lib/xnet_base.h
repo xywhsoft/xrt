@@ -210,6 +210,7 @@ typedef struct {
 	uint32 iFlags;
 	uint32 iRecvBatch;
 	uint32 iSendQueueLimit;
+	uint32 iRecvQueueLimit;
 } xnetdgramconfig;
 
 #endif /* !XRT_BUILD_CORE */
@@ -650,6 +651,7 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 	pCfg->iFlags = XNET_DGRAM_F_REUSE_ADDR;
 	pCfg->iRecvBatch = 64;
 	pCfg->iSendQueueLimit = 262144;
+	pCfg->iRecvQueueLimit = 256;
 }
 
 

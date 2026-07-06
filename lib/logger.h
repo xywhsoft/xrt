@@ -65,7 +65,77 @@ static bool __xlogOwnStr(str sText)
 }
 
 
+// 内部函数：追加打开日志文件，Windows 下保持 UTF-8 路径语义
+static FILE* __xlogOpenAppendFile(str sPath)
+{
+	if ( !sPath || sPath == xCore.sNull ) {
+		return NULL;
+	}
+
+	#if defined(_WIN32) || defined(_WIN64)
+		u16str sPathW = xrtUTF8to16((u8str)sPath, 0, NULL);
+		FILE* pFile = NULL;
+		if ( !sPathW ) {
+			return NULL;
+		}
+		pFile = _wfsopen((const wchar_t*)sPathW, L"ab", _SH_DENYNO);
+		xrtFree(sPathW);
+		return pFile;
+	#else
+		return fopen((const char*)sPath, "ab");
+	#endif
+}
+
+
 // 内部函数：格式化当前本地时间
+// 内部函数：删除日志文件，避免 logger 在 XRT_NO_FILE 裁剪时依赖 file 模块
+static bool __xlogDeleteFile(str sPath)
+{
+	if ( !sPath || sPath == xCore.sNull ) {
+		return FALSE;
+	}
+
+	#if defined(_WIN32) || defined(_WIN64)
+		u16str sPathW = xrtUTF8to16((u8str)sPath, 0, NULL);
+		int iRet;
+		if ( !sPathW ) {
+			return FALSE;
+		}
+		iRet = _wremove((const wchar_t*)sPathW);
+		xrtFree(sPathW);
+		return iRet == 0;
+	#else
+		return remove((const char*)sPath) == 0;
+	#endif
+}
+
+
+// 内部函数：重命名日志文件，避免 logger 在 XRT_NO_FILE 裁剪时依赖 file 模块
+static bool __xlogRenameFile(str sSrc, str sDst)
+{
+	if ( !sSrc || sSrc == xCore.sNull || !sDst || sDst == xCore.sNull ) {
+		return FALSE;
+	}
+
+	#if defined(_WIN32) || defined(_WIN64)
+		u16str sSrcW = xrtUTF8to16((u8str)sSrc, 0, NULL);
+		u16str sDstW = xrtUTF8to16((u8str)sDst, 0, NULL);
+		int iRet;
+		if ( !sSrcW || !sDstW ) {
+			xrtFree(sSrcW);
+			xrtFree(sDstW);
+			return FALSE;
+		}
+		iRet = _wrename((const wchar_t*)sSrcW, (const wchar_t*)sDstW);
+		xrtFree(sSrcW);
+		xrtFree(sDstW);
+		return iRet == 0;
+	#else
+		return rename((const char*)sSrc, (const char*)sDst) == 0;
+	#endif
+}
+
+
 static void __xlogFormatNow(char* sBuff, size_t iSize)
 {
 	time_t tRaw;
@@ -213,7 +283,7 @@ static bool __xlogRotateFile(xlogappender* pAppender)
 
 	sDst = __xlogMakeBackupPath(pAppender->sPath, pAppender->iMaxBackup);
 	if ( __xlogOwnStr(sDst) ) {
-		remove((const char*)sDst);
+		__xlogDeleteFile(sDst);
 		xrtFree(sDst);
 	}
 
@@ -221,8 +291,8 @@ static bool __xlogRotateFile(xlogappender* pAppender)
 		sSrc = __xlogMakeBackupPath(pAppender->sPath, i - 1);
 		sDst = __xlogMakeBackupPath(pAppender->sPath, i);
 		if ( __xlogOwnStr(sSrc) && __xlogOwnStr(sDst) ) {
-			remove((const char*)sDst);
-			rename((const char*)sSrc, (const char*)sDst);
+			__xlogDeleteFile(sDst);
+			__xlogRenameFile(sSrc, sDst);
 		}
 		if ( __xlogOwnStr(sSrc) ) {
 			xrtFree(sSrc);
@@ -234,12 +304,12 @@ static bool __xlogRotateFile(xlogappender* pAppender)
 
 	sDst = __xlogMakeBackupPath(pAppender->sPath, 1);
 	if ( __xlogOwnStr(sDst) ) {
-		remove((const char*)sDst);
-		rename((const char*)pAppender->sPath, (const char*)sDst);
+		__xlogDeleteFile(sDst);
+		__xlogRenameFile(pAppender->sPath, sDst);
 		xrtFree(sDst);
 	}
 
-	pAppender->pFile = fopen((const char*)pAppender->sPath, "ab");
+	pAppender->pFile = __xlogOpenAppendFile(pAppender->sPath);
 	if ( !pAppender->pFile ) {
 		xrtSetError("logger reopen rolling file failed.", FALSE);
 		return FALSE;
@@ -483,7 +553,7 @@ XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel
 	}
 
 	pAppender->sPath = xrtCopyStr(sPath, 0);
-	pAppender->pFile = fopen((const char*)sPath, "ab");
+	pAppender->pFile = __xlogOpenAppendFile(sPath);
 	pAppender->bOwnFile = TRUE;
 	if ( !pAppender->pFile ) {
 		__xlogAppenderDestroy(pAppender);

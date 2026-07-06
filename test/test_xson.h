@@ -168,6 +168,9 @@ static int Test_XSON(void)
 	pVal = xrtParseXSON("{\"keep\":1,\"skip\":ptr(123),\"after\":2}", 0);
 	__TEST_XSON_REQUIRE(xvoIsNull(pVal) == TRUE, "unsupported decode should fail by default");
 	xvoUnref(pVal);
+	__TEST_XSON_REQUIRE(xrtXsonValid("{\"keep\":1,\"after\":2}", 0, 0) == TRUE, "valid xson should pass");
+	__TEST_XSON_REQUIRE(xrtXsonValid("{\"keep\":1,\"skip\":ptr(123),\"after\":2}", 0, 0) == FALSE, "unsupported xson should fail validation");
+	__TEST_XSON_REQUIRE(xrtXsonValid("{\"keep\":1,\"skip\":ptr(123),\"after\":2}", 0, XSON_F_IGNORE_UNSUPPORTED_DECODE) == TRUE, "ignore unsupported xson should pass validation");
 
 	pVal = xrtParseXSONEx("{\"keep\":1,\"skip\":ptr(123),\"after\":2}", 0, XSON_F_IGNORE_UNSUPPORTED_DECODE);
 	__TEST_XSON_REQUIRE(xvoType(pVal) == XVO_DT_TABLE, "ignore unsupported decode type mismatch");

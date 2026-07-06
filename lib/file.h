@@ -19,7 +19,15 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
-		HANDLE hFile = CreateFileW(sPathW, bReadOnly ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, bReadOnly ? OPEN_EXISTING : OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		HANDLE hFile = CreateFileW(
+			sPathW,
+			bReadOnly ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			NULL,
+			bReadOnly ? OPEN_EXISTING : OPEN_ALWAYS,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL
+		);
 		DWORD iOpenError = hFile == INVALID_HANDLE_VALUE ? GetLastError() : 0;
 		xrtFree(sPathW);
 		if ( hFile == INVALID_HANDLE_VALUE ) {
@@ -865,7 +873,7 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 		if ( iSize == 0 ) { return 0; }
 		// 打开文件（ 读写模式，不存在则创建 ）
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
-		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
 		if ( hFile == INVALID_HANDLE_VALUE ) {
 			xrtSetError(sErrorFile_Open, FALSE);
@@ -919,7 +927,7 @@ XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize)
 		// windows 方案
 		// 以只读方式打开文件
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
-		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
 		if ( hFile == INVALID_HANDLE_VALUE ) {
 			xrtSetError(sErrorFile_Open, FALSE);
@@ -1100,7 +1108,7 @@ XXAPI size_t xrtFileGetSize(str sPath)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
-		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
 		if ( hFile == INVALID_HANDLE_VALUE ) {
 			xrtSetError(sErrorFile_Open, FALSE);
@@ -1131,7 +1139,7 @@ XXAPI bool xrtFileSetSize(str sPath, size_t iSize)
 		// windows 方案
 		// 以写模式打开文件（ 不存在则创建 ）
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
-		HANDLE hFile = CreateFileW(sPathW, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
 		if ( hFile == INVALID_HANDLE_VALUE ) {
 			xrtSetError(sErrorFile_Open, FALSE);
@@ -1401,6 +1409,97 @@ XXAPI bool xrtFileMove(str sSrc, str sDst, bool bReWrite)
 
 
 // 删除文件
+// 原子重命名文件，不跨卷复制
+XXAPI bool xrtFileRename(str sSrc, str sDst, bool bReWrite)
+{
+	if ( sSrc == NULL || sDst == NULL ) { return FALSE; }
+	if ( !bReWrite && xrtPathExists(sDst) ) { return FALSE; }
+	#if defined(_WIN32) || defined(_WIN64)
+		u16str sSrcW = xrtUTF8to16((u8str)sSrc, 0, NULL);
+		u16str sDstW = xrtUTF8to16((u8str)sDst, 0, NULL);
+		DWORD iFlags = MOVEFILE_WRITE_THROUGH | (bReWrite ? MOVEFILE_REPLACE_EXISTING : 0);
+		BOOL bRet = MoveFileExW((const wchar_t*)sSrcW, (const wchar_t*)sDstW, iFlags);
+		xrtFree(sSrcW);
+		xrtFree(sDstW);
+		return bRet ? TRUE : FALSE;
+	#else
+		return rename(sSrc, sDst) == 0 ? TRUE : FALSE;
+	#endif
+}
+
+
+
+// 原子替换文件，不跨卷复制
+XXAPI bool xrtFileReplace(str sSrc, str sDst)
+{
+	return xrtFileRename(sSrc, sDst, TRUE);
+}
+
+
+
+// 创建文件或更新访问/修改时间
+XXAPI bool xrtFileTouch(str sPath)
+{
+	if ( sPath == NULL ) { return FALSE; }
+	#if defined(_WIN32) || defined(_WIN64)
+		u16str sPathW = xrtUTF8to16((u8str)sPath, 0, NULL);
+		HANDLE hFile = CreateFileW(
+			(const wchar_t*)sPathW,
+			FILE_WRITE_ATTRIBUTES,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			NULL,
+			OPEN_ALWAYS,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL
+		);
+		FILETIME tNow;
+		BOOL bRet;
+		xrtFree(sPathW);
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			return FALSE;
+		}
+		GetSystemTimeAsFileTime(&tNow);
+		bRet = SetFileTime(hFile, NULL, &tNow, &tNow);
+		CloseHandle(hFile);
+		return bRet ? TRUE : FALSE;
+	#else
+		int fd = open(sPath, O_WRONLY | O_CREAT, 0644);
+		if ( fd == -1 ) {
+			return FALSE;
+		}
+		close(fd);
+		return utime(sPath, NULL) == 0 ? TRUE : FALSE;
+	#endif
+}
+
+
+
+// 原子写入并覆盖文件内容
+XXAPI bool xrtFileWriteAllAtomic(str sPath, str sText, size_t iSize, int iCharset)
+{
+	str sTmp;
+	bool bRet;
+	if ( sPath == NULL ) { return FALSE; }
+	sTmp = xrtPathRandom(sPath, 0, (str)".tmp", 4, 8);
+	if ( sTmp == NULL || sTmp[0] == 0 ) {
+		xrtFree(sTmp);
+		return FALSE;
+	}
+	if ( xrtFileWriteAll(sTmp, sText, iSize, iCharset) == 0 ) {
+		xrtFileDelete(sTmp);
+		xrtFree(sTmp);
+		return FALSE;
+	}
+	bRet = xrtFileReplace(sTmp, sPath);
+	if ( !bRet ) {
+		xrtFileDelete(sTmp);
+	}
+	xrtFree(sTmp);
+	return bRet;
+}
+
+
+
 XXAPI bool xrtFileDelete(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -1811,6 +1910,79 @@ XXAPI int xrtDirScan(str sPath, int bRecu, xrtDirScanProc pProc, ptr Param)
 }
 
 
+// 目录统计信息
+typedef struct {
+	int64 iFiles;
+	int64 iDirs;
+	int64 iSize;
+	int iMode;
+} xrtDirCountInfo;
+
+
+// 目录统计回调
+int __pri__DirCountProc(str sPath, size_t iSize, int bDir, ptr pData, ptr Param)
+{
+	xrtDirCountInfo* pInfo = (xrtDirCountInfo*)Param;
+	(void)sPath;
+	(void)iSize;
+	(void)pData;
+	if ( pInfo == NULL ) { return FALSE; }
+	if ( bDir == 0 ) {
+		pInfo->iFiles++;
+	} else if ( bDir == 1 ) {
+		pInfo->iDirs++;
+	}
+	return FALSE;
+}
+
+
+// 目录大小统计回调
+int __pri__DirSizeProc(str sPath, size_t iSize, int bDir, ptr pData, ptr Param)
+{
+	xrtDirCountInfo* pInfo = (xrtDirCountInfo*)Param;
+	(void)iSize;
+	(void)pData;
+	if ( pInfo == NULL ) { return FALSE; }
+	if ( bDir == 0 && sPath != NULL ) {
+		pInfo->iSize += (int64)xrtFileGetSize(sPath);
+	}
+	return FALSE;
+}
+
+
+// 统计目录项数量
+XXAPI int64 xrtDirCount(str sPath, bool bRecu, int iMode)
+{
+	xrtDirCountInfo tInfo;
+	if ( sPath == NULL || !xrtDirExists(sPath) ) { return 0; }
+	memset(&tInfo, 0, sizeof(tInfo));
+	tInfo.iMode = iMode;
+	xrtDirScan(sPath, bRecu ? TRUE : FALSE, __pri__DirCountProc, &tInfo);
+	if ( iMode == 1 ) { return tInfo.iFiles; }
+	if ( iMode == 2 ) { return tInfo.iDirs; }
+	return tInfo.iFiles + tInfo.iDirs;
+}
+
+
+// 统计目录中文件总大小
+XXAPI int64 xrtDirSize(str sPath, bool bRecu)
+{
+	xrtDirCountInfo tInfo;
+	if ( sPath == NULL || !xrtDirExists(sPath) ) { return 0; }
+	memset(&tInfo, 0, sizeof(tInfo));
+	xrtDirScan(sPath, bRecu ? TRUE : FALSE, __pri__DirSizeProc, &tInfo);
+	return tInfo.iSize;
+}
+
+
+// 判断目录是否为空
+XXAPI bool xrtDirIsEmpty(str sPath)
+{
+	if ( sPath == NULL || !xrtDirExists(sPath) ) { return FALSE; }
+	return xrtDirCount(sPath, FALSE, 0) == 0;
+}
+
+
 
 // 创建文件夹
 XXAPI bool xrtDirCreate(str sPath)
@@ -2136,5 +2308,73 @@ XXAPI int xrtDirDelete(str sPath)
 		return iRet;
 	#endif
 	return 0;
+}
+
+
+// 判断路径字符是否为目录分隔符
+static bool __pri__DirPathIsSep(char ch)
+{
+	return ch == '/' || ch == '\\';
+}
+
+
+// 判断路径是否指向根目录，避免清空根路径这类危险操作
+XXAPI bool xrtDirIsRoot(str sPath)
+{
+	size_t iSize;
+	size_t i;
+	int iSepCount;
+	if ( sPath == NULL ) { return TRUE; }
+	iSize = strlen((const char*)sPath);
+	while ( iSize > 1 && __pri__DirPathIsSep(sPath[iSize - 1]) ) {
+		iSize--;
+	}
+	if ( iSize == 0 ) { return TRUE; }
+	if ( iSize == 1 && __pri__DirPathIsSep(sPath[0]) ) { return TRUE; }
+#if defined(_WIN32) || defined(_WIN64)
+	if ( iSize == 2 && sPath[1] == ':' &&
+	     ((sPath[0] >= 'A' && sPath[0] <= 'Z') || (sPath[0] >= 'a' && sPath[0] <= 'z')) ) {
+		return TRUE;
+	}
+	if ( iSize == 3 && sPath[1] == ':' &&
+	     ((sPath[0] >= 'A' && sPath[0] <= 'Z') || (sPath[0] >= 'a' && sPath[0] <= 'z')) &&
+	     __pri__DirPathIsSep(sPath[2]) ) {
+		return TRUE;
+	}
+	if ( iSize >= 2 && __pri__DirPathIsSep(sPath[0]) && __pri__DirPathIsSep(sPath[1]) ) {
+		iSepCount = 0;
+		for ( i = 2; i < iSize; i++ ) {
+			if ( __pri__DirPathIsSep(sPath[i]) ) {
+				iSepCount++;
+			}
+		}
+		return iSepCount < 2 ? TRUE : FALSE;
+	}
+#else
+	(void)i;
+	(void)iSepCount;
+#endif
+	return FALSE;
+}
+
+
+// 清空目录内容，但保留目录本身
+XXAPI bool xrtDirClean(str sPath)
+{
+	if ( sPath == NULL || xrtDirIsRoot(sPath) || !xrtDirExists(sPath) ) { return FALSE; }
+	xrtDirScan(sPath, TRUE, __pri__DirDeleteProc, NULL);
+	return xrtDirExists(sPath) && xrtDirIsEmpty(sPath);
+}
+
+
+// 确保目录存在且为空
+XXAPI bool xrtDirEnsureEmpty(str sPath)
+{
+	if ( sPath == NULL || xrtDirIsRoot(sPath) ) { return FALSE; }
+	if ( xrtDirExists(sPath) ) {
+		return xrtDirClean(sPath);
+	}
+	if ( !xrtDirCreateAll(sPath) ) { return FALSE; }
+	return xrtDirExists(sPath) && xrtDirIsEmpty(sPath);
 }
 

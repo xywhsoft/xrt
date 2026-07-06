@@ -23,11 +23,13 @@ typedef struct {
 	typedef struct xrt_net_dgram_packet {
 		xnetaddr tFrom;
 		xnetchain tChain;
+		struct xrt_net_dgram_packet* pNext;
 	} xnetdgrampkt;
 #else
 	struct xrt_net_dgram_packet {
 		xnetaddr tFrom;
 		xnetchain tChain;
+		struct xrt_net_dgram_packet* pNext;
 	};
 #endif
 
@@ -49,6 +51,10 @@ struct xrt_net_dgram {
 	uint32 iFlags;
 	uint32 iRecvBatch;
 	uint32 iSendQueueLimit;
+	uint32 iRecvQueueLimit;
+	uint32 iRecvQueued;
+	xnetdgrampkt* pRecvHead;
+	xnetdgrampkt* pRecvTail;
 	volatile long iAsyncHoldCount;
 	bool bRunning;
 	bool bRecvArmed;
@@ -208,6 +214,64 @@ XXAPI void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket)
 }
 
 
+static void __xnetDgramQueueClear(xdgramsock* pSock)
+{
+	xnetdgrampkt* pCur;
+	xnetdgrampkt* pNext;
+
+	if ( !pSock ) { return; }
+	pCur = pSock->pRecvHead;
+	while ( pCur ) {
+		pNext = pCur->pNext;
+		pCur->pNext = NULL;
+		xrtNetDgramPacketDestroy(pCur);
+		pCur = pNext;
+	}
+	pSock->pRecvHead = NULL;
+	pSock->pRecvTail = NULL;
+	pSock->iRecvQueued = 0u;
+}
+
+
+static xnetdgrampkt* __xnetDgramQueuePop(xdgramsock* pSock)
+{
+	xnetdgrampkt* pPacket;
+
+	if ( !pSock || !pSock->pRecvHead ) { return NULL; }
+	pPacket = pSock->pRecvHead;
+	pSock->pRecvHead = pPacket->pNext;
+	if ( !pSock->pRecvHead ) { pSock->pRecvTail = NULL; }
+	pPacket->pNext = NULL;
+	if ( pSock->iRecvQueued > 0u ) { --pSock->iRecvQueued; }
+	return pPacket;
+}
+
+
+static bool __xnetDgramQueuePush(xdgramsock* pSock, xnetdgrampkt* pPacket)
+{
+	xnetdgrampkt* pDrop;
+	uint32 iLimit;
+
+	if ( !pSock || !pPacket ) { return false; }
+	iLimit = pSock->iRecvQueueLimit;
+	if ( iLimit == 0u ) { iLimit = 256u; }
+	while ( pSock->iRecvQueued >= iLimit ) {
+		pDrop = __xnetDgramQueuePop(pSock);
+		if ( !pDrop ) { break; }
+		xrtNetDgramPacketDestroy(pDrop);
+	}
+	pPacket->pNext = NULL;
+	if ( pSock->pRecvTail ) {
+		pSock->pRecvTail->pNext = pPacket;
+	} else {
+		pSock->pRecvHead = pPacket;
+	}
+	pSock->pRecvTail = pPacket;
+	++pSock->iRecvQueued;
+	return true;
+}
+
+
 // xrtNetDgramPacketFrom 相关处理
 XXAPI const xnetaddr* xrtNetDgramPacketFrom(const xnetdgrampkt* pPacket)
 {
@@ -258,10 +322,17 @@ static void __xnetDgramNotifySyncRecv(xdgramsock* pSock, xnet_result iStatus, xn
 // 内部函数：__xnetDgramRegisterSyncRecvWait
 static bool __xnetDgramRegisterSyncRecvWait(xdgramsock* pSock, __xnet_dgram_sync_wait_fn pfnWait, ptr pCtx)
 {
+	xnetdgrampkt* pQueued;
+
 	if ( !pSock || !pfnWait ) { return false; }
 	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) { return false; }
 	if ( pSock->tRecvWait.pfnWait != NULL ) { return false; }
 	if ( pSock->pEvents && pSock->pEvents->OnRecv ) { return false; }
+	pQueued = __xnetDgramQueuePop(pSock);
+	if ( pQueued ) {
+		pfnWait(pSock, XRT_NET_OK, pQueued, pCtx);
+		return true;
+	}
 	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) {
 		pfnWait(pSock, XRT_NET_CLOSED, NULL, pCtx);
 		return true;
@@ -495,6 +566,13 @@ static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xneta
 	}
 	if ( pSock->pEvents && pSock->pEvents->OnRecv ) {
 		pSock->pEvents->OnRecv(__xnetDgramOwner(pSock), pSock, pFrom, pChain);
+	} else {
+		pPacket = xrtNetDgramPacketCreate(pFrom, pData, iLen);
+		if ( !pPacket || !__xnetDgramQueuePush(pSock, pPacket) ) {
+			if ( pPacket ) { xrtNetDgramPacketDestroy(pPacket); }
+			__xnetDgramFreeTempChain(pChain);
+			return false;
+		}
 	}
 	__xnetDgramFreeTempChain(pChain);
 	return true;
@@ -641,6 +719,7 @@ XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* 
 		pSock->iFlags = pCfg->iFlags;
 		pSock->iRecvBatch = pCfg->iRecvBatch;
 		pSock->iSendQueueLimit = pCfg->iSendQueueLimit;
+		pSock->iRecvQueueLimit = pCfg->iRecvQueueLimit;
 	} else {
 		xnetdgramconfig tCfg;
 		xrtNetDgramConfigInit(&tCfg);
@@ -648,6 +727,7 @@ XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* 
 		pSock->iFlags = tCfg.iFlags;
 		pSock->iRecvBatch = tCfg.iRecvBatch;
 		pSock->iSendQueueLimit = tCfg.iSendQueueLimit;
+		pSock->iRecvQueueLimit = tCfg.iRecvQueueLimit;
 	}
 	return pSock;
 }
@@ -663,6 +743,7 @@ XXAPI void xrtNetDgramDestroy(xdgramsock* pSock)
 	}
 	__xnetDgramNotifySyncRecv(pSock, XRT_NET_CLOSED, NULL);
 	__xnetDgramFinalizeSocketClose(pSock);
+	__xnetDgramQueueClear(pSock);
 	XNET_FREE(pSock);
 }
 
@@ -769,6 +850,16 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 					} else if ( pSock->pEvents && pSock->pEvents->OnRecv ) {
 						// 通过事件回调投递
 						pSock->pEvents->OnRecv(__xnetDgramOwner(pSock), pSock, &pEvent->tAddr, pEvent->pChain);
+					} else {
+						xnetdgrampkt* pPacket = xrtNetDgramPacketCreate(&pEvent->tAddr, NULL, 0);
+						if ( pPacket ) {
+							__xnetChainSplice(&pPacket->tChain, pEvent->pChain);
+							if ( !__xnetDgramQueuePush(pSock, pPacket) ) {
+								xrtNetDgramPacketDestroy(pPacket);
+							}
+						} else if ( pSock->pEvents && pSock->pEvents->OnError ) {
+							pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+						}
 					}
 					__xnetDgramFreeTempChain(pEvent->pChain);
 					// 释放数据链后重新挂起接收监听

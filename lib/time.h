@@ -151,6 +151,31 @@ XXAPI xtime xrtDateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int 
 
 
 
+static bool __xrtTimePartsToSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond, xtime* pOut)
+{
+	if ( (iMonth < 1) || (iMonth > 12) ) {
+		return FALSE;
+	}
+	if ( (iDay < 1) || (iDay > xrtDaysInMonth((int)iYear, iMonth)) ) {
+		return FALSE;
+	}
+	if ( (iHour < 0) || (iHour > 23) ) {
+		return FALSE;
+	}
+	if ( (iMinute < 0) || (iMinute > 59) ) {
+		return FALSE;
+	}
+	if ( (iSecond < 0) || (iSecond > 59) ) {
+		return FALSE;
+	}
+	if ( pOut ) {
+		*pOut = xrtDateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond);
+	}
+	return TRUE;
+}
+
+
+
 // 获取时间中的秒
 XXAPI int xrtSecond(xtime iTime)
 {
@@ -565,7 +590,7 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 
 
 
-// 单位时间差计算（ 不支持 XRT_TIME_INTERVAL_WEEKDAY ）
+// 单位时间差计算
 XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2)
 {
 	if ( interval == XRT_TIME_INTERVAL_YEAR ) {
@@ -592,6 +617,8 @@ XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2)
 	} else if ( interval == XRT_TIME_INTERVAL_SECOND ) {
 		// 秒差：直接相减
 		return iTime2 - iTime1;
+	} else if ( interval == XRT_TIME_INTERVAL_WEEKDAY ) {
+		return (iTime2 - iTime1) / (XRT_TIME_DAY * 7);
 	} else if ( interval == XRT_TIME_INTERVAL_QUARTER ) {
 		// 季度差算法 —— 复用月差计算，结果除以3
 		int64 iYear1, iYear2;
@@ -990,6 +1017,115 @@ XXAPI xtime xrtStrToTime(str sTime, size_t iSize)
 	}
 	
 	return xrtDateTimeSerial(year, month, day, hour, minute, second);
+}
+
+
+
+XXAPI bool xrtTryStrToTime(str sTime, size_t iSize, xtime* pOut)
+{
+	if ( !sTime ) { return FALSE; }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sTime); }
+	if ( iSize == 0 ) { return FALSE; }
+	
+	int year = 0, month = 1, day = 1, hour = 0, minute = 0, second = 0;
+	const char* p = (const char*)sTime;
+	const char* end = (const char*)sTime + iSize;
+	
+	while ( p < end && (*p < '0' || *p > '9') ) { p++; }
+	if ( p >= end ) { return FALSE; }
+	
+	int64 num1 = 0;
+	int len1 = 0;
+	while ( p < end && *p >= '0' && *p <= '9' ) {
+		num1 = num1 * 10 + (*p - '0');
+		len1++; p++;
+	}
+	
+	if ( len1 == 8 ) {
+		year = (int)(num1 / 10000);
+		month = (int)((num1 / 100) % 100);
+		day = (int)(num1 % 100);
+	} else if ( len1 == 14 ) {
+		year = (int)(num1 / 10000000000LL);
+		month = (int)((num1 / 100000000LL) % 100);
+		day = (int)((num1 / 1000000LL) % 100);
+		hour = (int)((num1 / 10000LL) % 100);
+		minute = (int)((num1 / 100LL) % 100);
+		second = (int)(num1 % 100);
+	} else if ( len1 == 4 ) {
+		year = (int)num1;
+		while ( p < end && (*p < '0' || *p > '9') ) { p++; }
+		if ( p < end ) {
+			int num2 = 0;
+			while ( p < end && *p >= '0' && *p <= '9' ) {
+				num2 = num2 * 10 + (*p - '0'); p++;
+			}
+			month = num2;
+			while ( p < end && (*p < '0' || *p > '9') ) { p++; }
+			if ( p < end ) {
+				int num3 = 0;
+				while ( p < end && *p >= '0' && *p <= '9' ) {
+					num3 = num3 * 10 + (*p - '0'); p++;
+				}
+				day = num3;
+				while ( p < end && (*p < '0' || *p > '9') ) { p++; }
+				if ( p < end ) {
+					int num4 = 0;
+					while ( p < end && *p >= '0' && *p <= '9' ) {
+						num4 = num4 * 10 + (*p - '0'); p++;
+					}
+					hour = num4;
+					while ( p < end && (*p < '0' || *p > '9') ) { p++; }
+					if ( p < end ) {
+						int num5 = 0;
+						while ( p < end && *p >= '0' && *p <= '9' ) {
+							num5 = num5 * 10 + (*p - '0'); p++;
+						}
+						minute = num5;
+						while ( p < end && (*p < '0' || *p > '9') ) { p++; }
+						if ( p < end ) {
+							int num6 = 0;
+							while ( p < end && *p >= '0' && *p <= '9' ) {
+								num6 = num6 * 10 + (*p - '0'); p++;
+							}
+							second = num6;
+						}
+					}
+				}
+			}
+		}
+	} else if ( len1 <= 2 ) {
+		char sep = (p < end) ? *p : 0;
+		if ( sep != ':' ) {
+			return FALSE;
+		}
+		hour = (int)num1;
+		p++;
+		if ( p >= end || *p < '0' || *p > '9' ) {
+			return FALSE;
+		}
+		int num2 = 0;
+		while ( p < end && *p >= '0' && *p <= '9' ) {
+			num2 = num2 * 10 + (*p - '0'); p++;
+		}
+		minute = num2;
+		if ( p < end && *p == ':' ) {
+			p++;
+			if ( p >= end || *p < '0' || *p > '9' ) {
+				return FALSE;
+			}
+			int num3 = 0;
+			while ( p < end && *p >= '0' && *p <= '9' ) {
+				num3 = num3 * 10 + (*p - '0'); p++;
+			}
+			second = num3;
+		}
+		year = 0; month = 1; day = 1;
+	} else {
+		return FALSE;
+	}
+	
+	return __xrtTimePartsToSerial(year, month, day, hour, minute, second, pOut);
 }
 
 
@@ -1477,6 +1613,29 @@ XXAPI xtime xrtTimeParse(str sTime, str sFormat)
 	}
 	if (year == 0 ) { xtime now = xrtNow(); year = (int)xrtYear(now); }
 	return xrtDateTimeSerial(year, month, day, hour, minute, second);
+}
+
+
+
+XXAPI bool xrtTryTimeParse(str sTime, str sFormat, xtime* pOut)
+{
+	if ( !sTime || !sFormat ) {
+		return FALSE;
+	}
+	xtime iTime = xrtTimeParse(sTime, sFormat);
+	str sRoundtrip = xrtTimeFormat(iTime, sFormat);
+	if ( !sRoundtrip ) {
+		return FALSE;
+	}
+	bool bOk = (strcmp((const char*)sRoundtrip, (const char*)sTime) == 0);
+	xrtFree(sRoundtrip);
+	if ( !bOk ) {
+		return FALSE;
+	}
+	if ( pOut ) {
+		*pOut = iTime;
+	}
+	return TRUE;
 }
 
 

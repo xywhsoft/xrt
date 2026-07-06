@@ -678,6 +678,36 @@ XXAPI size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen)
 }
 
 
+// xrtNetChainPeekAt 相关处理
+XXAPI size_t xrtNetChainPeekAt(const xnetchain* pChain, size_t iOffset, ptr pOut, size_t iLen)
+{
+	if ( !pChain || !pOut || iLen == 0 || iOffset >= pChain->iBytes ) { return 0; }
+
+	uint8* pDst = (uint8*)pOut;
+	size_t iCopied = 0;
+	size_t iChainOffset = 0;
+
+	for ( __xnet_blk* pBlk = pChain->pHead; pBlk && iCopied < iLen; pBlk = pBlk->pNext ) {
+		uint32 iReadable = __xnetBlkReadable(pBlk);
+		size_t iBegin;
+		size_t iChunk;
+		if ( iReadable == 0 ) { continue; }
+		if ( iChainOffset + iReadable <= iOffset ) {
+			iChainOffset += iReadable;
+			continue;
+		}
+		iBegin = iOffset > iChainOffset ? (iOffset - iChainOffset) : 0;
+		iChunk = iReadable - iBegin;
+		if ( iChunk > iLen - iCopied ) { iChunk = iLen - iCopied; }
+		memcpy(pDst + iCopied, __xnetBlkDataPtr(pBlk) + pBlk->iBegin + iBegin, iChunk);
+		iCopied += iChunk;
+		iChainOffset += iReadable;
+	}
+
+	return iCopied;
+}
+
+
 // xrtNetChainFindByte 相关处理
 XXAPI size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStartOff)
 {

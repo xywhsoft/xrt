@@ -272,6 +272,28 @@ void Test_File(xrtGlobalData* xCore)
 	int iNewAttr = xrtFileGetAttr(sPathA7);
 	printf("New attr: %d\n", iNewAttr);
 
+	printf("xrtFileTouch/Rename/Replace/WriteAllAtomic : advanced helpers\n");
+	str sPathAtomic = xrtPathJoin(3, xCore->AppPath, "test", "atomic.txt");
+	str sPathRenamed = xrtPathJoin(3, xCore->AppPath, "test", "atomic_renamed.txt");
+	str sPathReplace = xrtPathJoin(3, xCore->AppPath, "test", "atomic_replace.txt");
+	xrtFileDelete(sPathAtomic);
+	xrtFileDelete(sPathRenamed);
+	xrtFileDelete(sPathReplace);
+	printf("Touch create : %s\n", xrtFileTouch(sPathAtomic) && xrtFileExists(sPathAtomic) ? "PASS" : "FAIL");
+	printf("Atomic write : %s\n", xrtFileWriteAllAtomic(sPathAtomic, "atomic one", 0, XRT_CP_UTF8) ? "PASS" : "FAIL");
+	printf("Rename       : %s\n", xrtFileRename(sPathAtomic, sPathRenamed, FALSE) && !xrtFileExists(sPathAtomic) && xrtFileExists(sPathRenamed) ? "PASS" : "FAIL");
+	xrtFileWriteAll(sPathReplace, "old", 0, XRT_CP_UTF8);
+	printf("Replace      : %s\n", xrtFileReplace(sPathRenamed, sPathReplace) && !xrtFileExists(sPathRenamed) && xrtFileExists(sPathReplace) ? "PASS" : "FAIL");
+	str sAtomicText = xrtFileReadAll(sPathReplace, XRT_CP_UTF8, NULL);
+	printf("Replace text : %s\n", strcmp((char*)sAtomicText, "atomic one") == 0 ? "PASS" : "FAIL");
+	xrtFree(sAtomicText);
+	xrtFileDelete(sPathAtomic);
+	xrtFileDelete(sPathRenamed);
+	xrtFileDelete(sPathReplace);
+	xrtFree(sPathAtomic);
+	xrtFree(sPathRenamed);
+	xrtFree(sPathReplace);
+
 	printf("xrtDirCreate : create directory\n");
 	str sPathDir1 = xrtPathJoin(3, xCore->AppPath, "test", "newdir");
 	xrtDirCreate(sPathDir1);

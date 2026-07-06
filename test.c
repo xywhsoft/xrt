@@ -185,8 +185,12 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 	#ifndef XRT_NO_COROUTINE
 		#include "test/test_xnet2_sync.h"
 	#endif
+	#include "test/test_xnet2_convenience.h"
 	#include "test/test_xnet_http.h"
 	#include "test/test_xnet_httpd.h"
+	#ifndef XRT_NO_XWEB
+		#include "test/test_xweb.h"
+	#endif
 	#include "test/test_xnet_native_core.h"
 	#ifndef XRT_NO_COROUTINE
 		#include "test/test_xnet2_listener_accept_core.h"
@@ -409,8 +413,12 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	#ifndef XRT_NO_COROUTINE
 		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Sync, Test_XNet2_Sync)
 	#endif
+	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Convenience, Test_XNet2_Convenience)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttp, Test_XNet_Http)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttpd, Test_XNet_Httpd)
+	#ifndef XRT_NO_XWEB
+		XRT_TEST_WRAP_VOID(__xrtTestRun_XWeb, Test_XWeb)
+	#endif
 	#ifndef XRT_NO_COROUTINE
 		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2ListenerAcceptCore, Test_XNet2_ListenerAcceptCore)
 	#endif
@@ -563,8 +571,12 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 		#ifndef XRT_NO_COROUTINE
 			{ "xnet2_sync", "XNet2 Sync", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2Sync },
 		#endif
+		{ "xnet2_convenience", "XNet2 Convenience", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2Convenience },
 		{ "xnet_http", "XNet HTTP", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetHttp },
 		{ "xnet_httpd", "XNet HTTPD", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetHttpd },
+		#ifndef XRT_NO_XWEB
+			{ "xweb", "XWeb", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XWeb },
+		#endif
 		{ "xnet_native_core", "XNet Native Core", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetNativeCore },
 		#ifndef XRT_NO_COROUTINE
 			{ "xnet2_listener_accept_core", "XNet2 Listener Accept Core", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2ListenerAcceptCore },
@@ -658,6 +670,9 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 		"xnet2_codec",
 		"xnet_http",
 		"xnet_httpd",
+		#ifndef XRT_NO_XWEB
+			"xweb",
+		#endif
 		"xnet_ws",
 		"xnet_proxy",
 		"xnet2_mem",
@@ -684,6 +699,9 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 		"xnet2_codec",
 		"xnet_http",
 		"xnet_httpd",
+		#ifndef XRT_NO_XWEB
+			"xweb",
+		#endif
 		"xnet_ws",
 		"xnet_proxy",
 		"xnet2_mem",

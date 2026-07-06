@@ -1552,6 +1552,22 @@ end:
 	return ret;
 }
 
+// 内部函数：JSON 验证用空 SAX 回调
+static json_sax_ret_t _xrt_json_valid_proc(json_sax_parser_t *parser)
+{
+	(void)parser;
+	return JSON_SAX_PARSE_CONTINUE;
+}
+
+// 验证 JSON 文本是否合法，不构造 xvalue 对象
+XXAPI bool xrtJsonValid(str sText, size_t iSize)
+{
+	if ( sText == NULL ) {
+		return FALSE;
+	}
+	return xrtJsonParseSAX(sText, iSize, _xrt_json_valid_proc) == 0;
+}
+
 
 
 

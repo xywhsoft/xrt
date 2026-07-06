@@ -33,6 +33,7 @@ typedef struct {
 	void (*OnError)(ptr pOwner, xnetstream* pStream, int iSysErr);
 	void (*OnHighWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
 	void (*OnLowWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
+	void (*OnTimer)(ptr pOwner, xnetstream* pStream);
 } xnetstreamevents;
 
 #endif /* !XRT_BUILD_CORE */
@@ -1085,8 +1086,14 @@ static bool __xnetStreamAttachTls(xnetstream* pStream, const xtlsconfig* pCfg, b
 {
 	if ( !pStream ) { return false; }
 	if ( !pCfg ) { return true; }
+	#ifdef XRT_NO_NETTLS
+		(void)bIsServer;
+		xrtSetError((str)"NETTLS module is disabled.", FALSE);
+		return false;
+	#else
 	pStream->pTls = xrtNetTlsSessionCreate(pCfg, bIsServer);
 	return pStream->pTls != NULL;
+	#endif
 }
 
 
@@ -1094,7 +1101,9 @@ static bool __xnetStreamAttachTls(xnetstream* pStream, const xtlsconfig* pCfg, b
 static void __xnetStreamDetachTls(xnetstream* pStream)
 {
 	if ( !pStream || !pStream->pTls ) { return; }
+	#ifndef XRT_NO_NETTLS
 	xrtNetTlsSessionDestroy(pStream->pTls);
+	#endif
 	pStream->pTls = NULL;
 	pStream->bTlsCloseQueued = false;
 }
@@ -1124,7 +1133,24 @@ static void __xnetStreamDetachProxy(xnetstream* pStream)
 // 内部函数：__xnetStreamTlsReady
 static bool __xnetStreamTlsReady(const xnetstream* pStream)
 {
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		return false;
+	#else
 	return pStream && pStream->pTls ? xrtNetTlsSessionIsReady(pStream->pTls) : false;
+	#endif
+}
+
+
+// 获取 TLS 客户端握手中的 SNI，非 TLS 连接返回 NULL
+XXAPI const char* xrtNetStreamTlsSNI(const xnetstream* pStream)
+{
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		return NULL;
+	#else
+	return pStream && pStream->pTls ? xrtNetTlsSessionGetSNI(pStream->pTls) : NULL;
+	#endif
 }
 
 
@@ -1517,6 +1543,10 @@ static void __xnetStreamKickWrite(xnetstream* pStream)
 // 内部函数：流队列 TLS cipher相关处理
 static bool __xnetStreamQueueTlsCipher(xnetstream* pStream)
 {
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		return false;
+	#else
 	char aBuf[4096];
 	if ( !pStream || !pStream->pTls ) { return false; }
 	while ( xrtNetTlsSessionPendingCipher(pStream->pTls) > 0 ) {
@@ -1530,12 +1560,17 @@ static bool __xnetStreamQueueTlsCipher(xnetstream* pStream)
 		xrtNetTlsSessionConsumeCipher(pStream->pTls, iRead);
 	}
 	return true;
+	#endif
 }
 
 
 // 内部函数：__xnetStreamDrainTlsPlain
 static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
 {
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		return false;
+	#else
 	char aBuf[4096];
 	bool bReadAny = false;
 	if ( !pStream || !pStream->pTls ) { return false; }
@@ -1578,12 +1613,17 @@ static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
 		}
 	}
 	return true;
+	#endif
 }
 
 
 // 内部函数：立即排空当前 socket 中已经到达的 TLS 密文
 static bool __xnetStreamDrainTlsCipherNow(xnetstream* pStream)
 {
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		return false;
+	#else
 	char aBuf[4096];
 	bool bReadAny = false;
 	uint32 iSpin = 0;
@@ -1620,6 +1660,7 @@ static bool __xnetStreamDrainTlsCipherNow(xnetstream* pStream)
 		return bReadAny;
 	}
 	return bReadAny;
+	#endif
 }
 
 
@@ -1686,6 +1727,10 @@ static bool __xnetStreamDrainSocketNow(xnetstream* pStream)
 // 内部函数：__xnetStreamDriveTlsHandshake
 static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
 {
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		return false;
+	#else
 	xnet_result iRes = XRT_NET_AGAIN;
 	uint32 iSpin = 0;
 	if ( !pStream || !pStream->pTls || !__xnetSocketIsValid(pStream->hSocket) ) { return false; }
@@ -1758,18 +1803,26 @@ static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
 	}
 	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 	return false;
+	#endif
 }
 
 
 // 内部函数：__xnetStreamAppendTlsPlainCopy
 static bool __xnetStreamAppendTlsPlainCopy(xnetstream* pStream, const void* pData, size_t iLen)
 {
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		(void)pData;
+		(void)iLen;
+		return false;
+	#else
 	size_t iWritten = 0;
 	if ( !pStream || !pStream->pTls || !__xnetStreamTlsReady(pStream) || !pData || iLen == 0 ) { return false; }
 	if ( xrtNetTlsSessionWritePlain(pStream->pTls, pData, iLen, &iWritten) != XRT_NET_OK || iWritten != iLen ) { return false; }
 	if ( !__xnetStreamQueueTlsCipher(pStream) ) { return false; }
 	__xnetStreamKickWrite(pStream);
 	return true;
+	#endif
 }
 
 
@@ -2047,6 +2100,11 @@ static bool __xnetStreamPostDeferredRecvChain(xnetstream* pStream, xnetchain* pC
 // 内部函数：__xnetStreamFeedTlsChain
 static bool __xnetStreamFeedTlsChain(xnetstream* pStream, xnetchain* pChain)
 {
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		(void)pChain;
+		return false;
+	#else
 	xnetspan arrSpan[16];
 	uint32 iSpanCount;
 
@@ -2059,6 +2117,7 @@ static bool __xnetStreamFeedTlsChain(xnetstream* pStream, xnetchain* pChain)
 		}
 	}
 	return true;
+	#endif
 }
 
 
@@ -2448,8 +2507,13 @@ static xnet_result __xnetStreamPostRecvDispatch(xnetstream* pStream)
 // 内部函数：__xnetStreamPostTlsHandshake
 static xnet_result __xnetStreamPostTlsHandshake(xnetstream* pStream)
 {
+	#ifdef XRT_NO_NETTLS
+		(void)pStream;
+		return XRT_NET_ERROR;
+	#else
 	if ( !pStream || !pStream->pTls || !__xnetSocketIsValid(pStream->hSocket) ) { return XRT_NET_ERROR; }
 	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncSimple(pStream, __XNET_STREAM_ASYNC_TLS_HANDSHAKE));
+	#endif
 }
 
 
@@ -3045,16 +3109,18 @@ XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 		__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 		return;
 	}
-	// 优雅关闭：如果 TLS 已就绪，先发送 TLS 关闭通知
-	if ( pStream->pTls && __xnetStreamTlsReady(pStream) && !pStream->bTlsCloseQueued ) {
-		pStream->bTlsCloseQueued = true;
-		if ( xrtNetTlsSessionQueueClose(pStream->pTls) == XRT_NET_OK ) {
-			if ( !__xnetStreamQueueTlsCipher(pStream) ) {
-				__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
-				return;
+	#ifndef XRT_NO_NETTLS
+		// 优雅关闭：如果 TLS 已就绪，先发送 TLS 关闭通知
+		if ( pStream->pTls && __xnetStreamTlsReady(pStream) && !pStream->bTlsCloseQueued ) {
+			pStream->bTlsCloseQueued = true;
+			if ( xrtNetTlsSessionQueueClose(pStream->pTls) == XRT_NET_OK ) {
+				if ( !__xnetStreamQueueTlsCipher(pStream) ) {
+					__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
+					return;
+				}
 			}
 		}
-	}
+	#endif
 	// 发送队列已空，直接进入关闭收尾
 	if ( pStream->tSendQ.iQueuedBytes == 0 ) {
 		if ( (pStream->iFlags & XNET_CLOSE_F_WAIT_PEER) != 0 ) {
@@ -3337,7 +3403,12 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 			// 定时器事件（跳过引擎心跳定时器）
 			if ( pEvent->iOpId != __XNET_ENGINE_TIMER_PULSE_ID ) {
 				xnetstream* pStream = (xnetstream*)(uintptr_t)pEvent->iOpId;
-				__xnetStreamHandleOpenTimer(pStream);
+				if ( pStream && __xnetAtomicLoad32(&pStream->iOpenTimerState) != 0 ) {
+					__xnetStreamHandleOpenTimer(pStream);
+				}
+				else if ( pStream && pStream->pEvents && pStream->pEvents->OnTimer ) {
+					pStream->pEvents->OnTimer(__xnetStreamOwner(pStream), pStream);
+				}
 				__xnetStreamReleaseAsyncHold(pStream);
 			}
 		} else if ( pEvent->iType == XNET_PORT_EVENT_ERROR ) {

@@ -1112,6 +1112,59 @@ static int __Test_FutureCore_Combinators(void)
 	xFutureRelease(pA);
 	xFutureRelease(pB);
 
+	// 已完成 source 再注册取消转发时，应当成为无副作用 no-op。
+	// 这个分支会临时给 target 加引用，必须在返回前释放干净。
+	pA = xFutureCreate();
+	pB = xFutureCreate();
+	pPromiseA = xPromiseCreate(pA);
+	pPromiseB = xPromiseCreate(pB);
+	if ( pA == NULL || pB == NULL || pPromiseA == NULL || pPromiseB == NULL ) {
+		if ( pPromiseA ) xPromiseDestroy(pPromiseA);
+		if ( pPromiseB ) xPromiseDestroy(pPromiseB);
+		if ( pA ) xFutureRelease(pA);
+		if ( pB ) xFutureRelease(pB);
+		return 684;
+	}
+	if ( !xPromiseResolve(pPromiseA, &iValueA) ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 685;
+	}
+	if ( !xFutureForwardCancelTo(pA, pB) ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 686;
+	}
+	if ( pB->iRefCount != 2 || xFutureState(pB) != XFUTURE_PENDING ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 687;
+	}
+	if ( xFutureRequestCancel(pA) || xFutureState(pB) != XFUTURE_PENDING ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 688;
+	}
+	if ( !xPromiseResolve(pPromiseB, &iValueB) || xFutureState(pB) != XFUTURE_RESOLVED || xFutureValue(pB) != &iValueB ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 689;
+	}
+	xPromiseDestroy(pPromiseA);
+	xPromiseDestroy(pPromiseB);
+	xFutureRelease(pA);
+	xFutureRelease(pB);
+
 	return 0;
 }
 

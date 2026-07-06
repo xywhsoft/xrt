@@ -2604,6 +2604,242 @@ XXAPI bool xvoBasicEqual(xvalue pLeft, xvalue pRight)
 }
 
 
+// 判断 xvalue 的语言级真假值
+XXAPI bool xvoValueTruthy(xvalue pVal)
+{
+	int iType = xvoType(pVal);
+	if ( iType == XVO_DT_NULL ) { return FALSE; }
+	if ( iType == XVO_DT_BOOL ) { return xvoGetBool(pVal); }
+	if ( iType == XVO_DT_INT ) { return xvoGetInt(pVal) != 0; }
+	if ( iType == XVO_DT_FLOAT ) { return xvoGetFloat(pVal) != 0.0; }
+	if ( iType == XVO_DT_TEXT ) {
+		str sText = xvoGetText(pVal);
+		return sText != NULL && sText[0] != 0;
+	}
+	if ( iType == XVO_DT_ARRAY ) { return xvoArrayItemCount(pVal) != 0; }
+	if ( iType == XVO_DT_LIST ) { return xvoListItemCount(pVal) != 0; }
+	if ( iType == XVO_DT_COLL ) { return xvoCollItemCount(pVal) != 0; }
+	if ( iType == XVO_DT_TABLE ) { return xvoTableItemCount(pVal) != 0; }
+	return TRUE;
+}
+
+
+// 安全按整数下标读取数组或列表
+XXAPI xvalue xvoIndexGetI64(xvalue pVal, int64 iIndex)
+{
+	int iType;
+	if ( pVal == NULL || xvoIsNull(pVal) || iIndex < 0 ) { return xvoCreateNull(); }
+	iType = xvoType(pVal);
+	if ( iType == XVO_DT_ARRAY ) { return xvoArrayGetValue(pVal, (uint32)iIndex); }
+	if ( iType == XVO_DT_LIST ) { return xvoListGetValue(pVal, iIndex); }
+	return xvoCreateNull();
+}
+
+
+// 安全按字符串键读取表
+XXAPI xvalue xvoIndexGetKey(xvalue pVal, str sKey, uint32 iKeySize)
+{
+	if ( pVal == NULL || xvoIsNull(pVal) || xvoType(pVal) != XVO_DT_TABLE ) { return xvoCreateNull(); }
+	return xvoTableGetValue(pVal, sKey, iKeySize);
+}
+
+
+// 安全按动态键读取容器
+XXAPI xvalue xvoIndexGetValue(xvalue pVal, xvalue pKey)
+{
+	if ( pKey != NULL && xvoType(pKey) == XVO_DT_TEXT ) {
+		return xvoIndexGetKey(pVal, xvoGetText(pKey), 0);
+	}
+	return xvoIndexGetI64(pVal, pKey != NULL ? xvoGetInt(pKey) : 0);
+}
+
+
+typedef struct __xvo_contains_ctx {
+	xvalue Item;
+	bool Found;
+} __xvo_contains_ctx;
+
+
+static bool __xvoListContainsEach(int64 iKey, xvalue* ppVal, __xvo_contains_ctx* pCtx)
+{
+	(void)iKey;
+	if ( pCtx != NULL && ppVal != NULL && xvoBasicEqual(*ppVal, pCtx->Item) ) {
+		pCtx->Found = TRUE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+// 判断容器或字符串是否包含指定值
+XXAPI bool xvoValueContains(xvalue pValues, xvalue pItem)
+{
+	int iValuesType = xvoType(pValues);
+	int iItemType = xvoType(pItem);
+	if ( iValuesType == XVO_DT_ARRAY ) {
+		uint32 i;
+		uint32 iCount = xvoArrayItemCount(pValues);
+		for ( i = 0; i < iCount; ++i ) {
+			if ( xvoBasicEqual(xvoArrayGetValue(pValues, i), pItem) ) { return TRUE; }
+		}
+		return FALSE;
+	}
+	if ( iValuesType == XVO_DT_LIST ) {
+		__xvo_contains_ctx ctx;
+		ctx.Item = pItem;
+		ctx.Found = FALSE;
+		if ( pValues->vList != NULL ) {
+			xrtListWalk(pValues->vList, (ptr)__xvoListContainsEach, &ctx);
+		}
+		return ctx.Found;
+	}
+	if ( iValuesType == XVO_DT_COLL ) { return xvoCollExists(pValues, pItem); }
+	if ( iValuesType == XVO_DT_TABLE ) {
+		return iItemType == XVO_DT_TEXT && xvoTableExists(pValues, xvoGetText(pItem), 0);
+	}
+	if ( iValuesType == XVO_DT_TEXT && iItemType == XVO_DT_TEXT ) {
+		return xrtFindStr(xvoGetText(pValues), 0, xvoGetText(pItem), 0, FALSE) != NULL;
+	}
+	return FALSE;
+}
+
+
+// 使用可变参数创建数组字面量
+XXAPI xvalue xvoCreateArrayArgs(uint32 iCount, ...)
+{
+	va_list ap;
+	uint32 i;
+	xvalue pRet = xvoCreateArray();
+	if ( pRet == NULL ) { return xvoCreateNull(); }
+	va_start(ap, iCount);
+	for ( i = 0; i < iCount; ++i ) {
+		xvalue pItem = va_arg(ap, xvalue);
+		if ( !xvoArrayAppendValue(pRet, pItem, TRUE) && pItem != NULL ) { xvoUnref(pItem); }
+	}
+	va_end(ap);
+	return pRet;
+}
+
+
+// 使用可变参数创建列表字面量，参数为 index/value 成对出现
+XXAPI xvalue xvoCreateListArgs(uint32 iCount, ...)
+{
+	va_list ap;
+	uint32 i;
+	xvalue pRet = xvoCreateList();
+	if ( pRet == NULL ) { return xvoCreateNull(); }
+	va_start(ap, iCount);
+	for ( i = 0; i < iCount; ++i ) {
+		int64 iIndex = va_arg(ap, int64);
+		xvalue pItem = va_arg(ap, xvalue);
+		if ( !xvoListSetValue(pRet, iIndex, pItem, TRUE) && pItem != NULL ) { xvoUnref(pItem); }
+	}
+	va_end(ap);
+	return pRet;
+}
+
+
+// 使用可变参数创建集合字面量
+XXAPI xvalue xvoCreateSetArgs(uint32 iCount, ...)
+{
+	va_list ap;
+	uint32 i;
+	xvalue pRet = xvoCreateSet();
+	if ( pRet == NULL ) { return xvoCreateNull(); }
+	va_start(ap, iCount);
+	for ( i = 0; i < iCount; ++i ) {
+		xvalue pItem = va_arg(ap, xvalue);
+		if ( !xvoCollSetValue(pRet, pItem, TRUE) && pItem != NULL ) { xvoUnref(pItem); }
+	}
+	va_end(ap);
+	return pRet;
+}
+
+
+// 使用可变参数创建表字面量，参数为 key/value 成对出现
+XXAPI xvalue xvoCreateTableArgs(uint32 iCount, ...)
+{
+	va_list ap;
+	uint32 i;
+	xvalue pRet = xvoCreateTable();
+	if ( pRet == NULL ) { return xvoCreateNull(); }
+	va_start(ap, iCount);
+	for ( i = 0; i < iCount; ++i ) {
+		str sKey = va_arg(ap, str);
+		xvalue pItem = va_arg(ap, xvalue);
+		if ( !xvoTableSetValue(pRet, sKey, 0, pItem, TRUE) && pItem != NULL ) { xvoUnref(pItem); }
+	}
+	va_end(ap);
+	return pRet;
+}
+
+
+static void __xvoPrintWrite(str sText, size_t iSize)
+{
+	if ( sText == NULL ) { return; }
+	if ( iSize == 0 ) { iSize = strlen(__xrt_cstr(sText)); }
+	if ( iSize == 0 ) { return; }
+	fwrite(sText, 1, iSize, stdout);
+}
+
+
+static void __xvoPrintOne(xvalue pVal)
+{
+	size_t iSize = 0;
+	uint32 iSize32 = 0;
+	str sText = NULL;
+	int iType = xvoType(pVal);
+	if ( iType == XVO_DT_NULL ) {
+		__xvoPrintWrite("null", 4);
+		return;
+	}
+	if ( iType == XVO_DT_TEXT ) {
+		__xvoPrintWrite(xvoGetText(pVal), 0);
+		return;
+	}
+	if ( iType == XVO_DT_ARRAY || iType == XVO_DT_TABLE ) {
+		#ifndef XRT_NO_JSON
+		sText = xrtStringifyJSON(pVal, FALSE, &iSize);
+		#else
+		sText = xvoToString(pVal, &iSize32);
+		iSize = (size_t)iSize32;
+		#endif
+	} else if ( iType == XVO_DT_LIST || iType == XVO_DT_COLL ) {
+		#ifndef XRT_NO_XSON
+		sText = xrtStringifyXSON(pVal, FALSE, 0, &iSize);
+		#else
+		sText = xvoToString(pVal, &iSize32);
+		iSize = (size_t)iSize32;
+		#endif
+	} else {
+		sText = xvoToString(pVal, &iSize32);
+		iSize = (size_t)iSize32;
+	}
+	if ( sText != NULL ) {
+		__xvoPrintWrite(sText, iSize);
+		xrtFree(sText);
+	}
+}
+
+
+// 按 xlang print 语义输出 xvalue；数组参数会按空格展开
+XXAPI void xvoPrint(xvalue pVal, bool bNewLine)
+{
+	if ( pVal != NULL && xvoType(pVal) == XVO_DT_ARRAY ) {
+		uint32 i;
+		uint32 iCount = xvoArrayItemCount(pVal);
+		for ( i = 0; i < iCount; ++i ) {
+			if ( i > 0 ) { __xvoPrintWrite(" ", 1); }
+			__xvoPrintOne(xvoArrayGetValue(pVal, i));
+		}
+	} else {
+		__xvoPrintOne(pVal);
+	}
+	if ( bNewLine ) { __xvoPrintWrite("\n", 1); }
+	fflush(stdout);
+}
+
+
 // ??????
 XXAPI uint32 xvoGetSize(xvalue pVal)
 {

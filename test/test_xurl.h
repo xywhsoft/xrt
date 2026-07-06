@@ -35,6 +35,7 @@ static bool Test_XUrlCore(void)
 	char sHost[128];
 	char sDecoded[64];
 	char sBuilt[2048];
+	str sAllocated = NULL;
 	size_t iDecodedLen = 0u;
 	size_t iBuiltLen = 0u;
 	xrtstrview tView;
@@ -194,6 +195,18 @@ static bool Test_XUrlCore(void)
 	bPass = bPass && !xrtPercentDecodeTo("%GG", 3u, sDecoded, sizeof(sDecoded), &iDecodedLen, false);
 	bPass = bPass && xrtPercentEncodeTo("alice bob/ok", 12u, sDecoded, sizeof(sDecoded), &iDecodedLen, true);
 	bPass = bPass && strcmp(sDecoded, "alice+bob%2Fok") == 0;
+	sAllocated = xrtPercentEncode("alice bob/ok", 12u, true, &iDecodedLen);
+	bPass = bPass && sAllocated != NULL && iDecodedLen == 14u && strcmp((char*)sAllocated, "alice+bob%2Fok") == 0;
+	xrtFree(sAllocated);
+	sAllocated = xrtPercentDecode("hello%20world%2Fok", 18u, false, &iDecodedLen);
+	bPass = bPass && sAllocated != NULL && iDecodedLen == 14u && strcmp((char*)sAllocated, "hello world/ok") == 0;
+	xrtFree(sAllocated);
+	sAllocated = xrtFormUrlEncode("alice bob/ok", 12u, &iDecodedLen);
+	bPass = bPass && sAllocated != NULL && iDecodedLen == 14u && strcmp((char*)sAllocated, "alice+bob%2Fok") == 0;
+	xrtFree(sAllocated);
+	sAllocated = xrtFormUrlDecode("alice+bob%2Fok", 14u, &iDecodedLen);
+	bPass = bPass && sAllocated != NULL && iDecodedLen == 12u && strcmp((char*)sAllocated, "alice bob/ok") == 0;
+	xrtFree(sAllocated);
 
 	bPass = bPass && xrtHttpHeaderSplitLine("Content-Type: application/json", &tHeader);
 	bPass = bPass && tHeader.tName.iLen == 12u && strncmp(tHeader.tName.sPtr, "Content-Type", 12u) == 0;
@@ -475,6 +488,12 @@ static bool Test_XUrlCore(void)
 	iBuiltLen = 0u;
 	bPass = bPass && xrtSetCookieBuildLineTo(&tSetCookie, sBuilt, sizeof(sBuilt), &iBuiltLen);
 	bPass = bPass && strcmp(sBuilt, "Set-Cookie: sid=abc123; Path=/; Secure; HttpOnly; SameParty; Priority=High\r\n") == 0;
+	tSetCookie.iMaxAge = 60;
+	tSetCookie.iSameSite = XRT_SAME_SITE_LAX;
+	tSetCookie.iFlags |= XRT_SET_COOKIE_F_HAS_MAX_AGE | XRT_SET_COOKIE_F_HAS_SAME_SITE;
+	iBuiltLen = 0u;
+	bPass = bPass && xrtSetCookieBuildTo(&tSetCookie, sBuilt, sizeof(sBuilt), &iBuiltLen);
+	bPass = bPass && strcmp(sBuilt, "sid=abc123; Path=/; Max-Age=60; SameSite=Lax; Secure; HttpOnly; SameParty; Priority=High") == 0;
 	iOffset = 0u;
 	memset(&tPart, 0, sizeof(tPart));
 	bPass = bPass && xrtMultipartNextN(sMultipartBody, sizeof(sMultipartBody) - 1u, "boundary123", 11u, &iOffset, &tPart);

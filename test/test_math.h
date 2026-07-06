@@ -67,6 +67,45 @@ void Test_Math(xrtGlobalData* xCore)
 	}
 	printf("\n");
 	
+	// 测试独立随机数对象
+	printf("=== 独立随机数对象 ===\n");
+	ptr pRandA = xrtRandCreate(123456, 9);
+	ptr pRandB = xrtRandCreate(123456, 9);
+	bool bObj32Ok = xrtRand32Obj(pRandA) == xrtRand32Obj(pRandB);
+	bool bObj64Ok = xrtRand64Obj(pRandA) == xrtRand64Obj(pRandB);
+	bool bObjRangeOk = TRUE;
+	for ( int i = 0; i < 16; i++ ) {
+		int a = xrtRandRangeObj(pRandA, 1, 6);
+		int b = xrtRandRangeObj(pRandB, 1, 6);
+		if ( a != b || a < 1 || a > 6 ) {
+			bObjRangeOk = FALSE;
+		}
+	}
+	xrtRandSeedObj(pRandA, 2026, 7);
+	xrtRandSeedObj(pRandB, 2026, 7);
+	str sRandA = xrtRandStrObj(pRandA, "ab", 0, 12);
+	str sRandB = xrtRandStrObj(pRandB, "ab", 0, 12);
+	bool bObjStrOk = xrtStrComp(sRandA, sRandB, 0, FALSE) == 0 && xrtStrByteLen(sRandA, 0) == 12;
+	printf("  xrtRand32Obj repeat  : %s\n", bObj32Ok ? "PASS" : "FAIL");
+	printf("  xrtRand64Obj repeat  : %s\n", bObj64Ok ? "PASS" : "FAIL");
+	printf("  xrtRandRangeObj bound: %s\n", bObjRangeOk ? "PASS" : "FAIL");
+	printf("  xrtRandStrObj repeat : %s\n", bObjStrOk ? "PASS" : "FAIL");
+	xrtFree(sRandA);
+	xrtFree(sRandB);
+	xrtRandDestroy(pRandA);
+	xrtRandDestroy(pRandB);
+	printf("\n");
+	
+	printf("=== xrtMath helpers ===\n");
+	printf("  xrtMathMin(-2, 5)      = %s\n", xrtMathMin(-2.0, 5.0) == -2.0 ? "PASS" : "FAIL");
+	printf("  xrtMathClamp(12,0,10)  = %s\n", xrtMathClamp(12.0, 0.0, 10.0) == 10.0 ? "PASS" : "FAIL");
+	printf("  xrtMathSign(-3)        = %s\n", xrtMathSign(-3.0) == -1 ? "PASS" : "FAIL");
+	printf("  xrtMathFract(-1.25)    = %s\n", fabs(xrtMathFract(-1.25) - 0.75) <= 1e-12 ? "PASS" : "FAIL");
+	printf("  xrtMathDeg(pi)         = %s\n", fabs(xrtMathDeg(XRT_MATH_PI) - 180.0) <= 1e-12 ? "PASS" : "FAIL");
+	printf("  xrtMathHypot(3,4)      = %s\n", fabs(xrtMathHypot(3.0, 4.0) - 5.0) <= 1e-12 ? "PASS" : "FAIL");
+	printf("  xrtMathIsNaN(nan)      = %s\n", xrtMathIsNaN(XRT_MATH_NAN) ? "PASS" : "FAIL");
+	printf("\n");
+	
 	printf("Math 库测试完成\n");
 }
 

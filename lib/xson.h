@@ -1617,6 +1617,23 @@ XXAPI xvalue xrtParseXSONEx(str sText, size_t iSize, uint32 iFlags)
 	return _xson_parse_text(sText, iSize, iFlags);
 }
 
+// 验证 XSON 文本是否合法，验证成功后立即释放解析结果
+XXAPI bool xrtXsonValid(str sText, size_t iSize, uint32 iFlags)
+{
+	xvalue pVal;
+
+	if ( sText == NULL ) {
+		return FALSE;
+	}
+	pVal = xrtParseXSONEx(sText, iSize, iFlags);
+	if ( xvoIsNull(pVal) ) {
+		xvoUnref(pVal);
+		return FALSE;
+	}
+	xvoUnref(pVal);
+	return TRUE;
+}
+
 XXAPI xvalue xrtParseXSON_File(str sFile)
 {
 	return xrtParseXSON_FileEx(sFile, 0);

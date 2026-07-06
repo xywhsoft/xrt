@@ -15,12 +15,18 @@ typedef struct {
 	volatile long iAsyncFutureCount;
 	volatile long iAsyncManualCount;
 	volatile long iAsyncCoroutineCount;
+	volatile long iBodyBeginCount;
+	volatile long iBodyChunkCount;
+	volatile long iBodyEndCount;
+	volatile long iBodySawStreamingFlag;
 	uint32 iLastMethod;
 	char aLastMethod[32];
 	char aLastPath[256];
 	char aLastQuery[256];
 	char aLastHost[256];
 	char aLastBody[256];
+	char aStreamBody[512];
+	size_t iStreamBodyLen;
 	#if !defined(XRT_NO_COROUTINE)
 		xcosched* pSched;
 	#endif
@@ -269,10 +275,32 @@ static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn
 		(void)xrtHttpdResponseSetHeader(pResp, "X-Server", "xhttpd-test");
 		return true;
 	}
+	if ( strcmp(pReq->sPath, "/many-headers") == 0 ) {
+		const char* sDyn = xrtHttpdRequestHeader(pReq, "X-Dyn-47");
+		uint32 iHeaderCount = xrtHttpdRequestHeaderCount(pReq);
+		const char* sLastName = iHeaderCount > 0u ? xrtHttpdRequestHeaderNameAt(pReq, iHeaderCount - 1u) : NULL;
+		const char* sLastValue = iHeaderCount > 0u ? xrtHttpdRequestHeaderValueAt(pReq, iHeaderCount - 1u) : NULL;
+		if ( iHeaderCount < 50u || !sLastName || !sLastValue ||
+			strcmp(sLastName, "X-Dyn-47") != 0 || strcmp(sLastValue, "v47") != 0 ||
+			xrtHttpdRequestHeaderNameAt(pReq, iHeaderCount) != NULL ||
+			xrtHttpdRequestHeaderValueAt(pReq, iHeaderCount) != NULL ) {
+			sDyn = NULL;
+		}
+		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
+		(void)xrtHttpdResponseSetBodyCopy(pResp, sDyn ? sDyn : "missing", sDyn ? strlen(sDyn) : 7u, "text/plain");
+		return true;
+	}
 	if ( strcmp(pReq->sPath, "/secure") == 0 ) {
 		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
 		(void)xrtHttpdResponseSetBodyCopy(pResp, "secure", 6, "text/plain");
 		return true;
+	}
+	if ( strcmp(pReq->sPath, "/append-body") == 0 ) {
+		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
+		if ( !xrtHttpdResponseSetBodyCopy(pResp, "alpha", 5u, "text/plain") ) { return false; }
+		if ( !xrtHttpdResponseAppendBodyCopy(pResp, "-", 1u) ) { return false; }
+		if ( !xrtHttpdResponseAppendBodyCopy(pResp, "beta", 4u) ) { return false; }
+		return pResp->iBodyLen == 10u && pResp->iBodyCap >= pResp->iBodyLen;
 	}
 	if ( strcmp(pReq->sPath, "/chunked") == 0 ) {
 		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
@@ -300,6 +328,95 @@ static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn
 		return true;
 	}
 	return false;
+}
+
+
+// 内部函数：__Test_XHttpdRecordStreamRequest
+static void __Test_XHttpdRecordStreamRequest(__test_xhttpd_ctx* pCtx, const xhttpdrequest* pReq)
+{
+	const char* sHost;
+	if ( !pCtx || !pReq ) return;
+	__Test_XHttpdAtomicInc(&pCtx->iRequestCount);
+	pCtx->iLastMethod = xrtHttpdRequestMethod(pReq);
+	__xhttpCopyToken(pCtx->aLastMethod, sizeof(pCtx->aLastMethod), pReq->sMethod);
+	__xhttpCopyToken(pCtx->aLastPath, sizeof(pCtx->aLastPath), pReq->sPath);
+	__xhttpCopyToken(pCtx->aLastQuery, sizeof(pCtx->aLastQuery), pReq->sQuery);
+	sHost = xrtHttpdRequestHeader(pReq, "Host");
+	if ( sHost ) __xhttpCopyToken(pCtx->aLastHost, sizeof(pCtx->aLastHost), sHost);
+	memset(pCtx->aLastBody, 0, sizeof(pCtx->aLastBody));
+	memset(pCtx->aStreamBody, 0, sizeof(pCtx->aStreamBody));
+	pCtx->iStreamBodyLen = 0u;
+	if ( (pReq->iFlags & XHTTPD_REQ_F_STREAMING) != 0u ) {
+		__Test_XHttpdAtomicInc(&pCtx->iBodySawStreamingFlag);
+	}
+}
+
+
+// 内部函数：__Test_XHttpdOnRequestBodyBegin
+static bool __Test_XHttpdOnRequestBodyBegin(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq)
+{
+	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
+	(void)pServer;
+	(void)pConn;
+	if ( !pCtx || !pReq ) return false;
+	__Test_XHttpdAtomicInc(&pCtx->iBodyBeginCount);
+	__Test_XHttpdRecordStreamRequest(pCtx, pReq);
+	return strcmp(pReq->sPath, "/stream-fixed-body") == 0 ||
+		strcmp(pReq->sPath, "/stream-chunked-body") == 0 ||
+		strcmp(pReq->sPath, "/stream-async-body") == 0 ||
+		strcmp(pReq->sPath, "/stream-callback-fail") == 0 ||
+		strcmp(pReq->sPath, "/stream-limit") == 0;
+}
+
+
+// 内部函数：__Test_XHttpdOnRequestBody
+static bool __Test_XHttpdOnRequestBody(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, const void* pData, size_t iLen)
+{
+	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
+	size_t iCopy;
+	(void)pServer;
+	(void)pConn;
+	if ( !pCtx || (!pData && iLen > 0u) ) return false;
+	if ( pReq && strcmp(pReq->sPath, "/stream-callback-fail") == 0 ) {
+		__Test_XHttpdAtomicInc(&pCtx->iBodyChunkCount);
+		return false;
+	}
+	__Test_XHttpdAtomicInc(&pCtx->iBodyChunkCount);
+	iCopy = iLen;
+	if ( iCopy > sizeof(pCtx->aStreamBody) - 1u - pCtx->iStreamBodyLen ) {
+		iCopy = sizeof(pCtx->aStreamBody) - 1u - pCtx->iStreamBodyLen;
+	}
+	if ( iCopy > 0u ) {
+		memcpy(pCtx->aStreamBody + pCtx->iStreamBodyLen, pData, iCopy);
+		pCtx->iStreamBodyLen += iCopy;
+		pCtx->aStreamBody[pCtx->iStreamBodyLen] = '\0';
+	}
+	return true;
+}
+
+
+// 内部函数：__Test_XHttpdOnRequestBodyEnd
+static bool __Test_XHttpdOnRequestBodyEnd(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp)
+{
+	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
+	size_t iCopy;
+	(void)pServer;
+	(void)pConn;
+	if ( !pCtx || !pReq || !pResp ) return false;
+	if ( strcmp(pReq->sPath, "/stream-fixed-body") != 0 &&
+		strcmp(pReq->sPath, "/stream-chunked-body") != 0 &&
+		strcmp(pReq->sPath, "/stream-limit") != 0 ) {
+		return false;
+	}
+	__Test_XHttpdAtomicInc(&pCtx->iBodyEndCount);
+	iCopy = pCtx->iStreamBodyLen;
+	if ( iCopy > sizeof(pCtx->aLastBody) - 1u ) { iCopy = sizeof(pCtx->aLastBody) - 1u; }
+	memcpy(pCtx->aLastBody, pCtx->aStreamBody, iCopy);
+	pCtx->aLastBody[iCopy] = '\0';
+	xrtHttpdResponseSetStatus(pResp, 200u, NULL);
+	(void)xrtHttpdResponseSetBodyCopy(pResp, pCtx->aStreamBody, pCtx->iStreamBodyLen, "text/plain");
+	(void)xrtHttpdResponseSetHeader(pResp, "X-Streamed", "yes");
+	return true;
 }
 
 
@@ -364,6 +481,31 @@ static xfuture* __Test_XHttpdOnRequestAsyncFuture(ptr pOwner, xhttpdserver* pSer
 
 
 // 内部函数：__Test_XHttpdAsyncManualProc
+static xfuture* __Test_XHttpdOnRequestBodyEndAsync(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq)
+{
+	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
+	__test_xhttpd_async_future_task* pTask;
+	size_t iCopy;
+	(void)pServer;
+	(void)pConn;
+	if ( !pCtx || !pReq || strcmp(pReq->sPath, "/stream-async-body") != 0 ) return NULL;
+	__Test_XHttpdAtomicInc(&pCtx->iBodyEndCount);
+	iCopy = pCtx->iStreamBodyLen;
+	if ( iCopy > sizeof(pCtx->aLastBody) - 1u ) { iCopy = sizeof(pCtx->aLastBody) - 1u; }
+	memcpy(pCtx->aLastBody, pCtx->aStreamBody, iCopy);
+	pCtx->aLastBody[iCopy] = '\0';
+	pTask = (__test_xhttpd_async_future_task*)XNET_ALLOC(sizeof(__test_xhttpd_async_future_task));
+	if ( !pTask ) return NULL;
+	memset(pTask, 0, sizeof(*pTask));
+	pTask->pCtx = pCtx;
+	pTask->iStatusCode = 203u;
+	pTask->iDelayMs = 25u;
+	__xhttpCopyToken(pTask->aHeaderValue, sizeof(pTask->aHeaderValue), "body-end");
+	snprintf(pTask->aBody, sizeof(pTask->aBody), "async-body:%s", pCtx->aStreamBody);
+	return xTaskRunThread(__Test_XHttpdAsyncFutureProc, pTask, 0);
+}
+
+
 static int32 __Test_XHttpdAsyncManualProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_xhttpd_async_manual_task* pTask = (__test_xhttpd_async_manual_task*)pArg;
@@ -526,6 +668,22 @@ void Test_XNet_Httpd(void)
 			pResp && pResp->iHeaderCount > 0 && xrtHttpResponseHeader(pResp, "X-Server") != NULL ? "PASS" : "FAIL");
 		printf("  HTTPD plain response date header : %s\n",
 			pResp && xrtHttpResponseHeader(pResp, "Date") != NULL ? "PASS" : "FAIL");
+		{
+			size_t iPlainBodyLen = 0u;
+			const void* pPlainBody = xrtHttpResponseBody(pResp, &iPlainBodyLen);
+			char* sPlainBody = xrtHttpResponseBodyTextCopy(pResp);
+			printf("  HTTPD client accessor status : %s\n",
+				xrtHttpResponseStatusCode(pResp) == 201u ? "PASS" : "FAIL");
+			printf("  HTTPD client accessor reason : %s\n",
+				xrtHttpResponseReason(pResp) != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD client accessor content-length : %s\n",
+				xrtHttpResponseContentLength(pResp) == 5 ? "PASS" : "FAIL");
+			printf("  HTTPD client accessor body : %s\n",
+				pPlainBody && iPlainBodyLen == 5u && memcmp(pPlainBody, "hello", 5u) == 0 ? "PASS" : "FAIL");
+			printf("  HTTPD client accessor body text copy : %s\n",
+				sPlainBody && strcmp(sPlainBody, "hello") == 0 ? "PASS" : "FAIL");
+			if ( sPlainBody ) { XNET_FREE(sPlainBody); }
+		}
 		printf("  HTTPD plain request callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iRequestCount, 1, 1000u) ? "PASS" : "FAIL");
 		printf("  HTTPD plain saw method : %s\n", strcmp(tCtx.aLastMethod, "POST") == 0 ? "PASS" : "FAIL");
 		printf("  HTTPD plain saw method id : %s\n", tCtx.iLastMethod == XHTTPD_METHOD_POST ? "PASS" : "FAIL");
@@ -536,7 +694,80 @@ void Test_XNet_Httpd(void)
 		printf("  HTTPD plain open callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iOpenCount, 1, 1000u) ? "PASS" : "FAIL");
 
 		{
+			xhttprequest* pHeapReq = xrtHttpRequestCreate();
+			xhttpresponse* pHeapResp = NULL;
+			xnet_result iHeapStatus = XRT_NET_ERROR;
+			printf("  HTTPD client heap request create : %s\n", pHeapReq != NULL ? "PASS" : "FAIL");
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/secure", (unsigned)xrtHttpdBoundPort(pServer));
+			if ( pHeapReq ) {
+				(void)xrtHttpRequestSetURL(pHeapReq, sURL);
+				pHeapResp = xrtHttpExecuteSync(pClientEngine, pHeapReq, &iHeapStatus);
+			}
+			printf("  HTTPD client heap request execute : %s\n",
+				pHeapResp != NULL && iHeapStatus == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  HTTPD client heap response status : %s\n",
+				xrtHttpResponseStatusCode(pHeapResp) == 200u ? "PASS" : "FAIL");
+			printf("  HTTPD client heap response body : %s\n",
+				pHeapResp && pHeapResp->iBodyLen == 6u && memcmp(pHeapResp->pBody, "secure", 6u) == 0 ? "PASS" : "FAIL");
+			if ( pHeapResp ) { xrtHttpResponseDestroy(pHeapResp); }
+			xrtHttpRequestDestroy(pHeapReq);
+		}
+
+		{
+			xhttprequest tAppendReq;
+			xnetfuture* pAppendFuture = NULL;
+			xhttpresponse* pAppendResp = NULL;
+			xnet_result iAppendStatus = XRT_NET_ERROR;
+			xrtHttpRequestInit(&tAppendReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/append-body", (unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tAppendReq, sURL);
+			pAppendFuture = (pClientEngine && pServer) ? xrtHttpExecuteAsync(pClientEngine, &tAppendReq) : NULL;
+			printf("  HTTPD append body response future create : %s\n", pAppendFuture != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD append body response future wait : %s\n",
+				pAppendFuture && (iAppendStatus = xrtNetFutureWait(pAppendFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
+			pAppendResp = (pAppendFuture && iAppendStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pAppendFuture) : NULL;
+			printf("  HTTPD append body response status : %s\n",
+				pAppendResp && pAppendResp->iStatusCode == 200u ? "PASS" : "FAIL");
+			printf("  HTTPD append body response body : %s\n",
+				pAppendResp && pAppendResp->iBodyLen == 10u && memcmp(pAppendResp->pBody, "alpha-beta", 10u) == 0 ? "PASS" : "FAIL");
+			if ( pAppendResp ) { xrtHttpResponseDestroy(pAppendResp); }
+			if ( pAppendFuture ) { xrtNetFutureDestroy(pAppendFuture); }
+			xrtHttpRequestUnit(&tAppendReq);
+		}
+
+		{
+			xhttprequest tHeadReq;
+			xnetfuture* pHeadFuture = NULL;
+			xhttpresponse* pHeadResp = NULL;
+			xnet_result iHeadStatus = XRT_NET_ERROR;
+			xrtHttpRequestInit(&tHeadReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/secure", (unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetMethod(&tHeadReq, "HEAD");
+			(void)xrtHttpRequestSetURL(&tHeadReq, sURL);
+			pHeadFuture = (pClientEngine && pServer) ? xrtHttpExecuteAsync(pClientEngine, &tHeadReq) : NULL;
+			printf("  HTTPD HEAD client future create : %s\n", pHeadFuture != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD HEAD client future wait : %s\n",
+				pHeadFuture && (iHeadStatus = xrtNetFutureWait(pHeadFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
+			pHeadResp = (pHeadFuture && iHeadStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pHeadFuture) : NULL;
+			printf("  HTTPD HEAD client status : %s\n", pHeadResp && pHeadResp->iStatusCode == 200u ? "PASS" : "FAIL");
+			printf("  HTTPD HEAD client content-length : %s\n",
+				xrtHttpResponseContentLength(pHeadResp) == 6 && xrtHttpResponseHeader(pHeadResp, "Content-Length") != NULL ? "PASS" : "FAIL");
+			{
+				char* sHeadBody = xrtHttpResponseBodyTextCopy(pHeadResp);
+				printf("  HTTPD HEAD client empty body : %s\n",
+					pHeadResp && sHeadBody != NULL && sHeadBody[0] == '\0' && pHeadResp->iBodyLen == 0u ? "PASS" : "FAIL");
+				if ( sHeadBody ) { XNET_FREE(sHeadBody); }
+			}
+			if ( pHeadResp ) { xrtHttpResponseDestroy(pHeadResp); }
+			if ( pHeadFuture ) { xrtNetFutureDestroy(pHeadFuture); }
+			xrtHttpRequestUnit(&tHeadReq);
+		}
+
+		{
 			xhttpdresponse tGuardResp;
+			char* pHeaderBytes = NULL;
+			size_t iHeaderBytesLen = 0u;
+			bool bManyHeadersOk = true;
 			xrtHttpdResponseInit(&tGuardResp);
 			printf("  HTTPD response rejects CRLF header value : %s\n",
 				!xrtHttpdResponseSetHeader(&tGuardResp, "X-Test", "ok\r\nX-Bad: yes") ? "PASS" : "FAIL");
@@ -546,6 +777,104 @@ void Test_XNet_Httpd(void)
 			printf("  HTTPD response rejects CRLF reason : %s\n",
 				tGuardResp.sReason[0] == '\0' ? "PASS" : "FAIL");
 			xrtHttpdResponseUnit(&tGuardResp);
+			xrtHttpdResponseInit(&tGuardResp);
+			for ( uint32 i = 0u; i < 48u; ++i ) {
+				char sName[32];
+				char sValue[32];
+				snprintf(sName, sizeof(sName), "X-Dyn-%u", (unsigned)i);
+				snprintf(sValue, sizeof(sValue), "v%u", (unsigned)i);
+				if ( !xrtHttpdResponseAddHeader(&tGuardResp, sName, sValue) ) {
+					bManyHeadersOk = false;
+					break;
+				}
+			}
+			printf("  HTTPD response dynamic header append : %s\n",
+				bManyHeadersOk && tGuardResp.iHeaderCount == 48u ? "PASS" : "FAIL");
+			printf("  HTTPD response dynamic header lookup : %s\n",
+				xrtHttpdResponseHeader(&tGuardResp, "X-Dyn-47") &&
+				strcmp(xrtHttpdResponseHeader(&tGuardResp, "X-Dyn-47"), "v47") == 0 ? "PASS" : "FAIL");
+			printf("  HTTPD response dynamic header serialize : %s\n",
+				__xhttpdBuildResponseBytes(&tGuardResp, &pHeaderBytes, &iHeaderBytesLen) &&
+				pHeaderBytes && strstr(pHeaderBytes, "X-Dyn-47: v47\r\n") != NULL ? "PASS" : "FAIL");
+			if ( pHeaderBytes ) { XNET_FREE(pHeaderBytes); }
+			xrtHttpdResponseUnit(&tGuardResp);
+		}
+
+		{
+			xhttpdrequest tBodyReq;
+			xhttpdresponse tBodyResp;
+			size_t iRespCapAfterReserve;
+			xrtHttpdRequestInit(&tBodyReq);
+			xrtHttpdResponseInit(&tBodyResp);
+			printf("  HTTPD request body reserve : %s\n",
+				xrtHttpdRequestReserveBody(&tBodyReq, 4u) && tBodyReq.iBodyCap >= 4u ? "PASS" : "FAIL");
+			printf("  HTTPD request body set copy : %s\n",
+				xrtHttpdRequestSetBodyCopy(&tBodyReq, "req", 3u) &&
+				tBodyReq.iBodyLen == 3u && tBodyReq.iBodyCap >= tBodyReq.iBodyLen &&
+				memcmp(tBodyReq.pBody, "req", 3u) == 0 && tBodyReq.pBody[3] == '\0' ? "PASS" : "FAIL");
+			printf("  HTTPD request body append copy : %s\n",
+				xrtHttpdRequestAppendBodyCopy(&tBodyReq, "-body", 5u) &&
+				tBodyReq.iBodyLen == 8u && tBodyReq.iBodyCap >= tBodyReq.iBodyLen &&
+				memcmp(tBodyReq.pBody, "req-body", 8u) == 0 && tBodyReq.pBody[8] == '\0' ? "PASS" : "FAIL");
+			printf("  HTTPD response body reserve : %s\n",
+				xrtHttpdResponseReserveBody(&tBodyResp, 8u) && tBodyResp.iBodyCap >= 8u ? "PASS" : "FAIL");
+			iRespCapAfterReserve = tBodyResp.iBodyCap;
+			printf("  HTTPD response body set copy : %s\n",
+				xrtHttpdResponseSetBodyCopy(&tBodyResp, "resp", 4u, "text/plain") &&
+				tBodyResp.iBodyLen == 4u && tBodyResp.iBodyCap >= tBodyResp.iBodyLen &&
+				tBodyResp.iBodyCap == iRespCapAfterReserve &&
+				memcmp(tBodyResp.pBody, "resp", 4u) == 0 && tBodyResp.pBody[4] == '\0' ? "PASS" : "FAIL");
+			printf("  HTTPD response body append copy : %s\n",
+				xrtHttpdResponseAppendBodyCopy(&tBodyResp, "-body", 5u) &&
+				tBodyResp.iBodyLen == 9u && tBodyResp.iBodyCap >= tBodyResp.iBodyLen &&
+				memcmp(tBodyResp.pBody, "resp-body", 9u) == 0 && tBodyResp.pBody[9] == '\0' ? "PASS" : "FAIL");
+			xrtHttpdRequestUnit(&tBodyReq);
+			xrtHttpdResponseUnit(&tBodyResp);
+		}
+
+		{
+			xsocket hManyHeaderSock = __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer));
+			char sManyHeaderReq[4096];
+			char sManyHeaderResp[1024];
+			size_t iManyHeaderLen = 0u;
+			size_t iManyHeaderRespLen = 0u;
+			bool bManyHeaderBuild = hManyHeaderSock != XNET_SOCKET_INVALID;
+			bool bManyHeaderSend = false;
+			bool bManyHeaderRecv = false;
+			bool bManyHeaderBody = false;
+			if ( bManyHeaderBuild ) {
+				int iWritten = snprintf(sManyHeaderReq, sizeof(sManyHeaderReq),
+					"GET /many-headers HTTP/1.1\r\nHost: 127.0.0.1:%u\r\nConnection: close\r\n",
+					(unsigned)xrtHttpdBoundPort(pServer));
+				bManyHeaderBuild = iWritten > 0 && (size_t)iWritten < sizeof(sManyHeaderReq);
+				if ( bManyHeaderBuild ) iManyHeaderLen = (size_t)iWritten;
+			}
+			for ( uint32 i = 0u; bManyHeaderBuild && i < 48u; ++i ) {
+				int iWritten = snprintf(sManyHeaderReq + iManyHeaderLen, sizeof(sManyHeaderReq) - iManyHeaderLen,
+					"X-Dyn-%u: v%u\r\n", (unsigned)i, (unsigned)i);
+				bManyHeaderBuild = iWritten > 0 && (size_t)iWritten < sizeof(sManyHeaderReq) - iManyHeaderLen;
+				if ( bManyHeaderBuild ) iManyHeaderLen += (size_t)iWritten;
+			}
+			if ( bManyHeaderBuild ) {
+				int iWritten = snprintf(sManyHeaderReq + iManyHeaderLen, sizeof(sManyHeaderReq) - iManyHeaderLen, "\r\n");
+				bManyHeaderBuild = iWritten > 0 && (size_t)iWritten < sizeof(sManyHeaderReq) - iManyHeaderLen;
+				if ( bManyHeaderBuild ) iManyHeaderLen += (size_t)iWritten;
+			}
+			printf("  HTTPD request dynamic header build : %s\n", bManyHeaderBuild ? "PASS" : "FAIL");
+			bManyHeaderSend = bManyHeaderBuild && __Test_XHttpdSendAll(hManyHeaderSock, sManyHeaderReq, iManyHeaderLen);
+			printf("  HTTPD request dynamic header send : %s\n", bManyHeaderSend ? "PASS" : "FAIL");
+			bManyHeaderRecv = bManyHeaderSend &&
+				__Test_XHttpdRecvResponse(hManyHeaderSock, sManyHeaderResp, sizeof(sManyHeaderResp), &iManyHeaderRespLen, 3000u);
+			printf("  HTTPD request dynamic header recv : %s\n", bManyHeaderRecv ? "PASS" : "FAIL");
+			if ( bManyHeaderRecv ) {
+				char* sBody = strstr(sManyHeaderResp, "\r\n\r\n");
+				if ( sBody ) {
+					sBody += 4;
+					bManyHeaderBody = strncmp(sBody, "v47", 3u) == 0;
+				}
+			}
+			printf("  HTTPD request dynamic header lookup : %s\n", bManyHeaderBody ? "PASS" : "FAIL");
+			__Test_XHttpdCloseSocket(hManyHeaderSock);
 		}
 
 		{
@@ -720,27 +1049,22 @@ void Test_XNet_Httpd(void)
 
 		{
 			xsocket hRaw = XNET_SOCKET_INVALID;
-			char sReq[4096];
+			char sReq[512];
 			char aResp[2048];
-			size_t iReqLen = 0u;
 			size_t iRespLen = 0u;
 			long iReqBefore = __Test_XHttpdAtomicLoad(&tCtx.iRequestCount);
 			hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
-			iReqLen = (size_t)snprintf(sReq, sizeof(sReq),
-				"GET /echo?mode=too-many-headers HTTP/1.1\r\n"
-				"Host: 127.0.0.1:%u\r\n",
+			snprintf(sReq, sizeof(sReq),
+				"GET /echo?mode=bad-header HTTP/1.1\r\n"
+				"Host: 127.0.0.1:%u\r\n"
+				"Bad Header Without Colon\r\n"
+				"Connection: close\r\n\r\n",
 				(unsigned)xrtHttpdBoundPort(pServer));
-			for ( uint32 i = 0; i < XHTTPD_MAX_HEADERS && iReqLen + 32u < sizeof(sReq); ++i ) {
-				iReqLen += (size_t)snprintf(sReq + iReqLen, sizeof(sReq) - iReqLen, "X-H%u: v\r\n", (unsigned)i);
-			}
-			if ( iReqLen + 64u < sizeof(sReq) ) {
-				iReqLen += (size_t)snprintf(sReq + iReqLen, sizeof(sReq) - iReqLen, "Authorization: bearer-token\r\nConnection: close\r\n\r\n");
-			}
-			printf("  HTTPD header limit raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
-			printf("  HTTPD header limit request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, iReqLen) ? "PASS" : "FAIL");
-			printf("  HTTPD header limit response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 2000u) ? "PASS" : "FAIL");
-			printf("  HTTPD header limit status : %s\n", strstr(aResp, "HTTP/1.1 400") != NULL ? "PASS" : "FAIL");
-			printf("  HTTPD header limit skips callback : %s\n",
+			printf("  HTTPD bad header raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+			printf("  HTTPD bad header request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
+			printf("  HTTPD bad header response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 2000u) ? "PASS" : "FAIL");
+			printf("  HTTPD bad header status : %s\n", strstr(aResp, "HTTP/1.1 400") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD bad header skips callback : %s\n",
 				__Test_XHttpdAtomicLoad(&tCtx.iRequestCount) == iReqBefore ? "PASS" : "FAIL");
 			__Test_XHttpdCloseSocket(hRaw);
 		}
@@ -777,6 +1101,254 @@ void Test_XNet_Httpd(void)
 			xrtNetEngineStop(pClientEngine);
 			xrtNetEngineDestroy(pClientEngine);
 		}
+		if ( pServerEngine ) {
+			xrtNetEngineStop(pServerEngine);
+			xrtNetEngineDestroy(pServerEngine);
+		}
+	}
+
+	{
+		__test_xhttpd_ctx tCtx;
+		xhttpdevents tEvents;
+		xhttpdconfig tSrvCfg;
+		xnetengineconfig tEngineCfg;
+		xnetengine* pServerEngine = NULL;
+		xhttpdserver* pServer = NULL;
+		xsocket hRaw = XNET_SOCKET_INVALID;
+		char sReq[512];
+		char aResp[2048];
+		size_t iRespLen = 0u;
+
+		memset(&tCtx, 0, sizeof(tCtx));
+		memset(&tEvents, 0, sizeof(tEvents));
+		tEvents.OnRequestBodyBegin = __Test_XHttpdOnRequestBodyBegin;
+		tEvents.OnRequestBody = __Test_XHttpdOnRequestBody;
+		tEvents.OnRequestBodyEnd = __Test_XHttpdOnRequestBodyEnd;
+		tEvents.OnRequestBodyEndAsync = __Test_XHttpdOnRequestBodyEndAsync;
+		tEvents.OnClose = __Test_XHttpdOnClose;
+		tEvents.OnError = __Test_XHttpdOnError;
+
+		xrtNetEngineConfigInit(&tEngineCfg);
+		tEngineCfg.iWorkerCount = 1;
+		pServerEngine = xrtNetEngineCreate(&tEngineCfg);
+		printf("  HTTPD body stream failure engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
+		if ( pServerEngine ) printf("  HTTPD body stream failure engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		xrtHttpdConfigInit(&tSrvCfg);
+		tSrvCfg.iBodyLimit = 1024u;
+		(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
+		pServer = pServerEngine ? xrtHttpdCreate(pServerEngine, &tSrvCfg, &tEvents, &tCtx) : NULL;
+		printf("  HTTPD body stream failure server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
+		printf("  HTTPD body stream failure server start : %s\n", pServer && xrtHttpdStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+		snprintf(sReq, sizeof(sReq),
+			"POST /stream-callback-fail HTTP/1.1\r\n"
+			"Host: 127.0.0.1:%u\r\n"
+			"Connection: close\r\n"
+			"Transfer-Encoding: chunked\r\n\r\n"
+			"4\r\nfail\r\n0\r\n\r\n",
+			(unsigned)xrtHttpdBoundPort(pServer));
+		printf("  HTTPD body stream callback fail raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+		printf("  HTTPD body stream callback fail request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
+		printf("  HTTPD body stream callback fail response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 3000u) ? "PASS" : "FAIL");
+		printf("  HTTPD body stream callback fail status : %s\n", strstr(aResp, "HTTP/1.1 500") != NULL ? "PASS" : "FAIL");
+		printf("  HTTPD body stream callback fail skips end : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iBodyEndCount) == 0 ? "PASS" : "FAIL");
+		__Test_XHttpdCloseSocket(hRaw);
+
+		hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+		memset(aResp, 0, sizeof(aResp));
+		iRespLen = 0u;
+		snprintf(sReq, sizeof(sReq),
+			"POST /stream-chunked-body HTTP/1.1\r\n"
+			"Host: 127.0.0.1:%u\r\n"
+			"Connection: close\r\n"
+			"Transfer-Encoding: chunked\r\n\r\n"
+			"Z\r\nbad\r\n",
+			(unsigned)xrtHttpdBoundPort(pServer));
+		printf("  HTTPD body stream bad chunk raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+		printf("  HTTPD body stream bad chunk request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
+		printf("  HTTPD body stream bad chunk response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 3000u) ? "PASS" : "FAIL");
+		printf("  HTTPD body stream bad chunk status : %s\n", strstr(aResp, "HTTP/1.1 400") != NULL ? "PASS" : "FAIL");
+		__Test_XHttpdCloseSocket(hRaw);
+
+		if ( pServer ) { xrtHttpdDestroy(pServer); }
+		if ( pServerEngine ) {
+			xrtNetEngineStop(pServerEngine);
+			xrtNetEngineDestroy(pServerEngine);
+		}
+	}
+
+	{
+		__test_xhttpd_ctx tCtx;
+		xhttpdevents tEvents;
+		xhttpdconfig tSrvCfg;
+		xnetengineconfig tEngineCfg;
+		xnetengine* pServerEngine = NULL;
+		xhttpdserver* pServer = NULL;
+
+		memset(&tCtx, 0, sizeof(tCtx));
+		memset(&tEvents, 0, sizeof(tEvents));
+		tEvents.OnOpen = __Test_XHttpdOnOpen;
+		tEvents.OnRequestBodyBegin = __Test_XHttpdOnRequestBodyBegin;
+		tEvents.OnRequestBody = __Test_XHttpdOnRequestBody;
+		tEvents.OnRequestBodyEnd = __Test_XHttpdOnRequestBodyEnd;
+		tEvents.OnRequestBodyEndAsync = __Test_XHttpdOnRequestBodyEndAsync;
+		tEvents.OnClose = __Test_XHttpdOnClose;
+		tEvents.OnError = __Test_XHttpdOnError;
+
+		xrtNetEngineConfigInit(&tEngineCfg);
+		tEngineCfg.iWorkerCount = 1;
+		pServerEngine = xrtNetEngineCreate(&tEngineCfg);
+		printf("  HTTPD body stream engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
+		if ( pServerEngine ) printf("  HTTPD body stream engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		xrtHttpdConfigInit(&tSrvCfg);
+		tSrvCfg.iBodyLimit = 64u;
+		(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
+		pServer = pServerEngine ? xrtHttpdCreate(pServerEngine, &tSrvCfg, &tEvents, &tCtx) : NULL;
+		printf("  HTTPD body stream server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
+		printf("  HTTPD body stream server start : %s\n", pServer && xrtHttpdStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		{
+			xsocket hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+			char sHead[512];
+			char aResp[2048];
+			size_t iRespLen = 0u;
+			long iChunkBefore = __Test_XHttpdAtomicLoad(&tCtx.iBodyChunkCount);
+			snprintf(sHead, sizeof(sHead),
+				"POST /stream-fixed-body?kind=fixed HTTP/1.1\r\n"
+				"Host: 127.0.0.1:%u\r\n"
+				"Connection: close\r\n"
+				"Content-Type: text/plain\r\n"
+				"Content-Length: 10\r\n\r\n",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			printf("  HTTPD fixed body stream raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+			printf("  HTTPD fixed body stream head send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sHead, strlen(sHead)) ? "PASS" : "FAIL");
+			printf("  HTTPD fixed body stream part #1 send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, "alpha", 5u) ? "PASS" : "FAIL");
+			__Test_XHttpdSleepMs(60u);
+			printf("  HTTPD fixed body stream part #2 send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, "-beta", 5u) ? "PASS" : "FAIL");
+			printf("  HTTPD fixed body stream response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 3000u) ? "PASS" : "FAIL");
+			printf("  HTTPD fixed body stream status : %s\n", strstr(aResp, "HTTP/1.1 200") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD fixed body stream body : %s\n", strstr(aResp, "\r\n\r\nalpha-beta") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD fixed body stream callbacks : %s\n",
+				__Test_XHttpdAtomicLoad(&tCtx.iBodyBeginCount) >= 1 &&
+				__Test_XHttpdAtomicLoad(&tCtx.iBodyEndCount) >= 1 &&
+				__Test_XHttpdAtomicLoad(&tCtx.iBodyChunkCount) >= iChunkBefore + 2 ? "PASS" : "FAIL");
+			printf("  HTTPD fixed body stream flag : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iBodySawStreamingFlag) >= 1 ? "PASS" : "FAIL");
+			printf("  HTTPD fixed body stream request meta : %s\n",
+				strcmp(tCtx.aLastPath, "/stream-fixed-body") == 0 &&
+				strcmp(tCtx.aLastQuery, "kind=fixed") == 0 &&
+				strcmp(tCtx.aLastBody, "alpha-beta") == 0 ? "PASS" : "FAIL");
+			__Test_XHttpdCloseSocket(hRaw);
+		}
+
+		{
+			xsocket hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+			char sHead[512];
+			char aResp[2048];
+			size_t iRespLen = 0u;
+			long iEndBefore = __Test_XHttpdAtomicLoad(&tCtx.iBodyEndCount);
+			snprintf(sHead, sizeof(sHead),
+				"POST /stream-chunked-body HTTP/1.1\r\n"
+				"Host: 127.0.0.1:%u\r\n"
+				"Connection: close\r\n"
+				"Transfer-Encoding: chunked\r\n\r\n",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			printf("  HTTPD chunked body stream raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+			printf("  HTTPD chunked body stream head send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sHead, strlen(sHead)) ? "PASS" : "FAIL");
+			printf("  HTTPD chunked body stream chunk #1 send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, "5\r\nhello\r\n", 10u) ? "PASS" : "FAIL");
+			__Test_XHttpdSleepMs(60u);
+			printf("  HTTPD chunked body stream chunk #2 send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, "6\r\n-world\r\n0\r\n\r\n", 16u) ? "PASS" : "FAIL");
+			printf("  HTTPD chunked body stream response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 3000u) ? "PASS" : "FAIL");
+			printf("  HTTPD chunked body stream status : %s\n", strstr(aResp, "HTTP/1.1 200") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD chunked body stream body : %s\n", strstr(aResp, "\r\n\r\nhello-world") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD chunked body stream end callback : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iBodyEndCount) >= iEndBefore + 1 ? "PASS" : "FAIL");
+			__Test_XHttpdCloseSocket(hRaw);
+		}
+
+		{
+			xsocket hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+			char sHead[512];
+			char aResp[2048];
+			size_t iRespLen = 0u;
+			long iAsyncBefore = __Test_XHttpdAtomicLoad(&tCtx.iAsyncFutureCount);
+			snprintf(sHead, sizeof(sHead),
+				"POST /stream-async-body HTTP/1.1\r\n"
+				"Host: 127.0.0.1:%u\r\n"
+				"Connection: close\r\n"
+				"Content-Type: text/plain\r\n"
+				"Content-Length: 11\r\n\r\n",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			printf("  HTTPD async body stream raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+			printf("  HTTPD async body stream head send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sHead, strlen(sHead)) ? "PASS" : "FAIL");
+			printf("  HTTPD async body stream part #1 send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, "gamma", 5u) ? "PASS" : "FAIL");
+			__Test_XHttpdSleepMs(60u);
+			printf("  HTTPD async body stream part #2 send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, "-delta", 6u) ? "PASS" : "FAIL");
+			printf("  HTTPD async body stream response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 3000u) ? "PASS" : "FAIL");
+			printf("  HTTPD async body stream status : %s\n", strstr(aResp, "HTTP/1.1 203") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD async body stream body : %s\n", strstr(aResp, "\r\n\r\nasync-body:gamma-delta") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD async body stream header : %s\n", strstr(aResp, "\r\nX-Async: body-end\r\n") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD async body stream future count : %s\n", __Test_XHttpdWaitMin(&tCtx.iAsyncFutureCount, iAsyncBefore + 1, 1000u) ? "PASS" : "FAIL");
+			__Test_XHttpdCloseSocket(hRaw);
+		}
+
+		if ( pServer ) { xrtHttpdDestroy(pServer); }
+		if ( pServerEngine ) {
+			xrtNetEngineStop(pServerEngine);
+			xrtNetEngineDestroy(pServerEngine);
+		}
+	}
+
+	{
+		__test_xhttpd_ctx tCtx;
+		xhttpdevents tEvents;
+		xhttpdconfig tSrvCfg;
+		xnetengineconfig tEngineCfg;
+		xnetengine* pServerEngine = NULL;
+		xhttpdserver* pServer = NULL;
+		xsocket hRaw = XNET_SOCKET_INVALID;
+		char sReq[512];
+		char aResp[2048];
+		size_t iRespLen = 0u;
+
+		memset(&tCtx, 0, sizeof(tCtx));
+		memset(&tEvents, 0, sizeof(tEvents));
+		tEvents.OnRequestBodyBegin = __Test_XHttpdOnRequestBodyBegin;
+		tEvents.OnRequestBody = __Test_XHttpdOnRequestBody;
+		tEvents.OnRequestBodyEnd = __Test_XHttpdOnRequestBodyEnd;
+		tEvents.OnClose = __Test_XHttpdOnClose;
+		tEvents.OnError = __Test_XHttpdOnError;
+
+		xrtNetEngineConfigInit(&tEngineCfg);
+		tEngineCfg.iWorkerCount = 1;
+		pServerEngine = xrtNetEngineCreate(&tEngineCfg);
+		printf("  HTTPD body stream limit engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
+		if ( pServerEngine ) printf("  HTTPD body stream limit engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		xrtHttpdConfigInit(&tSrvCfg);
+		tSrvCfg.iBodyLimit = 4u;
+		(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
+		pServer = pServerEngine ? xrtHttpdCreate(pServerEngine, &tSrvCfg, &tEvents, &tCtx) : NULL;
+		printf("  HTTPD body stream limit server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
+		printf("  HTTPD body stream limit server start : %s\n", pServer && xrtHttpdStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+		snprintf(sReq, sizeof(sReq),
+			"POST /stream-limit HTTP/1.1\r\n"
+			"Host: 127.0.0.1:%u\r\n"
+			"Connection: close\r\n"
+			"Transfer-Encoding: chunked\r\n\r\n"
+			"8\r\n12345678\r\n0\r\n\r\n",
+			(unsigned)xrtHttpdBoundPort(pServer));
+		printf("  HTTPD body stream limit raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+		printf("  HTTPD body stream limit request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
+		printf("  HTTPD body stream limit response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 3000u) ? "PASS" : "FAIL");
+		printf("  HTTPD body stream limit status : %s\n", strstr(aResp, "HTTP/1.1 413") != NULL ? "PASS" : "FAIL");
+		printf("  HTTPD body stream limit skips end : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iBodyEndCount) == 0 ? "PASS" : "FAIL");
+		__Test_XHttpdCloseSocket(hRaw);
+
+		if ( pServer ) { xrtHttpdDestroy(pServer); }
 		if ( pServerEngine ) {
 			xrtNetEngineStop(pServerEngine);
 			xrtNetEngineDestroy(pServerEngine);

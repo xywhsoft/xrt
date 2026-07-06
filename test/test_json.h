@@ -1,6 +1,16 @@
 
 
 
+static void __Test_JSONRequire(int ok, const char* sMsg)
+{
+	if ( !ok ) {
+		fprintf(stderr, "[json] FAIL: %s\n", sMsg ? sMsg : "(no message)");
+		exit(1);
+	}
+}
+
+#define __TEST_JSON_REQUIRE(cond, msg)	do { __Test_JSONRequire((cond), (msg)); } while (0)
+
 // JSON 库测试
 void Test_JSON(xrtGlobalData* xCore)
 {
@@ -171,6 +181,8 @@ void Test_JSON(xrtGlobalData* xCore)
 	printf("\nValue test subject 11 : JSON error handling\n\n");
 	str sInvalidJSON = "{invalid json}";
 	printf("Invalid JSON: %s\n", sInvalidJSON);
+	__TEST_JSON_REQUIRE(xrtJsonValid("{\"ok\":true}", 0) == TRUE, "valid JSON should pass");
+	__TEST_JSON_REQUIRE(xrtJsonValid(sInvalidJSON, 0) == FALSE, "invalid JSON should fail validation");
 	xvalue invalid = xrtParseJSON(sInvalidJSON, 0);
 	if ( xvoIsNull(invalid) ) {
 		printf("✓ Correctly returned null for invalid JSON\n");

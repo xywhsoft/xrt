@@ -123,3 +123,59 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 }
 
 
+// 通过原始内存创建 Buffer
+XXAPI xbuffer xrtBufferFrom(ptr pData, size_t iSize)
+{
+	xbuffer pBuf;
+	if ( pData == NULL && iSize != 0u ) { return NULL; }
+	if ( iSize > 0xFFFFFFFFu ) { return NULL; }
+	pBuf = xrtBufferCreate(0u);
+	if ( pBuf == NULL ) { return NULL; }
+	if ( iSize != 0u && !xrtBufferAppend(pBuf, pData, (uint32)iSize, XBUF_BINARY) ) {
+		xrtBufferDestroy(pBuf);
+		return NULL;
+	}
+	return pBuf;
+}
+
+
+// 将 HEX 文本解码为 Buffer
+XXAPI xbuffer xrtBufferFromHex(str sText, size_t iSize)
+{
+	ptr pData;
+	xbuffer pBuf;
+	size_t iDataSize;
+	if ( sText == NULL ) { return NULL; }
+	if ( iSize == 0u ) { iSize = strlen(__xrt_cstr(sText)); }
+	if ( iSize == 0u ) { return xrtBufferCreate(0u); }
+	if ( (iSize & 1u) != 0u ) { return NULL; }
+	pData = xrtHexDecode(sText, iSize);
+	if ( pData == NULL || pData == xCore.sNull ) { return NULL; }
+	iDataSize = iSize / 2u;
+	pBuf = xrtBufferFrom(pData, iDataSize);
+	xrtFree(pData);
+	return pBuf;
+}
+
+
+// 将 Base64 文本解码为 Buffer
+XXAPI xbuffer xrtBufferFromBase64(str sText, size_t iSize, str sTable)
+{
+	ptr pData;
+	xbuffer pBuf;
+	size_t iDataSize;
+	if ( sText == NULL ) { return NULL; }
+	if ( iSize == 0u ) { iSize = strlen(__xrt_cstr(sText)); }
+	if ( iSize == 0u ) { return xrtBufferCreate(0u); }
+	if ( (iSize % 4u) != 0u ) { return NULL; }
+	iDataSize = (iSize / 4u) * 3u;
+	if ( sText[iSize - 1u] == '=' ) { iDataSize--; }
+	if ( sText[iSize - 2u] == '=' ) { iDataSize--; }
+	pData = xrtBase64Decode(sText, iSize, sTable);
+	if ( pData == NULL || pData == xCore.sNull ) { return NULL; }
+	pBuf = xrtBufferFrom(pData, iDataSize);
+	xrtFree(pData);
+	return pBuf;
+}
+
+

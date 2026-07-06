@@ -577,6 +577,44 @@ XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t
 // 算法说明 - 解析 RFC 5987 扩展值格式 "charset'language'encoded-value"
 //   通过两个单引号 ''' 将字符串分为 charset、language、percent-encoded-value 三部分
 //   charset 必须为合法 Token 字符, encoded-value 由百分号编码组成
+// URL 百分号编码（返回值需使用 xrtFree 释放）
+XXAPI str xrtPercentEncode(const char* sText, size_t iLen, bool bSpaceAsPlus, size_t* pOutLen)
+{
+	size_t iCap;
+	size_t iOutLen = 0u;
+	str sOut;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sText == NULL ) { return NULL; }
+	iCap = iLen * 3u + 1u;
+	sOut = (str)xrtMalloc(iCap);
+	if ( sOut == NULL ) { return NULL; }
+	if ( !xrtPercentEncodeTo(sText, iLen, (char*)sOut, iCap, &iOutLen, bSpaceAsPlus) ) {
+		xrtFree(sOut);
+		return NULL;
+	}
+	if ( pOutLen ) { *pOutLen = iOutLen; }
+	return sOut;
+}
+
+
+// URL 百分号解码（返回值需使用 xrtFree 释放）
+XXAPI str xrtPercentDecode(const char* sText, size_t iLen, bool bPlusAsSpace, size_t* pOutLen)
+{
+	size_t iOutLen = 0u;
+	str sOut;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sText == NULL ) { return NULL; }
+	sOut = (str)xrtMalloc(iLen + 1u);
+	if ( sOut == NULL ) { return NULL; }
+	if ( !xrtPercentDecodeTo(sText, iLen, (char*)sOut, iLen + 1u, &iOutLen, bPlusAsSpace) ) {
+		xrtFree(sOut);
+		return NULL;
+	}
+	if ( pOutLen ) { *pOutLen = iOutLen; }
+	return sOut;
+}
+
+
 static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset, xrtstrview* pLanguage, xrtstrview* pEncoded)
 {
 	size_t iFirstTick = (size_t)-1;
@@ -2120,6 +2158,20 @@ XXAPI bool xrtFormUrlEncodedAppendFieldTo(char* sOut, size_t iOutCap, size_t* pO
 
 
 // 追加表单 URL 编码 field
+// 表单 URL 编码（返回值需使用 xrtFree 释放）
+XXAPI str xrtFormUrlEncode(const char* sText, size_t iLen, size_t* pOutLen)
+{
+	return xrtPercentEncode(sText, iLen, true, pOutLen);
+}
+
+
+// 表单 URL 解码（返回值需使用 xrtFree 释放）
+XXAPI str xrtFormUrlDecode(const char* sText, size_t iLen, size_t* pOutLen)
+{
+	return xrtPercentDecode(sText, iLen, true, pOutLen);
+}
+
+
 XXAPI bool xrtFormUrlEncodedAppendField(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
 	if ( sName == NULL ) { return false; }
@@ -2180,7 +2232,7 @@ XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size
 		char sNum[32];
 		int iLen = snprintf(sNum, sizeof(sNum), "%d", (int)pCookie->iMaxAge);
 		if ( iLen <= 0 || (size_t)iLen >= sizeof(sNum) ) { return false; }
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Max-Age=", 11u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Max-Age=", 10u) ) { return false; }
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sNum, (size_t)iLen) ) { return false; }
 	}
 	// 步骤: 写入 SameSite 属性(Lax/Strict/None)
@@ -2190,7 +2242,7 @@ XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size
 		else if ( pCookie->iSameSite == XRT_SAME_SITE_STRICT ) { sSameSite = "Strict"; }
 		else if ( pCookie->iSameSite == XRT_SAME_SITE_NONE ) { sSameSite = "None"; }
 		else { return false; }
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; SameSite=", 12u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; SameSite=", 11u) ) { return false; }
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sSameSite, strlen(sSameSite)) ) { return false; }
 	}
 	// 步骤: 写入布尔属性 (Secure, HttpOnly, Partitioned, SameParty)

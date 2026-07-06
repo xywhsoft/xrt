@@ -201,6 +201,11 @@ static int __xrtTestSubprocessHelperMain(int argc, char** argv)
 		fflush(stderr);
 		return 7;
 	}
+	if ( strcmp(argv[0], "emit_ok") == 0 ) {
+		fprintf(stdout, "pipe-ok\n");
+		fflush(stdout);
+		return 0;
+	}
 	if ( strcmp(argv[0], "stream") == 0 ) {
 		fprintf(stdout, "stream-out-a\n");
 		fflush(stdout);
@@ -297,6 +302,7 @@ static int Test_OS(xrtGlobalData* xCore)
 
 	xprocessconfig tConfig;
 	xprocessresult tResult;
+	xprocesspipelineresult tPipelineResult;
 	xprocess* pProcess = NULL;
 	xprocessexitinfo tExitInfo;
 	xprocessreadinfo tReadInfo;
@@ -377,6 +383,45 @@ static int Test_OS(xrtGlobalData* xCore)
 		}
 		xrtFree(pStdout);
 		xrtProcessDestroy(pProcess);
+	}
+
+	{
+		static const char sInput[] = "run-input\n";
+		str arrArgs[] = { (str)"__subprocess_helper", (str)"stdin_echo" };
+
+		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 2u);
+		if ( !xrtProcessRun(&tConfig, sInput, sizeof(sInput) - 1u, &tResult, 3000u) ) {
+			return 6066;
+		}
+		__xrtTestOSNormalizeText((char*)tResult.pStdout, sNormalized, sizeof(sNormalized));
+		if ( tResult.iExitCode != 0 || strcmp(sNormalized, sInput) != 0 ) {
+			xrtProcessResultUnit(&tResult);
+			return 6067;
+		}
+		xrtProcessResultUnit(&tResult);
+	}
+
+	{
+		str arrArgsA[] = { (str)"__subprocess_helper", (str)"emit_ok" };
+		str arrArgsB[] = { (str)"__subprocess_helper", (str)"stdin_echo" };
+		xprocessconfig arrPipe[2];
+
+		__xrtTestOSPrepareSelfConfig(xCore, &arrPipe[0], arrArgsA, 2u);
+		__xrtTestOSPrepareSelfConfig(xCore, &arrPipe[1], arrArgsB, 2u);
+		memset(&tPipelineResult, 0, sizeof(tPipelineResult));
+		if ( !xrtProcessPipelineRun(arrPipe, 2u, &tPipelineResult, 3000u) ) {
+			xrtProcessPipelineResultUnit(&tPipelineResult);
+			return 6068;
+		}
+		__xrtTestOSNormalizeText((char*)tPipelineResult.pStdout, sNormalized, sizeof(sNormalized));
+		if ( !tPipelineResult.bSuccess ||
+			 tPipelineResult.iCompletedCount != 2u ||
+			 tPipelineResult.iFailedIndex != -1 ||
+			 strcmp(sNormalized, "pipe-ok\n") != 0 ) {
+			xrtProcessPipelineResultUnit(&tPipelineResult);
+			return 6069;
+		}
+		xrtProcessPipelineResultUnit(&tPipelineResult);
 	}
 
 	{

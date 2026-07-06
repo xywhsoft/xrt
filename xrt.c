@@ -379,6 +379,9 @@ static void __xrtRuntimeFinalizeLocked();
 	#ifndef XRT_NO_XHTTPD
 		#include "lib/xhttpd.h"
 	#endif
+	#ifndef XRT_NO_XWEB
+		#include "lib/xweb.h"
+	#endif
 	#ifndef XRT_NO_XWS
 		#include "lib/xws.h"
 	#endif

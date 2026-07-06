@@ -270,9 +270,12 @@ static int __Test_Regex_SetApi(void)
 		iFail += __Test_Regex_Check("set match count", iCount == 2u);
 		iFail += __Test_Regex_Check("set match index apple", __Test_Regex_HasIndex(arrIndexes, iCount, 0u));
 		iFail += __Test_Regex_Check("set match index cherry", __Test_Regex_HasIndex(arrIndexes, iCount, 2u));
+		iFail += __Test_Regex_Check("set first", xrtRegexSetFirst(pSet, sText, strlen(sText)) == 0);
 		iFail += __Test_Regex_Check("set matches at", xrtRegexSetMatchesAt(pSet, sText, strlen(sText), 3u, arrIndexes, 4u, &iCount) == 1);
 		iFail += __Test_Regex_Check("set matches at count", iCount == 1u);
 		iFail += __Test_Regex_Check("set matches at apple", __Test_Regex_HasIndex(arrIndexes, iCount, 0u));
+		iFail += __Test_Regex_Check("set first at", xrtRegexSetFirstAt(pSet, sText, strlen(sText), 3u) == 0);
+		iFail += __Test_Regex_Check("set first none", xrtRegexSetFirst(pSet, "durian", strlen("durian")) == -1);
 		iFail += __Test_Regex_Check("set clone", xrtRegexSetClone(&pClone, pSet, NULL) == 0 && pClone != NULL);
 	}
 
@@ -297,7 +300,7 @@ static int __Test_Regex_SetBuilderApi(void)
 	xregexsetbuilder* pBuilder = NULL;
 	xregexset* pSet = NULL;
 
-	printf("\nRegex test subject 5 : regex set builder\n");
+	printf("\nRegex test subject 6 : regex set builder\n");
 
 	pRegexA = xrtRegexCreate("foo");
 	pRegexB = xrtRegexCreate("bar");
@@ -332,6 +335,81 @@ static int __Test_Regex_SetBuilderApi(void)
 
 
 // 内部函数：__Test_Regex_InternalRegression
+// 内部函数：__Test_Regex_MatchObject
+static int __Test_Regex_MatchObject(void)
+{
+	int iFail = 0;
+	xregex* pRegex = NULL;
+	xregexmatch* pMatch = NULL;
+	xregexmatch* pNoMatch = NULL;
+	const char* sText = "abc你好123";
+	const char* sMatchText = NULL;
+	str sCopy = NULL;
+
+	printf("\nRegex test subject 7 : lazy match object\n");
+
+	pRegex = xrtRegexCreate("[0-9]+");
+	iFail += __Test_Regex_Check("match object regex create", pRegex != NULL);
+	if ( pRegex != NULL ) {
+		iFail += __Test_Regex_Check("full match no", xrtRegexFullMatch(pRegex, sText, strlen(sText)) == 0);
+		pMatch = xrtRegexFindMatch(pRegex, sText, strlen(sText));
+		iFail += __Test_Regex_Check("match object create", pMatch != NULL);
+		if ( pMatch != NULL ) {
+			iFail += __Test_Regex_Check("match object ok", xrtRegexMatchOk(pMatch) == 1);
+			iFail += __Test_Regex_Check("match object byte start", xrtRegexMatchByteStart(pMatch) == 9);
+			iFail += __Test_Regex_Check("match object byte end", xrtRegexMatchByteEnd(pMatch) == 12);
+			iFail += __Test_Regex_Check("match object char start", xrtRegexMatchStart(pMatch) == 5);
+			iFail += __Test_Regex_Check("match object char end", xrtRegexMatchEnd(pMatch) == 8);
+			sMatchText = xrtRegexMatchText(pMatch);
+			iFail += __Test_Regex_Check("match object text", sMatchText != NULL && strcmp(sMatchText, "123") == 0);
+			iFail += __Test_Regex_Check("match object text cached", xrtRegexMatchText(pMatch) == sMatchText);
+			sCopy = xrtRegexMatchTextCopy(pMatch);
+			iFail += __Test_Regex_Check("match object text copy", sCopy != NULL && strcmp(sCopy, "123") == 0);
+			xrtFree(sCopy);
+		}
+		xrtRegexMatchDestroy(pMatch);
+
+		pNoMatch = xrtRegexFindMatch(pRegex, "abc", 3u);
+		iFail += __Test_Regex_Check("no match object create", pNoMatch != NULL);
+		if ( pNoMatch != NULL ) {
+			iFail += __Test_Regex_Check("no match object ok", xrtRegexMatchOk(pNoMatch) == 0);
+			iFail += __Test_Regex_Check("no match object start", xrtRegexMatchStart(pNoMatch) == -1);
+			iFail += __Test_Regex_Check("no match object text", xrtRegexMatchText(pNoMatch) == NULL);
+		}
+		xrtRegexMatchDestroy(pNoMatch);
+		xrtRegexDestroy(pRegex);
+	}
+
+	pRegex = xrtRegexCreateEx("abc", 3u, XRT_REGEX_FLAG_INSENSITIVE);
+	iFail += __Test_Regex_Check("regex create ex flags", pRegex != NULL);
+	if ( pRegex != NULL ) {
+		iFail += __Test_Regex_Check("regex create ex match", xrtRegexFullMatch(pRegex, "ABC", 3u) == 1);
+		xrtRegexDestroy(pRegex);
+	}
+
+	return iFail ? 1 : 0;
+}
+
+static int __Test_Regex_SetFlagsApi(void)
+{
+	int iFail = 0;
+	xregexset* pSet = NULL;
+	const char* arrPatterns[] = { "abc", "def" };
+
+	printf("\nRegex test subject 5 : regex set flags api\n");
+
+	pSet = xrtRegexSetCreateEx(arrPatterns, 2u, XRT_REGEX_FLAG_INSENSITIVE);
+	iFail += __Test_Regex_Check("set create ex", pSet != NULL);
+	if ( pSet != NULL ) {
+		iFail += __Test_Regex_Check("set create ex match", xrtRegexSetIsMatch(pSet, "DEF", strlen("DEF")) == 1);
+		iFail += __Test_Regex_Check("set create ex first", xrtRegexSetFirst(pSet, "ABC", strlen("ABC")) == 0);
+		xrtRegexSetDestroy(pSet);
+	}
+
+	return iFail ? 1 : 0;
+}
+
+
 static int __Test_Regex_InternalRegression(void)
 {
 	int iFail = 0;
@@ -340,7 +418,7 @@ static int __Test_Regex_InternalRegression(void)
 	size_t iNameSize = 0u;
 	const char* sName = NULL;
 
-	printf("\nRegex test subject 6 : internal regression\n");
+	printf("\nRegex test subject 8 : internal regression\n");
 
 	pRegex = xrtRegexCreate("(?<test>AAA)|(?<abcdef>[6]*)");
 	iFail += __Test_Regex_Check("internal named regex create", pRegex != NULL);
@@ -378,7 +456,9 @@ static int Test_Regex(void)
 	iFail += __Test_Regex_FindAndCaptures();
 	iFail += __Test_Regex_BuilderAllocAndClone();
 	iFail += __Test_Regex_SetApi();
+	iFail += __Test_Regex_SetFlagsApi();
 	iFail += __Test_Regex_SetBuilderApi();
+	iFail += __Test_Regex_MatchObject();
 	iFail += __Test_Regex_InternalRegression();
 
 	return iFail ? 1 : 0;

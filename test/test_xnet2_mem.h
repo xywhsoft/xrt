@@ -68,6 +68,10 @@ void Test_XNet2_Mem(void)
 		printf("  First span starts with 'A' : %s\n",
 			iSpanCount >= 1 && ((const char*)arrSpans[0].pData)[0] == 'A' ? "PASS" : "FAIL");
 		printf("  Find first 'B' at 300 : %s\n", xrtNetChainFindByte(&tChain, 'B', 0) == 300 ? "PASS" : "FAIL");
+		memset(aPeek, 0, sizeof(aPeek));
+		printf("  PeekAt crosses block boundary : %s\n",
+			xrtNetChainPeekAt(&tChain, 296u, aPeek, sizeof(aPeek)) == sizeof(aPeek) &&
+			memcmp(aPeek, "AAAABBBB", 8u) == 0 ? "PASS" : "FAIL");
 		
 		xrtNetChainConsume(&tChain, 300);
 		size_t iPeek = xrtNetChainPeek(&tChain, aPeek, sizeof(aPeek));

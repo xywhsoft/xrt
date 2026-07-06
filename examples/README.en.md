@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md) | [Project Home](../README.en.md) | [Docs Home](../docs/README.en.md)
 
-This directory currently contains `166` standalone, buildable examples across `39` module directories. This document is generated from the actual `examples/*/*/main.c` implementations and is intended for end users to browse and locate examples quickly.
+This directory currently contains `168` standalone, buildable examples across `41` module directories. This document is generated from the actual `examples/*/*/main.c` implementations and is intended for end users to browse and locate examples quickly.
 
 `examples/bin` is the output directory for batch builds and is not counted as part of the examples. `example_common.h`, `example_wait.h`, and `example_tls_fixture.h` are shared helper headers used by some examples and are not standalone examples either.
 
@@ -254,6 +254,10 @@ This directory currently contains `166` standalone, buildable examples across `3
 ### xhttpd (2)
 - `xhttpd/server_async`: Demonstrates delayed HTTP responses through a background-thread future with xhttpd `OnRequestAsync`.
 - `xhttpd/server_basic`: Demonstrates starting a local xhttpd server, handling a request, and validating the reply with a local HTTP client request.
+
+### xweb (2)
+- `xweb/app_reload_vhost`: Demonstrates `xwebapp`, default app reload, Host virtual hosts, and fallback after removing a virtual host.
+- `xweb/server_basic`: Demonstrates route parameters, query values, POST body, ANY routes, and static files with xweb.
 
 ### xid (1)
 - `xid/generate_xid`: Demonstrates XID generation, encoding, decoding, and comparison.

@@ -151,6 +151,18 @@ static void __xprocResultInit(xprocessresult* pResult)
 }
 
 
+// 内部函数：初始化 pipeline 结果
+static void __xprocPipelineResultInit(xprocesspipelineresult* pResult)
+{
+	if ( pResult == NULL ) {
+		return;
+	}
+	memset(pResult, 0, sizeof(*pResult));
+	pResult->iExitCode = -1;
+	pResult->iFailedIndex = -1;
+}
+
+
 // 内部函数：预留字符串缓冲区（按指数增长策略扩容）
 static bool __xprocStrBufReserve(__xproc_strbuf* pBuf, size_t iNeed)
 {
@@ -762,6 +774,72 @@ XXAPI void xrtProcessResultUnit(xprocessresult* pResult)
 }
 
 
+// 复制进程结果（stdout/stderr 会重新分配，调用方使用 xrtProcessResultUnit 释放）
+XXAPI bool xrtProcessResultCopy(const xprocessresult* pSrc, xprocessresult* pDst)
+{
+	if ( pSrc == NULL || pDst == NULL ) {
+		xrtSetError("invalid subprocess result copy arguments.", FALSE);
+		return false;
+	}
+
+	__xprocResultInit(pDst);
+	*pDst = *pSrc;
+	pDst->pStdout = NULL;
+	pDst->pStderr = NULL;
+
+	if ( pSrc->pStdout != NULL && pSrc->iStdoutSize > 0u ) {
+		pDst->pStdout = xrtCopyStr((str)pSrc->pStdout, pSrc->iStdoutSize);
+		if ( pDst->pStdout == NULL ) {
+			__xprocResultInit(pDst);
+			return false;
+		}
+	}
+	if ( pSrc->pStderr != NULL && pSrc->iStderrSize > 0u ) {
+		pDst->pStderr = xrtCopyStr((str)pSrc->pStderr, pSrc->iStderrSize);
+		if ( pDst->pStderr == NULL ) {
+			xrtProcessResultUnit(pDst);
+			return false;
+		}
+	}
+	return true;
+}
+
+
+// 判断进程结果是否为正常成功退出
+XXAPI bool xrtProcessResultSuccess(const xprocessresult* pResult)
+{
+	return pResult != NULL &&
+		pResult->ExitInfo.iKind == XPROC_EXIT_NORMAL &&
+		pResult->iExitCode == 0 &&
+		!pResult->ExitInfo.bTimedOut &&
+		!pResult->ExitInfo.bCancelled;
+}
+
+
+// 释放 pipeline 结果
+XXAPI void xrtProcessPipelineResultUnit(xprocesspipelineresult* pResult)
+{
+	uint32 i;
+
+	if ( pResult == NULL ) {
+		return;
+	}
+	if ( pResult->arrResults != NULL ) {
+		for ( i = 0u; i < pResult->iResultCount; i++ ) {
+			xrtProcessResultUnit(&pResult->arrResults[i]);
+		}
+		xrtFree(pResult->arrResults);
+	}
+	if ( pResult->pStdout != NULL ) {
+		xrtFree(pResult->pStdout);
+	}
+	if ( pResult->pStderr != NULL ) {
+		xrtFree(pResult->pStderr);
+	}
+	__xprocPipelineResultInit(pResult);
+}
+
+
 // 内部函数：判断 stdio 模式是否合法
 static bool __xprocIsValidStdioMode(int iMode)
 {
@@ -1368,8 +1446,29 @@ XXAPI xprocessevent* xrtProcessReadEventsSince(xprocess* pProcess, uint64 iSeq, 
 XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
 {
 	(void)pConfig;
-	(void)pResult;
 	(void)iTimeoutMs;
+	__xprocResultInit(pResult);
+	__xprocSetThreadRequiredError();
+	return false;
+}
+
+XXAPI bool xrtProcessRun(const xprocessconfig* pConfig, const void* pInput, size_t iInputSize, xprocessresult* pResult, uint32 iTimeoutMs)
+{
+	(void)pConfig;
+	(void)pInput;
+	(void)iInputSize;
+	(void)iTimeoutMs;
+	__xprocResultInit(pResult);
+	__xprocSetThreadRequiredError();
+	return false;
+}
+
+XXAPI bool xrtProcessPipelineRun(const xprocessconfig* arrConfigs, uint32 iConfigCount, xprocesspipelineresult* pResult, uint32 iTimeoutMs)
+{
+	(void)arrConfigs;
+	(void)iConfigCount;
+	(void)iTimeoutMs;
+	__xprocPipelineResultInit(pResult);
 	__xprocSetThreadRequiredError();
 	return false;
 }
@@ -4032,6 +4131,81 @@ static void __xprocStopForTimeout(xprocess* pProcess)
 }
 
 
+XXAPI bool xrtProcessRun(const xprocessconfig* pConfig, const void* pInput, size_t iInputSize, xprocessresult* pResult, uint32 iTimeoutMs)
+{
+	xprocessconfig tConfig;
+	xprocess* pProcess;
+	xprocessexitinfo tSpawnInfo;
+	int iWaitRet;
+	uint64 iStartMs;
+	uint64 iEndMs;
+	bool bHasInput;
+	bool bWriteOk = true;
+
+	if ( pConfig == NULL || pResult == NULL ) {
+		xrtSetError("invalid subprocess run arguments.", FALSE);
+		return false;
+	}
+
+	__xprocResultInit(pResult);
+	tConfig = *pConfig;
+	tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
+	tConfig.Stdout.bCapture = true;
+	bHasInput = (pInput != NULL || iInputSize > 0u);
+	if ( bHasInput ) {
+		tConfig.Stdin.iMode = XPROC_STDIO_PIPE;
+	}
+	if ( tConfig.bMergeStderr ) {
+		tConfig.Stderr.bCapture = false;
+	} else {
+		tConfig.Stderr.iMode = XPROC_STDIO_PIPE;
+		tConfig.Stderr.bCapture = true;
+	}
+
+	iStartMs = __xprocNowMs();
+	pProcess = __xprocSpawnInternal(&tConfig, &tSpawnInfo);
+	if ( pProcess == NULL ) {
+		pResult->ExitInfo = tSpawnInfo;
+		pResult->iExitCode = tSpawnInfo.iExitCode;
+		iEndMs = __xprocNowMs();
+		pResult->iDurationMs = iEndMs >= iStartMs ? (iEndMs - iStartMs) : 0u;
+		return false;
+	}
+
+	if ( bHasInput ) {
+		if ( iInputSize > 0u && xrtProcessWrite(pProcess, pInput, iInputSize) != (int64)iInputSize ) {
+			bWriteOk = false;
+		}
+		if ( !xrtProcessCloseStdin(pProcess) ) {
+			bWriteOk = false;
+		}
+		if ( !bWriteOk ) {
+			(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL_TREE, false, false);
+		}
+	}
+
+	iWaitRet = xrtProcessWaitTimeout(pProcess, iTimeoutMs == 0u ? UINT32_MAX : iTimeoutMs);
+	if ( iWaitRet == XRT_WAIT_TIMEOUT ) {
+		__xprocStopForTimeout(pProcess);
+	} else if ( iWaitRet == XRT_WAIT_ERROR ) {
+		(void)xrtProcessWait(pProcess);
+	}
+
+	(void)xrtProcessGetExitInfo(pProcess, &pResult->ExitInfo);
+	pResult->iExitCode = pResult->ExitInfo.iExitCode;
+
+	xrtMutexLock(&pProcess->Lock);
+	__xprocStreamMoveOut(&pProcess->StdoutBuf, &pResult->pStdout, &pResult->iStdoutSize, &pResult->iStdoutBaseOffset, &pResult->bStdoutTruncated);
+	__xprocStreamMoveOut(&pProcess->StderrBuf, &pResult->pStderr, &pResult->iStderrSize, &pResult->iStderrBaseOffset, &pResult->bStderrTruncated);
+	xrtMutexUnlock(&pProcess->Lock);
+
+	iEndMs = __xprocNowMs();
+	pResult->iDurationMs = iEndMs >= iStartMs ? (iEndMs - iStartMs) : 0u;
+	xrtProcessDestroy(pProcess);
+	return bWriteOk;
+}
+
+
 // xrtExecCapture 相关处理（启动子进程，捕获 stdout/stderr 输出，等待完成后返回结果）
 XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
 {
@@ -4086,6 +4260,104 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 	// 销毁进程对象
 	xrtProcessDestroy(pProcess);
 	return true;
+}
+
+
+XXAPI bool xrtProcessPipelineRun(const xprocessconfig* arrConfigs, uint32 iConfigCount, xprocesspipelineresult* pResult, uint32 iTimeoutMs)
+{
+	uint32 i;
+	uint64 iStartMs;
+	uint64 iEndMs;
+	uint64 iDeadlineMs;
+	bool bApiOk = true;
+
+	if ( arrConfigs == NULL || iConfigCount == 0u || pResult == NULL ) {
+		xrtSetError("invalid subprocess pipeline arguments.", FALSE);
+		return false;
+	}
+
+	__xprocPipelineResultInit(pResult);
+	pResult->arrResults = (xprocessresult*)xrtCalloc(iConfigCount, sizeof(xprocessresult));
+	if ( pResult->arrResults == NULL ) {
+		xrtSetError("memory allocate failed.", FALSE);
+		return false;
+	}
+	pResult->iResultCount = iConfigCount;
+	for ( i = 0u; i < iConfigCount; i++ ) {
+		__xprocResultInit(&pResult->arrResults[i]);
+	}
+
+	iStartMs = __xprocNowMs();
+	iDeadlineMs = iTimeoutMs > 0u ? (iStartMs + (uint64)iTimeoutMs) : 0u;
+	for ( i = 0u; i < iConfigCount; i++ ) {
+		const void* pInput = NULL;
+		size_t iInputSize = 0u;
+		uint32 iStageTimeout = 0u;
+
+		if ( iDeadlineMs > 0u ) {
+			uint64 iNowMs = __xprocNowMs();
+			if ( iNowMs >= iDeadlineMs ) {
+				pResult->arrResults[i].ExitInfo.iKind = XPROC_EXIT_WAIT_FAILED;
+				pResult->arrResults[i].ExitInfo.iStage = XPROC_STAGE_WAIT;
+				pResult->arrResults[i].ExitInfo.bTimedOut = true;
+				pResult->arrResults[i].iExitCode = -1;
+				pResult->iFailedIndex = (int)i;
+				pResult->bTimedOut = true;
+				break;
+			}
+			iStageTimeout = (uint32)(iDeadlineMs - iNowMs);
+			if ( iStageTimeout == 0u ) {
+				iStageTimeout = 1u;
+			}
+		}
+
+		if ( i > 0u ) {
+			xprocessresult* pPrev = &pResult->arrResults[i - 1u];
+			pInput = pPrev->pStdout != NULL ? pPrev->pStdout : "";
+			iInputSize = pPrev->pStdout != NULL ? pPrev->iStdoutSize : 0u;
+		}
+
+		if ( !xrtProcessRun(&arrConfigs[i], pInput, iInputSize, &pResult->arrResults[i], iStageTimeout) ) {
+			pResult->iFailedIndex = (int)i;
+			bApiOk = false;
+			break;
+		}
+		pResult->iCompletedCount = i + 1u;
+		if ( pResult->arrResults[i].ExitInfo.bTimedOut ) {
+			pResult->iFailedIndex = (int)i;
+			pResult->bTimedOut = true;
+			break;
+		}
+		if ( pResult->arrResults[i].ExitInfo.bCancelled ) {
+			pResult->iFailedIndex = (int)i;
+			pResult->bCancelled = true;
+			break;
+		}
+		if ( !xrtProcessResultSuccess(&pResult->arrResults[i]) ) {
+			pResult->iFailedIndex = (int)i;
+			break;
+		}
+	}
+
+	if ( pResult->iCompletedCount > 0u ) {
+		xprocessresult* pLast = &pResult->arrResults[pResult->iCompletedCount - 1u];
+		pResult->iExitCode = pLast->iExitCode;
+		pResult->bStdoutTruncated = pLast->bStdoutTruncated;
+		pResult->bStderrTruncated = pLast->bStderrTruncated;
+		if ( pLast->pStdout != NULL && pLast->iStdoutSize > 0u ) {
+			pResult->pStdout = xrtCopyStr((str)pLast->pStdout, pLast->iStdoutSize);
+			pResult->iStdoutSize = pResult->pStdout != NULL ? pLast->iStdoutSize : 0u;
+		}
+		if ( pLast->pStderr != NULL && pLast->iStderrSize > 0u ) {
+			pResult->pStderr = xrtCopyStr((str)pLast->pStderr, pLast->iStderrSize);
+			pResult->iStderrSize = pResult->pStderr != NULL ? pLast->iStderrSize : 0u;
+		}
+	}
+
+	pResult->bSuccess = (pResult->iFailedIndex < 0 && pResult->iCompletedCount == iConfigCount);
+	iEndMs = __xprocNowMs();
+	pResult->iDurationMs = iEndMs >= iStartMs ? (iEndMs - iStartMs) : 0u;
+	return bApiOk;
 }
 
 

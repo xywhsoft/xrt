@@ -286,6 +286,11 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	bool bTypedBool;
 	str sTypeText;
 	uint32 iTypeTextLen;
+	bool bConverted;
+	int64 iConverted;
+	double fConverted;
+	str sConverted;
+	xvalue vConvert;
 
 	(void)pCore;
 
@@ -295,6 +300,53 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	if ( xrtTypeSame(xrtTypeInt(), xrtTypeFloat()) ) {
 		return 2;
 	}
+	if ( !xrtTypeCanConvert(xrtTypeBool(), xrtTypeInt(), XRT_TYPE_CONVERT_SAFE_WIDEN) ) {
+		return 115;
+	}
+	if ( xrtTypeCanConvert(xrtTypeInt(), xrtTypeFloat(), XRT_TYPE_CONVERT_SAFE_WIDEN) ) {
+		return 116;
+	}
+	bConverted = TRUE;
+	iConverted = 0;
+	if ( !xrtTypeConvertValue(xrtTypeInt(), &iConverted, xrtTypeBool(), &bConverted, XRT_TYPE_CONVERT_SAFE_WIDEN) ||
+	     iConverted != 1 ) {
+		return 117;
+	}
+	iConverted = 42;
+	fConverted = 0.0;
+	if ( xrtTypeConvertValue(xrtTypeFloat(), &fConverted, xrtTypeInt(), &iConverted, XRT_TYPE_CONVERT_SAFE_WIDEN) ) {
+		return 118;
+	}
+	if ( !xrtTypeConvertValue(xrtTypeFloat(), &fConverted, xrtTypeInt(), &iConverted, XRT_TYPE_CONVERT_EXPLICIT) ||
+	     fConverted != 42.0 ) {
+		return 119;
+	}
+	sOne = "123";
+	iConverted = 0;
+	if ( !xrtTypeConvertValue(xrtTypeInt(), &iConverted, xrtTypeString(), &sOne, XRT_TYPE_CONVERT_EXPLICIT) ||
+	     iConverted != 123 ) {
+		return 120;
+	}
+	sConverted = NULL;
+	if ( !xrtTypeConvertValue(xrtTypeString(), &sConverted, xrtTypeInt(), &iConverted, XRT_TYPE_CONVERT_EXPLICIT) ||
+	     sConverted == NULL || strcmp(sConverted, "123") != 0 ) {
+		return 121;
+	}
+	xrtTypeDropValue(xrtTypeString(), &sConverted);
+	vConvert = xvoCreateText("88", 0, FALSE);
+	if ( vConvert == NULL ) {
+		return 122;
+	}
+	iConverted = 0;
+	if ( xrtValueConvertTo(vConvert, xrtTypeInt(), &iConverted, XRT_TYPE_CONVERT_SAFE_WIDEN) ) {
+		xvoUnref(vConvert);
+		return 123;
+	}
+	if ( !xrtValueConvertTo(vConvert, xrtTypeInt(), &iConverted, XRT_TYPE_CONVERT_EXPLICIT) || iConverted != 88 ) {
+		xvoUnref(vConvert);
+		return 124;
+	}
+	xvoUnref(vConvert);
 	if ( xrtTypeGenericArgCount(&__xrtTestPointArrayType) != 1 ||
 	     xrtTypeGenericArg(&__xrtTestPointArrayType, 0) != &__xrtTestPointType ||
 	     xrtTypeGenericArg(&__xrtTestPointArrayType, 1) != NULL ) {

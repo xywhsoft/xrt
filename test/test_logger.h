@@ -28,37 +28,10 @@ static void __xrtLoggerTestCustomProc(const xlogevent* pEvent, ptr pUserData)
 // 内部函数：__xrtLoggerTestReadFile
 static str __xrtLoggerTestReadFile(str sPath)
 {
-	FILE* pFile;
-	long iSize;
 	str sText;
 
-	pFile = fopen((const char*)sPath, "rb");
-	if ( !pFile ) {
-		return xCore.sNull;
-	}
-
-	fseek(pFile, 0, SEEK_END);
-	iSize = ftell(pFile);
-	fseek(pFile, 0, SEEK_SET);
-	if ( iSize <= 0 ) {
-		fclose(pFile);
-		return xCore.sNull;
-	}
-
-	sText = (str)xrtMalloc((size_t)iSize + 1u);
-	if ( !sText ) {
-		fclose(pFile);
-		return xCore.sNull;
-	}
-
-	if ( fread(sText, 1, (size_t)iSize, pFile) != (size_t)iSize ) {
-		fclose(pFile);
-		xrtFree(sText);
-		return xCore.sNull;
-	}
-	fclose(pFile);
-	sText[iSize] = 0;
-	return sText;
+	sText = xrtFileReadAll(sPath, XRT_CP_UTF8, NULL);
+	return sText ? sText : xCore.sNull;
 }
 
 
@@ -94,6 +67,7 @@ int Test_Logger()
 	str sRollPath;
 	str sRollPath1;
 	str sRollPath2;
+	str sUtf8Path;
 	int iRet;
 
 	sDir = NULL;
@@ -102,6 +76,7 @@ int Test_Logger()
 	sRollPath = NULL;
 	sRollPath1 = NULL;
 	sRollPath2 = NULL;
+	sUtf8Path = NULL;
 	iRet = 0;
 
 	sDir = xrtPathJoin(2, xCore.AppPath, "test");
@@ -110,8 +85,9 @@ int Test_Logger()
 	sRollPath = xrtPathJoin(3, xCore.AppPath, "test", "logger_roll.log");
 	sRollPath1 = xrtPathJoin(3, xCore.AppPath, "test", "logger_roll.log.1");
 	sRollPath2 = xrtPathJoin(3, xCore.AppPath, "test", "logger_roll.log.2");
+	sUtf8Path = xrtPathJoin(3, xCore.AppPath, "test", "日志_utf8.log");
 
-	if ( !sDir || !sBasicPath || !sJsonPath || !sRollPath || !sRollPath1 || !sRollPath2 ) {
+	if ( !sDir || !sBasicPath || !sJsonPath || !sRollPath || !sRollPath1 || !sRollPath2 || !sUtf8Path ) {
 		printf("Logger Test : path build failed\n");
 		iRet = 1;
 		goto cleanup;
@@ -122,11 +98,12 @@ int Test_Logger()
 		goto cleanup;
 	}
 
-	remove((const char*)sBasicPath);
-	remove((const char*)sJsonPath);
-	remove((const char*)sRollPath);
-	remove((const char*)sRollPath1);
-	remove((const char*)sRollPath2);
+	xrtFileDelete(sBasicPath);
+	xrtFileDelete(sJsonPath);
+	xrtFileDelete(sRollPath);
+	xrtFileDelete(sRollPath1);
+	xrtFileDelete(sRollPath2);
+	xrtFileDelete(sUtf8Path);
 
 	memset(&tCustom, 0, sizeof(tCustom));
 
@@ -169,6 +146,8 @@ int Test_Logger()
 		iRet = 4;
 		goto cleanup;
 	}
+	xlogDestroy(pLogger);
+	pLogger = NULL;
 
 	sText = __xrtLoggerTestReadFile(sBasicPath);
 	if ( !__xrtLoggerTestContains(sText, "debug value=7") || !__xrtLoggerTestContains(sText, "hello logger") || !__xrtLoggerTestContains(sText, "warn message") ) {
@@ -176,7 +155,6 @@ int Test_Logger()
 		if ( __xrtLoggerTestOwnStr(sText) ) {
 			xrtFree(sText);
 		}
-		xlogDestroy(pLogger);
 		iRet = 5;
 		goto cleanup;
 	}
@@ -190,16 +168,12 @@ int Test_Logger()
 		if ( __xrtLoggerTestOwnStr(sText) ) {
 			xrtFree(sText);
 		}
-		xlogDestroy(pLogger);
 		iRet = 6;
 		goto cleanup;
 	}
 	if ( __xrtLoggerTestOwnStr(sText) ) {
 		xrtFree(sText);
 	}
-
-	xlogDestroy(pLogger);
-
 	pLogger = xlogCreate((str)"rolling_test");
 	if ( !pLogger ) {
 		iRet = 7;
@@ -227,6 +201,35 @@ int Test_Logger()
 		goto cleanup;
 	}
 
+	pLogger = xlogCreate((str)"utf8_path_test");
+	if ( !pLogger ) {
+		iRet = 10;
+		goto cleanup;
+	}
+	pFileAppender = xlogAddFile(pLogger, sUtf8Path, XLOG_TRACE);
+	if ( !pFileAppender ) {
+		printf("Logger Test : add utf8 file appender failed: %s\n", xrtGetError());
+		xlogDestroy(pLogger);
+		iRet = 11;
+		goto cleanup;
+	}
+	xloggerInfo(pLogger, "utf8 path ok");
+	xlogFlush(pLogger);
+	xlogDestroy(pLogger);
+
+	sText = __xrtLoggerTestReadFile(sUtf8Path);
+	if ( !__xrtLoggerTestContains(sText, "utf8 path ok") ) {
+		printf("Logger Test : utf8 path content failed\n");
+		if ( __xrtLoggerTestOwnStr(sText) ) {
+			xrtFree(sText);
+		}
+		iRet = 12;
+		goto cleanup;
+	}
+	if ( __xrtLoggerTestOwnStr(sText) ) {
+		xrtFree(sText);
+	}
+
 	printf("Logger Test : PASS\n");
 
 cleanup:
@@ -247,6 +250,9 @@ cleanup:
 	}
 	if ( sRollPath2 && sRollPath2 != xCore.sNull ) {
 		xrtFree(sRollPath2);
+	}
+	if ( sUtf8Path && sUtf8Path != xCore.sNull ) {
+		xrtFree(sUtf8Path);
 	}
 	return iRet;
 }

@@ -37,6 +37,7 @@ typedef struct {
 typedef struct {
 	uint32 iFlags;
 	uint32 iHeaderCount;
+	uint32 iHeaderCap;
 	uint32 iStatusCode;
 	int64_t iContentLength;
 	size_t iHeadBytes;
@@ -45,6 +46,7 @@ typedef struct {
 	char sVersion[XCODEC_HTTP1_TOKEN_CAP];
 	char sReason[XCODEC_HTTP1_REASON_CAP];
 	xcodechttp1header arrHeaders[XCODEC_HTTP1_MAX_HEADERS];
+	xcodechttp1header* pHeaders;
 } xcodechttp1msg;
 
 #endif /* !XRT_BUILD_CORE */
@@ -186,10 +188,12 @@ static bool __xcodecHttpParseHexU64(const char* sText, size_t iLen, uint64* pVal
 // 获取编解码器 HTTP/1 头部
 XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName)
 {
+	const xcodechttp1header* pHeaders;
 	if ( !pMsg || !sName ) { return NULL; }
+	pHeaders = pMsg->pHeaders ? pMsg->pHeaders : pMsg->arrHeaders;
 	for ( uint32 i = 0; i < pMsg->iHeaderCount; ++i ) {
-		if ( __xcodecHttpStrEqNoCase(pMsg->arrHeaders[i].sName, sName) ) {
-			return pMsg->arrHeaders[i].sValue;
+		if ( __xcodecHttpStrEqNoCase(pHeaders[i].sName, sName) ) {
+			return pHeaders[i].sValue;
 		}
 	}
 	return NULL;
@@ -201,7 +205,50 @@ XXAPI void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg)
 {
 	if ( !pMsg ) { return; }
 	memset(pMsg, 0, sizeof(xcodechttp1msg));
+	pMsg->pHeaders = pMsg->arrHeaders;
+	pMsg->iHeaderCap = XCODEC_HTTP1_MAX_HEADERS;
 	pMsg->iContentLength = -1;
+}
+
+
+// 释放编解码器 HTTP/1 消息内部资源
+XXAPI void xrtCodecHttp1MessageUnit(xcodechttp1msg* pMsg)
+{
+	if ( !pMsg ) { return; }
+	if ( pMsg->pHeaders && pMsg->pHeaders != pMsg->arrHeaders ) {
+		XNET_FREE(pMsg->pHeaders);
+	}
+	memset(pMsg, 0, sizeof(xcodechttp1msg));
+	pMsg->iContentLength = -1;
+}
+
+
+// 内部函数：确保 HTTP/1 消息头部容量
+static bool __xcodecHttp1EnsureHeaderCap(xcodechttp1msg* pMsg, uint32 iNeed)
+{
+	xcodechttp1header* pNew;
+	uint32 iNewCap;
+	if ( !pMsg ) { return false; }
+	if ( pMsg->pHeaders == NULL ) {
+		pMsg->pHeaders = pMsg->arrHeaders;
+		pMsg->iHeaderCap = XCODEC_HTTP1_MAX_HEADERS;
+	}
+	if ( iNeed <= pMsg->iHeaderCap ) { return true; }
+	iNewCap = pMsg->iHeaderCap ? pMsg->iHeaderCap : XCODEC_HTTP1_MAX_HEADERS;
+	while ( iNewCap < iNeed ) {
+		if ( iNewCap > UINT32_MAX / 2u ) { return false; }
+		iNewCap *= 2u;
+	}
+	pNew = (xcodechttp1header*)XNET_ALLOC(sizeof(xcodechttp1header) * iNewCap);
+	if ( !pNew ) { return false; }
+	memset(pNew, 0, sizeof(xcodechttp1header) * iNewCap);
+	if ( pMsg->iHeaderCount > 0u ) {
+		memcpy(pNew, pMsg->pHeaders, sizeof(xcodechttp1header) * pMsg->iHeaderCount);
+	}
+	if ( pMsg->pHeaders != pMsg->arrHeaders ) { XNET_FREE(pMsg->pHeaders); }
+	pMsg->pHeaders = pNew;
+	pMsg->iHeaderCap = iNewCap;
+	return true;
 }
 
 
@@ -328,7 +375,7 @@ XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* p
 
 /* ============================== HTTP/1 parser ============================== */
 
-XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg)
+static xcodecstatus __xcodecHttp1ParseEx(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg, bool bHeaderOnly)
 {
 	static const uint8 aHeadEnd[] = { '\r', '\n', '\r', '\n' };
 	char* sHeadBuf;
@@ -352,6 +399,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 	if ( !sHeadBuf ) { return XCODEC_STATUS_ERROR; }
 	if ( __xcodecChainPeekAt(pInput, 0, sHeadBuf, iHeadBytes) != iHeadBytes ) {
 		XNET_FREE(sHeadBuf);
+		xrtCodecHttp1MessageUnit(pMsg);
 		return XCODEC_STATUS_ERROR;
 	}
 	sHeadBuf[iHeadBytes] = '\0';
@@ -360,6 +408,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 	sLineEnd = strstr(sHeadBuf, "\r\n");
 	if ( !sLineEnd ) {
 		XNET_FREE(sHeadBuf);
+		xrtCodecHttp1MessageUnit(pMsg);
 		return XCODEC_STATUS_ERROR;
 	}
 	*sLineEnd = '\0';
@@ -372,6 +421,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		char* sReason = NULL;
 		if ( !sStatus ) {
 			XNET_FREE(sHeadBuf);
+			xrtCodecHttp1MessageUnit(pMsg);
 			return XCODEC_STATUS_ERROR;
 		}
 		*sStatus++ = '\0';
@@ -387,6 +437,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 			long iStatusCode = strtol(sStatus, &pStatusEnd, 10);
 			if ( pStatusEnd == sStatus || *pStatusEnd != '\0' || iStatusCode < 100 || iStatusCode > 999 ) {
 				XNET_FREE(sHeadBuf);
+				xrtCodecHttp1MessageUnit(pMsg);
 				return XCODEC_STATUS_ERROR;
 			}
 			pMsg->iStatusCode = (uint32)iStatusCode;
@@ -402,6 +453,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		char* sVersion = NULL;
 		if ( !sTarget ) {
 			XNET_FREE(sHeadBuf);
+			xrtCodecHttp1MessageUnit(pMsg);
 			return XCODEC_STATUS_ERROR;
 		}
 		*sTarget++ = '\0';
@@ -409,6 +461,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		sVersion = strchr(sTarget, ' ');
 		if ( !sVersion ) {
 			XNET_FREE(sHeadBuf);
+			xrtCodecHttp1MessageUnit(pMsg);
 			return XCODEC_STATUS_ERROR;
 		}
 		*sVersion++ = '\0';
@@ -437,6 +490,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		sColon = strchr(sCursor, ':');
 		if ( !sColon ) {
 			XNET_FREE(sHeadBuf);
+			xrtCodecHttp1MessageUnit(pMsg);
 			return XCODEC_STATUS_ERROR;
 		}
 		*sColon = '\0';
@@ -450,16 +504,18 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 
 		if ( iNameLen == 0u || iNameLen >= XCODEC_HTTP1_TOKEN_CAP || iValueLen >= XCODEC_HTTP1_VALUE_CAP ) {
 			XNET_FREE(sHeadBuf);
+			xrtCodecHttp1MessageUnit(pMsg);
 			return XCODEC_STATUS_ERROR;
 		}
 
-		if ( pMsg->iHeaderCount >= XCODEC_HTTP1_MAX_HEADERS ) {
+		if ( !__xcodecHttp1EnsureHeaderCap(pMsg, pMsg->iHeaderCount + 1u) ) {
 			XNET_FREE(sHeadBuf);
+			xrtCodecHttp1MessageUnit(pMsg);
 			return XCODEC_STATUS_ERROR;
 		}
 
 		{
-			xcodechttp1header* pHeader = &pMsg->arrHeaders[pMsg->iHeaderCount++];
+			xcodechttp1header* pHeader = &pMsg->pHeaders[pMsg->iHeaderCount++];
 			__xcodecHttpCopyToken(pHeader->sName, sizeof(pHeader->sName), sName, iNameLen);
 			__xcodecHttpCopyToken(pHeader->sValue, sizeof(pHeader->sValue), sValue, iValueLen);
 
@@ -510,6 +566,14 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 	pFrame->iHeaderBytes = iHeadBytes;
 	pFrame->iPayloadOffset = iHeadBytes;
 
+	// 头部解析模式只要求 header 完整，不等待 body 到齐。
+	if ( bHeaderOnly ) {
+		pFrame->iPayloadBytes = 0u;
+		pFrame->iFrameBytes = iHeadBytes;
+		XNET_FREE(sHeadBuf);
+		return XCODEC_STATUS_FRAME;
+	}
+
 	// 处理 chunked 传输编码的消息体
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED ) {
 		size_t iChunkBodyBytes = 0u;
@@ -517,6 +581,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		xcodecstatus iChunkParse = __xcodecHttpMeasureChunkedBody(pInput, iHeadBytes, &iChunkBodyBytes, &iDecodedBytes);
 		if ( iChunkParse != XCODEC_STATUS_FRAME ) {
 			XNET_FREE(sHeadBuf);
+			xrtCodecHttp1MessageUnit(pMsg);
 			return iChunkParse;
 		}
 		pFrame->iPayloadBytes = 0;
@@ -536,11 +601,25 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 	// 检查消息体是否已完整接收
 	if ( xrtNetChainBytes(pInput) < pFrame->iFrameBytes ) {
 		XNET_FREE(sHeadBuf);
+		xrtCodecHttp1MessageUnit(pMsg);
 		return XCODEC_STATUS_NEED_MORE;
 	}
 
 	XNET_FREE(sHeadBuf);
 	return XCODEC_STATUS_FRAME;
+}
+
+
+// 只解析 HTTP/1 头部，供服务端流式 request body 使用。
+XXAPI xcodecstatus xrtCodecHttp1ParseHead(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg)
+{
+	return __xcodecHttp1ParseEx(pInput, pFrame, pMsg, true);
+}
+
+
+XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg)
+{
+	return __xcodecHttp1ParseEx(pInput, pFrame, pMsg, false);
 }
 
 

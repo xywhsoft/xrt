@@ -1,6 +1,8 @@
 #ifndef XRT_XWS_H
 #define XRT_XWS_H
 
+#ifndef XRT_NO_XWS
+
 /*
 	XRT mainline WebSocket layer on top of xnet.
 
@@ -1034,11 +1036,13 @@ static void __xwsClientStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* 
 		xcodecstatus iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
 		if ( iParse == XCODEC_STATUS_ERROR || !__xwsClientValidateHandshake(pClient, &tMsg) ) {
+			xrtCodecHttp1MessageUnit(&tMsg);
 			__xwsClientEmitError(pClient, -6);
 			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 			return;
 		}
 		xrtCodecFrameConsume(pChain, &tFrame);
+		xrtCodecHttp1MessageUnit(&tMsg);
 		(void)__xwsAtomicCompareExchange(&pClient->iOpen, 1, 0);
 		if ( pClient->tEvents.OnOpen ) {
 			pClient->tEvents.OnOpen(pClient->pUserData, pClient);
@@ -1372,12 +1376,14 @@ static void __xwsServerStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* 
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
 		// 校验 HTTP 升级请求的合法性
 		if ( iParse == XCODEC_STATUS_ERROR || !__xwsServerValidateRequest(&tMsg, &sKey) ) {
+			xrtCodecHttp1MessageUnit(&tMsg);
 			__xwsServerEmitError(pServer, pConn, -31);
 			(void)__xwsSendHttpReply(pStream, 400u, "Bad Request", NULL, NULL, true);
 			return;
 		}
 		// 计算服务端 Accept 值
 		if ( !__xwsComputeAccept(sKey, sAccept, sizeof(sAccept)) ) {
+			xrtCodecHttp1MessageUnit(&tMsg);
 			__xwsServerEmitError(pServer, pConn, -32);
 			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 			return;
@@ -1386,6 +1392,7 @@ static void __xwsServerStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* 
 		sClientProtocol = xrtCodecHttp1GetHeader(&tMsg, "Sec-WebSocket-Protocol");
 		if ( pServer->tConfig.sProtocol[0] ) {
 			if ( !sClientProtocol || !__xwsContainsTokenNoCase(sClientProtocol, pServer->tConfig.sProtocol) ) {
+				xrtCodecHttp1MessageUnit(&tMsg);
 				(void)__xwsSendHttpReply(pStream, 400u, "Protocol Required", NULL, NULL, true);
 				return;
 			}
@@ -1393,11 +1400,13 @@ static void __xwsServerStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* 
 		}
 		// 发送 101 切换协议响应
 		if ( !__xwsSendHttpReply(pStream, 101u, NULL, sAccept, pConn->sProtocol, false) ) {
+			xrtCodecHttp1MessageUnit(&tMsg);
 			__xwsServerEmitError(pServer, pConn, -33);
 			return;
 		}
 		// 消费 HTTP 头部数据并标记连接已打开
 		xrtCodecFrameConsume(pChain, &tFrame);
+		xrtCodecHttp1MessageUnit(&tMsg);
 		(void)__xwsAtomicCompareExchange(&pConn->iOpen, 1, 0);
 		if ( pServer->tEvents.OnOpen ) {
 			pServer->tEvents.OnOpen(pServer->pUserData, pServer, pConn);
@@ -1776,5 +1785,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	if ( __xwsAtomicCompareExchange(&pConn->iClosePosted, 1, 0) != 0 ) { return XRT_NET_OK; }
 	return __xwsPostClose(pConn->pStream, false, iCode, sReason, false);
 }
+
+#endif /* XRT_NO_XWS */
 
 #endif

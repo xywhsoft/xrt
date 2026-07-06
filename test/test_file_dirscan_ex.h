@@ -157,6 +157,23 @@ static void Test_FileDirScanEx(xrtGlobalData* xCore)
 	__Test_FileDirScanEx_Require(tCtx.iDirEnterCount == 1 && tCtx.iDirLeaveCount == 1, "non-recursive scan should still report child dir enter/leave");
 	__Test_FileDirScanEx_Require(tCtx.iBadParamCount == 0 && tCtx.iBadSizeCount == 0 && tCtx.iNullPlatformDataCount == 0, "non-recursive callback contract mismatch");
 
+	__Test_FileDirScanEx_Require(xrtDirCount(tCtx.sRootDir, TRUE, 1) == 2, "recursive file count mismatch");
+	__Test_FileDirScanEx_Require(xrtDirCount(tCtx.sRootDir, TRUE, 2) == 1, "recursive dir count mismatch");
+	__Test_FileDirScanEx_Require(xrtDirCount(tCtx.sRootDir, TRUE, 0) == 3, "recursive all count mismatch");
+	__Test_FileDirScanEx_Require(xrtDirCount(tCtx.sRootDir, FALSE, 0) == 2, "non-recursive all count mismatch");
+	__Test_FileDirScanEx_Require(xrtDirSize(tCtx.sRootDir, TRUE) == 9, "recursive dir size mismatch");
+	__Test_FileDirScanEx_Require(xrtDirSize(tCtx.sRootDir, FALSE) == 4, "non-recursive dir size mismatch");
+	__Test_FileDirScanEx_Require(xrtDirIsEmpty(tCtx.sRootDir) == FALSE, "fixture dir should not be empty");
+	__Test_FileDirScanEx_Require(xrtDirIsRoot((str)"") == TRUE, "empty path should be treated as root");
+	__Test_FileDirScanEx_Require(xrtDirClean((str)"") == FALSE, "empty path clean should be rejected");
+	__Test_FileDirScanEx_Require(xrtDirClean(tCtx.sRootDir) == TRUE, "dir clean should succeed");
+	__Test_FileDirScanEx_Require(xrtDirExists(tCtx.sRootDir) == TRUE, "dir clean should keep root dir");
+	__Test_FileDirScanEx_Require(xrtDirIsEmpty(tCtx.sRootDir) == TRUE, "dir clean should remove children");
+	__Test_FileDirScanEx_Require(xrtDirEnsureEmpty(tCtx.sSubDir) == TRUE, "ensure empty should create missing child dir");
+	__Test_FileDirScanEx_Require(xrtDirExists(tCtx.sSubDir) == TRUE, "ensure empty should leave child dir present");
+	__Test_FileDirScanEx_Require(xrtDirEnsureEmpty(tCtx.sRootDir) == TRUE, "ensure empty should clean existing dir");
+	__Test_FileDirScanEx_Require(xrtDirExists(tCtx.sRootDir) == TRUE && xrtDirIsEmpty(tCtx.sRootDir) == TRUE, "ensure empty should keep empty root dir");
+
 	__Test_FileDirScanEx_Require(xrtDirDelete(tCtx.sRootDir) >= 0, "fixture cleanup failed");
 
 	xrtFree(tCtx.sRootDir);

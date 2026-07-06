@@ -30,19 +30,19 @@
 #define XHTTP_RESP_F_KEEPALIVE   0x00000002u
 #define XHTTP_RESP_F_UPGRADE     0x00000004u
 
-typedef struct {
+typedef struct xrt_http_header {
 	char sName[XHTTP_HEADER_NAME_CAP];
 	char sValue[XHTTP_HEADER_VALUE_CAP];
 } xhttpheader;
 
-typedef struct {
+typedef struct xrt_http_url {
 	bool bHttps;
 	uint16 iPort;
 	char sHost[XHTTP_HOST_CAP];
 	char sPath[XHTTP_PATH_CAP];
 } xhttpurl;
 
-typedef struct {
+typedef struct xrt_http_request {
 	char sMethod[XHTTP_METHOD_CAP];
 	char sURL[XHTTP_URL_CAP];
 	xhttpurl tURL;
@@ -56,7 +56,7 @@ typedef struct {
 	xnetproxy* pProxy;
 } xhttprequest;
 
-typedef struct {
+typedef struct xrt_http_response {
 	uint32 iStatusCode;
 	uint32 iFlags;
 	uint32 iHeaderCount;
@@ -252,6 +252,7 @@ static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc);
 static void __xhttpRequestUnitInternal(xhttprequest* pReq);
 static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, size_t* pOutLen);
 static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain);
+static xhttpresponse* __xhttpBuildHeadResponse(const xnetchain* pChain, xcodecframe* pFrame, xcodechttp1msg* pMsg, bool* pHadHead);
 static void __xhttpConnPostCleanup(__xhttp_conn* pConn);
 static void __xhttpTxRefreshIdleTimeout(__xhttp_tx* pTx);
 static uint32 __xhttpResolveConnectTimeoutMs(const xhttprequest* pReq);
@@ -437,6 +438,16 @@ XXAPI void xrtHttpRequestInit(xhttprequest* pReq)
 }
 
 
+// xrtHttpRequestCreate 相关处理
+XXAPI xhttprequest* xrtHttpRequestCreate(void)
+{
+	xhttprequest* pReq = (xhttprequest*)XNET_ALLOC(sizeof(xhttprequest));
+	if ( !pReq ) { return NULL; }
+	xrtHttpRequestInit(pReq);
+	return pReq;
+}
+
+
 // 内部函数：__xhttpRequestUnitInternal
 static void __xhttpRequestUnitInternal(xhttprequest* pReq)
 {
@@ -459,6 +470,15 @@ XXAPI void xrtHttpRequestUnit(xhttprequest* pReq)
 	if ( !pReq ) { return; }
 	__xhttpRequestUnitInternal(pReq);
 	memset(pReq, 0, sizeof(xhttprequest));
+}
+
+
+// xrtHttpRequestDestroy 相关处理
+XXAPI void xrtHttpRequestDestroy(xhttprequest* pReq)
+{
+	if ( !pReq ) { return; }
+	xrtHttpRequestUnit(pReq);
+	XNET_FREE(pReq);
 }
 
 
@@ -581,6 +601,55 @@ XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* 
 }
 
 
+// xrtHttpResponseStatusCode 相关处理
+XXAPI uint32 xrtHttpResponseStatusCode(const xhttpresponse* pResp)
+{
+	return pResp ? pResp->iStatusCode : 0u;
+}
+
+
+// xrtHttpResponseReason 相关处理
+XXAPI const char* xrtHttpResponseReason(const xhttpresponse* pResp)
+{
+	return pResp ? pResp->sReason : "";
+}
+
+
+// xrtHttpResponseContentLength 相关处理
+XXAPI int64_t xrtHttpResponseContentLength(const xhttpresponse* pResp)
+{
+	return pResp ? pResp->iContentLength : -1;
+}
+
+
+// xrtHttpResponseBody 相关处理
+XXAPI const void* xrtHttpResponseBody(const xhttpresponse* pResp, size_t* pLen)
+{
+	if ( pLen ) { *pLen = 0u; }
+	if ( !pResp ) { return NULL; }
+	if ( pLen ) { *pLen = pResp->iBodyLen; }
+	return pResp->pBody;
+}
+
+
+// xrtHttpResponseBodyTextCopy 相关处理
+XXAPI char* xrtHttpResponseBodyTextCopy(const xhttpresponse* pResp)
+{
+	char* pCopy;
+	size_t iLen;
+	const char* pBody;
+
+	iLen = pResp ? pResp->iBodyLen : 0u;
+	pBody = (pResp && pResp->pBody) ? pResp->pBody : "";
+	if ( iLen == SIZE_MAX ) { return NULL; }
+	pCopy = (char*)XNET_ALLOC(iLen + 1u);
+	if ( !pCopy ) { return NULL; }
+	if ( iLen > 0u ) { memcpy(pCopy, pBody, iLen); }
+	pCopy[iLen] = '\0';
+	return pCopy;
+}
+
+
 // 内部函数：__xhttpRequestClone
 static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc)
 {
@@ -680,6 +749,7 @@ static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcod
 {
 	xhttpresponse* pResp;
 	size_t iBodyBytes;
+	const xcodechttp1header* pMsgHeaders;
 	// 参数校验
 	if ( !pFrame || !pMsg || !pChain ) { return NULL; }
 	// 分配响应结构体
@@ -696,10 +766,11 @@ static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcod
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_KEEPALIVE ) { pResp->iFlags |= XHTTP_RESP_F_KEEPALIVE; }
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_UPGRADE ) { pResp->iFlags |= XHTTP_RESP_F_UPGRADE; }
 	// 复制响应头部
+	pMsgHeaders = pMsg->pHeaders ? pMsg->pHeaders : pMsg->arrHeaders;
 	pResp->iHeaderCount = pMsg->iHeaderCount < XHTTP_MAX_HEADERS ? pMsg->iHeaderCount : XHTTP_MAX_HEADERS;
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
-		__xhttpCopyToken(pResp->arrHeaders[i].sName, sizeof(pResp->arrHeaders[i].sName), pMsg->arrHeaders[i].sName);
-		__xhttpCopyToken(pResp->arrHeaders[i].sValue, sizeof(pResp->arrHeaders[i].sValue), pMsg->arrHeaders[i].sValue);
+		__xhttpCopyToken(pResp->arrHeaders[i].sName, sizeof(pResp->arrHeaders[i].sName), pMsgHeaders[i].sName);
+		__xhttpCopyToken(pResp->arrHeaders[i].sValue, sizeof(pResp->arrHeaders[i].sValue), pMsgHeaders[i].sValue);
 	}
 	// 提取并复制响应正文
 	iBodyBytes = xrtCodecHttp1BodyBytes(pFrame);
@@ -717,7 +788,131 @@ static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcod
 }
 
 
-// 内部函数：__xhttpTxAddRef
+// HEAD responses are complete when headers are complete; the body is always empty.
+static xhttpresponse* __xhttpBuildHeadResponse(const xnetchain* pChain, xcodecframe* pFrame, xcodechttp1msg* pMsg, bool* pHadHead)
+{
+	static const uint8 aHeadEnd[] = { '\r', '\n', '\r', '\n' };
+	char* sHeadBuf = NULL;
+	size_t iHeadEndPos;
+	size_t iHeadBytes;
+	char* sLineEnd;
+	char* sCursor;
+	char* sNextLine;
+	xhttpresponse* pResp;
+	if ( pHadHead ) { *pHadHead = false; }
+	if ( !pChain || !pFrame || !pMsg ) { return NULL; }
+	iHeadEndPos = __xcodecChainFindPattern(pChain, aHeadEnd, sizeof(aHeadEnd), 0);
+	if ( iHeadEndPos == (size_t)-1 ) { return NULL; }
+	if ( pHadHead ) { *pHadHead = true; }
+	iHeadBytes = iHeadEndPos + sizeof(aHeadEnd);
+	xrtCodecFrameInit(pFrame);
+	xrtCodecHttp1MessageInit(pMsg);
+	sHeadBuf = (char*)XNET_ALLOC(iHeadBytes + 1u);
+	if ( !sHeadBuf ) { goto fail; }
+	if ( __xcodecChainPeekAt(pChain, 0, sHeadBuf, iHeadBytes) != iHeadBytes ) { goto fail; }
+	sHeadBuf[iHeadBytes] = '\0';
+	sLineEnd = strstr(sHeadBuf, "\r\n");
+	if ( !sLineEnd ) { goto fail; }
+	*sLineEnd = '\0';
+	{
+		char* sVersion = sHeadBuf;
+		char* sStatus = strchr(sVersion, ' ');
+		char* sReason = NULL;
+		char* pStatusEnd = NULL;
+		long iStatusCode;
+		if ( !sStatus ) { goto fail; }
+		*sStatus++ = '\0';
+		while ( *sStatus == ' ' ) { sStatus++; }
+		sReason = strchr(sStatus, ' ');
+		if ( sReason ) {
+			*sReason++ = '\0';
+			while ( *sReason == ' ' ) { sReason++; }
+		}
+		iStatusCode = strtol(sStatus, &pStatusEnd, 10);
+		if ( pStatusEnd == sStatus || *pStatusEnd != '\0' || iStatusCode < 100 || iStatusCode > 999 ) { goto fail; }
+		pMsg->iStatusCode = (uint32)iStatusCode;
+		pMsg->iFlags |= XCODEC_HTTP1_F_RESPONSE;
+		pFrame->iFlags |= XCODEC_FRAME_F_RESPONSE;
+		__xcodecHttpCopyToken(pMsg->sVersion, sizeof(pMsg->sVersion), sVersion, strlen(sVersion));
+		if ( sReason ) { __xcodecHttpCopyToken(pMsg->sReason, sizeof(pMsg->sReason), sReason, strlen(sReason)); }
+	}
+	sCursor = sLineEnd + 2;
+	while ( sCursor < (sHeadBuf + iHeadBytes - 2u) ) {
+		char* sColon;
+		const char* sName;
+		const char* sValue;
+		size_t iNameLen;
+		size_t iValueLen;
+		if ( sCursor[0] == '\r' && sCursor[1] == '\n' ) { break; }
+		sNextLine = strstr(sCursor, "\r\n");
+		if ( !sNextLine ) { break; }
+		*sNextLine = '\0';
+		sColon = strchr(sCursor, ':');
+		if ( !sColon ) { goto fail; }
+		*sColon = '\0';
+		sName = sCursor;
+		sValue = sColon + 1;
+		iNameLen = strlen(__xrt_cstr(sName));
+		iValueLen = strlen(sValue);
+		__xcodecHttpTrimView(&sName, &iNameLen);
+		__xcodecHttpTrimView(&sValue, &iValueLen);
+		if ( iNameLen == 0u || iNameLen >= XCODEC_HTTP1_TOKEN_CAP || iValueLen >= XCODEC_HTTP1_VALUE_CAP ) { goto fail; }
+		if ( !__xcodecHttp1EnsureHeaderCap(pMsg, pMsg->iHeaderCount + 1u) ) { goto fail; }
+		{
+			xcodechttp1header* pHeader = &pMsg->pHeaders[pMsg->iHeaderCount++];
+			__xcodecHttpCopyToken(pHeader->sName, sizeof(pHeader->sName), sName, iNameLen);
+			__xcodecHttpCopyToken(pHeader->sValue, sizeof(pHeader->sValue), sValue, iValueLen);
+			if ( __xcodecHttpStrEqNoCase(pHeader->sName, "Content-Length") ) {
+				(void)__xcodecHttpParseInt64(pHeader->sValue, &pMsg->iContentLength);
+			} else if ( __xcodecHttpStrEqNoCase(pHeader->sName, "Transfer-Encoding") ) {
+				if ( __xcodecHttpContainsTokenNoCase(pHeader->sValue, "chunked") ) {
+					pMsg->iFlags |= XCODEC_HTTP1_F_CHUNKED;
+					pFrame->iFlags |= XCODEC_FRAME_F_CHUNKED;
+				}
+			} else if ( __xcodecHttpStrEqNoCase(pHeader->sName, "Connection") ) {
+				if ( __xcodecHttpContainsTokenNoCase(pHeader->sValue, "upgrade") ) {
+					pMsg->iFlags |= XCODEC_HTTP1_F_UPGRADE;
+					pFrame->iFlags |= XCODEC_FRAME_F_UPGRADE;
+				}
+				if ( __xcodecHttpContainsTokenNoCase(pHeader->sValue, "close") ) {
+					pMsg->iFlags &= ~XCODEC_HTTP1_F_KEEPALIVE;
+					pFrame->iFlags &= ~XCODEC_FRAME_F_KEEPALIVE;
+				} else if ( __xcodecHttpContainsTokenNoCase(pHeader->sValue, "keep-alive") ) {
+					pMsg->iFlags |= XCODEC_HTTP1_F_KEEPALIVE;
+					pFrame->iFlags |= XCODEC_FRAME_F_KEEPALIVE;
+				}
+			} else if ( __xcodecHttpStrEqNoCase(pHeader->sName, "Upgrade") && pHeader->sValue[0] != '\0' ) {
+				pMsg->iFlags |= XCODEC_HTTP1_F_UPGRADE;
+				pFrame->iFlags |= XCODEC_FRAME_F_UPGRADE;
+			}
+		}
+		sCursor = sNextLine + 2;
+	}
+	if ( __xcodecHttpContainsTokenNoCase(pMsg->sVersion, "HTTP/1.1") &&
+		((pFrame->iFlags & XCODEC_FRAME_F_KEEPALIVE) == 0) ) {
+		const char* sConn = xrtCodecHttp1GetHeader(pMsg, "Connection");
+		if ( !sConn || !__xcodecHttpContainsTokenNoCase(sConn, "close") ) {
+			pMsg->iFlags |= XCODEC_HTTP1_F_KEEPALIVE;
+			pFrame->iFlags |= XCODEC_FRAME_F_KEEPALIVE;
+		}
+	}
+	pMsg->iHeadBytes = iHeadBytes;
+	pFrame->iKind = XCODEC_KIND_HTTP1;
+	pFrame->iHeaderBytes = iHeadBytes;
+	pFrame->iPayloadOffset = iHeadBytes;
+	pFrame->iPayloadBytes = 0u;
+	pFrame->iFrameBytes = iHeadBytes;
+	pResp = __xhttpBuildResponse(pFrame, pMsg, pChain);
+	XNET_FREE(sHeadBuf);
+	return pResp;
+
+fail:
+	if ( sHeadBuf ) { XNET_FREE(sHeadBuf); }
+	xrtCodecHttp1MessageUnit(pMsg);
+	return NULL;
+}
+
+
 static void __xhttpTxAddRef(__xhttp_tx* pTx)
 {
 	if ( !pTx ) { return; }
@@ -856,22 +1051,33 @@ static bool __xhttpCompleteCloseDelimitedResponse(__xhttp_tx* pTx, xnetchain* pC
 	if ( !pTx || !pChain ) { return false; }
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
 	if ( iParse != XCODEC_STATUS_FRAME ) { return false; }
-	if ( (tMsg.iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u || tMsg.iContentLength >= 0 ) { return false; }
+	if ( (tMsg.iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u || tMsg.iContentLength >= 0 ) {
+		xrtCodecHttp1MessageUnit(&tMsg);
+		return false;
+	}
 	bNoBodyExpected = __xhttpStatusHasNoBody(tMsg.iStatusCode) || __xhttpStrEqNoCase(pTx->tReq.sMethod, "HEAD");
-	if ( bNoBodyExpected ) { return false; }
+	if ( bNoBodyExpected ) {
+		xrtCodecHttp1MessageUnit(&tMsg);
+		return false;
+	}
 	iChainBytes = xrtNetChainBytes(pChain);
-	if ( iChainBytes < tFrame.iHeaderBytes ) { return false; }
+	if ( iChainBytes < tFrame.iHeaderBytes ) {
+		xrtCodecHttp1MessageUnit(&tMsg);
+		return false;
+	}
 	tFrame.iPayloadBytes = iChainBytes - tFrame.iHeaderBytes;
 	tFrame.iFrameBytes = iChainBytes;
 	tFrame.iFlags &= ~XCODEC_FRAME_F_KEEPALIVE;
 	tMsg.iFlags &= ~XCODEC_HTTP1_F_KEEPALIVE;
 	pResp = __xhttpBuildResponse(&tFrame, &tMsg, pChain);
 	if ( !pResp ) {
+		xrtCodecHttp1MessageUnit(&tMsg);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		return true;
 	}
 	(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
 	xrtCodecFrameConsume(pChain, &tFrame);
+	xrtCodecHttp1MessageUnit(&tMsg);
 	return true;
 }
 
@@ -1000,13 +1206,28 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	bool bNoBodyExpected;
 	bool bReusable;
 	xhttpresponse* pResp;
+	bool bHadHead;
 	// 参数校验
 	if ( !pTx || !pStream || !pChain ) { return; }
 	// 刷新空闲超时定时器
 	__xhttpTxRefreshIdleTimeout(pTx);
 	// 解析 HTTP 响应
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
-	if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
+	if ( iParse == XCODEC_STATUS_NEED_MORE ) {
+		if ( !__xhttpStrEqNoCase(pTx->tReq.sMethod, "HEAD") ) { return; }
+		bHadHead = false;
+		pResp = __xhttpBuildHeadResponse(pChain, &tFrame, &tMsg, &bHadHead);
+		if ( !pResp ) {
+			if ( bHadHead ) {
+				(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			}
+			return;
+		}
+		bNoBodyExpected = true;
+		xrtCodecFrameConsume(pChain, &tFrame);
+		goto response_ready;
+	}
 	// 解析失败，终止事务
 	if ( iParse == XCODEC_STATUS_ERROR ) {
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
@@ -1016,11 +1237,13 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	// 检查响应正文期望情况
 	bNoBodyExpected = __xhttpStatusHasNoBody(tMsg.iStatusCode) || __xhttpStrEqNoCase(pTx->tReq.sMethod, "HEAD");
 	if ( (tMsg.iFlags & XCODEC_HTTP1_F_CHUNKED) == 0u && (tMsg.iContentLength < 0 && !bNoBodyExpected) ) {
+		xrtCodecHttp1MessageUnit(&tMsg);
 		return;
 	}
 	// 构建响应对象
 	pResp = __xhttpBuildResponse(&tFrame, &tMsg, pChain);
 	if ( !pResp ) {
+		xrtCodecHttp1MessageUnit(&tMsg);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
@@ -1028,7 +1251,9 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	// 消费已解析的帧数据
 	xrtCodecFrameConsume(pChain, &tFrame);
 	// 判断连接是否可复用
-	bReusable = __xhttpResponseReusable(pTx, &tMsg);
+response_ready:
+	bReusable = __xhttpResponseReusable(pTx, &tMsg) && (!bNoBodyExpected || xrtNetChainBytes(pChain) == 0u);
+	xrtCodecHttp1MessageUnit(&tMsg);
 	if ( bReusable && pConn ) {
 		// 可复用：归还连接到空闲池，完成事务
 		pConn->pTx = NULL;
@@ -1249,6 +1474,13 @@ XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest*
 	if ( pStatus ) { *pStatus = iStatus; }
 	xrtNetFutureDestroy(pFuture);
 	return pResp;
+}
+
+
+// xrtHttpExecuteSyncDefault 相关处理：隐藏 xnet_result，便于脚本运行时窄 ABI 调用
+XXAPI xhttpresponse* xrtHttpExecuteSyncDefault(const xhttprequest* pReq)
+{
+	return xrtHttpExecuteSync(NULL, pReq, NULL);
 }
 
 #endif

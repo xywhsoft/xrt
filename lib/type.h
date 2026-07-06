@@ -1071,6 +1071,312 @@ XXAPI const xrt_method_desc* xrtTypeFindMethod(const xrt_type_desc* pType, const
 }
 
 
+// 判断是否为 XRT 运行时基础类型
+static bool __xrtTypeIsBasicScalar(const xrt_type_desc* pType)
+{
+	if ( pType == NULL ) {
+		return FALSE;
+	}
+	return pType->Kind == XRT_TYPE_KIND_NULL ||
+	       pType->Kind == XRT_TYPE_KIND_BOOL ||
+	       pType->Kind == XRT_TYPE_KIND_INT ||
+	       pType->Kind == XRT_TYPE_KIND_FLOAT ||
+	       pType->Kind == XRT_TYPE_KIND_STRING ||
+	       pType->Kind == XRT_TYPE_KIND_TIME ||
+	       pType->Kind == XRT_TYPE_KIND_POINT;
+}
+
+
+static bool __xrtTypeCanExplicitConvert(const xrt_type_desc* pSrcType, const xrt_type_desc* pDstType)
+{
+	if ( pSrcType == NULL || pDstType == NULL ) {
+		return FALSE;
+	}
+	if ( xrtTypeSame(pSrcType, pDstType) ) {
+		return TRUE;
+	}
+	if ( pSrcType->Kind == XRT_TYPE_KIND_NULL ) {
+		return __xrtTypeIsBasicScalar(pDstType);
+	}
+	if ( pDstType->Kind == XRT_TYPE_KIND_BOOL ) {
+		return pSrcType->Kind == XRT_TYPE_KIND_BOOL ||
+		       pSrcType->Kind == XRT_TYPE_KIND_INT ||
+		       pSrcType->Kind == XRT_TYPE_KIND_FLOAT ||
+		       pSrcType->Kind == XRT_TYPE_KIND_STRING ||
+		       pSrcType->Kind == XRT_TYPE_KIND_TIME ||
+		       pSrcType->Kind == XRT_TYPE_KIND_POINT;
+	}
+	if ( pDstType->Kind == XRT_TYPE_KIND_INT ) {
+		return pSrcType->Kind == XRT_TYPE_KIND_BOOL ||
+		       pSrcType->Kind == XRT_TYPE_KIND_INT ||
+		       pSrcType->Kind == XRT_TYPE_KIND_FLOAT ||
+		       pSrcType->Kind == XRT_TYPE_KIND_STRING ||
+		       pSrcType->Kind == XRT_TYPE_KIND_TIME;
+	}
+	if ( pDstType->Kind == XRT_TYPE_KIND_FLOAT ) {
+		return pSrcType->Kind == XRT_TYPE_KIND_BOOL ||
+		       pSrcType->Kind == XRT_TYPE_KIND_INT ||
+		       pSrcType->Kind == XRT_TYPE_KIND_FLOAT ||
+		       pSrcType->Kind == XRT_TYPE_KIND_STRING ||
+		       pSrcType->Kind == XRT_TYPE_KIND_TIME;
+	}
+	if ( pDstType->Kind == XRT_TYPE_KIND_STRING ) {
+		return pSrcType->Kind == XRT_TYPE_KIND_BOOL ||
+		       pSrcType->Kind == XRT_TYPE_KIND_INT ||
+		       pSrcType->Kind == XRT_TYPE_KIND_FLOAT ||
+		       pSrcType->Kind == XRT_TYPE_KIND_STRING ||
+		       pSrcType->Kind == XRT_TYPE_KIND_TIME ||
+		       pSrcType->Kind == XRT_TYPE_KIND_POINT;
+	}
+	if ( pDstType->Kind == XRT_TYPE_KIND_TIME ) {
+		return pSrcType->Kind == XRT_TYPE_KIND_TIME ||
+		       pSrcType->Kind == XRT_TYPE_KIND_STRING ||
+		       pSrcType->Kind == XRT_TYPE_KIND_INT;
+	}
+	if ( pDstType->Kind == XRT_TYPE_KIND_POINT ) {
+		return pSrcType->Kind == XRT_TYPE_KIND_POINT;
+	}
+	return FALSE;
+}
+
+
+static bool __xrtTypeReadBool(const xrt_type_desc* pType, const ptr pObj)
+{
+	const char* sText;
+	if ( pType == NULL || pObj == NULL ) {
+		return FALSE;
+	}
+	switch ( pType->Kind ) {
+	case XRT_TYPE_KIND_BOOL:
+		return *(const bool*)pObj;
+	case XRT_TYPE_KIND_INT:
+		return *(const int64*)pObj != 0;
+	case XRT_TYPE_KIND_FLOAT:
+		return *(const double*)pObj != 0.0;
+	case XRT_TYPE_KIND_STRING:
+		sText = *(const char* const*)pObj;
+		return sText != NULL && sText[0] != '\0';
+	case XRT_TYPE_KIND_TIME:
+		return *(const xtime*)pObj != 0;
+	case XRT_TYPE_KIND_POINT:
+		return *(ptr const*)pObj != NULL;
+	default:
+		return FALSE;
+	}
+}
+
+
+static int64 __xrtTypeReadInt(const xrt_type_desc* pType, const ptr pObj)
+{
+	const char* sText;
+	if ( pType == NULL || pObj == NULL ) {
+		return 0;
+	}
+	switch ( pType->Kind ) {
+	case XRT_TYPE_KIND_BOOL:
+		return *(const bool*)pObj ? 1 : 0;
+	case XRT_TYPE_KIND_INT:
+		return *(const int64*)pObj;
+	case XRT_TYPE_KIND_FLOAT:
+		return (int64)*(const double*)pObj;
+	case XRT_TYPE_KIND_STRING:
+		sText = *(const char* const*)pObj;
+		return xrtStrToI64((str)sText);
+	case XRT_TYPE_KIND_TIME:
+		return (int64)*(const xtime*)pObj;
+	default:
+		return 0;
+	}
+}
+
+
+static double __xrtTypeReadFloat(const xrt_type_desc* pType, const ptr pObj)
+{
+	const char* sText;
+	if ( pType == NULL || pObj == NULL ) {
+		return 0.0;
+	}
+	switch ( pType->Kind ) {
+	case XRT_TYPE_KIND_BOOL:
+		return *(const bool*)pObj ? 1.0 : 0.0;
+	case XRT_TYPE_KIND_INT:
+		return (double)*(const int64*)pObj;
+	case XRT_TYPE_KIND_FLOAT:
+		return *(const double*)pObj;
+	case XRT_TYPE_KIND_STRING:
+		sText = *(const char* const*)pObj;
+		return xrtStrToNum((str)sText);
+	case XRT_TYPE_KIND_TIME:
+		return (double)*(const xtime*)pObj;
+	default:
+		return 0.0;
+	}
+}
+
+
+static xtime __xrtTypeReadTime(const xrt_type_desc* pType, const ptr pObj)
+{
+	const char* sText;
+	if ( pType == NULL || pObj == NULL ) {
+		return 0;
+	}
+	switch ( pType->Kind ) {
+	case XRT_TYPE_KIND_TIME:
+		return *(const xtime*)pObj;
+	case XRT_TYPE_KIND_STRING:
+		sText = *(const char* const*)pObj;
+		return xrtStrToTime((str)sText, sText != NULL ? strlen(sText) : 0);
+	case XRT_TYPE_KIND_INT:
+		return (xtime)*(const int64*)pObj;
+	default:
+		return 0;
+	}
+}
+
+
+static ptr __xrtTypeReadPoint(const xrt_type_desc* pType, const ptr pObj)
+{
+	if ( pType == NULL || pObj == NULL || pType->Kind != XRT_TYPE_KIND_POINT ) {
+		return NULL;
+	}
+	return *(ptr const*)pObj;
+}
+
+
+// 安全拓宽只描述运行时基础类型的无损方向。
+// 更细的 int8/int16/float32 等静态宽度由语言编译器在类型系统层判断。
+XXAPI bool xrtTypeCanWiden(const xrt_type_desc* pSrcType, const xrt_type_desc* pDstType)
+{
+	if ( pSrcType == NULL || pDstType == NULL ) {
+		return FALSE;
+	}
+	if ( xrtTypeSame(pSrcType, pDstType) ) {
+		return TRUE;
+	}
+	if ( pSrcType->Kind == XRT_TYPE_KIND_NULL && pDstType->Kind == XRT_TYPE_KIND_POINT ) {
+		return TRUE;
+	}
+	if ( pSrcType->Kind == XRT_TYPE_KIND_BOOL &&
+	     (pDstType->Kind == XRT_TYPE_KIND_INT || pDstType->Kind == XRT_TYPE_KIND_FLOAT) ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+XXAPI bool xrtTypeCanConvert(const xrt_type_desc* pSrcType, const xrt_type_desc* pDstType, uint32 iFlags)
+{
+	if ( pSrcType == NULL || pDstType == NULL ) {
+		return FALSE;
+	}
+	if ( (iFlags & XRT_TYPE_CONVERT_EXACT) && xrtTypeSame(pSrcType, pDstType) ) {
+		return TRUE;
+	}
+	if ( (iFlags & XRT_TYPE_CONVERT_SAFE_WIDEN) && xrtTypeCanWiden(pSrcType, pDstType) ) {
+		return TRUE;
+	}
+	if ( (iFlags & XRT_TYPE_CONVERT_EXPLICIT) && __xrtTypeCanExplicitConvert(pSrcType, pDstType) ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+XXAPI bool xrtTypeConvertValue(const xrt_type_desc* pDstType, ptr pDst, const xrt_type_desc* pSrcType, const ptr pSrc, uint32 iFlags)
+{
+	str sText;
+
+	if ( pDstType == NULL || pDst == NULL || pSrcType == NULL ) {
+		return FALSE;
+	}
+	if ( !xrtTypeCanConvert(pSrcType, pDstType, iFlags) ) {
+		return FALSE;
+	}
+	if ( xrtTypeSame(pSrcType, pDstType) ) {
+		if ( pDstType->Ops != NULL && pDstType->Ops->copy != NULL ) {
+			pDstType->Ops->copy(pDst, pSrc);
+		} else if ( pDstType->Size > 0 && pSrc != NULL ) {
+			memcpy(pDst, pSrc, pDstType->Size);
+		}
+		return TRUE;
+	}
+	switch ( pDstType->Kind ) {
+	case XRT_TYPE_KIND_BOOL:
+		*(bool*)pDst = __xrtTypeReadBool(pSrcType, pSrc);
+		return TRUE;
+	case XRT_TYPE_KIND_INT:
+		*(int64*)pDst = __xrtTypeReadInt(pSrcType, pSrc);
+		return TRUE;
+	case XRT_TYPE_KIND_FLOAT:
+		*(double*)pDst = __xrtTypeReadFloat(pSrcType, pSrc);
+		return TRUE;
+	case XRT_TYPE_KIND_STRING:
+		if ( pSrcType->Kind == XRT_TYPE_KIND_NULL ) {
+			*(str*)pDst = xCore.sNull;
+			return TRUE;
+		}
+		sText = xrtTypeToStringValue(pSrcType, pSrc, NULL);
+		*(str*)pDst = sText != NULL ? sText : xCore.sNull;
+		return TRUE;
+	case XRT_TYPE_KIND_TIME:
+		*(xtime*)pDst = __xrtTypeReadTime(pSrcType, pSrc);
+		return TRUE;
+	case XRT_TYPE_KIND_POINT:
+		*(ptr*)pDst = __xrtTypeReadPoint(pSrcType, pSrc);
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
+
+XXAPI bool xrtValueConvertTo(xvalue pVal, const xrt_type_desc* pDstType, ptr pDst, uint32 iFlags)
+{
+	const xrt_type_desc* pSrcType;
+	bool bVal;
+	int64 iVal;
+	double fVal;
+	str sVal;
+	xtime tVal;
+	ptr pPoint;
+
+	if ( pDstType == NULL || pDst == NULL ) {
+		return FALSE;
+	}
+	pSrcType = xvoTypeDesc(pVal);
+	if ( !xrtTypeCanConvert(pSrcType, pDstType, iFlags) ) {
+		return FALSE;
+	}
+	if ( xrtTypeSame(pSrcType, pDstType) ) {
+		return xrtTypeUnboxValue(pDstType, pVal, pDst);
+	}
+	switch ( pSrcType != NULL ? pSrcType->Kind : XRT_TYPE_KIND_NULL ) {
+	case XRT_TYPE_KIND_BOOL:
+		bVal = xvoGetBool(pVal);
+		return xrtTypeConvertValue(pDstType, pDst, pSrcType, &bVal, iFlags);
+	case XRT_TYPE_KIND_INT:
+		iVal = xvoGetInt(pVal);
+		return xrtTypeConvertValue(pDstType, pDst, pSrcType, &iVal, iFlags);
+	case XRT_TYPE_KIND_FLOAT:
+		fVal = xvoGetFloat(pVal);
+		return xrtTypeConvertValue(pDstType, pDst, pSrcType, &fVal, iFlags);
+	case XRT_TYPE_KIND_STRING:
+		sVal = xvoGetText(pVal);
+		return xrtTypeConvertValue(pDstType, pDst, pSrcType, &sVal, iFlags);
+	case XRT_TYPE_KIND_TIME:
+		tVal = xvoGetTime(pVal);
+		return xrtTypeConvertValue(pDstType, pDst, pSrcType, &tVal, iFlags);
+	case XRT_TYPE_KIND_POINT:
+		pPoint = xvoGetPoint(pVal);
+		return xrtTypeConvertValue(pDstType, pDst, pSrcType, &pPoint, iFlags);
+	case XRT_TYPE_KIND_NULL:
+		return xrtTypeConvertValue(pDstType, pDst, pSrcType, NULL, iFlags);
+	default:
+		return FALSE;
+	}
+}
+
+
 XXAPI xvalue xrtTypeBoxValue(const xrt_type_desc* pType, const ptr pObj)
 {
 	if ( pType == NULL || pType->Ops == NULL || pType->Ops->box == NULL ) {
