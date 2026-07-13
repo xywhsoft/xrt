@@ -819,6 +819,7 @@ static bool __test_phase2_shared_xvalue_semantics(void)
 	xthread pThread2 = NULL;
 	xvalue pLocalList = NULL;
 	xvalue pLocalColl = NULL;
+	xvalue pStored = NULL;
 	bool bOk = TRUE;
 
 	memset(&tData, 0, sizeof(tData));
@@ -877,12 +878,19 @@ static bool __test_phase2_shared_xvalue_semantics(void)
 		bOk = FALSE;
 		goto cleanup;
 	}
-	xrtClearError();
-	if ( xvoArrayAppendValue(tData.SharedArray, pLocalList, FALSE) ) {
+	if ( !xvoListSetInt(pLocalList, 3, 321) ) {
 		bOk = FALSE;
 		goto cleanup;
 	}
-	if ( !__test_phase2_has_shared_value_error() ) {
+	xrtClearError();
+	if ( !xvoArrayAppendValue(tData.SharedArray, pLocalList, FALSE) ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	pStored = xvoIndexGetI64(tData.SharedArray, 1);
+	if ( pStored == NULL || pStored == pLocalList || !xvoIsShared_Inline(pStored) ||
+		 xvoListItemCount(pStored) != 1 || xvoGetInt(xvoListGetValue(pStored, 3)) != 321 ||
+		 !__test_phase2_has_no_error() ) {
 		bOk = FALSE;
 		goto cleanup;
 	}
@@ -899,11 +907,13 @@ static bool __test_phase2_shared_xvalue_semantics(void)
 		goto cleanup;
 	}
 	xrtClearError();
-	if ( xvoTableSetValue(tData.SharedTable, "local_coll", 10, pLocalColl, FALSE) ) {
+	if ( !xvoTableSetValue(tData.SharedTable, "local_coll", 10, pLocalColl, FALSE) ) {
 		bOk = FALSE;
 		goto cleanup;
 	}
-	if ( !__test_phase2_has_shared_value_error() ) {
+	pStored = xvoTableGetValue(tData.SharedTable, "local_coll", 10);
+	if ( pStored == NULL || pStored == pLocalColl || !xvoIsShared_Inline(pStored) ||
+		 xvoCollItemCount(pStored) != 1 || !__test_phase2_has_no_error() ) {
 		bOk = FALSE;
 		goto cleanup;
 	}
@@ -922,7 +932,7 @@ static bool __test_phase2_shared_xvalue_semantics(void)
 		bOk = FALSE;
 		goto cleanup;
 	}
-	if ( xvoArrayItemCount(tData.SharedArray) != 1 ) {
+	if ( xvoArrayItemCount(tData.SharedArray) != 2 ) {
 		bOk = FALSE;
 		goto cleanup;
 	}
@@ -930,7 +940,8 @@ static bool __test_phase2_shared_xvalue_semantics(void)
 		bOk = FALSE;
 		goto cleanup;
 	}
-	if ( !xvoTableExists(tData.SharedTable, "coll", 4) ) {
+	if ( !xvoTableExists(tData.SharedTable, "coll", 4) ||
+		 !xvoTableExists(tData.SharedTable, "local_coll", 10) ) {
 		bOk = FALSE;
 		goto cleanup;
 	}
@@ -1799,7 +1810,7 @@ cleanup:
 
 
 // 运行时PHASE2测试
-void Test_Runtime_Phase2(xrtGlobalData* xCore)
+int Test_Runtime_Phase2(xrtGlobalData* xCore)
 {
 	bool bOwnerChain;
 	bool bArrayChain;
@@ -1851,6 +1862,8 @@ void Test_Runtime_Phase2(xrtGlobalData* xCore)
 	printf("  shared coll root: %s\n", bSharedColl ? "成功" : "失败");
 
 	printf("\n Runtime Phase-2 测试完成\n");
+	return bOwnerChain && bArrayChain && bSharedEntry && bSharedLock && bSharedTree &&
+		bSharedContainer && bSharedAlloc && bSharedXValue && bSharedColl ? 0 : 1;
 }
 
 #endif

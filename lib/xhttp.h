@@ -1326,6 +1326,7 @@ static const xnetstreamevents* __xhttpClientEvents(void)
 		__xhttpClientOnClose,
 		__xhttpClientOnError,
 		NULL,
+		NULL,
 		NULL
 	};
 	return &tEvents;

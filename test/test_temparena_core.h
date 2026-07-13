@@ -62,6 +62,33 @@ static uint32 __Test_TempArenaCoreCountBlocks(xrtTempArenaBlock* pBlock)
 }
 
 
+typedef struct {
+	xrtTempArenaBlock* pBlocks;
+	uint32 iDepth;
+	bool bValuePreserved;
+	bool bStatePreserved;
+} __Test_TempArenaCoroutineCase;
+
+
+// 内部函数：验证协程临时内存区跨 yield 保持且不污染宿主
+static void __Test_TempArenaCoroutine(ptr pArg)
+{
+	__Test_TempArenaCoroutineCase* pCase = (__Test_TempArenaCoroutineCase*)pArg;
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	xrtTempScope tScope = xrtTempScopeBegin();
+	char* sValue = (char*)xrtTempMemory(64);
+
+	memcpy(sValue, "coroutine-temp", 15);
+	pCase->pBlocks = pThreadData->tTemp.pBlocks;
+	pCase->iDepth = pThreadData->tTemp.iScopeDepth;
+	xrtCoYield();
+	pCase->bValuePreserved = strcmp(sValue, "coroutine-temp") == 0;
+	pCase->bStatePreserved = pThreadData->tTemp.pBlocks == pCase->pBlocks &&
+		pThreadData->tTemp.iScopeDepth == pCase->iDepth;
+	xrtTempScopeEnd(&tScope);
+}
+
+
 // TEMPARENA核心测试
 static void Test_TempArenaCore(void)
 {
@@ -73,6 +100,11 @@ static void Test_TempArenaCore(void)
 	ptr pB2;
 	ptr pB3;
 	ptr pSpill;
+	ptr pOuter;
+	ptr pInner;
+	str sPromoted;
+	xrtTempScope tOuterScope;
+	xrtTempScope tInnerScope;
 	uint32 iBlockCountBefore;
 	uint32 iBlockCountAfter;
 	uint64 iResetBefore;
@@ -114,6 +146,57 @@ static void Test_TempArenaCore(void)
 
 	xrtFreeTempMemory();
 	__Test_TempArenaCoreRequire(pThreadData->tTemp.pSpill == NULL, "spill list should be released on reset");
+
+	// 嵌套作用域只回收自身分配，外层指针和内容必须保持有效。
+	pOuter = xrtTempMemory(64);
+	memcpy(pOuter, "outer", 6);
+	tOuterScope = xrtTempScopeBegin();
+	pInner = xrtTempMemory(128);
+	memcpy(pInner, "inner", 6);
+	tInnerScope = xrtTempScopeBegin();
+	__Test_TempArenaCoreRequire(xrtTempMemory(256) != NULL, "nested temp scope allocation failed");
+	xrtTempScopeEnd(&tInnerScope);
+	__Test_TempArenaCoreRequire(strcmp((const char*)pInner, "inner") == 0, "ending child scope must preserve parent scope data");
+	xrtTempScopeEnd(&tOuterScope);
+	__Test_TempArenaCoreRequire(strcmp((const char*)pOuter, "outer") == 0, "ending outer scope must preserve pre-scope data");
+	__Test_TempArenaCoreRequire(pThreadData->tTemp.iScopeDepth == 0, "temp scope depth should return to zero");
+
+	// 字符串提升后应位于父作用域，并在子作用域结束后继续有效。
+	tOuterScope = xrtTempScopeBegin();
+	pInner = xrtTempMemory(32);
+	memcpy(pInner, "promoted", 9);
+	sPromoted = xrtTempScopeEndString(&tOuterScope, (str)pInner, 8);
+	__Test_TempArenaCoreRequire(strcmp(sPromoted, "promoted") == 0, "promoted temp string content mismatch");
+
+	// 宿主与 coroutine 必须各自维护临时内存区，且 coroutine 数据可跨 yield 使用。
+	{
+		__Test_TempArenaCoroutineCase tCase;
+		xrtTempArenaBlock* pHostBlocks;
+		xrtTempScope tHostScope;
+		char* sHostValue;
+		xcoro pCo;
+
+		memset(&tCase, 0, sizeof(tCase));
+		xrtFreeTempMemory();
+		tHostScope = xrtTempScopeBegin();
+		sHostValue = (char*)xrtTempMemory(64);
+		memcpy(sHostValue, "host-temp", 10);
+		pCo = xrtCoCreate(__Test_TempArenaCoroutine, &tCase, 0);
+		__Test_TempArenaCoreRequire(pCo != NULL, "coroutine temp arena fixture create failed");
+		pHostBlocks = pThreadData->tTemp.pBlocks;
+		__Test_TempArenaCoreRequire(xrtCoResume(pCo), "coroutine temp arena first resume failed");
+		__Test_TempArenaCoreRequire(strcmp(sHostValue, "host-temp") == 0, "coroutine must preserve host temp data");
+		__Test_TempArenaCoreRequire(pThreadData->tTemp.pBlocks == pHostBlocks, "coroutine must restore host temp blocks");
+		__Test_TempArenaCoreRequire(pThreadData->tTemp.iScopeDepth == 1, "coroutine must restore host temp scope depth");
+		__Test_TempArenaCoreRequire(tCase.pBlocks != NULL && tCase.pBlocks != pHostBlocks, "coroutine must own distinct temp blocks");
+		__Test_TempArenaCoreRequire(xrtTempMemory(512) != NULL, "host temp allocation after coroutine yield failed");
+		__Test_TempArenaCoreRequire(xrtCoResume(pCo), "coroutine temp arena second resume failed");
+		__Test_TempArenaCoreRequire(xrtCoGetState(pCo) == XRT_CO_DEAD, "coroutine temp arena fixture must finish");
+		__Test_TempArenaCoreRequire(tCase.bValuePreserved, "coroutine temp value must survive yield");
+		__Test_TempArenaCoreRequire(tCase.bStatePreserved, "coroutine temp state must survive yield");
+		xrtCoDestroy(pCo);
+		xrtTempScopeEnd(&tHostScope);
+	}
 
 	#ifdef XRT_MEM_DEBUG
 	{

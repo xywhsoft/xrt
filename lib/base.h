@@ -163,6 +163,52 @@ XXAPI void xrtFree(ptr pmem)
 }
 
 
+// 原子保留引用，成功时返回递增后的引用计数
+XXAPI int32 xrtAtomicRefRetain(volatile int32* pCount)
+{
+	uint32 iOld;
+	uint32 iNext;
+
+	if ( pCount == NULL ) {
+		return -1;
+	}
+	iOld = __xrtAtomicLoadU32((const volatile uint32*)pCount);
+	for ( ;; ) {
+		if ( iOld == 0 || iOld >= (uint32)INT32_MAX ) {
+			return -1;
+		}
+		iNext = iOld + 1;
+		if ( __xrtAtomicCompareExchangeU32((volatile uint32*)pCount, iNext, iOld) == iOld ) {
+			return (int32)iNext;
+		}
+		iOld = __xrtAtomicLoadU32((const volatile uint32*)pCount);
+	}
+}
+
+
+// 原子释放引用，成功时返回递减后的引用计数
+XXAPI int32 xrtAtomicRefRelease(volatile int32* pCount)
+{
+	uint32 iOld;
+	uint32 iNext;
+
+	if ( pCount == NULL ) {
+		return -1;
+	}
+	iOld = __xrtAtomicLoadU32((const volatile uint32*)pCount);
+	for ( ;; ) {
+		if ( iOld == 0 || iOld > (uint32)INT32_MAX ) {
+			return -1;
+		}
+		iNext = iOld - 1;
+		if ( __xrtAtomicCompareExchangeU32((volatile uint32*)pCount, iNext, iOld) == iOld ) {
+			return (int32)iNext;
+		}
+		iOld = __xrtAtomicLoadU32((const volatile uint32*)pCount);
+	}
+}
+
+
 // 内部函数：获取临时内存区块头部大小
 static inline size_t __xrtTempArenaBlockHeaderSize()
 {
@@ -253,6 +299,30 @@ static inline void __xrtTempArenaDebugOnReset(xrtThreadData* pThreadData)
 		__xrtMemDebugUnlock();
 	#else
 		(void)pThreadData;
+	#endif
+}
+
+
+// 内部函数：记录临时内存作用域回退信息
+static inline void __xrtTempArenaDebugOnRestore(xrtThreadData* pThreadData, uint64 iSavedBytes)
+{
+	#ifdef XRT_MEM_DEBUG
+		if ( pThreadData == NULL || !__xrtMemDebugEnabled() ) {
+			return;
+		}
+		__xrtMemDebugLock();
+		if ( pThreadData->tTemp.iCurrentBytes > iSavedBytes ) {
+			uint64 iReleased = pThreadData->tTemp.iCurrentBytes - iSavedBytes;
+			if ( xCore.MemDebug.iTempCurrentBytes >= iReleased ) {
+				xCore.MemDebug.iTempCurrentBytes -= iReleased;
+			} else {
+				xCore.MemDebug.iTempCurrentBytes = 0;
+			}
+		}
+		__xrtMemDebugUnlock();
+	#else
+		(void)pThreadData;
+		(void)iSavedBytes;
 	#endif
 }
 
@@ -385,6 +455,21 @@ static inline void __xrtTempArenaFreeAllThread(xrtThreadData* pThreadData)
 }
 
 
+// 内部函数：释放已经脱离线程的临时内存区状态
+static inline void __xrtTempArenaFreeDetached(xrtTempArenaState* pState)
+{
+	xrtThreadData tDetached;
+
+	if ( pState == NULL ) {
+		return;
+	}
+	memset(&tDetached, 0, sizeof(tDetached));
+	tDetached.tTemp = *pState;
+	__xrtTempArenaFreeAllThread(&tDetached);
+	*pState = tDetached.tTemp;
+}
+
+
 
 // 申请无需主动释放的临时内存（线程级）
 XXAPI ptr xrtTempMemory(size_t iSize)
@@ -446,8 +531,153 @@ XXAPI void xrtFreeTempMemory()
 	if ( pThreadData == NULL ) {
 		return;
 	}
+	if ( pThreadData->tTemp.iScopeDepth != 0 ) {
+		xrtSetError("cannot reset temporary memory while a temp scope is active.", FALSE);
+		return;
+	}
 
 	__xrtTempArenaResetThread(pThreadData);
+}
+
+
+
+// 建立可嵌套的临时内存作用域
+XXAPI xrtTempScope xrtTempScopeBegin()
+{
+	xrtTempScope tScope;
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+
+	memset(&tScope, 0, sizeof(tScope));
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return tScope;
+	}
+	tScope.pThreadData = pThreadData;
+	tScope.pCurrent = pThreadData->tTemp.pCurrent;
+	tScope.pSpill = pThreadData->tTemp.pSpill;
+	tScope.iUsed = tScope.pCurrent ? tScope.pCurrent->iUsed : 0;
+	tScope.iCurrentBytes = pThreadData->tTemp.iCurrentBytes;
+	tScope.iDepth = ++pThreadData->tTemp.iScopeDepth;
+	tScope.bActive = TRUE;
+	return tScope;
+}
+
+
+
+// 内部函数：结束临时内存作用域
+static inline bool __xrtTempScopeEndInternal(xrtTempScope* pScope)
+{
+	xrtThreadData* pThreadData;
+	xrtTempArenaBlock* pBlock;
+	xrtTempArenaBlock* pSpill;
+
+	if ( pScope == NULL || !pScope->bActive ) {
+		return TRUE;
+	}
+	pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL || pThreadData != pScope->pThreadData ||
+		 pThreadData->tTemp.iScopeDepth != pScope->iDepth ) {
+		xrtSetError("temporary memory scopes must end on the owning thread in LIFO order.", FALSE);
+		return FALSE;
+	}
+
+	// 溢出块采用头插法，只释放本作用域新增的部分。
+	pSpill = pThreadData->tTemp.pSpill;
+	while ( pSpill != pScope->pSpill ) {
+		xrtTempArenaBlock* pNext;
+		if ( pSpill == NULL ) {
+			xrtSetError("temporary memory spill chain is corrupted.", FALSE);
+			return FALSE;
+		}
+		pNext = pSpill->pNext;
+		__xrtMemGlobalProcFree()(pSpill);
+		pSpill = pNext;
+	}
+	pThreadData->tTemp.pSpill = pScope->pSpill;
+
+	// 常规区块保留给后续复用，只回退已用位置。
+	if ( pScope->pCurrent != NULL ) {
+		pScope->pCurrent->iUsed = pScope->iUsed;
+		pBlock = pScope->pCurrent->pNext;
+	} else {
+		pBlock = pThreadData->tTemp.pBlocks;
+	}
+	while ( pBlock ) {
+		pBlock->iUsed = 0;
+		pBlock = pBlock->pNext;
+	}
+	__xrtTempArenaDebugOnRestore(pThreadData, pScope->iCurrentBytes);
+	pThreadData->tTemp.pCurrent = pScope->pCurrent != NULL ? pScope->pCurrent : pThreadData->tTemp.pBlocks;
+	pThreadData->tTemp.iCurrentBytes = pScope->iCurrentBytes;
+	pThreadData->tTemp.iScopeDepth--;
+	pScope->bActive = FALSE;
+	return TRUE;
+}
+
+
+
+// 结束临时内存作用域，仅回收该作用域内的分配
+XXAPI void xrtTempScopeEnd(xrtTempScope* pScope)
+{
+	(void)__xrtTempScopeEndInternal(pScope);
+}
+
+
+
+// 将需要 xrtFree 的字符串移入当前临时内存区
+XXAPI str xrtTempStringTake(str sText, size_t iSize)
+{
+	str sRet;
+	if ( sText == NULL ) {
+		return xCore.sNull;
+	}
+	if ( iSize == 0 ) {
+		iSize = strlen((const char*)sText);
+	}
+	if ( iSize == 0 ) {
+		xrtFree(sText);
+		return xCore.sNull;
+	}
+	sRet = (str)xrtTempMemory(iSize + 1);
+	if ( sRet == NULL ) {
+		xrtFree(sText);
+		return xCore.sNull;
+	}
+	memcpy(sRet, sText, iSize);
+	sRet[iSize] = 0;
+	xrtFree(sText);
+	return sRet;
+}
+
+
+
+// 复制字符串到父作用域并结束当前作用域
+XXAPI str xrtTempScopeEndString(xrtTempScope* pScope, str sText, size_t iSize)
+{
+	str sOwned;
+	if ( sText == NULL ) {
+		xrtTempScopeEnd(pScope);
+		return xCore.sNull;
+	}
+	if ( iSize == 0 ) {
+		iSize = strlen((const char*)sText);
+	}
+	if ( iSize == 0 ) {
+		xrtTempScopeEnd(pScope);
+		return xCore.sNull;
+	}
+	sOwned = (str)xrtMalloc(iSize + 1);
+	if ( sOwned == NULL ) {
+		xrtTempScopeEnd(pScope);
+		return xCore.sNull;
+	}
+	memcpy(sOwned, sText, iSize);
+	sOwned[iSize] = 0;
+	if ( !__xrtTempScopeEndInternal(pScope) ) {
+		xrtFree(sOwned);
+		return xCore.sNull;
+	}
+	return xrtTempStringTake(sOwned, iSize);
 }
 
 

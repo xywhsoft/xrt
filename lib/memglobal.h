@@ -1259,11 +1259,25 @@ static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeade
 }
 
 
+// 内部函数：计算发布版外部分配记录所在的桶
+static inline uint32 __xrtMemDebugForeignReleaseBucketIndex(ptr pAddress)
+{
+	uintptr_t iValue = (uintptr_t)pAddress;
+
+	/* 内存池地址至少按指针对齐，先去掉恒为零的低位再做轻量混合。 */
+	iValue >>= 3;
+	iValue ^= iValue >> 17;
+	iValue ^= iValue >> 9;
+	return (uint32)(iValue & (__XRT_MEM_FOREIGN_BUCKET_COUNT - 1u));
+}
+
+
 // 内部函数：__xrtMemDebugFindForeignReleaseNoLock
 static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignReleaseNoLock(ptr pAddress, xrtMemDebugForeignAlloc** ppPrev)
 {
 	xrtMemDebugForeignAlloc* pPrev = NULL;
-	xrtMemDebugForeignAlloc* pNode = __xrtMemForeignAllocList;
+	uint32 iBucket = __xrtMemDebugForeignReleaseBucketIndex(pAddress);
+	xrtMemDebugForeignAlloc* pNode = __xrtMemForeignAllocBuckets[iBucket];
 
 	while ( pNode ) {
 		if ( pNode->pAddress == pAddress ) {
@@ -1293,13 +1307,9 @@ static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize,
 		return;
 	}
 	
-	// 加锁并检查是否已注册
+	// 发布版只维护错误释放所需的最小信息；同一活动地址不会被内存池重复分配。
 	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
-	if ( __xrtMemDebugFindForeignReleaseNoLock(pAddress, NULL) != NULL ) {
-		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
-		return;
-	}
-	
+
 	// 分配新的外部分配记录节点
 	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugForeignAlloc));
 	if ( pNode == NULL ) {
@@ -1315,8 +1325,11 @@ static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize,
 	pNode->iAllocLine = iLine;
 	pNode->iAllocThreadId = xrtThreadGetCurrentId();
 	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
-	pNode->pNext = __xrtMemForeignAllocList;
-	__xrtMemForeignAllocList = pNode;
+	{
+		uint32 iBucket = __xrtMemDebugForeignReleaseBucketIndex(pAddress);
+		pNode->pNext = __xrtMemForeignAllocBuckets[iBucket];
+		__xrtMemForeignAllocBuckets[iBucket] = pNode;
+	}
 	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
 }
 
@@ -1326,6 +1339,7 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 {
 	xrtMemDebugForeignAlloc* pPrev = NULL;
 	xrtMemDebugForeignAlloc* pNode;
+	uint32 iBucket;
 	
 	(void)iAllocatorKind;
 	(void)sFile;
@@ -1336,6 +1350,7 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	}
 	
 	// 加锁并查找外部分配记录
+	iBucket = __xrtMemDebugForeignReleaseBucketIndex(pAddress);
 	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
 	pNode = __xrtMemDebugFindForeignReleaseNoLock(pAddress, &pPrev);
 	if ( pNode == NULL ) {
@@ -1347,13 +1362,20 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	if ( pPrev ) {
 		pPrev->pNext = pNode->pNext;
 	} else {
-		__xrtMemForeignAllocList = pNode->pNext;
+		__xrtMemForeignAllocBuckets[iBucket] = pNode->pNext;
 	}
 	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
 	
 	// 释放节点内存
 	__xrtMemGlobalProcFree()(pNode);
 	return TRUE;
+}
+
+
+// 内部函数：静默注销外部分配记录（用于内存池整体销毁和 GC）
+static inline bool __xrtMemDebugTryUnregisterForeignAllocSilent(ptr pAddress)
+{
+	return __xrtMemDebugUnregisterForeignAlloc(pAddress, 0, NULL, 0);
 }
 
 
@@ -1471,8 +1493,17 @@ static inline void __xrtMemDebugResetState(ptr pState)
 	xrtMemDebugForeignAlloc* pHead;
 	(void)pState;
 	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
-	pHead = __xrtMemForeignAllocList;
-	__xrtMemForeignAllocList = NULL;
+	pHead = NULL;
+	for ( uint32 iBucket = 0; iBucket < __XRT_MEM_FOREIGN_BUCKET_COUNT; iBucket++ ) {
+		xrtMemDebugForeignAlloc* pNode = __xrtMemForeignAllocBuckets[iBucket];
+		while ( pNode ) {
+			xrtMemDebugForeignAlloc* pNext = pNode->pNext;
+			pNode->pNext = pHead;
+			pHead = pNode;
+			pNode = pNext;
+		}
+		__xrtMemForeignAllocBuckets[iBucket] = NULL;
+	}
 	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
 	while ( pHead ) {
 		xrtMemDebugForeignAlloc* pNext = pHead->pNext;

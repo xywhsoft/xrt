@@ -391,7 +391,7 @@ NMHASH32_long(const uint8_t* const NMH_RESTRICT p, size_t const len, uint32_t co
 	for (i = 0; i < sizeof(accX)/sizeof(*accX); ++i) accX[i] ^= NMH_ACC_INIT[i];
 	for (i = 0; i < sizeof(accX)/sizeof(*accX); ++i) sum += accX[i];
 	
-#	if SIZE_MAX > UINT32_C(-1)
+#	if defined(_WIN64) || defined(__x86_64__) || defined(__x86_64) || defined(__aarch64__) || defined(_M_X64) || defined(_M_AMD64) || defined(_M_ARM64)
 	sum += (uint32_t)(len >> 32);
 #	endif
 	return sum ^ (uint32_t)len;

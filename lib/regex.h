@@ -3351,26 +3351,28 @@ static int bbre_sset_is_memb(bbre_sset *s, bbre_uint pc)
   return s->sparse[pc] < s->dense_pc_size && s->dense_pc[s->sparse[pc]] == pc;
 }
 
-static void bbre_sset_add_internal(bbre_sset *s, bbre_uint pc)
+static int bbre_sset_add_internal(bbre_sset *s, bbre_uint pc)
 {
   assert(pc < s->size);
   assert(s->dense_pc_size < s->size);
   assert(pc);
-  assert(!bbre_sset_is_memb(s, pc));
+  if (bbre_sset_is_memb(s, pc))
+    return 0;
   s->dense_pc[s->dense_pc_size] = pc;
   s->sparse[pc] = s->dense_pc_size++;
-  return;
+  return 1;
 }
 
 static void bbre_sset_add_k(bbre_sset *s, bbre_uint pc)
 {
-  bbre_sset_add_internal(s, pc);
+  (void)bbre_sset_add_internal(s, pc);
   assert(s->dense_slot_size == 0);
 }
 
 static void bbre_sset_add_kv(bbre_sset *s, bbre_nfa_thrd spec)
 {
-  bbre_sset_add_internal(s, spec.pc);
+  if (!bbre_sset_add_internal(s, spec.pc))
+    return;
   s->dense_slot[s->dense_slot_size++] = spec.slot_hdl;
   /* ensure we're only calling one of k()/kv() on each generation of the sset */
   assert(s->dense_pc_size == s->dense_slot_size);
@@ -3636,7 +3638,6 @@ static int bbre_nfa_eps(bbre_exec *exec, size_t pos, bbre_assert_flag ass)
       /* fall through */
     case BBRE_OPCODE_RANGE:
       (void)(bbre_buf_pop(&exec->nfa.thrd_stk));
-      assert(!bbre_sset_is_memb(&exec->dst, thrd.pc));
       bbre_sset_add_kv(&exec->dst, thrd); /* this is a range or final match */
       break;
     case BBRE_OPCODE_SPLIT: {
@@ -4033,7 +4034,6 @@ static int bbre_dfa_eps(bbre_exec *exec, bbre_assert_flag ass)
       /* fall through */
     case BBRE_OPCODE_RANGE:
       (void)bbre_buf_pop(&exec->dfa.thrd_stk);
-      assert(!bbre_sset_is_memb(&exec->dst, pc));
       bbre_sset_add_k(&exec->dst, pc); /* this is a range or final match */
       break;
     case BBRE_OPCODE_SPLIT: {
@@ -4396,7 +4396,23 @@ static int64 __xrtRegexByteToCharIndex(const char *text, size_t text_size, size_
 {
   if (!text || byte_pos > text_size)
     return -1;
+  if (byte_pos == 0)
+    return 0;
   return (int64)xrtStrCharLen((str)text, byte_pos);
+}
+
+static str __xrtRegexCopyByteRange(const char *text, size_t size)
+{
+  str ret;
+  if (!text)
+    text = "";
+  if (size == 0) {
+    ret = (str)xrtMalloc(1);
+    if (ret)
+      ret[0] = 0;
+    return ret;
+  }
+  return xrtCopyStr((str)text, size);
 }
 
 static xregexmatch *__xrtRegexMatchCreate(const char *text, size_t text_size, int matched, xregexspan span)
@@ -4745,7 +4761,7 @@ const char *xrtRegexMatchText(xregexmatch *match)
   if (!xrtRegexMatchOk(match))
     return NULL;
   if (match->match_text == NULL)
-    match->match_text = (char*)xrtCopyStr((str)(match->text + match->span.iBegin), match->span.iEnd - match->span.iBegin);
+    match->match_text = (char*)__xrtRegexCopyByteRange(match->text + match->span.iBegin, match->span.iEnd - match->span.iBegin);
   return match->match_text;
 }
 
@@ -4753,7 +4769,7 @@ str xrtRegexMatchTextCopy(xregexmatch *match)
 {
   if (!xrtRegexMatchOk(match))
     return NULL;
-  return xrtCopyStr((str)(match->text + match->span.iBegin), match->span.iEnd - match->span.iBegin);
+  return __xrtRegexCopyByteRange(match->text + match->span.iBegin, match->span.iEnd - match->span.iBegin);
 }
 
 int xrtRegexSetBuilderCreate(xregexsetbuilder **pspec, const xregexalloc *palloc)

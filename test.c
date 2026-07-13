@@ -150,6 +150,8 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 #include "test/test_dict_iterator.h"
 #include "test/test_list.h"
 #include "test/test_list_iterator.h"
+#include "test/test_typed_container.h"
+#include "test/test_value_recursive_graph.h"
 #include "test/test_value.h"
 #include "test/test_json.h"
 #include "test/test_json_xson_bench.h"
@@ -314,7 +316,7 @@ XRT_TEST_WRAP_INT(__xrtTestRun_ThreadCore, Test_ThreadCore)
 #ifndef XRT_NO_QUEUE
 	XRT_TEST_WRAP_INT(__xrtTestRun_QueueCore, Test_QueueCore)
 #endif
-XRT_TEST_WRAP_CORE(__xrtTestRun_RuntimePhase2, Test_Runtime_Phase2)
+XRT_TEST_WRAP_CORE_INT(__xrtTestRun_RuntimePhase2, Test_Runtime_Phase2)
 XRT_TEST_WRAP_CORE_INT(__xrtTestRun_RuntimeType, Test_RuntimeType)
 #ifndef XRT_NO_COROUTINE
 	XRT_TEST_WRAP_CORE(__xrtTestRun_Coroutine, Test_Coroutine)
@@ -342,6 +344,8 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_Dict, Test_Dict)
 XRT_TEST_WRAP_CORE(__xrtTestRun_DictIterator, Test_Dict_Iterator)
 XRT_TEST_WRAP_CORE(__xrtTestRun_List, Test_List)
 XRT_TEST_WRAP_CORE(__xrtTestRun_ListIterator, Test_List_Iterator)
+XRT_TEST_WRAP_CORE_INT(__xrtTestRun_TypedContainer, Test_TypedContainer)
+XRT_TEST_WRAP_CORE_INT(__xrtTestRun_ValueRecursiveGraph, Test_ValueRecursiveGraph)
 XRT_TEST_WRAP_CORE(__xrtTestRun_ValueBasic, Test_Value_Basic)
 XRT_TEST_WRAP_CORE(__xrtTestRun_ValueOperations, Test_Value_Operations)
 XRT_TEST_WRAP_CORE(__xrtTestRun_ValueFull, Test_Value_Full)
@@ -415,9 +419,9 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	#endif
 	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Convenience, Test_XNet2_Convenience)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttp, Test_XNet_Http)
-	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttpd, Test_XNet_Httpd)
+	XRT_TEST_WRAP_INT(__xrtTestRun_XNetHttpd, Test_XNet_Httpd)
 	#ifndef XRT_NO_XWEB
-		XRT_TEST_WRAP_VOID(__xrtTestRun_XWeb, Test_XWeb)
+		XRT_TEST_WRAP_INT(__xrtTestRun_XWeb, Test_XWeb)
 	#endif
 	#ifndef XRT_NO_COROUTINE
 		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2ListenerAcceptCore, Test_XNet2_ListenerAcceptCore)
@@ -534,6 +538,8 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "dict_iterator", "Dict Iterator", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_DictIterator },
 	{ "list", "List", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_List },
 	{ "list_iterator", "List Iterator", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ListIterator },
+	{ "typed_container", "Typed Container", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_TypedContainer },
+	{ "value_recursive_graph", "Value Recursive Graph", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ValueRecursiveGraph },
 	{ "value_basic", "Value Basic", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ValueBasic },
 	{ "value_operations", "Value Operations", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ValueOperations },
 	{ "value_full", "Value Full", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ValueFull },
@@ -642,6 +648,8 @@ static const char* __g_arrPresetContainerSmoke[] = {
 	"avltree",
 	"dict",
 	"list",
+	"typed_container",
+	"value_recursive_graph",
 	"value_full",
 	"json",
 	"xson",

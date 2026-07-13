@@ -266,6 +266,14 @@ static int __xrtTestSubprocessHelperMain(int argc, char** argv)
 		fflush(stdout);
 		return 0;
 	}
+	if ( strcmp(argv[0], "print_arg") == 0 ) {
+		if ( argc != 2 || argv[1] == NULL ) {
+			return 126;
+		}
+		fputs(argv[1], stdout);
+		fflush(stdout);
+		return 0;
+	}
 	if ( strcmp(argv[0], "tty_state") == 0 ) {
 		int iStdinTty;
 		int iStdoutTty;
@@ -312,6 +320,7 @@ static int Test_OS(xrtGlobalData* xCore)
 	xprocessevent* arrEvents = NULL;
 	uint32 iEventCount = 0u;
 	char sNormalized[256];
+	str sEnvValue;
 	#if !defined(XRT_NO_NETWORK)
 		xfuture* pFuture = NULL;
 	#endif
@@ -585,6 +594,48 @@ static int Test_OS(xrtGlobalData* xCore)
 			return 6039;
 		}
 		xrtProcessResultUnit(&tResult);
+	}
+
+	#if defined(_WIN32) || defined(_WIN64)
+	{
+		str sCommand = xrtFormat("\"%s\" __subprocess_helper print_arg \"alpha beta\"", xCore->AppFile);
+		if ( sCommand == NULL ) {
+			return 6070;
+		}
+		xrtProcessConfigInit(&tConfig);
+		tConfig.iTargetKind = XPROC_TARGET_SHELL;
+		tConfig.sCommand = sCommand;
+		if ( !xrtExecCapture(&tConfig, &tResult, 3000u) ) {
+			xrtFree(sCommand);
+			return 6071;
+		}
+		xrtFree(sCommand);
+		if ( tResult.iExitCode != 0 || tResult.iStdoutSize != 10u ||
+			 tResult.pStdout == NULL || memcmp(tResult.pStdout, "alpha beta", 10u) != 0 ) {
+			xrtProcessResultUnit(&tResult);
+			return 6072;
+		}
+		xrtProcessResultUnit(&tResult);
+	}
+	#endif
+
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( !SetEnvironmentVariableW(L"XRT_TEST_UTF8_ENV", L"中文路径") ) {
+			return 5991;
+		}
+	#else
+		if ( setenv("XRT_TEST_UTF8_ENV", "中文路径", 1) != 0 ) {
+			return 5991;
+		}
+	#endif
+	sEnvValue = xrtEnvGet("XRT_TEST_UTF8_ENV");
+	if ( sEnvValue == NULL || strcmp(sEnvValue, "中文路径") != 0 ) {
+		xrtFree(sEnvValue);
+		return 5992;
+	}
+	xrtFree(sEnvValue);
+	if ( xrtEnvGet("XRT_TEST_ENV_THAT_DOES_NOT_EXIST_7F4C2B19") != NULL ) {
+		return 5993;
 	}
 
 	{

@@ -157,10 +157,12 @@ typedef struct {
 struct xrt_httpd_conn {
 	struct xrt_httpd_conn* pNext;
 	volatile long iCleanupPosted;
+	volatile long iCloseNotified;
 	volatile long iConnLock;
 	volatile long iRefCount;
 	volatile long iTimerState;
 	xhttpdserver* pServer;
+	xhttpdserver* pServerRef;
 	xnetstream* pStream;
 	xhttpdrequest* pRequest;
 	uint32 iTimerKind;
@@ -182,6 +184,7 @@ struct xrt_httpd_conn {
 };
 
 struct xrt_httpd_server {
+	volatile long iRefCount;
 	xnetengine* pEngine;
 	xnetlistener* pListener;
 	xhttpdconfig tConfig;
@@ -474,6 +477,28 @@ typedef struct {
 } __xhttpd_conn_task;
 
 
+static void __xhttpdServerClearTlsConfig(xhttpdserver* pServer);
+
+
+// 内部函数：增加 HTTP 服务端生命周期引用
+static xhttpdserver* __xhttpdServerAddRef(xhttpdserver* pServer)
+{
+	if ( !pServer ) { return NULL; }
+	(void)__xhttpdAtomicAdd(&pServer->iRefCount, 1);
+	return pServer;
+}
+
+
+// 内部函数：释放 HTTP 服务端生命周期引用
+static void __xhttpdServerRelease(xhttpdserver* pServer)
+{
+	if ( !pServer ) { return; }
+	if ( __xhttpdAtomicAdd(&pServer->iRefCount, -1) != 0 ) { return; }
+	__xhttpdServerClearTlsConfig(pServer);
+	XNET_FREE(pServer);
+}
+
+
 // 内部函数：__xhttpdRequestCreate
 static xhttpdrequest* __xhttpdRequestCreate(void)
 {
@@ -505,11 +530,28 @@ static xhttpdconn* __xhttpdConnAddRef(xhttpdconn* pConn)
 // 内部函数：__xhttpdConnRelease
 static void __xhttpdConnRelease(xhttpdconn* pConn)
 {
+	xhttpdserver* pServerRef;
 	if ( !pConn ) { return; }
 	if ( __xhttpdAtomicAdd(&pConn->iRefCount, -1) != 0 ) { return; }
+	pServerRef = pConn->pServerRef;
+	pConn->pServerRef = NULL;
 	__xhttpdRequestDestroy(pConn->pRequest);
 	pConn->pRequest = NULL;
 	XNET_FREE(pConn);
+	__xhttpdServerRelease(pServerRef);
+}
+
+
+// 内部函数：通知连接关闭；正常关闭与服务端强制停止只能通知一次
+static void __xhttpdConnNotifyClose(xhttpdconn* pConn, xnet_result iReason)
+{
+	xhttpdserver* pServer;
+	if ( !pConn ) { return; }
+	if ( __xhttpdAtomicCompareExchange(&pConn->iCloseNotified, 1, 0) != 0 ) { return; }
+	pServer = pConn->pServer;
+	if ( pServer && pServer->tEvents.OnClose ) {
+		pServer->tEvents.OnClose(pServer->pUserData, pServer, pConn, iReason);
+	}
 }
 
 
@@ -2652,6 +2694,7 @@ static bool __xhttpdListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetst
 		xrtNetStreamSetUserData(pStream, pConn);
 	}
 	pConn->pServer = pServer;
+	pConn->pServerRef = __xhttpdServerAddRef(pServer);
 	pConn->pStream = pStream;
 	__xhttpdServerAddConn(pServer, pConn);
 	return true;
@@ -3323,7 +3366,6 @@ static void __xhttpdStreamOnDrain(ptr pOwner, xnetstream* pStream)
 static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
 {
 	xhttpdconn* pConn = (xhttpdconn*)pOwner;
-	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
 	#if defined(XNET_DEBUG_CLOSE_DIAG)
 		fprintf(stderr, "[CLOSE_DIAG][HTTPD] close conn=%p stream=%p reason=%d keepalive=%d inflight=%d\n",
 			(void*)pConn,
@@ -3333,9 +3375,7 @@ static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result i
 			pConn ? (pConn->bResponseInFlight ? 1 : 0) : 0);
 	#endif
 	(void)pStream;
-	if ( pServer && pServer->tEvents.OnClose ) {
-		pServer->tEvents.OnClose(pServer->pUserData, pServer, pConn, iReason);
-	}
+	__xhttpdConnNotifyClose(pConn, iReason);
 	__xhttpdConnPostCleanup(pConn);
 }
 
@@ -3485,6 +3525,7 @@ XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg
 	pServer = (xhttpdserver*)XNET_ALLOC(sizeof(xhttpdserver));
 	if ( !pServer ) { return NULL; }
 	memset(pServer, 0, sizeof(xhttpdserver));
+	pServer->iRefCount = 1;
 	pServer->pEngine = pEngine;
 	if ( pCfg ) {
 		pServer->tConfig = *pCfg;
@@ -3583,6 +3624,7 @@ static void __xhttpdServerAbortAllConns(xhttpdserver* pServer)
     while ( pConn ) {
         xhttpdconn* pNext = pConn->pNext;
         pConn->pNext = NULL;
+		__xhttpdConnNotifyClose(pConn, XRT_NET_CANCELLED);
         if ( __xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0) == 0 ) {
             xnetstream* pStream;
             __xhttpdLock(&pConn->iConnLock);
@@ -3687,8 +3729,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 {
 	if ( !pServer ) { return; }
 	xrtHttpdStop(pServer);
-	__xhttpdServerClearTlsConfig(pServer);
-	XNET_FREE(pServer);
+	__xhttpdServerRelease(pServer);
 }
 
 #endif

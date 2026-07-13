@@ -1527,6 +1527,7 @@ static void __xrt_co_destroy_raw(xcoro pCo)
 	__xrt_co_stack_free(pCo);
 
 	__xrt_co_free_cleanup_nodes(pCo);
+	__xrtTempArenaFreeDetached(&pCo->__tTemp);
 
 	xrtFree(pCo);
 }
@@ -1744,6 +1745,7 @@ XXAPI bool xrtCoClose(xcoro pCo)
 // xrtCoResume 相关处理
 XXAPI bool xrtCoResume(xcoro pCo)
 {
+	xrtThreadData* pThreadData = NULL;
 	xrtCoroRuntimeState* pRuntime = NULL;
 
 	if ( pCo == NULL ) {
@@ -1755,7 +1757,8 @@ XXAPI bool xrtCoResume(xcoro pCo)
 		return FALSE;
 	}
 
-	pRuntime = __xrt_co_require_runtime(TRUE);
+	pThreadData = __xrt_co_require_thread_data(TRUE);
+	pRuntime = __xrt_co_get_runtime_from_thread(pThreadData);
 	if ( pRuntime == NULL ) {
 		return FALSE;
 	}
@@ -1788,7 +1791,16 @@ XXAPI bool xrtCoResume(xcoro pCo)
 	__xrt_co_set_current(pCo);
 	pCo->iState = XRT_CO_RUNNING;
 
+	// coroutine 与宿主拥有独立临时内存区；切换时只移动状态，不复制区块。
+	pRuntime->tHostTemp = pThreadData->tTemp;
+	pRuntime->bTempArenaSwapped = TRUE;
+	pThreadData->tTemp = pCo->__tTemp;
+	memset(&pCo->__tTemp, 0, sizeof(pCo->__tTemp));
 	__xrt_co_swap_to_co(pRuntime, pCo);
+	pCo->__tTemp = pThreadData->tTemp;
+	pThreadData->tTemp = pRuntime->tHostTemp;
+	memset(&pRuntime->tHostTemp, 0, sizeof(pRuntime->tHostTemp));
+	pRuntime->bTempArenaSwapped = FALSE;
 
 	// 从这里恢复意味着协程 yield 了或者结束了
 	pRuntime->pCurrent = NULL;

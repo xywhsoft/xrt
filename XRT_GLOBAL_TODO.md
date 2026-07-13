@@ -65,3 +65,30 @@
 - 先记录为全局阻塞项
 - 当前主线继续推进其他模块重构
 - 等设备到位后，回到本项执行集中验证
+
+## Global Backlog
+
+### 2. 基础运行时（批次 A）关键缺陷
+
+状态: ready
+
+来源: [MODULE_ASSESSMENT.md](dev/MODULE_ASSESSMENT.md) 批次 A 评估
+
+这些缺陷不依赖外部条件，可立即动手；但部分项会牵动其他批次，需提前对齐：
+
+- **time.h 时区转换 bug**: `xrtUTCToLocal/LocalToUTC` 复用"当前偏移"转换任意时间戳，对 DST 区域的历史/未来时间戳结果错误。影响 HTTP Date、TLS 证书有效期、日志时间戳等所有跨时区场景。修复时需联合 xhttp/xnettls 回归。
+- **charset.h UTF-8 校验不严**: `xrtUTF8to16/xrtUTF8to32/xrtIsUTF8` 不拒绝 overlong encoding、代理区码点、超出 U+10FFFF 的码点。是 UTF-8 smuggling 安全风险。修复后会让原本"宽容接受"的输入变成拒绝，属于 breaking 行为变更，需在版本说明中标注。影响 json.h、xhttp_util.h。
+- **type.h callable refcount 非原子**: 跨线程 future 回调持有 callable 时存在数据竞争。改为原子操作是纯内部改动，不影响 API。
+- **xid.h `xrtMakeXID` 大小疑似不匹配**: `xrtMalloc(24)` 但 `xid` 结构是 4 个字段，若每字段 8 字节则需 32 字节。需先核对 `xid` 类型定义确认是否为真实越界。
+
+### 3. P0 主干在基础运行时的接入点
+
+状态: ready
+
+来源: [MODULE_ASSESSMENT.md](dev/MODULE_ASSESSMENT.md) §1.3
+
+三大主干在批次 A 的具体落点已明确，可在批次 A 内部预留接口，等正式推进主干时直接挂接：
+
+- **统一错误模型**: 落点 `base.h`，扩展 `xrtThreadData` 增加 `xrtErrorContext` 槽，新增 `xrtSetErrorEx/xrtGetLastErrorEx`，旧 `xrtSetError` 作为薄包装保持兼容
+- **统一执行上下文**: 落点 `time.h`，内部预留 `xrtDeadlineFromTimeout/xrtDeadlineExpired` helper
+- **统一资源生命周期**: 落点 `type.h`，为 `xrt_type_ops` 补 `move` 实现，先做 string 类型

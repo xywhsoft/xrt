@@ -988,6 +988,26 @@ XXAPI bool xrtTypeSame(const xrt_type_desc* pA, const xrt_type_desc* pB)
 }
 
 
+// 判断运行时类型是否等于目标类型，或由目标类型派生。
+XXAPI bool xrtTypeIsA(const xrt_type_desc* pType, const xrt_type_desc* pTarget)
+{
+	const xrt_type_desc* pCurrent = pType;
+	uint32 iDepth = 0;
+
+	if ( pTarget == NULL ) {
+		return FALSE;
+	}
+	while ( pCurrent != NULL && iDepth < 256u ) {
+		if ( xrtTypeSame(pCurrent, pTarget) ) {
+			return TRUE;
+		}
+		pCurrent = pCurrent->BaseType;
+		iDepth++;
+	}
+	return FALSE;
+}
+
+
 // 读取类型名，便于 C 层诊断和调试
 XXAPI const char* xrtTypeName(const xrt_type_desc* pType)
 {

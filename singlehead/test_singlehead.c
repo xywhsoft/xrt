@@ -588,6 +588,7 @@ int main(void)
 	xvalue pTable = NULL;
 	xvalue pTags = NULL;
 	xvalue pLocalColl = NULL;
+	xvalue pPublishedColl = NULL;
 	xthread pThread = NULL;
 	singlehead_shared_ctx tCtx;
 
@@ -713,13 +714,24 @@ int main(void)
 	singlehead_print_result("local coll construction", TRUE);
 
 	xrtClearError();
-	if ( xvoTableSetValue(pTable, "bad", 3, pLocalColl, FALSE) ) {
-		singlehead_print_result("reject local nested container on shared root", FALSE);
+	if ( !xvoTableSetValue(pTable, "published", 9, pLocalColl, FALSE) ) {
+		singlehead_print_result("publish local nested container on shared root", FALSE);
 		bOk = FALSE;
 		goto cleanup;
 	}
-	singlehead_print_result("reject local nested container on shared root", singlehead_has_shared_value_error());
-	if ( !singlehead_has_shared_value_error() ) {
+	pPublishedColl = xvoTableGetValue(pTable, "published", 9);
+	singlehead_print_result(
+		"publish local nested container on shared root",
+		pPublishedColl != NULL &&
+		pPublishedColl != pLocalColl &&
+		xvoIsShared_Inline(pPublishedColl) &&
+		xvoCollItemCount(pPublishedColl) == 1 &&
+		!singlehead_has_shared_value_error());
+	if ( pPublishedColl == NULL ||
+		 pPublishedColl == pLocalColl ||
+		 !xvoIsShared_Inline(pPublishedColl) ||
+		 xvoCollItemCount(pPublishedColl) != 1 ||
+		 singlehead_has_shared_value_error() ) {
 		bOk = FALSE;
 		goto cleanup;
 	}

@@ -312,7 +312,7 @@ XXAPI int xrtWeekday(xtime iTime)
 {
 	xtime iTimeAbs = llabs(iTime);
 	uint64 iDay = iTimeAbs / XRT_TIME_DAY;
-	return iDay % 7;
+	return (int)((iDay + 6) % 7);
 }
 
 
@@ -406,7 +406,7 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 	// 第五步：计算星期（总天数对7取余）
 	if ( pWeekday ) {
 		uint64 iDay = iTimeAbs / XRT_TIME_DAY;
-		*pWeekday = iDay % 7;
+		*pWeekday = (int)((iDay + 6) % 7);
 	}
 }
 

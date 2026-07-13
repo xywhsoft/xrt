@@ -251,9 +251,20 @@ static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool 
 				return XQUEUE_CLOSED;
 			}
 			else if ( bInfinite ) {
-				xrtSemWait(pQueue->hItems);
+				int iWaitRet = xrtSemWaitTimeout(pQueue->hItems, 50u);
 				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
-				return __xrtMPSCQWaitPopWithToken(pQueue, ppItem);
+				if ( iWaitRet == XRT_WAIT_OK ) {
+					return __xrtMPSCQWaitPopWithToken(pQueue, ppItem);
+				}
+				else if ( iWaitRet == XRT_WAIT_TIMEOUT ) {
+					if ( __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
+						return XQUEUE_CLOSED;
+					}
+					continue;
+				}
+				else {
+					return XQUEUE_ERROR;
+				}
 			}
 			else {
 				uint64 iNowMs = __xrtQueueWaitNowMs();

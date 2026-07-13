@@ -48,14 +48,12 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
-#ifdef XRT_MEM_DEBUG
 			for ( int idx = 0; idx < 256; idx++ ) {
 				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
 				if ( v->ItemFlag & MMU_FLAG_USE ) {
 					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
 				}
 			}
-#endif
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -149,7 +147,6 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 #endif
 
 // 从内存管理器中申请一块内存
-#ifdef XRT_MEM_DEBUG
 #define __XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(_objMMU, _bFreeMark) \
 	do { \
 		xmemunit __objMMU = (_objMMU); \
@@ -171,9 +168,6 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 			} \
 		} \
 	} while ( 0 )
-#else
-#define __XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(_objMMU, _bFreeMark) ((void)0)
-#endif
 
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 {

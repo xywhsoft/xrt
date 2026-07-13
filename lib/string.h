@@ -353,6 +353,17 @@ XXAPI size_t xrtStrCharLen(str sText, size_t iSize)
 
 
 // 字符串转为小写（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
+XXAPI size_t xrtStrCharToBytePos(str sText, size_t iSize, size_t iCharIndex)
+{
+	iSize = __xrtStrByteSize(sText, iSize);
+	if ( sText == NULL || iSize == 0 || iCharIndex == 0 ) {
+		return 0;
+	}
+	return __xrtStrCharToByteOffset(sText, iSize, iCharIndex);
+}
+
+
+
 XXAPI str xrtLCase(str sText, size_t iSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
@@ -1221,7 +1232,7 @@ XXAPI str xrtStrReverse(str sText, size_t iSize, size_t* iRetSize)
 }
 
 
-// 按行分割字符串，支持 \n、\r\n、\r
+// 按行分割字符串，支持 \n、\r\n、\r；末尾换行只终止当前行，不额外产生空行
 XXAPI str* xrtStrSplitLines(str sText, size_t iSize, size_t* iRetSize)
 {
 	size_t iCount = 1;
@@ -1236,11 +1247,9 @@ XXAPI str* xrtStrSplitLines(str sText, size_t iSize, size_t* iRetSize)
 	iSize = __xrtStrByteSize(sText, iSize);
 	if ( iRetSize ) { *iRetSize = 0; }
 	if ( sText == NULL || iSize == 0 ) {
-		sRet = xrtMalloc(2 * sizeof(void*));
+		sRet = xrtMalloc(sizeof(void*));
 		if ( sRet == NULL ) { return NULL; }
-		sRet[0] = xCore.sNull;
-		sRet[1] = NULL;
-		if ( iRetSize ) { *iRetSize = 1; }
+		sRet[0] = NULL;
 		return sRet;
 	}
 	for ( i = 0; i < iSize; ++i ) {
@@ -1251,6 +1260,9 @@ XXAPI str* xrtStrSplitLines(str sText, size_t iSize, size_t* iRetSize)
 			if ( i + 1 < iSize && sText[i + 1] == '\n' ) { i++; }
 		}
 	}
+	if ( sText[iSize - 1] == '\n' || sText[iSize - 1] == '\r' ) {
+		iCount--;
+	}
 	iHeaderSize = (iCount + 1) * sizeof(void*);
 	iDataSize = iSize + 1;
 	sRet = xrtMalloc(iHeaderSize + iDataSize);
@@ -1259,6 +1271,7 @@ XXAPI str* xrtStrSplitLines(str sText, size_t iSize, size_t* iRetSize)
 	for ( i = 0; i <= iSize; ++i ) {
 		bool bLineEnd = i == iSize || sText[i] == '\n' || sText[i] == '\r';
 		if ( bLineEnd ) {
+			if ( i == iSize && iLineStart == iSize ) { break; }
 			size_t iLineLen = i - iLineStart;
 			sRet[iItem++] = pData + iOutPos;
 			if ( iLineLen > 0 ) {
@@ -1744,6 +1757,7 @@ typedef struct {
 	bool thousands;     // 千分位
 	bool percent;       // 百分比
 	bool uppercase;     // 大写十六进制
+	bool character;     // Unicode codepoint 字符
 	int base;           // 进制 (10, 16, 8, 2)
 	int width;          // 前导零宽度
 	int precision;      // 小数位数 （ -1 表示未指定 ）
@@ -1757,6 +1771,7 @@ static inline void xrt_parse_format(str format, XrtNumFmtOpts* opts)
 	opts->thousands = FALSE;
 	opts->percent = FALSE;
 	opts->uppercase = FALSE;
+	opts->character = FALSE;
 	opts->base = 10;
 	opts->width = 0;
 	opts->precision = -1;
@@ -1774,6 +1789,7 @@ static inline void xrt_parse_format(str format, XrtNumFmtOpts* opts)
 			case 'X': opts->base = 16; opts->uppercase = TRUE; break;
 			case 'o': opts->base = 8; break;
 			case 'b': case 'B': opts->base = 2; break;
+			case 'c': opts->character = TRUE; break;
 			case '.':
 				// 解析小数位数
 				opts->precision = 0;
@@ -1798,6 +1814,35 @@ static inline void xrt_parse_format(str format, XrtNumFmtOpts* opts)
 				break;
 		}
 	}
+}
+
+
+// Unicode codepoint 转 UTF-8，返回写入字节数。
+static inline int xrt_codepoint_to_utf8(uint32 value, char out[4])
+{
+	if ( value == 0 || value > 0x10FFFFu || (value >= 0xD800u && value <= 0xDFFFu) ) {
+		return 0;
+	}
+	if ( value <= 0x7Fu ) {
+		out[0] = (char)value;
+		return 1;
+	}
+	if ( value <= 0x7FFu ) {
+		out[0] = (char)(0xC0u | (value >> 6));
+		out[1] = (char)(0x80u | (value & 0x3Fu));
+		return 2;
+	}
+	if ( value <= 0xFFFFu ) {
+		out[0] = (char)(0xE0u | (value >> 12));
+		out[1] = (char)(0x80u | ((value >> 6) & 0x3Fu));
+		out[2] = (char)(0x80u | (value & 0x3Fu));
+		return 3;
+	}
+	out[0] = (char)(0xF0u | (value >> 18));
+	out[1] = (char)(0x80u | ((value >> 12) & 0x3Fu));
+	out[2] = (char)(0x80u | ((value >> 6) & 0x3Fu));
+	out[3] = (char)(0x80u | (value & 0x3Fu));
+	return 4;
 }
 
 // 内部函数: uint64 转非十进制字符串（从 buffer 末尾往前写）
@@ -1852,6 +1897,19 @@ XXAPI str xrtIntFormat(int64 value, str format)
 	// 解析格式
 	XrtNumFmtOpts opts;
 	xrt_parse_format(format, &opts);
+
+	if ( opts.character ) {
+		char encoded[4];
+		int encodedSize = value >= 0 && value <= 0x10FFFF ?
+			xrt_codepoint_to_utf8((uint32)value, encoded) : 0;
+		str character = xrtMalloc((size_t)encodedSize + 1);
+		if ( character == NULL ) { return xCore.sNull; }
+		if ( encodedSize > 0 ) {
+			memcpy(__xrt_str(character), encoded, (size_t)encodedSize);
+		}
+		__xrt_str(character)[encodedSize] = '\0';
+		return character;
+	}
 	
 	// 处理符号
 	bool negative = (value < 0);
@@ -1877,7 +1935,6 @@ XXAPI str xrtIntFormat(int64 value, str format)
 		numLen = (int)(tmpEnd - numStart);
 		opts.showSign = FALSE;
 		opts.thousands = FALSE;
-		negative = FALSE;
 	}
 	
 	// 计算所需总长度
@@ -1912,6 +1969,66 @@ XXAPI str xrtIntFormat(int64 value, str format)
 		out += numLen;
 	}
 	
+	*out = '\0';
+	return buffer;
+}
+
+// 无符号整数格式化
+XXAPI str xrtUIntFormat(uint64 value, str format)
+{
+	// 解析格式
+	XrtNumFmtOpts opts;
+	xrt_parse_format(format, &opts);
+
+	// 转换为字符串
+	char tmpBuf[96];
+	char* numStart;
+	int numLen;
+
+	if ( opts.base == 10 ) {
+		numLen = xrtU64ToStr(value, tmpBuf);
+		numStart = tmpBuf;
+	} else {
+		// 非十进制不显示符号，也不做千分位分隔
+		char* tmpEnd = tmpBuf + sizeof(tmpBuf);
+		numStart = xrt_u64_to_base(tmpEnd, value, opts.base, opts.uppercase);
+		numLen = (int)(tmpEnd - numStart);
+		opts.showSign = FALSE;
+		opts.thousands = FALSE;
+	}
+
+	// 计算所需总长度
+	int signLen = opts.showSign ? 1 : 0;
+	int digitLen = numLen;
+	if ( opts.thousands && digitLen > 3 ) {
+		digitLen += (digitLen - 1) / 3;
+	}
+	int padLen = (opts.width > digitLen) ? (opts.width - digitLen) : 0;
+	int totalLen = signLen + padLen + digitLen;
+
+	// 分配缓冲区
+	str buffer = xrtMalloc(totalLen + 1);
+	if ( buffer == NULL ) { return xCore.sNull; }
+
+	char* out = __xrt_str(buffer);
+
+	// 写入符号
+	if ( signLen ) {
+		*out++ = '+';
+	}
+
+	// 写入前导零
+	while ( padLen-- > 0 ) { *out++ = '0'; }
+
+	// 写入数字
+	if ( opts.thousands && numLen > 3 ) {
+		xrt_add_thousands(out, numStart, numLen);
+		out += digitLen;
+	} else {
+		memcpy(out, numStart, numLen);
+		out += numLen;
+	}
+
 	*out = '\0';
 	return buffer;
 }

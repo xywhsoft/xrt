@@ -34,9 +34,19 @@ if exist "%OUTPUT_DIR%\single_head_maker.exe" (
     del /f /q "%OUTPUT_DIR%\single_head_maker.exe"
 )
 
-echo Compiling single_head_maker.c...
+echo Compiling single_head_maker.c with MinGW GCC...
 
-tcc -DXRT_SINGLE_HEAD_MAKER_USE_SOURCE single_head_maker.c -lShell32 -lWs2_32 -lIPHLPAPI -o "%OUTPUT_DIR%\single_head_maker.exe"
+where gcc >nul 2>nul
+if errorlevel 1 (
+    echo.
+    echo [ERROR] MinGW GCC was not found in PATH
+    echo.
+    cd /d "%SCRIPT_DIR%"
+    pause
+    exit /b 1
+)
+
+gcc -DXRT_SINGLE_HEAD_MAKER_USE_SOURCE single_head_maker.c -I "%SOURCE_DIR%" -lShell32 -lWs2_32 -lIPHLPAPI -O2 -s -o "%OUTPUT_DIR%\single_head_maker.exe"
 
 if errorlevel 1 (
     echo.

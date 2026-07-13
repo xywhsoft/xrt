@@ -2073,6 +2073,7 @@ static const xnetstreamevents __xnetTcpConnectEvents = {
 	__xnetTcpConnectOnClose,
 	__xnetTcpConnectOnError,
 	NULL,
+	NULL,
 	NULL
 };
 
@@ -2183,6 +2184,14 @@ XXAPI xnetstream* xrtNetTcpAccept(xnetlistener* pListener, int64 iTimeoutMs)
 	}
 	if ( iStatus != XRT_NET_OK || !pStream ) { return NULL; }
 	xrtNetStreamPauseRead(pStream);
+	if ( __xnetStreamHasPreOpenGate(pStream) ) {
+		uint32 iOpenTimeout = iTimeoutMs < 0 ? XNET_WAIT_INFINITE : __xnetSyncTimeoutClamp(iTimeoutMs);
+		iStatus = xrtNetStreamWaitTimeoutEx(pStream, XNET_STREAM_WAIT_WRITABLE, iOpenTimeout);
+		if ( iStatus != XRT_NET_OK ) {
+			xrtNetTcpStreamDestroy(pStream);
+			return NULL;
+		}
+	}
 	return pStream;
 }
 
@@ -2204,7 +2213,12 @@ XXAPI void xrtNetTcpStreamDestroy(xnetstream* pStream)
 XXAPI void xrtNetTcpStreamClose(xnetstream* pStream)
 {
 	if ( !pStream ) { return; }
-	xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+	/*
+		Convenience close must preserve data already accepted by send().
+		WAIT_PEER performs a write half-close after the send queue drains and
+		keeps the socket alive until the peer acknowledges the FIN/close path.
+	*/
+	xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL | XNET_CLOSE_F_WAIT_PEER);
 }
 
 
@@ -2286,7 +2300,7 @@ XXAPI str xrtNetStreamReadText(xnetstream* pStream, size_t iMaxBytes)
 		xrtFree(sRet);
 		return xCore.sNull;
 	}
-	return sRet;
+	return (str)sRet;
 }
 
 
@@ -2328,7 +2342,12 @@ XXAPI bool xrtNetStreamSendText(xnetstream* pStream, const char* sText)
 XXAPI bool xrtNetStreamDrain(xnetstream* pStream, int64 iTimeoutMs)
 {
 	if ( !pStream ) { return false; }
-	if ( xrtNetStreamPendingSend(pStream) == 0 ) { return true; }
+	/*
+		非 worker 线程的 send 可能仍在 worker 任务队列中，不能只看当前发送链。
+		drain waiter 进入同一队列后，才能观察到此前所有 send 的真实状态。
+	*/
+	if ( pStream->pWorker != NULL && __xnetEngineIsCurrentWorker(pStream->pWorker) &&
+		 xrtNetStreamPendingSend(pStream) == 0 ) { return true; }
 	if ( iTimeoutMs < 0 ) {
 		return xrtNetStreamWaitEx(pStream, XNET_STREAM_WAIT_DRAIN) == XRT_NET_OK;
 	}
@@ -2480,7 +2499,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket)
 		xrtFree(sRet);
 		return xCore.sNull;
 	}
-	return sRet;
+	return (str)sRet;
 }
 
 
@@ -2560,6 +2579,14 @@ static int32 __xnetAsyncError(xfuture_result* pOut, const char* sError)
 		pOut->pfnFreeError = xrtFree;
 	}
 	return XRT_NET_ERROR;
+}
+
+
+// 将当前工作线程记录的网络错误传递给 Future，避免把失败伪装成 NULL 成功值。
+static int32 __xnetAsyncLastError(xfuture_result* pOut, const char* sFallback)
+{
+	const char* sError = (const char*)xrtGetError();
+	return __xnetAsyncError(pOut, (sError && sError[0]) ? sError : sFallback);
 }
 
 
@@ -2646,6 +2673,9 @@ static int32 __xnetTcpConnectTaskProc(ptr pArg, xfuture_result* pOut)
 	if ( !pTask ) { return __xnetAsyncPoint(pOut, NULL); }
 	pStream = xrtNetTcpConnect(pTask->sHost, pTask->iPort, pTask->iTimeoutMs);
 	__xnetTcpConnectTaskFree(pTask);
+	if ( !pStream ) {
+		return __xnetAsyncLastError(pOut, "TCP connect failed");
+	}
 	return __xnetAsyncPoint(pOut, pStream);
 }
 
@@ -2657,6 +2687,9 @@ static int32 __xnetTcpAcceptTaskProc(ptr pArg, xfuture_result* pOut)
 	if ( !pTask ) { return __xnetAsyncPoint(pOut, NULL); }
 	pStream = xrtNetTcpAccept(pTask->pListener, pTask->iTimeoutMs);
 	xrtFree(pTask);
+	if ( !pStream ) {
+		return __xnetAsyncLastError(pOut, "TCP accept failed");
+	}
 	return __xnetAsyncPoint(pOut, pStream);
 }
 
@@ -2666,7 +2699,7 @@ static int32 __xnetStreamRecvTaskProc(ptr pArg, xfuture_result* pOut)
 	__xnet_stream_recv_task* pTask = (__xnet_stream_recv_task*)pArg;
 	char* sText;
 	if ( !pTask ) { return __xnetAsyncString(pOut, NULL); }
-	sText = xrtNetStreamRecvText(pTask->pStream, pTask->iMaxBytes, pTask->iTimeoutMs);
+	sText = (char*)xrtNetStreamRecvText(pTask->pStream, pTask->iMaxBytes, pTask->iTimeoutMs);
 	xrtFree(pTask);
 	return __xnetAsyncString(pOut, sText);
 }
@@ -2723,7 +2756,7 @@ XXAPI xfuture* xrtNetTcpConnectAsync(const char* sHost, uint16 iPort, int64 iTim
 	if ( !sHost || !sHost[0] || iPort == 0 ) { return NULL; }
 	pTask = (__xnet_tcp_connect_task*)xrtMalloc(sizeof(__xnet_tcp_connect_task));
 	if ( !pTask ) { return NULL; }
-	pTask->sHost = xrtCopyStr((str)sHost, 0);
+	pTask->sHost = (char*)xrtCopyStr((str)sHost, 0);
 	pTask->iPort = iPort;
 	pTask->iTimeoutMs = iTimeoutMs;
 	if ( !pTask->sHost ) {
@@ -2775,7 +2808,7 @@ XXAPI xfuture* xrtNetStreamSendTextAsync(xnetstream* pStream, const char* sText)
 	pTask = (__xnet_stream_send_task*)xrtMalloc(sizeof(__xnet_stream_send_task));
 	if ( !pTask ) { return NULL; }
 	pTask->pStream = pStream;
-	pTask->sText = xrtCopyStr((str)(sText ? sText : ""), 0);
+	pTask->sText = (char*)xrtCopyStr((str)(sText ? sText : ""), 0);
 	if ( !pTask->sText ) {
 		__xnetStreamSendTaskFree(pTask);
 		return NULL;
@@ -2824,9 +2857,9 @@ XXAPI xfuture* xrtNetUdpSendTextAsync(xdgramsock* pSock, const char* sHost, uint
 	pTask = (__xnet_udp_send_task*)xrtMalloc(sizeof(__xnet_udp_send_task));
 	if ( !pTask ) { return NULL; }
 	pTask->pSock = pSock;
-	pTask->sHost = xrtCopyStr((str)sHost, 0);
+	pTask->sHost = (char*)xrtCopyStr((str)sHost, 0);
 	pTask->iPort = iPort;
-	pTask->sText = xrtCopyStr((str)(sText ? sText : ""), 0);
+	pTask->sText = (char*)xrtCopyStr((str)(sText ? sText : ""), 0);
 	if ( !pTask->sHost || !pTask->sText ) {
 		__xnetUdpSendTaskFree(pTask);
 		return NULL;
@@ -5590,6 +5623,9 @@ static void __xnetSyncRegisterListenerFutureWait(xnetworker* pWorker, ptr pArg)
 
 	(void)pWorker;
 	if ( pCtx == NULL || pCtx->pFuture == NULL || pCtx->pListener == NULL ) {
+		#if defined(XRT_INTERNAL_TEST_ENV)
+			fprintf(stderr, "[XNET ACCEPT] invalid register context\n");
+		#endif
 		__xnetSyncResolveListenerFutureWait(pCtx, XRT_NET_ERROR, NULL);
 		return;
 	}
@@ -5616,6 +5652,9 @@ static void __xnetSyncRegisterListenerFutureWait(xnetworker* pWorker, ptr pArg)
 		pCtx);
 
 	if ( !bRegistered ) {
+		#if defined(XRT_INTERNAL_TEST_ENV)
+			fprintf(stderr, "[XNET ACCEPT] waiter registration rejected\n");
+		#endif
 		__xnetSyncSetError("unable to register listener accept waiter.");
 		__xnetSyncResolveListenerFutureWait(pCtx, XRT_NET_ERROR, NULL);
 	}
@@ -6294,13 +6333,17 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 
 	// 如果等待超时或失败且 Future 仍在等待, 需要取消
 	if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR ) {
+		#if defined(XRT_INTERNAL_TEST_ENV)
+			fprintf(stderr, "[XNET ACCEPT] wait failed, status=%d, future-status=%d\n",
+				iStatus, iFutureStatus);
+		#endif
 		bNeedCancel = true;
 	}
 
 	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingListenerFutureWait(pFuture) ) {
-			(void)__xnetFutureDestroyCore(pFuture);
+			__xnetFutureReleaseRefInternal(pFuture);
 			__xnetSyncSetError("listener accept wait could not cancel its pending waiter.");
 			return XRT_NET_ERROR;
 		}
@@ -6314,11 +6357,11 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 		}
 	}
 
-	// 销毁 Future
-	if ( !__xnetFutureDestroyCore(pFuture) ) {
-		__xnetSyncSetError("listener accept wait could not release its internal future.");
-		return XRT_NET_ERROR;
-	}
+	/*
+		释放同步等待方持有的引用。完成回调可能刚刚唤醒当前线程、尚未释放 async hold；
+		引用计数会在最后一个 hold 释放后自动销毁 Future，不依赖线程完成顺序。
+	*/
+	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
 }
 
@@ -6361,7 +6404,7 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingDgramFutureWait(pFuture) ) {
-			(void)__xnetFutureDestroyCore(pFuture);
+			__xnetFutureReleaseRefInternal(pFuture);
 			__xnetSyncSetError("datagram wait could not cancel its pending waiter.");
 			return XRT_NET_ERROR;
 		}
@@ -6375,11 +6418,7 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 		}
 	}
 
-	// 销毁 Future
-	if ( !__xnetFutureDestroyCore(pFuture) ) {
-		__xnetSyncSetError("datagram wait could not release its internal future.");
-		return XRT_NET_ERROR;
-	}
+	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
 }
 
@@ -6429,7 +6468,7 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingStreamFutureWait(pFuture) ) {
-			(void)__xnetFutureDestroyCore(pFuture);
+			__xnetFutureReleaseRefInternal(pFuture);
 			__xnetSyncSetError("stream wait could not cancel its pending waiter.");
 			return XRT_NET_ERROR;
 		}
@@ -6443,11 +6482,7 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 		}
 	}
 
-	// 销毁 Future
-	if ( !__xnetFutureDestroyCore(pFuture) ) {
-		__xnetSyncSetError("stream wait could not release its internal future.");
-		return XRT_NET_ERROR;
-	}
+	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
 }
 
@@ -6722,7 +6757,6 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
 	xnet_result iFutureStatus;
-	str sErr = NULL;
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
@@ -6761,8 +6795,7 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingStreamFutureWait(pFuture) ) {
-			xrtClearError();
-			xrtNetFutureDestroy(pFuture);
+			__xnetFutureReleaseRefInternal(pFuture);
 			__xnetSyncSetError("stream coroutine wait could not cancel its pending waiter.");
 			return XRT_NET_ERROR;
 		}
@@ -6776,14 +6809,7 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 		}
 	}
 
-	// 销毁 Future, 检查是否有错误
-	xrtClearError();
-	xrtNetFutureDestroy(pFuture);
-	sErr = xrtGetError();
-	if ( sErr && sErr[0] != 0 ) {
-		__xnetSyncSetError("stream coroutine wait could not release its internal future.");
-		return XRT_NET_ERROR;
-	}
+	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
 }
 
@@ -6801,7 +6827,6 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
 	xnet_result iFutureStatus;
-	str sErr = NULL;
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
@@ -6840,8 +6865,7 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingListenerFutureWait(pFuture) ) {
-			xrtClearError();
-			xrtNetFutureDestroy(pFuture);
+			__xnetFutureReleaseRefInternal(pFuture);
 			__xnetSyncSetError("listener coroutine wait could not cancel its pending waiter.");
 			return XRT_NET_ERROR;
 		}
@@ -6855,14 +6879,7 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 		}
 	}
 
-	// 销毁 Future, 检查是否有错误
-	xrtClearError();
-	xrtNetFutureDestroy(pFuture);
-	sErr = xrtGetError();
-	if ( sErr && sErr[0] != 0 ) {
-		__xnetSyncSetError("listener coroutine wait could not release its internal future.");
-		return XRT_NET_ERROR;
-	}
+	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
 }
 
@@ -6880,7 +6897,6 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
 	xnet_result iFutureStatus;
-	str sErr = NULL;
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
@@ -6919,8 +6935,7 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingDgramFutureWait(pFuture) ) {
-			xrtClearError();
-			xrtNetFutureDestroy(pFuture);
+			__xnetFutureReleaseRefInternal(pFuture);
 			__xnetSyncSetError("datagram coroutine wait could not cancel its pending waiter.");
 			return XRT_NET_ERROR;
 		}
@@ -6934,14 +6949,7 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 		}
 	}
 
-	// 销毁 Future, 检查是否有错误
-	xrtClearError();
-	xrtNetFutureDestroy(pFuture);
-	sErr = xrtGetError();
-	if ( sErr && sErr[0] != 0 ) {
-		__xnetSyncSetError("datagram coroutine wait could not release its internal future.");
-		return XRT_NET_ERROR;
-	}
+	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
 }
 

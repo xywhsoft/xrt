@@ -61,6 +61,7 @@ typedef struct {
 #define __XNET_STREAM_ASYNC_RECV_REF       4u
 #define __XNET_STREAM_ASYNC_DISPATCH_RECV  5u
 #define __XNET_STREAM_ASYNC_TLS_HANDSHAKE  6u
+#define __XNET_STREAM_ASYNC_CLOSE          7u
 
 typedef struct {
 	xnetstream* pStream;
@@ -178,6 +179,7 @@ static bool __xnetStreamHasPreOpenGate(const xnetstream* pStream);
 static void __xnetStreamDetachTls(xnetstream* pStream);
 static void __xnetStreamNotifyDestroyWaiters(xnetstream* pStream);
 static void __xnetStreamAbandonUnownedAccepted(xnetstream* pStream);
+static void __xnetListenerCloseSocket(xnetlistener* pListener);
 static void __xnetSocketCloseHandle(xsocket* phSocket);
 
 static bool __xnetStreamRecvArmed(const xnetstream* pStream)
@@ -340,7 +342,7 @@ static void __xnetListenerFinalizeDestroy(xnetlistener* pListener)
 	pListener->pEvents = NULL;
 	pListener->pStreamEvents = NULL;
 	pListener->pUserData = NULL;
-	__xnetSocketCloseHandle(&pListener->hSocket);
+	__xnetListenerCloseSocket(pListener);
 	XNET_FREE(pListener);
 }
 
@@ -858,6 +860,11 @@ static bool __xnetListenerArmAcceptWatch(xnetlistener* pListener)
 	pListener->iAcceptOpId = iOpId;
 	__xnetListenerAddAsyncHold(pListener);
 	if ( !__xnetListenerSubmitSocketNotice(pListener, XNET_PORT_OP_ACCEPT, pListener->hSocket) ) {
+		#if defined(XRT_INTERNAL_TEST_ENV)
+			fprintf(stderr, "[XNET ACCEPT] submit failed, worker=%u, op=%llu\n",
+				pListener->pWorker ? pListener->pWorker->iId : 0u,
+				(unsigned long long)iOpId);
+		#endif
 		__xnetListenerReleaseAsyncHold(pListener);
 		return false;
 	}
@@ -1094,6 +1101,17 @@ static bool __xnetStreamAttachTls(xnetstream* pStream, const xtlsconfig* pCfg, b
 	pStream->pTls = xrtNetTlsSessionCreate(pCfg, bIsServer);
 	return pStream->pTls != NULL;
 	#endif
+}
+
+
+// 先从后端端口登记中移除监听 socket，再关闭句柄，避免句柄复用命中陈旧登记。
+static void __xnetListenerCloseSocket(xnetlistener* pListener)
+{
+	xsocket hSocket;
+	if ( !pListener || !__xnetSocketIsValid(pListener->hSocket) ) { return; }
+	hSocket = pListener->hSocket;
+	(void)__xnetListenerSubmitSocketNotice(pListener, XNET_PORT_OP_CLOSE, hSocket);
+	__xnetSocketCloseHandle(&pListener->hSocket);
 }
 
 
@@ -1852,6 +1870,7 @@ static void __xnetStreamEmitOpen(xnetstream* pStream)
 	if ( !pStream || (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0 ) { return; }
 	__xnetStreamCancelOpenTimer(pStream);
 	pStream->iState |= __XNET_STREAM_STATE_OPEN_EMITTED;
+	__xnetStreamNotifySyncWritable(pStream, XRT_NET_OK);
 	if ( pStream->pEvents && pStream->pEvents->OnOpen ) {
 		pStream->pEvents->OnOpen(__xnetStreamOwner(pStream), pStream);
 	}
@@ -2296,7 +2315,9 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 		return;
 	}
 	// 流正在关闭且不是分发接收操作，直接丢弃
-	if ( pStream->bClosing && pOp->iType != __XNET_STREAM_ASYNC_DISPATCH_RECV ) {
+	if ( pStream->bClosing &&
+		 pOp->iType != __XNET_STREAM_ASYNC_DISPATCH_RECV &&
+		 pOp->iType != __XNET_STREAM_ASYNC_CLOSE ) {
 		XNET_FREE(pOp);
 		__xnetStreamReleaseAsyncHold(pStream);
 		return;
@@ -2359,6 +2380,9 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 		case __XNET_STREAM_ASYNC_TLS_HANDSHAKE:
 			// 驱动 TLS 握手继续进行
 			(void)__xnetStreamDriveTlsHandshake(pStream);
+			break;
+		case __XNET_STREAM_ASYNC_CLOSE:
+			xrtNetStreamClose(pStream, pOp->iLen);
 			break;
 		default:
 			break;
@@ -2517,6 +2541,18 @@ static xnet_result __xnetStreamPostTlsHandshake(xnetstream* pStream)
 }
 
 
+// 将关闭操作排到同一 worker 队列，确保先前投递的 send 一定先执行。
+static xnet_result __xnetStreamPostClose(xnetstream* pStream, uint32 iFlags)
+{
+	__xnet_stream_async_op* pOp;
+
+	pOp = __xnetStreamAllocAsyncSimple(pStream, __XNET_STREAM_ASYNC_CLOSE);
+	if ( pOp == NULL ) { return XRT_NET_ERROR; }
+	pOp->iLen = iFlags;
+	return __xnetStreamPostAsync(pStream, pOp);
+}
+
+
 
 /* ============================== Listener helpers ============================== */
 
@@ -2562,7 +2598,7 @@ XXAPI void xrtNetListenerDestroy(xnetlistener* pListener)
 	}
 	pListener->bRunning = false;
 	(void)__xnetListenerCancelAcceptWatch(pListener);
-	__xnetSocketCloseHandle(&pListener->hSocket);
+	__xnetListenerCloseSocket(pListener);
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 	if ( __xnetAtomicLoad32(&pListener->iAsyncHoldCount) != 0 ) {
 		__xnetListenerPrepareDeferredDestroy(pListener);
@@ -2592,7 +2628,7 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 		if ( pListener->pEvents && pListener->pEvents->OnError ) {
 			pListener->pEvents->OnError(pListener->pUserData, pListener, __xnetSocketLastErr());
 		}
-		__xnetSocketCloseHandle(&pListener->hSocket);
+		__xnetListenerCloseSocket(pListener);
 		return XRT_NET_ERROR;
 	}
 	// 开始监听，默认 backlog 为 128
@@ -2600,7 +2636,7 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 		if ( pListener->pEvents && pListener->pEvents->OnError ) {
 			pListener->pEvents->OnError(pListener->pUserData, pListener, __xnetSocketLastErr());
 		}
-		__xnetSocketCloseHandle(&pListener->hSocket);
+		__xnetListenerCloseSocket(pListener);
 		return XRT_NET_ERROR;
 	}
 	// 更新本地地址信息（bind 后系统可能分配了实际端口）
@@ -2619,7 +2655,7 @@ XXAPI void xrtNetListenerStop(xnetlistener* pListener)
 	if ( !pListener ) { return; }
 	pListener->bRunning = false;
 	(void)__xnetListenerCancelAcceptWatch(pListener);
-	__xnetSocketCloseHandle(&pListener->hSocket);
+	__xnetListenerCloseSocket(pListener);
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 }
 
@@ -2856,6 +2892,9 @@ static void __xnetListenerHandleAcceptEvent(xnetlistener* pListener)
 			__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
 			return;
 		}
+		#if defined(XRT_INTERNAL_TEST_ENV)
+			fprintf(stderr, "[XNET ACCEPT] accepted socket wrap failed\n");
+		#endif
 		// 包装失败，关闭已接受的套接字并重新挂起接受监视
 		__xnetSocketCloseHandle(&tRaw.hSocket);
 		if ( __xnetListenerCanDispatchAccept(pListener) && pListener->bRunning && __xnetSocketIsValid(pListener->hSocket) ) {
@@ -2877,6 +2916,9 @@ static void __xnetListenerHandleAcceptEvent(xnetlistener* pListener)
 		return;
 	}
 	// accept 遇到系统错误
+	#if defined(XRT_INTERNAL_TEST_ENV)
+		fprintf(stderr, "[XNET ACCEPT] accept event failed, system error=%d\n", iSysErr);
+	#endif
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_ERROR, NULL);
 }
 
@@ -2908,6 +2950,9 @@ static void __xnetListenerHandleAcceptedSocketEvent(xnetlistener* pListener, xso
 		__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
 		return;
 	}
+	#if defined(XRT_INTERNAL_TEST_ENV)
+		fprintf(stderr, "[XNET ACCEPT] native accepted socket wrap failed\n");
+	#endif
 	// 包装失败，关闭套接字并重新挂起接受监视
 	__xnetSocketCloseHandle(&hSocket);
 	if ( __xnetListenerCanDispatchAccept(pListener) &&
@@ -3085,6 +3130,14 @@ XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 	if ( !pStream ) { return; }
 	// 已经触发过关闭事件，不再重复处理
 	if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) { return; }
+	/*
+		非 worker 线程的 send 也通过 worker 队列串行化。
+		close 必须进入同一队列，避免先置位 bClosing 后丢弃尚未执行的 send。
+	*/
+	if ( pStream->pEngine != NULL && pStream->pWorker != NULL &&
+		 !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+		if ( __xnetStreamPostClose(pStream, iFlags) == XRT_NET_OK ) { return; }
+	}
 	if ( pStream->bClosing ) {
 		// 已在关闭中，仅当从优雅关闭升级为中止关闭时才处理
 		if ( (iFlags & XNET_CLOSE_F_ABORT) == 0 || (pStream->iFlags & XNET_CLOSE_F_ABORT) != 0 ) { return; }
@@ -3297,10 +3350,21 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 					// IOCP 返回了已接受的套接字
 					__xnetListenerHandleAcceptedSocketEvent(pListener, (xsocket)pEvent->hSocket);
 				} else {
+					#if defined(XRT_INTERNAL_TEST_ENV)
+						fprintf(stderr, "[XNET ACCEPT] completion failed, status=%d, socket=%lld, op=%llu\n",
+							pEvent->iStatus,
+							(long long)pEvent->hSocket,
+							(unsigned long long)pEvent->iOpId);
+					#endif
 					// 接受失败或无套接字，走普通 accept 路径
 					__xnetListenerHandleAcceptEvent(pListener);
 				}
 			} else if ( pEvent->iStatus == XRT_NET_OK && __xnetSocketIsValid((xsocket)pEvent->hSocket) ) {
+				#if defined(XRT_INTERNAL_TEST_ENV)
+					fprintf(stderr, "[XNET ACCEPT] stale completion, expected=%llu, actual=%llu\n",
+						(unsigned long long)(pListener ? pListener->iAcceptOpId : 0u),
+						(unsigned long long)pEvent->iOpId);
+				#endif
 				// 操作 ID 不匹配（过期的监听器），关闭陈旧套接字
 				xsocket hStaleSocket = (xsocket)pEvent->hSocket;
 				__xnetSocketCloseHandle(&hStaleSocket);

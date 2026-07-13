@@ -1,6 +1,50 @@
 
 
 
+// 读取环境变量并统一返回 UTF-8 副本，调用方使用 xrtFree 释放
+XXAPI str xrtEnvGet(str sName)
+{
+	if ( sName == NULL || sName[0] == '\0' ) {
+		return NULL;
+	}
+
+	#if defined(_WIN32) || defined(_WIN64)
+		u16str sNameW = xrtUTF8to16((u8str)sName, 0, NULL);
+		u16str sValueW;
+		u8str sValue;
+		DWORD iNeed;
+
+		if ( sNameW == NULL ) {
+			return NULL;
+		}
+		SetLastError(ERROR_SUCCESS);
+		iNeed = GetEnvironmentVariableW((LPCWSTR)sNameW, NULL, 0);
+		if ( iNeed == 0 ) {
+			DWORD iError = GetLastError();
+			xrtFree(sNameW);
+			return iError == ERROR_SUCCESS ? xrtCopyStr((str)"", 0) : NULL;
+		}
+		sValueW = (u16str)xrtMalloc((size_t)iNeed * sizeof(wchar_t));
+		if ( sValueW == NULL ) {
+			xrtFree(sNameW);
+			return NULL;
+		}
+		if ( GetEnvironmentVariableW((LPCWSTR)sNameW, (LPWSTR)sValueW, iNeed) >= iNeed ) {
+			xrtFree(sValueW);
+			xrtFree(sNameW);
+			return NULL;
+		}
+		xrtFree(sNameW);
+		sValue = xrtUTF16to8(sValueW, 0, NULL);
+		xrtFree(sValueW);
+		return (str)sValue;
+	#else
+		const char* sValue = getenv(sName);
+		return sValue != NULL ? xrtCopyStr(sValue, 0) : NULL;
+	#endif
+}
+
+
 // 运行程序
 XXAPI ptr xrtRun(str sPath, size_t iSize)
 {

@@ -62,6 +62,17 @@
 	#include <sys/wait.h>
 #endif
 
+#if defined(__TINYC__)
+	#ifndef UINT32_C
+		#define UINT32_C(x) x ## U
+	#endif
+	#ifndef UINT64_C
+		#define UINT64_C(x) x ## ULL
+	#endif
+	#undef SIZE_MAX
+	#define SIZE_MAX ((size_t)-1)
+#endif
+
 
 #if defined(__APPLE__) && defined(__MACH__)
 	extern char** environ;
@@ -260,8 +271,14 @@ xrtGlobalData xCore = { 0 };
 #endif
 
 #ifndef XRT_MEM_DEBUG
-static volatile long __xrtMemForeignAllocLock = 0;
-static xrtMemDebugForeignAlloc* __xrtMemForeignAllocList = NULL;
+	/*
+	 * 发布版仍需识别显式内存池指针，防止误交给 xrtFree/xrtRealloc。
+	 * 使用固定桶避免每次池分配都扫描全部活动记录；桶数组位于 BSS，
+	 * 不会把同等大小的数据写入二进制文件。
+	 */
+	#define __XRT_MEM_FOREIGN_BUCKET_COUNT 1024u
+	static volatile long __xrtMemForeignAllocLock = 0;
+	static xrtMemDebugForeignAlloc* __xrtMemForeignAllocBuckets[__XRT_MEM_FOREIGN_BUCKET_COUNT] = { 0 };
 #endif
 
 static uint32 __xrtRuntimeThreadRefCount = 0;

@@ -27,6 +27,94 @@ static void __Test_MemGlobalCoreRequireAllocatorError(void)
 }
 
 
+#ifndef XRT_MEM_DEBUG
+// 验证发布版显式内存池登记表在单独释放、GC 和整体销毁后保持一致
+static void __Test_MemGlobalCoreForeignRegistryLifecycle(void)
+{
+	ptr arrFixed[320];
+	ptr arrGeneral[320];
+	ptr arrGc[16];
+	ptr pBig;
+	xfsmempool pFixed;
+	xmempool pGeneral;
+
+	// 固定尺寸池整体销毁：跨越一个 MMU，所有活动槽位都应被注销。
+	pFixed = xrtFSMemPoolCreate(48, XRT_OBJMODE_LOCAL);
+	__Test_MemGlobalCoreRequire(pFixed != NULL, "fixed registry pool create failed");
+	for ( int i = 0; i < 320; i++ ) {
+		arrFixed[i] = xrtFSMemPoolAlloc(pFixed);
+		__Test_MemGlobalCoreRequire(arrFixed[i] != NULL, "fixed registry alloc failed");
+		__Test_MemGlobalCoreRequire(__xrtMemDebugLookupForeignAlloc(arrFixed[i], NULL, NULL, NULL, NULL), "fixed registry entry missing");
+	}
+	xrtFSMemPoolDestroy(pFixed);
+	for ( int i = 0; i < 320; i++ ) {
+		__Test_MemGlobalCoreRequire(!__xrtMemDebugLookupForeignAlloc(arrFixed[i], NULL, NULL, NULL, NULL), "fixed registry entry survived destroy");
+	}
+
+	// 固定尺寸池 GC：被回收项立即注销，保留项继续受到错误释放保护。
+	pFixed = xrtFSMemPoolCreate(sizeof(int), XRT_OBJMODE_LOCAL);
+	__Test_MemGlobalCoreRequire(pFixed != NULL, "fixed GC registry pool create failed");
+	for ( int i = 0; i < 16; i++ ) {
+		arrGc[i] = xrtFSMemPoolAlloc(pFixed);
+		__Test_MemGlobalCoreRequire(arrGc[i] != NULL, "fixed GC registry alloc failed");
+		if ( (i & 1) == 0 ) {
+			xrtFSMemPoolGC_Mark(arrGc[i]);
+		}
+	}
+	xrtFSMemPoolGC(pFixed, TRUE);
+	for ( int i = 0; i < 16; i++ ) {
+		bool bTracked = __xrtMemDebugLookupForeignAlloc(arrGc[i], NULL, NULL, NULL, NULL);
+		__Test_MemGlobalCoreRequire(bTracked == ((i & 1) != 0), "fixed GC registry state mismatch");
+	}
+	xrtFSMemPoolDestroy(pFixed);
+	for ( int i = 0; i < 16; i++ ) {
+		__Test_MemGlobalCoreRequire(!__xrtMemDebugLookupForeignAlloc(arrGc[i], NULL, NULL, NULL, NULL), "fixed GC registry entry survived destroy");
+	}
+
+	// 通用池整体销毁：同时覆盖桶内分配和大块分配。
+	pGeneral = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
+	__Test_MemGlobalCoreRequire(pGeneral != NULL, "general registry pool create failed");
+	for ( int i = 0; i < 320; i++ ) {
+		arrGeneral[i] = xrtMemPoolAlloc(pGeneral, 48);
+		__Test_MemGlobalCoreRequire(arrGeneral[i] != NULL, "general registry alloc failed");
+		__Test_MemGlobalCoreRequire(__xrtMemDebugLookupForeignAlloc(arrGeneral[i], NULL, NULL, NULL, NULL), "general registry entry missing");
+	}
+	pBig = xrtMemPoolAlloc(pGeneral, 4096);
+	__Test_MemGlobalCoreRequire(pBig != NULL, "general registry big alloc failed");
+	__Test_MemGlobalCoreRequire(__xrtMemDebugLookupForeignAlloc(pBig, NULL, NULL, NULL, NULL), "general big registry entry missing");
+	xrtMemPoolDestroy(pGeneral);
+	for ( int i = 0; i < 320; i++ ) {
+		__Test_MemGlobalCoreRequire(!__xrtMemDebugLookupForeignAlloc(arrGeneral[i], NULL, NULL, NULL, NULL), "general registry entry survived destroy");
+	}
+	__Test_MemGlobalCoreRequire(!__xrtMemDebugLookupForeignAlloc(pBig, NULL, NULL, NULL, NULL), "general big registry entry survived destroy");
+
+	// 通用池 GC：同时验证桶内分配和大块分配的注销路径。
+	pGeneral = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
+	__Test_MemGlobalCoreRequire(pGeneral != NULL, "general GC registry pool create failed");
+	for ( int i = 0; i < 16; i++ ) {
+		arrGc[i] = xrtMemPoolAlloc(pGeneral, 64);
+		__Test_MemGlobalCoreRequire(arrGc[i] != NULL, "general GC registry alloc failed");
+		if ( (i & 1) == 0 ) {
+			xrtMemPoolGC_Mark(arrGc[i]);
+		}
+	}
+	pBig = xrtMemPoolAlloc(pGeneral, 4096);
+	__Test_MemGlobalCoreRequire(pBig != NULL, "general GC big alloc failed");
+	xrtMemPoolGC_Mark(pBig);
+	xrtMemPoolGC(pGeneral, TRUE);
+	for ( int i = 0; i < 16; i++ ) {
+		bool bTracked = __xrtMemDebugLookupForeignAlloc(arrGc[i], NULL, NULL, NULL, NULL);
+		__Test_MemGlobalCoreRequire(bTracked == ((i & 1) != 0), "general GC registry state mismatch");
+	}
+	__Test_MemGlobalCoreRequire(!__xrtMemDebugLookupForeignAlloc(pBig, NULL, NULL, NULL, NULL), "general GC big registry entry survived collection");
+	xrtMemPoolDestroy(pGeneral);
+	for ( int i = 0; i < 16; i++ ) {
+		__Test_MemGlobalCoreRequire(!__xrtMemDebugLookupForeignAlloc(arrGc[i], NULL, NULL, NULL, NULL), "general GC registry entry survived destroy");
+	}
+}
+#endif
+
+
 // 内部函数：__Test_MemGlobalCoreHoldRuntimeWorker
 static uint32 __Test_MemGlobalCoreHoldRuntimeWorker(ptr pParam)
 {
@@ -185,6 +273,10 @@ static void Test_MemGlobalCore(void)
 
 	xrtMemPoolFree(objMemPool, pMemPool);
 	xrtMemPoolDestroy(objMemPool);
+
+#ifndef XRT_MEM_DEBUG
+	__Test_MemGlobalCoreForeignRegistryLifecycle();
+#endif
 
 	xrtFree(pZero);
 	xrtFree(pReallocGrow);

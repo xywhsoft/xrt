@@ -143,6 +143,14 @@ void Test_Base(xrtGlobalData* xCore)
 	} else {
 		printf("  ✗ 从 NULL realloc 失败\n");
 	}
+
+	// 引用计数接口必须拒绝无效状态，并准确返回新计数。
+	volatile int32 iRefCount = 1;
+	assert(xrtAtomicRefRetain(&iRefCount) == 2);
+	assert(xrtAtomicRefRelease(&iRefCount) == 1);
+	assert(xrtAtomicRefRelease(&iRefCount) == 0);
+	assert(xrtAtomicRefRetain(&iRefCount) == -1);
+	assert(xrtAtomicRefRelease(&iRefCount) == -1);
 }
 
 

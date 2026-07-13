@@ -221,6 +221,7 @@ static const xnetstreamevents* __Test_XHttpStreamEvents(void)
 		__Test_XHttpServerOnClose,
 		__Test_XHttpServerOnError,
 		NULL,
+		NULL,
 		NULL
 	};
 	return &tEvents;

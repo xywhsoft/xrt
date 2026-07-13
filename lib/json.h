@@ -1816,6 +1816,8 @@ XXAPI xvalue xrtParseJSON_File(str sFile)
 
 // 将 xte Value 序列化为字符串
 void xvo_private_Stringify_Table(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey);
+void xvo_private_Stringify_List(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey);
+void xvo_private_Stringify_Value(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey);
 // 序列化数组为 JSON 字符串
 void xvo_private_Stringify_Array(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey)
 {
@@ -1837,6 +1839,8 @@ void xvo_private_Stringify_Array(json_sax_print_hd handle, xvalue varVal, json_s
 			xrtJsonPrintString(handle, NULL, &jstr);
 		} else if ( objItem->Type == XVO_DT_ARRAY ) {
 			xvo_private_Stringify_Array(handle, objItem, NULL);
+		} else if ( objItem->Type == XVO_DT_LIST ) {
+			xvo_private_Stringify_List(handle, objItem, NULL);
 		} else if ( objItem->Type == XVO_DT_TABLE ) {
 			xvo_private_Stringify_Table(handle, objItem, NULL);
 		}
@@ -1865,6 +1869,8 @@ int xvo_private_Stringify_Table_Proc(Dict_Key* pKey, xvalue* ppVal, json_sax_pri
 		xrtJsonPrintString(handle, &jkey, &jstr);
 	} else if ( objItem->Type == XVO_DT_ARRAY ) {
 		xvo_private_Stringify_Array(handle, objItem, &jkey);
+	} else if ( objItem->Type == XVO_DT_LIST ) {
+		xvo_private_Stringify_List(handle, objItem, &jkey);
 	} else if ( objItem->Type == XVO_DT_TABLE ) {
 		xvo_private_Stringify_Table(handle, objItem, &jkey);
 	}
@@ -1874,8 +1880,52 @@ int xvo_private_Stringify_Table_Proc(Dict_Key* pKey, xvalue* ppVal, json_sax_pri
 void xvo_private_Stringify_Table(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey)
 {
 	xrtJsonPrintObject(handle, sKey, JSON_SAX_START);
-	xrtDictWalk(varVal->vTable, (void*)xvo_private_Stringify_Table_Proc, (void*)handle);
+	if ( !xvoTableWalkOrdered(varVal, (void*)xvo_private_Stringify_Table_Proc, (void*)handle) ) {
+		xrtDictWalk(varVal->vTable, (void*)xvo_private_Stringify_Table_Proc, (void*)handle);
+	}
 	xrtJsonPrintObject(handle, NULL, JSON_SAX_FINISH);
+}
+
+void xvo_private_Stringify_Value(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey)
+{
+	if ( varVal == NULL || varVal->Type == XVO_DT_NULL ) {
+		xrtJsonPrintNull(handle, sKey);
+	} else if ( varVal->Type == XVO_DT_BOOL ) {
+		xrtJsonPrintBool(handle, sKey, varVal->vInt);
+	} else if ( varVal->Type == XVO_DT_INT ) {
+		xrtJsonPrintInt64(handle, sKey, varVal->vInt);
+	} else if ( varVal->Type == XVO_DT_FLOAT ) {
+		xrtJsonPrintDouble(handle, sKey, varVal->vFloat);
+	} else if ( varVal->Type == XVO_DT_TEXT ) {
+		json_string_t jstr = {0};
+		jstr.str = __xrt_str(varVal->vText);
+		xrtJsonUpdateStringInfo(&jstr);
+		xrtJsonPrintString(handle, sKey, &jstr);
+	} else if ( varVal->Type == XVO_DT_ARRAY ) {
+		xvo_private_Stringify_Array(handle, varVal, sKey);
+	} else if ( varVal->Type == XVO_DT_LIST ) {
+		xvo_private_Stringify_List(handle, varVal, sKey);
+	} else if ( varVal->Type == XVO_DT_TABLE ) {
+		xvo_private_Stringify_Table(handle, varVal, sKey);
+	} else {
+		xrtJsonPrintNull(handle, sKey);
+	}
+}
+
+bool xvo_private_Stringify_List_Proc(int64 iKey, xvalue* ppVal, json_sax_print_hd handle)
+{
+	(void)iKey;
+	xvo_private_Stringify_Value(handle, ppVal != NULL ? *ppVal : NULL, NULL);
+	return FALSE;
+}
+
+void xvo_private_Stringify_List(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey)
+{
+	xrtJsonPrintArray(handle, sKey, JSON_SAX_START);
+	if ( varVal != NULL && varVal->vList != NULL ) {
+		xrtListWalk(varVal->vList, (ptr)xvo_private_Stringify_List_Proc, (void*)handle);
+	}
+	xrtJsonPrintArray(handle, NULL, JSON_SAX_FINISH);
 }
 // 将 xvalue 序列化为 JSON 字符串
 XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
@@ -1903,6 +1953,8 @@ XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 		xrtJsonPrintString(handle, NULL, &jstr);
 	} else if ( varVal->Type == XVO_DT_ARRAY ) {
 		xvo_private_Stringify_Array(handle, varVal, NULL);
+	} else if ( varVal->Type == XVO_DT_LIST ) {
+		xvo_private_Stringify_List(handle, varVal, NULL);
 	} else if ( varVal->Type == XVO_DT_TABLE ) {
 		xvo_private_Stringify_Table(handle, varVal, NULL);
 	}

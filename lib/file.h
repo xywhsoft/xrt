@@ -1410,11 +1410,110 @@ XXAPI bool xrtFileMove(str sSrc, str sDst, bool bReWrite)
 
 // 删除文件
 // 原子重命名文件，不跨卷复制
+static int __xrtFilePathEqualsIgnoreAsciiCase(str sA, str sB)
+{
+	str sAbsA;
+	str sAbsB;
+	size_t i;
+	size_t iSizeA;
+	size_t iSizeB;
+	int bEqual = TRUE;
+
+	if ( sA == NULL || sB == NULL ) { return FALSE; }
+	sAbsA = xrtPathAbs(sA, 0);
+	sAbsB = xrtPathAbs(sB, 0);
+	if ( sAbsA == NULL || sAbsB == NULL ) {
+		xrtFree(sAbsA);
+		xrtFree(sAbsB);
+		return FALSE;
+	}
+	iSizeA = strlen((const char*)sAbsA);
+	iSizeB = strlen((const char*)sAbsB);
+	if ( iSizeA != iSizeB ) {
+		bEqual = FALSE;
+	} else {
+		for ( i = 0; i < iSizeA; ++i ) {
+			unsigned char ca = (unsigned char)sAbsA[i];
+			unsigned char cb = (unsigned char)sAbsB[i];
+			if ( ca == '/' ) { ca = '\\'; }
+			if ( cb == '/' ) { cb = '\\'; }
+			if ( ca >= 'A' && ca <= 'Z' ) { ca = (unsigned char)(ca - 'A' + 'a'); }
+			if ( cb >= 'A' && cb <= 'Z' ) { cb = (unsigned char)(cb - 'A' + 'a'); }
+			if ( ca != cb ) {
+				bEqual = FALSE;
+				break;
+			}
+		}
+	}
+	xrtFree(sAbsA);
+	xrtFree(sAbsB);
+	return bEqual;
+}
+
 XXAPI bool xrtFileRename(str sSrc, str sDst, bool bReWrite)
 {
-	if ( sSrc == NULL || sDst == NULL ) { return FALSE; }
-	if ( !bReWrite && xrtPathExists(sDst) ) { return FALSE; }
 	#if defined(_WIN32) || defined(_WIN64)
+		bool bSamePathIgnoreCase;
+	#endif
+	if ( sSrc == NULL || sDst == NULL ) { return FALSE; }
+	if ( !bReWrite && xrtPathExists(sDst) ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( !__xrtFilePathEqualsIgnoreAsciiCase(sSrc, sDst) ) { return FALSE; }
+		#else
+			return FALSE;
+		#endif
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		bSamePathIgnoreCase = __xrtFilePathEqualsIgnoreAsciiCase(sSrc, sDst);
+		if ( bSamePathIgnoreCase ) {
+			int i;
+			for ( i = 0; i < 16; ++i ) {
+				str sTmp = xrtPathRandom(sDst, 0, (str)".xrt-rename-tmp", 0, 8);
+				u16str sSrcW;
+				u16str sTmpW;
+				u16str sDstW;
+				BOOL bStep1;
+				BOOL bStep2;
+
+				if ( sTmp == NULL || sTmp[0] == 0 ) {
+					xrtFree(sTmp);
+					return FALSE;
+				}
+				if ( xrtPathExists(sTmp) ) {
+					xrtFree(sTmp);
+					continue;
+				}
+
+				sSrcW = xrtUTF8to16((u8str)sSrc, 0, NULL);
+				sTmpW = xrtUTF8to16((u8str)sTmp, 0, NULL);
+				sDstW = xrtUTF8to16((u8str)sDst, 0, NULL);
+				if ( sSrcW == NULL || sTmpW == NULL || sDstW == NULL ) {
+					xrtFree(sSrcW);
+					xrtFree(sTmpW);
+					xrtFree(sDstW);
+					xrtFree(sTmp);
+					return FALSE;
+				}
+
+				bStep1 = MoveFileExW((const wchar_t*)sSrcW, (const wchar_t*)sTmpW, MOVEFILE_WRITE_THROUGH);
+				bStep2 = FALSE;
+				if ( bStep1 ) {
+					bStep2 = MoveFileExW((const wchar_t*)sTmpW, (const wchar_t*)sDstW, MOVEFILE_WRITE_THROUGH);
+					if ( !bStep2 ) {
+						MoveFileExW((const wchar_t*)sTmpW, (const wchar_t*)sSrcW, MOVEFILE_WRITE_THROUGH);
+					}
+				}
+
+				xrtFree(sSrcW);
+				xrtFree(sTmpW);
+				xrtFree(sDstW);
+				xrtFree(sTmp);
+				if ( bStep1 && bStep2 ) {
+					return TRUE;
+				}
+			}
+			return FALSE;
+		}
 		u16str sSrcW = xrtUTF8to16((u8str)sSrc, 0, NULL);
 		u16str sDstW = xrtUTF8to16((u8str)sDst, 0, NULL);
 		DWORD iFlags = MOVEFILE_WRITE_THROUGH | (bReWrite ? MOVEFILE_REPLACE_EXISTING : 0);

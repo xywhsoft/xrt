@@ -364,6 +364,17 @@ XXAPI uint32 xrtSetCount(xset pSet)
 }
 
 
+// 清空 set，保留类型描述，容量在下一次写入时按需恢复
+XXAPI bool xrtSetClear(xset pSet)
+{
+	if ( pSet == NULL ) {
+		return FALSE;
+	}
+	xrtSetUnit(pSet);
+	return TRUE;
+}
+
+
 // 遍历 set
 XXAPI void xrtSetWalk(xset pSet, xset_each_proc procEach, ptr pArg)
 {
@@ -382,6 +393,260 @@ XXAPI void xrtSetWalk(xset pSet, xset_each_proc procEach, ptr pArg)
 		}
 	}
 	xrtOwnerEndMutable(&pSet->Owner);
+}
+
+
+// ------------------------------------ set 高层集合运算 ------------------------------------
+
+static bool __xrtSetSameType(xset pLeft, xset pRight)
+{
+	if ( pLeft == NULL || pRight == NULL ) {
+		return FALSE;
+	}
+	#ifndef XRT_NO_VALUE
+	if ( xrtTypeSame(pLeft->Type, pRight->Type) ) {
+		return TRUE;
+	}
+	#else
+	if ( pLeft->Type == pRight->Type && pLeft->Type != NULL ) {
+		return TRUE;
+	}
+	#endif
+	return pLeft->Type == NULL && pRight->Type == NULL && pLeft->ItemLength == pRight->ItemLength;
+}
+
+
+typedef struct __xrt_set_merge_arg {
+	xset Target;
+	bool Failed;
+} __xrt_set_merge_arg;
+
+
+static bool __xrtSetMergeEach(const ptr pItem, ptr pArg)
+{
+	__xrt_set_merge_arg* pState = (__xrt_set_merge_arg*)pArg;
+	if ( pState == NULL || pState->Target == NULL ) {
+		return TRUE;
+	}
+	if ( !xrtSetAdd(pState->Target, pItem) ) {
+		pState->Failed = TRUE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+XXAPI xset xrtSetClone(xset pSet)
+{
+	xset pRet;
+	if ( pSet == NULL ) {
+		return NULL;
+	}
+	pRet = xrtSetCreate(pSet->Type, XRT_OBJMODE_LOCAL);
+	if ( pRet == NULL ) {
+		return NULL;
+	}
+	if ( !xrtSetMerge(pRet, pSet) ) {
+		xrtSetDestroy(pRet);
+		return NULL;
+	}
+	return pRet;
+}
+
+
+XXAPI bool xrtSetMerge(xset pTarget, xset pSource)
+{
+	__xrt_set_merge_arg state;
+	if ( pTarget == NULL || pSource == NULL ) {
+		return FALSE;
+	}
+	if ( pTarget == pSource ) {
+		return TRUE;
+	}
+	if ( !__xrtSetSameType(pTarget, pSource) ) {
+		return FALSE;
+	}
+	state.Target = pTarget;
+	state.Failed = FALSE;
+	xrtSetWalk(pSource, __xrtSetMergeEach, &state);
+	return state.Failed == FALSE;
+}
+
+
+XXAPI xset xrtSetUnion(xset pLeft, xset pRight)
+{
+	xset pRet;
+	if ( pLeft == NULL || pRight == NULL || !__xrtSetSameType(pLeft, pRight) ) {
+		return NULL;
+	}
+	pRet = xrtSetClone(pLeft);
+	if ( pRet == NULL ) {
+		return NULL;
+	}
+	if ( !xrtSetMerge(pRet, pRight) ) {
+		xrtSetDestroy(pRet);
+		return NULL;
+	}
+	return pRet;
+}
+
+
+typedef struct __xrt_set_binary_arg {
+	xset Other;
+	xset Result;
+	bool Failed;
+} __xrt_set_binary_arg;
+
+
+static bool __xrtSetIntersectionEach(const ptr pItem, ptr pArg)
+{
+	__xrt_set_binary_arg* pState = (__xrt_set_binary_arg*)pArg;
+	if ( pState == NULL || pState->Other == NULL || pState->Result == NULL ) {
+		return TRUE;
+	}
+	if ( xrtSetExists(pState->Other, pItem) && !xrtSetAdd(pState->Result, pItem) ) {
+		pState->Failed = TRUE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+static bool __xrtSetDifferenceEach(const ptr pItem, ptr pArg)
+{
+	__xrt_set_binary_arg* pState = (__xrt_set_binary_arg*)pArg;
+	if ( pState == NULL || pState->Other == NULL || pState->Result == NULL ) {
+		return TRUE;
+	}
+	if ( !xrtSetExists(pState->Other, pItem) && !xrtSetAdd(pState->Result, pItem) ) {
+		pState->Failed = TRUE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+XXAPI xset xrtSetIntersection(xset pLeft, xset pRight)
+{
+	__xrt_set_binary_arg state;
+	if ( pLeft == NULL || pRight == NULL || !__xrtSetSameType(pLeft, pRight) ) {
+		return NULL;
+	}
+	state.Other = pRight;
+	state.Result = xrtSetCreate(pLeft->Type, XRT_OBJMODE_LOCAL);
+	state.Failed = FALSE;
+	if ( state.Result == NULL ) {
+		return NULL;
+	}
+	xrtSetWalk(pLeft, __xrtSetIntersectionEach, &state);
+	if ( state.Failed ) {
+		xrtSetDestroy(state.Result);
+		return NULL;
+	}
+	return state.Result;
+}
+
+
+XXAPI xset xrtSetDifference(xset pLeft, xset pRight)
+{
+	__xrt_set_binary_arg state;
+	if ( pLeft == NULL || pRight == NULL || !__xrtSetSameType(pLeft, pRight) ) {
+		return NULL;
+	}
+	state.Other = pRight;
+	state.Result = xrtSetCreate(pLeft->Type, XRT_OBJMODE_LOCAL);
+	state.Failed = FALSE;
+	if ( state.Result == NULL ) {
+		return NULL;
+	}
+	xrtSetWalk(pLeft, __xrtSetDifferenceEach, &state);
+	if ( state.Failed ) {
+		xrtSetDestroy(state.Result);
+		return NULL;
+	}
+	return state.Result;
+}
+
+
+XXAPI xset xrtSetSymmetricDifference(xset pLeft, xset pRight)
+{
+	xset pLeftOnly;
+	xset pRightOnly;
+	xset pRet;
+	if ( pLeft == NULL || pRight == NULL || !__xrtSetSameType(pLeft, pRight) ) {
+		return NULL;
+	}
+	pLeftOnly = xrtSetDifference(pLeft, pRight);
+	pRightOnly = xrtSetDifference(pRight, pLeft);
+	if ( pLeftOnly == NULL || pRightOnly == NULL ) {
+		if ( pLeftOnly != NULL ) { xrtSetDestroy(pLeftOnly); }
+		if ( pRightOnly != NULL ) { xrtSetDestroy(pRightOnly); }
+		return NULL;
+	}
+	pRet = xrtSetUnion(pLeftOnly, pRightOnly);
+	xrtSetDestroy(pLeftOnly);
+	xrtSetDestroy(pRightOnly);
+	return pRet;
+}
+
+
+typedef struct __xrt_set_relation_arg {
+	xset Other;
+	bool Result;
+} __xrt_set_relation_arg;
+
+
+static bool __xrtSetSubsetEach(const ptr pItem, ptr pArg)
+{
+	__xrt_set_relation_arg* pState = (__xrt_set_relation_arg*)pArg;
+	if ( pState == NULL || pState->Other == NULL ) {
+		return TRUE;
+	}
+	if ( !xrtSetExists(pState->Other, pItem) ) {
+		pState->Result = FALSE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+XXAPI bool xrtSetIsSubset(xset pLeft, xset pRight, bool bProper)
+{
+	__xrt_set_relation_arg state;
+	if ( pLeft == NULL || pRight == NULL || !__xrtSetSameType(pLeft, pRight) ) {
+		return FALSE;
+	}
+	if ( bProper && pLeft->Count >= pRight->Count ) {
+		return FALSE;
+	}
+	if ( pLeft->Count > pRight->Count ) {
+		return FALSE;
+	}
+	state.Other = pRight;
+	state.Result = TRUE;
+	xrtSetWalk(pLeft, __xrtSetSubsetEach, &state);
+	return state.Result;
+}
+
+
+XXAPI bool xrtSetIsSuperset(xset pLeft, xset pRight, bool bProper)
+{
+	if ( pLeft == NULL || pRight == NULL ) {
+		return FALSE;
+	}
+	return xrtSetIsSubset(pRight, pLeft, bProper);
+}
+
+
+XXAPI bool xrtSetEquals(xset pLeft, xset pRight)
+{
+	if ( pLeft == NULL || pRight == NULL || !__xrtSetSameType(pLeft, pRight) ) {
+		return FALSE;
+	}
+	if ( pLeft->Count != pRight->Count ) {
+		return FALSE;
+	}
+	return xrtSetIsSubset(pLeft, pRight, FALSE);
 }
 
 #undef XRT_SET_SLOT_EMPTY

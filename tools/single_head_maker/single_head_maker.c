@@ -23,11 +23,11 @@
 #define XRT_NO_SUBPROCESS
 #define XRT_NO_LOGGER
 
-#define XRT_IMPLEMENTATION
 #if defined(XRT_SINGLE_HEAD_MAKER_USE_SOURCE)
 	#include "../../xrt.h"
 	#include "../../xrt.c"
 #else
+	#define XRT_IMPLEMENTATION
 	#include "../../singlehead/xrt.h"
 #endif
 
@@ -197,6 +197,22 @@ void AddProcessedFile(const char* path)
 }
 
 
+void WriteSourceLine(FILE* out, const char* line, int lineLen, const char* trimmed)
+{
+	fwrite(line, 1, lineLen, out);
+	/*
+	 * GBK/ANSI 中文注释末尾字节可能是 '\\'。
+	 * C 预处理会先拼接续行，导致下一行声明被 // 注释吞掉。
+	 * 只处理单行注释，避免破坏正常的宏续行。
+	 */
+	if ( trimmed != NULL && trimmed[0] == '/' && trimmed[1] == '/' &&
+		 lineLen > 0 && line[lineLen - 1] == '\\' ) {
+		fputc(' ', out);
+	}
+	fprintf(out, "\n");
+}
+
+
 void NormalizePath(char* path)
 {
 	char* p = path;
@@ -277,6 +293,9 @@ int ShouldSkipInclude(const char* includePath, const char* skipInclude)
 
 void ProcessIncludes(FILE* out, const char* filePath, int depth, int* totalLines, const char* sourceDir, const char* skipInclude)
 {
+	int skipXrtImplementation;
+	int skipXrtImplementationDepth;
+
 	if ( depth > 50 ) {
 		fprintf(stderr, "Error: Include depth too deep (possible circular reference)\n");
 		return;
@@ -304,6 +323,8 @@ void ProcessIncludes(FILE* out, const char* filePath, int depth, int* totalLines
 	fprintf(out, "\n");
 	
 	const char* lineStart = content;
+	skipXrtImplementation = 0;
+	skipXrtImplementationDepth = 0;
 	
 	while ( *lineStart ) {
 		const char* lineEnd = lineStart;
@@ -328,7 +349,25 @@ void ProcessIncludes(FILE* out, const char* filePath, int depth, int* totalLines
 		}
 		*dst = '\0';
 
-		if ( strncmp(trimmed, "#include", 8) == 0 ) {
+		if ( skipInclude == NULL && skipXrtImplementation ) {
+			if ( strncmp(trimmed, "#if", 3) == 0 ) {
+				skipXrtImplementationDepth++;
+			} else if ( strncmp(trimmed, "#endif", 6) == 0 ) {
+				if ( skipXrtImplementationDepth <= 0 ) {
+					skipXrtImplementation = 0;
+					fprintf(out, "// (skipped XRT_IMPLEMENTATION block: %s)\n", GetDisplayPath(filePath, sourceDir));
+					(*totalLines)++;
+				} else {
+					skipXrtImplementationDepth--;
+				}
+			}
+		} else if ( skipInclude == NULL && strcmp(trimmed, "#ifdef XRT_IMPLEMENTATION") == 0 ) {
+			skipXrtImplementation = 1;
+			skipXrtImplementationDepth = 0;
+		} else if ( strcmp(trimmed, "#pragma once") == 0 ) {
+			fprintf(out, "// (skipped pragma once: %s)\n", GetDisplayPath(filePath, sourceDir));
+			(*totalLines)++;
+		} else if ( strncmp(trimmed, "#include", 8) == 0 ) {
 			const char* includeTarget = trimmed + 8;
 			while ( *includeTarget == ' ' || *includeTarget == '\t' ) {
 				includeTarget++;
@@ -352,13 +391,11 @@ void ProcessIncludes(FILE* out, const char* filePath, int depth, int* totalLines
 					ProcessIncludes(out, fullPath, depth + 1, totalLines, sourceDir, skipInclude);
 				}
 			} else {
-				fwrite(line, 1, lineLen, out);
-				fprintf(out, "\n");
+				WriteSourceLine(out, line, lineLen, trimmed);
 				(*totalLines)++;
 			}
 		} else {
-			fwrite(line, 1, lineLen, out);
-			fprintf(out, "\n");
+			WriteSourceLine(out, line, lineLen, trimmed);
 			(*totalLines)++;
 		}
 
@@ -427,8 +464,8 @@ int WriteHeader(FILE* out)
 	fprintf(out, "//\n");
 	fprintf(out, "// ========================================\n");
 	fprintf(out, "\n");
-	fprintf(out, "#ifndef XRT_SINGLE_HEADER\n");
-	fprintf(out, "#define XRT_SINGLE_HEADER\n");
+	fprintf(out, "#ifndef XRT_GENERATED_SINGLE_HEADER\n");
+	fprintf(out, "#define XRT_GENERATED_SINGLE_HEADER\n");
 	fprintf(out, "\n");
 	
 	return 1;
@@ -466,7 +503,7 @@ int WriteFooter(FILE* out)
 	fprintf(out, "// End of Single Header\n");
 	fprintf(out, "// ========================================\n");
 	fprintf(out, "\n");
-	fprintf(out, "#endif // XRT_SINGLE_HEADER\n");
+	fprintf(out, "#endif // XRT_GENERATED_SINGLE_HEADER\n");
 	
 	return 1;
 }

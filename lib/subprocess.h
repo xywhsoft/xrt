@@ -83,6 +83,7 @@ typedef struct {
 typedef struct {
 	const char** arrArgv;
 	uint32 iArgCount;
+	bool bRawCmdCommand;
 } __xproc_resolved_cmd;
 
 typedef struct {
@@ -1199,6 +1200,7 @@ static bool __xprocResolveCommand(const __xproc_plan* pPlan, __xproc_resolved_cm
 				arrArgv[iWrite++] = "/D";
 				arrArgv[iWrite++] = "/S";
 				arrArgv[iWrite++] = "/C";
+				pResolved->bRawCmdCommand = true;
 			}
 		#else
 			arrArgv[iWrite++] = "-c";
@@ -2292,7 +2294,19 @@ static char* __xprocBuildWindowsCommandLine(const __xproc_resolved_cmd* pCmd)
 				break;
 			}
 		}
-		if ( !__xprocCmdAppendQuoted(&tBuf, (str)pCmd->arrArgv[i]) ) {
+		if ( pCmd->bRawCmdCommand && i + 1u == pCmd->iArgCount ) {
+			/*
+			 * cmd.exe /S /C 的命令串不是 CRT argv。内部引号必须原样交给 cmd，
+			 * 只在整个命令串外增加一对引号；通用 argv 转义会把内部引号变成
+			 * 反斜杠引号，最终作为字面字符传给子程序。
+			 */
+			if ( !__xprocStrBufAppendChar(&tBuf, '"') ||
+				 !__xprocStrBufAppend(&tBuf, pCmd->arrArgv[i] != NULL ? pCmd->arrArgv[i] : "") ||
+				 !__xprocStrBufAppendChar(&tBuf, '"') ) {
+				bOk = false;
+				break;
+			}
+		} else if ( !__xprocCmdAppendQuoted(&tBuf, (str)pCmd->arrArgv[i]) ) {
 			bOk = false;
 			break;
 		}

@@ -402,7 +402,7 @@ int Test_XNet2_Stream(void)
 			pAbortStream->iState |= __XNET_STREAM_STATE_OPEN_EMITTED;
 			printf("  Abort stream send copy : %s\n", xrtNetStreamSend(pAbortStream, "bye", 3) == XRT_NET_OK ? "PASS" : "FAIL");
 			xrtNetStreamClose(pAbortStream, XNET_CLOSE_F_ABORT);
-			printf("  Abort close callback fires : %s\n", __Test_XNet2_StreamAtomicLoad(&tAbortStats.iCloseCount) == 1 ? "PASS" : "FAIL");
+			printf("  Abort close callback fires : %s\n", __Test_XNet2_StreamWaitValue(&tAbortStats.iCloseCount, 1, 200) ? "PASS" : "FAIL");
 			printf("  Abort close clears queue : %s\n", xrtNetStreamPendingSend(pAbortStream) == 0 ? "PASS" : "FAIL");
 			printf("  Abort close rejects send : %s\n", xrtNetStreamSend(pAbortStream, "z", 1) == XRT_NET_CLOSED ? "PASS" : "FAIL");
 		}

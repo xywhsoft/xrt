@@ -501,7 +501,7 @@ static xfuture* __Test_XHttpdOnRequestBodyEndAsync(ptr pOwner, xhttpdserver* pSe
 	pTask->iStatusCode = 203u;
 	pTask->iDelayMs = 25u;
 	__xhttpCopyToken(pTask->aHeaderValue, sizeof(pTask->aHeaderValue), "body-end");
-	snprintf(pTask->aBody, sizeof(pTask->aBody), "async-body:%s", pCtx->aStreamBody);
+	snprintf(pTask->aBody, sizeof(pTask->aBody), "async-body:%.116s", pCtx->aStreamBody);
 	return xTaskRunThread(__Test_XHttpdAsyncFutureProc, pTask, 0);
 }
 
@@ -609,9 +609,29 @@ static void __Test_XHttpdOnError(ptr pOwner, xhttpdserver* pServer, xhttpdconn* 
 }
 
 
-// XNETHTTP 服务端测试
-void Test_XNet_Httpd(void)
+// 内部函数：记录 HTTPD 子断言失败并保留原始输出
+static int __Test_XHttpdTrackedPrintf(int* pFailCount, const char* sFormat, ...)
 {
+	char aBuf[4096];
+	va_list tArgs;
+	int iRet;
+
+	va_start(tArgs, sFormat);
+	iRet = vsnprintf(aBuf, sizeof(aBuf), sFormat, tArgs);
+	va_end(tArgs);
+	if ( pFailCount && strstr(aBuf, "FAIL") != NULL ) {
+		(*pFailCount)++;
+	}
+	fputs(aBuf, stdout);
+	return iRet;
+}
+
+
+// XNETHTTP 服务端测试
+int Test_XNet_Httpd(void)
+{
+	int iFailCount = 0;
+#define printf(...) __Test_XHttpdTrackedPrintf(&iFailCount, __VA_ARGS__)
 	printf("\n\n\n------------------------------------\n\n XNet HTTP Server Skeleton Test:\n\n");
 
 	{
@@ -1763,4 +1783,6 @@ void Test_XNet_Httpd(void)
 			xrtNetEngineDestroy(pServerEngine);
 		}
 	}
+#undef printf
+	return iFailCount == 0 ? 0 : 1;
 }

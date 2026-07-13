@@ -1088,6 +1088,7 @@ static const xnetstreamevents* __xwsClientStreamEvents(void)
 		__xwsClientStreamOnClose,
 		__xwsClientStreamOnError,
 		NULL,
+		NULL,
 		NULL
 	};
 	return &tEvents;
@@ -1491,6 +1492,7 @@ static const xnetstreamevents* __xwsServerStreamEvents(void)
 		NULL,
 		__xwsServerStreamOnClose,
 		__xwsServerStreamOnError,
+		NULL,
 		NULL,
 		NULL
 	};

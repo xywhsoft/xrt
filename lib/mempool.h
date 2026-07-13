@@ -232,15 +232,13 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
-#ifdef XRT_MEM_DEBUG
-			// 调试模式下清理 MMU 中仍在使用的内存块的 foreign alloc 跟踪
+			// 池整体销毁时，活动槽位不会逐个经过 xrtMemPoolFree，必须统一注销。
 			for ( int idx = 0; idx < 256; idx++ ) {
 				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
 				if ( v->ItemFlag & MMU_FLAG_USE ) {
 					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
 				}
 			}
-#endif
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -265,9 +263,7 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
-#ifdef XRT_MEM_DEBUG
 			__xrtMemDebugTryUnregisterForeignAllocSilent(&((MP_MemHead*)pInfo->Ptr)[1]);
-#endif
 			xrtFree(pInfo->Ptr);
 		}
 	}
@@ -708,6 +704,28 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 	xrtOwnerEndMutable(&objMP->Owner);
 }
 
+// 注销一轮 GC 即将回收的桶内分配记录
+static inline void __xrtMemPoolUnregisterUnitWillFree(xmemunit objMMU, bool bFreeMark)
+{
+	if ( objMMU == NULL || objMMU->Count == 0 ) {
+		return;
+	}
+	for ( int idx = 0; idx < 256; idx++ ) {
+		MMU_ValuePtr v = (MMU_ValuePtr)&objMMU->Memory[(size_t)objMMU->ItemLength * idx];
+		bool bWillFree;
+		if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
+			continue;
+		}
+		bWillFree = bFreeMark
+			? (v->ItemFlag & MMU_FLAG_GC) != 0
+			: (v->ItemFlag & MMU_FLAG_GC) == 0;
+		if ( bWillFree ) {
+			__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+		}
+	}
+}
+
+
 // 进行一轮 GC，将 标记 或 未标记 的内存全部回收（按桶执行 GC，先回收后整理链表）
 static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 {
@@ -716,11 +734,13 @@ static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 	// 第一阶段：对 Idle 和 Full 链表中的所有 MMU 执行 GC 回收
 	pNode = objFSB->LL_Idle;
 	while ( pNode ) {
+		__xrtMemPoolUnregisterUnitWillFree(pNode->objMMU, bFreeMark);
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}
 	pNode = objFSB->LL_Full;
 	while ( pNode ) {
+		__xrtMemPoolUnregisterUnitWillFree(pNode->objMMU, bFreeMark);
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}
@@ -770,6 +790,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 				MP_MemHead* pHead = pInfo->Ptr;
 				if ( (pHead->Flag & MMU_FLAG_USE) && (pHead->Flag & MMU_FLAG_GC) ) {
 					pHead->Flag = 0;
+					__xrtMemDebugTryUnregisterForeignAllocSilent(&pHead[1]);
 					xrtFree(pInfo->Ptr);
 					pInfo->Ptr = NULL;
 					pInfo->Next = objMP->LL_BigFree;
@@ -793,6 +814,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 					} else {
 						// 无标记：释放内存
 						pHead->Flag = 0;
+						__xrtMemDebugTryUnregisterForeignAllocSilent(&pHead[1]);
 						xrtFree(pInfo->Ptr);
 						pInfo->Ptr = NULL;
 						pInfo->Next = objMP->LL_BigFree;

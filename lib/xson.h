@@ -1415,7 +1415,9 @@ static xson_write_result_t _xson_write_dict(xson_print_t* pPrint, xvalue varVal,
 	if ( _xson_print_append_char(pPrint, '{') == FALSE ) {
 		return XSON_WRITE_RESULT_FAIL;
 	}
-	xrtDictWalk(varVal->vTable, (ptr)_xson_write_dict_proc, &tCtx);
+	if ( !xvoTableWalkOrdered(varVal, (ptr)_xson_write_dict_proc, &tCtx) ) {
+		xrtDictWalk(varVal->vTable, (ptr)_xson_write_dict_proc, &tCtx);
+	}
 	if ( tCtx.bError ) {
 		return XSON_WRITE_RESULT_FAIL;
 	}

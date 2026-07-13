@@ -125,6 +125,8 @@ struct __xweb_route_node {
 struct __xweb_static_mount {
 	char* sMount;
 	char* sRoot;
+	char* sIndexNames;
+	char* sCacheControl;
 	xwebstaticconfig tConfig;
 	__xweb_static_mount* pNext;
 };
@@ -636,6 +638,8 @@ static void __xwebStaticMountDestroy(__xweb_static_mount* pMount)
 		__xweb_static_mount* pNext = pMount->pNext;
 		xrtFree(pMount->sMount);
 		xrtFree(pMount->sRoot);
+		xrtFree(pMount->sIndexNames);
+		xrtFree(pMount->sCacheControl);
 		xrtFree(pMount);
 		pMount = pNext;
 	}
@@ -2098,10 +2102,18 @@ XXAPI bool xrtWebAppStatic(xwebapp* pApp, const char* sMount, const char* sRoot,
 	memset(pMount, 0, sizeof(__xweb_static_mount));
 	pMount->sMount = __xwebCopyStr(sMount);
 	pMount->sRoot = __xwebCopyStr(sRoot);
+	pMount->sIndexNames = tCfg.sIndexNames ? __xwebCopyStr(tCfg.sIndexNames) : NULL;
+	pMount->sCacheControl = tCfg.sCacheControl ? __xwebCopyStr(tCfg.sCacheControl) : NULL;
 	pMount->tConfig = tCfg;
-	if ( !pMount->sMount || !pMount->sRoot ) {
+	pMount->tConfig.sIndexNames = pMount->sIndexNames;
+	pMount->tConfig.sCacheControl = pMount->sCacheControl;
+	if ( !pMount->sMount || !pMount->sRoot ||
+		(tCfg.sIndexNames && !pMount->sIndexNames) ||
+		(tCfg.sCacheControl && !pMount->sCacheControl) ) {
 		xrtFree(pMount->sMount);
 		xrtFree(pMount->sRoot);
+		xrtFree(pMount->sIndexNames);
+		xrtFree(pMount->sCacheControl);
 		xrtFree(pMount);
 		return false;
 	}

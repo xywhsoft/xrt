@@ -123,6 +123,16 @@ void Test_String(xrtGlobalData* xCore)
 	
 	// 负数 + 千分位
 	printf("xrtIntFormat(-1234567, \",\") = \"%s\" (应为 -1,234,567)\n", xrtIntFormat(-1234567, ","));
+
+	// Unicode codepoint 字符格式。
+	str sAsciiChar = xrtIntFormat(65, "c");
+	str sUtf8Char = xrtIntFormat(0x4F60, "c");
+	if ( strcmp(sAsciiChar, "A") != 0 || strcmp(sUtf8Char, "你") != 0 ) {
+		fprintf(stderr, "xrtIntFormat character format failed\n");
+		exit(1);
+	}
+	xrtFree(sAsciiChar);
+	xrtFree(sUtf8Char);
 	
 	// xrtNumFormat 浮点数格式化测试
 	printf("\n--- xrtNumFormat 浮点数格式化测试 ---\n");

@@ -3,7 +3,7 @@
 
 #include "../xrt.h"
 
-void Test_Runtime_Phase2(xrtGlobalData* xCore);
+int Test_Runtime_Phase2(xrtGlobalData* xCore);
 void Test_Coroutine(xrtGlobalData* xCore);
 void Test_XNet2_Base(void);
 void Test_XNet2_Port(void);
@@ -16,7 +16,7 @@ void Test_XNet2_Dgram(void);
 int Test_XNet2_Sync(void);
 void Test_XNet2_Codec(void);
 void Test_XNet_Http(void);
-void Test_XNet_Httpd(void);
+int Test_XNet_Httpd(void);
 void Test_XNet_Ws(void);
 void Test_XNet2_Mem(void);
 
@@ -103,7 +103,7 @@ static void __Test_MemTelemetryBaselineRunLane(const char* sLane, __test_memtele
 // 内部函数：__Test_MemTelemetryBaselineLane_Runtime
 static void __Test_MemTelemetryBaselineLane_Runtime(xrtGlobalData* pCore)
 {
-	Test_Runtime_Phase2(pCore);
+	(void)Test_Runtime_Phase2(pCore);
 }
 
 
@@ -129,7 +129,7 @@ static void __Test_MemTelemetryBaselineLane_XNet(xrtGlobalData* pCore)
 	(void)Test_XNet2_Sync();
 	Test_XNet2_Codec();
 	Test_XNet_Http();
-	Test_XNet_Httpd();
+	(void)Test_XNet_Httpd();
 	Test_XNet_Ws();
 	Test_XNet2_Mem();
 }

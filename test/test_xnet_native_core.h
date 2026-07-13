@@ -125,6 +125,7 @@ static const xnetstreamevents __g_Test_XNetNativeCore_StreamEvents = {
 	NULL,
 	__Test_XNetNativeCore_OnError,
 	NULL,
+	NULL,
 	NULL
 };
 

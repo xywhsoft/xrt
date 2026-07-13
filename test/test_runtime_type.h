@@ -12,12 +12,22 @@ typedef struct {
 
 static int __g_iXrtTestHandleDropCount = 0;
 static int __g_iXrtTestResourceDropCount = 0;
+static int __g_iXrtTestPointCloneCount = 0;
 
 
 // 测试用 record copy
 static void __xrtTestPointCopy(ptr pDst, const ptr pSrc)
 {
 	memcpy(pDst, pSrc, sizeof(XrtTestPoint));
+}
+
+
+// 测试用 record 深复制，刻意改变 Y 以确认 clone 没有退化为 copy
+static void __xrtTestPointClone(ptr pDst, const ptr pSrc)
+{
+	memcpy(pDst, pSrc, sizeof(XrtTestPoint));
+	((XrtTestPoint*)pDst)->Y += 1000;
+	__g_iXrtTestPointCloneCount++;
 }
 
 
@@ -36,6 +46,16 @@ static void __xrtTestHandleDrop(ptr pObj)
 static void __xrtTestResourceCopy(ptr pDst, const ptr pSrc)
 {
 	memcpy(pDst, pSrc, sizeof(XrtTestResource));
+}
+
+
+// 测试用资源 move
+static void __xrtTestResourceMove(ptr pDst, ptr pSrc)
+{
+	XrtTestResource* pDstRes = (XrtTestResource*)pDst;
+	XrtTestResource* pSrcRes = (XrtTestResource*)pSrc;
+	*pDstRes = *pSrcRes;
+	pSrcRes->Id = 0;
 }
 
 
@@ -59,7 +79,8 @@ static const xrt_type_ops __xrtTestPointOps = {
 	.hash = NULL,
 	.to_string = NULL,
 	.box = NULL,
-	.unbox = NULL
+	.unbox = NULL,
+	.clone = __xrtTestPointClone
 };
 
 static const xrt_type_ops __xrtTestHandleOps = {
@@ -77,7 +98,7 @@ static const xrt_type_ops __xrtTestHandleOps = {
 static const xrt_type_ops __xrtTestResourceOps = {
 	.init = NULL,
 	.copy = __xrtTestResourceCopy,
-	.move = NULL,
+	.move = __xrtTestResourceMove,
 	.drop = __xrtTestResourceDrop,
 	.compare = NULL,
 	.hash = NULL,
@@ -125,6 +146,28 @@ static const xrt_type_desc __xrtTestPointType = {
 	.Ops = &__xrtTestPointOps,
 	.Methods = &__xrtTestPointMethodTable,
 	.Extra = NULL
+};
+
+static const xrt_type_desc __xrtTestBaseClassType = {
+	.TypeId = 10101,
+	.Kind = XRT_TYPE_KIND_RECORD,
+	.Name = "XrtTestBase",
+	.NameSize = 11
+};
+
+static const xrt_type_desc __xrtTestDerivedClassType = {
+	.TypeId = 10102,
+	.Kind = XRT_TYPE_KIND_RECORD,
+	.Name = "XrtTestDerived",
+	.NameSize = 14,
+	.BaseType = &__xrtTestBaseClassType
+};
+
+static const xrt_type_desc __xrtTestUnrelatedClassType = {
+	.TypeId = 10103,
+	.Kind = XRT_TYPE_KIND_RECORD,
+	.Name = "XrtTestUnrelated",
+	.NameSize = 16
 };
 
 static const xrt_type_desc __xrtTestHandleType = {
@@ -251,6 +294,7 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	xvalue vOverflow;
 	xvalue vRecord;
 	xvalue vRecordCopy;
+	xvalue vMovedRecord;
 	xvalue vHandle;
 	xvalue vValueSet;
 	xvalue vSetItem;
@@ -259,6 +303,7 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	xset pSet;
 	xset pStringSet;
 	xtarray pTypedArray;
+	xtarray pValueArray;
 	xtlist pTypedList;
 	xtset pTypedSet;
 	xtdict pTypedDict;
@@ -279,6 +324,7 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	str sUnboxed;
 	uint32 iDictKeyLen;
 	const char** ppString;
+	xvalue* ppValue;
 	const xrt_method_desc* pMethod;
 	xvalue vBoxed;
 	int iHandleObj = 123;
@@ -299,6 +345,12 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	}
 	if ( xrtTypeSame(xrtTypeInt(), xrtTypeFloat()) ) {
 		return 2;
+	}
+	if ( !xrtTypeIsA(&__xrtTestDerivedClassType, &__xrtTestBaseClassType) ||
+	     !xrtTypeIsA(&__xrtTestDerivedClassType, &__xrtTestDerivedClassType) ||
+	     xrtTypeIsA(&__xrtTestBaseClassType, &__xrtTestDerivedClassType) ||
+	     xrtTypeIsA(&__xrtTestDerivedClassType, &__xrtTestUnrelatedClassType) ) {
+		return 125;
 	}
 	if ( !xrtTypeCanConvert(xrtTypeBool(), xrtTypeInt(), XRT_TYPE_CONVERT_SAFE_WIDEN) ) {
 		return 115;
@@ -584,6 +636,9 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	if ( pPoint == NULL || pPoint->X != 11 || pPoint->Y != 22 ) {
 		return 9;
 	}
+	if ( xvoGetRecordOwner(pPoint) != vRecord ) {
+		return 155;
+	}
 	vRecordCopy = xvoCopy(vRecord);
 	if ( vRecordCopy == NULL ) {
 		return 10;
@@ -592,8 +647,36 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	if ( pPoint == NULL || pPoint->X != 11 || pPoint->Y != 22 ) {
 		return 11;
 	}
+	if ( xvoGetRecordOwner(pPoint) != vRecordCopy ) {
+		return 156;
+	}
+	xvoUnref(vRecordCopy);
+	__g_iXrtTestPointCloneCount = 0;
+	vRecordCopy = xvoDeepCopy(vRecord);
+	if ( vRecordCopy == NULL ) {
+		return 153;
+	}
+	pPoint = (XrtTestPoint*)xvoGetRecordData(vRecordCopy);
+	if ( pPoint == NULL || pPoint->X != 11 || pPoint->Y != 1022 || __g_iXrtTestPointCloneCount != 1 ) {
+		return 154;
+	}
 	xvoUnref(vRecordCopy);
 	xvoUnref(vRecord);
+
+	__g_iXrtTestResourceDropCount = 0;
+	tRes.Id = 77;
+	vMovedRecord = xvoCreateRecordMove(&__xrtTestResourceType, &tRes);
+	if ( vMovedRecord == NULL || tRes.Id != 0 ) {
+		return 150;
+	}
+	pRes = (XrtTestResource*)xvoGetRecordData(vMovedRecord);
+	if ( pRes == NULL || pRes->Id != 77 || __g_iXrtTestResourceDropCount != 0 ) {
+		return 151;
+	}
+	xvoUnref(vMovedRecord);
+	if ( __g_iXrtTestResourceDropCount != 1 ) {
+		return 152;
+	}
 
 	__g_iXrtTestHandleDropCount = 0;
 	vHandle = xvoCreateHandle(&__xrtTestHandleType, &iHandleObj, XRT_HANDLE_FLAG_OWNED);
@@ -605,6 +688,9 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	}
 	if ( xvoGetHandleData(vHandle) != &iHandleObj ) {
 		return 14;
+	}
+	if ( xvoGetHandleSlot(vHandle) == NULL || *xvoGetHandleSlot(vHandle) != &iHandleObj ) {
+		return 126;
 	}
 	xvoUnref(vHandle);
 	if ( __g_iXrtTestHandleDropCount != 1 ) {
@@ -910,6 +996,31 @@ int Test_RuntimeType(xrtGlobalData* pCore)
 	}
 	xvoUnref(vRecordCopy);
 	xvoUnref(vValueSet);
+
+	pValueArray = xrtTypedArrayCreate(xrtTypeValue(), XRT_OBJMODE_LOCAL);
+	if ( pValueArray == NULL ) {
+		return 140;
+	}
+	vBoxed = xvoCreateInt(321);
+	if ( vBoxed == NULL || !xrtTypedArrayAppendValue(pValueArray, vBoxed) ) {
+		if ( vBoxed != NULL ) xvoUnref(vBoxed);
+		xrtTypedArrayDestroy(pValueArray);
+		return 141;
+	}
+	xvoUnref(vBoxed);
+	ppValue = (xvalue*)xrtTypedArrayGet(pValueArray, 1);
+	if ( ppValue == NULL || *ppValue == NULL || xvoGetInt(*ppValue) != 321 ) {
+		xrtTypedArrayDestroy(pValueArray);
+		return 142;
+	}
+	vBoxed = xrtTypeBoxValue(xrtTypeValue(), ppValue);
+	if ( vBoxed == NULL || xvoGetInt(vBoxed) != 321 ) {
+		if ( vBoxed != NULL ) xvoUnref(vBoxed);
+		xrtTypedArrayDestroy(pValueArray);
+		return 143;
+	}
+	xvoUnref(vBoxed);
+	xrtTypedArrayDestroy(pValueArray);
 
 	printf("Runtime Type Test : PASS\n");
 	return 0;

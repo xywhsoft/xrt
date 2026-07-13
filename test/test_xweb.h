@@ -614,8 +614,28 @@ static bool __Test_XWebDrainUntilClosed(xsocket hSocket, uint32 iDelayMs, uint32
 }
 
 
-void Test_XWeb(void)
+// 记录 XWeb 子断言失败，同时保留原有测试输出。
+static int __Test_XWebTrackedPrintf(int* pFailCount, const char* sFormat, ...)
 {
+	char aBuf[4096];
+	va_list tArgs;
+	int iRet;
+
+	va_start(tArgs, sFormat);
+	iRet = vsnprintf(aBuf, sizeof(aBuf), sFormat, tArgs);
+	va_end(tArgs);
+	if ( pFailCount && strstr(aBuf, "FAIL") != NULL ) {
+		(*pFailCount)++;
+	}
+	fputs(aBuf, stdout);
+	return iRet;
+}
+
+
+int Test_XWeb(void)
+{
+	int iFailCount = 0;
+#define printf(...) __Test_XWebTrackedPrintf(&iFailCount, __VA_ARGS__)
 	printf("\n\n\n------------------------------------\n\n XWeb Server Test:\n\n");
 
 	{
@@ -632,6 +652,8 @@ void Test_XWeb(void)
 		char* sStaticFile = NULL;
 		char* sStaticHome = NULL;
 		char sStaticETag[128];
+		char sStaticIndexNames[32] = "home.txt";
+		char sStaticCacheControl[32] = "max-age=30";
 
 		sStaticETag[0] = '\0';
 		memset(&tCtx, 0, sizeof(tCtx));
@@ -675,7 +697,9 @@ void Test_XWeb(void)
 		xrtWebStaticConfigInit(&tStaticCfg);
 		tStaticCfg.sCacheControl = "max-age=60";
 		printf("  XWeb static register : %s\n", pServer && xrtWebServerStatic(pServer, "/public", sStaticRoot, &tStaticCfg) ? "PASS" : "FAIL");
-		printf("  XWeb static ex register : %s\n", pServer && xrtWebServerStaticEx(pServer, "/assets", sStaticRoot, "home.txt", "max-age=30", 4096u, 0u) ? "PASS" : "FAIL");
+		printf("  XWeb static ex register : %s\n", pServer && xrtWebServerStaticEx(pServer, "/assets", sStaticRoot, sStaticIndexNames, sStaticCacheControl, 4096u, 0u) ? "PASS" : "FAIL");
+		strcpy(sStaticIndexNames, "missing.txt");
+		strcpy(sStaticCacheControl, "max-age=0");
 
 		printf("  XWeb server start : %s\n", pServer && xrtWebServerStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  XWeb bound port : %s\n", pServer && xrtWebServerPort(pServer) > 0u ? "PASS" : "FAIL");
@@ -1393,6 +1417,8 @@ void Test_XWeb(void)
 			}
 		}
 	}
+#undef printf
+	return iFailCount == 0 ? 0 : 1;
 }
 
 #endif
