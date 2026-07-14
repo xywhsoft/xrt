@@ -2485,7 +2485,9 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 		iCreateFlags |= CREATE_NO_WINDOW;
 	}
 	if ( pPlan->bCreateProcessGroup ) {
-		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;
+		/* Bind the root to its Job Object before a shell can spawn children
+		 * that inherit capture pipes and escape timeout cleanup. */
+		iCreateFlags |= CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED;
 	}
 
 	// 创建子进程
@@ -2498,9 +2500,25 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 
 	// 成功：保存进程信息并清理临时资源
 	pProcess->hProcess = tPi.hProcess;
+	tPi.hProcess = NULL;
 	pProcess->iProcessId = tPi.dwProcessId;
+	if ( pPlan->bCreateProcessGroup ) {
+		if ( !__xprocEnsureJobObject(pProcess) ) {
+			xrtSetError("failed to assign subprocess process group job.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+			(void)TerminateProcess(pProcess->hProcess, 1u);
+			goto fail;
+		}
+		if ( ResumeThread(tPi.hThread) == (DWORD)-1 ) {
+			xrtSetError("failed to resume subprocess.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+			(void)TerminateJobObject(pProcess->hJob, 1u);
+			goto fail;
+		}
+	}
 	if ( tPi.hThread ) {
 		CloseHandle(tPi.hThread);
+		tPi.hThread = NULL;
 	}
 	if ( hTerminalInputRead ) {
 		CloseHandle(hTerminalInputRead);
@@ -2672,7 +2690,8 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		iCreateFlags |= CREATE_NEW_CONSOLE;
 	}
 	if ( pPlan->bCreateProcessGroup ) {
-		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;
+		/* Bind the suspended root to its Job Object before descendants run. */
+		iCreateFlags |= CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED;
 	}
 
 	// 构建命令行并转换为宽字符
@@ -2726,9 +2745,25 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 
 	// 成功：保存进程信息，关闭子进程端句柄
 	pProcess->hProcess = tPi.hProcess;
+	tPi.hProcess = NULL;
 	pProcess->iProcessId = tPi.dwProcessId;
+	if ( pPlan->bCreateProcessGroup ) {
+		if ( !__xprocEnsureJobObject(pProcess) ) {
+			xrtSetError("failed to assign subprocess process group job.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+			(void)TerminateProcess(pProcess->hProcess, 1u);
+			goto fail;
+		}
+		if ( ResumeThread(tPi.hThread) == (DWORD)-1 ) {
+			xrtSetError("failed to resume subprocess.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+			(void)TerminateJobObject(pProcess->hJob, 1u);
+			goto fail;
+		}
+	}
 	if ( tPi.hThread ) {
 		CloseHandle(tPi.hThread);
+		tPi.hThread = NULL;
 	}
 	if ( hChildStdinRead ) {
 		CloseHandle(hChildStdinRead);
@@ -4139,8 +4174,9 @@ static void __xprocStopForTimeout(xprocess* pProcess)
 	if ( xrtProcessWaitTimeout(pProcess, __XPROC_TIMEOUT_GRACE_MS) == XRT_WAIT_OK ) {
 		return;
 	}
-	(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL_TREE, true, false);
-	(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL, true, false);
+	if ( !__xprocRequestStop(pProcess, XPROC_STOP_KILL_TREE, true, false) ) {
+		(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL, true, false);
+	}
 	(void)xrtProcessWait(pProcess);
 }
 
@@ -4227,6 +4263,8 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 	xprocess* pProcess;
 	xprocessexitinfo tSpawnInfo;
 	int iWaitRet;
+	uint64 iStartMs;
+	uint64 iEndMs;
 
 	if ( pConfig == NULL || pResult == NULL ) {
 		xrtSetError("invalid subprocess capture arguments.", FALSE);
@@ -4235,6 +4273,7 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 
 	// 初始化结果并强制开启管道捕获
 	__xprocResultInit(pResult);
+	iStartMs = __xprocNowMs();
 	tConfig = *pConfig;
 	tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
 	tConfig.Stdout.bCapture = true;
@@ -4250,6 +4289,8 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 	if ( pProcess == NULL ) {
 		pResult->ExitInfo = tSpawnInfo;
 		pResult->iExitCode = tSpawnInfo.iExitCode;
+		iEndMs = __xprocNowMs();
+		pResult->iDurationMs = iEndMs >= iStartMs ? (iEndMs - iStartMs) : 0u;
 		return false;
 	}
 
@@ -4272,6 +4313,8 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 	xrtMutexUnlock(&pProcess->Lock);
 
 	// 销毁进程对象
+	iEndMs = __xprocNowMs();
+	pResult->iDurationMs = iEndMs >= iStartMs ? (iEndMs - iStartMs) : 0u;
 	xrtProcessDestroy(pProcess);
 	return true;
 }

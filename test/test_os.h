@@ -653,6 +653,34 @@ static int Test_OS(xrtGlobalData* xCore)
 	}
 
 	{
+		/* A shell child inherits the capture pipe. Timeout must terminate the
+		 * process tree, not only the shell root, or capture blocks until this
+		 * five-second helper closes the inherited pipe. */
+		str sCommand = xrtFormat("\"%s\" __subprocess_helper sleep_exit 5000 0", xCore->AppFile);
+
+		if ( sCommand == NULL ) {
+			return 6073;
+		}
+		xrtProcessConfigInit(&tConfig);
+		tConfig.iTargetKind = XPROC_TARGET_SHELL;
+		tConfig.sCommand = sCommand;
+		tConfig.bCreateProcessGroup = true;
+		tConfig.bHideWindow = true;
+		tConfig.bMergeStderr = true;
+		if ( !xrtExecCapture(&tConfig, &tResult, 30u) ) {
+			xrtFree(sCommand);
+			return 6074;
+		}
+		xrtFree(sCommand);
+		if ( !tResult.ExitInfo.bTimedOut || tResult.ExitInfo.iStopReason != XPROC_STOP_KILL_TREE ||
+			 tResult.ExitInfo.bCancelled || tResult.iDurationMs > 2000u ) {
+			xrtProcessResultUnit(&tResult);
+			return 6075;
+		}
+		xrtProcessResultUnit(&tResult);
+	}
+
+	{
 		int iStdoutEventCount = 0;
 		int iStderrEventCount = 0;
 		str arrArgs[] = { (str)"__subprocess_helper", (str)"stream" };
