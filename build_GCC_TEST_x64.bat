@@ -24,6 +24,9 @@ release\x64\test_string_split_lines.exe || exit /b 1
 gcc -m64 test\test_typed_special.c xrt.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections %GCC_WARN% -o release/x64/test_typed_special.exe || exit /b 1
 release\x64\test_typed_special.exe || exit /b 1
 
+gcc -m64 test\test_json_stream.c xrt.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections %GCC_WARN% -o release/x64/test_json_stream.exe || exit /b 1
+release\x64\test_json_stream.exe || exit /b 1
+
 gcc -m64 test\test_xnet_async_stress.c xrt.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections %GCC_WARN% -o release/x64/test_xnet_async_stress.exe || exit /b 1
 release\x64\test_xnet_async_stress.exe 200 || exit /b 1
 

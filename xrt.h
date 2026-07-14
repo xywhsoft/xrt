@@ -2284,7 +2284,10 @@
 		const char* sMessage;
 	} xlogevent;
 	typedef void (*xlogcustomproc)(const xlogevent* pEvent, ptr pUserData);
+	typedef void (*xlogfreeproc)(ptr pUserData);
 	XXAPI xlogger* xlogCreate(str sName);
+	XXAPI xlogger* xlogAddRef(xlogger* pLogger);
+	XXAPI void xlogRelease(xlogger* pLogger);
 	XXAPI void xlogDestroy(xlogger* pLogger);
 	XXAPI xlogger* xlogDefault();
 	XXAPI void xlogSetDefault(xlogger* pLogger);
@@ -2294,9 +2297,15 @@
 	XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel);
 	XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxSize, uint32 iMaxBackup, xloglevel iMinLevel);
 	XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData);
+	XXAPI xlogappender* xlogAddCustomEx(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData, xlogfreeproc FreeUserData);
+	XXAPI bool xlogRemoveAppender(xlogger* pLogger, xlogappender* pAppender);
 	XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel);
 	XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat);
 	XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor);
+	XXAPI str xlogAppenderName(const xlogappender* pAppender);
+	XXAPI xloglevel xlogAppenderGetLevel(const xlogappender* pAppender);
+	XXAPI xlogformat xlogAppenderGetFormat(const xlogappender* pAppender);
+	XXAPI bool xlogAppenderGetColor(const xlogappender* pAppender);
 	XXAPI void xlogWrite(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, ...);
 	XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, va_list args);
 	XXAPI void xlogFlush(xlogger* pLogger);
@@ -3446,6 +3455,11 @@
 			size_t iBegin;				// 起始位置
 			size_t iEnd;				// 结束位置
 		} xregexspan;
+		typedef struct {
+			int iCode;
+			size_t iPos;
+			const char* sMessage;
+		} xregexerror;
 		
 		// 前向声明
 		typedef struct xrt_regex xregex;
@@ -3457,6 +3471,7 @@
 		// 单模式
 		XXAPI xregex* xrtRegexCreate(const char* sPatternNt);
 		XXAPI xregex* xrtRegexCreateEx(const char* sPattern, size_t iPatternSize, xregexflags iFlags);
+		XXAPI int xrtRegexCompile(const char* sPattern, size_t iPatternSize, xregexflags iFlags, xregex** ppRegex, xregexerror* pError);
 		// 根据 Builder 创建正则对象
 		XXAPI int xrtRegexCreateFromBuilder(xregex** ppRegex, const xregexbuilder* pBuilder, const xregexalloc* pAlloc);
 		// 销毁正则
@@ -3496,6 +3511,15 @@
 		XXAPI int64 xrtRegexMatchEnd(xregexmatch* pMatch);
 		XXAPI const char* xrtRegexMatchText(xregexmatch* pMatch);
 		XXAPI str xrtRegexMatchTextCopy(xregexmatch* pMatch);
+		XXAPI uint32 xrtRegexMatchCaptureCount(const xregexmatch* pMatch);
+		XXAPI int xrtRegexMatchCaptureMatched(const xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI int64 xrtRegexMatchCaptureByteStart(const xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI int64 xrtRegexMatchCaptureByteEnd(const xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI int64 xrtRegexMatchCaptureStart(xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI int64 xrtRegexMatchCaptureEnd(xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI const char* xrtRegexMatchCaptureName(const xregexmatch* pMatch, uint32 iCaptureIndex, size_t* pOutNameSize);
+		XXAPI int xrtRegexMatchCaptureIndex(const xregexmatch* pMatch, const char* sName, size_t iNameSize);
+		XXAPI str xrtRegexMatchCaptureTextCopy(const xregexmatch* pMatch, uint32 iCaptureIndex);
 		
 		// Builder
 		XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern, size_t iPatternSize, const xregexalloc* pAlloc);
@@ -3537,6 +3561,8 @@
 		XXAPI int xrtRegexSetFirstAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos);
 		// 从指定位置获取命中的正则集合项索引
 		XXAPI int xrtRegexSetMatchesAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount);
+		XXAPI uint32 xrtRegexSetPatternCount(const xregexset* pSet);
+		XXAPI xregexmatch* xrtRegexSetFindMatchAt(xregexset* pSet, uint32 iPatternIndex, const char* sText, size_t iTextSize, size_t iPos);
 		// 克隆正则集合
 		XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc);
 		
@@ -5605,6 +5631,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI const char* xrtHttpErrorCodeName(xhttp_error_code eError);
 		XXAPI const char* xrtHttpPhaseName(xhttp_phase ePhase);
 		XXAPI void xrtHttpRequestSetDiagnostics(xhttprequest* pReq, xhttpdiagnostics* pDiagnostics);
+		// 设置请求代理；请求对象持有独立引用
+		XXAPI void xrtHttpRequestSetProxy(xhttprequest* pReq, xnetproxy* pProxy);
 		// 设置 HTTPS 是否校验证书
 		XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
 		// 销毁 HTTP 响应对象
@@ -5614,6 +5642,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI uint32 xrtHttpResponseHeaderCount(const xhttpresponse* pResp);
 		XXAPI const char* xrtHttpResponseHeaderNameAt(const xhttpresponse* pResp, uint32 iIndex);
 		XXAPI const char* xrtHttpResponseHeaderValueAt(const xhttpresponse* pResp, uint32 iIndex);
+		XXAPI uint32 xrtHttpResponseFlags(const xhttpresponse* pResp);
+		XXAPI const char* xrtHttpResponseVersion(const xhttpresponse* pResp);
 		XXAPI uint32 xrtHttpResponseStatusCode(const xhttpresponse* pResp);
 		XXAPI const char* xrtHttpResponseReason(const xhttpresponse* pResp);
 		XXAPI int64_t xrtHttpResponseContentLength(const xhttpresponse* pResp);
@@ -5807,6 +5837,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI str xrtWebRequestTlsSNICopy(const xwebrequest* pReq);
 		XXAPI int xrtWebRequestLocalPort(const xwebrequest* pReq);
 		XXAPI int xrtWebRequestRemotePort(const xwebrequest* pReq);
+		XXAPI bool xrtWebRequestConnectionOpen(const xwebrequest* pReq);
+		XXAPI bool xrtWebRequestCloseConnection(xwebrequest* pReq, bool bAbort);
 		XXAPI bool xrtWebRequestParam(const xwebrequest* pReq, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen);
 		XXAPI str xrtWebRequestParamCopy(const xwebrequest* pReq, const char* sName);
 		XXAPI size_t xrtWebRequestParamCount(const xwebrequest* pReq);
@@ -5825,6 +5857,14 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI void xrtWebResponseStatus(xwebresponse* pResp, uint32 iStatusCode, const char* sReason);
 		XXAPI bool xrtWebResponseSetHeader(xwebresponse* pResp, const char* sName, const char* sValue);
 		XXAPI bool xrtWebResponseAddHeader(xwebresponse* pResp, const char* sName, const char* sValue);
+		XXAPI uint32 xrtWebResponseStatusCode(const xwebresponse* pResp);
+		XXAPI const char* xrtWebResponseReason(const xwebresponse* pResp);
+		XXAPI const char* xrtWebResponseHeader(const xwebresponse* pResp, const char* sName);
+		XXAPI size_t xrtWebResponseHeaderCount(const xwebresponse* pResp);
+		XXAPI const char* xrtWebResponseHeaderNameAt(const xwebresponse* pResp, size_t iIndex);
+		XXAPI const char* xrtWebResponseHeaderValueAt(const xwebresponse* pResp, size_t iIndex);
+		XXAPI const void* xrtWebResponseBodyView(const xwebresponse* pResp, size_t* pLen);
+		XXAPI bool xrtWebResponseCommitted(const xwebresponse* pResp);
 		XXAPI bool xrtWebResponseCookie(xwebresponse* pResp, const char* sName, const char* sValue, const char* sPath, int32 iMaxAge, uint32 iSameSite, uint32 iFlags);
 		XXAPI bool xrtWebResponseDeleteCookie(xwebresponse* pResp, const char* sName, const char* sPath);
 		XXAPI bool xrtWebResponseText(xwebresponse* pResp, const char* sText, const char* sContentType);
@@ -5838,6 +5878,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI bool xrtWebResponseWriteText(xwebresponse* pResp, const char* sText);
 		XXAPI bool xrtWebResponseEnd(xwebresponse* pResp);
 		XXAPI bool xrtWebResponseFile(xwebresponse* pResp, const char* sFilePath, size_t iChunkSize);
+		XXAPI bool xrtWebResponseFileRange(xwebresponse* pResp, const char* sFilePath, uint64 iOffset, uint64 iLength, size_t iChunkSize);
 		XXAPI bool xrtWebResponseRedirect(xwebresponse* pResp, const char* sURL, uint32 iStatusCode);
 		XXAPI const char* xrtWebMimeByPath(const char* sPath);
 	#endif
@@ -8280,6 +8321,41 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	
 	// 从字符串进行SAX解析（失败返回-1；成功返回0）
 	XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb);
+
+	/*
+		稳定的 JSON 事件接口。
+		key 和 text 都是仅在回调期间有效的借用视图，调用方需要长期保存时应自行复制。
+	*/
+	typedef enum {
+		XRT_JSON_EVENT_NULL = 0,
+		XRT_JSON_EVENT_BOOL,
+		XRT_JSON_EVENT_INT,
+		XRT_JSON_EVENT_UINT,
+		XRT_JSON_EVENT_FLOAT,
+		XRT_JSON_EVENT_STRING,
+		XRT_JSON_EVENT_ARRAY_BEGIN,
+		XRT_JSON_EVENT_ARRAY_END,
+		XRT_JSON_EVENT_OBJECT_BEGIN,
+		XRT_JSON_EVENT_OBJECT_END
+	} xrt_json_event_type;
+
+	typedef struct {
+		xrt_json_event_type type;
+		uint32 depth;
+		const char* key;
+		size_t key_size;
+		const char* text;
+		size_t text_size;
+		bool bool_value;
+		int64 int_value;
+		uint64 uint_value;
+		double float_value;
+	} xrt_json_event;
+
+	typedef bool (*xrt_json_event_proc)(const xrt_json_event* event, void* userdata);
+
+	/* 返回 0 表示完整遍历，1 表示回调主动停止，-1 表示输入或参数错误。 */
+	XXAPI int xrtJsonVisit(const char* text, size_t size, xrt_json_event_proc proc, void* userdata);
 	
 	// 打印缓冲
 	typedef struct {
@@ -8358,6 +8434,32 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	
 	// 结束SAX打印器
 	XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
+
+	/* ------------------------------------ JSON 流式写入器 ------------------------------------ */
+	typedef struct xrt_json_writer_struct* xjsonwriter;
+
+	XXAPI xjsonwriter xrtJsonWriterCreate(bool pretty);
+	XXAPI void xrtJsonWriterDestroy(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterBeginObject(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterBeginObjectKey(xjsonwriter writer, const char* key);
+	XXAPI bool xrtJsonWriterEndObject(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterBeginArray(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterBeginArrayKey(xjsonwriter writer, const char* key);
+	XXAPI bool xrtJsonWriterEndArray(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterNull(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterNullKey(xjsonwriter writer, const char* key);
+	XXAPI bool xrtJsonWriterBool(xjsonwriter writer, bool value);
+	XXAPI bool xrtJsonWriterBoolKey(xjsonwriter writer, const char* key, bool value);
+	XXAPI bool xrtJsonWriterInt(xjsonwriter writer, int64 value);
+	XXAPI bool xrtJsonWriterIntKey(xjsonwriter writer, const char* key, int64 value);
+	XXAPI bool xrtJsonWriterFloat(xjsonwriter writer, double value);
+	XXAPI bool xrtJsonWriterFloatKey(xjsonwriter writer, const char* key, double value);
+	XXAPI bool xrtJsonWriterString(xjsonwriter writer, const char* value);
+	XXAPI bool xrtJsonWriterStringKey(xjsonwriter writer, const char* key, const char* value);
+	XXAPI bool xrtJsonWriterValue(xjsonwriter writer, xvalue value);
+	XXAPI bool xrtJsonWriterValueKey(xjsonwriter writer, const char* key, xvalue value);
+	/* finish 消耗内部打印状态；返回字符串由调用方使用 xrtFree 释放。 */
+	XXAPI char* xrtJsonWriterFinish(xjsonwriter writer, size_t* size);
 	
 	// 解析 JSON
 	XXAPI xvalue xrtParseJSON(str sText, size_t iSize);
@@ -8386,6 +8488,20 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	
 	#define XSON_F_IGNORE_UNSUPPORTED_ENCODE	0x0001u
 	#define XSON_F_IGNORE_UNSUPPORTED_DECODE	0x0002u
+
+	/* XSON 对外使用稳定选项对象，flags 仅保留为底层实现细节。 */
+	typedef struct {
+		bool pretty;
+		bool ignore_unsupported_encode;
+		bool ignore_unsupported_decode;
+	} xson_options;
+
+	XXAPI xson_options xrtXsonOptionsDefault(void);
+	XXAPI xvalue xrtParseXSONWithOptions(const char* text, size_t size, const xson_options* options);
+	XXAPI bool xrtXsonValidWithOptions(const char* text, size_t size, const xson_options* options);
+	XXAPI xvalue xrtParseXSONFileWithOptions(const char* file, const xson_options* options);
+	XXAPI char* xrtStringifyXSONWithOptions(xvalue value, const xson_options* options, size_t* size);
+	XXAPI int xrtStringifyXSONFileWithOptions(const char* file, xvalue value, const xson_options* options);
 	
 	// 解析 XSON（保持对 JSON 的兼容）
 	XXAPI xvalue xrtParseXSON(str sText, size_t iSize);
@@ -8585,14 +8701,22 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	};
 	// 创建引擎
 	XXAPI xteengine xteCreateEngine(void);
+	// 保留引擎引用
+	XXAPI xteengine xteEngineAddRef(xteengine hEngine);
+	// 释放引擎引用
+	XXAPI void xteEngineRelease(xteengine hEngine);
 	// 销毁引擎
 	XXAPI void xteDestroyEngine(xteengine hEngine);
 	// 注册模板引擎内建语句
 	XXAPI int xteRegisterBuiltinStatements(xteengine hEngine);
 	// 注册自定义模板语句
 	XXAPI int xteRegisterStatement(xteengine hEngine, const XTE_StatementDef* pDef);
+	// 注册由引擎拥有定义和用户数据的自定义模板语句
+	XXAPI int xteRegisterStatementEx(xteengine hEngine, const char* sName, uint32 iFlags, uint16 iMinArgs, uint16 iMaxArgs, int (*procParse)(XTE_StmtParseCtx* pCtx, void** ppData), XTE_Flow (*procRender)(XTE_StmtRenderCtx* pCtx), void (*procFreeData)(void* pData), ptr pUserData, void (*FreeUserData)(ptr pUserData));
 	// 注册自定义模板函数
 	XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef);
+	// 注册由引擎拥有定义和用户数据的自定义模板函数
+	XXAPI int xteRegisterFunctionEx(xteengine hEngine, const char* sName, uint16 iMinArgs, uint16 iMaxArgs, int (*procCall)(XTE_FuncCtx* pCtx, xvalue* ppRet), ptr pUserData, void (*FreeUserData)(ptr pUserData));
 	// 解析扩展
 	XXAPI xtetemplate xteParseEx(xteengine hEngine, const char* sText, size_t iSize, const XTE_ParseOptions* pOptions, XTE_Error* pError);
 	// 解析
@@ -8615,6 +8739,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI uint32 xteTemplateGetArgCount(xtetemplate hTemplate);
 	// 获取模板字符串内存池大小
 	XXAPI uint32 xteTemplateGetStringPoolSize(xtetemplate hTemplate);
+	// 获取模板最近一次解析或渲染错误
+	XXAPI const XTE_Error* xteTemplateGetLastError(xtetemplate hTemplate);
 	// 获取模板根节点范围
 	XXAPI XTE_NodeSpan xteTemplateGetRootSpan(xtetemplate hTemplate);
 	// 获取模板节点

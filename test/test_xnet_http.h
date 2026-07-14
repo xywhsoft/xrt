@@ -490,6 +490,25 @@ void Test_XNet_Http(void)
 
 	{
 		xhttprequest tReq;
+		xnetproxyconfig tProxyCfg;
+		xnetproxy* pProxy;
+		xrtHttpRequestInit(&tReq);
+		xrtNetProxyConfigInit(&tProxyCfg);
+		tProxyCfg.iType = XNET_PROXY_SOCKS5;
+		snprintf(tProxyCfg.sHost, sizeof(tProxyCfg.sHost), "127.0.0.1");
+		tProxyCfg.iPort = 1080u;
+		pProxy = xrtNetProxyCreate(&tProxyCfg);
+		xrtHttpRequestSetProxy(&tReq, pProxy);
+		printf("  HTTP request proxy retained : %s\n", pProxy && tReq.pProxy == pProxy ? "PASS" : "FAIL");
+		if ( pProxy ) { xrtNetProxyRelease(pProxy); }
+		printf("  HTTP request proxy survives caller release : %s\n", tReq.pProxy != NULL ? "PASS" : "FAIL");
+		xrtHttpRequestSetProxy(&tReq, NULL);
+		printf("  HTTP request proxy clear : %s\n", tReq.pProxy == NULL ? "PASS" : "FAIL");
+		xrtHttpRequestUnit(&tReq);
+	}
+
+	{
+		xhttprequest tReq;
 		xhttpdiagnostics tDiagnostics;
 		xnetfuture* pFuture;
 		xnet_result iStatus;
@@ -537,6 +556,10 @@ void Test_XNet_Http(void)
 		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
 		printf("  HTTP async response status : %s\n", pResp && pResp->iStatusCode == 200 ? "PASS" : "FAIL");
 		printf("  HTTP async response body : %s\n", pResp && pResp->iBodyLen == 5 && memcmp(pResp->pBody, "world", 5) == 0 ? "PASS" : "FAIL");
+		printf("  HTTP response metadata getters : %s\n",
+			pResp && xrtHttpResponseHeaderCount(pResp) >= 2u &&
+			xrtHttpResponseVersion(pResp) && strcmp(xrtHttpResponseVersion(pResp), "HTTP/1.1") == 0 &&
+			(xrtHttpResponseFlags(pResp) & XHTTP_RESP_F_KEEPALIVE) != 0u ? "PASS" : "FAIL");
 		printf("  HTTP async diagnostics success : %s\n",
 			tDiagnostics.eError == XHTTP_ERROR_NONE &&
 			tDiagnostics.ePhase == XHTTP_PHASE_COMPLETE &&

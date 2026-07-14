@@ -16,6 +16,7 @@
 #define XLOG_COLOR_RESET		"\033[0m"
 
 struct xlogappender {
+	xlogger* pOwner;
 	str sName;
 	xloglevel iMinLevel;
 	xlogformat iFormat;
@@ -28,9 +29,12 @@ struct xlogappender {
 	uint32 iMaxBackup;
 	xlogcustomproc Proc;
 	ptr pUserData;
+	xlogfreeproc FreeUserData;
+	volatile int32 iActiveCallbacks;
 };
 
 struct xlogger {
+	volatile int32 iRefCount;
 	str sName;
 	xloglevel iLevel;
 	xmutex pLock;
@@ -40,7 +44,6 @@ struct xlogger {
 };
 
 static xlogger* __g_pXlogDefault = NULL;
-static bool __g_bXlogDefaultOwner = FALSE;
 
 
 // 内部函数：获取级别颜色
@@ -376,6 +379,10 @@ static void __xlogAppenderDestroy(xlogappender* pAppender)
 	if ( __xlogOwnStr(pAppender->sPath) ) {
 		xrtFree(pAppender->sPath);
 	}
+	if ( pAppender->FreeUserData && pAppender->pUserData ) {
+		pAppender->FreeUserData(pAppender->pUserData);
+		pAppender->pUserData = NULL;
+	}
 	xrtFree(pAppender);
 }
 
@@ -390,17 +397,21 @@ static bool __xlogAddAppender(xlogger* pLogger, xlogappender* pAppender)
 		return FALSE;
 	}
 
+	xrtMutexLock(pLogger->pLock);
 	if ( pLogger->iAppenderCount >= pLogger->iAppenderCapacity ) {
 		iCapacity = pLogger->iAppenderCapacity == 0 ? 4 : pLogger->iAppenderCapacity * 2;
 		arrNew = (xlogappender**)xrtRealloc(pLogger->arrAppender, sizeof(xlogappender*) * iCapacity);
 		if ( !arrNew ) {
+			xrtMutexUnlock(pLogger->pLock);
 			return FALSE;
 		}
 		pLogger->arrAppender = arrNew;
 		pLogger->iAppenderCapacity = iCapacity;
 	}
 
+	pAppender->pOwner = pLogger;
 	pLogger->arrAppender[pLogger->iAppenderCount++] = pAppender;
+	xrtMutexUnlock(pLogger->pLock);
 	return TRUE;
 }
 
@@ -414,6 +425,7 @@ XXAPI xlogger* xlogCreate(str sName)
 	if ( !pLogger ) {
 		return NULL;
 	}
+	pLogger->iRefCount = 1;
 
 	pLogger->sName = xrtCopyStr(sName ? sName : (str)"default", 0);
 	pLogger->iLevel = XLOG_INFO;
@@ -430,19 +442,24 @@ XXAPI xlogger* xlogCreate(str sName)
 }
 
 
-// 销毁日志器
-XXAPI void xlogDestroy(xlogger* pLogger)
+// 保留日志器引用
+XXAPI xlogger* xlogAddRef(xlogger* pLogger)
+{
+	if ( pLogger ) {
+		xrtAtomicRefRetain(&pLogger->iRefCount);
+	}
+	return pLogger;
+}
+
+
+// 释放日志器实际资源
+static void __xlogDestroy(xlogger* pLogger)
 {
 	if ( !pLogger ) {
 		return;
 	}
 
 	xlogFlush(pLogger);
-
-	if ( pLogger == __g_pXlogDefault ) {
-		__g_pXlogDefault = NULL;
-		__g_bXlogDefaultOwner = FALSE;
-	}
 
 	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
 		__xlogAppenderDestroy(pLogger->arrAppender[i]);
@@ -461,13 +478,36 @@ XXAPI void xlogDestroy(xlogger* pLogger)
 }
 
 
+// 释放日志器引用
+XXAPI void xlogRelease(xlogger* pLogger)
+{
+	if ( !pLogger ) {
+		return;
+	}
+
+	/* 默认日志器始终持有一个引用，普通调用者不能误释放这个保底引用。 */
+	if ( pLogger == __g_pXlogDefault && pLogger->iRefCount <= 1 ) {
+		return;
+	}
+	if ( xrtAtomicRefRelease(&pLogger->iRefCount) == 0 ) {
+		__xlogDestroy(pLogger);
+	}
+}
+
+
+// 销毁日志器，等价于释放创建者持有的引用
+XXAPI void xlogDestroy(xlogger* pLogger)
+{
+	xlogRelease(pLogger);
+}
+
+
 // 获取默认日志器
 XXAPI xlogger* xlogDefault()
 {
 	if ( __g_pXlogDefault == NULL ) {
 		__g_pXlogDefault = xlogCreate((str)"default");
 		if ( __g_pXlogDefault ) {
-			__g_bXlogDefaultOwner = TRUE;
 			xlogAddConsole(__g_pXlogDefault, XLOG_TRACE, TRUE);
 		}
 	}
@@ -479,22 +519,30 @@ XXAPI xlogger* xlogDefault()
 // 设置默认日志器
 XXAPI void xlogSetDefault(xlogger* pLogger)
 {
-	if ( __g_bXlogDefaultOwner && __g_pXlogDefault && __g_pXlogDefault != pLogger ) {
-		xlogDestroy(__g_pXlogDefault);
+	xlogger* pOld;
+
+	if ( __g_pXlogDefault == pLogger ) {
+		return;
 	}
+	if ( pLogger ) {
+		xlogAddRef(pLogger);
+	}
+	pOld = __g_pXlogDefault;
 	__g_pXlogDefault = pLogger;
-	__g_bXlogDefaultOwner = FALSE;
+	if ( pOld ) {
+		xlogRelease(pOld);
+	}
 }
 
 
 // 内部函数：释放运行时持有的默认日志器
 static void __xlogRuntimeUnit()
 {
-	if ( __g_bXlogDefaultOwner && __g_pXlogDefault ) {
-		xlogDestroy(__g_pXlogDefault);
-	}
+	xlogger* pLogger = __g_pXlogDefault;
 	__g_pXlogDefault = NULL;
-	__g_bXlogDefaultOwner = FALSE;
+	if ( pLogger ) {
+		xlogRelease(pLogger);
+	}
 }
 
 
@@ -502,7 +550,9 @@ static void __xlogRuntimeUnit()
 XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel)
 {
 	if ( pLogger ) {
+		xrtMutexLock(pLogger->pLock);
 		pLogger->iLevel = iLevel;
+		xrtMutexUnlock(pLogger->pLock);
 	}
 }
 
@@ -510,7 +560,14 @@ XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel)
 // 获取日志器级别
 XXAPI xloglevel xlogGetLevel(xlogger* pLogger)
 {
-	return pLogger ? pLogger->iLevel : XLOG_OFF;
+	xloglevel iLevel;
+	if ( !pLogger ) {
+		return XLOG_OFF;
+	}
+	xrtMutexLock(pLogger->pLock);
+	iLevel = pLogger->iLevel;
+	xrtMutexUnlock(pLogger->pLock);
+	return iLevel;
 }
 
 
@@ -579,14 +636,23 @@ XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxS
 		return NULL;
 	}
 
+	xrtMutexLock(pLogger->pLock);
 	pAppender->iMaxSize = iMaxSize;
 	pAppender->iMaxBackup = iMaxBackup;
+	xrtMutexUnlock(pLogger->pLock);
 	return pAppender;
 }
 
 
 // 添加自定义输出器
 XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData)
+{
+	return xlogAddCustomEx(pLogger, sName, iMinLevel, Proc, pUserData, NULL);
+}
+
+
+// 添加带用户数据析构回调的自定义输出器
+XXAPI xlogappender* xlogAddCustomEx(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData, xlogfreeproc FreeUserData)
 {
 	xlogappender* pAppender;
 
@@ -601,7 +667,10 @@ XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLev
 
 	pAppender->Proc = Proc;
 	pAppender->pUserData = pUserData;
+	pAppender->FreeUserData = FreeUserData;
 	if ( !__xlogAddAppender(pLogger, pAppender) ) {
+		/* 注册失败时所有权仍属于调用者。 */
+		pAppender->FreeUserData = NULL;
 		__xlogAppenderDestroy(pAppender);
 		return NULL;
 	}
@@ -609,11 +678,62 @@ XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLev
 }
 
 
+// 注销输出器，并等待已经进入的自定义回调结束
+XXAPI bool xlogRemoveAppender(xlogger* pLogger, xlogappender* pAppender)
+{
+	bool bFound = FALSE;
+
+	if ( !pLogger || !pAppender ) {
+		return FALSE;
+	}
+
+	xrtMutexLock(pLogger->pLock);
+	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+		if ( pLogger->arrAppender[i] != pAppender ) {
+			continue;
+		}
+		if ( i + 1 < pLogger->iAppenderCount ) {
+			memmove(
+				pLogger->arrAppender + i,
+				pLogger->arrAppender + i + 1,
+				sizeof(xlogappender*) * (pLogger->iAppenderCount - i - 1));
+		}
+		pLogger->iAppenderCount--;
+		pLogger->arrAppender[pLogger->iAppenderCount] = NULL;
+		pAppender->pOwner = NULL;
+		bFound = TRUE;
+		break;
+	}
+	xrtMutexUnlock(pLogger->pLock);
+
+	if ( !bFound ) {
+		return FALSE;
+	}
+
+	/*
+		回调在 logger 锁外执行。注销先阻止新回调进入，再等待活动回调退出，
+		保证函数返回后用户数据和回调地址都不再被 XRT 使用。
+		回调本身不得同步注销正在执行的同一个 appender。
+	*/
+	while ( pAppender->iActiveCallbacks > 0 ) {
+		xrtThreadYield();
+	}
+	__xlogAppenderDestroy(pAppender);
+	return TRUE;
+}
+
+
 // 设置输出器级别
 XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel)
 {
 	if ( pAppender ) {
+		if ( pAppender->pOwner ) {
+			xrtMutexLock(pAppender->pOwner->pLock);
+		}
 		pAppender->iMinLevel = iMinLevel;
+		if ( pAppender->pOwner ) {
+			xrtMutexUnlock(pAppender->pOwner->pLock);
+		}
 	}
 }
 
@@ -622,7 +742,13 @@ XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel)
 XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat)
 {
 	if ( pAppender ) {
+		if ( pAppender->pOwner ) {
+			xrtMutexLock(pAppender->pOwner->pLock);
+		}
 		pAppender->iFormat = iFormat;
+		if ( pAppender->pOwner ) {
+			xrtMutexUnlock(pAppender->pOwner->pLock);
+		}
 	}
 }
 
@@ -631,8 +757,75 @@ XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat)
 XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor)
 {
 	if ( pAppender ) {
+		if ( pAppender->pOwner ) {
+			xrtMutexLock(pAppender->pOwner->pLock);
+		}
 		pAppender->bColor = bColor;
+		if ( pAppender->pOwner ) {
+			xrtMutexUnlock(pAppender->pOwner->pLock);
+		}
 	}
+}
+
+
+// 获取输出器名称
+XXAPI str xlogAppenderName(const xlogappender* pAppender)
+{
+	return pAppender && pAppender->sName ? pAppender->sName : xCore.sNull;
+}
+
+
+// 获取输出器最低级别
+XXAPI xloglevel xlogAppenderGetLevel(const xlogappender* pAppender)
+{
+	xloglevel iLevel;
+	if ( !pAppender ) {
+		return XLOG_OFF;
+	}
+	if ( pAppender->pOwner ) {
+		xrtMutexLock(pAppender->pOwner->pLock);
+	}
+	iLevel = pAppender->iMinLevel;
+	if ( pAppender->pOwner ) {
+		xrtMutexUnlock(pAppender->pOwner->pLock);
+	}
+	return iLevel;
+}
+
+
+// 获取输出器格式
+XXAPI xlogformat xlogAppenderGetFormat(const xlogappender* pAppender)
+{
+	xlogformat iFormat;
+	if ( !pAppender ) {
+		return XLOG_FORMAT_TEXT;
+	}
+	if ( pAppender->pOwner ) {
+		xrtMutexLock(pAppender->pOwner->pLock);
+	}
+	iFormat = pAppender->iFormat;
+	if ( pAppender->pOwner ) {
+		xrtMutexUnlock(pAppender->pOwner->pLock);
+	}
+	return iFormat;
+}
+
+
+// 获取输出器颜色开关
+XXAPI bool xlogAppenderGetColor(const xlogappender* pAppender)
+{
+	bool bColor;
+	if ( !pAppender ) {
+		return FALSE;
+	}
+	if ( pAppender->pOwner ) {
+		xrtMutexLock(pAppender->pOwner->pLock);
+	}
+	bColor = pAppender->bColor;
+	if ( pAppender->pOwner ) {
+		xrtMutexUnlock(pAppender->pOwner->pLock);
+	}
+	return bColor;
 }
 
 
@@ -671,7 +864,7 @@ XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uin
 	str sMessage;
 	xlogevent tEvent;
 
-	if ( !pLogger || !sFmt || iLevel < pLogger->iLevel || iLevel >= XLOG_OFF ) {
+	if ( !pLogger || !sFmt || iLevel < xlogGetLevel(pLogger) || iLevel >= XLOG_OFF ) {
 		return;
 	}
 
@@ -702,12 +895,7 @@ XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uin
 	xrtMutexLock(pLogger->pLock);
 	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
 		xlogappender* pAppender = pLogger->arrAppender[i];
-		if ( !pAppender || iLevel < pAppender->iMinLevel ) {
-			continue;
-		}
-
-		if ( pAppender->iType == XLOG_APPENDER_CUSTOM ) {
-			pAppender->Proc(&tEvent, pAppender->pUserData);
+		if ( !pAppender || pAppender->iType == XLOG_APPENDER_CUSTOM || iLevel < pAppender->iMinLevel ) {
 			continue;
 		}
 
@@ -726,6 +914,50 @@ XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uin
 		}
 	}
 	xrtMutexUnlock(pLogger->pLock);
+
+	/*
+		用户回调必须在锁外执行。先在锁内建立活动快照，既允许递归记录，
+		也让 xlogRemoveAppender 能可靠等待已经进入的回调完成。
+	*/
+	{
+		xlogappender** arrCustom = NULL;
+		uint32 iCustomCount = 0;
+		uint32 iCustomIndex = 0;
+
+		xrtMutexLock(pLogger->pLock);
+		for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+			xlogappender* pAppender = pLogger->arrAppender[i];
+			if ( pAppender
+				&& pAppender->iType == XLOG_APPENDER_CUSTOM
+				&& pAppender->Proc
+				&& iLevel >= pAppender->iMinLevel ) {
+				iCustomCount++;
+			}
+		}
+		if ( iCustomCount > 0 ) {
+			arrCustom = (xlogappender**)xrtCalloc(iCustomCount, sizeof(xlogappender*));
+		}
+		if ( arrCustom ) {
+			for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+				xlogappender* pAppender = pLogger->arrAppender[i];
+				if ( pAppender
+					&& pAppender->iType == XLOG_APPENDER_CUSTOM
+					&& pAppender->Proc
+					&& iLevel >= pAppender->iMinLevel ) {
+					xrtAtomicRefRetain(&pAppender->iActiveCallbacks);
+					arrCustom[iCustomIndex++] = pAppender;
+				}
+			}
+		}
+		xrtMutexUnlock(pLogger->pLock);
+
+		for ( uint32 i = 0; i < iCustomIndex; i++ ) {
+			xlogappender* pAppender = arrCustom[i];
+			pAppender->Proc(&tEvent, pAppender->pUserData);
+			xrtAtomicRefRelease(&pAppender->iActiveCallbacks);
+		}
+		xrtFree(arrCustom);
+	}
 
 	xrtFree(sMessage);
 }

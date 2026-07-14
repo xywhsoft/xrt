@@ -1706,3 +1706,61 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 	xrtFree(sText);
 	return iRet;
 }
+
+
+/* ------------------------------------ 稳定 XSON 选项接口 ------------------------------------ */
+
+static uint32 _xrt_xson_options_flags(const xson_options* options)
+{
+	uint32 flags = 0;
+
+	if ( options == NULL ) {
+		return 0;
+	}
+	if ( options->ignore_unsupported_encode ) {
+		flags |= XSON_F_IGNORE_UNSUPPORTED_ENCODE;
+	}
+	if ( options->ignore_unsupported_decode ) {
+		flags |= XSON_F_IGNORE_UNSUPPORTED_DECODE;
+	}
+	return flags;
+}
+
+
+XXAPI xson_options xrtXsonOptionsDefault(void)
+{
+	xson_options options = { 0 };
+	return options;
+}
+
+
+XXAPI xvalue xrtParseXSONWithOptions(const char* text, size_t size, const xson_options* options)
+{
+	return xrtParseXSONEx((str)text, size, _xrt_xson_options_flags(options));
+}
+
+
+XXAPI bool xrtXsonValidWithOptions(const char* text, size_t size, const xson_options* options)
+{
+	return xrtXsonValid((str)text, size, _xrt_xson_options_flags(options));
+}
+
+
+XXAPI xvalue xrtParseXSONFileWithOptions(const char* file, const xson_options* options)
+{
+	return xrtParseXSON_FileEx((str)file, _xrt_xson_options_flags(options));
+}
+
+
+XXAPI char* xrtStringifyXSONWithOptions(xvalue value, const xson_options* options, size_t* size)
+{
+	return (char*)xrtStringifyXSON(value, options != NULL && options->pretty,
+		_xrt_xson_options_flags(options), size);
+}
+
+
+XXAPI int xrtStringifyXSONFileWithOptions(const char* file, xvalue value, const xson_options* options)
+{
+	return xrtStringifyXSON_File((str)file, value, options != NULL && options->pretty,
+		_xrt_xson_options_flags(options));
+}

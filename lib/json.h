@@ -1748,7 +1748,7 @@ static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t 
 
 	ret = _json_sax_parse_value(&parse_val);
 #if !JSON_PARSE_FINISHED_CHAR
-	if (ret == 0) {
+	if (ret == 0 && parse_val.ret != JSON_SAX_PARSE_STOP) {
 		parse_val.skip_blank(&parse_val);
 		if (parse_val.str[parse_val.offset]) {
 			JsonErr("Extra trailing characters!\n%s\n", parse_val.str + parse_val.offset);
@@ -1761,6 +1761,109 @@ static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t 
 end:
 #endif
 	return ret;
+}
+
+
+/* ------------------------------------ 稳定 JSON 事件接口 ------------------------------------ */
+
+typedef struct {
+	xrt_json_event_proc proc;
+	void* userdata;
+	bool stopped;
+} xrt_json_visit_context;
+
+
+static json_sax_ret_t _xrt_json_visit_proc(json_sax_parser_t* parser)
+{
+	xrt_json_visit_context* context = (xrt_json_visit_context*)parser->userdata;
+	xrt_json_event event = { 0 };
+	json_string_t* item;
+
+	/* SAX 解析器停止时会补齐内部结束事件，公开层不再转发这些合成事件。 */
+	if ( context == NULL || context->stopped ) {
+		return JSON_SAX_PARSE_STOP;
+	}
+	if ( parser->index < 0 || parser->array == NULL ) {
+		context->stopped = TRUE;
+		return JSON_SAX_PARSE_STOP;
+	}
+
+	item = parser->array + parser->index;
+	event.depth = (uint32)parser->index;
+	if ( item->str != NULL ) {
+		event.key = item->str;
+		event.key_size = item->info.len;
+	}
+
+	switch ( item->info.type ) {
+	case JSON_NULL:
+		event.type = XRT_JSON_EVENT_NULL;
+		break;
+	case JSON_BOOL:
+		event.type = XRT_JSON_EVENT_BOOL;
+		event.bool_value = parser->value.vnum.vbool;
+		break;
+	case JSON_INT:
+		event.type = XRT_JSON_EVENT_INT;
+		event.int_value = parser->value.vnum.vint;
+		break;
+	case JSON_HEX:
+		event.type = XRT_JSON_EVENT_UINT;
+		event.uint_value = parser->value.vnum.vhex;
+		break;
+	case JSON_LINT:
+		event.type = XRT_JSON_EVENT_INT;
+		event.int_value = parser->value.vnum.vlint;
+		break;
+	case JSON_LHEX:
+		event.type = XRT_JSON_EVENT_UINT;
+		event.uint_value = parser->value.vnum.vlhex;
+		break;
+	case JSON_DOUBLE:
+		event.type = XRT_JSON_EVENT_FLOAT;
+		event.float_value = parser->value.vnum.vdbl;
+		break;
+	case JSON_STRING:
+		event.type = XRT_JSON_EVENT_STRING;
+		event.text = parser->value.vstr.str;
+		event.text_size = parser->value.vstr.info.len;
+		break;
+	case JSON_ARRAY:
+		event.type = parser->value.vcmd == JSON_SAX_START
+			? XRT_JSON_EVENT_ARRAY_BEGIN : XRT_JSON_EVENT_ARRAY_END;
+		break;
+	case JSON_OBJECT:
+		event.type = parser->value.vcmd == JSON_SAX_START
+			? XRT_JSON_EVENT_OBJECT_BEGIN : XRT_JSON_EVENT_OBJECT_END;
+		break;
+	default:
+		context->stopped = TRUE;
+		return JSON_SAX_PARSE_STOP;
+	}
+
+	if ( !context->proc(&event, context->userdata) ) {
+		context->stopped = TRUE;
+		return JSON_SAX_PARSE_STOP;
+	}
+	return JSON_SAX_PARSE_CONTINUE;
+}
+
+
+XXAPI int xrtJsonVisit(const char* text, size_t size, xrt_json_event_proc proc, void* userdata)
+{
+	xrt_json_visit_context context = { 0 };
+	int result;
+
+	if ( text == NULL || proc == NULL ) {
+		return -1;
+	}
+	context.proc = proc;
+	context.userdata = userdata;
+	result = _xrt_json_parse_with_context((str)text, size, _xrt_json_visit_proc, &context);
+	if ( result < 0 ) {
+		return -1;
+	}
+	return context.stopped ? 1 : 0;
 }
 
 XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
@@ -1973,4 +2076,333 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 	} else {
 		return FALSE;
 	}
+}
+
+
+/* ------------------------------------ JSON 流式写入器 ------------------------------------ */
+
+struct xrt_json_writer_struct {
+	json_sax_print_hd handle;
+	json_type_t* stack;
+	size_t depth;
+	size_t capacity;
+	bool root_written;
+	bool failed;
+	bool finished;
+};
+
+
+static bool _xrt_json_writer_reserve(xjsonwriter writer, size_t count)
+{
+	json_type_t* next;
+	size_t capacity;
+
+	if ( count <= writer->capacity ) {
+		return TRUE;
+	}
+	capacity = writer->capacity ? writer->capacity : 8;
+	while ( capacity < count ) {
+		if ( capacity > SIZE_MAX / 2 ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		capacity *= 2;
+	}
+	next = (json_type_t*)xrtRealloc(writer->stack, capacity * sizeof(json_type_t));
+	if ( next == NULL ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	writer->stack = next;
+	writer->capacity = capacity;
+	return TRUE;
+}
+
+
+static bool _xrt_json_writer_prepare(xjsonwriter writer, const char* key)
+{
+	json_type_t parent;
+
+	if ( writer == NULL || writer->handle == NULL || writer->failed || writer->finished ) {
+		return FALSE;
+	}
+	if ( writer->depth == 0 ) {
+		if ( writer->root_written || key != NULL ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		writer->root_written = TRUE;
+		return TRUE;
+	}
+
+	parent = writer->stack[writer->depth - 1];
+	if ( parent == JSON_OBJECT ) {
+		if ( key == NULL || key[0] == '\0' ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+	} else if ( key != NULL ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+static json_string_t* _xrt_json_writer_key(const char* key, json_string_t* value)
+{
+	if ( key == NULL ) {
+		return NULL;
+	}
+	memset(value, 0, sizeof(*value));
+	value->str = (char*)key;
+	value->info.len = (uint32)strlen(key);
+	return value;
+}
+
+
+static bool _xrt_json_writer_result(xjsonwriter writer, int result)
+{
+	if ( result < 0 ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+static bool _xrt_json_writer_begin(xjsonwriter writer, const char* key, json_type_t type)
+{
+	json_string_t jkey;
+	json_sax_cmd_t command = JSON_SAX_START;
+
+	if ( writer == NULL || !_xrt_json_writer_reserve(writer, writer->depth + 1) ) {
+		return FALSE;
+	}
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	if ( !_xrt_json_writer_result(writer, xrtJsonPrintValue(writer->handle, type,
+		_xrt_json_writer_key(key, &jkey), &command)) ) {
+		return FALSE;
+	}
+	writer->stack[writer->depth++] = type;
+	return TRUE;
+}
+
+
+static bool _xrt_json_writer_end(xjsonwriter writer, json_type_t type)
+{
+	json_sax_cmd_t command = JSON_SAX_FINISH;
+
+	if ( writer == NULL || writer->handle == NULL || writer->failed || writer->finished ||
+		writer->depth == 0 || writer->stack[writer->depth - 1] != type ) {
+		if ( writer != NULL ) {
+			writer->failed = TRUE;
+		}
+		return FALSE;
+	}
+	if ( !_xrt_json_writer_result(writer, xrtJsonPrintValue(writer->handle, type, NULL, &command)) ) {
+		return FALSE;
+	}
+	--writer->depth;
+	return TRUE;
+}
+
+
+XXAPI xjsonwriter xrtJsonWriterCreate(bool pretty)
+{
+	json_print_choice_t choice = { 0 };
+	xjsonwriter writer = (xjsonwriter)xrtMalloc(sizeof(*writer));
+
+	if ( writer == NULL ) {
+		return NULL;
+	}
+	memset(writer, 0, sizeof(*writer));
+	choice.format_flag = pretty;
+	choice.item_total = 32;
+	writer->handle = xrtJsonPrintStart(&choice);
+	if ( writer->handle == NULL ) {
+		xrtFree(writer);
+		return NULL;
+	}
+	return writer;
+}
+
+
+XXAPI void xrtJsonWriterDestroy(xjsonwriter writer)
+{
+	char* text;
+
+	if ( writer == NULL ) {
+		return;
+	}
+	if ( writer->handle != NULL ) {
+		text = xrtJsonPrintFinish(writer->handle, NULL, NULL);
+		xrtFree(text);
+		writer->handle = NULL;
+	}
+	xrtFree(writer->stack);
+	xrtFree(writer);
+}
+
+
+XXAPI bool xrtJsonWriterBeginObject(xjsonwriter writer)
+{
+	return _xrt_json_writer_begin(writer, NULL, JSON_OBJECT);
+}
+
+
+XXAPI bool xrtJsonWriterBeginObjectKey(xjsonwriter writer, const char* key)
+{
+	return _xrt_json_writer_begin(writer, key, JSON_OBJECT);
+}
+
+
+XXAPI bool xrtJsonWriterEndObject(xjsonwriter writer)
+{
+	return _xrt_json_writer_end(writer, JSON_OBJECT);
+}
+
+
+XXAPI bool xrtJsonWriterBeginArray(xjsonwriter writer)
+{
+	return _xrt_json_writer_begin(writer, NULL, JSON_ARRAY);
+}
+
+
+XXAPI bool xrtJsonWriterBeginArrayKey(xjsonwriter writer, const char* key)
+{
+	return _xrt_json_writer_begin(writer, key, JSON_ARRAY);
+}
+
+
+XXAPI bool xrtJsonWriterEndArray(xjsonwriter writer)
+{
+	return _xrt_json_writer_end(writer, JSON_ARRAY);
+}
+
+
+static bool _xrt_json_writer_null(xjsonwriter writer, const char* key)
+{
+	json_string_t jkey;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintNull(writer->handle, _xrt_json_writer_key(key, &jkey)));
+}
+
+
+XXAPI bool xrtJsonWriterNull(xjsonwriter writer) { return _xrt_json_writer_null(writer, NULL); }
+XXAPI bool xrtJsonWriterNullKey(xjsonwriter writer, const char* key) { return _xrt_json_writer_null(writer, key); }
+
+
+static bool _xrt_json_writer_bool(xjsonwriter writer, const char* key, bool value)
+{
+	json_string_t jkey;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintBool(writer->handle, _xrt_json_writer_key(key, &jkey), value));
+}
+
+
+XXAPI bool xrtJsonWriterBool(xjsonwriter writer, bool value) { return _xrt_json_writer_bool(writer, NULL, value); }
+XXAPI bool xrtJsonWriterBoolKey(xjsonwriter writer, const char* key, bool value) { return _xrt_json_writer_bool(writer, key, value); }
+
+
+static bool _xrt_json_writer_int(xjsonwriter writer, const char* key, int64 value)
+{
+	json_string_t jkey;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintInt64(writer->handle, _xrt_json_writer_key(key, &jkey), value));
+}
+
+
+XXAPI bool xrtJsonWriterInt(xjsonwriter writer, int64 value) { return _xrt_json_writer_int(writer, NULL, value); }
+XXAPI bool xrtJsonWriterIntKey(xjsonwriter writer, const char* key, int64 value) { return _xrt_json_writer_int(writer, key, value); }
+
+
+static bool _xrt_json_writer_float(xjsonwriter writer, const char* key, double value)
+{
+	json_string_t jkey;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintDouble(writer->handle, _xrt_json_writer_key(key, &jkey), value));
+}
+
+
+XXAPI bool xrtJsonWriterFloat(xjsonwriter writer, double value) { return _xrt_json_writer_float(writer, NULL, value); }
+XXAPI bool xrtJsonWriterFloatKey(xjsonwriter writer, const char* key, double value) { return _xrt_json_writer_float(writer, key, value); }
+
+
+static bool _xrt_json_writer_string(xjsonwriter writer, const char* key, const char* value)
+{
+	json_string_t jkey;
+	json_string_t jvalue = { 0 };
+
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	jvalue.str = (char*)(value != NULL ? value : "");
+	jvalue.info.len = (uint32)strlen(jvalue.str);
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintString(writer->handle, _xrt_json_writer_key(key, &jkey), &jvalue));
+}
+
+
+XXAPI bool xrtJsonWriterString(xjsonwriter writer, const char* value) { return _xrt_json_writer_string(writer, NULL, value); }
+XXAPI bool xrtJsonWriterStringKey(xjsonwriter writer, const char* key, const char* value) { return _xrt_json_writer_string(writer, key, value); }
+
+
+static bool _xrt_json_writer_value(xjsonwriter writer, const char* key, xvalue value)
+{
+	json_string_t jkey;
+	json_sax_print_t* handle;
+
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	xvo_private_Stringify_Value(writer->handle, value, _xrt_json_writer_key(key, &jkey));
+	handle = (json_sax_print_t*)writer->handle;
+	if ( handle->error_flag ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+XXAPI bool xrtJsonWriterValue(xjsonwriter writer, xvalue value) { return _xrt_json_writer_value(writer, NULL, value); }
+XXAPI bool xrtJsonWriterValueKey(xjsonwriter writer, const char* key, xvalue value) { return _xrt_json_writer_value(writer, key, value); }
+
+
+XXAPI char* xrtJsonWriterFinish(xjsonwriter writer, size_t* size)
+{
+	char* text;
+
+	if ( size != NULL ) {
+		*size = 0;
+	}
+	if ( writer == NULL || writer->handle == NULL || writer->finished ) {
+		return NULL;
+	}
+	if ( writer->failed || !writer->root_written || writer->depth != 0 ) {
+		text = xrtJsonPrintFinish(writer->handle, NULL, NULL);
+		xrtFree(text);
+		writer->handle = NULL;
+		writer->finished = TRUE;
+		return NULL;
+	}
+	text = xrtJsonPrintFinish(writer->handle, size, NULL);
+	writer->handle = NULL;
+	writer->finished = TRUE;
+	return text;
 }

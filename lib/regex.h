@@ -336,6 +336,13 @@ struct xrt_regex_match {
   char *text;
   size_t text_size;
   xregexspan span;
+  xregexspan *captures;
+  uint32 *capture_matched;
+  int64 *capture_char_start;
+  int64 *capture_char_end;
+  char **capture_names;
+  size_t *capture_name_sizes;
+  uint32 capture_count;
   int matched;
   int64 char_start;
   int64 char_end;
@@ -354,6 +361,8 @@ struct xrt_regex_set {
   bbre_prog prog;   /* compiled program */
   bbre_exec *exec;  /* local execution context, NULL until actually used */
   bbre_error error; /* error info */
+  xregex **patterns;
+  size_t pattern_count;
 };
 
 /* Arena-like data structure used for quickly storing nfa state sets.
@@ -4415,9 +4424,11 @@ static str __xrtRegexCopyByteRange(const char *text, size_t size)
   return xrtCopyStr((str)text, size);
 }
 
-static xregexmatch *__xrtRegexMatchCreate(const char *text, size_t text_size, int matched, xregexspan span)
+static xregexmatch *__xrtRegexMatchCreate(xregex *reg, const char *text, size_t text_size, size_t pos)
 {
   xregexmatch *match;
+  uint32 i;
+  int found = 0;
   if (!text) {
     text = "";
     text_size = 0;
@@ -4434,8 +4445,50 @@ static xregexmatch *__xrtRegexMatchCreate(const char *text, size_t text_size, in
     return NULL;
   }
   match->text_size = text_size;
-  match->matched = matched ? 1 : 0;
-  match->span = span;
+  match->capture_count = reg ? xrtRegexCaptureCount(reg) : 0;
+  if (match->capture_count > 0) {
+    size_t span_size = sizeof(xregexspan) * match->capture_count;
+    size_t flag_size = sizeof(uint32) * match->capture_count;
+    size_t index_size = sizeof(int64) * match->capture_count;
+    size_t name_size = sizeof(char*) * match->capture_count;
+    size_t name_len_size = sizeof(size_t) * match->capture_count;
+    match->captures = (xregexspan*)xrtMalloc(span_size);
+    match->capture_matched = (uint32*)xrtMalloc(flag_size);
+    match->capture_char_start = (int64*)xrtMalloc(index_size);
+    match->capture_char_end = (int64*)xrtMalloc(index_size);
+    match->capture_names = (char**)xrtMalloc(name_size);
+    match->capture_name_sizes = (size_t*)xrtMalloc(name_len_size);
+    if (!match->captures || !match->capture_matched || !match->capture_char_start ||
+        !match->capture_char_end || !match->capture_names || !match->capture_name_sizes) {
+      xrtRegexMatchDestroy(match);
+      return NULL;
+    }
+    memset(match->captures, 0, span_size);
+    memset(match->capture_matched, 0, flag_size);
+    memset(match->capture_names, 0, name_size);
+    memset(match->capture_name_sizes, 0, name_len_size);
+    for (i = 0; i < match->capture_count; ++i) {
+      const char *name;
+      size_t name_len = 0;
+      match->capture_char_start[i] = -1;
+      match->capture_char_end[i] = -1;
+      name = xrtRegexCaptureName(reg, i, &name_len);
+      if (name && name_len > 0) {
+        match->capture_names[i] = (char*)xrtCopyStr((str)name, name_len);
+        if (!match->capture_names[i]) {
+          xrtRegexMatchDestroy(match);
+          return NULL;
+        }
+        match->capture_name_sizes[i] = name_len;
+      }
+    }
+    found = xrtRegexWhichCapturesAt(
+        reg, text, text_size, pos, match->captures, match->capture_matched,
+        match->capture_count);
+  }
+  match->matched = found > 0 && match->capture_count > 0 && match->capture_matched[0] != 0;
+  if (match->matched)
+    match->span = match->captures[0];
   match->char_start = -1;
   match->char_end = -1;
   match->match_text = NULL;
@@ -4511,6 +4564,47 @@ error:
   xrtRegexBuilderDestroy(spec);
   xrtRegexDestroy(r);
   return NULL;
+}
+
+int xrtRegexCompile(
+    const char *pat, size_t pat_size, xregexflags flags, xregex **out_regex,
+    xregexerror *out_error)
+{
+  int err = 0;
+  xregex *regex = NULL;
+  xregexbuilder *builder = NULL;
+  if (out_regex)
+    *out_regex = NULL;
+  if (out_error) {
+    out_error->iCode = 0;
+    out_error->iPos = 0;
+    out_error->sMessage = NULL;
+  }
+  if (!out_regex)
+    return XRT_REGEX_ERR_PARSE;
+  if (!pat) {
+    pat = "";
+    pat_size = 0;
+  } else if (pat_size == 0) {
+    pat_size = strlen(pat);
+  }
+  err = xrtRegexBuilderCreate(&builder, pat, pat_size, NULL);
+  if (!err) {
+    xrtRegexBuilderSetFlags(builder, flags);
+    err = xrtRegexCreateFromBuilder(&regex, builder, NULL);
+  }
+  if (err && out_error) {
+    out_error->iCode = err;
+    out_error->iPos = regex ? xrtRegexGetErrorPos(regex) : 0;
+    out_error->sMessage = regex ? xrtRegexGetErrorMsg(regex) : "regex allocation failed";
+  }
+  xrtRegexBuilderDestroy(builder);
+  if (err) {
+    xrtRegexDestroy(regex);
+    return err;
+  }
+  *out_regex = regex;
+  return 0;
 }
 
 /* Initialize a bare `xregex` (no regexp parsed yet) */
@@ -4690,32 +4784,34 @@ xregexmatch *xrtRegexFindMatch(xregex *reg, const char *text, size_t text_size)
 
 xregexmatch *xrtRegexFindMatchAt(xregex *reg, const char *text, size_t text_size, size_t pos)
 {
-  xregexspan span;
-  int found;
   if (!text) {
     text = "";
     text_size = 0;
   } else if (text_size == 0) {
     text_size = strlen(text);
   }
-  span.iBegin = 0;
-  span.iEnd = 0;
   if (pos > text_size)
     pos = text_size;
-  if (!reg)
-    return __xrtRegexMatchCreate(text, text_size, 0, span);
-  found = xrtRegexFindAt(reg, text, text_size, pos, &span);
-  if (found <= 0)
-    return __xrtRegexMatchCreate(text, text_size, 0, span);
-  return __xrtRegexMatchCreate(text, text_size, 1, span);
+  return __xrtRegexMatchCreate(reg, text, text_size, pos);
 }
 
 void xrtRegexMatchDestroy(xregexmatch *match)
 {
+  uint32 i;
   if (!match)
     return;
+  if (match->capture_names) {
+    for (i = 0; i < match->capture_count; ++i)
+      xrtFree(match->capture_names[i]);
+  }
   xrtFree(match->text);
   xrtFree(match->match_text);
+  xrtFree(match->captures);
+  xrtFree(match->capture_matched);
+  xrtFree(match->capture_char_start);
+  xrtFree(match->capture_char_end);
+  xrtFree(match->capture_names);
+  xrtFree(match->capture_name_sizes);
   xrtFree(match);
 }
 
@@ -4770,6 +4866,88 @@ str xrtRegexMatchTextCopy(xregexmatch *match)
   if (!xrtRegexMatchOk(match))
     return NULL;
   return __xrtRegexCopyByteRange(match->text + match->span.iBegin, match->span.iEnd - match->span.iBegin);
+}
+
+uint32 xrtRegexMatchCaptureCount(const xregexmatch *match)
+{
+  return match ? match->capture_count : 0;
+}
+
+int xrtRegexMatchCaptureMatched(const xregexmatch *match, uint32 capture_index)
+{
+  return match && capture_index < match->capture_count &&
+         match->capture_matched[capture_index] != 0;
+}
+
+int64 xrtRegexMatchCaptureByteStart(const xregexmatch *match, uint32 capture_index)
+{
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return -1;
+  return (int64)match->captures[capture_index].iBegin;
+}
+
+int64 xrtRegexMatchCaptureByteEnd(const xregexmatch *match, uint32 capture_index)
+{
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return -1;
+  return (int64)match->captures[capture_index].iEnd;
+}
+
+int64 xrtRegexMatchCaptureStart(xregexmatch *match, uint32 capture_index)
+{
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return -1;
+  if (match->capture_char_start[capture_index] < 0)
+    match->capture_char_start[capture_index] = __xrtRegexByteToCharIndex(
+        match->text, match->text_size, match->captures[capture_index].iBegin);
+  return match->capture_char_start[capture_index];
+}
+
+int64 xrtRegexMatchCaptureEnd(xregexmatch *match, uint32 capture_index)
+{
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return -1;
+  if (match->capture_char_end[capture_index] < 0)
+    match->capture_char_end[capture_index] = __xrtRegexByteToCharIndex(
+        match->text, match->text_size, match->captures[capture_index].iEnd);
+  return match->capture_char_end[capture_index];
+}
+
+const char *xrtRegexMatchCaptureName(
+    const xregexmatch *match, uint32 capture_index, size_t *out_name_size)
+{
+  if (out_name_size)
+    *out_name_size = 0;
+  if (!match || capture_index >= match->capture_count)
+    return NULL;
+  if (out_name_size)
+    *out_name_size = match->capture_name_sizes[capture_index];
+  return match->capture_names[capture_index] ? match->capture_names[capture_index] : "";
+}
+
+int xrtRegexMatchCaptureIndex(
+    const xregexmatch *match, const char *name, size_t name_size)
+{
+  uint32 i;
+  if (!match || !name)
+    return -1;
+  if (name_size == 0)
+    name_size = strlen(name);
+  for (i = 1; i < match->capture_count; ++i) {
+    if (match->capture_name_sizes[i] == name_size && match->capture_names[i] &&
+        memcmp(match->capture_names[i], name, name_size) == 0)
+      return (int)i;
+  }
+  return -1;
+}
+
+str xrtRegexMatchCaptureTextCopy(const xregexmatch *match, uint32 capture_index)
+{
+  const xregexspan *span;
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return NULL;
+  span = &match->captures[capture_index];
+  return __xrtRegexCopyByteRange(match->text + span->iBegin, span->iEnd - span->iBegin);
 }
 
 int xrtRegexSetBuilderCreate(xregexsetbuilder **pspec, const xregexalloc *palloc)
@@ -4852,18 +5030,42 @@ int xrtRegexSetCreateFromBuilder(
     xregexset **pset, const xregexsetbuilder *spec, const xregexalloc *palloc)
 {
   int err = 0;
+  size_t i;
+  size_t count;
   if ((err = bbre_set_init_internal(pset, palloc)))
     goto error;
   if ((err = bbre_set_compile(*pset, spec->pats, bbre_buf_size(spec->pats))))
     goto error;
+  count = bbre_buf_size(spec->pats);
+  if (count > 0) {
+    (*pset)->patterns = (xregex**)bbre_alloci(
+        &(*pset)->alloc, NULL, 0, sizeof(xregex*) * count);
+    if (!(*pset)->patterns) {
+      err = XRT_REGEX_ERR_MEM;
+      goto error;
+    }
+    memset((*pset)->patterns, 0, sizeof(xregex*) * count);
+    (*pset)->pattern_count = count;
+    for (i = 0; i < count; ++i) {
+      if ((err = xrtRegexClone(
+               &(*pset)->patterns[i], spec->pats[i], &(*pset)->alloc)))
+        goto error;
+    }
+  }
 error:
   return err;
 }
 
 void xrtRegexSetDestroy(xregexset *set)
 {
+  size_t i;
   if (!set)
     goto done;
+  for (i = 0; i < set->pattern_count; ++i)
+    xrtRegexDestroy(set->patterns[i]);
+  if (set->patterns)
+    bbre_alloci(
+        &set->alloc, set->patterns, sizeof(xregex*) * set->pattern_count, 0);
   bbre_prog_destroy(&set->prog);
   if (set->exec)
     bbre_exec_destroy(set->exec);
@@ -4926,6 +5128,21 @@ int xrtRegexSetMatchesAt(
       (bbre_uint*)out_num_idxs);
 }
 
+uint32 xrtRegexSetPatternCount(const xregexset *set)
+{
+  return set ? (uint32)set->pattern_count : 0u;
+}
+
+xregexmatch *xrtRegexSetFindMatchAt(
+    xregexset *set, uint32 pattern_index, const char *text, size_t text_size,
+    size_t pos)
+{
+  if (!set || pattern_index >= set->pattern_count)
+    return xrtRegexFindMatchAt(NULL, text, text_size, pos);
+  return xrtRegexFindMatchAt(
+      set->patterns[pattern_index], text, text_size, pos);
+}
+
 static int bbre_group_names_clone(xregex *out, const xregex *in)
 {
   int err = 0;
@@ -4969,10 +5186,26 @@ int xrtRegexSetClone(
     xregexset **pout, const xregexset *set, const xregexalloc *alloc)
 {
   int err = 0;
+  size_t i;
   if ((err = bbre_set_init_internal(pout, alloc)))
     goto error;
   if ((err = bbre_prog_clone(&(*pout)->prog, &set->prog)))
     goto error;
+  if (set->pattern_count > 0) {
+    (*pout)->patterns = (xregex**)bbre_alloci(
+        &(*pout)->alloc, NULL, 0, sizeof(xregex*) * set->pattern_count);
+    if (!(*pout)->patterns) {
+      err = XRT_REGEX_ERR_MEM;
+      goto error;
+    }
+    memset((*pout)->patterns, 0, sizeof(xregex*) * set->pattern_count);
+    (*pout)->pattern_count = set->pattern_count;
+    for (i = 0; i < set->pattern_count; ++i) {
+      if ((err = xrtRegexClone(
+               &(*pout)->patterns[i], set->patterns[i], &(*pout)->alloc)))
+        goto error;
+    }
+  }
 error:
   return err;
 }

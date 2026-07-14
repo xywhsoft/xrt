@@ -904,6 +904,17 @@ XXAPI void xrtHttpRequestSetIdleTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
 }
 
 
+// 设置请求代理；请求对象持有独立引用，调用方可立即释放原代理
+XXAPI void xrtHttpRequestSetProxy(xhttprequest* pReq, xnetproxy* pProxy)
+{
+	xnetproxy* pNewProxy;
+	if ( !pReq || pReq->pProxy == pProxy ) { return; }
+	pNewProxy = pProxy ? xrtNetProxyAddRef(pProxy) : NULL;
+	if ( pReq->pProxy ) { xrtNetProxyRelease(pReq->pProxy); }
+	pReq->pProxy = pNewProxy;
+}
+
+
 XXAPI void xrtHttpRequestSetDiagnostics(xhttprequest* pReq, xhttpdiagnostics* pDiagnostics)
 {
 	if ( !pReq ) { return; }
@@ -954,6 +965,18 @@ XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* 
 XXAPI uint32 xrtHttpResponseHeaderCount(const xhttpresponse* pResp)
 {
 	return pResp ? pResp->iHeaderCount : 0u;
+}
+
+
+XXAPI uint32 xrtHttpResponseFlags(const xhttpresponse* pResp)
+{
+	return pResp ? pResp->iFlags : XHTTP_RESP_F_NONE;
+}
+
+
+XXAPI const char* xrtHttpResponseVersion(const xhttpresponse* pResp)
+{
+	return pResp ? pResp->sVersion : NULL;
 }
 
 

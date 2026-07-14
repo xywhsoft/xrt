@@ -17,6 +17,15 @@ typedef struct
 	size_t iRetSize;
 } __Test_Template_ConcurrentCtx;
 
+static int __g_TestTemplateOwnedFreeCount = 0;
+
+
+static void __Test_Template_FreeOwnedUserData(ptr pUserData)
+{
+	__g_TestTemplateOwnedFreeCount++;
+	xrtFree(pUserData);
+}
+
 
 // 内部函数：__Test_Template_CopyArgText
 static char* __Test_Template_CopyArgText(const char* sText, uint32 iSize)
@@ -1008,6 +1017,10 @@ void Test_Template(xrtGlobalData* xCore)
 	sResult = __Test_Template_RenderWithError(hTemplate, tblData, NULL, NULL, &iRetSize, &tError);
 	__Test_Template_PrintResult("for step zero error",
 		(sResult == NULL) && (tError.iCode == XTE_ERROR_RENDER) && (strcmp(tError.sDesc, "template for step cannot be zero") == 0));
+	__Test_Template_PrintResult("template keeps last render error",
+		(xteTemplateGetLastError(hTemplate) != NULL)
+		&& (xteTemplateGetLastError(hTemplate)->iCode == XTE_ERROR_RENDER)
+		&& (strcmp(xteTemplateGetLastError(hTemplate)->sDesc, "template for step cannot be zero") == 0));
 	xrtFree(sResult);
 	xteDestroyTemplate(hTemplate);
 
@@ -1260,6 +1273,33 @@ void Test_Template(xrtGlobalData* xCore)
 	xrtFree(sResult);
 	xteDestroyTemplate(hTemplate);
 	#endif
+
+	printf("\n--- 引擎拥有注册项与模板保活 ---\n");
+	{
+		xteengine hOwnedEngine = xteCreateEngine();
+		ptr pFunctionData = xrtMalloc(1);
+		ptr pStatementData = xrtMalloc(1);
+		__g_TestTemplateOwnedFreeCount = 0;
+		if ( hOwnedEngine && pFunctionData && pStatementData ) {
+			xteRegisterFunctionEx(hOwnedEngine, "owned_concat", 1, 4, __Test_Template_ConcatCall,
+				pFunctionData, __Test_Template_FreeOwnedUserData);
+			xteRegisterStatementEx(hOwnedEngine, "owned_upper", XTE_STMT_INLINE, 1, 1, NULL,
+				__Test_Template_UpperRender, NULL, pStatementData, __Test_Template_FreeOwnedUserData);
+			hTemplate = xteParseEx(hOwnedEngine, "{@owned_concat:'A':'B'}{#owned_upper:'ok'}", 0, NULL, NULL);
+			xteDestroyEngine(hOwnedEngine);
+			sResult = xteMake(hTemplate, tblData, NULL, NULL, &iRetSize);
+			__Test_Template_PrintResult("owned callback and retained engine",
+				(sResult != NULL) && (strcmp(sResult, "ABOK") == 0) && (__g_TestTemplateOwnedFreeCount == 0));
+			xrtFree(sResult);
+			xteDestroyTemplate(hTemplate);
+			__Test_Template_PrintResult("owned callback cleanup", __g_TestTemplateOwnedFreeCount == 2);
+		} else {
+			xrtFree(pFunctionData);
+			xrtFree(pStatementData);
+			xteDestroyEngine(hOwnedEngine);
+			__Test_Template_PrintResult("owned callback setup", 0);
+		}
+	}
 
 	xvoUnref(tblData);
 	xteDestroyEngine(hLoadEngine);

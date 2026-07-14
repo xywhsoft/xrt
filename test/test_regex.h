@@ -255,6 +255,7 @@ static int __Test_Regex_SetApi(void)
 	xregexset* pClone = NULL;
 	uint32 arrIndexes[4];
 	uint32 iCount = 0u;
+	xregexmatch* pSetMatch = NULL;
 	const char* arrPatterns[] = { "apple", "banana", "cherry" };
 	const char* sText = "cherry apple";
 
@@ -264,6 +265,10 @@ static int __Test_Regex_SetApi(void)
 	pSet = xrtRegexSetCreate(arrPatterns, 3u);
 	iFail += __Test_Regex_Check("set create", pSet != NULL);
 	if ( pSet != NULL ) {
+		iFail += __Test_Regex_Check("set pattern count", xrtRegexSetPatternCount(pSet) == 3u);
+		pSetMatch = xrtRegexSetFindMatchAt(pSet, 2u, sText, strlen(sText), 0u);
+		iFail += __Test_Regex_Check("set capture match", pSetMatch != NULL && xrtRegexMatchOk(pSetMatch) && strcmp(xrtRegexMatchText(pSetMatch), "cherry") == 0);
+		xrtRegexMatchDestroy(pSetMatch);
 		iFail += __Test_Regex_Check("set is match yes", xrtRegexSetIsMatch(pSet, "banana split", strlen("banana split")) == 1);
 		iFail += __Test_Regex_Check("set is match no", xrtRegexSetIsMatch(pSet, "durian", strlen("durian")) == 0);
 		iFail += __Test_Regex_Check("set matches", xrtRegexSetMatches(pSet, sText, strlen(sText), arrIndexes, 4u, &iCount) == 1);
@@ -281,6 +286,7 @@ static int __Test_Regex_SetApi(void)
 
 	if ( pClone != NULL ) {
 		iFail += __Test_Regex_Check("set clone match", xrtRegexSetIsMatch(pClone, "apple pie", strlen("apple pie")) == 1);
+		iFail += __Test_Regex_Check("set clone patterns", xrtRegexSetPatternCount(pClone) == 3u);
 		xrtRegexSetDestroy(pClone);
 	}
 	if ( pSet != NULL ) {
@@ -444,6 +450,55 @@ static int __Test_Regex_InternalRegression(void)
 	return iFail ? 1 : 0;
 }
 
+static int __Test_Regex_CaptureObjectAndDiagnostics(void)
+{
+	int iFail = 0;
+	xregex* pRegex = NULL;
+	xregex* pBad = NULL;
+	xregexmatch* pMatch = NULL;
+	xregexmatch* pOptional = NULL;
+	xregexerror Error;
+	str sText = NULL;
+	size_t iNameSize = 0u;
+	const char* sName;
+
+	printf("\nRegex test subject 9 : capture object and diagnostics\n");
+
+	iFail += __Test_Regex_Check(
+		"compile diagnostics success",
+		xrtRegexCompile("(?<word>[a-z]+)-([0-9]+)?", 0u, 0u, &pRegex, &Error) == 0 &&
+		pRegex != NULL && Error.iCode == 0);
+	if ( pRegex != NULL ) {
+		pMatch = xrtRegexFindMatch(
+			pRegex,
+			"\xE4\xBD\xA0" "abc-42" "\xE5\xA5\xBD",
+			strlen("\xE4\xBD\xA0" "abc-42" "\xE5\xA5\xBD"));
+		iFail += __Test_Regex_Check("capture object count", xrtRegexMatchCaptureCount(pMatch) == 3u);
+		iFail += __Test_Regex_Check("capture object named lookup", xrtRegexMatchCaptureIndex(pMatch, "word", 0u) == 1);
+		iFail += __Test_Regex_Check("capture object matched", xrtRegexMatchCaptureMatched(pMatch, 1u) == 1);
+		iFail += __Test_Regex_Check("capture object byte range", xrtRegexMatchCaptureByteStart(pMatch, 1u) == 3 && xrtRegexMatchCaptureByteEnd(pMatch, 1u) == 6);
+		iFail += __Test_Regex_Check("capture object char range", xrtRegexMatchCaptureStart(pMatch, 1u) == 1 && xrtRegexMatchCaptureEnd(pMatch, 1u) == 4);
+		sName = xrtRegexMatchCaptureName(pMatch, 1u, &iNameSize);
+		iFail += __Test_Regex_Check("capture object name", sName != NULL && iNameSize == 4u && memcmp(sName, "word", 4u) == 0);
+		sText = xrtRegexMatchCaptureTextCopy(pMatch, 2u);
+		iFail += __Test_Regex_Check("capture object text", sText != NULL && strcmp(sText, "42") == 0);
+		xrtFree(sText);
+
+		pOptional = xrtRegexFindMatch(pRegex, "abc-", 4u);
+		iFail += __Test_Regex_Check("capture object optional", xrtRegexMatchCaptureMatched(pOptional, 2u) == 0 && xrtRegexMatchCaptureTextCopy(pOptional, 2u) == NULL);
+	}
+	xrtRegexMatchDestroy(pMatch);
+	xrtRegexMatchDestroy(pOptional);
+	xrtRegexDestroy(pRegex);
+
+	iFail += __Test_Regex_Check(
+		"compile diagnostics failure",
+		xrtRegexCompile("[", 1u, 0u, &pBad, &Error) != 0 && pBad == NULL &&
+		Error.iCode != 0 && Error.sMessage != NULL);
+
+	return iFail ? 1 : 0;
+}
+
 
 // 正则测试
 static int Test_Regex(void)
@@ -460,6 +515,7 @@ static int Test_Regex(void)
 	iFail += __Test_Regex_SetBuilderApi();
 	iFail += __Test_Regex_MatchObject();
 	iFail += __Test_Regex_InternalRegression();
+	iFail += __Test_Regex_CaptureObjectAndDiagnostics();
 
 	return iFail ? 1 : 0;
 }

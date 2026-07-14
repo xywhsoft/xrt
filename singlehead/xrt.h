@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-07-14 11:02:24
+    Generated: 2026-07-14 20:55:31
 
     MIT License
 
@@ -2337,7 +2337,10 @@
 		const char* sMessage;
 	} xlogevent;
 	typedef void (*xlogcustomproc)(const xlogevent* pEvent, ptr pUserData);
+	typedef void (*xlogfreeproc)(ptr pUserData);
 	XXAPI xlogger* xlogCreate(str sName);
+	XXAPI xlogger* xlogAddRef(xlogger* pLogger);
+	XXAPI void xlogRelease(xlogger* pLogger);
 	XXAPI void xlogDestroy(xlogger* pLogger);
 	XXAPI xlogger* xlogDefault();
 	XXAPI void xlogSetDefault(xlogger* pLogger);
@@ -2347,9 +2350,15 @@
 	XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel);
 	XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxSize, uint32 iMaxBackup, xloglevel iMinLevel);
 	XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData);
+	XXAPI xlogappender* xlogAddCustomEx(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData, xlogfreeproc FreeUserData);
+	XXAPI bool xlogRemoveAppender(xlogger* pLogger, xlogappender* pAppender);
 	XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel);
 	XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat);
 	XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor);
+	XXAPI str xlogAppenderName(const xlogappender* pAppender);
+	XXAPI xloglevel xlogAppenderGetLevel(const xlogappender* pAppender);
+	XXAPI xlogformat xlogAppenderGetFormat(const xlogappender* pAppender);
+	XXAPI bool xlogAppenderGetColor(const xlogappender* pAppender);
 	XXAPI void xlogWrite(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, ...);
 	XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, va_list args);
 	XXAPI void xlogFlush(xlogger* pLogger);
@@ -3499,6 +3508,11 @@
 			size_t iBegin;				// 起始位置
 			size_t iEnd;				// 结束位置
 		} xregexspan;
+		typedef struct {
+			int iCode;
+			size_t iPos;
+			const char* sMessage;
+		} xregexerror;
 		
 		// 前向声明
 		typedef struct xrt_regex xregex;
@@ -3510,6 +3524,7 @@
 		// 单模式
 		XXAPI xregex* xrtRegexCreate(const char* sPatternNt);
 		XXAPI xregex* xrtRegexCreateEx(const char* sPattern, size_t iPatternSize, xregexflags iFlags);
+		XXAPI int xrtRegexCompile(const char* sPattern, size_t iPatternSize, xregexflags iFlags, xregex** ppRegex, xregexerror* pError);
 		// 根据 Builder 创建正则对象
 		XXAPI int xrtRegexCreateFromBuilder(xregex** ppRegex, const xregexbuilder* pBuilder, const xregexalloc* pAlloc);
 		// 销毁正则
@@ -3549,6 +3564,15 @@
 		XXAPI int64 xrtRegexMatchEnd(xregexmatch* pMatch);
 		XXAPI const char* xrtRegexMatchText(xregexmatch* pMatch);
 		XXAPI str xrtRegexMatchTextCopy(xregexmatch* pMatch);
+		XXAPI uint32 xrtRegexMatchCaptureCount(const xregexmatch* pMatch);
+		XXAPI int xrtRegexMatchCaptureMatched(const xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI int64 xrtRegexMatchCaptureByteStart(const xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI int64 xrtRegexMatchCaptureByteEnd(const xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI int64 xrtRegexMatchCaptureStart(xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI int64 xrtRegexMatchCaptureEnd(xregexmatch* pMatch, uint32 iCaptureIndex);
+		XXAPI const char* xrtRegexMatchCaptureName(const xregexmatch* pMatch, uint32 iCaptureIndex, size_t* pOutNameSize);
+		XXAPI int xrtRegexMatchCaptureIndex(const xregexmatch* pMatch, const char* sName, size_t iNameSize);
+		XXAPI str xrtRegexMatchCaptureTextCopy(const xregexmatch* pMatch, uint32 iCaptureIndex);
 		
 		// Builder
 		XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern, size_t iPatternSize, const xregexalloc* pAlloc);
@@ -3590,6 +3614,8 @@
 		XXAPI int xrtRegexSetFirstAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos);
 		// 从指定位置获取命中的正则集合项索引
 		XXAPI int xrtRegexSetMatchesAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount);
+		XXAPI uint32 xrtRegexSetPatternCount(const xregexset* pSet);
+		XXAPI xregexmatch* xrtRegexSetFindMatchAt(xregexset* pSet, uint32 iPatternIndex, const char* sText, size_t iTextSize, size_t iPos);
 		// 克隆正则集合
 		XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc);
 		
@@ -5658,6 +5684,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI const char* xrtHttpErrorCodeName(xhttp_error_code eError);
 		XXAPI const char* xrtHttpPhaseName(xhttp_phase ePhase);
 		XXAPI void xrtHttpRequestSetDiagnostics(xhttprequest* pReq, xhttpdiagnostics* pDiagnostics);
+		// 设置请求代理；请求对象持有独立引用
+		XXAPI void xrtHttpRequestSetProxy(xhttprequest* pReq, xnetproxy* pProxy);
 		// 设置 HTTPS 是否校验证书
 		XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
 		// 销毁 HTTP 响应对象
@@ -5667,6 +5695,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI uint32 xrtHttpResponseHeaderCount(const xhttpresponse* pResp);
 		XXAPI const char* xrtHttpResponseHeaderNameAt(const xhttpresponse* pResp, uint32 iIndex);
 		XXAPI const char* xrtHttpResponseHeaderValueAt(const xhttpresponse* pResp, uint32 iIndex);
+		XXAPI uint32 xrtHttpResponseFlags(const xhttpresponse* pResp);
+		XXAPI const char* xrtHttpResponseVersion(const xhttpresponse* pResp);
 		XXAPI uint32 xrtHttpResponseStatusCode(const xhttpresponse* pResp);
 		XXAPI const char* xrtHttpResponseReason(const xhttpresponse* pResp);
 		XXAPI int64_t xrtHttpResponseContentLength(const xhttpresponse* pResp);
@@ -5860,6 +5890,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI str xrtWebRequestTlsSNICopy(const xwebrequest* pReq);
 		XXAPI int xrtWebRequestLocalPort(const xwebrequest* pReq);
 		XXAPI int xrtWebRequestRemotePort(const xwebrequest* pReq);
+		XXAPI bool xrtWebRequestConnectionOpen(const xwebrequest* pReq);
+		XXAPI bool xrtWebRequestCloseConnection(xwebrequest* pReq, bool bAbort);
 		XXAPI bool xrtWebRequestParam(const xwebrequest* pReq, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen);
 		XXAPI str xrtWebRequestParamCopy(const xwebrequest* pReq, const char* sName);
 		XXAPI size_t xrtWebRequestParamCount(const xwebrequest* pReq);
@@ -5878,6 +5910,14 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI void xrtWebResponseStatus(xwebresponse* pResp, uint32 iStatusCode, const char* sReason);
 		XXAPI bool xrtWebResponseSetHeader(xwebresponse* pResp, const char* sName, const char* sValue);
 		XXAPI bool xrtWebResponseAddHeader(xwebresponse* pResp, const char* sName, const char* sValue);
+		XXAPI uint32 xrtWebResponseStatusCode(const xwebresponse* pResp);
+		XXAPI const char* xrtWebResponseReason(const xwebresponse* pResp);
+		XXAPI const char* xrtWebResponseHeader(const xwebresponse* pResp, const char* sName);
+		XXAPI size_t xrtWebResponseHeaderCount(const xwebresponse* pResp);
+		XXAPI const char* xrtWebResponseHeaderNameAt(const xwebresponse* pResp, size_t iIndex);
+		XXAPI const char* xrtWebResponseHeaderValueAt(const xwebresponse* pResp, size_t iIndex);
+		XXAPI const void* xrtWebResponseBodyView(const xwebresponse* pResp, size_t* pLen);
+		XXAPI bool xrtWebResponseCommitted(const xwebresponse* pResp);
 		XXAPI bool xrtWebResponseCookie(xwebresponse* pResp, const char* sName, const char* sValue, const char* sPath, int32 iMaxAge, uint32 iSameSite, uint32 iFlags);
 		XXAPI bool xrtWebResponseDeleteCookie(xwebresponse* pResp, const char* sName, const char* sPath);
 		XXAPI bool xrtWebResponseText(xwebresponse* pResp, const char* sText, const char* sContentType);
@@ -5891,6 +5931,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI bool xrtWebResponseWriteText(xwebresponse* pResp, const char* sText);
 		XXAPI bool xrtWebResponseEnd(xwebresponse* pResp);
 		XXAPI bool xrtWebResponseFile(xwebresponse* pResp, const char* sFilePath, size_t iChunkSize);
+		XXAPI bool xrtWebResponseFileRange(xwebresponse* pResp, const char* sFilePath, uint64 iOffset, uint64 iLength, size_t iChunkSize);
 		XXAPI bool xrtWebResponseRedirect(xwebresponse* pResp, const char* sURL, uint32 iStatusCode);
 		XXAPI const char* xrtWebMimeByPath(const char* sPath);
 	#endif
@@ -8333,6 +8374,37 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	
 	// 从字符串进行SAX解析（失败返回-1；成功返回0）
 	XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb);
+	/*
+		稳定的 JSON 事件接口。
+		key 和 text 都是仅在回调期间有效的借用视图，调用方需要长期保存时应自行复制。
+	*/
+	typedef enum {
+		XRT_JSON_EVENT_NULL = 0,
+		XRT_JSON_EVENT_BOOL,
+		XRT_JSON_EVENT_INT,
+		XRT_JSON_EVENT_UINT,
+		XRT_JSON_EVENT_FLOAT,
+		XRT_JSON_EVENT_STRING,
+		XRT_JSON_EVENT_ARRAY_BEGIN,
+		XRT_JSON_EVENT_ARRAY_END,
+		XRT_JSON_EVENT_OBJECT_BEGIN,
+		XRT_JSON_EVENT_OBJECT_END
+	} xrt_json_event_type;
+	typedef struct {
+		xrt_json_event_type type;
+		uint32 depth;
+		const char* key;
+		size_t key_size;
+		const char* text;
+		size_t text_size;
+		bool bool_value;
+		int64 int_value;
+		uint64 uint_value;
+		double float_value;
+	} xrt_json_event;
+	typedef bool (*xrt_json_event_proc)(const xrt_json_event* event, void* userdata);
+	/* 返回 0 表示完整遍历，1 表示回调主动停止，-1 表示输入或参数错误。 */
+	XXAPI int xrtJsonVisit(const char* text, size_t size, xrt_json_event_proc proc, void* userdata);
 	
 	// 打印缓冲
 	typedef struct {
@@ -8411,6 +8483,30 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	
 	// 结束SAX打印器
 	XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
+	/* ------------------------------------ JSON 流式写入器 ------------------------------------ */
+	typedef struct xrt_json_writer_struct* xjsonwriter;
+	XXAPI xjsonwriter xrtJsonWriterCreate(bool pretty);
+	XXAPI void xrtJsonWriterDestroy(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterBeginObject(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterBeginObjectKey(xjsonwriter writer, const char* key);
+	XXAPI bool xrtJsonWriterEndObject(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterBeginArray(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterBeginArrayKey(xjsonwriter writer, const char* key);
+	XXAPI bool xrtJsonWriterEndArray(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterNull(xjsonwriter writer);
+	XXAPI bool xrtJsonWriterNullKey(xjsonwriter writer, const char* key);
+	XXAPI bool xrtJsonWriterBool(xjsonwriter writer, bool value);
+	XXAPI bool xrtJsonWriterBoolKey(xjsonwriter writer, const char* key, bool value);
+	XXAPI bool xrtJsonWriterInt(xjsonwriter writer, int64 value);
+	XXAPI bool xrtJsonWriterIntKey(xjsonwriter writer, const char* key, int64 value);
+	XXAPI bool xrtJsonWriterFloat(xjsonwriter writer, double value);
+	XXAPI bool xrtJsonWriterFloatKey(xjsonwriter writer, const char* key, double value);
+	XXAPI bool xrtJsonWriterString(xjsonwriter writer, const char* value);
+	XXAPI bool xrtJsonWriterStringKey(xjsonwriter writer, const char* key, const char* value);
+	XXAPI bool xrtJsonWriterValue(xjsonwriter writer, xvalue value);
+	XXAPI bool xrtJsonWriterValueKey(xjsonwriter writer, const char* key, xvalue value);
+	/* finish 消耗内部打印状态；返回字符串由调用方使用 xrtFree 释放。 */
+	XXAPI char* xrtJsonWriterFinish(xjsonwriter writer, size_t* size);
 	
 	// 解析 JSON
 	XXAPI xvalue xrtParseJSON(str sText, size_t iSize);
@@ -8439,6 +8535,18 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	
 	#define XSON_F_IGNORE_UNSUPPORTED_ENCODE	0x0001u
 	#define XSON_F_IGNORE_UNSUPPORTED_DECODE	0x0002u
+	/* XSON 对外使用稳定选项对象，flags 仅保留为底层实现细节。 */
+	typedef struct {
+		bool pretty;
+		bool ignore_unsupported_encode;
+		bool ignore_unsupported_decode;
+	} xson_options;
+	XXAPI xson_options xrtXsonOptionsDefault(void);
+	XXAPI xvalue xrtParseXSONWithOptions(const char* text, size_t size, const xson_options* options);
+	XXAPI bool xrtXsonValidWithOptions(const char* text, size_t size, const xson_options* options);
+	XXAPI xvalue xrtParseXSONFileWithOptions(const char* file, const xson_options* options);
+	XXAPI char* xrtStringifyXSONWithOptions(xvalue value, const xson_options* options, size_t* size);
+	XXAPI int xrtStringifyXSONFileWithOptions(const char* file, xvalue value, const xson_options* options);
 	
 	// 解析 XSON（保持对 JSON 的兼容）
 	XXAPI xvalue xrtParseXSON(str sText, size_t iSize);
@@ -8638,14 +8746,22 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	};
 	// 创建引擎
 	XXAPI xteengine xteCreateEngine(void);
+	// 保留引擎引用
+	XXAPI xteengine xteEngineAddRef(xteengine hEngine);
+	// 释放引擎引用
+	XXAPI void xteEngineRelease(xteengine hEngine);
 	// 销毁引擎
 	XXAPI void xteDestroyEngine(xteengine hEngine);
 	// 注册模板引擎内建语句
 	XXAPI int xteRegisterBuiltinStatements(xteengine hEngine);
 	// 注册自定义模板语句
 	XXAPI int xteRegisterStatement(xteengine hEngine, const XTE_StatementDef* pDef);
+	// 注册由引擎拥有定义和用户数据的自定义模板语句
+	XXAPI int xteRegisterStatementEx(xteengine hEngine, const char* sName, uint32 iFlags, uint16 iMinArgs, uint16 iMaxArgs, int (*procParse)(XTE_StmtParseCtx* pCtx, void** ppData), XTE_Flow (*procRender)(XTE_StmtRenderCtx* pCtx), void (*procFreeData)(void* pData), ptr pUserData, void (*FreeUserData)(ptr pUserData));
 	// 注册自定义模板函数
 	XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef);
+	// 注册由引擎拥有定义和用户数据的自定义模板函数
+	XXAPI int xteRegisterFunctionEx(xteengine hEngine, const char* sName, uint16 iMinArgs, uint16 iMaxArgs, int (*procCall)(XTE_FuncCtx* pCtx, xvalue* ppRet), ptr pUserData, void (*FreeUserData)(ptr pUserData));
 	// 解析扩展
 	XXAPI xtetemplate xteParseEx(xteengine hEngine, const char* sText, size_t iSize, const XTE_ParseOptions* pOptions, XTE_Error* pError);
 	// 解析
@@ -8668,6 +8784,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI uint32 xteTemplateGetArgCount(xtetemplate hTemplate);
 	// 获取模板字符串内存池大小
 	XXAPI uint32 xteTemplateGetStringPoolSize(xtetemplate hTemplate);
+	// 获取模板最近一次解析或渲染错误
+	XXAPI const XTE_Error* xteTemplateGetLastError(xtetemplate hTemplate);
 	// 获取模板根节点范围
 	XXAPI XTE_NodeSpan xteTemplateGetRootSpan(xtetemplate hTemplate);
 	// 获取模板节点
@@ -23838,6 +23956,7 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 #define XLOG_COLOR_FATAL		"\033[35m"
 #define XLOG_COLOR_RESET		"\033[0m"
 struct xlogappender {
+	xlogger* pOwner;
 	str sName;
 	xloglevel iMinLevel;
 	xlogformat iFormat;
@@ -23850,8 +23969,11 @@ struct xlogappender {
 	uint32 iMaxBackup;
 	xlogcustomproc Proc;
 	ptr pUserData;
+	xlogfreeproc FreeUserData;
+	volatile int32 iActiveCallbacks;
 };
 struct xlogger {
+	volatile int32 iRefCount;
 	str sName;
 	xloglevel iLevel;
 	xmutex pLock;
@@ -23860,7 +23982,6 @@ struct xlogger {
 	uint32 iAppenderCapacity;
 };
 static xlogger* __g_pXlogDefault = NULL;
-static bool __g_bXlogDefaultOwner = FALSE;
 // 内部函数：获取级别颜色
 static const char* __xlogLevelColor(xloglevel iLevel)
 {
@@ -24144,6 +24265,10 @@ static void __xlogAppenderDestroy(xlogappender* pAppender)
 	if ( __xlogOwnStr(pAppender->sPath) ) {
 		xrtFree(pAppender->sPath);
 	}
+	if ( pAppender->FreeUserData && pAppender->pUserData ) {
+		pAppender->FreeUserData(pAppender->pUserData);
+		pAppender->pUserData = NULL;
+	}
 	xrtFree(pAppender);
 }
 // 内部函数：追加输出器
@@ -24154,16 +24279,20 @@ static bool __xlogAddAppender(xlogger* pLogger, xlogappender* pAppender)
 	if ( !pLogger || !pAppender ) {
 		return FALSE;
 	}
+	xrtMutexLock(pLogger->pLock);
 	if ( pLogger->iAppenderCount >= pLogger->iAppenderCapacity ) {
 		iCapacity = pLogger->iAppenderCapacity == 0 ? 4 : pLogger->iAppenderCapacity * 2;
 		arrNew = (xlogappender**)xrtRealloc(pLogger->arrAppender, sizeof(xlogappender*) * iCapacity);
 		if ( !arrNew ) {
+			xrtMutexUnlock(pLogger->pLock);
 			return FALSE;
 		}
 		pLogger->arrAppender = arrNew;
 		pLogger->iAppenderCapacity = iCapacity;
 	}
+	pAppender->pOwner = pLogger;
 	pLogger->arrAppender[pLogger->iAppenderCount++] = pAppender;
+	xrtMutexUnlock(pLogger->pLock);
 	return TRUE;
 }
 // 创建日志器
@@ -24174,6 +24303,7 @@ XXAPI xlogger* xlogCreate(str sName)
 	if ( !pLogger ) {
 		return NULL;
 	}
+	pLogger->iRefCount = 1;
 	pLogger->sName = xrtCopyStr(sName ? sName : (str)"default", 0);
 	pLogger->iLevel = XLOG_INFO;
 	pLogger->pLock = xrtMutexCreate();
@@ -24186,17 +24316,21 @@ XXAPI xlogger* xlogCreate(str sName)
 	}
 	return pLogger;
 }
-// 销毁日志器
-XXAPI void xlogDestroy(xlogger* pLogger)
+// 保留日志器引用
+XXAPI xlogger* xlogAddRef(xlogger* pLogger)
+{
+	if ( pLogger ) {
+		xrtAtomicRefRetain(&pLogger->iRefCount);
+	}
+	return pLogger;
+}
+// 释放日志器实际资源
+static void __xlogDestroy(xlogger* pLogger)
 {
 	if ( !pLogger ) {
 		return;
 	}
 	xlogFlush(pLogger);
-	if ( pLogger == __g_pXlogDefault ) {
-		__g_pXlogDefault = NULL;
-		__g_bXlogDefaultOwner = FALSE;
-	}
 	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
 		__xlogAppenderDestroy(pLogger->arrAppender[i]);
 	}
@@ -24211,13 +24345,31 @@ XXAPI void xlogDestroy(xlogger* pLogger)
 	}
 	xrtFree(pLogger);
 }
+// 释放日志器引用
+XXAPI void xlogRelease(xlogger* pLogger)
+{
+	if ( !pLogger ) {
+		return;
+	}
+	/* 默认日志器始终持有一个引用，普通调用者不能误释放这个保底引用。 */
+	if ( pLogger == __g_pXlogDefault && pLogger->iRefCount <= 1 ) {
+		return;
+	}
+	if ( xrtAtomicRefRelease(&pLogger->iRefCount) == 0 ) {
+		__xlogDestroy(pLogger);
+	}
+}
+// 销毁日志器，等价于释放创建者持有的引用
+XXAPI void xlogDestroy(xlogger* pLogger)
+{
+	xlogRelease(pLogger);
+}
 // 获取默认日志器
 XXAPI xlogger* xlogDefault()
 {
 	if ( __g_pXlogDefault == NULL ) {
 		__g_pXlogDefault = xlogCreate((str)"default");
 		if ( __g_pXlogDefault ) {
-			__g_bXlogDefaultOwner = TRUE;
 			xlogAddConsole(__g_pXlogDefault, XLOG_TRACE, TRUE);
 		}
 	}
@@ -24226,32 +24378,48 @@ XXAPI xlogger* xlogDefault()
 // 设置默认日志器
 XXAPI void xlogSetDefault(xlogger* pLogger)
 {
-	if ( __g_bXlogDefaultOwner && __g_pXlogDefault && __g_pXlogDefault != pLogger ) {
-		xlogDestroy(__g_pXlogDefault);
+	xlogger* pOld;
+	if ( __g_pXlogDefault == pLogger ) {
+		return;
 	}
+	if ( pLogger ) {
+		xlogAddRef(pLogger);
+	}
+	pOld = __g_pXlogDefault;
 	__g_pXlogDefault = pLogger;
-	__g_bXlogDefaultOwner = FALSE;
+	if ( pOld ) {
+		xlogRelease(pOld);
+	}
 }
 // 内部函数：释放运行时持有的默认日志器
 static void __xlogRuntimeUnit()
 {
-	if ( __g_bXlogDefaultOwner && __g_pXlogDefault ) {
-		xlogDestroy(__g_pXlogDefault);
-	}
+	xlogger* pLogger = __g_pXlogDefault;
 	__g_pXlogDefault = NULL;
-	__g_bXlogDefaultOwner = FALSE;
+	if ( pLogger ) {
+		xlogRelease(pLogger);
+	}
 }
 // 设置日志器级别
 XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel)
 {
 	if ( pLogger ) {
+		xrtMutexLock(pLogger->pLock);
 		pLogger->iLevel = iLevel;
+		xrtMutexUnlock(pLogger->pLock);
 	}
 }
 // 获取日志器级别
 XXAPI xloglevel xlogGetLevel(xlogger* pLogger)
 {
-	return pLogger ? pLogger->iLevel : XLOG_OFF;
+	xloglevel iLevel;
+	if ( !pLogger ) {
+		return XLOG_OFF;
+	}
+	xrtMutexLock(pLogger->pLock);
+	iLevel = pLogger->iLevel;
+	xrtMutexUnlock(pLogger->pLock);
+	return iLevel;
 }
 // 添加控制台输出器
 XXAPI xlogappender* xlogAddConsole(xlogger* pLogger, xloglevel iMinLevel, bool bColor)
@@ -24305,12 +24473,19 @@ XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxS
 	if ( !pAppender ) {
 		return NULL;
 	}
+	xrtMutexLock(pLogger->pLock);
 	pAppender->iMaxSize = iMaxSize;
 	pAppender->iMaxBackup = iMaxBackup;
+	xrtMutexUnlock(pLogger->pLock);
 	return pAppender;
 }
 // 添加自定义输出器
 XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData)
+{
+	return xlogAddCustomEx(pLogger, sName, iMinLevel, Proc, pUserData, NULL);
+}
+// 添加带用户数据析构回调的自定义输出器
+XXAPI xlogappender* xlogAddCustomEx(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData, xlogfreeproc FreeUserData)
 {
 	xlogappender* pAppender;
 	if ( !pLogger || !Proc ) {
@@ -24322,32 +24497,145 @@ XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLev
 	}
 	pAppender->Proc = Proc;
 	pAppender->pUserData = pUserData;
+	pAppender->FreeUserData = FreeUserData;
 	if ( !__xlogAddAppender(pLogger, pAppender) ) {
+		/* 注册失败时所有权仍属于调用者。 */
+		pAppender->FreeUserData = NULL;
 		__xlogAppenderDestroy(pAppender);
 		return NULL;
 	}
 	return pAppender;
 }
+// 注销输出器，并等待已经进入的自定义回调结束
+XXAPI bool xlogRemoveAppender(xlogger* pLogger, xlogappender* pAppender)
+{
+	bool bFound = FALSE;
+	if ( !pLogger || !pAppender ) {
+		return FALSE;
+	}
+	xrtMutexLock(pLogger->pLock);
+	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+		if ( pLogger->arrAppender[i] != pAppender ) {
+			continue;
+		}
+		if ( i + 1 < pLogger->iAppenderCount ) {
+			memmove(
+				pLogger->arrAppender + i,
+				pLogger->arrAppender + i + 1,
+				sizeof(xlogappender*) * (pLogger->iAppenderCount - i - 1));
+		}
+		pLogger->iAppenderCount--;
+		pLogger->arrAppender[pLogger->iAppenderCount] = NULL;
+		pAppender->pOwner = NULL;
+		bFound = TRUE;
+		break;
+	}
+	xrtMutexUnlock(pLogger->pLock);
+	if ( !bFound ) {
+		return FALSE;
+	}
+	/*
+		回调在 logger 锁外执行。注销先阻止新回调进入，再等待活动回调退出，
+		保证函数返回后用户数据和回调地址都不再被 XRT 使用。
+		回调本身不得同步注销正在执行的同一个 appender。
+	*/
+	while ( pAppender->iActiveCallbacks > 0 ) {
+		xrtThreadYield();
+	}
+	__xlogAppenderDestroy(pAppender);
+	return TRUE;
+}
 // 设置输出器级别
 XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel)
 {
 	if ( pAppender ) {
+		if ( pAppender->pOwner ) {
+			xrtMutexLock(pAppender->pOwner->pLock);
+		}
 		pAppender->iMinLevel = iMinLevel;
+		if ( pAppender->pOwner ) {
+			xrtMutexUnlock(pAppender->pOwner->pLock);
+		}
 	}
 }
 // 设置输出器格式
 XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat)
 {
 	if ( pAppender ) {
+		if ( pAppender->pOwner ) {
+			xrtMutexLock(pAppender->pOwner->pLock);
+		}
 		pAppender->iFormat = iFormat;
+		if ( pAppender->pOwner ) {
+			xrtMutexUnlock(pAppender->pOwner->pLock);
+		}
 	}
 }
 // 设置输出器颜色
 XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor)
 {
 	if ( pAppender ) {
+		if ( pAppender->pOwner ) {
+			xrtMutexLock(pAppender->pOwner->pLock);
+		}
 		pAppender->bColor = bColor;
+		if ( pAppender->pOwner ) {
+			xrtMutexUnlock(pAppender->pOwner->pLock);
+		}
 	}
+}
+// 获取输出器名称
+XXAPI str xlogAppenderName(const xlogappender* pAppender)
+{
+	return pAppender && pAppender->sName ? pAppender->sName : xCore.sNull;
+}
+// 获取输出器最低级别
+XXAPI xloglevel xlogAppenderGetLevel(const xlogappender* pAppender)
+{
+	xloglevel iLevel;
+	if ( !pAppender ) {
+		return XLOG_OFF;
+	}
+	if ( pAppender->pOwner ) {
+		xrtMutexLock(pAppender->pOwner->pLock);
+	}
+	iLevel = pAppender->iMinLevel;
+	if ( pAppender->pOwner ) {
+		xrtMutexUnlock(pAppender->pOwner->pLock);
+	}
+	return iLevel;
+}
+// 获取输出器格式
+XXAPI xlogformat xlogAppenderGetFormat(const xlogappender* pAppender)
+{
+	xlogformat iFormat;
+	if ( !pAppender ) {
+		return XLOG_FORMAT_TEXT;
+	}
+	if ( pAppender->pOwner ) {
+		xrtMutexLock(pAppender->pOwner->pLock);
+	}
+	iFormat = pAppender->iFormat;
+	if ( pAppender->pOwner ) {
+		xrtMutexUnlock(pAppender->pOwner->pLock);
+	}
+	return iFormat;
+}
+// 获取输出器颜色开关
+XXAPI bool xlogAppenderGetColor(const xlogappender* pAppender)
+{
+	bool bColor;
+	if ( !pAppender ) {
+		return FALSE;
+	}
+	if ( pAppender->pOwner ) {
+		xrtMutexLock(pAppender->pOwner->pLock);
+	}
+	bColor = pAppender->bColor;
+	if ( pAppender->pOwner ) {
+		xrtMutexUnlock(pAppender->pOwner->pLock);
+	}
+	return bColor;
 }
 // 获取日志级别名称
 XXAPI str xlogLevelName(xloglevel iLevel)
@@ -24378,7 +24666,7 @@ XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uin
 	int iSize;
 	str sMessage;
 	xlogevent tEvent;
-	if ( !pLogger || !sFmt || iLevel < pLogger->iLevel || iLevel >= XLOG_OFF ) {
+	if ( !pLogger || !sFmt || iLevel < xlogGetLevel(pLogger) || iLevel >= XLOG_OFF ) {
 		return;
 	}
 	va_copy(argsCopy, args);
@@ -24404,11 +24692,7 @@ XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uin
 	xrtMutexLock(pLogger->pLock);
 	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
 		xlogappender* pAppender = pLogger->arrAppender[i];
-		if ( !pAppender || iLevel < pAppender->iMinLevel ) {
-			continue;
-		}
-		if ( pAppender->iType == XLOG_APPENDER_CUSTOM ) {
-			pAppender->Proc(&tEvent, pAppender->pUserData);
+		if ( !pAppender || pAppender->iType == XLOG_APPENDER_CUSTOM || iLevel < pAppender->iMinLevel ) {
 			continue;
 		}
 		if ( pAppender->iType == XLOG_APPENDER_CONSOLE ) {
@@ -24425,6 +24709,47 @@ XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uin
 		}
 	}
 	xrtMutexUnlock(pLogger->pLock);
+	/*
+		用户回调必须在锁外执行。先在锁内建立活动快照，既允许递归记录，
+		也让 xlogRemoveAppender 能可靠等待已经进入的回调完成。
+	*/
+	{
+		xlogappender** arrCustom = NULL;
+		uint32 iCustomCount = 0;
+		uint32 iCustomIndex = 0;
+		xrtMutexLock(pLogger->pLock);
+		for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+			xlogappender* pAppender = pLogger->arrAppender[i];
+			if ( pAppender
+				&& pAppender->iType == XLOG_APPENDER_CUSTOM
+				&& pAppender->Proc
+				&& iLevel >= pAppender->iMinLevel ) {
+				iCustomCount++;
+			}
+		}
+		if ( iCustomCount > 0 ) {
+			arrCustom = (xlogappender**)xrtCalloc(iCustomCount, sizeof(xlogappender*));
+		}
+		if ( arrCustom ) {
+			for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+				xlogappender* pAppender = pLogger->arrAppender[i];
+				if ( pAppender
+					&& pAppender->iType == XLOG_APPENDER_CUSTOM
+					&& pAppender->Proc
+					&& iLevel >= pAppender->iMinLevel ) {
+					xrtAtomicRefRetain(&pAppender->iActiveCallbacks);
+					arrCustom[iCustomIndex++] = pAppender;
+				}
+			}
+		}
+		xrtMutexUnlock(pLogger->pLock);
+		for ( uint32 i = 0; i < iCustomIndex; i++ ) {
+			xlogappender* pAppender = arrCustom[i];
+			pAppender->Proc(&tEvent, pAppender->pUserData);
+			xrtAtomicRefRelease(&pAppender->iActiveCallbacks);
+		}
+		xrtFree(arrCustom);
+	}
 	xrtFree(sMessage);
 }
 // 刷新日志器
@@ -63769,6 +64094,15 @@ XXAPI void xrtHttpRequestSetIdleTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
 	if ( !pReq ) { return; }
 	pReq->iIdleTimeoutMs = iTimeoutMs;
 }
+// 设置请求代理；请求对象持有独立引用，调用方可立即释放原代理
+XXAPI void xrtHttpRequestSetProxy(xhttprequest* pReq, xnetproxy* pProxy)
+{
+	xnetproxy* pNewProxy;
+	if ( !pReq || pReq->pProxy == pProxy ) { return; }
+	pNewProxy = pProxy ? xrtNetProxyAddRef(pProxy) : NULL;
+	if ( pReq->pProxy ) { xrtNetProxyRelease(pReq->pProxy); }
+	pReq->pProxy = pNewProxy;
+}
 XXAPI void xrtHttpRequestSetDiagnostics(xhttprequest* pReq, xhttpdiagnostics* pDiagnostics)
 {
 	if ( !pReq ) { return; }
@@ -63811,6 +64145,14 @@ XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* 
 XXAPI uint32 xrtHttpResponseHeaderCount(const xhttpresponse* pResp)
 {
 	return pResp ? pResp->iHeaderCount : 0u;
+}
+XXAPI uint32 xrtHttpResponseFlags(const xhttpresponse* pResp)
+{
+	return pResp ? pResp->iFlags : XHTTP_RESP_F_NONE;
+}
+XXAPI const char* xrtHttpResponseVersion(const xhttpresponse* pResp)
+{
+	return pResp ? pResp->sVersion : NULL;
 }
 XXAPI const char* xrtHttpResponseHeaderNameAt(const xhttpresponse* pResp, uint32 iIndex)
 {
@@ -70970,6 +71312,19 @@ XXAPI int xrtWebRequestRemotePort(const xwebrequest* pReq)
 	return (pReq && pReq->pConn) ? xrtHttpdConnRemotePort(pReq->pConn) : 0;
 }
 // 获取路由变量
+// 判断当前请求对应的底层连接是否仍然可写。
+XXAPI bool xrtWebRequestConnectionOpen(const xwebrequest* pReq)
+{
+	return (pReq && pReq->pConn) ? xrtHttpdConnIsOpen(pReq->pConn) : false;
+}
+// 主动关闭当前请求对应的底层连接。abort 为 true 时立即中止，否则优雅关闭。
+XXAPI bool xrtWebRequestCloseConnection(xwebrequest* pReq, bool bAbort)
+{
+	uint32 iFlags;
+	if ( !pReq || !pReq->pConn ) { return false; }
+	iFlags = bAbort ? XNET_CLOSE_F_ABORT : XNET_CLOSE_F_GRACEFUL;
+	return xrtHttpdConnClose(pReq->pConn, iFlags) == XRT_NET_OK;
+}
 XXAPI bool xrtWebRequestParam(const xwebrequest* pReq, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( pOutLen ) { *pOutLen = 0u; }
@@ -71141,6 +71496,44 @@ XXAPI bool xrtWebResponseAddHeader(xwebresponse* pResp, const char* sName, const
 	return (pResp && pResp->pRaw) ? xrtHttpdResponseAddHeader(pResp->pRaw, sName, sValue) : false;
 }
 // 设置 Cookie。maxAge < 0 表示会话 Cookie；sameSite 为 XRT_SAME_SITE_*，0 表示不输出。
+// 获取尚未提交的响应状态。响应对象只在当前回调期间有效。
+XXAPI uint32 xrtWebResponseStatusCode(const xwebresponse* pResp)
+{
+	return (pResp && pResp->pRaw) ? pResp->pRaw->iStatusCode : 0u;
+}
+XXAPI const char* xrtWebResponseReason(const xwebresponse* pResp)
+{
+	return (pResp && pResp->pRaw) ? pResp->pRaw->sReason : NULL;
+}
+XXAPI const char* xrtWebResponseHeader(const xwebresponse* pResp, const char* sName)
+{
+	return (pResp && pResp->pRaw) ? xrtHttpdResponseHeader(pResp->pRaw, sName) : NULL;
+}
+XXAPI size_t xrtWebResponseHeaderCount(const xwebresponse* pResp)
+{
+	return (pResp && pResp->pRaw) ? (size_t)pResp->pRaw->iHeaderCount : 0u;
+}
+XXAPI const char* xrtWebResponseHeaderNameAt(const xwebresponse* pResp, size_t iIndex)
+{
+	if ( !pResp || !pResp->pRaw || iIndex >= pResp->pRaw->iHeaderCount ) { return NULL; }
+	return pResp->pRaw->pHeaders[iIndex].sName;
+}
+XXAPI const char* xrtWebResponseHeaderValueAt(const xwebresponse* pResp, size_t iIndex)
+{
+	if ( !pResp || !pResp->pRaw || iIndex >= pResp->pRaw->iHeaderCount ) { return NULL; }
+	return pResp->pRaw->pHeaders[iIndex].sValue;
+}
+XXAPI const void* xrtWebResponseBodyView(const xwebresponse* pResp, size_t* pLen)
+{
+	if ( pLen ) { *pLen = 0u; }
+	if ( !pResp || !pResp->pRaw ) { return NULL; }
+	if ( pLen ) { *pLen = pResp->pRaw->iBodyLen; }
+	return pResp->pRaw->pBody;
+}
+XXAPI bool xrtWebResponseCommitted(const xwebresponse* pResp)
+{
+	return pResp ? pResp->bCommitted : false;
+}
 XXAPI bool xrtWebResponseCookie(xwebresponse* pResp, const char* sName, const char* sValue, const char* sPath, int32 iMaxAge, uint32 iSameSite, uint32 iFlags)
 {
 	xrtsetcookieview tCookie;
@@ -71248,6 +71641,13 @@ XXAPI bool xrtWebResponseFile(xwebresponse* pResp, const char* sFilePath, size_t
 	return pResp->bCommitted;
 }
 // 重定向响应
+// 发送文件的指定字节区间。offset 和 length 都按字节计算。
+XXAPI bool xrtWebResponseFileRange(xwebresponse* pResp, const char* sFilePath, uint64 iOffset, uint64 iLength, size_t iChunkSize)
+{
+	if ( !pResp || !pResp->pReq || !pResp->pReq->pConn || !pResp->pRaw || !sFilePath ) { return false; }
+	pResp->bCommitted = xrtHttpdConnSendFileRange(pResp->pReq->pConn, pResp->pRaw, sFilePath, iOffset, iLength, iChunkSize) == XRT_NET_OK;
+	return pResp->bCommitted;
+}
 XXAPI bool xrtWebResponseRedirect(xwebresponse* pResp, const char* sURL, uint32 iStatusCode)
 {
 	if ( !pResp || !sURL ) { return false; }
@@ -75399,7 +75799,9 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 		iCreateFlags |= CREATE_NO_WINDOW;
 	}
 	if ( pPlan->bCreateProcessGroup ) {
-		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;
+		/* Bind the root to its Job Object before a shell can spawn children
+		 * that inherit capture pipes and escape timeout cleanup. */
+		iCreateFlags |= CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED;
 	}
 	// 创建子进程
 	bOk = CreateProcessW(NULL, sCmdW, NULL, NULL, FALSE, iCreateFlags, sEnvBlockW, sWorkDirW, &tSi.StartupInfo, &tPi);
@@ -75410,9 +75812,25 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 	}
 	// 成功：保存进程信息并清理临时资源
 	pProcess->hProcess = tPi.hProcess;
+	tPi.hProcess = NULL;
 	pProcess->iProcessId = tPi.dwProcessId;
+	if ( pPlan->bCreateProcessGroup ) {
+		if ( !__xprocEnsureJobObject(pProcess) ) {
+			xrtSetError("failed to assign subprocess process group job.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+			(void)TerminateProcess(pProcess->hProcess, 1u);
+			goto fail;
+		}
+		if ( ResumeThread(tPi.hThread) == (DWORD)-1 ) {
+			xrtSetError("failed to resume subprocess.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+			(void)TerminateJobObject(pProcess->hJob, 1u);
+			goto fail;
+		}
+	}
 	if ( tPi.hThread ) {
 		CloseHandle(tPi.hThread);
+		tPi.hThread = NULL;
 	}
 	if ( hTerminalInputRead ) {
 		CloseHandle(hTerminalInputRead);
@@ -75575,7 +75993,8 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		iCreateFlags |= CREATE_NEW_CONSOLE;
 	}
 	if ( pPlan->bCreateProcessGroup ) {
-		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;
+		/* Bind the suspended root to its Job Object before descendants run. */
+		iCreateFlags |= CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED;
 	}
 	// 构建命令行并转换为宽字符
 	sCmdUtf8 = __xprocBuildWindowsCommandLine(pCmd);
@@ -75625,9 +76044,25 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	}
 	// 成功：保存进程信息，关闭子进程端句柄
 	pProcess->hProcess = tPi.hProcess;
+	tPi.hProcess = NULL;
 	pProcess->iProcessId = tPi.dwProcessId;
+	if ( pPlan->bCreateProcessGroup ) {
+		if ( !__xprocEnsureJobObject(pProcess) ) {
+			xrtSetError("failed to assign subprocess process group job.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+			(void)TerminateProcess(pProcess->hProcess, 1u);
+			goto fail;
+		}
+		if ( ResumeThread(tPi.hThread) == (DWORD)-1 ) {
+			xrtSetError("failed to resume subprocess.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+			(void)TerminateJobObject(pProcess->hJob, 1u);
+			goto fail;
+		}
+	}
 	if ( tPi.hThread ) {
 		CloseHandle(tPi.hThread);
+		tPi.hThread = NULL;
 	}
 	if ( hChildStdinRead ) {
 		CloseHandle(hChildStdinRead);
@@ -75897,13 +76332,13 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	}
 	// 配置 stdin：管道模式使用 socketpair（支持双向），null 模式打开 /dev/null
 	if ( pPlan->iStdinMode == XPROC_STDIO_PIPE ) {
-		int iOne = 1;
 		if ( socketpair(AF_UNIX, SOCK_STREAM, 0, fdStdin) != 0 ) {
 			xrtSetError("failed to create subprocess stdin pipe.", FALSE);
 			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, errno);
 			goto fail;
 		}
 		#if defined(SO_NOSIGPIPE)
+			int iOne = 1;
 			(void)setsockopt(fdStdin[1], SOL_SOCKET, SO_NOSIGPIPE, &iOne, sizeof(iOne));
 		#endif
 	} else if ( pPlan->iStdinMode == XPROC_STDIO_NULL ) {
@@ -76880,8 +77315,9 @@ static void __xprocStopForTimeout(xprocess* pProcess)
 	if ( xrtProcessWaitTimeout(pProcess, __XPROC_TIMEOUT_GRACE_MS) == XRT_WAIT_OK ) {
 		return;
 	}
-	(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL_TREE, true, false);
-	(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL, true, false);
+	if ( !__xprocRequestStop(pProcess, XPROC_STOP_KILL_TREE, true, false) ) {
+		(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL, true, false);
+	}
 	(void)xrtProcessWait(pProcess);
 }
 XXAPI bool xrtProcessRun(const xprocessconfig* pConfig, const void* pInput, size_t iInputSize, xprocessresult* pResult, uint32 iTimeoutMs)
@@ -76956,12 +77392,15 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 	xprocess* pProcess;
 	xprocessexitinfo tSpawnInfo;
 	int iWaitRet;
+	uint64 iStartMs;
+	uint64 iEndMs;
 	if ( pConfig == NULL || pResult == NULL ) {
 		xrtSetError("invalid subprocess capture arguments.", FALSE);
 		return false;
 	}
 	// 初始化结果并强制开启管道捕获
 	__xprocResultInit(pResult);
+	iStartMs = __xprocNowMs();
 	tConfig = *pConfig;
 	tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
 	tConfig.Stdout.bCapture = true;
@@ -76976,6 +77415,8 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 	if ( pProcess == NULL ) {
 		pResult->ExitInfo = tSpawnInfo;
 		pResult->iExitCode = tSpawnInfo.iExitCode;
+		iEndMs = __xprocNowMs();
+		pResult->iDurationMs = iEndMs >= iStartMs ? (iEndMs - iStartMs) : 0u;
 		return false;
 	}
 	// 等待子进程完成（支持超时）
@@ -76994,6 +77435,8 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 	__xprocStreamMoveOut(&pProcess->StderrBuf, &pResult->pStderr, &pResult->iStderrSize, &pResult->iStderrBaseOffset, &pResult->bStderrTruncated);
 	xrtMutexUnlock(&pProcess->Lock);
 	// 销毁进程对象
+	iEndMs = __xprocNowMs();
+	pResult->iDurationMs = iEndMs >= iStartMs ? (iEndMs - iStartMs) : 0u;
 	xrtProcessDestroy(pProcess);
 	return true;
 }
@@ -77153,7 +77596,14 @@ XXAPI str xrtEncodeXID(xid pXID)
 // 字符串 转 XID （ 需要使用 xrtFree 释放内存 ）
 XXAPI xid xrtDecodeXID(str sXID)
 {
-	return xrtBase64Decode(sXID, 32, RandStringDefaultTemplate);
+	xid pXID;
+	/* XID 固定编码为 24 字节、32 个字符，拒绝截断和附加数据。 */
+	if ( sXID == NULL || strlen(__xrt_cstr(sXID)) != 32 ) {
+		return NULL;
+	}
+	pXID = xrtBase64Decode(sXID, 32, RandStringDefaultTemplate);
+	/* 通用 Base64 API 用全局空串表示失败，不能把它当作可释放的 XID。 */
+	return pXID == (xid)xCore.sNull ? NULL : pXID;
 }
 // 获取 XID （ 需要使用 xrtFree 释放内存 ）
 XXAPI xid xrtMakeXID()
@@ -81845,6 +82295,13 @@ struct xrt_regex_match {
   char *text;
   size_t text_size;
   xregexspan span;
+  xregexspan *captures;
+  uint32 *capture_matched;
+  int64 *capture_char_start;
+  int64 *capture_char_end;
+  char **capture_names;
+  size_t *capture_name_sizes;
+  uint32 capture_count;
   int matched;
   int64 char_start;
   int64 char_end;
@@ -81861,6 +82318,8 @@ struct xrt_regex_set {
   bbre_prog prog;   /* compiled program */
   bbre_exec *exec;  /* local execution context, NULL until actually used */
   bbre_error error; /* error info */
+  xregex **patterns;
+  size_t pattern_count;
 };
 /* Arena-like data structure used for quickly storing nfa state sets.
  * Threads in the NFA need to hold on to their saved match offsets, but these
@@ -85746,9 +86205,11 @@ static str __xrtRegexCopyByteRange(const char *text, size_t size)
   }
   return xrtCopyStr((str)text, size);
 }
-static xregexmatch *__xrtRegexMatchCreate(const char *text, size_t text_size, int matched, xregexspan span)
+static xregexmatch *__xrtRegexMatchCreate(xregex *reg, const char *text, size_t text_size, size_t pos)
 {
   xregexmatch *match;
+  uint32 i;
+  int found = 0;
   if (!text) {
     text = "";
     text_size = 0;
@@ -85765,8 +86226,50 @@ static xregexmatch *__xrtRegexMatchCreate(const char *text, size_t text_size, in
     return NULL;
   }
   match->text_size = text_size;
-  match->matched = matched ? 1 : 0;
-  match->span = span;
+  match->capture_count = reg ? xrtRegexCaptureCount(reg) : 0;
+  if (match->capture_count > 0) {
+    size_t span_size = sizeof(xregexspan) * match->capture_count;
+    size_t flag_size = sizeof(uint32) * match->capture_count;
+    size_t index_size = sizeof(int64) * match->capture_count;
+    size_t name_size = sizeof(char*) * match->capture_count;
+    size_t name_len_size = sizeof(size_t) * match->capture_count;
+    match->captures = (xregexspan*)xrtMalloc(span_size);
+    match->capture_matched = (uint32*)xrtMalloc(flag_size);
+    match->capture_char_start = (int64*)xrtMalloc(index_size);
+    match->capture_char_end = (int64*)xrtMalloc(index_size);
+    match->capture_names = (char**)xrtMalloc(name_size);
+    match->capture_name_sizes = (size_t*)xrtMalloc(name_len_size);
+    if (!match->captures || !match->capture_matched || !match->capture_char_start ||
+        !match->capture_char_end || !match->capture_names || !match->capture_name_sizes) {
+      xrtRegexMatchDestroy(match);
+      return NULL;
+    }
+    memset(match->captures, 0, span_size);
+    memset(match->capture_matched, 0, flag_size);
+    memset(match->capture_names, 0, name_size);
+    memset(match->capture_name_sizes, 0, name_len_size);
+    for (i = 0; i < match->capture_count; ++i) {
+      const char *name;
+      size_t name_len = 0;
+      match->capture_char_start[i] = -1;
+      match->capture_char_end[i] = -1;
+      name = xrtRegexCaptureName(reg, i, &name_len);
+      if (name && name_len > 0) {
+        match->capture_names[i] = (char*)xrtCopyStr((str)name, name_len);
+        if (!match->capture_names[i]) {
+          xrtRegexMatchDestroy(match);
+          return NULL;
+        }
+        match->capture_name_sizes[i] = name_len;
+      }
+    }
+    found = xrtRegexWhichCapturesAt(
+        reg, text, text_size, pos, match->captures, match->capture_matched,
+        match->capture_count);
+  }
+  match->matched = found > 0 && match->capture_count > 0 && match->capture_matched[0] != 0;
+  if (match->matched)
+    match->span = match->captures[0];
   match->char_start = -1;
   match->char_end = -1;
   match->match_text = NULL;
@@ -85836,6 +86339,46 @@ error:
   xrtRegexBuilderDestroy(spec);
   xrtRegexDestroy(r);
   return NULL;
+}
+int xrtRegexCompile(
+    const char *pat, size_t pat_size, xregexflags flags, xregex **out_regex,
+    xregexerror *out_error)
+{
+  int err = 0;
+  xregex *regex = NULL;
+  xregexbuilder *builder = NULL;
+  if (out_regex)
+    *out_regex = NULL;
+  if (out_error) {
+    out_error->iCode = 0;
+    out_error->iPos = 0;
+    out_error->sMessage = NULL;
+  }
+  if (!out_regex)
+    return XRT_REGEX_ERR_PARSE;
+  if (!pat) {
+    pat = "";
+    pat_size = 0;
+  } else if (pat_size == 0) {
+    pat_size = strlen(pat);
+  }
+  err = xrtRegexBuilderCreate(&builder, pat, pat_size, NULL);
+  if (!err) {
+    xrtRegexBuilderSetFlags(builder, flags);
+    err = xrtRegexCreateFromBuilder(&regex, builder, NULL);
+  }
+  if (err && out_error) {
+    out_error->iCode = err;
+    out_error->iPos = regex ? xrtRegexGetErrorPos(regex) : 0;
+    out_error->sMessage = regex ? xrtRegexGetErrorMsg(regex) : "regex allocation failed";
+  }
+  xrtRegexBuilderDestroy(builder);
+  if (err) {
+    xrtRegexDestroy(regex);
+    return err;
+  }
+  *out_regex = regex;
+  return 0;
 }
 /* Initialize a bare `xregex` (no regexp parsed yet) */
 static int bbre_init_internal(xregex **pr, const xregexalloc *palloc)
@@ -85997,31 +86540,33 @@ xregexmatch *xrtRegexFindMatch(xregex *reg, const char *text, size_t text_size)
 }
 xregexmatch *xrtRegexFindMatchAt(xregex *reg, const char *text, size_t text_size, size_t pos)
 {
-  xregexspan span;
-  int found;
   if (!text) {
     text = "";
     text_size = 0;
   } else if (text_size == 0) {
     text_size = strlen(text);
   }
-  span.iBegin = 0;
-  span.iEnd = 0;
   if (pos > text_size)
     pos = text_size;
-  if (!reg)
-    return __xrtRegexMatchCreate(text, text_size, 0, span);
-  found = xrtRegexFindAt(reg, text, text_size, pos, &span);
-  if (found <= 0)
-    return __xrtRegexMatchCreate(text, text_size, 0, span);
-  return __xrtRegexMatchCreate(text, text_size, 1, span);
+  return __xrtRegexMatchCreate(reg, text, text_size, pos);
 }
 void xrtRegexMatchDestroy(xregexmatch *match)
 {
+  uint32 i;
   if (!match)
     return;
+  if (match->capture_names) {
+    for (i = 0; i < match->capture_count; ++i)
+      xrtFree(match->capture_names[i]);
+  }
   xrtFree(match->text);
   xrtFree(match->match_text);
+  xrtFree(match->captures);
+  xrtFree(match->capture_matched);
+  xrtFree(match->capture_char_start);
+  xrtFree(match->capture_char_end);
+  xrtFree(match->capture_names);
+  xrtFree(match->capture_name_sizes);
   xrtFree(match);
 }
 int xrtRegexMatchOk(const xregexmatch *match)
@@ -86069,6 +86614,79 @@ str xrtRegexMatchTextCopy(xregexmatch *match)
   if (!xrtRegexMatchOk(match))
     return NULL;
   return __xrtRegexCopyByteRange(match->text + match->span.iBegin, match->span.iEnd - match->span.iBegin);
+}
+uint32 xrtRegexMatchCaptureCount(const xregexmatch *match)
+{
+  return match ? match->capture_count : 0;
+}
+int xrtRegexMatchCaptureMatched(const xregexmatch *match, uint32 capture_index)
+{
+  return match && capture_index < match->capture_count &&
+         match->capture_matched[capture_index] != 0;
+}
+int64 xrtRegexMatchCaptureByteStart(const xregexmatch *match, uint32 capture_index)
+{
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return -1;
+  return (int64)match->captures[capture_index].iBegin;
+}
+int64 xrtRegexMatchCaptureByteEnd(const xregexmatch *match, uint32 capture_index)
+{
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return -1;
+  return (int64)match->captures[capture_index].iEnd;
+}
+int64 xrtRegexMatchCaptureStart(xregexmatch *match, uint32 capture_index)
+{
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return -1;
+  if (match->capture_char_start[capture_index] < 0)
+    match->capture_char_start[capture_index] = __xrtRegexByteToCharIndex(
+        match->text, match->text_size, match->captures[capture_index].iBegin);
+  return match->capture_char_start[capture_index];
+}
+int64 xrtRegexMatchCaptureEnd(xregexmatch *match, uint32 capture_index)
+{
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return -1;
+  if (match->capture_char_end[capture_index] < 0)
+    match->capture_char_end[capture_index] = __xrtRegexByteToCharIndex(
+        match->text, match->text_size, match->captures[capture_index].iEnd);
+  return match->capture_char_end[capture_index];
+}
+const char *xrtRegexMatchCaptureName(
+    const xregexmatch *match, uint32 capture_index, size_t *out_name_size)
+{
+  if (out_name_size)
+    *out_name_size = 0;
+  if (!match || capture_index >= match->capture_count)
+    return NULL;
+  if (out_name_size)
+    *out_name_size = match->capture_name_sizes[capture_index];
+  return match->capture_names[capture_index] ? match->capture_names[capture_index] : "";
+}
+int xrtRegexMatchCaptureIndex(
+    const xregexmatch *match, const char *name, size_t name_size)
+{
+  uint32 i;
+  if (!match || !name)
+    return -1;
+  if (name_size == 0)
+    name_size = strlen(name);
+  for (i = 1; i < match->capture_count; ++i) {
+    if (match->capture_name_sizes[i] == name_size && match->capture_names[i] &&
+        memcmp(match->capture_names[i], name, name_size) == 0)
+      return (int)i;
+  }
+  return -1;
+}
+str xrtRegexMatchCaptureTextCopy(const xregexmatch *match, uint32 capture_index)
+{
+  const xregexspan *span;
+  if (!xrtRegexMatchCaptureMatched(match, capture_index))
+    return NULL;
+  span = &match->captures[capture_index];
+  return __xrtRegexCopyByteRange(match->text + span->iBegin, span->iEnd - span->iBegin);
 }
 int xrtRegexSetBuilderCreate(xregexsetbuilder **pspec, const xregexalloc *palloc)
 {
@@ -86145,17 +86763,41 @@ int xrtRegexSetCreateFromBuilder(
     xregexset **pset, const xregexsetbuilder *spec, const xregexalloc *palloc)
 {
   int err = 0;
+  size_t i;
+  size_t count;
   if ((err = bbre_set_init_internal(pset, palloc)))
     goto error;
   if ((err = bbre_set_compile(*pset, spec->pats, bbre_buf_size(spec->pats))))
     goto error;
+  count = bbre_buf_size(spec->pats);
+  if (count > 0) {
+    (*pset)->patterns = (xregex**)bbre_alloci(
+        &(*pset)->alloc, NULL, 0, sizeof(xregex*) * count);
+    if (!(*pset)->patterns) {
+      err = XRT_REGEX_ERR_MEM;
+      goto error;
+    }
+    memset((*pset)->patterns, 0, sizeof(xregex*) * count);
+    (*pset)->pattern_count = count;
+    for (i = 0; i < count; ++i) {
+      if ((err = xrtRegexClone(
+               &(*pset)->patterns[i], spec->pats[i], &(*pset)->alloc)))
+        goto error;
+    }
+  }
 error:
   return err;
 }
 void xrtRegexSetDestroy(xregexset *set)
 {
+  size_t i;
   if (!set)
     goto done;
+  for (i = 0; i < set->pattern_count; ++i)
+    xrtRegexDestroy(set->patterns[i]);
+  if (set->patterns)
+    bbre_alloci(
+        &set->alloc, set->patterns, sizeof(xregex*) * set->pattern_count, 0);
   bbre_prog_destroy(&set->prog);
   if (set->exec)
     bbre_exec_destroy(set->exec);
@@ -86209,6 +86851,19 @@ int xrtRegexSetMatchesAt(
       set, s, n, pos, (bbre_uint*)out_idxs, (bbre_uint)out_idxs_size,
       (bbre_uint*)out_num_idxs);
 }
+uint32 xrtRegexSetPatternCount(const xregexset *set)
+{
+  return set ? (uint32)set->pattern_count : 0u;
+}
+xregexmatch *xrtRegexSetFindMatchAt(
+    xregexset *set, uint32 pattern_index, const char *text, size_t text_size,
+    size_t pos)
+{
+  if (!set || pattern_index >= set->pattern_count)
+    return xrtRegexFindMatchAt(NULL, text, text_size, pos);
+  return xrtRegexFindMatchAt(
+      set->patterns[pattern_index], text, text_size, pos);
+}
 static int bbre_group_names_clone(xregex *out, const xregex *in)
 {
   int err = 0;
@@ -86250,10 +86905,26 @@ int xrtRegexSetClone(
     xregexset **pout, const xregexset *set, const xregexalloc *alloc)
 {
   int err = 0;
+  size_t i;
   if ((err = bbre_set_init_internal(pout, alloc)))
     goto error;
   if ((err = bbre_prog_clone(&(*pout)->prog, &set->prog)))
     goto error;
+  if (set->pattern_count > 0) {
+    (*pout)->patterns = (xregex**)bbre_alloci(
+        &(*pout)->alloc, NULL, 0, sizeof(xregex*) * set->pattern_count);
+    if (!(*pout)->patterns) {
+      err = XRT_REGEX_ERR_MEM;
+      goto error;
+    }
+    memset((*pout)->patterns, 0, sizeof(xregex*) * set->pattern_count);
+    (*pout)->pattern_count = set->pattern_count;
+    for (i = 0; i < set->pattern_count; ++i) {
+      if ((err = xrtRegexClone(
+               &(*pout)->patterns[i], set->patterns[i], &(*pout)->alloc)))
+        goto error;
+    }
+  }
 error:
   return err;
 }
@@ -89896,6 +90567,7 @@ XXAPI const xrt_type_desc* xrtTypedQueueItemType(xtqueue pQueue)
 
 
 // 静态值 : null、true、false
+#include <stddef.h>
 static xvalue_struct XVO_VALUE_NULL = {
 	.Header = XVO_HEADER_INIT(XVO_DT_NULL, TRUE, FALSE, 0),
 	.Size = 0,
@@ -98888,7 +99560,7 @@ static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t 
 #endif
 	ret = _json_sax_parse_value(&parse_val);
 #if !JSON_PARSE_FINISHED_CHAR
-	if (ret == 0) {
+	if (ret == 0 && parse_val.ret != JSON_SAX_PARSE_STOP) {
 		parse_val.skip_blank(&parse_val);
 		if (parse_val.str[parse_val.offset]) {
 			JsonErr("Extra trailing characters!\n%s\n", parse_val.str + parse_val.offset);
@@ -98900,6 +99572,97 @@ static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t 
 end:
 #endif
 	return ret;
+}
+/* ------------------------------------ 稳定 JSON 事件接口 ------------------------------------ */
+typedef struct {
+	xrt_json_event_proc proc;
+	void* userdata;
+	bool stopped;
+} xrt_json_visit_context;
+static json_sax_ret_t _xrt_json_visit_proc(json_sax_parser_t* parser)
+{
+	xrt_json_visit_context* context = (xrt_json_visit_context*)parser->userdata;
+	xrt_json_event event = { 0 };
+	json_string_t* item;
+	/* SAX 解析器停止时会补齐内部结束事件，公开层不再转发这些合成事件。 */
+	if ( context == NULL || context->stopped ) {
+		return JSON_SAX_PARSE_STOP;
+	}
+	if ( parser->index < 0 || parser->array == NULL ) {
+		context->stopped = TRUE;
+		return JSON_SAX_PARSE_STOP;
+	}
+	item = parser->array + parser->index;
+	event.depth = (uint32)parser->index;
+	if ( item->str != NULL ) {
+		event.key = item->str;
+		event.key_size = item->info.len;
+	}
+	switch ( item->info.type ) {
+	case JSON_NULL:
+		event.type = XRT_JSON_EVENT_NULL;
+		break;
+	case JSON_BOOL:
+		event.type = XRT_JSON_EVENT_BOOL;
+		event.bool_value = parser->value.vnum.vbool;
+		break;
+	case JSON_INT:
+		event.type = XRT_JSON_EVENT_INT;
+		event.int_value = parser->value.vnum.vint;
+		break;
+	case JSON_HEX:
+		event.type = XRT_JSON_EVENT_UINT;
+		event.uint_value = parser->value.vnum.vhex;
+		break;
+	case JSON_LINT:
+		event.type = XRT_JSON_EVENT_INT;
+		event.int_value = parser->value.vnum.vlint;
+		break;
+	case JSON_LHEX:
+		event.type = XRT_JSON_EVENT_UINT;
+		event.uint_value = parser->value.vnum.vlhex;
+		break;
+	case JSON_DOUBLE:
+		event.type = XRT_JSON_EVENT_FLOAT;
+		event.float_value = parser->value.vnum.vdbl;
+		break;
+	case JSON_STRING:
+		event.type = XRT_JSON_EVENT_STRING;
+		event.text = parser->value.vstr.str;
+		event.text_size = parser->value.vstr.info.len;
+		break;
+	case JSON_ARRAY:
+		event.type = parser->value.vcmd == JSON_SAX_START
+			? XRT_JSON_EVENT_ARRAY_BEGIN : XRT_JSON_EVENT_ARRAY_END;
+		break;
+	case JSON_OBJECT:
+		event.type = parser->value.vcmd == JSON_SAX_START
+			? XRT_JSON_EVENT_OBJECT_BEGIN : XRT_JSON_EVENT_OBJECT_END;
+		break;
+	default:
+		context->stopped = TRUE;
+		return JSON_SAX_PARSE_STOP;
+	}
+	if ( !context->proc(&event, context->userdata) ) {
+		context->stopped = TRUE;
+		return JSON_SAX_PARSE_STOP;
+	}
+	return JSON_SAX_PARSE_CONTINUE;
+}
+XXAPI int xrtJsonVisit(const char* text, size_t size, xrt_json_event_proc proc, void* userdata)
+{
+	xrt_json_visit_context context = { 0 };
+	int result;
+	if ( text == NULL || proc == NULL ) {
+		return -1;
+	}
+	context.proc = proc;
+	context.userdata = userdata;
+	result = _xrt_json_parse_with_context((str)text, size, _xrt_json_visit_proc, &context);
+	if ( result < 0 ) {
+		return -1;
+	}
+	return context.stopped ? 1 : 0;
 }
 XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
 {
@@ -99104,6 +99867,268 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 	} else {
 		return FALSE;
 	}
+}
+/* ------------------------------------ JSON 流式写入器 ------------------------------------ */
+struct xrt_json_writer_struct {
+	json_sax_print_hd handle;
+	json_type_t* stack;
+	size_t depth;
+	size_t capacity;
+	bool root_written;
+	bool failed;
+	bool finished;
+};
+static bool _xrt_json_writer_reserve(xjsonwriter writer, size_t count)
+{
+	json_type_t* next;
+	size_t capacity;
+	if ( count <= writer->capacity ) {
+		return TRUE;
+	}
+	capacity = writer->capacity ? writer->capacity : 8;
+	while ( capacity < count ) {
+		if ( capacity > SIZE_MAX / 2 ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		capacity *= 2;
+	}
+	next = (json_type_t*)xrtRealloc(writer->stack, capacity * sizeof(json_type_t));
+	if ( next == NULL ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	writer->stack = next;
+	writer->capacity = capacity;
+	return TRUE;
+}
+static bool _xrt_json_writer_prepare(xjsonwriter writer, const char* key)
+{
+	json_type_t parent;
+	if ( writer == NULL || writer->handle == NULL || writer->failed || writer->finished ) {
+		return FALSE;
+	}
+	if ( writer->depth == 0 ) {
+		if ( writer->root_written || key != NULL ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		writer->root_written = TRUE;
+		return TRUE;
+	}
+	parent = writer->stack[writer->depth - 1];
+	if ( parent == JSON_OBJECT ) {
+		if ( key == NULL || key[0] == '\0' ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+	} else if ( key != NULL ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+static json_string_t* _xrt_json_writer_key(const char* key, json_string_t* value)
+{
+	if ( key == NULL ) {
+		return NULL;
+	}
+	memset(value, 0, sizeof(*value));
+	value->str = (char*)key;
+	value->info.len = (uint32)strlen(key);
+	return value;
+}
+static bool _xrt_json_writer_result(xjsonwriter writer, int result)
+{
+	if ( result < 0 ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+static bool _xrt_json_writer_begin(xjsonwriter writer, const char* key, json_type_t type)
+{
+	json_string_t jkey;
+	json_sax_cmd_t command = JSON_SAX_START;
+	if ( writer == NULL || !_xrt_json_writer_reserve(writer, writer->depth + 1) ) {
+		return FALSE;
+	}
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	if ( !_xrt_json_writer_result(writer, xrtJsonPrintValue(writer->handle, type,
+		_xrt_json_writer_key(key, &jkey), &command)) ) {
+		return FALSE;
+	}
+	writer->stack[writer->depth++] = type;
+	return TRUE;
+}
+static bool _xrt_json_writer_end(xjsonwriter writer, json_type_t type)
+{
+	json_sax_cmd_t command = JSON_SAX_FINISH;
+	if ( writer == NULL || writer->handle == NULL || writer->failed || writer->finished ||
+		writer->depth == 0 || writer->stack[writer->depth - 1] != type ) {
+		if ( writer != NULL ) {
+			writer->failed = TRUE;
+		}
+		return FALSE;
+	}
+	if ( !_xrt_json_writer_result(writer, xrtJsonPrintValue(writer->handle, type, NULL, &command)) ) {
+		return FALSE;
+	}
+	--writer->depth;
+	return TRUE;
+}
+XXAPI xjsonwriter xrtJsonWriterCreate(bool pretty)
+{
+	json_print_choice_t choice = { 0 };
+	xjsonwriter writer = (xjsonwriter)xrtMalloc(sizeof(*writer));
+	if ( writer == NULL ) {
+		return NULL;
+	}
+	memset(writer, 0, sizeof(*writer));
+	choice.format_flag = pretty;
+	choice.item_total = 32;
+	writer->handle = xrtJsonPrintStart(&choice);
+	if ( writer->handle == NULL ) {
+		xrtFree(writer);
+		return NULL;
+	}
+	return writer;
+}
+XXAPI void xrtJsonWriterDestroy(xjsonwriter writer)
+{
+	char* text;
+	if ( writer == NULL ) {
+		return;
+	}
+	if ( writer->handle != NULL ) {
+		text = xrtJsonPrintFinish(writer->handle, NULL, NULL);
+		xrtFree(text);
+		writer->handle = NULL;
+	}
+	xrtFree(writer->stack);
+	xrtFree(writer);
+}
+XXAPI bool xrtJsonWriterBeginObject(xjsonwriter writer)
+{
+	return _xrt_json_writer_begin(writer, NULL, JSON_OBJECT);
+}
+XXAPI bool xrtJsonWriterBeginObjectKey(xjsonwriter writer, const char* key)
+{
+	return _xrt_json_writer_begin(writer, key, JSON_OBJECT);
+}
+XXAPI bool xrtJsonWriterEndObject(xjsonwriter writer)
+{
+	return _xrt_json_writer_end(writer, JSON_OBJECT);
+}
+XXAPI bool xrtJsonWriterBeginArray(xjsonwriter writer)
+{
+	return _xrt_json_writer_begin(writer, NULL, JSON_ARRAY);
+}
+XXAPI bool xrtJsonWriterBeginArrayKey(xjsonwriter writer, const char* key)
+{
+	return _xrt_json_writer_begin(writer, key, JSON_ARRAY);
+}
+XXAPI bool xrtJsonWriterEndArray(xjsonwriter writer)
+{
+	return _xrt_json_writer_end(writer, JSON_ARRAY);
+}
+static bool _xrt_json_writer_null(xjsonwriter writer, const char* key)
+{
+	json_string_t jkey;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintNull(writer->handle, _xrt_json_writer_key(key, &jkey)));
+}
+XXAPI bool xrtJsonWriterNull(xjsonwriter writer) { return _xrt_json_writer_null(writer, NULL); }
+XXAPI bool xrtJsonWriterNullKey(xjsonwriter writer, const char* key) { return _xrt_json_writer_null(writer, key); }
+static bool _xrt_json_writer_bool(xjsonwriter writer, const char* key, bool value)
+{
+	json_string_t jkey;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintBool(writer->handle, _xrt_json_writer_key(key, &jkey), value));
+}
+XXAPI bool xrtJsonWriterBool(xjsonwriter writer, bool value) { return _xrt_json_writer_bool(writer, NULL, value); }
+XXAPI bool xrtJsonWriterBoolKey(xjsonwriter writer, const char* key, bool value) { return _xrt_json_writer_bool(writer, key, value); }
+static bool _xrt_json_writer_int(xjsonwriter writer, const char* key, int64 value)
+{
+	json_string_t jkey;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintInt64(writer->handle, _xrt_json_writer_key(key, &jkey), value));
+}
+XXAPI bool xrtJsonWriterInt(xjsonwriter writer, int64 value) { return _xrt_json_writer_int(writer, NULL, value); }
+XXAPI bool xrtJsonWriterIntKey(xjsonwriter writer, const char* key, int64 value) { return _xrt_json_writer_int(writer, key, value); }
+static bool _xrt_json_writer_float(xjsonwriter writer, const char* key, double value)
+{
+	json_string_t jkey;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintDouble(writer->handle, _xrt_json_writer_key(key, &jkey), value));
+}
+XXAPI bool xrtJsonWriterFloat(xjsonwriter writer, double value) { return _xrt_json_writer_float(writer, NULL, value); }
+XXAPI bool xrtJsonWriterFloatKey(xjsonwriter writer, const char* key, double value) { return _xrt_json_writer_float(writer, key, value); }
+static bool _xrt_json_writer_string(xjsonwriter writer, const char* key, const char* value)
+{
+	json_string_t jkey;
+	json_string_t jvalue = { 0 };
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	jvalue.str = (char*)(value != NULL ? value : "");
+	jvalue.info.len = (uint32)strlen(jvalue.str);
+	return _xrt_json_writer_result(writer,
+		xrtJsonPrintString(writer->handle, _xrt_json_writer_key(key, &jkey), &jvalue));
+}
+XXAPI bool xrtJsonWriterString(xjsonwriter writer, const char* value) { return _xrt_json_writer_string(writer, NULL, value); }
+XXAPI bool xrtJsonWriterStringKey(xjsonwriter writer, const char* key, const char* value) { return _xrt_json_writer_string(writer, key, value); }
+static bool _xrt_json_writer_value(xjsonwriter writer, const char* key, xvalue value)
+{
+	json_string_t jkey;
+	json_sax_print_t* handle;
+	if ( !_xrt_json_writer_prepare(writer, key) ) {
+		return FALSE;
+	}
+	xvo_private_Stringify_Value(writer->handle, value, _xrt_json_writer_key(key, &jkey));
+	handle = (json_sax_print_t*)writer->handle;
+	if ( handle->error_flag ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+XXAPI bool xrtJsonWriterValue(xjsonwriter writer, xvalue value) { return _xrt_json_writer_value(writer, NULL, value); }
+XXAPI bool xrtJsonWriterValueKey(xjsonwriter writer, const char* key, xvalue value) { return _xrt_json_writer_value(writer, key, value); }
+XXAPI char* xrtJsonWriterFinish(xjsonwriter writer, size_t* size)
+{
+	char* text;
+	if ( size != NULL ) {
+		*size = 0;
+	}
+	if ( writer == NULL || writer->handle == NULL || writer->finished ) {
+		return NULL;
+	}
+	if ( writer->failed || !writer->root_written || writer->depth != 0 ) {
+		text = xrtJsonPrintFinish(writer->handle, NULL, NULL);
+		xrtFree(text);
+		writer->handle = NULL;
+		writer->finished = TRUE;
+		return NULL;
+	}
+	text = xrtJsonPrintFinish(writer->handle, size, NULL);
+	writer->handle = NULL;
+	writer->finished = TRUE;
+	return text;
 }
 	#if !defined(XRT_NO_XSON)
 
@@ -100594,6 +101619,48 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 	xrtFree(sText);
 	return iRet;
 }
+/* ------------------------------------ 稳定 XSON 选项接口 ------------------------------------ */
+static uint32 _xrt_xson_options_flags(const xson_options* options)
+{
+	uint32 flags = 0;
+	if ( options == NULL ) {
+		return 0;
+	}
+	if ( options->ignore_unsupported_encode ) {
+		flags |= XSON_F_IGNORE_UNSUPPORTED_ENCODE;
+	}
+	if ( options->ignore_unsupported_decode ) {
+		flags |= XSON_F_IGNORE_UNSUPPORTED_DECODE;
+	}
+	return flags;
+}
+XXAPI xson_options xrtXsonOptionsDefault(void)
+{
+	xson_options options = { 0 };
+	return options;
+}
+XXAPI xvalue xrtParseXSONWithOptions(const char* text, size_t size, const xson_options* options)
+{
+	return xrtParseXSONEx((str)text, size, _xrt_xson_options_flags(options));
+}
+XXAPI bool xrtXsonValidWithOptions(const char* text, size_t size, const xson_options* options)
+{
+	return xrtXsonValid((str)text, size, _xrt_xson_options_flags(options));
+}
+XXAPI xvalue xrtParseXSONFileWithOptions(const char* file, const xson_options* options)
+{
+	return xrtParseXSON_FileEx((str)file, _xrt_xson_options_flags(options));
+}
+XXAPI char* xrtStringifyXSONWithOptions(xvalue value, const xson_options* options, size_t* size)
+{
+	return (char*)xrtStringifyXSON(value, options != NULL && options->pretty,
+		_xrt_xson_options_flags(options), size);
+}
+XXAPI int xrtStringifyXSONFileWithOptions(const char* file, xvalue value, const xson_options* options)
+{
+	return xrtStringifyXSON_File((str)file, value, options != NULL && options->pretty,
+		_xrt_xson_options_flags(options));
+}
 	#endif
 #endif
 #ifndef XRT_NO_TEMPLATE
@@ -100618,11 +101685,25 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 typedef struct
 {
 	const XTE_StatementDef* pDef;
+	ptr pOwned;
 } XTE_PrivateStatementReg;
 typedef struct
 {
 	const XTE_FunctionDef* pDef;
+	ptr pOwned;
 } XTE_PrivateFunctionReg;
+typedef struct
+{
+	XTE_StatementDef Def;
+	char* sName;
+	void (*FreeUserData)(ptr pUserData);
+} XTE_PrivateOwnedStatement;
+typedef struct
+{
+	XTE_FunctionDef Def;
+	char* sName;
+	void (*FreeUserData)(ptr pUserData);
+} XTE_PrivateOwnedFunction;
 typedef struct
 {
 	uint32 iNameOff;
@@ -100708,6 +101789,7 @@ typedef struct
 } XTE_PrivateParser;
 struct XTE_Engine_Struct
 {
+	volatile int32 iRefCount;
 	xarray_struct arrStatement;
 	xarray_struct arrFunction;
 };
@@ -102729,7 +103811,11 @@ static xtetemplate xte_private_template_create(xteengine hEngine, int bOwnEngine
 		return NULL;
 	}
 	hTemplate->hEngine = hEngine;
-	hTemplate->bOwnEngine = bOwnEngine;
+	/* 每个模板持有一份引擎引用，模板和自定义回调的生命周期不依赖调用顺序。 */
+	if ( hEngine && !bOwnEngine ) {
+		xteEngineAddRef(hEngine);
+	}
+	hTemplate->bOwnEngine = hEngine != NULL;
 	xrtBufferInit(&hTemplate->tStringPool, 0);
 	xrtArrayInit(&hTemplate->arrNode, sizeof(XTE_Node), XRT_OBJMODE_LOCAL);
 	xrtArrayInit(&hTemplate->arrExpr, sizeof(XTE_ExprNode), XRT_OBJMODE_LOCAL);
@@ -103878,6 +104964,7 @@ XXAPI xteengine xteCreateEngine(void)
 	if ( hEngine == NULL ) {
 		return NULL;
 	}
+	hEngine->iRefCount = 1;
 	xrtArrayInit(&hEngine->arrStatement, sizeof(XTE_PrivateStatementReg), XRT_OBJMODE_LOCAL);
 	xrtArrayInit(&hEngine->arrFunction, sizeof(XTE_PrivateFunctionReg), XRT_OBJMODE_LOCAL);
 	if ( !xteRegisterBuiltinStatements(hEngine) ) {
@@ -103888,15 +104975,58 @@ XXAPI xteengine xteCreateEngine(void)
 	}
 	return hEngine;
 }
-// 销毁引擎
-XXAPI void xteDestroyEngine(xteengine hEngine)
+// 保留引擎引用
+XXAPI xteengine xteEngineAddRef(xteengine hEngine)
 {
+	if ( hEngine ) {
+		xrtAtomicRefRetain(&hEngine->iRefCount);
+	}
+	return hEngine;
+}
+// 释放引擎实际资源
+static void xte_private_destroy_engine(xteengine hEngine)
+{
+	uint32 i;
 	if ( hEngine == NULL ) {
 		return;
+	}
+	for ( i = 0; i < hEngine->arrStatement.Count; i++ ) {
+		XTE_PrivateStatementReg* pReg = (XTE_PrivateStatementReg*)xrtArrayGet_Inline(&hEngine->arrStatement, i + 1u);
+		XTE_PrivateOwnedStatement* pOwned = pReg ? (XTE_PrivateOwnedStatement*)pReg->pOwned : NULL;
+		if ( pOwned ) {
+			if ( pOwned->FreeUserData && pOwned->Def.pUserData ) {
+				pOwned->FreeUserData(pOwned->Def.pUserData);
+			}
+			xrtFree(pOwned->sName);
+			xrtFree(pOwned);
+		}
+	}
+	for ( i = 0; i < hEngine->arrFunction.Count; i++ ) {
+		XTE_PrivateFunctionReg* pReg = (XTE_PrivateFunctionReg*)xrtArrayGet_Inline(&hEngine->arrFunction, i + 1u);
+		XTE_PrivateOwnedFunction* pOwned = pReg ? (XTE_PrivateOwnedFunction*)pReg->pOwned : NULL;
+		if ( pOwned ) {
+			if ( pOwned->FreeUserData && pOwned->Def.pUserData ) {
+				pOwned->FreeUserData(pOwned->Def.pUserData);
+			}
+			xrtFree(pOwned->sName);
+			xrtFree(pOwned);
+		}
 	}
 	(xrtArrayUnit)(&hEngine->arrStatement);
 	(xrtArrayUnit)(&hEngine->arrFunction);
 	xrtFree(hEngine);
+}
+// 释放引擎引用
+XXAPI void xteEngineRelease(xteengine hEngine)
+{
+	if ( hEngine && xrtAtomicRefRelease(&hEngine->iRefCount) == 0 ) {
+		xte_private_destroy_engine(hEngine);
+	}
+}
+// 销毁引擎，等价于释放创建者持有的引用
+XXAPI void xteDestroyEngine(xteengine hEngine)
+{
+	xteEngineRelease(hEngine);
 }
 // xteRegisterBuiltinStatements 相关处理
 XXAPI int xteRegisterBuiltinStatements(xteengine hEngine)
@@ -104027,6 +105157,55 @@ XXAPI int xteRegisterStatement(xteengine hEngine, const XTE_StatementDef* pDef)
 	memcpy(xrtArrayGet_Inline(&hEngine->arrStatement, iIndex), &tReg, sizeof(tReg));
 	return 1;
 }
+// 注册由引擎拥有定义和用户数据的自定义模板语句
+XXAPI int xteRegisterStatementEx(
+	xteengine hEngine,
+	const char* sName,
+	uint32 iFlags,
+	uint16 iMinArgs,
+	uint16 iMaxArgs,
+	int (*procParse)(XTE_StmtParseCtx* pCtx, void** ppData),
+	XTE_Flow (*procRender)(XTE_StmtRenderCtx* pCtx),
+	void (*procFreeData)(void* pData),
+	ptr pUserData,
+	void (*FreeUserData)(ptr pUserData))
+{
+	XTE_PrivateOwnedStatement* pOwned;
+	XTE_PrivateStatementReg tReg = { 0 };
+	uint32 iIndex;
+	if ( !hEngine || !sName || !sName[0] || !procRender || iMinArgs > iMaxArgs ||
+	     xte_private_find_statement(hEngine, sName, (uint32)strlen(sName)) ) {
+		return 0;
+	}
+	pOwned = (XTE_PrivateOwnedStatement*)xrtCalloc(1, sizeof(*pOwned));
+	if ( !pOwned ) {
+		return 0;
+	}
+	pOwned->sName = (char*)xrtCopyStr((str)sName, 0);
+	if ( !pOwned->sName ) {
+		xrtFree(pOwned);
+		return 0;
+	}
+	pOwned->Def.sName = pOwned->sName;
+	pOwned->Def.iFlags = iFlags;
+	pOwned->Def.iMinArgs = iMinArgs;
+	pOwned->Def.iMaxArgs = iMaxArgs;
+	pOwned->Def.pUserData = pUserData;
+	pOwned->Def.procParse = procParse;
+	pOwned->Def.procRender = procRender;
+	pOwned->Def.procFreeData = procFreeData;
+	pOwned->FreeUserData = FreeUserData;
+	tReg.pDef = &pOwned->Def;
+	tReg.pOwned = pOwned;
+	iIndex = xrtArrayAppend(&hEngine->arrStatement, 1);
+	if ( iIndex == 0u ) {
+		xrtFree(pOwned->sName);
+		xrtFree(pOwned);
+		return 0;
+	}
+	memcpy(xrtArrayGet_Inline(&hEngine->arrStatement, iIndex), &tReg, sizeof(tReg));
+	return 1;
+}
 // xteRegisterFunction 相关处理
 XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef)
 {
@@ -104041,6 +105220,49 @@ XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef)
 	tReg.pDef = pDef;
 	iIndex = xrtArrayAppend(&hEngine->arrFunction, 1);
 	if ( iIndex == 0u ) {
+		return 0;
+	}
+	memcpy(xrtArrayGet_Inline(&hEngine->arrFunction, iIndex), &tReg, sizeof(tReg));
+	return 1;
+}
+// 注册由引擎拥有定义和用户数据的自定义模板函数
+XXAPI int xteRegisterFunctionEx(
+	xteengine hEngine,
+	const char* sName,
+	uint16 iMinArgs,
+	uint16 iMaxArgs,
+	int (*procCall)(XTE_FuncCtx* pCtx, xvalue* ppRet),
+	ptr pUserData,
+	void (*FreeUserData)(ptr pUserData))
+{
+	XTE_PrivateOwnedFunction* pOwned;
+	XTE_PrivateFunctionReg tReg = { 0 };
+	uint32 iIndex;
+	if ( !hEngine || !sName || !sName[0] || !procCall || iMinArgs > iMaxArgs ||
+	     xte_private_find_function(hEngine, sName, (uint32)strlen(sName)) ) {
+		return 0;
+	}
+	pOwned = (XTE_PrivateOwnedFunction*)xrtCalloc(1, sizeof(*pOwned));
+	if ( !pOwned ) {
+		return 0;
+	}
+	pOwned->sName = (char*)xrtCopyStr((str)sName, 0);
+	if ( !pOwned->sName ) {
+		xrtFree(pOwned);
+		return 0;
+	}
+	pOwned->Def.sName = pOwned->sName;
+	pOwned->Def.iMinArgs = iMinArgs;
+	pOwned->Def.iMaxArgs = iMaxArgs;
+	pOwned->Def.pUserData = pUserData;
+	pOwned->Def.procCall = procCall;
+	pOwned->FreeUserData = FreeUserData;
+	tReg.pDef = &pOwned->Def;
+	tReg.pOwned = pOwned;
+	iIndex = xrtArrayAppend(&hEngine->arrFunction, 1);
+	if ( iIndex == 0u ) {
+		xrtFree(pOwned->sName);
+		xrtFree(pOwned);
 		return 0;
 	}
 	memcpy(xrtArrayGet_Inline(&hEngine->arrFunction, iIndex), &tReg, sizeof(tReg));
@@ -104163,9 +105385,14 @@ XXAPI int xteRenderEx(xtetemplate hTemplate, const XTE_RenderOptions* pOptions, 
 {
 	XTE_RenderCtx tCtx = { 0 };
 	XTE_Flow iFlow = XTE_FLOW_OK;
-	xte_private_clear_error(pError);
+	XTE_Error tLocalError = { 0 };
+	XTE_Error* pTargetError = hTemplate ? &hTemplate->LastError : (pError ? pError : &tLocalError);
+	xte_private_clear_error(pTargetError);
 	if ( (hTemplate == NULL) || (pOptions == NULL) || (pOptions->pWriter == NULL) || (pOptions->pWriter->procWrite == NULL) ) {
-		xte_private_fill_error_pos("", 0, 0, pError, XTE_ERROR_RENDER, "template render options are invalid");
+		xte_private_fill_error_pos("", 0, 0, pTargetError, XTE_ERROR_RENDER, "template render options are invalid");
+		if ( pError != pTargetError ) {
+			xte_private_copy_error(pError, pTargetError);
+		}
 		return 0;
 	}
 	tCtx.hEngine = hTemplate->hEngine;
@@ -104175,17 +105402,23 @@ XXAPI int xteRenderEx(xtetemplate hTemplate, const XTE_RenderOptions* pOptions, 
 	tCtx.pCurrent = pOptions->pCurrent ? pOptions->pCurrent : pOptions->pRoot;
 	tCtx.pRoot = pOptions->pRoot ? pOptions->pRoot : pOptions->pCurrent;
 	tCtx.pGlobal = pOptions->pGlobal;
-	tCtx.pError = pError;
+	tCtx.pError = pTargetError;
 	tCtx.iFlags = pOptions->iFlags;
 	iFlow = xte_private_render_span(&tCtx, hTemplate->tRoot);
 	if ( iFlow == XTE_FLOW_OK ) {
+		if ( pError != pTargetError ) {
+			xte_private_copy_error(pError, pTargetError);
+		}
 		return 1;
 	}
-	if ( (iFlow == XTE_FLOW_BREAK) && (pError != NULL) && (pError->iCode == 0) ) {
-		xte_private_fill_error_pos("", 0, 0, pError, XTE_ERROR_RENDER, "template break must be inside loop");
+	if ( (iFlow == XTE_FLOW_BREAK) && (pTargetError->iCode == 0) ) {
+		xte_private_fill_error_pos("", 0, 0, pTargetError, XTE_ERROR_RENDER, "template break must be inside loop");
 	}
-	if ( (iFlow == XTE_FLOW_CONTINUE) && (pError != NULL) && (pError->iCode == 0) ) {
-		xte_private_fill_error_pos("", 0, 0, pError, XTE_ERROR_RENDER, "template continue must be inside loop");
+	if ( (iFlow == XTE_FLOW_CONTINUE) && (pTargetError->iCode == 0) ) {
+		xte_private_fill_error_pos("", 0, 0, pTargetError, XTE_ERROR_RENDER, "template continue must be inside loop");
+	}
+	if ( pError != pTargetError ) {
+		xte_private_copy_error(pError, pTargetError);
 	}
 	return 0;
 }
@@ -104316,6 +105549,11 @@ XXAPI uint32 xteTemplateGetArgCount(xtetemplate hTemplate)
 XXAPI uint32 xteTemplateGetStringPoolSize(xtetemplate hTemplate)
 {
 	return hTemplate ? hTemplate->tStringPool.Length : 0u;
+}
+// 获取模板最近一次解析或渲染错误
+XXAPI const XTE_Error* xteTemplateGetLastError(xtetemplate hTemplate)
+{
+	return hTemplate ? &hTemplate->LastError : NULL;
 }
 // xteTemplateGetRootSpan 相关处理
 XXAPI XTE_NodeSpan xteTemplateGetRootSpan(xtetemplate hTemplate)

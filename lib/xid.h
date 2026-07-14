@@ -12,7 +12,15 @@ XXAPI str xrtEncodeXID(xid pXID)
 // 字符串 转 XID （ 需要使用 xrtFree 释放内存 ）
 XXAPI xid xrtDecodeXID(str sXID)
 {
-	return xrtBase64Decode(sXID, 32, RandStringDefaultTemplate);
+	xid pXID;
+
+	/* XID 固定编码为 24 字节、32 个字符，拒绝截断和附加数据。 */
+	if ( sXID == NULL || strlen(__xrt_cstr(sXID)) != 32 ) {
+		return NULL;
+	}
+	pXID = xrtBase64Decode(sXID, 32, RandStringDefaultTemplate);
+	/* 通用 Base64 API 用全局空串表示失败，不能把它当作可释放的 XID。 */
+	return pXID == (xid)xCore.sNull ? NULL : pXID;
 }
 
 

@@ -213,6 +213,7 @@ static xwebaction __Test_XWebUserHandler(xwebrequest* pReq, xwebresponse* pResp,
 	     xrtWebRequestContentLength(pReq) != -1 ||
 	     xrtWebRequestLocalPort(pReq) <= 0 ||
 	     xrtWebRequestRemotePort(pReq) <= 0 ||
+	     !xrtWebRequestConnectionOpen(pReq) ||
 	     sLocalAddr[0] == '\0' ||
 	     sRemoteAddr[0] == '\0' ) {
 		bId = false;
@@ -258,15 +259,52 @@ static xwebaction __Test_XWebMeHandler(xwebrequest* pReq, xwebresponse* pResp, p
 // 内部函数：xweb 普通响应 body 追加处理器
 static xwebaction __Test_XWebAppendHandler(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData)
 {
+	const void* pBody;
+	size_t iBodyLen = 0u;
 	(void)pReq;
 	(void)pUserData;
-	xrtWebResponseStatus(pResp, 200u, NULL);
+	xrtWebResponseStatus(pResp, 200u, "Fine");
 	(void)xrtWebResponseSetHeader(pResp, "Content-Type", "text/plain; charset=utf-8");
+	(void)xrtWebResponseAddHeader(pResp, "X-Test", "one");
+	(void)xrtWebResponseAddHeader(pResp, "X-Test", "two");
 	if ( !xrtWebResponseReserveBody(pResp, 16u) ) { return XWEB_ERROR; }
 	if ( !xrtWebResponseAppendText(pResp, "append") ) { return XWEB_ERROR; }
 	if ( !xrtWebResponseAppendBody(pResp, "-", 1u) ) { return XWEB_ERROR; }
 	if ( !xrtWebResponseAppendText(pResp, "body") ) { return XWEB_ERROR; }
+	pBody = xrtWebResponseBodyView(pResp, &iBodyLen);
+	if ( xrtWebResponseStatusCode(pResp) != 200u ||
+	     strcmp(xrtWebResponseReason(pResp), "Fine") != 0 ||
+	     xrtWebResponseHeaderCount(pResp) != 4u ||
+	     strcmp(xrtWebResponseHeader(pResp, "X-Test"), "one") != 0 ||
+	     strcmp(xrtWebResponseHeaderNameAt(pResp, 2u), "X-Test") != 0 ||
+	     strcmp(xrtWebResponseHeaderValueAt(pResp, 3u), "two") != 0 ||
+	     xrtWebResponseHeaderNameAt(pResp, 4u) != NULL ||
+	     xrtWebResponseHeaderValueAt(pResp, 4u) != NULL ||
+	     !pBody || iBodyLen != 11u || memcmp(pBody, "append-body", 11u) != 0 ||
+	     xrtWebResponseCommitted(pResp) ) {
+		return XWEB_ERROR;
+	}
 	return XWEB_DONE;
+}
+
+
+// 验证高层 xweb 可直接使用 xhttpd 的分段文件发送能力。
+static xwebaction __Test_XWebFileRangeHandler(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData)
+{
+	const char* sPath = (const char*)pUserData;
+	(void)pReq;
+	xrtWebResponseStatus(pResp, 206u, NULL);
+	(void)xrtWebResponseSetHeader(pResp, "Content-Type", "text/plain; charset=utf-8");
+	return xrtWebResponseFileRange(pResp, sPath, 2u, 4u, 4096u) ? XWEB_DONE : XWEB_ERROR;
+}
+
+
+// 验证业务回调可以显式结束底层连接，且无需暴露可逃逸的连接裸指针。
+static xwebaction __Test_XWebCloseHandler(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData)
+{
+	(void)pResp;
+	(void)pUserData;
+	return xrtWebRequestConnectionOpen(pReq) && xrtWebRequestCloseConnection(pReq, false) ? XWEB_DONE : XWEB_ERROR;
 }
 
 
@@ -724,6 +762,8 @@ int Test_XWeb(void)
 		(void)xrtDirCreateAll((str)sStaticRoot);
 		(void)xrtFileWriteAll((str)sStaticFile, (str)"static-ok", 9u, XRT_CP_UTF8);
 		(void)xrtFileWriteAll((str)sStaticHome, (str)"static-ex-ok", 12u, XRT_CP_UTF8);
+		printf("  XWeb file range route register : %s\n", pServer && xrtWebServerGet(pServer, "/file-range", __Test_XWebFileRangeHandler, sStaticFile) ? "PASS" : "FAIL");
+		printf("  XWeb close route register : %s\n", pServer && xrtWebServerGet(pServer, "/close", __Test_XWebCloseHandler, NULL) ? "PASS" : "FAIL");
 		xrtWebStaticConfigInit(&tStaticCfg);
 		tStaticCfg.sCacheControl = "max-age=60";
 		printf("  XWeb static register : %s\n", pServer && xrtWebServerStatic(pServer, "/public", sStaticRoot, &tStaticCfg) ? "PASS" : "FAIL");
@@ -739,6 +779,13 @@ int Test_XWeb(void)
 		printf("  XWeb route response status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 201u ? "PASS" : "FAIL");
 		printf("  XWeb route response body : %s\n", pResp && pResp->pBody && strstr(pResp->pBody, "id=42;name=xlang;sid=abc") != NULL ? "PASS" : "FAIL");
 		printf("  XWeb route response header : %s\n", pResp && xrtHttpResponseHeader(pResp, "X-XWeb") != NULL ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/file-range", (unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb file range status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 206u ? "PASS" : "FAIL");
+		printf("  XWeb file range body : %s\n", pResp && pResp->iBodyLen == 4u && memcmp(pResp->pBody, "atic", 4u) == 0 ? "PASS" : "FAIL");
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
 		pResp = NULL;
 

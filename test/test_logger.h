@@ -9,6 +9,14 @@ typedef struct {
 	char sLastMessage[128];
 } xrt_logger_test_custom;
 
+typedef struct {
+	xlogger* pLogger;
+	int iCount;
+	bool bNested;
+} xrt_logger_test_recursive;
+
+static int __g_xrtLoggerTestFreeCount = 0;
+
 
 // 内部函数：__xrtLoggerTestCustomProc
 static void __xrtLoggerTestCustomProc(const xlogevent* pEvent, ptr pUserData)
@@ -32,6 +40,29 @@ static str __xrtLoggerTestReadFile(str sPath)
 
 	sText = xrtFileReadAll(sPath, XRT_CP_UTF8, NULL);
 	return sText ? sText : xCore.sNull;
+}
+
+
+// 验证自定义输出器可以安全地递归写日志
+static void __xrtLoggerTestRecursiveProc(const xlogevent* pEvent, ptr pUserData)
+{
+	xrt_logger_test_recursive* pState = (xrt_logger_test_recursive*)pUserData;
+
+	if ( !pEvent || !pState ) {
+		return;
+	}
+	pState->iCount++;
+	if ( !pState->bNested ) {
+		pState->bNested = TRUE;
+		xloggerInfo(pState->pLogger, "nested log");
+	}
+}
+
+
+static void __xrtLoggerTestFreeCustom(ptr pUserData)
+{
+	__g_xrtLoggerTestFreeCount++;
+	xrtFree(pUserData);
 }
 
 
@@ -132,6 +163,15 @@ int Test_Logger()
 		goto cleanup;
 	}
 	xlogAppenderSetFormat(pJsonAppender, XLOG_FORMAT_JSON);
+	if ( strcmp((const char*)xlogAppenderName(pJsonAppender), "file") != 0
+		|| xlogAppenderGetLevel(pJsonAppender) != XLOG_INFO
+		|| xlogAppenderGetFormat(pJsonAppender) != XLOG_FORMAT_JSON
+		|| xlogAppenderGetColor(pJsonAppender) ) {
+		printf("Logger Test : appender getters failed\n");
+		xlogDestroy(pLogger);
+		iRet = 4;
+		goto cleanup;
+	}
 
 	xlogAddCustom(pLogger, (str)"custom", XLOG_WARN, __xrtLoggerTestCustomProc, &tCustom);
 
@@ -228,6 +268,98 @@ int Test_Logger()
 	}
 	if ( __xrtLoggerTestOwnStr(sText) ) {
 		xrtFree(sText);
+	}
+
+	/* 默认日志器和自定义输出器都必须拥有明确、可组合的生命周期。 */
+	{
+		xrt_logger_test_custom* pOwnedCustom = (xrt_logger_test_custom*)xrtCalloc(1, sizeof(*pOwnedCustom));
+		xlogger* pDefault = xlogCreate((str)"logger_default_ref");
+		__g_xrtLoggerTestFreeCount = 0;
+		if ( !pOwnedCustom || !pDefault ||
+		     !xlogAddCustomEx(pDefault, (str)"owned", XLOG_TRACE, __xrtLoggerTestCustomProc, pOwnedCustom, __xrtLoggerTestFreeCustom) ) {
+			xrtFree(pOwnedCustom);
+			xlogDestroy(pDefault);
+			iRet = 13;
+			goto cleanup;
+		}
+		xlogSetDefault(pDefault);
+		xlogDestroy(pDefault);
+		xlogInfo("default retained");
+		xlogSetDefault(NULL);
+		if ( __g_xrtLoggerTestFreeCount != 1 ) {
+			printf("Logger Test : owned custom/default lifetime failed\n");
+			iRet = 14;
+			goto cleanup;
+		}
+	}
+
+	/* 自定义回调在日志器锁外执行，递归记录日志不得死锁。 */
+	{
+		xrt_logger_test_recursive tRecursive;
+		xlogappender* pRecursiveAppender;
+		memset(&tRecursive, 0, sizeof(tRecursive));
+		pLogger = xlogCreate((str)"logger_recursive");
+		if ( !pLogger ) {
+			iRet = 15;
+			goto cleanup;
+		}
+		tRecursive.pLogger = pLogger;
+		pRecursiveAppender = xlogAddCustom(pLogger, (str)"recursive", XLOG_TRACE,
+			__xrtLoggerTestRecursiveProc, &tRecursive);
+		if ( !pRecursiveAppender ) {
+			xlogDestroy(pLogger);
+			iRet = 16;
+			goto cleanup;
+		}
+		xloggerInfo(pLogger, "outer log");
+		xlogDestroy(pLogger);
+		pLogger = NULL;
+		if ( tRecursive.iCount != 2 ) {
+			printf("Logger Test : recursive custom appender failed\n");
+			iRet = 17;
+			goto cleanup;
+		}
+	}
+
+	/* 注销后不得继续回调，并且 appender 用户数据必须立即释放。 */
+	{
+		xrt_logger_test_custom* pRemoved = (xrt_logger_test_custom*)xrtCalloc(1, sizeof(*pRemoved));
+		xlogappender* pRemovedAppender;
+		pLogger = xlogCreate((str)"logger_remove");
+		__g_xrtLoggerTestFreeCount = 0;
+		if ( !pLogger || !pRemoved ) {
+			xrtFree(pRemoved);
+			xlogDestroy(pLogger);
+			iRet = 18;
+			goto cleanup;
+		}
+		pRemovedAppender = xlogAddCustomEx(
+			pLogger,
+			(str)"removed",
+			XLOG_TRACE,
+			__xrtLoggerTestCustomProc,
+			pRemoved,
+			__xrtLoggerTestFreeCustom);
+		if ( !pRemovedAppender ) {
+			xrtFree(pRemoved);
+			xlogDestroy(pLogger);
+			iRet = 19;
+			goto cleanup;
+		}
+		xloggerInfo(pLogger, "before remove");
+		if ( pRemoved->iCount != 1 || !xlogRemoveAppender(pLogger, pRemovedAppender) ) {
+			xlogDestroy(pLogger);
+			iRet = 20;
+			goto cleanup;
+		}
+		xloggerInfo(pLogger, "after remove");
+		xlogDestroy(pLogger);
+		pLogger = NULL;
+		if ( __g_xrtLoggerTestFreeCount != 1 ) {
+			printf("Logger Test : remove appender lifetime failed\n");
+			iRet = 21;
+			goto cleanup;
+		}
 	}
 
 	printf("Logger Test : PASS\n");

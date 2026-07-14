@@ -20,12 +20,28 @@
 typedef struct
 {
 	const XTE_StatementDef* pDef;
+	ptr pOwned;
 } XTE_PrivateStatementReg;
 
 typedef struct
 {
 	const XTE_FunctionDef* pDef;
+	ptr pOwned;
 } XTE_PrivateFunctionReg;
+
+typedef struct
+{
+	XTE_StatementDef Def;
+	char* sName;
+	void (*FreeUserData)(ptr pUserData);
+} XTE_PrivateOwnedStatement;
+
+typedef struct
+{
+	XTE_FunctionDef Def;
+	char* sName;
+	void (*FreeUserData)(ptr pUserData);
+} XTE_PrivateOwnedFunction;
 
 typedef struct
 {
@@ -122,6 +138,7 @@ typedef struct
 
 struct XTE_Engine_Struct
 {
+	volatile int32 iRefCount;
 	xarray_struct arrStatement;
 	xarray_struct arrFunction;
 };
@@ -2539,7 +2556,11 @@ static xtetemplate xte_private_template_create(xteengine hEngine, int bOwnEngine
 	}
 
 	hTemplate->hEngine = hEngine;
-	hTemplate->bOwnEngine = bOwnEngine;
+	/* 每个模板持有一份引擎引用，模板和自定义回调的生命周期不依赖调用顺序。 */
+	if ( hEngine && !bOwnEngine ) {
+		xteEngineAddRef(hEngine);
+	}
+	hTemplate->bOwnEngine = hEngine != NULL;
 	xrtBufferInit(&hTemplate->tStringPool, 0);
 	xrtArrayInit(&hTemplate->arrNode, sizeof(XTE_Node), XRT_OBJMODE_LOCAL);
 	xrtArrayInit(&hTemplate->arrExpr, sizeof(XTE_ExprNode), XRT_OBJMODE_LOCAL);
@@ -3877,6 +3898,7 @@ XXAPI xteengine xteCreateEngine(void)
 		return NULL;
 	}
 
+	hEngine->iRefCount = 1;
 	xrtArrayInit(&hEngine->arrStatement, sizeof(XTE_PrivateStatementReg), XRT_OBJMODE_LOCAL);
 	xrtArrayInit(&hEngine->arrFunction, sizeof(XTE_PrivateFunctionReg), XRT_OBJMODE_LOCAL);
 	if ( !xteRegisterBuiltinStatements(hEngine) ) {
@@ -3889,16 +3911,66 @@ XXAPI xteengine xteCreateEngine(void)
 }
 
 
-// 销毁引擎
-XXAPI void xteDestroyEngine(xteengine hEngine)
+// 保留引擎引用
+XXAPI xteengine xteEngineAddRef(xteengine hEngine)
 {
+	if ( hEngine ) {
+		xrtAtomicRefRetain(&hEngine->iRefCount);
+	}
+	return hEngine;
+}
+
+
+// 释放引擎实际资源
+static void xte_private_destroy_engine(xteengine hEngine)
+{
+	uint32 i;
+
 	if ( hEngine == NULL ) {
 		return;
 	}
 
+	for ( i = 0; i < hEngine->arrStatement.Count; i++ ) {
+		XTE_PrivateStatementReg* pReg = (XTE_PrivateStatementReg*)xrtArrayGet_Inline(&hEngine->arrStatement, i + 1u);
+		XTE_PrivateOwnedStatement* pOwned = pReg ? (XTE_PrivateOwnedStatement*)pReg->pOwned : NULL;
+		if ( pOwned ) {
+			if ( pOwned->FreeUserData && pOwned->Def.pUserData ) {
+				pOwned->FreeUserData(pOwned->Def.pUserData);
+			}
+			xrtFree(pOwned->sName);
+			xrtFree(pOwned);
+		}
+	}
+	for ( i = 0; i < hEngine->arrFunction.Count; i++ ) {
+		XTE_PrivateFunctionReg* pReg = (XTE_PrivateFunctionReg*)xrtArrayGet_Inline(&hEngine->arrFunction, i + 1u);
+		XTE_PrivateOwnedFunction* pOwned = pReg ? (XTE_PrivateOwnedFunction*)pReg->pOwned : NULL;
+		if ( pOwned ) {
+			if ( pOwned->FreeUserData && pOwned->Def.pUserData ) {
+				pOwned->FreeUserData(pOwned->Def.pUserData);
+			}
+			xrtFree(pOwned->sName);
+			xrtFree(pOwned);
+		}
+	}
 	(xrtArrayUnit)(&hEngine->arrStatement);
 	(xrtArrayUnit)(&hEngine->arrFunction);
 	xrtFree(hEngine);
+}
+
+
+// 释放引擎引用
+XXAPI void xteEngineRelease(xteengine hEngine)
+{
+	if ( hEngine && xrtAtomicRefRelease(&hEngine->iRefCount) == 0 ) {
+		xte_private_destroy_engine(hEngine);
+	}
+}
+
+
+// 销毁引擎，等价于释放创建者持有的引用
+XXAPI void xteDestroyEngine(xteengine hEngine)
+{
+	xteEngineRelease(hEngine);
 }
 
 
@@ -4040,6 +4112,58 @@ XXAPI int xteRegisterStatement(xteengine hEngine, const XTE_StatementDef* pDef)
 }
 
 
+// 注册由引擎拥有定义和用户数据的自定义模板语句
+XXAPI int xteRegisterStatementEx(
+	xteengine hEngine,
+	const char* sName,
+	uint32 iFlags,
+	uint16 iMinArgs,
+	uint16 iMaxArgs,
+	int (*procParse)(XTE_StmtParseCtx* pCtx, void** ppData),
+	XTE_Flow (*procRender)(XTE_StmtRenderCtx* pCtx),
+	void (*procFreeData)(void* pData),
+	ptr pUserData,
+	void (*FreeUserData)(ptr pUserData))
+{
+	XTE_PrivateOwnedStatement* pOwned;
+	XTE_PrivateStatementReg tReg = { 0 };
+	uint32 iIndex;
+
+	if ( !hEngine || !sName || !sName[0] || !procRender || iMinArgs > iMaxArgs ||
+	     xte_private_find_statement(hEngine, sName, (uint32)strlen(sName)) ) {
+		return 0;
+	}
+	pOwned = (XTE_PrivateOwnedStatement*)xrtCalloc(1, sizeof(*pOwned));
+	if ( !pOwned ) {
+		return 0;
+	}
+	pOwned->sName = (char*)xrtCopyStr((str)sName, 0);
+	if ( !pOwned->sName ) {
+		xrtFree(pOwned);
+		return 0;
+	}
+	pOwned->Def.sName = pOwned->sName;
+	pOwned->Def.iFlags = iFlags;
+	pOwned->Def.iMinArgs = iMinArgs;
+	pOwned->Def.iMaxArgs = iMaxArgs;
+	pOwned->Def.pUserData = pUserData;
+	pOwned->Def.procParse = procParse;
+	pOwned->Def.procRender = procRender;
+	pOwned->Def.procFreeData = procFreeData;
+	pOwned->FreeUserData = FreeUserData;
+	tReg.pDef = &pOwned->Def;
+	tReg.pOwned = pOwned;
+	iIndex = xrtArrayAppend(&hEngine->arrStatement, 1);
+	if ( iIndex == 0u ) {
+		xrtFree(pOwned->sName);
+		xrtFree(pOwned);
+		return 0;
+	}
+	memcpy(xrtArrayGet_Inline(&hEngine->arrStatement, iIndex), &tReg, sizeof(tReg));
+	return 1;
+}
+
+
 // xteRegisterFunction 相关处理
 XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef)
 {
@@ -4056,6 +4180,52 @@ XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef)
 	tReg.pDef = pDef;
 	iIndex = xrtArrayAppend(&hEngine->arrFunction, 1);
 	if ( iIndex == 0u ) {
+		return 0;
+	}
+	memcpy(xrtArrayGet_Inline(&hEngine->arrFunction, iIndex), &tReg, sizeof(tReg));
+	return 1;
+}
+
+
+// 注册由引擎拥有定义和用户数据的自定义模板函数
+XXAPI int xteRegisterFunctionEx(
+	xteengine hEngine,
+	const char* sName,
+	uint16 iMinArgs,
+	uint16 iMaxArgs,
+	int (*procCall)(XTE_FuncCtx* pCtx, xvalue* ppRet),
+	ptr pUserData,
+	void (*FreeUserData)(ptr pUserData))
+{
+	XTE_PrivateOwnedFunction* pOwned;
+	XTE_PrivateFunctionReg tReg = { 0 };
+	uint32 iIndex;
+
+	if ( !hEngine || !sName || !sName[0] || !procCall || iMinArgs > iMaxArgs ||
+	     xte_private_find_function(hEngine, sName, (uint32)strlen(sName)) ) {
+		return 0;
+	}
+	pOwned = (XTE_PrivateOwnedFunction*)xrtCalloc(1, sizeof(*pOwned));
+	if ( !pOwned ) {
+		return 0;
+	}
+	pOwned->sName = (char*)xrtCopyStr((str)sName, 0);
+	if ( !pOwned->sName ) {
+		xrtFree(pOwned);
+		return 0;
+	}
+	pOwned->Def.sName = pOwned->sName;
+	pOwned->Def.iMinArgs = iMinArgs;
+	pOwned->Def.iMaxArgs = iMaxArgs;
+	pOwned->Def.pUserData = pUserData;
+	pOwned->Def.procCall = procCall;
+	pOwned->FreeUserData = FreeUserData;
+	tReg.pDef = &pOwned->Def;
+	tReg.pOwned = pOwned;
+	iIndex = xrtArrayAppend(&hEngine->arrFunction, 1);
+	if ( iIndex == 0u ) {
+		xrtFree(pOwned->sName);
+		xrtFree(pOwned);
 		return 0;
 	}
 	memcpy(xrtArrayGet_Inline(&hEngine->arrFunction, iIndex), &tReg, sizeof(tReg));
@@ -4204,11 +4374,16 @@ XXAPI int xteRenderEx(xtetemplate hTemplate, const XTE_RenderOptions* pOptions, 
 {
 	XTE_RenderCtx tCtx = { 0 };
 	XTE_Flow iFlow = XTE_FLOW_OK;
+	XTE_Error tLocalError = { 0 };
+	XTE_Error* pTargetError = hTemplate ? &hTemplate->LastError : (pError ? pError : &tLocalError);
 
-	xte_private_clear_error(pError);
+	xte_private_clear_error(pTargetError);
 
 	if ( (hTemplate == NULL) || (pOptions == NULL) || (pOptions->pWriter == NULL) || (pOptions->pWriter->procWrite == NULL) ) {
-		xte_private_fill_error_pos("", 0, 0, pError, XTE_ERROR_RENDER, "template render options are invalid");
+		xte_private_fill_error_pos("", 0, 0, pTargetError, XTE_ERROR_RENDER, "template render options are invalid");
+		if ( pError != pTargetError ) {
+			xte_private_copy_error(pError, pTargetError);
+		}
 		return 0;
 	}
 
@@ -4219,18 +4394,24 @@ XXAPI int xteRenderEx(xtetemplate hTemplate, const XTE_RenderOptions* pOptions, 
 	tCtx.pCurrent = pOptions->pCurrent ? pOptions->pCurrent : pOptions->pRoot;
 	tCtx.pRoot = pOptions->pRoot ? pOptions->pRoot : pOptions->pCurrent;
 	tCtx.pGlobal = pOptions->pGlobal;
-	tCtx.pError = pError;
+	tCtx.pError = pTargetError;
 	tCtx.iFlags = pOptions->iFlags;
 
 	iFlow = xte_private_render_span(&tCtx, hTemplate->tRoot);
 	if ( iFlow == XTE_FLOW_OK ) {
+		if ( pError != pTargetError ) {
+			xte_private_copy_error(pError, pTargetError);
+		}
 		return 1;
 	}
-	if ( (iFlow == XTE_FLOW_BREAK) && (pError != NULL) && (pError->iCode == 0) ) {
-		xte_private_fill_error_pos("", 0, 0, pError, XTE_ERROR_RENDER, "template break must be inside loop");
+	if ( (iFlow == XTE_FLOW_BREAK) && (pTargetError->iCode == 0) ) {
+		xte_private_fill_error_pos("", 0, 0, pTargetError, XTE_ERROR_RENDER, "template break must be inside loop");
 	}
-	if ( (iFlow == XTE_FLOW_CONTINUE) && (pError != NULL) && (pError->iCode == 0) ) {
-		xte_private_fill_error_pos("", 0, 0, pError, XTE_ERROR_RENDER, "template continue must be inside loop");
+	if ( (iFlow == XTE_FLOW_CONTINUE) && (pTargetError->iCode == 0) ) {
+		xte_private_fill_error_pos("", 0, 0, pTargetError, XTE_ERROR_RENDER, "template continue must be inside loop");
+	}
+	if ( pError != pTargetError ) {
+		xte_private_copy_error(pError, pTargetError);
 	}
 	return 0;
 }
@@ -4390,6 +4571,13 @@ XXAPI uint32 xteTemplateGetArgCount(xtetemplate hTemplate)
 XXAPI uint32 xteTemplateGetStringPoolSize(xtetemplate hTemplate)
 {
 	return hTemplate ? hTemplate->tStringPool.Length : 0u;
+}
+
+
+// 获取模板最近一次解析或渲染错误
+XXAPI const XTE_Error* xteTemplateGetLastError(xtetemplate hTemplate)
+{
+	return hTemplate ? &hTemplate->LastError : NULL;
 }
 
 

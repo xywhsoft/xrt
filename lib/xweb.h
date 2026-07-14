@@ -2726,6 +2726,23 @@ XXAPI int xrtWebRequestRemotePort(const xwebrequest* pReq)
 
 
 // 获取路由变量
+// 判断当前请求对应的底层连接是否仍然可写。
+XXAPI bool xrtWebRequestConnectionOpen(const xwebrequest* pReq)
+{
+	return (pReq && pReq->pConn) ? xrtHttpdConnIsOpen(pReq->pConn) : false;
+}
+
+
+// 主动关闭当前请求对应的底层连接。abort 为 true 时立即中止，否则优雅关闭。
+XXAPI bool xrtWebRequestCloseConnection(xwebrequest* pReq, bool bAbort)
+{
+	uint32 iFlags;
+	if ( !pReq || !pReq->pConn ) { return false; }
+	iFlags = bAbort ? XNET_CLOSE_F_ABORT : XNET_CLOSE_F_GRACEFUL;
+	return xrtHttpdConnClose(pReq->pConn, iFlags) == XRT_NET_OK;
+}
+
+
 XXAPI bool xrtWebRequestParam(const xwebrequest* pReq, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( pOutLen ) { *pOutLen = 0u; }
@@ -2933,6 +2950,60 @@ XXAPI bool xrtWebResponseAddHeader(xwebresponse* pResp, const char* sName, const
 
 
 // 设置 Cookie。maxAge < 0 表示会话 Cookie；sameSite 为 XRT_SAME_SITE_*，0 表示不输出。
+// 获取尚未提交的响应状态。响应对象只在当前回调期间有效。
+XXAPI uint32 xrtWebResponseStatusCode(const xwebresponse* pResp)
+{
+	return (pResp && pResp->pRaw) ? pResp->pRaw->iStatusCode : 0u;
+}
+
+
+XXAPI const char* xrtWebResponseReason(const xwebresponse* pResp)
+{
+	return (pResp && pResp->pRaw) ? pResp->pRaw->sReason : NULL;
+}
+
+
+XXAPI const char* xrtWebResponseHeader(const xwebresponse* pResp, const char* sName)
+{
+	return (pResp && pResp->pRaw) ? xrtHttpdResponseHeader(pResp->pRaw, sName) : NULL;
+}
+
+
+XXAPI size_t xrtWebResponseHeaderCount(const xwebresponse* pResp)
+{
+	return (pResp && pResp->pRaw) ? (size_t)pResp->pRaw->iHeaderCount : 0u;
+}
+
+
+XXAPI const char* xrtWebResponseHeaderNameAt(const xwebresponse* pResp, size_t iIndex)
+{
+	if ( !pResp || !pResp->pRaw || iIndex >= pResp->pRaw->iHeaderCount ) { return NULL; }
+	return pResp->pRaw->pHeaders[iIndex].sName;
+}
+
+
+XXAPI const char* xrtWebResponseHeaderValueAt(const xwebresponse* pResp, size_t iIndex)
+{
+	if ( !pResp || !pResp->pRaw || iIndex >= pResp->pRaw->iHeaderCount ) { return NULL; }
+	return pResp->pRaw->pHeaders[iIndex].sValue;
+}
+
+
+XXAPI const void* xrtWebResponseBodyView(const xwebresponse* pResp, size_t* pLen)
+{
+	if ( pLen ) { *pLen = 0u; }
+	if ( !pResp || !pResp->pRaw ) { return NULL; }
+	if ( pLen ) { *pLen = pResp->pRaw->iBodyLen; }
+	return pResp->pRaw->pBody;
+}
+
+
+XXAPI bool xrtWebResponseCommitted(const xwebresponse* pResp)
+{
+	return pResp ? pResp->bCommitted : false;
+}
+
+
 XXAPI bool xrtWebResponseCookie(xwebresponse* pResp, const char* sName, const char* sValue, const char* sPath, int32 iMaxAge, uint32 iSameSite, uint32 iFlags)
 {
 	xrtsetcookieview tCookie;
@@ -3066,6 +3137,15 @@ XXAPI bool xrtWebResponseFile(xwebresponse* pResp, const char* sFilePath, size_t
 
 
 // 重定向响应
+// 发送文件的指定字节区间。offset 和 length 都按字节计算。
+XXAPI bool xrtWebResponseFileRange(xwebresponse* pResp, const char* sFilePath, uint64 iOffset, uint64 iLength, size_t iChunkSize)
+{
+	if ( !pResp || !pResp->pReq || !pResp->pReq->pConn || !pResp->pRaw || !sFilePath ) { return false; }
+	pResp->bCommitted = xrtHttpdConnSendFileRange(pResp->pReq->pConn, pResp->pRaw, sFilePath, iOffset, iLength, iChunkSize) == XRT_NET_OK;
+	return pResp->bCommitted;
+}
+
+
 XXAPI bool xrtWebResponseRedirect(xwebresponse* pResp, const char* sURL, uint32 iStatusCode)
 {
 	if ( !pResp || !sURL ) { return false; }
