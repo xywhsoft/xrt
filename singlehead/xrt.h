@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-07-14 20:55:31
+    Generated: 2026-07-15 05:42:34
 
     MIT License
 
@@ -4240,6 +4240,9 @@
 	typedef int32 (*xtask_co_fn)(ptr pArg, xfuture_result* pOut);
 	typedef int32 (*xfuture_cont_fn)(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut);
 	typedef void (*xfuture_finally_fn)(const xfuture_result* pIn, ptr pArg);
+	// 结果型 finally：返回成功时透传源结果，返回失败时使用 pOut 替换下游结果
+	typedef int32 (*xfuture_finally_result_fn)(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut);
+	typedef void (*xfuture_arg_free_fn)(ptr pArg);
 	typedef struct {
 		uint32 iKind;
 		union {
@@ -5394,35 +5397,60 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	// Future 延续回调绑定接口
 	// 在当前执行路径中追加 then 回调
 	XXAPI xfuture* xFutureThenInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenInlineEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前执行路径中追加 catch 回调
 	XXAPI xfuture* xFutureCatchInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchInlineEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前执行路径中追加 finally 回调
 	XXAPI xfuture* xFutureFinallyInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyInlineEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
+	XXAPI xfuture* xFutureFinallyResultInline(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyResultInlineEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在源 Future 完成它的线程中追加 then 回调
 	XXAPI xfuture* xFutureThenSource(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenSourceEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在源 Future 完成它的线程中追加 catch 回调
 	XXAPI xfuture* xFutureCatchSource(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchSourceEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在源 Future 完成它的线程中追加 finally 回调
 	XXAPI xfuture* xFutureFinallySource(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallySourceEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
+	XXAPI xfuture* xFutureFinallyResultSource(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyResultSourceEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前线程上下文中追加 then 回调
 	XXAPI xfuture* xFutureThenCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenCurrentEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前线程上下文中追加 catch 回调
 	XXAPI xfuture* xFutureCatchCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchCurrentEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前线程上下文中追加 finally 回调
 	XXAPI xfuture* xFutureFinallyCurrent(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyCurrentEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
+	XXAPI xfuture* xFutureFinallyResultCurrent(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyResultCurrentEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在网络引擎线程中追加 then 回调
 	XXAPI xfuture* xFutureThenEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在网络引擎线程中追加 catch 回调
 	XXAPI xfuture* xFutureCatchEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在网络引擎线程中追加 finally 回调
 	XXAPI xfuture* xFutureFinallyEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
+	XXAPI xfuture* xFutureFinallyResultEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_result_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyResultEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	#if !defined(XRT_NO_COROUTINE)
 		// 在协程调度器中追加 then 回调
 		XXAPI xfuture* xFutureThenCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
+		XXAPI xfuture* xFutureThenCoEx(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
 		// 在协程调度器中追加 catch 回调
 		XXAPI xfuture* xFutureCatchCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
+		XXAPI xfuture* xFutureCatchCoEx(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
 		// 在协程调度器中追加 finally 回调
 		XXAPI xfuture* xFutureFinallyCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, size_t iStackSize);
+		XXAPI xfuture* xFutureFinallyCoEx(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
+		XXAPI xfuture* xFutureFinallyResultCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_result_fn pfnCont, ptr pArg, size_t iStackSize);
+		XXAPI xfuture* xFutureFinallyResultCoEx(xfuture* pFuture, xcosched* pSched, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
 		
 	#endif
 	
@@ -53406,6 +53434,7 @@ struct xrt_net_listener {
 	const xnetstreamevents* pStreamEvents;
 	ptr pUserData;
 	xsocket hSocket;
+	xsocket hPendingAcceptedSocket;
 	__xnet_listener_wait_slot tAcceptWait;
 	xnetlistenconfig tConfig;
 	uint64 iAcceptOpId;
@@ -53595,6 +53624,7 @@ static void __xnetListenerFinalizeDestroy(xnetlistener* pListener)
 	pListener->pEvents = NULL;
 	pListener->pStreamEvents = NULL;
 	pListener->pUserData = NULL;
+	__xnetSocketCloseHandle(&pListener->hPendingAcceptedSocket);
 	__xnetListenerCloseSocket(pListener);
 	XNET_FREE(pListener);
 }
@@ -55557,6 +55587,7 @@ XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenco
 	memset(pListener, 0, sizeof(xnetlistener));
 	__xnetStreamBindEngine(pEngine);
 	pListener->hSocket = XNET_SOCKET_INVALID;
+	pListener->hPendingAcceptedSocket = XNET_SOCKET_INVALID;
 	pListener->pEngine = pEngine;
 	pListener->pEvents = pEvents;
 	pListener->pStreamEvents = pStreamEvents;
@@ -55585,6 +55616,7 @@ XXAPI void xrtNetListenerDestroy(xnetlistener* pListener)
 	}
 	pListener->bRunning = false;
 	(void)__xnetListenerCancelAcceptWatch(pListener);
+	__xnetSocketCloseHandle(&pListener->hPendingAcceptedSocket);
 	__xnetListenerCloseSocket(pListener);
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 	if ( __xnetAtomicLoad32(&pListener->iAsyncHoldCount) != 0 ) {
@@ -55638,6 +55670,7 @@ XXAPI void xrtNetListenerStop(xnetlistener* pListener)
 	if ( !pListener ) { return; }
 	pListener->bRunning = false;
 	(void)__xnetListenerCancelAcceptWatch(pListener);
+	__xnetSocketCloseHandle(&pListener->hPendingAcceptedSocket);
 	__xnetListenerCloseSocket(pListener);
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 }
@@ -55779,6 +55812,21 @@ static bool __xnetListenerRegisterSyncAcceptWait(xnetlistener* pListener, __xnet
 		__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 		return true;
 	}
+	/*
+		AcceptEx 可能在限时 waiter 取消后才完成。该连接已经从系统 backlog
+		取出，不能丢弃；下一位 waiter 应优先接管它。
+	*/
+	if ( __xnetSocketIsValid(pListener->hPendingAcceptedSocket) ) {
+		memset(&tRaw, 0, sizeof(tRaw));
+		tRaw.hSocket = pListener->hPendingAcceptedSocket;
+		pListener->hPendingAcceptedSocket = XNET_SOCKET_INVALID;
+		pStream = __xnetListenerWrapAcceptedSocket(pListener, &tRaw, NULL);
+		if ( pStream ) {
+			__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
+			return true;
+		}
+		__xnetSocketCloseHandle(&tRaw.hSocket);
+	}
 	// 尝试立即接受一个连接
 	memset(&tRaw, 0, sizeof(tRaw));
 	tRaw.hSocket = XNET_SOCKET_INVALID;
@@ -55892,6 +55940,14 @@ static void __xnetListenerHandleAcceptedSocketEvent(xnetlistener* pListener, xso
 	}
 	// 检查是否可以分发接受事件
 	if ( !__xnetListenerCanDispatchAccept(pListener) ) {
+		/*
+			限时 waiter 可能刚刚取消，但 AcceptEx 已经成功。保留这一个
+			内核已接受连接，避免客户端连接成功后被静默丢弃。
+		*/
+		if ( pListener->bRunning && !__xnetSocketIsValid(pListener->hPendingAcceptedSocket) ) {
+			pListener->hPendingAcceptedSocket = hSocket;
+			return;
+		}
 		__xnetSocketCloseHandle(&hSocket);
 		return;
 	}
@@ -57296,6 +57352,8 @@ struct xrt_net_future {
 	volatile long iPendingContCount;
 	int iGroupSourceIndex;
 	xfuture* pGroupSource;
+	// 透传结果保持源 Future 存活，避免借用的结果指针悬空。
+	xfuture* pResultOwner;
 	volatile long iAsyncHoldCount;
 	ptr pPendingCtx;
 	__xnet_future_pending_cancel_fn pfnPendingCancel;
@@ -57360,7 +57418,8 @@ typedef struct {
 	typedef enum {
 		__XNET_FCONT_THEN = 1,
 		__XNET_FCONT_CATCH = 2,
-		__XNET_FCONT_FINALLY = 3
+		__XNET_FCONT_FINALLY = 3,
+		__XNET_FCONT_FINALLY_RESULT = 4
 	} __xnet_future_cont_kind;
 	typedef enum {
 		__XNET_FCONT_EXEC_INLINE = 1,
@@ -57378,6 +57437,7 @@ typedef struct {
 		xfuture_cont_fn pfnCont;
 		xfuture_finally_fn pfnFinally;
 		ptr pArg;
+		xfuture_arg_free_fn pfnFreeArg;
 		xnetengine* pEngine;
 		uint32 iAffinityKey;
 		xcosched* pSched;
@@ -58048,6 +58108,10 @@ static void __xnetFutureUnit(xnetfuture* pFuture)
 		xFutureRelease(pFuture->pGroupSource);
 		pFuture->pGroupSource = NULL;
 	}
+	if ( pFuture->pResultOwner ) {
+		xFutureRelease(pFuture->pResultOwner);
+		pFuture->pResultOwner = NULL;
+	}
 	// 清空延续回调链表
 	#if defined(XXRTL_CORE)
 		pFuture->pContHead = NULL;
@@ -58073,6 +58137,10 @@ static void UNUSED_ATTR __xnetFutureReset(xnetfuture* pFuture)
 	__xnetFutureFreeValue(pFuture->pValue, pFuture->iResultFlags, pFuture->pfnFreeValue);
 	pFuture->pValue = NULL;
 	pFuture->pfnFreeValue = NULL;
+	if ( pFuture->pResultOwner ) {
+		xFutureRelease(pFuture->pResultOwner);
+		pFuture->pResultOwner = NULL;
+	}
 	__xnetFutureFreeError(pFuture->sError, pFuture->iResultFlags);
 	pFuture->sError = NULL;
 	pFuture->iResultFlags = 0;
@@ -58294,16 +58362,55 @@ static bool __xnetFutureContShouldRun(xrt_future_cont* pCont)
 	return true;
 }
 // 内部函数：__xnetFutureContCompletePassThrough
+static bool __xnetFutureSetResultOwner(xfuture* pFuture, xfuture* pOwner)
+{
+	xfuture* pHeldOwner;
+	bool bSet = false;
+	if ( pFuture == NULL || pOwner == NULL ) {
+		return false;
+	}
+	pHeldOwner = xFutureAddRef(pOwner);
+	__xnetFutureLock(pFuture);
+	if ( !pFuture->bDone && pFuture->pResultOwner == NULL ) {
+		pFuture->pResultOwner = pHeldOwner;
+		bSet = true;
+	}
+	__xnetFutureUnlock(pFuture);
+	if ( !bSet ) {
+		xFutureRelease(pHeldOwner);
+	}
+	return bSet;
+}
+static void __xnetFutureClearResultOwner(xfuture* pFuture)
+{
+	xfuture* pOwner = NULL;
+	if ( pFuture == NULL ) {
+		return;
+	}
+	__xnetFutureLock(pFuture);
+	pOwner = pFuture->pResultOwner;
+	pFuture->pResultOwner = NULL;
+	__xnetFutureUnlock(pFuture);
+	if ( pOwner != NULL ) {
+		xFutureRelease(pOwner);
+	}
+}
 static void __xnetFutureContCompletePassThrough(xrt_future_cont* pCont)
 {
 	xfuture_result tPass;
+	bool bOwnerSet = false;
 	if ( pCont == NULL ) {
 		return;
 	}
 	memset(&tPass, 0, sizeof(tPass));
 	tPass = pCont->tInput;
 	tPass.iFlags &= ~XFUTURE_RESULT_F_OWN_VALUE;
-	(void)__xnetPromiseCompleteResult(pCont->pPromise, &tPass);
+	if ( tPass.pValue != NULL && pCont->pPromise != NULL ) {
+		bOwnerSet = __xnetFutureSetResultOwner(pCont->pPromise->pFuture, pCont->pSource);
+	}
+	if ( !__xnetPromiseCompleteResult(pCont->pPromise, &tPass) && bOwnerSet ) {
+		__xnetFutureClearResultOwner(pCont->pPromise->pFuture);
+	}
 }
 // 内部函数：完成 Future cont 节点
 static void __xnetFutureContFinalizeNode(xrt_future_cont* pCont)
@@ -58323,6 +58430,11 @@ static void __xnetFutureContFinalizeNode(xrt_future_cont* pCont)
 		pCont->pSource = NULL;
 	}
 	__xnetFutureContFreeInput(pCont);
+	if ( pCont->pfnFreeArg != NULL ) {
+		pCont->pfnFreeArg(pCont->pArg);
+		pCont->pfnFreeArg = NULL;
+		pCont->pArg = NULL;
+	}
 	XNET_FREE(pCont);
 }
 // 内部函数：__xnetFutureContRun
@@ -58339,7 +58451,7 @@ static void __xnetFutureContRun(xrt_future_cont* pCont)
 		__xnetFutureContFinalizeNode(pCont);
 		return;
 	}
-	// 处理 finally 类型回调
+	// 处理只观察结果的 finally 回调
 	if ( pCont->iKind == __XNET_FCONT_FINALLY ) {
 		if ( pCont->pfnFinally ) {
 			pCont->pfnFinally(&pCont->tInput, pCont->pArg);
@@ -58359,8 +58471,13 @@ static void __xnetFutureContRun(xrt_future_cont* pCont)
 		tOut.sError = (str)"future continuation callback is null.";
 		tOut.iFlags = XFUTURE_RESULT_F_NONE;
 	}
-	// 将回调结果传递到下游 Promise
-	(void)__xnetPromiseCompleteResult(pCont->pPromise, &tOut);
+	// 结果型 finally 成功时由 XRT 负责安全地透传原结果。
+	if ( pCont->iKind == __XNET_FCONT_FINALLY_RESULT && iStatus == XRT_NET_OK ) {
+		__xnetFutureContCompletePassThrough(pCont);
+	}
+	else {
+		(void)__xnetPromiseCompleteResult(pCont->pPromise, &tOut);
+	}
 	__xnetFutureContFinalizeNode(pCont);
 }
 // 内部函数：分发 Future cont 引擎
@@ -60204,6 +60321,7 @@ static xfuture* __xnetFutureAttachContinuation(
 	xfuture_cont_fn pfnCont,
 	xfuture_finally_fn pfnFinally,
 	ptr pArg,
+	xfuture_arg_free_fn pfnFreeArg,
 	xnetengine* pEngine,
 	uint32 iAffinityKey,
 	xcosched* pSched,
@@ -60263,6 +60381,7 @@ static xfuture* __xnetFutureAttachContinuation(
 	pCont->pfnCont = pfnCont;
 	pCont->pfnFinally = pfnFinally;
 	pCont->pArg = pArg;
+	pCont->pfnFreeArg = pfnFreeArg;
 	pCont->pEngine = pEngine;
 	pCont->iAffinityKey = iAffinityKey;
 	pCont->pSched = pSched;
@@ -60303,78 +60422,178 @@ static xfuture* __xnetFutureAttachContinuation(
 // xFutureThenInline 相关处理
 XXAPI xfuture* xFutureThenInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_INLINE, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
+	return xFutureThenInlineEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureThenInlineEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_INLINE, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // xFutureCatchInline 相关处理
 XXAPI xfuture* xFutureCatchInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_INLINE, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
+	return xFutureCatchInlineEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureCatchInlineEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_INLINE, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // xFutureFinallyInline 相关处理
 XXAPI xfuture* xFutureFinallyInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_INLINE, NULL, pfnCont, pArg, NULL, 0, NULL, 0);
+	return xFutureFinallyInlineEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureFinallyInlineEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_INLINE, NULL, pfnCont, pArg, pfnFreeArg, NULL, 0, NULL, 0);
+}
+XXAPI xfuture* xFutureFinallyResultInline(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg)
+{
+	return xFutureFinallyResultInlineEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureFinallyResultInlineEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY_RESULT, __XNET_FCONT_EXEC_INLINE, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // 在源 Future 的完成线程中执行 then 回调
 XXAPI xfuture* xFutureThenSource(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_SOURCE_INLINE, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
+	return xFutureThenSourceEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureThenSourceEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_SOURCE_INLINE, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // 在源 Future 的完成线程中执行 catch 回调
 XXAPI xfuture* xFutureCatchSource(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_SOURCE_INLINE, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
+	return xFutureCatchSourceEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureCatchSourceEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_SOURCE_INLINE, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // 在源 Future 的完成线程中执行 finally 回调
 XXAPI xfuture* xFutureFinallySource(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_SOURCE_INLINE, NULL, pfnCont, pArg, NULL, 0, NULL, 0);
+	return xFutureFinallySourceEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureFinallySourceEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_SOURCE_INLINE, NULL, pfnCont, pArg, pfnFreeArg, NULL, 0, NULL, 0);
+}
+XXAPI xfuture* xFutureFinallyResultSource(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg)
+{
+	return xFutureFinallyResultSourceEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureFinallyResultSourceEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY_RESULT, __XNET_FCONT_EXEC_SOURCE_INLINE, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // xFutureThenCurrent 相关处理
 XXAPI xfuture* xFutureThenCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_CURRENT, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
+	return xFutureThenCurrentEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureThenCurrentEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_CURRENT, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // xFutureCatchCurrent 相关处理
 XXAPI xfuture* xFutureCatchCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_CURRENT, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
+	return xFutureCatchCurrentEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureCatchCurrentEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_CURRENT, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // xFutureFinallyCurrent 相关处理
 XXAPI xfuture* xFutureFinallyCurrent(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_CURRENT, NULL, pfnCont, pArg, NULL, 0, NULL, 0);
+	return xFutureFinallyCurrentEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureFinallyCurrentEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_CURRENT, NULL, pfnCont, pArg, pfnFreeArg, NULL, 0, NULL, 0);
+}
+XXAPI xfuture* xFutureFinallyResultCurrent(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg)
+{
+	return xFutureFinallyResultCurrentEx(pFuture, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureFinallyResultCurrentEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY_RESULT, __XNET_FCONT_EXEC_CURRENT, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, NULL, 0);
 }
 // xFutureThenEngine 相关处理
 XXAPI xfuture* xFutureThenEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_ENGINE, pfnCont, NULL, pArg, pEngine, iAffinityKey, NULL, 0);
+	return xFutureThenEngineEx(pFuture, pEngine, iAffinityKey, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureThenEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_ENGINE, pfnCont, NULL, pArg, pfnFreeArg, pEngine, iAffinityKey, NULL, 0);
 }
 // xFutureCatchEngine 相关处理
 XXAPI xfuture* xFutureCatchEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_ENGINE, pfnCont, NULL, pArg, pEngine, iAffinityKey, NULL, 0);
+	return xFutureCatchEngineEx(pFuture, pEngine, iAffinityKey, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureCatchEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_ENGINE, pfnCont, NULL, pArg, pfnFreeArg, pEngine, iAffinityKey, NULL, 0);
 }
 // xFutureFinallyEngine 相关处理
 XXAPI xfuture* xFutureFinallyEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_ENGINE, NULL, pfnCont, pArg, pEngine, iAffinityKey, NULL, 0);
+	return xFutureFinallyEngineEx(pFuture, pEngine, iAffinityKey, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureFinallyEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_ENGINE, NULL, pfnCont, pArg, pfnFreeArg, pEngine, iAffinityKey, NULL, 0);
+}
+XXAPI xfuture* xFutureFinallyResultEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_result_fn pfnCont, ptr pArg)
+{
+	return xFutureFinallyResultEngineEx(pFuture, pEngine, iAffinityKey, pfnCont, pArg, NULL);
+}
+XXAPI xfuture* xFutureFinallyResultEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY_RESULT, __XNET_FCONT_EXEC_ENGINE, pfnCont, NULL, pArg, pfnFreeArg, pEngine, iAffinityKey, NULL, 0);
 }
 #if !defined(XRT_NO_COROUTINE)
 // xFutureThenCo 相关处理
 XXAPI xfuture* xFutureThenCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_CO, pfnCont, NULL, pArg, NULL, 0, pSched, iStackSize);
+	return xFutureThenCoEx(pFuture, pSched, pfnCont, pArg, NULL, iStackSize);
+}
+XXAPI xfuture* xFutureThenCoEx(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_CO, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, pSched, iStackSize);
 }
 // xFutureCatchCo 相关处理
 XXAPI xfuture* xFutureCatchCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_CO, pfnCont, NULL, pArg, NULL, 0, pSched, iStackSize);
+	return xFutureCatchCoEx(pFuture, pSched, pfnCont, pArg, NULL, iStackSize);
+}
+XXAPI xfuture* xFutureCatchCoEx(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_CO, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, pSched, iStackSize);
 }
 // xFutureFinallyCo 相关处理
 XXAPI xfuture* xFutureFinallyCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, size_t iStackSize)
 {
-	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_CO, NULL, pfnCont, pArg, NULL, 0, pSched, iStackSize);
+	return xFutureFinallyCoEx(pFuture, pSched, pfnCont, pArg, NULL, iStackSize);
+}
+XXAPI xfuture* xFutureFinallyCoEx(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_CO, NULL, pfnCont, pArg, pfnFreeArg, NULL, 0, pSched, iStackSize);
+}
+XXAPI xfuture* xFutureFinallyResultCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_result_fn pfnCont, ptr pArg, size_t iStackSize)
+{
+	return xFutureFinallyResultCoEx(pFuture, pSched, pfnCont, pArg, NULL, iStackSize);
+}
+XXAPI xfuture* xFutureFinallyResultCoEx(xfuture* pFuture, xcosched* pSched, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY_RESULT, __XNET_FCONT_EXEC_CO, pfnCont, NULL, pArg, pfnFreeArg, NULL, 0, pSched, iStackSize);
 }
 #endif
 // 创建任意 Future 完成聚合
@@ -80456,7 +80675,11 @@ XXAPI ptr xrtAVLTreeIterNext(xavltree objAVLT)
 	}
 	bOwnsLock = (objAVLT->Iterator->Flags & XRT_AVLITER_FLAG_HOLD_ROOT_LOCK) != 0;
 	pRet = xrtAVLTB_IterNext((xavltbase)objAVLT);
-	if ( pRet == NULL && bOwnsLock ) {
+	/*
+		最后一个节点仍是有效返回值，但基础迭代器会在返回它时立即销毁自身。
+		因此必须按“迭代器是否仍存在”释放所有权锁，不能只检查返回值。
+	*/
+	if ( bOwnsLock && objAVLT->Iterator == NULL ) {
 		xrtOwnerEndMutable(&objAVLT->Owner);
 	}
 	return pRet;

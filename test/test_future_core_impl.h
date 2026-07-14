@@ -3140,6 +3140,176 @@ static int __Test_FutureCore_OwnershipLifetime(void)
 	return 0;
 }
 
+typedef struct {
+	int iCallbackCount;
+	int iFreeCount;
+	int iValue;
+} __test_future_cont_owned_arg;
+
+static int32 __Test_FutureCore_OwnedCont(
+	const xfuture_result* pIn,
+	ptr pArg,
+	xfuture_result* pOut)
+{
+	__test_future_cont_owned_arg* pCtx = (__test_future_cont_owned_arg*)pArg;
+
+	if ( pIn == NULL || pCtx == NULL || pOut == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	pCtx->iCallbackCount++;
+	pCtx->iValue = 9001;
+	pOut->pValue = &pCtx->iValue;
+	return XRT_NET_OK;
+}
+
+static void __Test_FutureCore_OwnedFinally(const xfuture_result* pIn, ptr pArg)
+{
+	__test_future_cont_owned_arg* pCtx = (__test_future_cont_owned_arg*)pArg;
+
+	(void)pIn;
+	if ( pCtx != NULL ) {
+		pCtx->iCallbackCount++;
+	}
+}
+
+static int32 __Test_FutureCore_OwnedFinallyResult(
+	const xfuture_result* pIn,
+	ptr pArg,
+	xfuture_result* pOut)
+{
+	__test_future_cont_owned_arg* pCtx = (__test_future_cont_owned_arg*)pArg;
+
+	(void)pIn;
+	if ( pCtx == NULL || pOut == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	pCtx->iCallbackCount++;
+	if ( pCtx->iValue < 0 ) {
+		pOut->sError = (str)"finally result failed";
+		return XRT_NET_ERROR;
+	}
+	return XRT_NET_OK;
+}
+
+static void __Test_FutureCore_FreeOwnedArg(ptr pArg)
+{
+	__test_future_cont_owned_arg* pCtx = (__test_future_cont_owned_arg*)pArg;
+
+	if ( pCtx != NULL ) {
+		pCtx->iFreeCount++;
+	}
+}
+
+static int __Test_FutureCore_ContinuationOwnedArg(void)
+{
+	xfuture* pSource = NULL;
+	xfuture* pNext = NULL;
+	xpromise* pPromise = NULL;
+	__test_future_cont_owned_arg tCtx;
+	char* sOwned = NULL;
+	int iValue = 7;
+	int iRet = 0;
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureThenSourceEx(pSource, __Test_FutureCore_OwnedCont, &tCtx, __Test_FutureCore_FreeOwnedArg);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 170; goto cleanup; }
+	(void)xPromiseResolve(pPromise, &iValue);
+	if ( !xFutureWaitTimeout(pNext, 1000) || tCtx.iCallbackCount != 1 || tCtx.iFreeCount != 1 || xFutureValue(pNext) != &tCtx.iValue ) { iRet = 171; goto cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureFinallyResultSourceEx(pSource, __Test_FutureCore_OwnedFinallyResult, &tCtx, __Test_FutureCore_FreeOwnedArg);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 180; goto cleanup; }
+	(void)xPromiseResolve(pPromise, &iValue);
+	if ( !xFutureWaitTimeout(pNext, 1000) || tCtx.iCallbackCount != 1 || tCtx.iFreeCount != 1 || xFutureValue(pNext) != &iValue ) { iRet = 181; goto cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.iValue = -1;
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureFinallyResultSourceEx(pSource, __Test_FutureCore_OwnedFinallyResult, &tCtx, __Test_FutureCore_FreeOwnedArg);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 182; goto cleanup; }
+	(void)xPromiseResolve(pPromise, &iValue);
+	(void)xFutureWaitTimeout(pNext, 1000);
+	if ( xFutureState(pNext) == XFUTURE_PENDING || tCtx.iCallbackCount != 1 || tCtx.iFreeCount != 1 || xFutureStatus(pNext) == XRT_NET_OK ||
+	     xFutureError(pNext) == NULL || strcmp((const char*)xFutureError(pNext), "finally result failed") != 0 ) { iRet = 183; goto cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+
+	// 跳过 catch 时，下游 Future 必须持有源结果的生命周期。
+	memset(&tCtx, 0, sizeof(tCtx));
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureCatchSourceEx(pSource, __Test_FutureCore_OwnedCont, &tCtx, __Test_FutureCore_FreeOwnedArg);
+	sOwned = (char*)malloc(16u);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL || sOwned == NULL ) { iRet = 184; goto cleanup; }
+	memcpy(sOwned, "owned-result", 13u);
+	(void)xPromiseResolveOwned(pPromise, sOwned);
+	sOwned = NULL;
+	if ( !xFutureWaitTimeout(pNext, 1000) ) { iRet = 185; goto cleanup; }
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+	if ( xFutureValue(pNext) == NULL || strcmp((const char*)xFutureValue(pNext), "owned-result") != 0 ) { iRet = 186; goto cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureThenSourceEx(pSource, __Test_FutureCore_OwnedCont, &tCtx, __Test_FutureCore_FreeOwnedArg);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 172; goto cleanup; }
+	(void)xPromiseReject(pPromise, XRT_NET_ERROR, (str)"skip then");
+	(void)xFutureWaitTimeout(pNext, 1000);
+	if ( tCtx.iCallbackCount != 0 || tCtx.iFreeCount != 1 || xFutureStatus(pNext) == XRT_NET_OK ) { iRet = 173; goto cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureCatchSourceEx(pSource, __Test_FutureCore_OwnedCont, &tCtx, __Test_FutureCore_FreeOwnedArg);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 174; goto cleanup; }
+	(void)xPromiseResolve(pPromise, &iValue);
+	if ( !xFutureWaitTimeout(pNext, 1000) || tCtx.iCallbackCount != 0 || tCtx.iFreeCount != 1 || xFutureValue(pNext) != &iValue ) { iRet = 175; goto cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureFinallySourceEx(pSource, __Test_FutureCore_OwnedFinally, &tCtx, __Test_FutureCore_FreeOwnedArg);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 176; goto cleanup; }
+	(void)xPromiseResolve(pPromise, &iValue);
+	if ( !xFutureWaitTimeout(pNext, 1000) || tCtx.iCallbackCount != 1 || tCtx.iFreeCount != 1 || xFutureValue(pNext) != &iValue ) { iRet = 177; goto cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	pNext = xFutureThenSourceEx(NULL, __Test_FutureCore_OwnedCont, &tCtx, __Test_FutureCore_FreeOwnedArg);
+	if ( pNext != NULL || tCtx.iFreeCount != 0 ) { iRet = 178; goto cleanup; }
+	__Test_FutureCore_FreeOwnedArg(&tCtx);
+	if ( tCtx.iFreeCount != 1 ) { iRet = 179; }
+
+cleanup:
+	if ( sOwned != NULL ) { free(sOwned); }
+	if ( pNext != NULL ) { xFutureRelease(pNext); }
+	if ( pPromise != NULL ) { xPromiseDestroy(pPromise); }
+	if ( pSource != NULL ) { xFutureRelease(pSource); }
+	return iRet;
+}
+
 #if !defined(XRT_NO_COROUTINE)
 // 内部函数：__Test_FutureCore_TaskRunCo
 static int __Test_FutureCore_TaskRunCo(void)
@@ -3251,6 +3421,9 @@ static int __Test_FutureCore_RunAll(void)
 	}
 	if ( iRet == 0 ) {
 		iRet = __Test_FutureCore_OwnershipLifetime();
+	}
+	if ( iRet == 0 ) {
+		iRet = __Test_FutureCore_ContinuationOwnedArg();
 	}
 	if ( iRet == 0 ) {
 		iRet = __Test_FutureCore_RaceOwnedResultBorrow();

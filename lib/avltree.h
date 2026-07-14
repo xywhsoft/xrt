@@ -342,7 +342,11 @@ XXAPI ptr xrtAVLTreeIterNext(xavltree objAVLT)
 	}
 	bOwnsLock = (objAVLT->Iterator->Flags & XRT_AVLITER_FLAG_HOLD_ROOT_LOCK) != 0;
 	pRet = xrtAVLTB_IterNext((xavltbase)objAVLT);
-	if ( pRet == NULL && bOwnsLock ) {
+	/*
+		最后一个节点仍是有效返回值，但基础迭代器会在返回它时立即销毁自身。
+		因此必须按“迭代器是否仍存在”释放所有权锁，不能只检查返回值。
+	*/
+	if ( bOwnsLock && objAVLT->Iterator == NULL ) {
 		xrtOwnerEndMutable(&objAVLT->Owner);
 	}
 	return pRet;

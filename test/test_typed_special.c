@@ -109,6 +109,8 @@ int main(void)
 	text = NULL;
 	keys = xrtTypedAvlTreeKeys(tree, XRT_OBJMODE_LOCAL);
 	if ( !check(keys != NULL && xrtTypedArrayCount(keys) == 2u, "collect ordered tree keys") ||
+		 !check(tree->Tree.Owner.iSharedDepth == 0u && tree->Tree.Owner.iSharedLock == 0,
+		        "completed shared tree iteration releases owner lock") ||
 		 !check(strcmp(*(const char**)xrtTypedArrayGet(keys, 1u), "a") == 0, "first ordered tree key") ||
 		 !check(strcmp(*(const char**)xrtTypedArrayGet(keys, 2u), "b") == 0, "last ordered tree key") ||
 		 !check(xrtTypedAvlTreeRemove(tree, &keyA), "remove tree item") ||

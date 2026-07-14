@@ -128,6 +128,34 @@ static bool __Test_XNet2_ConvenienceCloseOrder(void)
 }
 
 
+static bool __Test_XNet2_ConvenienceAcceptTimeoutGap(void)
+{
+	xnetlistener* pListener = NULL;
+	xnetstream* pTimedOut = NULL;
+	xnetstream* pClient = NULL;
+	xnetstream* pAccepted = NULL;
+	uint16 iPort = 0u;
+	bool bOk = false;
+
+	xrtNetSyncShutdownHiddenEngine();
+	pListener = xrtNetTcpListen("127.0.0.1", 0u, 4u);
+	iPort = xrtNetTcpListenerPort(pListener);
+
+	/* 先让 AcceptEx 挂起并使 waiter 超时，再让连接落入取消窗口。 */
+	pTimedOut = pListener ? xrtNetTcpAccept(pListener, 20) : NULL;
+	pClient = iPort != 0u ? xrtNetTcpConnect("127.0.0.1", iPort, 2000) : NULL;
+	xrtSleep(50);
+	pAccepted = pListener ? xrtNetTcpAccept(pListener, 1000) : NULL;
+	bOk = pListener != NULL && pTimedOut == NULL && pClient != NULL && pAccepted != NULL;
+
+	if ( pAccepted ) { xrtNetTcpStreamDestroy(pAccepted); }
+	if ( pClient ) { xrtNetTcpStreamDestroy(pClient); }
+	if ( pListener ) { xrtNetTcpListenerDestroy(pListener); }
+	xrtNetSyncShutdownHiddenEngine();
+	return bOk;
+}
+
+
 int Test_XNet2_Convenience(void)
 {
 	int iFailCount = 0;
@@ -153,6 +181,7 @@ int Test_XNet2_Convenience(void)
 	size_t iPacketLen = 0u;
 	bool bUdpSendOk = false;
 	bool bCloseOrderOk = false;
+	bool bAcceptTimeoutGapOk = false;
 	static const uint8 aUdpPayload[] = { 'u', 0u, 'd', 'p' };
 
 	memset(&tServer, 0, sizeof(tServer));
@@ -220,6 +249,10 @@ int Test_XNet2_Convenience(void)
 	bCloseOrderOk = __Test_XNet2_ConvenienceCloseOrder();
 	printf("  TCP send-close-destroy preserves queued bytes : %s\n", bCloseOrderOk ? "PASS" : "FAIL");
 	if ( !bCloseOrderOk ) { ++iFailCount; }
+
+	bAcceptTimeoutGapOk = __Test_XNet2_ConvenienceAcceptTimeoutGap();
+	printf("  TCP accept preserves connection across timeout gap : %s\n", bAcceptTimeoutGapOk ? "PASS" : "FAIL");
+	if ( !bAcceptTimeoutGapOk ) { ++iFailCount; }
 
 	xrtNetDgramConfigInit(&tDgramCfg);
 	(void)xrtNetAddrParse(&tDgramCfg.tBindAddr, "127.0.0.1", 0u);

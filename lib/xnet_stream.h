@@ -124,6 +124,7 @@ struct xrt_net_listener {
 	const xnetstreamevents* pStreamEvents;
 	ptr pUserData;
 	xsocket hSocket;
+	xsocket hPendingAcceptedSocket;
 	__xnet_listener_wait_slot tAcceptWait;
 	xnetlistenconfig tConfig;
 	uint64 iAcceptOpId;
@@ -342,6 +343,7 @@ static void __xnetListenerFinalizeDestroy(xnetlistener* pListener)
 	pListener->pEvents = NULL;
 	pListener->pStreamEvents = NULL;
 	pListener->pUserData = NULL;
+	__xnetSocketCloseHandle(&pListener->hPendingAcceptedSocket);
 	__xnetListenerCloseSocket(pListener);
 	XNET_FREE(pListener);
 }
@@ -2568,6 +2570,7 @@ XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenco
 	memset(pListener, 0, sizeof(xnetlistener));
 	__xnetStreamBindEngine(pEngine);
 	pListener->hSocket = XNET_SOCKET_INVALID;
+	pListener->hPendingAcceptedSocket = XNET_SOCKET_INVALID;
 	pListener->pEngine = pEngine;
 	pListener->pEvents = pEvents;
 	pListener->pStreamEvents = pStreamEvents;
@@ -2598,6 +2601,7 @@ XXAPI void xrtNetListenerDestroy(xnetlistener* pListener)
 	}
 	pListener->bRunning = false;
 	(void)__xnetListenerCancelAcceptWatch(pListener);
+	__xnetSocketCloseHandle(&pListener->hPendingAcceptedSocket);
 	__xnetListenerCloseSocket(pListener);
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 	if ( __xnetAtomicLoad32(&pListener->iAsyncHoldCount) != 0 ) {
@@ -2655,6 +2659,7 @@ XXAPI void xrtNetListenerStop(xnetlistener* pListener)
 	if ( !pListener ) { return; }
 	pListener->bRunning = false;
 	(void)__xnetListenerCancelAcceptWatch(pListener);
+	__xnetSocketCloseHandle(&pListener->hPendingAcceptedSocket);
 	__xnetListenerCloseSocket(pListener);
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 }
@@ -2814,6 +2819,22 @@ static bool __xnetListenerRegisterSyncAcceptWait(xnetlistener* pListener, __xnet
 		return true;
 	}
 
+	/*
+		AcceptEx 可能在限时 waiter 取消后才完成。该连接已经从系统 backlog
+		取出，不能丢弃；下一位 waiter 应优先接管它。
+	*/
+	if ( __xnetSocketIsValid(pListener->hPendingAcceptedSocket) ) {
+		memset(&tRaw, 0, sizeof(tRaw));
+		tRaw.hSocket = pListener->hPendingAcceptedSocket;
+		pListener->hPendingAcceptedSocket = XNET_SOCKET_INVALID;
+		pStream = __xnetListenerWrapAcceptedSocket(pListener, &tRaw, NULL);
+		if ( pStream ) {
+			__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
+			return true;
+		}
+		__xnetSocketCloseHandle(&tRaw.hSocket);
+	}
+
 	// 尝试立即接受一个连接
 	memset(&tRaw, 0, sizeof(tRaw));
 	tRaw.hSocket = XNET_SOCKET_INVALID;
@@ -2938,6 +2959,14 @@ static void __xnetListenerHandleAcceptedSocketEvent(xnetlistener* pListener, xso
 	}
 	// 检查是否可以分发接受事件
 	if ( !__xnetListenerCanDispatchAccept(pListener) ) {
+		/*
+			限时 waiter 可能刚刚取消，但 AcceptEx 已经成功。保留这一个
+			内核已接受连接，避免客户端连接成功后被静默丢弃。
+		*/
+		if ( pListener->bRunning && !__xnetSocketIsValid(pListener->hPendingAcceptedSocket) ) {
+			pListener->hPendingAcceptedSocket = hSocket;
+			return;
+		}
 		__xnetSocketCloseHandle(&hSocket);
 		return;
 	}

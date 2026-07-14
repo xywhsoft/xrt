@@ -4187,6 +4187,9 @@
 	typedef int32 (*xtask_co_fn)(ptr pArg, xfuture_result* pOut);
 	typedef int32 (*xfuture_cont_fn)(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut);
 	typedef void (*xfuture_finally_fn)(const xfuture_result* pIn, ptr pArg);
+	// 结果型 finally：返回成功时透传源结果，返回失败时使用 pOut 替换下游结果
+	typedef int32 (*xfuture_finally_result_fn)(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut);
+	typedef void (*xfuture_arg_free_fn)(ptr pArg);
 	typedef struct {
 		uint32 iKind;
 		union {
@@ -5341,35 +5344,60 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	// Future 延续回调绑定接口
 	// 在当前执行路径中追加 then 回调
 	XXAPI xfuture* xFutureThenInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenInlineEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前执行路径中追加 catch 回调
 	XXAPI xfuture* xFutureCatchInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchInlineEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前执行路径中追加 finally 回调
 	XXAPI xfuture* xFutureFinallyInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyInlineEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
+	XXAPI xfuture* xFutureFinallyResultInline(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyResultInlineEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在源 Future 完成它的线程中追加 then 回调
 	XXAPI xfuture* xFutureThenSource(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenSourceEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在源 Future 完成它的线程中追加 catch 回调
 	XXAPI xfuture* xFutureCatchSource(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchSourceEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在源 Future 完成它的线程中追加 finally 回调
 	XXAPI xfuture* xFutureFinallySource(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallySourceEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
+	XXAPI xfuture* xFutureFinallyResultSource(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyResultSourceEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前线程上下文中追加 then 回调
 	XXAPI xfuture* xFutureThenCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenCurrentEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前线程上下文中追加 catch 回调
 	XXAPI xfuture* xFutureCatchCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchCurrentEx(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在当前线程上下文中追加 finally 回调
 	XXAPI xfuture* xFutureFinallyCurrent(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyCurrentEx(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
+	XXAPI xfuture* xFutureFinallyResultCurrent(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyResultCurrentEx(xfuture* pFuture, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在网络引擎线程中追加 then 回调
 	XXAPI xfuture* xFutureThenEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在网络引擎线程中追加 catch 回调
 	XXAPI xfuture* xFutureCatchEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	// 在网络引擎线程中追加 finally 回调
 	XXAPI xfuture* xFutureFinallyEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
+	XXAPI xfuture* xFutureFinallyResultEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_result_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyResultEngineEx(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg);
 	#if !defined(XRT_NO_COROUTINE)
 		// 在协程调度器中追加 then 回调
 		XXAPI xfuture* xFutureThenCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
+		XXAPI xfuture* xFutureThenCoEx(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
 		// 在协程调度器中追加 catch 回调
 		XXAPI xfuture* xFutureCatchCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
+		XXAPI xfuture* xFutureCatchCoEx(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
 		// 在协程调度器中追加 finally 回调
 		XXAPI xfuture* xFutureFinallyCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, size_t iStackSize);
+		XXAPI xfuture* xFutureFinallyCoEx(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
+		XXAPI xfuture* xFutureFinallyResultCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_result_fn pfnCont, ptr pArg, size_t iStackSize);
+		XXAPI xfuture* xFutureFinallyResultCoEx(xfuture* pFuture, xcosched* pSched, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
 		
 	#endif
 	
