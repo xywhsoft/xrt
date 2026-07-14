@@ -4199,6 +4199,49 @@
 			char sHost[XHTTP_HOST_CAP];
 			char sPath[XHTTP_PATH_CAP];
 		} xhttpurl;
+		typedef enum xrt_http_phase {
+			XHTTP_PHASE_NONE = 0,
+			XHTTP_PHASE_PREPARE,
+			XHTTP_PHASE_CONNECT,
+			XHTTP_PHASE_WRITE,
+			XHTTP_PHASE_RESPONSE_HEADERS,
+			XHTTP_PHASE_RESPONSE_BODY,
+			XHTTP_PHASE_COMPLETE
+		} xhttp_phase;
+		typedef enum xrt_http_error_code {
+			XHTTP_ERROR_NONE = 0,
+			XHTTP_ERROR_INVALID_ARGUMENT,
+			XHTTP_ERROR_OUT_OF_MEMORY,
+			XHTTP_ERROR_INVALID_URL,
+			XHTTP_ERROR_CONNECT,
+			XHTTP_ERROR_WRITE,
+			XHTTP_ERROR_PROTOCOL,
+			XHTTP_ERROR_CALLBACK_ABORT,
+			XHTTP_ERROR_TIMEOUT_TOTAL,
+			XHTTP_ERROR_TIMEOUT_IDLE,
+			XHTTP_ERROR_CANCELLED,
+			XHTTP_ERROR_CONNECTION_CLOSED,
+			XHTTP_ERROR_TRANSPORT
+		} xhttp_error_code;
+		typedef struct xrt_http_diagnostics {
+			xhttp_error_code eError;
+			xhttp_phase ePhase;
+			xnet_result eTransportStatus;
+			int iSystemError;
+			bool bReusedConnection;
+			uint64 iStartedMs;
+			uint64 iConnectedMs;
+			uint64 iRequestSentMs;
+			uint64 iFirstByteMs;
+			uint64 iHeadersMs;
+			uint64 iCompletedMs;
+			uint64 iConnectDurationMs;
+			uint64 iTimeToFirstByteMs;
+			uint64 iTransferDurationMs;
+			uint64 iTotalDurationMs;
+			uint64 iRequestBytes;
+			uint64 iResponseBodyBytes;
+		} xhttpdiagnostics;
 		typedef struct xrt_http_request {
 			char sMethod[XHTTP_METHOD_CAP];
 			char sURL[XHTTP_URL_CAP];
@@ -4213,6 +4256,7 @@
 			uint32 iIdleTimeoutMs;
 			bool bVerifyPeer;
 			xnetproxy* pProxy;
+			xhttpdiagnostics* pDiagnostics;
 		} xhttprequest;
 		typedef struct xrt_http_response {
 			uint32 iStatusCode;
@@ -4226,6 +4270,7 @@
 			xhttpheader* pHeaders;
 			char* pBody;
 			size_t iBodyLen;
+			xhttpdiagnostics tDiagnostics;
 		} xhttpresponse;
 		typedef bool (*xhttpstreamheadersfn)(ptr pUserData, const xhttpresponse* pResponse);
 		typedef bool (*xhttpstreambodyfn)(ptr pUserData, const void* pData, size_t iLen);
@@ -5556,6 +5601,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
 		// 设置 HTTP 请求空闲超时
 		XXAPI void xrtHttpRequestSetIdleTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
+		XXAPI void xrtHttpDiagnosticsInit(xhttpdiagnostics* pDiagnostics);
+		XXAPI const char* xrtHttpErrorCodeName(xhttp_error_code eError);
+		XXAPI const char* xrtHttpPhaseName(xhttp_phase ePhase);
+		XXAPI void xrtHttpRequestSetDiagnostics(xhttprequest* pReq, xhttpdiagnostics* pDiagnostics);
 		// 设置 HTTPS 是否校验证书
 		XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
 		// 销毁 HTTP 响应对象
@@ -5570,6 +5619,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI int64_t xrtHttpResponseContentLength(const xhttpresponse* pResp);
 		XXAPI const void* xrtHttpResponseBody(const xhttpresponse* pResp, size_t* pLen);
 		XXAPI char* xrtHttpResponseBodyTextCopy(const xhttpresponse* pResp);
+		XXAPI const xhttpdiagnostics* xrtHttpResponseDiagnostics(const xhttpresponse* pResp);
 		XXAPI void xrtHttpStreamCallbacksInit(xhttpstreamcallbacks* pCallbacks);
 		// 异步执行 HTTP 请求
 		XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq);

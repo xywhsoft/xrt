@@ -105,6 +105,27 @@ if ( !xrtHttpCancel(future) ) {
 
 取消操作会中断活动连接，并以 `XRT_NET_CANCELLED` 完成 future。缓冲执行和流式执行都支持取消。
 
+## 单请求诊断
+
+当上层 provider 需要稳定的失败分类和耗时数据时，可在执行前绑定一个由调用方持有的 `xhttpdiagnostics`：
+
+```c
+xhttpdiagnostics diagnostics;
+
+xrtHttpRequestSetDiagnostics(&req, &diagnostics);
+future = xrtHttpExecuteAsync(engine, &req);
+status = xrtNetFutureWait(future, XNET_WAIT_INFINITE);
+
+printf("error=%s phase=%s total=%llu ms\n",
+	xrtHttpErrorCodeName(diagnostics.eError),
+	xrtHttpPhaseName(diagnostics.ePhase),
+	(unsigned long long)diagnostics.iTotalDurationMs);
+```
+
+诊断对象采用借用语义，生命周期必须覆盖整个异步请求。future 完成后，其中包含最终传输状态、系统错误、总超时与空闲超时的区分、取消、协议/回调错误、连接复用情况、单调时钟里程碑、派生耗时和字节数。成功响应也保存同一份最终快照，可通过 `xrtHttpResponseDiagnostics()` 读取。
+
+XRT 只报告传输事实，不隐式重试请求。重试和幂等策略由调用方（例如 LLM provider 适配器）负责。
+
 ## 独立客户端与连接池
 
 建议为一个长期存活的模型提供方或服务边界创建一个 `xhttpclient`。它绑定一个 `xnetengine`，并独立拥有 keep-alive 连接池。

@@ -45,6 +45,57 @@ typedef struct xrt_http_url {
 	char sPath[XHTTP_PATH_CAP];
 } xhttpurl;
 
+typedef enum xrt_http_phase {
+	XHTTP_PHASE_NONE = 0,
+	XHTTP_PHASE_PREPARE,
+	XHTTP_PHASE_CONNECT,
+	XHTTP_PHASE_WRITE,
+	XHTTP_PHASE_RESPONSE_HEADERS,
+	XHTTP_PHASE_RESPONSE_BODY,
+	XHTTP_PHASE_COMPLETE
+} xhttp_phase;
+
+typedef enum xrt_http_error_code {
+	XHTTP_ERROR_NONE = 0,
+	XHTTP_ERROR_INVALID_ARGUMENT,
+	XHTTP_ERROR_OUT_OF_MEMORY,
+	XHTTP_ERROR_INVALID_URL,
+	XHTTP_ERROR_CONNECT,
+	XHTTP_ERROR_WRITE,
+	XHTTP_ERROR_PROTOCOL,
+	XHTTP_ERROR_CALLBACK_ABORT,
+	XHTTP_ERROR_TIMEOUT_TOTAL,
+	XHTTP_ERROR_TIMEOUT_IDLE,
+	XHTTP_ERROR_CANCELLED,
+	XHTTP_ERROR_CONNECTION_CLOSED,
+	XHTTP_ERROR_TRANSPORT
+} xhttp_error_code;
+
+/*
+	Per-request diagnostic snapshot. Times are monotonic milliseconds and are
+	intended for duration calculation only. A request-bound diagnostics object
+	must outlive the async future and may be read after that future completes.
+*/
+typedef struct xrt_http_diagnostics {
+	xhttp_error_code eError;
+	xhttp_phase ePhase;
+	xnet_result eTransportStatus;
+	int iSystemError;
+	bool bReusedConnection;
+	uint64 iStartedMs;
+	uint64 iConnectedMs;
+	uint64 iRequestSentMs;
+	uint64 iFirstByteMs;
+	uint64 iHeadersMs;
+	uint64 iCompletedMs;
+	uint64 iConnectDurationMs;
+	uint64 iTimeToFirstByteMs;
+	uint64 iTransferDurationMs;
+	uint64 iTotalDurationMs;
+	uint64 iRequestBytes;
+	uint64 iResponseBodyBytes;
+} xhttpdiagnostics;
+
 typedef struct xrt_http_request {
 	char sMethod[XHTTP_METHOD_CAP];
 	char sURL[XHTTP_URL_CAP];
@@ -59,6 +110,8 @@ typedef struct xrt_http_request {
 	uint32 iIdleTimeoutMs;
 	bool bVerifyPeer;
 	xnetproxy* pProxy;
+	/* Borrowed. When non-NULL it must outlive the async request. */
+	xhttpdiagnostics* pDiagnostics;
 } xhttprequest;
 
 typedef struct xrt_http_response {
@@ -73,6 +126,7 @@ typedef struct xrt_http_response {
 	xhttpheader* pHeaders;
 	char* pBody;
 	size_t iBodyLen;
+	xhttpdiagnostics tDiagnostics;
 } xhttpresponse;
 
 typedef bool (*xhttpstreamheadersfn)(ptr pUserData, const xhttpresponse* pResponse);
@@ -128,6 +182,7 @@ typedef struct {
 	bool bStreaming;
 	bool bStreamHeadersDelivered;
 	int iLastSysErr;
+	xhttpdiagnostics tDiagnostics;
 	xtlsconfig tTlsCfg;
 } __xhttp_tx;
 
@@ -201,6 +256,47 @@ static long __xhttpAtomicCompareExchange(volatile long* pValue, long iExchange, 
 static long __xhttpAtomicLoad(volatile long* pValue)
 {
 	return __xnetAtomicLoad32(pValue);
+}
+
+
+static uint64 __xhttpNowMs(void)
+{
+	return __xnetSyncNowMs();
+}
+
+
+static void __xhttpDiagnosticsCompleteEarly(
+	xhttpdiagnostics* pDiagnostics,
+	xhttp_error_code eError,
+	xhttp_phase ePhase,
+	xnet_result eStatus)
+{
+	uint64 iNow;
+	if ( !pDiagnostics ) { return; }
+	iNow = __xhttpNowMs();
+	if ( pDiagnostics->iStartedMs == 0u ) { pDiagnostics->iStartedMs = iNow; }
+	pDiagnostics->eError = eError;
+	pDiagnostics->ePhase = ePhase;
+	pDiagnostics->eTransportStatus = eStatus;
+	pDiagnostics->iCompletedMs = iNow;
+	if ( iNow >= pDiagnostics->iStartedMs ) {
+		pDiagnostics->iTotalDurationMs = iNow - pDiagnostics->iStartedMs;
+	}
+}
+
+
+static void __xhttpDiagnosticsSetPhase(__xhttp_tx* pTx, xhttp_phase ePhase)
+{
+	if ( !pTx || __xhttpAtomicLoad(&pTx->iComplete) != 0 ) { return; }
+	pTx->tDiagnostics.ePhase = ePhase;
+}
+
+
+static void __xhttpDiagnosticsSetError(__xhttp_tx* pTx, xhttp_error_code eError, xhttp_phase ePhase)
+{
+	if ( !pTx ) { return; }
+	if ( pTx->tDiagnostics.eError == XHTTP_ERROR_NONE ) { pTx->tDiagnostics.eError = eError; }
+	if ( ePhase != XHTTP_PHASE_NONE ) { pTx->tDiagnostics.ePhase = ePhase; }
 }
 
 
@@ -590,6 +686,50 @@ XXAPI void xrtHttpRequestInit(xhttprequest* pReq)
 }
 
 
+XXAPI void xrtHttpDiagnosticsInit(xhttpdiagnostics* pDiagnostics)
+{
+	if ( !pDiagnostics ) { return; }
+	memset(pDiagnostics, 0, sizeof(xhttpdiagnostics));
+	pDiagnostics->eTransportStatus = XRT_NET_AGAIN;
+}
+
+
+XXAPI const char* xrtHttpErrorCodeName(xhttp_error_code eError)
+{
+	switch ( eError ) {
+		case XHTTP_ERROR_NONE: return "none";
+		case XHTTP_ERROR_INVALID_ARGUMENT: return "invalid_argument";
+		case XHTTP_ERROR_OUT_OF_MEMORY: return "out_of_memory";
+		case XHTTP_ERROR_INVALID_URL: return "invalid_url";
+		case XHTTP_ERROR_CONNECT: return "connect";
+		case XHTTP_ERROR_WRITE: return "write";
+		case XHTTP_ERROR_PROTOCOL: return "protocol";
+		case XHTTP_ERROR_CALLBACK_ABORT: return "callback_abort";
+		case XHTTP_ERROR_TIMEOUT_TOTAL: return "timeout_total";
+		case XHTTP_ERROR_TIMEOUT_IDLE: return "timeout_idle";
+		case XHTTP_ERROR_CANCELLED: return "cancelled";
+		case XHTTP_ERROR_CONNECTION_CLOSED: return "connection_closed";
+		case XHTTP_ERROR_TRANSPORT: return "transport";
+		default: return "unknown";
+	}
+}
+
+
+XXAPI const char* xrtHttpPhaseName(xhttp_phase ePhase)
+{
+	switch ( ePhase ) {
+		case XHTTP_PHASE_NONE: return "none";
+		case XHTTP_PHASE_PREPARE: return "prepare";
+		case XHTTP_PHASE_CONNECT: return "connect";
+		case XHTTP_PHASE_WRITE: return "write";
+		case XHTTP_PHASE_RESPONSE_HEADERS: return "response_headers";
+		case XHTTP_PHASE_RESPONSE_BODY: return "response_body";
+		case XHTTP_PHASE_COMPLETE: return "complete";
+		default: return "unknown";
+	}
+}
+
+
 // xrtHttpRequestCreate 相关处理
 XXAPI xhttprequest* xrtHttpRequestCreate(void)
 {
@@ -764,6 +904,14 @@ XXAPI void xrtHttpRequestSetIdleTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
 }
 
 
+XXAPI void xrtHttpRequestSetDiagnostics(xhttprequest* pReq, xhttpdiagnostics* pDiagnostics)
+{
+	if ( !pReq ) { return; }
+	pReq->pDiagnostics = pDiagnostics;
+	if ( pDiagnostics ) { xrtHttpDiagnosticsInit(pDiagnostics); }
+}
+
+
 // xrtHttpRequestSetVerifyPeer 相关处理
 XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer)
 {
@@ -872,6 +1020,12 @@ XXAPI char* xrtHttpResponseBodyTextCopy(const xhttpresponse* pResp)
 }
 
 
+XXAPI const xhttpdiagnostics* xrtHttpResponseDiagnostics(const xhttpresponse* pResp)
+{
+	return pResp ? &pResp->tDiagnostics : NULL;
+}
+
+
 // Initialize callbacks for incremental response delivery.
 XXAPI void xrtHttpStreamCallbacksInit(xhttpstreamcallbacks* pCallbacks)
 {
@@ -899,6 +1053,7 @@ static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc)
 	pDst->iIdleTimeoutMs = pSrc->iIdleTimeoutMs;
 	pDst->bVerifyPeer = pSrc->bVerifyPeer;
 	pDst->pProxy = pSrc->pProxy ? xrtNetProxyAddRef(pSrc->pProxy) : NULL;
+	pDst->pDiagnostics = pSrc->pDiagnostics;
 	if ( pSrc->pBody && pSrc->iBodyLen > 0 ) {
 		pDst->pBody = (char*)XNET_ALLOC(pSrc->iBodyLen);
 		if ( !pDst->pBody ) {
@@ -1189,6 +1344,8 @@ static void __xhttpTxDiscardTransient(__xhttp_tx* pTx)
 // 内部函数：__xhttpTxComplete
 static bool __xhttpTxComplete(__xhttp_tx* pTx, xnet_result iStatus, xhttpresponse* pResp)
 {
+	uint64 iNow;
+	const char* sError = NULL;
 	if ( !pTx ) {
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
 		return false;
@@ -1197,8 +1354,39 @@ static bool __xhttpTxComplete(__xhttp_tx* pTx, xnet_result iStatus, xhttprespons
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
 		return false;
 	}
+	iNow = __xhttpNowMs();
+	if ( pTx->tDiagnostics.eError == XHTTP_ERROR_NONE && iStatus != XRT_NET_OK ) {
+		if ( iStatus == XRT_NET_TIMEOUT ) { pTx->tDiagnostics.eError = XHTTP_ERROR_TIMEOUT_TOTAL; }
+		else if ( iStatus == XRT_NET_CANCELLED ) { pTx->tDiagnostics.eError = XHTTP_ERROR_CANCELLED; }
+		else if ( iStatus == XRT_NET_CLOSED ) { pTx->tDiagnostics.eError = XHTTP_ERROR_CONNECTION_CLOSED; }
+		else { pTx->tDiagnostics.eError = XHTTP_ERROR_TRANSPORT; }
+	}
+	if ( iStatus == XRT_NET_OK ) {
+		pTx->tDiagnostics.eError = XHTTP_ERROR_NONE;
+		pTx->tDiagnostics.ePhase = XHTTP_PHASE_COMPLETE;
+	}
+	pTx->tDiagnostics.eTransportStatus = iStatus;
+	pTx->tDiagnostics.iSystemError = pTx->iLastSysErr;
+	pTx->tDiagnostics.iCompletedMs = iNow;
+	pTx->tDiagnostics.iRequestBytes = (uint64)pTx->iSendLen;
+	pTx->tDiagnostics.iResponseBodyBytes = pResp ? (uint64)pResp->iBodyLen : pTx->iBodyReceived;
+	if ( pTx->tDiagnostics.iStartedMs > 0u && iNow >= pTx->tDiagnostics.iStartedMs ) {
+		pTx->tDiagnostics.iTotalDurationMs = iNow - pTx->tDiagnostics.iStartedMs;
+	}
+	if ( pTx->tDiagnostics.iConnectedMs >= pTx->tDiagnostics.iStartedMs && pTx->tDiagnostics.iStartedMs > 0u ) {
+		pTx->tDiagnostics.iConnectDurationMs = pTx->tDiagnostics.iConnectedMs - pTx->tDiagnostics.iStartedMs;
+	}
+	if ( pTx->tDiagnostics.iFirstByteMs >= pTx->tDiagnostics.iStartedMs && pTx->tDiagnostics.iStartedMs > 0u ) {
+		pTx->tDiagnostics.iTimeToFirstByteMs = pTx->tDiagnostics.iFirstByteMs - pTx->tDiagnostics.iStartedMs;
+	}
+	if ( pTx->tDiagnostics.iFirstByteMs > 0u && iNow >= pTx->tDiagnostics.iFirstByteMs ) {
+		pTx->tDiagnostics.iTransferDurationMs = iNow - pTx->tDiagnostics.iFirstByteMs;
+	}
+	if ( pResp ) { memcpy(&pResp->tDiagnostics, &pTx->tDiagnostics, sizeof(xhttpdiagnostics)); }
+	if ( pTx->tReq.pDiagnostics ) { memcpy(pTx->tReq.pDiagnostics, &pTx->tDiagnostics, sizeof(xhttpdiagnostics)); }
+	if ( iStatus != XRT_NET_OK ) { sError = xrtHttpErrorCodeName(pTx->tDiagnostics.eError); }
 	if ( pTx->pFuture ) {
-		(void)__xnetFutureResolve(pTx->pFuture, iStatus, pResp);
+		(void)__xnetFutureCompleteEx(pTx->pFuture, iStatus, pResp, sError, XFUTURE_RESULT_F_NONE);
 		__xnetFutureReleaseAsyncHold(pTx->pFuture);
 	} else if ( pResp ) {
 		xrtHttpResponseDestroy(pResp);
@@ -1330,6 +1518,7 @@ static bool __xhttpCompleteCloseDelimitedResponse(__xhttp_tx* pTx, xnetchain* pC
 	pResp = __xhttpBuildResponse(&tFrame, &tMsg, pChain);
 	if ( !pResp ) {
 		xrtCodecHttp1MessageUnit(&tMsg);
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_RESPONSE_BODY);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		return true;
 	}
@@ -1414,6 +1603,7 @@ static bool __xhttpFutureCancelRequest(xnetfuture* pFuture)
 	if ( pTx ) { __xhttpTxAddRef(pTx); }
 	__xnetFutureUnlock(pFuture);
 	if ( !pTx ) { return false; }
+	__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_CANCELLED, pTx->tDiagnostics.ePhase);
 	if ( __xhttpTxComplete(pTx, XRT_NET_CANCELLED, NULL) ) {
 		bCancelled = true;
 		__xhttpTxAbortStream(pTx);
@@ -1478,6 +1668,7 @@ static void __xhttpIdleTimeoutTask(xnetworker* pWorker, ptr pArg)
 	if ( pTx &&
 		__xhttpAtomicLoad(&pTx->iComplete) == 0 &&
 		__xhttpAtomicLoad(&pTx->iIdleTimerGen) == pCtx->iGeneration ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_TIMEOUT_IDLE, pTx->tDiagnostics.ePhase);
 		(void)__xhttpTxComplete(pTx, XRT_NET_TIMEOUT, NULL);
 		__xhttpTxAbortStream(pTx);
 	}
@@ -1537,11 +1728,15 @@ static bool __xhttpConnSendActiveTx(__xhttp_conn* pConn)
 	if ( !pConn || !pConn->pStream ) { return false; }
 	pTx = pConn->pTx;
 	if ( !pTx || !pTx->pSendBuf || pTx->iSendLen == 0u ) { return false; }
+	__xhttpDiagnosticsSetPhase(pTx, XHTTP_PHASE_WRITE);
 	if ( xrtNetStreamSend(pConn->pStream, pTx->pSendBuf, pTx->iSendLen) != XRT_NET_OK ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_WRITE, XHTTP_PHASE_WRITE);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
 		return false;
 	}
+	pTx->tDiagnostics.iRequestSentMs = __xhttpNowMs();
+	__xhttpDiagnosticsSetPhase(pTx, XHTTP_PHASE_RESPONSE_HEADERS);
 	__xhttpTxRefreshIdleTimeout(pTx);
 	return true;
 }
@@ -1554,6 +1749,7 @@ static void __xhttpTxTimeoutTask(xnetworker* pWorker, ptr pArg)
 	(void)pWorker;
 	if ( !pTx ) { return; }
 	if ( __xhttpAtomicLoad(&pTx->iComplete) == 0 ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_TIMEOUT_TOTAL, pTx->tDiagnostics.ePhase);
 		(void)__xhttpTxComplete(pTx, XRT_NET_TIMEOUT, NULL);
 		__xhttpTxAbortStream(pTx);
 	}
@@ -1567,6 +1763,10 @@ static void __xhttpClientOnOpen(ptr pOwner, xnetstream* pStream)
 	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
 	if ( !pConn || !pStream ) { return; }
 	pConn->bOpen = true;
+	if ( pConn->pTx ) {
+		pConn->pTx->tDiagnostics.iConnectedMs = __xhttpNowMs();
+		__xhttpDiagnosticsSetPhase(pConn->pTx, XHTTP_PHASE_WRITE);
+	}
 	(void)__xhttpConnSendActiveTx(pConn);
 }
 
@@ -1605,6 +1805,9 @@ static size_t __xhttpStreamFindHeaderEnd(const xnetchain* pChain)
 static void __xhttpStreamFail(__xhttp_tx* pTx, xnet_result iStatus)
 {
 	if ( !pTx ) { return; }
+	if ( iStatus == XRT_NET_ERROR && pTx->tDiagnostics.eError == XHTTP_ERROR_NONE ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_PROTOCOL, pTx->tDiagnostics.ePhase);
+	}
 	(void)__xhttpTxComplete(pTx, iStatus, NULL);
 	__xhttpTxAbortStream(pTx);
 }
@@ -1617,6 +1820,7 @@ static bool __xhttpStreamEmitBody(__xhttp_tx* pTx, const void* pData, size_t iLe
 	if ( iLen == 0u ) { return true; }
 	if ( pTx->tStreamCallbacks.OnBody &&
 		!pTx->tStreamCallbacks.OnBody(pTx->tStreamCallbacks.pUserData, pData, iLen) ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_CALLBACK_ABORT, XHTTP_PHASE_RESPONSE_BODY);
 		__xhttpStreamFail(pTx, XRT_NET_CANCELLED);
 		return false;
 	}
@@ -1789,7 +1993,11 @@ static int __xhttpStartStreamResponse(__xhttp_tx* pTx, xnetstream* pStream, xnet
 	if ( !pTx || !pStream || !pChain ) { return -1; }
 	iParse = xrtCodecHttp1ParseHead(pChain, &tFrame, &tMsg);
 	if ( iParse == XCODEC_STATUS_NEED_MORE ) { return 0; }
-	if ( iParse == XCODEC_STATUS_ERROR ) { __xhttpStreamFail(pTx, XRT_NET_ERROR); return -1; }
+	if ( iParse == XCODEC_STATUS_ERROR ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_PROTOCOL, XHTTP_PHASE_RESPONSE_HEADERS);
+		__xhttpStreamFail(pTx, XRT_NET_ERROR);
+		return -1;
+	}
 	// Ignore non-upgrade informational responses and continue with the final response.
 	if ( tMsg.iStatusCode >= 100u && tMsg.iStatusCode < 200u && tMsg.iStatusCode != 101u ) {
 		xrtNetChainConsume(pChain, tFrame.iHeaderBytes);
@@ -1799,12 +2007,15 @@ static int __xhttpStartStreamResponse(__xhttp_tx* pTx, xnetstream* pStream, xnet
 	pResp = __xhttpBuildResponse(&tFrame, &tMsg, pChain);
 	if ( !pResp ) {
 		xrtCodecHttp1MessageUnit(&tMsg);
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_RESPONSE_HEADERS);
 		__xhttpStreamFail(pTx, XRT_NET_ERROR);
 		return -1;
 	}
 	bNoBodyExpected = __xhttpStatusHasNoBody(tMsg.iStatusCode) || __xhttpStrEqNoCase(pTx->tReq.sMethod, "HEAD");
 	pTx->pStreamResp = pResp;
 	pTx->bStreamHeadersDelivered = true;
+	pTx->tDiagnostics.iHeadersMs = __xhttpNowMs();
+	__xhttpDiagnosticsSetPhase(pTx, XHTTP_PHASE_RESPONSE_BODY);
 	pTx->iBodyReceived = 0u;
 	pTx->iStreamChunkState = __XHTTP_STREAM_CHUNK_SIZE;
 	if ( bNoBodyExpected || tMsg.iContentLength == 0 ) {
@@ -1821,6 +2032,7 @@ static int __xhttpStartStreamResponse(__xhttp_tx* pTx, xnetstream* pStream, xnet
 	xrtCodecHttp1MessageUnit(&tMsg);
 	if ( pTx->tStreamCallbacks.OnHeaders &&
 		!pTx->tStreamCallbacks.OnHeaders(pTx->tStreamCallbacks.pUserData, pResp) ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_CALLBACK_ABORT, XHTTP_PHASE_RESPONSE_HEADERS);
 		__xhttpStreamFail(pTx, XRT_NET_CANCELLED);
 		return -1;
 	}
@@ -1848,6 +2060,10 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	if ( !pTx || !pStream || !pChain ) { return; }
 	/* Do not enter user callbacks after cancellation completed on another thread. */
 	if ( __xhttpAtomicLoad(&pTx->iComplete) != 0 ) { return; }
+	if ( pTx->tDiagnostics.iFirstByteMs == 0u ) {
+		pTx->tDiagnostics.iFirstByteMs = __xhttpNowMs();
+		__xhttpDiagnosticsSetPhase(pTx, XHTTP_PHASE_RESPONSE_HEADERS);
+	}
 	// 刷新空闲超时定时器
 	__xhttpTxRefreshIdleTimeout(pTx);
 	// 解析 HTTP 响应
@@ -1879,6 +2095,7 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	}
 	// 解析失败，终止事务
 	if ( iParse == XCODEC_STATUS_ERROR ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_PROTOCOL, XHTTP_PHASE_RESPONSE_HEADERS);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
@@ -1893,6 +2110,7 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	pResp = __xhttpBuildResponse(&tFrame, &tMsg, pChain);
 	if ( !pResp ) {
 		xrtCodecHttp1MessageUnit(&tMsg);
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_RESPONSE_HEADERS);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
@@ -1901,6 +2119,8 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	xrtCodecFrameConsume(pChain, &tFrame);
 	// 判断连接是否可复用
 response_ready:
+	pTx->tDiagnostics.iHeadersMs = __xhttpNowMs();
+	__xhttpDiagnosticsSetPhase(pTx, XHTTP_PHASE_RESPONSE_BODY);
 	bReusable = __xhttpResponseReusable(pTx, &tMsg) && (!bNoBodyExpected || xrtNetChainBytes(pChain) == 0u);
 	xrtCodecHttp1MessageUnit(&tMsg);
 	if ( bReusable && pConn ) {
@@ -1970,6 +2190,10 @@ static void __xhttpClientOnClose(ptr pOwner, xnetstream* pStream, xnet_result iR
 		pTx->pStream = NULL;
 	}
 	if ( pTx && __xhttpAtomicLoad(&pTx->iComplete) == 0 ) {
+		__xhttpDiagnosticsSetError(
+			pTx,
+			iReason == XRT_NET_CLOSED ? XHTTP_ERROR_CONNECTION_CLOSED : XHTTP_ERROR_TRANSPORT,
+			pTx->tDiagnostics.ePhase);
 		(void)__xhttpTxComplete(pTx, iReason == XRT_NET_CLOSED ? XRT_NET_CLOSED : XRT_NET_ERROR, NULL);
 	}
 	if ( pTx ) { __xhttpTxPostCleanup(pTx); }
@@ -1984,7 +2208,13 @@ static void __xhttpClientOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 	__xhttp_tx* pTx = pConn ? pConn->pTx : NULL;
 	(void)pStream;
 	if ( pConn ) { pConn->iLastSysErr = iSysErr; }
-	if ( pTx ) { pTx->iLastSysErr = iSysErr; }
+	if ( pTx ) {
+		pTx->iLastSysErr = iSysErr;
+		__xhttpDiagnosticsSetError(
+			pTx,
+			pTx->tDiagnostics.ePhase == XHTTP_PHASE_CONNECT ? XHTTP_ERROR_CONNECT : XHTTP_ERROR_TRANSPORT,
+			pTx->tDiagnostics.ePhase);
+	}
 }
 
 
@@ -2016,16 +2246,31 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 
 	// 参数校验与引擎解析
 	if ( !pReq ) { return NULL; }
-	if ( pClient && __xhttpAtomicLoad(&pClient->iClosing) != 0 ) { return NULL; }
+	if ( pReq->pDiagnostics ) {
+		xrtHttpDiagnosticsInit(pReq->pDiagnostics);
+		pReq->pDiagnostics->ePhase = XHTTP_PHASE_PREPARE;
+		pReq->pDiagnostics->iStartedMs = __xhttpNowMs();
+	}
+	if ( pClient && __xhttpAtomicLoad(&pClient->iClosing) != 0 ) {
+		__xhttpDiagnosticsCompleteEarly(pReq->pDiagnostics, XHTTP_ERROR_INVALID_ARGUMENT, XHTTP_PHASE_PREPARE, XRT_NET_ERROR);
+		return NULL;
+	}
 	pResolvedEngine = pClient ? pClient->pEngine : __xnetSyncResolveEngine(pEngine);
-	if ( !pResolvedEngine ) { return NULL; }
+	if ( !pResolvedEngine ) {
+		__xhttpDiagnosticsCompleteEarly(pReq->pDiagnostics, XHTTP_ERROR_TRANSPORT, XHTTP_PHASE_PREPARE, XRT_NET_ERROR);
+		return NULL;
+	}
 	// 创建 Future 用于异步返回结果
 	pFuture = xrtNetFutureCreate();
-	if ( !pFuture ) { return NULL; }
+	if ( !pFuture ) {
+		__xhttpDiagnosticsCompleteEarly(pReq->pDiagnostics, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_PREPARE, XRT_NET_ERROR);
+		return NULL;
+	}
 
 	// 分配并初始化事务对象
 	pTx = (__xhttp_tx*)XNET_ALLOC(sizeof(__xhttp_tx));
 	if ( !pTx ) {
+		__xhttpDiagnosticsCompleteEarly(pReq->pDiagnostics, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_PREPARE, XRT_NET_ERROR);
 		xrtNetFutureDestroy(pFuture);
 		return NULL;
 	}
@@ -2033,6 +2278,10 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 	pTx->iRefCount = 1;
 	pTx->pEngine = pResolvedEngine;
 	pTx->pFuture = pFuture;
+	xrtHttpDiagnosticsInit(&pTx->tDiagnostics);
+	pTx->tDiagnostics.ePhase = XHTTP_PHASE_PREPARE;
+	pTx->tDiagnostics.iStartedMs = __xhttpNowMs();
+	pTx->tReq.pDiagnostics = pReq->pDiagnostics;
 	__xnetFutureAddAsyncHold(pFuture);
 	pTx->pClient = __xhttpClientAddRef(pClient);
 	pTx->bStreaming = bStreaming;
@@ -2040,12 +2289,14 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 	pTx->iStreamChunkState = __XHTTP_STREAM_CHUNK_SIZE;
 	if ( pCallbacks ) { memcpy(&pTx->tStreamCallbacks, pCallbacks, sizeof(xhttpstreamcallbacks)); }
 	if ( !__xhttpFutureAttachCancel(pTx) ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_PREPARE);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		__xhttpTxRelease(pTx);
 		return pFuture;
 	}
 	// 克隆请求数据到事务中
 	if ( !__xhttpRequestClone(&pTx->tReq, pReq) ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_PREPARE);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		__xhttpTxRelease(pTx);
 		return pFuture;
@@ -2053,6 +2304,7 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 	// 延迟解析 URL（若主机地址为空则从 sURL 重新解析）
 	if ( pTx->tReq.tURL.sHost[0] == '\0' ) {
 	if ( pTx->tReq.sURL[0] == '\0' || !xrtUrlParseFixedTo(pTx->tReq.sURL, "http", "https", &pTx->tReq.tURL.bHttps, pTx->tReq.tURL.sHost, sizeof(pTx->tReq.tURL.sHost), &pTx->tReq.tURL.iPort, pTx->tReq.tURL.sPath, sizeof(pTx->tReq.tURL.sPath)) ) {
+			__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_INVALID_URL, XHTTP_PHASE_PREPARE);
 			(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 			__xhttpTxRelease(pTx);
 			return pFuture;
@@ -2060,6 +2312,7 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 	}
 	// 序列化请求为原始字节
 	if ( !__xhttpBuildRequestBytes(&pTx->tReq, &pTx->pSendBuf, &pTx->iSendLen) ) {
+		__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_PREPARE);
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		__xhttpTxRelease(pTx);
 		return pFuture;
@@ -2071,6 +2324,7 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 		// 空闲池中无可用连接，创建新连接
 		pConn = (__xhttp_conn*)XNET_ALLOC(sizeof(__xhttp_conn));
 		if ( !pConn ) {
+			__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_CONNECT);
 			(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 			__xhttpTxRelease(pTx);
 			return pFuture;
@@ -2086,6 +2340,7 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 		// 创建网络流并绑定客户端事件
 		pConn->pStream = xrtNetStreamCreate(pResolvedEngine, __xhttpClientEvents(), pConn);
 		if ( !pConn->pStream ) {
+			__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_OUT_OF_MEMORY, XHTTP_PHASE_CONNECT);
 			(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 			if ( pConn->pProxy ) {
 				xrtNetProxyRelease(pConn->pProxy);
@@ -2096,6 +2351,9 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 			__xhttpTxRelease(pTx);
 			return pFuture;
 		}
+	} else {
+		pTx->tDiagnostics.bReusedConnection = true;
+		pTx->tDiagnostics.iConnectedMs = pTx->tDiagnostics.iStartedMs;
 	}
 
 	// 绑定事务到连接
@@ -2105,6 +2363,7 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 
 	// 连接未打开时发起连接请求
 	if ( !pConn->bOpen ) {
+		__xhttpDiagnosticsSetPhase(pTx, XHTTP_PHASE_CONNECT);
 		xrtNetConnectConfigInit(&tConnCfg);
 		tConnCfg.sHost = pTx->tReq.tURL.sHost;
 		tConnCfg.iPort = pTx->tReq.tURL.iPort;
@@ -2119,6 +2378,7 @@ static xnetfuture* __xhttpExecuteAsyncEx(xhttpclient* pClient, xnetengine* pEngi
 			tConnCfg.pTlsConfig = &pConn->tTlsCfg;
 		}
 		if ( xrtNetStreamConnect(pConn->pStream, &tConnCfg) != XRT_NET_OK ) {
+			__xhttpDiagnosticsSetError(pTx, XHTTP_ERROR_CONNECT, XHTTP_PHASE_CONNECT);
 			(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 			xrtNetStreamDestroy(pConn->pStream);
 			pConn->pStream = NULL;

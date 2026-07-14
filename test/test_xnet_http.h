@@ -489,6 +489,29 @@ void Test_XNet_Http(void)
 	}
 
 	{
+		xhttprequest tReq;
+		xhttpdiagnostics tDiagnostics;
+		xnetfuture* pFuture;
+		xnet_result iStatus;
+		xrtHttpRequestInit(&tReq);
+		printf("  HTTP diagnostics reject invalid URL input : %s\n", !xrtHttpRequestSetURL(&tReq, "not-an-http-url") ? "PASS" : "FAIL");
+		xrtHttpRequestSetDiagnostics(&tReq, &tDiagnostics);
+		pFuture = xrtHttpExecuteAsync(NULL, &tReq);
+		iStatus = pFuture ? xrtNetFutureWait(pFuture, 1000u) : XRT_NET_ERROR;
+		printf("  HTTP invalid URL diagnostics : %s\n",
+			iStatus == XRT_NET_ERROR &&
+			tDiagnostics.eError == XHTTP_ERROR_INVALID_URL &&
+			tDiagnostics.ePhase == XHTTP_PHASE_PREPARE &&
+			tDiagnostics.iCompletedMs >= tDiagnostics.iStartedMs ? "PASS" : "FAIL");
+		printf("  HTTP diagnostic stable names : %s\n",
+			strcmp(xrtHttpErrorCodeName(tDiagnostics.eError), "invalid_url") == 0 &&
+			strcmp(xrtHttpPhaseName(tDiagnostics.ePhase), "prepare") == 0 ? "PASS" : "FAIL");
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		xrtHttpRequestUnit(&tReq);
+		xrtNetSyncShutdownHiddenEngine();
+	}
+
+	{
 		__test_xhttp_server tServer;
 		xnetengineconfig tCfg;
 		xnetengine* pClientEngine = NULL;
@@ -506,12 +529,25 @@ void Test_XNet_Http(void)
 		xrtHttpRequestInit(&tReq);
 		(void)xrtHttpRequestSetURL(&tReq, sURL);
 		(void)xrtHttpRequestSetHeader(&tReq, "User-Agent", "xhttp-async");
+		xhttpdiagnostics tDiagnostics;
+		xrtHttpRequestSetDiagnostics(&tReq, &tDiagnostics);
 		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
 		printf("  HTTP async future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
 		printf("  HTTP async future wait : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 3000)) == XRT_NET_OK ? "PASS" : "FAIL");
 		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
 		printf("  HTTP async response status : %s\n", pResp && pResp->iStatusCode == 200 ? "PASS" : "FAIL");
 		printf("  HTTP async response body : %s\n", pResp && pResp->iBodyLen == 5 && memcmp(pResp->pBody, "world", 5) == 0 ? "PASS" : "FAIL");
+		printf("  HTTP async diagnostics success : %s\n",
+			tDiagnostics.eError == XHTTP_ERROR_NONE &&
+			tDiagnostics.ePhase == XHTTP_PHASE_COMPLETE &&
+			tDiagnostics.eTransportStatus == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  HTTP async diagnostics timing : %s\n",
+			tDiagnostics.iStartedMs > 0u &&
+			tDiagnostics.iCompletedMs >= tDiagnostics.iStartedMs &&
+			tDiagnostics.iFirstByteMs >= tDiagnostics.iRequestSentMs &&
+			tDiagnostics.iResponseBodyBytes == 5u ? "PASS" : "FAIL");
+		printf("  HTTP async response carries diagnostics : %s\n",
+			pResp && xrtHttpResponseDiagnostics(pResp)->eTransportStatus == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  HTTP server accepted request : %s\n", __Test_XHttpWaitMin(&tServer.iAcceptCount, 1, 1000) ? "PASS" : "FAIL");
 		printf("  HTTP server saw method : %s\n", strcmp(tServer.aLastMethod, "GET") == 0 ? "PASS" : "FAIL");
 		printf("  HTTP server saw target : %s\n", strcmp(tServer.aLastTarget, "/hello") == 0 ? "PASS" : "FAIL");
@@ -550,10 +586,15 @@ void Test_XNet_Http(void)
 		if ( pClientEngine ) { (void)xrtNetEngineStart(pClientEngine); }
 		xrtHttpRequestInit(&tReq);
 		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		xhttpdiagnostics tCancelDiagnostics;
+		xrtHttpRequestSetDiagnostics(&tReq, &tCancelDiagnostics);
 		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
 		printf("  HTTP explicit pending cancel reached server : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 1000u) ? "PASS" : "FAIL");
 		printf("  HTTP explicit pending cancel request : %s\n", pFuture && xrtHttpCancel(pFuture) ? "PASS" : "FAIL");
 		printf("  HTTP explicit pending cancel status : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 1000u)) == XRT_NET_CANCELLED ? "PASS" : "FAIL");
+		printf("  HTTP explicit pending cancel diagnostics : %s\n",
+			tCancelDiagnostics.eError == XHTTP_ERROR_CANCELLED &&
+			tCancelDiagnostics.eTransportStatus == XRT_NET_CANCELLED ? "PASS" : "FAIL");
 		__Test_XHttpSleepMs(300u);
 		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
 		xrtHttpRequestUnit(&tReq);
@@ -976,9 +1017,14 @@ void Test_XNet_Http(void)
 		(void)xrtHttpRequestSetURL(&tReq, sURL);
 		xrtHttpRequestSetTimeout(&tReq, 1000u);
 		xrtHttpRequestSetIdleTimeout(&tReq, 100u);
+		xhttpdiagnostics tIdleDiagnostics;
+		xrtHttpRequestSetDiagnostics(&tReq, &tIdleDiagnostics);
 		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
 		printf("  HTTP idle timeout future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
 		printf("  HTTP idle timeout status : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 1500u)) == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
+		printf("  HTTP idle timeout diagnostics : %s\n",
+			tIdleDiagnostics.eError == XHTTP_ERROR_TIMEOUT_IDLE &&
+			tIdleDiagnostics.eTransportStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
 		printf("  HTTP idle timeout request reached server : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 1000u) ? "PASS" : "FAIL");
 		__Test_XHttpSleepMs(320u);
 		if ( pFuture ) xrtNetFutureDestroy(pFuture);
@@ -1015,9 +1061,14 @@ void Test_XNet_Http(void)
 		(void)xrtHttpRequestSetURL(&tReq, sURL);
 		xrtHttpRequestSetTimeout(&tReq, 100u);
 		xrtHttpRequestSetIdleTimeout(&tReq, 400u);
+		xhttpdiagnostics tTotalDiagnostics;
+		xrtHttpRequestSetDiagnostics(&tReq, &tTotalDiagnostics);
 		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
 		printf("  HTTP total+idle future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
 		printf("  HTTP total+idle total timeout wins : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 1200u)) == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
+		printf("  HTTP total timeout diagnostics : %s\n",
+			tTotalDiagnostics.eError == XHTTP_ERROR_TIMEOUT_TOTAL &&
+			tTotalDiagnostics.eTransportStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
 		printf("  HTTP total+idle request reached server : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 1000u) ? "PASS" : "FAIL");
 		__Test_XHttpSleepMs(320u);
 		if ( pFuture ) xrtNetFutureDestroy(pFuture);
@@ -1047,6 +1098,8 @@ void Test_XNet_Http(void)
 		pClient = xrtHttpClientCreate(pClientEngine);
 		printf("  HTTP client-scoped pool create : %s\n", pClient ? "PASS" : "FAIL");
 		xrtHttpRequestInit(&tReq);
+		xhttpdiagnostics tPoolDiagnostics;
+		xrtHttpRequestSetDiagnostics(&tReq, &tPoolDiagnostics);
 		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/client-pool-a", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
 		(void)xrtHttpRequestSetURL(&tReq, sURL);
 		pResp = xrtHttpClientExecuteSync(pClient, &tReq, &iStatus);
@@ -1057,6 +1110,7 @@ void Test_XNet_Http(void)
 		pResp = xrtHttpClientExecuteSync(pClient, &tReq, &iStatus);
 		printf("  HTTP client-scoped pool request #2 : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iBodyLen == 4u ? "PASS" : "FAIL");
 		printf("  HTTP client-scoped pool reused connection : %s\n", __Test_XHttpAtomicLoad(&tServer.iAcceptCount) == 1 ? "PASS" : "FAIL");
+		printf("  HTTP client-scoped diagnostics reused connection : %s\n", tPoolDiagnostics.bReusedConnection ? "PASS" : "FAIL");
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); pResp = NULL; }
 		xrtHttpClientCloseIdle(pClient);
 		__Test_XHttpSleepMs(50u);

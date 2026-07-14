@@ -104,6 +104,27 @@ if ( !xrtHttpCancel(future) ) {
 
 Cancellation resolves the future with `XRT_NET_CANCELLED` and aborts the active connection. It works for both buffered and streaming execution.
 
+## Per-request diagnostics
+
+Attach a caller-owned `xhttpdiagnostics` before execution when the provider layer needs stable failure classification and timing data:
+
+```c
+xhttpdiagnostics diagnostics;
+
+xrtHttpRequestSetDiagnostics(&req, &diagnostics);
+future = xrtHttpExecuteAsync(engine, &req);
+status = xrtNetFutureWait(future, XNET_WAIT_INFINITE);
+
+printf("error=%s phase=%s total=%llu ms\n",
+	xrtHttpErrorCodeName(diagnostics.eError),
+	xrtHttpPhaseName(diagnostics.ePhase),
+	(unsigned long long)diagnostics.iTotalDurationMs);
+```
+
+The diagnostics object is borrowed and must outlive the asynchronous request. It is initialized when execution starts and contains the final transport status, system error, total/idle timeout distinction, cancellation, protocol/callback failures, connection reuse, monotonic milestones, derived durations, and byte counts after the future completes. Successful responses also own the same final snapshot, available through `xrtHttpResponseDiagnostics()`.
+
+XRT reports transport facts but does not retry requests automatically. Retry and idempotency policy belongs to the caller (for example, an LLM provider adapter).
+
 ## Client-scoped connection pools
 
 Use one `xhttpclient` for a long-lived provider or service boundary. It binds to one `xnetengine` and owns a separate keep-alive pool.
