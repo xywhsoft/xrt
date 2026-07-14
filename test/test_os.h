@@ -654,8 +654,10 @@ static int Test_OS(xrtGlobalData* xCore)
 
 	{
 		/* A shell child inherits the capture pipe. Timeout must terminate the
-		 * process tree, not only the shell root, or capture blocks until this
-		 * five-second helper closes the inherited pipe. */
+		 * process group, not only the shell root, or capture blocks until this
+		 * five-second helper closes the inherited pipe. POSIX can complete at
+		 * the interrupt stage because SIGINT is delivered to the whole group;
+		 * Windows may need to escalate to kill-tree. */
 		str sCommand = xrtFormat("\"%s\" __subprocess_helper sleep_exit 5000 0", xCore->AppFile);
 
 		if ( sCommand == NULL ) {
@@ -672,8 +674,14 @@ static int Test_OS(xrtGlobalData* xCore)
 			return 6074;
 		}
 		xrtFree(sCommand);
-		if ( !tResult.ExitInfo.bTimedOut || tResult.ExitInfo.iStopReason != XPROC_STOP_KILL_TREE ||
+		if ( !tResult.ExitInfo.bTimedOut || tResult.ExitInfo.iStopReason == XPROC_STOP_NONE ||
 			 tResult.ExitInfo.bCancelled || tResult.iDurationMs > 2000u ) {
+			fprintf(stderr,
+				"timeout containment: timed_out=%d stop_reason=%d cancelled=%d duration_ms=%llu\n",
+				tResult.ExitInfo.bTimedOut ? 1 : 0,
+				tResult.ExitInfo.iStopReason,
+				tResult.ExitInfo.bCancelled ? 1 : 0,
+				(unsigned long long)tResult.iDurationMs);
 			xrtProcessResultUnit(&tResult);
 			return 6075;
 		}
