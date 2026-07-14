@@ -520,6 +520,26 @@ XXAPI void xrtAsyncFileBufDestroy(xasyncfilebuf* pBuf)
 }
 
 
+// 分离异步文件缓冲区数据并销毁外层对象
+XXAPI ptr xrtAsyncFileBufDetach(xasyncfilebuf* pBuf, size_t* pSize, uint64* pOffset, bool* pEOF)
+{
+	ptr pData;
+	if ( pSize != NULL ) { *pSize = 0u; }
+	if ( pOffset != NULL ) { *pOffset = 0u; }
+	if ( pEOF != NULL ) { *pEOF = FALSE; }
+	if ( pBuf == NULL ) {
+		return NULL;
+	}
+	pData = pBuf->pData;
+	if ( pSize != NULL ) { *pSize = pBuf->iSize; }
+	if ( pOffset != NULL ) { *pOffset = pBuf->iOffset; }
+	if ( pEOF != NULL ) { *pEOF = pBuf->bEOF; }
+	pBuf->pData = NULL;
+	xrtFree(pBuf);
+	return pData;
+}
+
+
 // 异步销毁文件 io
 XXAPI void xrtAsyncFileIoDestroy(xasyncfileio* pInfo)
 {

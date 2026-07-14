@@ -1,284 +1,136 @@
-# XHTTP HTTP/1.1 客户端主线
+# XHTTP HTTP/1.1 客户端
 
-> 基于 `xnet-v2 + xtlssession` 的当前 HTTP/1.1 客户端主线。
+`xhttp` 是 XRT 基于 `xnet-v2` 与 `xtlssession` 实现的 HTTP/1.1 客户端。本阶段明确不实现 HTTP/2。
 
 [返回索引](README.md)
 
----
+## 能力范围
 
-## 1. 定位
+- 明文 HTTP 与内置 TLS
+- 直连、SOCKS5 和 HTTP CONNECT 传输
+- 缓冲请求体
+- 缓冲接收或增量回调响应体
+- `Content-Length`、chunked 和连接关闭定界的响应
+- 总超时、空闲超时与显式取消
+- 可动态增长的请求头和响应头集合
+- 兼容 API 使用的进程级连接池，以及可独立管理的客户端连接池
 
-`xhttp` 是当前主线 HTTP 客户端。
+## 请求与响应的所有权
 
-它提供：
+栈上请求必须通过 `xrtHttpRequestInit()` 初始化，并通过 `xrtHttpRequestUnit()` 释放。请求对象拥有复制后的请求体、扩展的请求头存储，以及它持有的代理对象引用。
 
-- 请求对象与响应对象
-- 同步执行与异步执行
-- 基于 `xnetengine` 的统一执行模型
-- 对 `http / https` 的统一支持
-- 对 `SOCKS5 CONNECT / HTTP CONNECT` 代理的统一支持
-- 同源串行 keep-alive 连接复用
+成功完成的 future 不会自动销毁响应。调用方取得 `xhttpresponse*` 后，必须调用 `xrtHttpResponseDestroy()`。
 
-它的设计目标不是做一个巨大而复杂的客户端框架，而是提供：
+流式执行返回的最终响应只保存状态码和响应头等元数据。此时 `pBody` 为 `NULL`，`iBodyLen` 记录已通过 `OnBody` 交付的解码后字节总数。
 
-- 足够轻量
-- 对基础设施友好
-- 能和 `future / task / promise`
-- 能和 `xnet-v2`
-- 能和 AI / HTTP API 调用场景自然衔接
+请求对象初始化后不要按值复制或使用 `memcpy` 复制；需要创建独立请求时，应重新初始化并通过公开 API 设置字段。
 
-
-## 2. 核心类型
-
-### `xhttprequest`
-
-当前请求对象包含这些核心字段：
-
-- `sMethod`
-- `sURL`
-- `tURL`
-- `arrHeaders`
-- `iHeaderCount`
-- `pBody / iBodyLen`
-- `iTimeoutMs`
-- `bVerifyPeer`
-- `pProxy`
-
-它的设计特点是：
-
-- 默认适合 whole-body 请求
-- URL 既可保留原始串，也会解析到固定结构
-- 头字段采用固定数组，避免过重依赖
-- 代理不内嵌在请求连接结构里，而是通过共享 `xnetproxy` 对象透传
-
-
-### `xhttpresponse`
-
-响应对象包含：
-
-- `iStatusCode`
-- `iFlags`
-- `iHeaderCount`
-- `iContentLength`
-- `sVersion`
-- `sReason`
-- `arrHeaders`
-- `pBody / iBodyLen`
-
-当前主线的主要路径是：
-
-- 收完整响应
-- 再把响应对象交给上层消费
-
-
-## 3. 当前正式 API
-
-### 请求对象
+## Header API
 
 ```c
-XXAPI void xrtHttpRequestInit(xhttprequest* pReq);
-XXAPI void xrtHttpRequestUnit(xhttprequest* pReq);
-XXAPI bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod);
-XXAPI bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL);
-XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue);
-XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType);
-XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
-XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
+bool xrtHttpRequestSetHeader(xhttprequest* req, const char* name, const char* value);
+bool xrtHttpRequestAddHeader(xhttprequest* req, const char* name, const char* value);
+uint32 xrtHttpRequestRemoveHeader(xhttprequest* req, const char* name);
+
+const char* xrtHttpResponseHeader(const xhttpresponse* resp, const char* name);
+uint32 xrtHttpResponseHeaderCount(const xhttpresponse* resp);
+const char* xrtHttpResponseHeaderNameAt(const xhttpresponse* resp, uint32 index);
+const char* xrtHttpResponseHeaderValueAt(const xhttpresponse* resp, uint32 index);
 ```
 
-推荐流程：
+`SetHeader` 按大小写不敏感匹配并替换第一个同名项；`AddHeader` 保留 `Set-Cookie` 等合法重复项；`RemoveHeader` 删除全部同名项。
 
-1. `RequestInit`
-2. 设置 `Method / URL`
-3. 按需设置 Header
-4. 按需设置 Body
-5. 设置超时与证书校验策略
-6. 按需设置 `pProxy`
-7. 执行请求
-8. `RequestUnit`
-
-
-### 响应对象
+## 缓冲执行
 
 ```c
-XXAPI void xrtHttpResponseDestroy(xhttpresponse* pResp);
-XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName);
+xhttprequest req;
+xhttpresponse* resp;
+xnet_result status;
+
+xrtHttpRequestInit(&req);
+xrtHttpRequestSetMethod(&req, "POST");
+xrtHttpRequestSetURL(&req, "https://example.com/v1/chat");
+xrtHttpRequestSetHeader(&req, "Authorization", "Bearer ...");
+xrtHttpRequestSetBodyCopy(&req, json, strlen(json), "application/json");
+xrtHttpRequestSetTimeout(&req, 120000u);
+xrtHttpRequestSetIdleTimeout(&req, 30000u);
+
+resp = xrtHttpExecuteSync(engine, &req, &status);
+if ( resp ) {
+	/* 使用 resp->pBody */
+	xrtHttpResponseDestroy(resp);
+}
+xrtHttpRequestUnit(&req);
 ```
 
-用途：
+`xrtHttpExecuteAsync()` 使用相同传输路径，并返回 `xnetfuture*`。
 
-- 读取响应头
-- 释放响应对象
+## 流式执行
 
-
-### 执行 API
+回调运行在连接对应的网络工作线程中。传给 `OnBody` 的数据指针只在本次回调期间有效。任一回调返回 `false` 都会取消请求。
 
 ```c
-XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq);
-XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus);
-XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine);
-```
-
-说明：
-
-- `ExecuteAsync`：返回 future，适合和协程 / task / wait-source 主线组合
-- `ExecuteSync`：同步等待一笔请求完成
-- `CloseIdleConnections`：主动关闭空闲 keep-alive 连接
-- 请求本身没有额外的 `SetProxy` helper，直接给 `xhttprequest.pProxy` 赋共享代理对象即可
-
-
-## 4. 连接与协议行为
-
-当前 `xhttp` 的主路径特点是：
-
-- 基于 `xnet_stream`
-- 支持明文 HTTP 与内建 TLS
-- 支持 `SOCKS5 CONNECT` 与 `HTTP CONNECT`
-- 按 origin 进行串行 keep-alive 复用
-- chunked transfer 已支持
-- trailer 当前仍更偏元数据保留
-
-代理相关行为：
-
-- 连接预打开时序为：`TCP -> proxy handshake -> TLS -> HTTP request`
-- keep-alive 连接池会把代理对象维度纳入匹配，不会把“相同目标站点、不同代理”的连接混用
-- 未配置 `pProxy` 时保持直连
-
-这意味着：
-
-- 普通 REST / JSON / LLM API 调用是当前最适合的使用场景
-- 如果你要的是大规模流式 request/response body，当前还属于后续增强方向
-
-## 5. 当前最推荐的使用场景
-
-当前 `xhttp` 最适合这些场景：
-
-- REST / JSON API
-- 内部服务之间的 HTTP 调用
-- 互联网 API 调用
-- 非浏览器型的 LLM API 请求
-
-也就是说，它当前更适合：
-
-- whole-body 请求
-- whole-body 响应
-- 结构化数据交互
-
-## 6. 常见用法
-
-### 5.1 同步请求
-
-```c
-xhttprequest tReq;
-xhttpresponse* pResp;
-xnet_result iStatus;
-
-xrtHttpRequestInit(&tReq);
-xrtHttpRequestSetMethod(&tReq, "GET");
-xrtHttpRequestSetURL(&tReq, "https://example.com/api/v1");
-xrtHttpRequestSetTimeout(&tReq, 10000u);
-
-pResp = xrtHttpExecuteSync(pEngine, &tReq, &iStatus);
-if ( pResp != NULL ) {
-	const char* sType = xrtHttpResponseHeader(pResp, "Content-Type");
-	xrtHttpResponseDestroy(pResp);
+static bool on_headers(ptr user, const xhttpresponse* resp)
+{
+	return resp->iStatusCode >= 200u;
 }
 
-xrtHttpRequestUnit(&tReq);
+static bool on_body(ptr user, const void* data, size_t len)
+{
+	return consume_sse(user, data, len);
+}
+
+xhttpstreamcallbacks callbacks;
+xnetfuture* future;
+
+xrtHttpStreamCallbacksInit(&callbacks);
+callbacks.pUserData = state;
+callbacks.OnHeaders = on_headers;
+callbacks.OnBody = on_body;
+
+future = xrtHttpExecuteStreamAsync(engine, &req, &callbacks);
+status = xrtNetFutureWait(future, XNET_WAIT_INFINITE);
+resp = status == XRT_NET_OK ? xrtNetFutureValue(future) : NULL;
 ```
 
+chunked 分帧会在调用 `OnBody` 前移除。响应 trailer 当前会被正确消费，但尚未作为响应元数据公开。
 
-### 5.2 异步请求
+## 取消
 
 ```c
-xnetfuture* pFuture;
-
-pFuture = xrtHttpExecuteAsync(pEngine, &tReq);
-/* 后续可通过 future / 协程等待 */
+if ( !xrtHttpCancel(future) ) {
+	/* 请求可能已经完成 */
+}
 ```
 
+取消操作会中断活动连接，并以 `XRT_NET_CANCELLED` 完成 future。缓冲执行和流式执行都支持取消。
 
-### 5.3 POST JSON
+## 独立客户端与连接池
+
+建议为一个长期存活的模型提供方或服务边界创建一个 `xhttpclient`。它绑定一个 `xnetengine`，并独立拥有 keep-alive 连接池。
 
 ```c
-xrtHttpRequestInit(&tReq);
-xrtHttpRequestSetMethod(&tReq, "POST");
-xrtHttpRequestSetURL(&tReq, "https://example.com/chat");
-xrtHttpRequestSetHeader(&tReq, "Authorization", "Bearer ...");
-xrtHttpRequestSetBodyCopy(&tReq, sJson, strlen(sJson), "application/json");
+xhttpclient* client = xrtHttpClientCreate(engine);
+
+future = xrtHttpClientExecuteStreamAsync(client, &req, &callbacks);
+/* 等待并释放 future 和响应 */
+
+xrtHttpClientCloseIdle(client);
+xrtHttpClientDestroy(client);
 ```
 
+客户端销毁时，尚在完成异步清理的连接会通过内部引用保证对象生命周期安全。调用 `xrtHttpClientDestroy()` 后不得再发起新请求。
 
-### 5.4 通过代理访问 HTTPS
+兼容 API `xrtHttpExecuteAsync()`、`xrtHttpExecuteSync()` 和 `xrtHttpCloseIdleConnections()` 继续使用进程级默认连接池。
 
-```c
-xnetproxyconfig tProxyCfg;
-xnetproxy* pProxy;
+## 当前边界
 
-xrtNetProxyConfigInit(&tProxyCfg);
-tProxyCfg.iType = XNET_PROXY_HTTP_CONNECT;
-strcpy(tProxyCfg.sHost, "127.0.0.1");
-tProxyCfg.iPort = 7897u;
+- 请求体在发送前完整缓冲
+- 响应 trailer 尚未公开
+- 每条 HTTP/1.1 连接同一时刻只有一个请求，不实现 pipelining
+- 本阶段不计划实现 HTTP/2
 
-pProxy = xrtNetProxyCreate(&tProxyCfg);
-
-xrtHttpRequestInit(&tReq);
-xrtHttpRequestSetURL(&tReq, "https://example.com/api");
-tReq.pProxy = xrtNetProxyAddRef(pProxy);
-
-pResp = xrtHttpExecuteSync(pEngine, &tReq, &iStatus);
-
-xrtHttpRequestUnit(&tReq);
-xrtNetProxyRelease(pProxy);
-```
-
-说明：
-
-- `RequestUnit` 会释放 `tReq.pProxy` 这一份引用
-- 外部创建者仍应在最后 `xrtNetProxyRelease(pProxy)`
-
-
-## 7. 与其他模块的关系
-
-### 与 `xurl`
-
-- 负责 URL 解析和 `Host` 头构建
-
-### 与 `xhttp_util`
-
-- 负责 header / token 等底层文本处理
-
-### 与 `xtlssession`
-
-- `https` 路径通过当前 TLS session 主线工作
-- 走代理时，TLS 建立在代理隧道之后
-
-### 与 `future / task / promise`
-
-- `ExecuteAsync` 返回 future
-- 可直接接入协程等待、组合等待、task group
-
-### 与 AI 场景
-
-- 当前 `xhttp` 是调用 LLM API 的正式 HTTP 主线入口
-- 请求数据更推荐先用 `xvalue` 组织，再统一序列化为 JSON
-- 更复杂的 timeout / cancel / 并发编排，则继续建立在 future / coroutine 主线上
-
-## 8. 当前边界
-
-当前 `xhttp` 文档覆盖的是：
-
-- 当前 HTTP/1.1 客户端主线
-- 请求/响应对象
-- sync/async 执行模型
-
-当前仍明确 deferred 的能力包括：
-
-- 大规模流式 request body
-- 大规模流式 response body
-- 更复杂的连接池策略
-
-## 9. 建议继续阅读
+## 相关模块
 
 - [XNet V2](api-xnet-v2.md)
 - [Network TLS](api-network-tls.md)

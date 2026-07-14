@@ -1168,6 +1168,51 @@ static int __Test_FutureCore_Combinators(void)
 	return 0;
 }
 
+// 验证 source continuation 可绑定尚未完成的 Future
+static int __Test_FutureCore_SourceContinuation(void)
+{
+	xfuture* pSource = NULL;
+	xfuture* pNext = NULL;
+	xpromise* pPromise = NULL;
+	int iBase = 100;
+	int iValue = 0;
+	int iFinally = 0;
+	int iRet = 0;
+
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureThenSource(pSource, __Test_FutureCore_ThenProc, &iValue);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 491; goto Cleanup; }
+	(void)xPromiseResolve(pPromise, &iBase);
+	if ( !xFutureWaitTimeout(pNext, 1000) || iValue != 105 || xFutureValue(pNext) != &iValue ) { iRet = 492; goto Cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureCatchSource(pSource, __Test_FutureCore_CatchProc, &iValue);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 493; goto Cleanup; }
+	(void)xPromiseReject(pPromise, XRT_NET_ERROR, (str)"source reject");
+	if ( !xFutureWaitTimeout(pNext, 1000) || iValue != 7788 || xFutureValue(pNext) != &iValue ) { iRet = 494; goto Cleanup; }
+	xFutureRelease(pNext); pNext = NULL;
+	xPromiseDestroy(pPromise); pPromise = NULL;
+	xFutureRelease(pSource); pSource = NULL;
+
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	pNext = xFutureFinallySource(pSource, __Test_FutureCore_FinallyProc, &iFinally);
+	if ( pSource == NULL || pPromise == NULL || pNext == NULL ) { iRet = 495; goto Cleanup; }
+	(void)xPromiseResolve(pPromise, &iBase);
+	if ( !xFutureWaitTimeout(pNext, 1000) || iFinally != 1 || xFutureValue(pNext) != &iBase ) { iRet = 496; goto Cleanup; }
+
+Cleanup:
+	if ( pNext != NULL ) { xFutureRelease(pNext); }
+	if ( pPromise != NULL ) { xPromiseDestroy(pPromise); }
+	if ( pSource != NULL ) { xFutureRelease(pSource); }
+	return iRet;
+}
+
 
 // 内部函数：__Test_FutureCore_TaskGroup
 static int __Test_FutureCore_RaceCompletedFirstMultiLoser(void)
@@ -3091,6 +3136,9 @@ static int __Test_FutureCore_RunAll(void)
 	}
 	if ( iRet == 0 ) {
 		iRet = __Test_FutureCore_Continuation();
+	}
+	if ( iRet == 0 ) {
+		iRet = __Test_FutureCore_SourceContinuation();
 	}
 	if ( iRet == 0 ) {
 		iRet = __Test_FutureCore_MultiContinuationAndWaiter();

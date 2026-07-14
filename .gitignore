@@ -39,3 +39,7 @@ release/x86/test/test_write_u32.txt
 release/linux/test_queue_linux
 release/linux/test_singlehead_queue_linux
 /AGENTS.md
+/*.o
+
+*.log
+*.err

@@ -465,6 +465,9 @@ static void __xrtRuntimeFinalizeLocked();
 
 #ifndef XRT_NO_VALUE
 	#include "lib/typed_container.h"
+	#ifndef XRT_NO_TYPED_SPECIAL
+		#include "lib/typed_special.h"
+	#endif
 	#include "lib/value.h"
 	#include "lib/type.h"
 #endif

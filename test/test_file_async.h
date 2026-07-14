@@ -204,7 +204,20 @@ static void Test_FileAsync(xrtGlobalData* xCore)
 	pBuf = __Test_FileAsyncWaitBuf(xrtFileGetAllAsync(sBinaryPath), "binary get-all should succeed");
 	__Test_FileAsyncRequire(pBuf->iSize == sizeof(tBinary), "binary get-all size mismatch");
 	__Test_FileAsyncRequire(memcmp(pBuf->pData, tBinary, sizeof(tBinary)) == 0, "binary get-all payload mismatch");
-	xrtAsyncFileBufDestroy(pBuf);
+	{
+		ptr pDetached;
+		size_t iDetachedSize = 0u;
+		uint64 iDetachedOffset = 1u;
+		bool bDetachedEOF = TRUE;
+		pDetached = xrtAsyncFileBufDetach(pBuf, &iDetachedSize, &iDetachedOffset, &bDetachedEOF);
+		pBuf = NULL;
+		__Test_FileAsyncRequire(pDetached != NULL, "binary detach data should not be null");
+		__Test_FileAsyncRequire(iDetachedSize == sizeof(tBinary), "binary detach size mismatch");
+		__Test_FileAsyncRequire(iDetachedOffset == 0u, "binary detach offset mismatch");
+		__Test_FileAsyncRequire(bDetachedEOF == FALSE, "binary detach eof mismatch");
+		__Test_FileAsyncRequire(memcmp(pDetached, tBinary, sizeof(tBinary)) == 0, "binary detach payload mismatch");
+		xrtFree(pDetached);
+	}
 
 	pIo = __Test_FileAsyncWaitIo(xrtFileCopyAsync(sTextPath, sCopyPath, TRUE), "file copy should succeed");
 	__Test_FileAsyncRequire(pIo->iValue == 1u, "file copy result mismatch");

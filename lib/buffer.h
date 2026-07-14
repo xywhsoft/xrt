@@ -76,8 +76,20 @@ XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, u
 {
 	uint64 iNeedSize;
 	uint64 iAllocSize;
+	uint32 iOldLength;
+	ptr pCopy = NULL;
+	ptr pSource = pData;
+	uintptr_t iBufferBegin;
+	uintptr_t iBufferEnd;
+	uintptr_t iSource;
+	if ( pBuf == NULL || iPos > pBuf->Length ) {
+		return FALSE;
+	}
 	// 长度为 0 时自动计算数据长度
 	if ( iSize == 0 ) {
+		if ( pData == NULL ) {
+			return FALSE;
+		}
 		if ( bStrMode == XBUF_ANSI ) {
 			iSize = strlen(pData);
 		} else if ( bStrMode == XBUF_UTF16 ) {
@@ -88,25 +100,51 @@ XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, u
 			return FALSE;
 		}
 	}
+	if ( iSize == 0 ) {
+		return TRUE;
+	}
+	if ( pData == NULL ) {
+		return FALSE;
+	}
+	iOldLength = pBuf->Length;
+
+	// 允许插入 Buffer 自身的数据。扩容和后缀搬移前先保存源片段。
+	iBufferBegin = (uintptr_t)pBuf->Buffer;
+	iBufferEnd = iBufferBegin + iOldLength;
+	iSource = (uintptr_t)pData;
+	if ( pBuf->Buffer != NULL && iSource >= iBufferBegin && iSource < iBufferEnd ) {
+		if ( (uint64)(iSource - iBufferBegin) + iSize > iOldLength ) {
+			return FALSE;
+		}
+		pCopy = xrtMalloc(iSize);
+		if ( pCopy == NULL ) {
+			return FALSE;
+		}
+		memcpy(pCopy, pData, iSize);
+		pSource = pCopy;
+	}
 	// 分配内存
-	iNeedSize = (uint64)iPos + (uint64)iSize + (uint64)bStrMode;
+	iNeedSize = (uint64)iOldLength + (uint64)iSize + (uint64)bStrMode;
 	if ( iNeedSize > UINT32_MAX ) {
+		if ( pCopy != NULL ) { xrtFree(pCopy); }
 		return FALSE;
 	}
 	if ( iNeedSize > pBuf->AllocLength ) {
 		iAllocSize = iNeedSize + pBuf->AllocStep;
 		if ( iAllocSize < iNeedSize || iAllocSize > UINT32_MAX ) {
+			if ( pCopy != NULL ) { xrtFree(pCopy); }
 			return FALSE;
 		}
 		if ( xrtBufferMalloc(pBuf, (uint32)iAllocSize) == 0 ) {
+			if ( pCopy != NULL ) { xrtFree(pCopy); }
 			return FALSE;
 		}
 	}
-	// 复制数据
-	if ( iSize ) {
-		memcpy(&pBuf->Buffer[iPos], pData, iSize);
-		pBuf->Length = iPos + iSize;
-	}
+	// 为新数据腾出空间，再写入插入内容。
+	memmove(&pBuf->Buffer[iPos + iSize], &pBuf->Buffer[iPos], iOldLength - iPos);
+	memcpy(&pBuf->Buffer[iPos], pSource, iSize);
+	pBuf->Length = iOldLength + iSize;
+	if ( pCopy != NULL ) { xrtFree(pCopy); }
 	// 字符串模式自动添加 \0
 	if ( bStrMode ) {
 		for ( uint32 i = 0; i < bStrMode; i++ ) {
@@ -135,6 +173,31 @@ XXAPI xbuffer xrtBufferFrom(ptr pData, size_t iSize)
 		xrtBufferDestroy(pBuf);
 		return NULL;
 	}
+	return pBuf;
+}
+
+
+// 接管由 xrtMalloc 分配的原始内存
+XXAPI xbuffer xrtBufferAdopt(ptr pData, size_t iSize)
+{
+	xbuffer pBuf;
+	if ( (pData == NULL && iSize != 0u) || iSize > UINT32_MAX ) {
+		return NULL;
+	}
+	pBuf = (xbuffer)xrtMalloc(sizeof(xbuffer_struct));
+	if ( pBuf == NULL ) {
+		return NULL;
+	}
+	xrtBufferInit(pBuf, 0u);
+	if ( iSize == 0u ) {
+		if ( pData != NULL && pData != xCore.sNull ) {
+			xrtFree(pData);
+		}
+		return pBuf;
+	}
+	pBuf->Buffer = pData;
+	pBuf->Length = (uint32)iSize;
+	pBuf->AllocLength = (uint32)iSize;
 	return pBuf;
 }
 

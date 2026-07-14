@@ -1,119 +1,135 @@
-# XHTTP HTTP/1.1 Client Mainline
+# XHTTP HTTP/1.1 Client
 
-> The current HTTP/1.1 client mainline built on `xnet-v2 + xtlssession`.
+`xhttp` is XRT's HTTP/1.1 client on top of `xnet-v2` and `xtlssession`. HTTP/2 is intentionally out of scope.
 
 [Back to Index](README.en.md)
 
----
+## Capabilities
 
-## 1. Positioning
+- plain HTTP and built-in TLS
+- direct, SOCKS5, and HTTP CONNECT transport
+- buffered request bodies
+- buffered or incrementally delivered response bodies
+- content-length, chunked, and close-delimited responses
+- total and idle timeouts
+- explicit cancellation
+- dynamically growing request and response header collections
+- default compatibility pool or client-scoped keep-alive pools
 
-`xhttp` is the current mainline HTTP client. It provides:
+## Request and response ownership
 
-- request and response objects
-- synchronous and asynchronous execution
-- one execution model built on `xnetengine`
-- one path for both `http` and `https`
-- one path for `SOCKS5 CONNECT / HTTP CONNECT` proxy access
-- origin-based keep-alive reuse
+Initialize every stack request with `xrtHttpRequestInit()` and release it with `xrtHttpRequestUnit()`. The request owns copied body bytes, expanded header storage, and its proxy reference.
 
-It is designed to stay lightweight, infrastructure-friendly, and easy to connect with the unified async mainline.
+A successful future owns no response automatically. The caller receives the `xhttpresponse*` value and must call `xrtHttpResponseDestroy()`.
 
----
+For streaming execution, the final response contains status and header metadata. `pBody` remains `NULL`, while `iBodyLen` records the number of decoded bytes delivered to `OnBody`.
 
-## 2. Core Objects
-
-### `xhttprequest`
-
-The request object carries:
-
-- method
-- URL
-- parsed URL fields
-- headers
-- body
-- timeout
-- peer-verification policy
-- shared proxy object
-
-### `xhttpresponse`
-
-The response object carries:
-
-- status code
-- version / reason
-- headers
-- body
-- body length
-
-The current mainline primarily targets complete-request / complete-response flows.
-
----
-
-## 3. Official API
+## Header API
 
 ```c
-XXAPI void xrtHttpRequestInit(xhttprequest* pReq);
-XXAPI void xrtHttpRequestUnit(xhttprequest* pReq);
-XXAPI bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod);
-XXAPI bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL);
-XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue);
-XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType);
-XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
-XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
+bool xrtHttpRequestSetHeader(xhttprequest* req, const char* name, const char* value);
+bool xrtHttpRequestAddHeader(xhttprequest* req, const char* name, const char* value);
+uint32 xrtHttpRequestRemoveHeader(xhttprequest* req, const char* name);
 
-XXAPI void xrtHttpResponseDestroy(xhttpresponse* pResp);
-XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName);
-
-XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq);
-XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus);
-XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine);
+const char* xrtHttpResponseHeader(const xhttpresponse* resp, const char* name);
+uint32 xrtHttpResponseHeaderCount(const xhttpresponse* resp);
+const char* xrtHttpResponseHeaderNameAt(const xhttpresponse* resp, uint32 index);
+const char* xrtHttpResponseHeaderValueAt(const xhttpresponse* resp, uint32 index);
 ```
 
-Notes:
+`SetHeader` replaces the first case-insensitive match. `AddHeader` preserves duplicates such as `Set-Cookie`. `RemoveHeader` removes every case-insensitive match.
 
-- there is no extra `SetProxy` helper on the request object
-- assign a shared proxy directly through `xhttprequest.pProxy`
+## Buffered execution
 
----
+```c
+xhttprequest req;
+xhttpresponse* resp;
+xnet_result status;
 
-## 4. Current Mainline Behavior
+xrtHttpRequestInit(&req);
+xrtHttpRequestSetMethod(&req, "POST");
+xrtHttpRequestSetURL(&req, "https://example.com/v1/chat");
+xrtHttpRequestSetHeader(&req, "Authorization", "Bearer ...");
+xrtHttpRequestSetBodyCopy(&req, json, strlen(json), "application/json");
+xrtHttpRequestSetTimeout(&req, 120000u);
+xrtHttpRequestSetIdleTimeout(&req, 30000u);
 
-The current `xhttp` mainline:
+resp = xrtHttpExecuteSync(engine, &req, &status);
+if ( resp ) {
+	/* consume resp->pBody */
+	xrtHttpResponseDestroy(resp);
+}
+xrtHttpRequestUnit(&req);
+```
 
-- is built on `xnet_stream`
-- supports plain HTTP and built-in TLS
-- supports `SOCKS5 CONNECT` and `HTTP CONNECT`
-- reuses keep-alive connections serially by origin
-- supports chunked transfer
-- is best suited today for whole-body request / whole-body response flows
+`xrtHttpExecuteAsync()` uses the same transport path and returns an `xnetfuture*`.
 
-Proxy-related behavior:
+## Streaming execution
 
-- pre-open sequencing is `TCP -> proxy handshake -> TLS -> HTTP request`
-- keep-alive matching includes the proxy dimension, so identical origins behind different proxies are not mixed
-- when `pProxy == NULL`, the request stays direct
+Callbacks run on the connection's network worker. The data pointer passed to `OnBody` is valid only for the duration of that callback. Returning `false` from either callback cancels the request.
 
-This makes it a good fit for:
+```c
+static bool on_headers(ptr user, const xhttpresponse* resp)
+{
+	return resp->iStatusCode >= 200u;
+}
 
-- REST / JSON APIs
-- service-to-service HTTP
-- Internet API calls
-- non-browser LLM API clients
+static bool on_body(ptr user, const void* data, size_t len)
+{
+	return consume_sse(user, data, len);
+}
 
----
+xhttpstreamcallbacks callbacks;
+xnetfuture* future;
 
-## 5. Relationship to Other Modules
+xrtHttpStreamCallbacksInit(&callbacks);
+callbacks.pUserData = state;
+callbacks.OnHeaders = on_headers;
+callbacks.OnBody = on_body;
 
-- `xurl` handles URL parsing and host/header construction
-- `xhttp_util` handles lower-level HTTP text helpers
-- `xtlssession` handles the HTTPS path
-- when a proxy is configured, TLS is established after the proxy tunnel is ready
-- `ExecuteAsync` returns a future and can plug directly into coroutine and task orchestration
+future = xrtHttpExecuteStreamAsync(engine, &req, &callbacks);
+status = xrtNetFutureWait(future, XNET_WAIT_INFINITE);
+resp = status == XRT_NET_OK ? xrtNetFutureValue(future) : NULL;
+```
 
----
+Chunk framing is removed before `OnBody` runs. Trailers are consumed but are not yet exposed as response metadata.
 
-## 6. Suggested Reading
+## Cancellation
+
+```c
+if ( !xrtHttpCancel(future) ) {
+	/* the request may already be complete */
+}
+```
+
+Cancellation resolves the future with `XRT_NET_CANCELLED` and aborts the active connection. It works for both buffered and streaming execution.
+
+## Client-scoped connection pools
+
+Use one `xhttpclient` for a long-lived provider or service boundary. It binds to one `xnetengine` and owns a separate keep-alive pool.
+
+```c
+xhttpclient* client = xrtHttpClientCreate(engine);
+
+future = xrtHttpClientExecuteStreamAsync(client, &req, &callbacks);
+/* wait for and release future/response */
+
+xrtHttpClientCloseIdle(client);
+xrtHttpClientDestroy(client);
+```
+
+The client may be destroyed while connections are finishing: internal references keep it alive until asynchronous close cleanup completes. Do not start new calls through a client after destroying it.
+
+Compatibility functions (`xrtHttpExecuteAsync`, `xrtHttpExecuteSync`, and `xrtHttpCloseIdleConnections`) continue to use the process-level default pool.
+
+## Current boundary
+
+- request bodies are buffered before sending
+- response trailers are not exposed
+- one HTTP/1.1 request is active per connection; no pipelining
+- HTTP/2 is not planned for this phase
+
+## Related modules
 
 - [XNet V2](api-xnet-v2.en.md)
 - [Network TLS](api-network-tls.en.md)

@@ -213,6 +213,194 @@ static bool __xrtTypeUnboxFloat64(xvalue pVal, ptr pOut, const xrt_type_desc* pT
 }
 
 
+// ------------------------------------ 定宽数值类型 ------------------------------------
+//
+// 静态泛型容器必须按真实 C 存储宽度复制元素。int8/int16 等类型不能复用
+// 64 位 int 描述，否则一次 push 就会越过源对象边界。
+
+#define XRT_DEFINE_SIGNED_FIXED_OPS(tag, ctype) \
+	static int __xrtTypeCompare##tag(const ptr pA, const ptr pB) \
+	{ \
+		ctype a = pA ? *(const ctype*)pA : (ctype)0; \
+		ctype b = pB ? *(const ctype*)pB : (ctype)0; \
+		return (a > b) - (a < b); \
+	} \
+	static uint64 __xrtTypeHash##tag(const ptr pObj) \
+	{ \
+		ctype v = pObj ? *(const ctype*)pObj : (ctype)0; \
+		return xrtHash64(&v, sizeof(v)); \
+	} \
+	static str __xrtTypeToString##tag(const ptr pObj, uint32* pSize) \
+	{ \
+		char sBuffer[64]; \
+		int iSize = xrtI64ToStr((int64)(pObj ? *(const ctype*)pObj : (ctype)0), sBuffer); \
+		return iSize > 0 ? __xrtTypeCopyStringResult((str)sBuffer, (uint32)iSize, pSize) : xCore.sNull; \
+	} \
+	static xvalue __xrtTypeBox##tag(const ptr pObj, const xrt_type_desc* pType) \
+	{ \
+		(void)pType; \
+		return xvoCreateInt((int64)(pObj ? *(const ctype*)pObj : (ctype)0)); \
+	} \
+	static bool __xrtTypeUnbox##tag(xvalue pVal, ptr pOut, const xrt_type_desc* pType) \
+	{ \
+		(void)pType; \
+		if ( pOut == NULL ) return FALSE; \
+		*(ctype*)pOut = (ctype)xvoGetInt(pVal); \
+		return TRUE; \
+	} \
+	static const xrt_type_ops __xrtType##tag##Ops = { \
+		.compare = __xrtTypeCompare##tag, \
+		.hash = __xrtTypeHash##tag, \
+		.to_string = __xrtTypeToString##tag, \
+		.box = __xrtTypeBox##tag, \
+		.unbox = __xrtTypeUnbox##tag \
+	}
+
+#define XRT_DEFINE_UNSIGNED_FIXED_OPS(tag, ctype) \
+	static int __xrtTypeCompare##tag(const ptr pA, const ptr pB) \
+	{ \
+		ctype a = pA ? *(const ctype*)pA : (ctype)0; \
+		ctype b = pB ? *(const ctype*)pB : (ctype)0; \
+		return (a > b) - (a < b); \
+	} \
+	static uint64 __xrtTypeHash##tag(const ptr pObj) \
+	{ \
+		ctype v = pObj ? *(const ctype*)pObj : (ctype)0; \
+		return xrtHash64(&v, sizeof(v)); \
+	} \
+	static str __xrtTypeToString##tag(const ptr pObj, uint32* pSize) \
+	{ \
+		char sBuffer[64]; \
+		int iSize = xrtU64ToStr((uint64)(pObj ? *(const ctype*)pObj : (ctype)0), sBuffer); \
+		return iSize > 0 ? __xrtTypeCopyStringResult((str)sBuffer, (uint32)iSize, pSize) : xCore.sNull; \
+	} \
+	static xvalue __xrtTypeBox##tag(const ptr pObj, const xrt_type_desc* pType) \
+	{ \
+		(void)pType; \
+		return xvoCreateInt((int64)(uint64)(pObj ? *(const ctype*)pObj : (ctype)0)); \
+	} \
+	static bool __xrtTypeUnbox##tag(xvalue pVal, ptr pOut, const xrt_type_desc* pType) \
+	{ \
+		(void)pType; \
+		if ( pOut == NULL ) return FALSE; \
+		*(ctype*)pOut = (ctype)(uint64)xvoGetInt(pVal); \
+		return TRUE; \
+	} \
+	static const xrt_type_ops __xrtType##tag##Ops = { \
+		.compare = __xrtTypeCompare##tag, \
+		.hash = __xrtTypeHash##tag, \
+		.to_string = __xrtTypeToString##tag, \
+		.box = __xrtTypeBox##tag, \
+		.unbox = __xrtTypeUnbox##tag \
+	}
+
+XRT_DEFINE_SIGNED_FIXED_OPS(Int8, int8);
+XRT_DEFINE_UNSIGNED_FIXED_OPS(UInt8, uint8);
+XRT_DEFINE_SIGNED_FIXED_OPS(Int16, int16);
+XRT_DEFINE_UNSIGNED_FIXED_OPS(UInt16, uint16);
+XRT_DEFINE_SIGNED_FIXED_OPS(Int32, int32);
+XRT_DEFINE_UNSIGNED_FIXED_OPS(UInt64, uint64);
+
+static int __xrtTypeCompareFloat32(const ptr pA, const ptr pB)
+{
+	float a = pA ? *(const float*)pA : 0.0f;
+	float b = pB ? *(const float*)pB : 0.0f;
+	return (a > b) - (a < b);
+}
+
+
+static uint64 __xrtTypeHashFloat32(const ptr pObj)
+{
+	float v = pObj ? *(const float*)pObj : 0.0f;
+	return xrtHash64(&v, sizeof(v));
+}
+
+
+static str __xrtTypeToStringFloat32(const ptr pObj, uint32* pSize)
+{
+	char sBuffer[128];
+	int iSize = xrtNumToStr((double)(pObj ? *(const float*)pObj : 0.0f), sBuffer);
+	return iSize > 0 ? __xrtTypeCopyStringResult((str)sBuffer, (uint32)iSize, pSize) : xCore.sNull;
+}
+
+
+static xvalue __xrtTypeBoxFloat32(const ptr pObj, const xrt_type_desc* pType)
+{
+	(void)pType;
+	return xvoCreateFloat((double)(pObj ? *(const float*)pObj : 0.0f));
+}
+
+
+static bool __xrtTypeUnboxFloat32(xvalue pVal, ptr pOut, const xrt_type_desc* pType)
+{
+	(void)pType;
+	if ( pOut == NULL ) {
+		return FALSE;
+	}
+	*(float*)pOut = (float)xvoGetFloat(pVal);
+	return TRUE;
+}
+
+
+static const xrt_type_ops __xrtTypeFloat32Ops = {
+	.compare = __xrtTypeCompareFloat32,
+	.hash = __xrtTypeHashFloat32,
+	.to_string = __xrtTypeToStringFloat32,
+	.box = __xrtTypeBoxFloat32,
+	.unbox = __xrtTypeUnboxFloat32
+};
+
+
+static int __xrtTypeCompareBool32(const ptr pA, const ptr pB)
+{
+	int32 a = pA && *(const int32*)pA ? 1 : 0;
+	int32 b = pB && *(const int32*)pB ? 1 : 0;
+	return a - b;
+}
+
+
+static uint64 __xrtTypeHashBool32(const ptr pObj)
+{
+	return pObj && *(const int32*)pObj ? 0x9E3779B97F4A7C15ULL : 0xCBF29CE484222325ULL;
+}
+
+
+static str __xrtTypeToStringBool32(const ptr pObj, uint32* pSize)
+{
+	return __xrtTypeCopyStringResult((str)(pObj && *(const int32*)pObj ? "true" : "false"), 0u, pSize);
+}
+
+
+static xvalue __xrtTypeBoxBool32(const ptr pObj, const xrt_type_desc* pType)
+{
+	(void)pType;
+	return xvoCreateBool(pObj && *(const int32*)pObj);
+}
+
+
+static bool __xrtTypeUnboxBool32(xvalue pVal, ptr pOut, const xrt_type_desc* pType)
+{
+	(void)pType;
+	if ( pOut == NULL ) {
+		return FALSE;
+	}
+	*(int32*)pOut = xvoGetBool(pVal) ? 1 : 0;
+	return TRUE;
+}
+
+
+static const xrt_type_ops __xrtTypeBool32Ops = {
+	.compare = __xrtTypeCompareBool32,
+	.hash = __xrtTypeHashBool32,
+	.to_string = __xrtTypeToStringBool32,
+	.box = __xrtTypeBoxBool32,
+	.unbox = __xrtTypeUnboxBool32
+};
+
+#undef XRT_DEFINE_SIGNED_FIXED_OPS
+#undef XRT_DEFINE_UNSIGNED_FIXED_OPS
+
+
 static void __xrtTypeInitString(ptr pObj)
 {
 	if ( pObj != NULL ) {
@@ -782,6 +970,35 @@ static const xrt_type_desc __xrtTypeFloat = {
 	.Extra = NULL
 };
 
+#define XRT_DEFINE_FIXED_TYPE_DESC(symbol, id, kind, publicName, abiName, ctype, ops) \
+	static const xrt_type_desc symbol = { \
+		.TypeId = id, \
+		.Kind = kind, \
+		.Name = publicName, \
+		.NameSize = XRT_TYPE_NAME_LEN(publicName), \
+		.AbiName = abiName, \
+		.AbiNameSize = XRT_TYPE_NAME_LEN(abiName), \
+		.Size = sizeof(ctype), \
+		.Align = sizeof(ctype), \
+		.Ops = ops, \
+		.Methods = &__xrtTypeValueMethodTable, \
+		.Extra = NULL \
+	}
+
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeBool32, 0x00010002u, XRT_TYPE_KIND_BOOL, "bool32", "int32", int32, &__xrtTypeBool32Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeInt8, 0x00010010u, XRT_TYPE_KIND_INT, "int8", "int8", int8, &__xrtTypeInt8Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeUInt8, 0x00010011u, XRT_TYPE_KIND_INT, "uint8", "uint8", uint8, &__xrtTypeUInt8Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeInt16, 0x00010012u, XRT_TYPE_KIND_INT, "int16", "int16", int16, &__xrtTypeInt16Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeUInt16, 0x00010013u, XRT_TYPE_KIND_INT, "uint16", "uint16", uint16, &__xrtTypeUInt16Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeInt32, 0x00010014u, XRT_TYPE_KIND_INT, "int32", "int32", int32, &__xrtTypeInt32Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeUInt32, 0x00010015u, XRT_TYPE_KIND_INT, "uint32", "uint32", uint32, &__xrtTypeUInt32Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeInt64, 0x00010016u, XRT_TYPE_KIND_INT, "int64", "int64", int64, &__xrtTypeInt64Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeUInt64, 0x00010017u, XRT_TYPE_KIND_INT, "uint64", "uint64", uint64, &__xrtTypeUInt64Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeFloat32, 0x00010020u, XRT_TYPE_KIND_FLOAT, "float32", "float", float, &__xrtTypeFloat32Ops);
+XRT_DEFINE_FIXED_TYPE_DESC(__xrtTypeFloat64, 0x00010021u, XRT_TYPE_KIND_FLOAT, "float64", "double", double, &__xrtTypeFloat64Ops);
+
+#undef XRT_DEFINE_FIXED_TYPE_DESC
+
 static const xrt_type_desc __xrtTypeString = {
 	.TypeId = XRT_TYPE_KIND_STRING,
 	.Kind = XRT_TYPE_KIND_STRING,
@@ -948,8 +1165,19 @@ static const xrt_type_desc __xrtTypeType = {
 
 XXAPI const xrt_type_desc* xrtTypeNull() { return &__xrtTypeNull; }
 XXAPI const xrt_type_desc* xrtTypeBool() { return &__xrtTypeBool; }
+XXAPI const xrt_type_desc* xrtTypeBool32() { return &__xrtTypeBool32; }
 XXAPI const xrt_type_desc* xrtTypeInt() { return &__xrtTypeInt; }
+XXAPI const xrt_type_desc* xrtTypeInt8() { return &__xrtTypeInt8; }
+XXAPI const xrt_type_desc* xrtTypeUInt8() { return &__xrtTypeUInt8; }
+XXAPI const xrt_type_desc* xrtTypeInt16() { return &__xrtTypeInt16; }
+XXAPI const xrt_type_desc* xrtTypeUInt16() { return &__xrtTypeUInt16; }
+XXAPI const xrt_type_desc* xrtTypeInt32() { return &__xrtTypeInt32; }
+XXAPI const xrt_type_desc* xrtTypeUInt32() { return &__xrtTypeUInt32; }
+XXAPI const xrt_type_desc* xrtTypeInt64() { return &__xrtTypeInt64; }
+XXAPI const xrt_type_desc* xrtTypeUInt64() { return &__xrtTypeUInt64; }
 XXAPI const xrt_type_desc* xrtTypeFloat() { return &__xrtTypeFloat; }
+XXAPI const xrt_type_desc* xrtTypeFloat32() { return &__xrtTypeFloat32; }
+XXAPI const xrt_type_desc* xrtTypeFloat64() { return &__xrtTypeFloat64; }
 XXAPI const xrt_type_desc* xrtTypeString() { return &__xrtTypeString; }
 XXAPI const xrt_type_desc* xrtTypeTime() { return &__xrtTypeTime; }
 XXAPI const xrt_type_desc* xrtTypePoint() { return &__xrtTypePoint; }

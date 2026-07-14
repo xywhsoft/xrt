@@ -749,25 +749,64 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 // 是否为 utf-8 字符串
 XXAPI bool xrtIsUTF8(str sText, size_t iSize)
 {
-	// NULL 返回 FALSE，空字符串返回 TRUE
+	const unsigned char* pText = (const unsigned char*)sText;
+	size_t i = 0;
+
+	// NULL returns FALSE; an empty string returns TRUE.
 	if ( sText == NULL ) { return FALSE; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
-	if ( iSize == 0 ) { return TRUE; }
-	// 检测是否符合标准
-	for ( size_t i = 0; i < iSize; i++ ) {
-		// 遇到 \0、FE、FF 直接返回 FALSE
-		if ( (sText[i] == 0) || (sText[i] == 0xFE) || (sText[i] == 0xFF) ) {
-			return FALSE;
+	while ( i < iSize ) {
+		unsigned char c = pText[i];
+		if ( c == 0u ) { return FALSE; }
+		if ( c <= 0x7Fu ) {
+			i++;
+			continue;
 		}
-		// 检查多字节字符是否已 0b10 开头
-		size_t iExtraBytes = (size_t)__xrtBytesExtraUTF8((unsigned char)sText[i]);
-		if ( iExtraBytes ) {
-			for ( size_t j = 0; (j < iExtraBytes) && ((i + 1) < iSize); j++ ) {
-				if ( (sText[++i] & 0b11000000) != 0b10000000 ) {
-					return FALSE;
-				}
-			}
+
+		// RFC 3629: reject continuation leaders, overlong forms, surrogates,
+		// code points above U+10FFFF, and truncated sequences.
+		if ( c >= 0xC2u && c <= 0xDFu ) {
+			if ( i + 1u >= iSize || (pText[i + 1u] & 0xC0u) != 0x80u ) return FALSE;
+			i += 2u;
+			continue;
 		}
+		if ( c == 0xE0u ) {
+			if ( i + 2u >= iSize || pText[i + 1u] < 0xA0u || pText[i + 1u] > 0xBFu ||
+			     (pText[i + 2u] & 0xC0u) != 0x80u ) return FALSE;
+			i += 3u;
+			continue;
+		}
+		if ( (c >= 0xE1u && c <= 0xECu) || (c >= 0xEEu && c <= 0xEFu) ) {
+			if ( i + 2u >= iSize || (pText[i + 1u] & 0xC0u) != 0x80u ||
+			     (pText[i + 2u] & 0xC0u) != 0x80u ) return FALSE;
+			i += 3u;
+			continue;
+		}
+		if ( c == 0xEDu ) {
+			if ( i + 2u >= iSize || pText[i + 1u] < 0x80u || pText[i + 1u] > 0x9Fu ||
+			     (pText[i + 2u] & 0xC0u) != 0x80u ) return FALSE;
+			i += 3u;
+			continue;
+		}
+		if ( c == 0xF0u ) {
+			if ( i + 3u >= iSize || pText[i + 1u] < 0x90u || pText[i + 1u] > 0xBFu ||
+			     (pText[i + 2u] & 0xC0u) != 0x80u || (pText[i + 3u] & 0xC0u) != 0x80u ) return FALSE;
+			i += 4u;
+			continue;
+		}
+		if ( c >= 0xF1u && c <= 0xF3u ) {
+			if ( i + 3u >= iSize || (pText[i + 1u] & 0xC0u) != 0x80u ||
+			     (pText[i + 2u] & 0xC0u) != 0x80u || (pText[i + 3u] & 0xC0u) != 0x80u ) return FALSE;
+			i += 4u;
+			continue;
+		}
+		if ( c == 0xF4u ) {
+			if ( i + 3u >= iSize || pText[i + 1u] < 0x80u || pText[i + 1u] > 0x8Fu ||
+			     (pText[i + 2u] & 0xC0u) != 0x80u || (pText[i + 3u] & 0xC0u) != 0x80u ) return FALSE;
+			i += 4u;
+			continue;
+		}
+		return FALSE;
 	}
 	return TRUE;
 }

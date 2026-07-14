@@ -39,7 +39,45 @@ typedef struct {
 	xnetstream* pStream;
 } __test_xhttp_delayed_send_ctx;
 
+typedef struct {
+	volatile long iHeadersCount;
+	volatile long iBodyCount;
+	uint32 iStatusCode;
+	bool bSawStreamHeader;
+	bool bCancelOnBody;
+	char aBody[256];
+	size_t iBodyLen;
+} __test_xhttp_stream_ctx;
+
 static void __Test_XHttpServerDelayedSendTask(xnetworker* pWorker, ptr pArg);
+static long __Test_XHttpAtomicInc(volatile long* pValue);
+
+
+static bool __Test_XHttpStreamOnHeaders(ptr pUserData, const xhttpresponse* pResponse)
+{
+	__test_xhttp_stream_ctx* pCtx = (__test_xhttp_stream_ctx*)pUserData;
+	if ( !pCtx || !pResponse ) { return false; }
+	__Test_XHttpAtomicInc(&pCtx->iHeadersCount);
+	pCtx->iStatusCode = pResponse->iStatusCode;
+	pCtx->bSawStreamHeader = xrtHttpResponseHeader(pResponse, "X-Stream") != NULL;
+	return true;
+}
+
+
+static bool __Test_XHttpStreamOnBody(ptr pUserData, const void* pData, size_t iLen)
+{
+	__test_xhttp_stream_ctx* pCtx = (__test_xhttp_stream_ctx*)pUserData;
+	size_t iCopy;
+	if ( !pCtx || (!pData && iLen > 0u) ) { return false; }
+	__Test_XHttpAtomicInc(&pCtx->iBodyCount);
+	iCopy = iLen;
+	if ( iCopy > sizeof(pCtx->aBody) - pCtx->iBodyLen ) { iCopy = sizeof(pCtx->aBody) - pCtx->iBodyLen; }
+	if ( iCopy > 0u ) {
+		memcpy(pCtx->aBody + pCtx->iBodyLen, pData, iCopy);
+		pCtx->iBodyLen += iCopy;
+	}
+	return !pCtx->bCancelOnBody;
+}
 
 
 // 内部函数：__Test_XHttpSleepMs
@@ -428,6 +466,29 @@ void Test_XNet_Http(void)
 	}
 
 	{
+		xhttprequest tReq;
+		char* pBuilt = NULL;
+		size_t iBuiltLen = 0u;
+		bool bAdded = true;
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, "http://127.0.0.1:8080/many-headers");
+		for ( uint32 i = 0u; i < 48u; ++i ) {
+			char sName[64];
+			char sValue[64];
+			snprintf(sName, sizeof(sName), "X-Dynamic-%u", (unsigned)i);
+			snprintf(sValue, sizeof(sValue), "value-%u", (unsigned)i);
+			bAdded = bAdded && xrtHttpRequestAddHeader(&tReq, sName, sValue);
+		}
+		(void)xrtHttpRequestAddHeader(&tReq, "X-Remove", "a");
+		(void)xrtHttpRequestAddHeader(&tReq, "X-Remove", "b");
+		printf("  HTTP dynamic request headers grow : %s\n", bAdded && tReq.iHeaderCount == 50u && tReq.iHeaderCap >= 50u ? "PASS" : "FAIL");
+		printf("  HTTP dynamic request duplicate remove : %s\n", xrtHttpRequestRemoveHeader(&tReq, "x-remove") == 2u && tReq.iHeaderCount == 48u ? "PASS" : "FAIL");
+		printf("  HTTP dynamic request serialize : %s\n", __xhttpBuildRequestBytes(&tReq, &pBuilt, &iBuiltLen) && pBuilt && strstr(pBuilt, "X-Dynamic-47: value-47\r\n") != NULL ? "PASS" : "FAIL");
+		if ( pBuilt ) { XNET_FREE(pBuilt); }
+		xrtHttpRequestUnit(&tReq);
+	}
+
+	{
 		__test_xhttp_server tServer;
 		xnetengineconfig tCfg;
 		xnetengine* pClientEngine = NULL;
@@ -464,6 +525,206 @@ void Test_XNet_Http(void)
 			xrtNetEngineStop(pClientEngine);
 			xrtNetEngineDestroy(pClientEngine);
 		}
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		printf("  HTTP explicit pending cancel server start : %s\n",
+			__Test_XHttpServerStartEx(
+				&tServer,
+				NULL,
+				"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nlater",
+				250u,
+				NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/explicit-cancel", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) { (void)xrtNetEngineStart(pClientEngine); }
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
+		printf("  HTTP explicit pending cancel reached server : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 1000u) ? "PASS" : "FAIL");
+		printf("  HTTP explicit pending cancel request : %s\n", pFuture && xrtHttpCancel(pFuture) ? "PASS" : "FAIL");
+		printf("  HTTP explicit pending cancel status : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 1000u)) == XRT_NET_CANCELLED ? "PASS" : "FAIL");
+		__Test_XHttpSleepMs(300u);
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		xrtHttpRequestUnit(&tReq);
+		if ( pClientEngine ) { xrtNetEngineStop(pClientEngine); xrtNetEngineDestroy(pClientEngine); }
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xhttpresponse* pResp = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		char sResponse[2048];
+		size_t iLen = 0u;
+		iLen += (size_t)snprintf(sResponse + iLen, sizeof(sResponse) - iLen, "HTTP/1.1 200 OK\r\n");
+		for ( uint32 i = 0u; i < 48u && iLen < sizeof(sResponse); ++i ) {
+			iLen += (size_t)snprintf(sResponse + iLen, sizeof(sResponse) - iLen, "X-Response-%u: value-%u\r\n", (unsigned)i, (unsigned)i);
+		}
+		(void)snprintf(sResponse + iLen, sizeof(sResponse) - iLen, "Content-Length: 2\r\nConnection: close\r\n\r\nok");
+		printf("  HTTP dynamic response headers server start : %s\n", __Test_XHttpServerStart(&tServer, sResponse, NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/many-response-headers", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) { (void)xrtNetEngineStart(pClientEngine); }
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
+		printf("  HTTP dynamic response headers future wait : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
+		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
+		printf("  HTTP dynamic response headers preserved : %s\n", pResp && xrtHttpResponseHeaderCount(pResp) == 50u && strcmp(xrtHttpResponseHeader(pResp, "X-Response-47"), "value-47") == 0 ? "PASS" : "FAIL");
+		printf("  HTTP dynamic response headers indexed : %s\n", pResp && xrtHttpResponseHeaderNameAt(pResp, 47u) && xrtHttpResponseHeaderValueAt(pResp, 47u) ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		xrtHttpRequestUnit(&tReq);
+		if ( pClientEngine ) { xrtNetEngineStop(pClientEngine); xrtNetEngineDestroy(pClientEngine); }
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		__test_xhttp_stream_ctx tStream;
+		xhttpstreamcallbacks tCallbacks;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xhttpresponse* pResp = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		memset(&tStream, 0, sizeof(tStream));
+		xrtHttpStreamCallbacksInit(&tCallbacks);
+		tCallbacks.pUserData = &tStream;
+		tCallbacks.OnHeaders = __Test_XHttpStreamOnHeaders;
+		tCallbacks.OnBody = __Test_XHttpStreamOnBody;
+		printf("  HTTP fixed stream server start : %s\n",
+			__Test_XHttpServerStartEx(
+				&tServer,
+				"HTTP/1.1 200 OK\r\nContent-Length: 8\r\nX-Stream: fixed\r\nConnection: keep-alive\r\n\r\nabc",
+				"defgh",
+				80u,
+				NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/stream-fixed", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) { (void)xrtNetEngineStart(pClientEngine); }
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		pFuture = xrtHttpExecuteStreamAsync(pClientEngine, &tReq, &tCallbacks);
+		printf("  HTTP fixed stream future create : %s\n", pFuture ? "PASS" : "FAIL");
+		printf("  HTTP fixed stream future wait : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
+		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
+		printf("  HTTP fixed stream headers once : %s\n", __Test_XHttpAtomicLoad(&tStream.iHeadersCount) == 1 ? "PASS" : "FAIL");
+		printf("  HTTP fixed stream header metadata : %s\n", tStream.iStatusCode == 200u && tStream.bSawStreamHeader ? "PASS" : "FAIL");
+		printf("  HTTP fixed stream incremental chunks : %s\n", __Test_XHttpAtomicLoad(&tStream.iBodyCount) >= 2 ? "PASS" : "FAIL");
+		printf("  HTTP fixed stream body : %s\n", tStream.iBodyLen == 8u && memcmp(tStream.aBody, "abcdefgh", 8u) == 0 ? "PASS" : "FAIL");
+		printf("  HTTP fixed stream response metadata only : %s\n", pResp && pResp->pBody == NULL && pResp->iBodyLen == 8u ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		xrtHttpRequestUnit(&tReq);
+		xrtHttpCloseIdleConnections(pClientEngine);
+		if ( pClientEngine ) { xrtNetEngineStop(pClientEngine); xrtNetEngineDestroy(pClientEngine); }
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		__test_xhttp_stream_ctx tStream;
+		xhttpstreamcallbacks tCallbacks;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xhttpresponse* pResp = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		memset(&tStream, 0, sizeof(tStream));
+		xrtHttpStreamCallbacksInit(&tCallbacks);
+		tCallbacks.pUserData = &tStream;
+		tCallbacks.OnHeaders = __Test_XHttpStreamOnHeaders;
+		tCallbacks.OnBody = __Test_XHttpStreamOnBody;
+		printf("  HTTP chunked stream server start : %s\n",
+			__Test_XHttpServerStartEx(
+				&tServer,
+				"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nX-Stream: chunked\r\nConnection: keep-alive\r\n\r\n3\r\nabc\r\n5\r\nd",
+				"efgh\r\n0\r\nX-Trailer: yes\r\n\r\n",
+				80u,
+				NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/stream-chunked", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) { (void)xrtNetEngineStart(pClientEngine); }
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		pFuture = xrtHttpExecuteStreamAsync(pClientEngine, &tReq, &tCallbacks);
+		printf("  HTTP chunked stream future wait : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
+		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
+		printf("  HTTP chunked stream body : %s\n", tStream.iBodyLen == 8u && memcmp(tStream.aBody, "abcdefgh", 8u) == 0 ? "PASS" : "FAIL");
+		printf("  HTTP chunked stream decoded length : %s\n", pResp && pResp->iBodyLen == 8u && pResp->iContentLength == 8 && (pResp->iFlags & XHTTP_RESP_F_CHUNKED) != 0u ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		xrtHttpRequestUnit(&tReq);
+		xrtHttpCloseIdleConnections(pClientEngine);
+		if ( pClientEngine ) { xrtNetEngineStop(pClientEngine); xrtNetEngineDestroy(pClientEngine); }
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		__test_xhttp_stream_ctx tStream;
+		xhttpstreamcallbacks tCallbacks;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		memset(&tStream, 0, sizeof(tStream));
+		tStream.bCancelOnBody = true;
+		xrtHttpStreamCallbacksInit(&tCallbacks);
+		tCallbacks.pUserData = &tStream;
+		tCallbacks.OnHeaders = __Test_XHttpStreamOnHeaders;
+		tCallbacks.OnBody = __Test_XHttpStreamOnBody;
+		printf("  HTTP stream callback cancel server start : %s\n",
+			__Test_XHttpServerStartEx(
+				&tServer,
+				"HTTP/1.1 200 OK\r\nContent-Length: 8\r\nX-Stream: cancel\r\nConnection: close\r\n\r\nabc",
+				"defgh",
+				250u,
+				NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/stream-cancel", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) { (void)xrtNetEngineStart(pClientEngine); }
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		pFuture = xrtHttpExecuteStreamAsync(pClientEngine, &tReq, &tCallbacks);
+		printf("  HTTP stream callback cancel status : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 3000u)) == XRT_NET_CANCELLED ? "PASS" : "FAIL");
+		printf("  HTTP stream callback cancel observed body : %s\n", tStream.iBodyLen > 0u && tStream.iBodyLen < 8u ? "PASS" : "FAIL");
+		printf("  HTTP stream explicit cancel idempotent : %s\n", pFuture && xrtHttpCancel(pFuture) ? "PASS" : "FAIL");
+		__Test_XHttpSleepMs(300u);
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		xrtHttpRequestUnit(&tReq);
+		if ( pClientEngine ) { xrtNetEngineStop(pClientEngine); xrtNetEngineDestroy(pClientEngine); }
 		__Test_XHttpServerStop(&tServer);
 	}
 
@@ -766,6 +1027,48 @@ void Test_XNet_Http(void)
 			xrtNetEngineStop(pClientEngine);
 			xrtNetEngineDestroy(pClientEngine);
 		}
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttpclient* pClient = NULL;
+		xhttprequest tReq;
+		xhttpresponse* pResp = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		printf("  HTTP client-scoped pool server start : %s\n", __Test_XHttpServerStart(&tServer, "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: keep-alive\r\n\r\npool", NULL) ? "PASS" : "FAIL");
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) { (void)xrtNetEngineStart(pClientEngine); }
+		pClient = xrtHttpClientCreate(pClientEngine);
+		printf("  HTTP client-scoped pool create : %s\n", pClient ? "PASS" : "FAIL");
+		xrtHttpRequestInit(&tReq);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/client-pool-a", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		pResp = xrtHttpClientExecuteSync(pClient, &tReq, &iStatus);
+		printf("  HTTP client-scoped pool request #1 : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iBodyLen == 4u ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); pResp = NULL; }
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/client-pool-b", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		pResp = xrtHttpClientExecuteSync(pClient, &tReq, &iStatus);
+		printf("  HTTP client-scoped pool request #2 : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iBodyLen == 4u ? "PASS" : "FAIL");
+		printf("  HTTP client-scoped pool reused connection : %s\n", __Test_XHttpAtomicLoad(&tServer.iAcceptCount) == 1 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); pResp = NULL; }
+		xrtHttpClientCloseIdle(pClient);
+		__Test_XHttpSleepMs(50u);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/client-pool-c", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		pResp = xrtHttpClientExecuteSync(pClient, &tReq, &iStatus);
+		printf("  HTTP client-scoped pool close idle reconnects : %s\n", iStatus == XRT_NET_OK && pResp && __Test_XHttpAtomicLoad(&tServer.iAcceptCount) == 2 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		xrtHttpRequestUnit(&tReq);
+		xrtHttpClientDestroy(pClient);
+		__Test_XHttpSleepMs(50u);
+		if ( pClientEngine ) { xrtNetEngineStop(pClientEngine); xrtNetEngineDestroy(pClientEngine); }
 		__Test_XHttpServerStop(&tServer);
 	}
 
