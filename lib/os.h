@@ -39,8 +39,8 @@ XXAPI str xrtEnvGet(str sName)
 		xrtFree(sValueW);
 		return (str)sValue;
 	#else
-		const char* sValue = getenv(sName);
-		return sValue != NULL ? xrtCopyStr(sValue, 0) : NULL;
+		const char* sValue = getenv((const char*)sName);
+		return sValue != NULL ? xrtCopyStr((str)sValue, 0) : NULL;
 	#endif
 }
 
