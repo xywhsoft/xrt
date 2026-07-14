@@ -6,6 +6,7 @@ typedef struct {
 	volatile long iMeCount;
 	volatile long iPostCount;
 	volatile long iStreamCount;
+	volatile long iSlowWriteDone;
 	volatile long iErrorCount;
 	volatile long iBodyBeginCount;
 	volatile long iBodyChunkCount;
@@ -408,8 +409,12 @@ static xwebaction __Test_XWebSlowWriteHandler(xwebrequest* pReq, xwebresponse* p
 	(void)xrtWebResponseSetHeader(pResp, "Content-Type", "application/octet-stream");
 	if ( !xrtWebResponseStart(pResp) ) { return XWEB_ERROR; }
 	for ( uint32 i = 0u; i < 2048u; ++i ) {
-		if ( !xrtWebResponseSend(pResp, aChunk, sizeof(aChunk)) ) { return XWEB_ERROR; }
+		if ( !xrtWebResponseSend(pResp, aChunk, sizeof(aChunk)) ) {
+			if ( pCtx ) { __Test_XHttpdAtomicInc(&pCtx->iSlowWriteDone); }
+			return XWEB_ERROR;
+		}
 	}
+	if ( pCtx ) { __Test_XHttpdAtomicInc(&pCtx->iSlowWriteDone); }
 	return xrtWebResponseEnd(pResp) ? XWEB_DONE : XWEB_ERROR;
 }
 
@@ -1141,6 +1146,7 @@ int Test_XWeb(void)
 		size_t iRespLen = 0u;
 		bool bRecv = false;
 		bool bClosed = false;
+		bool bWriteQueued = false;
 
 		memset(&tTimeoutCtx, 0, sizeof(tTimeoutCtx));
 		xrtNetEngineConfigInit(&tEngineCfg);
@@ -1220,7 +1226,9 @@ int Test_XWeb(void)
 		}
 		printf("  XWeb write timeout raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
 		printf("  XWeb write timeout request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
-		bClosed = hRaw != XNET_SOCKET_INVALID && __Test_XWebDrainUntilClosed(hRaw, 400u, 2000u);
+		bWriteQueued = hRaw != XNET_SOCKET_INVALID && __Test_XHttpdWaitMin(&tTimeoutCtx.iSlowWriteDone, 1, 5000u);
+		printf("  XWeb write timeout response queued : %s\n", bWriteQueued ? "PASS" : "FAIL");
+		bClosed = bWriteQueued && __Test_XWebDrainUntilClosed(hRaw, 400u, 2000u);
 		printf("  XWeb write timeout close : %s\n", bClosed ? "PASS" : "FAIL");
 		__Test_XHttpdCloseSocket(hRaw);
 
