@@ -19,6 +19,8 @@ typedef struct {
 	uint32 iDelayMs;
 	int32 iStatus;
 	str sError;
+	xsem hReady;
+	xsem hStart;
 } __test_future_resolve_ctx;
 
 
@@ -29,6 +31,12 @@ static int32 __Test_FutureCore_ResolveThreadProc(ptr pArg, xfuture_result* pOut)
 
 	if ( pOut == NULL || pCtx == NULL || pCtx->pPromise == NULL ) {
 		return XRT_NET_ERROR;
+	}
+	if ( pCtx->hReady != NULL ) {
+		(void)xrtSemPost(pCtx->hReady);
+	}
+	if ( pCtx->hStart != NULL ) {
+		xrtSemWait(pCtx->hStart);
 	}
 	if ( pCtx->iDelayMs > 0 ) {
 		xrtSleep(pCtx->iDelayMs);
@@ -2714,6 +2722,9 @@ static int __Test_FutureCore_CombinatorRaceStress(void)
 		xfuture* pRace = NULL;
 		xfuture* pTaskA = NULL;
 		xfuture* pTaskB = NULL;
+		xsem hReady = NULL;
+		xsem hStart = NULL;
+		bool bWaitOk = true;
 		xfuture* arrFuture[2];
 		__test_future_resolve_ctx tCtxA;
 		__test_future_resolve_ctx tCtxB;
@@ -2749,21 +2760,11 @@ static int __Test_FutureCore_CombinatorRaceStress(void)
 			xFutureRelease(pB);
 			return 135;
 		}
-
-		tCtxA.pPromise = pPromiseA;
-		tCtxA.pValue = &iValueA;
-		tCtxA.iDelayMs = (iIndex == 0) ? 0 : 20;
-		tCtxA.iStatus = XRT_NET_OK;
-		tCtxB.pPromise = pPromiseB;
-		tCtxB.pValue = &iValueB;
-		tCtxB.iDelayMs = (iIndex == 0) ? 20 : 0;
-		tCtxB.iStatus = XRT_NET_OK;
-
-		pTaskA = xTaskRunThread(__Test_FutureCore_ResolveThreadProc, &tCtxA, 0);
-		pTaskB = xTaskRunThread(__Test_FutureCore_ResolveThreadProc, &tCtxB, 0);
-		if ( pTaskA == NULL || pTaskB == NULL ) {
-			if ( pTaskA ) xFutureRelease(pTaskA);
-			if ( pTaskB ) xFutureRelease(pTaskB);
+		hReady = xrtSemCreate(0u, 2u);
+		hStart = xrtSemCreate(0u, 2u);
+		if ( hReady == NULL || hStart == NULL ) {
+			if ( hReady ) xrtSemDestroy(hReady);
+			if ( hStart ) xrtSemDestroy(hStart);
 			xFutureRelease(pAny);
 			xFutureRelease(pRace);
 			xPromiseDestroy(pPromiseA);
@@ -2773,9 +2774,47 @@ static int __Test_FutureCore_CombinatorRaceStress(void)
 			return 136;
 		}
 
-		if ( !xFutureWaitTimeout(pAny, 2000) || !xFutureWaitTimeout(pRace, 2000) ) {
+		tCtxA.pPromise = pPromiseA;
+		tCtxA.pValue = &iValueA;
+		tCtxA.iDelayMs = (iIndex == 0) ? 0 : 20;
+		tCtxA.iStatus = XRT_NET_OK;
+		tCtxA.hReady = hReady;
+		tCtxA.hStart = hStart;
+		tCtxB.pPromise = pPromiseB;
+		tCtxB.pValue = &iValueB;
+		tCtxB.iDelayMs = (iIndex == 0) ? 20 : 0;
+		tCtxB.iStatus = XRT_NET_OK;
+		tCtxB.hReady = hReady;
+		tCtxB.hStart = hStart;
+
+		pTaskA = xTaskRunThread(__Test_FutureCore_ResolveThreadProc, &tCtxA, 0);
+		pTaskB = xTaskRunThread(__Test_FutureCore_ResolveThreadProc, &tCtxB, 0);
+		if ( pTaskA == NULL || pTaskB == NULL ) {
+			(void)xrtSemPostMultiple(hStart, 2u);
+			if ( pTaskA ) (void)xFutureWaitTimeout(pTaskA, 10000u);
+			if ( pTaskB ) (void)xFutureWaitTimeout(pTaskB, 10000u);
+			if ( pTaskA ) xFutureRelease(pTaskA);
+			if ( pTaskB ) xFutureRelease(pTaskB);
+			xrtSemDestroy(hReady);
+			xrtSemDestroy(hStart);
+			xFutureRelease(pAny);
+			xFutureRelease(pRace);
+			xPromiseDestroy(pPromiseA);
+			xPromiseDestroy(pPromiseB);
+			xFutureRelease(pA);
+			xFutureRelease(pB);
+			return 136;
+		}
+		if ( xrtSemWaitTimeout(hReady, 10000u) != XRT_WAIT_OK ||
+			 xrtSemWaitTimeout(hReady, 10000u) != XRT_WAIT_OK ||
+			 !xrtSemPostMultiple(hStart, 2u) ) {
+			(void)xrtSemPostMultiple(hStart, 2u);
+			(void)xFutureWaitTimeout(pTaskA, 10000u);
+			(void)xFutureWaitTimeout(pTaskB, 10000u);
 			xFutureRelease(pTaskA);
 			xFutureRelease(pTaskB);
+			xrtSemDestroy(hReady);
+			xrtSemDestroy(hStart);
 			xFutureRelease(pAny);
 			xFutureRelease(pRace);
 			xPromiseDestroy(pPromiseA);
@@ -2784,9 +2823,29 @@ static int __Test_FutureCore_CombinatorRaceStress(void)
 			xFutureRelease(pB);
 			return 137;
 		}
-		if ( xFutureGetGroupSourceIndex(pAny) != iIndex || xFutureGetGroupSourceIndex(pRace) != iIndex ) {
+
+		if ( !xFutureWaitTimeout(pAny, 10000u) ) bWaitOk = false;
+		if ( !xFutureWaitTimeout(pRace, 10000u) ) bWaitOk = false;
+		if ( !xFutureWaitTimeout(pTaskA, 10000u) ) bWaitOk = false;
+		if ( !xFutureWaitTimeout(pTaskB, 10000u) ) bWaitOk = false;
+		if ( !bWaitOk ) {
 			xFutureRelease(pTaskA);
 			xFutureRelease(pTaskB);
+			xrtSemDestroy(hReady);
+			xrtSemDestroy(hStart);
+			xFutureRelease(pAny);
+			xFutureRelease(pRace);
+			xPromiseDestroy(pPromiseA);
+			xPromiseDestroy(pPromiseB);
+			xFutureRelease(pA);
+			xFutureRelease(pB);
+			return 137;
+		}
+		xFutureRelease(pTaskA);
+		xFutureRelease(pTaskB);
+		xrtSemDestroy(hReady);
+		xrtSemDestroy(hStart);
+		if ( xFutureGetGroupSourceIndex(pAny) != iIndex || xFutureGetGroupSourceIndex(pRace) != iIndex ) {
 			xFutureRelease(pAny);
 			xFutureRelease(pRace);
 			xPromiseDestroy(pPromiseA);
@@ -2797,8 +2856,6 @@ static int __Test_FutureCore_CombinatorRaceStress(void)
 		}
 		if ( (iIndex == 0 && (xFuturePeekGroupSource(pAny) != pA || xFuturePeekGroupSource(pRace) != pA)) ||
 			(iIndex == 1 && (xFuturePeekGroupSource(pAny) != pB || xFuturePeekGroupSource(pRace) != pB)) ) {
-			xFutureRelease(pTaskA);
-			xFutureRelease(pTaskB);
 			xFutureRelease(pAny);
 			xFutureRelease(pRace);
 			xPromiseDestroy(pPromiseA);
@@ -2808,8 +2865,6 @@ static int __Test_FutureCore_CombinatorRaceStress(void)
 			return 139;
 		}
 
-		xFutureRelease(pTaskA);
-		xFutureRelease(pTaskB);
 		xFutureRelease(pAny);
 		xFutureRelease(pRace);
 		xPromiseDestroy(pPromiseA);
