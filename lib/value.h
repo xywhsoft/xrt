@@ -2,6 +2,8 @@
 
 
 // 静态值 : null、true、false
+#include <stddef.h>
+
 static xvalue_struct XVO_VALUE_NULL = {
 	.Header = XVO_HEADER_INIT(XVO_DT_NULL, TRUE, FALSE, 0),
 	.Size = 0,

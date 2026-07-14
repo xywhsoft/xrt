@@ -3067,13 +3067,13 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 
 	// 配置 stdin：管道模式使用 socketpair（支持双向），null 模式打开 /dev/null
 	if ( pPlan->iStdinMode == XPROC_STDIO_PIPE ) {
-		int iOne = 1;
 		if ( socketpair(AF_UNIX, SOCK_STREAM, 0, fdStdin) != 0 ) {
 			xrtSetError("failed to create subprocess stdin pipe.", FALSE);
 			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, errno);
 			goto fail;
 		}
 		#if defined(SO_NOSIGPIPE)
+			int iOne = 1;
 			(void)setsockopt(fdStdin[1], SOL_SOCKET, SO_NOSIGPIPE, &iOne, sizeof(iOne));
 		#endif
 	} else if ( pPlan->iStdinMode == XPROC_STDIO_NULL ) {
