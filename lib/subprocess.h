@@ -3706,6 +3706,13 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 	pProcess->StderrPump.pProcess = pProcess;
 	pProcess->StderrPump.iStream = __XPROC_STREAM_STDERR;
 
+	/* Publish START before any pump or wait thread can publish OUTPUT or EXIT.
+	 * Fast children can otherwise make the observable event stream begin with
+	 * output (or even end with START) on POSIX schedulers. */
+	xrtMutexLock(&pProcess->Lock);
+	__xprocPushEventLocked(pProcess, XPROC_EVENT_START, XPROC_STREAM_NONE, 0u, 0u, NULL);
+	xrtMutexUnlock(&pProcess->Lock);
+
 	// 启动 stdout 泵线程
 	if ( pProcess->iStdoutMode == XPROC_STDIO_PIPE ) {
 		pProcess->hStdoutThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StdoutPump, 0u);
@@ -3738,9 +3745,6 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 	}
 
 	// 记录启动事件并调用用户回调
-	xrtMutexLock(&pProcess->Lock);
-	__xprocPushEventLocked(pProcess, XPROC_EVENT_START, XPROC_STREAM_NONE, 0u, 0u, NULL);
-	xrtMutexUnlock(&pProcess->Lock);
 	if ( pProcess->Events.OnStart ) {
 		pProcess->Events.OnStart(pProcess, pProcess->pUserData);
 	}
