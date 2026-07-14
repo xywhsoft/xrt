@@ -591,6 +591,31 @@ static bool __Test_XWebWaitSocketClosed(xsocket hSocket, uint32 iTimeoutMs)
 }
 
 
+static xsocket __Test_XWebConnectSlowReader(uint16 iPort)
+{
+	xsocket hSocket;
+	struct sockaddr_in tAddr;
+	int iSockBuf = 4096;
+
+	hSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if ( hSocket == XNET_SOCKET_INVALID ) { return XNET_SOCKET_INVALID; }
+#if defined(_WIN32) || defined(_WIN64)
+	(void)setsockopt(hSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&iSockBuf, (int)sizeof(iSockBuf));
+#else
+	(void)setsockopt(hSocket, SOL_SOCKET, SO_RCVBUF, &iSockBuf, (socklen_t)sizeof(iSockBuf));
+#endif
+	memset(&tAddr, 0, sizeof(tAddr));
+	tAddr.sin_family = AF_INET;
+	tAddr.sin_port = htons(iPort);
+	tAddr.sin_addr.s_addr = htonl(0x7F000001u);
+	if ( connect(hSocket, (struct sockaddr*)&tAddr, sizeof(tAddr)) != 0 ) {
+		__Test_XHttpdCloseSocket(hSocket);
+		return XNET_SOCKET_INVALID;
+	}
+	return hSocket;
+}
+
+
 static bool __Test_XWebDrainUntilClosed(xsocket hSocket, uint32 iDelayMs, uint32 iTimeoutMs)
 {
 	char aBuf[4096];
@@ -1215,15 +1240,7 @@ int Test_XWeb(void)
 			"Host: 127.0.0.1:%u\r\n"
 			"Connection: keep-alive\r\n\r\n",
 			(unsigned)xrtWebServerPort(pServer));
-		hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtWebServerPort(pServer)) : XNET_SOCKET_INVALID;
-		if ( hRaw != XNET_SOCKET_INVALID ) {
-			int iSockBuf = 4096;
-#if defined(_WIN32) || defined(_WIN64)
-			(void)setsockopt(hRaw, SOL_SOCKET, SO_RCVBUF, (const char*)&iSockBuf, (int)sizeof(iSockBuf));
-#else
-			(void)setsockopt(hRaw, SOL_SOCKET, SO_RCVBUF, &iSockBuf, (socklen_t)sizeof(iSockBuf));
-#endif
-		}
+		hRaw = pServer ? __Test_XWebConnectSlowReader(xrtWebServerPort(pServer)) : XNET_SOCKET_INVALID;
 		printf("  XWeb write timeout raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
 		printf("  XWeb write timeout request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
 		bWriteQueued = hRaw != XNET_SOCKET_INVALID && __Test_XHttpdWaitMin(&tTimeoutCtx.iSlowWriteDone, 1, 5000u);
