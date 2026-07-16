@@ -14,6 +14,14 @@
 #include "../common.h"
 
 
+static bool EchoOnAccept(ptr pOwner, xnetlistener* pListener, xnetstream* pStream)
+{
+	(void)pOwner;
+	(void)pListener;
+	return pStream != NULL;
+}
+
+
 int main()
 {
 	xnetengineconfig tCfg;
@@ -21,6 +29,7 @@ int main()
 	xnetengine* pEngine = NULL;
 	xnetlistener* pListener = NULL;
 	exnet_stream_ctx tServerCtx = { 0 };
+	xnetlistenerevents tListenerEvents = { 0 };
 
 	xrtInit();
 
@@ -30,10 +39,11 @@ int main()
 	xrtNetAddrInitAny(&tListenCfg.tBindAddr, AF_INET, 19091);
 
 	tServerCtx.bEchoBack = TRUE;
+	tListenerEvents.OnAccept = EchoOnAccept;
 
 	pEngine = xrtNetEngineCreate(&tCfg);
 	xrtNetEngineStart(pEngine);
-	pListener = xrtNetListenerCreate(pEngine, &tListenCfg, NULL, &gExNetStreamEvents, &tServerCtx);
+	pListener = xrtNetListenerCreate(pEngine, &tListenCfg, &tListenerEvents, &gExNetStreamEvents, &tServerCtx);
 	xrtNetListenerStart(pListener);
 
 	printf("echo_server_bound = %u\n", (unsigned)pListener->tConfig.tBindAddr.iPort);

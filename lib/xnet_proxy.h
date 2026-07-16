@@ -9,7 +9,8 @@
 */
 
 
-#define __XNET_PROXY_RECV_CAP         8192u
+#define __XNET_PROXY_RECV_INITIAL     256u
+#define __XNET_PROXY_RECV_MAX         8192u
 
 #define __XNET_PROXY_ACTION_WAIT      0u
 #define __XNET_PROXY_ACTION_SEND      1u
@@ -30,8 +31,9 @@ typedef struct {
 	bool bTargetAddrValid;
 	char sTargetHost[XNET_PROXY_HOST_CAP];
 	xnetaddr tTargetAddr;
-	char aRecv[__XNET_PROXY_RECV_CAP];
+	char* pRecv;
 	uint32 iRecvLen;
+	uint32 iRecvCapacity;
 } __xnet_proxy_state;
 
 
@@ -51,7 +53,7 @@ static void __xnetProxyConsumeRecv(__xnet_proxy_state* pState, uint32 iLen)
 		pState->iRecvLen = 0;
 		return;
 	}
-	memmove(pState->aRecv, pState->aRecv + iLen, pState->iRecvLen - iLen);
+	memmove(pState->pRecv, pState->pRecv + iLen, pState->iRecvLen - iLen);
 	pState->iRecvLen -= iLen;
 }
 
@@ -61,8 +63,26 @@ static bool __xnetProxyAppendRecv(__xnet_proxy_state* pState, const void* pData,
 {
 	if ( !pState || (!pData && iLen > 0) ) { return false; }
 	if ( iLen == 0 ) { return true; }
-	if ( iLen > (size_t)(__XNET_PROXY_RECV_CAP - pState->iRecvLen) ) { return false; }
-	memcpy(pState->aRecv + pState->iRecvLen, pData, iLen);
+	if ( iLen > (size_t)(__XNET_PROXY_RECV_MAX - pState->iRecvLen) ) { return false; }
+	if ( (size_t)pState->iRecvLen + iLen > pState->iRecvCapacity ) {
+		uint32 iCapacity = pState->iRecvCapacity
+			? pState->iRecvCapacity : __XNET_PROXY_RECV_INITIAL;
+		char* pNew;
+		while ( (size_t)iCapacity < (size_t)pState->iRecvLen + iLen ) {
+			iCapacity *= 2u;
+			if ( iCapacity > __XNET_PROXY_RECV_MAX ) {
+				iCapacity = __XNET_PROXY_RECV_MAX;
+				break;
+			}
+		}
+		pNew = (char*)XNET_ALLOC(iCapacity);
+		if ( !pNew ) { return false; }
+		if ( pState->iRecvLen > 0u ) { memcpy(pNew, pState->pRecv, pState->iRecvLen); }
+		if ( pState->pRecv ) { XNET_FREE(pState->pRecv); }
+		pState->pRecv = pNew;
+		pState->iRecvCapacity = iCapacity;
+	}
+	memcpy(pState->pRecv + pState->iRecvLen, pData, iLen);
 	pState->iRecvLen += (uint32)iLen;
 	return true;
 }
@@ -257,6 +277,7 @@ static __xnet_proxy_state* __xnetProxyStateCreate(const xnetproxy* pProxy, const
 static void __xnetProxyStateDestroy(__xnet_proxy_state* pState)
 {
 	if ( !pState ) { return; }
+	if ( pState->pRecv ) { XNET_FREE(pState->pRecv); }
 	XNET_FREE(pState);
 }
 
@@ -294,9 +315,9 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 			// SOCKS5 方法选择阶段：解析服务端支持的认证方法
 			case __XNET_PROXY_STAGE_SOCKS5_METHOD:
 				if ( pState->iRecvLen < 2u ) { return __XNET_PROXY_ACTION_WAIT; }
-				if ( (uint8)pState->aRecv[0] != 0x05 ) { return __XNET_PROXY_ACTION_ERROR; }
-				if ( (uint8)pState->aRecv[1] == 0xFF ) { return __XNET_PROXY_ACTION_ERROR; }
-				if ( (uint8)pState->aRecv[1] == 0x02 ) {
+				if ( (uint8)pState->pRecv[0] != 0x05 ) { return __XNET_PROXY_ACTION_ERROR; }
+				if ( (uint8)pState->pRecv[1] == 0xFF ) { return __XNET_PROXY_ACTION_ERROR; }
+				if ( (uint8)pState->pRecv[1] == 0x02 ) {
 					if ( !__xnetProxyHasAuth(pProxy) || !__xnetProxyBuildSocks5Auth(pProxy, pOut, iOutCap, pOutLen) ) {
 						return __XNET_PROXY_ACTION_ERROR;
 					}
@@ -304,7 +325,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 					pState->iStage = __XNET_PROXY_STAGE_SOCKS5_AUTH;
 					return __XNET_PROXY_ACTION_SEND;
 				}
-				if ( (uint8)pState->aRecv[1] != 0x00 ) { return __XNET_PROXY_ACTION_ERROR; }
+				if ( (uint8)pState->pRecv[1] != 0x00 ) { return __XNET_PROXY_ACTION_ERROR; }
 				if ( !__xnetProxyBuildSocks5ConnectReq(pState, pOut, iOutCap, pOutLen) ) { return __XNET_PROXY_ACTION_ERROR; }
 				__xnetProxyConsumeRecv(pState, 2u);
 				pState->iStage = __XNET_PROXY_STAGE_SOCKS5_CONNECT;
@@ -313,7 +334,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 			// SOCKS5 认证阶段：验证用户名密码认证结果
 			case __XNET_PROXY_STAGE_SOCKS5_AUTH:
 				if ( pState->iRecvLen < 2u ) { return __XNET_PROXY_ACTION_WAIT; }
-				if ( (uint8)pState->aRecv[0] != 0x01 || (uint8)pState->aRecv[1] != 0x00 ) { return __XNET_PROXY_ACTION_ERROR; }
+				if ( (uint8)pState->pRecv[0] != 0x01 || (uint8)pState->pRecv[1] != 0x00 ) { return __XNET_PROXY_ACTION_ERROR; }
 				if ( !__xnetProxyBuildSocks5ConnectReq(pState, pOut, iOutCap, pOutLen) ) { return __XNET_PROXY_ACTION_ERROR; }
 				__xnetProxyConsumeRecv(pState, 2u);
 				pState->iStage = __XNET_PROXY_STAGE_SOCKS5_CONNECT;
@@ -326,17 +347,17 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 					uint8 iAtyp;
 					if ( pState->iRecvLen < 5u ) { return __XNET_PROXY_ACTION_WAIT; }
 					// 验证 SOCKS5 响应头：版本号、结果码、保留字段
-					if ( (uint8)pState->aRecv[0] != 0x05 || (uint8)pState->aRecv[1] != 0x00 || (uint8)pState->aRecv[2] != 0x00 ) {
+					if ( (uint8)pState->pRecv[0] != 0x05 || (uint8)pState->pRecv[1] != 0x00 || (uint8)pState->pRecv[2] != 0x00 ) {
 						return __XNET_PROXY_ACTION_ERROR;
 					}
 					// 根据地址类型计算完整响应所需长度
-					iAtyp = (uint8)pState->aRecv[3];
+					iAtyp = (uint8)pState->pRecv[3];
 					if ( iAtyp == 0x01 ) {
 						iNeed = 4u + 4u + 2u;
 					} else if ( iAtyp == 0x04 ) {
 						iNeed = 4u + 16u + 2u;
 					} else if ( iAtyp == 0x03 ) {
-						iNeed = 5u + (uint8)pState->aRecv[4] + 2u;
+						iNeed = 5u + (uint8)pState->pRecv[4] + 2u;
 					} else {
 						return __XNET_PROXY_ACTION_ERROR;
 					}
@@ -350,23 +371,23 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 			case __XNET_PROXY_STAGE_HTTP_CONNECT:
 				{
 					// 查找 HTTP 头部结束标记（\r\n\r\n）
-					uint32 iHeaderEnd = __xnetProxyFindHttpHeaderEnd(pState->aRecv, pState->iRecvLen);
+					uint32 iHeaderEnd = __xnetProxyFindHttpHeaderEnd(pState->pRecv, pState->iRecvLen);
 					char chSaved;
 					char* pStatus;
 					int iStatusCode;
 					if ( iHeaderEnd == 0u ) { return __XNET_PROXY_ACTION_WAIT; }
 					// 临时截断以字符串方式解析 HTTP 头部
-					chSaved = pState->aRecv[iHeaderEnd - 1u];
-					pState->aRecv[iHeaderEnd - 1u] = '\0';
+					chSaved = pState->pRecv[iHeaderEnd - 1u];
+					pState->pRecv[iHeaderEnd - 1u] = '\0';
 					// 验证 HTTP 响应行以 "HTTP/1." 开头
-					if ( strncmp(pState->aRecv, "HTTP/1.", 7) != 0 ) {
-						pState->aRecv[iHeaderEnd - 1u] = chSaved;
+					if ( strncmp(pState->pRecv, "HTTP/1.", 7) != 0 ) {
+						pState->pRecv[iHeaderEnd - 1u] = chSaved;
 						return __XNET_PROXY_ACTION_ERROR;
 					}
 					// 提取状态码（跳过 "HTTP/1.x " 后的第一个空格）
-					pStatus = strchr(pState->aRecv, ' ');
+					pStatus = strchr(pState->pRecv, ' ');
 					if ( !pStatus ) {
-						pState->aRecv[iHeaderEnd - 1u] = chSaved;
+						pState->pRecv[iHeaderEnd - 1u] = chSaved;
 						return __XNET_PROXY_ACTION_ERROR;
 					}
 					// 解析状态码并恢复缓冲区
@@ -374,12 +395,12 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 						char* pEnd = NULL;
 						long iStatusCodeLong = strtol(pStatus + 1, &pEnd, 10);
 						if ( pEnd == pStatus + 1 || iStatusCodeLong < 100 || iStatusCodeLong > 999 ) {
-							pState->aRecv[iHeaderEnd - 1u] = chSaved;
+							pState->pRecv[iHeaderEnd - 1u] = chSaved;
 							return __XNET_PROXY_ACTION_ERROR;
 						}
 						iStatusCode = (int)iStatusCodeLong;
 					}
-					pState->aRecv[iHeaderEnd - 1u] = chSaved;
+					pState->pRecv[iHeaderEnd - 1u] = chSaved;
 					// 仅状态码 200 表示代理隧道建立成功
 					if ( iStatusCode != 200 ) { return __XNET_PROXY_ACTION_ERROR; }
 					__xnetProxyConsumeRecv(pState, iHeaderEnd);

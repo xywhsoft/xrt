@@ -89,7 +89,6 @@ void Test_String(xrtGlobalData* xCore)
 	printf("xrtStrLike(\"\", \"*\") = %d (应为1)\n", xrtStrLike("", 0, "*", 0, FALSE));
 	printf("xrtStrLike(\"a\", \"\") = %d (应为0)\n", xrtStrLike("a", 0, "", 0, FALSE));
 	printf("xrtStrLike(\"\", \"?\") = %d (应为0)\n", xrtStrLike("", 0, "?", 0, FALSE));
-	
 	// xrtIntFormat 整数格式化测试
 	printf("\n--- xrtIntFormat 整数格式化测试 ---\n");
 	

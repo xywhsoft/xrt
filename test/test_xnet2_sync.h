@@ -15,6 +15,18 @@ typedef struct {
 	volatile long iWorkerId;
 } __test_xnet2_sync_postfuture_case;
 
+typedef struct {
+	uint32 iBlockMs;
+	volatile long iHitCount;
+	volatile long iWorkerId;
+} __test_xnet2_sync_timer_case;
+
+typedef struct {
+	uint32 iDelayMs;
+	int iPayload;
+	volatile long iHitCount;
+} __test_xnet2_sync_executor_case;
+
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 typedef struct {
 	xnetfuture* pFuture;
@@ -209,6 +221,36 @@ static void __Test_XNet2_SyncResolveTask(xnetworker* pWorker, ptr pArg)
 	__Test_XNet2_SyncAtomicInc(&pCtx->iHitCount);
 	__Test_XNet2_SyncAtomicStore(&pCtx->iWorkerId, pWorker ? (long)pWorker->iId : -1);
 	(void)__xnetFutureResolve(pCtx->pFuture, pCtx->iResult, pCtx->pValue);
+}
+
+
+static void __Test_XNet2_SyncTimerTask(xnetworker* pWorker, ptr pArg)
+{
+	__test_xnet2_sync_timer_case* pCase = (__test_xnet2_sync_timer_case*)pArg;
+	if ( !pCase ) return;
+	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, pWorker ? (long)pWorker->iId : -1);
+	(void)__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
+}
+
+
+static void __Test_XNet2_SyncTimerBlockTask(xnetworker* pWorker, ptr pArg)
+{
+	__test_xnet2_sync_timer_case* pCase = (__test_xnet2_sync_timer_case*)pArg;
+	(void)pWorker;
+	if ( pCase && pCase->iBlockMs != 0 ) { __Test_XNet2_SyncSleepMs(pCase->iBlockMs); }
+}
+
+
+static void __Test_XNet2_SyncCancelTokenTask(xnetworker* pWorker, ptr pArg)
+{
+	(void)pWorker;
+	(void)xrtNetCancelRequest((xnetcancel*)pArg);
+}
+
+
+static void __Test_XNet2_SyncCancelWatchCallback(ptr pArg)
+{
+	if ( pArg ) { (void)__Test_XNet2_SyncAtomicInc((volatile long*)pArg); }
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
@@ -702,6 +744,18 @@ static int32 __Test_XNet2_TaskRunThreadProc(ptr pArg, xfuture_result* pOut)
 	return __Test_XNet2_SyncFillTaskResult(pCase, -2, pOut);
 }
 
+
+static int32 __Test_XNet2_TaskExecutorProc(ptr pArg, xfuture_result* pOut)
+{
+	__test_xnet2_sync_executor_case* pCase = (__test_xnet2_sync_executor_case*)pArg;
+	if ( !pCase || !pOut ) { return XRT_NET_ERROR; }
+	if ( pCase->iDelayMs > 0u ) { __Test_XNet2_SyncSleepMs(pCase->iDelayMs); }
+	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
+	pOut->pValue = &pCase->iPayload;
+	pOut->iFlags = XFUTURE_RESULT_F_NONE;
+	return XRT_NET_OK;
+}
+
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 // 内部函数：__Test_XNet2_TaskRunCoProc
 static int32 __Test_XNet2_TaskRunCoProc(ptr pArg, xfuture_result* pOut)
@@ -862,6 +916,83 @@ int Test_XNet2_Sync(void)
 		if ( pFuture ) xFutureRelease(pFuture);
 	}
 
+	{
+		xnetcancel* pParent = xrtNetCancelCreate();
+		xnetcancel* pChild = pParent ? xrtNetCancelCreateChild(pParent) : NULL;
+		xnetcancelwatch* pWatch = NULL;
+		volatile long iWatchCount = 0;
+		if ( pChild ) {
+			pWatch = xrtNetCancelWatchCreate(pChild, __Test_XNet2_SyncCancelWatchCallback, (ptr)&iWatchCount);
+		}
+		printf("  Cancel watch create on child token : %s\n", pWatch ? "PASS" : "FAIL");
+		printf("  Cancel watch starts untriggered : %s\n",
+			pWatch && !xrtNetCancelWatchIsTriggered(pWatch) ? "PASS" : "FAIL");
+		printf("  Parent cancellation request : %s\n",
+			pParent && xrtNetCancelRequest(pParent) ? "PASS" : "FAIL");
+		printf("  Parent cancellation triggers child watch : %s\n",
+			pWatch && xrtNetCancelWatchIsTriggered(pWatch) &&
+			__xrtTestAtomicLoadLong(&iWatchCount) == 1 ? "PASS" : "FAIL");
+		printf("  Cancel watch callback runs at most once : %s\n",
+			pParent && !xrtNetCancelRequest(pParent) &&
+			__xrtTestAtomicLoadLong(&iWatchCount) == 1 ? "PASS" : "FAIL");
+		if ( pWatch ) xrtNetCancelWatchDestroy(pWatch);
+		if ( pChild ) xrtNetCancelRelease(pChild);
+		if ( pParent ) xrtNetCancelRelease(pParent);
+	}
+
+	{
+		xtaskexecutorconfig tCfg;
+		xtaskexecutorstats tStats;
+		xtaskexecutor* pExecutor;
+		__test_xnet2_sync_executor_case tSlow;
+		__test_xnet2_sync_executor_case tCancelled;
+		xfuture* pSlow;
+		xfuture* pCancelled;
+		xfuture* pRejected;
+		int iSpin;
+		memset(&tSlow, 0, sizeof(tSlow));
+		memset(&tCancelled, 0, sizeof(tCancelled));
+		memset(&tStats, 0, sizeof(tStats));
+		tSlow.iDelayMs = 100u;
+		tSlow.iPayload = 111;
+		tCancelled.iPayload = 222;
+		xTaskExecutorConfigInit(&tCfg);
+		tCfg.iThreadCount = 1u;
+		tCfg.iQueueLimit = 1u;
+		pExecutor = xTaskExecutorCreate(&tCfg);
+		pSlow = pExecutor ? xTaskExecutorSubmit(pExecutor, __Test_XNet2_TaskExecutorProc, &tSlow) : NULL;
+		for ( iSpin = 0; pExecutor && iSpin < 100; ++iSpin ) {
+			(void)xTaskExecutorGetStats(pExecutor, &tStats);
+			if ( tStats.iRunning == 1u ) { break; }
+			__Test_XNet2_SyncSleepMs(1u);
+		}
+		pCancelled = pExecutor ? xTaskExecutorSubmit(pExecutor,
+			__Test_XNet2_TaskExecutorProc, &tCancelled) : NULL;
+		pRejected = pExecutor ? xTaskExecutorSubmit(pExecutor,
+			__Test_XNet2_TaskExecutorProc, &tCancelled) : NULL;
+		if ( pCancelled ) { (void)xFutureRequestCancel(pCancelled); }
+		printf("  Bounded task executor create : %s\n", pExecutor != NULL ? "PASS" : "FAIL");
+		printf("  Bounded task executor accepts running task : %s\n", pSlow != NULL ? "PASS" : "FAIL");
+		printf("  Bounded task executor hard queue limit : %s\n", pCancelled != NULL && pRejected == NULL ? "PASS" : "FAIL");
+		printf("  Bounded task executor running result : %s\n",
+			pSlow && xFutureWaitTimeout(pSlow, 1000) && xFutureValue(pSlow) == &tSlow.iPayload ? "PASS" : "FAIL");
+		if ( pCancelled ) { (void)xFutureWaitTimeout(pCancelled, 1000); }
+		for ( iSpin = 0; pExecutor && iSpin < 1000; ++iSpin ) {
+			(void)xTaskExecutorGetStats(pExecutor, &tStats);
+			if ( tStats.iCompleted == 2u ) { break; }
+			__Test_XNet2_SyncSleepMs(1u);
+		}
+		printf("  Bounded task executor queued cancel : %s\n",
+			pCancelled && xFutureStatus(pCancelled) == XRT_NET_CANCELLED &&
+			tCancelled.iHitCount == 0 ? "PASS" : "FAIL");
+		printf("  Bounded task executor stats : %s\n",
+			tStats.iSubmitted == 2u && tStats.iCompleted == 2u && tStats.iRejected == 1u ? "PASS" : "FAIL");
+		if ( pRejected ) { xFutureRelease(pRejected); }
+		if ( pCancelled ) { xFutureRelease(pCancelled); }
+		if ( pSlow ) { xFutureRelease(pSlow); }
+		if ( pExecutor ) { xTaskExecutorDestroy(pExecutor); }
+	}
+
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 	{
 		__test_xnet2_sync_postfuture_case tTaskCase;
@@ -940,9 +1071,20 @@ int Test_XNet2_Sync(void)
 		xnetengine* pEngine;
 		xnetfuture* pFuture;
 		__test_xnet2_sync_task_ctx tCtx;
+		__test_xnet2_sync_timer_case tCanceledTimer;
+		__test_xnet2_sync_timer_case tCatchupTimer;
+		__test_xnet2_sync_timer_case tBlockTask;
+		uint64 iCanceledTimerId = 0;
+		uint64 iCatchupTimerId = 0;
 		int iPayload = 5678;
 
 		memset(&tCtx, 0, sizeof(tCtx));
+		memset(&tCanceledTimer, 0, sizeof(tCanceledTimer));
+		memset(&tCatchupTimer, 0, sizeof(tCatchupTimer));
+		memset(&tBlockTask, 0, sizeof(tBlockTask));
+		tCanceledTimer.iWorkerId = -1;
+		tCatchupTimer.iWorkerId = -1;
+		tBlockTask.iBlockMs = 80;
 		xrtNetEngineConfigInit(&tCfg);
 		tCfg.iWorkerCount = 1;
 
@@ -968,11 +1110,162 @@ int Test_XNet2_Sync(void)
 				xrtNetFutureValue(pFuture) == &iPayload ? "PASS" : "FAIL");
 			printf("  Delayed resolve hit count : %s\n", tCtx.iHitCount == 1 ? "PASS" : "FAIL");
 			printf("  Delayed resolve worker id : %s\n", tCtx.iWorkerId == 0 ? "PASS" : "FAIL");
+			printf("  Engine timer cancel schedule : %s\n",
+				xrtNetEngineScheduleTimer(pEngine, 0, 80, __Test_XNet2_SyncTimerTask,
+					&tCanceledTimer, &iCanceledTimerId) == XRT_NET_OK && iCanceledTimerId != 0 ? "PASS" : "FAIL");
+			printf("  Engine timer cancel request : %s\n",
+				xrtNetEngineCancelTimer(pEngine, iCanceledTimerId) == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  Engine timer catchup schedule : %s\n",
+				xrtNetEngineScheduleTimer(pEngine, 0, 20, __Test_XNet2_SyncTimerTask,
+					&tCatchupTimer, &iCatchupTimerId) == XRT_NET_OK && iCatchupTimerId != 0 ? "PASS" : "FAIL");
+			printf("  Engine timer blocking task post : %s\n",
+				xrtNetEnginePost(pEngine, 0, __Test_XNet2_SyncTimerBlockTask, &tBlockTask) == XRT_NET_OK ? "PASS" : "FAIL");
+			__Test_XNet2_SyncSleepMs(140);
+			printf("  Engine timer canceled callback suppressed : %s\n",
+				tCanceledTimer.iHitCount == 0 ? "PASS" : "FAIL");
+			printf("  Engine timer catches up after worker stall : %s\n",
+				tCatchupTimer.iHitCount == 1 && tCatchupTimer.iWorkerId == 0 ? "PASS" : "FAIL");
 			xrtNetEngineStop(pEngine);
 		}
 
 		if ( pFuture ) xrtNetFutureDestroy(pFuture);
 		if ( pEngine ) xrtNetEngineDestroy(pEngine);
+	}
+
+	{
+		xnetengineconfig tCfg;
+		xnetdgramconfig tServerCfg;
+		xnetdgramconfig tClientCfg;
+		xnetengine* pEngine = NULL;
+		xdgramsock* pServer = NULL;
+		xdgramsock* pClient = NULL;
+		xnetaddr tServerAddr;
+		xnetfuture* pFuture = NULL;
+		xnetdgrambatch* pFutureBatch = NULL;
+		xnetdgrambatch* pSyncBatch = NULL;
+		xnetdgrampkt* pTaken = NULL;
+		xnet_result iSyncStatus = XRT_NET_ERROR;
+
+		memset(&tServerAddr, 0, sizeof(tServerAddr));
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		xrtNetDgramConfigInit(&tServerCfg);
+		tServerCfg.iRecvBatch = 8u;
+		xrtNetDgramConfigInit(&tClientCfg);
+		pEngine = xrtNetEngineCreate(&tCfg);
+		if ( pEngine ) { (void)xrtNetEngineStart(pEngine); }
+		pServer = pEngine ? xrtNetDgramCreate(pEngine, &tServerCfg, NULL, NULL) : NULL;
+		pClient = pEngine ? xrtNetDgramCreate(pEngine, &tClientCfg, NULL, NULL) : NULL;
+		if ( pServer ) { (void)xrtNetDgramStart(pServer); }
+		if ( pClient ) { (void)xrtNetDgramStart(pClient); }
+		if ( pServer ) { (void)xrtNetAddrParse(&tServerAddr, "127.0.0.1", pServer->tLocalAddr.iPort); }
+		if ( pClient && pServer ) {
+			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "b1", 2u);
+			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "b2", 2u);
+			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "b3", 2u);
+			__Test_XNet2_SyncSleepMs(30u);
+			pFuture = xrtNetDgramRecvBatchFuture(pServer, 8u);
+			if ( pFuture && xrtNetFutureWait(pFuture, 1000u) == XRT_NET_OK ) {
+				pFutureBatch = (xnetdgrambatch*)xrtNetFutureValue(pFuture);
+			}
+		}
+		printf("  Dgram recv batch future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  Dgram recv batch future drains queued packets : %s\n",
+			pFutureBatch && xrtNetDgramBatchCount(pFutureBatch) == 3u ? "PASS" : "FAIL");
+		printf("  Dgram recv batch packet access : %s\n",
+			pFutureBatch && __Test_XNet2_SyncDgramPacketTextEquals(
+				xrtNetDgramBatchPacket(pFutureBatch, 0u), "b1") ? "PASS" : "FAIL");
+		if ( pFutureBatch ) { xrtNetDgramBatchDestroy(pFutureBatch); }
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+
+		if ( pClient && pServer ) {
+			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "s1", 2u);
+			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "s2", 2u);
+			__Test_XNet2_SyncSleepMs(30u);
+			iSyncStatus = xrtNetDgramRecvBatchTimeout(pServer, 8u, 1000u, &pSyncBatch);
+		}
+		printf("  Dgram recv batch sync status : %s\n",
+			iSyncStatus == XRT_NET_OK && pSyncBatch ? "PASS" : "FAIL");
+		printf("  Dgram recv batch sync count : %s\n",
+			pSyncBatch && xrtNetDgramBatchCount(pSyncBatch) == 2u ? "PASS" : "FAIL");
+		pTaken = pSyncBatch ? xrtNetDgramBatchTake(pSyncBatch, 0u) : NULL;
+		printf("  Dgram recv batch ownership transfer : %s\n",
+			pTaken && __Test_XNet2_SyncDgramPacketTextEquals(pTaken, "s1") ? "PASS" : "FAIL");
+		if ( pTaken ) { xrtNetDgramPacketDestroy(pTaken); }
+		if ( pSyncBatch ) { xrtNetDgramBatchDestroy(pSyncBatch); }
+		if ( pClient ) { xrtNetDgramStop(pClient); xrtNetDgramDestroy(pClient); }
+		if ( pServer ) { xrtNetDgramStop(pServer); xrtNetDgramDestroy(pServer); }
+		if ( pEngine ) { xrtNetEngineStop(pEngine); xrtNetEngineDestroy(pEngine); }
+	}
+
+	{
+		xnetengineconfig tCfg;
+		xnetengine* pEngine = NULL;
+		xnetfuture* pFuture = NULL;
+		xnetcancel* pCancel = NULL;
+		xnetcontext tContext;
+		xnetwaitsrc tSource;
+		xneterror tError;
+		xnetstream* pStream = NULL;
+		xnet_result iStatus;
+		uint64 iCancelTimerId = 0;
+
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pEngine = xrtNetEngineCreate(&tCfg);
+		if ( pEngine ) { (void)xrtNetEngineStart(pEngine); }
+		pFuture = xrtNetFutureCreate();
+		pCancel = xrtNetCancelCreate();
+		xrtNetContextInit(&tContext);
+		xrtNetContextSetCancel(&tContext, pCancel);
+		tSource = xrtNetWaitSourceFuture(pFuture);
+		if ( pEngine && pCancel ) {
+			(void)xrtNetEngineScheduleTimer(pEngine, 0, 20, __Test_XNet2_SyncCancelTokenTask,
+				pCancel, &iCancelTimerId);
+		}
+		iStatus = xrtNetWaitSourceWaitContext(&tSource, &tContext);
+		printf("  Context cancel token create : %s\n", pEngine && pFuture && pCancel ? "PASS" : "FAIL");
+		printf("  Context cancel timer id : %s\n", iCancelTimerId != 0 ? "PASS" : "FAIL");
+		printf("  Context cancel wait status : %s\n", iStatus == XRT_NET_CANCELLED ? "PASS" : "FAIL");
+		printf("  Context cancel leaves source future pending : %s\n",
+			pFuture && xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN ? "PASS" : "FAIL");
+
+		xrtNetContextInit(&tContext);
+		xrtNetContextSetTimeout(&tContext, 15);
+		iStatus = xrtNetWaitSourceWaitContext(&tSource, &tContext);
+		printf("  Context deadline wait status : %s\n", iStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
+
+		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
+		if ( pStream ) {
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
+			xrtNetStreamPauseRead(pStream);
+			tSource = xrtNetWaitSourceStream(pStream, __XNET_STREAM_WAIT_READABLE);
+			xrtNetContextInit(&tContext);
+			xrtNetContextSetTimeout(&tContext, 15);
+			iStatus = xrtNetWaitSourceWaitContext(&tSource, &tContext);
+		}
+		printf("  Context timeout cancels stream waiter : %s\n",
+			pStream && iStatus == XRT_NET_TIMEOUT &&
+			pStream->arrSyncWait[__XNET_STREAM_WAIT_READABLE].pfnWait == NULL ? "PASS" : "FAIL");
+
+		xrtNetContextInit(&tContext);
+		tContext.iVersion = XNET_CONTEXT_VERSION + 1u;
+		xrtNetErrorClear();
+		iStatus = xrtNetWaitSourceWaitContext(&tSource, &tContext);
+		memset(&tError, 0, sizeof(tError));
+		(void)xrtNetErrorGet(&tError);
+		printf("  Structured error invalid context status : %s\n", iStatus == XRT_NET_ERROR ? "PASS" : "FAIL");
+		printf("  Structured error wait validate fields : %s\n",
+			tError.iResult == XRT_NET_ERROR && tError.iOperation == XNET_OP_WAIT &&
+			tError.iPhase == XNET_PHASE_VALIDATE && tError.sMessage[0] != 0 ? "PASS" : "FAIL");
+
+		if ( pStream ) xrtNetStreamDestroy(pStream);
+		if ( pFuture ) xrtNetFutureDestroy(pFuture);
+		if ( pCancel ) xrtNetCancelRelease(pCancel);
+		if ( pEngine ) {
+			xrtNetEngineStop(pEngine);
+			xrtNetEngineDestroy(pEngine);
+		}
 	}
 
 	{
@@ -1317,26 +1610,29 @@ int Test_XNet2_Sync(void)
 			pFirstFuture = xrtNetDgramRecvFuture(pServer);
 			pSecondFuture = xrtNetDgramRecvFuture(pServer);
 		}
-		if ( pSecondFuture ) {
-			iSecondStatus = xrtNetFutureWait(pSecondFuture, 200);
-			pSecondPacket = (xnetdgrampkt*)xrtNetFutureValue(pSecondFuture);
-		}
 		if ( pClient && pServer ) {
-			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "once", 4);
+			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "first", 5);
+			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "second", 6);
 		}
 		if ( pFirstFuture ) {
 			iFirstStatus = xrtNetFutureWait(pFirstFuture, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 			pFirstPacket = (xnetdgrampkt*)xrtNetFutureValue(pFirstFuture);
 		}
+		if ( pSecondFuture ) {
+			iSecondStatus = xrtNetFutureWait(pSecondFuture, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
+			pSecondPacket = (xnetdgrampkt*)xrtNetFutureValue(pSecondFuture);
+		}
 
-		printf("  Dgram recv rejects second waiter create : %s\n", pEngine && pServer && pClient && pFirstFuture && pSecondFuture ? "PASS" : "FAIL");
-		printf("  Dgram recv rejects second waiter status : %s\n", iSecondStatus == XRT_NET_ERROR ? "PASS" : "FAIL");
-		printf("  Dgram recv rejects second waiter packet : %s\n", pSecondPacket == NULL ? "PASS" : "FAIL");
-		printf("  Dgram recv first waiter still succeeds : %s\n", iFirstStatus == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  Dgram recv first waiter payload : %s\n",
-			__Test_XNet2_SyncDgramPacketTextEquals(pFirstPacket, "once") ? "PASS" : "FAIL");
+		printf("  Dgram recv supports multiple waiters create : %s\n", pEngine && pServer && pClient && pFirstFuture && pSecondFuture ? "PASS" : "FAIL");
+		printf("  Dgram recv first waiter status : %s\n", iFirstStatus == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Dgram recv first waiter FIFO payload : %s\n",
+			__Test_XNet2_SyncDgramPacketTextEquals(pFirstPacket, "first") ? "PASS" : "FAIL");
+		printf("  Dgram recv second waiter status : %s\n", iSecondStatus == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Dgram recv second waiter FIFO payload : %s\n",
+			__Test_XNet2_SyncDgramPacketTextEquals(pSecondPacket, "second") ? "PASS" : "FAIL");
 
 		if ( pFirstPacket ) xrtNetDgramPacketDestroy(pFirstPacket);
+		if ( pSecondPacket ) xrtNetDgramPacketDestroy(pSecondPacket);
 		if ( pSecondFuture ) xrtNetFutureDestroy(pSecondFuture);
 		if ( pFirstFuture ) xrtNetFutureDestroy(pFirstFuture);
 		if ( pClient ) {

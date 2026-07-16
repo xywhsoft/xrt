@@ -21,9 +21,9 @@ typedef struct {
 	char aLastTarget[256];
 	char aLastHost[256];
 	char aLastBody[256];
-	char aResponse[2048];
+	char aResponse[8192];
 	uint32 iResponseLen;
-	char aResponseFollowup[2048];
+	char aResponseFollowup[8192];
 	uint32 iResponseFollowupLen;
 	uint32 iResponseFollowupDelayMs;
 #if defined(_WIN32) || defined(_WIN64)
@@ -44,6 +44,7 @@ typedef struct {
 	volatile long iBodyCount;
 	uint32 iStatusCode;
 	bool bSawStreamHeader;
+	bool bSawDeepSeekCorsHeader;
 	bool bCancelOnBody;
 	char aBody[256];
 	size_t iBodyLen;
@@ -60,6 +61,7 @@ static bool __Test_XHttpStreamOnHeaders(ptr pUserData, const xhttpresponse* pRes
 	__Test_XHttpAtomicInc(&pCtx->iHeadersCount);
 	pCtx->iStatusCode = pResponse->iStatusCode;
 	pCtx->bSawStreamHeader = xrtHttpResponseHeader(pResponse, "X-Stream") != NULL;
+	pCtx->bSawDeepSeekCorsHeader = xrtHttpResponseHeader(pResponse, "Access-Control-Allow-Credentials") != NULL;
 	return true;
 }
 
@@ -141,6 +143,7 @@ static bool __Test_XHttpServerOnAccept(ptr pOwner, xnetlistener* pListener, xnet
 	(void)pListener;
 	if ( !pServer ) return false;
 	pServer->pAccepted = pStream;
+	xrtNetStreamSetUserData(pStream, pServer);
 	__Test_XHttpAtomicInc(&pServer->iAcceptCount);
 	return true;
 }
@@ -179,6 +182,7 @@ static void __Test_XHttpServerOnRecv(ptr pOwner, xnetstream* pStream, xnetchain*
 		(void)xrtCodecHttp1CopyBody(pChain, &tFrame, pServer->aLastBody, iCopy);
 	}
 	xrtCodecFrameConsume(pChain, &tFrame);
+	xrtCodecHttp1MessageUnit(&tMsg);
 	if ( pServer->iResponseLen > 0u ) {
 		(void)xrtNetStreamSend(pStream, pServer->aResponse, pServer->iResponseLen);
 	}
@@ -424,8 +428,24 @@ static void __Test_XHttpPrintRealHttpsResult(const char* sLabel, const char* sUR
 
 
 // XNETHTTP测试
-void Test_XNet_Http(void)
+static int __Test_XHttpTrackedPrintf(int* pFailCount, const char* sFormat, ...)
 {
+	char aBuf[4096];
+	va_list tArgs;
+	int iRet;
+	va_start(tArgs, sFormat);
+	iRet = vsnprintf(aBuf, sizeof(aBuf), sFormat, tArgs);
+	va_end(tArgs);
+	if ( pFailCount && strstr(aBuf, "FAIL") != NULL ) { (*pFailCount)++; }
+	fputs(aBuf, stdout);
+	return iRet;
+}
+
+
+int Test_XNet_Http(void)
+{
+	int iFailCount = 0;
+#define printf(...) __Test_XHttpTrackedPrintf(&iFailCount, __VA_ARGS__)
 	printf("\n\n\n------------------------------------\n\n XNet HTTP Client Skeleton Test:\n\n");
 
 	{
@@ -444,6 +464,101 @@ void Test_XNet_Http(void)
 		printf("  HTTP build has content length : %s\n", pBuilt && strstr(pBuilt, "Content-Length: 5\r\n") != NULL ? "PASS" : "FAIL");
 		printf("  HTTP build has body : %s\n", pBuilt && iBuiltLen >= 5 && memcmp(pBuilt + iBuiltLen - 5, "hello", 5) == 0 ? "PASS" : "FAIL");
 		if ( pBuilt ) XNET_FREE(pBuilt);
+		xrtHttpRequestUnit(&tReq);
+	}
+
+	{
+		xhttprequest tReq;
+		xrtHttpRequestInit(&tReq);
+		printf("  HTTP Basic auth helper : %s\n",
+			xrtHttpRequestSetBasicAuth(&tReq, "Aladdin", "open sesame") &&
+			strcmp(xrtHttpRequestHeader(&tReq, "Authorization"),
+				"Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==") == 0 ? "PASS" : "FAIL");
+		printf("  HTTP Basic auth rejects colon in user : %s\n",
+			!xrtHttpRequestSetBasicAuth(&tReq, "bad:user", "password") ? "PASS" : "FAIL");
+		printf("  HTTP Bearer auth helper : %s\n",
+			xrtHttpRequestSetBearerAuth(&tReq, "opaque-token") &&
+			strcmp(xrtHttpRequestHeader(&tReq, "Authorization"),
+				"Bearer opaque-token") == 0 ? "PASS" : "FAIL");
+		printf("  HTTP auth helper rejects injection : %s\n",
+			!xrtHttpRequestSetAuthorization(&tReq, "Custom", "value\r\nInjected: yes") ? "PASS" : "FAIL");
+		xrtHttpRequestClearAuthorization(&tReq);
+		printf("  HTTP auth helper clear : %s\n",
+			xrtHttpRequestHeader(&tReq, "Authorization") == NULL ? "PASS" : "FAIL");
+		xrtHttpRequestUnit(&tReq);
+	}
+
+	{
+		xhttprequest tReq;
+		char* sURL;
+		char sMethod[257];
+		char* pBuilt = NULL;
+		size_t iBuiltLen = 0u;
+		size_t iHostLen = 512u;
+		size_t iPathLen = 5000u;
+		size_t iURLLen = 7u + iHostLen + 1u + iPathLen;
+		bool bConfigured;
+		sURL = (char*)XNET_ALLOC(iURLLen + 1u);
+		memset(sMethod, 'M', sizeof(sMethod) - 1u);
+		sMethod[sizeof(sMethod) - 1u] = '\0';
+		memcpy(sURL, "http://", 7u);
+		memset(sURL + 7u, 'h', iHostLen);
+		sURL[7u + iHostLen] = '/';
+		memset(sURL + 8u + iHostLen, 'p', iPathLen);
+		sURL[iURLLen] = '\0';
+		xrtHttpRequestInit(&tReq);
+		bConfigured = xrtHttpRequestSetMethod(&tReq, sMethod) && xrtHttpRequestSetURL(&tReq, sURL);
+		printf("  HTTP request stores unbounded method URL host target : %s\n",
+			bConfigured && strcmp(xrtHttpRequestMethod(&tReq), sMethod) == 0 &&
+			strcmp(xrtHttpRequestURL(&tReq), sURL) == 0 && strlen(xrtHttpRequestHost(&tReq)) == iHostLen &&
+			strlen(xrtHttpRequestTarget(&tReq)) == iPathLen + 1u ? "PASS" : "FAIL");
+		printf("  HTTP request serializes unbounded start-line and Host : %s\n",
+			bConfigured && __xhttpBuildRequestBytes(&tReq, &pBuilt, &iBuiltLen) && pBuilt &&
+			memcmp(pBuilt, sMethod, sizeof(sMethod) - 1u) == 0 && strstr(pBuilt, "\r\nHost: ") != NULL &&
+			iBuiltLen > iURLLen ? "PASS" : "FAIL");
+		if ( pBuilt ) { XNET_FREE(pBuilt); }
+		xrtHttpRequestUnit(&tReq);
+		XNET_FREE(sURL);
+	}
+
+	{
+		xhttprequest tReq;
+		char* pBuilt = NULL;
+		size_t iBuiltLen = 0u;
+		xhttp_error_code eError = XHTTP_ERROR_NONE;
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetMethod(&tReq, "POST");
+		(void)xrtHttpRequestSetURL(&tReq, "http://127.0.0.1/framing");
+		(void)xrtHttpRequestSetBodyCopy(&tReq, "hello", 5u, NULL);
+		(void)xrtHttpRequestSetHeader(&tReq, "Content-Length", "4");
+		printf("  HTTP request rejects mismatched Content-Length : %s\n",
+			!__xhttpBuildRequestBytesEx(&tReq, &pBuilt, &iBuiltLen, &eError) && eError == XHTTP_ERROR_INVALID_ARGUMENT ? "PASS" : "FAIL");
+		(void)xrtHttpRequestSetHeader(&tReq, "Content-Length", "5");
+		(void)xrtHttpRequestSetHeader(&tReq, "Transfer-Encoding", "chunked");
+		printf("  HTTP request rejects Transfer-Encoding plus Content-Length : %s\n",
+			!__xhttpBuildRequestBytesEx(&tReq, &pBuilt, &iBuiltLen, &eError) && eError == XHTTP_ERROR_INVALID_ARGUMENT ? "PASS" : "FAIL");
+		(void)xrtHttpRequestRemoveHeader(&tReq, "Content-Length");
+		(void)xrtHttpRequestSetHeader(&tReq, "Transfer-Encoding", "gzip");
+		printf("  HTTP request rejects unsupported Transfer-Encoding : %s\n",
+			!__xhttpBuildRequestBytesEx(&tReq, &pBuilt, &iBuiltLen, &eError) && eError == XHTTP_ERROR_INVALID_ARGUMENT ? "PASS" : "FAIL");
+		xrtHttpRequestUnit(&tReq);
+	}
+
+	{
+		xhttprequest tReq;
+		char* pBuilt = NULL;
+		size_t iBuiltLen = 0u;
+		const char* pFirst;
+		const char* pSecond;
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetMethod(&tReq, "POST");
+		(void)xrtHttpRequestSetURL(&tReq, "http://127.0.0.1/empty-chunked");
+		(void)xrtHttpRequestSetHeader(&tReq, "Transfer-Encoding", "chunked");
+		(void)__xhttpBuildRequestBytes(&tReq, &pBuilt, &iBuiltLen);
+		pFirst = pBuilt ? strstr(pBuilt, "0\r\n\r\n") : NULL;
+		pSecond = pFirst ? strstr(pFirst + 1u, "0\r\n\r\n") : NULL;
+		printf("  HTTP empty chunked request emits one terminal chunk : %s\n", pFirst && !pSecond ? "PASS" : "FAIL");
+		if ( pBuilt ) { XNET_FREE(pBuilt); }
 		xrtHttpRequestUnit(&tReq);
 	}
 
@@ -485,6 +600,37 @@ void Test_XNet_Http(void)
 		printf("  HTTP dynamic request duplicate remove : %s\n", xrtHttpRequestRemoveHeader(&tReq, "x-remove") == 2u && tReq.iHeaderCount == 48u ? "PASS" : "FAIL");
 		printf("  HTTP dynamic request serialize : %s\n", __xhttpBuildRequestBytes(&tReq, &pBuilt, &iBuiltLen) && pBuilt && strstr(pBuilt, "X-Dynamic-47: value-47\r\n") != NULL ? "PASS" : "FAIL");
 		if ( pBuilt ) { XNET_FREE(pBuilt); }
+		xrtHttpRequestUnit(&tReq);
+	}
+
+	{
+		xhttprequest tReq;
+		xhttprequest tClone;
+		char sLongName[321];
+		char sLongValue[1025];
+		char* pBuilt = NULL;
+		size_t iBuiltLen = 0u;
+		bool bCloned;
+		memset(sLongName, 'R', sizeof(sLongName) - 1u);
+		memcpy(sLongName, "X-Request-", 10u);
+		sLongName[sizeof(sLongName) - 1u] = '\0';
+		memset(sLongValue, 'Q', sizeof(sLongValue) - 1u);
+		sLongValue[sizeof(sLongValue) - 1u] = '\0';
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, "http://127.0.0.1:8080/long-header");
+		printf("  HTTP request stores long header : %s\n",
+			xrtHttpRequestSetHeader(&tReq, sLongName, sLongValue) ? "PASS" : "FAIL");
+		printf("  HTTP request serializes long header : %s\n",
+			__xhttpBuildRequestBytes(&tReq, &pBuilt, &iBuiltLen) && pBuilt &&
+			strstr(pBuilt, sLongName) != NULL && strstr(pBuilt, sLongValue) != NULL ? "PASS" : "FAIL");
+		bCloned = __xhttpRequestClone(&tClone, &tReq);
+		printf("  HTTP request deep clones long header : %s\n",
+			bCloned && tClone.iHeaderCount == 1u &&
+			tClone.pHeaders[0].sName != tReq.pHeaders[0].sName &&
+			strcmp(tClone.pHeaders[0].sName, sLongName) == 0 &&
+			strcmp(tClone.pHeaders[0].sValue, sLongValue) == 0 ? "PASS" : "FAIL");
+		if ( pBuilt ) { XNET_FREE(pBuilt); }
+		if ( bCloned ) { xrtHttpRequestUnit(&tClone); }
 		xrtHttpRequestUnit(&tReq);
 	}
 
@@ -634,12 +780,21 @@ void Test_XNet_Http(void)
 		xhttpresponse* pResp = NULL;
 		xnet_result iStatus = XRT_NET_ERROR;
 		char sURL[256];
-		char sResponse[2048];
+		char sResponse[8192];
+		char sLongName[321];
+		char sLongValue[1025];
 		size_t iLen = 0u;
+		memset(sLongName, 'H', sizeof(sLongName) - 1u);
+		memcpy(sLongName, "X-Response-Long-", 16u);
+		sLongName[sizeof(sLongName) - 1u] = '\0';
+		memset(sLongValue, 'W', sizeof(sLongValue) - 1u);
+		sLongValue[sizeof(sLongValue) - 1u] = '\0';
 		iLen += (size_t)snprintf(sResponse + iLen, sizeof(sResponse) - iLen, "HTTP/1.1 200 OK\r\n");
 		for ( uint32 i = 0u; i < 48u && iLen < sizeof(sResponse); ++i ) {
 			iLen += (size_t)snprintf(sResponse + iLen, sizeof(sResponse) - iLen, "X-Response-%u: value-%u\r\n", (unsigned)i, (unsigned)i);
 		}
+		iLen += (size_t)snprintf(sResponse + iLen, sizeof(sResponse) - iLen, "Access-Control-Allow-Credentials: true\r\n");
+		iLen += (size_t)snprintf(sResponse + iLen, sizeof(sResponse) - iLen, "%s: %s\r\n", sLongName, sLongValue);
 		(void)snprintf(sResponse + iLen, sizeof(sResponse) - iLen, "Content-Length: 2\r\nConnection: close\r\n\r\nok");
 		printf("  HTTP dynamic response headers server start : %s\n", __Test_XHttpServerStart(&tServer, sResponse, NULL) ? "PASS" : "FAIL");
 		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/many-response-headers", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
@@ -652,8 +807,14 @@ void Test_XNet_Http(void)
 		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
 		printf("  HTTP dynamic response headers future wait : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
 		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
-		printf("  HTTP dynamic response headers preserved : %s\n", pResp && xrtHttpResponseHeaderCount(pResp) == 50u && strcmp(xrtHttpResponseHeader(pResp, "X-Response-47"), "value-47") == 0 ? "PASS" : "FAIL");
+		printf("  HTTP dynamic response headers preserved : %s\n", pResp && xrtHttpResponseHeaderCount(pResp) == 52u && strcmp(xrtHttpResponseHeader(pResp, "X-Response-47"), "value-47") == 0 ? "PASS" : "FAIL");
 		printf("  HTTP dynamic response headers indexed : %s\n", pResp && xrtHttpResponseHeaderNameAt(pResp, 47u) && xrtHttpResponseHeaderValueAt(pResp, 47u) ? "PASS" : "FAIL");
+		printf("  HTTP DeepSeek CORS response header : %s\n",
+			pResp && xrtHttpResponseHeader(pResp, "Access-Control-Allow-Credentials") &&
+			strcmp(xrtHttpResponseHeader(pResp, "Access-Control-Allow-Credentials"), "true") == 0 ? "PASS" : "FAIL");
+		printf("  HTTP long response header preserved : %s\n",
+			pResp && xrtHttpResponseHeader(pResp, sLongName) &&
+			strcmp(xrtHttpResponseHeader(pResp, sLongName), sLongValue) == 0 ? "PASS" : "FAIL");
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
 		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
 		xrtHttpRequestUnit(&tReq);
@@ -680,7 +841,7 @@ void Test_XNet_Http(void)
 		printf("  HTTP fixed stream server start : %s\n",
 			__Test_XHttpServerStartEx(
 				&tServer,
-				"HTTP/1.1 200 OK\r\nContent-Length: 8\r\nX-Stream: fixed\r\nConnection: keep-alive\r\n\r\nabc",
+				"HTTP/1.1 200 OK\r\nContent-Length: 8\r\nX-Stream: fixed\r\nAccess-Control-Allow-Credentials: true\r\nConnection: keep-alive\r\n\r\nabc",
 				"defgh",
 				80u,
 				NULL) ? "PASS" : "FAIL");
@@ -696,7 +857,8 @@ void Test_XNet_Http(void)
 		printf("  HTTP fixed stream future wait : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
 		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
 		printf("  HTTP fixed stream headers once : %s\n", __Test_XHttpAtomicLoad(&tStream.iHeadersCount) == 1 ? "PASS" : "FAIL");
-		printf("  HTTP fixed stream header metadata : %s\n", tStream.iStatusCode == 200u && tStream.bSawStreamHeader ? "PASS" : "FAIL");
+		printf("  HTTP fixed stream header metadata : %s\n",
+			tStream.iStatusCode == 200u && tStream.bSawStreamHeader && tStream.bSawDeepSeekCorsHeader ? "PASS" : "FAIL");
 		printf("  HTTP fixed stream incremental chunks : %s\n", __Test_XHttpAtomicLoad(&tStream.iBodyCount) >= 2 ? "PASS" : "FAIL");
 		printf("  HTTP fixed stream body : %s\n", tStream.iBodyLen == 8u && memcmp(tStream.aBody, "abcdefgh", 8u) == 0 ? "PASS" : "FAIL");
 		printf("  HTTP fixed stream response metadata only : %s\n", pResp && pResp->pBody == NULL && pResp->iBodyLen == 8u ? "PASS" : "FAIL");
@@ -1182,4 +1344,6 @@ void Test_XNet_Http(void)
 			printf("  HTTP TLS fixture files missing : SKIP\n");
 		}
 	}
+#undef printf
+	return iFailCount == 0 ? 0 : 1;
 }

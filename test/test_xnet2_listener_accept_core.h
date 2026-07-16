@@ -180,6 +180,7 @@ static int Test_XNet2_ListenerAcceptCore(void)
 	bool bFutureOk = false;
 	bool bWaitSrcOk = false;
 	bool bCoOk = false;
+	bool bMultiOk = false;
 
 	printf("Listener accept focused test:\n");
 
@@ -256,6 +257,83 @@ static int Test_XNet2_ListenerAcceptCore(void)
 			xrtNetEngineStop(pEngine);
 			xrtNetEngineDestroy(pEngine);
 		}
+	}
+
+	{
+		xnetengineconfig tCfg;
+		xnetlistenconfig tListenCfg;
+		xnetengine* pEngine = NULL;
+		xnetlistener* pListener = NULL;
+		xnetfuture* pFirstFuture = NULL;
+		xnetfuture* pSecondFuture = NULL;
+		xnetstream* pFirstAccepted = NULL;
+		xnetstream* pSecondAccepted = NULL;
+		xthread pFirstThread = NULL;
+		xthread pSecondThread = NULL;
+		__test_xnet2_listener_accept_connect_case tFirstConn;
+		__test_xnet2_listener_accept_connect_case tSecondConn;
+		xnet_result iFirstStatus = XRT_NET_ERROR;
+		xnet_result iSecondStatus = XRT_NET_ERROR;
+		bool bTwoWaiters = false;
+		bool bAcceptsArmed = false;
+
+		memset(&tFirstConn, 0, sizeof(tFirstConn));
+		memset(&tSecondConn, 0, sizeof(tSecondConn));
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		xrtNetListenConfigInit(&tListenCfg);
+		tListenCfg.iFlags |= XNET_LISTEN_F_PULL_ACCEPT;
+		tListenCfg.iAcceptConcurrency = 2u;
+		xrtNetAddrInitAny(&tListenCfg.tBindAddr, AF_INET, 0);
+		pEngine = xrtNetEngineCreate(&tCfg);
+		if ( pEngine ) { (void)xrtNetEngineStart(pEngine); }
+		pListener = pEngine ? xrtNetListenerCreate(pEngine, &tListenCfg, NULL, NULL, NULL) : NULL;
+		if ( pListener ) {
+			(void)xrtNetListenerStart(pListener);
+			(void)xrtNetAddrParse(&tFirstConn.tTargetAddr, "127.0.0.1", pListener->tConfig.tBindAddr.iPort);
+			tSecondConn.tTargetAddr = tFirstConn.tTargetAddr;
+			tFirstConn.iDelayMs = 20u;
+			tSecondConn.iDelayMs = 25u;
+			tFirstConn.iHoldMs = 80u;
+			tSecondConn.iHoldMs = 80u;
+			pFirstFuture = xrtNetListenerAcceptFuture(pListener);
+			pSecondFuture = xrtNetListenerAcceptFuture(pListener);
+			for ( int i = 0; i < 40; ++i ) {
+				bTwoWaiters = __xnetListenerWaitCount(pListener) == 2u;
+				bAcceptsArmed = __xnetAtomicLoad32(&pListener->iAcceptArmedCount) >= 1;
+				if ( bTwoWaiters && bAcceptsArmed ) { break; }
+				__Test_XNet2_ListenerAcceptCore_SleepMs(5);
+			}
+			pFirstThread = xrtThreadCreate(__Test_XNet2_ListenerAcceptCore_ConnectWorker, &tFirstConn, 0);
+			pSecondThread = xrtThreadCreate(__Test_XNet2_ListenerAcceptCore_ConnectWorker, &tSecondConn, 0);
+		}
+		if ( pFirstFuture ) {
+			iFirstStatus = xrtNetFutureWait(pFirstFuture, 500);
+			pFirstAccepted = (xnetstream*)xrtNetFutureValue(pFirstFuture);
+		}
+		if ( pSecondFuture ) {
+			iSecondStatus = xrtNetFutureWait(pSecondFuture, 500);
+			pSecondAccepted = (xnetstream*)xrtNetFutureValue(pSecondFuture);
+		}
+		if ( pFirstThread ) { xrtThreadWait(pFirstThread); xrtThreadDestroy(pFirstThread); }
+		if ( pSecondThread ) { xrtThreadWait(pSecondThread); xrtThreadDestroy(pSecondThread); }
+
+		printf("  concurrent accept registers two waiters: %s\n", bTwoWaiters ? "PASS" : "FAIL");
+		printf("  concurrent accept preposts backend capacity: %s\n", bAcceptsArmed ? "PASS" : "FAIL");
+		printf("  concurrent accept first result: %s\n",
+			iFirstStatus == XRT_NET_OK && pFirstAccepted != NULL ? "PASS" : "FAIL");
+		printf("  concurrent accept second result: %s\n",
+			iSecondStatus == XRT_NET_OK && pSecondAccepted != NULL ? "PASS" : "FAIL");
+
+		bMultiOk = bTwoWaiters && bAcceptsArmed && iFirstStatus == XRT_NET_OK &&
+			iSecondStatus == XRT_NET_OK && pFirstAccepted != NULL && pSecondAccepted != NULL &&
+			tFirstConn.iConnectResult == 1 && tSecondConn.iConnectResult == 1;
+		if ( pFirstFuture ) { xrtNetFutureDestroy(pFirstFuture); }
+		if ( pSecondFuture ) { xrtNetFutureDestroy(pSecondFuture); }
+		if ( pFirstAccepted ) { xrtNetStreamClose(pFirstAccepted, XNET_CLOSE_F_ABORT); xrtNetStreamDestroy(pFirstAccepted); }
+		if ( pSecondAccepted ) { xrtNetStreamClose(pSecondAccepted, XNET_CLOSE_F_ABORT); xrtNetStreamDestroy(pSecondAccepted); }
+		if ( pListener ) { xrtNetListenerStop(pListener); xrtNetListenerDestroy(pListener); }
+		if ( pEngine ) { xrtNetEngineStop(pEngine); xrtNetEngineDestroy(pEngine); }
 	}
 
 	{
@@ -444,7 +522,8 @@ static int Test_XNet2_ListenerAcceptCore(void)
 	printf("  overall future path: %s\n", bFutureOk ? "PASS" : "FAIL");
 	printf("  overall wait source path: %s\n", bWaitSrcOk ? "PASS" : "FAIL");
 	printf("  overall coroutine path: %s\n", bCoOk ? "PASS" : "FAIL");
-	return (bFutureOk && bWaitSrcOk && bCoOk) ? 0 : 2;
+	printf("  overall concurrent accept path: %s\n", bMultiOk ? "PASS" : "FAIL");
+	return (bFutureOk && bWaitSrcOk && bCoOk && bMultiOk) ? 0 : 2;
 }
 
 #endif

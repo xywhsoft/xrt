@@ -92,8 +92,20 @@ typedef struct {
 
 ```c
 XXAPI void xrtWsClientConfigInit(xwsclientconfig* pCfg);
+XXAPI void xrtWsClientConfigUnit(xwsclientconfig* pCfg);
+XXAPI bool xrtWsClientConfigSetURL(xwsclientconfig* pCfg, const char* sURL);
+XXAPI bool xrtWsClientConfigSetOrigin(xwsclientconfig* pCfg, const char* sOrigin);
+XXAPI bool xrtWsClientConfigSetProtocols(xwsclientconfig* pCfg, const char* sProtocols);
+XXAPI const char* xrtWsClientConfigURL(const xwsclientconfig* pCfg);
+XXAPI const char* xrtWsClientConfigOrigin(const xwsclientconfig* pCfg);
+XXAPI const char* xrtWsClientConfigProtocols(const xwsclientconfig* pCfg);
 XXAPI void xrtWsServerConfigInit(xwsserverconfig* pCfg);
+XXAPI void xrtWsServerConfigUnit(xwsserverconfig* pCfg);
+XXAPI bool xrtWsServerConfigSetProtocol(xwsserverconfig* pCfg, const char* sProtocol);
+XXAPI const char* xrtWsServerConfigProtocol(const xwsserverconfig* pCfg);
 ```
+
+配置 setter 按实际长度保存 URL、Origin 和协议字符串，旧版 `XWS_*_CAP` 宏只是内联存储阈值，不是协议长度限制。使用 setter 后应调用对应的 `ConfigUnit`；client/server 创建时会深拷贝配置字符串，因此创建完成后可以立即释放源配置。
 
 
 ### 客户端生命周期
@@ -119,6 +131,7 @@ XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, siz
 XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen);
 XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const void* pData, size_t iLen);
 XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason);
+XXAPI const char* xrtWsClientProtocol(const xwsclient* pClient);
 ```
 
 
@@ -141,7 +154,10 @@ XXAPI xnet_result xrtWsConnSendText(xwsconn* pConn, const char* sText, size_t iL
 XXAPI xnet_result xrtWsConnSendBinary(xwsconn* pConn, const void* pData, size_t iLen);
 XXAPI xnet_result xrtWsConnPing(xwsconn* pConn, const void* pData, size_t iLen);
 XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReason);
+XXAPI const char* xrtWsConnProtocol(const xwsconn* pConn);
 ```
+
+协商后的 subprotocol 由 client 或 connection 对象持有，到对象销毁前可通过对应 accessor 读取。
 
 
 ## 4. 协议行为
@@ -155,6 +171,10 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 - ping / pong
 - close frame
 - 分片消息重组
+- text 消息与 close reason 的严格 UTF-8 校验
+- close code、控制帧、mask、RSV、opcode 与最短长度编码校验
+
+客户端 URL 必须是绝对 `ws://` 或 `wss://` URL，userinfo 与 fragment 会被拒绝；长 Host 和请求目标使用动态存储。握手严格校验唯一且合法的 upgrade 字段、key、version 和选中的 subprotocol。服务端要求客户端帧带 mask，客户端要求服务端帧不带 mask。
 
 当前明确未实现或暂不覆盖：
 
@@ -178,11 +198,12 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 xwsclientconfig tCfg;
 
 xrtWsClientConfigInit(&tCfg);
-strcpy(tCfg.sURL, "wss://example.com/ws");
+xrtWsClientConfigSetURL(&tCfg, "wss://example.com/ws");
 tCfg.iConnectTimeoutMs = 10000u;
 tCfg.bVerifyPeer = true;
 
 pClient = xrtWsClientCreate(pEngine, &tCfg, &tEvents, pUserData);
+xrtWsClientConfigUnit(&tCfg);
 xrtWsClientStart(pClient);
 ```
 
@@ -201,10 +222,11 @@ tProxyCfg.iPort = 7897u;
 pProxy = xrtNetProxyCreate(&tProxyCfg);
 
 xrtWsClientConfigInit(&tCfg);
-strcpy(tCfg.sURL, "wss://example.com/ws");
+xrtWsClientConfigSetURL(&tCfg, "wss://example.com/ws");
 tCfg.pProxy = pProxy;
 
 pClient = xrtWsClientCreate(pEngine, &tCfg, &tEvents, pUserData);
+xrtWsClientConfigUnit(&tCfg);
 xrtNetProxyRelease(pProxy);
 xrtWsClientStart(pClient);
 ```

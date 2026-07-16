@@ -27,11 +27,18 @@ release\x64\test_typed_special.exe || exit /b 1
 gcc -m64 test\test_json_stream.c xrt.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections %GCC_WARN% -o release/x64/test_json_stream.exe || exit /b 1
 release\x64\test_json_stream.exe || exit /b 1
 
+gcc -m64 test\test_stream.c xrt.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections %GCC_WARN% -o release/x64/test_stream.exe || exit /b 1
+release\x64\test_stream.exe || exit /b 1
+
+gcc -m64 test\test_xhttp_oom.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections %GCC_WARN% -o release/x64/test_xhttp_oom.exe || exit /b 1
+release\x64\test_xhttp_oom.exe || exit /b 1
+
 gcc -m64 test\test_xnet_async_stress.c xrt.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections %GCC_WARN% -o release/x64/test_xnet_async_stress.exe || exit /b 1
 release\x64\test_xnet_async_stress.exe 200 || exit /b 1
 
 release\x64\test.exe preset:runtime_smoke || exit /b 1
 release\x64\test.exe xurl_core || exit /b 1
+release\x64\test.exe http_semantics || exit /b 1
 release\x64\test.exe preset:xnet2_stage || exit /b 1
 
 gcc -m64 singlehead\test_singlehead.c -I singlehead -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections %GCC_WARN% -o release/x64/test_singlehead_queue.exe || exit /b 1

@@ -156,6 +156,167 @@ static bool __Test_XNet2_ConvenienceAcceptTimeoutGap(void)
 }
 
 
+static bool __Test_XNet2_EngineLiveObjectGuard(void)
+{
+	xnetengineconfig tCfg;
+	xnetengine* pEngine;
+	xnetstream* pStream;
+	bool bGuarded;
+	xrtNetEngineConfigInit(&tCfg);
+	tCfg.iWorkerCount = 1u;
+	pEngine = xrtNetEngineCreate(&tCfg);
+	if ( !pEngine || xrtNetEngineStart(pEngine) != XRT_NET_OK ) {
+		if ( pEngine ) { xrtNetEngineDestroy(pEngine); }
+		return false;
+	}
+	pStream = xrtNetStreamCreate(pEngine, NULL, NULL);
+	xrtNetEngineDestroy(pEngine);
+	bGuarded = pStream && xrtNetEngineGetLiveObjectCount(pEngine) == 1u;
+	if ( pStream ) { xrtNetStreamDestroy(pStream); }
+	bGuarded = bGuarded && xrtNetEngineGetLiveObjectCount(pEngine) == 0u;
+	xrtNetEngineDestroy(pEngine);
+	return bGuarded;
+}
+
+
+static bool __Test_XNet2_ConvenienceAsyncFacade(void)
+{
+	xnetlistener* pListener = NULL;
+	xnetstream* pClient = NULL;
+	xnetstream* pAccepted = NULL;
+	xdgramsock* pUdpServer = NULL;
+	xdgramsock* pUdpClient = NULL;
+	xnetdgrampkt* pPacket = NULL;
+	xfuture* pAccept = NULL;
+	xfuture* pConnect = NULL;
+	xfuture* pCancelConnect = NULL;
+	xfuture* pSend = NULL;
+	xfuture* pRecv = NULL;
+	xfuture* pDrain = NULL;
+	xfuture* pTimeout = NULL;
+	xfuture* pUdpRecv = NULL;
+	xfuture* pUdpSend = NULL;
+	xfuture* pResolve4 = NULL;
+	xfuture* pResolve6 = NULL;
+	xfuture* pResolveAll = NULL;
+	xnetaddr* pResolved4 = NULL;
+	xnetaddr* pResolved6 = NULL;
+	xnetaddrlist* pResolvedAll = NULL;
+	xnetaddrlist* pSyncResolvedAll = NULL;
+	xnetengine* pHiddenEngine = NULL;
+	xnetbytes* pBytes = NULL;
+	uint16 iPort;
+	bool bOk = false;
+	static const uint8 aPayload[] = { 'a', 0u, 's', 'y', 'n', 'c' };
+	static const uint8 aUdpPayload[] = { 'u', 0u, 'a' };
+
+	xrtNetSyncShutdownHiddenEngine();
+	pListener = xrtNetTcpListen("127.0.0.1", 0u, 8u);
+	pHiddenEngine = xrtNetSyncGetHiddenEngine();
+	pResolve4 = pHiddenEngine ? xrtNetResolveFutureEx(pHiddenEngine, 0u,
+		"localhost", 80u, AF_INET) : NULL;
+	pResolve6 = pHiddenEngine ? xrtNetResolveFutureEx(pHiddenEngine, 0u,
+		"localhost", 80u, AF_INET6) : NULL;
+	pResolveAll = pHiddenEngine ? xrtNetResolveAllFuture(pHiddenEngine, 0u,
+		"localhost", 80u, AF_UNSPEC) : NULL;
+	pSyncResolvedAll = xrtNetResolveAll("localhost", 80u, AF_UNSPEC);
+	if ( pResolve4 && xFutureWaitTimeout(pResolve4, 2000) ) {
+		pResolved4 = (xnetaddr*)xFutureValue(pResolve4);
+	}
+	if ( pResolve6 && xFutureWaitTimeout(pResolve6, 2000) ) {
+		pResolved6 = (xnetaddr*)xFutureValue(pResolve6);
+	}
+	if ( pResolveAll && xFutureWaitTimeout(pResolveAll, 2000) ) {
+		pResolvedAll = (xnetaddrlist*)xFutureValue(pResolveAll);
+	}
+	iPort = xrtNetTcpListenerPort(pListener);
+	pAccept = pListener ? xrtNetTcpAcceptAsync(pListener, 2000) : NULL;
+	pConnect = iPort ? xrtNetTcpConnectAsync("localhost", iPort, 2000) : NULL;
+	pCancelConnect = xrtNetTcpConnectAsync("192.0.2.1", 65000u, 5000);
+	if ( pCancelConnect ) {
+		(void)xFutureRequestCancel(pCancelConnect);
+		(void)xFutureWaitTimeout(pCancelConnect, 1000);
+	}
+	if ( pConnect && xFutureWaitTimeout(pConnect, 3000) && xFutureStatus(pConnect) == XRT_NET_OK ) {
+		xnetstream** ppClient = (xnetstream**)xFutureValue(pConnect);
+		pClient = ppClient ? *ppClient : NULL;
+	}
+	if ( pAccept && xFutureWaitTimeout(pAccept, 3000) && xFutureStatus(pAccept) == XRT_NET_OK ) {
+		xnetstream** ppAccepted = (xnetstream**)xFutureValue(pAccept);
+		pAccepted = ppAccepted ? *ppAccepted : NULL;
+	}
+	if ( pAccepted ) { pRecv = xrtNetStreamRecvBytesAsync(pAccepted, 64u, 2000); }
+	if ( pClient ) { pSend = xrtNetStreamSendBytesAsync(pClient, aPayload, sizeof(aPayload)); }
+	if ( pSend ) { (void)xFutureWaitTimeout(pSend, 1000); }
+	if ( pClient ) { pDrain = xrtNetStreamDrainAsync(pClient, 2000); }
+	if ( pDrain ) { (void)xFutureWaitTimeout(pDrain, 3000); }
+	if ( pRecv && xFutureWaitTimeout(pRecv, 3000) && xFutureStatus(pRecv) == XRT_NET_OK ) {
+		pBytes = (xnetbytes*)xFutureValue(pRecv);
+	}
+	pTimeout = pListener ? xrtNetTcpAcceptAsync(pListener, 20) : NULL;
+	if ( pTimeout ) { (void)xFutureWaitTimeout(pTimeout, 1000); }
+
+	pUdpServer = xrtNetUdpBind("127.0.0.1", 0u);
+	pUdpClient = xrtNetUdpBind("127.0.0.1", 0u);
+	pUdpRecv = pUdpServer ? xrtNetUdpRecvAsync(pUdpServer, 2000) : NULL;
+	pUdpSend = pUdpClient && pUdpServer ? xrtNetUdpSendBytesAsync(pUdpClient,
+		"localhost", (uint16)xrtNetUdpLocalPort(pUdpServer), aUdpPayload, sizeof(aUdpPayload)) : NULL;
+	if ( pUdpSend ) { (void)xFutureWaitTimeout(pUdpSend, 3000); }
+	if ( pUdpRecv && xFutureWaitTimeout(pUdpRecv, 3000) && xFutureStatus(pUdpRecv) == XRT_NET_OK ) {
+		xnetdgrampkt** ppPacket = (xnetdgrampkt**)xFutureValue(pUdpRecv);
+		pPacket = ppPacket ? *ppPacket : NULL;
+	}
+
+	bOk = pClient != NULL && pAccepted != NULL && pBytes != NULL &&
+		pResolved4 && pResolved4->iFamily == AF_INET &&
+		pResolved6 && pResolved6->iFamily == AF_INET6 &&
+		pResolvedAll && xrtNetAddrListCount(pResolvedAll) > 0u &&
+		pSyncResolvedAll && xrtNetAddrListCount(pSyncResolvedAll) > 0u &&
+		pBytes->iLen == sizeof(aPayload) && memcmp(pBytes->pData, aPayload, sizeof(aPayload)) == 0 &&
+		pSend && xFutureStatus(pSend) == XRT_NET_OK && pDrain && xFutureStatus(pDrain) == XRT_NET_OK &&
+		pTimeout && xFutureStatus(pTimeout) == XRT_NET_TIMEOUT &&
+		pCancelConnect && xFutureStatus(pCancelConnect) == XRT_NET_CANCELLED &&
+		pUdpSend && xFutureStatus(pUdpSend) == XRT_NET_OK && pPacket &&
+		xrtNetDgramPacketBytes(pPacket) == sizeof(aUdpPayload);
+	if ( !bOk ) {
+		printf("  Async detail resolve4=%d resolve6=%d connect=%d cancel=%d accept=%d bytes=%u send=%d drain=%d timeout=%d udp_send=%d udp_recv=%d\n",
+			pResolve4 ? (int)xFutureStatus(pResolve4) : 99,
+			pResolve6 ? (int)xFutureStatus(pResolve6) : 99,
+			pConnect ? (int)xFutureStatus(pConnect) : 99,
+			pCancelConnect ? (int)xFutureStatus(pCancelConnect) : 99,
+			pAccept ? (int)xFutureStatus(pAccept) : 99,
+			(unsigned)(pBytes ? pBytes->iLen : 0u),
+			pSend ? (int)xFutureStatus(pSend) : 99,
+			pDrain ? (int)xFutureStatus(pDrain) : 99,
+			pTimeout ? (int)xFutureStatus(pTimeout) : 99,
+			pUdpSend ? (int)xFutureStatus(pUdpSend) : 99,
+			pUdpRecv ? (int)xFutureStatus(pUdpRecv) : 99);
+	}
+
+	if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+	if ( pSyncResolvedAll ) xrtNetAddrListDestroy(pSyncResolvedAll);
+	if ( pUdpSend ) xFutureRelease(pUdpSend);
+	if ( pUdpRecv ) xFutureRelease(pUdpRecv);
+	if ( pTimeout ) xFutureRelease(pTimeout);
+	if ( pDrain ) xFutureRelease(pDrain);
+	if ( pRecv ) xFutureRelease(pRecv);
+	if ( pSend ) xFutureRelease(pSend);
+	if ( pResolve6 ) xFutureRelease(pResolve6);
+	if ( pResolve4 ) xFutureRelease(pResolve4);
+	if ( pResolveAll ) xFutureRelease(pResolveAll);
+	if ( pCancelConnect ) xFutureRelease(pCancelConnect);
+	if ( pConnect ) xFutureRelease(pConnect);
+	if ( pAccept ) xFutureRelease(pAccept);
+	if ( pUdpClient ) xrtNetUdpDestroy(pUdpClient);
+	if ( pUdpServer ) xrtNetUdpDestroy(pUdpServer);
+	if ( pClient ) xrtNetTcpStreamDestroy(pClient);
+	if ( pAccepted ) xrtNetTcpStreamDestroy(pAccepted);
+	if ( pListener ) xrtNetTcpListenerDestroy(pListener);
+	xrtNetSyncShutdownHiddenEngine();
+	return bOk;
+}
+
+
 int Test_XNet2_Convenience(void)
 {
 	int iFailCount = 0;
@@ -182,6 +343,8 @@ int Test_XNet2_Convenience(void)
 	bool bUdpSendOk = false;
 	bool bCloseOrderOk = false;
 	bool bAcceptTimeoutGapOk = false;
+	bool bAsyncFacadeOk = false;
+	bool bEngineLiveGuardOk = false;
 	static const uint8 aUdpPayload[] = { 'u', 0u, 'd', 'p' };
 
 	memset(&tServer, 0, sizeof(tServer));
@@ -253,6 +416,13 @@ int Test_XNet2_Convenience(void)
 	bAcceptTimeoutGapOk = __Test_XNet2_ConvenienceAcceptTimeoutGap();
 	printf("  TCP accept preserves connection across timeout gap : %s\n", bAcceptTimeoutGapOk ? "PASS" : "FAIL");
 	if ( !bAcceptTimeoutGapOk ) { ++iFailCount; }
+
+	bAsyncFacadeOk = __Test_XNet2_ConvenienceAsyncFacade();
+	printf("  Async facade uses engine futures, DNS, bytes and timeout : %s\n", bAsyncFacadeOk ? "PASS" : "FAIL");
+	if ( !bAsyncFacadeOk ) { ++iFailCount; }
+	bEngineLiveGuardOk = __Test_XNet2_EngineLiveObjectGuard();
+	printf("  Engine destroy rejects live network objects : %s\n", bEngineLiveGuardOk ? "PASS" : "FAIL");
+	if ( !bEngineLiveGuardOk ) { ++iFailCount; }
 
 	xrtNetDgramConfigInit(&tDgramCfg);
 	(void)xrtNetAddrParse(&tDgramCfg.tBindAddr, "127.0.0.1", 0u);

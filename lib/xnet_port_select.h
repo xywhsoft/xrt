@@ -282,6 +282,24 @@
 	}
 
 
+	static uint32 __xnetPortSelectTimerWait(__xnet_select_ctx* pCtx, uint32 iTimeoutMs)
+	{
+		__xnet_select_timer* pNode = pCtx ? pCtx->pTimers : NULL;
+		uint64 iNextDueMs = UINT64_MAX;
+		uint64 iNowMs;
+		uint64 iDelayMs;
+		while ( pNode ) {
+			if ( pNode->iDueMs < iNextDueMs ) { iNextDueMs = pNode->iDueMs; }
+			pNode = pNode->pNext;
+		}
+		if ( iNextDueMs == UINT64_MAX ) { return iTimeoutMs; }
+		iNowMs = __xnetPortSelectNowMs();
+		if ( iNextDueMs <= iNowMs ) { return 0u; }
+		iDelayMs = iNextDueMs - iNowMs;
+		return iDelayMs < (uint64)iTimeoutMs ? (uint32)iDelayMs : iTimeoutMs;
+	}
+
+
 	// 内部函数：查找端口 select watch
 	static __xnet_select_watch* __xnetPortSelectFindWatch(__xnet_select_ctx* pCtx, int hSocket)
 	{
@@ -802,6 +820,7 @@
 		struct timeval* pTimeout = &tTimeout;
 		int iMaxFd = -1;
 		uint32 iCount = 0;
+		uint32 iWaitMs;
 		__xnet_select_ctx* pCtx = pPort ? (__xnet_select_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 		iCount += __xnetPortSelectHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
@@ -830,9 +849,10 @@
 			if ( pWatch->hSocket > iMaxFd ) { iMaxFd = pWatch->hSocket; }
 		}
 		pthread_mutex_unlock(&pCtx->tWatchLock);
-		tTimeout.tv_sec = (time_t)(iTimeoutMs / 1000u);
-		tTimeout.tv_usec = (suseconds_t)((iTimeoutMs % 1000u) * 1000u);
-		if ( iTimeoutMs == 0xffffffffu ) { pTimeout = NULL; }
+		iWaitMs = iCount > 0 ? 0u : __xnetPortSelectTimerWait(pCtx, iTimeoutMs);
+		tTimeout.tv_sec = (time_t)(iWaitMs / 1000u);
+		tTimeout.tv_usec = (suseconds_t)((iWaitMs % 1000u) * 1000u);
+		if ( iWaitMs == 0xffffffffu ) { pTimeout = NULL; }
 		if ( iMaxFd >= 0 && select(iMaxFd + 1, &tReadSet, &tWriteSet, &tErrorSet, pTimeout) > 0 ) {
 			if ( pCtx->arrWake[0] >= 0 && FD_ISSET(pCtx->arrWake[0], &tReadSet) ) {
 				char aBuf[128];
@@ -861,6 +881,9 @@
 			}
 			pthread_mutex_unlock(&pCtx->tWatchLock);
 		}
+		if ( iCount < iMaxEvents ) {
+			iCount += __xnetPortSelectHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
+		}
 		return iCount;
 	}
 
@@ -884,14 +907,24 @@
 	{
 		__xnet_select_ctx* pCtx = pPort ? (__xnet_select_ctx*)pPort->pCtx : NULL;
 		__xnet_select_timer* pNode;
-		if ( !pCtx ) { return XRT_NET_ERROR; }
+		__xnet_select_timer* pExisting;
+		uint64 iDueMs;
+		if ( !pCtx || iTimerId == 0u ) { return XRT_NET_ERROR; }
 		pNode = (__xnet_select_timer*)XNET_ALLOC(sizeof(__xnet_select_timer));
 		if ( !pNode ) { return XRT_NET_ERROR; }
 		memset(pNode, 0, sizeof(__xnet_select_timer));
 		pNode->iTimerId = iTimerId;
-		pNode->iDueMs = __xnetPortSelectNowMs() + (uint64)iDelayMs;
-		pNode->pNext = pCtx->pTimers;
-		pCtx->pTimers = pNode;
+		iDueMs = __xnetPortSelectNowMs() + (uint64)iDelayMs;
+		pNode->iDueMs = iDueMs;
+		pExisting = pCtx->pTimers;
+		while ( pExisting && pExisting->iTimerId != iTimerId ) { pExisting = pExisting->pNext; }
+		if ( pExisting ) {
+			pExisting->iDueMs = iDueMs;
+			XNET_FREE(pNode);
+		} else {
+			pNode->pNext = pCtx->pTimers;
+			pCtx->pTimers = pNode;
+		}
 		return XRT_NET_OK;
 	}
 

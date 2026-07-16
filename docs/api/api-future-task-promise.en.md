@@ -167,7 +167,35 @@ The recommended design / learning order is:
 
 ---
 
-## 10. Suggested Reading
+## 10. Bounded Blocking Executor
+
+Network workers, coroutine schedulers, and continuation dispatchers must not run blocking system calls or long CPU work directly. Use `xtaskexecutor` for that work:
+
+```c
+xtaskexecutorconfig tCfg;
+xTaskExecutorConfigInit(&tCfg);
+tCfg.iThreadCount = 4;
+tCfg.iQueueLimit = 1024;
+
+xtaskexecutor* pExecutor = xTaskExecutorCreate(&tCfg);
+xfuture* pFuture = xTaskExecutorSubmit(pExecutor, procBlockingTask, pArg);
+```
+
+Contract:
+
+- The thread count is fixed at creation; tasks do not create threads.
+- `iQueueLimit` is a hard waiting-queue limit. Submission returns `NULL` when full or closed.
+- A successful submission returns a caller-owned Future; the task keeps its own reference.
+- Cancellation before dequeue prevents the callback from running and resolves as `XRT_NET_CANCELLED`.
+- A running C callback is never forcibly terminated. Cooperative cancellation requires an application cancel token.
+- `Destroy` rejects new work, drains accepted work, joins all workers, and then releases the executor.
+- An executor cannot destroy itself from one of its workers; destruction must be delegated to another thread.
+- `xTaskExecutorGetStats` snapshots submitted, completed, rejected, queued, running, and thread count.
+- Configuration follows the append-only `iSize/iVersion` ABI rule.
+
+---
+
+## 11. Suggested Reading
 
 - [Coroutine](api-coroutine.en.md)
 - [Thread](api-thread.en.md)

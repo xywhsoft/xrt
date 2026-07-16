@@ -1,20 +1,20 @@
 #pragma once
 /*
-	
+
 	MIT License
-	
+
 	Copyright (c) 2025 xLeaves [xywhsoft] <xywhsoft@qq.com>
-	
+
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
 	in the Software without restriction, including without limitation the rights
 	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 	copies of the Software, and to permit persons to whom the Software is
 	furnished to do so, subject to the following conditions:
-	
+
 	The above copyright notice and this permission notice shall be included in all
 	copies or substantial portions of the Software.
-	
+
 	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,7 +22,7 @@
 	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 	SOFTWARE.
-	
+
 */
 #ifndef _GNU_SOURCE
 	#define _GNU_SOURCE
@@ -36,6 +36,7 @@
 #include <wctype.h>
 #include <math.h>
 #include <time.h>
+#include <signal.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -141,9 +142,9 @@
 			#ifndef SRWLOCK_INIT
 				#define SRWLOCK_INIT { 0 }
 			#endif
-			
+
 			ULONGLONG GetTickCount64();
-			
+
 			void WINAPI InitializeConditionVariable(PCONDITION_VARIABLE ConditionVariable);
 			void WINAPI WakeConditionVariable(PCONDITION_VARIABLE ConditionVariable);
 			void WINAPI WakeAllConditionVariable(PCONDITION_VARIABLE ConditionVariable);
@@ -158,7 +159,7 @@
 				DWORD dwMilliseconds,
 				ULONG Flags
 			);
-			
+
 			void WINAPI InitializeSRWLock(PSRWLOCK SRWLock);
 			void WINAPI AcquireSRWLockExclusive(PSRWLOCK SRWLock);
 			void WINAPI ReleaseSRWLockExclusive(PSRWLOCK SRWLock);
@@ -166,7 +167,7 @@
 			void WINAPI ReleaseSRWLockShared(PSRWLOCK SRWLock);
 			BOOL WINAPI TryAcquireSRWLockExclusive(PSRWLOCK SRWLock);
 			BOOL WINAPI TryAcquireSRWLockShared(PSRWLOCK SRWLock);
-			
+
 			/* IOCP 批量收割支持 */
 			typedef struct _OVERLAPPED_ENTRY {
 				ULONG_PTR lpCompletionKey;
@@ -174,7 +175,7 @@
 				ULONG_PTR Internal;
 				DWORD dwNumberOfBytesTransferred;
 			} OVERLAPPED_ENTRY, *LPOVERLAPPED_ENTRY;
-			
+
 			BOOL WINAPI GetQueuedCompletionStatusEx(
 				HANDLE CompletionPort,
 				LPOVERLAPPED_ENTRY lpCompletionPortEntries,
@@ -183,7 +184,7 @@
 				DWORD dwMilliseconds,
 				BOOL fAlertable
 			);
-			
+
 			/* AcceptEx 支持 */
 			typedef BOOL (WINAPI *LPFN_ACCEPTEX)(
 				SOCKET sListenSocket,
@@ -195,7 +196,7 @@
 				LPDWORD lpdwBytesReceived,
 				LPOVERLAPPED lpOverlapped
 			);
-			
+
 			typedef void (WINAPI *LPFN_GETACCEPTEXSOCKADDRS)(
 				PVOID lpOutputBuffer,
 				DWORD dwReceiveDataLength,
@@ -206,33 +207,33 @@
 				struct sockaddr **RemoteSockaddr,
 				LPINT RemoteSockaddrLength
 			);
-			
+
 			#define WSAID_ACCEPTEX \
 				{0xb5367df1,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
 			#define WSAID_GETACCEPTEXSOCKADDRS \
 				{0xb5367df2,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
-			
+
 			#ifndef SIO_GET_EXTENSION_FUNCTION_POINTER
 				#define SIO_GET_EXTENSION_FUNCTION_POINTER 0xC8000006
 			#endif
-			
+
 			#ifndef SO_UPDATE_ACCEPT_CONTEXT
 				#define SO_UPDATE_ACCEPT_CONTEXT 0x700B
 			#endif
-			
+
 			#ifndef SIO_KEEPALIVE_VALS
 				#define SIO_KEEPALIVE_VALS 0x98000004
 			#endif
-			
+
 			struct tcp_keepalive {
 				ULONG onoff;
 				ULONG keepalivetime;
 				ULONG keepaliveinterval;
 			};
-			
+
 			const char* WSAAPI inet_ntop(int af, const void* src, char* dst, int size);
 			#define InetNtopA inet_ntop
-					
+
 			BOOL WINAPI CancelIoEx(HANDLE hFile, LPOVERLAPPED lpOverlapped);
 			BOOL WINAPI IsThreadAFiber(void);
 		#endif
@@ -241,7 +242,7 @@
 		#include <ws2tcpip.h>
 		#include <mswsock.h>
 	#endif
-	
+
 	#include <windows.h>
 #else
 	#include <pthread.h>
@@ -519,16 +520,16 @@
 // ========================================
 #ifndef XXRTL_CORE
 	#define XXRTL_CORE
-	
-	
-	
+
+
+
 	// basic type define
 	typedef unsigned char* u8str;
 	typedef unsigned short* u16str;
 	typedef unsigned int* u32str;
 	typedef unsigned char* binary;
 	typedef u8str str;
-	
+
 	typedef char i8;
 	typedef char int8;
 	typedef unsigned char u8;
@@ -548,21 +549,21 @@
 	typedef unsigned long long uint64;
 	// long = auto 32 / 64 bit integer
 	typedef unsigned long ulong;
-	
+
 	typedef float f32;
 	typedef float float32;
 	typedef double f64;
 	typedef double float64;
-	
+
 	typedef long long curr;
-	
+
 	typedef void* ptr;
 	typedef intptr_t intptr;
 	typedef uintptr_t uintptr;
-	
+
 	typedef int64 xtime;
 	#define XRT_XTIME_DEFINED
-	
+
 	/*
 	#ifndef bool
 		typedef int bool;
@@ -583,17 +584,17 @@
 	#ifndef null
 		#define null 0
 	#endif
-	
+
 	#ifdef BUILD_DLL
 		#define XXAPI	__declspec(dllexport)
 	#else
 		#define XXAPI
 	#endif
-	
-	
-	
+
+
+
 	/* ------------------------------------ 全局数据 ------------------------------------ */
-	
+
 	// PCG 随机数状态结构
 	typedef struct {
 		uint64 state;
@@ -611,6 +612,7 @@
 	#define XRT_TEMP_ARENA_SPILL_CUTOFF	2048u
 	typedef struct xrtThreadData xrtThreadData;
 	typedef struct xrtThreadCleanup xrtThreadCleanup;
+	typedef struct xrtThreadLocalEntry xrtThreadLocalEntry;
 	typedef void (*xrtThreadCleanupProc)(xrtThreadData* pThreadData, ptr pArg);
 	typedef struct {
 		uint64 iOwnerThreadId;
@@ -914,37 +916,37 @@
 		ptr Arg;
 		xrtThreadCleanup* pPrev;
 	};
-	
+
 	// 全局
 	typedef struct {
-		
+
 		// 是否已经初始化过
 		int bInit;
 		// 初始化引用计数
 		uint32 iInitRef;
-		
+
 		// 全局数据 (不可改变)
 		str sNull;
 		void (*OnError)(str sError);
-		
+
 		// 高精度时钟频率单位
 		#if defined(_WIN32) || defined(_WIN64)
 			uint64 Frequency;
 		#endif
-		
+
 		// 本机 IP 地址 ( 用于生成 XID )
 		uint LocalAddr;
-		
+
 		// 应用信息
 		str AppFile;
 		str AppPath;
-		
+
 		// 内存函数
 		ptr (*malloc)(size_t iSize);
 		ptr (*calloc)(size_t iNum, size_t iSize);
 		ptr (*realloc)(ptr pMem, size_t iSize);
 		void (*free)(ptr pMem);
-		
+
 		// 约等于配置
 		int iApproxIntMode;       // 整数模式: 0=差值, 1=百分比
 		double fApproxIntTol;     // 整数容差
@@ -954,7 +956,7 @@
 		int iApproxStrMode;       // 字符串模式: 0=通配符, 1=相似度
 		double fApproxStrTol;     // 字符串相似度阈值(0.0-1.0)
 		bool bApproxStrCase;      // 通配符模式大小写开关(TRUE=忽略)
-		
+
 		xrtMemGlobalPool MemGlobal;
 		xrtMemTelemetryState MemTelemetry;
 		#ifdef XRT_MEM_DEBUG
@@ -976,6 +978,7 @@
 		xrtThreadMemState tMem;
 		xrtCoroRuntimeState tCoro;
 		xrtThreadCleanup* pCleanupTop;
+		xrtThreadLocalEntry* pLocalEntryHead;
 		ptr pFutureDeferredHead;
 		ptr pFutureDeferredTail;
 		bool bFutureDeferredCleanupRegistered;
@@ -984,15 +987,15 @@
 			uint32 iMemDebugLine;
 		#endif
 	};
-	
+
 	// 全局数据
 	XXAPI extern xrtGlobalData xCore;
-	
-	
-	
+
+
+
 	// 初始化 xCore
 	XXAPI xrtGlobalData* xrtInit();
-	
+
 	// 释放 xCore
 	XXAPI void xrtUnit();
 	// 获取当前线程运行时状态
@@ -1011,35 +1014,41 @@
 	XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg);
 	// 弹出当前线程顶部匹配的清理回调
 	XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg);
-	
-	
-	
+	// 获取命名线程本地数据，不存在时返回 NULL
+	XXAPI ptr xrtThreadLocalGet(const char* sKey, size_t* pSize);
+	// 获取或创建由 XRT 管理的零初始化线程本地数据
+	XXAPI ptr xrtThreadLocalGetOrCreate(const char* sKey, size_t iSize);
+	// 删除命名线程本地数据
+	XXAPI bool xrtThreadLocalRemove(const char* sKey);
+
+
+
 	/* ------------------------------------ 基础功能补充 ------------------------------------ */
-	
+
 	// 内存查找
 	#if defined(_WIN32) || defined(_WIN64)
 		// 内存查找
 		XXAPI ptr memmem(ptr pMem, size_t iMemSize, ptr pSub, size_t iSubSize);
 	#endif
-	
+
 	// 获取字符串长度 ( 补充 utf16 和 utf32 支持 )
 	XXAPI size_t u16len(u16str sText);
 	// 获取 UTF-32 字符串长度
 	XXAPI size_t u32len(u32str sText);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Base 函数库 ------------------------------------ */
-	
+
 	// 申请内存
 	XXAPI ptr xrtMalloc(size_t iSize);
-	
+
 	// 申请类内存
 	XXAPI ptr xrtCalloc(size_t iNum, size_t iSize);
-	
+
 	// 重新申请内存
 	XXAPI ptr xrtRealloc(ptr pMem, size_t iSize);
-	
+
 	// 释放内存（ 会先判断是否为 null ）
 	XXAPI void xrtFree(ptr pmem);
 
@@ -1048,10 +1057,10 @@
 
 	// 原子释放引用，成功时返回递减后的引用计数，非法状态返回 -1
 	XXAPI int32 xrtAtomicRefRelease(volatile int32* pCount);
-	
+
 	// 申请无需主动释放的临时内存
 	XXAPI ptr xrtTempMemory(size_t iSize);
-	
+
 	// 释放所有临时内存
 	XXAPI void xrtFreeTempMemory();
 	// 建立可嵌套的临时内存作用域
@@ -1070,7 +1079,7 @@
 	XXAPI void xrtMemTelemetryReset();
 	// 获取内存遥测快照
 	XXAPI void xrtMemTelemetryGetSnapshot(xrtMemTelemetrySnapshot* pOut);
-	
+
 	#ifdef XRT_MEM_DEBUG
 		// 启用内存调试
 		XXAPI void xrtMemDebugEnable(bool bEnable);
@@ -1097,14 +1106,14 @@
 		#define xrtRealloc(pMem, iSize) xrtReallocDbg((pMem), (iSize), __FILE__, __LINE__)
 		#define xrtFree(pMem) xrtFreeDbg((pMem), __FILE__, __LINE__)
 	#endif
-	
+
 	// 设置错误
 	XXAPI void xrtSetError(const void* sError, bool bFree);
 	// 设置错误 u 16
 	XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree);
 	// 设置错误 u 32
 	XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, bool bFree);
-	
+
 	// 清除错误
 	XXAPI void xrtClearError();
 	// 获取当前线程的内存上下文
@@ -1546,11 +1555,11 @@
 		xrtSetError(sError ? sError : "runtime object belongs to another thread.", FALSE);
 		return FALSE;
 	}
-	
-	
-	
+
+
+
 	/* ------------------------------------ Charset 函数库 ------------------------------------ */
-	
+
 	#define XRT_CP_AUTO				-2				// 自动识别字符集（ 可自动识别是否为 utf8，自动识别失败则使用 XRT_CP_BINARY ）
 	#define XRT_CP_BINARY			-1				// 二进制文件
 	#define XRT_CP_OEM				0				// 本机 OEM 字符集 ( windows为OEM多字节编码，linux固定为utf8 )
@@ -1559,59 +1568,59 @@
 	#define XRT_CP_UTF16_BE			1201			// UTF16 big-endian
 	#define XRT_CP_UTF32			65005			// UTF32
 	#define XRT_CP_UTF32_BE			65006			// UTF32 big-endian
-	
+
 	#define XRT_CP_BOM				0x40000000		// with BOM
 	#define XRT_MASK_BOM			0xBFFFFFFF		// mask BOM
-	
+
 	// utf-8 转 utf-16（ 需使用 xrtFree 释放 ）
 	XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize);
-	
+
 	// utf-8 转 utf-32（ 需使用 xrtFree 释放 ）
 	XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize);
-	
+
 	// utf-16 转 utf-8（ 需使用 xrtFree 释放 ）
 	XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize);
-	
+
 	// utf-16 转 utf-32（ 需使用 xrtFree 释放 ）
 	XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize);
-	
+
 	// utf-32 转 utf-8（ 需使用 xrtFree 释放 ）
 	XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize);
-	
+
 	// utf-32 转 utf-16（ 需使用 xrtFree 释放 ）
 	XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize);
-	
+
 	// utf-16 大端序和小端序转换 ( 需使用 xrtFree 释放 )
 	XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise);
-	
+
 	// utf-32 大端序和小端序转换 ( 需使用 xrtFree 释放 )
 	XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise);
-	
+
 	// 任意编码转换 ( 需使用 xrtFree 释放 )
 	XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t* iRetSize);
-	
+
 	// 是否为 utf-8 字符串
 	XXAPI bool xrtIsUTF8(str sText, size_t iSize);
-	
+
 	// 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
 	XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM);
-	
+
 	// 获取不同字符集的字符大小
 	XXAPI int xrtGetCharSize(int iCP);
-	
-	
-	
+
+
+
 	/* ------------------------------------ OS 函数库 ------------------------------------ */
-	
+
 	// 读取环境变量并返回需要由 xrtFree 释放的 UTF-8 副本
 	XXAPI str xrtEnvGet(str sName);
 
 	// 运行程序
 	XXAPI ptr xrtRun(str sPath, size_t iSize);
-	
+
 	// 打开文件（ 仅支持 windows 系统 ）
 	XXAPI ptr xrtStart(str sPath, size_t iSize);
-	
+
 	// 运行程序并等待程序运行结束
 	XXAPI int xrtChain(str sPath, size_t iSize);
 #ifndef XRT_NO_SUBPROCESS
@@ -1806,66 +1815,66 @@
 	XXAPI bool xrtProcessPipelineRun(const xprocessconfig* arrConfigs, uint32 iConfigCount, xprocesspipelineresult* pResult, uint32 iTimeoutMs);
 	XXAPI void xrtProcessPipelineResultUnit(xprocesspipelineresult* pResult);
 #endif
-	
-	
-	
+
+
+
 	/* ------------------------------------ Math 函数库 ------------------------------------ */
-	
+
 	// 约等于模式常量
 	#define XRT_APPROX_DIFF     0   // 差值模式
 	#define XRT_APPROX_PERCENT  1   // 百分比模式
-	
+
 	// 静态初始化随机数生成器的推荐值
 	#define XRAND_INITIALIZER  { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
-	
+
 	// 初始化随机数生成器
 	XXAPI void xrtRandSeed(xrand* rng, uint64 seed, uint64 seq);
-	
+
 	// 初始化当前线程默认随机数生成器
 	XXAPI void xrtRandSeedThread(uint64 seed, uint64 seq);
-	
+
 	// 生成 32 位随机数 - 线程安全
 	XXAPI uint32 xrtRand32Ex(xrand* rng);
-	
+
 	// 生成 64 位随机数 - 线程安全
 	XXAPI uint64 xrtRand64Ex(xrand* rngLow, xrand* rngHigh);
-	
+
 	// 生成范围随机数 - 线程安全
 	XXAPI int xrtRandRangeEx(xrand* rng, int min, int max);
-	
+
 	// 获取 32 位随机数
 	XXAPI uint32 xrtRand32();
-	
+
 	// 获取 64 位随机数
 	XXAPI uint64 xrtRand64();
-	
+
 	// 获取 32 位范围随机数
 	XXAPI int xrtRandRange(int min, int max);
-	
+
 	// 创建独立随机数对象（需使用 xrtRandDestroy 释放）
 	XXAPI ptr xrtRandCreate(uint64 seed, uint64 seq);
-	
+
 	// 释放独立随机数对象
 	XXAPI int64 xrtRandDestroy(ptr pRand);
-	
+
 	// 重置独立随机数对象种子
 	XXAPI void xrtRandSeedObj(ptr pRand, uint64 seed, uint64 seq);
-	
+
 	// 使用独立随机数对象生成 32 位随机数
 	XXAPI uint32 xrtRand32Obj(ptr pRand);
-	
+
 	// 使用独立随机数对象生成 64 位随机数
 	XXAPI uint64 xrtRand64Obj(ptr pRand);
-	
+
 	// 使用独立随机数对象生成范围随机数
 	XXAPI int xrtRandRangeObj(ptr pRand, int min, int max);
-	
+
 	// 整数约等于（使用 xCore 配置）
 	XXAPI bool xrtIntApprox(int64 a, int64 b);
-	
+
 	// 浮点数约等于（使用 xCore 配置）
 	XXAPI bool xrtNumApprox(double a, double b);
-	
+
 	#ifndef XRT_MATH_PI
 		#define XRT_MATH_PI 3.14159265358979323846264338327950288
 	#endif
@@ -1885,7 +1894,7 @@
 			#define XRT_MATH_NAN (HUGE_VAL - HUGE_VAL)
 		#endif
 	#endif
-	
+
 	XXAPI double xrtMathMin(double a, double b);
 	XXAPI double xrtMathMax(double a, double b);
 	XXAPI double xrtMathClamp(double value, double minValue, double maxValue);
@@ -1904,11 +1913,11 @@
 	XXAPI double xrtMathExpm1(double value);
 	XXAPI double xrtMathCbrt(double value);
 	XXAPI double xrtMathHypot(double x, double y);
-	
-	
-	
+
+
+
 	/* ------------------------------------ String 函数库 ------------------------------------ */
-	
+
 	// 创建字符串副本（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtCopyStr(str sText, size_t iSize);
 	// 连接两个字符串（ 需使用 xrtFree 释放 ）
@@ -1921,20 +1930,20 @@
 	XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize);
 	// 复制内存
 	XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize);
-	
+
 	// 比较字符串
 	XXAPI int xrtStrComp(str s1, str s2, size_t iSize, bool bCase);
 	XXAPI size_t xrtStrByteLen(str sText, size_t iSize);
 	XXAPI size_t xrtStrUtf8CharSize(str sText, size_t iSize, size_t iPos);
 	XXAPI size_t xrtStrCharLen(str sText, size_t iSize);
 	XXAPI size_t xrtStrCharToBytePos(str sText, size_t iSize, size_t iCharIndex);
-	
+
 	// 字符串转为小写（ bSrcRevise 为 false 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtLCase(str sText, size_t iSize, bool bSrcRevise);
-	
+
 	// 字符串转为大写（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtUCase(str sText, size_t iSize, bool bSrcRevise);
-	
+
 	// 搜索字符串（ 没找到字符串的情况下会返回 NULL ）
 	XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase);
 	XXAPI int64 xrtStrIndexOf(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase);
@@ -1942,26 +1951,26 @@
 	XXAPI int64 xrtStrCount(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase);
 	// 查找子串首次出现位置（ 未找到返回 0 ）
 	XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase);
-	
+
 	// 字符串检查（ sText 中是否包含 sSubText 列出的字符，支持 utf-8 mb6 编码 ）
 	XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize);
-	
+
 	// 通配符匹配（ * 匹配任意字符序列，? 匹配单个UTF-8字符，bCase 为 TRUE 时忽略大小写 ）
 	XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize, bool bCase);
-	
+
 	// 裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
 	// 从右侧裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
 	// 裁剪
 	XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
-	
+
 	// 过滤字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtFilterStr(str sText, size_t iSize, str sFilter, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
-	
+
 	// 字符串格式化（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtFormat(const void* sFormat, ...);
-	
+
 	// 字符串替换（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize, size_t* iRetSize);
 	XXAPI str xrtStrSlice(str sText, size_t iSize, int64 iStart, int64 iCount, size_t* iRetSize);
@@ -1981,54 +1990,54 @@
 	XXAPI str xrtStrPadCenter(str sText, size_t iSize, int64 iWidth, str sPadText, size_t iPadSize, size_t* iRetSize);
 	XXAPI str xrtStrReverse(str sText, size_t iSize, size_t* iRetSize);
 	XXAPI str* xrtStrSplitLines(str sText, size_t iSize, size_t* iRetSize);
-	
+
 	// 字符串分割（ 任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据 ）
 	XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool bSrcRevise, size_t* iRetSize);
-	
+
 	// 生成随机字符串（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen);
-	
+
 	// 使用独立随机数对象生成随机字符串（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtRandStrObj(ptr pRand, str sTemplate, size_t iSize, size_t iLen);
-	
+
 	// HEX 编码（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtHexEncode(ptr pMem, size_t iSize);
 	// HEX 编码原始字节（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtHexEncodeBytes(ptr pMem, size_t iSize);
-	
+
 	// HEX 解码（ 需使用 xrtFree 释放 ）
 	XXAPI ptr xrtHexDecode(str pText, size_t iSize);
-	
+
 	// Base64 编码（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable);
 	// Base64 编码原始字节（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtBase64EncodeBytes(ptr pMem, size_t iSize, str sTable);
-	
+
 	// Base64 解码（ 需使用 xrtFree 释放 ）
 	XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
-	
+
 	// 整数格式化（格式符: , 千分位 | 0N 前导零 | + 正号 | x/X 十六进制 | o 八进制 | b 二进制）（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtIntFormat(int64 value, str format);
-	
+
 	// 无符号整数格式化（格式符同 xrtIntFormat）（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtUIntFormat(uint64 value, str format);
 	// 浮点数格式化（格式符: , 千分位 | .N 小数位 | + 正号 | % 百分比）（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtNumFormat(double value, str format);
-	
+
 	// 字符串相似度（基于 Levenshtein 编辑距离，返回 0.0-1.0）
 	XXAPI double xrtStrSim(str s1, size_t len1, str s2, size_t len2);
-	
+
 	// 字符串约等于模式常量
 	#define XRT_STR_APPROX_LIKE     0   // 通配符模式（s2为模式串）
 	#define XRT_STR_APPROX_SIM      1   // 相似度阈值模式
-	
+
 	// 字符串约等于（使用 xCore 配置）
 	XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2);
-	
+
 	// URL 编码（ 需使用 xrtFree 释放 ）
-	
+
 	// URL 解码（ 需使用 xrtFree 释放 ）
-	
+
 	// 获取 UTF-8 字符的字节数（根据首字节判断）
 	static inline int xrtCharLenU8(unsigned char c)
 	{
@@ -2040,29 +2049,32 @@
 		if ( (c & 0xFE) == 0xFC ) { return 6; }         // 1111110x - 6字节
 		return 1; // 异常字符按单字节处理
 	}
-	
-	
-	
+
+
+
 	/* ------------------------------------ Path 函数库 ------------------------------------ */
-	
+
 	// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize);
-	
+
 	// 通过路径获取文件名（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathGetName(str sPath, size_t iSize);
-	
+
 	// 通过路径获取扩展名（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathGetExt(str sPath, size_t iSize);
-	
+
 	// 通过路径获取文件夹（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathGetDir(str sPath, size_t iSize);
-	
+
 	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
 	XXAPI bool xrtPathIsAbs(str sPath, size_t iSize);
-	
+
+	// 验证归档条目使用的相对 UTF-8 路径，拒绝目录穿越和跨平台危险名称。
+	XXAPI bool xrtPathIsSafeArchiveEntry(str sPath, bool bDirectory);
+
 	// 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize, size_t iLen);
-	
+
 	// 拼接路径（ 需要使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathJoin(uint iCount, ...);
 	XXAPI str xrtPathSep();
@@ -2076,11 +2088,11 @@
 	XXAPI str xrtPathAppDir();
 	XXAPI str xrtPathWithExt(str sPath, str sExt);
 	XXAPI str xrtPathWithName(str sPath, str sNameExt);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Time 函数库 ------------------------------------ */
-	
+
 	// 各种固定时间单位的数值
 	#define XRT_TIME_MINUTE			60
 	#define XRT_TIME_HOUR			3600
@@ -2089,7 +2101,7 @@
 	#define XRT_TIME_LEAPYEAR		31622400
 	#define XRT_TIME_400YEAR		12622780800				// 每隔 400 年有 97 个闰年 + 303 个平年
 	#define XRT_TIME_19700101		62167219200
-	
+
 	// 时间单位
 	#define XRT_TIME_INTERVAL_YEAR			1				// 年
 	#define XRT_TIME_INTERVAL_MONTH			2				// 月
@@ -2099,160 +2111,160 @@
 	#define XRT_TIME_INTERVAL_SECOND		6				// 秒
 	#define XRT_TIME_INTERVAL_WEEKDAY		7				// 星期
 	#define XRT_TIME_INTERVAL_QUARTER		8				// 季度
-	
+
 	// 转换格式
 	#define XRT_TIME_FORMAT_DATETIME		0
 	#define XRT_TIME_FORMAT_DATE			1
 	#define XRT_TIME_FORMAT_TIME			2
-	
+
 	// 获取高精度时钟 Tick ( 返回秒数，便于计算时间间隔 )
 	XXAPI double xrtTimer();
-	
+
 	// 毫秒级延时
 	XXAPI void xrtSleep(uint32 ms);
-	
+
 	// 判断是否为闰年
 	XXAPI bool xrtIsLeapYear(int iYear);
-	
+
 	// 获取某年某月有多少天
 	XXAPI int xrtDaysInMonth(int iYear, int iMonth);
-	
+
 	// 获取某年有多少天
 	XXAPI int xrtDaysInYear(int iYear);
-	
+
 	// 构建时间
 	XXAPI xtime xrtTimeSerial(int iHour, int iMinute, int iSecond);
-	
+
 	// 构建日期
 	XXAPI xtime xrtDateSerial(int64 iYear, int iMonth, int iDay);
-	
+
 	// 构建日期 + 时间
 	XXAPI xtime xrtDateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond);
-	
+
 	// 获取时间中的秒
 	XXAPI int xrtSecond(xtime iTime);
-	
+
 	// 获取时间中的分钟
 	XXAPI int xrtMinute(xtime iTime);
-	
+
 	// 获取时间中的小时
 	XXAPI int xrtHour(xtime iTime);
-	
+
 	// 获取时间中的日期
 	XXAPI int xrtDay(xtime iTime);
-	
+
 	// 获取时间中的月份
 	XXAPI int xrtMonth(xtime iTime);
-	
+
 	// 获取时间中的年份
 	XXAPI int64 xrtYear(xtime iTime);
-	
+
 	// 获取时间中的星期
 	XXAPI int xrtWeekday(xtime iTime);
-	
+
 	// 获取时间是当年的第几天
 	XXAPI int xrtDayOfYear(xtime iTime);
-	
+
 	// 解码时间
 	XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, int* pHour, int* pMinute, int* pSecond, int* pWeekday, int* pDayOfYear);
-	
+
 	// 获取当前日期 + 时间
 	XXAPI xtime xrtNow();
-	
+
 	// 获取当前日期
 	XXAPI xtime xrtDate();
-	
+
 	// 获取当前时间
 	XXAPI xtime xrtTime();
-	
+
 	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtNowStr();
-	
+
 	// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtDateStr();
-	
+
 	// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtTimeStr();
-	
+
 	// 转换日期 + 时间为字符串（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtTimeToStr(xtime iTime, int iFormat);
-	
+
 	// 字符串转时间（智能解析，支持多种格式）
 	// 支持: YYYY-MM-DD HH:MM:SS, YYYY/MM/DD, YYYYMMDD, YYYYMMDDHHMMSS, HH:MM:SS 等
 	XXAPI xtime xrtStrToTime(str sTime, size_t iSize);
-	
+
 	// Try to parse a string into xtime. Returns TRUE only when parsing succeeds.
 	XXAPI bool xrtTryStrToTime(str sTime, size_t iSize, xtime* pOut);
-	
+
 	// 时间单位累加
 	XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime);
-	
+
 	// 单位时间差计算
 	XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2);
-	
+
 	// 获取季度（1-4）
 	XXAPI int xrtQuarter(xtime iTime);
-	
+
 	// 获取日期部分（去除时间）
 	XXAPI xtime xrtDatePart(xtime iTime);
-	
+
 	// 获取时间部分（去除日期）
 	XXAPI xtime xrtTimePart(xtime iTime);
-	
+
 	// 是否同一天
 	XXAPI bool xrtIsSameDay(xtime iTime1, xtime iTime2);
-	
+
 	// 是否同一月
 	XXAPI bool xrtIsSameMonth(xtime iTime1, xtime iTime2);
-	
+
 	// 是否同一年
 	XXAPI bool xrtIsSameYear(xtime iTime1, xtime iTime2);
-	
+
 	// 判断时间是否在区间内
 	XXAPI bool xrtTimeInRange(xtime iTime, xtime iStart, xtime iEnd);
-	
+
 	// 判断两个时间区间是否重叠
 	XXAPI bool xrtTimeRangeOverlap(xtime iStart1, xtime iEnd1, xtime iStart2, xtime iEnd2);
-	
+
 	// 与Unix时间戳互转 - xtime转Unix时间戳
 	XXAPI int64 xrtToUnixTime(xtime iTime);
-	
+
 	// 与Unix时间戳互转 - Unix时间戳转xtime
 	XXAPI xtime xrtFromUnixTime(int64 unixTime);
-	
+
 	// 获取月份的第一天
 	XXAPI xtime xrtFirstDayOfMonth(xtime iTime);
-	
+
 	// 获取月份的最后一天
 	XXAPI xtime xrtLastDayOfMonth(xtime iTime);
-	
+
 	// 获取年份的第一天
 	XXAPI xtime xrtFirstDayOfYear(xtime iTime);
-	
+
 	// 获取年份的最后一天
 	XXAPI xtime xrtLastDayOfYear(xtime iTime);
-	
+
 	// 获取周的第一天（iStartDay: 0=周日, 1=周一, ...）
 	XXAPI xtime xrtFirstDayOfWeek(xtime iTime, int iStartDay);
-	
+
 	// 获取周的最后一天（iStartDay: 0=周日, 1=周一, ...）
 	XXAPI xtime xrtLastDayOfWeek(xtime iTime, int iStartDay);
-	
+
 	// 获取当年第几周（ISO周数，周一为一周开始）
 	XXAPI int xrtWeekOfYear(xtime iTime);
-	
+
 	// 获取当月第几周（周一为一周开始）
 	XXAPI int xrtWeekOfMonth(xtime iTime);
-	
+
 	// 获取UTC时间
 	XXAPI xtime xrtNowUTC();
-	
+
 	// 获取本地时区偏移（秒）
 	XXAPI int xrtTimezoneOffset();
-	
+
 	// UTC转本地时间
 	XXAPI xtime xrtUTCToLocal(xtime utc);
-	
+
 	// 本地时间转UTC
 	XXAPI xtime xrtLocalToUTC(xtime local);
 	#ifndef XRT_NO_LOGGER
@@ -2323,35 +2335,35 @@
 	#define xlogError(...)				xlogWrite(xlogDefault(), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
 	#define xlogFatal(...)				xlogWrite(xlogDefault(), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
 	#endif
-	
+
 	// 获取相对时间描述（如"3天前"、"2小时后"）（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime);
-	
+
 	// 时间格式化为字符串（ 需使用 xrtFree 释放内存 ）
 	// 格式占位符: yyyy/yy(年), mm/m(月,h后=分钟), mmm/mmmm(英文月份),
 	//             dd/d(日), hh/h(24时), HH/H(12时), nn/n(分钟),
 	//             ss/s(秒), ap/AP(am/pm), w/ww/www(星期), q(季度)
 	XXAPI str xrtTimeFormat(xtime iTime, const void* sFormat);
-	
+
 	// 字符串解析为时间
 	// 格式占位符同 xrtTimeFormat，另支持: *(跳过任意非数字), .(至少1个非数字), ?(跳过1字符), 空格(跳过空白)
 	// 解析时自动跳过前缀冗余文本
 	XXAPI xtime xrtTimeParse(str sTime, str sFormat);
-	
+
 	// Try to parse a formatted string into xtime.
 	XXAPI bool xrtTryTimeParse(str sTime, str sFormat, xtime* pOut);
-	
+
 	// 时间约等于（使用 xCore.iApproxTimeTol 容差）
 	XXAPI bool xrtTimeApprox(xtime a, xtime b);
-	
-	
-	
+
+
+
 	/* ------------------------------------ File 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			Time 函数库
 	*/
-	
+
 	// 文件对象
 	typedef struct {
 		union {
@@ -2362,103 +2374,121 @@
 		uint BOM;				// BOM大小
 		int ReadOnly;			// 只读模式
 	} xfile_struct, *xfile;
-	
+
 	// 游标控制
 	#define XRT_SEEK_SET		0
 	#define XRT_SEEK_CUR		1
 	#define XRT_SEEK_END		2
-	
+
 	// 打开文件 ( 需要使用 xrtClose 关闭文件 )
 	XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset);
-	
+
 	// 关闭文件
 	XXAPI void xrtClose(xfile objFile);
-	
+
 	// 设置游标位置
 	XXAPI size_t xrtSeek(xfile objFile, int64 iOffset, int iMoveMethod);
-	
+
 	// 获取游标位置
 	XXAPI size_t xrtTell(xfile objFile);
-	
+
 	// 获取文件末尾位置 ( 获取一打开文件的动态大小 )
 	XXAPI size_t xrtGetEOF(xfile objFile);
-	
+
 	// 是否已经读取到文件末尾
 	XXAPI bool xrtEOF(xfile objFile);
-	
+
 	// 设置文件末尾
 	XXAPI bool xrtSetEOF(xfile objFile);
-	
+
 	// 从已打开的文件读取数据 ( iSize 为要读取的字节数，需要使用 xrtFree 释放内存 )
 	XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize);
-	
+
 	// 向已打开的文件写入数据 ( iSize 为要写入的字节数 )
 	XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize);
-	
+
 	// 从已打开的文件读取二进制数据到特定位置
 	XXAPI size_t xrtGetBuffer(xfile objFile, ptr sBuff, size_t iSize);
-	
+
+	// 原始读取。成功时通过 iRead 返回实际读取字节数，0 表示文件末尾。
+	XXAPI bool xrtFileReadRaw(xfile objFile, ptr pBuffer, size_t iRequest, size_t* iRead);
+
 	// 从已打开的文件读取二进制数据 ( 需要使用 xrtFree 释放内存 )
 	XXAPI ptr xrtGet(xfile objFile, size_t iSize, size_t* iRetSize);
-	
+
 	// 向已打开的文件写入二进制数据
 	XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize);
-	
+
+	// 原始写入。成功时通过 iWritten 返回实际写入字节数。
+	XXAPI bool xrtFileWriteRaw(xfile objFile, const void* pBuffer, size_t iRequest, size_t* iWritten);
+
+	// 无歧义的 64 位文件定位、查询与刷新接口。
+	XXAPI bool xrtFileSeekRaw(xfile objFile, int64 iOffset, int iMoveMethod, uint64* iPosition);
+	XXAPI bool xrtFileTellRaw(xfile objFile, uint64* iPosition);
+	XXAPI bool xrtFileSizeRaw(xfile objFile, uint64* iSize);
+	XXAPI bool xrtFileFlush(xfile objFile);
+
 	// 向文件追加写入数据
 	XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset);
-	
+
 	// 写入并覆盖文件内容
 	XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
-	
+
 	// 读取文件的全部内容 ( 需要使用 xrtFree 释放内存 )
 	XXAPI str xrtFileReadAll(str sPath, int iCharset, size_t* iRetSize);
-	
+
 	// 写入并覆盖文件内容 ( 二进制 )
 	XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize);
-	
+
 	// 读取文件的全部内容 ( 二进制，需要使用 xrtFree 释放内存 )
 	XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize);
-	
+
 	// 判断路径是否存在
 	XXAPI bool xrtPathExists(str sPath);
-	
+
 	// 判断文件是否存在
 	XXAPI bool xrtFileExists(str sPath);
-	
+
 	// 判断目录是否存在
 	XXAPI bool xrtDirExists(str sPath);
-	
+
 	// 获取文件长度
 	XXAPI size_t xrtFileGetSize(str sPath);
-	
+
 	// 设置文件长度
 	XXAPI bool xrtFileSetSize(str sPath, size_t iSize);
-	
+
 	// 获取文件属性
 	XXAPI int xrtFileGetAttr(str sPath);
-	
+
 	// 设置文件属性
 	XXAPI bool xrtFileSetAttr(str sPath, int iAttr);
-	
+
 	// 获取文件最后一次访问时间
 	XXAPI int64 xrtFileGetAccessTime(str sPath);
-	
+
 	// 获取文件修改时间
 	XXAPI int64 xrtFileGetChangeTime(str sPath);
-	
+
 	// 复制文件
 	XXAPI bool xrtFileCopy(str sSrc, str sDst, bool bReWrite);
-	
+
 	// 移动文件（重命名）
 	XXAPI bool xrtFileMove(str sSrc, str sDst, bool bReWrite);
 	XXAPI bool xrtFileRename(str sSrc, str sDst, bool bReWrite);
 	XXAPI bool xrtFileReplace(str sSrc, str sDst);
 	XXAPI bool xrtFileTouch(str sPath);
 	XXAPI bool xrtFileWriteAllAtomic(str sPath, str sText, size_t iSize, int iCharset);
-	
+
 	// 删除文件
 	XXAPI bool xrtFileDelete(str sPath);
-	
+
+	// 创建 UTF-8 路径的符号链接和硬链接；链接路径必须尚不存在。
+	XXAPI bool xrtFileCreateSymbolicLink(str sLinkPath, str sTargetPath, bool bTargetDirectory);
+	XXAPI bool xrtFileCreateHardLink(str sLinkPath, str sTargetPath);
+	// 创建 POSIX FIFO；Windows 不具备文件系统 FIFO 语义，返回失败。
+	XXAPI bool xrtFileCreateFifo(str sPath, int iMode);
+
 	// 扫描文件夹 ( 返回文件数量 )
 	typedef int (*xrtDirScanProc)(str sPath, size_t iSize, int bDir, ptr pData, ptr Param);
 	typedef int (*xrtDirScanExProc)(str sDir, size_t iDirSize, str sName, size_t iNameSize, str sPath, size_t iPathSize, int bDir, ptr pData, ptr Param);
@@ -2467,19 +2497,19 @@
 	XXAPI int64 xrtDirCount(str sPath, bool bRecu, int iMode);
 	XXAPI int64 xrtDirSize(str sPath, bool bRecu);
 	XXAPI bool xrtDirIsEmpty(str sPath);
-	
+
 	// 创建文件夹
 	XXAPI bool xrtDirCreate(str sPath);
-	
+
 	// 创建多级文件夹
 	XXAPI bool xrtDirCreateAll(str sPath);
-	
+
 	// 复制文件夹 ( 返回操作的文件数量 )
 	XXAPI int xrtDirCopy(str sSrc, str sDst, bool bReWrite);
-	
+
 	// 移动文件夹 ( 返回操作的文件数量 )
 	XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite);
-	
+
 	// 删除文件夹 ( 返回操作的文件数量 )
 	XXAPI int xrtDirDelete(str sPath);
 	XXAPI bool xrtDirIsRoot(str sPath);
@@ -2521,27 +2551,27 @@
 		XXAPI ptr xrtAsyncFileBufDetach(xasyncfilebuf* pBuf, size_t* pSize, uint64* pOffset, bool* pEOF);
 		// 异步销毁文件 io
 		XXAPI void xrtAsyncFileIoDestroy(xasyncfileio* pInfo);
-		
+
 	#endif
-	
-	
-	
+
+
+
 	/* ------------------------------------ Thread 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			Time 函数库
 	*/
-	
+
 	// 线程状态
 	#define XRT_THREAD_STOPPED		0			// 已停止
 	#define XRT_THREAD_RUNNING		1			// 运行中
 	#define XRT_THREAD_SUSPENDED	2			// 已挂起
-	
+
 	// 等待超时返回值
 	#define XRT_WAIT_OK				0			// 等待成功
 	#define XRT_WAIT_TIMEOUT		1			// 等待超时
 	#define XRT_WAIT_ERROR			-1			// 等待错误
-	
+
 	// 线程数据结构
 	typedef struct xthread_struct {
 		ptr Handle;								// 线程句柄
@@ -2558,7 +2588,7 @@
 			pthread_cond_t FinishCond;			// 结束条件变量（POSIX，monotonic）
 		#endif
 	} xthread_struct, *xthread;
-	
+
 	// 互斥体数据结构
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
@@ -2568,7 +2598,7 @@
 			pthread_mutex_t objLock;			// Linux pthread_mutex（非递归模式）
 		#endif
 	} xmutex_struct, *xmutex;
-	
+
 	// 信号量数据结构
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
@@ -2580,7 +2610,7 @@
 			uint32 iMaxValue;					// 最大计数
 		#endif
 	} xsem_struct, *xsem;
-	
+
 	// 条件变量数据结构
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
@@ -2589,7 +2619,7 @@
 			pthread_cond_t objCond;				// POSIX：条件变量对象（直接嵌入，无需额外 malloc）
 		#endif
 	} xcond_struct, *xcond;
-	
+
 	// 读写锁数据结构
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
@@ -2606,154 +2636,195 @@
 		uint32 iWaitingWriterCount;			// 当前等待的写者数量（含升级者）
 		bool bWriterLocked;					// 是否已有写者持锁
 	} xrwlock_struct, *xrwlock;
-	
+
 	/* ---------- 线程管理 ---------- */
-	
+
 	// 创建线程
 	XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize);
-	
+
 	// 销毁线程对象（不终止线程，仅释放管理结构）
 	XXAPI void xrtThreadDestroy(xthread pThread);
-	
+
 	// 等待线程结束
 	XXAPI void xrtThreadWait(xthread pThread);
-	
+
 	// 等待线程结束（带超时，毫秒）
 	XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout);
-	
+
 	// 发送停止信号（线程需要主动检查 xrtThreadShouldStop）
 	XXAPI void xrtThreadStop(xthread pThread);
-	
+
 	// 检查是否应该停止（线程内调用）
 	XXAPI bool xrtThreadShouldStop(xthread pThread);
-	
+
 	// 获取线程状态
 	XXAPI int xrtThreadGetState(xthread pThread);
-	
+
 	// 获取线程退出码
 	XXAPI uint32 xrtThreadGetExitCode(xthread pThread);
-	
+
 	// 获取当前线程ID
 	XXAPI uint64 xrtThreadGetCurrentId();
-	
+
 	// 让出当前线程的时间片
 	XXAPI void xrtThreadYield();
-	
+
 	/* ---------- 互斥体 ---------- */
-	
+
 	// 创建互斥体
 	XXAPI xmutex xrtMutexCreate();
-	
+
 	// 销毁互斥体
 	XXAPI void xrtMutexDestroy(xmutex pMutex);
-	
+
 	// 初始化互斥体（对自维护结构体指针使用）
 	XXAPI void xrtMutexInit(xmutex pMutex);
-	
+
 	// 释放互斥体（对自维护结构体指针使用）
 	XXAPI void xrtMutexUnit(xmutex pMutex);
-	
+
 	// 锁定互斥体（阻塞）
 	XXAPI void xrtMutexLock(xmutex pMutex);
-	
+
 	// 尝试锁定互斥体（非阻塞）
 	XXAPI bool xrtMutexTryLock(xmutex pMutex);
-	
+
 	// 解锁互斥体
 	XXAPI void xrtMutexUnlock(xmutex pMutex);
-	
+
 	/* ---------- 信号量 ---------- */
-	
+
 	// 创建信号量
 	XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue);
-	
+
 	// 销毁信号量
 	XXAPI void xrtSemDestroy(xsem pSem);
-	
+
 	// 初始化信号量（对自维护结构体指针使用）
 	XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue);
-	
+
 	// 释放信号量（对自维护结构体指针使用）
 	XXAPI void xrtSemUnit(xsem pSem);
-	
+
 	// 等待信号量（阻塞，计数减1）
 	XXAPI void xrtSemWait(xsem pSem);
-	
+
 	// 尝试等待信号量（非阻塞）
 	XXAPI bool xrtSemTryWait(xsem pSem);
-	
+
 	// 等待信号量（带超时，毫秒）
 	XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout);
-	
+
 	// 释放信号量（计数加1）
 	XXAPI bool xrtSemPost(xsem pSem);
-	
+
 	// 释放信号量（计数加N）
 	XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount);
-	
+
 	/* ---------- 条件变量 ---------- */
-	
+
 	// 创建条件变量
 	XXAPI xcond xrtCondCreate();
-	
+
 	// 销毁条件变量
 	XXAPI void xrtCondDestroy(xcond pCond);
-	
+
 	// 初始化条件变量（对自维护结构体指针使用）
 	XXAPI void xrtCondInit(xcond pCond);
-	
+
 	// 释放条件变量（对自维护结构体指针使用）
 	XXAPI void xrtCondUnit(xcond pCond);
-	
+
 	// 等待条件变量（需要先锁定互斥体）
 	XXAPI void xrtCondWait(xcond pCond, xmutex pMutex);
-	
+
 	// 等待条件变量（带超时，毫秒）
 	XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout);
-	
+
 	// 唤醒一个等待的线程
 	XXAPI void xrtCondSignal(xcond pCond);
-	
+
 	// 唤醒所有等待的线程
 	XXAPI void xrtCondBroadcast(xcond pCond);
-	
+
 	/* ---------- 读写锁 ---------- */
-	
+
 	// 创建读写锁
 	XXAPI xrwlock xrtRWLockCreate();
-	
+
 	// 销毁读写锁
 	XXAPI void xrtRWLockDestroy(xrwlock pRWLock);
-	
+
 	// 初始化读写锁（对自维护结构体指针使用）
 	XXAPI void xrtRWLockInit(xrwlock pRWLock);
-	
+
 	// 释放读写锁（对自维护结构体指针使用）
 	XXAPI void xrtRWLockUnit(xrwlock pRWLock);
-	
+
 	// 获取读锁（阻塞）
 	XXAPI void xrtRWLockReadLock(xrwlock pRWLock);
-	
+
 	// 尝试获取读锁（非阻塞）
 	XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock);
-	
+
 	// 释放读锁
 	XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock);
-	
+
 	// 获取写锁（阻塞）
 	XXAPI void xrtRWLockWriteLock(xrwlock pRWLock);
-	
+
 	// 尝试获取写锁（非阻塞）
 	XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock);
-	
+
 	// 释放写锁
 	XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock);
-	
+
 	// 写锁降级为读锁（原子保留锁状态）
 	XXAPI void xrtRWLockDowngrade(xrwlock pRWLock);
-	
+
 	// 读锁升级为写锁（原子转换，返回 FALSE 表示锁状态无效）
 	XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock);
+
+	/* ---------- 进程信号 ---------- */
+
+	#define XRT_SIGNAL_HUP		1
+	#define XRT_SIGNAL_INT		2
+	#define XRT_SIGNAL_TERM		15
+	#define XRT_SIGNAL_BREAK	1001
+	#define XRT_SIGNAL_CLOSE	1002
+	#define XRT_SIGNAL_LOGOFF	1003
+	#define XRT_SIGNAL_SHUTDOWN	1004
+
+	typedef struct xrtsignal_event {
+		int iCode;
+		int iPlatformCode;
+		uint64 iCount;
+		int64 iTime;
+		const char* sName;
+	} xrtsignal_event;
+
+	typedef struct xrtsignal_handle xrtsignal_handle;
+	typedef void (*xrtsignal_fn)(const xrtsignal_event* pEvent, ptr pUserData);
+	typedef void (*xrtsignal_free_fn)(ptr pUserData);
+
+	XXAPI bool xrtSignalInit(void);
+	XXAPI void xrtSignalUnit(void);
+	XXAPI bool xrtSignalSupported(int iCode);
+	XXAPI const char* xrtSignalName(int iCode);
+	XXAPI xrtsignal_handle* xrtSignalOnEx(int iCode, bool bOnce, xrtsignal_fn Proc, ptr pUserData, xrtsignal_free_fn FreeProc);
+	XXAPI xrtsignal_handle* xrtSignalOn(int iCode, xrtsignal_fn Proc, ptr pUserData, xrtsignal_free_fn FreeProc);
+	XXAPI xrtsignal_handle* xrtSignalOnce(int iCode, xrtsignal_fn Proc, ptr pUserData, xrtsignal_free_fn FreeProc);
+	XXAPI bool xrtSignalOff(xrtsignal_handle* pHandle);
+	XXAPI void xrtSignalHandleRelease(xrtsignal_handle* pHandle);
+	XXAPI bool xrtSignalHandleActive(xrtsignal_handle* pHandle);
+	XXAPI int xrtSignalHandleCode(xrtsignal_handle* pHandle);
+	XXAPI bool xrtSignalRestore(int iCode);
+	XXAPI void xrtSignalRestoreAll(void);
+	XXAPI bool xrtSignalIgnore(int iCode);
+	XXAPI bool xrtSignalRaise(int iCode);
+	XXAPI uint64 xrtSignalCount(int iCode);
+	XXAPI bool xrtSignalReceived(int iCode);
+	XXAPI void xrtSignalClear(int iCode);
 	/* ------------------------------------ Queue 队列库 ------------------------------------ */
 	#ifndef XRT_NO_QUEUE
 		// 无锁队列基础类型与配置
@@ -2951,16 +3022,16 @@
 			XXAPI bool xrtChannelIsClosed(xchannel pChannel);
 		#endif
 	#endif
-	
-	
-	
+
+
+
 	/* ------------------------------------ Coroutine 协程库 ------------------------------------ */
 	/*
 		依赖项：
 			Thread 函数库
 			Time 函数库
 	*/
-	
+
 	// 协程状态
 	#define XRT_CO_READY         0      // 已创建，尚未运行
 	#define XRT_CO_RUNNING       1      // 正在运行
@@ -2974,13 +3045,13 @@
 	#define XRT_CO_BACKEND_TIER_PRODUCTION   2
 	#define XRT_CO_BACKEND_STYLE_INLINE_ASM  2
 	#define XRT_CO_BACKEND_STYLE_FIBER       3
-	
+
 	// 默认栈大小
 	#define XRT_CO_STACK_DEFAULT (64 * 1024)        // 64 KB
 	#define XRT_CO_STACK_MIN     (8 * 1024)         // 8 KB (最小值保护)
 	#define XRT_CO_STACK_MAX     (8 * 1024 * 1024)  // 8 MB (最大值保护)
 	#define XRT_CO_WAIT_INFINITE UINT32_C(0xffffffff)
-	
+
 	// 协程入口函数类型
 	typedef void (*xco_entry)(ptr pParam);
 	typedef void (*xco_cleanup_proc)(ptr pArg);
@@ -2997,12 +3068,12 @@
 		uint32 iFlags;
 		uint32 iReserved;
 	} xco_create_args;
-	
+
 	// 协程上下文（内部使用）
 	typedef struct {
 		ptr arrReg[40];   // 保存的寄存器/向量状态（各后端按需使用，兼容 Win64 XMM 与 ARM64 q8-q15 非易失状态）
 	} __xrt_co_ctx;
-	
+
 	// 协程数据结构
 	typedef struct xcoro_struct {
 		int iState;             // 当前状态 (XRT_CO_*)
@@ -3039,7 +3110,7 @@
 		struct xcoro_struct* __pReadyNext;  // ready queue next
 		uint32 __iTimerIndex;   // timer heap index + 1（0=不在堆中）
 	} xcoro_struct, *xcoro;
-	
+
 	// 调度器（不透明结构）
 	typedef struct xrt_co_scheduler xcosched;
 	// 协程事件对象（最小 wait source，当前支持单 waiter）
@@ -3050,14 +3121,14 @@
 		struct xcoro_struct* pWaitHead;
 		struct xcoro_struct* pWaitTail;
 	} xcoevent_struct, *xcoevent;
-	
+
 	/* ---------- 协程生命周期 ---------- */
 	// 扩展创建协程（支持栈大小、初始 user data 和保留 flags）
 	XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args* pArgs);
-	
+
 	// 创建协程
 	XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize);
-	
+
 	// 销毁协程（协程必须处于 READY 或 DEAD 状态，且不能仍属于调度器）
 	XXAPI void xrtCoDestroy(xcoro pCo);
 	// 请求取消协程（第一版为协作式取消；READY 协程可直接进入终态）
@@ -3068,20 +3139,20 @@
 	XXAPI bool xrtCoJoin(xcoro pCo);
 	// 主动以给定退出码结束当前协程
 	XXAPI void xrtCoExit(int64 iExitCode);
-	
+
 	/* ---------- 协程切换 ---------- */
-	
+
 	// 恢复协程（从调用方切换到协程执行）
 	XXAPI bool xrtCoResume(xcoro pCo);
-	
+
 	// 挂起当前协程（从协程内部调用）
 	XXAPI void xrtCoYield();
-	
+
 	/* ---------- 协程状态查询 ---------- */
-	
+
 	// 获取协程状态
 	XXAPI int xrtCoGetState(xcoro pCo);
-	
+
 	// 获取当前正在运行的协程（不在协程中返回 NULL）
 	XXAPI xcoro xrtCoGetCurrent();
 	// 当前协程是否已收到取消请求
@@ -3100,26 +3171,26 @@
 	XXAPI int xrtCoGetBackendTier();
 	// 当前目标使用的协程 backend 风格 (XRT_CO_BACKEND_STYLE_*)
 	XXAPI int xrtCoGetBackendStyle();
-	
+
 	/* ---------- 用户数据 ---------- */
-	
+
 	// 设置协程的用户自定义数据
 	XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData);
-	
+
 	// 获取协程的用户自定义数据
 	XXAPI ptr xrtCoGetUserData(xcoro pCo);
 	// 向当前协程压入一个退出清理回调
 	XXAPI bool xrtCoPushCleanup(xco_cleanup_proc proc, ptr pArg);
 	// 弹出当前协程顶部匹配的清理回调，可选择立即执行
 	XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute);
-	
+
 	/* ---------- 协程调度器 ---------- */
-	
+
 	// 创建调度器
 	XXAPI xcosched* xrtCoSchedCreate();
 	// 获取当前线程的默认调度器（在协程内优先返回当前协程所属调度器）
 	XXAPI xcosched* xrtCoSchedCurrent();
-	
+
 	// 销毁调度器（会自动销毁所有关联的协程）
 	XXAPI void xrtCoSchedDestroy(xcosched* pSched);
 	// 向调度器添加一个协程
@@ -3128,13 +3199,13 @@
 	XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo);
 	// 执行一次调度轮询（可选择等待 post/timer）
 	XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout);
-	
+
 	// 执行一轮调度（返回 true=还有存活协程）
 	XXAPI bool xrtCoSchedStep(xcosched* pSched);
-	
+
 	// 持续运行调度器直到所有协程结束
 	XXAPI void xrtCoSchedRun(xcosched* pSched);
-	
+
 	// 获取调度器中存活的协程数量
 	XXAPI int xrtCoSchedGetAlive(xcosched* pSched);
 	// 协程睡眠到指定的单调时钟毫秒 deadline
@@ -3155,14 +3226,14 @@
 	XXAPI bool xrtCoWaitEventTimeout(xcoevent pEvent, uint32 iTimeoutMs);
 	// 等待协程事件对象直到指定单调时钟毫秒 deadline，若超时或等待期间收到取消请求则返回 false
 	XXAPI bool xrtCoWaitEventUntil(xcoevent pEvent, int64 iDeadlineMs);
-	
+
 	// 协程休眠（挂起当前协程，等待指定毫秒后自动恢复，需配合调度器使用）
 	XXAPI void xrtCoSleep(uint32 iMs);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Hash 函数库 ------------------------------------ */
-	
+
 	/*
 		Hash32 - nmhash32x [Ver2.0, Update : 2024/10/18 from https://github.com/rurban/smhasher]
 			使用协议注意事项：
@@ -3170,15 +3241,15 @@
 				允许个人使用、商业使用
 				复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
 	*/
-	
+
 	// 默认 seed
 	#define HASH32_SEED		0
-	
+
 	// 计算 32 位哈希值
 	XXAPI uint32 xrtHash32_WithSeed(ptr key, size_t len, uint32 seed);
 	// 使用默认 seed 计算 32 位哈希值
 	XXAPI uint32 xrtHash32(ptr key, size_t len);
-	
+
 	/*
 		Hash64 - rapidhash [Ver1.0, Update : 2024/10/18 from https://github.com/Nicoshev/rapidhash]
 			使用协议注意事项：
@@ -3186,10 +3257,10 @@
 				允许个人使用、商业使用
 				复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
 	*/
-	
+
 	// 默认 seed
 	#define HASH64_SEED		(0xbdd89aa982704029ull)
-	
+
 	// 计算 64 位哈希值
 	XXAPI uint64 xrtHash64_WithSeed(ptr key, size_t len, uint64 seed);
 	// 使用默认 seed 计算 64 位哈希值
@@ -3202,27 +3273,27 @@
 	XXAPI uint64 xrtHash64_Nano_WithSeed(ptr key, size_t len, uint64 seed);
 	// 使用默认 seed 计算 Nano 变体 64 位哈希值
 	XXAPI uint64 xrtHash64_Nano(ptr key, size_t len);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Network 函数库 ------------------------------------ */
-	
+
 	// 获取本机 IP ( 需使用 xrtFree 释放 )
 	str xrtGetLocalIP();
-	
+
 	// 获取本机 IP ( 返回 uint32 )
 	uint32 xrtGetLocalRawIP();
-	
+
 	// 获取本机 MAC 地址 ( 需使用 xrtFree 释放 )
 	str xrtGetLocalMAC();
-	
+
 	// 获取本机名称 ( 需使用 xrtFree 释放 )
 	str xrtGetLocalName();
-	
-	
-	
+
+
+
 	/* ------------------------------------ Crypto 加密算法库 ------------------------------------ */
-	
+
 	/*
 		算法来源：
 			SHA-256:            Brad Conte (Public Domain)
@@ -3234,7 +3305,7 @@
 			RSA:                axTLS bignum (BSD License)
 			HKDF:               原创实现 (RFC 5869)
 	*/
-	
+
 	// SHA-256 上下文结构
 	typedef struct {
 		uint32 state[8];
@@ -3242,7 +3313,7 @@
 		uint32 len;
 		uint64 bits;
 	} xsha256_ctx;
-	
+
 	// SHA-1 上下文结构 (用于 WebSocket 握手等)
 	typedef struct {
 		uint32 state[5];
@@ -3250,7 +3321,7 @@
 		uint32 len;
 		uint64 bits;
 	} xsha1_ctx;
-	
+
 	// SHA-512 上下文结构 (同时用作 SHA-384 上下文)
 	typedef struct {
 		uint64 state[8];
@@ -3258,7 +3329,7 @@
 		uint32 len;
 		uint64 bits;
 	} xsha512_ctx;
-	
+
 	// SHA-256 哈希
 	XXAPI void xrtSHA256(const ptr pData, size_t iLen, uint8 *pOut);
 	// 初始化 SHA256
@@ -3267,7 +3338,7 @@
 	XXAPI void xrtSHA256Update(xsha256_ctx *pCtx, const ptr pData, size_t iLen);
 	// 结束 SHA256 计算并输出摘要
 	XXAPI void xrtSHA256Final(xsha256_ctx *pCtx, uint8 *pOut);
-	
+
 	// SHA-1 哈希 (用于 WebSocket 握手)
 	XXAPI void xrtSHA1(const ptr pData, size_t iLen, uint8 *pOut);
 	// 初始化 SHA1
@@ -3276,14 +3347,14 @@
 	XXAPI void xrtSHA1Update(xsha1_ctx *pCtx, const ptr pData, size_t iLen);
 	// 结束 SHA1 计算并输出摘要
 	XXAPI void xrtSHA1Final(xsha1_ctx *pCtx, uint8 *pOut);
-	
+
 	// SHA-384 哈希 (基于 SHA-512, 截取 48 字节)
 	XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut);
 	// 初始化 SHA384 上下文
 	XXAPI void xrtSHA384Init(xsha512_ctx *pCtx);
 	// 结束 SHA384 计算并输出摘要
 	XXAPI void xrtSHA384Final(xsha512_ctx *pCtx, uint8 *pOut);
-	
+
 	// SHA-512 哈希
 	XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut);
 	// 初始化 SHA512
@@ -3292,60 +3363,68 @@
 	XXAPI void xrtSHA512Update(xsha512_ctx *pCtx, const ptr pData, size_t iLen);
 	// 结束 SHA512 计算并输出摘要
 	XXAPI void xrtSHA512Final(xsha512_ctx *pCtx, uint8 *pOut);
-	
+
 	// HMAC-SHA256
 	XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
-	
+
 	// HMAC-SHA384
 	XXAPI void xrtHMAC_SHA384(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
-	
+
 	// HMAC-SHA512
 	XXAPI void xrtHMAC_SHA512(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
-	
+
+	// 常量时间比较，适用于摘要、认证标签和口令派生结果。
+	XXAPI bool xrtConstTimeEqual(const void* pLeft, const void* pRight, size_t iLen);
+
+	// PBKDF2-HMAC-SHA256，输出长度不受单个摘要块限制。
+	XXAPI bool xrtPBKDF2_SHA256(const uint8 *pPassword, size_t iPasswordLen,
+		const uint8 *pSalt, size_t iSaltLen, uint32 iIterations,
+		uint8 *pOut, size_t iOutLen);
+
 	// ChaCha20 流加密 (RFC 8439)
 	XXAPI void xrtChaCha20(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, uint32 iCounter, const uint8 *pIn, size_t iLen);
-	
+
 	// ChaCha20-Poly1305 AEAD 加密/解密 (RFC 8439)
 	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
 	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
 	XXAPI bool xrtChaCha20Poly1305Encrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
 	// 解密并校验 ChaCha20-Poly1305 数据
 	XXAPI bool xrtChaCha20Poly1305Decrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
-	
+
 	// AES-128-GCM AEAD 加密/解密
 	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
 	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
 	XXAPI bool xrtAES128GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
 	// 解密并校验 AES-128-GCM 数据
 	XXAPI bool xrtAES128GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
-	
+
 	// AES-256-GCM AEAD 加密/解密
 	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
 	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
 	XXAPI bool xrtAES256GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
 	// 解密并校验 AES-256-GCM 数据
 	XXAPI bool xrtAES256GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
-	
+
 	// X25519 密钥交换 (RFC 7748)
 	XXAPI void xrtX25519Keypair(uint8 *pPrivKey, uint8 *pPubKey);              // 生成密钥对 (各 32 字节)
 	// 计算 X25519 共享密钥
 	XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (32 字节)
-	
+
 	// X448 密钥交换 (RFC 7748)
 	XXAPI void xrtX448Keypair(uint8 *pPrivKey, uint8 *pPubKey);                // 生成密钥对 (各 56 字节)
 	// 计算 X448 共享密钥
 	XXAPI void xrtX448SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);    // 计算共享密钥 (56 字节)
-	
+
 	// ECDH secp256r1 (P-256) 密钥交换 (TLS 1.2 ECDHE)
 	XXAPI void xrtECDHSecp256r1Keypair(uint8 *pPrivKey, uint8 *pPubKey);       // 生成密钥对 (私钥 32 字节, 公钥 65 字节: 0x04||X||Y)
 	// 计算 secp256r1 共享密钥
 	XXAPI void xrtECDHSecp256r1SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (32 字节)
-	
+
 	// ECDH secp384r1 (P-384) 密钥交换
 	XXAPI void xrtECDHSecp384r1Keypair(uint8 *pPrivKey, uint8 *pPubKey);       // 生成密钥对 (私钥 48 字节, 公钥 97 字节: 0x04||X||Y)
 	// 计算 secp384r1 共享密钥
 	XXAPI void xrtECDHSecp384r1SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (48 字节)
-	
+
 	// Ed25519 签名 (RFC 8032)
 	XXAPI void xrtEd25519Keypair(uint8 *pSeed, uint8 *pPubKey);               // 生成种子和公钥 (32 + 32 字节)
 	// 从 Ed25519 种子导出公钥
@@ -3356,25 +3435,25 @@
 	XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey);
 	// 校验 ECDSA 签名
 	XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey, size_t iPubKeyLen);
-	
+
 	// RSA 模幂运算 + RSA-PSS 签名验证 (axTLS bignum, BSD License)
 	XXAPI int  xrtRSAModPow(const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz, const uint8 *pMsg, size_t iMsgSz, uint8 *pOut, size_t iOutSz);
 	// 校验 RSA-PSS 签名
 	XXAPI bool xrtRSAPSSVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz);
-	
+
 	// RSA PKCS#1 v1.5 签名验证 (TLS 1.2 证书链)
 	XXAPI bool xrtRSAPKCS1Verify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz);
-	
+
 	// HKDF 密钥派生 (RFC 5869, 基于 SHA-256)
 	XXAPI void xrtHKDFExtract(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen);
 	// 使用 SHA-256 扩展 HKDF 输出密钥材料
 	XXAPI void xrtHKDFExpand(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen);
-	
+
 	// HKDF-SHA384 密钥派生 (RFC 5869, 基于 SHA-384)
 	XXAPI void xrtHKDFExtract_SHA384(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen);
 	// 使用 SHA-384 扩展 HKDF 输出密钥材料
 	XXAPI void xrtHKDFExpand_SHA384(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen);
-	
+
 	// 加密安全随机数 (Windows: RtlGenRandom, Linux: /dev/urandom)
 	XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen);
 	/* ------------------------------------ Network / TLS 共享状态定义 ------------------------------------ */
@@ -3404,6 +3483,7 @@
 	/* ---- TLS 会话与配置前置声明 ---- */
 	typedef struct xrt_tls_session xtlssession;
 	typedef struct xrt_tls_resume xtlsresume;
+	typedef bool (*xtlsverifyproc)(xtlssession *pSession, const void *pPeerCertDer, size_t iPeerCertDerLen, bool bDefaultOK, ptr pUserData);
 	typedef struct {
 		const char* sCertFile;
 		const char* sKeyFile;
@@ -3418,38 +3498,41 @@
 		const void* pCrlData;
 		size_t iCrlDataLen;
 		const char* sHostName;
+		const char* sAlpnProtocols;
 		bool bVerifyPeer;
 		void (*OnSNI)(xtlssession *pSession, const char *sHostName, ptr pUserData);
 		ptr pSNIUserData;
+		xtlsverifyproc OnVerify;
+		ptr pVerifyUserData;
 		bool bAllowTLS12Ed25519;
 		uint16 iMaxVersion;
 		const xtlsresume* pResume;
 		volatile long iDataLock;
 	} xtlsconfig;
 	/* ------------------------------------ Regex 正则表达式模块 ------------------------------------ */
-	
+
 	#ifndef XRT_NO_REGEX
-		
+
 		// Regex 错误码
 		#define XRT_REGEX_ERR_MEM			(-1)	// 内存不足
 		#define XRT_REGEX_ERR_PARSE		(-2)	// 解析失败
 		#define XRT_REGEX_ERR_LIMIT		(-3)	// 超出限制
-		
+
 		// Regex 标志
 		typedef uint32 xregexflags;
 		#define XRT_REGEX_FLAG_INSENSITIVE	((xregexflags)1u)	// (?i) 不区分大小写
 		#define XRT_REGEX_FLAG_MULTILINE	((xregexflags)2u)	// (?m) 多行模式（^$匹配行首尾）
 		#define XRT_REGEX_FLAG_DOTNEWLINE	((xregexflags)4u)	// (?s) . 匹配换行符
 		#define XRT_REGEX_FLAG_UNGREEDY		((xregexflags)8u)	// (?U) 量词变为非贪婪
-		
+
 		// Regex 分配器
 		typedef ptr (*xregexallocproc)(ptr pUserData, ptr pMem, size_t iPrevSize, size_t iNextSize);
-		
+
 		typedef struct {
 			ptr pUserData;				// 用户上下文
 			xregexallocproc procAlloc;	// 分配器回调
 		} xregexalloc;
-		
+
 		// 匹配范围
 		typedef struct {
 			size_t iBegin;				// 起始位置
@@ -3460,14 +3543,14 @@
 			size_t iPos;
 			const char* sMessage;
 		} xregexerror;
-		
+
 		// 前向声明
 		typedef struct xrt_regex xregex;
 		typedef struct xrt_regex_match xregexmatch;
 		typedef struct xrt_regex_builder xregexbuilder;
 		typedef struct xrt_regex_set xregexset;
 		typedef struct xrt_regex_set_builder xregexsetbuilder;
-		
+
 		// 单模式
 		XXAPI xregex* xrtRegexCreate(const char* sPatternNt);
 		XXAPI xregex* xrtRegexCreateEx(const char* sPattern, size_t iPatternSize, xregexflags iFlags);
@@ -3520,17 +3603,17 @@
 		XXAPI const char* xrtRegexMatchCaptureName(const xregexmatch* pMatch, uint32 iCaptureIndex, size_t* pOutNameSize);
 		XXAPI int xrtRegexMatchCaptureIndex(const xregexmatch* pMatch, const char* sName, size_t iNameSize);
 		XXAPI str xrtRegexMatchCaptureTextCopy(const xregexmatch* pMatch, uint32 iCaptureIndex);
-		
+
 		// Builder
 		XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern, size_t iPatternSize, const xregexalloc* pAlloc);
 		// 销毁正则 Builder
 		XXAPI void xrtRegexBuilderDestroy(xregexbuilder* pBuilder);
 		// 设置正则 Builder 标志
 		XXAPI void xrtRegexBuilderSetFlags(xregexbuilder* pBuilder, xregexflags iFlags);
-		
+
 		// 克隆
 		XXAPI int xrtRegexClone(xregex** ppOut, const xregex* pRegex, const xregexalloc* pAlloc);
-		
+
 		// 多模式
 		XXAPI int xrtRegexSetBuilderCreate(xregexsetbuilder** ppBuilder, const xregexalloc* pAlloc);
 		// 销毁正则集合 Builder
@@ -3565,7 +3648,7 @@
 		XXAPI xregexmatch* xrtRegexSetFindMatchAt(xregexset* pSet, uint32 iPatternIndex, const char* sText, size_t iTextSize, size_t iPos);
 		// 克隆正则集合
 		XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc);
-		
+
 	#endif // XRT_NO_REGEX
 	/* ------------------------------------ XNet V2 ------------------------------------ */
 	/*
@@ -3652,13 +3735,19 @@
 	typedef struct xrt_net_chain    xnetchain;
 	typedef struct xrt_net_future   xnetfuture;
 	typedef struct xrt_net_proxy    xnetproxy;
+	typedef struct xrt_net_cancel   xnetcancel;
+	typedef struct xrt_net_cancel_watch xnetcancelwatch;
+	typedef struct xrt_net_addr_list xnetaddrlist;
 	typedef struct xrt_promise      xpromise;
 	typedef struct xrt_task         xtask;
 	typedef struct xrt_task_group   xtaskgroup;
+	typedef struct xrt_task_executor xtaskexecutor;
 	typedef struct xrt_net_dgram_packet xnetdgrampkt;
+	typedef struct xrt_net_dgram_batch xnetdgrambatch;
 	typedef xnetfuture xfuture;
 	// 投递到网络引擎线程执行的任务回调
 	typedef void (*xnet_task_fn)(xnetworker* pWorker, ptr pArg);
+	typedef void (*xnetcancelfn)(ptr pArg);
 	// 网络地址、数据片段和引用块描述
 	typedef struct {
 		uint16 iFamily;
@@ -3676,14 +3765,44 @@
 		void (*pfnRelease)(ptr pCtx, const void* pData, size_t iLen);
 		ptr pReleaseCtx;
 	} xnetbufref;
+	typedef struct {
+		void* pData;
+		size_t iLen;
+	} xnetbytes;
+	#define XNET_CONTEXT_VERSION 1u
+	#define XNET_ERROR_VERSION 1u
+	#define XNET_CONFIG_VERSION 1u
+	#define XNET_ERROR_MESSAGE_CAP 192u
+	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
+		uint32 iFlags;
+		uint32 iReserved;
+		int64_t iDeadlineMs;
+		xnetcancel* pCancel;
+		ptr pUserData;
+	} xnetcontext;
+	#define XNET_CONTEXT_V1_SIZE ((uint32)(offsetof(xnetcontext, pUserData) + sizeof(((xnetcontext*)0)->pUserData)))
+	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
+		xnet_result iResult;
+		uint32 iOperation;
+		uint32 iPhase;
+		uint32 iBackend;
+		int iSystemError;
+		char sMessage[XNET_ERROR_MESSAGE_CAP];
+	} xneterror;
 	// 引擎、监听、连接、UDP 与关闭行为标志
 	#define XNET_ENGINE_F_NONE            0x00000000u
 	#define XNET_ENGINE_F_AUTO_WORKERS    0x00000001u
 	#define XNET_LISTEN_F_NONE            0x00000000u
 	#define XNET_LISTEN_F_REUSE_ADDR      0x00000001u
 	#define XNET_LISTEN_F_REUSE_PORT      0x00000002u
-	#define XNET_LISTEN_F_NO_DELAY        0x00000004u
-	#define XNET_LISTEN_F_KEEPALIVE       0x00000008u
+#define XNET_LISTEN_F_NO_DELAY        0x00000004u
+#define XNET_LISTEN_F_KEEPALIVE       0x00000008u
+#define XNET_LISTEN_F_PULL_ACCEPT      0x00000010u
+#define XNET_LISTEN_F_EXCLUSIVE_ADDR   0x00000020u
 	#define XNET_CONNECT_F_NONE           0x00000000u
 	#define XNET_CONNECT_F_NO_DELAY       0x00000001u
 	#define XNET_CONNECT_F_KEEPALIVE      0x00000002u
@@ -3696,11 +3815,42 @@
 	#define XNET_DGRAM_F_NONE             0x00000000u
 	#define XNET_DGRAM_F_REUSE_ADDR       0x00000001u
 	#define XNET_DGRAM_F_REUSE_PORT       0x00000002u
+	#define XNET_DGRAM_F_BROADCAST        0x00000004u
+	#define XNET_DGRAM_F_IPV6_ONLY        0x00000008u
+	#define XNET_DGRAM_F_DUAL_STACK       0x00000010u
+	#define XNET_DGRAM_F_CONNECTED        0x00000020u
+	#define XNET_DGRAM_OVERFLOW_DROP_OLDEST 0u
+	#define XNET_DGRAM_OVERFLOW_DROP_NEWEST 1u
+	#define XNET_DGRAM_OVERFLOW_ERROR       2u
 	#define XNET_CLOSE_F_ABORT            0x00000001u
 	#define XNET_CLOSE_F_GRACEFUL         0x00000002u
 	#define XNET_CLOSE_F_WAIT_PEER        0x00000004u
+	#define XNET_OP_NONE                  0u
+	#define XNET_OP_RESOLVE               1u
+	#define XNET_OP_CONNECT               2u
+	#define XNET_OP_ACCEPT                3u
+	#define XNET_OP_READ                  4u
+	#define XNET_OP_WRITE                 5u
+	#define XNET_OP_SEND                  6u
+	#define XNET_OP_RECV                  7u
+	#define XNET_OP_WAIT                  8u
+	#define XNET_OP_CLOSE                 9u
+	#define XNET_PHASE_NONE               0u
+	#define XNET_PHASE_VALIDATE           1u
+	#define XNET_PHASE_SUBMIT             2u
+	#define XNET_PHASE_COMPLETE           3u
+	#define XNET_PHASE_TIMEOUT            4u
+	#define XNET_PHASE_CANCEL             5u
+	#define XNET_BACKEND_NONE             0u
+	#define XNET_BACKEND_IOCP             1u
+	#define XNET_BACKEND_IO_URING         2u
+	#define XNET_BACKEND_EPOLL            3u
+	#define XNET_BACKEND_KQUEUE           4u
+	#define XNET_BACKEND_SELECT           5u
 	// 引擎、监听、连接和 UDP 套接字配置
 	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
 		uint32 iWorkerCount;
 		uint32 iFlags;
 		uint32 iSqEntries;
@@ -3716,8 +3866,15 @@
 		uint32 iLargeBlockSize;
 		uint32 iBlockCachePerWorker;
 		uint32 iMaxConnsPerWorker;
+		uint32 iDefaultMaxQueuedBytes;
+		uint32 iResolverThreads;
+		uint32 iResolverQueueLimit;
+		uint32 iResolverCacheEntries;
+		uint32 iResolverCacheTtlMs;
 	} xnetengineconfig;
 	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
 		xnetaddr tBindAddr;
 		uint32 iFlags;
 		uint32 iBacklog;
@@ -3725,8 +3882,13 @@
 		uint32 iLowWater;
 		uint32 iRecvLimit;
 		const xtlsconfig* pTlsConfig;
+		uint32 iMaxQueuedBytes;
+		uint32 iAcceptConcurrency;
+		uint32 iAcceptQueueLimit;
 	} xnetlistenconfig;
 	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
 		int iType;
 		char sHost[XNET_PROXY_HOST_CAP];
 		uint16 iPort;
@@ -3738,8 +3900,11 @@
 		xnetproxyconfig tConfig;
 	};
 	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
 		const char* sHost;
 		uint16 iPort;
+		uint16 iAddressFamily;
 		uint32 iFlags;
 		uint32 iConnectTimeoutMs;
 		uint32 iHighWater;
@@ -3747,14 +3912,46 @@
 		uint32 iRecvLimit;
 		const xtlsconfig* pTlsConfig;
 		xnetproxy* pProxy;
+		uint32 iMaxQueuedBytes;
+		uint32 iFallbackDelayMs;
 	} xnetconnectconfig;
 	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
 		xnetaddr tBindAddr;
 		uint32 iFlags;
 		uint32 iRecvBatch;
 		uint32 iSendQueueLimit;
 		uint32 iRecvQueueLimit;
+		uint32 iRecvOverflowPolicy;
+		xnetaddr tPeerAddr;
+		uint32 iRecvBufferSize;
+		uint32 iSendBufferSize;
+		int32 iHopLimit;
+		int32 iTrafficClass;
 	} xnetdgramconfig;
+	typedef struct {
+		const xnetaddr* pTo;
+		const void* pData;
+		size_t iLen;
+	} xnetdgramsenditem;
+	#define XNET_ENGINE_CONFIG_V1_SIZE  ((uint32)(offsetof(xnetengineconfig, iResolverCacheTtlMs) + sizeof(((xnetengineconfig*)0)->iResolverCacheTtlMs)))
+	#define XNET_LISTEN_CONFIG_V1_SIZE  ((uint32)(offsetof(xnetlistenconfig, iAcceptQueueLimit) + sizeof(((xnetlistenconfig*)0)->iAcceptQueueLimit)))
+	#define XNET_PROXY_CONFIG_V1_SIZE   ((uint32)(offsetof(xnetproxyconfig, sPass) + sizeof(((xnetproxyconfig*)0)->sPass)))
+	#define XNET_CONNECT_CONFIG_V1_SIZE ((uint32)(offsetof(xnetconnectconfig, iMaxQueuedBytes) + sizeof(((xnetconnectconfig*)0)->iMaxQueuedBytes)))
+	#define XNET_DGRAM_CONFIG_V1_SIZE   ((uint32)(offsetof(xnetdgramconfig, iTrafficClass) + sizeof(((xnetdgramconfig*)0)->iTrafficClass)))
+	typedef struct {
+		uint64 iRecvPackets;
+		uint64 iRecvBytes;
+		uint64 iSendPackets;
+		uint64 iSendBytes;
+		uint64 iRecvDropped;
+		uint64 iSendAgain;
+		uint64 iErrors;
+		uint64 iPendingSendBytes;
+		uint32 iRecvQueued;
+		uint32 iRecvArmed;
+	} xnetdgramstats;
 	/* ============================== xnet mem ============================== */
 	// XNet 内存块分类与引用块标记
 	#define XNET_MEM_CLASS_SMALL    1u
@@ -3766,6 +3963,8 @@
 	typedef struct __xnet_blk __xnet_blk;
 	// XNet 内存池配置、统计和上下文结构
 	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
 		uint32 iSmallBlockSize;
 		uint32 iMediumBlockSize;
 		uint32 iLargeBlockSize;
@@ -3773,6 +3972,7 @@
 		uint32 iMediumCacheLimit;
 		uint32 iLargeCacheLimit;
 	} xnetmemconfig;
+	#define XNET_MEM_CONFIG_V1_SIZE ((uint32)(offsetof(xnetmemconfig, iLargeCacheLimit) + sizeof(((xnetmemconfig*)0)->iLargeCacheLimit)))
 	typedef struct {
 		uint32 iSmallCached;
 		uint32 iMediumCached;
@@ -3859,6 +4059,159 @@
 		xrtstrview tName;
 		xrtstrview tValue;
 	} xrtheaderpair;
+	/*
+	 * Owned HTTP header collection. Entry order and original name casing are
+	 * preserved. Name lookup is ASCII case-insensitive. Views returned by the
+	 * accessors remain valid until the next mutation of the collection.
+	 */
+	typedef struct xrt_http_headers xhttpheaders;
+	typedef enum xrt_http_semantic_result {
+		XHTTP_SEMANTIC_OK = 0,
+		XHTTP_SEMANTIC_NOT_FOUND = 1,
+		XHTTP_SEMANTIC_INVALID_ARGUMENT = -1,
+		XHTTP_SEMANTIC_OUT_OF_MEMORY = -2,
+		XHTTP_SEMANTIC_LIMIT = -3,
+		XHTTP_SEMANTIC_INVALID_NAME = -4,
+		XHTTP_SEMANTIC_INVALID_VALUE = -5,
+		XHTTP_SEMANTIC_INVALID_SYNTAX = -6,
+		XHTTP_SEMANTIC_BUFFER_TOO_SMALL = -7,
+		XHTTP_SEMANTIC_NOT_REPLAYABLE = -8,
+		XHTTP_SEMANTIC_IO = -9,
+		XHTTP_SEMANTIC_CANCELLED = -10
+	} xhttp_semantic_result;
+	#define XHTTP_HEADERS_CONFIG_VERSION 1u
+	typedef struct xrt_http_headers_config {
+		uint32 iSize;
+		uint32 iVersion;
+		uint32 iInitialCount;
+		uint32 iMaxCount;
+		size_t iInitialBytes;
+		size_t iMaxNameBytes;
+		size_t iMaxValueBytes;
+		size_t iMaxBytes;
+	} xhttpheadersconfig;
+	#define XHTTP_HEADERS_CONFIG_V1_SIZE ((uint32)(offsetof(xhttpheadersconfig, iMaxBytes) + sizeof(((xhttpheadersconfig*)0)->iMaxBytes)))
+	/* Owned, ordered and case-sensitive URL/form parameter collection. */
+	typedef struct xrt_http_search_params xhttpsearchparams;
+	#define XHTTP_SEARCH_PARAMS_CONFIG_VERSION 1u
+	#define XHTTP_SEARCH_PARAMS_F_NONE            0x00000000u
+	#define XHTTP_SEARCH_PARAMS_F_STRICT_PERCENT  0x00000001u
+	typedef struct xrt_http_search_params_config {
+		uint32 iSize;
+		uint32 iVersion;
+		uint32 iFlags;
+		uint32 iInitialCount;
+		uint32 iMaxCount;
+		size_t iInitialBytes;
+		size_t iMaxNameBytes;
+		size_t iMaxValueBytes;
+		size_t iMaxBytes;
+	} xhttpsearchparamsconfig;
+	#define XHTTP_SEARCH_PARAMS_CONFIG_V1_SIZE ((uint32)(offsetof(xhttpsearchparamsconfig, iMaxBytes) + sizeof(((xhttpsearchparamsconfig*)0)->iMaxBytes)))
+	/* Immutable context chain used by HTTP, WebSocket and application tasks. */
+	typedef struct xrt_http_context xhttpcontext;
+	typedef void (*xhttpvaluefree)(ptr pValue);
+	/* Replayable body factory and per-execution body reader. */
+	typedef struct xrt_http_body xhttpbody;
+	typedef struct xrt_http_body_reader xhttpbodyreader;
+	#define XHTTP_BODY_LENGTH_UNKNOWN INT64_C(-1)
+	#define XHTTP_BODY_F_NONE          0x00000000u
+	#define XHTTP_BODY_F_REPLAYABLE    0x00000001u
+	#define XHTTP_BODY_READER_OPS_VERSION 1u
+	typedef enum xrt_http_body_read_result {
+		XHTTP_BODY_READ_ERROR = -1,
+		XHTTP_BODY_READ_EOF = 0,
+		XHTTP_BODY_READ_DATA = 1,
+		XHTTP_BODY_READ_AGAIN = 2,
+		XHTTP_BODY_READ_CANCELLED = 3
+	} xhttp_body_read_result;
+	typedef xhttp_body_read_result (*xhttpbodyreadfn)(ptr pContext, void* pBuffer,
+		size_t iCapacity, size_t* pRead, const xhttpcontext* pRequestContext);
+	typedef xnetfuture* (*xhttpbodywaitfn)(ptr pContext, const xhttpcontext* pRequestContext);
+	typedef void (*xhttpbodyreaderclosefn)(ptr pContext);
+	typedef struct xrt_http_body_reader_ops {
+		uint32 iSize;
+		uint32 iVersion;
+		uint32 iFlags;
+		uint32 iReserved;
+		xhttpbodyreadfn Read;
+		xhttpbodywaitfn WaitReadable;
+		xhttpbodyreaderclosefn Close;
+	} xhttpbodyreaderops;
+	#define XHTTP_BODY_READER_OPS_V1_SIZE ((uint32)(offsetof(xhttpbodyreaderops, Close) + sizeof(((xhttpbodyreaderops*)0)->Close)))
+	typedef xhttp_semantic_result (*xhttpbodyopenfn)(ptr pFactoryContext,
+		const xhttpcontext* pRequestContext, xhttpbodyreaderops* pOutOps, ptr* ppReaderContext);
+	typedef void (*xhttpbodyfactoryfreefn)(ptr pFactoryContext);
+	typedef void (*xhttpbodydatafreefn)(ptr pContext, const void* pData, size_t iLen);
+	/* Owned ordered multipart/form-data collection. */
+	typedef struct xrt_http_form_data xhttpformdata;
+	#define XHTTP_FORM_DATA_CONFIG_VERSION 1u
+	typedef struct xrt_http_form_data_config {
+		uint32 iSize;
+		uint32 iVersion;
+		uint32 iInitialCount;
+		uint32 iMaxCount;
+		size_t iMaxNameBytes;
+		size_t iMaxFileNameBytes;
+		size_t iMaxContentTypeBytes;
+		size_t iMaxPartBytes;
+		size_t iMaxBodyBytes;
+		size_t iMaxMetadataBytes;
+	} xhttpformdataconfig;
+	#define XHTTP_FORM_DATA_CONFIG_V1_SIZE ((uint32)(offsetof(xhttpformdataconfig, iMaxMetadataBytes) + sizeof(((xhttpformdataconfig*)0)->iMaxMetadataBytes)))
+	#define XHTTP_FORM_DATA_PART_F_NONE         0x00000000u
+	#define XHTTP_FORM_DATA_PART_F_FILENAME     0x00000001u
+	#define XHTTP_FORM_DATA_PART_F_CONTENT_TYPE 0x00000002u
+	typedef struct xrt_http_form_data_part_info {
+		uint32 iFlags;
+		xrtstrview tName;
+		xrtstrview tFileName;
+		xrtstrview tContentType;
+		int64_t iContentLength;
+		xhttpbody* pBody;
+	} xhttpformdatapartinfo;
+	/* Thread-safe RFC 6265 cookie store for HTTP and WebSocket clients. */
+	typedef struct xrt_http_cookie_jar xhttpcookiejar;
+	typedef bool (*xhttpispublicsuffixfn)(ptr pContext, const char* sDomain, size_t iDomainLen);
+	#define XHTTP_COOKIE_JAR_CONFIG_VERSION 1u
+	#define XHTTP_COOKIE_JAR_F_NONE                         0x00000000u
+	#define XHTTP_COOKIE_JAR_F_ENFORCE_PREFIXES             0x00000001u
+	#define XHTTP_COOKIE_JAR_F_REQUIRE_SECURE_SAMESITE_NONE 0x00000002u
+	#define XHTTP_COOKIE_JAR_F_REJECT_PARTITIONED           0x00000004u
+	typedef struct xrt_http_cookie_jar_config {
+		uint32 iSize;
+		uint32 iVersion;
+		uint32 iFlags;
+		uint32 iMaxCookies;
+		uint32 iMaxCookiesPerDomain;
+		size_t iMaxCookieBytes;
+		size_t iMaxNameBytes;
+		size_t iMaxValueBytes;
+		size_t iMaxDomainBytes;
+		size_t iMaxPathBytes;
+		xhttpispublicsuffixfn IsPublicSuffix;
+		ptr pPublicSuffixContext;
+	} xhttpcookiejarconfig;
+	#define XHTTP_COOKIE_JAR_CONFIG_V1_SIZE ((uint32)(offsetof(xhttpcookiejarconfig, pPublicSuffixContext) + sizeof(((xhttpcookiejarconfig*)0)->pPublicSuffixContext)))
+	#define XHTTP_COOKIE_F_NONE        0x00000000u
+	#define XHTTP_COOKIE_F_HOST_ONLY   0x00000001u
+	#define XHTTP_COOKIE_F_SECURE      0x00000002u
+	#define XHTTP_COOKIE_F_HTTP_ONLY   0x00000004u
+	#define XHTTP_COOKIE_F_PERSISTENT  0x00000008u
+	#define XHTTP_COOKIE_F_PARTITIONED 0x00000010u
+	#define XHTTP_COOKIE_F_SAME_PARTY  0x00000020u
+	typedef struct xrt_http_cookie_info {
+		uint32 iFlags;
+		uint8 iSameSite;
+		uint8 iPriority;
+		int64_t iExpiresUnix;
+		uint64 iCreationSequence;
+		uint64 iLastAccessSequence;
+		xrtstrview tName;
+		xrtstrview tValue;
+		xrtstrview tDomain;
+		xrtstrview tPath;
+	} xhttpcookieinfo;
 	typedef struct {
 		xrtstrview tName;
 		xrtstrview tValue;
@@ -4068,6 +4421,7 @@
 		uint32 iMaxPayloadBytes;
 	} xcodeclengthcodec;
 	#define XCODEC_HTTP1_MAX_HEADERS 32u
+	#define XCODEC_HTTP1_MAX_TRAILERS 16u
 	#define XCODEC_HTTP1_TOKEN_CAP   32u
 	#define XCODEC_HTTP1_TARGET_CAP  256u
 	#define XCODEC_HTTP1_VALUE_CAP   256u
@@ -4078,24 +4432,95 @@
 	#define XCODEC_HTTP1_F_CHUNKED    0x00000004u
 	#define XCODEC_HTTP1_F_KEEPALIVE  0x00000008u
 	#define XCODEC_HTTP1_F_UPGRADE    0x00000010u
+	#define XCODEC_HTTP1_F_HAS_TRAILERS 0x00000020u
+	#define XCODEC_HTTP1_LIMITS_VERSION 1u
+	#define XCODEC_HTTP1_DEFAULT_START_LINE_BYTES 8192u
+	#define XCODEC_HTTP1_DEFAULT_HEADER_BYTES 65536u
+	#define XCODEC_HTTP1_DEFAULT_HEADER_LINE_BYTES 8192u
+	#define XCODEC_HTTP1_DEFAULT_HEADER_COUNT 100u
+	#define XCODEC_HTTP1_DEFAULT_CHUNK_LINE_BYTES 8192u
+	#define XCODEC_HTTP1_DEFAULT_TRAILER_BYTES 16384u
+	#define XCODEC_HTTP1_DEFAULT_TRAILER_COUNT 32u
+	#define XCODEC_HTTP1_DEFAULT_BODY_BYTES UINT64_C(67108864)
 	// HTTP/1 报文与 WebSocket 帧头结构
-	typedef struct {
-		char sName[XCODEC_HTTP1_TOKEN_CAP];
-		char sValue[XCODEC_HTTP1_VALUE_CAP];
+	typedef enum xrt_codec_http1_error {
+		XCODEC_HTTP1_ERROR_NONE = 0,
+		XCODEC_HTTP1_ERROR_INVALID_ARGUMENT,
+		XCODEC_HTTP1_ERROR_OUT_OF_MEMORY,
+		XCODEC_HTTP1_ERROR_HEADER_TOO_LARGE,
+		XCODEC_HTTP1_ERROR_START_LINE_TOO_LARGE,
+		XCODEC_HTTP1_ERROR_HEADER_LINE_TOO_LARGE,
+		XCODEC_HTTP1_ERROR_TOO_MANY_HEADERS,
+		XCODEC_HTTP1_ERROR_INVALID_START_LINE,
+		XCODEC_HTTP1_ERROR_INVALID_METHOD,
+		XCODEC_HTTP1_ERROR_INVALID_TARGET,
+		XCODEC_HTTP1_ERROR_INVALID_VERSION,
+		XCODEC_HTTP1_ERROR_INVALID_STATUS,
+		XCODEC_HTTP1_ERROR_INVALID_REASON,
+		XCODEC_HTTP1_ERROR_INVALID_HEADER_NAME,
+		XCODEC_HTTP1_ERROR_INVALID_HEADER_VALUE,
+		XCODEC_HTTP1_ERROR_INVALID_CONTENT_LENGTH,
+		XCODEC_HTTP1_ERROR_CONFLICTING_CONTENT_LENGTH,
+		XCODEC_HTTP1_ERROR_TRANSFER_ENCODING_CONTENT_LENGTH,
+		XCODEC_HTTP1_ERROR_INVALID_TRANSFER_ENCODING,
+		XCODEC_HTTP1_ERROR_UNSUPPORTED_TRANSFER_ENCODING,
+		XCODEC_HTTP1_ERROR_INVALID_CHUNK_SIZE,
+		XCODEC_HTTP1_ERROR_CHUNK_LINE_TOO_LARGE,
+		XCODEC_HTTP1_ERROR_INVALID_CHUNK_TERMINATOR,
+		XCODEC_HTTP1_ERROR_BODY_TOO_LARGE,
+		XCODEC_HTTP1_ERROR_TRAILER_TOO_LARGE,
+		XCODEC_HTTP1_ERROR_TOO_MANY_TRAILERS,
+		XCODEC_HTTP1_ERROR_INVALID_TRAILER,
+		XCODEC_HTTP1_ERROR_FORBIDDEN_TRAILER
+	} xcodechttp1error;
+	typedef struct xrt_codec_http1_error_info {
+		xcodechttp1error eCode;
+		size_t iOffset;
+		uint32 iLine;
+	} xcodechttp1errorinfo;
+	typedef struct xrt_codec_http1_limits {
+		uint32 iSize;
+		uint32 iVersion;
+		size_t iMaxStartLineBytes;
+		size_t iMaxHeaderBytes;
+		size_t iMaxHeaderLineBytes;
+		uint32 iMaxHeaderCount;
+		size_t iMaxChunkLineBytes;
+		size_t iMaxTrailerBytes;
+		uint32 iMaxTrailerCount;
+		uint64 iMaxBodyBytes;
+	} xcodechttp1limits;
+	#define XCODEC_HTTP1_LIMITS_V1_SIZE ((uint32)(offsetof(xcodechttp1limits, iMaxBodyBytes) + sizeof(uint64)))
+	typedef struct xrt_codec_http1_header {
+		const char* sName;
+		const char* sValue;
+		size_t iNameLen;
+		size_t iValueLen;
 	} xcodechttp1header;
-	typedef struct {
+	typedef struct xrt_codec_http1_message {
 		uint32 iFlags;
 		uint32 iHeaderCount;
 		uint32 iHeaderCap;
+		uint32 iTrailerCount;
+		uint32 iTrailerCap;
 		uint32 iStatusCode;
 		int64_t iContentLength;
 		size_t iHeadBytes;
-		char sMethod[XCODEC_HTTP1_TOKEN_CAP];
-		char sTarget[XCODEC_HTTP1_TARGET_CAP];
-		char sVersion[XCODEC_HTTP1_TOKEN_CAP];
-		char sReason[XCODEC_HTTP1_REASON_CAP];
+		const char* sMethod;
+		const char* sTarget;
+		const char* sVersion;
+		const char* sReason;
+		size_t iMethodLen;
+		size_t iTargetLen;
+		size_t iVersionLen;
+		size_t iReasonLen;
 		xcodechttp1header arrHeaders[XCODEC_HTTP1_MAX_HEADERS];
 		xcodechttp1header* pHeaders;
+		xcodechttp1header arrTrailers[XCODEC_HTTP1_MAX_TRAILERS];
+		xcodechttp1header* pTrailers;
+		char* pHeaderStorage;
+		char* pTrailerStorage;
+		xcodechttp1errorinfo tError;
 	} xcodechttp1msg;
 	#define XCODEC_WS_OPCODE_CONT   0x0u
 	#define XCODEC_WS_OPCODE_TEXT   0x1u
@@ -4107,6 +4532,10 @@
 	#define XCODEC_WS_F_FIN      0x00000001u
 	#define XCODEC_WS_F_MASKED   0x00000002u
 	#define XCODEC_WS_F_CONTROL  0x00000004u
+	#define XCODEC_WS_F_RSV1     0x00000008u
+	#define XCODEC_WS_RSV1       0x40u
+	#define XCODEC_WS_RSV2       0x20u
+	#define XCODEC_WS_RSV3       0x10u
 	typedef struct {
 		uint32 iFlags;
 		uint8 iOpcode;
@@ -4190,6 +4619,24 @@
 	// 结果型 finally：返回成功时透传源结果，返回失败时使用 pOut 替换下游结果
 	typedef int32 (*xfuture_finally_result_fn)(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut);
 	typedef void (*xfuture_arg_free_fn)(ptr pArg);
+	#define XTASK_EXECUTOR_CONFIG_VERSION 1u
+	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
+		uint32 iThreadCount;
+		uint32 iQueueLimit;
+		size_t iStackSize;
+		uint32 iFlags;
+	} xtaskexecutorconfig;
+	#define XTASK_EXECUTOR_CONFIG_V1_SIZE ((uint32)(offsetof(xtaskexecutorconfig, iFlags) + sizeof(((xtaskexecutorconfig*)0)->iFlags)))
+	typedef struct {
+		uint64 iSubmitted;
+		uint64 iCompleted;
+		uint64 iRejected;
+		uint32 iQueued;
+		uint32 iRunning;
+		uint32 iThreadCount;
+	} xtaskexecutorstats;
 	typedef struct {
 		uint32 iKind;
 		union {
@@ -4204,7 +4651,7 @@
 	} xnetwaitsrc;
 	typedef xnetwaitsrc xwaitsrc;
 	#ifndef XRT_NO_XHTTP
-		
+
 		/* ============================== xhttp ============================== */
 		#define XHTTP_METHOD_CAP         16u
 		#define XHTTP_URL_CAP            1024u
@@ -4213,20 +4660,81 @@
 		#define XHTTP_HEADER_NAME_CAP    64u
 		#define XHTTP_HEADER_VALUE_CAP   256u
 		#define XHTTP_MAX_HEADERS        32u
+		#define XHTTP_MAX_TRAILERS       16u
+		#define XHTTP_MAX_INFORMATIONAL_RESPONSES 16u
+		#define XHTTP_CLIENT_CONFIG_VERSION 3u
+
+		#define XHTTP_CLIENT_F_NONE                         0x00000000u
+		#define XHTTP_CLIENT_F_FOLLOW_REDIRECTS             0x00000001u
+		#define XHTTP_CLIENT_F_REDIRECT_POST_TO_GET          0x00000002u
+		#define XHTTP_CLIENT_F_ALLOW_CROSS_ORIGIN_AUTH       0x00000004u
+		#define XHTTP_CLIENT_F_ALLOW_HTTPS_DOWNGRADE         0x00000008u
+		#define XHTTP_CLIENT_F_AUTO_DECOMPRESS                0x00000010u
+		#ifndef XRT_NO_XINFLATE
+		#define XHTTP_CLIENT_DEFAULT_FLAGS \
+			(XHTTP_CLIENT_F_FOLLOW_REDIRECTS | XHTTP_CLIENT_F_REDIRECT_POST_TO_GET | \
+			 XHTTP_CLIENT_F_AUTO_DECOMPRESS)
+		#else
+		#define XHTTP_CLIENT_DEFAULT_FLAGS \
+			(XHTTP_CLIENT_F_FOLLOW_REDIRECTS | XHTTP_CLIENT_F_REDIRECT_POST_TO_GET)
+		#endif
+		#define XHTTP_CLIENT_DEFAULT_MAX_REDIRECTS 10u
+		#define XHTTP_CLIENT_DEFAULT_MAX_IDLE_CONNECTIONS 128u
+		#define XHTTP_CLIENT_DEFAULT_MAX_IDLE_CONNECTIONS_PER_ORIGIN 8u
+		#define XHTTP_CLIENT_DEFAULT_IDLE_CONNECTION_TIMEOUT_MS 90000u
+		#define XHTTP_HEADER_F_OWN_STRINGS 0x00000001u
 		#define XHTTP_RESP_F_NONE        0x00000000u
 		#define XHTTP_RESP_F_CHUNKED     0x00000001u
 		#define XHTTP_RESP_F_KEEPALIVE   0x00000002u
 		#define XHTTP_RESP_F_UPGRADE     0x00000004u
+		#define XHTTP_RESP_F_DECOMPRESSED 0x00000008u
 		typedef struct xrt_http_client xhttpclient;
+		typedef struct xrt_http_client_config {
+			uint32 iSize;
+			uint32 iVersion;
+			uint32 iRecvLimit;
+			uint32 iMaxInformationalResponses;
+			xcodechttp1limits tHttp1Limits;
+			xhttpcookiejar* pCookieJar;
+			uint32 iFlags;
+			uint32 iMaxRedirects;
+			uint32 iMaxIdleConnections;
+			uint32 iMaxIdleConnectionsPerOrigin;
+			uint32 iIdleConnectionTimeoutMs;
+		} xhttpclientconfig;
+		#define XHTTP_CLIENT_CONFIG_V1_SIZE ((uint32)(offsetof(xhttpclientconfig, tHttp1Limits) + sizeof(xcodechttp1limits)))
+		#define XHTTP_CLIENT_CONFIG_V2_SIZE ((uint32)(offsetof(xhttpclientconfig, pCookieJar) + sizeof(((xhttpclientconfig*)0)->pCookieJar)))
+		#define XHTTP_CLIENT_CONFIG_V3_SIZE ((uint32)(offsetof(xhttpclientconfig, iIdleConnectionTimeoutMs) + sizeof(((xhttpclientconfig*)0)->iIdleConnectionTimeoutMs)))
+
+		#define XHTTP_CLIENT_STATS_VERSION 1u
+		typedef struct xrt_http_client_stats {
+			uint32 iSize;
+			uint32 iVersion;
+			uint32 iActiveConnections;
+			uint32 iIdleConnections;
+			uint64 iRequestsStarted;
+			uint64 iRequestsCompleted;
+			uint64 iConnectionsOpened;
+			uint64 iConnectionsReused;
+			uint64 iConnectionsClosed;
+			uint64 iRedirectsFollowed;
+			uint64 iRequestBytes;
+			uint64 iResponseBodyBytes;
+		} xhttpclientstats;
+
+		#define XHTTP_CLIENT_STATS_V1_SIZE ((uint32)sizeof(xhttpclientstats))
 		typedef struct xrt_http_header {
-			char sName[XHTTP_HEADER_NAME_CAP];
-			char sValue[XHTTP_HEADER_VALUE_CAP];
+			const char* sName;
+			const char* sValue;
+			uint32 iFlags;
 		} xhttpheader;
 		typedef struct xrt_http_url {
 			bool bHttps;
 			uint16 iPort;
 			char sHost[XHTTP_HOST_CAP];
 			char sPath[XHTTP_PATH_CAP];
+			char* pHostStorage;
+			char* pPathStorage;
 		} xhttpurl;
 		typedef enum xrt_http_phase {
 			XHTTP_PHASE_NONE = 0,
@@ -4245,17 +4753,27 @@
 			XHTTP_ERROR_CONNECT,
 			XHTTP_ERROR_WRITE,
 			XHTTP_ERROR_PROTOCOL,
+			XHTTP_ERROR_TOO_MANY_INFORMATIONAL_RESPONSES,
 			XHTTP_ERROR_CALLBACK_ABORT,
 			XHTTP_ERROR_TIMEOUT_TOTAL,
 			XHTTP_ERROR_TIMEOUT_IDLE,
 			XHTTP_ERROR_CANCELLED,
 			XHTTP_ERROR_CONNECTION_CLOSED,
-			XHTTP_ERROR_TRANSPORT
+			XHTTP_ERROR_TRANSPORT,
+			XHTTP_ERROR_BODY,
+			XHTTP_ERROR_TOO_MANY_REDIRECTS,
+			XHTTP_ERROR_REDIRECT_BODY_NOT_REPLAYABLE,
+			XHTTP_ERROR_REDIRECT_DOWNGRADE,
+			XHTTP_ERROR_INVALID_REDIRECT,
+			XHTTP_ERROR_DECOMPRESSION
 		} xhttp_error_code;
 		typedef struct xrt_http_diagnostics {
 			xhttp_error_code eError;
 			xhttp_phase ePhase;
 			xnet_result eTransportStatus;
+			xcodechttp1error eProtocolError;
+			size_t iProtocolOffset;
+			uint32 iProtocolLine;
 			int iSystemError;
 			bool bReusedConnection;
 			uint64 iStartedMs;
@@ -4270,10 +4788,14 @@
 			uint64 iTotalDurationMs;
 			uint64 iRequestBytes;
 			uint64 iResponseBodyBytes;
+			uint32 iRedirectCount;
+			uint64 iResponseWireBodyBytes;
 		} xhttpdiagnostics;
 		typedef struct xrt_http_request {
 			char sMethod[XHTTP_METHOD_CAP];
 			char sURL[XHTTP_URL_CAP];
+			char* pMethodStorage;
+			char* pURLStorage;
 			xhttpurl tURL;
 			xhttpheader arrHeaders[XHTTP_MAX_HEADERS];
 			xhttpheader* pHeaders;
@@ -4286,20 +4808,31 @@
 			bool bVerifyPeer;
 			xnetproxy* pProxy;
 			xhttpdiagnostics* pDiagnostics;
+			/* Retained body factory and parent context. Appended for source compatibility. */
+			xhttpbody* pBodySource;
+			xhttpcontext* pContext;
 		} xhttprequest;
 		typedef struct xrt_http_response {
 			uint32 iStatusCode;
 			uint32 iFlags;
 			uint32 iHeaderCount;
 			uint32 iHeaderCap;
+			uint32 iTrailerCount;
+			uint32 iTrailerCap;
 			int64_t iContentLength;
-			char sVersion[XCODEC_HTTP1_TOKEN_CAP];
-			char sReason[XCODEC_HTTP1_REASON_CAP];
+			const char* sVersion;
+			const char* sReason;
 			xhttpheader arrHeaders[XHTTP_MAX_HEADERS];
 			xhttpheader* pHeaders;
+			xhttpheader arrTrailers[XHTTP_MAX_TRAILERS];
+			xhttpheader* pTrailers;
+			char* pStorage;
 			char* pBody;
 			size_t iBodyLen;
+			size_t iBodyCap;
 			xhttpdiagnostics tDiagnostics;
+			char* sEffectiveURL;
+			char* sOriginalContentEncoding;
 		} xhttpresponse;
 		typedef bool (*xhttpstreamheadersfn)(ptr pUserData, const xhttpresponse* pResponse);
 		typedef bool (*xhttpstreambodyfn)(ptr pUserData, const void* pData, size_t iLen);
@@ -4308,10 +4841,10 @@
 			xhttpstreamheadersfn OnHeaders;
 			xhttpstreambodyfn OnBody;
 		} xhttpstreamcallbacks;
-		
+
 	#endif
 	#ifndef XRT_NO_XHTTPD
-		
+
 		/* ============================== xhttpd ============================== */
 		typedef struct xrt_httpd_server xhttpdserver;
 		typedef struct xrt_httpd_conn xhttpdconn;
@@ -4324,6 +4857,8 @@
 		#define XHTTPD_HEADER_NAME_CAP    64u
 		#define XHTTPD_HEADER_VALUE_CAP   256u
 		#define XHTTPD_MAX_HEADERS        32u
+		#define XHTTPD_MAX_TRAILERS       16u
+		#define XHTTPD_HEADER_F_OWN_STRINGS 0x00000001u
 		#define XHTTPD_FILE_CHUNK_SIZE    65536u
 		#define XHTTPD_REQ_F_NONE         0x00000000u
 		#define XHTTPD_REQ_F_KEEPALIVE    0x00000001u
@@ -4345,42 +4880,60 @@
 			XHTTPD_METHOD_PUT = 4,
 			XHTTPD_METHOD_DELETE = 5,
 			XHTTPD_METHOD_PATCH = 6,
-			XHTTPD_METHOD_OPTIONS = 7
+			XHTTPD_METHOD_OPTIONS = 7,
+			XHTTPD_METHOD_CONNECT = 8,
+			XHTTPD_METHOD_TRACE = 9
 		} xhttpdmethod;
 		typedef struct {
-			char sName[XHTTPD_HEADER_NAME_CAP];
-			char sValue[XHTTPD_HEADER_VALUE_CAP];
+			const char* sName;
+			const char* sValue;
+			uint32 iFlags;
 		} xhttpdheader;
 		typedef struct {
 			uint32 iFlags;
 			uint32 iHeaderCount;
 			uint32 iHeaderCap;
+			uint32 iTrailerCount;
+			uint32 iTrailerCap;
 			uint32 iMethod;
 			int64_t iContentLength;
-			char sMethod[XHTTPD_METHOD_CAP];
-			char sTarget[XHTTPD_TARGET_CAP];
-			char sPath[XHTTPD_PATH_CAP];
-			char sQuery[XHTTPD_QUERY_CAP];
-			char sVersion[XHTTPD_VERSION_CAP];
+			const char* sMethod;
+			const char* sTarget;
+			const char* sPath;
+			const char* sQuery;
+			const char* sVersion;
 			xhttpdheader arrHeaders[XHTTPD_MAX_HEADERS];
 			xhttpdheader* pHeaders;
+			xhttpdheader arrTrailers[XHTTPD_MAX_TRAILERS];
+			xhttpdheader* pTrailers;
+			char* pStorage;
 			char* pBody;
 			size_t iBodyLen;
 			size_t iBodyCap;
+			xhttpcontext* pContext;
 		} xhttpdrequest;
-		typedef struct {
+			typedef struct {
 			uint32 iStatusCode;
 			uint32 iFlags;
 			uint32 iHeaderCount;
 			uint32 iHeaderCap;
-			char sReason[XHTTPD_REASON_CAP];
+			const char* sReason;
+			char* pReasonStorage;
 			xhttpdheader arrHeaders[XHTTPD_MAX_HEADERS];
 			xhttpdheader* pHeaders;
 			char* pBody;
 			size_t iBodyLen;
 			size_t iBodyCap;
+			uint32 iTrailerCount;
+			uint32 iTrailerCap;
+			xhttpdheader arrTrailers[XHTTPD_MAX_TRAILERS];
+			xhttpdheader* pTrailers;
 		} xhttpdresponse;
+		#define XHTTPD_CONFIG_VERSION 1u
+		#define XHTTPD_EVENTS_VERSION 1u
 		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
 			xnetaddr tBindAddr;
 			uint32 iFlags;
 			uint32 iBacklog;
@@ -4388,6 +4941,11 @@
 			uint32 iBodyLimit;
 			uint32 iHeaderLimit;
 			uint32 iHeaderBytesLimit;
+			uint32 iStartLineBytesLimit;
+			uint32 iHeaderLineBytesLimit;
+			uint32 iChunkLineBytesLimit;
+			uint32 iTrailerLimit;
+			uint32 iTrailerBytesLimit;
 			uint32 iHeaderTimeoutMs;
 			uint32 iBodyTimeoutMs;
 			uint32 iIdleTimeoutMs;
@@ -4395,6 +4953,8 @@
 			const xtlsconfig* pTlsConfig;
 		} xhttpdconfig;
 		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
 			void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
 			bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
 			xfuture* (*OnRequestAsync)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq);
@@ -4405,28 +4965,37 @@
 			void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
 			void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
 		} xhttpdevents;
-		
+		#define XHTTPD_CONFIG_V1_SIZE ((uint32)sizeof(xhttpdconfig))
+		#define XHTTPD_EVENTS_V1_SIZE ((uint32)sizeof(xhttpdevents))
+
 	#endif
 	#ifndef XRT_NO_XWEB
-		
+
 		/* ============================== xweb ============================== */
 		typedef struct xrt_web_server xwebserver;
 		typedef struct xrt_web_app xwebapp;
 		typedef struct xrt_web_request xwebrequest;
 		typedef struct xrt_web_response xwebresponse;
+		typedef struct xrt_web_next xwebnext;
 		typedef int xwebaction;
 		#define XWEB_NEXT 0
 		#define XWEB_DONE 1
 		#define XWEB_ASYNC 2
 		#define XWEB_ERROR (-1)
 		typedef xwebaction (*xwebhandler)(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData);
+		typedef xwebaction (*xwebmiddleware)(xwebrequest* pReq, xwebresponse* pResp,
+			xwebnext* pNext, ptr pUserData);
 		typedef bool (*xwebbodybegin)(xwebrequest* pReq, ptr pUserData);
 		typedef bool (*xwebbodychunk)(xwebrequest* pReq, const void* pData, size_t iLen, ptr pUserData);
 		typedef xwebaction (*xwebbodyend)(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData);
 		typedef xfuture* (*xwebbodyendasync)(xwebrequest* pReq, ptr pUserData);
 		typedef xwebaction (*xweberrorhandler)(xwebrequest* pReq, xwebresponse* pResp, uint32 iStatusCode, const char* sMessage, ptr pUserData);
 		typedef void (*xwebfree)(ptr pUserData);
+		#define XWEB_CONFIG_VERSION        1u
+		#define XWEB_STATIC_CONFIG_VERSION 1u
 		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
 			xnetaddr tBindAddr;
 			uint32 iFlags;
 			uint32 iBacklog;
@@ -4442,13 +5011,21 @@
 			uint32 iMultipartPartSizeLimit;
 			uint32 iWorkerCount;
 			const xtlsconfig* pTlsConfig;
+			uint32 iCompressionFlags;
+			uint32 iCompressionMinBytes;
+			uint32 iCompressionMaxBytes;
+			int32 iCompressionLevel;
 		} xwebconfig;
 		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
 			uint32 iFlags;
 			const char* sIndexNames;
 			const char* sCacheControl;
 			size_t iChunkSize;
 		} xwebstaticconfig;
+		#define XWEB_CONFIG_V1_SIZE        ((uint32)sizeof(xwebconfig))
+		#define XWEB_STATIC_CONFIG_V1_SIZE ((uint32)sizeof(xwebstaticconfig))
 		#define XWEB_METHOD_ANY        0xFFFFFFFFu
 		#define XWEB_METHOD_GET        (1u << XHTTPD_METHOD_GET)
 		#define XWEB_METHOD_HEAD       (1u << XHTTPD_METHOD_HEAD)
@@ -4457,17 +5034,24 @@
 		#define XWEB_METHOD_DELETE     (1u << XHTTPD_METHOD_DELETE)
 		#define XWEB_METHOD_PATCH      (1u << XHTTPD_METHOD_PATCH)
 		#define XWEB_METHOD_OPTIONS    (1u << XHTTPD_METHOD_OPTIONS)
+		#define XWEB_METHOD_CONNECT    (1u << XHTTPD_METHOD_CONNECT)
+		#define XWEB_METHOD_TRACE      (1u << XHTTPD_METHOD_TRACE)
 		#define XWEB_STATIC_F_NONE             0x00000000u
 		#define XWEB_STATIC_F_ALLOW_DOTFILES   0x00000001u
 		#define XWEB_STATIC_F_ALLOW_BACKSLASH  0x00000002u
-		
+
+		#define XWEB_COMPRESSION_F_NONE        0x00000000u
+		#define XWEB_COMPRESSION_F_GZIP        0x00000001u
+		#define XWEB_COMPRESSION_F_DEFLATE     0x00000002u
+
 	#endif
 	#ifndef XRT_NO_XWS
-		
+
 		/* ============================== xws ============================== */
 		typedef struct xrt_ws_client xwsclient;
 		typedef struct xrt_ws_server xwsserver;
 		typedef struct xrt_ws_conn   xwsconn;
+		typedef struct xrt_ws_writer xwswriter;
 		#define XWS_URL_CAP              1024u
 		#define XWS_HOST_CAP             256u
 		#define XWS_PATH_CAP             1024u
@@ -4477,27 +5061,109 @@
 		#define XWS_CLOSE_NORMAL         1000u
 		#define XWS_CLOSE_GOING_AWAY     1001u
 		#define XWS_CLOSE_PROTOCOL       1002u
-		#define XWS_CLOSE_UNSUPPORTED    1003u
-		#define XWS_CLOSE_TOO_BIG        1009u
+	#define XWS_CLOSE_UNSUPPORTED    1003u
+	#define XWS_CLOSE_INVALID_DATA   1007u
+	#define XWS_CLOSE_TOO_BIG        1009u
 		#define XWS_CLOSE_INTERNAL       1011u
+
+		#define XWS_CLIENT_CONFIG_VERSION 3u
+		#define XWS_SERVER_CONFIG_VERSION 3u
+		#define XWS_CLIENT_EVENTS_VERSION 2u
+		#define XWS_SERVER_EVENTS_VERSION 2u
+
+		#define XWS_CLOSE_F_SENT             0x00000001u
+		#define XWS_CLOSE_F_RECEIVED         0x00000002u
+		#define XWS_CLOSE_F_CLEAN            0x00000004u
+		#define XWS_CLOSE_F_REMOTE_INITIATED 0x00000008u
+		#define XWS_F_PERMESSAGE_DEFLATE 0x00000001u
+		#define XWS_HANDSHAKE_ACCEPT 0u
+		#define XWS_HANDSHAKE_REJECT 1u
+		#define XWS_HANDSHAKE_ERROR  2u
+		#define XWS_HANDSHAKE_F_PERMESSAGE_DEFLATE 0x00000001u
+		#if !defined(XRT_NO_XDEFLATE) && !defined(XRT_NO_XINFLATE)
+			#define XWS_HAS_PERMESSAGE_DEFLATE 1
+		#else
+			#define XWS_HAS_PERMESSAGE_DEFLATE 0
+		#endif
+
 		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
+			uint32 iFlags;
+			xnet_result iTransportResult;
+			uint16 iLocalCode;
+			uint16 iRemoteCode;
+			const char* sRemoteReason;
+			size_t iRemoteReasonLen;
+		} xwscloseinfo;
+
+		#define XWS_CLOSE_INFO_VERSION 1u
+		#define XWS_CLOSE_INFO_V1_SIZE ((uint32)sizeof(xwscloseinfo))
+		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
+			uint32 iStatusCode;
+			uint32 iFlags;
+			const char* sReason;
+			const char* sProtocol;
+			const void* pBody;
+			size_t iBodyLen;
+			xhttpheaders* pHeaders;
+			ptr pConnectionData;
+		} xwshandshakeresponse;
+		#define XWS_HANDSHAKE_RESPONSE_VERSION 1u
+		#define XWS_HANDSHAKE_RESPONSE_V1_SIZE ((uint32)sizeof(xwshandshakeresponse))
+		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
 			char sURL[XWS_URL_CAP];
 			char sOrigin[XWS_ORIGIN_CAP];
 			char sProtocol[XWS_PROTOCOL_CAP];
 			uint32 iConnectTimeoutMs;
 			uint32 iRecvLimit;
+			uint32 iHighWater;
+			uint32 iLowWater;
+			uint32 iMaxQueuedBytes;
+			uint32 iWebSocketFlags;
+			uint32 iCompressMinBytes;
+			int32 iCompressionLevel;
 			bool bVerifyPeer;
 			xnetproxy* pProxy;
+			char* pURLStorage;
+			char* pOriginStorage;
+			char* pProtocolStorage;
+			xhttpheaders* pRequestHeadersStorage;
+			uint32 iMaxFrameBytes;
+			uint32 iHandshakeMaxBytes;
+			uint32 iHandshakeTimeoutMs;
+			uint32 iCloseTimeoutMs;
 		} xwsclientconfig;
 		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
 			xnetaddr tBindAddr;
 			uint32 iFlags;
 			uint32 iBacklog;
 			uint32 iRecvLimit;
+			uint32 iHighWater;
+			uint32 iLowWater;
+			uint32 iMaxQueuedBytes;
+			uint32 iWebSocketFlags;
+			uint32 iCompressMinBytes;
+			int32 iCompressionLevel;
 			const xtlsconfig* pTlsConfig;
 			char sProtocol[XWS_PROTOCOL_CAP];
+			char* pProtocolStorage;
+			char* pPathStorage;
+			char* pOriginStorage;
+			uint32 iMaxFrameBytes;
+			uint32 iHandshakeMaxBytes;
+			uint32 iHandshakeTimeoutMs;
+			uint32 iCloseTimeoutMs;
 		} xwsserverconfig;
 		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
 			void (*OnOpen)(ptr pOwner, xwsclient* pClient);
 			void (*OnText)(ptr pOwner, xwsclient* pClient, const char* pData, size_t iLen);
 			void (*OnBinary)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
@@ -4505,8 +5171,15 @@
 			void (*OnError)(ptr pOwner, xwsclient* pClient, int iSysErr);
 			void (*OnPing)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
 			void (*OnPong)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
+			void (*OnBackpressure)(ptr pOwner, xwsclient* pClient, size_t iPendingBytes);
+			void (*OnWritable)(ptr pOwner, xwsclient* pClient, size_t iPendingBytes);
+			void (*OnDrain)(ptr pOwner, xwsclient* pClient);
+			void (*OnCloseEx)(ptr pOwner, xwsclient* pClient, const xwscloseinfo* pInfo);
+			bool (*OnHandshakeResponse)(ptr pOwner, xwsclient* pClient, const xcodechttp1msg* pResponse);
 		} xwsclientevents;
 		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
 			void (*OnOpen)(ptr pOwner, xwsserver* pServer, xwsconn* pConn);
 			void (*OnText)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const char* pData, size_t iLen);
 			void (*OnBinary)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
@@ -4514,20 +5187,57 @@
 			void (*OnError)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, int iSysErr);
 			void (*OnPing)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
 			void (*OnPong)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
+			void (*OnBackpressure)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, size_t iPendingBytes);
+			void (*OnWritable)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, size_t iPendingBytes);
+			void (*OnDrain)(ptr pOwner, xwsserver* pServer, xwsconn* pConn);
+			void (*OnCloseEx)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const xwscloseinfo* pInfo);
+			uint32 (*OnHandshake)(ptr pOwner, xwsserver* pServer, xwsconn* pConn,
+				const xcodechttp1msg* pRequest, xwshandshakeresponse* pResponse);
 		} xwsserverevents;
-		
+
+		#define XWS_CLIENT_CONFIG_V1_SIZE ((uint32)(offsetof(xwsclientconfig, pProtocolStorage) + sizeof(((xwsclientconfig*)0)->pProtocolStorage)))
+		#define XWS_SERVER_CONFIG_V1_SIZE ((uint32)(offsetof(xwsserverconfig, pProtocolStorage) + sizeof(((xwsserverconfig*)0)->pProtocolStorage)))
+		#define XWS_CLIENT_EVENTS_V1_SIZE ((uint32)(offsetof(xwsclientevents, OnCloseEx) + sizeof(((xwsclientevents*)0)->OnCloseEx)))
+		#define XWS_SERVER_EVENTS_V1_SIZE ((uint32)(offsetof(xwsserverevents, OnCloseEx) + sizeof(((xwsserverevents*)0)->OnCloseEx)))
+		#define XWS_CLIENT_CONFIG_V2_SIZE ((uint32)(offsetof(xwsclientconfig, pRequestHeadersStorage) + sizeof(((xwsclientconfig*)0)->pRequestHeadersStorage)))
+		#define XWS_SERVER_CONFIG_V2_SIZE ((uint32)(offsetof(xwsserverconfig, pOriginStorage) + sizeof(((xwsserverconfig*)0)->pOriginStorage)))
+		#define XWS_CLIENT_CONFIG_V3_SIZE ((uint32)sizeof(xwsclientconfig))
+		#define XWS_SERVER_CONFIG_V3_SIZE ((uint32)sizeof(xwsserverconfig))
+		#define XWS_CLIENT_EVENTS_V2_SIZE ((uint32)sizeof(xwsclientevents))
+		#define XWS_SERVER_EVENTS_V2_SIZE ((uint32)sizeof(xwsserverevents))
+
 	#endif
 	// XNet 地址、配置与数据链基础接口
-	
+
 	// 初始化网络 addr 任意
 	XXAPI void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort);
 	// 解析 IP 与端口到网络地址结构
 	XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort);
 	// 解析网络
 	XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr);
+	XXAPI xnetaddrlist* xrtNetResolveAll(const char* sHost, uint16 iPort, int iFamily);
+	XXAPI uint32 xrtNetAddrListCount(const xnetaddrlist* pList);
+	XXAPI const xnetaddr* xrtNetAddrListGet(const xnetaddrlist* pList, uint32 iIndex);
+	XXAPI void xrtNetAddrListDestroy(xnetaddrlist* pList);
+	XXAPI void xrtNetErrorClear(void);
+	XXAPI bool xrtNetErrorGet(xneterror* pError);
+	XXAPI void xrtNetContextInit(xnetcontext* pContext);
+	XXAPI void xrtNetContextSetTimeout(xnetcontext* pContext, uint32 iTimeoutMs);
+	XXAPI void xrtNetContextSetDeadline(xnetcontext* pContext, int64_t iDeadlineMs);
+	XXAPI void xrtNetContextSetCancel(xnetcontext* pContext, xnetcancel* pCancel);
+	XXAPI xnetcancel* xrtNetCancelCreate(void);
+	XXAPI xnetcancel* xrtNetCancelCreateChild(xnetcancel* pParent);
+	XXAPI xnetcancel* xrtNetCancelAddRef(xnetcancel* pCancel);
+	XXAPI void xrtNetCancelRelease(xnetcancel* pCancel);
+	XXAPI bool xrtNetCancelRequest(xnetcancel* pCancel);
+	XXAPI bool xrtNetCancelIsRequested(const xnetcancel* pCancel);
+	/* Watches the token and its immutable parent chain. The callback runs at most once. */
+	XXAPI xnetcancelwatch* xrtNetCancelWatchCreate(xnetcancel* pCancel, xnetcancelfn pCallback, ptr pArg);
+	XXAPI bool xrtNetCancelWatchIsTriggered(const xnetcancelwatch* pWatch);
+	XXAPI void xrtNetCancelWatchDestroy(xnetcancelwatch* pWatch);
 	// 将网络地址转换为可读字符串
 	XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr);
-	
+
 	// 默认配置初始化
 	XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg);
 	// 初始化网络 listen 配置
@@ -4579,7 +5289,7 @@
 	// 消费网络数据链前部字节
 	XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen);
 	#ifndef XRT_NO_XURL
-		
+
 		// URL / Query 解析、拷贝、拼装与归一化
 		XXAPI xrtstrview xrtStrView(const char* sPtr, size_t iLen);
 		// 判断字符串视图是否为空
@@ -4666,8 +5376,188 @@
 		XXAPI bool xrtUrlParse(const char* sURL, xurl pOut);
 	#endif
 	#ifndef XRT_NO_HTTP_UTIL
-		
+
 		// HTTP Token、Header、Cookie、参数与 Multipart 工具函数
+		/* Owned HTTP header collection. */
+		XXAPI const char* xrtHttpSemanticResultName(xhttp_semantic_result eResult);
+		XXAPI void xrtHttpHeadersConfigInit(xhttpheadersconfig* pConfig);
+		XXAPI xhttpheaders* xrtHttpHeadersCreate(void);
+		XXAPI xhttpheaders* xrtHttpHeadersCreateEx(const xhttpheadersconfig* pConfig);
+		XXAPI xhttpheaders* xrtHttpHeadersClone(const xhttpheaders* pHeaders);
+		XXAPI void xrtHttpHeadersDestroy(xhttpheaders* pHeaders);
+		XXAPI void xrtHttpHeadersClear(xhttpheaders* pHeaders);
+		XXAPI xhttp_semantic_result xrtHttpHeadersReserve(xhttpheaders* pHeaders, size_t iCount, size_t iBytes);
+		XXAPI size_t xrtHttpHeadersCount(const xhttpheaders* pHeaders);
+		XXAPI size_t xrtHttpHeadersBytes(const xhttpheaders* pHeaders);
+		XXAPI xhttp_semantic_result xrtHttpHeadersAppendN(xhttpheaders* pHeaders, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
+		XXAPI xhttp_semantic_result xrtHttpHeadersAppend(xhttpheaders* pHeaders, const char* sName, const char* sValue);
+		XXAPI xhttp_semantic_result xrtHttpHeadersSetN(xhttpheaders* pHeaders, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
+		XXAPI xhttp_semantic_result xrtHttpHeadersSet(xhttpheaders* pHeaders, const char* sName, const char* sValue);
+		XXAPI size_t xrtHttpHeadersRemoveN(xhttpheaders* pHeaders, const char* sName, size_t iNameLen);
+		XXAPI size_t xrtHttpHeadersRemove(xhttpheaders* pHeaders, const char* sName);
+		XXAPI bool xrtHttpHeadersContainsN(const xhttpheaders* pHeaders, const char* sName, size_t iNameLen);
+		XXAPI bool xrtHttpHeadersContains(const xhttpheaders* pHeaders, const char* sName);
+		XXAPI size_t xrtHttpHeadersCountNameN(const xhttpheaders* pHeaders, const char* sName, size_t iNameLen);
+		XXAPI size_t xrtHttpHeadersCountName(const xhttpheaders* pHeaders, const char* sName);
+		XXAPI bool xrtHttpHeadersAt(const xhttpheaders* pHeaders, size_t iIndex, xrtheaderpair* pOut);
+		XXAPI bool xrtHttpHeadersGetN(const xhttpheaders* pHeaders, const char* sName, size_t iNameLen, xrtstrview* pOut);
+		XXAPI bool xrtHttpHeadersGet(const xhttpheaders* pHeaders, const char* sName, xrtstrview* pOut);
+		XXAPI bool xrtHttpHeadersGetNthN(const xhttpheaders* pHeaders, const char* sName, size_t iNameLen, size_t iNth, xrtstrview* pOut);
+		XXAPI bool xrtHttpHeadersGetNth(const xhttpheaders* pHeaders, const char* sName, size_t iNth, xrtstrview* pOut);
+		XXAPI size_t xrtHttpHeadersGetAllToN(const xhttpheaders* pHeaders, const char* sName, size_t iNameLen, xrtstrview* pOut, size_t iOutCap);
+		XXAPI size_t xrtHttpHeadersGetAllTo(const xhttpheaders* pHeaders, const char* sName, xrtstrview* pOut, size_t iOutCap);
+		XXAPI xhttp_semantic_result xrtHttpHeadersParseAppendN(xhttpheaders* pHeaders, const char* sBlock, size_t iLen, size_t* pErrorOffset);
+		XXAPI xhttp_semantic_result xrtHttpHeadersParseAppend(xhttpheaders* pHeaders, const char* sBlock, size_t* pErrorOffset);
+		XXAPI xhttp_semantic_result xrtHttpHeadersBuildBlockTo(const xhttpheaders* pHeaders, char* sOut, size_t iOutCap, size_t* pOutLen);
+		XXAPI str xrtHttpHeadersBuildBlock(const xhttpheaders* pHeaders, size_t* pOutLen);
+		XXAPI xhttp_semantic_result xrtHttpHeadersCompact(xhttpheaders* pHeaders);
+
+		/* Owned URLSearchParams/form-urlencoded collection. */
+		XXAPI void xrtHttpSearchParamsConfigInit(xhttpsearchparamsconfig* pConfig);
+		XXAPI xhttpsearchparams* xrtHttpSearchParamsCreate(void);
+		XXAPI xhttpsearchparams* xrtHttpSearchParamsCreateEx(const xhttpsearchparamsconfig* pConfig);
+		XXAPI xhttpsearchparams* xrtHttpSearchParamsParseN(const char* sText, size_t iLen, const xhttpsearchparamsconfig* pConfig, xhttp_semantic_result* pResult, size_t* pErrorOffset);
+		XXAPI xhttpsearchparams* xrtHttpSearchParamsParse(const char* sText, const xhttpsearchparamsconfig* pConfig, xhttp_semantic_result* pResult, size_t* pErrorOffset);
+		XXAPI xhttpsearchparams* xrtHttpSearchParamsClone(const xhttpsearchparams* pParams);
+		XXAPI void xrtHttpSearchParamsDestroy(xhttpsearchparams* pParams);
+		XXAPI void xrtHttpSearchParamsClear(xhttpsearchparams* pParams);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsReserve(xhttpsearchparams* pParams, size_t iCount, size_t iBytes);
+		XXAPI size_t xrtHttpSearchParamsCount(const xhttpsearchparams* pParams);
+		XXAPI size_t xrtHttpSearchParamsBytes(const xhttpsearchparams* pParams);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsAppendN(xhttpsearchparams* pParams, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsAppend(xhttpsearchparams* pParams, const char* sName, const char* sValue);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsSetN(xhttpsearchparams* pParams, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsSet(xhttpsearchparams* pParams, const char* sName, const char* sValue);
+		XXAPI size_t xrtHttpSearchParamsDeleteN(xhttpsearchparams* pParams, const char* sName, size_t iNameLen);
+		XXAPI size_t xrtHttpSearchParamsDelete(xhttpsearchparams* pParams, const char* sName);
+		XXAPI bool xrtHttpSearchParamsHasN(const xhttpsearchparams* pParams, const char* sName, size_t iNameLen);
+		XXAPI bool xrtHttpSearchParamsHas(const xhttpsearchparams* pParams, const char* sName);
+		XXAPI size_t xrtHttpSearchParamsCountNameN(const xhttpsearchparams* pParams, const char* sName, size_t iNameLen);
+		XXAPI size_t xrtHttpSearchParamsCountName(const xhttpsearchparams* pParams, const char* sName);
+		XXAPI bool xrtHttpSearchParamsAt(const xhttpsearchparams* pParams, size_t iIndex, xrtquerypair* pOut);
+		XXAPI bool xrtHttpSearchParamsGetN(const xhttpsearchparams* pParams, const char* sName, size_t iNameLen, xrtstrview* pValue, bool* pHasValue);
+		XXAPI bool xrtHttpSearchParamsGet(const xhttpsearchparams* pParams, const char* sName, xrtstrview* pValue, bool* pHasValue);
+		XXAPI bool xrtHttpSearchParamsGetNthN(const xhttpsearchparams* pParams, const char* sName, size_t iNameLen, size_t iNth, xrtstrview* pValue, bool* pHasValue);
+		XXAPI bool xrtHttpSearchParamsGetNth(const xhttpsearchparams* pParams, const char* sName, size_t iNth, xrtstrview* pValue, bool* pHasValue);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsParseAppendN(xhttpsearchparams* pParams, const char* sText, size_t iLen, size_t* pErrorOffset);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsParseAppend(xhttpsearchparams* pParams, const char* sText, size_t* pErrorOffset);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsSort(xhttpsearchparams* pParams);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsBuildTo(const xhttpsearchparams* pParams, char* sOut, size_t iOutCap, size_t* pOutLen);
+		XXAPI str xrtHttpSearchParamsBuild(const xhttpsearchparams* pParams, size_t* pOutLen);
+		XXAPI xhttp_semantic_result xrtHttpSearchParamsCompact(xhttpsearchparams* pParams);
+
+		/* HTTP request context and cancellation propagation. */
+		XXAPI xhttpcontext* xrtHttpContextCreate(void);
+		XXAPI xhttpcontext* xrtHttpContextFromNet(const xnetcontext* pNetContext);
+		XXAPI xhttpcontext* xrtHttpContextWithCancel(xhttpcontext* pParent);
+		XXAPI xhttpcontext* xrtHttpContextWithDeadline(xhttpcontext* pParent, int64_t iDeadlineMs);
+		XXAPI xhttpcontext* xrtHttpContextWithTimeout(xhttpcontext* pParent, uint32 iTimeoutMs);
+		XXAPI xhttpcontext* xrtHttpContextWithValueN(xhttpcontext* pParent, const char* sKey,
+			size_t iKeyLen, ptr pValue, xhttpvaluefree pFreeValue);
+		XXAPI xhttpcontext* xrtHttpContextWithValue(xhttpcontext* pParent, const char* sKey,
+			ptr pValue, xhttpvaluefree pFreeValue);
+		XXAPI xhttpcontext* xrtHttpContextRetain(xhttpcontext* pContext);
+		XXAPI void xrtHttpContextRelease(xhttpcontext* pContext);
+		XXAPI bool xrtHttpContextCancel(xhttpcontext* pContext);
+		XXAPI bool xrtHttpContextIsCancelled(const xhttpcontext* pContext);
+		XXAPI bool xrtHttpContextIsDone(const xhttpcontext* pContext);
+		XXAPI int64_t xrtHttpContextDeadline(const xhttpcontext* pContext);
+		/* Returned cancellation token is borrowed. */
+		XXAPI xnetcancel* xrtHttpContextCancelToken(const xhttpcontext* pContext);
+		XXAPI ptr xrtHttpContextValueN(const xhttpcontext* pContext, const char* sKey, size_t iKeyLen);
+		XXAPI ptr xrtHttpContextValue(const xhttpcontext* pContext, const char* sKey);
+		XXAPI bool xrtHttpContextToNet(const xhttpcontext* pContext, xnetcontext* pOut);
+
+		/* Replayable and streaming HTTP body sources. */
+		XXAPI void xrtHttpBodyReaderOpsInit(xhttpbodyreaderops* pOps);
+		XXAPI xhttpbody* xrtHttpBodyCreateEmpty(void);
+		XXAPI xhttpbody* xrtHttpBodyCreateBytesCopy(const void* pData, size_t iLen);
+		XXAPI xhttpbody* xrtHttpBodyCreateBytesRef(const void* pData, size_t iLen,
+			xhttpbodydatafreefn pFreeData, ptr pFreeContext);
+		XXAPI xhttpbody* xrtHttpBodyCreateBytesOwned(void* pData, size_t iLen);
+		XXAPI xhttpbody* xrtHttpBodyCreateFactory(xhttpbodyopenfn pOpen, ptr pFactoryContext,
+			xhttpbodyfactoryfreefn pFreeFactory, int64_t iContentLength, uint32 iFlags);
+		XXAPI xhttpbody* xrtHttpBodyRetain(xhttpbody* pBody);
+		XXAPI void xrtHttpBodyRelease(xhttpbody* pBody);
+		XXAPI int64_t xrtHttpBodyContentLength(const xhttpbody* pBody);
+		XXAPI uint32 xrtHttpBodyFlags(const xhttpbody* pBody);
+		XXAPI bool xrtHttpBodyIsReplayable(const xhttpbody* pBody);
+		XXAPI xhttp_semantic_result xrtHttpBodyOpen(xhttpbody* pBody,
+			const xhttpcontext* pRequestContext, xhttpbodyreader** ppReader);
+		XXAPI xhttp_body_read_result xrtHttpBodyReaderRead(xhttpbodyreader* pReader,
+			void* pBuffer, size_t iCapacity, size_t* pRead, const xhttpcontext* pRequestContext);
+		XXAPI xnetfuture* xrtHttpBodyReaderWaitReadable(xhttpbodyreader* pReader,
+			const xhttpcontext* pRequestContext);
+		XXAPI void xrtHttpBodyReaderClose(xhttpbodyreader* pReader);
+
+		/* Multipart FormData. Part views and body pointers are borrowed until mutation. */
+		XXAPI void xrtHttpFormDataConfigInit(xhttpformdataconfig* pConfig);
+		XXAPI xhttpformdata* xrtHttpFormDataCreate(void);
+		XXAPI xhttpformdata* xrtHttpFormDataCreateEx(const xhttpformdataconfig* pConfig);
+		XXAPI xhttpformdata* xrtHttpFormDataClone(const xhttpformdata* pForm);
+		XXAPI void xrtHttpFormDataDestroy(xhttpformdata* pForm);
+		XXAPI void xrtHttpFormDataClear(xhttpformdata* pForm);
+		XXAPI size_t xrtHttpFormDataCount(const xhttpformdata* pForm);
+		XXAPI size_t xrtHttpFormDataCountNameN(const xhttpformdata* pForm, const char* sName, size_t iNameLen);
+		XXAPI size_t xrtHttpFormDataCountName(const xhttpformdata* pForm, const char* sName);
+		XXAPI bool xrtHttpFormDataHasN(const xhttpformdata* pForm, const char* sName, size_t iNameLen);
+		XXAPI bool xrtHttpFormDataHas(const xhttpformdata* pForm, const char* sName);
+		XXAPI xhttp_semantic_result xrtHttpFormDataAppendBodyN(xhttpformdata* pForm,
+			const char* sName, size_t iNameLen, xhttpbody* pBody,
+			const char* sFileName, size_t iFileNameLen, const char* sContentType, size_t iContentTypeLen);
+		XXAPI xhttp_semantic_result xrtHttpFormDataAppendBody(xhttpformdata* pForm,
+			const char* sName, xhttpbody* pBody, const char* sFileName, const char* sContentType);
+		XXAPI xhttp_semantic_result xrtHttpFormDataAppendTextN(xhttpformdata* pForm,
+			const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
+		XXAPI xhttp_semantic_result xrtHttpFormDataAppendText(xhttpformdata* pForm,
+			const char* sName, const char* sValue);
+		XXAPI xhttp_semantic_result xrtHttpFormDataAppendBytesCopyN(xhttpformdata* pForm,
+			const char* sName, size_t iNameLen, const void* pData, size_t iDataLen,
+			const char* sFileName, size_t iFileNameLen, const char* sContentType, size_t iContentTypeLen);
+		XXAPI xhttp_semantic_result xrtHttpFormDataSetBodyN(xhttpformdata* pForm,
+			const char* sName, size_t iNameLen, xhttpbody* pBody,
+			const char* sFileName, size_t iFileNameLen, const char* sContentType, size_t iContentTypeLen);
+		XXAPI size_t xrtHttpFormDataDeleteN(xhttpformdata* pForm, const char* sName, size_t iNameLen);
+		XXAPI size_t xrtHttpFormDataDelete(xhttpformdata* pForm, const char* sName);
+		XXAPI bool xrtHttpFormDataAt(const xhttpformdata* pForm, size_t iIndex, xhttpformdatapartinfo* pOut);
+		XXAPI bool xrtHttpFormDataGetN(const xhttpformdata* pForm,
+			const char* sName, size_t iNameLen, xhttpformdatapartinfo* pOut);
+		XXAPI bool xrtHttpFormDataGet(const xhttpformdata* pForm,
+			const char* sName, xhttpformdatapartinfo* pOut);
+		XXAPI xhttp_semantic_result xrtHttpFormDataBuildBody(const xhttpformdata* pForm,
+			const char* sBoundary, xhttpbody** ppBody,
+			char* sContentType, size_t iContentTypeCap, size_t* pContentTypeLen);
+		XXAPI xhttpformdata* xrtHttpFormDataParseN(const char* sContentType, size_t iContentTypeLen,
+			const void* pData, size_t iDataLen, const xhttpformdataconfig* pConfig,
+			xhttp_semantic_result* pResult, size_t* pErrorOffset);
+		XXAPI xhttpformdata* xrtHttpFormDataParse(const char* sContentType, const void* pData,
+			size_t iDataLen, const xhttpformdataconfig* pConfig, xhttp_semantic_result* pResult);
+
+		/* Cookie jar. iNowUnix <= 0 uses the current wall-clock time. */
+		XXAPI void xrtHttpCookieJarConfigInit(xhttpcookiejarconfig* pConfig);
+		XXAPI xhttpcookiejar* xrtHttpCookieJarCreate(const xhttpcookiejarconfig* pConfig);
+		XXAPI xhttpcookiejar* xrtHttpCookieJarRetain(xhttpcookiejar* pJar);
+		XXAPI void xrtHttpCookieJarDestroy(xhttpcookiejar* pJar);
+		XXAPI void xrtHttpCookieJarClear(xhttpcookiejar* pJar);
+		XXAPI size_t xrtHttpCookieJarCount(const xhttpcookiejar* pJar);
+		XXAPI size_t xrtHttpCookieJarPurgeExpired(xhttpcookiejar* pJar, int64_t iNowUnix);
+		XXAPI xhttp_semantic_result xrtHttpCookieJarSetCookieN(xhttpcookiejar* pJar,
+			const char* sURL, size_t iURLLen, const char* sSetCookie, size_t iSetCookieLen, int64_t iNowUnix);
+		XXAPI xhttp_semantic_result xrtHttpCookieJarSetCookie(xhttpcookiejar* pJar,
+			const char* sURL, const char* sSetCookie, int64_t iNowUnix);
+		XXAPI size_t xrtHttpCookieJarStoreResponseHeaders(xhttpcookiejar* pJar,
+			const char* sURL, const xhttpheaders* pHeaders, int64_t iNowUnix, size_t* pRejected);
+		XXAPI xhttp_semantic_result xrtHttpCookieJarBuildHeaderToN(xhttpcookiejar* pJar,
+			const char* sURL, size_t iURLLen, int64_t iNowUnix, char* sOut, size_t iOutCap, size_t* pOutLen);
+		XXAPI xhttp_semantic_result xrtHttpCookieJarBuildHeaderTo(xhttpcookiejar* pJar,
+			const char* sURL, int64_t iNowUnix, char* sOut, size_t iOutCap, size_t* pOutLen);
+		XXAPI str xrtHttpCookieJarBuildHeaderN(xhttpcookiejar* pJar,
+			const char* sURL, size_t iURLLen, int64_t iNowUnix, size_t* pOutLen);
+		XXAPI str xrtHttpCookieJarBuildHeader(xhttpcookiejar* pJar,
+			const char* sURL, int64_t iNowUnix, size_t* pOutLen);
+		/* Views returned by CookieAt remain valid until the next jar mutation. */
+		XXAPI bool xrtHttpCookieJarCookieAt(const xhttpcookiejar* pJar, size_t iIndex, xhttpcookieinfo* pOut);
+
 		XXAPI bool xrtQueryNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
 		// 获取下一个 HTTP Token
 		XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut);
@@ -4989,7 +5879,7 @@
 		XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary);
 	#endif
 	#ifndef XRT_NO_XCODEC
-		
+
 		// 通用编解码器与 HTTP/1 / WebSocket 解析接口
 		XXAPI void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps, ptr pCtx);
 		// 按当前编解码策略解析输入数据
@@ -5022,6 +5912,11 @@
 		XXAPI const xcodecparserops* xrtCodecLengthOps(void);
 		// 获取编解码器 HTTP/1 头部
 		XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName);
+		XXAPI const char* xrtCodecHttp1GetTrailer(const xcodechttp1msg* pMsg, const char* sName);
+		XXAPI const xcodechttp1header* xrtCodecHttp1HeaderAt(const xcodechttp1msg* pMsg, uint32 iIndex);
+		XXAPI const xcodechttp1header* xrtCodecHttp1TrailerAt(const xcodechttp1msg* pMsg, uint32 iIndex);
+		XXAPI void xrtCodecHttp1LimitsInit(xcodechttp1limits* pLimits);
+		XXAPI const char* xrtCodecHttp1ErrorName(xcodechttp1error eError);
 		// 初始化编解码器 HTTP/1 消息
 		XXAPI void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg);
 		XXAPI void xrtCodecHttp1MessageUnit(xcodechttp1msg* pMsg);
@@ -5031,11 +5926,16 @@
 		XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen);
 		// 只解析编解码器 HTTP/1 头部
 		XXAPI xcodecstatus xrtCodecHttp1ParseHead(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg);
+		XXAPI xcodecstatus xrtCodecHttp1ParseHeadEx(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg, const xcodechttp1limits* pLimits, xcodechttp1errorinfo* pError);
 		// 解析编解码器 HTTP/1
 		XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg);
+		XXAPI xcodecstatus xrtCodecHttp1ParseEx(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg, const xcodechttp1limits* pLimits, xcodechttp1errorinfo* pError);
+		XXAPI xcodecstatus xrtCodecHttp1ParseTrailersEx(const xnetchain* pInput, size_t* pConsumedBytes, xcodechttp1msg* pMsg, const xcodechttp1limits* pLimits, xcodechttp1errorinfo* pError);
 		// 初始化编解码器 WebSocket frame
 		XXAPI void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo);
 		// 解析编解码器 WebSocket frame
+		XXAPI xcodecstatus xrtCodecWsParseFrameEx(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo, uint64 iMaxPayloadLen);
+		XXAPI xcodecstatus xrtCodecWsParseFrameEx2(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo, uint64 iMaxPayloadLen, uint8 iAllowedRsvBits);
 		XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo);
 		// 对 WebSocket 载荷执行掩码还原
 		XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t iStartOffset);
@@ -5050,8 +5950,13 @@
 	XXAPI void xrtNetEngineStop(xnetengine* pEngine);
 	// 获取网络引擎工作线程数量
 	XXAPI uint32 xrtNetEngineGetWorkerCount(xnetengine* pEngine);
+	XXAPI uint32 xrtNetEngineGetLiveObjectCount(const xnetengine* pEngine);
 	// 向网络引擎投递立即执行的任务
 	XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xnet_task_fn pfnTask, ptr pArg);
+	/* Schedule returns an opaque timer id. Cancel prevents execution only if the callback has not started. */
+	XXAPI xnet_result xrtNetEngineScheduleTimer(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs,
+		xnet_task_fn pfnTask, ptr pArg, uint64* pTimerId);
+	XXAPI xnet_result xrtNetEngineCancelTimer(xnetengine* pEngine, uint64 iTimerId);
 	// 向网络引擎投递延迟执行的任务
 	XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
 	// TLS 会话驱动与恢复
@@ -5086,6 +5991,12 @@
 	XXAPI bool xrtNetTlsSessionWasResumed(const xtlssession* pSession);
 	// 获取 TLS 会话中的 SNI 主机名
 	XXAPI const char* xrtNetTlsSessionGetSNI(const xtlssession* pSession);
+	// 获取 TLS 会话协商出的 ALPN 协议名
+	XXAPI const char* xrtNetTlsSessionGetALPN(const xtlssession* pSession);
+	// 获取 TLS 会话对端叶子证书 DER 数据指针，返回值生命周期绑定到 session
+	XXAPI const void* xrtNetTlsSessionPeerCertDer(const xtlssession* pSession, size_t* pSize);
+	// 获取 TLS 会话对端叶子证书 DER 数据大小
+	XXAPI size_t xrtNetTlsSessionPeerCertSize(const xtlssession* pSession);
 	// 设置网络 TLS session 证书
 	XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCertFile, const char* sKeyFile);
 	// 设置网络 TLS session 内存证书
@@ -5093,9 +6004,6 @@
 	// 设置 TLS 1.2 是否允许使用 Ed25519
 	XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow);
 	// TCP 流与监听器操作
-	XXAPI void xrtNetStreamDestroy(xnetstream* pStream);
-	// 关闭网络流
-	XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
 	// 创建网络监听器
 	XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenconfig* pCfg,
 	const xnetlistenerevents* pEvents, const xnetstreamevents* pStreamEvents, ptr pUserData);
@@ -5113,6 +6021,10 @@
 	XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconfig* pCfg);
 	// 关闭网络流
 	XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
+	// 排空发送队列后关闭写方向，并继续接收直到对端关闭
+	XXAPI xnet_result xrtNetStreamShutdownWrite(xnetstream* pStream);
+	// 立即中止流并丢弃所有待发送和待接收数据
+	XXAPI xnet_result xrtNetStreamAbort(xnetstream* pStream);
 	// 发送网络流
 	XXAPI xnet_result xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iLen);
 	// 发送网络流 vec
@@ -5143,6 +6055,11 @@
 	XXAPI size_t xrtNetDgramPacketBytes(const xnetdgrampkt* pPacket);
 	// 查看网络数据报 packet
 	XXAPI size_t xrtNetDgramPacketPeek(const xnetdgrampkt* pPacket, ptr pOut, size_t iLen);
+	// 批量接收结果拥有其中尚未取出的 packet
+	XXAPI uint32 xrtNetDgramBatchCount(const xnetdgrambatch* pBatch);
+	XXAPI xnetdgrampkt* xrtNetDgramBatchPacket(const xnetdgrambatch* pBatch, uint32 iIndex);
+	XXAPI xnetdgrampkt* xrtNetDgramBatchTake(xnetdgrambatch* pBatch, uint32 iIndex);
+	XXAPI void xrtNetDgramBatchDestroy(xnetdgrambatch* pBatch);
 	// 创建网络数据报
 	XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* pCfg, const xnetdgramevents* pEvents, ptr pUserData);
 	// 销毁网络数据报
@@ -5155,6 +6072,30 @@
 	XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen);
 	// 发送网络数据报 vec
 	XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount);
+	// 配置 connected UDP 对端；仅允许在 Start 之前调用
+	XXAPI xnet_result xrtNetDgramConnect(xdgramsock* pSock, const xnetaddr* pPeer);
+	// 清除 connected UDP 对端；仅允许在 Start 之前调用
+	XXAPI xnet_result xrtNetDgramDisconnect(xdgramsock* pSock);
+	// 向 connected UDP 对端发送数据
+	XXAPI xnet_result xrtNetDgramSend(xdgramsock* pSock, const void* pData, size_t iLen);
+	// 向 connected UDP 对端发送 vec
+	XXAPI xnet_result xrtNetDgramSendVec(xdgramsock* pSock, const xnetspan* pVec, uint32 iCount);
+	// 批量接受发送任务；pAccepted 返回已进入发送队列的条目数
+	XXAPI xnet_result xrtNetDgramSendBatch(xdgramsock* pSock, const xnetdgramsenditem* pItems, uint32 iCount, uint32* pAccepted);
+	// 获取 UDP 本地地址
+	XXAPI const xnetaddr* xrtNetDgramLocalAddr(const xdgramsock* pSock);
+	// 获取 connected UDP 对端地址，未连接时返回 NULL
+	XXAPI const xnetaddr* xrtNetDgramPeerAddr(const xdgramsock* pSock);
+	// 判断 UDP 是否配置了 connected peer
+	XXAPI bool xrtNetDgramIsConnected(const xdgramsock* pSock);
+	// 加入/离开组播；pInterface 为 NULL 时使用系统默认接口
+	XXAPI xnet_result xrtNetDgramJoinMulticast(xdgramsock* pSock, const xnetaddr* pGroup, const xnetaddr* pInterface);
+	XXAPI xnet_result xrtNetDgramLeaveMulticast(xdgramsock* pSock, const xnetaddr* pGroup, const xnetaddr* pInterface);
+	// 设置组播回环和 hop limit
+	XXAPI xnet_result xrtNetDgramSetMulticastLoop(xdgramsock* pSock, bool bEnable);
+	XXAPI xnet_result xrtNetDgramSetMulticastHopLimit(xdgramsock* pSock, int iHopLimit);
+	XXAPI size_t xrtNetDgramPendingSend(const xdgramsock* pSock);
+	XXAPI bool xrtNetDgramGetStats(const xdgramsock* pSock, xnetdgramstats* pOut);
 	// TCP/UDP 便捷同步接口
 XXAPI xnetstream* xrtNetTcpConnect(const char* sHost, uint16 iPort, int64 iTimeoutMs);
 XXAPI xnetstream* xrtNetTcpConnectEx(const xnetconnectconfig* pCfg);
@@ -5169,6 +6110,7 @@ XXAPI size_t xrtNetStreamAvailable(const xnetstream* pStream);
 XXAPI size_t xrtNetStreamRead(xnetstream* pStream, void* pOut, size_t iMaxBytes);
 XXAPI ptr xrtNetStreamReadBytes(xnetstream* pStream, size_t iMaxBytes, size_t* pOutLen);
 XXAPI ptr xrtNetStreamRecvBytes(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs, size_t* pOutLen);
+	XXAPI void xrtNetBytesDestroy(xnetbytes* pBytes);
 XXAPI str xrtNetStreamReadText(xnetstream* pStream, size_t iMaxBytes);
 XXAPI str xrtNetStreamRecvText(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs);
 XXAPI bool xrtNetStreamSendBytes(xnetstream* pStream, const void* pData, size_t iLen);
@@ -5191,12 +6133,18 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI str xrtNetDgramPacketFromText(const xnetdgrampkt* pPacket);
 	XXAPI int xrtNetDgramPacketFromPort(const xnetdgrampkt* pPacket);
 	XXAPI xfuture* xrtNetTcpConnectAsync(const char* sHost, uint16 iPort, int64 iTimeoutMs);
+	XXAPI xnetfuture* xrtNetResolveFuture(xnetengine* pEngine, uint32 iAffinityKey, const char* sHost, uint16 iPort);
+	XXAPI xnetfuture* xrtNetResolveFutureEx(xnetengine* pEngine, uint32 iAffinityKey, const char* sHost, uint16 iPort, int iFamily);
+	XXAPI xnetfuture* xrtNetResolveAllFuture(xnetengine* pEngine, uint32 iAffinityKey, const char* sHost, uint16 iPort, int iFamily);
 	XXAPI xfuture* xrtNetTcpAcceptAsync(xnetlistener* pListener, int64 iTimeoutMs);
 	XXAPI xfuture* xrtNetStreamRecvTextAsync(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs);
+	XXAPI xfuture* xrtNetStreamRecvBytesAsync(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs);
 	XXAPI xfuture* xrtNetStreamSendTextAsync(xnetstream* pStream, const char* sText);
+	XXAPI xfuture* xrtNetStreamSendBytesAsync(xnetstream* pStream, const void* pData, size_t iLen);
 	XXAPI xfuture* xrtNetStreamDrainAsync(xnetstream* pStream, int64 iTimeoutMs);
 	XXAPI xfuture* xrtNetUdpRecvAsync(xdgramsock* pSock, int64 iTimeoutMs);
 	XXAPI xfuture* xrtNetUdpSendTextAsync(xdgramsock* pSock, const char* sHost, uint16 iPort, const char* sText);
+	XXAPI xfuture* xrtNetUdpSendBytesAsync(xdgramsock* pSock, const char* sHost, uint16 iPort, const void* pData, size_t iLen);
 	// Future / Promise / Task 基础接口
 	XXAPI xnetfuture* xrtNetFutureCreate(void);
 	// 创建 Future
@@ -5291,7 +6239,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	// 在独立线程中运行任务
 	XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
 	#if !defined(XRT_NO_FILE_ASYNC)
-		
+
 		// 异步读取文件
 		XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSize);
 		// 异步写入文件
@@ -5330,16 +6278,16 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI xfuture* xrtDirDeleteAsync(str sPath);
 	#endif
 	#ifndef XRT_NO_SUBPROCESS
-		
+
 		// 等待进程 Future
 		XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess);
-		
+
 	#endif
 	#if !defined(XRT_NO_COROUTINE)
-		
+
 		// 在协程调度器中运行任务
 		XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
-		
+
 	#endif
 	// Future 延续回调绑定接口
 	// 在当前执行路径中追加 then 回调
@@ -5398,9 +6346,9 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI xfuture* xFutureFinallyCoEx(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
 		XXAPI xfuture* xFutureFinallyResultCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_result_fn pfnCont, ptr pArg, size_t iStackSize);
 		XXAPI xfuture* xFutureFinallyResultCoEx(xfuture* pFuture, xcosched* pSched, xfuture_finally_result_fn pfnCont, ptr pArg, xfuture_arg_free_fn pfnFreeArg, size_t iStackSize);
-		
+
 	#endif
-	
+
 	// 创建任意 Future 完成聚合
 	XXAPI xfuture* xFutureWhenAny(xfuture** arrFuture, int iCount);
 	// 创建全部 Future 完成聚合
@@ -5411,6 +6359,11 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI int xFuturePumpCurrentContinuations(int iMaxCount);
 	// 创建任务组
 	XXAPI xtaskgroup* xTaskGroupCreate(void);
+	XXAPI void xTaskExecutorConfigInit(xtaskexecutorconfig* pCfg);
+	XXAPI xtaskexecutor* xTaskExecutorCreate(const xtaskexecutorconfig* pCfg);
+	XXAPI void xTaskExecutorDestroy(xtaskexecutor* pExecutor);
+	XXAPI xfuture* xTaskExecutorSubmit(xtaskexecutor* pExecutor, xtask_thread_fn pfnTask, ptr pArg);
+	XXAPI bool xTaskExecutorGetStats(xtaskexecutor* pExecutor, xtaskexecutorstats* pOut);
 	// 销毁任务组
 	XXAPI void xTaskGroupDestroy(xtaskgroup* pGroup);
 	// 关闭任务组
@@ -5450,7 +6403,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#if !defined(XRT_NO_COROUTINE)
 		// 在协程调度器中启动任务组任务
 		XXAPI xfuture* xTaskGroupRunCo(xtaskgroup* pGroup, xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
-		
+
 	#endif
 	// 统一等待源封装
 	XXAPI xnetwaitsrc xrtNetWaitSourceNone(void);
@@ -5474,6 +6427,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI xwaitsrc xWaitSourceFromListenerAccept(xnetlistener* pListener);
 	// 销毁网络 Future
 	XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture);
+	XXAPI bool xrtNetFutureCancel(xnetfuture* pFuture);
 	// 等待网络 Future
 	XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs);
 	// 获取网络 Future 状态
@@ -5510,7 +6464,9 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI xnetfuture* xrtNetListenerAcceptFuture(xnetlistener* pListener);
 	// 接收网络数据报 Future
 	XXAPI xnetfuture* xrtNetDgramRecvFuture(xdgramsock* pSock);
-	
+	// 批量接收 Future；value 为 xnetdgrambatch*
+	XXAPI xnetfuture* xrtNetDgramRecvBatchFuture(xdgramsock* pSock, uint32 iMaxPackets);
+
 	// 同步等待接口
 	XXAPI xnet_result xrtNetStreamWaitEx(xnetstream* pStream, uint32 iWaitKind);
 	// 等待网络流超时扩展
@@ -5539,6 +6495,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI ptr xWaitSourceWaitValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
 	// 创建 wait 值直到指定时刻等待源
 	XXAPI xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs, ptr* ppValue);
+	XXAPI xnet_result xrtNetWaitSourceWaitContext(const xnetwaitsrc* pSrc, const xnetcontext* pContext);
+	XXAPI xnet_result xrtNetWaitSourceWaitValueContext(const xnetwaitsrc* pSrc, const xnetcontext* pContext, ptr* ppValue);
 	// 等待 x wait 源值直到指定时刻
 	XXAPI ptr xWaitSourceWaitValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
 	// 接受网络监听器
@@ -5553,6 +6511,9 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI xnet_result xrtNetDgramRecvTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket);
 	// 接收网络数据报直到指定时刻
 	XXAPI xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, xnetdgrampkt** ppPacket);
+	XXAPI xnet_result xrtNetDgramRecvBatch(xdgramsock* pSock, uint32 iMaxPackets, xnetdgrambatch** ppBatch);
+	XXAPI xnet_result xrtNetDgramRecvBatchTimeout(xdgramsock* pSock, uint32 iMaxPackets, uint32 iTimeoutMs, xnetdgrambatch** ppBatch);
+	XXAPI xnet_result xrtNetDgramRecvBatchUntil(xdgramsock* pSock, uint32 iMaxPackets, int64_t iDeadlineMs, xnetdgrambatch** ppBatch);
 	// 协程等待接口
 	XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
 	// 等待网络流协程超时扩展
@@ -5611,6 +6572,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI ptr xWaitSourceWaitCoValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
 	// 创建 wait 协程值直到指定时刻等待源
 	XXAPI xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs, ptr* ppValue);
+	XXAPI xnet_result xrtNetWaitSourceWaitCoContext(const xnetwaitsrc* pSrc, const xnetcontext* pContext);
+	XXAPI xnet_result xrtNetWaitSourceWaitCoValueContext(const xnetwaitsrc* pSrc, const xnetcontext* pContext, ptr* ppValue);
 	// 等待 x wait 源协程值直到指定时刻
 	XXAPI ptr xWaitSourceWaitCoValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
 	// 接受网络监听器协程
@@ -5625,13 +6588,22 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI xnet_result xrtNetDgramRecvCoTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket);
 	// 接收网络数据报协程直到指定时刻
 	XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, xnetdgrampkt** ppPacket);
+	XXAPI xnet_result xrtNetDgramRecvBatchCo(xdgramsock* pSock, uint32 iMaxPackets, xnetdgrambatch** ppBatch);
+	XXAPI xnet_result xrtNetDgramRecvBatchCoTimeout(xdgramsock* pSock, uint32 iMaxPackets, uint32 iTimeoutMs, xnetdgrambatch** ppBatch);
+	XXAPI xnet_result xrtNetDgramRecvBatchCoUntil(xdgramsock* pSock, uint32 iMaxPackets, int64 iDeadlineMs, xnetdgrambatch** ppBatch);
 	#ifndef XRT_NO_XHTTP
-		
+
 		// XNet 内建 HTTP 客户端
 		XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine);
+		XXAPI void xrtHttpClientConfigInit(xhttpclientconfig* pConfig);
+		XXAPI void xrtHttpClientStatsInit(xhttpclientstats* pStats);
+		XXAPI bool xrtHttpClientGetStats(const xhttpclient* pClient, xhttpclientstats* pStats);
 		XXAPI xhttpclient* xrtHttpClientCreate(xnetengine* pEngine);
+		XXAPI xhttpclient* xrtHttpClientCreateEx(xnetengine* pEngine, const xhttpclientconfig* pConfig);
 		XXAPI void xrtHttpClientDestroy(xhttpclient* pClient);
 		XXAPI void xrtHttpClientCloseIdle(xhttpclient* pClient);
+		/* Borrowed pointer; valid while the client remains alive. */
+		XXAPI xhttpcookiejar* xrtHttpClientCookieJar(const xhttpclient* pClient);
 		XXAPI xnetfuture* xrtHttpClientExecuteAsync(xhttpclient* pClient, const xhttprequest* pReq);
 		XXAPI xnetfuture* xrtHttpClientExecuteStreamAsync(xhttpclient* pClient, const xhttprequest* pReq, const xhttpstreamcallbacks* pCallbacks);
 		XXAPI xhttpresponse* xrtHttpClientExecuteSync(xhttpclient* pClient, const xhttprequest* pReq, xnet_result* pStatus);
@@ -5645,12 +6617,30 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod);
 		// 设置 HTTP request URL
 		XXAPI bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL);
+		XXAPI const char* xrtHttpRequestMethod(const xhttprequest* pReq);
+		XXAPI const char* xrtHttpRequestURL(const xhttprequest* pReq);
+		XXAPI const char* xrtHttpRequestHost(const xhttprequest* pReq);
+		XXAPI const char* xrtHttpRequestTarget(const xhttprequest* pReq);
 		// 设置 HTTP request 头部
 		XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue);
 		XXAPI bool xrtHttpRequestAddHeader(xhttprequest* pReq, const char* sName, const char* sValue);
+		XXAPI bool xrtHttpRequestSetAuthorization(xhttprequest* pReq, const char* sScheme, const char* sCredentials);
+		XXAPI bool xrtHttpRequestSetBasicAuth(xhttprequest* pReq, const char* sUser, const char* sPassword);
+		XXAPI bool xrtHttpRequestSetBearerAuth(xhttprequest* pReq, const char* sToken);
+		XXAPI void xrtHttpRequestClearAuthorization(xhttprequest* pReq);
 		XXAPI uint32 xrtHttpRequestRemoveHeader(xhttprequest* pReq, const char* sName);
+		XXAPI const char* xrtHttpRequestHeader(const xhttprequest* pReq, const char* sName);
+		XXAPI uint32 xrtHttpRequestHeaderCount(const xhttprequest* pReq);
+		XXAPI const char* xrtHttpRequestHeaderNameAt(const xhttprequest* pReq, uint32 iIndex);
+		XXAPI const char* xrtHttpRequestHeaderValueAt(const xhttprequest* pReq, uint32 iIndex);
 		// 复制请求正文并设置 Content-Type
 		XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType);
+		XXAPI bool xrtHttpRequestSetBody(xhttprequest* pReq, xhttpbody* pBody, const char* sContentType);
+		XXAPI bool xrtHttpRequestSetFormData(xhttprequest* pReq, const xhttpformdata* pForm);
+		/* Returned body/context pointers are borrowed. */
+		XXAPI xhttpbody* xrtHttpRequestBody(const xhttprequest* pReq);
+		XXAPI void xrtHttpRequestSetContext(xhttprequest* pReq, xhttpcontext* pContext);
+		XXAPI xhttpcontext* xrtHttpRequestContext(const xhttprequest* pReq);
 		// 设置 HTTP request 超时
 		XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
 		// 设置 HTTP 请求空闲超时
@@ -5670,6 +6660,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI uint32 xrtHttpResponseHeaderCount(const xhttpresponse* pResp);
 		XXAPI const char* xrtHttpResponseHeaderNameAt(const xhttpresponse* pResp, uint32 iIndex);
 		XXAPI const char* xrtHttpResponseHeaderValueAt(const xhttpresponse* pResp, uint32 iIndex);
+		XXAPI const char* xrtHttpResponseTrailer(const xhttpresponse* pResp, const char* sName);
+		XXAPI uint32 xrtHttpResponseTrailerCount(const xhttpresponse* pResp);
+		XXAPI const char* xrtHttpResponseTrailerNameAt(const xhttpresponse* pResp, uint32 iIndex);
+		XXAPI const char* xrtHttpResponseTrailerValueAt(const xhttpresponse* pResp, uint32 iIndex);
 		XXAPI uint32 xrtHttpResponseFlags(const xhttpresponse* pResp);
 		XXAPI const char* xrtHttpResponseVersion(const xhttpresponse* pResp);
 		XXAPI uint32 xrtHttpResponseStatusCode(const xhttpresponse* pResp);
@@ -5678,6 +6672,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI const void* xrtHttpResponseBody(const xhttpresponse* pResp, size_t* pLen);
 		XXAPI char* xrtHttpResponseBodyTextCopy(const xhttpresponse* pResp);
 		XXAPI const xhttpdiagnostics* xrtHttpResponseDiagnostics(const xhttpresponse* pResp);
+		XXAPI const char* xrtHttpResponseURL(const xhttpresponse* pResp);
+		XXAPI const char* xrtHttpResponseOriginalContentEncoding(const xhttpresponse* pResp);
 		XXAPI void xrtHttpStreamCallbacksInit(xhttpstreamcallbacks* pCallbacks);
 		// 异步执行 HTTP 请求
 		XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq);
@@ -5686,21 +6682,36 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		// 同步执行 HTTP 请求
 		XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus);
 		XXAPI xhttpresponse* xrtHttpExecuteSyncDefault(const xhttprequest* pReq);
-		
+
 	#endif
 	#ifndef XRT_NO_XHTTPD
-		
+
 		// XNet 内建 HTTP 服务端
 		XXAPI const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName);
 		XXAPI uint32 xrtHttpdRequestHeaderCount(const xhttpdrequest* pReq);
 		XXAPI const char* xrtHttpdRequestHeaderNameAt(const xhttpdrequest* pReq, uint32 iIndex);
 		XXAPI const char* xrtHttpdRequestHeaderValueAt(const xhttpdrequest* pReq, uint32 iIndex);
+		XXAPI const char* xrtHttpdRequestTrailer(const xhttpdrequest* pReq, const char* sName);
+		XXAPI uint32 xrtHttpdRequestTrailerCount(const xhttpdrequest* pReq);
+		XXAPI const char* xrtHttpdRequestTrailerNameAt(const xhttpdrequest* pReq, uint32 iIndex);
+		XXAPI const char* xrtHttpdRequestTrailerValueAt(const xhttpdrequest* pReq, uint32 iIndex);
+		/* Borrowed pointer; retain before crossing an asynchronous boundary. */
+		XXAPI xhttpcontext* xrtHttpdRequestContext(const xhttpdrequest* pReq);
 		// 获取 HTTP 服务端 request 方法 ID
 		XXAPI uint32 xrtHttpdRequestMethod(const xhttpdrequest* pReq);
 		// 获取 HTTP 服务端 response 头部
 		XXAPI const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName);
+		XXAPI uint32 xrtHttpdResponseHeaderCount(const xhttpdresponse* pResp);
+		XXAPI const char* xrtHttpdResponseHeaderNameAt(const xhttpdresponse* pResp, uint32 iIndex);
+		XXAPI const char* xrtHttpdResponseHeaderValueAt(const xhttpdresponse* pResp, uint32 iIndex);
+		XXAPI const char* xrtHttpdResponseTrailer(const xhttpdresponse* pResp, const char* sName);
+		XXAPI uint32 xrtHttpdResponseTrailerCount(const xhttpdresponse* pResp);
+		XXAPI const char* xrtHttpdResponseTrailerNameAt(const xhttpdresponse* pResp, uint32 iIndex);
+		XXAPI const char* xrtHttpdResponseTrailerValueAt(const xhttpdresponse* pResp, uint32 iIndex);
 		// 初始化 HTTP 服务端配置
 		XXAPI void xrtHttpdConfigInit(xhttpdconfig* pCfg);
+		// 初始化 HTTP 服务端事件表
+		XXAPI void xrtHttpdEventsInit(xhttpdevents* pEvents);
 		// 初始化 HTTP 服务端请求对象
 		XXAPI void xrtHttpdRequestInit(xhttpdrequest* pReq);
 		// 释放 HTTP 服务端请求对象内部资源
@@ -5722,10 +6733,14 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		// 销毁 HTTP 服务端响应对象
 		XXAPI void xrtHttpdResponseDestroy(xhttpdresponse* pResp);
 		// 设置 HTTP 服务端 response 状态
+		XXAPI bool xrtHttpdResponseSetStatusEx(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason);
 		XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason);
 		// 设置 HTTP 服务端 response 头部
 		XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
 		XXAPI bool xrtHttpdResponseAddHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
+		XXAPI uint32 xrtHttpdResponseRemoveHeader(xhttpdresponse* pResp, const char* sName);
+		XXAPI bool xrtHttpdResponseSetTrailer(xhttpdresponse* pResp, const char* sName, const char* sValue);
+		XXAPI bool xrtHttpdResponseAddTrailer(xhttpdresponse* pResp, const char* sName, const char* sValue);
 		// 获取 HTTP 服务端默认状态文本
 		XXAPI const char* xrtHttpdStatusText(uint32 iStatusCode);
 		// 复制服务端响应正文并设置 Content-Type
@@ -5746,6 +6761,9 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI xnet_result xrtHttpdConnSend(xhttpdconn* pConn, const void* pData, size_t iLen);
 		// 结束 HTTP 服务端连接流式响应
 		XXAPI xnet_result xrtHttpdConnEnd(xhttpdconn* pConn);
+		/* Successful upgrade transfers stream ownership to the caller. Call on the stream worker. */
+		XXAPI xnet_result xrtHttpdConnUpgrade(xhttpdconn* pConn, const xhttpdresponse* pResp,
+			const xnetstreamevents* pEvents, ptr pUserData, xnetstream** ppStream);
 		// 向 HTTP 服务端连接分块发送文件响应
 		XXAPI xnet_result xrtHttpdConnSendFile(xhttpdconn* pConn, const xhttpdresponse* pResp, const char* sFilePath, size_t iChunkSize);
 		// 主动关闭 HTTP 服务端连接
@@ -5765,7 +6783,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI void xrtHttpdDestroy(xhttpdserver* pServer);
 	#endif
 	#ifndef XRT_NO_XWEB
-		
+
 		// XRT 高层 Web 服务基座
 		XXAPI void xrtWebConfigInit(xwebconfig* pCfg);
 		XXAPI void xrtWebStaticConfigInit(xwebstaticconfig* pCfg);
@@ -5774,7 +6792,11 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI void xrtWebAppRelease(xwebapp* pApp);
 		XXAPI void xrtWebAppDestroy(xwebapp* pApp);
 		XXAPI uint32 xrtWebMethodMask(const char* sMethods);
+		/* Continue the current synchronous middleware chain once. pNext is callback-scoped. */
+		XXAPI xwebaction xrtWebNext(xwebnext* pNext);
 		XXAPI bool xrtWebAppError(xwebapp* pApp, xweberrorhandler pHandler, ptr pUserData, xwebfree pFreeUserData);
+		XXAPI bool xrtWebAppUseEx(xwebapp* pApp, xwebmiddleware pMiddleware, ptr pUserData, xwebfree pFreeUserData);
+		XXAPI bool xrtWebAppUse(xwebapp* pApp, xwebmiddleware pMiddleware, ptr pUserData);
 		XXAPI bool xrtWebAppRouteEx(xwebapp* pApp, uint32 iMethodMask, const char* sPattern, xwebhandler pHandler, ptr pUserData, xwebfree pFreeUserData);
 		XXAPI bool xrtWebAppStreamRouteEx(xwebapp* pApp, uint32 iMethodMask, const char* sPattern, xwebbodybegin pBegin, xwebbodychunk pBody, xwebbodyend pEnd, ptr pUserData, xwebfree pFreeUserData);
 		XXAPI bool xrtWebAppStreamRoute(xwebapp* pApp, uint32 iMethodMask, const char* sPattern, xwebbodybegin pBegin, xwebbodychunk pBody, xwebbodyend pEnd, ptr pUserData);
@@ -5790,6 +6812,17 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI xwebserver* xrtWebServerCreate(xnetengine* pEngine, const xwebconfig* pCfg);
 		XXAPI xwebserver* xrtWebServerCreateHostEx(xnetengine* pEngine, const char* sHost, uint16 iPort, uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iWorkerCount);
 		XXAPI xwebserver* xrtWebServerCreateHostTlsEx(xnetengine* pEngine, const char* sCertFile, const char* sKeyFile, const char* sHost, uint16 iPort, uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iWorkerCount);
+		XXAPI xwebserver* xrtWebServerCreateHostFullEx(xnetengine* pEngine, const char* sHost, uint16 iPort,
+			uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iHeaderLimit,
+			uint32 iHeaderBytesLimit, uint32 iWorkerCount, uint32 iHeaderTimeoutMs,
+			uint32 iBodyTimeoutMs, uint32 iIdleTimeoutMs, uint32 iWriteTimeoutMs,
+			uint32 iMultipartPartLimit, uint32 iMultipartPartSizeLimit);
+		XXAPI xwebserver* xrtWebServerCreateHostTlsFullEx(xnetengine* pEngine,
+			const char* sCertFile, const char* sKeyFile, const char* sHost, uint16 iPort,
+			uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iHeaderLimit,
+			uint32 iHeaderBytesLimit, uint32 iWorkerCount, uint32 iHeaderTimeoutMs,
+			uint32 iBodyTimeoutMs, uint32 iIdleTimeoutMs, uint32 iWriteTimeoutMs,
+			uint32 iMultipartPartLimit, uint32 iMultipartPartSizeLimit);
 		XXAPI void xrtWebServerDestroy(xwebserver* pServer);
 		XXAPI xnet_result xrtWebServerStart(xwebserver* pServer);
 		XXAPI bool xrtWebServerStartOk(xwebserver* pServer);
@@ -5805,6 +6838,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI bool xrtWebServerTlsHost(xwebserver* pServer, const char* sHost, const char* sCertFile, const char* sKeyFile);
 		XXAPI bool xrtWebServerRemoveTlsHost(xwebserver* pServer, const char* sHost);
 		XXAPI bool xrtWebServerError(xwebserver* pServer, xweberrorhandler pHandler, ptr pUserData, xwebfree pFreeUserData);
+		XXAPI bool xrtWebServerUseEx(xwebserver* pServer, xwebmiddleware pMiddleware, ptr pUserData, xwebfree pFreeUserData);
+		XXAPI bool xrtWebServerUse(xwebserver* pServer, xwebmiddleware pMiddleware, ptr pUserData);
 		XXAPI bool xrtWebServerRouteEx(xwebserver* pServer, uint32 iMethodMask, const char* sPattern, xwebhandler pHandler, ptr pUserData, xwebfree pFreeUserData);
 		XXAPI bool xrtWebServerRoute(xwebserver* pServer, uint32 iMethodMask, const char* sPattern, xwebhandler pHandler, ptr pUserData);
 		XXAPI bool xrtWebServerStreamRouteEx(xwebserver* pServer, uint32 iMethodMask, const char* sPattern, xwebbodybegin pBegin, xwebbodychunk pBody, xwebbodyend pEnd, ptr pUserData, xwebfree pFreeUserData);
@@ -5822,6 +6857,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI uint32 xrtWebRequestMethodId(const xwebrequest* pReq);
 		XXAPI const char* xrtWebRequestTarget(const xwebrequest* pReq);
 		XXAPI str xrtWebRequestTargetCopy(const xwebrequest* pReq);
+		/* Borrowed pointer; retain before crossing an asynchronous boundary. */
+		XXAPI xhttpcontext* xrtWebRequestContext(const xwebrequest* pReq);
 		XXAPI const char* xrtWebRequestPath(const xwebrequest* pReq);
 		XXAPI str xrtWebRequestPathCopy(const xwebrequest* pReq);
 		XXAPI const char* xrtWebRequestQuery(const xwebrequest* pReq);
@@ -5885,12 +6922,19 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI void xrtWebResponseStatus(xwebresponse* pResp, uint32 iStatusCode, const char* sReason);
 		XXAPI bool xrtWebResponseSetHeader(xwebresponse* pResp, const char* sName, const char* sValue);
 		XXAPI bool xrtWebResponseAddHeader(xwebresponse* pResp, const char* sName, const char* sValue);
+		XXAPI size_t xrtWebResponseRemoveHeader(xwebresponse* pResp, const char* sName);
+		XXAPI bool xrtWebResponseSetTrailer(xwebresponse* pResp, const char* sName, const char* sValue);
+		XXAPI bool xrtWebResponseAddTrailer(xwebresponse* pResp, const char* sName, const char* sValue);
 		XXAPI uint32 xrtWebResponseStatusCode(const xwebresponse* pResp);
 		XXAPI const char* xrtWebResponseReason(const xwebresponse* pResp);
 		XXAPI const char* xrtWebResponseHeader(const xwebresponse* pResp, const char* sName);
 		XXAPI size_t xrtWebResponseHeaderCount(const xwebresponse* pResp);
 		XXAPI const char* xrtWebResponseHeaderNameAt(const xwebresponse* pResp, size_t iIndex);
 		XXAPI const char* xrtWebResponseHeaderValueAt(const xwebresponse* pResp, size_t iIndex);
+		XXAPI const char* xrtWebResponseTrailer(const xwebresponse* pResp, const char* sName);
+		XXAPI size_t xrtWebResponseTrailerCount(const xwebresponse* pResp);
+		XXAPI const char* xrtWebResponseTrailerNameAt(const xwebresponse* pResp, size_t iIndex);
+		XXAPI const char* xrtWebResponseTrailerValueAt(const xwebresponse* pResp, size_t iIndex);
 		XXAPI const void* xrtWebResponseBodyView(const xwebresponse* pResp, size_t* pLen);
 		XXAPI bool xrtWebResponseCommitted(const xwebresponse* pResp);
 		XXAPI bool xrtWebResponseCookie(xwebresponse* pResp, const char* sName, const char* sValue, const char* sPath, int32 iMaxAge, uint32 iSameSite, uint32 iFlags);
@@ -5905,17 +6949,48 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI bool xrtWebResponseSend(xwebresponse* pResp, const void* pData, size_t iLen);
 		XXAPI bool xrtWebResponseWriteText(xwebresponse* pResp, const char* sText);
 		XXAPI bool xrtWebResponseEnd(xwebresponse* pResp);
+		/* Successful upgrade commits the response and transfers stream ownership to the caller. */
+		XXAPI bool xrtWebResponseUpgrade(xwebresponse* pResp, const xnetstreamevents* pEvents,
+			ptr pUserData, xnetstream** ppStream);
+		#if !defined(XRT_NO_XWS)
+			/* Handles either a WebSocket 101 handoff or a committed HTTP rejection response. */
+			XXAPI bool xrtWebResponseUpgradeWebSocket(xwebresponse* pResp, xwsserver* pWsServer,
+				xwsconn** ppConn);
+		#endif
 		XXAPI bool xrtWebResponseFile(xwebresponse* pResp, const char* sFilePath, size_t iChunkSize);
 		XXAPI bool xrtWebResponseFileRange(xwebresponse* pResp, const char* sFilePath, uint64 iOffset, uint64 iLength, size_t iChunkSize);
 		XXAPI bool xrtWebResponseRedirect(xwebresponse* pResp, const char* sURL, uint32 iStatusCode);
 		XXAPI const char* xrtWebMimeByPath(const char* sPath);
 	#endif
 	#ifndef XRT_NO_XWS
-		
+
 		// XNet 内建 WebSocket 客户端与服务端
+		XXAPI void xrtWsCloseInfoInit(xwscloseinfo* pInfo);
+		XXAPI bool xrtWsHandshakeResponseInit(xwshandshakeresponse* pResponse);
+		XXAPI void xrtWsHandshakeResponseUnit(xwshandshakeresponse* pResponse);
 		XXAPI void xrtWsClientConfigInit(xwsclientconfig* pCfg);
+		XXAPI void xrtWsClientEventsInit(xwsclientevents* pEvents);
+		XXAPI void xrtWsClientConfigUnit(xwsclientconfig* pCfg);
+		XXAPI bool xrtWsClientConfigSetURL(xwsclientconfig* pCfg, const char* sURL);
+		XXAPI bool xrtWsClientConfigSetOrigin(xwsclientconfig* pCfg, const char* sOrigin);
+		XXAPI bool xrtWsClientConfigSetProtocols(xwsclientconfig* pCfg, const char* sProtocols);
+		XXAPI bool xrtWsClientConfigSetHeader(xwsclientconfig* pCfg, const char* sName, const char* sValue);
+		XXAPI bool xrtWsClientConfigAddHeader(xwsclientconfig* pCfg, const char* sName, const char* sValue);
+		XXAPI size_t xrtWsClientConfigRemoveHeader(xwsclientconfig* pCfg, const char* sName);
+		XXAPI const xhttpheaders* xrtWsClientConfigHeaders(const xwsclientconfig* pCfg);
+		XXAPI const char* xrtWsClientConfigURL(const xwsclientconfig* pCfg);
+		XXAPI const char* xrtWsClientConfigOrigin(const xwsclientconfig* pCfg);
+		XXAPI const char* xrtWsClientConfigProtocols(const xwsclientconfig* pCfg);
 		// 初始化 WebSocket server 配置
 		XXAPI void xrtWsServerConfigInit(xwsserverconfig* pCfg);
+		XXAPI void xrtWsServerEventsInit(xwsserverevents* pEvents);
+		XXAPI void xrtWsServerConfigUnit(xwsserverconfig* pCfg);
+		XXAPI bool xrtWsServerConfigSetProtocol(xwsserverconfig* pCfg, const char* sProtocol);
+		XXAPI bool xrtWsServerConfigSetPath(xwsserverconfig* pCfg, const char* sPath);
+		XXAPI bool xrtWsServerConfigSetOrigin(xwsserverconfig* pCfg, const char* sOrigin);
+		XXAPI const char* xrtWsServerConfigProtocol(const xwsserverconfig* pCfg);
+		XXAPI const char* xrtWsServerConfigPath(const xwsserverconfig* pCfg);
+		XXAPI const char* xrtWsServerConfigOrigin(const xwsserverconfig* pCfg);
 		// 创建 WebSocket 客户端
 		XXAPI xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* pCfg, const xwsclientevents* pEvents, ptr pUserData);
 		// 启动 WebSocket 客户端
@@ -5926,16 +7001,47 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI void xrtWsClientDestroy(xwsclient* pClient);
 		// 判断 WebSocket 客户端是否已连接
 		XXAPI bool xrtWsClientIsOpen(const xwsclient* pClient);
+		XXAPI const char* xrtWsClientProtocol(const xwsclient* pClient);
+		XXAPI bool xrtWsClientCloseInfo(const xwsclient* pClient, xwscloseinfo* pInfo);
+		XXAPI bool xrtWsClientPerMessageDeflate(const xwsclient* pClient);
+		XXAPI size_t xrtWsClientPendingSend(const xwsclient* pClient);
+		// WebSocket Upgrade 完成 Future；成功值为 xwsclient*。
+		XXAPI xnetfuture* xrtWsClientOpenFuture(xwsclient* pClient);
+		// 启动客户端并返回 Upgrade 完成 Future。
+		XXAPI xnetfuture* xrtWsClientStartFuture(xwsclient* pClient);
+		XXAPI xnet_result xrtWsClientWaitOpen(xwsclient* pClient);
+		XXAPI xnet_result xrtWsClientWaitOpenTimeout(xwsclient* pClient, uint32 iTimeoutMs);
+		XXAPI xnet_result xrtWsClientWaitOpenUntil(xwsclient* pClient, int64 iDeadlineMs);
+		XXAPI xnet_result xrtWsClientWaitOpenCo(xwsclient* pClient);
+		XXAPI xnet_result xrtWsClientWaitOpenCoTimeout(xwsclient* pClient, uint32 iTimeoutMs);
+		XXAPI xnet_result xrtWsClientWaitOpenCoUntil(xwsclient* pClient, int64 iDeadlineMs);
+		XXAPI xnetfuture* xrtWsClientWritableFuture(xwsclient* pClient);
+		XXAPI xnetfuture* xrtWsClientDrainFuture(xwsclient* pClient);
+		XXAPI xnetfuture* xrtWsClientCloseFuture(xwsclient* pClient);
+		XXAPI xnet_result xrtWsClientWaitEx(xwsclient* pClient, uint32 iWaitKind);
+		XXAPI xnet_result xrtWsClientWaitTimeoutEx(xwsclient* pClient, uint32 iWaitKind, uint32 iTimeoutMs);
+		XXAPI xnet_result xrtWsClientWaitUntilEx(xwsclient* pClient, uint32 iWaitKind, int64 iDeadlineMs);
+		XXAPI xnet_result xrtWsClientWaitCoEx(xwsclient* pClient, uint32 iWaitKind);
+		XXAPI xnet_result xrtWsClientWaitCoTimeoutEx(xwsclient* pClient, uint32 iWaitKind, uint32 iTimeoutMs);
+		XXAPI xnet_result xrtWsClientWaitCoUntilEx(xwsclient* pClient, uint32 iWaitKind, int64 iDeadlineMs);
 		// 发送 WebSocket client 文本
 		XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen);
 		// 发送 WebSocket 客户端二进制消息
 		XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen);
+		// 建立未压缩的分片消息 writer；writer 独占数据消息，Ping/Close 仍可发送。
+		XXAPI xwswriter* xrtWsClientBeginText(xwsclient* pClient);
+		XXAPI xwswriter* xrtWsClientBeginBinary(xwsclient* pClient);
 		// 发送 WebSocket 客户端 Ping
 		XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const void* pData, size_t iLen);
 		// 主动关闭 WebSocket 客户端
 		XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason);
 		// 创建 WebSocket 服务端
 		XXAPI xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* pCfg, const xwsserverevents* pEvents, ptr pUserData);
+		#if !defined(XRT_NO_XHTTPD)
+			/* Call from the HTTPD stream worker. OK means the handshake was handled; ppWsConn is NULL on rejection. */
+			XXAPI xnet_result xrtWsServerUpgradeHttpd(xwsserver* pServer, xhttpdconn* pHttpdConn,
+				const xhttpdrequest* pRequest, xwsconn** ppWsConn);
+		#endif
 		// 获取 WebSocket 服务端绑定端口
 		XXAPI uint16 xrtWsServerBoundPort(const xwsserver* pServer);
 		// 启动 WebSocket 服务端
@@ -5945,15 +7051,39 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		// 销毁 WebSocket 服务端
 		XXAPI void xrtWsServerDestroy(xwsserver* pServer);
 		// 判断 WebSocket 连接是否仍然打开
+		XXAPI xwsconn* xrtWsConnRetain(xwsconn* pConn);
+		XXAPI void xrtWsConnRelease(xwsconn* pConn);
 		XXAPI bool xrtWsConnIsOpen(const xwsconn* pConn);
+		XXAPI const char* xrtWsConnProtocol(const xwsconn* pConn);
+		XXAPI ptr xrtWsConnGetData(const xwsconn* pConn);
+		XXAPI void xrtWsConnSetData(xwsconn* pConn, ptr pConnectionData);
+		XXAPI bool xrtWsConnCloseInfo(const xwsconn* pConn, xwscloseinfo* pInfo);
+		XXAPI bool xrtWsConnPerMessageDeflate(const xwsconn* pConn);
+		XXAPI size_t xrtWsConnPendingSend(const xwsconn* pConn);
+		XXAPI xnetfuture* xrtWsConnWritableFuture(xwsconn* pConn);
+		XXAPI xnetfuture* xrtWsConnDrainFuture(xwsconn* pConn);
+		XXAPI xnetfuture* xrtWsConnCloseFuture(xwsconn* pConn);
+		XXAPI xnet_result xrtWsConnWaitEx(xwsconn* pConn, uint32 iWaitKind);
+		XXAPI xnet_result xrtWsConnWaitTimeoutEx(xwsconn* pConn, uint32 iWaitKind, uint32 iTimeoutMs);
+		XXAPI xnet_result xrtWsConnWaitUntilEx(xwsconn* pConn, uint32 iWaitKind, int64 iDeadlineMs);
+		XXAPI xnet_result xrtWsConnWaitCoEx(xwsconn* pConn, uint32 iWaitKind);
+		XXAPI xnet_result xrtWsConnWaitCoTimeoutEx(xwsconn* pConn, uint32 iWaitKind, uint32 iTimeoutMs);
+		XXAPI xnet_result xrtWsConnWaitCoUntilEx(xwsconn* pConn, uint32 iWaitKind, int64 iDeadlineMs);
 		// 发送 WebSocket conn 文本
 		XXAPI xnet_result xrtWsConnSendText(xwsconn* pConn, const char* sText, size_t iLen);
 		// 发送 WebSocket 连接二进制消息
 		XXAPI xnet_result xrtWsConnSendBinary(xwsconn* pConn, const void* pData, size_t iLen);
+		XXAPI xwswriter* xrtWsConnBeginText(xwsconn* pConn);
+		XXAPI xwswriter* xrtWsConnBeginBinary(xwsconn* pConn);
 		// 发送 WebSocket 连接 Ping
 		XXAPI xnet_result xrtWsConnPing(xwsconn* pConn, const void* pData, size_t iLen);
 		// 主动关闭 WebSocket 连接
 		XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReason);
+		// Write 发送非终帧；Finish 发送终帧。AGAIN 时状态不推进，可原样重试。
+		XXAPI xnet_result xrtWsWriterWrite(xwswriter* pWriter, const void* pData, size_t iLen);
+		XXAPI xnet_result xrtWsWriterFinish(xwswriter* pWriter, const void* pData, size_t iLen);
+		XXAPI bool xrtWsWriterIsFinished(const xwswriter* pWriter);
+		XXAPI void xrtWsWriterDestroy(xwswriter* pWriter);
 	#endif
 	#endif /* !XRT_NO_NETWORK && !XRT_BUILD_CORE */
 	/* ------------------------------------ XID 函数库 ------------------------------------ */
@@ -5962,7 +7092,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			Time 函数库
 			Network 函数库
 	*/
-	
+
 	// XID 数据结构 ( 192 bit )
 	typedef struct {
 		xtime Time;				// 当前时间戳
@@ -5970,36 +7100,36 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		int32 Tick;				// CPU 时钟 ( 低 32 位 )
 		int64 Rand;				// 随机数
 	} xid_struct, *xid;
-	
+
 	// XID 转 字符串 ( 需要使用 xrtFree 释放内存 )
 	XXAPI str xrtEncodeXID(xid pXID);
-	
+
 	// 字符串 转 XID ( 需要使用 xrtFree 释放内存 )
 	XXAPI xid xrtDecodeXID(str sXID);
-	
+
 	// 获取 XID ( 需要使用 xrtFree 释放内存 )
 	XXAPI xid xrtMakeXID();
-	
+
 	// 获取 XID 字符串 ( 需要使用 xrtFree 释放内存 )
 	XXAPI str xrtMakeXIDS();
-	
+
 	// 比较两个 XID 是否相同
 	XXAPI bool xrtCompXID(xid pXID1, xid pXID2);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Buffer 函数库 ------------------------------------ */
-	
+
 	// 内容类型
 	#define XBUF_BINARY 0						// 二进制
 	#define XBUF_ANSI 1							// ANSI 字符串
 	#define XBUF_UTF8 1							// UTF8 字符串
 	#define XBUF_UTF16 2						// UTF16 字符串
 	#define XBUF_UTF32 4						// UTF32 字符串
-	
+
 	// 默认增量长度
 	#define XBUFFER_ALLOC_STEP 0x10000
-	
+
 	// 内存缓冲区管理单元数据结构
 	typedef struct {
 		char* Buffer;							// 内存缓冲区
@@ -6007,7 +7137,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		uint32 AllocLength;						// 已申请内存长度
 		uint32 AllocStep;						// 预分配内存步长
 	} xbuffer_struct, *xbuffer;
-	
+
 	// 创建内存缓冲区管理器
 	XXAPI xbuffer xrtBufferCreate(uint32 iStep);
 	// 通过原始内存创建 Buffer
@@ -6018,42 +7148,126 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI xbuffer xrtBufferFromHex(str sText, size_t iSize);
 	// 将 Base64 文本解码为 Buffer
 	XXAPI xbuffer xrtBufferFromBase64(str sText, size_t iSize, str sTable);
-	
+
 	// 销毁内存缓冲区管理器
 	XXAPI void xrtBufferDestroy(xbuffer pBuf);
-	
+
 	// 初始化缓冲区管理器（对自维护结构体指针使用）
 	XXAPI void xrtBufferInit(xbuffer pBuf, uint32 iStep);
-	
+
 	// 释放缓冲区管理器（对自维护结构体指针使用）
 	XXAPI void xrtBufferUnit(xbuffer pBuf);
-	
+
 	// 分配内存
 	XXAPI bool xrtBufferMalloc(xbuffer pBuf, uint32 iCount);
-	
+
 	// 中间添加数据（可以复制或者开辟新的数据区，不会自动将新开辟的数据区填充 \0）
 	XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, uint32 bStrMode);
-	
+
 	// 末尾添加数据
 	XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMode);
-	
+
 	// 清空管理单元
 	#define xrtBufferClear xrtBufferUnit
-	
-	
-	
+
+
+
+	/* ------------------------------------ Stream 函数库 ------------------------------------ */
+
+	// Stream 只描述字节流；文本编码由调用者显式处理。
+	#define XRT_STREAM_BORROW 0
+	#define XRT_STREAM_TAKE_OWNERSHIP 1
+	#define XRT_RESOURCE_LIMITS_VERSION 1u
+	#define XRT_RESOURCE_ALLOW_SYMLINKS 0x00000001u
+	#define XRT_RESOURCE_ALLOW_HARDLINKS 0x00000002u
+	#define XRT_RESOURCE_ALLOW_DEVICE_FILES 0x00000004u
+	#define XRT_RESOURCE_ALLOW_EXTERNAL_ENTITIES 0x00000008u
+
+	// 解析器、解压器与归档器共用的资源边界。
+	typedef struct {
+		uint32 iSize;
+		uint32 iVersion;
+		uint64 iMaxInputBytes;
+		uint64 iMaxOutputBytes;
+		uint64 iMaxItemBytes;
+		uint64 iMaxEntries;
+		uint64 iMaxNodes;
+		uint32 iMaxDepth;
+		uint32 iMaxCompressionRatio;
+		uint32 iFlags;
+		uint32 iReserved;
+	} xrtresourcelimits;
+
+	typedef struct xreader_struct xreader_struct;
+	typedef struct xwriter_struct xwriter_struct;
+	typedef xreader_struct* xreader;
+	typedef xwriter_struct* xwriter;
+
+	typedef struct {
+		bool (*Read)(ptr pContext, ptr pBuffer, uint64 iRequest, uint64* iRead);
+		bool (*Seek)(ptr pContext, int64 iOffset, int iMoveMethod, uint64* iPosition);
+		bool (*Tell)(ptr pContext, uint64* iPosition);
+		bool (*Size)(ptr pContext, uint64* iSize);
+		bool (*Close)(ptr pContext);
+	} xreader_ops;
+
+	typedef struct {
+		bool (*Write)(ptr pContext, const void* pBuffer, uint64 iRequest, uint64* iWritten);
+		bool (*Seek)(ptr pContext, int64 iOffset, int iMoveMethod, uint64* iPosition);
+		bool (*Tell)(ptr pContext, uint64* iPosition);
+		bool (*Flush)(ptr pContext);
+		bool (*Close)(ptr pContext);
+	} xwriter_ops;
+
+	// 创建自定义回调流。回调表会被复制，pContext 的生命期由 Close 回调管理。
+	XXAPI xreader xrtReaderCreate(const xreader_ops* pOps, ptr pContext);
+	XXAPI xwriter xrtWriterCreate(const xwriter_ops* pOps, ptr pContext);
+	XXAPI void xrtResourceLimitsInit(xrtresourcelimits* pLimits);
+
+	// 创建标准适配器。
+	XXAPI xreader xrtReaderFromFile(xfile pFile, bool bTakeOwnership);
+	XXAPI xwriter xrtWriterFromFile(xfile pFile, bool bTakeOwnership);
+	XXAPI xreader xrtReaderFromBuffer(xbuffer pBuffer, bool bTakeOwnership);
+	XXAPI xwriter xrtWriterFromBuffer(xbuffer pBuffer, bool bTakeOwnership);
+	XXAPI xreader xrtReaderFromMemory(const void* pData, uint64 iSize);
+	XXAPI xreader xrtReaderOpen(str sPath);
+	XXAPI xwriter xrtWriterOpen(str sPath, bool bTruncate);
+
+	// 读取接口。Read 允许短读，ReadExact 在提前遇到 EOF 时失败。
+	XXAPI bool xrtReaderRead(xreader pReader, ptr pBuffer, uint64 iRequest, uint64* iRead);
+	XXAPI bool xrtReaderReadExact(xreader pReader, ptr pBuffer, uint64 iRequest);
+	XXAPI xbuffer xrtReaderReadAll(xreader pReader, uint64 iLimit);
+	XXAPI bool xrtReaderSeek(xreader pReader, int64 iOffset, int iMoveMethod, uint64* iPosition);
+	XXAPI bool xrtReaderTell(xreader pReader, uint64* iPosition);
+	XXAPI bool xrtReaderSize(xreader pReader, uint64* iSize);
+	XXAPI bool xrtReaderCanSeek(xreader pReader);
+	XXAPI bool xrtReaderEOF(xreader pReader);
+	XXAPI bool xrtReaderDestroy(xreader pReader);
+
+	// 写入接口。Write 允许短写，WriteAll 保证全部写入或返回失败。
+	XXAPI bool xrtWriterWrite(xwriter pWriter, const void* pBuffer, uint64 iRequest, uint64* iWritten);
+	XXAPI bool xrtWriterWriteAll(xwriter pWriter, const void* pBuffer, uint64 iRequest);
+	XXAPI bool xrtWriterWriteBuffer(xwriter pWriter, xbuffer pBuffer);
+	XXAPI bool xrtWriterSeek(xwriter pWriter, int64 iOffset, int iMoveMethod, uint64* iPosition);
+	XXAPI bool xrtWriterTell(xwriter pWriter, uint64* iPosition);
+	XXAPI bool xrtWriterCanSeek(xwriter pWriter);
+	XXAPI bool xrtWriterFlush(xwriter pWriter);
+	XXAPI bool xrtWriterDestroy(xwriter pWriter);
+
+
+
 	/* ------------------------------------ Point Array 函数库 ------------------------------------ */
-	
+
 	/*
 		成员编号规则（0为不存在的成员编号）：
 			┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬────┐
 			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
 			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
 	*/
-	
+
 	// 默认步长
 	#define XPARRAY_PREASSIGNSTEP	256
-	
+
 	// 指针数组内存管理器数据结构
 	typedef struct {
 		ptr* Memory;							// 管理器内存指针
@@ -6062,47 +7276,47 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		uint32 AllocStep;						// 预分配内存步长
 		xrtOwnerInfo Owner;						// 所有权信息
 	} xparray_struct, *xparray;
-	
+
 	// 创建指针内存管理器
 	XXAPI xparray xrtPtrArrayCreate(uint32 iMode);
-	
+
 	// 销毁指针内存管理器
 	XXAPI void xrtPtrArrayDestroy(xparray pObject);
-	
+
 	// 初始化内存管理器（对自维护结构体指针使用）
 	XXAPI void xrtPtrArrayInit(xparray pObject, uint32 iMode);
-	
+
 	// 释放内存管理器（对自维护结构体指针使用）
 	XXAPI void xrtPtrArrayUnit(xparray pObject);
 	// 显式锁定管理器（shared 模式下可用于稳定访问内部指针/遍历）
 	XXAPI bool xrtPtrArrayLock(xparray pObject);
 	// 解锁指针数组
 	XXAPI void xrtPtrArrayUnlock(xparray pObject);
-	
+
 	// 分配内存
 	XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount);
-	
+
 	// 中间插入成员(0为头部插入，pObject->Count为末尾插入)
 	XXAPI uint32 xrtPtrArrayInsert(xparray pObject, uint32 iPos, ptr pVal);
-	
+
 	// 末尾添加成员
 	XXAPI uint32 xrtPtrArrayAppend(xparray pObject, ptr pVal);
-	
+
 	// 添加成员，自动查找空隙（替换为 NULL 的值）
 	XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, ptr pVal);
-	
+
 	// 交换成员
 	XXAPI bool xrtPtrArraySwap(xparray pObject, uint32 iPosA, uint32 iPosB);
-	
+
 	// 删除成员
 	XXAPI bool xrtPtrArrayRemove(xparray pObject, uint32 iPos, uint32 iCount);
-	
+
 	// 删除所有成员
 	#define xrtPtrArrayRemoveAll xrtPtrArrayUnit
-	
+
 	// 清空管理器
 	#define xrtPtrArrayClear xrtPtrArrayUnit
-	
+
 	// 获取成员指针
 	XXAPI ptr xrtPtrArrayGet(xparray pObject, uint32 iPos);
 	// 获取成员指针（不安全接口）
@@ -6112,7 +7326,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	{
 		return pObject->Memory[iPos - 1];
 	}
-	
+
 	// 设置成员指针
 	XXAPI bool xrtPtrArraySet(xparray pObject, uint32 iPos, ptr pVal);
 	// 设置成员指针（不安全接口）
@@ -6126,24 +7340,24 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		pObject->Memory[iPos - 1] = pVal;
 		xrtOwnerEndMutable(&pObject->Owner);
 	}
-	
+
 	// 成员排序
 	XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Array 函数库 ------------------------------------ */
-	
+
 	/*
 		成员编号规则（0为不存在的成员编号）：
 			┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬────┐
 			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
 			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
 	*/
-	
+
 	// 默认步长
 	#define XARRAY_PREASSIGNSTEP	256
-	
+
 	// 结构体数组内存管理器数据结构
 	typedef struct {
 		str Memory;						// 管理器内存指针
@@ -6153,44 +7367,44 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		uint32 AllocStep;				// 预分配内存步长
 		xrtOwnerInfo Owner;				// 所有权信息
 	} xarray_struct, *xarray;
-	
+
 	// 创建数组
 	XXAPI xarray xrtArrayCreate(uint32 iItemLength, uint32 iMode);
-	
+
 	// 销毁数组
 	XXAPI void xrtArrayDestroy(xarray pArr);
-	
+
 	// 初始化数组的数据结构 ( 用于内嵌数组的对象使用 )
 	XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength, uint32 iMode);
-	
+
 	// 释放数组的数据结构 ( 但不会释放数组结构体本身的内存，用于内嵌数组的对象使用 )
 	XXAPI void xrtArrayUnit(xarray pArr);
 	// 显式锁定数组（shared 模式下可用于稳定访问内部指针/遍历）
 	XXAPI bool xrtArrayLock(xarray pArr);
 	// 解锁数组
 	XXAPI void xrtArrayUnlock(xarray pArr);
-	
+
 	// 分配内存
 	XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount);
-	
+
 	// 中间插入成员
 	XXAPI uint32 xrtArrayInsert(xarray pArr, uint32 iPos, uint32 iCount);
-	
+
 	// 末尾添加成员
 	XXAPI uint32 xrtArrayAppend(xarray pArr, uint32 iCount);
-	
+
 	// 交换成员
 	XXAPI bool xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB);
-	
+
 	// 删除成员
 	XXAPI bool xrtArrayRemove(xarray pArr, uint32 iPos, uint32 iCount);
-	
+
 	// 删除所有成员
 	#define xrtArrayRemoveAll xrtArrayUnit
-	
+
 	// 清空管理器
 	#define xrtArrayClear xrtArrayUnit
-	
+
 	// 获取成员数据指针
 	XXAPI ptr xrtArrayGet(xarray pArr, uint32 iPos);
 	// 不做边界检查，直接获取数组成员指针
@@ -6200,18 +7414,18 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	{
 		return &(pArr->Memory[(iPos - 1) * pArr->ItemLength]);
 	}
-	
+
 	// 成员排序
 	XXAPI bool xrtArraySort(xarray pArr, ptr procCompar);
-	
-	
-	
+
+
+
 	/* ------------------------------------ BSMM 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			Point Array 函数库
 	*/
-	
+
 	/*
 		Blocks Struct Memory Management [块结构内存管理器]
 		成员编号规则（0为不存在的成员编号）：
@@ -6219,13 +7433,13 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
 			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
 	*/
-	
+
 	// 内存指针单向链表数据结构
 	typedef struct MemPtr_LLNode {
 		ptr Ptr;
 		struct MemPtr_LLNode* Next;
 	} MemPtr_LLNode;
-	
+
 	// 数据块结构内存管理器数据结构
 	typedef struct {
 		xrtOwnerInfo Owner;			// 所有权信息
@@ -6234,25 +7448,25 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		xparray_struct PageMMU;				// 内存页管理器
 		MemPtr_LLNode* LL_Free;				// 已释放的内存块链表
 	} xbsmm_struct, *xbsmm;
-	
+
 	// 创建数据块结构内存管理器
 	XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength, uint32 iMode);
-	
+
 	// 销毁数据块结构内存管理器
 	XXAPI void xrtBsmmDestroy(xbsmm objBSMM);
-	
+
 	// 初始化数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Create 功能类似）
 	XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength, uint32 iMode);
-	
+
 	// 释放数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Destroy 功能类似）
 	XXAPI void xrtBsmmUnit(xbsmm objBSMM);
-	
+
 	// 申请结构体内存
 	XXAPI ptr xrtBsmmAlloc(xbsmm objBSMM);
-	
+
 	// 释放结构体内存
 	XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p);
-	
+
 	// 获取成员指针（非特殊需求不建议使用）
 	static inline ptr xrtBsmmGetPtr_Inline(xbsmm objBSMM, uint32 iIdx)
 	{
@@ -6265,31 +7479,31 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			return NULL;
 		}
 	}
-	
-	
-	
+
+
+
 	/* ------------------------------------ Memory Unit 函数库 ------------------------------------ */
-	
+
 	// 内存固定的前置数据（用于识别内存是哪个管理器分配的）
 	typedef struct {
 		uint32 ItemFlag;
 	} MMU_Value, *MMU_ValuePtr;
-	
+
 	// MMU有效ID区间掩码
 	#define MMU_FLAG_MASK				0x3FFFFFFF
-	
+
 	// 结构体使用状态标记
 	#define MMU_FLAG_USE				0x80000000
-	
+
 	// GC回收标记位
 	#define MMU_FLAG_GC					0x40000000
-	
+
 	// 非内存管理器管理的内存
 	#define MMU_FLAG_EXT				0xBFFFFFFF
-	
+
 	// GC标记
 	#define xrtMemUnitGC_Mark(p) (((MMU_ValuePtr)((uint8*)(p) - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC)
-	
+
 	// 数据管理单元数据结构
 	typedef struct {
 		xrtOwnerInfo Owner;						// 所有权信息
@@ -6301,13 +7515,13 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		uint32 Flag;								// 值的 Flag 前缀（由上级管理器下发，0-255 区间会被 idx 覆盖）
 		char Memory[];								// 数据
 	} xmemunit_struct, *xmemunit;
-	
+
 	// 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
 	XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength, uint32 iMode);
-	
+
 	// 销毁内存管理单元
 	#define xrtMemUnitDestroy xrtFree
-	
+
 	// 从内存管理单元中申请一个元素
 	static inline ptr xrtMemUnitAlloc_Inline(xmemunit objUnit)
 	{
@@ -6336,7 +7550,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	}
 	// 从内存管理单元中申请一个元素
 	XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit);
-	
+
 	// 释放内存管理单元中某个元素（FreeIdx不会清空 ItemFlag，建议由调用方负责清空）
 	static inline void xrtMemUnitFreeIdx_Inline(xmemunit objUnit, uint8 idx)
 	{
@@ -6382,19 +7596,19 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	}
 	// 释放内存管理单元中的元素
 	XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj);
-	
+
 	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
 	XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Fixed-Size Memory Pool 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			BSMM 函数库
 			Memory Unit 函数库
 	*/
-	
+
 	// 内存管理器链表结构
 	typedef struct MMU_LLNode {
 		uint32 Flag;
@@ -6402,7 +7616,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		struct MMU_LLNode* Prev;
 		struct MMU_LLNode* Next;
 	} MMU_LLNode;
-	
+
 	// 256步进内存管理器数据结构
 	typedef struct {
 		xrtOwnerInfo Owner;					// 所有权信息
@@ -6413,35 +7627,35 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		MMU_LLNode* LL_Null;						// 缓存的全空内存管理单元 (备用单元，最多只留一个)
 		MMU_LLNode* LL_Free;						// 已释放的内存管理单元 Flag 链表首元素 (申请新单元优先从这里找)
 	} xfsmempool_struct, *xfsmempool;
-	
+
 	// 创建内存管理器
 	XXAPI xfsmempool xrtFSMemPoolCreate(uint32 iItemLength, uint32 iMode);
-	
+
 	// 销毁内存管理器
 	XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM);
-	
+
 	// 初始化内存管理器（对自维护结构体指针使用）
 	XXAPI void xrtFSMemPoolInit(xfsmempool objMM, uint32 iItemLength, uint32 iMode);
-	
+
 	// 释放内存管理器（对自维护结构体指针使用）
 	XXAPI void xrtFSMemPoolUnit(xfsmempool objMM);
-	
+
 	// 从内存管理器中申请一块内存
 	XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM);
-	
+
 	// 将内存管理器申请的内存释放掉
 	XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p);
-	
+
 	// 将一块内存标记为使用中
 	#define xrtFSMemPoolGC_Mark	xrtMemUnitGC_Mark
-	
+
 	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
 	XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Stack 函数库 ------------------------------------ */
-	
+
 	// 结构体静态栈数据结构
 	typedef struct {
 		union {
@@ -6452,30 +7666,30 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		uint32 MaxCount;				// 栈最大可以容纳多少成员（栈深度）
 		uint32 Count;					// 栈中存在多少成员（栈顶位置）
 	} xstack_struct, *xstack;
-	
+
 	// 创建结构体静态栈
 	XXAPI xstack xrtStackCreate(uint32 iMaxCount, uint32 iItemLength);
-	
+
 	// 销毁结构体静态栈
 	#define xrtStackDestroy xrtFree
-	
+
 	// 压栈
 	XXAPI ptr xrtStackPush(xstack objSTK);
 	// 压入栈数据
 	XXAPI uint32 xrtStackPushData(xstack objSTK, ptr pData);
 	// 压入栈指针
 	XXAPI uint32 xrtStackPushPtr(xstack objSTK, ptr pVal);
-	
+
 	// 出栈
 	XXAPI ptr xrtStackPop(xstack objSTK);
 	// 弹出栈指针
 	XXAPI ptr xrtStackPopPtr(xstack objSTK);
-	
+
 	// 获取栈顶对象
 	XXAPI ptr xrtStackTop(xstack objSTK);
 	// 获取顶部栈指针
 	XXAPI ptr xrtStackTopPtr(xstack objSTK);
-	
+
 	// 获取任意位置对象
 	XXAPI ptr xrtStackGetPos(xstack objSTK, uint32 iPos);
 	// 不做边界检查，直接获取指定位置的栈对象
@@ -6484,15 +7698,15 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint32 iPos);
 	// 不做边界检查，直接获取指定位置的栈指针成员
 	XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Dynamic Stack 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			Point Array 函数库
 	*/
-	
+
 	/*
 		结构体动态栈，结构体内存256个递增，栈最大深度不固定
 		成员编号规则（0为不存在的成员编号）：
@@ -6500,43 +7714,43 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
 			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
 	*/
-	
+
 	// 结构体动态栈数据结构
 	typedef struct {
 		uint32 ItemLength;					// 栈成员占用内存长度
 		uint32 Count;							// 栈中存在多少成员（栈顶位置）
 		xparray_struct MMU;							// MMU 管理器
 	} xdynstack_struct, *xdynstack;
-	
+
 	// 创建结构体动态栈
 	XXAPI xdynstack xrtDynStackCreate(uint32 iItemLength);
-	
+
 	// 销毁结构体动态栈
 	XXAPI void xrtDynStackDestroy(xdynstack objSTK);
-	
+
 	// 初始化结构体动态栈（对自维护结构体指针使用）
 	XXAPI void xrtDynStackInit(xdynstack objSTK, uint32 iItemLength);
-	
+
 	// 释放结构体动态栈（对自维护结构体指针使用）
 	XXAPI void xrtDynStackUnit(xdynstack objSTK);
-	
+
 	// 压栈
 	XXAPI ptr xrtDynStackPush(xdynstack objSTK);
 	// 压入 dyn 栈数据
 	XXAPI uint32 xrtDynStackPushData(xdynstack objSTK, ptr pData);
 	// 压入 dyn 栈指针
 	XXAPI uint32 xrtDynStackPushPtr(xdynstack objSTK, ptr pVal);
-	
+
 	// 出栈
 	XXAPI ptr xrtDynStackPop(xdynstack objSTK);
 	// 弹出 dyn 栈指针
 	XXAPI ptr xrtDynStackPopPtr(xdynstack objSTK);
-	
+
 	// 获取栈顶对象
 	XXAPI ptr xrtDynStackTop(xdynstack objSTK);
 	// 获取顶部 dyn 栈指针
 	XXAPI ptr xrtDynStackTopPtr(xdynstack objSTK);
-	
+
 	// 获取任意位置对象
 	XXAPI ptr xrtDynStackGetPos(xdynstack objSTK, uint32 iPos);
 	// 不做边界检查，直接获取指定位置的动态栈对象
@@ -6545,21 +7759,21 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI ptr xrtDynStackGetPosPtr(xdynstack objSTK, uint32 iPos);
 	// 不做边界检查，直接获取指定位置的动态栈指针成员
 	XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos);
-	
-	
-	
+
+
+
 	/* ------------------------------------ AVLTree Base 函数库 ------------------------------------ */
-	
+
 	// AVL树最大高度
 	#define AVLTree_MAX_HEIGHT  46
-	
+
 	// AVL树节点基础定义
 	typedef struct xavltnode_struct {
 		struct xavltnode_struct* left;
 		struct xavltnode_struct* right;
 		int height;
 	} xavltnode_struct, *xavltnode;
-	
+
 	// AVL树迭代器结构（按需分配，无需存储树对象）
 	#define XRT_AVLITER_FLAG_HOLD_ROOT_LOCK	0x00000001u
 	typedef struct xavltree_iterator_struct {
@@ -6568,95 +7782,95 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		ptr Current;							// 当前节点数据
 		uint32 Flags;							// 迭代器附加状态
 	} xavltree_iterator_struct, *xavltree_iterator;
-	
+
 	// AVL树对象数据结构
 	typedef struct {
 		xavltnode RootNode;
 		uint32 Count;
 		xavltree_iterator Iterator;		// 当前激活的迭代器对象
 	} xavltbase_struct, *xavltbase;
-	
+
 	// 比较回调函数
 	typedef int (*AVLTree_CompProc)(ptr pNode, ptr pKey);
-	
+
 	// 遍历回调函数
 	typedef bool (*AVLTree_EachProc)(ptr pNode, ptr pArg);
-	
+
 	// 获取 xavltnode 对象
 	#define xrtAVLTreeGetNodeBase(p) ((xavltnode)((uint8*)(p) - sizeof(xavltnode_struct)))
-	
+
 	// 获取 xavltnode 对应的数据段
 	#define xrtAVLTreeGetNodeData(p) ((ptr)(&p[1]))
-	
+
 	// 获取根节点数据段
 	#define xrtAVLTreeGetRootData(obj) xrtAVLTreeGetNodeData(obj->RootNode)
-	
+
 	// 初始化 AVLTree
 	#define xrtAVLTB_Init(o) do { \
 		(o)->RootNode = NULL; \
 		(o)->Count = 0; \
 		(o)->Iterator = NULL; \
 	} while ( 0 )
-	
+
 	// 释放 AVLTree
 	#define xrtAVLTB_Unit xrtAVLTB_Init
-	
+
 	// 向 AVLTree 中插入节点
 	XXAPI xavltnode xrtAVLTB_Insert(xavltbase objAVLT, AVLTree_CompProc procComp, ptr pKey, xavltnode pNewNode);
-	
+
 	// 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
 	XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, ptr pKey);
-	
+
 	// 在 AVLTree 中查找节点
 	XXAPI xavltnode xrtAVLTB_Search(xavltbase objAVLT, AVLTree_CompProc procComp, ptr pKey);
-	
+
 	// 删除所有成员
 	#define xrtAVLTB_RemoveAll xrtAVLTB_Unit
-	
+
 	// 清空管理器
 	#define xrtAVLTB_Clear xrtAVLTB_Unit
-	
+
 	// 遍历 AVLTree 所有节点
 	XXAPI bool xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, ptr pArg);
 	// 以前序 / 中序 / 后序回调遍历 AVLTree
 	XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg);
 	#define xrtAVLTB_Walk(obj, p, a) xrtAVLTB_WalkRecuProc(obj->RootNode, (ptr)p, (ptr)a)
 	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) xrtAVLTB_WalkExRecuProc(obj->RootNode, (ptr)p1, (ptr)p2, (ptr)p3, (ptr)a)
-	
+
 	// 启动迭代器（按需创建迭代器对象）
 	XXAPI void xrtAVLTB_IterBegin(xavltbase objAVLT);
-	
+
 	// 获取下一个节点，返回 NULL 表示迭代结束
 	XXAPI ptr xrtAVLTB_IterNext(xavltbase objAVLT);
-	
+
 	// 手动结束迭代器（提前释放迭代器对象）
 	XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT);
-	
+
 	// 基础遍历宏
 	#define AVLTBASE_FOREACH(tree, var) \
 		xrtAVLTB_IterBegin((xavltbase)tree); \
 		for ( ptr var = xrtAVLTB_IterNext((xavltbase)tree); var != NULL; var = xrtAVLTB_IterNext((xavltbase)tree) )
-	
+
 	// 带类型转换的遍历宏
 	#define AVLTBASE_FOREACH_TYPE(tree, var, type) \
 		xrtAVLTB_IterBegin((xavltbase)tree); \
 		for ( type var = xrtAVLTB_IterNext((xavltbase)tree); var != NULL; var = xrtAVLTB_IterNext((xavltbase)tree) )
-	
+
 	// 跳出迭代器
 	#define AVLTBASE_BREAK(tree) xrtAVLTB_IterEnd((xavltbase)tree); break;
-	
-	
-	
+
+
+
 	/* ------------------------------------ AVLTree 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			AVLTree Base 函数库
 			Fixed-Size Memory Pool 函数库
 	*/
-	
+
 	// 键释放回调函数 ( 如果 key 中有额外需要释放的值时使用 )
 	typedef void (*AVLTree_FreeProc)(ptr objTree, ptr pNode);
-	
+
 	// AVL树对象数据结构
 	typedef struct xavltree_struct {
 		xavltnode RootNode;
@@ -6669,43 +7883,43 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		xfsmempool_struct objMM;
 		xavltnode NodeCache;
 	} xavltree_struct, *xavltree;
-	
+
 	// 创建 AVLTree
 	XXAPI xavltree xrtAVLTreeCreate(uint32 iItemLength, AVLTree_CompProc procComp, uint32 iMode);
-	
+
 	// 销毁 AVLTree
 	XXAPI void xrtAVLTreeDestroy(xavltree objAVLT);
-	
+
 	// 初始化 AVLTree（对自维护结构体指针使用，和 AVLTree_Create 功能类似）
 	XXAPI void xrtAVLTreeInit(xavltree objAVLT, uint32 iItemLength, AVLTree_CompProc procComp, uint32 iMode);
-	
+
 	// 释放 AVLTree（对自维护结构体指针使用，和 AVLTree_Destroy 功能类似）
 	XXAPI void xrtAVLTreeUnit(xavltree objAVLT);
 	// 显式锁定 AVLTree（shared 模式下可用于稳定访问内部指针/遍历）
 	XXAPI bool xrtAVLTreeLock(xavltree objAVLT);
 	// 解锁 AVL 树
 	XXAPI void xrtAVLTreeUnlock(xavltree objAVLT);
-	
+
 	// 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
 	XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, bool* bNew);
-	
+
 	// 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
 	XXAPI bool xrtAVLTreeRemove(xavltree objAVLT, ptr pKey);
-	
+
 	// 在 AVLTree 中查找节点
 	XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey);
-	
+
 	// 删除所有成员
 	#define xrtAVLTreeRemoveAll xrtAVLTreeUnit
-	
+
 	// 清空管理器
 	#define xrtAVLTreeClear xrtAVLTreeUnit
-	
+
 	// 遍历 AVLTree 所有节点
 	XXAPI bool xrtAVLTreeWalk(xavltree objAVLT, AVLTree_EachProc procEach, ptr pArg);
 	// 遍历 AVL 树扩展
 	XXAPI bool xrtAVLTreeWalkEx(xavltree objAVLT, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg);
-	
+
 	// 迭代器操作
 	XXAPI void xrtAVLTreeIterBegin(xavltree objAVLT);
 	// 获取下一个 AVL 树 iter
@@ -6719,22 +7933,22 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		xrtAVLTreeIterBegin(tree); \
 		for ( type var = xrtAVLTreeIterNext(tree); var != NULL; var = xrtAVLTreeIterNext(tree) )
 	#define AVLTREE_BREAK(tree) xrtAVLTreeIterEnd(tree); break;
-	
-	
-	
+
+
+
 	/* ------------------------------------ Memory Pool 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			BSMM 函数库
 			Fixed-Size Memory Pool 函数库
 	*/
-	
+
 	// MP256 or MP64K 大内存结构体前置结构
 	typedef struct {
 		uint32 Index;							// BigMM 的块索引
 		uint32 Flag;							// 符合 MM256 标准的 Flag
 	} MP_MemHead;
-	
+
 	// MP256 or MP64K 大内存信息链表结构体（实际返回的内存地址相当于 Ptr + sizeof(MP_MemHead)）
 	typedef struct MP_BigInfoLL {
 		uint32 Index;							// BigMM 槽位索引
@@ -6742,7 +7956,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		ptr Ptr;									// 指针地址，使用 mmu_malloc 返回的地址
 		struct MP_BigInfoLL* Next;					// 下一个链表节点（用于释放链表）
 	} MP_BigInfoLL;
-	
+
 	// 单个长度区间的内存管理器结构
 	typedef struct FSB_Item {
 		uint32 MinLength;						// 支持最小的内存长度
@@ -6754,7 +7968,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		struct FSB_Item* left;						// legacy tree pointer (unused in LUT mode)
 		struct FSB_Item* right;						// legacy tree pointer (unused in LUT mode)
 	} FSB_Item;
-	
+
 	// 通用内存池数据结构（LUT 分桶）
 	typedef struct {
 		xrtOwnerInfo Owner;							// 所有权信息
@@ -6768,73 +7982,73 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		xbsmm_struct BigMM;							// 大内存数组
 		MP_BigInfoLL* LL_BigFree;					// 大内存已释放的内存块链表
 	} xmempool_struct, *xmempool;
-	
+
 	// 创建内存池
 	XXAPI xmempool xrtMemPoolCreate(int iCustom, uint32 iMode);
-	
+
 	// 销毁内存池
 	XXAPI void xrtMemPoolDestroy(xmempool objMP);
-	
+
 	// 初始化内存池（对自维护结构体指针使用，和 MP256_Create 功能类似）
 	XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom, uint32 iMode);
-	
+
 	// 释放内存池（对自维护结构体指针使用，和 MP256_Destroy 功能类似）
 	XXAPI void xrtMemPoolUnit(xmempool objMP);
-	
+
 	// 从内存池中申请一块内存
 	XXAPI ptr xrtMemPoolAlloc(xmempool objMP, uint32 iSize);
-	
+
 	// 将内存池申请的内存释放掉
 	XXAPI void xrtMemPoolFree(xmempool objMP, ptr ptr);
-	
+
 	// 将一块内存标记为使用中
 	#define xrtMemPoolGC_Mark	xrtMemUnitGC_Mark
-	
+
 	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
 	XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Dict 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			AVLTree 函数库
 			Memory Pool 函数库
 	*/
-	
+
 	// 字典 Key 数据结构
 	typedef struct {
 		ptr Key;
 		uint32 KeyLen;
 		uint32 Hash;
 	} Dict_Key;
-	
+
 	// 字典对象数据结构
 	typedef struct {
 		xavltree_struct AVLT;
 		xmempool MP;
 		xrtOwnerInfo Owner;			// 所有权信息
 	} xdict_struct, *xdict;
-	
+
 	// 字典遍历回调函数
 	typedef bool (*Dict_EachProc)(Dict_Key* pKey, ptr pVal, ptr pArg);
-	
+
 	// 创建哈希表
 	XXAPI xdict xrtDictCreate(uint32 iItemLength, uint32 iMode);
-	
+
 	// 销毁哈希表
 	XXAPI void xrtDictDestroy(xdict objHT);
-	
+
 	// 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
 	XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength, uint32 iMode);
-	
+
 	// 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
 	XXAPI void xrtDictUnit(xdict objHT);
 	// 显式锁定哈希表（shared 模式下可用于稳定访问内部指针/遍历）
 	XXAPI bool xrtDictLock(xdict objHT);
 	// 解锁字典
 	XXAPI void xrtDictUnlock(xdict objHT);
-	
+
 	// 设置值
 	static inline ptr xrtDictSetWithKey(xdict objHT, Dict_Key* objKey, bool* bNewRet)
 	{
@@ -6867,10 +8081,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	}
 	// 设置字典
 	XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet);
-	
+
 	// 设置值 - 当值为 ptr 时直接修改指针内容
 	XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* ppOldVal);
-	
+
 	// 获取值
 	static inline ptr xrtDictGetWithKey(xdict objHT, Dict_Key* objKey)
 	{
@@ -6887,127 +8101,127 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	}
 	// 获取字典
 	XXAPI ptr xrtDictGet(xdict objHT, ptr sKey, uint32 iKeyLen);
-	
+
 	// 获取值 - 当值为 ptr 时直接获取指针内容
 	XXAPI ptr xrtDictGetPtr(xdict objHT, ptr sKey, uint32 iKeyLen);
-	
+
 	// 删除值
 	XXAPI bool xrtDictRemove(xdict objHT, ptr sKey, uint32 iKeyLen);
-	
+
 	// 删除值，当值为 ptr 时返回 ptr
 	XXAPI ptr xrtDictRemovePtr(xdict objHT, ptr sKey, uint32 iKeyLen);
-	
+
 	// 判断值是否存在
 	XXAPI bool xrtDictExists(xdict objHT, ptr sKey, uint32 iKeyLen);
-	
+
 	// 删除所有成员
 	#define xrtDictRemoveAll xrtDictUnit
-	
+
 	// 清空管理器
 	#define xrtDictClear xrtDictUnit
-	
+
 	// 获取表内元素数量
 	XXAPI uint32 xrtDictCount(xdict objHT);
-	
+
 	// 遍历表元素
 	XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg);
-	
+
 	// 迭代器操作
 	#define xrtDictIterBegin(obj) xrtAVLTB_IterBegin((xavltbase)obj)
 	#define xrtDictIterNext(obj)  xrtAVLTB_IterNext((xavltbase)obj)
 	#define xrtDictIterEnd(obj)   xrtAVLTB_IterEnd((xavltbase)obj)
 	#define DICT_BREAK AVLTBASE_BREAK
-	
+
 	// 迭代器辅助宏，强制展开 __LINE__
 	#define __XRT_CONCAT(a, b) a##b
 	#define __XRT_CONCATLINE(a, b) __XRT_CONCAT(a, b)
-	
+
 	// 基础遍历宏
 	#define DICT_FOREACH(tree, key, val) \
 		xrtAVLTB_IterBegin((xavltbase)tree); \
 		bool __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1; \
 		for ( Dict_Key* key = xrtAVLTB_IterNext((xavltbase)tree); key != NULL; key = xrtAVLTB_IterNext((xavltbase)tree), __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1 ) \
 			for ( ptr val = (ptr)(&key[1]); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 0 )
-	
+
 	// 带类型转换的遍历宏
 	#define DICT_FOREACH_TYPE(tree, key, val, type) \
 		xrtAVLTB_IterBegin((xavltbase)tree); \
 		bool __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1; \
 		for ( Dict_Key* key = xrtAVLTB_IterNext((xavltbase)tree); key != NULL; key = xrtAVLTB_IterNext((xavltbase)tree), __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1 ) \
 			for ( type val = (type)(&key[1]); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 0 )
-	
-	
-	
+
+
+
 	/* ------------------------------------ List 函数库 ------------------------------------ */
 	/*
 		依赖项：
 			AVLTree 函数库
 	*/
-	
+
 	// 列表对象数据结构
 	typedef struct {
 		xavltree_struct AVLT;
 		xrtOwnerInfo Owner;			// 所有权信息
 	} xlist_struct, *xlist;
-	
+
 	// 列表遍历回调函数
 	typedef bool (*List_EachProc)(int64 pKey, ptr pVal, ptr pArg);
-	
+
 	// 创建列表
 	XXAPI xlist xrtListCreate(uint32 iItemLength, uint32 iMode);
-	
+
 	// 销毁列表
 	XXAPI void xrtListDestroy(xlist objList);
-	
+
 	// 初始化列表（对自维护结构体指针使用）
 	XXAPI void xrtListInit(xlist objList, uint32 iItemLength, uint32 iMode);
-	
+
 	// 释放列表（对自维护结构体指针使用）
 	XXAPI void xrtListUnit(xlist objList);
 	// 显式锁定列表（shared 模式下可用于稳定访问内部指针/遍历）
 	XXAPI bool xrtListLock(xlist objList);
 	// 解锁列表
 	XXAPI void xrtListUnlock(xlist objList);
-	
+
 	// 设置值
 	XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet);
-	
+
 	// 设置值 - 当值为 ptr 时直接修改指针内容
 	XXAPI bool xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal);
-	
+
 	// 获取值
 	XXAPI ptr xrtListGet(xlist objList, int64 iKey);
-	
+
 	// 获取值 - 当值为 ptr 时直接获取指针内容
 	XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey);
-	
+
 	// 删除值
 	XXAPI bool xrtListRemove(xlist objList, int64 iKey);
-	
+
 	// 删除值，当值为 ptr 时返回 ptr
 	XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey);
-	
+
 	// 判断值是否存在
 	XXAPI bool xrtListExists(xlist objList, int64 iKey);
-	
+
 	// 删除所有成员
 	#define xrtListRemoveAll xrtListUnit
-	
+
 	// 清空管理器
 	#define xrtListClear xrtListUnit
-	
+
 	// 获取表内元素数量
 	XXAPI uint32 xrtListCount(xlist objList);
-	
+
 	// 遍历表元素
 	XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg);
-	
+
 	// 迭代器操作
 	#define xrtListIterBegin(obj) xrtAVLTB_IterBegin((xavltbase)obj)
 	#define xrtListIterNext(obj)  xrtAVLTB_IterNext((xavltbase)obj)
 	#define xrtListIterEnd(obj)   xrtAVLTB_IterEnd((xavltbase)obj)
 	#define LIST_BREAK AVLTBASE_BREAK
-	
+
 	// 基础遍历宏
 	#define XRT_LIST_FOREACH(tree, idx, val) \
 		xrtAVLTB_IterBegin((xavltbase)tree); \
@@ -7015,7 +8229,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		int64* __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) = xrtAVLTB_IterNext((xavltbase)tree); \
 		for ( int64 idx = __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) ? __XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[0] : 0; __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) != NULL; __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) = xrtAVLTB_IterNext((xavltbase)tree), idx = __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) ? __XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[0] : 0, __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1 ) \
 			for ( ptr val = (ptr)(&__XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[1]); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 0 )
-	
+
 	// 带类型转换的遍历宏
 	#define XRT_LIST_FOREACH_TYPE(tree, idx, val, type) \
 		xrtAVLTB_IterBegin((xavltbase)tree); \
@@ -7023,10 +8237,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		int64* __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) = xrtAVLTB_IterNext((xavltbase)tree); \
 		for ( int64 idx = __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) ? __XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[0] : 0; __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) != NULL; __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) = xrtAVLTB_IterNext((xavltbase)tree), idx = __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) ? __XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[0] : 0, __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1 ) \
 			for ( type val = (type)(&__XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[1]); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 0 )
-	
-	
+
+
 	/* ------------------------------------ JNUM 函数库 ------------------------------------ */
-	
+
 	// 数值类型
 	typedef enum {
 		JNUM_NULL,
@@ -7037,7 +8251,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		JNUM_LHEX,
 		JNUM_DOUBLE,
 	} jnum_type_t;
-	
+
 	// 数值
 	typedef union {
 		bool vbool;
@@ -7047,7 +8261,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		uint64_t vlhex;
 		double vdbl;
 	} jnum_value_t;
-	
+
 	// 数字转字符串
 	XXAPI int xrtI32ToStr(int32_t num, char* buffer);
 	// 将 int64 转为字符串
@@ -7058,10 +8272,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI int xrtU64ToStr(uint64_t num, char* buffer);
 	// 将浮点数转为字符串
 	XXAPI int xrtNumToStr(double num, char* buffer);
-	
+
 	// 解析数字字符串
 	XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value);
-	
+
 	// 解析字符串（自动跳过前导空白字符）
 	static inline int xrtParseNumSkipSpace(const void *str, jnum_type_t *type, jnum_value_t *value)
 	{
@@ -7076,7 +8290,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	next:
 		return (int)(xrtParseNum(s, type, value) + (s - pBase));
 	}
-	
+
 	// 字符串转数字
 	XXAPI int32_t xrtStrToI32(const void* pStr);
 	// 将字符串转为 int64
@@ -7087,9 +8301,9 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI uint64_t xrtStrToU64(const void* pStr);
 	// 将字符串转为浮点数
 	XXAPI double xrtStrToNum(const void* pStr);
-	
-	
-	
+
+
+
 	/* ------------------------------------ Runtime Type 函数库 ------------------------------------ */
 	/*
 		说明：
@@ -7573,7 +8787,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			Dict 函数库
 			Time 函数库
 	*/
-	
+
 	// 数据类型 - 主类型
 	#define XVO_DT_NULL				0				// null
 	#define XVO_DT_BOOL				1				// bool : true | false
@@ -7598,7 +8812,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define XVO_HEADER_REFCOUNT_MASK	(XVO_HEADER_REFCOUNT_MAX << XVO_HEADER_REFCOUNT_SHIFT)
 	#define XVO_HEADER_INIT(iType, bStatic, bShared, iRefCount) \
 		((((uint32)(iType)) & 0x0Fu) | ((bShared) ? XVO_HEADER_SHARED_MASK : 0u) | ((bStatic) ? XVO_HEADER_STATIC_MASK : 0u) | ((((uint32)(iRefCount)) & XVO_HEADER_REFCOUNT_MAX) << XVO_HEADER_REFCOUNT_SHIFT))
-	
+
 	// Value 标准数据类
 	struct xvalue_struct {
 		union {
@@ -7634,10 +8848,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			const xrt_type_desc* vTypeDesc;
 		};
 	};
-	
+
 	// 函数指针类型定义
 	typedef xvalue (*xfunction)(xvalue pENV, xvalue arrParam);
-	
+
 	// Custom 类虚表（用于自定义对象接入 Value 生命周期）
 	struct xcustom_struct {
 		void (*construct)(xvalue var);
@@ -7744,7 +8958,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		}
 		return xvoMakeShared_Inline(pVal);
 	}
-	
+
 	// 引用计数操作
 	XXAPI void xvoAddRef(xvalue pVal);
 	// 创建独立外壳并共享容器 backing；标量沿用普通引用语义
@@ -7792,7 +9006,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			}
 		}
 	}
-	
+
 	// 创建值
 	XXAPI xvalue xvoCreateNull();
 	// 创建布尔值
@@ -7854,7 +9068,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI xvalue xvoCreateSetArgs(uint32 iCount, ...);
 	// 使用可变参数创建表字面量，参数为 key/value 成对出现
 	XXAPI xvalue xvoCreateTableArgs(uint32 iCount, ...);
-	
+
 	// 读取值
 	XXAPI bool xvoGetBool(xvalue pVal);
 	// 获取整数
@@ -7910,7 +9124,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI ptr xvoGetHandleData(xvalue pVal);
 	// 获取 typed handle 的可写句柄槽；裸 custom 或其他类型返回 NULL
 	XXAPI ptr* xvoGetHandleSlot(xvalue pVal);
-	
+
 	// Array 读数据
 	XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index);
 	#define xvoArrayGetBool(pArr, index)														xvoGetBool(xvoArrayGetValue(pArr, index))
@@ -7926,7 +9140,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoArrayGetTable(pArr, index)														xvoGetTable(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetClass(pArr, index)														xvoGetClass(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetCustom(pArr, index)														xvoGetCustom(xvoArrayGetValue(pArr, index))
-	
+
 	// Array 追加数据
 	XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc);
 	#define xvoArrayAppendNull(pArr)															xvoArrayAppendValue(pArr, xvoCreateNull(), TRUE)
@@ -7944,7 +9158,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoArrayAppendTable(pArr)															xvoArrayAppendValue(pArr, xvoCreateTable(), TRUE)
 	#define xvoArrayAppendClass(pArr, size)														xvoArrayAppendValue(pArr, xvoCreateClass(size), TRUE)
 	#define xvoArrayAppendCustom(pArr, point)													xvoArrayAppendValue(pArr, xvoCreateCustom(point), TRUE)
-	
+
 	// Array 插入操作
 	XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc);
 	#define xvoArrayInsertNull(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateNull(), TRUE)
@@ -7962,7 +9176,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoArrayInsertTable(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateTable(), TRUE)
 	#define xvoArrayInsertClass(pArr, idx, size)												xvoArrayInsertValue(pArr, idx, xvoCreateClass(size), TRUE)
 	#define xvoArrayInsertCustom(pArr, idx, point)												xvoArrayInsertValue(pArr, idx, xvoCreateCustom(point), TRUE)
-	
+
 	// Array 修改操作
 	XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc);
 	#define xvoArraySetNull(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateNull(), TRUE)
@@ -7980,10 +9194,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoArraySetTable(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateTable(), TRUE)
 	#define xvoArraySetClass(pArr, idx, size)													xvoArraySetValue(pArr, idx, xvoCreateClass(size), TRUE)
 	#define xvoArraySetCustom(pArr, idx, point)													xvoArraySetValue(pArr, idx, xvoCreateCustom(point), TRUE)
-	
+
 	// Array 合并
 	XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2);
-	
+
 	// Array 操作
 	XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2);
 	// 删除数组
@@ -8000,7 +9214,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count);
 	// 对数组成员排序
 	XXAPI bool xvoArraySort(xvalue pArr, ptr proc);
-	
+
 	// List 读数据
 	XXAPI xvalue xvoListGetValue(xvalue pList, int64 index);
 	#define xvoListGetBool(pList, index)														xvoGetBool(xvoListGetValue(pList, index))
@@ -8016,7 +9230,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoListGetTable(pList, index)														xvoGetTable(xvoListGetValue(pList, index))
 	#define xvoListGetClass(pList, index)														xvoGetClass(xvoListGetValue(pList, index))
 	#define xvoListGetCustom(pList, index)														xvoGetCustom(xvoListGetValue(pList, index))
-	
+
 	// List 写数据
 	XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc);
 	#define xvoListSetNull(pList, idx)															xvoListSetValue(pList, idx, xvoCreateNull(), TRUE)
@@ -8034,10 +9248,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoListSetTable(pList, idx)															xvoListSetValue(pList, idx, xvoCreateTable(), TRUE)
 	#define xvoListSetClass(pList, idx, size)													xvoListSetValue(pList, idx, xvoCreateClass(size), TRUE)
 	#define xvoListSetCustom(pList, idx, point)													xvoListSetValue(pList, idx, xvoCreateCustom(point), TRUE)
-	
+
 	// List 合并
 	XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite);
-	
+
 	// List 操作
 	XXAPI bool xvoListExists(xvalue pList, int64 index);
 	// 删除列表
@@ -8050,13 +9264,13 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI bool xvoListClear(xvalue pList);
 	// 设置列表父节点
 	XXAPI bool xvoListSetParent(xvalue pList, xvalue pParentList);
-	
+
 	// Coll Key 数据结构
 	typedef struct {
 		uint64 Hash;
 		xvalue Value;
 	} Coll_Key;
-	
+
 	// 构建 Coll_Key（文本值额外编码长度与哈希，其他值复用类型位和数值位）
 	#if defined(__x86_64__) || defined(_M_X64)
 		// 64 bit
@@ -8065,7 +9279,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		// 32 bit
 		#define MAKE_COLL_KEY(k, v) if ( v->Type == XVO_DT_TEXT ) { uint32 iHash = xrtHash32(v->vText, v->Size); k.Hash = ((uint64)v->Type << 60) | ((uint64)v->Size << 28) | (iHash & 0xFFFFFFF); } else if ( v->Type == XVO_DT_BOOL ) { k.Hash = ((uint64)v->Type << 60) | v->vBool; } else if ( v->Type == XVO_DT_NULL ) { k.Hash = (uint64)v->Type << 60; } else { k.Hash = ((uint64)v->Type << 60) | (v->vInt & 0xFFFFFFFFFFFFFFF); } k.Value = v;
 	#endif
-	
+
 	// Coll 内联写数据
 	static inline bool xvoCollSetValueWithKey(xavltree pColl, Coll_Key* objKey, bool bColloc)
 	{
@@ -8093,7 +9307,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		}
 		return FALSE;
 	}
-	
+
 	// Coll 写数据
 	XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc);
 	#define xvoCollSetNull(pList)																xvoCollSetValue(pList, xvoCreateNull(), TRUE)
@@ -8106,22 +9320,22 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoCollSetPoint(pList, pVal)														xvoCollSetValue(pList, xvoCreatePoint(pVal), TRUE)
 	#define xvoCollSetFunc(pList, func)															xvoCollSetValue(pList, xvoCreateFunc(func), TRUE)
 	#define xvoCollSetCustom(pList, point)														xvoCollSetValue(pList, xvoCreateCustom(point), TRUE)
-	
+
 	// Coll 获取差集 [ pSelf 集合相对 pColl 集合不存在的元素 ]
 	XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl);
-	
+
 	// Coll 获取对称差集 [ 两个集合中不重复的元素 ]
 	XXAPI xvalue xvoCollSymmetricDifference(xvalue pSelf, xvalue pColl);
-	
+
 	// Coll 获取交集 [ pSelf 集合相对 pColl 集合存在的元素 ]
 	XXAPI xvalue xvoCollIntersection(xvalue pSelf, xvalue pColl);
-	
+
 	// Coll 获取并集 [ 合并两个集合，返回和一个新的集合 ]
 	XXAPI xvalue xvoCollUnion(xvalue pSelf, xvalue pColl);
-	
+
 	// Coll 合并集合 [ 将 pColl 中的元素并入 pSelf ]
 	XXAPI bool xvoCollMerge(xvalue pSelf, xvalue pColl);
-	
+
 	// Coll 操作
 	XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal);
 	// 从集合中删除一个值
@@ -8139,7 +9353,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI bool xvoSetClear(xvalue pSet);
 	// 设置集合父节点
 	XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl);
-	
+
 	// Table 读数据
 	XXAPI xvalue xvoTableGetValue(xvalue pTbl, const void* key, uint32 kl);
 	#define xvoTableGetBool(pTbl, key, kl)														xvoGetBool(xvoTableGetValue(pTbl, key, kl))
@@ -8155,7 +9369,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoTableGetTable(pTbl, key, kl)														xvoGetTable(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetClass(pTbl, key, kl)														xvoGetClass(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetCustom(pTbl, key, kl)													xvoGetCustom(xvoTableGetValue(pTbl, key, kl))
-	
+
 	// Table 写数据
 	XXAPI bool xvoTableSetValue(xvalue pTbl, const void* key, uint32 kl, xvalue pVal, bool bColloc);
 	#define xvoTableSetNull(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateNull(), TRUE)
@@ -8173,10 +9387,10 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoTableSetTable(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateTable(), TRUE)
 	#define xvoTableSetClass(pTbl, key, kl, size)												xvoTableSetValue(pTbl, key, kl, xvoCreateClass(size), TRUE)
 	#define xvoTableSetCustom(pTbl, key, kl, point)												xvoTableSetValue(pTbl, key, kl, xvoCreateCustom(point), TRUE)
-	
+
 	// Table 合并
 	XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite);
-	
+
 	// Table 操作
 	XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl);
 	// 从表中删除一个键
@@ -8191,7 +9405,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI bool xvoTableWalk(xvalue pTbl, Dict_EachProc procEach, ptr pArg);
 	// 设置表父节点
 	XXAPI bool xvoTableSetParent(xvalue pTbl, xvalue pParentTable);
-	
+
 	// 类型操作
 	XXAPI bool xvoIsNull(xvalue pVal);
 	// 获取值类型
@@ -8234,32 +9448,32 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	#define xvoArrayItemType(pArr, index)														xvoType(xvoArrayGetValue(pArr, index))
 	#define xvoListItemType(pList, index)														xvoType(xvoListGetValue(pList, index))
 	#define xvoTableItemType(pTbl, key, kl)														xvoType(xvoTableGetValue(pTbl, key, kl))
-	
+
 	// 获取数据长度
 	XXAPI uint32 xvoGetSize(xvalue pVal);
 	#define xvoArrayItemSize(pArr, index)														xvoGetSize(xvoArrayGetValue(pArr, index))
 	#define xvoListItemSize(pList, index)														xvoGetSize(xvoListGetValue(pList, index))
 	#define xvoTableItemSize(pTbl, key, kl)														xvoGetSize(xvoTableGetValue(pTbl, key, kl))
-	
+
 	// 浅拷贝
 	XXAPI xvalue xvoCopy(xvalue pVal);
 	// 按对象模式浅拷贝；共享模式会递归复制复合值，保证整张值图可安全发布
 	XXAPI xvalue xvoCopyEx(xvalue pVal, uint32 iMode);
-	
+
 	// 深拷贝
 	XXAPI xvalue xvoDeepCopy(xvalue pVal);
 	// 按对象模式深拷贝
 	XXAPI xvalue xvoDeepCopyEx(xvalue pVal, uint32 iMode);
 	// 将值的所有权发布到共享环境；成功后调用方不再持有原本地值
 	XXAPI xvalue xvoMoveToShared(xvalue pVal);
-	
+
 	// 输出 xte Value 的结构和值
 	XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str sKey);
 	// 按 xlang print 语义输出 xvalue
 	XXAPI void xvoPrint(xvalue pVal, bool bNewLine);
-	
-	
-	
+
+
+
 	/* ------------------------------------ JSON 函数库 ------------------------------------ */
 	/*
 		依赖项：
@@ -8267,7 +9481,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			Value 函数库
 			JNUM 函数库
 	*/
-	
+
 	// json对象的类型
 	typedef enum {
 		JSON_NULL = 0,              /* It doesn't has value variable: null */
@@ -8281,7 +9495,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		JSON_ARRAY,                 /* Collection type: array */
 		JSON_OBJECT                 /* Collection type: object */
 	} json_type_t;
-	
+
 	// json对象的键或字符串类型的值的信息（LJSON使用此结构就知道了字符串长度，可以加快数据处理）
 	typedef struct {
 		uint32_t type:4;			// json对象的类型，只在作为json对象的键时才有效
@@ -8290,13 +9504,13 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		uint32_t reserved:2;		// 保留位
 		uint32_t len:24;			// 字符串长度
 	} json_strinfo_t;
-	
+
 	// 带信息的字符串（LJSON使用此结构就知道了字符串长度，可以加快数据处理）
 	typedef struct {
 		char *str;					// 字符串数据
 		json_strinfo_t info;		// 字符串信息
 	} json_string_t;
-	
+
 	// json数字类型的值（LJSON支持长整数和十六进制数）
 	typedef union {
 		bool vbool;
@@ -8306,20 +9520,20 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		uint64_t vlhex;
 		double vdbl;
 	} json_number_t;
-	
+
 	// SAX APIs中指示JSON_ARRAY或JSON_OBJECT的开始和结束（集合类型是括号包起来的，JSON_SAX_START表示左边括号, JSON_SAX_FINISH指示右边括号）
 	typedef enum {
 		JSON_SAX_START = 0,
 		JSON_SAX_FINISH
 	} json_sax_cmd_t;
-	
+
 	// json对象的值（LJSON使用union管理对象的值从而节省内存空间）
 	typedef union {
 		json_number_t vnum;			// 数字类型的值
 		json_string_t vstr;			// 字符串类型的值
 		json_sax_cmd_t vcmd;		// SAX APIs指示集合对象的开始和结束
 	} json_sax_value_t;
-	
+
 	// SAX解析器传递给回调函数的描述（LJSON SAX解析将维护用于状态机的深度信息。）
 	typedef struct {
 		int total;					// 数组深度的大小
@@ -8328,7 +9542,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		json_sax_value_t value;		// json对象值
 		void *userdata;				// 用户数据指针
 	} json_sax_parser_t;
-	
+
 	// SAX的回调函数（返回 `JSON_SAX_PARSE_CONTINUE` 表示继续解析；返回 `JSON_SAX_PARSE_STOP` 表示停止解析）
 	typedef enum {
 		JSON_SAX_PARSE_CONTINUE = 0,
@@ -8336,17 +9550,17 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	} json_sax_ret_t;
 	// SAX 回调函数类型
 	typedef json_sax_ret_t (*json_sax_cb_t)(json_sax_parser_t *parser);
-	
+
 	// 获取json_string_t的信息（str含有 `"  \  \b  \f  \n  \r  \t  \v` 字符时会设置escaped）
 	XXAPI json_strinfo_t xrtJsonGetStringInfo(const char *str, const json_strinfo_t *orig);
-	
+
 	// 更新json_string_t的信息（jstr->info.len是0时数据才会更新）
 	static inline void xrtJsonUpdateStringInfo(json_string_t *jstr)
 	{
 		if (!jstr->info.len)
 			jstr->info = xrtJsonGetStringInfo(jstr->str, &jstr->info);
 	}
-	
+
 	// 从字符串进行SAX解析（失败返回-1；成功返回0）
 	XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb);
 
@@ -8384,13 +9598,13 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 
 	/* 返回 0 表示完整遍历，1 表示回调主动停止，-1 表示输入或参数错误。 */
 	XXAPI int xrtJsonVisit(const char* text, size_t size, xrt_json_event_proc proc, void* userdata);
-	
+
 	// 打印缓冲
 	typedef struct {
 		size_t size;
 		char *p;
 	} json_print_ptr_t;
-	
+
 	// 打印参数设置
 	typedef struct {
 		size_t plus_size;
@@ -8399,13 +9613,13 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		bool format_flag;
 		json_print_ptr_t *ptr;
 	} json_print_choice_t;
-	
+
 	// SAX打印句柄（实际就是 `json_sax_print_t` 的指针）
 	typedef ptr json_sax_print_hd;
-	
+
 	// 启动SAX打印器；失败返回NULL，成功返回指针（SAX打印器的句柄）
 	XXAPI json_sax_print_hd xrtJsonPrintStart(json_print_choice_t *choice);
-	
+
 	// 启动格式化的SAX打印器，输出到字符串
 	static inline json_sax_print_hd json_sax_print_format_start(int item_total, json_print_ptr_t *ptr)
 	{
@@ -8416,7 +9630,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		choice.ptr = ptr;
 		return xrtJsonPrintStart(&choice);
 	}
-	
+
 	// 启动压缩的SAX打印器，输出到字符串
 	static inline json_sax_print_hd json_sax_print_unformat_start(int item_total, json_print_ptr_t *ptr)
 	{
@@ -8427,7 +9641,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		choice.ptr = ptr;
 		return xrtJsonPrintStart(&choice);
 	}
-	
+
 	// SAX打印json对象
 	XXAPI int xrtJsonPrintValue(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value);
 	// SAX 打印快捷包装
@@ -8450,16 +9664,16 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	static inline int xrtJsonPrintArray(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return xrtJsonPrintValue(handle, JSON_ARRAY, jkey, &value); }
 	// 输出 JSON 对象开始 / 结束标记
 	static inline int xrtJsonPrintObject(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return xrtJsonPrintValue(handle, JSON_OBJECT, jkey, &value); }
-	
+
 	// SAX 打印集合快捷宏
 	#define xrtJsonPrintArrayNull(handle)         xrtJsonPrintNull  (handle, NULL, NULL)
 	#define xrtJsonPrintArrayStart(handle, jkey)  xrtJsonPrintArray (handle, jkey, JSON_SAX_START)
 	#define xrtJsonPrintArrayFinish(handle)       xrtJsonPrintArray (handle, NULL, JSON_SAX_FINISH)
-	
+
 	#define xrtJsonPrintObjectNull(handle, jkey)  xrtJsonPrintNull  (handle, jkey, NULL)
 	#define xrtJsonPrintObjectStart(handle, jkey) xrtJsonPrintObject(handle, jkey, JSON_SAX_START)
 	#define xrtJsonPrintObjectFinish(handle)      xrtJsonPrintObject(handle, NULL, JSON_SAX_FINISH)
-	
+
 	// 结束SAX打印器
 	XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
 
@@ -8488,21 +9702,21 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI bool xrtJsonWriterValueKey(xjsonwriter writer, const char* key, xvalue value);
 	/* finish 消耗内部打印状态；返回字符串由调用方使用 xrtFree 释放。 */
 	XXAPI char* xrtJsonWriterFinish(xjsonwriter writer, size_t* size);
-	
+
 	// 解析 JSON
 	XXAPI xvalue xrtParseJSON(str sText, size_t iSize);
 	// 验证 JSON
 	XXAPI bool xrtJsonValid(str sText, size_t iSize);
 	// 解析 JSON 文件
 	XXAPI xvalue xrtParseJSON_File(str sFile);
-	
+
 	// 将 xvalue 转换为 JSON
 	XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize);
 	// 将 xvalue 格式化为 JSON 并写入文件
 	XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat);
-	
-	
-	
+
+
+
 	#if !defined(XRT_NO_XSON)
 	/* ------------------------------------ XSON 函数库 ------------------------------------ */
 	/*
@@ -8513,7 +9727,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			JNUM 函数库
 			JSON 函数库
 	*/
-	
+
 	#define XSON_F_IGNORE_UNSUPPORTED_ENCODE	0x0001u
 	#define XSON_F_IGNORE_UNSUPPORTED_DECODE	0x0002u
 
@@ -8524,13 +9738,96 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		bool ignore_unsupported_decode;
 	} xson_options;
 
+	typedef enum {
+		XRT_XSON_EVENT_NULL = 0,
+		XRT_XSON_EVENT_BOOL,
+		XRT_XSON_EVENT_INT,
+		XRT_XSON_EVENT_FLOAT,
+		XRT_XSON_EVENT_STRING,
+		XRT_XSON_EVENT_TIME,
+		XRT_XSON_EVENT_CLASS,
+		XRT_XSON_EVENT_ARRAY_BEGIN,
+		XRT_XSON_EVENT_ARRAY_END,
+		XRT_XSON_EVENT_LIST_BEGIN,
+		XRT_XSON_EVENT_LIST_END,
+		XRT_XSON_EVENT_DICT_BEGIN,
+		XRT_XSON_EVENT_DICT_END,
+		XRT_XSON_EVENT_SET_BEGIN,
+		XRT_XSON_EVENT_SET_END,
+		XRT_XSON_EVENT_UNSUPPORTED
+	} xrt_xson_event_type;
+
+	typedef struct {
+		xrt_xson_event_type type;
+		uint32 depth;
+		const char* key;
+		size_t key_size;
+		bool has_index;
+		int64 index;
+		const char* text;
+		size_t text_size;
+		bool bool_value;
+		int64 int_value;
+		double float_value;
+		xtime time_value;
+		xvalue value;
+	} xrt_xson_event;
+
+	typedef bool (*xrt_xson_event_proc)(const xrt_xson_event* event, void* userdata);
+
+	typedef struct xrt_xson_writer_struct* xxsonwriter;
+
 	XXAPI xson_options xrtXsonOptionsDefault(void);
 	XXAPI xvalue xrtParseXSONWithOptions(const char* text, size_t size, const xson_options* options);
 	XXAPI bool xrtXsonValidWithOptions(const char* text, size_t size, const xson_options* options);
 	XXAPI xvalue xrtParseXSONFileWithOptions(const char* file, const xson_options* options);
 	XXAPI char* xrtStringifyXSONWithOptions(xvalue value, const xson_options* options, size_t* size);
 	XXAPI int xrtStringifyXSONFileWithOptions(const char* file, xvalue value, const xson_options* options);
-	
+	XXAPI int xrtXsonVisitValue(xvalue value, xrt_xson_event_proc proc, void* userdata);
+	XXAPI int xrtXsonVisitWithOptions(const char* text, size_t size, const xson_options* options, xrt_xson_event_proc proc, void* userdata);
+	XXAPI int xrtXsonVisit(const char* text, size_t size, uint32 flags, xrt_xson_event_proc proc, void* userdata);
+	XXAPI xxsonwriter xrtXsonWriterCreate(bool pretty, uint32 flags);
+	XXAPI xxsonwriter xrtXsonWriterCreateWithOptions(const xson_options* options);
+	XXAPI void xrtXsonWriterDestroy(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterBeginArray(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterBeginArrayKey(xxsonwriter writer, const char* key);
+	XXAPI bool xrtXsonWriterBeginArrayIndex(xxsonwriter writer, int64 index);
+	XXAPI bool xrtXsonWriterEndArray(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterBeginList(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterBeginListKey(xxsonwriter writer, const char* key);
+	XXAPI bool xrtXsonWriterBeginListIndex(xxsonwriter writer, int64 index);
+	XXAPI bool xrtXsonWriterEndList(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterBeginDict(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterBeginDictKey(xxsonwriter writer, const char* key);
+	XXAPI bool xrtXsonWriterBeginDictIndex(xxsonwriter writer, int64 index);
+	XXAPI bool xrtXsonWriterEndDict(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterBeginSet(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterBeginSetKey(xxsonwriter writer, const char* key);
+	XXAPI bool xrtXsonWriterBeginSetIndex(xxsonwriter writer, int64 index);
+	XXAPI bool xrtXsonWriterEndSet(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterNull(xxsonwriter writer);
+	XXAPI bool xrtXsonWriterNullKey(xxsonwriter writer, const char* key);
+	XXAPI bool xrtXsonWriterNullIndex(xxsonwriter writer, int64 index);
+	XXAPI bool xrtXsonWriterBool(xxsonwriter writer, bool value);
+	XXAPI bool xrtXsonWriterBoolKey(xxsonwriter writer, const char* key, bool value);
+	XXAPI bool xrtXsonWriterBoolIndex(xxsonwriter writer, int64 index, bool value);
+	XXAPI bool xrtXsonWriterInt(xxsonwriter writer, int64 value);
+	XXAPI bool xrtXsonWriterIntKey(xxsonwriter writer, const char* key, int64 value);
+	XXAPI bool xrtXsonWriterIntIndex(xxsonwriter writer, int64 index, int64 value);
+	XXAPI bool xrtXsonWriterFloat(xxsonwriter writer, double value);
+	XXAPI bool xrtXsonWriterFloatKey(xxsonwriter writer, const char* key, double value);
+	XXAPI bool xrtXsonWriterFloatIndex(xxsonwriter writer, int64 index, double value);
+	XXAPI bool xrtXsonWriterString(xxsonwriter writer, const char* value);
+	XXAPI bool xrtXsonWriterStringKey(xxsonwriter writer, const char* key, const char* value);
+	XXAPI bool xrtXsonWriterStringIndex(xxsonwriter writer, int64 index, const char* value);
+	XXAPI bool xrtXsonWriterTime(xxsonwriter writer, xtime value);
+	XXAPI bool xrtXsonWriterTimeKey(xxsonwriter writer, const char* key, xtime value);
+	XXAPI bool xrtXsonWriterTimeIndex(xxsonwriter writer, int64 index, xtime value);
+	XXAPI bool xrtXsonWriterValue(xxsonwriter writer, xvalue value);
+	XXAPI bool xrtXsonWriterValueKey(xxsonwriter writer, const char* key, xvalue value);
+	XXAPI bool xrtXsonWriterValueIndex(xxsonwriter writer, int64 index, xvalue value);
+	XXAPI char* xrtXsonWriterFinish(xxsonwriter writer, size_t* size);
+
 	// 解析 XSON（保持对 JSON 的兼容）
 	XXAPI xvalue xrtParseXSON(str sText, size_t iSize);
 	// 解析 XSON 扩展
@@ -8541,15 +9838,15 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	XXAPI xvalue xrtParseXSON_File(str sFile);
 	// 解析 XSON 文件扩展
 	XXAPI xvalue xrtParseXSON_FileEx(str sFile, uint32 iFlags);
-	
+
 	// 将 xvalue 转换为 XSON
 	XXAPI str xrtStringifyXSON(xvalue varVal, int bFormat, uint32 iFlags, size_t* pRetSize);
 	// 将 xvalue 格式化为 XSON 并写入文件
 	XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iFlags);
 	#endif
-	
-	
-	
+
+
+
 	/* ------------------------------------ Template 函数库 ------------------------------------ */
 	/*
 		依赖项：
@@ -8561,7 +9858,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 			Value 函数库
 			JNUM 函数库
 	*/
-	
+
 	typedef struct XTE_Engine_Struct* xteengine;
 	typedef struct XTE_Template_Struct* xtetemplate;
 	typedef struct XTE_RenderCtx_Struct XTE_RenderCtx;
@@ -8870,24 +10167,24 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 	// 使用指定作用域渲染语句主体
 	XXAPI int xteStmtRenderBodyWithScope(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xvalue pCurrent);
 	#ifdef XTE_ENABLE_FILE
-		
+
 		// 将模板调试结果保存到文件
 		XXAPI int xteTemplateSaveFile(xtetemplate hTemplate, const char* sFilePath, uint32 iFlags, XTE_Error* pError);
 		// 加载模板文件
 		XXAPI xtetemplate xteTemplateLoadFile(xteengine hEngine, const char* sFilePath, uint32 iFlags, XTE_Error* pError);
-		
+
 	#endif
 	#ifdef XTE_DEBUGMODE
-		
+
 		// 导出模板
 		XXAPI int xteTemplateDump(xtetemplate hTemplate, XTE_Writer* pWriter, uint32 iFlags);
 		// 将模板调试信息输出到控制台
 		XXAPI int xteTemplateDumpConsole(xtetemplate hTemplate, uint32 iFlags);
-		
+
 	#endif
-	
-	
-	
+
+
+
 	/* ------------------------------------ Memory Debug Helper 调试包装 ------------------------------------ */
 	/*
 		依赖项：

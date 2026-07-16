@@ -79,6 +79,24 @@ void Test_Crypto(xrtGlobalData* xCore)
 		}
 	}
 	
+	// ==================== PBKDF2-HMAC-SHA256 测试 ====================
+	printf("\n--- PBKDF2-HMAC-SHA256 测试 ---\n");
+	{
+		uint8 tOut[32];
+		const uint8 tExpected[32] = {
+			0xae, 0x4d, 0x0c, 0x95, 0xaf, 0x6b, 0x46, 0xd3,
+			0x2d, 0x0a, 0xdf, 0xf9, 0x28, 0xf0, 0x6d, 0xd0,
+			0x2a, 0x30, 0x3f, 0x8e, 0xf3, 0xc2, 0x51, 0xdf,
+			0xd6, 0xe2, 0xd8, 0x5a, 0x95, 0x47, 0x4c, 0x43
+		};
+		bool bOK = xrtPBKDF2_SHA256(
+			(const uint8*)"password", 8,
+			(const uint8*)"salt", 4,
+			2, tOut, sizeof(tOut));
+		bOK = bOK && xrtConstTimeEqual(tOut, tExpected, sizeof(tOut));
+		printf("  PBKDF2-SHA256 RFC vector : %s\n", bOK ? "PASS" : "FAIL");
+	}
+
 	// ==================== ChaCha20 测试 ====================
 	printf("\n--- ChaCha20 测试 ---\n");
 	

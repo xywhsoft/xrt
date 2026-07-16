@@ -136,9 +136,19 @@ static void __Test_XNet2_TLSOnError(ptr pOwner, xnetstream* pStream, int iSysErr
 }
 
 
-// XNET2TLS测试
-void Test_XNet2_TLS(void)
+// 统一记录测试结果，避免“输出 FAIL 但测试进程仍返回成功”。
+static void __Test_XNet2_TLSResult(bool* pAllPass, const char* sName, bool bPass)
 {
+	if ( pAllPass && !bPass ) { *pAllPass = false; }
+	printf("  %s : %s\n", sName, bPass ? "PASS" : "FAIL");
+}
+
+
+// XNET2TLS测试
+int Test_XNet2_TLS(void)
+{
+	bool bAllPass = true;
+
 	printf("\n\n\n------------------------------------\n\n XNet2 TLS Adapter Test:\n\n");
 
 	{
@@ -160,7 +170,7 @@ void Test_XNet2_TLS(void)
 
 		if ( !__Test_XNet2_TLSFileExists(sCertPath) || !__Test_XNet2_TLSFileExists(sKeyPath) ) {
 			printf("  TLS fixture files missing : SKIP\n");
-			return;
+			return 0;
 		}
 
 		memset(&tEvents, 0, sizeof(tEvents));
@@ -195,37 +205,47 @@ void Test_XNet2_TLS(void)
 		tConnCfg.pTlsConfig = &tClientTls;
 
 		pEngine = xrtNetEngineCreate(&tEngineCfg);
-		printf("  Engine create : %s\n", pEngine ? "PASS" : "FAIL");
-		if ( !pEngine ) return;
+		__Test_XNet2_TLSResult(&bAllPass, "Engine create", pEngine != NULL);
+		if ( !pEngine ) { return 1; }
 
-		printf("  Engine start : %s\n", xrtNetEngineStart(pEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+		__Test_XNet2_TLSResult(&bAllPass, "Engine start", xrtNetEngineStart(pEngine) == XRT_NET_OK);
 
 		pListener = xrtNetListenerCreate(pEngine, &tListenCfg, NULL, &tEvents, NULL);
-		printf("  Listener create : %s\n", pListener ? "PASS" : "FAIL");
-		printf("  Listener start : %s\n", pListener && xrtNetListenerStart(pListener) == XRT_NET_OK ? "PASS" : "FAIL");
+		__Test_XNet2_TLSResult(&bAllPass, "Listener create", pListener != NULL);
+		__Test_XNet2_TLSResult(&bAllPass, "Listener start",
+			pListener && xrtNetListenerStart(pListener) == XRT_NET_OK);
 
-		tConnCfg.iPort = pListener->tConfig.tBindAddr.iPort;
+		if ( pListener ) { tConnCfg.iPort = pListener->tConfig.tBindAddr.iPort; }
 		pClient = xrtNetStreamCreate(pEngine, &tEvents, &tClientStats);
-		printf("  Client create : %s\n", pClient ? "PASS" : "FAIL");
-		printf("  Client connect (TLS) : %s\n", pClient && xrtNetStreamConnect(pClient, &tConnCfg) == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  TLS send before ready = AGAIN : %s\n",
-			pClient && xrtNetStreamSend(pClient, "pre", 3) == XRT_NET_AGAIN ? "PASS" : "FAIL");
+		__Test_XNet2_TLSResult(&bAllPass, "Client create", pClient != NULL);
+		__Test_XNet2_TLSResult(&bAllPass, "Client connect (TLS)",
+			pListener && pClient && xrtNetStreamConnect(pClient, &tConnCfg) == XRT_NET_OK);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS send before ready = AGAIN",
+			pClient && xrtNetStreamSend(pClient, "pre", 3) == XRT_NET_AGAIN);
 
 		for ( iAcceptRetry = 0; iAcceptRetry < 100 && !pAccepted; ++iAcceptRetry ) {
 			pAccepted = __xnetListenerTryAcceptOne(pListener, &tServerStats);
 			if ( !pAccepted ) __Test_XNet2_TLSSleepMs(10);
 		}
-		printf("  Listener accept TLS client : %s\n", pAccepted ? "PASS" : "FAIL");
+		__Test_XNet2_TLSResult(&bAllPass, "Listener accept TLS client", pAccepted != NULL);
 
-		printf("  Client TLS open : %s\n", __Test_XNet2_TLSWaitMin(&tClientStats.iOpenCount, 1, 3000) ? "PASS" : "FAIL");
-		printf("  Server TLS open : %s\n", __Test_XNet2_TLSWaitMin(&tServerStats.iOpenCount, 1, 3000) ? "PASS" : "FAIL");
+		__Test_XNet2_TLSResult(&bAllPass, "Client TLS open",
+			__Test_XNet2_TLSWaitMin(&tClientStats.iOpenCount, 1, 3000));
+		__Test_XNet2_TLSResult(&bAllPass, "Server TLS open",
+			__Test_XNet2_TLSWaitMin(&tServerStats.iOpenCount, 1, 3000));
 
-		printf("  TLS client send : %s\n", pClient && xrtNetStreamSend(pClient, "hello tls", 9) == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  TLS server recv : %s\n", __Test_XNet2_TLSWaitMin(&tServerStats.iRecvCount, 1, 3000) ? "PASS" : "FAIL");
-		printf("  TLS client echo recv : %s\n", __Test_XNet2_TLSWaitMin(&tClientStats.iRecvCount, 1, 3000) ? "PASS" : "FAIL");
-		printf("  TLS echo payload : %s\n", strcmp(tClientStats.aLastRecv, "hello tls") == 0 ? "PASS" : "FAIL");
-		printf("  TLS error-free client path : %s\n", __Test_XNet2_TLSAtomicLoad(&tClientStats.iErrorCount) == 0 ? "PASS" : "FAIL");
-		printf("  TLS error-free server path : %s\n", __Test_XNet2_TLSAtomicLoad(&tServerStats.iErrorCount) == 0 ? "PASS" : "FAIL");
+		__Test_XNet2_TLSResult(&bAllPass, "TLS client send",
+			pClient && xrtNetStreamSend(pClient, "hello tls", 9) == XRT_NET_OK);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS server recv",
+			__Test_XNet2_TLSWaitMin(&tServerStats.iRecvCount, 1, 3000));
+		__Test_XNet2_TLSResult(&bAllPass, "TLS client echo recv",
+			__Test_XNet2_TLSWaitMin(&tClientStats.iRecvCount, 1, 3000));
+		__Test_XNet2_TLSResult(&bAllPass, "TLS echo payload",
+			strcmp(tClientStats.aLastRecv, "hello tls") == 0);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS error-free client path",
+			__Test_XNet2_TLSAtomicLoad(&tClientStats.iErrorCount) == 0);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS error-free server path",
+			__Test_XNet2_TLSAtomicLoad(&tServerStats.iErrorCount) == 0);
 
 		if ( pClient ) xrtNetStreamClose(pClient, XNET_CLOSE_F_GRACEFUL);
 		(void)__Test_XNet2_TLSWaitMin(&tClientStats.iCloseCount, 1, 3000);
@@ -264,11 +284,13 @@ void Test_XNet2_TLS(void)
 		bool bAllClose = true;
 		bool bAllEcho = true;
 		bool bErrorFree = true;
+		bool bEngineStarted = false;
+		bool bListenerStarted = false;
 		const int iRounds = 4;
 
 		if ( !__Test_XNet2_TLSFileExists(sCertPath) || !__Test_XNet2_TLSFileExists(sKeyPath) ) {
 			printf("  TLS repeated handshakes : SKIP\n");
-			return;
+			return 0;
 		}
 
 		memset(&tEvents, 0, sizeof(tEvents));
@@ -296,12 +318,16 @@ void Test_XNet2_TLS(void)
 		tConnCfg.pTlsConfig = &tClientTls;
 
 		pEngine = xrtNetEngineCreate(&tEngineCfg);
-		pListener = pEngine ? xrtNetListenerCreate(pEngine, &tListenCfg, NULL, &tEvents, NULL) : NULL;
-		if ( pEngine ) (void)xrtNetEngineStart(pEngine);
-		if ( pListener ) (void)xrtNetListenerStart(pListener);
-		if ( pListener ) tConnCfg.iPort = pListener->tConfig.tBindAddr.iPort;
+		bEngineStarted = pEngine && xrtNetEngineStart(pEngine) == XRT_NET_OK;
+		pListener = bEngineStarted ? xrtNetListenerCreate(pEngine, &tListenCfg, NULL, &tEvents, NULL) : NULL;
+		bListenerStarted = pListener && xrtNetListenerStart(pListener) == XRT_NET_OK;
+		if ( bListenerStarted ) {
+			tConnCfg.iPort = pListener->tConfig.tBindAddr.iPort;
+		} else {
+			bAllOpen = false;
+		}
 
-		for ( int iRound = 0; pEngine && pListener && iRound < iRounds; ++iRound ) {
+		for ( int iRound = 0; bEngineStarted && bListenerStarted && iRound < iRounds; ++iRound ) {
 			__test_xnet2_tls_stats* pClientStats = &arrClientStats[iRound];
 			__test_xnet2_tls_stats* pServerStats = &arrServerStats[iRound];
 			xnetstream* pClient = NULL;
@@ -362,10 +388,10 @@ void Test_XNet2_TLS(void)
 			if ( !bAllOpen || !bAllClose || !bAllEcho || !bErrorFree ) break;
 		}
 
-		printf("  TLS repeated sequential opens : %s\n", bAllOpen ? "PASS" : "FAIL");
-		printf("  TLS native recv regression echo : %s\n", bAllEcho ? "PASS" : "FAIL");
-		printf("  TLS repeated sequential closes : %s\n", bAllClose ? "PASS" : "FAIL");
-		printf("  TLS repeated error-free path : %s\n", bErrorFree ? "PASS" : "FAIL");
+		__Test_XNet2_TLSResult(&bAllPass, "TLS repeated sequential opens", bAllOpen);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS native recv regression echo", bAllEcho);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS repeated sequential closes", bAllClose);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS repeated error-free path", bErrorFree);
 
 		if ( pListener ) {
 			xrtNetListenerStop(pListener);
@@ -408,7 +434,7 @@ void Test_XNet2_TLS(void)
 
 		if ( !__Test_XNet2_TLSFileExists(sCertPath) || !__Test_XNet2_TLSFileExists(sKeyPath) ) {
 			printf("  TLS session resume : SKIP\n");
-			return;
+			return 0;
 		}
 
 		memset(&tEvents, 0, sizeof(tEvents));
@@ -504,11 +530,11 @@ void Test_XNet2_TLS(void)
 			}
 		}
 
-		printf("  TLS resume warm full handshake : %s\n", bWarmOpen ? "PASS" : "FAIL");
-		printf("  TLS resume export : %s\n", bResumeExported ? "PASS" : "FAIL");
-		printf("  TLS resumed reconnect open : %s\n", bResumeOpen ? "PASS" : "FAIL");
-		printf("  TLS resumed client state : %s\n", bClientResumed ? "PASS" : "FAIL");
-		printf("  TLS resumed server state : %s\n", bServerResumed ? "PASS" : "FAIL");
+		__Test_XNet2_TLSResult(&bAllPass, "TLS resume warm full handshake", bWarmOpen);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS resume export", bResumeExported);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS resumed reconnect open", bResumeOpen);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS resumed client state", bClientResumed);
+		__Test_XNet2_TLSResult(&bAllPass, "TLS resumed server state", bServerResumed);
 
 		if ( pClient2 ) xrtNetStreamClose(pClient2, XNET_CLOSE_F_GRACEFUL);
 		(void)__Test_XNet2_TLSWaitMin(&tClientStats2.iCloseCount, 1, 3000);
@@ -528,4 +554,6 @@ void Test_XNet2_TLS(void)
 			xrtNetEngineDestroy(pEngine);
 		}
 	}
+
+	return bAllPass ? 0 : 1;
 }

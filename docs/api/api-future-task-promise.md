@@ -519,6 +519,36 @@ xTaskGroupDestroy(pChild);
 xTaskGroupDestroy(pRoot);
 ```
 
+### 5. 有界阻塞任务执行器
+
+网络 worker、协程调度器和 continuation 都不应直接执行阻塞系统调用或长时间 CPU 工作。此类任务使用独立的有界执行器：
+
+```c
+xtaskexecutorconfig tCfg;
+xTaskExecutorConfigInit(&tCfg);
+tCfg.iThreadCount = 4;
+tCfg.iQueueLimit = 1024;
+
+xtaskexecutor* pExecutor = xTaskExecutorCreate(&tCfg);
+xfuture* pFuture = xTaskExecutorSubmit(pExecutor, procBlockingTask, pArg);
+
+/* wait/use pFuture */
+xFutureRelease(pFuture);
+xTaskExecutorDestroy(pExecutor);
+```
+
+稳定语义：
+
+- 创建时固定工作线程数，不按任务创建线程。
+- `iQueueLimit` 是等待队列硬上限；队列满或 executor 已关闭时 `Submit` 返回 `NULL`，并设置线程局部错误。
+- 提交成功返回调用方持有的 Future；任务内部持有独立引用。
+- Future 在任务出队前被取消时，回调不会执行，结果为 `XRT_NET_CANCELLED`。
+- 回调已经运行后，C 线程不会被强制终止；取消只竞争 Future 的终态。需要中途停止的任务必须自行检查业务 cancel token。
+- `Destroy` 停止接收新任务，排空已接受任务，等待全部 worker 退出后释放 executor。
+- executor 不能从自己的 worker 回调中销毁；该调用会被拒绝，必须交给外部线程销毁。
+- `xTaskExecutorGetStats` 返回 submitted、completed、rejected、queued、running 和固定 thread count 的一致快照。
+- 配置遵循 `iSize/iVersion` 追加式 ABI 规则。
+
 ---
 
 ## 当前已进入默认主测试流

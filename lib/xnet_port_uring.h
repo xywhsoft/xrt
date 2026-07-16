@@ -47,7 +47,8 @@
 	#define __XNET_IORING_OP_SEND            26u
 	#define __XNET_IORING_OP_RECV            27u
 
-	#define __XNET_URING_INLINE_RECV         8192u
+	#define __XNET_URING_STREAM_RECV_DEFAULT 2048u
+	#define __XNET_URING_DGRAM_RECV_MAX      65536u
 	#define __XNET_URING_MAX_IOVEC           16u
 
 	typedef struct {
@@ -199,9 +200,10 @@
 		xnetaddr tAddr;
 		struct sockaddr_storage tAddrStorage;
 		socklen_t iAddrLen;
+		void* pRecvBuf;
+		uint32 iRecvCapacity;
 		struct iovec arrIov[__XNET_URING_MAX_IOVEC];
 		struct msghdr tMsg;
-		char aRecvBuf[__XNET_URING_INLINE_RECV];
 	} __xnet_uring_io;
 
 	typedef struct __xnet_uring_timer {
@@ -226,6 +228,8 @@
 		pthread_mutex_t tPostedLock;
 		pthread_mutex_t tIoLock;
 		pthread_mutex_t tRingLock;
+		uint32 iStreamRecvSize;
+		volatile long bStopping;
 	} __xnet_uring_ctx;
 
 
@@ -423,6 +427,14 @@
 	}
 
 
+	static void __xnetPortUringFreeIo(__xnet_uring_io* pIo)
+	{
+		if ( !pIo ) { return; }
+		if ( pIo->pRecvBuf ) { XNET_FREE(pIo->pRecvBuf); }
+		XNET_FREE(pIo);
+	}
+
+
 	// 内部函数：__xnetPortUringTrackIo
 	static void __xnetPortUringTrackIo(__xnet_uring_ctx* pCtx, __xnet_uring_io* pIo)
 	{
@@ -452,27 +464,11 @@
 	}
 
 
-	// 内部函数：__xnetPortUringFreeActiveIo
-	static void __xnetPortUringFreeActiveIo(__xnet_uring_ctx* pCtx)
-	{
-		__xnet_uring_io* pList = NULL;
-		if ( !pCtx ) { return; }
-		pthread_mutex_lock(&pCtx->tIoLock);
-		pList = pCtx->pActiveIo;
-		pCtx->pActiveIo = NULL;
-		pthread_mutex_unlock(&pCtx->tIoLock);
-		while ( pList ) {
-			__xnet_uring_io* pNext = pList->pNext;
-			XNET_FREE(pList);
-			pList = pNext;
-		}
-	}
-
-
 	// 内部函数：__xnetPortUringNativeCanUse
 	static bool __xnetPortUringNativeCanUse(const __xnet_uring_ctx* pCtx, const xnetportsubmit* pOp)
 	{
-		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) { return false; }
+		if ( !pCtx || !pOp || __xnetAtomicLoad32(&pCtx->bStopping) != 0 ||
+			!pCtx->tNativeRing.bReady ) { return false; }
 		if ( pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID || pOp->hSocket == 0 ) { return false; }
 		switch ( pOp->iOpType ) {
 			case XNET_PORT_OP_ACCEPT:
@@ -561,10 +557,12 @@
 
 
 	// 内部函数：分配端口 io_uring io
-	static __xnet_uring_io* __xnetPortUringAllocIO(const xnetportsubmit* pOp)
+	static __xnet_uring_io* __xnetPortUringAllocIO(__xnet_uring_ctx* pCtx,
+		const xnetportsubmit* pOp)
 	{
 		__xnet_uring_io* pIo;
-		if ( !pOp ) { return NULL; }
+		uint32 iRecvCapacity = 0u;
+		if ( !pCtx || !pOp ) { return NULL; }
 		pIo = (__xnet_uring_io*)XNET_ALLOC(sizeof(__xnet_uring_io));
 		if ( !pIo ) { return NULL; }
 		memset(pIo, 0, sizeof(__xnet_uring_io));
@@ -575,6 +573,19 @@
 		pIo->pUserData = pOp->pUserData;
 		pIo->tAddr = pOp->tAddr;
 		pIo->iAddrLen = (socklen_t)sizeof(pIo->tAddrStorage);
+		if ( pOp->iOpType == XNET_PORT_OP_RECV ) {
+			iRecvCapacity = pCtx->iStreamRecvSize;
+		} else if ( pOp->iOpType == XNET_PORT_OP_RECVFROM ) {
+			iRecvCapacity = __XNET_URING_DGRAM_RECV_MAX;
+		}
+		if ( iRecvCapacity > 0u ) {
+			pIo->pRecvBuf = XNET_ALLOC(iRecvCapacity);
+			if ( !pIo->pRecvBuf ) {
+				XNET_FREE(pIo);
+				return NULL;
+			}
+			pIo->iRecvCapacity = iRecvCapacity;
+		}
 		return pIo;
 	}
 
@@ -616,7 +627,7 @@
 		uint32 iSlot = 0;
 		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) { return XRT_NET_ERROR; }
 		// 分配 IO 操作结构体
-		pIo = __xnetPortUringAllocIO(pOp);
+		pIo = __xnetPortUringAllocIO(pCtx, pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		// 根据操作类型准备不同的 IO 参数
@@ -627,7 +638,7 @@
 			case XNET_PORT_OP_CONNECT:
 				// 将目标地址转换为 sockaddr 结构
 				if ( !__xnetAddrToSockAddr(&pOp->tAddr, &pIo->tAddrStorage, &pIo->iAddrLen) ) {
-					XNET_FREE(pIo);
+					__xnetPortUringFreeIo(pIo);
 					return XRT_NET_ERROR;
 				}
 				break;
@@ -638,7 +649,7 @@
 			case XNET_PORT_OP_SEND:
 				// 构建 iovec 缓冲区数组并填充 msghdr
 				if ( !__xnetPortUringBuildBufsFromSubmit(pIo, pOp) ) {
-					XNET_FREE(pIo);
+					__xnetPortUringFreeIo(pIo);
 					return XRT_NET_ERROR;
 				}
 				memset(&pIo->tMsg, 0, sizeof(pIo->tMsg));
@@ -649,8 +660,8 @@
 			case XNET_PORT_OP_RECVFROM:
 				// 设置接收缓冲区和源地址存储空间
 				memset(&pIo->tMsg, 0, sizeof(pIo->tMsg));
-				pIo->arrIov[0].iov_base = pIo->aRecvBuf;
-				pIo->arrIov[0].iov_len = sizeof(pIo->aRecvBuf);
+				pIo->arrIov[0].iov_base = pIo->pRecvBuf;
+				pIo->arrIov[0].iov_len = pIo->iRecvCapacity;
 				pIo->iBufCount = 1;
 				pIo->tMsg.msg_name = &pIo->tAddrStorage;
 				pIo->tMsg.msg_namelen = sizeof(pIo->tAddrStorage);
@@ -662,7 +673,7 @@
 				// 转换目标地址并构建 iovec + msghdr
 				if ( !__xnetAddrToSockAddr(&pOp->tAddr, &pIo->tAddrStorage, &pIo->iAddrLen) ||
 					!__xnetPortUringBuildBufsFromSubmit(pIo, pOp) ) {
-					XNET_FREE(pIo);
+					__xnetPortUringFreeIo(pIo);
 					return XRT_NET_ERROR;
 				}
 				memset(&pIo->tMsg, 0, sizeof(pIo->tMsg));
@@ -673,16 +684,21 @@
 				break;
 
 			default:
-				XNET_FREE(pIo);
+				__xnetPortUringFreeIo(pIo);
 				return XRT_NET_ERROR;
 		}
 
 		// 获取 ring 锁，从 SQ ring 中取出一个空闲 SQE 槽位
 		pthread_mutex_lock(&pCtx->tRingLock);
+		if ( __xnetAtomicLoad32(&pCtx->bStopping) != 0 ) {
+			pthread_mutex_unlock(&pCtx->tRingLock);
+			__xnetPortUringFreeIo(pIo);
+			return XRT_NET_CLOSED;
+		}
 		pSqe = __xnetPortUringNativeGetSqe(&pCtx->tNativeRing, &iTail, &iSlot);
 		if ( !pSqe ) {
 			pthread_mutex_unlock(&pCtx->tRingLock);
-			XNET_FREE(pIo);
+			__xnetPortUringFreeIo(pIo);
 			return XRT_NET_ERROR;
 		}
 
@@ -708,8 +724,8 @@
 			case XNET_PORT_OP_RECV:
 				// io_uring RECV 操作，使用内嵌接收缓冲区
 				pSqe->iOpcode = __XNET_IORING_OP_RECV;
-				pSqe->iAddr = (uint64)(uintptr_t)pIo->aRecvBuf;
-				pSqe->iLen = (uint32)sizeof(pIo->aRecvBuf);
+				pSqe->iAddr = (uint64)(uintptr_t)pIo->pRecvBuf;
+				pSqe->iLen = pIo->iRecvCapacity;
 				break;
 
 			case XNET_PORT_OP_SEND:
@@ -743,7 +759,7 @@
 			__xnetPortUringNativeRollbackSqe(&pCtx->tNativeRing, iTail, iSlot);
 			__xnetPortUringUntrackIo(pCtx, pIo);
 			pthread_mutex_unlock(&pCtx->tRingLock);
-			XNET_FREE(pIo);
+			__xnetPortUringFreeIo(pIo);
 			return XRT_NET_ERROR;
 		}
 		pthread_mutex_unlock(&pCtx->tRingLock);
@@ -783,7 +799,7 @@
 		// RECV 完成：将接收到的数据拷贝到事件 chain，零字节或特定错误表示连接关闭
 		if ( pIo->iOpType == XNET_PORT_OP_RECV ) {
 			if ( iRes > 0 ) {
-				pEvent->pChain = __xnetPortUringAllocEventChain(pIo->aRecvBuf, (size_t)iRes);
+				pEvent->pChain = __xnetPortUringAllocEventChain(pIo->pRecvBuf, (size_t)iRes);
 				if ( !pEvent->pChain ) {
 					pEvent->iStatus = XRT_NET_ERROR;
 					pEvent->iBytes = 0;
@@ -798,7 +814,7 @@
 		// RECVFROM 完成：拷贝数据并从 sockaddr 还原远端地址
 		if ( pIo->iOpType == XNET_PORT_OP_RECVFROM ) {
 			if ( iRes >= 0 ) {
-				pEvent->pChain = __xnetPortUringAllocEventChain(pIo->aRecvBuf, (size_t)iRes);
+				pEvent->pChain = __xnetPortUringAllocEventChain(pIo->pRecvBuf, (size_t)iRes);
 				if ( !pEvent->pChain ) {
 					pEvent->iStatus = XRT_NET_ERROR;
 					pEvent->iBytes = 0;
@@ -829,7 +845,7 @@
 				if ( __xnetPortUringBuildIoEvent(pIo, pCqe->iRes, &pEvents[iCount]) ) {
 					++iCount;
 				}
-				XNET_FREE(pIo);
+				__xnetPortUringFreeIo(pIo);
 			}
 			++iHead;
 		}
@@ -932,12 +948,17 @@
 	static bool __xnetPortUringQueueEvent(__xnet_uring_ctx* pCtx, const xnetportevent* pEvent)
 	{
 		__xnet_uring_post* pPost;
-		if ( !pCtx || !pEvent ) { return false; }
+		if ( !pCtx || !pEvent || __xnetAtomicLoad32(&pCtx->bStopping) != 0 ) { return false; }
 		pPost = (__xnet_uring_post*)XNET_ALLOC(sizeof(__xnet_uring_post));
 		if ( !pPost ) { return false; }
 		memset(pPost, 0, sizeof(__xnet_uring_post));
 		pPost->tEvent = *pEvent;
 		pthread_mutex_lock(&pCtx->tPostedLock);
+		if ( __xnetAtomicLoad32(&pCtx->bStopping) != 0 ) {
+			pthread_mutex_unlock(&pCtx->tPostedLock);
+			XNET_FREE(pPost);
+			return false;
+		}
 		if ( pCtx->pPostedTail ) {
 			pCtx->pPostedTail->pNext = pPost;
 		} else {
@@ -1016,6 +1037,88 @@
 	}
 
 
+	static void __xnetPortUringDispatchQuiesceEvents(xnetport* pPort,
+		xnetportevent* pEvents, uint32 iCount)
+	{
+		if ( pPort && pPort->pfnQuiesceEvents && iCount > 0u ) {
+			pPort->pfnQuiesceEvents(pPort->pOwner, pEvents, iCount);
+			return;
+		}
+		for ( uint32 i = 0; i < iCount; ++i ) {
+			if ( pEvents[i].pChain ) { __xnetPortUringFreeEventChain(pEvents[i].pChain); }
+		}
+	}
+
+
+	static void __xnetPortUringDrainQuiescePosted(xnetport* pPort)
+	{
+		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
+		xnetportevent arrEvents[32];
+		uint32 iCount;
+		if ( !pCtx ) { return; }
+		do {
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = __xnetPortUringDrainPosted(pCtx, arrEvents, 32u);
+			__xnetPortUringDispatchQuiesceEvents(pPort, arrEvents, iCount);
+		} while ( iCount > 0u );
+	}
+
+
+	static void __xnetPortUringDrainQuiesceActive(xnetport* pPort)
+	{
+		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
+		__xnet_uring_io* pList;
+		xnetportevent arrEvents[32];
+		uint32 iCount = 0u;
+		if ( !pCtx ) { return; }
+		pthread_mutex_lock(&pCtx->tIoLock);
+		pList = pCtx->pActiveIo;
+		pCtx->pActiveIo = NULL;
+		pthread_mutex_unlock(&pCtx->tIoLock);
+		memset(arrEvents, 0, sizeof(arrEvents));
+		while ( pList ) {
+			__xnet_uring_io* pIo = pList;
+			pList = pIo->pNext;
+			arrEvents[iCount].iType = __xnetPortUringEventType(pIo->iOpType);
+			arrEvents[iCount].iFlags = pIo->iFlags;
+			arrEvents[iCount].iStatus = XRT_NET_CLOSED;
+			arrEvents[iCount].iOpId = pIo->iOpId;
+			arrEvents[iCount].hSocket = pIo->iOpType == XNET_PORT_OP_ACCEPT
+				? (intptr_t)XNET_SOCKET_INVALID : pIo->hSocket;
+			arrEvents[iCount].pUserData = pIo->pUserData;
+			arrEvents[iCount].tAddr = pIo->tAddr;
+			if ( pIo->iOpType == XNET_PORT_OP_RECV ) {
+				arrEvents[iCount].iFlags |= XNET_PORT_EVENT_F_EOF;
+			}
+			__xnetPortUringFreeIo(pIo);
+			if ( ++iCount == 32u ) {
+				__xnetPortUringDispatchQuiesceEvents(pPort, arrEvents, iCount);
+				iCount = 0u;
+				memset(arrEvents, 0, sizeof(arrEvents));
+			}
+		}
+		__xnetPortUringDispatchQuiesceEvents(pPort, arrEvents, iCount);
+	}
+
+
+	static uint32 __xnetPortUringTimerWait(__xnet_uring_ctx* pCtx, uint32 iTimeoutMs)
+	{
+		__xnet_uring_timer* pNode = pCtx ? pCtx->pTimers : NULL;
+		uint64 iNextDueMs = UINT64_MAX;
+		uint64 iNowMs;
+		uint64 iDelayMs;
+		while ( pNode ) {
+			if ( pNode->iDueMs < iNextDueMs ) { iNextDueMs = pNode->iDueMs; }
+			pNode = pNode->pNext;
+		}
+		if ( iNextDueMs == UINT64_MAX ) { return iTimeoutMs; }
+		iNowMs = __xnetPortUringNowMs();
+		if ( iNextDueMs <= iNowMs ) { return 0u; }
+		iDelayMs = iNextDueMs - iNowMs;
+		return iDelayMs < (uint64)iTimeoutMs ? (uint32)iDelayMs : iTimeoutMs;
+	}
+
+
 	// 内部函数：初始化端口 io_uring
 	static xnet_result __xnetPortUringInit(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner)
 	{
@@ -1027,6 +1130,8 @@
 		if ( !pCtx ) { return XRT_NET_ERROR; }
 		memset(pCtx, 0, sizeof(__xnet_uring_ctx));
 		pCtx->hRing = -1;
+		pCtx->iStreamRecvSize = pCfg->iBufferGroupSize
+			? pCfg->iBufferGroupSize : __XNET_URING_STREAM_RECV_DEFAULT;
 		// 创建 eventfd 用于唤醒机制
 		pCtx->hWakeFd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 		if ( pCtx->hWakeFd < 0 ) {
@@ -1072,10 +1177,16 @@
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx ) { return; }
+		(void)__xnetAtomicExchange32(&pCtx->bStopping, 1);
+		__xnetPortUringDrainQuiescePosted(pPort);
+		/* Closing the ring first guarantees that the kernel no longer references active user data. */
+		pthread_mutex_lock(&pCtx->tRingLock);
+		__xnetPortUringNativeRingUnit(&pCtx->tNativeRing);
+		pthread_mutex_unlock(&pCtx->tRingLock);
+		__xnetPortUringDrainQuiesceActive(pPort);
+		__xnetPortUringDrainQuiescePosted(pPort);
 		__xnetPortUringFreeTimers(pCtx);
 		__xnetPortUringFreePosts(pCtx);
-		__xnetPortUringFreeActiveIo(pCtx);
-		__xnetPortUringNativeRingUnit(&pCtx->tNativeRing);
 		pthread_mutex_destroy(&pCtx->tPostedLock);
 		pthread_mutex_destroy(&pCtx->tIoLock);
 		pthread_mutex_destroy(&pCtx->tRingLock);
@@ -1094,6 +1205,7 @@
 		bool bNeedWake = false;
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pOps || iCount == 0 ) { return XRT_NET_ERROR; }
+		if ( __xnetAtomicLoad32(&pCtx->bStopping) != 0 ) { return XRT_NET_CLOSED; }
 		// 遍历所有待提交的操作
 		for ( i = 0; i < iCount; ++i ) {
 			xnetportevent tEvent;
@@ -1142,6 +1254,7 @@
 	static uint32 __xnetPortUringHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
 	{
 		uint32 iCount = 0;
+		uint32 iWaitMs;
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 
@@ -1179,7 +1292,8 @@
 			arrPoll[iPollCount].events = POLLIN;
 			++iPollCount;
 
-			iPollRet = poll(arrPoll, iPollCount, (iCount > 0) ? 0 : (int)iTimeoutMs);
+			iWaitMs = iCount > 0 ? 0u : __xnetPortUringTimerWait(pCtx, iTimeoutMs);
+			iPollRet = poll(arrPoll, iPollCount, (int)iWaitMs);
 			if ( iPollRet > 0 ) {
 				// 处理 eventfd 唤醒：读取唤醒计数并排空 posted 队列
 				if ( iWakeIndex >= 0 && (arrPoll[iWakeIndex].revents & POLLIN) ) {
@@ -1203,6 +1317,9 @@
 					iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);
 				}
 			}
+		}
+		if ( iCount < iMaxEvents ) {
+			iCount += __xnetPortUringHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		}
 
 		return iCount;
@@ -1228,14 +1345,24 @@
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		__xnet_uring_timer* pNode;
-		if ( !pCtx ) { return XRT_NET_ERROR; }
+		__xnet_uring_timer* pExisting;
+		uint64 iDueMs;
+		if ( !pCtx || iTimerId == 0u ) { return XRT_NET_ERROR; }
 		pNode = (__xnet_uring_timer*)XNET_ALLOC(sizeof(__xnet_uring_timer));
 		if ( !pNode ) { return XRT_NET_ERROR; }
 		memset(pNode, 0, sizeof(__xnet_uring_timer));
 		pNode->iTimerId = iTimerId;
-		pNode->iDueMs = __xnetPortUringNowMs() + (uint64)iDelayMs;
-		pNode->pNext = pCtx->pTimers;
-		pCtx->pTimers = pNode;
+		iDueMs = __xnetPortUringNowMs() + (uint64)iDelayMs;
+		pNode->iDueMs = iDueMs;
+		pExisting = pCtx->pTimers;
+		while ( pExisting && pExisting->iTimerId != iTimerId ) { pExisting = pExisting->pNext; }
+		if ( pExisting ) {
+			pExisting->iDueMs = iDueMs;
+			XNET_FREE(pNode);
+		} else {
+			pNode->pNext = pCtx->pTimers;
+			pCtx->pTimers = pNode;
+		}
 		return XRT_NET_OK;
 	}
 

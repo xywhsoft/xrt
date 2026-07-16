@@ -438,6 +438,16 @@ static bool __xrt_tls12_client_offers_suite(uint16 iSuite,
 #define __XRT_TLS_CLIENT_KEY_EXCHANGE   16   // TLS 1.2 only
 #define __XRT_TLS_FINISHED              20
 
+#define __XRT_TLS_EXT_SERVER_NAME        0x0000
+#define __XRT_TLS_EXT_ALPN               0x0010
+#define __XRT_TLS_EXT_SUPPORTED_GROUPS   0x000a
+#define __XRT_TLS_EXT_EC_POINT_FORMATS   0x000b
+#define __XRT_TLS_EXT_SIGNATURE_ALGS     0x000d
+#define __XRT_TLS_EXT_SUPPORTED_VERSIONS 0x002b
+#define __XRT_TLS_EXT_KEY_SHARE          0x0033
+#define __XRT_TLS_EXT_PSK_MODES          0x002d
+#define __XRT_TLS_EXT_RENEGOTIATION_INFO 0xff01
+
 // 记录头大小
 #define __XRT_TLS_RECHDR_SIZE  5   // 1 type + 2 version + 2 length
 #define __XRT_TLS_MSGHDR_SIZE  4   // 1 type + 3 length
@@ -2031,11 +2041,15 @@ struct xrt_tls_context {
 	bool bSkipVerify;
 	bool bAllowTLS12Ed25519;
 	char sHostname[254];
+	char sAlpnProtocols[256];
+	char sAlpnSelected[256];
 	
 	// 服务端 SNI
 	char sClientSNI[254];         // 服务端: 客户端请求的 SNI hostname
 	void (*OnSNI)(xtlssession *pSession, const char *sHostName, ptr pUserData);
 	ptr pSNIUserData;
+	xtlsverifyproc OnVerify;
+	ptr pVerifyUserData;
 	xtlssession* pSession;
 	
 	// 证书数据
@@ -2047,6 +2061,8 @@ struct xrt_tls_context {
 	size_t iCaDataLen;
 	uint8 *pCrlData;
 	size_t iCrlDataLen;
+	uint8 *pPeerCertDer;
+	size_t iPeerCertDerLen;
 	uint8 aECKey[48];             // EC 私钥
 	uint8 aEd25519Key[32];        // Ed25519 seed
 	size_t iECKeyLen;
@@ -2093,6 +2109,199 @@ struct xrt_tls_context {
 
 
 static bool __xrt_tls_consttime_equal(const uint8 *pA, const uint8 *pB, size_t iLen);
+
+
+static bool __xrt_tls_alpn_is_trim_char(char ch)
+{
+	return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
+}
+
+
+static int __xrt_tls_alpn_next_config_protocol(const char *sProtocols, size_t *pPos, const char **pStart, size_t *pLen)
+{
+	size_t i;
+	size_t iBegin;
+	size_t iEnd;
+	size_t iNext;
+	size_t j;
+
+	if ( !sProtocols || !pPos || !pStart || !pLen ) { return -1; }
+	i = *pPos;
+	while ( __xrt_tls_alpn_is_trim_char(sProtocols[i]) ) { i++; }
+	if ( sProtocols[i] == '\0' ) { return 0; }
+	if ( sProtocols[i] == ',' ) { return -1; }
+
+	iBegin = i;
+	while ( sProtocols[i] != '\0' && sProtocols[i] != ',' ) { i++; }
+	iEnd = i;
+	while ( iEnd > iBegin && __xrt_tls_alpn_is_trim_char(sProtocols[iEnd - 1]) ) { iEnd--; }
+	if ( iEnd <= iBegin || iEnd - iBegin > 255u ) { return -1; }
+	for ( j = iBegin; j < iEnd; j++ ) {
+		unsigned char ch = (unsigned char)sProtocols[j];
+		if ( ch <= 0x20u || ch >= 0x7fu || ch == ',' ) { return -1; }
+	}
+
+	if ( sProtocols[i] == ',' ) {
+		iNext = i + 1u;
+		while ( __xrt_tls_alpn_is_trim_char(sProtocols[iNext]) ) { iNext++; }
+		if ( sProtocols[iNext] == '\0' ) { return -1; }
+		i++;
+	}
+
+	*pStart = sProtocols + iBegin;
+	*pLen = iEnd - iBegin;
+	*pPos = i;
+	return 1;
+}
+
+
+static bool __xrt_tls_alpn_config_valid(const char *sProtocols)
+{
+	size_t iPos = 0;
+	const char *sProto = NULL;
+	size_t iProtoLen = 0;
+	int iRead;
+	bool bHave = false;
+
+	if ( !sProtocols || sProtocols[0] == '\0' ) { return true; }
+	while ( (iRead = __xrt_tls_alpn_next_config_protocol(sProtocols, &iPos, &sProto, &iProtoLen)) > 0 ) {
+		(void)sProto;
+		(void)iProtoLen;
+		bHave = true;
+	}
+	return iRead == 0 && bHave;
+}
+
+
+static bool __xrt_tls_alpn_config_contains(const char *sProtocols, const uint8 *pName, size_t iNameLen)
+{
+	size_t iPos = 0;
+	const char *sProto = NULL;
+	size_t iProtoLen = 0;
+	int iRead;
+
+	if ( !sProtocols || !pName || iNameLen == 0u ) { return false; }
+	while ( (iRead = __xrt_tls_alpn_next_config_protocol(sProtocols, &iPos, &sProto, &iProtoLen)) > 0 ) {
+		if ( iProtoLen == iNameLen && memcmp(sProto, pName, iNameLen) == 0 ) { return true; }
+	}
+	return false;
+}
+
+
+static bool __xrt_tls_alpn_wire_list_valid(const uint8 *pData, size_t iLen)
+{
+	size_t iPos;
+	size_t iEnd;
+
+	if ( !pData || iLen < 3u ) { return false; }
+	iEnd = 2u + (size_t)__xrt_tls_load_be16(pData);
+	if ( iEnd != iLen ) { return false; }
+	iPos = 2u;
+	while ( iPos < iEnd ) {
+		uint8 iNameLen = pData[iPos++];
+		if ( iNameLen == 0u || iPos + (size_t)iNameLen > iEnd ) { return false; }
+		iPos += (size_t)iNameLen;
+	}
+	return iPos == iEnd;
+}
+
+
+static bool __xrt_tls_alpn_wire_contains(const uint8 *pData, size_t iLen, const char *sProto, size_t iProtoLen)
+{
+	size_t iPos;
+	size_t iEnd;
+
+	if ( !pData || !sProto || iProtoLen == 0u || iProtoLen > 255u || !__xrt_tls_alpn_wire_list_valid(pData, iLen) ) {
+		return false;
+	}
+	iEnd = iLen;
+	iPos = 2u;
+	while ( iPos < iEnd ) {
+		uint8 iNameLen = pData[iPos++];
+		if ( iNameLen == iProtoLen && memcmp(pData + iPos, sProto, iProtoLen) == 0 ) { return true; }
+		iPos += (size_t)iNameLen;
+	}
+	return false;
+}
+
+
+static bool __xrt_tls_alpn_write_extension(uint8 *pBuf, size_t *pPos, size_t iCap, const char *sProtocols)
+{
+	size_t iPos;
+	size_t iExtLenPos;
+	size_t iListLenPos;
+	size_t iListStart;
+	size_t iCfgPos = 0;
+	const char *sProto = NULL;
+	size_t iProtoLen = 0;
+	int iRead;
+
+	if ( !pBuf || !pPos || !sProtocols || sProtocols[0] == '\0' ) { return true; }
+	if ( !__xrt_tls_alpn_config_valid(sProtocols) ) { return false; }
+	iPos = *pPos;
+	if ( iPos + 6u > iCap ) { return false; }
+	__xrt_tls_store_be16(pBuf + iPos, __XRT_TLS_EXT_ALPN);
+	iPos += 2u;
+	iExtLenPos = iPos;
+	iPos += 2u;
+	iListLenPos = iPos;
+	iPos += 2u;
+	iListStart = iPos;
+
+	while ( (iRead = __xrt_tls_alpn_next_config_protocol(sProtocols, &iCfgPos, &sProto, &iProtoLen)) > 0 ) {
+		if ( iPos + 1u + iProtoLen > iCap ) { return false; }
+		pBuf[iPos++] = (uint8)iProtoLen;
+		memcpy(pBuf + iPos, sProto, iProtoLen);
+		iPos += iProtoLen;
+	}
+	if ( iRead < 0 || iPos == iListStart || iPos - iListStart > 65535u ) { return false; }
+	__xrt_tls_store_be16(pBuf + iListLenPos, (uint16)(iPos - iListStart));
+	__xrt_tls_store_be16(pBuf + iExtLenPos, (uint16)(2u + iPos - iListStart));
+	*pPos = iPos;
+	return true;
+}
+
+
+static bool __xrt_tls_alpn_select_from_client(xtlsctx *pCtx, const uint8 *pData, size_t iLen)
+{
+	size_t iCfgPos = 0;
+	const char *sProto = NULL;
+	size_t iProtoLen = 0;
+	int iRead;
+
+	if ( !pCtx ) { return false; }
+	pCtx->sAlpnSelected[0] = '\0';
+	if ( !pData || iLen == 0u ) { return true; }
+	if ( !__xrt_tls_alpn_wire_list_valid(pData, iLen) ) { return false; }
+	if ( pCtx->sAlpnProtocols[0] == '\0' ) { return true; }
+
+	while ( (iRead = __xrt_tls_alpn_next_config_protocol(pCtx->sAlpnProtocols, &iCfgPos, &sProto, &iProtoLen)) > 0 ) {
+		if ( __xrt_tls_alpn_wire_contains(pData, iLen, sProto, iProtoLen) ) {
+			memcpy(pCtx->sAlpnSelected, sProto, iProtoLen);
+			pCtx->sAlpnSelected[iProtoLen] = '\0';
+			return true;
+		}
+	}
+	return false;
+}
+
+
+static bool __xrt_tls_alpn_accept_selected(xtlsctx *pCtx, const uint8 *pData, size_t iLen)
+{
+	size_t iListLen;
+	size_t iNameLen;
+
+	if ( !pCtx || !pData || pCtx->sAlpnProtocols[0] == '\0' ) { return false; }
+	if ( iLen < 4u ) { return false; }
+	iListLen = (size_t)__xrt_tls_load_be16(pData);
+	if ( iListLen + 2u != iLen || iListLen < 2u ) { return false; }
+	iNameLen = (size_t)pData[2];
+	if ( iNameLen == 0u || 3u + iNameLen != iLen || iNameLen >= sizeof(pCtx->sAlpnSelected) ) { return false; }
+	if ( !__xrt_tls_alpn_config_contains(pCtx->sAlpnProtocols, pData + 3, iNameLen) ) { return false; }
+	memcpy(pCtx->sAlpnSelected, pData + 3, iNameLen);
+	pCtx->sAlpnSelected[iNameLen] = '\0';
+	return true;
+}
 
 
 // 内部函数：__xrt_tls_resume_identity_type
@@ -2787,24 +2996,60 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 
 
 // 内部函数：__xrt_tls_capture_peer_cert_chain
+static bool __xrt_tls_store_peer_leaf_cert(xtlsctx *pCtx, const uint8 *pCertData, size_t iCertLen)
+{
+	uint8* pCopy;
+
+	if ( !pCtx ) { return false; }
+	if ( pCtx->pPeerCertDer ) {
+		xrtFree(pCtx->pPeerCertDer);
+		pCtx->pPeerCertDer = NULL;
+		pCtx->iPeerCertDerLen = 0;
+	}
+	if ( !pCertData || iCertLen == 0 ) { return true; }
+	pCopy = (uint8*)xrtMalloc(iCertLen);
+	if ( !pCopy ) { return false; }
+	memcpy(pCopy, pCertData, iCertLen);
+	pCtx->pPeerCertDer = pCopy;
+	pCtx->iPeerCertDerLen = iCertLen;
+	return true;
+}
+
+
+static bool __xrt_tls_apply_verify_callback(xtlsctx *pCtx, bool bDefaultOK)
+{
+	if ( !pCtx || !pCtx->OnVerify ) { return bDefaultOK; }
+	return pCtx->OnVerify(
+		pCtx->pSession,
+		pCtx->pPeerCertDer,
+		pCtx->iPeerCertDerLen,
+		bDefaultOK,
+		pCtx->pVerifyUserData
+	);
+}
+
+
 static bool __xrt_tls_capture_peer_cert_chain(xtlsctx *pCtx, uint8 **apCertData, size_t *apCertLen, size_t iCertCount)
 {
 	struct __xrt_x509_cert tLeaf;
+	bool bOK;
 
 	if ( !pCtx || !apCertData || !apCertLen || iCertCount == 0 ) { return false; }
-	// 跳过验证模式：仅提取叶子证书公钥，不做完整链验证
-	if ( pCtx->bSkipVerify ) {
-		if ( !__xrt_x509_parse(apCertData[0], apCertLen[0], &tLeaf) ) { return false; }
-		return __xrt_tls_copy_pubkey_from_cert(pCtx, &tLeaf);
-	}
-	// 必须有 CA 数据才能进行完整证书链验证
+	if ( !__xrt_x509_parse(apCertData[0], apCertLen[0], &tLeaf) ) { return false; }
+	if ( !__xrt_tls_copy_pubkey_from_cert(pCtx, &tLeaf) ) { return false; }
+	if ( !__xrt_tls_store_peer_leaf_cert(pCtx, apCertData[0], apCertLen[0]) ) { return false; }
+
+	// 跳过验证模式：仍允许应用层回调做 pinning 或拒绝证书
+	if ( pCtx->bSkipVerify ) { return __xrt_tls_apply_verify_callback(pCtx, true); }
+	// 必须有 CA 数据才能进行完整证书链验证；应用层回调可以接管最终策略
 	if ( pCtx->iCaDataLen == 0 ) {
 		#ifdef DEBUG_TRACE
 			printf("    [TLS] certificate: CA bundle empty\n");
 		#endif
-		return false;
+		return __xrt_tls_apply_verify_callback(pCtx, false);
 	}
-	return __xrt_tls_verify_presented_chain(pCtx, apCertData, apCertLen, iCertCount);
+	bOK = __xrt_tls_verify_presented_chain(pCtx, apCertData, apCertLen, iCertCount);
+	return __xrt_tls_apply_verify_callback(pCtx, bOK);
 }
 
 
@@ -3958,7 +4203,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	// Extension: server_name (SNI) - 如果设置了主机名
 	if ( pCtx->sHostname[0] ) {
 		size_t iHostLen = strlen(pCtx->sHostname);
-		__xrt_tls_store_be16(aBuf + iPos, 0x0000);  // SNI extension
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_EXT_SERVER_NAME);  // SNI extension
 		iPos += 2;
 		__xrt_tls_store_be16(aBuf + iPos, (uint16)(iHostLen + 5));
 		iPos += 2;
@@ -3969,6 +4214,11 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 		iPos += 2;
 		memcpy(aBuf + iPos, pCtx->sHostname, iHostLen);
 		iPos += iHostLen;
+	}
+
+	if ( pCtx->sAlpnProtocols[0] != '\0'
+		&& !__xrt_tls_alpn_write_extension(aBuf, &iPos, sizeof(aBuf), pCtx->sAlpnProtocols) ) {
+		pCtx->sAlpnProtocols[0] = '\0';
 	}
 	
 	// 填充扩展总长度
@@ -4020,6 +4270,7 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	
 	size_t iPos = 0;
 	bool bTls12ResumeAccepted = false;
+	pCtx->sAlpnSelected[0] = '\0';
 	
 	// legacy server version
 	uint16 iLegacyVer = __xrt_tls_load_be16(pMsg + iPos);
@@ -4108,6 +4359,8 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 						#endif
 					}
 				}
+			} else if ( iExtType == __XRT_TLS_EXT_ALPN ) {
+				if ( !__xrt_tls_alpn_accept_selected(pCtx, pMsg + iPos, iExtDataLen) ) { return false; }
 			}
 			
 			iPos += iExtDataLen;
@@ -4981,7 +5234,7 @@ static bool __xrt_tls_sign_server_hash(xtlsctx *pCtx, const uint8 *pHash, size_t
 // 内部函数：__xrt_tls12_send_server_hello
 static bool __xrt_tls12_send_server_hello(xtlsctx *pCtx)
 {
-	uint8 aMsg[128];
+	uint8 aMsg[512];
 	size_t iPos = 0;
 	size_t iLenPos;
 
@@ -5013,24 +5266,33 @@ static bool __xrt_tls12_send_server_hello(xtlsctx *pCtx)
 	iPos += 2;
 	aMsg[iPos++] = 0;
 
-	// 扩展区域
-	if ( pCtx->bPeerSecureReneg ) {
-		// 安全重协商扩展 (renegotiation_info, 0xff01)
-		size_t iExtPos = iPos;
-		iPos += 2;	// 扩展总长度占位
-		__xrt_tls_store_be16(aMsg + iPos, 0xff01);	// 扩展类型
+	// extensions
+	{
+		size_t iExtStart = iPos;
 		iPos += 2;
-		__xrt_tls_store_be16(aMsg + iPos, 1);		// 扩展数据长度 = 1
-		iPos += 2;
-		aMsg[iPos++] = 0;							// renegotiated_connection 长度 = 0
-		__xrt_tls_store_be16(aMsg + iExtPos, (uint16)(iPos - iExtPos - 2));
-	} else {
-		// 无扩展，扩展总长度为 0
-		__xrt_tls_store_be16(aMsg + iPos, 0);
-		iPos += 2;
+		if ( pCtx->bPeerSecureReneg ) {
+			__xrt_tls_store_be16(aMsg + iPos, __XRT_TLS_EXT_RENEGOTIATION_INFO);
+			iPos += 2;
+			__xrt_tls_store_be16(aMsg + iPos, 1);
+			iPos += 2;
+			aMsg[iPos++] = 0;
+		}
+		if ( pCtx->sAlpnSelected[0] != '\0' ) {
+			size_t iProtoLen = strlen(pCtx->sAlpnSelected);
+			if ( iProtoLen == 0u || iProtoLen > 255u || iPos + 7u + iProtoLen > sizeof(aMsg) ) { return false; }
+			__xrt_tls_store_be16(aMsg + iPos, __XRT_TLS_EXT_ALPN);
+			iPos += 2;
+			__xrt_tls_store_be16(aMsg + iPos, (uint16)(3u + iProtoLen));
+			iPos += 2;
+			__xrt_tls_store_be16(aMsg + iPos, (uint16)(1u + iProtoLen));
+			iPos += 2;
+			aMsg[iPos++] = (uint8)iProtoLen;
+			memcpy(aMsg + iPos, pCtx->sAlpnSelected, iProtoLen);
+			iPos += iProtoLen;
+		}
+		__xrt_tls_store_be16(aMsg + iExtStart, (uint16)(iPos - iExtStart - 2));
 	}
 
-	// 回填消息体长度并发送
 	__xrt_tls_store_be24(aMsg + iLenPos, (uint32)(iPos - iLenPos - 3));
 	return __xrt_tls12_send_handshake_message(pCtx, aMsg, iPos);
 }
@@ -5460,8 +5722,14 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 			strncpy(pCtx->sHostname, pConfig->sHostName, sizeof(pCtx->sHostname) - 1);
 			pCtx->sHostname[sizeof(pCtx->sHostname) - 1] = '\0';
 		}
+		if ( pConfig->sAlpnProtocols && __xrt_tls_alpn_config_valid(pConfig->sAlpnProtocols) ) {
+			strncpy(pCtx->sAlpnProtocols, pConfig->sAlpnProtocols, sizeof(pCtx->sAlpnProtocols) - 1);
+			pCtx->sAlpnProtocols[sizeof(pCtx->sAlpnProtocols) - 1] = '\0';
+		}
 		pCtx->OnSNI = pConfig->OnSNI;
 		pCtx->pSNIUserData = pConfig->pSNIUserData;
+		pCtx->OnVerify = pConfig->OnVerify;
+		pCtx->pVerifyUserData = pConfig->pVerifyUserData;
 		if ( pConfig->pResume && __xrt_tls_resume_copy(&pCtx->tResume, pConfig->pResume) ) {
 			pCtx->bHaveResume = true;
 			if ( pCtx->iMaxVersion == 0 || pCtx->iMaxVersion > pCtx->tResume.iVersion ) {
@@ -5523,6 +5791,7 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	// 释放 CA 和 CRL 数据
 	if ( pCtx->pCaData ) { xrtFree(pCtx->pCaData); }
 	if ( pCtx->pCrlData ) { xrtFree(pCtx->pCrlData); }
+	if ( pCtx->pPeerCertDer ) { xrtFree(pCtx->pPeerCertDer); }
 
 	// 安全清零整个上下文结构后释放，防止密钥残留
 	__xrt_tls_secure_zero(pCtx, sizeof(*pCtx));
@@ -5788,6 +6057,26 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 							}
 							
 							if ( iMsgType == __XRT_TLS_ENCRYPTED_EXTENSIONS ) {
+								size_t iEEPos;
+								size_t iEEEnd;
+								if ( iMsgBodyLen < 2u ) { return XRT_NET_ERROR; }
+								iEEPos = __XRT_TLS_MSGHDR_SIZE + 2u;
+								iEEEnd = iEEPos + (size_t)__xrt_tls_load_be16(pMsg + __XRT_TLS_MSGHDR_SIZE);
+								if ( iEEEnd != __XRT_TLS_MSGHDR_SIZE + iMsgBodyLen ) { return XRT_NET_ERROR; }
+								while ( iEEPos + 4u <= iEEEnd ) {
+									uint16 iExtType = __xrt_tls_load_be16(pMsg + iEEPos);
+									uint16 iExtLen;
+									iEEPos += 2u;
+									iExtLen = __xrt_tls_load_be16(pMsg + iEEPos);
+									iEEPos += 2u;
+									if ( iEEPos + (size_t)iExtLen > iEEEnd ) { return XRT_NET_ERROR; }
+									if ( iExtType == __XRT_TLS_EXT_ALPN
+										&& !__xrt_tls_alpn_accept_selected(pCtx, pMsg + iEEPos, iExtLen) ) {
+										return XRT_NET_ERROR;
+									}
+									iEEPos += (size_t)iExtLen;
+								}
+								if ( iEEPos != iEEEnd ) { return XRT_NET_ERROR; }
 								pCtx->iState = XRT_TLS_CLIENT_WAIT_CERT;
 							} else if ( iMsgType == __XRT_TLS_CERTIFICATE ) {
 								uint8 *apCertData[__XRT_TLS_MAX_CERT_CHAIN];
@@ -6910,6 +7199,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	pCtx->iSessionIdLen = 0;
 	pCtx->iServerSigAlg = 0;
 	pCtx->sClientSNI[0] = '\0';
+	pCtx->sAlpnSelected[0] = '\0';
 	pCtx->bIsTls12 = false;
 	pCtx->bSessionResumed = false;
 	bAllowTls13 = (pCtx->iMaxVersion == 0 || pCtx->iMaxVersion >= __XRT_TLS_VERSION_1_3);
@@ -7006,6 +7296,8 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 					}
 				}
 			}
+		} else if ( iExtType == __XRT_TLS_EXT_ALPN ) {
+			if ( !__xrt_tls_alpn_select_from_client(pCtx, pMsg + iPos, iExtDataLen) ) { return false; }
 		} else if ( iExtType == 0xff01 ) {  // renegotiation_info
 			pCtx->bPeerSecureReneg = true;
 		} else if ( iExtType == 0x002b ) {  // supported_versions
@@ -7477,19 +7769,37 @@ static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 // 内部函数：__xrt_tls13_send_encrypted_extensions
 static bool __xrt_tls13_send_encrypted_extensions(xtlsctx *pCtx)
 {
-	uint8 aMsg[6];
+	uint8 aMsg[512];
+	size_t iPos = 0;
+	size_t iLenPos;
+	size_t iExtStart;
 	if ( !pCtx ) { return false; }
-	// 构造 EncryptedExtensions 消息（ 无额外扩展，长度为 0 ）
-	aMsg[0] = __XRT_TLS_ENCRYPTED_EXTENSIONS;
-	__xrt_tls_store_be24(aMsg + 1, 2); // 消息体长度
-	__xrt_tls_store_be16(aMsg + 4, 0); // 扩展列表长度为 0
-	__xrt_tls13_hash_update(pCtx, aMsg, sizeof(aMsg));
-	// 加密后发送
-	return __xrt_tls_encrypt_record(pCtx, __XRT_TLS_HANDSHAKE, aMsg, sizeof(aMsg), true);
+
+	aMsg[iPos++] = __XRT_TLS_ENCRYPTED_EXTENSIONS;
+	iLenPos = iPos;
+	iPos += 3;
+	iExtStart = iPos;
+	iPos += 2;
+	if ( pCtx->sAlpnSelected[0] != '\0' ) {
+		size_t iProtoLen = strlen(pCtx->sAlpnSelected);
+		if ( iProtoLen == 0u || iProtoLen > 255u || iPos + 7u + iProtoLen > sizeof(aMsg) ) { return false; }
+		__xrt_tls_store_be16(aMsg + iPos, __XRT_TLS_EXT_ALPN);
+		iPos += 2;
+		__xrt_tls_store_be16(aMsg + iPos, (uint16)(3u + iProtoLen));
+		iPos += 2;
+		__xrt_tls_store_be16(aMsg + iPos, (uint16)(1u + iProtoLen));
+		iPos += 2;
+		aMsg[iPos++] = (uint8)iProtoLen;
+		memcpy(aMsg + iPos, pCtx->sAlpnSelected, iProtoLen);
+		iPos += iProtoLen;
+	}
+	__xrt_tls_store_be16(aMsg + iExtStart, (uint16)(iPos - iExtStart - 2u));
+	__xrt_tls_store_be24(aMsg + iLenPos, (uint32)(iPos - iLenPos - 3u));
+	__xrt_tls13_hash_update(pCtx, aMsg, iPos);
+	return __xrt_tls_encrypt_record(pCtx, __XRT_TLS_HANDSHAKE, aMsg, iPos, true);
 }
 
 
-// 内部函数：发送 TLS 13 certificate
 static bool __xrt_tls13_send_certificate(xtlsctx *pCtx)
 {
 	size_t iBodyLen;
@@ -7774,6 +8084,18 @@ XXAPI const char* xrtTlsGetSNI(xtlsctx *pCtx)
 }
 
 
+XXAPI const char* xrtTlsGetALPN(xtlsctx *pCtx)
+{
+	const char* sALPN;
+
+	if ( !pCtx ) { return NULL; }
+	__xrt_tls_ctx_lock(pCtx);
+	sALPN = (pCtx->sAlpnSelected[0] == '\0') ? NULL : pCtx->sAlpnSelected;
+	__xrt_tls_ctx_unlock(pCtx);
+	return sALPN;
+}
+
+
 // 设置 TLS allow TLS 12 ed 25519
 XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx *pCtx, bool bAllow)
 {
@@ -8024,6 +8346,38 @@ XXAPI const char* xrtNetTlsSessionGetSNI(const xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsGetSNI(pCtx) : NULL;
+}
+
+
+XXAPI const char* xrtNetTlsSessionGetALPN(const xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsGetALPN(pCtx) : NULL;
+}
+
+
+// 获取网络 TLS session 对端叶子证书 DER 数据
+XXAPI const void* xrtNetTlsSessionPeerCertDer(const xtlssession* pSession, size_t* pSize)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	const void* pData = NULL;
+
+	if ( pSize ) { *pSize = 0; }
+	if ( !pCtx ) { return NULL; }
+	__xrt_tls_ctx_lock(pCtx);
+	pData = pCtx->pPeerCertDer;
+	if ( pSize ) { *pSize = pCtx->iPeerCertDerLen; }
+	__xrt_tls_ctx_unlock(pCtx);
+	return pData;
+}
+
+
+// 获取网络 TLS session 对端叶子证书 DER 数据大小
+XXAPI size_t xrtNetTlsSessionPeerCertSize(const xtlssession* pSession)
+{
+	size_t iSize = 0;
+	(void)xrtNetTlsSessionPeerCertDer(pSession, &iSize);
+	return iSize;
 }
 
 

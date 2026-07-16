@@ -12,6 +12,12 @@ typedef struct {
 	volatile long iBodyChunkCount;
 	volatile long iBodyEndCount;
 	volatile long iBodyAsyncCount;
+	volatile long iUpgradeCount;
+	volatile long iUpgradeRecvCount;
+	volatile long iUpgradeCloseCount;
+	volatile long iUpgradeErrorCount;
+	xnetstream* pUpgradeStream;
+	char aUpgradeData[64];
 	char aStreamBody[512];
 	size_t iStreamBodyLen;
 } __test_xweb_ctx;
@@ -25,6 +31,138 @@ typedef struct {
 	const char* sText;
 	volatile long* pFreeCount;
 } __test_xweb_owned_route_ctx;
+
+typedef struct {
+	char aOrder[64];
+	size_t iOrderLen;
+	volatile long iRouteCount;
+	volatile long iFreeCount;
+	bool bCommittedImmutable;
+} __test_xweb_middleware_ctx;
+
+
+static void __Test_XWebMiddlewareMark(__test_xweb_middleware_ctx* pCtx, char ch)
+{
+	if ( !pCtx || pCtx->iOrderLen + 1u >= sizeof(pCtx->aOrder) ) { return; }
+	pCtx->aOrder[pCtx->iOrderLen++] = ch;
+	pCtx->aOrder[pCtx->iOrderLen] = '\0';
+}
+
+
+static void __Test_XWebMiddlewareReset(__test_xweb_middleware_ctx* pCtx)
+{
+	if ( !pCtx ) { return; }
+	pCtx->iOrderLen = 0u;
+	pCtx->aOrder[0] = '\0';
+	pCtx->bCommittedImmutable = false;
+}
+
+
+static void __Test_XWebMiddlewareFree(ptr pUserData)
+{
+	__test_xweb_middleware_ctx* pCtx = (__test_xweb_middleware_ctx*)pUserData;
+	if ( pCtx ) { __Test_XHttpdAtomicInc(&pCtx->iFreeCount); }
+}
+
+
+static xwebaction __Test_XWebMiddlewareOuter(xwebrequest* pReq, xwebresponse* pResp,
+	xwebnext* pNext, ptr pUserData)
+{
+	__test_xweb_middleware_ctx* pCtx = (__test_xweb_middleware_ctx*)pUserData;
+	const char* sPath = xrtWebRequestPath(pReq);
+	xwebaction iAction;
+	uint32 iStatusBefore;
+	__Test_XWebMiddlewareMark(pCtx, 'A');
+	(void)xrtWebResponseSetHeader(pResp, "X-Middleware-Pre", "outer");
+	if ( strcmp(sPath, "/mw/short") == 0 ) {
+		xrtWebResponseStatus(pResp, 403u, NULL);
+		return xrtWebResponseText(pResp, "short", "text/plain; charset=utf-8")
+			? XWEB_DONE : XWEB_ERROR;
+	}
+	if ( strcmp(sPath, "/mw/error") == 0 ) {
+		(void)xrtWebResponseSetHeader(pResp, "X-Stale", "must-reset");
+		(void)xrtWebResponseText(pResp, "stale-body", "text/plain; charset=utf-8");
+		return XWEB_ERROR;
+	}
+	iAction = xrtWebNext(pNext);
+	if ( strcmp(sPath, "/mw/twice") == 0 ) {
+		(void)xrtWebNext(pNext);
+	}
+	__Test_XWebMiddlewareMark(pCtx, 'E');
+	if ( xrtWebResponseCommitted(pResp) ) {
+		iStatusBefore = xrtWebResponseStatusCode(pResp);
+		xrtWebResponseStatus(pResp, 599u, "Must Not Change");
+		pCtx->bCommittedImmutable =
+			xrtWebResponseStatusCode(pResp) == iStatusBefore &&
+			!xrtWebResponseSetHeader(pResp, "X-Late", "one") &&
+			!xrtWebResponseAddHeader(pResp, "X-Late", "two") &&
+			xrtWebResponseRemoveHeader(pResp, "Content-Type") == 0u &&
+			!xrtWebResponseSetTrailer(pResp, "X-Late-Trailer", "one") &&
+			!xrtWebResponseText(pResp, "late", "text/plain") &&
+			!xrtWebResponseReserveBody(pResp, 32u) &&
+			!xrtWebResponseAppendText(pResp, "late") &&
+			!xrtWebResponseRedirect(pResp, "/late", 302u);
+	}
+	else {
+		(void)xrtWebResponseSetHeader(pResp, "X-Middleware-Post", "outer");
+	}
+	(void)iAction;
+	// 返回 NEXT 时，运行库保留本次 xrtWebNext 的下游结果。
+	return XWEB_NEXT;
+}
+
+
+static xwebaction __Test_XWebMiddlewareAuto(xwebrequest* pReq, xwebresponse* pResp,
+	xwebnext* pNext, ptr pUserData)
+{
+	__test_xweb_middleware_ctx* pCtx = (__test_xweb_middleware_ctx*)pUserData;
+	(void)pReq;
+	(void)pNext;
+	__Test_XWebMiddlewareMark(pCtx, 'B');
+	(void)xrtWebResponseSetHeader(pResp, "X-Middleware-Auto", "yes");
+	return XWEB_NEXT;
+}
+
+
+static xwebaction __Test_XWebMiddlewareInner(xwebrequest* pReq, xwebresponse* pResp,
+	xwebnext* pNext, ptr pUserData)
+{
+	__test_xweb_middleware_ctx* pCtx = (__test_xweb_middleware_ctx*)pUserData;
+	xwebaction iAction;
+	(void)pReq;
+	__Test_XWebMiddlewareMark(pCtx, 'C');
+	iAction = xrtWebNext(pNext);
+	__Test_XWebMiddlewareMark(pCtx, 'D');
+	if ( !xrtWebResponseCommitted(pResp) ) {
+		(void)xrtWebResponseSetHeader(pResp, "X-Middleware-Inner", "yes");
+	}
+	(void)iAction;
+	return XWEB_NEXT;
+}
+
+
+static xwebaction __Test_XWebMiddlewareRoute(xwebrequest* pReq, xwebresponse* pResp,
+	ptr pUserData)
+{
+	__test_xweb_middleware_ctx* pCtx = (__test_xweb_middleware_ctx*)pUserData;
+	const char* sPath = xrtWebRequestPath(pReq);
+	__Test_XWebMiddlewareMark(pCtx, 'R');
+	__Test_XHttpdAtomicInc(&pCtx->iRouteCount);
+	if ( strcmp(sPath, "/mw/async") == 0 ) { return XWEB_ASYNC; }
+	if ( strcmp(sPath, "/mw/committed") == 0 ) {
+		xrtWebResponseStatus(pResp, 200u, NULL);
+		(void)xrtWebResponseSetHeader(pResp, "Content-Type", "text/plain; charset=utf-8");
+		if ( !xrtWebResponseStart(pResp) ||
+			!xrtWebResponseWriteText(pResp, "committed") ||
+			!xrtWebResponseEnd(pResp) ) {
+			return XWEB_ERROR;
+		}
+		return XWEB_DONE;
+	}
+	xrtWebResponseStatus(pResp, 202u, NULL);
+	return xrtWebResponseText(pResp, "middleware", "text/plain; charset=utf-8")
+		? XWEB_DONE : XWEB_ERROR;
+}
 
 
 // 内部函数：xweb request body 流式 begin
@@ -267,6 +405,10 @@ static xwebaction __Test_XWebAppendHandler(xwebrequest* pReq, xwebresponse* pRes
 	(void)xrtWebResponseSetHeader(pResp, "Content-Type", "text/plain; charset=utf-8");
 	(void)xrtWebResponseAddHeader(pResp, "X-Test", "one");
 	(void)xrtWebResponseAddHeader(pResp, "X-Test", "two");
+	(void)xrtWebResponseAddHeader(pResp, "X-Remove", "one");
+	(void)xrtWebResponseAddHeader(pResp, "X-Remove", "two");
+	if ( xrtWebResponseRemoveHeader(pResp, "X-Remove") != 2u ||
+		xrtWebResponseHeader(pResp, "X-Remove") != NULL ) { return XWEB_ERROR; }
 	if ( !xrtWebResponseReserveBody(pResp, 16u) ) { return XWEB_ERROR; }
 	if ( !xrtWebResponseAppendText(pResp, "append") ) { return XWEB_ERROR; }
 	if ( !xrtWebResponseAppendBody(pResp, "-", 1u) ) { return XWEB_ERROR; }
@@ -284,6 +426,117 @@ static xwebaction __Test_XWebAppendHandler(xwebrequest* pReq, xwebresponse* pRes
 	     xrtWebResponseCommitted(pResp) ) {
 		return XWEB_ERROR;
 	}
+	return XWEB_DONE;
+}
+
+
+static xwebaction __Test_XWebTrailerHandler(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData)
+{
+	(void)pReq;
+	(void)pUserData;
+	xrtWebResponseStatus(pResp, 200u, NULL);
+	if ( !xrtWebResponseText(pResp, "xweb-trailer", "text/plain; charset=utf-8") ||
+		!xrtWebResponseSetTrailer(pResp, "X-Web-End", "one") ||
+		!xrtWebResponseAddTrailer(pResp, "X-Web-Meta", "two") ||
+		xrtWebResponseTrailerCount(pResp) != 2u ||
+		strcmp(xrtWebResponseTrailer(pResp, "X-Web-End"), "one") != 0 ||
+		strcmp(xrtWebResponseTrailerNameAt(pResp, 1u), "X-Web-Meta") != 0 ||
+		strcmp(xrtWebResponseTrailerValueAt(pResp, 1u), "two") != 0 ||
+		xrtWebResponseTrailerNameAt(pResp, 2u) != NULL ||
+		xrtWebResponseTrailerValueAt(pResp, 2u) != NULL ) {
+		return XWEB_ERROR;
+	}
+	return XWEB_DONE;
+}
+
+
+static xwebaction __Test_XWebCompressionHandler(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData)
+{
+	char aBody[2048];
+	const char* sPath = xrtWebRequestPath(pReq);
+	(void)pUserData;
+	memset(aBody, 'C', sizeof(aBody));
+	xrtWebResponseStatus(pResp, 200u, NULL);
+	(void)xrtWebResponseSetHeader(pResp, "Content-Length", "2048");
+	(void)xrtWebResponseSetHeader(pResp, "ETag", "\"strong-before-transform\"");
+	(void)xrtWebResponseSetHeader(pResp, "Digest", "sha-256=stale");
+	if ( sPath && strcmp(sPath, "/compress-no-transform") == 0 ) {
+		(void)xrtWebResponseSetHeader(pResp, "Cache-Control", "private, no-transform");
+	}
+	return xrtWebResponseBody(pResp, aBody, sizeof(aBody), "text/plain; charset=utf-8")
+		? XWEB_DONE : XWEB_ERROR;
+}
+
+
+static void __Test_XWebUpgradeOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
+{
+	__test_xweb_ctx* pCtx = (__test_xweb_ctx*)pOwner;
+	size_t iBytes;
+	size_t iUsed;
+	size_t iCopy;
+	if ( !pCtx || !pStream || !pChain ) return;
+	iBytes = xrtNetChainBytes(pChain);
+	iUsed = strlen(pCtx->aUpgradeData);
+	iCopy = iBytes;
+	if ( iCopy > sizeof(pCtx->aUpgradeData) - 1u - iUsed ) {
+		iCopy = sizeof(pCtx->aUpgradeData) - 1u - iUsed;
+	}
+	if ( iCopy > 0u ) {
+		(void)xrtNetChainPeek(pChain, pCtx->aUpgradeData + iUsed, iCopy);
+		pCtx->aUpgradeData[iUsed + iCopy] = '\0';
+	}
+	xrtNetChainConsume(pChain, iBytes);
+	if ( strstr(pCtx->aUpgradeData, "PING") &&
+		__Test_XHttpdAtomicLoad(&pCtx->iUpgradeRecvCount) == 0 ) {
+		if ( xrtNetStreamSend(pStream, "XWEB-UPGRADE-OK", 15u) == XRT_NET_OK ) {
+			__Test_XHttpdAtomicInc(&pCtx->iUpgradeRecvCount);
+		} else {
+			__Test_XHttpdAtomicInc(&pCtx->iUpgradeErrorCount);
+		}
+	}
+}
+
+
+static void __Test_XWebUpgradeOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	__test_xweb_ctx* pCtx = (__test_xweb_ctx*)pOwner;
+	(void)pStream;
+	(void)iReason;
+	if ( pCtx ) __Test_XHttpdAtomicInc(&pCtx->iUpgradeCloseCount);
+}
+
+
+static void __Test_XWebUpgradeOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	__test_xweb_ctx* pCtx = (__test_xweb_ctx*)pOwner;
+	(void)pStream;
+	(void)iSysErr;
+	if ( pCtx ) __Test_XHttpdAtomicInc(&pCtx->iUpgradeErrorCount);
+}
+
+
+static const xnetstreamevents __g_Test_XWebUpgradeEvents = {
+	.OnRecv = __Test_XWebUpgradeOnRecv,
+	.OnClose = __Test_XWebUpgradeOnClose,
+	.OnError = __Test_XWebUpgradeOnError
+};
+
+
+static xwebaction __Test_XWebUpgradeHandler(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData)
+{
+	__test_xweb_ctx* pCtx = (__test_xweb_ctx*)pUserData;
+	xnetstream* pStream = NULL;
+	(void)pReq;
+	if ( !pCtx || !pResp ) return XWEB_ERROR;
+	xrtWebResponseStatus(pResp, 101u, "Switching Protocols");
+	if ( !xrtWebResponseSetHeader(pResp, "Connection", "Upgrade") ||
+		!xrtWebResponseSetHeader(pResp, "Upgrade", "xweb-test") ||
+		!xrtWebResponseUpgrade(pResp, &__g_Test_XWebUpgradeEvents, pCtx, &pStream) ||
+		!xrtWebResponseCommitted(pResp) ) {
+		return XWEB_ERROR;
+	}
+	pCtx->pUpgradeStream = pStream;
+	__Test_XHttpdAtomicInc(&pCtx->iUpgradeCount);
 	return XWEB_DONE;
 }
 
@@ -521,6 +774,27 @@ static xhttpresponse* __Test_XWebRequest(const char* sURL, const char* sMethod, 
 }
 
 
+static xhttpresponse* __Test_XWebRequestNoRedirect(const char* sURL, const char* sMethod, xnet_result* pStatus)
+{
+	xhttpclientconfig tConfig;
+	xhttpclient* pClient;
+	xhttprequest tReq;
+	xhttpresponse* pResp = NULL;
+	xrtHttpClientConfigInit(&tConfig);
+	tConfig.iFlags = XHTTP_CLIENT_F_NONE;
+	tConfig.iMaxRedirects = 0u;
+	pClient = xrtHttpClientCreateEx(NULL, &tConfig);
+	xrtHttpRequestInit(&tReq);
+	(void)xrtHttpRequestSetURL(&tReq, sURL);
+	if ( sMethod ) { (void)xrtHttpRequestSetMethod(&tReq, sMethod); }
+	if ( pClient ) { pResp = xrtHttpClientExecuteSync(pClient, &tReq, pStatus); }
+	else if ( pStatus ) { *pStatus = XRT_NET_ERROR; }
+	xrtHttpRequestUnit(&tReq);
+	if ( pClient ) { xrtHttpClientDestroy(pClient); }
+	return pResp;
+}
+
+
 // 内部函数：发送带 Host 覆盖的同步 HTTP 请求
 // 内部函数：发送带 Content-Type 的同步 HTTP 请求
 static xhttpresponse* __Test_XWebRequestContentType(const char* sURL, const char* sMethod, const char* sBody, const char* sContentType, xnet_result* pStatus)
@@ -534,6 +808,22 @@ static xhttpresponse* __Test_XWebRequestContentType(const char* sURL, const char
 	(void)xrtHttpRequestSetHeader(&tReq, "Cookie", "sid=abc");
 	if ( sBody ) { (void)xrtHttpRequestSetBodyCopy(&tReq, sBody, strlen(sBody), sContentType ? sContentType : "application/octet-stream"); }
 	pResp = xrtHttpExecuteSync(NULL, &tReq, pStatus);
+	xrtHttpRequestUnit(&tReq);
+	return pResp;
+}
+
+
+static xhttpresponse* __Test_XWebRequestFormData(const char* sURL,
+	const xhttpformdata* pForm, xnet_result* pStatus)
+{
+	xhttprequest tReq;
+	xhttpresponse* pResp = NULL;
+	xrtHttpRequestInit(&tReq);
+	if ( xrtHttpRequestSetURL(&tReq, sURL) &&
+		xrtHttpRequestSetMethod(&tReq, "POST") &&
+		xrtHttpRequestSetFormData(&tReq, pForm) ) {
+		pResp = xrtHttpExecuteSync(NULL, &tReq, pStatus);
+	} else if ( pStatus ) { *pStatus = XRT_NET_ERROR; }
 	xrtHttpRequestUnit(&tReq);
 	return pResp;
 }
@@ -707,6 +997,200 @@ int Test_XWeb(void)
 	printf("\n\n\n------------------------------------\n\n XWeb Server Test:\n\n");
 
 	{
+		xwebconfig tConfig;
+		xwebstaticconfig tStaticConfig;
+		xwebserver* pInvalidServer;
+		xrtWebConfigInit(&tConfig);
+		xrtWebStaticConfigInit(&tStaticConfig);
+		printf("  XWeb versioned config contract : %s\n",
+			tConfig.iSize == XWEB_CONFIG_V1_SIZE &&
+			tConfig.iVersion == XWEB_CONFIG_VERSION ? "PASS" : "FAIL");
+		printf("  XWeb versioned static config contract : %s\n",
+			tStaticConfig.iSize == XWEB_STATIC_CONFIG_V1_SIZE &&
+			tStaticConfig.iVersion == XWEB_STATIC_CONFIG_VERSION ? "PASS" : "FAIL");
+		tConfig.iSize = XWEB_CONFIG_V1_SIZE - 1u;
+		pInvalidServer = xrtWebServerCreate(NULL, &tConfig);
+		printf("  XWeb rejects truncated config : %s\n",
+			pInvalidServer == NULL ? "PASS" : "FAIL");
+		if ( pInvalidServer ) { xrtWebServerDestroy(pInvalidServer); }
+	}
+
+	{
+		xwebapp* pApp = xrtWebAppCreate();
+		xwebrequest tReq;
+		char sPattern[2048];
+		char sPath[2048];
+		size_t iPatternLen = 0u;
+		size_t iPathLen = 0u;
+		__xweb_route* pRoute;
+		const char* sValue = NULL;
+		size_t iValueLen = 0u;
+		bool bBuilt = pApp != NULL;
+		memset(&tReq, 0, sizeof(tReq));
+		sPattern[0] = '\0';
+		sPath[0] = '\0';
+		for ( uint32 i = 0u; i < 40u && bBuilt; ++i ) {
+			int iPatternPart = snprintf(sPattern + iPatternLen, sizeof(sPattern) - iPatternLen, "/{p%u}", (unsigned)i);
+			int iPathPart = snprintf(sPath + iPathLen, sizeof(sPath) - iPathLen, "/v%u", (unsigned)i);
+			bBuilt = iPatternPart > 0 && iPathPart > 0;
+			iPatternLen += (size_t)iPatternPart;
+			iPathLen += (size_t)iPathPart;
+		}
+		bBuilt = bBuilt && xrtWebAppGet(pApp, sPattern, __Test_XWebMeHandler, NULL) &&
+			__xwebRequestParamsInit(&tReq, sPath);
+		pRoute = bBuilt ? __xwebRouteMatch(pApp, XHTTPD_METHOD_GET, sPath, tReq.pParams, tReq.iParamCap, &tReq.iParamCount) : NULL;
+		printf("  XWeb route supports more than 32 parameters : %s\n",
+			pRoute && tReq.iParamCount == 40u && xrtWebRequestParamValueViewAt(&tReq, 39u, &sValue, &iValueLen) &&
+			iValueLen == 3u && memcmp(sValue, "v39", 3u) == 0 ? "PASS" : "FAIL");
+		printf("  XWeb method mask CONNECT and TRACE : %s\n",
+			xrtWebMethodMask("CONNECT|TRACE") == (XWEB_METHOD_CONNECT | XWEB_METHOD_TRACE) ? "PASS" : "FAIL");
+		__xwebRequestParamsUnit(&tReq);
+		xrtWebAppRelease(pApp);
+	}
+
+	{
+		xwebapp* pApp = xrtWebAppCreate();
+		xwebrequest tReq;
+		__xweb_route* pRoute = NULL;
+		bool bReady;
+		memset(&tReq, 0, sizeof(tReq));
+		bReady = pApp != NULL && xrtWebAppGet(pApp, "/*", __Test_XWebMeHandler, NULL) &&
+			__xwebRequestParamsInit(&tReq, "/");
+		if ( bReady ) {
+			pRoute = __xwebRouteMatch(pApp, XHTTPD_METHOD_GET, "/",
+				tReq.pParams, tReq.iParamCap, &tReq.iParamCount);
+		}
+		printf("  XWeb tail wildcard matches root : %s\n", pRoute != NULL ? "PASS" : "FAIL");
+		__xwebRequestParamsUnit(&tReq);
+		xrtWebAppRelease(pApp);
+	}
+
+	{
+		__test_xweb_middleware_ctx tMiddlewareCtx;
+		xwebapp* pApp = NULL;
+		xwebserver* pServer = NULL;
+		xhttpresponse* pResp = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[512];
+		long iRouteBefore;
+		bool bRegistered;
+
+		memset(&tMiddlewareCtx, 0, sizeof(tMiddlewareCtx));
+		pApp = xrtWebAppCreate();
+		pServer = xrtWebServerCreateHostEx(NULL, "127.0.0.1", 0u,
+			128u, 1024u * 1024u, 1024u * 1024u, 1u);
+		bRegistered = pApp && pServer &&
+			xrtWebAppUseEx(pApp, __Test_XWebMiddlewareOuter,
+				&tMiddlewareCtx, __Test_XWebMiddlewareFree) &&
+			xrtWebAppUse(pApp, __Test_XWebMiddlewareAuto, &tMiddlewareCtx) &&
+			xrtWebAppGet(pApp, "/mw/{kind}", __Test_XWebMiddlewareRoute,
+				&tMiddlewareCtx) &&
+			xrtWebServerSetApp(pServer, pApp) &&
+			xrtWebServerUse(pServer, __Test_XWebMiddlewareInner, &tMiddlewareCtx);
+		printf("  XWeb middleware registration : %s\n", bRegistered ? "PASS" : "FAIL");
+		printf("  XWeb middleware invalid registration : %s\n",
+			pApp && !xrtWebAppUse(pApp, NULL, NULL) ? "PASS" : "FAIL");
+		printf("  XWeb middleware server start : %s\n",
+			pServer && xrtWebServerStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
+		if ( pApp ) {
+			xrtWebAppRelease(pApp);
+			pApp = NULL;
+		}
+
+		__Test_XWebMiddlewareReset(&tMiddlewareCtx);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/mw/ok",
+			(unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb middleware nested order : %s\n",
+			pResp && strcmp(tMiddlewareCtx.aOrder, "ABCRDE") == 0 ? "PASS" : "FAIL");
+		printf("  XWeb middleware response postprocess : %s\n",
+			iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 202u &&
+			pResp->pBody && strcmp(pResp->pBody, "middleware") == 0 &&
+			xrtHttpResponseHeader(pResp, "X-Middleware-Pre") &&
+			xrtHttpResponseHeader(pResp, "X-Middleware-Auto") &&
+			xrtHttpResponseHeader(pResp, "X-Middleware-Inner") &&
+			xrtHttpResponseHeader(pResp, "X-Middleware-Post") ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
+		__Test_XWebMiddlewareReset(&tMiddlewareCtx);
+		iRouteBefore = __Test_XHttpdAtomicLoad(&tMiddlewareCtx.iRouteCount);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/mw/short",
+			(unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb middleware short circuit : %s\n",
+			pResp && pResp->iStatusCode == 403u && pResp->pBody &&
+			strcmp(pResp->pBody, "short") == 0 &&
+			strcmp(tMiddlewareCtx.aOrder, "A") == 0 &&
+			__Test_XHttpdAtomicLoad(&tMiddlewareCtx.iRouteCount) == iRouteBefore
+				? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
+		__Test_XWebMiddlewareReset(&tMiddlewareCtx);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/mw/error",
+			(unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb middleware error reset : %s\n",
+			pResp && pResp->iStatusCode == 500u && pResp->pBody &&
+			strcmp(pResp->pBody, "Internal Server Error") == 0 &&
+			!xrtHttpResponseHeader(pResp, "X-Stale") &&
+			strcmp(tMiddlewareCtx.aOrder, "A") == 0 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
+		__Test_XWebMiddlewareReset(&tMiddlewareCtx);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/mw/twice",
+			(unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb middleware next once contract : %s\n",
+			pResp && pResp->iStatusCode == 500u &&
+			strcmp(tMiddlewareCtx.aOrder, "ABCRDE") == 0 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
+		__Test_XWebMiddlewareReset(&tMiddlewareCtx);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/mw/async",
+			(unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb middleware rejects unsafe async action : %s\n",
+			pResp && pResp->iStatusCode == 500u &&
+			strcmp(tMiddlewareCtx.aOrder, "ABCRDE") == 0 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
+		__Test_XWebMiddlewareReset(&tMiddlewareCtx);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/missing",
+			(unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb middleware wraps not found : %s\n",
+			pResp && pResp->iStatusCode == 404u &&
+			strcmp(tMiddlewareCtx.aOrder, "ABCDE") == 0 &&
+			xrtHttpResponseHeader(pResp, "X-Middleware-Inner") &&
+			xrtHttpResponseHeader(pResp, "X-Middleware-Post") ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
+		__Test_XWebMiddlewareReset(&tMiddlewareCtx);
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/mw/committed",
+			(unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb middleware committed response : %s\n",
+			pResp && pResp->iStatusCode == 200u && pResp->pBody &&
+			strcmp(pResp->pBody, "committed") == 0 &&
+			strcmp(tMiddlewareCtx.aOrder, "ABCRDE") == 0 ? "PASS" : "FAIL");
+		printf("  XWeb response immutable after commit : %s\n",
+			tMiddlewareCtx.bCommittedImmutable ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+
+		xrtHttpCloseIdleConnections(xrtNetSyncGetHiddenEngine());
+		xrtNetSyncShutdownHiddenEngine();
+		if ( pServer ) { xrtWebServerDestroy(pServer); }
+		printf("  XWeb middleware user data released once : %s\n",
+			__Test_XHttpdAtomicLoad(&tMiddlewareCtx.iFreeCount) == 1 ? "PASS" : "FAIL");
+	}
+
+	{
 		__test_xweb_ctx tCtx;
 		xnetengineconfig tEngineCfg;
 		xwebconfig tWebCfg;
@@ -733,6 +1217,8 @@ int Test_XWeb(void)
 
 		xrtWebConfigInit(&tWebCfg);
 		(void)xrtNetAddrParse(&tWebCfg.tBindAddr, "127.0.0.1", 0u);
+		tWebCfg.iCompressionFlags = XWEB_COMPRESSION_F_GZIP | XWEB_COMPRESSION_F_DEFLATE;
+		tWebCfg.iCompressionMinBytes = 32u;
 		pServer = pEngine ? xrtWebServerCreate(pEngine, &tWebCfg) : NULL;
 		printf("  XWeb server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
 		printf("  XWeb method mask get : %s\n", xrtWebMethodMask("get") == XWEB_METHOD_GET ? "PASS" : "FAIL");
@@ -751,6 +1237,10 @@ int Test_XWeb(void)
 		printf("  XWeb route delete cookie register : %s\n", pServer && xrtWebServerGet(pServer, "/delete-cookie", __Test_XWebDeleteCookieHandler, NULL) ? "PASS" : "FAIL");
 		printf("  XWeb route stream register : %s\n", pServer && xrtWebServerGet(pServer, "/stream", __Test_XWebStreamHandler, &tCtx) ? "PASS" : "FAIL");
 		printf("  XWeb route append body register : %s\n", pServer && xrtWebServerGet(pServer, "/append-body", __Test_XWebAppendHandler, NULL) ? "PASS" : "FAIL");
+		printf("  XWeb route trailer register : %s\n", pServer && xrtWebServerGet(pServer, "/trailer", __Test_XWebTrailerHandler, NULL) ? "PASS" : "FAIL");
+		printf("  XWeb route upgrade register : %s\n", pServer && xrtWebServerGet(pServer, "/upgrade", __Test_XWebUpgradeHandler, &tCtx) ? "PASS" : "FAIL");
+		printf("  XWeb route compression register : %s\n", pServer && xrtWebServerGet(pServer, "/compress", __Test_XWebCompressionHandler, NULL) ? "PASS" : "FAIL");
+		printf("  XWeb route no-transform register : %s\n", pServer && xrtWebServerGet(pServer, "/compress-no-transform", __Test_XWebCompressionHandler, NULL) ? "PASS" : "FAIL");
 		printf("  XWeb body stream route register : %s\n", pServer && xrtWebServerStreamRoute(pServer, XWEB_METHOD_POST, "/stream-body/{name}", __Test_XWebBodyStreamBegin, __Test_XWebBodyStreamChunk, __Test_XWebBodyStreamEnd, &tCtx) ? "PASS" : "FAIL");
 		printf("  XWeb async body stream route register : %s\n", pServer && xrtWebServerStreamRouteAsync(pServer, XWEB_METHOD_POST, "/stream-body-async/{name}", __Test_XWebBodyStreamBegin, __Test_XWebBodyStreamChunk, __Test_XWebBodyStreamEndAsync, &tCtx) ? "PASS" : "FAIL");
 		printf("  XWeb route head register : %s\n", pServer && xrtWebServerRoute(pServer, XWEB_METHOD_HEAD, "/head", __Test_XWebMeHandler, &tCtx) ? "PASS" : "FAIL");
@@ -803,6 +1293,62 @@ int Test_XWeb(void)
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
 		pResp = NULL;
 
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/trailer", (unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb response trailer status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 200u ? "PASS" : "FAIL");
+		printf("  XWeb response trailer body : %s\n", pResp && pResp->pBody && strcmp(pResp->pBody, "xweb-trailer") == 0 ? "PASS" : "FAIL");
+		printf("  XWeb response trailer fields : %s\n",
+			pResp && xrtHttpResponseTrailer(pResp, "X-Web-End") &&
+			xrtHttpResponseTrailer(pResp, "X-Web-Meta") &&
+			strcmp(xrtHttpResponseTrailer(pResp, "X-Web-End"), "one") == 0 &&
+			strcmp(xrtHttpResponseTrailer(pResp, "X-Web-Meta"), "two") == 0 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compress", (unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb gzip negotiation status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 200u ? "PASS" : "FAIL");
+		printf("  XWeb gzip decoded body : %s\n",
+			pResp && pResp->iBodyLen == 2048u && pResp->pBody &&
+			pResp->pBody[0] == 'C' && pResp->pBody[2047] == 'C' ? "PASS" : "FAIL");
+		printf("  XWeb gzip response metadata : %s\n",
+			pResp && xrtHttpResponseOriginalContentEncoding(pResp) &&
+			strcmp(xrtHttpResponseOriginalContentEncoding(pResp), "gzip") == 0 &&
+			xrtHttpResponseHeader(pResp, "Vary") &&
+			xrtHttpHeaderContainsToken(xrtHttpResponseHeader(pResp, "Vary"), "Accept-Encoding") &&
+			!xrtHttpResponseHeader(pResp, "ETag") && !xrtHttpResponseHeader(pResp, "Digest") ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestHeader(sURL, "GET", "Accept-Encoding",
+			"gzip;q=0.2, deflate;q=1", &iStatus) : NULL;
+		printf("  XWeb deflate q-value preference : %s\n",
+			pResp && pResp->iBodyLen == 2048u && xrtHttpResponseOriginalContentEncoding(pResp) &&
+			strcmp(xrtHttpResponseOriginalContentEncoding(pResp), "deflate") == 0 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestHeader(sURL, "GET", "Accept-Encoding",
+			"*;q=0.5, identity;q=0.1", &iStatus) : NULL;
+		printf("  XWeb wildcard encoding negotiation : %s\n",
+			pResp && xrtHttpResponseOriginalContentEncoding(pResp) &&
+			strcmp(xrtHttpResponseOriginalContentEncoding(pResp), "gzip") == 0 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestHeader(sURL, "GET", "Accept-Encoding",
+			"gzip;q=0.2, identity;q=1", &iStatus) : NULL;
+		printf("  XWeb identity preference skips compression : %s\n",
+			pResp && pResp->iBodyLen == 2048u && !xrtHttpResponseOriginalContentEncoding(pResp) &&
+			xrtHttpResponseHeader(pResp, "Vary") ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestHeader(sURL, "GET", "Accept-Encoding",
+			"gzip;q=0, deflate;q=0, identity;q=0", &iStatus) : NULL;
+		printf("  XWeb unacceptable encoding status : %s\n",
+			iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 406u ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compress-no-transform", (unsigned)xrtWebServerPort(pServer));
+		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		printf("  XWeb no-transform skips compression : %s\n",
+			pResp && pResp->iBodyLen == 2048u && !xrtHttpResponseOriginalContentEncoding(pResp) &&
+			xrtHttpResponseHeader(pResp, "ETag") && xrtHttpResponseHeader(pResp, "Digest") ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = NULL;
+
 		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/echo", (unsigned)xrtWebServerPort(pServer));
 		pResp = pServer ? __Test_XWebRequest(sURL, "POST", "{\"ok\":true}", &iStatus) : NULL;
 		printf("  XWeb post status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 200u ? "PASS" : "FAIL");
@@ -836,6 +1382,26 @@ int Test_XWeb(void)
 			printf("  XWeb multipart body : %s\n", pResp && pResp->pBody && strcmp(pResp->pBody, "multipart-ok") == 0 ? "PASS" : "FAIL");
 			if ( pResp ) { xrtHttpResponseDestroy(pResp); }
 			pResp = NULL;
+		}
+
+		{
+			xhttpformdata* pForm = xrtHttpFormDataCreate();
+			xhttpbody* pFileBody = xrtHttpBodyCreateBytesCopy("file-data", 9u);
+			bool bBuilt = pForm && pFileBody &&
+				xrtHttpFormDataAppendText(pForm, "title", "hello multipart") == XHTTP_SEMANTIC_OK &&
+				xrtHttpFormDataAppendBody(pForm, "upload", pFileBody,
+					"note.txt", "text/plain") == XHTTP_SEMANTIC_OK;
+			xrtHttpBodyRelease(pFileBody);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/multipart",
+				(unsigned)xrtWebServerPort(pServer));
+			pResp = (pServer && bBuilt) ? __Test_XWebRequestFormData(sURL, pForm, &iStatus) : NULL;
+			printf("  XWeb FormData streaming status : %s\n",
+				iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 200u ? "PASS" : "FAIL");
+			printf("  XWeb FormData streaming body : %s\n",
+				pResp && pResp->pBody && strcmp(pResp->pBody, "multipart-ok") == 0 ? "PASS" : "FAIL");
+			if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+			pResp = NULL;
+			xrtHttpFormDataDestroy(pForm);
 		}
 
 		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/public/index.txt", (unsigned)xrtWebServerPort(pServer));
@@ -881,7 +1447,7 @@ int Test_XWeb(void)
 		pResp = NULL;
 
 		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/go", (unsigned)xrtWebServerPort(pServer));
-		pResp = pServer ? __Test_XWebRequest(sURL, "GET", NULL, &iStatus) : NULL;
+		pResp = pServer ? __Test_XWebRequestNoRedirect(sURL, "GET", &iStatus) : NULL;
 		printf("  XWeb redirect status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 302u ? "PASS" : "FAIL");
 		printf("  XWeb redirect location : %s\n", pResp && xrtHttpResponseHeader(pResp, "Location") != NULL && strcmp(xrtHttpResponseHeader(pResp, "Location"), "/users/me") == 0 ? "PASS" : "FAIL");
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
@@ -906,6 +1472,49 @@ int Test_XWeb(void)
 		printf("  XWeb stream status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 200u ? "PASS" : "FAIL");
 		printf("  XWeb stream body : %s\n", pResp && pResp->pBody && strcmp(pResp->pBody, "stream-ok") == 0 ? "PASS" : "FAIL");
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+
+		{
+			xsocket hUpgrade = XNET_SOCKET_INVALID;
+			char sUpgradeReq[512];
+			char aUpgradeResp[2048];
+			size_t iUpgradeRespLen = 0u;
+			long iUpgradeBefore = __Test_XHttpdAtomicLoad(&tCtx.iUpgradeCount);
+			long iRecvBefore = __Test_XHttpdAtomicLoad(&tCtx.iUpgradeRecvCount);
+			long iCloseBefore = __Test_XHttpdAtomicLoad(&tCtx.iUpgradeCloseCount);
+			snprintf(sUpgradeReq, sizeof(sUpgradeReq),
+				"GET /upgrade HTTP/1.1\r\n"
+				"Host: 127.0.0.1:%u\r\n"
+				"Connection: Upgrade\r\n"
+				"Upgrade: xweb-test\r\n\r\n"
+				"PING",
+				(unsigned)xrtWebServerPort(pServer));
+			hUpgrade = pServer ? __Test_XHttpdConnectLoopback(xrtWebServerPort(pServer)) : XNET_SOCKET_INVALID;
+			printf("  XWeb upgrade raw connect : %s\n", hUpgrade != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+			printf("  XWeb upgrade request send : %s\n",
+				hUpgrade != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hUpgrade,
+					sUpgradeReq, strlen(sUpgradeReq)) ? "PASS" : "FAIL");
+			printf("  XWeb upgrade response recv : %s\n",
+				hUpgrade != XNET_SOCKET_INVALID && __Test_XHttpdRecvUntil(hUpgrade,
+					aUpgradeResp, sizeof(aUpgradeResp), "XWEB-UPGRADE-OK",
+					&iUpgradeRespLen, 3000u) ? "PASS" : "FAIL");
+			printf("  XWeb upgrade response : %s\n",
+				strstr(aUpgradeResp, "HTTP/1.1 101 Switching Protocols") &&
+				strstr(aUpgradeResp, "Upgrade: xweb-test") ? "PASS" : "FAIL");
+			printf("  XWeb upgrade committed callback : %s\n",
+				__Test_XHttpdWaitMin(&tCtx.iUpgradeCount, iUpgradeBefore + 1, 1000u) ? "PASS" : "FAIL");
+			printf("  XWeb upgrade buffered bytes : %s\n",
+				__Test_XHttpdWaitMin(&tCtx.iUpgradeRecvCount, iRecvBefore + 1, 1000u) &&
+				strcmp(tCtx.aUpgradeData, "PING") == 0 ? "PASS" : "FAIL");
+			__Test_XHttpdCloseSocket(hUpgrade);
+			printf("  XWeb upgrade close callback : %s\n",
+				__Test_XHttpdWaitMin(&tCtx.iUpgradeCloseCount, iCloseBefore + 1, 2000u) ? "PASS" : "FAIL");
+			printf("  XWeb upgrade error free : %s\n",
+				__Test_XHttpdAtomicLoad(&tCtx.iUpgradeErrorCount) == 0 ? "PASS" : "FAIL");
+			if ( tCtx.pUpgradeStream ) {
+				xrtNetStreamDestroy(tCtx.pUpgradeStream);
+				tCtx.pUpgradeStream = NULL;
+			}
+		}
 
 		{
 			xsocket hStream = XNET_SOCKET_INVALID;
@@ -1116,6 +1725,31 @@ int Test_XWeb(void)
 			"\r\n"
 			"2\r\n"
 			"--xlimit--\r\n";
+		const char* sTruncatedPart =
+			"--xlimit\r\n"
+			"Content-Disposition: form-data; name=\"a\"\r\n"
+			"\r\n"
+			"1";
+		const char* sMissingName =
+			"--xlimit\r\n"
+			"Content-Disposition: form-data\r\n"
+			"\r\n"
+			"1\r\n"
+			"--xlimit--\r\n";
+		const char* sDuplicateDisposition =
+			"--xlimit\r\n"
+			"Content-Disposition: form-data; name=\"a\"\r\n"
+			"Content-Disposition: form-data; name=\"b\"\r\n"
+			"\r\n"
+			"1\r\n"
+			"--xlimit--\r\n";
+		const char* sInvalidPartHeader =
+			"--xlimit\r\n"
+			"Content-Disposition: form-data; name=\"a\"\r\n"
+			"Invalid Header\r\n"
+			"\r\n"
+			"1\r\n"
+			"--xlimit--\r\n";
 		char sURL[512];
 
 		memset(&tMultipartLimitCtx, 0, sizeof(tMultipartLimitCtx));
@@ -1141,7 +1775,22 @@ int Test_XWeb(void)
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
 		pResp = pServer ? __Test_XWebRequestContentType(sURL, "POST", sManyParts, "multipart/form-data; boundary=xlimit", &iStatus) : NULL;
 		printf("  XWeb multipart part count limit status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 413u ? "PASS" : "FAIL");
-		printf("  XWeb multipart limit handler bypass : %s\n", tMultipartLimitCtx.iPostCount == 0 ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestContentType(sURL, "POST", sTruncatedPart, "multipart/form-data; boundary=xlimit", &iStatus) : NULL;
+		printf("  XWeb multipart truncated body status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 400u ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestContentType(sURL, "POST", sMissingName, "multipart/form-data; boundary=xlimit", &iStatus) : NULL;
+		printf("  XWeb multipart missing name status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 400u ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestContentType(sURL, "POST", sDuplicateDisposition, "multipart/form-data; boundary=xlimit", &iStatus) : NULL;
+		printf("  XWeb multipart duplicate disposition status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 400u ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestContentType(sURL, "POST", sInvalidPartHeader, "multipart/form-data; boundary=xlimit", &iStatus) : NULL;
+		printf("  XWeb multipart invalid part header status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 400u ? "PASS" : "FAIL");
+		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
+		pResp = pServer ? __Test_XWebRequestContentType(sURL, "POST", sMissingName, "multipart/form-data", &iStatus) : NULL;
+		printf("  XWeb multipart missing boundary status : %s\n", iStatus == XRT_NET_OK && pResp && pResp->iStatusCode == 400u ? "PASS" : "FAIL");
+		printf("  XWeb multipart policy handler bypass : %s\n", tMultipartLimitCtx.iPostCount == 0 ? "PASS" : "FAIL");
 		if ( pResp ) { xrtHttpResponseDestroy(pResp); }
 
 		xrtHttpCloseIdleConnections(xrtNetSyncGetHiddenEngine());
@@ -1320,7 +1969,8 @@ int Test_XWeb(void)
 		bool bRecv = false;
 
 		memset(&tLimitCtx, 0, sizeof(tLimitCtx));
-		pServer = xrtWebServerCreateHostEx(NULL, "127.0.0.1", 0u, 64u, 1024u, 8u, 1u);
+		pServer = xrtWebServerCreateHostFullEx(NULL, "127.0.0.1", 0u,
+			64u, 1024u, 8u, 0u, 0u, 1u, 0u, 0u, 0u, 0u, 1000u, 0u);
 		printf("  XWeb owned body server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
 		printf("  XWeb owned body route register : %s\n", pServer && xrtWebServerPost(pServer, "/limited", __Test_XWebPostHandler, &tLimitCtx) ? "PASS" : "FAIL");
 		printf("  XWeb owned body server start : %s\n", pServer && xrtWebServerStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
@@ -1434,7 +2084,6 @@ int Test_XWeb(void)
 	{
 		xtlsconfig tTlsCfg;
 		xnetengineconfig tEngineCfg;
-		xwebconfig tWebCfg;
 		xnetengine* pEngine = NULL;
 		xwebserver* pServer = NULL;
 		xhttpresponse* pResp = NULL;
@@ -1455,10 +2104,10 @@ int Test_XWeb(void)
 			printf("  XWeb TLS engine create : %s\n", pEngine != NULL ? "PASS" : "FAIL");
 			printf("  XWeb TLS engine start : %s\n", pEngine && xrtNetEngineStart(pEngine) == XRT_NET_OK ? "PASS" : "FAIL");
 
-			xrtWebConfigInit(&tWebCfg);
-			(void)xrtNetAddrParse(&tWebCfg.tBindAddr, "127.0.0.1", 0u);
-			tWebCfg.pTlsConfig = &tTlsCfg;
-			pServer = pEngine ? xrtWebServerCreate(pEngine, &tWebCfg) : NULL;
+			pServer = pEngine ? xrtWebServerCreateHostTlsFullEx(pEngine,
+				tTlsCfg.sCertFile, tTlsCfg.sKeyFile, "127.0.0.1", 0u,
+				128u, 1024u * 1024u, 1024u * 1024u, 100u, 64u * 1024u, 1u,
+				10000u, 30000u, 30000u, 30000u, 1000u, 0u) : NULL;
 			printf("  XWeb TLS server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
 			printf("  XWeb TLS route register : %s\n", pServer && xrtWebServerGet(pServer, "/secure", __Test_XWebTextHandler, "secure") ? "PASS" : "FAIL");
 			printf("  XWeb TLS SNI route register : %s\n", pServer && xrtWebServerGet(pServer, "/sni", __Test_XWebSNIHandler, NULL) ? "PASS" : "FAIL");

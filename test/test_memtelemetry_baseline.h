@@ -11,13 +11,13 @@ void Test_XNet2_Engine(void);
 int Test_XNet2_Stream(void);
 void Test_XNet2_Dgram(void);
 #ifndef XRT_NO_NETTLS
-	void Test_XNet2_TLS(void);
+	int Test_XNet2_TLS(void);
 #endif
 int Test_XNet2_Sync(void);
 void Test_XNet2_Codec(void);
-void Test_XNet_Http(void);
+int Test_XNet_Http(void);
 int Test_XNet_Httpd(void);
-void Test_XNet_Ws(void);
+int Test_XNet_Ws(void);
 void Test_XNet2_Mem(void);
 
 typedef void (*__test_memtelemetry_baseline_lane_proc)(xrtGlobalData* pCore);
@@ -130,7 +130,7 @@ static void __Test_MemTelemetryBaselineLane_XNet(xrtGlobalData* pCore)
 	Test_XNet2_Codec();
 	Test_XNet_Http();
 	(void)Test_XNet_Httpd();
-	Test_XNet_Ws();
+	(void)Test_XNet_Ws();
 	Test_XNet2_Mem();
 }
 

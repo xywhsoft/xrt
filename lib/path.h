@@ -707,3 +707,76 @@ XXAPI str xrtPathWithName(str sPath, str sNameExt)
 }
 
 
+static bool __xrtPathArchiveAsciiEqual(const char* sText, size_t iLength, const char* sExpected)
+{
+	size_t i;
+	if ( strlen(sExpected) != iLength ) { return FALSE; }
+	for ( i = 0u; i < iLength; ++i ) {
+		unsigned char a = (unsigned char)sText[i];
+		unsigned char b = (unsigned char)sExpected[i];
+		if ( a >= 'A' && a <= 'Z' ) { a = (unsigned char)(a + ('a' - 'A')); }
+		if ( b >= 'A' && b <= 'Z' ) { b = (unsigned char)(b + ('a' - 'A')); }
+		if ( a != b ) { return FALSE; }
+	}
+	return TRUE;
+}
+
+
+
+static bool __xrtPathArchiveWindowsDevice(const char* sSegment, size_t iLength)
+{
+	size_t iBase = 0u;
+	while ( iBase < iLength && sSegment[iBase] != '.' ) { ++iBase; }
+	if ( __xrtPathArchiveAsciiEqual(sSegment, iBase, "con") ||
+		__xrtPathArchiveAsciiEqual(sSegment, iBase, "prn") ||
+		__xrtPathArchiveAsciiEqual(sSegment, iBase, "aux") ||
+		__xrtPathArchiveAsciiEqual(sSegment, iBase, "nul") ) { return TRUE; }
+	if ( iBase == 4u ) {
+		unsigned char a = (unsigned char)sSegment[0];
+		unsigned char b = (unsigned char)sSegment[1];
+		unsigned char c = (unsigned char)sSegment[2];
+		if ( a >= 'A' && a <= 'Z' ) { a = (unsigned char)(a + ('a' - 'A')); }
+		if ( b >= 'A' && b <= 'Z' ) { b = (unsigned char)(b + ('a' - 'A')); }
+		if ( c >= 'A' && c <= 'Z' ) { c = (unsigned char)(c + ('a' - 'A')); }
+		if ( ((a == 'c' && b == 'o' && c == 'm') ||
+			(a == 'l' && b == 'p' && c == 't')) &&
+			sSegment[3] >= '1' && sSegment[3] <= '9' ) { return TRUE; }
+	}
+	return FALSE;
+}
+
+
+
+// 归档路径必须在 Windows 与 POSIX 上都安全，避免同一个包在不同平台产生不同结果。
+XXAPI bool xrtPathIsSafeArchiveEntry(str sPath, bool bDirectory)
+{
+	const char* sName = (const char*)sPath;
+	size_t iLength;
+	size_t iStart = 0u;
+	size_t i;
+	if ( sName == NULL || sName[0] == 0 ) { return FALSE; }
+	iLength = strlen(sName);
+	if ( !xrtIsUTF8(sPath, iLength) || sName[0] == '/' || sName[0] == '\\' ) { return FALSE; }
+	if ( !bDirectory && sName[iLength - 1u] == '/' ) { return FALSE; }
+	for ( i = 0u; i <= iLength; ++i ) {
+		unsigned char iChar = (unsigned char)sName[i];
+		if ( iChar == '\\' || iChar == ':' ||
+			(iChar != 0u && (iChar < 0x20u || iChar == 0x7fu)) ) { return FALSE; }
+		if ( iChar == '/' || iChar == 0u ) {
+			size_t iSegment = i - iStart;
+			bool bFinalDirectorySlash = bDirectory && iChar == 0u && iSegment == 0u &&
+				i == iLength && iLength != 0u && sName[iLength - 1u] == '/';
+			if ( !bFinalDirectorySlash ) {
+				if ( iSegment == 0u ||
+					(iSegment == 1u && sName[iStart] == '.') ||
+					(iSegment == 2u && sName[iStart] == '.' && sName[iStart + 1u] == '.') ||
+					sName[i - 1u] == '.' || sName[i - 1u] == ' ' ||
+					__xrtPathArchiveWindowsDevice(sName + iStart, iSegment) ) { return FALSE; }
+			}
+			iStart = i + 1u;
+		}
+	}
+	return TRUE;
+}
+
+

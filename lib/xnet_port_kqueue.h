@@ -295,6 +295,24 @@
 	}
 
 
+	static uint32 __xnetPortKqueueTimerWait(__xnet_kqueue_ctx* pCtx, uint32 iTimeoutMs)
+	{
+		__xnet_kqueue_timer* pNode = pCtx ? pCtx->pTimers : NULL;
+		uint64 iNextDueMs = UINT64_MAX;
+		uint64 iNowMs;
+		uint64 iDelayMs;
+		while ( pNode ) {
+			if ( pNode->iDueMs < iNextDueMs ) { iNextDueMs = pNode->iDueMs; }
+			pNode = pNode->pNext;
+		}
+		if ( iNextDueMs == UINT64_MAX ) { return iTimeoutMs; }
+		iNowMs = __xnetPortKqueueNowMs();
+		if ( iNextDueMs <= iNowMs ) { return 0u; }
+		iDelayMs = iNextDueMs - iNowMs;
+		return iDelayMs < (uint64)iTimeoutMs ? (uint32)iDelayMs : iTimeoutMs;
+	}
+
+
 	// 内部函数：查找端口 kqueue watch
 	static __xnet_kqueue_watch* __xnetPortKqueueFindWatch(__xnet_kqueue_ctx* pCtx, int hSocket)
 	{
@@ -839,6 +857,7 @@
 		struct timespec tTimeout;
 		struct timespec* pTimeout = &tTimeout;
 		uint32 iCount = 0;
+		uint32 iWaitMs;
 		__xnet_kqueue_ctx* pCtx = pPort ? (__xnet_kqueue_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 		iCount += __xnetPortKqueueHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
@@ -846,9 +865,10 @@
 		iCount += __xnetPortKqueueDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 		{
-			tTimeout.tv_sec = (time_t)(iTimeoutMs / 1000u);
-			tTimeout.tv_nsec = (long)((iTimeoutMs % 1000u) * 1000000u);
-			if ( iTimeoutMs == 0xffffffffu ) { pTimeout = NULL; }
+			iWaitMs = iCount > 0 ? 0u : __xnetPortKqueueTimerWait(pCtx, iTimeoutMs);
+			tTimeout.tv_sec = (time_t)(iWaitMs / 1000u);
+			tTimeout.tv_nsec = (long)((iWaitMs % 1000u) * 1000000u);
+			if ( iWaitMs == 0xffffffffu ) { pTimeout = NULL; }
 			int iRet = kevent(pCtx->hKqueue, NULL, 0, arrReady, 64, pTimeout);
 			if ( iRet > 0 ) {
 				for ( int i = 0; i < iRet && iCount < iMaxEvents; ++i ) {
@@ -874,6 +894,9 @@
 				}
 			}
 		}
+		if ( iCount < iMaxEvents ) {
+			iCount += __xnetPortKqueueHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
+		}
 		return iCount;
 	}
 
@@ -897,14 +920,24 @@
 	{
 		__xnet_kqueue_ctx* pCtx = pPort ? (__xnet_kqueue_ctx*)pPort->pCtx : NULL;
 		__xnet_kqueue_timer* pNode;
-		if ( !pCtx ) { return XRT_NET_ERROR; }
+		__xnet_kqueue_timer* pExisting;
+		uint64 iDueMs;
+		if ( !pCtx || iTimerId == 0u ) { return XRT_NET_ERROR; }
 		pNode = (__xnet_kqueue_timer*)XNET_ALLOC(sizeof(__xnet_kqueue_timer));
 		if ( !pNode ) { return XRT_NET_ERROR; }
 		memset(pNode, 0, sizeof(__xnet_kqueue_timer));
 		pNode->iTimerId = iTimerId;
-		pNode->iDueMs = __xnetPortKqueueNowMs() + (uint64)iDelayMs;
-		pNode->pNext = pCtx->pTimers;
-		pCtx->pTimers = pNode;
+		iDueMs = __xnetPortKqueueNowMs() + (uint64)iDelayMs;
+		pNode->iDueMs = iDueMs;
+		pExisting = pCtx->pTimers;
+		while ( pExisting && pExisting->iTimerId != iTimerId ) { pExisting = pExisting->pNext; }
+		if ( pExisting ) {
+			pExisting->iDueMs = iDueMs;
+			XNET_FREE(pNode);
+		} else {
+			pNode->pNext = pCtx->pTimers;
+			pCtx->pTimers = pNode;
+		}
 		return XRT_NET_OK;
 	}
 

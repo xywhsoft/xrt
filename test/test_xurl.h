@@ -718,6 +718,26 @@ static bool Test_XUrlCore(void)
 	bPass = bPass && xrtMultipartStreamError(&tStream) == XRT_MULTIPART_STREAM_ERR_TRUNCATED;
 	xrtMultipartStreamUnit(&tStream);
 
+	{
+		char sLongURL[6200];
+		char sBuiltURL[6200];
+		char sResolvedURL[6200];
+		xrturlview tLongView;
+		size_t iLongLen;
+		size_t iBuiltURLLen = 0u;
+		size_t iResolvedURLLen = 0u;
+		memcpy(sLongURL, "https://example.com/", 20u);
+		memset(sLongURL + 20u, 'a', 5000u);
+		memcpy(sLongURL + 5020u, "/file", 5u);
+		sLongURL[5025u] = '\0';
+		iLongLen = strlen(sLongURL);
+		bPass = bPass && iLongLen > 4096u && xrtUrlParseView(sLongURL, &tLongView);
+		bPass = bPass && xrtUrlBuild(&tLongView, sBuiltURL, sizeof(sBuiltURL), &iBuiltURLLen);
+		bPass = bPass && iBuiltURLLen == iLongLen && strcmp(sBuiltURL, sLongURL) == 0;
+		bPass = bPass && xrtUrlResolve(&tLongView, "next", sResolvedURL, sizeof(sResolvedURL), &iResolvedURLLen);
+		bPass = bPass && iResolvedURLLen > 4096u && strstr(sResolvedURL, "/next") != NULL;
+	}
+
 	bPass = bPass && xrtUrlParse("https://example.com/path?q=1", &tFixed);
 	bPass = bPass && tFixed.bHttps;
 	bPass = bPass && tFixed.iPort == 443u;

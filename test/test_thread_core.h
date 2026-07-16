@@ -26,6 +26,7 @@ typedef struct {
 	volatile int bErrorOk;
 	volatile int bCleanupRan;
 	volatile int bRandOk;
+	volatile int bLocalDataOk;
 } __test_thread_core_runtime_ctx;
 
 
@@ -99,6 +100,7 @@ static uint32 __Test_ThreadCore_RuntimeWorker(ptr pArg)
 	pCtx->bTempOk = FALSE;
 	pCtx->bErrorOk = FALSE;
 	pCtx->bRandOk = FALSE;
+	pCtx->bLocalDataOk = FALSE;
 
 	if ( pThreadData ) {
 		xrtThreadData* pAttach = xrtThreadAttachCurrent();
@@ -119,6 +121,18 @@ static uint32 __Test_ThreadCore_RuntimeWorker(ptr pArg)
 	(void)xrtRand64();
 	(void)xrtRandRange(1, 100);
 	pCtx->bRandOk = TRUE;
+	{
+		uint32* pLocal = (uint32*)xrtThreadLocalGetOrCreate("test.thread.value", sizeof(uint32));
+		size_t iLocalSize = 0u;
+		if ( pLocal ) { *pLocal = 0x12345678u; }
+		pCtx->bLocalDataOk = pLocal != NULL &&
+			xrtThreadLocalGet("test.thread.value", &iLocalSize) == pLocal &&
+			iLocalSize == sizeof(uint32) && *pLocal == 0x12345678u &&
+			xrtThreadLocalGetOrCreate("test.thread.value", sizeof(uint16)) == NULL &&
+			xrtThreadLocalRemove("test.thread.value") &&
+			xrtThreadLocalGet("test.thread.value", NULL) == NULL;
+		xrtClearError();
+	}
 	xrtThreadPushCleanup(__Test_ThreadCore_Cleanup, (ptr)&pCtx->bCleanupRan);
 	return 77;
 }
@@ -282,6 +296,7 @@ static int Test_ThreadCore(void)
 		iFail += __Test_ThreadCore_Check("runtime error isolated", tRuntimeCtx.bErrorOk);
 		iFail += __Test_ThreadCore_Check("runtime cleanup", tRuntimeCtx.bCleanupRan == 1);
 		iFail += __Test_ThreadCore_Check("runtime random", tRuntimeCtx.bRandOk);
+		iFail += __Test_ThreadCore_Check("runtime named local data", tRuntimeCtx.bLocalDataOk);
 		iFail += __Test_ThreadCore_Check("runtime exit code", xrtThreadGetExitCode(hRuntimeThread) == 77u);
 		iFail += __Test_ThreadCore_Check("runtime main error preserved", xrtStrComp(xrtGetError(), "main-error", 0, 0) == 0);
 		xrtThreadDestroy(hRuntimeThread);

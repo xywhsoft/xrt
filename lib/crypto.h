@@ -358,6 +358,80 @@ XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, 
 }
 
 
+// 常量时间比较，适用于摘要、认证标签和口令派生结果。
+XXAPI bool xrtConstTimeEqual(const void* pLeft, const void* pRight, size_t iLen)
+{
+	const uint8 *pA = (const uint8*)pLeft;
+	const uint8 *pB = (const uint8*)pRight;
+	uint8 iDiff = 0;
+	size_t i;
+
+	if ( (pA == NULL || pB == NULL) && iLen != 0 ) return false;
+	for ( i = 0; i < iLen; ++i ) {
+		iDiff |= (uint8)(pA[i] ^ pB[i]);
+	}
+	return iDiff == 0;
+}
+
+
+// PBKDF2-HMAC-SHA256，输出长度不受单个摘要块限制。
+XXAPI bool xrtPBKDF2_SHA256(
+	const uint8 *pPassword,
+	size_t iPasswordLen,
+	const uint8 *pSalt,
+	size_t iSaltLen,
+	uint32 iIterations,
+	uint8 *pOut,
+	size_t iOutLen)
+{
+	uint8 *pSaltBlock;
+	uint8 tU[32];
+	uint8 tValue[32];
+	uint32 iBlock = 1;
+	size_t iOffset = 0;
+
+	if ( pOut == NULL || iOutLen == 0 || iIterations == 0 ||
+		(pPassword == NULL && iPasswordLen != 0) ||
+		(pSalt == NULL && iSaltLen != 0) ||
+		iSaltLen > SIZE_MAX - 4u ||
+		iOutLen > (size_t)UINT32_MAX * sizeof(tValue) ) {
+		return false;
+	}
+	pSaltBlock = (uint8*)xrtMalloc(iSaltLen + 4u);
+	if ( pSaltBlock == NULL ) return false;
+	if ( iSaltLen != 0 ) memcpy(pSaltBlock, pSalt, iSaltLen);
+
+	while ( iOffset < iOutLen ) {
+		size_t iCopy;
+		uint32 iRound;
+		size_t i;
+
+		pSaltBlock[iSaltLen] = (uint8)(iBlock >> 24);
+		pSaltBlock[iSaltLen + 1u] = (uint8)(iBlock >> 16);
+		pSaltBlock[iSaltLen + 2u] = (uint8)(iBlock >> 8);
+		pSaltBlock[iSaltLen + 3u] = (uint8)iBlock;
+		xrtHMAC_SHA256(pPassword, iPasswordLen, pSaltBlock, iSaltLen + 4u, tU);
+		memcpy(tValue, tU, sizeof(tValue));
+
+		for ( iRound = 1; iRound < iIterations; ++iRound ) {
+			xrtHMAC_SHA256(pPassword, iPasswordLen, tU, sizeof(tU), tU);
+			for ( i = 0; i < sizeof(tValue); ++i ) tValue[i] ^= tU[i];
+		}
+		iCopy = iOutLen - iOffset;
+		if ( iCopy > sizeof(tValue) ) iCopy = sizeof(tValue);
+		memcpy(pOut + iOffset, tValue, iCopy);
+		iOffset += iCopy;
+		++iBlock;
+	}
+
+	memset(tU, 0, sizeof(tU));
+	memset(tValue, 0, sizeof(tValue));
+	memset(pSaltBlock, 0, iSaltLen + 4u);
+	xrtFree(pSaltBlock);
+	return true;
+}
+
+
 
 /* ============================== SHA-512 / SHA-384 ============================== */
 

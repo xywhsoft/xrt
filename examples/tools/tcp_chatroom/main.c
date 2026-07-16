@@ -136,7 +136,7 @@ int main()
 
 	xrtInit();
 
-	tRoom.pClients = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
+	tRoom.pClients = xrtPtrArrayCreate(XRT_OBJMODE_SHARED);
 
 	memset(&tListenerEvents, 0, sizeof(tListenerEvents));
 	tListenerEvents.OnAccept = ChatOnAccept;

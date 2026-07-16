@@ -84,9 +84,13 @@ typedef struct xrt_net_dgram    xdgramsock;
 typedef struct xrt_net_chain    xnetchain;
 typedef struct xrt_net_future   xnetfuture;
 typedef struct xrt_net_proxy    xnetproxy;
+typedef struct xrt_net_cancel   xnetcancel;
+typedef struct xrt_net_cancel_watch xnetcancelwatch;
+typedef struct xrt_net_addr_list xnetaddrlist;
 typedef struct xrt_tls_session  xtlssession;
 
 typedef void (*xnet_task_fn)(xnetworker* pWorker, ptr pArg);
+typedef void (*xnetcancelfn)(ptr pArg);
 
 
 
@@ -115,6 +119,39 @@ typedef struct {
 	ptr pReleaseCtx;
 } xnetbufref;
 
+typedef struct {
+	void* pData;
+	size_t iLen;
+} xnetbytes;
+
+#define XNET_CONTEXT_VERSION 1u
+#define XNET_ERROR_VERSION   1u
+#define XNET_CONFIG_VERSION  1u
+#define XNET_ERROR_MESSAGE_CAP 192u
+
+typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
+	uint32 iFlags;
+	uint32 iReserved;
+	int64_t iDeadlineMs;
+	xnetcancel* pCancel;
+	ptr pUserData;
+} xnetcontext;
+
+#define XNET_CONTEXT_V1_SIZE ((uint32)(offsetof(xnetcontext, pUserData) + sizeof(((xnetcontext*)0)->pUserData)))
+
+typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
+	xnet_result iResult;
+	uint32 iOperation;
+	uint32 iPhase;
+	uint32 iBackend;
+	int iSystemError;
+	char sMessage[XNET_ERROR_MESSAGE_CAP];
+} xneterror;
+
 
 
 /* ============================== Flags ============================== */
@@ -127,6 +164,8 @@ typedef struct {
 #define XNET_LISTEN_F_REUSE_PORT      0x00000002u
 #define XNET_LISTEN_F_NO_DELAY        0x00000004u
 #define XNET_LISTEN_F_KEEPALIVE       0x00000008u
+#define XNET_LISTEN_F_PULL_ACCEPT      0x00000010u
+#define XNET_LISTEN_F_EXCLUSIVE_ADDR   0x00000020u
 
 #define XNET_CONNECT_F_NONE           0x00000000u
 #define XNET_CONNECT_F_NO_DELAY       0x00000001u
@@ -143,16 +182,51 @@ typedef struct {
 #define XNET_DGRAM_F_NONE             0x00000000u
 #define XNET_DGRAM_F_REUSE_ADDR       0x00000001u
 #define XNET_DGRAM_F_REUSE_PORT       0x00000002u
+#define XNET_DGRAM_F_BROADCAST        0x00000004u
+#define XNET_DGRAM_F_IPV6_ONLY        0x00000008u
+#define XNET_DGRAM_F_DUAL_STACK       0x00000010u
+#define XNET_DGRAM_F_CONNECTED        0x00000020u
+
+#define XNET_DGRAM_OVERFLOW_DROP_OLDEST 0u
+#define XNET_DGRAM_OVERFLOW_DROP_NEWEST 1u
+#define XNET_DGRAM_OVERFLOW_ERROR       2u
 
 #define XNET_CLOSE_F_ABORT            0x00000001u
 #define XNET_CLOSE_F_GRACEFUL         0x00000002u
 #define XNET_CLOSE_F_WAIT_PEER        0x00000004u
+
+#define XNET_OP_NONE                  0u
+#define XNET_OP_RESOLVE               1u
+#define XNET_OP_CONNECT               2u
+#define XNET_OP_ACCEPT                3u
+#define XNET_OP_READ                  4u
+#define XNET_OP_WRITE                 5u
+#define XNET_OP_SEND                  6u
+#define XNET_OP_RECV                  7u
+#define XNET_OP_WAIT                  8u
+#define XNET_OP_CLOSE                 9u
+
+#define XNET_PHASE_NONE               0u
+#define XNET_PHASE_VALIDATE           1u
+#define XNET_PHASE_SUBMIT             2u
+#define XNET_PHASE_COMPLETE           3u
+#define XNET_PHASE_TIMEOUT            4u
+#define XNET_PHASE_CANCEL             5u
+
+#define XNET_BACKEND_NONE             0u
+#define XNET_BACKEND_IOCP             1u
+#define XNET_BACKEND_IO_URING         2u
+#define XNET_BACKEND_EPOLL            3u
+#define XNET_BACKEND_KQUEUE           4u
+#define XNET_BACKEND_SELECT           5u
 
 
 
 /* ============================== Config structs ============================== */
 
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	uint32 iWorkerCount;
 	uint32 iFlags;
 	uint32 iSqEntries;
@@ -168,9 +242,16 @@ typedef struct {
 	uint32 iLargeBlockSize;
 	uint32 iBlockCachePerWorker;
 	uint32 iMaxConnsPerWorker;
+	uint32 iDefaultMaxQueuedBytes;
+	uint32 iResolverThreads;
+	uint32 iResolverQueueLimit;
+	uint32 iResolverCacheEntries;
+	uint32 iResolverCacheTtlMs;
 } xnetengineconfig;
 
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	xnetaddr tBindAddr;
 	uint32 iFlags;
 	uint32 iBacklog;
@@ -178,9 +259,14 @@ typedef struct {
 	uint32 iLowWater;
 	uint32 iRecvLimit;
 	const xtlsconfig* pTlsConfig;
+	uint32 iMaxQueuedBytes;
+	uint32 iAcceptConcurrency;
+	uint32 iAcceptQueueLimit;
 } xnetlistenconfig;
 
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	int iType;
 	char sHost[XNET_PROXY_HOST_CAP];
 	uint16 iPort;
@@ -194,8 +280,11 @@ struct xrt_net_proxy {
 };
 
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	const char* sHost;
 	uint16 iPort;
+	uint16 iAddressFamily;
 	uint32 iFlags;
 	uint32 iConnectTimeoutMs;
 	uint32 iHighWater;
@@ -203,17 +292,59 @@ typedef struct {
 	uint32 iRecvLimit;
 	const xtlsconfig* pTlsConfig;
 	xnetproxy* pProxy;
+	uint32 iMaxQueuedBytes;
+	uint32 iFallbackDelayMs;
 } xnetconnectconfig;
 
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	xnetaddr tBindAddr;
 	uint32 iFlags;
 	uint32 iRecvBatch;
 	uint32 iSendQueueLimit;
 	uint32 iRecvQueueLimit;
+	uint32 iRecvOverflowPolicy;
+	xnetaddr tPeerAddr;
+	uint32 iRecvBufferSize;
+	uint32 iSendBufferSize;
+	int32 iHopLimit;
+	int32 iTrafficClass;
 } xnetdgramconfig;
 
+typedef struct {
+	const xnetaddr* pTo;
+	const void* pData;
+	size_t iLen;
+} xnetdgramsenditem;
+
+typedef struct {
+	uint64 iRecvPackets;
+	uint64 iRecvBytes;
+	uint64 iSendPackets;
+	uint64 iSendBytes;
+	uint64 iRecvDropped;
+	uint64 iSendAgain;
+	uint64 iErrors;
+	uint64 iPendingSendBytes;
+	uint32 iRecvQueued;
+	uint32 iRecvArmed;
+} xnetdgramstats;
+
 #endif /* !XRT_BUILD_CORE */
+
+struct xrt_net_addr_list {
+	uint32 iCount;
+	xnetaddr* arrAddrs;
+};
+
+#ifndef XNET_ENGINE_CONFIG_V1_SIZE
+	#define XNET_ENGINE_CONFIG_V1_SIZE  ((uint32)(offsetof(xnetengineconfig, iResolverCacheTtlMs) + sizeof(((xnetengineconfig*)0)->iResolverCacheTtlMs)))
+	#define XNET_LISTEN_CONFIG_V1_SIZE  ((uint32)(offsetof(xnetlistenconfig, iAcceptQueueLimit) + sizeof(((xnetlistenconfig*)0)->iAcceptQueueLimit)))
+	#define XNET_PROXY_CONFIG_V1_SIZE   ((uint32)(offsetof(xnetproxyconfig, sPass) + sizeof(((xnetproxyconfig*)0)->sPass)))
+	#define XNET_CONNECT_CONFIG_V1_SIZE ((uint32)(offsetof(xnetconnectconfig, iMaxQueuedBytes) + sizeof(((xnetconnectconfig*)0)->iMaxQueuedBytes)))
+	#define XNET_DGRAM_CONFIG_V1_SIZE   ((uint32)(offsetof(xnetdgramconfig, iTrafficClass) + sizeof(((xnetdgramconfig*)0)->iTrafficClass)))
+#endif
 
 
 
@@ -232,6 +363,49 @@ typedef struct {
 #else
 	#define __XNET_THREAD_LOCAL
 #endif
+
+static __XNET_THREAD_LOCAL xneterror __g_xnetLastError;
+
+static void __xnetErrorSetEx(xnet_result iResult, uint32 iOperation, uint32 iPhase,
+	uint32 iBackend, int iSystemError, const char* sMessage)
+{
+	xneterror* pError = &__g_xnetLastError;
+	memset(pError, 0, sizeof(*pError));
+	pError->iSize = (uint32)sizeof(*pError);
+	pError->iVersion = XNET_ERROR_VERSION;
+	pError->iResult = iResult;
+	pError->iOperation = iOperation;
+	pError->iPhase = iPhase;
+	pError->iBackend = iBackend;
+	pError->iSystemError = iSystemError;
+	if ( sMessage ) {
+		strncpy(pError->sMessage, sMessage, sizeof(pError->sMessage) - 1u);
+		pError->sMessage[sizeof(pError->sMessage) - 1u] = '\0';
+	}
+	#if __XNET_IN_XRT_CORE
+		if ( sMessage && sMessage[0] != '\0' ) { xrtSetError((str)sMessage, FALSE); }
+	#endif
+}
+
+XXAPI void xrtNetErrorClear(void)
+{
+	memset(&__g_xnetLastError, 0, sizeof(__g_xnetLastError));
+	__g_xnetLastError.iSize = (uint32)sizeof(__g_xnetLastError);
+	__g_xnetLastError.iVersion = XNET_ERROR_VERSION;
+	__g_xnetLastError.iResult = XRT_NET_OK;
+}
+
+XXAPI bool xrtNetErrorGet(xneterror* pError)
+{
+	if ( !pError ) { return false; }
+	*pError = __g_xnetLastError;
+	if ( pError->iSize == 0 ) {
+		pError->iSize = (uint32)sizeof(*pError);
+		pError->iVersion = XNET_ERROR_VERSION;
+		pError->iResult = XRT_NET_OK;
+	}
+	return pError->iResult != XRT_NET_OK;
+}
 
 // 内部函数：__xnetAtomicCompareExchange32
 static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
@@ -284,6 +458,12 @@ static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
 static int64 __xnetAtomicAddFetch64(volatile int64* pValue, int64 iDelta)
 {
 	return __xrtAtomicAddFetch64(pValue, iDelta);
+}
+
+
+static int64 __xnetAtomicCompareExchange64(volatile int64* pValue, int64 iExchange, int64 iComparand)
+{
+	return __xrtAtomicCompareExchange64(pValue, iExchange, iComparand);
 }
 
 
@@ -341,9 +521,29 @@ static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
 
 
 // 内部函数：判断代理配置是否有效
+static bool __xnetConfigHeaderIsValid(uint32 iSize, uint32 iVersion, size_t iExpectedSize)
+{
+	return iVersion == XNET_CONFIG_VERSION && iSize >= iExpectedSize;
+}
+
+
+static bool __xnetConfigCopyKnown(void* pDst, size_t iDstSize, const void* pSrc,
+	uint32 iSrcSize, uint32 iVersion, size_t iMinSize)
+{
+	size_t iCopySize;
+	if ( !pDst || !pSrc || !__xnetConfigHeaderIsValid(iSrcSize, iVersion, iMinSize) ) {
+		return false;
+	}
+	iCopySize = iSrcSize < iDstSize ? (size_t)iSrcSize : iDstSize;
+	memcpy(pDst, pSrc, iCopySize);
+	return true;
+}
+
+
 static bool __xnetProxyConfigIsValid(const xnetproxyconfig* pCfg)
 {
 	if ( !pCfg ) { return false; }
+	if ( !__xnetConfigHeaderIsValid(pCfg->iSize, pCfg->iVersion, XNET_PROXY_CONFIG_V1_SIZE) ) { return false; }
 	if ( pCfg->iType != XNET_PROXY_SOCKS5 && pCfg->iType != XNET_PROXY_HTTP_CONNECT ) { return false; }
 	if ( !pCfg->sHost[0] || pCfg->iPort == 0 ) { return false; }
 	return true;
@@ -466,6 +666,10 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 	{
 		xnetaddr tParsed;
 		if ( xrtNetAddrParse(&tParsed, sHost, pAddr->iPort) == XRT_NET_OK ) {
+			if ( (pAddr->iFamily == AF_INET || pAddr->iFamily == AF_INET6) &&
+				tParsed.iFamily != pAddr->iFamily ) {
+				return XRT_NET_ERROR;
+			}
 			tParsed.iScopeId = pAddr->iScopeId;
 			*pAddr = tParsed;
 			return XRT_NET_OK;
@@ -476,10 +680,15 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 	struct addrinfo tHints;
 	struct addrinfo* pRes = NULL;
 	struct addrinfo* pIt = NULL;
+	xnetaddr tFallback;
+	bool bHasFallback = false;
 	uint16 iPort = pAddr->iPort;
+	uint16 iRequestedFamily = pAddr->iFamily;
+	memset(&tFallback, 0, sizeof(tFallback));
 	memset(&tHints, 0, sizeof(tHints));
-	tHints.ai_family = AF_UNSPEC;
-	tHints.ai_socktype = SOCK_STREAM;
+	tHints.ai_family = (iRequestedFamily == AF_INET || iRequestedFamily == AF_INET6)
+		? (int)iRequestedFamily : AF_UNSPEC;
+	tHints.ai_socktype = 0;
 
 	if ( getaddrinfo(sHost, NULL, &tHints, &pRes) != 0 ) {
 		return XRT_NET_ERROR;
@@ -487,17 +696,109 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 
 	// 遍历 DNS 返回结果，选取第一个可用地址
 	for ( pIt = pRes; pIt; pIt = pIt->ai_next ) {
+		xnetaddr tCandidate;
 		if ( !pIt->ai_addr ) { continue; }
-		if ( __xnetAddrFromSockAddr(pAddr, pIt->ai_addr) ) {
-			pAddr->iPort = iPort;
-			freeaddrinfo(pRes);
-			return XRT_NET_OK;
+		memset(&tCandidate, 0, sizeof(tCandidate));
+		if ( __xnetAddrFromSockAddr(&tCandidate, pIt->ai_addr) ) {
+			tCandidate.iPort = iPort;
+			if ( iRequestedFamily != 0u || tCandidate.iFamily == AF_INET ) {
+				*pAddr = tCandidate;
+				freeaddrinfo(pRes);
+				return XRT_NET_OK;
+			}
+			if ( !bHasFallback ) {
+				tFallback = tCandidate;
+				bHasFallback = true;
+			}
 		}
+	}
+	if ( bHasFallback ) {
+		*pAddr = tFallback;
+		freeaddrinfo(pRes);
+		return XRT_NET_OK;
 	}
 
 	// 所有结果均无法转换，释放资源并返回错误
 	freeaddrinfo(pRes);
 	return XRT_NET_ERROR;
+}
+
+
+XXAPI xnetaddrlist* xrtNetResolveAll(const char* sHost, uint16 iPort, int iFamily)
+{
+	#define __XNET_RESOLVE_ALL_LIMIT 64u
+	struct addrinfo tHints;
+	struct addrinfo* pResult = NULL;
+	struct addrinfo* pIt;
+	xnetaddr arrTemp[__XNET_RESOLVE_ALL_LIMIT];
+	xnetaddr tNumeric;
+	xnetaddrlist* pList;
+	uint32 iCount = 0u;
+	uint32 i;
+	if ( !sHost || !sHost[0] || iPort == 0u ||
+		(iFamily != AF_UNSPEC && iFamily != AF_INET && iFamily != AF_INET6) ) { return NULL; }
+	memset(&tNumeric, 0, sizeof(tNumeric));
+	if ( xrtNetAddrParse(&tNumeric, sHost, iPort) == XRT_NET_OK ) {
+		if ( iFamily != AF_UNSPEC && tNumeric.iFamily != iFamily ) { return NULL; }
+		arrTemp[iCount++] = tNumeric;
+	} else {
+		memset(&tHints, 0, sizeof(tHints));
+		tHints.ai_family = iFamily;
+		tHints.ai_socktype = 0;
+		if ( getaddrinfo(sHost, NULL, &tHints, &pResult) != 0 ) { return NULL; }
+		for ( pIt = pResult; pIt && iCount < __XNET_RESOLVE_ALL_LIMIT; pIt = pIt->ai_next ) {
+			xnetaddr tCandidate;
+			bool bDuplicate = false;
+			if ( !pIt->ai_addr ) { continue; }
+			memset(&tCandidate, 0, sizeof(tCandidate));
+			if ( !__xnetAddrFromSockAddr(&tCandidate, pIt->ai_addr) ) { continue; }
+			tCandidate.iPort = iPort;
+			for ( i = 0u; i < iCount; ++i ) {
+				if ( arrTemp[i].iFamily == tCandidate.iFamily &&
+					arrTemp[i].iScopeId == tCandidate.iScopeId &&
+					memcmp(arrTemp[i].aAddr, tCandidate.aAddr,
+						tCandidate.iFamily == AF_INET ? 4u : 16u) == 0 ) {
+					bDuplicate = true;
+					break;
+				}
+			}
+			if ( !bDuplicate ) { arrTemp[iCount++] = tCandidate; }
+		}
+		freeaddrinfo(pResult);
+	}
+	if ( iCount == 0u ) { return NULL; }
+	pList = (xnetaddrlist*)xrtMalloc(sizeof(*pList));
+	if ( !pList ) { return NULL; }
+	memset(pList, 0, sizeof(*pList));
+	pList->arrAddrs = (xnetaddr*)xrtMalloc(sizeof(xnetaddr) * iCount);
+	if ( !pList->arrAddrs ) {
+		xrtFree(pList);
+		return NULL;
+	}
+	memcpy(pList->arrAddrs, arrTemp, sizeof(xnetaddr) * iCount);
+	pList->iCount = iCount;
+	return pList;
+	#undef __XNET_RESOLVE_ALL_LIMIT
+}
+
+
+XXAPI uint32 xrtNetAddrListCount(const xnetaddrlist* pList)
+{
+	return pList ? pList->iCount : 0u;
+}
+
+
+XXAPI const xnetaddr* xrtNetAddrListGet(const xnetaddrlist* pList, uint32 iIndex)
+{
+	return pList && pList->arrAddrs && iIndex < pList->iCount ? &pList->arrAddrs[iIndex] : NULL;
+}
+
+
+XXAPI void xrtNetAddrListDestroy(xnetaddrlist* pList)
+{
+	if ( !pList ) { return; }
+	xrtFree(pList->arrAddrs);
+	xrtFree(pList);
 }
 
 
@@ -546,6 +847,8 @@ XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
 {
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetengineconfig));
+	pCfg->iSize = (uint32)sizeof(*pCfg);
+	pCfg->iVersion = XNET_CONFIG_VERSION;
 	pCfg->iWorkerCount = 0;
 	pCfg->iFlags = XNET_ENGINE_F_AUTO_WORKERS;
 	pCfg->iSqEntries = 4096;
@@ -561,6 +864,11 @@ XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
 	pCfg->iLargeBlockSize = 16384;
 	pCfg->iBlockCachePerWorker = 256;
 	pCfg->iMaxConnsPerWorker = 0;
+	pCfg->iDefaultMaxQueuedBytes = 1048576;
+	pCfg->iResolverThreads = 2;
+	pCfg->iResolverQueueLimit = 4096;
+	pCfg->iResolverCacheEntries = 256;
+	pCfg->iResolverCacheTtlMs = 60000;
 }
 
 
@@ -569,13 +877,23 @@ XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
 {
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetlistenconfig));
+	pCfg->iSize = (uint32)sizeof(*pCfg);
+	pCfg->iVersion = XNET_CONFIG_VERSION;
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
-	pCfg->iFlags = XNET_LISTEN_F_REUSE_ADDR | XNET_LISTEN_F_NO_DELAY;
+	#if defined(_WIN32) || defined(_WIN64)
+		/* Windows 的 SO_REUSEADDR 会允许另一个进程抢占活动监听地址。 */
+		pCfg->iFlags = XNET_LISTEN_F_EXCLUSIVE_ADDR | XNET_LISTEN_F_NO_DELAY;
+	#else
+		pCfg->iFlags = XNET_LISTEN_F_REUSE_ADDR | XNET_LISTEN_F_NO_DELAY;
+	#endif
 	pCfg->iBacklog = 512;
 	pCfg->iHighWater = 262144;
 	pCfg->iLowWater = 65536;
 	pCfg->iRecvLimit = 1048576;
 	pCfg->pTlsConfig = NULL;
+	pCfg->iMaxQueuedBytes = 1048576;
+	pCfg->iAcceptConcurrency = 0;
+	pCfg->iAcceptQueueLimit = 256;
 }
 
 
@@ -584,6 +902,8 @@ XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg)
 {
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetproxyconfig));
+	pCfg->iSize = (uint32)sizeof(*pCfg);
+	pCfg->iVersion = XNET_CONFIG_VERSION;
 	pCfg->iType = XNET_PROXY_NONE;
 }
 
@@ -597,6 +917,8 @@ XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg)
 	if ( !pProxy ) { return NULL; }
 	memset(pProxy, 0, sizeof(xnetproxy));
 	pProxy->iRefCount = 1;
+	pProxy->tConfig.iSize = (uint32)sizeof(pProxy->tConfig);
+	pProxy->tConfig.iVersion = XNET_CONFIG_VERSION;
 	pProxy->tConfig.iType = pCfg->iType;
 	pProxy->tConfig.iPort = pCfg->iPort;
 	__xnetCopyFixedString(pProxy->tConfig.sHost, sizeof(pProxy->tConfig.sHost), pCfg->sHost);
@@ -630,8 +952,11 @@ XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 {
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetconnectconfig));
+	pCfg->iSize = (uint32)sizeof(*pCfg);
+	pCfg->iVersion = XNET_CONFIG_VERSION;
 	pCfg->sHost = NULL;
 	pCfg->iPort = 0;
+	pCfg->iAddressFamily = AF_UNSPEC;
 	pCfg->iFlags = XNET_CONNECT_F_NO_DELAY;
 	pCfg->iConnectTimeoutMs = 5000;
 	pCfg->iHighWater = 262144;
@@ -639,6 +964,8 @@ XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 	pCfg->iRecvLimit = 1048576;
 	pCfg->pTlsConfig = NULL;
 	pCfg->pProxy = NULL;
+	pCfg->iMaxQueuedBytes = 1048576;
+	pCfg->iFallbackDelayMs = 250u;
 }
 
 
@@ -647,11 +974,16 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 {
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetdgramconfig));
+	pCfg->iSize = (uint32)sizeof(*pCfg);
+	pCfg->iVersion = XNET_CONFIG_VERSION;
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
 	pCfg->iFlags = XNET_DGRAM_F_REUSE_ADDR;
-	pCfg->iRecvBatch = 64;
+	pCfg->iRecvBatch = 1;
 	pCfg->iSendQueueLimit = 262144;
 	pCfg->iRecvQueueLimit = 256;
+	pCfg->iRecvOverflowPolicy = XNET_DGRAM_OVERFLOW_DROP_OLDEST;
+	pCfg->iHopLimit = -1;
+	pCfg->iTrafficClass = -1;
 }
 
 

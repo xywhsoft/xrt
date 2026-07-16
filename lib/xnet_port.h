@@ -81,6 +81,8 @@ static const xnetportops* xrtNetPortSelectOps(void) UNUSED_ATTR;
 /* ============================== Config and I/O descriptors ============================== */
 
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	uint32 iBackend;
 	uint32 iFlags;
 	uint32 iSqEntries;
@@ -90,6 +92,8 @@ typedef struct {
 	uint32 iBufferGroupSize;
 	uint32 iBufferGroupCount;
 } xnetportconfig;
+
+#define XNET_PORT_CONFIG_V1_SIZE ((uint32)(offsetof(xnetportconfig, iBufferGroupCount) + sizeof(((xnetportconfig*)0)->iBufferGroupCount)))
 
 typedef struct {
 	uint16 iOpType;
@@ -117,6 +121,8 @@ typedef struct {
 	xnetaddr tAddr;
 } xnetportevent;
 
+typedef void (*xnetport_quiesce_fn)(ptr pOwner, xnetportevent* pEvents, uint32 iCount);
+
 
 
 /* ============================== Backend vtable ============================== */
@@ -135,6 +141,7 @@ struct xrt_net_port_ops {
 struct xrt_net_port {
 	const xnetportops* pOps;
 	ptr pOwner;
+	xnetport_quiesce_fn pfnQuiesceEvents;
 	ptr pCtx;
 	xnetportconfig tConfig;
 };
@@ -147,6 +154,8 @@ static void xrtNetPortConfigInit(xnetportconfig* pCfg)
 {
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetportconfig));
+	pCfg->iSize = (uint32)sizeof(*pCfg);
+	pCfg->iVersion = XNET_CONFIG_VERSION;
 	pCfg->iBackend = XNET_PORT_BACKEND_AUTO;
 	pCfg->iFlags = XNET_PORT_F_BATCH_COMPLETION | XNET_PORT_F_GATHER_SEND | XNET_PORT_F_TIMER_WAKE;
 	pCfg->iSqEntries = 4096;
@@ -165,10 +174,15 @@ static xnet_result xrtNetPortInit(xnetport* pPort, const xnetportops* pOps, cons
 	memset(pPort, 0, sizeof(xnetport));
 	pPort->pOps = pOps;
 	pPort->pOwner = pOwner;
+	xrtNetPortConfigInit(&pPort->tConfig);
 	if ( pCfg ) {
-		pPort->tConfig = *pCfg;
-	} else {
-		xrtNetPortConfigInit(&pPort->tConfig);
+		if ( !__xnetConfigCopyKnown(&pPort->tConfig, sizeof(pPort->tConfig), pCfg,
+			pCfg->iSize, pCfg->iVersion, XNET_PORT_CONFIG_V1_SIZE) ) {
+			__xnetErrorSetEx(XRT_NET_ERROR, XNET_OP_NONE, XNET_PHASE_VALIDATE, XNET_BACKEND_NONE, 0,
+				"invalid network port config version or size.");
+			return XRT_NET_ERROR;
+		}
+		pPort->tConfig.iSize = (uint32)sizeof(pPort->tConfig);
 	}
 	return pOps->Init(pPort, &pPort->tConfig, pOwner);
 }

@@ -2465,6 +2465,9 @@ XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBounda
 	size_t iUnusedAfter = 0u;
 	xrtheaderpair tHeader;
 	size_t iHeaderOff = 0u;
+	bool bHasContentDisposition = false;
+	bool bHasContentType = false;
+	bool bHasTransferEncoding = false;
 	if ( sBody == NULL || sBoundary == NULL || pOffset == NULL || pOut == NULL || iBoundaryLen == 0u ) { return false; }
 	// 算法步骤: 从当前偏移位置查找下一个边界行
 	if ( !__xrtHttpUtilFindBoundaryLine(sBody, iLen, *pOffset, sBoundary, iBoundaryLen, &iPos, &bFinal, &iAfterBoundary) ) {
@@ -2497,15 +2500,22 @@ XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBounda
 	// 算法步骤: 逐行解析头部, 提取 Content-Disposition / Content-Type / Content-Transfer-Encoding
 	while ( xrtHttpHeaderNextLineN(pOut->tHeaders.sPtr, pOut->tHeaders.iLen, &iHeaderOff, &tHeader) ) {
 		if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Disposition", 19u) ) {
+			if ( bHasContentDisposition ) { return false; }
+			bHasContentDisposition = true;
 			if ( !__xrtHttpUtilMultipartParseContentDisposition(tHeader.tValue, pOut) ) { return false; }
 		} else if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Type", 12u) ) {
+			if ( bHasContentType ) { return false; }
+			bHasContentType = true;
 			pOut->tContentType = tHeader.tValue;
 			pOut->iFlags |= XRT_MULTIPART_F_HAS_CONTENT_TYPE;
 		} else if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Transfer-Encoding", 25u) ) {
+			if ( bHasTransferEncoding ) { return false; }
+			bHasTransferEncoding = true;
 			pOut->tTransferEncoding = tHeader.tValue;
 			pOut->iFlags |= XRT_MULTIPART_F_HAS_TRANSFER_ENCODING;
 		}
 	}
+	if ( iHeaderOff != pOut->tHeaders.iLen ) { return false; }
 	// 步骤: 更新偏移到下一个边界位置
 	*pOffset = iNextPos;
 	(void)bNextFinal;
@@ -2758,6 +2768,9 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 	size_t iHeaderOff = 0u;
 	size_t iHeaderCount = 0u;
 	xrtheaderpair tHeader;
+	bool bHasContentDisposition = false;
+	bool bHasContentType = false;
+	bool bHasTransferEncoding = false;
 	if ( !pStream || !pOut ) { return false; }
 	// 算法步骤: 从游标位置开始查找 \r\n\r\n (头部结束标记)
 	iHeaderEnd = pStream->iCursor;
@@ -2799,18 +2812,41 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 		}
 		// 步骤: 按头部名称分发处理
 		if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Disposition", 19u) ) {
+			if ( bHasContentDisposition ) {
+				pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_HEADER;
+				pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
+				return false;
+			}
+			bHasContentDisposition = true;
 			if ( !__xrtHttpUtilMultipartParseContentDisposition(tHeader.tValue, pOut) ) {
 				pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_HEADER;
 				pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
 				return false;
 			}
 		} else if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Type", 12u) ) {
+			if ( bHasContentType ) {
+				pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_HEADER;
+				pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
+				return false;
+			}
+			bHasContentType = true;
 			pOut->tContentType = tHeader.tValue;
 			pOut->iFlags |= XRT_MULTIPART_F_HAS_CONTENT_TYPE;
 		} else if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Transfer-Encoding", 25u) ) {
+			if ( bHasTransferEncoding ) {
+				pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_HEADER;
+				pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
+				return false;
+			}
+			bHasTransferEncoding = true;
 			pOut->tTransferEncoding = tHeader.tValue;
 			pOut->iFlags |= XRT_MULTIPART_F_HAS_TRANSFER_ENCODING;
 		}
+	}
+	if ( iHeaderOff != pOut->tHeaders.iLen ) {
+		pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_HEADER;
+		pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
+		return false;
 	}
 	// 步骤: 移动游标跳过头部和分隔符, 指向 body 起始位置
 	pStream->iCursor = iHeaderEnd + 4u;

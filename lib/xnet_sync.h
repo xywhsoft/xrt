@@ -28,6 +28,7 @@ XXAPI size_t xrtNetStreamAvailable(const xnetstream* pStream);
 XXAPI size_t xrtNetStreamRead(xnetstream* pStream, void* pOut, size_t iMaxBytes);
 XXAPI ptr xrtNetStreamReadBytes(xnetstream* pStream, size_t iMaxBytes, size_t* pOutLen);
 XXAPI ptr xrtNetStreamRecvBytes(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs, size_t* pOutLen);
+XXAPI void xrtNetBytesDestroy(xnetbytes* pBytes);
 XXAPI str xrtNetStreamReadText(xnetstream* pStream, size_t iMaxBytes);
 XXAPI str xrtNetStreamRecvText(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs);
 XXAPI bool xrtNetStreamSendBytes(xnetstream* pStream, const void* pData, size_t iLen);
@@ -53,12 +54,20 @@ XXAPI int xrtNetDgramPacketFromPort(const xnetdgrampkt* pPacket);
 
 #if defined(XXRTL_CORE)
 XXAPI xfuture* xrtNetTcpConnectAsync(const char* sHost, uint16 iPort, int64 iTimeoutMs);
+XXAPI xnetfuture* xrtNetResolveFuture(xnetengine* pEngine, uint32 iAffinityKey, const char* sHost, uint16 iPort);
+XXAPI xnetfuture* xrtNetResolveFutureEx(xnetengine* pEngine, uint32 iAffinityKey,
+	const char* sHost, uint16 iPort, int iFamily);
+XXAPI xnetfuture* xrtNetResolveAllFuture(xnetengine* pEngine, uint32 iAffinityKey,
+	const char* sHost, uint16 iPort, int iFamily);
 XXAPI xfuture* xrtNetTcpAcceptAsync(xnetlistener* pListener, int64 iTimeoutMs);
 XXAPI xfuture* xrtNetStreamRecvTextAsync(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs);
+XXAPI xfuture* xrtNetStreamRecvBytesAsync(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs);
 XXAPI xfuture* xrtNetStreamSendTextAsync(xnetstream* pStream, const char* sText);
+XXAPI xfuture* xrtNetStreamSendBytesAsync(xnetstream* pStream, const void* pData, size_t iLen);
 XXAPI xfuture* xrtNetStreamDrainAsync(xnetstream* pStream, int64 iTimeoutMs);
 XXAPI xfuture* xrtNetUdpRecvAsync(xdgramsock* pSock, int64 iTimeoutMs);
 XXAPI xfuture* xrtNetUdpSendTextAsync(xdgramsock* pSock, const char* sHost, uint16 iPort, const char* sText);
+XXAPI xfuture* xrtNetUdpSendBytesAsync(xdgramsock* pSock, const char* sHost, uint16 iPort, const void* pData, size_t iLen);
 #endif
 
 
@@ -83,6 +92,37 @@ typedef struct {
 	volatile long iLock;
 	xnetengine* pEngine;
 } __xnet_sync_hidden_state;
+
+struct __xnet_cancel_watch_node;
+
+struct xrt_net_cancel {
+	volatile long iRefCount;
+	volatile long bRequested;
+	volatile long iWatchLock;
+	struct xrt_net_cancel* pParent;
+	struct __xnet_cancel_watch_node* pWatchHead;
+};
+
+typedef struct __xnet_cancel_watch_node {
+	struct __xnet_cancel_watch_node* pNext;
+	struct xrt_net_cancel_watch* pWatch;
+	xnetcancel* pCancel;
+	bool bLinked;
+} __xnet_cancel_watch_node;
+
+struct xrt_net_cancel_watch {
+	volatile long iRefCount;
+	volatile long iLock;
+	volatile long bArmed;
+	volatile long bTriggered;
+	volatile long bDestroying;
+	volatile long iCallbacks;
+	xnetcancel* pCancel;
+	xnetcancelfn pCallback;
+	ptr pArg;
+	uint32 iNodeCount;
+	__xnet_cancel_watch_node arrNode[1];
+};
 
 typedef bool (*__xnet_future_pending_cancel_fn)(struct xrt_net_future* pFuture);
 typedef void (*__xnet_future_pending_cleanup_fn)(struct xrt_net_future* pFuture);
@@ -150,6 +190,31 @@ struct xrt_net_future {
 		xthread pThread;
 		xcoro pCo;
 	};
+
+	typedef struct __xnet_task_executor_job {
+		struct __xnet_task_executor_job* pNext;
+		xtask* pTask;
+	} __xnet_task_executor_job;
+
+	struct xrt_task_executor {
+		xmutex pLock;
+		xcond pCond;
+		xthread* arrThreads;
+		uint32 iThreadCount;
+		uint32 iStartedThreads;
+		uint32 iQueueLimit;
+		uint32 iQueued;
+		uint32 iRunning;
+		size_t iStackSize;
+		bool bStopping;
+		uint64 iSubmitted;
+		uint64 iCompleted;
+		uint64 iRejected;
+		__xnet_task_executor_job* pHead;
+		__xnet_task_executor_job* pTail;
+	};
+
+	static __XNET_THREAD_LOCAL xtaskexecutor* __g_xnetTaskExecutorCurrent = NULL;
 #endif
 
 #if !defined(XRT_BUILD_CORE)
@@ -293,6 +358,7 @@ typedef struct {
 	xnetfuture* pFuture;
 	xdgramsock* pSock;
 	volatile long iState;
+	uint32 iBatchCapacity;
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		xcoevent pCancelDoneEvent;
 	#endif
@@ -682,11 +748,261 @@ static void __xnetSyncSpinUnlock(volatile long* pLock)
 // 内部函数：设置同步错误
 static void __xnetSyncSetError(const char* sError)
 {
-	#if defined(XXRTL_CORE)
-		xrtSetError((str)sError, FALSE);
-	#else
-		(void)sError;
-	#endif
+	__xnetErrorSetEx(XRT_NET_ERROR, XNET_OP_WAIT, XNET_PHASE_COMPLETE, XNET_BACKEND_NONE, 0, sError);
+}
+
+
+XXAPI void xrtNetContextInit(xnetcontext* pContext)
+{
+	if ( !pContext ) { return; }
+	memset(pContext, 0, sizeof(*pContext));
+	pContext->iSize = (uint32)sizeof(*pContext);
+	pContext->iVersion = XNET_CONTEXT_VERSION;
+}
+
+
+XXAPI void xrtNetContextSetTimeout(xnetcontext* pContext, uint32 iTimeoutMs)
+{
+	uint64 iNowMs;
+	uint64 iDeadlineMs;
+	if ( !pContext ) { return; }
+	if ( pContext->iSize == 0 ) { xrtNetContextInit(pContext); }
+	iNowMs = __xnetSyncNowMs();
+	iDeadlineMs = iNowMs + (uint64)iTimeoutMs;
+	if ( iDeadlineMs > (uint64)INT64_MAX ) { iDeadlineMs = (uint64)INT64_MAX; }
+	pContext->iDeadlineMs = (int64_t)iDeadlineMs;
+}
+
+
+XXAPI void xrtNetContextSetDeadline(xnetcontext* pContext, int64_t iDeadlineMs)
+{
+	if ( !pContext ) { return; }
+	if ( pContext->iSize == 0 ) { xrtNetContextInit(pContext); }
+	pContext->iDeadlineMs = iDeadlineMs > 0 ? iDeadlineMs : 0;
+}
+
+
+XXAPI void xrtNetContextSetCancel(xnetcontext* pContext, xnetcancel* pCancel)
+{
+	if ( !pContext ) { return; }
+	if ( pContext->iSize == 0 ) { xrtNetContextInit(pContext); }
+	pContext->pCancel = pCancel;
+}
+
+
+XXAPI xnetcancel* xrtNetCancelCreate(void)
+{
+	xnetcancel* pCancel = (xnetcancel*)XNET_ALLOC(sizeof(*pCancel));
+	if ( !pCancel ) { return NULL; }
+	memset(pCancel, 0, sizeof(*pCancel));
+	pCancel->iRefCount = 1;
+	return pCancel;
+}
+
+
+XXAPI xnetcancel* xrtNetCancelCreateChild(xnetcancel* pParent)
+{
+	xnetcancel* pCancel = xrtNetCancelCreate();
+	if ( pCancel == NULL ) { return NULL; }
+	pCancel->pParent = xrtNetCancelAddRef(pParent);
+	return pCancel;
+}
+
+
+XXAPI xnetcancel* xrtNetCancelAddRef(xnetcancel* pCancel)
+{
+	if ( pCancel ) { (void)__xnetAtomicAddFetch32(&pCancel->iRefCount, 1); }
+	return pCancel;
+}
+
+
+XXAPI void xrtNetCancelRelease(xnetcancel* pCancel)
+{
+	while ( pCancel && __xnetAtomicAddFetch32(&pCancel->iRefCount, -1) == 0 ) {
+		xnetcancel* pParent = pCancel->pParent;
+		XNET_FREE(pCancel);
+		pCancel = pParent;
+	}
+}
+
+
+static void __xnetCancelLock(xnetcancel* pCancel)
+{
+	while ( __xnetAtomicCompareExchange32(&pCancel->iWatchLock, 1, 0) != 0 ) {
+		__xnetEngineSleepMs(1u);
+	}
+}
+
+
+static void __xnetCancelUnlock(xnetcancel* pCancel)
+{
+	(void)__xnetAtomicExchange32(&pCancel->iWatchLock, 0);
+}
+
+
+static void __xnetCancelWatchLock(xnetcancelwatch* pWatch)
+{
+	while ( __xnetAtomicCompareExchange32(&pWatch->iLock, 1, 0) != 0 ) {
+		__xnetEngineSleepMs(1u);
+	}
+}
+
+
+static void __xnetCancelWatchUnlock(xnetcancelwatch* pWatch)
+{
+	(void)__xnetAtomicExchange32(&pWatch->iLock, 0);
+}
+
+
+static xnetcancelwatch* __xnetCancelWatchAddRef(xnetcancelwatch* pWatch)
+{
+	if ( pWatch ) { (void)__xnetAtomicAddFetch32(&pWatch->iRefCount, 1); }
+	return pWatch;
+}
+
+
+static void __xnetCancelWatchRelease(xnetcancelwatch* pWatch)
+{
+	if ( !pWatch || __xnetAtomicAddFetch32(&pWatch->iRefCount, -1) != 0 ) { return; }
+	xrtNetCancelRelease(pWatch->pCancel);
+	XNET_FREE(pWatch);
+}
+
+
+static void __xnetCancelWatchNotify(xnetcancelwatch* pWatch)
+{
+	xnetcancelfn pCallback = NULL;
+	ptr pArg = NULL;
+	if ( !pWatch ) { return; }
+	__xnetCancelWatchLock(pWatch);
+	if ( __xnetAtomicLoad32(&pWatch->bDestroying) == 0 &&
+		__xnetAtomicLoad32(&pWatch->bTriggered) == 0 ) {
+		(void)__xnetAtomicExchange32(&pWatch->bTriggered, 1);
+		if ( __xnetAtomicLoad32(&pWatch->bArmed) != 0 ) {
+			(void)__xnetAtomicAddFetch32(&pWatch->iCallbacks, 1);
+			pCallback = pWatch->pCallback;
+			pArg = pWatch->pArg;
+		}
+	}
+	__xnetCancelWatchUnlock(pWatch);
+	if ( pCallback ) {
+		pCallback(pArg);
+		(void)__xnetAtomicAddFetch32(&pWatch->iCallbacks, -1);
+	}
+}
+
+
+XXAPI bool xrtNetCancelRequest(xnetcancel* pCancel)
+{
+	__xnet_cancel_watch_node* pList;
+	__xnet_cancel_watch_node* pNode;
+	if ( !pCancel ) { return false; }
+	__xnetCancelLock(pCancel);
+	if ( __xnetAtomicLoad32(&pCancel->bRequested) != 0 ) {
+		__xnetCancelUnlock(pCancel);
+		return false;
+	}
+	(void)__xnetAtomicExchange32(&pCancel->bRequested, 1);
+	pList = pCancel->pWatchHead;
+	pCancel->pWatchHead = NULL;
+	for ( pNode = pList; pNode != NULL; pNode = pNode->pNext ) {
+		pNode->bLinked = false;
+		(void)__xnetCancelWatchAddRef(pNode->pWatch);
+	}
+	__xnetCancelUnlock(pCancel);
+	while ( pList ) {
+		pNode = pList;
+		pList = pNode->pNext;
+		pNode->pNext = NULL;
+		__xnetCancelWatchNotify(pNode->pWatch);
+		__xnetCancelWatchRelease(pNode->pWatch);
+	}
+	return true;
+}
+
+
+XXAPI bool xrtNetCancelIsRequested(const xnetcancel* pCancel)
+{
+	while ( pCancel != NULL ) {
+		if ( __xnetAtomicLoad32(&pCancel->bRequested) != 0 ) { return true; }
+		pCancel = pCancel->pParent;
+	}
+	return false;
+}
+
+
+XXAPI xnetcancelwatch* xrtNetCancelWatchCreate(xnetcancel* pCancel, xnetcancelfn pCallback, ptr pArg)
+{
+	xnetcancelwatch* pWatch;
+	xnetcancel* pCur;
+	uint32 iCount = 0u;
+	size_t iBytes;
+	if ( !pCancel || !pCallback ) { return NULL; }
+	pCancel = xrtNetCancelAddRef(pCancel);
+	for ( pCur = pCancel; pCur != NULL; pCur = pCur->pParent ) {
+		if ( iCount == UINT32_MAX ) { xrtNetCancelRelease(pCancel); return NULL; }
+		iCount++;
+	}
+	if ( iCount == 0u || sizeof(__xnet_cancel_watch_node) >
+		(SIZE_MAX - offsetof(xnetcancelwatch, arrNode)) / (size_t)iCount ) {
+		xrtNetCancelRelease(pCancel);
+		return NULL;
+	}
+	iBytes = offsetof(xnetcancelwatch, arrNode) + (size_t)iCount * sizeof(__xnet_cancel_watch_node);
+	pWatch = (xnetcancelwatch*)XNET_ALLOC(iBytes);
+	if ( !pWatch ) { xrtNetCancelRelease(pCancel); return NULL; }
+	memset(pWatch, 0, iBytes);
+	pWatch->iRefCount = 1;
+	pWatch->pCancel = pCancel;
+	pWatch->pCallback = pCallback;
+	pWatch->pArg = pArg;
+	pWatch->iNodeCount = iCount;
+	pCur = pCancel;
+	for ( uint32 i = 0u; i < iCount; ++i, pCur = pCur->pParent ) {
+		__xnet_cancel_watch_node* pNode = &pWatch->arrNode[i];
+		pNode->pWatch = pWatch;
+		pNode->pCancel = pCur;
+		__xnetCancelLock(pCur);
+		if ( __xnetAtomicLoad32(&pCur->bRequested) != 0 ) {
+			(void)__xnetAtomicExchange32(&pWatch->bTriggered, 1);
+		} else {
+			pNode->pNext = pCur->pWatchHead;
+			pCur->pWatchHead = pNode;
+			pNode->bLinked = true;
+		}
+		__xnetCancelUnlock(pCur);
+	}
+	(void)__xnetAtomicExchange32(&pWatch->bArmed, 1);
+	return pWatch;
+}
+
+
+XXAPI bool xrtNetCancelWatchIsTriggered(const xnetcancelwatch* pWatch)
+{
+	return pWatch != NULL && __xnetAtomicLoad32(&pWatch->bTriggered) != 0;
+}
+
+
+XXAPI void xrtNetCancelWatchDestroy(xnetcancelwatch* pWatch)
+{
+	if ( !pWatch || __xnetAtomicExchange32(&pWatch->bDestroying, 1) != 0 ) { return; }
+	for ( uint32 i = 0u; i < pWatch->iNodeCount; ++i ) {
+		__xnet_cancel_watch_node* pNode = &pWatch->arrNode[i];
+		xnetcancel* pCancel = pNode->pCancel;
+		__xnet_cancel_watch_node** ppCur;
+		if ( !pCancel ) { continue; }
+		__xnetCancelLock(pCancel);
+		if ( pNode->bLinked ) {
+			ppCur = &pCancel->pWatchHead;
+			while ( *ppCur && *ppCur != pNode ) { ppCur = &(*ppCur)->pNext; }
+			if ( *ppCur == pNode ) { *ppCur = pNode->pNext; }
+			pNode->pNext = NULL;
+			pNode->bLinked = false;
+		}
+		__xnetCancelUnlock(pCancel);
+	}
+	while ( __xnetAtomicLoad32(&pWatch->iCallbacks) != 0 ) { __xnetEngineSleepMs(1u); }
+	__xnetCancelWatchRelease(pWatch);
 }
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -2291,7 +2607,7 @@ XXAPI void xrtNetTcpStreamClose(xnetstream* pStream)
 
 XXAPI size_t xrtNetStreamAvailable(const xnetstream* pStream)
 {
-	return pStream ? xrtNetChainBytes(&pStream->tRxChain) : 0;
+	return __xnetStreamRxBytes(pStream);
 }
 
 
@@ -2299,8 +2615,10 @@ XXAPI size_t xrtNetStreamRead(xnetstream* pStream, void* pOut, size_t iLen)
 {
 	size_t iRead;
 	if ( !pStream || !pOut || iLen == 0 ) { return 0; }
+	__xnetStreamRxLock(pStream);
 	iRead = xrtNetChainPeek(&pStream->tRxChain, pOut, iLen);
 	if ( iRead > 0 ) { xrtNetChainConsume(&pStream->tRxChain, iRead); }
+	__xnetStreamRxUnlock(pStream);
 	return iRead;
 }
 
@@ -2501,6 +2819,7 @@ XXAPI bool xrtNetUdpSendBytes(xdgramsock* pSock, const char* sHost, uint16 iPort
 	if ( !pSock || !sHost || !sHost[0] || iPort == 0 || (!pData && iLen > 0u) ) { return false; }
 	memset(&tTo, 0, sizeof(tTo));
 	tTo.iPort = iPort;
+	tTo.iFamily = pSock->tLocalAddr.iFamily;
 	if ( xrtNetResolve(sHost, &tTo) != XRT_NET_OK ) { return false; }
 	return xrtNetDgramSendTo(pSock, &tTo, pData, iLen) == XRT_NET_OK;
 }
@@ -2585,54 +2904,32 @@ XXAPI int xrtNetDgramPacketFromPort(const xnetdgrampkt* pPacket)
 #if defined(XXRTL_CORE)
 
 typedef struct {
-	char* sHost;
-	uint16 iPort;
-	int64 iTimeoutMs;
-} __xnet_tcp_connect_task;
-
-typedef struct {
-	xnetlistener* pListener;
-	int64 iTimeoutMs;
-} __xnet_tcp_accept_task;
-
-typedef struct {
 	xnetstream* pStream;
 	size_t iMaxBytes;
-	int64 iTimeoutMs;
-} __xnet_stream_recv_task;
-
-typedef struct {
-	xnetstream* pStream;
-	char* sText;
-} __xnet_stream_send_task;
-
-typedef struct {
-	xnetstream* pStream;
-	int64 iTimeoutMs;
-} __xnet_stream_drain_task;
+} __xnet_stream_recv_async_ctx;
 
 typedef struct {
 	xdgramsock* pSock;
-	int64 iTimeoutMs;
-} __xnet_udp_recv_task;
-
-typedef struct {
-	xdgramsock* pSock;
+	bool bSockHeld;
+	bool bFutureHeld;
+	volatile long bDone;
+	xfuture* pFuture;
 	char* sHost;
 	uint16 iPort;
-	char* sText;
-} __xnet_udp_send_task;
+	void* pData;
+	size_t iLen;
+} __xnet_udp_send_async_ctx;
 
+typedef struct {
+	xnetfuture* pFuture;
+} __xnet_resolve_future_ctx;
 
-static void __xnetAsyncFreeStringBox(ptr pValue)
-{
-	char** pText = (char**)pValue;
-	if ( pText && *pText ) {
-		xrtFree(*pText);
-		*pText = NULL;
-	}
-	xrtFree(pValue);
-}
+typedef struct {
+	volatile long iRefCount;
+	volatile long bDone;
+	xfuture* pFuture;
+	xnetstream* pStream;
+} __xnet_tcp_connect_async_ctx;
 
 
 static int32 __xnetAsyncError(xfuture_result* pOut, const char* sError)
@@ -2650,13 +2947,6 @@ static int32 __xnetAsyncError(xfuture_result* pOut, const char* sError)
 
 
 // 将当前工作线程记录的网络错误传递给 Future，避免把失败伪装成 NULL 成功值。
-static int32 __xnetAsyncLastError(xfuture_result* pOut, const char* sFallback)
-{
-	const char* sError = (const char*)xrtGetError();
-	return __xnetAsyncError(pOut, (sError && sError[0]) ? sError : sFallback);
-}
-
-
 static int32 __xnetAsyncBool(xfuture_result* pOut, bool bValue)
 {
 	int* pValue;
@@ -2677,7 +2967,7 @@ static int32 __xnetAsyncPoint(xfuture_result* pOut, ptr pHandle)
 {
 	ptr* pValue;
 	if ( !pOut ) { return XRT_NET_ERROR; }
-	pValue = (ptr*)xrtMalloc(sizeof(ptr));
+	pValue = (ptr*)xrtMalloc(sizeof(*pValue));
 	if ( !pValue ) { return __xnetAsyncError(pOut, "out of memory while completing network async task"); }
 	*pValue = pHandle;
 	memset(pOut, 0, sizeof(*pOut));
@@ -2689,251 +2979,682 @@ static int32 __xnetAsyncPoint(xfuture_result* pOut, ptr pHandle)
 }
 
 
+static void __xnetAsyncFreeStringBox(ptr pValue)
+{
+	char** ppText = (char**)pValue;
+	if ( ppText && *ppText ) { xrtFree(*ppText); }
+	xrtFree(pValue);
+}
+
+
+static void __xnetResolveFutureDone(xnetworker* pWorker, ptr pArg, xnet_result iStatus,
+	const xnetaddr* pAddr, int iSysErr)
+{
+	__xnet_resolve_future_ctx* pCtx = (__xnet_resolve_future_ctx*)pArg;
+	xnetaddr* pValue = NULL;
+	(void)pWorker;
+	if ( !pCtx || !pCtx->pFuture ) { return; }
+	if ( iStatus == XRT_NET_OK && pAddr ) {
+		pValue = (xnetaddr*)xrtMalloc(sizeof(*pValue));
+		if ( pValue ) {
+			*pValue = *pAddr;
+			(void)__xnetFutureCompleteExWithFree(pCtx->pFuture, XRT_NET_OK, pValue, NULL,
+				XFUTURE_RESULT_F_OWN_VALUE, xrtFree, NULL);
+		} else {
+			(void)__xnetFutureCompleteEx(pCtx->pFuture, XRT_NET_ERROR, NULL,
+				"out of memory while completing host resolution.", XFUTURE_RESULT_F_NONE);
+		}
+	} else {
+		(void)__xnetFutureCompleteEx(pCtx->pFuture, iStatus, NULL,
+			"asynchronous host resolution failed.", XFUTURE_RESULT_F_NONE);
+		__xnetErrorSetEx(iStatus, XNET_OP_RESOLVE, XNET_PHASE_COMPLETE,
+			XNET_BACKEND_NONE, iSysErr, "asynchronous host resolution failed.");
+	}
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	xrtFree(pCtx);
+}
+
+
+static void __xnetResolveAddrListFree(ptr pValue)
+{
+	xrtNetAddrListDestroy((xnetaddrlist*)pValue);
+}
+
+
+static void __xnetResolveAllFutureDone(xnetworker* pWorker, ptr pArg, xnet_result iStatus,
+	xnetaddrlist* pList, int iSysErr)
+{
+	__xnet_resolve_future_ctx* pCtx = (__xnet_resolve_future_ctx*)pArg;
+	(void)pWorker;
+	if ( !pCtx || !pCtx->pFuture ) {
+		if ( pList ) { xrtNetAddrListDestroy(pList); }
+		return;
+	}
+	if ( iStatus == XRT_NET_OK && pList ) {
+		(void)__xnetFutureCompleteExWithFree(pCtx->pFuture, XRT_NET_OK, pList, NULL,
+			XFUTURE_RESULT_F_OWN_VALUE, __xnetResolveAddrListFree, NULL);
+	} else {
+		if ( pList ) { xrtNetAddrListDestroy(pList); }
+		(void)__xnetFutureCompleteEx(pCtx->pFuture, iStatus, NULL,
+			"asynchronous host resolution failed.", XFUTURE_RESULT_F_NONE);
+		__xnetErrorSetEx(iStatus, XNET_OP_RESOLVE, XNET_PHASE_COMPLETE,
+			XNET_BACKEND_NONE, iSysErr, "asynchronous host resolution failed.");
+	}
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	xrtFree(pCtx);
+}
+
+
+XXAPI xnetfuture* xrtNetResolveFutureEx(xnetengine* pEngine, uint32 iAffinityKey,
+	const char* sHost, uint16 iPort, int iFamily)
+{
+	__xnet_resolve_future_ctx* pCtx;
+	xnetfuture* pFuture;
+	xnet_result iSubmit;
+	if ( !pEngine || !sHost || !sHost[0] || iPort == 0 ||
+		(iFamily != AF_UNSPEC && iFamily != AF_INET && iFamily != AF_INET6) ) { return NULL; }
+	pFuture = xrtNetFutureCreate();
+	if ( !pFuture ) { return NULL; }
+	pCtx = (__xnet_resolve_future_ctx*)xrtMalloc(sizeof(*pCtx));
+	if ( !pCtx ) {
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	pCtx->pFuture = pFuture;
+	__xnetFutureAddAsyncHold(pFuture);
+	iSubmit = __xnetEngineResolveAsyncEx(pEngine, iAffinityKey, sHost, iPort,
+		(uint16)iFamily, __xnetResolveFutureDone, pCtx);
+	if ( iSubmit != XRT_NET_OK ) {
+		__xnetFutureReleaseAsyncHold(pFuture);
+		xrtFree(pCtx);
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	return pFuture;
+}
+
+
+XXAPI xnetfuture* xrtNetResolveAllFuture(xnetengine* pEngine, uint32 iAffinityKey,
+	const char* sHost, uint16 iPort, int iFamily)
+{
+	__xnet_resolve_future_ctx* pCtx;
+	xnetfuture* pFuture;
+	xnet_result iSubmit;
+	if ( !pEngine || !sHost || !sHost[0] || iPort == 0 ||
+		(iFamily != AF_UNSPEC && iFamily != AF_INET && iFamily != AF_INET6) ) { return NULL; }
+	pFuture = xrtNetFutureCreate();
+	if ( !pFuture ) { return NULL; }
+	pCtx = (__xnet_resolve_future_ctx*)xrtMalloc(sizeof(*pCtx));
+	if ( !pCtx ) {
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	pCtx->pFuture = pFuture;
+	__xnetFutureAddAsyncHold(pFuture);
+	iSubmit = __xnetEngineResolveAllAsync(pEngine, iAffinityKey, sHost, iPort,
+		(uint16)iFamily, __xnetResolveAllFutureDone, pCtx);
+	if ( iSubmit != XRT_NET_OK ) {
+		__xnetFutureReleaseAsyncHold(pFuture);
+		xrtFree(pCtx);
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	return pFuture;
+}
+
+
+XXAPI xnetfuture* xrtNetResolveFuture(xnetengine* pEngine, uint32 iAffinityKey,
+	const char* sHost, uint16 iPort)
+{
+	return xrtNetResolveFutureEx(pEngine, iAffinityKey, sHost, iPort, AF_UNSPEC);
+}
+
+
+static __xnet_tcp_connect_async_ctx* __xnetTcpConnectAsyncCtxAddRef(
+	__xnet_tcp_connect_async_ctx* pCtx)
+{
+	if ( pCtx ) { (void)__xnetAtomicAddFetch32(&pCtx->iRefCount, 1); }
+	return pCtx;
+}
+
+
+static void __xnetTcpConnectAsyncCtxRelease(__xnet_tcp_connect_async_ctx* pCtx)
+{
+	if ( pCtx && __xnetAtomicAddFetch32(&pCtx->iRefCount, -1) == 0 ) { xrtFree(pCtx); }
+}
+
+
+static void __xnetTcpConnectAsyncDetachCancel(__xnet_tcp_connect_async_ctx* pCtx)
+{
+	bool bReleasePending = false;
+	if ( !pCtx || !pCtx->pFuture ) { return; }
+	__xnetFutureLock(pCtx->pFuture);
+	if ( pCtx->pFuture->pPendingCtx == pCtx ) {
+		pCtx->pFuture->pPendingCtx = NULL;
+		pCtx->pFuture->pfnPendingCancel = NULL;
+		pCtx->pFuture->pfnPendingCleanup = NULL;
+		bReleasePending = true;
+	}
+	__xnetFutureUnlock(pCtx->pFuture);
+	if ( bReleasePending ) { __xnetTcpConnectAsyncCtxRelease(pCtx); }
+}
+
+
+static bool __xnetTcpConnectAsyncPendingCancel(xfuture* pFuture)
+{
+	__xnet_tcp_connect_async_ctx* pCtx = NULL;
+	bool bCancelled;
+	if ( !pFuture ) { return false; }
+	__xnetFutureLock(pFuture);
+	if ( pFuture->pPendingCtx ) {
+		pCtx = __xnetTcpConnectAsyncCtxAddRef(
+			(__xnet_tcp_connect_async_ctx*)pFuture->pPendingCtx);
+	}
+	__xnetFutureUnlock(pFuture);
+	if ( !pCtx ) { return false; }
+	bCancelled = __xnetFutureCompleteEx(pFuture, XRT_NET_CANCELLED, NULL,
+		"asynchronous TCP connect cancelled.",
+		XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CANCELLED);
+	if ( bCancelled && pCtx->pStream ) {
+		xrtNetStreamClose(pCtx->pStream, XNET_CLOSE_F_ABORT);
+	}
+	__xnetTcpConnectAsyncCtxRelease(pCtx);
+	return bCancelled;
+}
+
+
+static void __xnetTcpConnectAsyncFinish(__xnet_tcp_connect_async_ctx* pCtx,
+	xnet_result iStatus, xnetstream* pStream)
+{
+	bool bDelivered = false;
+	xfuture_result tResult;
+	if ( !pCtx || __xnetAtomicCompareExchange32(&pCtx->bDone, 1, 0) != 0 ) { return; }
+	__xnetTcpConnectAsyncDetachCancel(pCtx);
+	if ( pCtx->pStream ) { xrtNetStreamSetUserData(pCtx->pStream, NULL); }
+	memset(&tResult, 0, sizeof(tResult));
+	if ( iStatus == XRT_NET_OK && pStream ) {
+		(void)__xnetAsyncPoint(&tResult, pStream);
+	} else {
+		tResult.iStatus = iStatus;
+		tResult.sError = (str)"asynchronous TCP connect failed.";
+	}
+	bDelivered = __xnetFutureCompleteExWithFree(pCtx->pFuture, tResult.iStatus,
+		tResult.pValue, (const char*)tResult.sError, tResult.iFlags,
+		tResult.pfnFreeValue, tResult.pfnFreeError);
+	if ( (!bDelivered || tResult.iStatus != XRT_NET_OK) && pCtx->pStream ) {
+		xrtNetStreamDestroy(pCtx->pStream);
+	}
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	__xnetTcpConnectAsyncCtxRelease(pCtx);
+}
+
+
+static void __xnetTcpConnectAsyncOnOpen(ptr pOwner, xnetstream* pStream)
+{
+	__xnetTcpConnectAsyncFinish((__xnet_tcp_connect_async_ctx*)pOwner, XRT_NET_OK, pStream);
+}
+
+
+static void __xnetTcpConnectAsyncOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	(void)pStream;
+	__xnetTcpConnectAsyncFinish((__xnet_tcp_connect_async_ctx*)pOwner,
+		iReason == XRT_NET_OK ? XRT_NET_CLOSED : iReason, NULL);
+}
+
+
+static void __xnetTcpConnectAsyncOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	(void)pStream;
+	(void)iSysErr;
+	__xnetTcpConnectAsyncFinish((__xnet_tcp_connect_async_ctx*)pOwner, XRT_NET_ERROR, NULL);
+}
+
+
+static const xnetstreamevents __xnetTcpConnectAsyncEvents = {
+	__xnetTcpConnectAsyncOnOpen,
+	NULL,
+	NULL,
+	__xnetTcpConnectAsyncOnClose,
+	__xnetTcpConnectAsyncOnError,
+	NULL,
+	NULL,
+	NULL
+};
+
+
 static int32 __xnetAsyncString(xfuture_result* pOut, char* sText)
 {
-	char** pValue;
+	char** ppText;
 	if ( !pOut ) { return XRT_NET_ERROR; }
-	pValue = (char**)xrtMalloc(sizeof(char*));
-	if ( !pValue ) {
-		if ( sText ) { xrtFree(sText); }
-		return __xnetAsyncError(pOut, "out of memory while completing network async task");
+	if ( !sText ) { sText = (char*)xrtCopyStr((str)"", 0); }
+	if ( !sText ) { return __xnetAsyncError(pOut, "out of memory while completing network async receive"); }
+	ppText = (char**)xrtMalloc(sizeof(*ppText));
+	if ( !ppText ) {
+		xrtFree(sText);
+		return __xnetAsyncError(pOut, "out of memory while boxing network async receive");
 	}
-	*pValue = sText ? sText : (char*)xrtCopyStr((str)"", 0);
+	*ppText = sText;
 	memset(pOut, 0, sizeof(*pOut));
 	pOut->iStatus = XRT_NET_OK;
-	pOut->pValue = pValue;
+	pOut->pValue = ppText;
 	pOut->iFlags = XFUTURE_RESULT_F_OWN_VALUE;
 	pOut->pfnFreeValue = __xnetAsyncFreeStringBox;
 	return XRT_NET_OK;
 }
 
 
-static void __xnetTcpConnectTaskFree(__xnet_tcp_connect_task* pTask)
+XXAPI void xrtNetBytesDestroy(xnetbytes* pBytes)
 {
-	if ( !pTask ) { return; }
-	if ( pTask->sHost ) { xrtFree(pTask->sHost); }
-	xrtFree(pTask);
+	if ( !pBytes ) { return; }
+	if ( pBytes->pData ) { xrtFree(pBytes->pData); }
+	xrtFree(pBytes);
 }
 
 
-static void __xnetStreamSendTaskFree(__xnet_stream_send_task* pTask)
+static void __xnetAsyncBytesFree(ptr pValue)
 {
-	if ( !pTask ) { return; }
-	if ( pTask->sText ) { xrtFree(pTask->sText); }
-	xrtFree(pTask);
+	xrtNetBytesDestroy((xnetbytes*)pValue);
 }
 
 
-static void __xnetUdpSendTaskFree(__xnet_udp_send_task* pTask)
+static int32 __xnetAsyncTimeoutTask(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
 {
-	if ( !pTask ) { return; }
-	if ( pTask->sHost ) { xrtFree(pTask->sHost); }
-	if ( pTask->sText ) { xrtFree(pTask->sText); }
-	xrtFree(pTask);
+	(void)pWorker;
+	(void)pArg;
+	if ( !pOut ) { return XRT_NET_TIMEOUT; }
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->iStatus = XRT_NET_TIMEOUT;
+	pOut->sError = (str)"network operation timed out.";
+	pOut->iFlags = XFUTURE_RESULT_F_TIMEOUT;
+	return XRT_NET_TIMEOUT;
 }
 
 
-static int32 __xnetTcpConnectTaskProc(ptr pArg, xfuture_result* pOut)
+static xfuture* __xnetAsyncWithTimeout(xfuture* pSource, xnetengine* pEngine,
+	uint32 iAffinityKey, int64 iTimeoutMs)
 {
-	__xnet_tcp_connect_task* pTask = (__xnet_tcp_connect_task*)pArg;
-	xnetstream* pStream;
-	if ( !pTask ) { return __xnetAsyncPoint(pOut, NULL); }
-	pStream = xrtNetTcpConnect(pTask->sHost, pTask->iPort, pTask->iTimeoutMs);
-	__xnetTcpConnectTaskFree(pTask);
-	if ( !pStream ) {
-		return __xnetAsyncLastError(pOut, "TCP connect failed");
+	xfuture* arrFuture[2];
+	xfuture* pTimer;
+	xfuture* pResult;
+	uint32 iDelayMs;
+	if ( !pSource ) { return NULL; }
+	if ( iTimeoutMs < 0 ) { return pSource; }
+	iDelayMs = __xnetSyncTimeoutClamp(iTimeoutMs);
+	pTimer = xTaskRunDelayed(pEngine, iAffinityKey, iDelayMs, __xnetAsyncTimeoutTask, NULL);
+	if ( !pTimer ) {
+		(void)xFutureRequestCancel(pSource);
+		xFutureRelease(pSource);
+		return NULL;
 	}
-	return __xnetAsyncPoint(pOut, pStream);
-}
-
-
-static int32 __xnetTcpAcceptTaskProc(ptr pArg, xfuture_result* pOut)
-{
-	__xnet_tcp_accept_task* pTask = (__xnet_tcp_accept_task*)pArg;
-	xnetstream* pStream;
-	if ( !pTask ) { return __xnetAsyncPoint(pOut, NULL); }
-	pStream = xrtNetTcpAccept(pTask->pListener, pTask->iTimeoutMs);
-	xrtFree(pTask);
-	if ( !pStream ) {
-		return __xnetAsyncLastError(pOut, "TCP accept failed");
+	arrFuture[0] = pSource;
+	arrFuture[1] = pTimer;
+	pResult = xFutureRace(arrFuture, 2);
+	if ( !pResult ) {
+		(void)xFutureRequestCancel(pSource);
+		(void)xFutureRequestCancel(pTimer);
 	}
-	return __xnetAsyncPoint(pOut, pStream);
+	xFutureRelease(pSource);
+	xFutureRelease(pTimer);
+	return pResult;
 }
 
 
-static int32 __xnetStreamRecvTaskProc(ptr pArg, xfuture_result* pOut)
+static int32 __xnetAsyncPointCont(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut)
 {
-	__xnet_stream_recv_task* pTask = (__xnet_stream_recv_task*)pArg;
+	(void)pArg;
+	return __xnetAsyncPoint(pOut, pIn ? pIn->pValue : NULL);
+}
+
+
+static int32 __xnetAsyncBoolCont(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut)
+{
+	(void)pIn;
+	(void)pArg;
+	return __xnetAsyncBool(pOut, true);
+}
+
+
+static xfuture* __xnetAsyncMapSuccess(xfuture* pSource, xnetengine* pEngine,
+	uint32 iAffinityKey, xfuture_cont_fn pfnCont)
+{
+	xfuture* pResult;
+	if ( !pSource || !pEngine || !pfnCont ) {
+		if ( pSource ) { xFutureRelease(pSource); }
+		return NULL;
+	}
+	pResult = xFutureThenEngineEx(pSource, pEngine, iAffinityKey, pfnCont, NULL, NULL);
+	if ( !pResult ) {
+		(void)xFutureRequestCancel(pSource);
+	} else {
+		(void)xFutureForwardCancelTo(pResult, pSource);
+	}
+	xFutureRelease(pSource);
+	return pResult;
+}
+
+
+static void __xnetStreamRecvAsyncCtxFree(ptr pArg)
+{
+	__xnet_stream_recv_async_ctx* pCtx = (__xnet_stream_recv_async_ctx*)pArg;
+	if ( !pCtx ) { return; }
+	if ( pCtx->pStream ) { __xnetStreamReleaseAsyncHold(pCtx->pStream); }
+	xrtFree(pCtx);
+}
+
+
+static int32 __xnetStreamRecvTextAsyncCont(const xfuture_result* pIn, ptr pArg,
+	xfuture_result* pOut)
+{
+	__xnet_stream_recv_async_ctx* pCtx = (__xnet_stream_recv_async_ctx*)pArg;
 	char* sText;
-	if ( !pTask ) { return __xnetAsyncString(pOut, NULL); }
-	sText = (char*)xrtNetStreamRecvText(pTask->pStream, pTask->iMaxBytes, pTask->iTimeoutMs);
-	xrtFree(pTask);
+	(void)pIn;
+	if ( !pCtx || !pCtx->pStream ) { return __xnetAsyncError(pOut, "invalid stream receive context"); }
+	sText = (char*)xrtNetStreamReadText(pCtx->pStream, pCtx->iMaxBytes);
 	return __xnetAsyncString(pOut, sText);
 }
 
 
-static int32 __xnetStreamSendTaskProc(ptr pArg, xfuture_result* pOut)
+static int32 __xnetStreamRecvBytesAsyncCont(const xfuture_result* pIn, ptr pArg,
+	xfuture_result* pOut)
 {
-	__xnet_stream_send_task* pTask = (__xnet_stream_send_task*)pArg;
-	bool bOk;
-	if ( !pTask ) { return __xnetAsyncBool(pOut, false); }
-	bOk = xrtNetStreamSendText(pTask->pStream, pTask->sText);
-	__xnetStreamSendTaskFree(pTask);
-	return __xnetAsyncBool(pOut, bOk);
+	__xnet_stream_recv_async_ctx* pCtx = (__xnet_stream_recv_async_ctx*)pArg;
+	xnetbytes* pBytes;
+	(void)pIn;
+	if ( !pOut || !pCtx || !pCtx->pStream ) {
+		return __xnetAsyncError(pOut, "invalid stream receive context");
+	}
+	pBytes = (xnetbytes*)xrtMalloc(sizeof(*pBytes));
+	if ( !pBytes ) { return __xnetAsyncError(pOut, "out of memory while receiving stream bytes"); }
+	memset(pBytes, 0, sizeof(*pBytes));
+	pBytes->pData = xrtNetStreamReadBytes(pCtx->pStream, pCtx->iMaxBytes, &pBytes->iLen);
+	if ( !pBytes->pData && xrtNetStreamAvailable(pCtx->pStream) > 0u ) {
+		xrtFree(pBytes);
+		return __xnetAsyncError(pOut, "out of memory while receiving stream bytes");
+	}
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->iStatus = XRT_NET_OK;
+	pOut->pValue = pBytes;
+	pOut->iFlags = XFUTURE_RESULT_F_OWN_VALUE;
+	pOut->pfnFreeValue = __xnetAsyncBytesFree;
+	return XRT_NET_OK;
 }
 
 
-static int32 __xnetStreamDrainTaskProc(ptr pArg, xfuture_result* pOut)
+static xfuture* __xnetAsyncCompletedSend(xnet_result iStatus)
 {
-	__xnet_stream_drain_task* pTask = (__xnet_stream_drain_task*)pArg;
-	bool bOk;
-	if ( !pTask ) { return __xnetAsyncBool(pOut, false); }
-	bOk = xrtNetStreamDrain(pTask->pStream, pTask->iTimeoutMs);
-	xrtFree(pTask);
-	return __xnetAsyncBool(pOut, bOk);
+	xfuture* pFuture = xFutureCreate();
+	xfuture_result tResult;
+	if ( !pFuture ) { return NULL; }
+	memset(&tResult, 0, sizeof(tResult));
+	if ( iStatus == XRT_NET_OK ) {
+		(void)__xnetAsyncBool(&tResult, true);
+	} else {
+		tResult.iStatus = iStatus;
+		tResult.sError = (str)(iStatus == XRT_NET_AGAIN
+			? "network send queue limit reached."
+			: "network send failed.");
+	}
+	(void)__xnetFutureCompleteExWithFree(pFuture, tResult.iStatus, tResult.pValue,
+		(const char*)tResult.sError, tResult.iFlags, tResult.pfnFreeValue, tResult.pfnFreeError);
+	return pFuture;
 }
 
 
-static int32 __xnetUdpRecvTaskProc(ptr pArg, xfuture_result* pOut)
+static void __xnetUdpSendAsyncCtxFree(ptr pArg)
 {
-	__xnet_udp_recv_task* pTask = (__xnet_udp_recv_task*)pArg;
-	xnetdgrampkt* pPacket;
-	if ( !pTask ) { return __xnetAsyncPoint(pOut, NULL); }
-	pPacket = xrtNetUdpRecv(pTask->pSock, pTask->iTimeoutMs);
-	xrtFree(pTask);
-	return __xnetAsyncPoint(pOut, pPacket);
+	__xnet_udp_send_async_ctx* pCtx = (__xnet_udp_send_async_ctx*)pArg;
+	if ( !pCtx ) { return; }
+	if ( pCtx->pFuture && pCtx->bFutureHeld ) { __xnetFutureReleaseAsyncHold(pCtx->pFuture); }
+	if ( pCtx->pSock && pCtx->bSockHeld ) { __xnetDgramReleaseAsyncHold(pCtx->pSock); }
+	if ( pCtx->sHost ) { xrtFree(pCtx->sHost); }
+	if ( pCtx->pData ) { xrtFree(pCtx->pData); }
+	xrtFree(pCtx);
 }
 
 
-static int32 __xnetUdpSendTaskProc(ptr pArg, xfuture_result* pOut)
+static void __xnetUdpSendAsyncFinish(__xnet_udp_send_async_ctx* pCtx, xnet_result iStatus)
 {
-	__xnet_udp_send_task* pTask = (__xnet_udp_send_task*)pArg;
-	bool bOk;
-	if ( !pTask ) { return __xnetAsyncBool(pOut, false); }
-	bOk = xrtNetUdpSendText(pTask->pSock, pTask->sHost, pTask->iPort, pTask->sText);
-	__xnetUdpSendTaskFree(pTask);
-	return __xnetAsyncBool(pOut, bOk);
+	xfuture_result tResult;
+	if ( !pCtx || __xnetAtomicCompareExchange32(&pCtx->bDone, 1, 0) != 0 ) { return; }
+	memset(&tResult, 0, sizeof(tResult));
+	if ( iStatus == XRT_NET_OK ) {
+		(void)__xnetAsyncBool(&tResult, true);
+	} else {
+		tResult.iStatus = iStatus;
+		tResult.sError = (str)(iStatus == XRT_NET_AGAIN
+			? "UDP send queue limit reached."
+			: (iStatus == XRT_NET_CANCELLED ? "UDP send cancelled." : "UDP send failed."));
+	}
+	(void)__xnetFutureCompleteExWithFree(pCtx->pFuture, tResult.iStatus, tResult.pValue,
+		(const char*)tResult.sError, tResult.iFlags, tResult.pfnFreeValue, tResult.pfnFreeError);
+	__xnetUdpSendAsyncCtxFree(pCtx);
+}
+
+
+static void __xnetUdpSendPortDone(xdgramsock* pSock, xnet_result iStatus, ptr pArg)
+{
+	(void)pSock;
+	__xnetUdpSendAsyncFinish((__xnet_udp_send_async_ctx*)pArg, iStatus);
+}
+
+
+static void __xnetUdpSendResolveDone(xnetworker* pWorker, ptr pArg, xnet_result iStatus,
+	const xnetaddr* pAddr, int iSysErr)
+{
+	__xnet_udp_send_async_ctx* pCtx = (__xnet_udp_send_async_ctx*)pArg;
+	(void)pWorker;
+	(void)iSysErr;
+	if ( !pCtx ) { return; }
+	if ( xFutureStatus(pCtx->pFuture) == XRT_NET_CANCELLED ) {
+		__xnetUdpSendAsyncFinish(pCtx, XRT_NET_CANCELLED);
+		return;
+	}
+	if ( iStatus != XRT_NET_OK || !pAddr ) {
+		__xnetUdpSendAsyncFinish(pCtx, iStatus != XRT_NET_OK ? iStatus : XRT_NET_ERROR);
+		return;
+	}
+	iStatus = __xnetDgramSendToWithCompletion(pCtx->pSock, pAddr, pCtx->pData, pCtx->iLen,
+		__xnetUdpSendPortDone, pCtx);
+	if ( iStatus != XRT_NET_OK ) { __xnetUdpSendAsyncFinish(pCtx, iStatus); }
 }
 
 
 XXAPI xfuture* xrtNetTcpConnectAsync(const char* sHost, uint16 iPort, int64 iTimeoutMs)
 {
-	__xnet_tcp_connect_task* pTask;
+	__xnet_tcp_connect_async_ctx* pCtx;
+	xnetconnectconfig tCfg;
+	xnetengine* pEngine;
+	xnet_result iStatus;
 	xfuture* pFuture;
 	if ( !sHost || !sHost[0] || iPort == 0 ) { return NULL; }
-	pTask = (__xnet_tcp_connect_task*)xrtMalloc(sizeof(__xnet_tcp_connect_task));
-	if ( !pTask ) { return NULL; }
-	pTask->sHost = (char*)xrtCopyStr((str)sHost, 0);
-	pTask->iPort = iPort;
-	pTask->iTimeoutMs = iTimeoutMs;
-	if ( !pTask->sHost ) {
-		__xnetTcpConnectTaskFree(pTask);
+	pEngine = xrtNetSyncGetHiddenEngine();
+	if ( !pEngine ) { return NULL; }
+	pCtx = (__xnet_tcp_connect_async_ctx*)xrtMalloc(sizeof(*pCtx));
+	if ( !pCtx ) { return NULL; }
+	memset(pCtx, 0, sizeof(*pCtx));
+	pCtx->iRefCount = 1;
+	pCtx->pFuture = xFutureCreate();
+	if ( !pCtx->pFuture ) {
+		xrtFree(pCtx);
 		return NULL;
 	}
-	pFuture = xTaskRunThread(__xnetTcpConnectTaskProc, pTask, 0);
-	if ( !pFuture ) { __xnetTcpConnectTaskFree(pTask); }
+	pCtx->pStream = xrtNetStreamCreate(pEngine, &__xnetTcpConnectAsyncEvents, pCtx);
+	if ( !pCtx->pStream ) {
+		xFutureRelease(pCtx->pFuture);
+		xrtFree(pCtx);
+		return NULL;
+	}
+	__xnetFutureAddAsyncHold(pCtx->pFuture);
+	pFuture = pCtx->pFuture;
+	__xnetFutureLock(pFuture);
+	pFuture->pPendingCtx = __xnetTcpConnectAsyncCtxAddRef(pCtx);
+	pFuture->pfnPendingCancel = __xnetTcpConnectAsyncPendingCancel;
+	pFuture->pfnPendingCleanup = NULL;
+	__xnetFutureUnlock(pFuture);
+	xrtNetStreamPauseRead(pCtx->pStream);
+	xrtNetConnectConfigInit(&tCfg);
+	tCfg.sHost = sHost;
+	tCfg.iPort = iPort;
+	tCfg.iConnectTimeoutMs = __xnetSyncConnectTimeout(iTimeoutMs);
+	iStatus = xrtNetStreamConnect(pCtx->pStream, &tCfg);
+	if ( iStatus != XRT_NET_OK ) {
+		__xnetTcpConnectAsyncFinish(pCtx, iStatus, NULL);
+		return pFuture;
+	}
 	return pFuture;
 }
 
 
 XXAPI xfuture* xrtNetTcpAcceptAsync(xnetlistener* pListener, int64 iTimeoutMs)
 {
-	__xnet_tcp_accept_task* pTask;
-	xfuture* pFuture;
-	if ( !pListener ) { return NULL; }
-	pTask = (__xnet_tcp_accept_task*)xrtMalloc(sizeof(__xnet_tcp_accept_task));
-	if ( !pTask ) { return NULL; }
-	pTask->pListener = pListener;
-	pTask->iTimeoutMs = iTimeoutMs;
-	pFuture = xTaskRunThread(__xnetTcpAcceptTaskProc, pTask, 0);
-	if ( !pFuture ) { xrtFree(pTask); }
-	return pFuture;
+	xfuture* pSource;
+	if ( !pListener || !pListener->pEngine || !pListener->pWorker ) { return NULL; }
+	pSource = xrtNetListenerAcceptFuture(pListener);
+	pSource = __xnetAsyncWithTimeout(pSource, pListener->pEngine,
+		pListener->pWorker->iId, iTimeoutMs);
+	return __xnetAsyncMapSuccess(pSource, pListener->pEngine,
+		pListener->pWorker->iId, __xnetAsyncPointCont);
+}
+
+
+static xfuture* __xnetStreamRecvAsync(xnetstream* pStream, size_t iMaxBytes,
+	int64 iTimeoutMs, xfuture_cont_fn pfnCont)
+{
+	__xnet_stream_recv_async_ctx* pCtx;
+	xfuture* pSource;
+	xfuture* pTimed;
+	xfuture* pResult;
+	if ( !pStream || !pStream->pEngine || !pStream->pWorker || !pfnCont ) { return NULL; }
+	pCtx = (__xnet_stream_recv_async_ctx*)xrtMalloc(sizeof(*pCtx));
+	if ( !pCtx ) { return NULL; }
+	pCtx->pStream = pStream;
+	pCtx->iMaxBytes = iMaxBytes;
+	__xnetStreamAddAsyncHold(pStream);
+	xrtNetStreamPauseRead(pStream);
+	pSource = xrtNetStreamReadableFuture(pStream);
+	if ( !pSource ) {
+		__xnetStreamRecvAsyncCtxFree(pCtx);
+		return NULL;
+	}
+	pTimed = __xnetAsyncWithTimeout(pSource, pStream->pEngine,
+		pStream->pWorker->iId, iTimeoutMs);
+	if ( !pTimed ) {
+		__xnetStreamRecvAsyncCtxFree(pCtx);
+		return NULL;
+	}
+	pResult = xFutureThenEngineEx(pTimed, pStream->pEngine, pStream->pWorker->iId,
+		pfnCont, pCtx, __xnetStreamRecvAsyncCtxFree);
+	if ( !pResult ) {
+		(void)xFutureRequestCancel(pTimed);
+		__xnetStreamRecvAsyncCtxFree(pCtx);
+	} else {
+		(void)xFutureForwardCancelTo(pResult, pTimed);
+	}
+	xFutureRelease(pTimed);
+	return pResult;
 }
 
 
 XXAPI xfuture* xrtNetStreamRecvTextAsync(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs)
 {
-	__xnet_stream_recv_task* pTask;
-	xfuture* pFuture;
-	if ( !pStream ) { return NULL; }
-	pTask = (__xnet_stream_recv_task*)xrtMalloc(sizeof(__xnet_stream_recv_task));
-	if ( !pTask ) { return NULL; }
-	pTask->pStream = pStream;
-	pTask->iMaxBytes = iMaxBytes;
-	pTask->iTimeoutMs = iTimeoutMs;
-	pFuture = xTaskRunThread(__xnetStreamRecvTaskProc, pTask, 0);
-	if ( !pFuture ) { xrtFree(pTask); }
-	return pFuture;
+	return __xnetStreamRecvAsync(pStream, iMaxBytes, iTimeoutMs,
+		__xnetStreamRecvTextAsyncCont);
+}
+
+
+XXAPI xfuture* xrtNetStreamRecvBytesAsync(xnetstream* pStream, size_t iMaxBytes, int64 iTimeoutMs)
+{
+	return __xnetStreamRecvAsync(pStream, iMaxBytes, iTimeoutMs,
+		__xnetStreamRecvBytesAsyncCont);
+}
+
+
+XXAPI xfuture* xrtNetStreamSendBytesAsync(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	xnet_result iStatus;
+	if ( !pStream || (!pData && iLen > 0u) ) { return NULL; }
+	iStatus = xrtNetStreamSend(pStream, pData, iLen);
+	return __xnetAsyncCompletedSend(iStatus);
 }
 
 
 XXAPI xfuture* xrtNetStreamSendTextAsync(xnetstream* pStream, const char* sText)
 {
-	__xnet_stream_send_task* pTask;
-	xfuture* pFuture;
-	if ( !pStream ) { return NULL; }
-	pTask = (__xnet_stream_send_task*)xrtMalloc(sizeof(__xnet_stream_send_task));
-	if ( !pTask ) { return NULL; }
-	pTask->pStream = pStream;
-	pTask->sText = (char*)xrtCopyStr((str)(sText ? sText : ""), 0);
-	if ( !pTask->sText ) {
-		__xnetStreamSendTaskFree(pTask);
-		return NULL;
-	}
-	pFuture = xTaskRunThread(__xnetStreamSendTaskProc, pTask, 0);
-	if ( !pFuture ) { __xnetStreamSendTaskFree(pTask); }
-	return pFuture;
+	if ( !sText ) { sText = ""; }
+	return xrtNetStreamSendBytesAsync(pStream, sText, strlen(sText));
 }
 
 
 XXAPI xfuture* xrtNetStreamDrainAsync(xnetstream* pStream, int64 iTimeoutMs)
 {
-	__xnet_stream_drain_task* pTask;
-	xfuture* pFuture;
-	if ( !pStream ) { return NULL; }
-	pTask = (__xnet_stream_drain_task*)xrtMalloc(sizeof(__xnet_stream_drain_task));
-	if ( !pTask ) { return NULL; }
-	pTask->pStream = pStream;
-	pTask->iTimeoutMs = iTimeoutMs;
-	pFuture = xTaskRunThread(__xnetStreamDrainTaskProc, pTask, 0);
-	if ( !pFuture ) { xrtFree(pTask); }
-	return pFuture;
+	xfuture* pSource;
+	if ( !pStream || !pStream->pEngine || !pStream->pWorker ) { return NULL; }
+	pSource = xrtNetStreamDrainFuture(pStream);
+	pSource = __xnetAsyncWithTimeout(pSource, pStream->pEngine,
+		pStream->pWorker->iId, iTimeoutMs);
+	return __xnetAsyncMapSuccess(pSource, pStream->pEngine,
+		pStream->pWorker->iId, __xnetAsyncBoolCont);
 }
 
 
 XXAPI xfuture* xrtNetUdpRecvAsync(xdgramsock* pSock, int64 iTimeoutMs)
 {
-	__xnet_udp_recv_task* pTask;
+	xfuture* pSource;
+	if ( !pSock || !pSock->pEngine || !pSock->pWorker ) { return NULL; }
+	pSource = xrtNetDgramRecvFuture(pSock);
+	pSource = __xnetAsyncWithTimeout(pSource, pSock->pEngine,
+		pSock->pWorker->iId, iTimeoutMs);
+	return __xnetAsyncMapSuccess(pSource, pSock->pEngine,
+		pSock->pWorker->iId, __xnetAsyncPointCont);
+}
+
+
+XXAPI xfuture* xrtNetUdpSendBytesAsync(xdgramsock* pSock, const char* sHost,
+	uint16 iPort, const void* pData, size_t iLen)
+{
+	__xnet_udp_send_async_ctx* pCtx;
 	xfuture* pFuture;
-	if ( !pSock ) { return NULL; }
-	pTask = (__xnet_udp_recv_task*)xrtMalloc(sizeof(__xnet_udp_recv_task));
-	if ( !pTask ) { return NULL; }
-	pTask->pSock = pSock;
-	pTask->iTimeoutMs = iTimeoutMs;
-	pFuture = xTaskRunThread(__xnetUdpRecvTaskProc, pTask, 0);
-	if ( !pFuture ) { xrtFree(pTask); }
+	xnet_result iStatus;
+	if ( !pSock || !pSock->pEngine || !pSock->pWorker || !sHost || !sHost[0]
+		|| iPort == 0 || (!pData && iLen > 0u) ) { return NULL; }
+	pCtx = (__xnet_udp_send_async_ctx*)xrtMalloc(sizeof(*pCtx));
+	if ( !pCtx ) { return NULL; }
+	memset(pCtx, 0, sizeof(*pCtx));
+	pCtx->pSock = pSock;
+	pCtx->sHost = (char*)xrtCopyStr((str)sHost, 0);
+	pCtx->iPort = iPort;
+	pCtx->iLen = iLen;
+	if ( iLen > 0u ) {
+		pCtx->pData = xrtMalloc(iLen);
+		if ( pCtx->pData ) { memcpy(pCtx->pData, pData, iLen); }
+	}
+	if ( !pCtx->sHost || (iLen > 0u && !pCtx->pData) ) {
+		__xnetUdpSendAsyncCtxFree(pCtx);
+		return NULL;
+	}
+	pFuture = xFutureCreate();
+	if ( !pFuture ) {
+		__xnetUdpSendAsyncCtxFree(pCtx);
+		return NULL;
+	}
+	pCtx->pFuture = pFuture;
+	__xnetFutureAddAsyncHold(pFuture);
+	pCtx->bFutureHeld = true;
+	__xnetDgramAddAsyncHold(pSock);
+	pCtx->bSockHeld = true;
+	iStatus = __xnetEngineResolveAsyncEx(pSock->pEngine, pSock->pWorker->iId,
+		pCtx->sHost, iPort, pSock->tLocalAddr.iFamily, __xnetUdpSendResolveDone, pCtx);
+	if ( iStatus != XRT_NET_OK ) { __xnetUdpSendAsyncFinish(pCtx, iStatus); }
 	return pFuture;
 }
 
 
-XXAPI xfuture* xrtNetUdpSendTextAsync(xdgramsock* pSock, const char* sHost, uint16 iPort, const char* sText)
+XXAPI xfuture* xrtNetUdpSendTextAsync(xdgramsock* pSock, const char* sHost,
+	uint16 iPort, const char* sText)
 {
-	__xnet_udp_send_task* pTask;
-	xfuture* pFuture;
-	if ( !pSock || !sHost || !sHost[0] || iPort == 0 ) { return NULL; }
-	pTask = (__xnet_udp_send_task*)xrtMalloc(sizeof(__xnet_udp_send_task));
-	if ( !pTask ) { return NULL; }
-	pTask->pSock = pSock;
-	pTask->sHost = (char*)xrtCopyStr((str)sHost, 0);
-	pTask->iPort = iPort;
-	pTask->sText = (char*)xrtCopyStr((str)(sText ? sText : ""), 0);
-	if ( !pTask->sHost || !pTask->sText ) {
-		__xnetUdpSendTaskFree(pTask);
-		return NULL;
-	}
-	pFuture = xTaskRunThread(__xnetUdpSendTaskProc, pTask, 0);
-	if ( !pFuture ) { __xnetUdpSendTaskFree(pTask); }
-	return pFuture;
+	if ( !sText ) { sText = ""; }
+	return xrtNetUdpSendBytesAsync(pSock, sHost, iPort, sText, strlen(sText));
 }
 
 #endif
@@ -3088,6 +3809,24 @@ XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture)
 	if ( !__xnetFutureDestroyCore(pFuture) ) {
 		__xnetSyncSetError("cannot destroy future while an async waiter or task still holds it.");
 	}
+}
+
+
+XXAPI bool xrtNetFutureCancel(xnetfuture* pFuture)
+{
+	__xnet_future_pending_cancel_fn pfnCancel = NULL;
+	if ( !pFuture ) { return false; }
+	__xnetFutureLock(pFuture);
+	if ( pFuture->bDone ) {
+		bool bCancelled = pFuture->iStatus == XRT_NET_CANCELLED;
+		__xnetFutureUnlock(pFuture);
+		return bCancelled;
+	}
+	pfnCancel = pFuture->pfnPendingCancel;
+	__xnetFutureUnlock(pFuture);
+	if ( pfnCancel ) { return pfnCancel(pFuture); }
+	return __xnetFutureCompleteEx(pFuture, XRT_NET_CANCELLED, NULL, "future cancel requested.",
+		XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CANCELLED);
 }
 
 #if defined(XXRTL_CORE)
@@ -3382,19 +4121,7 @@ XXAPI ptr xFutureGetAllValueItem(xfuture* pFuture, int iIndex)
 // xFutureRequestCancel 相关处理
 XXAPI bool xFutureRequestCancel(xfuture* pFuture)
 {
-	__xnet_future_pending_cancel_fn pfnCancel = NULL;
-	if ( !pFuture ) { return false; }
-	__xnetFutureLock(pFuture);
-	if ( pFuture->bDone ) {
-		__xnetFutureUnlock(pFuture);
-		return pFuture->iStatus == XRT_NET_CANCELLED;
-	}
-	pfnCancel = pFuture->pfnPendingCancel;
-	__xnetFutureUnlock(pFuture);
-	if ( pfnCancel ) {
-		return pfnCancel(pFuture);
-	}
-	return __xnetFutureCompleteEx(pFuture, XRT_NET_CANCELLED, NULL, "future cancel requested.", XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CANCELLED);
+	return xrtNetFutureCancel(pFuture);
 }
 
 
@@ -5083,6 +5810,225 @@ static void __xnetTaskFinalize(xtask* pTask, xfuture_result* pResult)
 }
 
 
+static uint32 __xnetTaskExecutorWorker(ptr pArg)
+{
+	xtaskexecutor* pExecutor = (xtaskexecutor*)pArg;
+	if ( !pExecutor ) { return (uint32)XRT_NET_ERROR; }
+	__g_xnetTaskExecutorCurrent = pExecutor;
+	for ( ;; ) {
+		__xnet_task_executor_job* pJob;
+		xtask* pTask;
+		xfuture_result tResult;
+		int32 iStatus;
+		xrtMutexLock(pExecutor->pLock);
+		while ( !pExecutor->bStopping && pExecutor->pHead == NULL ) {
+			xrtCondWait(pExecutor->pCond, pExecutor->pLock);
+		}
+		if ( pExecutor->pHead == NULL && pExecutor->bStopping ) {
+			xrtMutexUnlock(pExecutor->pLock);
+			break;
+		}
+		pJob = pExecutor->pHead;
+		pExecutor->pHead = pJob->pNext;
+		if ( !pExecutor->pHead ) { pExecutor->pTail = NULL; }
+		if ( pExecutor->iQueued > 0u ) { pExecutor->iQueued--; }
+		pExecutor->iRunning++;
+		xrtMutexUnlock(pExecutor->pLock);
+
+		pTask = pJob->pTask;
+		XNET_FREE(pJob);
+		memset(&tResult, 0, sizeof(tResult));
+		if ( xFutureStatus(pTask->pFuture) == XRT_NET_CANCELLED ) {
+			tResult.iStatus = XRT_NET_CANCELLED;
+			tResult.sError = (str)"blocking task cancelled before execution.";
+			tResult.iFlags = XFUTURE_RESULT_F_CANCELLED;
+		} else {
+			pTask->iState = XTASK_RUNNING;
+			iStatus = pTask->pfnThreadTask
+				? pTask->pfnThreadTask(pTask->pArg, &tResult) : XRT_NET_ERROR;
+			tResult.iStatus = iStatus;
+			if ( !pTask->pfnThreadTask ) {
+				tResult.sError = (str)"blocking task callback is null.";
+				tResult.iFlags = XFUTURE_RESULT_F_NONE;
+			}
+		}
+		__xnetTaskFinalize(pTask, &tResult);
+
+		xrtMutexLock(pExecutor->pLock);
+		if ( pExecutor->iRunning > 0u ) { pExecutor->iRunning--; }
+		pExecutor->iCompleted++;
+		xrtMutexUnlock(pExecutor->pLock);
+	}
+	__g_xnetTaskExecutorCurrent = NULL;
+	return 0u;
+}
+
+
+XXAPI void xTaskExecutorConfigInit(xtaskexecutorconfig* pCfg)
+{
+	if ( !pCfg ) { return; }
+	memset(pCfg, 0, sizeof(*pCfg));
+	pCfg->iSize = (uint32)sizeof(*pCfg);
+	pCfg->iVersion = XTASK_EXECUTOR_CONFIG_VERSION;
+	pCfg->iThreadCount = 4u;
+	pCfg->iQueueLimit = 1024u;
+}
+
+
+XXAPI xtaskexecutor* xTaskExecutorCreate(const xtaskexecutorconfig* pCfg)
+{
+	xtaskexecutorconfig tCfg;
+	xtaskexecutor* pExecutor;
+	uint32 i;
+	xTaskExecutorConfigInit(&tCfg);
+	if ( pCfg ) {
+		size_t iCopySize;
+		if ( pCfg->iSize < XTASK_EXECUTOR_CONFIG_V1_SIZE ||
+			pCfg->iVersion != XTASK_EXECUTOR_CONFIG_VERSION ) {
+			__xnetSyncSetError("invalid task executor config version or size.");
+			return NULL;
+		}
+		iCopySize = pCfg->iSize < sizeof(tCfg) ? (size_t)pCfg->iSize : sizeof(tCfg);
+		memcpy(&tCfg, pCfg, iCopySize);
+		tCfg.iSize = (uint32)sizeof(tCfg);
+	}
+	if ( tCfg.iThreadCount == 0u || tCfg.iThreadCount > 256u || tCfg.iQueueLimit == 0u ) {
+		__xnetSyncSetError("invalid task executor thread count or queue limit.");
+		return NULL;
+	}
+	pExecutor = (xtaskexecutor*)XNET_ALLOC(sizeof(*pExecutor));
+	if ( !pExecutor ) { return NULL; }
+	memset(pExecutor, 0, sizeof(*pExecutor));
+	pExecutor->iThreadCount = tCfg.iThreadCount;
+	pExecutor->iQueueLimit = tCfg.iQueueLimit;
+	pExecutor->iStackSize = tCfg.iStackSize;
+	pExecutor->pLock = xrtMutexCreate();
+	pExecutor->pCond = xrtCondCreate();
+	pExecutor->arrThreads = (xthread*)XNET_ALLOC(sizeof(xthread) * tCfg.iThreadCount);
+	if ( !pExecutor->pLock || !pExecutor->pCond || !pExecutor->arrThreads ) {
+		if ( pExecutor->pCond ) { xrtCondDestroy(pExecutor->pCond); }
+		if ( pExecutor->pLock ) { xrtMutexDestroy(pExecutor->pLock); }
+		XNET_FREE(pExecutor->arrThreads);
+		XNET_FREE(pExecutor);
+		return NULL;
+	}
+	memset(pExecutor->arrThreads, 0, sizeof(xthread) * tCfg.iThreadCount);
+	for ( i = 0u; i < tCfg.iThreadCount; ++i ) {
+		pExecutor->arrThreads[i] = xrtThreadCreate(__xnetTaskExecutorWorker,
+			pExecutor, tCfg.iStackSize);
+		if ( !pExecutor->arrThreads[i] ) { break; }
+		pExecutor->iStartedThreads++;
+	}
+	if ( pExecutor->iStartedThreads != tCfg.iThreadCount ) {
+		xrtMutexLock(pExecutor->pLock);
+		pExecutor->bStopping = true;
+		xrtCondBroadcast(pExecutor->pCond);
+		xrtMutexUnlock(pExecutor->pLock);
+		for ( i = 0u; i < pExecutor->iStartedThreads; ++i ) {
+			xrtThreadWait(pExecutor->arrThreads[i]);
+			xrtThreadDestroy(pExecutor->arrThreads[i]);
+		}
+		xrtCondDestroy(pExecutor->pCond);
+		xrtMutexDestroy(pExecutor->pLock);
+		XNET_FREE(pExecutor->arrThreads);
+		XNET_FREE(pExecutor);
+		return NULL;
+	}
+	return pExecutor;
+}
+
+
+XXAPI xfuture* xTaskExecutorSubmit(xtaskexecutor* pExecutor,
+	xtask_thread_fn pfnTask, ptr pArg)
+{
+	__xnet_task_executor_job* pJob;
+	xtask* pTask;
+	xfuture* pFuture;
+	xpromise* pPromise;
+	if ( !pExecutor || !pfnTask ) { return NULL; }
+	pFuture = xFutureCreate();
+	if ( !pFuture ) { return NULL; }
+	pPromise = xPromiseCreate(pFuture);
+	pTask = (xtask*)XNET_ALLOC(sizeof(*pTask));
+	pJob = (__xnet_task_executor_job*)XNET_ALLOC(sizeof(*pJob));
+	if ( !pPromise || !pTask || !pJob ) {
+		XNET_FREE(pJob);
+		XNET_FREE(pTask);
+		if ( pPromise ) { xPromiseDestroy(pPromise); }
+		xFutureRelease(pFuture);
+		return NULL;
+	}
+	memset(pTask, 0, sizeof(*pTask));
+	memset(pJob, 0, sizeof(*pJob));
+	pTask->iState = XTASK_QUEUED;
+	pTask->pFuture = xFutureAddRef(pFuture);
+	pTask->pPromise = pPromise;
+	pTask->pfnThreadTask = pfnTask;
+	pTask->pArg = pArg;
+	pJob->pTask = pTask;
+
+	xrtMutexLock(pExecutor->pLock);
+	if ( pExecutor->bStopping || pExecutor->iQueued >= pExecutor->iQueueLimit ) {
+		pExecutor->iRejected++;
+		xrtMutexUnlock(pExecutor->pLock);
+		xFutureRelease(pTask->pFuture);
+		xPromiseDestroy(pPromise);
+		XNET_FREE(pTask);
+		XNET_FREE(pJob);
+		xFutureRelease(pFuture);
+		__xnetSyncSetError("task executor queue is closed or full.");
+		return NULL;
+	}
+	if ( pExecutor->pTail ) { pExecutor->pTail->pNext = pJob; }
+	else { pExecutor->pHead = pJob; }
+	pExecutor->pTail = pJob;
+	pExecutor->iQueued++;
+	pExecutor->iSubmitted++;
+	xrtCondSignal(pExecutor->pCond);
+	xrtMutexUnlock(pExecutor->pLock);
+	return pFuture;
+}
+
+
+XXAPI bool xTaskExecutorGetStats(xtaskexecutor* pExecutor, xtaskexecutorstats* pOut)
+{
+	if ( !pExecutor || !pOut ) { return false; }
+	xrtMutexLock(pExecutor->pLock);
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->iSubmitted = pExecutor->iSubmitted;
+	pOut->iCompleted = pExecutor->iCompleted;
+	pOut->iRejected = pExecutor->iRejected;
+	pOut->iQueued = pExecutor->iQueued;
+	pOut->iRunning = pExecutor->iRunning;
+	pOut->iThreadCount = pExecutor->iThreadCount;
+	xrtMutexUnlock(pExecutor->pLock);
+	return true;
+}
+
+
+XXAPI void xTaskExecutorDestroy(xtaskexecutor* pExecutor)
+{
+	uint32 i;
+	if ( !pExecutor ) { return; }
+	if ( __g_xnetTaskExecutorCurrent == pExecutor ) {
+		__xnetSyncSetError("task executor cannot be destroyed by one of its worker threads.");
+		return;
+	}
+	xrtMutexLock(pExecutor->pLock);
+	pExecutor->bStopping = true;
+	xrtCondBroadcast(pExecutor->pCond);
+	xrtMutexUnlock(pExecutor->pLock);
+	for ( i = 0u; i < pExecutor->iStartedThreads; ++i ) {
+		xrtThreadWait(pExecutor->arrThreads[i]);
+		xrtThreadDestroy(pExecutor->arrThreads[i]);
+	}
+	xrtCondDestroy(pExecutor->pCond);
+	xrtMutexDestroy(pExecutor->pLock);
+	XNET_FREE(pExecutor->arrThreads);
+	XNET_FREE(pExecutor);
+}
+
+
 // 内部函数：分发任务
 static void __xnetTaskDispatch(xnetworker* pWorker, ptr pArg)
 {
@@ -5588,13 +6534,13 @@ static void __xnetSyncRegisterStreamFutureWait(xnetworker* pWorker, ptr pArg)
 	}
 
 	if ( pCtx->iWaitKind == __XNET_STREAM_WAIT_READABLE &&
-		xrtNetChainBytes(&pCtx->pStream->tRxChain) == 0u ) {
+		__xnetStreamRxBytes(pCtx->pStream) == 0u ) {
 		/*
 			readable wait 使用 paused 模式防止 OnRecv 消费同步读取缓存。
 			注册等待后仍需 arm 一次底层 recv，否则新建连接在无缓存时会一直等不到数据。
 		*/
 		xrtNetStreamResumeRead(pCtx->pStream);
-		pCtx->pStream->bReadPaused = true;
+		__xnetStreamApplyPauseRead(pCtx->pStream);
 	}
 }
 
@@ -5649,6 +6595,10 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 	}
 
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
+	if ( __xnetEngineIsCurrentWorker(pCtx->pStream->pWorker) ) {
+		__xnetSyncCancelStreamFutureWait(pCtx->pStream->pWorker, pCtx);
+		return __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED;
+	}
 
 	// 向流的工作线程投递取消操作
 	iPostResult = xrtNetEnginePost(pCtx->pStream->pEngine, pCtx->pStream->pWorker->iId, __xnetSyncCancelStreamFutureWait, pCtx);
@@ -5919,6 +6869,10 @@ static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 	}
 
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
+	if ( __xnetEngineIsCurrentWorker(pCtx->pListener->pWorker) ) {
+		__xnetSyncCancelListenerFutureWait(pCtx->pListener->pWorker, pCtx);
+		return __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED;
+	}
 	// 向监听器的工作线程投递取消操作
 	iPostResult = xrtNetEnginePost(pCtx->pListener->pEngine, pCtx->pListener->pWorker->iId, __xnetSyncCancelListenerFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
@@ -5998,6 +6952,7 @@ static void __xnetSyncRequeueCanceledDgramPacket(__xnet_dgram_future_wait_ctx* p
 static void __xnetSyncResolveDgramFutureWait(__xnet_dgram_future_wait_ctx* pCtx, xnet_result iStatus, xnetdgrampkt* pPacket)
 {
 	long iPrevState;
+	ptr pValue = pPacket;
 
 	if ( pCtx == NULL ) {
 		if ( pPacket ) { xrtNetDgramPacketDestroy(pPacket); }
@@ -6011,7 +6966,30 @@ static void __xnetSyncResolveDgramFutureWait(__xnet_dgram_future_wait_ctx* pCtx,
 	}
 
 	if ( iPrevState != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
-		(void)__xnetFutureResolve(pCtx->pFuture, iStatus, pPacket);
+		if ( iStatus == XRT_NET_OK && pPacket && pCtx->iBatchCapacity > 0u ) {
+			xnetdgrambatch* pBatch = __xnetDgramBatchCreateFromFirst(
+				pCtx->pSock, pPacket, pCtx->iBatchCapacity);
+			if ( pBatch ) {
+				pValue = pBatch;
+			} else {
+				__xnetSyncRequeueCanceledDgramPacket(pCtx, pPacket);
+				pValue = NULL;
+				iStatus = XRT_NET_ERROR;
+			}
+		}
+		if ( !__xnetFutureResolve(pCtx->pFuture, iStatus, pValue) ) {
+			if ( pCtx->iBatchCapacity > 0u && pValue ) {
+				xnetdgrambatch* pBatch = (xnetdgrambatch*)pValue;
+				uint32 i;
+				for ( i = 0u; i < xrtNetDgramBatchCount(pBatch); ++i ) {
+					xnetdgrampkt* pQueued = xrtNetDgramBatchTake(pBatch, i);
+					if ( pQueued ) { __xnetSyncRequeueCanceledDgramPacket(pCtx, pQueued); }
+				}
+				xrtNetDgramBatchDestroy(pBatch);
+			} else if ( pValue ) {
+				__xnetSyncRequeueCanceledDgramPacket(pCtx, (xnetdgrampkt*)pValue);
+			}
+		}
 	} else if ( pPacket ) {
 		__xnetSyncRequeueCanceledDgramPacket(pCtx, pPacket);
 	}
@@ -6112,6 +7090,10 @@ static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 	}
 
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
+	if ( __xnetEngineIsCurrentWorker(pCtx->pSock->pWorker) ) {
+		__xnetSyncCancelDgramFutureWait(pCtx->pSock->pWorker, pCtx);
+		return __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED;
+	}
 
 	// 向数据报的工作线程投递取消操作
 	iPostResult = xrtNetEnginePost(pCtx->pSock->pEngine, pCtx->pSock->pWorker->iId, __xnetSyncCancelDgramFutureWait, pCtx);
@@ -6304,7 +7286,7 @@ static xnetfuture* __xnetSyncCreateStreamFutureWait(xnetstream* pStream, uint32 
 		return NULL;
 	}
 	// readable 等待要求流处于暂停读取模式
-	if ( iWaitKind == __XNET_STREAM_WAIT_READABLE && !pStream->bReadPaused ) {
+	if ( iWaitKind == __XNET_STREAM_WAIT_READABLE && !__xnetStreamReadPaused(pStream) ) {
 		__xnetSyncSetError("stream readable future currently requires paused read mode.");
 		return NULL;
 	}
@@ -6443,7 +7425,7 @@ XXAPI xnetfuture* xrtNetListenerAcceptFuture(xnetlistener* pListener)
 
 
 // 内部函数：接收同步 create 数据报 Future
-static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
+static xnetfuture* __xnetSyncCreateDgramFutureRecvEx(xdgramsock* pSock, uint32 iBatchCapacity)
 {
 	xnetfuture* pFuture = NULL;
 	__xnet_dgram_future_wait_ctx* pCtx = NULL;
@@ -6452,6 +7434,10 @@ static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
 	// 校验数据报套接字状态
 	if ( pSock == NULL || pSock->pEngine == NULL || pSock->pWorker == NULL ) {
 		__xnetSyncSetError("datagram socket is not bound to a running engine worker.");
+		return NULL;
+	}
+	if ( iBatchCapacity > 256u ) {
+		__xnetSyncSetError("datagram receive batch cannot exceed 256 packets.");
 		return NULL;
 	}
 	// 不能与 OnRecv 回调同时使用
@@ -6483,6 +7469,7 @@ static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
 	pCtx->pFuture = pFuture;
 	pCtx->pSock = pSock;
 	pCtx->iState = __XNET_SYNC_STREAM_WAIT_POSTED;
+	pCtx->iBatchCapacity = iBatchCapacity;
 	pFuture->pPendingCtx = pCtx;
 	pFuture->pfnPendingCancel = __xnetSyncCancelPendingDgramFutureWait;
 	pFuture->pfnPendingCleanup = __xnetSyncCleanupDgramFutureWait;
@@ -6503,10 +7490,23 @@ static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
 }
 
 
+static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
+{
+	return __xnetSyncCreateDgramFutureRecvEx(pSock, 0u);
+}
+
+
 // 接收网络数据报 Future
 XXAPI xnetfuture* xrtNetDgramRecvFuture(xdgramsock* pSock)
 {
 	return __xnetSyncCreateDgramFutureRecv(pSock);
+}
+
+
+XXAPI xnetfuture* xrtNetDgramRecvBatchFuture(xdgramsock* pSock, uint32 iMaxPackets)
+{
+	if ( iMaxPackets == 0u ) { return NULL; }
+	return __xnetSyncCreateDgramFutureRecvEx(pSock, iMaxPackets);
 }
 
 
@@ -6542,10 +7542,6 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 
 	// 如果等待超时或失败且 Future 仍在等待, 需要取消
 	if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR ) {
-		#if defined(XRT_INTERNAL_TEST_ENV)
-			fprintf(stderr, "[XNET ACCEPT] wait failed, status=%d, future-status=%d\n",
-				iStatus, iFutureStatus);
-		#endif
 		bNeedCancel = true;
 	}
 
@@ -6576,7 +7572,8 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 
 
 // 内部函数：等待同步数据报同步 core 扩展
-static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+static xnet_result __xnetSyncWaitDgramSyncCoreEx2(xdgramsock* pSock, int iWaitMode,
+	int64_t iDeadlineMs, uint32 iTimeoutMs, uint32 iBatchCapacity, ptr* ppValue)
 {
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
@@ -6585,7 +7582,7 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 
 	if ( ppValue ) { *ppValue = NULL; }
 	// 创建数据报接收等待 Future
-	pFuture = __xnetSyncCreateDgramFutureRecv(pSock);
+	pFuture = __xnetSyncCreateDgramFutureRecvEx(pSock, iBatchCapacity);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
 	}
@@ -6629,6 +7626,14 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 
 	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
+}
+
+
+static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMode,
+	int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	return __xnetSyncWaitDgramSyncCoreEx2(pSock, iWaitMode,
+		iDeadlineMs, iTimeoutMs, 0u, ppValue);
 }
 
 
@@ -6827,6 +7832,109 @@ XXAPI xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 2, iDeadlineMs, 0, ppValue);
 }
 
+
+static bool __xnetSyncContextIsValid(const xnetcontext* pContext)
+{
+	return pContext == NULL ||
+		(pContext->iSize >= XNET_CONTEXT_V1_SIZE && pContext->iVersion == XNET_CONTEXT_VERSION);
+}
+
+
+static xnetfuture* __xnetSyncWaitSourceFuture(const xnetwaitsrc* pSrc, bool* pOwnWaiter)
+{
+	if ( pOwnWaiter ) { *pOwnWaiter = false; }
+	if ( !pSrc ) { return NULL; }
+	if ( pSrc->iKind == XNET_WAITSRC_FUTURE ) {
+		if ( pSrc->u.pFuture ) { __xnetFutureAddRefInternal(pSrc->u.pFuture); }
+		return pSrc->u.pFuture;
+	}
+	if ( pOwnWaiter ) { *pOwnWaiter = true; }
+	if ( pSrc->iKind == XNET_WAITSRC_STREAM ) {
+		return __xnetSyncCreateStreamFutureWait(pSrc->u.tStream.pStream, pSrc->u.tStream.iWaitKind);
+	}
+	if ( pSrc->iKind == XNET_WAITSRC_DGRAM ) { return __xnetSyncCreateDgramFutureRecv(pSrc->u.pDgram); }
+	if ( pSrc->iKind == XNET_WAITSRC_LISTENER ) { return __xnetSyncCreateListenerFutureAccept(pSrc->u.pListener); }
+	return NULL;
+}
+
+
+static xnet_result __xnetSyncWaitSourceContextCore(const xnetwaitsrc* pSrc, const xnetcontext* pContext,
+	ptr* ppValue, bool bCoroutine)
+{
+	xnetfuture* pFuture;
+	xnet_result iStatus = XRT_NET_AGAIN;
+	bool bOwnWaiter = false;
+	bool bCancelled = false;
+	uint32 iSliceMs;
+	uint64 iNowMs;
+	uint64 iRemainingMs;
+	if ( ppValue ) { *ppValue = NULL; }
+	if ( !pSrc || !__xnetSyncContextIsValid(pContext) ) {
+		__xnetErrorSetEx(XRT_NET_ERROR, XNET_OP_WAIT, XNET_PHASE_VALIDATE, XNET_BACKEND_NONE, 0,
+			"invalid network wait context.");
+		return XRT_NET_ERROR;
+	}
+	if ( pContext && xrtNetCancelIsRequested(pContext->pCancel) ) { return XRT_NET_CANCELLED; }
+	pFuture = __xnetSyncWaitSourceFuture(pSrc, &bOwnWaiter);
+	if ( !pFuture ) {
+		__xnetErrorSetEx(XRT_NET_ERROR, XNET_OP_WAIT, XNET_PHASE_SUBMIT, XNET_BACKEND_NONE, 0,
+			"unable to create network wait future.");
+		return XRT_NET_ERROR;
+	}
+
+	for ( ;; ) {
+		if ( pContext && xrtNetCancelIsRequested(pContext->pCancel) ) {
+			iStatus = XRT_NET_CANCELLED;
+			bCancelled = true;
+			break;
+		}
+		iSliceMs = XNET_WAIT_INFINITE;
+		if ( pContext && pContext->iDeadlineMs > 0 ) {
+			iNowMs = __xnetSyncNowMs();
+			if ( iNowMs >= (uint64)pContext->iDeadlineMs ) {
+				iStatus = XRT_NET_TIMEOUT;
+				break;
+			}
+			iRemainingMs = (uint64)pContext->iDeadlineMs - iNowMs;
+			iSliceMs = (uint32)(iRemainingMs > UINT32_MAX ? UINT32_MAX : iRemainingMs);
+		}
+		if ( pContext && pContext->pCancel && iSliceMs > 10u ) { iSliceMs = 10u; }
+		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+			if ( bCoroutine ) { iStatus = xrtNetFutureWaitCoTimeout(pFuture, iSliceMs); }
+			else
+		#endif
+		{
+			(void)bCoroutine;
+			iStatus = xrtNetFutureWait(pFuture, iSliceMs);
+		}
+		if ( iStatus != XRT_NET_TIMEOUT ) { break; }
+		if ( !pContext || (pContext->iDeadlineMs == 0 && !pContext->pCancel) ) { break; }
+	}
+
+	if ( bOwnWaiter && (iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_CANCELLED) ) {
+		if ( !xrtNetFutureCancel(pFuture) ) { iStatus = XRT_NET_ERROR; }
+	}
+	if ( ppValue && iStatus == XRT_NET_OK ) { *ppValue = xrtNetFutureValue(pFuture); }
+	__xnetFutureReleaseRefInternal(pFuture);
+	if ( bCancelled && iStatus == XRT_NET_ERROR ) {
+		__xnetErrorSetEx(XRT_NET_ERROR, XNET_OP_WAIT, XNET_PHASE_CANCEL, XNET_BACKEND_NONE, 0,
+			"network waiter cancellation failed.");
+	}
+	return iStatus;
+}
+
+
+XXAPI xnet_result xrtNetWaitSourceWaitContext(const xnetwaitsrc* pSrc, const xnetcontext* pContext)
+{
+	return __xnetSyncWaitSourceContextCore(pSrc, pContext, NULL, false);
+}
+
+
+XXAPI xnet_result xrtNetWaitSourceWaitValueContext(const xnetwaitsrc* pSrc, const xnetcontext* pContext, ptr* ppValue)
+{
+	return __xnetSyncWaitSourceContextCore(pSrc, pContext, ppValue, false);
+}
+
 #if defined(XXRTL_CORE)
 // 等待 x 源空
 XXAPI xwaitsrc xWaitSourceNone(void)
@@ -6957,6 +8065,36 @@ XXAPI xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, x
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppPacket);
+}
+
+
+XXAPI xnet_result xrtNetDgramRecvBatch(xdgramsock* pSock,
+	uint32 iMaxPackets, xnetdgrambatch** ppBatch)
+{
+	if ( ppBatch ) { *ppBatch = NULL; }
+	if ( !ppBatch || iMaxPackets == 0u ) { return XRT_NET_ERROR; }
+	return __xnetSyncWaitDgramSyncCoreEx2(pSock, 0, 0, 0,
+		iMaxPackets, (ptr*)ppBatch);
+}
+
+
+XXAPI xnet_result xrtNetDgramRecvBatchTimeout(xdgramsock* pSock,
+	uint32 iMaxPackets, uint32 iTimeoutMs, xnetdgrambatch** ppBatch)
+{
+	if ( ppBatch ) { *ppBatch = NULL; }
+	if ( !ppBatch || iMaxPackets == 0u ) { return XRT_NET_ERROR; }
+	return __xnetSyncWaitDgramSyncCoreEx2(pSock, 1, 0, iTimeoutMs,
+		iMaxPackets, (ptr*)ppBatch);
+}
+
+
+XXAPI xnet_result xrtNetDgramRecvBatchUntil(xdgramsock* pSock,
+	uint32 iMaxPackets, int64_t iDeadlineMs, xnetdgrambatch** ppBatch)
+{
+	if ( ppBatch ) { *ppBatch = NULL; }
+	if ( !ppBatch || iMaxPackets == 0u ) { return XRT_NET_ERROR; }
+	return __xnetSyncWaitDgramSyncCoreEx2(pSock, 2, iDeadlineMs, 0,
+		iMaxPackets, (ptr*)ppBatch);
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
@@ -7101,7 +8239,8 @@ static xnet_result UNUSED_ATTR __xnetSyncWaitListenerCoCore(xnetlistener* pListe
 
 
 // 内部函数：等待同步数据报协程 core 扩展
-static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+static xnet_result __xnetSyncWaitDgramCoCoreEx2(xdgramsock* pSock, int iWaitMode,
+	int64 iDeadlineMs, uint32 iTimeoutMs, uint32 iBatchCapacity, ptr* ppValue)
 {
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
@@ -7116,7 +8255,7 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	}
 
 	// 创建数据报接收等待 Future
-	pFuture = __xnetSyncCreateDgramFutureRecv(pSock);
+	pFuture = __xnetSyncCreateDgramFutureRecvEx(pSock, iBatchCapacity);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
 	}
@@ -7160,6 +8299,14 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 
 	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
+}
+
+
+static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
+	int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	return __xnetSyncWaitDgramCoCoreEx2(pSock, iWaitMode,
+		iDeadlineMs, iTimeoutMs, 0u, ppValue);
 }
 
 
@@ -7382,6 +8529,27 @@ XXAPI xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int6
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, 2, iDeadlineMs, 0, ppValue);
 }
 
+
+XXAPI xnet_result xrtNetWaitSourceWaitCoContext(const xnetwaitsrc* pSrc, const xnetcontext* pContext)
+{
+	if ( xrtCoGetCurrent() == NULL ) {
+		__xnetSyncSetError("network context coroutine wait requires an active coroutine context.");
+		return XRT_NET_ERROR;
+	}
+	return __xnetSyncWaitSourceContextCore(pSrc, pContext, NULL, true);
+}
+
+
+XXAPI xnet_result xrtNetWaitSourceWaitCoValueContext(const xnetwaitsrc* pSrc, const xnetcontext* pContext, ptr* ppValue)
+{
+	if ( xrtCoGetCurrent() == NULL ) {
+		if ( ppValue ) { *ppValue = NULL; }
+		__xnetSyncSetError("network context coroutine wait requires an active coroutine context.");
+		return XRT_NET_ERROR;
+	}
+	return __xnetSyncWaitSourceContextCore(pSrc, pContext, ppValue, true);
+}
+
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 // xWaitSourceWaitCo 相关处理
 XXAPI bool xWaitSourceWaitCo(const xwaitsrc* pSrc)
@@ -7477,6 +8645,36 @@ XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, x
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppPacket);
+}
+
+
+XXAPI xnet_result xrtNetDgramRecvBatchCo(xdgramsock* pSock,
+	uint32 iMaxPackets, xnetdgrambatch** ppBatch)
+{
+	if ( ppBatch ) { *ppBatch = NULL; }
+	if ( !ppBatch || iMaxPackets == 0u ) { return XRT_NET_ERROR; }
+	return __xnetSyncWaitDgramCoCoreEx2(pSock, 0, 0, 0,
+		iMaxPackets, (ptr*)ppBatch);
+}
+
+
+XXAPI xnet_result xrtNetDgramRecvBatchCoTimeout(xdgramsock* pSock,
+	uint32 iMaxPackets, uint32 iTimeoutMs, xnetdgrambatch** ppBatch)
+{
+	if ( ppBatch ) { *ppBatch = NULL; }
+	if ( !ppBatch || iMaxPackets == 0u ) { return XRT_NET_ERROR; }
+	return __xnetSyncWaitDgramCoCoreEx2(pSock, 1, 0, iTimeoutMs,
+		iMaxPackets, (ptr*)ppBatch);
+}
+
+
+XXAPI xnet_result xrtNetDgramRecvBatchCoUntil(xdgramsock* pSock,
+	uint32 iMaxPackets, int64 iDeadlineMs, xnetdgrambatch** ppBatch)
+{
+	if ( ppBatch ) { *ppBatch = NULL; }
+	if ( !ppBatch || iMaxPackets == 0u ) { return XRT_NET_ERROR; }
+	return __xnetSyncWaitDgramCoCoreEx2(pSock, 2, iDeadlineMs, 0,
+		iMaxPackets, (ptr*)ppBatch);
 }
 #endif
 

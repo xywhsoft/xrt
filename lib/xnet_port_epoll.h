@@ -5,6 +5,7 @@
 
 	#define __XNET_EPOLL_INLINE_RECV 8192u
 	#define __XNET_EPOLL_MAX_IOVEC   16u
+	#define __XNET_EPOLL_WATCH_BUCKETS 256u
 
 	typedef struct __xnet_epoll_timer {
 		struct __xnet_epoll_timer* pNext;
@@ -34,7 +35,9 @@
 	typedef struct {
 		int hEpoll;
 		int arrWake[2];
-		__xnet_epoll_watch* pWatches;
+		__xnet_epoll_watch* arrWatchBuckets[__XNET_EPOLL_WATCH_BUCKETS];
+		struct epoll_event* arrReady;
+		uint32 iReadyCap;
 		__xnet_epoll_timer* pTimers;
 		__xnet_epoll_post* pPostedHead;
 		__xnet_epoll_post* pPostedTail;
@@ -207,10 +210,12 @@
 	static void __xnetPortEpollFreeWatches(__xnet_epoll_ctx* pCtx)
 	{
 		if ( !pCtx ) { return; }
-		while ( pCtx->pWatches ) {
-			__xnet_epoll_watch* pNext = pCtx->pWatches->pNext;
-			XNET_FREE(pCtx->pWatches);
-			pCtx->pWatches = pNext;
+		for ( uint32 i = 0; i < __XNET_EPOLL_WATCH_BUCKETS; ++i ) {
+			while ( pCtx->arrWatchBuckets[i] ) {
+				__xnet_epoll_watch* pNext = pCtx->arrWatchBuckets[i]->pNext;
+				XNET_FREE(pCtx->arrWatchBuckets[i]);
+				pCtx->arrWatchBuckets[i] = pNext;
+			}
 		}
 	}
 
@@ -294,10 +299,29 @@
 	}
 
 
+	static uint32 __xnetPortEpollTimerWait(__xnet_epoll_ctx* pCtx, uint32 iTimeoutMs)
+	{
+		__xnet_epoll_timer* pNode = pCtx ? pCtx->pTimers : NULL;
+		uint64 iNextDueMs = UINT64_MAX;
+		uint64 iNowMs;
+		uint64 iDelayMs;
+		while ( pNode ) {
+			if ( pNode->iDueMs < iNextDueMs ) { iNextDueMs = pNode->iDueMs; }
+			pNode = pNode->pNext;
+		}
+		if ( iNextDueMs == UINT64_MAX ) { return iTimeoutMs; }
+		iNowMs = __xnetPortEpollNowMs();
+		if ( iNextDueMs <= iNowMs ) { return 0u; }
+		iDelayMs = iNextDueMs - iNowMs;
+		return iDelayMs < (uint64)iTimeoutMs ? (uint32)iDelayMs : iTimeoutMs;
+	}
+
+
 	// 内部函数：查找端口 epoll watch
 	static __xnet_epoll_watch* __xnetPortEpollFindWatch(__xnet_epoll_ctx* pCtx, int hSocket)
 	{
-		__xnet_epoll_watch* pWatch = pCtx ? pCtx->pWatches : NULL;
+		uint32 iBucket = ((uint32)hSocket) & (__XNET_EPOLL_WATCH_BUCKETS - 1u);
+		__xnet_epoll_watch* pWatch = pCtx ? pCtx->arrWatchBuckets[iBucket] : NULL;
 		while ( pWatch ) {
 			if ( pWatch->hSocket == hSocket ) { return pWatch; }
 			pWatch = pWatch->pNext;
@@ -310,6 +334,7 @@
 	static __xnet_epoll_watch* __xnetPortEpollGetWatch(__xnet_epoll_ctx* pCtx, int hSocket)
 	{
 		__xnet_epoll_watch* pWatch;
+		uint32 iBucket;
 		if ( !pCtx || hSocket < 0 ) { return NULL; }
 		pWatch = __xnetPortEpollFindWatch(pCtx, hSocket);
 		if ( pWatch ) { return pWatch; }
@@ -317,9 +342,29 @@
 		if ( !pWatch ) { return NULL; }
 		memset(pWatch, 0, sizeof(__xnet_epoll_watch));
 		pWatch->hSocket = hSocket;
-		pWatch->pNext = pCtx->pWatches;
-		pCtx->pWatches = pWatch;
+		iBucket = ((uint32)hSocket) & (__XNET_EPOLL_WATCH_BUCKETS - 1u);
+		pWatch->pNext = pCtx->arrWatchBuckets[iBucket];
+		pCtx->arrWatchBuckets[iBucket] = pWatch;
 		return pWatch;
+	}
+
+
+	static void __xnetPortEpollRemoveWatch(__xnet_epoll_ctx* pCtx, int hSocket)
+	{
+		uint32 iBucket;
+		__xnet_epoll_watch** ppWatch;
+		if ( !pCtx || hSocket < 0 ) { return; }
+		iBucket = ((uint32)hSocket) & (__XNET_EPOLL_WATCH_BUCKETS - 1u);
+		ppWatch = &pCtx->arrWatchBuckets[iBucket];
+		while ( *ppWatch ) {
+			__xnet_epoll_watch* pWatch = *ppWatch;
+			if ( pWatch->hSocket == hSocket ) {
+				*ppWatch = pWatch->pNext;
+				XNET_FREE(pWatch);
+				return;
+			}
+			ppWatch = &pWatch->pNext;
+		}
 	}
 
 
@@ -354,7 +399,7 @@
 		}
 		memset(&tEv, 0, sizeof(tEv));
 		tEv.events = __xnetPortEpollEventsFromMask(pWatch->iMask);
-		tEv.data.ptr = pWatch;
+		tEv.data.fd = pWatch->hSocket;
 		iCtl = epoll_ctl(pCtx->hEpoll, EPOLL_CTL_MOD, pWatch->hSocket, &tEv);
 		if ( iCtl == 0 ) { return true; }
 		if ( errno == ENOENT ) {
@@ -631,12 +676,18 @@
 
 
 	// 内部函数：处理端口 epoll watch 事件
-		static uint32 __xnetPortEpollProcessWatch(__xnet_epoll_ctx* pCtx, __xnet_epoll_watch* pWatch, uint32 iReady, xnetportevent* pEvents, uint32 iMaxEvents)
+		static uint32 __xnetPortEpollProcessWatch(__xnet_epoll_ctx* pCtx, int hSocket, uint32 iReady, xnetportevent* pEvents, uint32 iMaxEvents)
 	{
 		xnetportevent tEvent;
 		uint32 iCount = 0;
-		if ( !pCtx || !pWatch || !pEvents || iMaxEvents == 0 ) { return 0; }
+		__xnet_epoll_watch* pWatch;
+		if ( !pCtx || hSocket < 0 || !pEvents || iMaxEvents == 0 ) { return 0; }
 		pthread_mutex_lock(&pCtx->tWatchLock);
+		pWatch = __xnetPortEpollFindWatch(pCtx, hSocket);
+		if ( !pWatch ) {
+			pthread_mutex_unlock(&pCtx->tWatchLock);
+			return 0;
+		}
 		if ( (iReady & (EPOLLERR | EPOLLHUP | EPOLLOUT)) && (pWatch->iMask & __XNET_EPOLL_W_CONNECT) && iCount < iMaxEvents ) {
 			if ( __xnetPortEpollBuildConnectEvent(&pWatch->tConnect, &tEvent) ) {
 				__xnetPortEpollClearWatchBit(pCtx, pWatch, __XNET_EPOLL_W_CONNECT);
@@ -687,52 +738,36 @@
 
 
 		// 内部函数：轮询端口 epoll 写侧 watch
-		static uint32 __xnetPortEpollPollWriteWatches(__xnet_epoll_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
-		{
-			uint32 iCount = 0;
-			if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
-			pthread_mutex_lock(&pCtx->tWatchLock);
-			for ( __xnet_epoll_watch* pWatch = pCtx->pWatches; pWatch && iCount < iMaxEvents; pWatch = pWatch->pNext ) {
-				xnetportevent tEvent;
-				if ( (pWatch->iMask & __XNET_EPOLL_W_SEND) && iCount < iMaxEvents ) {
-					if ( __xnetPortEpollBuildSendEvent(&pWatch->tSend, &tEvent) ) {
-						__xnetPortEpollClearWatchBit(pCtx, pWatch, __XNET_EPOLL_W_SEND);
-						pEvents[iCount++] = tEvent;
-					}
-				}
-				if ( (pWatch->iMask & __XNET_EPOLL_W_SENDTO) && iCount < iMaxEvents ) {
-					if ( __xnetPortEpollBuildSendToEvent(&pWatch->tSendTo, &tEvent) ) {
-						__xnetPortEpollClearWatchBit(pCtx, pWatch, __XNET_EPOLL_W_SENDTO);
-						pEvents[iCount++] = tEvent;
-					}
-				}
-			}
-			pthread_mutex_unlock(&pCtx->tWatchLock);
-			return iCount;
-		}
-
-
 	// 内部函数：初始化端口 epoll
 	static xnet_result __xnetPortEpollInit(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner)
 	{
 		__xnet_epoll_ctx* pCtx;
 		struct epoll_event tEv;
-		(void)pCfg;
 		(void)pOwner;
-		if ( !pPort ) { return XRT_NET_ERROR; }
+		if ( !pPort || !pCfg ) { return XRT_NET_ERROR; }
 		pCtx = (__xnet_epoll_ctx*)XNET_ALLOC(sizeof(__xnet_epoll_ctx));
 		if ( !pCtx ) { return XRT_NET_ERROR; }
 		memset(pCtx, 0, sizeof(__xnet_epoll_ctx));
+		pCtx->iReadyCap = pCfg->iEventBatch ? pCfg->iEventBatch : 256u;
+		if ( pCtx->iReadyCap < 16u ) { pCtx->iReadyCap = 16u; }
+		if ( pCtx->iReadyCap > 4096u ) { pCtx->iReadyCap = 4096u; }
+		pCtx->arrReady = (struct epoll_event*)XNET_ALLOC(sizeof(struct epoll_event) * pCtx->iReadyCap);
+		if ( !pCtx->arrReady ) {
+			XNET_FREE(pCtx);
+			return XRT_NET_ERROR;
+		}
 		pCtx->hEpoll = -1;
 		pCtx->arrWake[0] = -1;
 		pCtx->arrWake[1] = -1;
 		pCtx->hEpoll = __xnetPortEpollCreateFd();
 		if ( pCtx->hEpoll < 0 ) {
+			XNET_FREE(pCtx->arrReady);
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
 		if ( pipe(pCtx->arrWake) != 0 ) {
 			close(pCtx->hEpoll);
+			XNET_FREE(pCtx->arrReady);
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
@@ -744,6 +779,7 @@
 			close(pCtx->arrWake[0]);
 			close(pCtx->arrWake[1]);
 			close(pCtx->hEpoll);
+			XNET_FREE(pCtx->arrReady);
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
@@ -752,18 +788,20 @@
 			close(pCtx->arrWake[0]);
 			close(pCtx->arrWake[1]);
 			close(pCtx->hEpoll);
+			XNET_FREE(pCtx->arrReady);
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
 		memset(&tEv, 0, sizeof(tEv));
 		tEv.events = EPOLLIN;
-		tEv.data.ptr = NULL;
+		tEv.data.fd = pCtx->arrWake[0];
 		if ( epoll_ctl(pCtx->hEpoll, EPOLL_CTL_ADD, pCtx->arrWake[0], &tEv) != 0 ) {
 			pthread_mutex_destroy(&pCtx->tWatchLock);
 			pthread_mutex_destroy(&pCtx->tPostedLock);
 			close(pCtx->arrWake[0]);
 			close(pCtx->arrWake[1]);
 			close(pCtx->hEpoll);
+			XNET_FREE(pCtx->arrReady);
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
@@ -785,6 +823,7 @@
 		if ( pCtx->arrWake[0] >= 0 ) { close(pCtx->arrWake[0]); }
 		if ( pCtx->arrWake[1] >= 0 ) { close(pCtx->arrWake[1]); }
 		if ( pCtx->hEpoll >= 0 ) { close(pCtx->hEpoll); }
+		if ( pCtx->arrReady ) { XNET_FREE(pCtx->arrReady); }
 		XNET_FREE(pCtx);
 		if ( pPort ) { pPort->pCtx = NULL; }
 	}
@@ -799,7 +838,10 @@
 			if ( !__xnetPortEpollValidOp(pOps[i].iOpType) ) { return XRT_NET_ERROR; }
 			if ( pOps[i].iOpType == XNET_PORT_OP_CLOSE ) {
 				if ( pOps[i].hSocket != (intptr_t)XNET_SOCKET_INVALID && pOps[i].hSocket != 0 ) {
+					pthread_mutex_lock(&pCtx->tWatchLock);
 					(void)epoll_ctl(pCtx->hEpoll, EPOLL_CTL_DEL, (int)pOps[i].hSocket, NULL);
+					__xnetPortEpollRemoveWatch(pCtx, (int)pOps[i].hSocket);
+					pthread_mutex_unlock(&pCtx->tWatchLock);
 				}
 				continue;
 			}
@@ -847,21 +889,20 @@
 	// 内部函数：提取端口 epoll
 	static uint32 __xnetPortEpollHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
 	{
-		struct epoll_event arrReady[64];
 		uint32 iCount = 0;
+		uint32 iWaitMs;
 		__xnet_epoll_ctx* pCtx = pPort ? (__xnet_epoll_ctx*)pPort->pCtx : NULL;
-		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
+		if ( !pCtx || !pCtx->arrReady || !pEvents || iMaxEvents == 0 ) { return 0; }
 		iCount += __xnetPortEpollHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 			iCount += __xnetPortEpollDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
 			if ( iCount >= iMaxEvents ) { return iCount; }
-			iCount += __xnetPortEpollPollWriteWatches(pCtx, pEvents + iCount, iMaxEvents - iCount);
-			if ( iCount >= iMaxEvents ) { return iCount; }
+			iWaitMs = iCount > 0 ? 0u : __xnetPortEpollTimerWait(pCtx, iTimeoutMs);
 			{
-				int iRet = epoll_wait(pCtx->hEpoll, arrReady, 64, (int)iTimeoutMs);
+				int iRet = epoll_wait(pCtx->hEpoll, pCtx->arrReady, (int)pCtx->iReadyCap, (int)iWaitMs);
 			if ( iRet > 0 ) {
 				for ( int i = 0; i < iRet && iCount < iMaxEvents; ++i ) {
-					if ( arrReady[i].data.ptr == NULL ) {
+					if ( pCtx->arrReady[i].data.fd == pCtx->arrWake[0] ) {
 						char aBuf[128];
 						while ( read(pCtx->arrWake[0], aBuf, sizeof(aBuf)) > 0 ) {}
 						iCount += __xnetPortEpollDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
@@ -873,11 +914,14 @@
 							++iCount;
 						}
 					} else {
-						iCount += __xnetPortEpollProcessWatch(pCtx, (__xnet_epoll_watch*)arrReady[i].data.ptr,
-							arrReady[i].events, pEvents + iCount, iMaxEvents - iCount);
+						iCount += __xnetPortEpollProcessWatch(pCtx, pCtx->arrReady[i].data.fd,
+							pCtx->arrReady[i].events, pEvents + iCount, iMaxEvents - iCount);
 					}
 				}
 			}
+		}
+		if ( iCount < iMaxEvents ) {
+			iCount += __xnetPortEpollHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		}
 		return iCount;
 	}
@@ -902,14 +946,24 @@
 	{
 		__xnet_epoll_ctx* pCtx = pPort ? (__xnet_epoll_ctx*)pPort->pCtx : NULL;
 		__xnet_epoll_timer* pNode;
-		if ( !pCtx ) { return XRT_NET_ERROR; }
+		__xnet_epoll_timer* pExisting;
+		uint64 iDueMs;
+		if ( !pCtx || iTimerId == 0u ) { return XRT_NET_ERROR; }
 		pNode = (__xnet_epoll_timer*)XNET_ALLOC(sizeof(__xnet_epoll_timer));
 		if ( !pNode ) { return XRT_NET_ERROR; }
 		memset(pNode, 0, sizeof(__xnet_epoll_timer));
 		pNode->iTimerId = iTimerId;
-		pNode->iDueMs = __xnetPortEpollNowMs() + (uint64)iDelayMs;
-		pNode->pNext = pCtx->pTimers;
-		pCtx->pTimers = pNode;
+		iDueMs = __xnetPortEpollNowMs() + (uint64)iDelayMs;
+		pNode->iDueMs = iDueMs;
+		pExisting = pCtx->pTimers;
+		while ( pExisting && pExisting->iTimerId != iTimerId ) { pExisting = pExisting->pNext; }
+		if ( pExisting ) {
+			pExisting->iDueMs = iDueMs;
+			XNET_FREE(pNode);
+		} else {
+			pNode->pNext = pCtx->pTimers;
+			pCtx->pTimers = pNode;
+		}
 		return XRT_NET_OK;
 	}
 

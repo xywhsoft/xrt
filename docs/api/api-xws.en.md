@@ -44,6 +44,13 @@ These define URL / origin / protocol, timeout / recv limit, optional shared prox
 
 ```c
 XXAPI void xrtWsClientConfigInit(xwsclientconfig* pCfg);
+XXAPI void xrtWsClientConfigUnit(xwsclientconfig* pCfg);
+XXAPI bool xrtWsClientConfigSetURL(xwsclientconfig* pCfg, const char* sURL);
+XXAPI bool xrtWsClientConfigSetOrigin(xwsclientconfig* pCfg, const char* sOrigin);
+XXAPI bool xrtWsClientConfigSetProtocols(xwsclientconfig* pCfg, const char* sProtocols);
+XXAPI const char* xrtWsClientConfigURL(const xwsclientconfig* pCfg);
+XXAPI const char* xrtWsClientConfigOrigin(const xwsclientconfig* pCfg);
+XXAPI const char* xrtWsClientConfigProtocols(const xwsclientconfig* pCfg);
 XXAPI xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* pCfg, const xwsclientevents* pEvents, ptr pUserData);
 XXAPI xnet_result xrtWsClientStart(xwsclient* pClient);
 XXAPI void xrtWsClientStop(xwsclient* pClient);
@@ -52,13 +59,18 @@ XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, siz
 XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen);
 XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const void* pData, size_t iLen);
 XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason);
+XXAPI const char* xrtWsClientProtocol(const xwsclient* pClient);
 
 XXAPI void xrtWsServerConfigInit(xwsserverconfig* pCfg);
+XXAPI void xrtWsServerConfigUnit(xwsserverconfig* pCfg);
+XXAPI bool xrtWsServerConfigSetProtocol(xwsserverconfig* pCfg, const char* sProtocol);
+XXAPI const char* xrtWsServerConfigProtocol(const xwsserverconfig* pCfg);
 XXAPI xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* pCfg, const xwsserverevents* pEvents, ptr pUserData);
 XXAPI uint16 xrtWsServerBoundPort(const xwsserver* pServer);
 XXAPI xnet_result xrtWsServerStart(xwsserver* pServer);
 XXAPI void xrtWsServerStop(xwsserver* pServer);
 XXAPI void xrtWsServerDestroy(xwsserver* pServer);
+XXAPI const char* xrtWsConnProtocol(const xwsconn* pConn);
 ```
 
 Client notes:
@@ -66,6 +78,9 @@ Client notes:
 - `xwsclientconfig.pProxy` is an optional shared proxy object
 - create-time retains one reference
 - destroy-time releases that reference
+- the config setters preserve exact-length URL, Origin, and protocol-list values; the legacy `XWS_*_CAP` macros are inline-storage thresholds, not protocol limits
+- call the matching config `Unit` function when setters were used; client/server creation deep-copies config text, so the source config may be released immediately afterward
+- negotiated subprotocol strings remain owned by the client or connection and are available through `xrtWsClientProtocol()` and `xrtWsConnProtocol()` until that object is destroyed
 
 ---
 
@@ -80,6 +95,10 @@ The current mainline includes:
 - ping / pong
 - close frames
 - fragmented-message reassembly
+- strict UTF-8 validation for text messages and close reasons
+- strict close-code, control-frame, masking, RSV, opcode, and minimal-length validation
+
+Client URLs must be absolute `ws://` or `wss://` URLs. Userinfo and fragments are rejected; long hosts and request targets are allocated dynamically. Handshakes validate unique, syntactically valid upgrade fields, keys, versions, and selected subprotocols. Servers require masked client frames, while clients require unmasked server frames.
 
 Still explicitly deferred:
 

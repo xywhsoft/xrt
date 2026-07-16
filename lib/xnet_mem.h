@@ -51,6 +51,8 @@ typedef struct __xnet_blk __xnet_blk;
 /* ============================== Allocator config ============================== */
 
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	uint32 iSmallBlockSize;
 	uint32 iMediumBlockSize;
 	uint32 iLargeBlockSize;
@@ -98,6 +100,10 @@ struct xrt_net_chain {
 	uint32 iBlockCount;
 };
 #endif /* !XRT_BUILD_CORE */
+
+#ifndef XNET_MEM_CONFIG_V1_SIZE
+	#define XNET_MEM_CONFIG_V1_SIZE ((uint32)(offsetof(xnetmemconfig, iLargeCacheLimit) + sizeof(((xnetmemconfig*)0)->iLargeCacheLimit)))
+#endif
 
 struct __xnet_blk {
 	__xnet_blk* pNext;
@@ -161,6 +167,8 @@ XXAPI void xrtNetMemConfigInit(xnetmemconfig* pCfg)
 {
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetmemconfig));
+	pCfg->iSize = (uint32)sizeof(*pCfg);
+	pCfg->iVersion = XNET_CONFIG_VERSION;
 	pCfg->iSmallBlockSize = 256;
 	pCfg->iMediumBlockSize = 2048;
 	pCfg->iLargeBlockSize = 16384;
@@ -191,10 +199,15 @@ XXAPI void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg)
 {
 	if ( !pCtx ) { return; }
 	memset(pCtx, 0, sizeof(xnetmemctx));
+	xrtNetMemConfigInit(&pCtx->tConfig);
 	if ( pCfg ) {
-		pCtx->tConfig = *pCfg;
-	} else {
-		xrtNetMemConfigInit(&pCtx->tConfig);
+		if ( __xnetConfigCopyKnown(&pCtx->tConfig, sizeof(pCtx->tConfig), pCfg,
+			pCfg->iSize, pCfg->iVersion, XNET_MEM_CONFIG_V1_SIZE) ) {
+			pCtx->tConfig.iSize = (uint32)sizeof(pCtx->tConfig);
+		} else {
+			__xnetErrorSetEx(XRT_NET_ERROR, XNET_OP_NONE, XNET_PHASE_VALIDATE, XNET_BACKEND_NONE, 0,
+				"invalid network memory config version or size.");
+		}
 	}
 	__xnetMemNormalizeConfig(&pCtx->tConfig);
 }
@@ -311,7 +324,7 @@ static __xnet_blk* __xnetMemPopCached(xnetmemctx* pCtx, uint16 iClassId)
 	uint32* pCached = __xnetMemClassCacheCount(pCtx, iClassId);
 	if ( !ppHead || !pCached || !*ppHead ) { return NULL; }
 	__xnetMemDebugTouchCtx(pCtx);
-	
+
 	__xnet_blk* pBlk = *ppHead;
 	*ppHead = pBlk->pNext;
 	pBlk->pNext = NULL;
@@ -328,7 +341,7 @@ static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 	uint16 iClassId = __xnetMemPickClass(pCtx, iCapacity);
 	__xnet_blk* pBlk = NULL;
 	__xnetMemDebugTouchCtx(pCtx);
-	
+
 	if ( iClassId != XNET_MEM_CLASS_DYNAMIC ) {
 		// 固定大小分类：优先从缓存空闲链表中弹出可复用块
 		pBlk = __xnetMemPopCached(pCtx, iClassId);
@@ -345,7 +358,7 @@ static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 		if ( !pBlk ) { return NULL; }
 		__xnetMemCountAlloc(pCtx, XNET_MEM_CLASS_DYNAMIC);
 	}
-	
+
 	// 初始化块的公共字段
 	pBlk->pNext = NULL;
 	pBlk->pMemCtx = pCtx;
@@ -397,7 +410,7 @@ static const uint8* __xnetBlkDataPtr(const __xnet_blk* pBlk)
 static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 {
 	if ( !pBlk ) { return; }
-	
+
 	// 获取块所属的内存上下文和分类
 	xnetmemctx* pCtx = pBlk->pMemCtx;
 	uint16 iClassId = pBlk->iClassId;
@@ -430,7 +443,7 @@ static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 			return;
 		}
 	}
-	
+
 	// 动态分类或缓存已满：统计后直接释放内存
 	if ( pCtx && iClassId == XNET_MEM_CLASS_DYNAMIC ) {
 		pCtx->tStats.iDynamicFreeCount++;
@@ -568,11 +581,11 @@ XXAPI void xrtNetChainClear(xnetchain* pChain)
 XXAPI bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iLen)
 {
 	if ( !pChain || !pData || iLen == 0 ) { return false; }
-	
+
 	xnetmemctx* pMemCtx = (xnetmemctx*)pChain->pMemCtx;
 	const uint8* pSrc = (const uint8*)pData;
 	size_t iLeft = iLen;
-	
+
 	while ( iLeft > 0 ) {
 		// 尝试填充尾块剩余的可写空间
 		__xnet_blk* pTail = pChain->pTail;
@@ -586,22 +599,22 @@ XXAPI bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iL
 			iLeft -= iChunk;
 			continue;
 		}
-		
+
 		// 尾块已满或不存在，按剩余数据量分配新块
 		__xnet_blk* pBlk = __xnetBlkAllocEx(pMemCtx, iLeft);
 		if ( !pBlk ) { return false; }
-		
+
 		// 将数据写入新块并挂载到链尾部
 		uint32 iChunk = (uint32)(iLeft < pBlk->iCapacity ? iLeft : pBlk->iCapacity);
 		memcpy(pBlk->aData, pSrc, iChunk);
 		pBlk->iBegin = 0;
 		pBlk->iEnd = iChunk;
 		__xnetChainLinkBlock(pChain, pBlk);
-		
+
 		pSrc += iChunk;
 		iLeft -= iChunk;
 	}
-	
+
 	return true;
 }
 
@@ -644,7 +657,7 @@ XXAPI uint32 xrtNetChainSpanCount(const xnetchain* pChain)
 XXAPI uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32 iMaxCount)
 {
 	if ( !pChain || !pOut || iMaxCount == 0 ) { return 0; }
-	
+
 	uint32 iCount = 0;
 	for ( __xnet_blk* pBlk = pChain->pHead; pBlk && iCount < iMaxCount; pBlk = pBlk->pNext ) {
 		uint32 iReadable = __xnetBlkReadable(pBlk);
@@ -661,19 +674,19 @@ XXAPI uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32
 XXAPI size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen)
 {
 	if ( !pChain || !pOut || iLen == 0 ) { return 0; }
-	
+
 	uint8* pDst = (uint8*)pOut;
 	size_t iCopied = 0;
-	
+
 	for ( __xnet_blk* pBlk = pChain->pHead; pBlk && iCopied < iLen; pBlk = pBlk->pNext ) {
 		uint32 iReadable = __xnetBlkReadable(pBlk);
 		if ( iReadable == 0 ) { continue; }
-		
+
 		size_t iChunk = (iLen - iCopied) < iReadable ? (iLen - iCopied) : iReadable;
 		memcpy(pDst + iCopied, __xnetBlkDataPtr(pBlk) + pBlk->iBegin, iChunk);
 		iCopied += iChunk;
 	}
-	
+
 	return iCopied;
 }
 
@@ -712,29 +725,29 @@ XXAPI size_t xrtNetChainPeekAt(const xnetchain* pChain, size_t iOffset, ptr pOut
 XXAPI size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStartOff)
 {
 	if ( !pChain || iStartOff >= pChain->iBytes ) { return (size_t)-1; }
-	
+
 	size_t iOffset = 0;
-	
+
 	for ( __xnet_blk* pBlk = pChain->pHead; pBlk; pBlk = pBlk->pNext ) {
 		uint32 iReadable = __xnetBlkReadable(pBlk);
 		if ( iReadable == 0 ) { continue; }
-		
+
 		// 跳过起始偏移之前的块
 		if ( iOffset + iReadable <= iStartOff ) {
 			iOffset += iReadable;
 			continue;
 		}
-		
+
 		// 计算当前块内的搜索起始位置，使用 memchr 快速查找目标字节
 		size_t iBegin = iStartOff > iOffset ? (iStartOff - iOffset) : 0;
 		const uint8* pFound = (const uint8*)memchr(__xnetBlkDataPtr(pBlk) + pBlk->iBegin + iBegin, ch, iReadable - iBegin);
 		if ( pFound ) {
 			return iOffset + (size_t)(pFound - (__xnetBlkDataPtr(pBlk) + pBlk->iBegin));
 		}
-		
+
 		iOffset += iReadable;
 	}
-	
+
 	return (size_t)-1;
 }
 
@@ -750,12 +763,12 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 		xrtNetChainClear(pChain);
 		return;
 	}
-	
+
 	size_t iLeft = iLen;
 	while ( pChain->pHead && iLeft > 0 ) {
 		__xnet_blk* pBlk = pChain->pHead;
 		uint32 iReadable = __xnetBlkReadable(pBlk);
-		
+
 		// 跳过不可读的空块
 		if ( iReadable == 0 ) {
 			pChain->pHead = pBlk->pNext;
@@ -764,7 +777,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 			if ( pChain->iBlockCount > 0 ) { pChain->iBlockCount--; }
 			continue;
 		}
-		
+
 		// 剩余消费量不足当前块可读量，仅移动起始偏移
 		if ( iLeft < iReadable ) {
 			pBlk->iBegin += (uint32)iLeft;
@@ -772,7 +785,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 			iLeft = 0;
 			break;
 		}
-		
+
 		// 整块消费完毕，从链中移除并释放
 		iLeft -= iReadable;
 		pChain->iBytes -= iReadable;

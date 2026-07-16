@@ -330,6 +330,10 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/thread.h"
 #endif
 
+#if !defined(XRT_NO_THREAD) && !defined(XRT_NO_TIME)
+	#include "lib/signal.h"
+#endif
+
 #if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
 	#include "lib/logger.h"
 #endif
@@ -351,6 +355,10 @@ static void __xrtRuntimeFinalizeLocked();
 	#endif
 	#ifndef XRT_NO_HTTP_UTIL
 		#include "lib/xhttp_util.h"
+		#include "lib/xhttp_semantics.h"
+		#include "lib/xhttp_search_params.h"
+		#include "lib/xhttp_context_body.h"
+		#include "lib/xhttp_form_data.h"
 	#endif
 	#include "lib/xnet_base.h"
 	#include "lib/xnet_mem.h"
@@ -390,6 +398,15 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/xnet_stream.h"
 	#include "lib/xnet_dgram.h"
 	#include "lib/xnet_sync.h"
+	#ifndef XRT_NO_XINFLATE
+		#include "lib/xinflate.h"
+	#endif
+	#ifndef XRT_NO_XDEFLATE
+		#include "lib/xdeflate.h"
+	#endif
+	#ifndef XRT_NO_HTTP_UTIL
+		#include "lib/xhttp_cookie.h"
+	#endif
 	#ifndef XRT_NO_XHTTP
 		#include "lib/xhttp.h"
 	#endif
@@ -415,6 +432,10 @@ static void __xrtRuntimeFinalizeLocked();
 
 #ifndef XRT_NO_BUFFER
 	#include "lib/buffer.h"
+#endif
+
+#if !defined(XRT_NO_STREAM) && !defined(XRT_NO_FILE) && !defined(XRT_NO_BUFFER)
+	#include "lib/stream.h"
 #endif
 
 
@@ -593,6 +614,16 @@ static void __xrtUnitThreadMemState(xrtThreadData* pThreadData)
 
 
 
+// 命名线程本地数据节点只保存普通内存，不持有外部模块回调。
+struct xrtThreadLocalEntry {
+	struct xrtThreadLocalEntry* pNext;
+	str sKey;
+	ptr pValue;
+	size_t iSize;
+};
+
+
+
 // 创建并填充线程运行时状态
 static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 {
@@ -613,6 +644,7 @@ static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 	pThreadData->tTemp.iBlockSize = XRT_TEMP_ARENA_BLOCK_SIZE;
 	pThreadData->tTemp.iSpillCutoff = XRT_TEMP_ARENA_SPILL_CUTOFF;
 	pThreadData->pCleanupTop = NULL;
+	pThreadData->pLocalEntryHead = NULL;
 	__xrtInitThreadMemState(pThreadData);
 	#ifndef XRT_NO_COROUTINE
 		__xrtCoroRuntimeInitThread(pThreadData);
@@ -653,6 +685,24 @@ static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData)
 
 
 
+// 释放当前线程的全部命名本地数据
+static void __xrtFreeThreadLocalEntries(xrtThreadData* pThreadData)
+{
+	xrtThreadLocalEntry* pEntry;
+	if ( pThreadData == NULL ) { return; }
+	pEntry = pThreadData->pLocalEntryHead;
+	pThreadData->pLocalEntryHead = NULL;
+	while ( pEntry ) {
+		xrtThreadLocalEntry* pNext = pEntry->pNext;
+		xrtFree(pEntry->sKey);
+		xrtFree(pEntry->pValue);
+		xrtFree(pEntry);
+		pEntry = pNext;
+	}
+}
+
+
+
 // 在持锁状态下收尾整个运行时
 static void __xrtRuntimeFinalizeLocked()
 {
@@ -669,6 +719,10 @@ static void __xrtRuntimeFinalizeLocked()
 
 	#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
 		__xlogRuntimeUnit();
+	#endif
+
+	#if !defined(XRT_NO_THREAD) && !defined(XRT_NO_TIME)
+		xrtSignalUnit();
 	#endif
 
 	xrtFree(xCore.AppFile);
@@ -810,6 +864,7 @@ XXAPI void xrtThreadDetachCurrent()
 	}
 
 	__xrtRunThreadCleanup(pThreadData);
+	__xrtFreeThreadLocalEntries(pThreadData);
 	__xrtFreeThreadError(pThreadData);
 	__xrtFreeThreadTempMemory(pThreadData);
 	#ifndef XRT_NO_COROUTINE
@@ -846,6 +901,85 @@ XXAPI str xrtGetError()
 	}
 
 	return (str)__xrt_sNullBytes;
+}
+
+
+
+// 查找当前线程的命名本地数据节点
+static xrtThreadLocalEntry* __xrtThreadLocalFind(xrtThreadData* pThreadData,
+	const char* sKey, xrtThreadLocalEntry*** pLink)
+{
+	xrtThreadLocalEntry** ppEntry;
+	if ( pLink ) { *pLink = NULL; }
+	if ( pThreadData == NULL || sKey == NULL || sKey[0] == '\0' ) { return NULL; }
+	ppEntry = &pThreadData->pLocalEntryHead;
+	while ( *ppEntry ) {
+		if ( strcmp((const char*)(*ppEntry)->sKey, sKey) == 0 ) {
+			if ( pLink ) { *pLink = ppEntry; }
+			return *ppEntry;
+		}
+		ppEntry = &(*ppEntry)->pNext;
+	}
+	if ( pLink ) { *pLink = ppEntry; }
+	return NULL;
+}
+
+
+
+// 获取命名线程本地数据
+XXAPI ptr xrtThreadLocalGet(const char* sKey, size_t* pSize)
+{
+	xrtThreadLocalEntry* pEntry = __xrtThreadLocalFind(__xrtThreadStateGet(), sKey, NULL);
+	if ( pSize ) { *pSize = pEntry ? pEntry->iSize : 0u; }
+	return pEntry ? pEntry->pValue : NULL;
+}
+
+
+
+// 获取或创建命名线程本地数据
+XXAPI ptr xrtThreadLocalGetOrCreate(const char* sKey, size_t iSize)
+{
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
+	xrtThreadLocalEntry* pEntry;
+	xrtThreadLocalEntry** ppLink = NULL;
+	if ( pThreadData == NULL || sKey == NULL || sKey[0] == '\0' || iSize == 0u ) { return NULL; }
+	pEntry = __xrtThreadLocalFind(pThreadData, sKey, &ppLink);
+	if ( pEntry ) {
+		if ( pEntry->iSize != iSize ) {
+			xrtSetError("thread local data size does not match the existing entry.", FALSE);
+			return NULL;
+		}
+		return pEntry->pValue;
+	}
+	pEntry = (xrtThreadLocalEntry*)xrtCalloc(1u, sizeof(*pEntry));
+	if ( pEntry == NULL ) { return NULL; }
+	pEntry->sKey = xrtCopyStr((str)sKey, 0u);
+	pEntry->pValue = xrtCalloc(1u, iSize);
+	if ( pEntry->sKey == NULL || pEntry->pValue == NULL ) {
+		xrtFree(pEntry->sKey);
+		xrtFree(pEntry->pValue);
+		xrtFree(pEntry);
+		return NULL;
+	}
+	pEntry->iSize = iSize;
+	*ppLink = pEntry;
+	return pEntry->pValue;
+}
+
+
+
+// 删除命名线程本地数据
+XXAPI bool xrtThreadLocalRemove(const char* sKey)
+{
+	xrtThreadLocalEntry* pEntry;
+	xrtThreadLocalEntry** ppLink = NULL;
+	pEntry = __xrtThreadLocalFind(__xrtThreadStateGet(), sKey, &ppLink);
+	if ( pEntry == NULL || ppLink == NULL ) { return FALSE; }
+	*ppLink = pEntry->pNext;
+	xrtFree(pEntry->sKey);
+	xrtFree(pEntry->pValue);
+	xrtFree(pEntry);
+	return TRUE;
 }
 
 #ifdef XRT_MEM_DEBUG

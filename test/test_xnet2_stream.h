@@ -296,6 +296,7 @@ int Test_XNet2_Stream(void)
 		tListenCfg.iHighWater = 10;
 		tListenCfg.iLowWater = 4;
 		tListenCfg.iRecvLimit = 2048;
+		tListenCfg.iMaxQueuedBytes = 11;
 		pListener = pEngine ? xrtNetListenerCreate(pEngine, &tListenCfg, &tListenerEvents, &tEvents, &tListenerStats) : NULL;
 		printf("  Listener create : %s\n", pListener != NULL ? "PASS" : "FAIL");
 		printf("  Listener user data stored : %s\n", pListener && pListener->pUserData == &tListenerStats ? "PASS" : "FAIL");
@@ -346,6 +347,10 @@ int Test_XNet2_Stream(void)
 		printf("  Direct send vec queues bytes after open gate : %s\n", pAccepted1 && xrtNetStreamSendVec(pAccepted1, arrVec, 2) == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  Direct send ref queues bytes after open gate : %s\n", pAccepted1 && xrtNetStreamSendRef(pAccepted1, &tSendRef) == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  Pending send reflects direct queue : %s\n", pAccepted1 && xrtNetStreamPendingSend(pAccepted1) == 11 ? "PASS" : "FAIL");
+		printf("  Hard send limit rejects before copy : %s\n",
+			pAccepted1 && xrtNetStreamSend(pAccepted1, "!", 1) == XRT_NET_AGAIN ? "PASS" : "FAIL");
+		printf("  Hard send rejection preserves pending bytes : %s\n",
+			pAccepted1 && xrtNetStreamPendingSend(pAccepted1) == 11 ? "PASS" : "FAIL");
 		printf("  High-water callback fires once : %s\n", __Test_XNet2_StreamAtomicLoad(&tAcceptedStats1.iHighWaterCount) == 1 ? "PASS" : "FAIL");
 		printf("  Gather write begins : %s\n", pAccepted1 && __xnetStreamTryBeginWrite(pAccepted1, arrWriteVec, 8, &iSpanCount) ? "PASS" : "FAIL");
 		printf("  Gather write returns multiple spans : %s\n", iSpanCount >= 3 ? "PASS" : "FAIL");
@@ -401,10 +406,18 @@ int Test_XNet2_Stream(void)
 		if ( pAbortStream ) {
 			pAbortStream->iState |= __XNET_STREAM_STATE_OPEN_EMITTED;
 			printf("  Abort stream send copy : %s\n", xrtNetStreamSend(pAbortStream, "bye", 3) == XRT_NET_OK ? "PASS" : "FAIL");
-			xrtNetStreamClose(pAbortStream, XNET_CLOSE_F_ABORT);
+			printf("  Explicit abort request accepted : %s\n",
+				xrtNetStreamAbort(pAbortStream) == XRT_NET_OK ? "PASS" : "FAIL");
 			printf("  Abort close callback fires : %s\n", __Test_XNet2_StreamWaitValue(&tAbortStats.iCloseCount, 1, 200) ? "PASS" : "FAIL");
 			printf("  Abort close clears queue : %s\n", xrtNetStreamPendingSend(pAbortStream) == 0 ? "PASS" : "FAIL");
 			printf("  Abort close rejects send : %s\n", xrtNetStreamSend(pAbortStream, "z", 1) == XRT_NET_CLOSED ? "PASS" : "FAIL");
+		}
+		if ( pAccepted2 ) {
+			printf("  Explicit shutdown-write request accepted : %s\n",
+				xrtNetStreamShutdownWrite(pAccepted2) == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  Shutdown-write preserves peer-read close mode : %s\n",
+				(pAccepted2->iFlags & (XNET_CLOSE_F_GRACEFUL | XNET_CLOSE_F_WAIT_PEER)) ==
+					(XNET_CLOSE_F_GRACEFUL | XNET_CLOSE_F_WAIT_PEER) ? "PASS" : "FAIL");
 		}
 
 		if ( pListener ) {
@@ -460,6 +473,7 @@ int Test_XNet2_Stream(void)
 		printf("  Loopback engine start : %s\n", pEngine && xrtNetEngineStart(pEngine) == XRT_NET_OK ? "PASS" : "FAIL");
 
 		xrtNetListenConfigInit(&tListenCfg);
+		tListenCfg.iFlags |= XNET_LISTEN_F_PULL_ACCEPT;
 		xrtNetAddrInitAny(&tListenCfg.tBindAddr, AF_INET, 0);
 		pListener = pEngine ? xrtNetListenerCreate(pEngine, &tListenCfg, &tListenerEvents, &tEvents, &tListenerStats) : NULL;
 		printf("  Loopback listener create : %s\n", pListener != NULL ? "PASS" : "FAIL");
@@ -575,6 +589,7 @@ int Test_XNet2_Stream(void)
 		printf("  Slow-peer engine start : %s\n", pEngine && xrtNetEngineStart(pEngine) == XRT_NET_OK ? "PASS" : "FAIL");
 
 		xrtNetListenConfigInit(&tListenCfg);
+		tListenCfg.iFlags |= XNET_LISTEN_F_PULL_ACCEPT;
 		xrtNetAddrInitAny(&tListenCfg.tBindAddr, AF_INET, 0);
 		tListenCfg.iHighWater = 32768;
 		tListenCfg.iLowWater = 8192;
@@ -667,6 +682,50 @@ int Test_XNet2_Stream(void)
 		if ( pListener ) {
 			xrtNetListenerStop(pListener);
 			xrtNetListenerDestroy(pListener);
+		}
+		if ( pEngine ) {
+			xrtNetEngineStop(pEngine);
+			xrtNetEngineDestroy(pEngine);
+		}
+	}
+
+	/* 默认 listener 必须独占活动地址；端口共享只能通过显式复用标志开启。 */
+	{
+		xnetengineconfig tCfg;
+		xnetlistenconfig tFirstCfg;
+		xnetlistenconfig tSecondCfg;
+		xnetengine* pEngine;
+		xnetlistener* pFirst;
+		xnetlistener* pSecond;
+		bool bExclusive;
+
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pEngine = xrtNetEngineCreate(&tCfg);
+		pFirst = NULL;
+		pSecond = NULL;
+		bExclusive = false;
+		if ( pEngine && xrtNetEngineStart(pEngine) == XRT_NET_OK ) {
+			xrtNetListenConfigInit(&tFirstCfg);
+			(void)xrtNetAddrParse(&tFirstCfg.tBindAddr, "127.0.0.1", 0);
+			pFirst = xrtNetListenerCreate(pEngine, &tFirstCfg, NULL, NULL, NULL);
+			if ( pFirst && xrtNetListenerStart(pFirst) == XRT_NET_OK ) {
+				xrtNetListenConfigInit(&tSecondCfg);
+				(void)xrtNetAddrParse(
+					&tSecondCfg.tBindAddr, "127.0.0.1", pFirst->tConfig.tBindAddr.iPort);
+				pSecond = xrtNetListenerCreate(pEngine, &tSecondCfg, NULL, NULL, NULL);
+				bExclusive = pSecond && xrtNetListenerStart(pSecond) != XRT_NET_OK;
+			}
+		}
+		printf("  Default listener rejects duplicate active bind : %s\n", bExclusive ? "PASS" : "FAIL");
+		if ( !bExclusive ) { ++iFailCount; }
+		if ( pSecond ) {
+			xrtNetListenerStop(pSecond);
+			xrtNetListenerDestroy(pSecond);
+		}
+		if ( pFirst ) {
+			xrtNetListenerStop(pFirst);
+			xrtNetListenerDestroy(pFirst);
 		}
 		if ( pEngine ) {
 			xrtNetEngineStop(pEngine);

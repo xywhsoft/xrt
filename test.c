@@ -174,6 +174,7 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 #ifndef XRT_NO_XURL
 	#ifndef XRT_NO_HTTP_UTIL
 		#include "test/test_xurl.h"
+		#include "test/test_xhttp_semantics.h"
 	#endif
 #endif
 #ifndef XRT_NO_NETWORK
@@ -403,6 +404,7 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 			(void)pCore;
 			return Test_XUrlCore() ? 0 : 1;
 		}
+		XRT_TEST_WRAP_BOOL(__xrtTestRun_XHttpSemantics, Test_XHttpSemantics)
 	#endif
 #endif
 
@@ -418,7 +420,7 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Sync, Test_XNet2_Sync)
 	#endif
 	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Convenience, Test_XNet2_Convenience)
-	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttp, Test_XNet_Http)
+	XRT_TEST_WRAP_INT(__xrtTestRun_XNetHttp, Test_XNet_Http)
 	XRT_TEST_WRAP_INT(__xrtTestRun_XNetHttpd, Test_XNet_Httpd)
 	#ifndef XRT_NO_XWEB
 		XRT_TEST_WRAP_INT(__xrtTestRun_XWeb, Test_XWeb)
@@ -426,10 +428,10 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	#ifndef XRT_NO_COROUTINE
 		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2ListenerAcceptCore, Test_XNet2_ListenerAcceptCore)
 	#endif
-	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetWs, Test_XNet_Ws)
+	XRT_TEST_WRAP_INT(__xrtTestRun_XNetWs, Test_XNet_Ws)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetProxy, Test_XNet_Proxy)
 	#ifndef XRT_NO_NETTLS
-		XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2TLS, Test_XNet2_TLS)
+		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2TLS, Test_XNet2_TLS)
 
 
 		// 内部函数：__xrtTestRun_TLSBoundaryStress
@@ -564,6 +566,7 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	#ifndef XRT_NO_XURL
 		#ifndef XRT_NO_HTTP_UTIL
 			{ "xurl_core", "XUrl Core", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XUrlCore },
+			{ "http_semantics", "HTTP Semantics", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XHttpSemantics },
 		#endif
 	#endif
 	#ifndef XRT_NO_NETWORK
@@ -664,6 +667,7 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 	#ifndef XRT_NO_XURL
 		#ifndef XRT_NO_HTTP_UTIL
 			"xurl_core",
+			"http_semantics",
 		#endif
 	#endif
 	#ifndef XRT_NO_NETWORK
@@ -693,6 +697,9 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 
 #ifndef XRT_NO_NETWORK
 	static const char* __g_arrPresetXNet2Stage[] = {
+		#ifndef XRT_NO_HTTP_UTIL
+			"http_semantics",
+		#endif
 		"xnet2_base",
 		"xnet2_port",
 		"xnet2_engine",

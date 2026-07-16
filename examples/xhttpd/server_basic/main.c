@@ -107,7 +107,7 @@ int main(void)
 	memset(&tCtx, 0, sizeof(tCtx));
 	memset(&tEngineCfg, 0, sizeof(tEngineCfg));
 	memset(&tSrvCfg, 0, sizeof(tSrvCfg));
-	memset(&tEvents, 0, sizeof(tEvents));
+	xrtHttpdEventsInit(&tEvents);
 	memset(&tReq, 0, sizeof(tReq));
 	memset(sURL, 0, sizeof(sURL));
 

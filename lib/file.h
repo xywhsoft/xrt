@@ -703,6 +703,51 @@ XXAPI size_t xrtGetBuffer(xfile objFile, ptr sBuff, size_t iSize)
 
 
 
+// 原始读取。返回值只表示操作是否成功，读取 0 字节表示文件末尾。
+XXAPI bool xrtFileReadRaw(xfile objFile, ptr pBuffer, size_t iRequest, size_t* iRead)
+{
+	size_t iChunk;
+	if ( iRead ) { *iRead = 0; }
+	if ( objFile == NULL || pBuffer == NULL ) {
+		xrtSetError(objFile == NULL ? sErrorFile_Handle : sErrorFile_Read, FALSE);
+		return FALSE;
+	}
+	if ( iRequest == 0 ) { return TRUE; }
+	// Windows 和部分 POSIX 实现的单次 I/O 长度使用有符号 32 位范围。
+	iChunk = iRequest > (size_t)0x7FFFFFFF ? (size_t)0x7FFFFFFF : iRequest;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( objFile->obj == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return FALSE;
+		}
+		{
+			DWORD iDone = 0;
+			if ( !ReadFile(objFile->obj, pBuffer, (DWORD)iChunk, &iDone, NULL) ) {
+				xrtSetError(sErrorFile_Read, FALSE);
+				return FALSE;
+			}
+			if ( iRead ) { *iRead = (size_t)iDone; }
+			return TRUE;
+		}
+	#else
+		if ( objFile->idx == -1 ) {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return FALSE;
+		}
+		{
+			ssize_t iDone = read(objFile->idx, pBuffer, iChunk);
+			if ( iDone < 0 ) {
+				xrtSetError(sErrorFile_Read, FALSE);
+				return FALSE;
+			}
+			if ( iRead ) { *iRead = (size_t)iDone; }
+			return TRUE;
+		}
+	#endif
+}
+
+
+
 // 从已打开的文件读取二进制数据 （ 需要使用 xrtFree 释放内存 ）
 XXAPI ptr xrtGet(xfile objFile, size_t iSize, size_t* iRetSize)
 {
@@ -801,6 +846,171 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 			return 0;
 		}
 	#endif
+}
+
+
+
+// 原始写入。允许短写，由上层决定是否继续写入剩余数据。
+XXAPI bool xrtFileWriteRaw(xfile objFile, const void* pBuffer, size_t iRequest, size_t* iWritten)
+{
+	size_t iChunk;
+	if ( iWritten ) { *iWritten = 0; }
+	if ( objFile == NULL || pBuffer == NULL ) {
+		xrtSetError(objFile == NULL ? sErrorFile_Handle : sErrorFile_Write, FALSE);
+		return FALSE;
+	}
+	if ( iRequest == 0 ) { return TRUE; }
+	iChunk = iRequest > (size_t)0x7FFFFFFF ? (size_t)0x7FFFFFFF : iRequest;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( objFile->obj == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return FALSE;
+		}
+		{
+			DWORD iDone = 0;
+			if ( !WriteFile(objFile->obj, pBuffer, (DWORD)iChunk, &iDone, NULL) ) {
+				xrtSetError(sErrorFile_Write, FALSE);
+				return FALSE;
+			}
+			if ( iWritten ) { *iWritten = (size_t)iDone; }
+			return TRUE;
+		}
+	#else
+		if ( objFile->idx == -1 ) {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return FALSE;
+		}
+		{
+			ssize_t iDone = write(objFile->idx, pBuffer, iChunk);
+			if ( iDone < 0 ) {
+				xrtSetError(sErrorFile_Write, FALSE);
+				return FALSE;
+			}
+			if ( iWritten ) { *iWritten = (size_t)iDone; }
+			return TRUE;
+		}
+	#endif
+}
+
+
+
+// 无歧义的 64 位文件定位接口。
+XXAPI bool xrtFileSeekRaw(xfile objFile, int64 iOffset, int iMoveMethod, uint64* iPosition)
+{
+	if ( iPosition ) { *iPosition = 0; }
+	if ( objFile == NULL ) {
+		xrtSetError(sErrorFile_Handle, FALSE);
+		return FALSE;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			DWORD iOrigin;
+			LARGE_INTEGER stuOffset;
+			LARGE_INTEGER stuPosition;
+			if ( objFile->obj == INVALID_HANDLE_VALUE ) {
+				xrtSetError(sErrorFile_Handle, FALSE);
+				return FALSE;
+			}
+			if ( iMoveMethod == XRT_SEEK_SET ) { iOrigin = FILE_BEGIN; }
+			else if ( iMoveMethod == XRT_SEEK_CUR ) { iOrigin = FILE_CURRENT; }
+			else if ( iMoveMethod == XRT_SEEK_END ) { iOrigin = FILE_END; }
+			else {
+				xrtSetError(sErrorFile_Seek, FALSE);
+				return FALSE;
+			}
+			stuOffset.QuadPart = iOffset;
+			if ( !SetFilePointerEx(objFile->obj, stuOffset, &stuPosition, iOrigin) ) {
+				xrtSetError(sErrorFile_Seek, FALSE);
+				return FALSE;
+			}
+			if ( iPosition ) { *iPosition = (uint64)stuPosition.QuadPart; }
+			return TRUE;
+		}
+	#else
+		{
+			int iOrigin;
+			off_t iRet;
+			if ( objFile->idx == -1 ) {
+				xrtSetError(sErrorFile_Handle, FALSE);
+				return FALSE;
+			}
+			if ( iMoveMethod == XRT_SEEK_SET ) { iOrigin = SEEK_SET; }
+			else if ( iMoveMethod == XRT_SEEK_CUR ) { iOrigin = SEEK_CUR; }
+			else if ( iMoveMethod == XRT_SEEK_END ) { iOrigin = SEEK_END; }
+			else {
+				xrtSetError(sErrorFile_Seek, FALSE);
+				return FALSE;
+			}
+			iRet = lseek(objFile->idx, (off_t)iOffset, iOrigin);
+			if ( iRet == (off_t)-1 ) {
+				xrtSetError(sErrorFile_Seek, FALSE);
+				return FALSE;
+			}
+			if ( iPosition ) { *iPosition = (uint64)iRet; }
+			return TRUE;
+		}
+	#endif
+}
+
+
+
+XXAPI bool xrtFileTellRaw(xfile objFile, uint64* iPosition)
+{
+	return xrtFileSeekRaw(objFile, 0, XRT_SEEK_CUR, iPosition);
+}
+
+
+
+XXAPI bool xrtFileSizeRaw(xfile objFile, uint64* iSize)
+{
+	if ( iSize ) { *iSize = 0; }
+	if ( objFile == NULL ) {
+		xrtSetError(sErrorFile_Handle, FALSE);
+		return FALSE;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			LARGE_INTEGER stuSize;
+			if ( objFile->obj == INVALID_HANDLE_VALUE || !GetFileSizeEx(objFile->obj, &stuSize) ) {
+				xrtSetError(sErrorFile_Handle, FALSE);
+				return FALSE;
+			}
+			if ( iSize ) { *iSize = (uint64)stuSize.QuadPart; }
+			return TRUE;
+		}
+	#else
+		{
+			struct stat stuFile;
+			if ( objFile->idx == -1 || fstat(objFile->idx, &stuFile) != 0 ) {
+				xrtSetError(sErrorFile_Handle, FALSE);
+				return FALSE;
+			}
+			if ( iSize ) { *iSize = (uint64)stuFile.st_size; }
+			return TRUE;
+		}
+	#endif
+}
+
+
+
+XXAPI bool xrtFileFlush(xfile objFile)
+{
+	if ( objFile == NULL ) {
+		xrtSetError(sErrorFile_Handle, FALSE);
+		return FALSE;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( objFile->obj == INVALID_HANDLE_VALUE || !FlushFileBuffers(objFile->obj) ) {
+			xrtSetError(sErrorFile_Write, FALSE);
+			return FALSE;
+		}
+	#else
+		if ( objFile->idx == -1 || fsync(objFile->idx) != 0 ) {
+			xrtSetError(sErrorFile_Write, FALSE);
+			return FALSE;
+		}
+	#endif
+	return TRUE;
 }
 
 
@@ -2005,6 +2215,78 @@ XXAPI int xrtDirScan(str sPath, int bRecu, xrtDirScanProc pProc, ptr Param)
 		if ( iSize == 0 ) { return __pri__DirScanRoot_Proc(pProc, Param); }
 		int iFileCount = __pri__DirScan_Proc(sPath, iSize, bRecu, pProc, Param);
 		return iFileCount;
+	#endif
+}
+
+
+
+XXAPI bool xrtFileCreateSymbolicLink(str sLinkPath, str sTargetPath, bool bTargetDirectory)
+{
+	if ( sLinkPath == NULL || sLinkPath[0] == 0 || sTargetPath == NULL || sTargetPath[0] == 0 ||
+		xrtPathExists(sLinkPath) ) { return FALSE; }
+	#if defined(_WIN32) || defined(_WIN64)
+		typedef BOOLEAN (WINAPI *xrtCreateSymbolicLinkWProc)(LPCWSTR, LPCWSTR, DWORD);
+		u16str sLinkW = xrtUTF8to16(sLinkPath, 0u, NULL);
+		u16str sTargetW = xrtUTF8to16(sTargetPath, 0u, NULL);
+		#ifndef SYMBOLIC_LINK_FLAG_DIRECTORY
+			#define SYMBOLIC_LINK_FLAG_DIRECTORY 0x1u
+		#endif
+		DWORD iFlags = bTargetDirectory ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0u;
+		BOOLEAN bResult = FALSE;
+		HMODULE pKernel = GetModuleHandleW(L"kernel32.dll");
+		xrtCreateSymbolicLinkWProc pCreate = pKernel != NULL ?
+			(xrtCreateSymbolicLinkWProc)(void*)GetProcAddress(pKernel, "CreateSymbolicLinkW") : NULL;
+		#ifndef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+			#define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE 0x2u
+		#endif
+		if ( pCreate != NULL && sLinkW != NULL && sTargetW != NULL ) {
+			bResult = pCreate((LPCWSTR)sLinkW, (LPCWSTR)sTargetW,
+				iFlags | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE);
+			if ( !bResult && GetLastError() == ERROR_INVALID_PARAMETER ) {
+				bResult = pCreate((LPCWSTR)sLinkW, (LPCWSTR)sTargetW, iFlags);
+			}
+		}
+		xrtFree(sLinkW);
+		xrtFree(sTargetW);
+		return bResult != FALSE;
+	#else
+		(void)bTargetDirectory;
+		return symlink((const char*)sTargetPath, (const char*)sLinkPath) == 0;
+	#endif
+}
+
+
+
+XXAPI bool xrtFileCreateHardLink(str sLinkPath, str sTargetPath)
+{
+	if ( sLinkPath == NULL || sLinkPath[0] == 0 || sTargetPath == NULL || sTargetPath[0] == 0 ||
+		xrtPathExists(sLinkPath) ) { return FALSE; }
+	#if defined(_WIN32) || defined(_WIN64)
+		u16str sLinkW = xrtUTF8to16(sLinkPath, 0u, NULL);
+		u16str sTargetW = xrtUTF8to16(sTargetPath, 0u, NULL);
+		BOOL bResult = FALSE;
+		if ( sLinkW != NULL && sTargetW != NULL ) {
+			bResult = CreateHardLinkW((LPCWSTR)sLinkW, (LPCWSTR)sTargetW, NULL);
+		}
+		xrtFree(sLinkW);
+		xrtFree(sTargetW);
+		return bResult != FALSE;
+	#else
+		return link((const char*)sTargetPath, (const char*)sLinkPath) == 0;
+	#endif
+}
+
+
+
+// 创建命名管道文件。Windows 文件系统没有对应语义，明确返回失败。
+XXAPI bool xrtFileCreateFifo(str sPath, int iMode)
+{
+	if ( sPath == NULL || sPath[0] == 0 || xrtPathExists(sPath) ) { return FALSE; }
+	#if defined(_WIN32) || defined(_WIN64)
+		(void)iMode;
+		return FALSE;
+	#else
+		return mkfifo((const char*)sPath, (mode_t)(iMode & 07777)) == 0;
 	#endif
 }
 

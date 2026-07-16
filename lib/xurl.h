@@ -146,7 +146,7 @@ static bool __xrtUrlAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset, con
 	size_t iCur;
 	if ( sOut == NULL || pOffset == NULL || (sText == NULL && iLen != 0u) ) { return false; }
 	iCur = *pOffset;
-	if ( iCur + iLen >= iOutCap ) { return false; }
+	if ( iCur >= iOutCap || iLen >= iOutCap - iCur ) { return false; }
 	if ( iLen > 0u ) { memcpy(sOut + iCur, sText, iLen); }
 	iCur += iLen;
 	sOut[iCur] = '\0';
@@ -710,7 +710,6 @@ XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutC
 XXAPI bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
-	char sTarget[4096];
 	size_t iTargetLen = 0u;
 	if ( pOutLen ) { *pOutLen = 0u; }
 	if ( sOut == NULL || iOutCap == 0u || pURL == NULL ) { return false; }
@@ -724,8 +723,8 @@ XXAPI bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size_
 	if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, "://", 3u) ) { return false; }
 	if ( !xrtUrlBuildAuthority(pURL, sOut + iOff, iOutCap - iOff, &iTargetLen) ) { return false; }
 	iOff += iTargetLen;
-	if ( !xrtUrlBuildTarget(pURL, sTarget, sizeof(sTarget), &iTargetLen) ) { return false; }
-	if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, sTarget, iTargetLen) ) { return false; }
+	if ( iOff >= iOutCap || !xrtUrlBuildTarget(pURL, sOut + iOff, iOutCap - iOff, &iTargetLen) ) { return false; }
+	iOff += iTargetLen;
 	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
@@ -736,10 +735,6 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 {
 	xrturlview tRef;
 	xrturlview tOut;
-	char sMergedPath[4096];
-	char sNormalizedPath[4096];
-	size_t iNormLen = 0u;
-	size_t iMergeLen = 0u;
 	if ( pOutLen ) { *pOutLen = 0u; }
 	if ( pBase == NULL || sOut == NULL || iOutCap == 0u || sRef == NULL ) { return false; }
 	// 基准 URL 必须是绝对 URL
@@ -785,9 +780,21 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 	tOut.tFragment = xrtStrView(NULL, 0u);
 	// 处理相对路径引用
 	if ( (tRef.iFlags & XRT_URL_F_HAS_PATH) != 0u && !xrtStrViewIsEmpty(tRef.tPath) ) {
+		char* sMergedPath = NULL;
+		char* sNormalizedPath = NULL;
+		size_t iNormLen = 0u;
+		size_t iMergeLen = 0u;
+		size_t iPathCap;
+		bool bBuilt;
 		if ( tRef.tPath.sPtr[0] == '/' ) {
 			// 绝对路径直接规范化
-			if ( !xrtUrlNormalizePathTo(tRef.tPath.sPtr, tRef.tPath.iLen, sNormalizedPath, sizeof(sNormalizedPath), &iNormLen) ) { return false; }
+			if ( tRef.tPath.iLen > SIZE_MAX - 2u ) { return false; }
+			iPathCap = tRef.tPath.iLen + 2u;
+			sNormalizedPath = (char*)xrtMalloc(iPathCap);
+			if ( !sNormalizedPath || !xrtUrlNormalizePathTo(tRef.tPath.sPtr, tRef.tPath.iLen, sNormalizedPath, iPathCap, &iNormLen) ) {
+				xrtFree(sNormalizedPath);
+				return false;
+			}
 		} else {
 			// 相对路径：合并基准路径的目录部分与引用路径
 			size_t iBaseDirLen = 0u;
@@ -803,15 +810,25 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 			} else {
 				iBaseDirLen = 1u;
 			}
+			if ( tRef.tPath.iLen > SIZE_MAX - 2u || iBaseDirLen > SIZE_MAX - tRef.tPath.iLen - 2u ) { return false; }
+			iPathCap = iBaseDirLen + tRef.tPath.iLen + 2u;
+			sMergedPath = (char*)xrtMalloc(iPathCap);
+			sNormalizedPath = (char*)xrtMalloc(iPathCap);
+			if ( !sMergedPath || !sNormalizedPath ) {
+				xrtFree(sMergedPath);
+				xrtFree(sNormalizedPath);
+				return false;
+			}
+			sMergedPath[0] = '\0';
 			// 拼接基准目录 + 引用路径
 			if ( iBaseDirLen == 1u && (xrtStrViewIsEmpty(pBase->tPath) || pBase->tPath.sPtr[0] != '/') ) {
-				if ( !__xrtUrlAppendBytes(sMergedPath, sizeof(sMergedPath), &iMergeLen, "/", 1u) ) { return false; }
+				if ( !__xrtUrlAppendBytes(sMergedPath, iPathCap, &iMergeLen, "/", 1u) ) { goto resolve_path_fail; }
 			} else {
-				if ( !__xrtUrlAppendBytes(sMergedPath, sizeof(sMergedPath), &iMergeLen, pBase->tPath.sPtr, iBaseDirLen) ) { return false; }
+				if ( !__xrtUrlAppendBytes(sMergedPath, iPathCap, &iMergeLen, pBase->tPath.sPtr, iBaseDirLen) ) { goto resolve_path_fail; }
 			}
-			if ( !__xrtUrlAppendBytes(sMergedPath, sizeof(sMergedPath), &iMergeLen, tRef.tPath.sPtr, tRef.tPath.iLen) ) { return false; }
+			if ( !__xrtUrlAppendBytes(sMergedPath, iPathCap, &iMergeLen, tRef.tPath.sPtr, tRef.tPath.iLen) ) { goto resolve_path_fail; }
 			// 规范化合并后的路径
-			if ( !xrtUrlNormalizePathTo(sMergedPath, iMergeLen, sNormalizedPath, sizeof(sNormalizedPath), &iNormLen) ) { return false; }
+			if ( !xrtUrlNormalizePathTo(sMergedPath, iMergeLen, sNormalizedPath, iPathCap, &iNormLen) ) { goto resolve_path_fail; }
 		}
 		tOut.tPath = xrtStrView(sNormalizedPath, iNormLen);
 		tOut.iFlags |= XRT_URL_F_HAS_PATH;
@@ -824,7 +841,15 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 			tOut.tFragment = tRef.tFragment;
 			tOut.iFlags |= XRT_URL_F_HAS_FRAGMENT;
 		}
-		return xrtUrlBuild(&tOut, sOut, iOutCap, pOutLen);
+		bBuilt = xrtUrlBuild(&tOut, sOut, iOutCap, pOutLen);
+		xrtFree(sMergedPath);
+		xrtFree(sNormalizedPath);
+		return bBuilt;
+
+resolve_path_fail:
+		xrtFree(sMergedPath);
+		xrtFree(sNormalizedPath);
+		return false;
 	}
 	// 引用无路径：保留基准路径，查询和片段由引用或基准决定
 	tOut.tPath = pBase->tPath;

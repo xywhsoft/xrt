@@ -65,7 +65,7 @@ int main()
 	tCtx.sIndexPath = exMakeAppFilePath("http_server_demo_index.html");
 	xrtFileWriteAll(tCtx.sIndexPath, "<html><body><h1>XRT HTTP Server</h1></body></html>", 50, XRT_CP_UTF8);
 
-	memset(&tEvents, 0, sizeof(tEvents));
+	xrtHttpdEventsInit(&tEvents);
 	tEvents.OnRequest = OnHttpRequest;
 
 	xrtNetEngineConfigInit(&tCfg);

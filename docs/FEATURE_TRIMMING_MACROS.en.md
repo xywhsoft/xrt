@@ -58,6 +58,8 @@ Notes:
 #define XRT_NO_XURL
 #define XRT_NO_HTTP_UTIL
 #define XRT_NO_XCODEC
+#define XRT_NO_XINFLATE
+#define XRT_NO_XDEFLATE
 #define XRT_NO_XHTTP
 #define XRT_NO_XHTTPD
 #define XRT_NO_XWS
@@ -66,6 +68,8 @@ Notes:
 Notes:
 
 - `XRT_NO_NETWORK` is the root network trimming surface
+- `XRT_NO_XINFLATE` removes HTTP/WebSocket decompression while keeping the remaining HTTP stack available
+- `XRT_NO_XDEFLATE` removes xweb response compression and the shared deflater used by WebSocket compression
 - `xnet_proxy` is still trimmed together with the network root instead of being exposed as a separate macro
 
 
@@ -144,7 +148,7 @@ XRT_NO_SUBPROCESS
 ### 3.2 Derived relationships
 
 ```c
-XRT_NO_NETWORK    -> XRT_NO_FILE_ASYNC, XRT_NO_XURL, XRT_NO_HTTP_UTIL, XRT_NO_XCODEC, XRT_NO_XHTTP, XRT_NO_XHTTPD, XRT_NO_XWS
+XRT_NO_NETWORK    -> XRT_NO_FILE_ASYNC, XRT_NO_XURL, XRT_NO_HTTP_UTIL, XRT_NO_XCODEC, XRT_NO_XINFLATE, XRT_NO_XDEFLATE, XRT_NO_XHTTP, XRT_NO_XHTTPD, XRT_NO_XWS
 XRT_NO_QUEUE      -> XRT_NO_QUEUE_WAIT
 XRT_NO_FILE       -> XRT_NO_FILE_ASYNC
 XRT_NO_JSON       -> XRT_NO_XSON

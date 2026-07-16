@@ -1609,6 +1609,275 @@ static xson_write_result_t _xson_write_value(xson_print_t* pPrint, xvalue varVal
 	}
 }
 
+/* ------------------------------------ XSON 稳定 visitor 接口 ------------------------------------ */
+
+typedef struct
+{
+	xrt_xson_event_proc proc;
+	void* userdata;
+	bool stopped;
+	bool failed;
+} xrt_xson_visit_context;
+
+typedef struct
+{
+	xrt_xson_visit_context* context;
+	uint32 depth;
+} xrt_xson_visit_walk_context;
+
+static bool _xrt_xson_visit_value_inner(xrt_xson_visit_context* context, xvalue value,
+	uint32 depth, const char* key, size_t key_size, bool has_index, int64 index);
+
+static bool _xrt_xson_emit_event(xrt_xson_visit_context* context, xrt_xson_event_type type,
+	xvalue value, uint32 depth, const char* key, size_t key_size, bool has_index, int64 index)
+{
+	xrt_xson_event event;
+	str text;
+
+	if ( context == NULL || context->proc == NULL || context->stopped || context->failed ) {
+		return FALSE;
+	}
+
+	memset(&event, 0, sizeof(event));
+	event.type = type;
+	event.depth = depth;
+	event.key = key;
+	event.key_size = key_size;
+	event.has_index = has_index;
+	event.index = index;
+	event.value = value;
+
+	switch ( type ) {
+	case XRT_XSON_EVENT_BOOL:
+		event.bool_value = xvoGetBool(value);
+		break;
+	case XRT_XSON_EVENT_INT:
+		event.int_value = xvoGetInt(value);
+		break;
+	case XRT_XSON_EVENT_FLOAT:
+		event.float_value = xvoGetFloat(value);
+		break;
+	case XRT_XSON_EVENT_STRING:
+		text = xvoGetText(value);
+		event.text = __xrt_cstr(text);
+		event.text_size = xvoGetSize(value);
+		break;
+	case XRT_XSON_EVENT_TIME:
+		event.time_value = xvoGetTime(value);
+		text = xvoGetText(value);
+		event.text = __xrt_cstr(text);
+		event.text_size = strlen(event.text);
+		break;
+	default:
+		break;
+	}
+
+	if ( !context->proc(&event, context->userdata) ) {
+		context->stopped = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static bool _xrt_xson_visit_array(xrt_xson_visit_context* context, xvalue value,
+	uint32 depth, const char* key, size_t key_size, bool has_index, int64 index)
+{
+	uint32 count;
+	uint32 i;
+
+	if ( !_xrt_xson_emit_event(context, XRT_XSON_EVENT_ARRAY_BEGIN, value, depth, key, key_size, has_index, index) ) {
+		return FALSE;
+	}
+	count = xvoArrayItemCount(value);
+	for ( i = 0; i < count; ++i ) {
+		if ( !_xrt_xson_visit_value_inner(context, xvoArrayGetValue(value, i), depth + 1, NULL, 0, TRUE, (int64)i) ) {
+			return FALSE;
+		}
+	}
+	return _xrt_xson_emit_event(context, XRT_XSON_EVENT_ARRAY_END, value, depth, key, key_size, has_index, index);
+}
+
+static bool _xrt_xson_visit_list_proc(int64 key, xvalue* value, xrt_xson_visit_walk_context* walk)
+{
+	if ( walk == NULL || walk->context == NULL || value == NULL ) {
+		return TRUE;
+	}
+	if ( !_xrt_xson_visit_value_inner(walk->context, value[0], walk->depth + 1, NULL, 0, TRUE, key) ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static bool _xrt_xson_visit_list(xrt_xson_visit_context* context, xvalue value,
+	uint32 depth, const char* key, size_t key_size, bool has_index, int64 index)
+{
+	xrt_xson_visit_walk_context walk;
+
+	if ( !_xrt_xson_emit_event(context, XRT_XSON_EVENT_LIST_BEGIN, value, depth, key, key_size, has_index, index) ) {
+		return FALSE;
+	}
+	walk.context = context;
+	walk.depth = depth;
+	xrtListWalk(value->vList, (ptr)_xrt_xson_visit_list_proc, &walk);
+	if ( context->stopped || context->failed ) {
+		return FALSE;
+	}
+	return _xrt_xson_emit_event(context, XRT_XSON_EVENT_LIST_END, value, depth, key, key_size, has_index, index);
+}
+
+static bool _xrt_xson_visit_dict_proc(Dict_Key* key, xvalue* value, xrt_xson_visit_walk_context* walk)
+{
+	if ( walk == NULL || walk->context == NULL || key == NULL || value == NULL ) {
+		return TRUE;
+	}
+	if ( !_xrt_xson_visit_value_inner(walk->context, value[0], walk->depth + 1, key->Key, key->KeyLen, FALSE, 0) ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static bool _xrt_xson_visit_dict(xrt_xson_visit_context* context, xvalue value,
+	uint32 depth, const char* key, size_t key_size, bool has_index, int64 index)
+{
+	xrt_xson_visit_walk_context walk;
+
+	if ( !_xrt_xson_emit_event(context, XRT_XSON_EVENT_DICT_BEGIN, value, depth, key, key_size, has_index, index) ) {
+		return FALSE;
+	}
+	walk.context = context;
+	walk.depth = depth;
+	if ( !xvoTableWalkOrdered(value, (ptr)_xrt_xson_visit_dict_proc, &walk) ) {
+		xrtDictWalk(value->vTable, (ptr)_xrt_xson_visit_dict_proc, &walk);
+	}
+	if ( context->stopped || context->failed ) {
+		return FALSE;
+	}
+	return _xrt_xson_emit_event(context, XRT_XSON_EVENT_DICT_END, value, depth, key, key_size, has_index, index);
+}
+
+static bool _xrt_xson_visit_set_item(xvalue value, xrt_xson_visit_walk_context* walk)
+{
+	if ( walk == NULL || walk->context == NULL || value == NULL ) {
+		return TRUE;
+	}
+	if ( !_xrt_xson_visit_value_inner(walk->context, value, walk->depth + 1, NULL, 0, FALSE, 0) ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static bool _xrt_xson_visit_set_proc(Coll_Key* key, xrt_xson_visit_walk_context* walk)
+{
+	if ( key == NULL ) {
+		return FALSE;
+	}
+	return _xrt_xson_visit_set_item(key->Value, walk);
+}
+
+static bool _xrt_xson_visit_set_value_proc(xvalue* value, xrt_xson_visit_walk_context* walk)
+{
+	if ( value == NULL ) {
+		return FALSE;
+	}
+	return _xrt_xson_visit_set_item(value[0], walk);
+}
+
+static bool _xrt_xson_visit_set(xrt_xson_visit_context* context, xvalue value,
+	uint32 depth, const char* key, size_t key_size, bool has_index, int64 index)
+{
+	xrt_xson_visit_walk_context walk;
+
+	if ( !_xrt_xson_emit_event(context, XRT_XSON_EVENT_SET_BEGIN, value, depth, key, key_size, has_index, index) ) {
+		return FALSE;
+	}
+	walk.context = context;
+	walk.depth = depth;
+	if ( __xvoIsSetValue(value) ) {
+		xrtSetWalk(value->vSet, (xset_each_proc)_xrt_xson_visit_set_value_proc, &walk);
+	} else {
+		xrtAVLTreeWalk(value->vColl, (ptr)_xrt_xson_visit_set_proc, &walk);
+	}
+	if ( context->stopped || context->failed ) {
+		return FALSE;
+	}
+	return _xrt_xson_emit_event(context, XRT_XSON_EVENT_SET_END, value, depth, key, key_size, has_index, index);
+}
+
+static bool _xrt_xson_visit_value_inner(xrt_xson_visit_context* context, xvalue value,
+	uint32 depth, const char* key, size_t key_size, bool has_index, int64 index)
+{
+	switch ( xvoType(value) ) {
+	case XVO_DT_NULL:
+		return _xrt_xson_emit_event(context, XRT_XSON_EVENT_NULL, value, depth, key, key_size, has_index, index);
+	case XVO_DT_BOOL:
+		return _xrt_xson_emit_event(context, XRT_XSON_EVENT_BOOL, value, depth, key, key_size, has_index, index);
+	case XVO_DT_INT:
+		return _xrt_xson_emit_event(context, XRT_XSON_EVENT_INT, value, depth, key, key_size, has_index, index);
+	case XVO_DT_FLOAT:
+		return _xrt_xson_emit_event(context, XRT_XSON_EVENT_FLOAT, value, depth, key, key_size, has_index, index);
+	case XVO_DT_TEXT:
+		return _xrt_xson_emit_event(context, XRT_XSON_EVENT_STRING, value, depth, key, key_size, has_index, index);
+	case XVO_DT_TIME:
+		return _xrt_xson_emit_event(context, XRT_XSON_EVENT_TIME, value, depth, key, key_size, has_index, index);
+	case XVO_DT_CLASS:
+		return _xrt_xson_emit_event(context, XRT_XSON_EVENT_CLASS, value, depth, key, key_size, has_index, index);
+	case XVO_DT_ARRAY:
+		return _xrt_xson_visit_array(context, value, depth, key, key_size, has_index, index);
+	case XVO_DT_LIST:
+		return _xrt_xson_visit_list(context, value, depth, key, key_size, has_index, index);
+	case XVO_DT_TABLE:
+		return _xrt_xson_visit_dict(context, value, depth, key, key_size, has_index, index);
+	case XVO_DT_COLL:
+		return _xrt_xson_visit_set(context, value, depth, key, key_size, has_index, index);
+	default:
+		return _xrt_xson_emit_event(context, XRT_XSON_EVENT_UNSUPPORTED, value, depth, key, key_size, has_index, index);
+	}
+}
+
+XXAPI int xrtXsonVisitValue(xvalue value, xrt_xson_event_proc proc, void* userdata)
+{
+	xrt_xson_visit_context context = { 0 };
+
+	if ( value == NULL || proc == NULL ) {
+		return -1;
+	}
+	context.proc = proc;
+	context.userdata = userdata;
+	if ( !_xrt_xson_visit_value_inner(&context, value, 0, NULL, 0, FALSE, 0) ) {
+		return context.stopped ? 1 : -1;
+	}
+	return context.stopped ? 1 : 0;
+}
+
+XXAPI int xrtXsonVisitWithOptions(const char* text, size_t size, const xson_options* options,
+	xrt_xson_event_proc proc, void* userdata)
+{
+	xvalue value;
+	int result;
+
+	if ( text == NULL || proc == NULL ) {
+		return -1;
+	}
+	value = xrtParseXSONWithOptions(text, size, options);
+	if ( value == NULL || xvoIsNull(value) ) {
+		if ( value != NULL ) {
+			xvoUnref(value);
+		}
+		return -1;
+	}
+	result = xrtXsonVisitValue(value, proc, userdata);
+	xvoUnref(value);
+	return result;
+}
+
+XXAPI int xrtXsonVisit(const char* text, size_t size, uint32 flags, xrt_xson_event_proc proc, void* userdata)
+{
+	xson_options options = xrtXsonOptionsDefault();
+	options.ignore_unsupported_encode = (flags & XSON_F_IGNORE_UNSUPPORTED_ENCODE) != 0;
+	options.ignore_unsupported_decode = (flags & XSON_F_IGNORE_UNSUPPORTED_DECODE) != 0;
+	return xrtXsonVisitWithOptions(text, size, &options, proc, userdata);
+}
+
 XXAPI xvalue xrtParseXSON(str sText, size_t iSize)
 {
 	return xrtParseXSONEx(sText, iSize, 0);
@@ -1705,6 +1974,390 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 	iRet = xrtFilePutAll(sFile, sText, iSize);
 	xrtFree(sText);
 	return iRet;
+}
+
+
+/* ------------------------------------ XSON 流式写入器 ------------------------------------ */
+
+static uint32 _xrt_xson_options_flags(const xson_options* options);
+
+typedef enum
+{
+	XRT_XSON_WRITER_ROOT = 0,
+	XRT_XSON_WRITER_ARRAY,
+	XRT_XSON_WRITER_LIST,
+	XRT_XSON_WRITER_DICT,
+	XRT_XSON_WRITER_SET
+} xrt_xson_writer_scope;
+
+typedef struct
+{
+	xrt_xson_writer_scope scope;
+	size_t count;
+} xrt_xson_writer_frame;
+
+struct xrt_xson_writer_struct
+{
+	xson_print_t print;
+	xrt_xson_writer_frame* stack;
+	size_t depth;
+	size_t capacity;
+	bool failed;
+	bool finished;
+};
+
+static bool _xrt_xson_writer_reserve(xxsonwriter writer, size_t count)
+{
+	xrt_xson_writer_frame* next;
+	size_t capacity;
+
+	if ( writer == NULL ) {
+		return FALSE;
+	}
+	if ( count <= writer->capacity ) {
+		return TRUE;
+	}
+	capacity = writer->capacity ? writer->capacity : 8;
+	while ( capacity < count ) {
+		capacity <<= 1;
+	}
+	next = (xrt_xson_writer_frame*)xrtRealloc(writer->stack, capacity * sizeof(*next));
+	if ( next == NULL ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	writer->stack = next;
+	writer->capacity = capacity;
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_append_key(xxsonwriter writer, const char* key)
+{
+	if ( key == NULL ) {
+		return FALSE;
+	}
+	if ( _xson_print_append_json_string(&writer->print, key, strlen(key)) == FALSE ) {
+		return FALSE;
+	}
+	return _xson_print_append_raw(&writer->print, ": ", 2);
+}
+
+static bool _xrt_xson_writer_append_index(xxsonwriter writer, int64 index)
+{
+	if ( _xson_print_append_i64(&writer->print, index) == FALSE ) {
+		return FALSE;
+	}
+	return _xson_print_append_raw(&writer->print, ": ", 2);
+}
+
+static bool _xrt_xson_writer_prepare(xxsonwriter writer, const char* key, bool has_index, int64 index)
+{
+	xrt_xson_writer_frame* parent;
+
+	if ( writer == NULL || writer->failed || writer->finished ) {
+		return FALSE;
+	}
+	if ( writer->depth == 0 ) {
+		if ( key != NULL || has_index ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		if ( writer->print.iUsed > 0 ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		return TRUE;
+	}
+
+	parent = &writer->stack[writer->depth - 1];
+	switch ( parent->scope ) {
+	case XRT_XSON_WRITER_ARRAY:
+	case XRT_XSON_WRITER_SET:
+		if ( key != NULL || has_index ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		break;
+	case XRT_XSON_WRITER_DICT:
+		if ( key == NULL || has_index ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		break;
+	case XRT_XSON_WRITER_LIST:
+		if ( key != NULL || !has_index ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		break;
+	default:
+		return FALSE;
+	}
+
+	if ( parent->count > 0 ) {
+		if ( _xson_print_append_char(&writer->print, ',') == FALSE ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+	}
+	if ( writer->print.bFormat ) {
+		if ( _xson_print_append_indent(&writer->print, (int)writer->depth) == FALSE ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+	}
+
+	if ( parent->scope == XRT_XSON_WRITER_DICT ) {
+		if ( _xrt_xson_writer_append_key(writer, key) == FALSE ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+	} else if ( parent->scope == XRT_XSON_WRITER_LIST ) {
+		if ( _xrt_xson_writer_append_index(writer, index) == FALSE ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+	}
+
+	parent->count++;
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_begin(xxsonwriter writer, const char* key, bool has_index, int64 index,
+	xrt_xson_writer_scope scope, const char* token, size_t token_size)
+{
+	if ( !_xrt_xson_writer_prepare(writer, key, has_index, index) ) {
+		return FALSE;
+	}
+	if ( _xson_print_append_raw(&writer->print, token, token_size) == FALSE ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	if ( !_xrt_xson_writer_reserve(writer, writer->depth + 1) ) {
+		return FALSE;
+	}
+	writer->stack[writer->depth].scope = scope;
+	writer->stack[writer->depth].count = 0;
+	writer->depth++;
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_end(xxsonwriter writer, xrt_xson_writer_scope scope, char token)
+{
+	xrt_xson_writer_frame* frame;
+
+	if ( writer == NULL || writer->failed || writer->finished || writer->depth == 0 ) {
+		return FALSE;
+	}
+	frame = &writer->stack[writer->depth - 1];
+	if ( frame->scope != scope ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	if ( writer->print.bFormat && frame->count > 0 ) {
+		if ( _xson_print_append_indent(&writer->print, (int)writer->depth - 1) == FALSE ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+	}
+	if ( _xson_print_append_char(&writer->print, token) == FALSE ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	writer->depth--;
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_scalar_value(xxsonwriter writer, const char* key, bool has_index, int64 index, xvalue value)
+{
+	xson_write_result_t result;
+
+	if ( value == NULL ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	if ( !_xrt_xson_writer_prepare(writer, key, has_index, index) ) {
+		return FALSE;
+	}
+	result = _xson_write_value(&writer->print, value, (int)writer->depth, writer->depth == 0);
+	if ( result != XSON_WRITE_RESULT_OK ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_null(xxsonwriter writer, const char* key, bool has_index, int64 index)
+{
+	if ( !_xrt_xson_writer_prepare(writer, key, has_index, index) ) {
+		return FALSE;
+	}
+	if ( _xson_print_append_raw(&writer->print, "null", 4) == FALSE ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_bool(xxsonwriter writer, const char* key, bool has_index, int64 index, bool value)
+{
+	if ( !_xrt_xson_writer_prepare(writer, key, has_index, index) ) {
+		return FALSE;
+	}
+	if ( value ) {
+		if ( _xson_print_append_raw(&writer->print, "true", 4) == FALSE ) {
+			writer->failed = TRUE;
+			return FALSE;
+		}
+		return TRUE;
+	}
+	if ( _xson_print_append_raw(&writer->print, "false", 5) == FALSE ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_int(xxsonwriter writer, const char* key, bool has_index, int64 index, int64 value)
+{
+	if ( !_xrt_xson_writer_prepare(writer, key, has_index, index) ) {
+		return FALSE;
+	}
+	if ( _xson_print_append_i64(&writer->print, value) == FALSE ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_float(xxsonwriter writer, const char* key, bool has_index, int64 index, double value)
+{
+	if ( !_xrt_xson_writer_prepare(writer, key, has_index, index) ) {
+		return FALSE;
+	}
+	if ( _xson_print_append_double(&writer->print, value) == FALSE ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_string(xxsonwriter writer, const char* key, bool has_index, int64 index, const char* value)
+{
+	const char* text = value != NULL ? value : "";
+
+	if ( !_xrt_xson_writer_prepare(writer, key, has_index, index) ) {
+		return FALSE;
+	}
+	if ( _xson_print_append_json_string(&writer->print, text, strlen(text)) == FALSE ) {
+		writer->failed = TRUE;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static bool _xrt_xson_writer_time(xxsonwriter writer, const char* key, bool has_index, int64 index, xtime value)
+{
+	xvalue time_value = xvoCreateTime(value);
+	bool ok;
+
+	if ( time_value == NULL ) {
+		if ( writer != NULL ) {
+			writer->failed = TRUE;
+		}
+		return FALSE;
+	}
+	ok = _xrt_xson_writer_scalar_value(writer, key, has_index, index, time_value);
+	xvoUnref(time_value);
+	return ok;
+}
+
+XXAPI xxsonwriter xrtXsonWriterCreate(bool pretty, uint32 flags)
+{
+	xxsonwriter writer = (xxsonwriter)xrtCalloc(1, sizeof(*writer));
+
+	if ( writer == NULL ) {
+		return NULL;
+	}
+	writer->print.bFormat = pretty;
+	writer->print.iFlags = flags;
+	if ( _xson_print_reserve(&writer->print, 64) == FALSE ) {
+		xrtFree(writer);
+		return NULL;
+	}
+	writer->print.sText[0] = '\0';
+	return writer;
+}
+
+XXAPI xxsonwriter xrtXsonWriterCreateWithOptions(const xson_options* options)
+{
+	return xrtXsonWriterCreate(options != NULL && options->pretty, _xrt_xson_options_flags(options));
+}
+
+XXAPI void xrtXsonWriterDestroy(xxsonwriter writer)
+{
+	if ( writer == NULL ) {
+		return;
+	}
+	xrtFree(writer->print.sText);
+	xrtFree(writer->stack);
+	xrtFree(writer);
+}
+
+XXAPI bool xrtXsonWriterBeginArray(xxsonwriter writer) { return _xrt_xson_writer_begin(writer, NULL, FALSE, 0, XRT_XSON_WRITER_ARRAY, "[", 1); }
+XXAPI bool xrtXsonWriterBeginArrayKey(xxsonwriter writer, const char* key) { return _xrt_xson_writer_begin(writer, key, FALSE, 0, XRT_XSON_WRITER_ARRAY, "[", 1); }
+XXAPI bool xrtXsonWriterBeginArrayIndex(xxsonwriter writer, int64 index) { return _xrt_xson_writer_begin(writer, NULL, TRUE, index, XRT_XSON_WRITER_ARRAY, "[", 1); }
+XXAPI bool xrtXsonWriterEndArray(xxsonwriter writer) { return _xrt_xson_writer_end(writer, XRT_XSON_WRITER_ARRAY, ']'); }
+XXAPI bool xrtXsonWriterBeginList(xxsonwriter writer) { return _xrt_xson_writer_begin(writer, NULL, FALSE, 0, XRT_XSON_WRITER_LIST, "list[", 5); }
+XXAPI bool xrtXsonWriterBeginListKey(xxsonwriter writer, const char* key) { return _xrt_xson_writer_begin(writer, key, FALSE, 0, XRT_XSON_WRITER_LIST, "list[", 5); }
+XXAPI bool xrtXsonWriterBeginListIndex(xxsonwriter writer, int64 index) { return _xrt_xson_writer_begin(writer, NULL, TRUE, index, XRT_XSON_WRITER_LIST, "list[", 5); }
+XXAPI bool xrtXsonWriterEndList(xxsonwriter writer) { return _xrt_xson_writer_end(writer, XRT_XSON_WRITER_LIST, ']'); }
+XXAPI bool xrtXsonWriterBeginDict(xxsonwriter writer) { return _xrt_xson_writer_begin(writer, NULL, FALSE, 0, XRT_XSON_WRITER_DICT, "{", 1); }
+XXAPI bool xrtXsonWriterBeginDictKey(xxsonwriter writer, const char* key) { return _xrt_xson_writer_begin(writer, key, FALSE, 0, XRT_XSON_WRITER_DICT, "{", 1); }
+XXAPI bool xrtXsonWriterBeginDictIndex(xxsonwriter writer, int64 index) { return _xrt_xson_writer_begin(writer, NULL, TRUE, index, XRT_XSON_WRITER_DICT, "{", 1); }
+XXAPI bool xrtXsonWriterEndDict(xxsonwriter writer) { return _xrt_xson_writer_end(writer, XRT_XSON_WRITER_DICT, '}'); }
+XXAPI bool xrtXsonWriterBeginSet(xxsonwriter writer) { return _xrt_xson_writer_begin(writer, NULL, FALSE, 0, XRT_XSON_WRITER_SET, "set{", 4); }
+XXAPI bool xrtXsonWriterBeginSetKey(xxsonwriter writer, const char* key) { return _xrt_xson_writer_begin(writer, key, FALSE, 0, XRT_XSON_WRITER_SET, "set{", 4); }
+XXAPI bool xrtXsonWriterBeginSetIndex(xxsonwriter writer, int64 index) { return _xrt_xson_writer_begin(writer, NULL, TRUE, index, XRT_XSON_WRITER_SET, "set{", 4); }
+XXAPI bool xrtXsonWriterEndSet(xxsonwriter writer) { return _xrt_xson_writer_end(writer, XRT_XSON_WRITER_SET, '}'); }
+XXAPI bool xrtXsonWriterNull(xxsonwriter writer) { return _xrt_xson_writer_null(writer, NULL, FALSE, 0); }
+XXAPI bool xrtXsonWriterNullKey(xxsonwriter writer, const char* key) { return _xrt_xson_writer_null(writer, key, FALSE, 0); }
+XXAPI bool xrtXsonWriterNullIndex(xxsonwriter writer, int64 index) { return _xrt_xson_writer_null(writer, NULL, TRUE, index); }
+XXAPI bool xrtXsonWriterBool(xxsonwriter writer, bool value) { return _xrt_xson_writer_bool(writer, NULL, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterBoolKey(xxsonwriter writer, const char* key, bool value) { return _xrt_xson_writer_bool(writer, key, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterBoolIndex(xxsonwriter writer, int64 index, bool value) { return _xrt_xson_writer_bool(writer, NULL, TRUE, index, value); }
+XXAPI bool xrtXsonWriterInt(xxsonwriter writer, int64 value) { return _xrt_xson_writer_int(writer, NULL, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterIntKey(xxsonwriter writer, const char* key, int64 value) { return _xrt_xson_writer_int(writer, key, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterIntIndex(xxsonwriter writer, int64 index, int64 value) { return _xrt_xson_writer_int(writer, NULL, TRUE, index, value); }
+XXAPI bool xrtXsonWriterFloat(xxsonwriter writer, double value) { return _xrt_xson_writer_float(writer, NULL, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterFloatKey(xxsonwriter writer, const char* key, double value) { return _xrt_xson_writer_float(writer, key, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterFloatIndex(xxsonwriter writer, int64 index, double value) { return _xrt_xson_writer_float(writer, NULL, TRUE, index, value); }
+XXAPI bool xrtXsonWriterString(xxsonwriter writer, const char* value) { return _xrt_xson_writer_string(writer, NULL, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterStringKey(xxsonwriter writer, const char* key, const char* value) { return _xrt_xson_writer_string(writer, key, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterStringIndex(xxsonwriter writer, int64 index, const char* value) { return _xrt_xson_writer_string(writer, NULL, TRUE, index, value); }
+XXAPI bool xrtXsonWriterTime(xxsonwriter writer, xtime value) { return _xrt_xson_writer_time(writer, NULL, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterTimeKey(xxsonwriter writer, const char* key, xtime value) { return _xrt_xson_writer_time(writer, key, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterTimeIndex(xxsonwriter writer, int64 index, xtime value) { return _xrt_xson_writer_time(writer, NULL, TRUE, index, value); }
+XXAPI bool xrtXsonWriterValue(xxsonwriter writer, xvalue value) { return _xrt_xson_writer_scalar_value(writer, NULL, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterValueKey(xxsonwriter writer, const char* key, xvalue value) { return _xrt_xson_writer_scalar_value(writer, key, FALSE, 0, value); }
+XXAPI bool xrtXsonWriterValueIndex(xxsonwriter writer, int64 index, xvalue value) { return _xrt_xson_writer_scalar_value(writer, NULL, TRUE, index, value); }
+
+XXAPI char* xrtXsonWriterFinish(xxsonwriter writer, size_t* size)
+{
+	char* text;
+
+	if ( writer == NULL || writer->failed || writer->finished || writer->depth != 0 ) {
+		return NULL;
+	}
+	writer->finished = TRUE;
+	if ( size != NULL ) {
+		*size = writer->print.iUsed;
+	}
+	text = writer->print.sText;
+	writer->print.sText = NULL;
+	writer->print.iSize = 0;
+	writer->print.iUsed = 0;
+	return text;
 }
 
 

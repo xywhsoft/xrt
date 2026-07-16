@@ -19,6 +19,14 @@ typedef struct {
 	volatile long iBodyChunkCount;
 	volatile long iBodyEndCount;
 	volatile long iBodySawStreamingFlag;
+	volatile long iRequestContextSeen;
+	volatile long iRequestContextCancelled;
+	volatile long iUpgradeCount;
+	volatile long iUpgradeRecvCount;
+	volatile long iUpgradeCloseCount;
+	volatile long iUpgradeErrorCount;
+	xnetstream* pUpgradeStream;
+	char aUpgradeData[64];
 	uint32 iLastMethod;
 	char aLastMethod[32];
 	char aLastPath[256];
@@ -27,6 +35,7 @@ typedef struct {
 	char aLastBody[256];
 	char aStreamBody[512];
 	size_t iStreamBodyLen;
+	uint16 iRedirectTargetPort;
 	#if !defined(XRT_NO_COROUTINE)
 		xcosched* pSched;
 	#endif
@@ -34,6 +43,7 @@ typedef struct {
 
 typedef struct {
 	__test_xhttpd_ctx* pCtx;
+	xhttpcontext* pRequestContext;
 	char aBody[128];
 	uint32 iStatusCode;
 	uint32 iDelayMs;
@@ -47,6 +57,163 @@ typedef struct {
 	char aBody[128];
 	bool bClose;
 } __test_xhttpd_async_manual_task;
+
+typedef struct {
+	xnetengine* pEngine;
+	const uint8* pData;
+	size_t iLen;
+	uint32 iWaitDelayMs;
+	volatile long iOpenCount;
+	volatile long iCloseCount;
+	volatile long iWaitCount;
+} __test_xhttp_upload_factory;
+
+typedef struct {
+	__test_xhttp_upload_factory* pFactory;
+	size_t iOffset;
+	bool bWaited;
+} __test_xhttp_upload_reader;
+
+typedef struct {
+	uint32 iHeadersCount;
+	uint32 iBodyCount;
+	uint32 iStatusCode;
+	uint32 iResponseFlags;
+	bool bContentEncodingAbsent;
+	char aOriginalEncoding[32];
+	char aBody[64];
+	size_t iBodyLen;
+} __test_xhttp_redirect_stream;
+
+static const uint8 __g_test_xhttp_gzip[] = {
+	0x1f,0x8b,0x08,0x00,0x00,0x00,0x00,0x00,0x02,0xff,0xcb,0x48,0xcd,0xc9,0xc9,
+	0x57,0x48,0xce,0xcf,0x2d,0x28,0x4a,0x2d,0x2e,0x4e,0x4d,0x51,0x28,0xcf,0x2f,
+	0xca,0x49,0x01,0x00,0xa1,0x2d,0x94,0x53,0x16,0x00,0x00,0x00
+};
+
+static const uint8 __g_test_xhttp_deflate[] = {
+	0x78,0x9c,0xcb,0x48,0xcd,0xc9,0xc9,0x57,0x48,0xce,0xcf,0x2d,0x28,0x4a,0x2d,
+	0x2e,0x4e,0x4d,0x51,0x28,0xcf,0x2f,0xca,0x49,0x01,0x00,0x63,0x85,0x08,0xb2
+};
+
+static const uint8 __g_test_xhttp_stacked_deflate[] = {
+	0x78,0x9c,0xab,0x98,0x73,0xda,0xe3,0xec,0xc9,0x93,0xe1,0x1e,0xe7,0xce,0xeb,
+	0x6a,0x78,0xe9,0xea,0xf9,0xf9,0x06,0x6a,0x9c,0xd7,0x3f,0xe5,0xc9,0xc8,0x90,
+	0xdc,0xca,0xb1,0x09,0x00,0xdc,0x37,0x0c,0x85
+};
+
+static const uint8 __g_test_xhttp_gzip_limit[] = {
+	0x1f,0x8b,0x08,0x00,0x00,0x00,0x00,0x00,0x02,0xff,0x73,0x74,0x1c,0x58,
+	0x00,0x00,0xde,0x8a,0x18,0x04,0x80,0x00,0x00,0x00
+};
+
+
+static bool __Test_XHttpRedirectOnHeaders(ptr pUserData, const xhttpresponse* pResponse)
+{
+	__test_xhttp_redirect_stream* pStream = (__test_xhttp_redirect_stream*)pUserData;
+	if ( !pStream || !pResponse ) { return false; }
+	pStream->iHeadersCount++;
+	pStream->iStatusCode = pResponse->iStatusCode;
+	pStream->iResponseFlags = xrtHttpResponseFlags(pResponse);
+	pStream->bContentEncodingAbsent = xrtHttpResponseHeader(pResponse, "Content-Encoding") == NULL;
+	if ( xrtHttpResponseOriginalContentEncoding(pResponse) ) {
+		snprintf(pStream->aOriginalEncoding, sizeof(pStream->aOriginalEncoding), "%s",
+			xrtHttpResponseOriginalContentEncoding(pResponse));
+	}
+	return true;
+}
+
+
+static bool __Test_XHttpRedirectOnBody(ptr pUserData, const void* pData, size_t iLen)
+{
+	__test_xhttp_redirect_stream* pStream = (__test_xhttp_redirect_stream*)pUserData;
+	size_t iCopy;
+	if ( !pStream || (!pData && iLen > 0u) ) { return false; }
+	pStream->iBodyCount++;
+	iCopy = iLen;
+	if ( iCopy > sizeof(pStream->aBody) - 1u - pStream->iBodyLen ) {
+		iCopy = sizeof(pStream->aBody) - 1u - pStream->iBodyLen;
+	}
+	if ( iCopy > 0u ) {
+		memcpy(pStream->aBody + pStream->iBodyLen, pData, iCopy);
+		pStream->iBodyLen += iCopy;
+		pStream->aBody[pStream->iBodyLen] = '\0';
+	}
+	return true;
+}
+
+
+static int32 __Test_XHttpUploadReadyTask(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
+{
+	(void)pWorker;
+	(void)pArg;
+	(void)pOut;
+	return XRT_NET_OK;
+}
+
+
+static xhttp_body_read_result __Test_XHttpUploadRead(ptr pContext, void* pBuffer,
+	size_t iCapacity, size_t* pRead, const xhttpcontext* pRequestContext)
+{
+	__test_xhttp_upload_reader* pReader = (__test_xhttp_upload_reader*)pContext;
+	size_t iRemain;
+	size_t iStep;
+	if ( xrtHttpContextIsDone(pRequestContext) ) { return XHTTP_BODY_READ_CANCELLED; }
+	if ( !pReader || !pBuffer || !pRead || iCapacity == 0u ) { return XHTTP_BODY_READ_ERROR; }
+	if ( !pReader->bWaited ) {
+		pReader->bWaited = true;
+		return XHTTP_BODY_READ_AGAIN;
+	}
+	if ( pReader->iOffset == pReader->pFactory->iLen ) { return XHTTP_BODY_READ_EOF; }
+	iRemain = pReader->pFactory->iLen - pReader->iOffset;
+	iStep = iRemain < 3u ? iRemain : 3u;
+	if ( iStep > iCapacity ) { iStep = iCapacity; }
+	memcpy(pBuffer, pReader->pFactory->pData + pReader->iOffset, iStep);
+	pReader->iOffset += iStep;
+	*pRead = iStep;
+	return XHTTP_BODY_READ_DATA;
+}
+
+
+static xnetfuture* __Test_XHttpUploadWait(ptr pContext, const xhttpcontext* pRequestContext)
+{
+	__test_xhttp_upload_reader* pReader = (__test_xhttp_upload_reader*)pContext;
+	if ( !pReader || xrtHttpContextIsDone(pRequestContext) ) { return NULL; }
+	(void)__xrtTestAtomicAddFetchLong(&pReader->pFactory->iWaitCount, 1);
+	return xTaskRunDelayed(pReader->pFactory->pEngine, 0u,
+		pReader->pFactory->iWaitDelayMs ? pReader->pFactory->iWaitDelayMs : 10u,
+		__Test_XHttpUploadReadyTask, NULL);
+}
+
+
+static void __Test_XHttpUploadClose(ptr pContext)
+{
+	__test_xhttp_upload_reader* pReader = (__test_xhttp_upload_reader*)pContext;
+	if ( !pReader ) { return; }
+	(void)__xrtTestAtomicAddFetchLong(&pReader->pFactory->iCloseCount, 1);
+	XNET_FREE(pReader);
+}
+
+
+static xhttp_semantic_result __Test_XHttpUploadOpen(ptr pFactoryContext,
+	const xhttpcontext* pRequestContext, xhttpbodyreaderops* pOutOps, ptr* ppReaderContext)
+{
+	__test_xhttp_upload_factory* pFactory = (__test_xhttp_upload_factory*)pFactoryContext;
+	__test_xhttp_upload_reader* pReader;
+	if ( !pFactory || !pOutOps || !ppReaderContext ) { return XHTTP_SEMANTIC_INVALID_ARGUMENT; }
+	if ( xrtHttpContextIsDone(pRequestContext) ) { return XHTTP_SEMANTIC_CANCELLED; }
+	pReader = (__test_xhttp_upload_reader*)XNET_ALLOC(sizeof(*pReader));
+	if ( !pReader ) { return XHTTP_SEMANTIC_OUT_OF_MEMORY; }
+	memset(pReader, 0, sizeof(*pReader));
+	pReader->pFactory = pFactory;
+	xrtHttpBodyReaderOpsInit(pOutOps);
+	pOutOps->Read = __Test_XHttpUploadRead;
+	pOutOps->WaitReadable = __Test_XHttpUploadWait;
+	pOutOps->Close = __Test_XHttpUploadClose;
+	*ppReaderContext = pReader;
+	(void)__xrtTestAtomicAddFetchLong(&pFactory->iOpenCount, 1);
+	return XHTTP_SEMANTIC_OK;
+}
 
 
 // 内部函数：__Test_XHttpdSleepMs
@@ -83,6 +250,18 @@ static bool __Test_XHttpdWaitMin(volatile long* pValue, long iExpectMin, uint32 
 		__Test_XHttpdSleepMs(10);
 	}
 	return __Test_XHttpdAtomicLoad(pValue) >= iExpectMin;
+}
+
+
+static bool __Test_XHttpdWaitConnectionCount(xhttpdserver* pServer, uint32 iExpected, uint32 iTimeoutMs)
+{
+	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
+	if ( !pServer ) return false;
+	for ( uint32 i = 0u; i < iLoops; ++i ) {
+		if ( xrtHttpdConnectionCount(pServer) == iExpected ) return true;
+		__Test_XHttpdSleepMs(10u);
+	}
+	return xrtHttpdConnectionCount(pServer) == iExpected;
 }
 
 
@@ -230,6 +409,42 @@ static bool __Test_XHttpdRecvResponse(xsocket hSocket, char* pBuf, size_t iCap, 
 }
 
 
+static bool __Test_XHttpdRecvUntil(xsocket hSocket, char* pBuf, size_t iCap,
+	const char* sMarker, size_t* pOutLen, uint32 iTimeoutMs)
+{
+	size_t iLen = 0u;
+	uint32 iElapsedMs = 0u;
+	if ( pOutLen ) *pOutLen = 0u;
+	if ( !pBuf || iCap < 2u || !sMarker || !sMarker[0] || hSocket == XNET_SOCKET_INVALID ) return false;
+	pBuf[0] = '\0';
+	while ( iElapsedMs <= iTimeoutMs && iLen + 1u < iCap ) {
+		fd_set tReadSet;
+		struct timeval tTv;
+		int iReady;
+		FD_ZERO(&tReadSet);
+		FD_SET(hSocket, &tReadSet);
+		tTv.tv_sec = 0;
+		tTv.tv_usec = 50000;
+		iReady = select((int)(hSocket + 1), &tReadSet, NULL, NULL, &tTv);
+		if ( iReady > 0 && FD_ISSET(hSocket, &tReadSet) ) {
+			int iStep = recv(hSocket, pBuf + iLen, (int)(iCap - 1u - iLen), 0);
+			if ( iStep <= 0 ) break;
+			iLen += (size_t)iStep;
+			pBuf[iLen] = '\0';
+			if ( strstr(pBuf, sMarker) ) {
+				if ( pOutLen ) *pOutLen = iLen;
+				return true;
+			}
+			continue;
+		}
+		if ( iReady < 0 ) break;
+		iElapsedMs += 50u;
+	}
+	if ( pOutLen ) *pOutLen = iLen;
+	return strstr(pBuf, sMarker) != NULL;
+}
+
+
 // 内部函数：__Test_XHttpdRecordRequest
 static void __Test_XHttpdRecordRequest(__test_xhttpd_ctx* pCtx, const xhttpdrequest* pReq)
 {
@@ -262,6 +477,59 @@ static void __Test_XHttpdOnOpen(ptr pOwner, xhttpdserver* pServer, xhttpdconn* p
 }
 
 
+static void __Test_XHttpdUpgradeOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
+{
+	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
+	size_t iBytes;
+	size_t iUsed;
+	size_t iCopy;
+	if ( !pCtx || !pStream || !pChain ) return;
+	iBytes = xrtNetChainBytes(pChain);
+	iUsed = strlen(pCtx->aUpgradeData);
+	iCopy = iBytes;
+	if ( iCopy > sizeof(pCtx->aUpgradeData) - 1u - iUsed ) {
+		iCopy = sizeof(pCtx->aUpgradeData) - 1u - iUsed;
+	}
+	if ( iCopy > 0u ) {
+		(void)xrtNetChainPeek(pChain, pCtx->aUpgradeData + iUsed, iCopy);
+		pCtx->aUpgradeData[iUsed + iCopy] = '\0';
+	}
+	xrtNetChainConsume(pChain, iBytes);
+	if ( strstr(pCtx->aUpgradeData, "PING") && __Test_XHttpdAtomicLoad(&pCtx->iUpgradeRecvCount) == 0 ) {
+		if ( xrtNetStreamSend(pStream, "UPGRADE-OK", 10u) == XRT_NET_OK ) {
+			__Test_XHttpdAtomicInc(&pCtx->iUpgradeRecvCount);
+		} else {
+			__Test_XHttpdAtomicInc(&pCtx->iUpgradeErrorCount);
+		}
+	}
+}
+
+
+static void __Test_XHttpdUpgradeOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
+	(void)pStream;
+	(void)iReason;
+	if ( pCtx ) __Test_XHttpdAtomicInc(&pCtx->iUpgradeCloseCount);
+}
+
+
+static void __Test_XHttpdUpgradeOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
+	(void)pStream;
+	(void)iSysErr;
+	if ( pCtx ) __Test_XHttpdAtomicInc(&pCtx->iUpgradeErrorCount);
+}
+
+
+static const xnetstreamevents __g_Test_XHttpdUpgradeEvents = {
+	.OnRecv = __Test_XHttpdUpgradeOnRecv,
+	.OnClose = __Test_XHttpdUpgradeOnClose,
+	.OnError = __Test_XHttpdUpgradeOnError
+};
+
+
 // 内部函数：__Test_XHttpdOnRequest
 static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp)
 {
@@ -275,13 +543,63 @@ static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn
 		(void)xrtHttpdResponseSetHeader(pResp, "X-Server", "xhttpd-test");
 		return true;
 	}
+	if ( strcmp(pReq->sPath, "/redirect/final") == 0 ) {
+		char aBody[64];
+		const char* sCookie = xrtHttpdRequestHeader(pReq, "Cookie");
+		const char* sAuthorization = xrtHttpdRequestHeader(pReq, "Authorization");
+		int iLen = snprintf(aBody, sizeof(aBody), "%s:%.*s",
+			pReq->sMethod, (int)pReq->iBodyLen, pReq->pBody ? (const char*)pReq->pBody : "");
+		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
+		(void)xrtHttpdResponseSetBodyCopy(pResp, aBody, iLen > 0 ? (size_t)iLen : 0u, "text/plain");
+		if ( sCookie ) { (void)xrtHttpdResponseSetHeader(pResp, "X-Seen-Cookie", sCookie); }
+		if ( sAuthorization ) { (void)xrtHttpdResponseSetHeader(pResp, "X-Seen-Authorization", sAuthorization); }
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/redirect/cross") == 0 && pCtx->iRedirectTargetPort != 0u ) {
+		char sLocation[128];
+		snprintf(sLocation, sizeof(sLocation), "http://127.0.0.1:%u/redirect/final",
+			(unsigned)pCtx->iRedirectTargetPort);
+		xrtHttpdResponseSetStatus(pResp, 302u, NULL);
+		(void)xrtHttpdResponseSetHeader(pResp, "Location", sLocation);
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/redirect/relative") == 0 ) {
+		xrtHttpdResponseSetStatus(pResp, 302u, NULL);
+		(void)xrtHttpdResponseSetHeader(pResp, "Location", "final?from=relative#ignored");
+		(void)xrtHttpdResponseSetBodyCopy(pResp, "hidden", 6u, "text/plain");
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/redirect/post303") == 0 ||
+		strcmp(pReq->sPath, "/redirect/post307") == 0 ) {
+		xrtHttpdResponseSetStatus(pResp,
+			strcmp(pReq->sPath, "/redirect/post303") == 0 ? 303u : 307u, NULL);
+		(void)xrtHttpdResponseSetHeader(pResp, "Location", "/redirect/final");
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/redirect/cookie") == 0 ) {
+		xrtHttpdResponseSetStatus(pResp, 302u, NULL);
+		(void)xrtHttpdResponseSetHeader(pResp, "Location", "/redirect/final");
+		(void)xrtHttpdResponseAddHeader(pResp, "Set-Cookie", "hop=stored; Path=/redirect");
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/redirect/loop") == 0 ) {
+		xrtHttpdResponseSetStatus(pResp, 302u, NULL);
+		(void)xrtHttpdResponseSetHeader(pResp, "Location", "/redirect/loop");
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/redirect/duplicate") == 0 ) {
+		xrtHttpdResponseSetStatus(pResp, 302u, NULL);
+		(void)xrtHttpdResponseAddHeader(pResp, "Location", "/redirect/final");
+		(void)xrtHttpdResponseAddHeader(pResp, "Location", "/secure");
+		return true;
+	}
 	if ( strcmp(pReq->sPath, "/many-headers") == 0 ) {
 		const char* sDyn = xrtHttpdRequestHeader(pReq, "X-Dyn-47");
 		uint32 iHeaderCount = xrtHttpdRequestHeaderCount(pReq);
 		const char* sLastName = iHeaderCount > 0u ? xrtHttpdRequestHeaderNameAt(pReq, iHeaderCount - 1u) : NULL;
 		const char* sLastValue = iHeaderCount > 0u ? xrtHttpdRequestHeaderValueAt(pReq, iHeaderCount - 1u) : NULL;
-		if ( iHeaderCount < 50u || !sLastName || !sLastValue ||
-			strcmp(sLastName, "X-Dyn-47") != 0 || strcmp(sLastValue, "v47") != 0 ||
+		if ( iHeaderCount < 51u || !sLastName || !sLastValue ||
+			strlen(sLastName) <= XHTTPD_HEADER_NAME_CAP || strlen(sLastValue) <= XHTTPD_HEADER_VALUE_CAP ||
 			xrtHttpdRequestHeaderNameAt(pReq, iHeaderCount) != NULL ||
 			xrtHttpdRequestHeaderValueAt(pReq, iHeaderCount) != NULL ) {
 			sDyn = NULL;
@@ -293,6 +611,64 @@ static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn
 	if ( strcmp(pReq->sPath, "/secure") == 0 ) {
 		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
 		(void)xrtHttpdResponseSetBodyCopy(pResp, "secure", 6, "text/plain");
+		return true;
+	}
+	if ( strncmp(pReq->sPath, "/compressed/", 12u) == 0 ) {
+		const char* sAcceptEncoding = xrtHttpdRequestHeader(pReq, "Accept-Encoding");
+		const void* pBody = NULL;
+		size_t iBodyLen = 0u;
+		const char* sEncoding = NULL;
+		uint8 aBadGzip[sizeof(__g_test_xhttp_gzip)];
+		if ( strcmp(pReq->sPath, "/compressed/gzip") == 0 ) {
+			pBody = __g_test_xhttp_gzip;
+			iBodyLen = sizeof(__g_test_xhttp_gzip);
+			sEncoding = "gzip";
+		} else if ( strcmp(pReq->sPath, "/compressed/deflate") == 0 ) {
+			pBody = __g_test_xhttp_deflate;
+			iBodyLen = sizeof(__g_test_xhttp_deflate);
+			sEncoding = "deflate";
+		} else if ( strcmp(pReq->sPath, "/compressed/stacked") == 0 ) {
+			pBody = __g_test_xhttp_stacked_deflate;
+			iBodyLen = sizeof(__g_test_xhttp_stacked_deflate);
+			sEncoding = "deflate, deflate";
+		} else if ( strcmp(pReq->sPath, "/compressed/bad-gzip") == 0 ) {
+			memcpy(aBadGzip, __g_test_xhttp_gzip, sizeof(aBadGzip));
+			aBadGzip[sizeof(aBadGzip) - 8u] ^= 1u;
+			pBody = aBadGzip;
+			iBodyLen = sizeof(aBadGzip);
+			sEncoding = "gzip";
+		} else if ( strcmp(pReq->sPath, "/compressed/limit") == 0 ) {
+			pBody = __g_test_xhttp_gzip_limit;
+			iBodyLen = sizeof(__g_test_xhttp_gzip_limit);
+			sEncoding = "gzip";
+		} else if ( strcmp(pReq->sPath, "/compressed/unknown") == 0 ) {
+			pBody = "raw-br";
+			iBodyLen = 6u;
+			sEncoding = "br";
+		} else {
+			return false;
+		}
+		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
+		if ( !xrtHttpdResponseSetBodyCopy(pResp, pBody, iBodyLen, "application/octet-stream") ||
+			!xrtHttpdResponseSetHeader(pResp, "Content-Encoding", sEncoding) ) { return false; }
+		if ( sAcceptEncoding ) {
+			(void)xrtHttpdResponseSetHeader(pResp, "X-Seen-Accept-Encoding", sAcceptEncoding);
+		}
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/cookie-set") == 0 ) {
+		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
+		(void)xrtHttpdResponseAddHeader(pResp, "Set-Cookie", "sid=jar; Path=/; HttpOnly");
+		(void)xrtHttpdResponseAddHeader(pResp, "Set-Cookie", "scoped=app; Path=/cookie");
+		(void)xrtHttpdResponseAddHeader(pResp, "Set-Cookie", "invalid-cookie-without-equals");
+		(void)xrtHttpdResponseSetBodyCopy(pResp, "set", 3u, "text/plain");
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/cookie/check") == 0 ) {
+		const char* sCookie = xrtHttpdRequestHeader(pReq, "Cookie");
+		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
+		(void)xrtHttpdResponseSetBodyCopy(pResp, sCookie ? sCookie : "",
+			sCookie ? strlen(sCookie) : 0u, "text/plain");
 		return true;
 	}
 	if ( strcmp(pReq->sPath, "/append-body") == 0 ) {
@@ -313,6 +689,29 @@ static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn
 		(void)xrtHttpdResponseSetHeader(pResp, "Transfer-Encoding", "chunked");
 		return true;
 	}
+	if ( strcmp(pReq->sPath, "/response-trailer") == 0 ) {
+		xrtHttpdResponseSetStatus(pResp, 200u, NULL);
+		return xrtHttpdResponseSetBodyCopy(pResp, "trailer-body", 12u, "text/plain") &&
+			xrtHttpdResponseSetTrailer(pResp, "X-Checksum", "buffered-ok") &&
+			xrtHttpdResponseAddTrailer(pResp, "X-Meta", "one") &&
+			xrtHttpdResponseAddTrailer(pResp, "X-Meta", "two");
+	}
+	if ( strcmp(pReq->sPath, "/stream-trailer") == 0 ) {
+		xhttpdresponse tStreamResp;
+		xnet_result iStart;
+		xrtHttpdResponseInit(&tStreamResp);
+		xrtHttpdResponseSetStatus(&tStreamResp, 200u, NULL);
+		(void)xrtHttpdResponseSetHeader(&tStreamResp, "Content-Type", "text/plain");
+		(void)xrtHttpdResponseSetTrailer(&tStreamResp, "X-Stream-End", "owned-ok");
+		iStart = xrtHttpdConnStart(pConn, &tStreamResp);
+		xrtHttpdResponseUnit(&tStreamResp);
+		if ( iStart == XRT_NET_OK ) {
+			(void)xrtHttpdConnSend(pConn, "stream-", 7u);
+			(void)xrtHttpdConnSend(pConn, "trailer", 7u);
+			(void)xrtHttpdConnEnd(pConn);
+		}
+		return true;
+	}
 	if ( strcmp(pReq->sPath, "/stream-fixed") == 0 ) {
 		xhttpdresponse tStreamResp;
 		xrtHttpdResponseInit(&tStreamResp);
@@ -325,6 +724,19 @@ static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn
 			(void)xrtHttpdConnEnd(pConn);
 		}
 		xrtHttpdResponseUnit(&tStreamResp);
+		return true;
+	}
+	if ( strcmp(pReq->sPath, "/upgrade-generic") == 0 ) {
+		xnetstream* pUpgradeStream = NULL;
+		xrtHttpdResponseSetStatus(pResp, 101u, "Switching Protocols");
+		if ( !xrtHttpdResponseSetHeader(pResp, "Connection", "Upgrade") ||
+			!xrtHttpdResponseSetHeader(pResp, "Upgrade", "xrt-test") ||
+			xrtHttpdConnUpgrade(pConn, pResp, &__g_Test_XHttpdUpgradeEvents,
+				pCtx, &pUpgradeStream) != XRT_NET_OK ) {
+			return false;
+		}
+		pCtx->pUpgradeStream = pUpgradeStream;
+		__Test_XHttpdAtomicInc(&pCtx->iUpgradeCount);
 		return true;
 	}
 	return false;
@@ -426,10 +838,20 @@ static int32 __Test_XHttpdAsyncFutureProc(ptr pArg, xfuture_result* pOut)
 	__test_xhttpd_async_future_task* pTask = (__test_xhttpd_async_future_task*)pArg;
 	xhttpdresponse* pResp = NULL;
 	if ( !pTask || !pOut ) {
-		if ( pTask ) XNET_FREE(pTask);
+		if ( pTask ) {
+			if ( pTask->pRequestContext ) { xrtHttpContextRelease(pTask->pRequestContext); }
+			XNET_FREE(pTask);
+		}
 		return XRT_NET_ERROR;
 	}
 	__Test_XHttpdSleepMs(pTask->iDelayMs ? pTask->iDelayMs : 25u);
+	if ( pTask->pRequestContext ) {
+		if ( xrtHttpContextIsDone(pTask->pRequestContext) ) {
+			__Test_XHttpdAtomicInc(&pTask->pCtx->iRequestContextCancelled);
+		}
+		xrtHttpContextRelease(pTask->pRequestContext);
+		pTask->pRequestContext = NULL;
+	}
 	if ( pTask->bFail ) {
 		pOut->sError = (str)"async future failed";
 		XNET_FREE(pTask);
@@ -457,6 +879,7 @@ static xfuture* __Test_XHttpdOnRequestAsyncFuture(ptr pOwner, xhttpdserver* pSer
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
 	__test_xhttpd_async_future_task* pTask;
+	xnetfuture* pFuture;
 	(void)pServer;
 	(void)pConn;
 	if ( !pCtx || !pReq ) return NULL;
@@ -468,6 +891,11 @@ static xfuture* __Test_XHttpdOnRequestAsyncFuture(ptr pOwner, xhttpdserver* pSer
 	if ( !pTask ) return NULL;
 	memset(pTask, 0, sizeof(*pTask));
 	pTask->pCtx = pCtx;
+	if ( xrtHttpdRequestContext(pReq) ) {
+		pTask->pRequestContext = xrtHttpContextRetain(xrtHttpdRequestContext(pReq));
+		if ( !pTask->pRequestContext ) { XNET_FREE(pTask); return NULL; }
+		__Test_XHttpdAtomicInc(&pCtx->iRequestContextSeen);
+	}
 	if ( strcmp(pReq->sPath, "/async/fail") == 0 ) {
 		pTask->bFail = true;
 	} else {
@@ -476,7 +904,12 @@ static xfuture* __Test_XHttpdOnRequestAsyncFuture(ptr pOwner, xhttpdserver* pSer
 		pTask->iDelayMs = strcmp(pReq->sPath, "/async/slow") == 0 ? 200u : 25u;
 		__xhttpCopyToken(pTask->aHeaderValue, sizeof(pTask->aHeaderValue), "thread");
 	}
-	return xTaskRunThread(__Test_XHttpdAsyncFutureProc, pTask, 0);
+	pFuture = xTaskRunThread(__Test_XHttpdAsyncFutureProc, pTask, 0);
+	if ( !pFuture ) {
+		if ( pTask->pRequestContext ) { xrtHttpContextRelease(pTask->pRequestContext); }
+		XNET_FREE(pTask);
+	}
+	return pFuture;
 }
 
 
@@ -642,6 +1075,7 @@ int Test_XNet_Httpd(void)
 		xnetengine* pServerEngine = NULL;
 		xnetengine* pClientEngine = NULL;
 		xhttpdserver* pServer = NULL;
+		xhttpdserver* pInvalidServer = NULL;
 		xhttprequest tReq;
 		xhttpresponse* pResp = NULL;
 		xnetfuture* pFuture = NULL;
@@ -649,7 +1083,7 @@ int Test_XNet_Httpd(void)
 		char sURL[256];
 
 		memset(&tCtx, 0, sizeof(tCtx));
-		memset(&tEvents, 0, sizeof(tEvents));
+		xrtHttpdEventsInit(&tEvents);
 		tEvents.OnOpen = __Test_XHttpdOnOpen;
 		tEvents.OnRequest = __Test_XHttpdOnRequest;
 		tEvents.OnClose = __Test_XHttpdOnClose;
@@ -665,8 +1099,22 @@ int Test_XNet_Httpd(void)
 		if ( pClientEngine ) printf("  HTTPD plain client engine start : %s\n", xrtNetEngineStart(pClientEngine) == XRT_NET_OK ? "PASS" : "FAIL");
 
 		xrtHttpdConfigInit(&tSrvCfg);
+		printf("  HTTPD versioned config contract : %s\n",
+			tSrvCfg.iSize == XHTTPD_CONFIG_V1_SIZE &&
+			tSrvCfg.iVersion == XHTTPD_CONFIG_VERSION ? "PASS" : "FAIL");
+		printf("  HTTPD versioned events contract : %s\n",
+			tEvents.iSize == XHTTPD_EVENTS_V1_SIZE &&
+			tEvents.iVersion == XHTTPD_EVENTS_VERSION ? "PASS" : "FAIL");
 		tSrvCfg.iBodyLimit = 8u;
 		(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
+		if ( pServerEngine ) {
+			xhttpdconfig tInvalidCfg = tSrvCfg;
+			tInvalidCfg.iSize = XHTTPD_CONFIG_V1_SIZE - 1u;
+			pInvalidServer = xrtHttpdCreate(pServerEngine, &tInvalidCfg, &tEvents, &tCtx);
+		}
+		printf("  HTTPD rejects truncated config : %s\n",
+			pInvalidServer == NULL ? "PASS" : "FAIL");
+		if ( pInvalidServer ) { xrtHttpdDestroy(pInvalidServer); }
 		pServer = (pServerEngine && pClientEngine) ? xrtHttpdCreate(pServerEngine, &tSrvCfg, &tEvents, &tCtx) : NULL;
 		printf("  HTTPD plain server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
 		printf("  HTTPD plain server start : %s\n", pServer && xrtHttpdStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
@@ -712,6 +1160,492 @@ int Test_XNet_Httpd(void)
 		printf("  HTTPD plain saw host : %s\n", strstr(tCtx.aLastHost, "127.0.0.1") != NULL ? "PASS" : "FAIL");
 		printf("  HTTPD plain saw body : %s\n", strcmp(tCtx.aLastBody, "hello") == 0 ? "PASS" : "FAIL");
 		printf("  HTTPD plain open callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iOpenCount, 1, 1000u) ? "PASS" : "FAIL");
+
+		{
+			xhttpclientconfig tAutoConfig;
+			xhttpclientconfig tRawConfig;
+			xhttpclientconfig tDecodeLimitConfig;
+			xhttpclient* pAutoClient = NULL;
+			xhttpclient* pRawClient = NULL;
+			xhttpclient* pDecodeLimitClient = NULL;
+			xhttprequest tCompressedReq;
+			xhttpresponse* pCompressedResp = NULL;
+			xhttpdiagnostics tCompressedDiagnostics;
+			xnetfuture* pCompressedFuture = NULL;
+			xnet_result iCompressedStatus = XRT_NET_ERROR;
+
+			xrtHttpClientConfigInit(&tAutoConfig);
+			printf("  HTTP client auto decompression default : %s\n",
+				(tAutoConfig.iFlags & XHTTP_CLIENT_F_AUTO_DECOMPRESS) != 0u ? "PASS" : "FAIL");
+			pAutoClient = pClientEngine ? xrtHttpClientCreateEx(pClientEngine, &tAutoConfig) : NULL;
+			printf("  HTTP client decompression fixture : %s\n", pAutoClient ? "PASS" : "FAIL");
+
+			xrtHttpRequestInit(&tCompressedReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compressed/gzip",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCompressedReq, sURL);
+			xrtHttpRequestSetDiagnostics(&tCompressedReq, &tCompressedDiagnostics);
+			pCompressedResp = pAutoClient
+				? xrtHttpClientExecuteSync(pAutoClient, &tCompressedReq, &iCompressedStatus) : NULL;
+			printf("  HTTP gzip response is decoded : %s\n",
+				pCompressedResp && iCompressedStatus == XRT_NET_OK &&
+				pCompressedResp->iBodyLen == 22u &&
+				memcmp(pCompressedResp->pBody, "hello compressed world", 22u) == 0 ? "PASS" : "FAIL");
+			printf("  HTTP decoded response metadata : %s\n",
+				pCompressedResp &&
+				(xrtHttpResponseFlags(pCompressedResp) & XHTTP_RESP_F_DECOMPRESSED) != 0u &&
+				xrtHttpResponseHeader(pCompressedResp, "Content-Encoding") == NULL &&
+				xrtHttpResponseHeader(pCompressedResp, "Content-Length") == NULL &&
+				xrtHttpResponseContentLength(pCompressedResp) == 22 &&
+				xrtHttpResponseOriginalContentEncoding(pCompressedResp) &&
+				strcmp(xrtHttpResponseOriginalContentEncoding(pCompressedResp), "gzip") == 0 ? "PASS" : "FAIL");
+			printf("  HTTP decoded/wire diagnostics : %s\n",
+				tCompressedDiagnostics.eError == XHTTP_ERROR_NONE &&
+				tCompressedDiagnostics.iResponseBodyBytes == 22u &&
+				tCompressedDiagnostics.iResponseWireBodyBytes == sizeof(__g_test_xhttp_gzip) ? "PASS" : "FAIL");
+			printf("  HTTP automatic Accept-Encoding : %s\n",
+				pCompressedResp && xrtHttpResponseHeader(pCompressedResp, "X-Seen-Accept-Encoding") &&
+				strstr(xrtHttpResponseHeader(pCompressedResp, "X-Seen-Accept-Encoding"), "gzip") != NULL ? "PASS" : "FAIL");
+			if ( pCompressedResp ) { xrtHttpResponseDestroy(pCompressedResp); pCompressedResp = NULL; }
+			xrtHttpRequestUnit(&tCompressedReq);
+
+			xrtHttpRequestInit(&tCompressedReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compressed/deflate",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCompressedReq, sURL);
+			pCompressedResp = pAutoClient
+				? xrtHttpClientExecuteSync(pAutoClient, &tCompressedReq, &iCompressedStatus) : NULL;
+			printf("  HTTP deflate response is decoded : %s\n",
+				pCompressedResp && pCompressedResp->iBodyLen == 22u &&
+				memcmp(pCompressedResp->pBody, "hello compressed world", 22u) == 0 &&
+				xrtHttpResponseOriginalContentEncoding(pCompressedResp) &&
+				strcmp(xrtHttpResponseOriginalContentEncoding(pCompressedResp), "deflate") == 0 ? "PASS" : "FAIL");
+			if ( pCompressedResp ) { xrtHttpResponseDestroy(pCompressedResp); pCompressedResp = NULL; }
+			xrtHttpRequestUnit(&tCompressedReq);
+
+			xrtHttpRequestInit(&tCompressedReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compressed/stacked",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCompressedReq, sURL);
+			pCompressedResp = pAutoClient
+				? xrtHttpClientExecuteSync(pAutoClient, &tCompressedReq, &iCompressedStatus) : NULL;
+			printf("  HTTP stacked content codings decode in reverse : %s\n",
+				pCompressedResp && pCompressedResp->iBodyLen == 22u &&
+				memcmp(pCompressedResp->pBody, "hello compressed world", 22u) == 0 &&
+				xrtHttpResponseOriginalContentEncoding(pCompressedResp) &&
+				strcmp(xrtHttpResponseOriginalContentEncoding(pCompressedResp), "deflate, deflate") == 0 ? "PASS" : "FAIL");
+			if ( pCompressedResp ) { xrtHttpResponseDestroy(pCompressedResp); pCompressedResp = NULL; }
+			xrtHttpRequestUnit(&tCompressedReq);
+
+			{
+				__test_xhttp_redirect_stream tStream;
+				xhttpstreamcallbacks tCallbacks;
+				memset(&tStream, 0, sizeof(tStream));
+				xrtHttpStreamCallbacksInit(&tCallbacks);
+				tCallbacks.pUserData = &tStream;
+				tCallbacks.OnHeaders = __Test_XHttpRedirectOnHeaders;
+				tCallbacks.OnBody = __Test_XHttpRedirectOnBody;
+				xrtHttpRequestInit(&tCompressedReq);
+				snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compressed/gzip",
+					(unsigned)xrtHttpdBoundPort(pServer));
+				(void)xrtHttpRequestSetURL(&tCompressedReq, sURL);
+				pCompressedFuture = pAutoClient
+					? xrtHttpClientExecuteStreamAsync(pAutoClient, &tCompressedReq, &tCallbacks) : NULL;
+				iCompressedStatus = pCompressedFuture
+					? xrtNetFutureWait(pCompressedFuture, 3000u) : XRT_NET_ERROR;
+				pCompressedResp = (pCompressedFuture && iCompressedStatus == XRT_NET_OK)
+					? (xhttpresponse*)xrtNetFutureValue(pCompressedFuture) : NULL;
+				printf("  HTTP streaming callbacks receive decoded bytes : %s\n",
+					pCompressedResp && tStream.iHeadersCount == 1u && tStream.iBodyLen == 22u &&
+					memcmp(tStream.aBody, "hello compressed world", 22u) == 0 &&
+					(tStream.iResponseFlags & XHTTP_RESP_F_DECOMPRESSED) != 0u &&
+					tStream.bContentEncodingAbsent && strcmp(tStream.aOriginalEncoding, "gzip") == 0 ? "PASS" : "FAIL");
+				if ( pCompressedResp ) { xrtHttpResponseDestroy(pCompressedResp); pCompressedResp = NULL; }
+				if ( pCompressedFuture ) { xrtNetFutureDestroy(pCompressedFuture); pCompressedFuture = NULL; }
+				xrtHttpRequestUnit(&tCompressedReq);
+			}
+
+			xrtHttpRequestInit(&tCompressedReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compressed/bad-gzip",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCompressedReq, sURL);
+			xrtHttpRequestSetDiagnostics(&tCompressedReq, &tCompressedDiagnostics);
+			pCompressedResp = pAutoClient
+				? xrtHttpClientExecuteSync(pAutoClient, &tCompressedReq, &iCompressedStatus) : NULL;
+			printf("  HTTP corrupt compressed response fails explicitly : %s\n",
+				!pCompressedResp && iCompressedStatus == XRT_NET_ERROR &&
+				tCompressedDiagnostics.eError == XHTTP_ERROR_DECOMPRESSION ? "PASS" : "FAIL");
+			xrtHttpRequestUnit(&tCompressedReq);
+
+			xrtHttpRequestInit(&tCompressedReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compressed/unknown",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCompressedReq, sURL);
+			pCompressedResp = pAutoClient
+				? xrtHttpClientExecuteSync(pAutoClient, &tCompressedReq, &iCompressedStatus) : NULL;
+			printf("  HTTP unknown content coding remains raw : %s\n",
+				pCompressedResp && pCompressedResp->iBodyLen == 6u &&
+				memcmp(pCompressedResp->pBody, "raw-br", 6u) == 0 &&
+				(xrtHttpResponseFlags(pCompressedResp) & XHTTP_RESP_F_DECOMPRESSED) == 0u &&
+				xrtHttpResponseHeader(pCompressedResp, "Content-Encoding") &&
+				strcmp(xrtHttpResponseHeader(pCompressedResp, "Content-Encoding"), "br") == 0 &&
+				xrtHttpResponseOriginalContentEncoding(pCompressedResp) == NULL ? "PASS" : "FAIL");
+			if ( pCompressedResp ) { xrtHttpResponseDestroy(pCompressedResp); pCompressedResp = NULL; }
+			xrtHttpRequestUnit(&tCompressedReq);
+
+			xrtHttpClientConfigInit(&tRawConfig);
+			tRawConfig.iFlags &= ~XHTTP_CLIENT_F_AUTO_DECOMPRESS;
+			pRawClient = pClientEngine ? xrtHttpClientCreateEx(pClientEngine, &tRawConfig) : NULL;
+			xrtHttpRequestInit(&tCompressedReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compressed/gzip",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCompressedReq, sURL);
+			pCompressedResp = pRawClient
+				? xrtHttpClientExecuteSync(pRawClient, &tCompressedReq, &iCompressedStatus) : NULL;
+			printf("  HTTP automatic decompression can be disabled : %s\n",
+				pCompressedResp && pCompressedResp->iBodyLen == sizeof(__g_test_xhttp_gzip) &&
+				memcmp(pCompressedResp->pBody, __g_test_xhttp_gzip, sizeof(__g_test_xhttp_gzip)) == 0 &&
+				(xrtHttpResponseFlags(pCompressedResp) & XHTTP_RESP_F_DECOMPRESSED) == 0u &&
+				xrtHttpResponseHeader(pCompressedResp, "Content-Encoding") != NULL ? "PASS" : "FAIL");
+			if ( pCompressedResp ) { xrtHttpResponseDestroy(pCompressedResp); pCompressedResp = NULL; }
+			xrtHttpRequestUnit(&tCompressedReq);
+
+			xrtHttpClientConfigInit(&tDecodeLimitConfig);
+			tDecodeLimitConfig.tHttp1Limits.iMaxBodyBytes = 64u;
+			pDecodeLimitClient = pClientEngine
+				? xrtHttpClientCreateEx(pClientEngine, &tDecodeLimitConfig) : NULL;
+			xrtHttpRequestInit(&tCompressedReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/compressed/limit",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCompressedReq, sURL);
+			xrtHttpRequestSetDiagnostics(&tCompressedReq, &tCompressedDiagnostics);
+			pCompressedResp = pDecodeLimitClient
+				? xrtHttpClientExecuteSync(pDecodeLimitClient, &tCompressedReq, &iCompressedStatus) : NULL;
+			printf("  HTTP decoded body limit blocks expansion : %s\n",
+				!pCompressedResp && iCompressedStatus == XRT_NET_ERROR &&
+				tCompressedDiagnostics.eError == XHTTP_ERROR_DECOMPRESSION ? "PASS" : "FAIL");
+			xrtHttpRequestUnit(&tCompressedReq);
+
+			if ( pDecodeLimitClient ) { xrtHttpClientDestroy(pDecodeLimitClient); }
+			if ( pRawClient ) { xrtHttpClientDestroy(pRawClient); }
+			if ( pAutoClient ) { xrtHttpClientDestroy(pAutoClient); }
+		}
+
+		{
+			xhttpclientconfig tRedirectConfig;
+			xhttpclientconfig tManualConfig;
+			xhttpclientconfig tLimitConfig;
+			xhttpclient* pRedirectClient = NULL;
+			xhttpclient* pManualClient = NULL;
+			xhttpclient* pLimitClient = NULL;
+			xhttpdserver* pCrossServer = NULL;
+			xhttpdconfig tCrossConfig;
+			xhttprequest tRedirectReq;
+			xhttpdiagnostics tRedirectDiagnostics;
+			xnetfuture* pRedirectFuture = NULL;
+			xhttpresponse* pRedirectResp = NULL;
+			xnet_result iRedirectStatus = XRT_NET_ERROR;
+
+			xrtHttpClientConfigInit(&tRedirectConfig);
+			printf("  HTTP client config V3 contract : %s\n",
+				tRedirectConfig.iVersion == XHTTP_CLIENT_CONFIG_VERSION &&
+				tRedirectConfig.iSize == XHTTP_CLIENT_CONFIG_V3_SIZE &&
+				(tRedirectConfig.iFlags & XHTTP_CLIENT_F_FOLLOW_REDIRECTS) != 0u &&
+				tRedirectConfig.iMaxRedirects == XHTTP_CLIENT_DEFAULT_MAX_REDIRECTS ? "PASS" : "FAIL");
+			pRedirectClient = pClientEngine ? xrtHttpClientCreateEx(pClientEngine, &tRedirectConfig) : NULL;
+			xrtHttpdConfigInit(&tCrossConfig);
+			tCrossConfig.iBodyLimit = 8u;
+			(void)xrtNetAddrParse(&tCrossConfig.tBindAddr, "127.0.0.1", 0u);
+			pCrossServer = pServerEngine
+				? xrtHttpdCreate(pServerEngine, &tCrossConfig, &tEvents, &tCtx) : NULL;
+			if ( pCrossServer && xrtHttpdStart(pCrossServer) == XRT_NET_OK ) {
+				tCtx.iRedirectTargetPort = xrtHttpdBoundPort(pCrossServer);
+			}
+			printf("  HTTP cross-origin redirect fixture : %s\n",
+				tCtx.iRedirectTargetPort != 0u ? "PASS" : "FAIL");
+
+			xrtHttpRequestInit(&tRedirectReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/relative",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+			xrtHttpRequestSetDiagnostics(&tRedirectReq, &tRedirectDiagnostics);
+			pRedirectFuture = pRedirectClient ? xrtHttpClientExecuteAsync(pRedirectClient, &tRedirectReq) : NULL;
+			iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+			pRedirectResp = (pRedirectFuture && iRedirectStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pRedirectFuture) : NULL;
+			printf("  HTTP client follows relative redirect : %s\n",
+				pRedirectResp && pRedirectResp->iStatusCode == 200u && pRedirectResp->iBodyLen == 4u &&
+				memcmp(pRedirectResp->pBody, "GET:", 4u) == 0 ? "PASS" : "FAIL");
+			printf("  HTTP response exposes effective URL : %s\n",
+				pRedirectResp && xrtHttpResponseURL(pRedirectResp) &&
+				strstr(xrtHttpResponseURL(pRedirectResp), "/redirect/final?from=relative#ignored") != NULL ? "PASS" : "FAIL");
+			printf("  HTTP redirect diagnostics count : %s\n",
+				tRedirectDiagnostics.eError == XHTTP_ERROR_NONE && tRedirectDiagnostics.iRedirectCount == 1u ? "PASS" : "FAIL");
+			if ( pRedirectResp ) { xrtHttpResponseDestroy(pRedirectResp); pRedirectResp = NULL; }
+			if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+			xrtHttpRequestUnit(&tRedirectReq);
+
+			xrtHttpRequestInit(&tRedirectReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/cross",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+			(void)xrtHttpRequestSetHeader(&tRedirectReq, "Authorization", "Bearer secret");
+			(void)xrtHttpRequestSetHeader(&tRedirectReq, "Cookie", "manual=secret");
+			pRedirectFuture = (pRedirectClient && tCtx.iRedirectTargetPort != 0u)
+				? xrtHttpClientExecuteAsync(pRedirectClient, &tRedirectReq) : NULL;
+			iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+			pRedirectResp = (pRedirectFuture && iRedirectStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pRedirectFuture) : NULL;
+			printf("  HTTP cross-origin redirect strips credentials : %s\n",
+				pRedirectResp && pRedirectResp->iStatusCode == 200u &&
+				xrtHttpResponseHeader(pRedirectResp, "X-Seen-Cookie") == NULL &&
+				xrtHttpResponseHeader(pRedirectResp, "X-Seen-Authorization") == NULL ? "PASS" : "FAIL");
+			if ( pRedirectResp ) { xrtHttpResponseDestroy(pRedirectResp); pRedirectResp = NULL; }
+			if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+			xrtHttpRequestUnit(&tRedirectReq);
+
+			xrtHttpRequestInit(&tRedirectReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/post303",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+			(void)xrtHttpRequestSetMethod(&tRedirectReq, "POST");
+			(void)xrtHttpRequestSetBodyCopy(&tRedirectReq, "abc", 3u, "text/plain");
+			pRedirectFuture = pRedirectClient ? xrtHttpClientExecuteAsync(pRedirectClient, &tRedirectReq) : NULL;
+			iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+			pRedirectResp = (pRedirectFuture && iRedirectStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pRedirectFuture) : NULL;
+			printf("  HTTP 303 rewrites POST to GET : %s\n",
+				pRedirectResp && pRedirectResp->iBodyLen == 4u && memcmp(pRedirectResp->pBody, "GET:", 4u) == 0 ? "PASS" : "FAIL");
+			if ( pRedirectResp ) { xrtHttpResponseDestroy(pRedirectResp); pRedirectResp = NULL; }
+			if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+			xrtHttpRequestUnit(&tRedirectReq);
+
+			xrtHttpRequestInit(&tRedirectReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/post307",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+			(void)xrtHttpRequestSetMethod(&tRedirectReq, "POST");
+			(void)xrtHttpRequestSetBodyCopy(&tRedirectReq, "abc", 3u, "text/plain");
+			pRedirectFuture = pRedirectClient ? xrtHttpClientExecuteAsync(pRedirectClient, &tRedirectReq) : NULL;
+			iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+			pRedirectResp = (pRedirectFuture && iRedirectStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pRedirectFuture) : NULL;
+			printf("  HTTP 307 replays method and body : %s\n",
+				pRedirectResp && pRedirectResp->iBodyLen == 8u && memcmp(pRedirectResp->pBody, "POST:abc", 8u) == 0 ? "PASS" : "FAIL");
+			if ( pRedirectResp ) { xrtHttpResponseDestroy(pRedirectResp); pRedirectResp = NULL; }
+			if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+			xrtHttpRequestUnit(&tRedirectReq);
+
+			{
+				static const uint8 aReplayData[] = "abc";
+				__test_xhttp_upload_factory tReplayFactory;
+				xhttpbody* pReplayBody;
+				memset(&tReplayFactory, 0, sizeof(tReplayFactory));
+				tReplayFactory.pEngine = pClientEngine;
+				tReplayFactory.pData = aReplayData;
+				tReplayFactory.iLen = sizeof(aReplayData) - 1u;
+				pReplayBody = xrtHttpBodyCreateFactory(__Test_XHttpUploadOpen,
+					&tReplayFactory, NULL, XHTTP_BODY_LENGTH_UNKNOWN, XHTTP_BODY_F_REPLAYABLE);
+				xrtHttpRequestInit(&tRedirectReq);
+				snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/post307",
+					(unsigned)xrtHttpdBoundPort(pServer));
+				(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+				(void)xrtHttpRequestSetMethod(&tRedirectReq, "POST");
+				(void)xrtHttpRequestSetBody(&tRedirectReq, pReplayBody, "text/plain");
+				if ( pReplayBody ) { xrtHttpBodyRelease(pReplayBody); }
+				pRedirectFuture = pRedirectClient ? xrtHttpClientExecuteAsync(pRedirectClient, &tRedirectReq) : NULL;
+				iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+				pRedirectResp = (pRedirectFuture && iRedirectStatus == XRT_NET_OK)
+					? (xhttpresponse*)xrtNetFutureValue(pRedirectFuture) : NULL;
+				printf("  HTTP 307 reopens replayable streaming body : %s\n",
+					pRedirectResp && pRedirectResp->iBodyLen == 8u &&
+					memcmp(pRedirectResp->pBody, "POST:abc", 8u) == 0 &&
+					__Test_XHttpdAtomicLoad(&tReplayFactory.iOpenCount) == 2 &&
+					__Test_XHttpdAtomicLoad(&tReplayFactory.iCloseCount) == 2 ? "PASS" : "FAIL");
+				if ( pRedirectResp ) { xrtHttpResponseDestroy(pRedirectResp); pRedirectResp = NULL; }
+				if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+				xrtHttpRequestUnit(&tRedirectReq);
+			}
+
+			{
+				static const uint8 aNonReplayData[] = "abc";
+				__test_xhttp_upload_factory tNonReplayFactory;
+				xhttpbody* pNonReplayBody;
+				memset(&tNonReplayFactory, 0, sizeof(tNonReplayFactory));
+				tNonReplayFactory.pEngine = pClientEngine;
+				tNonReplayFactory.pData = aNonReplayData;
+				tNonReplayFactory.iLen = sizeof(aNonReplayData) - 1u;
+				pNonReplayBody = xrtHttpBodyCreateFactory(__Test_XHttpUploadOpen,
+					&tNonReplayFactory, NULL, XHTTP_BODY_LENGTH_UNKNOWN, XHTTP_BODY_F_NONE);
+				xrtHttpRequestInit(&tRedirectReq);
+				snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/post307",
+					(unsigned)xrtHttpdBoundPort(pServer));
+				(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+				(void)xrtHttpRequestSetMethod(&tRedirectReq, "POST");
+				(void)xrtHttpRequestSetBody(&tRedirectReq, pNonReplayBody, "text/plain");
+				xrtHttpRequestSetDiagnostics(&tRedirectReq, &tRedirectDiagnostics);
+				if ( pNonReplayBody ) { xrtHttpBodyRelease(pNonReplayBody); }
+				pRedirectFuture = pRedirectClient ? xrtHttpClientExecuteAsync(pRedirectClient, &tRedirectReq) : NULL;
+				iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+				printf("  HTTP 307 rejects non-replayable body : %s\n",
+					iRedirectStatus == XRT_NET_ERROR &&
+					tRedirectDiagnostics.eError == XHTTP_ERROR_REDIRECT_BODY_NOT_REPLAYABLE ? "PASS" : "FAIL");
+				if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+				xrtHttpRequestUnit(&tRedirectReq);
+			}
+
+			xrtHttpClientConfigInit(&tManualConfig);
+			tManualConfig.iFlags = XHTTP_CLIENT_F_NONE;
+			tManualConfig.iMaxRedirects = 0u;
+			pManualClient = pClientEngine ? xrtHttpClientCreateEx(pClientEngine, &tManualConfig) : NULL;
+			xrtHttpRequestInit(&tRedirectReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/relative",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+			pRedirectFuture = pManualClient ? xrtHttpClientExecuteAsync(pManualClient, &tRedirectReq) : NULL;
+			iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+			pRedirectResp = (pRedirectFuture && iRedirectStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pRedirectFuture) : NULL;
+			printf("  HTTP client can disable redirects : %s\n",
+				pRedirectResp && pRedirectResp->iStatusCode == 302u &&
+				xrtHttpResponseHeader(pRedirectResp, "Location") != NULL ? "PASS" : "FAIL");
+			if ( pRedirectResp ) { xrtHttpResponseDestroy(pRedirectResp); pRedirectResp = NULL; }
+			if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+			xrtHttpRequestUnit(&tRedirectReq);
+
+			xrtHttpClientConfigInit(&tLimitConfig);
+			tLimitConfig.iMaxRedirects = 2u;
+			pLimitClient = pClientEngine ? xrtHttpClientCreateEx(pClientEngine, &tLimitConfig) : NULL;
+			xrtHttpRequestInit(&tRedirectReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/loop",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+			xrtHttpRequestSetDiagnostics(&tRedirectReq, &tRedirectDiagnostics);
+			pRedirectFuture = pLimitClient ? xrtHttpClientExecuteAsync(pLimitClient, &tRedirectReq) : NULL;
+			iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+			printf("  HTTP redirect limit is enforced : %s\n",
+				iRedirectStatus == XRT_NET_ERROR &&
+				tRedirectDiagnostics.eError == XHTTP_ERROR_TOO_MANY_REDIRECTS &&
+				tRedirectDiagnostics.iRedirectCount == 2u ? "PASS" : "FAIL");
+			if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+			xrtHttpRequestUnit(&tRedirectReq);
+
+			xrtHttpRequestInit(&tRedirectReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/duplicate",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+			xrtHttpRequestSetDiagnostics(&tRedirectReq, &tRedirectDiagnostics);
+			pRedirectFuture = pRedirectClient ? xrtHttpClientExecuteAsync(pRedirectClient, &tRedirectReq) : NULL;
+			iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+			printf("  HTTP duplicate Location is rejected : %s\n",
+				iRedirectStatus == XRT_NET_ERROR &&
+				tRedirectDiagnostics.eError == XHTTP_ERROR_INVALID_REDIRECT ? "PASS" : "FAIL");
+			if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+			xrtHttpRequestUnit(&tRedirectReq);
+
+			{
+				__test_xhttp_redirect_stream tStream;
+				xhttpstreamcallbacks tCallbacks;
+				memset(&tStream, 0, sizeof(tStream));
+				xrtHttpStreamCallbacksInit(&tCallbacks);
+				tCallbacks.pUserData = &tStream;
+				tCallbacks.OnHeaders = __Test_XHttpRedirectOnHeaders;
+				tCallbacks.OnBody = __Test_XHttpRedirectOnBody;
+				xrtHttpRequestInit(&tRedirectReq);
+				snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/relative",
+					(unsigned)xrtHttpdBoundPort(pServer));
+				(void)xrtHttpRequestSetURL(&tRedirectReq, sURL);
+				pRedirectFuture = pRedirectClient
+					? xrtHttpClientExecuteStreamAsync(pRedirectClient, &tRedirectReq, &tCallbacks) : NULL;
+				iRedirectStatus = pRedirectFuture ? xrtNetFutureWait(pRedirectFuture, 3000u) : XRT_NET_ERROR;
+				pRedirectResp = (pRedirectFuture && iRedirectStatus == XRT_NET_OK)
+					? (xhttpresponse*)xrtNetFutureValue(pRedirectFuture) : NULL;
+				printf("  HTTP streaming redirect exposes only final response : %s\n",
+					pRedirectResp && pRedirectResp->iStatusCode == 200u &&
+					tStream.iHeadersCount == 1u && tStream.iStatusCode == 200u &&
+					tStream.iBodyLen == 4u && memcmp(tStream.aBody, "GET:", 4u) == 0 ? "PASS" : "FAIL");
+				if ( pRedirectResp ) { xrtHttpResponseDestroy(pRedirectResp); pRedirectResp = NULL; }
+				if ( pRedirectFuture ) { xrtNetFutureDestroy(pRedirectFuture); pRedirectFuture = NULL; }
+				xrtHttpRequestUnit(&tRedirectReq);
+			}
+
+			if ( pLimitClient ) { xrtHttpClientDestroy(pLimitClient); }
+			if ( pManualClient ) { xrtHttpClientDestroy(pManualClient); }
+			if ( pRedirectClient ) { xrtHttpClientDestroy(pRedirectClient); }
+			tCtx.iRedirectTargetPort = 0u;
+			if ( pCrossServer ) { xrtHttpdDestroy(pCrossServer); }
+		}
+
+		{
+			xhttpclientconfig tPoolConfig;
+			xhttpclientstats tPoolStats;
+			xhttpclient* pPoolClient = NULL;
+			xhttpdserver* pPoolServer = NULL;
+			xhttpdconfig tPoolServerConfig;
+			xhttprequest tPoolReq;
+			xhttpresponse* pPoolResp = NULL;
+			xnet_result iPoolStatus = XRT_NET_ERROR;
+			uint16 iPorts[3];
+			bool bRequestsOk = true;
+			bool bExpired = false;
+
+			xrtHttpClientConfigInit(&tPoolConfig);
+			printf("  HTTP client pool defaults : %s\n",
+				tPoolConfig.iMaxIdleConnections == XHTTP_CLIENT_DEFAULT_MAX_IDLE_CONNECTIONS &&
+				tPoolConfig.iMaxIdleConnectionsPerOrigin == XHTTP_CLIENT_DEFAULT_MAX_IDLE_CONNECTIONS_PER_ORIGIN &&
+				tPoolConfig.iIdleConnectionTimeoutMs == XHTTP_CLIENT_DEFAULT_IDLE_CONNECTION_TIMEOUT_MS ? "PASS" : "FAIL");
+			tPoolConfig.iMaxIdleConnections = 1u;
+			tPoolConfig.iMaxIdleConnectionsPerOrigin = 1u;
+			tPoolConfig.iIdleConnectionTimeoutMs = 80u;
+			pPoolClient = pClientEngine ? xrtHttpClientCreateEx(pClientEngine, &tPoolConfig) : NULL;
+			xrtHttpdConfigInit(&tPoolServerConfig);
+			tPoolServerConfig.iBodyLimit = 8u;
+			(void)xrtNetAddrParse(&tPoolServerConfig.tBindAddr, "127.0.0.1", 0u);
+			pPoolServer = pServerEngine
+				? xrtHttpdCreate(pServerEngine, &tPoolServerConfig, &tEvents, &tCtx) : NULL;
+			if ( pPoolServer && xrtHttpdStart(pPoolServer) != XRT_NET_OK ) {
+				xrtHttpdDestroy(pPoolServer);
+				pPoolServer = NULL;
+			}
+			printf("  HTTP client bounded pool fixture : %s\n",
+				pPoolClient && pPoolServer ? "PASS" : "FAIL");
+
+			iPorts[0] = pServer ? xrtHttpdBoundPort(pServer) : 0u;
+			iPorts[1] = pPoolServer ? xrtHttpdBoundPort(pPoolServer) : 0u;
+			iPorts[2] = iPorts[1];
+			for ( uint32 i = 0u; i < 3u; ++i ) {
+				xrtHttpRequestInit(&tPoolReq);
+				snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/secure", (unsigned)iPorts[i]);
+				(void)xrtHttpRequestSetURL(&tPoolReq, sURL);
+				pPoolResp = pPoolClient
+					? xrtHttpClientExecuteSync(pPoolClient, &tPoolReq, &iPoolStatus) : NULL;
+				if ( !pPoolResp || iPoolStatus != XRT_NET_OK || pPoolResp->iStatusCode != 200u ) {
+					bRequestsOk = false;
+				}
+				if ( pPoolResp ) { xrtHttpResponseDestroy(pPoolResp); pPoolResp = NULL; }
+				xrtHttpRequestUnit(&tPoolReq);
+			}
+			printf("  HTTP client bounded pool requests : %s\n", bRequestsOk ? "PASS" : "FAIL");
+			xrtHttpClientStatsInit(&tPoolStats);
+			printf("  HTTP client stats snapshot : %s\n",
+				pPoolClient && xrtHttpClientGetStats(pPoolClient, &tPoolStats) &&
+				tPoolStats.iRequestsStarted == 3u && tPoolStats.iRequestsCompleted == 3u &&
+				tPoolStats.iConnectionsOpened == 2u && tPoolStats.iConnectionsReused == 1u &&
+				tPoolStats.iActiveConnections == 0u && tPoolStats.iIdleConnections == 1u &&
+				tPoolStats.iRequestBytes > 0u && tPoolStats.iResponseBodyBytes == 18u ? "PASS" : "FAIL");
+			for ( uint32 i = 0u; i < 100u; ++i ) {
+				xrtHttpClientStatsInit(&tPoolStats);
+				if ( pPoolClient && xrtHttpClientGetStats(pPoolClient, &tPoolStats) &&
+					tPoolStats.iIdleConnections == 0u && tPoolStats.iConnectionsClosed >= 2u ) {
+					bExpired = true;
+					break;
+				}
+				__xnetEngineSleepMs(10u);
+			}
+			printf("  HTTP client idle pool timeout : %s\n", bExpired ? "PASS" : "FAIL");
+			if ( pPoolClient ) { xrtHttpClientDestroy(pPoolClient); }
+			if ( pPoolServer ) { xrtHttpdDestroy(pPoolServer); }
+		}
 
 		{
 			xhttprequest* pHeapReq = xrtHttpRequestCreate();
@@ -788,6 +1722,8 @@ int Test_XNet_Httpd(void)
 			char* pHeaderBytes = NULL;
 			size_t iHeaderBytesLen = 0u;
 			bool bManyHeadersOk = true;
+			char sLongName[321];
+			char sLongValue[1025];
 			xrtHttpdResponseInit(&tGuardResp);
 			printf("  HTTPD response rejects CRLF header value : %s\n",
 				!xrtHttpdResponseSetHeader(&tGuardResp, "X-Test", "ok\r\nX-Bad: yes") ? "PASS" : "FAIL");
@@ -813,11 +1749,109 @@ int Test_XNet_Httpd(void)
 			printf("  HTTPD response dynamic header lookup : %s\n",
 				xrtHttpdResponseHeader(&tGuardResp, "X-Dyn-47") &&
 				strcmp(xrtHttpdResponseHeader(&tGuardResp, "X-Dyn-47"), "v47") == 0 ? "PASS" : "FAIL");
+			memset(sLongName, 'S', sizeof(sLongName) - 1u);
+			memcpy(sLongName, "X-Server-Long-", 14u);
+			sLongName[sizeof(sLongName) - 1u] = '\0';
+			memset(sLongValue, 'Z', sizeof(sLongValue) - 1u);
+			sLongValue[sizeof(sLongValue) - 1u] = '\0';
+			printf("  HTTPD response stores long header : %s\n",
+				xrtHttpdResponseSetHeader(&tGuardResp, sLongName, sLongValue) &&
+				xrtHttpdResponseHeader(&tGuardResp, sLongName) &&
+				strcmp(xrtHttpdResponseHeader(&tGuardResp, sLongName), sLongValue) == 0 ? "PASS" : "FAIL");
 			printf("  HTTPD response dynamic header serialize : %s\n",
 				__xhttpdBuildResponseBytes(&tGuardResp, &pHeaderBytes, &iHeaderBytesLen) &&
 				pHeaderBytes && strstr(pHeaderBytes, "X-Dyn-47: v47\r\n") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD response serializes long header : %s\n",
+				pHeaderBytes && strstr(pHeaderBytes, sLongName) != NULL &&
+				strstr(pHeaderBytes, sLongValue) != NULL ? "PASS" : "FAIL");
 			if ( pHeaderBytes ) { XNET_FREE(pHeaderBytes); }
 			xrtHttpdResponseUnit(&tGuardResp);
+			{
+				char sHeaderBlock[2048];
+				snprintf(sHeaderBlock, sizeof(sHeaderBlock), "%s: %s\r\n", sLongName, sLongValue);
+				xrtHttpdResponseInit(&tGuardResp);
+				printf("  HTTPD response header block keeps long field : %s\n",
+					xrtHttpdResponseReply(&tGuardResp, 200u, NULL, sHeaderBlock, NULL, 0u) &&
+					xrtHttpdResponseHeader(&tGuardResp, sLongName) &&
+					strcmp(xrtHttpdResponseHeader(&tGuardResp, sLongName), sLongValue) == 0 ? "PASS" : "FAIL");
+				xrtHttpdResponseUnit(&tGuardResp);
+			}
+		}
+
+		{
+			xhttpdresponse tResp;
+			char sReason[1025];
+			char* pBytes = NULL;
+			size_t iBytes = 0u;
+			memset(sReason, 'R', sizeof(sReason) - 1u);
+			sReason[sizeof(sReason) - 1u] = '\0';
+			xrtHttpdResponseInit(&tResp);
+			printf("  HTTPD response stores long reason phrase : %s\n",
+				xrtHttpdResponseSetStatusEx(&tResp, 299u, sReason) && strcmp(tResp.sReason, sReason) == 0 ? "PASS" : "FAIL");
+			printf("  HTTPD response serializes long reason phrase : %s\n",
+				__xhttpdBuildResponseBytes(&tResp, &pBytes, &iBytes) && pBytes && strstr(pBytes, sReason) != NULL ? "PASS" : "FAIL");
+			if ( pBytes ) { XNET_FREE(pBytes); pBytes = NULL; }
+			xrtHttpdResponseUnit(&tResp);
+
+			xrtHttpdResponseInit(&tResp);
+			(void)xrtHttpdResponseSetStatusEx(&tResp, 204u, NULL);
+			(void)xrtHttpdResponseSetHeader(&tResp, "Content-Length", "4");
+			(void)xrtHttpdResponseSetHeader(&tResp, "Transfer-Encoding", "chunked");
+			(void)xrtHttpdResponseSetBodyCopy(&tResp, "body", 4u, NULL);
+			printf("  HTTPD 204 strips framing and body : %s\n",
+				__xhttpdBuildResponseBytes(&tResp, &pBytes, &iBytes) && pBytes &&
+				strstr(pBytes, "Content-Length:") == NULL && strstr(pBytes, "Transfer-Encoding:") == NULL &&
+				strstr(pBytes, "\r\n\r\nbody") == NULL ? "PASS" : "FAIL");
+			if ( pBytes ) { XNET_FREE(pBytes); pBytes = NULL; }
+			xrtHttpdResponseUnit(&tResp);
+
+			xrtHttpdResponseInit(&tResp);
+			(void)xrtHttpdResponseSetStatusEx(&tResp, 304u, NULL);
+			(void)xrtHttpdResponseSetHeader(&tResp, "Content-Length", "4");
+			(void)xrtHttpdResponseSetBodyCopy(&tResp, "body", 4u, NULL);
+			printf("  HTTPD 304 preserves representation length without body : %s\n",
+				__xhttpdBuildResponseBytes(&tResp, &pBytes, &iBytes) && pBytes &&
+				strstr(pBytes, "Content-Length: 4\r\n") != NULL && strstr(pBytes, "\r\n\r\nbody") == NULL ? "PASS" : "FAIL");
+			if ( pBytes ) { XNET_FREE(pBytes); pBytes = NULL; }
+			xrtHttpdResponseUnit(&tResp);
+
+			xrtHttpdResponseInit(&tResp);
+			(void)xrtHttpdResponseSetBodyCopy(&tResp, "body", 4u, NULL);
+			printf("  HTTPD HEAD serializer preserves Content-Length without body : %s\n",
+				__xhttpdBuildResponseHeadBytes(&tResp, &pBytes, &iBytes) && pBytes &&
+				strstr(pBytes, "Content-Length: 4\r\n") != NULL && strstr(pBytes, "\r\n\r\nbody") == NULL ? "PASS" : "FAIL");
+			if ( pBytes ) { XNET_FREE(pBytes); }
+			xrtHttpdResponseUnit(&tResp);
+		}
+
+		{
+			xhttpdresponse tResp;
+			char* pBytes = NULL;
+			size_t iBytes = 0u;
+			xrtHttpdResponseInit(&tResp);
+			printf("  HTTPD response trailer validation : %s\n",
+				xrtHttpdResponseSetTrailer(&tResp, "X-Checksum", "ok") &&
+				xrtHttpdResponseAddTrailer(&tResp, "X-Meta", "one") &&
+				!xrtHttpdResponseSetTrailer(&tResp, "Content-Length", "1") &&
+				!xrtHttpdResponseSetTrailer(&tResp, "Connection", "close") ? "PASS" : "FAIL");
+			printf("  HTTPD response trailer accessors : %s\n",
+				xrtHttpdResponseTrailerCount(&tResp) == 2u &&
+				xrtHttpdResponseTrailer(&tResp, "x-checksum") &&
+				strcmp(xrtHttpdResponseTrailer(&tResp, "x-checksum"), "ok") == 0 &&
+				strcmp(xrtHttpdResponseTrailerNameAt(&tResp, 1u), "X-Meta") == 0 &&
+				strcmp(xrtHttpdResponseTrailerValueAt(&tResp, 1u), "one") == 0 ? "PASS" : "FAIL");
+			(void)xrtHttpdResponseSetBodyCopy(&tResp, "body", 4u, NULL);
+			printf("  HTTPD response trailer serialization : %s\n",
+				__xhttpdBuildResponseBytes(&tResp, &pBytes, &iBytes) && pBytes &&
+				strstr(pBytes, "Transfer-Encoding: chunked\r\n") != NULL &&
+				strstr(pBytes, "Trailer: X-Checksum, X-Meta\r\n") != NULL &&
+				strstr(pBytes, "0\r\nX-Checksum: ok\r\nX-Meta: one\r\n\r\n") != NULL ? "PASS" : "FAIL");
+			if ( pBytes ) { XNET_FREE(pBytes); pBytes = NULL; }
+			(void)xrtHttpdResponseSetHeader(&tResp, "Content-Length", "4");
+			printf("  HTTPD trailer rejects Content-Length framing : %s\n",
+				!__xhttpdBuildResponseBytes(&tResp, &pBytes, &iBytes) ? "PASS" : "FAIL");
+			if ( pBytes ) { XNET_FREE(pBytes); }
+			xrtHttpdResponseUnit(&tResp);
 		}
 
 		{
@@ -856,6 +1890,8 @@ int Test_XNet_Httpd(void)
 			xsocket hManyHeaderSock = __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer));
 			char sManyHeaderReq[4096];
 			char sManyHeaderResp[1024];
+			char sLongName[321];
+			char sLongValue[1025];
 			size_t iManyHeaderLen = 0u;
 			size_t iManyHeaderRespLen = 0u;
 			bool bManyHeaderBuild = hManyHeaderSock != XNET_SOCKET_INVALID;
@@ -872,6 +1908,17 @@ int Test_XNet_Httpd(void)
 			for ( uint32 i = 0u; bManyHeaderBuild && i < 48u; ++i ) {
 				int iWritten = snprintf(sManyHeaderReq + iManyHeaderLen, sizeof(sManyHeaderReq) - iManyHeaderLen,
 					"X-Dyn-%u: v%u\r\n", (unsigned)i, (unsigned)i);
+				bManyHeaderBuild = iWritten > 0 && (size_t)iWritten < sizeof(sManyHeaderReq) - iManyHeaderLen;
+				if ( bManyHeaderBuild ) iManyHeaderLen += (size_t)iWritten;
+			}
+			memset(sLongName, 'L', sizeof(sLongName) - 1u);
+			memcpy(sLongName, "X-Request-Long-", 15u);
+			sLongName[sizeof(sLongName) - 1u] = '\0';
+			memset(sLongValue, 'B', sizeof(sLongValue) - 1u);
+			sLongValue[sizeof(sLongValue) - 1u] = '\0';
+			if ( bManyHeaderBuild ) {
+				int iWritten = snprintf(sManyHeaderReq + iManyHeaderLen, sizeof(sManyHeaderReq) - iManyHeaderLen,
+					"%s: %s\r\n", sLongName, sLongValue);
 				bManyHeaderBuild = iWritten > 0 && (size_t)iWritten < sizeof(sManyHeaderReq) - iManyHeaderLen;
 				if ( bManyHeaderBuild ) iManyHeaderLen += (size_t)iWritten;
 			}
@@ -893,7 +1940,7 @@ int Test_XNet_Httpd(void)
 					bManyHeaderBody = strncmp(sBody, "v47", 3u) == 0;
 				}
 			}
-			printf("  HTTPD request dynamic header lookup : %s\n", bManyHeaderBody ? "PASS" : "FAIL");
+			printf("  HTTPD request dynamic and long header lookup : %s\n", bManyHeaderBody ? "PASS" : "FAIL");
 			__Test_XHttpdCloseSocket(hManyHeaderSock);
 		}
 
@@ -919,6 +1966,92 @@ int Test_XNet_Httpd(void)
 			if ( pChunkResp ) xrtHttpResponseDestroy(pChunkResp);
 			if ( pChunkFuture ) xrtNetFutureDestroy(pChunkFuture);
 			xrtHttpRequestUnit(&tChunkReq);
+		}
+
+		{
+			static const uint8 aUploadData[] = "streamed";
+			__test_xhttp_upload_factory tFactory;
+			xhttprequest tUploadReq;
+			xhttpbody* pUploadBody = NULL;
+			xnetfuture* pUploadFuture = NULL;
+			xhttpresponse* pUploadResp = NULL;
+			xnet_result iUploadStatus = XRT_NET_ERROR;
+			memset(&tFactory, 0, sizeof(tFactory));
+			tFactory.pEngine = pClientEngine;
+			tFactory.pData = aUploadData;
+			tFactory.iLen = sizeof(aUploadData) - 1u;
+			pUploadBody = xrtHttpBodyCreateFactory(__Test_XHttpUploadOpen, &tFactory, NULL,
+				XHTTP_BODY_LENGTH_UNKNOWN, XHTTP_BODY_F_REPLAYABLE);
+			xrtHttpRequestInit(&tUploadReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/echo?mode=stream-upload",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetMethod(&tUploadReq, "POST");
+			(void)xrtHttpRequestSetURL(&tUploadReq, sURL);
+			printf("  HTTPD streaming upload body create : %s\n", pUploadBody ? "PASS" : "FAIL");
+			printf("  HTTPD streaming upload request body set : %s\n",
+				pUploadBody && xrtHttpRequestSetBody(&tUploadReq, pUploadBody, "text/plain") ? "PASS" : "FAIL");
+			if ( pUploadBody ) { xrtHttpBodyRelease(pUploadBody); pUploadBody = NULL; }
+			pUploadFuture = (pClientEngine && pServer) ? xrtHttpExecuteAsync(pClientEngine, &tUploadReq) : NULL;
+			printf("  HTTPD streaming upload future create : %s\n", pUploadFuture ? "PASS" : "FAIL");
+			printf("  HTTPD streaming upload future wait : %s\n",
+				pUploadFuture && (iUploadStatus = xrtNetFutureWait(pUploadFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
+			pUploadResp = (pUploadFuture && iUploadStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pUploadFuture) : NULL;
+			printf("  HTTPD streaming upload response body : %s\n",
+				pUploadResp && pUploadResp->iBodyLen == sizeof(aUploadData) - 1u &&
+				memcmp(pUploadResp->pBody, aUploadData, sizeof(aUploadData) - 1u) == 0 ? "PASS" : "FAIL");
+			printf("  HTTPD streaming upload server saw body : %s\n",
+				strcmp(tCtx.aLastBody, (const char*)aUploadData) == 0 ? "PASS" : "FAIL");
+			printf("  HTTPD streaming upload waited once : %s\n",
+				__Test_XHttpdAtomicLoad(&tFactory.iWaitCount) == 1 ? "PASS" : "FAIL");
+			printf("  HTTPD streaming upload reader lifecycle : %s\n",
+				__Test_XHttpdAtomicLoad(&tFactory.iOpenCount) == 1 &&
+				__Test_XHttpdAtomicLoad(&tFactory.iCloseCount) == 1 ? "PASS" : "FAIL");
+			if ( pUploadResp ) xrtHttpResponseDestroy(pUploadResp);
+			if ( pUploadFuture ) xrtNetFutureDestroy(pUploadFuture);
+			xrtHttpRequestUnit(&tUploadReq);
+		}
+
+		{
+			static const uint8 aCancelData[] = "cancelme";
+			__test_xhttp_upload_factory tFactory;
+			xhttprequest tCancelReq;
+			xhttpbody* pCancelBody = NULL;
+			xhttpcontext* pParentContext = NULL;
+			xnetfuture* pCancelFuture = NULL;
+			xhttpdiagnostics tCancelDiagnostics;
+			xnet_result iCancelStatus = XRT_NET_ERROR;
+			memset(&tFactory, 0, sizeof(tFactory));
+			tFactory.pEngine = pClientEngine;
+			tFactory.pData = aCancelData;
+			tFactory.iLen = sizeof(aCancelData) - 1u;
+			tFactory.iWaitDelayMs = 1000u;
+			pCancelBody = xrtHttpBodyCreateFactory(__Test_XHttpUploadOpen, &tFactory, NULL,
+				XHTTP_BODY_LENGTH_UNKNOWN, XHTTP_BODY_F_REPLAYABLE);
+			pParentContext = xrtHttpContextCreate();
+			xrtHttpRequestInit(&tCancelReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/echo?mode=cancel-upload",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetMethod(&tCancelReq, "POST");
+			(void)xrtHttpRequestSetURL(&tCancelReq, sURL);
+			(void)xrtHttpRequestSetBody(&tCancelReq, pCancelBody, "text/plain");
+			xrtHttpRequestSetContext(&tCancelReq, pParentContext);
+			xrtHttpRequestSetDiagnostics(&tCancelReq, &tCancelDiagnostics);
+			if ( pCancelBody ) { xrtHttpBodyRelease(pCancelBody); pCancelBody = NULL; }
+			pCancelFuture = (pClientEngine && pServer) ? xrtHttpExecuteAsync(pClientEngine, &tCancelReq) : NULL;
+			printf("  HTTPD context cancel upload reaches wait : %s\n",
+				pCancelFuture && __Test_XHttpdWaitMin(&tFactory.iWaitCount, 1, 1000u) ? "PASS" : "FAIL");
+			printf("  HTTPD parent context cancel request : %s\n",
+				pParentContext && xrtHttpContextCancel(pParentContext) ? "PASS" : "FAIL");
+			printf("  HTTPD parent context cancels future : %s\n",
+				pCancelFuture && (iCancelStatus = xrtNetFutureWait(pCancelFuture, 500u)) == XRT_NET_CANCELLED ? "PASS" : "FAIL");
+			printf("  HTTPD parent context cancellation diagnostics : %s\n",
+				iCancelStatus == XRT_NET_CANCELLED && tCancelDiagnostics.eError == XHTTP_ERROR_CANCELLED ? "PASS" : "FAIL");
+			printf("  HTTPD cancelled upload reader closes : %s\n",
+				__Test_XHttpdWaitMin(&tFactory.iCloseCount, 1, 1000u) ? "PASS" : "FAIL");
+			if ( pCancelFuture ) xrtNetFutureDestroy(pCancelFuture);
+			xrtHttpRequestUnit(&tCancelReq);
+			if ( pParentContext ) xrtHttpContextRelease(pParentContext);
 		}
 
 		{
@@ -967,6 +2100,51 @@ int Test_XNet_Httpd(void)
 		}
 
 		{
+			xhttprequest tTrailerReq;
+			xnetfuture* pTrailerFuture = NULL;
+			xhttpresponse* pTrailerResp = NULL;
+			xnet_result iTrailerStatus = XRT_NET_ERROR;
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/response-trailer", (unsigned)xrtHttpdBoundPort(pServer));
+			xrtHttpRequestInit(&tTrailerReq);
+			(void)xrtHttpRequestSetURL(&tTrailerReq, sURL);
+			pTrailerFuture = (pClientEngine && pServer) ? xrtHttpExecuteAsync(pClientEngine, &tTrailerReq) : NULL;
+			iTrailerStatus = pTrailerFuture ? xrtNetFutureWait(pTrailerFuture, 3000u) : XRT_NET_ERROR;
+			pTrailerResp = (pTrailerFuture && iTrailerStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pTrailerFuture) : NULL;
+			printf("  HTTPD buffered response trailer : %s\n",
+				pTrailerResp && pTrailerResp->iBodyLen == 12u &&
+				memcmp(pTrailerResp->pBody, "trailer-body", 12u) == 0 &&
+				xrtHttpResponseTrailerCount(pTrailerResp) == 3u &&
+				xrtHttpResponseTrailer(pTrailerResp, "X-Checksum") &&
+				strcmp(xrtHttpResponseTrailer(pTrailerResp, "X-Checksum"), "buffered-ok") == 0 ? "PASS" : "FAIL");
+			if ( pTrailerResp ) xrtHttpResponseDestroy(pTrailerResp);
+			if ( pTrailerFuture ) xrtNetFutureDestroy(pTrailerFuture);
+			xrtHttpRequestUnit(&tTrailerReq);
+		}
+
+		{
+			xhttprequest tTrailerReq;
+			xnetfuture* pTrailerFuture = NULL;
+			xhttpresponse* pTrailerResp = NULL;
+			xnet_result iTrailerStatus = XRT_NET_ERROR;
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/stream-trailer", (unsigned)xrtHttpdBoundPort(pServer));
+			xrtHttpRequestInit(&tTrailerReq);
+			(void)xrtHttpRequestSetURL(&tTrailerReq, sURL);
+			pTrailerFuture = (pClientEngine && pServer) ? xrtHttpExecuteAsync(pClientEngine, &tTrailerReq) : NULL;
+			iTrailerStatus = pTrailerFuture ? xrtNetFutureWait(pTrailerFuture, 3000u) : XRT_NET_ERROR;
+			pTrailerResp = (pTrailerFuture && iTrailerStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pTrailerFuture) : NULL;
+			printf("  HTTPD streaming response owns trailer terminal : %s\n",
+				pTrailerResp && pTrailerResp->iBodyLen == 14u &&
+				memcmp(pTrailerResp->pBody, "stream-trailer", 14u) == 0 &&
+				xrtHttpResponseTrailer(pTrailerResp, "X-Stream-End") &&
+				strcmp(xrtHttpResponseTrailer(pTrailerResp, "X-Stream-End"), "owned-ok") == 0 ? "PASS" : "FAIL");
+			if ( pTrailerResp ) xrtHttpResponseDestroy(pTrailerResp);
+			if ( pTrailerFuture ) xrtNetFutureDestroy(pTrailerFuture);
+			xrtHttpRequestUnit(&tTrailerReq);
+		}
+
+		{
 			xhttprequest tStreamFixedReq;
 			xnetfuture* pStreamFixedFuture = NULL;
 			xhttpresponse* pStreamFixedResp = NULL;
@@ -990,9 +2168,164 @@ int Test_XNet_Httpd(void)
 			xrtHttpRequestUnit(&tStreamFixedReq);
 		}
 
+		{
+			xhttpcookiejar* pJar = xrtHttpCookieJarCreate(NULL);
+			xhttpclientconfig tClientConfig;
+			xhttpclientconfig tLegacyConfig;
+			xhttpclientconfig tV2Config;
+			xhttpclient* pCookieClient = NULL;
+			xhttpclient* pLegacyClient = NULL;
+			xhttpclient* pV2Client = NULL;
+			xhttprequest tCookieReq;
+			xnetfuture* pCookieFuture = NULL;
+			xhttpresponse* pCookieResp = NULL;
+			xnet_result iCookieStatus = XRT_NET_ERROR;
+
+			xrtHttpClientConfigInit(&tClientConfig);
+			printf("  HTTP client config current contract : %s\n",
+				tClientConfig.iVersion == XHTTP_CLIENT_CONFIG_VERSION &&
+				tClientConfig.iSize == XHTTP_CLIENT_CONFIG_V3_SIZE ? "PASS" : "FAIL");
+			xrtHttpClientConfigInit(&tLegacyConfig);
+			tLegacyConfig.iVersion = 1u;
+			tLegacyConfig.iSize = XHTTP_CLIENT_CONFIG_V1_SIZE;
+			tLegacyConfig.pCookieJar = pJar;
+			pLegacyClient = pClientEngine ? xrtHttpClientCreateEx(pClientEngine, &tLegacyConfig) : NULL;
+			printf("  HTTP client V1 config ignores V2 tail : %s\n",
+				pLegacyClient && xrtHttpClientCookieJar(pLegacyClient) == NULL ? "PASS" : "FAIL");
+			if ( pLegacyClient ) { xrtHttpClientDestroy(pLegacyClient); }
+			xrtHttpClientConfigInit(&tV2Config);
+			tV2Config.iVersion = 2u;
+			tV2Config.iSize = XHTTP_CLIENT_CONFIG_V2_SIZE;
+			tV2Config.pCookieJar = pJar;
+			tV2Config.iFlags = UINT32_MAX;
+			tV2Config.iMaxRedirects = 0u;
+			pV2Client = pClientEngine ? xrtHttpClientCreateEx(pClientEngine, &tV2Config) : NULL;
+			printf("  HTTP client V2 config ignores V3 tail : %s\n",
+				pV2Client && xrtHttpClientCookieJar(pV2Client) == pJar ? "PASS" : "FAIL");
+			if ( pV2Client ) { xrtHttpClientDestroy(pV2Client); }
+
+			tClientConfig.pCookieJar = pJar;
+			pCookieClient = (pClientEngine && pJar) ? xrtHttpClientCreateEx(pClientEngine, &tClientConfig) : NULL;
+			printf("  HTTP client cookie jar retained : %s\n",
+				pCookieClient && xrtHttpClientCookieJar(pCookieClient) == pJar ? "PASS" : "FAIL");
+			if ( pJar ) { xrtHttpCookieJarDestroy(pJar); pJar = NULL; }
+
+			xrtHttpRequestInit(&tCookieReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/cookie-set",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCookieReq, sURL);
+			pCookieFuture = pCookieClient ? xrtHttpClientExecuteAsync(pCookieClient, &tCookieReq) : NULL;
+			printf("  HTTP client stores response cookies : %s\n",
+				pCookieFuture && (iCookieStatus = xrtNetFutureWait(pCookieFuture, 3000u)) == XRT_NET_OK ? "PASS" : "FAIL");
+			pCookieResp = (pCookieFuture && iCookieStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pCookieFuture) : NULL;
+			printf("  HTTP client ignores invalid Set-Cookie : %s\n",
+				pCookieClient && xrtHttpCookieJarCount(xrtHttpClientCookieJar(pCookieClient)) == 2u ? "PASS" : "FAIL");
+			if ( pCookieResp ) { xrtHttpResponseDestroy(pCookieResp); pCookieResp = NULL; }
+			if ( pCookieFuture ) { xrtNetFutureDestroy(pCookieFuture); pCookieFuture = NULL; }
+			xrtHttpRequestUnit(&tCookieReq);
+
+			xrtHttpRequestInit(&tCookieReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/cookie/check",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCookieReq, sURL);
+			pCookieFuture = pCookieClient ? xrtHttpClientExecuteAsync(pCookieClient, &tCookieReq) : NULL;
+			iCookieStatus = pCookieFuture ? xrtNetFutureWait(pCookieFuture, 3000u) : XRT_NET_ERROR;
+			pCookieResp = (pCookieFuture && iCookieStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pCookieFuture) : NULL;
+			printf("  HTTP client sends matching cookies : %s\n",
+				pCookieResp && strstr((const char*)pCookieResp->pBody, "sid=jar") != NULL &&
+				strstr((const char*)pCookieResp->pBody, "scoped=app") != NULL ? "PASS" : "FAIL");
+			if ( pCookieResp ) { xrtHttpResponseDestroy(pCookieResp); pCookieResp = NULL; }
+			if ( pCookieFuture ) { xrtNetFutureDestroy(pCookieFuture); pCookieFuture = NULL; }
+			xrtHttpRequestUnit(&tCookieReq);
+
+			xrtHttpRequestInit(&tCookieReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/redirect/cookie",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCookieReq, sURL);
+			pCookieFuture = pCookieClient ? xrtHttpClientExecuteAsync(pCookieClient, &tCookieReq) : NULL;
+			iCookieStatus = pCookieFuture ? xrtNetFutureWait(pCookieFuture, 3000u) : XRT_NET_ERROR;
+			pCookieResp = (pCookieFuture && iCookieStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pCookieFuture) : NULL;
+			printf("  HTTP redirect stores cookie before next hop : %s\n",
+				pCookieResp && pCookieResp->iStatusCode == 200u &&
+				xrtHttpResponseHeader(pCookieResp, "X-Seen-Cookie") != NULL &&
+				strstr(xrtHttpResponseHeader(pCookieResp, "X-Seen-Cookie"), "hop=stored") != NULL ? "PASS" : "FAIL");
+			if ( pCookieResp ) { xrtHttpResponseDestroy(pCookieResp); pCookieResp = NULL; }
+			if ( pCookieFuture ) { xrtNetFutureDestroy(pCookieFuture); pCookieFuture = NULL; }
+			xrtHttpRequestUnit(&tCookieReq);
+
+			xrtHttpRequestInit(&tCookieReq);
+			snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/cookie/check",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tCookieReq, sURL);
+			(void)xrtHttpRequestSetHeader(&tCookieReq, "Cookie", "manual=1");
+			pCookieFuture = pCookieClient ? xrtHttpClientExecuteAsync(pCookieClient, &tCookieReq) : NULL;
+			iCookieStatus = pCookieFuture ? xrtNetFutureWait(pCookieFuture, 3000u) : XRT_NET_ERROR;
+			pCookieResp = (pCookieFuture && iCookieStatus == XRT_NET_OK)
+				? (xhttpresponse*)xrtNetFutureValue(pCookieFuture) : NULL;
+			printf("  HTTP explicit Cookie overrides jar : %s\n",
+				pCookieResp && pCookieResp->iBodyLen == 8u &&
+				memcmp(pCookieResp->pBody, "manual=1", 8u) == 0 ? "PASS" : "FAIL");
+			if ( pCookieResp ) { xrtHttpResponseDestroy(pCookieResp); }
+			if ( pCookieFuture ) { xrtNetFutureDestroy(pCookieFuture); }
+			xrtHttpRequestUnit(&tCookieReq);
+			if ( pCookieClient ) { xrtHttpClientDestroy(pCookieClient); }
+			if ( pJar ) { xrtHttpCookieJarDestroy(pJar); }
+		}
+
 		xrtHttpCloseIdleConnections(pClientEngine);
 		printf("  HTTPD plain close callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iCloseCount, 1, 1000u) ? "PASS" : "FAIL");
 		printf("  HTTPD plain path error free : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+
+		{
+			xsocket hRaw = XNET_SOCKET_INVALID;
+			char sReq[512];
+			char aResp[2048];
+			size_t iRespLen = 0u;
+			long iUpgradeBefore = __Test_XHttpdAtomicLoad(&tCtx.iUpgradeCount);
+			long iRecvBefore = __Test_XHttpdAtomicLoad(&tCtx.iUpgradeRecvCount);
+			long iCloseBefore = __Test_XHttpdAtomicLoad(&tCtx.iUpgradeCloseCount);
+			printf("  HTTPD generic upgrade clean connection baseline : %s\n",
+				__Test_XHttpdWaitConnectionCount(pServer, 0u, 2000u) ? "PASS" : "FAIL");
+			hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+			snprintf(sReq, sizeof(sReq),
+				"GET /upgrade-generic HTTP/1.1\r\n"
+				"Host: 127.0.0.1:%u\r\n"
+				"Connection: keep-alive, Upgrade\r\n"
+				"Upgrade: xrt-test\r\n\r\n"
+				"PING",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			printf("  HTTPD generic upgrade raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+			printf("  HTTPD generic upgrade request send : %s\n",
+				hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
+			printf("  HTTPD generic upgrade response recv : %s\n",
+				hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvUntil(hRaw, aResp, sizeof(aResp),
+					"UPGRADE-OK", &iRespLen, 3000u) ? "PASS" : "FAIL");
+			printf("  HTTPD generic upgrade response status : %s\n",
+				strstr(aResp, "HTTP/1.1 101 Switching Protocols") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD generic upgrade response headers : %s\n",
+				strstr(aResp, "Connection: Upgrade") != NULL &&
+				strstr(aResp, "Upgrade: xrt-test") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD generic upgrade callback : %s\n",
+				__Test_XHttpdWaitMin(&tCtx.iUpgradeCount, iUpgradeBefore + 1, 1000u) ? "PASS" : "FAIL");
+			printf("  HTTPD generic upgrade buffered bytes : %s\n",
+				__Test_XHttpdWaitMin(&tCtx.iUpgradeRecvCount, iRecvBefore + 1, 1000u) &&
+				strcmp(tCtx.aUpgradeData, "PING") == 0 ? "PASS" : "FAIL");
+			printf("  HTTPD generic upgrade detaches connection : %s\n",
+				__Test_XHttpdWaitConnectionCount(pServer, 0u, 1000u) ? "PASS" : "FAIL");
+			__Test_XHttpdCloseSocket(hRaw);
+			hRaw = XNET_SOCKET_INVALID;
+			printf("  HTTPD generic upgrade close callback : %s\n",
+				__Test_XHttpdWaitMin(&tCtx.iUpgradeCloseCount, iCloseBefore + 1, 2000u) ? "PASS" : "FAIL");
+			printf("  HTTPD generic upgrade error free : %s\n",
+				__Test_XHttpdAtomicLoad(&tCtx.iUpgradeErrorCount) == 0 ? "PASS" : "FAIL");
+			if ( tCtx.pUpgradeStream ) {
+				xrtNetStreamDestroy(tCtx.pUpgradeStream);
+				tCtx.pUpgradeStream = NULL;
+			}
+		}
 
 		{
 			xsocket hRaw = XNET_SOCKET_INVALID;
@@ -1416,6 +2749,12 @@ int Test_XNet_Httpd(void)
 		hRaw = XNET_SOCKET_INVALID;
 		printf("  HTTPD async disconnect request count : %s\n", __Test_XHttpdWaitMin(&tCtx.iRequestCount, 1, 1000u) ? "PASS" : "FAIL");
 		printf("  HTTPD async disconnect future complete : %s\n", __Test_XHttpdWaitMin(&tCtx.iAsyncFutureCount, 1, 2000u) ? "PASS" : "FAIL");
+		{
+			long iSeen = __Test_XHttpdAtomicLoad(&tCtx.iRequestContextSeen);
+			long iCancelled = __Test_XHttpdAtomicLoad(&tCtx.iRequestContextCancelled);
+			printf("  HTTPD disconnect cancels request context : %s (seen=%ld cancelled=%ld)\n",
+				iSeen == 1 && iCancelled == 1 ? "PASS" : "FAIL", iSeen, iCancelled);
+		}
 		printf("  HTTPD async disconnect close callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iCloseCount, 1, 2000u) ? "PASS" : "FAIL");
 		printf("  HTTPD async disconnect benign error : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
 
@@ -1469,6 +2808,12 @@ int Test_XNet_Httpd(void)
 			pServer = NULL;
 		}
 		printf("  HTTPD async stop-pending future complete : %s\n", __Test_XHttpdWaitMin(&tCtx.iAsyncFutureCount, 1, 2000u) ? "PASS" : "FAIL");
+		{
+			long iSeen = __Test_XHttpdAtomicLoad(&tCtx.iRequestContextSeen);
+			long iCancelled = __Test_XHttpdAtomicLoad(&tCtx.iRequestContextCancelled);
+			printf("  HTTPD stop cancels request context : %s (seen=%ld cancelled=%ld)\n",
+				iSeen == 1 && iCancelled == 1 ? "PASS" : "FAIL", iSeen, iCancelled);
+		}
 		printf("  HTTPD async stop-pending close callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iCloseCount, 1, 2000u) ? "PASS" : "FAIL");
 		printf("  HTTPD async stop-pending benign error : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
 

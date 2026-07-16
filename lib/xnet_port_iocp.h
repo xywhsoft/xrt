@@ -17,7 +17,8 @@
 
 	#define __XNET_IOCP_KIND_POST         1u
 	#define __XNET_IOCP_KIND_IO           2u
-	#define __XNET_IOCP_INLINE_RECV       8192u
+	#define __XNET_IOCP_READ_CHUNK        8192u
+	#define __XNET_IOCP_DGRAM_RECV        65536u
 	#define __XNET_IOCP_MAX_IOVEC         16u
 	#define __XNET_IOCP_ACCEPT_ADDR_SPACE ((DWORD)(sizeof(struct sockaddr_storage) + 16))
 
@@ -46,6 +47,8 @@
 	typedef struct __xnet_iocp_io {
 		OVERLAPPED tOverlapped;
 		uint32 iKind;
+		volatile long iRefCount;
+		struct __xnet_iocp_io* pNext;
 		uint16 iOpType;
 		uint16 iFlags;
 		uint32 iBufCount;
@@ -59,18 +62,82 @@
 		int iAddrLen;
 		DWORD iRecvFlags;
 		SOCKET hAcceptSocket;
+		char* pRecvBuf;
+		uint32 iRecvCapacity;
 		char aAcceptBuf[__XNET_IOCP_ACCEPT_ADDR_SPACE * 2u];
-		char aRecvBuf[__XNET_IOCP_INLINE_RECV];
 	} __xnet_iocp_io;
 
 	typedef struct {
 		HANDLE hIOCP;
 		__xnet_iocp_timer* pTimers;
 		__xnet_iocp_bound_socket* pBoundSockets;
+		__xnet_iocp_io* pActiveIo;
+		uint32 iActiveIoCount;
 		LPFN_ACCEPTEX pfnAcceptEx;
 		LPFN_CONNECTEX pfnConnectEx;
 		CRITICAL_SECTION tExtLock;
+		bool bStopping;
 	} __xnet_iocp_ctx;
+
+
+	static void __xnetPortIOCPTrackIoLocked(__xnet_iocp_ctx* pCtx, __xnet_iocp_io* pIo)
+	{
+		pIo->pNext = pCtx->pActiveIo;
+		pCtx->pActiveIo = pIo;
+		pCtx->iActiveIoCount++;
+		(void)__xnetAtomicAddFetch32(&pIo->iRefCount, 1);
+	}
+
+
+	static void __xnetPortIOCPUntrackIoLocked(__xnet_iocp_ctx* pCtx, __xnet_iocp_io* pIo)
+	{
+		__xnet_iocp_io** ppIo = &pCtx->pActiveIo;
+		while ( *ppIo ) {
+			if ( *ppIo == pIo ) {
+				*ppIo = pIo->pNext;
+				if ( pCtx->iActiveIoCount > 0 ) { pCtx->iActiveIoCount--; }
+				pIo->pNext = NULL;
+				break;
+			}
+			ppIo = &(*ppIo)->pNext;
+		}
+	}
+
+
+	static void __xnetPortIOCPUntrackIo(__xnet_iocp_ctx* pCtx, __xnet_iocp_io* pIo)
+	{
+		if ( !pCtx || !pIo ) { return; }
+		EnterCriticalSection(&pCtx->tExtLock);
+		__xnetPortIOCPUntrackIoLocked(pCtx, pIo);
+		LeaveCriticalSection(&pCtx->tExtLock);
+	}
+
+
+	static uint32 __xnetPortIOCPActiveIoCount(__xnet_iocp_ctx* pCtx)
+	{
+		uint32 iCount;
+		if ( !pCtx ) { return 0; }
+		EnterCriticalSection(&pCtx->tExtLock);
+		iCount = pCtx->iActiveIoCount;
+		LeaveCriticalSection(&pCtx->tExtLock);
+		return iCount;
+	}
+
+
+	static void __xnetPortIOCPFreeIo(__xnet_iocp_io* pIo)
+	{
+		if ( !pIo ) { return; }
+		if ( pIo->pRecvBuf ) { XNET_FREE(pIo->pRecvBuf); }
+		XNET_FREE(pIo);
+	}
+
+
+	static void __xnetPortIOCPReleaseIo(__xnet_iocp_io* pIo)
+	{
+		if ( pIo && __xnetAtomicAddFetch32(&pIo->iRefCount, -1) == 0 ) {
+			__xnetPortIOCPFreeIo(pIo);
+		}
+	}
 
 
 	// 内部函数：端口 IOCP 事件 type相关处理
@@ -392,6 +459,7 @@
 
 		memset(pIo, 0, sizeof(__xnet_iocp_io));
 		pIo->iKind = __XNET_IOCP_KIND_IO;
+		pIo->iRefCount = 1;
 		pIo->iOpType = pOp->iOpType;
 		pIo->iFlags = pOp->iFlags;
 		pIo->iOpId = pOp->iOpId;
@@ -457,11 +525,19 @@
 		pIo->hAuxSocket = pOp->hSocket;
 		pIo->hAcceptSocket = WSASocket(iFamily, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
 		if ( pIo->hAcceptSocket == XNET_SOCKET_INVALID ) {
-			XNET_FREE(pIo);
+			__xnetPortIOCPFreeIo(pIo);
 			return XRT_NET_ERROR;
 		}
 
 		// 发起 AcceptEx 异步接受操作，通过 overlapped 结构关联到 IOCP
+		EnterCriticalSection(&pCtx->tExtLock);
+		if ( pCtx->bStopping ) {
+			LeaveCriticalSection(&pCtx->tExtLock);
+			closesocket(pIo->hAcceptSocket);
+			__xnetPortIOCPFreeIo(pIo);
+			return XRT_NET_CLOSED;
+		}
+		__xnetPortIOCPTrackIoLocked(pCtx, pIo);
 		bOk = pfnAcceptEx((SOCKET)pOp->hSocket,
 			pIo->hAcceptSocket,
 			pIo->aAcceptBuf,
@@ -474,12 +550,17 @@
 		if ( !bOk ) {
 			int iErr = WSAGetLastError();
 			if ( iErr != ERROR_IO_PENDING ) {
+				__xnetPortIOCPUntrackIoLocked(pCtx, pIo);
+				LeaveCriticalSection(&pCtx->tExtLock);
 				closesocket(pIo->hAcceptSocket);
-				XNET_FREE(pIo);
+				__xnetPortIOCPReleaseIo(pIo);
+				__xnetPortIOCPReleaseIo(pIo);
 				return XRT_NET_ERROR;
 			}
 		}
 
+		LeaveCriticalSection(&pCtx->tExtLock);
+		__xnetPortIOCPReleaseIo(pIo);
 		return XRT_NET_OK;
 	}
 
@@ -501,12 +582,20 @@
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		// 使用内嵌的接收缓冲区作为 WSARecv 的目标
-		pIo->arrBuf[0].buf = pIo->aRecvBuf;
-		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
+		/* A zero-byte receive is a readiness notification and holds no payload buffer. */
+		pIo->arrBuf[0].buf = NULL;
+		pIo->arrBuf[0].len = 0;
 		pIo->iBufCount = 1;
 		pIo->iRecvFlags = 0;
 
 		// 发起 WSARecv 异步接收操作，通过 overlapped 关联到 IOCP
+		EnterCriticalSection(&pCtx->tExtLock);
+		if ( pCtx->bStopping ) {
+			LeaveCriticalSection(&pCtx->tExtLock);
+			__xnetPortIOCPFreeIo(pIo);
+			return XRT_NET_CLOSED;
+		}
+		__xnetPortIOCPTrackIoLocked(pCtx, pIo);
 		iRet = WSARecv((SOCKET)pOp->hSocket, pIo->arrBuf, 1, &iBytes, &iFlags, &pIo->tOverlapped, NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
@@ -516,11 +605,16 @@
 					fprintf(stderr, "[IOCP] WSARecv submit fail socket=%p err=%d op=%llu\n",
 						(void*)(uintptr_t)pOp->hSocket, iErr, (unsigned long long)pOp->iOpId);
 				#endif
-				XNET_FREE(pIo);
+				__xnetPortIOCPUntrackIoLocked(pCtx, pIo);
+				LeaveCriticalSection(&pCtx->tExtLock);
+				__xnetPortIOCPReleaseIo(pIo);
+				__xnetPortIOCPReleaseIo(pIo);
 				return XRT_NET_ERROR;
 			}
 		}
 
+		LeaveCriticalSection(&pCtx->tExtLock);
+		__xnetPortIOCPReleaseIo(pIo);
 		return XRT_NET_OK;
 	}
 
@@ -556,6 +650,13 @@
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		// 发起 ConnectEx 异步连接操作，通过 overlapped 关联到 IOCP
+		EnterCriticalSection(&pCtx->tExtLock);
+		if ( pCtx->bStopping ) {
+			LeaveCriticalSection(&pCtx->tExtLock);
+			__xnetPortIOCPFreeIo(pIo);
+			return XRT_NET_CLOSED;
+		}
+		__xnetPortIOCPTrackIoLocked(pCtx, pIo);
 		bOk = pfnConnectEx((SOCKET)pOp->hSocket,
 			(const struct sockaddr*)&tStorage,
 			(int)iAddrLen,
@@ -567,11 +668,16 @@
 		if ( !bOk ) {
 			int iErr = WSAGetLastError();
 			if ( iErr != ERROR_IO_PENDING ) {
-				XNET_FREE(pIo);
+				__xnetPortIOCPUntrackIoLocked(pCtx, pIo);
+				LeaveCriticalSection(&pCtx->tExtLock);
+				__xnetPortIOCPReleaseIo(pIo);
+				__xnetPortIOCPReleaseIo(pIo);
 				return XRT_NET_ERROR;
 			}
 		}
 
+		LeaveCriticalSection(&pCtx->tExtLock);
+		__xnetPortIOCPReleaseIo(pIo);
 		return XRT_NET_OK;
 	}
 
@@ -593,12 +699,25 @@
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		// 使用内嵌的接收缓冲区，同时设置源地址存储空间
-		pIo->arrBuf[0].buf = pIo->aRecvBuf;
-		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
+		pIo->pRecvBuf = (char*)XNET_ALLOC(__XNET_IOCP_DGRAM_RECV);
+		if ( !pIo->pRecvBuf ) {
+			__xnetPortIOCPFreeIo(pIo);
+			return XRT_NET_ERROR;
+		}
+		pIo->iRecvCapacity = __XNET_IOCP_DGRAM_RECV;
+		pIo->arrBuf[0].buf = pIo->pRecvBuf;
+		pIo->arrBuf[0].len = (ULONG)pIo->iRecvCapacity;
 		pIo->iBufCount = 1;
 		pIo->iRecvFlags = 0;
 
 		// 发起 WSARecvFrom 异步接收操作，通过 overlapped 关联到 IOCP
+		EnterCriticalSection(&pCtx->tExtLock);
+		if ( pCtx->bStopping ) {
+			LeaveCriticalSection(&pCtx->tExtLock);
+			__xnetPortIOCPFreeIo(pIo);
+			return XRT_NET_CLOSED;
+		}
+		__xnetPortIOCPTrackIoLocked(pCtx, pIo);
 		iRet = WSARecvFrom((SOCKET)pOp->hSocket,
 			pIo->arrBuf,
 			1,
@@ -616,11 +735,16 @@
 					fprintf(stderr, "[IOCP] WSARecvFrom submit fail socket=%p err=%d op=%llu\n",
 						(void*)(uintptr_t)pOp->hSocket, iErr, (unsigned long long)pOp->iOpId);
 				#endif
-				XNET_FREE(pIo);
+				__xnetPortIOCPUntrackIoLocked(pCtx, pIo);
+				LeaveCriticalSection(&pCtx->tExtLock);
+				__xnetPortIOCPReleaseIo(pIo);
+				__xnetPortIOCPReleaseIo(pIo);
 				return XRT_NET_ERROR;
 			}
 		}
 
+		LeaveCriticalSection(&pCtx->tExtLock);
+		__xnetPortIOCPReleaseIo(pIo);
 		return XRT_NET_OK;
 	}
 
@@ -651,11 +775,18 @@
 				fprintf(stderr, "[IOCP] build send bufs fail socket=%p vec=%u chain=%p\n",
 					(void*)(uintptr_t)pOp->hSocket, pOp->iVecCount, (void*)pOp->pChain);
 			#endif
-			XNET_FREE(pIo);
+			__xnetPortIOCPFreeIo(pIo);
 			return XRT_NET_ERROR;
 		}
 
 		// 发起 WSASend 异步发送操作，通过 overlapped 关联到 IOCP
+		EnterCriticalSection(&pCtx->tExtLock);
+		if ( pCtx->bStopping ) {
+			LeaveCriticalSection(&pCtx->tExtLock);
+			__xnetPortIOCPFreeIo(pIo);
+			return XRT_NET_CLOSED;
+		}
+		__xnetPortIOCPTrackIoLocked(pCtx, pIo);
 		iRet = WSASend((SOCKET)pOp->hSocket, pIo->arrBuf, pIo->iBufCount, &iBytes, 0, &pIo->tOverlapped, NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
@@ -665,11 +796,16 @@
 					fprintf(stderr, "[IOCP] WSASend submit fail socket=%p err=%d op=%llu bufcount=%u\n",
 						(void*)(uintptr_t)pOp->hSocket, iErr, (unsigned long long)pOp->iOpId, pIo->iBufCount);
 				#endif
-				XNET_FREE(pIo);
+				__xnetPortIOCPUntrackIoLocked(pCtx, pIo);
+				LeaveCriticalSection(&pCtx->tExtLock);
+				__xnetPortIOCPReleaseIo(pIo);
+				__xnetPortIOCPReleaseIo(pIo);
 				return XRT_NET_ERROR;
 			}
 		}
 
+		LeaveCriticalSection(&pCtx->tExtLock);
+		__xnetPortIOCPReleaseIo(pIo);
 		return XRT_NET_OK;
 	}
 
@@ -694,7 +830,7 @@
 		if ( !pIo ) { return XRT_NET_ERROR; }
 		// 将用户提供的 vec/chain 构建为 WSABUF 数组
 		if ( !__xnetPortIOCPBuildBufsFromSubmit(pIo, pOp) ) {
-			XNET_FREE(pIo);
+			__xnetPortIOCPFreeIo(pIo);
 			return XRT_NET_ERROR;
 		}
 
@@ -703,6 +839,13 @@
 		pIo->iAddrLen = (int)iAddrLen;
 
 		// 发起 WSASendTo 异步发送操作，通过 overlapped 关联到 IOCP
+		EnterCriticalSection(&pCtx->tExtLock);
+		if ( pCtx->bStopping ) {
+			LeaveCriticalSection(&pCtx->tExtLock);
+			__xnetPortIOCPFreeIo(pIo);
+			return XRT_NET_CLOSED;
+		}
+		__xnetPortIOCPTrackIoLocked(pCtx, pIo);
 		iRet = WSASendTo((SOCKET)pOp->hSocket,
 			pIo->arrBuf,
 			pIo->iBufCount,
@@ -720,11 +863,16 @@
 					fprintf(stderr, "[IOCP] WSASendTo submit fail socket=%p err=%d op=%llu bufcount=%u\n",
 						(void*)(uintptr_t)pOp->hSocket, iErr, (unsigned long long)pOp->iOpId, pIo->iBufCount);
 				#endif
-				XNET_FREE(pIo);
+				__xnetPortIOCPUntrackIoLocked(pCtx, pIo);
+				LeaveCriticalSection(&pCtx->tExtLock);
+				__xnetPortIOCPReleaseIo(pIo);
+				__xnetPortIOCPReleaseIo(pIo);
 				return XRT_NET_ERROR;
 			}
 		}
 
+		LeaveCriticalSection(&pCtx->tExtLock);
+		__xnetPortIOCPReleaseIo(pIo);
 		return XRT_NET_OK;
 	}
 
@@ -784,6 +932,29 @@
 	}
 
 
+	static uint32 __xnetPortIOCPTimerWait(__xnet_iocp_ctx* pCtx, uint32 iTimeoutMs)
+	{
+		__xnet_iocp_timer* pNode;
+		uint64 iNowMs;
+		uint64 iNextDueMs = UINT64_MAX;
+		uint64 iDelayMs;
+		if ( !pCtx ) { return iTimeoutMs; }
+		EnterCriticalSection(&pCtx->tExtLock);
+		pNode = pCtx->pTimers;
+		while ( pNode ) {
+			if ( pNode->iDueMs < iNextDueMs ) { iNextDueMs = pNode->iDueMs; }
+			pNode = pNode->pNext;
+		}
+		LeaveCriticalSection(&pCtx->tExtLock);
+		if ( iNextDueMs == UINT64_MAX ) { return iTimeoutMs; }
+		iNowMs = __xnetPortIOCPNowMs();
+		if ( iNextDueMs <= iNowMs ) { return 0u; }
+		iDelayMs = iNextDueMs - iNowMs;
+		if ( iDelayMs < (uint64)iTimeoutMs ) { return (uint32)iDelayMs; }
+		return iTimeoutMs;
+	}
+
+
 	// 内部函数：构建端口 IOCP io 事件
 	static bool __xnetPortIOCPBuildIoEvent(__xnet_iocp_io* pIo, BOOL bOk, DWORD iBytes, xnetportevent* pEvent)
 	{
@@ -803,12 +974,19 @@
 		if ( pIo->iOpType == XNET_PORT_OP_ACCEPT ) {
 			if ( bOk ) {
 				SOCKET hListenSocket = (SOCKET)pIo->hAuxSocket;
+				u_long iNonBlock = 1u;
 				(void)setsockopt(pIo->hAcceptSocket,
 					SOL_SOCKET,
 					SO_UPDATE_ACCEPT_CONTEXT,
 					(const char*)&hListenSocket,
 					sizeof(hListenSocket));
-				pEvent->hSocket = (intptr_t)pIo->hAcceptSocket;
+				if ( ioctlsocket(pIo->hAcceptSocket, FIONBIO, &iNonBlock) == 0 ) {
+					pEvent->hSocket = (intptr_t)pIo->hAcceptSocket;
+				} else {
+					closesocket(pIo->hAcceptSocket);
+					pEvent->iStatus = XRT_NET_ERROR;
+					pEvent->hSocket = (intptr_t)XNET_SOCKET_INVALID;
+				}
 			} else if ( pIo->hAcceptSocket != XNET_SOCKET_INVALID ) {
 				closesocket(pIo->hAcceptSocket);
 			}
@@ -819,22 +997,38 @@
 		if ( pIo->iOpType == XNET_PORT_OP_CONNECT ) {
 			if ( bOk ) {
 				SOCKET hSocket = (SOCKET)pIo->hSocket;
-				(void)setsockopt(hSocket, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
+				u_long iNonBlock = 1u;
+				if ( setsockopt(hSocket, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0) != 0 ||
+					ioctlsocket(hSocket, FIONBIO, &iNonBlock) != 0 ) {
+					pEvent->iStatus = XRT_NET_ERROR;
+				}
 			}
 			return true;
 		}
 
 		// RECV 完成：将接收到的数据拷贝到事件 chain，零字节表示对端关闭
 		if ( pIo->iOpType == XNET_PORT_OP_RECV ) {
-			if ( bOk && iBytes > 0 ) {
-				pEvent->pChain = __xnetPortIOCPAllocEventChain(pIo->aRecvBuf, (size_t)iBytes);
+			char aReadBuf[__XNET_IOCP_READ_CHUNK];
+			u_long iNonBlock = 1u;
+			int iRead = SOCKET_ERROR;
+			if ( bOk && ioctlsocket((SOCKET)pIo->hSocket, FIONBIO, &iNonBlock) == 0 ) {
+				iRead = recv((SOCKET)pIo->hSocket, aReadBuf, (int)sizeof(aReadBuf), 0);
+			}
+			if ( iRead > 0 ) {
+				pEvent->iBytes = (uint32)iRead;
+				pEvent->pChain = __xnetPortIOCPAllocEventChain(aReadBuf, (size_t)iRead);
 				if ( pEvent->pChain == NULL ) {
 					pEvent->iStatus = XRT_NET_ERROR;
 					pEvent->iBytes = 0;
 				}
-			} else if ( bOk ) {
+			} else if ( iRead == 0 ) {
 				pEvent->iStatus = XRT_NET_CLOSED;
 				pEvent->iFlags |= XNET_PORT_EVENT_F_EOF;
+			} else {
+				int iRecvErr = WSAGetLastError();
+				/* Payload may have been drained after the zero-byte readiness completed. */
+				pEvent->iStatus = iRecvErr == WSAEWOULDBLOCK ? XRT_NET_OK : XRT_NET_ERROR;
+				pEvent->iBytes = 0;
 			}
 			return true;
 		}
@@ -842,7 +1036,7 @@
 		// RECVFROM 完成：拷贝数据并从内核地址还原远端地址
 		if ( pIo->iOpType == XNET_PORT_OP_RECVFROM ) {
 			if ( bOk ) {
-				pEvent->pChain = __xnetPortIOCPAllocEventChain(pIo->aRecvBuf, (size_t)iBytes);
+				pEvent->pChain = __xnetPortIOCPAllocEventChain(pIo->pRecvBuf, (size_t)iBytes);
 				if ( pEvent->pChain == NULL ) {
 					pEvent->iStatus = XRT_NET_ERROR;
 					pEvent->iBytes = 0;
@@ -893,10 +1087,11 @@
 			} else if ( pHdr->iKind == __XNET_IOCP_KIND_IO ) {
 				// 真实 I/O 完成事件，构建对应类型的事件后释放 IO 包
 				__xnet_iocp_io* pIo = (__xnet_iocp_io*)pOv;
+				__xnetPortIOCPUntrackIo(pCtx, pIo);
 				if ( __xnetPortIOCPBuildIoEvent(pIo, bOk, iBytes, &pEvents[iCount]) ) {
 					iCount++;
 				}
-				XNET_FREE(pIo);
+				__xnetPortIOCPReleaseIo(pIo);
 			}
 
 			if ( iCount >= iMaxEvents ) { break; }
@@ -907,19 +1102,57 @@
 
 
 	// 内部函数：__xnetPortIOCPDrainPosted
-	static void __xnetPortIOCPDrainPosted(__xnet_iocp_ctx* pCtx)
+	static void __xnetPortIOCPDispatchQuiesceEvents(xnetport* pPort,
+		xnetportevent* pEvents, uint32 iCount)
 	{
+		if ( pPort && pPort->pfnQuiesceEvents && iCount > 0u ) {
+			pPort->pfnQuiesceEvents(pPort->pOwner, pEvents, iCount);
+			return;
+		}
+		for ( uint32 i = 0; i < iCount; ++i ) {
+			if ( pEvents[i].pChain ) { __xnetPortIOCPFreeEventChain(pEvents[i].pChain); }
+		}
+	}
+
+
+	static void __xnetPortIOCPDrainPosted(xnetport* pPort)
+	{
+		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 		xnetportevent arrEvents[32];
 		uint32 iCount;
 		memset(arrEvents, 0, sizeof(arrEvents));
 		while ( (iCount = __xnetPortIOCPHarvestPosted(pCtx, arrEvents, 32, 0)) > 0 ) {
-			for ( uint32 i = 0; i < iCount; ++i ) {
-				if ( arrEvents[i].pChain ) {
-					__xnetPortIOCPFreeEventChain(arrEvents[i].pChain);
-				}
-			}
+			__xnetPortIOCPDispatchQuiesceEvents(pPort, arrEvents, iCount);
 			memset(arrEvents, 0, sizeof(arrEvents));
 		}
+	}
+
+
+	static void __xnetPortIOCPQuiesce(xnetport* pPort)
+	{
+		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
+		xnetportevent arrEvents[32];
+		uint32 iCount;
+		if ( !pCtx || !pCtx->hIOCP ) { return; }
+
+		EnterCriticalSection(&pCtx->tExtLock);
+		pCtx->bStopping = true;
+		for ( __xnet_iocp_bound_socket* pNode = pCtx->pBoundSockets; pNode; pNode = pNode->pNext ) {
+			(void)CancelIoEx((HANDLE)pNode->hSocket, NULL);
+		}
+		for ( __xnet_iocp_io* pIo = pCtx->pActiveIo; pIo; pIo = pIo->pNext ) {
+			if ( pIo->hSocket != (intptr_t)XNET_SOCKET_INVALID ) {
+				(void)CancelIoEx((HANDLE)(SOCKET)pIo->hSocket, &pIo->tOverlapped);
+			}
+		}
+		LeaveCriticalSection(&pCtx->tExtLock);
+
+		while ( __xnetPortIOCPActiveIoCount(pCtx) != 0 ) {
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = __xnetPortIOCPHarvestPosted(pCtx, arrEvents, 32u, 100u);
+			__xnetPortIOCPDispatchQuiesceEvents(pPort, arrEvents, iCount);
+		}
+		__xnetPortIOCPDrainPosted(pPort);
 	}
 
 
@@ -952,7 +1185,7 @@
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx ) { return; }
 
-		__xnetPortIOCPDrainPosted(pCtx);
+		__xnetPortIOCPQuiesce(pPort);
 		__xnetPortIOCPFreeTimers(pCtx);
 		__xnetPortIOCPFreeBoundSockets(pCtx);
 		if ( pCtx->hIOCP ) {
@@ -1048,6 +1281,7 @@
 				// CLOSE：从 IOCP 解绑套接字
 				case XNET_PORT_OP_CLOSE:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) ) {
+						(void)CancelIoEx((HANDLE)(SOCKET)pOp->hSocket, NULL);
 						__xnetPortIOCPUnbindSocket(pCtx, (SOCKET)pOp->hSocket);
 					}
 					break;
@@ -1066,6 +1300,7 @@
 	static uint32 __xnetPortIOCPHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
 	{
 		uint32 iCount = 0;
+		uint32 iWaitMs;
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 
 		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
@@ -1073,7 +1308,11 @@
 		iCount += __xnetPortIOCPHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 
-		iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, iCount > 0 ? 0u : iTimeoutMs);
+		iWaitMs = iCount > 0 ? 0u : __xnetPortIOCPTimerWait(pCtx, iTimeoutMs);
+		iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, iWaitMs);
+		if ( iCount < iMaxEvents ) {
+			iCount += __xnetPortIOCPHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
+		}
 		return iCount;
 	}
 
@@ -1100,17 +1339,28 @@
 	{
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 		__xnet_iocp_timer* pNode;
+		__xnet_iocp_timer* pExisting;
+		uint64 iDueMs;
 
-		if ( !pCtx ) { return XRT_NET_ERROR; }
+		if ( !pCtx || iTimerId == 0u ) { return XRT_NET_ERROR; }
 		pNode = (__xnet_iocp_timer*)XNET_ALLOC(sizeof(__xnet_iocp_timer));
 		if ( !pNode ) { return XRT_NET_ERROR; }
 		memset(pNode, 0, sizeof(__xnet_iocp_timer));
 		pNode->iTimerId = iTimerId;
-		pNode->iDueMs = __xnetPortIOCPNowMs() + (uint64)iDelayMs;
+		iDueMs = __xnetPortIOCPNowMs() + (uint64)iDelayMs;
+		pNode->iDueMs = iDueMs;
 		EnterCriticalSection(&pCtx->tExtLock);
-		pNode->pNext = pCtx->pTimers;
-		pCtx->pTimers = pNode;
+		pExisting = pCtx->pTimers;
+		while ( pExisting && pExisting->iTimerId != iTimerId ) { pExisting = pExisting->pNext; }
+		if ( pExisting ) {
+			pExisting->iDueMs = iDueMs;
+		} else {
+			pNode->pNext = pCtx->pTimers;
+			pCtx->pTimers = pNode;
+			pNode = NULL;
+		}
 		LeaveCriticalSection(&pCtx->tExtLock);
+		if ( pNode ) { XNET_FREE(pNode); }
 		return XRT_NET_OK;
 	}
 

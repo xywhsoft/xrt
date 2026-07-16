@@ -15,6 +15,7 @@ typedef struct xrt_web_server xwebserver;
 typedef struct xrt_web_app xwebapp;
 typedef struct xrt_web_request xwebrequest;
 typedef struct xrt_web_response xwebresponse;
+typedef struct xrt_web_next xwebnext;
 
 typedef int xwebaction;
 
@@ -24,6 +25,8 @@ typedef int xwebaction;
 #define XWEB_ERROR (-1)
 
 typedef xwebaction (*xwebhandler)(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData);
+typedef xwebaction (*xwebmiddleware)(xwebrequest* pReq, xwebresponse* pResp,
+	xwebnext* pNext, ptr pUserData);
 typedef bool (*xwebbodybegin)(xwebrequest* pReq, ptr pUserData);
 typedef bool (*xwebbodychunk)(xwebrequest* pReq, const void* pData, size_t iLen, ptr pUserData);
 typedef xwebaction (*xwebbodyend)(xwebrequest* pReq, xwebresponse* pResp, ptr pUserData);
@@ -31,7 +34,12 @@ typedef xfuture* (*xwebbodyendasync)(xwebrequest* pReq, ptr pUserData);
 typedef xwebaction (*xweberrorhandler)(xwebrequest* pReq, xwebresponse* pResp, uint32 iStatusCode, const char* sMessage, ptr pUserData);
 typedef void (*xwebfree)(ptr pUserData);
 
+#define XWEB_CONFIG_VERSION        1u
+#define XWEB_STATIC_CONFIG_VERSION 1u
+
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	xnetaddr tBindAddr;
 	uint32 iFlags;
 	uint32 iBacklog;
@@ -47,14 +55,23 @@ typedef struct {
 	uint32 iMultipartPartSizeLimit;
 	uint32 iWorkerCount;
 	const xtlsconfig* pTlsConfig;
+	uint32 iCompressionFlags;
+	uint32 iCompressionMinBytes;
+	uint32 iCompressionMaxBytes;
+	int32 iCompressionLevel;
 } xwebconfig;
 
 typedef struct {
+	uint32 iSize;
+	uint32 iVersion;
 	uint32 iFlags;
 	const char* sIndexNames;
 	const char* sCacheControl;
 	size_t iChunkSize;
 } xwebstaticconfig;
+
+#define XWEB_CONFIG_V1_SIZE        ((uint32)sizeof(xwebconfig))
+#define XWEB_STATIC_CONFIG_V1_SIZE ((uint32)sizeof(xwebstaticconfig))
 
 #define XWEB_METHOD_ANY        0xFFFFFFFFu
 #define XWEB_METHOD_GET        (1u << XHTTPD_METHOD_GET)
@@ -64,10 +81,16 @@ typedef struct {
 #define XWEB_METHOD_DELETE     (1u << XHTTPD_METHOD_DELETE)
 #define XWEB_METHOD_PATCH      (1u << XHTTPD_METHOD_PATCH)
 #define XWEB_METHOD_OPTIONS    (1u << XHTTPD_METHOD_OPTIONS)
+#define XWEB_METHOD_CONNECT    (1u << XHTTPD_METHOD_CONNECT)
+#define XWEB_METHOD_TRACE      (1u << XHTTPD_METHOD_TRACE)
 
 #define XWEB_STATIC_F_NONE             0x00000000u
 #define XWEB_STATIC_F_ALLOW_DOTFILES   0x00000001u
 #define XWEB_STATIC_F_ALLOW_BACKSLASH  0x00000002u
+
+#define XWEB_COMPRESSION_F_NONE        0x00000000u
+#define XWEB_COMPRESSION_F_GZIP        0x00000001u
+#define XWEB_COMPRESSION_F_DEFLATE     0x00000002u
 
 // 前置公开声明：这些 helper 的实现位于路由与静态文件逻辑之后。
 // 单头文件模式下，运行库会在完整实现展开前引用这些符号。
@@ -78,6 +101,16 @@ XXAPI bool xrtWebServerStaticEx(xwebserver* pServer, const char* sMount, const c
 XXAPI const char* xrtWebRequestTarget(const xwebrequest* pReq);
 XXAPI str xrtWebRequestTargetCopy(const xwebrequest* pReq);
 XXAPI str xrtWebRequestTlsSNICopy(const xwebrequest* pReq);
+XXAPI xhttpcontext* xrtWebRequestContext(const xwebrequest* pReq);
+XXAPI bool xrtWebResponseSetTrailer(xwebresponse* pResp, const char* sName, const char* sValue);
+XXAPI bool xrtWebResponseAddTrailer(xwebresponse* pResp, const char* sName, const char* sValue);
+XXAPI size_t xrtWebResponseRemoveHeader(xwebresponse* pResp, const char* sName);
+XXAPI bool xrtWebResponseUpgrade(xwebresponse* pResp, const xnetstreamevents* pEvents,
+	ptr pUserData, xnetstream** ppStream);
+#if !defined(XRT_NO_XWS)
+XXAPI bool xrtWebResponseUpgradeWebSocket(xwebresponse* pResp, xwsserver* pWsServer,
+	xwsconn** ppConn);
+#endif
 #endif
 
 typedef struct __xweb_route_node __xweb_route_node;
@@ -86,6 +119,8 @@ typedef struct __xweb_static_mount __xweb_static_mount;
 typedef struct __xweb_vhost __xweb_vhost;
 typedef struct __xweb_sni_cert __xweb_sni_cert;
 typedef struct __xweb_stream_ctx __xweb_stream_ctx;
+typedef struct __xweb_middleware __xweb_middleware;
+typedef struct __xweb_dispatch __xweb_dispatch;
 
 typedef struct {
 	char* sText;
@@ -131,11 +166,20 @@ struct __xweb_static_mount {
 	__xweb_static_mount* pNext;
 };
 
+struct __xweb_middleware {
+	xwebmiddleware pHandler;
+	xwebfree pFreeUserData;
+	ptr pUserData;
+};
+
 struct xrt_web_app {
 	volatile long iRefCount;
 	volatile long iLock;
-	__xweb_route_node* arrRoots[XHTTPD_METHOD_OPTIONS + 1];
+	__xweb_route_node* arrRoots[XHTTPD_METHOD_TRACE + 1];
 	__xweb_static_mount* pStaticHead;
+	__xweb_middleware** arrMiddleware;
+	size_t iMiddlewareCount;
+	size_t iMiddlewareCap;
 	xweberrorhandler pErrorHandler;
 	xwebfree pFreeErrorUserData;
 	ptr pErrorUserData;
@@ -175,13 +219,30 @@ struct xrt_web_request {
 	xhttpdconn* pConn;
 	const xhttpdrequest* pRaw;
 	__xweb_param_view arrParams[32];
+	__xweb_param_view* pParams;
 	size_t iParamCount;
+	size_t iParamCap;
 };
 
 struct xrt_web_response {
 	xwebrequest* pReq;
 	xhttpdresponse* pRaw;
 	bool bCommitted;
+};
+
+struct xrt_web_next {
+	__xweb_dispatch* pDispatch;
+	size_t iNextIndex;
+	xwebaction iResult;
+	bool bCalled;
+	bool bInvalid;
+};
+
+struct __xweb_dispatch {
+	xwebrequest* pReq;
+	xwebresponse* pResp;
+	__xweb_route* pRoute;
+	size_t iMiddlewareCount;
 };
 
 struct __xweb_stream_ctx {
@@ -417,8 +478,47 @@ static bool __xwebNextSegment(const char** ppCur, const char** ppSeg, size_t* pS
 // 内部函数：解析路由方法掩码
 static uint32 __xwebMethodToMask(uint32 iMethod)
 {
-	if ( iMethod <= XHTTPD_METHOD_OPTIONS ) { return 1u << iMethod; }
+	if ( iMethod <= XHTTPD_METHOD_TRACE ) { return 1u << iMethod; }
 	return 0u;
+}
+
+
+static bool __xwebRequestParamsInit(xwebrequest* pReq, const char* sPath)
+{
+	size_t iSegmentCap = 0u;
+	bool bInSegment = false;
+	if ( !pReq || !sPath ) { return false; }
+	pReq->pParams = pReq->arrParams;
+	pReq->iParamCap = sizeof(pReq->arrParams) / sizeof(pReq->arrParams[0]);
+	for ( const char* p = sPath; *p; ++p ) {
+		if ( *p == '/' ) {
+			bInSegment = false;
+		} else if ( !bInSegment ) {
+			if ( iSegmentCap == SIZE_MAX ) { return false; }
+			iSegmentCap++;
+			bInSegment = true;
+		}
+	}
+	if ( iSegmentCap <= pReq->iParamCap ) { return true; }
+	if ( iSegmentCap > SIZE_MAX / sizeof(__xweb_param_view) ) { return false; }
+	pReq->pParams = (__xweb_param_view*)xrtMalloc(sizeof(__xweb_param_view) * iSegmentCap);
+	if ( !pReq->pParams ) {
+		pReq->pParams = pReq->arrParams;
+		return false;
+	}
+	memset(pReq->pParams, 0, sizeof(__xweb_param_view) * iSegmentCap);
+	pReq->iParamCap = iSegmentCap;
+	return true;
+}
+
+
+static void __xwebRequestParamsUnit(xwebrequest* pReq)
+{
+	if ( !pReq ) { return; }
+	if ( pReq->pParams && pReq->pParams != pReq->arrParams ) { xrtFree(pReq->pParams); }
+	pReq->pParams = pReq->arrParams;
+	pReq->iParamCount = 0u;
+	pReq->iParamCap = sizeof(pReq->arrParams) / sizeof(pReq->arrParams[0]);
 }
 
 
@@ -456,6 +556,10 @@ XXAPI uint32 xrtWebMethodMask(const char* sMethods)
 			iMask |= XWEB_METHOD_PATCH;
 		} else if ( iLen == 7u && __xwebTokenEq(sToken, iLen, "OPTIONS") ) {
 			iMask |= XWEB_METHOD_OPTIONS;
+		} else if ( iLen == 7u && __xwebTokenEq(sToken, iLen, "CONNECT") ) {
+			iMask |= XWEB_METHOD_CONNECT;
+		} else if ( iLen == 5u && __xwebTokenEq(sToken, iLen, "TRACE") ) {
+			iMask |= XWEB_METHOD_TRACE;
 		} else {
 			return 0u;
 		}
@@ -529,7 +633,8 @@ static bool __xwebMountMatches(const char* sMount, const char* sPath, const char
 
 
 // 内部函数：匹配路由树
-static __xweb_route* __xwebRouteMatchNode(__xweb_route_node* pNode, const char* sPath, __xweb_param_view* arrParams, size_t* pParamCount)
+static __xweb_route* __xwebRouteMatchNode(__xweb_route_node* pNode, const char* sPath,
+	__xweb_param_view* arrParams, size_t iParamCap, size_t* pParamCount)
 {
 	const char* sSeg;
 	size_t iLen;
@@ -538,26 +643,30 @@ static __xweb_route* __xwebRouteMatchNode(__xweb_route_node* pNode, const char* 
 	__xweb_route* pRoute;
 	if ( !pNode || !sPath || !pParamCount ) { return NULL; }
 	sPath = __xwebSkipSlash(sPath);
-	if ( *sPath == '\0' ) { return pNode->pRoute; }
+	if ( *sPath == '\0' ) {
+		if ( pNode->pRoute ) { return pNode->pRoute; }
+		// 尾通配符表示零段或多段，因而 /* 也应覆盖根路径 /。
+		return pNode->pWild ? pNode->pWild->pRoute : NULL;
+	}
 	if ( !__xwebNextSegment(&sPath, &sSeg, &iLen, &bLast) ) { return pNode->pRoute; }
 
 	// 优先级：静态段 > 变量段 > 尾通配符。
 	pStatic = __xwebRouteFindEdge(pNode, sSeg, iLen);
 	if ( pStatic ) {
-		pRoute = __xwebRouteMatchNode(pStatic, bLast ? "" : sPath, arrParams, pParamCount);
+		pRoute = __xwebRouteMatchNode(pStatic, bLast ? "" : sPath, arrParams, iParamCap, pParamCount);
 		if ( pRoute ) { return pRoute; }
 	}
-	if ( pNode->pVar && *pParamCount < 32u ) {
+	if ( pNode->pVar && *pParamCount < iParamCap ) {
 		size_t iIndex = *pParamCount;
 		arrParams[iIndex].sName = pNode->pVar->sParamName;
 		arrParams[iIndex].sValue = sSeg;
 		arrParams[iIndex].iLen = iLen;
 		(*pParamCount)++;
-		pRoute = __xwebRouteMatchNode(pNode->pVar, bLast ? "" : sPath, arrParams, pParamCount);
+		pRoute = __xwebRouteMatchNode(pNode->pVar, bLast ? "" : sPath, arrParams, iParamCap, pParamCount);
 		if ( pRoute ) { return pRoute; }
 		*pParamCount = iIndex;
 	}
-	if ( pNode->pWild && pNode->pWild->pRoute && *pParamCount < 32u ) {
+	if ( pNode->pWild && pNode->pWild->pRoute && *pParamCount < iParamCap ) {
 		size_t iIndex = *pParamCount;
 		const char* sRest = sSeg;
 		const char* sTail = sSeg + strlen(sSeg);
@@ -572,14 +681,15 @@ static __xweb_route* __xwebRouteMatchNode(__xweb_route_node* pNode, const char* 
 
 
 // 内部函数：匹配路由
-static __xweb_route* __xwebRouteMatch(xwebapp* pApp, uint32 iMethod, const char* sPath, __xweb_param_view* arrParams, size_t* pParamCount)
+static __xweb_route* __xwebRouteMatch(xwebapp* pApp, uint32 iMethod, const char* sPath,
+	__xweb_param_view* arrParams, size_t iParamCap, size_t* pParamCount)
 {
 	__xweb_route_node* pRoot;
 	if ( pParamCount ) { *pParamCount = 0u; }
-	if ( !pApp || !sPath || !pParamCount || iMethod > XHTTPD_METHOD_OPTIONS ) { return NULL; }
+	if ( !pApp || !sPath || !pParamCount || iMethod > XHTTPD_METHOD_TRACE ) { return NULL; }
 	pRoot = pApp->arrRoots[iMethod];
 	if ( !pRoot ) { return NULL; }
-	return __xwebRouteMatchNode(pRoot, sPath, arrParams, pParamCount);
+	return __xwebRouteMatchNode(pRoot, sPath, arrParams, iParamCap, pParamCount);
 }
 
 
@@ -618,7 +728,7 @@ static __xweb_route_node* __xwebRouteFindPatternLeaf(__xweb_route_node* pRoot, c
 static void __xwebRouteClearPattern(xwebapp* pApp, uint32 iMethodMask, const char* sPattern)
 {
 	if ( !pApp || !sPattern ) { return; }
-	for ( uint32 iMethod = 0u; iMethod <= XHTTPD_METHOD_OPTIONS; ++iMethod ) {
+	for ( uint32 iMethod = 0u; iMethod <= XHTTPD_METHOD_TRACE; ++iMethod ) {
 		__xweb_route_node* pNode;
 		if ( iMethod == XHTTPD_METHOD_UNKNOWN ) { continue; }
 		if ( (iMethodMask & __xwebMethodToMask(iMethod)) == 0u ) { continue; }
@@ -646,14 +756,31 @@ static void __xwebStaticMountDestroy(__xweb_static_mount* pMount)
 }
 
 
+// 内部函数：释放 app 持有的中间件节点
+static void __xwebMiddlewareDestroyAll(xwebapp* pApp)
+{
+	if ( !pApp ) { return; }
+	for ( size_t i = 0u; i < pApp->iMiddlewareCount; ++i ) {
+		__xweb_middleware* pMiddleware = pApp->arrMiddleware[i];
+		if ( !pMiddleware ) { continue; }
+		if ( pMiddleware->pFreeUserData ) {
+			pMiddleware->pFreeUserData(pMiddleware->pUserData);
+		}
+		xrtFree(pMiddleware);
+	}
+	xrtFree(pApp->arrMiddleware);
+}
+
+
 // 内部函数：释放 xwebapp 内部资源
 static void __xwebAppFree(xwebapp* pApp)
 {
 	if ( !pApp ) { return; }
-	for ( size_t i = 0u; i <= XHTTPD_METHOD_OPTIONS; ++i ) {
+	for ( size_t i = 0u; i <= XHTTPD_METHOD_TRACE; ++i ) {
 		__xwebRouteNodeDestroy(pApp->arrRoots[i]);
 	}
 	__xwebStaticMountDestroy(pApp->pStaticHead);
+	__xwebMiddlewareDestroyAll(pApp);
 	if ( pApp->pFreeErrorUserData ) { pApp->pFreeErrorUserData(pApp->pErrorUserData); }
 	xrtFree(pApp);
 }
@@ -669,13 +796,22 @@ static xwebaction __xwebRespondSimple(xwebrequest* pReq, xwebresponse* pResp, ui
 }
 
 
+static bool __xwebResetErrorResponse(xwebresponse* pResp)
+{
+	if ( !pResp || !pResp->pRaw || pResp->bCommitted ) { return false; }
+	xrtHttpdResponseUnit(pResp->pRaw);
+	xrtHttpdResponseInit(pResp->pRaw);
+	return xrtHttpdResponseSetHeader(pResp->pRaw, "X-Content-Type-Options", "nosniff");
+}
+
+
 // 内部函数：响应错误，优先交给 app 的错误处理器
 static xwebaction __xwebRespondError(xwebrequest* pReq, xwebresponse* pResp, uint32 iStatusCode, const char* sText)
 {
 	xweberrorhandler pHandler = NULL;
 	ptr pUserData = NULL;
 	xwebaction iAction;
-	if ( !pReq || !pResp ) { return XWEB_ERROR; }
+	if ( !pReq || !pResp || !__xwebResetErrorResponse(pResp) ) { return XWEB_ERROR; }
 	if ( pReq->pApp ) {
 		__xwebLock(&pReq->pApp->iLock);
 		pHandler = pReq->pApp->pErrorHandler;
@@ -685,6 +821,7 @@ static xwebaction __xwebRespondError(xwebrequest* pReq, xwebresponse* pResp, uin
 	if ( pHandler ) {
 		iAction = pHandler(pReq, pResp, iStatusCode, sText ? sText : "", pUserData);
 		if ( iAction == XWEB_DONE || iAction == XWEB_ASYNC || pResp->bCommitted ) { return iAction; }
+		if ( !__xwebResetErrorResponse(pResp) ) { return XWEB_ERROR; }
 	}
 	return __xwebRespondSimple(pReq, pResp, iStatusCode, sText);
 }
@@ -832,10 +969,9 @@ static int __xwebParseByteRange(const char* sRange, size_t iFileSize, size_t* pS
 
 static bool __xwebTryStatic(xwebrequest* pReq, xwebresponse* pResp)
 {
-		__xweb_static_mount* pMount;
+	__xweb_static_mount* pMount;
 	const char* sRel;
-	char sDecoded[XHTTPD_TARGET_CAP];
-	size_t iDecodedLen = 0u;
+	char* sDecoded = NULL;
 	char* sJoined = NULL;
 	char* sPath = NULL;
 	bool bHead;
@@ -858,15 +994,19 @@ static bool __xwebTryStatic(xwebrequest* pReq, xwebresponse* pResp)
 		char* sIndexPath = NULL;
 		char* sIndexNorm = NULL;
 		if ( !__xwebMountMatches(pMount->sMount, pReq->pRaw->sPath, &sRel) ) { continue; }
-		if ( !xrtPercentDecodeTo(sRel, strlen(sRel), sDecoded, sizeof(sDecoded), &iDecodedLen, false) ) {
+		sDecoded = (char*)xrtPercentDecode(sRel, strlen(sRel), false, NULL);
+		if ( !sDecoded ) {
 			(void)__xwebRespondError(pReq, pResp, 400u, "Bad Request");
 			return true;
 		}
 		if ( !__xwebSafeStaticPath(sDecoded, pMount->tConfig.iFlags) ) {
+			xrtFree(sDecoded);
 			(void)__xwebRespondError(pReq, pResp, 403u, "Forbidden");
 			return true;
 		}
 		sJoined = (char*)xrtPathJoin(2u, (str)pMount->sRoot, (str)(sDecoded[0] ? sDecoded : "."));
+		xrtFree(sDecoded);
+		sDecoded = NULL;
 		sPath = (char*)xrtPathNormalize((str)sJoined, 0u);
 		xrtFree(sJoined);
 		sJoined = NULL;
@@ -1077,24 +1217,390 @@ static bool __xwebRequestMultipartBoundary(const xwebrequest* pReq, xrtstrview* 
 XXAPI const void* xrtWebRequestBody(const xwebrequest* pReq, size_t* pLen);
 
 
-static bool __xwebRequestMultipartWithinLimits(const xwebrequest* pReq, uint32 iPartLimit, uint32 iPartSizeLimit)
+#define XWEB_MULTIPART_CHECK_OK       0
+#define XWEB_MULTIPART_CHECK_INVALID  1
+#define XWEB_MULTIPART_CHECK_LIMIT    2
+
+static int __xwebRequestMultipartCheck(const xwebrequest* pReq, uint32 iPartLimit,
+	uint32 iPartSizeLimit, uint32 iHeaderLimit, uint32 iHeaderBytesLimit)
 {
+	const char* sContentType = xrtWebRequestContentType(pReq);
+	xrtmediatypeview tMediaType;
 	xrtstrview tBoundary;
-	const char* sBody;
+	const uint8* pBody;
 	size_t iBodyLen = 0u;
 	size_t iOffset = 0u;
-	uint32 iCount = 0u;
-	xrtmultipartpartview tPart;
+	size_t iPartBytes = 0u;
+	uint32 iPartCount = 0u;
+	xrtmultipartstreamconfig tConfig;
+	xrtmultipartstream tStream;
+	xrtmultipartstreamevent tEvent;
+	int iCheck = XWEB_MULTIPART_CHECK_INVALID;
+	bool bInputFinished = false;
+	bool bInPart = false;
+	bool bDone = false;
 
-	if ( iPartLimit == 0u && iPartSizeLimit == 0u ) { return true; }
-	if ( !__xwebRequestMultipartBoundary(pReq, &tBoundary) ) { return true; }
-	sBody = (const char*)xrtWebRequestBody(pReq, &iBodyLen);
-	if ( !sBody ) { return true; }
+	if ( !sContentType ) { return XWEB_MULTIPART_CHECK_OK; }
+	if ( !xrtHttpMediaTypeParse(sContentType, &tMediaType) ) {
+		return strlen(sContentType) >= 19u && __xwebTokenEq(sContentType, 19u, "MULTIPART/FORM-DATA")
+			? XWEB_MULTIPART_CHECK_INVALID : XWEB_MULTIPART_CHECK_OK;
+	}
+	if ( !__xwebTokenEq(tMediaType.tType.sPtr, tMediaType.tType.iLen, "MULTIPART") ||
+		!__xwebTokenEq(tMediaType.tSubType.sPtr, tMediaType.tSubType.iLen, "FORM-DATA") ) {
+		return XWEB_MULTIPART_CHECK_OK;
+	}
+	if ( !__xwebRequestMultipartBoundary(pReq, &tBoundary) ) { return XWEB_MULTIPART_CHECK_INVALID; }
+	pBody = (const uint8*)xrtWebRequestBody(pReq, &iBodyLen);
+	if ( !pBody || iBodyLen == 0u ) { return XWEB_MULTIPART_CHECK_INVALID; }
 
-	while ( xrtMultipartNextN(sBody, iBodyLen, tBoundary.sPtr, tBoundary.iLen, &iOffset, &tPart) ) {
-		iCount++;
-		if ( iPartLimit > 0u && iCount > iPartLimit ) { return false; }
-		if ( iPartSizeLimit > 0u && tPart.tBody.iLen > (size_t)iPartSizeLimit ) { return false; }
+	xrtMultipartStreamConfigInit(&tConfig);
+	if ( iHeaderLimit > 0u ) { tConfig.iMaxPartHeaders = iHeaderLimit; }
+	if ( iHeaderBytesLimit > 0u ) { tConfig.iMaxHeaderBytes = iHeaderBytesLimit; }
+	if ( !xrtMultipartStreamInit(&tStream, tBoundary.sPtr, tBoundary.iLen, &tConfig) ) {
+		return XWEB_MULTIPART_CHECK_INVALID;
+	}
+
+	while ( !bDone ) {
+		if ( iOffset < iBodyLen ) {
+			size_t iStep = iBodyLen - iOffset;
+			if ( iStep > 16u * 1024u ) { iStep = 16u * 1024u; }
+			if ( !xrtMultipartStreamFeed(&tStream, pBody + iOffset, iStep) ) {
+				iCheck = xrtMultipartStreamError(&tStream) == XRT_MULTIPART_STREAM_ERR_BUFFER_LIMIT ||
+					xrtMultipartStreamError(&tStream) == XRT_MULTIPART_STREAM_ERR_HEADER_LIMIT
+					? XWEB_MULTIPART_CHECK_LIMIT : XWEB_MULTIPART_CHECK_INVALID;
+				break;
+			}
+			iOffset += iStep;
+		} else if ( !bInputFinished ) {
+			xrtMultipartStreamFinish(&tStream);
+			bInputFinished = true;
+		}
+
+		for (;;) {
+			xrtmultipartstreamresult iResult = xrtMultipartStreamNext(&tStream, &tEvent);
+			if ( iResult == XRT_MULTIPART_STREAM_RESULT_NEED_MORE ) { break; }
+			if ( iResult == XRT_MULTIPART_STREAM_RESULT_ERROR ) {
+				uint32 iError = xrtMultipartStreamError(&tStream);
+				iCheck = (iError == XRT_MULTIPART_STREAM_ERR_BUFFER_LIMIT ||
+					iError == XRT_MULTIPART_STREAM_ERR_HEADER_LIMIT)
+					? XWEB_MULTIPART_CHECK_LIMIT : XWEB_MULTIPART_CHECK_INVALID;
+				bDone = true;
+				break;
+			}
+			if ( iResult == XRT_MULTIPART_STREAM_RESULT_PART_BEGIN ) {
+				iPartCount++;
+				iPartBytes = 0u;
+				bInPart = true;
+				if ( (iPartLimit > 0u && iPartCount > iPartLimit) ||
+					(tEvent.tPart.iFlags & (XRT_MULTIPART_F_HAS_CONTENT_DISP | XRT_MULTIPART_F_HAS_NAME)) !=
+						(XRT_MULTIPART_F_HAS_CONTENT_DISP | XRT_MULTIPART_F_HAS_NAME) ) {
+					iCheck = iPartLimit > 0u && iPartCount > iPartLimit
+						? XWEB_MULTIPART_CHECK_LIMIT : XWEB_MULTIPART_CHECK_INVALID;
+					bDone = true;
+					break;
+				}
+			} else if ( iResult == XRT_MULTIPART_STREAM_RESULT_DATA ) {
+				if ( !bInPart || iPartBytes > ((size_t)-1) - tEvent.tData.iLen ) {
+					iCheck = XWEB_MULTIPART_CHECK_INVALID;
+					bDone = true;
+					break;
+				}
+				iPartBytes += tEvent.tData.iLen;
+				if ( iPartSizeLimit > 0u && iPartBytes > (size_t)iPartSizeLimit ) {
+					iCheck = XWEB_MULTIPART_CHECK_LIMIT;
+					bDone = true;
+					break;
+				}
+			} else if ( iResult == XRT_MULTIPART_STREAM_RESULT_PART_END ) {
+				if ( !bInPart ) {
+					iCheck = XWEB_MULTIPART_CHECK_INVALID;
+					bDone = true;
+					break;
+				}
+				bInPart = false;
+			} else if ( iResult == XRT_MULTIPART_STREAM_RESULT_END ) {
+				iCheck = bInPart ? XWEB_MULTIPART_CHECK_INVALID : XWEB_MULTIPART_CHECK_OK;
+				bDone = true;
+				break;
+			}
+		}
+		if ( !bDone && bInputFinished ) {
+			iCheck = XWEB_MULTIPART_CHECK_INVALID;
+			break;
+		}
+	}
+	xrtMultipartStreamUnit(&tStream);
+	return iCheck;
+}
+
+
+typedef struct {
+	int iGzip;
+	int iDeflate;
+	int iIdentity;
+	int iWildcard;
+	bool bHasHeader;
+	bool bHasGzip;
+	bool bHasDeflate;
+	bool bHasIdentity;
+	bool bHasWildcard;
+} __xweb_accept_encoding;
+
+
+static bool __xwebParseQuality(const char* sText, size_t iLen, int* pQuality)
+{
+	size_t i = 0u;
+	int iValue = 0;
+	int iScale = 100;
+	if ( pQuality ) { *pQuality = 0; }
+	while ( i < iLen && (sText[i] == ' ' || sText[i] == '\t') ) { i++; }
+	while ( iLen > i && (sText[iLen - 1u] == ' ' || sText[iLen - 1u] == '\t') ) { iLen--; }
+	if ( !pQuality || i >= iLen || (sText[i] != '0' && sText[i] != '1') ) { return false; }
+	if ( sText[i] == '1' ) { iValue = 1000; }
+	i++;
+	if ( i < iLen ) {
+		if ( sText[i++] != '.' ) { return false; }
+		if ( iLen - i > 3u ) { return false; }
+		while ( i < iLen ) {
+			if ( sText[i] < '0' || sText[i] > '9' ) { return false; }
+			if ( iValue == 1000 && sText[i] != '0' ) { return false; }
+			if ( iValue != 1000 ) { iValue += (sText[i] - '0') * iScale; }
+			iScale /= 10;
+			i++;
+		}
+	}
+	*pQuality = iValue;
+	return true;
+}
+
+
+static void __xwebAcceptEncodingSet(__xweb_accept_encoding* pAccept,
+	const char* sCoding, size_t iCodingLen, int iQuality)
+{
+	int* pValue = NULL;
+	bool* pSeen = NULL;
+	if ( __xwebTokenEq(sCoding, iCodingLen, "GZIP") ) {
+		pValue = &pAccept->iGzip;
+		pSeen = &pAccept->bHasGzip;
+	} else if ( __xwebTokenEq(sCoding, iCodingLen, "DEFLATE") ) {
+		pValue = &pAccept->iDeflate;
+		pSeen = &pAccept->bHasDeflate;
+	} else if ( __xwebTokenEq(sCoding, iCodingLen, "IDENTITY") ) {
+		pValue = &pAccept->iIdentity;
+		pSeen = &pAccept->bHasIdentity;
+	} else if ( iCodingLen == 1u && sCoding[0] == '*' ) {
+		pValue = &pAccept->iWildcard;
+		pSeen = &pAccept->bHasWildcard;
+	}
+	if ( !pValue || !pSeen ) { return; }
+	if ( !*pSeen || iQuality > *pValue ) { *pValue = iQuality; }
+	*pSeen = true;
+}
+
+
+static void __xwebAcceptEncodingParseValue(__xweb_accept_encoding* pAccept,
+	const char* sValue, size_t iValueLen)
+{
+	size_t iOffset = 0u;
+	if ( !pAccept || !sValue ) { return; }
+	while ( iOffset < iValueLen ) {
+		size_t iEnd = iOffset;
+		size_t iStart;
+		size_t iCodingEnd;
+		size_t iSemi;
+		int iQuality = 1000;
+		while ( iEnd < iValueLen && sValue[iEnd] != ',' ) { iEnd++; }
+		iStart = iOffset;
+		while ( iStart < iEnd && (sValue[iStart] == ' ' || sValue[iStart] == '\t') ) { iStart++; }
+		while ( iEnd > iStart && (sValue[iEnd - 1u] == ' ' || sValue[iEnd - 1u] == '\t') ) { iEnd--; }
+		iSemi = iStart;
+		while ( iSemi < iEnd && sValue[iSemi] != ';' ) { iSemi++; }
+		iCodingEnd = iSemi;
+		while ( iCodingEnd > iStart && (sValue[iCodingEnd - 1u] == ' ' || sValue[iCodingEnd - 1u] == '\t') ) { iCodingEnd--; }
+		if ( iCodingEnd > iStart && iSemi < iEnd ) {
+			size_t iParam = iSemi + 1u;
+			while ( iParam < iEnd && (sValue[iParam] == ' ' || sValue[iParam] == '\t') ) { iParam++; }
+			if ( iParam >= iEnd || __xwebAsciiUpper(sValue[iParam++]) != 'Q' ) { goto next_member; }
+			while ( iParam < iEnd && (sValue[iParam] == ' ' || sValue[iParam] == '\t') ) { iParam++; }
+			if ( iParam >= iEnd || sValue[iParam++] != '=' ||
+				!__xwebParseQuality(sValue + iParam, iEnd - iParam, &iQuality) ) {
+				goto next_member;
+			}
+		}
+		if ( iCodingEnd > iStart ) {
+			__xwebAcceptEncodingSet(pAccept, sValue + iStart, iCodingEnd - iStart, iQuality);
+		}
+next_member:
+		iOffset = iEnd < iValueLen ? iEnd + 1u : iValueLen;
+	}
+}
+
+
+static void __xwebRequestAcceptEncoding(const xwebrequest* pReq, __xweb_accept_encoding* pAccept)
+{
+	if ( !pAccept ) { return; }
+	memset(pAccept, 0, sizeof(*pAccept));
+	if ( !pReq || !pReq->pRaw ) { return; }
+	for ( uint32 i = 0u; i < pReq->pRaw->iHeaderCount; ++i ) {
+		const char* sName = pReq->pRaw->pHeaders[i].sName;
+		const char* sValue = pReq->pRaw->pHeaders[i].sValue;
+		if ( !sName || !sValue || !__xwebTokenEq(sName, strlen(sName), "ACCEPT-ENCODING") ) { continue; }
+		pAccept->bHasHeader = true;
+		__xwebAcceptEncodingParseValue(pAccept, sValue, strlen(sValue));
+	}
+}
+
+
+static bool __xwebResponseTypeCompressible(const xhttpdresponse* pResp)
+{
+	const char* sContentType = xrtHttpdResponseHeader(pResp, "Content-Type");
+	xrtmediatypeview tType;
+	if ( !sContentType || !xrtHttpMediaTypeParse(sContentType, &tType) ) { return false; }
+	if ( __xwebTokenEq(tType.tType.sPtr, tType.tType.iLen, "TEXT") ||
+		__xwebTokenEq(tType.tType.sPtr, tType.tType.iLen, "FONT") ) {
+		return true;
+	}
+	if ( __xwebTokenEq(tType.tType.sPtr, tType.tType.iLen, "IMAGE") &&
+		(tType.iFlags & XRT_HTTP_MEDIA_TYPE_F_HAS_SUFFIX) != 0u &&
+		__xwebTokenEq(tType.tSuffix.sPtr, tType.tSuffix.iLen, "XML") ) {
+		return true;
+	}
+	if ( !__xwebTokenEq(tType.tType.sPtr, tType.tType.iLen, "APPLICATION") ) { return false; }
+	if ( (tType.iFlags & XRT_HTTP_MEDIA_TYPE_F_HAS_SUFFIX) != 0u &&
+		(__xwebTokenEq(tType.tSuffix.sPtr, tType.tSuffix.iLen, "JSON") ||
+		 __xwebTokenEq(tType.tSuffix.sPtr, tType.tSuffix.iLen, "XML")) ) {
+		return true;
+	}
+	return __xwebTokenEq(tType.tSubType.sPtr, tType.tSubType.iLen, "JSON") ||
+		__xwebTokenEq(tType.tSubType.sPtr, tType.tSubType.iLen, "XML") ||
+		__xwebTokenEq(tType.tSubType.sPtr, tType.tSubType.iLen, "JAVASCRIPT") ||
+		__xwebTokenEq(tType.tSubType.sPtr, tType.tSubType.iLen, "X-JAVASCRIPT") ||
+		__xwebTokenEq(tType.tSubType.sPtr, tType.tSubType.iLen, "WASM") ||
+		__xwebTokenEq(tType.tSubType.sPtr, tType.tSubType.iLen, "SQL") ||
+		__xwebTokenEq(tType.tSubType.sPtr, tType.tSubType.iLen, "RTF");
+}
+
+
+static bool __xwebResponseEnsureVaryEncoding(xhttpdresponse* pResp)
+{
+	if ( !pResp ) { return false; }
+	for ( uint32 i = 0u; i < pResp->iHeaderCount; ++i ) {
+		const char* sName = pResp->pHeaders[i].sName;
+		const char* sValue = pResp->pHeaders[i].sValue;
+		if ( !sName || !sValue || !__xwebTokenEq(sName, strlen(sName), "VARY") ) { continue; }
+		if ( xrtHttpHeaderContainsToken(sValue, "Accept-Encoding") ||
+			xrtHttpHeaderContainsToken(sValue, "*") ) {
+			return true;
+		}
+	}
+	return xrtHttpdResponseAddHeader(pResp, "Vary", "Accept-Encoding");
+}
+
+
+#define XWEB_COMPRESS_SKIP            0
+#define XWEB_COMPRESS_APPLIED         1
+#define XWEB_COMPRESS_NOT_ACCEPTABLE  2
+#define XWEB_COMPRESS_ERROR           3
+
+#if defined(XRT_NO_XDEFLATE)
+static int __xwebApplyResponseCompression(xwebrequest* pReq, xwebresponse* pResp)
+{
+	(void)pReq;
+	(void)pResp;
+	return XWEB_COMPRESS_SKIP;
+}
+#else
+static int __xwebApplyResponseCompression(xwebrequest* pReq, xwebresponse* pResp)
+{
+	__xweb_accept_encoding tAccept;
+	xwebconfig* pConfig;
+	xhttpdresponse* pRaw;
+	uint32 iFlags;
+	int iGzipQuality;
+	int iDeflateQuality;
+	int iIdentityQuality;
+	const char* sEncoding;
+	void* pCompressed = NULL;
+	size_t iCompressedLen = 0u;
+	__xdeflate_format eFormat;
+	if ( !pReq || !pResp || !pReq->pServer || !pResp->pRaw || pResp->bCommitted ) {
+		return XWEB_COMPRESS_SKIP;
+	}
+	pConfig = &pReq->pServer->tConfig;
+	pRaw = pResp->pRaw;
+	iFlags = pConfig->iCompressionFlags & (XWEB_COMPRESSION_F_GZIP | XWEB_COMPRESSION_F_DEFLATE);
+	if ( iFlags == 0u || pRaw->iBodyLen == 0u || pRaw->iStatusCode < 200u ||
+		pRaw->iStatusCode == 204u || pRaw->iStatusCode == 304u ||
+		(pConfig->iCompressionMinBytes > 0u && pRaw->iBodyLen < pConfig->iCompressionMinBytes) ||
+		(pConfig->iCompressionMaxBytes > 0u && pRaw->iBodyLen > pConfig->iCompressionMaxBytes) ||
+		xrtHttpdResponseHeader(pRaw, "Content-Encoding") ||
+		xrtHttpdResponseHeader(pRaw, "Content-Range") ||
+		(xrtHttpdResponseHeader(pRaw, "Cache-Control") &&
+		 xrtHttpHeaderContainsToken(xrtHttpdResponseHeader(pRaw, "Cache-Control"), "no-transform")) ||
+		!__xwebResponseTypeCompressible(pRaw) ) {
+		return XWEB_COMPRESS_SKIP;
+	}
+	if ( !__xwebResponseEnsureVaryEncoding(pRaw) ) { return XWEB_COMPRESS_ERROR; }
+	__xwebRequestAcceptEncoding(pReq, &tAccept);
+	if ( !tAccept.bHasHeader ) { return XWEB_COMPRESS_SKIP; }
+	iGzipQuality = tAccept.bHasGzip ? tAccept.iGzip :
+		(tAccept.bHasWildcard ? tAccept.iWildcard : 0);
+	iDeflateQuality = tAccept.bHasDeflate ? tAccept.iDeflate :
+		(tAccept.bHasWildcard ? tAccept.iWildcard : 0);
+	iIdentityQuality = tAccept.bHasIdentity ? tAccept.iIdentity :
+		(tAccept.bHasWildcard && tAccept.iWildcard == 0 ? 0 : 1000);
+	if ( (iFlags & XWEB_COMPRESSION_F_GZIP) == 0u ) { iGzipQuality = 0; }
+	if ( (iFlags & XWEB_COMPRESSION_F_DEFLATE) == 0u ) { iDeflateQuality = 0; }
+	if ( iGzipQuality <= 0 && iDeflateQuality <= 0 ) {
+		return iIdentityQuality <= 0 ? XWEB_COMPRESS_NOT_ACCEPTABLE : XWEB_COMPRESS_SKIP;
+	}
+	if ( iIdentityQuality > (iGzipQuality > iDeflateQuality ? iGzipQuality : iDeflateQuality) ) {
+		return XWEB_COMPRESS_SKIP;
+	}
+	if ( iGzipQuality >= iDeflateQuality ) {
+		sEncoding = "gzip";
+		eFormat = __XDEFLATE_FORMAT_GZIP;
+	} else {
+		sEncoding = "deflate";
+		eFormat = __XDEFLATE_FORMAT_ZLIB;
+	}
+	if ( !__xdeflateCompress(eFormat, pRaw->pBody, pRaw->iBodyLen,
+		pConfig->iCompressionLevel, &pCompressed, &iCompressedLen) ) {
+		return iIdentityQuality > 0 ? XWEB_COMPRESS_SKIP : XWEB_COMPRESS_ERROR;
+	}
+	if ( iCompressedLen >= pRaw->iBodyLen && iIdentityQuality > 0 ) {
+		free(pCompressed);
+		return XWEB_COMPRESS_SKIP;
+	}
+	if ( !xrtHttpdResponseSetHeader(pRaw, "Content-Encoding", sEncoding) ) {
+		free(pCompressed);
+		return XWEB_COMPRESS_ERROR;
+	}
+	(void)xrtHttpdResponseRemoveHeader(pRaw, "Content-Length");
+	(void)xrtHttpdResponseRemoveHeader(pRaw, "Content-MD5");
+	(void)xrtHttpdResponseRemoveHeader(pRaw, "Digest");
+	(void)xrtHttpdResponseRemoveHeader(pRaw, "Content-Digest");
+	if ( xrtHttpdResponseHeader(pRaw, "ETag") &&
+		strncmp(xrtHttpdResponseHeader(pRaw, "ETag"), "W/", 2u) != 0 ) {
+		(void)xrtHttpdResponseRemoveHeader(pRaw, "ETag");
+	}
+	if ( pRaw->pBody ) { XNET_FREE(pRaw->pBody); }
+	pRaw->pBody = (char*)pCompressed;
+	pRaw->iBodyLen = iCompressedLen;
+	pRaw->iBodyCap = iCompressedLen;
+	return XWEB_COMPRESS_APPLIED;
+}
+#endif
+
+
+static bool __xwebFinalizeResponse(xwebrequest* pReq, xwebresponse* pResp)
+{
+	int iResult = __xwebApplyResponseCompression(pReq, pResp);
+	if ( iResult == XWEB_COMPRESS_NOT_ACCEPTABLE ) {
+		return __xwebRespondError(pReq, pResp, 406u, "Not Acceptable") != XWEB_ERROR;
+	}
+	if ( iResult == XWEB_COMPRESS_ERROR ) {
+		return __xwebRespondError(pReq, pResp, 500u, "Internal Server Error") != XWEB_ERROR;
 	}
 	return true;
 }
@@ -1104,6 +1610,7 @@ static bool __xwebRequestMultipartWithinLimits(const xwebrequest* pReq, uint32 i
 static void __xwebStreamCtxDestroy(__xweb_stream_ctx* pCtx)
 {
 	if ( !pCtx ) { return; }
+	__xwebRequestParamsUnit(&pCtx->tReq);
 	if ( pCtx->pApp ) { __xwebAppRelease(pCtx->pApp); }
 	xrtFree(pCtx);
 }
@@ -1201,8 +1708,13 @@ static bool __xwebOnRequestBodyBegin(ptr pOwner, xhttpdserver* pHttpd, xhttpdcon
 	pCtx->tReq.pConn = pConn;
 	pCtx->tReq.pRaw = pRawReq;
 	pCtx->tResp.pReq = &pCtx->tReq;
+	if ( !__xwebRequestParamsInit(&pCtx->tReq, pRawReq->sPath) ) {
+		__xwebStreamCtxDestroy(pCtx);
+		return false;
+	}
 	__xwebLock(&pApp->iLock);
-	pRoute = __xwebRouteMatch(pApp, pRawReq->iMethod, pRawReq->sPath, pCtx->tReq.arrParams, &pCtx->tReq.iParamCount);
+	pRoute = __xwebRouteMatch(pApp, pRawReq->iMethod, pRawReq->sPath,
+		pCtx->tReq.pParams, pCtx->tReq.iParamCap, &pCtx->tReq.iParamCount);
 	__xwebUnlock(&pApp->iLock);
 	if ( !pRoute || !pRoute->pBody || (!pRoute->pBodyEnd && !pRoute->pBodyEndAsync) ) {
 		__xwebStreamCtxDestroy(pCtx);
@@ -1288,6 +1800,9 @@ static bool __xwebOnRequestBodyEnd(ptr pOwner, xhttpdserver* pHttpd, xhttpdconn*
 		(void)__xwebRespondError(&pCtx->tReq, &pCtx->tResp, 404u, "Not Found");
 		bRet = true;
 	}
+	if ( bRet && !pCtx->tResp.bCommitted ) {
+		bRet = __xwebFinalizeResponse(&pCtx->tReq, &pCtx->tResp);
+	}
 	__xwebStreamCtxDestroy(pCtx);
 	return bRet;
 }
@@ -1306,14 +1821,85 @@ static void __xwebOnClose(ptr pOwner, xhttpdserver* pHttpd, xhttpdconn* pConn, x
 }
 
 
+static __xweb_middleware* __xwebMiddlewareAt(xwebapp* pApp, size_t iIndex)
+{
+	__xweb_middleware* pRet = NULL;
+	if ( !pApp ) { return NULL; }
+	__xwebLock(&pApp->iLock);
+	if ( iIndex < pApp->iMiddlewareCount ) {
+		pRet = pApp->arrMiddleware[iIndex];
+	}
+	__xwebUnlock(&pApp->iLock);
+	return pRet;
+}
+
+
+static xwebaction __xwebDispatchEndpoint(__xweb_dispatch* pDispatch)
+{
+	xwebaction iAction;
+	if ( !pDispatch || !pDispatch->pReq || !pDispatch->pResp ) { return XWEB_ERROR; }
+	if ( pDispatch->pRoute && pDispatch->pRoute->pHandler ) {
+		iAction = pDispatch->pRoute->pHandler(pDispatch->pReq, pDispatch->pResp,
+			pDispatch->pRoute->pUserData);
+		if ( pDispatch->pResp->bCommitted ) {
+			return iAction == XWEB_ERROR ? XWEB_ERROR : XWEB_DONE;
+		}
+		if ( iAction != XWEB_NEXT ) { return iAction; }
+	}
+	if ( __xwebTryStatic(pDispatch->pReq, pDispatch->pResp) ) { return XWEB_DONE; }
+	return __xwebRespondError(pDispatch->pReq, pDispatch->pResp, 404u, "Not Found");
+}
+
+
+static xwebaction __xwebDispatchAt(__xweb_dispatch* pDispatch, size_t iIndex);
+
+
+// 继续执行当前同步中间件链。pNext 只在本次中间件回调期间有效，且最多调用一次。
+XXAPI xwebaction xrtWebNext(xwebnext* pNext)
+{
+	if ( !pNext || !pNext->pDispatch || pNext->bCalled ) {
+		if ( pNext ) { pNext->bInvalid = true; }
+		return XWEB_ERROR;
+	}
+	pNext->bCalled = true;
+	pNext->iResult = __xwebDispatchAt(pNext->pDispatch, pNext->iNextIndex);
+	return pNext->iResult;
+}
+
+
+static xwebaction __xwebDispatchAt(__xweb_dispatch* pDispatch, size_t iIndex)
+{
+	__xweb_middleware* pMiddleware;
+	xwebnext tNext;
+	xwebaction iAction;
+	if ( !pDispatch || !pDispatch->pReq || !pDispatch->pReq->pApp ) { return XWEB_ERROR; }
+	if ( iIndex >= pDispatch->iMiddlewareCount ) { return __xwebDispatchEndpoint(pDispatch); }
+	pMiddleware = __xwebMiddlewareAt(pDispatch->pReq->pApp, iIndex);
+	if ( !pMiddleware ) { return XWEB_ERROR; }
+	memset(&tNext, 0, sizeof(tNext));
+	tNext.pDispatch = pDispatch;
+	tNext.iNextIndex = iIndex + 1u;
+	tNext.iResult = XWEB_NEXT;
+	iAction = pMiddleware->pHandler(pDispatch->pReq, pDispatch->pResp,
+		&tNext, pMiddleware->pUserData);
+	tNext.pDispatch = NULL;
+	if ( tNext.bInvalid ) { return XWEB_ERROR; }
+	if ( tNext.bCalled ) {
+		return iAction == XWEB_NEXT ? tNext.iResult : iAction;
+	}
+	return iAction == XWEB_NEXT ? __xwebDispatchAt(pDispatch, iIndex + 1u) : iAction;
+}
+
+
 static bool __xwebOnRequest(ptr pOwner, xhttpdserver* pHttpd, xhttpdconn* pConn, const xhttpdrequest* pRawReq, xhttpdresponse* pRawResp)
 {
 	xwebserver* pServer = (xwebserver*)pOwner;
 	xwebapp* pApp;
 	xwebrequest tReq;
 	xwebresponse tResp;
-	__xweb_route* pRoute;
+	__xweb_dispatch tDispatch;
 	xwebaction iAction;
+	int iMultipartCheck;
 	(void)pHttpd;
 	if ( !pServer || !pConn || !pRawReq || !pRawResp ) { return false; }
 	__xnetAtomicAddFetch32(&pServer->iRequestCount, 1);
@@ -1327,27 +1913,43 @@ static bool __xwebOnRequest(ptr pOwner, xhttpdserver* pHttpd, xhttpdconn* pConn,
 	tReq.pRaw = pRawReq;
 	tResp.pReq = &tReq;
 	tResp.pRaw = pRawResp;
+	if ( !__xwebRequestParamsInit(&tReq, pRawReq->sPath) ) {
+		__xwebAppRelease(pApp);
+		return false;
+	}
 	(void)xrtWebResponseSetHeader(&tResp, "X-Content-Type-Options", "nosniff");
-	if ( !__xwebRequestMultipartWithinLimits(&tReq, pServer->tConfig.iMultipartPartLimit, pServer->tConfig.iMultipartPartSizeLimit) ) {
-		(void)__xwebRespondError(&tReq, &tResp, 413u, "Payload Too Large");
+	iMultipartCheck = __xwebRequestMultipartCheck(&tReq,
+		pServer->tConfig.iMultipartPartLimit, pServer->tConfig.iMultipartPartSizeLimit,
+		pServer->tConfig.iHeaderLimit, pServer->tConfig.iHeaderBytesLimit);
+	if ( iMultipartCheck != XWEB_MULTIPART_CHECK_OK ) {
+		(void)__xwebRespondError(&tReq, &tResp,
+			iMultipartCheck == XWEB_MULTIPART_CHECK_LIMIT ? 413u : 400u,
+			iMultipartCheck == XWEB_MULTIPART_CHECK_LIMIT ? "Payload Too Large" : "Bad Request");
+		(void)__xwebFinalizeResponse(&tReq, &tResp);
+		__xwebRequestParamsUnit(&tReq);
 		__xwebAppRelease(pApp);
 		return true;
 	}
+	memset(&tDispatch, 0, sizeof(tDispatch));
+	tDispatch.pReq = &tReq;
+	tDispatch.pResp = &tResp;
 	__xwebLock(&pApp->iLock);
-	pRoute = __xwebRouteMatch(pApp, pRawReq->iMethod, pRawReq->sPath, tReq.arrParams, &tReq.iParamCount);
+	tDispatch.iMiddlewareCount = pApp->iMiddlewareCount;
+	tDispatch.pRoute = __xwebRouteMatch(pApp, pRawReq->iMethod, pRawReq->sPath,
+		tReq.pParams, tReq.iParamCap, &tReq.iParamCount);
 	__xwebUnlock(&pApp->iLock);
-	if ( pRoute && pRoute->pHandler ) {
-		iAction = pRoute->pHandler(&tReq, &tResp, pRoute->pUserData);
-		if ( iAction == XWEB_ASYNC ) { __xwebAppRelease(pApp); return true; }
-		if ( iAction == XWEB_DONE || tResp.bCommitted ) { __xwebAppRelease(pApp); return true; }
-		if ( iAction == XWEB_ERROR ) {
-			(void)__xwebRespondError(&tReq, &tResp, 500u, "Internal Server Error");
-			__xwebAppRelease(pApp);
-			return true;
+	iAction = __xwebDispatchAt(&tDispatch, 0u);
+	if ( !tResp.bCommitted ) {
+		if ( iAction == XWEB_ASYNC ) {
+			(void)__xwebRespondError(&tReq, &tResp, 500u,
+				"Async action requires an asynchronous route");
 		}
+		else if ( iAction != XWEB_DONE ) {
+			(void)__xwebRespondError(&tReq, &tResp, 500u, "Internal Server Error");
+		}
+		if ( !tResp.bCommitted ) { (void)__xwebFinalizeResponse(&tReq, &tResp); }
 	}
-	if ( __xwebTryStatic(&tReq, &tResp) ) { __xwebAppRelease(pApp); return true; }
-	(void)__xwebRespondError(&tReq, &tResp, 404u, "Not Found");
+	__xwebRequestParamsUnit(&tReq);
 	__xwebAppRelease(pApp);
 	return true;
 }
@@ -1356,9 +1958,14 @@ static bool __xwebOnRequest(ptr pOwner, xhttpdserver* pHttpd, xhttpdconn* pConn,
 // 初始化 xweb 配置
 XXAPI void xrtWebConfigInit(xwebconfig* pCfg)
 {
+	xnetlistenconfig tListenCfg;
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xwebconfig));
+	pCfg->iSize = XWEB_CONFIG_V1_SIZE;
+	pCfg->iVersion = XWEB_CONFIG_VERSION;
+	xrtNetListenConfigInit(&tListenCfg);
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0u);
+	pCfg->iFlags = tListenCfg.iFlags;
 	pCfg->iBacklog = 128u;
 	pCfg->iRecvLimit = 1024u * 1024u;
 	pCfg->iBodyLimit = pCfg->iRecvLimit;
@@ -1371,6 +1978,10 @@ XXAPI void xrtWebConfigInit(xwebconfig* pCfg)
 	pCfg->iMultipartPartLimit = 1000u;
 	pCfg->iMultipartPartSizeLimit = 0u;
 	pCfg->iWorkerCount = 1u;
+	pCfg->iCompressionFlags = XWEB_COMPRESSION_F_NONE;
+	pCfg->iCompressionMinBytes = 1024u;
+	pCfg->iCompressionMaxBytes = 4u * 1024u * 1024u;
+	pCfg->iCompressionLevel = 6;
 }
 
 
@@ -1379,9 +1990,46 @@ XXAPI void xrtWebStaticConfigInit(xwebstaticconfig* pCfg)
 {
 	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xwebstaticconfig));
+	pCfg->iSize = XWEB_STATIC_CONFIG_V1_SIZE;
+	pCfg->iVersion = XWEB_STATIC_CONFIG_VERSION;
 	pCfg->iFlags = XWEB_STATIC_F_NONE;
 	pCfg->sIndexNames = "index.html;index.htm";
 	pCfg->iChunkSize = 64u * 1024u;
+}
+
+
+static bool __xwebConfigCopy(xwebconfig* pDst, const xwebconfig* pSrc)
+{
+	size_t iCopy;
+	if ( !pDst ) { return false; }
+	xrtWebConfigInit(pDst);
+	if ( !pSrc ) { return true; }
+	if ( pSrc->iVersion != XWEB_CONFIG_VERSION || pSrc->iSize < XWEB_CONFIG_V1_SIZE ) {
+		return false;
+	}
+	iCopy = pSrc->iSize < sizeof(*pDst) ? (size_t)pSrc->iSize : sizeof(*pDst);
+	memcpy(pDst, pSrc, iCopy);
+	pDst->iSize = XWEB_CONFIG_V1_SIZE;
+	pDst->iVersion = XWEB_CONFIG_VERSION;
+	return true;
+}
+
+
+static bool __xwebStaticConfigCopy(xwebstaticconfig* pDst, const xwebstaticconfig* pSrc)
+{
+	size_t iCopy;
+	if ( !pDst ) { return false; }
+	xrtWebStaticConfigInit(pDst);
+	if ( !pSrc ) { return true; }
+	if ( pSrc->iVersion != XWEB_STATIC_CONFIG_VERSION ||
+		pSrc->iSize < XWEB_STATIC_CONFIG_V1_SIZE ) {
+		return false;
+	}
+	iCopy = pSrc->iSize < sizeof(*pDst) ? (size_t)pSrc->iSize : sizeof(*pDst);
+	memcpy(pDst, pSrc, iCopy);
+	pDst->iSize = XWEB_STATIC_CONFIG_V1_SIZE;
+	pDst->iVersion = XWEB_STATIC_CONFIG_VERSION;
+	return true;
 }
 
 
@@ -1443,8 +2091,7 @@ XXAPI xwebserver* xrtWebServerCreate(xnetengine* pEngine, const xwebconfig* pCfg
 	xwebconfig tCfg;
 	xtlsconfig tTlsCfg;
 	bool bOwnEngine = false;
-	if ( pCfg ) { tCfg = *pCfg; }
-	else { xrtWebConfigInit(&tCfg); }
+	if ( !__xwebConfigCopy(&tCfg, pCfg) ) { return NULL; }
 	if ( !pEngine ) {
 		xnetengineconfig tEngineCfg;
 		xrtNetEngineConfigInit(&tEngineCfg);
@@ -1478,7 +2125,7 @@ XXAPI xwebserver* xrtWebServerCreate(xnetengine* pEngine, const xwebconfig* pCfg
 		return NULL;
 	}
 	pServer->tConfig = tCfg;
-	memset(&pServer->tEvents, 0, sizeof(pServer->tEvents));
+	xrtHttpdEventsInit(&pServer->tEvents);
 	pServer->tEvents.OnRequest = __xwebOnRequest;
 	pServer->tEvents.OnRequestBodyBegin = __xwebOnRequestBodyBegin;
 	pServer->tEvents.OnRequestBody = __xwebOnRequestBody;
@@ -1518,27 +2165,105 @@ XXAPI xwebserver* xrtWebServerCreate(xnetengine* pEngine, const xwebconfig* pCfg
 }
 
 
-// 使用常用参数创建 xweb 服务
-XXAPI xwebserver* xrtWebServerCreateHostEx(xnetengine* pEngine, const char* sHost, uint16 iPort, uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iWorkerCount)
+// 内部函数：使用稳定的标量参数构造完整 xweb 配置
+static bool __xwebConfigHostFull(xwebconfig* pCfg, const char* sHost, uint16 iPort,
+	uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iHeaderLimit,
+	uint32 iHeaderBytesLimit, uint32 iWorkerCount, uint32 iHeaderTimeoutMs,
+	uint32 iBodyTimeoutMs, uint32 iIdleTimeoutMs, uint32 iWriteTimeoutMs,
+	uint32 iMultipartPartLimit, uint32 iMultipartPartSizeLimit)
 {
-	xwebconfig tCfg;
-	xrtWebConfigInit(&tCfg);
+	if ( !pCfg ) { return false; }
+	xrtWebConfigInit(pCfg);
 	if ( sHost && sHost[0] ) {
-		if ( xrtNetAddrParse(&tCfg.tBindAddr, sHost, iPort) != XRT_NET_OK ) { return NULL; }
+		if ( xrtNetAddrParse(&pCfg->tBindAddr, sHost, iPort) != XRT_NET_OK ) { return false; }
 	}
 	else {
-		xrtNetAddrInitAny(&tCfg.tBindAddr, AF_INET, iPort);
+		xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, iPort);
 	}
-	if ( iBacklog > 0u ) { tCfg.iBacklog = iBacklog; }
-	if ( iRecvLimit > 0u ) { tCfg.iRecvLimit = iRecvLimit; }
-	if ( iBodyLimit > 0u ) { tCfg.iBodyLimit = iBodyLimit; }
-	if ( iWorkerCount > 0u ) { tCfg.iWorkerCount = iWorkerCount; }
+	if ( iBacklog > 0u ) { pCfg->iBacklog = iBacklog; }
+	if ( iRecvLimit > 0u ) { pCfg->iRecvLimit = iRecvLimit; }
+	if ( iBodyLimit > 0u ) { pCfg->iBodyLimit = iBodyLimit; }
+	if ( iHeaderLimit > 0u ) { pCfg->iHeaderLimit = iHeaderLimit; }
+	if ( iHeaderBytesLimit > 0u ) { pCfg->iHeaderBytesLimit = iHeaderBytesLimit; }
+	if ( iWorkerCount > 0u ) { pCfg->iWorkerCount = iWorkerCount; }
+	if ( iHeaderTimeoutMs > 0u ) { pCfg->iHeaderTimeoutMs = iHeaderTimeoutMs; }
+	if ( iBodyTimeoutMs > 0u ) { pCfg->iBodyTimeoutMs = iBodyTimeoutMs; }
+	if ( iIdleTimeoutMs > 0u ) { pCfg->iIdleTimeoutMs = iIdleTimeoutMs; }
+	if ( iWriteTimeoutMs > 0u ) { pCfg->iWriteTimeoutMs = iWriteTimeoutMs; }
+	pCfg->iMultipartPartLimit = iMultipartPartLimit;
+	pCfg->iMultipartPartSizeLimit = iMultipartPartSizeLimit;
+	return true;
+}
+
+
+// 按注册顺序追加 app 中间件。成功后 app 接管 userData 的析构责任。
+XXAPI bool xrtWebAppUseEx(xwebapp* pApp, xwebmiddleware pMiddleware,
+	ptr pUserData, xwebfree pFreeUserData)
+{
+	__xweb_middleware* pNode;
+	__xweb_middleware** arrNew;
+	size_t iNextCap;
+	if ( !pApp || !pMiddleware ) { return false; }
+	pNode = (__xweb_middleware*)xrtMalloc(sizeof(*pNode));
+	if ( !pNode ) { return false; }
+	pNode->pHandler = pMiddleware;
+	pNode->pUserData = pUserData;
+	pNode->pFreeUserData = pFreeUserData;
+	__xwebLock(&pApp->iLock);
+	if ( pApp->iMiddlewareCount == pApp->iMiddlewareCap ) {
+		iNextCap = pApp->iMiddlewareCap == 0u ? 8u : pApp->iMiddlewareCap * 2u;
+		if ( iNextCap < pApp->iMiddlewareCap ||
+			iNextCap > SIZE_MAX / sizeof(*arrNew) ) {
+			__xwebUnlock(&pApp->iLock);
+			xrtFree(pNode);
+			return false;
+		}
+		arrNew = (__xweb_middleware**)xrtRealloc(pApp->arrMiddleware,
+			iNextCap * sizeof(*arrNew));
+		if ( !arrNew ) {
+			__xwebUnlock(&pApp->iLock);
+			xrtFree(pNode);
+			return false;
+		}
+		pApp->arrMiddleware = arrNew;
+		pApp->iMiddlewareCap = iNextCap;
+	}
+	pApp->arrMiddleware[pApp->iMiddlewareCount++] = pNode;
+	__xwebUnlock(&pApp->iLock);
+	return true;
+}
+
+
+XXAPI bool xrtWebAppUse(xwebapp* pApp, xwebmiddleware pMiddleware, ptr pUserData)
+{
+	return xrtWebAppUseEx(pApp, pMiddleware, pUserData, NULL);
+}
+
+
+// 使用完整标量配置创建 xweb 服务，调用方不依赖 xwebconfig 的结构布局
+XXAPI xwebserver* xrtWebServerCreateHostFullEx(xnetengine* pEngine, const char* sHost, uint16 iPort,
+	uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iHeaderLimit,
+	uint32 iHeaderBytesLimit, uint32 iWorkerCount, uint32 iHeaderTimeoutMs,
+	uint32 iBodyTimeoutMs, uint32 iIdleTimeoutMs, uint32 iWriteTimeoutMs,
+	uint32 iMultipartPartLimit, uint32 iMultipartPartSizeLimit)
+{
+	xwebconfig tCfg;
+	if ( !__xwebConfigHostFull(&tCfg, sHost, iPort, iBacklog, iRecvLimit, iBodyLimit,
+		iHeaderLimit, iHeaderBytesLimit, iWorkerCount, iHeaderTimeoutMs, iBodyTimeoutMs,
+		iIdleTimeoutMs, iWriteTimeoutMs, iMultipartPartLimit, iMultipartPartSizeLimit) ) {
+		return NULL;
+	}
 	return xrtWebServerCreate(pEngine, &tCfg);
 }
 
 
-// 使用常用参数创建 TLS xweb 服务
-XXAPI xwebserver* xrtWebServerCreateHostTlsEx(xnetengine* pEngine, const char* sCertFile, const char* sKeyFile, const char* sHost, uint16 iPort, uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iWorkerCount)
+// 使用完整标量配置创建 TLS xweb 服务，调用方不依赖 TLS 配置结构布局
+XXAPI xwebserver* xrtWebServerCreateHostTlsFullEx(xnetengine* pEngine,
+	const char* sCertFile, const char* sKeyFile, const char* sHost, uint16 iPort,
+	uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iHeaderLimit,
+	uint32 iHeaderBytesLimit, uint32 iWorkerCount, uint32 iHeaderTimeoutMs,
+	uint32 iBodyTimeoutMs, uint32 iIdleTimeoutMs, uint32 iWriteTimeoutMs,
+	uint32 iMultipartPartLimit, uint32 iMultipartPartSizeLimit)
 {
 	xwebconfig tCfg;
 	xtlsconfig tTlsCfg;
@@ -1546,19 +2271,29 @@ XXAPI xwebserver* xrtWebServerCreateHostTlsEx(xnetengine* pEngine, const char* s
 	memset(&tTlsCfg, 0, sizeof(tTlsCfg));
 	tTlsCfg.sCertFile = sCertFile;
 	tTlsCfg.sKeyFile = sKeyFile;
-	xrtWebConfigInit(&tCfg);
-	if ( sHost && sHost[0] ) {
-		if ( xrtNetAddrParse(&tCfg.tBindAddr, sHost, iPort) != XRT_NET_OK ) { return NULL; }
+	if ( !__xwebConfigHostFull(&tCfg, sHost, iPort, iBacklog, iRecvLimit, iBodyLimit,
+		iHeaderLimit, iHeaderBytesLimit, iWorkerCount, iHeaderTimeoutMs, iBodyTimeoutMs,
+		iIdleTimeoutMs, iWriteTimeoutMs, iMultipartPartLimit, iMultipartPartSizeLimit) ) {
+		return NULL;
 	}
-	else {
-		xrtNetAddrInitAny(&tCfg.tBindAddr, AF_INET, iPort);
-	}
-	if ( iBacklog > 0u ) { tCfg.iBacklog = iBacklog; }
-	if ( iRecvLimit > 0u ) { tCfg.iRecvLimit = iRecvLimit; }
-	if ( iBodyLimit > 0u ) { tCfg.iBodyLimit = iBodyLimit; }
-	if ( iWorkerCount > 0u ) { tCfg.iWorkerCount = iWorkerCount; }
 	tCfg.pTlsConfig = &tTlsCfg;
 	return xrtWebServerCreate(pEngine, &tCfg);
+}
+
+
+// 使用常用参数创建 xweb 服务
+XXAPI xwebserver* xrtWebServerCreateHostEx(xnetengine* pEngine, const char* sHost, uint16 iPort, uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iWorkerCount)
+{
+	return xrtWebServerCreateHostFullEx(pEngine, sHost, iPort, iBacklog, iRecvLimit,
+		iBodyLimit, 0u, 0u, iWorkerCount, 0u, 0u, 0u, 0u, 1000u, 0u);
+}
+
+
+// 使用常用参数创建 TLS xweb 服务
+XXAPI xwebserver* xrtWebServerCreateHostTlsEx(xnetengine* pEngine, const char* sCertFile, const char* sKeyFile, const char* sHost, uint16 iPort, uint32 iBacklog, uint32 iRecvLimit, uint32 iBodyLimit, uint32 iWorkerCount)
+{
+	return xrtWebServerCreateHostTlsFullEx(pEngine, sCertFile, sKeyFile, sHost, iPort,
+		iBacklog, iRecvLimit, iBodyLimit, 0u, 0u, iWorkerCount, 0u, 0u, 0u, 0u, 1000u, 0u);
 }
 
 
@@ -1801,6 +2536,29 @@ XXAPI bool xrtWebServerError(xwebserver* pServer, xweberrorhandler pHandler, ptr
 }
 
 
+// 向默认 app 追加中间件，可指定 userData 析构回调
+XXAPI bool xrtWebServerUseEx(xwebserver* pServer, xwebmiddleware pMiddleware,
+	ptr pUserData, xwebfree pFreeUserData)
+{
+	bool bRet;
+	xwebapp* pApp;
+	if ( !pServer ) { return false; }
+	__xwebLock(&pServer->iAppLock);
+	pApp = pServer->pApp;
+	__xwebAppRetain(pApp);
+	__xwebUnlock(&pServer->iAppLock);
+	bRet = xrtWebAppUseEx(pApp, pMiddleware, pUserData, pFreeUserData);
+	__xwebAppRelease(pApp);
+	return bRet;
+}
+
+
+XXAPI bool xrtWebServerUse(xwebserver* pServer, xwebmiddleware pMiddleware, ptr pUserData)
+{
+	return xrtWebServerUseEx(pServer, pMiddleware, pUserData, NULL);
+}
+
+
 // 内部函数：注册 app 路由核心逻辑
 static bool __xwebAppRouteCore(xwebapp* pApp, uint32 iMethodMask, const char* sPattern, xwebhandler pHandler, xwebbodybegin pBodyBegin, xwebbodychunk pBody, xwebbodyend pBodyEnd, xwebbodyendasync pBodyEndAsync, ptr pUserData, xwebfree pFreeUserData)
 {
@@ -1814,7 +2572,7 @@ static bool __xwebAppRouteCore(xwebapp* pApp, uint32 iMethodMask, const char* sP
 	if ( !pApp || !sPattern || (!pHandler && (!pBody || (!pBodyEnd && !pBodyEndAsync))) ) { return false; }
 	if ( sPattern[0] != '/' ) { return false; }
 	__xwebLock(&pApp->iLock);
-	for ( uint32 iMethod = 0u; iMethod <= XHTTPD_METHOD_OPTIONS; ++iMethod ) {
+	for ( uint32 iMethod = 0u; iMethod <= XHTTPD_METHOD_TRACE; ++iMethod ) {
 		__xweb_route_node* pNode;
 		__xweb_route* pRoute;
 		if ( iMethod == XHTTPD_METHOD_UNKNOWN ) { continue; }
@@ -2095,8 +2853,7 @@ XXAPI bool xrtWebAppStatic(xwebapp* pApp, const char* sMount, const char* sRoot,
 	__xweb_static_mount* pMount;
 	xwebstaticconfig tCfg;
 	if ( !pApp || !sMount || !sRoot || sMount[0] != '/' ) { return false; }
-	xrtWebStaticConfigInit(&tCfg);
-	if ( pCfg ) { tCfg = *pCfg; }
+	if ( !__xwebStaticConfigCopy(&tCfg, pCfg) ) { return false; }
 	pMount = (__xweb_static_mount*)xrtMalloc(sizeof(__xweb_static_mount));
 	if ( !pMount ) { return false; }
 	memset(pMount, 0, sizeof(__xweb_static_mount));
@@ -2216,6 +2973,12 @@ XXAPI const char* xrtWebRequestTarget(const xwebrequest* pReq)
 XXAPI str xrtWebRequestTargetCopy(const xwebrequest* pReq)
 {
 	return xrtCopyStr((str)xrtWebRequestTarget(pReq), 0);
+}
+
+
+XXAPI xhttpcontext* xrtWebRequestContext(const xwebrequest* pReq)
+{
+	return pReq && pReq->pRaw ? xrtHttpdRequestContext(pReq->pRaw) : NULL;
 }
 
 
@@ -2745,13 +3508,15 @@ XXAPI bool xrtWebRequestCloseConnection(xwebrequest* pReq, bool bAbort)
 
 XXAPI bool xrtWebRequestParam(const xwebrequest* pReq, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
+	const __xweb_param_view* pParams;
 	if ( pOutLen ) { *pOutLen = 0u; }
 	if ( !pReq || !sName || !sOut || iOutCap == 0u ) { return false; }
+	pParams = pReq->pParams ? pReq->pParams : pReq->arrParams;
 	for ( size_t i = 0u; i < pReq->iParamCount; ++i ) {
-		if ( __xwebStrEq(pReq->arrParams[i].sName, sName) ) {
-			size_t iLen = pReq->arrParams[i].iLen;
-			if ( iLen + 1u > iOutCap ) { return false; }
-			memcpy(sOut, pReq->arrParams[i].sValue, iLen);
+		if ( __xwebStrEq(pParams[i].sName, sName) ) {
+			size_t iLen = pParams[i].iLen;
+			if ( iLen >= iOutCap ) { return false; }
+			memcpy(sOut, pParams[i].sValue, iLen);
 			sOut[iLen] = '\0';
 			if ( pOutLen ) { *pOutLen = iLen; }
 			return true;
@@ -2764,10 +3529,12 @@ XXAPI bool xrtWebRequestParam(const xwebrequest* pReq, const char* sName, char* 
 // 复制路由变量（返回值需要使用 xrtFree 释放）
 XXAPI str xrtWebRequestParamCopy(const xwebrequest* pReq, const char* sName)
 {
+	const __xweb_param_view* pParams;
 	if ( !pReq || !sName ) { return xCore.sNull; }
+	pParams = pReq->pParams ? pReq->pParams : pReq->arrParams;
 	for ( size_t i = 0u; i < pReq->iParamCount; ++i ) {
-		if ( __xwebStrEq(pReq->arrParams[i].sName, sName) ) {
-			return xrtCopyStr((str)pReq->arrParams[i].sValue, pReq->arrParams[i].iLen);
+		if ( __xwebStrEq(pParams[i].sName, sName) ) {
+			return xrtCopyStr((str)pParams[i].sValue, pParams[i].iLen);
 		}
 	}
 	return xCore.sNull;
@@ -2786,7 +3553,7 @@ XXAPI size_t xrtWebRequestParamCount(const xwebrequest* pReq)
 XXAPI const char* xrtWebRequestParamNameAt(const xwebrequest* pReq, size_t iIndex)
 {
 	if ( !pReq || iIndex >= pReq->iParamCount ) { return NULL; }
-	return pReq->arrParams[iIndex].sName;
+	return (pReq->pParams ? pReq->pParams : pReq->arrParams)[iIndex].sName;
 }
 
 
@@ -2796,8 +3563,8 @@ XXAPI bool xrtWebRequestParamValueViewAt(const xwebrequest* pReq, size_t iIndex,
 	if ( ppValue ) { *ppValue = NULL; }
 	if ( pLen ) { *pLen = 0u; }
 	if ( !pReq || iIndex >= pReq->iParamCount ) { return false; }
-	if ( ppValue ) { *ppValue = pReq->arrParams[iIndex].sValue; }
-	if ( pLen ) { *pLen = pReq->arrParams[iIndex].iLen; }
+	if ( ppValue ) { *ppValue = (pReq->pParams ? pReq->pParams : pReq->arrParams)[iIndex].sValue; }
+	if ( pLen ) { *pLen = (pReq->pParams ? pReq->pParams : pReq->arrParams)[iIndex].iLen; }
 	return true;
 }
 
@@ -2813,7 +3580,8 @@ XXAPI str xrtWebRequestParamNameCopyAt(const xwebrequest* pReq, size_t iIndex)
 XXAPI str xrtWebRequestParamValueCopyAt(const xwebrequest* pReq, size_t iIndex)
 {
 	if ( !pReq || iIndex >= pReq->iParamCount ) { return xCore.sNull; }
-	return xrtCopyStr((str)pReq->arrParams[iIndex].sValue, pReq->arrParams[iIndex].iLen);
+	return xrtCopyStr((str)(pReq->pParams ? pReq->pParams : pReq->arrParams)[iIndex].sValue,
+		(pReq->pParams ? pReq->pParams : pReq->arrParams)[iIndex].iLen);
 }
 
 
@@ -2856,7 +3624,7 @@ XXAPI bool xrtWebRequestCookie(const xwebrequest* pReq, const char* sName, char*
 	if ( !pReq || !sName || !sOut || iOutCap == 0u ) { return false; }
 	sCookie = xrtWebRequestHeader(pReq, "Cookie");
 	if ( !sCookie || !xrtCookieFind(sCookie, sName, &tCookie) ) { return false; }
-	if ( tCookie.tValue.iLen + 1u > iOutCap ) { return false; }
+	if ( tCookie.tValue.iLen >= iOutCap ) { return false; }
 	memcpy(sOut, tCookie.tValue.sPtr, tCookie.tValue.iLen);
 	sOut[tCookie.tValue.iLen] = '\0';
 	if ( pOutLen ) { *pOutLen = tCookie.tValue.iLen; }
@@ -2930,7 +3698,7 @@ XXAPI str xrtWebRequestCookieValueCopyAt(const xwebrequest* pReq, size_t iIndex)
 
 XXAPI void xrtWebResponseStatus(xwebresponse* pResp, uint32 iStatusCode, const char* sReason)
 {
-	if ( !pResp || !pResp->pRaw ) { return; }
+	if ( !pResp || !pResp->pRaw || pResp->bCommitted ) { return; }
 	xrtHttpdResponseSetStatus(pResp->pRaw, iStatusCode, sReason);
 }
 
@@ -2938,14 +3706,37 @@ XXAPI void xrtWebResponseStatus(xwebresponse* pResp, uint32 iStatusCode, const c
 // 设置响应头
 XXAPI bool xrtWebResponseSetHeader(xwebresponse* pResp, const char* sName, const char* sValue)
 {
-	return (pResp && pResp->pRaw) ? xrtHttpdResponseSetHeader(pResp->pRaw, sName, sValue) : false;
+	return (pResp && pResp->pRaw && !pResp->bCommitted)
+		? xrtHttpdResponseSetHeader(pResp->pRaw, sName, sValue) : false;
 }
 
 
 // 追加响应头
 XXAPI bool xrtWebResponseAddHeader(xwebresponse* pResp, const char* sName, const char* sValue)
 {
-	return (pResp && pResp->pRaw) ? xrtHttpdResponseAddHeader(pResp->pRaw, sName, sValue) : false;
+	return (pResp && pResp->pRaw && !pResp->bCommitted)
+		? xrtHttpdResponseAddHeader(pResp->pRaw, sName, sValue) : false;
+}
+
+
+XXAPI size_t xrtWebResponseRemoveHeader(xwebresponse* pResp, const char* sName)
+{
+	return (pResp && pResp->pRaw && !pResp->bCommitted)
+		? (size_t)xrtHttpdResponseRemoveHeader(pResp->pRaw, sName) : 0u;
+}
+
+
+XXAPI bool xrtWebResponseSetTrailer(xwebresponse* pResp, const char* sName, const char* sValue)
+{
+	return (pResp && pResp->pRaw && !pResp->bCommitted)
+		? xrtHttpdResponseSetTrailer(pResp->pRaw, sName, sValue) : false;
+}
+
+
+XXAPI bool xrtWebResponseAddTrailer(xwebresponse* pResp, const char* sName, const char* sValue)
+{
+	return (pResp && pResp->pRaw && !pResp->bCommitted)
+		? xrtHttpdResponseAddTrailer(pResp->pRaw, sName, sValue) : false;
 }
 
 
@@ -2989,6 +3780,32 @@ XXAPI const char* xrtWebResponseHeaderValueAt(const xwebresponse* pResp, size_t 
 }
 
 
+XXAPI const char* xrtWebResponseTrailer(const xwebresponse* pResp, const char* sName)
+{
+	return (pResp && pResp->pRaw) ? xrtHttpdResponseTrailer(pResp->pRaw, sName) : NULL;
+}
+
+
+XXAPI size_t xrtWebResponseTrailerCount(const xwebresponse* pResp)
+{
+	return (pResp && pResp->pRaw) ? (size_t)xrtHttpdResponseTrailerCount(pResp->pRaw) : 0u;
+}
+
+
+XXAPI const char* xrtWebResponseTrailerNameAt(const xwebresponse* pResp, size_t iIndex)
+{
+	if ( !pResp || !pResp->pRaw || iIndex > (size_t)UINT32_MAX ) { return NULL; }
+	return xrtHttpdResponseTrailerNameAt(pResp->pRaw, (uint32)iIndex);
+}
+
+
+XXAPI const char* xrtWebResponseTrailerValueAt(const xwebresponse* pResp, size_t iIndex)
+{
+	if ( !pResp || !pResp->pRaw || iIndex > (size_t)UINT32_MAX ) { return NULL; }
+	return xrtHttpdResponseTrailerValueAt(pResp->pRaw, (uint32)iIndex);
+}
+
+
 XXAPI const void* xrtWebResponseBodyView(const xwebresponse* pResp, size_t* pLen)
 {
 	if ( pLen ) { *pLen = 0u; }
@@ -3013,7 +3830,7 @@ XXAPI bool xrtWebResponseCookie(xwebresponse* pResp, const char* sName, const ch
 	size_t iValueLen;
 	size_t iPathLen;
 	bool bOk;
-	if ( !pResp || !sName || !sName[0] || !sValue ) { return false; }
+	if ( !pResp || pResp->bCommitted || !sName || !sName[0] || !sValue ) { return false; }
 	iNameLen = strlen(__xrt_cstr(sName));
 	iValueLen = strlen(__xrt_cstr(sValue));
 	iPathLen = (sPath && sPath[0]) ? strlen(__xrt_cstr(sPath)) : 0u;
@@ -3052,7 +3869,7 @@ XXAPI bool xrtWebResponseDeleteCookie(xwebresponse* pResp, const char* sName, co
 // 输出文本响应
 XXAPI bool xrtWebResponseText(xwebresponse* pResp, const char* sText, const char* sContentType)
 {
-	if ( !pResp || !pResp->pRaw ) { return false; }
+	if ( !pResp || !pResp->pRaw || pResp->bCommitted ) { return false; }
 	return xrtHttpdResponseSetBodyCopy(pResp->pRaw, sText ? sText : "", sText ? strlen(sText) : 0u, sContentType ? sContentType : "text/plain; charset=utf-8");
 }
 
@@ -3067,7 +3884,7 @@ XXAPI bool xrtWebResponseJsonText(xwebresponse* pResp, const char* sText)
 // 输出二进制响应体
 XXAPI bool xrtWebResponseBody(xwebresponse* pResp, const void* pData, size_t iLen, const char* sContentType)
 {
-	if ( !pResp || !pResp->pRaw || (!pData && iLen > 0u) ) { return false; }
+	if ( !pResp || !pResp->pRaw || pResp->bCommitted || (!pData && iLen > 0u) ) { return false; }
 	return xrtHttpdResponseSetBodyCopy(pResp->pRaw, pData, iLen, sContentType);
 }
 
@@ -3075,14 +3892,15 @@ XXAPI bool xrtWebResponseBody(xwebresponse* pResp, const void* pData, size_t iLe
 // 预留普通响应 body 缓冲容量。
 XXAPI bool xrtWebResponseReserveBody(xwebresponse* pResp, size_t iCap)
 {
-	return (pResp && pResp->pRaw) ? xrtHttpdResponseReserveBody(pResp->pRaw, iCap) : false;
+	return (pResp && pResp->pRaw && !pResp->bCommitted)
+		? xrtHttpdResponseReserveBody(pResp->pRaw, iCap) : false;
 }
 
 
 // 追加普通响应 body。用于提交响应前分段构建 body，流式响应请使用 Start/Send/End。
 XXAPI bool xrtWebResponseAppendBody(xwebresponse* pResp, const void* pData, size_t iLen)
 {
-	if ( !pResp || !pResp->pRaw || (!pData && iLen > 0u) ) { return false; }
+	if ( !pResp || !pResp->pRaw || pResp->bCommitted || (!pData && iLen > 0u) ) { return false; }
 	return xrtHttpdResponseAppendBodyCopy(pResp->pRaw, pData, iLen);
 }
 
@@ -3127,10 +3945,43 @@ XXAPI bool xrtWebResponseEnd(xwebresponse* pResp)
 }
 
 
+XXAPI bool xrtWebResponseUpgrade(xwebresponse* pResp, const xnetstreamevents* pEvents,
+	ptr pUserData, xnetstream** ppStream)
+{
+	if ( ppStream ) { *ppStream = NULL; }
+	if ( !pResp || !pResp->pRaw || !pResp->pReq || !pResp->pReq->pConn ||
+		pResp->bCommitted || !ppStream ) {
+		return false;
+	}
+	if ( xrtHttpdConnUpgrade(pResp->pReq->pConn, pResp->pRaw,
+		pEvents, pUserData, ppStream) != XRT_NET_OK ) {
+		return false;
+	}
+	pResp->bCommitted = true;
+	return true;
+}
+
+
+#if !defined(XRT_NO_XWS)
+XXAPI bool xrtWebResponseUpgradeWebSocket(xwebresponse* pResp, xwsserver* pWsServer,
+	xwsconn** ppConn)
+{
+	if ( ppConn ) { *ppConn = NULL; }
+	if ( !pResp || !pResp->pReq || !pResp->pReq->pConn || !pResp->pReq->pRaw ||
+		!pWsServer || !ppConn || pResp->bCommitted ) { return false; }
+	if ( xrtWsServerUpgradeHttpd(pWsServer, pResp->pReq->pConn,
+		pResp->pReq->pRaw, ppConn) != XRT_NET_OK ) { return false; }
+	pResp->bCommitted = true;
+	return true;
+}
+#endif
+
+
 // 输出文件响应
 XXAPI bool xrtWebResponseFile(xwebresponse* pResp, const char* sFilePath, size_t iChunkSize)
 {
-	if ( !pResp || !pResp->pReq || !pResp->pReq->pConn || !pResp->pRaw || !sFilePath ) { return false; }
+	if ( !pResp || !pResp->pReq || !pResp->pReq->pConn || !pResp->pRaw ||
+		pResp->bCommitted || !sFilePath ) { return false; }
 	pResp->bCommitted = xrtHttpdConnSendFile(pResp->pReq->pConn, pResp->pRaw, sFilePath, iChunkSize) == XRT_NET_OK;
 	return pResp->bCommitted;
 }
@@ -3140,7 +3991,8 @@ XXAPI bool xrtWebResponseFile(xwebresponse* pResp, const char* sFilePath, size_t
 // 发送文件的指定字节区间。offset 和 length 都按字节计算。
 XXAPI bool xrtWebResponseFileRange(xwebresponse* pResp, const char* sFilePath, uint64 iOffset, uint64 iLength, size_t iChunkSize)
 {
-	if ( !pResp || !pResp->pReq || !pResp->pReq->pConn || !pResp->pRaw || !sFilePath ) { return false; }
+	if ( !pResp || !pResp->pReq || !pResp->pReq->pConn || !pResp->pRaw ||
+		pResp->bCommitted || !sFilePath ) { return false; }
 	pResp->bCommitted = xrtHttpdConnSendFileRange(pResp->pReq->pConn, pResp->pRaw, sFilePath, iOffset, iLength, iChunkSize) == XRT_NET_OK;
 	return pResp->bCommitted;
 }

@@ -144,6 +144,25 @@ int main(void)
 	xvoUnref(source);
 	source = NULL;
 
+	/* 共享字典必须能够接管由本地数组发布出的独立值图。 */
+	source = xvoCreateArray();
+	if ( source == NULL || !xvoArrayAppendInt(source, 1) ||
+		 !xvoArrayAppendInt(source, 2) ||
+		 !xvoTableSetValue(table, "array", 5, source, FALSE) ) {
+		result = fail("shared table local array set failed");
+		goto cleanup;
+	}
+	item = xvoTableGetValue(table, "array", 5);
+	if ( item == source || !xvoIsShared(item) ||
+		 xvoArrayItemCount(item) != 2 ||
+		 xvoGetInt(xvoArrayGetValue(item, 0)) != 1 ||
+		 xvoGetInt(xvoArrayGetValue(item, 1)) != 2 ) {
+		result = fail("shared table did not publish an independent array graph");
+		goto cleanup;
+	}
+	xvoUnref(source);
+	source = NULL;
+
 	source = xvoCreateArray();
 	item = make_local_dict("copy");
 	if ( source == NULL || item == NULL || !xvoArrayAppendValue(source, item, TRUE) ) {
