@@ -162,6 +162,7 @@ That is why HTTP, WebSocket, TLS, and AI-facing streaming logic can continue to 
 - The new bytes API returns a Future-owned `xnetbytes*`. Native `xnetfuture` network APIs return their documented object pointers directly and do not use compatibility boxing. These result shapes must not be mixed.
 - `Send` and `SendVec` copy their inputs. `SendRef` does not copy; its memory must remain valid until the release callback, which is invoked exactly once after a successful submission.
 - A synchronous `xrtNetResolveAll` result is caller-owned. A `xrtNetResolveAllFuture` result is Future-owned.
+- Destroying a pending `xnetfuture` is rejected while a producer or waiter still holds it. Once the Future is complete, it may be destroyed immediately; reclamation is deferred automatically if the producer is still dropping its final internal hold.
 - Datagram packets and packets taken from a batch are caller-owned. Untaken packets are destroyed with the batch.
 - Destroying a stream, listener, or datagram object with outstanding internal operations defers reclamation. The caller must not access the object after `Destroy`.
 - Network objects no longer carry a fixed 8 KiB receive buffer. Received bytes use per-worker size-classed blocks/chains, with dynamic allocation only when required.

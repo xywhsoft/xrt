@@ -1373,6 +1373,144 @@ XXAPI void xrtHttpDiagnosticsInit(xhttpdiagnostics* pDiagnostics)
 }
 
 
+XXAPI xhttpdiagnostics* xrtHttpDiagnosticsClone(const xhttpdiagnostics* pDiagnostics)
+{
+	xhttpdiagnostics* pCopy;
+	if ( !pDiagnostics ) { return NULL; }
+	pCopy = (xhttpdiagnostics*)XNET_ALLOC(sizeof(xhttpdiagnostics));
+	if ( !pCopy ) { return NULL; }
+	memcpy(pCopy, pDiagnostics, sizeof(xhttpdiagnostics));
+	return pCopy;
+}
+
+
+
+XXAPI void xrtHttpDiagnosticsDestroy(xhttpdiagnostics* pDiagnostics)
+{
+	XNET_FREE(pDiagnostics);
+}
+
+
+
+XXAPI xhttp_error_code xrtHttpDiagnosticsErrorCode(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->eError : XHTTP_ERROR_NONE;
+}
+
+
+
+XXAPI xhttp_phase xrtHttpDiagnosticsPhaseCode(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->ePhase : XHTTP_PHASE_NONE;
+}
+
+
+
+XXAPI xnet_result xrtHttpDiagnosticsTransportStatus(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->eTransportStatus : XRT_NET_ERROR;
+}
+
+
+
+XXAPI int xrtHttpDiagnosticsSystemError(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iSystemError : 0;
+}
+
+
+
+XXAPI bool xrtHttpDiagnosticsReusedConnection(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->bReusedConnection : false;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsStartedMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iStartedMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsConnectedMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iConnectedMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsRequestSentMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iRequestSentMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsFirstByteMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iFirstByteMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsHeadersMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iHeadersMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsCompletedMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iCompletedMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsConnectDurationMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iConnectDurationMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsTimeToFirstByteMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iTimeToFirstByteMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsTransferDurationMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iTransferDurationMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsTotalDurationMs(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iTotalDurationMs : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsRequestBytes(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iRequestBytes : 0u;
+}
+
+
+
+XXAPI uint64 xrtHttpDiagnosticsResponseBodyBytes(const xhttpdiagnostics* pDiagnostics)
+{
+	return pDiagnostics ? pDiagnostics->iResponseBodyBytes : 0u;
+}
+
+
+
 XXAPI const char* xrtHttpErrorCodeName(xhttp_error_code eError)
 {
 	switch ( eError ) {

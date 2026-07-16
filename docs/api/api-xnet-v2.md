@@ -413,6 +413,7 @@ XNet V2 不再只是回调式网络层。
 - `SendRef` 不复制数据；release callback 被调用前，输入内存必须保持有效。成功提交后 release callback 恰好调用一次。
 - 同步 `xrtNetResolveAll` 返回的 `xnetaddrlist` 由调用方使用 `xrtNetAddrListDestroy` 销毁。
 - `xrtNetResolveAllFuture` 的地址列表由 Future 结果拥有，随 Future 释放；不要再次单独销毁。
+- pending `xnetfuture` 仍有生产者或 waiter 持有时，提前 `xrtNetFutureDestroy` 会被拒绝；Future 完成后可以立即销毁，即使生产者尚在释放最后一个内部 hold，最终回收也会自动延迟到该 hold 退出。
 - dgram packet 与从 batch `Take` 的 packet 由调用方销毁。尚未取出的 packet 随 batch 销毁。
 - stream、listener、dgram 在仍有内部异步 hold 时采用延迟销毁；调用 `Destroy` 后不得再次访问对象。
 - 网络对象不再常驻分配固定 8 KiB 接收缓冲。接收数据按实际到达量进入 per-worker 分级 block/chain；大块按需动态分配并在完成后归还或释放。

@@ -240,6 +240,28 @@ int Test_XNet2_Stream(void)
 	printf("\n\n\n------------------------------------\n\n XNet2 Stream Skeleton Test:\n\n");
 
 	{
+		xnetstream tProbe;
+		bool bWaitPeerRecv;
+		bool bClosedRecvBlocked;
+		bool bPeerEofDrainsFirst;
+		memset(&tProbe, 0, sizeof(tProbe));
+		tProbe.bClosing = true;
+		tProbe.iFlags = XNET_CLOSE_F_GRACEFUL | XNET_CLOSE_F_WAIT_PEER;
+		bWaitPeerRecv = __xnetStreamCanArmRecv(&tProbe);
+		tProbe.tSendQ.iQueuedBytes = 1u;
+		__xnetStreamHandlePeerEof(&tProbe);
+		bPeerEofDrainsFirst = (tProbe.iFlags & XNET_CLOSE_F_WAIT_PEER) == 0u &&
+			tProbe.tSendQ.iQueuedBytes == 1u &&
+			(tProbe.iState & __XNET_STREAM_STATE_CLOSE_EMITTED) == 0u;
+		tProbe.iFlags = XNET_CLOSE_F_GRACEFUL;
+		bClosedRecvBlocked = !__xnetStreamCanArmRecv(&tProbe);
+		printf("  Wait-peer close remains receive eligible : %s\n", bWaitPeerRecv ? "PASS" : "FAIL");
+		printf("  Peer EOF drains queued graceful send first : %s\n", bPeerEofDrainsFirst ? "PASS" : "FAIL");
+		printf("  Non-waiting close blocks new receive : %s\n", bClosedRecvBlocked ? "PASS" : "FAIL");
+		if ( !bWaitPeerRecv || !bPeerEofDrainsFirst || !bClosedRecvBlocked ) { ++iFailCount; }
+	}
+
+	{
 		xnetengineconfig tCfg;
 		xnetlistenconfig tListenCfg;
 		xnetstreamevents tEvents;

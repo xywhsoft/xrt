@@ -15,6 +15,7 @@ typedef struct {
 	volatile long iCloseCount;
 	volatile long iCloseExCount;
 	volatile long iErrorCount;
+	volatile long iErrorExCount;
 	volatile long iBackpressureCount;
 	volatile long iWritableCount;
 	volatile long iDrainCount;
@@ -31,6 +32,7 @@ typedef struct {
 	size_t iLastBinaryLen;
 	size_t iLastBinaryMessageLen;
 	xwsconn* pLastConn;
+	xwserrorinfo tLastError;
 } __test_xws_server_ctx;
 
 typedef struct {
@@ -42,6 +44,7 @@ typedef struct {
 	volatile long iCloseCount;
 	volatile long iCloseExCount;
 	volatile long iErrorCount;
+	volatile long iErrorExCount;
 	volatile long iBackpressureCount;
 	volatile long iWritableCount;
 	volatile long iDrainCount;
@@ -57,6 +60,7 @@ typedef struct {
 	size_t iLastTextLen;
 	size_t iLastBinaryLen;
 	size_t iLastBinaryMessageLen;
+	xwserrorinfo tLastError;
 } __test_xws_client_ctx;
 
 typedef struct {
@@ -71,6 +75,13 @@ typedef struct {
 	volatile long iCloseCount;
 	xnetstream* pStream;
 } __test_xws_stall_ctx;
+
+typedef struct {
+	xwsclient* pClient;
+	volatile long iStarted;
+	volatile long iStop;
+	volatile long iOperations;
+} __test_xws_stop_race_ctx;
 
 
 // 内部函数：__Test_XWsSleepMs
@@ -95,6 +106,30 @@ static long __Test_XWsAtomicInc(volatile long* pValue)
 static long __Test_XWsAtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
+}
+
+
+static uint32 __Test_XWsStopRaceWorker(ptr pParam)
+{
+	__test_xws_stop_race_ctx* pCtx = (__test_xws_stop_race_ctx*)pParam;
+	if ( !pCtx || !pCtx->pClient ) { return 1u; }
+	__Test_XWsAtomicInc(&pCtx->iStarted);
+	while ( __Test_XWsAtomicLoad(&pCtx->iStop) == 0 ) {
+		xnetfuture* pFuture;
+		(void)xrtWsClientPendingSend(pCtx->pClient);
+		pFuture = xrtWsClientWritableFuture(pCtx->pClient);
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		pFuture = xrtWsClientDrainFuture(pCtx->pClient);
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		pFuture = xrtWsClientCloseFuture(pCtx->pClient);
+		if ( pFuture ) { xrtNetFutureDestroy(pFuture); }
+		(void)xrtWsClientWaitTimeoutEx(pCtx->pClient,
+			XNET_STREAM_WAIT_WRITABLE, 0u);
+		(void)xrtWsClientWaitTimeoutEx(pCtx->pClient,
+			XNET_STREAM_WAIT_DRAIN, 0u);
+		__Test_XWsAtomicInc(&pCtx->iOperations);
+	}
+	return 0u;
 }
 
 
@@ -467,6 +502,18 @@ static void __Test_XWsClientOnClose(ptr pOwner, xwsclient* pClient, xnet_result 
 }
 
 
+static void __Test_XWsServerOnErrorEx(ptr pOwner, xwsserver* pServer, xwsconn* pConn,
+	const xwserrorinfo* pInfo)
+{
+	__test_xws_server_ctx* pCtx = (__test_xws_server_ctx*)pOwner;
+	(void)pServer;
+	(void)pConn;
+	if ( !pCtx || !pInfo ) return;
+	pCtx->tLastError = *pInfo;
+	__Test_XWsAtomicInc(&pCtx->iErrorExCount);
+}
+
+
 static bool __Test_XWsClientOnHandshakeResponse(ptr pOwner, xwsclient* pClient,
 	const xcodechttp1msg* pResponse)
 {
@@ -590,6 +637,17 @@ static int __Test_XWsTrackedPrintf(int* pFailCount, const char* sFormat, ...)
 }
 
 
+static void __Test_XWsClientOnErrorEx(ptr pOwner, xwsclient* pClient,
+	const xwserrorinfo* pInfo)
+{
+	__test_xws_client_ctx* pCtx = (__test_xws_client_ctx*)pOwner;
+	(void)pClient;
+	if ( !pCtx || !pInfo ) return;
+	pCtx->tLastError = *pInfo;
+	__Test_XWsAtomicInc(&pCtx->iErrorExCount);
+}
+
+
 int Test_XNet_Ws(void)
 {
 	int iFailCount = 0;
@@ -631,15 +689,45 @@ int Test_XNet_Ws(void)
 		xrtWsClientEventsInit(&tClientEvents);
 		xrtWsServerEventsInit(&tServerEvents);
 		printf("  WS public structure versions : %s\n",
-			tConfig.iSize == XWS_CLIENT_CONFIG_V3_SIZE && tConfig.iVersion == XWS_CLIENT_CONFIG_VERSION &&
-			tClientEvents.iSize == XWS_CLIENT_EVENTS_V2_SIZE && tClientEvents.iVersion == XWS_CLIENT_EVENTS_VERSION &&
-			tServerEvents.iSize == XWS_SERVER_EVENTS_V2_SIZE && tServerEvents.iVersion == XWS_SERVER_EVENTS_VERSION &&
+			tConfig.iSize == XWS_CLIENT_CONFIG_V4_SIZE && tConfig.iVersion == XWS_CLIENT_CONFIG_VERSION &&
+			tClientEvents.iSize == XWS_CLIENT_EVENTS_V3_SIZE && tClientEvents.iVersion == XWS_CLIENT_EVENTS_VERSION &&
+			tServerEvents.iSize == XWS_SERVER_EVENTS_V3_SIZE && tServerEvents.iVersion == XWS_SERVER_EVENTS_VERSION &&
+			XWS_ERROR_INFO_V1_SIZE == sizeof(xwserrorinfo) &&
 			XWS_CLIENT_CONFIG_V1_SIZE < XWS_CLIENT_CONFIG_V2_SIZE &&
 			XWS_CLIENT_CONFIG_V2_SIZE < XWS_CLIENT_CONFIG_V3_SIZE &&
+			XWS_CLIENT_CONFIG_V3_SIZE < XWS_CLIENT_CONFIG_V4_SIZE &&
 			XWS_SERVER_CONFIG_V1_SIZE < XWS_SERVER_CONFIG_V2_SIZE &&
 			XWS_SERVER_CONFIG_V2_SIZE < XWS_SERVER_CONFIG_V3_SIZE &&
+			XWS_SERVER_CONFIG_V3_SIZE < XWS_SERVER_CONFIG_V4_SIZE &&
 			XWS_CLIENT_EVENTS_V1_SIZE < XWS_CLIENT_EVENTS_V2_SIZE &&
-			XWS_SERVER_EVENTS_V1_SIZE < XWS_SERVER_EVENTS_V2_SIZE ? "PASS" : "FAIL");
+			XWS_CLIENT_EVENTS_V2_SIZE < XWS_CLIENT_EVENTS_V3_SIZE &&
+			XWS_SERVER_EVENTS_V1_SIZE < XWS_SERVER_EVENTS_V2_SIZE &&
+			XWS_SERVER_EVENTS_V2_SIZE < XWS_SERVER_EVENTS_V3_SIZE ? "PASS" : "FAIL");
+		{
+			xwsclientevents tLegacyClientEvents;
+			xwsclientevents tUpgradedClientEvents;
+			xwsserverevents tLegacyServerEvents;
+			xwsserverevents tUpgradedServerEvents;
+			memset(&tLegacyClientEvents, 0, sizeof(tLegacyClientEvents));
+			memset(&tUpgradedClientEvents, 0, sizeof(tUpgradedClientEvents));
+			memset(&tLegacyServerEvents, 0, sizeof(tLegacyServerEvents));
+			memset(&tUpgradedServerEvents, 0, sizeof(tUpgradedServerEvents));
+			tLegacyClientEvents.iSize = XWS_CLIENT_EVENTS_V2_SIZE;
+			tLegacyClientEvents.iVersion = 2u;
+			tLegacyClientEvents.OnError = __Test_XWsClientOnError;
+			tLegacyServerEvents.iSize = XWS_SERVER_EVENTS_V2_SIZE;
+			tLegacyServerEvents.iVersion = 2u;
+			tLegacyServerEvents.OnError = __Test_XWsServerOnError;
+			bPass = __xwsClientEventsCopy(&tUpgradedClientEvents, &tLegacyClientEvents) &&
+				__xwsServerEventsCopy(&tUpgradedServerEvents, &tLegacyServerEvents) &&
+				tUpgradedClientEvents.iVersion == XWS_CLIENT_EVENTS_VERSION &&
+				tUpgradedClientEvents.OnError == __Test_XWsClientOnError &&
+				tUpgradedClientEvents.OnErrorEx == NULL &&
+				tUpgradedServerEvents.iVersion == XWS_SERVER_EVENTS_VERSION &&
+				tUpgradedServerEvents.OnError == __Test_XWsServerOnError &&
+				tUpgradedServerEvents.OnErrorEx == NULL;
+			printf("  WS V2 events upgrade to V3 safely : %s\n", bPass ? "PASS" : "FAIL");
+		}
 		{
 			xwsclientconfig tLegacy;
 			xwsclientconfig tUpgraded;
@@ -664,11 +752,58 @@ int Test_XNet_Ws(void)
 				tUpgradedServer.iHandshakeMaxBytes == XCODEC_HTTP1_DEFAULT_HEADER_BYTES &&
 				tUpgradedServer.iHandshakeTimeoutMs == 10000u &&
 				tUpgradedServer.iCloseTimeoutMs == 5000u;
-			printf("  WS V2 config upgrades to V3 defaults : %s\n", bPass ? "PASS" : "FAIL");
+			printf("  WS V2 config upgrades to current defaults : %s\n", bPass ? "PASS" : "FAIL");
 			xrtWsClientConfigUnit(&tLegacy);
 			xrtWsServerConfigUnit(&tLegacyServer);
 			xrtWsClientConfigUnit(&tUpgraded);
 			xrtWsServerConfigUnit(&tUpgradedServer);
+		}
+		{
+			xtlsconfig tTlsConfig;
+			xtlsconfig* pTlsClone;
+			xwsclientconfig tTlsClient;
+			xwsserverconfig tTlsServer;
+			char sHostName[] = "ws.example.test";
+			char sAlpn[] = "http/1.1";
+			uint8 aCertData[] = { 1u, 2u, 3u, 4u };
+			uint8 aKeyData[] = { 5u, 6u, 7u, 8u };
+			memset(&tTlsConfig, 0, sizeof(tTlsConfig));
+			tTlsConfig.sHostName = sHostName;
+			tTlsConfig.sAlpnProtocols = sAlpn;
+			tTlsConfig.pCertData = aCertData;
+			tTlsConfig.iCertDataLen = sizeof(aCertData);
+			tTlsConfig.pKeyData = aKeyData;
+			tTlsConfig.iKeyDataLen = sizeof(aKeyData);
+			tTlsConfig.bVerifyPeer = true;
+			pTlsClone = xrtNetTlsConfigClone(&tTlsConfig);
+			xrtWsClientConfigInit(&tTlsClient);
+			xrtWsServerConfigInit(&tTlsServer);
+			bPass = pTlsClone &&
+				xrtWsClientConfigSetTlsConfig(&tTlsClient, &tTlsConfig) &&
+				xrtWsServerConfigSetTlsConfig(&tTlsServer, &tTlsConfig) &&
+				pTlsClone->sHostName != tTlsConfig.sHostName &&
+				pTlsClone->sAlpnProtocols != tTlsConfig.sAlpnProtocols &&
+				pTlsClone->pCertData != tTlsConfig.pCertData &&
+				pTlsClone->pKeyData != tTlsConfig.pKeyData &&
+				tTlsClient.pTlsConfig == tTlsClient.pTlsConfigStorage &&
+				tTlsServer.pTlsConfig == tTlsServer.pTlsConfigStorage &&
+				tTlsClient.pTlsConfig != pTlsClone && tTlsServer.pTlsConfig != pTlsClone;
+			sHostName[0] = 'X';
+			sAlpn[0] = 'X';
+			aCertData[0] = 99u;
+			aKeyData[0] = 99u;
+			bPass = bPass && strcmp(pTlsClone->sHostName, "ws.example.test") == 0 &&
+				strcmp(pTlsClone->sAlpnProtocols, "http/1.1") == 0 &&
+				((const uint8*)pTlsClone->pCertData)[0] == 1u &&
+				((const uint8*)pTlsClone->pKeyData)[0] == 5u &&
+				strcmp(tTlsClient.pTlsConfig->sHostName, "ws.example.test") == 0 &&
+				strcmp(tTlsServer.pTlsConfig->sAlpnProtocols, "http/1.1") == 0 &&
+				((const uint8*)tTlsClient.pTlsConfig->pKeyData)[0] == 5u &&
+				((const uint8*)tTlsServer.pTlsConfig->pCertData)[0] == 1u;
+			printf("  WS TLS configuration owns dynamic data : %s\n", bPass ? "PASS" : "FAIL");
+			xrtNetTlsConfigDestroy(pTlsClone);
+			xrtWsClientConfigUnit(&tTlsClient);
+			xrtWsServerConfigUnit(&tTlsServer);
 		}
 		bPass = xrtWsHandshakeResponseInit(&tHandshakeResponse) &&
 			tHandshakeResponse.iSize == XWS_HANDSHAKE_RESPONSE_V1_SIZE &&
@@ -809,6 +944,7 @@ int Test_XNet_Ws(void)
 		tSrvEvents.OnBinary = __Test_XWsServerOnBinary;
 		tSrvEvents.OnClose = __Test_XWsServerOnClose;
 		tSrvEvents.OnError = __Test_XWsServerOnError;
+		tSrvEvents.OnErrorEx = __Test_XWsServerOnErrorEx;
 		tSrvEvents.OnPing = __Test_XWsServerOnPing;
 		tSrvEvents.OnPong = __Test_XWsServerOnPong;
 		tSrvEvents.OnBackpressure = __Test_XWsServerOnBackpressure;
@@ -821,6 +957,7 @@ int Test_XNet_Ws(void)
 		tCliEvents.OnBinary = __Test_XWsClientOnBinary;
 		tCliEvents.OnClose = __Test_XWsClientOnClose;
 		tCliEvents.OnError = __Test_XWsClientOnError;
+		tCliEvents.OnErrorEx = __Test_XWsClientOnErrorEx;
 		tCliEvents.OnPing = __Test_XWsClientOnPing;
 		tCliEvents.OnPong = __Test_XWsClientOnPong;
 		tCliEvents.OnBackpressure = __Test_XWsClientOnBackpressure;
@@ -936,6 +1073,82 @@ int Test_XNet_Ws(void)
 		printf("  WS plain client saw binary : %s\n", tCliCtx.iLastBinaryLen == sizeof(aBinary) && memcmp(tCliCtx.aLastBinary, aBinary, sizeof(aBinary)) == 0 ? "PASS" : "FAIL");
 
 		{
+			xnetbufref tRef;
+			char* pText = (char*)XNET_ALLOC(14u);
+			volatile long iReleaseCount = 0;
+			long iSrvTextBefore = __Test_XWsAtomicLoad(&tSrvCtx.iTextCount);
+			long iCliTextBefore = __Test_XWsAtomicLoad(&tCliCtx.iTextCount);
+			xnet_result iSendResult = XRT_NET_ERROR;
+			if ( pText ) { memcpy(pText, "client-ref-msg", 14u); }
+			memset(&tRef, 0, sizeof(tRef));
+			tRef.pData = pText;
+			tRef.iLen = 14u;
+			tRef.pfnRelease = __Test_XWsReleaseRef;
+			tRef.pReleaseCtx = (ptr)&iReleaseCount;
+			if ( pText && pClient ) { iSendResult = xrtWsClientSendTextRef(pClient, &tRef); }
+			if ( iSendResult != XRT_NET_OK && pText ) { XNET_FREE(pText); }
+			printf("  WS client ref send accepted : %s\n",
+				iSendResult == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  WS client ref release exactly once : %s\n",
+				__Test_XWsWaitMin(&iReleaseCount, 1, 2000u) &&
+				__Test_XWsAtomicLoad(&iReleaseCount) == 1 ? "PASS" : "FAIL");
+			printf("  WS client ref text roundtrip : %s\n",
+				__Test_XWsWaitMin(&tSrvCtx.iTextCount, iSrvTextBefore + 1, 2000u) &&
+				__Test_XWsWaitMin(&tCliCtx.iTextCount, iCliTextBefore + 1, 2000u) &&
+				strcmp(tCliCtx.aLastText, "client-ref-msg") == 0 ? "PASS" : "FAIL");
+		}
+		{
+			xnetbufref tRef;
+			uint8* pBinary = (uint8*)XNET_ALLOC(6u);
+			volatile long iReleaseCount = 0;
+			long iCliBinaryBefore = __Test_XWsAtomicLoad(&tCliCtx.iBinaryCount);
+			xnet_result iSendResult = XRT_NET_ERROR;
+			if ( pBinary ) {
+				for ( uint32 i = 0u; i < 6u; ++i ) { pBinary[i] = (uint8)(0xA0u + i); }
+			}
+			memset(&tRef, 0, sizeof(tRef));
+			tRef.pData = pBinary;
+			tRef.iLen = 6u;
+			tRef.pfnRelease = __Test_XWsReleaseRef;
+			tRef.pReleaseCtx = (ptr)&iReleaseCount;
+			if ( pBinary && pRetainedConn ) { iSendResult = xrtWsConnSendBinaryRef(pRetainedConn, &tRef); }
+			if ( iSendResult != XRT_NET_OK && pBinary ) { XNET_FREE(pBinary); }
+			printf("  WS server zero-copy ref accepted : %s\n",
+				iSendResult == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  WS server zero-copy ref release exactly once : %s\n",
+				__Test_XWsWaitMin(&iReleaseCount, 1, 2000u) &&
+				__Test_XWsAtomicLoad(&iReleaseCount) == 1 ? "PASS" : "FAIL");
+			printf("  WS server zero-copy binary delivered : %s\n",
+				__Test_XWsWaitMin(&tCliCtx.iBinaryCount, iCliBinaryBefore + 1, 2000u) &&
+				tCliCtx.iLastBinaryLen == 6u && tCliCtx.aLastBinary[0] == 0xA0u &&
+				tCliCtx.aLastBinary[5] == 0xA5u ? "PASS" : "FAIL");
+		}
+		{
+			xnetbufref aRefs[2];
+			char* pA = (char*)XNET_ALLOC(1u);
+			char* pB = (char*)XNET_ALLOC(1u);
+			volatile long iReleaseCount = 0;
+			bool bReserved = pClient && pClient->pStream &&
+				__xnetStreamTryReserveSend(pClient->pStream, 3584u);
+			memset(aRefs, 0, sizeof(aRefs));
+			if ( pA ) { pA[0] = 'a'; }
+			if ( pB ) { pB[0] = 'b'; }
+			aRefs[0].pData = pA; aRefs[0].iLen = 1u;
+			aRefs[0].pfnRelease = __Test_XWsReleaseRef;
+			aRefs[0].pReleaseCtx = (ptr)&iReleaseCount;
+			aRefs[1].pData = pB; aRefs[1].iLen = 1u;
+			aRefs[1].pfnRelease = __Test_XWsReleaseRef;
+			aRefs[1].pReleaseCtx = (ptr)&iReleaseCount;
+			printf("  XNet SendRefs AGAIN retains all ownership : %s\n",
+				bReserved && pA && pB &&
+				xrtNetStreamSendRefs(pClient->pStream, aRefs, 2u) == XRT_NET_AGAIN &&
+				__Test_XWsAtomicLoad(&iReleaseCount) == 0 ? "PASS" : "FAIL");
+			if ( bReserved ) { __xnetStreamReleaseSend(pClient->pStream, 3584u); }
+			if ( pA ) { XNET_FREE(pA); }
+			if ( pB ) { XNET_FREE(pB); }
+		}
+
+		{
 			char aLargeText[1024];
 			uint8 aLargeBinary[1024];
 			long iSrvTextBefore = __Test_XWsAtomicLoad(&tSrvCtx.iTextCount);
@@ -1002,6 +1215,7 @@ int Test_XNet_Ws(void)
 			static const uint8 aTextC[] = { 0xACu, '!' };
 			static const uint8 aExpected[] = { 'w', 'r', '-', 0xE2u, 0x82u, 0xACu, '!' };
 			xwswriter* pWriter;
+			bool bReserved;
 			long iSrvTextBefore = __Test_XWsAtomicLoad(&tSrvCtx.iTextCount);
 			long iCliTextBefore = __Test_XWsAtomicLoad(&tCliCtx.iTextCount);
 			long iSrvPingBefore = __Test_XWsAtomicLoad(&tSrvCtx.iPingCount);
@@ -1010,11 +1224,12 @@ int Test_XNet_Ws(void)
 			printf("  WS client streaming text writer begin : %s\n", pWriter ? "PASS" : "FAIL");
 			printf("  WS writer excludes another data message : %s\n",
 				pWriter && xrtWsClientSendBinary(pClient, "x", 1u) == XRT_NET_AGAIN ? "PASS" : "FAIL");
+			bReserved = pWriter && __xnetStreamTryReserveSend(pClient->pStream, 3584u);
 			printf("  WS writer AGAIN does not advance state : %s\n",
-				pWriter && __xnetStreamTryReserveSend(pClient->pStream, 3584u) &&
+				bReserved &&
 				xrtWsWriterWrite(pWriter, aTextA, sizeof(aTextA)) == XRT_NET_AGAIN &&
 				!pWriter->bStarted ? "PASS" : "FAIL");
-			__xnetStreamReleaseSend(pClient->pStream, 3584u);
+			if ( bReserved ) { __xnetStreamReleaseSend(pClient->pStream, 3584u); }
 			printf("  WS writer retries same fragment : %s\n",
 				pWriter && xrtWsWriterWrite(pWriter, aTextA, sizeof(aTextA)) == XRT_NET_OK ? "PASS" : "FAIL");
 			printf("  WS control frame interleaves with writer : %s\n",
@@ -1035,16 +1250,40 @@ int Test_XNet_Ws(void)
 		}
 
 		{
-			static const uint8 aBinaryA[] = { 0x10u, 0x20u };
-			static const uint8 aBinaryB[] = { 0x30u, 0x40u, 0x50u };
 			static const uint8 aExpected[] = { 0x10u, 0x20u, 0x30u, 0x40u, 0x50u };
+			uint8* pBinaryA = (uint8*)XNET_ALLOC(2u);
+			uint8* pBinaryB = (uint8*)XNET_ALLOC(3u);
+			xnetbufref tRefA;
+			xnetbufref tRefB;
+			volatile long iReleaseCount = 0;
+			xnet_result iWriteResult = XRT_NET_ERROR;
+			xnet_result iFinishResult = XRT_NET_ERROR;
+			xnet_result iBlockedResult = XRT_NET_ERROR;
 			xwswriter* pWriter = tSrvCtx.pLastConn ? xrtWsConnBeginBinary(tSrvCtx.pLastConn) : NULL;
 			long iCliBinaryBefore = __Test_XWsAtomicLoad(&tCliCtx.iBinaryCount);
+			if ( pBinaryA ) { pBinaryA[0] = 0x10u; pBinaryA[1] = 0x20u; }
+			if ( pBinaryB ) { pBinaryB[0] = 0x30u; pBinaryB[1] = 0x40u; pBinaryB[2] = 0x50u; }
+			memset(&tRefA, 0, sizeof(tRefA));
+			memset(&tRefB, 0, sizeof(tRefB));
+			tRefA.pData = pBinaryA; tRefA.iLen = 2u;
+			tRefA.pfnRelease = __Test_XWsReleaseRef;
+			tRefA.pReleaseCtx = (ptr)&iReleaseCount;
+			tRefB.pData = pBinaryB; tRefB.iLen = 3u;
+			tRefB.pfnRelease = __Test_XWsReleaseRef;
+			tRefB.pReleaseCtx = (ptr)&iReleaseCount;
+			if ( pWriter && pBinaryA ) { iWriteResult = xrtWsWriterWriteRef(pWriter, &tRefA); }
+			if ( iWriteResult != XRT_NET_OK && pBinaryA ) { XNET_FREE(pBinaryA); }
+			if ( pWriter ) { iBlockedResult = xrtWsConnSendText(tSrvCtx.pLastConn, "blocked", 7u); }
+			if ( pWriter && pBinaryB ) { iFinishResult = xrtWsWriterFinishRef(pWriter, &tRefB); }
+			if ( iFinishResult != XRT_NET_OK && pBinaryB ) { XNET_FREE(pBinaryB); }
 			printf("  WS server streaming binary writer : %s\n",
-				pWriter && xrtWsWriterWrite(pWriter, aBinaryA, sizeof(aBinaryA)) == XRT_NET_OK &&
-				xrtWsConnSendText(tSrvCtx.pLastConn, "blocked", 7u) == XRT_NET_AGAIN &&
-				xrtWsWriterFinish(pWriter, aBinaryB, sizeof(aBinaryB)) == XRT_NET_OK ? "PASS" : "FAIL");
+				pWriter && iWriteResult == XRT_NET_OK &&
+				iBlockedResult == XRT_NET_AGAIN &&
+				iFinishResult == XRT_NET_OK ? "PASS" : "FAIL");
 			xrtWsWriterDestroy(pWriter);
+			printf("  WS streaming refs release exactly once : %s\n",
+				__Test_XWsWaitMin(&iReleaseCount, 2, 2000u) &&
+				__Test_XWsAtomicLoad(&iReleaseCount) == 2 ? "PASS" : "FAIL");
 			printf("  WS streaming binary delivered : %s\n",
 				__Test_XWsWaitMin(&tCliCtx.iBinaryCount, iCliBinaryBefore + 1, 2000u) &&
 				tCliCtx.iLastBinaryLen == sizeof(aExpected) &&
@@ -1161,6 +1400,36 @@ int Test_XNet_Ws(void)
 				__Test_XWsWaitMin(&tRawCtx.iCloseCount, 1, 2000u) ? "PASS" : "FAIL");
 			pServer->tConfig.iHandshakeTimeoutMs = 10000u;
 		}
+		{
+			__test_xws_stop_race_ctx tRace;
+			xthread hRace = NULL;
+			bool bOpened;
+			bool bJoined = false;
+			memset(&tRace, 0, sizeof(tRace));
+			xrtWsClientStop(pClient);
+			pClientOpenFuture = xrtWsClientStartFuture(pClient);
+			bOpened = pClientOpenFuture &&
+				xrtNetFutureWait(pClientOpenFuture, 2000u) == XRT_NET_OK;
+			if ( pClientOpenFuture ) {
+				xrtNetFutureDestroy(pClientOpenFuture);
+				pClientOpenFuture = NULL;
+			}
+			tRace.pClient = pClient;
+			if ( bOpened ) { hRace = xrtThreadCreate(__Test_XWsStopRaceWorker, &tRace, 0u); }
+			if ( hRace ) {
+				if ( __Test_XWsWaitMin(&tRace.iStarted, 1, 1000u) ) {
+					__Test_XWsSleepMs(50u);
+				}
+				xrtWsClientStop(pClient);
+				__xrtTestAtomicStoreLong(&tRace.iStop, 1);
+				bJoined = xrtThreadWaitTimeout(hRace, 5000u) == XRT_WAIT_OK;
+			}
+			printf("  WS Stop races query/future/wait safely : %s\n",
+				bOpened && hRace && bJoined && xrtThreadGetExitCode(hRace) == 0u &&
+				__Test_XWsAtomicLoad(&tRace.iOperations) > 0 &&
+				!xrtWsClientIsOpen(pClient) && pClient->pStream == NULL ? "PASS" : "FAIL");
+			if ( hRace ) { xrtThreadDestroy(hRace); }
+		}
 		if ( pClient ) {
 			xrtWsClientDestroy(pClient);
 			pClient = NULL;
@@ -1198,6 +1467,7 @@ int Test_XNet_Ws(void)
 		if ( pClient ) { xrtWsClientDestroy(pClient); pClient = NULL; }
 		{
 			__test_xws_client_ctx tFrameLimitCtx;
+			xwserrorinfo tProtocolError;
 			uint8 aOversizedFrame[1536];
 			long iServerOpenBefore = __Test_XWsAtomicLoad(&tSrvCtx.iOpenCount);
 			long iServerCloseBefore = __Test_XWsAtomicLoad(&tSrvCtx.iCloseCount);
@@ -1220,6 +1490,12 @@ int Test_XNet_Ws(void)
 				__Test_XWsWaitMin(&tFrameLimitCtx.iCloseCount, 1, 3000u) &&
 				__Test_XWsWaitMin(&tSrvCtx.iCloseCount, iServerCloseBefore + 1, 3000u) &&
 				tFrameLimitCtx.iRemoteCloseCode == XWS_CLOSE_TOO_BIG ? "PASS" : "FAIL");
+			printf("  WS frame limit structured error : %s\n",
+				xrtWsServerLastError(pServer, &tProtocolError) &&
+				tProtocolError.iVersion == XWS_ERROR_VERSION &&
+				tProtocolError.iCategory == XWS_ERROR_CATEGORY_LIMIT &&
+				tProtocolError.iOperation == XWS_ERROR_OP_RECEIVE &&
+				tProtocolError.iCloseCode == XWS_CLOSE_TOO_BIG ? "PASS" : "FAIL");
 			pServer->tConfig.iMaxFrameBytes = 1024u * 1024u;
 		}
 
@@ -1227,6 +1503,7 @@ int Test_XNet_Ws(void)
 		{
 			__test_xws_client_ctx tRejectedCtx;
 			xnetfuture* pRejectedOpen = NULL;
+			xwserrorinfo tHandshakeError;
 			long iSrvOpenBefore = __Test_XWsAtomicLoad(&tSrvCtx.iOpenCount);
 			long iSrvHandshakeBefore = __Test_XWsAtomicLoad(&tSrvCtx.iHandshakeCount);
 			memset(&tRejectedCtx, 0, sizeof(tRejectedCtx));
@@ -1249,12 +1526,20 @@ int Test_XNet_Ws(void)
 			printf("  WS policy rejection closes client : %s\n",
 				__Test_XWsWaitMin(&tRejectedCtx.iCloseCount, 1, 2000u) &&
 				__Test_XWsAtomicLoad(&tRejectedCtx.iErrorCount) == 1 ? "PASS" : "FAIL");
+			printf("  WS policy rejection structured error : %s\n",
+				__Test_XWsAtomicLoad(&tRejectedCtx.iErrorExCount) == 1 &&
+				xrtWsClientLastError(pClient, &tHandshakeError) &&
+				tHandshakeError.iCategory == XWS_ERROR_CATEGORY_HANDSHAKE &&
+				tHandshakeError.iOperation == XWS_ERROR_OP_HANDSHAKE &&
+				tHandshakeError.iPhase == XWS_ERROR_PHASE_VALIDATE &&
+				tHandshakeError.iHttpStatus == 403u ? "PASS" : "FAIL");
 		}
 
 		if ( pClient ) { xrtWsClientDestroy(pClient); pClient = NULL; }
 		{
 			__test_xws_client_ctx tCloseTimeoutCtx;
 			xwscloseinfo tCloseInfo;
+			xwserrorinfo tTimeoutError;
 			long iServerOpenBefore = __Test_XWsAtomicLoad(&tSrvCtx.iOpenCount);
 			long iServerCloseBefore = __Test_XWsAtomicLoad(&tSrvCtx.iCloseCount);
 			memset(&tCloseTimeoutCtx, 0, sizeof(tCloseTimeoutCtx));
@@ -1281,6 +1566,11 @@ int Test_XNet_Ws(void)
 				(tCloseInfo.iFlags & XWS_CLOSE_F_RECEIVED) == 0u ? "PASS" : "FAIL");
 			printf("  WS close timeout releases server peer : %s\n",
 				__Test_XWsWaitMin(&tSrvCtx.iCloseCount, iServerCloseBefore + 1, 2000u) ? "PASS" : "FAIL");
+			printf("  WS close timeout structured error : %s\n",
+				xrtWsClientLastError(pClient, &tTimeoutError) &&
+				tTimeoutError.iResult == XRT_NET_TIMEOUT &&
+				tTimeoutError.iOperation == XWS_ERROR_OP_CLOSE &&
+				tTimeoutError.iPhase == XWS_ERROR_PHASE_TIMEOUT ? "PASS" : "FAIL");
 		}
 		if ( pClient ) { xrtWsClientDestroy(pClient); pClient = NULL; }
 		if ( pServer ) xrtWsServerDestroy(pServer);
@@ -1309,6 +1599,7 @@ int Test_XNet_Ws(void)
 		xwsclient* pClient = NULL;
 		xnetfuture* pOpenFuture = NULL;
 		xwscloseinfo tCloseInfo;
+		xwserrorinfo tTimeoutError;
 		char sURL[256];
 		memset(&tStallCtx, 0, sizeof(tStallCtx));
 		memset(&tClientCtx, 0, sizeof(tClientCtx));
@@ -1337,6 +1628,7 @@ int Test_XNet_Ws(void)
 		tClientEvents.OnClose = __Test_XWsClientOnClose;
 		tClientEvents.OnCloseEx = __Test_XWsClientOnCloseEx;
 		tClientEvents.OnError = __Test_XWsClientOnError;
+		tClientEvents.OnErrorEx = __Test_XWsClientOnErrorEx;
 		pClient = pClientEngine ? xrtWsClientCreate(pClientEngine, &tClientCfg,
 			&tClientEvents, &tClientCtx) : NULL;
 		pOpenFuture = pClient ? xrtWsClientStartFuture(pClient) : NULL;
@@ -1354,6 +1646,13 @@ int Test_XNet_Ws(void)
 			xrtWsClientCloseInfo(pClient, &tCloseInfo) &&
 			tCloseInfo.iTransportResult == XRT_NET_TIMEOUT &&
 			__Test_XWsAtomicLoad(&tClientCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+		printf("  WS handshake timeout structured error : %s\n",
+			__Test_XWsAtomicLoad(&tClientCtx.iErrorExCount) == 1 &&
+			xrtWsClientLastError(pClient, &tTimeoutError) &&
+			tTimeoutError.iResult == XRT_NET_TIMEOUT &&
+			tTimeoutError.iCategory == XWS_ERROR_CATEGORY_HANDSHAKE &&
+			tTimeoutError.iOperation == XWS_ERROR_OP_HANDSHAKE &&
+			tTimeoutError.iPhase == XWS_ERROR_PHASE_TIMEOUT ? "PASS" : "FAIL");
 		printf("  WS handshake timeout releases server stream : %s\n",
 			__Test_XWsWaitMin(&tStallCtx.iCloseCount, 1, 2000u) ? "PASS" : "FAIL");
 		if ( pClient ) { xrtWsClientDestroy(pClient); }
@@ -1391,12 +1690,14 @@ int Test_XNet_Ws(void)
 		tWsServerEvents.OnText = __Test_XWsServerOnText;
 		tWsServerEvents.OnClose = __Test_XWsServerOnClose;
 		tWsServerEvents.OnError = __Test_XWsServerOnError;
+		tWsServerEvents.OnErrorEx = __Test_XWsServerOnErrorEx;
 		tWsServerEvents.OnCloseEx = __Test_XWsServerOnCloseEx;
 		tWsServerEvents.OnHandshake = __Test_XWsServerOnHandshake;
 		tWsClientEvents.OnOpen = __Test_XWsClientOnOpen;
 		tWsClientEvents.OnText = __Test_XWsClientOnText;
 		tWsClientEvents.OnClose = __Test_XWsClientOnClose;
 		tWsClientEvents.OnError = __Test_XWsClientOnError;
+		tWsClientEvents.OnErrorEx = __Test_XWsClientOnErrorEx;
 		tWsClientEvents.OnCloseEx = __Test_XWsClientOnCloseEx;
 		tWsClientEvents.OnHandshakeResponse = __Test_XWsClientOnHandshakeResponse;
 		tHttpdEvents.OnRequest = __Test_XWsHttpdOnRequest;
@@ -1488,6 +1789,9 @@ int Test_XNet_Ws(void)
 		xwsserver* pServer = NULL;
 		xwsclient* pClient = NULL;
 		xtlsconfig tTlsCfg;
+		xtlsconfig tClientTlsCfg;
+		bool bServerTlsConfig = false;
+		bool bClientTlsConfig = false;
 		char sURL[256];
 
 		memset(&tSrvCtx, 0, sizeof(tSrvCtx));
@@ -1495,11 +1799,13 @@ int Test_XNet_Ws(void)
 		xrtWsServerEventsInit(&tSrvEvents);
 		xrtWsClientEventsInit(&tCliEvents);
 		memset(&tTlsCfg, 0, sizeof(tTlsCfg));
+		memset(&tClientTlsCfg, 0, sizeof(tClientTlsCfg));
 		tSrvEvents.OnOpen = __Test_XWsServerOnOpen;
 		tSrvEvents.OnText = __Test_XWsServerOnText;
 		tSrvEvents.OnBinary = __Test_XWsServerOnBinary;
 		tSrvEvents.OnClose = __Test_XWsServerOnClose;
 		tSrvEvents.OnError = __Test_XWsServerOnError;
+		tSrvEvents.OnErrorEx = __Test_XWsServerOnErrorEx;
 		tSrvEvents.OnPing = __Test_XWsServerOnPing;
 		tSrvEvents.OnPong = __Test_XWsServerOnPong;
 		tSrvEvents.OnCloseEx = __Test_XWsServerOnCloseEx;
@@ -1508,11 +1814,16 @@ int Test_XNet_Ws(void)
 		tCliEvents.OnBinary = __Test_XWsClientOnBinary;
 		tCliEvents.OnClose = __Test_XWsClientOnClose;
 		tCliEvents.OnError = __Test_XWsClientOnError;
+		tCliEvents.OnErrorEx = __Test_XWsClientOnErrorEx;
 		tCliEvents.OnPing = __Test_XWsClientOnPing;
 		tCliEvents.OnPong = __Test_XWsClientOnPong;
 		tCliEvents.OnCloseEx = __Test_XWsClientOnCloseEx;
 		tTlsCfg.sCertFile = "dev/xnet2_tls_test_cert.pem";
 		tTlsCfg.sKeyFile = "dev/xnet2_tls_test_key.pem";
+		tTlsCfg.sAlpnProtocols = "http/1.1";
+		tClientTlsCfg.sHostName = "127.0.0.1";
+		tClientTlsCfg.sAlpnProtocols = "http/1.1";
+		tClientTlsCfg.bVerifyPeer = false;
 
 		xrtNetEngineConfigInit(&tEngineCfg);
 		tEngineCfg.iWorkerCount = 1;
@@ -1528,7 +1839,8 @@ int Test_XNet_Ws(void)
 			xrtWsServerConfigInit(&tSrvCfg);
 			(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
 			tSrvCfg.iWebSocketFlags = XWS_F_PERMESSAGE_DEFLATE;
-			tSrvCfg.pTlsConfig = &tTlsCfg;
+			bServerTlsConfig = xrtWsServerConfigSetTlsConfig(&tSrvCfg, &tTlsCfg);
+			printf("  WS TLS server custom config : %s\n", bServerTlsConfig ? "PASS" : "FAIL");
 			pServer = (pServerEngine && pClientEngine) ? xrtWsServerCreate(pServerEngine, &tSrvCfg, &tSrvEvents, &tSrvCtx) : NULL;
 			printf("  WS TLS server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
 			printf("  WS TLS server start : %s\n", pServer && xrtWsServerStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
@@ -1536,7 +1848,8 @@ int Test_XNet_Ws(void)
 			xrtWsClientConfigInit(&tCliCfg);
 			snprintf(sURL, sizeof(sURL), "wss://127.0.0.1:%u/secure", (unsigned)xrtWsServerBoundPort(pServer));
 			snprintf(tCliCfg.sURL, sizeof(tCliCfg.sURL), "%s", sURL);
-			tCliCfg.bVerifyPeer = false;
+			bClientTlsConfig = xrtWsClientConfigSetTlsConfig(&tCliCfg, &tClientTlsCfg);
+			printf("  WS TLS client custom config : %s\n", bClientTlsConfig ? "PASS" : "FAIL");
 			pClient = pClientEngine ? xrtWsClientCreate(pClientEngine, &tCliCfg, &tCliEvents, &tCliCtx) : NULL;
 			printf("  WS TLS client create : %s\n", pClient != NULL ? "PASS" : "FAIL");
 			printf("  WS TLS client start : %s\n", pClient && xrtWsClientStart(pClient) == XRT_NET_OK ? "PASS" : "FAIL");
@@ -1577,6 +1890,46 @@ int Test_XNet_Ws(void)
 					__Test_XWsWaitMin(&tSrvCtx.iTextCount, iServerTextBefore + 1, 4000u) &&
 					__Test_XWsWaitMin(&tCliCtx.iTextCount, iClientTextBefore + 1, 4000u) &&
 					strcmp(tCliCtx.aLastText, "tls-ref") == 0 ? "PASS" : "FAIL");
+			}
+			{
+				volatile long iReleaseCount = 0;
+				long iServerTextBefore = __Test_XWsAtomicLoad(&tSrvCtx.iTextCount);
+				long iClientTextBefore = __Test_XWsAtomicLoad(&tCliCtx.iTextCount);
+				char* pFrame = NULL;
+				size_t iFrameLen = 0u;
+				xnetbufref aRefs[2];
+				xnet_result iSendResult = XRT_NET_ERROR;
+				memset(aRefs, 0, sizeof(aRefs));
+				if ( pClient && __xwsBuildFrameBytes(XCODEC_WS_OPCODE_TEXT, true,
+					"tls-refs", 8u, &pFrame, &iFrameLen) && iFrameLen > 6u ) {
+					char* pHead = (char*)XNET_ALLOC(6u);
+					char* pBody = (char*)XNET_ALLOC(iFrameLen - 6u);
+					if ( pHead && pBody ) {
+						memcpy(pHead, pFrame, 6u);
+						memcpy(pBody, pFrame + 6u, iFrameLen - 6u);
+						aRefs[0].pData = pHead; aRefs[0].iLen = 6u;
+						aRefs[0].pfnRelease = __Test_XWsReleaseRef;
+						aRefs[0].pReleaseCtx = (ptr)&iReleaseCount;
+						aRefs[1].pData = pBody; aRefs[1].iLen = (uint32)(iFrameLen - 6u);
+						aRefs[1].pfnRelease = __Test_XWsReleaseRef;
+						aRefs[1].pReleaseCtx = (ptr)&iReleaseCount;
+						iSendResult = xrtNetStreamSendRefs(pClient->pStream, aRefs, 2u);
+						if ( iSendResult != XRT_NET_OK ) { XNET_FREE(pHead); XNET_FREE(pBody); }
+					} else {
+						if ( pHead ) { XNET_FREE(pHead); }
+						if ( pBody ) { XNET_FREE(pBody); }
+					}
+					XNET_FREE(pFrame);
+				}
+				printf("  XNet TLS SendRefs accepted : %s\n",
+					iSendResult == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  XNet TLS SendRefs release each once : %s\n",
+					__Test_XWsWaitMin(&iReleaseCount, 2, 4000u) &&
+					__Test_XWsAtomicLoad(&iReleaseCount) == 2 ? "PASS" : "FAIL");
+				printf("  XNet TLS SendRefs text roundtrip : %s\n",
+					__Test_XWsWaitMin(&tSrvCtx.iTextCount, iServerTextBefore + 1, 4000u) &&
+					__Test_XWsWaitMin(&tCliCtx.iTextCount, iClientTextBefore + 1, 4000u) &&
+					strcmp(tCliCtx.aLastText, "tls-refs") == 0 ? "PASS" : "FAIL");
 			}
 
 			{

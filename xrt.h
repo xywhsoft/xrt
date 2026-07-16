@@ -5066,10 +5066,10 @@
 	#define XWS_CLOSE_TOO_BIG        1009u
 		#define XWS_CLOSE_INTERNAL       1011u
 
-		#define XWS_CLIENT_CONFIG_VERSION 3u
-		#define XWS_SERVER_CONFIG_VERSION 3u
-		#define XWS_CLIENT_EVENTS_VERSION 2u
-		#define XWS_SERVER_EVENTS_VERSION 2u
+		#define XWS_CLIENT_CONFIG_VERSION 4u
+		#define XWS_SERVER_CONFIG_VERSION 4u
+		#define XWS_CLIENT_EVENTS_VERSION 3u
+		#define XWS_SERVER_EVENTS_VERSION 3u
 
 		#define XWS_CLOSE_F_SENT             0x00000001u
 		#define XWS_CLOSE_F_RECEIVED         0x00000002u
@@ -5099,6 +5099,50 @@
 
 		#define XWS_CLOSE_INFO_VERSION 1u
 		#define XWS_CLOSE_INFO_V1_SIZE ((uint32)sizeof(xwscloseinfo))
+		#define XWS_ERROR_VERSION 1u
+		#define XWS_ERROR_MESSAGE_CAP 192u
+		#define XWS_ERROR_CATEGORY_NONE        0u
+		#define XWS_ERROR_CATEGORY_TRANSPORT   1u
+		#define XWS_ERROR_CATEGORY_HANDSHAKE   2u
+		#define XWS_ERROR_CATEGORY_PROTOCOL    3u
+		#define XWS_ERROR_CATEGORY_UTF8        4u
+		#define XWS_ERROR_CATEGORY_LIMIT       5u
+		#define XWS_ERROR_CATEGORY_COMPRESSION 6u
+		#define XWS_ERROR_CATEGORY_MEMORY      7u
+		#define XWS_ERROR_CATEGORY_CALLBACK    8u
+		#define XWS_ERROR_CATEGORY_INTERNAL    9u
+		#define XWS_ERROR_OP_NONE      0u
+		#define XWS_ERROR_OP_CONNECT   1u
+		#define XWS_ERROR_OP_HANDSHAKE 2u
+		#define XWS_ERROR_OP_RECEIVE   3u
+		#define XWS_ERROR_OP_SEND      4u
+		#define XWS_ERROR_OP_MESSAGE   5u
+		#define XWS_ERROR_OP_CLOSE     6u
+		#define XWS_ERROR_OP_ACCEPT    7u
+		#define XWS_ERROR_PHASE_NONE     0u
+		#define XWS_ERROR_PHASE_VALIDATE 1u
+		#define XWS_ERROR_PHASE_BUILD    2u
+		#define XWS_ERROR_PHASE_PARSE    3u
+		#define XWS_ERROR_PHASE_POLICY   4u
+		#define XWS_ERROR_PHASE_SUBMIT   5u
+		#define XWS_ERROR_PHASE_PROCESS  6u
+		#define XWS_ERROR_PHASE_TIMEOUT  7u
+		#define XWS_ERROR_PHASE_COMPLETE 8u
+		typedef struct {
+			uint32 iSize;
+			uint32 iVersion;
+			xnet_result iResult;
+			uint32 iCategory;
+			uint32 iOperation;
+			uint32 iPhase;
+			int iSystemError;
+			uint32 iHttpStatus;
+			uint32 iProtocolError;
+			uint16 iCloseCode;
+			uint16 iReserved;
+			char sMessage[XWS_ERROR_MESSAGE_CAP];
+		} xwserrorinfo;
+		#define XWS_ERROR_INFO_V1_SIZE ((uint32)sizeof(xwserrorinfo))
 		typedef struct {
 			uint32 iSize;
 			uint32 iVersion;
@@ -5137,6 +5181,8 @@
 			uint32 iHandshakeMaxBytes;
 			uint32 iHandshakeTimeoutMs;
 			uint32 iCloseTimeoutMs;
+			const xtlsconfig* pTlsConfig;
+			xtlsconfig* pTlsConfigStorage;
 		} xwsclientconfig;
 		typedef struct {
 			uint32 iSize;
@@ -5160,6 +5206,7 @@
 			uint32 iHandshakeMaxBytes;
 			uint32 iHandshakeTimeoutMs;
 			uint32 iCloseTimeoutMs;
+			xtlsconfig* pTlsConfigStorage;
 		} xwsserverconfig;
 		typedef struct {
 			uint32 iSize;
@@ -5176,6 +5223,7 @@
 			void (*OnDrain)(ptr pOwner, xwsclient* pClient);
 			void (*OnCloseEx)(ptr pOwner, xwsclient* pClient, const xwscloseinfo* pInfo);
 			bool (*OnHandshakeResponse)(ptr pOwner, xwsclient* pClient, const xcodechttp1msg* pResponse);
+			void (*OnErrorEx)(ptr pOwner, xwsclient* pClient, const xwserrorinfo* pInfo);
 		} xwsclientevents;
 		typedef struct {
 			uint32 iSize;
@@ -5193,6 +5241,8 @@
 			void (*OnCloseEx)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const xwscloseinfo* pInfo);
 			uint32 (*OnHandshake)(ptr pOwner, xwsserver* pServer, xwsconn* pConn,
 				const xcodechttp1msg* pRequest, xwshandshakeresponse* pResponse);
+			void (*OnErrorEx)(ptr pOwner, xwsserver* pServer, xwsconn* pConn,
+				const xwserrorinfo* pInfo);
 		} xwsserverevents;
 
 		#define XWS_CLIENT_CONFIG_V1_SIZE ((uint32)(offsetof(xwsclientconfig, pProtocolStorage) + sizeof(((xwsclientconfig*)0)->pProtocolStorage)))
@@ -5201,10 +5251,14 @@
 		#define XWS_SERVER_EVENTS_V1_SIZE ((uint32)(offsetof(xwsserverevents, OnCloseEx) + sizeof(((xwsserverevents*)0)->OnCloseEx)))
 		#define XWS_CLIENT_CONFIG_V2_SIZE ((uint32)(offsetof(xwsclientconfig, pRequestHeadersStorage) + sizeof(((xwsclientconfig*)0)->pRequestHeadersStorage)))
 		#define XWS_SERVER_CONFIG_V2_SIZE ((uint32)(offsetof(xwsserverconfig, pOriginStorage) + sizeof(((xwsserverconfig*)0)->pOriginStorage)))
-		#define XWS_CLIENT_CONFIG_V3_SIZE ((uint32)sizeof(xwsclientconfig))
-		#define XWS_SERVER_CONFIG_V3_SIZE ((uint32)sizeof(xwsserverconfig))
-		#define XWS_CLIENT_EVENTS_V2_SIZE ((uint32)sizeof(xwsclientevents))
-		#define XWS_SERVER_EVENTS_V2_SIZE ((uint32)sizeof(xwsserverevents))
+		#define XWS_CLIENT_CONFIG_V3_SIZE ((uint32)(offsetof(xwsclientconfig, iCloseTimeoutMs) + sizeof(((xwsclientconfig*)0)->iCloseTimeoutMs)))
+		#define XWS_SERVER_CONFIG_V3_SIZE ((uint32)(offsetof(xwsserverconfig, iCloseTimeoutMs) + sizeof(((xwsserverconfig*)0)->iCloseTimeoutMs)))
+		#define XWS_CLIENT_CONFIG_V4_SIZE ((uint32)sizeof(xwsclientconfig))
+		#define XWS_SERVER_CONFIG_V4_SIZE ((uint32)sizeof(xwsserverconfig))
+		#define XWS_CLIENT_EVENTS_V2_SIZE ((uint32)(offsetof(xwsclientevents, OnHandshakeResponse) + sizeof(((xwsclientevents*)0)->OnHandshakeResponse)))
+		#define XWS_SERVER_EVENTS_V2_SIZE ((uint32)(offsetof(xwsserverevents, OnHandshake) + sizeof(((xwsserverevents*)0)->OnHandshake)))
+		#define XWS_CLIENT_EVENTS_V3_SIZE ((uint32)sizeof(xwsclientevents))
+		#define XWS_SERVER_EVENTS_V3_SIZE ((uint32)sizeof(xwsserverevents))
 
 	#endif
 	// XNet 地址、配置与数据链基础接口
@@ -5987,6 +6041,9 @@
 	XXAPI xtlsresume* xrtNetTlsSessionExportResume(const xtlssession* pSession);
 	// 销毁网络 TLS resume
 	XXAPI void xrtNetTlsResumeDestroy(xtlsresume* pResume);
+	/* Deep-copy helpers. Text, byte and resume data are owned; callbacks and user data are borrowed. */
+	XXAPI xtlsconfig* xrtNetTlsConfigClone(const xtlsconfig* pConfig);
+	XXAPI void xrtNetTlsConfigDestroy(xtlsconfig* pConfig);
 	// 判断 TLS 会话是否通过恢复建立
 	XXAPI bool xrtNetTlsSessionWasResumed(const xtlssession* pSession);
 	// 获取 TLS 会话中的 SNI 主机名
@@ -6031,6 +6088,7 @@
 	XXAPI xnet_result xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount);
 	// 发送网络流 ref
 	XXAPI xnet_result xrtNetStreamSendRef(xnetstream* pStream, const xnetbufref* pRef);
+	XXAPI xnet_result xrtNetStreamSendRefs(xnetstream* pStream, const xnetbufref* pRefs, uint32 iCount);
 	// 读取网络流 pause
 	XXAPI void xrtNetStreamPauseRead(xnetstream* pStream);
 	// 读取网络流 resume
@@ -6646,6 +6704,25 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		// 设置 HTTP 请求空闲超时
 		XXAPI void xrtHttpRequestSetIdleTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
 		XXAPI void xrtHttpDiagnosticsInit(xhttpdiagnostics* pDiagnostics);
+		XXAPI xhttpdiagnostics* xrtHttpDiagnosticsClone(const xhttpdiagnostics* pDiagnostics);
+		XXAPI void xrtHttpDiagnosticsDestroy(xhttpdiagnostics* pDiagnostics);
+		XXAPI xhttp_error_code xrtHttpDiagnosticsErrorCode(const xhttpdiagnostics* pDiagnostics);
+		XXAPI xhttp_phase xrtHttpDiagnosticsPhaseCode(const xhttpdiagnostics* pDiagnostics);
+		XXAPI xnet_result xrtHttpDiagnosticsTransportStatus(const xhttpdiagnostics* pDiagnostics);
+		XXAPI int xrtHttpDiagnosticsSystemError(const xhttpdiagnostics* pDiagnostics);
+		XXAPI bool xrtHttpDiagnosticsReusedConnection(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsStartedMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsConnectedMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsRequestSentMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsFirstByteMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsHeadersMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsCompletedMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsConnectDurationMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsTimeToFirstByteMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsTransferDurationMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsTotalDurationMs(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsRequestBytes(const xhttpdiagnostics* pDiagnostics);
+		XXAPI uint64 xrtHttpDiagnosticsResponseBodyBytes(const xhttpdiagnostics* pDiagnostics);
 		XXAPI const char* xrtHttpErrorCodeName(xhttp_error_code eError);
 		XXAPI const char* xrtHttpPhaseName(xhttp_phase ePhase);
 		XXAPI void xrtHttpRequestSetDiagnostics(xhttprequest* pReq, xhttpdiagnostics* pDiagnostics);
@@ -6978,6 +7055,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI bool xrtWsClientConfigAddHeader(xwsclientconfig* pCfg, const char* sName, const char* sValue);
 		XXAPI size_t xrtWsClientConfigRemoveHeader(xwsclientconfig* pCfg, const char* sName);
 		XXAPI const xhttpheaders* xrtWsClientConfigHeaders(const xwsclientconfig* pCfg);
+		XXAPI bool xrtWsClientConfigSetTlsConfig(xwsclientconfig* pCfg, const xtlsconfig* pTlsConfig);
 		XXAPI const char* xrtWsClientConfigURL(const xwsclientconfig* pCfg);
 		XXAPI const char* xrtWsClientConfigOrigin(const xwsclientconfig* pCfg);
 		XXAPI const char* xrtWsClientConfigProtocols(const xwsclientconfig* pCfg);
@@ -6988,6 +7066,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI bool xrtWsServerConfigSetProtocol(xwsserverconfig* pCfg, const char* sProtocol);
 		XXAPI bool xrtWsServerConfigSetPath(xwsserverconfig* pCfg, const char* sPath);
 		XXAPI bool xrtWsServerConfigSetOrigin(xwsserverconfig* pCfg, const char* sOrigin);
+		XXAPI bool xrtWsServerConfigSetTlsConfig(xwsserverconfig* pCfg, const xtlsconfig* pTlsConfig);
 		XXAPI const char* xrtWsServerConfigProtocol(const xwsserverconfig* pCfg);
 		XXAPI const char* xrtWsServerConfigPath(const xwsserverconfig* pCfg);
 		XXAPI const char* xrtWsServerConfigOrigin(const xwsserverconfig* pCfg);
@@ -7003,6 +7082,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI bool xrtWsClientIsOpen(const xwsclient* pClient);
 		XXAPI const char* xrtWsClientProtocol(const xwsclient* pClient);
 		XXAPI bool xrtWsClientCloseInfo(const xwsclient* pClient, xwscloseinfo* pInfo);
+		XXAPI bool xrtWsClientLastError(const xwsclient* pClient, xwserrorinfo* pInfo);
 		XXAPI bool xrtWsClientPerMessageDeflate(const xwsclient* pClient);
 		XXAPI size_t xrtWsClientPendingSend(const xwsclient* pClient);
 		// WebSocket Upgrade 完成 Future；成功值为 xwsclient*。
@@ -7028,6 +7108,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen);
 		// 发送 WebSocket 客户端二进制消息
 		XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen);
+		XXAPI xnet_result xrtWsClientSendTextRef(xwsclient* pClient, const xnetbufref* pRef);
+		XXAPI xnet_result xrtWsClientSendBinaryRef(xwsclient* pClient, const xnetbufref* pRef);
 		// 建立未压缩的分片消息 writer；writer 独占数据消息，Ping/Close 仍可发送。
 		XXAPI xwswriter* xrtWsClientBeginText(xwsclient* pClient);
 		XXAPI xwswriter* xrtWsClientBeginBinary(xwsclient* pClient);
@@ -7044,6 +7126,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		#endif
 		// 获取 WebSocket 服务端绑定端口
 		XXAPI uint16 xrtWsServerBoundPort(const xwsserver* pServer);
+		XXAPI bool xrtWsServerLastError(const xwsserver* pServer, xwserrorinfo* pInfo);
 		// 启动 WebSocket 服务端
 		XXAPI xnet_result xrtWsServerStart(xwsserver* pServer);
 		// 停止 WebSocket 服务端
@@ -7058,6 +7141,7 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI ptr xrtWsConnGetData(const xwsconn* pConn);
 		XXAPI void xrtWsConnSetData(xwsconn* pConn, ptr pConnectionData);
 		XXAPI bool xrtWsConnCloseInfo(const xwsconn* pConn, xwscloseinfo* pInfo);
+		XXAPI bool xrtWsConnLastError(const xwsconn* pConn, xwserrorinfo* pInfo);
 		XXAPI bool xrtWsConnPerMessageDeflate(const xwsconn* pConn);
 		XXAPI size_t xrtWsConnPendingSend(const xwsconn* pConn);
 		XXAPI xnetfuture* xrtWsConnWritableFuture(xwsconn* pConn);
@@ -7073,6 +7157,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		XXAPI xnet_result xrtWsConnSendText(xwsconn* pConn, const char* sText, size_t iLen);
 		// 发送 WebSocket 连接二进制消息
 		XXAPI xnet_result xrtWsConnSendBinary(xwsconn* pConn, const void* pData, size_t iLen);
+		XXAPI xnet_result xrtWsConnSendTextRef(xwsconn* pConn, const xnetbufref* pRef);
+		XXAPI xnet_result xrtWsConnSendBinaryRef(xwsconn* pConn, const xnetbufref* pRef);
 		XXAPI xwswriter* xrtWsConnBeginText(xwsconn* pConn);
 		XXAPI xwswriter* xrtWsConnBeginBinary(xwsconn* pConn);
 		// 发送 WebSocket 连接 Ping
@@ -7082,6 +7168,8 @@ XXAPI str xrtNetDgramPacketText(const xnetdgrampkt* pPacket);
 		// Write 发送非终帧；Finish 发送终帧。AGAIN 时状态不推进，可原样重试。
 		XXAPI xnet_result xrtWsWriterWrite(xwswriter* pWriter, const void* pData, size_t iLen);
 		XXAPI xnet_result xrtWsWriterFinish(xwswriter* pWriter, const void* pData, size_t iLen);
+		XXAPI xnet_result xrtWsWriterWriteRef(xwswriter* pWriter, const xnetbufref* pRef);
+		XXAPI xnet_result xrtWsWriterFinishRef(xwswriter* pWriter, const xnetbufref* pRef);
 		XXAPI bool xrtWsWriterIsFinished(const xwswriter* pWriter);
 		XXAPI void xrtWsWriterDestroy(xwswriter* pWriter);
 	#endif

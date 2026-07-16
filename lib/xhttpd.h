@@ -225,24 +225,13 @@ struct xrt_httpd_server {
 	xnetengine* pEngine;
 	xnetlistener* pListener;
 	xhttpdconfig tConfig;
-	xtlsconfig tTlsConfig;
+	xtlsconfig* pTlsConfigOwned;
 	xhttpdevents tEvents;
 	ptr pUserData;
 	volatile long iConnLock;
 	volatile long bRunning;
 	volatile long bDraining;
 	xhttpdconn* pConnHead;
-	bool bHasTlsConfig;
-	char* sTlsCertFile;
-	char* sTlsKeyFile;
-	char* sTlsCaFile;
-	char* sTlsCrlFile;
-	char* sTlsHostName;
-	void* pTlsCertData;
-	void* pTlsKeyData;
-	void* pTlsCaData;
-	void* pTlsCrlData;
-	xtlsresume* pTlsResume;
 };
 
 typedef struct {
@@ -381,32 +370,10 @@ static uint32 __xhttpdParseMethodID(const char* sMethod)
 
 
 // 内部函数：复制内存
-static void* __xhttpdDupBytes(const void* pData, size_t iLen)
-{
-	void* pCopy;
-	if ( !pData || iLen == 0u ) { return NULL; }
-	pCopy = XNET_ALLOC(iLen);
-	if ( !pCopy ) { return NULL; }
-	memcpy(pCopy, pData, iLen);
-	return pCopy;
-}
+/* TLS configuration storage is cloned by xrtNetTlsConfigClone(). */
 
 
 // 内部函数：复制字符串
-static char* __xhttpdDupStr(const char* sText)
-{
-	size_t iLen;
-	char* sCopy;
-	if ( !sText ) { return NULL; }
-	iLen = strlen(sText);
-	if ( iLen == SIZE_MAX ) { return NULL; }
-	sCopy = (char*)XNET_ALLOC(iLen + 1u);
-	if ( !sCopy ) { return NULL; }
-	memcpy(sCopy, sText, iLen + 1u);
-	return sCopy;
-}
-
-
 // 内部函数：检查 HTTP 头名称
 static bool __xhttpdValidHeaderName(const char* sName)
 {
@@ -4205,32 +4172,11 @@ static const xnetstreamevents* __xhttpdStreamEvents(void)
 static void __xhttpdServerClearTlsConfig(xhttpdserver* pServer)
 {
 	if ( !pServer ) { return; }
-	if ( pServer->sTlsCertFile ) { XNET_FREE(pServer->sTlsCertFile); }
-	if ( pServer->sTlsKeyFile ) { XNET_FREE(pServer->sTlsKeyFile); }
-	if ( pServer->sTlsCaFile ) { XNET_FREE(pServer->sTlsCaFile); }
-	if ( pServer->sTlsCrlFile ) { XNET_FREE(pServer->sTlsCrlFile); }
-	if ( pServer->sTlsHostName ) { XNET_FREE(pServer->sTlsHostName); }
-	if ( pServer->pTlsCertData ) { XNET_FREE(pServer->pTlsCertData); }
-	if ( pServer->pTlsKeyData ) { XNET_FREE(pServer->pTlsKeyData); }
-	if ( pServer->pTlsCaData ) { XNET_FREE(pServer->pTlsCaData); }
-	if ( pServer->pTlsCrlData ) { XNET_FREE(pServer->pTlsCrlData); }
-	if ( pServer->pTlsResume ) {
-		memset(pServer->pTlsResume, 0, sizeof(*pServer->pTlsResume));
-		XNET_FREE(pServer->pTlsResume);
+	if ( pServer->tConfig.pTlsConfig == pServer->pTlsConfigOwned ) {
+		pServer->tConfig.pTlsConfig = NULL;
 	}
-	pServer->sTlsCertFile = NULL;
-	pServer->sTlsKeyFile = NULL;
-	pServer->sTlsCaFile = NULL;
-	pServer->sTlsCrlFile = NULL;
-	pServer->sTlsHostName = NULL;
-	pServer->pTlsCertData = NULL;
-	pServer->pTlsKeyData = NULL;
-	pServer->pTlsCaData = NULL;
-	pServer->pTlsCrlData = NULL;
-	pServer->pTlsResume = NULL;
-	memset(&pServer->tTlsConfig, 0, sizeof(pServer->tTlsConfig));
-	pServer->bHasTlsConfig = false;
-	if ( pServer->tConfig.pTlsConfig == &pServer->tTlsConfig ) { pServer->tConfig.pTlsConfig = NULL; }
+	xrtNetTlsConfigDestroy(pServer->pTlsConfigOwned);
+	pServer->pTlsConfigOwned = NULL;
 }
 
 
@@ -4238,39 +4184,10 @@ static void __xhttpdServerClearTlsConfig(xhttpdserver* pServer)
 static bool __xhttpdServerCopyTlsConfig(xhttpdserver* pServer, const xtlsconfig* pSrc)
 {
 	if ( !pServer || !pSrc ) { return true; }
-	pServer->tTlsConfig = *pSrc;
-	pServer->tTlsConfig.iDataLock = 0;
-	if ( pSrc->sCertFile && !(pServer->sTlsCertFile = __xhttpdDupStr(pSrc->sCertFile)) ) { goto fail; }
-	if ( pSrc->sKeyFile && !(pServer->sTlsKeyFile = __xhttpdDupStr(pSrc->sKeyFile)) ) { goto fail; }
-	if ( pSrc->sCaFile && !(pServer->sTlsCaFile = __xhttpdDupStr(pSrc->sCaFile)) ) { goto fail; }
-	if ( pSrc->sCrlFile && !(pServer->sTlsCrlFile = __xhttpdDupStr(pSrc->sCrlFile)) ) { goto fail; }
-	if ( pSrc->sHostName && !(pServer->sTlsHostName = __xhttpdDupStr(pSrc->sHostName)) ) { goto fail; }
-	if ( pSrc->pCertData && pSrc->iCertDataLen > 0u && !(pServer->pTlsCertData = __xhttpdDupBytes(pSrc->pCertData, pSrc->iCertDataLen)) ) { goto fail; }
-	if ( pSrc->pKeyData && pSrc->iKeyDataLen > 0u && !(pServer->pTlsKeyData = __xhttpdDupBytes(pSrc->pKeyData, pSrc->iKeyDataLen)) ) { goto fail; }
-	if ( pSrc->pCaData && pSrc->iCaDataLen > 0u && !(pServer->pTlsCaData = __xhttpdDupBytes(pSrc->pCaData, pSrc->iCaDataLen)) ) { goto fail; }
-	if ( pSrc->pCrlData && pSrc->iCrlDataLen > 0u && !(pServer->pTlsCrlData = __xhttpdDupBytes(pSrc->pCrlData, pSrc->iCrlDataLen)) ) { goto fail; }
-	if ( pSrc->pResume ) {
-		pServer->pTlsResume = (xtlsresume*)XNET_ALLOC(sizeof(*pServer->pTlsResume));
-		if ( !pServer->pTlsResume ) { goto fail; }
-		memcpy(pServer->pTlsResume, pSrc->pResume, sizeof(*pServer->pTlsResume));
-	}
-	pServer->tTlsConfig.sCertFile = pServer->sTlsCertFile;
-	pServer->tTlsConfig.sKeyFile = pServer->sTlsKeyFile;
-	pServer->tTlsConfig.sCaFile = pServer->sTlsCaFile;
-	pServer->tTlsConfig.sCrlFile = pServer->sTlsCrlFile;
-	pServer->tTlsConfig.sHostName = pServer->sTlsHostName;
-	pServer->tTlsConfig.pCertData = pServer->pTlsCertData;
-	pServer->tTlsConfig.pKeyData = pServer->pTlsKeyData;
-	pServer->tTlsConfig.pCaData = pServer->pTlsCaData;
-	pServer->tTlsConfig.pCrlData = pServer->pTlsCrlData;
-	pServer->tTlsConfig.pResume = pServer->pTlsResume;
-	pServer->tConfig.pTlsConfig = &pServer->tTlsConfig;
-	pServer->bHasTlsConfig = true;
+	pServer->pTlsConfigOwned = xrtNetTlsConfigClone(pSrc);
+	if ( !pServer->pTlsConfigOwned ) { return false; }
+	pServer->tConfig.pTlsConfig = pServer->pTlsConfigOwned;
 	return true;
-
-fail:
-	__xhttpdServerClearTlsConfig(pServer);
-	return false;
 }
 
 

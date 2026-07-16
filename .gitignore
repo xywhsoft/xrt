@@ -38,6 +38,8 @@ release/x86/test/test_write_u16be.txt
 release/x86/test/test_write_u32.txt
 release/linux/test_queue_linux
 release/linux/test_singlehead_queue_linux
+release/gate/
+test/__pycache__/
 /AGENTS.md
 /*.o
 

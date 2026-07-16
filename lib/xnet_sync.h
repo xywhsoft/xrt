@@ -131,6 +131,7 @@ struct xrt_net_future {
 	__xnet_sync_mutex hLock;
 	__xnet_sync_cond hCond;
 	volatile bool bDone;
+	bool bDestroyPending;
 	volatile long iRefCount;
 	xnet_result iStatus;
 	ptr pValue;
@@ -3780,25 +3781,41 @@ XXAPI xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener)
 static bool __xnetFutureDestroyCore(xnetfuture* pFuture)
 {
 	bool bDestroy = false;
+	bool bAccepted = false;
 	if ( !pFuture ) { return true; }
 	__xnetFutureLock(pFuture);
-	if ( pFuture->iAsyncHoldCount != 0 || pFuture->iRefCount != 1 ) {
-		__xnetFutureUnlock(pFuture);
-		return false;
-	}
-	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
-		if ( pFuture->iCoWaitActive != 0 ) {
-			__xnetFutureUnlock(pFuture);
-			return false;
+	if ( !pFuture->bDestroyPending && pFuture->iAsyncHoldCount == 0 &&
+		pFuture->iRefCount == 1
+		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+			&& pFuture->iCoWaitActive == 0
+		#endif
+	) {
+		pFuture->bDestroyPending = true;
+		pFuture->iRefCount = 0;
+		bDestroy = true;
+		bAccepted = true;
+	} else if ( !pFuture->bDestroyPending && pFuture->bDone && pFuture->iRefCount > 0 ) {
+		/*
+			Completion wakes waiters before the producer drops its final async hold.
+			Transfer the caller's reference now and let the producer perform final
+			reclamation, so Wait followed by Destroy is deterministic.
+		*/
+		pFuture->bDestroyPending = true;
+		pFuture->iRefCount--;
+		bAccepted = true;
+		if ( pFuture->iRefCount == 0 && pFuture->iAsyncHoldCount == 0
+			#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+				&& pFuture->iCoWaitActive == 0
+			#endif
+		) {
+			bDestroy = true;
 		}
-	#endif
-	pFuture->iRefCount = 0;
-	bDestroy = true;
+	}
 	__xnetFutureUnlock(pFuture);
 	if ( bDestroy ) {
 		__xnetFutureFinalizeFree(pFuture);
 	}
-	return true;
+	return bAccepted;
 }
 
 
@@ -6409,8 +6426,8 @@ static void __xnetSyncResolveStreamFutureWait(__xnet_stream_future_wait_ctx* pCt
 		(void)__xnetFutureResolve(pCtx->pFuture, iStatus, pCtx->pStream);
 	}
 	__xnetStreamReleaseAsyncHold(pCtx->pStream);
-	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalStreamFutureCancel(pCtx);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 }
 
 
@@ -6424,8 +6441,8 @@ static void __xnetSyncCancelStreamFutureWaitFinish(__xnet_stream_future_wait_ctx
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
 	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 	__xnetStreamReleaseAsyncHold(pCtx->pStream);
-	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalStreamFutureCancel(pCtx);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 }
 
 
@@ -6727,8 +6744,8 @@ static void __xnetSyncResolveListenerFutureWait(__xnet_listener_future_wait_ctx*
 	}
 
 	__xnetListenerReleaseAsyncHold(pCtx->pListener);
-	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalListenerFutureCancel(pCtx);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 }
 
 
@@ -6741,8 +6758,8 @@ static void __xnetSyncCancelListenerFutureWaitFinish(__xnet_listener_future_wait
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
 	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 	__xnetListenerReleaseAsyncHold(pCtx->pListener);
-	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalListenerFutureCancel(pCtx);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 }
 
 
@@ -6995,8 +7012,8 @@ static void __xnetSyncResolveDgramFutureWait(__xnet_dgram_future_wait_ctx* pCtx,
 	}
 
 	__xnetDgramReleaseAsyncHold(pCtx->pSock);
-	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalDgramFutureCancel(pCtx);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 }
 
 
@@ -7009,8 +7026,8 @@ static void __xnetSyncCancelDgramFutureWaitFinish(__xnet_dgram_future_wait_ctx* 
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
 	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 	__xnetDgramReleaseAsyncHold(pCtx->pSock);
-	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalDgramFutureCancel(pCtx);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 }
 
 

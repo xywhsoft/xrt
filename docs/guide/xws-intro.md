@@ -1,386 +1,185 @@
-# XWS 入门：什么时候该让 WebSocket 回调负责协议边界，什么时候该把业务交给 Queue 和 Coroutine
+# XWS 入门：建立可长期维护的 WebSocket 会话
 
-> 目标：把 `xrtWsClientCreate()/Start()`、`xrtWsServerCreate()/Start()`、`xrtWsClientSendText()`、`xrtWsConnSendText()` 讲成第 6 阶段网络主线里“WebSocket 会话层”这条正式第一页。读完这页后，你应该明确知道：当前 `xws` 的正式主路径为什么仍是事件回调，客户端和服务端各自负责什么，什么时候一条 WebSocket 会话已经不该继续把业务逻辑塞在 `OnText` 里。
+> 本页介绍 XWS 的对象边界、连接时序、背压处理，以及何时把业务移交给 Queue、Task 和 Coroutine。
 
-[返回教学文档](README.md)
+[返回教学文档](README.md) | [完整 API 契约](../api/api-xws.md)
 
 ---
 
-## 1. 为什么 `xws` 要单独讲
+## 1. XWS 位于哪一层
 
-很多人一看到 WebSocket，就会本能地把它理解成：
-
-- “就是一个能双向收发字符串的长连接”
-
-然后代码就很容易直接滑向：
-
-- `OnText` 里做所有业务
-- 回调里直接查库、写文件、发 HTTP
-- 客户端回包和服务端事件都混在一起
-
-短期能跑，长期一定会变得难以维护。
-
-因为 WebSocket 这层真正要解决的事情，不只是：
-
-- 连接着没断
-
-而是：
-
-- HTTP upgrade
-- `ws://` / `wss://` 的连接路径
-- ping / pong
-- close
-- 分片重组
-- 客户端和服务端的会话边界
-
-这就是 `xws` 的位置。
-
-
-## 2. 先把 9 个边界分清楚
-
-### 2.1 `xws` 是协议会话层，不是底层网络替代品
-
-你可以先把当前网络主线拆成 4 层：
-
-| 层 | 负责什么 |
-|----|----------|
-| `xurl` | URL、authority、target |
-| `xnet-v2` | engine、stream、连接运行时 |
+| 层 | 责任 |
+| --- | --- |
+| `xurl` / `xhttp` | URL 与 HTTP/1.1 Upgrade 语义 |
+| `xnet-v2` | engine、TCP stream、代理、等待和背压 |
 | `xtlssession` | `wss://` 的 TLS 会话 |
-| `xws` | WebSocket 握手、帧、消息和会话 |
+| `xws` | 握手、帧、消息、压缩和关闭状态机 |
 
-所以 `xws` 不是：
+XWS 不替代 TCP，也不是普通 HTTP 长连接。进入 101 后，stream 的协议所有权交给 XWS，后续按 RFC 6455 处理。
 
-- 重新造一个 socket 层
+## 2. 三个对象
 
-它是：
+| 对象 | 作用 |
+| --- | --- |
+| `xwsclient` | 主动连接一个远端 WebSocket 服务 |
+| `xwsserver` | 监听或为 HTTP Upgrade 提供策略与事件 |
+| `xwsconn` | 服务端的一条已接受连接 |
 
-- 建在当前网络主线之上的 WebSocket 协议层
+服务端发送消息必须使用 `xwsconn`。如果需要把连接保存到回调外，先 `xrtWsConnRetain`，完成后 `xrtWsConnRelease`。
 
-
-### 2.2 当前 `xws` 正式主路径仍是事件回调
-
-这是这页最重要的前提。
-
-当前公开 API 面里，`xws` 的主路径是：
-
-- `OnOpen`
-- `OnText`
-- `OnBinary`
-- `OnClose`
-- `OnError`
-- `OnPing`
-- `OnPong`
-
-也就是说，当前正式文档不应该把它讲成：
-
-- 已经有完整 `future` 化发送/接收
-- 已经有正式 `wait-source` 会话接口
-
-这些可能是后续演进方向，但不是当前正式主路径。
-
-
-### 2.3 客户端和服务端各自有自己的对象边界
-
-当前公开面里：
-
-- 客户端对象
-	- `xwsclient`
-- 服务端对象
-	- `xwsserver`
-- 服务端单个连接
-	- `xwsconn`
-
-推荐这样理解：
-
-| 对象 | 角色 |
-|------|------|
-| `xwsclient` | 主动发起连接的会话对象 |
-| `xwsserver` | 监听和管理整体服务 |
-| `xwsconn` | 服务端接受到的单个客户端连接 |
-
-这意味着服务端发消息不是对着 `xwsserver` 发，而是对着：
-
-- `xwsconn`
-
-
-### 2.4 客户端建连不是一步，而是一条时序链
-
-如果你走的是：
-
-- `ws://`
-- `wss://`
-
-当前更稳的时序理解是：
-
-1. 先解析 URL
-2. 如果配置了代理，先连代理并做代理握手
-3. 如果是 `wss://`，再做 TLS
-4. 最后做 HTTP upgrade
-5. 进入 WebSocket open
-
-也就是：
-
-- `TCP -> proxy handshake -> TLS -> HTTP upgrade -> WS open`
-
-这也是为什么前面要先学：
-
-- `xurl`
-- `proxy`
-- `xnet-v2 / TLS`
-
-
-### 2.5 `xws` 负责协议边界，不适合在回调里做重业务
-
-回调更适合承担的是：
-
-- 收到消息后的最小解析
-- 快速 ACK
-- 复制输入
-- 推入队列
-- 更新轻量状态
-
-它不适合长期承担：
-
-- 重 CPU
-- 阻塞 I/O
-- 长事务
-- 一整条会话编排
-
-这时就该把业务交给：
-
-- `queue`
-- `coroutine`
-- `future/task`
-
-这也是为什么案例页单独用了：
-
-- [用 XWS + Queue + Coroutine 写一个双向会话服务骨架](../case/xws-session-queue-coroutine.md)
-
-
-### 2.6 `pProxy` 只在客户端配置里出现
-
-当前公开配置上：
-
-- `xwsclientconfig`
-	- 有 `pProxy`
-- `xwsserverconfig`
-	- 没有 `pProxy`
-
-所以代理这条线当前主要是：
-
-- WebSocket client 经代理接出
-
-不是：
-
-- 服务端监听本地时也走 `pProxy`
-
-
-### 2.7 `wss://` 的证书校验边界在客户端配置里
-
-当前客户端配置里有：
-
-- `bVerifyPeer`
-
-这意味着：
-
-- 你可以决定是否严格校验对端证书
-
-正式场景里更推荐：
-
-- `bVerifyPeer = true`
-
-只有本地调试、自签证书演练这类场景，才有理由临时放宽。
-
-
-### 2.8 当前主线覆盖常规 WebSocket，不覆盖浏览器级扩展生态
-
-当前文档和 API 明确覆盖的是：
-
-- text / binary
-- ping / pong
-- close
-- 分片消息重组
-
-当前不应假设已经正式覆盖：
-
-- `permessage-deflate`
-- 复杂 extension 协商
-- 浏览器协议栈级的全部能力
-
-
-### 2.9 `xws` 和 `xhttpd` 的关系是“借 upgrade 语义”，不是互相替代
-
-`xws` 的握手阶段本质上借用了：
-
-- HTTP upgrade
-
-但一旦进入 WebSocket open，语义就已经和普通 HTTP 请求不同了。
-
-所以不要把它理解成：
-
-- “就是 `xhttpd` 多了个长连接”
-
-
-## 3. 最小 DEMO：先把 WebSocket client 跑起来
-
-第一步先不要同时写 server。  
-先学会最小客户端主线：
-
-1. 配置 URL
-2. 填事件回调
-3. `Create -> Start`
-4. 在 `OnOpen` 之后发消息
+## 3. 最小客户端
 
 ```c
-static void procClientOnOpen(ptr pOwner, xwsclient* pClient)
+static void on_open(ptr owner, xwsclient* client)
 {
-	(void)pOwner;
-	(void)xrtWsClientSendText(pClient, "hello", 5u);
+    (void)owner;
+    (void)xrtWsClientSendText(client, "hello", 5u);
 }
 
-static void procClientOnText(ptr pOwner, xwsclient* pClient, const char* pData, size_t iLen)
+static void on_text(ptr owner, xwsclient* client,
+    const char* data, size_t len)
 {
-	(void)pOwner;
-	(void)pClient;
-	printf("recv: %.*s\n", (int)iLen, pData);
+    (void)owner;
+    (void)client;
+    printf("recv: %.*s\n", (int)len, data);
 }
 
-int main(void)
-{
-	xwsclientconfig tCfg;
-	xwsclientevents tEvents;
-	xwsclient* pClient;
+xwsclientconfig cfg;
+xwsclientevents events;
+xwsclient* client;
 
-	xrtInit();
-	memset(&tEvents, 0, sizeof(tEvents));
-	tEvents.OnOpen = procClientOnOpen;
-	tEvents.OnText = procClientOnText;
+xrtWsClientConfigInit(&cfg);
+xrtWsClientEventsInit(&events);
+events.OnOpen = on_open;
+events.OnText = on_text;
 
-	xrtWsClientConfigInit(&tCfg);
-	strcpy(tCfg.sURL, "wss://example.com/ws");
-	tCfg.iConnectTimeoutMs = 10000u;
-	tCfg.bVerifyPeer = true;
+xrtWsClientConfigSetURL(&cfg, "wss://example.com/ws");
+cfg.iWebSocketFlags |= XWS_F_PERMESSAGE_DEFLATE;
+client = xrtWsClientCreate(engine, &cfg, &events, NULL);
+xrtWsClientConfigUnit(&cfg);
 
-	pClient = xrtWsClientCreate(pEngine, &tCfg, &tEvents, NULL);
-	xrtWsClientStart(pClient);
+if (client) {
+    (void)xrtWsClientStart(client);
 }
 ```
 
-这一步的重点不是“业务怎么写”，而是先掌握客户端生命周期。
+客户端连接顺序是 `TCP -> 可选代理 -> 可选 TLS -> HTTP Upgrade -> OPEN`。`Start` 只表示启动成功；用 `OnOpen`、`StartFuture` 或 `WaitOpen*` 观察 Upgrade 完成。
 
+生产环境保持 `bVerifyPeer = true`。需要自定义 CA、SNI、ALPN、证书验证回调时，通过 `xrtWsClientConfigSetTlsConfig` 设置完整 `xtlsconfig`。
 
-## 4. 升级 DEMO：再把服务端边界接上
-
-第二步再进入服务端：
-
-1. 绑定地址
-2. 创建 server
-3. 在 `OnOpen / OnText / OnClose` 里做最小协议处理
-4. 真正业务通过队列移交
+## 4. 最小独立服务端
 
 ```c
-static void procServerOnText(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const char* pData, size_t iLen)
+static void on_server_text(ptr owner, xwsserver* server, xwsconn* conn,
+    const char* data, size_t len)
 {
-	(void)pOwner;
-	(void)pServer;
-	printf("server recv: %.*s\n", (int)iLen, pData);
-	(void)xrtWsConnSendText(pConn, "queued", 6u);
+    (void)owner;
+    (void)server;
+    (void)xrtWsConnSendText(conn, data, len);
 }
 
-int main(void)
-{
-	xwsserverconfig tCfg;
-	xwsserverevents tEvents;
-	xwsserver* pServer;
+xwsserverconfig cfg;
+xwsserverevents events;
+xwsserver* server;
 
-	xrtInit();
-	memset(&tEvents, 0, sizeof(tEvents));
-	tEvents.OnText = procServerOnText;
+xrtWsServerConfigInit(&cfg);
+xrtWsServerEventsInit(&events);
+events.OnText = on_server_text;
 
-	xrtWsServerConfigInit(&tCfg);
-	xrtNetAddrInitAny(&tCfg.tBindAddr, AF_INET, 8080u);
+xrtNetAddrInitAny(&cfg.tBindAddr, AF_INET, 8080u);
+xrtWsServerConfigSetPath(&cfg, "/ws");
+server = xrtWsServerCreate(engine, &cfg, &events, NULL);
+xrtWsServerConfigUnit(&cfg);
 
-	pServer = xrtWsServerCreate(pEngine, &tCfg, &tEvents, NULL);
-	xrtWsServerStart(pServer);
+if (server) {
+    (void)xrtWsServerStart(server);
 }
 ```
 
-这里最该记住的是：
+固定 `Path`、`Origin` 和 subprotocol 适合简单服务。认证、多租户、动态协议选择和自定义拒绝正文应放在 `OnHandshake`。
 
-- 服务端发消息是对着 `xwsconn`
-- 不是对着 `xwsserver`
+## 5. 接入现有 HTTP 服务
 
+不要为同一端口再建立一套 WebSocket listener。`xhttpd` handler 中使用 `xrtWsServerUpgradeHttpd`，`xweb` handler 中使用 `xrtWebResponseUpgradeWebSocket`：
 
-## 5. 什么时候该把业务移出回调
+```c
+xwsconn* conn = NULL;
 
-一旦你出现下面这些需求，就不该继续把所有逻辑塞在 `OnText`：
+if (!xrtWebResponseUpgradeWebSocket(response, ws_server, &conn)) {
+    /* Internal upgrade failure. */
+}
+```
 
-- 要排队处理消息
-- 要顺序编排多个会话动作
-- 要调用磁盘、HTTP、数据库、模板
-- 要把“连接打开 -> 发消息 -> 等回包 -> 再决定下一步”写成顺序流程
+返回成功但 `conn == NULL` 表示握手策略已经提交 HTTP 拒绝响应。返回有效连接表示 101 已提交，不能再写普通 HTTP response。
 
-这时当前更稳的主线是：
+## 6. 回调只处理协议边界
 
-- `xws callback -> queue -> coroutine`
+事件运行在网络 worker 上。适合在回调中执行：
 
-直接看案例页会更顺：
+- 校验消息类型和最小业务 envelope；
+- 复制借用 payload；
+- 更新轻量连接状态；
+- 把工作投递到 Queue/Task；
+- 发送可立即构造的小响应。
 
-- [用 XWS + Queue + Coroutine 写一个双向会话服务骨架](../case/xws-session-queue-coroutine.md)
+不要在回调中执行阻塞数据库、文件、外部 HTTP、长事务或重 CPU。典型结构是：
 
+```text
+XWS callback -> copy/retain -> bounded queue -> task/coroutine -> send
+```
 
-## 6. 一张选型表：这次该停在哪一层
+跨任务保存 `xwsconn` 必须 retain。回调 payload 只在回调期间有效。
 
-| 场景 | 优先入口 |
-|------|----------|
-| 只要稳定 WS client / server 基础设施 | `xws` 回调主线 |
-| 需要代理接出 WebSocket client | `xwsclientconfig.pProxy` |
-| 需要安全连接 | `wss://` + `bVerifyPeer` |
-| 需要慢业务和消息交接 | `xws + queue` |
-| 需要顺序编排会话流程 | `xws + queue + coroutine` |
+## 7. 必须处理背压
 
+发送返回 `XRT_NET_AGAIN` 是正常流控，不是连接错误。不要循环忙重试：
 
-## 7. 常见错误
+```c
+xnet_result result = xrtWsConnSendBinary(conn, data, len);
 
-### 7.1 把 `xws` 讲成已经正式 `future / wait-source` 化
+if (result == XRT_NET_AGAIN) {
+    /* Keep the message and retry after writable. */
+}
+```
 
-当前不是这条主线。  
-正式公开主路径仍是事件回调。
+可以选择：
 
+- 事件模型：`OnBackpressure`、`OnWritable`、`OnDrain`；
+- Future：`WritableFuture`、`DrainFuture`；
+- 同步线程：`WaitTimeoutEx(..., XNET_STREAM_WAIT_WRITABLE, ...)`；
+- 协程：`WaitCoEx(..., XNET_STREAM_WAIT_WRITABLE)`。
 
-### 7.2 在 `OnText` 里做所有重活
+应用自身的消息队列也必须有上限。XWS 的 `iMaxQueuedBytes` 只限制 transport 发送队列，不能替代业务队列配额。
 
-这会让协议层和业务层彻底粘死。
+## 8. 大消息和零拷贝
 
+普通 Send 适合短消息。服务端明文大消息可用 `xnetbufref`，由 release 回调精确管理 payload 生命周期。客户端必须 mask，TLS 也需要加密，因此 Ref API 不保证物理零拷贝，只保证一致的所有权契约。
 
-### 7.3 服务端发消息时找错对象
+需要边生成边发送一条消息时使用 `xwswriter`。writer 期间不能并发发送另一条数据消息；Ping 和 Close 不受影响。`AGAIN` 时保留相同输入并在 writable 后重试。
 
-服务端发送控制入口是：
+接收端仍按完整消息交付，因此 `iRecvLimit` 应设为业务允许的最大消息，而不是机器可用内存。
 
-- `xrtWsConnSendText()`
-- `xrtWsConnSendBinary()`
-- `xrtWsConnPing()`
-- `xrtWsConnClose()`
+## 9. 关闭与错误
 
-不是对 `xwsserver` 本身发。
+正常退出调用 `xrtWs*Close(1000, reason)`，然后观察 `OnCloseEx` 或 `CloseFuture`。对端不完成握手时，`iCloseTimeoutMs` 到期后 XWS 会中止 transport。
 
+诊断异步错误使用 `OnErrorEx` 或 `LastError`。结构化错误能区分 connect、TLS/Upgrade、protocol、UTF-8、limit、compression、send 和 close 阶段；线程全局错误文本不足以定位并发连接。
 
-### 7.4 忽略 `wss://` 的证书校验边界
+## 10. 选型表
 
-正式环境里不该默认关闭 `bVerifyPeer`。
+| 需求 | 推荐入口 |
+| --- | --- |
+| 简单事件驱动客户端/服务端 | callbacks |
+| 启动后等待连接结果 | `StartFuture` / `WaitOpen*` |
+| 协程内等待流控或关闭 | `WaitCo*` |
+| 现有 HTTP 路由升级 | HTTPD/XWeb Upgrade API |
+| 慢业务和顺序编排 | bounded queue + task/coroutine |
+| 大消息分片生成 | `xwswriter` |
+| 引用计数 payload | `Send*Ref` |
 
+## 11. 下一步
 
-### 7.5 把代理理解成“再补一层 HTTP header”
-
-代理会真实插入连接时序，不只是应用层多拼一段文本。
-
-
-## 8. 下一步阅读
-
-建议按这条线继续：
-
-- [用 XWS + Queue + Coroutine 写一个双向会话服务骨架](../case/xws-session-queue-coroutine.md)
-- [XWS API](../api/api-xws.md)
+- [XWS 完整 API 契约](../api/api-xws.md)
+- [用 XWS + Queue + Coroutine 写双向会话服务](../case/xws-session-queue-coroutine.md)
 - [xnet-v2 与 TLS session 入门](xnet-v2-tls-intro.md)
-- [Proxy 入门：什么时候代理只是一个共享对象，什么时候它已经进入连接时序](proxy-intro.md)
+- [Proxy 入门](proxy-intro.md)

@@ -146,6 +146,7 @@ static xwebaction __Test_XWebMiddlewareRoute(xwebrequest* pReq, xwebresponse* pR
 {
 	__test_xweb_middleware_ctx* pCtx = (__test_xweb_middleware_ctx*)pUserData;
 	const char* sPath = xrtWebRequestPath(pReq);
+	if ( pCtx == NULL ) { return XWEB_ERROR; }
 	__Test_XWebMiddlewareMark(pCtx, 'R');
 	__Test_XHttpdAtomicInc(&pCtx->iRouteCount);
 	if ( strcmp(sPath, "/mw/async") == 0 ) { return XWEB_ASYNC; }

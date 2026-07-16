@@ -218,10 +218,11 @@ if (xrtHttpClientGetStats(client, &stats)) {
 
 - 请求体可以复制，也可以通过可重放或不可重放的 `xhttpbody` 工厂流式发送
 - 每条 HTTP/1.1 连接同一时刻只有一个请求，不实现 pipelining
-- 本阶段不计划实现 HTTP/2
+- 本阶段不实现 HTTP/2、HTTP/3 或 QUIC
 
 ## 相关模块
 
 - [XNet V2](api-xnet-v2.md)
 - [Network TLS](api-network-tls.md)
 - [Future / Task / Promise](api-future-task-promise.md)
+- [HTTP / WebSocket 发布门禁](../HTTP_WEBSOCKET_RELEASE_GATES.md)

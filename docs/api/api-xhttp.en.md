@@ -218,10 +218,11 @@ Compatibility functions (`xrtHttpExecuteAsync`, `xrtHttpExecuteSync`, and `xrtHt
 
 - request bodies may be copied or streamed from a replayable/non-replayable `xhttpbody` factory
 - one HTTP/1.1 request is active per connection; no pipelining
-- HTTP/2 is not planned for this phase
+- HTTP/2, HTTP/3, and QUIC are not implemented in this phase
 
 ## Related modules
 
 - [XNet V2](api-xnet-v2.en.md)
 - [Network TLS](api-network-tls.en.md)
 - [Future / Task / Promise](api-future-task-promise.en.md)
+- [HTTP / WebSocket Release Gates](../HTTP_WEBSOCKET_RELEASE_GATES.en.md)

@@ -22,7 +22,7 @@
 - `OnText` 回调里直接做数据库、模板、磁盘、HTTP 调用
 - 回调越写越长，后面调试时分不清是协议问题还是业务问题
 - 应用层为了等一个会话事件，到处自己维护 flag、轮询和共享字符串
-- 想引入协程时，又把 `xws` 错当成已经 future 化、wait-source 化的模块
+- 想引入协程时，又绕过 XWS 已有的 Future/协程等待，自己维护 open/close flag
 
 这个案例要解决的，正是“在当前正式 public surface 下，WebSocket 会话服务应该怎样稳当地接上 queue 和 coroutine”。
 
@@ -63,30 +63,24 @@
 > `queue` 负责“消息别丢”，`xcoevent` 负责“协程该醒了”。
 
 
-### 2.3 为什么这次不把 `xws` 直接讲成 `future / wait-source`
+### 2.3 Future/协程等待与消息回调各负责什么
 
-因为当前 `xws` 正式 API 还不是那条主线。
+当前 XWS 已正式提供：
 
-`api-xws.md` 现在已经明确写了：
+- `StartFuture` / `OpenFuture` 和 `WaitOpenCo*`；
+- writable、drain、close Future；
+- `WaitCo*` 对 writable、drain、close 的协程等待。
 
-- `xws` 当前主路径仍是事件回调
-- 更深的 wait-source / future 化扩展是自然演进方向，但不是当前正式主路径
+这些接口适合观察连接状态和背压。接收侧仍按完整消息触发 `OnText` / `OnBinary`，因此业务消息仍通过有界 Queue 移交：
 
-所以这页故意不发明不存在的接口，而是沿着当前最稳的桥来写：
+> `xws message callback -> bounded queue -> coroutine`
 
-> `xws callback -> queue -> coroutine`
+不要再为 open、writable、drain、close 自行维护轮询 flag；直接使用 XWS 原生等待面。
 
 
-### 2.4 为什么示例里把服务端发送限制在回调里
+### 2.4 服务端连接跨任务使用时必须 retain
 
-因为当前公开文档并没有正式给出“`xwsconn*` 可以跨线程自由发送”的合同。
-
-所以这页示例故意遵守一个保守且稳定的规则：
-
-- 服务端快速回包留在 `OnText` 回调里
-- 复杂业务通过 `queue` 交给协程侧继续处理
-
-如果后续 `xws` 明确公开更强的线程归属 / post-to-engine 合同，再把“延迟推送”升级成下一层模式会更稳。
+服务端快速 ACK 可以留在 `OnText`。需要在后续 task/coroutine 中推送时，先在回调期间 `xrtWsConnRetain()`，任务完成后 `xrtWsConnRelease()`。发送入口会串行化并把数据交给所属网络 worker；retain 只保证连接对象生命周期，不保证业务消息顺序，应用仍应为同一会话建立明确的发送队列。
 
 
 ## 3. 这条链里每一层负责什么
@@ -144,9 +138,7 @@ typedef struct
 typedef struct
 {
 	xmpscqwait hInboxQueue;
-	xcoevent hOpenEvent;
 	xcoevent hInboxEvent;
-	xcoevent hCloseEvent;
 	xwsclient* pClient;
 } DemoWsClientCtx;
 
@@ -278,13 +270,9 @@ static void procServerOnError(ptr pOwner, xwsserver* pServer, xwsconn* pConn, in
 
 static void procClientOnOpen(ptr pOwner, xwsclient* pClient)
 {
-	DemoWsClientCtx* pCtx = (DemoWsClientCtx*)pOwner;
-
+	(void)pOwner;
 	(void)pClient;
-
-	if ( (pCtx != NULL) && (pCtx->hOpenEvent != NULL) ) {
-		xrtCoEventSet(pCtx->hOpenEvent);
-	}
+	printf("client: session opened\n");
 }
 
 static void procClientOnText(ptr pOwner, xwsclient* pClient, const char* pData, size_t iLen)
@@ -306,14 +294,9 @@ static void procClientOnText(ptr pOwner, xwsclient* pClient, const char* pData, 
 
 static void procClientOnClose(ptr pOwner, xwsclient* pClient, xnet_result iReason)
 {
-	DemoWsClientCtx* pCtx = (DemoWsClientCtx*)pOwner;
-
+	(void)pOwner;
 	(void)pClient;
 	printf("client: close callback, reason=%d\n", (int)iReason);
-
-	if ( (pCtx != NULL) && (pCtx->hCloseEvent != NULL) ) {
-		xrtCoEventSet(pCtx->hCloseEvent);
-	}
 }
 
 static void procClientOnError(ptr pOwner, xwsclient* pClient, int iSysErr)
@@ -408,7 +391,7 @@ static void procClientScriptCo(ptr pArg)
 		return;
 	}
 
-	if ( !xrtCoWaitEventTimeout(pCtx->hOpenEvent, 3000u) ) {
+	if ( xrtWsClientWaitOpenCoTimeout(pCtx->pClient, 3000u) != XRT_NET_OK ) {
 		printf("client script: wait open timeout\n");
 		return;
 	}
@@ -432,7 +415,8 @@ static void procClientScriptCo(ptr pArg)
 		return;
 	}
 
-	if ( !xrtCoWaitEventTimeout(pCtx->hCloseEvent, 3000u) ) {
+	if ( xrtWsClientWaitCoTimeoutEx(pCtx->pClient,
+		XNET_STREAM_WAIT_CLOSE, 3000u) != XRT_NET_CLOSED ) {
 		printf("client script: wait close timeout\n");
 	}
 }
@@ -471,14 +455,11 @@ int main(void)
 	tServerCtx.hAuditQueue = xrtMPSCQWaitCreate(&tQueueCfg);
 	tClientCtx.hInboxQueue = xrtMPSCQWaitCreate(&tQueueCfg);
 	tServerCtx.hAuditEvent = xrtCoEventCreate(false, false);
-	tClientCtx.hOpenEvent = xrtCoEventCreate(false, false);
 	tClientCtx.hInboxEvent = xrtCoEventCreate(false, false);
-	tClientCtx.hCloseEvent = xrtCoEventCreate(false, false);
 	tServerCtx.iAuditExpected = DEMO_AUDIT_EXPECTED;
 
 	if ( (tServerCtx.hAuditQueue == NULL) || (tClientCtx.hInboxQueue == NULL) ||
-		(tServerCtx.hAuditEvent == NULL) || (tClientCtx.hOpenEvent == NULL) ||
-		(tClientCtx.hInboxEvent == NULL) || (tClientCtx.hCloseEvent == NULL) ) {
+		(tServerCtx.hAuditEvent == NULL) || (tClientCtx.hInboxEvent == NULL) ) {
 		goto cleanup;
 	}
 
@@ -503,6 +484,7 @@ int main(void)
 	}
 
 	xrtWsServerConfigInit(&tServerCfg);
+	xrtWsServerEventsInit(&tServerEvents);
 	(void)xrtNetAddrParse(&tServerCfg.tBindAddr, "127.0.0.1", 0);
 
 	tServerEvents.OnOpen = procServerOnOpen;
@@ -519,8 +501,9 @@ int main(void)
 	}
 
 	xrtWsClientConfigInit(&tClientCfg);
+	xrtWsClientEventsInit(&tClientEvents);
 	snprintf(sURL, sizeof(sURL), "ws://127.0.0.1:%u/session", (unsigned)xrtWsServerBoundPort(pServer));
-	snprintf(tClientCfg.sURL, sizeof(tClientCfg.sURL), "%s", sURL);
+	(void)xrtWsClientConfigSetURL(&tClientCfg, sURL);
 
 	tClientEvents.OnOpen = procClientOnOpen;
 	tClientEvents.OnText = procClientOnText;
@@ -552,10 +535,12 @@ cleanup:
 		xrtWsClientDestroy(pClient);
 		pClient = NULL;
 	}
+	xrtWsClientConfigUnit(&tClientCfg);
 	if ( pServer != NULL ) {
 		xrtWsServerDestroy(pServer);
 		pServer = NULL;
 	}
+	xrtWsServerConfigUnit(&tServerCfg);
 	if ( pClientEngine != NULL ) {
 		xrtNetEngineStop(pClientEngine);
 		xrtNetEngineDestroy(pClientEngine);
@@ -571,17 +556,9 @@ cleanup:
 		pSched = NULL;
 	}
 
-	if ( tClientCtx.hCloseEvent != NULL ) {
-		xrtCoEventDestroy(tClientCtx.hCloseEvent);
-		tClientCtx.hCloseEvent = NULL;
-	}
 	if ( tClientCtx.hInboxEvent != NULL ) {
 		xrtCoEventDestroy(tClientCtx.hInboxEvent);
 		tClientCtx.hInboxEvent = NULL;
-	}
-	if ( tClientCtx.hOpenEvent != NULL ) {
-		xrtCoEventDestroy(tClientCtx.hOpenEvent);
-		tClientCtx.hOpenEvent = NULL;
 	}
 	if ( tServerCtx.hAuditEvent != NULL ) {
 		xrtCoEventDestroy(tServerCtx.hAuditEvent);
@@ -654,15 +631,15 @@ cleanup:
 - 子任务分发
 
 
-### 6.4 `procClientScriptCo()` 展示的是“顺序写会话脚本”
+### 6.4 `procClientScriptCo()` 展示原生协程等待
 
 这里故意把 client 侧流程写成：
 
-1. 先等 `OnOpen`
+1. 用 `xrtWsClientWaitOpenCoTimeout` 等 Upgrade 完成
 2. 再发 `login`
 3. 再等 inbox
 4. 再发 `chat`
-5. 最后主动 close
+5. 主动 close，再用 `XNET_STREAM_WAIT_CLOSE` 等关闭终态
 
 这就是协程在这条链里的真正价值：
 
@@ -751,11 +728,12 @@ static void procAuditCo(ptr pArg)
 
 服务端：
 
-- `tServerCfg.pTlsConfig = &tTlsCfg`
+- `xrtWsServerConfigSetTlsConfig(&tServerCfg, &tTlsCfg)`
 
 客户端：
 
-- `snprintf(tClientCfg.sURL, ..., "wss://...")`
+- `xrtWsClientConfigSetURL(&tClientCfg, "wss://...")`
+- 需要自定义 CA、SNI、ALPN 或验证回调时调用 `xrtWsClientConfigSetTlsConfig()`
 - 本地自签名调试时，可临时 `tClientCfg.bVerifyPeer = false`
 
 
@@ -845,11 +823,9 @@ while ( !bOpen ) {
 更稳的做法是像示例一样先复制进自己的消息对象。
 
 
-### 10.4 错误四：把 `xws` 误写成已经 wait-source 化的模块
+### 10.4 错误四：有原生等待仍轮询 open/close flag
 
-当前正式 public 主线不是这样。
-
-这页特意用 `queue + xcoevent`，就是为了站在当前真实合同上写教学。
+连接打开、writable、drain 和 close 已有 Future、同步等待与协程等待。`xcoevent` 在本例中只桥接业务消息 Queue，不再重复实现 XWS 状态等待。
 
 
 ### 10.5 错误五：`Close` 之后立刻销毁还没 drain 的消息队列

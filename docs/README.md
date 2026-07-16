@@ -19,6 +19,7 @@
 - [常见问题](FAQ.md)
 - [迁移说明](MIGRATION.md)
 - [性能说明](PERFORMANCE.md)
+- [HTTP/WebSocket 发布门禁](HTTP_WEBSOCKET_RELEASE_GATES.md)
 
 
 ## 按目标阅读

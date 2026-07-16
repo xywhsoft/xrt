@@ -19,6 +19,7 @@
 - [FAQ](FAQ.en.md)
 - [Migration Notes](MIGRATION.en.md)
 - [Performance Notes](PERFORMANCE.en.md)
+- [HTTP/WebSocket Release Gates](HTTP_WEBSOCKET_RELEASE_GATES.en.md)
 
 
 ## Read by Goal

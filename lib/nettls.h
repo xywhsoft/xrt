@@ -29,6 +29,8 @@ typedef struct xrt_tls_context xtlsctx;
 XXAPI void xrtTlsDestroy(xtlsctx *pCtx);
 XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile);
 XXAPI xnet_result xrtTlsSetCertData(xtlsctx *pCtx, const void *pCertData, size_t iCertLen, const void *pKeyData, size_t iKeyLen);
+XXAPI xtlsconfig* xrtNetTlsConfigClone(const xtlsconfig* pConfig);
+XXAPI void xrtNetTlsConfigDestroy(xtlsconfig* pConfig);
 
 typedef struct {
 	char* pBase;
@@ -212,6 +214,98 @@ struct xrt_tls_resume {
 	uint8 aIdentityHash[32];
 	uint8 aServerNameHash[32];
 };
+
+static char* __xrt_tls_config_dup_text(const char* sText)
+{
+	size_t iLen;
+	char* sCopy;
+	if ( !sText ) { return NULL; }
+	iLen = strlen(sText);
+	if ( iLen == SIZE_MAX ) { return NULL; }
+	sCopy = (char*)xrtMalloc(iLen + 1u);
+	if ( !sCopy ) { return NULL; }
+	memcpy(sCopy, sText, iLen + 1u);
+	return sCopy;
+}
+
+static void* __xrt_tls_config_dup_bytes(const void* pData, size_t iLen)
+{
+	void* pCopy;
+	if ( iLen == 0u || !pData ) { return NULL; }
+	pCopy = xrtMalloc(iLen);
+	if ( pCopy ) { memcpy(pCopy, pData, iLen); }
+	return pCopy;
+}
+
+XXAPI void xrtNetTlsConfigDestroy(xtlsconfig* pConfig)
+{
+	if ( !pConfig ) { return; }
+	if ( pConfig->pKeyData && pConfig->iKeyDataLen > 0u ) {
+		__xrt_tls_secure_zero((void*)pConfig->pKeyData, pConfig->iKeyDataLen);
+	}
+	if ( pConfig->pResume ) {
+		__xrt_tls_secure_zero((void*)pConfig->pResume, sizeof(*pConfig->pResume));
+	}
+	xrtFree((void*)pConfig->sCertFile);
+	xrtFree((void*)pConfig->sKeyFile);
+	xrtFree((void*)pConfig->sCaFile);
+	xrtFree((void*)pConfig->sCrlFile);
+	xrtFree((void*)pConfig->sHostName);
+	xrtFree((void*)pConfig->sAlpnProtocols);
+	xrtFree((void*)pConfig->pCertData);
+	xrtFree((void*)pConfig->pKeyData);
+	xrtFree((void*)pConfig->pCaData);
+	xrtFree((void*)pConfig->pCrlData);
+	xrtFree((void*)pConfig->pResume);
+	memset(pConfig, 0, sizeof(*pConfig));
+	xrtFree(pConfig);
+}
+
+XXAPI xtlsconfig* xrtNetTlsConfigClone(const xtlsconfig* pConfig)
+{
+	xtlsconfig* pCopy;
+	if ( !pConfig ) { return NULL; }
+	if ( (!pConfig->pCertData && pConfig->iCertDataLen != 0u) ||
+		(!pConfig->pKeyData && pConfig->iKeyDataLen != 0u) ||
+		(!pConfig->pCaData && pConfig->iCaDataLen != 0u) ||
+		(!pConfig->pCrlData && pConfig->iCrlDataLen != 0u) ) { return NULL; }
+	pCopy = (xtlsconfig*)xrtCalloc(1u, sizeof(*pCopy));
+	if ( !pCopy ) { return NULL; }
+	*pCopy = *pConfig;
+	pCopy->sCertFile = NULL;
+	pCopy->sKeyFile = NULL;
+	pCopy->sCaFile = NULL;
+	pCopy->sCrlFile = NULL;
+	pCopy->sHostName = NULL;
+	pCopy->sAlpnProtocols = NULL;
+	pCopy->pCertData = NULL;
+	pCopy->pKeyData = NULL;
+	pCopy->pCaData = NULL;
+	pCopy->pCrlData = NULL;
+	pCopy->pResume = NULL;
+	pCopy->iDataLock = 0;
+	if ( pConfig->sCertFile && !(pCopy->sCertFile = __xrt_tls_config_dup_text(pConfig->sCertFile)) ) { goto fail; }
+	if ( pConfig->sKeyFile && !(pCopy->sKeyFile = __xrt_tls_config_dup_text(pConfig->sKeyFile)) ) { goto fail; }
+	if ( pConfig->sCaFile && !(pCopy->sCaFile = __xrt_tls_config_dup_text(pConfig->sCaFile)) ) { goto fail; }
+	if ( pConfig->sCrlFile && !(pCopy->sCrlFile = __xrt_tls_config_dup_text(pConfig->sCrlFile)) ) { goto fail; }
+	if ( pConfig->sHostName && !(pCopy->sHostName = __xrt_tls_config_dup_text(pConfig->sHostName)) ) { goto fail; }
+	if ( pConfig->sAlpnProtocols && !(pCopy->sAlpnProtocols = __xrt_tls_config_dup_text(pConfig->sAlpnProtocols)) ) { goto fail; }
+	if ( pConfig->iCertDataLen > 0u && !(pCopy->pCertData = __xrt_tls_config_dup_bytes(pConfig->pCertData, pConfig->iCertDataLen)) ) { goto fail; }
+	if ( pConfig->iKeyDataLen > 0u && !(pCopy->pKeyData = __xrt_tls_config_dup_bytes(pConfig->pKeyData, pConfig->iKeyDataLen)) ) { goto fail; }
+	if ( pConfig->iCaDataLen > 0u && !(pCopy->pCaData = __xrt_tls_config_dup_bytes(pConfig->pCaData, pConfig->iCaDataLen)) ) { goto fail; }
+	if ( pConfig->iCrlDataLen > 0u && !(pCopy->pCrlData = __xrt_tls_config_dup_bytes(pConfig->pCrlData, pConfig->iCrlDataLen)) ) { goto fail; }
+	if ( pConfig->pResume ) {
+		xtlsresume* pResume = (xtlsresume*)xrtMalloc(sizeof(*pResume));
+		if ( !pResume ) { goto fail; }
+		memcpy(pResume, pConfig->pResume, sizeof(*pResume));
+		pCopy->pResume = pResume;
+	}
+	return pCopy;
+
+fail:
+	xrtNetTlsConfigDestroy(pCopy);
+	return NULL;
+}
 
 typedef struct __xrt_tls_resume_cache_entry {
 	struct __xrt_tls_resume_cache_entry* pNext;

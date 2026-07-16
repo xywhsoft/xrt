@@ -12,24 +12,24 @@ mkdir -p release/fuzz
 
 case "$(uname -s)" in
 	MINGW*|MSYS*|CYGWIN*|Windows_NT)
-		OUT="release/fuzz/xhttp_protocol_fuzz.exe"
+		OUT="release/fuzz/xws_protocol_fuzz.exe"
 		LIBS="-lws2_32 -liphlpapi"
 		;;
 	Darwin)
-		OUT="release/fuzz/xhttp_protocol_fuzz"
+		OUT="release/fuzz/xws_protocol_fuzz"
 		LIBS="-pthread"
 		;;
 	*)
-		OUT="release/fuzz/xhttp_protocol_fuzz"
+		OUT="release/fuzz/xws_protocol_fuzz"
 		LIBS="-pthread -ldl -lm"
 		;;
 esac
 
 if [ "$STANDALONE" -eq 1 ]; then
-	$CC -m64 test/fuzz_xhttp_protocol.c -I . $CFLAGS \
+	$CC -m64 test/fuzz_xws_protocol.c -I . $CFLAGS \
 		-DXRT_FUZZ_STANDALONE -fsanitize="address,undefined" $LIBS -o "$OUT"
 else
-	$CC -m64 test/fuzz_xhttp_protocol.c -I . $CFLAGS \
+	$CC -m64 test/fuzz_xws_protocol.c -I . $CFLAGS \
 		-fsanitize="$SANITIZERS" $LIBS -o "$OUT"
 fi
 

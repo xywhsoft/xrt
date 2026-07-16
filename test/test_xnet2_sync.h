@@ -2441,13 +2441,13 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && tWaitCase.pFuture && pSched ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCo, &tWaitCase, 0);
-			(void)__Test_XNet2_SyncPostStreamTaskDelayed(pEngine, pStream, 40, __Test_XNet2_SyncStreamDrainTask);
 			xrtCoSchedRun(pSched);
 		}
 
 		printf("  Stream drain future create : %s\n", pEngine && pStream && tWaitCase.pFuture && pSched ? "PASS" : "FAIL");
 		printf("  Stream drain future defers early stream destroy : %s\n", bEarlyDestroyDeferred ? "PASS" : "FAIL");
-		printf("  Stream drain future wait status : %s\n", tWaitCase.iWaitStatus == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Stream drain future closes on deferred destroy : %s\n",
+			tWaitCase.iWaitStatus == XRT_NET_CLOSED ? "PASS" : "FAIL");
 		printf("  Stream drain future value : %s\n", tWaitCase.pResolvedValue == pStream ? "PASS" : "FAIL");
 		printf("  Stream drain future completion : %s\n", tWaitCase.bDone ? "PASS" : "FAIL");
 
@@ -3422,14 +3422,13 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && tWaitCase.pFuture && pSched ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCo, &tWaitCase, 0);
-			(void)__Test_XNet2_SyncPostStreamTaskDelayed(pEngine, pStream, 40, __Test_XNet2_SyncStreamWritableTask);
 			xrtCoSchedRun(pSched);
 		}
 
 		printf("  Stream writable future create : %s\n", pEngine && pStream && tWaitCase.pFuture && pSched ? "PASS" : "FAIL");
 		printf("  Stream writable future defers early stream destroy : %s\n", bEarlyDestroyDeferred ? "PASS" : "FAIL");
-		printf("  Stream writable future wait status : %s\n",
-			(tWaitCase.iWaitStatus == XRT_NET_OK || tWaitCase.pResolvedValue == pStream) ? "PASS" : "FAIL");
+		printf("  Stream writable future closes on deferred destroy : %s\n",
+			tWaitCase.iWaitStatus == XRT_NET_CLOSED ? "PASS" : "FAIL");
 		printf("  Stream writable future value : %s\n", tWaitCase.pResolvedValue == pStream ? "PASS" : "FAIL");
 		printf("  Stream writable future completion : %s\n", tWaitCase.bDone ? "PASS" : "FAIL");
 
