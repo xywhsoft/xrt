@@ -32,7 +32,7 @@ printf '%s\n' "batch_size: ${BATCH_SIZE}"
 printf '%s\n' "policy: ${POLICY_NAME}"
 printf '%s\n' "cpu_pin: ${CPU_PIN}"
 
-gcc dev/bench/queue/bench_queue_latency.c xrt.c -O2 -I . -pthread -o "$BENCH_BIN"
+gcc dev/bench/queue/bench_queue_latency.c -std=c11 -O2 -Wall -Wextra -Werror -Wno-unused-function -pthread -lm -o "$BENCH_BIN"
 
 "$BENCH_BIN" \
 	"${ITEMS_PER_PRODUCER}" \

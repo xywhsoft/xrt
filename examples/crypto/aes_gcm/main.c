@@ -1,51 +1,55 @@
-/*
- * XRT Example - AES GCM
- * XRT 范例 - AES GCM 加解密
- *
- * Description / 说明:
- *   EN: Demonstrates AES-128-GCM and AES-256-GCM round-trip encryption.
- *   CN: 演示 AES-128-GCM 与 AES-256-GCM 的往返加解密。
- *
- * Build / 编译:
- *   tcc main.c -o ../../bin/crypto_aes_gcm.exe -lWs2_32 -lIPHLPAPI -lShell32
- *   gcc main.c -o ../../bin/crypto_aes_gcm -lm -lpthread
- */
-#define XRT_IMPLEMENTATION
-#include "../../../singlehead/xrt.h"
-#include "../../example_common.h"
+#include <stdio.h>
+#include <string.h>
+
+#include <xrt.h>
 
 
-int main()
+
+/* 展示固定密钥状态上的 AES-GCM 原位封装与打开。 */
+int main(void)
 {
-	const uint8 arrAAD[] = "aes-gcm-demo";
-	const uint8 arrPlain[] = "confidential payload";
-	uint8 arrKey128[16] = { 0 };
-	uint8 arrKey256[32] = { 0 };
-	uint8 arrNonce[12];
-	uint8 arrCipher128[128] = { 0 };
-	uint8 arrPlain128[128] = { 0 };
-	uint8 arrCipher256[128] = { 0 };
-	uint8 arrPlain256[128] = { 0 };
-	bool bEnc128;
-	bool bDec128;
-	bool bEnc256;
-	bool bDec256;
+	uint8 Key[XRT_AES256_KEY_SIZE] = { 0 };
+	uint8 Nonce[XRT_AES_GCM_NONCE_DEFAULT_SIZE] = { 0 };
+	uint8 Buffer[64] = "hello from aes-gcm";
+	const char* pAad = "message-v1";
+	size_t iPlainSize = strlen((const char*)Buffer);
+	xaesgcm State;
 
-	xrtInit();
-
-	memset(arrKey128, 0x11, sizeof(arrKey128));
-	memset(arrKey256, 0x22, sizeof(arrKey256));
-	xrtRandomBytes(arrNonce, sizeof(arrNonce));
-
-	bEnc128 = xrtAES128GCMEncrypt(arrCipher128, arrKey128, arrNonce, sizeof(arrNonce), arrAAD, strlen((str)arrAAD), arrPlain, strlen((str)arrPlain));
-	bDec128 = xrtAES128GCMDecrypt(arrPlain128, arrKey128, arrNonce, sizeof(arrNonce), arrAAD, strlen((str)arrAAD), arrCipher128, strlen((str)arrPlain) + 16u);
-
-	bEnc256 = xrtAES256GCMEncrypt(arrCipher256, arrKey256, arrNonce, sizeof(arrNonce), arrAAD, strlen((str)arrAAD), arrPlain, strlen((str)arrPlain));
-	bDec256 = xrtAES256GCMDecrypt(arrPlain256, arrKey256, arrNonce, sizeof(arrNonce), arrAAD, strlen((str)arrAAD), arrCipher256, strlen((str)arrPlain) + 16u);
-
-	printf("aes128_round_trip = %s\n", exBoolText(bEnc128 && bDec128 && exBytesEqual(arrPlain, arrPlain128, strlen((str)arrPlain))));
-	printf("aes256_round_trip = %s\n", exBoolText(bEnc256 && bDec256 && exBytesEqual(arrPlain, arrPlain256, strlen((str)arrPlain))));
-
-	xrtUnit();
+	if ( !xrtAesGcmInit(
+		&State, Key, sizeof(Key), XRT_AES_GCM_TAG_DEFAULT_SIZE
+	) ) {
+		return 1;
+	}
+	if ( !xrtAesGcmSeal(
+		&State,
+		Nonce,
+		sizeof(Nonce),
+		pAad,
+		strlen(pAad),
+		Buffer,
+		iPlainSize,
+		Buffer,
+		sizeof(Buffer)
+	) ) {
+		xrtAesGcmClear(&State);
+		return 1;
+	}
+	if ( !xrtAesGcmOpen(
+		&State,
+		Nonce,
+		sizeof(Nonce),
+		pAad,
+		strlen(pAad),
+		Buffer,
+		iPlainSize + XRT_AES_GCM_TAG_DEFAULT_SIZE,
+		Buffer,
+		sizeof(Buffer)
+	) ) {
+		xrtAesGcmClear(&State);
+		return 1;
+	}
+	Buffer[iPlainSize] = '\0';
+	printf("%s\n", Buffer);
+	xrtAesGcmClear(&State);
 	return 0;
 }

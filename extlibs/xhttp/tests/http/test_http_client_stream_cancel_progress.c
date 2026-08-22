@@ -1,0 +1,11 @@
+/* 在同步进度回调中请求取消，验证 Worker 驱动栈的重入边界。 */
+#define TEST_HTTP_CLIENT_STREAM_CANCEL 1
+#define TEST_HTTP_CLIENT_STREAM_CANCEL_PROGRESS 1
+#define TEST_HTTP_CLIENT_STREAM_RESPONSE ""
+#define TEST_HTTP_CLIENT_STREAM_STATUS 0
+#define TEST_HTTP_CLIENT_STREAM_BODY ""
+#define TEST_HTTP_CLIENT_STREAM_REMAINDER ""
+#define TEST_HTTP_CLIENT_STREAM_REUSABLE 0
+#define TEST_HTTP_CLIENT_STREAM_UPGRADED 0
+#define TEST_HTTP_CLIENT_STREAM_SCENARIO "progress callback cancellation"
+#include "test_http_client_stream.c"

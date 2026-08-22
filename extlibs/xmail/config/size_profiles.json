@@ -1,0 +1,204 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xmail/config/modules.json",
+	"profiles": [
+		{
+			"name": "mail_core",
+			"system": "mail_content",
+			"suite": "mail_core",
+			"description": "邮件换行和结构化错误核心"
+		},
+		{
+			"name": "mail_content",
+			"system": "mail_content",
+			"suite": "xmail",
+			"description": "邮件传输编码与字段解析闭包"
+		},
+		{
+			"name": "mail_address",
+			"system": "mail_content",
+			"suite": "mail_address",
+			"description": "编码词与零分配地址列表闭包"
+		},
+		{
+			"name": "mail_param",
+			"system": "mail_content",
+			"suite": "mail_param",
+			"description": "独立 MIME 参数解析与 RFC 2231 合并闭包"
+		},
+		{
+			"name": "mail_multipart",
+			"system": "mail_content",
+			"suite": "mail_multipart",
+			"description": "零分配 multipart 游标与字段校验闭包"
+		},
+		{
+			"name": "mail_message",
+			"system": "mail_content",
+			"suite": "mail_message",
+			"description": "消息字段视图与传输编码解码闭包"
+		},
+		{
+			"name": "mail_tree",
+			"system": "mail_content",
+			"suite": "mail_tree",
+			"description": "拥有型 MIME 树、预算和递归解析闭包"
+		},
+		{
+			"name": "mail_build",
+			"system": "mail_content",
+			"suite": "mail_build",
+			"description": "零复制正文、字段和 multipart 流式构建闭包"
+		},
+		{
+			"name": "mail_compose",
+			"system": "mail_content",
+			"suite": "mail_compose",
+			"description": "UTF-8 正文、附件和嵌套 MIME 高层构建闭包"
+		},
+		{
+			"name": "mail_wire",
+			"system": "mail_transport",
+			"suite": "mail_wire",
+			"description": "增量 CRLF 行与 dot transparency 闭包"
+		},
+		{
+			"name": "smtp_protocol",
+			"system": "mail_transport",
+			"suite": "smtp",
+			"description": "SMTP 响应、能力与命令原语闭包"
+		},
+		{
+			"name": "pop3_protocol",
+			"system": "mail_transport",
+			"suite": "pop3",
+			"description": "POP3 响应、能力与命令原语闭包"
+		},
+		{
+			"name": "imap_protocol",
+			"system": "mail_transport",
+			"suite": "imap",
+			"description": "IMAP 响应、literal 与命令原语闭包"
+		},
+		{
+			"name": "imap_body",
+			"system": "mail_transport",
+			"suite": "imap_body",
+			"description": "零分配 BODYSTRUCTURE 语义解析闭包"
+		},
+		{
+			"name": "mail_protocols",
+			"system": "mail_transport",
+			"suite": "smtp,pop3,imap",
+			"description": "三种邮件协议共享线路与解析原语组合"
+		},
+		{
+			"name": "mail_net",
+			"system": "mail_transport",
+			"suite": "mail_net",
+			"description": "不带 TLS 的 TCP 拨号与动态线路缓冲闭包"
+		},
+		{
+			"name": "mail_net_tls",
+			"system": "mail_transport",
+			"suite": "mail_net_tls",
+			"description": "经过验证的 TLS 邮件传输闭包"
+		},
+		{
+			"name": "smtp_client",
+			"system": "mail_transport",
+			"suite": "smtp_client",
+			"description": "不带认证和 TLS 的 SMTP 会话、流式 DATA 与零拷贝 BDAT 闭包"
+		},
+		{
+			"name": "smtp_client_tls",
+			"system": "mail_transport",
+			"suite": "smtp_client_tls",
+			"description": "带隐式 TLS 和 STARTTLS 的 SMTP 会话闭包"
+		},
+		{
+			"name": "smtp_submit",
+			"system": "mail_transport",
+			"suite": "smtp_submit",
+			"description": "SMTP envelope 与 MIME Compose 零整报文副本提交闭包"
+		},
+		{
+			"name": "smtp_auth",
+			"system": "mail_transport",
+			"suite": "smtp_auth",
+			"description": "不强制携带 TLS 的 SMTP PLAIN、LOGIN 与 XOAUTH2 认证闭包"
+		},
+		{
+			"name": "pop3_client",
+			"system": "mail_transport",
+			"suite": "pop3_client",
+			"description": "明文 POP3 状态机和流式多行响应闭包"
+		},
+		{
+			"name": "pop3_client_tls",
+			"system": "mail_transport",
+			"suite": "pop3_client_tls",
+			"description": "带隐式 TLS 和 STLS 的 POP3 会话闭包"
+		},
+		{
+			"name": "pop3_auth",
+			"system": "mail_transport",
+			"suite": "pop3_auth",
+			"description": "POP3 USER/PASS 与 SASL 认证闭包"
+		},
+		{
+			"name": "pop3_message",
+			"system": "mail_transport",
+			"suite": "pop3_message",
+			"description": "POP3 流式消息、owned 字节和 MIME 树桥接闭包"
+		},
+		{
+			"name": "imap_client",
+			"system": "mail_transport",
+			"suite": "imap_client",
+			"description": "明文 IMAP 状态机、流水线命令和流式 literal 闭包"
+		},
+		{
+			"name": "imap_client_tls",
+			"system": "mail_transport",
+			"suite": "imap_client_tls",
+			"description": "带隐式 TLS 和 STARTTLS 的 IMAP 会话闭包"
+		},
+		{
+			"name": "imap_auth",
+			"system": "mail_transport",
+			"suite": "imap_auth",
+			"description": "IMAP LOGIN、PLAIN、XOAUTH2 与 OAUTHBEARER 认证闭包"
+		},
+		{
+			"name": "imap_command",
+			"system": "mail_transport",
+			"suite": "imap_command",
+			"description": "IMAP 邮箱、消息操作和 IDLE 常用命令闭包"
+		},
+		{
+			"name": "imap_message",
+			"system": "mail_transport",
+			"suite": "imap_message",
+			"description": "IMAP BODY 流、owned 字节和 MIME 树桥接闭包"
+		},
+		{
+			"name": "imap_append",
+			"system": "mail_transport",
+			"suite": "imap_append",
+			"description": "IMAP APPENDLIMIT、LITERAL- 与流式 APPEND 闭包"
+		},
+		{
+			"name": "imap_compress",
+			"system": "mail_transport",
+			"suite": "imap_compress",
+			"description": "IMAP raw-DEFLATE 持续压缩传输闭包"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

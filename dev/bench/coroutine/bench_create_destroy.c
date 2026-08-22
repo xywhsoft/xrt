@@ -1,62 +1,66 @@
-#include "../xnet2/bench_common.h"
-#include "../../../xrt.h"
+#include "../bench_common.h"
 
-static void __benchCoNoop(ptr pArg)
+#define XRT_MODULE_COROUTINE
+#define XRT_IMPLEMENTATION
+#include "../../../single/xrt.h"
+
+
+
+/* 最小协程过程立即返回，用于隔离创建、首次恢复和销毁成本。 */
+static ptr benchCoroutineNoop(ptr pData)
 {
-	(void)pArg;
+	return pData;
 }
 
+
+
+/* 分别测量未启动协程和运行完成协程的完整生命周期。 */
 int main(int argc, char** argv)
 {
-	uint64_t iIterations = xbenchArgU64(argc, argv, 1, 100000u);
-	xbenchtimer tCreateDestroyTimer;
-	xbenchtimer tRunDestroyTimer;
-	uint64_t iCreateDestroyNs = 0u;
-	uint64_t iRunDestroyNs = 0u;
+	uint64 iIterations = xbenchArgU64(argc, argv, 1, 100000u);
+	xbenchtimer CreateTimer;
+	xbenchtimer RunTimer;
+	uint64 iCreateElapsed;
+	uint64 iRunElapsed;
 
-	printf("xrt coroutine bench_create_destroy\n");
-	printf("backend=%s\n", xrtCoGetBackendName());
-	printf("iterations=%" PRIu64 "\n", iIterations);
+	if ( iIterations == 0 ) {
+		return 1;
+	}
 
-	if ( !xrtInit() ) return 1;
+	xbenchTimerStart(&CreateTimer);
+	for ( uint64 i = 0; i < iIterations; i++ ) {
+		xcoro* pCoroutine = xrtCoCreate(benchCoroutineNoop, NULL, NULL);
 
-	xbenchTimerStart(&tCreateDestroyTimer);
-	for ( uint64_t i = 0; i < iIterations; ++i ) {
-		xcoro pCo = xrtCoCreate(__benchCoNoop, NULL, 0u);
-		if ( !pCo ) {
-			xrtUnit();
+		if ( (pCoroutine == NULL) || !xrtCoDestroy(pCoroutine) ) {
 			return 2;
 		}
-		xrtCoDestroy(pCo);
 	}
-	xbenchTimerStop(&tCreateDestroyTimer);
-	iCreateDestroyNs = xbenchTimerElapsedNs(&tCreateDestroyTimer);
+	xbenchTimerStop(&CreateTimer);
+	iCreateElapsed = xbenchTimerElapsedNs(&CreateTimer);
 
-	xbenchTimerStart(&tRunDestroyTimer);
-	for ( uint64_t i = 0; i < iIterations; ++i ) {
-		xcoro pCo = xrtCoCreate(__benchCoNoop, NULL, 0u);
-		if ( !pCo ) {
-			xrtUnit();
+	xbenchTimerStart(&RunTimer);
+	for ( uint64 i = 0; i < iIterations; i++ ) {
+		xcoro* pCoroutine = xrtCoCreate(benchCoroutineNoop, NULL, NULL);
+
+		if (
+			(pCoroutine == NULL) ||
+			!xrtCoResume(pCoroutine) ||
+			!xrtCoDestroy(pCoroutine)
+		) {
 			return 3;
 		}
-		if ( !xrtCoResume(pCo) ) {
-			xrtCoDestroy(pCo);
-			xrtUnit();
-			return 4;
-		}
-		xrtCoDestroy(pCo);
 	}
-	xbenchTimerStop(&tRunDestroyTimer);
-	iRunDestroyNs = xbenchTimerElapsedNs(&tRunDestroyTimer);
+	xbenchTimerStop(&RunTimer);
+	iRunElapsed = xbenchTimerElapsedNs(&RunTimer);
 
-	xbenchPrintMetricU64("create_destroy_elapsed_ns", iCreateDestroyNs);
-	xbenchPrintMetricDouble("create_destroy_ops_per_sec", xbenchSafeRate(iIterations, iCreateDestroyNs));
-	xbenchPrintMetricDouble("create_destroy_ns_per_op", iIterations ? ((double)iCreateDestroyNs / (double)iIterations) : 0.0);
-
-	xbenchPrintMetricU64("create_resume_destroy_elapsed_ns", iRunDestroyNs);
-	xbenchPrintMetricDouble("create_resume_destroy_ops_per_sec", xbenchSafeRate(iIterations, iRunDestroyNs));
-	xbenchPrintMetricDouble("create_resume_destroy_ns_per_op", iIterations ? ((double)iRunDestroyNs / (double)iIterations) : 0.0);
-
-	xrtUnit();
-	return 0;
+	printf("coroutine_backend: %s\n", xrtCoBackend());
+	xbenchPrintMetricDouble(
+		"coroutine_create_destroy_ops_per_sec",
+		xbenchSafeRate(iIterations, iCreateElapsed)
+	);
+	xbenchPrintMetricDouble(
+		"coroutine_run_destroy_ops_per_sec",
+		xbenchSafeRate(iIterations, iRunElapsed)
+	);
+	return xrtCoThreadDetach() ? 0 : 4;
 }

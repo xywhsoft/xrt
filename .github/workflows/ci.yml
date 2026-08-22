@@ -8,9 +8,162 @@ permissions:
   contents: read
 
 jobs:
+  metadata:
+    name: Metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run build tooling tests
+        run: >-
+          python -m unittest
+          tools/test_clean.py
+          tools/test_build.py
+          tools/test_package.py
+          tools/test_measure_size.py
+          tools/test_measure_performance.py
+          tools/test_api_docs.py
+          tools/test_api_reference.py
+          tools/test_example_index.py
+          tools/test_release_status.py
+          tools/test_release_maturity.py
+          tools/test_scope.py
+          tools/test_public_abi.py
+          tools/test_refactor_audit.py
+
+      - name: Verify repository release maturity
+        run: python tools/check_release_maturity.py
+
+      - name: Verify WebSocket API documentation
+        run: >-
+          python tools/check_api_docs.py
+          --module-prefix websocket
+          --function-prefix xrtWs
+          --constant-prefix XWS_
+          --type-prefix xws
+
+      - name: Verify network API documentation
+        run: >-
+          python tools/check_api_docs.py
+          --module-prefix net
+          --function-prefix xrtNet
+          --constant-prefix XNET_
+          --type-prefix xnet
+
+      - name: Verify HTTP API documentation
+        run: >-
+          python tools/check_api_docs.py
+          --module-prefix http
+          --function-prefix xrtHttp
+          --constant-prefix XHTTP_
+          --type-prefix xhttp
+
+      - name: Verify Future API documentation
+        run: |
+          python tools/check_api_docs.py --module-prefix future --function-prefix xrtFuture --constant-prefix XFUTURE_ --type-prefix xfuture
+          python tools/check_api_docs.py --module-prefix future --function-prefix xrtPromise --constant-prefix XPROMISE_ --type-prefix xpromise
+
+      - name: Verify task API documentation
+        run: >-
+          python tools/check_api_docs.py
+          --module-prefix task
+          --function-prefix xrtTask
+          --constant-prefix XRT_TASK_
+          --type-prefix xtask
+
+      - name: Verify coroutine API documentation
+        run: >-
+          python tools/check_api_docs.py
+          --module-prefix coroutine
+          --function-prefix xrtCo
+          --constant-prefix XRT_CO
+          --type-prefix xco
+
+      - name: Verify generated features and refactor audit
+        run: |
+          python tools/generate_features.py --check
+          python tools/generate_api_reference.py --check
+          python tools/generate_example_index.py --check
+          python tools/refactor_audit.py check --require-verified
+
+      - name: Verify extension metadata and generated assets
+        run: |
+          for product in xruntime xhttp xws xregex xmail xssh; do
+            manifest="extlibs/${product}/config/modules.json"
+            python tools/generate_extension_features.py --check "${manifest}"
+            python tools/amalgamate.py --manifest "${manifest}" --check
+            python tools/generate_api_reference.py --manifest "${manifest}" --check
+            python tools/check_api_docs.py --manifest "${manifest}"
+            python tools/check_release_maturity.py --release --manifest "${manifest}"
+          done
+
+  extensions:
+    name: Extension / ${{ matrix.product }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - product: xruntime
+            test_suite: xruntime_tests
+            package_suite: xruntime
+          - product: xhttp
+            test_suite: xhttp_tests
+            package_suite: xhttp
+          - product: xws
+            test_suite: xws_tests
+            package_suite: xws
+          - product: xregex
+            test_suite: xregex
+            package_suite: xregex
+          - product: xmail
+            test_suite: xmail_tests
+            package_suite: xmail
+          - product: xssh
+            test_suite: xssh
+            package_suite: xssh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run extension tests
+        run: >-
+          python tools/build.py
+          --compiler cc
+          --manifest extlibs/${{ matrix.product }}/config/modules.json
+          --suite ${{ matrix.test_suite }}
+          --jobs 4
+
+      - name: Verify extension trimming
+        run: >-
+          python tools/build.py
+          --compiler cc
+          --manifest extlibs/${{ matrix.product }}/config/modules.json
+          --suite ${{ matrix.package_suite }}
+          --trim-only
+
+      - name: Verify extension packages
+        run: |
+          python tools/package.py --compiler cc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind static --verify
+          python tools/package.py --compiler cc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind shared --verify
+
   native:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -23,21 +176,126 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build library
-        run: sh build.sh
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Run tests
-        run: sh build_test.sh
+      - name: Run module and single-header tests
+        run: python tools/build.py --compiler cc --suite all --jobs 4
+
+      - name: Build WebSocket extension runtime gates
+        run: >-
+          python tools/build.py
+          --compiler cc
+          --manifest extlibs/xws/config/modules.json
+          --suite xws_tests
+          --no-single
+          --jobs 4
+
+      - name: Verify static and shared package consumers
+        run: |
+          python tools/package.py --compiler cc --suite all --kind static --verify
+          python tools/package.py --compiler cc --suite all --kind shared --verify
+
+      - name: Run WebSocket interoperability gate
+        run: >-
+          python extlibs/xws/tools/test_websocket_interop.py
+          --peer out/cc/native/xws_tests/test_interop_peer
+
+      - name: Run WebSocket reconnect stress gate
+        run: out/cc/native/xws_tests/test_http_reconnect 1000
+
+      - name: Run protocol Clang fuzz gates
+        if: matrix.runner == 'ubuntu-latest'
+        run: python tools/test_protocol_fuzz.py --runs 20000
+
+      - name: Run coroutine sanitizer gate
+        if: matrix.runner == 'ubuntu-latest'
+        env:
+          ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --suite coroutine,coroutine_scheduler,coroutine_event
+          --no-single
+          --rebuild
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=address,undefined
+          --cflag=-fno-omit-frame-pointer
+          --cflag=-fcf-protection=full
+
+      - name: Run core and coroutine thread sanitizer gate
+        if: matrix.runner == 'ubuntu-latest'
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --suite core,memory_debug,memory_stats,coroutine,coroutine_scheduler,coroutine_event
+          --no-single
+          --rebuild
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=thread
+          --cflag=-fno-omit-frame-pointer
+
+      - name: Run Linux io_uring network and TLS runtime gate
+        if: matrix.runner == 'ubuntu-latest'
+        run: >-
+          python tools/build.py
+          --compiler cc
+          --manifest extlibs/xhttp/config/modules.json
+          --suite
+          net_port_uring,net_file,net_tcp_file_uring_tests,net_tcp_dial_uring_tests,net_tcp_dial_future_uring_tests,net_tcp_uring_tests,net_tcp_future_uring_tests,net_udp_uring_tests,net_udp_sync_uring_tests,net_udp_future_uring_tests,tls_stream_dial_future_uring_tests,tls_stream_dial_uring_tests,tls_stream_uring_tests,http_client_pool_uring_tests,http_client_stream_async_uring_tests,http_client_uring_tests,http_server_uring_tests,http_server_tls_uring_tests
+          --rebuild
+          --jobs 4
+
+      - name: Verify trim dependencies
+        run: python tools/build.py --compiler cc --suite all --trim-only
+
+  arm64-crypto:
+    name: Linux ARM64 crypto
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify native ARMv8 AES and PMULL
+        run: |
+          set -eu
+          test "$(uname -m)" = "aarch64"
+          python tools/build.py \
+            --compiler cc \
+            --suite crypto_aes,crypto_aes_gcm,tls_record_aes \
+            --no-single \
+            --rebuild \
+            --cflag=-DXRT_TEST_REQUIRE_ARM_CRYPTO \
+            --jobs 4
 
   windows:
     name: Windows
     runs-on: windows-latest
+    timeout-minutes: 60
     defaults:
       run:
         shell: msys2 {0}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -47,11 +305,91 @@ jobs:
           path-type: inherit
           install: mingw-w64-ucrt-x86_64-gcc
 
-      - name: Build library
-        run: sh build.sh
+      - name: Run module and single-header tests
+        run: python tools/build.py --compiler gcc --suite all --jobs 4
 
-      - name: Run tests
-        run: sh build_test.sh
+      - name: Build WebSocket extension runtime gates
+        run: >-
+          python tools/build.py
+          --compiler gcc
+          --manifest extlibs/xws/config/modules.json
+          --suite xws_tests
+          --no-single
+          --jobs 4
+
+      - name: Verify static and shared package consumers
+        run: |
+          python tools/package.py --compiler gcc --suite all --kind static --verify
+          python tools/package.py --compiler gcc --suite all --kind shared --verify
+
+      - name: Verify representative single-header size profiles
+        run: python tools/measure_size.py --compiler gcc --arch x64 --kind single
+
+      - name: Run current API performance smoke
+        run: python tools/measure_performance.py --compiler gcc --arch x64 --smoke
+
+      - name: Run WebSocket interoperability gate
+        run: >-
+          python extlibs/xws/tools/test_websocket_interop.py
+          --peer out/gcc/native/xws_tests/test_interop_peer.exe
+
+      - name: Run WebSocket reconnect stress gate
+        run: |
+          out/gcc/native/xws_tests/test_http_reconnect.exe 1000
+          out/gcc/native/xws_tests/test_http_reconnect_iocp.exe 1000
+
+      - name: Verify trim dependencies
+        run: python tools/build.py --compiler gcc --suite all --trim-only
+
+  windows-msvc:
+    name: Windows ${{ matrix.compiler }} ${{ matrix.arch }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - cl
+          - clang-cl
+        arch:
+          - x64
+          - x86
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Visual C++ environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Verify compiler environment
+        run: |
+          $compiler = Get-Command ${{ matrix.compiler }} -ErrorAction Stop
+          Write-Host $compiler.Source
+
+      - name: Verify all-feature static package
+        run: >-
+          python tools/package.py
+          --compiler ${{ matrix.compiler }}
+          --arch ${{ matrix.arch }}
+          --suite all
+          --kind static
+          --verify
+
+      - name: Verify all-feature shared package
+        run: >-
+          python tools/package.py
+          --compiler ${{ matrix.compiler }}
+          --arch ${{ matrix.arch }}
+          --suite all
+          --kind shared
+          --verify
 
   android:
     name: Android
@@ -61,29 +399,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27c
 
+      - name: Build current core and network tests
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          set -eu
+          mkdir -p .ci/bin
+          cat > .ci/bin/android-cc <<'EOF'
+          #!/bin/sh
+          exec "$ANDROID_CC" "$@"
+          EOF
+          chmod +x .ci/bin/android-cc
+          export ANDROID_CC="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"
+          export PATH="$PWD/.ci/bin:$PATH"
+          python tools/build.py --compiler android-cc --target-platform android --suite core,net --no-run --jobs 4
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-
-      - name: Build Android test binaries
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-        run: |
-          set -e
-          mkdir -p release/android
-          CC="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"
-          CFLAGS=(-I . -O2 -ffunction-sections -fdata-sections -Wall -Wextra)
-          LDFLAGS=(-pthread -ldl)
-          "$CC" test.c "${CFLAGS[@]}" "${LDFLAGS[@]}" -o release/android/xrt_test
-          "$CC" singlehead/test_singlehead.c -I singlehead -O2 -ffunction-sections -fdata-sections -Wall -Wextra "${LDFLAGS[@]}" -o release/android/test_singlehead_queue
 
       - name: Run Android tests
         timeout-minutes: 10
@@ -94,23 +440,18 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           script: |
-            set -e
-            timeout 30s adb shell "rm -rf /data/local/tmp/xrt-ci && mkdir -p /data/local/tmp/xrt-ci/dev"
-            timeout 30s adb push release/android/xrt_test /data/local/tmp/xrt-ci/xrt_test
-            timeout 30s adb push release/android/test_singlehead_queue /data/local/tmp/xrt-ci/test_singlehead_queue
-            timeout 30s adb push dev/xnet2_tls_test_cert.pem /data/local/tmp/xrt-ci/dev/xnet2_tls_test_cert.pem
-            timeout 30s adb push dev/xnet2_tls_test_key.pem /data/local/tmp/xrt-ci/dev/xnet2_tls_test_key.pem
-            timeout 30s adb shell "chmod 755 /data/local/tmp/xrt-ci/xrt_test /data/local/tmp/xrt-ci/test_singlehead_queue"
-            echo "Running Android xrt_test base"
-            timeout 90s adb shell "cd /data/local/tmp/xrt-ci && ./xrt_test base"
-            echo "Running Android xrt_test xurl_core"
-            timeout 90s adb shell "cd /data/local/tmp/xrt-ci && ./xrt_test xurl_core"
-            echo "Running Android xrt_test xnet2_base"
-            timeout 90s adb shell "cd /data/local/tmp/xrt-ci && ./xrt_test xnet2_base"
-            echo "Running Android xrt_test xnet2_port"
-            timeout 90s adb shell "cd /data/local/tmp/xrt-ci && ./xrt_test xnet2_port"
-            echo "Running Android test_singlehead_queue"
-            timeout 150s adb shell "cd /data/local/tmp/xrt-ci && ./test_singlehead_queue"
+            set -eu
+            OUT="$PWD/out/android-cc/native-android/core,net"
+            adb shell "rm -rf /data/local/tmp/xrt-ci && mkdir -p /data/local/tmp/xrt-ci"
+            adb push "$OUT/test_core" /data/local/tmp/xrt-ci/test_core
+            adb push "$OUT/test_net" /data/local/tmp/xrt-ci/test_net
+            adb push "$OUT/test_single" /data/local/tmp/xrt-ci/test_single
+            adb push "$OUT/test_single_net" /data/local/tmp/xrt-ci/test_single_net
+            adb shell "chmod 755 /data/local/tmp/xrt-ci/*"
+            adb shell "cd /data/local/tmp/xrt-ci && ./test_core"
+            adb shell "cd /data/local/tmp/xrt-ci && ./test_net"
+            adb shell "cd /data/local/tmp/xrt-ci && ./test_single"
+            adb shell "cd /data/local/tmp/xrt-ci && ./test_single_net"
 
   ios:
     name: iOS
@@ -120,23 +461,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build iOS Simulator test binaries
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build current core and network tests
         run: |
-          set -e
-          mkdir -p release/ios
-          SDKROOT="$(xcrun --sdk iphonesimulator --show-sdk-path)"
-          ARCH="$(uname -m)"
-          TARGET="${ARCH}-apple-ios-simulator"
-          CFLAGS=(-target "$TARGET" -isysroot "$SDKROOT" -mios-simulator-version-min=13.0 -I . -O2 -ffunction-sections -fdata-sections -Wall -Wextra)
-          clang test.c "${CFLAGS[@]}" -o release/ios/xrt_test
-          clang singlehead/test_singlehead.c -target "$TARGET" -isysroot "$SDKROOT" -mios-simulator-version-min=13.0 -I singlehead -O2 -ffunction-sections -fdata-sections -Wall -Wextra -o release/ios/test_singlehead_queue
+          set -eu
+          mkdir -p .ci/bin
+          cat > .ci/bin/ios-cc <<'EOF'
+          #!/bin/sh
+          exec xcrun clang \
+            -target "$IOS_TARGET" \
+            -isysroot "$IOS_SDKROOT" \
+            -mios-simulator-version-min=13.0 \
+            "$@"
+          EOF
+          chmod +x .ci/bin/ios-cc
+          export IOS_SDKROOT="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          export IOS_TARGET="$(uname -m)-apple-ios-simulator"
+          export PATH="$PWD/.ci/bin:$PATH"
+          python tools/build.py --compiler ios-cc --suite core,net --no-run --jobs 4
 
       - name: Run iOS Simulator tests
         run: |
-          set -e
+          set -eu
           RUNTIME="$(xcrun simctl list runtimes --json | ruby -rjson -e 'r=JSON.parse(STDIN.read)["runtimes"].select { |x| x["isAvailable"] && x["identifier"].include?("iOS") }.last; abort("No available iOS runtime") unless r; puts r["identifier"]')"
           DEVICE_TYPE="com.apple.CoreSimulator.SimDeviceType.iPhone-13"
           UDID="$(xcrun simctl create "XRT CI iPhone" "$DEVICE_TYPE" "$RUNTIME")"
+          OUT="$PWD/out/ios-cc/native/core,net"
           cleanup() {
             xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
             xcrun simctl delete "$UDID" >/dev/null 2>&1 || true
@@ -144,8 +498,7 @@ jobs:
           trap cleanup EXIT
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl spawn "$UDID" "$PWD/release/ios/xrt_test" base
-          xcrun simctl spawn "$UDID" "$PWD/release/ios/xrt_test" xurl_core
-          xcrun simctl spawn "$UDID" "$PWD/release/ios/xrt_test" xnet2_base
-          xcrun simctl spawn "$UDID" "$PWD/release/ios/xrt_test" xnet2_port
-          xcrun simctl spawn "$UDID" "$PWD/release/ios/test_singlehead_queue"
+          xcrun simctl spawn "$UDID" "$OUT/test_core"
+          xcrun simctl spawn "$UDID" "$OUT/test_net"
+          xcrun simctl spawn "$UDID" "$OUT/test_single"
+          xcrun simctl spawn "$UDID" "$OUT/test_single_net"

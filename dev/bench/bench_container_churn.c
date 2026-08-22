@@ -1,4 +1,4 @@
-#include "xnet2/bench_common.h"
+#include "bench_common.h"
 #include "../../xrt.h"
 
 typedef struct {

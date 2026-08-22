@@ -1,4 +1,4 @@
-#include "xnet2/bench_common.h"
+#include "bench_common.h"
 #include "../../xrt.h"
 
 static void __benchRawLoop(uint32_t iIterations, const uint32_t* arrSizes, uint32_t iSizeCount, bool bUseCalloc)

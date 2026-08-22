@@ -1,0 +1,112 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xmail/config/modules.json",
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": ["-O2"],
+		"ldflags": [],
+		"max_relative_mad": 0.20,
+		"max_relative_central_range": 0.30,
+		"regression": {
+			"higher": 0.10,
+			"lower": 0.20
+		}
+	},
+	"profiles": [
+		{
+			"name": "mail_content",
+			"system": "mail_content",
+			"description": "邮件编码、解码和字段游标热路径",
+			"benchmarks": [
+				{
+					"name": "mail_content",
+					"source": "extlibs/xmail/bench/bench_mail_content.c",
+					"suite": "xmail",
+					"args": ["100000"],
+					"smoke_args": ["100"],
+					"metrics": {
+						"qp_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s"
+						},
+						"base64_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s"
+						},
+						"header_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"word_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"address_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"param_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"multipart_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"message_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"tree_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"builder_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"compose_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "mail_transport",
+			"system": "mail_transport",
+			"description": "邮件线路、SMTP、POP3 与 IMAP 零分配协议热路径",
+			"benchmarks": [
+				{
+					"name": "mail_transport",
+					"source": "extlibs/xmail/bench/bench_mail_transport.c",
+					"suite": "smtp,pop3,imap",
+					"args": ["200000"],
+					"smoke_args": ["100"],
+					"metrics": {
+						"wire_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s"
+						},
+						"smtp_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"pop3_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"imap_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		}
+	]
+}

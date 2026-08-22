@@ -1,0 +1,1982 @@
+{
+  "schema": 2,
+  "generated_at": "2026-08-14T12:37:59.988154+00:00",
+  "platform": "win32",
+  "machine": "amd64",
+  "platform_release": "10",
+  "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+  "cpu_count": 12,
+  "affinity": "0xfff/0xfff",
+  "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+  "compiler_family": "gnu",
+  "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+  "compiler_version": "gcc.EXE (GCC) 16.1.0",
+  "arch": "x64",
+  "optimization": "-O2",
+  "cflags": [
+    "-O2"
+  ],
+  "ldflags": [],
+  "policy": "baseline-unpinned",
+  "repeats": 5,
+  "warmups": 1,
+  "max_relative_mad": 0.2,
+  "max_relative_central_range": 0.3,
+  "source_revision": "51d3492b3868440acb46595bb9ef2682bd30bd54",
+  "source_dirty": true,
+  "source_fingerprint": "a05aa83096446dd67905944a87d0daae01877de8b3eac044d760935453e44610",
+  "benchmark_fingerprint": "dd07a541f7c6093719d537b43ca3571f780f947bb5d2eaf7820ba9cc45f8b6d5",
+  "profiles": {
+    "task": {
+      "description": "有界任务池提交、调度、Future 等待和回收",
+      "benchmarks": {
+        "task_pool": {
+          "source": "dev/bench/task/bench_task_pool.c",
+          "suite": "task_pool",
+          "args": [
+            "200000",
+            "4",
+            "4096",
+            "200000"
+          ],
+          "facts": {},
+          "metrics": {
+            "windowed_tasks_per_sec": {
+              "samples": [
+                1153207.011,
+                1182221.051,
+                1188938.355,
+                1186310.686,
+                1154392.492
+              ],
+              "median": 1182221.051,
+              "mean": 1173013.919,
+              "min": 1153207.011,
+              "max": 1188938.355,
+              "mad": 6717.304000000004,
+              "relative_mad": 0.005681935704256042,
+              "range": 35731.34400000004,
+              "relative_range": 0.03022391114569998,
+              "central_range": 31918.1939999999,
+              "relative_central_range": 0.026998499115712248,
+              "direction": "higher",
+              "unit": "tasks/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "queue_one_tasks_per_sec": {
+              "samples": [
+                644560.186,
+                629807.597,
+                617174.993,
+                631963.447,
+                629933.164
+              ],
+              "median": 629933.164,
+              "mean": 630687.8774,
+              "min": 617174.993,
+              "max": 644560.186,
+              "mad": 2030.283000000054,
+              "relative_mad": 0.003223013354477165,
+              "range": 27385.19299999997,
+              "relative_range": 0.04347317233801008,
+              "central_range": 2155.850000000093,
+              "relative_central_range": 0.0034223471999961144,
+              "direction": "higher",
+              "unit": "tasks/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "executor": {
+          "source": "dev/bench/task/bench_executor.c",
+          "suite": "executor",
+          "args": [
+            "1000000",
+            "4",
+            "32"
+          ],
+          "facts": {},
+          "metrics": {
+            "executor_tasks_per_sec": {
+              "samples": [
+                5637302.708,
+                5699340.415,
+                5631366.26,
+                5302898.936,
+                5371059.656
+              ],
+              "median": 5631366.26,
+              "mean": 5528393.595000001,
+              "min": 5302898.936,
+              "max": 5699340.415,
+              "mad": 67974.15500000026,
+              "relative_mad": 0.012070632926653268,
+              "range": 396441.4790000003,
+              "relative_range": 0.07039880922254207,
+              "central_range": 266243.0519999992,
+              "relative_central_range": 0.047278589192669425,
+              "direction": "higher",
+              "unit": "tasks/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "coroutine": {
+      "description": "协程创建、上下文切换、跨线程投递与定时器周转",
+      "benchmarks": {
+        "coroutine_switch": {
+          "source": "dev/bench/coroutine/bench_context_switch.c",
+          "suite": "coroutine",
+          "args": [
+            "5000000"
+          ],
+          "facts": {
+            "coroutine_backend": "fiber-win"
+          },
+          "metrics": {
+            "coroutine_switches_per_sec": {
+              "samples": [
+                19242764.577,
+                19132313.326,
+                19441146.794,
+                19382912.104,
+                19640386.523
+              ],
+              "median": 19382912.104,
+              "mean": 19367904.6648,
+              "min": 19132313.326,
+              "max": 19640386.523,
+              "mad": 140147.52699999884,
+              "relative_mad": 0.007230468066306558,
+              "range": 508073.1969999969,
+              "relative_range": 0.02621242846657429,
+              "central_range": 198382.21700000018,
+              "relative_central_range": 0.010234902574781867,
+              "direction": "higher",
+              "unit": "switches/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "coroutine_ns_per_switch": {
+              "samples": [
+                51.968,
+                52.268,
+                51.437,
+                51.592,
+                50.915
+              ],
+              "median": 51.592,
+              "mean": 51.636,
+              "min": 50.915,
+              "max": 52.268,
+              "mad": 0.3760000000000048,
+              "relative_mad": 0.007287951620406357,
+              "range": 1.3530000000000015,
+              "relative_range": 0.02622499612343002,
+              "central_range": 0.5310000000000059,
+              "relative_central_range": 0.010292293378818537,
+              "direction": "lower",
+              "unit": "ns",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "coroutine_lifecycle": {
+          "source": "dev/bench/coroutine/bench_create_destroy.c",
+          "suite": "coroutine",
+          "args": [
+            "100000"
+          ],
+          "facts": {
+            "coroutine_backend": "fiber-win"
+          },
+          "metrics": {
+            "coroutine_create_destroy_ops_per_sec": {
+              "samples": [
+                146840.442,
+                143488.08,
+                144458.319,
+                138686.695,
+                145774.656
+              ],
+              "median": 144458.319,
+              "mean": 143849.6384,
+              "min": 138686.695,
+              "max": 146840.442,
+              "mad": 1316.3369999999995,
+              "relative_mad": 0.009112227036229043,
+              "range": 8153.747000000003,
+              "relative_range": 0.05644359602440067,
+              "central_range": 2286.576000000001,
+              "relative_central_range": 0.015828621126347187,
+              "direction": "higher",
+              "unit": "coroutines/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "coroutine_run_destroy_ops_per_sec": {
+              "samples": [
+                120349.485,
+                126748.206,
+                117992.945,
+                126237.076,
+                121444.279
+              ],
+              "median": 121444.279,
+              "mean": 122554.39820000001,
+              "min": 117992.945,
+              "max": 126748.206,
+              "mad": 3451.333999999988,
+              "relative_mad": 0.028419074397073807,
+              "range": 8755.260999999999,
+              "relative_range": 0.07209282373853114,
+              "central_range": 5887.591,
+              "relative_central_range": 0.048479772357164726,
+              "direction": "higher",
+              "unit": "coroutines/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "coroutine_post": {
+          "source": "dev/bench/coroutine/bench_sched_post.c",
+          "suite": "coroutine_scheduler",
+          "args": [
+            "500000"
+          ],
+          "facts": {},
+          "metrics": {
+            "coroutine_posts_per_sec": {
+              "samples": [
+                5118875.649,
+                5127479.393,
+                5093885.402,
+                4981399.454,
+                4931584.133
+              ],
+              "median": 5093885.402,
+              "mean": 5050644.8061999995,
+              "min": 4931584.133,
+              "max": 5127479.393,
+              "mad": 33593.99100000039,
+              "relative_mad": 0.006594964030170459,
+              "range": 195895.25999999978,
+              "relative_range": 0.038456942891390115,
+              "central_range": 137476.1950000003,
+              "relative_central_range": 0.026988474249150435,
+              "direction": "higher",
+              "unit": "posts/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "coroutine_timer": {
+          "source": "dev/bench/coroutine/bench_timer_churn.c",
+          "suite": "coroutine_scheduler",
+          "args": [
+            "500000"
+          ],
+          "facts": {},
+          "metrics": {
+            "coroutine_timers_per_sec": {
+              "samples": [
+                13202749.341,
+                12969798.527,
+                13263584.563,
+                13383799.179,
+                13429704.896
+              ],
+              "median": 13263584.563,
+              "mean": 13249927.301199999,
+              "min": 12969798.527,
+              "max": 13429704.896,
+              "mad": 120214.61600000039,
+              "relative_mad": 0.009063508844762088,
+              "range": 459906.368999999,
+              "relative_range": 0.03467436474774327,
+              "central_range": 181049.83799999952,
+              "relative_central_range": 0.013650143906425934,
+              "direction": "higher",
+              "unit": "timers/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "channel": {
+      "description": "线程与协程 Channel、rendezvous 和 select 热路径",
+      "benchmarks": {
+        "channel": {
+          "source": "dev/bench/channel/bench_channel.c",
+          "suite": "channel",
+          "args": [
+            "5000000",
+            "5000000",
+            "500000"
+          ],
+          "facts": {},
+          "metrics": {
+            "local_items_per_sec": {
+              "samples": [
+                30347982.102,
+                31588949.427,
+                32150763.934,
+                31407488.927,
+                31741194.993
+              ],
+              "median": 31588949.427,
+              "mean": 31447275.876600005,
+              "min": 30347982.102,
+              "max": 32150763.934,
+              "mad": 181460.5,
+              "relative_mad": 0.005744429722784652,
+              "range": 1802781.8319999985,
+              "relative_range": 0.057070015454806736,
+              "central_range": 333706.06599999964,
+              "relative_central_range": 0.010564012797297124,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "buffered_items_per_sec": {
+              "samples": [
+                19249848.792,
+                19745231.23,
+                20133233.687,
+                20030269.744,
+                20317406.654
+              ],
+              "median": 20030269.744,
+              "mean": 19895198.021399997,
+              "min": 19249848.792,
+              "max": 20317406.654,
+              "mad": 285038.51399999857,
+              "relative_mad": 0.014230388189623902,
+              "range": 1067557.8619999997,
+              "relative_range": 0.05329722842698028,
+              "central_range": 388002.45699999854,
+              "relative_central_range": 0.019370805383997557,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "rendezvous_items_per_sec": {
+              "samples": [
+                1802286.958,
+                1777092.215,
+                1848766.466,
+                1936225.383,
+                1915892.327
+              ],
+              "median": 1848766.466,
+              "mean": 1856052.6697999998,
+              "min": 1777092.215,
+              "max": 1936225.383,
+              "mad": 67125.86100000003,
+              "relative_mad": 0.036308458766689915,
+              "range": 159133.16799999983,
+              "relative_range": 0.08607532153279539,
+              "central_range": 113605.36899999995,
+              "relative_central_range": 0.06144928041982342,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "channel_select": {
+          "source": "dev/bench/channel/bench_channel_select.c",
+          "suite": "channel_select",
+          "args": [
+            "3000000",
+            "1500000"
+          ],
+          "facts": {},
+          "metrics": {
+            "select_ready_items_per_sec": {
+              "samples": [
+                13473650.928,
+                12951829.986,
+                11989262.417,
+                13842382.329,
+                13249133.617
+              ],
+              "median": 13249133.617,
+              "mean": 13101251.8554,
+              "min": 11989262.417,
+              "max": 13842382.329,
+              "mad": 297303.631000001,
+              "relative_mad": 0.02243947714577577,
+              "range": 1853119.9120000005,
+              "relative_range": 0.13986725212147133,
+              "central_range": 521820.9419999998,
+              "relative_central_range": 0.039385287905199316,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "select_transfer_items_per_sec": {
+              "samples": [
+                5515831.355,
+                5632687.915,
+                5487191.249,
+                5416155.743,
+                5576780.369
+              ],
+              "median": 5515831.355,
+              "mean": 5525729.3262,
+              "min": 5416155.743,
+              "max": 5632687.915,
+              "mad": 60949.0139999995,
+              "relative_mad": 0.011049832759072726,
+              "range": 216532.17200000025,
+              "relative_range": 0.039256488834401686,
+              "central_range": 89589.12000000011,
+              "relative_central_range": 0.01624217896342846,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "channel_coroutine": {
+          "source": "dev/bench/channel/bench_channel_coroutine.c",
+          "suite": "channel_coroutine",
+          "args": [
+            "2000000",
+            "600000",
+            "2000000"
+          ],
+          "facts": {},
+          "metrics": {
+            "buffered_co_items_per_sec": {
+              "samples": [
+                6842418.754,
+                6176463.413,
+                6677196.606,
+                5694631.102,
+                6337103.487
+              ],
+              "median": 6337103.487,
+              "mean": 6345562.6724,
+              "min": 5694631.102,
+              "max": 6842418.754,
+              "mad": 340093.11899999995,
+              "relative_mad": 0.053666966256377305,
+              "range": 1147787.6519999998,
+              "relative_range": 0.1811218097281484,
+              "central_range": 500733.19299999997,
+              "relative_central_range": 0.07901609844737573,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "rendezvous_co_items_per_sec": {
+              "samples": [
+                2083707.388,
+                1914605.408,
+                1992993.962,
+                1970627.146,
+                1898141.308
+              ],
+              "median": 1970627.146,
+              "mean": 1972015.0424,
+              "min": 1898141.308,
+              "max": 2083707.388,
+              "mad": 56021.737999999896,
+              "relative_mad": 0.02842838033248117,
+              "range": 185566.08000000007,
+              "relative_range": 0.0941660021159579,
+              "central_range": 78388.554,
+              "relative_central_range": 0.03977848075376102,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "select_co_items_per_sec": {
+              "samples": [
+                6463877.59,
+                6362472.61,
+                6045550.807,
+                6208440.313,
+                6369828.416
+              ],
+              "median": 6362472.61,
+              "mean": 6290033.9472,
+              "min": 6045550.807,
+              "max": 6463877.59,
+              "mad": 101404.97999999952,
+              "relative_mad": 0.01593798295345424,
+              "range": 418326.7829999998,
+              "relative_range": 0.06574908980236849,
+              "central_range": 161388.10300000012,
+              "relative_central_range": 0.025365626367702367,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "queue": {
+      "description": "SPSC、MPSC、MPMC 及批处理无锁队列吞吐",
+      "benchmarks": {
+        "queue_pointer": {
+          "source": "dev/bench/queue/bench_queue_pointer.c",
+          "suite": "queue_spsc,queue_mpsc,queue_mpmc",
+          "args": [
+            "5000000",
+            "4096",
+            "4",
+            "4",
+            "4",
+            "32"
+          ],
+          "facts": {},
+          "metrics": {
+            "mpsc_items_per_sec": {
+              "samples": [
+                9664028.596,
+                9639372.751,
+                10039798.262,
+                9695985.76,
+                9645338.957
+              ],
+              "median": 9664028.596,
+              "mean": 9736904.865200002,
+              "min": 9639372.751,
+              "max": 10039798.262,
+              "mad": 24655.84500000067,
+              "relative_mad": 0.002551300915045499,
+              "range": 400425.51099999994,
+              "relative_range": 0.04143463639643393,
+              "central_range": 50646.802999999374,
+              "relative_central_range": 0.005240754670465523,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "mpsc_batch_items_per_sec": {
+              "samples": [
+                98788848.715,
+                107238548.398,
+                112919963.459,
+                109752196.004,
+                108504354.28
+              ],
+              "median": 108504354.28,
+              "mean": 107440782.17119999,
+              "min": 98788848.715,
+              "max": 112919963.459,
+              "mad": 1265805.8819999993,
+              "relative_mad": 0.011665945485777783,
+              "range": 14131114.744000003,
+              "relative_range": 0.13023546232563232,
+              "central_range": 2513647.6059999913,
+              "relative_central_range": 0.02316632933931314,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "mpmc_items_per_sec": {
+              "samples": [
+                7307885.91,
+                7267684.821,
+                7374979.35,
+                7190167.417,
+                7230478.143
+              ],
+              "median": 7267684.821,
+              "mean": 7274239.1282,
+              "min": 7190167.417,
+              "max": 7374979.35,
+              "mad": 40201.08899999969,
+              "relative_mad": 0.005531484921283116,
+              "range": 184811.93299999926,
+              "relative_range": 0.025429271845414173,
+              "central_range": 77407.76699999999,
+              "relative_central_range": 0.01065095266326492,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "mpmc_batch_items_per_sec": {
+              "samples": [
+                118202820.674,
+                120017114.441,
+                120805117.788,
+                115214209.138,
+                125179476.074
+              ],
+              "median": 120017114.441,
+              "mean": 119883747.623,
+              "min": 115214209.138,
+              "max": 125179476.074,
+              "mad": 1814293.7670000046,
+              "relative_mad": 0.015116958739179696,
+              "range": 9965266.936000004,
+              "relative_range": 0.08303204907412513,
+              "central_range": 2602297.1140000075,
+              "relative_central_range": 0.021682716886842732,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "runtime": {
+      "description": "类型操作、对象引用生命周期和完整动态调用提交热路径",
+      "benchmarks": {
+        "runtime_model": {
+          "source": "dev/bench/runtime/bench_runtime_model.c",
+          "suite": "runtime_call,runtime_object",
+          "args": [
+            "10000000",
+            "10000000",
+            "2000000"
+          ],
+          "facts": {},
+          "metrics": {
+            "runtime_type_ops_per_sec": {
+              "samples": [
+                212476401.84,
+                195164220.934,
+                231218417.009,
+                240565907.24,
+                222624925.977
+              ],
+              "median": 222624925.977,
+              "mean": 220409974.6,
+              "min": 195164220.934,
+              "max": 240565907.24,
+              "mad": 10148524.136999995,
+              "relative_mad": 0.04558574963006823,
+              "range": 45401686.306000024,
+              "relative_range": 0.20393801865066358,
+              "central_range": 18742015.169,
+              "relative_central_range": 0.08418650825710455,
+              "direction": "higher",
+              "unit": "operations/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "runtime_object_ref_pairs_per_sec": {
+              "samples": [
+                116291239.781,
+                116458632.729,
+                119720189.972,
+                117521241.964,
+                115481042.055
+              ],
+              "median": 116458632.729,
+              "mean": 117094469.30020002,
+              "min": 115481042.055,
+              "max": 119720189.972,
+              "mad": 977590.673999995,
+              "relative_mad": 0.00839431694406764,
+              "range": 4239147.916999996,
+              "relative_range": 0.03640046098484189,
+              "central_range": 1230002.1829999983,
+              "relative_central_range": 0.0105617089448596,
+              "direction": "higher",
+              "unit": "ref-pairs/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "runtime_calls_per_sec": {
+              "samples": [
+                9067334.022,
+                9441876.516,
+                9262441.079,
+                8717502.784,
+                8442380.751
+              ],
+              "median": 9067334.022,
+              "mean": 8986307.0304,
+              "min": 8442380.751,
+              "max": 9441876.516,
+              "mad": 349831.2379999999,
+              "relative_mad": 0.0385814879159858,
+              "range": 999495.7650000006,
+              "relative_range": 0.1102303899442694,
+              "central_range": 544938.2949999999,
+              "relative_central_range": 0.0600990648053574,
+              "direction": "higher",
+              "unit": "calls/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "template": {
+      "description": "模板编译、预编译流式渲染和分配式便利渲染",
+      "benchmarks": {
+        "template": {
+          "source": "dev/bench/template/bench_template.c",
+          "suite": "template_control",
+          "args": [
+            "20000",
+            "100000",
+            "50000"
+          ],
+          "facts": {},
+          "metrics": {
+            "template_compile_ops_per_sec": {
+              "samples": [
+                803748.684,
+                793578.364,
+                806747.637,
+                776587.442,
+                810559.975
+              ],
+              "median": 803748.684,
+              "mean": 798244.4204,
+              "min": 776587.442,
+              "max": 810559.975,
+              "mad": 6811.290999999968,
+              "relative_mad": 0.008474403922009991,
+              "range": 33972.53299999994,
+              "relative_range": 0.04226760637532806,
+              "central_range": 13169.273000000045,
+              "relative_central_range": 0.01638481438558728,
+              "direction": "higher",
+              "unit": "templates/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "template_write_ops_per_sec": {
+              "samples": [
+                146166.285,
+                136177.037,
+                148835.592,
+                134868.933,
+                144941.652
+              ],
+              "median": 144941.652,
+              "mean": 142197.8998,
+              "min": 134868.933,
+              "max": 148835.592,
+              "mad": 3893.9400000000023,
+              "relative_mad": 0.02686556932578637,
+              "range": 13966.659000000014,
+              "relative_range": 0.09636056169692349,
+              "central_range": 9989.247999999992,
+              "relative_central_range": 0.06891909856250288,
+              "direction": "higher",
+              "unit": "renders/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "template_render_ops_per_sec": {
+              "samples": [
+                122758.461,
+                134488.102,
+                128581.311,
+                130306.946,
+                133608.139
+              ],
+              "median": 130306.946,
+              "mean": 129948.59180000001,
+              "min": 122758.461,
+              "max": 134488.102,
+              "mad": 3301.1929999999993,
+              "relative_mad": 0.025333975673100338,
+              "range": 11729.641000000018,
+              "relative_range": 0.09001547008860156,
+              "central_range": 5026.827999999994,
+              "relative_central_range": 0.03857682306513418,
+              "direction": "higher",
+              "unit": "renders/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "data": {
+      "description": "JSON DOM、事件流访问和序列化公共路径",
+      "benchmarks": {
+        "json": {
+          "source": "dev/bench/json/bench_json.c",
+          "suite": "json",
+          "args": [
+            "100000"
+          ],
+          "facts": {},
+          "metrics": {
+            "parse_mib_per_sec": {
+              "samples": [
+                67.3,
+                58.075,
+                65.073,
+                68.2,
+                66.865
+              ],
+              "median": 66.865,
+              "mean": 65.1026,
+              "min": 58.075,
+              "max": 68.2,
+              "mad": 1.335000000000008,
+              "relative_mad": 0.01996560233305927,
+              "range": 10.125,
+              "relative_range": 0.1514245120765722,
+              "central_range": 2.227000000000004,
+              "relative_central_range": 0.03330591490316315,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "visit_mib_per_sec": {
+              "samples": [
+                187.511,
+                171.085,
+                185.426,
+                165.544,
+                184.915
+              ],
+              "median": 184.915,
+              "mean": 178.8962,
+              "min": 165.544,
+              "max": 187.511,
+              "mad": 2.5960000000000036,
+              "relative_mad": 0.014038882729902948,
+              "range": 21.966999999999985,
+              "relative_range": 0.1187951220831192,
+              "central_range": 14.34099999999998,
+              "relative_central_range": 0.07755455209150139,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "write_ops_per_sec": {
+              "samples": [
+                338232.404,
+                331276.987,
+                338196.6,
+                320696.81,
+                337446.354
+              ],
+              "median": 337446.354,
+              "mean": 333169.831,
+              "min": 320696.81,
+              "max": 338232.404,
+              "mad": 786.0499999999884,
+              "relative_mad": 0.0023294072989153954,
+              "range": 17535.593999999983,
+              "relative_range": 0.05196557554152736,
+              "central_range": 6919.612999999954,
+              "relative_central_range": 0.020505816459347355,
+              "direction": "higher",
+              "unit": "documents/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "identifier": {
+      "description": "XID 单个与批量生成以及无分配编解码",
+      "benchmarks": {
+        "xid": {
+          "source": "dev/bench/xid/bench_xid.c",
+          "suite": "xid",
+          "args": [
+            "200000"
+          ],
+          "facts": {},
+          "metrics": {
+            "make_ops_per_sec": {
+              "samples": [
+                11040391.271,
+                11203477.559,
+                11294075.128,
+                10126223.374,
+                11140261.462
+              ],
+              "median": 11140261.462,
+              "mean": 10960885.7588,
+              "min": 10126223.374,
+              "max": 11294075.128,
+              "mad": 99870.19099999964,
+              "relative_mad": 0.008964797759968378,
+              "range": 1167851.7540000007,
+              "relative_range": 0.10483162877133563,
+              "central_range": 163086.28800000064,
+              "relative_central_range": 0.01463935909909263,
+              "direction": "higher",
+              "unit": "ids/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "batch_ops_per_sec": {
+              "samples": [
+                27046398.096,
+                27032871.972,
+                27042375.402,
+                27046032.347,
+                27052251.424
+              ],
+              "median": 27046032.347,
+              "mean": 27043985.8482,
+              "min": 27032871.972,
+              "max": 27052251.424,
+              "mad": 3656.945000000298,
+              "relative_mad": 0.00013521188443028442,
+              "range": 19379.451999999583,
+              "relative_range": 0.0007165358582494335,
+              "central_range": 4022.6940000019968,
+              "relative_central_range": 0.00014873508795637457,
+              "direction": "higher",
+              "unit": "ids/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "write_ops_per_sec": {
+              "samples": [
+                9256388.065,
+                8901271.547,
+                9138470.677,
+                6669556.808,
+                8665361.086
+              ],
+              "median": 8901271.547,
+              "mean": 8526209.636599999,
+              "min": 6669556.808,
+              "max": 9256388.065,
+              "mad": 237199.12999999896,
+              "relative_mad": 0.026647780460078457,
+              "range": 2586831.2569999993,
+              "relative_range": 0.2906136773090402,
+              "central_range": 473109.591,
+              "relative_central_range": 0.0531507873343615,
+              "direction": "higher",
+              "unit": "ids/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "parse_ops_per_sec": {
+              "samples": [
+                3523248.153,
+                3871692.123,
+                3828088.214,
+                3655358.207,
+                3631372.15
+              ],
+              "median": 3655358.207,
+              "mean": 3701951.7693999996,
+              "min": 3523248.153,
+              "max": 3871692.123,
+              "mad": 132110.054,
+              "relative_mad": 0.03614147958112823,
+              "range": 348443.9700000002,
+              "relative_range": 0.09532416531237105,
+              "central_range": 196716.06400000025,
+              "relative_central_range": 0.053815810342004125,
+              "direction": "higher",
+              "unit": "ids/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "description": "当前公共 API 的 TCP/UDP 回环、TCP 零复制大流、硬背压与空闲连接缓冲",
+      "benchmarks": {
+        "network_loopback": {
+          "source": "dev/bench/network/bench_network_loopback.c",
+          "suite": "net_tcp_sync,net_tcp_server_sync,net_udp_sync",
+          "args": [
+            "5000",
+            "64",
+            "50000",
+            "256",
+            "64"
+          ],
+          "facts": {
+            "network_backend": "iocp"
+          },
+          "metrics": {
+            "tcp_round_trips_per_sec": {
+              "samples": [
+                39763.265,
+                39174.024,
+                39533.63,
+                38267.2,
+                39537.506
+              ],
+              "median": 39533.63,
+              "mean": 39255.125,
+              "min": 38267.2,
+              "max": 39763.265,
+              "mad": 229.63500000000204,
+              "relative_mad": 0.005808598906804208,
+              "range": 1496.0650000000023,
+              "relative_range": 0.03784284418101759,
+              "central_range": 363.4820000000036,
+              "relative_central_range": 0.009194248036418705,
+              "direction": "higher",
+              "unit": "round-trips/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tcp_latency_p50_us": {
+              "samples": [
+                24.2,
+                24.6,
+                23.5,
+                24.6,
+                24.6
+              ],
+              "median": 24.6,
+              "mean": 24.3,
+              "min": 23.5,
+              "max": 24.6,
+              "mad": 0.0,
+              "relative_mad": 0.0,
+              "range": 1.1000000000000014,
+              "relative_range": 0.0447154471544716,
+              "central_range": 0.40000000000000213,
+              "relative_central_range": 0.0162601626016261,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tcp_latency_p99_us": {
+              "samples": [
+                39.4,
+                43.0,
+                42.4,
+                43.2,
+                39.5
+              ],
+              "median": 42.4,
+              "mean": 41.5,
+              "min": 39.4,
+              "max": 43.2,
+              "mad": 0.8000000000000043,
+              "relative_mad": 0.018867924528301987,
+              "range": 3.8000000000000043,
+              "relative_range": 0.08962264150943407,
+              "central_range": 3.5,
+              "relative_central_range": 0.08254716981132076,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            },
+            "udp_packets_per_sec": {
+              "samples": [
+                222944.563,
+                214106.538,
+                222309.367,
+                220045.048,
+                223741.477
+              ],
+              "median": 222309.367,
+              "mean": 220629.39860000001,
+              "min": 214106.538,
+              "max": 223741.477,
+              "mad": 1432.1100000000151,
+              "relative_mad": 0.006441968772283064,
+              "range": 9634.939000000013,
+              "relative_range": 0.04334022956396621,
+              "central_range": 2899.514999999985,
+              "relative_central_range": 0.013042702784538921,
+              "direction": "higher",
+              "unit": "packets/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "network_capacity": {
+          "source": "dev/bench/network/bench_network_capacity.c",
+          "suite": "net_tcp_sync",
+          "args": [
+            "65536",
+            "16384",
+            "262144",
+            "512"
+          ],
+          "facts": {
+            "network_backend": "iocp"
+          },
+          "metrics": {
+            "tcp_ref_mib_per_sec": {
+              "samples": [
+                2247.281,
+                2249.687,
+                2327.604,
+                2329.26,
+                1228.027
+              ],
+              "median": 2249.687,
+              "mean": 2076.3718,
+              "min": 1228.027,
+              "max": 2329.26,
+              "mad": 77.91699999999992,
+              "relative_mad": 0.03463459583488722,
+              "range": 1101.2330000000002,
+              "relative_range": 0.4895049844711732,
+              "central_range": 80.32299999999987,
+              "relative_central_range": 0.03570407794506519,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tcp_ref_sends_per_sec": {
+              "samples": [
+                143826.001,
+                143979.946,
+                148966.682,
+                149072.641,
+                78593.736
+              ],
+              "median": 143979.946,
+              "mean": 132887.80120000002,
+              "min": 78593.736,
+              "max": 149072.641,
+              "mad": 4986.736000000004,
+              "relative_mad": 0.03463493450678197,
+              "range": 70478.905,
+              "relative_range": 0.4895050106491914,
+              "central_range": 5140.681000000011,
+              "relative_central_range": 0.03570414590931998,
+              "direction": "higher",
+              "unit": "sends/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tcp_idle_connects_per_sec": {
+              "samples": [
+                9159.967,
+                8977.763,
+                9048.606,
+                9062.155,
+                9116.533
+              ],
+              "median": 9062.155,
+              "mean": 9073.0048,
+              "min": 8977.763,
+              "max": 9159.967,
+              "mad": 54.37799999999879,
+              "relative_mad": 0.006000559469574156,
+              "range": 182.20399999999972,
+              "relative_range": 0.020106034381446765,
+              "central_range": 67.92699999999968,
+              "relative_central_range": 0.007495678456172917,
+              "direction": "higher",
+              "unit": "connections/s",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tcp_idle_buffer_bytes_per_stream": {
+              "samples": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "median": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "mad": 0.0,
+              "relative_mad": 0.0,
+              "range": 0.0,
+              "relative_range": 0.0,
+              "central_range": 0.0,
+              "relative_central_range": 0.0,
+              "direction": "lower",
+              "unit": "bytes",
+              "limit": 0.0,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "http": {
+      "description": "HTTP/1.1 借用解析、调用方写出与流式 gzip 解码核心",
+      "benchmarks": {
+        "http_core": {
+          "source": "dev/bench/http/bench_http_core.c",
+          "suite": "http1_message,http_decode",
+          "args": [
+            "200000"
+          ],
+          "facts": {},
+          "metrics": {
+            "http_parse_ops_per_sec": {
+              "samples": [
+                1517972.414,
+                1462767.805,
+                1592673.701,
+                1524749.35,
+                1591681.237
+              ],
+              "median": 1524749.35,
+              "mean": 1537968.9014,
+              "min": 1462767.805,
+              "max": 1592673.701,
+              "mad": 61981.54500000016,
+              "relative_mad": 0.040650317378394134,
+              "range": 129905.89599999995,
+              "relative_range": 0.08519819732994144,
+              "central_range": 73708.82299999986,
+              "relative_central_range": 0.04834159988328564,
+              "direction": "higher",
+              "unit": "ops/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "http_write_ops_per_sec": {
+              "samples": [
+                10167458.034,
+                9996201.443,
+                10039807.838,
+                10032958.268,
+                10071456.987
+              ],
+              "median": 10039807.838,
+              "mean": 10061576.514,
+              "min": 9996201.443,
+              "max": 10167458.034,
+              "mad": 31649.14900000021,
+              "relative_mad": 0.0031523660124460054,
+              "range": 171256.59100000001,
+              "relative_range": 0.01705775586180099,
+              "central_range": 38498.71900000051,
+              "relative_central_range": 0.003834607157946334,
+              "direction": "higher",
+              "unit": "ops/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "http_gzip_decode_mib_per_sec": {
+              "samples": [
+                14.442,
+                14.071,
+                14.274,
+                14.265,
+                14.323
+              ],
+              "median": 14.274,
+              "mean": 14.275,
+              "min": 14.071,
+              "max": 14.442,
+              "mad": 0.049000000000001265,
+              "relative_mad": 0.003432814908224833,
+              "range": 0.37100000000000044,
+              "relative_range": 0.02599131287655881,
+              "central_range": 0.05799999999999983,
+              "relative_central_range": 0.00406333193218438,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "websocket": {
+      "description": "WebSocket 帧头解析、写出和掩码协议核心",
+      "benchmarks": {
+        "websocket_core": {
+          "source": "dev/bench/websocket/bench_websocket_core.c",
+          "suite": "websocket_frame",
+          "args": [
+            "1000000"
+          ],
+          "facts": {},
+          "metrics": {
+            "ws_frame_parse_ops_per_sec": {
+              "samples": [
+                62718731.576,
+                62267276.056,
+                62204528.49,
+                62672348.96,
+                62288608.036
+              ],
+              "median": 62288608.036,
+              "mean": 62430298.623600006,
+              "min": 62204528.49,
+              "max": 62718731.576,
+              "mad": 84079.54599999636,
+              "relative_mad": 0.0013498382553580614,
+              "range": 514203.08599999547,
+              "relative_range": 0.008255170603632839,
+              "central_range": 405072.90399999917,
+              "relative_central_range": 0.006503161922736905,
+              "direction": "higher",
+              "unit": "ops/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "ws_frame_write_ops_per_sec": {
+              "samples": [
+                58425548.324,
+                58177756.317,
+                57722723.127,
+                57741387.872,
+                57873049.678
+              ],
+              "median": 57873049.678,
+              "mean": 57988093.0636,
+              "min": 57722723.127,
+              "max": 58425548.324,
+              "mad": 150326.5510000065,
+              "relative_mad": 0.002597522540049449,
+              "range": 702825.1970000044,
+              "relative_range": 0.012144257144049866,
+              "central_range": 436368.4450000003,
+              "relative_central_range": 0.007540097634873429,
+              "direction": "higher",
+              "unit": "ops/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "ws_mask_mib_per_sec": {
+              "samples": [
+                17305.855,
+                17431.146,
+                16831.016,
+                17462.69,
+                17381.134
+              ],
+              "median": 17381.134,
+              "mean": 17282.3682,
+              "min": 16831.016,
+              "max": 17462.69,
+              "mad": 75.27899999999863,
+              "relative_mad": 0.004331075291174824,
+              "range": 631.6739999999991,
+              "relative_range": 0.036342507916917226,
+              "central_range": 125.29100000000108,
+              "relative_central_range": 0.007208447964327362,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "tls": {
+      "description": "TLS 1.3 完整握手、连续票据恢复与加密流回环",
+      "benchmarks": {
+        "tls_loopback": {
+          "source": "dev/bench/tls/bench_tls_loopback.c",
+          "suite": "tls_stream,tls_client_resume,tls_server_resume,tls_identity_rsa,tls_client_verify,tls_schedule_sha256,tls_key_exchange_x25519,tls_record_aes,pem",
+          "args": [
+            "100",
+            "200",
+            "5000",
+            "64"
+          ],
+          "facts": {
+            "network_backend": "iocp"
+          },
+          "metrics": {
+            "tls_full_handshakes_per_sec": {
+              "samples": [
+                138.952,
+                136.452,
+                136.435,
+                135.025,
+                138.446
+              ],
+              "median": 136.452,
+              "mean": 137.06199999999998,
+              "min": 135.025,
+              "max": 138.952,
+              "mad": 1.4269999999999925,
+              "relative_mad": 0.010457889953976436,
+              "range": 3.9269999999999925,
+              "relative_range": 0.028779350980564538,
+              "central_range": 2.0109999999999957,
+              "relative_central_range": 0.01473778324978744,
+              "direction": "higher",
+              "unit": "handshakes/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_full_handshake_latency_p50_us": {
+              "samples": [
+                7109.3,
+                7251.3,
+                7210.4,
+                7283.9,
+                7117.5
+              ],
+              "median": 7210.4,
+              "mean": 7194.4800000000005,
+              "min": 7109.3,
+              "max": 7283.9,
+              "mad": 73.5,
+              "relative_mad": 0.010193609231110618,
+              "range": 174.59999999999945,
+              "relative_range": 0.024215022744923924,
+              "central_range": 133.80000000000018,
+              "relative_central_range": 0.018556529457450375,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_full_handshake_latency_p99_us": {
+              "samples": [
+                8083.4,
+                8388.1,
+                8604.0,
+                8640.0,
+                8358.5
+              ],
+              "median": 8388.1,
+              "mean": 8414.8,
+              "min": 8083.4,
+              "max": 8640.0,
+              "mad": 215.89999999999964,
+              "relative_mad": 0.025738844315160717,
+              "range": 556.6000000000004,
+              "relative_range": 0.06635590896627369,
+              "central_range": 245.5,
+              "relative_central_range": 0.029267652984585304,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            },
+            "tls_resume_handshakes_per_sec": {
+              "samples": [
+                910.885,
+                883.304,
+                903.761,
+                907.925,
+                903.559
+              ],
+              "median": 903.761,
+              "mean": 901.8868,
+              "min": 883.304,
+              "max": 910.885,
+              "mad": 4.163999999999987,
+              "relative_mad": 0.004607412800508085,
+              "range": 27.581000000000017,
+              "relative_range": 0.030518024123634475,
+              "central_range": 4.3659999999999854,
+              "relative_central_range": 0.004830923219745028,
+              "direction": "higher",
+              "unit": "handshakes/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_resume_handshake_latency_p50_us": {
+              "samples": [
+                1085.7,
+                1099.4,
+                1086.5,
+                1077.6,
+                1072.5
+              ],
+              "median": 1085.7,
+              "mean": 1084.34,
+              "min": 1072.5,
+              "max": 1099.4,
+              "mad": 8.100000000000136,
+              "relative_mad": 0.007460624481901203,
+              "range": 26.90000000000009,
+              "relative_range": 0.024776641797918476,
+              "central_range": 8.900000000000091,
+              "relative_central_range": 0.00819747628258275,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_resume_handshake_latency_p99_us": {
+              "samples": [
+                1372.5,
+                1559.0,
+                1570.3,
+                1402.6,
+                1492.7
+              ],
+              "median": 1492.7,
+              "mean": 1479.42,
+              "min": 1372.5,
+              "max": 1570.3,
+              "mad": 77.59999999999991,
+              "relative_mad": 0.05198633348964957,
+              "range": 197.79999999999995,
+              "relative_range": 0.13251155624036975,
+              "central_range": 156.4000000000001,
+              "relative_central_range": 0.10477657935285059,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            },
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                55523.044,
+                56718.473,
+                56706.123,
+                56305.355,
+                56156.871
+              ],
+              "median": 56305.355,
+              "mean": 56281.97319999999,
+              "min": 55523.044,
+              "max": 56718.473,
+              "mad": 400.7679999999964,
+              "relative_mad": 0.007117759935977606,
+              "range": 1195.4289999999964,
+              "relative_range": 0.021231177744994174,
+              "central_range": 549.2520000000004,
+              "relative_central_range": 0.00975488033065417,
+              "direction": "higher",
+              "unit": "round-trips/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_stream_latency_p50_us": {
+              "samples": [
+                16.6,
+                16.7,
+                16.8,
+                16.8,
+                16.9
+              ],
+              "median": 16.8,
+              "mean": 16.759999999999998,
+              "min": 16.6,
+              "max": 16.9,
+              "mad": 0.09999999999999787,
+              "relative_mad": 0.005952380952380825,
+              "range": 0.29999999999999716,
+              "relative_range": 0.017857142857142686,
+              "central_range": 0.10000000000000142,
+              "relative_central_range": 0.005952380952381037,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                32.5,
+                31.8,
+                32.2,
+                34.4,
+                33.2
+              ],
+              "median": 32.5,
+              "mean": 32.82,
+              "min": 31.8,
+              "max": 34.4,
+              "mad": 0.6999999999999993,
+              "relative_mad": 0.021538461538461517,
+              "range": 2.599999999999998,
+              "relative_range": 0.07999999999999993,
+              "central_range": 1.0,
+              "relative_central_range": 0.03076923076923077,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            }
+          }
+        }
+      }
+    },
+    "logging": {
+      "description": "固定槽 Logger Ring 的无生产者分配提交、批量消费和 Flush 屏障",
+      "benchmarks": {
+        "logger_ring": {
+          "source": "dev/bench/logging/bench_logger_ring.c",
+          "suite": "logger_ring",
+          "args": [
+            "1000000",
+            "4096"
+          ],
+          "facts": {},
+          "metrics": {
+            "logger_ring_records_per_sec": {
+              "samples": [
+                1475355.804,
+                1428264.352,
+                1559196.209,
+                1525341.955,
+                1571673.663
+              ],
+              "median": 1525341.955,
+              "mean": 1511966.3966,
+              "min": 1428264.352,
+              "max": 1571673.663,
+              "mad": 46331.70799999987,
+              "relative_mad": 0.03037463687937428,
+              "range": 143409.311,
+              "relative_range": 0.09401781058333243,
+              "central_range": 83840.40500000003,
+              "relative_central_range": 0.054964989801254124,
+              "direction": "higher",
+              "unit": "records/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "file_io": {
+      "description": "任务池型异步文件的有界并发定位读写与 Future 生命周期",
+      "benchmarks": {
+        "file_async": {
+          "source": "dev/bench/file/bench_file_async.c",
+          "suite": "file_async",
+          "args": [
+            "1024",
+            "65536",
+            "4",
+            "128"
+          ],
+          "facts": {},
+          "metrics": {
+            "file_async_write_mib_per_sec": {
+              "samples": [
+                2684.102,
+                2899.391,
+                2825.956,
+                2826.83,
+                2891.505
+              ],
+              "median": 2826.83,
+              "mean": 2825.5568,
+              "min": 2684.102,
+              "max": 2899.391,
+              "mad": 64.67500000000018,
+              "relative_mad": 0.02287898458697558,
+              "range": 215.28900000000021,
+              "relative_range": 0.07615916061454003,
+              "central_range": 65.54899999999998,
+              "relative_central_range": 0.02318816483481496,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "file_async_read_mib_per_sec": {
+              "samples": [
+                2066.99,
+                2031.359,
+                2059.646,
+                2043.312,
+                1908.983
+              ],
+              "median": 2043.312,
+              "mean": 2022.0579999999998,
+              "min": 1908.983,
+              "max": 2066.99,
+              "mad": 16.334000000000287,
+              "relative_mad": 0.007993884438597868,
+              "range": 158.00699999999983,
+              "relative_range": 0.0773288660762526,
+              "central_range": 28.287000000000262,
+              "relative_central_range": 0.013843700815147303,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "crypto": {
+      "description": "AES-GCM、SHA-256、ChaCha20-Poly1305 与 X25519 常用密码热路径",
+      "benchmarks": {
+        "aes_gcm": {
+          "source": "dev/bench/crypto/bench_aes_gcm.c",
+          "suite": "crypto_aes_gcm",
+          "args": [
+            "32768",
+            "16384"
+          ],
+          "facts": {},
+          "metrics": {
+            "aes_gcm_encrypt_mib_per_sec": {
+              "samples": [
+                427.154,
+                359.671,
+                418.962,
+                417.772,
+                434.316
+              ],
+              "median": 418.962,
+              "mean": 411.575,
+              "min": 359.671,
+              "max": 434.316,
+              "mad": 8.192000000000007,
+              "relative_mad": 0.01955308596006322,
+              "range": 74.64499999999998,
+              "relative_range": 0.17816651629503388,
+              "central_range": 9.382000000000005,
+              "relative_central_range": 0.02239343902310951,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "crypto_primitives": {
+          "source": "dev/bench/crypto/bench_crypto_primitives.c",
+          "suite": "crypto_sha256,crypto_chacha20_poly1305,crypto_x25519",
+          "args": [
+            "32768",
+            "16384",
+            "10000"
+          ],
+          "facts": {},
+          "metrics": {
+            "sha256_mib_per_sec": {
+              "samples": [
+                275.412,
+                280.338,
+                266.875,
+                269.259,
+                281.37
+              ],
+              "median": 275.412,
+              "mean": 274.6508,
+              "min": 266.875,
+              "max": 281.37,
+              "mad": 5.958000000000027,
+              "relative_mad": 0.021633044311794792,
+              "range": 14.495000000000005,
+              "relative_range": 0.05263024123858077,
+              "central_range": 11.079000000000008,
+              "relative_central_range": 0.04022700535924364,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "chacha20_poly1305_encrypt_mib_per_sec": {
+              "samples": [
+                369.395,
+                370.968,
+                371.721,
+                367.904,
+                360.358
+              ],
+              "median": 369.395,
+              "mean": 368.0692,
+              "min": 360.358,
+              "max": 371.721,
+              "mad": 1.573000000000036,
+              "relative_mad": 0.004258314270631806,
+              "range": 11.363,
+              "relative_range": 0.03076110938155633,
+              "central_range": 3.0640000000000214,
+              "relative_central_range": 0.008294643944828765,
+              "direction": "higher",
+              "unit": "MiB/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "x25519_shared_ops_per_sec": {
+              "samples": [
+                4448.152,
+                4363.516,
+                4489.203,
+                4524.028,
+                4390.771
+              ],
+              "median": 4448.152,
+              "mean": 4443.134,
+              "min": 4363.516,
+              "max": 4524.028,
+              "mad": 57.38100000000031,
+              "relative_mad": 0.01289996385015627,
+              "range": 160.51200000000063,
+              "relative_range": 0.03608509781140586,
+              "central_range": 98.4320000000007,
+              "relative_central_range": 0.022128740204921213,
+              "direction": "higher",
+              "unit": "agreements/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "x509": {
+      "description": "真实 DER 证书的零分配解析与 RSA 签名验证",
+      "benchmarks": {
+        "x509": {
+          "source": "dev/bench/x509/bench_x509.c",
+          "suite": "x509_verify_rsa",
+          "args": [
+            "100000",
+            "2000"
+          ],
+          "facts": {},
+          "metrics": {
+            "x509_parse_ops_per_sec": {
+              "samples": [
+                443730.334,
+                441057.904,
+                414372.94,
+                442410.927,
+                438207.678
+              ],
+              "median": 441057.904,
+              "mean": 435955.9566,
+              "min": 414372.94,
+              "max": 443730.334,
+              "mad": 2672.429999999993,
+              "relative_mad": 0.006059136398562292,
+              "range": 29357.39399999997,
+              "relative_range": 0.06656131481548049,
+              "central_range": 4203.249000000011,
+              "relative_central_range": 0.009529925576393278,
+              "direction": "higher",
+              "unit": "certificates/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "x509_rsa_verify_ops_per_sec": {
+              "samples": [
+                1598.509,
+                1644.715,
+                1585.462,
+                1622.905,
+                1574.894
+              ],
+              "median": 1598.509,
+              "mean": 1605.297,
+              "min": 1574.894,
+              "max": 1644.715,
+              "mad": 23.61500000000001,
+              "relative_mad": 0.014773141721441674,
+              "range": 69.82099999999991,
+              "relative_range": 0.043678828208036306,
+              "central_range": 37.442999999999984,
+              "relative_central_range": 0.02342370296319882,
+              "direction": "higher",
+              "unit": "verifications/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    }
+  }
+}

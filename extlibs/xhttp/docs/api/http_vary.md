@@ -1,0 +1,98 @@
+# HTTP Vary
+
+`<xrt/http_vary.h>` 提供与网络、客户端、服务端和缓存存储无关的 `Vary`
+协议层。它复用 `<xrt/http.h>` 的字段名与接收方 token-list 规则，全部解析、
+汇总、查找和写出操作都不分配内存。
+
+功能由 `XHTTP_FEATURE_HTTP_VARY` 控制。公共状态和游标类型为：
+
+```c
+typedef enum xhttpvaryflag {
+	XHTTP_VARY_NONE = 0,
+	XHTTP_VARY_PRESENT = UINT32_C(0x00000001),
+	XHTTP_VARY_NAMES = UINT32_C(0x00000002),
+	XHTTP_VARY_WILDCARD = UINT32_C(0x00000004),
+	XHTTP_VARY_MIXED = UINT32_C(0x00000008),
+	XHTTP_VARY_EMPTY = UINT32_C(0x00000010)
+} xhttpvaryflag;
+
+typedef struct xhttpvarycursor {
+	size_t Field;
+	size_t Offset;
+} xhttpvarycursor;
+
+typedef struct xhttpvaryitem {
+	xstrview Name;
+	bool Wildcard;
+} xhttpvaryitem;
+
+void xrtHttpVaryCursorInit(xhttpvarycursor* pCursor);
+```
+
+`xrtHttpVaryCursorInit` 必须在首次迭代前调用，也可用于从头复用游标。
+
+## 分层
+
+`xrtHttpVaryNext` 按 Header 出现顺序跨越重复 `Vary` 字段，返回字段名或特殊的
+星号成员。条目借用原 Header 文本；底层代理和诊断工具可以保留原始大小写，
+缓存和内容协商则使用大小写不敏感的字段名比较。
+
+`xrtHttpVaryPlan` 一次汇总字段数、成员数、普通名称数、空字段数和原始合并值
+大小。`Flags` 区分字段存在、普通名称、星号、混合列表和空字段。计划只保存
+协议事实，不替调用方决定缓存是否可复用。
+
+`xrtHttpVaryFind` 是常用字段名查找路径。即使已经找到目标，它仍会扫描完整
+Header 集，因此合法前缀后的畸形列表不会被忽略。查找名必须是普通合法字段名，
+不能使用 `*`。
+
+## 星号与缓存键
+
+`Vary: *` 表示响应选择依据不限于请求消息中可枚举的字段，接收方不能仅靠普通
+请求 Header 匹配来判断后续请求可复用该响应。列表中同时出现 `*` 和字段名时，
+解析仍成功并设置 `XHTTP_VARY_MIXED`；星号语义占主导，上层可以记录诊断信息，
+但不应把列出的名称误当作完整缓存键。
+
+没有 `Vary` 与存在空 `Vary` 是不同的线路事实。空字段被保留为
+`XHTTP_VARY_PRESENT | XHTTP_VARY_EMPTY`，但没有选择名称。重复名称保持原始
+顺序由游标返回，不会在协议层自动删除或引入二次扫描。
+
+## 写出
+
+`xrtHttpVaryWrite` 以 `", "` 连接重复字段的原始值，不附加零字符，也不改变
+名称大小写或空字段位置。容量不足时通过 `pSize` 返回精确所需大小，且不写入
+部分结果；传入 `NULL/0` 会成功完成纯长度查询。输出区、大小槽和字段借用文本
+不能相互覆盖。
+
+```c
+static const xhttpfield Fields[] = {
+	{
+		XRT_STR_INIT("Vary"),
+		XRT_STR_INIT("Accept-Encoding, Origin")
+	},
+	{
+		XRT_STR_INIT("vary"),
+		XRT_STR_INIT("User-Agent")
+	}
+};
+xhttpvaryplan Plan;
+
+if ( xrtHttpVaryPlan(Fields, 2, &Plan) ) {
+	if ( (Plan.Flags & XHTTP_VARY_WILDCARD) != 0 ) {
+		/* 不把该响应放入只按请求 Header 建立键的共享缓存。 */
+	}
+}
+```
+
+## 边界与扩展
+
+游标、条目和计划都由调用方保存，函数可并发用于不同输入。所有视图只在原字段
+存储有效期间使用。字段数组、游标、条目、计划和大小槽可以位于完整但未对齐的
+存储；实现用局部副本读取，并在完成验证后一次性发布，地址回绕会作为参数错误
+拒绝。通用解析器只验证 `Vary = #("*" / field-name)` 的线路语法；
+它不会实现某个请求字段的值归一化。计划构建和查找均为 O(n) 扫描；即使输入
+含大量重复名称，也不会为了诊断计数退化为二次复杂度。
+
+缓存键匹配必须按被选字段自身的语义处理。例如部分字段允许在不改变含义时调整
+空白、组合重复字段或重新排序；未知字段只能采用保守策略。后续缓存策略层应复用
+本模块枚举的名称，再调用已知字段的专用归一化器或应用提供的扩展回调，而不是
+在 `Vary` 解析器中内置一套错误的通用字符串比较。

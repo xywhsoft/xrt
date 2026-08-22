@@ -1,0 +1,2645 @@
+{
+	"schema": 1,
+	"product": "xssh",
+	"module_prefix": "XSSH_MODULE_",
+	"single_header": "extlibs/xssh/single/xssh.h",
+	"declaration_header": "extlibs/xssh/single/xssh_decl.h",
+	"implementation_macro": "XSSH_IMPLEMENTATION",
+	"implementation_once_macro": "XSSH_IMPLEMENTATION_ONCE",
+	"single_guard": "XSSH_SINGLE_HEADER_H",
+	"single_marker": "XSSH_SINGLE_HEADER",
+	"declaration_guard": "XSSH_DECLARATIONS_H",
+	"declaration_marker": "XSSH_DECLARATIONS",
+	"package_consumer": "extlibs/xssh/tests/package/test_consumer.c",
+	"product_root": "extlibs/xssh",
+	"performance_config": "extlibs/xssh/config/performance_profiles.json",
+	"size_config": "extlibs/xssh/config/size_profiles.json",
+	"scope": {
+		"product": "xssh",
+		"external_integrations": [
+			{
+				"name": "xlang",
+				"state": "integrated"
+			}
+		],
+		"systems": [
+			{
+				"name": "ssh_protocol",
+				"state": "retained",
+				"source_roots": [
+					"wire",
+					"packet",
+					"kex",
+					"key",
+					"transport",
+					"auth",
+					"connection",
+					"session"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xssh 公共符号参考",
+		"function_prefix": "xrtSsh",
+		"constant_prefix": "XSSH_",
+		"type_prefix": "xssh",
+		"guide": "../../README.md",
+		"output": "extlibs/xssh/docs/api/reference.md"
+	},
+	"features_guard": "XSSH_FEATURES_H",
+	"features_header": "extlibs/xssh/include/xssh/features.h",
+	"include_dirs": [
+		"extlibs/xssh/include"
+	],
+	"header_roots": [
+		"extlibs/xssh/include"
+	],
+	"modules": [
+		{
+			"name": "ssh_wire",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_WIRE",
+			"depends": [
+				"core"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_wire.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/wire/ssh_wire.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/wire/test_ssh_wire.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_wire.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/wire/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xssh/bench/bench_ssh_wire.c",
+				"extlibs/xssh/bench/README.md",
+				"extlibs/xssh/config/performance_profiles.json"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_wire.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_wire_test.c"
+			]
+		},
+		{
+			"name": "ssh_packet",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_PACKET",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_packet.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/packet/ssh_packet.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/packet/test_ssh_packet.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_packet.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/packet/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xssh/bench/bench_ssh_packet.c",
+				"extlibs/xssh/bench/README.md",
+				"extlibs/xssh/config/performance_profiles.json"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_packet.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_packet_test.c"
+			]
+		},
+		{
+			"name": "ssh_packet_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_PACKET_RANDOM",
+			"depends": [
+				"ssh_packet",
+				"random_secure"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_packet_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/packet/ssh_packet_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/packet/test_ssh_packet_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_packet_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/packet_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_packet_random.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_packet_test.c"
+			]
+		},
+		{
+			"name": "ssh_packet_aes_gcm",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_PACKET_AES_GCM",
+			"depends": [
+				"ssh_packet",
+				"crypto_aes_gcm"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_packet_aes_gcm.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/packet/ssh_packet_aes_gcm.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/packet/test_ssh_packet_aes_gcm.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_packet_aes_gcm.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/packet_aes_gcm/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xssh/bench/bench_ssh_packet_aes_gcm.c",
+				"extlibs/xssh/bench/README.md",
+				"extlibs/xssh/config/performance_profiles.json"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_packet_aes_gcm.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_packet_test.c"
+			]
+		},
+		{
+			"name": "ssh_packet_codec",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_PACKET_CODEC",
+			"depends": [
+				"ssh_packet_aes_gcm"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_packet_codec.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/packet/ssh_packet_codec.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/packet/test_ssh_packet_codec.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_packet_codec.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/packet_codec/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xssh/bench/bench_ssh_packet_codec.c",
+				"extlibs/xssh/bench/README.md",
+				"extlibs/xssh/config/performance_profiles.json"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_packet_codec.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_packet_codec_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_PACKET_CODEC_RANDOM",
+			"depends": [
+				"ssh_packet_codec",
+				"ssh_packet_random"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_packet_codec_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/packet/ssh_packet_codec_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/packet/test_ssh_packet_codec_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_packet_codec_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/packet_codec_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_packet_codec.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h"
+			]
+		},
+		{
+			"name": "ssh_kexinit",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEXINIT",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kexinit.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kexinit.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kexinit.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kexinit.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kexinit/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kexinit.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_kex_test.c"
+			]
+		},
+		{
+			"name": "ssh_kexinit_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEXINIT_RANDOM",
+			"depends": [
+				"ssh_kexinit",
+				"random_secure"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kexinit_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kexinit_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kexinit_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kexinit_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kexinit_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kexinit.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_kex_test.c"
+			]
+		},
+		{
+			"name": "ssh_kex_ecdh",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEX_ECDH",
+			"depends": ["ssh_wire"],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kex_ecdh.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kex_ecdh.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kex_ecdh.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kex_ecdh.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kex_ecdh/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kex_exchange.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_kex_test.c"
+			]
+		},
+		{
+			"name": "ssh_kex_sha256",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEX_SHA256",
+			"depends": ["ssh_wire", "crypto_sha256"],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kex_sha256.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kex_sha256.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kex_sha256.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kex_sha256.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kex_sha256/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kex_exchange.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_kex_test.c"
+			]
+		},
+		{
+			"name": "ssh_kex_curve25519",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEX_CURVE25519",
+			"depends": ["ssh_wire", "crypto_x25519"],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kex_curve25519.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kex_curve25519.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kex_curve25519.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kex_curve25519.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kex_curve25519/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xssh/bench/bench_ssh_kex_curve25519.c",
+				"extlibs/xssh/bench/README.md",
+				"extlibs/xssh/config/performance_profiles.json"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kex_exchange.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_kex_test.c"
+			]
+		},
+		{
+			"name": "ssh_kex_curve25519_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEX_CURVE25519_RANDOM",
+			"depends": [
+				"ssh_kex_curve25519",
+				"crypto_x25519_keypair"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kex_curve25519_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kex_curve25519_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kex_curve25519_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kex_curve25519_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kex_curve25519_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kex_exchange.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_kex_test.c"
+			]
+		},
+		{
+			"name": "ssh_hostkey",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_HOSTKEY",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_hostkey.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_hostkey.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_hostkey.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_hostkey.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/hostkey/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_hostkey.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_kex_test.c"
+			]
+		},
+		{
+			"name": "ssh_hostkey_ed25519",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_HOSTKEY_ED25519",
+			"depends": [
+				"ssh_hostkey",
+				"crypto_ed25519_verify"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_hostkey_ed25519.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_hostkey_ed25519.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_hostkey_ed25519.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_hostkey_ed25519.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/hostkey_ed25519/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_hostkey.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_kex_test.c"
+			]
+		},
+		{
+			"name": "ssh_key_text",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEY_TEXT",
+			"depends": [
+				"ssh_hostkey",
+				"codec_base64"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_key_text.h"
+			],
+			"internal_headers": [
+				"extlibs/xssh/src/key/ssh_key_text_internal.h"
+			],
+			"sources": [
+				"extlibs/xssh/src/key/ssh_key_text.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/key/test_ssh_key_text.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_key_text.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/key_text/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_key_text.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_known_hosts_test.c"
+			]
+		},
+		{
+			"name": "ssh_known_host",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KNOWN_HOST",
+			"depends": [
+				"ssh_key_text"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_known_host.h"
+			],
+			"internal_headers": [
+				"extlibs/xssh/src/key/ssh_known_host_internal.h"
+			],
+			"sources": [
+				"extlibs/xssh/src/key/ssh_known_host.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/key/test_ssh_known_host.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_known_host.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/known_host/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_known_host.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_known_hosts_test.c"
+			]
+		},
+		{
+			"name": "ssh_known_host_hash",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KNOWN_HOST_HASH",
+			"depends": [
+				"ssh_known_host",
+				"crypto_sha1"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_known_host_hash.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/key/ssh_known_host_hash.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/key/test_ssh_known_host_hash.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_known_host_hash.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/known_host_hash/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_known_host_hash.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_known_hosts_test.c"
+			]
+		},
+		{
+			"name": "ssh_known_host_db",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KNOWN_HOST_DB",
+			"depends": [
+				"ssh_known_host_hash"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_known_host_db.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/key/ssh_known_host_db.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/key/test_ssh_known_host_db.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_known_host_db.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/known_host_db/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_known_host_db.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_known_hosts_test.c"
+			]
+		},
+		{
+			"name": "ssh_fingerprint",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_FINGERPRINT",
+			"depends": [
+				"ssh_wire",
+				"codec_base64",
+				"crypto_sha256"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_fingerprint.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/key/ssh_fingerprint.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/key/test_ssh_fingerprint.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_fingerprint.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/fingerprint/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_fingerprint.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_known_hosts_test.c"
+			]
+		},
+		{
+			"name": "ssh_private_key",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_PRIVATE_KEY",
+			"depends": [
+				"ssh_hostkey"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_private_key.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/key/ssh_private_key.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/key/test_ssh_private_key.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_private_key.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/private_key/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_private_key.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_private_key_pem",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_PRIVATE_KEY_PEM",
+			"depends": [
+				"ssh_private_key",
+				"pem"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_private_key_pem.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/key/ssh_private_key_pem.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/key/test_ssh_private_key_pem.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_private_key_pem.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/private_key_pem/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_private_key.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_private_key_ed25519",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_PRIVATE_KEY_ED25519",
+			"depends": [
+				"ssh_private_key",
+				"crypto_ed25519_sign"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_private_key_ed25519.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/key/ssh_private_key_ed25519.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/key/test_ssh_private_key_ed25519.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_private_key_ed25519.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/private_key_ed25519/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_private_key.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_transport_message",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_TRANSPORT_MESSAGE",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_transport_message.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/transport/ssh_transport_message.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/transport/test_ssh_transport_message.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_transport_message.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/transport_message/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_transport_message.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_transport_test.c"
+			]
+		},
+		{
+			"name": "ssh_transport_rekey",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_TRANSPORT_REKEY",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_transport_rekey.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/transport/ssh_transport_rekey.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/transport/test_ssh_transport_rekey.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_transport_rekey.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/transport_rekey/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_transport_rekey.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_transport_test.c"
+			]
+		},
+		{
+			"name": "ssh_transport_state",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_TRANSPORT_STATE",
+			"depends": [
+				"ssh_kexinit",
+				"ssh_transport_message"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_transport_state.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/transport/ssh_transport_state.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/transport/test_ssh_transport_state.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_transport_state.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/transport_state/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xssh/bench/bench_ssh_transport_state.c",
+				"extlibs/xssh/bench/README.md",
+				"extlibs/xssh/config/performance_profiles.json"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_transport_state.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_transport_test.c",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_transport_core",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_TRANSPORT_CORE",
+			"depends": [
+				"ssh_packet_codec",
+				"ssh_transport_rekey",
+				"ssh_transport_state"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_transport_core.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/transport/ssh_transport_core.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/transport/test_ssh_transport_core.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_transport_core.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/transport_core/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xssh/bench/bench_ssh_transport_core.c",
+				"extlibs/xssh/bench/README.md",
+				"extlibs/xssh/config/performance_profiles.json"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_transport_core.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_transport_test.c",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_kex_session",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEX_SESSION",
+			"depends": [
+				"ssh_hostkey_ed25519",
+				"ssh_kex_curve25519",
+				"ssh_kex_ecdh",
+				"ssh_kex_sha256",
+				"ssh_transport_core"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kex_session.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kex_session.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kex_session.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kex_session.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kex_session/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kex_session.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_kex_session_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEX_SESSION_RANDOM",
+			"depends": [
+				"ssh_kex_session",
+				"ssh_kex_curve25519_random"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kex_session_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kex_session_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kex_session_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kex_session_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kex_session_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kex_session.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h"
+			]
+		},
+		{
+			"name": "ssh_kex_exchange",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEX_EXCHANGE",
+			"depends": [
+				"ssh_kex_session",
+				"net_buffer"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kex_exchange.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kex_exchange.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kex_exchange.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kex_exchange.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kex_exchange/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kex_exchange_session.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_kex_exchange_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_KEX_EXCHANGE_RANDOM",
+			"depends": [
+				"ssh_kex_exchange",
+				"ssh_kex_curve25519_random"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_kex_exchange_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/kex/ssh_kex_exchange_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/kex/test_ssh_kex_exchange_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_kex_exchange_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/kex_exchange_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_kex_exchange_session.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h"
+			]
+		},
+		{
+			"name": "ssh_transport_tcp",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_TRANSPORT_TCP",
+			"depends": [
+				"ssh_transport_core",
+				"net_tcp"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_transport_tcp.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/transport/ssh_transport_tcp.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/transport/test_ssh_transport_tcp.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_transport_tcp.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/transport_tcp/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_transport_tcp.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_transport_tcp_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_TRANSPORT_TCP_RANDOM",
+			"depends": [
+				"ssh_transport_tcp",
+				"ssh_packet_random"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_transport_tcp_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/transport/ssh_transport_tcp_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/transport/test_ssh_transport_tcp_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_transport_tcp_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/transport_tcp_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_transport_tcp_random.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h"
+			]
+		},
+		{
+			"name": "ssh_auth_message",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_AUTH_MESSAGE",
+			"depends": [
+				"ssh_wire",
+				"unicode"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_auth_message.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/auth/ssh_auth_message.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/auth/test_ssh_auth_message.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_auth_message.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/auth_message/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_auth_message.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_auth_password",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_AUTH_PASSWORD",
+			"depends": [
+				"ssh_auth_message"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_auth_password.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/auth/ssh_auth_password.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/auth/test_ssh_auth_password.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_auth_password.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/auth_password/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_auth_password.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_auth_publickey",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_AUTH_PUBLICKEY",
+			"depends": [
+				"ssh_auth_message",
+				"ssh_hostkey"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_auth_publickey.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/auth/ssh_auth_publickey.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/auth/test_ssh_auth_publickey.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_auth_publickey.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/auth_publickey/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_auth_publickey.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_auth_keyboard",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_AUTH_KEYBOARD",
+			"depends": [
+				"ssh_auth_message"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_auth_keyboard.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/auth/ssh_auth_keyboard.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/auth/test_ssh_auth_keyboard.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_auth_keyboard.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/auth_keyboard/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_auth_keyboard.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_auth_hostbased",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_AUTH_HOSTBASED",
+			"depends": [
+				"ssh_auth_message",
+				"ssh_hostkey"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_auth_hostbased.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/auth/ssh_auth_hostbased.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/auth/test_ssh_auth_hostbased.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_auth_hostbased.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/auth_hostbased/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_auth_hostbased.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_auth_guard",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_AUTH_GUARD",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_auth_guard.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/auth/ssh_auth_guard.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/auth/test_ssh_auth_guard.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_auth_guard.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/auth_guard/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_auth_guard.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_auth_session",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_AUTH_SESSION",
+			"depends": [
+				"ssh_auth_guard",
+				"ssh_auth_message",
+				"ssh_transport_core"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_auth_session.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/auth/ssh_auth_session.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/auth/test_ssh_auth_session.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_auth_session.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/auth_session/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_auth_session.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_auth_test.c"
+			]
+		},
+		{
+			"name": "ssh_connection_message",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CONNECTION_MESSAGE",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_connection_message.h"
+			],
+			"internal_headers": [
+				"extlibs/xssh/src/connection/ssh_connection_message_internal.h"
+			],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_connection_message.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_connection_message.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_connection_message.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/connection_message/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_connection_message.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_channel_test.c"
+			]
+		},
+		{
+			"name": "ssh_channel_message",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CHANNEL_MESSAGE",
+			"depends": [
+				"ssh_wire",
+				"unicode"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_channel_message.h"
+			],
+			"internal_headers": [
+				"extlibs/xssh/src/connection/ssh_channel_message_internal.h"
+			],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_channel_message.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_channel_message.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_channel_message.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/channel_message/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_channel_message.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_channel_test.c"
+			]
+		},
+		{
+			"name": "ssh_channel_window",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CHANNEL_WINDOW",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_channel_window.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_channel_window.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_channel_window.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_channel_window.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/channel_window/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_channel_window.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_channel_test.c"
+			]
+		},
+		{
+			"name": "ssh_channel_request",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CHANNEL_REQUEST",
+			"depends": [
+				"ssh_channel_message"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_channel_request.h"
+			],
+			"internal_headers": [
+				"extlibs/xssh/src/connection/ssh_channel_request_internal.h"
+			],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_channel_request.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_channel_request.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_channel_request.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/channel_request/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_channel_request.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_channel_test.c"
+			]
+		},
+		{
+			"name": "ssh_channel_pty",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CHANNEL_PTY",
+			"depends": [
+				"ssh_channel_request"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_channel_pty.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_channel_pty.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_channel_pty.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_channel_pty.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/channel_pty/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_channel_pty.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_channel_test.c"
+			]
+		},
+		{
+			"name": "ssh_channel_state",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CHANNEL_STATE",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_channel_state.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_channel_state.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_channel_state.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_channel_state.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/channel_state/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_channel_state.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_channel_test.c"
+			]
+		},
+		{
+			"name": "ssh_channel_core",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CHANNEL_CORE",
+			"depends": [
+				"ssh_channel_message",
+				"ssh_channel_state",
+				"ssh_channel_window"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_channel_core.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_channel_core.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_channel_core.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_channel_core.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/channel_core/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_channel_core.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_channel_test.c"
+			]
+		},
+		{
+			"name": "ssh_channel_io",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CHANNEL_IO",
+			"depends": [
+				"ssh_channel_core",
+				"net_buffer"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_channel_io.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_channel_io.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_channel_io.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_channel_io.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/channel_io/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_channel_io.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_forward_message",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_FORWARD_MESSAGE",
+			"depends": [
+				"ssh_connection_message",
+				"ssh_channel_message"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_forward_message.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_forward_message.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_forward_message.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_forward_message.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/forward_message/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_forward_message.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_channel_test.c"
+			]
+		},
+		{
+			"name": "ssh_reply_queue",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_REPLY_QUEUE",
+			"depends": [
+				"ssh_wire"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_reply_queue.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_reply_queue.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_reply_queue.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_reply_queue.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/reply_queue/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_reply_queue.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_connection_session",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CONNECTION_SESSION",
+			"depends": [
+				"ssh_channel_core",
+				"ssh_connection_message",
+				"ssh_reply_queue",
+				"ssh_transport_core"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_connection_session.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_connection_session.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_connection_session.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_connection_session.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/connection_session/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_connection_session.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_channels",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CHANNELS",
+			"depends": [
+				"ssh_channel_io",
+				"ssh_connection_session",
+				"int_map"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_channels.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/connection/ssh_channels.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/connection/test_ssh_channels.c",
+				"extlibs/xssh/tests/connection/test_ssh_channels_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_channels.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/channels/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_channels.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_session_core",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_SESSION_CORE",
+			"depends": [
+				"ssh_kex_exchange",
+				"ssh_auth_session",
+				"ssh_connection_session"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_session_core.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_session_core.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_session_core.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_session_core.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/session_core/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_session_core.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_session_core_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_SESSION_CORE_RANDOM",
+			"depends": [
+				"ssh_session_core",
+				"ssh_kex_exchange_random"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_session_core_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_session_core_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_session_core_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_session_core_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/session_core_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_session_core.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h"
+			]
+		},
+		{
+			"name": "ssh_session_tcp",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_SESSION_TCP",
+			"depends": [
+				"ssh_session_core",
+				"ssh_transport_tcp"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_session_tcp.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_session_tcp.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_session_tcp.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_session_tcp.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/session_tcp/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_session_tcp.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_session_reader",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_SESSION_READER",
+			"depends": [
+				"ssh_session_tcp"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_session_reader.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_session_reader.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_session_reader.c",
+				"extlibs/xssh/tests/session/test_ssh_session_reader_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_session_reader.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/session_reader/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_session_reader.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_session_stream",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_SESSION_STREAM",
+			"depends": [
+				"ssh_session_reader"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_session_stream.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_session_stream.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_session_stream.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_session_stream.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/session_stream/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_session_stream.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_session_tcp_random",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_SESSION_TCP_RANDOM",
+			"depends": [
+				"ssh_session_tcp",
+				"ssh_session_core_random",
+				"ssh_transport_tcp_random"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_session_tcp_random.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_session_tcp_random.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_session_tcp_random.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_session_tcp_random.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/session_tcp_random/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_session_tcp.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h"
+			]
+		},
+		{
+			"name": "ssh_client_core",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CLIENT_CORE",
+			"depends": [
+				"ssh_session_reader",
+				"ssh_session_tcp_random",
+				"ssh_kexinit_random",
+				"ssh_auth_password",
+				"ssh_transport_message"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_client_core.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_client_core.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_core.c",
+				"extlibs/xssh/tests/session/test_ssh_client_core_runtime.c",
+				"extlibs/xssh/tests/session/test_ssh_client_core_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_client_core.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/client_core/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_client_core.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_client_auth_ed25519",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CLIENT_AUTH_ED25519",
+			"depends": [
+				"ssh_client_core",
+				"ssh_auth_publickey",
+				"ssh_private_key_ed25519"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_client_auth_ed25519.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_client_auth_ed25519.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_auth_ed25519.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_client_auth_ed25519.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/client_auth_ed25519/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_client_auth_ed25519.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "ssh_client",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CLIENT",
+			"depends": [
+				"ssh_client_core",
+				"ssh_session_stream",
+				"ssh_channels"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_client.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_client.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_client.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/client/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_client.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c"
+			]
+		},
+		{
+			"name": "ssh_client_session",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CLIENT_SESSION",
+			"depends": [
+				"ssh_client",
+				"ssh_channel_request"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_client_session.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_client_session.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_session.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_client_session.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/client_session/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_client_session.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/examples/xssh_exec.c",
+				"dev/archive/ssh_legacy_20260816/xssh/examples/xssh_shell.c"
+			]
+		},
+		{
+			"name": "ssh_client_dial",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CLIENT_DIAL",
+			"depends": [
+				"ssh_client",
+				"net_tcp_dial"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_client_dial.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_client_dial.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_dial.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_client_dial.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/client_dial/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_client_dial.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "ssh_client_forward",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CLIENT_FORWARD",
+			"depends": [
+				"ssh_client",
+				"ssh_forward_message"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_client_forward.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_client_forward.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_forward.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_client_forward.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/client_forward/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_client_forward.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/examples/xssh_forward.c"
+			]
+		},
+		{
+			"name": "ssh_client_future",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CLIENT_FUTURE",
+			"depends": [
+				"ssh_client",
+				"future",
+				"spin"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_client_future.h"
+			],
+			"internal_headers": [
+				"extlibs/xssh/src/session/ssh_client_future_internal.h"
+			],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_client_future.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_future.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_client_future.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/client_future/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_client_future.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "ssh_client_pty",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_CLIENT_PTY",
+			"depends": [
+				"ssh_client_session",
+				"ssh_channel_pty"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xrt/ssh_client_pty.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xssh/src/session/ssh_client_pty.c"
+			],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_pty.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh_client_pty.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/client_pty/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/docs/api/ssh_client_pty.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/architecture.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh.h",
+				"dev/archive/ssh_legacy_20260816/xssh/examples/xssh_shell.c"
+			]
+		},
+		{
+			"name": "ssh_client_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"memory_debug",
+				"ssh_client_pty",
+				"ssh_client_forward",
+				"ssh_client_dial",
+				"ssh_client_future",
+				"ssh_private_key_ed25519"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xssh/docs/design/client_runtime.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_runtime_test.c",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_mock_server_test.c"
+			]
+		},
+		{
+			"name": "ssh_client_openssh_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"ssh_client_pty",
+				"ssh_client_forward",
+				"ssh_client_dial",
+				"ssh_client_auth_ed25519",
+				"ssh_private_key_pem",
+				"ssh_fingerprint"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xssh/tests/session/test_ssh_client_openssh.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xssh/docs/design/openssh_interop.md",
+				"extlibs/xssh/docs/design/client_runtime.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/xssh_interop_test.c"
+			]
+		},
+		{
+			"name": "xssh",
+			"state": "implemented",
+			"feature": "XSSH_FEATURE_SSH",
+			"depends": [
+				"ssh_packet_codec_random",
+				"ssh_kexinit_random",
+				"ssh_kex_ecdh",
+				"ssh_kex_sha256",
+				"ssh_kex_curve25519_random",
+				"ssh_hostkey_ed25519",
+				"ssh_key_text",
+				"ssh_known_host",
+				"ssh_known_host_hash",
+				"ssh_known_host_db",
+				"ssh_fingerprint",
+				"ssh_private_key_pem",
+				"ssh_private_key_ed25519",
+				"ssh_transport_message",
+				"ssh_transport_rekey",
+				"ssh_transport_state",
+				"ssh_transport_core",
+				"ssh_kex_session",
+				"ssh_kex_session_random",
+				"ssh_kex_exchange",
+				"ssh_kex_exchange_random",
+				"ssh_transport_tcp",
+				"ssh_transport_tcp_random",
+				"ssh_auth_password",
+				"ssh_auth_publickey",
+				"ssh_auth_keyboard",
+				"ssh_auth_hostbased",
+				"ssh_auth_guard",
+				"ssh_auth_session",
+				"ssh_connection_message",
+				"ssh_channel_message",
+				"ssh_channel_window",
+				"ssh_channel_request",
+				"ssh_channel_pty",
+				"ssh_channel_state",
+				"ssh_channel_core",
+				"ssh_channel_io",
+				"ssh_forward_message",
+				"ssh_reply_queue",
+				"ssh_connection_session",
+				"ssh_channels",
+				"ssh_session_core",
+				"ssh_session_core_random",
+				"ssh_session_tcp",
+				"ssh_session_reader",
+				"ssh_session_stream",
+				"ssh_session_tcp_random",
+				"ssh_client_core",
+				"ssh_client_auth_ed25519",
+				"ssh_client",
+				"ssh_client_dial",
+				"ssh_client_future",
+				"ssh_client_session",
+				"ssh_client_forward",
+				"ssh_client_pty",
+				"ssh_client_runtime_tests",
+				"ssh_client_openssh_tests"
+			],
+			"public_headers": [
+				"extlibs/xssh/include/xssh/features.h",
+				"extlibs/xssh/include/xssh.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xssh/tests/wire/test_ssh_wire.c",
+				"extlibs/xssh/tests/packet/test_ssh_packet.c",
+				"extlibs/xssh/tests/packet/test_ssh_packet_random.c",
+				"extlibs/xssh/tests/packet/test_ssh_packet_aes_gcm.c",
+				"extlibs/xssh/tests/packet/test_ssh_packet_codec.c",
+				"extlibs/xssh/tests/packet/test_ssh_packet_codec_random.c",
+				"extlibs/xssh/tests/kex/test_ssh_kexinit.c",
+				"extlibs/xssh/tests/kex/test_ssh_kexinit_random.c",
+				"extlibs/xssh/tests/kex/test_ssh_kex_ecdh.c",
+				"extlibs/xssh/tests/kex/test_ssh_kex_sha256.c",
+				"extlibs/xssh/tests/kex/test_ssh_kex_curve25519.c",
+				"extlibs/xssh/tests/kex/test_ssh_kex_curve25519_random.c",
+				"extlibs/xssh/tests/kex/test_ssh_hostkey.c",
+				"extlibs/xssh/tests/kex/test_ssh_hostkey_ed25519.c",
+				"extlibs/xssh/tests/key/test_ssh_key_text.c",
+				"extlibs/xssh/tests/key/test_ssh_known_host.c",
+				"extlibs/xssh/tests/key/test_ssh_known_host_hash.c",
+				"extlibs/xssh/tests/key/test_ssh_known_host_db.c",
+				"extlibs/xssh/tests/key/test_ssh_fingerprint.c",
+				"extlibs/xssh/tests/key/test_ssh_private_key.c",
+				"extlibs/xssh/tests/key/test_ssh_private_key_pem.c",
+				"extlibs/xssh/tests/key/test_ssh_private_key_ed25519.c",
+				"extlibs/xssh/tests/transport/test_ssh_transport_message.c",
+				"extlibs/xssh/tests/transport/test_ssh_transport_rekey.c",
+				"extlibs/xssh/tests/transport/test_ssh_transport_state.c",
+				"extlibs/xssh/tests/transport/test_ssh_transport_core.c",
+				"extlibs/xssh/tests/kex/test_ssh_kex_session.c",
+				"extlibs/xssh/tests/kex/test_ssh_kex_session_random.c",
+				"extlibs/xssh/tests/kex/test_ssh_kex_exchange.c",
+				"extlibs/xssh/tests/kex/test_ssh_kex_exchange_random.c",
+				"extlibs/xssh/tests/transport/test_ssh_transport_tcp.c",
+				"extlibs/xssh/tests/transport/test_ssh_transport_tcp_random.c",
+				"extlibs/xssh/tests/auth/test_ssh_auth_message.c",
+				"extlibs/xssh/tests/auth/test_ssh_auth_password.c",
+				"extlibs/xssh/tests/auth/test_ssh_auth_publickey.c",
+				"extlibs/xssh/tests/auth/test_ssh_auth_keyboard.c",
+				"extlibs/xssh/tests/auth/test_ssh_auth_hostbased.c",
+				"extlibs/xssh/tests/auth/test_ssh_auth_guard.c",
+				"extlibs/xssh/tests/auth/test_ssh_auth_session.c",
+				"extlibs/xssh/tests/connection/test_ssh_connection_message.c",
+				"extlibs/xssh/tests/connection/test_ssh_channel_message.c",
+				"extlibs/xssh/tests/connection/test_ssh_channel_window.c",
+				"extlibs/xssh/tests/connection/test_ssh_channel_request.c",
+				"extlibs/xssh/tests/connection/test_ssh_channel_pty.c",
+				"extlibs/xssh/tests/connection/test_ssh_channel_state.c",
+				"extlibs/xssh/tests/connection/test_ssh_channel_core.c",
+				"extlibs/xssh/tests/connection/test_ssh_channel_io.c",
+				"extlibs/xssh/tests/connection/test_ssh_forward_message.c",
+				"extlibs/xssh/tests/connection/test_ssh_reply_queue.c",
+				"extlibs/xssh/tests/connection/test_ssh_connection_session.c",
+				"extlibs/xssh/tests/connection/test_ssh_channels.c",
+				"extlibs/xssh/tests/connection/test_ssh_channels_oom.c",
+				"extlibs/xssh/tests/session/test_ssh_session_core.c",
+				"extlibs/xssh/tests/session/test_ssh_session_core_random.c",
+				"extlibs/xssh/tests/session/test_ssh_session_tcp.c",
+				"extlibs/xssh/tests/session/test_ssh_session_reader.c",
+				"extlibs/xssh/tests/session/test_ssh_session_reader_oom.c",
+				"extlibs/xssh/tests/session/test_ssh_session_stream.c",
+				"extlibs/xssh/tests/session/test_ssh_session_tcp_random.c",
+				"extlibs/xssh/tests/session/test_ssh_client_core.c",
+				"extlibs/xssh/tests/session/test_ssh_client_core_runtime.c",
+				"extlibs/xssh/tests/session/test_ssh_client_core_oom.c",
+				"extlibs/xssh/tests/session/test_ssh_client_auth_ed25519.c",
+				"extlibs/xssh/tests/session/test_ssh_client.c",
+				"extlibs/xssh/tests/session/test_ssh_client_dial.c",
+				"extlibs/xssh/tests/session/test_ssh_client_future.c",
+				"extlibs/xssh/tests/session/test_ssh_client_session.c",
+				"extlibs/xssh/tests/session/test_ssh_client_forward.c",
+				"extlibs/xssh/tests/session/test_ssh_client_pty.c",
+				"extlibs/xssh/tests/session/test_ssh_client_runtime.c",
+				"extlibs/xssh/tests/session/test_ssh_client_openssh.c"
+			],
+			"single_tests": [
+				"extlibs/xssh/tests/single/test_single_ssh.c",
+				"extlibs/xssh/tests/single/test_single_ssh_wire.c",
+				"extlibs/xssh/tests/single/test_single_ssh_packet.c",
+				"extlibs/xssh/tests/single/test_single_ssh_packet_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_packet_aes_gcm.c",
+				"extlibs/xssh/tests/single/test_single_ssh_packet_codec.c",
+				"extlibs/xssh/tests/single/test_single_ssh_packet_codec_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kexinit.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kexinit_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kex_ecdh.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kex_sha256.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kex_curve25519.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kex_curve25519_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_hostkey.c",
+				"extlibs/xssh/tests/single/test_single_ssh_hostkey_ed25519.c",
+				"extlibs/xssh/tests/single/test_single_ssh_key_text.c",
+				"extlibs/xssh/tests/single/test_single_ssh_known_host.c",
+				"extlibs/xssh/tests/single/test_single_ssh_known_host_hash.c",
+				"extlibs/xssh/tests/single/test_single_ssh_known_host_db.c",
+				"extlibs/xssh/tests/single/test_single_ssh_fingerprint.c",
+				"extlibs/xssh/tests/single/test_single_ssh_private_key.c",
+				"extlibs/xssh/tests/single/test_single_ssh_private_key_pem.c",
+				"extlibs/xssh/tests/single/test_single_ssh_private_key_ed25519.c",
+				"extlibs/xssh/tests/single/test_single_ssh_transport_message.c",
+				"extlibs/xssh/tests/single/test_single_ssh_transport_rekey.c",
+				"extlibs/xssh/tests/single/test_single_ssh_transport_state.c",
+				"extlibs/xssh/tests/single/test_single_ssh_transport_core.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kex_session.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kex_session_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kex_exchange.c",
+				"extlibs/xssh/tests/single/test_single_ssh_kex_exchange_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_transport_tcp.c",
+				"extlibs/xssh/tests/single/test_single_ssh_transport_tcp_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_auth_message.c",
+				"extlibs/xssh/tests/single/test_single_ssh_auth_password.c",
+				"extlibs/xssh/tests/single/test_single_ssh_auth_publickey.c",
+				"extlibs/xssh/tests/single/test_single_ssh_auth_keyboard.c",
+				"extlibs/xssh/tests/single/test_single_ssh_auth_hostbased.c",
+				"extlibs/xssh/tests/single/test_single_ssh_auth_guard.c",
+				"extlibs/xssh/tests/single/test_single_ssh_auth_session.c",
+				"extlibs/xssh/tests/single/test_single_ssh_connection_message.c",
+				"extlibs/xssh/tests/single/test_single_ssh_channel_message.c",
+				"extlibs/xssh/tests/single/test_single_ssh_channel_window.c",
+				"extlibs/xssh/tests/single/test_single_ssh_channel_request.c",
+				"extlibs/xssh/tests/single/test_single_ssh_channel_pty.c",
+				"extlibs/xssh/tests/single/test_single_ssh_channel_state.c",
+				"extlibs/xssh/tests/single/test_single_ssh_channel_core.c",
+				"extlibs/xssh/tests/single/test_single_ssh_channel_io.c",
+				"extlibs/xssh/tests/single/test_single_ssh_forward_message.c",
+				"extlibs/xssh/tests/single/test_single_ssh_reply_queue.c",
+				"extlibs/xssh/tests/single/test_single_ssh_connection_session.c",
+				"extlibs/xssh/tests/single/test_single_ssh_channels.c",
+				"extlibs/xssh/tests/single/test_single_ssh_session_core.c",
+				"extlibs/xssh/tests/single/test_single_ssh_session_core_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_session_tcp.c",
+				"extlibs/xssh/tests/single/test_single_ssh_session_reader.c",
+				"extlibs/xssh/tests/single/test_single_ssh_session_stream.c",
+				"extlibs/xssh/tests/single/test_single_ssh_session_tcp_random.c",
+				"extlibs/xssh/tests/single/test_single_ssh_client_core.c",
+				"extlibs/xssh/tests/single/test_single_ssh_client_auth_ed25519.c",
+				"extlibs/xssh/tests/single/test_single_ssh_client.c",
+				"extlibs/xssh/tests/single/test_single_ssh_client_dial.c",
+				"extlibs/xssh/tests/single/test_single_ssh_client_future.c",
+				"extlibs/xssh/tests/single/test_single_ssh_client_session.c",
+				"extlibs/xssh/tests/single/test_single_ssh_client_forward.c",
+				"extlibs/xssh/tests/single/test_single_ssh_client_pty.c"
+			],
+			"examples": [
+				"extlibs/xssh/examples/wire/main.c",
+				"extlibs/xssh/examples/packet/main.c",
+				"extlibs/xssh/examples/packet_random/main.c",
+				"extlibs/xssh/examples/packet_aes_gcm/main.c",
+				"extlibs/xssh/examples/packet_codec/main.c",
+				"extlibs/xssh/examples/packet_codec_random/main.c",
+				"extlibs/xssh/examples/kexinit/main.c",
+				"extlibs/xssh/examples/kexinit_random/main.c",
+				"extlibs/xssh/examples/kex_ecdh/main.c",
+				"extlibs/xssh/examples/kex_sha256/main.c",
+				"extlibs/xssh/examples/kex_curve25519/main.c",
+				"extlibs/xssh/examples/kex_curve25519_random/main.c",
+				"extlibs/xssh/examples/hostkey/main.c",
+				"extlibs/xssh/examples/hostkey_ed25519/main.c",
+				"extlibs/xssh/examples/key_text/main.c",
+				"extlibs/xssh/examples/known_host/main.c",
+				"extlibs/xssh/examples/known_host_hash/main.c",
+				"extlibs/xssh/examples/known_host_db/main.c",
+				"extlibs/xssh/examples/fingerprint/main.c",
+				"extlibs/xssh/examples/private_key/main.c",
+				"extlibs/xssh/examples/private_key_pem/main.c",
+				"extlibs/xssh/examples/private_key_ed25519/main.c",
+				"extlibs/xssh/examples/transport_message/main.c",
+				"extlibs/xssh/examples/transport_rekey/main.c",
+				"extlibs/xssh/examples/transport_state/main.c",
+				"extlibs/xssh/examples/transport_core/main.c",
+				"extlibs/xssh/examples/kex_session/main.c",
+				"extlibs/xssh/examples/kex_session_random/main.c",
+				"extlibs/xssh/examples/kex_exchange/main.c",
+				"extlibs/xssh/examples/kex_exchange_random/main.c",
+				"extlibs/xssh/examples/transport_tcp/main.c",
+				"extlibs/xssh/examples/transport_tcp_random/main.c",
+				"extlibs/xssh/examples/auth_message/main.c",
+				"extlibs/xssh/examples/auth_password/main.c",
+				"extlibs/xssh/examples/auth_publickey/main.c",
+				"extlibs/xssh/examples/auth_keyboard/main.c",
+				"extlibs/xssh/examples/auth_hostbased/main.c",
+				"extlibs/xssh/examples/auth_guard/main.c",
+				"extlibs/xssh/examples/auth_session/main.c",
+				"extlibs/xssh/examples/connection_message/main.c",
+				"extlibs/xssh/examples/channel_message/main.c",
+				"extlibs/xssh/examples/channel_window/main.c",
+				"extlibs/xssh/examples/channel_request/main.c",
+				"extlibs/xssh/examples/channel_pty/main.c",
+				"extlibs/xssh/examples/channel_state/main.c",
+				"extlibs/xssh/examples/channel_core/main.c",
+				"extlibs/xssh/examples/channel_io/main.c",
+				"extlibs/xssh/examples/forward_message/main.c",
+				"extlibs/xssh/examples/reply_queue/main.c",
+				"extlibs/xssh/examples/connection_session/main.c",
+				"extlibs/xssh/examples/channels/main.c",
+				"extlibs/xssh/examples/session_core/main.c",
+				"extlibs/xssh/examples/session_core_random/main.c",
+				"extlibs/xssh/examples/session_tcp/main.c",
+				"extlibs/xssh/examples/session_reader/main.c",
+				"extlibs/xssh/examples/session_stream/main.c",
+				"extlibs/xssh/examples/session_tcp_random/main.c",
+				"extlibs/xssh/examples/client_core/main.c",
+				"extlibs/xssh/examples/client_auth_ed25519/main.c",
+				"extlibs/xssh/examples/client/main.c",
+				"extlibs/xssh/examples/client_dial/main.c",
+				"extlibs/xssh/examples/client_future/main.c",
+				"extlibs/xssh/examples/client_session/main.c",
+				"extlibs/xssh/examples/client_forward/main.c",
+				"extlibs/xssh/examples/client_pty/main.c"
+			],
+			"docs": [
+				"extlibs/xssh/README.md",
+				"extlibs/xssh/docs/design/client_runtime.md",
+				"extlibs/xssh/docs/design/openssh_interop.md",
+				"extlibs/xssh/docs/api/ssh_wire.md",
+				"extlibs/xssh/docs/api/ssh_packet.md",
+				"extlibs/xssh/docs/api/ssh_packet_random.md",
+				"extlibs/xssh/docs/api/ssh_packet_aes_gcm.md",
+				"extlibs/xssh/docs/api/ssh_packet_codec.md",
+				"extlibs/xssh/docs/api/ssh_kexinit.md",
+				"extlibs/xssh/docs/api/ssh_kex_exchange.md",
+				"extlibs/xssh/docs/api/ssh_hostkey.md",
+				"extlibs/xssh/docs/api/ssh_key_text.md",
+				"extlibs/xssh/docs/api/ssh_known_host.md",
+				"extlibs/xssh/docs/api/ssh_known_host_hash.md",
+				"extlibs/xssh/docs/api/ssh_known_host_db.md",
+				"extlibs/xssh/docs/api/ssh_fingerprint.md",
+				"extlibs/xssh/docs/api/ssh_private_key.md",
+				"extlibs/xssh/docs/api/ssh_transport_message.md",
+				"extlibs/xssh/docs/api/ssh_transport_rekey.md",
+				"extlibs/xssh/docs/api/ssh_transport_state.md",
+				"extlibs/xssh/docs/api/ssh_transport_core.md",
+				"extlibs/xssh/docs/api/ssh_kex_session.md",
+				"extlibs/xssh/docs/api/ssh_kex_exchange_session.md",
+				"extlibs/xssh/docs/api/ssh_transport_tcp.md",
+				"extlibs/xssh/docs/api/ssh_transport_tcp_random.md",
+				"extlibs/xssh/docs/api/ssh_auth_message.md",
+				"extlibs/xssh/docs/api/ssh_auth_password.md",
+				"extlibs/xssh/docs/api/ssh_auth_publickey.md",
+				"extlibs/xssh/docs/api/ssh_auth_keyboard.md",
+				"extlibs/xssh/docs/api/ssh_auth_hostbased.md",
+				"extlibs/xssh/docs/api/ssh_auth_guard.md",
+				"extlibs/xssh/docs/api/ssh_auth_session.md",
+				"extlibs/xssh/docs/api/ssh_connection_message.md",
+				"extlibs/xssh/docs/api/ssh_channel_message.md",
+				"extlibs/xssh/docs/api/ssh_channel_window.md",
+				"extlibs/xssh/docs/api/ssh_channel_request.md",
+				"extlibs/xssh/docs/api/ssh_channel_pty.md",
+				"extlibs/xssh/docs/api/ssh_channel_state.md",
+				"extlibs/xssh/docs/api/ssh_channel_core.md",
+				"extlibs/xssh/docs/api/ssh_channel_io.md",
+				"extlibs/xssh/docs/api/ssh_forward_message.md",
+				"extlibs/xssh/docs/api/ssh_reply_queue.md",
+				"extlibs/xssh/docs/api/ssh_connection_session.md",
+				"extlibs/xssh/docs/api/ssh_channels.md",
+				"extlibs/xssh/docs/api/ssh_session_core.md",
+				"extlibs/xssh/docs/api/ssh_session_tcp.md",
+				"extlibs/xssh/docs/api/ssh_session_reader.md",
+				"extlibs/xssh/docs/api/ssh_session_stream.md",
+				"extlibs/xssh/docs/api/ssh_client_core.md",
+				"extlibs/xssh/docs/api/ssh_client_auth_ed25519.md",
+				"extlibs/xssh/docs/api/ssh_client.md",
+				"extlibs/xssh/docs/api/ssh_client_dial.md",
+				"extlibs/xssh/docs/api/ssh_client_future.md",
+				"extlibs/xssh/docs/api/ssh_client_session.md",
+				"extlibs/xssh/docs/api/ssh_client_forward.md",
+				"extlibs/xssh/docs/api/ssh_client_pty.md",
+				"extlibs/xssh/docs/design/architecture.md",
+				"extlibs/xssh/docs/api/reference.md"
+			],
+			"legacy": [
+				"dev/archive/ssh_legacy_20260816/xssh/README.md",
+				"dev/archive/ssh_legacy_20260816/xssh/xssh-spec.md"
+			]
+		}
+	]
+}

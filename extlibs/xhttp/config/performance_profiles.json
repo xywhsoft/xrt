@@ -1,0 +1,76 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xhttp/config/modules.json",
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": ["-O2"],
+		"ldflags": [],
+		"max_relative_mad": 0.20,
+		"max_relative_central_range": 0.30,
+		"regression": {
+			"higher": 0.10,
+			"lower": 0.20
+		}
+	},
+	"profiles": [
+		{
+			"name": "http_extension",
+			"system": "http_extension",
+			"description": "URL 解析与 Query 扫描无分配热路径",
+			"benchmarks": [
+				{
+					"name": "http_extension",
+					"source": "extlibs/xhttp/bench/bench_http_extension.c",
+					"suite": "xhttp",
+					"args": ["1000000"],
+					"smoke_args": ["1000"],
+					"metrics": {
+						"url_parse_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"query_scan_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "http_loopback",
+			"system": "http_extension",
+			"description": "HTTP/1.1 结构化响应与预构建原始响应的持久连接回环路径",
+			"benchmarks": [
+				{
+					"name": "http_loopback",
+					"source": "extlibs/xhttp/bench/bench_http_loopback.c",
+					"suite": "xhttp",
+					"args": ["5000"],
+					"smoke_args": ["50"],
+					"metrics": {
+						"http_reply_requests_per_sec": {
+							"direction": "higher",
+							"unit": "requests/s"
+						},
+						"http_reply_latency_p99_us": {
+							"direction": "lower",
+							"unit": "microseconds"
+						},
+						"http_raw_requests_per_sec": {
+							"direction": "higher",
+							"unit": "requests/s"
+						},
+						"http_raw_latency_p99_us": {
+							"direction": "lower",
+							"unit": "microseconds"
+						}
+					}
+				}
+			]
+		}
+	]
+}

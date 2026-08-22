@@ -1,0 +1,342 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xssh/config/modules.json",
+	"profiles": [
+		{
+			"name": "ssh_wire",
+			"system": "ssh_protocol",
+			"suite": "ssh_wire",
+			"description": "无分配 SSH 基础类型、名称列表、mpint 与 identification 解析闭包"
+		},
+		{
+			"name": "ssh_packet",
+			"system": "ssh_protocol",
+			"suite": "ssh_packet",
+			"description": "无分配 SSH plain packet framing 与序列管理闭包"
+		},
+		{
+			"name": "ssh_packet_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_packet_random",
+			"description": "使用操作系统安全随机源的 SSH packet padding 闭包"
+		},
+		{
+			"name": "ssh_packet_aes_gcm",
+			"system": "ssh_protocol",
+			"suite": "ssh_packet_aes_gcm",
+			"description": "无堆分配 OpenSSH AES-GCM packet 编解码闭包"
+		},
+		{
+			"name": "ssh_packet_codec",
+			"system": "ssh_protocol",
+			"suite": "ssh_packet_codec",
+			"description": "无分配 plain/AES-GCM 双向 packet 状态与增量尺寸探测闭包"
+		},
+		{
+			"name": "ssh_packet_codec_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_packet_codec_random",
+			"description": "使用 XRT 系统安全随机 padding 的统一 packet codec 便利闭包"
+		},
+		{
+			"name": "ssh_kexinit",
+			"system": "ssh_protocol",
+			"suite": "ssh_kexinit",
+			"description": "无分配 KEXINIT 构建、解析与协商闭包"
+		},
+		{
+			"name": "ssh_kexinit_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_kexinit_random",
+			"description": "带系统安全随机 cookie 的 KEXINIT 闭包"
+		},
+		{
+			"name": "ssh_kex_ecdh",
+			"system": "ssh_protocol",
+			"suite": "ssh_kex_ecdh",
+			"description": "无分配 ECDH init/reply 报文闭包"
+		},
+		{
+			"name": "ssh_kex_sha256",
+			"system": "ssh_protocol",
+			"suite": "ssh_kex_sha256",
+			"description": "流式 exchange hash 与密钥派生闭包"
+		},
+		{
+			"name": "ssh_kex_curve25519",
+			"system": "ssh_protocol",
+			"suite": "ssh_kex_curve25519",
+			"description": "SSH Curve25519 公钥与共享秘密闭包"
+		},
+		{
+			"name": "ssh_kex_curve25519_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_kex_curve25519_random",
+			"description": "带安全随机密钥对的 SSH Curve25519 闭包"
+		},
+		{
+			"name": "ssh_hostkey",
+			"system": "ssh_protocol",
+			"suite": "ssh_hostkey",
+			"description": "无分配 SSH 主机密钥与签名格式闭包"
+		},
+		{
+			"name": "ssh_hostkey_ed25519",
+			"system": "ssh_protocol",
+			"suite": "ssh_hostkey_ed25519",
+			"description": "带 XRT 严格 Ed25519 验证的主机密钥闭包"
+		},
+		{
+			"name": "ssh_key_text",
+			"system": "ssh_protocol",
+			"suite": "ssh_key_text",
+			"description": "OpenSSH 公钥文本、options 与 Base64 解码闭包"
+		},
+		{
+			"name": "ssh_known_host",
+			"system": "ssh_protocol",
+			"suite": "ssh_known_host",
+			"description": "known_hosts marker、明文 pattern 与公钥格式闭包"
+		},
+		{
+			"name": "ssh_known_host_hash",
+			"system": "ssh_protocol",
+			"suite": "ssh_known_host_hash",
+			"description": "独立 SHA-1 依赖的 OpenSSH hashed-host 闭包"
+		},
+		{
+			"name": "ssh_known_host_db",
+			"system": "ssh_protocol",
+			"suite": "ssh_known_host_db",
+			"description": "无分配 known_hosts 游标与主机信任策略闭包"
+		},
+		{
+			"name": "ssh_fingerprint",
+			"system": "ssh_protocol",
+			"suite": "ssh_fingerprint",
+			"description": "OpenSSH SHA-256 主机密钥指纹闭包"
+		},
+		{
+			"name": "ssh_private_key",
+			"system": "ssh_protocol",
+			"suite": "ssh_private_key",
+			"description": "无分配 openssh-key-v1 二进制容器闭包"
+		},
+		{
+			"name": "ssh_private_key_pem",
+			"system": "ssh_protocol",
+			"suite": "ssh_private_key_pem",
+			"description": "调用方缓冲的 OpenSSH 私钥 PEM 适配闭包"
+		},
+		{
+			"name": "ssh_private_key_ed25519",
+			"system": "ssh_protocol",
+			"suite": "ssh_private_key_ed25519",
+			"description": "未加密单 Ed25519 私钥身份与签名闭包"
+		},
+		{
+			"name": "ssh_transport_message",
+			"system": "ssh_protocol",
+			"suite": "ssh_transport_message",
+			"description": "无分配 SSH transport 公共消息闭包"
+		},
+		{
+			"name": "ssh_transport_rekey",
+			"system": "ssh_protocol",
+			"suite": "ssh_transport_rekey",
+			"description": "无分配 SSH rekey 策略与计数闭包"
+		},
+		{
+			"name": "ssh_transport_state",
+			"system": "ssh_protocol",
+			"suite": "ssh_transport_state",
+			"description": "无分配 SSH KEX、NEWKEYS、strict 与 EXT_INFO 状态闭包"
+		},
+		{
+			"name": "ssh_transport_core",
+			"system": "ssh_protocol",
+			"suite": "ssh_transport_core",
+			"description": "无缓冲 packet、状态与方向性 rekey 事务组合闭包"
+		},
+		{
+			"name": "ssh_kex_session",
+			"system": "ssh_protocol",
+			"suite": "ssh_kex_session",
+			"description": "确定性 client/server KEX、主机验签与方向密钥切换闭包"
+		},
+		{
+			"name": "ssh_kex_session_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_kex_session_random",
+			"description": "KEX 会话与系统安全随机临时密钥便利闭包"
+		},
+		{
+			"name": "ssh_kex_exchange",
+			"system": "ssh_protocol",
+			"suite": "ssh_kex_exchange",
+			"description": "动态稳定 transcript、提交关联与无悬空 rekey 代际闭包"
+		},
+		{
+			"name": "ssh_kex_exchange_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_kex_exchange_random",
+			"description": "动态 KEX 交换与系统安全随机临时密钥便利闭包"
+		},
+		{
+			"name": "ssh_transport_tcp",
+			"system": "ssh_protocol",
+			"suite": "ssh_transport_tcp",
+			"description": "无固定会话数组的 SSH transport 与 XRT TCP 动态缓冲适配闭包"
+		},
+		{
+			"name": "ssh_transport_tcp_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_transport_tcp_random",
+			"description": "TCP transport 与操作系统安全随机 padding 便利闭包"
+		},
+		{
+			"name": "ssh_auth_message",
+			"system": "ssh_protocol",
+			"suite": "ssh_auth_message",
+			"description": "可扩展 USERAUTH 公共消息与 UTF-8 校验闭包"
+		},
+		{
+			"name": "ssh_auth_password",
+			"system": "ssh_protocol",
+			"suite": "ssh_auth_password",
+			"description": "普通密码、密码更改请求与提示消息闭包"
+		},
+		{
+			"name": "ssh_auth_publickey",
+			"system": "ssh_protocol",
+			"suite": "ssh_auth_publickey",
+			"description": "Publickey 探测、签名原文与严格请求消息闭包"
+		},
+		{
+			"name": "ssh_auth_keyboard",
+			"system": "ssh_protocol",
+			"suite": "ssh_auth_keyboard",
+			"description": "无固定数量上限的 keyboard-interactive 消息闭包"
+		},
+		{
+			"name": "ssh_auth_hostbased",
+			"system": "ssh_protocol",
+			"suite": "ssh_auth_hostbased",
+			"description": "Hostbased 请求、签名原文与主机名校验闭包"
+		},
+		{
+			"name": "ssh_auth_guard",
+			"system": "ssh_protocol",
+			"suite": "ssh_auth_guard",
+			"description": "无时钟所有权的认证尝试、轮次、消息与字节预算闭包"
+		},
+		{
+			"name": "ssh_auth_session",
+			"system": "ssh_protocol",
+			"suite": "ssh_auth_session",
+			"description": "无网络、无固定 payload 缓冲的双端 USERAUTH 编排闭包"
+		},
+		{
+			"name": "ssh_connection_message",
+			"system": "ssh_protocol",
+			"suite": "ssh_connection_message",
+			"description": "可扩展全局请求与顺序响应报文闭包"
+		},
+		{
+			"name": "ssh_channel_message",
+			"system": "ssh_protocol",
+			"suite": "ssh_channel_message",
+			"description": "可扩展 RFC 4254 channel 公共报文闭包"
+		},
+		{
+			"name": "ssh_channel_window",
+			"system": "ssh_protocol",
+			"suite": "ssh_channel_window",
+			"description": "无固定缓冲的 RFC 4254 双向窗口状态闭包"
+		},
+		{
+			"name": "ssh_channel_request",
+			"system": "ssh_protocol",
+			"suite": "ssh_channel_request",
+			"description": "Session、环境、进程和终端通知 request 闭包"
+		},
+		{
+			"name": "ssh_channel_pty",
+			"system": "ssh_protocol",
+			"suite": "ssh_channel_pty",
+			"description": "无固定 mode 数量上限的 PTY request 闭包"
+		},
+		{
+			"name": "ssh_channel_state",
+			"system": "ssh_protocol",
+			"suite": "ssh_channel_state",
+			"description": "双向 EOF/CLOSE 生命周期与回收条件闭包"
+		},
+		{
+			"name": "ssh_channel_core",
+			"system": "ssh_protocol",
+			"suite": "ssh_channel_core",
+			"description": "无数据缓冲的单 channel open、窗口与关闭组合闭包"
+		},
+		{
+			"name": "ssh_channel_io",
+			"system": "ssh_protocol",
+			"suite": "ssh_channel_io",
+			"description": "动态有界 channel 收发缓冲、所有权与窗口事务闭包"
+		},
+		{
+			"name": "ssh_forward_message",
+			"system": "ssh_protocol",
+			"suite": "ssh_forward_message",
+			"description": "Remote forwarding 与 TCP/IP channel open 报文闭包"
+		},
+		{
+			"name": "ssh_reply_queue",
+			"system": "ssh_protocol",
+			"suite": "ssh_reply_queue",
+			"description": "调用方存储与可迁移的 request reply FIFO 闭包"
+		},
+		{
+			"name": "ssh_connection_session",
+			"system": "ssh_protocol",
+			"suite": "ssh_connection_session",
+			"description": "无网络、无 channel 表的 RFC 4254 双端事务编排闭包"
+		},
+		{
+			"name": "ssh_session_core",
+			"system": "ssh_protocol",
+			"suite": "ssh_session_core",
+			"description": "无 socket、无固定收发缓冲的连接级 SSH 协议编排闭包"
+		},
+		{
+			"name": "ssh_session_core_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_session_core_random",
+			"description": "连接级 SSH 核心与系统安全随机 KEX 便利闭包"
+		},
+		{
+			"name": "ssh_session_tcp",
+			"system": "ssh_protocol",
+			"suite": "ssh_session_tcp",
+			"description": "TCP 动态缓冲、连接级协议与可靠提交组合闭包"
+		},
+		{
+			"name": "ssh_session_reader",
+			"system": "ssh_protocol",
+			"suite": "ssh_session_reader",
+			"description": "按报文实际长度申请明文与主机公钥空间的 TCP 会话读取闭包"
+		},
+		{
+			"name": "ssh_session_tcp_random",
+			"system": "ssh_protocol",
+			"suite": "ssh_session_tcp_random",
+			"description": "TCP 会话与系统安全随机 KEX、padding 便利闭包"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

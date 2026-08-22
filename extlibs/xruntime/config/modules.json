@@ -1,0 +1,1875 @@
+{
+	"schema": 1,
+	"product": "xruntime",
+	"module_prefix": "XRUNTIME_MODULE_",
+	"single_header": "extlibs/xruntime/single/xruntime.h",
+	"declaration_header": "extlibs/xruntime/single/xruntime_decl.h",
+	"implementation_macro": "XRUNTIME_IMPLEMENTATION",
+	"implementation_once_macro": "XRUNTIME_IMPLEMENTATION_ONCE",
+	"single_guard": "XRUNTIME_SINGLE_HEADER_H",
+	"single_marker": "XRUNTIME_SINGLE_HEADER",
+	"declaration_guard": "XRUNTIME_DECLARATIONS_H",
+	"declaration_marker": "XRUNTIME_DECLARATIONS",
+	"package_consumer": "extlibs/xruntime/tests/package/test_consumer.c",
+	"product_root": "extlibs/xruntime",
+	"performance_config": "extlibs/xruntime/config/performance_profiles.json",
+	"size_config": "extlibs/xruntime/config/size_profiles.json",
+	"scope": {
+		"product": "xruntime",
+		"external_integrations": [
+			{
+				"name": "xlang",
+				"state": "integrated"
+			}
+		],
+		"systems": [
+			{
+				"name": "runtime_model",
+				"state": "retained",
+				"source_roots": [
+					"runtime"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xruntime 公共符号参考",
+		"function_prefix": "xrt",
+		"constant_prefix": "XRT_",
+		"type_prefix": "xrt",
+		"constant_prefixes": [
+			"XCALL_",
+			"XDYNAMIC_",
+			"XFIELD_",
+			"XOBJECT_",
+			"XRT_CALL_",
+			"XRT_FIELD_",
+			"XRT_FUNCTION_",
+			"XRT_METHOD_",
+			"XRT_PARAM_",
+			"XRT_TYPE_",
+			"XRUNTIME_VALUE_",
+			"XTYPE_",
+			"XTYPED_"
+		],
+		"type_prefixes": [
+			"xcall",
+			"xdynamic",
+			"xfield",
+			"xobject",
+			"xrt",
+			"xtype",
+			"xtyped",
+			"xvalue"
+		],
+		"guide": "../../README.md",
+		"output": "extlibs/xruntime/docs/api/reference.md"
+	},
+	"features_guard": "XRUNTIME_FEATURES_H",
+	"features_header": "extlibs/xruntime/include/xruntime/features.h",
+	"include_dirs": [
+		"extlibs/xruntime/include"
+	],
+	"header_roots": [
+		"extlibs/xruntime/include",
+		"extlibs/xruntime/src/internal"
+	],
+	"modules": [
+		{
+			"name": "runtime_type",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_TYPE",
+			"depends": [
+				"core"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_type.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_internal.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_type.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_type.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_threads.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/type/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_type.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_convert",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_CONVERT",
+			"depends": [
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_convert.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_internal.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_convert.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_convert.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_convert.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/convert/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_convert.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"xrt.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_type_string",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_TYPE_STRING",
+			"depends": [
+				"string",
+				"hash64",
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_type_string.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_type_string.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_type_string.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_string_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/type_string/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_type_string.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"xrt.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_convert_string",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_CONVERT_STRING",
+			"depends": [
+				"runtime_convert",
+				"runtime_type_string",
+				"number_integer",
+				"number_float",
+				"time_text"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_convert.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_convert.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_convert_string.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_convert_string.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_convert_string_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/convert_string/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_convert.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"xrt.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "value_convert",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_VALUE_CONVERT",
+			"depends": [
+				"runtime_convert",
+				"value"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_convert.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_convert.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/value_convert.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_value_convert.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_convert/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_convert.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"xrt.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "value_convert_string",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_VALUE_CONVERT_STRING",
+			"depends": [
+				"value_convert",
+				"runtime_convert_string"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_convert.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_convert.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/value_convert.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_value_convert_string.c",
+				"extlibs/xruntime/tests/runtime/test_value_convert_string_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_convert_string/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_convert.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"xrt.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_type_string_value",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_TYPE_STRING_VALUE",
+			"depends": [
+				"runtime_type_string",
+				"typed_value"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_type_string_value.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_string_value_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_type_string.md",
+				"extlibs/xruntime/docs/api/typed_value.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_type_future",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_TYPE_FUTURE",
+			"depends": [
+				"future",
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_type_future.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_type_future.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_type_future.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/type_future/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_type_future.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"xrt.h",
+				"test/test_future_core_impl.h"
+			]
+		},
+		{
+			"name": "runtime_field",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_FIELD",
+			"depends": [
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_field.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_internal.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_field.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_field.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_field_contract.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_field_threads.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/field/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_field.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "typed_array",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_ARRAY",
+			"depends": [
+				"array",
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_array.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_array.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h",
+				"extlibs/xruntime/src/internal/xrt_typed_container.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_array.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_array.c",
+				"extlibs/xruntime/tests/runtime/test_typed_array_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_array_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_array/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_array.md",
+				"extlibs/xruntime/docs/api/typed_containers.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/typed_container.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_typed_container.h"
+			]
+		},
+		{
+			"name": "typed_queue",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_QUEUE",
+			"depends": [
+				"queue",
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_queue.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_typed_queue.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_queue.c"
+			],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_queue.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"test/test_typed_special.c",
+				"xrt.h"
+			]
+		},
+		{
+			"name": "typed_queue_spsc",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_QUEUE_SPSC",
+			"depends": [
+				"typed_queue",
+				"queue_spsc"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_queue_spsc.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_queue_spsc.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_spsc_threads.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_queue_spsc/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_queue.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"test/test_typed_special.c",
+				"xrt.h"
+			]
+		},
+		{
+			"name": "typed_queue_mpsc",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_QUEUE_MPSC",
+			"depends": [
+				"typed_queue",
+				"queue_mpsc",
+				"queue_mpmc"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_queue_mpsc.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_queue_mpsc.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_mpsc_threads.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_queue_mpsc/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_queue.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"test/test_typed_special.c",
+				"xrt.h"
+			]
+		},
+		{
+			"name": "typed_queue_mpmc",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_QUEUE_MPMC",
+			"depends": [
+				"typed_queue",
+				"queue_mpmc"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_queue_mpmc.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_queue_mpmc.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_mpmc_threads.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_queue_mpmc/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_queue.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"test/test_typed_special.c",
+				"xrt.h"
+			]
+		},
+		{
+			"name": "typed_queue_contract_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"typed_queue_spsc",
+				"typed_queue_mpsc",
+				"typed_queue_mpmc"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_queue_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_queue.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"test/test_typed_special.c"
+			]
+		},
+		{
+			"name": "typed_queue_object_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"typed_queue_spsc",
+				"typed_queue_mpsc",
+				"typed_queue_mpmc",
+				"runtime_object_graph"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_queue_object_graph.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_queue.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"lib/type.h",
+				"test/test_value_recursive_graph.h"
+			]
+		},
+		{
+			"name": "typed_stack",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_STACK",
+			"depends": [
+				"typed_array"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_stack.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_stack.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_stack.c",
+				"extlibs/xruntime/tests/runtime/test_typed_stack_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_stack/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_stack.md",
+				"extlibs/xruntime/docs/api/typed_containers.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"test/test_typed_special.c",
+				"xrt.h"
+			]
+		},
+		{
+			"name": "typed_tree",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_TREE",
+			"depends": [
+				"avl_tree",
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_tree.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_avl.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_tree.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_tree.c",
+				"extlibs/xruntime/tests/runtime/test_typed_tree_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_tree_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_tree/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_tree.md",
+				"extlibs/xruntime/docs/api/typed_containers.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"test/test_typed_special.c",
+				"xrt.h"
+			]
+		},
+		{
+			"name": "typed_list",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_LIST",
+			"depends": [
+				"int_map",
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_list.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_int_map.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h",
+				"extlibs/xruntime/src/internal/xrt_typed_container.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_list.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_list.c",
+				"extlibs/xruntime/tests/runtime/test_typed_list_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_list_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_list/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_list.md",
+				"extlibs/xruntime/docs/api/typed_containers.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/typed_container.h",
+				"lib/list.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_typed_container.h",
+				"test/test_list.h",
+				"test/test_list_iterator.h"
+			]
+		},
+		{
+			"name": "typed_set",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_SET",
+			"depends": [
+				"set",
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_set.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h",
+				"src/internal/xrt_set.h",
+				"extlibs/xruntime/src/internal/xrt_typed_container.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_set.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_set.c",
+				"extlibs/xruntime/tests/runtime/test_typed_set_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_set_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_set/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_set.md",
+				"extlibs/xruntime/docs/api/typed_containers.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/typed_container.h",
+				"lib/set.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_typed_container.h"
+			]
+		},
+		{
+			"name": "typed_dict",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_DICT",
+			"depends": [
+				"map",
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_dict.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_map.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h",
+				"extlibs/xruntime/src/internal/xrt_typed_container.h",
+				"extlibs/xruntime/src/internal/xrt_typed_dict.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_dict.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_dict.c",
+				"extlibs/xruntime/tests/runtime/test_typed_dict_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_dict_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_dict/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_dict.md",
+				"extlibs/xruntime/docs/api/typed_containers.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/typed_container.h",
+				"lib/dict.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_typed_container.h",
+				"test/test_dict.h"
+			]
+		},
+		{
+			"name": "typed_value",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_VALUE",
+			"depends": [
+				"runtime_type",
+				"value"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_type.h",
+				"extlibs/xruntime/src/internal/xrt_typed_container.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_value.c",
+				"extlibs/xruntime/tests/runtime/test_typed_value_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_value/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_value.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/type.h",
+				"lib/value.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "typed_array_value",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_ARRAY_VALUE",
+			"depends": [
+				"typed_value",
+				"typed_array",
+				"value_container"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_value.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_value.c",
+				"extlibs/xruntime/tests/runtime/test_typed_value_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_value_containers/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_value.md",
+				"extlibs/xruntime/docs/api/typed_array.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/typed_container.h",
+				"lib/value.h",
+				"test/test_typed_container.h"
+			]
+		},
+		{
+			"name": "typed_list_value",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_LIST_VALUE",
+			"depends": [
+				"typed_value",
+				"typed_list",
+				"value_container"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_value.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_value.c",
+				"extlibs/xruntime/tests/runtime/test_typed_value_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_value_containers/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_value.md",
+				"extlibs/xruntime/docs/api/typed_list.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/typed_container.h",
+				"lib/value.h",
+				"test/test_typed_container.h"
+			]
+		},
+		{
+			"name": "typed_set_value",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_SET_VALUE",
+			"depends": [
+				"typed_value",
+				"typed_set",
+				"value_container"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_value.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_value.c",
+				"extlibs/xruntime/tests/runtime/test_typed_value_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_value_containers/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_value.md",
+				"extlibs/xruntime/docs/api/typed_set.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/typed_container.h",
+				"lib/value.h",
+				"test/test_typed_container.h"
+			]
+		},
+		{
+			"name": "typed_dict_value",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_TYPED_DICT_VALUE",
+			"depends": [
+				"typed_value",
+				"typed_dict",
+				"value_container"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/typed_value.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"extlibs/xruntime/src/runtime/typed_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_value.c",
+				"extlibs/xruntime/tests/runtime/test_typed_value_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/typed_value_containers/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_value.md",
+				"extlibs/xruntime/docs/api/typed_dict.md"
+			],
+			"legacy": [
+				"xrt.h",
+				"lib/typed_container.h",
+				"lib/value.h",
+				"test/test_typed_container.h"
+			]
+		},
+		{
+			"name": "runtime_object",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_OBJECT",
+			"depends": [
+				"runtime_type"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_object.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_internal.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_object.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_object.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_object.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_threads.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/object/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_object.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_object_graph",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH",
+			"depends": [
+				"runtime_object"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_object_graph.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_internal.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_object.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_object_graph.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_object_graph.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_graph_contract.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_graph_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_graph_threads.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/object_graph/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"lib/value.h",
+				"test/test_value_weak.c",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "typed_array_object_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"typed_array",
+				"runtime_object_graph"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_array_object_graph.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_array.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/typed_container.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_value_recursive_graph.h"
+			]
+		},
+		{
+			"name": "typed_list_object_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"typed_list",
+				"runtime_object_graph"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_list_object_graph.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_list.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/typed_container.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_value_recursive_graph.h"
+			]
+		},
+		{
+			"name": "typed_set_object_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"typed_set",
+				"runtime_object_graph"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_set_object_graph.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_set.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/typed_container.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_value_recursive_graph.h"
+			]
+		},
+		{
+			"name": "typed_tree_object_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"typed_tree",
+				"runtime_object_graph"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_tree_object_graph.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_tree.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/typed_special.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_value_recursive_graph.h"
+			]
+		},
+		{
+			"name": "typed_dict_object_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"typed_dict",
+				"runtime_object_graph"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_typed_dict_object_graph.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/typed_dict.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/typed_container.h",
+				"lib/type.h",
+				"test/test_runtime_type.h",
+				"test/test_value_recursive_graph.h"
+			]
+		},
+		{
+			"name": "runtime_call",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_CALL",
+			"depends": [
+				"runtime_type",
+				"value"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_call.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_call.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_call.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_callable.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_call_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_call_threads.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/call/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xruntime/bench/bench_runtime_model.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_call.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"xrt.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_value_object",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_VALUE_OBJECT",
+			"depends": [
+				"runtime_object",
+				"value"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_value.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_value_object.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_object_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_object/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_value.md"
+			],
+			"legacy": [
+				"lib/value.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_value_callable",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_VALUE_CALLABLE",
+			"depends": [
+				"runtime_call"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_value.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_value_callable.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_callable_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_callable/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_value.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"lib/value.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_value_future",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_VALUE_FUTURE",
+			"depends": [
+				"runtime_type_future",
+				"value"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_value.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_value_future.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_future_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_future/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_value.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"xrt.h",
+				"test/test_future_core_impl.h"
+			]
+		},
+		{
+			"name": "runtime_type_future_typed_array_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"runtime_type_future",
+				"typed_array"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_type_future_typed_array.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_type_future.md",
+				"extlibs/xruntime/docs/api/typed_array.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"test/test_future_core_impl.h"
+			]
+		},
+		{
+			"name": "runtime_value_weak",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_VALUE_WEAK",
+			"depends": [
+				"runtime_object",
+				"value"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_value.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_value_weak.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_weak_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_weak/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_value.md"
+			],
+			"legacy": [
+				"lib/value.h",
+				"test/test_value_weak.c"
+			]
+		},
+		{
+			"name": "runtime_value_type",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_VALUE_TYPE",
+			"depends": [
+				"runtime_type",
+				"value_graph"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_value.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_value_type_copy.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_type_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_type/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_value.md"
+			],
+			"legacy": [
+				"lib/value.h",
+				"lib/type.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_value_trace",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_VALUE_TRACE",
+			"depends": [
+				"runtime_value_type",
+				"runtime_value_object"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_value.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_value_type.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_trace_contract.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_trace_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_trace/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_value.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/value.h",
+				"test/test_value_recursive_graph.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "runtime_value_roots",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_VALUE_ROOTS",
+			"depends": [
+				"runtime_value_trace",
+				"runtime_object_graph"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_value.h"
+			],
+			"internal_headers": [
+				"extlibs/xruntime/src/internal/xrt_runtime_value.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_value.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_value_roots.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_roots_oom.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/value_roots/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_value.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md",
+				"extlibs/xruntime/docs/design/runtime_object_model.md"
+			],
+			"legacy": [
+				"lib/value.h",
+				"test/test_runtime_type.h",
+				"test/test_value_recursive_graph.h"
+			]
+		},
+		{
+			"name": "runtime_dynamic_field",
+			"state": "implemented",
+			"feature": "XRUNTIME_FEATURE_RUNTIME_DYNAMIC_FIELD",
+			"depends": [
+				"runtime_field",
+				"typed_dict",
+				"runtime_object_graph",
+				"runtime_value_trace"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xrt/runtime_field.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_internal.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_object.h",
+				"extlibs/xruntime/src/internal/xrt_runtime_value.h",
+				"extlibs/xruntime/src/internal/xrt_typed_dict.h"
+			],
+			"sources": [
+				"extlibs/xruntime/src/runtime/runtime_dynamic_field.c"
+			],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field_contract.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/dynamic_field/main.c"
+			],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_dynamic_field.md",
+				"extlibs/xruntime/docs/api/runtime_field.md",
+				"extlibs/xruntime/docs/api/runtime_value.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md"
+			],
+			"legacy": [
+				"lib/type.h",
+				"lib/value.h",
+				"test/test_runtime_type.h",
+				"test/test_value_recursive_graph.h"
+			]
+		},
+		{
+			"name": "runtime_dynamic_field_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"runtime_dynamic_field",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "runtime_value_graph_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"runtime_value_object",
+				"runtime_value_callable",
+				"runtime_value_future",
+				"runtime_value_weak",
+				"value_graph"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_value_graph.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_graph_churn.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/docs/api/runtime_value.md"
+			],
+			"legacy": [
+				"lib/value.h",
+				"test/test_value_recursive_graph.h",
+				"test/test_runtime_type.h"
+			]
+		},
+		{
+			"name": "xruntime",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"runtime_type",
+				"runtime_convert",
+				"runtime_type_string",
+				"runtime_convert_string",
+				"value_convert",
+				"value_convert_string",
+				"runtime_type_string_value",
+				"runtime_type_future",
+				"runtime_field",
+				"typed_array",
+				"typed_queue",
+				"typed_queue_spsc",
+				"typed_queue_mpsc",
+				"typed_queue_mpmc",
+				"typed_stack",
+				"typed_tree",
+				"typed_list",
+				"typed_set",
+				"typed_dict",
+				"typed_value",
+				"typed_array_value",
+				"typed_list_value",
+				"typed_set_value",
+				"typed_dict_value",
+				"runtime_object",
+				"runtime_object_graph",
+				"runtime_call",
+				"runtime_value_object",
+				"runtime_value_callable",
+				"runtime_value_future",
+				"runtime_value_weak",
+				"runtime_value_type",
+				"runtime_value_trace",
+				"runtime_value_roots",
+				"runtime_dynamic_field"
+			],
+			"public_headers": [
+				"extlibs/xruntime/include/xruntime/features.h",
+				"extlibs/xruntime/include/xruntime.h"
+			],
+			"internal_headers": [],
+			"bridge_headers": [
+				"extlibs/xruntime/src/internal/xrt_array.h",
+				"extlibs/xruntime/src/internal/xrt_avl.h",
+				"extlibs/xruntime/src/internal/xrt_int_map.h",
+				"extlibs/xruntime/src/internal/xrt_internal.h",
+				"extlibs/xruntime/src/internal/xrt_map.h",
+				"extlibs/xruntime/src/internal/xrt_set.h",
+				"extlibs/xruntime/src/internal/xrt_value.h"
+			],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xruntime/tests/single/test_single_runtime_call.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_convert.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_convert_string.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_field.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_object.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_object_graph.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_type.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_type_future.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_type_string.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_type_string_value.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_callable.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_future.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_object.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_roots.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_trace.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_type.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_weak.c",
+				"extlibs/xruntime/tests/single/test_single_typed_array.c",
+				"extlibs/xruntime/tests/single/test_single_typed_array_object_graph.c",
+				"extlibs/xruntime/tests/single/test_single_typed_dict.c",
+				"extlibs/xruntime/tests/single/test_single_typed_dict_object_graph.c",
+				"extlibs/xruntime/tests/single/test_single_typed_list.c",
+				"extlibs/xruntime/tests/single/test_single_typed_list_object_graph.c",
+				"extlibs/xruntime/tests/single/test_single_typed_queue_mpmc.c",
+				"extlibs/xruntime/tests/single/test_single_typed_queue_mpsc.c",
+				"extlibs/xruntime/tests/single/test_single_typed_queue_object_graph.c",
+				"extlibs/xruntime/tests/single/test_single_typed_queue_spsc.c",
+				"extlibs/xruntime/tests/single/test_single_typed_set.c",
+				"extlibs/xruntime/tests/single/test_single_typed_set_object_graph.c",
+				"extlibs/xruntime/tests/single/test_single_typed_stack.c",
+				"extlibs/xruntime/tests/single/test_single_typed_tree.c",
+				"extlibs/xruntime/tests/single/test_single_typed_tree_object_graph.c",
+				"extlibs/xruntime/tests/single/test_single_typed_value.c",
+				"extlibs/xruntime/tests/single/test_single_value_convert.c",
+				"extlibs/xruntime/tests/single/test_single_value_convert_string.c"
+			],
+			"examples": [
+				"extlibs/xruntime/examples/runtime/type/main.c",
+				"extlibs/xruntime/examples/runtime/convert/main.c",
+				"extlibs/xruntime/examples/runtime/type_string/main.c",
+				"extlibs/xruntime/examples/runtime/convert_string/main.c",
+				"extlibs/xruntime/examples/runtime/value_convert/main.c",
+				"extlibs/xruntime/examples/runtime/value_convert_string/main.c",
+				"extlibs/xruntime/examples/runtime/type_future/main.c",
+				"extlibs/xruntime/examples/runtime/field/main.c",
+				"extlibs/xruntime/examples/runtime/typed_array/main.c",
+				"extlibs/xruntime/examples/runtime/typed_queue_spsc/main.c",
+				"extlibs/xruntime/examples/runtime/typed_queue_mpsc/main.c",
+				"extlibs/xruntime/examples/runtime/typed_queue_mpmc/main.c",
+				"extlibs/xruntime/examples/runtime/typed_stack/main.c",
+				"extlibs/xruntime/examples/runtime/typed_tree/main.c",
+				"extlibs/xruntime/examples/runtime/typed_list/main.c",
+				"extlibs/xruntime/examples/runtime/typed_set/main.c",
+				"extlibs/xruntime/examples/runtime/typed_dict/main.c",
+				"extlibs/xruntime/examples/runtime/typed_value/main.c",
+				"extlibs/xruntime/examples/runtime/typed_value_containers/main.c",
+				"extlibs/xruntime/examples/runtime/object/main.c",
+				"extlibs/xruntime/examples/runtime/object_graph/main.c",
+				"extlibs/xruntime/examples/runtime/call/main.c",
+				"extlibs/xruntime/examples/runtime/value_object/main.c",
+				"extlibs/xruntime/examples/runtime/value_callable/main.c",
+				"extlibs/xruntime/examples/runtime/value_future/main.c",
+				"extlibs/xruntime/examples/runtime/value_weak/main.c",
+				"extlibs/xruntime/examples/runtime/value_type/main.c",
+				"extlibs/xruntime/examples/runtime/value_trace/main.c",
+				"extlibs/xruntime/examples/runtime/value_roots/main.c",
+				"extlibs/xruntime/examples/runtime/dynamic_field/main.c"
+			],
+			"benchmarks": [
+				"extlibs/xruntime/bench/bench_runtime_model.c",
+				"extlibs/xruntime/bench/bench_typed_containers.c",
+				"extlibs/xruntime/bench/bench_typed_queue.c",
+				"extlibs/xruntime/bench/bench_object_graph.c",
+				"extlibs/xruntime/config/performance_profiles.json",
+				"extlibs/xruntime/config/size_profiles.json"
+			],
+			"docs": [
+				"extlibs/xruntime/README.md",
+				"extlibs/xruntime/docs/api/runtime_type.md",
+				"extlibs/xruntime/docs/api/runtime_convert.md",
+				"extlibs/xruntime/docs/api/runtime_type_string.md",
+				"extlibs/xruntime/docs/api/typed_value.md",
+				"extlibs/xruntime/docs/api/runtime_type_future.md",
+				"extlibs/xruntime/docs/api/runtime_field.md",
+				"extlibs/xruntime/docs/api/typed_array.md",
+				"extlibs/xruntime/docs/api/typed_containers.md",
+				"extlibs/xruntime/docs/api/typed_queue.md",
+				"extlibs/xruntime/docs/api/runtime_object_graph.md",
+				"extlibs/xruntime/docs/api/typed_stack.md",
+				"extlibs/xruntime/docs/api/typed_tree.md",
+				"extlibs/xruntime/docs/api/typed_list.md",
+				"extlibs/xruntime/docs/api/typed_set.md",
+				"extlibs/xruntime/docs/api/typed_dict.md",
+				"extlibs/xruntime/docs/api/runtime_object.md",
+				"extlibs/xruntime/docs/api/runtime_call.md",
+				"extlibs/xruntime/docs/api/runtime_value.md",
+				"extlibs/xruntime/docs/design/runtime_object_model.md",
+				"extlibs/xruntime/docs/api/runtime_dynamic_field.md",
+				"extlibs/xruntime/docs/api/reference.md"
+			],
+			"legacy": [],
+			"single_test_owners": {
+				"extlibs/xruntime/tests/single/test_single_runtime_call.c": "runtime_call",
+				"extlibs/xruntime/tests/single/test_single_runtime_convert.c": "runtime_convert",
+				"extlibs/xruntime/tests/single/test_single_runtime_convert_string.c": "runtime_convert_string",
+				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field.c": "runtime_dynamic_field",
+				"extlibs/xruntime/tests/single/test_single_runtime_field.c": "runtime_field",
+				"extlibs/xruntime/tests/single/test_single_runtime_object.c": "runtime_object",
+				"extlibs/xruntime/tests/single/test_single_runtime_object_graph.c": "runtime_object_graph",
+				"extlibs/xruntime/tests/single/test_single_runtime_type.c": "runtime_type",
+				"extlibs/xruntime/tests/single/test_single_runtime_type_future.c": "runtime_type_future",
+				"extlibs/xruntime/tests/single/test_single_runtime_type_string.c": "runtime_type_string",
+				"extlibs/xruntime/tests/single/test_single_runtime_type_string_value.c": "runtime_type_string_value",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_callable.c": "runtime_value_callable",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_future.c": "runtime_value_future",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_object.c": "runtime_value_object",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_roots.c": "runtime_value_roots",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_trace.c": "runtime_value_trace",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_type.c": "runtime_value_type",
+				"extlibs/xruntime/tests/single/test_single_runtime_value_weak.c": "runtime_value_weak",
+				"extlibs/xruntime/tests/single/test_single_typed_array.c": "typed_array",
+				"extlibs/xruntime/tests/single/test_single_typed_array_object_graph.c": "typed_array_object_tests",
+				"extlibs/xruntime/tests/single/test_single_typed_dict.c": "typed_dict",
+				"extlibs/xruntime/tests/single/test_single_typed_dict_object_graph.c": "typed_dict_object_tests",
+				"extlibs/xruntime/tests/single/test_single_typed_list.c": "typed_list",
+				"extlibs/xruntime/tests/single/test_single_typed_list_object_graph.c": "typed_list_object_tests",
+				"extlibs/xruntime/tests/single/test_single_typed_queue_mpmc.c": "typed_queue_mpmc",
+				"extlibs/xruntime/tests/single/test_single_typed_queue_mpsc.c": "typed_queue_mpsc",
+				"extlibs/xruntime/tests/single/test_single_typed_queue_object_graph.c": "typed_queue_object_tests",
+				"extlibs/xruntime/tests/single/test_single_typed_queue_spsc.c": "typed_queue_spsc",
+				"extlibs/xruntime/tests/single/test_single_typed_set.c": "typed_set",
+				"extlibs/xruntime/tests/single/test_single_typed_set_object_graph.c": "typed_set_object_tests",
+				"extlibs/xruntime/tests/single/test_single_typed_stack.c": "typed_stack",
+				"extlibs/xruntime/tests/single/test_single_typed_tree.c": "typed_tree",
+				"extlibs/xruntime/tests/single/test_single_typed_tree_object_graph.c": "typed_tree_object_tests",
+				"extlibs/xruntime/tests/single/test_single_typed_value.c": "xruntime",
+				"extlibs/xruntime/tests/single/test_single_value_convert.c": "value_convert",
+				"extlibs/xruntime/tests/single/test_single_value_convert_string.c": "value_convert_string"
+			}
+		},
+		{
+			"name": "xruntime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"xruntime",
+				"runtime_dynamic_field_oom_tests",
+				"runtime_value_graph_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xruntime/tests/runtime/test_runtime_type.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_threads.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_convert.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_string.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_string_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_convert_string.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_convert_string_oom.c",
+				"extlibs/xruntime/tests/runtime/test_value_convert.c",
+				"extlibs/xruntime/tests/runtime/test_value_convert_string.c",
+				"extlibs/xruntime/tests/runtime/test_value_convert_string_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_string_value.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_string_value_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_future.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_field.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_field_contract.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_field_threads.c",
+				"extlibs/xruntime/tests/runtime/test_typed_array.c",
+				"extlibs/xruntime/tests/runtime/test_typed_array_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_array_oom.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_spsc.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_spsc_threads.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_mpsc.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_mpsc_threads.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_mpmc.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_mpmc_threads.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_oom.c",
+				"extlibs/xruntime/tests/runtime/test_typed_queue_object_graph.c",
+				"extlibs/xruntime/tests/runtime/test_typed_stack.c",
+				"extlibs/xruntime/tests/runtime/test_typed_stack_oom.c",
+				"extlibs/xruntime/tests/runtime/test_typed_tree.c",
+				"extlibs/xruntime/tests/runtime/test_typed_tree_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_tree_oom.c",
+				"extlibs/xruntime/tests/runtime/test_typed_list.c",
+				"extlibs/xruntime/tests/runtime/test_typed_list_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_list_oom.c",
+				"extlibs/xruntime/tests/runtime/test_typed_set.c",
+				"extlibs/xruntime/tests/runtime/test_typed_set_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_set_oom.c",
+				"extlibs/xruntime/tests/runtime/test_typed_dict.c",
+				"extlibs/xruntime/tests/runtime/test_typed_dict_contract.c",
+				"extlibs/xruntime/tests/runtime/test_typed_dict_oom.c",
+				"extlibs/xruntime/tests/runtime/test_typed_value.c",
+				"extlibs/xruntime/tests/runtime/test_typed_value_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_threads.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_graph.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_graph_contract.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_graph_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_object_graph_threads.c",
+				"extlibs/xruntime/tests/runtime/test_typed_array_object_graph.c",
+				"extlibs/xruntime/tests/runtime/test_typed_list_object_graph.c",
+				"extlibs/xruntime/tests/runtime/test_typed_set_object_graph.c",
+				"extlibs/xruntime/tests/runtime/test_typed_tree_object_graph.c",
+				"extlibs/xruntime/tests/runtime/test_typed_dict_object_graph.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_call.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_callable.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_call_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_call_threads.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_object.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_object_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_callable.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_callable_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_future.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_future_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_type_future_typed_array.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_weak.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_weak_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_type_copy.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_type_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_type.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_trace_contract.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_trace_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_roots.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_roots_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field_contract.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field_oom.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_graph.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_value_graph_churn.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xruntime/README.md"
+			],
+			"legacy": []
+		}
+	]
+}

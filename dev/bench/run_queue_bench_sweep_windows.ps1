@@ -13,8 +13,7 @@ if (-not $OutDir) {
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
-$cflags = @("-O2", "-I", ".")
-$winlibs = @("-lws2_32", "-liphlpapi")
+$cflags = @("-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-Wno-unused-function")
 $itemsPerProducer = if ($env:XQUEUE_SWEEP_ITEMS_PER_PRODUCER) { [uint32]$env:XQUEUE_SWEEP_ITEMS_PER_PRODUCER } else { [uint32]250000 }
 $fixedCapacity = if ($env:XQUEUE_SWEEP_FIXED_CAPACITY) { [uint32]$env:XQUEUE_SWEEP_FIXED_CAPACITY } else { [uint32]4096 }
 $defaultMpscProducers = if ($env:XQUEUE_SWEEP_DEFAULT_MPSC_PRODUCERS) { [uint32]$env:XQUEUE_SWEEP_DEFAULT_MPSC_PRODUCERS } else { [uint32]4 }
@@ -125,7 +124,7 @@ function Invoke-QueueSweepRun {
 }
 
 try {
-	gcc dev/bench/queue/bench_queue_pointer.c xrt.c @cflags -o $benchExe @winlibs
+	gcc dev/bench/queue/bench_queue_pointer.c @cflags -o $benchExe
 
 	foreach ($capacity in $capacityList) {
 		Invoke-QueueSweepRun -Family "capacity" -Label ("cap-{0}" -f $capacity) -Capacity $capacity -MpscProducers $defaultMpscProducers -MpmcProducers $defaultMpmcProducers -MpmcConsumers $defaultMpmcConsumers

@@ -1,83 +1,80 @@
-# xmail extlibs plan
+# xmail
 
-`xmail` 是 xrt 官方邮件协议扩展族的规划入口。
+`xmail` 是只依赖 XRT 公共 API 的邮件内容与传输协议扩展。正式实现不复刻 socket、TLS、
+压缩、取消或截止时间能力，也不依赖 XRT 内部头文件。
 
-目标是在接入 xlang 之前，先在 xrt 的 `extlibs` 层完善邮件协议与 MIME 基础能力：
+## 分层
 
-- `xmail_mime`: 邮件 MIME 构建与解析
-- `xsmtp`: SMTP 发信
-- `xpop3`: POP3 收信
-- `ximap`: IMAP 收信与同步
+- `mail_content`：CRLF、Quoted-Printable、MIME Base64、Header、编码词、地址、日期、
+  Message-ID、RFC 2231 参数、multipart 游标、轻量消息视图、可选拥有型 MIME 树、流式
+  Builder 和高层 Compose。
+- `mail_transport`：增量线路、dot transparency、SMTP、POP3、IMAP，以及共享 TCP、TLS、
+  SASL 和 raw-DEFLATE 传输适配。
+- `src/mail`：纯邮件内容实现。
+- `src/transport`：跨协议共享的线路、网络、TLS、压缩和认证实现。
+- `src/smtp`、`src/pop3`、`src/imap`：协议专属解析、状态机和便利层。
 
-当前进度：
+内容和协议解析层使用借用视图与调用方缓冲，常用写出接口支持精确容量，不强制建立消息
+对象树。网络客户端借用调用方 Engine、Resolver、TLS Context 和 Verifier，不隐藏共享对象
+生命周期；所有阻塞等待统一接受 deadline 和 cancel。
 
-- `xmail_mime` 已建立目录和本地测试，已支持基础编码、常用 MIME 构建、附件与 inline 资源
-- `xsmtp` 已有独立 SMTP 发信能力，DATA MIME 构建已回改复用 `xmail_mime`
-- `xpop3` 已建立官方扩展骨架、本地 mock server 测试和 MIME 解析接入
-- `ximap` 已建立官方扩展骨架、本地 mock server 测试、UID FETCH MIME 与 BODYSTRUCTURE 基础解析
-- xlang `x.mail.mime`、`x.mail.smtp`、`x.mail.pop3`、`x.mail.imap` source package 已创建，并已接到 `xmail_xlang` native JSON ABI；MIME build/parse 已接入真实 `xmail_mime`，SMTP capability/send 已接入真实 `xsmtp` 映射并通过本地 JSON ABI mock 能力查询和发送闭环，POP3 capability/status/list/fetch/delete_message 已接入真实 `xpop3` 映射并通过本地 JSON ABI mock 能力查询、邮箱状态、收信和显式删除闭环，IMAP capability/status/list/search/fetch/bodystructure/fetch_flags/store_flags/expunge/idle_probe/idle/watch 已接入真实 `ximap` 映射并通过本地 JSON ABI mock 能力查询、邮箱状态、邮箱目录、搜索、MIME fetch、header-only fetch、BODYSTRUCTURE、flags 读取/修改、EXPUNGE/UID EXPUNGE、短 IDLE 探针、有限 IDLE 事件收集和 watch loop 闭环
-- 四个 xlang source package 的 `package.json` exports 已与源码 `export` 列表核对一致。
-- `xmail.h` 是聚合头，可一次性包含 `xmail_mime`、`xsmtp`、`xpop3`、`ximap` 与 `xmail_xlang` 声明；各协议单头仍可按需单独包含。`xmail_xlang_test.c` 和 `xmail_live_test.c` 已改为通过该聚合头获取声明。
-- `xmail/build_test.bat` 会构建并运行 `xmail_xlang_test`，用于聚合验证 native JSON ABI 到 MIME、SMTP、POP3、IMAP 的本地闭环；同时只编译不运行 `xmail_live_test`，避免无凭据环境触发真实网络。
-- 真实 QQ 邮箱验证已开始：SMTP 587 STARTTLS、IMAPS 993、POP3S 995 均已在默认 peer verify 下完成真实闭环；本机 WSL2 Postfix + Dovecot 已完成 SMTP 投递到 Maildir、IMAP 143 STARTTLS、POP3 110 STLS 和 IMAP IDLE 真实事件样本；SMTP/POP3/IMAP TLS 失败结果已补 `tls=` 诊断码，POP3/IMAP socket 失败结果已补 `sys=` 诊断码
+邮件构建分为两层：`mail_build` 直接向 sink 写字段、原始正文和 multipart part，不持有
+正文；`mail_compose` 才提供文本、HTML、内联资源和附件的常见结构。只需要高性能原始
+报文路径时，不会被迫携带高层消息描述和自动生成逻辑。
 
-## 最小使用路径
+## 能力
 
-1. 只需要构建或解析邮件内容时，直接包含 `../xmail_mime/xmail_mime.h`。
-2. 需要发信时，使用 `xsmtp/xsmtp.h`，邮件内容构建会复用 `xmail_mime`。
-3. 需要 POP3 收信时，使用 `xpop3/xpop3.h`，`RETR MIME` 会交给 `xmail_mime` 解析。
-4. 需要 IMAP 收信或同步时，使用 `ximap/ximap.h`，`UID FETCH MIME` 会交给 `xmail_mime` 解析。
-5. 需要一次性拿到全部邮件扩展声明时，包含 `xmail/xmail.h`。
+SMTP 提供响应与 EHLO 能力解析、安全命令写出、流式 DATA、零拷贝 CHUNKING/BDAT、
+BINARYMIME 能力检查、独立或消息派生 envelope 提交、隐式 TLS、STARTTLS，以及 PLAIN、
+LOGIN、XOAUTH2 认证。高层提交把 Compose 片段直接送入 dot writer 和网络，不创建整封
+临时报文。
 
-## 本地验证
+POP3 提供状态、STAT/LIST/UIDL、CAPA、安全命令写出、流式 RETR/TOP、owned 消息与 MIME
+树桥接、隐式 TLS、STLS，以及统一 USER/PASS、PLAIN、XOAUTH2、OAUTHBEARER 认证。普通
+命令和 SASL continuation 使用独立行长限制，密码默认禁止明文发送，bearer 凭据强制 TLS。
 
-在 `D:\git\xrt\extlibs\xmail` 运行：
+IMAP 提供响应、literal、响应码、数字响应、CAPABILITY、借用数据游标、零分配
+BODYSTRUCTURE 语义视图、显式 tag 流水线、顺序命令、IDLE、常用邮箱与消息命令、
+BODY section 流式/owned/MIME 树桥接、流式
+APPEND、隐式 TLS、STARTTLS、LOGIN/PLAIN/XOAUTH2/OAUTHBEARER，以及 RFC 4978
+COMPRESS=DEFLATE。未知扩展仍可通过公开低层线路和原始响应视图实现。
 
-```bat
-build_test.bat
+## 裁剪
+
+只选择内容与协议原语：
+
+```c
+#define XMAIL_MODULE_XMAIL
+#include <xmail.h>
 ```
 
-该脚本会编译并运行 `xmail_xlang_test.c` 和 `xmail_aggregate_test.c`，同时编译 `xmail_live_test.c`；真实服务商测试程序只做编译检查。
+选择完整扩展：
 
-## 实时验证
+```c
+#define XMAIL_MODULE_ALL
+#include <xmail.h>
+```
 
-`xmail_live_test.c` 是可选真实服务商测试程序，只从环境变量读取凭据，不把真实配置写入仓库。
+也可以选择单个层，例如 `XMAIL_MODULE_MAIL_BUILD`、`XMAIL_MODULE_MAIL_COMPOSE`、
+`XMAIL_MODULE_MAIL_MESSAGE`、`XMAIL_MODULE_MAIL_TREE`、`XMAIL_MODULE_SMTP_SUBMIT`、
+`XMAIL_MODULE_SMTP_CLIENT_TLS`、
+`XMAIL_MODULE_POP3_AUTH`、`XMAIL_MODULE_POP3_MESSAGE`、`XMAIL_MODULE_IMAP_BODY`、
+`XMAIL_MODULE_IMAP_COMMAND`、
+`XMAIL_MODULE_IMAP_MESSAGE`、`XMAIL_MODULE_IMAP_APPEND` 或
+`XMAIL_MODULE_IMAP_COMPRESS`。每个模块宏只展开清单声明的依赖闭包；TLS、认证、常用命令、
+APPEND 和压缩互相独立。
 
-常用环境变量：
+## 验证
 
-- `XMAIL_LIVE_EMAIL`
-- `XMAIL_LIVE_PASSWORD`
-- `XMAIL_LIVE_SUBJECT`
-- `XMAIL_LIVE_SMTP_HOST` / `XMAIL_LIVE_SMTP_PORT` / `XMAIL_LIVE_SMTP_SECURE`
-- `XMAIL_LIVE_SMTP_AUTH` / `XMAIL_LIVE_SMTP_EXPECT_TLS`，用于本机 Postfix 等无认证明文 SMTP 测试
-- `XMAIL_LIVE_IMAP_HOST` / `XMAIL_LIVE_IMAP_PORT` / `XMAIL_LIVE_IMAP_SECURE`
-- `XMAIL_LIVE_POP3_HOST` / `XMAIL_LIVE_POP3_PORT` / `XMAIL_LIVE_POP3_SECURE`
-- `XMAIL_LIVE_SMTP_TLS_MAX_VERSION` / `XMAIL_LIVE_IMAP_TLS_MAX_VERSION` / `XMAIL_LIVE_POP3_TLS_MAX_VERSION`，可填 `tls1.2`、`tls1.3` 或数值版本
-- `XMAIL_LIVE_SMTP_CA_FILE` / `XMAIL_LIVE_IMAP_CA_FILE` / `XMAIL_LIVE_POP3_CA_FILE`，可选 PEM CA bundle 路径
-- `XMAIL_LIVE_VERIFY_PEER`
-- `XMAIL_LIVE_SKIP_SMTP` / `XMAIL_LIVE_SKIP_IMAP` / `XMAIL_LIVE_SKIP_POP3`
+```text
+python tools/amalgamate.py --manifest extlibs/xmail/config/modules.json
+python tools/build.py --compiler gcc --manifest extlibs/xmail/config/modules.json --suite xmail_tests --cflag=-Werror
+python tools/build.py --compiler gcc --manifest extlibs/xmail/config/modules.json --suite xmail --trim-only --cflag=-Werror
+python tools/check_api_docs.py --manifest extlibs/xmail/config/modules.json
+python tools/check_release_maturity.py --release --manifest extlibs/xmail/config/modules.json
+python tools/measure_performance.py --config extlibs/xmail/config/performance_profiles.json --manifest extlibs/xmail/config/modules.json --profiles '*'
+python tools/measure_size.py --config extlibs/xmail/config/size_profiles.json --manifest extlibs/xmail/config/modules.json --profiles '*'
+```
 
-已验证事实：
-
-- QQ SMTP 587 STARTTLS 在默认 peer verify 下发信成功，收件端已收到 `xmail-live-*` 主题邮件。
-- QQ IMAPS 993 和 POP3S 995 在默认 peer verify 下已完成真实收信闭环；本机 WSL2 Postfix + Dovecot 已完成 SMTP 明文无认证投递到 Maildir，再由 IMAP 143 STARTTLS 与 POP3 110 STLS 收信的闭环，Windows 侧 SMTP 建议使用当前 WSL IP 直连 25 端口；本机 Dovecot 还通过 `ximap_dovecot_idle_live_test.c` 验证了真实 IDLE `EXISTS` 事件推送；本次修复点包括 TLS 握手后先尝试解密内部密文缓冲、阻塞 TLS 握手内部 pending 数据继续 drive，以及 XRT TLS 叶子证书解析时即时匹配 DNS/IP SAN，避免多域名证书中 `imap.qq.com` / `pop.qq.com` 因固定 SAN 缓存截断被误判。
-- QQ POP3 110 不支持 `STLS`；POP3 测试应优先修复 995 隐式 TLS。
-
-## 收信语义
-
-- POP3 `RETR` 不会自动删除邮件；只有 xlang `delete_message` / native 显式 `DELE` 或 future 选项 `bDeleteAfterRetr` 才会进入删除流程。
-- IMAP `FETCH/UID FETCH` 不会删除邮件；打开或读取后即使被标记为 `\Seen`，仍可继续按 UID 或搜索结果读取。
-
-## 安全建议
-
-- 不要把真实邮箱密码、应用专用密码、OAuth2 token 或测试服务凭据提交到仓库。
-- 真实网络验证应使用本地未跟踪配置、环境变量或临时测试程序。
-- 生产环境默认启用 TLS 证书校验；只有受控本地调试才考虑关闭校验。
-- 日志只记录协议阶段、服务端回复和错误摘要，避免输出认证负载。
-- 收信侧不要默认信任 MIME 附件文件名；上层保存附件前应做路径和文件名规范化。
-
-文档：
-
-- [xmail-mail-protocols-spec.md](xmail-mail-protocols-spec.md)
-- [xmail-mail-protocols-design.md](xmail-mail-protocols-design.md)
-- [xmail-xlang-api-contract.md](xmail-xlang-api-contract.md)
+根目录中的旧协议设计稿和 `xmail_xlang` 文件是历史迁移资产，不进入当前模块清单、公共头、
+单头或发布包。正式 API、测试和文档分别以 `include`、`tests` 与 `docs/api` 为准。

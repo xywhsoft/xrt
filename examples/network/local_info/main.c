@@ -1,38 +1,27 @@
-/*
- * XRT Example - Local Info
- * XRT 范例 - 本机网络信息
- *
- * Description / 说明:
- *   EN: Demonstrates local IP, MAC and host name queries.
- *   CN: 演示本机 IP、MAC 和主机名获取。
- *
- * Build / 编译:
- *   tcc main.c -o ../../bin/network_local_info.exe -lWs2_32 -lIPHLPAPI -lShell32
- *   gcc main.c -o ../../bin/network_local_info -lm -lpthread
- */
-#include "../../../xrt.c"
+#include <stdio.h>
+
+#include <xrt.h>
 
 
-int main()
+
+/* 一次读取适合启动日志和诊断页展示的本机网络信息。 */
+int main(void)
 {
-	str sIP;
-	str sMAC;
-	str sName;
+	str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
+	str sHost = xrtNetHostNameString();
+	str sHardware = xrtNetLocalHardwareString();
 
-	xrtInit();
-
-	sIP = xrtGetLocalIP();
-	sMAC = xrtGetLocalMAC();
-	sName = xrtGetLocalName();
-
-	printf("local_name = %s\n", sName);
-	printf("local_ip = %s\n", sIP);
-	printf("local_mac = %s\n", sMAC);
-
-	xrtFree(sIP);
-	xrtFree(sMAC);
-	xrtFree(sName);
-
-	xrtUnit();
+	if ( (sAddress == NULL) || (sHost == NULL) ) {
+		xrtFree(sAddress);
+		xrtFree(sHost);
+		xrtFree(sHardware);
+		return 1;
+	}
+	printf("host = %s\n", sHost);
+	printf("address = %s\n", sAddress);
+	printf("hardware = %s\n", sHardware != NULL ? sHardware : "unavailable");
+	xrtFree(sHardware);
+	xrtFree(sHost);
+	xrtFree(sAddress);
 	return 0;
 }

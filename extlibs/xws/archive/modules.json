@@ -1,0 +1,1899 @@
+{
+	"schema": 1,
+	"state": "archived",
+	"source": "xrt WebSocket boundary split",
+	"modules": [
+		{
+			"name": "websocket_http_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_HTTP_FUTURE",
+			"depends": [
+				"websocket_connection"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http_future.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http_future.h"
+			],
+			"sources": [
+				"src/websocket/http_future.c"
+			],
+			"tests": [
+				"tests/websocket/test_http_future_result.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http_future_result.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h"
+			]
+		},
+		{
+			"name": "websocket_server",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_SERVER",
+			"depends": [
+				"websocket_handshake",
+				"websocket_connection",
+				"http_upgrade",
+				"http_server_upgrade"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http.h"
+			],
+			"sources": [
+				"src/websocket/server.c"
+			],
+			"tests": [
+				"tests/websocket/test_http_handshake.c",
+				"tests/websocket/test_http_handoff.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_server.c"
+			],
+			"examples": [],
+			"benchmarks": [
+				"dev/bench/websocket/bench_websocket_loopback.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h",
+				"xrt.h"
+			]
+		},
+		{
+			"name": "websocket_server_router",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_SERVER_ROUTER",
+			"depends": [
+				"websocket_server",
+				"http_server_router"
+			],
+			"public_headers": [
+				"include/xrt/websocket_server_router.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_server_router.h"
+			],
+			"sources": [
+				"src/websocket/server_router.c",
+				"src/websocket/server_router_events.c"
+			],
+			"tests": [
+				"tests/websocket/test_server_router_contract.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_server_router.c"
+			],
+			"examples": [
+				"examples/websocket/server_router/main.c"
+			],
+			"docs": [
+				"docs/api/websocket_server_router.md",
+				"docs/api/websocket.md",
+				"docs/api/http_server_router.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_server_router_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server_router",
+				"websocket_client"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_server_router.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_server_router_runtime.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket_server_router.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_server_router_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server_router",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_server_router_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket_server_router.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_server_router_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server_router",
+				"http_server_router_tls",
+				"websocket_server_tls",
+				"websocket_client_https",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_server_router_tls.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_server_router_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket_server_router.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_server_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_SERVER_FUTURE",
+			"depends": [
+				"websocket_server",
+				"websocket_http_future",
+				"future_bridge"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http_future.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http_future.h",
+				"src/internal/xrt_future_bridge.h"
+			],
+			"sources": [
+				"src/websocket/server_future.c"
+			],
+			"tests": [
+				"tests/websocket/test_http_handoff.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_server_future.c"
+			],
+			"examples": [
+				"examples/websocket/http_server_future/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"lib/xnet_sync.h"
+			]
+		},
+		{
+			"name": "websocket_server_tls",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_SERVER_TLS",
+			"depends": [
+				"websocket_server",
+				"websocket_connection_tls",
+				"http_server_tls"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http.h"
+			],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"examples/websocket/http_server/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_server_deflate",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_SERVER_DEFLATE",
+			"depends": [
+				"websocket_server",
+				"websocket_connection_deflate",
+				"websocket_deflate"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http.h"
+			],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_server_deflate.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_server_deflate.c"
+			],
+			"examples": [
+				"examples/websocket/http_server/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_client",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CLIENT",
+			"depends": [
+				"websocket_keygen",
+				"websocket_connection",
+				"http_upgrade",
+				"http_client"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http.h"
+			],
+			"sources": [
+				"src/websocket/client.c"
+			],
+			"tests": [
+				"tests/websocket/test_http_client_invalid.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h",
+				"xrt.h"
+			]
+		},
+		{
+			"name": "websocket_client_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CLIENT_FUTURE",
+			"depends": [
+				"websocket_client",
+				"websocket_http_future",
+				"future_bridge"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http_future.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http_future.h",
+				"src/internal/xrt_future_bridge.h",
+				"src/internal/xrt_http_client_runtime.h"
+			],
+			"sources": [
+				"src/websocket/client_future.c"
+			],
+			"tests": [
+				"tests/websocket/test_http_client_future.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_client_future.c"
+			],
+			"examples": [
+				"examples/websocket/http_client_future/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"lib/xnet_sync.h"
+			]
+		},
+		{
+			"name": "websocket_http_future_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_client_future",
+				"websocket_server_future",
+				"future_coroutine",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_future.c",
+				"tests/websocket/test_http_future_oom.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http_future.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"lib/xnet_sync.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_future_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_future_tests",
+				"websocket_server_tls",
+				"websocket_client_https",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_future_tls.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http_future_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"lib/nettls.h",
+				"lib/xnet_sync.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_future_tls_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_future_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_future_tls_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"lib/nettls.h",
+				"lib/xnet_port_iocp.h",
+				"lib/xnet_sync.h"
+			]
+		},
+		{
+			"name": "websocket_http_future_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_future_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_future_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xnet_port_iocp.h",
+				"lib/xws.h",
+				"lib/xnet_sync.h"
+			]
+		},
+		{
+			"name": "websocket_client_deflate",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CLIENT_DEFLATE",
+			"depends": [
+				"websocket_client",
+				"websocket_connection_deflate",
+				"websocket_deflate"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http.h"
+			],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_client_deflate.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"examples/websocket/http_client/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_client_https",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CLIENT_HTTPS",
+			"depends": [
+				"websocket_client",
+				"websocket_connection_tls",
+				"http_client_https"
+			],
+			"public_headers": [
+				"include/xrt/websocket_http.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_http.h"
+			],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"examples/websocket/http_client/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server",
+				"websocket_client"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http.c",
+				"tests/websocket/test_http_handoff.c",
+				"tests/websocket/test_http_client_handoff.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_iocp.c",
+				"tests/websocket/test_http_client_invalid_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_client_proxy_http_connect",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_client",
+				"http_client_proxy_http_connect"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"examples/websocket/http_client_proxy/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/api/proxy.md"
+			],
+			"legacy": [
+				"examples/xws/client_proxy/main.c"
+			]
+		},
+		{
+			"name": "websocket_http_proxy_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_client_proxy_http_connect",
+				"net_port_select"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_proxy.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http_proxy_transport.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/api/proxy.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_http_proxy_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_proxy_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_proxy_iocp.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http_proxy_transport_iocp.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_http_deflate_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server_deflate",
+				"websocket_client_deflate"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_deflate.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http_deflate.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_deflate_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_deflate_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_deflate_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server_tls",
+				"websocket_client_https",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_tls.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"lib/nettls.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_tls_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_tls_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"lib/nettls.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_tls_deflate_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_tls_tests",
+				"websocket_http_deflate_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_tls_deflate.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_http_tls_deflate.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_http_tls_deflate_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_tls_deflate_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_tls_deflate_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_interop_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_deflate_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_interop_peer.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/interop_xws_peer.c",
+				"test/run_xws_interop.py"
+			]
+		},
+		{
+			"name": "websocket_reconnect_stress_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_deflate_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_http_reconnect.c",
+				"tests/websocket/test_http_reconnect_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/stress_xws_reconnect.c",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CONNECTION",
+			"depends": [
+				"websocket_message",
+				"random_secure",
+				"net_tcp"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [
+				"src/websocket/connection.c"
+			],
+			"tests": [
+				"tests/websocket/test_connection.c",
+				"tests/websocket/test_connection_iocp.c",
+				"tests/websocket/test_connection_protocol.c",
+				"tests/websocket/test_connection_protocol_iocp.c",
+				"tests/websocket/test_connection_invalid.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_connection.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_ref",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CONNECTION_REF",
+			"depends": [
+				"websocket_connection"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [
+				"src/websocket/connection_ref.c"
+			],
+			"tests": [
+				"tests/websocket/test_connection.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_connection.c"
+			],
+			"examples": [
+				"examples/websocket/connection_ref/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_ref_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_ref",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_WRITER",
+			"depends": [
+				"websocket_connection"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [
+				"src/websocket/writer.c"
+			],
+			"tests": [
+				"tests/websocket/test_connection.c",
+				"tests/websocket/test_writer_abandon.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_connection.c"
+			],
+			"examples": [
+				"examples/websocket/writer/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_deflate",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_WRITER_DEFLATE",
+			"depends": [
+				"websocket_writer",
+				"websocket_connection_deflate"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [
+				"src/websocket/writer_deflate.c"
+			],
+			"tests": [
+				"tests/websocket/test_writer_deflate.c",
+				"tests/websocket/test_connection.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_writer_deflate.c"
+			],
+			"examples": [
+				"examples/websocket/writer_deflate/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_writer_deflate_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_deflate",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_iocp.c",
+				"tests/websocket/test_writer_abandon_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_ref",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_WRITER_REF",
+			"depends": [
+				"websocket_writer",
+				"websocket_connection_ref"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_connection.c"
+			],
+			"examples": [
+				"examples/websocket/writer_ref/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_ref_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_ref",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CONNECTION_FUTURE",
+			"depends": [
+				"websocket_connection",
+				"future"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [
+				"src/websocket/connection_future.c"
+			],
+			"tests": [
+				"tests/websocket/test_connection_future.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_connection_future.c"
+			],
+			"examples": [
+				"examples/websocket/connection_future/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_session_channel_coroutine",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_future",
+				"channel_coroutine",
+				"future_coroutine"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"examples/websocket/session_channel_coroutine/main.c"
+			],
+			"docs": [
+				"docs/design/websocket-session.md"
+			],
+			"legacy": [
+				"docs/case/xws-session-queue-coroutine.en.md",
+				"docs/case/xws-session-queue-coroutine.md"
+			]
+		},
+		{
+			"name": "websocket_connection_ref_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE",
+			"depends": [
+				"websocket_connection_ref",
+				"websocket_connection_future"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [
+				"src/websocket/connection_future.c"
+			],
+			"tests": [
+				"tests/websocket/test_connection_ref_future.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_connection_ref_future.c"
+			],
+			"examples": [
+				"examples/websocket/connection_ref_future/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_connection_ref_future_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_ref_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_ref_future_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_GROUP",
+			"depends": [
+				"websocket_connection",
+				"set",
+				"mutex"
+			],
+			"public_headers": [
+				"include/xrt/websocket_group.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_group.h"
+			],
+			"sources": [
+				"src/websocket/group.c"
+			],
+			"tests": [],
+			"single_tests": [
+				"tests/single/test_single_websocket_group.c"
+			],
+			"examples": [
+				"examples/websocket/group/main.c"
+			],
+			"docs": [
+				"docs/api/websocket_group.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_GROUP_FUTURE",
+			"depends": [
+				"websocket_group",
+				"websocket_connection_ref_future",
+				"future"
+			],
+			"public_headers": [
+				"include/xrt/websocket_group.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_future.h",
+				"src/internal/xrt_websocket_group.h",
+				"src/internal/xrt_websocket_group_future.h"
+			],
+			"sources": [
+				"src/websocket/group_future.c",
+				"src/websocket/group_broadcast.c"
+			],
+			"tests": [],
+			"single_tests": [
+				"tests/single/test_single_websocket_group_future.c"
+			],
+			"examples": [
+				"examples/websocket/group_future/main.c"
+			],
+			"docs": [
+				"docs/api/websocket_group.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_future_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_group_future.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket_group.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_future_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_group_future_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket_group.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group",
+				"websocket_connection_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_group.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket_group.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group_tests",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_group_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket_group.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_connection_future_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_future",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_future_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_future_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer",
+				"websocket_connection_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_future.c",
+				"tests/websocket/test_writer_future_abandon.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_future_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_future_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_future_iocp.c",
+				"tests/websocket/test_writer_future_abandon_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_future_coroutine_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_future",
+				"future_coroutine"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_future_coroutine.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_future_deflate_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_future",
+				"websocket_connection_deflate"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_future_deflate.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_tls",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CONNECTION_TLS",
+			"depends": [
+				"websocket_connection",
+				"tls_stream"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_invalid.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_tls",
+				"tls_stream_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls.c",
+				"tests/websocket/test_connection_tls_iocp.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_connection_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_tls_ref_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_tls_tests",
+				"websocket_connection_ref"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_tls_ref_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_tls_ref_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer",
+				"websocket_connection_tls_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_tls_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_deflate_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_deflate",
+				"websocket_connection_tls_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_deflate_tls_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_deflate_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_deflate_ref_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_deflate_tls_tests",
+				"websocket_writer_ref"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_deflate_ref_tls_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_deflate_ref_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_ref_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_ref",
+				"websocket_connection_tls_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_writer_ref_tls_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_ref_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_tls_future_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_tls_tests",
+				"websocket_connection_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls_future.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_tls_future_iocp_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection_tls_future_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_tls_future_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"test/test_xnet_ws.h"
+			]
+		},
+		{
+			"name": "websocket_connection_deflate",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_CONNECTION_DEFLATE",
+			"depends": [
+				"websocket_connection",
+				"websocket_inflater",
+				"websocket_deflater"
+			],
+			"public_headers": [
+				"include/xrt/websocket.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket.h"
+			],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_connection_deflate_config.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md",
+				"docs/design/websocket-runtime.md"
+			],
+			"legacy": [
+				"lib/xws.h",
+				"test/test_xnet_ws.h"
+			]
+		}
+	]
+}

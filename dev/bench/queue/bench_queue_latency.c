@@ -1,13 +1,29 @@
-#include "../xnet2/bench_common.h"
-#include "../../../xrt.h"
+#include "../bench_common.h"
+
+#define XRT_FEATURE_TIME
+#define XRT_FEATURE_WAIT
+#define XRT_FEATURE_THREAD
+#define XRT_FEATURE_ATOMIC
+#define XRT_FEATURE_QUEUE
+#define XRT_FEATURE_QUEUE_MPSC
+#define XRT_FEATURE_QUEUE_MPMC
+#define XRT_IMPLEMENTATION
+#include "../../../single/xrt.h"
+
 #include <math.h>
 
+
+
+/* 保存一条进入队列时带单调时间戳的测量消息。 */
 typedef struct {
 	uint64_t iEnqueueNs;
 	uint32_t iProducerId;
 	uint32_t iSequence;
 } __bench_queue_msg;
 
+
+
+/* 保存一组延迟样本的汇总指标。 */
 typedef struct {
 	uint64_t iElapsedNs;
 	uint64_t iItemCount;
@@ -17,6 +33,9 @@ typedef struct {
 	double fP99Us;
 } __bench_latency_metrics;
 
+
+
+/* 保存 MPMC 消费者分配的公平性指标。 */
 typedef struct {
 	uint64_t iMinItems;
 	uint64_t iMaxItems;
@@ -24,8 +43,11 @@ typedef struct {
 	double fMaxToMinRatio;
 } __bench_fairness_metrics;
 
+
+
+/* 保存一个 MPSC 延迟生产者的测量参数。 */
 typedef struct {
-	xmpscq hQueue;
+	xmpscqueue* hQueue;
 	__bench_queue_msg* arrMessages;
 	uint32_t iCount;
 	uint32_t iProducerId;
@@ -35,8 +57,11 @@ typedef struct {
 	volatile long* pFailure;
 } __bench_mpsc_latency_prod_ctx;
 
+
+
+/* 保存 MPSC 延迟消费者的测量参数。 */
 typedef struct {
-	xmpscq hQueue;
+	xmpscqueue* hQueue;
 	uint32_t iBatchSize;
 	uint64_t* arrLatencyNs;
 	volatile long* pStart;
@@ -45,8 +70,11 @@ typedef struct {
 	volatile long* pFailure;
 } __bench_mpsc_latency_cons_ctx;
 
+
+
+/* 保存一个 MPMC 延迟生产者的测量参数。 */
 typedef struct {
-	xmpmcq hQueue;
+	xmpmcqueue* hQueue;
 	__bench_queue_msg* arrMessages;
 	uint32_t iCount;
 	uint32_t iProducerId;
@@ -56,8 +84,11 @@ typedef struct {
 	volatile long* pFailure;
 } __bench_mpmc_latency_prod_ctx;
 
+
+
+/* 保存一个 MPMC 延迟消费者的测量参数。 */
 typedef struct {
-	xmpmcq hQueue;
+	xmpmcqueue* hQueue;
 	uint32_t iBatchSize;
 	uint32_t iConsumerId;
 	uint64_t* arrLatencyNs;
@@ -68,36 +99,70 @@ typedef struct {
 	volatile long* pFailure;
 } __bench_mpmc_latency_cons_ctx;
 
+
+
+/* 为 qsort 比较两个纳秒延迟样本。 */
 static int __benchLatencyCmp(const void* pA, const void* pB)
 {
 	const uint64_t* pLeft = (const uint64_t*)pA;
 	const uint64_t* pRight = (const uint64_t*)pB;
-	if ( *pLeft < *pRight ) return -1;
-	if ( *pLeft > *pRight ) return 1;
+
+	if ( *pLeft < *pRight ) {
+		return -1;
+	}
+	if ( *pLeft > *pRight ) {
+		return 1;
+	}
 	return 0;
 }
 
-static double __benchLatencyPercentileUs(const uint64_t* arrLatencyNs, uint32_t iCount, double fQuantile)
+
+
+/* 从已经排序的纳秒样本中读取指定分位数并换算为微秒。 */
+static double __benchLatencyPercentileUs(
+	const uint64_t* arrLatencyNs,
+	uint32_t iCount,
+	double fQuantile
+)
 {
 	uint32_t iIndex;
-	if ( !arrLatencyNs || iCount == 0u ) return 0.0;
-	if ( fQuantile <= 0.0 ) return (double)arrLatencyNs[0] / 1000.0;
-	if ( fQuantile >= 1.0 ) return (double)arrLatencyNs[iCount - 1u] / 1000.0;
+
+	if ( (arrLatencyNs == NULL) || (iCount == 0u) ) {
+		return 0.0;
+	}
+	if ( fQuantile <= 0.0 ) {
+		return (double)arrLatencyNs[0] / 1000.0;
+	}
+	if ( fQuantile >= 1.0 ) {
+		return (double)arrLatencyNs[iCount - 1u] / 1000.0;
+	}
 	iIndex = (uint32_t)((double)(iCount - 1u) * fQuantile);
 	return (double)arrLatencyNs[iIndex] / 1000.0;
 }
 
-static int __benchFinalizeLatencyMetrics(uint64_t* arrLatencyNs, uint32_t iCount, uint64_t iElapsedNs, __bench_latency_metrics* pMetrics)
+
+
+/* 排序延迟样本并生成平均值和关键分位数。 */
+static int __benchFinalizeLatencyMetrics(
+	uint64_t* arrLatencyNs,
+	uint32_t iCount,
+	uint64_t iElapsedNs,
+	__bench_latency_metrics* pMetrics
+)
 {
-	uint64_t iSumNs = 0u;
+	long double fSumNs = 0.0;
 	uint32_t i;
 
-	if ( !arrLatencyNs || !pMetrics || iCount == 0u ) {
+	if (
+		(arrLatencyNs == NULL) ||
+		(pMetrics == NULL) ||
+		(iCount == 0u)
+	) {
 		return 1;
 	}
 
 	for ( i = 0; i < iCount; ++i ) {
-		iSumNs += arrLatencyNs[i];
+		fSumNs += (long double)arrLatencyNs[i];
 	}
 
 	qsort(arrLatencyNs, iCount, sizeof(uint64_t), __benchLatencyCmp);
@@ -105,14 +170,22 @@ static int __benchFinalizeLatencyMetrics(uint64_t* arrLatencyNs, uint32_t iCount
 	memset(pMetrics, 0, sizeof(*pMetrics));
 	pMetrics->iElapsedNs = iElapsedNs;
 	pMetrics->iItemCount = iCount;
-	pMetrics->fAvgUs = (double)iSumNs / (double)iCount / 1000.0;
+	pMetrics->fAvgUs = (double)(fSumNs / (long double)iCount / 1000.0);
 	pMetrics->fP50Us = __benchLatencyPercentileUs(arrLatencyNs, iCount, 0.50);
 	pMetrics->fP95Us = __benchLatencyPercentileUs(arrLatencyNs, iCount, 0.95);
 	pMetrics->fP99Us = __benchLatencyPercentileUs(arrLatencyNs, iCount, 0.99);
 	return 0;
 }
 
-static void __benchComputeFairnessMetrics(const uint64_t* arrCounts, uint32_t iCount, uint64_t iTotalCount, __bench_fairness_metrics* pMetrics)
+
+
+/* 根据每个消费者的处理数量计算负载离散程度。 */
+static void __benchComputeFairnessMetrics(
+	const uint64_t* arrCounts,
+	uint32_t iCount,
+	uint64_t iTotalCount,
+	__bench_fairness_metrics* pMetrics
+)
 {
 	uint64_t iMinItems = 0u;
 	uint64_t iMaxItems = 0u;
@@ -120,42 +193,61 @@ static void __benchComputeFairnessMetrics(const uint64_t* arrCounts, uint32_t iC
 	double fSpreadPct = 0.0;
 	uint32_t i;
 
-	if ( !pMetrics ) {
+	if ( pMetrics == NULL ) {
 		return;
 	}
 
 	memset(pMetrics, 0, sizeof(*pMetrics));
-	if ( !arrCounts || iCount == 0u ) {
+	if ( (arrCounts == NULL) || (iCount == 0u) ) {
 		return;
 	}
 
 	iMinItems = arrCounts[0];
 	iMaxItems = arrCounts[0];
-	fIdeal = iCount == 0u ? 0.0 : ((double)iTotalCount / (double)iCount);
+	fIdeal = (double)iTotalCount / (double)iCount;
 
 	for ( i = 0; i < iCount; ++i ) {
 		double fDeviationPct;
-		if ( arrCounts[i] < iMinItems ) iMinItems = arrCounts[i];
-		if ( arrCounts[i] > iMaxItems ) iMaxItems = arrCounts[i];
+
+		if ( arrCounts[i] < iMinItems ) {
+			iMinItems = arrCounts[i];
+		}
+		if ( arrCounts[i] > iMaxItems ) {
+			iMaxItems = arrCounts[i];
+		}
 		if ( fIdeal <= 0.0 ) {
 			continue;
 		}
 		fDeviationPct = fabs(((double)arrCounts[i] - fIdeal) / fIdeal) * 100.0;
-		if ( fDeviationPct > fSpreadPct ) fSpreadPct = fDeviationPct;
+		if ( fDeviationPct > fSpreadPct ) {
+			fSpreadPct = fDeviationPct;
+		}
 	}
 
 	pMetrics->iMinItems = iMinItems;
 	pMetrics->iMaxItems = iMaxItems;
 	pMetrics->fSpreadPct = fSpreadPct;
-	pMetrics->fMaxToMinRatio = iMinItems == 0u ? 0.0 : ((double)iMaxItems / (double)iMinItems);
+	pMetrics->fMaxToMinRatio = iMinItems == 0u ?
+		0.0 :
+		((double)iMaxItems / (double)iMinItems);
 }
 
-static uint32_t __benchMPSCLatencyProducer(ptr pArg)
+
+
+/* 向 MPSC 队列写入带时间戳的单元素或批量消息。 */
+static int32 __benchMPSCLatencyProducer(ptr pArg)
 {
 	__bench_mpsc_latency_prod_ctx* pCtx = (__bench_mpsc_latency_prod_ctx*)pArg;
+	ptr* arrItems;
 	uint32_t iIndex = 0u;
 
-	if ( !pCtx || !pCtx->hQueue || !pCtx->arrMessages || !pCtx->pStart || !pCtx->pFailure ) {
+	if (
+		(pCtx == NULL) ||
+		(pCtx->hQueue == NULL) ||
+		(pCtx->arrMessages == NULL) ||
+		(pCtx->pStart == NULL) ||
+		(pCtx->pFailure == NULL)
+	) {
 		return 11u;
 	}
 
@@ -169,10 +261,13 @@ static uint32_t __benchMPSCLatencyProducer(ptr pArg)
 			pMsg->iProducerId = pCtx->iProducerId;
 			pMsg->iSequence = pCtx->iBaseSequence + iIndex + 1u;
 			for ( ;; ) {
-				xqueue_result iRet;
+				xqueueresult iRet;
+
 				pMsg->iEnqueueNs = xbenchNowNs();
-				iRet = xrtMPSCQTryPush(pCtx->hQueue, pMsg);
-				if ( iRet == XQUEUE_OK ) break;
+				iRet = xrtMPSCQueueTryPush(pCtx->hQueue, pMsg);
+				if ( iRet == XQUEUE_OK ) {
+					break;
+				}
 				if ( iRet == XQUEUE_FULL ) {
 					xrtThreadYield();
 					continue;
@@ -184,12 +279,11 @@ static uint32_t __benchMPSCLatencyProducer(ptr pArg)
 		return 0u;
 	}
 
-	{
-		ptr* arrItems = (ptr*)malloc(sizeof(ptr) * pCtx->iBatchSize);
-		if ( !arrItems ) {
-			xbenchAtomicMax(pCtx->pFailure, 1301);
-			return 14u;
-		}
+	arrItems = (ptr*)malloc(sizeof(ptr) * pCtx->iBatchSize);
+	if ( arrItems == NULL ) {
+		xbenchAtomicMax(pCtx->pFailure, 1301);
+		return 14u;
+	}
 
 	for ( iIndex = 0u; iIndex < pCtx->iCount; ) {
 		uint32_t iChunk = pCtx->iCount - iIndex;
@@ -197,7 +291,9 @@ static uint32_t __benchMPSCLatencyProducer(ptr pArg)
 		uint32_t i;
 		uint64_t iNowNs;
 
-		if ( iChunk > pCtx->iBatchSize ) iChunk = pCtx->iBatchSize;
+		if ( iChunk > pCtx->iBatchSize ) {
+			iChunk = pCtx->iBatchSize;
+		}
 
 		for ( i = 0u; i < iChunk; ++i ) {
 			__bench_queue_msg* pMsg = &pCtx->arrMessages[iIndex + i];
@@ -207,36 +303,59 @@ static uint32_t __benchMPSCLatencyProducer(ptr pArg)
 		}
 
 		while ( iOffset < iChunk ) {
-			uint32_t iPushed;
+			xqueuebatchresult Batch;
+
 			iNowNs = xbenchNowNs();
 			for ( i = iOffset; i < iChunk; ++i ) {
 				((__bench_queue_msg*)arrItems[i])->iEnqueueNs = iNowNs;
 			}
-			iPushed = xrtMPSCQPushBatch(pCtx->hQueue, &arrItems[iOffset], iChunk - iOffset);
-			if ( iPushed == 0u ) {
-				if ( xrtQueueIsClosed(&pCtx->hQueue->tBase) ) {
-					xbenchAtomicMax(pCtx->pFailure, 1300);
-					return 13u;
+			Batch = xrtMPSCQueuePushBatch(
+				pCtx->hQueue,
+				&arrItems[iOffset],
+				iChunk - iOffset
+			);
+			if ( Batch.Result == XQUEUE_OK ) {
+				if ( Batch.Count == 0u ) {
+					xbenchAtomicMax(pCtx->pFailure, 1302);
+					free(arrItems);
+					return 15u;
 				}
+				iOffset += (uint32)Batch.Count;
+				continue;
+			}
+			if ( Batch.Result == XQUEUE_FULL ) {
 				xrtThreadYield();
 				continue;
 			}
-			iOffset += iPushed;
+			xbenchAtomicMax(pCtx->pFailure, 1300);
+			free(arrItems);
+			return 13u;
 		}
 
 		iIndex += iChunk;
 	}
-		free(arrItems);
-	}
+	free(arrItems);
 
 	return 0u;
 }
 
-static uint32_t __benchMPSCLatencyConsumer(ptr pArg)
+
+
+/* 从 MPSC 队列读取消息并记录单元素或批量排队延迟。 */
+static int32 __benchMPSCLatencyConsumer(ptr pArg)
 {
 	__bench_mpsc_latency_cons_ctx* pCtx = (__bench_mpsc_latency_cons_ctx*)pArg;
+	ptr* arrItems;
 
-	if ( !pCtx || !pCtx->hQueue || !pCtx->arrLatencyNs || !pCtx->pStart || !pCtx->pLatencyIndex || !pCtx->pConsumed || !pCtx->pFailure ) {
+	if (
+		(pCtx == NULL) ||
+		(pCtx->hQueue == NULL) ||
+		(pCtx->arrLatencyNs == NULL) ||
+		(pCtx->pStart == NULL) ||
+		(pCtx->pLatencyIndex == NULL) ||
+		(pCtx->pConsumed == NULL) ||
+		(pCtx->pFailure == NULL)
+	) {
 		return 21u;
 	}
 
@@ -247,12 +366,13 @@ static uint32_t __benchMPSCLatencyConsumer(ptr pArg)
 	if ( pCtx->iBatchSize <= 1u ) {
 		for ( ;; ) {
 			ptr pItem = NULL;
-			xqueue_result iRet = xrtMPSCQTryPop(pCtx->hQueue, &pItem);
+			xqueueresult iRet = xrtMPSCQueueTryPop(pCtx->hQueue, &pItem);
 			if ( iRet == XQUEUE_OK ) {
 				__bench_queue_msg* pMsg = (__bench_queue_msg*)pItem;
 				long iSample;
 				uint64_t iNowNs;
-				if ( !pMsg || pMsg->iEnqueueNs == 0u ) {
+
+				if ( (pMsg == NULL) || (pMsg->iEnqueueNs == 0u) ) {
 					xbenchAtomicMax(pCtx->pFailure, 2100);
 					return 22u;
 				}
@@ -274,48 +394,77 @@ static uint32_t __benchMPSCLatencyConsumer(ptr pArg)
 		}
 	}
 
-	{
-		ptr* arrItems = (ptr*)malloc(sizeof(ptr) * pCtx->iBatchSize);
-		if ( !arrItems ) {
-			xbenchAtomicMax(pCtx->pFailure, 2301);
-			return 25u;
-		}
+	arrItems = (ptr*)malloc(sizeof(ptr) * pCtx->iBatchSize);
+	if ( arrItems == NULL ) {
+		xbenchAtomicMax(pCtx->pFailure, 2301);
+		return 25u;
+	}
 
 	for ( ;; ) {
-		uint32_t iPopped;
+		xqueuebatchresult Batch;
 		uint32_t i;
 		uint64_t iNowNs;
 		long iSample;
 
-		iPopped = xrtMPSCQPopBatch(pCtx->hQueue, arrItems, pCtx->iBatchSize);
-		if ( iPopped != 0u ) {
+		Batch = xrtMPSCQueuePopBatch(
+			pCtx->hQueue,
+			arrItems,
+			pCtx->iBatchSize
+		);
+		if ( Batch.Result == XQUEUE_OK ) {
+			if ( Batch.Count == 0u ) {
+				xbenchAtomicMax(pCtx->pFailure, 2303);
+				free(arrItems);
+				return 27u;
+			}
 			iNowNs = xbenchNowNs();
-			iSample = xbenchAtomicAdd(pCtx->pLatencyIndex, (long)iPopped) - (long)iPopped;
-			for ( i = 0u; i < iPopped; ++i ) {
+			iSample = xbenchAtomicAdd(
+				pCtx->pLatencyIndex,
+				(long)Batch.Count
+			) - (long)Batch.Count;
+			for ( i = 0u; i < (uint32)Batch.Count; ++i ) {
 				__bench_queue_msg* pMsg = (__bench_queue_msg*)arrItems[i];
-				if ( !pMsg || pMsg->iEnqueueNs == 0u ) {
+
+				if ( (pMsg == NULL) || (pMsg->iEnqueueNs == 0u) ) {
 					xbenchAtomicMax(pCtx->pFailure, 2300);
+					free(arrItems);
 					return 24u;
 				}
 				pCtx->arrLatencyNs[iSample + (long)i] = iNowNs - pMsg->iEnqueueNs;
 			}
-			xbenchAtomicAdd(pCtx->pConsumed, (long)iPopped);
+			xbenchAtomicAdd(pCtx->pConsumed, (long)Batch.Count);
 			continue;
 		}
-		if ( xrtQueueIsDrained(&pCtx->hQueue->tBase) ) {
+		if ( Batch.Result == XQUEUE_CLOSED ) {
+			free(arrItems);
 			return 0u;
 		}
-		xrtThreadYield();
-	}
+		if ( Batch.Result == XQUEUE_EMPTY ) {
+			xrtThreadYield();
+			continue;
+		}
+		xbenchAtomicMax(pCtx->pFailure, 2302);
+		free(arrItems);
+		return 26u;
 	}
 }
 
-static uint32_t __benchMPMCLatencyProducer(ptr pArg)
+
+
+/* 向 MPMC 队列写入带时间戳的单元素或批量消息。 */
+static int32 __benchMPMCLatencyProducer(ptr pArg)
 {
 	__bench_mpmc_latency_prod_ctx* pCtx = (__bench_mpmc_latency_prod_ctx*)pArg;
+	ptr* arrItems;
 	uint32_t iIndex = 0u;
 
-	if ( !pCtx || !pCtx->hQueue || !pCtx->arrMessages || !pCtx->pStart || !pCtx->pFailure ) {
+	if (
+		(pCtx == NULL) ||
+		(pCtx->hQueue == NULL) ||
+		(pCtx->arrMessages == NULL) ||
+		(pCtx->pStart == NULL) ||
+		(pCtx->pFailure == NULL)
+	) {
 		return 31u;
 	}
 
@@ -329,10 +478,13 @@ static uint32_t __benchMPMCLatencyProducer(ptr pArg)
 			pMsg->iProducerId = pCtx->iProducerId;
 			pMsg->iSequence = pCtx->iBaseSequence + iIndex + 1u;
 			for ( ;; ) {
-				xqueue_result iRet;
+				xqueueresult iRet;
+
 				pMsg->iEnqueueNs = xbenchNowNs();
-				iRet = xrtMPMCQTryPush(pCtx->hQueue, pMsg);
-				if ( iRet == XQUEUE_OK ) break;
+				iRet = xrtMPMCQueueTryPush(pCtx->hQueue, pMsg);
+				if ( iRet == XQUEUE_OK ) {
+					break;
+				}
 				if ( iRet == XQUEUE_FULL ) {
 					xrtThreadYield();
 					continue;
@@ -344,12 +496,11 @@ static uint32_t __benchMPMCLatencyProducer(ptr pArg)
 		return 0u;
 	}
 
-	{
-		ptr* arrItems = (ptr*)malloc(sizeof(ptr) * pCtx->iBatchSize);
-		if ( !arrItems ) {
-			xbenchAtomicMax(pCtx->pFailure, 3301);
-			return 34u;
-		}
+	arrItems = (ptr*)malloc(sizeof(ptr) * pCtx->iBatchSize);
+	if ( arrItems == NULL ) {
+		xbenchAtomicMax(pCtx->pFailure, 3301);
+		return 34u;
+	}
 
 	for ( iIndex = 0u; iIndex < pCtx->iCount; ) {
 		uint32_t iChunk = pCtx->iCount - iIndex;
@@ -357,7 +508,9 @@ static uint32_t __benchMPMCLatencyProducer(ptr pArg)
 		uint32_t i;
 		uint64_t iNowNs;
 
-		if ( iChunk > pCtx->iBatchSize ) iChunk = pCtx->iBatchSize;
+		if ( iChunk > pCtx->iBatchSize ) {
+			iChunk = pCtx->iBatchSize;
+		}
 
 		for ( i = 0u; i < iChunk; ++i ) {
 			__bench_queue_msg* pMsg = &pCtx->arrMessages[iIndex + i];
@@ -367,37 +520,61 @@ static uint32_t __benchMPMCLatencyProducer(ptr pArg)
 		}
 
 		while ( iOffset < iChunk ) {
-			uint32_t iPushed;
+			xqueuebatchresult Batch;
+
 			iNowNs = xbenchNowNs();
 			for ( i = iOffset; i < iChunk; ++i ) {
 				((__bench_queue_msg*)arrItems[i])->iEnqueueNs = iNowNs;
 			}
-			iPushed = xrtMPMCQPushBatch(pCtx->hQueue, &arrItems[iOffset], iChunk - iOffset);
-			if ( iPushed == 0u ) {
-				if ( xrtQueueIsClosed(&pCtx->hQueue->tBase) ) {
-					xbenchAtomicMax(pCtx->pFailure, 3300);
-					return 33u;
+			Batch = xrtMPMCQueuePushBatch(
+				pCtx->hQueue,
+				&arrItems[iOffset],
+				iChunk - iOffset
+			);
+			if ( Batch.Result == XQUEUE_OK ) {
+				if ( Batch.Count == 0u ) {
+					xbenchAtomicMax(pCtx->pFailure, 3302);
+					free(arrItems);
+					return 35u;
 				}
+				iOffset += (uint32)Batch.Count;
+				continue;
+			}
+			if ( Batch.Result == XQUEUE_FULL ) {
 				xrtThreadYield();
 				continue;
 			}
-			iOffset += iPushed;
+			xbenchAtomicMax(pCtx->pFailure, 3300);
+			free(arrItems);
+			return 33u;
 		}
 
 		iIndex += iChunk;
 	}
-		free(arrItems);
-	}
+	free(arrItems);
 
 	return 0u;
 }
 
-static uint32_t __benchMPMCLatencyConsumer(ptr pArg)
+
+
+/* 从 MPMC 队列读取消息并记录延迟和消费者公平性。 */
+static int32 __benchMPMCLatencyConsumer(ptr pArg)
 {
 	__bench_mpmc_latency_cons_ctx* pCtx = (__bench_mpmc_latency_cons_ctx*)pArg;
+	ptr* arrItems;
 	uint64_t iLocalCount = 0u;
 
-	if ( !pCtx || !pCtx->hQueue || !pCtx->arrLatencyNs || !pCtx->arrConsumerCounts || !pCtx->pStart || !pCtx->pLatencyIndex || !pCtx->pConsumed || !pCtx->pFailure ) {
+	if (
+		(pCtx == NULL) ||
+		(pCtx->hQueue == NULL) ||
+		(pCtx->arrLatencyNs == NULL) ||
+		(pCtx->arrConsumerCounts == NULL) ||
+		(pCtx->pStart == NULL) ||
+		(pCtx->pLatencyIndex == NULL) ||
+		(pCtx->pConsumed == NULL) ||
+		(pCtx->pFailure == NULL)
+	) {
 		return 41u;
 	}
 
@@ -408,12 +585,13 @@ static uint32_t __benchMPMCLatencyConsumer(ptr pArg)
 	if ( pCtx->iBatchSize <= 1u ) {
 		for ( ;; ) {
 			ptr pItem = NULL;
-			xqueue_result iRet = xrtMPMCQTryPop(pCtx->hQueue, &pItem);
+			xqueueresult iRet = xrtMPMCQueueTryPop(pCtx->hQueue, &pItem);
 			if ( iRet == XQUEUE_OK ) {
 				__bench_queue_msg* pMsg = (__bench_queue_msg*)pItem;
 				long iSample;
 				uint64_t iNowNs;
-				if ( !pMsg || pMsg->iEnqueueNs == 0u ) {
+
+				if ( (pMsg == NULL) || (pMsg->iEnqueueNs == 0u) ) {
 					xbenchAtomicMax(pCtx->pFailure, 4100);
 					return 42u;
 				}
@@ -437,52 +615,79 @@ static uint32_t __benchMPMCLatencyConsumer(ptr pArg)
 		}
 	}
 
-	{
-		ptr* arrItems = (ptr*)malloc(sizeof(ptr) * pCtx->iBatchSize);
-		if ( !arrItems ) {
-			xbenchAtomicMax(pCtx->pFailure, 4301);
-			return 45u;
-		}
+	arrItems = (ptr*)malloc(sizeof(ptr) * pCtx->iBatchSize);
+	if ( arrItems == NULL ) {
+		xbenchAtomicMax(pCtx->pFailure, 4301);
+		return 45u;
+	}
 
 	for ( ;; ) {
-		uint32_t iPopped;
+		xqueuebatchresult Batch;
 		uint32_t i;
 		uint64_t iNowNs;
 		long iSample;
 
-		iPopped = xrtMPMCQPopBatch(pCtx->hQueue, arrItems, pCtx->iBatchSize);
-		if ( iPopped != 0u ) {
+		Batch = xrtMPMCQueuePopBatch(
+			pCtx->hQueue,
+			arrItems,
+			pCtx->iBatchSize
+		);
+		if ( Batch.Result == XQUEUE_OK ) {
+			if ( Batch.Count == 0u ) {
+				xbenchAtomicMax(pCtx->pFailure, 4303);
+				free(arrItems);
+				return 47u;
+			}
 			iNowNs = xbenchNowNs();
-			iSample = xbenchAtomicAdd(pCtx->pLatencyIndex, (long)iPopped) - (long)iPopped;
-			for ( i = 0u; i < iPopped; ++i ) {
+			iSample = xbenchAtomicAdd(
+				pCtx->pLatencyIndex,
+				(long)Batch.Count
+			) - (long)Batch.Count;
+			for ( i = 0u; i < (uint32)Batch.Count; ++i ) {
 				__bench_queue_msg* pMsg = (__bench_queue_msg*)arrItems[i];
-				if ( !pMsg || pMsg->iEnqueueNs == 0u ) {
+
+				if ( (pMsg == NULL) || (pMsg->iEnqueueNs == 0u) ) {
 					xbenchAtomicMax(pCtx->pFailure, 4300);
+					free(arrItems);
 					return 44u;
 				}
 				pCtx->arrLatencyNs[iSample + (long)i] = iNowNs - pMsg->iEnqueueNs;
 			}
-			xbenchAtomicAdd(pCtx->pConsumed, (long)iPopped);
-			iLocalCount += iPopped;
+			xbenchAtomicAdd(pCtx->pConsumed, (long)Batch.Count);
+			iLocalCount += Batch.Count;
 			continue;
 		}
-		if ( xrtQueueIsDrained(&pCtx->hQueue->tBase) ) {
+		if ( Batch.Result == XQUEUE_CLOSED ) {
 			pCtx->arrConsumerCounts[pCtx->iConsumerId] = iLocalCount;
+			free(arrItems);
 			return 0u;
 		}
-		xrtThreadYield();
-	}
+		if ( Batch.Result == XQUEUE_EMPTY ) {
+			xrtThreadYield();
+			continue;
+		}
+		xbenchAtomicMax(pCtx->pFailure, 4302);
+		free(arrItems);
+		return 46u;
 	}
 }
 
-static int __benchRunMPSCLatency(uint32_t iCapacity, uint32_t iProducerCount, uint32_t iCountPerProducer, uint32_t iBatchSize, __bench_latency_metrics* pMetrics)
+
+
+/* 运行一次 MPSC 延迟测量并汇总样本。 */
+static int __benchRunMPSCLatency(
+	uint32_t iCapacity,
+	uint32_t iProducerCount,
+	uint32_t iCountPerProducer,
+	uint32_t iBatchSize,
+	__bench_latency_metrics* pMetrics
+)
 {
-	xqueue_config tCfg;
-	xmpscq hQueue = NULL;
-	xthread* arrProducer = NULL;
+	xmpscqueue* hQueue = NULL;
+	xthread** arrProducer = NULL;
 	__bench_mpsc_latency_prod_ctx* arrProdCtx = NULL;
 	__bench_mpsc_latency_cons_ctx tConsCtx;
-	xthread hConsumer = NULL;
+	xthread* hConsumer = NULL;
 	__bench_queue_msg* arrMessages = NULL;
 	uint64_t* arrLatencyNs = NULL;
 	xbenchtimer tTimer;
@@ -491,26 +696,37 @@ static int __benchRunMPSCLatency(uint32_t iCapacity, uint32_t iProducerCount, ui
 	volatile long iFailure = 0;
 	volatile long iLatencyIndex = 0;
 	uint32_t i;
-	uint32_t iTotalCount = iProducerCount * iCountPerProducer;
+	uint32_t iTotalCount;
 	int iResult = 1;
 
-	if ( !pMetrics || iProducerCount == 0u || iCountPerProducer == 0u ) {
+	if (
+		(pMetrics == NULL) ||
+		(iBatchSize == 0u) ||
+		!xbenchCountProductU32(
+			iProducerCount,
+			iCountPerProducer,
+			&iTotalCount
+		)
+	) {
 		return 1;
 	}
 
-	memset(&tCfg, 0, sizeof(tCfg));
 	memset(&tConsCtx, 0, sizeof(tConsCtx));
-	tCfg.iCapacity = iCapacity;
-	hQueue = xrtMPSCQCreate(&tCfg);
-	if ( !hQueue ) {
+	hQueue = xrtMPSCQueueCreate(iCapacity);
+	if ( hQueue == NULL ) {
 		return 2;
 	}
 
-	arrProducer = (xthread*)calloc(iProducerCount, sizeof(xthread));
+	arrProducer = (xthread**)calloc(iProducerCount, sizeof(xthread*));
 	arrProdCtx = (__bench_mpsc_latency_prod_ctx*)calloc(iProducerCount, sizeof(__bench_mpsc_latency_prod_ctx));
 	arrMessages = (__bench_queue_msg*)calloc(iTotalCount, sizeof(__bench_queue_msg));
 	arrLatencyNs = (uint64_t*)calloc(iTotalCount, sizeof(uint64_t));
-	if ( !arrProducer || !arrProdCtx || !arrMessages || !arrLatencyNs ) {
+	if (
+		(arrProducer == NULL) ||
+		(arrProdCtx == NULL) ||
+		(arrMessages == NULL) ||
+		(arrLatencyNs == NULL)
+	) {
 		goto cleanup;
 	}
 
@@ -522,7 +738,7 @@ static int __benchRunMPSCLatency(uint32_t iCapacity, uint32_t iProducerCount, ui
 	tConsCtx.pConsumed = &iConsumed;
 	tConsCtx.pFailure = &iFailure;
 	hConsumer = xrtThreadCreate(__benchMPSCLatencyConsumer, &tConsCtx, 0);
-	if ( !hConsumer ) {
+	if ( hConsumer == NULL ) {
 		goto cleanup;
 	}
 
@@ -536,59 +752,94 @@ static int __benchRunMPSCLatency(uint32_t iCapacity, uint32_t iProducerCount, ui
 		arrProdCtx[i].pStart = &iStart;
 		arrProdCtx[i].pFailure = &iFailure;
 		arrProducer[i] = xrtThreadCreate(__benchMPSCLatencyProducer, &arrProdCtx[i], 0);
-		if ( !arrProducer[i] ) {
+		if ( arrProducer[i] == NULL ) {
 			goto cleanup;
 		}
 	}
 
 	xbenchTimerStart(&tTimer);
-	iStart = 1;
+	xbenchAtomicStore(&iStart, 1);
 	for ( i = 0u; i < iProducerCount; ++i ) {
 		xrtThreadWait(arrProducer[i]);
 	}
-	xrtMPSCQClose(hQueue);
+	xrtMPSCQueueClose(hQueue);
 	xrtThreadWait(hConsumer);
 	xbenchTimerStop(&tTimer);
 
-	if ( xbenchAtomicLoad(&iFailure) != 0 ||
-		xbenchAtomicLoad(&iConsumed) != (long)iTotalCount ||
-		xbenchAtomicLoad(&iLatencyIndex) != (long)iTotalCount ||
-		xrtThreadGetExitCode(hConsumer) != 0u ) {
+	if (
+		(xbenchAtomicLoad(&iFailure) != 0) ||
+		(xbenchAtomicLoad(&iConsumed) != (long)iTotalCount) ||
+		(xbenchAtomicLoad(&iLatencyIndex) != (long)iTotalCount) ||
+		(xrtThreadExitCode(hConsumer) != 0)
+	) {
 		goto cleanup;
 	}
 
 	for ( i = 0u; i < iProducerCount; ++i ) {
-		if ( xrtThreadGetExitCode(arrProducer[i]) != 0u ) {
+		if ( xrtThreadExitCode(arrProducer[i]) != 0 ) {
 			goto cleanup;
 		}
 	}
 
-	if ( __benchFinalizeLatencyMetrics(arrLatencyNs, iTotalCount, xbenchTimerElapsedNs(&tTimer), pMetrics) != 0 ) {
+	if (
+		__benchFinalizeLatencyMetrics(
+			arrLatencyNs,
+			iTotalCount,
+			xbenchTimerElapsedNs(&tTimer),
+			pMetrics
+		) != 0
+	) {
 		goto cleanup;
 	}
 	iResult = 0;
 
 cleanup:
-	if ( arrProducer ) {
+	xbenchAtomicStore(&iStart, 1);
+	if ( hQueue != NULL ) {
+		xrtMPSCQueueClose(hQueue);
+	}
+	if ( arrProducer != NULL ) {
 		for ( i = 0u; i < iProducerCount; ++i ) {
-			if ( arrProducer[i] ) xrtThreadDestroy(arrProducer[i]);
+			if ( arrProducer[i] != NULL ) {
+				xrtThreadDestroy(arrProducer[i]);
+			}
 		}
 		free(arrProducer);
 	}
-	if ( hConsumer ) xrtThreadDestroy(hConsumer);
-	if ( arrProdCtx ) free(arrProdCtx);
-	if ( arrMessages ) free(arrMessages);
-	if ( arrLatencyNs ) free(arrLatencyNs);
-	if ( hQueue ) xrtMPSCQDestroy(hQueue);
+	if ( hConsumer != NULL ) {
+		xrtThreadDestroy(hConsumer);
+	}
+	if ( arrProdCtx != NULL ) {
+		free(arrProdCtx);
+	}
+	if ( arrMessages != NULL ) {
+		free(arrMessages);
+	}
+	if ( arrLatencyNs != NULL ) {
+		free(arrLatencyNs);
+	}
+	if ( hQueue != NULL ) {
+		xrtMPSCQueueDestroy(hQueue);
+	}
 	return iResult;
 }
 
-static int __benchRunMPMCLatency(uint32_t iCapacity, uint32_t iProducerCount, uint32_t iConsumerCount, uint32_t iCountPerProducer, uint32_t iBatchSize, __bench_latency_metrics* pLatencyMetrics, __bench_fairness_metrics* pFairnessMetrics)
+
+
+/* 运行一次 MPMC 延迟与消费者公平性测量。 */
+static int __benchRunMPMCLatency(
+	uint32_t iCapacity,
+	uint32_t iProducerCount,
+	uint32_t iConsumerCount,
+	uint32_t iCountPerProducer,
+	uint32_t iBatchSize,
+	__bench_latency_metrics* pLatencyMetrics,
+	__bench_fairness_metrics* pFairnessMetrics
+)
 {
-	xqueue_config tCfg;
-	xmpmcq hQueue = NULL;
-	xthread* arrProducer = NULL;
-	xthread* arrConsumer = NULL;
+	xmpmcqueue* hQueue = NULL;
+	xthread** arrProducer = NULL;
+	xthread** arrConsumer = NULL;
 	__bench_mpmc_latency_prod_ctx* arrProdCtx = NULL;
 	__bench_mpmc_latency_cons_ctx* arrConsCtx = NULL;
 	__bench_queue_msg* arrMessages = NULL;
@@ -600,28 +851,44 @@ static int __benchRunMPMCLatency(uint32_t iCapacity, uint32_t iProducerCount, ui
 	volatile long iFailure = 0;
 	volatile long iLatencyIndex = 0;
 	uint32_t i;
-	uint32_t iTotalCount = iProducerCount * iCountPerProducer;
+	uint32_t iTotalCount;
 	int iResult = 1;
 
-	if ( !pLatencyMetrics || !pFairnessMetrics || iProducerCount == 0u || iConsumerCount == 0u || iCountPerProducer == 0u ) {
+	if (
+		(pLatencyMetrics == NULL) ||
+		(pFairnessMetrics == NULL) ||
+		(iConsumerCount == 0u) ||
+		(iBatchSize == 0u) ||
+		!xbenchCountProductU32(
+			iProducerCount,
+			iCountPerProducer,
+			&iTotalCount
+		)
+	) {
 		return 1;
 	}
 
-	memset(&tCfg, 0, sizeof(tCfg));
-	tCfg.iCapacity = iCapacity;
-	hQueue = xrtMPMCQCreate(&tCfg);
-	if ( !hQueue ) {
+	hQueue = xrtMPMCQueueCreate(iCapacity);
+	if ( hQueue == NULL ) {
 		return 2;
 	}
 
-	arrProducer = (xthread*)calloc(iProducerCount, sizeof(xthread));
-	arrConsumer = (xthread*)calloc(iConsumerCount, sizeof(xthread));
+	arrProducer = (xthread**)calloc(iProducerCount, sizeof(xthread*));
+	arrConsumer = (xthread**)calloc(iConsumerCount, sizeof(xthread*));
 	arrProdCtx = (__bench_mpmc_latency_prod_ctx*)calloc(iProducerCount, sizeof(__bench_mpmc_latency_prod_ctx));
 	arrConsCtx = (__bench_mpmc_latency_cons_ctx*)calloc(iConsumerCount, sizeof(__bench_mpmc_latency_cons_ctx));
 	arrMessages = (__bench_queue_msg*)calloc(iTotalCount, sizeof(__bench_queue_msg));
 	arrLatencyNs = (uint64_t*)calloc(iTotalCount, sizeof(uint64_t));
 	arrConsumerCounts = (uint64_t*)calloc(iConsumerCount, sizeof(uint64_t));
-	if ( !arrProducer || !arrConsumer || !arrProdCtx || !arrConsCtx || !arrMessages || !arrLatencyNs || !arrConsumerCounts ) {
+	if (
+		(arrProducer == NULL) ||
+		(arrConsumer == NULL) ||
+		(arrProdCtx == NULL) ||
+		(arrConsCtx == NULL) ||
+		(arrMessages == NULL) ||
+		(arrLatencyNs == NULL) ||
+		(arrConsumerCounts == NULL)
+	) {
 		goto cleanup;
 	}
 
@@ -636,7 +903,7 @@ static int __benchRunMPMCLatency(uint32_t iCapacity, uint32_t iProducerCount, ui
 		arrConsCtx[i].pConsumed = &iConsumed;
 		arrConsCtx[i].pFailure = &iFailure;
 		arrConsumer[i] = xrtThreadCreate(__benchMPMCLatencyConsumer, &arrConsCtx[i], 0);
-		if ( !arrConsumer[i] ) {
+		if ( arrConsumer[i] == NULL ) {
 			goto cleanup;
 		}
 	}
@@ -651,67 +918,99 @@ static int __benchRunMPMCLatency(uint32_t iCapacity, uint32_t iProducerCount, ui
 		arrProdCtx[i].pStart = &iStart;
 		arrProdCtx[i].pFailure = &iFailure;
 		arrProducer[i] = xrtThreadCreate(__benchMPMCLatencyProducer, &arrProdCtx[i], 0);
-		if ( !arrProducer[i] ) {
+		if ( arrProducer[i] == NULL ) {
 			goto cleanup;
 		}
 	}
 
 	xbenchTimerStart(&tTimer);
-	iStart = 1;
+	xbenchAtomicStore(&iStart, 1);
 	for ( i = 0u; i < iProducerCount; ++i ) {
 		xrtThreadWait(arrProducer[i]);
 	}
-	xrtMPMCQClose(hQueue);
+	xrtMPMCQueueClose(hQueue);
 	for ( i = 0u; i < iConsumerCount; ++i ) {
 		xrtThreadWait(arrConsumer[i]);
 	}
 	xbenchTimerStop(&tTimer);
 
-	if ( xbenchAtomicLoad(&iFailure) != 0 ||
-		xbenchAtomicLoad(&iConsumed) != (long)iTotalCount ||
-		xbenchAtomicLoad(&iLatencyIndex) != (long)iTotalCount ) {
+	if (
+		(xbenchAtomicLoad(&iFailure) != 0) ||
+		(xbenchAtomicLoad(&iConsumed) != (long)iTotalCount) ||
+		(xbenchAtomicLoad(&iLatencyIndex) != (long)iTotalCount)
+	) {
 		goto cleanup;
 	}
 
 	for ( i = 0u; i < iProducerCount; ++i ) {
-		if ( xrtThreadGetExitCode(arrProducer[i]) != 0u ) {
+		if ( xrtThreadExitCode(arrProducer[i]) != 0 ) {
 			goto cleanup;
 		}
 	}
 	for ( i = 0u; i < iConsumerCount; ++i ) {
-		if ( xrtThreadGetExitCode(arrConsumer[i]) != 0u ) {
+		if ( xrtThreadExitCode(arrConsumer[i]) != 0 ) {
 			goto cleanup;
 		}
 	}
 
-	if ( __benchFinalizeLatencyMetrics(arrLatencyNs, iTotalCount, xbenchTimerElapsedNs(&tTimer), pLatencyMetrics) != 0 ) {
+	if (
+		__benchFinalizeLatencyMetrics(
+			arrLatencyNs,
+			iTotalCount,
+			xbenchTimerElapsedNs(&tTimer),
+			pLatencyMetrics
+		) != 0
+	) {
 		goto cleanup;
 	}
 	__benchComputeFairnessMetrics(arrConsumerCounts, iConsumerCount, iTotalCount, pFairnessMetrics);
 	iResult = 0;
 
 cleanup:
-	if ( arrProducer ) {
+	xbenchAtomicStore(&iStart, 1);
+	if ( hQueue != NULL ) {
+		xrtMPMCQueueClose(hQueue);
+	}
+	if ( arrProducer != NULL ) {
 		for ( i = 0u; i < iProducerCount; ++i ) {
-			if ( arrProducer[i] ) xrtThreadDestroy(arrProducer[i]);
+			if ( arrProducer[i] != NULL ) {
+				xrtThreadDestroy(arrProducer[i]);
+			}
 		}
 		free(arrProducer);
 	}
-	if ( arrConsumer ) {
+	if ( arrConsumer != NULL ) {
 		for ( i = 0u; i < iConsumerCount; ++i ) {
-			if ( arrConsumer[i] ) xrtThreadDestroy(arrConsumer[i]);
+			if ( arrConsumer[i] != NULL ) {
+				xrtThreadDestroy(arrConsumer[i]);
+			}
 		}
 		free(arrConsumer);
 	}
-	if ( arrProdCtx ) free(arrProdCtx);
-	if ( arrConsCtx ) free(arrConsCtx);
-	if ( arrMessages ) free(arrMessages);
-	if ( arrLatencyNs ) free(arrLatencyNs);
-	if ( arrConsumerCounts ) free(arrConsumerCounts);
-	if ( hQueue ) xrtMPMCQDestroy(hQueue);
+	if ( arrProdCtx != NULL ) {
+		free(arrProdCtx);
+	}
+	if ( arrConsCtx != NULL ) {
+		free(arrConsCtx);
+	}
+	if ( arrMessages != NULL ) {
+		free(arrMessages);
+	}
+	if ( arrLatencyNs != NULL ) {
+		free(arrLatencyNs);
+	}
+	if ( arrConsumerCounts != NULL ) {
+		free(arrConsumerCounts);
+	}
+	if ( hQueue != NULL ) {
+		xrtMPMCQueueDestroy(hQueue);
+	}
 	return iResult;
 }
 
+
+
+/* 解析测量矩阵并依次输出所有队列延迟与公平性指标。 */
 int main(int argc, char** argv)
 {
 	uint32_t iItemsPerProducer = xbenchArgU32(argc, argv, 1, 100000u);
@@ -734,12 +1033,24 @@ int main(int argc, char** argv)
 	memset(&tMpmcSingleFairness, 0, sizeof(tMpmcSingleFairness));
 	memset(&tMpmcBatchFairness, 0, sizeof(tMpmcBatchFairness));
 
-	if ( iItemsPerProducer == 0u ) iItemsPerProducer = 100000u;
-	if ( iCapacity == 0u ) iCapacity = 4096u;
-	if ( iMpscProducers == 0u ) iMpscProducers = 4u;
-	if ( iMpmcProducers == 0u ) iMpmcProducers = 4u;
-	if ( iMpmcConsumers == 0u ) iMpmcConsumers = 4u;
-	if ( iBatchSize == 0u ) iBatchSize = 32u;
+	if ( iItemsPerProducer == 0u ) {
+		iItemsPerProducer = 100000u;
+	}
+	if ( iCapacity == 0u ) {
+		iCapacity = 4096u;
+	}
+	if ( iMpscProducers == 0u ) {
+		iMpscProducers = 4u;
+	}
+	if ( iMpmcProducers == 0u ) {
+		iMpmcProducers = 4u;
+	}
+	if ( iMpmcConsumers == 0u ) {
+		iMpmcConsumers = 4u;
+	}
+	if ( iBatchSize == 0u ) {
+		iBatchSize = 32u;
+	}
 
 	printf("xrt queue bench bench_queue_latency\n");
 	printf("items_per_producer=%" PRIu32 "\n", iItemsPerProducer);
@@ -751,29 +1062,56 @@ int main(int argc, char** argv)
 
 	xbenchApplyCpuPinFromEnv();
 
-	if ( !xrtInit() ) {
-		fprintf(stderr, "xrt init failed\n");
-		return 1;
-	}
-
-	if ( __benchRunMPSCLatency(iCapacity, iMpscProducers, iItemsPerProducer, 1u, &tMpscSingle) != 0 ) {
+	if (
+		__benchRunMPSCLatency(
+			iCapacity,
+			iMpscProducers,
+			iItemsPerProducer,
+			1u,
+			&tMpscSingle
+		) != 0
+	) {
 		fprintf(stderr, "mpsc single latency bench failed\n");
-		xrtUnit();
 		return 2;
 	}
-	if ( __benchRunMPSCLatency(iCapacity, iMpscProducers, iItemsPerProducer, iBatchSize, &tMpscBatch) != 0 ) {
+	if (
+		__benchRunMPSCLatency(
+			iCapacity,
+			iMpscProducers,
+			iItemsPerProducer,
+			iBatchSize,
+			&tMpscBatch
+		) != 0
+	) {
 		fprintf(stderr, "mpsc batch latency bench failed\n");
-		xrtUnit();
 		return 3;
 	}
-	if ( __benchRunMPMCLatency(iCapacity, iMpmcProducers, iMpmcConsumers, iItemsPerProducer, 1u, &tMpmcSingle, &tMpmcSingleFairness) != 0 ) {
+	if (
+		__benchRunMPMCLatency(
+			iCapacity,
+			iMpmcProducers,
+			iMpmcConsumers,
+			iItemsPerProducer,
+			1u,
+			&tMpmcSingle,
+			&tMpmcSingleFairness
+		) != 0
+	) {
 		fprintf(stderr, "mpmc single latency bench failed\n");
-		xrtUnit();
 		return 4;
 	}
-	if ( __benchRunMPMCLatency(iCapacity, iMpmcProducers, iMpmcConsumers, iItemsPerProducer, iBatchSize, &tMpmcBatch, &tMpmcBatchFairness) != 0 ) {
+	if (
+		__benchRunMPMCLatency(
+			iCapacity,
+			iMpmcProducers,
+			iMpmcConsumers,
+			iItemsPerProducer,
+			iBatchSize,
+			&tMpmcBatch,
+			&tMpmcBatchFairness
+		) != 0
+	) {
 		fprintf(stderr, "mpmc batch latency bench failed\n");
-		xrtUnit();
 		return 5;
 	}
 
@@ -815,6 +1153,5 @@ int main(int argc, char** argv)
 	xbenchPrintMetricDouble("mpmc_latency_batch_consumer_spread_pct", tMpmcBatchFairness.fSpreadPct);
 	xbenchPrintMetricDouble("mpmc_latency_batch_consumer_max_to_min", tMpmcBatchFairness.fMaxToMinRatio);
 
-	xrtUnit();
 	return 0;
 }

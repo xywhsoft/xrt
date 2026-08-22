@@ -38,7 +38,7 @@ printf '%s\n' "batch_size_list: ${BATCH_SIZE_LIST[*]}"
 printf '%s\n' "policy: ${POLICY_NAME}"
 printf '%s\n' "cpu_pin: ${CPU_PIN}"
 
-gcc dev/bench/queue/bench_queue_pointer.c xrt.c -O2 -I . -pthread -o "$BENCH_BIN"
+gcc dev/bench/queue/bench_queue_pointer.c -std=c11 -O2 -Wall -Wextra -Werror -Wno-unused-function -pthread -o "$BENCH_BIN"
 
 for batch_size in "${BATCH_SIZE_LIST[@]}"; do
 	stamp="$(date '+%Y%m%d_%H%M%S_%3N')"

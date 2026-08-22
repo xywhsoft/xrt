@@ -1,75 +1,91 @@
-#include "../xnet2/bench_common.h"
-#include "../../../xrt.h"
+#include "../bench_common.h"
 
-typedef struct {
-	uint64_t iWaitTarget;
-	uint64_t iWaitCount;
-} __bench_co_timer_ctx;
+#define XRT_MODULE_COROUTINE_SCHEDULER
+#define XRT_IMPLEMENTATION
+#include "../../../single/xrt.h"
 
-static int64 __benchCoMonoMs(void)
+
+
+/* 即时定时器状态记录计划执行次数和实际完成次数。 */
+typedef struct benchcoroutinetimer {
+	uint64 Target;
+	uint64 Completed;
+} benchcoroutinetimer;
+
+
+
+/* 每轮注册一个立即到期的截止时间，覆盖定时器插入、摘除和恢复。 */
+static ptr benchCoroutineTimerProc(ptr pData)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return (int64)GetTickCount64();
-	#else
-		struct timespec tNow;
-		clock_gettime(CLOCK_MONOTONIC, &tNow);
-		return ((int64)tNow.tv_sec * 1000LL) + ((int64)tNow.tv_nsec / 1000000LL);
-	#endif
-}
+	benchcoroutinetimer* pState = (benchcoroutinetimer*)pData;
 
-static void __benchCoTimerMain(ptr pArg)
-{
-	__bench_co_timer_ctx* pCtx = (__bench_co_timer_ctx*)pArg;
-
-	if ( !pCtx ) return;
-
-	while ( pCtx->iWaitCount < pCtx->iWaitTarget ) {
-		pCtx->iWaitCount++;
-		xrtCoSleepUntil(__benchCoMonoMs());
+	while ( pState->Completed < pState->Target ) {
+		if ( xrtCoSleepUntil(xrtDeadlineAfter(0)) != XWAIT_OK ) {
+			return NULL;
+		}
+		pState->Completed++;
 	}
+	return pState;
 }
 
+
+
+/* 测量调度器即时定时器的完整周转吞吐。 */
 int main(int argc, char** argv)
 {
-	uint64_t iWaitTarget = xbenchArgU64(argc, argv, 1, 200000u);
-	__bench_co_timer_ctx tCtx;
-	xcosched* pSched = NULL;
-	xbenchtimer tTimer;
-	uint64_t iElapsedNs = 0u;
+	uint64 iTarget = xbenchArgU64(argc, argv, 1, 200000u);
+	benchcoroutinetimer State;
+	xbenchtimer Timer;
+	xcosched* pScheduler;
+	xcoro* pCoroutine;
+	uint64 iElapsed;
+	int iResult = 1;
 
-	memset(&tCtx, 0, sizeof(tCtx));
-	tCtx.iWaitTarget = iWaitTarget;
-
-	printf("xrt coroutine bench_timer_churn\n");
-	printf("backend=%s\n", xrtCoGetBackendName());
-	printf("timer_wait_target=%" PRIu64 "\n", iWaitTarget);
-
-	if ( !xrtInit() ) return 1;
-
-	pSched = xrtCoSchedCreate();
-	if ( !pSched ) {
-		xrtUnit();
+	if ( iTarget == 0 ) {
+		return 1;
+	}
+	memset(&State, 0, sizeof(State));
+	State.Target = iTarget;
+	pScheduler = xrtCoSchedCreate();
+	if ( pScheduler == NULL ) {
 		return 2;
 	}
-
-	if ( !xrtCoSchedSpawn(pSched, __benchCoTimerMain, &tCtx, 0u) ) {
-		xrtCoSchedDestroy(pSched);
-		xrtUnit();
-		return 3;
+	pCoroutine = xrtCoSpawn(
+		pScheduler,
+		benchCoroutineTimerProc,
+		&State,
+		NULL
+	);
+	if ( pCoroutine == NULL ) {
+		goto Exit;
 	}
 
-	xbenchTimerStart(&tTimer);
-	xrtCoSchedRun(pSched);
-	xbenchTimerStop(&tTimer);
+	xbenchTimerStart(&Timer);
+	if ( !xrtCoSchedRun(pScheduler) ) {
+		goto DestroyCoroutine;
+	}
+	xbenchTimerStop(&Timer);
+	iElapsed = xbenchTimerElapsedNs(&Timer);
+	if (
+		(State.Completed != iTarget) ||
+		(xrtCoResult(pCoroutine) != &State)
+	) {
+		goto DestroyCoroutine;
+	}
+	xbenchPrintMetricDouble(
+		"coroutine_timers_per_sec",
+		xbenchSafeRate(iTarget, iElapsed)
+	);
+	iResult = 0;
 
-	iElapsedNs = xbenchTimerElapsedNs(&tTimer);
+DestroyCoroutine:
+	if ( !xrtCoDestroy(pCoroutine) ) {
+		iResult = 3;
+	}
 
-	xbenchPrintMetricU64("timer_waits", tCtx.iWaitCount);
-	xbenchPrintMetricU64("elapsed_ns", iElapsedNs);
-	xbenchPrintMetricDouble("timer_waits_per_sec", xbenchSafeRate(tCtx.iWaitCount, iElapsedNs));
-	xbenchPrintMetricDouble("ns_per_timer_wait", tCtx.iWaitCount ? ((double)iElapsedNs / (double)tCtx.iWaitCount) : 0.0);
-
-	xrtCoSchedDestroy(pSched);
-	xrtUnit();
-	return 0;
+Exit:
+	if ( !xrtCoSchedDestroy(pScheduler) ) {
+		iResult = 4;
+	}
+	return iResult;
 }

@@ -1,0 +1,36 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xws/config/modules.json",
+	"profiles": [
+		{
+			"name": "connection",
+			"system": "websocket_extension",
+			"suite": "websocket_connection",
+			"description": "WebSocket TCP 连接与消息状态机"
+		},
+		{
+			"name": "http_client",
+			"system": "websocket_extension",
+			"suite": "websocket_client",
+			"description": "WebSocket HTTP 客户端握手和连接接管"
+		},
+		{
+			"name": "http_server",
+			"system": "websocket_extension",
+			"suite": "websocket_server",
+			"description": "WebSocket HTTP 服务端 Upgrade 和连接接管"
+		},
+		{
+			"name": "xws",
+			"system": "websocket_extension",
+			"suite": "xws",
+			"description": "xws 当前完整扩展闭包"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

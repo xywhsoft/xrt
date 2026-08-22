@@ -1,0 +1,4 @@
+#define TEST_HTTP_CLIENT_PROXY_FAILURE_BACKEND XNET_PORT_IOCP
+#define TEST_HTTP_CLIENT_PROXY_FAILURE_BACKEND_NAME "IOCP"
+
+#include "test_http_client_proxy_failure.c"

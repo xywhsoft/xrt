@@ -1,0 +1,1691 @@
+{
+	"schema": 1,
+	"product": "xmail",
+	"module_prefix": "XMAIL_MODULE_",
+	"single_header": "extlibs/xmail/single/xmail.h",
+	"declaration_header": "extlibs/xmail/single/xmail_decl.h",
+	"implementation_macro": "XMAIL_IMPLEMENTATION",
+	"implementation_once_macro": "XMAIL_IMPLEMENTATION_ONCE",
+	"single_guard": "XMAIL_SINGLE_HEADER_H",
+	"single_marker": "XMAIL_SINGLE_HEADER",
+	"declaration_guard": "XMAIL_DECLARATIONS_H",
+	"declaration_marker": "XMAIL_DECLARATIONS",
+	"package_consumer": "extlibs/xmail/tests/package/test_consumer.c",
+	"product_root": "extlibs/xmail",
+	"performance_config": "extlibs/xmail/config/performance_profiles.json",
+	"size_config": "extlibs/xmail/config/size_profiles.json",
+	"scope": {
+		"product": "xmail",
+		"external_integrations": [
+			{
+				"name": "xlang",
+				"state": "integrated"
+			}
+		],
+		"systems": [
+			{
+				"name": "mail_content",
+				"state": "retained",
+				"source_roots": [
+					"mail"
+				]
+			},
+			{
+				"name": "mail_transport",
+				"state": "retained",
+				"source_roots": [
+					"transport",
+					"smtp",
+					"pop3",
+					"imap"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xmail 公共符号参考",
+		"function_prefix": "xrtMail",
+		"constant_prefix": "XMAIL_",
+		"type_prefix": "xmail",
+		"function_prefixes": ["xrtMail", "xrtSmtp", "xrtPop3", "xrtImap"],
+		"constant_prefixes": ["XMAIL_", "XSMTP_", "XPOP3_", "XIMAP_"],
+		"type_prefixes": ["xmail", "xsmtp", "xpop3", "ximap"],
+		"guide": "../../README.md",
+		"output": "extlibs/xmail/docs/api/reference.md"
+	},
+	"features_guard": "XMAIL_FEATURES_H",
+	"features_header": "extlibs/xmail/include/xmail/features.h",
+	"include_dirs": [
+		"extlibs/xmail/include"
+	],
+	"header_roots": [
+		"extlibs/xmail/include",
+		"extlibs/xmail/src/internal"
+	],
+	"modules": [
+		{
+			"name": "mail_core",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_CORE",
+			"depends": [
+				"core"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_core.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_core.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_core.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/mail.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_codec",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_CODEC",
+			"depends": [
+				"mail_core",
+				"codec_base64"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_codec.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_codec.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_codec.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_codec.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/codec/main.c"
+			],
+			"benchmarks": [
+				"extlibs/xmail/bench/bench_mail_content.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_codec.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_header",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_HEADER",
+			"depends": [
+				"mail_core"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_header.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_header.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_header.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_header.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/header/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_header.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_word",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_WORD",
+			"depends": [
+				"mail_codec",
+				"unicode"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_word.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_word.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_word.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_word.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/word/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_word.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_address",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_ADDRESS",
+			"depends": [
+				"mail_word"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_address.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_address.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_address.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_address.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/address/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_address.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_date",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_DATE",
+			"depends": [
+				"mail_core",
+				"time_text"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_date.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_date.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_date.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_date.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/date/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_date.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_id",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_ID",
+			"depends": [
+				"mail_core",
+				"random_secure",
+				"unicode"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_id.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_id.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_id.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_id.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/id/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_id.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_param",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_PARAM",
+			"depends": [
+				"mail_core",
+				"unicode"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_param.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_param.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_param.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_param.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/param/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_param.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_multipart",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_MULTIPART",
+			"depends": [
+				"mail_core",
+				"mail_header"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_multipart.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_multipart.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_multipart.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_multipart.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/multipart/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_multipart.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_wire",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_WIRE",
+			"depends": [
+				"mail_core"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_wire.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/transport/mail_wire.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_wire.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_wire.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/wire/main.c"
+			],
+			"benchmarks": [
+				"extlibs/xmail/bench/bench_mail_transport.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_wire.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h",
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h",
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "mail_message",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_MESSAGE",
+			"depends": [
+				"mail_codec",
+				"mail_header"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_message.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_message.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_message.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_message.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/message/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_message.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_tree",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_TREE",
+			"depends": [
+				"mail_message",
+				"mail_multipart",
+				"mail_param"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_tree.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_tree.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_tree.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_tree.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/tree/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_tree.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_build",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_BUILD",
+			"depends": [
+				"mail_address",
+				"mail_header",
+				"mail_multipart"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_build.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_build.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_build.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_build.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/build/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_build.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_compose",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_COMPOSE",
+			"depends": [
+				"mail_build",
+				"mail_codec",
+				"mail_date",
+				"mail_id",
+				"mail_param"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_compose.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_compose.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_compose.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_compose.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/compose/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_compose.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "smtp",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_SMTP",
+			"depends": [
+				"mail_wire"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/smtp.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/smtp/smtp.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/smtp/test_smtp.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_smtp.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/smtp/protocol/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/smtp.md",
+				"extlibs/xmail/xmail-mail-protocols-design.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
+			]
+		},
+		{
+			"name": "pop3",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_POP3",
+			"depends": [
+				"mail_wire"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/pop3.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/pop3/pop3.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/pop3/test_pop3.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_pop3.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/pop3/protocol/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/pop3.md",
+				"extlibs/xmail/xmail-mail-protocols-design.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
+			]
+		},
+		{
+			"name": "imap",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP",
+			"depends": [
+				"mail_wire"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/imap/imap.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/imap/protocol/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/imap.md",
+				"extlibs/xmail/xmail-mail-protocols-design.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "imap_data",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_DATA",
+			"depends": [
+				"imap"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_data.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/imap/imap_data.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_data.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_data.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_data.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "imap_body",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_BODY",
+			"depends": [
+				"imap_data"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_body.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/imap/imap_body.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_body.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_body.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/imap/body/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_body.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "mail_net",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_NET",
+			"depends": [
+				"mail_wire",
+				"net_tcp_dial_sync"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_net.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/transport/mail_net.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_net.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_net.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_net.md",
+				"extlibs/xmail/xmail-mail-protocols-design.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h",
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h",
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "mail_net_tls",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_NET_TLS",
+			"depends": [
+				"mail_net",
+				"tls_stream_dial_future",
+				"tls_stream_future",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_schedule_sha384",
+				"tls_key_exchange_x25519",
+				"tls_key_exchange_p256",
+				"tls_record_aes",
+				"tls_record_chacha"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_net.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/transport/mail_net_tls.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_net_tls.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_net_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_net.md",
+				"extlibs/xmail/xmail-mail-protocols-design.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h",
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h",
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "mail_net_deflate",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_NET_DEFLATE",
+			"depends": [
+				"mail_net",
+				"deflate",
+				"inflate"
+			],
+			"public_headers": [],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/transport/mail_net_deflate.c"
+			],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_compress.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "smtp_client",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_SMTP_CLIENT",
+			"depends": [
+				"smtp",
+				"mail_net"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/smtp_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h",
+				"extlibs/xmail/src/internal/xrt_smtp_client.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/smtp/smtp_client.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/smtp/test_smtp_client.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_smtp_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/smtp_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
+			]
+		},
+		{
+			"name": "smtp_client_tls",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_SMTP_CLIENT_TLS",
+			"depends": [
+				"smtp_client",
+				"mail_net_tls"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/smtp_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h"
+			],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/smtp/test_smtp_client_tls.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_smtp_client_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/smtp_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
+			]
+		},
+		{
+			"name": "smtp_submit",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_SMTP_SUBMIT",
+			"depends": [
+				"smtp_client",
+				"mail_compose"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/smtp_submit.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/smtp/smtp_submit.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/smtp/test_smtp_submit.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_smtp_submit.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/smtp/submit/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/smtp_submit.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h",
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "smtp_auth",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_SMTP_AUTH",
+			"depends": [
+				"smtp_client",
+				"codec_base64"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/smtp_auth.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_auth.h",
+				"extlibs/xmail/src/internal/xrt_smtp_client.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/transport/mail_auth.c",
+				"extlibs/xmail/src/smtp/smtp_auth.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/smtp/test_smtp_auth.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_smtp_auth.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/smtp_auth.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
+			]
+		},
+		{
+			"name": "smtp_client_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_auth",
+				"smtp_client_tls"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xmail/examples/smtp/client/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/smtp_client.md",
+				"extlibs/xmail/docs/api/smtp_auth.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "pop3_client",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_POP3_CLIENT",
+			"depends": [
+				"pop3",
+				"mail_net"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/pop3_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h",
+				"extlibs/xmail/src/internal/xrt_pop3_client.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/pop3/pop3_client.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/pop3/test_pop3_client.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_pop3_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/pop3_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
+			]
+		},
+		{
+			"name": "pop3_client_tls",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_POP3_CLIENT_TLS",
+			"depends": [
+				"pop3_client",
+				"mail_net_tls"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/pop3_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h"
+			],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/pop3/test_pop3_client_tls.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_pop3_client_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/pop3_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
+			]
+		},
+		{
+			"name": "pop3_auth",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_POP3_AUTH",
+			"depends": [
+				"pop3_client",
+				"codec_base64"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/pop3_auth.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_auth.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h",
+				"extlibs/xmail/src/internal/xrt_pop3_client.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/transport/mail_auth.c",
+				"extlibs/xmail/src/pop3/pop3_auth.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/pop3/test_pop3_auth.c",
+				"extlibs/xmail/tests/pop3/test_pop3_sasl.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_pop3_auth.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/pop3_client.md",
+				"extlibs/xmail/docs/api/pop3_auth.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
+			]
+		},
+		{
+			"name": "pop3_client_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_auth",
+				"pop3_client_tls"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xmail/examples/pop3/client/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/pop3_client.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "pop3_message",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_POP3_MESSAGE",
+			"depends": [
+				"pop3_client",
+				"mail_tree",
+				"buffer"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/pop3_message.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/pop3/pop3_message.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/pop3/test_pop3_message.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_pop3_message.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/pop3/message/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/pop3_message.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h",
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "pop3_message_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_message",
+				"pop3_auth"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/pop3/test_pop3_message_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/pop3_message.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "imap_client",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_CLIENT",
+			"depends": [
+				"imap",
+				"mail_net"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/imap/imap_client.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_client.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "imap_client_tls",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_CLIENT_TLS",
+			"depends": [
+				"imap_client",
+				"mail_net_tls"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h"
+			],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_client_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "imap_auth",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_AUTH",
+			"depends": [
+				"imap_client",
+				"codec_base64"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_auth.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_auth.h",
+				"extlibs/xmail/src/internal/xrt_imap_client.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/transport/mail_auth.c",
+				"extlibs/xmail/src/imap/imap_auth.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_auth.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_auth.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_auth.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "imap_command",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_COMMAND",
+			"depends": [
+				"imap_client"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_command.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_imap_client.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/imap/imap_command.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_command.c",
+				"extlibs/xmail/tests/imap/test_imap_command_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_command.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_command.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "imap_message",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_MESSAGE",
+			"depends": [
+				"imap_command",
+				"imap_data",
+				"mail_tree",
+				"buffer"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_message.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/imap/imap_message.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_message.c",
+				"extlibs/xmail/tests/imap/test_imap_message_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_message.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/imap/message/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_message.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "imap_append",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_APPEND",
+			"depends": [
+				"imap_client"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_append.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_imap_client.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/imap/imap_append.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_append.c",
+				"extlibs/xmail/tests/imap/test_imap_append_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_append.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_append.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "imap_compress",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_IMAP_COMPRESS",
+			"depends": [
+				"imap_client",
+				"mail_net_deflate"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/imap_compress.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h",
+				"extlibs/xmail/src/internal/xrt_mail_net.h",
+				"extlibs/xmail/src/internal/xrt_imap_client.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/imap/imap_compress.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_compress.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_imap_compress.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/imap/client/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_compress.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "xmail",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL",
+			"depends": [
+				"smtp_client_tls",
+				"smtp_submit",
+				"smtp_auth",
+				"pop3_client_tls",
+				"pop3_auth",
+				"pop3_message",
+				"imap_client_tls",
+				"imap_auth",
+				"imap_body",
+				"imap_message",
+				"imap_append",
+				"imap_compress"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xmail/features.h",
+				"extlibs/xmail/include/xmail.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_core.c",
+				"extlibs/xmail/tests/mail/test_mail_codec.c",
+				"extlibs/xmail/tests/mail/test_mail_header.c",
+				"extlibs/xmail/tests/mail/test_mail_word.c",
+				"extlibs/xmail/tests/mail/test_mail_address.c",
+				"extlibs/xmail/tests/mail/test_mail_date.c",
+				"extlibs/xmail/tests/mail/test_mail_id.c",
+				"extlibs/xmail/tests/mail/test_mail_param.c",
+				"extlibs/xmail/tests/mail/test_mail_multipart.c",
+				"extlibs/xmail/tests/mail/test_mail_message.c",
+				"extlibs/xmail/tests/mail/test_mail_tree.c",
+				"extlibs/xmail/tests/mail/test_mail_build.c",
+				"extlibs/xmail/tests/mail/test_mail_compose.c",
+				"extlibs/xmail/tests/mail/test_mail_wire.c",
+				"extlibs/xmail/tests/smtp/test_smtp.c",
+				"extlibs/xmail/tests/pop3/test_pop3.c",
+				"extlibs/xmail/tests/imap/test_imap.c",
+				"extlibs/xmail/tests/imap/test_imap_body.c",
+				"extlibs/xmail/tests/mail/test_mail_alloc_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail.c",
+				"extlibs/xmail/tests/single/test_single_mail_core.c",
+				"extlibs/xmail/tests/single/test_single_mail_codec.c",
+				"extlibs/xmail/tests/single/test_single_mail_header.c",
+				"extlibs/xmail/tests/single/test_single_mail_word.c",
+				"extlibs/xmail/tests/single/test_single_mail_address.c",
+				"extlibs/xmail/tests/single/test_single_mail_date.c",
+				"extlibs/xmail/tests/single/test_single_mail_id.c",
+				"extlibs/xmail/tests/single/test_single_mail_param.c",
+				"extlibs/xmail/tests/single/test_single_mail_multipart.c",
+				"extlibs/xmail/tests/single/test_single_mail_message.c",
+				"extlibs/xmail/tests/single/test_single_mail_tree.c",
+				"extlibs/xmail/tests/single/test_single_mail_build.c",
+				"extlibs/xmail/tests/single/test_single_mail_compose.c",
+				"extlibs/xmail/tests/single/test_single_mail_wire.c",
+				"extlibs/xmail/tests/single/test_single_smtp.c",
+				"extlibs/xmail/tests/single/test_single_pop3.c",
+				"extlibs/xmail/tests/single/test_single_imap.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/codec/main.c",
+				"extlibs/xmail/examples/mail/header/main.c",
+				"extlibs/xmail/examples/mail/word/main.c",
+				"extlibs/xmail/examples/mail/address/main.c",
+				"extlibs/xmail/examples/mail/date/main.c",
+				"extlibs/xmail/examples/mail/id/main.c",
+				"extlibs/xmail/examples/mail/param/main.c",
+				"extlibs/xmail/examples/mail/multipart/main.c",
+				"extlibs/xmail/examples/mail/message/main.c",
+				"extlibs/xmail/examples/mail/tree/main.c",
+				"extlibs/xmail/examples/mail/build/main.c",
+				"extlibs/xmail/examples/mail/compose/main.c",
+				"extlibs/xmail/examples/mail/wire/main.c",
+				"extlibs/xmail/examples/smtp/protocol/main.c",
+				"extlibs/xmail/examples/pop3/protocol/main.c",
+				"extlibs/xmail/examples/imap/protocol/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/README.md",
+				"extlibs/xmail/docs/api/reference.md",
+				"extlibs/xmail/docs/api/mail.md",
+				"extlibs/xmail/docs/api/mail_codec.md",
+				"extlibs/xmail/docs/api/mail_header.md",
+				"extlibs/xmail/docs/api/mail_word.md",
+				"extlibs/xmail/docs/api/mail_address.md",
+				"extlibs/xmail/docs/api/mail_date.md",
+				"extlibs/xmail/docs/api/mail_id.md",
+				"extlibs/xmail/docs/api/mail_param.md",
+				"extlibs/xmail/docs/api/mail_multipart.md",
+				"extlibs/xmail/docs/api/mail_message.md",
+				"extlibs/xmail/docs/api/mail_tree.md",
+				"extlibs/xmail/docs/api/mail_build.md",
+				"extlibs/xmail/docs/api/mail_compose.md",
+				"extlibs/xmail/docs/api/mail_wire.md",
+				"extlibs/xmail/docs/api/smtp.md",
+				"extlibs/xmail/docs/api/pop3.md",
+				"extlibs/xmail/docs/api/imap.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h",
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h",
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h",
+				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
+			]
+		},
+		{
+			"name": "mail_net_tls_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"mail_net_tls",
+				"tls_stream_listener_sync",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_net_tls_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_net.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "smtp_client_tls_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_client_tls",
+				"smtp_auth",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/smtp/test_smtp_client_starttls_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "pop3_client_tls_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_auth",
+				"pop3_client_tls",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/pop3/test_pop3_client_stls_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "imap_client_tls_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_client_tls",
+				"imap_auth",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_client_starttls_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "imap_compress_tls_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_compress",
+				"imap_client_tls",
+				"imap_auth",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/imap/test_imap_compress_tls_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/docs/api/imap_compress.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "mail_protocol_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp",
+				"pop3",
+				"imap",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_protocol_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "mail_compose_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"mail_compose",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_compose_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "mail_tree_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"mail_tree",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_tree_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "xmail_tests",
+			"state": "implemented",
+			"feature": null,
+			"collect_dependency_assets": [
+				"tests",
+				"single_tests"
+			],
+			"depends": [
+				"smtp_submit",
+				"smtp_client_example",
+				"pop3_client_example",
+				"pop3_message_runtime_tests",
+				"imap_message",
+				"imap_append",
+				"xmail",
+				"mail_net_tls_runtime_tests",
+				"smtp_client_tls_runtime_tests",
+				"pop3_client_tls_runtime_tests",
+				"imap_client_tls_runtime_tests",
+				"imap_compress_tls_runtime_tests",
+				"mail_protocol_oom_tests",
+				"mail_compose_oom_tests",
+				"mail_tree_oom_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xmail/README.md"
+			],
+			"legacy": []
+		}
+	]
+}

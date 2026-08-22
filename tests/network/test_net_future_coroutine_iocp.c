@@ -1,0 +1,4 @@
+#define TEST_NET_FUTURE_COROUTINE_BACKEND XNET_PORT_IOCP
+#define TEST_NET_FUTURE_COROUTINE_BACKEND_NAME "IOCP"
+
+#include "test_net_future_coroutine.c"

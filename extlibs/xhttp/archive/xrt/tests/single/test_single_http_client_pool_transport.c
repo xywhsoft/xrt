@@ -1,0 +1,15 @@
+#define XRT_IMPLEMENTATION
+#include "../../single/xrt.h"
+
+
+
+#if !defined(TEST_SINGLE_HTTP_POOL_BACKEND)
+	#define TEST_SINGLE_HTTP_POOL_BACKEND XNET_PORT_SELECT
+	#define TEST_SINGLE_HTTP_POOL_BACKEND_NAME "single select"
+#endif
+
+#define TEST_HTTP_POOL_BACKEND \
+	TEST_SINGLE_HTTP_POOL_BACKEND
+#define TEST_HTTP_POOL_BACKEND_NAME \
+	TEST_SINGLE_HTTP_POOL_BACKEND_NAME
+#include "../http/test_http_client_pool.c"

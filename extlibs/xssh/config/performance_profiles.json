@@ -1,0 +1,172 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xssh/config/modules.json",
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": ["-O2"],
+		"ldflags": [],
+		"max_relative_mad": 0.20,
+		"max_relative_central_range": 0.30,
+		"regression": {
+			"higher": 0.10,
+			"lower": 0.20
+		}
+	},
+	"profiles": [
+		{
+			"name": "ssh_wire",
+			"system": "ssh_protocol",
+			"description": "SSH 基础类型、名称列表协商和 mpint 规范化热路径",
+			"benchmarks": [
+				{
+					"name": "ssh_wire",
+					"source": "extlibs/xssh/bench/bench_ssh_wire.c",
+					"suite": "ssh_wire",
+					"args": ["1000000"],
+					"smoke_args": ["1000"],
+					"metrics": {
+						"wire_roundtrips_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"namelist_matches_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"mpint_roundtrips_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "ssh_packet",
+			"system": "ssh_protocol",
+			"description": "SSH plain packet 构建、解析和序列管理热路径",
+			"benchmarks": [
+				{
+					"name": "ssh_packet",
+					"source": "extlibs/xssh/bench/bench_ssh_packet.c",
+					"suite": "ssh_packet",
+					"args": ["1000000"],
+					"smoke_args": ["1000"],
+					"metrics": {
+						"packet_roundtrips_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "ssh_packet_aes_gcm",
+			"system": "ssh_protocol",
+			"description": "SSH AES-128-GCM packet 原位加密、认证与解密热路径",
+			"benchmarks": [
+				{
+					"name": "ssh_packet_aes_gcm",
+					"source": "extlibs/xssh/bench/bench_ssh_packet_aes_gcm.c",
+					"suite": "ssh_packet_aes_gcm",
+					"args": ["1000000"],
+					"smoke_args": ["1000"],
+					"metrics": {
+						"aes_gcm_packet_roundtrips_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "ssh_packet_codec",
+			"system": "ssh_protocol",
+			"description": "SSH transport 统一 AES-GCM packet codec 往返热路径",
+			"benchmarks": [
+				{
+					"name": "ssh_packet_codec",
+					"source": "extlibs/xssh/bench/bench_ssh_packet_codec.c",
+					"suite": "ssh_packet_codec",
+					"args": ["1000000"],
+					"smoke_args": ["1000"],
+					"metrics": {
+						"packet_codec_roundtrips_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "ssh_kex_curve25519",
+			"system": "ssh_protocol",
+			"description": "SSH Curve25519 共享秘密计算热路径",
+			"benchmarks": [
+				{
+					"name": "ssh_kex_curve25519",
+					"source": "extlibs/xssh/bench/bench_ssh_kex_curve25519.c",
+					"suite": "ssh_kex_curve25519",
+					"args": ["10000"],
+					"smoke_args": ["100"],
+					"metrics": {
+						"curve25519_agreements_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "ssh_transport_state",
+			"system": "ssh_protocol",
+			"description": "SSH transport OPEN 与 rekey 在途应用包状态转换热路径",
+			"benchmarks": [
+				{
+					"name": "ssh_transport_state",
+					"source": "extlibs/xssh/bench/bench_ssh_transport_state.c",
+					"suite": "ssh_transport_state",
+					"args": ["10000000"],
+					"smoke_args": ["10000"],
+					"metrics": {
+						"open_packet_transitions_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"rekey_inflight_packet_transitions_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "ssh_transport_core",
+			"system": "ssh_protocol",
+			"description": "SSH transport AES-GCM 发送与接收事务完整往返热路径",
+			"benchmarks": [
+				{
+					"name": "ssh_transport_core",
+					"source": "extlibs/xssh/bench/bench_ssh_transport_core.c",
+					"suite": "ssh_transport_core",
+					"args": ["1000000"],
+					"smoke_args": ["1000"],
+					"metrics": {
+						"transport_core_roundtrips_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		}
+	]
+}

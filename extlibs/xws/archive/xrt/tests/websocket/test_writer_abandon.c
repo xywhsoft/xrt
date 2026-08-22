@@ -1,0 +1,6 @@
+#define TEST_WS_CONNECTION_ABANDON_WRITER
+#define TEST_WS_CONNECTION_CLOSE_CODE XWS_CLOSE_INTERNAL
+#define TEST_WS_CONNECTION_CLOSE_REASON "message writer abandoned"
+#define TEST_WS_CONNECTION_CLOSE_REASON_SIZE ((size_t)24u)
+
+#include "test_connection.c"

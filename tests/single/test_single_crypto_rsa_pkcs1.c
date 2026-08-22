@@ -1,0 +1,29 @@
+#define XRT_IMPLEMENTATION
+#include "../../single/xrt.h"
+
+#include "../crypto/rsa_fixture.h"
+
+
+
+/* 验证单头文件能够独立提供 RSA PKCS#1 v1.5 验签。 */
+int main(void)
+{
+	xrsapublickey Key;
+	uint8 Modulus[128];
+	uint8 Hash[32];
+	uint8 Signature[128];
+
+	return !__xrtTestRsaFixture(&Key, Modulus, Hash) ||
+		!__xrtTestRsaHex(
+			__xrtTestRsaPkcs1Hex,
+			Signature,
+			sizeof(Signature)
+		) ||
+		!xrtRsaPkcs1Verify(
+			&Key,
+			XCRYPTO_HASH_SHA256,
+			Hash,
+			Signature,
+			sizeof(Signature)
+		);
+}

@@ -1,0 +1,25 @@
+#define XRT_IMPLEMENTATION
+#include "../../single/xrt.h"
+
+#include <stdio.h>
+
+
+
+/* 验证单头文件中的 SHA-224 标准向量。 */
+int main(void)
+{
+	static const uint8 Expected[XRT_SHA224_SIZE] = {
+		0x23, 0x09, 0x7D, 0x22, 0x34, 0x05, 0xD8, 0x22,
+		0x86, 0x42, 0xA4, 0x77, 0xBD, 0xA2, 0x55, 0xB3,
+		0x2A, 0xAD, 0xBC, 0xE4, 0xBD, 0xA0, 0xB3, 0xF7,
+		0xE3, 0x6C, 0x9D, 0xA7
+	};
+	uint8 Digest[XRT_SHA224_SIZE];
+
+	if ( !xrtSha224("abc", 3, Digest) ||
+		!xrtConstTimeEqual(Digest, Expected, sizeof(Digest)) ) {
+		return 1;
+	}
+	printf("[PASS] single-crypto-sha224\n");
+	return 0;
+}

@@ -1,91 +1,43 @@
-# XRT 教学文档
+# XRT 使用指南
 
-> 面向第一次系统学习 XRT 的读者。这里回答“什么时候该用什么能力、为什么要这样拆层”，函数签名和返回值细节请回到 `api/`。
+使用指南回答“选择哪一层、为什么这样组合”；精确函数签名、错误、线程和所有权契约以 [API 文档](../README.md) 为准。全部登记示例都可以从 [可运行示例索引](../EXAMPLES.md) 查找。
 
-[返回文档中心](../README.md)
+## 建议路线
 
----
+1. 先阅读 [构建与发布](../BUILD.md)、[Core](../api/core.md)、[错误](../api/error.md) 和 [内存](../api/memory.md)，明确初始化、分配和失败模型。
+2. 通过 [时间、路径与文件](time-path-file.md) 建立系统边界，再进入字符串、字符集和数值处理。
+3. 按数据形态选择 Buffer、Array/Map/Set、Value、JSON 或 XSON，不让业务层反复实现容器和解析器。
+4. 按[并发、协程与任务选择指南](concurrency.md)理解 Thread、Channel、Future、
+   Coroutine 与 Task 的职责，再进入单个模块契约。
+5. 网络应用先从 Engine、TCP/UDP、TLS 的等待、取消、背压和所有权开始，再进入 HTTP 与 WebSocket。
+6. XRT 协议核心优先使用视图和调用方写出 API；拥有型对象和应用级 helper 由扩展库提供。
 
-## 建议起步路线
+## 组合指南
 
-1. [从零开始写第一个 XRT 程序](first-xrt-program.md)
-2. [时间、路径与文件系统入门：先把程序落到真实世界](time-path-file-intro.md)
-3. [xvalue、JSON 与 XSON 入门](xvalue-json-intro.md)
-4. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
-5. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-6. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
-7. [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
-8. [XURL 入门：什么时候先把 URL 拆对，比直接发请求更重要](xurl-intro.md)
-9. [HTTP Util 入门：Header、Query、Cookie 和 multipart 不是一堆字符串](http-util-intro.md)
-10. [XWS 入门：什么时候该让 WebSocket 回调负责协议边界，什么时候该把业务交给 Queue 和 Coroutine](xws-intro.md)
-11. [范例入口](../case/README.md)
+- [时间、路径与文件](time-path-file.md)：单调时钟、路径根、编码、限长读取和原子写入。
+- [XID](xid.md)：无中心标识、值类型、文本排序和严格解析。
+- [Crypto](crypto.md)：Hash、KDF、AEAD、密钥交换和签名的职责边界。
+- [并发、协程与任务](concurrency.md)：执行位置、消息、结果、取消、背压和结构化作用域。
+- [TaskGroup 与结构化作用域](task-group.md)：动态作用域、原子启动、父子传播和收口。
 
+组合指南只保留跨模块决策。单个模块的完整功能、常量、结构和示例不会在指南中复制，以免公共契约出现两个版本。
 
-## 按主题阅读
+## 按体系阅读
 
-### 基础运行时与数据
+| 体系 | API 起点 | 典型示例 |
+| --- | --- | --- |
+| 基础与文本 | [String](../api/string.md)、[Charset](../api/charset.md)、[Number](../api/number.md)、[Time](../api/time.md) | `examples/string`、`examples/number`、`examples/time` |
+| 文件与进程 | [Path](../api/path.md)、[File](../api/file.md)、[异步文件](../api/file_async.md)、[Process](../api/process.md) | `examples/path`、`examples/file`、`examples/process` |
+| 容器与数据 | [Buffer](../api/buffer.md)、[Typed Containers](../../extlibs/xruntime/docs/api/typed_containers.md)、[Value](../api/value.md)、[JSON](../api/json.md) | `examples/containers`、`examples/value`、`examples/data` |
+| 并发与任务 | [Thread](../api/thread.md)、[Sync](../api/sync.md)、[Future](../api/future.md)、[Coroutine](../api/coroutine.md)、[Task](../api/task.md) | `examples/concurrency`、`examples/runtime` |
+| 网络与 TLS | [Net](../api/net.md)、[TCP](../api/tcp.md)、[UDP](../api/udp.md)、[TLS](../api/tls.md) | `examples/network`、`examples/tls` |
+| HTTP 与 WebSocket | [HTTP](../api/http.md)、[WebSocket](../api/websocket.md) | `examples/http`、`examples/websocket` |
 
-- [从零开始写第一个 XRT 程序](first-xrt-program.md)
-- [Charset 入门：程序里的字符串、文件编码和平台宽字符不是一回事](charset-intro.md)
-- [OS 入门：什么时候只要启动一个程序，什么时候已经该上 subprocess](os-intro.md)
-- [Logger 入门：替代临时 printf，统一控制台、文件和滚动日志](logger-intro.md)
-- [XID 入门：什么时候该直接生成唯一 ID，什么时候还不够](xid-intro.md)
-- [Math 与 Hash 入门：随机数、约等于和稳定指纹不是一回事](math-hash-intro.md)
-- [xvalue、JSON 与 XSON 入门](xvalue-json-intro.md)
-- [JNUM 入门：什么时候该直接解析数字文本，而不是把所有输入都先塞进 `atoi / strtod / sprintf`](jnum-intro.md)
-- [XSON 入门：什么时候该从 JSON 升级到完整 `xvalue` 序列化](xson-intro.md)
-- [Template 入门：什么时候该用模板，而不是拼字符串](template-intro.md)
-- [Regex 入门：什么时候该用正则做验证、提取和路由，而不是手搓字符串扫描](regex-intro.md)
-- [Crypto 入门：摘要、密钥派生、AEAD 和签名验证不是同一件事](crypto-intro.md)
+## 查阅规则
 
-### 容器、内存与结构
+- 需要精确返回值、限制、错误和所有权时查 API，不从示例反推契约。
+- 需要最短常见写法时查示例，不在业务代码复制测试内部 helper。
+- 需要实现原理、平台差异和取舍时查 `docs/design`。
+- 需要确认裁剪、单头和平台状态时查 [功能选择](../FEATURE_SELECTION.md) 与 [发布状态](../RELEASE_STATUS.md)。
 
-- [Buffer 入门](buffer-intro.md)
-- [Array 入门](array-intro.md)
-- [PtrArray 入门](ptrarray-intro.md)
-- [Stack 入门](stack-intro.md)
-- [DynStack 入门](dynstack-intro.md)
-- [Dict 入门](dict-intro.md)
-- [List 入门](list-intro.md)
-- [AVLTree 入门](avltree-intro.md)
-- [BSMM 入门](bsmm-intro.md)
-- [MemUnit 入门](memunit-intro.md)
-- [FSMemPool 入门](mempool-fs-intro.md)
-- [MemPool 入门](mempool-intro.md)
-
-### 并发与异步
-
-- [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
-- [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-- [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
-- [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
-- [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-- [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
-- [XRT 运行时与线程附加入门](runtime-thread-attach.md)
-
-### 系统能力
-
-- [XRT 子进程与工具执行入门](subprocess-intro.md)
-- [XRT 异步文件与目录操作入门](file-async-intro.md)
-- [用 Subprocess + File Async 写一个工具链流水线](../case/subprocess-file-async-pipeline.md)
-
-### 网络与服务
-
-- [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
-- [xnet-v2 与 TLS session 入门](xnet-v2-tls-intro.md)
-- [XURL 入门](xurl-intro.md)
-- [HTTP Util 入门](http-util-intro.md)
-- [Proxy 入门](proxy-intro.md)
-- [XWS 入门](xws-intro.md)
-- [用 XRT 写最小 HTTP 服务入门](minimal-http-service-intro.md)
-- [用 XRT 调用流式 LLM API 入门](streaming-llm-api-intro.md)
-- [XRT HTTPD 异步处理入门](httpd-async-intro.md)
-
-
-## 什么时候看 API、什么时候看案例
-
-- 想理解模块的用途、边界和选型顺序，先看这里。
-- 已经知道模块名，只想查函数、结构和返回值，去 [API 索引](../api/README.md)。
-- 想看多个模块怎么拼成完整程序，去 [范例入口](../case/README.md)。
-
-
+旧版英文指南镜像不继续平行维护。当前重构期以一套中文契约为权威来源，避免翻译滞后形成第二套 API；稳定发布后再从已冻结契约生成其他语言版本。

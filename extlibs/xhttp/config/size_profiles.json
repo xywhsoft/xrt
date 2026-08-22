@@ -1,0 +1,36 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xhttp/config/modules.json",
+	"profiles": [
+		{
+			"name": "url",
+			"system": "http_extension",
+			"suite": "url",
+			"description": "完整 URL 解析、写出、规范化与引用解析"
+		},
+		{
+			"name": "query",
+			"system": "http_extension",
+			"suite": "query_codec",
+			"description": "无拥有状态的 Query 扫描与 percent codec"
+		},
+		{
+			"name": "protocol_objects",
+			"system": "http_extension",
+			"suite": "http_headers",
+			"description": "拥有型 HTTP Header 容器及核心协议依赖"
+		},
+		{
+			"name": "xhttp",
+			"system": "http_extension",
+			"suite": "xhttp",
+			"description": "xhttp 当前完整扩展闭包"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

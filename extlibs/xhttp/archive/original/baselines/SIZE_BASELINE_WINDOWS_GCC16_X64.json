@@ -1,0 +1,255 @@
+{
+  "schema": 2,
+  "platform": "win32",
+  "machine": "amd64",
+  "compiler_family": "gnu",
+  "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+  "compiler_version": "gcc.exe (GCC) 16.1.0",
+  "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+  "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+  "arch": "x64",
+  "optimization": "O2",
+  "stripped": false,
+  "source_revision": "51d3492b3868440acb46595bb9ef2682bd30bd54",
+  "source_dirty": true,
+  "source_fingerprint": "fdc4c8f8d36e81e8f0ee48be727c922b8653718a6f28c234bade47d6efd49af1",
+  "growth_limits": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": {
+    "core": {
+      "suite": "core",
+      "description": "核心、错误和基础内存",
+      "kinds": {
+        "single": {
+          "text": 108116,
+          "data": 992,
+          "bss": 2624,
+          "members": 1,
+          "load": 109108,
+          "file": 141885,
+          "path": "out/size/gnu/x64/core/single/xrt_single.o"
+        },
+        "static": {
+          "text": 10728,
+          "data": 976,
+          "bss": 2672,
+          "members": 4,
+          "load": 11704,
+          "file": 26438,
+          "path": "release/gnu/x64/core/static/libxrt.a"
+        },
+        "shared": {
+          "text": 20097,
+          "data": 1152,
+          "bss": 2960,
+          "members": 1,
+          "load": 21249,
+          "file": 59845,
+          "path": "release/gnu/x64/core/shared/xrt.dll"
+        }
+      }
+    },
+    "console": {
+      "suite": "console",
+      "description": "UTF-8 标准输出和终端判断",
+      "kinds": {
+        "single": {
+          "text": 111052,
+          "data": 992,
+          "bss": 2752,
+          "members": 1,
+          "load": 112044,
+          "file": 146847,
+          "path": "out/size/gnu/x64/console/single/xrt_single.o"
+        },
+        "static": {
+          "text": 13196,
+          "data": 976,
+          "bss": 2800,
+          "members": 5,
+          "load": 14172,
+          "file": 32032,
+          "path": "release/gnu/x64/console/static/libxrt.a"
+        },
+        "shared": {
+          "text": 23014,
+          "data": 1152,
+          "bss": 3088,
+          "members": 1,
+          "load": 24166,
+          "file": 64784,
+          "path": "release/gnu/x64/console/shared/xrt.dll"
+        }
+      }
+    },
+    "foundation": {
+      "suite": "string_format,time_text,path,file_whole",
+      "description": "字符串、时间、路径和整文件操作",
+      "kinds": {
+        "single": {
+          "text": 215184,
+          "data": 992,
+          "bss": 2688,
+          "members": 1,
+          "load": 216176,
+          "file": 288849,
+          "path": "out/size/gnu/x64/foundation/single/xrt_single.o"
+        },
+        "static": {
+          "text": 112628,
+          "data": 976,
+          "bss": 2736,
+          "members": 16,
+          "load": 113604,
+          "file": 190236,
+          "path": "release/gnu/x64/string_format,time_text,path,file_whole/static/libxrt.a"
+        },
+        "shared": {
+          "text": 157100,
+          "data": 1232,
+          "bss": 5600,
+          "members": 1,
+          "load": 158332,
+          "file": 232315,
+          "path": "release/gnu/x64/string_format,time_text,path,file_whole/shared/xrt.dll"
+        }
+      }
+    },
+    "concurrency": {
+      "suite": "task_group_pool,task_group_coroutine,channel_select_cancel",
+      "description": "线程任务、协程任务和可取消 Channel",
+      "kinds": {
+        "single": {
+          "text": 191556,
+          "data": 1000,
+          "bss": 2688,
+          "members": 1,
+          "load": 192556,
+          "file": 267602,
+          "path": "out/size/gnu/x64/concurrency/single/xrt_single.o"
+        },
+        "static": {
+          "text": 83832,
+          "data": 1032,
+          "bss": 2768,
+          "members": 27,
+          "load": 84864,
+          "file": 182218,
+          "path": "release/gnu/x64/task_group_pool,task_group_coroutine,channel_select_cancel/static/libxrt.a"
+        },
+        "shared": {
+          "text": 104928,
+          "data": 1208,
+          "bss": 3056,
+          "members": 1,
+          "load": 106136,
+          "file": 179394,
+          "path": "release/gnu/x64/task_group_pool,task_group_coroutine,channel_select_cancel/shared/xrt.dll"
+        }
+      }
+    },
+    "network": {
+      "suite": "net_tcp_dial_sync,net_tcp_server_sync,net_udp_sync,net_resolver_future",
+      "description": "TCP 客户端与服务器、UDP、DNS、同步和 Future",
+      "kinds": {
+        "single": {
+          "text": 395044,
+          "data": 1000,
+          "bss": 2688,
+          "members": 1,
+          "load": 396044,
+          "file": 528809,
+          "path": "out/size/gnu/x64/network/single/xrt_single.o"
+        },
+        "static": {
+          "text": 245996,
+          "data": 1000,
+          "bss": 2752,
+          "members": 42,
+          "load": 246996,
+          "file": 448672,
+          "path": "release/gnu/x64/net_tcp_dial_sync+3-f7032641c428/static/libxrt.a"
+        },
+        "shared": {
+          "text": 271190,
+          "data": 1176,
+          "bss": 3024,
+          "members": 1,
+          "load": 272366,
+          "file": 376648,
+          "path": "release/gnu/x64/net_tcp_dial_sync+3-f7032641c428/shared/xrt.dll"
+        }
+      }
+    },
+    "http_websocket": {
+      "suite": "http_client_easy_future,http_server_mux,websocket_client_future,websocket_server_future",
+      "description": "HTTP 客户端与服务器及 WebSocket 双端",
+      "kinds": {
+        "single": {
+          "text": 764640,
+          "data": 1000,
+          "bss": 2720,
+          "members": 1,
+          "load": 765640,
+          "file": 1013547,
+          "path": "out/size/gnu/x64/http_websocket/single/xrt_single.o"
+        },
+        "static": {
+          "text": 588124,
+          "data": 1000,
+          "bss": 2784,
+          "members": 96,
+          "load": 589124,
+          "file": 1020902,
+          "path": "release/gnu/x64/http_client_easy_future+3-3974c6a7ec74/static/libxrt.a"
+        },
+        "shared": {
+          "text": 657281,
+          "data": 1256,
+          "bss": 5632,
+          "members": 1,
+          "load": 658537,
+          "file": 839885,
+          "path": "release/gnu/x64/http_client_easy_future+3-3974c6a7ec74/shared/xrt.dll"
+        }
+      }
+    },
+    "all": {
+      "suite": "all",
+      "description": "完整 XRT",
+      "kinds": {
+        "single": {
+          "text": 3357020,
+          "data": 1184,
+          "bss": 32640,
+          "members": 1,
+          "load": 3358204,
+          "file": 4386332,
+          "path": "out/size/gnu/x64/all/single/xrt_single.o"
+        },
+        "static": {
+          "text": 2964452,
+          "data": 1192,
+          "bss": 32832,
+          "members": 608,
+          "load": 2965644,
+          "file": 5133800,
+          "path": "release/gnu/x64/all/static/libxrt.a"
+        },
+        "shared": {
+          "text": 3183835,
+          "data": 2008,
+          "bss": 35776,
+          "members": 1,
+          "load": 3185843,
+          "file": 3905336,
+          "path": "release/gnu/x64/all/shared/xrt.dll"
+        }
+      }
+    }
+  }
+}

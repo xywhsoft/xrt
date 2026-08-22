@@ -1,0 +1,44 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xws/config/modules.json",
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": ["-O2"],
+		"ldflags": [],
+		"max_relative_mad": 0.20,
+		"max_relative_central_range": 0.30,
+		"regression": {
+			"higher": 0.10,
+			"lower": 0.20
+		}
+	},
+	"profiles": [
+		{
+			"name": "websocket_loopback",
+			"system": "websocket_extension",
+			"description": "WebSocket 持久连接消息回环、背压和关闭路径",
+			"benchmarks": [
+				{
+					"name": "websocket_loopback",
+					"source": "extlibs/xws/bench/bench_websocket_loopback.c",
+					"suite": "xws",
+					"args": ["5000"],
+					"smoke_args": ["50"],
+					"metrics": {
+						"websocket_messages_per_sec": {
+							"direction": "higher",
+							"unit": "messages/s"
+						},
+						"websocket_latency_p99_us": {
+							"direction": "lower",
+							"unit": "microseconds"
+						}
+					}
+				}
+			]
+		}
+	]
+}

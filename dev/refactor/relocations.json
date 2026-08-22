@@ -1,0 +1,27 @@
+{
+	"schema": 1,
+	"manifests": [
+		"extlibs/xhttp/config/modules.json",
+		"extlibs/xhttp/archive/modules.json",
+		"extlibs/xmail/config/modules.json",
+		"extlibs/xregex/config/modules.json",
+		"extlibs/xruntime/config/modules.json",
+		"extlibs/xssh/config/modules.json",
+		"extlibs/xws/config/modules.json",
+		"extlibs/xws/archive/modules.json"
+	],
+	"roots": [
+		"extlibs/xhttp",
+		"extlibs/xmail",
+		"extlibs/xregex",
+		"extlibs/xruntime",
+		"extlibs/xssh",
+		"extlibs/xws"
+	],
+	"historical_modules": [
+		"regex"
+	],
+	"path_overrides": {
+		"dev/bench/regex/REGEX_BENCH_20260731.md": "extlibs/xregex/bench/REGEX_BENCH_20260731.md"
+	}
+}

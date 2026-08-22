@@ -1,0 +1,143 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xruntime/config/modules.json",
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": [
+			"-O2"
+		],
+		"ldflags": [],
+		"max_relative_mad": 0.2,
+		"max_relative_central_range": 0.3,
+		"regression": {
+			"higher": 0.1,
+			"lower": 0.2
+		}
+	},
+	"profiles": [
+		{
+			"name": "runtime_core",
+			"system": "runtime_model",
+			"description": "类型操作、对象引用生命周期和完整动态调用提交热路径",
+			"benchmarks": [
+				{
+					"name": "runtime_model",
+					"source": "extlibs/xruntime/bench/bench_runtime_model.c",
+					"suite": "runtime_call,runtime_object",
+					"args": [
+						"10000000",
+						"10000000",
+						"2000000"
+					],
+					"smoke_args": [
+						"100000",
+						"100000",
+						"20000"
+					],
+					"metrics": {
+						"runtime_type_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"runtime_object_ref_pairs_per_sec": {
+							"direction": "higher",
+							"unit": "ref-pairs/s"
+						},
+						"runtime_calls_per_sec": {
+							"direction": "higher",
+							"unit": "calls/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "runtime_containers",
+			"system": "runtime_model",
+			"description": "拥有式类型容器与预分配并发类型队列热路径",
+			"benchmarks": [
+				{
+					"name": "typed_containers",
+					"source": "extlibs/xruntime/bench/bench_typed_containers.c",
+					"suite": "typed_array,typed_dict",
+					"args": [
+						"1000000",
+						"1000000",
+						"4096"
+					],
+					"smoke_args": [
+						"10000",
+						"10000",
+						"256"
+					],
+					"metrics": {
+						"typed_array_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"typed_dict_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				},
+				{
+					"name": "typed_queue",
+					"source": "extlibs/xruntime/bench/bench_typed_queue.c",
+					"suite": "typed_queue_spsc,typed_queue_mpsc,typed_queue_mpmc",
+					"args": [
+						"5000000",
+						"1024"
+					],
+					"smoke_args": [
+						"50000",
+						"256"
+					],
+					"metrics": {
+						"typed_spsc_transfers_per_sec": {
+							"direction": "higher",
+							"unit": "transfers/s"
+						},
+						"typed_mpsc_transfers_per_sec": {
+							"direction": "higher",
+							"unit": "transfers/s"
+						},
+						"typed_mpmc_transfers_per_sec": {
+							"direction": "higher",
+							"unit": "transfers/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "runtime_graph",
+			"system": "runtime_model",
+			"description": "对象图强引用环建立、识别与批量终结路径",
+			"benchmarks": [
+				{
+					"name": "runtime_object_graph",
+					"source": "extlibs/xruntime/bench/bench_object_graph.c",
+					"suite": "runtime_object_graph",
+					"args": [
+						"200",
+						"1000"
+					],
+					"smoke_args": [
+						"5",
+						"100"
+					],
+					"metrics": {
+						"runtime_graph_objects_per_sec": {
+							"direction": "higher",
+							"unit": "objects/s"
+						}
+					}
+				}
+			]
+		}
+	]
+}

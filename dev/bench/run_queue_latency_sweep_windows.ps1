@@ -13,8 +13,7 @@ if (-not $OutDir) {
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
-$cflags = @("-O2", "-I", ".")
-$winlibs = @("-lws2_32", "-liphlpapi")
+$cflags = @("-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-Wno-unused-function")
 $itemsPerProducer = if ($env:XQUEUE_LATENCY_SWEEP_ITEMS_PER_PRODUCER) { [uint32]$env:XQUEUE_LATENCY_SWEEP_ITEMS_PER_PRODUCER } else { [uint32]100000 }
 $capacity = if ($env:XQUEUE_LATENCY_SWEEP_CAPACITY) { [uint32]$env:XQUEUE_LATENCY_SWEEP_CAPACITY } else { [uint32]4096 }
 $mpscProducers = if ($env:XQUEUE_LATENCY_SWEEP_MPSC_PRODUCERS) { [uint32]$env:XQUEUE_LATENCY_SWEEP_MPSC_PRODUCERS } else { [uint32]4 }
@@ -67,7 +66,7 @@ Write-Output "policy: $policyName"
 Write-Output "cpu_pin: $cpuPin"
 
 try {
-	gcc dev/bench/queue/bench_queue_latency.c xrt.c @cflags -o $benchExe @winlibs
+	gcc dev/bench/queue/bench_queue_latency.c @cflags -o $benchExe
 
 	foreach ($batchSize in $batchSizeList) {
 		$stamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"

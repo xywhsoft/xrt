@@ -1,388 +1,154 @@
-# XRT 架构设计
+# XRT 2.0 架构
+
+## 设计目标
+
+XRT 的最高设计约束是功能完备、路径灵活、常见场景简单高效，以及实现长期可维护。任何模块都必须同时提供完整能力、底层扩展路径和顺手的常见操作，不能以增加重复实现的方式换取表面完备。
+
+## 历史资产
+
+`dev/ver1` 是旧版只读参考树。重构默认优先复用已经验证的实现、体系、测试、边界和性能经验，不以重写代码量衡量进度。
+
+每个旧文件必须经过以下决策之一：
+
+- `retain`：实现质量足够，调整位置、命名和依赖后保留。
+- `refine`：保留算法和主体实现，修复缺陷并清理结构。
+- `replace`：存在明确缺陷或更优方案，记录收益、代价和迁移测试后替换。
+- `merge`：能力重复，迁入唯一权威实现。
+- `retire`：生成物、废弃工具或不再成立的功能，记录原因后停止迁移。
+
+`dev/refactor/baseline.json` 保存所有旧版文件的哈希、大小和行数。审计工具会阻止重构过程意外修改参考树；迁移台账记录每个文件的决策、目标模块、测试和文档状态。对于同时承载多个模块的旧文件，台账按互不重叠的行区间记录结论，只有全部区间闭合后才能汇总文件级状态。
+
+## 目录边界
+
+```text
+include/xrt/       分模块公共契约
+src/core/          类型、错误、分配器和运行时基础
+src/memory/        全局堆、内存池、arena、调试和遥测
+src/text/          字节字符串、Unicode、字符集、数值格式和文本算法
+src/hash/          确定性哈希与带密钥哈希
+src/math/          数学辅助、显式随机状态和线程本地随机便捷层
+src/codec/         文本与二进制编码
+src/compress/      流式压缩与解压缩
+src/containers/    数组、链表、字典、集合、队列和树
+src/value/         动态值、容器外壳与对象图桥接
+src/data/          JSON、XSON 与结构化数据持久化
+src/runtime/       待独立证明边界的类型、对象、字段和类型化容器
+src/concurrency/   线程、同步原语、Channel、协程、Future、Task 和执行器
+src/system/        时间、路径、环境与信号
+src/fs/            文件、目录、映射、锁和异步文件操作
+src/io/            通用读写流与缓冲适配
+src/process/       子进程、管道与终端
+src/logging/       日志核心、格式化和输出端
+src/crypto/        密码算法与组合原语
+src/asn1/          ASN.1 DER
+src/x509/          X.509 解析、校验、路径和信任存储
+src/tls/           TLS 协议、身份、会话和流
+src/network/       网络引擎、TCP、UDP、DNS 和代理
+src/url/           URL、Query 与表单编码
+src/http/          HTTP 字段、HTTP/1 分帧和可选正文解码
+src/websocket/     WebSocket 帧、握手、压缩和已建立连接
+src/id/            XID 分布式标识
+src/template/      通用模板解析与渲染
+src/internal/      跨文件私有契约，不构成公共体系
+src/third_party/   被具体体系封装的第三方实现，不直接公开
+extlibs/xhttp/     HTTP 高级能力与迁移资产
+extlibs/xws/       WebSocket 高级能力与迁移资产
+```
 
-> 当前源码主线的架构说明。本文档只描述已经进入正式主线的设计，不再保留旧网络/TLS 主线的历史叙述。
+物理目录、公共 API 和依赖方向必须一致。体系内允许真实直接依赖，体系间禁止反向依赖和循环依赖。不能为了裁剪而引入没有实际价值的函数表或抽象接口。
 
-[返回索引](README.md)
+## 依赖与耦合
 
----
+XRT 追求低耦合，但不把“没有直接 include”当作目标。HTTP/1 正文解码天然依赖
+Content-Encoding 与 Inflate，TLS 流天然依赖 TLS 与 TCP；这些关系应在清单中直接表达，并作为一套
+完整体系共同测试。为了表面解耦而增加函数表、无类型指针或重复适配层，只会把真实
+依赖变成更难维护的隐式依赖。
 
-## 1. 设计定位
+依赖必须由浅入深：基础类型和错误不能反向依赖容器，协议解析不能依赖客户端或
+服务器，网络引擎不能依赖 HTTP，Future 和协程桥接不能改变底层操作语义。上层模块
+可以直接组合多个下层模块，但同一项算法、状态机和所有权规则只能有一个权威实现。
 
-XRT 的目标不是“函数集合”，而是：
+`config/modules.json` 是模块、依赖、源码、测试、文档、范例和单头顺序的唯一清单。
+公开选择宏由清单生成，不能在头文件、构建脚本和文档中分别维护另一份依赖表。
+清单中的 `scope.systems` 记录源码根目录的体系归属与边界复审状态；细粒度裁剪节点不能
+被误解为同等数量的产品体系。完整准入规则见 `docs/SCOPE.md`。
 
-**互联网 + AI 时代的 C 语言基础设施库**
+## 协议与运行时路径
 
-它需要同时满足：
+HTTP、WebSocket 等复杂体系在 XRT 核心保留两类路径：
 
-- 轻量化
-- 高性能
-- 跨平台
-- 单头文件友好
-- 功能完备且成体系
-- 能支撑互联网程序开发链路
-- 能支撑 AI Agent 的异步编排与网络交互链路
+1. 无分配视图和增量解析器，用于代理、网关和自定义状态机。
+2. 原始字节与流式写出，用于固定响应、预编码内容和零拷贝转发。
 
-这决定了 XRT 的架构不是若干孤立模块堆叠，而是一条完整基础设施主线：
+结构化协议对象、客户端、服务器和常见场景便捷函数属于 `xhttp`、`xws` 扩展层。
+扩展层必须依赖同一套核心解析、写出、背压和生命周期原语，并始终保留直接发送合法
+原始头部、正文或完整响应的路径，不能维护第二套协议实现。
 
-- 基础运行时
-- 并发运行时
-- 统一异步模型
-- 网络主线
-- 网络应用层
-- 结构化数据与文本处理
+## 跨层基础契约
 
+所有可能失败的公共操作先用返回值表达成功、失败或等待结果；失败时通过当前执行
+上下文提供不可变的 `xerror`。错误类别用于控制流，稳定域和代码用于精确判断，系统
+代码、操作名、数据和原因链保留诊断上下文。展示消息不能成为机器判断依据。
 
-## 2. 当前架构分层
+可等待操作统一使用单调时钟 `xdeadline`、可继承的 `xcancel` 和明确的
+`xwaitresult`。同步、Future、协程和回调 API 只是等待方式不同，超时、取消、关闭、
+部分完成、背压和对象后续状态必须一致。任何便捷层都不能吞掉底层错误或偷偷改变
+取消语义。
 
-### 2.1 运行时基础层
+所有权在声明和文档中明确为借用、复制、取得或增加引用。跨线程持有的数据必须有
+稳定生命周期；热路径可以提供引用和所有权转移以避免复制，但不能让“可能复制”成为
+未说明的实现细节。
 
-负责：
+## API 层次
 
-- 基础类型
-- 进程级运行时
-- 线程级运行时
-- 内存分配入口
-- 错误处理
-- 临时内存
-- 字符串、编码、路径、时间、文件、哈希、随机数
+复杂体系按三级能力递进：
 
-核心文件：
+1. XRT 原语层暴露完整控制、借用视图和状态机。
+2. 扩展库组合层提供可复用对象和协议策略。
+3. 扩展库便捷层用一个函数完成常见路径。
 
-- [xrt.h](../xrt.h)
-- [xrt.c](../xrt.c)
-- [base.h](../lib/base.h)
-- [string.h](../lib/string.h)
-- [os.h](../lib/os.h)
-- [charset.h](../lib/charset.h)
-- [math.h](../lib/math.h)
-- [path.h](../lib/path.h)
-- [time.h](../lib/time.h)
-- [file.h](../lib/file.h)
-- [hash.h](../lib/hash.h)
+便捷层只能组合同一套原语，不能维护第二套实现。结构化对象、原始字节、流式处理和自动管理路径按实际需要并列存在。
 
-### 2.2 并发运行时层
+公共头只暴露调用方需要依赖的类型、常量和函数。可复用的协议原语、解析器和写出器
+不能仅因最初服务于某个客户端而隐藏在 `.c` 文件中；真正只维持模块不变量的细节才
+进入 `src/internal/`。这一边界防止 URL、Header、Cookie、表单和编码逻辑在不同运行
+时中反复实现。
 
-负责：
+## 外部集成边界
 
-- 线程
-- 线程附加运行时
-- 协程
-- 协程调度器
-- 协程事件等待
+XRT 当前只发布和验证自身的 C 契约。公共 ABI 使用固定宽度类型、显式所有权、结构化
+错误和可查询的能力，不依赖 C++ 异常或编译器私有对象布局，因此可以被语言运行时和
+其他宿主绑定；但任何具体语言的标准库、对象包装、符号注册、生成代码和仓库同步都不
+进入 XRT 的源码体系、CI 门禁或完成度。
 
-核心文件：
+外部适配只能依赖 XRT 已经稳定的公开原语，不得反向决定 Core、调度器、网络状态机或
+协议解析器的私有布局。需要为某种语言增加的纯适配能力应放在对应语言项目，而不是以
+“未来可能复用”为理由扩张 XRT。
 
-- [thread.h](../lib/thread.h)
-- [coroutine.h](../lib/coroutine.h)
+## 模块生命周期
 
-### 2.3 统一异步模型层
+- `planned`：只有目标和依赖设计。
+- `auditing`：正在逐行读取旧实现和测试，公共契约未冻结。
+- `implemented`：新实现和模块测试已经通过。
+- `stable`：文档、范例、裁剪、跨编译器、边界、性能和单头文件门禁全部通过。
 
-负责：
+只有 `stable` 模块才能成为上层稳定依赖。模块进入 `stable` 后不再进行无证据的反复重构。
 
-- `future`
-- `promise`
-- `task`
-- `wait-source`
-- continuation
-- combinator
-- task group
-- nested scope
+## 测试层次
 
-当前已形成正式主线。
+- 模块测试只编译目标模块及其依赖，用于日常开发。
+- 契约测试覆盖参数、所有权、生命周期、线程、错误和取消语义。
+- 边界与故障注入覆盖溢出、OOM、异常关闭和竞争条件。
+- 压力、模糊和性能测试在复杂模块稳定前执行。
+- 裁剪测试验证每个功能闭包能够独立编译和运行。
+- 发布回归覆盖所有模块、编译器、平台和单头文件。
 
-核心文件：
+旧测试不会直接丢弃。每个测试必须迁移、被更严格测试取代，或者记录不再成立的契约后退役。
 
-- [xrt.h](../xrt.h)
-- [xnet_sync.h](../lib/xnet_sync.h)
+## 单头文件
 
-### 2.4 内存与容器层
+模块化源码是唯一权威实现。`tools/amalgamate.py` 按 `config/modules.json` 的依赖顺序生成 `single/xrt.h`，生成文件不接受手工修改。模块化构建和单头文件构建使用同一组源码，并分别执行测试。
 
-负责：
+POSIX 平台的实现翻译单元必须在首次包含 `single/xrt.h` 前定义 `XRT_IMPLEMENTATION`，并应在其他系统头之前包含它。生成文件只在实现翻译单元启用 Linux GNU/POSIX.1-2008 接口和 64 位文件偏移；仅声明用法不会修改调用方的系统特性宏。`single_all_tests` 使用 `XRT_MODULE_ALL` 验证所有实现能够在同一翻译单元中完整编译和链接，防止模块私有名称冲突及延迟系统头问题。
 
-- 块结构内存管理
-- 固定大小内存池
-- 通用内存池
-- 数组、指针数组、栈、链表、AVLTree、字典、列表
-
-这层当前已经进入：
-
-- owner-thread 默认语义
-- shared root 显式语义
-- 调试与危险操作识别
-
-核心文件：
-
-- [bsmm.h](../lib/bsmm.h)
-- [memunit.h](../lib/memunit.h)
-- [mempool_fs.h](../lib/mempool_fs.h)
-- [mempool.h](../lib/mempool.h)
-- [array_point.h](../lib/array_point.h)
-- [array.h](../lib/array.h)
-- [stack.h](../lib/stack.h)
-- [stack_dyn.h](../lib/stack_dyn.h)
-- `llist`：当前源码树中暂无独立 `lib/llist.h`，相关文档需要继续和现行实现校准
-- [avltree_base.h](../lib/avltree_base.h)
-- [avltree.h](../lib/avltree.h)
-- [dict.h](../lib/dict.h)
-- [list.h](../lib/list.h)
-
-### 2.5 结构化数据与文本层
-
-负责：
-
-- `xvalue`
-- JSON
-- 数值与文本转换
-- 模板引擎
-- 正则表达式
-
-核心文件：
-
-- [value.h](../lib/value.h)
-- [json.h](../lib/json.h)
-- [jnum.h](../lib/jnum.h)
-- [template.h](../lib/template.h)
-- [regex.h](../lib/regex.h)
-
-### 2.6 当前网络主线
-
-当前正式网络主线是：
-
-**xnet-v2 + xtlssession + xhttp/xhttpd/xws**
-
-负责：
-
-- URL
-- HTTP 辅助
-- 网络底座
-- 端口抽象
-- 编解码
-- engine
-- stream
-- dgram
-- sync/future/wait-source
-- TLS session
-- HTTP client
-- HTTP server
-- WebSocket
-
-核心文件：
-
-- [xurl.h](../lib/xurl.h)
-- [xhttp_util.h](../lib/xhttp_util.h)
-- [xnet_base.h](../lib/xnet_base.h)
-- [xnet_mem.h](../lib/xnet_mem.h)
-- [xnet_port.h](../lib/xnet_port.h)
-- [xnet_port_iocp.h](../lib/xnet_port_iocp.h)
-- [xnet_port_uring.h](../lib/xnet_port_uring.h)
-- [xcodec.h](../lib/xcodec.h)
-- [xcodec_http1.h](../lib/xcodec_http1.h)
-- [xcodec_ws.h](../lib/xcodec_ws.h)
-- [xnet_engine.h](../lib/xnet_engine.h)
-- [nettls.h](../lib/nettls.h)
-- [xnet_stream.h](../lib/xnet_stream.h)
-- [xnet_dgram.h](../lib/xnet_dgram.h)
-- [xnet_sync.h](../lib/xnet_sync.h)
-- [xhttp.h](../lib/xhttp.h)
-- [xhttpd.h](../lib/xhttpd.h)
-- [xws.h](../lib/xws.h)
-
-
-## 3. 运行时模型
-
-### 3.1 全局态与线程态分离
-
-XRT 当前运行时明确分为两类状态：
-
-- `xrtGlobalData`
-- `xrtThreadData`
-
-设计目的：
-
-- 进程级配置保持唯一
-- 线程级错误、临时内存、随机数和后续线程内存上下文不再全局混放
-
-### 3.2 进程级运行时
-
-主要保存：
-
-- `sNull`
-- 应用路径
-- 分配器函数表
-- 全局错误回调
-- 高频时钟等进程级环境
-
-### 3.3 线程级运行时
-
-主要保存：
-
-- `LastError`
-- 线程级临时内存
-- 默认随机数状态
-- 协程运行时
-- current-thread deferred continuation 队列
-- 后续线程内存上下文
-
-### 3.4 attach 模型
-
-当前主线采用：
-
-- `xrtInit()` 自动附加当前线程
-- `xrtThreadCreate()` 创建的线程自动附加
-- 宿主线程如果要调用运行时绑定 API，需显式：
-	- `xrtThreadAttachCurrent()`
-	- `xrtThreadDetachCurrent()`
-
-
-## 4. 线程与协程
-
-### 4.1 线程
-
-线程主线已重构为：
-
-- 明确的 Create / Wait / Destroy 生命周期
-- runtime attach/detach 自动接线
-- 线程 cleanup 栈
-- 线程级运行时状态自动释放
-
-### 4.2 协程
-
-协程当前是：
-
-- 线程绑定
-- 栈式
-- 协作式
-- scheduler 驱动
-
-它支持：
-
-- sleep
-- deadline wait
-- event wait
-- cancel / join / close
-- 结果槽
-- cleanup 栈
-- 与 future / xnet wait-source 集成
-
-协程 backend 当前策略：
-
-- production backend 优先走自有实现
-- compat backend 仅作为兼容后端
-- 正式支持矩阵按 ABI + 编译器 + 实测平台逐步扩展
-
-
-## 5. 统一异步模型
-
-XRT 当前已经建立统一异步主线：
-
-- `xfuture`
-- `xpromise`
-- `xtask`
-- `xwaitsrc`
-
-并支持：
-
-- `thread / coroutine / engine / delayed` 四类 task 执行入口
-- `Then / Catch / Finally`
-- `Current / Engine / Co` continuation 目标
-- `WhenAny / WhenAll / Race`
-- `task group`
-- `nested scope`
-- `dynamic join`
-
-这条主线的目标是把：
-
-- 线程任务
-- 协程等待
-- 网络异步结果
-- 定时器与事件等待
-
-统一成一套正式运行时语义。
-
-
-## 6. 内存与 shared-mode
-
-XRT 当前不再默认把所有容器都视为可无约束跨线程共享。
-
-主线规则是：
-
-- 默认对象属于本线程
-- 跨线程共享必须显式创建 shared root
-- shared root 的公开 root 操作必须遵守对应合同
-- 违规跨线程修改会被拒绝并产生诊断
-
-shared-mode 当前已经覆盖：
-
-- root-level array / ptrarray
-- dict / list / coll
-- real shared `xvalue` 顶层引用计数
-
-
-## 7. TLS 主线
-
-TLS 当前已经收口为：
-
-- 内部核心实现仍在 [nettls.h](../lib/nettls.h)
-- 对外正式 public surface 为：
-	- `xtlssession`
-	- `xrtNetTlsSession*`
-
-旧 `xtlsctx / xrtTls*` 已不再属于正式 public 主线。
-
-这意味着：
-
-- `xnet_stream`
-- `xhttp`
-- `xhttpd`
-- `xws`
-
-全部围绕 session 层工作，而不是直接暴露 TLS core 上下文。
-
-
-## 8. 单头文件与模块裁剪
-
-XRT 仍然保持：
-
-- 单头文件分发能力
-- 模块裁剪能力
-
-但裁剪主线已经围绕当前模块重新整理，不再保留旧网络模块的历史裁剪面。
-
-
-## 9. 当前正式主线与历史归档的边界
-
-当前文档与代码必须遵守：
-
-- 正式主线只描述当前架构
-- 历史旧网络/TLS 文档不再作为正式入口
-- 历史内容如有保留价值，应迁入 `dev/` 归档
-
-这条边界是为了避免：
-
-- 旧 API 与新 API 并列
-- 旧命名误导新用户
-- 文档与源码主线持续分叉
-
-
-## 10. 当前架构的关键优势
-
-当前 XRT 架构相对于“零散工具库”有 5 个关键优势：
-
-- 运行时、并发、异步、网络、数据处理是成体系的，不是外部拼装
-- 线程、协程、future、xnet 已形成可互相接线的统一主线
-- shared-mode 和 owner-thread 模型明确，减少跨线程误用
-- TLS、HTTP、WebSocket 已并入统一网络主线
-- 单头文件、轻量化和跨平台目标仍然保留
-
-
-## 11. 后续架构演进方向
-
-当前架构已经进入正式主线阶段，后续重点不是再增加平行体系，而是继续收口：
-
-- 文档与主线同步
-- 网络应用层正式文档补齐
-- 更多平台的协程 backend 真机验证
-- shared-mode 和内存调试能力继续完善
-- 基于统一异步模型扩展更多 AI / Agent 场景能力
-
-
+清单中的 `sources` 属于库实现，会参与模块化构建和单头文件生成；`test_sources` 只在该模块作为测试根时参与编译，用于 fuzz 入口、互操作驱动等测试基础设施，严禁进入发布库。`tests`、`single_tests`、`examples` 分别声明模块测试、单头文件测试和范例，依赖模块不会隐式携带上层测试资产。

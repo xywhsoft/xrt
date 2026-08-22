@@ -1,0 +1,796 @@
+{
+	"schema": 1,
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": [
+			"-O2"
+		],
+		"ldflags": [],
+		"max_relative_mad": 0.2,
+		"max_relative_central_range": 0.3,
+		"regression": {
+			"higher": 0.1,
+			"lower": 0.2
+		}
+	},
+	"profiles": [
+		{
+			"name": "task",
+			"system": "concurrency",
+			"description": "有界任务池提交、调度、Future 等待和回收",
+			"benchmarks": [
+				{
+					"name": "task_pool",
+					"source": "dev/bench/task/bench_task_pool.c",
+					"suite": "task_pool",
+					"args": [
+						"200000",
+						"4",
+						"4096",
+						"200000"
+					],
+					"smoke_args": [
+						"20000",
+						"2",
+						"512",
+						"5000"
+					],
+					"metrics": {
+						"windowed_tasks_per_sec": {
+							"direction": "higher",
+							"unit": "tasks/s"
+						},
+						"queue_one_tasks_per_sec": {
+							"direction": "higher",
+							"unit": "tasks/s"
+						}
+					}
+				},
+				{
+					"name": "executor",
+					"source": "dev/bench/task/bench_executor.c",
+					"suite": "executor",
+					"args": [
+						"1000000",
+						"4",
+						"32"
+					],
+					"smoke_args": [
+						"20000",
+						"2",
+						"16"
+					],
+					"metrics": {
+						"executor_tasks_per_sec": {
+							"direction": "higher",
+							"unit": "tasks/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "coroutine",
+			"system": "concurrency",
+			"description": "协程创建、上下文切换、跨线程投递与定时器周转",
+			"benchmarks": [
+				{
+					"name": "coroutine_switch",
+					"source": "dev/bench/coroutine/bench_context_switch.c",
+					"suite": "coroutine",
+					"args": [
+						"5000000"
+					],
+					"smoke_args": [
+						"50000"
+					],
+					"facts": [
+						"coroutine_backend"
+					],
+					"metrics": {
+						"coroutine_switches_per_sec": {
+							"direction": "higher",
+							"unit": "switches/s"
+						},
+						"coroutine_ns_per_switch": {
+							"direction": "lower",
+							"unit": "ns"
+						}
+					}
+				},
+				{
+					"name": "coroutine_lifecycle",
+					"source": "dev/bench/coroutine/bench_create_destroy.c",
+					"suite": "coroutine",
+					"args": [
+						"100000"
+					],
+					"smoke_args": [
+						"2000"
+					],
+					"facts": [
+						"coroutine_backend"
+					],
+					"metrics": {
+						"coroutine_create_destroy_ops_per_sec": {
+							"direction": "higher",
+							"unit": "coroutines/s"
+						},
+						"coroutine_run_destroy_ops_per_sec": {
+							"direction": "higher",
+							"unit": "coroutines/s"
+						}
+					}
+				},
+				{
+					"name": "coroutine_post",
+					"source": "dev/bench/coroutine/bench_sched_post.c",
+					"suite": "coroutine_scheduler",
+					"args": [
+						"500000"
+					],
+					"smoke_args": [
+						"10000"
+					],
+					"metrics": {
+						"coroutine_posts_per_sec": {
+							"direction": "higher",
+							"unit": "posts/s"
+						}
+					}
+				},
+				{
+					"name": "coroutine_timer",
+					"source": "dev/bench/coroutine/bench_timer_churn.c",
+					"suite": "coroutine_scheduler",
+					"args": [
+						"500000"
+					],
+					"smoke_args": [
+						"10000"
+					],
+					"metrics": {
+						"coroutine_timers_per_sec": {
+							"direction": "higher",
+							"unit": "timers/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "channel",
+			"system": "concurrency",
+			"description": "线程与协程 Channel、rendezvous 和 select 热路径",
+			"benchmarks": [
+				{
+					"name": "channel",
+					"source": "dev/bench/channel/bench_channel.c",
+					"suite": "channel",
+					"args": [
+						"5000000",
+						"5000000",
+						"500000"
+					],
+					"smoke_args": [
+						"100000",
+						"50000",
+						"10000"
+					],
+					"metrics": {
+						"local_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						},
+						"buffered_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						},
+						"rendezvous_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						}
+					}
+				},
+				{
+					"name": "channel_select",
+					"source": "dev/bench/channel/bench_channel_select.c",
+					"suite": "channel_select",
+					"args": [
+						"3000000",
+						"1500000"
+					],
+					"smoke_args": [
+						"100000",
+						"50000"
+					],
+					"metrics": {
+						"select_ready_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						},
+						"select_transfer_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						}
+					}
+				},
+				{
+					"name": "channel_coroutine",
+					"source": "dev/bench/channel/bench_channel_coroutine.c",
+					"suite": "channel_coroutine",
+					"args": [
+						"2000000",
+						"600000",
+						"2000000"
+					],
+					"smoke_args": [
+						"50000",
+						"20000",
+						"50000"
+					],
+					"metrics": {
+						"buffered_co_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						},
+						"rendezvous_co_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						},
+						"select_co_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "queue",
+			"system": "foundation",
+			"description": "SPSC、MPSC、MPMC 及批处理无锁队列吞吐",
+			"benchmarks": [
+				{
+					"name": "queue_pointer",
+					"source": "dev/bench/queue/bench_queue_pointer.c",
+					"suite": "queue_spsc,queue_mpsc,queue_mpmc",
+					"args": [
+						"5000000",
+						"4096",
+						"4",
+						"4",
+						"4",
+						"32"
+					],
+					"smoke_args": [
+						"50000",
+						"1024",
+						"2",
+						"2",
+						"2",
+						"16"
+					],
+					"metrics": {
+						"mpsc_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						},
+						"mpsc_batch_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						},
+						"mpmc_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						},
+						"mpmc_batch_items_per_sec": {
+							"direction": "higher",
+							"unit": "items/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "template",
+			"system": "template",
+			"description": "模板编译、预编译流式渲染和分配式便利渲染",
+			"benchmarks": [
+				{
+					"name": "template",
+					"source": "dev/bench/template/bench_template.c",
+					"suite": "template_control",
+					"args": [
+						"20000",
+						"100000",
+						"50000"
+					],
+					"smoke_args": [
+						"200",
+						"1000",
+						"500"
+					],
+					"metrics": {
+						"template_compile_ops_per_sec": {
+							"direction": "higher",
+							"unit": "templates/s"
+						},
+						"template_write_ops_per_sec": {
+							"direction": "higher",
+							"unit": "renders/s"
+						},
+						"template_render_ops_per_sec": {
+							"direction": "higher",
+							"unit": "renders/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "data",
+			"system": "data",
+			"description": "JSON DOM、事件流访问和序列化公共路径",
+			"benchmarks": [
+				{
+					"name": "json",
+					"source": "dev/bench/json/bench_json.c",
+					"suite": "json",
+					"args": [
+						"100000"
+					],
+					"smoke_args": [
+						"1000"
+					],
+					"metrics": {
+						"parse_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s"
+						},
+						"visit_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s"
+						},
+						"write_ops_per_sec": {
+							"direction": "higher",
+							"unit": "documents/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "identifier",
+			"system": "identifier",
+			"description": "XID 单个与批量生成以及无分配编解码",
+			"benchmarks": [
+				{
+					"name": "xid",
+					"source": "dev/bench/xid/bench_xid.c",
+					"suite": "xid",
+					"args": [
+						"200000"
+					],
+					"smoke_args": [
+						"2000"
+					],
+					"metrics": {
+						"make_ops_per_sec": {
+							"direction": "higher",
+							"unit": "ids/s"
+						},
+						"batch_ops_per_sec": {
+							"direction": "higher",
+							"unit": "ids/s"
+						},
+						"write_ops_per_sec": {
+							"direction": "higher",
+							"unit": "ids/s"
+						},
+						"parse_ops_per_sec": {
+							"direction": "higher",
+							"unit": "ids/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "network",
+			"system": "network",
+			"description": "当前公共 API 的 TCP/UDP 回环、TCP 零复制大流、硬背压与空闲连接缓冲",
+			"benchmarks": [
+				{
+					"name": "network_loopback",
+					"source": "dev/bench/network/bench_network_loopback.c",
+					"suite": "net_tcp_sync,net_tcp_server_sync,net_udp_sync",
+					"args": [
+						"5000",
+						"64",
+						"50000",
+						"256",
+						"64"
+					],
+					"smoke_args": [
+						"500",
+						"64",
+						"5000",
+						"128",
+						"32"
+					],
+					"facts": [
+						"network_backend"
+					],
+					"metrics": {
+						"tcp_round_trips_per_sec": {
+							"direction": "higher",
+							"unit": "round-trips/s",
+							"limit": 0.15
+						},
+						"tcp_latency_p50_us": {
+							"direction": "lower",
+							"unit": "us",
+							"limit": 0.2
+						},
+						"tcp_latency_p99_us": {
+							"direction": "lower",
+							"unit": "us",
+							"limit": 0.25,
+							"max_relative_central_range": 1.0
+						},
+						"udp_packets_per_sec": {
+							"direction": "higher",
+							"unit": "packets/s",
+							"limit": 0.15
+						}
+					}
+				},
+				{
+					"name": "network_capacity",
+					"source": "dev/bench/network/bench_network_capacity.c",
+					"suite": "net_tcp_sync",
+					"args": [
+						"65536",
+						"16384",
+						"262144",
+						"512"
+					],
+					"smoke_args": [
+						"256",
+						"4096",
+						"65536",
+						"32"
+					],
+					"facts": [
+						"network_backend"
+					],
+					"metrics": {
+						"tcp_ref_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s",
+							"limit": 0.15
+						},
+						"tcp_ref_sends_per_sec": {
+							"direction": "higher",
+							"unit": "sends/s",
+							"limit": 0.15
+						},
+						"tcp_idle_connects_per_sec": {
+							"direction": "higher",
+							"unit": "connections/s",
+							"limit": 0.2
+						},
+						"tcp_idle_buffer_bytes_per_stream": {
+							"direction": "lower",
+							"unit": "bytes",
+							"limit": 0.0
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "http",
+			"system": "web_protocols",
+			"description": "HTTP/1.1 借用解析、调用方写出与流式 gzip 解码核心",
+			"benchmarks": [
+				{
+					"name": "http_core",
+					"source": "dev/bench/http/bench_http_core.c",
+					"suite": "http1_message,http_decode",
+					"args": [
+						"200000"
+					],
+					"smoke_args": [
+						"2000"
+					],
+					"metrics": {
+						"http_parse_ops_per_sec": {
+							"direction": "higher",
+							"unit": "ops/s",
+							"limit": 0.15
+						},
+						"http_write_ops_per_sec": {
+							"direction": "higher",
+							"unit": "ops/s",
+							"limit": 0.15
+						},
+						"http_gzip_decode_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s",
+							"limit": 0.2
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "websocket",
+			"system": "web_protocols",
+			"description": "WebSocket 帧头解析、写出和掩码协议核心",
+			"benchmarks": [
+				{
+					"name": "websocket_core",
+					"source": "dev/bench/websocket/bench_websocket_core.c",
+					"suite": "websocket_frame",
+					"args": [
+						"1000000"
+					],
+					"smoke_args": [
+						"10000"
+					],
+					"metrics": {
+						"ws_frame_parse_ops_per_sec": {
+							"direction": "higher",
+							"unit": "ops/s",
+							"limit": 0.15
+						},
+						"ws_frame_write_ops_per_sec": {
+							"direction": "higher",
+							"unit": "ops/s",
+							"limit": 0.15
+						},
+						"ws_mask_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s",
+							"limit": 0.15
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "tls",
+			"system": "security_transport",
+			"description": "TLS 1.3 完整握手、连续票据恢复与加密流回环",
+			"benchmarks": [
+				{
+					"name": "tls_loopback",
+					"source": "dev/bench/tls/bench_tls_loopback.c",
+					"suite": "tls_stream,tls_client_resume,tls_server_resume,tls_identity_rsa,tls_client_verify,tls_schedule_sha256,tls_key_exchange_x25519,tls_record_aes,pem",
+					"args": [
+						"100",
+						"200",
+						"5000",
+						"64"
+					],
+					"smoke_args": [
+						"10",
+						"20",
+						"500",
+						"64"
+					],
+					"facts": [
+						"network_backend"
+					],
+					"metrics": {
+						"tls_full_handshakes_per_sec": {
+							"direction": "higher",
+							"unit": "handshakes/s",
+							"limit": 0.15
+						},
+						"tls_full_handshake_latency_p50_us": {
+							"direction": "lower",
+							"unit": "us",
+							"limit": 0.2
+						},
+						"tls_full_handshake_latency_p99_us": {
+							"direction": "lower",
+							"unit": "us",
+							"limit": 0.25,
+							"max_relative_central_range": 1.0
+						},
+						"tls_resume_handshakes_per_sec": {
+							"direction": "higher",
+							"unit": "handshakes/s",
+							"limit": 0.15
+						},
+						"tls_resume_handshake_latency_p50_us": {
+							"direction": "lower",
+							"unit": "us",
+							"limit": 0.2
+						},
+						"tls_resume_handshake_latency_p99_us": {
+							"direction": "lower",
+							"unit": "us",
+							"limit": 0.25,
+							"max_relative_central_range": 1.0
+						},
+						"tls_stream_round_trips_per_sec": {
+							"direction": "higher",
+							"unit": "round-trips/s",
+							"limit": 0.15
+						},
+						"tls_stream_latency_p50_us": {
+							"direction": "lower",
+							"unit": "us",
+							"limit": 0.2
+						},
+						"tls_stream_latency_p99_us": {
+							"direction": "lower",
+							"unit": "us",
+							"limit": 0.25,
+							"max_relative_central_range": 1.0
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "logging",
+			"system": "system_io",
+			"description": "固定槽 Logger Ring 的无生产者分配提交、批量消费和 Flush 屏障",
+			"benchmarks": [
+				{
+					"name": "logger_ring",
+					"source": "dev/bench/logging/bench_logger_ring.c",
+					"suite": "logger_ring",
+					"args": [
+						"1000000",
+						"4096"
+					],
+					"smoke_args": [
+						"50000",
+						"1024"
+					],
+					"metrics": {
+						"logger_ring_records_per_sec": {
+							"direction": "higher",
+							"unit": "records/s",
+							"limit": 0.15
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "file_io",
+			"system": "system_io",
+			"description": "任务池型异步文件的有界并发定位读写与 Future 生命周期",
+			"benchmarks": [
+				{
+					"name": "file_async",
+					"source": "dev/bench/file/bench_file_async.c",
+					"suite": "file_async",
+					"args": [
+						"1024",
+						"65536",
+						"4",
+						"128"
+					],
+					"smoke_args": [
+						"64",
+						"16384",
+						"2",
+						"16"
+					],
+					"metrics": {
+						"file_async_write_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s"
+						},
+						"file_async_read_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "crypto",
+			"system": "security_transport",
+			"description": "AES-GCM、SHA-256、ChaCha20-Poly1305 与 X25519 常用密码热路径",
+			"benchmarks": [
+				{
+					"name": "aes_gcm",
+					"source": "dev/bench/crypto/bench_aes_gcm.c",
+					"suite": "crypto_aes_gcm",
+					"args": [
+						"32768",
+						"16384"
+					],
+					"smoke_args": [
+						"512",
+						"4096"
+					],
+					"metrics": {
+						"aes_gcm_encrypt_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s",
+							"limit": 0.15
+						}
+					}
+				},
+				{
+					"name": "crypto_primitives",
+					"source": "dev/bench/crypto/bench_crypto_primitives.c",
+					"suite": "crypto_sha256,crypto_chacha20_poly1305,crypto_x25519",
+					"args": [
+						"32768",
+						"16384",
+						"10000"
+					],
+					"smoke_args": [
+						"256",
+						"4096",
+						"50"
+					],
+					"metrics": {
+						"sha256_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s",
+							"limit": 0.15
+						},
+						"chacha20_poly1305_encrypt_mib_per_sec": {
+							"direction": "higher",
+							"unit": "MiB/s",
+							"limit": 0.15
+						},
+						"x25519_shared_ops_per_sec": {
+							"direction": "higher",
+							"unit": "agreements/s",
+							"limit": 0.15
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "x509",
+			"system": "security_transport",
+			"description": "真实 DER 证书的零分配解析与 RSA 签名验证",
+			"benchmarks": [
+				{
+					"name": "x509",
+					"source": "dev/bench/x509/bench_x509.c",
+					"suite": "x509_verify_rsa",
+					"args": [
+						"100000",
+						"2000"
+					],
+					"smoke_args": [
+						"1000",
+						"20"
+					],
+					"metrics": {
+						"x509_parse_ops_per_sec": {
+							"direction": "higher",
+							"unit": "certificates/s",
+							"limit": 0.15
+						},
+						"x509_rsa_verify_ops_per_sec": {
+							"direction": "higher",
+							"unit": "verifications/s",
+							"limit": 0.15
+						}
+					}
+				}
+			]
+		}
+	]
+}

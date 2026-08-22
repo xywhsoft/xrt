@@ -40,7 +40,7 @@
 建议主文件：
 
 ```text
-extlibs/xmail_mime/xmail_mime.h
+dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h
 ```
 
 建议核心类型：

@@ -15,4 +15,7 @@ Subdirectories:
 - `coroutine/`
 - `xnet/`
 - `app/`
+- `http_cors_client_20260812/`
+- `mail_legacy_20260816/`
+- `ssh_legacy_20260816/`
 

@@ -1,0 +1,24 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xruntime/config/modules.json",
+	"profiles": [
+		{
+			"name": "runtime_core",
+			"system": "runtime_model",
+			"suite": "runtime_call,runtime_object",
+			"description": "类型描述、对象生命周期和动态调用核心"
+		},
+		{
+			"name": "runtime_full",
+			"system": "runtime_model",
+			"suite": "value_convert_string,runtime_type_string_value,typed_queue_spsc,typed_queue_mpsc,typed_queue_mpmc,typed_stack,typed_tree,typed_array_value,typed_list_value,typed_set_value,typed_dict_value,runtime_value_callable,runtime_value_future,runtime_value_weak,runtime_value_roots,runtime_dynamic_field",
+			"description": "完整运行时类型、转换、容器、对象图和值适配体系"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

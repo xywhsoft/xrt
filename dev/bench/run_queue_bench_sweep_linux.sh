@@ -43,7 +43,7 @@ printf '%s\n' "capacity_list: ${CAPACITY_LIST[*]}"
 printf '%s\n' "mpsc_producer_list: ${MPSC_PRODUCER_LIST[*]}"
 printf '%s\n' "mpmc_pair_list: ${MPMC_PAIR_LIST[*]}"
 
-gcc dev/bench/queue/bench_queue_pointer.c xrt.c -O2 -I . -pthread -o "$BENCH_BIN"
+gcc dev/bench/queue/bench_queue_pointer.c -std=c11 -O2 -Wall -Wextra -Werror -Wno-unused-function -pthread -o "$BENCH_BIN"
 
 run_case() {
 	local family="$1"

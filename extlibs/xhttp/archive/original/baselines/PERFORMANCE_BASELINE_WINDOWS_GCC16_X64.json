@@ -1,0 +1,1073 @@
+{
+  "schema": 2,
+  "generated_at": "2026-08-09T01:02:40.759858+00:00",
+  "platform": "win32",
+  "machine": "amd64",
+  "platform_release": "10",
+  "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+  "cpu_count": 12,
+  "affinity": "0xfff/0xfff",
+  "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+  "compiler_family": "gnu",
+  "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+  "compiler_version": "gcc.exe (GCC) 16.1.0",
+  "arch": "x64",
+  "optimization": "-O2",
+  "cflags": [
+    "-O2"
+  ],
+  "ldflags": [],
+  "policy": "baseline-unpinned",
+  "repeats": 5,
+  "warmups": 1,
+  "max_relative_mad": 0.2,
+  "max_relative_central_range": 0.3,
+  "source_revision": "51d3492b3868440acb46595bb9ef2682bd30bd54",
+  "source_dirty": true,
+  "source_fingerprint": "19c95fcee8d737f6b5d799df4ccb5e66f312d8ffee80aad12ae8be2faa0b2c20",
+  "benchmark_fingerprint": "a078a780ab851c9b742dfb1a4ad70b00d01572a6ee46086a5dc9ea41298334f4",
+  "profiles": {
+    "task": {
+      "description": "有界任务池提交、调度、Future 等待和回收",
+      "benchmarks": {
+        "task_pool": {
+          "source": "dev/bench/task/bench_task_pool.c",
+          "suite": "task_pool",
+          "args": [
+            "200000",
+            "4",
+            "4096",
+            "200000"
+          ],
+          "facts": {},
+          "metrics": {
+            "windowed_tasks_per_sec": {
+              "samples": [
+                1170375.0,
+                1204672.684,
+                1175085.37,
+                1187654.803,
+                1174509.158
+              ],
+              "median": 1175085.37,
+              "mean": 1182459.4030000002,
+              "min": 1170375.0,
+              "max": 1204672.684,
+              "mad": 4710.370000000112,
+              "relative_mad": 0.004008534290576787,
+              "range": 34297.68399999989,
+              "relative_range": 0.029187397678178812,
+              "central_range": 13145.645000000019,
+              "relative_central_range": 0.011186970185834257,
+              "direction": "higher",
+              "unit": "tasks/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "queue_one_tasks_per_sec": {
+              "samples": [
+                580159.138,
+                669840.595,
+                567921.897,
+                561294.165,
+                569963.115
+              ],
+              "median": 569963.115,
+              "mean": 589835.782,
+              "min": 561294.165,
+              "max": 669840.595,
+              "mad": 8668.949999999953,
+              "relative_mad": 0.015209668436175827,
+              "range": 108546.42999999993,
+              "relative_range": 0.19044465710732866,
+              "central_range": 12237.241000000038,
+              "relative_central_range": 0.021470233209740314,
+              "direction": "higher",
+              "unit": "tasks/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "channel": {
+      "description": "线程与协程 Channel、rendezvous 和 select 热路径",
+      "benchmarks": {
+        "channel": {
+          "source": "dev/bench/channel/bench_channel.c",
+          "suite": "channel",
+          "args": [
+            "5000000",
+            "5000000",
+            "500000"
+          ],
+          "facts": {},
+          "metrics": {
+            "local_items_per_sec": {
+              "samples": [
+                31352817.646,
+                31280792.03,
+                31169155.004,
+                31244239.343,
+                31140094.927
+              ],
+              "median": 31244239.343,
+              "mean": 31237419.79,
+              "min": 31140094.927,
+              "max": 31352817.646,
+              "mad": 75084.33899999782,
+              "relative_mad": 0.0024031418456285708,
+              "range": 212722.7190000005,
+              "relative_range": 0.006808382072122975,
+              "central_range": 111637.02600000054,
+              "relative_central_range": 0.003573043490495852,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "buffered_items_per_sec": {
+              "samples": [
+                20286584.522,
+                20242931.371,
+                20314236.867,
+                20230915.671,
+                20530061.553
+              ],
+              "median": 20286584.522,
+              "mean": 20320945.996799998,
+              "min": 20230915.671,
+              "max": 20530061.553,
+              "mad": 43653.15100000054,
+              "relative_mad": 0.0021518235833469365,
+              "range": 299145.8819999993,
+              "relative_range": 0.014745995397874264,
+              "central_range": 71305.49599999934,
+              "relative_central_range": 0.003514908875994939,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "rendezvous_items_per_sec": {
+              "samples": [
+                1674775.371,
+                1878510.702,
+                1679794.259,
+                1846788.232,
+                1854071.931
+              ],
+              "median": 1846788.232,
+              "mean": 1786788.0990000002,
+              "min": 1674775.371,
+              "max": 1878510.702,
+              "mad": 31722.469999999972,
+              "relative_mad": 0.01717710209017618,
+              "range": 203735.331,
+              "relative_range": 0.11031872927810599,
+              "central_range": 174277.67200000002,
+              "relative_central_range": 0.09436797840717452,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "channel_select": {
+          "source": "dev/bench/channel/bench_channel_select.c",
+          "suite": "channel_select",
+          "args": [
+            "3000000",
+            "1500000"
+          ],
+          "facts": {},
+          "metrics": {
+            "select_ready_items_per_sec": {
+              "samples": [
+                13190320.942,
+                13171094.716,
+                13185103.47,
+                13188697.286,
+                13162230.191
+              ],
+              "median": 13185103.47,
+              "mean": 13179489.321,
+              "min": 13162230.191,
+              "max": 13190320.942,
+              "mad": 5217.471999999136,
+              "relative_mad": 0.0003957095984775867,
+              "range": 28090.751000000164,
+              "relative_range": 0.00213049150990092,
+              "central_range": 17602.570000000298,
+              "relative_central_range": 0.001335034650281762,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "select_transfer_items_per_sec": {
+              "samples": [
+                5878056.197,
+                5844790.421,
+                5709720.113,
+                5812540.906,
+                5994703.08
+              ],
+              "median": 5844790.421,
+              "mean": 5847962.1434,
+              "min": 5709720.113,
+              "max": 5994703.08,
+              "mad": 33265.775999999605,
+              "relative_mad": 0.005691525889530198,
+              "range": 284982.9670000002,
+              "relative_range": 0.048758457784229964,
+              "central_range": 65515.29099999927,
+              "relative_central_range": 0.011209177110030593,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        },
+        "channel_coroutine": {
+          "source": "dev/bench/channel/bench_channel_coroutine.c",
+          "suite": "channel_coroutine",
+          "args": [
+            "2000000",
+            "600000",
+            "2000000"
+          ],
+          "facts": {},
+          "metrics": {
+            "buffered_co_items_per_sec": {
+              "samples": [
+                6915062.631,
+                6847387.482,
+                6802119.54,
+                6880998.295,
+                6901325.538
+              ],
+              "median": 6880998.295,
+              "mean": 6869378.6972,
+              "min": 6802119.54,
+              "max": 6915062.631,
+              "mad": 33610.81300000008,
+              "relative_mad": 0.004884583829125928,
+              "range": 112943.09100000001,
+              "relative_range": 0.016413765293630263,
+              "central_range": 53938.055999999866,
+              "relative_central_range": 0.007838696318119035,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "rendezvous_co_items_per_sec": {
+              "samples": [
+                2132109.029,
+                2139239.536,
+                2034968.215,
+                1926066.029,
+                2127925.188
+              ],
+              "median": 2127925.188,
+              "mean": 2072061.5994,
+              "min": 1926066.029,
+              "max": 2139239.536,
+              "mad": 11314.347999999765,
+              "relative_mad": 0.005317079784479606,
+              "range": 213173.50699999975,
+              "relative_range": 0.1001790421026774,
+              "central_range": 97140.81400000001,
+              "relative_central_range": 0.04565048364848812,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "select_co_items_per_sec": {
+              "samples": [
+                6516154.361,
+                6479308.813,
+                6472956.957,
+                4687530.396,
+                6502946.322
+              ],
+              "median": 6479308.813,
+              "mean": 6131779.3697999995,
+              "min": 4687530.396,
+              "max": 6516154.361,
+              "mad": 23637.508999999613,
+              "relative_mad": 0.003648152863554462,
+              "range": 1828623.9649999999,
+              "relative_range": 0.282225159778011,
+              "central_range": 29989.364999999292,
+              "relative_central_range": 0.004628482121399898,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "queue": {
+      "description": "SPSC、MPSC、MPMC 及批处理无锁队列吞吐",
+      "benchmarks": {
+        "queue_pointer": {
+          "source": "dev/bench/queue/bench_queue_pointer.c",
+          "suite": "queue_spsc,queue_mpsc,queue_mpmc",
+          "args": [
+            "5000000",
+            "4096",
+            "4",
+            "4",
+            "4",
+            "32"
+          ],
+          "facts": {},
+          "metrics": {
+            "mpsc_items_per_sec": {
+              "samples": [
+                8761714.357,
+                8984457.562,
+                8804203.021,
+                9022130.519,
+                9211168.431
+              ],
+              "median": 8984457.562,
+              "mean": 8956734.778,
+              "min": 8761714.357,
+              "max": 9211168.431,
+              "mad": 180254.54100000113,
+              "relative_mad": 0.02006292976021084,
+              "range": 449454.0739999991,
+              "relative_range": 0.050025732872396984,
+              "central_range": 217927.49799999967,
+              "relative_central_range": 0.024256055137010134,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "mpsc_batch_items_per_sec": {
+              "samples": [
+                106249319.34,
+                112960334.543,
+                104741819.271,
+                110075484.263,
+                118798001.818
+              ],
+              "median": 110075484.263,
+              "mean": 110564991.847,
+              "min": 104741819.271,
+              "max": 118798001.818,
+              "mad": 3826164.922999993,
+              "relative_mad": 0.0347594648219603,
+              "range": 14056182.547000006,
+              "relative_range": 0.12769585018055427,
+              "central_range": 6711015.202999994,
+              "relative_central_range": 0.06096739203949873,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "mpmc_items_per_sec": {
+              "samples": [
+                7034981.233,
+                7034077.397,
+                7041916.055,
+                6983639.393,
+                6985783.546
+              ],
+              "median": 7034077.397,
+              "mean": 7016079.5248,
+              "min": 6983639.393,
+              "max": 7041916.055,
+              "mad": 7838.657999999821,
+              "relative_mad": 0.0011143832456752567,
+              "range": 58276.661999999546,
+              "relative_range": 0.008284904858290906,
+              "central_range": 49197.68699999992,
+              "relative_central_range": 0.00699419187809655,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "mpmc_batch_items_per_sec": {
+              "samples": [
+                115345109.685,
+                122128976.748,
+                130643642.031,
+                119307396.701,
+                120086870.842
+              ],
+              "median": 120086870.842,
+              "mean": 121502399.2014,
+              "min": 115345109.685,
+              "max": 130643642.031,
+              "mad": 2042105.9060000032,
+              "relative_mad": 0.01700523872161538,
+              "range": 15298532.346,
+              "relative_range": 0.12739554489789728,
+              "central_range": 2821580.046999991,
+              "relative_central_range": 0.02349615763335514,
+              "direction": "higher",
+              "unit": "items/s",
+              "limit": 0.1,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "description": "当前公共 API 的 TCP 同步 ping-pong 与 UDP 批量回环",
+      "benchmarks": {
+        "network_loopback": {
+          "source": "dev/bench/network/bench_network_loopback.c",
+          "suite": "net_tcp_sync,net_tcp_server_sync,net_udp_sync",
+          "args": [
+            "5000",
+            "64",
+            "50000",
+            "256",
+            "64"
+          ],
+          "facts": {
+            "network_backend": "iocp"
+          },
+          "metrics": {
+            "tcp_round_trips_per_sec": {
+              "samples": [
+                41917.613,
+                41528.446,
+                41798.925,
+                41843.28,
+                41778.354
+              ],
+              "median": 41798.925,
+              "mean": 41773.3236,
+              "min": 41528.446,
+              "max": 41917.613,
+              "mad": 44.354999999995925,
+              "relative_mad": 0.0010611516922982092,
+              "range": 389.166999999994,
+              "relative_range": 0.009310454754518064,
+              "central_range": 64.92599999999948,
+              "relative_central_range": 0.001553293535659098,
+              "direction": "higher",
+              "unit": "round-trips/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tcp_latency_p50_us": {
+              "samples": [
+                23.8,
+                23.9,
+                23.8,
+                23.9,
+                23.8
+              ],
+              "median": 23.8,
+              "mean": 23.84,
+              "min": 23.8,
+              "max": 23.9,
+              "mad": 0.0,
+              "relative_mad": 0.0,
+              "range": 0.09999999999999787,
+              "relative_range": 0.004201680672268818,
+              "central_range": 0.09999999999999787,
+              "relative_central_range": 0.004201680672268818,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tcp_latency_p99_us": {
+              "samples": [
+                27.8,
+                30.9,
+                29.2,
+                27.6,
+                31.3
+              ],
+              "median": 29.2,
+              "mean": 29.360000000000003,
+              "min": 27.6,
+              "max": 31.3,
+              "mad": 1.5999999999999979,
+              "relative_mad": 0.05479452054794513,
+              "range": 3.6999999999999993,
+              "relative_range": 0.12671232876712327,
+              "central_range": 3.099999999999998,
+              "relative_central_range": 0.10616438356164376,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            },
+            "udp_packets_per_sec": {
+              "samples": [
+                227650.316,
+                232426.791,
+                230651.563,
+                228031.242,
+                230663.587
+              ],
+              "median": 230651.563,
+              "mean": 229884.6998,
+              "min": 227650.316,
+              "max": 232426.791,
+              "mad": 1775.2280000000028,
+              "relative_mad": 0.007696579103606607,
+              "range": 4776.475000000006,
+              "relative_range": 0.02070861752625542,
+              "central_range": 2632.345000000001,
+              "relative_central_range": 0.011412647570049205,
+              "direction": "higher",
+              "unit": "packets/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            }
+          }
+        }
+      }
+    },
+    "http": {
+      "description": "HTTP/1.1 keep-alive 便利响应与预构建 raw 响应的客户端/服务端回环",
+      "benchmarks": {
+        "http_loopback": {
+          "source": "dev/bench/http/bench_http_loopback.c",
+          "suite": "http_client_easy_future,http_client_pool,http_server_raw",
+          "args": [
+            "5000"
+          ],
+          "facts": {
+            "network_backend": "iocp"
+          },
+          "metrics": {
+            "http_reply_requests_per_sec": {
+              "samples": [
+                24473.142,
+                24317.387,
+                24670.391,
+                24536.445,
+                24573.128
+              ],
+              "median": 24536.445,
+              "mean": 24514.0986,
+              "min": 24317.387,
+              "max": 24670.391,
+              "mad": 63.302999999999884,
+              "relative_mad": 0.0025799580990644687,
+              "range": 353.0040000000008,
+              "relative_range": 0.014386925245283122,
+              "central_range": 99.98600000000079,
+              "relative_central_range": 0.00407499945489254,
+              "direction": "higher",
+              "unit": "requests/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "http_reply_latency_p50_us": {
+              "samples": [
+                40.9,
+                41.0,
+                40.5,
+                40.9,
+                40.9
+              ],
+              "median": 40.9,
+              "mean": 40.839999999999996,
+              "min": 40.5,
+              "max": 41.0,
+              "mad": 0.0,
+              "relative_mad": 0.0,
+              "range": 0.5,
+              "relative_range": 0.012224938875305624,
+              "central_range": 0.0,
+              "relative_central_range": 0.0,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "http_reply_latency_p99_us": {
+              "samples": [
+                56.1,
+                60.5,
+                57.9,
+                53.2,
+                51.6
+              ],
+              "median": 56.1,
+              "mean": 55.86,
+              "min": 51.6,
+              "max": 60.5,
+              "mad": 2.8999999999999986,
+              "relative_mad": 0.05169340463458108,
+              "range": 8.899999999999999,
+              "relative_range": 0.15864527629233507,
+              "central_range": 4.699999999999996,
+              "relative_central_range": 0.08377896613190723,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            },
+            "http_raw_requests_per_sec": {
+              "samples": [
+                30334.799,
+                29940.676,
+                30349.787,
+                30156.543,
+                30147.651
+              ],
+              "median": 30156.543,
+              "mean": 30185.891200000002,
+              "min": 29940.676,
+              "max": 30349.787,
+              "mad": 178.25599999999758,
+              "relative_mad": 0.005911022360885251,
+              "range": 409.1110000000008,
+              "relative_range": 0.01356624331907012,
+              "central_range": 187.1479999999974,
+              "relative_central_range": 0.0062058837446983695,
+              "direction": "higher",
+              "unit": "requests/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "http_raw_latency_p50_us": {
+              "samples": [
+                35.0,
+                33.0,
+                34.7,
+                35.0,
+                34.9
+              ],
+              "median": 34.9,
+              "mean": 34.519999999999996,
+              "min": 33.0,
+              "max": 35.0,
+              "mad": 0.10000000000000142,
+              "relative_mad": 0.0028653295128940235,
+              "range": 2.0,
+              "relative_range": 0.05730659025787966,
+              "central_range": 0.29999999999999716,
+              "relative_central_range": 0.008595988538681867,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "http_raw_latency_p99_us": {
+              "samples": [
+                41.2,
+                46.2,
+                42.9,
+                41.6,
+                42.2
+              ],
+              "median": 42.2,
+              "mean": 42.82000000000001,
+              "min": 41.2,
+              "max": 46.2,
+              "mad": 0.6999999999999957,
+              "relative_mad": 0.01658767772511838,
+              "range": 5.0,
+              "relative_range": 0.11848341232227487,
+              "central_range": 1.2999999999999972,
+              "relative_central_range": 0.0308056872037914,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            }
+          }
+        }
+      }
+    },
+    "websocket": {
+      "description": "WebSocket Upgrade、异步二进制消息回环与正常关闭",
+      "benchmarks": {
+        "websocket_loopback": {
+          "source": "dev/bench/websocket/bench_websocket_loopback.c",
+          "suite": "http_client_pool,websocket_connection_future,websocket_server,websocket_client_future",
+          "args": [
+            "5000",
+            "64"
+          ],
+          "facts": {
+            "network_backend": "iocp"
+          },
+          "metrics": {
+            "ws_upgrade_latency_us": {
+              "samples": [
+                631.2,
+                672.8,
+                612.8,
+                693.1,
+                661.6
+              ],
+              "median": 661.6,
+              "mean": 654.3,
+              "min": 612.8,
+              "max": 693.1,
+              "mad": 30.399999999999977,
+              "relative_mad": 0.04594921402660214,
+              "range": 80.30000000000007,
+              "relative_range": 0.12137243047158414,
+              "central_range": 41.59999999999991,
+              "relative_central_range": 0.06287787182587652,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            },
+            "ws_messages_per_sec": {
+              "samples": [
+                51240.113,
+                51143.204,
+                51124.222,
+                50999.644,
+                51887.297
+              ],
+              "median": 51143.204,
+              "mean": 51278.89599999999,
+              "min": 50999.644,
+              "max": 51887.297,
+              "mad": 96.90899999999965,
+              "relative_mad": 0.0018948558639384355,
+              "range": 887.6529999999984,
+              "relative_range": 0.017356225863361992,
+              "central_range": 115.89099999999598,
+              "relative_central_range": 0.002266009771307953,
+              "direction": "higher",
+              "unit": "messages/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "ws_latency_p50_us": {
+              "samples": [
+                19.4,
+                19.6,
+                19.6,
+                19.4,
+                19.2
+              ],
+              "median": 19.4,
+              "mean": 19.44,
+              "min": 19.2,
+              "max": 19.6,
+              "mad": 0.1999999999999993,
+              "relative_mad": 0.010309278350515427,
+              "range": 0.40000000000000213,
+              "relative_range": 0.02061855670103104,
+              "central_range": 0.20000000000000284,
+              "relative_central_range": 0.010309278350515611,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "ws_latency_p99_us": {
+              "samples": [
+                24.9,
+                22.9,
+                22.2,
+                25.4,
+                24.8
+              ],
+              "median": 24.8,
+              "mean": 24.04,
+              "min": 22.2,
+              "max": 25.4,
+              "mad": 0.5999999999999979,
+              "relative_mad": 0.024193548387096687,
+              "range": 3.1999999999999993,
+              "relative_range": 0.1290322580645161,
+              "central_range": 2.0,
+              "relative_central_range": 0.08064516129032258,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            }
+          }
+        }
+      }
+    },
+    "tls": {
+      "description": "TLS 1.3 完整握手、连续票据恢复与加密流回环",
+      "benchmarks": {
+        "tls_loopback": {
+          "source": "dev/bench/tls/bench_tls_loopback.c",
+          "suite": "tls_stream,tls_client_resume,tls_server_resume,tls_identity_rsa,tls_client_verify,tls_schedule_sha256,tls_key_exchange_x25519,tls_record_aes,pem",
+          "args": [
+            "100",
+            "200",
+            "5000",
+            "64"
+          ],
+          "facts": {
+            "network_backend": "iocp"
+          },
+          "metrics": {
+            "tls_full_handshakes_per_sec": {
+              "samples": [
+                141.53,
+                141.245,
+                140.396,
+                141.621,
+                141.388
+              ],
+              "median": 141.388,
+              "mean": 141.23600000000002,
+              "min": 140.396,
+              "max": 141.621,
+              "mad": 0.14300000000000068,
+              "relative_mad": 0.0010114012504597327,
+              "range": 1.2250000000000227,
+              "relative_range": 0.008664101621071256,
+              "central_range": 0.2849999999999966,
+              "relative_central_range": 0.0020157297649022305,
+              "direction": "higher",
+              "unit": "handshakes/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_full_handshake_latency_p50_us": {
+              "samples": [
+                7035.9,
+                7051.9,
+                7076.7,
+                7035.0,
+                7040.5
+              ],
+              "median": 7040.5,
+              "mean": 7048.0,
+              "min": 7035.0,
+              "max": 7076.7,
+              "mad": 5.5,
+              "relative_mad": 0.0007811945174348413,
+              "range": 41.69999999999982,
+              "relative_range": 0.005922874795824135,
+              "central_range": 16.0,
+              "relative_central_range": 0.0022725658689013565,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_full_handshake_latency_p99_us": {
+              "samples": [
+                7760.4,
+                7477.0,
+                7952.1,
+                7449.8,
+                7455.0
+              ],
+              "median": 7477.0,
+              "mean": 7618.860000000001,
+              "min": 7449.8,
+              "max": 7952.1,
+              "mad": 27.199999999999818,
+              "relative_mad": 0.0036378226561454884,
+              "range": 502.3000000000002,
+              "relative_range": 0.0671793500066872,
+              "central_range": 305.39999999999964,
+              "relative_central_range": 0.04084525879363376,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            },
+            "tls_resume_handshakes_per_sec": {
+              "samples": [
+                927.726,
+                940.46,
+                936.254,
+                942.346,
+                932.877
+              ],
+              "median": 936.254,
+              "mean": 935.9326000000001,
+              "min": 927.726,
+              "max": 942.346,
+              "mad": 4.206000000000017,
+              "relative_mad": 0.004492370660098667,
+              "range": 14.620000000000005,
+              "relative_range": 0.015615420601674337,
+              "central_range": 7.583000000000084,
+              "relative_central_range": 0.008099297840116126,
+              "direction": "higher",
+              "unit": "handshakes/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_resume_handshake_latency_p50_us": {
+              "samples": [
+                1083.1,
+                1032.1,
+                1053.4,
+                1030.8,
+                1059.7
+              ],
+              "median": 1053.4,
+              "mean": 1051.8200000000002,
+              "min": 1030.8,
+              "max": 1083.1,
+              "mad": 21.300000000000182,
+              "relative_mad": 0.020220239225365654,
+              "range": 52.299999999999955,
+              "relative_range": 0.049648756407822243,
+              "central_range": 27.600000000000136,
+              "relative_central_range": 0.026200873362445542,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_resume_handshake_latency_p99_us": {
+              "samples": [
+                1210.9,
+                1195.4,
+                1208.9,
+                1187.3,
+                1215.2
+              ],
+              "median": 1208.9,
+              "mean": 1203.5400000000002,
+              "min": 1187.3,
+              "max": 1215.2,
+              "mad": 6.2999999999999545,
+              "relative_mad": 0.005211349160393708,
+              "range": 27.90000000000009,
+              "relative_range": 0.02307883199602952,
+              "central_range": 15.5,
+              "relative_central_range": 0.01282157333112747,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            },
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                59132.549,
+                59778.294,
+                59660.745,
+                59033.132,
+                59446.105
+              ],
+              "median": 59446.105,
+              "mean": 59410.165,
+              "min": 59033.132,
+              "max": 59778.294,
+              "mad": 313.55600000000413,
+              "relative_mad": 0.0052746264873031485,
+              "range": 745.1620000000039,
+              "relative_range": 0.012535085351681222,
+              "central_range": 528.1960000000036,
+              "relative_central_range": 0.00888529198002129,
+              "direction": "higher",
+              "unit": "round-trips/s",
+              "limit": 0.15,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_stream_latency_p50_us": {
+              "samples": [
+                16.7,
+                16.6,
+                16.6,
+                16.8,
+                16.6
+              ],
+              "median": 16.6,
+              "mean": 16.660000000000004,
+              "min": 16.6,
+              "max": 16.8,
+              "mad": 0.0,
+              "relative_mad": 0.0,
+              "range": 0.1999999999999993,
+              "relative_range": 0.012048192771084293,
+              "central_range": 0.09999999999999787,
+              "relative_central_range": 0.00602409638554204,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.2,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 0.3
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                19.3,
+                19.3,
+                19.7,
+                20.9,
+                19.9
+              ],
+              "median": 19.7,
+              "mean": 19.82,
+              "min": 19.3,
+              "max": 20.9,
+              "mad": 0.3999999999999986,
+              "relative_mad": 0.02030456852791871,
+              "range": 1.5999999999999979,
+              "relative_range": 0.08121827411167502,
+              "central_range": 0.5999999999999979,
+              "relative_central_range": 0.030456852791878066,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.25,
+              "max_relative_mad": 0.2,
+              "max_relative_central_range": 1.0
+            }
+          }
+        }
+      }
+    }
+  }
+}

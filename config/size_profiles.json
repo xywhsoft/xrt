@@ -1,0 +1,101 @@
+{
+	"schema": 1,
+	"profiles": [
+		{
+			"name": "core",
+			"system": "foundation",
+			"suite": "core",
+			"description": "核心、错误和基础内存",
+			"forbid_symbols": [
+				"bbre_",
+				"tinfl_",
+				"tdefl_",
+				"xrtRegex",
+				"xrtInflate",
+				"xrtDeflate",
+				"xrtNet",
+				"xrtHttp",
+				"xrtWs",
+				"xrtTls"
+			]
+		},
+		{
+			"name": "console",
+			"system": "foundation",
+			"suite": "console",
+			"description": "UTF-8 标准输出和终端判断"
+		},
+		{
+			"name": "foundation",
+			"system": "foundation",
+			"suite": "string_format,time_text,path,file_whole",
+			"description": "字符串、时间、路径和整文件操作"
+		},
+		{
+			"name": "concurrency",
+			"system": "concurrency",
+			"suite": "task_group_pool,task_group_coroutine,channel_select_cancel,executor",
+			"description": "线程任务、工作窃取执行器、协程任务和可取消 Channel"
+		},
+		{
+			"name": "network",
+			"system": "network",
+			"suite": "net_tcp_dial_sync,net_tcp_server_sync,net_udp_sync,net_resolver_future",
+			"description": "TCP 客户端与服务器、UDP、DNS、同步和 Future"
+		},
+		{
+			"name": "http_websocket",
+			"system": "web_protocols",
+			"suite": "http1_message,http_decode,websocket_keygen,websocket_message,websocket_inflater,websocket_deflater",
+			"description": "HTTP/1 线协议、内容解码与完整 WebSocket 协议原语"
+		},
+		{
+			"name": "websocket_transport",
+			"system": "web_protocols",
+			"suite": "websocket_upgrade_stream,websocket_upgrade_deflate,websocket_stream_deflate,http1_tls,websocket_stream_tls",
+			"description": "TCP/TLS、HTTP Upgrade、permessage-deflate 与 WebSocket 流核心链路"
+		},
+		{
+			"name": "data",
+			"system": "data",
+			"suite": "json,xson",
+			"description": "JSON、XSON 和动态值持久化"
+		},
+		{
+			"name": "system_io",
+			"system": "system_io",
+			"suite": "file_async,process,logger_ring",
+			"description": "任务池型异步文件、进程和高吞吐日志"
+		},
+		{
+			"name": "security_transport",
+			"system": "security_transport",
+			"suite": "crypto_aes_gcm,x509_verify,tls_stream",
+			"description": "AEAD、证书验证和 TLS 流"
+		},
+		{
+			"name": "identifier",
+			"system": "identifier",
+			"suite": "xid",
+			"description": "XID 分布式标识"
+		},
+		{
+			"name": "template",
+			"system": "template",
+			"suite": "template_extension,template_file",
+			"description": "模板核心、控制、组合、扩展和文件入口"
+		},
+		{
+			"name": "all",
+			"system": "all",
+			"suite": "all",
+			"description": "完整 XRT"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}
