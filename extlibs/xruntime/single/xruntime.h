@@ -61155,6 +61155,11 @@ extern const xrttype __xrtTypeValueDescriptor;
 	#include <unistd.h>
 #endif
 
+#if defined(__APPLE__)
+	#include <sys/types.h>
+	#include <sys/sysctl.h>
+#endif
+
 
 
 #if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64)
@@ -61264,11 +61269,22 @@ uint32 __xrtProcessorCount(void)
 		GetSystemInfo(&tInfo);
 		return tInfo.dwNumberOfProcessors != 0 ?
 			(uint32)tInfo.dwNumberOfProcessors : 1u;
-	#else
+	#elif defined(__APPLE__)
+		int aMib[2] = {CTL_HW, HW_AVAILCPU};
+		int iCount = 0;
+		size_t iSize = sizeof(iCount);
+
+		/* -std=c11 的严格 ISO 模式会隐藏 _SC_NPROCESSORS_ONLN，Apple 走 sysctl */
+		if ( sysctl(aMib, 2, &iCount, &iSize, NULL, 0) != 0 || iCount <= 0 )
+			iCount = 1;
+		return (uint32)iCount;
+	#elif defined(_SC_NPROCESSORS_ONLN)
 		long iCount = sysconf(_SC_NPROCESSORS_ONLN);
 
 		return (iCount > 0) && ((uint64)iCount <= UINT32_MAX) ?
 			(uint32)iCount : 1u;
+	#else
+		return 1u;
 	#endif
 }
 
@@ -64142,15 +64158,16 @@ XRT_API bool xrtAtomicIsLockFree(size_t iSize)
 		if ( iSize == 8u ) {
 			return __atomic_always_lock_free(8u, NULL);
 		}
+		return false;
 	#elif defined(_WIN32) || defined(_WIN64)
 		return (iSize == 4u) || (iSize == 8u);
 	#elif defined(__x86_64__) || defined(_M_X64)
 		return (iSize == 4u) || (iSize == 8u);
 	#elif defined(__i386__) || defined(_M_IX86)
 		return iSize == 4u;
+	#else
+		return false;
 	#endif
-
-	return false;
 }
 
 
@@ -87674,7 +87691,7 @@ static bool __xrtBase64Prepare(
 
 		if ( !bCustom ) {
 			if ( pReverse != NULL ) {
-				pReverse[iCharacter] = (int16)i;
+				pReverse[iCharacter] = (int8)i;
 			}
 			continue;
 		}
@@ -203701,12 +203718,11 @@ static bool __xrtX509StoreWindowsLocation(
 			(size_t)pCertificate->cbCertEncoded
 		);
 		if ( Result == X509_ERROR ) {
-			pApi->Free(pCertificate);
-			(void)pApi->Close(Store, 0);
-			__xrtX509StoreSystemFailure(
-				"Windows ROOT certificate import failed"
-			);
-			return false;
+			/* OS 信任库可能包含不完全符合 RFC 5280 的存量根证书
+			   （如 NameConstraints 未标记 critical）。系统导入只跳过
+			   被严格策略拒绝的单张证书，不视为整库失败。 */
+			xrtClearError();
+			continue;
 		}
 		*pFound = true;
 	}
@@ -203978,12 +203994,9 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 		);
 		Api.Release(Data);
 		if ( Result == X509_ERROR ) {
-			Api.Release(Anchors);
-			__xrtX509StoreMacClose(&Api);
-			__xrtX509StoreSystemFailure(
-				"macOS system anchor import failed"
-			);
-			return false;
+			/* 与 Windows 系统导入一致：跳过被严格策略拒绝的存量锚，
+			   不视为整库失败。 */
+			continue;
 		}
 	}
 	Api.Release(Anchors);

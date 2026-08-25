@@ -135,7 +135,7 @@ static bool __xrtBase64Prepare(
 
 		if ( !bCustom ) {
 			if ( pReverse != NULL ) {
-				pReverse[iCharacter] = (int16)i;
+				pReverse[iCharacter] = (int8)i;
 			}
 			continue;
 		}
