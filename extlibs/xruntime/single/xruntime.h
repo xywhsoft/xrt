@@ -103920,16 +103920,19 @@ static __xrt_netsocket_native __xrtNetSocketOpenNative(
 			WSA_FLAG_NO_HANDLE_INHERIT;
 
 		(void)iFlags;
-		hSocket = WSASocket(iFamily, iType, iProtocol,
+		hSocket = WSASocketW(iFamily, iType, iProtocol,
 			NULL, 0, iNativeFlags);
 		if ( (hSocket == __XRT_NET_SOCKET_INVALID) &&
 			 (WSAGetLastError() == WSAEINVAL) ) {
-			hSocket = WSASocket(iFamily, iType, iProtocol,
+			hSocket = WSASocketW(iFamily, iType, iProtocol,
 				NULL, 0, WSA_FLAG_OVERLAPPED);
 		}
 	#else
 		int iNativeType = iType;
 
+		#if !defined(SOCK_CLOEXEC) && !defined(SOCK_NONBLOCK)
+			(void)iFlags;
+		#endif
 		#if defined(SOCK_CLOEXEC)
 			iNativeType |= SOCK_CLOEXEC;
 		#endif
@@ -104527,7 +104530,7 @@ XRT_API bool xrtNetSocketSet(xnetsocket Socket,
 					return false;
 				}
 				Linger.l_onoff = (iValue < 0) ? 0 : 1;
-				Linger.l_linger = (iValue < 0) ? 0 : (int)iValue;
+				Linger.l_linger = (u_short)((iValue < 0) ? 0 : iValue);
 				if ( setsockopt(__xrtNetSocketHandle(Socket),
 					SOL_SOCKET, SO_LINGER, (const char*)&Linger,
 					(socklen_t)sizeof(Linger)) != 0 ) {

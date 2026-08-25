@@ -320,6 +320,9 @@ int main(int argc, char** argv)
 					(size_t)(sizeof(sInput) - 1u),
 					(size_t)Result.StderrSize);
 			}
+			fprintf(stderr, "[diag] terminal run exit=%d wait=%d\n",
+				(int)Result.Status.Code,
+				(int)Result.Wait);
 			if ( (Result.Stdout != NULL) && (Result.StdoutSize > 0u) ) {
 				fprintf(stderr, "[diag] stdout(%zu): %.*s\n",
 					(size_t)Result.StdoutSize,
