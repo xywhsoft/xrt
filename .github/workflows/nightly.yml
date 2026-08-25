@@ -1,6 +1,6 @@
 name: Nightly
 
-# 夜间深度测试：时间换覆盖。
+# 夜间深度测试：时间换覆盖。（2026-08-26 注册测试）
 #   - 协议 fuzz 加量（100 万轮，libFuzzer + ASan/UBSan）
 #   - 全量模块 ASan/UBSan 与 TSan（日常 CI 只覆盖协程子集）
 #   - WebSocket 重连压力加量
