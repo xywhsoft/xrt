@@ -16,6 +16,11 @@
 | Android x86-64 emulator | `core,net` 模块与单头测试 | API 30 模拟器，不代表 ARM 设备 |
 | iOS simulator | `core,net` 模块与单头测试 | simulator 目标，不代表真实 iPhone 设备 |
 
+GitHub 托管 runner 通过 seccomp 禁用 io_uring（`io_uring_setup` 返回 EPERM），因此 CI 中
+所有 `*uring*` 运行时测试被显式排除，io_uring 门禁只保留编译与链接证据。io_uring 的真实
+运行证据必须在支持 io_uring 的环境（自托管 runner 或本机，如 WSL2 Linux 6.18 已验证全套
+xhttp_tests 含 uring 用例通过）执行并记录于本文件，不允许以 epoll/Select 替代冒充。
+
 发布库门禁使用 `tools/package.py --verify` 从独立翻译单元真实链接并运行静态库和
 动态库消费者。静态库还必须用 whole-archive 或全部对象直链验证所选模块的完整链接
 闭包，不能让最小消费者隐藏未解析依赖。构建命令生成单测不能替代目标工具链实际执行；
