@@ -143,12 +143,10 @@ static bool __xrtX509StoreWindowsLocation(
 			(size_t)pCertificate->cbCertEncoded
 		);
 		if ( Result == X509_ERROR ) {
-			pApi->Free(pCertificate);
-			(void)pApi->Close(Store, 0);
-			__xrtX509StoreSystemFailure(
-				"Windows ROOT certificate import failed"
-			);
-			return false;
+			/* OS 信任库可能包含不完全符合 RFC 5280 的存量根证书
+			   （如 NameConstraints 未标记 critical）。系统导入只跳过
+			   被严格策略拒绝的单张证书，不视为整库失败。 */
+			continue;
 		}
 		*pFound = true;
 	}

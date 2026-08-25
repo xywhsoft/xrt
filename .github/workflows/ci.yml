@@ -452,13 +452,11 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           script: |
-            set -eu
-            OUT="$PWD/out/android-cc/native-android/core,net"
             adb shell "rm -rf /data/local/tmp/xrt-ci && mkdir -p /data/local/tmp/xrt-ci"
-            adb push "$OUT/test_core" /data/local/tmp/xrt-ci/test_core
-            adb push "$OUT/test_net" /data/local/tmp/xrt-ci/test_net
-            adb push "$OUT/test_single" /data/local/tmp/xrt-ci/test_single
-            adb push "$OUT/test_single_net" /data/local/tmp/xrt-ci/test_single_net
+            adb push "out/android-cc/native-android/core,net/test_core" /data/local/tmp/xrt-ci/test_core
+            adb push "out/android-cc/native-android/core,net/test_net" /data/local/tmp/xrt-ci/test_net
+            adb push "out/android-cc/native-android/core,net/test_single" /data/local/tmp/xrt-ci/test_single
+            adb push "out/android-cc/native-android/core,net/test_single_net" /data/local/tmp/xrt-ci/test_single_net
             adb shell "chmod 755 /data/local/tmp/xrt-ci/*"
             adb shell "cd /data/local/tmp/xrt-ci && ./test_core"
             adb shell "cd /data/local/tmp/xrt-ci && ./test_net"

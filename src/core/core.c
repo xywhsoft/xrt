@@ -6,6 +6,10 @@
 	#include <unistd.h>
 #endif
 
+#if defined(__APPLE__)
+	#include <sys/sysctl.h>
+#endif
+
 
 
 #if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64)
@@ -115,11 +119,22 @@ uint32 __xrtProcessorCount(void)
 		GetSystemInfo(&tInfo);
 		return tInfo.dwNumberOfProcessors != 0 ?
 			(uint32)tInfo.dwNumberOfProcessors : 1u;
-	#else
+	#elif defined(__APPLE__)
+		int aMib[2] = {CTL_HW, HW_AVAILCPU};
+		int iCount = 0;
+		size_t iSize = sizeof(iCount);
+
+		/* -std=c11 的严格 ISO 模式会隐藏 _SC_NPROCESSORS_ONLN，Apple 走 sysctl */
+		if ( sysctl(aMib, 2, &iCount, &iSize, NULL, 0) != 0 || iCount <= 0 )
+			iCount = 1;
+		return (uint32)iCount;
+	#elif defined(_SC_NPROCESSORS_ONLN)
 		long iCount = sysconf(_SC_NPROCESSORS_ONLN);
 
 		return (iCount > 0) && ((uint64)iCount <= UINT32_MAX) ?
 			(uint32)iCount : 1u;
+	#else
+		return 1u;
 	#endif
 }
 

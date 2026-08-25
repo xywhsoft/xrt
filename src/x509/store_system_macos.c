@@ -207,12 +207,9 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 		);
 		Api.Release(Data);
 		if ( Result == X509_ERROR ) {
-			Api.Release(Anchors);
-			__xrtX509StoreMacClose(&Api);
-			__xrtX509StoreSystemFailure(
-				"macOS system anchor import failed"
-			);
-			return false;
+			/* 与 Windows 系统导入一致：跳过被严格策略拒绝的存量锚，
+			   不视为整库失败。 */
+			continue;
 		}
 	}
 	Api.Release(Anchors);

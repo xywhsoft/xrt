@@ -291,15 +291,16 @@ XRT_API bool xrtAtomicIsLockFree(size_t iSize)
 		if ( iSize == 8u ) {
 			return __atomic_always_lock_free(8u, NULL);
 		}
+		return false;
 	#elif defined(_WIN32) || defined(_WIN64)
 		return (iSize == 4u) || (iSize == 8u);
 	#elif defined(__x86_64__) || defined(_M_X64)
 		return (iSize == 4u) || (iSize == 8u);
 	#elif defined(__i386__) || defined(_M_IX86)
 		return iSize == 4u;
+	#else
+		return false;
 	#endif
-
-	return false;
 }
 
 
