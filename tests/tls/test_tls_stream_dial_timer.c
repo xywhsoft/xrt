@@ -114,6 +114,17 @@ static void testTlsDialTimerDone(
 
 
 /* 验证全过程 Timer 拒绝失败原子，并且槽位恢复后可以重新拨号。 */
+
+static xtlsverifydecision testDialEdgeAcceptPeer(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
 int main(void)
 {
 	test_tls_dial_timer Test;
@@ -124,6 +135,7 @@ int main(void)
 	xnetenginestats Stats;
 	xtlscontext* pTlsContext;
 	xnetengine* pEngine;
+	xtlsverifier* pVerifier;
 	xnetresolver* pResolver;
 	xtlsdial* pDial;
 	uint64 iReserved;
@@ -134,6 +146,16 @@ int main(void)
 		"TLS dial Timer context creation failed");
 	xrtTlsClientConfigInit(&ClientConfig);
 	ClientConfig.Context = pTlsContext;
+	{
+		xtlsverifierconfig VerifierConfig;
+
+		xrtTlsVerifierConfigInit(&VerifierConfig);
+		VerifierConfig.Verify = testDialEdgeAcceptPeer;
+		pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	}
+	testRequire(pVerifier != NULL,
+		"TLS dial Timer verifier creation failed");
+	ClientConfig.Verifier = pVerifier;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_TLS_DIAL_BACKEND;
 	EngineConfig.Workers = 1u;
@@ -212,6 +234,7 @@ int main(void)
 		xrtClearError();
 		xrtThreadYield();
 	}
+	xrtTlsVerifierRelease(pVerifier);
 	xrtTlsContextRelease(pTlsContext);
 	printf("[PASS] TLS dial total Timer rejection and recovery\n");
 	return 0;

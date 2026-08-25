@@ -110,6 +110,18 @@ static uint16 testTlsDialFutureEdgeUnusedPort(void)
 
 
 /* 等待 Future 到达指定终态。 */
+static xtlsverifydecision testTlsDialFutureEdgeAcceptPeer(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
+
+
 static void testTlsDialFutureEdgeState(
 	xfuture* pFuture,
 	xfuturestate State,
@@ -155,6 +167,7 @@ int main(void)
 	xtlsdialconfig DialConfig;
 	xtlscontext* pTlsContext;
 	xnetengine* pEngine;
+	xtlsverifier* pVerifier;
 	xnetresolver* pFailureResolver;
 	xnetresolver* pCancelResolver;
 	xnetresolver* pTimeoutResolver;
@@ -172,6 +185,16 @@ int main(void)
 		"TLS Dial Future edge context creation failed");
 	xrtTlsClientConfigInit(&ClientConfig);
 	ClientConfig.Context = pTlsContext;
+	{
+		xtlsverifierconfig VerifierConfig;
+
+		xrtTlsVerifierConfigInit(&VerifierConfig);
+		VerifierConfig.Verify = testTlsDialFutureEdgeAcceptPeer;
+		pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	}
+	testRequire(pVerifier != NULL,
+		"TLS Dial Future edge verifier creation failed");
+	ClientConfig.Verifier = pVerifier;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_TLS_DIAL_FUTURE_BACKEND;
 	EngineConfig.Workers = 1u;
@@ -312,6 +335,7 @@ int main(void)
 		xrtNetResolverDestroy(pTimeoutResolver),
 		"TLS Dial Future edge resolver destroy failed");
 	testTlsDialFutureEdgeDestroyEngine(pEngine);
+	xrtTlsVerifierRelease(pVerifier);
 	xrtTlsContextRelease(pTlsContext);
 	printf("[PASS] TLS Dial Future edge terminals\n");
 	return 0;

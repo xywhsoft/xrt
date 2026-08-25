@@ -160,6 +160,17 @@ static void testTlsDialEdgeDestroyEngine(xnetengine* pEngine)
 
 
 /* 验证 TCP 耗尽、显式取消、跨阶段总超时和入口参数边界。 */
+
+static xtlsverifydecision testDialEdgeAcceptPeer(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
 int main(void)
 {
 	test_tls_dial_edge Failure;
@@ -171,6 +182,7 @@ int main(void)
 	xnetdialstats Stats;
 	xtlscontext* pTlsContext;
 	xnetengine* pEngine;
+	xtlsverifier* pVerifier;
 	xnetresolver* pFailureResolver;
 	xnetresolver* pCancelResolver;
 	xnetresolver* pTimeoutResolver;
@@ -188,6 +200,16 @@ int main(void)
 		"TLS dial edge context creation failed");
 	xrtTlsClientConfigInit(&ClientConfig);
 	ClientConfig.Context = pTlsContext;
+	{
+		xtlsverifierconfig VerifierConfig;
+
+		xrtTlsVerifierConfigInit(&VerifierConfig);
+		VerifierConfig.Verify = testDialEdgeAcceptPeer;
+		pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	}
+	testRequire(pVerifier != NULL,
+		"TLS dial edge verifier creation failed");
+	ClientConfig.Verifier = pVerifier;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_TLS_DIAL_BACKEND;
 	EngineConfig.Workers = 1u;
@@ -355,6 +377,7 @@ int main(void)
 		xrtNetResolverDestroy(pTimeoutResolver),
 		"TLS dial edge resolver destroy failed");
 	testTlsDialEdgeDestroyEngine(pEngine);
+	xrtTlsVerifierRelease(pVerifier);
 	xrtTlsContextRelease(pTlsContext);
 	printf("[PASS] managed TLS dial edge terminals\n");
 	return 0;
