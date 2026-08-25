@@ -207,8 +207,17 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 		);
 		Api.Release(Data);
 		if ( Result == X509_ERROR ) {
-			/* 与 Windows 系统导入一致：跳过被严格策略拒绝的存量锚，
-			   不视为整库失败。 */
+			/* 与 Windows 系统导入一致：跳过被严格策略拒绝的存量锚；
+			   OOM 等资源错误照常失败。 */
+			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+				Api.Release(Anchors);
+				__xrtX509StoreMacClose(&Api);
+				__xrtX509StoreSystemFailure(
+					"macOS system anchor import failed"
+				);
+				return false;
+			}
+			xrtClearError();
 			continue;
 		}
 	}

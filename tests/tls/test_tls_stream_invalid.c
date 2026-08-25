@@ -3,9 +3,25 @@
 
 
 /* 验证空参数、状态查询和跨层硬限不会静默失败。 */
+
+static xtlsverifydecision testTlsStreamInvalidAcceptPeer(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
+
+
 int main(void)
 {
 	xnetengineconfig EngineConfig;
+	xtlscontext* pTlsContext;
+	xtlsverifier* pVerifier;
+	xtlsclientconfig TlsConfig;
 	xnetstreamconfig Transport;
 	xtlsstreamconfig StreamConfig;
 	xnetengine* pEngine;
@@ -123,6 +139,21 @@ int main(void)
 		XNET_FAMILY_IPV4,
 		443
 	), "TLS stream invalid fixture creation failed");
+	pTlsContext = xrtTlsContextCreate(NULL);
+	testRequire(pTlsContext != NULL,
+		"TLS stream invalid context creation failed");
+	{
+		xtlsverifierconfig VerifierConfig;
+
+		xrtTlsVerifierConfigInit(&VerifierConfig);
+		VerifierConfig.Verify = testTlsStreamInvalidAcceptPeer;
+		pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	}
+	testRequire(pVerifier != NULL,
+		"TLS stream invalid verifier creation failed");
+	xrtTlsClientConfigInit(&TlsConfig);
+	TlsConfig.Context = pTlsContext;
+	TlsConfig.Verifier = pVerifier;
 	xrtNetStreamConfigInit(&Transport);
 	Transport.WriteHighWater = 1u;
 	Transport.WriteLowWater = 0;
@@ -133,7 +164,7 @@ int main(void)
 		&Address,
 		0,
 		&Transport,
-		NULL,
+		&TlsConfig,
 		NULL,
 		NULL,
 		NULL
@@ -143,5 +174,7 @@ int main(void)
 		"TLS stream cross-layer write limit was not enforced");
 	testRequire(xrtNetEngineDestroy(pEngine),
 		"TLS stream invalid engine destroy failed");
+	xrtTlsVerifierRelease(pVerifier);
+	xrtTlsContextRelease(pTlsContext);
 	return 0;
 }

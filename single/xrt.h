@@ -56146,6 +56146,12 @@ typedef struct xblockstackblock {
 /* source: src/core/core.c */
 /* ========================================================================== */
 
+/* -std=c11 的严格 ISO 模式下 Darwin 系统头不定义 u_int、隐藏
+   _SC_NPROCESSORS_ONLN；必须在任何系统头之前声明 BSD 特性宏。 */
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+	#define _DARWIN_C_SOURCE 1
+#endif
+
 
 #include <errno.h>
 
@@ -158650,7 +158656,7 @@ XRT_API xx509result xrtX509MatchHost(
 	xx509gencursor Cursor;
 	xx509genname Name;
 	xx509result Result;
-	xnetaddr Address;
+	xnetaddr Address = {0};
 	xstrview Reference = Host;
 	size_t iHostSize = 0;
 	bool bWildcard = false;
@@ -198718,7 +198724,16 @@ static bool __xrtX509StoreWindowsLocation(
 		if ( Result == X509_ERROR ) {
 			/* OS 信任库可能包含不完全符合 RFC 5280 的存量根证书
 			   （如 NameConstraints 未标记 critical）。系统导入只跳过
-			   被严格策略拒绝的单张证书，不视为整库失败。 */
+			   被严格策略拒绝的单张证书；OOM 等资源错误必须照常失败，
+			   保持 OOM 注入下的失败原子性。 */
+			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+				pApi->Free(pCertificate);
+				(void)pApi->Close(Store, 0);
+				__xrtX509StoreSystemFailure(
+					"Windows ROOT certificate import failed"
+				);
+				return false;
+			}
 			xrtClearError();
 			continue;
 		}
@@ -198992,8 +199007,17 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 		);
 		Api.Release(Data);
 		if ( Result == X509_ERROR ) {
-			/* 与 Windows 系统导入一致：跳过被严格策略拒绝的存量锚，
-			   不视为整库失败。 */
+			/* 与 Windows 系统导入一致：跳过被严格策略拒绝的存量锚；
+			   OOM 等资源错误照常失败。 */
+			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+				Api.Release(Anchors);
+				__xrtX509StoreMacClose(&Api);
+				__xrtX509StoreSystemFailure(
+					"macOS system anchor import failed"
+				);
+				return false;
+			}
+			xrtClearError();
 			continue;
 		}
 	}

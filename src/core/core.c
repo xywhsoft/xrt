@@ -1,3 +1,9 @@
+/* -std=c11 的严格 ISO 模式下 Darwin 系统头不定义 u_int、隐藏
+   _SC_NPROCESSORS_ONLN；必须在任何系统头之前声明 BSD 特性宏。 */
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+	#define _DARWIN_C_SOURCE 1
+#endif
+
 #include "../internal/xrt_internal.h"
 
 #include <errno.h>

@@ -138,7 +138,7 @@ XRT_API xx509result xrtX509MatchHost(
 	xx509gencursor Cursor;
 	xx509genname Name;
 	xx509result Result;
-	xnetaddr Address;
+	xnetaddr Address = {0};
 	xstrview Reference = Host;
 	size_t iHostSize = 0;
 	bool bWildcard = false;
