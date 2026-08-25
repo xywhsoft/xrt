@@ -172,6 +172,17 @@ static void testTlsStreamTimeoutClientClose(
 
 
 /* 验证握手超时拥有独立结果和 TLS 根因。 */
+
+static xtlsverifydecision testDialEdgeAcceptPeer(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
 int main(void)
 {
 	test_tls_stream_timeout Test;
@@ -184,6 +195,7 @@ int main(void)
 	xtlsclientconfig ClientConfig;
 	xtlscontext* pContext;
 	xnetengine* pEngine;
+	xtlsverifier* pVerifier;
 	xnetlistener* pListener;
 	xtlsstream* pClient;
 	xnetaddr Address;
@@ -202,6 +214,16 @@ int main(void)
 	testRequire(pContext != NULL, "TLS timeout context creation failed");
 	xrtTlsClientConfigInit(&ClientConfig);
 	ClientConfig.Context = pContext;
+	{
+		xtlsverifierconfig VerifierConfig;
+
+		xrtTlsVerifierConfigInit(&VerifierConfig);
+		VerifierConfig.Verify = testDialEdgeAcceptPeer;
+		pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	}
+	testRequire(pVerifier != NULL,
+		"TLS timeout verifier creation failed");
+	ClientConfig.Verifier = pVerifier;
 	ClientConfig.ServerName = XRT_STR_LITERAL("example.com");
 	xrtTlsStreamConfigInit(&StreamConfig);
 	StreamConfig.HandshakeTimeout = 50000u;
@@ -269,6 +291,7 @@ int main(void)
 	xrtNetListenerDestroy(pListener);
 	testRequire(xrtNetEngineDestroy(pEngine),
 		"TLS timeout engine destroy failed");
+	xrtTlsVerifierRelease(pVerifier);
 	xrtTlsContextRelease(pContext);
 	printf("[PASS] TLS stream handshake timeout\n");
 	return 0;

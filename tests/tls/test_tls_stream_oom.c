@@ -365,6 +365,17 @@ static void testTlsStreamObjectOom(
 
 
 /* 验证组合对象 OOM 与握手 Timer 拒绝均保留根因且可完整回收。 */
+
+static xtlsverifydecision testDialEdgeAcceptPeer(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
 int main(void)
 {
 	test_tls_stream_oom Test;
@@ -379,6 +390,7 @@ int main(void)
 	xnetstreamevents ServerEvents;
 	xnetstreamconfig TransportConfig;
 	xnetengine* pEngine;
+	xtlsverifier* pVerifier;
 	xnetlistener* pListener;
 	xtlsstream* pClient;
 	xnetaddr Address;
@@ -398,6 +410,16 @@ int main(void)
 		"TLS stream OOM context creation failed");
 	xrtTlsClientConfigInit(&ClientConfig);
 	ClientConfig.Context = pTlsContext;
+	{
+		xtlsverifierconfig VerifierConfig;
+
+		xrtTlsVerifierConfigInit(&VerifierConfig);
+		VerifierConfig.Verify = testDialEdgeAcceptPeer;
+		pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	}
+	testRequire(pVerifier != NULL,
+		"TLS stream OOM verifier creation failed");
+	ClientConfig.Verifier = pVerifier;
 	ClientConfig.ServerName = XRT_STR_LITERAL("example.com");
 	testTlsStreamObjectOom(&Test, &ClientConfig);
 
@@ -557,6 +579,7 @@ int main(void)
 	xrtNetListenerDestroy(pListener);
 	testRequire(xrtNetEngineDestroy(pEngine),
 		"TLS stream OOM engine destroy failed");
+	xrtTlsVerifierRelease(pVerifier);
 	xrtTlsContextRelease(pTlsContext);
 	xrtClearError();
 	printf("[PASS] TLS stream object OOM and Timer rejection\n");
