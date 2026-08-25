@@ -106,44 +106,9 @@ TARGETS = {
 		"label": "HTTP/1",
 		"output": "http1_protocol_fuzz",
 		"adapter": "XRT_HTTP1_FUZZ_LIBFUZZER",
+		"corpus": "http1_protocol",
 		"seeds": {
 			"empty": b"",
-			"request": b"GET / HTTP/1.1\r\nHost: example.test\r\n\r\n",
-			"fixed-response": (
-				b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello"
-			),
-			"chunked-response": (
-				b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
-				b"4\r\ntest\r\n0\r\nDigest: ok\r\n\r\n"
-			),
-			"ambiguous-length": (
-				b"POST / HTTP/1.1\r\nContent-Length: 1\r\n"
-				b"Transfer-Encoding: chunked\r\n\r\n"
-			),
-			"layered-transfer": (
-				b"HTTP/1.1 200 OK\r\n"
-				b"Transfer-Encoding: gzip, chunked\r\n\r\n0\r\n\r\n"
-			),
-			"expect-list": (
-				b'100-continue, feature="a,b"; mode=fast'
-			),
-			"expect-malformed": b"100-continue, feature =on",
-			"expect-repeated": (
-				b"POST / HTTP/1.1\r\nHost: example.test\r\n"
-				b"Expect: 100-continue\r\n"
-				b"Expect: ,100-CONTINUE,\r\n\r\n"
-			),
-			"te-list": b'trailers, gzip; note="a,b";q=0.5',
-			"te-malformed": b"trailers, gzip;q=2",
-			"te-repeated": (
-				b"GET / HTTP/1.1\r\nHost: example.test\r\n"
-				b'TE: gzip; note="a,b";q=0.5\r\n'
-				b"TE: trailers\r\nConnection: keep-alive, TE\r\n\r\n"
-			),
-			"te-missing-connection": (
-				b"GET / HTTP/1.1\r\nHost: example.test\r\n"
-				b"TE: trailers\r\nConnection: keep-alive\r\n\r\n"
-			),
 		},
 	},
 	"route": {
@@ -205,17 +170,9 @@ TARGETS = {
 		"label": "WebSocket",
 		"output": "websocket_protocol_fuzz",
 		"adapter": None,
+		"corpus": "websocket_protocol",
 		"seeds": {
 			"empty": b"",
-			"text": b"\x81\x00",
-			"masked-text": b"\x81\x80\x12\x34\x56\x78",
-			"close-normal": b"\x88\x02\x03\xe8",
-			"ping": b"\x89\x00",
-			"compressed": b"\xc1\x00",
-			"extension": (
-				b"permessage-deflate; server_no_context_takeover; "
-				b"client_no_context_takeover"
-			),
 		},
 	},
 }
@@ -382,6 +339,7 @@ def _build_command(
 		"-O1",
 		"-g",
 		"-fno-omit-frame-pointer",
+		"-fno-builtin-memcpy",
 		"-fno-sanitize-recover=all",
 		"-fsanitize=fuzzer,address,undefined",
 	]

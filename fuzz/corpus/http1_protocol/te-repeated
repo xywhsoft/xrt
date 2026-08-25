@@ -1,0 +1,6 @@
+GET / HTTP/1.1
+Host: example.test
+TE: gzip; note="a,b";q=0.5
+TE: trailers
+Connection: keep-alive, TE
+

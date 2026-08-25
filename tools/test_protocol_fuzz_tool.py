@@ -40,13 +40,26 @@ class ProtocolFuzzToolTest(unittest.TestCase):
 			self.assertIn("extlibs/xhttp/include", include_dirs)
 
 
+	def test_sanitizer_keeps_alignment_checks(self) -> None:
+		"""未对齐契约只关闭 memcpy 内建展开，不能关闭 alignment 检查。"""
+
+		command = protocol_fuzz._build_command(
+			"clang", ["fuzz/http1_protocol.c"], [], [], [],
+			None, Path("out/http1_protocol_fuzz"),
+		)
+		self.assertIn("-fno-builtin-memcpy", command)
+		self.assertNotIn("-fno-sanitize=alignment", command)
+
+
 	def test_release_targets_have_persistent_corpus(self) -> None:
-		"""TLS、X.509 和地址 fuzz 必须携带可回流的仓库语料。"""
+		"""核心协议 fuzz 必须携带可回流的仓库语料。"""
 
 		minimum = {
 			"tls": 6,
 			"x509": 6,
 			"net-address": 6,
+			"http1": 10,
+			"websocket": 6,
 		}
 		for name, count in minimum.items():
 			with self.subTest(target=name):

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <xrt/error.h>
 #include <xrt/websocket.h>
 
 

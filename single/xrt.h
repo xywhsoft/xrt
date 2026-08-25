@@ -173611,7 +173611,6 @@ bool __xrtHttp1WriteMeasure(
 )
 {
 	xhttpfield Field;
-	size_t iCheckSize;
 	size_t i;
 	size_t iSize = iBase;
 
@@ -173699,6 +173698,7 @@ bool __xrtHttp1WriteOutputValid(
 )
 {
 	xhttpfield Field;
+	size_t iCheckSize;
 	size_t i;
 
 	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ) {

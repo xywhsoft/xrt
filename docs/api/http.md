@@ -99,6 +99,10 @@ Content-Length 判断响应正文。
 `xrtHttp1BodyInit` 创建无分配 reader。`xrtHttp1BodyRead` 每次返回一个借用正文
 片段、容量请求或终态，并通过 `Consumed` 精确说明已消费线路字节。
 
+`xrtHttp1BodyLimitsInit` 的 `MaxBody` 默认为 `UINT64_MAX`，因为底层 reader 不拥有、
+聚合或分配正文。服务端、代理以及任何会持有正文的上层必须在接收前按路由和内存预算
+设置有限上限，不能把该协议层默认值直接作为公网接收策略。
+
 对于 chunked，reader 会验证 chunk-size、扩展语法、CRLF、last-chunk 和 trailer，
 并严格拒绝 chunk-size 与分号或 CRLF 之间的空白，避免端点对报文边界产生分歧。
 正文视图不包含分块元数据。`Received` 是应用正文长度，`WireBytes` 是正文区实际

@@ -12,9 +12,13 @@
 | TLS record/handshake | `fuzz/corpus/tls_protocol` | 截断记录头、长度边界、握手消息 |
 | X.509/ASN.1 DER | `fuzz/corpus/x509_asn1` | 合法 Ed25519 证书、DER 长度与时间 |
 | 网络地址 | `fuzz/corpus/net_address` | IPv4、IPv6、scope、端口和畸形文本 |
+| HTTP/1 | `fuzz/corpus/http1_protocol` | 分帧歧义、Expect、TE 和 chunked |
+| WebSocket | `fuzz/corpus/websocket_protocol` | mask、控制帧、压缩位和扩展协商 |
 
 驱动会把持久语料复制到 `out/fuzz/<platform>/<target>/corpus`，再叠加目标内建种子。
 工作目录可由 libFuzzer 扩充，但 CI 和本地短跑都不会直接修改源码树。
+Sanitizer 构建使用 `-fno-builtin-memcpy`，避免 Clang 把明确允许未对齐的固定尺寸
+`memcpy` 展开成带类型对齐检查的访问；alignment sanitizer 本身仍保持启用。
 
 ## 发布门禁
 

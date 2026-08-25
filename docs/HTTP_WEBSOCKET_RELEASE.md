@@ -87,6 +87,9 @@ python tools/test_protocol_fuzz.py --runs 100000
 或转化为普通回归后才能发布。OOM 测试必须使用 `xrtMemDebugFailAfter`，并验证失败后对象、引用、
 回调状态和持有内存全部归零。
 
+Sanitizer 门禁保持 alignment 检查启用，并使用 `-fno-builtin-memcpy` 防止 Clang 把明确允许
+未对齐的固定尺寸 `memcpy` 展开为带类型对齐前置条件的访问；不得用全局关闭 alignment 代替。
+
 体积和性能门禁：
 
 ```text

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <xrt/error.h>
 #include <xrt/http1.h>
 #include <xrt/http_connection.h>
 #include <xrt/http_expect.h>

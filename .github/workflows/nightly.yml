@@ -78,6 +78,7 @@ jobs:
           --cflag=-g
           --cflag=-fsanitize=address,undefined
           --cflag=-fno-omit-frame-pointer
+          --cflag=-fno-builtin-memcpy
 
   sanitizer-tsan:
     name: Full suite TSan

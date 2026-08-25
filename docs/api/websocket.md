@@ -66,6 +66,10 @@ Header，最后异步处理同一缓冲中的帧余量。失败不会部分接�
 - 不符合客户端/服务端角色的 mask；
 - 输出范围重叠、地址回绕和无效配置。
 
+`xrtWsFrameConfigInit` 的 `Mask` 默认为 `XWS_MASK_ANY`，只用于角色未知的协议工具和
+中间层。端点直接使用帧解析器时，服务端必须改为 `XWS_MASK_REQUIRED`，客户端必须改为
+`XWS_MASK_FORBIDDEN`；`xwsstream` 已按连接角色自动设置该策略。
+
 `xwsmessagestate` 不保存完整消息，只记录协议状态。它验证 continuation 顺序、Text UTF-8、
 控制帧穿插、Close payload、扩展位和解码后消息上限。Ping/Pong/Close 由返回的消息标志交给调用方处理；
 核心不自动回复、不自动关闭网络流。消息状态配置默认 `MaxSize = SIZE_MAX`，因为这一层不聚合正文；
