@@ -140,11 +140,15 @@ jobs:
           python-version: "3.12"
 
       - name: Run extension tests
+        # GitHub 托管 runner 通过 seccomp 禁用了 io_uring（EPERM），
+        # uring 运行时证据由自托管环境承担；此处保留其余全部运行证据。
         run: >-
           python tools/build.py
           --compiler cc
           --manifest extlibs/${{ matrix.product }}/config/modules.json
           --suite ${{ matrix.test_suite }}
+          --exclude-test *uring*
+          --exclude-single-test *uring*
           --jobs 4
 
       - name: Verify extension trimming
@@ -182,6 +186,19 @@ jobs:
           python-version: "3.12"
 
       - name: Run module and single-header tests
+        # GitHub 托管 runner 禁用 io_uring，排除 uring 运行时测试；
+        # uring 编译证据由下方 io_uring 门禁的 --no-run 构建保留。
+        if: matrix.runner == 'ubuntu-latest'
+        run: >-
+          python tools/build.py
+          --compiler cc
+          --suite all
+          --exclude-test *uring*
+          --exclude-single-test *uring*
+          --jobs 4
+
+      - name: Run module and single-header tests
+        if: matrix.runner != 'ubuntu-latest'
         run: python tools/build.py --compiler cc --suite all --jobs 4
 
       - name: Build WebSocket extension runtime gates
@@ -254,7 +271,10 @@ jobs:
           --cflag=-fsanitize=thread
           --cflag=-fno-omit-frame-pointer
 
-      - name: Run Linux io_uring network and TLS runtime gate
+      - name: Compile Linux io_uring network and TLS gates
+        # GitHub 托管 runner 通过 seccomp 禁用 io_uring（EPERM），
+        # 此步骤仅保留 uring 目标的编译与链接证据；
+        # 运行证据需要在支持 io_uring 的环境（自托管 runner 或本机）执行。
         if: matrix.runner == 'ubuntu-latest'
         run: >-
           python tools/build.py
@@ -262,6 +282,7 @@ jobs:
           --manifest extlibs/xhttp/config/modules.json
           --suite
           net_port_uring,net_file,net_tcp_file_uring_tests,net_tcp_dial_uring_tests,net_tcp_dial_future_uring_tests,net_tcp_uring_tests,net_tcp_future_uring_tests,net_udp_uring_tests,net_udp_sync_uring_tests,net_udp_future_uring_tests,tls_stream_dial_future_uring_tests,tls_stream_dial_uring_tests,tls_stream_uring_tests,http_client_pool_uring_tests,http_client_stream_async_uring_tests,http_client_uring_tests,http_server_uring_tests,http_server_tls_uring_tests
+          --no-run
           --rebuild
           --jobs 4
 

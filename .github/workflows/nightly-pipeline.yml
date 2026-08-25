@@ -72,6 +72,8 @@ jobs:
           python tools/build.py
           --compiler clang
           --suite all
+          --exclude-test *uring*
+          --exclude-single-test *uring*
           --no-single
           --rebuild
           --cflag=-O1
@@ -100,6 +102,8 @@ jobs:
           python tools/build.py
           --compiler clang
           --suite all
+          --exclude-test *uring*
+          --exclude-single-test *uring*
           --no-single
           --rebuild
           --cflag=-O1
@@ -186,7 +190,14 @@ jobs:
           python-version: "3.12"
 
       - name: Run module and single-header tests
-        run: python tools/build.py --compiler cc --suite all --jobs 4
+        # GitHub 托管 runner 禁用 io_uring，排除 uring 运行时测试
+        run: >-
+          python tools/build.py
+          --compiler cc
+          --suite all
+          --exclude-test *uring*
+          --exclude-single-test *uring*
+          --jobs 4
 
   compat-old-gcc:
     name: GCC ${{ matrix.gcc }} container
