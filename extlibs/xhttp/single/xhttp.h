@@ -94727,6 +94727,10 @@ void __xrtCoBackendYield(xrt_co_runtime* pRuntime, xcoro* pCo)
 #else
 
 #include <pthread.h>
+/* -std=c11 严格 ISO 模式下 Darwin 的 mman.h 隐藏 MAP_ANONYMOUS。 */
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+	#define _DARWIN_C_SOURCE 1
+#endif
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -150793,7 +150797,7 @@ XRT_API xtlsitemresult xrtTlsExtensionsFind(
 {
 	xtlsextensioncursor Cursor;
 	xtlsextension Extension;
-	xtlsextension Found;
+	xtlsextension Found = {0};
 	xtlsitemresult Result;
 	bool bFound = false;
 

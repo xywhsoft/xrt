@@ -180,7 +180,7 @@ XRT_API xtlsitemresult xrtTlsExtensionsFind(
 {
 	xtlsextensioncursor Cursor;
 	xtlsextension Extension;
-	xtlsextension Found;
+	xtlsextension Found = {0};
 	xtlsitemresult Result;
 	bool bFound = false;
 
