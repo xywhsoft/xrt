@@ -120674,6 +120674,12 @@ static xnetresult __xrtNetStreamSendFileReady(
 		}
 	#elif defined(__APPLE__)
 		{
+			/* 严格 ISO 模式下 Darwin 头文件隐藏 sendfile 声明，
+			   按 xnu 系统原型补声明。 */
+			extern int sendfile(
+				int iFile, int iSocket, off_t iOffset,
+				off_t* pLength, void* pHeader, int iFlags
+			);
 			off_t iDone = (off_t)iSize;
 			off_t iOffset = (off_t)(pFile->Offset + (uint64)iRelative);
 			int iResult;
@@ -173002,7 +173008,7 @@ bool __xrtTlsClientResumeBinder(
 	xtlsextensioncursor Extensions;
 	xtlsextension Extension;
 	xtlspskcursor Psks;
-	xtlspsk Psk;
+	xtlspsk Psk = {0};
 	xcryptohash Hash;
 	size_t iPartial;
 	bool bPsk = false;

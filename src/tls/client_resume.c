@@ -57,7 +57,7 @@ bool __xrtTlsClientResumeBinder(
 	xtlsextensioncursor Extensions;
 	xtlsextension Extension;
 	xtlspskcursor Psks;
-	xtlspsk Psk;
+	xtlspsk Psk = {0};
 	xcryptohash Hash;
 	size_t iPartial;
 	bool bPsk = false;
