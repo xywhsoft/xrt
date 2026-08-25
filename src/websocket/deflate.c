@@ -390,6 +390,7 @@ static bool __xrtWsDeflateWrite(
 {
 	xwsdeflate Config;
 	char Text[XWS_DEFLATE_MAX_SIZE];
+	size_t iCheckSize;
 	size_t iSize = 0;
 
 	if ( !__xrtRangeValid(pConfig, sizeof(*pConfig)) ||
@@ -476,13 +477,14 @@ static bool __xrtWsDeflateWrite(
 		memcpy(pSize, &iSize, sizeof(iSize));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iSize) ||
+	iCheckSize = __xrtOutputCheckSize(iSize, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
 			pSize, sizeof(*pSize),
-			pOutput, iSize
+			pOutput, iCheckSize
 		) || __xrtRangesOverlap(
 			pConfig, sizeof(*pConfig),
-			pOutput, iSize
+			pOutput, iCheckSize
 		) ) {
 		__xrtWsDeflateError(
 			XERR_ARGUMENT,

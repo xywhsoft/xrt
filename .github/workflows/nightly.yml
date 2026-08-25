@@ -1,0 +1,325 @@
+name: Nightly
+
+# 夜间深度测试：时间换覆盖。
+#   - 协议 fuzz 加量（100 万轮，libFuzzer + ASan/UBSan）
+#   - 全量模块 ASan/UBSan 与 TSan（日常 CI 只覆盖协程子集）
+#   - WebSocket 重连压力加量
+#   - 兼容性矩阵：旧系统 / 旧编译器容器 / macOS Intel / 交叉编译 + QEMU 真实执行
+#   - 体积与性能记录型报告（只记录，不做跨环境门禁）
+#
+# 失败即发现：本流水线不作为合并门禁，红灯表示需要排查的新线索。
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # UTC 18:00 = 北京时间次日 02:00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  fuzz-deep:
+    name: Protocol fuzz deep
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ASAN_OPTIONS: detect_leaks=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run protocol fuzz deep rounds
+        # 轮数按 timeout 预算调节；每目标独立执行，失败保留崩溃产物
+        run: python tools/test_protocol_fuzz.py --runs 300000
+
+      - name: Preserve fuzz artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-protocol-fuzz-failures
+          path: out/fuzz/linux/*/artifacts/*
+          if-no-files-found: ignore
+          retention-days: 30
+
+  sanitizer-asan:
+    name: Full suite ASan / UBSan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run full suite under ASan and UBSan
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --suite all
+          --no-single
+          --rebuild
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=address,undefined
+          --cflag=-fno-omit-frame-pointer
+
+  sanitizer-tsan:
+    name: Full suite TSan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run full suite under TSan
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --suite all
+          --no-single
+          --rebuild
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=thread
+          --cflag=-fno-omit-frame-pointer
+
+  stress:
+    name: Reconnect stress deep
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            compiler: cc
+            binary: out/cc/native/xws_tests/test_http_reconnect
+          - runner: windows-latest
+            compiler: gcc
+            binary: out/gcc/native/xws_tests/test_http_reconnect.exe
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Build WebSocket test gates
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: >-
+          python tools/build.py
+          --compiler ${{ matrix.compiler }}
+          --manifest extlibs/xws/config/modules.json
+          --suite xws_tests
+          --no-single
+          --rebuild
+          --jobs 4
+
+      - name: Run reconnect stress 10000 rounds
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: "${{ matrix.binary }} 10000"
+
+  compat-old-ubuntu:
+    name: Ubuntu 22.04 cc
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run module and single-header tests
+        run: python tools/build.py --compiler cc --suite all --jobs 4
+
+  compat-old-gcc:
+    name: GCC ${{ matrix.gcc }} container
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: gcc:${{ matrix.gcc }}
+    strategy:
+      fail-fast: false
+      matrix:
+        gcc:
+          - "12"
+          - "13"
+    steps:
+      - name: Install Python
+        run: |
+          set -eu
+          apt-get update
+          apt-get install -y --no-install-recommends python3 ca-certificates git
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run core and network tests
+        run: python3 tools/build.py --compiler cc --suite core,net --jobs 4
+
+  compat-macos-intel:
+    name: macOS 13 Intel cc
+    runs-on: macos-13
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run module and single-header tests
+        run: python tools/build.py --compiler cc --suite all --jobs 4
+
+  compat-cross-qemu:
+    name: Cross / ${{ matrix.arch }} (QEMU)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64
+            prefix: aarch64-linux-gnu
+            qemu: qemu-aarch64
+          - arch: riscv64
+            prefix: riscv64-linux-gnu
+            qemu: qemu-riscv64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cross toolchain and QEMU
+        run: |
+          set -eu
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            "gcc-${{ matrix.prefix }}" qemu-user
+
+      - name: Build core and network tests
+        run: |
+          set -eu
+          mkdir -p .ci/bin
+          cat > .ci/bin/cross-cc <<EOF
+          #!/bin/sh
+          exec "${{ matrix.prefix }}-gcc" "\$@"
+          EOF
+          chmod +x .ci/bin/cross-cc
+          export PATH="$PWD/.ci/bin:$PATH"
+          python tools/build.py --compiler cross-cc --suite core,net --no-run --jobs 4
+
+      - name: Run tests under QEMU user emulation
+        run: |
+          set -eu
+          sysroot="/usr/${{ matrix.prefix }}"
+          find out/cross-cc -type f -name 'test_*' ! -name '*.o' | while read -r bin; do
+            case "$bin" in
+              *.exe) continue ;;
+            esac
+            [ -x "$bin" ] || continue
+            echo "== running $bin"
+            "${{ matrix.qemu }}" -L "$sysroot" "$bin"
+          done
+
+  bench-record:
+    name: Bench record / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: Linux
+            runner: ubuntu-latest
+          - os: Windows
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Record size profile
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: >-
+          python tools/measure_size.py
+          --compiler ${{ runner.os == 'Windows' && 'gcc' || 'cc' }}
+          --arch x64
+          --report "size_report_${{ matrix.os }}.json"
+
+      - name: Record performance smoke
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: >-
+          python tools/measure_performance.py
+          --compiler ${{ runner.os == 'Windows' && 'gcc' || 'cc' }}
+          --arch x64
+          --smoke
+          --report "perf_report_${{ matrix.os }}.json"
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-record-${{ matrix.os }}
+          path: |
+            size_report_*.json
+            perf_report_*.json
+          if-no-files-found: error
+          retention-days: 90

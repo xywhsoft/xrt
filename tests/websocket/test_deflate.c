@@ -369,8 +369,12 @@ static void testDeflateWrite(void)
 	xwsdeflate Config;
 	xwsdeflate Parsed;
 	xwsextension Extension;
+	struct {
+		char Output[16];
+		unsigned char Gap[8];
+		size_t Size;
+	} Short;
 	char Output[XWS_DEFLATE_MAX_SIZE];
-	char Small[16];
 	size_t iOffset;
 	size_t iSize;
 
@@ -435,16 +439,16 @@ static void testDeflateWrite(void)
 		"permessage-deflate valueless offer write mismatch"
 	);
 
-	memset(Small, 0xA5, sizeof(Small));
+	memset(&Short, 0xA5, sizeof(Short));
 	testRequire(
 		!xrtWsDeflateOfferWrite(
 			&Config,
-			Small,
-			sizeof(Small),
-			&iSize
+			Short.Output,
+			sizeof(Short.Output),
+			&Short.Size
 		) &&
-		(iSize > sizeof(Small)) &&
-		((unsigned char)Small[0] == UINT8_C(0xA5)),
+		(Short.Size > sizeof(Short.Output)) &&
+		((unsigned char)Short.Output[0] == UINT8_C(0xA5)),
 		"permessage-deflate short output was not atomic"
 	);
 	testDeflateError(

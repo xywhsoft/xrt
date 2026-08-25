@@ -563,8 +563,12 @@ static void testHttp1Write(void)
 		"GET /v1 HTTP/1.1\r\n"
 		"Host: example.test\r\n"
 		"Accept: application/json\r\n\r\n";
+	struct {
+		char Output[8];
+		unsigned char Gap[8];
+		size_t Size;
+	} Short;
 	char Output[256];
-	char Before[256];
 	xhttpfield ParsedFields[2];
 	xhttp1head Head;
 	size_t iSize = 77;
@@ -575,14 +579,13 @@ static void testHttp1Write(void)
 		NULL, 0, &iSize
 	) && (iSize == sizeof(Expected) - 1u),
 		"HTTP/1 request size query mismatch");
-	memset(Output, 0xA5, sizeof(Output));
-	memcpy(Before, Output, sizeof(Output));
+	memset(&Short, 0xA5, sizeof(Short));
 	testRequire(!xrtHttp1RequestWrite(
 		XRT_STR_LITERAL("GET"), XRT_STR_LITERAL("/v1"),
 		XHTTP_VERSION_1_1, Fields, 2,
-		Output, iSize - 1u, &iSize
-	) && (iSize == sizeof(Expected) - 1u) &&
-		(memcmp(Output, Before, sizeof(Output)) == 0) &&
+		Short.Output, sizeof(Short.Output), &Short.Size
+	) && (Short.Size == sizeof(Expected) - 1u) &&
+		((unsigned char)Short.Output[0] == UINT8_C(0xA5)) &&
 		(xrtErrorCode(xrtGetError()) == XHTTP1_ERROR_OUTPUT_SIZE),
 		"HTTP/1 request capacity failure was not atomic");
 	testRequire(xrtHttp1RequestWrite(

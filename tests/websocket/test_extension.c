@@ -217,8 +217,12 @@ static void testExtensionWrite(void)
 	xstrview Parameters = XRT_STR_LITERAL(
 		"mode=fast; token=\"web\\socket\""
 	);
+	struct {
+		char Output[8];
+		unsigned char Gap[8];
+		size_t Size;
+	} Short;
 	char Output[64];
-	char Small[8];
 	size_t iSize = 0;
 
 	testRequire(
@@ -250,17 +254,17 @@ static void testExtensionWrite(void)
 		"WebSocket extension write mismatch"
 	);
 
-	memset(Small, 0xA5, sizeof(Small));
+	memset(&Short, 0xA5, sizeof(Short));
 	testRequire(
 		!xrtWsExtensionWrite(
 			Name,
 			Parameters,
-			Small,
-			sizeof(Small),
-			&iSize
+			Short.Output,
+			sizeof(Short.Output),
+			&Short.Size
 		) &&
-		(iSize == 37u) &&
-		((unsigned char)Small[0] == UINT8_C(0xA5)),
+		(Short.Size == 37u) &&
+		((unsigned char)Short.Output[0] == UINT8_C(0xA5)),
 		"WebSocket short extension output was not atomic"
 	);
 	testExtensionError(

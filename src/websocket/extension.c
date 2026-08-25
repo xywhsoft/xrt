@@ -436,6 +436,7 @@ XRT_API bool xrtWsExtensionWrite(
 {
 	xwsextension Extension;
 	uint8* pWrite = (uint8*)pOutput;
+	size_t iCheckSize;
 	size_t iSeparator = 0;
 	size_t iRequired;
 
@@ -496,14 +497,15 @@ XRT_API bool xrtWsExtensionWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pSize, sizeof(*pSize), pOutput, iRequired
+			pSize, sizeof(*pSize), pOutput, iCheckSize
 		) || __xrtRangesOverlap(
-			Name.Data, Name.Size, pOutput, iRequired
+			Name.Data, Name.Size, pOutput, iCheckSize
 		) || __xrtRangesOverlap(
 			Parameters.Data, Parameters.Size,
-			pOutput, iRequired
+			pOutput, iCheckSize
 		) ) {
 		__xrtWsHandshakeError(
 			XERR_ARGUMENT,

@@ -44745,6 +44745,17 @@ static inline uint64 __xrtReadLe64(const void* pData)
 
 
 
+/* 返回短缓冲失败前真正属于调用方输出区的检查前缀。 */
+static inline size_t __xrtOutputCheckSize(
+	size_t iRequired,
+	size_t iCapacity
+)
+{
+	return (iCapacity < iRequired) ? iCapacity : iRequired;
+}
+
+
+
 /* 错误执行上下文由协程和任务调度器切换。 */
 typedef struct xrt_error_context {
 	xerror* Error;
@@ -94015,6 +94026,7 @@ static bool __xrtHttpFieldWriteList(
 	size_t* pSize
 )
 {
+	size_t iCheckSize;
 	size_t iRequired;
 	size_t iWritten;
 
@@ -94038,11 +94050,12 @@ static bool __xrtHttpFieldWriteList(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-		pOutput, iRequired, pSize, sizeof(*pSize)
+		pOutput, iCheckSize, pSize, sizeof(*pSize)
 	) || __xrtHttpFieldArrayOverlap(
-		pFields, iCount, pOutput, iRequired
+		pFields, iCount, pOutput, iCheckSize
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -96183,6 +96196,7 @@ XRT_API bool xrtHttpQuotedRead(
 )
 {
 	xstrview Body;
+	size_t iCheckSize;
 	size_t iRequired;
 
 	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
@@ -96209,11 +96223,12 @@ XRT_API bool xrtHttpQuotedRead(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pSize, sizeof(iRequired), pOutput, iRequired
+			pSize, sizeof(iRequired), pOutput, iCheckSize
 	) || __xrtRangesOverlap(
-			Quoted.Data, Quoted.Size, pOutput, iRequired
+			Quoted.Data, Quoted.Size, pOutput, iCheckSize
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -96239,6 +96254,7 @@ XRT_API bool xrtHttpQuotedWrite(
 )
 {
 	uint8* pWrite = (uint8*)pOutput;
+	size_t iCheckSize;
 	size_t iRequired;
 	size_t iOffset = 0;
 
@@ -96257,11 +96273,12 @@ XRT_API bool xrtHttpQuotedWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pSize, sizeof(iRequired), pOutput, iRequired
+			pSize, sizeof(iRequired), pOutput, iCheckSize
 	) || __xrtRangesOverlap(
-			Value.Data, Value.Size, pOutput, iRequired
+			Value.Data, Value.Size, pOutput, iCheckSize
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -96525,6 +96542,7 @@ XRT_API bool xrtHttpParamValueWrite(
 )
 {
 	xhttpparam Param;
+	size_t iCheckSize;
 	size_t iRequired;
 
 	if ( !__xrtRangeValid(pParam, sizeof(Param)) ||
@@ -96569,13 +96587,14 @@ XRT_API bool xrtHttpParamValueWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pOutput, iRequired, pParam, sizeof(Param)
+			pOutput, iCheckSize, pParam, sizeof(Param)
 	) || __xrtRangesOverlap(
-			pOutput, iRequired, pSize, sizeof(iRequired)
+			pOutput, iCheckSize, pSize, sizeof(iRequired)
 	) || __xrtRangesOverlap(
-			pOutput, iRequired, Param.Value.Data,
+			pOutput, iCheckSize, Param.Value.Data,
 			Param.Value.Size
 	) ) {
 		__xrtErrorSetInvalidArgument();
@@ -96606,6 +96625,7 @@ XRT_API bool xrtHttpParamWrite(
 )
 {
 	uint8* pWrite = (uint8*)pOutput;
+	size_t iCheckSize;
 	size_t iRequired;
 	size_t iValueSize = 0;
 	size_t iOffset = 0;
@@ -96657,11 +96677,12 @@ XRT_API bool xrtHttpParamWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pSize, sizeof(iRequired), pOutput, iRequired
+			pSize, sizeof(iRequired), pOutput, iCheckSize
 	) || __xrtHttpParamOutputOverlap(
-		Name, Value, pOutput, iRequired
+		Name, Value, pOutput, iCheckSize
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -97179,6 +97200,7 @@ XRT_API bool xrtWsExtensionWrite(
 {
 	xwsextension Extension;
 	uint8* pWrite = (uint8*)pOutput;
+	size_t iCheckSize;
 	size_t iSeparator = 0;
 	size_t iRequired;
 
@@ -97239,14 +97261,15 @@ XRT_API bool xrtWsExtensionWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pSize, sizeof(*pSize), pOutput, iRequired
+			pSize, sizeof(*pSize), pOutput, iCheckSize
 		) || __xrtRangesOverlap(
-			Name.Data, Name.Size, pOutput, iRequired
+			Name.Data, Name.Size, pOutput, iCheckSize
 		) || __xrtRangesOverlap(
 			Parameters.Data, Parameters.Size,
-			pOutput, iRequired
+			pOutput, iCheckSize
 		) ) {
 		__xrtWsHandshakeError(
 			XERR_ARGUMENT,
@@ -97682,6 +97705,7 @@ static bool __xrtWsDeflateWrite(
 {
 	xwsdeflate Config;
 	char Text[XWS_DEFLATE_MAX_SIZE];
+	size_t iCheckSize;
 	size_t iSize = 0;
 
 	if ( !__xrtRangeValid(pConfig, sizeof(*pConfig)) ||
@@ -97768,13 +97792,14 @@ static bool __xrtWsDeflateWrite(
 		memcpy(pSize, &iSize, sizeof(iSize));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iSize) ||
+	iCheckSize = __xrtOutputCheckSize(iSize, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
 			pSize, sizeof(*pSize),
-			pOutput, iSize
+			pOutput, iCheckSize
 		) || __xrtRangesOverlap(
 			pConfig, sizeof(*pConfig),
-			pOutput, iSize
+			pOutput, iCheckSize
 		) ) {
 		__xrtWsDeflateError(
 			XERR_ARGUMENT,
@@ -179841,6 +179866,7 @@ bool __xrtHttp1WriteOutputValid(
 )
 {
 	xhttpfield Field;
+	size_t iCheckSize;
 	size_t i;
 
 	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ) {
@@ -179887,13 +179913,14 @@ bool __xrtHttp1WriteOutputValid(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pOutput, iRequired,
+			pOutput, iCheckSize,
 			pSize, sizeof(iRequired)
 		) || __xrtHttpFieldArrayOverlap(
 			pFields, iFieldCount,
-			pOutput, iRequired
+			pOutput, iCheckSize
 		) ) {
 		(void)__xrtHttp1Fail(
 			NULL, NULL, XHTTP1_ERROR_ARGUMENT, 0, 0,

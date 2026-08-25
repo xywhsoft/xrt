@@ -830,6 +830,11 @@ static void testHttpFieldWrite(void)
 		"Content-Type: text/plain\r\n"
 		"X-Empty: \r\n"
 		"\r\n";
+	struct {
+		char Output[8];
+		unsigned char Gap[8];
+		size_t Size;
+	} Short;
 	char Output[96];
 	char Before[96];
 	size_t iRequired;
@@ -854,15 +859,16 @@ static void testHttpFieldWrite(void)
 	) && (iSize == 2u) && (memcmp(Output, "\r\n", 2u) == 0),
 		"HTTP empty field block write mismatch");
 
-	memset(Output, 0xA5, sizeof(Output));
-	memcpy(Before, Output, sizeof(Output));
-	iSize = 0;
+	memset(&Short, 0xA5, sizeof(Short));
 	testRequire(!xrtHttpFieldBlockWrite(
-		Fields, 2u, Output, iRequired - 1u, &iSize
-	) && (iSize == iRequired) &&
-		(memcmp(Output, Before, sizeof(Output)) == 0),
+		Fields, 2u, Short.Output, sizeof(Short.Output), &Short.Size
+	) && (Short.Size == iRequired) &&
+		((unsigned char)Short.Output[0] == UINT8_C(0xA5)) &&
+		(xrtErrorKind(xrtGetError()) == XERR_RANGE),
 		"HTTP short field block write was not atomic");
 	xrtClearError();
+	memset(Output, 0xA5, sizeof(Output));
+	memcpy(Before, Output, sizeof(Output));
 	iSize = 123u;
 	testRequire(!xrtHttpFieldWrite(
 		&Invalid, Output, sizeof(Output), &iSize

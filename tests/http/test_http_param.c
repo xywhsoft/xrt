@@ -239,6 +239,68 @@ static void testHttpParamWrite(void)
 
 
 
+/* 验证短输出只检查真实容量，不把容量外的长度槽误判为别名。 */
+static void testHttpParamShortOutputRanges(void)
+{
+	static const char Value[] =
+		"abcdefghijklmnopqrstuvwxyz0123456789";
+	static const char Quoted[] =
+		"\"abcdefghijklmnopqrstuvwxyz0123456789\"";
+	struct {
+		unsigned char Output[4];
+		unsigned char Gap[8];
+		size_t Size;
+	} Short;
+	xhttpparam Param = {
+		XRT_STR_LITERAL("name"),
+		{ Value, sizeof(Value) - 1u },
+		XHTTP_PARAM_HAS_VALUE
+	};
+
+	memset(&Short, 0xA5, sizeof(Short));
+	testRequire(!xrtHttpQuotedRead(
+		(xstrview){ Quoted, sizeof(Quoted) - 1u },
+		Short.Output, sizeof(Short.Output), &Short.Size
+	) && (Short.Size == (sizeof(Value) - 1u)) &&
+		(Short.Output[0] == UINT8_C(0xA5)) &&
+		(xrtErrorKind(xrtGetError()) == XERR_RANGE),
+		"HTTP quoted reader misclassified a short output");
+	xrtClearError();
+
+	memset(&Short, 0xA5, sizeof(Short));
+	testRequire(!xrtHttpQuotedWrite(
+		(xstrview){ Value, sizeof(Value) - 1u },
+		Short.Output, sizeof(Short.Output), &Short.Size
+	) && (Short.Size == (sizeof(Value) + 1u)) &&
+		(Short.Output[0] == UINT8_C(0xA5)) &&
+		(xrtErrorKind(xrtGetError()) == XERR_RANGE),
+		"HTTP quoted writer misclassified a short output");
+	xrtClearError();
+
+	memset(&Short, 0xA5, sizeof(Short));
+	testRequire(!xrtHttpParamValueWrite(
+		&Param, Short.Output, sizeof(Short.Output), &Short.Size
+	) && (Short.Size == (sizeof(Value) - 1u)) &&
+		(Short.Output[0] == UINT8_C(0xA5)) &&
+		(xrtErrorKind(xrtGetError()) == XERR_RANGE),
+		"HTTP parameter value writer misclassified a short output");
+	xrtClearError();
+
+	memset(&Short, 0xA5, sizeof(Short));
+	testRequire(!xrtHttpParamWrite(
+		XRT_STR_LITERAL("name"),
+		(xstrview){ Value, sizeof(Value) - 1u },
+		XHTTP_PARAM_HAS_VALUE,
+		Short.Output, sizeof(Short.Output), &Short.Size
+	) && (Short.Size == (sizeof(Value) + 4u)) &&
+		(Short.Output[0] == UINT8_C(0xA5)) &&
+		(xrtErrorKind(xrtGetError()) == XERR_RANGE),
+		"HTTP parameter writer misclassified a short output");
+	xrtClearError();
+}
+
+
+
 /* 验证参数 token 语义校验能够正确处理 quoted-string 转义。 */
 static void testHttpParamToken(void)
 {
@@ -642,6 +704,7 @@ int main(void)
 	testHttpParamParse();
 	testHttpDirectiveParse();
 	testHttpParamWrite();
+	testHttpParamShortOutputRanges();
 	testHttpParamToken();
 	testHttpParamValueCursor();
 	testHttpParamMemoryContracts();

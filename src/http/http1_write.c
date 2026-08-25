@@ -136,6 +136,7 @@ bool __xrtHttp1WriteOutputValid(
 )
 {
 	xhttpfield Field;
+	size_t iCheckSize;
 	size_t i;
 
 	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ) {
@@ -182,13 +183,14 @@ bool __xrtHttp1WriteOutputValid(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pOutput, iRequired,
+			pOutput, iCheckSize,
 			pSize, sizeof(iRequired)
 		) || __xrtHttpFieldArrayOverlap(
 			pFields, iFieldCount,
-			pOutput, iRequired
+			pOutput, iCheckSize
 		) ) {
 		(void)__xrtHttp1Fail(
 			NULL, NULL, XHTTP1_ERROR_ARGUMENT, 0, 0,

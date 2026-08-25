@@ -1,0 +1,264 @@
+name: Release
+
+# 发布候选流水线：
+#   1. gate      —— 等待同一提交的 CI 全矩阵跑绿（tag push 自动触发 CI）
+#   2. quality   —— 发布相关的生成物与成熟度独立复核
+#   3. packaging —— 各平台产物真实构建、链接验证并打包
+#   4. size      —— 体积与性能记录型报告（不做跨环境硬门禁）
+#   5. release   —— 汇总校验和并创建草稿 Release，由人工核对后发布
+#
+# 触发方式：
+#   - 推送 v* 标签（发布）
+#   - 手动 workflow_dispatch（演练，只产出 artifact，不创建 Release）
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: CI gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SHA: ${{ github.sha }}
+    steps:
+      - name: Wait for CI workflow on this commit
+        run: |
+          set -eu
+          for i in $(seq 1 280); do
+            run_json="$(gh api "repos/$REPO/actions/runs?head_sha=$SHA&per_page=20" \
+              --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.run_number) | last')"
+            if [ "$run_json" != "null" ]; then
+              status="$(echo "$run_json" | jq -r .status)"
+              if [ "$status" = "completed" ]; then
+                conclusion="$(echo "$run_json" | jq -r .conclusion)"
+                if [ "$conclusion" = "success" ]; then
+                  echo "CI passed on $SHA"
+                  exit 0
+                fi
+                echo "CI concluded with: $conclusion"
+                exit 1
+              fi
+              echo "CI status: $status"
+            else
+              echo "no CI run found yet for $SHA"
+            fi
+            sleep 30
+          done
+          echo "timed out waiting for CI on $SHA"
+          exit 1
+
+  quality:
+    name: Release quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify generated assets
+        run: |
+          python tools/generate_features.py --check
+          python tools/generate_api_reference.py --check
+          python tools/generate_example_index.py --check
+          python tools/amalgamate.py --check
+
+      - name: Verify legacy baseline audit
+        run: python tools/refactor_audit.py check --require-verified
+
+      - name: Verify repository release maturity
+        run: python tools/check_release_maturity.py
+
+  packaging:
+    name: Package / ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux_gcc_x64
+            runner: ubuntu-latest
+          - name: Windows_gcc_x64
+            runner: windows-latest
+          - name: macOS_cc_native
+            runner: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Package static and shared libraries (POSIX)
+        if: matrix.runner != 'windows-latest'
+        shell: bash
+        run: |
+          set -eu
+          python tools/package.py --compiler cc --arch native --suite all --kind static --verify --rebuild
+          python tools/package.py --compiler cc --arch native --suite all --kind shared --verify --rebuild
+          cp single/xrt.h release/
+          tar -czf "packages-${{ matrix.name | replace(' ', '_') }}.tar.gz" -C release .
+
+      - name: Setup MSYS2
+        if: matrix.runner == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Package static and shared libraries (Windows)
+        if: matrix.runner == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          set -eu
+          python tools/package.py --compiler gcc --arch x64 --suite all --kind static --verify --rebuild
+          python tools/package.py --compiler gcc --arch x64 --suite all --kind shared --verify --rebuild
+          cp single/xrt.h release/
+          tar -czf "packages-${{ matrix.name | replace(' ', '_') }}.tar.gz" -C release .
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.name | replace(' ', '_') }}
+          path: packages-*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  packaging-msvc:
+    name: Package / Windows ${{ matrix.compiler }} ${{ matrix.arch }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - cl
+          - clang-cl
+        arch:
+          - x64
+          - x86
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Visual C++ environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Package static and shared libraries
+        shell: pwsh
+        run: |
+          python tools/package.py --compiler ${{ matrix.compiler }} --arch ${{ matrix.arch }} --suite all --kind static --verify --rebuild
+          python tools/package.py --compiler ${{ matrix.compiler }} --arch ${{ matrix.arch }} --suite all --kind shared --verify --rebuild
+          Copy-Item single/xrt.h release/
+          tar -czf "packages-Windows_${{ matrix.compiler }}_${{ matrix.arch }}.tar.gz" -C release .
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-Windows_${{ matrix.compiler }}_${{ matrix.arch }}
+          path: packages-*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  size:
+    name: Size and performance report
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Record single-header size profile
+        run: |
+          python tools/measure_size.py --compiler gcc --arch x64 --kind single --report size_report_windows_gcc_x64.json
+          python tools/measure_performance.py --compiler gcc --arch x64 --smoke --report perf_report_windows_gcc_x64.json
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-reports
+          path: |
+            size_report_windows_gcc_x64.json
+            perf_report_windows_gcc_x64.json
+          if-no-files-found: error
+          retention-days: 90
+
+  release:
+    name: Draft release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - gate
+      - quality
+      - packaging
+      - packaging-msvc
+      - size
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # 如需人工审批发布物，请在仓库 Settings 中创建名为 release 的
+    # Environment 并配置 required reviewers；此处引用后自动生效。
+    environment: release
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          find . -type f ! -name SHA256SUMS -exec sha256sum {} \; | sort -k2 > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: dist/*

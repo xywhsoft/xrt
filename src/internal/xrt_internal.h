@@ -269,6 +269,17 @@ static inline uint64 __xrtReadLe64(const void* pData)
 
 
 
+/* 返回短缓冲失败前真正属于调用方输出区的检查前缀。 */
+static inline size_t __xrtOutputCheckSize(
+	size_t iRequired,
+	size_t iCapacity
+)
+{
+	return (iCapacity < iRequired) ? iCapacity : iRequired;
+}
+
+
+
 /* 错误执行上下文由协程和任务调度器切换。 */
 typedef struct xrt_error_context {
 	xerror* Error;

@@ -1741,6 +1741,7 @@ static bool __xrtHttpFieldWriteList(
 	size_t* pSize
 )
 {
+	size_t iCheckSize;
 	size_t iRequired;
 	size_t iWritten;
 
@@ -1764,11 +1765,12 @@ static bool __xrtHttpFieldWriteList(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-		pOutput, iRequired, pSize, sizeof(*pSize)
+		pOutput, iCheckSize, pSize, sizeof(*pSize)
 	) || __xrtHttpFieldArrayOverlap(
-		pFields, iCount, pOutput, iRequired
+		pFields, iCount, pOutput, iCheckSize
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;

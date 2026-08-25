@@ -680,6 +680,7 @@ XRT_API bool xrtHttpQuotedRead(
 )
 {
 	xstrview Body;
+	size_t iCheckSize;
 	size_t iRequired;
 
 	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
@@ -706,11 +707,12 @@ XRT_API bool xrtHttpQuotedRead(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pSize, sizeof(iRequired), pOutput, iRequired
+			pSize, sizeof(iRequired), pOutput, iCheckSize
 	) || __xrtRangesOverlap(
-			Quoted.Data, Quoted.Size, pOutput, iRequired
+			Quoted.Data, Quoted.Size, pOutput, iCheckSize
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -736,6 +738,7 @@ XRT_API bool xrtHttpQuotedWrite(
 )
 {
 	uint8* pWrite = (uint8*)pOutput;
+	size_t iCheckSize;
 	size_t iRequired;
 	size_t iOffset = 0;
 
@@ -754,11 +757,12 @@ XRT_API bool xrtHttpQuotedWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pSize, sizeof(iRequired), pOutput, iRequired
+			pSize, sizeof(iRequired), pOutput, iCheckSize
 	) || __xrtRangesOverlap(
-			Value.Data, Value.Size, pOutput, iRequired
+			Value.Data, Value.Size, pOutput, iCheckSize
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -1022,6 +1026,7 @@ XRT_API bool xrtHttpParamValueWrite(
 )
 {
 	xhttpparam Param;
+	size_t iCheckSize;
 	size_t iRequired;
 
 	if ( !__xrtRangeValid(pParam, sizeof(Param)) ||
@@ -1066,13 +1071,14 @@ XRT_API bool xrtHttpParamValueWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pOutput, iRequired, pParam, sizeof(Param)
+			pOutput, iCheckSize, pParam, sizeof(Param)
 	) || __xrtRangesOverlap(
-			pOutput, iRequired, pSize, sizeof(iRequired)
+			pOutput, iCheckSize, pSize, sizeof(iRequired)
 	) || __xrtRangesOverlap(
-			pOutput, iRequired, Param.Value.Data,
+			pOutput, iCheckSize, Param.Value.Data,
 			Param.Value.Size
 	) ) {
 		__xrtErrorSetInvalidArgument();
@@ -1103,6 +1109,7 @@ XRT_API bool xrtHttpParamWrite(
 )
 {
 	uint8* pWrite = (uint8*)pOutput;
+	size_t iCheckSize;
 	size_t iRequired;
 	size_t iValueSize = 0;
 	size_t iOffset = 0;
@@ -1154,11 +1161,12 @@ XRT_API bool xrtHttpParamWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
+	iCheckSize = __xrtOutputCheckSize(iRequired, iCapacity);
+	if ( !__xrtRangeValid(pOutput, iCheckSize) ||
 		__xrtRangesOverlap(
-			pSize, sizeof(iRequired), pOutput, iRequired
+			pSize, sizeof(iRequired), pOutput, iCheckSize
 	) || __xrtHttpParamOutputOverlap(
-		Name, Value, pOutput, iRequired
+		Name, Value, pOutput, iCheckSize
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
