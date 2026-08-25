@@ -118,7 +118,7 @@ jobs:
           python tools/package.py --compiler cc --arch native --suite all --kind static --verify --rebuild
           python tools/package.py --compiler cc --arch native --suite all --kind shared --verify --rebuild
           cp single/xrt.h release/
-          tar -czf "packages-${{ matrix.name | replace(' ', '_') }}.tar.gz" -C release .
+          tar -czf "packages-${{ matrix.name }}.tar.gz" -C release .
 
       - name: Setup MSYS2
         if: matrix.runner == 'windows-latest'
@@ -137,12 +137,12 @@ jobs:
           python tools/package.py --compiler gcc --arch x64 --suite all --kind static --verify --rebuild
           python tools/package.py --compiler gcc --arch x64 --suite all --kind shared --verify --rebuild
           cp single/xrt.h release/
-          tar -czf "packages-${{ matrix.name | replace(' ', '_') }}.tar.gz" -C release .
+          tar -czf "packages-${{ matrix.name }}.tar.gz" -C release .
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: packages-${{ matrix.name | replace(' ', '_') }}
+          name: packages-${{ matrix.name }}
           path: packages-*.tar.gz
           if-no-files-found: error
           retention-days: 14

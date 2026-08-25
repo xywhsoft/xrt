@@ -107,23 +107,39 @@ jobs:
           --cflag=-fsanitize=thread
           --cflag=-fno-omit-frame-pointer
 
-  stress:
-    name: Reconnect stress deep
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            compiler: cc
-            binary: out/cc/native/xws_tests/test_http_reconnect
-          - runner: windows-latest
-            compiler: gcc
-            binary: out/gcc/native/xws_tests/test_http_reconnect.exe
-    runs-on: ${{ matrix.runner }}
+  stress-linux:
+    name: Reconnect stress deep / Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build WebSocket test gates
+        run: >-
+          python tools/build.py
+          --compiler cc
+          --manifest extlibs/xws/config/modules.json
+          --suite xws_tests
+          --no-single
+          --rebuild
+          --jobs 4
+
+      - name: Run reconnect stress 10000 rounds
+        run: out/cc/native/xws_tests/test_http_reconnect 10000
+
+  stress-windows:
+    name: Reconnect stress deep / Windows
+    runs-on: windows-latest
     timeout-minutes: 60
     defaults:
       run:
-        shell: bash
+        shell: msys2 {0}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -134,7 +150,6 @@ jobs:
           python-version: "3.12"
 
       - name: Setup MSYS2
-        if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -143,10 +158,9 @@ jobs:
           install: mingw-w64-ucrt-x86_64-gcc
 
       - name: Build WebSocket test gates
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
         run: >-
           python tools/build.py
-          --compiler ${{ matrix.compiler }}
+          --compiler gcc
           --manifest extlibs/xws/config/modules.json
           --suite xws_tests
           --no-single
@@ -154,8 +168,9 @@ jobs:
           --jobs 4
 
       - name: Run reconnect stress 10000 rounds
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
-        run: "${{ matrix.binary }} 10000"
+        run: |
+          out/gcc/native/xws_tests/test_http_reconnect.exe 10000
+          out/gcc/native/xws_tests/test_http_reconnect_iocp.exe 10000
 
   compat-old-ubuntu:
     name: Ubuntu 22.04 cc
@@ -268,17 +283,9 @@ jobs:
             "${{ matrix.qemu }}" -L "$sysroot" "$bin"
           done
 
-  bench-record:
-    name: Bench record / ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: Linux
-            runner: ubuntu-latest
-          - os: Windows
-            runner: windows-latest
-    runs-on: ${{ matrix.runner }}
+  bench-record-linux:
+    name: Bench record / Linux
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -289,8 +296,48 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Record size profile
+        run: >-
+          python tools/measure_size.py
+          --compiler cc
+          --arch x64
+          --report size_report_Linux.json
+
+      - name: Record performance smoke
+        run: >-
+          python tools/measure_performance.py
+          --compiler cc
+          --arch x64
+          --smoke
+          --report perf_report_Linux.json
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-record-Linux
+          path: |
+            size_report_*.json
+            perf_report_*.json
+          if-no-files-found: error
+          retention-days: 90
+
+  bench-record-windows:
+    name: Bench record / Windows
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Setup MSYS2
-        if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -299,26 +346,24 @@ jobs:
           install: mingw-w64-ucrt-x86_64-gcc
 
       - name: Record size profile
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
         run: >-
           python tools/measure_size.py
-          --compiler ${{ runner.os == 'Windows' && 'gcc' || 'cc' }}
+          --compiler gcc
           --arch x64
-          --report "size_report_${{ matrix.os }}.json"
+          --report size_report_Windows.json
 
       - name: Record performance smoke
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
         run: >-
           python tools/measure_performance.py
-          --compiler ${{ runner.os == 'Windows' && 'gcc' || 'cc' }}
+          --compiler gcc
           --arch x64
           --smoke
-          --report "perf_report_${{ matrix.os }}.json"
+          --report perf_report_Windows.json
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: bench-record-${{ matrix.os }}
+          name: bench-record-Windows
           path: |
             size_report_*.json
             perf_report_*.json
