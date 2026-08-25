@@ -34,6 +34,7 @@ typedef struct xprocessrunstate {
 	xprocessrunoptions Options;
 	xerror* Error;
 	bool Failed;
+	bool Terminal;
 	xprocessrunpump Stdout;
 	xprocessrunpump Stderr;
 	xprocessruninput Stdin;
@@ -303,7 +304,12 @@ static int32 __xrtProcessRunInput(ptr pData)
 		}
 		pInput->Written += (size_t)iWrite;
 	}
-	(void)xrtProcessClose(pInput->State->Process, XPROCESS_STDIN);
+	/* 普通管道关闭 stdin 通知 EOF；终端模式下关闭 ConPTY 输入句柄会
+	   直接拆除伪控制台会话，子进程收到控制事件退出并丢失未冲刷输出，
+	   因此终端模式的 stdin 交给进程销毁路径统一收口。 */
+	if ( !pInput->State->Terminal ) {
+		(void)xrtProcessClose(pInput->State->Process, XPROCESS_STDIN);
+	}
 	return 0;
 }
 
@@ -516,6 +522,7 @@ XRT_API bool xrtProcessRun(
 		goto cleanup;
 	}
 	State.Process = pProcess;
+	State.Terminal = Config.Terminal;
 	State.Stdout.Thread = xrtThreadCreate(
 		__xrtProcessRunOutput,
 		&State.Stdout,

@@ -1260,6 +1260,10 @@ static void __xrtNetSocketDgramMetaIPv4(
 
 
 /* 写入一个不带端口的 IPv6 目标地址及其接收接口。 */
+/* 该辅助只在支持对应控制消息平台的分支被引用，其余平台允许未使用。 */
+#if defined(__GNUC__) || defined(__clang__)
+	__attribute__((unused))
+#endif
 static void __xrtNetSocketDgramMetaIPv6(
 	xnetdgrammeta* pMeta,
 	const void* pAddress,
@@ -2873,7 +2877,7 @@ XRT_API xnetresult xrtNetSocketAccept(xnetsocket Socket,
 	struct sockaddr_storage Storage;
 	__xrt_netsocket_native hClient;
 	xnetsocket Client;
-	xnetaddr Remote;
+	xnetaddr Remote = {0};
 
 	#if defined(_WIN32) || defined(_WIN64)
 		int iSize = (int)sizeof(Storage);
