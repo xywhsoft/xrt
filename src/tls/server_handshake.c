@@ -834,7 +834,7 @@ static bool __xrtTlsServerRetryFlight(
 	bytes pExtensions = NULL;
 	bytes pHello = NULL;
 	bytes pSaved = NULL;
-	xbytesview Encoded;
+	xbytesview Encoded = {0};
 	size_t iBodySize;
 	size_t iMessageSize;
 	bool bResult = false;
