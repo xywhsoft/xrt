@@ -306,10 +306,29 @@ int main(int argc, char** argv)
 			);
 			Options.Input.Data = (cbytes)sInput;
 			Options.Input.Size = sizeof(sInput) - 1u;
+			memset(&Result, 0, sizeof(Result));
 			testRequire(
 				xrtProcessRun(&Config, &Options, &Result),
 				"terminal process run failed"
 			);
+			if ( !((Result.InputWritten == (sizeof(sInput) - 1u)) &&
+				(Result.StderrSize == 0u)) ) {
+				fprintf(stderr,
+					"[diag] terminal run: written=%zu expect=%zu "
+					"stderr=%zu\n",
+					(size_t)Result.InputWritten,
+					(size_t)(sizeof(sInput) - 1u),
+					(size_t)Result.StderrSize);
+			}
+			if ( (Result.Stdout != NULL) && (Result.StdoutSize > 0u) ) {
+				fprintf(stderr, "[diag] stdout(%zu): %.*s\n",
+					(size_t)Result.StdoutSize,
+					(int)(Result.StdoutSize > 400u ?
+						400u : Result.StdoutSize),
+					(const char*)Result.Stdout);
+			} else {
+				fprintf(stderr, "[diag] stdout empty\n");
+			}
 			testRequire(
 				(Result.InputWritten == (sizeof(sInput) - 1u)) &&
 				(Result.StderrSize == 0u) &&

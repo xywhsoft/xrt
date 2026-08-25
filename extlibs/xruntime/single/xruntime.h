@@ -130760,7 +130760,7 @@ XRT_API xtlsitemresult xrtTlsHostName(
 	xtlsservernamecursor Cursor;
 	xtlsservername Name;
 	xtlsitemresult Result;
-	xbytesview Host;
+	xbytesview Host = {0};
 	bool bFound = false;
 
 	if ( pHost == NULL ) {

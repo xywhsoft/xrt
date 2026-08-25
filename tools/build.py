@@ -351,6 +351,10 @@ def _compile_options(
 		options.append("-Wall")
 	else:
 		options.extend(["-std=c11", "-Wall", "-Wextra", "-Werror"])
+		if platform == "macos":
+			# -std=c11 严格 ISO 模式会隐藏 Darwin 的 BSD 类型与 MAP_ANONYMOUS，
+			# 统一恢复 _DARWIN_C_SOURCE，与单头前言保持一致。
+			options.append("-D_DARWIN_C_SOURCE")
 	if arch == "x86":
 		options.append("-m32")
 	elif arch == "x64":

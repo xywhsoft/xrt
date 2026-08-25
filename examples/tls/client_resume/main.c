@@ -29,6 +29,7 @@ int main(void)
 	/* 省略 SNI 与 ALPN 时，客户端精确继承恢复对象的路由绑定。 */
 	xrtTlsClientConfigInit(&ClientConfig);
 	ClientConfig.Resume = pResume;
+	ClientConfig.ResumeOnly = true;
 	pSession = xrtTlsClientCreate(&ClientConfig, NULL);
 	xrtTlsResumeRelease(pResume);
 	if ( pSession == NULL ) {
