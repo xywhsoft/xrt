@@ -154,9 +154,9 @@ static bool __xrtTlsClientServerHello(
 	*pResumed = false;
 	if ( pHello->Retry ) {
 		return __xrtTlsClientError(
-			XERR_UNSUPPORTED, XTLS_ERROR_HANDSHAKE,
+			XERR_PROTOCOL, XTLS_ERROR_HANDSHAKE,
 			"process-server-hello",
-			"TLS HelloRetryRequest is not enabled in the client state yet"
+			"TLS client expected a normal ServerHello"
 		);
 	}
 	if ( (pHello->SessionId.Size != sizeof(pState->SessionId)) ||
@@ -172,7 +172,8 @@ static bool __xrtTlsClientServerHello(
 	}
 	if ( !__xrtTlsClientOffered(
 		pState->Ciphers, pState->CipherCount, pHello->CipherSuite
-	) ) {
+	) || (pState->RetrySeen &&
+		(pHello->CipherSuite != (uint16)pState->Cipher)) ) {
 		return __xrtTlsClientError(
 			XERR_PROTOCOL, XTLS_ERROR_CIPHER,
 			"process-server-hello",
@@ -281,6 +282,174 @@ static bool __xrtTlsClientServerHello(
 
 
 
+/* 严格验证一次 HelloRetryRequest 并发布选择的组、套件和 cookie。 */
+static bool __xrtTlsClientRetryHello(
+	const xtlsclientstate* pState,
+	const xtlsserverhello* pHello,
+	const xtlscipherinfo** ppCipher,
+	uint16* pGroup,
+	xbytesview* pCookie
+)
+{
+	xtlsextensioncursor Cursor;
+	xtlsextension Extension;
+	xtlsitemresult Result;
+	const xtlscipherinfo* pCipher;
+	bool bVersion = false;
+	bool bGroup = false;
+
+	*ppCipher = NULL;
+	*pGroup = 0;
+	memset(pCookie, 0, sizeof(*pCookie));
+	if ( !pHello->Retry || pState->RetrySeen ) {
+		return __xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_HANDSHAKE,
+			"process-hello-retry-request",
+			"TLS peer sent an invalid or repeated HelloRetryRequest"
+		);
+	}
+	if ( (pHello->SessionId.Size != sizeof(pState->SessionId)) ||
+		(memcmp(
+			pHello->SessionId.Data, pState->SessionId,
+			sizeof(pState->SessionId)
+		) != 0) ) {
+		return __xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_HANDSHAKE,
+			"process-hello-retry-request",
+			"TLS HelloRetryRequest did not echo the session identifier"
+		);
+	}
+	if ( !__xrtTlsClientOffered(
+		pState->Ciphers, pState->CipherCount, pHello->CipherSuite
+	) ) {
+		return __xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_CIPHER,
+			"process-hello-retry-request",
+			"TLS HelloRetryRequest selected an unoffered cipher"
+		);
+	}
+	pCipher = xrtTlsCipherInfo((xtlscipher)pHello->CipherSuite);
+	if ( (pCipher == NULL) || (pCipher->Version != XTLS_VERSION_13) ||
+		(pCipher->HashSize > pState->SecretCapacity) ) {
+		return __xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_CIPHER,
+			"process-hello-retry-request",
+			"TLS HelloRetryRequest selected an unusable cipher"
+		);
+	}
+	if ( !xrtTlsExtensionsInit(&Cursor, pHello->Extensions) ) {
+		return false;
+	}
+	while ( (Result = xrtTlsExtensionsRead(
+		&Cursor, &Extension
+	)) == XTLS_ITEM_VALUE ) {
+		if ( Extension.Type == XTLS_EXTENSION_SUPPORTED_VERSIONS ) {
+			uint16 iVersion;
+
+			if ( !xrtTlsServerVersion(Extension.Data, &iVersion) ||
+				(iVersion != XTLS_VERSION_13) ) {
+				return __xrtTlsClientError(
+					XERR_PROTOCOL, XTLS_ERROR_VERSION,
+					"process-hello-retry-request",
+					"TLS HelloRetryRequest did not select TLS 1.3"
+				);
+			}
+			bVersion = true;
+		} else if ( Extension.Type == XTLS_EXTENSION_KEY_SHARE ) {
+			uint16 iGroup;
+
+			if ( !xrtTlsRetryGroup(Extension.Data, &iGroup) ) {
+				return false;
+			}
+			if ( !__xrtTlsClientOffered(
+				pState->Groups, pState->GroupCount, iGroup
+			) || (iGroup == pState->Group) ||
+				!xrtTlsGroupAvailable(iGroup) ) {
+				return __xrtTlsClientError(
+					XERR_PROTOCOL, XTLS_ERROR_KEY_EXCHANGE,
+					"process-hello-retry-request",
+					"TLS HelloRetryRequest selected an invalid retry group"
+				);
+			}
+			*pGroup = iGroup;
+			bGroup = true;
+		} else if ( Extension.Type == XTLS_EXTENSION_COOKIE ) {
+			if ( !xrtTlsRetryCookie(Extension.Data, pCookie) ) {
+				return false;
+			}
+		} else {
+			return __xrtTlsClientError(
+				XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+				"process-hello-retry-request",
+				"TLS HelloRetryRequest contains a forbidden extension"
+			);
+		}
+	}
+	if ( (Result != XTLS_ITEM_DONE) || !bVersion || !bGroup ) {
+		return __xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+			"process-hello-retry-request",
+			"TLS HelloRetryRequest is missing a required extension"
+		);
+	}
+	*ppCipher = pCipher;
+	return true;
+}
+
+
+
+/* 提交 HRR transcript，生成新密钥共享并排队第二个 ClientHello。 */
+static xtlsresult __xrtTlsClientRetryHelloCommit(
+	xtlssession* pSession,
+	xtlsclientstate* pState,
+	const xtlshandshake* pMessage,
+	const xtlsserverhello* pHello
+)
+{
+	const xtlscipherinfo* pCipher;
+	xtlstranscript Next;
+	xbytesview Cookie;
+	xbytesview Encoded;
+	uint16 iGroup;
+	bool bCommitted = false;
+
+	memset(&Next, 0, sizeof(Next));
+	if ( !__xrtTlsClientRetryHello(
+		pState, pHello, &pCipher, &iGroup, &Cookie
+	) ) {
+		goto cleanup;
+	}
+	Encoded.Data = pMessage->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE;
+	Encoded.Size = pMessage->EncodedSize;
+	if ( !__xrtTlsTranscriptInit(
+		&Next, __xrtTlsHash(pCipher->Hash)
+	) || !__xrtTlsTranscriptUpdate(
+		&Next,
+		(xbytesview) { pState->ClientHello, pState->ClientHelloSize }
+	) || !__xrtTlsTranscriptRetry(&Next) ||
+		!__xrtTlsTranscriptUpdate(&Next, Encoded) ) {
+		goto cleanup;
+	}
+	__xrtTlsTranscriptClear(&pState->Transcript);
+	pState->Transcript = Next;
+	memset(&Next, 0, sizeof(Next));
+	pState->Cipher = pCipher->Cipher;
+	pState->Group = iGroup;
+	pState->RetrySeen = true;
+	if ( !__xrtTlsClientHelloQueue(
+		pSession, pState, Cookie, true
+	) ) {
+		goto cleanup;
+	}
+	bCommitted = __xrtTlsClientWait(pSession, true);
+
+cleanup:
+	__xrtTlsTranscriptClear(&Next);
+	return bCommitted ? XTLS_OK : __xrtTlsClientFailed(pSession);
+}
+
+
+
 /* 生成 TLS 1.3 空 transcript 摘要。 */
 static bool __xrtTlsClientEmptyHash(
 	xcryptohash Hash,
@@ -367,8 +536,23 @@ static bool __xrtTlsClientServerKeys(
 	#else
 		(void)bResumed;
 	#endif
-	if ( !__xrtTlsTranscriptInit(&pNext->Transcript, pNext->Hash) ||
-		!__xrtTlsTranscriptUpdate(
+	if ( pState->RetrySeen ) {
+		if ( !pState->Transcript.Ready ||
+			(pState->Transcript.Hash != pNext->Hash) ) {
+			(void)__xrtTlsClientError(
+				XERR_STATE, XTLS_ERROR_TRANSCRIPT,
+				"derive-server-hello-keys",
+				"TLS retry transcript is unavailable"
+			);
+			goto cleanup;
+		}
+		pNext->Transcript = pState->Transcript;
+	} else if ( !__xrtTlsTranscriptInit(
+		&pNext->Transcript, pNext->Hash
+	) ) {
+		goto cleanup;
+	}
+	if ( !__xrtTlsTranscriptUpdate(
 			&pNext->Transcript,
 			(xbytesview) { pState->ClientHello, pState->ClientHelloSize }
 		) || !__xrtTlsTranscriptUpdate(
@@ -468,6 +652,14 @@ static xtlsresult __xrtTlsClient13ServerHelloCommit(
 		) ) {
 		goto cleanup;
 	}
+	if ( pState->ResumeOnly && !bResumed ) {
+		(void)__xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_RESUME,
+			"process-server-hello",
+			"TLS server rejected the required resume object"
+		);
+		goto cleanup;
+	}
 	Encoded.Data = pMessage->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE;
 	Encoded.Size = pMessage->EncodedSize;
 	if ( !__xrtTlsClientServerKeys(
@@ -546,6 +738,18 @@ static xtlsresult __xrtTlsClientServerHelloCommit(
 	} else {
 		iVersion = Hello.LegacyVersion;
 	}
+	if ( Hello.Retry ) {
+		if ( (iVersion != XTLS_VERSION_13) || !pState->Offer13 ) {
+			return __xrtTlsClientProtocol(
+				pSession, XTLS_ERROR_VERSION,
+				"process-hello-retry-request",
+				"TLS HelloRetryRequest did not select an offered TLS version"
+			);
+		}
+		return __xrtTlsClientRetryHelloCommit(
+			pSession, pState, pMessage, &Hello
+		);
+	}
 	if ( (iVersion == XTLS_VERSION_13) && pState->Offer13 ) {
 		return __xrtTlsClient13ServerHelloCommit(
 			pSession, pState, pMessage, &Hello
@@ -554,7 +758,8 @@ static xtlsresult __xrtTlsClientServerHelloCommit(
 	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY) && \
 		defined(XRT_FEATURE_TLS_AUTH_MESSAGES) && \
 		defined(XRT_FEATURE_TLS_AUTH_MESSAGES_WRITE)
-		if ( (iVersion == XTLS_VERSION_12) && pState->Offer12 ) {
+		if ( (iVersion == XTLS_VERSION_12) && pState->Offer12 &&
+			!pState->ResumeOnly ) {
 			return __xrtTlsClient12ServerHello(
 				pSession, pState, pMessage, &Hello
 			);
@@ -1773,7 +1978,11 @@ static xtlsresult __xrtTlsClientChangeCipherSpec(
 	#else
 		(void)pState;
 	#endif
-	if ( pRecord->Protected || (pRecord->Data.Size != 1u) ||
+	if ( (pState->Version != XTLS_VERSION_13) ||
+		(pState->Step < XTLS_CLIENT_WAIT_ENCRYPTED_EXTENSIONS) ||
+		(pState->Step > XTLS_CLIENT_WAIT_FINISHED) ||
+		pState->CompatibilityCcsSeen || pRecord->Protected ||
+		(pRecord->Data.Size != 1u) ||
 		(pRecord->Data.Data[0] != 1u) ) {
 		return __xrtTlsClientProtocol(
 			pSession, XTLS_ERROR_HANDSHAKE,
@@ -1784,6 +1993,7 @@ static xtlsresult __xrtTlsClientChangeCipherSpec(
 	if ( __xrtTlsSessionRecordFinish(pSession, false) != XTLS_OK ) {
 		return __xrtTlsClientFailed(pSession);
 	}
+	pState->CompatibilityCcsSeen = true;
 	return XTLS_OK;
 }
 

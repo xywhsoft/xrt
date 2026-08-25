@@ -317,6 +317,15 @@ typedef struct xvalueiter {
 
 
 
+/* 三态推进结果显式区分元素、正常结束和迭代错误。 */
+typedef enum xvalueiterresult {
+	XVALUE_ITER_ERROR = -1,
+	XVALUE_ITER_END = 0,
+	XVALUE_ITER_ITEM = 1
+} xvalueiterresult;
+
+
+
 XRT_EXTERN_C_BEGIN
 
 
@@ -603,6 +612,15 @@ XRT_API xvalueiter* xrtValueIterRCreate(const xvalue* pValue);
 
 /* 返回下一借用值及其键；键输出不得覆盖迭代器，正常结束返回空指针。 */
 XRT_API xvalue* xrtValueIterNext(xvalueiter* pIterator, xvaluekey* pKey);
+
+
+
+/* 三态推进快照；成功项写入借用值，正常结束不设置错误。 */
+XRT_API xvalueiterresult xrtValueIterAdvance(
+	xvalueiter* pIterator,
+	xvaluekey* pKey,
+	xvalue** ppValue
+);
 
 
 

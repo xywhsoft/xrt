@@ -301,12 +301,14 @@ static void __xrtNetDialDetachResolve(xnetdial* pDial)
 	}
 	xrtNetResolveOpDestroy(pDial->Resolve);
 	pDial->Resolve = NULL;
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pDial->Worker,
 		&pDial->ResolveCommand,
 		__xrtNetDialResolveTask,
 		pDial
-	);
+	) ) {
+		__xrtNetDialResolveTask(pDial->Worker, pDial);
+	}
 }
 
 
@@ -534,6 +536,7 @@ static bool __xrtNetDialAttemptOpen(xnetstream* pStream, ptr pData)
 			XNET_RESULT_ERROR
 		);
 		pDial->Stopping = true;
+		__xrtNetDialRejectOthers(pDial, pAttempt);
 		__xrtNetDialFinish(
 			pDial,
 			XNET_RESULT_ERROR,
@@ -1178,12 +1181,14 @@ static void __xrtNetDialResolvedPost(xnetresolveop* pOperation, ptr pData)
 			xrtNetResolveOpError(pOperation)
 		);
 	}
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pDial->Worker,
 		&pDial->ResolveCommand,
 		__xrtNetDialResolveTask,
 		pDial
-	);
+	) ) {
+		__xrtNetDialResolveTask(pDial->Worker, pDial);
+	}
 }
 
 
@@ -1338,12 +1343,14 @@ XRT_API xnetdial* xrtNetDial(
 		xrtNetDialDestroy(pDial);
 		return NULL;
 	}
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pDial->Worker,
 		&pDial->StartCommand,
 		__xrtNetDialStartTask,
 		pDial
-	);
+	) ) {
+		__xrtNetDialStartTask(pDial->Worker, pDial);
+	}
 	return pDial;
 }
 
@@ -1409,12 +1416,27 @@ XRT_API bool xrtNetDialCancel(xnetdial* pDial)
 		);
 		return false;
 	}
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pDial->Worker,
 		&pDial->CancelCommand,
 		__xrtNetDialCancelTask,
 		pDial
-	);
+	) ) {
+		xrtAtomic32Store(
+			&pDial->CancelGate,
+			XRT_NET_DIAL_GATE_OPEN,
+			XMEMORY_RELEASE
+		);
+		__xrtNetDialResourceDrop(pDial);
+		__xrtNetSetError(
+			XERR_CLOSED,
+			XNET_ERROR_DIAL_CONNECT,
+			"cancel-dial",
+			"network worker shutdown is sealed",
+			0
+		);
+		return false;
+	}
 	return true;
 }
 

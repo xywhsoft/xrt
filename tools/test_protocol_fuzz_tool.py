@@ -40,6 +40,24 @@ class ProtocolFuzzToolTest(unittest.TestCase):
 			self.assertIn("extlibs/xhttp/include", include_dirs)
 
 
+	def test_release_targets_have_persistent_corpus(self) -> None:
+		"""TLS、X.509 和地址 fuzz 必须携带可回流的仓库语料。"""
+
+		minimum = {
+			"tls": 6,
+			"x509": 6,
+			"net-address": 6,
+		}
+		for name, count in minimum.items():
+			with self.subTest(target=name):
+				path = protocol_fuzz._persistent_corpus(
+					protocol_fuzz.TARGETS[name]
+				)
+				self.assertIsNotNone(path)
+				files = [item for item in path.iterdir() if item.is_file()]
+				self.assertGreaterEqual(len(files), count)
+
+
 
 if __name__ == "__main__":
 	unittest.main()

@@ -118,6 +118,10 @@ XRT 当前仓库不保存外部语言仓库的绝对路径、API 差异扫描器
 暴露 XRT 本身缺少通用原语，应先按本文件的准入规则评估该原语，而不是直接把语言专用
 实现迁入 XRT。
 
+根 `config/modules.json` 的 `external_integrations` 只描述 XRT 核心产品与外部产品的
+关系；每个 `extlibs/*/config/modules.json` 中的同名字段只描述该扩展自身的关系。两者
+作用域独立，同名集成项不要求状态相同，也不得用扩展状态反向覆盖根产品状态。
+
 `extlibs/` 是基于 XRT 公共 API 的活动扩展产品区，不属于 XRT 核心闭包，也不与主库强制
 共同发布。当前 `xruntime`、`xhttp`、`xws`、`xregex`、`xmail` 和 `xssh` 分别维护独立模块
 清单、裁剪单头、测试、文档、体积、性能和发布包；邮件扩展已经统一承接历史 IMAP、

@@ -355,6 +355,85 @@ static void testValueContainerIteratorAlias(void)
 
 
 
+/* 验证三态迭代显式区分元素、结束和错误，并隔离旧错误。 */
+static void testValueContainerIteratorAdvance(void)
+{
+	xvalue* pArray = xrtValueArray();
+	xvalueiter tIterator;
+	xvalueiter tInactive = { 0 };
+	xvaluekey Key;
+	xvalue* pItem = NULL;
+	const xerror* pPrevious;
+
+	testRequire(
+		(pArray != NULL) &&
+		xrtValueArrayAppendNew(pArray, xrtValueInt(7)) &&
+		xrtValueIterBegin(pArray, &tIterator),
+		"iterator advance fixture failed"
+	);
+
+	tIterator.Direction = 0;
+	xrtClearError();
+	testRequire(
+		(xrtValueIterAdvance(
+			&tIterator, &Key, &pItem
+		) == XVALUE_ITER_ERROR) &&
+		(pItem == NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"iterator advance did not report invalid state"
+	);
+	tIterator.Direction = 1;
+
+	xrtSetErrorInfo(
+		XERR_VALUE,
+		"tests.value",
+		17,
+		"stale iterator caller error"
+	);
+	pPrevious = xrtGetError();
+	testRequire(
+		(xrtValueIterAdvance(
+			&tIterator, &Key, &pItem
+		) == XVALUE_ITER_ITEM) &&
+		(pItem != NULL) &&
+		(Key.Type == XVALUE_KEY_INDEX) &&
+		(Key.Index == 0u) &&
+		(xrtGetError() == pPrevious),
+		"iterator advance confused a stale error with item failure"
+	);
+	testRequire(
+		(xrtValueIterAdvance(
+			&tIterator, &Key, &pItem
+		) == XVALUE_ITER_END) &&
+		(pItem == NULL) &&
+		(xrtGetError() == pPrevious),
+		"iterator advance confused a stale error with normal end"
+	);
+	xrtValueIterEnd(&tIterator);
+
+	xrtClearError();
+	testRequire(
+		(xrtValueIterAdvance(
+			NULL, &Key, &pItem
+		) == XVALUE_ITER_ERROR) &&
+		(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
+		"iterator advance accepted a null iterator"
+	);
+	xrtClearError();
+	testRequire(
+		(xrtValueIterAdvance(
+			&tInactive, &Key, &pItem
+		) == XVALUE_ITER_ERROR) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"iterator advance accepted an inactive iterator"
+	);
+
+	xrtValueRelease(pArray);
+	xrtClearError();
+}
+
+
+
 /* 验证子值释放回调不能重入正在修改的父数组。 */
 static void testValueContainerDropReentry(void)
 {
@@ -471,6 +550,7 @@ int main(void)
 	testValueContainerEditType();
 	testValueContainerResolve();
 	testValueContainerIteratorAlias();
+	testValueContainerIteratorAdvance();
 	testValueContainerDropReentry();
 	testValueContainerHashReentry();
 	testValueContainerSharedDag();

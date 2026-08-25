@@ -1,4 +1,43 @@
 #include "../test.h"
+#include "../test_thread.h"
+
+
+
+/* 外部线程只能唤醒端口，不能执行拥有线程专属的等待。 */
+typedef struct testportowner {
+	xnetport* Port;
+} testportowner;
+
+
+
+/* 验证跨线程 Wake 可用，并且 Wait 返回稳定的状态错误。 */
+static int testPortForeignThread(ptr pData)
+{
+	testportowner* pOwner = (testportowner*)pData;
+	xnetportevent Event;
+	size_t iCount = 1;
+
+	if ( !xrtNetPortWake(pOwner->Port) ) {
+		return 1;
+	}
+	xrtClearError();
+	if ( xrtNetPortWait(
+		pOwner->Port,
+		&Event,
+		1,
+		xrtDeadlineAfter(0),
+		&iCount
+	) != XNET_RESULT_ERROR ) {
+		return 2;
+	}
+	if ( (iCount != 0) || (xrtGetError() == NULL) ||
+		 (xrtErrorKind(xrtGetError()) != XERR_STATE) ||
+		 (xrtErrorCode(xrtGetError()) != XNET_ERROR_PORT_WAIT) ) {
+		return 3;
+	}
+	xrtClearError();
+	return 0;
+}
 
 
 
@@ -31,6 +70,10 @@ int main(void)
 		defined(XRT_FEATURE_NET_PORT_KQUEUE) || \
 		defined(XRT_FEATURE_NET_PORT_IOCP)
 		xnetportconfig Effective;
+		testportowner Owner;
+		testthread Thread;
+		xnetportevent Event;
+		size_t iCount = 0;
 
 		testRequire(pPort != NULL,
 			"AUTO did not select the compiled fallback backend");
@@ -50,6 +93,23 @@ int main(void)
 		#endif
 		testRequire(xrtNetPortBackend(NULL) == XNET_PORT_AUTO,
 			"invalid port query unexpectedly succeeded");
+		memset(&Thread, 0, sizeof(Thread));
+		Owner.Port = pPort;
+		Thread.Proc = testPortForeignThread;
+		Thread.Data = &Owner;
+		testThreadsStart(&Thread, 1);
+		testThreadsJoin(&Thread, 1);
+		testRequire(Thread.Result == 0,
+			"foreign port owner contract mismatch");
+		testRequire(xrtNetPortWait(
+			pPort,
+			&Event,
+			1,
+			xrtDeadlineAfter(1000000),
+			&iCount
+		) == XNET_RESULT_OK && (iCount == 1) &&
+			(Event.Type == XNET_PORT_EVENT_WAKE),
+			"owner thread did not receive foreign wake");
 		{
 			xerror* pPrevious = xrtErrorRef(xrtGetError());
 

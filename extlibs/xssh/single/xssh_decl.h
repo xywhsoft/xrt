@@ -9679,17 +9679,17 @@ XRT_API bool xrtCondDestroy(xcond* pCond);
 
 
 
-/* 当前线程持有 mutex 时原子释放并等待通知，返回前重新持有 mutex。 */
+/* 当前线程持有 mutex 时原子释放并等待；允许虚假唤醒，必须在谓词循环中调用。 */
 XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex);
 
 
 
-/* 在相对微秒数内等待通知。 */
+/* 在相对微秒数内等待；允许虚假唤醒，超时和成功后都重新持有 mutex。 */
 XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout);
 
 
 
-/* 等待通知到指定单调时钟截止时间。 */
+/* 等待到单调时钟截止时间；允许虚假唤醒，应循环检查受 mutex 保护的谓词。 */
 XRT_API xwaitresult xrtCondWaitUntil(
 	xcond* pCond,
 	xmutex* pMutex,
@@ -10460,7 +10460,7 @@ XRT_API xthreadkey* xrtThreadKeyCreate(xthreadkeyproc pDestroy);
 
 
 
-/* 销毁键；调用方必须保证其他线程已经停止访问，失败时键仍然有效。 */
+/* 关闭键；其他线程不得再主动访问，已有线程槽会在退出时延迟释放。 */
 XRT_API bool xrtThreadKeyDestroy(xthreadkey* pKey);
 
 
@@ -17718,7 +17718,8 @@ XRT_API bool xrtWsCloseWrite(
 #if defined(XRT_FEATURE_WEBSOCKET_MESSAGE)
 
 /*
-	初始化默认消息上限、严格文本校验和不允许任何 RSV 位的配置。
+	初始化无累计上限、严格文本校验和不允许任何 RSV 位的流式配置。
+	默认 MaxSize 为 SIZE_MAX；状态机不聚合正文，拥有型上层必须设置实际消息上限。
 	Config 必须是完整可写范围，可以未对齐；无效范围只设置线程错误。
 */
 XRT_API void xrtWsMessageConfigInit(xwsmessageconfig* pConfig);
@@ -19566,6 +19567,9 @@ typedef struct xnetworkerstats {
 	uint64 TimerErrors;
 	uint64 Events;
 	uint64 WaitErrors;
+	uint64 WakeErrors;
+	/* BASIC 以上统计中，停机任务链未在安全代数内收敛的累计次数。 */
+	uint64 ShutdownStalls;
 	/* 最近一次端口等待错误；没有错误时 Code 为 XNET_ERROR_NONE。 */
 	xneterror LastWaitError;
 	int LastWaitSystemCode;
@@ -19593,6 +19597,9 @@ typedef struct xnetenginestats {
 	uint64 TimerErrors;
 	uint64 Events;
 	uint64 WaitErrors;
+	uint64 WakeErrors;
+	/* BASIC 以上统计中，全部 Worker 停机任务链未收敛次数之和。 */
+	uint64 ShutdownStalls;
 	uint64 NodeCacheHits;
 	uint64 NodeCacheMisses;
 	size_t PendingCommands;
@@ -20119,6 +20126,11 @@ XRT_API xnetresult xrtNetSocketSendBatch(xnetsocket Socket,
 
 #if defined(XRT_FEATURE_NET_PORT)
 
+/*
+	端口由创建线程拥有，Watch、提交、取消、等待和销毁只能由拥有线程执行。
+	查询函数以及 Post、Wake 可跨线程调用；调用方仍须保证端口对象存活。
+*/
+
 /* 初始化网络端口默认配置。 */
 XRT_API void xrtNetPortConfigInit(xnetportconfig* pConfig);
 
@@ -20336,7 +20348,10 @@ XRT_API bool xrtNetEngineStart(xnetengine* pEngine);
 
 
 
-/* 排空任务并释放运行资源；外借池块会使清理失败但允许重启后归还。 */
+/*
+	排空任务并释放运行资源。
+	任务链不收敛或仍有外借池块时返回失败，但 Engine 仍进入可重启的停止状态。
+*/
 XRT_API bool xrtNetEngineStop(xnetengine* pEngine);
 
 
@@ -20628,12 +20643,12 @@ XRT_API size_t xrtNetBufSpanCount(const xnetbuf* pBuffer);
 
 
 
-/* 获取最多指定数量的只读 Span。 */
+/* 获取文件区间前最多指定数量的只读 Span。 */
 XRT_API size_t xrtNetBufSpans(const xnetbuf* pBuffer, xnetspan* pSpans, size_t iCapacity);
 
 
 
-/* 获取首个非空连续可读 Span；缓冲为空时清空输出并返回 false。 */
+/* 获取首个内存 Span；缓冲为空或队首为文件区间时清空输出并返回 false。 */
 XRT_API bool xrtNetBufFront(const xnetbuf* pBuffer, xnetspan* pSpan);
 
 
@@ -20688,23 +20703,23 @@ XRT_API bool xrtNetBufMove(xnetbuf* pTarget, xnetbuf* pSource);
 
 
 
-/* 确保指定长度的前缀连续并返回借用 Span。 */
+/* 确保指定长度的内存前缀连续；前缀包含文件区间时失败。 */
 XRT_API bool xrtNetBufPullup(xnetbuf* pBuffer, size_t iSize, xnetspan* pSpan);
 
 
 
-/* 从指定偏移复制最多给定字节，但不消费数据。 */
+/* 从指定偏移复制最多给定字节，遇到文件区间时停止。 */
 XRT_API size_t xrtNetBufPeek(const xnetbuf* pBuffer,
 	size_t iOffset, void* pOutput, size_t iSize);
 
 
 
-/* 复制并消费最多给定字节；活动尾部写预留不阻止消费已提交前缀。 */
+/* 复制并消费最多给定字节；遇到文件区间时停止。 */
 XRT_API size_t xrtNetBufRead(xnetbuf* pBuffer, void* pOutput, size_t iSize);
 
 
 
-/* 从指定偏移查找一个字节，未找到时返回 XRT_NPOS。 */
+/* 从指定偏移查找一个字节，遇到文件区间或未找到时返回 XRT_NPOS。 */
 XRT_API size_t xrtNetBufFind(const xnetbuf* pBuffer, uint8 iByte, size_t iOffset);
 
 
@@ -23068,6 +23083,9 @@ typedef enum xtlscipher {
 	XTLS_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256 = 0xCCA9
 } xtlscipher;
 
+/* TLS_FALLBACK_SCSV 是 ClientHello 中的信号值，不属于可协商密码套件。 */
+#define XTLS_FALLBACK_SCSV UINT16_C(0x5600)
+
 
 
 /* TLS 密码套件使用的摘要算法与密码后端解耦。 */
@@ -24109,6 +24127,11 @@ XRT_API bool xrtTlsRetryGroup(xbytesview Data, uint16* pGroup);
 
 
 
+/* 严格解析 HelloRetryRequest cookie 的 16 位非空字节向量。 */
+XRT_API bool xrtTlsRetryCookie(xbytesview Data, xbytesview* pCookie);
+
+
+
 /* 严格解析一条 ClientHello 正文并发布零拷贝字段视图。 */
 XRT_API bool xrtTlsClientHelloParse(
 	xbytesview Body,
@@ -24644,6 +24667,14 @@ XRT_API bool xrtTlsWriterServerKeyShare(
 XRT_API bool xrtTlsWriterRetryGroup(
 	xtlswriter* pWriter,
 	uint16 iGroup
+);
+
+
+
+/* 追加 HelloRetryRequest 或 ClientHello 使用的非空 cookie 扩展。 */
+XRT_API bool xrtTlsWriterRetryCookie(
+	xtlswriter* pWriter,
+	xbytesview Cookie
 );
 
 
@@ -26242,7 +26273,9 @@ typedef enum xx509crlpolicyflag {
 	X509_CRL_REQUIRE_NUMBER = UINT32_C(0x00000002),
 	X509_CRL_REQUIRE_AUTHORITY_KEY_ID = UINT32_C(0x00000004),
 	X509_CRL_REQUIRE_KEY_IDENTIFIER = UINT32_C(0x00000008),
-	X509_CRL_REQUIRE_KEY_USAGE = UINT32_C(0x00000010)
+	X509_CRL_REQUIRE_KEY_USAGE = UINT32_C(0x00000010),
+	/* 仅用于必须兼容历史基础设施的显式弱算法策略。 */
+	X509_CRL_ALLOW_SHA1 = UINT32_C(0x00000020)
 } xx509crlpolicyflag;
 
 
@@ -26331,7 +26364,9 @@ typedef struct xx509crlset {
 /* 路径策略标志只控制目标证书用途是否必须显式出现。 */
 typedef enum xx509pathflag {
 	X509_PATH_REQUIRE_KEY_USAGE = UINT32_C(0x00000001),
-	X509_PATH_REQUIRE_PURPOSE = UINT32_C(0x00000002)
+	X509_PATH_REQUIRE_PURPOSE = UINT32_C(0x00000002),
+	/* 默认拒绝 SHA-1 路径签名；此标志只为显式 legacy 场景保留。 */
+	X509_PATH_ALLOW_SHA1 = UINT32_C(0x00000004)
 } xx509pathflag;
 
 
@@ -27008,6 +27043,11 @@ XRT_API xx509result xrtX509RevocationResult(
 
 #if defined(XRT_FEATURE_X509_PATH)
 
+/* 初始化当前时间、默认拒绝 SHA-1 的严格路径策略。 */
+XRT_API void xrtX509PathConfigInit(xx509pathconfig* pConfig);
+
+
+
 /* 从一张受信任证书提取名称和公钥；不校验该证书的时间、扩展或自签名。 */
 XRT_API bool xrtX509Anchor(
 	const xx509cert* pCertificate,
@@ -27265,6 +27305,8 @@ typedef struct xtlsverifierconfig {
 	xtlsverifytimeproc Time;
 	xtlsverifyreleaseproc Release;
 	ptr Context;
+	/* 默认 false；只在必须兼容历史证书链时显式允许 SHA-1。 */
+	bool AllowSha1;
 } xtlsverifierconfig;
 
 
@@ -27555,6 +27597,8 @@ typedef struct xtlsclientconfig {
 	const xtlsverifier* Verifier;
 	const xtlsresume* Resume;
 	size_t ResumeLimit;
+	/* 必须接受所给票据；禁止回退完整证书握手。 */
+	bool ResumeOnly;
 } xtlsclientconfig;
 
 
@@ -27568,7 +27612,7 @@ XRT_API void xrtTlsClientConfigInit(xtlsclientconfig* pConfig);
 
 
 
-/* 创建客户端会话并立即排队初始 ClientHello；空上下文会创建默认快照。 */
+/* 创建客户端会话；默认要求 Verifier，无验证器时必须启用 ResumeOnly。 */
 XRT_API xtlssession* xrtTlsClientCreate(
 	const xtlsclientconfig* pConfig,
 	xnetbufpool* pPool
@@ -37795,6 +37839,15 @@ typedef struct xvalueiter {
 
 
 
+/* 三态推进结果显式区分元素、正常结束和迭代错误。 */
+typedef enum xvalueiterresult {
+	XVALUE_ITER_ERROR = -1,
+	XVALUE_ITER_END = 0,
+	XVALUE_ITER_ITEM = 1
+} xvalueiterresult;
+
+
+
 XRT_EXTERN_C_BEGIN
 
 
@@ -38081,6 +38134,15 @@ XRT_API xvalueiter* xrtValueIterRCreate(const xvalue* pValue);
 
 /* 返回下一借用值及其键；键输出不得覆盖迭代器，正常结束返回空指针。 */
 XRT_API xvalue* xrtValueIterNext(xvalueiter* pIterator, xvaluekey* pKey);
+
+
+
+/* 三态推进快照；成功项写入借用值，正常结束不设置错误。 */
+XRT_API xvalueiterresult xrtValueIterAdvance(
+	xvalueiter* pIterator,
+	xvaluekey* pKey,
+	xvalue** ppValue
+);
 
 
 
@@ -44328,7 +44390,7 @@ XRT_API xsshcode xrtSshKnownHostDbNext(
 
 /*
 	用完整原始 host-key blob 扫描明文和 |1| 哈希记录，不分配密钥缓冲。
-	REVOKED 优先于 MATCH，随后依次为 CA、CHANGED 和 NEW。
+	REVOKED 优先于 MATCH，随后依次为 CA、CHANGED 和 NEW；CHANGED 跨算法生效。
 */
 XRT_API xsshcode xrtSshKnownHostDbCheck(
 	xstrview Source,
@@ -48756,7 +48818,7 @@ XRT_EXTERN_C_END
 
 
 
-/* Remote forwarding 请求借用线路地址并保留 uint32 端口。 */
+/* Remote forwarding 请求借用线路地址，端口限制为 0 至 65535。 */
 typedef struct xsshtcpipforward {
 	xbytesview Address;
 	uint32 Port;
@@ -48764,7 +48826,7 @@ typedef struct xsshtcpipforward {
 
 
 
-/* TCP/IP channel open 借用目标与来源地址。 */
+/* TCP/IP channel open 借用目标与来源地址，两个端口均不超过 65535。 */
 typedef struct xsshtcpipopen {
 	xbytesview Host;
 	uint32 Port;
@@ -48778,7 +48840,7 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 写入或严格读取要求回复的 tcpip-forward 全局请求。 */
+/* 写入或严格读取要求回复的 tcpip-forward；端口零请求动态分配。 */
 XRT_API xsshcode xrtSshTcpipForwardWrite(
 	xsshwriter* pWriter,
 	xbytesview Address,
@@ -49192,6 +49254,19 @@ XRT_EXTERN_C_END
 
 
 
+typedef struct xsshchannels xsshchannels;
+
+
+
+/* 删除观察器只接收已经失效的本端 id，不借用已释放 channel。 */
+typedef void (*xsshchannelsremovedproc)(
+	xsshchannels* pChannels,
+	uint32 iLocal,
+	ptr pUserData
+);
+
+
+
 /* Channel 集合配置同时约束对象数量、窗口、动态数据和请求回复内存。 */
 typedef struct xsshchannelsconfig {
 	size_t MaxChannels;
@@ -49221,14 +49296,16 @@ typedef struct xsshchannel {
 
 
 /* Channel 集合借用网络缓冲池，拥有全部 channel 对象和回复 token。 */
-typedef struct xsshchannels {
+struct xsshchannels {
 	xintmap Map;
 	xsshchannelsconfig Config;
 	xnetbufpool* Pool;
+	xsshchannelsremovedproc Removed;
+	ptr RemovedData;
 	uint32 NextLocal;
 	bool Initialized;
 	uint32 Guard;
-} xsshchannels;
+};
 
 
 
@@ -49254,6 +49331,15 @@ XRT_API bool xrtSshChannelsInit(
 	xsshchannels* pChannels,
 	xnetbufpool* pPool,
 	const xsshchannelsconfig* pConfig
+);
+
+
+
+/* 设置唯一删除观察器；成功删除后同步报告 id，空回调可取消观察。 */
+XRT_API bool xrtSshChannelsOnRemoved(
+	xsshchannels* pChannels,
+	xsshchannelsremovedproc pRemoved,
+	ptr pUserData
 );
 
 
@@ -50876,6 +50962,7 @@ struct xsshclient {
 	#if defined(XSSH_FEATURE_CLIENT_FUTURE)
 		ptr FutureState;
 		xsshchannel* FutureWritableChannel;
+		uint32 FutureWritableLocal;
 	#endif
 	size_t ControlTarget;
 	size_t GlobalReplyCapacity;

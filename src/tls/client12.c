@@ -12,6 +12,10 @@
 #define XTLS_CLIENT12_FINISHED_MESSAGE_SIZE \
 	(XTLS_HANDSHAKE_HEADER_SIZE + XTLS12_FINISHED_SIZE)
 
+static const uint8 __xrtTls12ClientDowngrade13[] = {
+	0x44, 0x4F, 0x57, 0x4E, 0x47, 0x52, 0x44, 0x01
+};
+
 
 
 /* 保留当前根错误并把客户端会话推进到失败终态。 */
@@ -52,11 +56,24 @@ static bool __xrtTlsClient12Hello(
 	memset(pProtocol, 0, sizeof(*pProtocol));
 	if ( pHello->Retry || (pHello->LegacyVersion != XTLS_VERSION_12) ||
 		(pHello->CompressionMethod != 0) ||
-		(pHello->SessionId.Size > XTLS_SESSION_ID_MAX) ) {
+		(pHello->SessionId.Size > XTLS_SESSION_ID_MAX) ||
+		(pHello->Random.Size != XTLS12_RANDOM_SIZE) ) {
 		return __xrtTlsClientError(
 			XERR_PROTOCOL, XTLS_ERROR_HANDSHAKE,
 			"process-tls12-server-hello",
 			"TLS 1.2 ServerHello fixed fields are invalid"
+		);
+	}
+	if ( pState->Offer13 && xrtConstTimeEqual(
+		pHello->Random.Data + XTLS12_RANDOM_SIZE -
+			sizeof(__xrtTls12ClientDowngrade13),
+		__xrtTls12ClientDowngrade13,
+		sizeof(__xrtTls12ClientDowngrade13)
+	) ) {
+		return __xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_VERSION,
+			"process-tls12-server-hello",
+			"TLS 1.2 ServerHello contains a TLS 1.3 downgrade marker"
 		);
 	}
 	if ( !__xrtTlsClientOffered(
@@ -203,6 +220,7 @@ static xtlsresult __xrtTlsClient12ServerKeyExchange(
 {
 	xtls12serverkeyexchange Exchange;
 	const xtlsgroupinfo* pGroup;
+	const xtlssignatureinfo* pSignature;
 	xtlstranscript Next = pState->Transcript;
 	xbytesview Encoded = __xrtTlsClient12Encoded(pMessage);
 
@@ -211,11 +229,17 @@ static xtlsresult __xrtTlsClient12ServerKeyExchange(
 		goto failed;
 	}
 	pGroup = xrtTlsGroupInfo(Exchange.Group);
+	pSignature = xrtTlsSignatureInfo(
+		(xtlssignature)Exchange.Verify.Scheme
+	);
 	if ( !__xrtTlsClientOffered(
 		pState->Groups, pState->GroupCount, Exchange.Group
 	) || !__xrtTlsClientOffered(
 		pState->Signatures, pState->SignatureCount, Exchange.Verify.Scheme
-	) || (pGroup == NULL) ||
+	) || (pGroup == NULL) || (pSignature == NULL) ||
+		!xrtTlsCipherCompatible(
+			XTLS_VERSION_12, pState->Cipher, pSignature->Identity
+		) ||
 		(pGroup->PrivateSize > pState->PrivateKeyCapacity) ||
 		(pGroup->PublicSize > pState->PublicKeyCapacity) ||
 		(pGroup->SharedSize > sizeof(pState->Shared)) ) {

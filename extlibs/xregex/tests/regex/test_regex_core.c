@@ -73,7 +73,7 @@ static void testRegexEscape(void)
 	) && (strcmp(arrOutput, sExpected) == 0), "regex escape output mismatch");
 
 	testRequire(xrtRegexEscapeWrite(
-		xrtStrViewN(arrBinary, sizeof(arrBinary)),
+		(xstrview){ arrBinary, sizeof(arrBinary) },
 		arrOutput,
 		sizeof(arrOutput),
 		&iSize
@@ -81,7 +81,7 @@ static void testRegexEscape(void)
 		(arrOutput[1] == '\\') && (arrOutput[2] == '*') && (arrOutput[3] == 0),
 		"binary regex escape mismatch");
 	testRequire(xrtRegexEscapeWrite(
-		xrtStrViewN(arrInPlace, 3u),
+		(xstrview){ arrInPlace, 3u },
 		arrInPlace,
 		sizeof(arrInPlace),
 		&iSize
@@ -100,7 +100,7 @@ static void testRegexEscape(void)
 		"short regex escape buffer error mismatch");
 	xrtClearError();
 	testRequire(!xrtRegexEscapeWrite(
-		xrtStrViewN(arrPartial, 3u),
+		(xstrview){ arrPartial, 3u },
 		arrPartial + 1u,
 		sizeof(arrPartial) - 1u,
 		&iSize
@@ -112,7 +112,7 @@ static void testRegexEscape(void)
 	sEscaped = xrtRegexEscape(XRT_STR_LITERAL(sText), &iSize);
 	testRequire((sEscaped != NULL) && (strcmp(sEscaped, sExpected) == 0),
 		"allocated regex escape mismatch");
-	pRegex = xrtRegexCompile(xrtStrViewN(sEscaped, iSize));
+	pRegex = xrtRegexCompile((xstrview){ sEscaped, iSize });
 	testRequire(pRegex != NULL, "escaped regex literal did not compile");
 	xrtRegexRelease(pRegex);
 	xrtFree(sEscaped);
@@ -180,6 +180,67 @@ static void testRegexSyntaxError(void)
 
 
 
+/* 验证量词、标志、字符类和命名捕获的解析边界。 */
+static void testRegexSyntaxBoundaries(void)
+{
+	static const char arrZeroName[] = {
+		'(', '?', '<', 'a', 0, 'b', '>', 'x', ')'
+	};
+	xregex* pRegex;
+
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("a{000000}"));
+	testRequire(pRegex != NULL, "six-digit repetition boundary was rejected");
+	xrtRegexRelease(pRegex);
+
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("(?:){100000}"));
+	testRequire(pRegex != NULL, "maximum repetition count was rejected");
+	xrtRegexRelease(pRegex);
+
+	xrtClearError();
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("a{100001}"));
+	testRequire(pRegex == NULL, "repetition count above the limit was accepted");
+	testRegexError(XREGEX_ERROR_LIMIT, "repetition limit error mismatch");
+
+	xrtClearError();
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("a{3,2}"));
+	testRequire(pRegex == NULL, "reversed repetition range was accepted");
+	testRegexError(XREGEX_ERROR_PATTERN, "reversed repetition error mismatch");
+
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("a{0,0}"));
+	testRequire(pRegex != NULL, "zero repetition range was rejected");
+	xrtRegexRelease(pRegex);
+
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("(?U:a+)"));
+	testRequire(pRegex != NULL, "supported ungreedy inline flag was rejected");
+	xrtRegexRelease(pRegex);
+
+	xrtClearError();
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("(?u:a)"));
+	testRequire(pRegex == NULL, "unsupported Unicode mode flag was accepted");
+	testRegexError(XREGEX_ERROR_PATTERN, "unsupported inline flag error mismatch");
+
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("[a-]"));
+	testRequire(pRegex != NULL, "literal trailing class dash was rejected");
+	xrtRegexRelease(pRegex);
+
+	xrtClearError();
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("[z-a]"));
+	testRequire(pRegex == NULL, "reversed character class range was accepted");
+	testRegexError(XREGEX_ERROR_PATTERN, "reversed class range error mismatch");
+
+	xrtClearError();
+	pRegex = xrtRegexCompile(XRT_STR_LITERAL("(?<name>a)(?<name>b)"));
+	testRequire(pRegex == NULL, "duplicate capture group name was accepted");
+	testRegexError(XREGEX_ERROR_PATTERN, "duplicate capture name error mismatch");
+
+	xrtClearError();
+	pRegex = xrtRegexCompile((xstrview){ arrZeroName, sizeof(arrZeroName) });
+	testRequire(pRegex == NULL, "zero byte in capture group name was accepted");
+	testRegexError(XREGEX_ERROR_PATTERN, "zero-byte capture name error mismatch");
+}
+
+
+
 /* 验证模式字节和捕获数量预算均为硬限制。 */
 static void testRegexLimits(void)
 {
@@ -217,6 +278,7 @@ int main(void)
 	testRegexEscape();
 	testRegexMetadata();
 	testRegexSyntaxError();
+	testRegexSyntaxBoundaries();
 	testRegexLimits();
 	printf("[PASS] regex core\n");
 	return 0;

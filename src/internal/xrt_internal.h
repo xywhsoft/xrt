@@ -365,8 +365,16 @@ static inline int32 __xrtAtomicRefLoad(const volatile int32* pValue)
 		return (int32)_InterlockedCompareExchange((volatile long*)pValue, 0, 0);
 	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 		return (int32)InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
-	#elif defined(__TINYC__)
-		return *pValue;
+	#elif defined(__TINYC__) && (defined(__x86_64__) || defined(_M_X64))
+		int32 iActual;
+
+		__asm__ volatile (
+			"lock; cmpxchgl %2, %1"
+			: "=a"(iActual), "+m"(*(volatile int32*)pValue)
+			: "r"(0), "0"(0)
+			: "cc", "memory"
+		);
+		return iActual;
 	#else
 		return (int32)__sync_val_compare_and_swap((volatile int32*)pValue, 0, 0);
 	#endif
@@ -381,13 +389,16 @@ static inline int32 __xrtAtomicRefCompareExchange(volatile int32* pValue, int32 
 		return (int32)_InterlockedCompareExchange((volatile long*)pValue, (long)iValue, (long)iExpected);
 	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 		return (int32)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iValue, (LONG)iExpected);
-	#elif defined(__TINYC__)
-		int32 iOld = *pValue;
+	#elif defined(__TINYC__) && (defined(__x86_64__) || defined(_M_X64))
+		int32 iActual;
 
-		if ( iOld == iExpected ) {
-			*pValue = iValue;
-		}
-		return iOld;
+		__asm__ volatile (
+			"lock; cmpxchgl %2, %1"
+			: "=a"(iActual), "+m"(*pValue)
+			: "r"(iValue), "0"(iExpected)
+			: "cc", "memory"
+		);
+		return iActual;
 	#else
 		return (int32)__sync_val_compare_and_swap(pValue, iExpected, iValue);
 	#endif

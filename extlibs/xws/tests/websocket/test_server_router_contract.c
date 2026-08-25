@@ -90,7 +90,9 @@ int main(void)
 	);
 	xrtWsServerRouteConfigInit(&Config);
 	testRequire(
-		xrtWsServerConfigValid(&Config.Server),
+		xrtWsServerConfigValid(&Config.Server) &&
+		(Config.Origin ==
+		 XWS_SERVER_ORIGIN_SAME_HOST_OR_ABSENT),
 		"WebSocket default server configuration is invalid"
 	);
 	Config.Server.Connection.MessageLimit = 0;
@@ -145,6 +147,22 @@ int main(void)
 		XWS_SERVER_ROUTER_ERROR_CONFIG,
 		"register-websocket-server-route",
 		"WebSocket invalid route configuration error mismatch"
+	);
+	xrtWsServerRouteConfigInit(&Config);
+	Config.Origin = (xwsserveroriginpolicy)UINT32_MAX;
+	testRequire(
+		!xrtWsServerRoute(
+			pRouter,
+			XRT_STR_LITERAL("/invalid-origin"),
+			&Config
+		),
+		"WebSocket server Router accepted an invalid Origin policy"
+	);
+	testWsServerRouterError(
+		XERR_VALUE,
+		XWS_SERVER_ROUTER_ERROR_CONFIG,
+		"register-websocket-server-route",
+		"WebSocket invalid Origin policy error mismatch"
 	);
 
 	xrtWsServerRouteConfigInit(&Config);

@@ -24,6 +24,16 @@ bool __xrtTlsHelloRetry(xbytesview Random)
 }
 
 
+
+/* 借用 HelloRetryRequest 固定 random 标记。 */
+xbytesview __xrtTlsHelloRetryRandom(void)
+{
+	return (xbytesview) {
+		__xrtTlsRetryRandom, sizeof(__xrtTlsRetryRandom)
+	};
+}
+
+
 /* 解析带一字节长度前缀的完整字节向量。 */
 static bool __xrtTlsByteVector(
 	xbytesview Data,
@@ -170,6 +180,25 @@ bool __xrtTlsHelloExtensions(
 
 					if ( !xrtTlsClientKeyShares(
 						Extension.Data, &Shares
+					) ) {
+						return false;
+					}
+				}
+				break;
+
+			case XTLS_EXTENSION_COOKIE:
+				if ( bServer && !bRetry ) {
+					return __xrtTlsHelloError(
+						XTLS_ERROR_EXTENSION, "parse-server-hello",
+						"TLS cookie is forbidden in a normal ServerHello",
+						Cursor.Offset - Extension.EncodedSize
+					);
+				}
+				{
+					xbytesview Cookie;
+
+					if ( !xrtTlsRetryCookie(
+						Extension.Data, &Cookie
 					) ) {
 						return false;
 					}

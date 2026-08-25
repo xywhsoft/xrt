@@ -100,7 +100,7 @@ static void __xrtWsServerRouterReport(
 
 
 
-/* 提交带准确 Allow 的 OPTIONS 或方法拒绝响应。 */
+/* 提交只允许 GET 的方法拒绝响应。 */
 static bool __xrtWsServerRouterMethodReply(
 	xhttpconn* pHttp,
 	uint16 iStatus
@@ -113,8 +113,26 @@ static bool __xrtWsServerRouterMethodReply(
 		xrtHttpReplySetHeader(
 			pReply,
 			XRT_STR_LITERAL("Allow"),
-			XRT_STR_LITERAL("GET, OPTIONS")
+			XRT_STR_LITERAL("GET")
 		) ) {
+		Result = xrtHttpConnRespond(pHttp, pReply);
+	}
+	xrtHttpReplyDestroy(pReply);
+	return Result == XNET_RESULT_OK;
+}
+
+
+
+/* 提交无正文的固定状态响应。 */
+static bool __xrtWsServerRouterStatusReply(
+	xhttpconn* pHttp,
+	uint16 iStatus
+)
+{
+	xhttpreply* pReply = xrtHttpReplyCreate(iStatus);
+	xnetresult Result = XNET_RESULT_ERROR;
+
+	if ( pReply != NULL ) {
 		Result = xrtHttpConnRespond(pHttp, pReply);
 	}
 	xrtHttpReplyDestroy(pReply);
@@ -170,6 +188,97 @@ static void __xrtWsServerRouterReject(
 
 
 
+/* 拒绝不符合 Origin 或业务授权策略的握手。 */
+static void __xrtWsServerRouterAuthorizationReject(
+	xrt_ws_server_route* pRoute,
+	xhttpconn* pHttp,
+	cstr sMessage
+)
+{
+	xerror* pError;
+
+	__xrtWsServerRouterSetError(
+		XERR_PERMISSION,
+		XWS_SERVER_ROUTER_ERROR_AUTHORIZATION,
+		"authorize-websocket-server-route",
+		sMessage,
+		NULL
+	);
+	pError = xrtErrorRef(xrtGetError());
+	__xrtWsServerRouterReport(pRoute, pHttp, pError);
+	xrtErrorFree(pError);
+	if ( !__xrtWsServerRouterStatusReply(
+		pHttp, XHTTP_STATUS_FORBIDDEN
+	) ) {
+		__xrtWsServerRouterResponseFailed(
+			pRoute,
+			pHttp,
+			"WebSocket authorization response failed"
+		);
+	}
+}
+
+
+
+/* 比较浏览器 Origin 与当前 HTTP 请求的 scheme、host 和有效端口。 */
+static bool __xrtWsServerRouterOriginSame(
+	xhttpconn* pHttp,
+	const xhttpserverrequest* pRequest,
+	const xhttporigin* pOrigin
+)
+{
+	xhttpauthority Authority;
+	xstrview Scheme = xrtHttpConnSecure(pHttp) ?
+		XRT_STR_LITERAL("https") : XRT_STR_LITERAL("http");
+	uint16 iDefault = xrtHttpConnSecure(pHttp) ? 443u : 80u;
+	uint16 iOriginPort;
+	uint16 iRequestPort;
+
+	if ( ((pOrigin->Flags & XHTTP_ORIGIN_NULL) != 0) ||
+		!xrtUrlSchemeIs(&pOrigin->Url, Scheme) ||
+		!xrtHttpServerRequestAuthority(pRequest, &Authority) ||
+		!xrtHttpHostEqual(pOrigin->Url.Host, Authority.Host) ||
+		!xrtUrlPort(&pOrigin->Url, &iOriginPort) ||
+		!xrtHttpAuthorityPort(
+			&Authority, iDefault, &iRequestPort
+		) ) {
+		return false;
+	}
+	return iOriginPort == iRequestPort;
+}
+
+
+
+/* 执行固定路由 Origin 策略，ANY 保留给已在外层授权的组合。 */
+static bool __xrtWsServerRouterOriginAllowed(
+	xrt_ws_server_route* pRoute,
+	xhttpconn* pHttp,
+	const xhttpserverrequest* pRequest
+)
+{
+	xhttporigin Origin;
+	xhttpnext Next;
+
+	if ( pRoute->Config.Origin == XWS_SERVER_ORIGIN_ANY ) {
+		return true;
+	}
+	Next = xrtHttpOriginFields(
+		xrtHttpServerRequestHeaderData(pRequest),
+		xrtHttpServerRequestHeaderCount(pRequest),
+		&Origin
+	);
+	if ( Next == XHTTP_NEXT_END ) {
+		return pRoute->Config.Origin ==
+			XWS_SERVER_ORIGIN_SAME_HOST_OR_ABSENT;
+	}
+	return (Next == XHTTP_NEXT_ITEM) &&
+		__xrtWsServerRouterOriginSame(
+			pHttp, pRequest, &Origin
+		);
+}
+
+
+
 /* 判断请求是否声明或已经携带正文；WebSocket Upgrade 不接受这些请求。 */
 static bool __xrtWsServerRouterHasBody(
 	const xhttpserverrequest* pRequest
@@ -207,18 +316,6 @@ static xhttpserverbodypolicy __xrtWsServerRouterHeaders(
 	(void)pServer;
 	(void)pParams;
 	(void)iParamCount;
-	if ( __xrtWsServerRouterMethod(Method, "OPTIONS") ) {
-		if ( !__xrtWsServerRouterMethodReply(
-			pHttp, XHTTP_STATUS_NO_CONTENT
-		) ) {
-			__xrtWsServerRouterResponseFailed(
-				pRoute,
-				pHttp,
-				"WebSocket OPTIONS response failed"
-			);
-		}
-		return XHTTP_SERVER_BODY_REJECT;
-	}
 	if ( !__xrtWsServerRouterMethod(Method, "GET") ) {
 		if ( !__xrtWsServerRouterMethodReply(
 			pHttp, XHTTP_STATUS_METHOD_NOT_ALLOWED
@@ -260,15 +357,47 @@ static void __xrtWsServerRouterRequest(
 	xrt_ws_server_route* pRoute =
 		(xrt_ws_server_route*)pData;
 	xrt_ws_server_route_connection* pContext;
+	xwsserverhandshake Handshake;
 	xerror* pError;
 	xnetresult Result;
 	xerrkind Kind;
 	xwsserverroutererror Code;
 
 	(void)pServer;
-	(void)pRequest;
-	(void)pParams;
-	(void)iParamCount;
+	if ( !xrtWsServerCheck(
+		pRequest, &pRoute->Config.Server, &Handshake
+	) ) {
+		pError = xrtErrorRef(xrtGetError());
+		__xrtWsServerRouterReject(pRoute, pHttp, pError);
+		xrtErrorFree(pError);
+		return;
+	}
+	if ( !__xrtWsServerRouterOriginAllowed(
+		pRoute, pHttp, pRequest
+	) ) {
+		__xrtWsServerRouterAuthorizationReject(
+			pRoute,
+			pHttp,
+			"WebSocket request Origin is not allowed"
+		);
+		return;
+	}
+	if ( (pRoute->Config.Authorize != NULL) &&
+		!pRoute->Config.Authorize(
+			pHttp,
+			pRequest,
+			pParams,
+			iParamCount,
+			&Handshake,
+			pRoute->Config.Data
+		) ) {
+		__xrtWsServerRouterAuthorizationReject(
+			pRoute,
+			pHttp,
+			"WebSocket request was rejected by the authorization callback"
+		);
+		return;
+	}
 	pContext = __xrtWsServerRouteConnectionCreate(pRoute);
 	if ( pContext == NULL ) {
 		pError = xrtErrorRef(xrtGetError());
@@ -292,9 +421,11 @@ static void __xrtWsServerRouterRequest(
 		xrtErrorFree(pError);
 		return;
 	}
-	Result = xrtWsUpgrade(
+	Result = xrtWsUpgradeAccept(
 		pHttp,
 		&pRoute->Config.Server,
+		&Handshake,
+		NULL,
 		&__xrtWsServerRouteEvents,
 		pContext,
 		__xrtWsServerRouteUpgradeDone,
@@ -388,6 +519,19 @@ XRT_API bool xrtWsServerRoute(
 			pCause
 		);
 		xrtErrorFree(pCause);
+		return false;
+	}
+	if ( (Config.Origin !=
+		  XWS_SERVER_ORIGIN_SAME_HOST_OR_ABSENT) &&
+		(Config.Origin != XWS_SERVER_ORIGIN_SAME_HOST) &&
+		(Config.Origin != XWS_SERVER_ORIGIN_ANY) ) {
+		__xrtWsServerRouterSetError(
+			XERR_VALUE,
+			XWS_SERVER_ROUTER_ERROR_CONFIG,
+			"register-websocket-server-route",
+			"WebSocket server route Origin policy is invalid",
+			NULL
+		);
 		return false;
 	}
 	if ( Config.Server.Protocols.Size >

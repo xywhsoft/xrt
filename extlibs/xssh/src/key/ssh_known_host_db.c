@@ -347,10 +347,7 @@ xsshcode xrtSshKnownHostDbCheck(
 				MatchEntry = Entry;
 				bHaveMatch = true;
 			}
-		} else if ( !bHaveChanged && xsshKeyTextEqual(
-			Entry.KnownHost.Algorithm,
-			PublicKey.Algorithm
-		) ) {
+		} else if ( !bHaveChanged ) {
 			ChangedEntry = Entry;
 			bHaveChanged = true;
 		}

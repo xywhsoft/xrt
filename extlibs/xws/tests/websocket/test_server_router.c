@@ -29,6 +29,8 @@ typedef struct test_ws_server_router {
 	xatomic32 ServerClosed;
 	xatomic32 ClientClosed;
 	xatomic32 HandshakeErrors;
+	xatomic32 AuthorizationErrors;
+	xatomic32 Authorizations;
 	xatomic32 ServerErrors;
 	xatomic32 Shutdowns;
 	xatomic32 Releases;
@@ -114,6 +116,40 @@ static void testWsServerRouterOpen(
 
 
 
+/* 固定路由在 Origin 门禁之后发布一次业务授权。 */
+static bool testWsServerRouterAuthorize(
+	xhttpconn* pHttp,
+	const xhttpserverrequest* pRequest,
+	const xhttprouteparam* pParams,
+	size_t iParamCount,
+	const xwsserverhandshake* pHandshake,
+	ptr pData
+)
+{
+	test_ws_server_router* pTest =
+		(test_ws_server_router*)pData;
+	const xhttpfield* pDeny;
+
+	(void)pParams;
+	testRequire(
+		(pHttp != NULL) &&
+		(pRequest != NULL) &&
+		(iParamCount == 0) &&
+		(pHandshake != NULL) &&
+		(pHandshake->Accept[0] != '\0'),
+		"WebSocket Router authorization input mismatch"
+	);
+	(void)xrtAtomic32FetchAdd(
+		&pTest->Authorizations, 1u, XMEMORY_RELEASE
+	);
+	pDeny = xrtHttpServerRequestHeader(
+		pRequest, XRT_STR_LITERAL("X-Deny")
+	);
+	return pDeny == NULL;
+}
+
+
+
 /* 记录同步握手拒绝，并验证错误仍来自底层握手域。 */
 static void testWsServerRouterHandshakeError(
 	xhttpconn* pHttp,
@@ -125,17 +161,32 @@ static void testWsServerRouterHandshakeError(
 		(test_ws_server_router*)pData;
 
 	testRequire(
-		(pHttp != NULL) &&
-		(pError != NULL) &&
-		(strcmp(
-			xrtErrorDomain(pError),
-			"xrt.websocket.handshake"
-		 ) == 0),
-		"WebSocket Router handshake error mismatch"
+		(pHttp != NULL) && (pError != NULL),
+		"WebSocket Router error callback input mismatch"
 	);
-	(void)xrtAtomic32FetchAdd(
-		&pTest->HandshakeErrors, 1u, XMEMORY_RELEASE
-	);
+	if ( strcmp(
+		xrtErrorDomain(pError),
+		"xrt.websocket.handshake"
+	) == 0 ) {
+		(void)xrtAtomic32FetchAdd(
+			&pTest->HandshakeErrors, 1u, XMEMORY_RELEASE
+		);
+	} else {
+		testRequire(
+			(strcmp(
+				xrtErrorDomain(pError),
+				"xrt.websocket.server.router"
+			 ) == 0) &&
+			(xrtErrorCode(pError) ==
+			 (int32)XWS_SERVER_ROUTER_ERROR_AUTHORIZATION),
+			"WebSocket Router authorization error mismatch"
+		);
+		(void)xrtAtomic32FetchAdd(
+			&pTest->AuthorizationErrors,
+			1u,
+			XMEMORY_RELEASE
+		);
+	}
 }
 
 
@@ -667,6 +718,8 @@ int main(void)
 	xrtAtomic32Init(&Test.ServerClosed, 0);
 	xrtAtomic32Init(&Test.ClientClosed, 0);
 	xrtAtomic32Init(&Test.HandshakeErrors, 0);
+	xrtAtomic32Init(&Test.AuthorizationErrors, 0);
+	xrtAtomic32Init(&Test.Authorizations, 0);
 	xrtAtomic32Init(&Test.ServerErrors, 0);
 	xrtAtomic32Init(&Test.Shutdowns, 0);
 	xrtAtomic32Init(&Test.Releases, 0);
@@ -700,6 +753,7 @@ int main(void)
 		testWsServerRouterServerClose;
 	RouteConfig.Open = testWsServerRouterOpen;
 	RouteConfig.Error = testWsServerRouterHandshakeError;
+	RouteConfig.Authorize = testWsServerRouterAuthorize;
 	RouteConfig.Release = testWsServerRouterRelease;
 	RouteConfig.Data = &Test;
 	testRequire(
@@ -768,8 +822,11 @@ int main(void)
 		&Http
 	);
 	testRequire(
-		(strstr(sResponse, "HTTP/1.1 204 No Content") != NULL) &&
-		(strstr(sResponse, "Allow: GET, OPTIONS") != NULL),
+		(strstr(
+			sResponse,
+			"HTTP/1.1 405 Method Not Allowed"
+		 ) != NULL) &&
+		(strstr(sResponse, "Allow: GET") != NULL),
 		"WebSocket Router OPTIONS response mismatch"
 	);
 	sResponse = testWsServerRouterHttpRequest(
@@ -785,8 +842,68 @@ int main(void)
 			sResponse,
 			"HTTP/1.1 405 Method Not Allowed"
 		 ) != NULL) &&
-		(strstr(sResponse, "Allow: GET, OPTIONS") != NULL),
+		(strstr(sResponse, "Allow: GET") != NULL),
 		"WebSocket Router method response mismatch"
+	);
+	sResponse = testWsServerRouterHttpRequest(
+		&Test,
+		&Address,
+		"GET /chat HTTP/1.1\r\n"
+		"Host: router.test\r\nConnection: Upgrade, close\r\n"
+		"Upgrade: websocket\r\n"
+		"Origin: https://other.test\r\n"
+		"Sec-WebSocket-Version: 13\r\n"
+		"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n",
+		&Http
+	);
+	testRequire(
+		strstr(sResponse, "HTTP/1.1 403 Forbidden") != NULL,
+		"WebSocket Router cross-origin response mismatch"
+	);
+	sResponse = testWsServerRouterHttpRequest(
+		&Test,
+		&Address,
+		"GET /chat HTTP/1.1\r\n"
+		"Host: router.test\r\nConnection: Upgrade, close\r\n"
+		"Upgrade: websocket\r\n"
+		"Origin: null\r\n"
+		"Sec-WebSocket-Version: 13\r\n"
+		"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n",
+		&Http
+	);
+	testRequire(
+		strstr(sResponse, "HTTP/1.1 403 Forbidden") != NULL,
+		"WebSocket Router null Origin response mismatch"
+	);
+	sResponse = testWsServerRouterHttpRequest(
+		&Test,
+		&Address,
+		"GET /chat HTTP/1.1\r\n"
+		"Host: router.test\r\nConnection: Upgrade, close\r\n"
+		"Upgrade: websocket\r\n"
+		"Origin: http://router.test\r\n"
+		"Origin: http://router.test\r\n"
+		"Sec-WebSocket-Version: 13\r\n"
+		"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n",
+		&Http
+	);
+	testRequire(
+		strstr(sResponse, "HTTP/1.1 403 Forbidden") != NULL,
+		"WebSocket Router duplicate Origin response mismatch"
+	);
+	sResponse = testWsServerRouterHttpRequest(
+		&Test,
+		&Address,
+		"GET /chat HTTP/1.1\r\n"
+		"Host: router.test\r\nConnection: Upgrade, close\r\n"
+		"Upgrade: websocket\r\nX-Deny: 1\r\n"
+		"Sec-WebSocket-Version: 13\r\n"
+		"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n",
+		&Http
+	);
+	testRequire(
+		strstr(sResponse, "HTTP/1.1 403 Forbidden") != NULL,
+		"WebSocket Router authorization response mismatch"
 	);
 	sResponse = testWsServerRouterHttpRequest(
 		&Test,
@@ -902,6 +1019,12 @@ int main(void)
 		(xrtAtomic32Load(
 			&Test.HandshakeErrors, XMEMORY_ACQUIRE
 		 ) == (TEST_WS_SERVER_ROUTER_TLS ? 0u : 3u)) &&
+		(xrtAtomic32Load(
+			&Test.AuthorizationErrors, XMEMORY_ACQUIRE
+		 ) == (TEST_WS_SERVER_ROUTER_TLS ? 0u : 4u)) &&
+		(xrtAtomic32Load(
+			&Test.Authorizations, XMEMORY_ACQUIRE
+		 ) == (TEST_WS_SERVER_ROUTER_TLS ? 1u : 2u)) &&
 		(xrtAtomic32Load(
 			&Test.ServerErrors, XMEMORY_ACQUIRE
 		 ) == 0),

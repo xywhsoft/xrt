@@ -23,6 +23,18 @@ typedef struct xsshclientforwardbuild {
 
 
 
+/* 高级 TCP helper 只接受线路端口范围；forward 请求可用零值动态监听。 */
+static bool xsshClientForwardPort(uint32 iPort)
+{
+	if ( iPort > UINT16_MAX ) {
+		xrtSetErrorKind(XERR_RANGE);
+		return false;
+	}
+	return true;
+}
+
+
+
 /* 写出 direct-tcpip open，并沿用动态 channel 的窗口配置。 */
 static xsshcode xsshClientDirectBuild(
 	xsshwriter* pWriter,
@@ -130,6 +142,14 @@ xsshcode xrtSshClientDirectTcpipOpen(
 		iOriginatorPort
 	};
 
+	if ( !xsshClientForwardPort(iPort) ||
+		!xsshClientForwardPort(iOriginatorPort) ) {
+		if ( xrtMemRangeValid(ppChannel, sizeof(*ppChannel)) ) {
+			*ppChannel = NULL;
+		}
+		return XSSH_ERROR_ARGUMENT;
+	}
+
 	return xrtSshClientChannelOpen(
 		pClient,
 		xsshClientDirectBuild,
@@ -185,6 +205,10 @@ xsshcode xrtSshClientTcpipForward(
 {
 	xsshclientforwardbuild Build = { Address, iPort, false };
 
+	if ( !xsshClientForwardPort(iPort) ) {
+		return XSSH_ERROR_ARGUMENT;
+	}
+
 	return xsshClientForwardSend(pClient, &Build, iReplyToken);
 }
 
@@ -199,6 +223,10 @@ xsshcode xrtSshClientTcpipForwardCancel(
 )
 {
 	xsshclientforwardbuild Build = { Address, iPort, true };
+
+	if ( !xsshClientForwardPort(iPort) ) {
+		return XSSH_ERROR_ARGUMENT;
+	}
 
 	return xsshClientForwardSend(pClient, &Build, iReplyToken);
 }

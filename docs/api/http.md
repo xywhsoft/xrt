@@ -100,6 +100,7 @@ Content-Length 判断响应正文。
 片段、容量请求或终态，并通过 `Consumed` 精确说明已消费线路字节。
 
 对于 chunked，reader 会验证 chunk-size、扩展语法、CRLF、last-chunk 和 trailer，
+并严格拒绝 chunk-size 与分号或 CRLF 之间的空白，避免端点对报文边界产生分歧。
 正文视图不包含分块元数据。`Received` 是应用正文长度，`WireBytes` 是正文区实际
 线路长度。
 

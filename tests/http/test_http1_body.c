@@ -441,7 +441,7 @@ static void testHttp1CloseBody(void)
 static void testHttp1ChunkedBody(void)
 {
 	static const unsigned char Wire[] =
-		"4 ; foo = \"a\\\"b\"\r\nWiki\r\n"
+		"4; foo = \"a\\\"b\"\r\nWiki\r\n"
 		"5;bar\r\npedia\r\n"
 		"0;end=yes\r\n"
 		"X-Checksum: ok\r\nX-Meta: yes\r\n\r\nNEXT";
@@ -622,6 +622,14 @@ static void testHttp1ChunkRejects(void)
 	);
 	testHttp1ChunkReject(
 		"1 \r\na\r\n0\r\n\r\n",
+		&Limits, XHTTP1_ERROR_CHUNK_SIZE
+	);
+	testHttp1ChunkReject(
+		"1 ;x=y\r\na\r\n0\r\n\r\n",
+		&Limits, XHTTP1_ERROR_CHUNK_SIZE
+	);
+	testHttp1ChunkReject(
+		"1\t;x=y\r\na\r\n0\r\n\r\n",
 		&Limits, XHTTP1_ERROR_CHUNK_SIZE
 	);
 	testHttp1ChunkReject(

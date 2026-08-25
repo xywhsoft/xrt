@@ -844,10 +844,11 @@ cleanup:
 
 
 
-/* 集中计算会话票据 binder，避免客户端生成与服务端验证出现偏差。 */
-bool __xrtTls13ResumptionBinder(
+/* 在可选 HRR transcript 前缀之后计算会话票据 binder。 */
+bool __xrtTls13ResumptionBinderTranscript(
 	xcryptohash Hash,
 	xbytesview Psk,
+	const xtlstranscript* pPrefix,
 	xbytesview ClientHelloPartial,
 	void* pOutput,
 	size_t iOutputSize
@@ -880,10 +881,20 @@ bool __xrtTls13ResumptionBinder(
 		);
 		goto cleanup;
 	}
+	if ( pPrefix != NULL ) {
+		if ( !pPrefix->Ready || (pPrefix->Hash != Hash) ) {
+			(void)__xrtTlsScheduleArgument(
+				"tls13-resumption-binder",
+				"TLS 1.3 binder transcript prefix is invalid"
+			);
+			goto cleanup;
+		}
+		Transcript = *pPrefix;
+	} else if ( !__xrtTlsTranscriptInit(&Transcript, Hash) ) {
+		goto cleanup;
+	}
 	bResult = __xrtTls13EmptyHash(
 		Hash, EmptyHash, iHashSize
-	) && __xrtTlsTranscriptInit(
-		&Transcript, Hash
 	) && __xrtTlsTranscriptUpdate(
 		&Transcript, ClientHelloPartial
 	) && __xrtTlsTranscriptDigest(
@@ -913,6 +924,23 @@ cleanup:
 	xrtSecureZero(Early, sizeof(Early));
 	xrtSecureZero(EmptyHash, sizeof(EmptyHash));
 	return bResult;
+}
+
+
+
+/* 从首个 ClientHello transcript 计算会话票据 binder。 */
+bool __xrtTls13ResumptionBinder(
+	xcryptohash Hash,
+	xbytesview Psk,
+	xbytesview ClientHelloPartial,
+	void* pOutput,
+	size_t iOutputSize
+)
+{
+	return __xrtTls13ResumptionBinderTranscript(
+		Hash, Psk, NULL, ClientHelloPartial,
+		pOutput, iOutputSize
+	);
 }
 
 

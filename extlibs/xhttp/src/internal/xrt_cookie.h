@@ -25,7 +25,7 @@ bool __xhttpCookieAsciiEqual(xstrview Left, xstrview Right);
 
 
 
-/* 判断一个值是否符合 RFC 10025 严格 cookie-value 语法。 */
+/* 判断一个值是否符合 RFC 6265 严格 cookie-value 语法。 */
 bool __xhttpCookieValueValid(xstrview Value);
 
 

@@ -8,15 +8,25 @@
 
 #if defined(XRT_FEATURE_THREAD_KEY)
 
-/* 动态键只保存平台索引和用户值析构过程。 */
+/* 动态键由调用方和每个非空线程槽共同持有。 */
 struct xthreadkey {
 	xthreadkeyproc Destroy;
+	volatile int32 References;
+	volatile int32 Closed;
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD Index;
 	#else
 		pthread_key_t Key;
 	#endif
 };
+
+
+
+/* 返回键是否已经进入逻辑关闭状态。 */
+static bool __xrtThreadKeyClosed(const xthreadkey* pKey)
+{
+	return __xrtAtomicRefLoad(&pKey->Closed) != 0;
+}
 
 
 
@@ -251,6 +261,44 @@ static bool __xrtThreadKeySlotSet(xthreadkey* pKey, xthreadkeyslot* pSlot)
 
 
 
+/* 删除不再被任何调用方或线程槽引用的平台键。 */
+static bool __xrtThreadKeyRelease(xthreadkey* pKey)
+{
+	int32 iReferences = xrtRefRelease(&pKey->References);
+	bool bResult = true;
+
+	if ( iReferences != 0 ) {
+		return iReferences > 0;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( !TlsFree(pKey->Index) ) {
+			__xrtThreadKeySetSystemError(
+				"destroy",
+				(int)GetLastError(),
+				"thread-local key destruction failed"
+			);
+			bResult = false;
+		}
+	#else
+		{
+			int iResult = pthread_key_delete(pKey->Key);
+
+			if ( iResult != 0 ) {
+				__xrtThreadKeySetSystemError(
+					"destroy",
+					iResult,
+					"thread-local key destruction failed"
+				);
+				bResult = false;
+			}
+		}
+	#endif
+	xrtFree(pKey);
+	return bResult;
+}
+
+
+
 /* 从当前线程清理链移除一个值槽。 */
 static void __xrtThreadKeySlotUnlink(xthreadkeyslot* pSlot)
 {
@@ -323,14 +371,16 @@ static void __xrtThreadKeyStateClear(xthreadkeystate* pState)
 	pState->Head = NULL;
 	while ( pSlot != NULL ) {
 		xthreadkeyslot* pNext = pSlot->Next;
-		xthreadkeyproc pDestroy = pSlot->Key->Destroy;
+		xthreadkey* pKey = pSlot->Key;
+		xthreadkeyproc pDestroy = pKey->Destroy;
 		ptr pValue = pSlot->Value;
 
-		(void)__xrtThreadKeySlotSet(pSlot->Key, NULL);
+		(void)__xrtThreadKeySlotSet(pKey, NULL);
 		xrtFree(pSlot);
 		if ( (pDestroy != NULL) && (pValue != NULL) ) {
 			pDestroy(pValue);
 		}
+		(void)__xrtThreadKeyRelease(pKey);
 		pSlot = pNext;
 	}
 	xrtFree(pState);
@@ -357,6 +407,8 @@ XRT_API xthreadkey* xrtThreadKeyCreate(xthreadkeyproc pDestroy)
 		return NULL;
 	}
 	pKey->Destroy = pDestroy;
+	pKey->References = 1;
+	pKey->Closed = 0;
 	#if defined(_WIN32) || defined(_WIN64)
 		pKey->Index = TlsAlloc();
 		if ( pKey->Index == TLS_OUT_OF_INDEXES ) {
@@ -390,7 +442,7 @@ XRT_API xthreadkey* xrtThreadKeyCreate(xthreadkeyproc pDestroy)
 
 
 
-/* 销毁动态键，并析构当前线程仍由它拥有的值。 */
+/* 关闭动态键，并延迟到最后一个线程槽退出后释放平台资源。 */
 XRT_API bool xrtThreadKeyDestroy(xthreadkey* pKey)
 {
 	xthreadkeyslot* pSlot;
@@ -400,44 +452,33 @@ XRT_API bool xrtThreadKeyDestroy(xthreadkey* pKey)
 	if ( pKey == NULL ) {
 		return true;
 	}
+	if ( __xrtThreadKeyClosed(pKey) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
 	pSlot = __xrtThreadKeySlot(pKey);
 	pDestroy = pKey->Destroy;
 	pValue = pSlot != NULL ? pSlot->Value : NULL;
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( !TlsFree(pKey->Index) ) {
-			__xrtThreadKeySetSystemError(
-				"destroy",
-				(int)GetLastError(),
-				"thread-local key destruction failed"
-			);
-			return false;
-		}
-	#else
-		{
-			int iResult = pthread_key_delete(pKey->Key);
-
-			if ( iResult != 0 ) {
-				__xrtThreadKeySetSystemError(
-					"destroy",
-					iResult,
-					"thread-local key destruction failed"
-				);
-				return false;
-			}
-		}
-	#endif
 	if ( pSlot != NULL ) {
 		xthreadkeystate* pState = pSlot->State;
 
+		if ( !__xrtThreadKeySlotSet(pKey, NULL) ) {
+			return false;
+		}
+		(void)__xrtAtomicRefCompareExchange(&pKey->Closed, 1, 0);
 		__xrtThreadKeySlotUnlink(pSlot);
 		xrtFree(pSlot);
 		__xrtThreadKeyStateDropEmpty(pState);
+	} else {
+		(void)__xrtAtomicRefCompareExchange(&pKey->Closed, 1, 0);
 	}
-	xrtFree(pKey);
 	if ( (pDestroy != NULL) && (pValue != NULL) ) {
 		pDestroy(pValue);
 	}
-	return true;
+	if ( pSlot != NULL ) {
+		(void)__xrtThreadKeyRelease(pKey);
+	}
+	return __xrtThreadKeyRelease(pKey);
 }
 
 
@@ -449,6 +490,10 @@ XRT_API ptr xrtThreadKeyGet(const xthreadkey* pKey)
 
 	if ( pKey == NULL ) {
 		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( __xrtThreadKeyClosed(pKey) ) {
+		__xrtErrorSetInvalidState();
 		return NULL;
 	}
 	pSlot = __xrtThreadKeySlot(pKey);
@@ -467,6 +512,10 @@ XRT_API bool xrtThreadKeySet(xthreadkey* pKey, ptr pValue)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	if ( __xrtThreadKeyClosed(pKey) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
 	pSlot = __xrtThreadKeySlot(pKey);
 	if ( pSlot != NULL ) {
 		xthreadkeystate* pState = pSlot->State;
@@ -482,6 +531,7 @@ XRT_API bool xrtThreadKeySet(xthreadkey* pKey, ptr pValue)
 			__xrtThreadKeySlotUnlink(pSlot);
 			xrtFree(pSlot);
 			__xrtThreadKeyStateDropEmpty(pState);
+			(void)__xrtThreadKeyRelease(pKey);
 		} else {
 			pSlot->Value = pValue;
 		}
@@ -511,6 +561,12 @@ XRT_API bool xrtThreadKeySet(xthreadkey* pKey, ptr pValue)
 		pSlot->State = pState;
 		pSlot->Key = pKey;
 		pSlot->Value = pValue;
+		if ( xrtRefRetain(&pKey->References) < 0 ) {
+			xrtFree(pSlot);
+			__xrtThreadKeyStateDropEmpty(pState);
+			__xrtErrorSetInvalidState();
+			return false;
+		}
 		pSlot->Next = pState->Head;
 		if ( pState->Head != NULL ) {
 			pState->Head->Previous = pSlot;
@@ -520,6 +576,7 @@ XRT_API bool xrtThreadKeySet(xthreadkey* pKey, ptr pValue)
 			__xrtThreadKeySlotUnlink(pSlot);
 			xrtFree(pSlot);
 			__xrtThreadKeyStateDropEmpty(pState);
+			(void)__xrtThreadKeyRelease(pKey);
 			return false;
 		}
 	}
@@ -539,6 +596,10 @@ XRT_API ptr xrtThreadKeyTake(xthreadkey* pKey)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
+	if ( __xrtThreadKeyClosed(pKey) ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
 	pSlot = __xrtThreadKeySlot(pKey);
 	if ( pSlot == NULL ) {
 		return NULL;
@@ -551,6 +612,7 @@ XRT_API ptr xrtThreadKeyTake(xthreadkey* pKey)
 	__xrtThreadKeySlotUnlink(pSlot);
 	xrtFree(pSlot);
 	__xrtThreadKeyStateDropEmpty(pState);
+	(void)__xrtThreadKeyRelease(pKey);
 	return pValue;
 }
 

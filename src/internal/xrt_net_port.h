@@ -261,6 +261,7 @@ struct xnetport_impl {
 	bool WakePending;
 	uint32 Capabilities;
 	uint64 Owner;
+	xatomic64 OwnerThread;
 	/* Post 队列仍有积压时，下一轮先给原生后端一次非阻塞提取机会。 */
 	bool BackendTurn;
 	bool Closing;
@@ -283,6 +284,16 @@ bool __xrtNetPortSendFile(
 
 /* 返回每次端口创建都唯一的文件归属标识。 */
 uint64 __xrtNetPortOwner(const xnetport* pPort);
+
+
+
+/* Engine 启动 Worker 前由当前线程释放端口线程归属。 */
+bool __xrtNetPortThreadRelease(xnetport* pPort);
+
+
+
+/* Engine Worker 或回收线程认领一个当前无归属的端口。 */
+bool __xrtNetPortThreadClaim(xnetport* pPort);
 
 
 

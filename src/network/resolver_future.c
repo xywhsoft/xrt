@@ -8,6 +8,7 @@
 /* Resolver Future 桥接一个底层解析操作与一个公开 Future。 */
 typedef struct xrt_net_resolver_future {
 	xfuturebridge Bridge;
+	volatile int32 References;
 	xnetresolveop* Operation;
 } xrt_net_resolver_future;
 
@@ -77,7 +78,9 @@ static void __xrtNetResolverFutureDone(
 		}
 	}
 	xrtNetResolveOpDestroy(pHeld);
-	xrtFree(pContext);
+	if ( xrtRefRelease(&pContext->References) == 0 ) {
+		xrtFree(pContext);
+	}
 	if ( !bReady ) {
 		xrtNetAddrListDestroy(pAddresses);
 	} else if ( (State == XNET_RESOLVE_RESOLVED) &&
@@ -126,6 +129,7 @@ XRT_API xfuture* xrtNetResolveAsync(
 		xrtFree(pContext);
 		return NULL;
 	}
+	pContext->References = 2;
 	pContext->Operation = xrtNetResolverResolve(
 		pResolver,
 		sHost,
@@ -152,9 +156,15 @@ XRT_API xfuture* xrtNetResolveAsync(
 			xrtSetError(pError);
 			xrtErrorFree(pError);
 		}
+		if ( xrtRefRelease(&pContext->References) == 0 ) {
+			xrtFree(pContext);
+		}
 		return NULL;
 	}
 	(void)xrtFutureBridgeReady(&pContext->Bridge);
+	if ( xrtRefRelease(&pContext->References) == 0 ) {
+		xrtFree(pContext);
+	}
 	return pFuture;
 }
 

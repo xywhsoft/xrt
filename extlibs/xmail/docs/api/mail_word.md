@@ -3,9 +3,11 @@
 ## 低层视图
 
 `xrtMailWordParse` 从输入开头读取一个 `xmailwordview`，不分配内存，也不解码正文。
-`Source`、`Charset` 和 `Encoded` 都借用输入，`Encoding` 用 `xmailwordencoding` 区分
-`XMAIL_WORD_BASE64` 与 `XMAIL_WORD_Q`。调用方可以利用这层视图接入 xmail 尚未内置
-的字符集转换器，不必重新实现 RFC 2047 边界解析。
+`Source`、`Charset`、`Language` 和 `Encoded` 都借用输入，`Encoding` 用
+`xmailwordencoding` 区分 `XMAIL_WORD_BASE64` 与 `XMAIL_WORD_Q`。RFC 2231 形式的
+`charset*language` 会被拆成独立的 `Charset` 与 `Language`；没有语言子标签时
+`Language.Size` 为零。调用方可以利用这层视图接入 xmail 尚未内置的字符集转换器，
+不必重新实现 RFC 2047 边界解析。
 
 解析器把普通文本报告为 `XMAIL_NEXT_END`，把有效编码词报告为 `XMAIL_NEXT_ITEM`，
 并严格拒绝空字符集、非法编码标记、空正文、控制字节和超过 75 字节的编码词。
@@ -26,10 +28,17 @@ Base64 是长度与性能更稳定的默认选择。Q 编码只原样保留在 p
 相邻且可解码的编码词之间的空格、制表符或合法折叠会被忽略；其他折叠会规范为一个
 空格。输出可与输入从同一地址开始。
 
-`XMAIL_WORD_STRICT` 只接受 `UTF-8`、`UTF8`、`US-ASCII` 和 `ASCII`，并拒绝非规范
-Base64、错误 Q 转义、无效 UTF-8 和可形成字段注入的控制字节。设置
+`XMAIL_WORD_STRICT` 内置接受 UTF-8、US-ASCII、ISO-8859-1/Latin-1 和
+Windows-1252 的常用别名，并拒绝非规范 Base64、错误 Q 转义、无效文本和可形成
+字段注入的控制字节。每个临时缓冲都由 RFC 2047 的 75 字节硬上限推导，不依赖
+字符集名称恰好足够长。语言子标签只做语法边界校验，不影响字符集转换和解码结果。设置
 `XMAIL_WORD_RELAXED` 后，无法可靠解释的完整编码词保留原文，不会猜测未知字符集。
 `xrtMailWordDecode` 返回由 `xrtFree` 释放的 UTF-8 文本。
+
+GB18030、Big5、Shift_JIS 等需要大型映射表的字符集不进入默认构建。需要这些字符集时，
+先用 `xrtMailWordParse` 取得零分配边界与原始正文，再接入应用选择的字符集转换器；
+无需大型映射表的旧字符集转换由可独立使用的 `mail_charset` 层提供。调用方不需要重新
+实现编码词解析。
 
 所有写入入口先完整验证和计量。容量不足、格式错误、字符集错误或不允许的重叠都不
 修改目标缓冲区，并通过 `XMAIL_ERROR_ENCODING`、`XMAIL_ERROR_CHARSET`、

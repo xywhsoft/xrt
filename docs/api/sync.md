@@ -93,6 +93,7 @@ xrtMutexUnlock(&tState.Mutex);
 ```
 
 修改谓词的线程应在同一 mutex 内更新状态，再调用 `Signal` 或 `Broadcast`。
+条件变量允许虚假唤醒，通知也不会保存为可供未来等待者消费的状态。因此 `Wait`、`WaitFor` 和 `WaitUntil` 只能放在受同一 mutex 保护的谓词循环中；返回 `XWAIT_OK` 只表示线程已经重新取得 mutex，不表示谓词必然成立。
 
 ## Semaphore
 

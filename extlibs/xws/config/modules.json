@@ -123,7 +123,8 @@
 			"feature": "XWS_FEATURE_WEBSOCKET_SERVER_ROUTER",
 			"depends": [
 				"websocket_server",
-				"http_server_router"
+				"http_server_router",
+				"http_origin"
 			],
 			"public_headers": [
 				"extlibs/xws/include/xrt/websocket_server_router.h"
@@ -885,7 +886,6 @@
 			],
 			"tests": [
 				"extlibs/xws/tests/websocket/test_connection.c",
-				"extlibs/xws/tests/websocket/test_connection_iocp.c",
 				"extlibs/xws/tests/websocket/test_connection_protocol.c",
 				"extlibs/xws/tests/websocket/test_connection_invalid.c"
 			],
@@ -895,6 +895,28 @@
 			"examples": [],
 			"docs": [
 				"extlibs/xws/docs/api/websocket.md",
+				"extlibs/xws/docs/design/websocket-runtime.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_connection_iocp_tests",
+			"asset_platforms": ["windows"],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_connection",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws/tests/websocket/test_connection_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
 				"extlibs/xws/docs/design/websocket-runtime.md"
 			],
 			"legacy": []
@@ -1834,7 +1856,8 @@
 			],
 			"sources": [],
 			"tests": [
-				"extlibs/xws/tests/websocket/test_connection_deflate_config.c"
+				"extlibs/xws/tests/websocket/test_connection_deflate_config.c",
+				"extlibs/xws/tests/websocket/test_connection_protocol_deflate.c"
 			],
 			"single_tests": [],
 			"examples": [],
@@ -1940,6 +1963,7 @@
 				"websocket_interop_tests",
 				"websocket_reconnect_stress_tests",
 				"websocket_reconnect_iocp_tests",
+				"websocket_connection_iocp_tests",
 				"websocket_connection_protocol_iocp_tests",
 				"websocket_connection_ref_iocp_tests",
 				"websocket_writer_deflate_iocp_tests",

@@ -4,14 +4,16 @@
 #include <xrt/mail_message.h>
 #include <xrt/mail_multipart.h>
 #include <xrt/mail_param.h>
+#include <xrt/mail_charset.h>
 
 
 
 #if defined(XMAIL_FEATURE_MAIL_TREE) && \
 	(!defined(XMAIL_FEATURE_MAIL_MESSAGE) || \
 	 !defined(XMAIL_FEATURE_MAIL_MULTIPART) || \
-	 !defined(XMAIL_FEATURE_MAIL_PARAM))
-	#error "XMAIL_FEATURE_MAIL_TREE requires message, multipart and param"
+	 !defined(XMAIL_FEATURE_MAIL_PARAM) || \
+	 !defined(XMAIL_FEATURE_MAIL_CHARSET))
+	#error "XMAIL_FEATURE_MAIL_TREE requires message, multipart, param and charset"
 #endif
 
 
@@ -30,7 +32,8 @@
 /* 兼容标记必须显式启用，默认解析保持严格。 */
 typedef enum xmailtreeflag {
 	XMAIL_TREE_ALLOW_UNKNOWN_TRANSFER = UINT32_C(0x00000001),
-	XMAIL_TREE_RELAXED_QP = UINT32_C(0x00000002)
+	XMAIL_TREE_RELAXED_QP = UINT32_C(0x00000002),
+	XMAIL_TREE_ALLOW_UNKNOWN_CHARSET = UINT32_C(0x00000004)
 } xmailtreeflag;
 
 
@@ -72,6 +75,7 @@ struct xmailpart {
 	bool Inline;
 	bool Decoded;
 	bool Embedded;
+	bool FileNameUtf8;
 };
 
 
@@ -101,7 +105,10 @@ XRT_API bool xrtMailTreeLimitsValid(const xmailtreelimits* pLimits);
 
 
 
-/* 复制并解析完整 RFC 消息；成功结果不再依赖输入缓冲。 */
+/*
+	复制并解析完整 RFC 消息；成功结果不再依赖输入缓冲。
+	重复的 MIME singleton 字段属于语法错误，整树解析将严格失败。
+*/
 XRT_API bool xrtMailTreeParse(
 	xstrview Source,
 	const xmailtreelimits* pLimits,

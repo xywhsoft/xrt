@@ -27,6 +27,36 @@ int main(void)
 			9u
 		) == XSSH_ERROR_STATE),
 		"ssh forward client accepted detached operation");
+	pChannel = (xsshchannel*)1;
+	testRequire((xrtSshClientDirectTcpipOpen(
+		&Client,
+		XRT_BYTES_LITERAL("127.0.0.1"),
+		65536u,
+		XRT_BYTES_LITERAL("127.0.0.1"),
+		50000u,
+		&pChannel
+	) == XSSH_ERROR_ARGUMENT) && (pChannel == NULL) &&
+		(xrtSshClientDirectTcpipOpen(
+			&Client,
+			XRT_BYTES_LITERAL("127.0.0.1"),
+			80u,
+			XRT_BYTES_LITERAL("127.0.0.1"),
+			UINT32_MAX,
+			&pChannel
+		) == XSSH_ERROR_ARGUMENT) && (pChannel == NULL) &&
+		(xrtSshClientTcpipForward(
+			&Client,
+			XRT_BYTES_LITERAL("127.0.0.1"),
+			65536u,
+			9u
+		) == XSSH_ERROR_ARGUMENT) &&
+		(xrtSshClientTcpipForwardCancel(
+			&Client,
+			XRT_BYTES_LITERAL("127.0.0.1"),
+			UINT32_MAX,
+			10u
+		) == XSSH_ERROR_ARGUMENT),
+		"ssh forward client accepted out-of-range TCP port");
 	testRequire(xrtSshClientClear(&Client),
 		"ssh forward client clear failed");
 	return 0;

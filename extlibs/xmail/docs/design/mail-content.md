@@ -9,6 +9,7 @@ IMAP 复用网络、TLS、Future 与任务体系。协议客户端可以直接�
 当前分层如下：
 
 - `mail_core`：错误、线路常量、CRLF 规范化。
+- `mail_charset`：可裁剪的 UTF-8、ASCII、Latin-1 与 Windows-1252 转换。
 - `mail_codec`：Quoted-Printable 与 MIME Base64，复用 XRT 唯一 Base64 实现。
 - `mail_header`：字段安全谓词、零分配游标、展开和折叠。
 - `mail_word`：RFC 2047 无分配视图、UTF-8 B/Q 编码与严格/容错解码。
@@ -53,9 +54,10 @@ TCP/TLS 发送队列，调用方不必先拼接整封邮件；高层对象树不
 历史文件中对旧 `xrtHttpMediaType*`、`xrtMultipart*` 和 socket/TLS 私有流程的调用
 必须在迁移时移除。
 
-RFC 2047 的高层解码只内置 UTF-8 与 US-ASCII。未知字符集不会被猜测；需要旧字符集
-时，调用方可通过 `xrtMailWordParse` 取得字符集和编码正文，再接入独立转码扩展。这让
-默认路径保持小巧，同时不存在必须重写协议解析器的功能死角。
+RFC 2047 的高层解码内置 UTF-8、US-ASCII、ISO-8859-1/Latin-1 和 Windows-1252。
+未知字符集不会被猜测；GB18030、Big5、Shift_JIS 等需要大型码表的字符集由调用方通过
+`xrtMailWordParse` 取得字符集和编码正文，再接入独立转码扩展。这让默认路径保持小巧，
+同时不存在必须重写协议解析器的功能死角。
 
 历史单头暂时只作为测试向量和已验证行为来源。新清单是唯一生产边界，不提供旧函数
 别名、多版本结构或 `singlehead/xrt.h` 兼容入口。

@@ -3633,6 +3633,9 @@
 #ifndef XHTTP_MODULE_HTTP_SERVER_ROUTER
 #define XHTTP_MODULE_HTTP_SERVER_ROUTER
 #endif
+#ifndef XHTTP_MODULE_HTTP_ORIGIN
+#define XHTTP_MODULE_HTTP_ORIGIN
+#endif
 #endif
 
 /* websocket_server 及其直接依赖。 */
@@ -12062,17 +12065,17 @@ XRT_API bool xrtCondDestroy(xcond* pCond);
 
 
 
-/* 当前线程持有 mutex 时原子释放并等待通知，返回前重新持有 mutex。 */
+/* 当前线程持有 mutex 时原子释放并等待；允许虚假唤醒，必须在谓词循环中调用。 */
 XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex);
 
 
 
-/* 在相对微秒数内等待通知。 */
+/* 在相对微秒数内等待；允许虚假唤醒，超时和成功后都重新持有 mutex。 */
 XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout);
 
 
 
-/* 等待通知到指定单调时钟截止时间。 */
+/* 等待到单调时钟截止时间；允许虚假唤醒，应循环检查受 mutex 保护的谓词。 */
 XRT_API xwaitresult xrtCondWaitUntil(
 	xcond* pCond,
 	xmutex* pMutex,
@@ -12843,7 +12846,7 @@ XRT_API xthreadkey* xrtThreadKeyCreate(xthreadkeyproc pDestroy);
 
 
 
-/* 销毁键；调用方必须保证其他线程已经停止访问，失败时键仍然有效。 */
+/* 关闭键；其他线程不得再主动访问，已有线程槽会在退出时延迟释放。 */
 XRT_API bool xrtThreadKeyDestroy(xthreadkey* pKey);
 
 
@@ -20101,7 +20104,8 @@ XRT_API bool xrtWsCloseWrite(
 #if defined(XRT_FEATURE_WEBSOCKET_MESSAGE)
 
 /*
-	初始化默认消息上限、严格文本校验和不允许任何 RSV 位的配置。
+	初始化无累计上限、严格文本校验和不允许任何 RSV 位的流式配置。
+	默认 MaxSize 为 SIZE_MAX；状态机不聚合正文，拥有型上层必须设置实际消息上限。
 	Config 必须是完整可写范围，可以未对齐；无效范围只设置线程错误。
 */
 XRT_API void xrtWsMessageConfigInit(xwsmessageconfig* pConfig);
@@ -21949,6 +21953,9 @@ typedef struct xnetworkerstats {
 	uint64 TimerErrors;
 	uint64 Events;
 	uint64 WaitErrors;
+	uint64 WakeErrors;
+	/* BASIC 以上统计中，停机任务链未在安全代数内收敛的累计次数。 */
+	uint64 ShutdownStalls;
 	/* 最近一次端口等待错误；没有错误时 Code 为 XNET_ERROR_NONE。 */
 	xneterror LastWaitError;
 	int LastWaitSystemCode;
@@ -21976,6 +21983,9 @@ typedef struct xnetenginestats {
 	uint64 TimerErrors;
 	uint64 Events;
 	uint64 WaitErrors;
+	uint64 WakeErrors;
+	/* BASIC 以上统计中，全部 Worker 停机任务链未收敛次数之和。 */
+	uint64 ShutdownStalls;
 	uint64 NodeCacheHits;
 	uint64 NodeCacheMisses;
 	size_t PendingCommands;
@@ -22502,6 +22512,11 @@ XRT_API xnetresult xrtNetSocketSendBatch(xnetsocket Socket,
 
 #if defined(XRT_FEATURE_NET_PORT)
 
+/*
+	端口由创建线程拥有，Watch、提交、取消、等待和销毁只能由拥有线程执行。
+	查询函数以及 Post、Wake 可跨线程调用；调用方仍须保证端口对象存活。
+*/
+
 /* 初始化网络端口默认配置。 */
 XRT_API void xrtNetPortConfigInit(xnetportconfig* pConfig);
 
@@ -22719,7 +22734,10 @@ XRT_API bool xrtNetEngineStart(xnetengine* pEngine);
 
 
 
-/* 排空任务并释放运行资源；外借池块会使清理失败但允许重启后归还。 */
+/*
+	排空任务并释放运行资源。
+	任务链不收敛或仍有外借池块时返回失败，但 Engine 仍进入可重启的停止状态。
+*/
 XRT_API bool xrtNetEngineStop(xnetengine* pEngine);
 
 
@@ -23011,12 +23029,12 @@ XRT_API size_t xrtNetBufSpanCount(const xnetbuf* pBuffer);
 
 
 
-/* 获取最多指定数量的只读 Span。 */
+/* 获取文件区间前最多指定数量的只读 Span。 */
 XRT_API size_t xrtNetBufSpans(const xnetbuf* pBuffer, xnetspan* pSpans, size_t iCapacity);
 
 
 
-/* 获取首个非空连续可读 Span；缓冲为空时清空输出并返回 false。 */
+/* 获取首个内存 Span；缓冲为空或队首为文件区间时清空输出并返回 false。 */
 XRT_API bool xrtNetBufFront(const xnetbuf* pBuffer, xnetspan* pSpan);
 
 
@@ -23071,23 +23089,23 @@ XRT_API bool xrtNetBufMove(xnetbuf* pTarget, xnetbuf* pSource);
 
 
 
-/* 确保指定长度的前缀连续并返回借用 Span。 */
+/* 确保指定长度的内存前缀连续；前缀包含文件区间时失败。 */
 XRT_API bool xrtNetBufPullup(xnetbuf* pBuffer, size_t iSize, xnetspan* pSpan);
 
 
 
-/* 从指定偏移复制最多给定字节，但不消费数据。 */
+/* 从指定偏移复制最多给定字节，遇到文件区间时停止。 */
 XRT_API size_t xrtNetBufPeek(const xnetbuf* pBuffer,
 	size_t iOffset, void* pOutput, size_t iSize);
 
 
 
-/* 复制并消费最多给定字节；活动尾部写预留不阻止消费已提交前缀。 */
+/* 复制并消费最多给定字节；遇到文件区间时停止。 */
 XRT_API size_t xrtNetBufRead(xnetbuf* pBuffer, void* pOutput, size_t iSize);
 
 
 
-/* 从指定偏移查找一个字节，未找到时返回 XRT_NPOS。 */
+/* 从指定偏移查找一个字节，遇到文件区间或未找到时返回 XRT_NPOS。 */
 XRT_API size_t xrtNetBufFind(const xnetbuf* pBuffer, uint8 iByte, size_t iOffset);
 
 
@@ -25451,6 +25469,9 @@ typedef enum xtlscipher {
 	XTLS_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256 = 0xCCA9
 } xtlscipher;
 
+/* TLS_FALLBACK_SCSV 是 ClientHello 中的信号值，不属于可协商密码套件。 */
+#define XTLS_FALLBACK_SCSV UINT16_C(0x5600)
+
 
 
 /* TLS 密码套件使用的摘要算法与密码后端解耦。 */
@@ -26492,6 +26513,11 @@ XRT_API bool xrtTlsRetryGroup(xbytesview Data, uint16* pGroup);
 
 
 
+/* 严格解析 HelloRetryRequest cookie 的 16 位非空字节向量。 */
+XRT_API bool xrtTlsRetryCookie(xbytesview Data, xbytesview* pCookie);
+
+
+
 /* 严格解析一条 ClientHello 正文并发布零拷贝字段视图。 */
 XRT_API bool xrtTlsClientHelloParse(
 	xbytesview Body,
@@ -27027,6 +27053,14 @@ XRT_API bool xrtTlsWriterServerKeyShare(
 XRT_API bool xrtTlsWriterRetryGroup(
 	xtlswriter* pWriter,
 	uint16 iGroup
+);
+
+
+
+/* 追加 HelloRetryRequest 或 ClientHello 使用的非空 cookie 扩展。 */
+XRT_API bool xrtTlsWriterRetryCookie(
+	xtlswriter* pWriter,
+	xbytesview Cookie
 );
 
 
@@ -28625,7 +28659,9 @@ typedef enum xx509crlpolicyflag {
 	X509_CRL_REQUIRE_NUMBER = UINT32_C(0x00000002),
 	X509_CRL_REQUIRE_AUTHORITY_KEY_ID = UINT32_C(0x00000004),
 	X509_CRL_REQUIRE_KEY_IDENTIFIER = UINT32_C(0x00000008),
-	X509_CRL_REQUIRE_KEY_USAGE = UINT32_C(0x00000010)
+	X509_CRL_REQUIRE_KEY_USAGE = UINT32_C(0x00000010),
+	/* 仅用于必须兼容历史基础设施的显式弱算法策略。 */
+	X509_CRL_ALLOW_SHA1 = UINT32_C(0x00000020)
 } xx509crlpolicyflag;
 
 
@@ -28714,7 +28750,9 @@ typedef struct xx509crlset {
 /* 路径策略标志只控制目标证书用途是否必须显式出现。 */
 typedef enum xx509pathflag {
 	X509_PATH_REQUIRE_KEY_USAGE = UINT32_C(0x00000001),
-	X509_PATH_REQUIRE_PURPOSE = UINT32_C(0x00000002)
+	X509_PATH_REQUIRE_PURPOSE = UINT32_C(0x00000002),
+	/* 默认拒绝 SHA-1 路径签名；此标志只为显式 legacy 场景保留。 */
+	X509_PATH_ALLOW_SHA1 = UINT32_C(0x00000004)
 } xx509pathflag;
 
 
@@ -29391,6 +29429,11 @@ XRT_API xx509result xrtX509RevocationResult(
 
 #if defined(XRT_FEATURE_X509_PATH)
 
+/* 初始化当前时间、默认拒绝 SHA-1 的严格路径策略。 */
+XRT_API void xrtX509PathConfigInit(xx509pathconfig* pConfig);
+
+
+
 /* 从一张受信任证书提取名称和公钥；不校验该证书的时间、扩展或自签名。 */
 XRT_API bool xrtX509Anchor(
 	const xx509cert* pCertificate,
@@ -29648,6 +29691,8 @@ typedef struct xtlsverifierconfig {
 	xtlsverifytimeproc Time;
 	xtlsverifyreleaseproc Release;
 	ptr Context;
+	/* 默认 false；只在必须兼容历史证书链时显式允许 SHA-1。 */
+	bool AllowSha1;
 } xtlsverifierconfig;
 
 
@@ -29938,6 +29983,8 @@ typedef struct xtlsclientconfig {
 	const xtlsverifier* Verifier;
 	const xtlsresume* Resume;
 	size_t ResumeLimit;
+	/* 必须接受所给票据；禁止回退完整证书握手。 */
+	bool ResumeOnly;
 } xtlsclientconfig;
 
 
@@ -29951,7 +29998,7 @@ XRT_API void xrtTlsClientConfigInit(xtlsclientconfig* pConfig);
 
 
 
-/* 创建客户端会话并立即排队初始 ClientHello；空上下文会创建默认快照。 */
+/* 创建客户端会话；默认要求 Verifier，无验证器时必须启用 ResumeOnly。 */
 XRT_API xtlssession* xrtTlsClientCreate(
 	const xtlsclientconfig* pConfig,
 	xnetbufpool* pPool
@@ -40178,6 +40225,15 @@ typedef struct xvalueiter {
 
 
 
+/* 三态推进结果显式区分元素、正常结束和迭代错误。 */
+typedef enum xvalueiterresult {
+	XVALUE_ITER_ERROR = -1,
+	XVALUE_ITER_END = 0,
+	XVALUE_ITER_ITEM = 1
+} xvalueiterresult;
+
+
+
 XRT_EXTERN_C_BEGIN
 
 
@@ -40464,6 +40520,15 @@ XRT_API xvalueiter* xrtValueIterRCreate(const xvalue* pValue);
 
 /* 返回下一借用值及其键；键输出不得覆盖迭代器，正常结束返回空指针。 */
 XRT_API xvalue* xrtValueIterNext(xvalueiter* pIterator, xvaluekey* pKey);
+
+
+
+/* 三态推进快照；成功项写入借用值，正常结束不设置错误。 */
+XRT_API xvalueiterresult xrtValueIterAdvance(
+	xvalueiter* pIterator,
+	xvaluekey* pKey,
+	xvalue** ppValue
+);
 
 
 
@@ -51590,10 +51655,10 @@ typedef struct xcookielimits {
 
 #if defined(XHTTP_FEATURE_SET_COOKIE)
 
-/* RFC 10025 用户代理接收算法允许的 name/value 总长度。 */
+/* RFC 6265 用户代理接收算法允许的 name/value 总长度。 */
 #define XSET_COOKIE_MAX_PAIR_BYTES		4096u
 
-/* RFC 10025 用户代理接收算法允许处理的单个属性值长度。 */
+/* RFC 6265 用户代理接收算法允许处理的单个属性值长度。 */
 #define XSET_COOKIE_MAX_ATTRIBUTE_VALUE	1024u
 
 
@@ -51757,18 +51822,18 @@ XRT_API xcookieattributenext xrtSetCookieAttributeNext(
 
 
 
-/* 按 RFC 10025 宽松 cookie-date 算法解析 UTC 时间。 */
+/* 按 RFC 6265 宽松 cookie-date 算法解析 UTC 时间。 */
 XRT_API bool xrtCookieDateParse(xstrview Text, xtime* pTime);
 
 
 
-/* 按 RFC 10025 服务器生成语法严格校验一个 Set-Cookie 字段值。 */
+/* 按 RFC 6265 服务器生成语法严格校验一个 Set-Cookie 字段值。 */
 XRT_API bool xrtSetCookieValidate(xstrview Text);
 
 
 
 /*
-	按 RFC 10025 用户代理接收算法宽松解析 Set-Cookie 字段值。
+	按 RFC 6265 用户代理接收算法宽松解析 Set-Cookie 字段值。
 	无效的单个已知属性被忽略，禁止控制字节和超长 cookie-pair 会使整体失败。
 */
 XRT_API bool xrtSetCookieParse(xstrview Text, xsetcookie* pCookie);
@@ -56056,7 +56121,7 @@ XRT_EXTERN_C_END
 
 #if defined(XHTTP_FEATURE_COOKIE_JAR)
 
-/* RFC 10025 要求用户代理把持久 Cookie 的生存期限制在最多 400 天。 */
+/* RFC 6265 要求用户代理把持久 Cookie 的生存期限制在最多 400 天。 */
 #define XCOOKIE_JAR_MAX_LIFETIME \
 	((xtime)(INT64_C(400) * XRT_TIME_DAY))
 
@@ -56077,8 +56142,11 @@ typedef bool (*xcookiepublicsuffixfn)(ptr pContext, xstrview Domain);
 
 
 
-/* 没有公共后缀回调时，显式允许可跨子域的 Domain Cookie。 */
-#define XCOOKIE_JAR_ALLOW_UNVERIFIED_DOMAIN UINT32_C(0x00000001)
+/*
+ * 高风险显式选项：没有公共后缀回调时仍接受跨子域 Domain Cookie。
+ * 这可能把公共后缀误作 Domain 并形成 supercookie；普通客户端不应启用。
+ */
+#define XCOOKIE_JAR_ALLOW_DOMAIN_WITHOUT_PSL UINT32_C(0x00000001)
 
 
 
@@ -63934,7 +64002,7 @@ XRT_API void xrtWsClientConfigInit(
 /*
 	创建可继续添加自定义 Header 的基础 GET 请求。
 	Url 接受 ws、wss、http 或 https，并映射为 HTTP Client 可执行的 URL；
-	该函数不写入任何 WebSocket 握手管理字段。
+	Url 不得包含 userinfo 或 fragment；该函数不写入任何 WebSocket 握手管理字段。
 */
 XRT_API xhttprequest* xrtWsRequestCreate(
 	xstrview Url
@@ -63944,7 +64012,7 @@ XRT_API xhttprequest* xrtWsRequestCreate(
 
 /*
 	创建 GET WebSocket 请求；Url 接受 ws、wss、http 或 https。
-	Url 不得包含 fragment；资源名中的井号必须编码为 %23。
+	Url 不得包含 userinfo 或 fragment；资源名中的井号必须编码为 %23。
 	配置先复制为局部快照；成功时 Key 写入完整的固定输出。
 */
 XRT_API xhttprequest* xrtWsClientRequestCreate(
@@ -63958,7 +64026,7 @@ XRT_API xhttprequest* xrtWsClientRequestCreate(
 /*
 	克隆自定义 GET 请求并原子替换 WebSocket 管理字段。
 	配置先复制为局部快照；Key 必须覆盖完整固定输出；
-	源请求不得包含 fragment、正文、分帧字段或扩展字段。
+	源请求不得包含 userinfo、fragment、正文、分帧字段或扩展字段。
 */
 XRT_API xhttprequest* xrtWsClientRequestClone(
 	const xhttprequest* pRequest,
@@ -64236,8 +64304,9 @@ XRT_EXTERN_C_END
 
 #if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER) && \
 	(!defined(XWS_FEATURE_WEBSOCKET_SERVER) || \
-	 !defined(XHTTP_FEATURE_HTTP_SERVER_ROUTER))
-	#error "XRT WebSocket server router requires WebSocket server and HTTP server router"
+	 !defined(XHTTP_FEATURE_HTTP_SERVER_ROUTER) || \
+	 !defined(XHTTP_FEATURE_HTTP_ORIGIN))
+	#error "XRT WebSocket server router requires WebSocket server, HTTP server router and HTTP Origin"
 #endif
 
 
@@ -64250,9 +64319,22 @@ typedef enum xwsserverroutererror {
 	XWS_SERVER_ROUTER_ERROR_CONFIG,
 	XWS_SERVER_ROUTER_ERROR_MEMORY,
 	XWS_SERVER_ROUTER_ERROR_ROUTE,
+	XWS_SERVER_ROUTER_ERROR_AUTHORIZATION,
 	XWS_SERVER_ROUTER_ERROR_RESPONSE,
 	XWS_SERVER_ROUTER_ERROR_STATE
 } xwsserverroutererror;
+
+
+
+/*
+	固定路由默认允许原生客户端省略 Origin，但浏览器提供时必须与请求同源。
+	ANY 只适合已经在外层完成来源校验的端点。
+*/
+typedef enum xwsserveroriginpolicy {
+	XWS_SERVER_ORIGIN_SAME_HOST_OR_ABSENT = 0,
+	XWS_SERVER_ORIGIN_SAME_HOST,
+	XWS_SERVER_ORIGIN_ANY
+} xwsserveroriginpolicy;
 
 
 
@@ -64260,6 +64342,21 @@ typedef enum xwsserverroutererror {
 typedef void (*xwsserverrouteopenproc)(
 	xhttpconn* pHttp,
 	xwsconn* pConnection,
+	ptr pData
+);
+
+
+
+/*
+	Origin 策略通过后调用业务授权；返回 false 由路由器统一回复 403。
+	请求、路由参数和握手只在回调期间借用，回调不应修改线程错误。
+*/
+typedef bool (*xwsserverrouteauthorizeproc)(
+	xhttpconn* pHttp,
+	const xhttpserverrequest* pRequest,
+	const xhttprouteparam* pParams,
+	size_t iParamCount,
+	const xwsserverhandshake* pHandshake,
 	ptr pData
 );
 
@@ -64283,6 +64380,8 @@ typedef void (*xwsserverrouterreleaseproc)(ptr pData);
 typedef struct xwsserverrouteconfig {
 	xwsserverconfig Server;
 	xwsconnevents Events;
+	xwsserveroriginpolicy Origin;
+	xwsserverrouteauthorizeproc Authorize;
 	xwsserverrouteopenproc Open;
 	xwsserverrouteerrorproc Error;
 	xwsserverrouterreleaseproc Release;
@@ -64310,7 +64409,7 @@ XRT_API void xrtWsServerRouteConfigInit(
 
 
 /*
-	注册固定 WebSocket 路径；内部处理 OPTIONS、方法拒绝、握手拒绝和 Upgrade。
+	注册固定 WebSocket 路径；内部处理方法、Origin、授权、握手和 Upgrade。
 	成功后 Router 接管一次 Release(Data)，失败时 Data 所有权保持不变。
 	Pattern 和配置内借用视图必须完整且不回绕；固定配置允许未对齐。
 	函数在注册前只读取配置一次，并深复制子协议列表；后续修改调用方配置

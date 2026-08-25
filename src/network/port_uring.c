@@ -54,9 +54,14 @@ extern long syscall(long iNumber, ...);
 #define XRT_NET_URING_PROBE_COUNT 32u
 #define XRT_NET_URING_CONTROL_CANCEL UINT64_C(1)
 #define XRT_NET_URING_SPLICE_F_MOVE 1u
+#define XRT_NET_URING_PIPE_TARGET (1024u * 1024u)
 
 #if !defined(F_GETPIPE_SZ)
 	#define F_GETPIPE_SZ 1032
+#endif
+
+#if !defined(F_SETPIPE_SZ)
+	#define F_SETPIPE_SZ 1031
 #endif
 
 
@@ -237,6 +242,8 @@ struct __xrt_net_uring_operation {
 	bool OperationCompleted;
 	intptr_t File;
 	uint64 FileOffset;
+	size_t FileSize;
+	size_t FileBytes;
 	int PipeRead;
 	int PipeWrite;
 	size_t PipeBytes;
@@ -1029,6 +1036,8 @@ static bool __xrtNetUringPipeOpen(
 			return false;
 		}
 	}
+	/* 内核会按系统上限裁剪；权限或限额失败时继续使用默认容量。 */
+	(void)fcntl(Pipe[1], F_SETPIPE_SZ, XRT_NET_URING_PIPE_TARGET);
 	iCapacity = fcntl(Pipe[0], F_GETPIPE_SZ, 0);
 	if ( iCapacity <= 0 ) {
 		int iCode = (iCapacity < 0) ? errno : EIO;
@@ -1176,6 +1185,7 @@ static __xrt_net_uring_operation* __xrtNetUringOperationCreate(
 	pOperation->User = pSubmit->User;
 	pOperation->File = pSubmit->File;
 	pOperation->FileOffset = pSubmit->FileOffset;
+	pOperation->FileSize = pSubmit->FileSize;
 	pOperation->PipeRead = -1;
 	pOperation->PipeWrite = -1;
 	if ( pSubmit->Type == XNET_PORT_EVENT_SEND_FILE ) {
@@ -1197,8 +1207,7 @@ static __xrt_net_uring_operation* __xrtNetUringOperationCreate(
 			);
 			return NULL;
 		}
-		pOperation->Capacity = pSubmit->FileSize < iPipeCapacity ?
-			pSubmit->FileSize : iPipeCapacity;
+		pOperation->Capacity = iPipeCapacity;
 	}
 	pOperation->NativeAddressSize =
 		(socklen_t)sizeof(pOperation->NativeAddress);
@@ -1492,24 +1501,44 @@ static bool __xrtNetUringPrepare(
 			return true;
 
 		case XNET_PORT_EVENT_SEND_FILE:
+		{
+			size_t iRemaining;
+
+			if ( (pOperation->FileBytes > pOperation->FileSize) ||
+				(pOperation->PipeBytes >
+				 (pOperation->FileSize - pOperation->FileBytes)) ) {
+				return false;
+			}
 			pSQE->Opcode = XRT_NET_URING_OP_SPLICE;
 			pSQE->Offset = UINT64_MAX;
 			pSQE->ReadWriteFlags = XRT_NET_URING_SPLICE_F_MOVE;
 			if ( pOperation->FileOutput ) {
+				if ( (pOperation->PipeBytes == 0) ||
+					(pOperation->PipeBytes > (size_t)UINT32_MAX) ) {
+					return false;
+				}
 				pSQE->Fd = (int)pOperation->Socket->Native;
 				pSQE->Address = UINT64_MAX;
 				pSQE->Length = (uint32)pOperation->PipeBytes;
 				pSQE->Tail.SpliceFdIn = pOperation->PipeRead;
 			} else {
+				iRemaining = pOperation->FileSize -
+					pOperation->FileBytes;
+				if ( iRemaining == 0 ) {
+					return false;
+				}
 				pSQE->Fd = pOperation->PipeWrite;
 				pSQE->Address = pOperation->FileOffset;
-				pSQE->Length = pOperation->Capacity >
-					(size_t)UINT32_MAX ? UINT32_MAX :
-					(uint32)pOperation->Capacity;
+				if ( iRemaining > pOperation->Capacity ) {
+					iRemaining = pOperation->Capacity;
+				}
+				pSQE->Length = iRemaining > (size_t)UINT32_MAX ?
+					UINT32_MAX : (uint32)iRemaining;
 				pSQE->Tail.SpliceFdIn = (int32)pOperation->File;
 			}
 			/* splice_fd_in 位于 SQE 尾部稳定 UAPI 字段。 */
 			return true;
+		}
 
 		case XNET_PORT_EVENT_FILE_READ:
 			pSQE->Opcode = XRT_NET_URING_OP_READV;
@@ -1631,11 +1660,11 @@ static bool __xrtNetUringSubmit(
 
 
 
-/* 文件进入私有管道后，按实际字节数提交管道到 Socket 的第二阶段。 */
-static bool __xrtNetUringFileOutput(
+/* 在私有管道内持续推进完整文件区间，只向上层发布一次终态。 */
+static bool __xrtNetUringFileAdvance(
 	__xrt_net_uring_context* pContext,
 	__xrt_net_uring_operation* pOperation,
-	int32 iInput,
+	int32 iStage,
 	int32* pFinal
 )
 {
@@ -1644,27 +1673,59 @@ static bool __xrtNetUringFileOutput(
 	uint32 iSlot;
 	bool bConsumed;
 
-	if ( (pOperation->Type != XNET_PORT_EVENT_SEND_FILE) ||
-		 pOperation->FileOutput ) {
+	if ( pOperation->Type != XNET_PORT_EVENT_SEND_FILE ) {
+		return false;
+	}
+	if ( (pOperation->FileBytes > pOperation->FileSize) ||
+		(pOperation->PipeBytes >
+		 (pOperation->FileSize - pOperation->FileBytes)) ) {
+		*pFinal = pOperation->FileBytes != 0 ?
+			(int32)pOperation->FileBytes : -EIO;
 		return false;
 	}
 	if ( pOperation->CancelRequested ) {
-		*pFinal = -ECANCELED;
+		*pFinal = pOperation->FileBytes != 0 ?
+			(int32)pOperation->FileBytes : -ECANCELED;
 		return false;
 	}
-	if ( iInput <= 0 ) {
-		*pFinal = (iInput == 0) ? -EIO : iInput;
+	if ( iStage <= 0 ) {
+		*pFinal = pOperation->FileBytes != 0 ?
+			(int32)pOperation->FileBytes :
+			(iStage == 0 ? -EIO : iStage);
 		return false;
 	}
-	pOperation->PipeBytes = (size_t)iInput;
-	pOperation->FileOutput = true;
-	if ( pOperation->PipeWrite >= 0 ) {
-		(void)close(pOperation->PipeWrite);
-		pOperation->PipeWrite = -1;
+	if ( pOperation->FileOutput ) {
+		if ( (size_t)iStage > pOperation->PipeBytes ) {
+			*pFinal = pOperation->FileBytes != 0 ?
+				(int32)pOperation->FileBytes : -EIO;
+			return false;
+		}
+		pOperation->PipeBytes -= (size_t)iStage;
+		pOperation->FileBytes += (size_t)iStage;
+		if ( pOperation->PipeBytes == 0 ) {
+			pOperation->FileOutput = false;
+		}
+	} else {
+		if ( ((size_t)iStage > pOperation->Capacity) ||
+			((size_t)iStage >
+			 (pOperation->FileSize - pOperation->FileBytes)) ) {
+			*pFinal = pOperation->FileBytes != 0 ?
+				(int32)pOperation->FileBytes : -EIO;
+			return false;
+		}
+		pOperation->PipeBytes = (size_t)iStage;
+		pOperation->FileOffset += (uint64)(size_t)iStage;
+		pOperation->FileOutput = true;
+	}
+	if ( (pOperation->FileBytes == pOperation->FileSize) &&
+		(pOperation->PipeBytes == 0) ) {
+		*pFinal = (int32)pOperation->FileBytes;
+		return false;
 	}
 	pSQE = __xrtNetUringSQE(&pContext->Ring, &iTail, &iSlot);
 	if ( (pSQE == NULL) || !__xrtNetUringPrepare(pOperation, pSQE) ) {
-		*pFinal = -EAGAIN;
+		*pFinal = pOperation->FileBytes != 0 ?
+			(int32)pOperation->FileBytes : -EAGAIN;
 		return false;
 	}
 	__xrtNetUringSQECommit(&pContext->Ring, iTail, iSlot);
@@ -1675,7 +1736,8 @@ static bool __xrtNetUringFileOutput(
 		&bConsumed
 	) ) {
 		(void)bConsumed;
-		*pFinal = -errno;
+		*pFinal = pOperation->FileBytes != 0 ?
+			(int32)pOperation->FileBytes : -errno;
 		return false;
 	}
 	return true;
@@ -1993,7 +2055,7 @@ static bool __xrtNetUringDrain(
 				(__xrt_net_uring_operation*)(uintptr_t)pCQE->UserData;
 			int32 iResult = pCQE->Result;
 
-			if ( !bDiscard && __xrtNetUringFileOutput(
+			if ( !bDiscard && __xrtNetUringFileAdvance(
 				pContext,
 				pOperation,
 				iResult,
@@ -2159,13 +2221,15 @@ static xnetresult __xrtNetUringWait(
 				 !xrtDeadlineExpired(Deadline) ) {
 				continue;
 			}
-			return XNET_RESULT_TIMEOUT;
+			return iTimeout == 0 ?
+				XNET_RESULT_OK : XNET_RESULT_TIMEOUT;
 		}
 		if ( iResult < 0 ) {
 			if ( errno == EINTR ) {
 				if ( (Deadline != XRT_DEADLINE_NEVER) &&
 					 xrtDeadlineExpired(Deadline) ) {
-					return XNET_RESULT_TIMEOUT;
+					return iTimeout == 0 ?
+						XNET_RESULT_OK : XNET_RESULT_TIMEOUT;
 				}
 				continue;
 			}

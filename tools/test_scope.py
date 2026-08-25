@@ -135,7 +135,7 @@ class ScopeTest(unittest.TestCase):
 			"xhttp": "deferred",
 			"xws": "deferred",
 			"xregex": "integrated",
-			"xmail": "integrated",
+			"xmail": "deferred",
 			"xssh": "integrated",
 		}
 		for product, state in expected.items():

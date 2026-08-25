@@ -8,6 +8,7 @@
 /* TLS Dial Future 桥接一个受管 TLS Dial 与一个公开 Future。 */
 typedef struct xrt_tls_dial_future {
 	xfuturebridge Bridge;
+	volatile int32 References;
 	xtlsdial* Dial;
 } xrt_tls_dial_future;
 
@@ -76,7 +77,9 @@ static void __xrtTlsDialFutureDone(
 		pFailure = __xrtTlsDialFutureInvalidError();
 	}
 	xrtTlsDialDestroy(pHeld);
-	xrtFree(pContext);
+	if ( xrtRefRelease(&pContext->References) == 0 ) {
+		xrtFree(pContext);
+	}
 	if ( !bReady ) {
 		if ( pStream != NULL ) {
 			(void)xrtTlsStreamAbort(pStream);
@@ -134,6 +137,7 @@ XRT_API xfuture* xrtTlsDialAsync(
 		xrtFree(pContext);
 		return NULL;
 	}
+	pContext->References = 2;
 	pContext->Dial = xrtTlsDial(
 		pEngine,
 		pResolver,
@@ -170,9 +174,15 @@ XRT_API xfuture* xrtTlsDialAsync(
 			xrtSetError(pError);
 			xrtErrorFree(pError);
 		}
+		if ( xrtRefRelease(&pContext->References) == 0 ) {
+			xrtFree(pContext);
+		}
 		return NULL;
 	}
 	(void)xrtFutureBridgeReady(&pContext->Bridge);
+	if ( xrtRefRelease(&pContext->References) == 0 ) {
+		xrtFree(pContext);
+	}
 	return pFuture;
 }
 

@@ -155,17 +155,17 @@ XRT_API bool xrtCondDestroy(xcond* pCond);
 
 
 
-/* 当前线程持有 mutex 时原子释放并等待通知，返回前重新持有 mutex。 */
+/* 当前线程持有 mutex 时原子释放并等待；允许虚假唤醒，必须在谓词循环中调用。 */
 XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex);
 
 
 
-/* 在相对微秒数内等待通知。 */
+/* 在相对微秒数内等待；允许虚假唤醒，超时和成功后都重新持有 mutex。 */
 XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout);
 
 
 
-/* 等待通知到指定单调时钟截止时间。 */
+/* 等待到单调时钟截止时间；允许虚假唤醒，应循环检查受 mutex 保护的谓词。 */
 XRT_API xwaitresult xrtCondWaitUntil(
 	xcond* pCond,
 	xmutex* pMutex,

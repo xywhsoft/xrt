@@ -14,11 +14,13 @@
 - [架构与目录](ARCHITECTURE.md)
 - [代码风格](CODE_STYLE.md)
 - [重构审计记录](REFACTOR.md)
+- [旧版与新版代码及功能对应审计](REFACTOR_CORRESPONDENCE_AUDIT.md)
 - [产品边界与功能准入](SCOPE.md)
 - [功能选择与裁剪](FEATURE_SELECTION.md)
 - [性能基准与发布规则](PERFORMANCE.md)
 - [全库高性能路径评估](PERFORMANCE_AUDIT.md)
 - [HTTP/1.1 与 WebSocket 发布门禁](HTTP_WEBSOCKET_RELEASE.md)
+- [协议模糊测试与语料回流](../fuzz/README.md)
 - [第三方实现与许可证](THIRD_PARTY.md)
 
 ## 基础与数据

@@ -89,6 +89,8 @@ typedef struct xtlsverifierconfig {
 	xtlsverifytimeproc Time;
 	xtlsverifyreleaseproc Release;
 	ptr Context;
+	/* 默认 false；只在必须兼容历史证书链时显式允许 SHA-1。 */
+	bool AllowSha1;
 } xtlsverifierconfig;
 
 

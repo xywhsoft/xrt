@@ -208,7 +208,19 @@ jobs:
 
       - name: Run protocol Clang fuzz gates
         if: matrix.runner == 'ubuntu-latest'
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: python tools/test_protocol_fuzz.py --runs 20000
+
+      - name: Preserve protocol fuzz failure artifacts
+        if: failure() && matrix.runner == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: protocol-fuzz-failures
+          path: out/fuzz/linux/*/artifacts/*
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Run coroutine sanitizer gate
         if: matrix.runner == 'ubuntu-latest'

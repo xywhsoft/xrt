@@ -8,7 +8,7 @@ static bool testRegexAttempt(xstrview Pattern, xstrview Text)
 {
 	str sEscaped = xrtRegexEscape(Pattern, NULL);
 	xregex* pRegex = sEscaped != NULL ?
-		xrtRegexCompile(xrtStrViewN(sEscaped, Pattern.Size)) : NULL;
+		xrtRegexCompile((xstrview){ sEscaped, Pattern.Size }) : NULL;
 	xregexmatcher* pMatcher = NULL;
 	bool bComplete = false;
 

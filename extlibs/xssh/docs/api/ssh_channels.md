@@ -26,6 +26,12 @@
 channel，避免便利层静默丢失应用可观察状态。连接关闭或策略拒绝需要放弃数据时使用显式
 `xrtSshChannelsDiscard`。迭代期间不得创建或删除 channel。
 
+组合客户端或服务器可通过 `xrtSshChannelsOnRemoved` 安装唯一的
+`xsshchannelsremovedproc` 删除观察器。观察器只在 `Remove` 或 `Discard` 已成功后同步收到失效的
+本端 id，不会收到初始化回滚或集合整体清理通知。该钩子用于关闭外层 future、任务或索引，
+不向底层集合引入这些模块的依赖。回调不得继续访问已经删除的 channel；需要保留的信息必须在
+删除前复制到外层状态。
+
 ## 组合
 
 ```c

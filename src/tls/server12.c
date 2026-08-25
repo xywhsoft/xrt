@@ -9,6 +9,28 @@
 	(4u + XTLS_SERVER12_PUBLIC_MAX_SIZE)
 #define XTLS_SERVER12_SIGN_CONTENT_MAX_SIZE \
 	((2u * XTLS12_RANDOM_SIZE) + XTLS_SERVER12_PARAMETER_MAX_SIZE)
+
+static const uint8 __xrtTls12ServerDowngrade13[] = {
+	0x44, 0x4F, 0x57, 0x4E, 0x47, 0x52, 0x44, 0x01
+};
+
+
+
+/* 判断服务端策略是否也具备 TLS 1.3 能力。 */
+static bool __xrtTlsServer12Supports13(const xtlssession* pSession)
+{
+	const xtlspolicy* pPolicy = xrtTlsContextPolicy(pSession->Context);
+
+	if ( pPolicy == NULL ) {
+		return false;
+	}
+	for ( size_t i = 0; i < pPolicy->VersionCount; i++ ) {
+		if ( pPolicy->Versions[i] == XTLS_VERSION_13 ) {
+			return true;
+		}
+	}
+	return false;
+}
 #define XTLS_SERVER12_EXTENSION_MAX_SIZE 272u
 #define XTLS_SERVER12_FINISHED_MESSAGE_SIZE \
 	(XTLS_HANDSHAKE_HEADER_SIZE + XTLS12_FINISHED_SIZE)
@@ -289,6 +311,14 @@ xtlsresult __xrtTlsServer12FirstFlight(
 			sizeof(ExtensionStorage), &Extensions
 		) ) {
 		goto cleanup;
+	}
+	if ( __xrtTlsServer12Supports13(pSession) ) {
+		memcpy(
+			ServerRandom + sizeof(ServerRandom) -
+				sizeof(__xrtTls12ServerDowngrade13),
+			__xrtTls12ServerDowngrade13,
+			sizeof(__xrtTls12ServerDowngrade13)
+		);
 	}
 
 	/* ServerHello 不发布 TLS 1.2 会话恢复标识，只承诺完整 EMS 握手。 */

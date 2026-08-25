@@ -53,16 +53,61 @@ static void testMailDateRoundtrip(void)
 		"mail date canonical output mismatch");
 	testRequire(xrtMailDateParse(
 		testMailDateView(arrOutput, iSize),
+		XMAIL_DATE_STRICT,
 		&iParsed,
 		&iOffset
 	) && (iParsed == iTime) && (iOffset == (8 * 60 * 60)),
 		"mail date roundtrip mismatch");
 	testRequire(xrtMailDateParse(
 		XRT_STR_LITERAL("2 Jan 2024 03:04 +0800"),
+		XMAIL_DATE_STRICT,
 		&iParsed,
 		&iOffset
 	) && (iOffset == (8 * 60 * 60)),
 		"mail date optional weekday or seconds rejected");
+}
+
+
+
+/* 兼容模式显式接受旧年份、命名时区和军用时区。 */
+static void testMailDateRelaxed(void)
+{
+	xtime iNamed;
+	xtime iNumeric;
+	int iOffset;
+
+	testRequire(xrtMailDateParse(
+		XRT_STR_LITERAL("Fri, 21 Nov 97 09:55:06 GMT"),
+		XMAIL_DATE_RELAXED,
+		&iNamed,
+		&iOffset
+	) && (iOffset == 0), "obsolete named mail zone was rejected");
+	testRequire(xrtMailDateParse(
+		XRT_STR_LITERAL("Fri, 21 Nov 1997 09:55:06 +0000"),
+		XMAIL_DATE_STRICT,
+		&iNumeric,
+		&iOffset
+	) && (iNamed == iNumeric), "obsolete two-digit year mapping mismatch");
+	testRequire(xrtMailDateParse(
+		XRT_STR_LITERAL("21 Nov 997 10:55 A"),
+		XMAIL_DATE_RELAXED,
+		&iNamed,
+		&iOffset
+	) && (iOffset == 3600), "obsolete military mail zone was rejected");
+	xrtClearError();
+	testRequire(!xrtMailDateParse(
+		XRT_STR_LITERAL("21 Nov 97 09:55:06 GMT"),
+		XMAIL_DATE_STRICT,
+		&iNamed,
+		&iOffset
+	), "strict mail date accepted obsolete syntax");
+	xrtClearError();
+	testRequire(!xrtMailDateParse(
+		XRT_STR_LITERAL("21 Nov 97 09:55:06 J"),
+		XMAIL_DATE_RELAXED,
+		&iNamed,
+		&iOffset
+	), "mail date accepted undefined military zone J");
 }
 
 
@@ -94,6 +139,7 @@ static void testMailDateErrors(void)
 		"mail date short buffer published partial output");
 	testRequire(!xrtMailDateParse(
 		XRT_STR_LITERAL("Mon, 02 Jan 2024 03:04:05 +0800"),
+		XMAIL_DATE_STRICT,
 		&iParsed,
 		&iOffset
 	) && (iParsed == 47) && (iOffset == 59),
@@ -106,6 +152,7 @@ static void testMailDateErrors(void)
 int main(void)
 {
 	testMailDateRoundtrip();
+	testMailDateRelaxed();
 	testMailDateErrors();
 	return 0;
 }

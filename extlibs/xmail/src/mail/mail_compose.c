@@ -336,6 +336,7 @@ static bool __xrtMailComposeValid(
 	}
 	if ( (pMessage->Date.Size != 0) && !xrtMailDateParse(
 		pMessage->Date,
+		XMAIL_DATE_STRICT,
 		&iDate,
 		&iOffset
 	) ) {

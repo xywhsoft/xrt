@@ -19,6 +19,7 @@ typedef struct xrt_task_net_data {
 /* 延迟任务桥接 Engine Timer、任务作业与协作取消监听。 */
 typedef struct xrt_task_net_timer {
 	xfuturebridge Bridge;
+	volatile int32 References;
 	xrt_task_job* Job;
 	xnetengine* Engine;
 	uint64 Timer;
@@ -192,7 +193,9 @@ static void __xrtTaskNetTimerDone(
 		__xrtTaskNetReject(pJob);
 	}
 	xrtErrorFree(pError);
-	xrtFree(pTimer);
+	if ( xrtRefRelease(&pTimer->References) == 0 ) {
+		xrtFree(pTimer);
+	}
 }
 
 
@@ -227,6 +230,7 @@ static xfuture* __xrtTaskNetSchedule(
 	}
 	pTimer->Job = pJob;
 	pTimer->Engine = pEngine;
+	pTimer->References = 2;
 	(void)xrtFutureBridgeInit(&pTimer->Bridge, pJob->Promise);
 	pTimer->Timer = xrtNetEngineSchedule(
 		pEngine,
@@ -254,9 +258,15 @@ static xfuture* __xrtTaskNetSchedule(
 		} else {
 			__xrtErrorSetInternal();
 		}
+		if ( xrtRefRelease(&pTimer->References) == 0 ) {
+			xrtFree(pTimer);
+		}
 		return NULL;
 	}
 	(void)xrtFutureBridgeReady(&pTimer->Bridge);
+	if ( xrtRefRelease(&pTimer->References) == 0 ) {
+		xrtFree(pTimer);
+	}
 	return pFuture;
 }
 

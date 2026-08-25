@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [tls.md](tls.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `265` 个函数、`241` 个常量或宏、
+当前登记 `267` 个函数、`242` 个常量或宏、
 `101` 个公共类型。
 
 ## `include/xrt/tls.h`
 
 [查看带契约注释的公共头](../../include/xrt/tls.h)
 
-### 函数 (138)
+### 函数 (140)
 
 - `xrtTls12CertificateRequestEncode`
 - `xrtTls12CertificateRequestParse`
@@ -118,6 +118,7 @@
 - `xrtTlsRecordName`
 - `xrtTlsRecordParse`
 - `xrtTlsRecordSize`
+- `xrtTlsRetryCookie`
 - `xrtTlsRetryGroup`
 - `xrtTlsServerHelloEncode`
 - `xrtTlsServerHelloParse`
@@ -147,12 +148,13 @@
 - `xrtTlsWriterProtocols`
 - `xrtTlsWriterPskModes`
 - `xrtTlsWriterReset`
+- `xrtTlsWriterRetryCookie`
 - `xrtTlsWriterRetryGroup`
 - `xrtTlsWriterServerKeyShare`
 - `xrtTlsWriterServerPsk`
 - `xrtTlsWriterServerVersion`
 
-### 常量与宏 (199)
+### 常量与宏 (200)
 
 - `XTLS_AEAD_AES_GCM`
 - `XTLS_AEAD_CHACHA20_POLY1305`
@@ -265,6 +267,7 @@
 - `XTLS_EXTENSION_SUPPORTED_GROUPS`
 - `XTLS_EXTENSION_SUPPORTED_VERSIONS`
 - `XTLS_EXTENSION_USE_SRTP`
+- `XTLS_FALLBACK_SCSV`
 - `XTLS_FEED_LIMIT_DEFAULT`
 - `XTLS_GROUP_FFDHE2048`
 - `XTLS_GROUP_FFDHE3072`

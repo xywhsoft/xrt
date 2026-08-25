@@ -173,6 +173,278 @@ static bool __xrtTlsServerSignature(
 
 
 
+/* TLS 只支持 1.2/1.3，因此可直接判定 Fallback SCSV 是否不恰当。 */
+static bool __xrtTlsServerFallback(
+	const xtlspolicy* pPolicy,
+	const xtlsclienthello* pHello
+)
+{
+	xtlsextension Extension;
+	xtlsids Versions;
+	xtlsitemresult Result;
+	bool bServer13 = false;
+	bool bClient13 = false;
+
+	if ( !xrtTlsIdsContain(
+		&pHello->CipherSuites, XTLS_FALLBACK_SCSV
+	) ) {
+		return true;
+	}
+	for ( size_t i = 0; i < pPolicy->VersionCount; i++ ) {
+		if ( pPolicy->Versions[i] == XTLS_VERSION_13 ) {
+			bServer13 = true;
+		}
+	}
+	Result = xrtTlsExtensionsFind(
+		pHello->Extensions,
+		XTLS_EXTENSION_SUPPORTED_VERSIONS,
+		&Extension
+	);
+	if ( Result == XTLS_ITEM_ERROR ) {
+		return false;
+	}
+	if ( Result == XTLS_ITEM_VALUE ) {
+		if ( !xrtTlsClientVersions(Extension.Data, &Versions) ) {
+			return false;
+		}
+		bClient13 = xrtTlsIdsContain(&Versions, XTLS_VERSION_13);
+	}
+	if ( bServer13 && !bClient13 ) {
+		return __xrtTlsServerError(
+			XERR_PROTOCOL, XTLS_ERROR_VERSION,
+			"select-server-flight",
+			"TLS client sent an inappropriate fallback signal"
+		);
+	}
+	return true;
+}
+
+
+
+/* 0-RTT 必须在具备反重放策略前保持显式 fail-closed。 */
+static bool __xrtTlsServerEarlyData(const xtlsclienthello* pHello)
+{
+	xtlsextension Extension;
+	xtlsitemresult Result = xrtTlsExtensionsFind(
+		pHello->Extensions, XTLS_EXTENSION_EARLY_DATA, &Extension
+	);
+
+	if ( Result == XTLS_ITEM_ERROR ) {
+		return false;
+	}
+	if ( Result == XTLS_ITEM_VALUE ) {
+		return __xrtTlsServerError(
+			XERR_UNSUPPORTED, XTLS_ERROR_EXTENSION,
+			"select-server-flight",
+			"TLS early data is not enabled without an anti-replay policy"
+		);
+	}
+	return true;
+}
+
+
+
+/* 比较两个借用字节视图。 */
+static bool __xrtTlsServerViewEqual(xbytesview Left, xbytesview Right)
+{
+	return (Left.Size == Right.Size) &&
+		((Left.Size == 0) ||
+		 (memcmp(Left.Data, Right.Data, Left.Size) == 0));
+}
+
+
+
+#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
+
+/* HRR 后 PSK 身份和 binder 布局必须稳定，年龄和 binder 内容允许更新。 */
+static bool __xrtTlsServerRetryPsksEqual(
+	xbytesview First,
+	xbytesview Second
+)
+{
+	xtlspskcursor Left;
+	xtlspskcursor Right;
+	xtlspsk LeftPsk;
+	xtlspsk RightPsk;
+	xtlsitemresult LeftResult;
+	xtlsitemresult RightResult;
+
+	if ( !xrtTlsClientPsks(First, &Left) ||
+		!xrtTlsClientPsks(Second, &Right) ) {
+		return false;
+	}
+	do {
+		LeftResult = xrtTlsPsksRead(&Left, &LeftPsk);
+		RightResult = xrtTlsPsksRead(&Right, &RightPsk);
+		if ( LeftResult != RightResult ) {
+			return false;
+		}
+		if ( LeftResult == XTLS_ITEM_VALUE ) {
+			if ( !__xrtTlsServerViewEqual(
+				LeftPsk.Identity, RightPsk.Identity
+			) || (LeftPsk.Binder.Size != RightPsk.Binder.Size) ) {
+				return false;
+			}
+		}
+	} while ( LeftResult == XTLS_ITEM_VALUE );
+	return LeftResult == XTLS_ITEM_DONE;
+}
+
+#endif
+
+
+
+/* 校验第二个 ClientHello 只包含 RFC 8446 允许的 HRR 后变化。 */
+static bool __xrtTlsServerRetryClientHello(
+	const xtlsserverstate* pState,
+	const xtlsclienthello* pSecond
+)
+{
+	xtlshandshake Message;
+	xtlsclienthello First;
+	xtlsextensioncursor Cursor;
+	xtlsextension Extension;
+	xtlsitemresult Result;
+
+	if ( (pState->RetryClientHello == NULL) ||
+		(xrtTlsHandshakeParse(
+			(xbytesview) {
+				pState->RetryClientHello,
+				pState->RetryClientHelloSize
+			}, &Message, NULL
+		) != XTLS_OK) ||
+		(Message.Type != XTLS_HANDSHAKE_CLIENT_HELLO) ||
+		!xrtTlsClientHelloParse(Message.Body, &First) ) {
+		return __xrtTlsServerError(
+			XERR_STATE, XTLS_ERROR_HANDSHAKE,
+			"select-server-flight",
+			"TLS server retry ClientHello state is unavailable"
+		);
+	}
+	if ( (First.LegacyVersion != pSecond->LegacyVersion) ||
+		!__xrtTlsServerViewEqual(First.Random, pSecond->Random) ||
+		!__xrtTlsServerViewEqual(First.SessionId, pSecond->SessionId) ||
+		!__xrtTlsServerViewEqual(
+			First.CipherSuites.Data, pSecond->CipherSuites.Data
+		) || !__xrtTlsServerViewEqual(
+			First.CompressionMethods, pSecond->CompressionMethods
+		) ) {
+		return __xrtTlsServerError(
+			XERR_PROTOCOL, XTLS_ERROR_HANDSHAKE,
+			"select-server-flight",
+			"TLS second ClientHello changed a fixed field"
+		);
+	}
+	if ( !xrtTlsExtensionsInit(&Cursor, First.Extensions) ) {
+		return false;
+	}
+	while ( (Result = xrtTlsExtensionsRead(
+		&Cursor, &Extension
+	)) == XTLS_ITEM_VALUE ) {
+		xtlsextension Current;
+		xtlsitemresult Found;
+
+		if ( (Extension.Type == XTLS_EXTENSION_KEY_SHARE) ||
+			(Extension.Type == XTLS_EXTENSION_EARLY_DATA) ) {
+			continue;
+		}
+		if ( Extension.Type == XTLS_EXTENSION_COOKIE ) {
+			return __xrtTlsServerError(
+				XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+				"select-server-flight",
+				"TLS first ClientHello unexpectedly contains a cookie"
+			);
+		}
+		Found = xrtTlsExtensionsFind(
+			pSecond->Extensions, Extension.Type, &Current
+		);
+		if ( Found != XTLS_ITEM_VALUE ) {
+			return __xrtTlsServerError(
+				XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+				"select-server-flight",
+				"TLS second ClientHello removed a stable extension"
+			);
+		}
+		#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
+			if ( Extension.Type == XTLS_EXTENSION_PRE_SHARED_KEY ) {
+				if ( !__xrtTlsServerRetryPsksEqual(
+					Extension.Data, Current.Data
+				) ) {
+					return __xrtTlsServerError(
+						XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+						"select-server-flight",
+						"TLS second ClientHello changed its PSK identities"
+					);
+				}
+				continue;
+			}
+		#endif
+		if ( !__xrtTlsServerViewEqual(
+			Extension.Data, Current.Data
+		) ) {
+			return __xrtTlsServerError(
+				XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+				"select-server-flight",
+				"TLS second ClientHello changed a stable extension value"
+			);
+		}
+	}
+	if ( Result != XTLS_ITEM_DONE ) {
+		return false;
+	}
+	if ( !xrtTlsExtensionsInit(&Cursor, pSecond->Extensions) ) {
+		return false;
+	}
+	while ( (Result = xrtTlsExtensionsRead(
+		&Cursor, &Extension
+	)) == XTLS_ITEM_VALUE ) {
+		if ( Extension.Type == XTLS_EXTENSION_KEY_SHARE ) {
+			xtlskeysharecursor Shares;
+			xtlskeyshare Share;
+
+			if ( !xrtTlsClientKeyShares(Extension.Data, &Shares) ||
+				(xrtTlsKeySharesRead(
+					&Shares, &Share
+				) != XTLS_ITEM_VALUE) ||
+				(Share.Group != pState->RetryGroup) ||
+				(xrtTlsKeySharesRead(
+					&Shares, &Share
+				) != XTLS_ITEM_DONE) ) {
+				return __xrtTlsServerError(
+					XERR_PROTOCOL, XTLS_ERROR_KEY_EXCHANGE,
+					"select-server-flight",
+					"TLS second ClientHello has an invalid retry key share"
+				);
+			}
+			continue;
+		}
+		if ( (Extension.Type == XTLS_EXTENSION_COOKIE) ||
+			(Extension.Type == XTLS_EXTENSION_EARLY_DATA) ) {
+			return __xrtTlsServerError(
+				XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+				"select-server-flight",
+				"TLS second ClientHello added a forbidden extension"
+			);
+		}
+		{
+			xtlsextension Original;
+
+			if ( xrtTlsExtensionsFind(
+				First.Extensions, Extension.Type, &Original
+			) != XTLS_ITEM_VALUE ) {
+				return __xrtTlsServerError(
+					XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+					"select-server-flight",
+					"TLS second ClientHello added an extension"
+				);
+			}
+		}
+	}
+	return Result == XTLS_ITEM_DONE;
+}
+
+
+
 /* 严格提取 ClientHello 并完成所有服务端策略选择。 */
 static bool __xrtTlsServerSelect(
 	const xtlssession* pSession,
@@ -201,6 +473,16 @@ static bool __xrtTlsServerSelect(
 	pSelection->Protocol = XTLS_SERVER_PROTOCOL_NONE;
 	if ( (pPolicy == NULL) || !xrtTlsClientHelloParse(
 		pMessage->Body, &pSelection->Hello
+	) ) {
+		return false;
+	}
+	if ( !__xrtTlsServerFallback(
+		pPolicy, &pSelection->Hello
+	) || !__xrtTlsServerEarlyData(&pSelection->Hello) ) {
+		return false;
+	}
+	if ( pState->RetrySeen && !__xrtTlsServerRetryClientHello(
+		pState, &pSelection->Hello
 	) ) {
 		return false;
 	}
@@ -300,6 +582,15 @@ static bool __xrtTlsServerSelect(
 			"TLS client and server have no usable cipher for the selected version"
 		);
 	}
+	if ( pState->RetrySeen &&
+		((Version != XTLS_VERSION_13) ||
+		 (pSelection->Cipher != pState->RetryCipher)) ) {
+		return __xrtTlsServerError(
+			XERR_PROTOCOL, XTLS_ERROR_NEGOTIATION,
+			"select-server-flight",
+			"TLS second ClientHello changed the retry negotiation"
+		);
+	}
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		if ( (Version == XTLS_VERSION_13) &&
 			!__xrtTlsServerResumeSelect(
@@ -381,14 +672,27 @@ static bool __xrtTlsServerSelect(
 		);
 	}
 	if ( KeyShare.Retry ) {
-		return __xrtTlsServerError(
-			XERR_UNSUPPORTED, XTLS_ERROR_KEY_EXCHANGE,
-			"select-server-flight",
-			"TLS server HelloRetryRequest is not enabled"
-		);
+		if ( pState->RetrySeen ) {
+			return __xrtTlsServerError(
+				XERR_PROTOCOL, XTLS_ERROR_KEY_EXCHANGE,
+				"select-server-flight",
+				"TLS second ClientHello requested another retry"
+			);
+		}
+		pSelection->Group = KeyShare.Share.Group;
+		pSelection->Retry = true;
+		return true;
 	}
 	pSelection->Share = KeyShare.Share;
 	pSelection->Group = KeyShare.Share.Group;
+	if ( pState->RetrySeen &&
+		(pSelection->Group != pState->RetryGroup) ) {
+		return __xrtTlsServerError(
+			XERR_PROTOCOL, XTLS_ERROR_KEY_EXCHANGE,
+			"select-server-flight",
+			"TLS second ClientHello used the wrong retry group"
+		);
+	}
 	return true;
 }
 
@@ -513,9 +817,137 @@ static bool __xrtTlsServerNameCopy(
 
 
 
+/* 构建并提交一次无 cookie 的 HelloRetryRequest。 */
+static bool __xrtTlsServerRetryFlight(
+	xtlssession* pSession,
+	xtlsserverstate* pState,
+	const xtlshandshake* pClientHello,
+	const xtlsserverselection* pSelection
+)
+{
+	const xtlscipherinfo* pCipher = xrtTlsCipherInfo(
+		pSelection->Cipher
+	);
+	xtlstranscript Transcript;
+	xtlswriter Writer;
+	xtlsserverhello Hello;
+	bytes pExtensions = NULL;
+	bytes pHello = NULL;
+	bytes pSaved = NULL;
+	xbytesview Encoded;
+	size_t iBodySize;
+	size_t iMessageSize;
+	bool bResult = false;
+
+	memset(&Transcript, 0, sizeof(Transcript));
+	memset(&Hello, 0, sizeof(Hello));
+	if ( pState->RetrySeen || (pCipher == NULL) ||
+		(pCipher->Version != XTLS_VERSION_13) ||
+		!xrtTlsGroupAvailable(pSelection->Group) ) {
+		return __xrtTlsServerError(
+			XERR_PROTOCOL, XTLS_ERROR_HANDSHAKE,
+			"build-hello-retry-request",
+			"TLS server retry selection is invalid"
+		);
+	}
+	pExtensions = (bytes)xrtTempAlloc(
+		&pState->HandshakeArena, 12u
+	);
+	if ( pExtensions == NULL ) {
+		(void)__xrtTlsServerCause(
+			"build-hello-retry-request",
+			"TLS HelloRetryRequest extension allocation failed"
+		);
+		goto cleanup;
+	}
+	if ( !xrtTlsWriterInit(&Writer, pExtensions, 12u) ||
+		!xrtTlsWriterServerVersion(&Writer, XTLS_VERSION_13) ||
+		!xrtTlsWriterRetryGroup(&Writer, pSelection->Group) ||
+		(Writer.Size != 12u) ) {
+		goto cleanup;
+	}
+	Hello.LegacyVersion = XTLS_VERSION_12;
+	Hello.Random = __xrtTlsHelloRetryRandom();
+	Hello.SessionId = pSelection->Hello.SessionId;
+	Hello.CipherSuite = (uint16)pSelection->Cipher;
+	Hello.Extensions = xrtTlsWriterData(&Writer);
+	Hello.Retry = true;
+	iBodySize = xrtTlsServerHelloSize(&Hello);
+	iMessageSize = xrtTlsHandshakeSize(iBodySize);
+	if ( (iBodySize == 0) || (iMessageSize == 0) ||
+		!__xrtTlsServerHandshakeLimit(
+			pSession, iMessageSize,
+			"TLS HelloRetryRequest exceeds the configured handshake limit"
+		) ) {
+		goto cleanup;
+	}
+	pHello = (bytes)xrtTempAlloc(
+		&pState->HandshakeArena, iMessageSize
+	);
+	if ( pHello == NULL ) {
+		(void)__xrtTlsServerCause(
+			"build-hello-retry-request",
+			"TLS HelloRetryRequest allocation failed"
+		);
+		goto cleanup;
+	}
+	if ( !xrtTlsServerHelloEncode(
+		&Hello, pHello + XTLS_HANDSHAKE_HEADER_SIZE, iBodySize
+	) || !__xrtTlsServerHandshake(
+		XTLS_HANDSHAKE_SERVER_HELLO, pHello, iMessageSize
+	) ) {
+		goto cleanup;
+	}
+	Encoded.Data = pClientHello->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE;
+	Encoded.Size = pClientHello->EncodedSize;
+	pSaved = (bytes)xrtMalloc(Encoded.Size);
+	if ( pSaved == NULL ) {
+		(void)__xrtTlsServerCause(
+			"build-hello-retry-request",
+			"TLS first ClientHello retention failed"
+		);
+		goto cleanup;
+	}
+	memcpy(pSaved, Encoded.Data, Encoded.Size);
+	if ( !__xrtTlsTranscriptInit(
+		&Transcript, __xrtTlsHash(pCipher->Hash)
+	) || !__xrtTlsTranscriptUpdate(&Transcript, Encoded) ||
+		!__xrtTlsTranscriptRetry(&Transcript) ||
+		!__xrtTlsTranscriptUpdate(
+			&Transcript, (xbytesview) { pHello, iMessageSize }
+		) || (__xrtTlsSessionRecordPlain(
+			pSession, XTLS_RECORD_HANDSHAKE, XTLS_VERSION_12,
+			(xbytesview) { pHello, iMessageSize }
+		) != XTLS_OK) ) {
+		goto cleanup;
+	}
+	__xrtTlsTranscriptClear(&pState->Transcript);
+	pState->Transcript = Transcript;
+	memset(&Transcript, 0, sizeof(Transcript));
+	pState->RetryClientHello = pSaved;
+	pState->RetryClientHelloSize = Encoded.Size;
+	pSaved = NULL;
+	pState->RetryCipher = pSelection->Cipher;
+	pState->RetryGroup = pSelection->Group;
+	pState->RetrySeen = true;
+	pSession->Wait = XTLS_WAIT_INPUT | XTLS_WAIT_OUTPUT;
+	bResult = true;
+
+cleanup:
+	__xrtTlsTranscriptClear(&Transcript);
+	if ( pSaved != NULL ) {
+		xrtSecureZero(pSaved, Encoded.Size);
+		xrtFree(pSaved);
+	}
+	return bResult;
+}
+
+
+
 /* 构建普通 ServerHello 并派生双向握手 epoch。 */
 static bool __xrtTlsServerHelloFlight(
 	const xtlssession* pSession,
+	const xtlsserverstate* pState,
 	const xtlsserverselection* pSelection,
 	const xtlshandshake* pClientHello,
 	xtemparena* pArena,
@@ -651,8 +1083,23 @@ static bool __xrtTlsServerHelloFlight(
 		goto cleanup;
 	}
 	Hash = __xrtTlsHash(pCipher->Hash);
-	if ( !__xrtTlsTranscriptInit(&pFlight->Transcript, Hash) ||
-		!__xrtTlsTranscriptUpdate(
+	if ( pState->RetrySeen ) {
+		if ( !pState->Transcript.Ready ||
+			(pState->Transcript.Hash != Hash) ) {
+			(void)__xrtTlsServerError(
+				XERR_STATE, XTLS_ERROR_TRANSCRIPT,
+				"build-server-flight",
+				"TLS server retry transcript is unavailable"
+			);
+			goto cleanup;
+		}
+		pFlight->Transcript = pState->Transcript;
+	} else if ( !__xrtTlsTranscriptInit(
+		&pFlight->Transcript, Hash
+	) ) {
+		goto cleanup;
+	}
+	if ( !__xrtTlsTranscriptUpdate(
 			&pFlight->Transcript,
 			(xbytesview) {
 				pClientHello->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE,
@@ -1173,6 +1620,15 @@ static void __xrtTlsServerFlightCommit(
 	pState->Cipher = pFlight->Cipher;
 	pState->Signature = pFlight->Signature;
 	pState->Step = XTLS_SERVER_WAIT_CLIENT_FINISHED;
+	if ( pState->RetryClientHello != NULL ) {
+		xrtSecureZero(
+			pState->RetryClientHello, pState->RetryClientHelloSize
+		);
+		xrtFree(pState->RetryClientHello);
+		pState->RetryClientHello = NULL;
+		pState->RetryClientHelloSize = 0;
+	}
+	pState->RetrySeen = false;
 	pSession->Version = XTLS_VERSION_13;
 	pSession->Cipher = pFlight->Cipher;
 
@@ -1240,10 +1696,16 @@ xtlsresult __xrtTlsServerFirstFlight(
 		);
 		goto cleanup;
 	}
+	if ( Selection.Retry ) {
+		Result = __xrtTlsServerRetryFlight(
+			pSession, pState, pMessage, &Selection
+		) ? XTLS_OK : XTLS_ERROR;
+		goto cleanup;
+	}
 	Flight.Protocol = Selection.Protocol;
 	if ( !__xrtTlsServerNameCopy(&Selection, &Flight) ||
 		!__xrtTlsServerHelloFlight(
-			pSession, &Selection, pMessage,
+			pSession, pState, &Selection, pMessage,
 			&pState->HandshakeArena, &Flight,
 			&pServerHello, &iServerHello, &HandshakeWrite,
 			HandshakeSecret, ServerHandshake
@@ -1274,12 +1736,14 @@ xtlsresult __xrtTlsServerFirstFlight(
 	Result = XTLS_OK;
 
 cleanup:
-	pState->Select = NULL;
-	pState->SelectContext = NULL;
-	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
-		pState->Resume = NULL;
-		pState->ResumeContext = NULL;
-	#endif
+	if ( (Result == XTLS_ERROR) || !pState->RetrySeen ) {
+		pState->Select = NULL;
+		pState->SelectContext = NULL;
+		#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
+			pState->Resume = NULL;
+			pState->ResumeContext = NULL;
+		#endif
+	}
 	__xrtTlsRecordKeyClear(&HandshakeWrite);
 	__xrtTlsServerSelectionClear(&Selection);
 	__xrtTlsServerFlightClear(&Flight);

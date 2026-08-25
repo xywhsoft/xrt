@@ -1470,7 +1470,8 @@ static xnetresult __xrtNetIOCPWait(xnetport* pPort,
 			if ( iSystemCode == WAIT_TIMEOUT ) {
 				*pCount = iCount;
 				return (iCount == 0) ?
-					XNET_RESULT_TIMEOUT : XNET_RESULT_OK;
+					(iTimeout == 0 ? XNET_RESULT_OK :
+					 XNET_RESULT_TIMEOUT) : XNET_RESULT_OK;
 			}
 			__xrtNetSetError(XERR_IO, XNET_ERROR_PORT_WAIT,
 				"wait", "waiting on IOCP failed", iSystemCode);

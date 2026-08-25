@@ -73,6 +73,10 @@ static test_tls_client_alloc TestTlsClientAlloc = {
 
 
 
+static xtlsverifier* testTlsClientVerifier(void);
+
+
+
 /* 统计底层分配，并在目标序号注入一次 OOM。 */
 static ptr testTlsClientAlloc(ptr pContext, size_t iSize)
 {
@@ -393,24 +397,34 @@ static xtlsresume* testTlsClientServerFixtureInitResume(
 )
 {
 	xtlsresume* pResume = testTlsClientServerResume(pSecret);
+	xtlsverifier* pVerifier;
 
 	testRequire(pResume != NULL,
 		"TLS resumed fixture object creation failed");
+	pVerifier = testTlsClientVerifier();
+	testRequire(pVerifier != NULL,
+		"TLS resumed fixture verifier creation failed");
 	testTlsClientServerFixtureInitWithVerifierResume(
-		pFixture, Mode, NULL, pResume
+		pFixture, Mode, pVerifier, pResume
 	);
+	xrtTlsVerifierRelease(pVerifier);
 	return pResume;
 }
 
 
 
-/* 创建不绑定验证器的基础客户端 fixture。 */
+/* 创建带显式测试信任决策器的基础客户端 fixture。 */
 static void testTlsClientServerFixtureInit(
 	test_tls_client_server_hello* pFixture,
 	test_tls_server_hello_mode Mode
 )
 {
-	testTlsClientServerFixtureInitWithVerifier(pFixture, Mode, NULL);
+	xtlsverifier* pVerifier = testTlsClientVerifier();
+
+	testRequire(pVerifier != NULL,
+		"TLS base fixture verifier creation failed");
+	testTlsClientServerFixtureInitWithVerifier(pFixture, Mode, pVerifier);
+	xrtTlsVerifierRelease(pVerifier);
 }
 
 
@@ -2920,33 +2934,22 @@ static void testTlsClientCertificateSnapshotOom(void)
 
 
 
-/* 缺少验证器时，即使 DER 合法也必须在提交证书前失败。 */
+/* 缺少验证器时必须在创建阶段失败，不能留下永远无法完成的握手。 */
 static void testTlsClientCertificateRejectNoVerifier(void)
 {
-	test_tls_client_server_hello Fixture;
-	uint8 EncryptedExtensions[256];
-	uint8 Certificate[2048];
-	xtlssession* pServer;
-	size_t iEncryptedExtensions;
-	size_t iCertificate;
+	xtlscontext* pContext = testTlsClientServerContext();
+	xtlsclientconfig Config;
 
-	pServer = testTlsClientCertificateBegin(
-		&Fixture, false, EncryptedExtensions,
-		sizeof(EncryptedExtensions), &iEncryptedExtensions
-	);
-	(void)iEncryptedExtensions;
-	iCertificate = testTlsClientCertificateMessage(
-		(xbytesview) { NULL, 0 }, Certificate, sizeof(Certificate)
-	);
+	testRequire(pContext != NULL,
+		"TLS no-verifier context creation failed");
+	xrtTlsClientConfigInit(&Config);
+	Config.Context = pContext;
+	Config.ServerName = XRT_STR_LITERAL("example.com");
 	xrtClearError();
-	testRequire((testTlsClientServerProtect(
-		&Fixture, pServer, Certificate, iCertificate
-	) == XTLS_ERROR) &&
-		(xrtTlsSessionState(Fixture.Client) == XTLS_STATE_FAILED) &&
+	testRequire((xrtTlsClientCreate(&Config, NULL) == NULL) &&
 		(xrtErrorCode(xrtGetError()) == (int32)XTLS_ERROR_VERIFY),
-		"TLS client accepted a certificate without a verifier");
-	xrtTlsSessionDestroy(pServer);
-	testTlsClientServerFixtureUnit(&Fixture);
+		"TLS client accepted a full handshake without a verifier");
+	xrtTlsContextRelease(pContext);
 }
 
 
@@ -3317,7 +3320,7 @@ static void testTlsClientServerHelloReject(void)
 		TEST_TLS_SERVER_HELLO_WRONG_GROUP, XTLS_ERROR_KEY_EXCHANGE
 	);
 	testTlsClientServerHelloRejectOne(
-		TEST_TLS_SERVER_HELLO_RETRY, XTLS_ERROR_HANDSHAKE
+		TEST_TLS_SERVER_HELLO_RETRY, XTLS_ERROR_KEY_EXCHANGE
 	);
 	testTlsClientServerHelloRejectOne(
 		TEST_TLS_SERVER_HELLO_PSK, XTLS_ERROR_EXTENSION

@@ -849,6 +849,13 @@ static bool __xrtRuntimeValueTraceSeen(
 )
 {
 	*pSeen = false;
+	if ( pTrace->OverflowReady ) {
+		if ( xrtSetHas(&pTrace->Overflow, &pIdentity) ) {
+			*pSeen = true;
+			return true;
+		}
+		return xrtSetAdd(&pTrace->Overflow, &pIdentity);
+	}
 	for ( size_t i = 0u; i < pTrace->InlineCount; i++ ) {
 		if ( pTrace->Inline[i] == pIdentity ) {
 			*pSeen = true;
@@ -859,17 +866,30 @@ static bool __xrtRuntimeValueTraceSeen(
 		pTrace->Inline[pTrace->InlineCount++] = pIdentity;
 		return true;
 	}
-	if ( !pTrace->OverflowReady ) {
-		if ( !xrtSetInit(&pTrace->Overflow, sizeof(pIdentity)) ) {
+	if ( !xrtSetInit(&pTrace->Overflow, sizeof(pIdentity)) ) {
+		return false;
+	}
+	if ( !xrtSetReserve(
+			&pTrace->Overflow,
+			XRT_RUNTIME_VALUE_TRACE_INLINE * 2u
+		) ) {
+		xrtSetUnit(&pTrace->Overflow);
+		return false;
+	}
+	for ( size_t i = 0u; i < pTrace->InlineCount; i++ ) {
+		const void* pInline = pTrace->Inline[i];
+
+		if ( !xrtSetAdd(&pTrace->Overflow, &pInline) ) {
+			xrtSetUnit(&pTrace->Overflow);
 			return false;
 		}
-		pTrace->OverflowReady = true;
 	}
-	if ( xrtSetHas(&pTrace->Overflow, &pIdentity) ) {
-		*pSeen = true;
-		return true;
+	if ( !xrtSetAdd(&pTrace->Overflow, &pIdentity) ) {
+		xrtSetUnit(&pTrace->Overflow);
+		return false;
 	}
-	return xrtSetAdd(&pTrace->Overflow, &pIdentity);
+	pTrace->OverflowReady = true;
+	return true;
 }
 
 
@@ -1225,8 +1245,10 @@ static bool __xrtTypeValueTrace(
 	(void)pType;
 
 	memcpy(&pOwned, pValue, sizeof(pOwned));
-	return (pOwned != NULL) &&
-		xrtValueTraceRuntimeObjects(pOwned, pVisit, pContext);
+	if ( pOwned == NULL ) {
+		return true;
+	}
+	return xrtValueTraceRuntimeObjects(pOwned, pVisit, pContext);
 }
 
 #endif

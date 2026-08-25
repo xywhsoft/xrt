@@ -51,9 +51,7 @@ int main(void)
 		testThreadKeyOomFree
 	};
 	xthreadkey* pKey;
-	ptr arrFill[256];
 	ptr pWarm;
-	size_t iFillCount = 0;
 	int iValue = 7;
 
 	testRequire(xrtSetAllocator(&tAllocator), "failed to install thread key OOM allocator");
@@ -68,17 +66,7 @@ int main(void)
 	pKey = xrtThreadKeyCreate(NULL);
 	testRequire(pKey != NULL, "thread key object allocation failed too early");
 
-	/* 耗尽状态对象的尺寸类，验证第一阶段分配失败。 */
-	while ( iFillCount < (sizeof(arrFill) / sizeof(arrFill[0])) ) {
-		ptr pFill = xrtMalloc(sizeof(ptr) * 2u);
-
-		if ( pFill == NULL ) {
-			break;
-		}
-		arrFill[iFillCount++] = pFill;
-	}
-	testRequire(iFillCount != 0, "thread key OOM class had no fill blocks");
-	testRequire(iFillCount < (sizeof(arrFill) / sizeof(arrFill[0])), "thread key class did not exhaust");
+	/* 不再允许建立新尺寸类 span，验证线程状态分配失败。 */
 	xrtClearError();
 	testRequire(!xrtThreadKeySet(pKey, &iValue), "thread key slot succeeded under OOM");
 	testRequire(
@@ -86,13 +74,10 @@ int main(void)
 		"thread key state OOM error mismatch"
 	);
 	testRequire(xrtThreadKeyGet(pKey) == NULL, "failed thread key state remained installed");
-	for ( size_t i = 0; i < iFillCount; i++ ) {
-		xrtFree(arrFill[i]);
-	}
 
-	/* 状态对象复用成功后，让值槽 span 失败并验证状态回滚。 */
+	/* 只允许状态尺寸类建立成功，让值槽尺寸类失败并验证状态回滚。 */
 	xrtClearError();
-	tState.AllowThrough = tState.Count;
+	tState.AllowThrough = tState.Count + 1u;
 	testRequire(!xrtThreadKeySet(pKey, &iValue), "thread key slot succeeded under OOM");
 	testRequire(
 		xrtErrorKind(xrtGetError()) == XERR_MEMORY,

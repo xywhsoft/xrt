@@ -43,10 +43,11 @@ Header 容器。应用可以直接处理字段文本，也可以按需启用动�
 | `IsPublicSuffix` | 公共后缀判断回调 | `NULL` |
 | `PublicSuffixContext` | 回调上下文 | `NULL` |
 
-`XCOOKIE_JAR_ALLOW_UNVERIFIED_DOMAIN` 只在没有 `IsPublicSuffix` 时生效。
+`XCOOKIE_JAR_ALLOW_DOMAIN_WITHOUT_PSL` 只在没有 `IsPublicSuffix` 时生效。
 默认安全策略只接受同主机的 `Domain` 属性并把它降级为 HostOnly；跨子域
 Cookie 会以 `XCOOKIE_REJECT_PUBLIC_SUFFIX` 拒绝。明确设置该标志后可以接受
-未经公共后缀表验证的跨子域 Cookie。
+未经公共后缀表验证的跨子域 Cookie。该选项可能把公共后缀误作 Domain，
+进而接受 supercookie，只应用于调用方已在其他层完成等价校验的受控环境。
 
 完整浏览器或爬虫应接入当前 Public Suffix List。PSL 是频繁更新的数据资产，
 因此 CookieJar 通过真实策略回调扩展，而不把一份容易过期的大表固化进核心库。

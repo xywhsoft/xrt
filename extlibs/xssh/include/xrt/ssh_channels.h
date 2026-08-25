@@ -26,6 +26,19 @@
 
 
 
+typedef struct xsshchannels xsshchannels;
+
+
+
+/* 删除观察器只接收已经失效的本端 id，不借用已释放 channel。 */
+typedef void (*xsshchannelsremovedproc)(
+	xsshchannels* pChannels,
+	uint32 iLocal,
+	ptr pUserData
+);
+
+
+
 /* Channel 集合配置同时约束对象数量、窗口、动态数据和请求回复内存。 */
 typedef struct xsshchannelsconfig {
 	size_t MaxChannels;
@@ -55,14 +68,16 @@ typedef struct xsshchannel {
 
 
 /* Channel 集合借用网络缓冲池，拥有全部 channel 对象和回复 token。 */
-typedef struct xsshchannels {
+struct xsshchannels {
 	xintmap Map;
 	xsshchannelsconfig Config;
 	xnetbufpool* Pool;
+	xsshchannelsremovedproc Removed;
+	ptr RemovedData;
 	uint32 NextLocal;
 	bool Initialized;
 	uint32 Guard;
-} xsshchannels;
+};
 
 
 
@@ -88,6 +103,15 @@ XRT_API bool xrtSshChannelsInit(
 	xsshchannels* pChannels,
 	xnetbufpool* pPool,
 	const xsshchannelsconfig* pConfig
+);
+
+
+
+/* 设置唯一删除观察器；成功删除后同步报告 id，空回调可取消观察。 */
+XRT_API bool xrtSshChannelsOnRemoved(
+	xsshchannels* pChannels,
+	xsshchannelsremovedproc pRemoved,
+	ptr pUserData
 );
 
 

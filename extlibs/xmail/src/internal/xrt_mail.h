@@ -9,6 +9,10 @@
 	#include <xrt/codec.h>
 #endif
 
+#if defined(XMAIL_FEATURE_MAIL_CHARSET)
+	#include <xrt/mail_charset.h>
+#endif
+
 #if defined(XMAIL_FEATURE_MAIL_HEADER)
 	#include <xrt/mail_header.h>
 #endif
@@ -138,6 +142,23 @@
 	xrtSetErrorInfo(XERR_RANGE, "xrt.mail", 0, "value out of range")
 #define __xrtMailSetSizeOverflow() \
 	xrtSetErrorInfo(XERR_RANGE, "xrt.mail", 0, "size overflow")
+
+
+
+#if defined(XMAIL_FEATURE_MAIL_CHARSET)
+
+/* 无错误副作用地查询和转换内置邮件字符集。 */
+bool __xrtMailCharsetSupported(xstrview Charset);
+
+bool __xrtMailCharsetToUtf8(
+	xstrview Charset,
+	xbytesview Source,
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pOutputSize
+);
+
+#endif
 
 
 

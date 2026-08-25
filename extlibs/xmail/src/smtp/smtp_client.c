@@ -442,6 +442,7 @@ XRT_API xsmtpclient* xrtSmtpClientOpen(
 				xrtSmtpClientDestroy(pClient);
 				return NULL;
 			}
+			memset(&Reply, 0, sizeof(Reply));
 			if ( !xrtSmtpClientCommand(
 				pClient,
 				XRT_STR_LITERAL("STARTTLS"),
@@ -449,8 +450,16 @@ XRT_API xsmtpclient* xrtSmtpClientOpen(
 				&Reply,
 				iDeadline,
 				pCancel
-			) || (Reply.Code != 220) ||
-				!__xrtMailTransportStartTls(
+			) ) {
+				xrtSmtpClientDestroy(pClient);
+				return NULL;
+			}
+			if ( Reply.Code != 220 ) {
+				(void)__xrtSmtpClientUnexpected();
+				xrtSmtpClientDestroy(pClient);
+				return NULL;
+			}
+			if ( !__xrtMailTransportStartTls(
 					&pClient->Transport,
 					&pConfig->Net,
 					iDeadline,
@@ -461,9 +470,6 @@ XRT_API xsmtpclient* xrtSmtpClientOpen(
 					iDeadline,
 					pCancel
 				) ) {
-				if ( (Reply.Code != 220) && (xrtGetError() == NULL) ) {
-					(void)__xrtSmtpClientUnexpected();
-				}
 				xrtSmtpClientDestroy(pClient);
 				return NULL;
 			}

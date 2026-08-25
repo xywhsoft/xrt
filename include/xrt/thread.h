@@ -70,7 +70,7 @@ XRT_API xthreadkey* xrtThreadKeyCreate(xthreadkeyproc pDestroy);
 
 
 
-/* 销毁键；调用方必须保证其他线程已经停止访问，失败时键仍然有效。 */
+/* 关闭键；其他线程不得再主动访问，已有线程槽会在退出时延迟释放。 */
 XRT_API bool xrtThreadKeyDestroy(xthreadkey* pKey);
 
 

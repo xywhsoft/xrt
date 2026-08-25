@@ -44,11 +44,11 @@ static void testSshForwardGlobal(void)
 		"ssh cancel-tcpip-forward mismatch");
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
-		(xrtSshTcpipForwardSuccessWrite(&Writer, UINT32_MAX) == XSSH_OK) &&
+		(xrtSshTcpipForwardSuccessWrite(&Writer, UINT16_MAX) == XSSH_OK) &&
 		(xrtSshTcpipForwardSuccessRead(
 			(xbytesview){ arrPayload, Writer.Size },
 			&iPort
-		) == XSSH_OK) && (iPort == UINT32_MAX),
+		) == XSSH_OK) && (iPort == UINT16_MAX),
 		"ssh tcpip-forward success mismatch");
 }
 
@@ -124,6 +124,7 @@ static void testSshForwardBoundaries(void)
 	};
 	xsshwriter Writer;
 	uint32 iPort = 7u;
+	unsigned char* pFields;
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, 8u) &&
 		(xrtSshTcpipForwardWrite(
@@ -139,6 +140,29 @@ static void testSshForwardBoundaries(void)
 			1u
 		) == XSSH_ERROR_ARGUMENT) && (Writer.Size == 0u),
 		"ssh forwarding writer accepted overlapping address");
+	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
+		(xrtSshTcpipForwardWrite(
+			&Writer,
+			XRT_BYTES_LITERAL("host"),
+			65536u
+		) == XSSH_ERROR_ARGUMENT) && (Writer.Size == 0u),
+		"ssh forwarding writer accepted an out-of-range port");
+	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
+		(xrtSshDirectTcpipOpenWrite(
+			&Writer,
+			1u,
+			1u,
+			1u,
+			XRT_BYTES_LITERAL("host"),
+			1u,
+			XRT_BYTES_LITERAL("origin"),
+			65536u
+		) == XSSH_ERROR_ARGUMENT) && (Writer.Size == 0u),
+		"ssh direct-tcpip writer accepted an out-of-range source port");
+	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
+		(xrtSshTcpipForwardSuccessWrite(&Writer, UINT32_MAX) ==
+		 XSSH_ERROR_ARGUMENT) && (Writer.Size == 0u),
+		"ssh forwarding success writer accepted an out-of-range port");
 	testRequire((xrtSshDirectTcpipOpenWrite(
 		&Writer,
 		1u,
@@ -164,6 +188,14 @@ static void testSshForwardBoundaries(void)
 	testRequire((xrtSshTcpipForwardRead(&Request, &Forward) ==
 		XSSH_ERROR_ARGUMENT) && (Forward.Port == 9u),
 		"ssh forwarding accepted no-reply request or changed output");
+	Request.WantReply = true;
+	arrPayload[Writer.Size - 4u] = 0u;
+	arrPayload[Writer.Size - 3u] = 1u;
+	arrPayload[Writer.Size - 2u] = 0u;
+	arrPayload[Writer.Size - 1u] = 0u;
+	testRequire((xrtSshTcpipForwardRead(&Request, &Forward) ==
+		XSSH_ERROR_PROTOCOL) && (Forward.Port == 9u),
+		"ssh forwarding reader accepted an out-of-range port");
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshDirectTcpipOpenWrite(
@@ -179,6 +211,27 @@ static void testSshForwardBoundaries(void)
 			(xbytesview){ arrPayload, Writer.Size },
 			&Open
 		) == XSSH_OK), "ssh forwarding open boundary setup failed");
+	pFields = (unsigned char*)Open.Fields.Data;
+	pFields[8] = 0u;
+	pFields[9] = 1u;
+	pFields[10] = 0u;
+	pFields[11] = 0u;
+	testRequire((xrtSshDirectTcpipOpenRead(&Open, &Tcpip) ==
+		XSSH_ERROR_PROTOCOL) && (Tcpip.Port == 1u),
+		"ssh forwarding open reader accepted an out-of-range target port");
+	pFields[8] = 0u;
+	pFields[9] = 0u;
+	pFields[10] = 0u;
+	pFields[11] = 1u;
+	pFields[Open.Fields.Size - 4u] = 0u;
+	pFields[Open.Fields.Size - 3u] = 1u;
+	pFields[Open.Fields.Size - 2u] = 0u;
+	pFields[Open.Fields.Size - 1u] = 0u;
+	testRequire((xrtSshDirectTcpipOpenRead(&Open, &Tcpip) ==
+		XSSH_ERROR_PROTOCOL) && (Tcpip.OriginatorPort == 2u),
+		"ssh forwarding open reader accepted an out-of-range source port");
+	pFields[Open.Fields.Size - 3u] = 0u;
+	pFields[Open.Fields.Size - 1u] = 2u;
 	Open.Fields.Size++;
 	arrPayload[Writer.Size] = 0u;
 	testRequire((xrtSshDirectTcpipOpenRead(&Open, &Tcpip) ==
@@ -194,6 +247,14 @@ static void testSshForwardBoundaries(void)
 		&iPort
 	) == XSSH_NEED_MORE) && (iPort == 7u),
 		"ssh forwarding success truncation changed output");
+	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
+		(xrtSshWriteByte(&Writer, XSSH_MSG_REQUEST_SUCCESS) == XSSH_OK) &&
+		(xrtSshWriteU32(&Writer, UINT32_MAX) == XSSH_OK) &&
+		(xrtSshTcpipForwardSuccessRead(
+			(xbytesview){ arrPayload, Writer.Size },
+			&iPort
+		) == XSSH_ERROR_PROTOCOL) && (iPort == 7u),
+		"ssh forwarding success reader accepted an out-of-range port");
 }
 
 

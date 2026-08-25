@@ -7,6 +7,9 @@
 - `xrtSshClientTcpipForward` 发送要求回复的 `tcpip-forward` 全局请求；端口为零时，成功报文可通过 `xrtSshTcpipForwardSuccessRead` 取得服务端分配端口。
 - `xrtSshClientTcpipForwardCancel` 取消同一 remote forwarding 地址。
 
+这些高级 TCP helper 与底层 forwarding 报文 API 都拒绝大于 `65535` 的端口。
+`tcpip-forward` 的端口 `0` 仍表示请求服务端动态分配监听端口。
+
 全局请求 token 使用客户端动态、有界 FIFO。FIFO 出队和输入事务提交后，
 `xsshclientevents.Global` 发布 `REQUEST_SUCCESS`/`REQUEST_FAILURE` 及稳定 token；需要读取动态端口等
 类型专用字段的应用仍可在提交前 `Packet` 回调中解析并复制。Direct channel 的数据、背压、窗口与

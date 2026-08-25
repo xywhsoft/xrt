@@ -528,7 +528,7 @@ XRT_API xwsdeflater* xrtWsDeflaterCreate(
 	}
 	pDeflater = (xwsdeflater*)xrtMalloc(sizeof(*pDeflater));
 
-	if ( !__xrtRangeValid(pDeflater, sizeof(*pDeflater)) ) {
+	if ( pDeflater == NULL ) {
 		return NULL;
 	}
 	memset(pDeflater, 0, sizeof(*pDeflater));

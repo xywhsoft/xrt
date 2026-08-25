@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `277` 个函数、`247` 个常量或宏、
-`102` 个公共类型。
+当前登记 `280` 个函数、`251` 个常量或宏、
+`103` 个公共类型。
 
 ## `extlibs/xmail/include/xrt/imap.h`
 
@@ -383,7 +383,7 @@
 - `xrtMailCrlf`
 - `xrtMailCrlfWrite`
 
-### 常量与宏 (41)
+### 常量与宏 (42)
 
 - `XMAIL_BASE64_LINE_DEFAULT`
 - `XMAIL_BOUNDARY_MAX`
@@ -400,6 +400,7 @@
 - `XMAIL_ERROR_PROTOCOL`
 - `XMAIL_FEATURE_MAIL_ADDRESS`
 - `XMAIL_FEATURE_MAIL_BUILD`
+- `XMAIL_FEATURE_MAIL_CHARSET`
 - `XMAIL_FEATURE_MAIL_CODEC`
 - `XMAIL_FEATURE_MAIL_COMPOSE`
 - `XMAIL_FEATURE_MAIL_CORE`
@@ -493,6 +494,16 @@
 - `xmailbuilderstate`
 - `xmailmultipartmark`
 
+## `extlibs/xmail/include/xrt/mail_charset.h`
+
+[查看带契约注释的公共头](../../include/xrt/mail_charset.h)
+
+### 函数 (3)
+
+- `xrtMailCharsetSupported`
+- `xrtMailCharsetToUtf8`
+- `xrtMailCharsetToUtf8Write`
+
 ## `extlibs/xmail/include/xrt/mail_codec.h`
 
 [查看带契约注释的公共头](../../include/xrt/mail_codec.h)
@@ -544,6 +555,15 @@
 - `xrtMailDate`
 - `xrtMailDateParse`
 - `xrtMailDateWrite`
+
+### 常量与宏 (2)
+
+- `XMAIL_DATE_RELAXED`
+- `XMAIL_DATE_STRICT`
+
+### 类型 (1)
+
+- `xmaildateflag`
 
 ## `extlibs/xmail/include/xrt/mail_header.h`
 
@@ -701,8 +721,9 @@
 - `xrtMailTreeLimitsValid`
 - `xrtMailTreeParse`
 
-### 常量与宏 (6)
+### 常量与宏 (7)
 
+- `XMAIL_TREE_ALLOW_UNKNOWN_CHARSET`
 - `XMAIL_TREE_ALLOW_UNKNOWN_TRANSFER`
 - `XMAIL_TREE_DECODED_BYTES_DEFAULT`
 - `XMAIL_TREE_DEPTH_DEFAULT`

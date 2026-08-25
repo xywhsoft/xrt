@@ -62,14 +62,16 @@ void __xrtMapCallbackEnd(const xmap* pMap);
 
 
 
-/* 在回调门禁内失败原子地替换已有值，并报告键是否存在。 */
-bool __xrtMapReplaceValue(
+/* 一次查询完成已有值替换或缺失值初始化，并报告是否新建。 */
+ptr __xrtMapSetOrInit(
 	xmap* pMap,
 	xbytesview Key,
 	const void* pValue,
 	xrtmapreplaceproc pReplace,
-	ptr pUserData,
-	bool* pFound
+	ptr pReplaceData,
+	xmapinit pInit,
+	ptr pInitData,
+	bool* pNew
 );
 
 

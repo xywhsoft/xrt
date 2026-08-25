@@ -2,6 +2,35 @@
 
 
 
+static xtlsverifier* TestTlsClientVerifier;
+
+
+
+/* 单元测试只检查客户端状态机，证书密码学由 verifier 专项测试覆盖。 */
+static xtlsverifydecision testTlsClientAcceptPeer(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
+
+
+/* 创建测试专用的显式信任决策器。 */
+static xtlsverifier* testTlsClientVerifier(void)
+{
+	xtlsverifierconfig Config;
+
+	xrtTlsVerifierConfigInit(&Config);
+	Config.Verify = testTlsClientAcceptPeer;
+	return xrtTlsVerifierCreate(&Config);
+}
+
+
+
 /* 创建只启用一条可预测 TLS 1.3 路径的共享上下文。 */
 static xtlscontext* testTlsClientContext(void)
 {
@@ -231,6 +260,7 @@ static void testTlsClientResumeStart(void)
 	xrtTlsClientConfigInit(&Config);
 	Config.Context = pContext;
 	Config.Resume = pResume;
+	Config.Verifier = TestTlsClientVerifier;
 	pSession = xrtTlsClientCreate(&Config, NULL);
 	testRequire(pSession != NULL,
 		"TLS client resume creation failed");
@@ -311,6 +341,7 @@ static void testTlsClientStart(void)
 	testRequire(pContext != NULL, "TLS client context failed");
 	xrtTlsClientConfigInit(&Config);
 	Config.Context = pContext;
+	Config.Verifier = TestTlsClientVerifier;
 	Config.ServerName = XRT_STR_LITERAL("example.com");
 	Config.Protocols = Protocols;
 	Config.ProtocolCount = sizeof(Protocols) / sizeof(Protocols[0]);
@@ -395,6 +426,7 @@ static void testTlsClientVerifyName(void)
 	);
 	xrtTlsClientConfigInit(&Config);
 	Config.Context = pContext;
+	Config.Verifier = TestTlsClientVerifier;
 	Config.VerifyName = XRT_STR_LITERAL("127.0.0.1");
 	pSession = xrtTlsClientCreate(&Config, NULL);
 	xrtTlsContextRelease(pContext);
@@ -460,6 +492,7 @@ static void testTlsClientConfig(void)
 	testRequire(pContext != NULL, "TLS 1.2-only client context failed");
 	xrtTlsClientConfigInit(&Client);
 	Client.Context = pContext;
+	Client.Verifier = TestTlsClientVerifier;
 	{
 		xtlssession* pSession = xrtTlsClientCreate(&Client, NULL);
 
@@ -487,17 +520,20 @@ static void testTlsClientResumeReject(void)
 	testRequire(pResume != NULL, "TLS client resume reject fixture failed");
 	xrtTlsClientConfigInit(&Config);
 	Config.Resume = pResume;
+	Config.Verifier = TestTlsClientVerifier;
 	Config.ServerName = XRT_STR_LITERAL("other.example");
 	testRequire(xrtTlsClientCreate(&Config, NULL) == NULL,
 		"TLS client accepted a resume object for another server name");
 	xrtTlsClientConfigInit(&Config);
 	Config.Resume = pResume;
+	Config.Verifier = TestTlsClientVerifier;
 	Config.ServerName = XRT_STR_LITERAL("example.com");
 	Config.VerifyName = XRT_STR_LITERAL("other.example");
 	testRequire(xrtTlsClientCreate(&Config, NULL) == NULL,
 		"TLS client accepted a resume object for another verification name");
 	xrtTlsClientConfigInit(&Config);
 	Config.Resume = pResume;
+	Config.Verifier = TestTlsClientVerifier;
 	Config.Protocols = WrongProtocol;
 	Config.ProtocolCount = 1u;
 	testRequire(xrtTlsClientCreate(&Config, NULL) == NULL,
@@ -513,6 +549,7 @@ static void testTlsClientResumeReject(void)
 	testRequire(pExpired != NULL, "TLS expired resume fixture failed");
 	xrtTlsClientConfigInit(&Config);
 	Config.Resume = pExpired;
+	Config.Verifier = TestTlsClientVerifier;
 	testRequire(xrtTlsClientCreate(&Config, NULL) == NULL,
 		"TLS client accepted an expired resume object");
 	xrtTlsResumeRelease(pExpired);
@@ -525,10 +562,23 @@ static void testTlsClientResumeReject(void)
 /* 执行 TLS 客户端首航回归。 */
 int main(void)
 {
+	TestTlsClientVerifier = testTlsClientVerifier();
+	testRequire(TestTlsClientVerifier != NULL,
+		"TLS client verifier fixture failed");
+	{
+		xtlsclientconfig Config;
+
+		xrtTlsClientConfigInit(&Config);
+		testRequire((xrtTlsClientCreate(&Config, NULL) == NULL) &&
+			(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
+			"TLS client accepted a full handshake without a verifier");
+		xrtClearError();
+	}
 	testTlsClientStart();
 	testTlsClientVerifyName();
 	testTlsClientResumeStart();
 	testTlsClientConfig();
 	testTlsClientResumeReject();
+	xrtTlsVerifierRelease(TestTlsClientVerifier);
 	return 0;
 }

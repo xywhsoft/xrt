@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `585` 个函数、`517` 个常量或宏、
-`154` 个公共类型。
+当前登记 `586` 个函数、`517` 个常量或宏、
+`155` 个公共类型。
 
 ## `extlibs/xssh/include/xrt/ssh_auth_guard.h`
 
@@ -571,7 +571,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/ssh_channels.h)
 
-### 函数 (15)
+### 函数 (16)
 
 - `xrtSshChannelReplyReserve`
 - `xrtSshChannelsAccept`
@@ -585,6 +585,7 @@
 - `xrtSshChannelsIterBegin`
 - `xrtSshChannelsIterEnd`
 - `xrtSshChannelsIterNext`
+- `xrtSshChannelsOnRemoved`
 - `xrtSshChannelsOpen`
 - `xrtSshChannelsRemove`
 - `xrtSshChannelsResolve`
@@ -599,13 +600,14 @@
 - `XSSH_FEATURE_CHANNELS`
 - `XSSH_FEATURE_CONNECTION_SESSION`
 
-### 类型 (6)
+### 类型 (7)
 
 - `xsshchannel`
 - `xsshchannelresolveproc`
 - `xsshchannels`
 - `xsshchannelsconfig`
 - `xsshchannelsiter`
+- `xsshchannelsremovedproc`
 - `xsshreplyqueue`
 
 ## `extlibs/xssh/include/xrt/ssh_client.h`

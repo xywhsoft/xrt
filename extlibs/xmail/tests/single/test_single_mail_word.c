@@ -24,7 +24,7 @@ int main(void)
 	#endif
 
 	return xrtMailWordDecodeWrite(
-		XRT_STR_LITERAL("=?UTF-8?Q?hello?="),
+		XRT_STR_LITERAL("=?UTF-8*en?Q?hello?="),
 		XMAIL_WORD_STRICT,
 		arrOutput,
 		sizeof(arrOutput),

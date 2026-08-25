@@ -27,6 +27,11 @@ int main(void)
 		(xrtSshTcpipForwardWrite(
 			&Writer,
 			XRT_BYTES_LITERAL("127.0.0.1"),
+			65536u
+		) == XSSH_ERROR_ARGUMENT) && (Writer.Size == 0u) &&
+		(xrtSshTcpipForwardWrite(
+			&Writer,
+			XRT_BYTES_LITERAL("127.0.0.1"),
 			0u
 		) == XSSH_OK) ? 0 : 1;
 }

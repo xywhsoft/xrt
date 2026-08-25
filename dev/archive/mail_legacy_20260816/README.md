@@ -10,3 +10,7 @@
 能力与测试映射见 `extlibs/xmail/docs/design/legacy-parity.md`。迁移时保留了有价值的协议
 行为和边界用例，没有保留旧名称、兼容包装和隐式线程模型。
 
+`xmail_binding` 保存旧版聚合头、xlang 绑定、聚合/在线测试和早期设计文档。这些文件依赖
+已经归档的独立 `xsmtp`、`xpop3`、`ximap`、`xmail_mime` 以及旧单头文件路径，仅供历史
+追溯，不属于现代 `extlibs/xmail` 的构建输入。新版 xlang 绑定应直接基于现代 xmail API
+重新实现。

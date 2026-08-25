@@ -6,7 +6,8 @@
 
 #define __XMAIL_TREE_BLOCK_SIZE 4096u
 #define __XMAIL_TREE_FLAGS \
-	(XMAIL_TREE_ALLOW_UNKNOWN_TRANSFER | XMAIL_TREE_RELAXED_QP)
+	(XMAIL_TREE_ALLOW_UNKNOWN_TRANSFER | XMAIL_TREE_RELAXED_QP | \
+	 XMAIL_TREE_ALLOW_UNKNOWN_CHARSET)
 
 
 
@@ -273,17 +274,53 @@ static bool __xrtMailTreeContentType(
 
 
 
-/* 从参数块查找值并存入 arena。 */
+/* MIME 参数始终拒绝控制字符，已转换文本还必须是严格 UTF-8。 */
+static bool __xrtMailTreeParameterTextValid(xstrview Text, bool bUtf8)
+{
+	for ( size_t i = 0; i < Text.Size; i++ ) {
+		unsigned char iByte = (unsigned char)Text.Data[i];
+
+		if ( (iByte < 32u) || (iByte == 127u) ) {
+			return __xrtMailTreeError("MIME parameter contains a control byte");
+		}
+	}
+	if ( bUtf8 ) {
+		size_t iPosition = 0;
+
+		while ( iPosition < Text.Size ) {
+			uint32 iScalar;
+			size_t iRead;
+
+			if ( xrtUtf8Decode(
+				__xrtMailView(Text.Data + iPosition, Text.Size - iPosition),
+				&iScalar,
+				&iRead
+			) != XUTF_OK ) {
+				return __xrtMailTreeError("MIME parameter is not valid UTF-8");
+			}
+			if ( (iScalar >= 0x80u) && (iScalar <= 0x9Fu) ) {
+				return __xrtMailTreeError("MIME parameter contains a control character");
+			}
+			iPosition += iRead;
+		}
+	}
+	return true;
+}
+
+
+
+/* 从参数块查找值、执行声明的字符集转换并存入 arena。 */
 static xmailnext __xrtMailTreeParam(
 	__xmailtreecontext* pContext,
 	xstrview Parameters,
 	xstrview Name,
-	xstrview* pValue
+	xstrview* pValue,
+	bool* pUtf8
 )
 {
 	xmailparaminfo Info;
 	xmailnext Next;
-	char* sValue;
+	char* sRaw;
 	size_t iSize;
 	size_t iCapacity;
 
@@ -301,21 +338,108 @@ static xmailnext __xrtMailTreeParam(
 	if ( !__xrtMailSizeAdd(iSize, 1u, &iCapacity) ) {
 		return XMAIL_NEXT_ERROR;
 	}
-	sValue = (char*)__xrtMailTreeAlloc(pContext, iCapacity);
-	if ( sValue == NULL ) {
+	if ( Info.Charset.Size == 0 ) {
+		char* sValue = (char*)__xrtMailTreeAlloc(pContext, iCapacity);
+
+		if ( sValue == NULL ) {
+			return XMAIL_NEXT_ERROR;
+		}
+		if ( xrtMailParamFindWrite(
+			Parameters,
+			Name,
+			sValue,
+			iCapacity,
+			&iSize,
+			&Info
+		) != XMAIL_NEXT_ITEM ) {
+			return XMAIL_NEXT_ERROR;
+		}
+		*pValue = __xrtMailView(sValue, iSize);
+		*pUtf8 = true;
+		return __xrtMailTreeParameterTextValid(*pValue, true) ?
+			XMAIL_NEXT_ITEM : XMAIL_NEXT_ERROR;
+	}
+	sRaw = (char*)xrtMalloc(iCapacity);
+	if ( sRaw == NULL ) {
 		return XMAIL_NEXT_ERROR;
 	}
 	if ( xrtMailParamFindWrite(
 		Parameters,
 		Name,
-		sValue,
+		sRaw,
 		iCapacity,
 		&iSize,
 		&Info
 	) != XMAIL_NEXT_ITEM ) {
+		xrtFree(sRaw);
 		return XMAIL_NEXT_ERROR;
 	}
-	*pValue = __xrtMailView(sValue, iSize);
+	if ( __xrtMailCharsetSupported(Info.Charset) ) {
+		xbytesview Raw = { (cbytes)sRaw, iSize };
+		size_t iUtf8Size;
+		char* sUtf8;
+
+		if ( !__xrtMailCharsetToUtf8(
+			Info.Charset, Raw, NULL, 0, &iUtf8Size
+		) ) {
+			xrtFree(sRaw);
+			__xrtMailError(
+				XERR_PROTOCOL,
+				XMAIL_ERROR_CHARSET,
+				"invalid MIME parameter character set data"
+			);
+			return XMAIL_NEXT_ERROR;
+		}
+		if ( !__xrtMailSizeAdd(iUtf8Size, 1u, &iCapacity) ) {
+			xrtFree(sRaw);
+			return XMAIL_NEXT_ERROR;
+		}
+		sUtf8 = (char*)__xrtMailTreeAlloc(pContext, iCapacity);
+		if ( sUtf8 == NULL ) {
+			xrtFree(sRaw);
+			return XMAIL_NEXT_ERROR;
+		}
+		if ( !__xrtMailCharsetToUtf8(
+			Info.Charset, Raw, sUtf8, iUtf8Size, &iUtf8Size
+		) ) {
+			xrtFree(sRaw);
+			__xrtMailError(
+				XERR_STATE,
+				XMAIL_ERROR_CHARSET,
+				"measured MIME parameter conversion did not fit"
+			);
+			return XMAIL_NEXT_ERROR;
+		}
+		sUtf8[iUtf8Size] = 0;
+		*pValue = __xrtMailView(sUtf8, iUtf8Size);
+		*pUtf8 = true;
+		xrtFree(sRaw);
+		return __xrtMailTreeParameterTextValid(*pValue, true) ?
+			XMAIL_NEXT_ITEM : XMAIL_NEXT_ERROR;
+	}
+	if ( (pContext->Limits.Flags &
+		 (uint32)XMAIL_TREE_ALLOW_UNKNOWN_CHARSET) == 0u ) {
+		xrtFree(sRaw);
+		__xrtMailError(
+			XERR_UNSUPPORTED,
+			XMAIL_ERROR_CHARSET,
+			"unsupported MIME parameter character set"
+		);
+		return XMAIL_NEXT_ERROR;
+	}
+	if ( !__xrtMailTreeCopy(
+		pContext,
+		__xrtMailView(sRaw, iSize),
+		pValue
+	) ) {
+		xrtFree(sRaw);
+		return XMAIL_NEXT_ERROR;
+	}
+	xrtFree(sRaw);
+	*pUtf8 = false;
+	if ( !__xrtMailTreeParameterTextValid(*pValue, false) ) {
+		return XMAIL_NEXT_ERROR;
+	}
 	return XMAIL_NEXT_ITEM;
 }
 
@@ -329,6 +453,8 @@ static bool __xrtMailTreeMetadata(
 {
 	xmailheaderview Header;
 	xmailnext Next;
+
+	pPart->FileNameUtf8 = true;
 
 	Next = __xrtMailTreeHeader(
 		&pPart->Message,
@@ -353,7 +479,8 @@ static bool __xrtMailTreeMetadata(
 			pContext,
 			pPart->Disposition.Parameters,
 			XRT_STR_LITERAL("filename"),
-			&pPart->FileName
+			&pPart->FileName,
+			&pPart->FileNameUtf8
 		);
 		if ( Next == XMAIL_NEXT_ERROR ) {
 			return false;
@@ -372,7 +499,8 @@ static bool __xrtMailTreeMetadata(
 			pContext,
 			pPart->ContentType.Parameters,
 			XRT_STR_LITERAL("name"),
-			&pPart->FileName
+			&pPart->FileName,
+			&pPart->FileNameUtf8
 		);
 		if ( Next == XMAIL_NEXT_ERROR ) {
 			return false;
@@ -546,6 +674,7 @@ static bool __xrtMailTreeMultipart(
 	xmailnext Next;
 	size_t iCount = 0;
 	size_t iBytes;
+	bool bBoundaryUtf8;
 	bool bDigest = __xrtMailAsciiEqualI(
 		pPart->ContentType.Subtype,
 		XRT_STR_LITERAL("digest")
@@ -555,8 +684,10 @@ static bool __xrtMailTreeMultipart(
 		pContext,
 		pPart->ContentType.Parameters,
 		XRT_STR_LITERAL("boundary"),
-		&Boundary
+		&Boundary,
+		&bBoundaryUtf8
 	);
+	(void)bBoundaryUtf8;
 	if ( Next == XMAIL_NEXT_ERROR ) {
 		return false;
 	}

@@ -54,10 +54,10 @@ typedef struct xcookielimits {
 
 #if defined(XHTTP_FEATURE_SET_COOKIE)
 
-/* RFC 10025 用户代理接收算法允许的 name/value 总长度。 */
+/* RFC 6265 用户代理接收算法允许的 name/value 总长度。 */
 #define XSET_COOKIE_MAX_PAIR_BYTES		4096u
 
-/* RFC 10025 用户代理接收算法允许处理的单个属性值长度。 */
+/* RFC 6265 用户代理接收算法允许处理的单个属性值长度。 */
 #define XSET_COOKIE_MAX_ATTRIBUTE_VALUE	1024u
 
 
@@ -221,18 +221,18 @@ XRT_API xcookieattributenext xrtSetCookieAttributeNext(
 
 
 
-/* 按 RFC 10025 宽松 cookie-date 算法解析 UTC 时间。 */
+/* 按 RFC 6265 宽松 cookie-date 算法解析 UTC 时间。 */
 XRT_API bool xrtCookieDateParse(xstrview Text, xtime* pTime);
 
 
 
-/* 按 RFC 10025 服务器生成语法严格校验一个 Set-Cookie 字段值。 */
+/* 按 RFC 6265 服务器生成语法严格校验一个 Set-Cookie 字段值。 */
 XRT_API bool xrtSetCookieValidate(xstrview Text);
 
 
 
 /*
-	按 RFC 10025 用户代理接收算法宽松解析 Set-Cookie 字段值。
+	按 RFC 6265 用户代理接收算法宽松解析 Set-Cookie 字段值。
 	无效的单个已知属性被忽略，禁止控制字节和超长 cookie-pair 会使整体失败。
 */
 XRT_API bool xrtSetCookieParse(xstrview Text, xsetcookie* pCookie);
@@ -265,4 +265,3 @@ XRT_API str xrtSetCookieBuild(
 XRT_EXTERN_C_END
 
 #endif
-

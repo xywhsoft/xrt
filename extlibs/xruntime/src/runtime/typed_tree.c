@@ -753,7 +753,6 @@ XRT_API bool xrtTypedTreeSet(
 	const void* pValue
 )
 {
-	ptr pEntry;
 	ptr pStored;
 	bool bNew;
 	bool bBusy;
@@ -763,18 +762,20 @@ XRT_API bool xrtTypedTreeSet(
 		 !__xrtTypedTreeSourceValid(pTree, pValue, false, "set") ) {
 		return false;
 	}
-	pEntry = xrtAVLTreeFind(&pTree->Storage, pKey);
-	if ( pEntry == NULL ) {
-		return __xrtTypedTreeInsert(
-			pTree,
-			pKey,
-			(ptr)pValue,
-			XRT_TYPED_TREE_INIT_COPY,
-			&bNew,
-			"set"
-		) != NULL && bNew;
+	pStored = __xrtTypedTreeInsert(
+		pTree,
+		pKey,
+		(ptr)pValue,
+		XRT_TYPED_TREE_INIT_COPY,
+		&bNew,
+		"set"
+	);
+	if ( pStored == NULL ) {
+		return false;
 	}
-	pStored = __xrtTypedTreeValue(pTree, pEntry);
+	if ( bNew ) {
+		return true;
+	}
 	if ( pStored == pValue ) {
 		return true;
 	}
@@ -798,7 +799,6 @@ XRT_API bool xrtTypedTreeSetTake(
 	ptr pValue
 )
 {
-	ptr pEntry;
 	ptr pStored;
 	bool bNew;
 	bool bBusy;
@@ -811,18 +811,20 @@ XRT_API bool xrtTypedTreeSetTake(
 		) ) {
 		return false;
 	}
-	pEntry = xrtAVLTreeFind(&pTree->Storage, pKey);
-	if ( pEntry == NULL ) {
-		return __xrtTypedTreeInsert(
-			pTree,
-			pKey,
-			pValue,
-			XRT_TYPED_TREE_INIT_MOVE,
-			&bNew,
-			"set-take"
-		) != NULL && bNew;
+	pStored = __xrtTypedTreeInsert(
+		pTree,
+		pKey,
+		pValue,
+		XRT_TYPED_TREE_INIT_MOVE,
+		&bNew,
+		"set-take"
+	);
+	if ( pStored == NULL ) {
+		return false;
 	}
-	pStored = __xrtTypedTreeValue(pTree, pEntry);
+	if ( bNew ) {
+		return true;
+	}
 	bBusy = __xrtTypedTreeCallbackBegin(pTree);
 	if ( !xrtTypeMoveValue(pTree->ValueType, pStored, pValue) ) {
 		__xrtTypedTreeCallbackEnd(pTree, bBusy);

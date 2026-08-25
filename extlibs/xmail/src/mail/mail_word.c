@@ -10,6 +10,15 @@
 #define XMAIL_WORD_PAYLOAD_SIZE \
 	(XMAIL_WORD_LIMIT - XMAIL_WORD_PREFIX_SIZE - XMAIL_WORD_SUFFIX_SIZE)
 
+/* 最短合法前缀为 =?x?Q?，原始正文和单字节转码容量由协议上限推导。 */
+#define __XMAIL_WORD_RAW_MAX (XMAIL_WORD_LIMIT - 8u)
+#define __XMAIL_WORD_UTF8_MAX (__XMAIL_WORD_RAW_MAX * 3u)
+
+
+
+_Static_assert(__XMAIL_WORD_RAW_MAX >= XMAIL_WORD_PAYLOAD_SIZE,
+	"RFC 2047 raw buffer is smaller than the encoder payload");
+
 
 
 typedef enum __xmailwordparse {
@@ -28,17 +37,6 @@ typedef enum __xmailworddecode {
 
 
 
-/* 比较不区分大小写的 ASCII 视图与常量。 */
-static bool __xrtMailWordCaseEqual(xstrview Text, cstr sValue)
-{
-	return __xrtMailAsciiEqualI(
-		Text,
-		__xrtMailView(sValue, strlen(sValue))
-	);
-}
-
-
-
 /* 不发布错误地识别输入开头的编码词。 */
 static __xmailwordparse __xrtMailWordParseBody(
 	xstrview Text,
@@ -46,6 +44,7 @@ static __xmailwordparse __xrtMailWordParseBody(
 )
 {
 	size_t iCharsetEnd;
+	size_t iCharsetNameEnd;
 	size_t iEncodedStart;
 	size_t iEncodedEnd;
 	xmailwordview Word;
@@ -55,15 +54,23 @@ static __xmailwordparse __xrtMailWordParseBody(
 		return __XMAIL_WORD_NONE;
 	}
 	iCharsetEnd = 2u;
+	iCharsetNameEnd = SIZE_MAX;
 	while ( (iCharsetEnd < Text.Size) && (Text.Data[iCharsetEnd] != '?') ) {
 		unsigned char iByte = (unsigned char)Text.Data[iCharsetEnd];
 
 		if ( (iByte < 33u) || (iByte > 126u) ) {
 			return __XMAIL_WORD_INVALID;
 		}
+		if ( (iByte == (unsigned char)'*') &&
+			 (iCharsetNameEnd == SIZE_MAX) ) {
+			iCharsetNameEnd = iCharsetEnd;
+		}
 		iCharsetEnd++;
 	}
-	if ( (iCharsetEnd == 2u) || ((iCharsetEnd + 3u) > Text.Size) ) {
+	if ( iCharsetNameEnd == SIZE_MAX ) {
+		iCharsetNameEnd = iCharsetEnd;
+	}
+	if ( (iCharsetNameEnd == 2u) || ((iCharsetEnd + 3u) > Text.Size) ) {
 		return __XMAIL_WORD_INVALID;
 	}
 	iEncoding = __xrtMailAsciiLower(
@@ -93,7 +100,13 @@ static __xmailwordparse __xrtMailWordParseBody(
 		return __XMAIL_WORD_INVALID;
 	}
 	Word.Source = __xrtMailView(Text.Data, iEncodedEnd + 2u);
-	Word.Charset = __xrtMailView(Text.Data + 2u, iCharsetEnd - 2u);
+	Word.Charset = __xrtMailView(Text.Data + 2u, iCharsetNameEnd - 2u);
+	Word.Language = __xrtMailView(
+		Text.Data + (iCharsetNameEnd < iCharsetEnd ?
+			iCharsetNameEnd + 1u : iCharsetEnd),
+		iCharsetNameEnd < iCharsetEnd ?
+			iCharsetEnd - iCharsetNameEnd - 1u : 0
+	);
 	Word.Encoded = __xrtMailView(
 		Text.Data + iEncodedStart,
 		iEncodedEnd - iEncodedStart
@@ -565,30 +578,18 @@ static bool __xrtMailWordQDecode(
 
 
 
-/* 判断字符集并校验解码后的安全 UTF-8 文本。 */
-static bool __xrtMailWordDecodedValid(
-	xmailwordview Word,
-	xstrview Decoded
-)
+/* 校验转码后的 UTF-8 文本可以安全进入邮件字段。 */
+static bool __xrtMailWordDecodedValid(xstrview Decoded)
 {
-	bool bUtf8 = __xrtMailWordCaseEqual(Word.Charset, "UTF-8") ||
-		__xrtMailWordCaseEqual(Word.Charset, "UTF8");
-	bool bAscii = __xrtMailWordCaseEqual(Word.Charset, "US-ASCII") ||
-		__xrtMailWordCaseEqual(Word.Charset, "ASCII");
-
-	if ( !bUtf8 && !bAscii ) {
-		return false;
-	}
 	for ( size_t i = 0; i < Decoded.Size; i++ ) {
 		unsigned char iByte = (unsigned char)Decoded.Data[i];
 
 		if ( (iByte == 0) || (iByte == 127u) ||
-			 ((iByte < 32u) && (iByte != (unsigned char)'\t')) ||
-			 (bAscii && (iByte >= 128u)) ) {
+			 ((iByte < 32u) && (iByte != (unsigned char)'\t')) ) {
 			return false;
 		}
 	}
-	return bAscii || xrtUtf8Valid(Decoded, NULL);
+	return xrtUtf8Valid(Decoded, NULL);
 }
 
 
@@ -597,15 +598,14 @@ static bool __xrtMailWordDecodedValid(
 static __xmailworddecode __xrtMailWordDecodeOne(
 	xmailwordview Word,
 	uint32 iFlags,
-	char arrDecoded[64],
+	char arrDecoded[__XMAIL_WORD_UTF8_MAX],
 	size_t* pDecodedSize,
 	bool bPublishError
 )
 {
-	bool bKnown = __xrtMailWordCaseEqual(Word.Charset, "UTF-8") ||
-		__xrtMailWordCaseEqual(Word.Charset, "UTF8") ||
-		__xrtMailWordCaseEqual(Word.Charset, "US-ASCII") ||
-		__xrtMailWordCaseEqual(Word.Charset, "ASCII");
+	char arrRaw[__XMAIL_WORD_RAW_MAX];
+	size_t iRawSize = 0;
+	bool bKnown = __xrtMailCharsetSupported(Word.Charset);
 	bool bValid;
 
 	if ( !bKnown ) {
@@ -616,22 +616,27 @@ static __xmailworddecode __xrtMailWordDecodeOne(
 			bValid = xrtBase64Decode(
 				Word.Encoded.Data,
 				Word.Encoded.Size,
-				arrDecoded,
-				64u,
-				pDecodedSize,
+				arrRaw,
+				sizeof(arrRaw),
+				&iRawSize,
 				NULL
 			);
 		}
 	} else {
 		bValid = __xrtMailWordQDecode(
 			Word.Encoded,
-			arrDecoded,
-			pDecodedSize
+			arrRaw,
+			&iRawSize
 		);
 	}
 	if ( bValid ) {
-		bValid = __xrtMailWordDecodedValid(
-			Word,
+		bValid = __xrtMailCharsetToUtf8(
+			Word.Charset,
+			(xbytesview) { (cbytes)arrRaw, iRawSize },
+			arrDecoded,
+			__XMAIL_WORD_UTF8_MAX,
+			pDecodedSize
+		) && __xrtMailWordDecodedValid(
 			__xrtMailView(arrDecoded, *pDecodedSize)
 		);
 	}
@@ -717,7 +722,7 @@ static bool __xrtMailWordDecodedAt(
 )
 {
 	xmailwordview Word;
-	char arrDecoded[64];
+	char arrDecoded[__XMAIL_WORD_UTF8_MAX];
 	size_t iDecoded = 0;
 
 	if ( __xrtMailWordParseBody(
@@ -798,7 +803,7 @@ static bool __xrtMailWordDecodeBody(
 			 ((iPosition + 1u) < Text.Size) &&
 			 (Text.Data[iPosition + 1u] == '?') ) {
 			xmailwordview Word;
-			char arrDecoded[64];
+			char arrDecoded[__XMAIL_WORD_UTF8_MAX];
 			size_t iDecoded = 0;
 			__xmailwordparse Parse = __xrtMailWordParseBody(
 				__xrtMailView(Text.Data + iPosition, Text.Size - iPosition),

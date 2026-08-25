@@ -111,6 +111,8 @@ typedef struct __xrt_net_engine_atomic_stats {
 	xatomic64 TimerErrors;
 	xatomic64 Events;
 	xatomic64 WaitErrors;
+	xatomic64 WakeErrors;
+	xatomic64 ShutdownStalls;
 	xatomic32 LastWaitError;
 	xatomic32 LastWaitSystemCode;
 	xatomic64 NodeCacheHits;
@@ -125,6 +127,8 @@ struct xnetworker {
 	uint32 Index;
 	xatomic32 Running;
 	xatomic32 Stop;
+	xatomic32 ShutdownPhase;
+	xatomic32 ShutdownFailed;
 	/* 最高位是停止门，其余位统计已经进入无锁提交区的调用。 */
 	xatomic32 Submitters;
 	xatomic32 CommandPending;
@@ -199,8 +203,11 @@ void __xrtNetWorkerNodeRecycleHeld(
 
 
 
-/* 无分配地把一个嵌入命令投递到目标 Worker；节点在执行前必须保持有效。 */
-void __xrtNetEnginePostInternal(
+/*
+	无分配地把一个嵌入命令投递到目标 Worker。
+	节点在执行前必须保持有效；停机封口后返回 false。
+*/
+bool __xrtNetEnginePostInternal(
 	xnetworker* pWorker,
 	__xrt_net_engine_internal* pCommand,
 	xnettaskproc pProc,

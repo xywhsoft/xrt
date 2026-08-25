@@ -146,5 +146,4 @@ Header 的线路顺序逐条调用本模块解析器。该便利层仍不合并�
 - `tests/single/test_single_cookie.c`
 - `tests/single/test_single_set_cookie.c`
 
-协议依据：[RFC 10025: HTTP State Management Mechanism](https://www.rfc-editor.org/rfc/rfc10025.html)。`Partitioned` 为已部署扩展；协议字段层只保存和生成该属性，CookieJar 仍需提供顶级站点分区上下文。
-
+协议依据：[RFC 6265: HTTP State Management Mechanism](https://www.rfc-editor.org/rfc/rfc6265.html)。`Partitioned` 为已部署扩展；协议字段层只保存和生成该属性，CookieJar 仍需提供顶级站点分区上下文。

@@ -242,6 +242,13 @@ static void __xrtTlsServerClean(xtlssession* pSession, ptr pRole)
 		);
 		xrtFree(pState->ServerNameStorage);
 	}
+	if ( pState->RetryClientHello != NULL ) {
+		xrtSecureZero(
+			pState->RetryClientHello, pState->RetryClientHelloSize
+		);
+		xrtFree(pState->RetryClientHello);
+		pState->RetryClientHello = NULL;
+	}
 	xrtTlsIdentityRelease((xtlsidentity*)pState->Identity);
 	pState->Identity = NULL;
 }
@@ -710,12 +717,19 @@ static xtlsresult __xrtTlsServerChangeCipherSpec(
 	const xtlssessionrecord* pRecord
 )
 {
+	bool bRetryWindow = pState->RetrySeen &&
+		(pState->Step == XTLS_SERVER_WAIT_CLIENT_HELLO);
+
 	if ( pState->Version == XTLS_VERSION_12 ) {
 		return __xrtTlsServer12ChangeCipherSpec(
 			pSession, pState, pRecord
 		);
 	}
-	if ( pRecord->Protected || (pRecord->Data.Size != 1u) ||
+	if ( (!bRetryWindow &&
+		((pState->Version != XTLS_VERSION_13) ||
+		 (pState->Step != XTLS_SERVER_WAIT_CLIENT_FINISHED))) ||
+		pState->CompatibilityCcsSeen || pRecord->Protected ||
+		(pRecord->Data.Size != 1u) ||
 		(pRecord->Data.Data[0] != 1u) ) {
 		return __xrtTlsServerProtocol(
 			pSession, XTLS_ERROR_HANDSHAKE, "drive-tls-server",
@@ -725,12 +739,13 @@ static xtlsresult __xrtTlsServerChangeCipherSpec(
 	if ( __xrtTlsSessionRecordFinish(pSession, false) != XTLS_OK ) {
 		return __xrtTlsServerFailed(pSession);
 	}
+	pState->CompatibilityCcsSeen = true;
 	return XTLS_OK;
 }
 
 
 
-/* 处理一段握手记录，支持任意记录分片但拒绝首尾消息夹带。 */
+/* 处理一段握手记录，允许一条记录顺序承载多条完整握手消息。 */
 static xtlsresult __xrtTlsServerHandshakeRecord(
 	xtlssession* pSession,
 	xtlsserverstate* pState,
@@ -791,12 +806,6 @@ static xtlsresult __xrtTlsServerHandshakeRecord(
 		return XTLS_OK;
 	}
 	*pComplete = true;
-	if ( *pConsumed != Input.Size ) {
-		return __xrtTlsServerProtocol(
-			pSession, XTLS_ERROR_HANDSHAKE, "drive-tls-server",
-			"TLS client handshake record contains a trailing message"
-		);
-	}
 	if ( pState->Step == XTLS_SERVER_WAIT_CLIENT_HELLO ) {
 		Result = __xrtTlsServerFirstFlight(
 			pSession, pState, &Message

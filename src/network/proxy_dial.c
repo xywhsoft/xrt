@@ -1057,14 +1057,25 @@ XRT_API bool xrtNetProxyDialCancel(xnetproxydial* pDial)
 		(void)xrtNetDialCancel(pTransportDial);
 	}
 	if ( xrtNetProxyDialRef(pDial) == NULL ) {
+		xrtAtomic32Store(&pDial->CancelGate, 0, XMEMORY_RELEASE);
 		return false;
 	}
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pDial->Worker,
 		&pDial->CancelCommand,
 		__xrtNetProxyDialCancelTask,
 		pDial
-	);
+	) ) {
+		xrtAtomic32Store(&pDial->CancelGate, 0, XMEMORY_RELEASE);
+		xrtNetProxyDialDestroy(pDial);
+		__xrtNetProxyDialSetError(
+			XERR_CLOSED,
+			XNET_ERROR_PROXY_CONNECT,
+			"cancel-proxy-dial",
+			"network worker shutdown is sealed"
+		);
+		return false;
+	}
 	return true;
 }
 

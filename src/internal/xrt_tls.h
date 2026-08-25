@@ -133,6 +133,11 @@ bool __xrtTlsClientCompressionValid(
 /* 判断 random 是否是 HelloRetryRequest 固定标记。 */
 bool __xrtTlsHelloRetry(xbytesview Random);
 
+
+
+/* 借用 HelloRetryRequest 固定 random 标记。 */
+xbytesview __xrtTlsHelloRetryRandom(void);
+
 #endif
 
 
@@ -361,6 +366,18 @@ bool __xrtTls13ApplicationSchedule(
 bool __xrtTls13ResumptionBinder(
 	xcryptohash Hash,
 	xbytesview Psk,
+	xbytesview ClientHelloPartial,
+	void* pOutput,
+	size_t iOutputSize
+);
+
+
+
+/* 在可选 HRR transcript 前缀之后计算会话票据 binder。 */
+bool __xrtTls13ResumptionBinderTranscript(
+	xcryptohash Hash,
+	xbytesview Psk,
+	const xtlstranscript* pPrefix,
 	xbytesview ClientHelloPartial,
 	void* pOutput,
 	size_t iOutputSize

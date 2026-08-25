@@ -504,6 +504,7 @@ static xnetresult __xrtNetUdpSubmitSend(
 		while ( pHead != NULL ) {
 			__xrt_net_udp_send* pNext = pHead->Next;
 
+			/* 未受理失败保持 Take/Ref 数据的调用方所有权。 */
 			__xrtNetUdpDiscardSend(pHead, false);
 			pHead = pNext;
 		}

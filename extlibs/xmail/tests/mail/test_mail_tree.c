@@ -101,6 +101,7 @@ static void testMailTreeComplete(void)
 
 	pAttachment = &Tree.Root->Children[1];
 	testRequire(pAttachment->Attachment && !pAttachment->Inline &&
+		pAttachment->FileNameUtf8 &&
 		testMailTreeText(pAttachment->FileName, "报告.bin") &&
 		testMailTreeText(pAttachment->ContentId, "file@example.com") &&
 		testMailTreeData(
@@ -126,6 +127,70 @@ static void testMailTreeComplete(void)
 	xrtMailTreeFree(&Tree);
 	testRequire((Tree.Root == NULL) && (Tree.Storage == NULL) &&
 		(Tree.PartCount == 0), "MIME tree free did not clear the handle");
+}
+
+
+
+/* 文件名声明字符集必须转换为 UTF-8，未知集合只能显式保留。 */
+static void testMailTreeCharset(void)
+{
+	static const char sLatin[] =
+		"Content-Disposition: attachment; "
+		"filename*=ISO-8859-1''caf%E9.txt\r\n"
+		"\r\nbody";
+	static const char sUnknown[] =
+		"Content-Disposition: attachment; "
+		"filename*=KOI8-R''%FF.txt\r\n"
+		"\r\nbody";
+	static const char sControl[] =
+		"Content-Disposition: attachment; "
+		"filename*=KOI8-R''bad%00name\r\n"
+		"\r\nbody";
+	static const char sLatinControl[] =
+		"Content-Disposition: attachment; "
+		"filename*=ISO-8859-1''bad%81name\r\n"
+		"\r\nbody";
+	xmailtreelimits Limits;
+	xmailtree Tree;
+
+	testRequire(xrtMailTreeParse(
+		XRT_STR_LITERAL(sLatin),
+		NULL,
+		&Tree
+	) && Tree.Root->FileNameUtf8 && testMailTreeText(
+		Tree.Root->FileName,
+		"caf\xC3\xA9.txt"
+	), "MIME filename character set conversion mismatch");
+	xrtMailTreeFree(&Tree);
+	testRequire(!xrtMailTreeParse(
+		XRT_STR_LITERAL(sUnknown),
+		NULL,
+		&Tree
+	), "MIME tree accepted an unknown filename character set by default");
+	xrtClearError();
+	xrtMailTreeLimitsInit(&Limits);
+	Limits.Flags = XMAIL_TREE_ALLOW_UNKNOWN_CHARSET;
+	testRequire(xrtMailTreeParse(
+		XRT_STR_LITERAL(sUnknown),
+		&Limits,
+		&Tree
+	) && !Tree.Root->FileNameUtf8 &&
+		(Tree.Root->FileName.Size == 5u) &&
+		((unsigned char)Tree.Root->FileName.Data[0] == 0xFFu),
+		"MIME tree did not preserve an allowed unknown filename charset");
+	xrtMailTreeFree(&Tree);
+	testRequire(!xrtMailTreeParse(
+		XRT_STR_LITERAL(sControl),
+		&Limits,
+		&Tree
+	), "MIME tree accepted a control byte in an unknown filename charset");
+	xrtClearError();
+	testRequire(!xrtMailTreeParse(
+		XRT_STR_LITERAL(sLatinControl),
+		NULL,
+		&Tree
+	), "MIME tree accepted a converted Unicode control character");
+	xrtClearError();
 }
 
 
@@ -288,6 +353,7 @@ int main(void)
 {
 	testMailTreeComplete();
 	testMailTreeUnknownTransfer();
+	testMailTreeCharset();
 	testMailTreeDigestDefault();
 	testMailTreeLimits();
 	testMailTreeErrors();

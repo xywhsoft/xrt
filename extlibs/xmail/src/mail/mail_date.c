@@ -56,6 +56,229 @@ static xstrview __xrtMailDateTrim(xstrview Text)
 
 
 
+/* 按线性空白拆分兼容日期，注释和折行仍由上层负责处理。 */
+static bool __xrtMailDateTokens(
+	xstrview Text,
+	xstrview arrToken[6],
+	size_t* pCount
+)
+{
+	size_t iPosition = 0;
+	size_t iCount = 0;
+
+	while ( iPosition < Text.Size ) {
+		size_t iStart;
+
+		while ( (iPosition < Text.Size) &&
+			 ((Text.Data[iPosition] == ' ') ||
+			  (Text.Data[iPosition] == '\t')) ) {
+			iPosition++;
+		}
+		if ( iPosition == Text.Size ) {
+			break;
+		}
+		if ( iCount == 6u ) {
+			return false;
+		}
+		iStart = iPosition;
+		while ( (iPosition < Text.Size) &&
+			 (Text.Data[iPosition] != ' ') &&
+			 (Text.Data[iPosition] != '\t') ) {
+			iPosition++;
+		}
+		arrToken[iCount++] = __xrtMailSlice(
+			Text,
+			iStart,
+			iPosition - iStart
+		);
+	}
+	*pCount = iCount;
+	return (iCount == 5u) || (iCount == 6u);
+}
+
+
+
+/* 解析两位、三位或四位邮件年份并转换成现代四位形式。 */
+static bool __xrtMailDateYear(xstrview Text, int* pYear)
+{
+	int iYear = 0;
+
+	if ( (Text.Size < 2u) || (Text.Size > 4u) ) {
+		return false;
+	}
+	for ( size_t i = 0; i < Text.Size; i++ ) {
+		if ( (Text.Data[i] < '0') || (Text.Data[i] > '9') ) {
+			return false;
+		}
+		iYear = (iYear * 10) + (int)(Text.Data[i] - '0');
+	}
+	if ( Text.Size == 2u ) {
+		iYear += iYear < 50 ? 2000 : 1900;
+	} else if ( Text.Size == 3u ) {
+		iYear += 1900;
+	}
+	if ( (iYear < 1900) || (iYear > 9999) ) {
+		return false;
+	}
+	*pYear = iYear;
+	return true;
+}
+
+
+
+/* 把过时命名时区转换成 RFC 5322 数字偏移。 */
+static bool __xrtMailDateZone(xstrview Text, char arrZone[5])
+{
+	static const struct {
+		cstr Name;
+		cstr Zone;
+	} arrNamed[] = {
+		{ "UT", "+0000" }, { "GMT", "+0000" },
+		{ "EST", "-0500" }, { "EDT", "-0400" },
+		{ "CST", "-0600" }, { "CDT", "-0500" },
+		{ "MST", "-0700" }, { "MDT", "-0600" },
+		{ "PST", "-0800" }, { "PDT", "-0700" }
+	};
+
+	if ( (Text.Size == 5u) &&
+		 ((Text.Data[0] == '+') || (Text.Data[0] == '-')) ) {
+		for ( size_t i = 1u; i < 5u; i++ ) {
+			if ( (Text.Data[i] < '0') || (Text.Data[i] > '9') ) {
+				return false;
+			}
+		}
+		memcpy(arrZone, Text.Data, 5u);
+		return true;
+	}
+	for ( size_t i = 0; i < (sizeof(arrNamed) / sizeof(arrNamed[0])); i++ ) {
+		if ( __xrtMailAsciiEqualI(
+			Text,
+			__xrtMailView(arrNamed[i].Name, strlen(arrNamed[i].Name))
+		) ) {
+			memcpy(arrZone, arrNamed[i].Zone, 5u);
+			return true;
+		}
+	}
+	if ( Text.Size == 1u ) {
+		unsigned char iLetter = __xrtMailAsciiLower(
+			(unsigned char)Text.Data[0]
+		);
+		int iHour;
+
+		if ( iLetter == (unsigned char)'z' ) {
+			memcpy(arrZone, "+0000", 5u);
+			return true;
+		}
+		if ( (iLetter >= (unsigned char)'a') &&
+			 (iLetter <= (unsigned char)'i') ) {
+			iHour = (int)(iLetter - (unsigned char)'a') + 1;
+			arrZone[0] = '+';
+		} else if ( (iLetter >= (unsigned char)'k') &&
+			 (iLetter <= (unsigned char)'m') ) {
+			iHour = (int)(iLetter - (unsigned char)'k') + 10;
+			arrZone[0] = '+';
+		} else if ( (iLetter >= (unsigned char)'n') &&
+			 (iLetter <= (unsigned char)'y') ) {
+			iHour = (int)(iLetter - (unsigned char)'n') + 1;
+			arrZone[0] = '-';
+		} else {
+			return false;
+		}
+		arrZone[1] = (char)('0' + (iHour / 10));
+		arrZone[2] = (char)('0' + (iHour % 10));
+		arrZone[3] = '0';
+		arrZone[4] = '0';
+		return true;
+	}
+	return false;
+}
+
+
+
+/* 向固定规范缓冲追加一个由空格分隔的片段。 */
+static bool __xrtMailDateAppend(
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pPosition,
+	const char* sText,
+	size_t iSize
+)
+{
+	size_t iSeparator = *pPosition != 0 ? 1u : 0u;
+
+	if ( (*pPosition > iCapacity) ||
+		 (iSeparator > (iCapacity - *pPosition)) ||
+		 (iSize > (iCapacity - *pPosition - iSeparator)) ) {
+		return false;
+	}
+	if ( *pPosition != 0 ) {
+		sOutput[(*pPosition)++] = ' ';
+	}
+	memcpy(sOutput + *pPosition, sText, iSize);
+	*pPosition += iSize;
+	return true;
+}
+
+
+
+/* 把兼容输入归一成现代数字时区和四位年份。 */
+static bool __xrtMailDateNormalize(
+	xstrview Text,
+	char* sOutput,
+	size_t iCapacity,
+	xstrview* pNormalized
+)
+{
+	xstrview arrToken[6];
+	size_t iCount;
+	size_t iBase;
+	size_t iPosition = 0;
+	int iYear;
+	char arrYear[4];
+	char arrZone[5];
+
+	if ( !__xrtMailDateTokens(Text, arrToken, &iCount) ) {
+		return false;
+	}
+	iBase = iCount == 6u ? 1u : 0u;
+	if ( (iBase != 0u) &&
+		 ((arrToken[0].Size != 4u) ||
+		  (arrToken[0].Data[3] != ',')) ) {
+		return false;
+	}
+	if ( !__xrtMailDateYear(arrToken[iBase + 2u], &iYear) ||
+		 !__xrtMailDateZone(arrToken[iBase + 4u], arrZone) ) {
+		return false;
+	}
+	arrYear[0] = (char)('0' + ((iYear / 1000) % 10));
+	arrYear[1] = (char)('0' + ((iYear / 100) % 10));
+	arrYear[2] = (char)('0' + ((iYear / 10) % 10));
+	arrYear[3] = (char)('0' + (iYear % 10));
+	if ( ((iBase != 0u) && !__xrtMailDateAppend(
+		sOutput, iCapacity, &iPosition,
+		arrToken[0].Data, arrToken[0].Size
+	)) || !__xrtMailDateAppend(
+		sOutput, iCapacity, &iPosition,
+		arrToken[iBase].Data, arrToken[iBase].Size
+	) || !__xrtMailDateAppend(
+		sOutput, iCapacity, &iPosition,
+		arrToken[iBase + 1u].Data, arrToken[iBase + 1u].Size
+	) || !__xrtMailDateAppend(
+		sOutput, iCapacity, &iPosition, arrYear, sizeof(arrYear)
+	) || !__xrtMailDateAppend(
+		sOutput, iCapacity, &iPosition,
+		arrToken[iBase + 3u].Data, arrToken[iBase + 3u].Size
+	) || !__xrtMailDateAppend(
+		sOutput, iCapacity, &iPosition, arrZone, sizeof(arrZone)
+	) ) {
+		return false;
+	}
+	*pNormalized = __xrtMailView(sOutput, iPosition);
+	return true;
+}
+
+
+
 /* 校验邮件日期可以无损表达的年份和时区。 */
 static bool __xrtMailDateRange(const xdatetime* pDateTime)
 {
@@ -162,13 +385,15 @@ XRT_API str xrtMailDate(xtime iTime, int iOffset, size_t* pOutputSize)
 
 
 
-/* 解析现代 RFC 5322 日期并保留原时区偏移。 */
+/* 解析 RFC 5322 日期并保留原时区偏移。 */
 XRT_API bool xrtMailDateParse(
 	xstrview Text,
+	uint32 iFlags,
 	xtime* pTime,
 	int* pOffset
 )
 {
+	char arrNormalized[96];
 	xstrview Trimmed;
 	xdatetime DateTime;
 	xtime iTime;
@@ -176,6 +401,7 @@ XRT_API bool xrtMailDateParse(
 	size_t iColonCount = 0;
 
 	if ( !__xrtMailViewValid(Text) ||
+		 (iFlags & ~(uint32)XMAIL_DATE_RELAXED) ||
 		 !xrtMemRangeValid(pTime, sizeof(*pTime)) ||
 		 !xrtMemRangeValid(pOffset, pOffset != NULL ? sizeof(*pOffset) : 0) ||
 		 xrtMemRangesOverlap(pTime, sizeof(*pTime), Text.Data, Text.Size) ||
@@ -189,6 +415,24 @@ XRT_API bool xrtMailDateParse(
 	if ( Trimmed.Size == 0 ) {
 		__xrtMailError(XERR_PROTOCOL, XMAIL_ERROR_HEADER, "mail date is empty");
 		return false;
+	}
+	if ( (iFlags & (uint32)XMAIL_DATE_RELAXED) != 0u ) {
+		xstrview Normalized;
+
+		if ( !__xrtMailDateNormalize(
+			Trimmed,
+			arrNormalized,
+			sizeof(arrNormalized),
+			&Normalized
+		) ) {
+			__xrtMailError(
+				XERR_PROTOCOL,
+				XMAIL_ERROR_HEADER,
+				"obsolete mail date is invalid"
+			);
+			return false;
+		}
+		Trimmed = Normalized;
 	}
 	for ( size_t i = 0; i < Trimmed.Size; i++ ) {
 		if ( Trimmed.Data[i] == ':' ) {

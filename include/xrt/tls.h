@@ -230,6 +230,9 @@ typedef enum xtlscipher {
 	XTLS_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256 = 0xCCA9
 } xtlscipher;
 
+/* TLS_FALLBACK_SCSV 是 ClientHello 中的信号值，不属于可协商密码套件。 */
+#define XTLS_FALLBACK_SCSV UINT16_C(0x5600)
+
 
 
 /* TLS 密码套件使用的摘要算法与密码后端解耦。 */
@@ -1271,6 +1274,11 @@ XRT_API bool xrtTlsRetryGroup(xbytesview Data, uint16* pGroup);
 
 
 
+/* 严格解析 HelloRetryRequest cookie 的 16 位非空字节向量。 */
+XRT_API bool xrtTlsRetryCookie(xbytesview Data, xbytesview* pCookie);
+
+
+
 /* 严格解析一条 ClientHello 正文并发布零拷贝字段视图。 */
 XRT_API bool xrtTlsClientHelloParse(
 	xbytesview Body,
@@ -1806,6 +1814,14 @@ XRT_API bool xrtTlsWriterServerKeyShare(
 XRT_API bool xrtTlsWriterRetryGroup(
 	xtlswriter* pWriter,
 	uint16 iGroup
+);
+
+
+
+/* 追加 HelloRetryRequest 或 ClientHello 使用的非空 cookie 扩展。 */
+XRT_API bool xrtTlsWriterRetryCookie(
+	xtlswriter* pWriter,
+	xbytesview Cookie
 );
 
 

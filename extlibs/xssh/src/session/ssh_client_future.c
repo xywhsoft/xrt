@@ -578,6 +578,13 @@ static bool xsshClientFutureMatches(
 	if ( pNotice->Signal == XSSH_CLIENT_FUTURE_CLOSE ) {
 		return true;
 	}
+	if ( pNotice->Signal == XSSH_CLIENT_FUTURE_CHANNEL_REMOVED ) {
+		return pNotice->HasChannelLocal &&
+			(pWaiter->ChannelLocal == pNotice->ChannelLocal) &&
+			((pWaiter->Kind == XSSH_CLIENT_FUTURE_WAIT_CHANNEL) ||
+			 (pWaiter->Kind == XSSH_CLIENT_FUTURE_WAIT_READ) ||
+			 (pWaiter->Kind == XSSH_CLIENT_FUTURE_WAIT_CHANNEL_REPLY));
+	}
 	if ( pWaiter->Kind == XSSH_CLIENT_FUTURE_WAIT_CLIENT ) {
 		return ((pWaiter->ClientWait == XSSH_CLIENT_WAIT_READY) &&
 			(pNotice->Signal == XSSH_CLIENT_FUTURE_READY)) ||
@@ -661,6 +668,9 @@ static xsshclientfuturecompletion xsshClientFutureCompletion(
 			XSSH_CLIENT_FUTURE_RESOLVE :
 			(pNotice->Error != NULL ?
 			 XSSH_CLIENT_FUTURE_REJECT : XSSH_CLIENT_FUTURE_CLOSED);
+	}
+	if ( pNotice->Signal == XSSH_CLIENT_FUTURE_CHANNEL_REMOVED ) {
+		return XSSH_CLIENT_FUTURE_CLOSED;
 	}
 	if ( (pNotice->Signal == XSSH_CLIENT_FUTURE_CHANNEL) &&
 		(pNotice->ChannelNotice != NULL) &&

@@ -851,4 +851,45 @@ XRT_API bool xrtTlsWriterRetryGroup(
 	return true;
 }
 
+
+
+/* 追加 HelloRetryRequest 或重试 ClientHello 的非空 cookie。 */
+XRT_API bool xrtTlsWriterRetryCookie(
+	xtlswriter* pWriter,
+	xbytesview Cookie
+)
+{
+	uint8* pWrite;
+	size_t iDataSize;
+
+	if ( !__xrtTlsViewValid(Cookie) || (Cookie.Size == 0) ||
+		(Cookie.Size > XTLS_EXTENSION_DATA_MAX - 2u) ) {
+		__xrtTlsError(
+			XERR_ARGUMENT, XTLS_ERROR_EXTENSION, "write-retry-cookie",
+			"TLS retry cookie is empty or too long", SIZE_MAX
+		);
+		return false;
+	}
+	iDataSize = 2u + Cookie.Size;
+	if ( !__xrtTlsWriterValid(pWriter) || __xrtTlsWriterOverlap(
+		pWriter, XTLS_EXTENSION_HEADER_SIZE + iDataSize,
+		Cookie.Data, Cookie.Size
+	) ) {
+		__xrtTlsError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "write-retry-cookie",
+			"TLS retry cookie overlaps its writer destination", SIZE_MAX
+		);
+		return false;
+	}
+	if ( !__xrtTlsWriterBegin(
+		pWriter, XTLS_EXTENSION_COOKIE, iDataSize, &pWrite
+	) ) {
+		return false;
+	}
+	__xrtTlsWrite16(pWrite, (uint16)Cookie.Size);
+	memcpy(pWrite + 2u, Cookie.Data, Cookie.Size);
+	__xrtTlsWriterCommit(pWriter, XTLS_EXTENSION_COOKIE, iDataSize);
+	return true;
+}
+
 #endif

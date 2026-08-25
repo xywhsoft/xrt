@@ -2333,12 +2333,19 @@ static void __xrtNetUdpControlRequest(
 
 	if ( (iPrevious & XRT_NET_UDP_CONTROL_POSTED) == 0 ) {
 		xrtNetUdpRef(pUdp);
-		__xrtNetEnginePostInternal(
+		if ( !__xrtNetEnginePostInternal(
 			pUdp->Worker,
 			&pUdp->ControlCommand,
 			__xrtNetUdpControl,
 			pUdp
-		);
+		) ) {
+			(void)xrtAtomic32FetchAnd(
+				&pUdp->ControlRequests,
+				~XRT_NET_UDP_CONTROL_POSTED,
+				XMEMORY_ACQ_REL
+			);
+			xrtNetUdpDestroy(pUdp);
+		}
 	}
 }
 

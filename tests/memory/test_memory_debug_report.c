@@ -78,6 +78,16 @@ static bool testVisitLive(const xmemdebugallocation* pAllocation, ptr pUserData)
 
 
 
+/* 事件 OOM 测试中的访问器不修改快照。 */
+static bool testVisitEvent(const xmemdebugevent* pEvent, ptr pUserData)
+{
+	(void)pEvent;
+	(void)pUserData;
+	return true;
+}
+
+
+
 /* 验证旧版文本和 JSON 报告能力由无文件耦合的流式层完整承接。 */
 int main(void)
 {
@@ -93,6 +103,13 @@ int main(void)
 	testRequire(xrtMemDebugReset(), "initial memory debug reset failed");
 	pLive = xrtMalloc(48);
 	testRequire(pLive != NULL, "report live allocation failed");
+
+	__testFailNextAllocation = true;
+	testRequire(xrtMemDebugVisit(testVisitEvent, NULL) == 0,
+		"event snapshot OOM must not visit events");
+	testRequire(xrtErrorKind(xrtGetError()) == XERR_MEMORY,
+		"event snapshot OOM must report memory error");
+	xrtClearError();
 
 	__testFailNextAllocation = true;
 	testRequire(xrtMemDebugVisitLive(testVisitLive, NULL) == 0, "snapshot OOM must not visit allocations");

@@ -32,6 +32,10 @@
 	#include <xrt/mail_codec.h>
 #endif
 
+#if defined(XMAIL_FEATURE_MAIL_CHARSET)
+	#include <xrt/mail_charset.h>
+#endif
+
 #if defined(XMAIL_FEATURE_MAIL_HEADER)
 	#include <xrt/mail_header.h>
 #endif

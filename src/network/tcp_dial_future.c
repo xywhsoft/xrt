@@ -8,6 +8,7 @@
 /* TCP Dial Future 桥接一个底层 Dial 与一个公开 Future。 */
 typedef struct xrt_net_dial_future {
 	xfuturebridge Bridge;
+	volatile int32 References;
 	xnetdial* Dial;
 } xrt_net_dial_future;
 
@@ -65,7 +66,9 @@ static void __xrtNetDialFutureDone(
 		pFailure = xrtTakeError();
 	}
 	xrtNetDialDestroy(pHeld);
-	xrtFree(pContext);
+	if ( xrtRefRelease(&pContext->References) == 0 ) {
+		xrtFree(pContext);
+	}
 	if ( !bReady ) {
 		if ( pStream != NULL ) {
 			(void)xrtNetStreamAbort(pStream);
@@ -122,6 +125,7 @@ XRT_API xfuture* xrtNetDialAsync(
 		xrtFree(pContext);
 		return NULL;
 	}
+	pContext->References = 2;
 	pContext->Dial = xrtNetDial(
 		pEngine,
 		pResolver,
@@ -152,9 +156,15 @@ XRT_API xfuture* xrtNetDialAsync(
 			xrtSetError(pError);
 			xrtErrorFree(pError);
 		}
+		if ( xrtRefRelease(&pContext->References) == 0 ) {
+			xrtFree(pContext);
+		}
 		return NULL;
 	}
 	(void)xrtFutureBridgeReady(&pContext->Bridge);
+	if ( xrtRefRelease(&pContext->References) == 0 ) {
+		xrtFree(pContext);
+	}
 	return pFuture;
 }
 

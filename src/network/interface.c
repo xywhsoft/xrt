@@ -548,6 +548,7 @@ static bool __xrtNetWindowsMeasure(PIP_ADAPTER_ADDRESSES pAdapters,
 	for ( pAdapter = pAdapters; pAdapter != NULL; pAdapter = pAdapter->Next ) {
 		PIP_ADAPTER_UNICAST_ADDRESS pAddress;
 		size_t iDisplaySize;
+		size_t iHardwareSize;
 		size_t iNameSize;
 
 		if ( (pAdapter->AdapterName == NULL) ||
@@ -555,6 +556,10 @@ static bool __xrtNetWindowsMeasure(PIP_ADAPTER_ADDRESSES pAdapters,
 			continue;
 		}
 		iNameSize = strlen(pAdapter->AdapterName);
+		iHardwareSize = (size_t)pAdapter->PhysicalAddressLength;
+		if ( iHardwareSize > sizeof(pAdapter->PhysicalAddress) ) {
+			iHardwareSize = sizeof(pAdapter->PhysicalAddress);
+		}
 		if ( !__xrtNetWindowsTextSize(
 			pAdapter->FriendlyName, &iDisplaySize
 		) || !__xrtNetInterfaceSizeAdd(
@@ -563,7 +568,7 @@ static bool __xrtNetWindowsMeasure(PIP_ADAPTER_ADDRESSES pAdapters,
 			&pMeasure->Bytes, iDisplaySize + 1u
 		)) || !__xrtNetInterfaceSizeAdd(
 			&pMeasure->Bytes,
-			(size_t)pAdapter->PhysicalAddressLength
+			iHardwareSize
 		) ) {
 			return false;
 		}

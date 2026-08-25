@@ -82,8 +82,9 @@ Windows 必须分别验证 IOCP 与 Select fallback。网络后端正确性由�
 python tools/test_protocol_fuzz.py --runs 100000
 ```
 
-脚本必须从模块清单解析实现闭包，并使用 libFuzzer、ASan 和 UBSan。崩溃样本必须进入持久 corpus，
-或最小化为普通回归后才能发布。OOM 测试必须使用 `xrtMemDebugFailAfter`，并验证失败后对象、引用、
+脚本必须从模块清单解析实现闭包，并使用 libFuzzer、ASan 和 UBSan。仓库内持久种子、工作语料、
+崩溃工件和回流步骤见 [`fuzz/README.md`](../fuzz/README.md)。崩溃样本必须最小化并进入持久 corpus，
+或转化为普通回归后才能发布。OOM 测试必须使用 `xrtMemDebugFailAfter`，并验证失败后对象、引用、
 回调状态和持有内存全部归零。
 
 体积和性能门禁：

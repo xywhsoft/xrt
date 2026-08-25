@@ -13,10 +13,20 @@ typedef struct testsmtpstarttlsupgrade {
 
 
 
+
+typedef enum testsmtpstarttlsmode {
+	TEST_SMTP_STARTTLS_OPEN,
+	TEST_SMTP_STARTTLS_REJECT,
+	TEST_SMTP_STARTTLS_DROP
+} testsmtpstarttlsmode;
+
+
+
 typedef struct testsmtpstarttlsserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
 	xdeadline Deadline;
+	testsmtpstarttlsmode Mode;
 	bool Success;
 } testsmtpstarttlsserver;
 
@@ -271,7 +281,7 @@ static bool testSmtpStartTlsReceive(
 
 
 
-/* 模拟 STARTTLS 前后两次 EHLO 和认证关闭。 */
+/* 模拟 STARTTLS 成功、拒绝和断链三种服务端行为。 */
 static int32 testSmtpStartTlsServer(ptr pData)
 {
 	testsmtpstarttlsserver* pServer = (testsmtpstarttlsserver*)pData;
@@ -307,20 +317,46 @@ static int32 testSmtpStartTlsServer(ptr pData)
 		"STARTTLS\r\n",
 		10u,
 		pServer->Deadline
-	) && testSmtpStartTlsPlainSend(
-		pTcp,
-		"220 begin TLS\r\n",
-		15u,
-		pServer->Deadline
 	);
 	if ( !bSuccess ) {
 		xrtNetStreamDestroy(pTcp);
 		return 2;
 	}
+	if ( pServer->Mode == TEST_SMTP_STARTTLS_DROP ) {
+		pServer->Success = xrtNetStreamAbort(pTcp);
+		xrtNetStreamDestroy(pTcp);
+		return pServer->Success ? 0 : 3;
+	}
+	if ( pServer->Mode == TEST_SMTP_STARTTLS_REJECT ) {
+		bSuccess = testSmtpStartTlsPlainSend(
+			pTcp,
+			"454 TLS unavailable\r\n",
+			21u,
+			pServer->Deadline
+		) && xrtNetStreamWait(
+			pTcp,
+			XNET_STREAM_WAIT_DRAIN,
+			pServer->Deadline,
+			NULL
+		);
+		pServer->Success = bSuccess;
+		(void)xrtNetStreamAbort(pTcp);
+		xrtNetStreamDestroy(pTcp);
+		return bSuccess ? 0 : 4;
+	}
+	if ( !testSmtpStartTlsPlainSend(
+		pTcp,
+		"220 begin TLS\r\n",
+		15u,
+		pServer->Deadline
+	) ) {
+		xrtNetStreamDestroy(pTcp);
+		return 5;
+	}
 	pTls = testSmtpStartTlsUpgrade(&pTcp, pServer->Tls, pServer->Deadline);
 	if ( pTls == NULL ) {
 		xrtNetStreamDestroy(pTcp);
-		return 3;
+		return 6;
 	}
 	pTcp = NULL;
 	bSuccess = testSmtpStartTlsReceive(
@@ -381,7 +417,7 @@ static int32 testSmtpStartTlsServer(ptr pData)
 		(void)xrtTlsStreamAbort(pTls);
 	}
 	xrtTlsStreamDestroy(pTls);
-	return bSuccess ? 0 : 4;
+	return bSuccess ? 0 : 7;
 }
 
 
@@ -449,6 +485,7 @@ int main(void)
 	Server.Listener = pListener;
 	Server.Tls = &ServerConfig;
 	Server.Deadline = Deadline;
+	Server.Mode = TEST_SMTP_STARTTLS_OPEN;
 	Server.Success = false;
 	pThread = xrtThreadCreate(testSmtpStartTlsServer, &Server, 0);
 	testRequire(pThread != NULL,
@@ -487,6 +524,38 @@ int main(void)
 		"SMTP STARTTLS transcript mismatch");
 	xrtThreadDestroy(pThread);
 	xrtSmtpClientDestroy(pClient);
+
+	/* STARTTLS 明确拒绝必须报告协议错误。 */
+	Server.Mode = TEST_SMTP_STARTTLS_REJECT;
+	Server.Success = false;
+	pThread = xrtThreadCreate(testSmtpStartTlsServer, &Server, 0);
+	testRequire(pThread != NULL,
+		"SMTP STARTTLS reject thread creation failed");
+	pClient = xrtSmtpClientOpen(&Config, Deadline, NULL);
+	testRequire((pClient == NULL) && (xrtGetError() != NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_PROTOCOL),
+		"SMTP STARTTLS rejection did not report protocol error");
+	xrtClearError();
+	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
+		Server.Success && (xrtThreadExitCode(pThread) == 0),
+		"SMTP STARTTLS rejection transcript mismatch");
+	xrtThreadDestroy(pThread);
+
+	/* 服务器断链必须保留传输错误，不能读取上一条 250 响应。 */
+	Server.Mode = TEST_SMTP_STARTTLS_DROP;
+	Server.Success = false;
+	pThread = xrtThreadCreate(testSmtpStartTlsServer, &Server, 0);
+	testRequire(pThread != NULL,
+		"SMTP STARTTLS drop thread creation failed");
+	pClient = xrtSmtpClientOpen(&Config, Deadline, NULL);
+	testRequire((pClient == NULL) && (xrtGetError() != NULL) &&
+		(xrtErrorKind(xrtGetError()) != XERR_PROTOCOL),
+		"SMTP STARTTLS drop was replaced by a stale reply error");
+	xrtClearError();
+	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
+		Server.Success && (xrtThreadExitCode(pThread) == 0),
+		"SMTP STARTTLS drop transcript mismatch");
+	xrtThreadDestroy(pThread);
 
 	testRequire(xrtNetListenerClose(pListener),
 		"SMTP STARTTLS listener close request failed");

@@ -6,25 +6,24 @@
 
 #define XRT_HTTP1_BODY_CHUNK_SIZE_START UINT32_C(1)
 #define XRT_HTTP1_BODY_CHUNK_SIZE UINT32_C(2)
-#define XRT_HTTP1_BODY_CHUNK_SIZE_BWS UINT32_C(3)
-#define XRT_HTTP1_BODY_CHUNK_EXT_NAME_START UINT32_C(4)
-#define XRT_HTTP1_BODY_CHUNK_EXT_NAME UINT32_C(5)
-#define XRT_HTTP1_BODY_CHUNK_EXT_AFTER_NAME UINT32_C(6)
-#define XRT_HTTP1_BODY_CHUNK_EXT_VALUE_START UINT32_C(7)
-#define XRT_HTTP1_BODY_CHUNK_EXT_TOKEN UINT32_C(8)
-#define XRT_HTTP1_BODY_CHUNK_EXT_QUOTED UINT32_C(9)
-#define XRT_HTTP1_BODY_CHUNK_EXT_ESCAPE UINT32_C(10)
-#define XRT_HTTP1_BODY_CHUNK_EXT_AFTER_VALUE UINT32_C(11)
-#define XRT_HTTP1_BODY_CHUNK_EXT_VALUE_BWS UINT32_C(12)
-#define XRT_HTTP1_BODY_CHUNK_LINE_LF UINT32_C(13)
-#define XRT_HTTP1_BODY_CHUNK_DATA UINT32_C(14)
-#define XRT_HTTP1_BODY_CHUNK_DATA_CR UINT32_C(15)
-#define XRT_HTTP1_BODY_CHUNK_DATA_LF UINT32_C(16)
-#define XRT_HTTP1_BODY_TRAILERS UINT32_C(17)
-#define XRT_HTTP1_BODY_FIXED_DATA UINT32_C(18)
-#define XRT_HTTP1_BODY_CLOSE_DATA UINT32_C(19)
-#define XRT_HTTP1_BODY_COMPLETE UINT32_C(20)
-#define XRT_HTTP1_BODY_FAILED UINT32_C(21)
+#define XRT_HTTP1_BODY_CHUNK_EXT_NAME_START UINT32_C(3)
+#define XRT_HTTP1_BODY_CHUNK_EXT_NAME UINT32_C(4)
+#define XRT_HTTP1_BODY_CHUNK_EXT_AFTER_NAME UINT32_C(5)
+#define XRT_HTTP1_BODY_CHUNK_EXT_VALUE_START UINT32_C(6)
+#define XRT_HTTP1_BODY_CHUNK_EXT_TOKEN UINT32_C(7)
+#define XRT_HTTP1_BODY_CHUNK_EXT_QUOTED UINT32_C(8)
+#define XRT_HTTP1_BODY_CHUNK_EXT_ESCAPE UINT32_C(9)
+#define XRT_HTTP1_BODY_CHUNK_EXT_AFTER_VALUE UINT32_C(10)
+#define XRT_HTTP1_BODY_CHUNK_EXT_VALUE_BWS UINT32_C(11)
+#define XRT_HTTP1_BODY_CHUNK_LINE_LF UINT32_C(12)
+#define XRT_HTTP1_BODY_CHUNK_DATA UINT32_C(13)
+#define XRT_HTTP1_BODY_CHUNK_DATA_CR UINT32_C(14)
+#define XRT_HTTP1_BODY_CHUNK_DATA_LF UINT32_C(15)
+#define XRT_HTTP1_BODY_TRAILERS UINT32_C(16)
+#define XRT_HTTP1_BODY_FIXED_DATA UINT32_C(17)
+#define XRT_HTTP1_BODY_CLOSE_DATA UINT32_C(18)
+#define XRT_HTTP1_BODY_COMPLETE UINT32_C(19)
+#define XRT_HTTP1_BODY_FAILED UINT32_C(20)
 
 #define XRT_HTTP1_DEFAULT_CHUNK_LINE UINT32_C(8192)
 #define XRT_HTTP1_DEFAULT_TRAILER UINT32_C(16384)
@@ -252,27 +251,11 @@ static bool __xrtHttp1ChunkSyntax(
 					(pBody->ChunkSize * UINT64_C(16)) + (uint64)iHex;
 				return true;
 			}
-			if ( (iByte == (unsigned char)' ') ||
-				(iByte == (unsigned char)'\t') ) {
-				pBody->State = XRT_HTTP1_BODY_CHUNK_SIZE_BWS;
-				return true;
-			}
 			if ( iByte == (unsigned char)';' ) {
 				pBody->State = XRT_HTTP1_BODY_CHUNK_EXT_NAME_START;
 				return true;
 			}
 			if ( __xrtHttp1ChunkLineEnd(pBody, iByte) ) {
-				return true;
-			}
-			break;
-
-		case XRT_HTTP1_BODY_CHUNK_SIZE_BWS:
-			if ( (iByte == (unsigned char)' ') ||
-				(iByte == (unsigned char)'\t') ) {
-				return true;
-			}
-			if ( iByte == (unsigned char)';' ) {
-				pBody->State = XRT_HTTP1_BODY_CHUNK_EXT_NAME_START;
 				return true;
 			}
 			break;
@@ -412,13 +395,13 @@ static bool __xrtHttp1ChunkSyntax(
 	(void)__xrtHttp1BodyFail(
 		pBody,
 		pError,
-		(iState <= XRT_HTTP1_BODY_CHUNK_SIZE_BWS) ?
+		(iState <= XRT_HTTP1_BODY_CHUNK_SIZE) ?
 			XHTTP1_ERROR_CHUNK_SIZE : XHTTP1_ERROR_CHUNK_EXTENSION,
 		pBody->WireBytes,
 		0,
 		XERR_PROTOCOL,
 		"read-http1-body",
-		(iState <= XRT_HTTP1_BODY_CHUNK_SIZE_BWS) ?
+		(iState <= XRT_HTTP1_BODY_CHUNK_SIZE) ?
 			"chunk size line is invalid" : "chunk extension is invalid"
 	);
 	return false;

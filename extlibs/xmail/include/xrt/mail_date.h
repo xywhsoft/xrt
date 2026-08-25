@@ -14,6 +14,14 @@
 
 #if defined(XMAIL_FEATURE_MAIL_DATE)
 
+/* 默认严格解析；兼容模式额外接受过时年份和命名时区。 */
+typedef enum xmaildateflag {
+	XMAIL_DATE_STRICT = 0,
+	XMAIL_DATE_RELAXED = UINT32_C(0x00000001)
+} xmaildateflag;
+
+
+
 XRT_EXTERN_C_BEGIN
 
 
@@ -34,9 +42,10 @@ XRT_API str xrtMailDate(xtime iTime, int iOffset, size_t* pOutputSize);
 
 
 
-/* 解析现代 RFC 5322 日期；星期和秒可以省略，输入必须已展开字段折行。 */
+/* 解析 RFC 5322 日期；星期和秒可以省略，输入必须已展开字段折行。 */
 XRT_API bool xrtMailDateParse(
 	xstrview Text,
+	uint32 iFlags,
 	xtime* pTime,
 	int* pOffset
 );

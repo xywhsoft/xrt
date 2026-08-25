@@ -7,9 +7,11 @@
 精确到分钟，年份必须位于 1900 到 9999。空输出查询长度，实际容量包含末尾零字节，
 短缓冲不会发布部分文本。`xrtMailDate` 提供由 `xrtFree` 释放的一行式分配入口。
 
-`xrtMailDateParse` 接受现代 RFC 5322 形式，星期和秒可以省略，返回绝对 `xtime`
-并可选返回原 UTC 偏移。星期存在时会验证它与日期一致。输入应先通过
-`xrtMailHeaderUnfoldWrite` 展开折行；过时命名时区和注释日期语法不进入默认路径。
+`xrtMailDateParse` 接受 RFC 5322 日期，星期和秒可以省略，返回绝对 `xtime` 并可选
+返回原 UTC 偏移。`XMAIL_DATE_STRICT` 只接受四位年份和数字时区；显式设置
+`XMAIL_DATE_RELAXED` 后，还接受 RFC 5322 过时语法中的两位/三位年份、UT/GMT、
+北美命名时区和除 J 外的军用时区。星期存在时始终验证它与日期一致。输入应先通过
+`xrtMailHeaderUnfoldWrite` 展开折行，兼容模式不会静默接受注释或非法折行。
 
 ```c
 char text[64];

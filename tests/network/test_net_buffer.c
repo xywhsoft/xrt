@@ -1,4 +1,5 @@
 #include "../test.h"
+#include "../../src/internal/xrt_net_buffer.h"
 
 
 
@@ -355,6 +356,70 @@ static void testNetBufConsumeBeforeNewTailCommit(void)
 
 
 
+/* 文件区间只能由发送文件路径解释，所有字节 API 必须停在其边界。 */
+static void testNetBufFileExtentBoundary(void)
+{
+	xnetbuf Buffer;
+	xnetspan Span = { (cbytes)"dirty", 5 };
+	char sOutput[8] = { 0 };
+	char Descriptor = 0;
+	ptr pDescriptor = NULL;
+	size_t iOffset = 0;
+	size_t iSize = 0;
+	size_t iReleased = 0;
+
+	testRequire(xrtNetBufInit(&Buffer, NULL) &&
+		xrtNetBufAppend(&Buffer, "ab", 2) &&
+		__xrtNetBufAppendFile(
+			&Buffer,
+			&Descriptor,
+			4,
+			testNetBufRelease,
+			&iReleased
+		) && xrtNetBufAppend(&Buffer, "cd", 2),
+		"file extent buffer setup failed");
+	testRequire((xrtNetBufPeek(
+		&Buffer,
+		0,
+		sOutput,
+		sizeof(sOutput)
+	) == 2) && (memcmp(sOutput, "ab", 2) == 0),
+		"buffer peek crossed a file extent");
+	testRequire(xrtNetBufFind(&Buffer, 'c', 0) == XRT_NPOS,
+		"buffer find crossed a file extent");
+	testRequire(xrtNetBufConsume(&Buffer, 2) == 2,
+		"file extent prefix consume failed");
+	testRequire(!xrtNetBufFront(&Buffer, &Span) &&
+		(Span.Data == NULL) && (Span.Size == 0),
+		"buffer front exposed a file descriptor as bytes");
+	xrtClearError();
+	testRequire(!xrtNetBufPullup(&Buffer, 1, &Span) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"buffer pullup accepted a file extent");
+	xrtClearError();
+	testRequire((xrtNetBufRead(
+		&Buffer,
+		sOutput,
+		sizeof(sOutput)
+	) == 0) && (xrtNetBufSize(&Buffer) == 6),
+		"buffer read consumed a file extent");
+	testRequire(__xrtNetBufFileFront(
+		&Buffer,
+		&pDescriptor,
+		&iOffset,
+		&iSize
+	) && (pDescriptor == &Descriptor) &&
+		(iOffset == 0) && (iSize == 4),
+		"file extent accessor mismatch");
+	testRequire(xrtNetBufConsume(&Buffer, 4) == 4 &&
+		(iReleased == 1) && xrtNetBufFront(&Buffer, &Span) &&
+		(Span.Size == 2) && (memcmp(Span.Data, "cd", 2) == 0),
+		"buffer did not resume bytes after a file extent");
+	xrtNetBufClear(&Buffer);
+}
+
+
+
 /* 执行网络缓冲链基础回归。 */
 int main(void)
 {
@@ -367,5 +432,6 @@ int main(void)
 	testNetBufMove();
 	testNetBufConsumeReservedTail();
 	testNetBufConsumeBeforeNewTailCommit();
+	testNetBufFileExtentBoundary();
 	return 0;
 }

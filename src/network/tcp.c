@@ -1,8 +1,11 @@
 #include "../internal/xrt_tcp.h"
 
+#if !defined(_WIN32) && !defined(_WIN64)
+	#include <errno.h>
+#endif
+
 #if defined(XRT_FEATURE_NET_TCP_FILE)
 	#if !defined(_WIN32) && !defined(_WIN64)
-		#include <errno.h>
 		#include <fcntl.h>
 		#include <unistd.h>
 		#if defined(__linux__)
@@ -29,6 +32,8 @@
 #define XRT_NET_LISTENER_ACCEPT_MAX 1024u
 #define XRT_NET_LISTENER_QUEUE_DEFAULT 256u
 #define XRT_NET_LISTENER_BACKLOG_DEFAULT 256
+#define XRT_NET_LISTENER_RETRY_MIN 10000u
+#define XRT_NET_LISTENER_RETRY_MAX 1000000u
 #define XRT_NET_STREAM_IO_BUDGET 16u
 #define XRT_NET_STREAM_CONTROL_RESUME 0x00000001u
 #define XRT_NET_STREAM_CONTROL_SHUTDOWN 0x00000002u
@@ -49,6 +54,11 @@ typedef struct __xrt_net_accept_task {
 	xnetstream* Stream;
 	xerror* Error;
 } __xrt_net_accept_task;
+
+
+
+static bool __xrtNetListenerArmAccepts(xnetlistener* pListener);
+static bool __xrtNetListenerWatch(xnetlistener* pListener);
 
 
 
@@ -2227,9 +2237,17 @@ static void __xrtNetStreamCompletion(
 		pStream->WatchPending = false;
 		pStream->WatchEvents = 0;
 		if ( xrtNetStreamState(pStream) == XNET_STREAM_CONNECTING ) {
-			if ( xrtNetSocketFinishConnect(pStream->Socket) ==
-				 XNET_RESULT_OK ) {
+			xnetresult Result = xrtNetSocketFinishConnect(
+				pStream->Socket
+			);
+
+			if ( Result == XNET_RESULT_OK ) {
 				__xrtNetStreamOpened(pStream);
+			} else if ( Result == XNET_RESULT_AGAIN ) {
+				if ( !__xrtNetStreamWatch(pStream) ) {
+					__xrtNetStreamRememberError(pStream);
+					__xrtNetStreamFail(pStream);
+				}
 			} else {
 				__xrtNetStreamRememberError(pStream);
 				__xrtNetStreamFail(pStream);
@@ -3824,12 +3842,19 @@ static void __xrtNetStreamControlRequest(
 
 	if ( (iPrevious & XRT_NET_STREAM_CONTROL_POSTED) == 0 ) {
 		xrtNetStreamRef(pStream);
-		__xrtNetEnginePostInternal(
+		if ( !__xrtNetEnginePostInternal(
 			pStream->Worker,
 			&pStream->ControlCommand,
 			__xrtNetStreamControlTask,
 			pStream
-		);
+		) ) {
+			(void)xrtAtomic32FetchAnd(
+				&pStream->ControlRequests,
+				~XRT_NET_STREAM_CONTROL_POSTED,
+				XMEMORY_ACQ_REL
+			);
+			xrtNetStreamDestroy(pStream);
+		}
 	}
 }
 
@@ -4199,6 +4224,93 @@ static void __xrtNetListenerError(xnetlistener* pListener)
 
 
 
+/* 判断 accept 是否因进程或系统资源暂时耗尽而失败。 */
+static bool __xrtNetListenerResourceError(int iSystemCode)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (iSystemCode == WSAEMFILE) ||
+			(iSystemCode == WSAENOBUFS) ||
+			(iSystemCode == WSA_NOT_ENOUGH_MEMORY);
+	#else
+		return (iSystemCode == EMFILE) ||
+			(iSystemCode == ENFILE) ||
+			(iSystemCode == ENOBUFS) ||
+			(iSystemCode == ENOMEM);
+	#endif
+}
+
+
+
+/* Retry Timer 到期后重新补足 accept；Timer 引用在唯一终态释放。 */
+static void __xrtNetListenerAcceptRetry(
+	xnetworker* pWorker,
+	uint64 Id,
+	xnetresult Result,
+	ptr pData
+)
+{
+	xnetlistener* pListener = (xnetlistener*)pData;
+	uint32 iCapabilities;
+	bool bResult = true;
+
+	if ( pListener->AcceptRetryTimer == Id ) {
+		pListener->AcceptRetryTimer = 0;
+	}
+	if ( (Result == XNET_RESULT_OK) &&
+		(xrtNetListenerState(pListener) == XNET_LISTENER_OPEN) ) {
+		iCapabilities = xrtNetPortCapabilities(
+			xrtNetWorkerPort(pWorker)
+		);
+		if ( (iCapabilities & XNET_PORT_CAP_COMPLETION) != 0 ) {
+			bResult = __xrtNetListenerArmAccepts(pListener);
+		} else {
+			bResult = __xrtNetListenerWatch(pListener);
+		}
+		if ( !bResult ) {
+			__xrtNetListenerError(pListener);
+			(void)xrtNetListenerClose(pListener);
+		}
+	}
+	xrtNetListenerDestroy(pListener);
+}
+
+
+
+/* 暂停 accept 并使用 10 ms 到 1 s 的指数退避恢复。 */
+static bool __xrtNetListenerPauseAccept(xnetlistener* pListener)
+{
+	uint64 iDelay = pListener->AcceptRetryDelay;
+	uint64 Id;
+
+	if ( pListener->AcceptRetryTimer != 0 ) {
+		return true;
+	}
+	if ( iDelay == 0 ) {
+		iDelay = XRT_NET_LISTENER_RETRY_MIN;
+	}
+	if ( xrtNetListenerRef(pListener) == NULL ) {
+		return false;
+	}
+	Id = xrtNetEngineAfter(
+		pListener->Engine,
+		pListener->Config.Affinity,
+		iDelay,
+		__xrtNetListenerAcceptRetry,
+		pListener
+	);
+	if ( Id == 0 ) {
+		xrtNetListenerDestroy(pListener);
+		return false;
+	}
+	pListener->AcceptRetryTimer = Id;
+	pListener->AcceptRetryDelay = iDelay <
+		(XRT_NET_LISTENER_RETRY_MAX / 2u) ?
+		iDelay * 2u : XRT_NET_LISTENER_RETRY_MAX;
+	return true;
+}
+
+
+
 /* 以槽身份收回一个完成式 Accept，避免在热路径扫描全部并发槽。 */
 static bool __xrtNetListenerAcceptDone(
 	xnetlistener* pListener,
@@ -4401,12 +4513,14 @@ static void __xrtNetListenerAcceptTask(
 		__xrtNetStreamFail(pStream);
 		xrtNetStreamDestroy(pStream);
 	}
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pListener->Worker,
 		&pTask->Internal,
 		__xrtNetListenerAcceptFinished,
 		pTask
-	);
+	) ) {
+		__xrtNetListenerAcceptFinished(pWorker, pTask);
+	}
 }
 
 
@@ -4594,6 +4708,7 @@ static void __xrtNetListenerCompletion(
 	if ( pEvent->Type == XNET_PORT_EVENT_ACCEPT ) {
 		__xrt_net_accept_slot* pSlot =
 			(__xrt_net_accept_slot*)pData;
+		bool bPauseAccept = false;
 
 		pListener = pSlot->Listener;
 		if ( !__xrtNetListenerAcceptDone(
@@ -4601,6 +4716,9 @@ static void __xrtNetListenerCompletion(
 			pSlot,
 			pEvent->Id
 		) ) {
+			if ( pEvent->Accepted != NULL ) {
+				(void)xrtNetSocketClose(pEvent->Accepted);
+			}
 			__xrtNetListenerError(pListener);
 			(void)xrtNetListenerClose(pListener);
 			return;
@@ -4617,12 +4735,16 @@ static void __xrtNetListenerCompletion(
 			return;
 		}
 		if ( pEvent->Result == XNET_RESULT_OK ) {
+			pListener->AcceptRetryDelay = XRT_NET_LISTENER_RETRY_MIN;
 			__xrtNetListenerDispatch(
 				pListener,
 				pEvent->Accepted,
 				&pEvent->Address
 			);
 		} else {
+			bPauseAccept = __xrtNetListenerResourceError(
+				pEvent->SystemCode
+			);
 			__xrtNetSocketSetSystemError(
 				XNET_ERROR_LISTENER_ACCEPT,
 				"accept-listener",
@@ -4632,7 +4754,11 @@ static void __xrtNetListenerCompletion(
 			__xrtNetListenerError(pListener);
 		}
 		if ( xrtNetListenerState(pListener) == XNET_LISTENER_OPEN ) {
-			if ( !__xrtNetListenerArmAccepts(pListener) ) {
+			bool bResult = bPauseAccept ?
+				__xrtNetListenerPauseAccept(pListener) :
+				__xrtNetListenerArmAccepts(pListener);
+
+			if ( !bResult ) {
 				__xrtNetListenerError(pListener);
 				(void)xrtNetListenerClose(pListener);
 			}
@@ -4645,6 +4771,7 @@ static void __xrtNetListenerCompletion(
 			XNET_PORT_EVENT_HANGUP
 		)) != 0;
 		bool bAcceptError = false;
+		bool bPauseAccept = false;
 
 		pListener->WatchPending = false;
 		(void)xrtAtomic32FetchSub(
@@ -4668,10 +4795,17 @@ static void __xrtNetListenerCompletion(
 				break;
 			}
 			if ( Result != XNET_RESULT_OK ) {
+				const xerror* pError = xrtGetError();
+
+				bPauseAccept = (pError != NULL) &&
+					__xrtNetListenerResourceError(
+						xrtErrorSystemCode(pError)
+					);
 				__xrtNetListenerError(pListener);
 				bAcceptError = true;
 				break;
 			}
+			pListener->AcceptRetryDelay = XRT_NET_LISTENER_RETRY_MIN;
 			__xrtNetListenerDispatch(pListener, Socket, &Remote);
 		}
 		if ( bEventError ) {
@@ -4697,7 +4831,11 @@ static void __xrtNetListenerCompletion(
 			return;
 		}
 		if ( xrtNetListenerState(pListener) == XNET_LISTENER_OPEN ) {
-			if ( !__xrtNetListenerWatch(pListener) ) {
+			bool bResult = bPauseAccept ?
+				__xrtNetListenerPauseAccept(pListener) :
+				__xrtNetListenerWatch(pListener);
+
+			if ( !bResult ) {
 				__xrtNetListenerError(pListener);
 				(void)xrtNetListenerClose(pListener);
 			}
@@ -4933,6 +5071,17 @@ static void __xrtNetListenerCloseTask(
 	xnetlistener* pListener = (xnetlistener*)pData;
 	xnetport* pPort = xrtNetWorkerPort(pWorker);
 
+	if ( pListener->AcceptRetryTimer != 0 ) {
+		uint64 Id = pListener->AcceptRetryTimer;
+
+		pListener->AcceptRetryTimer = 0;
+		if ( !__xrtNetEngineTimerCancelLifecycle(
+			pListener->Engine,
+			Id
+		) ) {
+			xrtClearError();
+		}
+	}
 	__xrtNetListenerDiscardQueued(pListener);
 	__xrtNetListenerNotifyFutures(pListener);
 	if ( pListener->WatchPending ) {
@@ -4981,12 +5130,27 @@ XRT_API bool xrtNetListenerClose(xnetlistener* pListener)
 		return iExpected != XNET_LISTENER_OPEN;
 	}
 	xrtNetListenerRef(pListener);
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pListener->Worker,
 		&pListener->CloseCommand,
 		__xrtNetListenerCloseTask,
 		pListener
-	);
+	) ) {
+		xrtAtomic32Store(
+			&pListener->State,
+			XNET_LISTENER_OPEN,
+			XMEMORY_RELEASE
+		);
+		xrtNetListenerDestroy(pListener);
+		__xrtNetSetError(
+			XERR_CLOSED,
+			XNET_ERROR_LISTENER_CLOSE,
+			"close-listener",
+			"network worker shutdown is sealed",
+			0
+		);
+		return false;
+	}
 	return true;
 }
 

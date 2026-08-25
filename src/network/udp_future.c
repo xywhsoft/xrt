@@ -696,12 +696,15 @@ static void __xrtNetUdpWaitScheduleLocked(xnetudp* pUdp)
 	}
 	pUdp->WaitPosted = true;
 	(void)xrtNetUdpRef(pUdp);
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pUdp->Worker,
 		&pUdp->WaitCommand,
 		__xrtNetUdpWaitTask,
 		pUdp
-	);
+	) ) {
+		pUdp->WaitPosted = false;
+		xrtNetUdpDestroy(pUdp);
+	}
 }
 
 

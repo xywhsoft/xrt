@@ -33,6 +33,31 @@ static uint64 __xrtNetPortOwnerNextId(void)
 	return Id;
 }
 
+
+
+/* 检查后端操作是否由端口当前拥有线程执行。 */
+static bool __xrtNetPortRequireThread(
+	xnetport* pPort,
+	uint32 iCode,
+	cstr sOperation
+)
+{
+	if ( xrtAtomic64Load(
+		&pPort->OwnerThread,
+		XMEMORY_ACQUIRE
+	) != __xrtCurrentThreadId() ) {
+		__xrtNetSetError(
+			XERR_STATE,
+			iCode,
+			sOperation,
+			"network port operation must run on its owner thread",
+			0
+		);
+		return false;
+	}
+	return true;
+}
+
 /* 检查端口后端枚举是否属于当前稳定集合。 */
 static bool __xrtNetPortBackendValid(xnetportbackend Backend)
 {
@@ -233,6 +258,7 @@ XRT_API xnetport* xrtNetPortCreate(const xnetportconfig* pConfig)
 	pPort->Driver = pDriver;
 	pPort->Capabilities = pDriver->Capabilities;
 	pPort->Owner = __xrtNetPortOwnerNextId();
+	xrtAtomic64Init(&pPort->OwnerThread, __xrtCurrentThreadId());
 	if ( !xrtMutexInit(&pPort->Lock) ) {
 		xrtFree(pPort);
 		return NULL;
@@ -257,6 +283,13 @@ XRT_API bool xrtNetPortDestroy(xnetport* pPort)
 
 	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ) {
 		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtNetPortRequireThread(
+		pPort,
+		XNET_ERROR_PORT_CLOSE,
+		"destroy-port"
+	) ) {
 		return false;
 	}
 	pPrevious = __xrtErrorSwapOwned(NULL);
@@ -360,6 +393,69 @@ uint64 __xrtNetPortOwner(const xnetport* pPort)
 
 
 
+/* 当前拥有线程释放端口，供尚未启动的 Engine Worker 认领。 */
+bool __xrtNetPortThreadRelease(xnetport* pPort)
+{
+	uint64 iExpected;
+
+	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	iExpected = __xrtCurrentThreadId();
+	if ( !xrtAtomic64CompareExchange(
+		&pPort->OwnerThread,
+		&iExpected,
+		0,
+		XMEMORY_ACQ_REL,
+		XMEMORY_ACQUIRE
+	) ) {
+		__xrtNetSetError(
+			XERR_STATE,
+			XNET_ERROR_PORT_CREATE,
+			"release-port-thread",
+			"network port is not owned by the current thread",
+			0
+		);
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 当前线程认领一个无归属端口；重复认领自身是幂等操作。 */
+bool __xrtNetPortThreadClaim(xnetport* pPort)
+{
+	uint64 iCurrent;
+	uint64 iExpected = 0;
+
+	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	iCurrent = __xrtCurrentThreadId();
+	if ( xrtAtomic64CompareExchange(
+		&pPort->OwnerThread,
+		&iExpected,
+		iCurrent,
+		XMEMORY_ACQ_REL,
+		XMEMORY_ACQUIRE
+	) || (iExpected == iCurrent) ) {
+		return true;
+	}
+	__xrtNetSetError(
+		XERR_STATE,
+		XNET_ERROR_PORT_CREATE,
+		"claim-port-thread",
+		"network port is owned by another thread",
+		0
+	);
+	return false;
+}
+
+
+
 /* 校验完成式端口、Socket 类别和非零操作标识。 */
 static bool __xrtNetPortCompletion(xnetport* pPort,
 	xnetsocket Socket, xnetsockettype Type, uint64 Id, cstr sOperation)
@@ -369,6 +465,13 @@ static bool __xrtNetPortCompletion(xnetport* pPort,
 		 ((Type != 0) && (Socket->Type != Type)) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_SUBMIT,
 			sOperation, "invalid network completion submission", 0);
+		return false;
+	}
+	if ( !__xrtNetPortRequireThread(
+		pPort,
+		XNET_ERROR_PORT_SUBMIT,
+		sOperation
+	) ) {
 		return false;
 	}
 	if ( ((pPort->Capabilities & XNET_PORT_CAP_COMPLETION) == 0) ||
@@ -399,6 +502,13 @@ static bool __xrtNetPortFileCompletion(
 			"invalid native file completion submission",
 			0
 		);
+		return false;
+	}
+	if ( !__xrtNetPortRequireThread(
+		pPort,
+		XNET_ERROR_PORT_SUBMIT,
+		sOperation
+	) ) {
 		return false;
 	}
 	if ( ((pPort->Capabilities & XNET_PORT_CAP_FILE_IO) == 0) ||
@@ -523,6 +633,13 @@ static bool __xrtNetPortWriteSpans(
 static bool __xrtNetPortSubmit(xnetport* pPort,
 	const __xrt_net_port_submit* pSubmit)
 {
+	if ( !__xrtNetPortRequireThread(
+		pPort,
+		XNET_ERROR_PORT_SUBMIT,
+		"submit"
+	) ) {
+		return false;
+	}
 	return pPort->Driver->Submit(pPort, pSubmit);
 }
 
@@ -538,6 +655,13 @@ XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
 			(uint32)XNET_POLL_WRITE)) != 0) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_WATCH,
 			"watch", "invalid network port watch", 0);
+		return false;
+	}
+	if ( !__xrtNetPortRequireThread(
+		pPort,
+		XNET_ERROR_PORT_WATCH,
+		"watch"
+	) ) {
 		return false;
 	}
 	if ( (pPort->Capabilities & XNET_PORT_CAP_READINESS) == 0 ) {
@@ -561,6 +685,13 @@ XRT_API bool xrtNetPortUnwatch(xnetport* pPort, xnetsocket Socket)
 		 (Socket == NULL) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_WATCH,
 			"unwatch", "invalid network port watch", 0);
+		return false;
+	}
+	if ( !__xrtNetPortRequireThread(
+		pPort,
+		XNET_ERROR_PORT_WATCH,
+		"unwatch"
+	) ) {
 		return false;
 	}
 	if ( (pPort->Capabilities & XNET_PORT_CAP_READINESS) == 0 ) {
@@ -856,14 +987,22 @@ bool __xrtNetPortSendFile(
 		return false;
 	}
 	if ( (iFile == (intptr_t)-1) || (iSize == 0) ||
+		(iSize > (size_t)INT_MAX) ||
+		(iOffset > (UINT64_MAX - (uint64)iSize)) ||
 		((pPort->Capabilities & XNET_PORT_CAP_SEND_FILE) == 0) ) {
 		__xrtNetSetError(
-			(iFile == (intptr_t)-1) || (iSize == 0) ?
-				XERR_ARGUMENT : XERR_UNSUPPORTED,
+			((pPort->Capabilities & XNET_PORT_CAP_SEND_FILE) == 0) ?
+				XERR_UNSUPPORTED :
+			((iSize > (size_t)INT_MAX) ||
+			 (iOffset > (UINT64_MAX - (uint64)iSize))) ?
+				XERR_RANGE : XERR_ARGUMENT,
 			XNET_ERROR_PORT_SUBMIT,
 			"send-file",
 			((pPort->Capabilities & XNET_PORT_CAP_SEND_FILE) == 0) ?
 				"network port backend cannot send file ranges" :
+			((iSize > (size_t)INT_MAX) ||
+			 (iOffset > (UINT64_MAX - (uint64)iSize))) ?
+				"network file send range is too large" :
 				"invalid network file send",
 			0
 		);
@@ -1233,6 +1372,13 @@ XRT_API bool xrtNetPortCancel(xnetport* pPort, uint64 Id)
 			"cancel", "invalid network completion cancellation", 0);
 		return false;
 	}
+	if ( !__xrtNetPortRequireThread(
+		pPort,
+		XNET_ERROR_PORT_CANCEL,
+		"cancel"
+	) ) {
+		return false;
+	}
 	if ( ((pPort->Capabilities & XNET_PORT_CAP_CANCEL) == 0) ||
 		 (pPort->Driver->Cancel == NULL) ) {
 		__xrtNetSetError(XERR_UNSUPPORTED, XNET_ERROR_PORT_CANCEL,
@@ -1331,6 +1477,13 @@ XRT_API xnetresult xrtNetPortWait(xnetport* pPort,
 		 (pEvents == NULL) || (iCapacity == 0) || (pCount == NULL) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_WAIT,
 			"wait", "invalid network port wait", 0);
+		return XNET_RESULT_ERROR;
+	}
+	if ( !__xrtNetPortRequireThread(
+		pPort,
+		XNET_ERROR_PORT_WAIT,
+		"wait"
+	) ) {
 		return XNET_RESULT_ERROR;
 	}
 

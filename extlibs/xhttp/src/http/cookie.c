@@ -31,7 +31,7 @@ bool __xhttpCookieAsciiEqual(xstrview Left, xstrview Right)
 
 
 
-/* 判断一个字节是否属于 RFC 10025 cookie-octet。 */
+/* 判断一个字节是否属于 RFC 6265 cookie-octet。 */
 static bool __xrtCookieOctet(unsigned char iByte)
 {
 	return (iByte == 0x21u) ||
@@ -43,7 +43,7 @@ static bool __xrtCookieOctet(unsigned char iByte)
 
 
 
-/* 判断一个值是否符合 RFC 10025 严格 cookie-value 语法。 */
+/* 判断一个值是否符合 RFC 6265 严格 cookie-value 语法。 */
 bool __xhttpCookieValueValid(xstrview Value)
 {
 	size_t iBegin = 0;

@@ -214,6 +214,55 @@ static void testRegexCaseFoldAlternative(void)
 
 
 
+/* 验证内联标志不会串位，并确认尾随连字符按字面参与匹配。 */
+static void testRegexInlineFlagAndClassDash(void)
+{
+	xregex* pRegex = xrtRegexCompile(XRT_STR_LITERAL("(?i-U:[a-]+)"));
+	xregexmatcher* pMatcher;
+
+	testRequire(pRegex != NULL, "inline flag and class dash pattern failed");
+	pMatcher = xrtRegexMatcherCreate(pRegex);
+	testRequire(pMatcher != NULL, "inline flag matcher create failed");
+	testRequire(
+		xrtRegexMatcherFull(pMatcher, XRT_STR_LITERAL("A-a")) == XREGEX_MATCH,
+		"inline flag cleared an unrelated flag or lost literal dash"
+	);
+	xrtRegexMatcherFree(pMatcher);
+	xrtRegexRelease(pRegex);
+}
+
+
+
+/* 验证大量分支捕获的保存槽按元素容量线性增长。 */
+static void testRegexCaptureSlotGrowth(void)
+{
+	char arrPattern[(128u * 4u) + 1u];
+	char arrText[128u];
+	xregex* pRegex;
+	xregexmatcher* pMatcher;
+
+	for ( size_t i = 0; i < 128u; i++ ) {
+		memcpy(arrPattern + (i * 4u), "(a?)", 4u);
+		arrText[i] = 'a';
+	}
+	arrPattern[128u * 4u] = 0;
+	pRegex = xrtRegexCompile((xstrview){ arrPattern, 128u * 4u });
+	testRequire(pRegex != NULL, "capture slot growth pattern compile failed");
+	pMatcher = xrtRegexMatcherCreate(pRegex);
+	testRequire(pMatcher != NULL, "capture slot growth matcher create failed");
+	testRequire(
+		xrtRegexMatcherFull(
+			pMatcher,
+			(xstrview){ arrText, sizeof(arrText) }
+		) == XREGEX_MATCH,
+		"capture slot growth match failed"
+	);
+	xrtRegexMatcherFree(pMatcher);
+	xrtRegexRelease(pRegex);
+}
+
+
+
 /* 运行 matcher 层全部契约测试。 */
 int main(void)
 {
@@ -224,6 +273,8 @@ int main(void)
 	testRegexEmbeddedZero();
 	testRegexConvenience();
 	testRegexCaseFoldAlternative();
+	testRegexInlineFlagAndClassDash();
+	testRegexCaptureSlotGrowth();
 	printf("[PASS] regex match\n");
 	return 0;
 }

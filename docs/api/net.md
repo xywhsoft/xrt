@@ -693,7 +693,13 @@ Listener、UDP 或 TLS Stream 引用晚于 Engine 销毁，并继续查询它们
 
 `xrtNetEngineStop` 先阻止新提交，再等待正在提交的调用离开，关闭各命令队列，
 唤醒 Worker，并排空已经受理的普通任务。尚未到期的 Timer 以
-`XNET_RESULT_CLOSED` 终结。调用方和高层网络对象必须在停止前归还 Worker
+`XNET_RESULT_CLOSED` 终结。Timer 关闭回调及其投递的有限后续任务仍会在所属
+Worker 上执行。停机排空按任务投递代推进；任务链在固定安全代数内没有收敛时，
+Worker 会原子封闭后续投递，继续执行封口前已经受理的任务，然后完整释放运行资源。
+此时 Engine 进入 `XNET_ENGINE_STOPPED`，`Stop` 返回 `false`、`XERR_STATE` 和
+`XNET_ERROR_ENGINE_STOP`，`ShutdownStalls` 增加一次；Engine 可以再次启动。
+
+调用方和高层网络对象必须在停止前归还 Worker
 缓冲池分配的全部块；若仍有外借块，Worker 线程已经停止且 Engine 进入
 `XNET_ENGINE_STOPPED`，但 `Stop` 返回 `XNET_ERROR_POOL_BUSY`，并保留池和 Engine。
 调用方可以重新 `Start`，在所属 Worker 上归还旧块，再次 `Stop` 完成清理。
@@ -715,7 +721,9 @@ Listener、UDP 或 TLS Stream 引用晚于 Engine 销毁，并继续查询它们
 
 `Post` 返回成功后，任务必在目标 Worker 上执行一次，包括与 `Stop` 并发时已经
 受理的任务。队列达到硬容量返回 `false` 和 `XERR_AGAIN`；停止后返回
-`XERR_CLOSED`。普通命令和 transport 内部生命周期命令分别按每轮 256 个的预算消费，
+`XERR_CLOSED`。停机期间，当前 Worker 只允许投递完成清理所需的有限后续任务；
+一旦不收敛保护触发，公开与内部投递均以 `XERR_CLOSED` 拒绝。普通命令和 transport
+内部生命周期命令分别按每轮 256 个的预算消费，
 随后必须回到 Timer 与端口事件，避免大批连接同时关闭、取消或完成解析时饿死 IO；
 未消费的内部命令由 Worker 自己保留，不重新入队，也不增加分配。Worker 回调应保持
 短小，阻塞一个回调会同时阻塞该 Worker 的 IO、Timer 和后续命令。
@@ -780,7 +788,9 @@ Accept 结果由 Engine 自动关闭，避免泄漏已接受 Socket。
 
 `xrtNetWorkerStats` 返回单 Worker 并发快照，`xrtNetEngineStats` 聚合全部 Worker。
 统计覆盖任务受理、拒绝、执行，Timer 受理、拒绝及四种终态，端口事件、等待错误、
-小节点缓存命中/未命中、当前缓存字节、当前命令深度和活动 Timer。
+唤醒错误、停机任务链不收敛次数、小节点缓存命中/未命中、当前缓存字节、当前命令
+深度和活动 Timer。`ShutdownStalls` 从 `XNET_STATS_BASIC` 开始记录，是跨
+`Stop/Start` 累计的诊断计数；一次失败停机中每个不收敛 Worker 最多增加一次。
 单 Worker 的 `LastWaitError` 和 `LastWaitSystemCode` 保留最近一次端口等待失败详情；
 从未失败时分别为 `XNET_ERROR_NONE` 和零。Engine 聚合统计只累计 `WaitErrors`，需要
 定位具体后端错误时应读取各 Worker 快照。

@@ -935,6 +935,17 @@ static void testWsHttpRequestBuilder(void)
 		"WebSocket base request mapping or field isolation mismatch"
 	);
 	xrtHttpRequestDestroy(pRequest);
+	testRequire(
+		(xrtWsRequestCreate(
+			XRT_STR_LITERAL(
+				"ws://user:secret@example.test/chat"
+			)
+		 ) == NULL) &&
+		(xrtErrorCode(xrtGetError()) ==
+		 XWS_HANDSHAKE_ERROR_ARGUMENT),
+		"WebSocket base request accepted URL userinfo"
+	);
+	xrtClearError();
 
 	memset(sKey, 0, sizeof(sKey));
 	pRequest = xrtWsClientRequestCreate(
@@ -1002,6 +1013,27 @@ static void testWsHttpRequestBuilder(void)
 			sizeof(sFailed)
 		 ) == 0),
 		"WebSocket request accepted an empty URL fragment"
+	);
+	xrtClearError();
+
+	/* URI userinfo 不能隐式转化为 WebSocket 认证信息。 */
+	memset(sFailed, 'x', sizeof(sFailed));
+	testRequire(
+		(xrtWsClientRequestCreate(
+			XRT_STR_LITERAL(
+				"wss://user:secret@example.test/chat"
+			),
+			&Config,
+			sFailed
+		 ) == NULL) &&
+		(memcmp(
+			sFailed,
+			"xxxxxxxxxxxxxxxxxxxxxxxxx",
+			sizeof(sFailed)
+		 ) == 0) &&
+		(xrtErrorCode(xrtGetError()) ==
+		 XWS_HANDSHAKE_ERROR_ARGUMENT),
+		"WebSocket request accepted URL userinfo"
 	);
 	xrtClearError();
 

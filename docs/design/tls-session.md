@@ -119,6 +119,8 @@ TCP 组合层已经落地到 `<xrt/tls_stream.h>` 与 `src/tls/stream.c`。客�
 
 公开 `xrtTlsClientDrive()` 已经支持普通 TLS 1.3 ServerHello 跨记录重组、严格线路 offer 校验、兼容 CCS、transcript 初始化、ECDHE 握手调度和双向 record epoch 原子切换。派生过程先写入栈上临时结果，只有协商、密码和记录完成全部成功才提交；客户端临时私钥在成功切换后立即擦除。测试独立复算全部握手秘密，并使用反向服务端密钥生成真实受保护记录验证读写方向，而不是只检查状态值。
 
+TLS 1.3 HelloRetryRequest 使用同一客户端和服务端状态机。客户端只接受一次 HRR，要求回显 session ID、选择已提供但尚未发送 key share 的可用组，并拒绝未知或禁止扩展；服务端保留首个 ClientHello，只允许第二个 ClientHello 改变 RFC 8446 明确允许变化的 key_share、cookie、PSK age 和 binder 字段。双方都以 synthetic `message_hash` 重建 transcript，第二个 ClientHello 的恢复 binder 也以该前缀计算。当前内置服务端发送无 cookie HRR；底层 Cookie 解析和写出 API 已公开，应用可以在自定义协议层构建带 Cookie 的线路消息。
+
 客户端随后严格处理受保护的 TLS 1.3 EncryptedExtensions。扩展必须既允许出现在该消息中，又确实由客户端发出；ALPN 只发布客户端尾部快照中的精确匹配项，因此查询结果不借用输入记录。握手 reader 保留跨记录分片，角色状态额外保存同记录偏移，使 EE 与 Certificate 聚合时只提交第一条完整消息。验证失败不会提交 transcript、ALPN 或下一握手步骤。
 
 客户端认证已经形成从 Certificate 到 Finished 的初始 TLS 1.3 闭环。对端链先精确测量，再以一次分配保存证书视图和独立 DER，不继承旧版固定证书张数；默认 verifier 使用不可变 trust-store 快照验证路径、时间、用途和主机名，自定义回调只能替换信任决策。CertificateVerify 使用加入当前消息之前的 transcript 摘要，严格匹配真实 offer 和证书密钥，并通过公共 X.509 密码分派完成 RSA-PSS、ECDSA 或 Ed25519 验签。
@@ -145,7 +147,7 @@ NewSessionTicket 已接入后握手 Reader并执行公共严格 parser。独立 
 
 本端协议失败现在由公共会话层唯一映射并尽力排队 fatal Alert。握手 epoch 尚未建立时发送明文 Alert，建立后使用当前写 epoch；Alert 的 OOM 或发送上限失败不会覆盖原始 `xerror`。角色状态机只设置根错误并进入共享失败路径，避免客户端和服务端重复维护 Alert、序列号及队列原子性。
 
-当前门禁覆盖 ServerHello 缺失扩展、错误 session ID、未 offer 套件、错误组、暂不支持的 HRR、非法 CCS、意外记录、分片 reader OOM、EE 加密 epoch、跨记录 EE、聚合消息后缀、未请求或禁止扩展、ALPN 稳定生命周期、证书深复制、空链、未请求 CertificateEntry 扩展、缺失 verifier、坏签名、未 offer 签名方案、精确 transcript、服务端/客户端 Finished、双向应用 epoch、认证关闭、主动与被动 KeyUpdate、旧/新 epoch 顺序、KeyUpdate 输出背压和记录边界、票据分片/聚合/畸形正文、有界淘汰、ClientHello binder、客户端与服务端 PSK 接受和安全回退、错误 identity、缺失 key share、恢复 SNI/ALPN/年龄绑定、坏 binder、PlainLimit 恢复、明文与受保护 fatal Alert、目标 OOM、默认路径后的 CRL 策略组合、TCP 组合层的 select/IOCP、短写恢复与回调非重入、慢消费者、截断与超时、组合对象 OOM、Timer 调度拒绝、真实 TLS 1.3 重复恢复、主机名双栈回退、解析期取消、全过程超时、TLS Dial Timer 拒绝、GCC、TCC x86、单头和直接依赖裁剪。TLS 1.2 角色状态机、HRR、CertificateRequest、客户端认证、0-RTT、自动吊销数据获取、异步验证和异步身份选择仍不得标记完成；旧版未迁移的对应实现继续作为后续语义与边界资产。
+当前门禁覆盖 ServerHello 缺失扩展、错误 session ID、未 offer 套件、错误组、单次 HRR、非法或重复 HRR、第二个 ClientHello 稳定字段、非法 CCS、意外记录、分片 reader OOM、EE 加密 epoch、跨记录 EE、聚合消息后缀、未请求或禁止扩展、ALPN 稳定生命周期、证书深复制、空链、未请求 CertificateEntry 扩展、缺失 verifier、坏签名、未 offer 签名方案、精确 transcript、服务端/客户端 Finished、双向应用 epoch、认证关闭、主动与被动 KeyUpdate、旧/新 epoch 顺序、KeyUpdate 输出背压和记录边界、票据分片/聚合/畸形正文、有界淘汰、ClientHello binder、客户端与服务端 PSK 接受和安全回退、错误 identity、缺失 key share、恢复 SNI/ALPN/年龄绑定、坏 binder、PlainLimit 恢复、明文与受保护 fatal Alert、目标 OOM、默认路径后的 CRL 策略组合、TCP 组合层的 select/IOCP、短写恢复与回调非重入、慢消费者、截断与超时、组合对象 OOM、Timer 调度拒绝、真实 TLS 1.3 重复恢复、主机名双栈回退、解析期取消、全过程超时、TLS Dial Timer 拒绝、GCC、TCC x86、单头和直接依赖裁剪。HRR 真实双端测试使用客户端首发 X25519、服务端偏好 P-256 的策略完成 synthetic `message_hash`、第二份 key share、证书握手、应用数据和认证关闭。CertificateRequest、客户端认证、0-RTT、自动吊销数据获取、异步验证和异步身份选择仍不得标记完成。
 
 ## 身份层
 

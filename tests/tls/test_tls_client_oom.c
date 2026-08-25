@@ -9,6 +9,19 @@ typedef struct test_tls_client_alloc {
 
 
 
+/* OOM 测试使用显式信任回调，避免把配置错误误判成内存失败。 */
+static xtlsverifydecision testTlsClientOomAccept(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
+
+
 /* 在指定底层分配请求注入失败。 */
 static ptr testTlsClientAlloc(ptr pContext, size_t iSize)
 {
@@ -102,6 +115,8 @@ int main(void)
 	test_tls_client_alloc State = { 0, SIZE_MAX };
 	xallocator Allocator;
 	xtlscontext* pContext;
+	xtlsverifierconfig VerifierConfig;
+	xtlsverifier* pVerifier;
 	xtlsclientconfig Config;
 	xtlssession* Sessions[1024] = { 0 };
 	xtlssession* pRecovered;
@@ -115,9 +130,14 @@ int main(void)
 		"TLS client OOM allocator install failed");
 	pContext = xrtTlsContextCreate(NULL);
 	testRequire(pContext != NULL, "TLS client OOM context failed");
+	xrtTlsVerifierConfigInit(&VerifierConfig);
+	VerifierConfig.Verify = testTlsClientOomAccept;
+	pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	testRequire(pVerifier != NULL, "TLS client OOM verifier failed");
 	xrtTlsClientConfigInit(&Config);
 	Config.Context = pContext;
 	Config.ServerName = XRT_STR_LITERAL("example.com");
+	Config.Verifier = pVerifier;
 
 	for ( size_t i = 0; i < 1024u; i++ ) {
 		State.FailAt = State.Calls + 1u;
@@ -147,6 +167,7 @@ int main(void)
 		"TLS client did not recover after injected OOM");
 	testTlsClientReaderOom(&State, pRecovered);
 	xrtTlsSessionDestroy(pRecovered);
+	xrtTlsVerifierRelease(pVerifier);
 	xrtTlsContextRelease(pContext);
 	return 0;
 }

@@ -44,7 +44,10 @@ static bool __xrtTlsClientResumeViewEqual(
 
 
 /* 为最终 ClientHello 的唯一外部 PSK 计算并原位写入 res binder。 */
-bool __xrtTlsClientResumeBinder(xtlsclientstate* pState)
+bool __xrtTlsClientResumeBinder(
+	xtlsclientstate* pState,
+	const xtlstranscript* pPrefix
+)
 {
 	uint8 Binder[XTLS_CLIENT_SECRET_MAX_SIZE];
 	const xtlscipherinfo* pCipher;
@@ -124,8 +127,8 @@ bool __xrtTlsClientResumeBinder(xtlsclientstate* pState)
 	iPartial = (size_t)(Psk.Binder.Data -
 		(const uint8*)pState->ClientHello) - 3u;
 	Hash = __xrtTlsHash(pCipher->Hash);
-	if ( !__xrtTls13ResumptionBinder(
-		Hash, Resume.Secret,
+	if ( !__xrtTls13ResumptionBinderTranscript(
+		Hash, Resume.Secret, pPrefix,
 		(xbytesview) { pState->ClientHello, iPartial },
 		Binder, Resume.Secret.Size
 	) ) {

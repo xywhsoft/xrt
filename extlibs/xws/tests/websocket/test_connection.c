@@ -588,7 +588,7 @@ static xwsconn* testWsConnAttach(
 	Config.FrameLimit = TEST_WS_CONNECTION_MESSAGE_LIMIT;
 	Config.SendLimit = TEST_WS_CONNECTION_SEND_LIMIT;
 	Config.ControlReserve = 512;
-	#if defined(XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE)
+	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 		xrtWsDeflateInit(&Config.Deflate);
 		Config.DeflateEnabled = true;
 	#endif

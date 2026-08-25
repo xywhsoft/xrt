@@ -87,7 +87,7 @@ XRT_API xsshcode xrtSshKnownHostDbNext(
 
 /*
 	用完整原始 host-key blob 扫描明文和 |1| 哈希记录，不分配密钥缓冲。
-	REVOKED 优先于 MATCH，随后依次为 CA、CHANGED 和 NEW。
+	REVOKED 优先于 MATCH，随后依次为 CA、CHANGED 和 NEW；CHANGED 跨算法生效。
 */
 XRT_API xsshcode xrtSshKnownHostDbCheck(
 	xstrview Source,

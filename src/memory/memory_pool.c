@@ -285,18 +285,37 @@ static bool __xrtMemPoolPageReserve(xmempool* pPool, size_t iNeed)
 
 
 
+/* 比较两个页的用户区基址，供全局索引批量重建使用。 */
+static int __xrtMemPoolPageCompare(const void* pLeft, const void* pRight)
+{
+	const xpoolpage* pLeftPage = *(xpoolpage* const*)pLeft;
+	const xpoolpage* pRightPage = *(xpoolpage* const*)pRight;
+	uintptr_t iLeft = (uintptr_t)pLeftPage->Memory;
+	uintptr_t iRight = (uintptr_t)pRightPage->Memory;
+
+	return (iLeft > iRight) - (iLeft < iRight);
+}
+
+
+
 /* 按用户区地址将页插入变长池全局索引。 */
 static void __xrtMemPoolPageInsert(xmempool* pPool, xpoolpage* pPage)
 {
-	size_t iPosition = 0;
+	size_t iLeft = 0;
+	size_t iRight = pPool->PageCount;
+	size_t iPosition;
 	uintptr_t iBase = (uintptr_t)pPage->Memory;
 
-	while (
-		(iPosition < pPool->PageCount) &&
-		((uintptr_t)pPool->Pages[iPosition]->Memory < iBase)
-	) {
-		iPosition++;
+	while ( iLeft < iRight ) {
+		size_t iMiddle = iLeft + ((iRight - iLeft) / 2);
+
+		if ( (uintptr_t)pPool->Pages[iMiddle]->Memory < iBase ) {
+			iLeft = iMiddle + 1;
+		} else {
+			iRight = iMiddle;
+		}
 	}
+	iPosition = iLeft;
 	if ( iPosition < pPool->PageCount ) {
 		memmove(
 			&pPool->Pages[iPosition + 1],
@@ -323,18 +342,13 @@ static void __xrtMemPoolPageRebuild(xmempool* pPool)
 			iCount++;
 		}
 	}
-	for ( size_t i = 1; i < iCount; i++ ) {
-		xpoolpage* pPage = pPool->Pages[i];
-		size_t j = i;
-
-		while (
-			(j != 0) &&
-			((uintptr_t)pPool->Pages[j - 1]->Memory > (uintptr_t)pPage->Memory)
-		) {
-			pPool->Pages[j] = pPool->Pages[j - 1];
-			j--;
-		}
-		pPool->Pages[j] = pPage;
+	if ( iCount > 1 ) {
+		qsort(
+			pPool->Pages,
+			iCount,
+			sizeof(xpoolpage*),
+			__xrtMemPoolPageCompare
+		);
 	}
 	pPool->PageCount = iCount;
 }

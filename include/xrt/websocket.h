@@ -608,7 +608,8 @@ XRT_API bool xrtWsCloseWrite(
 #if defined(XRT_FEATURE_WEBSOCKET_MESSAGE)
 
 /*
-	初始化默认消息上限、严格文本校验和不允许任何 RSV 位的配置。
+	初始化无累计上限、严格文本校验和不允许任何 RSV 位的流式配置。
+	默认 MaxSize 为 SIZE_MAX；状态机不聚合正文，拥有型上层必须设置实际消息上限。
 	Config 必须是完整可写范围，可以未对齐；无效范围只设置线程错误。
 */
 XRT_API void xrtWsMessageConfigInit(xwsmessageconfig* pConfig);

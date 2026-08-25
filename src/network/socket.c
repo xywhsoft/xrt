@@ -68,6 +68,7 @@
 #if defined(__linux__) && \
 	(!defined(XRT_SINGLE_HEADER) || defined(_GNU_SOURCE))
 	#define XRT_NET_SOCKET_NATIVE_DGRAM_BATCH 1
+	#define XRT_NET_SOCKET_RECV_BATCH_STACK 16u
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -4586,15 +4587,20 @@ XRT_API xnetresult xrtNetSocketRecvBatch(xnetsocket Socket,
 
 	#if defined(XRT_NET_SOCKET_NATIVE_DGRAM_BATCH)
 		{
-			struct mmsghdr Messages[XNET_DGRAM_BATCH_MAX];
-			struct iovec Vectors[XNET_DGRAM_BATCH_MAX];
-			struct sockaddr_storage Addresses[XNET_DGRAM_BATCH_MAX];
-			__xrt_net_dgram_control Controls[
-				(Socket->DgramMeta != 0) ? iCapacity : 1
+			struct mmsghdr Messages[XRT_NET_SOCKET_RECV_BATCH_STACK];
+			struct iovec Vectors[XRT_NET_SOCKET_RECV_BATCH_STACK];
+			struct sockaddr_storage Addresses[
+				XRT_NET_SOCKET_RECV_BATCH_STACK
 			];
-			unsigned char Dummy[XNET_DGRAM_BATCH_MAX];
+			__xrt_net_dgram_control Controls[
+				XRT_NET_SOCKET_RECV_BATCH_STACK
+			];
+			unsigned char Dummy[XRT_NET_SOCKET_RECV_BATCH_STACK];
 			int iFlags = 0;
 			int iResult;
+			size_t iBatch = iCapacity <
+				XRT_NET_SOCKET_RECV_BATCH_STACK ?
+				iCapacity : XRT_NET_SOCKET_RECV_BATCH_STACK;
 			size_t i;
 			bool bAddressError = false;
 
@@ -4602,7 +4608,7 @@ XRT_API xnetresult xrtNetSocketRecvBatch(xnetsocket Socket,
 			if ( Socket->DgramMeta != 0 ) {
 				memset(Controls, 0, sizeof(Controls));
 			}
-			for ( i = 0; i < iCapacity; i++ ) {
+			for ( i = 0; i < iBatch; i++ ) {
 				Vectors[i].iov_base = (pItems[i].Data != NULL) ?
 					pItems[i].Data : &Dummy[i];
 				Vectors[i].iov_len = pItems[i].Capacity;
@@ -4624,7 +4630,7 @@ XRT_API xnetresult xrtNetSocketRecvBatch(xnetsocket Socket,
 			#endif
 			do {
 				iResult = recvmmsg(__xrtNetSocketHandle(Socket), Messages,
-					(unsigned int)iCapacity, iFlags, NULL);
+					(unsigned int)iBatch, iFlags, NULL);
 			} while ( (iResult < 0) && (errno == EINTR) );
 			if ( iResult < 0 ) {
 				int iCode = __xrtNetSocketLastError();

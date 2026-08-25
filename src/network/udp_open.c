@@ -571,12 +571,25 @@ XRT_API xnetudp* xrtNetUdpOpen(
 		return NULL;
 	}
 	xrtNetUdpRef(pUdp);
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pWorker,
 		&pUdp->ControlCommand,
 		__xrtNetUdpControl,
 		pUdp
-	);
+	) ) {
+		__xrtNetUdpSetError(
+			XERR_CLOSED,
+			XNET_ERROR_UDP_CREATE,
+			"open-udp",
+			"network worker shutdown is sealed"
+		);
+		__xrtNetUdpClosePreserveError(Socket);
+		pUdp->Socket = NULL;
+		xrtNetUdpDestroy(pUdp);
+		xrtNetUdpDestroy(pUdp);
+		xrtNetUdpDestroy(pUdp);
+		return NULL;
+	}
 	return pUdp;
 }
 

@@ -1,13 +1,14 @@
 #ifndef XRT_MAIL_WORD_H
 #define XRT_MAIL_WORD_H
 
-#include <xrt/mail.h>
+#include <xrt/mail_charset.h>
 
 
 
 #if defined(XMAIL_FEATURE_MAIL_WORD) && \
-	(!defined(XMAIL_FEATURE_MAIL_CODEC) || !defined(XRT_FEATURE_UNICODE))
-	#error "XMAIL_FEATURE_MAIL_WORD requires mail codec and XRT Unicode features"
+	(!defined(XMAIL_FEATURE_MAIL_CODEC) || \
+	 !defined(XMAIL_FEATURE_MAIL_CHARSET))
+	#error "XMAIL_FEATURE_MAIL_WORD requires mail codec and mail charset"
 #endif
 
 
@@ -30,10 +31,11 @@ typedef enum xmailwordflag {
 
 
 
-/* 编码词视图全部借用输入，Source 包含完整的 =?...?=。 */
+/* 编码词视图全部借用输入，Language 是 RFC 2231 可选语言子标签。 */
 typedef struct xmailwordview {
 	xstrview Source;
 	xstrview Charset;
+	xstrview Language;
 	xstrview Encoded;
 	xmailwordencoding Encoding;
 } xmailwordview;
@@ -45,7 +47,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /*
-	从输入开头读取一个 RFC 2047 编码词。
+	从输入开头读取一个 RFC 2047 编码词及 RFC 2231 语言子标签。
 	非编码词返回 XMAIL_NEXT_END，具有编码词前缀但格式错误时返回错误。
 */
 XRT_API xmailnext xrtMailWordParse(xstrview Text, xmailwordview* pWord);

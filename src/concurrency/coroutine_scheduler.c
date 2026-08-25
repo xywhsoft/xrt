@@ -540,6 +540,8 @@ void __xrtCoWaitClose(xrt_co_wait* pWait)
 	 * 令牌字段只由当前协程访问，可以直接完成最常见的关闭路径。
 	 */
 	if (
+		(xrtCoCurrent() == pCo) &&
+		__xrtCoSchedIsOwner(pSched) &&
 		(pCo->WaitTokenArmed == pWait->Token) &&
 		(pCo->WaitTokenPending != pWait->Token)
 	) {

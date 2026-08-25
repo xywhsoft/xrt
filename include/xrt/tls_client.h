@@ -84,6 +84,8 @@ typedef struct xtlsclientconfig {
 	const xtlsverifier* Verifier;
 	const xtlsresume* Resume;
 	size_t ResumeLimit;
+	/* 必须接受所给票据；禁止回退完整证书握手。 */
+	bool ResumeOnly;
 } xtlsclientconfig;
 
 
@@ -97,7 +99,7 @@ XRT_API void xrtTlsClientConfigInit(xtlsclientconfig* pConfig);
 
 
 
-/* 创建客户端会话并立即排队初始 ClientHello；空上下文会创建默认快照。 */
+/* 创建客户端会话；默认要求 Verifier，无验证器时必须启用 ResumeOnly。 */
 XRT_API xtlssession* xrtTlsClientCreate(
 	const xtlsclientconfig* pConfig,
 	xnetbufpool* pPool

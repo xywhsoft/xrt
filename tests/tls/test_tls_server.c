@@ -83,6 +83,108 @@ static const xtlsresume* testTlsServerResume(
 
 
 
+/* 验证服务端请求第二密钥组时，双方通过一次 HRR 完成真实握手。 */
+static void testTlsServerHelloRetryRequest(
+	const xtlsidentity* pIdentity,
+	const xtlsverifier* pVerifier
+)
+{
+	static const xtlsversion Versions[] = { XTLS_VERSION_13 };
+	static const xtlscipher Ciphers[] = {
+		XTLS_AES_128_GCM_SHA256
+	};
+	static const uint16 ClientGroups[] = {
+		XTLS_GROUP_X25519,
+		XTLS_GROUP_SECP256R1
+	};
+	static const uint16 ServerGroups[] = {
+		XTLS_GROUP_SECP256R1,
+		XTLS_GROUP_X25519
+	};
+	static const xtlssignature Signatures[] = {
+		XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256
+	};
+	static const xstrview Protocols[] = {
+		XRT_STR_INIT("http/1.1")
+	};
+	static const char Payload[] = "hello-retry-request application data";
+	xtlspolicy ClientPolicy;
+	xtlspolicy ServerPolicy;
+	xtlscontextconfig ContextConfig;
+	xtlscontext* pClientContext;
+	xtlscontext* pServerContext;
+	xtlsclientconfig ClientConfig;
+	xtlsserverconfig ServerConfig;
+	xtlssession* pClient;
+	xtlssession* pServer;
+	test_tls_server_rng Rng = { UINT32_C(0x71D30A5B) };
+
+	xrtTlsPolicyInit(&ClientPolicy);
+	ClientPolicy.Versions = Versions;
+	ClientPolicy.VersionCount = sizeof(Versions) / sizeof(Versions[0]);
+	ClientPolicy.Ciphers = Ciphers;
+	ClientPolicy.CipherCount = sizeof(Ciphers) / sizeof(Ciphers[0]);
+	ClientPolicy.Groups = ClientGroups;
+	ClientPolicy.GroupCount = sizeof(ClientGroups) / sizeof(ClientGroups[0]);
+	ClientPolicy.Signatures = Signatures;
+	ClientPolicy.SignatureCount =
+		sizeof(Signatures) / sizeof(Signatures[0]);
+	xrtTlsPolicyInit(&ServerPolicy);
+	ServerPolicy.Versions = Versions;
+	ServerPolicy.VersionCount = sizeof(Versions) / sizeof(Versions[0]);
+	ServerPolicy.Ciphers = Ciphers;
+	ServerPolicy.CipherCount = sizeof(Ciphers) / sizeof(Ciphers[0]);
+	ServerPolicy.Groups = ServerGroups;
+	ServerPolicy.GroupCount = sizeof(ServerGroups) / sizeof(ServerGroups[0]);
+	ServerPolicy.Signatures = Signatures;
+	ServerPolicy.SignatureCount =
+		sizeof(Signatures) / sizeof(Signatures[0]);
+	ServerPolicy.KeySharePolicy = XTLS_KEY_SHARE_PREFER_GROUP;
+
+	xrtTlsContextConfigInit(&ContextConfig);
+	ContextConfig.Policy = &ClientPolicy;
+	ContextConfig.Limits.RecordBudget = 4u;
+	ContextConfig.Limits.HandshakeBudget = 4u;
+	pClientContext = xrtTlsContextCreate(&ContextConfig);
+	ContextConfig.Policy = &ServerPolicy;
+	pServerContext = xrtTlsContextCreate(&ContextConfig);
+	testRequire((pClientContext != NULL) && (pServerContext != NULL),
+		"TLS HRR contexts creation failed");
+
+	xrtTlsClientConfigInit(&ClientConfig);
+	ClientConfig.Context = pClientContext;
+	ClientConfig.ServerName = XRT_STR_LITERAL("example.com");
+	ClientConfig.Protocols = Protocols;
+	ClientConfig.ProtocolCount = sizeof(Protocols) / sizeof(Protocols[0]);
+	ClientConfig.Verifier = pVerifier;
+	xrtTlsServerConfigInit(&ServerConfig);
+	ServerConfig.Context = pServerContext;
+	ServerConfig.Identity = pIdentity;
+	ServerConfig.Protocols = Protocols;
+	ServerConfig.ProtocolCount = sizeof(Protocols) / sizeof(Protocols[0]);
+	ServerConfig.RequireProtocol = true;
+	pClient = xrtTlsClientCreate(&ClientConfig, NULL);
+	pServer = xrtTlsServerCreate(&ServerConfig, NULL);
+	testRequire((pClient != NULL) && (pServer != NULL) &&
+		testTlsServerHandshake(pClient, pServer, &Rng),
+		"TLS HelloRetryRequest handshake failed");
+	testRequire((xrtTlsSessionVersion(pClient) == XTLS_VERSION_13) &&
+		(xrtTlsSessionVersion(pServer) == XTLS_VERSION_13) &&
+		testTlsServerTransfer(
+			pClient, pServer, true,
+			Payload, sizeof(Payload) - 1u, &Rng
+		), "TLS HelloRetryRequest application epoch failed");
+	testRequire(testTlsServerClose(pClient, pServer, &Rng),
+		"TLS HelloRetryRequest close_notify exchange failed");
+
+	xrtTlsSessionDestroy(pServer);
+	xrtTlsSessionDestroy(pClient);
+	xrtTlsContextRelease(pServerContext);
+	xrtTlsContextRelease(pClientContext);
+}
+
+
+
 /* 验证真实客户端与服务端的证书握手、更新 epoch、数据和认证关闭。 */
 int main(void)
 {
@@ -119,6 +221,7 @@ int main(void)
 	VerifierConfig.Verify = testTlsServerAccept;
 	pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
 	testRequire(pVerifier != NULL, "TLS client verifier creation failed");
+	testTlsServerHelloRetryRequest(pIdentity, pVerifier);
 	xrtTlsClientConfigInit(&ClientConfig);
 	ClientConfig.Context = pContext;
 	ClientConfig.ServerName = XRT_STR_LITERAL("example.com");

@@ -1227,7 +1227,8 @@ static xnetresult __xrtNetKqueueWait(
 		pTimeout
 	);
 	if ( iReady == 0 ) {
-		return XNET_RESULT_TIMEOUT;
+		return iTimeout == 0 ?
+			XNET_RESULT_OK : XNET_RESULT_TIMEOUT;
 	}
 	if ( iReady < 0 ) {
 		if ( errno == EINTR ) {

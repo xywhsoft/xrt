@@ -2690,6 +2690,54 @@ XRT_API xvalue* xrtValueIterNext(
 
 
 
+/* 隔离调用前错误并以三态结果推进一个快照元素。 */
+XRT_API xvalueiterresult xrtValueIterAdvance(
+	xvalueiter* pIterator,
+	xvaluekey* pKey,
+	xvalue** ppValue
+)
+{
+	xerror* pPrevious;
+	xerror* pCurrent;
+	xerror* pDiscard;
+	xvalue* pValue;
+
+	if ( (pIterator == NULL) || (ppValue == NULL) ||
+		((pIterator != NULL) && __xrtRangesOverlap(
+			pIterator,
+			sizeof(xvalueiter),
+			ppValue,
+			sizeof(xvalue*)
+		)) ||
+		((pKey != NULL) && __xrtRangesOverlap(
+			pKey,
+			sizeof(xvaluekey),
+			ppValue,
+			sizeof(xvalue*)
+		)) ) {
+		__xrtErrorSetInvalidArgument();
+		return XVALUE_ITER_ERROR;
+	}
+	if ( pIterator->Backing == NULL ) {
+		*ppValue = NULL;
+		__xrtErrorSetInvalidState();
+		return XVALUE_ITER_ERROR;
+	}
+	*ppValue = NULL;
+	pPrevious = __xrtErrorSwapOwned(NULL);
+	pValue = xrtValueIterNext(pIterator, pKey);
+	pCurrent = __xrtErrorSwapOwned(pPrevious);
+	if ( pCurrent != NULL ) {
+		pDiscard = __xrtErrorSwapOwned(pCurrent);
+		xrtErrorFree(pDiscard);
+		return XVALUE_ITER_ERROR;
+	}
+	*ppValue = pValue;
+	return pValue != NULL ? XVALUE_ITER_ITEM : XVALUE_ITER_END;
+}
+
+
+
 /* 结束迭代并释放 backing 快照。 */
 XRT_API void xrtValueIterEnd(xvalueiter* pIterator)
 {

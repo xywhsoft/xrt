@@ -25,6 +25,7 @@ int main(void)
 	Text.Size = iSize;
 	if ( !xrtMailDateParse(
 		Text,
+		XMAIL_DATE_STRICT,
 		&iParsed,
 		&iOffset
 	) ) {

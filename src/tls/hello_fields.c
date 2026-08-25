@@ -823,6 +823,33 @@ XRT_API bool xrtTlsRetryGroup(xbytesview Data, uint16* pGroup)
 
 
 
+/* 严格解析 HelloRetryRequest cookie 的 16 位非空字节向量。 */
+XRT_API bool xrtTlsRetryCookie(xbytesview Data, xbytesview* pCookie)
+{
+	xbytesview Cookie;
+
+	if ( (pCookie == NULL) || !__xrtTlsViewValid(Data) ) {
+		__xrtTlsError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "parse-retry-cookie",
+			"TLS retry-cookie input or output is invalid", SIZE_MAX
+		);
+		return false;
+	}
+	if ( (Data.Size < 3u) ||
+		((size_t)__xrtTlsRead16(Data.Data) != (Data.Size - 2u)) ) {
+		return __xrtTlsHelloError(
+			XTLS_ERROR_EXTENSION, "parse-retry-cookie",
+			"TLS retry cookie is empty or has an inconsistent length", 0
+		);
+	}
+	Cookie.Data = Data.Data + 2u;
+	Cookie.Size = Data.Size - 2u;
+	*pCookie = Cookie;
+	return true;
+}
+
+
+
 /* 验证 Hello 中当前公开支持的核心扩展语义。 */
 
 #endif

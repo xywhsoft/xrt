@@ -45,6 +45,8 @@ typedef struct xtlsclientstate {
 	xbytesview SniName;
 	xbytesview* Protocols;
 	size_t ProtocolCount;
+	uint16* Versions;
+	size_t VersionCount;
 	uint16* Ciphers;
 	size_t CipherCount;
 	uint16* Groups;
@@ -61,6 +63,7 @@ typedef struct xtlsclientstate {
 	size_t WorkspaceSize;
 	bytes ClientHello;
 	size_t ClientHelloSize;
+	bytes RetryStorage;
 	bytes HandshakeSecret;
 	bytes ClientHandshakeTraffic;
 	bytes ServerHandshakeTraffic;
@@ -97,6 +100,9 @@ typedef struct xtlsclientstate {
 	bool Offer12;
 	bool Offer13;
 	bool ExtendedMasterSecret;
+	bool ResumeOnly;
+	bool RetrySeen;
+	bool CompatibilityCcsSeen;
 	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 		xtlsverifier* Verifier;
 		xtlsclientpeer* Peer;
@@ -141,6 +147,16 @@ bool __xrtTlsClientOffered(
 
 /* 根据客户端当前队列和输入需求发布等待方向。 */
 bool __xrtTlsClientWait(xtlssession* pSession, bool bInput);
+
+
+
+/* 为首航或 HRR 重试构建并排队当前 ClientHello。 */
+bool __xrtTlsClientHelloQueue(
+	xtlssession* pSession,
+	xtlsclientstate* pState,
+	xbytesview Cookie,
+	bool bRetry
+);
 
 
 
@@ -222,7 +238,10 @@ uint64 __xrtTlsClientResumePublished(
 
 
 /* 为已经完整编码且末尾预留 binder 的 ClientHello 写入真实 binder。 */
-bool __xrtTlsClientResumeBinder(xtlsclientstate* pState);
+bool __xrtTlsClientResumeBinder(
+	xtlsclientstate* pState,
+	const xtlstranscript* pPrefix
+);
 
 
 

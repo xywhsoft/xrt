@@ -411,6 +411,9 @@
 #ifndef XMAIL_MODULE_MAIL_PARAM
 #define XMAIL_MODULE_MAIL_PARAM
 #endif
+#ifndef XMAIL_MODULE_MAIL_CHARSET
+#define XMAIL_MODULE_MAIL_CHARSET
+#endif
 #endif
 
 /* mail_message 及其直接依赖。 */
@@ -509,8 +512,8 @@
 #ifndef XMAIL_MODULE_MAIL_CODEC
 #define XMAIL_MODULE_MAIL_CODEC
 #endif
-#ifndef XRT_MODULE_UNICODE
-#define XRT_MODULE_UNICODE
+#ifndef XMAIL_MODULE_MAIL_CHARSET
+#define XMAIL_MODULE_MAIL_CHARSET
 #endif
 #endif
 
@@ -534,6 +537,19 @@
 #endif
 #ifndef XRT_MODULE_CODEC_BASE64
 #define XRT_MODULE_CODEC_BASE64
+#endif
+#endif
+
+/* mail_charset 及其直接依赖。 */
+#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_MAIL_CHARSET)
+#ifndef XMAIL_FEATURE_MAIL_CHARSET
+#define XMAIL_FEATURE_MAIL_CHARSET
+#endif
+#ifndef XMAIL_MODULE_MAIL_CORE
+#define XMAIL_MODULE_MAIL_CORE
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
 #endif
 #endif
 

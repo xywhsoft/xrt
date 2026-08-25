@@ -100,11 +100,44 @@ static bool __xrtX509CrlPolicyConfigValid(const xx509crlconfig* pConfig)
 {
 	const uint32 iKnown = X509_CRL_REQUIRE_NEXT_UPDATE |
 		X509_CRL_REQUIRE_NUMBER | X509_CRL_REQUIRE_AUTHORITY_KEY_ID |
-		X509_CRL_REQUIRE_KEY_IDENTIFIER | X509_CRL_REQUIRE_KEY_USAGE;
+		X509_CRL_REQUIRE_KEY_IDENTIFIER | X509_CRL_REQUIRE_KEY_USAGE |
+		X509_CRL_ALLOW_SHA1;
 
 	return (pConfig != NULL) && ((pConfig->Flags & ~iKnown) == 0) &&
 		(((pConfig->Flags & X509_CRL_REQUIRE_KEY_IDENTIFIER) == 0) ||
 		 ((pConfig->Flags & X509_CRL_REQUIRE_AUTHORITY_KEY_ID) != 0));
+}
+
+
+
+/* 在密码验签前执行 CRL 级签名算法强度策略。 */
+static bool __xrtX509CrlPolicySignature(
+	const xx509crl* pCrl,
+	const xx509crlconfig* pConfig
+)
+{
+	xx509signature Signature;
+	xx509result Result = xrtX509SignatureParse(
+		&pCrl->SignatureAlgorithm,
+		&Signature
+	);
+
+	if ( Result != X509_VALUE ) {
+		return __xrtX509CrlPolicyError(
+			X509_ERROR_SIGNATURE,
+			"CRL uses an unsupported signature algorithm",
+			Result == X509_ERROR ? xrtGetError() : NULL
+		);
+	}
+	if ( (Signature.Hash == X509_HASH_SHA1) &&
+		((pConfig->Flags & X509_CRL_ALLOW_SHA1) == 0) ) {
+		return __xrtX509CrlPolicyError(
+			X509_ERROR_SIGNATURE,
+			"CRL uses SHA-1 without explicit legacy policy",
+			NULL
+		);
+	}
+	return true;
 }
 
 
@@ -608,6 +641,9 @@ XRT_API bool xrtX509CrlValidate(
 	}
 	Result = xrtX509CrlFreshest(pCrl, &Freshest);
 	if ( Result == X509_ERROR ) {
+		return false;
+	}
+	if ( !__xrtX509CrlPolicySignature(pCrl, pConfig) ) {
 		return false;
 	}
 	if ( !xrtX509CrlVerify(pCrl, pIssuer) ) {

@@ -51,6 +51,7 @@ int main(void)
 	xvalue* pSource = xrtValueArray();
 	xvalue* pCopy = xrtValueNull();
 	xvalue* pMoved = xrtValueNull();
+	xvalue* pEmpty = NULL;
 	size_t iEdges = 0u;
 
 	testRequire(
@@ -84,6 +85,13 @@ int main(void)
 			pValueType, &pCopy, testRuntimeValueTypeVisit, &iEdges
 		) && (iEdges == 2u),
 		"runtime Value type trace mismatch"
+	);
+	iEdges = 0u;
+	testRequire(
+		xrtTypeTraceValue(
+			pValueType, &pEmpty, testRuntimeValueTypeVisit, &iEdges
+		) && (iEdges == 0u),
+		"empty runtime Value slot was reported as a trace failure"
 	);
 	testRequire(
 		xrtTypeMoveValue(pValueType, &pMoved, &pCopy) &&

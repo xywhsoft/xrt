@@ -23,7 +23,7 @@
 
 
 
-/* Remote forwarding 请求借用线路地址并保留 uint32 端口。 */
+/* Remote forwarding 请求借用线路地址，端口限制为 0 至 65535。 */
 typedef struct xsshtcpipforward {
 	xbytesview Address;
 	uint32 Port;
@@ -31,7 +31,7 @@ typedef struct xsshtcpipforward {
 
 
 
-/* TCP/IP channel open 借用目标与来源地址。 */
+/* TCP/IP channel open 借用目标与来源地址，两个端口均不超过 65535。 */
 typedef struct xsshtcpipopen {
 	xbytesview Host;
 	uint32 Port;
@@ -45,7 +45,7 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 写入或严格读取要求回复的 tcpip-forward 全局请求。 */
+/* 写入或严格读取要求回复的 tcpip-forward；端口零请求动态分配。 */
 XRT_API xsshcode xrtSshTcpipForwardWrite(
 	xsshwriter* pWriter,
 	xbytesview Address,

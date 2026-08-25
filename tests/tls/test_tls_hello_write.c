@@ -114,6 +114,9 @@ static void testTlsServerHelloWrite(void)
 	static const xbytesview Selected[] = {
 		XRT_BYTES_INIT("h2")
 	};
+	static const uint8 Cookie[] = {
+		0x19, 0xA4, 0x72, 0xE1, 0x3C
+	};
 	uint8 Key[32];
 	uint8 Random[32];
 	uint8 Extensions[128];
@@ -122,6 +125,8 @@ static void testTlsServerHelloWrite(void)
 	xtlswriter Writer;
 	xtlsserverhello Hello;
 	xtlsserverhello Parsed;
+	xtlsextension Extension;
+	xbytesview ParsedCookie;
 	size_t iRequired;
 
 	for ( uint8 i = 0; i < 32u; i++ ) {
@@ -152,7 +157,10 @@ static void testTlsServerHelloWrite(void)
 
 	testRequire(xrtTlsWriterReset(&Writer) &&
 		xrtTlsWriterServerVersion(&Writer, XTLS_VERSION_13) &&
-		xrtTlsWriterRetryGroup(&Writer, XTLS_GROUP_X25519),
+		xrtTlsWriterRetryGroup(&Writer, XTLS_GROUP_X25519) &&
+		xrtTlsWriterRetryCookie(
+			&Writer, (xbytesview) { Cookie, sizeof(Cookie) }
+		),
 		"TLS HelloRetryRequest extension writer failed");
 	Hello.Random = (xbytesview) { RetryRandom, sizeof(RetryRandom) };
 	Hello.Extensions = xrtTlsWriterData(&Writer);
@@ -162,7 +170,12 @@ static void testTlsServerHelloWrite(void)
 		&Hello, Body, sizeof(Body)
 	) && xrtTlsServerHelloParse(
 		(xbytesview) { Body, iRequired }, &Parsed
-	) && Parsed.Retry,
+	) && Parsed.Retry && (xrtTlsExtensionsFind(
+		Parsed.Extensions, XTLS_EXTENSION_COOKIE, &Extension
+	) == XTLS_ITEM_VALUE) && xrtTlsRetryCookie(
+		Extension.Data, &ParsedCookie
+	) && (ParsedCookie.Size == sizeof(Cookie)) &&
+		(memcmp(ParsedCookie.Data, Cookie, sizeof(Cookie)) == 0),
 		"TLS HelloRetryRequest writer did not round trip");
 }
 

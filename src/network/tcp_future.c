@@ -604,12 +604,15 @@ static void __xrtNetStreamWaitSchedule(xnetstream* pStream)
 	}
 	pStream->WaitPosted = true;
 	(void)xrtNetStreamRef(pStream);
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pStream->Worker,
 		&pStream->WaitCommand,
 		__xrtNetStreamWaitTask,
 		pStream
-	);
+	) ) {
+		pStream->WaitPosted = false;
+		xrtNetStreamDestroy(pStream);
+	}
 }
 
 

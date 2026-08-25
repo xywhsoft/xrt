@@ -9,6 +9,14 @@
 
 #if defined(XSSH_FEATURE_FORWARD_MESSAGE)
 
+/* TCP/IP forwarding 线路字段只接受操作系统端口范围。 */
+static bool xsshForwardPortValid(uint32 iPort)
+{
+	return iPort <= UINT16_MAX;
+}
+
+
+
 /* 比较借用名称与编译期 request/channel 类型。 */
 static bool xsshForwardNameEqual(
 	xstrview Name,
@@ -32,8 +40,12 @@ static xsshcode xsshForwardGlobalWrite(
 {
 	xsshwriter Writer;
 	size_t iFieldsSize = 4u;
-	xsshcode Code = xsshChannelAddString(Address, &iFieldsSize);
+	xsshcode Code;
 
+	if ( !xsshForwardPortValid(iPort) ) {
+		return XSSH_ERROR_ARGUMENT;
+	}
+	Code = xsshChannelAddString(Address, &iFieldsSize);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -87,7 +99,8 @@ static xsshcode xsshForwardGlobalRead(
 		((Code = xrtSshReadU32(&Reader, &Forward.Port)) != XSSH_OK) ) {
 		return Code;
 	}
-	if ( xrtSshReaderRemaining(&Reader) != 0u ) {
+	if ( (xrtSshReaderRemaining(&Reader) != 0u) ||
+		 !xsshForwardPortValid(Forward.Port) ) {
 		return XSSH_ERROR_PROTOCOL;
 	}
 	*pForward = Forward;
@@ -114,6 +127,10 @@ static xsshcode xsshForwardOpenWrite(
 	size_t iFieldsSize = 8u;
 	xsshcode Code;
 
+	if ( !xsshForwardPortValid(iPort) ||
+		 !xsshForwardPortValid(iOriginatorPort) ) {
+		return XSSH_ERROR_ARGUMENT;
+	}
 	if ( ((Code = xsshChannelAddString(Host, &iFieldsSize)) != XSSH_OK) ||
 		((Code = xsshChannelAddString(Originator, &iFieldsSize)) != XSSH_OK) ) {
 		return Code;
@@ -174,7 +191,9 @@ static xsshcode xsshForwardOpenRead(
 		((Code = xrtSshReadU32(&Reader, &Tcpip.OriginatorPort)) != XSSH_OK) ) {
 		return Code;
 	}
-	if ( xrtSshReaderRemaining(&Reader) != 0u ) {
+	if ( (xrtSshReaderRemaining(&Reader) != 0u) ||
+		 !xsshForwardPortValid(Tcpip.Port) ||
+		 !xsshForwardPortValid(Tcpip.OriginatorPort) ) {
 		return XSSH_ERROR_PROTOCOL;
 	}
 	*pTcpip = Tcpip;
@@ -256,8 +275,12 @@ xsshcode xrtSshTcpipForwardSuccessWrite(
 )
 {
 	xsshwriter Writer;
-	xsshcode Code = xrtSshWriterReserveInputs(pWriter, 5u, NULL, 0u);
+	xsshcode Code;
 
+	if ( !xsshForwardPortValid(iPort) ) {
+		return XSSH_ERROR_ARGUMENT;
+	}
+	Code = xrtSshWriterReserveInputs(pWriter, 5u, NULL, 0u);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -297,7 +320,8 @@ xsshcode xrtSshTcpipForwardSuccessRead(
 		return Code;
 	}
 	if ( (iMessage != XSSH_MSG_REQUEST_SUCCESS) ||
-		(xrtSshReaderRemaining(&Reader) != 0u) ) {
+		(xrtSshReaderRemaining(&Reader) != 0u) ||
+		!xsshForwardPortValid(iPort) ) {
 		return XSSH_ERROR_PROTOCOL;
 	}
 	*pPort = iPort;

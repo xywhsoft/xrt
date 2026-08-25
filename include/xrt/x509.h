@@ -629,7 +629,9 @@ typedef enum xx509crlpolicyflag {
 	X509_CRL_REQUIRE_NUMBER = UINT32_C(0x00000002),
 	X509_CRL_REQUIRE_AUTHORITY_KEY_ID = UINT32_C(0x00000004),
 	X509_CRL_REQUIRE_KEY_IDENTIFIER = UINT32_C(0x00000008),
-	X509_CRL_REQUIRE_KEY_USAGE = UINT32_C(0x00000010)
+	X509_CRL_REQUIRE_KEY_USAGE = UINT32_C(0x00000010),
+	/* 仅用于必须兼容历史基础设施的显式弱算法策略。 */
+	X509_CRL_ALLOW_SHA1 = UINT32_C(0x00000020)
 } xx509crlpolicyflag;
 
 
@@ -718,7 +720,9 @@ typedef struct xx509crlset {
 /* 路径策略标志只控制目标证书用途是否必须显式出现。 */
 typedef enum xx509pathflag {
 	X509_PATH_REQUIRE_KEY_USAGE = UINT32_C(0x00000001),
-	X509_PATH_REQUIRE_PURPOSE = UINT32_C(0x00000002)
+	X509_PATH_REQUIRE_PURPOSE = UINT32_C(0x00000002),
+	/* 默认拒绝 SHA-1 路径签名；此标志只为显式 legacy 场景保留。 */
+	X509_PATH_ALLOW_SHA1 = UINT32_C(0x00000004)
 } xx509pathflag;
 
 
@@ -1394,6 +1398,11 @@ XRT_API xx509result xrtX509RevocationResult(
 
 
 #if defined(XRT_FEATURE_X509_PATH)
+
+/* 初始化当前时间、默认拒绝 SHA-1 的严格路径策略。 */
+XRT_API void xrtX509PathConfigInit(xx509pathconfig* pConfig);
+
+
 
 /* 从一张受信任证书提取名称和公钥；不校验该证书的时间、扩展或自签名。 */
 XRT_API bool xrtX509Anchor(

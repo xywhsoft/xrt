@@ -261,6 +261,11 @@ bool xrtValueIterRBegin(const xvalue* value, xvalueiter* iterator);
 xvalueiter* xrtValueIterCreate(const xvalue* value);
 xvalueiter* xrtValueIterRCreate(const xvalue* value);
 xvalue* xrtValueIterNext(xvalueiter* iterator, xvaluekey* key);
+xvalueiterresult xrtValueIterAdvance(
+	xvalueiter* iterator,
+	xvaluekey* key,
+	xvalue** value
+);
 void xrtValueIterEnd(xvalueiter* iterator);
 void xrtValueIterDestroy(xvalueiter* iterator);
 ```
@@ -275,6 +280,8 @@ void xrtValueIterDestroy(xvalueiter* iterator);
 | `XVALUE_KEY_STRING` | Object 使用借用的 `String`。 |
 
 迭代器持有 backing 快照。`xrtValueIterBegin` 按稳定正序推进；`xrtValueIterRBegin` 按完全相反的稳定顺序推进。迭代开始后修改原值会触发 COW，旧迭代顺序和借用键仍然有效。Object 字符串键借用快照 backing，迭代结束后失效。键输出不得覆盖迭代器，Begin 输出不得覆盖 Value 外壳；别名错误不会推进快照。Begin 和 RBegin 只能用于未活动或已经 End 的迭代器。该公开层供 JSON、可选数据格式、模板和动态宿主使用，不需要访问任何私有容器结构。
+
+`xrtValueIterNext` 是不隔离当前错误的最短快速路径，返回空值时调用方需按自身上下文判断结束。需要严格区分结果时使用 `xrtValueIterAdvance`：`XVALUE_ITER_ITEM` 表示写出一个借用元素，`XVALUE_ITER_END` 表示正常结束，`XVALUE_ITER_ERROR` 表示失败且当前错误已更新。成功项和正常结束均保留调用前已有错误；空指针或未活动迭代器属于错误。
 
 `Create/RCreate` 提供相同语义的拥有式入口，适合 FFI、语言运行时和不保存公开结构布局的消费者。成功后必须用 `xrtValueIterDestroy` 结束并释放；`Destroy(NULL)` 是空操作。栈上固定存储仍优先使用 `Begin/End`，不会产生一次迭代器分配。
 

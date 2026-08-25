@@ -15,7 +15,55 @@ from xrt_manifest import expand_manifest_paths, load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "config" / "modules.json"
+CORPUS_ROOT = ROOT / "fuzz" / "corpus"
 TARGETS = {
+	"tls": {
+		"module": "tls_protocol_fuzz_tests",
+		"label": "TLS record and handshake",
+		"output": "tls_protocol_fuzz",
+		"adapter": "XRT_TLS_FUZZ_LIBFUZZER",
+		"corpus": "tls_protocol",
+		"seeds": {
+			"empty": b"",
+			"empty-client-hello": (
+				b"\x16\x03\x03\x00\x04\x01\x00\x00\x00"
+			),
+			"truncated-record": b"\x16\x03\x03\x00\x20\x01",
+			"oversized-record": b"\x16\x03\x03\xff\xff",
+			"hello-retry-prefix": (
+				b"\x02\x00\x00\x26\x03\x03\xcf\x21\xad\x74"
+			),
+		},
+	},
+	"x509": {
+		"module": "x509_asn1_protocol_fuzz_tests",
+		"label": "X.509 and ASN.1 DER",
+		"output": "x509_asn1_fuzz",
+		"adapter": "XRT_X509_FUZZ_LIBFUZZER",
+		"corpus": "x509_asn1",
+		"seeds": {
+			"empty": b"",
+			"sequence": b"\x30\x06\x02\x01\x01\x01\x01\xff",
+			"non-canonical-length": b"\x04\x81\x01\x00",
+			"truncated-sequence": b"\x30\x82\x01\x00\x02\x01",
+			"utc-time": b"\x17\x0d250102030405Z",
+		},
+	},
+	"net-address": {
+		"module": "net_address_protocol_fuzz_tests",
+		"label": "Network address and numeric DNS input",
+		"output": "net_address_fuzz",
+		"adapter": "XRT_NET_ADDRESS_FUZZ_LIBFUZZER",
+		"corpus": "net_address",
+		"seeds": {
+			"empty": b"",
+			"ipv4": b"192.0.2.1:443",
+			"ipv6": b"[2001:db8::1]:65535",
+			"mapped": b"::ffff:192.0.2.1",
+			"scope": b"[fe80::1%3]:80",
+			"malformed": b"2001:db8:::1",
+		},
+	},
 	"auth": {
 		"module": "http_auth_protocol_fuzz_tests",
 		"manifest": "extlibs/xhttp/config/modules.json",
@@ -285,10 +333,33 @@ def _compiler(value: str) -> str:
 
 
 
-def _seed_corpus(path: Path, seeds: dict[str, bytes]) -> None:
-	"""建立固定协议种子，并保留覆盖引导产生的已有语料。"""
+def _persistent_corpus(config: dict) -> Path | None:
+	"""解析并验证目标声明的仓库内持久语料目录。"""
+
+	name = config.get("corpus")
+	if name is None:
+		return None
+	path = CORPUS_ROOT / name
+	if not path.is_dir():
+		raise SystemExit(f"persistent fuzz corpus is missing: {path}")
+	if not any(item.is_file() for item in path.iterdir()):
+		raise SystemExit(f"persistent fuzz corpus is empty: {path}")
+	return path
+
+
+
+def _seed_corpus(
+	path: Path,
+	seeds: dict[str, bytes],
+	persistent: Path | None,
+) -> None:
+	"""复制持久语料和固定种子，并保留覆盖引导产生的已有语料。"""
 
 	path.mkdir(parents=True, exist_ok=True)
+	if persistent is not None:
+		for item in sorted(persistent.iterdir()):
+			if item.is_file():
+				shutil.copy2(item, path / item.name)
 	for name, data in seeds.items():
 		(path / name).write_bytes(data)
 
@@ -347,10 +418,15 @@ def _run_target(
 		config.get("manifest", "config/modules.json"),
 	)
 	label = config["label"]
+	persistent = _persistent_corpus(config)
 	if dry_run:
+		persistent_count = 0 if persistent is None else sum(
+			item.is_file() for item in persistent.iterdir()
+		)
 		print(
 			f"{label} fuzz closure: sources={len(sources)} "
-			f"defines={len(defines)} links={len(links)}"
+			f"defines={len(defines)} links={len(links)} "
+			f"persistent_seeds={persistent_count}"
 		)
 		return
 	if compiler is None:
@@ -364,7 +440,7 @@ def _run_target(
 	artifacts = out_dir / "artifacts"
 	out_dir.mkdir(parents=True, exist_ok=True)
 	artifacts.mkdir(parents=True, exist_ok=True)
-	_seed_corpus(corpus, config["seeds"])
+	_seed_corpus(corpus, config["seeds"], persistent)
 	command = _build_command(
 		compiler, sources, defines, links, include_dirs,
 		config["adapter"], output,

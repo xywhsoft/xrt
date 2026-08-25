@@ -3,33 +3,16 @@
 
 
 
-/* 验证单头文件客户端会排队一条可解析的 TLS 1.3 ClientHello。 */
+/* 已裁入验证后端时，完整握手仍必须显式提供验证器。 */
 int main(void)
 {
 	xtlsclientconfig Config;
 	xtlssession* pSession;
-	xnetspan Span;
-	xtlsrecord Record;
-	xtlshandshake Handshake;
-	xtlsclienthello Hello;
-	bool bResult;
 
 	xrtTlsClientConfigInit(&Config);
 	Config.ServerName = XRT_STR_LITERAL("example.com");
 	pSession = xrtTlsClientCreate(&Config, NULL);
-	if ( pSession == NULL ) {
-		return 1;
-	}
-	bResult = xrtTlsSessionSendFront(pSession, &Span) &&
-		(xrtTlsRecordParse(
-			(xbytesview) { Span.Data, Span.Size }, &Record, NULL
-		) == XTLS_OK) &&
-		(xrtTlsHandshakeParse(
-			Record.Payload, &Handshake, NULL
-		) == XTLS_OK) &&
-		(Handshake.Type == XTLS_HANDSHAKE_CLIENT_HELLO) &&
-		xrtTlsClientHelloParse(Handshake.Body, &Hello) &&
-		(xrtTlsSessionState(pSession) == XTLS_STATE_HANDSHAKE);
-	xrtTlsSessionDestroy(pSession);
-	return bResult ? 0 : 1;
+	return (pSession == NULL) && (xrtGetError() != NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT) &&
+		(xrtErrorCode(xrtGetError()) == (int32)XTLS_ERROR_VERIFY) ? 0 : 1;
 }

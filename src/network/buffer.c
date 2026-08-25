@@ -525,6 +525,31 @@ XRT_API size_t xrtNetBufSpanCount(const xnetbuf* pBuffer)
 
 
 
+/* 返回队首文件区间前可以由字节 API 访问的内存字节数。 */
+static size_t __xrtNetBufMemoryPrefix(const xnetbuf* pBuffer)
+{
+	xnetblock* pBlock;
+	size_t iSize = 0;
+
+	if ( pBuffer == NULL ) {
+		return 0;
+	}
+	pBlock = pBuffer->Head;
+	while ( (pBlock != NULL) &&
+		(pBlock->Class != XRT_NET_BLOCK_FILE) ) {
+		size_t iReadable = __xrtNetBlockReadable(pBlock);
+
+		if ( iReadable > (SIZE_MAX - iSize) ) {
+			return SIZE_MAX;
+		}
+		iSize += iReadable;
+		pBlock = pBlock->Next;
+	}
+	return iSize;
+}
+
+
+
 /* 获取缓冲链前若干只读 Span。 */
 XRT_API size_t xrtNetBufSpans(const xnetbuf* pBuffer,
 	xnetspan* pSpans, size_t iCapacity)
@@ -562,7 +587,8 @@ XRT_API bool xrtNetBufFront(const xnetbuf* pBuffer, xnetspan* pSpan)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( pBuffer->Size == 0 ) {
+	if ( (pBuffer->Size == 0) ||
+		(pBuffer->Head->Class == XRT_NET_BLOCK_FILE) ) {
 		pSpan->Data = NULL;
 		pSpan->Size = 0;
 		return false;
@@ -985,6 +1011,9 @@ XRT_API size_t xrtNetBufPeek(const xnetbuf* pBuffer,
 		size_t iBegin;
 		size_t iChunk;
 
+		if ( pBlock->Class == XRT_NET_BLOCK_FILE ) {
+			break;
+		}
 		if ( (iPosition + iReadable) <= iOffset ) {
 			iPosition += iReadable;
 			pBlock = pBlock->Next;
@@ -1145,6 +1174,9 @@ XRT_API size_t xrtNetBufFind(const xnetbuf* pBuffer,
 		size_t iBegin;
 		cbytes pFound;
 
+		if ( pBlock->Class == XRT_NET_BLOCK_FILE ) {
+			break;
+		}
 		if ( (iPosition + iReadable) <= iOffset ) {
 			iPosition += iReadable;
 			pBlock = pBlock->Next;
@@ -1187,6 +1219,18 @@ XRT_API bool xrtNetBufPullup(xnetbuf* pBuffer,
 		pSpan->Data = NULL;
 		pSpan->Size = 0;
 		return true;
+	}
+	if ( __xrtNetBufMemoryPrefix(pBuffer) < iSize ) {
+		pSpan->Data = NULL;
+		pSpan->Size = 0;
+		__xrtNetSetError(
+			XERR_STATE,
+			XNET_ERROR_BUFFER_STATE,
+			"pullup-buffer",
+			"buffer prefix contains a file extent",
+			0
+		);
+		return false;
 	}
 	if ( __xrtNetBlockReadable(pBuffer->Head) >= iSize ) {
 		pSpan->Data = __xrtNetBlockData(pBuffer->Head) + pBuffer->Head->Begin;

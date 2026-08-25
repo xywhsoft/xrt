@@ -296,6 +296,23 @@ XRT_API bool xrtSshChannelsInit(
 
 
 
+/* 删除观察器属于组合层钩子，不改变集合自身的所有权规则。 */
+XRT_API bool xrtSshChannelsOnRemoved(
+	xsshchannels* pChannels,
+	xsshchannelsremovedproc pRemoved,
+	ptr pUserData
+)
+{
+	if ( !xsshChannelsValid(pChannels) ) {
+		return false;
+	}
+	pChannels->Removed = pRemoved;
+	pChannels->RemovedData = pRemoved != NULL ? pUserData : NULL;
+	return true;
+}
+
+
+
 /* 清理映射会逐项释放动态 I/O 和 reply token。 */
 XRT_API void xrtSshChannelsClear(xsshchannels* pChannels)
 {
@@ -443,6 +460,8 @@ XRT_API bool xrtSshChannelsRemove(
 )
 {
 	xsshchannel* pChannel;
+	xsshchannelsremovedproc pRemoved;
+	ptr pRemovedData;
 	xsshchannelcorephase Phase;
 
 	if ( !xsshChannelsValid(pChannels) ) {
@@ -483,7 +502,15 @@ XRT_API bool xrtSshChannelsRemove(
 		(void)xsshChannelsState();
 		return false;
 	}
-	return xrtIntMapRemove(&pChannels->Map, (int64)iLocal);
+	pRemoved = pChannels->Removed;
+	pRemovedData = pChannels->RemovedData;
+	if ( !xrtIntMapRemove(&pChannels->Map, (int64)iLocal) ) {
+		return false;
+	}
+	if ( pRemoved != NULL ) {
+		pRemoved(pChannels, iLocal, pRemovedData);
+	}
+	return true;
 }
 
 
@@ -494,6 +521,9 @@ XRT_API bool xrtSshChannelsDiscard(
 	uint32 iLocal
 )
 {
+	xsshchannelsremovedproc pRemoved;
+	ptr pRemovedData;
+
 	if ( !xsshChannelsValid(pChannels) ) {
 		return false;
 	}
@@ -501,7 +531,15 @@ XRT_API bool xrtSshChannelsDiscard(
 		xrtSetErrorKind(XERR_NOT_FOUND);
 		return false;
 	}
-	return xrtIntMapRemove(&pChannels->Map, (int64)iLocal);
+	pRemoved = pChannels->Removed;
+	pRemovedData = pChannels->RemovedData;
+	if ( !xrtIntMapRemove(&pChannels->Map, (int64)iLocal) ) {
+		return false;
+	}
+	if ( pRemoved != NULL ) {
+		pRemoved(pChannels, iLocal, pRemovedData);
+	}
+	return true;
 }
 
 

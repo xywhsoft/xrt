@@ -11,8 +11,7 @@
 int main(void)
 {
 	static const char sSource[] =
-		"host.example ssh-ed25519 "
-		"AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+		"host.example ssh-rsa AAAAB3NzaC1yc2E=\n";
 	static const char sKey[] =
 		"AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 	unsigned char arrKey[64];
@@ -42,5 +41,5 @@ int main(void)
 		(xbytesview){ arrKey, iKeySize },
 		0u,
 		&Check
-	) == XSSH_OK) && (Check.Trust == XSSH_KNOWN_HOST_TRUST_MATCH) ? 0 : 1;
+	) == XSSH_OK) && (Check.Trust == XSSH_KNOWN_HOST_TRUST_CHANGED) ? 0 : 1;
 }

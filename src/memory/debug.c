@@ -1035,12 +1035,19 @@ XRT_API void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot)
 /* 复制有界事件后在锁外调用用户访问器。 */
 XRT_API size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData)
 {
-	xmemdebugevent arrEvents[XRT_MEMDEBUG_EVENT_LIMIT];
+	xmemdebugevent* pEvents;
 	size_t iCount;
 	size_t iVisited = 0;
 
 	if ( pVisitor == NULL ) {
 		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	pEvents = (xmemdebugevent*)__xrtBackingAlloc(
+		sizeof(xmemdebugevent) * XRT_MEMDEBUG_EVENT_LIMIT
+	);
+	if ( pEvents == NULL ) {
+		__xrtErrorSetOutOfMemory();
 		return 0;
 	}
 
@@ -1050,16 +1057,17 @@ XRT_API size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData)
 	for ( size_t i = 0; i < iCount; i++ ) {
 		size_t iIndex = (__xrtMemDebug.EventStart + i) % XRT_MEMDEBUG_EVENT_LIMIT;
 
-		arrEvents[i] = __xrtMemDebug.Events[iIndex];
+		pEvents[i] = __xrtMemDebug.Events[iIndex];
 	}
 	__xrtSpinUnlock(&__xrtMemDebug.Lock);
 
 	for ( size_t i = 0; i < iCount; i++ ) {
 		iVisited++;
-		if ( !pVisitor(&arrEvents[i], pUserData) ) {
+		if ( !pVisitor(&pEvents[i], pUserData) ) {
 			break;
 		}
 	}
+	__xrtBackingFree(pEvents);
 	return iVisited;
 }
 

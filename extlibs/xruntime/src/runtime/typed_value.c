@@ -1007,6 +1007,7 @@ XRT_API xtypedarray* xrtTypedArrayFromValue(
 	xvaluekey Key;
 	xtypedarray* pResult;
 	xvalue* pItem;
+	xvalueiterresult IterResult;
 	size_t iCount;
 	size_t iIndex = 0u;
 
@@ -1035,7 +1036,9 @@ XRT_API xtypedarray* xrtTypedArrayFromValue(
 		__xrtTypedValueArrayDestroy(pResult);
 		return NULL;
 	}
-	while ( (pItem = xrtValueIterNext(&Iterator, &Key)) != NULL ) {
+	while ( (IterResult = xrtValueIterAdvance(
+		&Iterator, &Key, &pItem
+	)) == XVALUE_ITER_ITEM ) {
 		if ( (Key.Type != XVALUE_KEY_INDEX) || (Key.Index != iIndex) ) {
 			__xrtTypedValueError(XERR_STATE, XTYPED_VALUE_ERROR_CONTAINER,
 				"array-from-value", "the dynamic array snapshot returned an invalid index");
@@ -1065,6 +1068,14 @@ XRT_API xtypedarray* xrtTypedArrayFromValue(
 		}
 		xrtTypeDropValue(pItemType, Scratch.Value);
 		iIndex++;
+	}
+	if ( IterResult == XVALUE_ITER_ERROR ) {
+		__xrtTypedValueWrap(XERR_STATE, XTYPED_VALUE_ERROR_CONTAINER,
+			"array-from-value", "the dynamic array snapshot iteration failed");
+		__xrtTypedValueIteratorEnd(&Iterator);
+		__xrtTypedValueScratchDestroy(&Scratch);
+		__xrtTypedValueArrayDestroy(pResult);
+		return NULL;
 	}
 	__xrtTypedValueIteratorEnd(&Iterator);
 	__xrtTypedValueScratchDestroy(&Scratch);
@@ -1349,6 +1360,7 @@ XRT_API xtypedlist* xrtTypedListFromValue(
 	xvaluekey Key;
 	xtypedlist* pResult;
 	xvalue* pItem;
+	xvalueiterresult IterResult;
 
 	if ( (pSource == NULL) || (xrtValueType(pSource) != XVALUE_INT_MAP) ) {
 		__xrtTypedValueError(XERR_TYPE, XTYPED_VALUE_ERROR_CONTAINER,
@@ -1373,7 +1385,9 @@ XRT_API xtypedlist* xrtTypedListFromValue(
 		__xrtTypedValueListDestroy(pResult);
 		return NULL;
 	}
-	while ( (pItem = xrtValueIterNext(&Iterator, &Key)) != NULL ) {
+	while ( (IterResult = xrtValueIterAdvance(
+		&Iterator, &Key, &pItem
+	)) == XVALUE_ITER_ITEM ) {
 		if ( Key.Type != XVALUE_KEY_INT ) {
 			__xrtTypedValueError(XERR_STATE, XTYPED_VALUE_ERROR_CONTAINER,
 				"list-from-value", "the integer map iterator returned a non-integer key");
@@ -1405,7 +1419,15 @@ XRT_API xtypedlist* xrtTypedListFromValue(
 		}
 		xrtTypeDropValue(pItemType, Scratch.Value);
 	}
-	xrtValueIterEnd(&Iterator);
+	if ( IterResult == XVALUE_ITER_ERROR ) {
+		__xrtTypedValueWrap(XERR_STATE, XTYPED_VALUE_ERROR_CONTAINER,
+			"list-from-value", "the integer map snapshot iteration failed");
+		__xrtTypedValueIteratorEnd(&Iterator);
+		__xrtTypedValueScratchDestroy(&Scratch);
+		__xrtTypedValueListDestroy(pResult);
+		return NULL;
+	}
+	__xrtTypedValueIteratorEnd(&Iterator);
 	__xrtTypedValueScratchDestroy(&Scratch);
 	return pResult;
 }
@@ -1695,6 +1717,7 @@ XRT_API xtypedset* xrtTypedSetFromValue(
 	xvalueiter Iterator;
 	xtypedset* pResult;
 	xvalue* pItem;
+	xvalueiterresult IterResult;
 
 	if ( (pSource == NULL) || (xrtValueType(pSource) != XVALUE_SET) ) {
 		__xrtTypedValueError(XERR_TYPE, XTYPED_VALUE_ERROR_CONTAINER,
@@ -1720,7 +1743,9 @@ XRT_API xtypedset* xrtTypedSetFromValue(
 		__xrtTypedValueSetDestroy(pResult);
 		return NULL;
 	}
-	while ( (pItem = xrtValueIterNext(&Iterator, NULL)) != NULL ) {
+	while ( (IterResult = xrtValueIterAdvance(
+		&Iterator, NULL, &pItem
+	)) == XVALUE_ITER_ITEM ) {
 		if ( !xrtValueToTyped(
 			pItem, pItemType, Scratch.Value, pConverter
 		) ) {
@@ -1742,7 +1767,15 @@ XRT_API xtypedset* xrtTypedSetFromValue(
 		}
 		xrtTypeDropValue(pItemType, Scratch.Value);
 	}
-	xrtValueIterEnd(&Iterator);
+	if ( IterResult == XVALUE_ITER_ERROR ) {
+		__xrtTypedValueWrap(XERR_STATE, XTYPED_VALUE_ERROR_CONTAINER,
+			"set-from-value", "the dynamic set snapshot iteration failed");
+		__xrtTypedValueIteratorEnd(&Iterator);
+		__xrtTypedValueScratchDestroy(&Scratch);
+		__xrtTypedValueSetDestroy(pResult);
+		return NULL;
+	}
+	__xrtTypedValueIteratorEnd(&Iterator);
 	__xrtTypedValueScratchDestroy(&Scratch);
 	return pResult;
 }
@@ -1969,6 +2002,7 @@ XRT_API xtypeddict* xrtTypedDictFromValue(
 	xvaluekey Key;
 	xtypeddict* pResult;
 	xvalue* pItem;
+	xvalueiterresult IterResult;
 
 	if ( (pSource == NULL) || (xrtValueType(pSource) != XVALUE_OBJECT) ) {
 		__xrtTypedValueError(XERR_TYPE, XTYPED_VALUE_ERROR_CONTAINER,
@@ -1994,7 +2028,9 @@ XRT_API xtypeddict* xrtTypedDictFromValue(
 		__xrtTypedValueDictDestroy(pResult);
 		return NULL;
 	}
-	while ( (pItem = xrtValueIterNext(&Iterator, &Key)) != NULL ) {
+	while ( (IterResult = xrtValueIterAdvance(
+		&Iterator, &Key, &pItem
+	)) == XVALUE_ITER_ITEM ) {
 		if ( Key.Type != XVALUE_KEY_STRING ) {
 			__xrtTypedValueError(XERR_STATE, XTYPED_VALUE_ERROR_CONTAINER,
 				"dict-from-value", "the object iterator returned a non-string key");
@@ -2026,7 +2062,15 @@ XRT_API xtypeddict* xrtTypedDictFromValue(
 		}
 		xrtTypeDropValue(pItemType, Scratch.Value);
 	}
-	xrtValueIterEnd(&Iterator);
+	if ( IterResult == XVALUE_ITER_ERROR ) {
+		__xrtTypedValueWrap(XERR_STATE, XTYPED_VALUE_ERROR_CONTAINER,
+			"dict-from-value", "the dynamic object snapshot iteration failed");
+		__xrtTypedValueIteratorEnd(&Iterator);
+		__xrtTypedValueScratchDestroy(&Scratch);
+		__xrtTypedValueDictDestroy(pResult);
+		return NULL;
+	}
+	__xrtTypedValueIteratorEnd(&Iterator);
 	__xrtTypedValueScratchDestroy(&Scratch);
 	return pResult;
 }

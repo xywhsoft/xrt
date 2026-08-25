@@ -9,6 +9,34 @@
 
 
 
+/* 删除观察器测试上下文保存顺序和集合身份。 */
+typedef struct testsshchannelsremoved {
+	xsshchannels* Channels;
+	uint32 Locals[2];
+	size_t Count;
+} testsshchannelsremoved;
+
+
+
+/* 记录成功删除后的本端 id；被删 channel 此时必须已经不可查询。 */
+static void testSshChannelsRemoved(
+	xsshchannels* pChannels,
+	uint32 iLocal,
+	ptr pUserData
+)
+{
+	testsshchannelsremoved* pRemoved =
+		(testsshchannelsremoved*)pUserData;
+
+	testRequire((pChannels == pRemoved->Channels) &&
+		(pRemoved->Count < 2u) &&
+		(xrtSshChannelsGet(pChannels, iLocal) == NULL),
+		"ssh channels removed observer context mismatch");
+	pRemoved->Locals[pRemoved->Count++] = iLocal;
+}
+
+
+
 /* 使用小预算建立可预测的动态 channel 集合。 */
 static void testSshChannelsInit(
 	xsshchannels* pChannels,
@@ -68,6 +96,52 @@ static void testSshChannelsOpen(void)
 		"ssh channels resolver mismatch"
 	);
 	xrtSshChannelsClear(&Channels);
+}
+
+
+
+/* 观察器只报告成功的显式删除，不报告失败删除或集合清理。 */
+static void testSshChannelsRemovedObserver(void)
+{
+	testsshchannelsremoved Removed;
+	xsshchannelopenfailure Failure;
+	xsshchannels Channels;
+	xsshchannel* pFirst = NULL;
+	xsshchannel* pSecond = NULL;
+	xsshchannel* pCleared = NULL;
+	uint32 iFirst;
+	uint32 iSecond;
+
+	memset(&Removed, 0, sizeof(Removed));
+	memset(&Failure, 0, sizeof(Failure));
+	testSshChannelsInit(&Channels, 3u);
+	Removed.Channels = &Channels;
+	testRequire(xrtSshChannelsOnRemoved(
+		&Channels,
+		testSshChannelsRemoved,
+		&Removed
+	) && (xrtSshChannelsOpen(&Channels, &pFirst) == XSSH_OK) &&
+		(xrtSshChannelsOpen(&Channels, &pSecond) == XSSH_OK) &&
+		(xrtSshChannelsOpen(&Channels, &pCleared) == XSSH_OK),
+		"ssh channels removed observer setup failed");
+	iFirst = pFirst->Core.Local;
+	iSecond = pSecond->Core.Local;
+	testRequire(!xrtSshChannelsRemove(&Channels, iFirst) &&
+		(Removed.Count == 0u),
+		"ssh channels observer reported failed removal");
+	Failure.Recipient = iFirst;
+	Failure.Reason = XSSH_CHANNEL_OPEN_CONNECT_FAILED;
+	testRequire((xrtSshChannelCoreFailureCommit(
+		&pFirst->Core,
+		&Failure
+	) == XSSH_OK) && xrtSshChannelsRemove(&Channels, iFirst) &&
+		xrtSshChannelsDiscard(&Channels, iSecond) &&
+		(Removed.Count == 2u) && (Removed.Locals[0] == iFirst) &&
+		(Removed.Locals[1] == iSecond),
+		"ssh channels removed observer order mismatch");
+	xrtSshChannelsClear(&Channels);
+	testRequire(Removed.Count == 2u,
+		"ssh channels observer reported collection clear");
 }
 
 
@@ -450,6 +524,7 @@ static void testSshChannelsLifecycle(void)
 int main(void)
 {
 	testSshChannelsOpen();
+	testSshChannelsRemovedObserver();
 	testSshChannelsReplies();
 	testSshChannelsIdWrap();
 	testSshChannelsReplyStress();

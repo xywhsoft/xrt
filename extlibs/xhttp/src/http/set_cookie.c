@@ -261,7 +261,7 @@ static int __xrtCookieDateMonth(xstrview Token)
 
 
 
-/* 无错误副作用地执行 RFC 10025 cookie-date 接收算法。 */
+/* 无错误副作用地执行 RFC 6265 cookie-date 接收算法。 */
 static bool __xrtCookieDateParseValue(xstrview Text, xtime* pTime)
 {
 	bool bTime = false;
@@ -349,7 +349,7 @@ static bool __xrtCookieDateParseValue(xstrview Text, xtime* pTime)
 
 
 
-/* 按 RFC 10025 宽松 cookie-date 算法解析 UTC 时间。 */
+/* 按 RFC 6265 宽松 cookie-date 算法解析 UTC 时间。 */
 XRT_API bool xrtCookieDateParse(xstrview Text, xtime* pTime)
 {
 	xtime iTime;
@@ -447,7 +447,7 @@ static xcookiepriority __xrtSetCookiePriority(xstrview Value)
 
 
 
-/* 按 RFC 10025 用户代理接收算法解析 Set-Cookie 字段值。 */
+/* 按 RFC 6265 用户代理接收算法解析 Set-Cookie 字段值。 */
 XRT_API bool xrtSetCookieParse(xstrview Text, xsetcookie* pCookie)
 {
 	xsetcookie Cookie;
@@ -763,7 +763,7 @@ static bool __xrtSetCookieStrictAttribute(
 
 
 
-/* 按 RFC 10025 服务器生成语法严格校验 Set-Cookie 字段值。 */
+/* 按 RFC 6265 服务器生成语法严格校验 Set-Cookie 字段值。 */
 XRT_API bool xrtSetCookieValidate(xstrview Text)
 {
 	xsetcookie Cookie;

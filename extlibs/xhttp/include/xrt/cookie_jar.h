@@ -32,7 +32,7 @@
 
 #if defined(XHTTP_FEATURE_COOKIE_JAR)
 
-/* RFC 10025 要求用户代理把持久 Cookie 的生存期限制在最多 400 天。 */
+/* RFC 6265 要求用户代理把持久 Cookie 的生存期限制在最多 400 天。 */
 #define XCOOKIE_JAR_MAX_LIFETIME \
 	((xtime)(INT64_C(400) * XRT_TIME_DAY))
 
@@ -53,8 +53,11 @@ typedef bool (*xcookiepublicsuffixfn)(ptr pContext, xstrview Domain);
 
 
 
-/* 没有公共后缀回调时，显式允许可跨子域的 Domain Cookie。 */
-#define XCOOKIE_JAR_ALLOW_UNVERIFIED_DOMAIN UINT32_C(0x00000001)
+/*
+ * 高风险显式选项：没有公共后缀回调时仍接受跨子域 Domain Cookie。
+ * 这可能把公共后缀误作 Domain 并形成 supercookie；普通客户端不应启用。
+ */
+#define XCOOKIE_JAR_ALLOW_DOMAIN_WITHOUT_PSL UINT32_C(0x00000001)
 
 
 
@@ -346,4 +349,3 @@ XRT_API bool xrtCookieJarApply(
 XRT_EXTERN_C_END
 
 #endif
-

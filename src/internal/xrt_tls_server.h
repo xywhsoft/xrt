@@ -49,6 +49,7 @@ typedef struct xtlsserverselection {
 	xtlscipher Cipher;
 	xtlssignature Signature;
 	uint16 Group;
+	bool Retry;
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		xtlsserverresumeoffer Resume;
 	#endif
@@ -65,6 +66,8 @@ typedef struct xtlsserverstate {
 	size_t ProtocolCount;
 	xbytesview ServerName;
 	bytes ServerNameStorage;
+	bytes RetryClientHello;
+	size_t RetryClientHelloSize;
 	bytes ClientHandshakeTraffic;
 	bytes ClientApplicationTraffic;
 	bytes ServerApplicationTraffic;
@@ -88,9 +91,13 @@ typedef struct xtlsserverstate {
 	xtlsversion Version;
 	xtlscipher Cipher;
 	xtlssignature Signature;
+	xtlscipher RetryCipher;
 	uint16 Group;
+	uint16 RetryGroup;
 	xtlsserverstep Step;
 	bool RequireProtocol;
+	bool RetrySeen;
+	bool CompatibilityCcsSeen;
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		xtlsserverresumeproc Resume;
 		ptr ResumeContext;

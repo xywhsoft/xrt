@@ -276,6 +276,7 @@ XRT_API xpop3client* xrtPop3ClientOpen(
 				xrtPop3ClientDestroy(pClient);
 				return NULL;
 			}
+			memset(&Reply, 0, sizeof(Reply));
 			if ( !xrtPop3ClientCommand(
 				pClient,
 				XRT_STR_LITERAL("STLS"),
@@ -283,7 +284,16 @@ XRT_API xpop3client* xrtPop3ClientOpen(
 				&Reply,
 				iDeadline,
 				pCancel
-			) || !Reply.Ok || !__xrtMailTransportStartTls(
+			) ) {
+				xrtPop3ClientDestroy(pClient);
+				return NULL;
+			}
+			if ( !Reply.Ok ) {
+				(void)__xrtPop3ClientRejected();
+				xrtPop3ClientDestroy(pClient);
+				return NULL;
+			}
+			if ( !__xrtMailTransportStartTls(
 				&pClient->Transport,
 				&pConfig->Net,
 				iDeadline,
@@ -293,9 +303,6 @@ XRT_API xpop3client* xrtPop3ClientOpen(
 				iDeadline,
 				pCancel
 			) ) {
-				if ( !Reply.Ok ) {
-					(void)__xrtPop3ClientRejected();
-				}
 				xrtPop3ClientDestroy(pClient);
 				return NULL;
 			}

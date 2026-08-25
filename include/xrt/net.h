@@ -754,6 +754,9 @@ typedef struct xnetworkerstats {
 	uint64 TimerErrors;
 	uint64 Events;
 	uint64 WaitErrors;
+	uint64 WakeErrors;
+	/* BASIC 以上统计中，停机任务链未在安全代数内收敛的累计次数。 */
+	uint64 ShutdownStalls;
 	/* 最近一次端口等待错误；没有错误时 Code 为 XNET_ERROR_NONE。 */
 	xneterror LastWaitError;
 	int LastWaitSystemCode;
@@ -781,6 +784,9 @@ typedef struct xnetenginestats {
 	uint64 TimerErrors;
 	uint64 Events;
 	uint64 WaitErrors;
+	uint64 WakeErrors;
+	/* BASIC 以上统计中，全部 Worker 停机任务链未收敛次数之和。 */
+	uint64 ShutdownStalls;
 	uint64 NodeCacheHits;
 	uint64 NodeCacheMisses;
 	size_t PendingCommands;
@@ -1307,6 +1313,11 @@ XRT_API xnetresult xrtNetSocketSendBatch(xnetsocket Socket,
 
 #if defined(XRT_FEATURE_NET_PORT)
 
+/*
+	端口由创建线程拥有，Watch、提交、取消、等待和销毁只能由拥有线程执行。
+	查询函数以及 Post、Wake 可跨线程调用；调用方仍须保证端口对象存活。
+*/
+
 /* 初始化网络端口默认配置。 */
 XRT_API void xrtNetPortConfigInit(xnetportconfig* pConfig);
 
@@ -1524,7 +1535,10 @@ XRT_API bool xrtNetEngineStart(xnetengine* pEngine);
 
 
 
-/* 排空任务并释放运行资源；外借池块会使清理失败但允许重启后归还。 */
+/*
+	排空任务并释放运行资源。
+	任务链不收敛或仍有外借池块时返回失败，但 Engine 仍进入可重启的停止状态。
+*/
 XRT_API bool xrtNetEngineStop(xnetengine* pEngine);
 
 
@@ -1816,12 +1830,12 @@ XRT_API size_t xrtNetBufSpanCount(const xnetbuf* pBuffer);
 
 
 
-/* 获取最多指定数量的只读 Span。 */
+/* 获取文件区间前最多指定数量的只读 Span。 */
 XRT_API size_t xrtNetBufSpans(const xnetbuf* pBuffer, xnetspan* pSpans, size_t iCapacity);
 
 
 
-/* 获取首个非空连续可读 Span；缓冲为空时清空输出并返回 false。 */
+/* 获取首个内存 Span；缓冲为空或队首为文件区间时清空输出并返回 false。 */
 XRT_API bool xrtNetBufFront(const xnetbuf* pBuffer, xnetspan* pSpan);
 
 
@@ -1876,23 +1890,23 @@ XRT_API bool xrtNetBufMove(xnetbuf* pTarget, xnetbuf* pSource);
 
 
 
-/* 确保指定长度的前缀连续并返回借用 Span。 */
+/* 确保指定长度的内存前缀连续；前缀包含文件区间时失败。 */
 XRT_API bool xrtNetBufPullup(xnetbuf* pBuffer, size_t iSize, xnetspan* pSpan);
 
 
 
-/* 从指定偏移复制最多给定字节，但不消费数据。 */
+/* 从指定偏移复制最多给定字节，遇到文件区间时停止。 */
 XRT_API size_t xrtNetBufPeek(const xnetbuf* pBuffer,
 	size_t iOffset, void* pOutput, size_t iSize);
 
 
 
-/* 复制并消费最多给定字节；活动尾部写预留不阻止消费已提交前缀。 */
+/* 复制并消费最多给定字节；遇到文件区间时停止。 */
 XRT_API size_t xrtNetBufRead(xnetbuf* pBuffer, void* pOutput, size_t iSize);
 
 
 
-/* 从指定偏移查找一个字节，未找到时返回 XRT_NPOS。 */
+/* 从指定偏移查找一个字节，遇到文件区间或未找到时返回 XRT_NPOS。 */
 XRT_API size_t xrtNetBufFind(const xnetbuf* pBuffer, uint8 iByte, size_t iOffset);
 
 

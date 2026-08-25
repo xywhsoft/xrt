@@ -405,6 +405,36 @@ static bool __xrtTlsClientConfigValid(
 			"TLS client name or ALPN array is invalid"
 		);
 	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+		if ( (pConfig->Verifier == NULL) && !pConfig->ResumeOnly ) {
+			return __xrtTlsClientError(
+				XERR_ARGUMENT, XTLS_ERROR_VERIFY, "create-tls-client",
+				"TLS client requires a verifier outside resume-only mode"
+			);
+		}
+	#else
+		if ( !pConfig->ResumeOnly ) {
+			return __xrtTlsClientError(
+				XERR_UNSUPPORTED, XTLS_ERROR_VERIFY, "create-tls-client",
+				"TLS client build has no certificate verifier"
+			);
+		}
+	#endif
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		if ( pConfig->ResumeOnly && (pConfig->Resume == NULL) ) {
+			return __xrtTlsClientError(
+				XERR_ARGUMENT, XTLS_ERROR_RESUME, "create-tls-client",
+				"TLS resume-only mode requires a resume object"
+			);
+		}
+	#else
+		if ( pConfig->ResumeOnly ) {
+			return __xrtTlsClientError(
+				XERR_UNSUPPORTED, XTLS_ERROR_RESUME, "create-tls-client",
+				"TLS client build has no session resumption support"
+			);
+		}
+	#endif
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		if ( pConfig->ResumeLimit > XTLS_CLIENT_RESUME_LIMIT_MAX ) {
 			return __xrtTlsClientError(
@@ -561,6 +591,13 @@ static void __xrtTlsClientLayout(
 
 	pState->Protocols = (xbytesview*)pStorage;
 	pStorage += pConfig->ProtocolCount * sizeof(xbytesview);
+	pState->Versions = (uint16*)pStorage;
+	pState->VersionCount = pOffer->VersionCount;
+	memcpy(
+		pStorage, pOffer->Versions,
+		pOffer->VersionCount * sizeof(uint16)
+	);
+	pStorage += pOffer->VersionCount * sizeof(uint16);
 	pState->Ciphers = (uint16*)pStorage;
 	pState->CipherCount = pOffer->CipherCount;
 	memcpy(
@@ -640,20 +677,90 @@ static void __xrtTlsClientLayout(
 	pState->Group = pOffer->KeyShare->Group;
 	pState->Offer12 = pOffer->Tls12;
 	pState->Offer13 = pOffer->Tls13;
+	pState->ResumeOnly = pConfig->ResumeOnly;
 }
 
 
 
-/* 构建并排队一条完整表达当前 TLS 1.3/1.2 能力的 ClientHello。 */
-static bool __xrtTlsClientStart(
+/* 根据客户端稳定配置计算一次 ClientHello 的扩展尺寸。 */
+static bool __xrtTlsClientStateExtensionSize(
+	const xtlsclientstate* pState,
+	xbytesview Cookie,
+	size_t* pSize
+)
+{
+	size_t iSize = 0;
+	size_t iProtocols = 0;
+
+	if ( (pState == NULL) || (pSize == NULL) ||
+		((Cookie.Data == NULL) && (Cookie.Size != 0)) ||
+		(Cookie.Size > XTLS_EXTENSION_DATA_MAX - 2u) ) {
+		return __xrtTlsClientError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "build-client-hello",
+			"TLS client retry cookie or size output is invalid"
+		);
+	}
+	if ( pState->SniName.Size != 0 ) {
+		iSize += XTLS_EXTENSION_HEADER_SIZE + 5u +
+			pState->SniName.Size;
+	}
+	iSize += XTLS_EXTENSION_HEADER_SIZE + 1u +
+		(pState->VersionCount * 2u);
+	if ( pState->Offer12 ) {
+		iSize += XTLS_EXTENSION_HEADER_SIZE;
+	}
+	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
+		(pState->GroupCount * 2u);
+	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
+		(pState->SignatureCount * 2u);
+	for ( size_t i = 0; i < pState->ProtocolCount; i++ ) {
+		iProtocols += 1u + pState->Protocols[i].Size;
+	}
+	if ( pState->ProtocolCount != 0 ) {
+		iSize += XTLS_EXTENSION_HEADER_SIZE + 2u + iProtocols;
+	}
+	iSize += XTLS_EXTENSION_HEADER_SIZE + 6u +
+		pState->PublicKeySize;
+	if ( Cookie.Size != 0 ) {
+		iSize += XTLS_EXTENSION_HEADER_SIZE + 2u + Cookie.Size;
+	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		if ( pState->OfferResume != NULL ) {
+			xtlsresumeinfo Resume;
+
+			if ( !xrtTlsResumeInfo(pState->OfferResume, &Resume) ) {
+				return false;
+			}
+			iSize += XTLS_EXTENSION_HEADER_SIZE + 2u;
+			iSize += XTLS_EXTENSION_HEADER_SIZE + 11u +
+				Resume.Ticket.Size + Resume.Secret.Size;
+		}
+	#endif
+	if ( iSize > UINT16_MAX ) {
+		return __xrtTlsClientError(
+			XERR_RANGE, XTLS_ERROR_EXTENSION, "build-client-hello",
+			"TLS client extension vector is too long"
+		);
+	}
+	*pSize = iSize;
+	return true;
+}
+
+
+
+/* 为首航或 HRR 重试构建并排队当前 ClientHello。 */
+bool __xrtTlsClientHelloQueue(
 	xtlssession* pSession,
 	xtlsclientstate* pState,
-	const xtlsclientoffer* pOffer
+	xbytesview Cookie,
+	bool bRetry
 )
 {
 	xtlswriter Writer;
 	xtlsclienthello Hello;
 	xtlskeyshare Share;
+	const xtlsgroupinfo* pGroup;
+	const xtlslimits* pLimits;
 	uint8 CipherBytes[XTLS_CLIENT_CIPHER_CAPACITY * 2u];
 	uint8 Compression = 0;
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
@@ -662,61 +769,135 @@ static bool __xrtTlsClientStart(
 		uint8 Mode = XTLS_PSK_DHE_KE;
 		uint8 Binder[XTLS_CLIENT_SECRET_MAX_SIZE];
 	#endif
-	size_t iBodySize = pState->ClientHelloSize -
-		XTLS_HANDSHAKE_HEADER_SIZE;
+	bytes pStorage = NULL;
+	bytes pWorkspace;
+	bytes pHello;
+	bytes pOldWorkspace;
+	bytes pOldHello;
+	size_t iOldWorkspaceSize;
+	size_t iOldHelloSize;
+	size_t iExtensions;
+	size_t iBodySize;
+	size_t iHelloSize;
+	bool bResult = false;
 
-	if ( !xrtSecureRandom(pState->Random, sizeof(pState->Random)) ||
-		!xrtSecureRandom(pState->SessionId, sizeof(pState->SessionId)) ||
+	if ( (pSession == NULL) || (pState == NULL) ) {
+		return __xrtTlsClientError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "build-client-hello",
+			"TLS client session or state is null"
+		);
+	}
+	pGroup = xrtTlsGroupInfo(pState->Group);
+	pLimits = xrtTlsContextLimits(pSession->Context);
+	if ( (pGroup == NULL) || (pLimits == NULL) ||
+		(pGroup->PrivateSize > pState->PrivateKeyCapacity) ||
+		(pGroup->PublicSize > pState->PublicKeyCapacity) ) {
+		return __xrtTlsClientError(
+			XERR_UNSUPPORTED, XTLS_ERROR_KEY_EXCHANGE,
+			"build-client-hello",
+			"TLS retry group exceeds the client key-share capacity"
+		);
+	}
+	pState->PrivateKeySize = pGroup->PrivateSize;
+	pState->PublicKeySize = pGroup->PublicSize;
+	if ( !__xrtTlsClientStateExtensionSize(
+		pState, Cookie, &iExtensions
+	) ) {
+		return false;
+	}
+	iBodySize = 2u + XTLS_RANDOM_SIZE + 1u +
+		XTLS_SESSION_ID_MAX + 2u + (pState->CipherCount * 2u) +
+		1u + 1u + 2u + iExtensions;
+	iHelloSize = xrtTlsHandshakeSize(iBodySize);
+	if ( (iHelloSize == 0) || (iHelloSize > pLimits->HandshakeLimit) ) {
+		return __xrtTlsClientError(
+			XERR_RANGE, XTLS_ERROR_LIMIT, "build-client-hello",
+			"TLS ClientHello exceeds the configured handshake limit"
+		);
+	}
+	pWorkspace = pState->Workspace;
+	pHello = pState->ClientHello;
+	if ( bRetry ) {
+		size_t iStorage = iExtensions;
+
+		if ( !__xrtTlsClientAddSize(&iStorage, iHelloSize) ) {
+			return false;
+		}
+		pStorage = (bytes)xrtMalloc(iStorage);
+		if ( pStorage == NULL ) {
+			return __xrtTlsClientCause(
+				"build-client-hello",
+				"TLS retry ClientHello allocation failed"
+			);
+		}
+		pWorkspace = pStorage;
+		pHello = pStorage + iExtensions;
+	} else if ( (iExtensions != pState->WorkspaceSize) ||
+		(iHelloSize != pState->ClientHelloSize) ) {
+		return __xrtTlsClientError(
+			XERR_INTERNAL, XTLS_ERROR_INTERNAL, "build-client-hello",
+			"TLS initial ClientHello layout is inconsistent"
+		);
+	}
+	if ( (!bRetry &&
+		(!xrtSecureRandom(pState->Random, sizeof(pState->Random)) ||
+		 !xrtSecureRandom(pState->SessionId, sizeof(pState->SessionId)))) ||
 		!xrtTlsKeyShareGenerate(
 			pState->Group,
 			pState->PrivateKey, pState->PrivateKeySize,
 			pState->PublicKey, pState->PublicKeySize
 	) ) {
-		return __xrtTlsClientCause(
+		(void)__xrtTlsClientCause(
 			"start-tls-client", "TLS client random or key share generation failed"
 		);
+		goto cleanup;
 	}
 	if ( !xrtTlsWriterInit(
-		&Writer, pState->Workspace, pState->WorkspaceSize
+		&Writer, pWorkspace, iExtensions
 	) ) {
-		return false;
+		goto cleanup;
 	}
 	if ( (pState->SniName.Size != 0) && !xrtTlsWriterHostName(
 		&Writer, pState->SniName
 	) ) {
-		return false;
+		goto cleanup;
 	}
 	if ( !xrtTlsWriterClientVersions(
-		&Writer, pOffer->Versions, pOffer->VersionCount
-	) || (pOffer->Tls12 && !xrtTlsWriterExtension(
+		&Writer, pState->Versions, pState->VersionCount
+	) || (pState->Offer12 && !xrtTlsWriterExtension(
 		&Writer, XTLS_EXTENSION_EXTENDED_MASTER_SECRET,
 		(xbytesview) { NULL, 0 }
 	)) || !xrtTlsWriterIds(
 		&Writer, XTLS_EXTENSION_SUPPORTED_GROUPS,
-		pOffer->Groups, pOffer->GroupCount
+		pState->Groups, pState->GroupCount
 	) || !xrtTlsWriterIds(
 		&Writer, XTLS_EXTENSION_SIGNATURE_ALGORITHMS,
-		pOffer->Signatures, pOffer->SignatureCount
+		pState->Signatures, pState->SignatureCount
 	) ) {
-		return false;
+		goto cleanup;
 	}
 	if ( (pState->ProtocolCount != 0) && !xrtTlsWriterProtocols(
 		&Writer, pState->Protocols, pState->ProtocolCount
 	) ) {
-		return false;
+		goto cleanup;
 	}
 	Share.Group = pState->Group;
 	Share.Key.Data = pState->PublicKey;
 	Share.Key.Size = pState->PublicKeySize;
 	if ( !xrtTlsWriterClientKeyShares(&Writer, &Share, 1u) ) {
-		return false;
+		goto cleanup;
+	}
+	if ( (Cookie.Size != 0) && !xrtTlsWriterRetryCookie(
+		&Writer, Cookie
+	) ) {
+		goto cleanup;
 	}
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		memset(Binder, 0, sizeof(Binder));
 		if ( pState->OfferResume != NULL ) {
 			if ( !xrtTlsResumeInfo(pState->OfferResume, &Resume) ||
 				(Resume.Secret.Size > sizeof(Binder)) ) {
-				return false;
+				goto cleanup;
 			}
 			Psk.Identity = Resume.Ticket;
 			Psk.ObfuscatedAge = pState->ResumeAge;
@@ -725,16 +906,16 @@ static bool __xrtTlsClientStart(
 			};
 			if ( !xrtTlsWriterPskModes(&Writer, &Mode, 1u) ||
 				!xrtTlsWriterClientPsks(&Writer, &Psk, 1u) ) {
-				return false;
+				goto cleanup;
 			}
 		}
 		xrtSecureZero(Binder, sizeof(Binder));
 	#endif
-	if ( Writer.Size != pState->WorkspaceSize ) {
-		return false;
+	if ( Writer.Size != iExtensions ) {
+		goto cleanup;
 	}
-	for ( size_t i = 0; i < pOffer->CipherCount; i++ ) {
-		__xrtTlsWrite16(CipherBytes + (i * 2u), pOffer->Ciphers[i]);
+	for ( size_t i = 0; i < pState->CipherCount; i++ ) {
+		__xrtTlsWrite16(CipherBytes + (i * 2u), pState->Ciphers[i]);
 	}
 	memset(&Hello, 0, sizeof(Hello));
 	Hello.LegacyVersion = XTLS_VERSION_12;
@@ -745,44 +926,72 @@ static bool __xrtTlsClientStart(
 		pState->SessionId, sizeof(pState->SessionId)
 	};
 	Hello.CipherSuites.Data = (xbytesview) {
-		CipherBytes, pOffer->CipherCount * 2u
+		CipherBytes, pState->CipherCount * 2u
 	};
 	Hello.CompressionMethods = (xbytesview) { &Compression, 1u };
 	Hello.Extensions = xrtTlsWriterData(&Writer);
 	if ( (xrtTlsClientHelloSize(&Hello) != iBodySize) ||
 		!xrtTlsClientHelloEncode(
-			&Hello, pState->ClientHello + XTLS_HANDSHAKE_HEADER_SIZE,
+			&Hello, pHello + XTLS_HANDSHAKE_HEADER_SIZE,
 			iBodySize
 		) || !xrtTlsHandshakeEncode(
 			XTLS_HANDSHAKE_CLIENT_HELLO,
 			(xbytesview) {
-				pState->ClientHello + XTLS_HANDSHAKE_HEADER_SIZE,
+				pHello + XTLS_HANDSHAKE_HEADER_SIZE,
 				iBodySize
-			}, pState->ClientHello, pState->ClientHelloSize
+			}, pHello, iHelloSize
 		) ) {
-		return false;
+		goto cleanup;
 	}
+	pOldWorkspace = pState->Workspace;
+	iOldWorkspaceSize = pState->WorkspaceSize;
+	pOldHello = pState->ClientHello;
+	iOldHelloSize = pState->ClientHelloSize;
+	pState->Workspace = pWorkspace;
+	pState->WorkspaceSize = iExtensions;
+	pState->ClientHello = pHello;
+	pState->ClientHelloSize = iHelloSize;
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		if ( (pState->OfferResume != NULL) &&
-			!__xrtTlsClientResumeBinder(pState) ) {
-			return false;
+			!__xrtTlsClientResumeBinder(
+				pState, bRetry ? &pState->Transcript : NULL
+			) ) {
+			goto restore;
 		}
 	#endif
 	if ( __xrtTlsSessionRecordPlain(
 		pSession, XTLS_RECORD_HANDSHAKE, XTLS_VERSION_12,
 		(xbytesview) { pState->ClientHello, pState->ClientHelloSize }
 	) != XTLS_OK ) {
-		return false;
+		goto restore;
 	}
 	if ( !__xrtTlsSessionSetState(
 		pSession, XTLS_STATE_HANDSHAKE
 	) || !__xrtTlsSessionSetWait(
 		pSession, XTLS_WAIT_INPUT | XTLS_WAIT_OUTPUT
 	) ) {
-		return false;
+		goto restore;
+	}
+	if ( bRetry ) {
+		pState->RetryStorage = pStorage;
+		pStorage = NULL;
 	}
 	pState->Step = XTLS_CLIENT_WAIT_SERVER_HELLO;
-	return true;
+	bResult = true;
+	goto cleanup;
+
+restore:
+	pState->Workspace = pOldWorkspace;
+	pState->WorkspaceSize = iOldWorkspaceSize;
+	pState->ClientHello = pOldHello;
+	pState->ClientHelloSize = iOldHelloSize;
+
+cleanup:
+	if ( pStorage != NULL ) {
+		xrtSecureZero(pStorage, iExtensions + iHelloSize);
+		xrtFree(pStorage);
+	}
+	return bResult;
 }
 
 
@@ -801,6 +1010,14 @@ static void __xrtTlsClientClean(xtlssession* pSession, ptr pRole)
 			xrtFree(pState->Peer);
 			xrtTlsVerifierRelease(pState->Verifier);
 		#endif
+		if ( pState->RetryStorage != NULL ) {
+			xrtSecureZero(
+				pState->RetryStorage,
+				pState->WorkspaceSize + pState->ClientHelloSize
+			);
+			xrtFree(pState->RetryStorage);
+			pState->RetryStorage = NULL;
+		}
 		#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 			__xrtTlsClientResumeClear(pState);
 			xrtTlsResumeRelease((xtlsresume*)pState->OfferResume);
@@ -986,6 +1203,8 @@ XRT_API xtlssession* xrtTlsClientCreate(
 		!__xrtTlsClientAddSize(
 			&iRoleSize, pConfig->ProtocolCount * sizeof(xbytesview)
 		) || !__xrtTlsClientAddSize(
+			&iRoleSize, Offer.VersionCount * sizeof(uint16)
+		) || !__xrtTlsClientAddSize(
 			&iRoleSize, Offer.CipherCount * sizeof(uint16)
 		) || !__xrtTlsClientAddSize(
 			&iRoleSize, Offer.GroupCount * sizeof(uint16)
@@ -1077,7 +1296,9 @@ XRT_API xtlssession* xrtTlsClientCreate(
 	}
 	if ( !xrtTlsHandshakeReaderInit(
 		&pState->Reader, &ReaderConfig
-	) || !__xrtTlsClientStart(pSession, pState, &Offer) ) {
+	) || !__xrtTlsClientHelloQueue(
+		pSession, pState, (xbytesview) { NULL, 0 }, false
+	) ) {
 		xrtTlsSessionDestroy(pSession);
 		return NULL;
 	}

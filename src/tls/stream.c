@@ -955,12 +955,15 @@ static void __xrtTlsStreamScheduleDrive(xtlsstream* pStream)
 	);
 	pStream->DrivePosted = true;
 	xrtTlsStreamRef(pStream);
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pTransport->Worker,
 		&pStream->DriveCommand,
 		__xrtTlsStreamDriveTask,
 		pStream
-	);
+	) ) {
+		pStream->DrivePosted = false;
+		xrtTlsStreamDestroy(pStream);
+	}
 }
 
 
@@ -2371,12 +2374,23 @@ XRT_API bool xrtTlsStreamClose(xtlsstream* pStream)
 	#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
 		__xrtSpinUnlock(&pStream->AsyncLock);
 	#endif
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pTransport->Worker,
 		&pStream->CloseCommand,
 		__xrtTlsStreamCloseTask,
 		pStream
-	);
+	) ) {
+		xrtAtomic32Store(&pStream->CloseGate, 0, XMEMORY_RELEASE);
+		xrtTlsStreamDestroy(pStream);
+		__xrtTlsStreamSetError(
+			XERR_CLOSED,
+			XTLS_ERROR_CLOSED,
+			"close-tls-stream",
+			"network worker shutdown is sealed",
+			NULL
+		);
+		return false;
+	}
 	return true;
 }
 

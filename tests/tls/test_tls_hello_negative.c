@@ -160,6 +160,27 @@ static void testTlsKeyShareRejects(void)
 
 
 
+/* HRR cookie 必须是精确消费输入的 16 位非空字节向量。 */
+static void testTlsRetryCookieRejects(void)
+{
+	static const uint8 Empty[] = { 0, 0 };
+	static const uint8 Truncated[] = { 0, 2, 0xA5 };
+	static const uint8 Trailing[] = { 0, 1, 0xA5, 0x5A };
+	xbytesview Cookie;
+
+	testRequire(!xrtTlsRetryCookie(
+		(xbytesview) { Empty, sizeof(Empty) }, &Cookie
+	), "empty TLS retry cookie was accepted");
+	testRequire(!xrtTlsRetryCookie(
+		(xbytesview) { Truncated, sizeof(Truncated) }, &Cookie
+	), "truncated TLS retry cookie was accepted");
+	testRequire(!xrtTlsRetryCookie(
+		(xbytesview) { Trailing, sizeof(Trailing) }, &Cookie
+	), "TLS retry cookie with trailing bytes was accepted");
+}
+
+
+
 /* ClientHello 必须拒绝所有非完整前缀和 TLS 1.3 兼容字段错误。 */
 static void testTlsClientHelloRejects(void)
 {
@@ -266,6 +287,7 @@ int main(void)
 	testTlsExtensionRejects();
 	testTlsListRejects();
 	testTlsKeyShareRejects();
+	testTlsRetryCookieRejects();
 	testTlsClientHelloRejects();
 	testTlsServerHelloRejects();
 	return 0;

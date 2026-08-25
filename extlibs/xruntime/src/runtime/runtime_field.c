@@ -291,6 +291,11 @@ XRT_API bool xrtTypeFieldsValidate(const xrttype* pType)
 		return false;
 	}
 	while ( pType != NULL ) {
+		if ( iDepth >= XRT_RUNTIME_TYPE_INHERITANCE_MAX ) {
+			__xrtFieldError(XERR_RANGE, XFIELD_ERROR_DESCRIPTOR,
+				"validate", "the field inheritance chain exceeds the local depth limit");
+			return false;
+		}
 		arrTypes[iDepth++] = pType;
 		pType = pType->Base;
 	}
@@ -349,6 +354,11 @@ XRT_API const xrtfielddesc* xrtTypeField(
 		return NULL;
 	}
 	while ( pCursor != NULL ) {
+		if ( iDepth >= XRT_RUNTIME_TYPE_INHERITANCE_MAX ) {
+			__xrtFieldError(XERR_RANGE, XFIELD_ERROR_LOOKUP,
+				"field", "the field inheritance chain exceeds the local depth limit");
+			return NULL;
+		}
 		arrTypes[iDepth++] = pCursor;
 		pCursor = pCursor->Base;
 	}

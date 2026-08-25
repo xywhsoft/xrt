@@ -5032,6 +5032,31 @@
 			]
 		},
 		{
+			"name": "x509_asn1_protocol_fuzz_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"x509_parse"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"fuzz_sources": [
+				"fuzz/x509_asn1.c"
+			],
+			"tests": [
+				"tests/x509/test_x509_asn1_fuzz.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_x509_asn1_fuzz.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/x509.md"
+			],
+			"legacy": []
+		},
+		{
 			"name": "x509_crl",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_X509_CRL",
@@ -7842,6 +7867,32 @@
 			]
 		},
 		{
+			"name": "net_address_protocol_fuzz_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"net_dns"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"fuzz_sources": [
+				"fuzz/net_address.c"
+			],
+			"tests": [
+				"tests/network/test_net_address_fuzz.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_net_address_fuzz.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/net.md",
+				"docs/api/net-dns.md"
+			],
+			"legacy": []
+		},
+		{
 			"name": "net_resolver",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_RESOLVER",
@@ -9142,6 +9193,7 @@
 				"tls_identity_rsa",
 				"tls_schedule_sha256",
 				"tls_key_exchange_x25519",
+				"tls_key_exchange_p256",
 				"tls_record_aes",
 				"pem"
 			],
@@ -9167,6 +9219,34 @@
 				"test/test_tls_boundary.h",
 				"examples/network_tls/tls_session_handshake/main.c"
 			]
+		},
+		{
+			"name": "tls_protocol_fuzz_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_hello",
+				"tls_handshake_reader",
+				"tls_auth_messages",
+				"tls_record"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"fuzz_sources": [
+				"fuzz/tls_protocol.c"
+			],
+			"tests": [
+				"tests/tls/test_tls_protocol_fuzz.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_protocol_fuzz.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/tls.md"
+			],
+			"legacy": []
 		},
 		{
 			"name": "net_port",
@@ -9436,6 +9516,7 @@
 				"tests/network/test_net_engine_wait_error.c",
 				"tests/network/test_net_engine_stress.c",
 				"tests/network/test_net_engine_threads.c",
+				"tests/network/test_net_engine_shutdown.c",
 				"tests/network/test_net_engine_oom.c"
 			],
 			"single_tests": [

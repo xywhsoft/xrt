@@ -16,6 +16,7 @@
 
 
 
+static bool xsshClientValid(const xsshclient* pClient);
 static void xsshClientOpen(xsshsessionstream* pStream, ptr pData);
 static void xsshClientAction(
 	xsshsessionstream* pStream,
@@ -68,6 +69,14 @@ static void xsshClientReadyTimer(
 	ptr pData
 );
 
+#if defined(XSSH_FEATURE_CLIENT_FUTURE)
+static void xsshClientChannelRemoved(
+	xsshchannels* pChannels,
+	uint32 iLocal,
+	ptr pData
+);
+#endif
+
 
 
 static const xsshsessionstreamevents xsshClientEvents = {
@@ -83,6 +92,36 @@ static const xsshsessionstreamevents xsshClientEvents = {
 	xsshClientDrain,
 	xsshClientClose
 };
+
+
+
+#if defined(XSSH_FEATURE_CLIENT_FUTURE)
+/* 集合删除后关闭对应等待，并清除尚未发布的可写借用。 */
+static void xsshClientChannelRemoved(
+	xsshchannels* pChannels,
+	uint32 iLocal,
+	ptr pData
+)
+{
+	xsshclient* pClient = (xsshclient*)pData;
+	xsshclientfuturenotice Notice;
+
+	if ( !xsshClientValid(pClient) ||
+		(pChannels != &pClient->Channels) ) {
+		return;
+	}
+	if ( (pClient->FutureWritableChannel != NULL) &&
+		(pClient->FutureWritableLocal == iLocal) ) {
+		pClient->FutureWritableChannel = NULL;
+		pClient->FutureWritableLocal = 0u;
+	}
+	memset(&Notice, 0, sizeof(Notice));
+	Notice.Signal = XSSH_CLIENT_FUTURE_CHANNEL_REMOVED;
+	Notice.ChannelLocal = iLocal;
+	Notice.HasChannelLocal = true;
+	__xrtSshClientFutureNotify(pClient, &Notice);
+}
+#endif
 
 
 
@@ -798,6 +837,7 @@ static xsshcode xsshClientSendCommit(xsshclient* pClient)
 	#if defined(XSSH_FEATURE_CLIENT_FUTURE)
 	if ( Code == XSSH_OK ) {
 		pClient->FutureWritableChannel = pChannel;
+		pClient->FutureWritableLocal = pChannel->Core.Local;
 	}
 	#endif
 	return Code;
@@ -1193,6 +1233,23 @@ static void xsshClientOpen(xsshsessionstream* pStream, ptr pData)
 		(void)xrtSshSessionStreamAbort(pStream);
 		return;
 	}
+	#if defined(XSSH_FEATURE_CLIENT_FUTURE)
+	if ( !xrtSshChannelsOnRemoved(
+		&pClient->Channels,
+		xsshClientChannelRemoved,
+		pClient
+	) ) {
+		xrtSshChannelsClear(&pClient->Channels);
+		xsshClientErrorNotify(
+			pClient,
+			XSSH_ERROR_STATE,
+			XERR_STATE,
+			"SSH client channel observer could not initialize"
+		);
+		(void)xrtSshSessionStreamAbort(pStream);
+		return;
+	}
+	#endif
 	if ( !xrtNetBufInit(&pClient->Control, pPool) ) {
 		xrtSshChannelsClear(&pClient->Channels);
 		xsshClientErrorNotify(
@@ -1262,16 +1319,17 @@ static void xsshClientAction(
 			memset(&FutureNotice, 0, sizeof(FutureNotice));
 			FutureNotice.Signal = XSSH_CLIENT_FUTURE_WRITABLE;
 			FutureNotice.Channel = pClient->FutureWritableChannel;
-			FutureNotice.ChannelLocal =
-				pClient->FutureWritableChannel->Core.Local;
+			FutureNotice.ChannelLocal = pClient->FutureWritableLocal;
 			FutureNotice.HasChannelLocal = true;
 			pClient->FutureWritableChannel = NULL;
+			pClient->FutureWritableLocal = 0u;
 			__xrtSshClientFutureNotify(pClient, &FutureNotice);
 		}
 		#endif
 		if ( Code != XSSH_OK ) {
 			#if defined(XSSH_FEATURE_CLIENT_FUTURE)
 				pClient->FutureWritableChannel = NULL;
+				pClient->FutureWritableLocal = 0u;
 			#endif
 			xsshClientErrorNotify(
 				pClient,

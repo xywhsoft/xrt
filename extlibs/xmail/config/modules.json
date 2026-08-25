@@ -19,7 +19,7 @@
 		"external_integrations": [
 			{
 				"name": "xlang",
-				"state": "integrated"
+				"state": "deferred"
 			}
 		],
 		"systems": [
@@ -88,6 +88,40 @@
 			"examples": [],
 			"docs": [
 				"extlibs/xmail/docs/api/mail.md",
+				"extlibs/xmail/docs/design/mail-content.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "mail_charset",
+			"state": "implemented",
+			"feature": "XMAIL_FEATURE_MAIL_CHARSET",
+			"depends": [
+				"mail_core",
+				"unicode"
+			],
+			"public_headers": [
+				"extlibs/xmail/include/xrt/mail_charset.h"
+			],
+			"internal_headers": [
+				"extlibs/xmail/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xmail/src/mail/mail_charset.c"
+			],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_charset.c"
+			],
+			"single_tests": [
+				"extlibs/xmail/tests/single/test_single_mail_charset.c"
+			],
+			"examples": [
+				"extlibs/xmail/examples/mail/charset/main.c"
+			],
+			"docs": [
+				"extlibs/xmail/docs/api/mail_charset.md",
 				"extlibs/xmail/docs/design/mail-content.md"
 			],
 			"legacy": [
@@ -170,7 +204,7 @@
 			"feature": "XMAIL_FEATURE_MAIL_WORD",
 			"depends": [
 				"mail_codec",
-				"unicode"
+				"mail_charset"
 			],
 			"public_headers": [
 				"extlibs/xmail/include/xrt/mail_word.h"
@@ -447,7 +481,8 @@
 			"depends": [
 				"mail_message",
 				"mail_multipart",
-				"mail_param"
+				"mail_param",
+				"mail_charset"
 			],
 			"public_headers": [
 				"extlibs/xmail/include/xrt/mail_tree.h"
@@ -574,7 +609,7 @@
 			],
 			"docs": [
 				"extlibs/xmail/docs/api/smtp.md",
-				"extlibs/xmail/xmail-mail-protocols-design.md"
+				"extlibs/xmail/docs/design/legacy-parity.md"
 			],
 			"legacy": [
 				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
@@ -607,7 +642,7 @@
 			],
 			"docs": [
 				"extlibs/xmail/docs/api/pop3.md",
-				"extlibs/xmail/xmail-mail-protocols-design.md"
+				"extlibs/xmail/docs/design/legacy-parity.md"
 			],
 			"legacy": [
 				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
@@ -640,7 +675,7 @@
 			],
 			"docs": [
 				"extlibs/xmail/docs/api/imap.md",
-				"extlibs/xmail/xmail-mail-protocols-design.md"
+				"extlibs/xmail/docs/design/legacy-parity.md"
 			],
 			"legacy": [
 				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
@@ -735,7 +770,7 @@
 			"examples": [],
 			"docs": [
 				"extlibs/xmail/docs/api/mail_net.md",
-				"extlibs/xmail/xmail-mail-protocols-design.md"
+				"extlibs/xmail/docs/design/legacy-parity.md"
 			],
 			"legacy": [
 				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h",
@@ -778,7 +813,7 @@
 			"examples": [],
 			"docs": [
 				"extlibs/xmail/docs/api/mail_net.md",
-				"extlibs/xmail/xmail-mail-protocols-design.md"
+				"extlibs/xmail/docs/design/legacy-parity.md"
 			],
 			"legacy": [
 				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h",
@@ -1396,6 +1431,7 @@
 			"sources": [],
 			"tests": [
 				"extlibs/xmail/tests/mail/test_mail_core.c",
+				"extlibs/xmail/tests/mail/test_mail_charset.c",
 				"extlibs/xmail/tests/mail/test_mail_codec.c",
 				"extlibs/xmail/tests/mail/test_mail_header.c",
 				"extlibs/xmail/tests/mail/test_mail_word.c",
@@ -1418,6 +1454,7 @@
 			"single_tests": [
 				"extlibs/xmail/tests/single/test_single_mail.c",
 				"extlibs/xmail/tests/single/test_single_mail_core.c",
+				"extlibs/xmail/tests/single/test_single_mail_charset.c",
 				"extlibs/xmail/tests/single/test_single_mail_codec.c",
 				"extlibs/xmail/tests/single/test_single_mail_header.c",
 				"extlibs/xmail/tests/single/test_single_mail_word.c",
@@ -1436,6 +1473,7 @@
 				"extlibs/xmail/tests/single/test_single_imap.c"
 			],
 			"examples": [
+				"extlibs/xmail/examples/mail/charset/main.c",
 				"extlibs/xmail/examples/mail/codec/main.c",
 				"extlibs/xmail/examples/mail/header/main.c",
 				"extlibs/xmail/examples/mail/word/main.c",
@@ -1457,6 +1495,7 @@
 				"extlibs/xmail/README.md",
 				"extlibs/xmail/docs/api/reference.md",
 				"extlibs/xmail/docs/api/mail.md",
+				"extlibs/xmail/docs/api/mail_charset.md",
 				"extlibs/xmail/docs/api/mail_codec.md",
 				"extlibs/xmail/docs/api/mail_header.md",
 				"extlibs/xmail/docs/api/mail_word.md",

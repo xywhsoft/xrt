@@ -273,7 +273,7 @@ XRT_API void xrtWsClientConfigInit(
 /*
 	创建可继续添加自定义 Header 的基础 GET 请求。
 	Url 接受 ws、wss、http 或 https，并映射为 HTTP Client 可执行的 URL；
-	该函数不写入任何 WebSocket 握手管理字段。
+	Url 不得包含 userinfo 或 fragment；该函数不写入任何 WebSocket 握手管理字段。
 */
 XRT_API xhttprequest* xrtWsRequestCreate(
 	xstrview Url
@@ -283,7 +283,7 @@ XRT_API xhttprequest* xrtWsRequestCreate(
 
 /*
 	创建 GET WebSocket 请求；Url 接受 ws、wss、http 或 https。
-	Url 不得包含 fragment；资源名中的井号必须编码为 %23。
+	Url 不得包含 userinfo 或 fragment；资源名中的井号必须编码为 %23。
 	配置先复制为局部快照；成功时 Key 写入完整的固定输出。
 */
 XRT_API xhttprequest* xrtWsClientRequestCreate(
@@ -297,7 +297,7 @@ XRT_API xhttprequest* xrtWsClientRequestCreate(
 /*
 	克隆自定义 GET 请求并原子替换 WebSocket 管理字段。
 	配置先复制为局部快照；Key 必须覆盖完整固定输出；
-	源请求不得包含 fragment、正文、分帧字段或扩展字段。
+	源请求不得包含 userinfo、fragment、正文、分帧字段或扩展字段。
 */
 XRT_API xhttprequest* xrtWsClientRequestClone(
 	const xhttprequest* pRequest,

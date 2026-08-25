@@ -31,6 +31,22 @@ Receive 返回的响应、fragment 和 literal 描述均借用 Client 的线路�
 Next 或 ReadLiteral 后失效。literal 正文必须使用调用方缓冲分段读取，未读完前不能继续
 读取后续响应，因此消息大小不会变成固定内存上限。
 
+低层流式接口不设置默认 literal 大小上限。收到 `HasLiteral` 事件后，调用方应先检查
+`Event.Literal.Size`；超过应用预算时可立即调用 `xrtImapClientAbort`，不必先消费正文。
+拥有型 `imap_message` 便利层继续使用自己的 64 MiB 预算，二者不共享策略上限。
+
+```c
+ximapevent event;
+const size_t literalBudget = 64u * 1024u * 1024u;
+
+if ( !xrtImapClientReceive(client, &event, deadline, cancel) ) {
+	/* 处理接收错误。 */
+} else if ( event.HasLiteral && (event.Literal.Size > literalBudget) ) {
+	/* Abort 在 literal 未读完时仍可立即终止连接。 */
+	(void)xrtImapClientAbort(client);
+}
+```
+
 CAPABILITY、APPENDLIMIT、状态和最近 completion 都由 Client 保存。未知 capability 与未知
 响应仍可通过原始视图处理，不需要等待 xmail 增加专用 API。
 

@@ -204,6 +204,7 @@ struct xsshclient {
 	#if defined(XSSH_FEATURE_CLIENT_FUTURE)
 		ptr FutureState;
 		xsshchannel* FutureWritableChannel;
+		uint32 FutureWritableLocal;
 	#endif
 	size_t ControlTarget;
 	size_t GlobalReplyCapacity;

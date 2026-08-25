@@ -176,6 +176,16 @@ XRT_API xhttprequest* xrtWsRequestCreate(
 		);
 		return NULL;
 	}
+	if ( (Parsed.Flags &
+		(XURL_HAS_USERINFO | XURL_HAS_FRAGMENT)) != 0 ) {
+		__xwsHandshakeError(
+			XERR_VALUE,
+			XWS_HANDSHAKE_ERROR_ARGUMENT,
+			"create-websocket-request",
+			"WebSocket URL must not contain userinfo or a fragment"
+		);
+		return NULL;
+	}
 	if ( xrtUrlSchemeIs(
 		&Parsed,
 		XRT_STR_LITERAL("http")
@@ -292,15 +302,16 @@ static bool __xrtWsClientRequestConfigure(
 		return false;
 	}
 
-	/* WebSocket URI 不允许 fragment，包括显式空 fragment。 */
+	/* WebSocket URI 不允许 userinfo 或 fragment，包括显式空值。 */
 	pUrl = xrtHttpRequestUrl(pRequest);
 	if ( (pUrl == NULL) ||
-		((pUrl->Flags & XURL_HAS_FRAGMENT) != 0) ) {
+		((pUrl->Flags &
+		 (XURL_HAS_USERINFO | XURL_HAS_FRAGMENT)) != 0) ) {
 		__xwsHandshakeError(
 			XERR_VALUE,
 			XWS_HANDSHAKE_ERROR_ARGUMENT,
 			"configure-websocket-request",
-			"WebSocket URL must not contain a fragment"
+			"WebSocket URL must not contain userinfo or a fragment"
 		);
 		return false;
 	}

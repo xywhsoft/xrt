@@ -3,6 +3,19 @@
 
 
 
+/* 此测试只验证客户端记录与握手状态机，证书验证由专项测试覆盖。 */
+static xtlsverifydecision testSingleTlsClientAcceptPeer(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	return XTLS_VERIFY_ACCEPT;
+}
+
+
+
 /* 验证单头文件客户端能从首航推进到 TLS 1.3 握手密钥 epoch。 */
 int main(void)
 {
@@ -16,6 +29,8 @@ int main(void)
 	uint8 ServerHello[320];
 	uint8 RecordBytes[384];
 	xtlsclientconfig Config;
+	xtlsverifierconfig VerifierConfig;
+	xtlsverifier* pVerifier;
 	xtlssession* pSession;
 	xtlssession* pServer = NULL;
 	xnetspan Span;
@@ -38,11 +53,19 @@ int main(void)
 	size_t iRecordSize;
 	bool bResult;
 
+	xrtTlsVerifierConfigInit(&VerifierConfig);
+	VerifierConfig.Verify = testSingleTlsClientAcceptPeer;
+	pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	if ( pVerifier == NULL ) {
+		return 1;
+	}
 	xrtTlsClientConfigInit(&Config);
 	Config.ServerName = XRT_STR_LITERAL("example.com");
 	Config.Protocols = Protocols;
 	Config.ProtocolCount = sizeof(Protocols) / sizeof(Protocols[0]);
+	Config.Verifier = pVerifier;
 	pSession = xrtTlsClientCreate(&Config, NULL);
+	xrtTlsVerifierRelease(pVerifier);
 	if ( pSession == NULL ) {
 		return 1;
 	}

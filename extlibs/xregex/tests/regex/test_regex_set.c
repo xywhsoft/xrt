@@ -106,6 +106,51 @@ static void testRegexSetMatch(void)
 
 
 
+/* 验证跨多个位图字的集合命中、最高位移位和结果清理。 */
+static void testRegexSetBitmapWords(void)
+{
+	xregex* arrRegex[65];
+	xregex* pRegex = xrtRegexCompile(XRT_STR_LITERAL("a"));
+	xregexset* pSet;
+	xregexsetmatcher* pMatcher;
+
+	testRequire(pRegex != NULL, "regex bitmap fixture compile failed");
+	for ( size_t i = 0; i < 65u; i++ ) {
+		arrRegex[i] = pRegex;
+	}
+	pSet = xrtRegexSetCreate(arrRegex, 65u);
+	xrtRegexRelease(pRegex);
+	testRequire(pSet != NULL, "large regex set create failed");
+	pMatcher = xrtRegexSetMatcherCreate(pSet);
+	xrtRegexSetRelease(pSet);
+	testRequire(pMatcher != NULL, "large regex set matcher create failed");
+	testRequire(
+		xrtRegexSetMatcherMatch(pMatcher, XRT_STR_LITERAL("a"), 0) == XREGEX_MATCH,
+		"large regex set match failed"
+	);
+	testRequire(
+		xrtRegexSetMatcherCount(pMatcher) == 65u,
+		"large regex set match count mismatch"
+	);
+	for ( size_t i = 0; i < 65u; i++ ) {
+		testRequire(
+			xrtRegexSetMatcherIndex(pMatcher, i) == i,
+			"large regex set index mismatch"
+		);
+	}
+	testRequire(
+		xrtRegexSetMatcherMatch(pMatcher, XRT_STR_LITERAL("b"), 0) == XREGEX_NONE,
+		"large regex set retained stale bitmap bits"
+	);
+	testRequire(
+		xrtRegexSetMatcherCount(pMatcher) == 0,
+		"large regex set stale result count mismatch"
+	);
+	xrtRegexSetMatcherFree(pMatcher);
+}
+
+
+
 /* 验证空集合仍是可执行对象且永远返回未命中。 */
 static void testRegexSetEmpty(void)
 {
@@ -224,6 +269,7 @@ int main(void)
 {
 	testRegexSetCreate();
 	testRegexSetMatch();
+	testRegexSetBitmapWords();
 	testRegexSetEmpty();
 	testRegexSetCompileError();
 	testRegexSetErrors();

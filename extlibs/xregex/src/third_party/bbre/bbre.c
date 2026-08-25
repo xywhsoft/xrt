@@ -647,6 +647,10 @@ static int bbre_buf_resize_t(bbre_alloc *a, void **buf, size_t size)
   int err = 0;
   assert(buf && *buf);
   hdr = bbre_buf_get_hdr(*buf);
+  if (size > (size_t)-1 - sizeof(bbre_buf_hdr)) {
+    err = BBRE_ERR_MEM;
+    goto error;
+  }
   next_alloc = hdr->alloc ? hdr->alloc : /* sentinel */ 1;
   if (size <= hdr->alloc) {
     hdr->size = size;
@@ -660,8 +664,13 @@ static int bbre_buf_resize_t(bbre_alloc *a, void **buf, size_t size)
    * code when we are checking coverage. */
   next_alloc = size < 128 ? size : next_alloc;
 #endif
-  while (next_alloc < size)
+  while (next_alloc < size) {
+    if (next_alloc > (size_t)-1 / 2) {
+      next_alloc = size;
+      break;
+    }
     next_alloc *= 2;
+  }
   next_ptr = bbre_alloci(
       a, hdr->alloc ? hdr : /* sentinel */ NULL,
       hdr->alloc ? sizeof(bbre_buf_hdr) + hdr->alloc : /* sentinel */ 0,
@@ -701,8 +710,22 @@ static void bbre_buf_destroy_t(bbre_alloc *a, void **buf)
 /* Increase size by `incr`. */
 static int bbre_buf_grow_t(bbre_alloc *a, void **buf, size_t incr)
 {
+  size_t size;
+
   assert(buf);
-  return bbre_buf_resize_t(a, buf, bbre_buf_size_t(*buf) + incr);
+  size = bbre_buf_size_t(*buf);
+  if (incr > (size_t)-1 - size)
+    return BBRE_ERR_MEM;
+  return bbre_buf_resize_t(a, buf, size + incr);
+}
+
+/* Set the element count after checking the byte-size multiplication. */
+static int bbre_buf_reserve_t(
+    bbre_alloc *a, void **buf, size_t element_size, size_t count)
+{
+  if (count > (size_t)-1 / element_size)
+    return BBRE_ERR_MEM;
+  return bbre_buf_resize_t(a, buf, element_size * count);
 }
 
 /* Get the last element index of the dynamic array. */
@@ -752,7 +775,7 @@ static void bbre_buf_clear(void *buf)
 
 /* Set the size to `n`. */
 #define bbre_buf_reserve(r, b, n)                                              \
-  (bbre_buf_resize_t(r, (void **)(b), bbre_buf_esz(b) * (n)))
+  (bbre_buf_reserve_t((r), (void **)(b), bbre_buf_esz(b), (n)))
 
 /* Pop an element. */
 #define bbre_buf_pop(b)                                                        \
@@ -1030,6 +1053,24 @@ bbre_ast_cls_invert(bbre *r, bbre_uint *out_node_hdl, bbre_uint child_hdl)
   return bbre_ast_make(r, out_node_hdl, BBRE_AST_TYPE_CC_NOT, child_hdl);
 }
 
+/* Append one inclusive range to a character class syntax tree. */
+static int bbre_ast_cls_append_range(
+    bbre *r, bbre_uint *root_hdl, bbre_uint min, bbre_uint max)
+{
+  bbre_uint leaf_hdl;
+  int err;
+
+  if ((err =
+           bbre_ast_make(r, &leaf_hdl, BBRE_AST_TYPE_CC_LEAF, min, max)))
+    return err;
+  if (*root_hdl == BBRE_NIL) {
+    *root_hdl = leaf_hdl;
+    return 0;
+  }
+  return bbre_ast_make(
+      r, root_hdl, BBRE_AST_TYPE_CC_OR, *root_hdl, leaf_hdl);
+}
+
 /* Helper function to add a character to the argument stack.
  * Returns `BBRE_ERR_MEM` if out of memory. */
 static int bbre_parse_escape_addchr(
@@ -1296,20 +1337,43 @@ static int bbre_parse_number(bbre *r, bbre_uint *out, bbre_uint max_digits)
     err = bbre_err_parse(r, "expected at least one decimal digit");
     goto error;
   }
-  while (ndigs < max_digits && bbre_parse_has_more(r) &&
-         (ch = bbre_peek_next(r)) >= '0' && ch <= '9')
+  while (bbre_parse_has_more(r) &&
+         (ch = bbre_peek_next(r)) >= '0' && ch <= '9') {
+    if (ndigs == max_digits) {
+      err = bbre_err_parse(r, "too many digits for decimal number");
+      goto error;
+    }
     acc = acc * 10 + (bbre_parse_next(r) - '0'), ndigs++;
+  }
   if (!ndigs) {
     err = bbre_err_parse(r, "expected at least one decimal digit");
-    goto error;
-  }
-  if (ndigs == max_digits) {
-    err = bbre_err_parse(r, "too many digits for decimal number");
     goto error;
   }
   *out = acc;
 error:
   return err;
+}
+
+/* Map an inline flag character without retaining state from a prior flag. */
+static int bbre_parse_group_flag(bbre_uint ch, bbre_uint *flag)
+{
+  switch (ch) {
+  case 'i':
+    *flag = BBRE_GROUP_FLAG_INSENSITIVE;
+    return 1;
+  case 'm':
+    *flag = BBRE_GROUP_FLAG_MULTILINE;
+    return 1;
+  case 's':
+    *flag = BBRE_GROUP_FLAG_DOTNEWLINE;
+    return 1;
+  case 'U':
+    *flag = BBRE_GROUP_FLAG_UNGREEDY;
+    return 1;
+  default:
+    *flag = 0;
+    return 0;
+  }
 }
 
 /* Parse a regular expression, storing its resulting AST node into *root. */
@@ -1374,6 +1438,17 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
           goto error;
         }
       }
+      if ((min_rep > BBRE_LIMIT_REPETITION_COUNT) ||
+          (max_rep != BBRE_INFTY &&
+           max_rep > BBRE_LIMIT_REPETITION_COUNT)) {
+        bbre_error_set(&r->error, "repetition count exceeds maximum");
+        err = BBRE_ERR_LIMIT;
+        goto error;
+      }
+      if (min_rep > max_rep) {
+        err = bbre_err_parse(r, "repetition lower bound exceeds upper bound");
+        goto error;
+      }
       if (bbre_parse_has_more(r) && bbre_peek_next(r) == '?')
         bbre_parse_next(r), greedy = !greedy;
       /* pop one from op stk, create quant, push to op stk */
@@ -1433,12 +1508,14 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
               goto error;
             if (ch == '>')
               break;
+            if (ch == 0) {
+              err = bbre_err_parse(r, "capture group name contains zero byte");
+              goto error;
+            }
           }
           name_end = r->expr_pos - 1; /* backtrack behind > */
         } else {
-          bbre_uint neg = 0 /* should we negate flags? */,
-                    flag = BBRE_GROUP_FLAG_UNGREEDY; /* default flag (this makes
-                                                  coverage testing simpler) */
+          bbre_uint neg = 0 /* should we negate flags? */, flag;
           while (1) {
             if (ch == ':' /* noncapturing */ || ch == ')' /* inline */)
               break;
@@ -1449,11 +1526,7 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
                 goto error;
               }
               neg = 1;
-            } else if (
-                (ch == 'i' && (flag = BBRE_GROUP_FLAG_INSENSITIVE)) ||
-                (ch == 'm' && (flag = BBRE_GROUP_FLAG_MULTILINE)) ||
-                (ch == 's' && (flag = BBRE_GROUP_FLAG_DOTNEWLINE)) ||
-                (ch == 'u')) {
+            } else if (bbre_parse_group_flag(ch, &flag)) {
               /* unset bit if negated, set bit if not */
               if (!neg)
                 hi_flags |= flag;
@@ -1477,10 +1550,27 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
       }
       assert(BBRE_IMPLIES(inline_group, !named_group));
       assert(BBRE_IMPLIES(named_group, !inline_group));
+      if (named_group && name_end == name_start) {
+        err = bbre_err_parse(r, "capture group name cannot be empty");
+        goto error;
+      }
       if (named_group && (name_end - name_start) > BBRE_LIMIT_GROUP_NAME_SIZE) {
         bbre_error_set(&r->error, "group name exceeds maximum length");
         err = BBRE_ERR_LIMIT;
         goto error;
+      }
+      if (named_group) {
+        size_t i, name_size = name_end - name_start;
+
+        for (i = 0; i < bbre_buf_size(r->group_names); i++) {
+          const bbre_group_name *name = &r->group_names[i];
+
+          if (name->name && name->name_size == name_size &&
+              !memcmp(name->name, r->expr + name_start, name_size)) {
+            err = bbre_err_parse(r, "duplicate capture group name");
+            goto error;
+          }
+        }
       }
       if (!inline_group) {
         if ((err = bbre_ast_make(
@@ -1532,6 +1622,7 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
       res_hdl = BBRE_NIL; /* resulting CC node */
       while (1) {
         bbre_uint next; /* temp var to store child classes */
+        bbre_uint has_range = 0, trailing_dash = 0;
         if ((err = bbre_parse_next_or(r, &ch, "unclosed character class")))
           goto error;
         if ((r->expr_pos - cc_start_pos == 1) && ch == '^') {
@@ -1626,27 +1717,30 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
                    "class "
                    "range expression")))
             goto error;
-          if (ch == '\\') { /* start of escape */
+          if (ch == ']') {
+            /* A dash immediately before ] is a literal class member. */
+            trailing_dash = 1;
+          } else if (ch == '\\') { /* start of escape */
             if ((err = bbre_parse_escape(r, (1 << BBRE_AST_TYPE_CHR), &next)))
               goto error;
             assert(*bbre_ast_type_ptr(r, next) == BBRE_AST_TYPE_CHR);
             max = *bbre_ast_param_ptr(r, next, 0);
+            has_range = 1;
           } else {
             max = ch; /* non-escaped character */
+            has_range = 1;
           }
         }
-        {
-          bbre_uint tmp_hdl;
-          if ((err = bbre_ast_make(
-                   r, &tmp_hdl, BBRE_AST_TYPE_CC_LEAF, min < max ? min : max,
-                   min < max ? max : min)))
+        if (has_range && min > max) {
+          err = bbre_err_parse(r, "character class range is reversed");
+          goto error;
+        }
+        if ((err = bbre_ast_cls_append_range(r, &res_hdl, min, max)))
+          goto error;
+        if (trailing_dash) {
+          if ((err = bbre_ast_cls_append_range(r, &res_hdl, '-', '-')))
             goto error;
-          if (res_hdl != BBRE_NIL) {
-            if ((err = bbre_ast_make(
-                     r, &res_hdl, BBRE_AST_TYPE_CC_OR, res_hdl, tmp_hdl)))
-              goto error;
-          } else
-            res_hdl = tmp_hdl;
+          break;
         }
       }
       assert(res_hdl); /* charclass cannot be empty */
@@ -3408,20 +3502,45 @@ bbre_save_slots_new(bbre_exec *exec, bbre_save_slots *s, bbre_uint *next)
     *next = s->last_empty;
     s->last_empty = *bbre_save_slots_refcnt(s, *next);
   } else {
-    if ((s->slots_size + 1) * (s->per_thrd + 1) > s->slots_alloc) {
+    size_t needed, new_alloc, old_bytes, new_bytes;
+    size_t *new_slots;
+
+    if (s->slots_size >= UINT_MAX ||
+        s->slots_size == (size_t)-1 ||
+        s->per_thrd > (size_t)-1 / (s->slots_size + 1)) {
+      err = BBRE_ERR_MEM;
+      goto error;
+    }
+    needed = (s->slots_size + 1) * s->per_thrd;
+    if (needed > s->slots_alloc) {
       /* initial alloc / realloc */
-      size_t new_alloc =
-          (s->slots_alloc ? s->slots_alloc * 2 : 16) * s->per_thrd;
-      size_t *new_slots = bbre_alloci(
-          &exec->alloc, s->slots, s->slots_alloc * sizeof(size_t),
-          new_alloc * sizeof(size_t));
+      if (s->slots_alloc) {
+        new_alloc = s->slots_alloc > (size_t)-1 / 2
+                        ? needed
+                        : s->slots_alloc * 2;
+      } else {
+        new_alloc = s->per_thrd > (size_t)-1 / 16
+                        ? needed
+                        : 16 * s->per_thrd;
+      }
+      if (new_alloc < needed)
+        new_alloc = needed;
+      if (s->slots_alloc > (size_t)-1 / sizeof(size_t) ||
+          new_alloc > (size_t)-1 / sizeof(size_t)) {
+        err = BBRE_ERR_MEM;
+        goto error;
+      }
+      old_bytes = s->slots_alloc * sizeof(size_t);
+      new_bytes = new_alloc * sizeof(size_t);
+      new_slots =
+          bbre_alloci(&exec->alloc, s->slots, old_bytes, new_bytes);
       if (!new_slots) {
         err = BBRE_ERR_MEM;
         goto error;
       }
       s->slots = new_slots, s->slots_alloc = new_alloc;
     }
-    *next = s->slots_size++;
+    *next = (bbre_uint)s->slots_size++;
     assert(s->slots_size * s->per_thrd <= s->slots_alloc);
   }
   for (i = 0; i < s->per_thrd - 1; i++)
@@ -3513,13 +3632,14 @@ static int
 bbre_bmp_init(bbre_alloc alloc, bbre_buf(bbre_uint) * b, bbre_uint size)
 {
   bbre_uint i;
+  bbre_uint words =
+      size / BBRE_BITS_PER_U32 + !!(size % BBRE_BITS_PER_U32);
   int err = 0;
   bbre_buf_clear(b);
-  if ((err = bbre_buf_reserve(
-           &alloc, b, (size + BBRE_BITS_PER_U32) / BBRE_BITS_PER_U32)))
+  if ((err = bbre_buf_reserve(&alloc, b, words)))
     goto error;
-  for (i = 0; i < (size + BBRE_BITS_PER_U32) / BBRE_BITS_PER_U32; i++)
-    *b[i] = 0;
+  for (i = 0; i < words; i++)
+    (*b)[i] = 0;
 error:
   return err;
 }
@@ -3527,19 +3647,21 @@ error:
 static void bbre_bmp_clear(bbre_buf(bbre_uint) * b)
 {
   assert(*b);
-  memset(*b, 0, bbre_buf_size(*b));
+  memset(*b, 0, bbre_buf_size(*b) * sizeof(**b));
 }
 
 static void bbre_bmp_set(bbre_buf(bbre_uint) b, bbre_uint idx)
 {
   /* TODO: assert idx < nsets */
-  b[idx / BBRE_BITS_PER_U32] |= (1 << (idx % BBRE_BITS_PER_U32));
+  b[idx / BBRE_BITS_PER_U32] |=
+      ((bbre_uint)1u << (idx % BBRE_BITS_PER_U32));
 }
 
 /* returns 0 or a positive value (not necessarily 1) */
 static bbre_uint bbre_bmp_get(bbre_buf(bbre_uint) b, bbre_uint idx)
 {
-  return b[idx / BBRE_BITS_PER_U32] & (1 << (idx % BBRE_BITS_PER_U32));
+  return b[idx / BBRE_BITS_PER_U32] &
+         ((bbre_uint)1u << (idx % BBRE_BITS_PER_U32));
 }
 
 static void bbre_nfa_destroy(bbre_exec *exec, bbre_nfa *n)

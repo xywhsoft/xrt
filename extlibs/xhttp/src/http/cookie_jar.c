@@ -291,7 +291,7 @@ static bool __xrtCookieJarDomainMatch(xstrview Host, xstrview Domain)
 
 
 
-/* 按 RFC 10025 的目录边界规则匹配请求路径。 */
+/* 按 RFC 6265 的目录边界规则匹配请求路径。 */
 static bool __xrtCookieJarPathMatch(xstrview Request, xstrview Cookie)
 {
 	if ( (Request.Size < Cookie.Size) ||
@@ -630,7 +630,7 @@ static xcookiestorestatus __xrtCookieJarReject(
 /* 检查配置中的大小关系和未知标志。 */
 static bool __xrtCookieJarConfigValid(const xcookiejarconfig* pConfig)
 {
-	return ((pConfig->Flags & ~XCOOKIE_JAR_ALLOW_UNVERIFIED_DOMAIN) == 0) &&
+	return ((pConfig->Flags & ~XCOOKIE_JAR_ALLOW_DOMAIN_WITHOUT_PSL) == 0) &&
 		(pConfig->InitialCookies != 0) &&
 		(pConfig->MaxCookies != 0) &&
 		(pConfig->InitialCookies <= pConfig->MaxCookies) &&
@@ -1013,7 +1013,7 @@ XRT_API xcookiestorestatus xrtCookieJarSet(
 		} else if ( __xrtCookieJarAsciiEqual(Host, Domain) ) {
 			bHostOnly = true;
 		} else if ( (pJar->Config.Flags &
-			XCOOKIE_JAR_ALLOW_UNVERIFIED_DOMAIN) != 0 ) {
+			XCOOKIE_JAR_ALLOW_DOMAIN_WITHOUT_PSL) != 0 ) {
 			bHostOnly = false;
 		} else {
 			__xrtCookieOriginClear(&Origin);

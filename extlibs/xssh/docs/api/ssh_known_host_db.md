@@ -11,10 +11,10 @@
 - `xrtSshKnownHostDbCheck` 直接比较握手得到的原始 host-key blob，不建立 Base64 解码副本。
 - 非严格模式跳过坏行和未知 marker；严格模式将其返回为带行号的 `INVALID`。
 
-常见判定的优先级为 `REVOKED > MATCH > CERT_AUTHORITY > CHANGED > NEW`。`CHANGED` 只表示同一
-主机、同一算法已有不同 key；其他算法的记录不会阻止算法迁移。`CERT_AUTHORITY` 只说明存在匹配
-的 CA 候选，调用方必须继续验证主机证书，不能把该状态直接当作认证成功。需要尝试多个 CA 时，
-使用游标枚举全部 `@cert-authority` 行。
+常见判定的优先级为 `REVOKED > MATCH > CERT_AUTHORITY > CHANGED > NEW`。只要普通条目的主机模式
+命中，但没有任何 host key 精确匹配，就返回 `CHANGED`；更换 RSA、ECDSA 或 Ed25519 算法不会降级
+为 `NEW`。`CERT_AUTHORITY` 只说明存在匹配的 CA 候选，调用方必须继续验证主机证书，不能把该状态
+直接当作认证成功。需要尝试多个 CA 或实施自定义算法迁移策略时，使用游标枚举相关记录。
 
 ## 示例
 

@@ -219,6 +219,14 @@ static void testDirErrors(cstr sRoot, cstr sFile, cstr sMissing)
 	testRequire(xrtDirOpen(sRoot, 0x80000000u) == NULL,
 		"directory iterator accepted unknown flags");
 	xrtClearError();
+	#if defined(_WIN32) || defined(_WIN64)
+		testRequire(xrtDirOpen("C:\\xrt-*", 0u) == NULL,
+			"Windows directory iterator accepted a wildcard path");
+		testRequire((xrtGetError() != NULL) &&
+			(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
+			"Windows wildcard directory path reported the wrong error");
+		xrtClearError();
+	#endif
 	testRequire(xrtDirOpen(sFile, 0u) == NULL,
 		"directory iterator accepted a regular file");
 	testRequire((xrtGetError() != NULL) &&

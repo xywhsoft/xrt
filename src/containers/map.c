@@ -613,47 +613,77 @@ void __xrtMapCallbackEnd(const xmap* pMap)
 
 
 
-/* 在回调门禁内失败原子地替换已有值。 */
-bool __xrtMapReplaceValue(
+/* 新条目实现位于组合设置函数之后，先声明以保持相关操作相邻。 */
+static xmapentry* __xrtMapInsertEntry(
+	xmap* pMap,
+	xbytesview Key,
+	uint64 iHash,
+	xmapinit pInit,
+	ptr pUserData
+);
+
+
+
+/* 一次哈希查询完成失败原子的替换或初始化。 */
+ptr __xrtMapSetOrInit(
 	xmap* pMap,
 	xbytesview Key,
 	const void* pValue,
 	xrtmapreplaceproc pReplace,
-	ptr pUserData,
-	bool* pFound
+	ptr pReplaceData,
+	xmapinit pInit,
+	ptr pInitData,
+	bool* pNew
 )
 {
 	xmapentry* pEntry;
 	ptr pStored;
+	uint64 iHash;
 	bool bReplaced;
 
-	if ( pFound != NULL ) {
-		*pFound = false;
+	if ( pNew != NULL ) {
+		*pNew = false;
 	}
 	if (
 		!__xrtMapCanMutate(pMap) ||
 		!__xrtMapKeyValid(Key) ||
 		(pValue == NULL) ||
 		(pReplace == NULL) ||
-		(pFound == NULL)
+		(pInit == NULL) ||
+		(pNew == NULL)
 	) {
 		if (
 			(pValue == NULL) ||
 			(pReplace == NULL) ||
-			(pFound == NULL)
+			(pInit == NULL) ||
+			(pNew == NULL)
 		) {
 			__xrtErrorSetInvalidArgument();
 		}
-		return false;
+		return NULL;
 	}
-	pEntry = __xrtMapFind(pMap, Key, NULL, NULL);
+	pEntry = __xrtMapFind(pMap, Key, &iHash, NULL);
 	if ( pEntry == NULL ) {
-		return true;
+		if ( __xrtMapOwnsCoreRange(pMap, pValue, pMap->ValueSize) ) {
+			__xrtErrorSetInvalidArgument();
+			return NULL;
+		}
+		pEntry = __xrtMapInsertEntry(
+			pMap,
+			Key,
+			iHash,
+			pInit,
+			pInitData
+		);
+		if ( pEntry == NULL ) {
+			return NULL;
+		}
+		*pNew = true;
+		return __xrtMapValue(pMap, pEntry);
 	}
-	*pFound = true;
 	pStored = __xrtMapValue(pMap, pEntry);
 	if ( pStored == pValue ) {
-		return true;
+		return pStored;
 	}
 	if (
 		__xrtMapOwnsCoreRange(pMap, pValue, pMap->ValueSize) ||
@@ -662,13 +692,13 @@ bool __xrtMapReplaceValue(
 		)
 	) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return NULL;
 	}
 
 	pMap->Flags |= XRT_MAP_FLAG_BUSY;
-	bReplaced = pReplace(pStored, pValue, pUserData);
+	bReplaced = pReplace(pStored, pValue, pReplaceData);
 	pMap->Flags &= ~XRT_MAP_FLAG_BUSY;
-	return bReplaced;
+	return bReplaced ? pStored : NULL;
 }
 
 

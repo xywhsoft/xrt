@@ -12,6 +12,7 @@ int main(void)
 	unsigned char* pBackingGrow;
 	unsigned char* pPooledAgain;
 	unsigned char* pZero;
+	unsigned char* pDoubleFree;
 
 	pSmall = (unsigned char*)xrtMalloc(24);
 	testRequire(pSmall != NULL, "small allocation failed");
@@ -41,6 +42,19 @@ int main(void)
 	for ( size_t i = 0; i < 64; i++ ) {
 		testRequire(pZero[i] == 0, "pooled calloc did not clear memory");
 	}
+	pDoubleFree = (unsigned char*)xrtMalloc(32);
+	testRequire(pDoubleFree != NULL, "double free probe allocation failed");
+	xrtFree(pDoubleFree);
+	xrtClearError();
+	xrtFree(pDoubleFree);
+	#if defined(XRT_FEATURE_MEMORY_DEBUG)
+		testRequire(xrtErrorKind(xrtGetError()) == XERR_STATE,
+			"debug pooled sequential double free was not rejected");
+	#else
+		testRequire(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+			"pooled sequential double free was not rejected");
+	#endif
+	xrtClearError();
 
 	xrtFree(pNextClass);
 	xrtFree(pPooledAgain);

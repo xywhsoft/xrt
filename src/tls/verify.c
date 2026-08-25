@@ -14,6 +14,7 @@ struct xtlsverifier {
 	xtlsverifytimeproc Time;
 	xtlsverifyreleaseproc Release;
 	ptr Context;
+	bool AllowSha1;
 };
 
 
@@ -164,11 +165,12 @@ static bool __xrtTlsVerifyPolicy(
 
 
 /* 使用显式时间、证书和借用信任库执行默认路径与身份验证。 */
-XRT_API bool xrtTlsPeerVerify(
+static bool __xrtTlsPeerVerify(
 	const xtlspeer* pPeer,
 	const xx509store* pStore,
 	xtlsverifypolicyproc pPolicy,
-	ptr pContext
+	ptr pContext,
+	bool bAllowSha1
 )
 {
 	static const uint8 ServerPurpose[] = {
@@ -204,9 +206,12 @@ XRT_API bool xrtTlsPeerVerify(
 		ppWorkspace[i - 1u] = &pPeer->Certificates[i];
 	}
 	ppPath = ppWorkspace + pPeer->CertificateCount;
-	memset(&Config, 0, sizeof(Config));
+	xrtX509PathConfigInit(&Config);
 	memset(&Result, 0, sizeof(Result));
 	Config.Time = pPeer->Time;
+	if ( bAllowSha1 ) {
+		Config.Flags |= X509_PATH_ALLOW_SHA1;
+	}
 	Config.KeyUsage = X509_USAGE_DIGITAL_SIGNATURE;
 	if ( pPeer->Role == XTLS_SERVER ) {
 		Config.Purpose = (xbytesview) {
@@ -262,6 +267,21 @@ XRT_API bool xrtTlsPeerVerify(
 	}
 	xrtFree(ppWorkspace);
 	return bVerified;
+}
+
+
+
+/* 使用默认现代算法策略验证路径、用途和对端身份。 */
+XRT_API bool xrtTlsPeerVerify(
+	const xtlspeer* pPeer,
+	const xx509store* pStore,
+	xtlsverifypolicyproc pPolicy,
+	ptr pContext
+)
+{
+	return __xrtTlsPeerVerify(
+		pPeer, pStore, pPolicy, pContext, false
+	);
 }
 
 
@@ -328,6 +348,7 @@ XRT_API xtlsverifier* xrtTlsVerifierCreate(
 	pVerifier->Time = pConfig->Time;
 	pVerifier->Release = pConfig->Release;
 	pVerifier->Context = pConfig->Context;
+	pVerifier->AllowSha1 = pConfig->AllowSha1;
 	return pVerifier;
 }
 
@@ -434,9 +455,10 @@ XRT_API bool xrtTlsVerifierVerify(
 				"TLS custom verifier deferred without a trust store"
 			);
 		}
-		return xrtTlsPeerVerify(
+		return __xrtTlsPeerVerify(
 			&Peer, pVerifier->Store,
-			pVerifier->Policy, pVerifier->Context
+			pVerifier->Policy, pVerifier->Context,
+			pVerifier->AllowSha1
 		);
 	}
 	if ( Decision == XTLS_VERIFY_REJECT ) {

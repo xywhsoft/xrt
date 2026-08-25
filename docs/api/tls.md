@@ -210,6 +210,7 @@ if ( xrtTlsExtensionsFind(
 - ClientHello 密码套件向量必须非空且为偶数字节，压缩列表必须包含 null compression；只要声明支持 TLS 1.3，兼容压缩字段就必须严格为单个零。
 - TLS 1.3 ClientHello 的 `pre_shared_key` 必须是最后一个扩展。
 - ServerHello key_share 必须恰好包含一个非空密钥；HelloRetryRequest key_share 必须恰好包含一个两字节命名组，不能用宽松的“大于等于长度”规则接受尾随数据。
+- `xrtTlsRetryCookie()` 与 `xrtTlsWriterRetryCookie()` 公开 HRR/第二个 ClientHello 共用的 16 位非空 Cookie 向量；解析结果借用输入，长度声明必须精确消费扩展数据。
 - Hello 解析器只负责线路结构和已知核心扩展的局部语义。密码套件选择、版本协商、扩展出现位置、SNI 证书选择和 ALPN 策略属于后续状态机。
 
 扩展唯一性检测不分配 8K 类型位图。游标只保存 32 字节桶状态；发生桶碰撞时最多回看同桶的 16 位类型，因此正常路径为线性扫描，最坏回看次数也受 16 位类型空间约束。

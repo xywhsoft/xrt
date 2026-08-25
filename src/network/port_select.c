@@ -377,7 +377,8 @@ static xnetresult __xrtNetSelectWait(xnetport* pPort,
 			__xrtNetSelectTimeout(iTimeout, &Timeout));
 	#endif
 	if ( iResult == 0 ) {
-		return XNET_RESULT_TIMEOUT;
+		return iTimeout == 0 ?
+			XNET_RESULT_OK : XNET_RESULT_TIMEOUT;
 	}
 	if ( iResult < 0 ) {
 		int iCode = __xrtNetSelectLastError();

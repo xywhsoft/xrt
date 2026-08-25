@@ -60,7 +60,7 @@ bool __xrtX509PathDuplicate(
 bool __xrtX509PathConfigValid(const xx509pathconfig* pConfig)
 {
 	const uint32 iKnownFlags = X509_PATH_REQUIRE_KEY_USAGE |
-		X509_PATH_REQUIRE_PURPOSE;
+		X509_PATH_REQUIRE_PURPOSE | X509_PATH_ALLOW_SHA1;
 
 	return (pConfig != NULL) &&
 		((pConfig->Flags & ~iKnownFlags) == 0) &&
@@ -70,6 +70,51 @@ bool __xrtX509PathConfigValid(const xx509pathconfig* pConfig)
 		((pConfig->Purpose.Data != NULL) || (pConfig->Purpose.Size == 0)) &&
 		(((pConfig->Flags & X509_PATH_REQUIRE_PURPOSE) == 0) ||
 		 (pConfig->Purpose.Size != 0));
+}
+
+
+
+/* 初始化当前时间下默认拒绝弱签名算法的路径策略。 */
+XRT_API void xrtX509PathConfigInit(xx509pathconfig* pConfig)
+{
+	if ( pConfig == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	memset(pConfig, 0, sizeof(*pConfig));
+	pConfig->Time = xrtNow();
+}
+
+
+
+/* 在密码验签前执行路径级签名算法强度策略。 */
+static bool __xrtX509PathSignature(
+	const xx509cert* pCertificate,
+	const xx509pathconfig* pConfig
+)
+{
+	xx509signature Signature;
+	xx509result Result = xrtX509SignatureParse(
+		&pCertificate->SignatureAlgorithm,
+		&Signature
+	);
+
+	if ( Result != X509_VALUE ) {
+		return __xrtX509PathError(
+			X509_ERROR_SIGNATURE,
+			"certificate path uses an unsupported signature algorithm",
+			Result == X509_ERROR ? xrtGetError() : NULL
+		);
+	}
+	if ( (Signature.Hash == X509_HASH_SHA1) &&
+		((pConfig->Flags & X509_PATH_ALLOW_SHA1) == 0) ) {
+		return __xrtX509PathError(
+			X509_ERROR_SIGNATURE,
+			"certificate path uses SHA-1 without explicit legacy policy",
+			NULL
+		);
+	}
+	return true;
 }
 
 
@@ -635,6 +680,9 @@ XRT_API bool xrtX509PathValidate(
 				X509_ERROR_PATH,
 				"certificate is not valid at the requested time", NULL
 			);
+		}
+		if ( !__xrtX509PathSignature(pCertificate, pConfig) ) {
+			return false;
 		}
 		if ( !__xrtX509PathExtensions(pCertificate, i, pConfig) ) {
 			return false;

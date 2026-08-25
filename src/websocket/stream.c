@@ -2319,12 +2319,19 @@ static void __xrtWsStreamDriveSchedule(xwsstream* pConnection)
 		);
 		return;
 	}
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pConnection->Worker,
 		&pConnection->DriveCommand,
 		__xrtWsStreamDrive,
 		pConnection
-	);
+	) ) {
+		xrtAtomic32Store(
+			&pConnection->DrivePosted,
+			0,
+			XMEMORY_RELEASE
+		);
+		xrtWsStreamDestroy(pConnection);
+	}
 }
 
 

@@ -1319,7 +1319,6 @@ static bool __xrtWsConnStartCloseTimer(xwsconn* pConnection)
 		pConnection
 	);
 	if ( pConnection->CloseTimer == 0 ) {
-		xrtWsConnDestroy(pConnection);
 		(void)__xrtWsConnRemember(
 			pConnection,
 			XERR_AGAIN,
@@ -1328,6 +1327,7 @@ static bool __xrtWsConnStartCloseTimer(xwsconn* pConnection)
 			"WebSocket close timer could not be scheduled",
 			xrtGetError()
 		);
+		xrtWsConnDestroy(pConnection);
 		return false;
 	}
 	return true;
@@ -2125,6 +2125,7 @@ static void __xrtWsConnRead(xwsconn* pConnection)
 	pConnection->Reading = true;
 	while ( (xrtWsConnState(pConnection) !=
 		 XWS_CONN_CLOSED) &&
+		!pConnection->CloseReceived &&
 		!xrtAtomic32Load(
 			&pConnection->ReadPaused,
 			XMEMORY_ACQUIRE
@@ -2233,6 +2234,24 @@ static void __xrtWsConnRead(xwsconn* pConnection)
 		}
 		pConnection->FrameRemaining -= iChunk;
 		pConnection->FrameOffset += iChunk;
+	}
+	/*
+		Close 是接收方向的协议终点。当前缓冲中的后续字节不再属于
+		应用消息，必须在关闭传输前统一丢弃。
+	*/
+	if ( pConnection->CloseReceived &&
+		(xrtWsConnState(pConnection) != XWS_CONN_CLOSED) &&
+		!__xrtWsConnDiscardInput(pConnection) ) {
+		(void)__xrtWsConnRemember(
+			pConnection,
+			XERR_INTERNAL,
+			XWS_CONN_ERROR_TRANSPORT,
+			"discard-websocket-input",
+			"WebSocket transport did not discard data after Close",
+			xrtGetError()
+		);
+		__xrtWsConnEmitError(pConnection);
+		(void)xrtWsConnAbort(pConnection);
 	}
 	pConnection->Reading = false;
 	xrtWsConnDestroy(pConnection);
@@ -2926,6 +2945,7 @@ static xwsconn* __xrtWsConnCreate(
 		xrtAtomic64Init(&pConnection->AsyncBytes, 0);
 		xrtAtomic32Init(&pConnection->AsyncCount, 0);
 		if ( !xrtNetPostInit(&pConnection->AsyncCommand) ) {
+			xrtSpinUnit(&pConnection->TransportLock);
 			xrtFree(pConnection);
 			return NULL;
 		}

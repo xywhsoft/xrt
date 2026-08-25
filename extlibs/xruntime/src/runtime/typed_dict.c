@@ -668,7 +668,6 @@ XRT_API bool xrtTypedDictSet(
 {
 	xtypeddictcopycontext Context;
 	ptr pStored;
-	bool bFound;
 	bool bNew;
 
 	if ( !__xrtTypedDictCanMutate(pDict, "set") ||
@@ -676,35 +675,24 @@ XRT_API bool xrtTypedDictSet(
 		 !__xrtTypedDictSourceValid(pDict, pItem, "set") ) {
 		return false;
 	}
-	if ( !__xrtMapReplaceValue(
+	Context.ItemType = pDict->ItemType;
+	Context.Item = pItem;
+	pStored = __xrtMapSetOrInit(
 		&pDict->Storage,
 		__xrtTypedDictKey(Key),
 		pItem,
 		__xrtTypedDictReplace,
 		(ptr)pDict->ItemType,
-		&bFound
-	) ) {
-		__xrtTypedDictWrap(XERR_STATE, XTYPED_DICT_ERROR_OPERATION,
-			"set", "the existing typed dictionary value could not be replaced");
-		return false;
-	}
-	if ( bFound ) {
-		return true;
-	}
-	Context.ItemType = pDict->ItemType;
-	Context.Item = pItem;
-	pStored = xrtMapGetOrInit(
-		&pDict->Storage,
-		__xrtTypedDictKey(Key),
 		__xrtTypedDictInitCopy,
 		&Context,
 		&bNew
 	);
-	if ( (pStored == NULL) || !bNew ) {
+	if ( pStored == NULL ) {
 		__xrtTypedDictWrap(XERR_STATE, XTYPED_DICT_ERROR_OPERATION,
-			"set", "the new typed dictionary value could not be inserted");
+			"set", "the typed dictionary value could not be set");
 		return false;
 	}
+	(void)bNew;
 	return true;
 }
 
@@ -719,7 +707,6 @@ XRT_API bool xrtTypedDictSetTake(
 {
 	xtypeddictmovecontext Context;
 	ptr pStored;
-	bool bFound;
 	bool bNew;
 
 	if ( !__xrtTypedDictCanMutate(pDict, "set-take") ||
@@ -727,35 +714,24 @@ XRT_API bool xrtTypedDictSetTake(
 		 !__xrtTypedDictOutputExternal(pDict, pItem, "set-take") ) {
 		return false;
 	}
-	if ( !__xrtMapReplaceValue(
+	Context.ItemType = pDict->ItemType;
+	Context.Item = pItem;
+	pStored = __xrtMapSetOrInit(
 		&pDict->Storage,
 		__xrtTypedDictKey(Key),
 		pItem,
 		__xrtTypedDictReplaceMove,
 		(ptr)pDict->ItemType,
-		&bFound
-	) ) {
-		__xrtTypedDictWrap(XERR_STATE, XTYPED_DICT_ERROR_OPERATION,
-			"set-take", "the existing dictionary value could not receive the source");
-		return false;
-	}
-	if ( bFound ) {
-		return true;
-	}
-	Context.ItemType = pDict->ItemType;
-	Context.Item = pItem;
-	pStored = xrtMapGetOrInit(
-		&pDict->Storage,
-		__xrtTypedDictKey(Key),
 		__xrtTypedDictInitMove,
 		&Context,
 		&bNew
 	);
-	if ( (pStored == NULL) || !bNew ) {
+	if ( pStored == NULL ) {
 		__xrtTypedDictWrap(XERR_STATE, XTYPED_DICT_ERROR_OPERATION,
-			"set-take", "the moved dictionary value could not be inserted");
+			"set-take", "the typed dictionary value could not receive the source");
 		return false;
 	}
+	(void)bNew;
 	return true;
 }
 

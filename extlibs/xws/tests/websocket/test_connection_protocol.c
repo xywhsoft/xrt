@@ -15,7 +15,9 @@ typedef enum test_ws_protocol_kind {
 	TEST_WS_PROTOCOL_FRAME_LIMIT,
 	TEST_WS_PROTOCOL_CONTINUATION,
 	TEST_WS_PROTOCOL_MESSAGE_LIMIT,
-	TEST_WS_PROTOCOL_FRAGMENT_UTF8
+	TEST_WS_PROTOCOL_FRAGMENT_UTF8,
+	TEST_WS_PROTOCOL_CLOSE_TEXT,
+	TEST_WS_PROTOCOL_CLOSE_FRAGMENT
 } test_ws_protocol_kind;
 
 
@@ -25,6 +27,7 @@ typedef struct test_ws_protocol_case {
 	test_ws_protocol_kind Kind;
 	uint16 CloseCode;
 	xwsconnerror ErrorCode;
+	bool CleanClose;
 } test_ws_protocol_case;
 
 
@@ -38,6 +41,9 @@ typedef struct test_ws_protocol {
 	xatomic32 ErrorCount;
 	xatomic32 ErrorCode;
 	xatomic32 CloseSeen;
+	xatomic32 MessageBegin;
+	xatomic32 MessageData;
+	xatomic32 MessageEnd;
 	xatomic32 ConnectionClosed;
 	xatomic32 RawClosed;
 	xatomic32 ListenerClosed;
@@ -75,9 +81,11 @@ static void testWsProtocolWait(
 
 
 
-/* 写出小于 126 字节的原始帧，允许故意违反掩码方向。 */
-static void testWsProtocolSendFrame(
-	xnetstream* pStream,
+/* 向固定输出追加一个小于 126 字节的原始帧。 */
+static size_t testWsProtocolFrameWrite(
+	uint8* pOutput,
+	size_t iCapacity,
+	size_t iOffset,
 	uint8 iOpcode,
 	bool bFinal,
 	bool bMasked,
@@ -88,30 +96,31 @@ static void testWsProtocolSendFrame(
 	static const uint8 Mask[XWS_MASK_SIZE] = {
 		0x21, 0x43, 0x65, 0x87
 	};
-	uint8 Output[64];
-	size_t iHead = 2;
+	size_t iHead = iOffset + 2u;
 
 	testRequire(
 		(iSize <= 125u) &&
-		(iSize <= (sizeof(Output) - 6u)),
+		(iOffset <= iCapacity) &&
+		((iCapacity - iOffset) >= 6u) &&
+		(iSize <= (iCapacity - iOffset - 6u)),
 		"WebSocket protocol test frame is too large"
 	);
-	Output[0] = (uint8)(
+	pOutput[iOffset] = (uint8)(
 		iOpcode | (bFinal ? UINT8_C(0x80) : 0)
 	);
-	Output[1] = (uint8)(
+	pOutput[iOffset + 1u] = (uint8)(
 		iSize | (bMasked ? UINT8_C(0x80) : 0)
 	);
 	if ( bMasked ) {
-		memcpy(Output + iHead, Mask, sizeof(Mask));
+		memcpy(pOutput + iHead, Mask, sizeof(Mask));
 		iHead += sizeof(Mask);
 	}
 	if ( iSize != 0 ) {
-		memcpy(Output + iHead, pPayload, iSize);
+		memcpy(pOutput + iHead, pPayload, iSize);
 		if ( bMasked ) {
 			testRequire(
 				xrtWsMask(
-					Output + iHead,
+					pOutput + iHead,
 					iSize,
 					Mask,
 					0
@@ -120,13 +129,96 @@ static void testWsProtocolSendFrame(
 			);
 		}
 	}
+	return iHead + iSize;
+}
+
+
+
+/* 写出一个原始帧，允许故意违反掩码方向。 */
+static void testWsProtocolSendFrame(
+	xnetstream* pStream,
+	uint8 iOpcode,
+	bool bFinal,
+	bool bMasked,
+	cbytes pPayload,
+	size_t iSize
+)
+{
+	uint8 Output[64];
+	size_t iOutput = testWsProtocolFrameWrite(
+		Output,
+		sizeof(Output),
+		0,
+		iOpcode,
+		bFinal,
+		bMasked,
+		pPayload,
+		iSize
+	);
+
 	testRequire(
 		xrtNetStreamSend(
 			pStream,
 			Output,
-			iHead + iSize
+			iOutput
 		) == XNET_RESULT_OK,
 		"WebSocket protocol test send failed"
+	);
+}
+
+
+
+/* 在一次 TCP 提交中写出 Close 和不应再发布的数据帧。 */
+static void testWsProtocolSendCloseTail(
+	xnetstream* pStream,
+	bool bMasked,
+	bool bFragmented
+)
+{
+	static const uint8 ClosePayload[] = {
+		UINT8_C(0x03), UINT8_C(0xE8)
+	};
+	#if defined(TEST_WS_CONNECTION_DEFLATE)
+		static const uint8 TextPayload[] = {
+			UINT8_C(0xAA), UINT8_C(0x00)
+		};
+	#else
+		static const uint8 TextPayload[] = { 'x' };
+	#endif
+	uint8 Output[64];
+	size_t iText;
+	size_t iOutput = 0;
+
+	iOutput = testWsProtocolFrameWrite(
+		Output, sizeof(Output), iOutput,
+		(uint8)XWS_OPCODE_CLOSE, true, bMasked,
+		ClosePayload, sizeof(ClosePayload)
+	);
+	iText = iOutput;
+	iOutput = testWsProtocolFrameWrite(
+		Output, sizeof(Output), iOutput,
+		(uint8)XWS_OPCODE_TEXT, !bFragmented, bMasked,
+		TextPayload, sizeof(TextPayload)
+	);
+	#if defined(TEST_WS_CONNECTION_DEFLATE)
+		Output[iText] |= XWS_FRAME_RSV1;
+	#else
+		(void)iText;
+	#endif
+	if ( bFragmented ) {
+		iOutput = testWsProtocolFrameWrite(
+			Output, sizeof(Output), iOutput,
+			(uint8)XWS_OPCODE_CONTINUATION, true, bMasked,
+			NULL, 0
+		);
+	}
+	testRequire(
+		xrtNetStreamSend(
+			pStream,
+			Output,
+			iOutput
+		) == XNET_RESULT_OK,
+		"WebSocket Close tail test send failed"
 	);
 }
 
@@ -245,6 +337,20 @@ static void testWsProtocolSendInput(
 				sizeof(LastUtf8)
 			);
 			break;
+		case TEST_WS_PROTOCOL_CLOSE_TEXT:
+			testWsProtocolSendCloseTail(
+				pStream,
+				bMask,
+				false
+			);
+			break;
+		case TEST_WS_PROTOCOL_CLOSE_FRAGMENT:
+			testWsProtocolSendCloseTail(
+				pStream,
+				bMask,
+				true
+			);
+			break;
 		default:
 			testRequire(
 				false,
@@ -252,6 +358,67 @@ static void testWsProtocolSendInput(
 			);
 			break;
 	}
+}
+
+
+
+/* 记录应用层可见的消息开始事件。 */
+static void testWsProtocolMessageBegin(
+	xwsconn* pConnection,
+	const xwsmessageinfo* pMessage,
+	ptr pData
+)
+{
+	test_ws_protocol* pTest =
+		(test_ws_protocol*)pData;
+
+	(void)pConnection;
+	(void)pMessage;
+	(void)xrtAtomic32FetchAdd(
+		&pTest->MessageBegin,
+		1,
+		XMEMORY_RELEASE
+	);
+}
+
+
+
+/* 记录应用层可见的消息数据事件。 */
+static void testWsProtocolMessageData(
+	xwsconn* pConnection,
+	xbytesview Data,
+	ptr pData
+)
+{
+	test_ws_protocol* pTest =
+		(test_ws_protocol*)pData;
+
+	(void)pConnection;
+	(void)Data;
+	(void)xrtAtomic32FetchAdd(
+		&pTest->MessageData,
+		1,
+		XMEMORY_RELEASE
+	);
+}
+
+
+
+/* 记录应用层可见的消息结束事件。 */
+static void testWsProtocolMessageEnd(
+	xwsconn* pConnection,
+	ptr pData
+)
+{
+	test_ws_protocol* pTest =
+		(test_ws_protocol*)pData;
+
+	(void)pConnection;
+	(void)xrtAtomic32FetchAdd(
+		&pTest->MessageEnd,
+		1,
+		XMEMORY_RELEASE
+	);
 }
 
 
@@ -325,6 +492,10 @@ static xwsconn* testWsProtocolAttach(
 	Config.FrameLimit = 8;
 	Config.SendLimit = 1024;
 	Config.ControlReserve = 512;
+	#if defined(TEST_WS_CONNECTION_DEFLATE)
+		xrtWsDeflateInit(&Config.Deflate);
+		Config.DeflateEnabled = true;
+	#endif
 	return xrtWsConnAttach(
 		pStream,
 		&Config,
@@ -635,12 +806,21 @@ static void testWsProtocolRun(
 	xrtAtomic32Init(&Test.ErrorCount, 0);
 	xrtAtomic32Init(&Test.ErrorCode, 0);
 	xrtAtomic32Init(&Test.CloseSeen, 0);
+	xrtAtomic32Init(&Test.MessageBegin, 0);
+	xrtAtomic32Init(&Test.MessageData, 0);
+	xrtAtomic32Init(&Test.MessageEnd, 0);
 	xrtAtomic32Init(&Test.ConnectionClosed, 0);
 	xrtAtomic32Init(&Test.RawClosed, 0);
 	xrtAtomic32Init(&Test.ListenerClosed, 0);
 	xrtAtomic32Init(&Test.ListenerErrors, 0);
 	Test.ConnectionEvents.Error = testWsProtocolError;
 	Test.ConnectionEvents.Close = testWsProtocolClose;
+	Test.ConnectionEvents.MessageBegin =
+		testWsProtocolMessageBegin;
+	Test.ConnectionEvents.MessageData =
+		testWsProtocolMessageData;
+	Test.ConnectionEvents.MessageEnd =
+		testWsProtocolMessageEnd;
 	Test.RawEvents.Read = testWsProtocolRawRead;
 	Test.RawEvents.End = testWsProtocolRawEnd;
 	Test.RawEvents.Close = testWsProtocolRawClose;
@@ -742,30 +922,65 @@ static void testWsProtocolRun(
 		1,
 		"WebSocket protocol raw peer did not close"
 	);
-	testRequire(
-		(xrtAtomic32Load(
-			&Test.ErrorCount,
-			XMEMORY_ACQUIRE
-		 ) == 1) &&
-		(xrtAtomic32Load(
-			&Test.ErrorCode,
-			XMEMORY_ACQUIRE
-		 ) == (uint32)pCase->ErrorCode) &&
-		(Test.Close.Transport == XNET_RESULT_OK) &&
-		((Test.Close.Flags &
-		  XWS_CONN_CLOSE_SENT) != 0) &&
-		((Test.Close.Flags &
-		  XWS_CONN_CLOSE_RECEIVED) == 0) &&
-		((Test.Close.Flags &
-		  XWS_CONN_CLOSE_CLEAN) == 0) &&
-		(Test.Close.LocalCode == pCase->CloseCode) &&
-		(Test.Close.RemoteCode == 0) &&
-		(xrtAtomic32Load(
-			&Test.ListenerErrors,
-			XMEMORY_ACQUIRE
-		 ) == 0),
-		"WebSocket protocol failure snapshot mismatch"
-	);
+	if ( pCase->CleanClose ) {
+		testRequire(
+			(xrtAtomic32Load(
+				&Test.ErrorCount,
+				XMEMORY_ACQUIRE
+			 ) == 0) &&
+			(xrtAtomic32Load(
+				&Test.MessageBegin,
+				XMEMORY_ACQUIRE
+			 ) == 0) &&
+			(xrtAtomic32Load(
+				&Test.MessageData,
+				XMEMORY_ACQUIRE
+			 ) == 0) &&
+			(xrtAtomic32Load(
+				&Test.MessageEnd,
+				XMEMORY_ACQUIRE
+			 ) == 0) &&
+			(Test.Close.Transport == XNET_RESULT_OK) &&
+			((Test.Close.Flags &
+			  XWS_CONN_CLOSE_SENT) != 0) &&
+			((Test.Close.Flags &
+			  XWS_CONN_CLOSE_RECEIVED) != 0) &&
+			((Test.Close.Flags &
+			  XWS_CONN_CLOSE_CLEAN) != 0) &&
+			(Test.Close.LocalCode == XWS_CLOSE_NORMAL) &&
+			(Test.Close.RemoteCode == XWS_CLOSE_NORMAL) &&
+			(xrtAtomic32Load(
+				&Test.ListenerErrors,
+				XMEMORY_ACQUIRE
+			 ) == 0),
+			"WebSocket Close tail was exposed as application data"
+		);
+	} else {
+		testRequire(
+			(xrtAtomic32Load(
+				&Test.ErrorCount,
+				XMEMORY_ACQUIRE
+			 ) == 1) &&
+			(xrtAtomic32Load(
+				&Test.ErrorCode,
+				XMEMORY_ACQUIRE
+			 ) == (uint32)pCase->ErrorCode) &&
+			(Test.Close.Transport == XNET_RESULT_OK) &&
+			((Test.Close.Flags &
+			  XWS_CONN_CLOSE_SENT) != 0) &&
+			((Test.Close.Flags &
+			  XWS_CONN_CLOSE_RECEIVED) == 0) &&
+			((Test.Close.Flags &
+			  XWS_CONN_CLOSE_CLEAN) == 0) &&
+			(Test.Close.LocalCode == pCase->CloseCode) &&
+			(Test.Close.RemoteCode == 0) &&
+			(xrtAtomic32Load(
+				&Test.ListenerErrors,
+				XMEMORY_ACQUIRE
+			 ) == 0),
+			"WebSocket protocol failure snapshot mismatch"
+		);
+	}
 	testRequire(
 		xrtNetListenerClose(Test.Listener),
 		"WebSocket protocol listener close failed"
@@ -794,43 +1009,64 @@ int main(void)
 			XWS_ROLE_SERVER,
 			TEST_WS_PROTOCOL_UNMASKED,
 			XWS_CLOSE_PROTOCOL,
-			XWS_CONN_ERROR_FRAME
+			XWS_CONN_ERROR_FRAME,
+			false
 		},
 		{
 			XWS_ROLE_CLIENT,
 			TEST_WS_PROTOCOL_MASKED,
 			XWS_CLOSE_PROTOCOL,
-			XWS_CONN_ERROR_FRAME
+			XWS_CONN_ERROR_FRAME,
+			false
 		},
 		{
 			XWS_ROLE_SERVER,
 			TEST_WS_PROTOCOL_UTF8,
 			XWS_CLOSE_INVALID_DATA,
-			XWS_CONN_ERROR_MESSAGE
+			XWS_CONN_ERROR_MESSAGE,
+			false
 		},
 		{
 			XWS_ROLE_SERVER,
 			TEST_WS_PROTOCOL_FRAME_LIMIT,
 			XWS_CLOSE_TOO_BIG,
-			XWS_CONN_ERROR_FRAME
+			XWS_CONN_ERROR_FRAME,
+			false
 		},
 		{
 			XWS_ROLE_SERVER,
 			TEST_WS_PROTOCOL_CONTINUATION,
 			XWS_CLOSE_PROTOCOL,
-			XWS_CONN_ERROR_MESSAGE
+			XWS_CONN_ERROR_MESSAGE,
+			false
 		},
 		{
 			XWS_ROLE_SERVER,
 			TEST_WS_PROTOCOL_MESSAGE_LIMIT,
 			XWS_CLOSE_TOO_BIG,
-			XWS_CONN_ERROR_MESSAGE
+			XWS_CONN_ERROR_MESSAGE,
+			false
 		},
 		{
 			XWS_ROLE_SERVER,
 			TEST_WS_PROTOCOL_FRAGMENT_UTF8,
 			XWS_CLOSE_INVALID_DATA,
-			XWS_CONN_ERROR_MESSAGE
+			XWS_CONN_ERROR_MESSAGE,
+			false
+		},
+		{
+			XWS_ROLE_SERVER,
+			TEST_WS_PROTOCOL_CLOSE_TEXT,
+			XWS_CLOSE_NORMAL,
+			(xwsconnerror)0,
+			true
+		},
+		{
+			XWS_ROLE_SERVER,
+			TEST_WS_PROTOCOL_CLOSE_FRAGMENT,
+			XWS_CLOSE_NORMAL,
+			(xwsconnerror)0,
+			true
 		}
 	};
 
@@ -841,7 +1077,7 @@ int main(void)
 		testWsProtocolRun(&Cases[i]);
 	}
 	printf(
-		"[PASS] WebSocket connection protocol failure matrix\n"
+		"[PASS] WebSocket connection protocol and Close tail matrix\n"
 	);
 	return 0;
 }

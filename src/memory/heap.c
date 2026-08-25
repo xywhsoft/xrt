@@ -822,6 +822,9 @@ static bool __xrtHeapFree(ptr pMemory, cstr sFile, uint32 iLine)
 			return true;
 		}
 
+		#if !defined(XRT_FEATURE_MEMORY_DEBUG)
+			pHeader->Magic = 0;
+		#endif
 		__xrtHeapReturn(pHeader->Class, pNode);
 		return true;
 	}

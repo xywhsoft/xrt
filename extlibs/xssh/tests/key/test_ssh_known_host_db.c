@@ -101,6 +101,12 @@ static void testSshKnownHostDbTrust(void)
 	static const char sCa[] =
 		"@cert-authority *.example ssh-ed25519 "
 		"AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+	static const char sDifferentAlgorithm[] =
+		"host.example ssh-rsa AAAAB3NzaC1yc2E=\n";
+	static const char sMixedAlgorithms[] =
+		"host.example ssh-rsa AAAAB3NzaC1yc2E=\n"
+		"host.example ssh-ed25519 "
+		"AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
 	static const char sRevoked[] =
 		"host.example ssh-ed25519 "
 		"AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n"
@@ -134,6 +140,26 @@ static void testSshKnownHostDbTrust(void)
 		&Check
 	) == XSSH_OK) && (Check.Trust == XSSH_KNOWN_HOST_TRUST_CHANGED),
 		"ssh known-host changed trust mismatch");
+	testRequire((xrtSshKnownHostDbCheck(
+		XRT_STR_LITERAL(sDifferentAlgorithm),
+		XRT_STR_LITERAL("host.example"),
+		22u,
+		(xbytesview){ arrKey, iKeySize },
+		0u,
+		&Check
+	) == XSSH_OK) && (Check.Trust == XSSH_KNOWN_HOST_TRUST_CHANGED) &&
+		(Check.Entry.LineNumber == 1u),
+		"ssh cross-algorithm host key change was reported as new");
+	testRequire((xrtSshKnownHostDbCheck(
+		XRT_STR_LITERAL(sMixedAlgorithms),
+		XRT_STR_LITERAL("host.example"),
+		22u,
+		(xbytesview){ arrKey, iKeySize },
+		0u,
+		&Check
+	) == XSSH_OK) && (Check.Trust == XSSH_KNOWN_HOST_TRUST_MATCH) &&
+		(Check.Entry.LineNumber == 2u),
+		"ssh exact host key did not override cross-algorithm change");
 	testRequire((xrtSshKnownHostDbCheck(
 		XRT_STR_LITERAL(sMatch),
 		XRT_STR_LITERAL("new.example"),

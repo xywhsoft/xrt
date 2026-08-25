@@ -261,6 +261,9 @@
 #ifndef XHTTP_MODULE_HTTP_SERVER_ROUTER
 #define XHTTP_MODULE_HTTP_SERVER_ROUTER
 #endif
+#ifndef XHTTP_MODULE_HTTP_ORIGIN
+#define XHTTP_MODULE_HTTP_ORIGIN
+#endif
 #endif
 
 /* websocket_server 及其直接依赖。 */

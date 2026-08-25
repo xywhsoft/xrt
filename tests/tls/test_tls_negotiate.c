@@ -110,6 +110,11 @@ static void testTlsCipherSelect(void)
 		XTLS_ECDHE_ECDSA_AES_128_GCM_SHA256,
 		XTLS_IDENTITY_ED25519
 	), "TLS 1.2 ECDHE_ECDSA rejected an EdDSA identity");
+	testRequire(xrtTlsCipherCompatible(
+		XTLS_VERSION_12,
+		XTLS_ECDHE_ECDSA_AES_128_GCM_SHA256,
+		XTLS_IDENTITY_ED448
+	), "TLS 1.2 ECDHE_ECDSA rejected an Ed448 identity");
 	testRequire(!xrtTlsCipherCompatible(
 		XTLS_VERSION_12,
 		XTLS_ECDHE_RSA_AES_128_GCM_SHA256,

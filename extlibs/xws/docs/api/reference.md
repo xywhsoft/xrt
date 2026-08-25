@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `133` 个函数、`72` 个常量或宏、
-`35` 个公共类型。
+当前登记 `133` 个函数、`76` 个常量或宏、
+`37` 个公共类型。
 
 ## `extlibs/xws/include/xrt/websocket_group.h`
 
@@ -294,18 +294,24 @@
 - `xrtWsServerRoute`
 - `xrtWsServerRouteConfigInit`
 
-### 常量与宏 (7)
+### 常量与宏 (11)
 
 - `XWS_FEATURE_WEBSOCKET_SERVER_ROUTER`
+- `XWS_SERVER_ORIGIN_ANY`
+- `XWS_SERVER_ORIGIN_SAME_HOST`
+- `XWS_SERVER_ORIGIN_SAME_HOST_OR_ABSENT`
 - `XWS_SERVER_ROUTER_ERROR_ARGUMENT`
+- `XWS_SERVER_ROUTER_ERROR_AUTHORIZATION`
 - `XWS_SERVER_ROUTER_ERROR_CONFIG`
 - `XWS_SERVER_ROUTER_ERROR_MEMORY`
 - `XWS_SERVER_ROUTER_ERROR_RESPONSE`
 - `XWS_SERVER_ROUTER_ERROR_ROUTE`
 - `XWS_SERVER_ROUTER_ERROR_STATE`
 
-### 类型 (5)
+### 类型 (7)
 
+- `xwsserveroriginpolicy`
+- `xwsserverrouteauthorizeproc`
 - `xwsserverrouteconfig`
 - `xwsserverrouteerrorproc`
 - `xwsserverrouteopenproc`

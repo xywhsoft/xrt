@@ -227,8 +227,10 @@ bool __xrtTlsServerResumeSelect(
 		}
 		if ( bMatch ) {
 			Hash = __xrtTlsHash(pCipher->Hash);
-			bMatch = __xrtTls13ResumptionBinder(
-				Hash, Info.Secret, Partial,
+			bMatch = __xrtTls13ResumptionBinderTranscript(
+				Hash, Info.Secret,
+				pState->RetrySeen ? &pState->Transcript : NULL,
+				Partial,
 				Expected, pCipher->HashSize
 			);
 			if ( bMatch && !xrtConstTimeEqual(

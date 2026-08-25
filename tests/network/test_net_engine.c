@@ -6,6 +6,7 @@
 typedef struct testenginecontext {
 	xnetengine* Engine;
 	xnetpost EmbeddedPost;
+	xnetpost ShutdownPost;
 	xatomic32 Posts;
 	xatomic32 EmbeddedPosts;
 	xatomic32 WorkerZero;
@@ -14,6 +15,7 @@ typedef struct testenginecontext {
 	xatomic32 Fired;
 	xatomic32 Cancelled;
 	xatomic32 Closed;
+	xatomic32 ShutdownPosts;
 	xatomic32 Completion;
 	xatomic32 StopRejected;
 	xatomic32 BufferPool;
@@ -90,6 +92,22 @@ static void testEngineEmbeddedPost(xnetworker* pWorker, ptr pData)
 			pContext
 		), "embedded post callback repost failed");
 	}
+}
+
+
+
+/* 记录 Timer 关闭回调投递的固定点任务。 */
+static void testEngineShutdownPost(xnetworker* pWorker, ptr pData)
+{
+	testenginecontext* pContext = (testenginecontext*)pData;
+
+	testRequire(xrtNetWorkerIsCurrent(pWorker),
+		"shutdown post ran outside its worker");
+	(void)xrtAtomic32FetchAdd(
+		&pContext->ShutdownPosts,
+		1,
+		XMEMORY_RELEASE
+	);
 }
 
 
@@ -191,6 +209,12 @@ static void testEngineTimer(
 		);
 	} else if ( Result == XNET_RESULT_CLOSED ) {
 		(void)xrtAtomic32FetchAdd(&pContext->Closed, 1, XMEMORY_RELEASE);
+		testRequire(xrtNetPost(
+			pWorker,
+			&pContext->ShutdownPost,
+			testEngineShutdownPost,
+			pContext
+		), "timer close callback post failed");
 	} else {
 		testRequire(false, "engine timer returned unexpected terminal result");
 	}
@@ -267,6 +291,7 @@ int main(void)
 
 	memset(&Context, 0, sizeof(Context));
 	xrtNetPostInit(&Context.EmbeddedPost);
+	xrtNetPostInit(&Context.ShutdownPost);
 	testRequire(!xrtNetPostPending(&Context.EmbeddedPost),
 		"new embedded post is pending");
 	xrtNetEngineConfigInit(&Config);
@@ -441,6 +466,12 @@ int main(void)
 	testRequire(xrtNetEngineStop(pEngine), "engine stop failed");
 	testRequire(xrtAtomic32Load(&Context.Closed, XMEMORY_ACQUIRE) == 1,
 		"engine stop did not close pending timer");
+	testRequire(xrtAtomic32Load(
+		&Context.ShutdownPosts,
+		XMEMORY_ACQUIRE
+	) == 1, "engine stop lost timer close callback post");
+	testRequire(!xrtNetPostPending(&Context.ShutdownPost),
+		"engine stop retained a pending shutdown post");
 	testRequire(xrtNetEngineState(pEngine) == XNET_ENGINE_STOPPED,
 		"stopped engine state mismatch");
 	testRequire(!xrtNetEnginePost(pEngine, 0, testEnginePost, &Context),
@@ -451,8 +482,8 @@ int main(void)
 
 	testRequire(xrtNetEngineStats(pEngine, &Stats),
 		"engine stats failed");
-	testRequire((Stats.Workers == 2) && (Stats.PostsAccepted == 10) &&
-		(Stats.PostsExecuted == 10) && (Stats.TimersAccepted == 4) &&
+	testRequire((Stats.Workers == 2) && (Stats.PostsAccepted == 11) &&
+		(Stats.PostsExecuted == 11) && (Stats.TimersAccepted == 4) &&
 		(Stats.TimersFired == 1) && (Stats.TimersCancelled == 2) &&
 		(Stats.TimersClosed == 1) && (Stats.Events >= 1) &&
 		(Stats.ActiveTimers == 0) && (Stats.PendingCommands == 0),

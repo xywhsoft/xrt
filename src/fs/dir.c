@@ -111,6 +111,23 @@ static bool __xrtDirFlags(uint32 iFlags)
 
 #if defined(_WIN32) || defined(_WIN64)
 
+/* FindFirstFileW 的目录部分必须是字面路径，只允许扩展前缀自带的问号。 */
+static bool __xrtDirWindowsLiteralPath(cstr sPath)
+{
+	size_t iPosition = ((sPath[0] == '\\') && (sPath[1] == '\\') &&
+		(sPath[2] == '?') && (sPath[3] == '\\')) ? 4u : 0u;
+
+	for ( ; sPath[iPosition] != '\0'; iPosition++ ) {
+		if ( (sPath[iPosition] == '*') || (sPath[iPosition] == '?') ) {
+			__xrtErrorSetInvalidArgument();
+			return false;
+		}
+	}
+	return true;
+}
+
+
+
 /* 打开 Windows 目录枚举句柄，并保留首条结果。 */
 static bool __xrtDirOpenNative(xdir Dir)
 {
@@ -393,6 +410,11 @@ XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 		}
 		return NULL;
 	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( !__xrtDirWindowsLiteralPath(sPath) ) {
+			return NULL;
+		}
+	#endif
 	if ( !xrtPathStat(sPath, true, &Info) ) {
 		return NULL;
 	}

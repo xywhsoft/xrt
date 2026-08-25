@@ -553,6 +553,14 @@ static void __xrtNetResolverCachePut(
 	pEntry->Addresses = pAddresses != NULL ?
 		xrtNetAddrListRef(pAddresses) : NULL;
 	pEntry->Error = pError != NULL ? xrtErrorRef(pError) : NULL;
+	if ( ((pAddresses != NULL) && (pEntry->Addresses == NULL)) ||
+		((pError != NULL) && (pEntry->Error == NULL)) ) {
+		xrtNetAddrListDestroy(pEntry->Addresses);
+		xrtErrorFree(pEntry->Error);
+		xrtFree(pEntry);
+		xrtClearError();
+		return;
+	}
 
 	if ( pResolver->CachedResults >= pResolver->Config.CacheEntries ) {
 		__xrtNetResolverCacheRemove(pResolver, pResolver->LRUTail);

@@ -739,12 +739,16 @@ static bool __xrtTlsStreamAsyncSchedule(xtlsstream* pStream)
 	}
 	xrtTlsStreamRef(pStream);
 	pStream->AsyncPosted = true;
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pTransport->Worker,
 		&pStream->AsyncCommand,
 		__xrtTlsStreamAsyncTask,
 		pStream
-	);
+	) ) {
+		pStream->AsyncPosted = false;
+		xrtTlsStreamDestroy(pStream);
+		return false;
+	}
 	return true;
 }
 

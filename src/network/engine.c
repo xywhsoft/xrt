@@ -16,14 +16,24 @@
 #define XRT_NET_ENGINE_EVENT_BATCH_DEFAULT 128u
 #define XRT_NET_ENGINE_EVENT_BATCH_MAX 4096u
 #define XRT_NET_ENGINE_COMMAND_BUDGET 256u
+#define XRT_NET_ENGINE_SHUTDOWN_ROUNDS 1024u
 #define XRT_NET_ENGINE_TIMER_INITIAL 16u
 #define XRT_NET_ENGINE_IDLE_WAIT 1000000u
 #define XRT_NET_ENGINE_SUBMIT_CLOSED UINT32_C(0x80000000)
 #define XRT_NET_ENGINE_SUBMIT_COUNT UINT32_C(0x7fffffff)
+#define XRT_NET_ENGINE_WAKE_RETRIES 3u
+
+#define XRT_NET_ENGINE_SHUTDOWN_ACTIVE 0u
+#define XRT_NET_ENGINE_SHUTDOWN_DRAINING 1u
+#define XRT_NET_ENGINE_SHUTDOWN_SEALED 2u
 
 static const size_t __xrtNetEngineNodeSizes[
 	XRT_NET_ENGINE_NODE_CLASS_COUNT
 ] = { 64u, 128u, 256u, 512u, 1024u };
+
+
+
+static void __xrtNetEngineWake(xnetworker* pWorker);
 
 
 
@@ -107,6 +117,8 @@ static void __xrtNetEngineStatsInit(__xrt_net_engine_atomic_stats* pStats)
 	xrtAtomic64Init(&pStats->TimerErrors, 0);
 	xrtAtomic64Init(&pStats->Events, 0);
 	xrtAtomic64Init(&pStats->WaitErrors, 0);
+	xrtAtomic64Init(&pStats->WakeErrors, 0);
+	xrtAtomic64Init(&pStats->ShutdownStalls, 0);
 	xrtAtomic32Init(&pStats->LastWaitError, XNET_ERROR_NONE);
 	xrtAtomic32Init(&pStats->LastWaitSystemCode, 0);
 	xrtAtomic64Init(&pStats->NodeCacheHits, 0);
@@ -866,11 +878,80 @@ static size_t __xrtNetEngineCommandsDrain(
 
 
 
+/* 按投递代排空停机任务，大批已受理任务只占一代。 */
+static bool __xrtNetEngineShutdownDrain(xnetworker* pWorker)
+{
+	for ( uint32 i = 0; i < XRT_NET_ENGINE_SHUTDOWN_ROUNDS; i++ ) {
+		size_t iInternal = __xrtNetEngineInternalDrain(
+			pWorker,
+			SIZE_MAX
+		);
+		size_t iCommands = __xrtNetEngineCommandsDrain(
+			pWorker,
+			SIZE_MAX
+		);
+
+		if ( (iInternal == 0) && (iCommands == 0) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
+
+/* 记录一次不收敛停机并封闭后续内部投递。 */
+static void __xrtNetEngineShutdownStall(xnetworker* pWorker)
+{
+	uint32 iExpected = 0;
+
+	xrtAtomic32Store(
+		&pWorker->ShutdownPhase,
+		XRT_NET_ENGINE_SHUTDOWN_SEALED,
+		XMEMORY_RELEASE
+	);
+	if ( xrtAtomic32CompareExchange(
+		&pWorker->ShutdownFailed,
+		&iExpected,
+		1,
+		XMEMORY_ACQ_REL,
+		XMEMORY_ACQUIRE
+	) ) {
+		__xrtNetEngineStatError(&pWorker->Stats.ShutdownStalls, 1);
+	}
+}
+
+
+
+/* 封口后不再产生新任务，因此剩余快照必然有限。 */
+static void __xrtNetEngineShutdownDrainSealed(xnetworker* pWorker)
+{
+	for ( ;; ) {
+		size_t iInternal = __xrtNetEngineInternalDrain(
+			pWorker,
+			SIZE_MAX
+		);
+		size_t iCommands = __xrtNetEngineCommandsDrain(
+			pWorker,
+			SIZE_MAX
+		);
+
+		if ( (iInternal == 0) && (iCommands == 0) ) {
+			return;
+		}
+	}
+}
+
+
+
 /* Worker 主循环公平地交替处理命令、Timer 和端口事件。 */
 static int32 __xrtNetEngineWorkerMain(ptr pData)
 {
 	xnetworker* pWorker = (xnetworker*)pData;
 
+	if ( !__xrtNetPortThreadClaim(pWorker->Port) ) {
+		return 1;
+	}
 	xrtAtomic64Store(
 		&pWorker->ThreadId,
 		xrtThreadCurrentId(),
@@ -935,11 +1016,33 @@ static int32 __xrtNetEngineWorkerMain(ptr pData)
 		}
 		__xrtNetEngineTimersExpire(pWorker);
 	}
-	while ( (__xrtNetEngineInternalDrain(pWorker, SIZE_MAX) != 0) ||
-		 (__xrtNetEngineCommandsDrain(pWorker, SIZE_MAX) != 0) ) {
+	xrtAtomic32Store(
+		&pWorker->ShutdownPhase,
+		XRT_NET_ENGINE_SHUTDOWN_DRAINING,
+		XMEMORY_RELEASE
+	);
+	if ( !__xrtNetEngineShutdownDrain(pWorker) ) {
+		__xrtNetEngineShutdownStall(pWorker);
+		__xrtNetEngineShutdownDrainSealed(pWorker);
 	}
 	__xrtNetEngineTimersClose(pWorker);
+	if ( (xrtAtomic32Load(
+		&pWorker->ShutdownPhase,
+		XMEMORY_ACQUIRE
+	 ) != XRT_NET_ENGINE_SHUTDOWN_SEALED) &&
+		 !__xrtNetEngineShutdownDrain(pWorker) ) {
+		__xrtNetEngineShutdownStall(pWorker);
+	}
+	xrtAtomic32Store(
+		&pWorker->ShutdownPhase,
+		XRT_NET_ENGINE_SHUTDOWN_SEALED,
+		XMEMORY_RELEASE
+	);
+	__xrtNetEngineShutdownDrainSealed(pWorker);
 	xrtAtomic32Store(&pWorker->Running, 0, XMEMORY_RELEASE);
+	if ( !__xrtNetPortThreadRelease(pWorker->Port) ) {
+		return 1;
+	}
 	return 0;
 }
 
@@ -1050,6 +1153,12 @@ static bool __xrtNetEngineWorkerStart(xnetworker* pWorker)
 	}
 	xrtAtomic32Store(&pWorker->Stop, 0, XMEMORY_RELEASE);
 	xrtAtomic32Store(&pWorker->Running, 0, XMEMORY_RELEASE);
+	xrtAtomic32Store(
+		&pWorker->ShutdownPhase,
+		XRT_NET_ENGINE_SHUTDOWN_ACTIVE,
+		XMEMORY_RELEASE
+	);
+	xrtAtomic32Store(&pWorker->ShutdownFailed, 0, XMEMORY_RELEASE);
 	xrtAtomic32Store(&pWorker->CommandPending, 0, XMEMORY_RELEASE);
 	xrtAtomicPtrStore(
 		&pWorker->InternalCommands,
@@ -1109,12 +1218,17 @@ static bool __xrtNetEngineWorkerStart(xnetworker* pWorker)
 		(void)__xrtNetEngineWorkerUnit(pWorker);
 		return false;
 	}
+	if ( !__xrtNetPortThreadRelease(pWorker->Port) ) {
+		(void)__xrtNetEngineWorkerUnit(pWorker);
+		return false;
+	}
 	pWorker->Thread = xrtThreadCreate(
 		__xrtNetEngineWorkerMain,
 		pWorker,
 		pEngine->Config.ThreadStack
 	);
 	if ( pWorker->Thread == NULL ) {
+		(void)__xrtNetPortThreadClaim(pWorker->Port);
 		(void)__xrtNetEngineWorkerUnit(pWorker);
 		return false;
 	}
@@ -1123,6 +1237,7 @@ static bool __xrtNetEngineWorkerStart(xnetworker* pWorker)
 			(void)xrtThreadWait(pWorker->Thread);
 			xrtThreadDestroy(pWorker->Thread);
 			pWorker->Thread = NULL;
+			(void)__xrtNetPortThreadClaim(pWorker->Port);
 			(void)__xrtNetEngineWorkerUnit(pWorker);
 			__xrtNetEngineError(
 				XERR_INTERNAL,
@@ -1150,7 +1265,7 @@ static void __xrtNetEngineWorkerStopRequest(xnetworker* pWorker)
 		xrtMPSCQueueClose(&pWorker->Commands);
 	}
 	if ( pWorker->Port != NULL ) {
-		(void)xrtNetPortWake(pWorker->Port);
+		__xrtNetEngineWake(pWorker);
 	}
 }
 
@@ -1159,16 +1274,36 @@ static void __xrtNetEngineWorkerStopRequest(xnetworker* pWorker)
 /* 等待一个已请求停止的 Worker 排空任务并释放运行资源。 */
 static bool __xrtNetEngineWorkerStop(xnetworker* pWorker)
 {
+	bool bResult;
+	bool bShutdownFailed;
+
 	if ( pWorker->Thread == NULL ) {
 		return __xrtNetEngineWorkerUnit(pWorker);
 	}
 	if ( xrtThreadWait(pWorker->Thread) != XWAIT_OK ) {
 		return false;
 	}
+	bShutdownFailed = xrtAtomic32Load(
+		&pWorker->ShutdownFailed,
+		XMEMORY_ACQUIRE
+	) != 0;
 	xrtThreadDestroy(pWorker->Thread);
 	pWorker->Thread = NULL;
 	xrtAtomic64Store(&pWorker->ThreadId, 0, XMEMORY_RELEASE);
-	return __xrtNetEngineWorkerUnit(pWorker);
+	if ( !__xrtNetPortThreadClaim(pWorker->Port) ) {
+		return false;
+	}
+	bResult = __xrtNetEngineWorkerUnit(pWorker);
+	if ( bShutdownFailed ) {
+		__xrtNetEngineError(
+			XERR_STATE,
+			XNET_ERROR_ENGINE_STOP,
+			"stop-worker",
+			"network worker shutdown tasks did not converge"
+		);
+		return false;
+	}
+	return bResult;
 }
 
 
@@ -1220,15 +1355,14 @@ static bool __xrtNetEngineWorkersStop(
 
 
 
-/* 在 Engine 仍运行时占用 Worker 提交侧，防止 Stop 提前释放队列。 */
-static bool __xrtNetEngineSubmitEnter(xnetworker* pWorker)
+/* 占用 Worker 提交侧，关门后不再允许新生产者进入。 */
+static bool __xrtNetEngineSubmitGateEnter(xnetworker* pWorker)
 {
-	uint32 iGate;
+	uint32 iGate = xrtAtomic32Load(
+		&pWorker->Submitters,
+		XMEMORY_ACQUIRE
+	);
 
-	if ( xrtNetEngineState(pWorker->Engine) != XNET_ENGINE_RUNNING ) {
-		return false;
-	}
-	iGate = xrtAtomic32Load(&pWorker->Submitters, XMEMORY_ACQUIRE);
 	for ( ;; ) {
 		uint32 iExpected = iGate;
 
@@ -1247,6 +1381,20 @@ static bool __xrtNetEngineSubmitEnter(xnetworker* pWorker)
 			break;
 		}
 		iGate = iExpected;
+	}
+	return true;
+}
+
+
+
+/* 在 Engine 仍运行时占用 Worker 提交侧，防止 Stop 提前释放队列。 */
+static bool __xrtNetEngineSubmitEnter(xnetworker* pWorker)
+{
+	if ( xrtNetEngineState(pWorker->Engine) != XNET_ENGINE_RUNNING ) {
+		return false;
+	}
+	if ( !__xrtNetEngineSubmitGateEnter(pWorker) ) {
+		return false;
 	}
 	if ( xrtNetEngineState(pWorker->Engine) != XNET_ENGINE_RUNNING ) {
 		(void)xrtAtomic32FetchSub(
@@ -1456,6 +1604,11 @@ XRT_API xnetengine* xrtNetEngineCreate(const xnetengineconfig* pConfig)
 		pWorker->Index = i;
 		xrtAtomic32Init(&pWorker->Running, 0);
 		xrtAtomic32Init(&pWorker->Stop, 0);
+		xrtAtomic32Init(
+			&pWorker->ShutdownPhase,
+			XRT_NET_ENGINE_SHUTDOWN_ACTIVE
+		);
+		xrtAtomic32Init(&pWorker->ShutdownFailed, 0);
 		xrtAtomic32Init(
 			&pWorker->Submitters,
 			XRT_NET_ENGINE_SUBMIT_CLOSED
@@ -1882,6 +2035,29 @@ XRT_API uint64 xrtNetWorkerOperationId(xnetworker* pWorker)
 
 
 
+/* 有限重试端口唤醒；命令已经入队时失败只影响调度延迟。 */
+static void __xrtNetEngineWake(xnetworker* pWorker)
+{
+	bool bFailed = false;
+
+	for ( uint32 i = 0; i < XRT_NET_ENGINE_WAKE_RETRIES; i++ ) {
+		if ( xrtNetPortWake(pWorker->Port) ) {
+			if ( bFailed ) {
+				xrtClearError();
+			}
+			return;
+		}
+		bFailed = true;
+		if ( (i + 1u) < XRT_NET_ENGINE_WAKE_RETRIES ) {
+			xrtThreadYield();
+		}
+	}
+	__xrtNetEngineStatError(&pWorker->Stats.WakeErrors, 1);
+	xrtClearError();
+}
+
+
+
 /* 把一个已构造命令提交到 Worker 的有界队列。 */
 static bool __xrtNetEngineCommandPush(
 	xnetworker* pWorker,
@@ -1903,9 +2079,7 @@ static bool __xrtNetEngineCommandPush(
 	);
 
 	if ( Result == XQUEUE_OK ) {
-		if ( !xrtNetPortWake(pWorker->Port) ) {
-			xrtClearError();
-		}
+		__xrtNetEngineWake(pWorker);
 		return true;
 	}
 	(void)xrtAtomic32FetchSub(
@@ -1994,14 +2168,40 @@ XRT_API bool xrtNetEnginePost(
 
 
 /* 投递一个不受公开命令容量和分配器影响的内部生命周期命令。 */
-void __xrtNetEnginePostInternal(
+bool __xrtNetEnginePostInternal(
 	xnetworker* pWorker,
 	__xrt_net_engine_internal* pCommand,
 	xnettaskproc pProc,
 	ptr pData
 )
 {
-	ptr pHead = xrtAtomicPtrLoad(
+	ptr pHead;
+	bool bCurrent;
+	bool bEntered = false;
+
+	if ( (pWorker == NULL) || (pCommand == NULL) || (pProc == NULL) ) {
+		return false;
+	}
+	bCurrent = xrtNetWorkerIsCurrent(pWorker);
+	if ( !bCurrent ) {
+		bEntered = __xrtNetEngineSubmitGateEnter(pWorker);
+		if ( !bEntered ) {
+			return false;
+		}
+	}
+	if ( (xrtAtomic32Load(
+		&pWorker->Running,
+		XMEMORY_ACQUIRE
+	 ) == 0) || (xrtAtomic32Load(
+		&pWorker->ShutdownPhase,
+		XMEMORY_ACQUIRE
+	 ) == XRT_NET_ENGINE_SHUTDOWN_SEALED) ) {
+		if ( bEntered ) {
+			__xrtNetEngineSubmitLeave(pWorker);
+		}
+		return false;
+	}
+	pHead = xrtAtomicPtrLoad(
 		&pWorker->InternalCommands,
 		XMEMORY_ACQUIRE
 	);
@@ -2028,9 +2228,11 @@ void __xrtNetEnginePostInternal(
 		}
 		pHead = pExpected;
 	}
-	if ( !xrtNetPortWake(pWorker->Port) ) {
-		xrtClearError();
+	__xrtNetEngineWake(pWorker);
+	if ( bEntered ) {
+		__xrtNetEngineSubmitLeave(pWorker);
 	}
+	return true;
 }
 
 
@@ -2101,6 +2303,8 @@ XRT_API bool xrtNetPost(
 {
 	xrt_net_post_impl* pImpl;
 	uint32 iExpected = 0;
+	bool bCurrent;
+	bool bEntered = false;
 
 	if ( (pWorker == NULL) ||
 		!__xrtRangeValid(pPost, sizeof(*pPost)) ||
@@ -2109,6 +2313,7 @@ XRT_API bool xrtNetPost(
 		return false;
 	}
 	pImpl = __xrtNetPostImpl(pPost);
+	bCurrent = xrtNetWorkerIsCurrent(pWorker);
 	if ( pImpl->Magic != XRT_NET_POST_MAGIC ) {
 		__xrtNetEngineStatError(&pWorker->Stats.PostsRejected, 1);
 		__xrtErrorSetInvalidState();
@@ -2127,6 +2332,19 @@ XRT_API bool xrtNetPost(
 		);
 		return false;
 	}
+	if ( !bCurrent ) {
+		bEntered = __xrtNetEngineSubmitEnter(pWorker);
+		if ( !bEntered ) {
+			__xrtNetEngineStatError(&pWorker->Stats.PostsRejected, 1);
+			__xrtNetEngineError(
+				XERR_CLOSED,
+				XNET_ERROR_ENGINE_POST,
+				"post-worker",
+				"network worker is not accepting posts"
+			);
+			return false;
+		}
+	}
 	if ( !xrtAtomic32CompareExchange(
 		&pImpl->Pending,
 		&iExpected,
@@ -2134,6 +2352,9 @@ XRT_API bool xrtNetPost(
 		XMEMORY_ACQ_REL,
 		XMEMORY_ACQUIRE
 	) ) {
+		if ( bEntered ) {
+			__xrtNetEngineSubmitLeave(pWorker);
+		}
 		__xrtNetEngineStatError(&pWorker->Stats.PostsRejected, 1);
 		__xrtNetEngineError(
 			XERR_STATE,
@@ -2145,13 +2366,31 @@ XRT_API bool xrtNetPost(
 	}
 	pImpl->Task = pProc;
 	pImpl->Data = pData;
-	__xrtNetEngineStatAdd(&pWorker->Stats.PostsAccepted, 1);
-	__xrtNetEnginePostInternal(
+	if ( !__xrtNetEnginePostInternal(
 		pWorker,
 		&pImpl->Internal,
 		__xrtNetPostTask,
 		pImpl
-	);
+	) ) {
+		pImpl->Task = NULL;
+		pImpl->Data = NULL;
+		xrtAtomic32Store(&pImpl->Pending, 0, XMEMORY_RELEASE);
+		if ( bEntered ) {
+			__xrtNetEngineSubmitLeave(pWorker);
+		}
+		__xrtNetEngineStatError(&pWorker->Stats.PostsRejected, 1);
+		__xrtNetEngineError(
+			XERR_CLOSED,
+			XNET_ERROR_ENGINE_POST,
+			"post-worker",
+			"network worker shutdown is sealed"
+		);
+		return false;
+	}
+	if ( bEntered ) {
+		__xrtNetEngineSubmitLeave(pWorker);
+	}
+	__xrtNetEngineStatAdd(&pWorker->Stats.PostsAccepted, 1);
 	return true;
 }
 
@@ -2455,6 +2694,10 @@ XRT_API bool xrtNetWorkerStats(
 	pStats->Events = __xrtNetEngineStatLoad(&pWorker->Stats.Events);
 	pStats->WaitErrors =
 		__xrtNetEngineStatLoad(&pWorker->Stats.WaitErrors);
+	pStats->WakeErrors =
+		__xrtNetEngineStatLoad(&pWorker->Stats.WakeErrors);
+	pStats->ShutdownStalls =
+		__xrtNetEngineStatLoad(&pWorker->Stats.ShutdownStalls);
 	pStats->LastWaitError = (xneterror)xrtAtomic32Load(
 		&pWorker->Stats.LastWaitError,
 		XMEMORY_ACQUIRE
@@ -2516,6 +2759,8 @@ XRT_API bool xrtNetEngineStats(
 		pStats->TimerErrors += WorkerStats.TimerErrors;
 		pStats->Events += WorkerStats.Events;
 		pStats->WaitErrors += WorkerStats.WaitErrors;
+		pStats->WakeErrors += WorkerStats.WakeErrors;
+		pStats->ShutdownStalls += WorkerStats.ShutdownStalls;
 		pStats->NodeCacheHits += WorkerStats.NodeCacheHits;
 		pStats->NodeCacheMisses += WorkerStats.NodeCacheMisses;
 		pStats->PendingCommands += WorkerStats.PendingCommands;
