@@ -277,6 +277,13 @@ static void testSocketUdpMeta(void)
 		(Meta.Destination.Port == 0) && (Meta.Interface != 0),
 		"UDP metadata fields mismatch");
 	if ( (iMetadata & XNET_DGRAM_META_HOP_LIMIT) != 0 ) {
+		if ( !(((Meta.Flags & XNET_DGRAM_META_HOP_LIMIT) != 0) &&
+			(Meta.HopLimit > 0) && (Meta.HopLimit <= 255)) ) {
+			fprintf(stderr,
+				"[diag] hop-limit: flags=%x hop=%d (want flag %x)\n",
+				(unsigned)Meta.Flags, (int)Meta.HopLimit,
+				(unsigned)XNET_DGRAM_META_HOP_LIMIT);
+		}
 		testRequire(((Meta.Flags & XNET_DGRAM_META_HOP_LIMIT) != 0) &&
 			(Meta.HopLimit > 0) && (Meta.HopLimit <= 255),
 			"UDP hop-limit metadata mismatch");
