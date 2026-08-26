@@ -315561,7 +315561,7 @@ XRT_API bool xrtProcessPipeline(
 	xprocesspipe* pPipes = NULL;
 	xwaitresult Wait = XWAIT_OK;
 	uint64 iStart = 0u;
-	size_t iPumpCount;
+	size_t iPumpCount = 0;
 	bool bNeedInput = false;
 	bool bLockReady = false;
 	bool bOk = false;
