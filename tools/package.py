@@ -351,6 +351,17 @@ def _link_msvc_shared(
 		*extra_ldflags,
 	]
 	xrt_build._run_compiler(command, output.with_suffix(output.suffix + ".rsp"))
+	# 个别 cl 版本在响应文件模式下忽略 /OUT 与 /IMPLIB，产物按首个
+	# 对象的默认名落在当前目录；此处显式收回到期望位置。
+	if (not output.exists()) or (not import_library.exists()):
+		fallback_base = ROOT / objects[0].stem
+		if (not output.exists()) and fallback_base.with_suffix(".dll").is_file():
+			shutil.move(str(fallback_base.with_suffix(".dll")), str(output))
+		if (not import_library.exists()) and fallback_base.with_suffix(".lib").is_file():
+			shutil.move(str(fallback_base.with_suffix(".lib")), str(import_library))
+		fallback_base.with_suffix(".exp").unlink(missing_ok=True)
+	if not import_library.exists():
+		raise SystemExit(f"msvc import library was not produced: {import_library}")
 
 
 
