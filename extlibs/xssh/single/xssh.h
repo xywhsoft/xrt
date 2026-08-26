@@ -179269,7 +179269,7 @@ static uint32 __xrtAesHardwareFeatures(void)
 	uint32 iFeatures = 0;
 
 	#if XRT_AES_X86_HARDWARE
-		#if defined(_MSC_VER)
+		#if defined(_MSC_VER) && !defined(__clang__)
 			int Cpu[4];
 
 			__cpuid(Cpu, 0);
