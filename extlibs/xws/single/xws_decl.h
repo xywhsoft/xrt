@@ -40258,6 +40258,11 @@ XRT_API xvalue* xrtValueObject(void);
 
 
 
+/* 创建保持首次插入顺序、最终按逆插入顺序释放拥有值的字符串键对象。 */
+XRT_API xvalue* xrtValueObjectLifo(void);
+
+
+
 /* 返回任一基础容器的元素数。 */
 XRT_API size_t xrtValueCount(const xvalue* pValue);
 

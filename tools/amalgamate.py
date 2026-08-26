@@ -449,6 +449,9 @@ def _content(overlays: list[Path] | None = None) -> tuple[Path, str]:
 		_license_banner(),
 		"\n",
 		"/* 此文件由 tools/amalgamate.py 生成，请勿直接修改。 */\n",
+		f"#if defined({implementation_macro}) && defined(_MSC_VER) && \\\n\t!defined(_CRT_SECURE_NO_WARNINGS)\n",
+		"\t#define _CRT_SECURE_NO_WARNINGS\n",
+		"#endif\n",
 		f"#if defined({implementation_macro}) && \\\n\t!defined(_WIN32) && !defined(_WIN64)\n",
 		"\t#if defined(__linux__) && !defined(_GNU_SOURCE)\n",
 		"\t\t#define _GNU_SOURCE 1\n",
@@ -456,9 +459,6 @@ def _content(overlays: list[Path] | None = None) -> tuple[Path, str]:
 		"\t#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)\n",
 		"\t\t#define _DARWIN_C_SOURCE 1\n",
 		"\t#endif\n",
-		"\t#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)\n"
-		"\t\t#define _CRT_SECURE_NO_WARNINGS\n"
-		"\t#endif\n"
 		"\t#if !defined(_POSIX_C_SOURCE)\n",
 		"\t\t#define _POSIX_C_SOURCE 200809L\n",
 		"\t#endif\n",

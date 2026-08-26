@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `286` 个可运行示例。
+当前共登记 `287` 个可运行示例。
 
 ## asn1 (2)
 
@@ -341,12 +341,13 @@
 - [tls/stream_future](../examples/tls/stream_future/main.c) - `tls_stream_future`
 - [tls/verify](../examples/tls/verify/main.c) - `tls_verify`
 
-## value (8)
+## value (9)
 
 - [value/basic](../examples/value/basic/main.c) - `value`
 - [value/collections/batch](../examples/value/collections/batch/main.c) - `value_collection`
 - [value/collections](../examples/value/collections/main.c) - `value_collection`
 - [value/containers/indexed](../examples/value/containers/indexed/main.c) - `value_container`
+- [value/containers/lifo](../examples/value/containers/lifo/main.c) - `value_container`
 - [value/containers](../examples/value/containers/main.c) - `value_container`
 - [value/graph](../examples/value/graph/main.c) - `value_graph`
 - [value/handle](../examples/value/handle/main.c) - `value`

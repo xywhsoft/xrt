@@ -143,11 +143,9 @@ static bool __xrtX509StoreWindowsLocation(
 			(size_t)pCertificate->cbCertEncoded
 		);
 		if ( Result == X509_ERROR ) {
-			/* OS 信任库可能包含不完全符合 RFC 5280 的存量根证书
-			   （如 NameConstraints 未标记 critical）。系统导入只跳过
-			   被严格策略拒绝的单张证书；OOM 等资源错误必须照常失败，
-			   保持 OOM 注入下的失败原子性。 */
-			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+			/* 系统库允许存在 XRT 严格策略不接受的单张存量证书，
+			   但资源、状态和基础设施错误必须终止事务。 */
+			if ( !__xrtX509StoreSystemCanSkip(xrtGetError()) ) {
 				pApi->Free(pCertificate);
 				(void)pApi->Close(Store, 0);
 				__xrtX509StoreSystemFailure(

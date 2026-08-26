@@ -428,15 +428,36 @@ def _object_source_fingerprint(
 
 
 
-def _response_argument(argument: str) -> str:
-	"""生成 GCC、Clang 和 TCC 都能读取的响应文件参数。"""
+def _response_argument(argument: str, msvc: bool = False) -> str:
+	"""按驱动器语法生成一个不会丢失路径边界的响应文件参数。"""
 
-	# MSVC 的 /选项 一旦被引号包裹就会按文件名解析（/IMPLIB 等
-	# 会静默丢失），因此以 / 开头的参数原样写入。
-	if argument.startswith("/"):
-		return argument
 	normalized = argument.replace("\\", "/")
+	if msvc and argument.startswith("/"):
+		if not any(character.isspace() for character in normalized):
+			return normalized
+		for prefix in ("/I", "/Fe", "/Fo", "/Fd", "/Fa", "/Fp", "/FI", "/FU"):
+			if normalized.startswith(prefix):
+				value = normalized[len(prefix):]
+				return prefix + '"' + value.replace('"', '\\"') + '"'
+		if ":" in normalized:
+			option, value = normalized.split(":", 1)
+			return option + ':"' + value.replace('"', '\\"') + '"'
 	return '"' + normalized.replace('"', '\\"') + '"'
+
+
+
+def _response_uses_msvc_syntax(command: str) -> bool:
+	"""识别使用 MSVC 响应文件词法的编译器和归档器。"""
+
+	name = Path(command).stem.lower()
+	return name in {
+		"cl",
+		"clang-cl",
+		"lib",
+		"link",
+		"lld-link",
+		"llvm-lib",
+	}
 
 
 
@@ -453,8 +474,11 @@ def _run_compiler(
 	use_response = len(subprocess.list2cmdline(command)) >= 24000
 	if use_response:
 		response_path.parent.mkdir(parents=True, exist_ok=True)
+		msvc = _response_uses_msvc_syntax(command[0])
 		response_path.write_text(
-			"\n".join(_response_argument(item) for item in command[1:]) + "\n",
+			"\n".join(
+				_response_argument(item, msvc) for item in command[1:]
+			) + "\n",
 			encoding="utf-8",
 		)
 		actual = [command[0], "@" + str(response_path)]

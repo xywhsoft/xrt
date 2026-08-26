@@ -8,7 +8,8 @@
 #define XRT_MAP_FLAG_READY    0x0001u
 #define XRT_MAP_FLAG_BUSY     0x0002u
 #define XRT_MAP_FLAG_VISITING 0x0004u
-#define XRT_MAP_FLAGS         0x0007u
+#define XRT_MAP_FLAG_DROP_REVERSE 0x0008u
+#define XRT_MAP_FLAGS         0x000Fu
 
 
 
@@ -135,6 +136,31 @@ bool __xrtMapCanMutate(xmap* pMap)
 	}
 
 	return true;
+}
+
+
+
+/* 配置值释放器的调用顺序，公开键顺序和桶结构不受影响。 */
+bool __xrtMapSetDropReverse(xmap* pMap, bool bReverse)
+{
+	if ( !__xrtMapCanMutate(pMap) ) {
+		return false;
+	}
+	if ( bReverse ) {
+		pMap->Flags |= XRT_MAP_FLAG_DROP_REVERSE;
+	} else {
+		pMap->Flags &= ~XRT_MAP_FLAG_DROP_REVERSE;
+	}
+	return true;
+}
+
+
+
+/* 查询拥有型封装已经固定的释放顺序。 */
+bool __xrtMapDropsReverse(const xmap* pMap)
+{
+	return __xrtMapValid(pMap) &&
+		((pMap->Flags & XRT_MAP_FLAG_DROP_REVERSE) != 0);
 }
 
 
@@ -880,10 +906,11 @@ static void __xrtMapUnlink(
 /* 释放全部条目并按需调用值释放器。 */
 static void __xrtMapReleaseAll(xmap* pMap)
 {
-	xmapentry* pEntry = pMap->First;
+	bool bReverse = (pMap->Flags & XRT_MAP_FLAG_DROP_REVERSE) != 0;
+	xmapentry* pEntry = bReverse ? pMap->Last : pMap->First;
 
 	while ( pEntry != NULL ) {
-		xmapentry* pNext = pEntry->OrderNext;
+		xmapentry* pNext = bReverse ? pEntry->OrderPrev : pEntry->OrderNext;
 
 		__xrtMapDropValue(pMap, pEntry);
 		__xrtMapFreeEntry(pEntry);

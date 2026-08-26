@@ -701,6 +701,44 @@ class CompilerFlagsTest(unittest.TestCase):
 
 
 
+class ResponseArgumentTest(unittest.TestCase):
+	"""验证 GNU 与 MSVC 响应文件不会混淆绝对路径和选项。"""
+
+	def test_posix_absolute_path_with_spaces_is_quoted(self) -> None:
+		"""POSIX 的 `/` 是路径根，不能按 MSVC 选项原样写出。"""
+
+		self.assertEqual(
+			xrt_build._response_argument("/tmp/xrt objects/core.o"),
+			'"/tmp/xrt objects/core.o"',
+		)
+
+	def test_msvc_path_option_quotes_only_the_value(self) -> None:
+		"""MSVC 路径选项只引用值，不能把选项名伪装成文件名。"""
+
+		self.assertEqual(
+			xrt_build._response_argument(
+				"/OUT:C:\\xrt release\\xrt.dll",
+				True,
+			),
+			'/OUT:"C:/xrt release/xrt.dll"',
+		)
+		self.assertEqual(
+			xrt_build._response_argument("/nologo", True),
+			"/nologo",
+		)
+
+	def test_response_syntax_uses_driver_name(self) -> None:
+		"""绝对 GNU 编译器路径仍使用 GNU 词法。"""
+
+		self.assertFalse(
+			xrt_build._response_uses_msvc_syntax("/usr/bin/clang")
+		)
+		self.assertTrue(
+			xrt_build._response_uses_msvc_syntax("C:/LLVM/bin/clang-cl.exe")
+		)
+
+
+
 class ObjectCacheTest(unittest.TestCase):
 	"""验证对象缓存只重建受实现或共享头文件影响的编译单元。"""
 

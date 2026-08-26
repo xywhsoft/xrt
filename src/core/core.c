@@ -132,8 +132,10 @@ uint32 __xrtProcessorCount(void)
 		size_t iSize = sizeof(iCount);
 
 		/* -std=c11 的严格 ISO 模式会隐藏 _SC_NPROCESSORS_ONLN，Apple 走 sysctl */
-		if ( sysctl(aMib, 2, &iCount, &iSize, NULL, 0) != 0 || iCount <= 0 )
+		if ( (sysctl(aMib, 2, &iCount, &iSize, NULL, 0) != 0) ||
+			(iCount <= 0) ) {
 			iCount = 1;
+		}
 		return (uint32)iCount;
 	#elif defined(_SC_NPROCESSORS_ONLN)
 		long iCount = sysconf(_SC_NPROCESSORS_ONLN);

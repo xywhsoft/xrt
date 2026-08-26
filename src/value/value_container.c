@@ -1,4 +1,5 @@
 #include "../internal/xrt_value.h"
+#include "../internal/xrt_map.h"
 
 
 
@@ -468,7 +469,11 @@ static bool __xrtValueObjectBackingCopy(
 	xbytesview Key = {0};
 	ptr pSlot;
 
-	if ( !xrtMapReserve(&pTarget->Items, xrtMapCount(&pSource->Items)) ||
+	if ( !__xrtMapSetDropReverse(
+			&pTarget->Items,
+			__xrtMapDropsReverse(&pSource->Items)
+		 ) ||
+		 !xrtMapReserve(&pTarget->Items, xrtMapCount(&pSource->Items)) ||
 		 !xrtMapIterBegin(&pSource->Items, &tIterator) ) {
 		return false;
 	}
@@ -1023,6 +1028,19 @@ const xset* __xrtValueSetItems(const xvalue* pValue)
 
 
 
+/* 查询 Object backing 的拥有值释放顺序。 */
+bool __xrtValueObjectDropsReverse(const xvalue* pValue)
+{
+	xvalueobjectbacking* pBacking = (xvalueobjectbacking*)__xrtValueBacking(
+		pValue,
+		XVALUE_OBJECT
+	);
+
+	return (pBacking != NULL) && __xrtMapDropsReverse(&pBacking->Items);
+}
+
+
+
 #if defined(XRT_FEATURE_VALUE_COLLECTION)
 
 /* 把准备容器的完整 backing 原子提交给同类型目标。 */
@@ -1061,6 +1079,27 @@ bool __xrtValueContainerCommit(xvalue* pTarget, xvalue* pPrepared)
 	}
 	if ( Result == XVALUE_CONTAINS_ERROR ) {
 		return false;
+	}
+	if ( pTarget->Type == XVALUE_OBJECT ) {
+		bool bTargetReverse = __xrtMapDropsReverse(
+			&((xvalueobjectbacking*)pTargetBacking)->Items
+		);
+		bool bPreparedReverse = __xrtMapDropsReverse(
+			&((xvalueobjectbacking*)pPreparedBacking)->Items
+		);
+
+		if ( bTargetReverse != bPreparedReverse ) {
+			if ( !__xrtValueEnsureUnique(pPrepared) ) {
+				return false;
+			}
+			pPreparedBacking = pPrepared->Data.Backing;
+			if ( !__xrtMapSetDropReverse(
+					&((xvalueobjectbacking*)pPreparedBacking)->Items,
+					bTargetReverse
+			) ) {
+				return false;
+			}
+		}
 	}
 	pTarget->Data.Backing = pPreparedBacking;
 	pPrepared->Data.Backing = pTargetBacking;
@@ -1123,6 +1162,29 @@ XRT_API xvalue* xrtValueSet(void)
 XRT_API xvalue* xrtValueObject(void)
 {
 	return __xrtValueContainerCreate(XVALUE_OBJECT);
+}
+
+
+
+/* 创建遍历顺序稳定、拥有值按栈顺序析构的对象。 */
+XRT_API xvalue* xrtValueObjectLifo(void)
+{
+	xvalue* pValue = __xrtValueContainerCreate(XVALUE_OBJECT);
+	xvaluebacking* pBacking;
+
+	if ( pValue == NULL ) {
+		return NULL;
+	}
+	pBacking = __xrtValueBacking(pValue, XVALUE_OBJECT);
+	if ( (pBacking == NULL) ||
+		 !__xrtMapSetDropReverse(
+			&((xvalueobjectbacking*)pBacking)->Items,
+			true
+		 ) ) {
+		xrtValueRelease(pValue);
+		return NULL;
+	}
+	return pValue;
 }
 
 

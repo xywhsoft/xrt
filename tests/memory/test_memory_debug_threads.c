@@ -3,8 +3,8 @@
 
 
 
-#define TEST_MEMDEBUG_THREAD_COUNT 4
-#define TEST_MEMDEBUG_ITERATIONS 5000
+#define TEST_MEMDEBUG_THREAD_COUNT 8
+#define TEST_MEMDEBUG_ITERATIONS 8000
 
 
 
@@ -15,7 +15,7 @@ typedef struct test_memdebug_thread_context {
 
 
 
-/* 反复跨越池化与隔离边界，压测调试链表和统计锁。 */
+/* 反复跨越池化与 backing 隔离边界，压测并发淘汰和统计快照。 */
 static int testMemDebugThreadRun(ptr pData)
 {
 	test_memdebug_thread_context* pContext = (test_memdebug_thread_context*)pData;

@@ -85,7 +85,12 @@ Process 核心不缓存输出。需要并发排空和有界结果时选择 `proc
 
 Terminal 会取代三项标准流配置：父端通过 stdin 写入，通过 stdout 读取终端的统一字节流；子进程 stderr 也进入该字节流，因此 `xrtProcessStreamNative(..., XPROCESS_STDERR)` 返回 `-1`。终端输出可能包含输入回显、平台换行和程序产生的控制序列，调用方应按终端流而不是普通 stdout 文本处理。
 
-POSIX PTY 的读端和写端共享同一个 master。关闭父端 stdin 写描述符不等于向规范模式终端发送 EOF；交互程序应写入 EOT、发送退出命令或明确停止进程。`xrtProcessRun()` 使用 Terminal 时把 stderr 合并进 Result.Stdout，Result.Stderr 为空。
+POSIX PTY 的读端和写端共享同一个 master。普通 `xrtProcessClose()` 只关闭父端写描述符，
+不等于向规范模式终端发送 EOF；手动交互程序应写入 EOT、发送退出命令或明确停止进程。
+`xrtProcessRun()` 是有限输入的一次性路径，会在输入末尾补充平台规范终端 EOF 序列；
+Windows 的 Ctrl-Z 必须位于新行起点，因此未以换行结束的输入会先补一个终端换行。
+原始/非 processed 输入模式可能把控制字符作为普通输入，程序此时应使用退出命令或
+普通管道。使用 Terminal 时 stderr 合并进 `Result.Stdout`，`Result.Stderr` 为空。
 
 
 

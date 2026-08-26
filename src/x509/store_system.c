@@ -42,6 +42,26 @@ void __xrtX509StoreSystemFailure(cstr sMessage)
 
 
 
+/* 区分可跳过的存量证书兼容问题与必须终止导入的基础设施失败。 */
+bool __xrtX509StoreSystemCanSkip(const xerror* pError)
+{
+	while ( pError != NULL ) {
+		cstr sDomain = xrtErrorDomain(pError);
+		int32 iCode = xrtErrorCode(pError);
+		xerrkind Kind = xrtErrorKind(pError);
+
+		if ( (sDomain != NULL) && (strcmp(sDomain, "xrt.x509") == 0) &&
+			(iCode != X509_ERROR_TRUST_STORE) &&
+			(iCode != X509_ERROR_TRUST_STORE_SYSTEM) ) {
+			return (Kind == XERR_PROTOCOL) || (Kind == XERR_UNSUPPORTED);
+		}
+		pError = xrtErrorCause(pError);
+	}
+	return false;
+}
+
+
+
 /* 原子导入当前平台可见的系统信任锚。 */
 XRT_API bool xrtX509StoreAddSystem(xx509store* pStore, size_t* pAdded)
 {

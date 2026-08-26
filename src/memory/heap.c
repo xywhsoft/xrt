@@ -811,13 +811,15 @@ static bool __xrtHeapFree(ptr pMemory, cstr sFile, uint32 iLine)
 
 	if ( (pHeader->Flags & XRT_HEAP_FLAG_POOLED) != 0 ) {
 		xrt_heap_free* pNode = (xrt_heap_free*)pMemory;
-		size_t iCapacity = __xrtHeapClassCapacity(pHeader->Class);
+		size_t iSize = pHeader->Size;
+		uint16 iClass = pHeader->Class;
+		size_t iCapacity = __xrtHeapClassCapacity(iClass);
 		int iDisposition = __xrtMemDebugFree(pHeader, pMemory, iCapacity, sFile, iLine);
 
 		if ( iDisposition == XRT_MEMDEBUG_FREE_INVALID ) {
 			return false;
 		}
-		__xrtMemStatsBlockFree(pHeader->Size, pHeader->Class, true);
+		__xrtMemStatsBlockFree(iSize, iClass, true);
 		if ( iDisposition == XRT_MEMDEBUG_FREE_CONSUMED ) {
 			return true;
 		}
@@ -825,22 +827,23 @@ static bool __xrtHeapFree(ptr pMemory, cstr sFile, uint32 iLine)
 		#if !defined(XRT_FEATURE_MEMORY_DEBUG)
 			pHeader->Magic = 0;
 		#endif
-		__xrtHeapReturn(pHeader->Class, pNode);
+		__xrtHeapReturn(iClass, pNode);
 		return true;
 	}
 	if ( (pHeader->Flags & XRT_HEAP_FLAG_BACKING) != 0 ) {
-		size_t iCapacity = (pHeader->Size != 0 ? pHeader->Size : 1) + __xrtMemDebugTailSize();
+		size_t iSize = pHeader->Size;
+		uint16 iClass = pHeader->Class;
+		ptr pAllocation = pHeader->Allocation;
+		size_t iCapacity = (iSize != 0 ? iSize : 1) + __xrtMemDebugTailSize();
 		int iDisposition = __xrtMemDebugFree(pHeader, pMemory, iCapacity, sFile, iLine);
-		ptr pAllocation;
 
 		if ( iDisposition == XRT_MEMDEBUG_FREE_INVALID ) {
 			return false;
 		}
-		__xrtMemStatsBlockFree(pHeader->Size, pHeader->Class, false);
+		__xrtMemStatsBlockFree(iSize, iClass, false);
 		if ( iDisposition == XRT_MEMDEBUG_FREE_CONSUMED ) {
 			return true;
 		}
-		pAllocation = pHeader->Allocation;
 		pHeader->Magic = 0;
 		__xrtBackingFree(pAllocation);
 		return true;

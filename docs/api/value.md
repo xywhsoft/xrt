@@ -141,6 +141,7 @@ xvalue* xrtValueArray(void);
 xvalue* xrtValueIntMap(void);
 xvalue* xrtValueSet(void);
 xvalue* xrtValueObject(void);
+xvalue* xrtValueObjectLifo(void);
 
 size_t xrtValueCount(const xvalue* value);
 bool xrtValueReserve(xvalue* value, size_t capacity);
@@ -150,6 +151,13 @@ bool xrtValueClear(xvalue* value);
 
 `Reserve` 适用于 Array、Set 和 Object。树形 IntMap 没有可承诺的连续容量，调用
 `Reserve` 报告 `XERR_UNSUPPORTED`；`Trim` 和 `Clear` 支持四种容器。
+
+`xrtValueObjectLifo` 创建与普通 Object 完全相同的字符串键对象，但在 `Clear` 或
+最后一个共享 backing 释放时，按键的当前插入顺序逆序释放仍由对象拥有的值。它用于
+类字段、资源作用域等必须按构造逆序析构的场景。读取、`ObjectAt`、迭代和序列化顺序
+仍是正向首次插入顺序；替换或删除会立即释放旧值，`Take` 会立即移交值。替换不改变
+键位置，删除后重新插入则作为新的尾部键。`Clone`、写时复制、深克隆和以该对象为
+目标的失败原子批量操作始终保留该析构策略。
 
 每个写入操作有三种所有权手感：
 
@@ -208,6 +216,11 @@ xvalue* xrtValueIntMapTake(xvalue* map, int64 key);
 
 xvalue* xrtValueObjectGet(const xvalue* object, xstrview key);
 xvalue* xrtValueObjectEdit(xvalue* object, xstrview key);
+xvalue* xrtValueObjectAt(
+	const xvalue* object,
+	size_t index,
+	xstrview* key
+);
 bool xrtValueObjectSet(
 	xvalue* object,
 	xstrview key,
@@ -390,6 +403,7 @@ Handle Clone/Equal 和嵌套 Set 的 Hash/Equal 执行期间，当前 Handle、�
 - `examples/value/handle/main.c`：Native Handle 策略、接管、借用、Hash 与相等。
 - `examples/value/containers/main.c`：Array、Object、负索引、嵌套 COW 与快照迭代。
 - `examples/value/containers/indexed/main.c`：IntMap、Set、数值等价和 Take 所有权。
+- `examples/value/containers/lifo/main.c`：LIFO Object 的正向访问与逆序资源析构。
 - `examples/value/collections/main.c`：Object 覆盖合并、Set 合并与完整关系判断。
 - `examples/value/collections/batch/main.c`：Array 扩展/连接和 IntMap 冲突策略。
 - `examples/value/graph/main.c`：DAG 身份保留深克隆、结构相等和修改隔离。

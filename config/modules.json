@@ -13284,7 +13284,8 @@
 			],
 			"examples": [
 				"examples/value/containers/main.c",
-				"examples/value/containers/indexed/main.c"
+				"examples/value/containers/indexed/main.c",
+				"examples/value/containers/lifo/main.c"
 			],
 			"benchmarks": [
 				"dev/bench/value_container/bench_value_container.c",

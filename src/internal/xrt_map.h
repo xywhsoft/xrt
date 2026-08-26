@@ -36,6 +36,12 @@ bool __xrtMapCanMutate(xmap* pMap);
 
 
 
+/* 仅供拥有型封装配置最终值释放顺序；键迭代顺序不变。 */
+bool __xrtMapSetDropReverse(xmap* pMap, bool bReverse);
+bool __xrtMapDropsReverse(const xmap* pMap);
+
+
+
 /* 判断调用方字节区间是否触及映射结构、桶数组或条目。 */
 bool __xrtMapOwnsRange(
 	const xmap* pMap,

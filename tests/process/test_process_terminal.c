@@ -37,6 +37,15 @@ static int testProcessTerminalChild(int argc, char** argv)
 	fputs("terminal-stderr\n", stderr);
 	fflush(stdout);
 	fflush(stderr);
+	if ( strcmp(argv[2], "eof") == 0 ) {
+		iSize = 0u;
+		while ( fgetc(stdin) != EOF ) {
+			iSize++;
+		}
+		fprintf(stdout, "eof:%zu\n", iSize);
+		fflush(stdout);
+		return 0;
+	}
 	if ( fgets(sInput, sizeof(sInput), stdin) == NULL ) {
 		return 91;
 	}
@@ -320,18 +329,6 @@ int main(int argc, char** argv)
 					(size_t)(sizeof(sInput) - 1u),
 					(size_t)Result.StderrSize);
 			}
-			fprintf(stderr, "[diag] terminal run exit=%d wait=%d\n",
-				(int)Result.Status.Code,
-				(int)Result.Wait);
-			if ( (Result.Stdout != NULL) && (Result.StdoutSize > 0u) ) {
-				fprintf(stderr, "[diag] stdout(%zu): %.*s\n",
-					(size_t)Result.StdoutSize,
-					(int)(Result.StdoutSize > 400u ?
-						400u : Result.StdoutSize),
-					(const char*)Result.Stdout);
-			} else {
-				fprintf(stderr, "[diag] stdout empty\n");
-			}
 			testRequire(
 				(Result.InputWritten == (sizeof(sInput) - 1u)) &&
 				(Result.StderrSize == 0u) &&
@@ -346,6 +343,74 @@ int main(int argc, char** argv)
 					"reply:run-input"
 				),
 				"terminal process run merge mismatch"
+			);
+			xrtProcessResultUnit(&Result);
+		}
+
+		{
+			static const char sInput[] = "eof-input";
+			#if defined(_WIN32) || defined(_WIN64)
+				static const char sExpected[] = "eof:10";
+			#else
+				static const char sExpected[] = "eof:9";
+			#endif
+			xprocessrunoptions Options;
+			xprocessresult Result;
+
+			testProcessTerminalSelf(&Config, argv[0], "eof");
+			Config.Terminal = true;
+			testRequire(
+				xrtProcessRunOptionsInit(&Options),
+				"terminal EOF run options init failed"
+			);
+			Options.Input.Data = (cbytes)sInput;
+			Options.Input.Size = sizeof(sInput) - 1u;
+			Options.Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+			memset(&Result, 0, sizeof(Result));
+			testRequire(
+				xrtProcessRun(&Config, &Options, &Result),
+				"terminal EOF process run failed"
+			);
+			if ( !((Result.Wait == XWAIT_OK) &&
+				(Result.Status.Kind == XPROCESS_EXIT_CODE) &&
+				(Result.Status.Code == 0) &&
+				(Result.InputWritten == (sizeof(sInput) - 1u)) &&
+				testProcessTerminalContains(
+					Result.Stdout,
+					Result.StdoutSize,
+					sExpected
+				)) ) {
+				fprintf(
+					stderr,
+					"[diag] terminal EOF: wait=%d kind=%d code=%d "
+					"written=%zu stdout=%zu\n",
+					(int)Result.Wait,
+					(int)Result.Status.Kind,
+					(int)Result.Status.Code,
+					(size_t)Result.InputWritten,
+					(size_t)Result.StdoutSize
+				);
+				if ( Result.StdoutSize != 0u ) {
+					fprintf(
+						stderr,
+						"[diag] terminal EOF output: %.*s\n",
+						(int)(Result.StdoutSize > 400u ?
+							400u : Result.StdoutSize),
+						(const char*)Result.Stdout
+					);
+				}
+			}
+			testRequire(
+				(Result.Wait == XWAIT_OK) &&
+				(Result.Status.Kind == XPROCESS_EXIT_CODE) &&
+				(Result.Status.Code == 0) &&
+				(Result.InputWritten == (sizeof(sInput) - 1u)) &&
+				testProcessTerminalContains(
+					Result.Stdout,
+					Result.StdoutSize,
+					sExpected
+				),
+				"terminal EOF was not delivered after finite input"
 			);
 			xrtProcessResultUnit(&Result);
 		}

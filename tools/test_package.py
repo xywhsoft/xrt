@@ -26,6 +26,19 @@ class CompilerFamilyTest(unittest.TestCase):
 		self.assertEqual(xrt_package._compiler_family("tcc.exe"), "tcc")
 		self.assertEqual(xrt_package._compiler_family("gcc.exe"), "gnu")
 
+	def test_clang_cl_architecture_is_explicit(self) -> None:
+		"""clang-cl 不能把宿主默认架构误当成发布目标。"""
+
+		self.assertEqual(
+			xrt_package._clang_cl_target("clang-cl.exe", "x86"),
+			["--target=i686-pc-windows-msvc"],
+		)
+		self.assertEqual(
+			xrt_package._clang_cl_target("clang-cl.exe", "x64"),
+			["--target=x86_64-pc-windows-msvc"],
+		)
+		self.assertEqual(xrt_package._clang_cl_target("cl.exe", "x86"), [])
+
 
 
 class ArtifactNameTest(unittest.TestCase):
@@ -190,6 +203,43 @@ class CommandTest(unittest.TestCase):
 		self.assertIn("-Wl,--no-whole-archive", command)
 		self.assertIn(str(root / "libxrt.a"), command)
 
+	def test_gnu_consumer_failure_persists_link_diagnostics(self) -> None:
+		"""GNU 消费者链接失败时必须保留可供 CI 下载的诊断。"""
+
+		with tempfile.TemporaryDirectory() as temporary, \
+			mock.patch.object(xrt_package.sys, "platform", "linux"), \
+			mock.patch.object(xrt_package, "ROOT", Path(temporary)), \
+			mock.patch.object(
+				xrt_package.xrt_build,
+				"_run_compiler",
+				side_effect=[
+				xrt_package.subprocess.CalledProcessError(1, ["gcc"]),
+				xrt_package.subprocess.CompletedProcess(
+					["gcc"], 1, "undefined reference to strcmp",
+				),
+			],
+			) as run:
+			root = Path(temporary)
+			with self.assertRaises(xrt_package.subprocess.CalledProcessError):
+				xrt_package._verify_gnu(
+					"gcc",
+					"x86",
+					"gnu",
+					"static",
+					root / "libxrt.a",
+					None,
+					[],
+					[root / "a.o"],
+				)
+
+			log = root / "test_package_xrt.link.log"
+			self.assertEqual(run.call_count, 2)
+			self.assertIn("-v", run.call_args_list[1].args[0])
+			self.assertIn(
+				"undefined reference to strcmp",
+				log.read_text("utf-8"),
+			)
+
 	def test_msvc_static_consumer_links_whole_archive(self) -> None:
 		"""MSVC 静态包消费者必须强制解析全部归档成员。"""
 
@@ -202,6 +252,7 @@ class CommandTest(unittest.TestCase):
 			root = Path(temporary)
 			xrt_package._verify_msvc(
 				"cl",
+				"x64",
 				"static",
 				root / "xrt.lib",
 				None,

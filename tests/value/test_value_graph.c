@@ -6,6 +6,7 @@
 typedef struct testvaluegraphstate {
 	int CloneCount;
 	int DropCount;
+	int DropValues[8];
 } testvaluegraphstate;
 
 
@@ -32,8 +33,34 @@ static void testValueGraphHandleDrop(ptr pHandle, ptr pUserData)
 {
 	testvaluegraphstate* pState = (testvaluegraphstate*)pUserData;
 
+	if ( pState->DropCount < 8 ) {
+		pState->DropValues[pState->DropCount] = *(int*)pHandle;
+	}
 	xrtFree(pHandle);
 	pState->DropCount++;
+}
+
+
+
+/* 创建支持深克隆的整数句柄值。 */
+static xvalue* testValueGraphHandleValue(
+	int iValue,
+	const xvaluehandleops* pOps,
+	testvaluegraphstate* pState
+)
+{
+	int* pHandle = (int*)xrtMalloc(sizeof(int));
+	xvalue* pValue;
+
+	if ( pHandle == NULL ) {
+		return NULL;
+	}
+	*pHandle = iValue;
+	pValue = xrtValueHandleTake((ptr*)&pHandle, pOps, pState);
+	if ( pValue == NULL ) {
+		xrtFree(pHandle);
+	}
+	return pValue;
 }
 
 
@@ -121,7 +148,7 @@ static void testValueGraphHandle(void)
 		NULL,
 		NULL
 	};
-	testvaluegraphstate tState = { 0, 0 };
+	testvaluegraphstate tState = { 0 };
 	ptr pHandle = xrtMalloc(sizeof(int));
 	xvalue* pValue;
 	xvalue* pCopy;
@@ -155,7 +182,7 @@ static void testValueGraphHandleErrors(void)
 		NULL,
 		NULL
 	};
-	testvaluegraphstate tState = { 0, 0 };
+	testvaluegraphstate tState = { 0 };
 	ptr pHandle = xrtMalloc(sizeof(int));
 	xvalue* pValue;
 	xvalue* pCopy;
@@ -215,6 +242,52 @@ static void testValueGraphStaleError(void)
 
 
 
+/* 验证深克隆保留 LIFO Object 的析构策略。 */
+static void testValueGraphLifoClone(void)
+{
+	static const xvaluehandleops tOps = {
+		testValueGraphHandleClone,
+		testValueGraphHandleDrop,
+		NULL,
+		NULL
+	};
+	testvaluegraphstate tState = { 0 };
+	xvalue* pObject = xrtValueObjectLifo();
+	xvalue* pCopy;
+
+	testRequire(
+		(pObject != NULL) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("first"),
+			testValueGraphHandleValue(1, &tOps, &tState)
+		) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("second"),
+			testValueGraphHandleValue(2, &tOps, &tState)
+		),
+		"LIFO graph fixture failed"
+	);
+	pCopy = xrtValueDeepClone(pObject);
+	testRequire(
+		(pCopy != NULL) && (tState.CloneCount == 2),
+		"LIFO object deep clone failed"
+	);
+	xrtValueRelease(pObject);
+	xrtValueRelease(pCopy);
+	testRequire(
+		(tState.DropCount == 4) &&
+		(tState.DropValues[0] == 2) &&
+		(tState.DropValues[1] == 1) &&
+		(tState.DropValues[2] == 2) &&
+		(tState.DropValues[3] == 1),
+		"deep clone lost the LIFO object destruction policy"
+	);
+}
+
+
+
 /* 运行 Value 图回归。 */
 int main(void)
 {
@@ -223,6 +296,7 @@ int main(void)
 	testValueGraphHandle();
 	testValueGraphHandleErrors();
 	testValueGraphStaleError();
+	testValueGraphLifoClone();
 	printf("[PASS] value graph\n");
 	return 0;
 }

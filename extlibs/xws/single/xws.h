@@ -23,6 +23,10 @@
  */
 
 /* 此文件由 tools/amalgamate.py 生成，请勿直接修改。 */
+#if defined(XWS_IMPLEMENTATION) && defined(_MSC_VER) && \
+	!defined(_CRT_SECURE_NO_WARNINGS)
+	#define _CRT_SECURE_NO_WARNINGS
+#endif
 #if defined(XWS_IMPLEMENTATION) && \
 	!defined(_WIN32) && !defined(_WIN64)
 	#if defined(__linux__) && !defined(_GNU_SOURCE)
@@ -30,9 +34,6 @@
 	#endif
 	#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
 		#define _DARWIN_C_SOURCE 1
-	#endif
-	#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
-		#define _CRT_SECURE_NO_WARNINGS
 	#endif
 	#if !defined(_POSIX_C_SOURCE)
 		#define _POSIX_C_SOURCE 200809L
@@ -36939,6 +36940,11 @@ XRT_API xvalue* xrtValueObject(void);
 
 
 
+/* 创建保持首次插入顺序、最终按逆插入顺序释放拥有值的字符串键对象。 */
+XRT_API xvalue* xrtValueObjectLifo(void);
+
+
+
 /* 返回任一基础容器的元素数。 */
 XRT_API size_t xrtValueCount(const xvalue* pValue);
 
@@ -69913,6 +69919,11 @@ void __xrtX509StoreSystemFailure(cstr sMessage);
 
 
 
+/* 仅允许跳过系统库中由 X.509 严格解析或算法策略拒绝的单张证书。 */
+bool __xrtX509StoreSystemCanSkip(const xerror* pError);
+
+
+
 /* 由当前平台后端把系统锚导入指定信任库。 */
 bool __xrtX509StoreSystemLoad(xx509store* pStore);
 
@@ -76694,6 +76705,12 @@ bool __xrtMapCanMutate(xmap* pMap);
 
 
 
+/* 仅供拥有型封装配置最终值释放顺序；键迭代顺序不变。 */
+bool __xrtMapSetDropReverse(xmap* pMap, bool bReverse);
+bool __xrtMapDropsReverse(const xmap* pMap);
+
+
+
 /* 判断调用方字节区间是否触及映射结构、桶数组或条目。 */
 bool __xrtMapOwnsRange(
 	const xmap* pMap,
@@ -76921,6 +76938,11 @@ size_t __xrtValueContainerCount(const xvalue* pValue);
 
 /* 借用 Value Set 的底层集合，供集合关系和图层复用通用 Set 实现。 */
 const xset* __xrtValueSetItems(const xvalue* pValue);
+
+
+
+/* 查询 Object 是否采用逆插入顺序释放拥有值。 */
+bool __xrtValueObjectDropsReverse(const xvalue* pValue);
 
 
 
@@ -85108,8 +85130,10 @@ uint32 __xrtProcessorCount(void)
 		size_t iSize = sizeof(iCount);
 
 		/* -std=c11 的严格 ISO 模式会隐藏 _SC_NPROCESSORS_ONLN，Apple 走 sysctl */
-		if ( sysctl(aMib, 2, &iCount, &iSize, NULL, 0) != 0 || iCount <= 0 )
+		if ( (sysctl(aMib, 2, &iCount, &iSize, NULL, 0) != 0) ||
+			(iCount <= 0) ) {
 			iCount = 1;
+		}
 		return (uint32)iCount;
 	#elif defined(_SC_NPROCESSORS_ONLN)
 		long iCount = sysconf(_SC_NPROCESSORS_ONLN);
@@ -86178,13 +86202,15 @@ static bool __xrtHeapFree(ptr pMemory, cstr sFile, uint32 iLine)
 
 	if ( (pHeader->Flags & XRT_HEAP_FLAG_POOLED) != 0 ) {
 		xrt_heap_free* pNode = (xrt_heap_free*)pMemory;
-		size_t iCapacity = __xrtHeapClassCapacity(pHeader->Class);
+		size_t iSize = pHeader->Size;
+		uint16 iClass = pHeader->Class;
+		size_t iCapacity = __xrtHeapClassCapacity(iClass);
 		int iDisposition = __xrtMemDebugFree(pHeader, pMemory, iCapacity, sFile, iLine);
 
 		if ( iDisposition == XRT_MEMDEBUG_FREE_INVALID ) {
 			return false;
 		}
-		__xrtMemStatsBlockFree(pHeader->Size, pHeader->Class, true);
+		__xrtMemStatsBlockFree(iSize, iClass, true);
 		if ( iDisposition == XRT_MEMDEBUG_FREE_CONSUMED ) {
 			return true;
 		}
@@ -86192,22 +86218,23 @@ static bool __xrtHeapFree(ptr pMemory, cstr sFile, uint32 iLine)
 		#if !defined(XRT_FEATURE_MEMORY_DEBUG)
 			pHeader->Magic = 0;
 		#endif
-		__xrtHeapReturn(pHeader->Class, pNode);
+		__xrtHeapReturn(iClass, pNode);
 		return true;
 	}
 	if ( (pHeader->Flags & XRT_HEAP_FLAG_BACKING) != 0 ) {
-		size_t iCapacity = (pHeader->Size != 0 ? pHeader->Size : 1) + __xrtMemDebugTailSize();
+		size_t iSize = pHeader->Size;
+		uint16 iClass = pHeader->Class;
+		ptr pAllocation = pHeader->Allocation;
+		size_t iCapacity = (iSize != 0 ? iSize : 1) + __xrtMemDebugTailSize();
 		int iDisposition = __xrtMemDebugFree(pHeader, pMemory, iCapacity, sFile, iLine);
-		ptr pAllocation;
 
 		if ( iDisposition == XRT_MEMDEBUG_FREE_INVALID ) {
 			return false;
 		}
-		__xrtMemStatsBlockFree(pHeader->Size, pHeader->Class, false);
+		__xrtMemStatsBlockFree(iSize, iClass, false);
 		if ( iDisposition == XRT_MEMDEBUG_FREE_CONSUMED ) {
 			return true;
 		}
-		pAllocation = pHeader->Allocation;
 		pHeader->Magic = 0;
 		__xrtBackingFree(pAllocation);
 		return true;
@@ -142533,6 +142560,21 @@ void __xrtNetEngineObjectRelease(xnetengine* pEngine)
 
 
 
+#if defined(XRT_FEATURE_NET_TCP_FILE) && defined(__APPLE__)
+/* 严格 ISO 模式下 Darwin 头文件可能隐藏 sendfile 原型。 */
+struct sf_hdtr;
+extern int sendfile(
+	int iFile,
+	int iSocket,
+	off_t iOffset,
+	off_t* pLength,
+	struct sf_hdtr* pHeader,
+	int iFlags
+);
+#endif
+
+
+
 #if defined(XRT_FEATURE_NET_TCP)
 
 #define XRT_NET_STREAM_READ_DEFAULT 2048u
@@ -143332,12 +143374,6 @@ static xnetresult __xrtNetStreamSendFileReady(
 		}
 	#elif defined(__APPLE__)
 		{
-			/* 严格 ISO 模式下 Darwin 头文件隐藏 sendfile 声明，
-			   按 xnu 系统原型补声明。 */
-			extern int sendfile(
-				int iFile, int iSocket, off_t iOffset,
-				off_t* pLength, void* pHeader, int iFlags
-			);
 			off_t iDone = (off_t)iSize;
 			off_t iOffset = (off_t)(pFile->Offset + (uint64)iRelative);
 			int iResult;
@@ -197236,7 +197272,7 @@ XRT_API bool xrtX25519KeyPair(void* pPrivate, void* pPublic)
 	(defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER))
 	#define XRT_AES_X86_HARDWARE 1
 	/* clang-cl 同样定义 _MSC_VER，但需要显式 target 特性。 */
-	#if defined(_MSC_VER) && !defined(__clang__) && !defined(__clang__)
+	#if defined(_MSC_VER) && !defined(__clang__)
 		#include <intrin.h>
 		#include <wmmintrin.h>
 		#define XRT_AES_TARGET
@@ -227377,6 +227413,26 @@ void __xrtX509StoreSystemFailure(cstr sMessage)
 
 
 
+/* 区分可跳过的存量证书兼容问题与必须终止导入的基础设施失败。 */
+bool __xrtX509StoreSystemCanSkip(const xerror* pError)
+{
+	while ( pError != NULL ) {
+		cstr sDomain = xrtErrorDomain(pError);
+		int32 iCode = xrtErrorCode(pError);
+		xerrkind Kind = xrtErrorKind(pError);
+
+		if ( (sDomain != NULL) && (strcmp(sDomain, "xrt.x509") == 0) &&
+			(iCode != X509_ERROR_TRUST_STORE) &&
+			(iCode != X509_ERROR_TRUST_STORE_SYSTEM) ) {
+			return (Kind == XERR_PROTOCOL) || (Kind == XERR_UNSUPPORTED);
+		}
+		pError = xrtErrorCause(pError);
+	}
+	return false;
+}
+
+
+
 /* 原子导入当前平台可见的系统信任锚。 */
 XRT_API bool xrtX509StoreAddSystem(xx509store* pStore, size_t* pAdded)
 {
@@ -227569,11 +227625,9 @@ static bool __xrtX509StoreWindowsLocation(
 			(size_t)pCertificate->cbCertEncoded
 		);
 		if ( Result == X509_ERROR ) {
-			/* OS 信任库可能包含不完全符合 RFC 5280 的存量根证书
-			   （如 NameConstraints 未标记 critical）。系统导入只跳过
-			   被严格策略拒绝的单张证书；OOM 等资源错误必须照常失败，
-			   保持 OOM 注入下的失败原子性。 */
-			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+			/* 系统库允许存在 XRT 严格策略不接受的单张存量证书，
+			   但资源、状态和基础设施错误必须终止事务。 */
+			if ( !__xrtX509StoreSystemCanSkip(xrtGetError()) ) {
 				pApi->Free(pCertificate);
 				(void)pApi->Close(Store, 0);
 				__xrtX509StoreSystemFailure(
@@ -227777,6 +227831,7 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 	CFArrayRef Anchors = NULL;
 	CFIndex iCount;
 	OSStatus Status;
+	bool bFound = false;
 
 	if ( !__xrtX509StoreMacApi(&Api) ) {
 		return false;
@@ -227854,9 +227909,8 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 		);
 		Api.Release(Data);
 		if ( Result == X509_ERROR ) {
-			/* 与 Windows 系统导入一致：跳过被严格策略拒绝的存量锚；
-			   OOM 等资源错误照常失败。 */
-			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+			/* 与 Windows 一致，只跳过证书自身的严格解析或算法策略错误。 */
+			if ( !__xrtX509StoreSystemCanSkip(xrtGetError()) ) {
 				Api.Release(Anchors);
 				__xrtX509StoreMacClose(&Api);
 				__xrtX509StoreSystemFailure(
@@ -227867,9 +227921,17 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 			xrtClearError();
 			continue;
 		}
+		bFound = true;
 	}
 	Api.Release(Anchors);
 	__xrtX509StoreMacClose(&Api);
+	if ( !bFound ) {
+		__xrtX509StoreSystemError(
+			XERR_NOT_FOUND, 0,
+			"macOS system anchor set contains no usable certificates", NULL
+		);
+		return false;
+	}
 	return true;
 }
 
@@ -281284,7 +281346,8 @@ XRT_API void xrtIntMapIterEnd(xintmapiter* pIterator)
 #define XRT_MAP_FLAG_READY    0x0001u
 #define XRT_MAP_FLAG_BUSY     0x0002u
 #define XRT_MAP_FLAG_VISITING 0x0004u
-#define XRT_MAP_FLAGS         0x0007u
+#define XRT_MAP_FLAG_DROP_REVERSE 0x0008u
+#define XRT_MAP_FLAGS         0x000Fu
 
 
 
@@ -281411,6 +281474,31 @@ bool __xrtMapCanMutate(xmap* pMap)
 	}
 
 	return true;
+}
+
+
+
+/* 配置值释放器的调用顺序，公开键顺序和桶结构不受影响。 */
+bool __xrtMapSetDropReverse(xmap* pMap, bool bReverse)
+{
+	if ( !__xrtMapCanMutate(pMap) ) {
+		return false;
+	}
+	if ( bReverse ) {
+		pMap->Flags |= XRT_MAP_FLAG_DROP_REVERSE;
+	} else {
+		pMap->Flags &= ~XRT_MAP_FLAG_DROP_REVERSE;
+	}
+	return true;
+}
+
+
+
+/* 查询拥有型封装已经固定的释放顺序。 */
+bool __xrtMapDropsReverse(const xmap* pMap)
+{
+	return __xrtMapValid(pMap) &&
+		((pMap->Flags & XRT_MAP_FLAG_DROP_REVERSE) != 0);
 }
 
 
@@ -282156,10 +282244,11 @@ static void __xrtMapUnlink(
 /* 释放全部条目并按需调用值释放器。 */
 static void __xrtMapReleaseAll(xmap* pMap)
 {
-	xmapentry* pEntry = pMap->First;
+	bool bReverse = (pMap->Flags & XRT_MAP_FLAG_DROP_REVERSE) != 0;
+	xmapentry* pEntry = bReverse ? pMap->Last : pMap->First;
 
 	while ( pEntry != NULL ) {
-		xmapentry* pNext = pEntry->OrderNext;
+		xmapentry* pNext = bReverse ? pEntry->OrderPrev : pEntry->OrderNext;
 
 		__xrtMapDropValue(pMap, pEntry);
 		__xrtMapFreeEntry(pEntry);
@@ -286359,7 +286448,11 @@ static bool __xrtValueObjectBackingCopy(
 	xbytesview Key = {0};
 	ptr pSlot;
 
-	if ( !xrtMapReserve(&pTarget->Items, xrtMapCount(&pSource->Items)) ||
+	if ( !__xrtMapSetDropReverse(
+			&pTarget->Items,
+			__xrtMapDropsReverse(&pSource->Items)
+		 ) ||
+		 !xrtMapReserve(&pTarget->Items, xrtMapCount(&pSource->Items)) ||
 		 !xrtMapIterBegin(&pSource->Items, &tIterator) ) {
 		return false;
 	}
@@ -286914,6 +287007,19 @@ const xset* __xrtValueSetItems(const xvalue* pValue)
 
 
 
+/* 查询 Object backing 的拥有值释放顺序。 */
+bool __xrtValueObjectDropsReverse(const xvalue* pValue)
+{
+	xvalueobjectbacking* pBacking = (xvalueobjectbacking*)__xrtValueBacking(
+		pValue,
+		XVALUE_OBJECT
+	);
+
+	return (pBacking != NULL) && __xrtMapDropsReverse(&pBacking->Items);
+}
+
+
+
 #if defined(XRT_FEATURE_VALUE_COLLECTION)
 
 /* 把准备容器的完整 backing 原子提交给同类型目标。 */
@@ -286952,6 +287058,27 @@ bool __xrtValueContainerCommit(xvalue* pTarget, xvalue* pPrepared)
 	}
 	if ( Result == XVALUE_CONTAINS_ERROR ) {
 		return false;
+	}
+	if ( pTarget->Type == XVALUE_OBJECT ) {
+		bool bTargetReverse = __xrtMapDropsReverse(
+			&((xvalueobjectbacking*)pTargetBacking)->Items
+		);
+		bool bPreparedReverse = __xrtMapDropsReverse(
+			&((xvalueobjectbacking*)pPreparedBacking)->Items
+		);
+
+		if ( bTargetReverse != bPreparedReverse ) {
+			if ( !__xrtValueEnsureUnique(pPrepared) ) {
+				return false;
+			}
+			pPreparedBacking = pPrepared->Data.Backing;
+			if ( !__xrtMapSetDropReverse(
+					&((xvalueobjectbacking*)pPreparedBacking)->Items,
+					bTargetReverse
+			) ) {
+				return false;
+			}
+		}
 	}
 	pTarget->Data.Backing = pPreparedBacking;
 	pPrepared->Data.Backing = pTargetBacking;
@@ -287014,6 +287141,29 @@ XRT_API xvalue* xrtValueSet(void)
 XRT_API xvalue* xrtValueObject(void)
 {
 	return __xrtValueContainerCreate(XVALUE_OBJECT);
+}
+
+
+
+/* 创建遍历顺序稳定、拥有值按栈顺序析构的对象。 */
+XRT_API xvalue* xrtValueObjectLifo(void)
+{
+	xvalue* pValue = __xrtValueContainerCreate(XVALUE_OBJECT);
+	xvaluebacking* pBacking;
+
+	if ( pValue == NULL ) {
+		return NULL;
+	}
+	pBacking = __xrtValueBacking(pValue, XVALUE_OBJECT);
+	if ( (pBacking == NULL) ||
+		 !__xrtMapSetDropReverse(
+			&((xvalueobjectbacking*)pBacking)->Items,
+			true
+		 ) ) {
+		xrtValueRelease(pValue);
+		return NULL;
+	}
+	return pValue;
 }
 
 
@@ -289662,7 +289812,9 @@ static xvalue* __xrtValueCloneContainer(const xvalue* pSource)
 		case XVALUE_SET:
 			return xrtValueSet();
 		case XVALUE_OBJECT:
-			return xrtValueObject();
+			return __xrtValueObjectDropsReverse(pSource)
+				? xrtValueObjectLifo()
+				: xrtValueObject();
 		default:
 			__xrtErrorSetType();
 			return NULL;
@@ -290397,11 +290549,6 @@ XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
 
 #if defined(XRT_FEATURE_JSON_CORE) || \
 	defined(XRT_FEATURE_XSON_CORE)
-/* MSVC 对标准 C 的 sscanf 报弃用警告，仅工具链噪音。 */
-#if defined(_MSC_VER)
-	#define _CRT_SECURE_NO_WARNINGS
-#endif
-
 
 #include <stdio.h>
 
@@ -296945,11 +297092,6 @@ XRT_API bool xrtXsonStringifyFile(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_TEMPLATE_CORE)
-/* MSVC 对标准 C 的 sscanf 报弃用警告，仅工具链噪音。 */
-#if defined(_MSC_VER)
-	#define _CRT_SECURE_NO_WARNINGS
-#endif
-
 
 #include <stdio.h>
 
@@ -303557,11 +303699,6 @@ XRT_API xtemplate* xrtTemplateCompileFile(cstr sPath)
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_XID)
-/* MSVC 对标准 C 的 sscanf 报弃用警告，仅工具链噪音。 */
-#if defined(_MSC_VER)
-	#define _CRT_SECURE_NO_WARNINGS
-#endif
-
 
 #include <stdio.h>
 
@@ -318119,7 +318256,56 @@ static int32 __xrtProcessRunOutput(ptr pData)
 
 
 
-/* 写完借用输入后无条件关闭 stdin，短写和提前关闭由结果字节数表达。 */
+/* 为一次性终端输入追加平台控制台可识别的 EOF 序列。 */
+static void __xrtProcessRunTerminalEof(xprocessruninput* pInput)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		static const unsigned char arrLineEof[] = {
+			'\r', '\n', 0x1Au, '\r', '\n'
+		};
+		static const unsigned char arrEof[] = { 0x1Au, '\r', '\n' };
+		const unsigned char* pEof = arrEof;
+		size_t iEofSize = sizeof(arrEof);
+	#else
+		static const unsigned char arrEof[] = { 0x04u, 0x04u };
+		const unsigned char* pEof = arrEof;
+		size_t iEofSize = sizeof(arrEof);
+	#endif
+	size_t iOffset = 0u;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		/* Ctrl-Z 只有在新行起点才表示控制台 EOF。 */
+		if ( (pInput->Input.Size != 0u) &&
+			(pInput->Input.Data[pInput->Input.Size - 1u] != '\r') &&
+			(pInput->Input.Data[pInput->Input.Size - 1u] != '\n') ) {
+			pEof = arrLineEof;
+			iEofSize = sizeof(arrLineEof);
+		}
+	#endif
+	while ( iOffset < iEofSize ) {
+		int64 iWrite = xrtProcessWrite(
+			pInput->State->Process,
+			pEof + iOffset,
+			iEofSize - iOffset
+		);
+
+		if ( iWrite <= 0 ) {
+			xrtClearError();
+			break;
+		}
+		iOffset += (size_t)iWrite;
+	}
+	#if !defined(_WIN32) && !defined(_WIN64)
+		(void)xrtProcessClose(
+			pInput->State->Process,
+			XPROCESS_STDIN
+		);
+	#endif
+}
+
+
+
+/* 写完借用输入后发送 EOF，短写和提前关闭由结果字节数表达。 */
 static int32 __xrtProcessRunInput(ptr pData)
 {
 	xprocessruninput* pInput = (xprocessruninput*)pData;
@@ -318137,10 +318323,9 @@ static int32 __xrtProcessRunInput(ptr pData)
 		}
 		pInput->Written += (size_t)iWrite;
 	}
-	/* 普通管道关闭 stdin 通知 EOF；终端模式下关闭 ConPTY 输入句柄会
-	   直接拆除伪控制台会话，子进程收到控制事件退出并丢失未冲刷输出，
-	   因此终端模式的 stdin 交给进程销毁路径统一收口。 */
-	if ( !pInput->State->Terminal ) {
+	if ( pInput->State->Terminal ) {
+		__xrtProcessRunTerminalEof(pInput);
+	} else {
 		(void)xrtProcessClose(pInput->State->Process, XPROCESS_STDIN);
 	}
 	return 0;
@@ -318343,7 +318528,8 @@ XRT_API bool xrtProcessRun(
 	} else if ( Config.Stderr.Mode != XPROCESS_IO_MERGE ) {
 		Config.Stderr.Mode = XPROCESS_IO_PIPE;
 	}
-	bNeedInput = (Options.Input.Data != NULL) ||
+	bNeedInput = Config.Terminal ||
+		(Options.Input.Data != NULL) ||
 		(Options.Input.Size != 0u) ||
 		(Config.Stdin.Mode == XPROCESS_IO_PIPE);
 	if ( bNeedInput ) {

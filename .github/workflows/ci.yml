@@ -14,10 +14,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
@@ -64,6 +64,14 @@ jobs:
           --function-prefix xrtHttp
           --constant-prefix XHTTP_
           --type-prefix xhttp
+
+      - name: Verify Value API documentation
+        run: >-
+          python tools/check_api_docs.py
+          --module-prefix value
+          --function-prefix xrtValue
+          --constant-prefix XVALUE_
+          --type-prefix xvalue
 
       - name: Verify Future API documentation
         run: |
@@ -132,10 +140,10 @@ jobs:
             package_suite: xssh
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
@@ -178,10 +186,10 @@ jobs:
             runner: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
@@ -232,7 +240,7 @@ jobs:
 
       - name: Preserve protocol fuzz failure artifacts
         if: failure() && matrix.runner == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: protocol-fuzz-failures
           path: out/fuzz/linux/*/artifacts/*
@@ -289,16 +297,16 @@ jobs:
       - name: Verify trim dependencies
         run: python tools/build.py --compiler cc --suite all --trim-only
 
-  arm64-crypto:
-    name: Linux ARM64 crypto
+  arm64-native:
+    name: Linux ARM64 native
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
@@ -314,6 +322,17 @@ jobs:
             --cflag=-DXRT_TEST_REQUIRE_ARM_CRYPTO \
             --jobs 4
 
+      - name: Verify AArch64 coroutine ABI and branch protection
+        run: |
+          set -eu
+          python tools/build.py \
+            --compiler cc \
+            --suite coroutine,coroutine_scheduler,coroutine_event \
+            --no-single \
+            --rebuild \
+            --cflag=-mbranch-protection=standard \
+            --jobs 4
+
   windows:
     name: Windows
     runs-on: windows-latest
@@ -323,15 +342,15 @@ jobs:
         shell: msys2 {0}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
       - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
         with:
           msystem: UCRT64
           update: true
@@ -389,15 +408,15 @@ jobs:
           - x86
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
       - name: Setup Visual C++ environment
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: ${{ matrix.arch }}
 
@@ -424,22 +443,31 @@ jobs:
           --kind shared
           --verify
 
+      - name: Upload linker diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linker-diagnostics-${{ matrix.compiler }}-${{ matrix.arch }}
+          path: release/**/*.link.log
+          if-no-files-found: ignore
+          retention-days: 14
+
   android:
     name: Android
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
       - name: Setup Android NDK
         id: setup-ndk
-        uses: nttld/setup-ndk@v1
+        uses: nttld/setup-ndk@2817442ee7c3346c1eb7d2ec60263c93206ba14f # v1
         with:
           ndk-version: r27c
 
@@ -466,7 +494,7 @@ jobs:
 
       - name: Run Android tests
         timeout-minutes: 10
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: ReactiveCircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
         with:
           api-level: 30
           arch: x86_64
@@ -484,16 +512,41 @@ jobs:
             adb shell "cd /data/local/tmp/xrt-ci && ./test_single"
             adb shell "cd /data/local/tmp/xrt-ci && ./test_single_net"
 
+  macos-arm64:
+    name: macOS ARM64 coroutine ABI
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Verify Apple Silicon coroutine ABI
+        run: |
+          set -eu
+          test "$(uname -m)" = "arm64"
+          python tools/build.py \
+            --compiler clang \
+            --suite coroutine,coroutine_scheduler,coroutine_event \
+            --no-single \
+            --rebuild \
+            --cflag=-mbranch-protection=standard \
+            --jobs 4
+
   ios:
     name: iOS
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 

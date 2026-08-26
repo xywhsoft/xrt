@@ -7,6 +7,7 @@ typedef struct testvaluecontainerstate {
 	xvalue* Parent;
 	xvalue* Item;
 	size_t DropCount;
+	int DropValues[16];
 	bool HashEntered;
 	bool HashReentryRejected;
 	bool CloneReentryRejected;
@@ -22,6 +23,9 @@ static void testValueContainerDrop(ptr pHandle, ptr pUserData)
 		(testvaluecontainerstate*)pUserData;
 	xvalue* pClone;
 
+	if ( pState->DropCount < 16 ) {
+		pState->DropValues[pState->DropCount] = *(int*)pHandle;
+	}
 	pState->DropCount++;
 	if ( pState->Parent != NULL ) {
 		xrtClearError();
@@ -509,6 +513,183 @@ static void testValueContainerHashReentry(void)
 
 
 
+/* 验证 LIFO 对象保持正向访问，并把析构策略传播到 COW backing。 */
+static void testValueContainerObjectLifoClone(void)
+{
+	static const xvaluehandleops tOps = {
+		NULL,
+		testValueContainerDrop,
+		NULL,
+		NULL
+	};
+	testvaluecontainerstate tState = { 0 };
+	xvalue* pObject = xrtValueObjectLifo();
+	xvalue* pCopy;
+	xvalue* pFirst = testValueContainerHandle(10, &tOps, &tState);
+	xvalue* pSecond = testValueContainerHandle(20, &tOps, &tState);
+	xstrview Key = { 0 };
+
+	testRequire(
+		(pObject != NULL) && (pFirst != NULL) && (pSecond != NULL) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("first"),
+			pFirst
+		) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("second"),
+			pSecond
+		),
+		"LIFO object handle fixture failed"
+	);
+	testRequire(
+		(xrtValueObjectAt(pObject, 0, &Key) != NULL) &&
+		(Key.Size == 5) && (memcmp(Key.Data, "first", 5) == 0) &&
+		(xrtValueObjectAt(pObject, 1, &Key) != NULL) &&
+		(Key.Size == 6) && (memcmp(Key.Data, "second", 6) == 0),
+		"LIFO object changed insertion-order access"
+	);
+	pCopy = xrtValueClone(pObject);
+	testRequire(
+		(pCopy != NULL) &&
+		xrtValueObjectSetNew(
+			pCopy,
+			XRT_STR_LITERAL("copy-only"),
+			xrtValueInt(30)
+		) &&
+		!xrtValueObjectHas(pObject, XRT_STR_LITERAL("copy-only")),
+		"LIFO object copy-on-write fixture failed"
+	);
+	xrtValueRelease(pObject);
+	testRequire(
+		tState.DropCount == 0,
+		"LIFO object dropped shared handles early"
+	);
+	xrtValueRelease(pCopy);
+	testRequire(
+		(tState.DropCount == 2) &&
+		(tState.DropValues[0] == 20) &&
+		(tState.DropValues[1] == 10),
+		"LIFO object did not drop handles in reverse insertion order"
+	);
+}
+
+
+
+/* 验证替换和删除立即析构，重插入键按新的尾部位置参与逆序析构。 */
+static void testValueContainerObjectLifoMutation(void)
+{
+	static const xvaluehandleops tOps = {
+		NULL,
+		testValueContainerDrop,
+		NULL,
+		NULL
+	};
+	testvaluecontainerstate tState = { 0 };
+	xvalue* pObject = xrtValueObjectLifo();
+
+	testRequire(
+		(pObject != NULL) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("first"),
+			testValueContainerHandle(10, &tOps, &tState)
+		) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("second"),
+			testValueContainerHandle(20, &tOps, &tState)
+		) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("first"),
+			testValueContainerHandle(11, &tOps, &tState)
+		),
+		"LIFO object mutation fixture failed"
+	);
+	testRequire(
+		(tState.DropCount == 1) && (tState.DropValues[0] == 10),
+		"LIFO object delayed replaced value destruction"
+	);
+	testRequire(
+		xrtValueObjectRemove(pObject, XRT_STR_LITERAL("second")) &&
+		(tState.DropCount == 2) && (tState.DropValues[1] == 20) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("second"),
+			testValueContainerHandle(30, &tOps, &tState)
+		),
+		"LIFO object remove and reinsert failed"
+	);
+	xrtValueRelease(pObject);
+	testRequire(
+		(tState.DropCount == 4) &&
+		(tState.DropValues[2] == 30) &&
+		(tState.DropValues[3] == 11),
+		"LIFO object ignored current insertion order"
+	);
+}
+
+
+
+/* 验证 Clear 按逆插入顺序析构，并让对象继续保持 LIFO 策略。 */
+static void testValueContainerObjectLifoClear(void)
+{
+	static const xvaluehandleops tOps = {
+		NULL,
+		testValueContainerDrop,
+		NULL,
+		NULL
+	};
+	testvaluecontainerstate tState = { 0 };
+	xvalue* pObject = xrtValueObjectLifo();
+
+	testRequire(
+		(pObject != NULL) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("first"),
+			testValueContainerHandle(1, &tOps, &tState)
+		) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("second"),
+			testValueContainerHandle(2, &tOps, &tState)
+		) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("third"),
+			testValueContainerHandle(3, &tOps, &tState)
+		) &&
+		xrtValueClear(pObject),
+		"LIFO object clear fixture failed"
+	);
+	testRequire(
+		(tState.DropCount == 3) &&
+		(tState.DropValues[0] == 3) &&
+		(tState.DropValues[1] == 2) &&
+		(tState.DropValues[2] == 1) &&
+		(xrtValueCount(pObject) == 0),
+		"LIFO object clear destruction order mismatch"
+	);
+	testRequire(
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("after-clear"),
+			testValueContainerHandle(4, &tOps, &tState)
+		),
+		"LIFO object lost policy after clear"
+	);
+	xrtValueRelease(pObject);
+	testRequire(
+		(tState.DropCount == 4) && (tState.DropValues[3] == 4),
+		"LIFO object leaked value after clear"
+	);
+}
+
+
+
 /* 验证共享 DAG 的环检测按唯一 backing 数量线性推进。 */
 static void testValueContainerSharedDag(void)
 {
@@ -553,6 +734,9 @@ int main(void)
 	testValueContainerIteratorAdvance();
 	testValueContainerDropReentry();
 	testValueContainerHashReentry();
+	testValueContainerObjectLifoClone();
+	testValueContainerObjectLifoMutation();
+	testValueContainerObjectLifoClear();
 	testValueContainerSharedDag();
 	printf("[PASS] value container contract\n");
 	return 0;

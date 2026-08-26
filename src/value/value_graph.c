@@ -301,7 +301,9 @@ static xvalue* __xrtValueCloneContainer(const xvalue* pSource)
 		case XVALUE_SET:
 			return xrtValueSet();
 		case XVALUE_OBJECT:
-			return xrtValueObject();
+			return __xrtValueObjectDropsReverse(pSource)
+				? xrtValueObjectLifo()
+				: xrtValueObject();
 		default:
 			__xrtErrorSetType();
 			return NULL;

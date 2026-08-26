@@ -144,6 +144,19 @@ def _msvc_options(
 
 
 
+def _clang_cl_target(compiler: str, arch: str) -> list[str]:
+	"""让 clang-cl 的实际目标与发布目录和 VS 环境标签一致。"""
+
+	if Path(compiler).stem.lower() != "clang-cl":
+		return []
+	if arch == "x86":
+		return ["--target=i686-pc-windows-msvc"]
+	if arch == "x64":
+		return ["--target=x86_64-pc-windows-msvc"]
+	return []
+
+
+
 def _msvc_environment(
 	compiler: str,
 	arch: str,
@@ -196,6 +209,7 @@ def _compile_msvc_objects(
 		extra_cflags,
 		preprocessor_conformance="clang" not in compiler,
 	)
+	options.extend(_clang_cl_target(compiler, arch))
 	environment = _msvc_environment(
 		compiler,
 		arch,
@@ -339,6 +353,7 @@ def _link_gnu_shared(
 
 def _link_msvc_shared(
 	compiler: str,
+	arch: str,
 	objects: list[Path],
 	links: list[str],
 	output: Path,
@@ -352,7 +367,9 @@ def _link_msvc_shared(
 	response = output.with_suffix(output.suffix + ".objects.rsp")
 	response.parent.mkdir(parents=True, exist_ok=True)
 	response.write_text(
-		"\n".join(xrt_build._response_argument(str(item)) for item in objects)
+		"\n".join(
+			xrt_build._response_argument(str(item), True) for item in objects
+		)
 		+ "\n",
 		encoding="utf-8",
 	)
@@ -360,6 +377,7 @@ def _link_msvc_shared(
 		compiler,
 		"/nologo",
 		"/LD",
+		*_clang_cl_target(compiler, arch),
 		"@" + str(response),
 		"/link",
 		f"/OUT:{output}",
@@ -465,7 +483,32 @@ def _verify_gnu(
 			command.append(f"-Wl,-rpath,{rpath}")
 	command.extend(f"-l{item}" for item in links)
 	command.extend(["-o", str(output)])
-	xrt_build._run_compiler(command, output.with_suffix(output.suffix + ".rsp"))
+	try:
+		xrt_build._run_compiler(
+			command,
+			output.with_suffix(output.suffix + ".rsp"),
+		)
+	except subprocess.CalledProcessError:
+		diagnostic_command = [*command]
+		diagnostic_command.insert(1, "-v")
+		diagnostic = xrt_build._run_compiler(
+			diagnostic_command,
+			output.with_suffix(output.suffix + ".diagnostic.rsp"),
+			check=False,
+			capture=True,
+		)
+		log = output.with_suffix(output.suffix + ".link.log")
+		log.write_text(
+			"command:\n" +
+			"\n".join(diagnostic_command) +
+			"\n\noutput:\n" +
+			(diagnostic.stdout or ""),
+			encoding="utf-8",
+		)
+		print(f"[diagnostic] {log.relative_to(ROOT)}")
+		if diagnostic.stdout:
+			print(diagnostic.stdout)
+		raise
 	print(f"[verify] {output.relative_to(ROOT)}")
 	subprocess.run([str(output)], cwd=artifact.parent, check=True)
 
@@ -492,6 +535,7 @@ def _verify_gnu(
 
 def _verify_msvc(
 	compiler: str,
+	arch: str,
 	kind: str,
 	artifact: Path,
 	import_library: Path | None,
@@ -512,6 +556,7 @@ def _verify_msvc(
 		"/utf-8",
 		"/W4",
 		"/WX",
+		*_clang_cl_target(compiler, arch),
 		f"/I{ROOT / 'include'}",
 	]
 	if "clang" not in compiler:
@@ -528,7 +573,34 @@ def _verify_msvc(
 	if kind == "static":
 		command.append(f"/WHOLEARCHIVE:{artifact}")
 	command.extend(f"{item}.lib" for item in links)
-	xrt_build._run_compiler(command, output.with_suffix(".rsp"))
+	try:
+		xrt_build._run_compiler(command, output.with_suffix(".rsp"))
+	except subprocess.CalledProcessError:
+		diagnostic_command = [*command]
+		if Path(compiler).stem.lower() == "clang-cl":
+			diagnostic_command.insert(
+				diagnostic_command.index("/link"),
+				"/clang:-v",
+			)
+		diagnostic_command.append("/verbose:lib")
+		diagnostic = xrt_build._run_compiler(
+			diagnostic_command,
+			output.with_suffix(".diagnostic.rsp"),
+			check=False,
+			capture=True,
+		)
+		log = output.with_suffix(".link.log")
+		log.write_text(
+			"command:\n" +
+			"\n".join(diagnostic_command) +
+			"\n\noutput:\n" +
+			(diagnostic.stdout or ""),
+			encoding="utf-8",
+		)
+		print(f"[diagnostic] {log.relative_to(ROOT)}")
+		if diagnostic.stdout:
+			print(diagnostic.stdout)
+		raise
 	print(f"[verify] {output.relative_to(ROOT)}")
 	subprocess.run([str(output)], cwd=artifact.parent, check=True)
 
@@ -650,6 +722,7 @@ def main() -> int:
 		assert import_library is not None
 		_link_msvc_shared(
 			compiler,
+			args.arch,
 			objects,
 			links,
 			output,
@@ -678,6 +751,7 @@ def main() -> int:
 		if family == "msvc":
 			_verify_msvc(
 				compiler,
+				args.arch,
 				args.kind,
 				output,
 				import_library,

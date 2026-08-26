@@ -39,7 +39,7 @@ __asm__(
 	".globl " TEST_CORO_ASM_SYMBOL(testCoroAbiArm64Call) "\n"
 	TEST_CORO_ASM_TYPE
 	TEST_CORO_ASM_SYMBOL(testCoroAbiArm64Call) ":\n"
-	"sub sp, sp, #240\n"
+	"sub sp, sp, #256\n"
 	"stp x19, x20, [sp, #0]\n"
 	"stp x21, x22, [sp, #16]\n"
 	"stp x23, x24, [sp, #32]\n"
@@ -52,6 +52,7 @@ __asm__(
 	"stp q14, q15, [sp, #192]\n"
 	"str x0, [sp, #224]\n"
 	"str w1, [sp, #232]\n"
+	"stp x2, x3, [sp, #240]\n"
 	"mov x9, x2\n"
 	"cbnz w1, 1f\n"
 	"mov x9, x3\n"
@@ -85,6 +86,7 @@ __asm__(
 	"cset w0, eq\n"
 	"3:\n"
 	"str w0, [sp, #236]\n"
+	"ldp x2, x3, [sp, #240]\n"
 	"mov x9, x2\n"
 	"ldr w10, [sp, #232]\n"
 	"cbnz w10, 4f\n"
@@ -170,7 +172,7 @@ __asm__(
 	"ldp x23, x24, [sp, #32]\n"
 	"ldp x21, x22, [sp, #16]\n"
 	"ldp x19, x20, [sp, #0]\n"
-	"add sp, sp, #240\n"
+	"add sp, sp, #256\n"
 	"ret\n"
 	TEST_CORO_ASM_SIZE
 );
@@ -251,7 +253,21 @@ static ptr testCoroAbiArm64Proc(ptr pData)
 		#endif
 	#endif
 	for ( i = 0; i < TEST_CORO_ABI_SWITCH_COUNT; i++ ) {
-		if ( !testCoroAbiArm64Call(NULL, 0, testCoroAbiHostTable, testCoroAbiFiberTable) ) {
+		int iCall = testCoroAbiArm64Call(
+			NULL,
+			0,
+			testCoroAbiHostTable,
+			testCoroAbiFiberTable
+		);
+
+		if ( iCall <= 0 ) {
+			fprintf(
+				stderr,
+				"[diag] fiber call %zu: ret=%d (%s)\n",
+				i,
+				iCall,
+				iCall == -2 ? "register mismatch" : "yield returned false"
+			);
 			return NULL;
 		}
 		pState->Switches++;
@@ -292,7 +308,7 @@ static void testCoroAbiArm64Registers(void)
 				iCall == -2 ?  "register mismatch" :
 				(iCall == 0 ? "resume returned false" : "negative"));
 		}
-		testRequire(iCall != 0,
+		testRequire(iCall > 0,
 			"AArch64 host nonvolatile register preservation failed"
 		);
 	}

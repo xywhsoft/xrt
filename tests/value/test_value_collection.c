@@ -2,6 +2,57 @@
 
 
 
+/* 记录批量提交后 Object 拥有值的最终释放顺序。 */
+typedef struct testvaluecollectiondropstate {
+	size_t Count;
+	int Values[4];
+} testvaluecollectiondropstate;
+
+
+
+/* 释放测试句柄并记录整数值。 */
+static void testValueCollectionHandleDrop(ptr pHandle, ptr pUserData)
+{
+	testvaluecollectiondropstate* pState =
+		(testvaluecollectiondropstate*)pUserData;
+
+	if ( pState->Count < 4 ) {
+		pState->Values[pState->Count] = *(int*)pHandle;
+	}
+	pState->Count++;
+	xrtFree(pHandle);
+}
+
+
+
+/* 创建由 Object 独占管理的整数测试句柄。 */
+static xvalue* testValueCollectionHandle(
+	int iValue,
+	testvaluecollectiondropstate* pState
+)
+{
+	static const xvaluehandleops tOps = {
+		NULL,
+		testValueCollectionHandleDrop,
+		NULL,
+		NULL
+	};
+	int* pHandle = (int*)xrtMalloc(sizeof(int));
+	xvalue* pValue;
+
+	if ( pHandle == NULL ) {
+		return NULL;
+	}
+	*pHandle = iValue;
+	pValue = xrtValueHandleTake((ptr*)&pHandle, &tOps, pState);
+	if ( pValue == NULL ) {
+		xrtFree(pHandle);
+	}
+	return pValue;
+}
+
+
+
 /* 读取动态值整数并立即验证类型。 */
 static int64 testValueCollectionInt(const xvalue* pValue)
 {
@@ -231,6 +282,41 @@ static void testValueObjectCollection(void)
 	xrtValueRelease(pKeep);
 	xrtValueRelease(pSource);
 	xrtValueRelease(pTarget);
+}
+
+
+
+/* 验证对象批量提交保留目标的 LIFO 析构策略。 */
+static void testValueObjectCollectionLifo(void)
+{
+	testvaluecollectiondropstate tState = { 0 };
+	xvalue* pTarget = xrtValueObjectLifo();
+	xvalue* pSource = xrtValueObject();
+
+	testRequire(
+		(pTarget != NULL) && (pSource != NULL) &&
+		xrtValueObjectSetNew(
+			pSource,
+			XRT_STR_LITERAL("first"),
+			testValueCollectionHandle(1, &tState)
+		) &&
+		xrtValueObjectSetNew(
+			pSource,
+			XRT_STR_LITERAL("second"),
+			testValueCollectionHandle(2, &tState)
+		) &&
+		xrtValueObjectMerge(pTarget, pSource, XVALUE_MERGE_KEEP),
+		"LIFO object merge fixture failed"
+	);
+	xrtValueRelease(pSource);
+	testRequire(tState.Count == 0, "LIFO object merge dropped shared values early");
+	xrtValueRelease(pTarget);
+	testRequire(
+		(tState.Count == 2) &&
+		(tState.Values[0] == 2) &&
+		(tState.Values[1] == 1),
+		"object merge replaced the target LIFO destruction policy"
+	);
 }
 
 
@@ -480,6 +566,7 @@ int main(void)
 	testValueArrayCollection();
 	testValueIntMapCollection();
 	testValueObjectCollection();
+	testValueObjectCollectionLifo();
 	testValueSetCollection();
 	testValueCollectionFastPaths();
 	testValueCollectionErrors();

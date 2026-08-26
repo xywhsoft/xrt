@@ -130,6 +130,7 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 	CFArrayRef Anchors = NULL;
 	CFIndex iCount;
 	OSStatus Status;
+	bool bFound = false;
 
 	if ( !__xrtX509StoreMacApi(&Api) ) {
 		return false;
@@ -207,9 +208,8 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 		);
 		Api.Release(Data);
 		if ( Result == X509_ERROR ) {
-			/* 与 Windows 系统导入一致：跳过被严格策略拒绝的存量锚；
-			   OOM 等资源错误照常失败。 */
-			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+			/* 与 Windows 一致，只跳过证书自身的严格解析或算法策略错误。 */
+			if ( !__xrtX509StoreSystemCanSkip(xrtGetError()) ) {
 				Api.Release(Anchors);
 				__xrtX509StoreMacClose(&Api);
 				__xrtX509StoreSystemFailure(
@@ -220,9 +220,17 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 			xrtClearError();
 			continue;
 		}
+		bFound = true;
 	}
 	Api.Release(Anchors);
 	__xrtX509StoreMacClose(&Api);
+	if ( !bFound ) {
+		__xrtX509StoreSystemError(
+			XERR_NOT_FOUND, 0,
+			"macOS system anchor set contains no usable certificates", NULL
+		);
+		return false;
+	}
 	return true;
 }
 

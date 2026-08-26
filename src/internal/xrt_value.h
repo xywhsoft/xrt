@@ -101,6 +101,11 @@ const xset* __xrtValueSetItems(const xvalue* pValue);
 
 
 
+/* 查询 Object 是否采用逆插入顺序释放拥有值。 */
+bool __xrtValueObjectDropsReverse(const xvalue* pValue);
+
+
+
 #if defined(XRT_FEATURE_VALUE_COLLECTION)
 
 /* 把准备容器的完整 backing 原子提交给同类型目标。 */

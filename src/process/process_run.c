@@ -286,7 +286,56 @@ static int32 __xrtProcessRunOutput(ptr pData)
 
 
 
-/* 写完借用输入后无条件关闭 stdin，短写和提前关闭由结果字节数表达。 */
+/* 为一次性终端输入追加平台控制台可识别的 EOF 序列。 */
+static void __xrtProcessRunTerminalEof(xprocessruninput* pInput)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		static const unsigned char arrLineEof[] = {
+			'\r', '\n', 0x1Au, '\r', '\n'
+		};
+		static const unsigned char arrEof[] = { 0x1Au, '\r', '\n' };
+		const unsigned char* pEof = arrEof;
+		size_t iEofSize = sizeof(arrEof);
+	#else
+		static const unsigned char arrEof[] = { 0x04u, 0x04u };
+		const unsigned char* pEof = arrEof;
+		size_t iEofSize = sizeof(arrEof);
+	#endif
+	size_t iOffset = 0u;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		/* Ctrl-Z 只有在新行起点才表示控制台 EOF。 */
+		if ( (pInput->Input.Size != 0u) &&
+			(pInput->Input.Data[pInput->Input.Size - 1u] != '\r') &&
+			(pInput->Input.Data[pInput->Input.Size - 1u] != '\n') ) {
+			pEof = arrLineEof;
+			iEofSize = sizeof(arrLineEof);
+		}
+	#endif
+	while ( iOffset < iEofSize ) {
+		int64 iWrite = xrtProcessWrite(
+			pInput->State->Process,
+			pEof + iOffset,
+			iEofSize - iOffset
+		);
+
+		if ( iWrite <= 0 ) {
+			xrtClearError();
+			break;
+		}
+		iOffset += (size_t)iWrite;
+	}
+	#if !defined(_WIN32) && !defined(_WIN64)
+		(void)xrtProcessClose(
+			pInput->State->Process,
+			XPROCESS_STDIN
+		);
+	#endif
+}
+
+
+
+/* 写完借用输入后发送 EOF，短写和提前关闭由结果字节数表达。 */
 static int32 __xrtProcessRunInput(ptr pData)
 {
 	xprocessruninput* pInput = (xprocessruninput*)pData;
@@ -304,10 +353,9 @@ static int32 __xrtProcessRunInput(ptr pData)
 		}
 		pInput->Written += (size_t)iWrite;
 	}
-	/* 普通管道关闭 stdin 通知 EOF；终端模式下关闭 ConPTY 输入句柄会
-	   直接拆除伪控制台会话，子进程收到控制事件退出并丢失未冲刷输出，
-	   因此终端模式的 stdin 交给进程销毁路径统一收口。 */
-	if ( !pInput->State->Terminal ) {
+	if ( pInput->State->Terminal ) {
+		__xrtProcessRunTerminalEof(pInput);
+	} else {
 		(void)xrtProcessClose(pInput->State->Process, XPROCESS_STDIN);
 	}
 	return 0;
@@ -510,7 +558,8 @@ XRT_API bool xrtProcessRun(
 	} else if ( Config.Stderr.Mode != XPROCESS_IO_MERGE ) {
 		Config.Stderr.Mode = XPROCESS_IO_PIPE;
 	}
-	bNeedInput = (Options.Input.Data != NULL) ||
+	bNeedInput = Config.Terminal ||
+		(Options.Input.Data != NULL) ||
 		(Options.Input.Size != 0u) ||
 		(Config.Stdin.Mode == XPROCESS_IO_PIPE);
 	if ( bNeedInput ) {

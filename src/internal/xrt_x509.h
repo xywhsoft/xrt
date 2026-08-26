@@ -337,6 +337,11 @@ void __xrtX509StoreSystemFailure(cstr sMessage);
 
 
 
+/* 仅允许跳过系统库中由 X.509 严格解析或算法策略拒绝的单张证书。 */
+bool __xrtX509StoreSystemCanSkip(const xerror* pError);
+
+
+
 /* 由当前平台后端把系统锚导入指定信任库。 */
 bool __xrtX509StoreSystemLoad(xx509store* pStore);
 
