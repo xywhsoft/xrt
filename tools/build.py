@@ -431,6 +431,10 @@ def _object_source_fingerprint(
 def _response_argument(argument: str) -> str:
 	"""生成 GCC、Clang 和 TCC 都能读取的响应文件参数。"""
 
+	# MSVC 的 /选项 一旦被引号包裹就会按文件名解析（/IMPLIB 等
+	# 会静默丢失），因此以 / 开头的参数原样写入。
+	if argument.startswith("/"):
+		return argument
 	normalized = argument.replace("\\", "/")
 	return '"' + normalized.replace('"', '\\"') + '"'
 
