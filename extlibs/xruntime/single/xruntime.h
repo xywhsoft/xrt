@@ -262531,7 +262531,7 @@ static bool __xrtValueObjectBackingCopy(
 )
 {
 	xmapiter tIterator;
-	xbytesview Key;
+	xbytesview Key = {0};
 	ptr pSlot;
 
 	if ( !xrtMapReserve(&pTarget->Items, xrtMapCount(&pSource->Items)) ||

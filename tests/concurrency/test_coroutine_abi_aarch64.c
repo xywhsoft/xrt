@@ -158,7 +158,7 @@ __asm__(
 	"ldr w0, [sp, #236]\n"
 	"b 6f\n"
 	"5:\n"
-	"mov w0, #0\n"
+	"mov w0, #-2\n"
 	"6:\n"
 	"ldp q14, q15, [sp, #192]\n"
 	"ldp q12, q13, [sp, #160]\n"
@@ -283,8 +283,17 @@ static void testCoroAbiArm64Registers(void)
 	pCo = xrtCoCreate(testCoroAbiArm64Proc, &tState, NULL);
 	testRequire(pCo != NULL, "AArch64 ABI coroutine create failed");
 	for ( i = 0; i <= TEST_CORO_ABI_SWITCH_COUNT; i++ ) {
-		testRequire(
-			testCoroAbiArm64Call(pCo, 1, testCoroAbiHostTable, testCoroAbiFiberTable) != 0,
+		int iCall = testCoroAbiArm64Call(
+			pCo, 1, testCoroAbiHostTable, testCoroAbiFiberTable);
+
+		if ( iCall <= 0 ) {
+			fprintf(stderr,
+				"[diag] host call %zu: ret=%d (%s)
+", i, iCall,
+				iCall == -2 ?  "register mismatch" :
+				(iCall == 0 ? "resume returned false" : "negative"));
+		}
+		testRequire(iCall != 0,
 			"AArch64 host nonvolatile register preservation failed"
 		);
 	}
