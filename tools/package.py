@@ -339,20 +339,28 @@ def _link_msvc_shared(
 ) -> None:
 	"""链接 cl/clang-cl 风格动态库。"""
 
+	# 对象走响应文件，/LD 与 /link 选项保留在直接命令行：
+	# 个别 cl 版本会忽略响应文件里的链接选项（/OUT、/IMPLIB 静默丢失）。
+	response = output.with_suffix(output.suffix + ".objects.rsp")
+	response.parent.mkdir(parents=True, exist_ok=True)
+	response.write_text(
+		"\n".join(xrt_build._response_argument(str(item)) for item in objects)
+		+ "\n",
+		encoding="utf-8",
+	)
 	command = [
 		compiler,
 		"/nologo",
 		"/LD",
-		*(str(item) for item in objects),
+		"@" + str(response),
 		"/link",
 		f"/OUT:{output}",
 		f"/IMPLIB:{import_library}",
 		*(f"{item}.lib" for item in links),
 		*extra_ldflags,
 	]
-	xrt_build._run_compiler(command, output.with_suffix(output.suffix + ".rsp"))
-	# 个别 cl 版本在响应文件模式下忽略 /OUT 与 /IMPLIB，产物按首个
-	# 对象的默认名落在当前目录；此处显式收回到期望位置。
+	subprocess.run(command, cwd=ROOT, check=True)
+	# 兜底：若个别环境仍按默认名落盘，显式收回到期望位置。
 	if (not output.exists()) or (not import_library.exists()):
 		fallback_base = ROOT / objects[0].stem
 		if (not output.exists()) and fallback_base.with_suffix(".dll").is_file():
@@ -362,6 +370,8 @@ def _link_msvc_shared(
 		fallback_base.with_suffix(".exp").unlink(missing_ok=True)
 	if not import_library.exists():
 		raise SystemExit(f"msvc import library was not produced: {import_library}")
+	if not output.exists():
+		raise SystemExit(f"msvc shared library was not produced: {output}")
 
 
 
