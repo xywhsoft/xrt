@@ -3,6 +3,10 @@
 	#define _GNU_SOURCE 1
 #endif
 
+#if defined(__APPLE__)
+	/* 临时诊断用。 */
+	#include <stdio.h>
+#endif
 #include "../internal/xrt_net_socket.h"
 
 #include <errno.h>
@@ -1412,7 +1416,6 @@ void __xrtNetSocketDgramMetaParse(
 
 			#if defined(__APPLE__)
 				/* 临时诊断：转储收到的控制消息，定位 Darwin 元数据缺失。 */
-				#include <stdio.h>
 				fprintf(stderr, "[cmsg] level=%d type=%d size=%zu trunc=%d\n",
 					(int)pHeader->cmsg_level, (int)pHeader->cmsg_type,
 					iSize, (Message.msg_flags & MSG_CTRUNC) ? 1 : 0);
