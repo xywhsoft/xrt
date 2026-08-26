@@ -27,7 +27,8 @@
 	在当前执行上下文中装入 AAPCS64 非易失寄存器，执行一次 resume 或
 	yield，恢复后逐个检查寄存器和栈对齐。宿主和协程使用不同的哨兵表。
 */
-extern int testCoroAbiArm64Call(xcoro* pCo, int iResume);
+extern int testCoroAbiArm64Call(
+	xcoro* pCo, int iResume, const void* pHost, const void* pFiber);
 
 
 
@@ -51,9 +52,9 @@ __asm__(
 	"stp q14, q15, [sp, #192]\n"
 	"str x0, [sp, #224]\n"
 	"str w1, [sp, #232]\n"
-	"adr x9, LxrtCoroAbiHost\n"
+	"mov x9, x2\n"
 	"cbnz w1, 1f\n"
-	"adr x9, LxrtCoroAbiFiber\n"
+	"mov x9, x3\n"
 	"1:\n"
 	"ldp x19, x20, [x9, #0]\n"
 	"ldp x21, x22, [x9, #16]\n"
@@ -84,10 +85,10 @@ __asm__(
 	"cset w0, eq\n"
 	"3:\n"
 	"str w0, [sp, #236]\n"
-	"adr x9, LxrtCoroAbiHost\n"
+	"mov x9, x2\n"
 	"ldr w10, [sp, #232]\n"
 	"cbnz w10, 4f\n"
-	"adr x9, LxrtCoroAbiFiber\n"
+	"mov x9, x3\n"
 	"4:\n"
 	"ldr x10, [x9, #0]\n"
 	"cmp x19, x10\n"
@@ -172,30 +173,34 @@ __asm__(
 	"add sp, sp, #240\n"
 	"ret\n"
 	TEST_CORO_ASM_SIZE
-	TEST_CORO_ASM_CONST_SECTION
-	".p2align 3\n"
-	"LxrtCoroAbiHost:\n"
-	".quad 0x1122334455667701, 0x1122334455667702\n"
-	".quad 0x1122334455667703, 0x1122334455667704\n"
-	".quad 0x1122334455667705, 0x1122334455667706\n"
-	".quad 0x1122334455667707, 0x1122334455667708\n"
-	".quad 0x1122334455667709\n"
-	".quad 0x2110010203040506, 0x2111020304050607\n"
-	".quad 0x2112030405060708, 0x2113040506070809\n"
-	".quad 0x211405060708090A, 0x2115060708090A0B\n"
-	".quad 0x21160708090A0B0C, 0x211708090A0B0C0D\n"
-	"LxrtCoroAbiFiber:\n"
-	".quad 0x6655443322118801, 0x6655443322118802\n"
-	".quad 0x6655443322118803, 0x6655443322118804\n"
-	".quad 0x6655443322118805, 0x6655443322118806\n"
-	".quad 0x6655443322118807, 0x6655443322118808\n"
-	".quad 0x6655443322118809\n"
-	".quad 0x6220010203040506, 0x6221020304050607\n"
-	".quad 0x6222030405060708, 0x6223040506070809\n"
-	".quad 0x622405060708090A, 0x6225060708090A0B\n"
-	".quad 0x62260708090A0B0C, 0x622708090A0B0C0D\n"
-	".text\n"
 );
+
+/* Darwin 汇编器无法对跨 section 的 adr 编码（unknown fixup kind），
+   哨兵表改由 C 侧定义并通过 x2/x3 传入，跨平台一致。 */
+static const unsigned long long testCoroAbiHostTable[17] = {
+	0x1122334455667701ULL, 0x1122334455667702ULL,
+	0x1122334455667703ULL, 0x1122334455667704ULL,
+	0x1122334455667705ULL, 0x1122334455667706ULL,
+	0x1122334455667707ULL, 0x1122334455667708ULL,
+	0x1122334455667709ULL,
+	0x2110010203040506ULL, 0x2111020304050607ULL,
+	0x2112030405060708ULL, 0x2113040506070809ULL,
+	0x211405060708090AULL, 0x2115060708090A0BULL,
+	0x21160708090A0B0CULL, 0x211708090A0B0C0DULL,
+};
+
+static const unsigned long long testCoroAbiFiberTable[17] = {
+	0x6655443322118801ULL, 0x6655443322118802ULL,
+	0x6655443322118803ULL, 0x6655443322118804ULL,
+	0x6655443322118805ULL, 0x6655443322118806ULL,
+	0x6655443322118807ULL, 0x6655443322118808ULL,
+	0x6655443322118809ULL,
+	0x6220010203040506ULL, 0x6221020304050607ULL,
+	0x6222030405060708ULL, 0x6223040506070809ULL,
+	0x622405060708090AULL, 0x6225060708090A0BULL,
+	0x62260708090A0B0CULL, 0x622708090A0B0C0DULL,
+};
+
 
 #undef TEST_CORO_ASM_CONST_SECTION
 #undef TEST_CORO_ASM_SIZE
@@ -246,7 +251,7 @@ static ptr testCoroAbiArm64Proc(ptr pData)
 		#endif
 	#endif
 	for ( i = 0; i < TEST_CORO_ABI_SWITCH_COUNT; i++ ) {
-		if ( !testCoroAbiArm64Call(NULL, 0) ) {
+		if ( !testCoroAbiArm64Call(NULL, 0, testCoroAbiHostTable, testCoroAbiFiberTable) ) {
 			return NULL;
 		}
 		pState->Switches++;
@@ -279,7 +284,7 @@ static void testCoroAbiArm64Registers(void)
 	testRequire(pCo != NULL, "AArch64 ABI coroutine create failed");
 	for ( i = 0; i <= TEST_CORO_ABI_SWITCH_COUNT; i++ ) {
 		testRequire(
-			testCoroAbiArm64Call(pCo, 1) != 0,
+			testCoroAbiArm64Call(pCo, 1, testCoroAbiHostTable, testCoroAbiFiberTable) != 0,
 			"AArch64 host nonvolatile register preservation failed"
 		);
 	}

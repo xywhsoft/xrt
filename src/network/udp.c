@@ -1981,7 +1981,6 @@ static void __xrtNetUdpDriveWriteRun(xnetudp* pUdp)
 				return;
 			}
 			if ( (pSend != NULL) && pSend->Controlled ) {
-				size_t iSent = 0;
 				xnetresult SendResult = __xrtNetUdpSocketSend(
 					pUdp,
 					pSend,
