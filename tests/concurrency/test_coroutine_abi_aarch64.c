@@ -288,8 +288,7 @@ static void testCoroAbiArm64Registers(void)
 
 		if ( iCall <= 0 ) {
 			fprintf(stderr,
-				"[diag] host call %zu: ret=%d (%s)
-", i, iCall,
+				"[diag] host call %zu: ret=%d (%s)\n", i, iCall,
 				iCall == -2 ?  "register mismatch" :
 				(iCall == 0 ? "resume returned false" : "negative"));
 		}

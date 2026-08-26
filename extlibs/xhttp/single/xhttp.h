@@ -284589,7 +284589,7 @@ XRT_API xvalue* xrtValueObjectAt(
 		XVALUE_OBJECT
 	);
 	xmapiter Iterator;
-	xbytesview Key;
+	xbytesview Key = {0};
 	xvalue* const* pSlot = NULL;
 
 	if ( pBacking == NULL ) {
@@ -285206,7 +285206,7 @@ XRT_API xvalue* xrtValueIterNext(
 		return pItem != NULL ? *(xvalue* const*)pItem : NULL;
 	}
 	if ( pIterator->Type == XVALUE_OBJECT ) {
-		xbytesview Key;
+		xbytesview Key = {0};
 
 		pSlot = xrtMapIterNext(&pIterator->State.Map, &Key);
 		if ( (pSlot != NULL) && (pKey != NULL) ) {
