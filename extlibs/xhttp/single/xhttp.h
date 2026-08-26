@@ -193001,7 +193001,7 @@ XRT_API xtlsresult xrtTlsServerTicket(
 	uint8 AgeBytes[4];
 	uint8 Secret[XTLS_SERVER_SECRET_MAX_SIZE];
 	size_t iBody;
-	size_t iMessage;
+	size_t iMessage = 0;
 	xtlsresult Writable;
 	xtlsresult Result = XTLS_ERROR;
 
