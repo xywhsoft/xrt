@@ -121,10 +121,11 @@ def _msvc_archiver(compiler: str, explicit: str | None) -> str:
 def _msvc_options(
 	defines: list[str],
 	extra_cflags: list[str],
+	preprocessor_conformance: bool = True,
 ) -> list[str]:
 	"""生成 cl 与 clang-cl 共用的严格 C 编译参数。"""
 
-	return [
+	options = [
 		"/nologo",
 		"/TC",
 		"/std:c11",
@@ -132,11 +133,14 @@ def _msvc_options(
 		"/W4",
 		"/WX",
 		"/O2",
-		"/Zc:preprocessor",
-		*(f"/D{item}" for item in defines),
-		f"/I{ROOT / 'include'}",
-		*extra_cflags,
 	]
+	# clang-cl 把 /Zc:preprocessor 视为未使用参数并按错误报告。
+	if preprocessor_conformance:
+		options.append("/Zc:preprocessor")
+	options.extend(f"/D{item}" for item in defines)
+	options.append(f"/I{ROOT / 'include'}")
+	options.extend(extra_cflags)
+	return options
 
 
 
@@ -187,7 +191,11 @@ def _compile_msvc_objects(
 ) -> list[Path]:
 	"""增量编译 MSVC 风格对象文件。"""
 
-	options = _msvc_options(defines, extra_cflags)
+	options = _msvc_options(
+		defines,
+		extra_cflags,
+		preprocessor_conformance="clang" not in compiler,
+	)
 	environment = _msvc_environment(
 		compiler,
 		arch,
@@ -506,6 +514,8 @@ def _verify_msvc(
 		"/WX",
 		f"/I{ROOT / 'include'}",
 	]
+	if "clang" not in compiler:
+		command.append("/Zc:preprocessor")
 	command.extend(f"/I{ROOT / directory}" for directory in include_dirs or [])
 	if kind == "shared":
 		command.append("/DXRT_USE_SHARED")

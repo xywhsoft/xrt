@@ -268380,12 +268380,12 @@ bool __xrtTemplateRenderConfigValid(
 	#if defined(XRT_FEATURE_TEMPLATE_CONTROL)
 		bInvalid = bInvalid || (pConfig->MaxDepth == 0) ||
 			(pConfig->MaxLoopIterations == 0) ||
-			(pConfig->MaxDepth > (size_t)INT64_MAX) ||
-			(pConfig->MaxLoopIterations > (size_t)INT64_MAX);
+			(pConfig->MaxDepth > (uint64)INT64_MAX) ||
+			(pConfig->MaxLoopIterations > (uint64)INT64_MAX);
 	#endif
 	#if defined(XRT_FEATURE_TEMPLATE_COMPOSE)
 		bInvalid = bInvalid || (pConfig->MaxIncludeDepth == 0) ||
-			(pConfig->MaxIncludeDepth > (size_t)INT64_MAX);
+			(pConfig->MaxIncludeDepth > (uint64)INT64_MAX);
 	#endif
 	if ( bInvalid ) {
 		__xrtTemplateError(
