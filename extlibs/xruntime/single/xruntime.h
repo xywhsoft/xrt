@@ -173421,7 +173421,8 @@ XRT_API bool xrtX25519KeyPair(void* pPrivate, void* pPublic)
 	 defined(_M_X64) || defined(_M_AMD64)) && \
 	(defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER))
 	#define XRT_AES_X86_HARDWARE 1
-	#if defined(_MSC_VER)
+	/* clang-cl 同样定义 _MSC_VER，但需要显式 target 特性。 */
+	#if defined(_MSC_VER) && !defined(__clang__)
 		#include <intrin.h>
 		#include <wmmintrin.h>
 		#define XRT_AES_TARGET
