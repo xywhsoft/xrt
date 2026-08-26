@@ -580,7 +580,7 @@ static void __xrtTlsStreamFail(xtlsstream* pStream)
 	);
 	xrtAtomic32Store(
 		&pStream->TerminalResult,
-		XNET_RESULT_ERROR,
+		(uint32)XNET_RESULT_ERROR,
 		XMEMORY_RELEASE
 	);
 	xrtAtomic32Store(
@@ -912,7 +912,7 @@ static void __xrtTlsStreamProgressClose(xtlsstream* pStream)
 			);
 			xrtAtomic32Store(
 				&pStream->TerminalResult,
-				XNET_RESULT_ERROR,
+				(uint32)XNET_RESULT_ERROR,
 				XMEMORY_RELEASE
 			);
 			xrtAtomic32Store(
