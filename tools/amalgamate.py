@@ -456,6 +456,9 @@ def _content(overlays: list[Path] | None = None) -> tuple[Path, str]:
 		"\t#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)\n",
 		"\t\t#define _DARWIN_C_SOURCE 1\n",
 		"\t#endif\n",
+		"\t#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)\n"
+		"\t\t#define _CRT_SECURE_NO_WARNINGS\n"
+		"\t#endif\n"
 		"\t#if !defined(_POSIX_C_SOURCE)\n",
 		"\t\t#define _POSIX_C_SOURCE 200809L\n",
 		"\t#endif\n",

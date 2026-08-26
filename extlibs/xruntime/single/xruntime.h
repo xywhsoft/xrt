@@ -31,6 +31,9 @@
 	#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
 		#define _DARWIN_C_SOURCE 1
 	#endif
+	#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
+		#define _CRT_SECURE_NO_WARNINGS
+	#endif
 	#if !defined(_POSIX_C_SOURCE)
 		#define _POSIX_C_SOURCE 200809L
 	#endif
@@ -43282,6 +43285,13 @@ XRT_EXTERN_C_END
 /* ========================================================================== */
 /* internal: src/internal/xrt_internal.h */
 /* ========================================================================== */
+
+/* MSVC 对 getenv/sscanf 等标准 CRT 报弃用警告，属工具链噪音。 */
+#if defined(_MSC_VER)
+	#ifndef _CRT_SECURE_NO_WARNINGS
+		#define _CRT_SECURE_NO_WARNINGS
+	#endif
+#endif
 
 #ifndef XRT_INTERNAL_H
 #define XRT_INTERNAL_H

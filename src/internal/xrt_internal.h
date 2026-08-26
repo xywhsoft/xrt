@@ -1,3 +1,10 @@
+/* MSVC 对 getenv/sscanf 等标准 CRT 报弃用警告，属工具链噪音。 */
+#if defined(_MSC_VER)
+	#ifndef _CRT_SECURE_NO_WARNINGS
+		#define _CRT_SECURE_NO_WARNINGS
+	#endif
+#endif
+
 #ifndef XRT_INTERNAL_H
 #define XRT_INTERNAL_H
 
