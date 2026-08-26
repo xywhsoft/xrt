@@ -14,7 +14,7 @@
 	#define XRT_GHASH_X86_HARDWARE 1
 	#include <tmmintrin.h>
 	#include <wmmintrin.h>
-	#if defined(_MSC_VER)
+	#if defined(_MSC_VER) && !defined(__clang__)
 		#define XRT_GHASH_TARGET
 	#else
 		#define XRT_GHASH_TARGET __attribute__((target("ssse3,pclmul")))

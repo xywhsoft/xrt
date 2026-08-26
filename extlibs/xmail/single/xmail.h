@@ -174588,7 +174588,7 @@ XRT_API bool xrtX25519KeyPair(void* pPrivate, void* pPublic)
 	(defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER))
 	#define XRT_AES_X86_HARDWARE 1
 	/* clang-cl 同样定义 _MSC_VER，但需要显式 target 特性。 */
-	#if defined(_MSC_VER) && !defined(__clang__)
+	#if defined(_MSC_VER) && !defined(__clang__) && !defined(__clang__)
 		#include <intrin.h>
 		#include <wmmintrin.h>
 		#define XRT_AES_TARGET
@@ -174642,7 +174642,7 @@ static uint32 __xrtAesHardwareFeatures(void)
 	uint32 iFeatures = 0;
 
 	#if XRT_AES_X86_HARDWARE
-		#if defined(_MSC_VER) && !defined(__clang__)
+		#if defined(_MSC_VER) && !defined(__clang__) && !defined(__clang__)
 			int Cpu[4];
 
 			__cpuid(Cpu, 0);
@@ -174712,7 +174712,7 @@ static uint32 __xrtAesHardwareFeaturesCached(void)
 		static uint32 iCached = UINT32_MAX;
 	#endif
 
-	#if defined(_MSC_VER) && XRT_AES_X86_HARDWARE
+	#if defined(_MSC_VER) && !defined(__clang__) && XRT_AES_X86_HARDWARE
 		iFeatures = (uint32)_InterlockedCompareExchange(
 			(volatile long*)&iCached,
 			(long)UINT32_MAX,
@@ -175767,7 +175767,7 @@ XRT_API bool xrtAesDecrypt(
 	#define XRT_GHASH_X86_HARDWARE 1
 	#include <tmmintrin.h>
 	#include <wmmintrin.h>
-	#if defined(_MSC_VER)
+	#if defined(_MSC_VER) && !defined(__clang__)
 		#define XRT_GHASH_TARGET
 	#else
 		#define XRT_GHASH_TARGET __attribute__((target("ssse3,pclmul")))
