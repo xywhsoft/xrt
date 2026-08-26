@@ -1150,7 +1150,7 @@ XRT_API bool xrtDateTimeParse(xstrview Text, xstrview Format, xdatetime* pDateTi
 XRT_API bool xrtTimeParse(xstrview Text, xstrview Format, xtime* pTime)
 {
 	xdatetime tDateTime;
-	xtime iResult;
+	xtime iResult = 0;
 
 	if ( pTime == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -1261,7 +1261,7 @@ static bool __xrtTimeParseRFC3339Value(xstrview Text, xtime* pTime)
 	size_t iFractionDigits = 0;
 	int iValue;
 	int iMicrosecond = 0;
-	xtime iResult;
+	xtime iResult = 0;
 
 	memset(&tDateTime, 0, sizeof(tDateTime));
 	if ( !__xrtTimeParseDigits(Text, &iPosition, 4, &iValue) ) {
@@ -1333,7 +1333,7 @@ static bool __xrtTimeParseRFC3339Value(xstrview Text, xtime* pTime)
 /* 严格解析 RFC 3339。 */
 XRT_API bool xrtTimeParseRFC3339(xstrview Text, xtime* pTime)
 {
-	xtime iResult;
+	xtime iResult = 0;
 
 	if ( (pTime == NULL) || !__xrtTimeTextViewValid(Text) ) {
 		__xrtErrorSetInvalidArgument();
@@ -1418,7 +1418,7 @@ XRT_API str xrtTimeHTTPDate(xtime iTime)
 static bool __xrtTimeHTTPBuild(int iWeekday, int64 iYear, int iMonth, int iDay,
 	int iHour, int iMinute, int iSecond, xtime* pTime)
 {
-	xtime iResult;
+	xtime iResult = 0;
 	xdatetime tUTC;
 
 	memset(&tUTC, 0, sizeof(tUTC));
@@ -1588,7 +1588,7 @@ XRT_API bool xrtTimeTryParseHTTPDate(
 	xtime* pTime
 )
 {
-	xtime iResult;
+	xtime iResult = 0;
 	bool bParsed = false;
 
 	if ( !__xrtRangeValid(pTime, sizeof(*pTime)) ||
