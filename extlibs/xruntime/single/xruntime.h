@@ -266572,6 +266572,11 @@ XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
 
 #if defined(XRT_FEATURE_JSON_CORE) || \
 	defined(XRT_FEATURE_XSON_CORE)
+/* MSVC 对标准 C 的 sscanf 报弃用警告，仅工具链噪音。 */
+#if defined(_MSC_VER)
+	#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 
 #include <stdio.h>
 
@@ -273115,6 +273120,11 @@ XRT_API bool xrtXsonStringifyFile(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_TEMPLATE_CORE)
+/* MSVC 对标准 C 的 sscanf 报弃用警告，仅工具链噪音。 */
+#if defined(_MSC_VER)
+	#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 
 #include <stdio.h>
 
@@ -279722,6 +279732,11 @@ XRT_API xtemplate* xrtTemplateCompileFile(cstr sPath)
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_XID)
+/* MSVC 对标准 C 的 sscanf 报弃用警告，仅工具链噪音。 */
+#if defined(_MSC_VER)
+	#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 
 #include <stdio.h>
 

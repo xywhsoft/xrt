@@ -1,3 +1,8 @@
+/* MSVC 对标准 C 的 sscanf 报弃用警告，仅工具链噪音。 */
+#if defined(_MSC_VER)
+	#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include "../internal/xrt_text_value.h"
 
 #include <stdio.h>
