@@ -489,14 +489,14 @@ def _verify_msvc(
 	if kind == "shared":
 		command.append("/DXRT_USE_SHARED")
 	command.append(str(ROOT / consumer))
+	command.append(f"/Fe{output}")
+	# 库引用统一进 /link 段；新版 cl 不再把 /Fe 之前的裸 .lib 当链接输入。
+	command.append("/link")
 	if kind == "shared":
 		command.append(str(link_library))
-	command.extend([
-		*(f"{item}.lib" for item in links),
-		f"/Fe{output}",
-	])
 	if kind == "static":
-		command.extend(["/link", f"/WHOLEARCHIVE:{artifact}"])
+		command.append(f"/WHOLEARCHIVE:{artifact}")
+	command.extend(f"{item}.lib" for item in links)
 	xrt_build._run_compiler(command, output.with_suffix(".rsp"))
 	print(f"[verify] {output.relative_to(ROOT)}")
 	subprocess.run([str(output)], cwd=artifact.parent, check=True)
