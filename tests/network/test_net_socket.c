@@ -743,12 +743,14 @@ static void testSocketUDP(void)
 		testRequire(bWhole, "UDP batch item result mismatch");
 	}
 	{
-		/* 零长度报文项在 Darwin 上不携带源地址，只检查有数据的项。 */
+		/* 零长度与截断报文项在 Darwin 上不携带源地址，
+		   只检查完整接收的项。 */
 		size_t iItem;
 		bool bPortOk = true;
 
 		for ( iItem = 0; iItem < 3; iItem++ ) {
-			if ( (RecvBatch[iItem].Size > 0) &&
+			if ( (RecvBatch[iItem].Result == XNET_RESULT_OK) &&
+				(RecvBatch[iItem].Size > 0) &&
 				(RecvBatch[iItem].Remote.Port != Remote.Port) ) {
 				bPortOk = false;
 			}
