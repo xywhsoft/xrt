@@ -107330,18 +107330,33 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 			struct msghdr Message;
 			ssize_t iBytes;
 
-			Buffer.iov_base = (pData != NULL) ? pData : &iDummy;
-			Buffer.iov_len = iSize;
-			memset(&Message, 0, sizeof(Message));
-			Message.msg_name = &Storage;
-			Message.msg_namelen = iAddressSize;
-			/* Darwin 对零长度 iovec 返回 EINVAL；零长度时省略 iov。 */
-			Message.msg_iov = &Buffer;
-			Message.msg_iovlen = 1;
-			do {
-				iBytes = recvmsg(__xrtNetSocketHandle(Socket), &Message, 0);
-			} while ( (iBytes < 0) && (errno == EINTR) );
-			iAddressSize = Message.msg_namelen;
+			if ( iSize == 0 ) {
+				/* Darwin 的 recvmsg 对零长度缓冲不可用（EINVAL），
+				   零长度接收改用 recvfrom。 */
+				socklen_t iDummyLen = iAddressSize;
+
+				do {
+					iBytes = recvfrom(
+						__xrtNetSocketHandle(Socket),
+						NULL, 0, 0,
+						(struct sockaddr*)&Storage, &iDummyLen
+					);
+				} while ( (iBytes < 0) && (errno == EINTR) );
+				iAddressSize = (socklen_t)iDummyLen;
+			} else {
+				Buffer.iov_base = pData;
+				Buffer.iov_len = iSize;
+				memset(&Message, 0, sizeof(Message));
+				Message.msg_name = &Storage;
+				Message.msg_namelen = iAddressSize;
+				Message.msg_iov = &Buffer;
+				Message.msg_iovlen = 1;
+				do {
+					iBytes = recvmsg(
+						__xrtNetSocketHandle(Socket), &Message, 0);
+				} while ( (iBytes < 0) && (errno == EINTR) );
+				iAddressSize = Message.msg_namelen;
+			}
 			iResult = (iBytes > INT_MAX) ? INT_MAX : (int)iBytes;
 			Result = __xrtNetSocketRecvResult(iResult,
 				pReceived, true, "recv-from");
