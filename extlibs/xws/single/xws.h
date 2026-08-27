@@ -127497,6 +127497,10 @@ XRT_API bool xrtNetAddrFromNative(xnetaddr* pAddr,
 	#define _GNU_SOURCE 1
 #endif
 
+#if defined(__APPLE__)
+	/* 临时诊断用。 */
+	#include <stdio.h>
+#endif
 
 #include <errno.h>
 #include <limits.h>
@@ -131159,6 +131163,17 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 						(struct sockaddr*)&Storage, &iDummyLen
 					);
 				} while ( (iBytes < 0) && (errno == EINTR) );
+				#if defined(__APPLE__)
+					{
+						/* 临时诊断。 */
+						int iErrno = (iBytes < 0) ? errno : 0;
+
+						fprintf(stderr,
+							"[diag0] recvfrom ret=%zd errno=%d
+",
+							iBytes, iErrno);
+					}
+				#endif
 				iAddressSize = (socklen_t)iDummyLen;
 			} else {
 				Buffer.iov_base = pData;
