@@ -501,6 +501,7 @@ static bool __xrtXsonWriterTree(
 	ptr pIdentity;
 	bool bValue;
 	int64 iInteger;
+	uint64 iUnsigned;
 	double fValue;
 	xstrview Text;
 	xbytesview Data;
@@ -531,6 +532,13 @@ static bool __xrtXsonWriterTree(
 			return false;
 		}
 		return __xrtTextValueWriterInt(pWriter->Core, iInteger);
+	}
+	if ( Type == XVALUE_UINT ) {
+		if ( !xrtValueGetUInt(pValue, &iUnsigned) ) {
+			__xrtTextValueWriterPoison(pWriter->Core);
+			return false;
+		}
+		return __xrtTextValueWriterUInt(pWriter->Core, iUnsigned);
 	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
@@ -796,6 +804,18 @@ XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue)
 		return false;
 	}
 	return __xrtTextValueWriterInt(pWriter->Core, iValue);
+}
+
+
+
+/* 写入 uint64。 */
+XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
+{
+	if ( pWriter == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return __xrtTextValueWriterUInt(pWriter->Core, iValue);
 }
 
 

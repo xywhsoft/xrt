@@ -474,9 +474,9 @@ XRT_API bool xrtProgressCallInvoke(
 		pContext->InvokeFailed = true;
 		return false;
 	}
-	arrArguments[0] = xrtValueInt((int64)pProgress->iInputBytes);
-	arrArguments[1] = xrtValueInt((int64)pProgress->iTotalInputBytes);
-	arrArguments[2] = xrtValueInt((int64)pProgress->iOutputBytes);
+	arrArguments[0] = xrtValueUInt(pProgress->iInputBytes);
+	arrArguments[1] = xrtValueUInt(pProgress->iTotalInputBytes);
+	arrArguments[2] = xrtValueUInt(pProgress->iOutputBytes);
 	if ( (arrArguments[0] == NULL) ||
 		 (arrArguments[1] == NULL) ||
 		 (arrArguments[2] == NULL) ) {

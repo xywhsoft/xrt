@@ -44,6 +44,12 @@ static void testConvenienceMatchesPrimitive(void)
 		testRequire(xrtRand32() == xrtRng32(&Rng),
 			"thread random diverged from explicit RNG");
 	}
+	xrtFastRandSeed(42, 54);
+	xrtRngSeed(&Rng, 42, 54);
+	for ( int i = 0; i < 128; i++ ) {
+		testRequire(xrtFastRand32() == xrtRng32(&Rng),
+			"fast thread random alias diverged from explicit RNG");
+	}
 
 	xrtRngSeed(&Rng, 88, 7);
 	xrtRandSeed(88, 7);

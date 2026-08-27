@@ -7,6 +7,7 @@
 #define XRT_MEMPOOL_LARGE_EMPTY	0u
 #define XRT_MEMPOOL_LARGE_USED		1u
 #define XRT_MEMPOOL_LARGE_DELETED	2u
+#define XRT_MEMPOOL_PAGE_SORT_BATCH	64u
 
 
 
@@ -298,33 +299,48 @@ static int __xrtMemPoolPageCompare(const void* pLeft, const void* pRight)
 
 
 
-/* 按用户区地址将页插入变长池全局索引。 */
+/* Pages 的有序前缀长度；末尾最多保留固定数量的未排序新页。 */
+static size_t __xrtMemPoolPageSortedCount(const xmempool* pPool)
+{
+	uint32 iPending = (pPool->Flags & XRT_MEMPOOL_FLAG_PAGE_PENDING_MASK) >>
+		XRT_MEMPOOL_FLAG_PAGE_PENDING_SHIFT;
+
+	return pPool->PageCount - (size_t)iPending;
+}
+
+
+
+/* 将未排序页数编码在内部 Flags 的高位，避免改变公开池对象布局。 */
+static void __xrtMemPoolPagePendingSet(xmempool* pPool, uint32 iPending)
+{
+	pPool->Flags = (pPool->Flags & ~XRT_MEMPOOL_FLAG_PAGE_PENDING_MASK) |
+		(iPending << XRT_MEMPOOL_FLAG_PAGE_PENDING_SHIFT);
+}
+
+
+
+/*
+	把新页先追加到一个有界乱序尾部；达到批量阈值才排序全部索引。
+	这避免了每次扩页都搬移已有指针，同时查找只额外线性检查很小的尾部。
+*/
 static void __xrtMemPoolPageInsert(xmempool* pPool, xpoolpage* pPage)
 {
-	size_t iLeft = 0;
-	size_t iRight = pPool->PageCount;
-	size_t iPosition;
-	uintptr_t iBase = (uintptr_t)pPage->Memory;
+	uint32 iPending = (pPool->Flags & XRT_MEMPOOL_FLAG_PAGE_PENDING_MASK) >>
+		XRT_MEMPOOL_FLAG_PAGE_PENDING_SHIFT;
 
-	while ( iLeft < iRight ) {
-		size_t iMiddle = iLeft + ((iRight - iLeft) / 2);
-
-		if ( (uintptr_t)pPool->Pages[iMiddle]->Memory < iBase ) {
-			iLeft = iMiddle + 1;
-		} else {
-			iRight = iMiddle;
-		}
-	}
-	iPosition = iLeft;
-	if ( iPosition < pPool->PageCount ) {
-		memmove(
-			&pPool->Pages[iPosition + 1],
-			&pPool->Pages[iPosition],
-			(pPool->PageCount - iPosition) * sizeof(xpoolpage*)
-		);
-	}
-	pPool->Pages[iPosition] = pPage;
+	pPool->Pages[pPool->PageCount] = pPage;
 	pPool->PageCount++;
+	iPending++;
+	if ( iPending >= XRT_MEMPOOL_PAGE_SORT_BATCH ) {
+		qsort(
+			pPool->Pages,
+			pPool->PageCount,
+			sizeof(xpoolpage*),
+			__xrtMemPoolPageCompare
+		);
+		iPending = 0;
+	}
+	__xrtMemPoolPagePendingSet(pPool, iPending);
 }
 
 
@@ -351,6 +367,7 @@ static void __xrtMemPoolPageRebuild(xmempool* pPool)
 		);
 	}
 	pPool->PageCount = iCount;
+	__xrtMemPoolPagePendingSet(pPool, 0);
 }
 
 
@@ -359,11 +376,20 @@ static void __xrtMemPoolPageRebuild(xmempool* pPool)
 static xpoolpage* __xrtMemPoolFindPage(const xmempool* pPool, const void* pMemory)
 {
 	size_t iLeft = 0;
-	size_t iRight = pPool->PageCount;
+	size_t iSorted = __xrtMemPoolPageSortedCount(pPool);
+	size_t iRight = iSorted;
 	uintptr_t iValue = (uintptr_t)pMemory;
 	xpoolpage* pPage;
 	uintptr_t iBase;
 
+	/* 新页尚未批量排序时，最多扫描固定数量以保持查找有界。 */
+	for ( size_t i = iSorted; i < pPool->PageCount; i++ ) {
+		pPage = pPool->Pages[i];
+		iBase = (uintptr_t)pPage->Memory;
+		if ( (iValue >= iBase) && ((iValue - iBase) < pPage->MemorySize) ) {
+			return pPage;
+		}
+	}
 	while ( iLeft < iRight ) {
 		size_t iMiddle = iLeft + ((iRight - iLeft) / 2);
 

@@ -14,6 +14,7 @@
 typedef union __xrt_value_convert_scalar {
 	bool Bool;
 	int64 Integer;
+	uint64 Unsigned;
 	double Float;
 	xtime Time;
 	ptr Pointer;
@@ -121,6 +122,13 @@ XRT_API bool xrtValueConvertTo(
 			}
 			pSourceType = xrtTypeInt64();
 			pValue = &Scalar.Integer;
+			break;
+		case XVALUE_UINT:
+			if ( !xrtValueGetUInt(pSource, &Scalar.Unsigned) ) {
+				return __xrtValueConvertReadFailed();
+			}
+			pSourceType = xrtTypeUInt64();
+			pValue = &Scalar.Unsigned;
 			break;
 		case XVALUE_FLOAT:
 			if ( !xrtValueGetFloat(pSource, &Scalar.Float) ) {

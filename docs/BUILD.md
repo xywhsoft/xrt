@@ -155,8 +155,8 @@ python tools/clean.py
 python tools/clean.py --apply
 ```
 
-默认模式只处理构建目录、工具缓存和已知测试输出。`--history` 额外移除已经完成迁移的
-开发快照及 `dev/ver1` 中的编译产物，不删除旧版源码、测试、文档或脚本。
+默认模式只处理构建目录、工具缓存和已知测试输出。`--history` 会额外处理维护目录中的
+可再生产物；它不会删除受版本控制保护的源码、测试、文档或脚本。
 
 库按工具链、架构、模块组合和种类隔离到 `release/`。模块化库只包含 `--suite`
 闭包；使用方包含头文件时必须选择同一组或更窄的根模块，不能调用未编入库的符号。
@@ -221,5 +221,4 @@ python tools/measure_size.py --compiler E:/software/w64devkit/bin/gcc.exe --arch
 6. 运行 `tools/measure_performance.py --check` 比较固定机器性能基线。
 7. 执行协议、跨平台、sanitizer 和 fuzz 门禁。
 
-旧版逐平台 `.bat`/`.sh` 不再是权威构建入口。新增模块只修改清单，测试和发布工具
-会同时取得同一依赖闭包。
+新增模块应通过清单登记依赖、测试和发布条件，使构建与发布工具取得同一依赖闭包。

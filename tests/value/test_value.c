@@ -30,26 +30,41 @@ static void testValueStatic(void)
 static void testValueScalars(void)
 {
 	xvalue* pInt = xrtValueInt(-42);
+	xvalue* pUInt = xrtValueUInt(UINT64_MAX);
 	xvalue* pFloat = xrtValueFloat(3.5);
 	xvalue* pTime = xrtValueTime((xtime)1234567);
 	xvalue* pZeroTime = xrtValueTime(0);
 	xvalue* pPointer = xrtValuePointer((ptr)(uintptr_t)0x1234u);
 	xvalue* pNullPointer = xrtValuePointer(NULL);
 	int64 iValue;
+	uint64 iUnsigned;
 	double fValue;
 	xtime Time;
 	ptr pResult;
 
 	testRequire(
-		(pInt != NULL) && (pFloat != NULL) && (pTime != NULL) &&
+		(pInt != NULL) && (pUInt != NULL) && (pFloat != NULL) && (pTime != NULL) &&
 		(pZeroTime != NULL) && (pPointer != NULL) && (pNullPointer != NULL),
 		"scalar creation failed"
 	);
 	testRequire(xrtValueGetInt(pInt, &iValue) && (iValue == -42), "integer getter mismatch");
+	testRequire(
+		xrtValueGetUInt(pUInt, &iUnsigned) && (iUnsigned == UINT64_MAX),
+		"unsigned integer getter mismatch"
+	);
 	testRequire(xrtValueGetFloat(pFloat, &fValue) && (fValue == 3.5), "float getter mismatch");
 	testRequire(xrtValueGetTime(pTime, &Time) && (Time == (xtime)1234567), "time getter mismatch");
 	testRequire(xrtValueGetPointer(pPointer, &pResult) && (pResult == (ptr)(uintptr_t)0x1234u), "pointer getter mismatch");
-	testRequire(xrtValueTruthy(pInt) && xrtValueTruthy(pFloat) && xrtValueTruthy(pTime), "scalar truth mismatch");
+	testRequire(
+		xrtValueTruthy(pInt) && xrtValueTruthy(pUInt) &&
+		xrtValueTruthy(pFloat) && xrtValueTruthy(pTime),
+		"scalar truth mismatch"
+	);
+	testRequire(
+		strcmp(xrtValueTypeName(XVALUE_UINT), "uint") == 0 &&
+		xrtValueIsNumber(pUInt),
+		"unsigned integer type identity mismatch"
+	);
 	testRequire(
 		xrtValueTruthy(pZeroTime) && xrtValueTruthy(pNullPointer),
 		"non-null value object truth mismatch"
@@ -65,6 +80,7 @@ static void testValueScalars(void)
 	xrtValueRelease(pZeroTime);
 	xrtValueRelease(pTime);
 	xrtValueRelease(pFloat);
+	xrtValueRelease(pUInt);
 	xrtValueRelease(pInt);
 }
 
@@ -264,7 +280,13 @@ static void testValueHashing(void)
 {
 	xvalue* pInt = xrtValueInt(42);
 	xvalue* pFloat = xrtValueFloat(42.0);
+	xvalue* pUInt = xrtValueUInt(42u);
+	xvalue* pUIntHigh = xrtValueUInt(UINT64_C(9223372036854775808));
+	xvalue* pFloatHigh = xrtValueFloat(9223372036854775808.0);
+	xvalue* pUIntMax = xrtValueUInt(UINT64_MAX);
+	xvalue* pNegative = xrtValueInt(-1);
 	xvalue* pZero = xrtValueInt(0);
+	xvalue* pUIntZero = xrtValueUInt(0u);
 	xvalue* pNegativeZero = xrtValueFloat(-0.0);
 	xvalue* pNanA = xrtValueFloat(NAN);
 	xvalue* pNanB = xrtValueFloat(NAN);
@@ -272,7 +294,22 @@ static void testValueHashing(void)
 	uint64 iHashB;
 
 	testRequire(xrtValueHash(pInt, &iHashA) && xrtValueHash(pFloat, &iHashB) && (iHashA == iHashB), "numeric hash mismatch");
+	testRequire(
+		xrtValueHash(pUInt, &iHashB) && (iHashA == iHashB) &&
+		xrtValueScalarEqual(pInt, pUInt),
+		"signed/unsigned numeric hash mismatch"
+	);
+	testRequire(
+		xrtValueHash(pUIntHigh, &iHashA) && xrtValueHash(pFloatHigh, &iHashB) &&
+		(iHashA == iHashB) && xrtValueScalarEqual(pUIntHigh, pFloatHigh),
+		"high unsigned/float numeric hash mismatch"
+	);
+	testRequire(
+		!xrtValueScalarEqual(pUIntMax, pNegative),
+		"negative signed value aliased unsigned maximum"
+	);
 	testRequire(xrtValueHash(pZero, &iHashA) && xrtValueHash(pNegativeZero, &iHashB) && (iHashA == iHashB), "negative zero hash mismatch");
+	testRequire(xrtValueScalarEqual(pZero, pUIntZero), "unsigned zero equality mismatch");
 	testRequire(xrtValueHash(pNanA, &iHashA) && xrtValueHash(pNanB, &iHashB) && (iHashA == iHashB), "NaN hash mismatch");
 	testRequire(xrtValueScalarEqual(pInt, pFloat), "numeric scalar equality mismatch");
 	testRequire(
@@ -283,7 +320,13 @@ static void testValueHashing(void)
 	xrtValueRelease(pNanB);
 	xrtValueRelease(pNanA);
 	xrtValueRelease(pNegativeZero);
+	xrtValueRelease(pUIntZero);
 	xrtValueRelease(pZero);
+	xrtValueRelease(pUIntMax);
+	xrtValueRelease(pNegative);
+	xrtValueRelease(pFloatHigh);
+	xrtValueRelease(pUIntHigh);
+	xrtValueRelease(pUInt);
 	xrtValueRelease(pFloat);
 	xrtValueRelease(pInt);
 }

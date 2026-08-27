@@ -159,7 +159,7 @@ typedef enum xxsonduplicate {
 
 
 
-/* 超出 int64 的整数默认失败，可显式按 double 接收。 */
+/* 超出 int64/uint64 的整数默认失败，可显式按 double 接收。 */
 typedef enum xxsonbigint {
 	XXSON_BIGINT_REJECT = 0,
 	XXSON_BIGINT_FLOAT
@@ -211,7 +211,8 @@ typedef enum xxsoneventtype {
 	XXSON_EVENT_SET_BEGIN,
 	XXSON_EVENT_SET_END,
 	XXSON_EVENT_OBJECT_BEGIN,
-	XXSON_EVENT_OBJECT_END
+	XXSON_EVENT_OBJECT_END,
+	XXSON_EVENT_UINT
 } xxsoneventtype;
 
 
@@ -252,6 +253,7 @@ typedef struct xxsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
+		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xbytesview Bytes;
@@ -467,6 +469,11 @@ XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue);
 
 /* 写入 int64。 */
 XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
+
+
+
+/* 写入 uint64。 */
+XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
 
 
 

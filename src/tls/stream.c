@@ -171,6 +171,44 @@ XRT_API void xrtTlsStreamDestroy(xtlsstream* pStream)
 
 
 
+
+/* 进入一个可能同步触发底层 Close 的组合调用帧。 */
+static void __xrtTlsStreamActiveEnter(xtlsstream* pStream)
+{
+	pStream->ActiveDepth++;
+}
+
+
+
+/* 立即释放运行时引用，或延迟到最外层组合调用帧退出。 */
+static void __xrtTlsStreamReleaseRuntime(xtlsstream* pStream)
+{
+	if ( !pStream->RuntimeHeld ) {
+		return;
+	}
+	if ( pStream->ActiveDepth != 0 ) {
+		pStream->RuntimeReleasePending = true;
+		return;
+	}
+	pStream->RuntimeReleasePending = false;
+	pStream->RuntimeHeld = false;
+	xrtTlsStreamDestroy(pStream);
+}
+
+
+
+/* 离开最外层组合调用帧后完成延迟的运行时引用释放。 */
+static void __xrtTlsStreamActiveLeave(xtlsstream* pStream)
+{
+	pStream->ActiveDepth--;
+	if ( (pStream->ActiveDepth == 0) &&
+		pStream->RuntimeReleasePending ) {
+		__xrtTlsStreamReleaseRuntime(pStream);
+	}
+}
+
+
+
 /* 初始化握手与认证关闭默认超时。 */
 XRT_API void xrtTlsStreamConfigInit(xtlsstreamconfig* pConfig)
 {
@@ -592,6 +630,9 @@ static void __xrtTlsStreamFail(xtlsstream* pStream)
 	__xrtTlsStreamNotifyFutures(pStream);
 	(void)__xrtTlsStreamStartCloseTimer(pStream);
 	Result = __xrtTlsStreamFlush(pStream);
+	if ( pStream->CloseEmitted ) {
+		return;
+	}
 	if ( Result == XNET_RESULT_ERROR || Result == XNET_RESULT_CLOSED ) {
 		(void)xrtNetStreamAbort((xnetstream*)xrtAtomicPtrLoad(
 			&pStream->Transport,
@@ -1000,6 +1041,9 @@ static void __xrtTlsStreamDrive(xtlsstream* pStream)
 		pStream->DriveAgain = false;
 		if ( pStream->Failing ) {
 			NetResult = __xrtTlsStreamFlush(pStream);
+			if ( pStream->CloseEmitted ) {
+				break;
+			}
 			if ( NetResult == XNET_RESULT_ERROR ||
 				NetResult == XNET_RESULT_CLOSED ) {
 				(void)xrtNetStreamAbort((xnetstream*)xrtAtomicPtrLoad(
@@ -1030,6 +1074,9 @@ static void __xrtTlsStreamDrive(xtlsstream* pStream)
 			}
 		#endif
 		NetResult = __xrtTlsStreamFlush(pStream);
+		if ( pStream->CloseEmitted ) {
+			break;
+		}
 		if ( NetResult == XNET_RESULT_ERROR ||
 			NetResult == XNET_RESULT_CLOSED ) {
 			__xrtTlsStreamFail(pStream);
@@ -1054,9 +1101,21 @@ static void __xrtTlsStreamDrive(xtlsstream* pStream)
 	} while ( (pStream->DriveAgain || bProgress) &&
 		(iRound < XRT_TLS_STREAM_DRIVE_ROUNDS) );
 	pStream->Driving = false;
+	if ( pStream->CloseEmitted ) {
+		return;
+	}
 	__xrtTlsStreamResumeInput(pStream);
+	if ( pStream->CloseEmitted ) {
+		return;
+	}
 	__xrtTlsStreamWritable(pStream);
+	if ( pStream->CloseEmitted ) {
+		return;
+	}
 	__xrtTlsStreamDrain(pStream);
+	if ( pStream->CloseEmitted ) {
+		return;
+	}
 	if ( !pStream->Failing && !pStream->Closing &&
 		(iRound == XRT_TLS_STREAM_DRIVE_ROUNDS) && bProgress ) {
 		__xrtTlsStreamScheduleDrive(pStream);
@@ -1075,6 +1134,7 @@ static void __xrtTlsStreamTransportOpen(
 	xtlsstream* pStream = (xtlsstream*)pData;
 	xnetbufpool* pPool;
 
+	__xrtTlsStreamActiveEnter(pStream);
 	xrtAtomicPtrStore(
 		&pStream->Transport,
 		pTransport,
@@ -1082,7 +1142,7 @@ static void __xrtTlsStreamTransportOpen(
 	);
 	if ( xrtAtomic32Load(&pStream->AbortGate, XMEMORY_ACQUIRE) ) {
 		(void)xrtNetStreamAbort(pTransport);
-		return;
+		goto cleanup;
 	}
 	pPool = xrtNetWorkerBufPool(pTransport->Worker);
 	if ( (pPool == NULL) || !__xrtTlsSessionPool(
@@ -1090,7 +1150,7 @@ static void __xrtTlsStreamTransportOpen(
 		pPool
 	) || !__xrtTlsStreamStartHandshakeTimer(pStream) ) {
 		__xrtTlsStreamFail(pStream);
-		return;
+		goto cleanup;
 	}
 	xrtAtomic32Store(
 		&pStream->State,
@@ -1098,6 +1158,9 @@ static void __xrtTlsStreamTransportOpen(
 		XMEMORY_RELEASE
 	);
 	__xrtTlsStreamDrive(pStream);
+
+cleanup:
+	__xrtTlsStreamActiveLeave(pStream);
 }
 
 
@@ -1113,7 +1176,9 @@ static void __xrtTlsStreamTransportRead(
 
 	(void)pTransport;
 	(void)pBuffer;
+	__xrtTlsStreamActiveEnter(pStream);
 	__xrtTlsStreamDrive(pStream);
+	__xrtTlsStreamActiveLeave(pStream);
 }
 
 
@@ -1128,13 +1193,19 @@ static void __xrtTlsStreamTransportEnd(
 	xtlsresult Result;
 
 	(void)pTransport;
+	__xrtTlsStreamActiveEnter(pStream);
 	Result = xrtTlsSessionEof(pStream->Session);
 	if ( Result == XTLS_ERROR ) {
 		__xrtTlsStreamFail(pStream);
-		return;
+		goto cleanup;
 	}
 	__xrtTlsStreamEnd(pStream);
-	__xrtTlsStreamProgressClose(pStream);
+	if ( !pStream->CloseEmitted ) {
+		__xrtTlsStreamProgressClose(pStream);
+	}
+
+cleanup:
+	__xrtTlsStreamActiveLeave(pStream);
 }
 
 
@@ -1150,13 +1221,21 @@ static void __xrtTlsStreamTransportLowWater(
 
 	(void)pTransport;
 	(void)iQueued;
+	__xrtTlsStreamActiveEnter(pStream);
 	if ( pStream->Driving || pStream->Sending ) {
 		pStream->DriveAgain = true;
-		return;
+		goto cleanup;
 	}
 	__xrtTlsStreamDrive(pStream);
-	__xrtTlsStreamWritable(pStream);
-	__xrtTlsStreamDrain(pStream);
+	if ( !pStream->CloseEmitted ) {
+		__xrtTlsStreamWritable(pStream);
+	}
+	if ( !pStream->CloseEmitted ) {
+		__xrtTlsStreamDrain(pStream);
+	}
+
+cleanup:
+	__xrtTlsStreamActiveLeave(pStream);
 }
 
 
@@ -1170,14 +1249,24 @@ static void __xrtTlsStreamTransportDrain(
 	xtlsstream* pStream = (xtlsstream*)pData;
 
 	(void)pTransport;
+	__xrtTlsStreamActiveEnter(pStream);
 	if ( pStream->Driving || pStream->Sending ) {
 		pStream->DriveAgain = true;
-		return;
+		goto cleanup;
 	}
 	__xrtTlsStreamDrive(pStream);
-	__xrtTlsStreamWritable(pStream);
-	__xrtTlsStreamDrain(pStream);
-	__xrtTlsStreamProgressClose(pStream);
+	if ( !pStream->CloseEmitted ) {
+		__xrtTlsStreamWritable(pStream);
+	}
+	if ( !pStream->CloseEmitted ) {
+		__xrtTlsStreamDrain(pStream);
+	}
+	if ( !pStream->CloseEmitted ) {
+		__xrtTlsStreamProgressClose(pStream);
+	}
+
+cleanup:
+	__xrtTlsStreamActiveLeave(pStream);
 }
 
 
@@ -1293,10 +1382,7 @@ static void __xrtTlsStreamTransportClose(
 		);
 	}
 	__xrtTlsStreamNotifyFutures(pStream);
-	if ( pStream->RuntimeHeld ) {
-		pStream->RuntimeHeld = false;
-		xrtTlsStreamDestroy(pStream);
-	}
+	__xrtTlsStreamReleaseRuntime(pStream);
 }
 
 
@@ -1877,12 +1963,14 @@ static xtlsresult __xrtTlsStreamSendSpans(
 		return XTLS_AGAIN;
 	}
 	NetResult = __xrtTlsStreamFlush(pStream);
+	pStream->Sending = false;
+	if ( pStream->CloseEmitted ) {
+		return *pWritten != 0 ? Result : XTLS_CLOSED;
+	}
 	if ( NetResult == XNET_RESULT_ERROR || NetResult == XNET_RESULT_CLOSED ) {
-		pStream->Sending = false;
 		__xrtTlsStreamFail(pStream);
 		return XTLS_ERROR;
 	}
-	pStream->Sending = false;
 	if ( pStream->DriveAgain || pStream->DrainPending ) {
 		__xrtTlsStreamScheduleDrive(pStream);
 	}

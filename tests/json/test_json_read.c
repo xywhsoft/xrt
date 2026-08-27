@@ -213,13 +213,14 @@ static void testJsonDuplicates(void)
 
 
 
-/* 验证 int64 边界和显式有损大整数策略。 */
+/* 验证 int64/uint64 边界和显式有损大整数策略。 */
 static void testJsonNumbers(void)
 {
 	xjsonreadconfig Config;
 	xjsonlocation Location;
 	xvalue* pValue;
 	int64 iInteger;
+	uint64 iUnsigned;
 	double fValue;
 
 	pValue = xrtJsonParse(XRT_STR_LITERAL("-9223372036854775808"));
@@ -230,10 +231,18 @@ static void testJsonNumbers(void)
 	);
 	xrtValueRelease(pValue);
 
+	pValue = xrtJsonParse(XRT_STR_LITERAL("18446744073709551615"));
+	testRequire(
+		(pValue != NULL) && xrtValueGetUInt(pValue, &iUnsigned) &&
+		(iUnsigned == UINT64_MAX),
+		"JSON uint64 maximum failed"
+	);
+	xrtValueRelease(pValue);
+
 	xrtJsonReadConfigInit(&Config);
 	xrtClearError();
 	testRequire(
-		xrtJsonRead(XRT_STR_LITERAL("9223372036854775808"), &Config) == NULL,
+		xrtJsonRead(XRT_STR_LITERAL("18446744073709551616"), &Config) == NULL,
 		"oversized JSON integer should fail"
 	);
 	testJsonError(XJSON_ERROR_NUMBER, "oversized JSON integer error mismatch");
@@ -245,10 +254,10 @@ static void testJsonNumbers(void)
 	);
 
 	Config.BigInteger = XJSON_BIGINT_FLOAT;
-	pValue = xrtJsonRead(XRT_STR_LITERAL("9223372036854775808"), &Config);
+	pValue = xrtJsonRead(XRT_STR_LITERAL("18446744073709551616"), &Config);
 	testRequire(
 		(pValue != NULL) && xrtValueGetFloat(pValue, &fValue) &&
-		(fValue > 9.22e18),
+		(fValue > 1.84e19),
 		"explicit JSON big integer float policy failed"
 	);
 	xrtValueRelease(pValue);
@@ -348,6 +357,7 @@ typedef struct testjsonvisitstate {
 	size_t LastDepth;
 	xjsoneventtype Types[8];
 	bool StopAtTwo;
+	bool SawUInt;
 	bool Fail;
 	bool SetError;
 } testjsonvisitstate;
@@ -369,6 +379,12 @@ static xjsonvisitaction testJsonVisitor(
 	pState->LastDepth = pEvent->Depth;
 	if ( pEvent->HasName ) {
 		pState->Names++;
+	}
+	if (
+		(pEvent->Type == XJSON_EVENT_UINT) &&
+		(pEvent->Value.Unsigned == UINT64_MAX)
+	) {
+		pState->SawUInt = true;
 	}
 	if (
 		pState->StopAtTwo &&
@@ -434,6 +450,17 @@ static void testJsonVisit(void)
 		(State.Types[5] == XJSON_EVENT_BOOL) &&
 		(State.Types[6] == XJSON_EVENT_OBJECT_END),
 		"JSON visitor public event type mapping mismatch"
+	);
+
+	memset(&State, 0, sizeof(State));
+	testRequire(
+		xrtJsonVisit(
+			XRT_STR_LITERAL("18446744073709551615"),
+			&Config,
+			testJsonVisitor,
+			&State
+		) == XJSON_VISIT_DONE && State.SawUInt,
+		"JSON visitor uint64 event mismatch"
 	);
 
 	memset(&State, 0, sizeof(State));

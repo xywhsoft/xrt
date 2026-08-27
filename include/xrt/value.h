@@ -60,7 +60,8 @@ typedef enum xvaluetype {
 	XVALUE_ARRAY,
 	XVALUE_INT_MAP,
 	XVALUE_SET,
-	XVALUE_OBJECT
+	XVALUE_OBJECT,
+	XVALUE_UINT
 } xvaluetype;
 
 
@@ -116,6 +117,11 @@ XRT_API xvalue* xrtValueBool(bool bValue);
 
 /* 创建不可变的 64 位整数值。 */
 XRT_API xvalue* xrtValueInt(int64 iValue);
+
+
+
+/* 创建不可变的 64 位无符号整数值。 */
+XRT_API xvalue* xrtValueUInt(uint64 iValue);
 
 
 
@@ -215,6 +221,11 @@ XRT_API bool xrtValueGetBool(const xvalue* pValue, bool* pResult);
 
 /* 精确读取整数值，类型不匹配时失败。 */
 XRT_API bool xrtValueGetInt(const xvalue* pValue, int64* pResult);
+
+
+
+/* 精确读取无符号整数值，类型不匹配时失败。 */
+XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult);
 
 
 

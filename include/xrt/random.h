@@ -152,22 +152,26 @@ XRT_API bool xrtRngShuffle(xrng* pRng,
 
 #if defined(XRT_FEATURE_RANDOM_DEFAULT)
 
-/* 重置当前线程的便捷随机数状态。 */
+/*
+	重置当前线程的快速伪随机数状态。
+	该族 API 不是密码学安全随机源，绝不可用于密钥、nonce、token、
+	会话标识或任何攻击者可以猜测的值；此类用途必须使用 xrtSecureRandom。
+*/
 XRT_API void xrtRandSeed(uint64 iSeed, uint64 iStream);
 
 
 
-/* 从当前线程状态生成一个 32 位伪随机数。 */
+/* 从当前线程状态生成一个非密码学 32 位伪随机数。 */
 XRT_API uint32 xrtRand32(void);
 
 
 
-/* 从当前线程状态生成一个 64 位伪随机数。 */
+/* 从当前线程状态生成一个非密码学 64 位伪随机数。 */
 XRT_API uint64 xrtRand64(void);
 
 
 
-/* 使用当前线程随机状态按稳定的小端顺序填充字节。 */
+/* 使用当前线程非密码学随机状态按稳定的小端顺序填充字节。 */
 XRT_API bool xrtRandBytes(ptr pData, size_t iSize);
 
 
@@ -194,6 +198,22 @@ XRT_API double xrtRandReal(void);
 
 /* 使用当前线程随机状态原地打乱定长元素数组。 */
 XRT_API bool xrtRandShuffle(ptr pData, size_t iCount, size_t iItemSize);
+
+
+
+/*
+	以下别名明确表达快速、非密码学语义；与 xrtRand* 共享同一线程状态。
+	新代码应优先使用这些名称，旧 xrtRand* 名称保持兼容。
+*/
+XRT_API void xrtFastRandSeed(uint64 iSeed, uint64 iStream);
+XRT_API uint32 xrtFastRand32(void);
+XRT_API uint64 xrtFastRand64(void);
+XRT_API bool xrtFastRandBytes(ptr pData, size_t iSize);
+XRT_API uint64 xrtFastRandBelow(uint64 iBound);
+XRT_API int64 xrtFastRandRange(int64 iMin, int64 iMax);
+XRT_API int64 xrtFastRandRangeClosed(int64 iMin, int64 iMax);
+XRT_API double xrtFastRandReal(void);
+XRT_API bool xrtFastRandShuffle(ptr pData, size_t iCount, size_t iItemSize);
 
 #endif
 

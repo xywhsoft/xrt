@@ -42,7 +42,7 @@ bool __xrtTemplateStep(
 
 
 /* 调用 writer 并隔离回调内部留下的错误状态。 */
-bool __xrtTemplateEmit(
+static bool __xrtTemplateEmitRaw(
 	xrt_template_render* pRender,
 	const xrt_template_node* pNode,
 	xstrview Text
@@ -91,6 +91,51 @@ bool __xrtTemplateEmit(
 		);
 	}
 	return false;
+}
+
+
+
+/* HTML 文本模式只转义动态输出节点，原始模板文本始终按原样写出。 */
+bool __xrtTemplateEmit(
+	xrt_template_render* pRender,
+	const xrt_template_node* pNode,
+	xstrview Text
+)
+{
+	static const xstrview Escapes[] = {
+		{ "&amp;", 5u }, { "&lt;", 4u }, { "&gt;", 4u },
+		{ "&quot;", 6u }, { "&#39;", 5u }
+	};
+	size_t iStart = 0;
+
+	if ( ((pRender->Config->Flags & XTEMPLATE_ESCAPE_HTML_TEXT) == 0) ||
+		(pNode->Type != XTEMPLATE_NODE_OUTPUT) ) {
+		return __xrtTemplateEmitRaw(pRender, pNode, Text);
+	}
+	for ( size_t i = 0; i < Text.Size; i++ ) {
+		xstrview Escape;
+
+		switch ( Text.Data[i] ) {
+			case '&': Escape = Escapes[0]; break;
+			case '<': Escape = Escapes[1]; break;
+			case '>': Escape = Escapes[2]; break;
+			case '"': Escape = Escapes[3]; break;
+			case '\'': Escape = Escapes[4]; break;
+			default: continue;
+		}
+		if ( (i > iStart) && !__xrtTemplateEmitRaw(
+			pRender, pNode, (xstrview){ Text.Data + iStart, i - iStart }
+		) ) {
+			return false;
+		}
+		if ( !__xrtTemplateEmitRaw(pRender, pNode, Escape) ) {
+			return false;
+		}
+		iStart = i + 1u;
+	}
+	return (iStart == Text.Size) || __xrtTemplateEmitRaw(
+		pRender, pNode, (xstrview){ Text.Data + iStart, Text.Size - iStart }
+	);
 }
 
 
@@ -484,6 +529,37 @@ static bool __xrtTemplateWriteNumber(
 			iSize + 1u,
 			&iSize
 		);
+	} else if ( pValue->Type == XVALUE_UINT ) {
+		uint64 iValue;
+
+		if ( pValue->Value != NULL ) {
+			if ( !xrtValueGetUInt(pValue->Value, &iValue) ) {
+				goto format_error;
+			}
+		} else {
+			iValue = pValue->Data.Unsigned;
+		}
+		if ( !xrtUIntFormatTo(
+			iValue, Format, NULL, 0, &iSize
+		) ) {
+			goto format_error;
+		}
+		if ( !__xrtTemplateOutputFits(pRender, pNode, iSize) ) {
+			return false;
+		}
+		if ( iSize >= sizeof(arrBuffer) ) {
+			sOutput = (char*)xrtMalloc(iSize + 1u);
+			if ( sOutput == NULL ) {
+				return false;
+			}
+		}
+		bResult = xrtUIntFormatTo(
+			iValue,
+			Format,
+			sOutput,
+			iSize + 1u,
+			&iSize
+		);
 	} else {
 		double fValue;
 
@@ -661,6 +737,7 @@ static bool __xrtTemplateWriteText(
 			);
 		}
 		case XVALUE_INT:
+		case XVALUE_UINT:
 		case XVALUE_FLOAT:
 			return __xrtTemplateWriteNumber(
 				pRender,
@@ -774,6 +851,7 @@ static bool __xrtTemplateRenderOutput(
 	}
 	if ( pNode->Output == XTEMPLATE_OUTPUT_NUMBER ) {
 		if ( (Value.Type != XVALUE_INT) &&
+			 (Value.Type != XVALUE_UINT) &&
 			 (Value.Type != XVALUE_FLOAT) ) {
 			__xrtTemplateError(
 				XERR_TYPE,

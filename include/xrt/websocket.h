@@ -232,6 +232,8 @@ typedef struct xwsclose {
 
 #if defined(XRT_FEATURE_WEBSOCKET_MESSAGE)
 
+#define XWS_MESSAGE_SIZE_SAFE_DEFAULT (16u * 1024u * 1024u)
+
 /* 消息事件标志同时描述逻辑消息边界、控制帧和扩展变换。 */
 typedef enum xwsmessageflag {
 	XWS_MESSAGE_BEGIN = UINT32_C(0x00000001),
@@ -613,6 +615,14 @@ XRT_API bool xrtWsCloseWrite(
 	Config 必须是完整可写范围，可以未对齐；无效范围只设置线程错误。
 */
 XRT_API void xrtWsMessageConfigInit(xwsmessageconfig* pConfig);
+
+
+
+/*
+	初始化面向不可信对端的流式消息配置，默认拒绝超过 16 MiB 的单条消息。
+	需要无上限流时必须显式设置 MaxSize = SIZE_MAX。
+*/
+XRT_API void xrtWsMessageConfigInitSafe(xwsmessageconfig* pConfig);
 
 
 

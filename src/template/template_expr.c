@@ -633,6 +633,7 @@ bool __xrtTemplateEvalTruthy(
 		case XVALUE_NULL: *pResult = false; break;
 		case XVALUE_BOOL: *pResult = pValue->Data.Bool; break;
 		case XVALUE_INT: *pResult = pValue->Data.Integer != 0; break;
+		case XVALUE_UINT: *pResult = pValue->Data.Unsigned != 0; break;
 		case XVALUE_FLOAT: *pResult = pValue->Data.Float != 0.0; break;
 		case XVALUE_STRING:
 		case XVALUE_BYTES: *pResult = pValue->Data.String.Size != 0; break;
@@ -669,28 +670,53 @@ bool __xrtTemplateEvalInteger(
 
 
 
-/* 读取可比较的数字并保留整数精确比较所需的类型。 */
+typedef enum xrt_template_number_kind {
+	XRT_TEMPLATE_NUMBER_SIGNED,
+	XRT_TEMPLATE_NUMBER_UNSIGNED,
+	XRT_TEMPLATE_NUMBER_FLOAT
+} xrt_template_number_kind;
+
+
+
+typedef struct xrt_template_number {
+	xrt_template_number_kind Kind;
+	union {
+		int64 Signed;
+		uint64 Unsigned;
+		double Float;
+	} Value;
+} xrt_template_number;
+
+
+
+/* 读取可比较的数字并保留 signed/unsigned 整数精度。 */
 static bool __xrtTemplateEvalNumber(
 	const xrt_template_eval* pValue,
-	int64* pInteger,
-	double* pFloat,
-	bool* pIsInteger
+	xrt_template_number* pNumber
 )
 {
 	if ( pValue->Type == XVALUE_INT ) {
-		*pIsInteger = true;
+		pNumber->Kind = XRT_TEMPLATE_NUMBER_SIGNED;
 		if ( pValue->Value != NULL ) {
-			return xrtValueGetInt(pValue->Value, pInteger);
+			return xrtValueGetInt(pValue->Value, &pNumber->Value.Signed);
 		}
-		*pInteger = pValue->Data.Integer;
+		pNumber->Value.Signed = pValue->Data.Integer;
+		return true;
+	}
+	if ( pValue->Type == XVALUE_UINT ) {
+		pNumber->Kind = XRT_TEMPLATE_NUMBER_UNSIGNED;
+		if ( pValue->Value != NULL ) {
+			return xrtValueGetUInt(pValue->Value, &pNumber->Value.Unsigned);
+		}
+		pNumber->Value.Unsigned = pValue->Data.Unsigned;
 		return true;
 	}
 	if ( pValue->Type == XVALUE_FLOAT ) {
-		*pIsInteger = false;
+		pNumber->Kind = XRT_TEMPLATE_NUMBER_FLOAT;
 		if ( pValue->Value != NULL ) {
-			return xrtValueGetFloat(pValue->Value, pFloat);
+			return xrtValueGetFloat(pValue->Value, &pNumber->Value.Float);
 		}
-		*pFloat = pValue->Data.Float;
+		pNumber->Value.Float = pValue->Data.Float;
 		return true;
 	}
 	return false;
@@ -766,6 +792,55 @@ static int __xrtTemplateCompareIntegerFloat(
 
 
 
+/* 精确比较 uint64 与 double，避免高位整数先转 double。 */
+static int __xrtTemplateCompareUnsignedFloat(
+	uint64 iUnsigned,
+	double fValue,
+	bool* pUnordered
+)
+{
+	uint64 iFloatUnsigned;
+
+	*pUnordered = fValue != fValue;
+	if ( *pUnordered ) {
+		return 0;
+	}
+	if ( fValue < 0.0 ) {
+		return 1;
+	}
+	if ( fValue >= 18446744073709551616.0 ) {
+		return -1;
+	}
+	iFloatUnsigned = (uint64)fValue;
+	if ( iUnsigned < iFloatUnsigned ) {
+		return -1;
+	}
+	if ( iUnsigned > iFloatUnsigned ) {
+		return 1;
+	}
+	if ( fValue > (double)iFloatUnsigned ) {
+		return -1;
+	}
+	return 0;
+}
+
+
+
+/* 转为仅供近似比较使用的浮点尺度。 */
+static double __xrtTemplateNumberFloat(const xrt_template_number* pNumber)
+{
+	switch ( pNumber->Kind ) {
+		case XRT_TEMPLATE_NUMBER_SIGNED:
+			return (double)pNumber->Value.Signed;
+		case XRT_TEMPLATE_NUMBER_UNSIGNED:
+			return (double)pNumber->Value.Unsigned;
+		default:
+			return pNumber->Value.Float;
+	}
+}
+
+
+
 /* 比较两个标量且不把它们临时转换为字符串。 */
 static bool __xrtTemplateEvalCompare(
 	xrt_template_render* pRender,
@@ -776,43 +851,69 @@ static bool __xrtTemplateEvalCompare(
 	bool* pResult
 )
 {
-	int64 iLeft = 0;
-	int64 iRight = 0;
-	double fLeft = 0.0;
-	double fRight = 0.0;
-	bool bLeftInt = false;
-	bool bRightInt = false;
+	xrt_template_number LeftNumber;
+	xrt_template_number RightNumber;
+	double fLeft;
+	double fRight;
 	bool bUnordered = false;
 	int iCompare = 0;
 
-	if ( __xrtTemplateEvalNumber(
-		pLeft, &iLeft, &fLeft, &bLeftInt
-	) && __xrtTemplateEvalNumber(
-		pRight, &iRight, &fRight, &bRightInt
-	) ) {
-		if ( bLeftInt && bRightInt ) {
-			iCompare = iLeft < iRight ? -1 : (iLeft > iRight ? 1 : 0);
-			fLeft = (double)iLeft;
-			fRight = (double)iRight;
-		} else if ( bLeftInt ) {
+	if ( __xrtTemplateEvalNumber(pLeft, &LeftNumber) &&
+		 __xrtTemplateEvalNumber(pRight, &RightNumber) ) {
+		fLeft = __xrtTemplateNumberFloat(&LeftNumber);
+		fRight = __xrtTemplateNumberFloat(&RightNumber);
+		if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) &&
+			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) ) {
+			iCompare = LeftNumber.Value.Signed < RightNumber.Value.Signed ? -1 :
+				(LeftNumber.Value.Signed > RightNumber.Value.Signed ? 1 : 0);
+		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) &&
+			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) ) {
+			iCompare = LeftNumber.Value.Unsigned < RightNumber.Value.Unsigned ? -1 :
+				(LeftNumber.Value.Unsigned > RightNumber.Value.Unsigned ? 1 : 0);
+		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) &&
+			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) ) {
+			iCompare = LeftNumber.Value.Signed < 0 ? -1 :
+				((uint64)LeftNumber.Value.Signed < RightNumber.Value.Unsigned ? -1 :
+				 ((uint64)LeftNumber.Value.Signed > RightNumber.Value.Unsigned ? 1 : 0));
+		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) &&
+			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) ) {
+			iCompare = RightNumber.Value.Signed < 0 ? 1 :
+				(LeftNumber.Value.Unsigned < (uint64)RightNumber.Value.Signed ? -1 :
+				 (LeftNumber.Value.Unsigned > (uint64)RightNumber.Value.Signed ? 1 : 0));
+		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) &&
+			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_FLOAT) ) {
 			iCompare = __xrtTemplateCompareIntegerFloat(
-				iLeft,
-				fRight,
+				LeftNumber.Value.Signed,
+				RightNumber.Value.Float,
 				&bUnordered
 			);
-			fLeft = (double)iLeft;
-		} else if ( bRightInt ) {
+		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_FLOAT) &&
+			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) ) {
 			iCompare = -__xrtTemplateCompareIntegerFloat(
-				iRight,
-				fLeft,
+				RightNumber.Value.Signed,
+				LeftNumber.Value.Float,
 				&bUnordered
 			);
-			fRight = (double)iRight;
+		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) &&
+			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_FLOAT) ) {
+			iCompare = __xrtTemplateCompareUnsignedFloat(
+				LeftNumber.Value.Unsigned,
+				RightNumber.Value.Float,
+				&bUnordered
+			);
+		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_FLOAT) &&
+			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) ) {
+			iCompare = -__xrtTemplateCompareUnsignedFloat(
+				RightNumber.Value.Unsigned,
+				LeftNumber.Value.Float,
+				&bUnordered
+			);
 		} else {
-			bUnordered = (fLeft != fLeft) || (fRight != fRight);
+			bUnordered = (LeftNumber.Value.Float != LeftNumber.Value.Float) ||
+				(RightNumber.Value.Float != RightNumber.Value.Float);
 			if ( !bUnordered ) {
-				iCompare = fLeft < fRight ? -1 :
-					(fLeft > fRight ? 1 : 0);
+				iCompare = LeftNumber.Value.Float < RightNumber.Value.Float ? -1 :
+					(LeftNumber.Value.Float > RightNumber.Value.Float ? 1 : 0);
 			}
 		}
 		if ( Type == XRT_TEMPLATE_EXPR_APPROX ) {

@@ -67,6 +67,11 @@ static xvalue* testJsonBuildValue(void)
 			pRoot,
 			XRT_STR_LITERAL("f"),
 			xrtValueFloat(1.5)
+		) ||
+		!xrtValueObjectSetNew(
+			pRoot,
+			XRT_STR_LITERAL("u"),
+			xrtValueUInt(UINT64_MAX)
 		)
 	) {
 		xrtValueRelease(pItems);
@@ -91,7 +96,8 @@ static void testJsonStringify(void)
 	testJsonText(
 		sText,
 		iSize,
-		"{\"name\":\"A\\nB\",\"items\":[1,true,null],\"f\":1.5}",
+		"{\"name\":\"A\\nB\",\"items\":[1,true,null],\"f\":1.5,"
+		"\"u\":18446744073709551615}",
 		"compact JSON stringify mismatch"
 	);
 	sText = xrtJsonStringify(pRoot, true, &iSize);
@@ -105,7 +111,8 @@ static void testJsonStringify(void)
 		"    true,\n"
 		"    null\n"
 		"  ],\n"
-		"  \"f\": 1.5\n"
+		"  \"f\": 1.5,\n"
+		"  \"u\": 18446744073709551615\n"
 		"}",
 		"pretty JSON stringify mismatch"
 	);
@@ -292,6 +299,8 @@ static void testJsonDirectWriter(void)
 		xrtJsonWriterObject(pWriter) &&
 		xrtJsonWriterName(pWriter, XRT_STR_LITERAL("code")) &&
 		xrtJsonWriterInt(pWriter, 200) &&
+		xrtJsonWriterName(pWriter, XRT_STR_LITERAL("max")) &&
+		xrtJsonWriterUInt(pWriter, UINT64_MAX) &&
 		xrtJsonWriterName(pWriter, XRT_STR_LITERAL("items")) &&
 		xrtJsonWriterArray(pWriter) &&
 		xrtJsonWriterString(pWriter, XRT_STR_LITERAL("x")) &&
@@ -305,7 +314,8 @@ static void testJsonDirectWriter(void)
 	testJsonText(
 		sText,
 		iSize,
-		"{\"code\":200,\"items\":[\"x\",null]}",
+		"{\"code\":200,\"max\":18446744073709551615,"
+		"\"items\":[\"x\",null]}",
 		"JSON direct writer output mismatch"
 	);
 	xrtJsonWriterFree(pWriter);

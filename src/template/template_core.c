@@ -318,6 +318,17 @@ XRT_API void xrtTemplateRenderConfigInit(xtemplaterenderconfig* pConfig)
 
 
 
+/* 初始化 HTML 文本节点安全渲染配置。 */
+XRT_API void xrtTemplateRenderHtmlConfigInit(xtemplaterenderconfig* pConfig)
+{
+	xrtTemplateRenderConfigInit(pConfig);
+	if ( pConfig != NULL ) {
+		pConfig->Flags |= XTEMPLATE_ESCAPE_HTML_TEXT;
+	}
+}
+
+
+
 /* 使用显式配置编译模板源码。 */
 XRT_API xtemplate* xrtTemplateCompileConfig(
 	xstrview Source,

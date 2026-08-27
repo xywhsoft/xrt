@@ -264,6 +264,8 @@ static xvalue* __xrtJsonDomScalar(const xtextvalueevent* pEvent)
 			return xrtValueRetain(xrtValueBool(pEvent->Value.Boolean));
 		case XTEXT_VALUE_EVENT_INT:
 			return xrtValueInt(pEvent->Value.Integer);
+		case XTEXT_VALUE_EVENT_UINT:
+			return xrtValueUInt(pEvent->Value.Unsigned);
 		case XTEXT_VALUE_EVENT_FLOAT:
 			return xrtValueFloat(pEvent->Value.Float);
 		case XTEXT_VALUE_EVENT_STRING:
@@ -376,6 +378,9 @@ static bool __xrtJsonEventType(
 		case XTEXT_VALUE_EVENT_INT:
 			*pType = XJSON_EVENT_INT;
 			break;
+		case XTEXT_VALUE_EVENT_UINT:
+			*pType = XJSON_EVENT_UINT;
+			break;
 		case XTEXT_VALUE_EVENT_FLOAT:
 			*pType = XJSON_EVENT_FLOAT;
 			break;
@@ -429,6 +434,8 @@ static xtextvaluevisitaction __xrtJsonVisitAdapter(
 		Event.Value.Boolean = pSource->Value.Boolean;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT ) {
 		Event.Value.Integer = pSource->Value.Integer;
+	} else if ( pSource->Type == XTEXT_VALUE_EVENT_UINT ) {
+		Event.Value.Unsigned = pSource->Value.Unsigned;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_FLOAT ) {
 		Event.Value.Float = pSource->Value.Float;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_STRING ) {

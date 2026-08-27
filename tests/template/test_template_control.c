@@ -83,6 +83,10 @@ static xvalue* testTemplateControlData(void)
 			xrtValueInt(INT64_C(9007199254740993))
 		) && xrtValueObjectSetNew(
 			pRoot,
+			XRT_STR_LITERAL("max"),
+			xrtValueUInt(UINT64_MAX)
+		) && xrtValueObjectSetNew(
+			pRoot,
 			XRT_STR_LITERAL("user"),
 			pUser
 		) && xrtValueObjectSetNew(
@@ -137,13 +141,16 @@ static void testTemplateConditions(void)
 			"{#if:(big = 9007199254740993) and active}A"
 			"{#elseif:false}X{#else}B{#end}|"
 			"{#if:big = 9007199254740992}X{#else}C{#end}|"
+			"{#if:max > 9223372036854775807}U{#end}|"
+			"{#if:max < 18446744073709551616.0}V{#end}|"
+			"{#if:max = 18446744073709551615.0}X{#else}W{#end}|"
 			"{#if:not false and (missing or true)}D{#end}|"
 			"{?user.name = 'Alice':OK:NO}|"
 			"{#if:true}O{#if:false}X{#else}I{#end}Z"
 			"{#else}N{#end}|{?true:left\\:right:no}"
 		),
 		pData,
-		XRT_STR_LITERAL("A|C|D|OK|OIZ|left:right"),
+		XRT_STR_LITERAL("A|C|U|V|W|D|OK|OIZ|left:right"),
 		"template condition render mismatch"
 	);
 	xrtValueRelease(pData);

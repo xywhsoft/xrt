@@ -247,6 +247,14 @@ static void testHttpDecodeLimits(void)
 	xhttpdecodeconfig Config;
 	xhttpdecode* pDecode;
 
+	xrtHttpDecodeConfigInitSafe(&Config);
+	testRequire(
+		(Config.OutputLimit == XHTTP_DECODE_OUTPUT_SAFE_DEFAULT) &&
+		(Config.GzipHeaderLimit == XINFLATE_GZIP_HEADER_DEFAULT) &&
+		(Config.MaxCodings == XHTTP_CONTENT_CODINGS_DEFAULT),
+		"HTTP decoder safe configuration mismatch"
+	);
+
 	xrtClearError();
 	testRequire(
 		(xrtHttpDecodeCreate(TooMany, 1, NULL) == NULL) &&

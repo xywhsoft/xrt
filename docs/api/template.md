@@ -74,7 +74,7 @@ Template 本身不依赖该模块，也不会替调用方猜测输出上下文�
 
 ## 表达式与控制
 
-表达式支持 `null`、布尔值、整数、浮点数、带引号字符串、路径和括号。逻辑运算支持 `not` / `!`、`and` / `&&`、`or` / `||`，并执行短路求值。比较支持 `=`、`==`、`!=`、`~=`、`>`、`<`、`>=`、`<=`；整数与浮点数执行精确的混合比较，NaN 不会被当成普通有序值。
+表达式支持 `null`、布尔值、有符号整数字面量、浮点数、带引号字符串、路径和括号；输入 `xvalue` 也可提供完整 `uint64`。逻辑运算支持 `not` / `!`、`and` / `&&`、`or` / `||`，并执行短路求值。比较支持 `=`、`==`、`!=`、`~=`、`>`、`<`、`>=`、`<=`；有符号整数、无符号整数与浮点数执行精确的混合比较，NaN 不会被当成普通有序值。
 
 | 写法 | 含义 |
 | --- | --- |
@@ -140,7 +140,7 @@ Template 本身不依赖该模块，也不会替调用方猜测输出上下文�
 - `xrtTemplateCallRaw` 返回原样块主体；其他类型返回空视图。
 - `xrtTemplateCallCurrent`、`xrtTemplateCallRoot`、`xrtTemplateCallGlobal` 返回借用作用域值。
 
-`xtemplateargview` 的 `Index` 是稳定句柄，`Name` 和 `Source` 借用模板。`xtemplatevalue` 的 `Type` 决定 `Value`、`Bool`、`Integer`、`Float`、`Text` 或 `Time` 中哪些字段有效；文本和值仍由输入数据或模板拥有。`xtemplatecall` 及其返回视图只在当前回调期间有效，不得保存到回调外。
+`xtemplateargview` 的 `Index` 是稳定句柄，`Name` 和 `Source` 借用模板。`xtemplatevalue` 的 `Type` 决定 `Value`、`Bool`、`Integer`、`Unsigned`、`Float`、`Text` 或 `Time` 中哪些字段有效；文本和值仍由输入数据或模板拥有。`xtemplatecall` 及其返回视图只在当前回调期间有效，不得保存到回调外。
 
 回调返回 `false` 时，如果已经设置 `xrt.template` 错误，该错误直接传播；其他错误会作为 cause 包装为 `XTEMPLATE_ERROR_CALLBACK` 并补充调用位置；未设置错误时创建 callback 错误。成功回调产生的临时错误会被丢弃，并恢复进入回调前的线程错误。`break` 和 `continue` 不能越过扩展回调边界。
 

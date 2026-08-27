@@ -42,6 +42,12 @@ static void testMessageInit(void)
 		(sizeof(xwsmessagestate) <= 192u),
 		"WebSocket message default configuration mismatch"
 	);
+	xrtWsMessageConfigInitSafe(&Config);
+	testRequire(
+		(Config.MaxSize == XWS_MESSAGE_SIZE_SAFE_DEFAULT) &&
+		(Config.FirstRsv == 0) && Config.ValidateText,
+		"WebSocket message safe configuration mismatch"
+	);
 
 	memset(&State, 0xA5, sizeof(State));
 	testRequire(

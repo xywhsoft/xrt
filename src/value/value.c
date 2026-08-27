@@ -74,6 +74,35 @@ static bool __xrtValueFloatToInt(double fValue, int64* pValue)
 
 
 
+/* 只在浮点数能够无损表示为 uint64 时完成转换。 */
+static bool __xrtValueFloatToUInt(double fValue, uint64* pValue)
+{
+	#if defined(__TINYC__)
+		uint64 iValue;
+
+		if ( !(fValue >= 0.0) || !(fValue < 18446744073709551616.0) ) {
+			return false;
+		}
+		iValue = (uint64)fValue;
+		if ( (double)iValue != fValue ) {
+			return false;
+		}
+		*pValue = iValue;
+		return true;
+	#else
+		if (
+			!isfinite(fValue) || (fValue < 0.0) ||
+			(fValue >= 18446744073709551616.0) || (floor(fValue) != fValue)
+		) {
+			return false;
+		}
+		*pValue = (uint64)fValue;
+		return true;
+	#endif
+}
+
+
+
 /* 检查借用视图的数据指针与长度是否一致。 */
 static bool __xrtValueViewValid(const void* pData, size_t iSize)
 {
@@ -320,7 +349,7 @@ xvalue* __xrtValueCreate(xvaluetype Type)
 {
 	xvalue* pValue;
 
-	if ( (Type <= XVALUE_INVALID) || (Type > XVALUE_OBJECT) ) {
+	if ( (Type <= XVALUE_INVALID) || (Type > XVALUE_UINT) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -367,6 +396,19 @@ XRT_API xvalue* xrtValueInt(int64 iValue)
 
 	if ( pValue != NULL ) {
 		pValue->Data.Int = iValue;
+	}
+	return pValue;
+}
+
+
+
+/* 创建不可变的 64 位无符号整数值。 */
+XRT_API xvalue* xrtValueUInt(uint64 iValue)
+{
+	xvalue* pValue = __xrtValueCreate(XVALUE_UINT);
+
+	if ( pValue != NULL ) {
+		pValue->Data.UInt = iValue;
 	}
 	return pValue;
 }
@@ -629,6 +671,7 @@ XRT_API cstr xrtValueTypeName(xvaluetype Type)
 		case XVALUE_INT_MAP: return "int_map";
 		case XVALUE_SET: return "set";
 		case XVALUE_OBJECT: return "object";
+		case XVALUE_UINT: return "uint";
 		case XVALUE_INVALID:
 		default:
 			return "invalid";
@@ -662,7 +705,8 @@ XRT_API bool xrtValueIsNumber(const xvalue* pValue)
 		__xrtErrorSetInvalidState();
 		return false;
 	}
-	return (pValue->Type == XVALUE_INT) || (pValue->Type == XVALUE_FLOAT);
+	return (pValue->Type == XVALUE_INT) || (pValue->Type == XVALUE_UINT) ||
+		(pValue->Type == XVALUE_FLOAT);
 }
 
 
@@ -697,6 +741,8 @@ XRT_API bool xrtValueTruthy(const xvalue* pValue)
 			return pValue->Data.Bool;
 		case XVALUE_INT:
 			return pValue->Data.Int != 0;
+		case XVALUE_UINT:
+			return pValue->Data.UInt != 0;
 		case XVALUE_FLOAT:
 			return pValue->Data.Float != 0.0;
 		case XVALUE_STRING:
@@ -753,6 +799,23 @@ XRT_API bool xrtValueGetInt(const xvalue* pValue, int64* pResult)
 		return false;
 	}
 	*pResult = pValue->Data.Int;
+	return true;
+}
+
+
+
+/* 精确读取无符号整数值。 */
+XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult)
+{
+	if ( !__xrtValueGetValid(
+		pValue,
+		XVALUE_UINT,
+		pResult,
+		sizeof(*pResult)
+	) ) {
+		return false;
+	}
+	*pResult = pValue->Data.UInt;
 	return true;
 }
 
@@ -911,6 +974,7 @@ XRT_API bool xrtValueGetHandle(
 uint64 __xrtValueHashKnown(const xvalue* pValue)
 {
 	uint64 iBits;
+	uint64 iUnsigned;
 	int64 iInteger;
 
 	switch ( (xvaluetype)pValue->Type ) {
@@ -920,9 +984,16 @@ uint64 __xrtValueHashKnown(const xvalue* pValue)
 			return __xrtValueTaggedHash(XVALUE_BOOL, pValue->Data.Bool ? 1u : 0u);
 		case XVALUE_INT:
 			return __xrtValueTaggedHash(XVALUE_INT, (uint64)pValue->Data.Int);
+		case XVALUE_UINT:
+			return pValue->Data.UInt <= (uint64)INT64_MAX
+				? __xrtValueTaggedHash(XVALUE_INT, pValue->Data.UInt)
+				: __xrtValueTaggedHash(XVALUE_UINT, pValue->Data.UInt);
 		case XVALUE_FLOAT:
 			if ( __xrtValueFloatToInt(pValue->Data.Float, &iInteger) ) {
 				return __xrtValueTaggedHash(XVALUE_INT, (uint64)iInteger);
+			}
+			if ( __xrtValueFloatToUInt(pValue->Data.Float, &iUnsigned) ) {
+				return __xrtValueTaggedHash(XVALUE_UINT, iUnsigned);
 			}
 			if ( isnan(pValue->Data.Float) ) {
 				iBits = UINT64_C(0x7FF8000000000000);
@@ -965,21 +1036,41 @@ uint64 __xrtValueHashKnown(const xvalue* pValue)
 /* 判断两个数值是否在无损转换后相等。 */
 static bool __xrtValueNumberEqual(const xvalue* pLeft, const xvalue* pRight)
 {
-	int64 iValue;
+	int64 iInteger;
+	uint64 iUnsigned;
 
 	if ( (pLeft->Type == XVALUE_INT) && (pRight->Type == XVALUE_INT) ) {
 		return pLeft->Data.Int == pRight->Data.Int;
+	}
+	if ( (pLeft->Type == XVALUE_UINT) && (pRight->Type == XVALUE_UINT) ) {
+		return pLeft->Data.UInt == pRight->Data.UInt;
 	}
 	if ( (pLeft->Type == XVALUE_FLOAT) && (pRight->Type == XVALUE_FLOAT) ) {
 		return (pLeft->Data.Float == pRight->Data.Float) ||
 			(isnan(pLeft->Data.Float) && isnan(pRight->Data.Float));
 	}
-	if ( pLeft->Type == XVALUE_FLOAT ) {
-		return __xrtValueFloatToInt(pLeft->Data.Float, &iValue) &&
-			(iValue == pRight->Data.Int);
+	if ( (pLeft->Type == XVALUE_INT) && (pRight->Type == XVALUE_UINT) ) {
+		return pLeft->Data.Int >= 0 &&
+			(uint64)pLeft->Data.Int == pRight->Data.UInt;
 	}
-	return __xrtValueFloatToInt(pRight->Data.Float, &iValue) &&
-		(iValue == pLeft->Data.Int);
+	if ( (pLeft->Type == XVALUE_UINT) && (pRight->Type == XVALUE_INT) ) {
+		return pRight->Data.Int >= 0 &&
+			pLeft->Data.UInt == (uint64)pRight->Data.Int;
+	}
+	if ( pLeft->Type == XVALUE_FLOAT ) {
+		if ( pRight->Type == XVALUE_UINT ) {
+			return __xrtValueFloatToUInt(pLeft->Data.Float, &iUnsigned) &&
+				iUnsigned == pRight->Data.UInt;
+		}
+		return __xrtValueFloatToInt(pLeft->Data.Float, &iInteger) &&
+			iInteger == pRight->Data.Int;
+	}
+	if ( pLeft->Type == XVALUE_UINT ) {
+		return __xrtValueFloatToUInt(pRight->Data.Float, &iUnsigned) &&
+			pLeft->Data.UInt == iUnsigned;
+	}
+	return __xrtValueFloatToInt(pRight->Data.Float, &iInteger) &&
+		iInteger == pLeft->Data.Int;
 }
 
 
@@ -990,8 +1081,10 @@ bool __xrtValueEqualKnown(const xvalue* pLeft, const xvalue* pRight)
 	if ( pLeft == pRight ) {
 		return true;
 	}
-	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_FLOAT)) &&
-		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_FLOAT)) ) {
+	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
+		  (pLeft->Type == XVALUE_FLOAT)) &&
+		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
+		  (pRight->Type == XVALUE_FLOAT)) ) {
 		return __xrtValueNumberEqual(pLeft, pRight);
 	}
 	if ( pLeft->Type != pRight->Type ) {

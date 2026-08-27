@@ -341,13 +341,15 @@ static void testTypedValueScalars(void)
 	int32 iInt32 = INT32_MIN;
 	uint32 iUInt32 = UINT32_MAX;
 	int64 iInt64 = INT64_MIN;
-	uint64 iUInt64 = (uint64)INT64_MAX;
+	uint64 iUInt64 = UINT64_MAX;
 	float fFloat32 = 1.25f;
 	double fFloat64 = -1.5;
 	xtime Time = (xtime)123456789;
 	ptr pPointer = (ptr)(uintptr_t)UINT32_C(0x1234);
 	uint64 iType = UINT64_C(42);
 	uint64 iTooLarge = UINT64_MAX;
+	uint64 iDynamic = 0;
+	int64 iSignedTarget = 77;
 
 	testRequire(pSource != NULL, "typed Value scalar fixture failed");
 	testRequire(
@@ -409,14 +411,20 @@ static void testTypedValueScalars(void)
 	testTypedValueRoundTrip(xrtTypePointer(), &pPointer);
 	testTypedValueRoundTrip(xrtTypeType(), &iType);
 
-	xrtClearError();
 	pResult = xrtValueFromTyped(xrtTypeUInt64(), &iTooLarge, NULL);
 	testRequire(
-		(pResult == NULL) &&
+		(pResult != NULL) && xrtValueGetUInt(pResult, &iDynamic) &&
+		(iDynamic == UINT64_MAX),
+		"maximum uint64 dynamic encoding failed"
+	);
+	xrtClearError();
+	testRequire(
+		!xrtValueToTyped(pResult, xrtTypeInt64(), &iSignedTarget, NULL) &&
 		(xrtErrorKind(xrtGetError()) == XERR_RANGE) &&
 		(xrtErrorCode(xrtGetError()) == XTYPED_VALUE_ERROR_RANGE),
-		"uint64 outside the dynamic integer domain was accepted"
+		"maximum uint64 signed decoding range mismatch"
 	);
+	xrtValueRelease(pResult);
 }
 
 

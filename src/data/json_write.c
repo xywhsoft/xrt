@@ -184,7 +184,8 @@ static bool __xrtJsonWriterSkipValue(
 	Type = xrtValueType(pValue);
 	if (
 		(Type == XVALUE_NULL) || (Type == XVALUE_BOOL) ||
-		(Type == XVALUE_INT) || (Type == XVALUE_FLOAT) ||
+		(Type == XVALUE_INT) || (Type == XVALUE_UINT) ||
+		(Type == XVALUE_FLOAT) ||
 		(Type == XVALUE_STRING) || (Type == XVALUE_ARRAY) ||
 		(Type == XVALUE_OBJECT)
 	) {
@@ -395,6 +396,7 @@ static bool __xrtJsonWriterTree(
 	ptr pIdentity;
 	bool bValue;
 	int64 iInteger;
+	uint64 iUnsigned;
 	double fValue;
 	xstrview Text;
 
@@ -423,6 +425,13 @@ static bool __xrtJsonWriterTree(
 			return false;
 		}
 		return __xrtTextValueWriterInt(pWriter->Core, iInteger);
+	}
+	if ( Type == XVALUE_UINT ) {
+		if ( !xrtValueGetUInt(pValue, &iUnsigned) ) {
+			__xrtTextValueWriterPoison(pWriter->Core);
+			return false;
+		}
+		return __xrtTextValueWriterUInt(pWriter->Core, iUnsigned);
 	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
@@ -642,6 +651,17 @@ XRT_API bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue)
 		return false;
 	}
 	return __xrtTextValueWriterInt(pWriter->Core, iValue);
+}
+
+
+
+/* 写入 uint64。 */
+XRT_API bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue)
+{
+	if ( !__xrtJsonWriterValid(pWriter) ) {
+		return false;
+	}
+	return __xrtTextValueWriterUInt(pWriter->Core, iValue);
 }
 
 

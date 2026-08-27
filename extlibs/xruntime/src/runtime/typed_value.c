@@ -252,6 +252,7 @@ static bool __xrtTypedValueDecodeBuiltin(
 )
 {
 	int64 iInteger;
+	uint64 iUnsigned;
 	double fNumber;
 
 	*pHandled = true;
@@ -273,7 +274,17 @@ static bool __xrtTypedValueDecodeBuiltin(
 			break;
 		}
 		case XRT_TYPE_SIGNED_INT:
-			if ( !xrtValueGetInt(pSource, &iInteger) ) {
+			if ( xrtValueType(pSource) == XVALUE_UINT ) {
+				if ( !xrtValueGetUInt(pSource, &iUnsigned) ) {
+					break;
+				}
+				if ( iUnsigned > (uint64)INT64_MAX ) {
+					__xrtTypedValueError(XERR_RANGE, XTYPED_VALUE_ERROR_RANGE,
+						"to-typed", "the integer exceeds the target signed range");
+					return false;
+				}
+				iInteger = (int64)iUnsigned;
+			} else if ( !xrtValueGetInt(pSource, &iInteger) ) {
 				break;
 			}
 			if ( !__xrtTypeWriteSigned(
@@ -286,11 +297,23 @@ static bool __xrtTypedValueDecodeBuiltin(
 			return true;
 		case XRT_TYPE_UNSIGNED_INT:
 		case XRT_TYPE_TYPE:
-			if ( !xrtValueGetInt(pSource, &iInteger) ) {
-				break;
+			if ( xrtValueType(pSource) == XVALUE_UINT ) {
+				if ( !xrtValueGetUInt(pSource, &iUnsigned) ) {
+					break;
+				}
+			} else {
+				if ( !xrtValueGetInt(pSource, &iInteger) ) {
+					break;
+				}
+				if ( iInteger < 0 ) {
+					__xrtTypedValueError(XERR_RANGE, XTYPED_VALUE_ERROR_RANGE,
+						"to-typed", "the integer exceeds the target unsigned range");
+					return false;
+				}
+				iUnsigned = (uint64)iInteger;
 			}
-			if ( (iInteger < 0) || !__xrtTypeWriteUnsigned(
-				(uint64)iInteger, pTargetType->Size, pTarget
+			if ( !__xrtTypeWriteUnsigned(
+				iUnsigned, pTargetType->Size, pTarget
 			) ) {
 				__xrtTypedValueError(XERR_RANGE, XTYPED_VALUE_ERROR_RANGE,
 					"to-typed", "the integer exceeds the target unsigned range");
@@ -414,8 +437,8 @@ static xvalue* __xrtTypedValueEncodeBuiltin(
 		case XRT_TYPE_TYPE:
 			if ( __xrtTypeReadUnsigned(
 				pSource, pSourceType->Size, &iUnsigned
-			) && (iUnsigned <= INT64_MAX) ) {
-				return xrtValueInt((int64)iUnsigned);
+			) ) {
+				return xrtValueUInt(iUnsigned);
 			}
 			break;
 		case XRT_TYPE_FLOAT:

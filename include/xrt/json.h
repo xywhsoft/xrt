@@ -147,7 +147,7 @@ typedef enum xjsonduplicate {
 
 
 
-/* 超出 int64 的整数字面量默认失败，显式浮点策略允许有损接收。 */
+/* 超出 int64/uint64 的整数字面量默认失败，显式浮点策略允许有损接收。 */
 typedef enum xjsonbigint {
 	XJSON_BIGINT_REJECT = 0,
 	XJSON_BIGINT_FLOAT
@@ -180,7 +180,8 @@ typedef enum xjsoneventtype {
 	XJSON_EVENT_ARRAY_BEGIN,
 	XJSON_EVENT_ARRAY_END,
 	XJSON_EVENT_OBJECT_BEGIN,
-	XJSON_EVENT_OBJECT_END
+	XJSON_EVENT_OBJECT_END,
+	XJSON_EVENT_UINT
 } xjsoneventtype;
 
 
@@ -215,6 +216,7 @@ typedef struct xjsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
+		uint64 Unsigned;
 		double Float;
 		xstrview String;
 	} Value;
@@ -432,6 +434,11 @@ XRT_API bool xrtJsonWriterBool(xjsonwriter* pWriter, bool bValue);
 
 /* 写入 int64。 */
 XRT_API bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue);
+
+
+
+/* 写入 uint64。 */
+XRT_API bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue);
 
 
 

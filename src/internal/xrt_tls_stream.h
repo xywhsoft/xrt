@@ -52,6 +52,7 @@ struct xtlsstream {
 		bool AsyncAgain;
 		bool AsyncClosed;
 	#endif
+	uint32 ActiveDepth;
 	bool Server;
 	bool OpenEmitted;
 	bool EndEmitted;
@@ -68,6 +69,7 @@ struct xtlsstream {
 	bool CloseStarted;
 	bool Closing;
 	bool RuntimeHeld;
+	bool RuntimeReleasePending;
 	bool ReadMore;
 	size_t ReadMoreSize;
 	#if defined(XRT_FEATURE_TLS_STREAM_LISTENER)

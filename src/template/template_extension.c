@@ -369,10 +369,11 @@ static bool __xrtTemplateCallValue(
 	pValue->Type = pSource->Type;
 	pValue->Value = pSource->Value;
 	if ( pSource->Value == NULL ) {
-		switch ( pSource->Type ) {
-			case XVALUE_BOOL: pValue->Bool = pSource->Data.Bool; break;
-			case XVALUE_INT: pValue->Integer = pSource->Data.Integer; break;
-			case XVALUE_FLOAT: pValue->Float = pSource->Data.Float; break;
+			switch ( pSource->Type ) {
+				case XVALUE_BOOL: pValue->Bool = pSource->Data.Bool; break;
+				case XVALUE_INT: pValue->Integer = pSource->Data.Integer; break;
+				case XVALUE_UINT: pValue->Unsigned = pSource->Data.Unsigned; break;
+				case XVALUE_FLOAT: pValue->Float = pSource->Data.Float; break;
 			case XVALUE_STRING:
 			case XVALUE_BYTES: pValue->Text = pSource->Data.String; break;
 			case XVALUE_TIME: pValue->Time = pSource->Data.Time; break;
@@ -385,6 +386,8 @@ static bool __xrtTemplateCallValue(
 			return xrtValueGetBool(pSource->Value, &pValue->Bool);
 		case XVALUE_INT:
 			return xrtValueGetInt(pSource->Value, &pValue->Integer);
+		case XVALUE_UINT:
+			return xrtValueGetUInt(pSource->Value, &pValue->Unsigned);
 		case XVALUE_FLOAT:
 			return xrtValueGetFloat(pSource->Value, &pValue->Float);
 		case XVALUE_STRING:

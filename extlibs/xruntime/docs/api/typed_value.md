@@ -27,8 +27,9 @@
 销毁输出。`xrtValueFromTyped` 借用来源类型值并返回一个独立动态值。
 
 默认转换只覆盖能够安全表达的 XRT 内建标量：null、bool、bool32、定宽整数、浮点、time、pointer
-和 type ID。整数转换执行精确范围检查；`double` 只有可无损表示时才能转为 `float32`；
-`uint64` 或 type ID 超过 `INT64_MAX` 时不能放入当前动态整数。
+和 type ID。有符号整数使用 `XVALUE_INT`，无符号整数和 type ID 使用 `XVALUE_UINT`，因此完整
+`uint64` 范围都能无损进入动态值。反向和跨有符号/无符号转换执行精确范围检查；`double` 只有可无损
+表示时才能转为 `float32`。
 
 同时启用 `XRUNTIME_FEATURE_RUNTIME_VALUE_TYPE` 时，`xrtTypeValue()` 表示的所有权槽也属于
 内建转换：两个方向都深复制完整 Value 图，不共享可变容器 backing。基础 `typed_value` 不强制

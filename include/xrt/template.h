@@ -182,6 +182,7 @@ typedef struct xtemplatevalue {
 	const xvalue* Value;
 	bool Bool;
 	int64 Integer;
+	uint64 Unsigned;
 	double Float;
 	xstrview Text;
 	xtime Time;
@@ -209,9 +210,10 @@ typedef struct xtemplateconfig {
 
 
 
-/* 严格未定义模式把缺失路径从空输出提升为错误。 */
+/* 渲染标志可组合；HTML 转义只作用于动态 {$path} 输出，不改写模板文本。 */
 typedef enum xtemplaterenderflag {
-	XTEMPLATE_STRICT_UNDEFINED = 0x0001u
+	XTEMPLATE_STRICT_UNDEFINED = 0x0001u,
+	XTEMPLATE_ESCAPE_HTML_TEXT = 0x0002u
 } xtemplaterenderflag;
 
 
@@ -334,8 +336,17 @@ XRT_API void xrtTemplateConfigInit(xtemplateconfig* pConfig);
 
 
 
-/* 初始化默认作用域和有限渲染预算。 */
+/* 初始化默认作用域和有限渲染预算；默认保留通用模板的原样动态输出。 */
 XRT_API void xrtTemplateRenderConfigInit(xtemplaterenderconfig* pConfig);
+
+
+
+/*
+	初始化适合 HTML 文本节点的渲染配置；动态 {$path} 输出会转义
+	& < > " 和 '，模板原始文本保持不变。此模式不适用于 JavaScript、
+	CSS、URL、SQL 或 shell 上下文。
+*/
+XRT_API void xrtTemplateRenderHtmlConfigInit(xtemplaterenderconfig* pConfig);
 
 
 

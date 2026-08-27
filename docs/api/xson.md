@@ -67,7 +67,7 @@ app.id("42")
 - 输入和字符串都使用显式长度，解码后的字符串允许包含 `U+0000`。
 - 所有文本和标签载荷必须是合法 UTF-8，字符串转义遵守 JSON 规则。
 - `xrtXsonParse("null")` 返回 `xrtValueNull()`；失败返回 C `NULL`。
-- 整数优先无损保存为 `int64`，超出范围默认失败。
+- 整数优先无损保存为 `int64`，非负且超过 `INT64_MAX` 时保存为 `uint64`；超出 `uint64` 或低于 `int64` 范围默认失败。
 - 读取和写出默认都有有限资源预算；配置必须先调用对应 `Init`。
 - 事件中的字符串、字节、键、原始 token 和标签视图只在回调期间有效。
 - sink 回调必须在返回前消费字节。回调设置的具体错误会保留为当前错误。
@@ -148,7 +148,7 @@ typedef enum xxsonbigint {
 ```
 
 对象和 `intmap` 默认拒绝重复键。`KEEP` 保留首值并继续完整校验后续值，
-`REPLACE` 保留末值。`BIGINT_FLOAT` 允许把超出 `int64` 的整数有损读为 `double`。
+`REPLACE` 保留末值。`BIGINT_FLOAT` 允许把超出 `uint64` 或低于 `int64` 范围的整数有损读为 `double`。
 
 ```c
 typedef xvalue* (*xxsondecodeproc)(
@@ -200,7 +200,7 @@ bool xrtXsonValid(xstrview Text);
 
 | XSON | `xvaluetype` |
 |---|---|
-| `null`, `bool`, integer, finite/nonfinite float, string | 对应标量类型 |
+| `null`, `bool`, signed integer, unsigned integer, finite/nonfinite float, string | 对应 `XVALUE_NULL`、`XVALUE_BOOL`、`XVALUE_INT`、`XVALUE_UINT`、`XVALUE_FLOAT`、`XVALUE_STRING` |
 | `bytes(...)` | `XVALUE_BYTES` |
 | `time(...)` | `XVALUE_TIME` |
 | `[...]` | `XVALUE_ARRAY` |
@@ -232,6 +232,7 @@ typedef enum xxsonvisitresult {
 | `XXSON_EVENT_NULL` | 空值，`Value` 无效 |
 | `XXSON_EVENT_BOOL` | 布尔值，读取 `Value.Boolean` |
 | `XXSON_EVENT_INT` | 64 位有符号整数，读取 `Value.Integer` |
+| `XXSON_EVENT_UINT` | 64 位无符号整数，读取 `Value.Unsigned` |
 | `XXSON_EVENT_FLOAT` | 浮点数，包括显式非有限值，读取 `Value.Float` |
 | `XXSON_EVENT_STRING` | UTF-8 字符串，读取 `Value.String` |
 | `XXSON_EVENT_BYTES` | 已解码字节串，读取 `Value.Bytes` |
@@ -259,6 +260,7 @@ typedef struct xxsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
+		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xbytesview Bytes;
@@ -394,6 +396,7 @@ bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey);
 bool xrtXsonWriterNull(xxsonwriter* pWriter);
 bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue);
 bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
+bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
 bool xrtXsonWriterFloat(xxsonwriter* pWriter, double fValue);
 bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text);
 bool xrtXsonWriterBytes(xxsonwriter* pWriter, xbytesview Data);

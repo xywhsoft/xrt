@@ -264,4 +264,68 @@ XRT_API bool xrtRandShuffle(ptr pData, size_t iCount, size_t iItemSize)
 	return pRng != NULL && xrtRngShuffle(pRng, pData, iCount, iItemSize);
 }
 
+
+
+/* 保持旧默认随机状态的兼容别名，供新代码显式选择非安全随机。 */
+XRT_API void xrtFastRandSeed(uint64 iSeed, uint64 iStream)
+{
+	xrtRandSeed(iSeed, iStream);
+}
+
+
+
+XRT_API uint32 xrtFastRand32(void)
+{
+	return xrtRand32();
+}
+
+
+
+XRT_API uint64 xrtFastRand64(void)
+{
+	return xrtRand64();
+}
+
+
+
+XRT_API bool xrtFastRandBytes(ptr pData, size_t iSize)
+{
+	return xrtRandBytes(pData, iSize);
+}
+
+
+
+XRT_API uint64 xrtFastRandBelow(uint64 iBound)
+{
+	return xrtRandBelow(iBound);
+}
+
+
+
+XRT_API int64 xrtFastRandRange(int64 iMin, int64 iMax)
+{
+	return xrtRandRange(iMin, iMax);
+}
+
+
+
+XRT_API int64 xrtFastRandRangeClosed(int64 iMin, int64 iMax)
+{
+	return xrtRandRangeClosed(iMin, iMax);
+}
+
+
+
+XRT_API double xrtFastRandReal(void)
+{
+	return xrtRandReal();
+}
+
+
+
+XRT_API bool xrtFastRandShuffle(ptr pData, size_t iCount, size_t iItemSize)
+{
+	return xrtRandShuffle(pData, iCount, iItemSize);
+}
+
 #endif

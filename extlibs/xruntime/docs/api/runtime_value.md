@@ -104,7 +104,8 @@ if ( Progress.InvokeFailed ) {
 ```
 
 桥只借用 `callbackValue`，调用方必须让它覆盖整个同步操作。回调接收
-`(processed, total, output)` 三个整数并返回是否继续；null Value 会关闭报告且始终允许继续。
+`(processed, total, output)` 三个参数并返回是否继续；前两个计数器以 `XVALUE_UINT` 表达完整
+`uint64` 范围，null Value 会关闭报告且始终允许继续。
 异步操作不得把栈上的 `xrtprogresscall` 留给后台线程，应由异步对象持有 callable 强引用和上下文。
 
 ## Future 桥接

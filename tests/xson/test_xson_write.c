@@ -127,6 +127,11 @@ static xvalue* testXsonBuildValue(void)
 			pRoot,
 			XRT_STR_LITERAL("nan"),
 			xrtValueFloat(NAN)
+		) &&
+		xrtValueObjectSetNew(
+			pRoot,
+			XRT_STR_LITERAL("max"),
+			xrtValueUInt(UINT64_MAX)
 		);
 	xrtValueRelease(pSet);
 	xrtValueRelease(pMap);
@@ -158,7 +163,8 @@ static void testXsonStringify(void)
 		"\"set\":set[\"a\",2],"
 		"\"blob\":bytes(\"AAEC/w==\"),"
 		"\"time\":time(\"2026-07-31T04:34:56.12Z\"),"
-		"\"nan\":float(\"nan\")}",
+		"\"nan\":float(\"nan\"),"
+		"\"max\":18446744073709551615}",
 		"compact XSON stringify mismatch"
 	);
 	pFloat = xrtValueFloat(INFINITY);
@@ -232,6 +238,7 @@ static void testXsonDirectWriter(void)
 		xrtXsonWriterSet(pWriter) &&
 		xrtXsonWriterString(pWriter, XRT_STR_LITERAL("x")) &&
 		xrtXsonWriterInt(pWriter, 2) &&
+		xrtXsonWriterUInt(pWriter, UINT64_MAX) &&
 		xrtXsonWriterEnd(pWriter) &&
 		xrtXsonWriterEnd(pWriter) &&
 		xrtXsonWriterName(pWriter, XRT_STR_LITERAL("array")) &&
@@ -257,7 +264,7 @@ static void testXsonDirectWriter(void)
 	testXsonText(
 		sText,
 		iSize,
-		"{\"map\":intmap{-1:set[\"x\",2]},"
+		"{\"map\":intmap{-1:set[\"x\",2,18446744073709551615]},"
 		"\"array\":[null,true,float(\"inf\"),bytes(\"AQI=\"),app.id(\"42\")]}",
 		"XSON direct writer output mismatch"
 	);

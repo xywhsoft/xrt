@@ -16,7 +16,8 @@
 
 #if defined(XRT_FEATURE_TEMPLATE_CORE)
 
-#define XRT_TEMPLATE_RENDER_FLAG_MASK XTEMPLATE_STRICT_UNDEFINED
+#define XRT_TEMPLATE_RENDER_FLAG_MASK \
+	(XTEMPLATE_STRICT_UNDEFINED | XTEMPLATE_ESCAPE_HTML_TEXT)
 
 
 
@@ -269,6 +270,7 @@ typedef struct xrt_template_eval {
 	union {
 		bool Bool;
 		int64 Integer;
+		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xtime Time;

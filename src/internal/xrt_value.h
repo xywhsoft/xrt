@@ -25,6 +25,7 @@ struct xvalue {
 	union {
 		bool Bool;
 		int64 Int;
+		uint64 UInt;
 		double Float;
 		xtime Time;
 		ptr Pointer;

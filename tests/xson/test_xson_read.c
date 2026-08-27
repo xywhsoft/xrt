@@ -37,6 +37,23 @@ static void testXsonInt(
 
 
 
+/* 验证任意值是期望无符号整数。 */
+static void testXsonUInt(
+	const xvalue* pValue,
+	uint64 iExpected,
+	cstr sMessage
+)
+{
+	uint64 iValue;
+
+	testRequire(
+		xrtValueGetUInt(pValue, &iValue) && (iValue == iExpected),
+		sMessage
+	);
+}
+
+
+
 /* 验证全部严格 JSON 仍是 XSON 的无损子集。 */
 static void testXsonJsonSubset(void)
 {
@@ -78,7 +95,8 @@ static void testXsonBuiltins(void)
 		"\"blob\":bytes(\"AQIDBA==\"),"
 		"\"when\":time(\"2000-01-02T03:04:05.123456+08:00\"),"
 		"\"nan\":float(\"nan\"),"
-		"\"inf\":float(\"-inf\")"
+		"\"inf\":float(\"-inf\"),"
+		"\"max\":18446744073709551615"
 		"}"
 	));
 	xvalue* pMap;
@@ -130,6 +148,11 @@ static void testXsonBuiltins(void)
 			&fValue
 		) && isinf(fValue) && signbit(fValue),
 		"XSON infinity mismatch"
+	);
+	testXsonUInt(
+		xrtValueObjectGet(pRoot, XRT_STR_LITERAL("max")),
+		UINT64_MAX,
+		"XSON uint64 mismatch"
 	);
 	xrtValueRelease(pRoot);
 }
@@ -298,6 +321,7 @@ typedef struct testxsonvisitstate {
 	bool SawIntKey;
 	bool SawBytes;
 	bool SawCustom;
+	bool SawUInt;
 	bool Stop;
 	bool Fail;
 } testxsonvisitstate;
@@ -325,6 +349,12 @@ static xxsonvisitaction testXsonVisitor(
 		(pEvent->Value.Bytes.Data[0] == UINT8_C(0xFF))
 	) {
 		pState->SawBytes = true;
+	}
+	if (
+		(pEvent->Type == XXSON_EVENT_UINT) &&
+		(pEvent->Value.Unsigned == UINT64_MAX)
+	) {
+		pState->SawUInt = true;
 	}
 	if (
 		(pEvent->Type == XXSON_EVENT_CUSTOM) &&
@@ -355,7 +385,8 @@ static void testXsonVisit(void)
 	testRequire(
 		xrtXsonVisit(
 			XRT_STR_LITERAL(
-				"[intmap{-7:1},bytes(\"/w==\"),demo(\"x\")]"
+				"[intmap{-7:1},bytes(\"/w==\"),demo(\"x\"),"
+				"18446744073709551615]"
 			),
 			&Config,
 			testXsonVisitor,
@@ -364,7 +395,7 @@ static void testXsonVisit(void)
 		"XSON visitor failed"
 	);
 	testRequire(
-		State.SawIntKey && State.SawBytes && State.SawCustom,
+		State.SawIntKey && State.SawBytes && State.SawCustom && State.SawUInt,
 		"XSON visitor event content mismatch"
 	);
 

@@ -114,7 +114,8 @@ typedef enum xtextvalueeventtype {
 	XTEXT_VALUE_EVENT_SET_BEGIN,
 	XTEXT_VALUE_EVENT_SET_END,
 	XTEXT_VALUE_EVENT_OBJECT_BEGIN,
-	XTEXT_VALUE_EVENT_OBJECT_END
+	XTEXT_VALUE_EVENT_OBJECT_END,
+	XTEXT_VALUE_EVENT_UINT
 } xtextvalueeventtype;
 
 
@@ -137,6 +138,7 @@ typedef struct xtextvalueevent {
 	union {
 		bool Boolean;
 		int64 Integer;
+		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xtextvaluetag Tag;
@@ -318,6 +320,7 @@ bool __xrtTextValueWriterKey(
 bool __xrtTextValueWriterNull(xtextvaluewriter* pWriter);
 bool __xrtTextValueWriterBool(xtextvaluewriter* pWriter, bool bValue);
 bool __xrtTextValueWriterInt(xtextvaluewriter* pWriter, int64 iValue);
+bool __xrtTextValueWriterUInt(xtextvaluewriter* pWriter, uint64 iValue);
 bool __xrtTextValueWriterFloat(xtextvaluewriter* pWriter, double fValue);
 bool __xrtTextValueWriterString(xtextvaluewriter* pWriter, xstrview Text);
 

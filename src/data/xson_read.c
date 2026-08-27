@@ -197,6 +197,9 @@ static bool __xrtXsonMakeEvent(
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT ) {
 		pEvent->Type = XXSON_EVENT_INT;
 		pEvent->Value.Integer = pSource->Value.Integer;
+	} else if ( pSource->Type == XTEXT_VALUE_EVENT_UINT ) {
+		pEvent->Type = XXSON_EVENT_UINT;
+		pEvent->Value.Unsigned = pSource->Value.Unsigned;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_FLOAT ) {
 		pEvent->Type = XXSON_EVENT_FLOAT;
 		pEvent->Value.Float = pSource->Value.Float;
@@ -530,6 +533,8 @@ static xvalue* __xrtXsonDomScalar(
 			return xrtValueRetain(xrtValueBool(pEvent->Value.Boolean));
 		case XXSON_EVENT_INT:
 			return xrtValueInt(pEvent->Value.Integer);
+		case XXSON_EVENT_UINT:
+			return xrtValueUInt(pEvent->Value.Unsigned);
 		case XXSON_EVENT_FLOAT:
 			return xrtValueFloat(pEvent->Value.Float);
 		case XXSON_EVENT_STRING:

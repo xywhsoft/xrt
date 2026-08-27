@@ -35,7 +35,7 @@ value_graph -> value_container
 - 标量不可变。`Retain` 共享同一身份，`Clone` 对标量等价于 `Retain`。
 - 精确 Getter 不做文本解析或隐式类型转换，类型错误报告 `XERR_TYPE`。
 - `xrtValueHash` 只接受可哈希标量，并与数值相等规则保持一致；Pointer 和 Handle 的哈希仅在当前进程内有效，不可持久化或跨进程比较。
-- `xrtValueScalarEqual` 比较标量内容；整数与可无损转换的浮点数等价，所有 NaN 互相等价。
+- `xrtValueScalarEqual` 比较标量内容；有符号整数、无符号整数与可无损转换的浮点数按精确数值等价，所有 NaN 互相等价。
 
 `xrtValueTruthy` 使用稳定的动态值真值口径：null、false、数值零、空字符串、空字节和空容器为 false；其他值为 true。Time、Pointer 和 Handle 表示已经存在的值对象，因此即使其内部数值或地址为零也为 true。
 
@@ -59,6 +59,7 @@ value_graph -> value_container
 | `XVALUE_INT_MAP` | `int64` 键稀疏映射。 |
 | `XVALUE_SET` | 保持首次插入顺序的标量集合。 |
 | `XVALUE_OBJECT` | 保持首次插入顺序的字符串键对象。 |
+| `XVALUE_UINT` | 无符号 64 位整数。 |
 
 ## 标量
 
@@ -66,6 +67,7 @@ value_graph -> value_container
 xvalue* xrtValueNull(void);
 xvalue* xrtValueBool(bool value);
 xvalue* xrtValueInt(int64 value);
+xvalue* xrtValueUInt(uint64 value);
 xvalue* xrtValueFloat(double value);
 xvalue* xrtValueString(xstrview text);
 xvalue* xrtValueStringTake(str* text, size_t size);
@@ -86,6 +88,7 @@ bool xrtValueTruthy(const xvalue* value);
 
 bool xrtValueGetBool(const xvalue* value, bool* output);
 bool xrtValueGetInt(const xvalue* value, int64* output);
+bool xrtValueGetUInt(const xvalue* value, uint64* output);
 bool xrtValueGetFloat(const xvalue* value, double* output);
 bool xrtValueGetString(const xvalue* value, xstrview* output);
 bool xrtValueGetBytes(const xvalue* value, xbytesview* output);
@@ -254,7 +257,7 @@ bool xrtValueSetRemove(xvalue* set, const xvalue* item);
 xvalue* xrtValueSetTake(xvalue* set, const xvalue* item);
 ```
 
-Set 只接受可哈希不可变标量。整数 `42` 与浮点数 `42.0` 等价且哈希一致；重复加入保持原规范值和首次插入顺序。`SetTake` 返回集合中实际保存的规范值，不一定是查询指针。
+Set 只接受可哈希不可变标量。有符号整数 `42`、无符号整数 `42` 与浮点数 `42.0` 等价且哈希一致；超过 `INT64_MAX` 的无符号整数仍保持完整精度。重复加入保持原规范值和首次插入顺序。`SetTake` 返回集合中实际保存的规范值，不一定是查询指针。
 
 ## COW 与线程
 
@@ -370,7 +373,7 @@ bool 和其他不可变标量只增加引用，复杂度为 `O(1)` 且不分配�
 
 结构相等比较内容而不是共享拓扑：一侧重复引用同一子值、另一侧放置两个内容相等
 的独立子值，结果仍然相等。Object 不比较插入顺序，Array 比较顺序，Set 复用通用
-Set 的等价元素关系；整数与可无损转换的浮点数仍按数值相等。两个不同 Handle 必须
+Set 的等价元素关系；有符号整数、无符号整数与可无损转换的浮点数仍按精确数值相等。两个不同 Handle 必须
 具有相同的策略与 `user_data`，并提供 `Equal`，否则报告 `XERR_TYPE`。
 
 深克隆和结构相等各使用 32 项栈内身份表，小图不会为遍历状态分配；更大的图才按需

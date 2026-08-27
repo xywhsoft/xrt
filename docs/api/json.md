@@ -26,7 +26,7 @@
 - 所有文本都使用显式长度，可包含末尾无零字节的输入；JSON 字符串值也可包含解码后的 `U+0000`。
 - 文本必须是合法 UTF-8，`\uXXXX` 使用 UTF-16 代理对规则转换为 UTF-8。
 - `xrtJsonParse("null")` 返回 `xrtValueNull()`；失败返回 C `NULL`，两者没有歧义。
-- 整数字面量优先保存为 `int64`。超出范围默认失败，也可显式按 `double` 有损接收。
+- 整数字面量优先保存为 `int64`，非负且超过 `INT64_MAX` 时保存为 `uint64`。超出 `uint64` 或低于 `int64` 范围默认失败，也可显式按 `double` 有损接收。
 - 读取和写出均有深度、字节与项目预算；默认预算有限，不信任输入不会无限消耗资源。
 - `xrtJsonValid` 对合法输入不分配动态内存。`xrtJsonVisit` 不构造 DOM，但含转义字符串会使用可复用的临时缓冲。
 - 事件中的名称、字符串和数字视图只借用到回调返回，调用方保存时必须复制。
@@ -133,7 +133,7 @@ bool xrtJsonValid(xstrview Text);
 
 `Parse` 使用默认严格配置。`Read` 用于重复键策略、兼容语法和资源预算。返回的 `xvalue` 由调用方使用 `xrtValueRelease` 释放；单例 `null` 同样允许释放。
 
-标准 JSON 类型映射为 `XVALUE_NULL`、`XVALUE_BOOL`、`XVALUE_INT`、`XVALUE_FLOAT`、`XVALUE_STRING`、`XVALUE_ARRAY` 和 `XVALUE_OBJECT`。JSON 不表达 bytes、time、set、int-map、handle 或自定义类型。
+标准 JSON 类型映射为 `XVALUE_NULL`、`XVALUE_BOOL`、`XVALUE_INT`、`XVALUE_UINT`、`XVALUE_FLOAT`、`XVALUE_STRING`、`XVALUE_ARRAY` 和 `XVALUE_OBJECT`。JSON 不表达 bytes、time、set、int-map、handle 或自定义类型。
 
 ## 事件访问
 
@@ -147,7 +147,8 @@ typedef enum xjsoneventtype {
 	XJSON_EVENT_ARRAY_BEGIN,
 	XJSON_EVENT_ARRAY_END,
 	XJSON_EVENT_OBJECT_BEGIN,
-	XJSON_EVENT_OBJECT_END
+	XJSON_EVENT_OBJECT_END,
+	XJSON_EVENT_UINT
 } xjsoneventtype;
 
 typedef enum xjsonvisitaction {
@@ -177,13 +178,14 @@ typedef struct xjsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
+		uint64 Unsigned;
 		double Float;
 		xstrview String;
 	} Value;
 } xjsonevent;
 ```
 
-对象成员通过 `HasName` 和已解码 `Name` 定位，数组成员通过 `Index` 定位。`Raw` 只在整数和浮点事件中保存原始数字 token。容器开始和结束分别产生事件，根深度为零。
+对象成员通过 `HasName` 和已解码 `Name` 定位，数组成员通过 `Index` 定位。`Raw` 只在有符号整数、无符号整数和浮点事件中保存原始数字 token。容器开始和结束分别产生事件，根深度为零。
 
 ```c
 typedef xjsonvisitaction (*xjsonvisitproc)(
@@ -291,6 +293,7 @@ bool xrtJsonWriterName(xjsonwriter* pWriter, xstrview Name);
 bool xrtJsonWriterNull(xjsonwriter* pWriter);
 bool xrtJsonWriterBool(xjsonwriter* pWriter, bool bValue);
 bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue);
+bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue);
 bool xrtJsonWriterFloat(xjsonwriter* pWriter, double fValue);
 bool xrtJsonWriterString(xjsonwriter* pWriter, xstrview Text);
 bool xrtJsonWriterValue(xjsonwriter* pWriter, const xvalue* pValue);

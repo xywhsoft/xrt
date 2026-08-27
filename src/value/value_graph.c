@@ -940,9 +940,9 @@ static bool __xrtValueEqual(
 		__xrtErrorSetValue();
 		return false;
 	}
-	if ( ((pLeft->Type == XVALUE_INT) ||
+	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
 		  (pLeft->Type == XVALUE_FLOAT)) &&
-		 ((pRight->Type == XVALUE_INT) ||
+		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
 		  (pRight->Type == XVALUE_FLOAT)) ) {
 		return __xrtValueEqualKnown(pLeft, pRight);
 	}

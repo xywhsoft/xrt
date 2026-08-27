@@ -156,6 +156,11 @@ static xvalue* testTemplateData(void)
 			pRoot,
 			XRT_STR_LITERAL("active"),
 			xrtValueBool(true)
+		) &&
+		xrtValueObjectSetNew(
+			pRoot,
+			XRT_STR_LITERAL("max"),
+			xrtValueUInt(UINT64_MAX)
 		),
 		"template root setup failed"
 	);
@@ -178,6 +183,7 @@ static void testTemplateCompileAndRender(void)
 {
 	xstrview Source = XRT_STR_LITERAL(
 		"Hello {$user.name}; {%count:04d}; {&when:%F}; "
+		"{$max}; {%max}; "
 		"{$items[-1].name}; {$active}; escaped={{$count}"
 	);
 	xtemplate* pTemplate = xrtTemplateCompile(Source);
@@ -207,7 +213,9 @@ static void testTemplateCompileAndRender(void)
 		(iSize == strlen(sResult)) &&
 		(strcmp(
 			sResult,
-			"Hello xrt; 0042; 2024-02-03; last; true; escaped={$count}"
+			"Hello xrt; 0042; 2024-02-03; "
+			"18446744073709551615; 18446744073709551615; "
+			"last; true; escaped={$count}"
 		) == 0),
 		"template render output mismatch"
 	);
@@ -215,6 +223,37 @@ static void testTemplateCompileAndRender(void)
 	xrtValueRelease(pData);
 	xrtTemplateRelease(xrtTemplateRef(pTemplate));
 	xrtTemplateRelease(pTemplate);
+}
+
+
+
+/* HTML 安全模式只转义动态插值，保留模板文本本身。 */
+static void testTemplateHtmlEscape(void)
+{
+	xvalue* pData = xrtValueObject();
+	xtemplate* pTemplate = xrtTemplateCompile(
+		XRT_STR_LITERAL("<p>{$value}</p>")
+	);
+	xtemplaterenderconfig Config;
+	xstrbuf Output;
+
+	testRequire((pData != NULL) && (pTemplate != NULL) &&
+		xrtValueObjectSetNew(pData, XRT_STR_LITERAL("value"),
+			xrtValueString(XRT_STR_LITERAL("<&>\"'"))),
+		"template HTML test setup failed");
+	xrtTemplateRenderHtmlConfigInit(&Config);
+	Config.Root = pData;
+	Config.Current = pData;
+	xrtStrBufInit(&Output);
+	testRequire(
+		xrtTemplateRenderTo(pTemplate, &Config, &Output) &&
+		(Output.Size == strlen("<p>&lt;&amp;&gt;&quot;&#39;</p>")) &&
+		(memcmp(Output.Data, "<p>&lt;&amp;&gt;&quot;&#39;</p>", Output.Size) == 0),
+		"template HTML escaping mismatch"
+	);
+	xrtStrBufFree(&Output);
+	xrtTemplateRelease(pTemplate);
+	xrtValueRelease(pData);
 }
 
 
@@ -488,6 +527,7 @@ int main(void)
 {
 	testTemplatePublicLayout();
 	testTemplateCompileAndRender();
+	testTemplateHtmlEscape();
 	testTemplateBinaryAndMarkers();
 	testTemplateSyntax();
 	testTemplateLimits();

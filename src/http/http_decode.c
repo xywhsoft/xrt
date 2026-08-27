@@ -341,6 +341,17 @@ XRT_API void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig)
 
 
 
+/* 初始化有明确明文预算的安全默认配置。 */
+XRT_API void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig)
+{
+	xrtHttpDecodeConfigInit(pConfig);
+	if ( pConfig != NULL ) {
+		pConfig->OutputLimit = XHTTP_DECODE_OUTPUT_SAFE_DEFAULT;
+	}
+}
+
+
+
 /* 创建可跨消息复用的 HTTP 正文解码器。 */
 XRT_API xhttpdecode* xrtHttpDecodeCreate(
 	const xhttpfield* pFields,

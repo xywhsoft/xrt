@@ -655,7 +655,7 @@ static void __xrtTextValueParserLiteral(
 
 
 
-/* 扫描严格 JSON 数字 token 并解析为 int64 或 double。 */
+/* 扫描严格 JSON 数字 token 并解析为 int64、uint64 或 double。 */
 static bool __xrtTextValueParserNumber(
 	xtextvalueparser* pParser,
 	xtextvalueevent* pEvent
@@ -664,6 +664,7 @@ static bool __xrtTextValueParserNumber(
 	size_t iStart = pParser->Offset;
 	bool bInteger = true;
 	int64 iInteger = 0;
+	uint64 iUnsigned = 0;
 	double fValue = 0.0;
 
 	if ( __xrtTextValueParserPeek(pParser) == (uint8)'-' ) {
@@ -752,13 +753,21 @@ static bool __xrtTextValueParserNumber(
 		pEvent->Value.Integer = iInteger;
 		return true;
 	}
+	if ( bInteger && pEvent->Raw.Size != 0u && pEvent->Raw.Data[0] != '-' ) {
+		xrtClearError();
+		if ( xrtUIntParse(pEvent->Raw, 10u, 0, &iUnsigned) ) {
+			pEvent->Type = XTEXT_VALUE_EVENT_UINT;
+			pEvent->Value.Unsigned = iUnsigned;
+			return true;
+		}
+	}
 	if ( bInteger && !pParser->Config.BigIntegerFloat ) {
 		xrtClearError();
 		__xrtTextValueLocationError(
 			pParser,
 			XERR_RANGE,
 			XTEXT_VALUE_ERROR_NUMBER,
-			"integer does not fit int64",
+			"integer does not fit int64 or uint64",
 			&pEvent->Location
 		);
 		return false;

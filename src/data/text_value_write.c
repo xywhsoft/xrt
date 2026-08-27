@@ -403,6 +403,28 @@ static bool __xrtTextValueWriterIntToken(
 
 
 
+/* 写出 uint64 token。 */
+static bool __xrtTextValueWriterUIntToken(
+	xtextvaluewriter* pWriter,
+	uint64 iValue
+)
+{
+	char Output[32];
+	size_t iSize;
+
+	if ( !xrtUIntWrite(iValue, 10u, Output, sizeof(Output), &iSize, 0) ) {
+		return __xrtTextValueWriterFail(
+			pWriter,
+			XERR_INTERNAL,
+			XTEXT_VALUE_WRITE_ERROR_OUTPUT,
+			"failed to format unsigned integer"
+		);
+	}
+	return __xrtTextValueWriterEmit(pWriter, Output, iSize);
+}
+
+
+
 /* 写出有限 double token。 */
 static bool __xrtTextValueWriterFloatToken(
 	xtextvaluewriter* pWriter,
@@ -716,6 +738,25 @@ bool __xrtTextValueWriterInt(
 	bResult =
 		__xrtTextValueWriterBeforeValue(pWriter) &&
 		__xrtTextValueWriterIntToken(pWriter, iValue);
+	return __xrtTextValueWriterLeave(pWriter, bResult);
+}
+
+
+
+/* 写入 uint64。 */
+bool __xrtTextValueWriterUInt(
+	xtextvaluewriter* pWriter,
+	uint64 iValue
+)
+{
+	bool bResult;
+
+	if ( !__xrtTextValueWriterEnter(pWriter) ) {
+		return false;
+	}
+	bResult =
+		__xrtTextValueWriterBeforeValue(pWriter) &&
+		__xrtTextValueWriterUIntToken(pWriter, iValue);
 	return __xrtTextValueWriterLeave(pWriter, bResult);
 }
 

@@ -264,7 +264,8 @@ struct xnetport_impl {
 	xatomic64 OwnerThread;
 	/* Post 队列仍有积压时，下一轮先给原生后端一次非阻塞提取机会。 */
 	bool BackendTurn;
-	bool Closing;
+	/* 销毁与跨线程 Post/Wake 之间共享的关闭闸门必须使用原子状态。 */
+	xatomic32 Closing;
 };
 
 

@@ -5,9 +5,9 @@
 typedef struct testcallableenv {
 	int DropCount;
 	int ProgressCount;
-	int64 ProgressInput;
-	int64 ProgressTotal;
-	int64 ProgressOutput;
+	uint64 ProgressInput;
+	uint64 ProgressTotal;
+	uint64 ProgressOutput;
 } testcallableenv;
 
 
@@ -37,9 +37,9 @@ static bool testProgressEntry(
 	bool bContinue;
 
 	if ( (pFrame == NULL) || (pFrame->ArgumentCount != 3u) ||
-		 !xrtValueGetInt(pFrame->Arguments[0], &pEnv->ProgressInput) ||
-		 !xrtValueGetInt(pFrame->Arguments[1], &pEnv->ProgressTotal) ||
-		 !xrtValueGetInt(pFrame->Arguments[2], &pEnv->ProgressOutput) ) {
+		 !xrtValueGetUInt(pFrame->Arguments[0], &pEnv->ProgressInput) ||
+		 !xrtValueGetUInt(pFrame->Arguments[1], &pEnv->ProgressTotal) ||
+		 !xrtValueGetUInt(pFrame->Arguments[2], &pEnv->ProgressOutput) ) {
 		return false;
 	}
 	pEnv->ProgressCount++;

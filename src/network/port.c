@@ -259,6 +259,7 @@ XRT_API xnetport* xrtNetPortCreate(const xnetportconfig* pConfig)
 	pPort->Capabilities = pDriver->Capabilities;
 	pPort->Owner = __xrtNetPortOwnerNextId();
 	xrtAtomic64Init(&pPort->OwnerThread, __xrtCurrentThreadId());
+	xrtAtomic32Init(&pPort->Closing, 0u);
 	if ( !xrtMutexInit(&pPort->Lock) ) {
 		xrtFree(pPort);
 		return NULL;
@@ -279,9 +280,11 @@ XRT_API bool xrtNetPortDestroy(xnetport* pPort)
 	xerror* pPrevious;
 	xerror* pFailure = NULL;
 	xerror* pError;
+	uint32 iExpected = 0u;
 	bool bResult;
 
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ) {
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
@@ -292,8 +295,17 @@ XRT_API bool xrtNetPortDestroy(xnetport* pPort)
 	) ) {
 		return false;
 	}
+	if ( !xrtAtomic32CompareExchange(
+		&pPort->Closing,
+		&iExpected,
+		1u,
+		XMEMORY_ACQ_REL,
+		XMEMORY_ACQUIRE
+	) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
 	pPrevious = __xrtErrorSwapOwned(NULL);
-	pPort->Closing = true;
 	bResult = pPort->Driver->Unit(pPort);
 	if ( !bResult ) {
 		pFailure = __xrtErrorSwapOwned(NULL);
@@ -398,7 +410,8 @@ bool __xrtNetPortThreadRelease(xnetport* pPort)
 {
 	uint64 iExpected;
 
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ) {
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
@@ -430,7 +443,8 @@ bool __xrtNetPortThreadClaim(xnetport* pPort)
 	uint64 iCurrent;
 	uint64 iExpected = 0;
 
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ) {
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
@@ -460,7 +474,8 @@ bool __xrtNetPortThreadClaim(xnetport* pPort)
 static bool __xrtNetPortCompletion(xnetport* pPort,
 	xnetsocket Socket, xnetsockettype Type, uint64 Id, cstr sOperation)
 {
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ||
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ||
 		 (Socket == NULL) || (Id == 0) ||
 		 ((Type != 0) && (Socket->Type != Type)) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_SUBMIT,
@@ -493,7 +508,8 @@ static bool __xrtNetPortFileCompletion(
 	cstr sOperation
 )
 {
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ||
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ||
 		 (iFile == (intptr_t)-1) || (Id == 0) ) {
 		__xrtNetSetError(
 			XERR_ARGUMENT,
@@ -649,7 +665,8 @@ static bool __xrtNetPortSubmit(xnetport* pPort,
 XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
 	uint64 Id, uint32 iEvents, ptr pUser)
 {
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ||
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ||
 		 (Socket == NULL) ||
 		 ((iEvents & ~((uint32)XNET_POLL_READ |
 			(uint32)XNET_POLL_WRITE)) != 0) ) {
@@ -681,7 +698,8 @@ XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
 /* 幂等移除一个 Socket 的 readiness 观察。 */
 XRT_API bool xrtNetPortUnwatch(xnetport* pPort, xnetsocket Socket)
 {
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ||
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ||
 		 (Socket == NULL) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_WATCH,
 			"unwatch", "invalid network port watch", 0);
@@ -1366,7 +1384,8 @@ XRT_API bool xrtNetPortSendMsgVec(
 /* 请求取消指定 ID 的在途操作。 */
 XRT_API bool xrtNetPortCancel(xnetport* pPort, uint64 Id)
 {
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ||
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ||
 		 (Id == 0) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_CANCEL,
 			"cancel", "invalid network completion cancellation", 0);
@@ -1396,12 +1415,19 @@ XRT_API bool xrtNetPortPost(xnetport* pPort, uint64 Id, ptr pUser)
 	__xrt_net_port_post* pPost;
 	bool bNotify;
 
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ) {
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_POST,
 			"post", "invalid network port", 0);
 		return false;
 	}
 	if ( !xrtMutexLock(&pPort->Lock) ) {
+		return false;
+	}
+	if ( xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u ) {
+		(void)xrtMutexUnlock(&pPort->Lock);
+		__xrtNetSetError(XERR_STATE, XNET_ERROR_PORT_POST,
+			"post", "network port is closing", 0);
 		return false;
 	}
 	if ( pPort->PostCount >= pPort->Config.PostLimit ) {
@@ -1441,12 +1467,19 @@ XRT_API bool xrtNetPortPost(xnetport* pPort, uint64 Id, ptr pUser)
 /* 跨线程请求一个可合并的 WAKE 事件。 */
 XRT_API bool xrtNetPortWake(xnetport* pPort)
 {
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ) {
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_POST,
 			"wake", "invalid network port", 0);
 		return false;
 	}
 	if ( !xrtMutexLock(&pPort->Lock) ) {
+		return false;
+	}
+	if ( xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u ) {
+		(void)xrtMutexUnlock(&pPort->Lock);
+		__xrtNetSetError(XERR_STATE, XNET_ERROR_PORT_POST,
+			"wake", "network port is closing", 0);
 		return false;
 	}
 	if ( pPort->WakePending ) {
@@ -1473,7 +1506,8 @@ XRT_API xnetresult xrtNetPortWait(xnetport* pPort,
 	if ( pCount != NULL ) {
 		*pCount = 0;
 	}
-	if ( (pPort == NULL) || (pPort->Driver == NULL) || pPort->Closing ||
+	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
+		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ||
 		 (pEvents == NULL) || (iCapacity == 0) || (pCount == NULL) ) {
 		__xrtNetSetError(XERR_ARGUMENT, XNET_ERROR_PORT_WAIT,
 			"wait", "invalid network port wait", 0);

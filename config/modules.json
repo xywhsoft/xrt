@@ -10507,7 +10507,8 @@
 				"tests/tls/test_tls_stream_close_timeout.c",
 				"tests/tls/test_tls_stream_oom.c",
 				"tests/tls/test_tls_stream_resume.c",
-				"tests/tls/test_tls_stream_abort.c"
+				"tests/tls/test_tls_stream_abort.c",
+				"tests/tls/test_tls_stream_reentrant_close.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_tls_stream.c",

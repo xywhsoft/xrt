@@ -182,6 +182,17 @@ XRT_API void xrtWsMessageConfigInit(xwsmessageconfig* pConfig)
 
 
 
+/* 初始化有明确消息预算的安全默认配置。 */
+XRT_API void xrtWsMessageConfigInitSafe(xwsmessageconfig* pConfig)
+{
+	xrtWsMessageConfigInit(pConfig);
+	if ( pConfig != NULL ) {
+		pConfig->MaxSize = XWS_MESSAGE_SIZE_SAFE_DEFAULT;
+	}
+}
+
+
+
 /* 绑定配置并初始化无资源消息状态。 */
 XRT_API bool xrtWsMessageInit(
 	xwsmessagestate* pState,

@@ -16,6 +16,7 @@
 #if defined(XRT_FEATURE_HTTP_DECODE)
 
 #define XHTTP_DECODE_OUTPUT_UNLIMITED UINT64_MAX
+#define XHTTP_DECODE_OUTPUT_SAFE_DEFAULT (UINT64_C(16) * 1024u * 1024u)
 
 
 
@@ -72,8 +73,17 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 初始化严格配置：最多四层、64 KiB gzip Header、明文长度不设上限。 */
+/* 初始化兼容配置：最多四层、64 KiB gzip Header、明文长度不设上限。 */
 XRT_API void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig);
+
+
+
+/*
+	初始化面向不可信对端的安全配置；除协议限制外，明文最多 16 MiB。
+	需要更大正文时应显式修改 OutputLimit，使用无限制必须显式设为
+	XHTTP_DECODE_OUTPUT_UNLIMITED。
+*/
+XRT_API void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig);
 
 
 
