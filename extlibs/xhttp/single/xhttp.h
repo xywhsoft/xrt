@@ -127799,14 +127799,15 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 			ssize_t iBytes;
 
 			if ( iSize == 0 ) {
-				/* Darwin 的 recvmsg 对零长度缓冲不可用（EINVAL），
-				   零长度接收改用 recvfrom。 */
+				/* Darwin 对 NULL/零长度缓冲返回 EINVAL（recvmsg 与
+				   recvfrom 皆然），零长度接收传入哑缓冲。 */
+				unsigned char Dummy = 0;
 				socklen_t iDummyLen = iAddressSize;
 
 				do {
 					iBytes = recvfrom(
 						__xrtNetSocketHandle(Socket),
-						NULL, 0, 0,
+						&Dummy, 0, 0,
 						(struct sockaddr*)&Storage, &iDummyLen
 					);
 				} while ( (iBytes < 0) && (errno == EINTR) );
