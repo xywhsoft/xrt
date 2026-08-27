@@ -3,10 +3,6 @@
 	#define _GNU_SOURCE 1
 #endif
 
-#if defined(__APPLE__)
-	/* 临时诊断用。 */
-	#include <stdio.h>
-#endif
 #include "../internal/xrt_net_socket.h"
 
 #include <errno.h>
@@ -3670,16 +3666,7 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 						(struct sockaddr*)&Storage, &iDummyLen
 					);
 				} while ( (iBytes < 0) && (errno == EINTR) );
-				#if defined(__APPLE__)
-					{
-						/* 临时诊断。 */
-						int iErrno = (iBytes < 0) ? errno : 0;
-
-						fprintf(stderr,
-							"[diag0] recvfrom ret=%zd errno=%d\n",
-							iBytes, iErrno);
-					}
-				#endif
+				
 				iAddressSize = (socklen_t)iDummyLen;
 			} else {
 				Buffer.iov_base = pData;
@@ -3710,23 +3697,17 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 	#endif
 
 	if ( ((Result == XNET_RESULT_OK) ||
-		 (Result == XNET_RESULT_TRUNCATED)) && (pRemote != NULL) &&
-		 !xrtNetAddrFromNative(pRemote, &Storage, (size_t)iAddressSize) ) {
-		#if defined(__APPLE__)
-			/* 临时诊断。 */
-			fprintf(stderr,
-				"[diag0] from-native failed result=%d len=%u fam=%u\n",
-				(int)Result, (unsigned)iAddressSize,
-				(unsigned)((struct sockaddr*)&Storage)->sa_family);
-		#endif
-		*pReceived = 0;
-		return XNET_RESULT_ERROR;
-	}
-	#if defined(__APPLE__)
-		if ( iSize == 0 ) {
-			fprintf(stderr, "[diag0] final result=%d\n", (int)Result);
+		 (Result == XNET_RESULT_TRUNCATED)) && (pRemote != NULL) ) {
+		/* Darwin 收到零长度报文时不填充源地址且 addrlen 输出 0；
+		   源地址未知时不更新调用方地址，仅清为未指定族。 */
+		if ( iAddressSize == 0 ) {
+			memset(pRemote, 0, sizeof(*pRemote));
+		} else if ( !xrtNetAddrFromNative(
+			pRemote, &Storage, (size_t)iAddressSize) ) {
+			*pReceived = 0;
+			return XNET_RESULT_ERROR;
 		}
-	#endif
+	}
 	return Result;
 }
 
