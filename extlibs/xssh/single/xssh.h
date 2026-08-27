@@ -35036,8 +35036,7 @@ typedef enum xvaluetype {
 	XVALUE_ARRAY,
 	XVALUE_INT_MAP,
 	XVALUE_SET,
-	XVALUE_OBJECT,
-	XVALUE_UINT
+	XVALUE_OBJECT
 } xvaluetype;
 
 
@@ -35093,11 +35092,6 @@ XRT_API xvalue* xrtValueBool(bool bValue);
 
 /* 创建不可变的 64 位整数值。 */
 XRT_API xvalue* xrtValueInt(int64 iValue);
-
-
-
-/* 创建不可变的 64 位无符号整数值。 */
-XRT_API xvalue* xrtValueUInt(uint64 iValue);
 
 
 
@@ -35197,11 +35191,6 @@ XRT_API bool xrtValueGetBool(const xvalue* pValue, bool* pResult);
 
 /* 精确读取整数值，类型不匹配时失败。 */
 XRT_API bool xrtValueGetInt(const xvalue* pValue, int64* pResult);
-
-
-
-/* 精确读取无符号整数值，类型不匹配时失败。 */
-XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult);
 
 
 
@@ -35939,7 +35928,7 @@ typedef enum xjsonduplicate {
 
 
 
-/* 超出 int64/uint64 的整数字面量默认失败，显式浮点策略允许有损接收。 */
+/* 超出 int64 的整数字面量默认失败，显式浮点策略允许有损接收。 */
 typedef enum xjsonbigint {
 	XJSON_BIGINT_REJECT = 0,
 	XJSON_BIGINT_FLOAT
@@ -35972,8 +35961,7 @@ typedef enum xjsoneventtype {
 	XJSON_EVENT_ARRAY_BEGIN,
 	XJSON_EVENT_ARRAY_END,
 	XJSON_EVENT_OBJECT_BEGIN,
-	XJSON_EVENT_OBJECT_END,
-	XJSON_EVENT_UINT
+	XJSON_EVENT_OBJECT_END
 } xjsoneventtype;
 
 
@@ -36008,7 +35996,6 @@ typedef struct xjsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
-		uint64 Unsigned;
 		double Float;
 		xstrview String;
 	} Value;
@@ -36226,11 +36213,6 @@ XRT_API bool xrtJsonWriterBool(xjsonwriter* pWriter, bool bValue);
 
 /* 写入 int64。 */
 XRT_API bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue);
-
-
-
-/* 写入 uint64。 */
-XRT_API bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue);
 
 
 
@@ -36481,7 +36463,7 @@ typedef enum xxsonduplicate {
 
 
 
-/* 超出 int64/uint64 的整数默认失败，可显式按 double 接收。 */
+/* 超出 int64 的整数默认失败，可显式按 double 接收。 */
 typedef enum xxsonbigint {
 	XXSON_BIGINT_REJECT = 0,
 	XXSON_BIGINT_FLOAT
@@ -36533,8 +36515,7 @@ typedef enum xxsoneventtype {
 	XXSON_EVENT_SET_BEGIN,
 	XXSON_EVENT_SET_END,
 	XXSON_EVENT_OBJECT_BEGIN,
-	XXSON_EVENT_OBJECT_END,
-	XXSON_EVENT_UINT
+	XXSON_EVENT_OBJECT_END
 } xxsoneventtype;
 
 
@@ -36575,7 +36556,6 @@ typedef struct xxsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
-		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xbytesview Bytes;
@@ -36791,11 +36771,6 @@ XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue);
 
 /* 写入 int64。 */
 XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
-
-
-
-/* 写入 uint64。 */
-XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
 
 
 
@@ -37086,7 +37061,6 @@ typedef struct xtemplatevalue {
 	const xvalue* Value;
 	bool Bool;
 	int64 Integer;
-	uint64 Unsigned;
 	double Float;
 	xstrview Text;
 	xtime Time;
@@ -64394,7 +64368,6 @@ struct xvalue {
 	union {
 		bool Bool;
 		int64 Int;
-		uint64 UInt;
 		double Float;
 		xtime Time;
 		ptr Pointer;
@@ -64623,8 +64596,7 @@ typedef enum xtextvalueeventtype {
 	XTEXT_VALUE_EVENT_SET_BEGIN,
 	XTEXT_VALUE_EVENT_SET_END,
 	XTEXT_VALUE_EVENT_OBJECT_BEGIN,
-	XTEXT_VALUE_EVENT_OBJECT_END,
-	XTEXT_VALUE_EVENT_UINT
+	XTEXT_VALUE_EVENT_OBJECT_END
 } xtextvalueeventtype;
 
 
@@ -64647,7 +64619,6 @@ typedef struct xtextvalueevent {
 	union {
 		bool Boolean;
 		int64 Integer;
-		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xtextvaluetag Tag;
@@ -64829,7 +64800,6 @@ bool __xrtTextValueWriterKey(
 bool __xrtTextValueWriterNull(xtextvaluewriter* pWriter);
 bool __xrtTextValueWriterBool(xtextvaluewriter* pWriter, bool bValue);
 bool __xrtTextValueWriterInt(xtextvaluewriter* pWriter, int64 iValue);
-bool __xrtTextValueWriterUInt(xtextvaluewriter* pWriter, uint64 iValue);
 bool __xrtTextValueWriterFloat(xtextvaluewriter* pWriter, double fValue);
 bool __xrtTextValueWriterString(xtextvaluewriter* pWriter, xstrview Text);
 
@@ -65293,7 +65263,6 @@ typedef struct xrt_template_eval {
 	union {
 		bool Bool;
 		int64 Integer;
-		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xtime Time;
@@ -113170,7 +113139,9 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 			Result = __xrtNetSocketRecvResult(iResult,
 				pReceived, true, "recv-from");
 			#if defined(MSG_TRUNC)
-				if ( (Result == XNET_RESULT_OK) &&
+				/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
+				   表示报文被完整交付，不视为截断。 */
+				if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
 					 ((Message.msg_flags & MSG_TRUNC) != 0) ) {
 					Result = XNET_RESULT_TRUNCATED;
 				}
@@ -113310,7 +113281,9 @@ XRT_API xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket,
 		Result = __xrtNetSocketRecvResult(iResult,
 			pReceived, true, "recv-from-vec");
 		#if defined(MSG_TRUNC)
-			if ( (Result == XNET_RESULT_OK) &&
+			/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
+			   表示报文被完整交付，不视为截断。 */
+			if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
 				 ((Message.msg_flags & MSG_TRUNC) != 0) ) {
 				Result = XNET_RESULT_TRUNCATED;
 			}
@@ -113502,7 +113475,9 @@ XRT_API xnetresult xrtNetSocketRecvMsgVec(
 			"recv-message"
 		);
 		#if defined(MSG_TRUNC)
-			if ( (Result == XNET_RESULT_OK) &&
+			/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
+			   表示报文被完整交付，不视为截断。 */
+			if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
 				 ((Message.msg_flags & MSG_TRUNC) != 0) ) {
 				Result = XNET_RESULT_TRUNCATED;
 			}
@@ -266982,35 +266957,6 @@ static bool __xrtValueFloatToInt(double fValue, int64* pValue)
 
 
 
-/* 只在浮点数能够无损表示为 uint64 时完成转换。 */
-static bool __xrtValueFloatToUInt(double fValue, uint64* pValue)
-{
-	#if defined(__TINYC__)
-		uint64 iValue;
-
-		if ( !(fValue >= 0.0) || !(fValue < 18446744073709551616.0) ) {
-			return false;
-		}
-		iValue = (uint64)fValue;
-		if ( (double)iValue != fValue ) {
-			return false;
-		}
-		*pValue = iValue;
-		return true;
-	#else
-		if (
-			!isfinite(fValue) || (fValue < 0.0) ||
-			(fValue >= 18446744073709551616.0) || (floor(fValue) != fValue)
-		) {
-			return false;
-		}
-		*pValue = (uint64)fValue;
-		return true;
-	#endif
-}
-
-
-
 /* 检查借用视图的数据指针与长度是否一致。 */
 static bool __xrtValueViewValid(const void* pData, size_t iSize)
 {
@@ -267257,7 +267203,7 @@ xvalue* __xrtValueCreate(xvaluetype Type)
 {
 	xvalue* pValue;
 
-	if ( (Type <= XVALUE_INVALID) || (Type > XVALUE_UINT) ) {
+	if ( (Type <= XVALUE_INVALID) || (Type > XVALUE_OBJECT) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -267304,19 +267250,6 @@ XRT_API xvalue* xrtValueInt(int64 iValue)
 
 	if ( pValue != NULL ) {
 		pValue->Data.Int = iValue;
-	}
-	return pValue;
-}
-
-
-
-/* 创建不可变的 64 位无符号整数值。 */
-XRT_API xvalue* xrtValueUInt(uint64 iValue)
-{
-	xvalue* pValue = __xrtValueCreate(XVALUE_UINT);
-
-	if ( pValue != NULL ) {
-		pValue->Data.UInt = iValue;
 	}
 	return pValue;
 }
@@ -267579,7 +267512,6 @@ XRT_API cstr xrtValueTypeName(xvaluetype Type)
 		case XVALUE_INT_MAP: return "int_map";
 		case XVALUE_SET: return "set";
 		case XVALUE_OBJECT: return "object";
-		case XVALUE_UINT: return "uint";
 		case XVALUE_INVALID:
 		default:
 			return "invalid";
@@ -267613,8 +267545,7 @@ XRT_API bool xrtValueIsNumber(const xvalue* pValue)
 		__xrtErrorSetInvalidState();
 		return false;
 	}
-	return (pValue->Type == XVALUE_INT) || (pValue->Type == XVALUE_UINT) ||
-		(pValue->Type == XVALUE_FLOAT);
+	return (pValue->Type == XVALUE_INT) || (pValue->Type == XVALUE_FLOAT);
 }
 
 
@@ -267649,8 +267580,6 @@ XRT_API bool xrtValueTruthy(const xvalue* pValue)
 			return pValue->Data.Bool;
 		case XVALUE_INT:
 			return pValue->Data.Int != 0;
-		case XVALUE_UINT:
-			return pValue->Data.UInt != 0;
 		case XVALUE_FLOAT:
 			return pValue->Data.Float != 0.0;
 		case XVALUE_STRING:
@@ -267707,23 +267636,6 @@ XRT_API bool xrtValueGetInt(const xvalue* pValue, int64* pResult)
 		return false;
 	}
 	*pResult = pValue->Data.Int;
-	return true;
-}
-
-
-
-/* 精确读取无符号整数值。 */
-XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult)
-{
-	if ( !__xrtValueGetValid(
-		pValue,
-		XVALUE_UINT,
-		pResult,
-		sizeof(*pResult)
-	) ) {
-		return false;
-	}
-	*pResult = pValue->Data.UInt;
 	return true;
 }
 
@@ -267882,7 +267794,6 @@ XRT_API bool xrtValueGetHandle(
 uint64 __xrtValueHashKnown(const xvalue* pValue)
 {
 	uint64 iBits;
-	uint64 iUnsigned;
 	int64 iInteger;
 
 	switch ( (xvaluetype)pValue->Type ) {
@@ -267892,16 +267803,9 @@ uint64 __xrtValueHashKnown(const xvalue* pValue)
 			return __xrtValueTaggedHash(XVALUE_BOOL, pValue->Data.Bool ? 1u : 0u);
 		case XVALUE_INT:
 			return __xrtValueTaggedHash(XVALUE_INT, (uint64)pValue->Data.Int);
-		case XVALUE_UINT:
-			return pValue->Data.UInt <= (uint64)INT64_MAX
-				? __xrtValueTaggedHash(XVALUE_INT, pValue->Data.UInt)
-				: __xrtValueTaggedHash(XVALUE_UINT, pValue->Data.UInt);
 		case XVALUE_FLOAT:
 			if ( __xrtValueFloatToInt(pValue->Data.Float, &iInteger) ) {
 				return __xrtValueTaggedHash(XVALUE_INT, (uint64)iInteger);
-			}
-			if ( __xrtValueFloatToUInt(pValue->Data.Float, &iUnsigned) ) {
-				return __xrtValueTaggedHash(XVALUE_UINT, iUnsigned);
 			}
 			if ( isnan(pValue->Data.Float) ) {
 				iBits = UINT64_C(0x7FF8000000000000);
@@ -267944,41 +267848,21 @@ uint64 __xrtValueHashKnown(const xvalue* pValue)
 /* 判断两个数值是否在无损转换后相等。 */
 static bool __xrtValueNumberEqual(const xvalue* pLeft, const xvalue* pRight)
 {
-	int64 iInteger;
-	uint64 iUnsigned;
+	int64 iValue;
 
 	if ( (pLeft->Type == XVALUE_INT) && (pRight->Type == XVALUE_INT) ) {
 		return pLeft->Data.Int == pRight->Data.Int;
-	}
-	if ( (pLeft->Type == XVALUE_UINT) && (pRight->Type == XVALUE_UINT) ) {
-		return pLeft->Data.UInt == pRight->Data.UInt;
 	}
 	if ( (pLeft->Type == XVALUE_FLOAT) && (pRight->Type == XVALUE_FLOAT) ) {
 		return (pLeft->Data.Float == pRight->Data.Float) ||
 			(isnan(pLeft->Data.Float) && isnan(pRight->Data.Float));
 	}
-	if ( (pLeft->Type == XVALUE_INT) && (pRight->Type == XVALUE_UINT) ) {
-		return pLeft->Data.Int >= 0 &&
-			(uint64)pLeft->Data.Int == pRight->Data.UInt;
-	}
-	if ( (pLeft->Type == XVALUE_UINT) && (pRight->Type == XVALUE_INT) ) {
-		return pRight->Data.Int >= 0 &&
-			pLeft->Data.UInt == (uint64)pRight->Data.Int;
-	}
 	if ( pLeft->Type == XVALUE_FLOAT ) {
-		if ( pRight->Type == XVALUE_UINT ) {
-			return __xrtValueFloatToUInt(pLeft->Data.Float, &iUnsigned) &&
-				iUnsigned == pRight->Data.UInt;
-		}
-		return __xrtValueFloatToInt(pLeft->Data.Float, &iInteger) &&
-			iInteger == pRight->Data.Int;
+		return __xrtValueFloatToInt(pLeft->Data.Float, &iValue) &&
+			(iValue == pRight->Data.Int);
 	}
-	if ( pLeft->Type == XVALUE_UINT ) {
-		return __xrtValueFloatToUInt(pRight->Data.Float, &iUnsigned) &&
-			pLeft->Data.UInt == iUnsigned;
-	}
-	return __xrtValueFloatToInt(pRight->Data.Float, &iInteger) &&
-		iInteger == pLeft->Data.Int;
+	return __xrtValueFloatToInt(pRight->Data.Float, &iValue) &&
+		(iValue == pLeft->Data.Int);
 }
 
 
@@ -267989,10 +267873,8 @@ bool __xrtValueEqualKnown(const xvalue* pLeft, const xvalue* pRight)
 	if ( pLeft == pRight ) {
 		return true;
 	}
-	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
-		  (pLeft->Type == XVALUE_FLOAT)) &&
-		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
-		  (pRight->Type == XVALUE_FLOAT)) ) {
+	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_FLOAT)) &&
+		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_FLOAT)) ) {
 		return __xrtValueNumberEqual(pLeft, pRight);
 	}
 	if ( pLeft->Type != pRight->Type ) {
@@ -272592,9 +272474,9 @@ static bool __xrtValueEqual(
 		__xrtErrorSetValue();
 		return false;
 	}
-	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
+	if ( ((pLeft->Type == XVALUE_INT) ||
 		  (pLeft->Type == XVALUE_FLOAT)) &&
-		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
+		 ((pRight->Type == XVALUE_INT) ||
 		  (pRight->Type == XVALUE_FLOAT)) ) {
 		return __xrtValueEqualKnown(pLeft, pRight);
 	}
@@ -273828,7 +273710,7 @@ static void __xrtTextValueParserLiteral(
 
 
 
-/* 扫描严格 JSON 数字 token 并解析为 int64、uint64 或 double。 */
+/* 扫描严格 JSON 数字 token 并解析为 int64 或 double。 */
 static bool __xrtTextValueParserNumber(
 	xtextvalueparser* pParser,
 	xtextvalueevent* pEvent
@@ -273837,7 +273719,6 @@ static bool __xrtTextValueParserNumber(
 	size_t iStart = pParser->Offset;
 	bool bInteger = true;
 	int64 iInteger = 0;
-	uint64 iUnsigned = 0;
 	double fValue = 0.0;
 
 	if ( __xrtTextValueParserPeek(pParser) == (uint8)'-' ) {
@@ -273926,21 +273807,13 @@ static bool __xrtTextValueParserNumber(
 		pEvent->Value.Integer = iInteger;
 		return true;
 	}
-	if ( bInteger && pEvent->Raw.Size != 0u && pEvent->Raw.Data[0] != '-' ) {
-		xrtClearError();
-		if ( xrtUIntParse(pEvent->Raw, 10u, 0, &iUnsigned) ) {
-			pEvent->Type = XTEXT_VALUE_EVENT_UINT;
-			pEvent->Value.Unsigned = iUnsigned;
-			return true;
-		}
-	}
 	if ( bInteger && !pParser->Config.BigIntegerFloat ) {
 		xrtClearError();
 		__xrtTextValueLocationError(
 			pParser,
 			XERR_RANGE,
 			XTEXT_VALUE_ERROR_NUMBER,
-			"integer does not fit int64 or uint64",
+			"integer does not fit int64",
 			&pEvent->Location
 		);
 		return false;
@@ -274851,8 +274724,6 @@ static xvalue* __xrtJsonDomScalar(const xtextvalueevent* pEvent)
 			return xrtValueRetain(xrtValueBool(pEvent->Value.Boolean));
 		case XTEXT_VALUE_EVENT_INT:
 			return xrtValueInt(pEvent->Value.Integer);
-		case XTEXT_VALUE_EVENT_UINT:
-			return xrtValueUInt(pEvent->Value.Unsigned);
 		case XTEXT_VALUE_EVENT_FLOAT:
 			return xrtValueFloat(pEvent->Value.Float);
 		case XTEXT_VALUE_EVENT_STRING:
@@ -274965,9 +274836,6 @@ static bool __xrtJsonEventType(
 		case XTEXT_VALUE_EVENT_INT:
 			*pType = XJSON_EVENT_INT;
 			break;
-		case XTEXT_VALUE_EVENT_UINT:
-			*pType = XJSON_EVENT_UINT;
-			break;
 		case XTEXT_VALUE_EVENT_FLOAT:
 			*pType = XJSON_EVENT_FLOAT;
 			break;
@@ -275021,8 +274889,6 @@ static xtextvaluevisitaction __xrtJsonVisitAdapter(
 		Event.Value.Boolean = pSource->Value.Boolean;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT ) {
 		Event.Value.Integer = pSource->Value.Integer;
-	} else if ( pSource->Type == XTEXT_VALUE_EVENT_UINT ) {
-		Event.Value.Unsigned = pSource->Value.Unsigned;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_FLOAT ) {
 		Event.Value.Float = pSource->Value.Float;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_STRING ) {
@@ -275565,28 +275431,6 @@ static bool __xrtTextValueWriterIntToken(
 
 
 
-/* 写出 uint64 token。 */
-static bool __xrtTextValueWriterUIntToken(
-	xtextvaluewriter* pWriter,
-	uint64 iValue
-)
-{
-	char Output[32];
-	size_t iSize;
-
-	if ( !xrtUIntWrite(iValue, 10u, Output, sizeof(Output), &iSize, 0) ) {
-		return __xrtTextValueWriterFail(
-			pWriter,
-			XERR_INTERNAL,
-			XTEXT_VALUE_WRITE_ERROR_OUTPUT,
-			"failed to format unsigned integer"
-		);
-	}
-	return __xrtTextValueWriterEmit(pWriter, Output, iSize);
-}
-
-
-
 /* 写出有限 double token。 */
 static bool __xrtTextValueWriterFloatToken(
 	xtextvaluewriter* pWriter,
@@ -275900,25 +275744,6 @@ bool __xrtTextValueWriterInt(
 	bResult =
 		__xrtTextValueWriterBeforeValue(pWriter) &&
 		__xrtTextValueWriterIntToken(pWriter, iValue);
-	return __xrtTextValueWriterLeave(pWriter, bResult);
-}
-
-
-
-/* 写入 uint64。 */
-bool __xrtTextValueWriterUInt(
-	xtextvaluewriter* pWriter,
-	uint64 iValue
-)
-{
-	bool bResult;
-
-	if ( !__xrtTextValueWriterEnter(pWriter) ) {
-		return false;
-	}
-	bResult =
-		__xrtTextValueWriterBeforeValue(pWriter) &&
-		__xrtTextValueWriterUIntToken(pWriter, iValue);
 	return __xrtTextValueWriterLeave(pWriter, bResult);
 }
 
@@ -276470,8 +276295,7 @@ static bool __xrtJsonWriterSkipValue(
 	Type = xrtValueType(pValue);
 	if (
 		(Type == XVALUE_NULL) || (Type == XVALUE_BOOL) ||
-		(Type == XVALUE_INT) || (Type == XVALUE_UINT) ||
-		(Type == XVALUE_FLOAT) ||
+		(Type == XVALUE_INT) || (Type == XVALUE_FLOAT) ||
 		(Type == XVALUE_STRING) || (Type == XVALUE_ARRAY) ||
 		(Type == XVALUE_OBJECT)
 	) {
@@ -276682,7 +276506,6 @@ static bool __xrtJsonWriterTree(
 	ptr pIdentity;
 	bool bValue;
 	int64 iInteger;
-	uint64 iUnsigned;
 	double fValue;
 	xstrview Text;
 
@@ -276711,13 +276534,6 @@ static bool __xrtJsonWriterTree(
 			return false;
 		}
 		return __xrtTextValueWriterInt(pWriter->Core, iInteger);
-	}
-	if ( Type == XVALUE_UINT ) {
-		if ( !xrtValueGetUInt(pValue, &iUnsigned) ) {
-			__xrtTextValueWriterPoison(pWriter->Core);
-			return false;
-		}
-		return __xrtTextValueWriterUInt(pWriter->Core, iUnsigned);
 	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
@@ -276937,17 +276753,6 @@ XRT_API bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue)
 		return false;
 	}
 	return __xrtTextValueWriterInt(pWriter->Core, iValue);
-}
-
-
-
-/* 写入 uint64。 */
-XRT_API bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue)
-{
-	if ( !__xrtJsonWriterValid(pWriter) ) {
-		return false;
-	}
-	return __xrtTextValueWriterUInt(pWriter->Core, iValue);
 }
 
 
@@ -277564,9 +277369,6 @@ static bool __xrtXsonMakeEvent(
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT ) {
 		pEvent->Type = XXSON_EVENT_INT;
 		pEvent->Value.Integer = pSource->Value.Integer;
-	} else if ( pSource->Type == XTEXT_VALUE_EVENT_UINT ) {
-		pEvent->Type = XXSON_EVENT_UINT;
-		pEvent->Value.Unsigned = pSource->Value.Unsigned;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_FLOAT ) {
 		pEvent->Type = XXSON_EVENT_FLOAT;
 		pEvent->Value.Float = pSource->Value.Float;
@@ -277900,8 +277702,6 @@ static xvalue* __xrtXsonDomScalar(
 			return xrtValueRetain(xrtValueBool(pEvent->Value.Boolean));
 		case XXSON_EVENT_INT:
 			return xrtValueInt(pEvent->Value.Integer);
-		case XXSON_EVENT_UINT:
-			return xrtValueUInt(pEvent->Value.Unsigned);
 		case XXSON_EVENT_FLOAT:
 			return xrtValueFloat(pEvent->Value.Float);
 		case XXSON_EVENT_STRING:
@@ -278693,7 +278493,6 @@ static bool __xrtXsonWriterTree(
 	ptr pIdentity;
 	bool bValue;
 	int64 iInteger;
-	uint64 iUnsigned;
 	double fValue;
 	xstrview Text;
 	xbytesview Data;
@@ -278724,13 +278523,6 @@ static bool __xrtXsonWriterTree(
 			return false;
 		}
 		return __xrtTextValueWriterInt(pWriter->Core, iInteger);
-	}
-	if ( Type == XVALUE_UINT ) {
-		if ( !xrtValueGetUInt(pValue, &iUnsigned) ) {
-			__xrtTextValueWriterPoison(pWriter->Core);
-			return false;
-		}
-		return __xrtTextValueWriterUInt(pWriter->Core, iUnsigned);
 	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
@@ -278996,18 +278788,6 @@ XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue)
 		return false;
 	}
 	return __xrtTextValueWriterInt(pWriter->Core, iValue);
-}
-
-
-
-/* 写入 uint64。 */
-XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
-{
-	if ( pWriter == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	return __xrtTextValueWriterUInt(pWriter->Core, iValue);
 }
 
 
@@ -282915,37 +282695,6 @@ static bool __xrtTemplateWriteNumber(
 			iSize + 1u,
 			&iSize
 		);
-	} else if ( pValue->Type == XVALUE_UINT ) {
-		uint64 iValue;
-
-		if ( pValue->Value != NULL ) {
-			if ( !xrtValueGetUInt(pValue->Value, &iValue) ) {
-				goto format_error;
-			}
-		} else {
-			iValue = pValue->Data.Unsigned;
-		}
-		if ( !xrtUIntFormatTo(
-			iValue, Format, NULL, 0, &iSize
-		) ) {
-			goto format_error;
-		}
-		if ( !__xrtTemplateOutputFits(pRender, pNode, iSize) ) {
-			return false;
-		}
-		if ( iSize >= sizeof(arrBuffer) ) {
-			sOutput = (char*)xrtMalloc(iSize + 1u);
-			if ( sOutput == NULL ) {
-				return false;
-			}
-		}
-		bResult = xrtUIntFormatTo(
-			iValue,
-			Format,
-			sOutput,
-			iSize + 1u,
-			&iSize
-		);
 	} else {
 		double fValue;
 
@@ -283123,7 +282872,6 @@ static bool __xrtTemplateWriteText(
 			);
 		}
 		case XVALUE_INT:
-		case XVALUE_UINT:
 		case XVALUE_FLOAT:
 			return __xrtTemplateWriteNumber(
 				pRender,
@@ -283237,7 +282985,6 @@ static bool __xrtTemplateRenderOutput(
 	}
 	if ( pNode->Output == XTEMPLATE_OUTPUT_NUMBER ) {
 		if ( (Value.Type != XVALUE_INT) &&
-			 (Value.Type != XVALUE_UINT) &&
 			 (Value.Type != XVALUE_FLOAT) ) {
 			__xrtTemplateError(
 				XERR_TYPE,
@@ -284489,7 +284236,6 @@ bool __xrtTemplateEvalTruthy(
 		case XVALUE_NULL: *pResult = false; break;
 		case XVALUE_BOOL: *pResult = pValue->Data.Bool; break;
 		case XVALUE_INT: *pResult = pValue->Data.Integer != 0; break;
-		case XVALUE_UINT: *pResult = pValue->Data.Unsigned != 0; break;
 		case XVALUE_FLOAT: *pResult = pValue->Data.Float != 0.0; break;
 		case XVALUE_STRING:
 		case XVALUE_BYTES: *pResult = pValue->Data.String.Size != 0; break;
@@ -284526,53 +284272,28 @@ bool __xrtTemplateEvalInteger(
 
 
 
-typedef enum xrt_template_number_kind {
-	XRT_TEMPLATE_NUMBER_SIGNED,
-	XRT_TEMPLATE_NUMBER_UNSIGNED,
-	XRT_TEMPLATE_NUMBER_FLOAT
-} xrt_template_number_kind;
-
-
-
-typedef struct xrt_template_number {
-	xrt_template_number_kind Kind;
-	union {
-		int64 Signed;
-		uint64 Unsigned;
-		double Float;
-	} Value;
-} xrt_template_number;
-
-
-
-/* 读取可比较的数字并保留 signed/unsigned 整数精度。 */
+/* 读取可比较的数字并保留整数精确比较所需的类型。 */
 static bool __xrtTemplateEvalNumber(
 	const xrt_template_eval* pValue,
-	xrt_template_number* pNumber
+	int64* pInteger,
+	double* pFloat,
+	bool* pIsInteger
 )
 {
 	if ( pValue->Type == XVALUE_INT ) {
-		pNumber->Kind = XRT_TEMPLATE_NUMBER_SIGNED;
+		*pIsInteger = true;
 		if ( pValue->Value != NULL ) {
-			return xrtValueGetInt(pValue->Value, &pNumber->Value.Signed);
+			return xrtValueGetInt(pValue->Value, pInteger);
 		}
-		pNumber->Value.Signed = pValue->Data.Integer;
-		return true;
-	}
-	if ( pValue->Type == XVALUE_UINT ) {
-		pNumber->Kind = XRT_TEMPLATE_NUMBER_UNSIGNED;
-		if ( pValue->Value != NULL ) {
-			return xrtValueGetUInt(pValue->Value, &pNumber->Value.Unsigned);
-		}
-		pNumber->Value.Unsigned = pValue->Data.Unsigned;
+		*pInteger = pValue->Data.Integer;
 		return true;
 	}
 	if ( pValue->Type == XVALUE_FLOAT ) {
-		pNumber->Kind = XRT_TEMPLATE_NUMBER_FLOAT;
+		*pIsInteger = false;
 		if ( pValue->Value != NULL ) {
-			return xrtValueGetFloat(pValue->Value, &pNumber->Value.Float);
+			return xrtValueGetFloat(pValue->Value, pFloat);
 		}
-		pNumber->Value.Float = pValue->Data.Float;
+		*pFloat = pValue->Data.Float;
 		return true;
 	}
 	return false;
@@ -284648,55 +284369,6 @@ static int __xrtTemplateCompareIntegerFloat(
 
 
 
-/* 精确比较 uint64 与 double，避免高位整数先转 double。 */
-static int __xrtTemplateCompareUnsignedFloat(
-	uint64 iUnsigned,
-	double fValue,
-	bool* pUnordered
-)
-{
-	uint64 iFloatUnsigned;
-
-	*pUnordered = fValue != fValue;
-	if ( *pUnordered ) {
-		return 0;
-	}
-	if ( fValue < 0.0 ) {
-		return 1;
-	}
-	if ( fValue >= 18446744073709551616.0 ) {
-		return -1;
-	}
-	iFloatUnsigned = (uint64)fValue;
-	if ( iUnsigned < iFloatUnsigned ) {
-		return -1;
-	}
-	if ( iUnsigned > iFloatUnsigned ) {
-		return 1;
-	}
-	if ( fValue > (double)iFloatUnsigned ) {
-		return -1;
-	}
-	return 0;
-}
-
-
-
-/* 转为仅供近似比较使用的浮点尺度。 */
-static double __xrtTemplateNumberFloat(const xrt_template_number* pNumber)
-{
-	switch ( pNumber->Kind ) {
-		case XRT_TEMPLATE_NUMBER_SIGNED:
-			return (double)pNumber->Value.Signed;
-		case XRT_TEMPLATE_NUMBER_UNSIGNED:
-			return (double)pNumber->Value.Unsigned;
-		default:
-			return pNumber->Value.Float;
-	}
-}
-
-
-
 /* 比较两个标量且不把它们临时转换为字符串。 */
 static bool __xrtTemplateEvalCompare(
 	xrt_template_render* pRender,
@@ -284707,69 +284379,43 @@ static bool __xrtTemplateEvalCompare(
 	bool* pResult
 )
 {
-	xrt_template_number LeftNumber;
-	xrt_template_number RightNumber;
-	double fLeft;
-	double fRight;
+	int64 iLeft = 0;
+	int64 iRight = 0;
+	double fLeft = 0.0;
+	double fRight = 0.0;
+	bool bLeftInt = false;
+	bool bRightInt = false;
 	bool bUnordered = false;
 	int iCompare = 0;
 
-	if ( __xrtTemplateEvalNumber(pLeft, &LeftNumber) &&
-		 __xrtTemplateEvalNumber(pRight, &RightNumber) ) {
-		fLeft = __xrtTemplateNumberFloat(&LeftNumber);
-		fRight = __xrtTemplateNumberFloat(&RightNumber);
-		if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) &&
-			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) ) {
-			iCompare = LeftNumber.Value.Signed < RightNumber.Value.Signed ? -1 :
-				(LeftNumber.Value.Signed > RightNumber.Value.Signed ? 1 : 0);
-		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) &&
-			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) ) {
-			iCompare = LeftNumber.Value.Unsigned < RightNumber.Value.Unsigned ? -1 :
-				(LeftNumber.Value.Unsigned > RightNumber.Value.Unsigned ? 1 : 0);
-		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) &&
-			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) ) {
-			iCompare = LeftNumber.Value.Signed < 0 ? -1 :
-				((uint64)LeftNumber.Value.Signed < RightNumber.Value.Unsigned ? -1 :
-				 ((uint64)LeftNumber.Value.Signed > RightNumber.Value.Unsigned ? 1 : 0));
-		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) &&
-			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) ) {
-			iCompare = RightNumber.Value.Signed < 0 ? 1 :
-				(LeftNumber.Value.Unsigned < (uint64)RightNumber.Value.Signed ? -1 :
-				 (LeftNumber.Value.Unsigned > (uint64)RightNumber.Value.Signed ? 1 : 0));
-		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) &&
-			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_FLOAT) ) {
+	if ( __xrtTemplateEvalNumber(
+		pLeft, &iLeft, &fLeft, &bLeftInt
+	) && __xrtTemplateEvalNumber(
+		pRight, &iRight, &fRight, &bRightInt
+	) ) {
+		if ( bLeftInt && bRightInt ) {
+			iCompare = iLeft < iRight ? -1 : (iLeft > iRight ? 1 : 0);
+			fLeft = (double)iLeft;
+			fRight = (double)iRight;
+		} else if ( bLeftInt ) {
 			iCompare = __xrtTemplateCompareIntegerFloat(
-				LeftNumber.Value.Signed,
-				RightNumber.Value.Float,
+				iLeft,
+				fRight,
 				&bUnordered
 			);
-		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_FLOAT) &&
-			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_SIGNED) ) {
+			fLeft = (double)iLeft;
+		} else if ( bRightInt ) {
 			iCompare = -__xrtTemplateCompareIntegerFloat(
-				RightNumber.Value.Signed,
-				LeftNumber.Value.Float,
+				iRight,
+				fLeft,
 				&bUnordered
 			);
-		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) &&
-			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_FLOAT) ) {
-			iCompare = __xrtTemplateCompareUnsignedFloat(
-				LeftNumber.Value.Unsigned,
-				RightNumber.Value.Float,
-				&bUnordered
-			);
-		} else if ( (LeftNumber.Kind == XRT_TEMPLATE_NUMBER_FLOAT) &&
-			 (RightNumber.Kind == XRT_TEMPLATE_NUMBER_UNSIGNED) ) {
-			iCompare = -__xrtTemplateCompareUnsignedFloat(
-				RightNumber.Value.Unsigned,
-				LeftNumber.Value.Float,
-				&bUnordered
-			);
+			fRight = (double)iRight;
 		} else {
-			bUnordered = (LeftNumber.Value.Float != LeftNumber.Value.Float) ||
-				(RightNumber.Value.Float != RightNumber.Value.Float);
+			bUnordered = (fLeft != fLeft) || (fRight != fRight);
 			if ( !bUnordered ) {
-				iCompare = LeftNumber.Value.Float < RightNumber.Value.Float ? -1 :
-					(LeftNumber.Value.Float > RightNumber.Value.Float ? 1 : 0);
+				iCompare = fLeft < fRight ? -1 :
+					(fLeft > fRight ? 1 : 0);
 			}
 		}
 		if ( Type == XRT_TEMPLATE_EXPR_APPROX ) {
@@ -285738,11 +285384,10 @@ static bool __xrtTemplateCallValue(
 	pValue->Type = pSource->Type;
 	pValue->Value = pSource->Value;
 	if ( pSource->Value == NULL ) {
-			switch ( pSource->Type ) {
-				case XVALUE_BOOL: pValue->Bool = pSource->Data.Bool; break;
-				case XVALUE_INT: pValue->Integer = pSource->Data.Integer; break;
-				case XVALUE_UINT: pValue->Unsigned = pSource->Data.Unsigned; break;
-				case XVALUE_FLOAT: pValue->Float = pSource->Data.Float; break;
+		switch ( pSource->Type ) {
+			case XVALUE_BOOL: pValue->Bool = pSource->Data.Bool; break;
+			case XVALUE_INT: pValue->Integer = pSource->Data.Integer; break;
+			case XVALUE_FLOAT: pValue->Float = pSource->Data.Float; break;
 			case XVALUE_STRING:
 			case XVALUE_BYTES: pValue->Text = pSource->Data.String; break;
 			case XVALUE_TIME: pValue->Time = pSource->Data.Time; break;
@@ -285755,8 +285400,6 @@ static bool __xrtTemplateCallValue(
 			return xrtValueGetBool(pSource->Value, &pValue->Bool);
 		case XVALUE_INT:
 			return xrtValueGetInt(pSource->Value, &pValue->Integer);
-		case XVALUE_UINT:
-			return xrtValueGetUInt(pSource->Value, &pValue->Unsigned);
 		case XVALUE_FLOAT:
 			return xrtValueGetFloat(pSource->Value, &pValue->Float);
 		case XVALUE_STRING:

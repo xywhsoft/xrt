@@ -36976,8 +36976,7 @@ typedef enum xvaluetype {
 	XVALUE_ARRAY,
 	XVALUE_INT_MAP,
 	XVALUE_SET,
-	XVALUE_OBJECT,
-	XVALUE_UINT
+	XVALUE_OBJECT
 } xvaluetype;
 
 
@@ -37033,11 +37032,6 @@ XRT_API xvalue* xrtValueBool(bool bValue);
 
 /* 创建不可变的 64 位整数值。 */
 XRT_API xvalue* xrtValueInt(int64 iValue);
-
-
-
-/* 创建不可变的 64 位无符号整数值。 */
-XRT_API xvalue* xrtValueUInt(uint64 iValue);
 
 
 
@@ -37137,11 +37131,6 @@ XRT_API bool xrtValueGetBool(const xvalue* pValue, bool* pResult);
 
 /* 精确读取整数值，类型不匹配时失败。 */
 XRT_API bool xrtValueGetInt(const xvalue* pValue, int64* pResult);
-
-
-
-/* 精确读取无符号整数值，类型不匹配时失败。 */
-XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult);
 
 
 
@@ -37879,7 +37868,7 @@ typedef enum xjsonduplicate {
 
 
 
-/* 超出 int64/uint64 的整数字面量默认失败，显式浮点策略允许有损接收。 */
+/* 超出 int64 的整数字面量默认失败，显式浮点策略允许有损接收。 */
 typedef enum xjsonbigint {
 	XJSON_BIGINT_REJECT = 0,
 	XJSON_BIGINT_FLOAT
@@ -37912,8 +37901,7 @@ typedef enum xjsoneventtype {
 	XJSON_EVENT_ARRAY_BEGIN,
 	XJSON_EVENT_ARRAY_END,
 	XJSON_EVENT_OBJECT_BEGIN,
-	XJSON_EVENT_OBJECT_END,
-	XJSON_EVENT_UINT
+	XJSON_EVENT_OBJECT_END
 } xjsoneventtype;
 
 
@@ -37948,7 +37936,6 @@ typedef struct xjsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
-		uint64 Unsigned;
 		double Float;
 		xstrview String;
 	} Value;
@@ -38166,11 +38153,6 @@ XRT_API bool xrtJsonWriterBool(xjsonwriter* pWriter, bool bValue);
 
 /* 写入 int64。 */
 XRT_API bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue);
-
-
-
-/* 写入 uint64。 */
-XRT_API bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue);
 
 
 
@@ -38421,7 +38403,7 @@ typedef enum xxsonduplicate {
 
 
 
-/* 超出 int64/uint64 的整数默认失败，可显式按 double 接收。 */
+/* 超出 int64 的整数默认失败，可显式按 double 接收。 */
 typedef enum xxsonbigint {
 	XXSON_BIGINT_REJECT = 0,
 	XXSON_BIGINT_FLOAT
@@ -38473,8 +38455,7 @@ typedef enum xxsoneventtype {
 	XXSON_EVENT_SET_BEGIN,
 	XXSON_EVENT_SET_END,
 	XXSON_EVENT_OBJECT_BEGIN,
-	XXSON_EVENT_OBJECT_END,
-	XXSON_EVENT_UINT
+	XXSON_EVENT_OBJECT_END
 } xxsoneventtype;
 
 
@@ -38515,7 +38496,6 @@ typedef struct xxsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
-		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xbytesview Bytes;
@@ -38731,11 +38711,6 @@ XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue);
 
 /* 写入 int64。 */
 XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
-
-
-
-/* 写入 uint64。 */
-XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
 
 
 
@@ -39026,7 +39001,6 @@ typedef struct xtemplatevalue {
 	const xvalue* Value;
 	bool Bool;
 	int64 Integer;
-	uint64 Unsigned;
 	double Float;
 	xstrview Text;
 	xtime Time;
