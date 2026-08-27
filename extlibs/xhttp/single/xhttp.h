@@ -127821,8 +127821,7 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 						int iErrno = (iBytes < 0) ? errno : 0;
 
 						fprintf(stderr,
-							"[diag0] recvfrom ret=%zd errno=%d
-",
+							"[diag0] recvfrom ret=%zd errno=%d\n",
 							iBytes, iErrno);
 					}
 				#endif
