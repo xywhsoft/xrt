@@ -721,6 +721,17 @@ static void testSocketUDP(void)
 	RecvBatch[2] = (xnetdgramrecv){ .Data = NULL, .Capacity = 0 };
 	testSocketRecvBatchItems(Server, RecvBatch, 3,
 		"UDP unconnected batch receive failed");
+	{
+		size_t iDiag;
+
+		for ( iDiag = 0; iDiag < 3; iDiag++ ) {
+			fprintf(stderr, "[diagB] item=%zu result=%d size=%zu fam=%d port=%u\n",
+				iDiag, (int)RecvBatch[iDiag].Result,
+				RecvBatch[iDiag].Size,
+				(int)RecvBatch[iDiag].Remote.Family,
+				(unsigned)RecvBatch[iDiag].Remote.Port);
+		}
+	}
 	testRequire((RecvBatch[0].Result == XNET_RESULT_OK) &&
 		(RecvBatch[0].Size == 3) &&
 		(memcmp(RecvBatch[0].Data, "one", 3) == 0) &&
