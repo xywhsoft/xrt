@@ -105789,7 +105789,7 @@ XRT_API uint32 xrtNetSocketDgramControlAvailable(xnetsocket Socket)
 	#else
 		if ( Socket->Family == XNET_FAMILY_IPV4 ) {
 			#if defined(IP_SENDSRCADDR) || \
-				(defined(IP_PKTINFO) && defined(ipi_spec_dst))
+				(defined(IP_PKTINFO) && !defined(__linux__))
 				iFlags |= XNET_DGRAM_CONTROL_SOURCE;
 			#endif
 		} else {
@@ -106068,7 +106068,7 @@ bool __xrtNetSocketDgramControlBuild(
 					pBuffer, iCapacity, &iOffset,
 					IPPROTO_IP, IP_PKTINFO, Info, sizeof(Info)
 				);
-			#elif defined(IP_PKTINFO) && defined(ipi_spec_dst)
+			#elif defined(IP_PKTINFO) && !defined(__linux__)
 				/* Darwin/BSD 通过 in_pktinfo 的 ipi_spec_dst 指定源地址。 */
 				struct in_pktinfo Info;
 
