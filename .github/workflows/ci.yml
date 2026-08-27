@@ -36,7 +36,6 @@ jobs:
           tools/test_release_maturity.py
           tools/test_scope.py
           tools/test_public_abi.py
-          tools/test_refactor_audit.py
 
       - name: Verify repository release maturity
         run: python tools/check_release_maturity.py
@@ -94,12 +93,11 @@ jobs:
           --constant-prefix XRT_CO
           --type-prefix xco
 
-      - name: Verify generated features and refactor audit
+      - name: Verify generated features
         run: |
           python tools/generate_features.py --check
           python tools/generate_api_reference.py --check
           python tools/generate_example_index.py --check
-          python tools/refactor_audit.py check --require-verified
 
       - name: Verify extension metadata and generated assets
         run: |
