@@ -107336,8 +107336,8 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 			Message.msg_name = &Storage;
 			Message.msg_namelen = iAddressSize;
 			/* Darwin 对零长度 iovec 返回 EINVAL；零长度时省略 iov。 */
-			Message.msg_iov = (iSize != 0) ? &Buffer : NULL;
-			Message.msg_iovlen = (iSize != 0) ? 1 : 0;
+			Message.msg_iov = &Buffer;
+			Message.msg_iovlen = 1;
 			do {
 				iBytes = recvmsg(__xrtNetSocketHandle(Socket), &Message, 0);
 			} while ( (iBytes < 0) && (errno == EINTR) );
