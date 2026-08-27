@@ -102401,8 +102401,7 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 	}
 	#if defined(__APPLE__)
 		if ( iSize == 0 ) {
-			fprintf(stderr, "[diag0] final result=%d
-", (int)Result);
+			fprintf(stderr, "[diag0] final result=%d\n", (int)Result);
 		}
 	#endif
 	return Result;
