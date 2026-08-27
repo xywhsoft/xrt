@@ -3655,19 +3655,40 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 
 			if ( iSize == 0 ) {
 				/* Darwin 对 NULL/零长度缓冲返回 EINVAL（recvmsg 与
-				   recvfrom 皆然），零长度接收传入哑缓冲。 */
+				   recvfrom 皆然），零长度接收传入哑缓冲；MSG_TRUNC
+				   令内核返回报文真实长度，超长时报截断。 */
 				unsigned char Dummy = 0;
 				socklen_t iDummyLen = iAddressSize;
 
 				do {
 					iBytes = recvfrom(
 						__xrtNetSocketHandle(Socket),
-						&Dummy, 0, 0,
+						&Dummy, 0,
+						#if defined(MSG_TRUNC)
+							MSG_TRUNC,
+						#else
+							0,
+						#endif
 						(struct sockaddr*)&Storage, &iDummyLen
 					);
 				} while ( (iBytes < 0) && (errno == EINTR) );
-				
 				iAddressSize = (socklen_t)iDummyLen;
+				if ( iBytes > 0 ) {
+					/* 报文超长被丢弃：零字节交付且报告截断。 */
+					iBytes = 0;
+					iResult = 0;
+					Result = __xrtNetSocketRecvResult(0,
+						pReceived, true, "recv-from");
+					Result = XNET_RESULT_TRUNCATED;
+				} else {
+					iResult = 0;
+					Result = __xrtNetSocketRecvResult(0,
+						pReceived, true, "recv-from");
+				}
+				/* 已完成结果计算，跳过下方公共重算。 */
+				if ( iSize == 0 ) {
+					goto ZeroDone;
+				}
 			} else {
 				Buffer.iov_base = pData;
 				Buffer.iov_len = iSize;
@@ -3681,18 +3702,19 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 						__xrtNetSocketHandle(Socket), &Message, 0);
 				} while ( (iBytes < 0) && (errno == EINTR) );
 				iAddressSize = Message.msg_namelen;
+				iResult = (iBytes > INT_MAX) ? INT_MAX : (int)iBytes;
+				Result = __xrtNetSocketRecvResult(iResult,
+					pReceived, true, "recv-from");
+				#if defined(MSG_TRUNC)
+					/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
+					   表示报文被完整交付，不视为截断。 */
+					if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
+						 ((Message.msg_flags & MSG_TRUNC) != 0) ) {
+						Result = XNET_RESULT_TRUNCATED;
+					}
+				#endif
 			}
-			iResult = (iBytes > INT_MAX) ? INT_MAX : (int)iBytes;
-			Result = __xrtNetSocketRecvResult(iResult,
-				pReceived, true, "recv-from");
-			#if defined(MSG_TRUNC)
-				/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
-				   表示报文被完整交付，不视为截断。 */
-				if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
-					 ((Message.msg_flags & MSG_TRUNC) != 0) ) {
-					Result = XNET_RESULT_TRUNCATED;
-				}
-			#endif
+			ZeroDone: ;
 		}
 	#endif
 
