@@ -1416,9 +1416,23 @@ void __xrtNetSocketDgramMetaParse(
 
 			#if defined(__APPLE__)
 				/* 临时诊断：转储收到的控制消息，定位 Darwin 元数据缺失。 */
-				fprintf(stderr, "[cmsg] level=%d type=%d size=%zu trunc=%d\n",
+				fprintf(stderr,
+					"[cmsg] level=%d type=%d size=%zu trunc=%d "
+					"ipttl=%d pktinfo=%d recvttl=%d enabled=%x\n",
 					(int)pHeader->cmsg_level, (int)pHeader->cmsg_type,
-					iSize, (Message.msg_flags & MSG_CTRUNC) ? 1 : 0);
+					iSize, (Message.msg_flags & MSG_CTRUNC) ? 1 : 0,
+					(int)IP_TTL,
+					#ifdef IP_PKTINFO
+						(int)IP_PKTINFO,
+					#else
+						-1,
+					#endif
+					#ifdef IP_RECVTTL
+						(int)IP_RECVTTL,
+					#else
+						-1,
+					#endif
+					(unsigned)iEnabled);
 			#endif
 
 			#if defined(__linux__)
