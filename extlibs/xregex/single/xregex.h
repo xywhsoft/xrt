@@ -103659,9 +103659,22 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 	if ( ((Result == XNET_RESULT_OK) ||
 		 (Result == XNET_RESULT_TRUNCATED)) && (pRemote != NULL) &&
 		 !xrtNetAddrFromNative(pRemote, &Storage, (size_t)iAddressSize) ) {
+		#if defined(__APPLE__)
+			/* 临时诊断。 */
+			fprintf(stderr,
+				"[diag0] from-native failed result=%d len=%u fam=%u\n",
+				(int)Result, (unsigned)iAddressSize,
+				(unsigned)((struct sockaddr*)&Storage)->sa_family);
+		#endif
 		*pReceived = 0;
 		return XNET_RESULT_ERROR;
 	}
+	#if defined(__APPLE__)
+		if ( iSize == 0 ) {
+			fprintf(stderr, "[diag0] final result=%d
+", (int)Result);
+		}
+	#endif
 	return Result;
 }
 
