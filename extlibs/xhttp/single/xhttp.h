@@ -136278,6 +136278,34 @@ static xnetresult __xrtNetKqueueWait(
 			&iCount
 		);
 	}
+	if ( (iCount == 0) && (iTimeout == 0) ) {
+		/* 本轮只消化了内部唤醒；唤醒不得吞掉一次非阻塞轮询，
+		   再查一次避免就绪事件被积压的用户事件饿死。 */
+		iReady = kevent(
+			pContext->Port,
+			NULL,
+			0,
+			pContext->Ready,
+			iMaximum,
+			pTimeout
+		);
+		if ( iReady > 0 ) {
+			for ( int i = 0; i < iReady; i++ ) {
+				if ( __xrtNetKqueueWakeReady(
+					pContext,
+					&pContext->Ready[i]
+				) ) {
+					continue;
+				}
+				__xrtNetKqueuePublish(
+					pContext,
+					&pContext->Ready[i],
+					pEvents,
+					&iCount
+				);
+			}
+		}
+	}
 	*pCount = iCount;
 	return XNET_RESULT_OK;
 }
