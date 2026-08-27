@@ -127497,10 +127497,6 @@ XRT_API bool xrtNetAddrFromNative(xnetaddr* pAddr,
 	#define _GNU_SOURCE 1
 #endif
 
-#if defined(__APPLE__)
-	/* 临时诊断用。 */
-	#include <stdio.h>
-#endif
 
 #include <errno.h>
 #include <limits.h>
@@ -128907,27 +128903,6 @@ void __xrtNetSocketDgramMetaParse(
 			size_t iSize = (pHeader->cmsg_len >= iHeader) ?
 				(size_t)pHeader->cmsg_len - iHeader : 0;
 
-			#if defined(__APPLE__)
-				/* 临时诊断：转储收到的控制消息，定位 Darwin 元数据缺失。 */
-				fprintf(stderr,
-					"[cmsg] level=%d type=%d size=%zu trunc=%d "
-					"ipttl=%d pktinfo=%d recvttl=%d enabled=%x\n",
-					(int)pHeader->cmsg_level, (int)pHeader->cmsg_type,
-					iSize, (Message.msg_flags & MSG_CTRUNC) ? 1 : 0,
-					(int)IP_TTL,
-					#ifdef IP_PKTINFO
-						(int)IP_PKTINFO,
-					#else
-						-1,
-					#endif
-					#ifdef IP_RECVTTL
-						(int)IP_RECVTTL,
-					#else
-						-1,
-					#endif
-					(unsigned)iEnabled);
-			#endif
-
 			#if defined(__linux__)
 				if ( (pHeader->cmsg_level == SOL_UDP) &&
 					 (pHeader->cmsg_type == UDP_GRO) &&
@@ -129039,6 +129014,16 @@ void __xrtNetSocketDgramMetaParse(
 						continue;
 					}
 				#endif
+				/* BSD/Darwin 以 IP_RECVTTL 作为 IPv4 TTL 的控制消息类型。 */
+				#if defined(IP_RECVTTL)
+					if ( (pHeader->cmsg_level == IPPROTO_IP) &&
+						 (pHeader->cmsg_type == IP_RECVTTL) ) {
+						pMeta->HopLimit =
+							__xrtNetSocketDgramMetaInt(pData, iSize);
+						pMeta->Flags |= XNET_DGRAM_META_HOP_LIMIT;
+						continue;
+					}
+				#endif
 				#if defined(IPV6_HOPLIMIT)
 					if ( (pHeader->cmsg_level == IPPROTO_IPV6) &&
 						 (pHeader->cmsg_type == IPV6_HOPLIMIT) ) {
@@ -129053,6 +129038,16 @@ void __xrtNetSocketDgramMetaParse(
 				#if defined(IP_TOS)
 					if ( (pHeader->cmsg_level == IPPROTO_IP) &&
 						 (pHeader->cmsg_type == IP_TOS) ) {
+						pMeta->TrafficClass =
+							__xrtNetSocketDgramMetaInt(pData, iSize) & 0xFF;
+						pMeta->Flags |= XNET_DGRAM_META_TRAFFIC_CLASS;
+						continue;
+					}
+				#endif
+				/* BSD/Darwin 以 IP_RECVTOS 作为 IPv4 TOS 的控制消息类型。 */
+				#if defined(IP_RECVTOS)
+					if ( (pHeader->cmsg_level == IPPROTO_IP) &&
+						 (pHeader->cmsg_type == IP_RECVTOS) ) {
 						pMeta->TrafficClass =
 							__xrtNetSocketDgramMetaInt(pData, iSize) & 0xFF;
 						pMeta->Flags |= XNET_DGRAM_META_TRAFFIC_CLASS;
