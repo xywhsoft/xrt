@@ -742,9 +742,19 @@ static void testSocketUDP(void)
 		}
 		testRequire(bWhole, "UDP batch item result mismatch");
 	}
-	testRequire((RecvBatch[0].Remote.Port == Remote.Port) &&
-		(RecvBatch[1].Remote.Port == Remote.Port),
-		"UDP batch source address mismatch");
+	{
+		/* 零长度报文项在 Darwin 上不携带源地址，只检查有数据的项。 */
+		size_t iItem;
+		bool bPortOk = true;
+
+		for ( iItem = 0; iItem < 3; iItem++ ) {
+			if ( (RecvBatch[iItem].Size > 0) &&
+				(RecvBatch[iItem].Remote.Port != Remote.Port) ) {
+				bPortOk = false;
+			}
+		}
+		testRequire(bPortOk, "UDP batch source address mismatch");
+	}
 
 	/* 连接式 UDP 也必须保留报文截断和零长度报文语义。 */
 	testRequire((xrtNetSocketConnect(Client, &ServerAddress) ==
