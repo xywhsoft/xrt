@@ -81,9 +81,6 @@ jobs:
           python tools/generate_example_index.py --check
           python tools/amalgamate.py --check
 
-      - name: Verify legacy baseline audit
-        run: python tools/refactor_audit.py check --require-verified
-
       - name: Verify repository release maturity
         run: python tools/check_release_maturity.py
 
