@@ -3667,7 +3667,9 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 			Result = __xrtNetSocketRecvResult(iResult,
 				pReceived, true, "recv-from");
 			#if defined(MSG_TRUNC)
-				if ( (Result == XNET_RESULT_OK) &&
+				/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
+				   表示报文被完整交付，不视为截断。 */
+				if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
 					 ((Message.msg_flags & MSG_TRUNC) != 0) ) {
 					Result = XNET_RESULT_TRUNCATED;
 				}
@@ -3807,7 +3809,9 @@ XRT_API xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket,
 		Result = __xrtNetSocketRecvResult(iResult,
 			pReceived, true, "recv-from-vec");
 		#if defined(MSG_TRUNC)
-			if ( (Result == XNET_RESULT_OK) &&
+			/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
+			   表示报文被完整交付，不视为截断。 */
+			if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
 				 ((Message.msg_flags & MSG_TRUNC) != 0) ) {
 				Result = XNET_RESULT_TRUNCATED;
 			}
@@ -3999,7 +4003,9 @@ XRT_API xnetresult xrtNetSocketRecvMsgVec(
 			"recv-message"
 		);
 		#if defined(MSG_TRUNC)
-			if ( (Result == XNET_RESULT_OK) &&
+			/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
+			   表示报文被完整交付，不视为截断。 */
+			if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
 				 ((Message.msg_flags & MSG_TRUNC) != 0) ) {
 				Result = XNET_RESULT_TRUNCATED;
 			}

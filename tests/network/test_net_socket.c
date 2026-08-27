@@ -701,24 +701,9 @@ static void testSocketUDP(void)
 	testRequire((xrtNetSocketSendTo(Client, NULL, 0,
 		&iSize, &ServerAddress) == XNET_RESULT_OK) && (iSize == 0),
 		"UDP zero-length send failed");
-	{
-		xnetresult ZResult = xrtNetSocketRecvFrom(Server, NULL, 0,
-			&iSize, &Remote);
-
-		if ( ZResult != XNET_RESULT_OK ) {
-			const xerror* pError = xrtGetError();
-
-			fprintf(stderr,
-				"[diag] zero-recv result=%d size=%zu kind=%d code=%d msg=%s\n",
-				(int)ZResult, iSize,
-				pError ? (int)xrtErrorKind(pError) : -1,
-				pError ? (int)xrtErrorCode(pError) : -1,
-				(pError && xrtErrorMessage(pError)) ?
-					xrtErrorMessage(pError) : "(none)");
-		}
-		testRequire((ZResult == XNET_RESULT_OK) && (iSize == 0),
-			"UDP zero-length receive failed");
-	}
+	testRequire((xrtNetSocketRecvFrom(Server, NULL, 0,
+		&iSize, &Remote) == XNET_RESULT_OK) && (iSize == 0),
+		"UDP zero-length receive failed");
 
 	/* 未连接批量收发必须保留输入顺序、逐项截断结果和零长度报文。 */
 	SendBatch[0] = (xnetdgramsend){ &ServerAddress, "one", 3 };
