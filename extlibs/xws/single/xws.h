@@ -131088,7 +131088,9 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 	void* pData, size_t iSize, size_t* pReceived, xnetaddr* pRemote)
 {
 	struct sockaddr_storage Storage;
-	unsigned char iDummy = 0;
+	#if defined(_WIN32) || defined(_WIN64)
+		unsigned char iDummy = 0;
+	#endif
 	int iResult;
 	xnetresult Result;
 
