@@ -294197,19 +294197,9 @@ static bool __xrtProcessTerminalSpawnPosix(
 		);
 		goto cleanup;
 	}
+	/* 窗口尺寸只在 slave 上设置；Darwin 不接受 master 的 TIOCSWINSZ。 */
 	Size.ws_col = (unsigned short)pConfig->Columns;
 	Size.ws_row = (unsigned short)pConfig->Rows;
-	if ( ioctl(iMaster, TIOCSWINSZ, &Size) != 0 ) {
-		iError = errno;
-		__xrtProcessErrorSet(
-			__xrtSystemErrorKind(iError),
-			XPROCESS_ERROR_TERMINAL,
-			"spawn.terminal.resize",
-			"pseudo-terminal initial size could not be set",
-			iError
-		);
-		goto cleanup;
-	}
 	iPid = fork();
 	if ( iPid < 0 ) {
 		iError = errno;
