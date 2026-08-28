@@ -99,16 +99,37 @@ jobs:
           python tools/generate_api_reference.py --check
           python tools/generate_example_index.py --check
 
+  extension-metadata:
+    name: Metadata / ${{ matrix.product }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        product:
+          - xruntime
+          - xhttp
+          - xws
+          - xregex
+          - xmail
+          - xssh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
       - name: Verify extension metadata and generated assets
         run: |
-          for product in xruntime xhttp xws xregex xmail xssh; do
-            manifest="extlibs/${product}/config/modules.json"
-            python tools/generate_extension_features.py --check "${manifest}"
-            python tools/amalgamate.py --manifest "${manifest}" --check
-            python tools/generate_api_reference.py --manifest "${manifest}" --check
-            python tools/check_api_docs.py --manifest "${manifest}"
-            python tools/check_release_maturity.py --release --manifest "${manifest}"
-          done
+          manifest="extlibs/${{ matrix.product }}/config/modules.json"
+          python tools/generate_extension_features.py --check "${manifest}"
+          python tools/amalgamate.py --manifest "${manifest}" --check
+          python tools/generate_api_reference.py --manifest "${manifest}" --check
+          python tools/check_api_docs.py --manifest "${manifest}"
+          python tools/check_release_maturity.py --release --manifest "${manifest}"
 
   extensions:
     name: Extension / ${{ matrix.product }}
@@ -145,12 +166,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Run HTTP client retirement contract first
+        if: matrix.product == 'xhttp'
+        run: >-
+          python tools/build.py
+          --compiler gcc
+          --manifest extlibs/xhttp/config/modules.json
+          --suite http_client
+          --test test_http_client_contract
+          --no-single
+          --jobs 4
+
       - name: Run extension tests
         # GitHub 托管 runner 通过 seccomp 禁用了 io_uring（EPERM），
         # uring 运行时证据由自托管环境承担；此处保留其余全部运行证据。
         run: >-
           python tools/build.py
-          --compiler cc
+          --compiler gcc
           --manifest extlibs/${{ matrix.product }}/config/modules.json
           --suite ${{ matrix.test_suite }}
           --exclude-test *uring*
@@ -160,28 +192,125 @@ jobs:
       - name: Verify extension trimming
         run: >-
           python tools/build.py
-          --compiler cc
+          --compiler gcc
           --manifest extlibs/${{ matrix.product }}/config/modules.json
           --suite ${{ matrix.package_suite }}
           --trim-only
 
       - name: Verify extension packages
         run: |
-          python tools/package.py --compiler cc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind static --verify
-          python tools/package.py --compiler cc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind shared --verify
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind shared --verify
+
+  gcc-baseline:
+    name: GCC 12 baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container: gcc:12
+    steps:
+      - name: Install Python and checkout prerequisites
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 ca-certificates git
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Verify baseline compiler
+        run: gcc --version
+
+      - name: Run baseline module and single-header tests
+        run: >-
+          python3 tools/build.py
+          --compiler gcc
+          --suite core,string,net_socket
+          --no-examples
+          --jobs 4
+
+      - name: Verify baseline trimming and static package
+        run: |
+          python3 tools/build.py --compiler gcc --suite core,string,net_socket --trim-only --no-examples
+          python3 tools/package.py --compiler gcc --suite core,string,net_socket --kind static --verify
+
+  tcc:
+    name: TCC 0.9.27 basic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned TCC compatibility line
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tcc binutils
+          tcc -v 2>&1 | tee /tmp/xrt-tcc-version.txt
+          grep -F "tcc version 0.9.27" /tmp/xrt-tcc-version.txt
+
+      - name: Run TCC module and single-header tests
+        run: >-
+          python tools/build.py
+          --compiler tcc
+          --suite core,string,net_socket
+          --no-examples
+          --jobs 4
+
+      - name: Verify TCC trimming and static package
+        run: |
+          python tools/build.py --compiler tcc --suite core,string,net_socket --trim-only --no-examples
+          python tools/package.py --compiler tcc --suite core,string,net_socket --kind static --verify
+
+  xlang:
+    name: XLang integration (provisional)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    continue-on-error: true
+    env:
+      XLANG_REF: 6b01b1308f21ab726b5e895d71b42455b16c1968
+    steps:
+      - name: Checkout XRT
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install XLang build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential flex lemon git
+
+      - name: Checkout the pinned XLang consumer
+        run: |
+          mkdir -p .ci
+          git clone --filter=blob:none --no-checkout https://gitee.com/xywhsoft/x-lang.git .ci/xlang
+          git -C .ci/xlang checkout --detach "$XLANG_REF"
+          cp single/xrt.h .ci/xlang/demo5/lib/xrt/xrt.h
+
+      - name: Build XLang against the current XRT single header
+        working-directory: .ci/xlang/demo5
+        run: sh build_gcc.sh
+
+      - name: Run the XRT ABI consumer through XLang TCC
+        run: >-
+          .ci/xlang/demo5/release/bin/xl5 run-c
+          "$GITHUB_WORKSPACE/.github/fixtures/xlang_xrt_consumer.c"
 
   native:
-    name: ${{ matrix.name }}
+    name: Platform / ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Linux
+          - name: Linux GCC
             runner: ubuntu-latest
-          - name: macOS
+            compiler: gcc
+          - name: macOS Apple Clang
             runner: macos-latest
+            compiler: clang
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -197,7 +326,7 @@ jobs:
         if: matrix.runner == 'ubuntu-latest'
         run: >-
           python tools/build.py
-          --compiler cc
+          --compiler ${{ matrix.compiler }}
           --suite all
           --exclude-test *uring*
           --exclude-single-test *uring*
@@ -205,12 +334,12 @@ jobs:
 
       - name: Run module and single-header tests
         if: matrix.runner != 'ubuntu-latest'
-        run: python tools/build.py --compiler cc --suite all --jobs 4
+        run: python tools/build.py --compiler ${{ matrix.compiler }} --suite all --jobs 4
 
       - name: Build WebSocket extension runtime gates
         run: >-
           python tools/build.py
-          --compiler cc
+          --compiler ${{ matrix.compiler }}
           --manifest extlibs/xws/config/modules.json
           --suite xws_tests
           --no-single
@@ -218,16 +347,16 @@ jobs:
 
       - name: Verify static and shared package consumers
         run: |
-          python tools/package.py --compiler cc --suite all --kind static --verify
-          python tools/package.py --compiler cc --suite all --kind shared --verify
+          python tools/package.py --compiler ${{ matrix.compiler }} --suite all --kind static --verify
+          python tools/package.py --compiler ${{ matrix.compiler }} --suite all --kind shared --verify
 
       - name: Run WebSocket interoperability gate
         run: >-
           python extlibs/xws/tools/test_websocket_interop.py
-          --peer out/cc/native/xws_tests/test_interop_peer
+          --peer out/${{ matrix.compiler }}/native/xws_tests/test_interop_peer
 
       - name: Run WebSocket reconnect stress gate
-        run: out/cc/native/xws_tests/test_http_reconnect 1000
+        run: out/${{ matrix.compiler }}/native/xws_tests/test_http_reconnect 1000
 
       - name: Run protocol Clang fuzz gates
         if: matrix.runner == 'ubuntu-latest'
@@ -284,7 +413,7 @@ jobs:
         if: matrix.runner == 'ubuntu-latest'
         run: >-
           python tools/build.py
-          --compiler cc
+          --compiler gcc
           --manifest extlibs/xhttp/config/modules.json
           --suite
           net_port_uring,net_file,net_tcp_file_uring_tests,net_tcp_dial_uring_tests,net_tcp_dial_future_uring_tests,net_tcp_uring_tests,net_tcp_future_uring_tests,net_udp_uring_tests,net_udp_sync_uring_tests,net_udp_future_uring_tests,tls_stream_dial_future_uring_tests,tls_stream_dial_uring_tests,tls_stream_uring_tests,http_client_pool_uring_tests,http_client_stream_async_uring_tests,http_client_uring_tests,http_server_uring_tests,http_server_tls_uring_tests
@@ -293,7 +422,7 @@ jobs:
           --jobs 4
 
       - name: Verify trim dependencies
-        run: python tools/build.py --compiler cc --suite all --trim-only
+        run: python tools/build.py --compiler ${{ matrix.compiler }} --suite all --trim-only
 
   arm64-native:
     name: Linux ARM64 native
@@ -313,7 +442,7 @@ jobs:
           set -eu
           test "$(uname -m)" = "aarch64"
           python tools/build.py \
-            --compiler cc \
+            --compiler gcc \
             --suite crypto_aes,crypto_aes_gcm,tls_record_aes \
             --no-single \
             --rebuild \
@@ -324,7 +453,7 @@ jobs:
         run: |
           set -eu
           python tools/build.py \
-            --compiler cc \
+            --compiler gcc \
             --suite coroutine,coroutine_scheduler,coroutine_event \
             --no-single \
             --rebuild \
@@ -422,6 +551,15 @@ jobs:
         run: |
           $compiler = Get-Command ${{ matrix.compiler }} -ErrorAction Stop
           Write-Host $compiler.Source
+
+      - name: Run VC module and single-header smoke
+        if: matrix.compiler == 'cl' && matrix.arch == 'x64'
+        run: >-
+          python tools/build.py
+          --compiler cl
+          --arch x64
+          --suite core,string
+          --no-examples
 
       - name: Verify all-feature static package
         run: >-

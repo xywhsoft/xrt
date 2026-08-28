@@ -8,6 +8,21 @@
 
 跨编译只能证明声明、编译和链接闭包。涉及文件通知、网络后端、TLS、进程或高并发取消的改动，应在目标系统上执行真实收发、关闭和资源回收测试。
 
+生成文件与历史归档的保留边界见[仓库资产策略](ARTIFACT_POLICY.md)。正式单头、声明头、特性头和参考文档必须与其输入保持一致；`archive/` 不属于发布门禁。
+
+## 编译器兼容优先级
+
+编译器兼容按 `GCC > TCC > XLang > VC` 分配门禁深度和回归修复优先级。Clang 不参与该产品优先级排序：Apple Clang 是 macOS/iOS 平台条件，Linux Clang 用于 sanitizer 和 fuzz，clang-cl 用于补充 Windows ABI 诊断。
+
+| 层级 | 当前门禁 | 发布承诺 |
+| --- | --- | --- |
+| GCC | Linux/Windows 全模块、单头、裁剪和包验证；GCC 12 基线 | 一级兼容，合并前必须通过 |
+| TCC | Linux 0.9.27 的 core、string、socket、单头、裁剪和静态包 | 二级兼容；稳定基础门禁必须通过，覆盖逐步扩展 |
+| XLang | 固定上游提交消费当前 XRT 单头的独立集成检查 | 三级集成兼容；上游构建可复现前作为观察性门禁 |
+| VC | cl/clang-cl x86/x64 包验证，cl x64 基础模块与单头 smoke | 四级兼容；不降低已经稳定的包 ABI 证据 |
+
+TCC 的 Windows shared 模式没有可移植 import library，当前只承诺静态包验证。XLang 兼容表示 XLang 的 C/TCC 后端可以消费 XRT 稳定头和 ABI，不把 XLang 仓库专用工具复制进 XRT。
+
 ## io_uring 门禁
 
 GitHub 托管 Linux runner 可能因 seccomp 禁用 io_uring；在这类环境中，相关检查只保留编译与链接证据。需要 io_uring 的发布候选必须在支持该功能的真实 Linux 内核上运行网络、TLS、取消、超时和关闭测试。显式选择 io_uring 时不得把其他后端的结果当作等价运行证据。

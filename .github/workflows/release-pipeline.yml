@@ -94,10 +94,12 @@ jobs:
         include:
           - name: Linux_gcc_x64
             runner: ubuntu-latest
+            compiler: gcc
           - name: Windows_gcc_x64
             runner: windows-latest
-          - name: macOS_cc_native
+          - name: macOS_Apple_Clang_native
             runner: macos-latest
+            compiler: clang
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -112,8 +114,8 @@ jobs:
         shell: bash
         run: |
           set -eu
-          python tools/package.py --compiler cc --arch native --suite all --kind static --verify --rebuild
-          python tools/package.py --compiler cc --arch native --suite all --kind shared --verify --rebuild
+          python tools/package.py --compiler ${{ matrix.compiler }} --arch native --suite all --kind static --verify --rebuild
+          python tools/package.py --compiler ${{ matrix.compiler }} --arch native --suite all --kind shared --verify --rebuild
           cp single/xrt.h release/
           tar -czf "packages-${{ matrix.name }}.tar.gz" -C release .
 

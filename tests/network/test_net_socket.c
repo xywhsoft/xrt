@@ -743,19 +743,27 @@ static void testSocketUDP(void)
 		testRequire(bWhole, "UDP batch item result mismatch");
 	}
 	{
-		/* Darwin 上零长度、截断乃至部分完整接收的报文都可能
-		   不携带源地址；至少一个完整项能对上源端口即可。 */
+		/* Darwin 上零长度报文可能不携带源地址；正长度报文即使
+		   因乱序落入较小缓冲而截断，也必须保留来源地址。 */
 		size_t iItem;
-		bool bPortOk = false;
+		bool bAddressed = false;
 
 		for ( iItem = 0; iItem < 3; iItem++ ) {
-			if ( (RecvBatch[iItem].Result == XNET_RESULT_OK) &&
-				(RecvBatch[iItem].Size > 0) &&
-				(RecvBatch[iItem].Remote.Port == Remote.Port) ) {
-				bPortOk = true;
+			bool bConsumed =
+				(RecvBatch[iItem].Result == XNET_RESULT_OK) ||
+				(RecvBatch[iItem].Result == XNET_RESULT_TRUNCATED);
+
+			if ( bConsumed && (RecvBatch[iItem].Size > 0) ) {
+				testRequire(
+					(RecvBatch[iItem].Remote.Family ==
+					 XNET_FAMILY_IPV4) &&
+					(RecvBatch[iItem].Remote.Port == Remote.Port),
+					"UDP batch source address mismatch"
+				);
+				bAddressed = true;
 			}
 		}
-		testRequire(bPortOk, "UDP batch source address mismatch");
+		testRequire(bAddressed, "UDP batch source address missing");
 	}
 
 	/* 连接式 UDP 也必须保留报文截断和零长度报文语义。 */

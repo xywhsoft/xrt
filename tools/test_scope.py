@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import re
 import sys
@@ -86,7 +85,7 @@ class ScopeTest(unittest.TestCase):
 
 
 	def test_xlang_repository_tools_are_not_xrt_assets(self) -> None:
-		"""外部仓库同步器、专用迁移文档和 CI 门禁不得回流。"""
+		"""外部同步/迁移资产不得回流；隔离消费者门禁不得依赖本地仓库。"""
 
 		for path in (
 			"tools/check_xlang_api.py",
@@ -99,6 +98,8 @@ class ScopeTest(unittest.TestCase):
 			encoding="utf-8"
 		)
 		self.assertNotIn("test_xlang_api", workflow)
+		self.assertNotIn("D:\\GIT\\x-lang", workflow)
+		self.assertNotIn("demo6/", workflow)
 		for path in (ROOT / "docs").rglob("*.md"):
 			text = path.read_text(encoding="utf-8")
 			self.assertNotIn("D:\\GIT\\x-lang", text, path.as_posix())
@@ -122,6 +123,35 @@ class ScopeTest(unittest.TestCase):
 						path.startswith("extlibs/"),
 						f"{module['name']}: {path}",
 					)
+
+
+
+	def test_archives_are_not_release_contract_assets(self) -> None:
+		"""历史归档可以保留，但不得进入正式构建与发布资产清单。"""
+
+		asset_fields = (
+			"public_headers", "internal_headers", "bridge_headers",
+			"sources", "tests", "single_tests", "fuzz_sources",
+			"examples", "benchmarks", "docs",
+		)
+		manifests = [self.manifest]
+		manifests.extend(
+			load_manifest(
+				ROOT / "extlibs" / product / "config" / "modules.json"
+			)
+			for product in (
+				"xruntime", "xhttp", "xws", "xregex", "xmail", "xssh",
+			)
+		)
+		for manifest in manifests:
+			for module in manifest["modules"]:
+				for field in asset_fields:
+					for path in module.get(field, []):
+						self.assertNotIn(
+							"/archive/",
+							path.replace("\\", "/"),
+							f"{module['name']}.{field}: {path}",
+						)
 
 
 
@@ -257,29 +287,6 @@ class ScopeTest(unittest.TestCase):
 				self.assertNotIn(token, header, path)
 
 		self.assertFalse((ROOT / "include" / "xrt" / "websocket_group.h").exists())
-
-		archive_path = ROOT / "extlibs" / "xws" / "archive"
-		archive = json.loads(
-			(archive_path / "modules.json").read_text(encoding="utf-8")
-		)
-		archived = {item["name"] for item in archive["modules"]}
-		self.assertTrue({
-			"websocket_connection",
-			"websocket_connection_future",
-			"websocket_connection_tls",
-			"websocket_writer",
-			"websocket_group",
-		}.issubset(archived))
-		for path in (
-			"include/xrt/websocket_group.h",
-			"src/websocket/connection.c",
-			"src/websocket/connection_future.c",
-			"src/websocket/writer.c",
-			"src/websocket/group.c",
-		):
-			self.assertTrue((archive_path / "xrt" / path).is_file(), path)
-
-
 
 	def test_browser_cors_client_is_excluded(self) -> None:
 		"""浏览器 CORS 客户端策略不能进入 XRT 发布面。"""

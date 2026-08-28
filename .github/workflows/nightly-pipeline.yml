@@ -127,7 +127,7 @@ jobs:
       - name: Build WebSocket test gates
         run: >-
           python tools/build.py
-          --compiler cc
+          --compiler gcc
           --manifest extlibs/xws/config/modules.json
           --suite xws_tests
           --no-single
@@ -135,7 +135,7 @@ jobs:
           --jobs 4
 
       - name: Run reconnect stress 10000 rounds
-        run: out/cc/native/xws_tests/test_http_reconnect 10000
+        run: out/gcc/native/xws_tests/test_http_reconnect 10000
 
   stress-windows:
     name: Reconnect stress deep / Windows
@@ -177,7 +177,7 @@ jobs:
           out/gcc/native/xws_tests/test_http_reconnect_iocp.exe 10000
 
   compat-old-ubuntu:
-    name: Ubuntu 22.04 cc
+    name: Ubuntu 22.04 GCC
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -193,7 +193,7 @@ jobs:
         # GitHub 托管 runner 禁用 io_uring，排除 uring 运行时测试
         run: >-
           python tools/build.py
-          --compiler cc
+          --compiler gcc
           --suite all
           --exclude-test *uring*
           --exclude-single-test *uring*
@@ -221,7 +221,39 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Run core and network tests
-        run: python3 tools/build.py --compiler cc --suite core,net --jobs 4
+        run: python3 tools/build.py --compiler gcc --suite core,net --jobs 4
+
+  compat-tcc-full:
+    name: TCC 0.9.27 full diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install TCC compatibility line
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tcc binutils
+          tcc -v 2>&1 | grep -F "tcc version 0.9.27"
+
+      - name: Run full TCC module and single-header diagnostics
+        run: >-
+          python tools/build.py
+          --compiler tcc
+          --suite all
+          --exclude-test *uring*
+          --exclude-single-test *uring*
+          --no-examples
+          --jobs 4
+
+      - name: Verify full TCC trim closure
+        run: python tools/build.py --compiler tcc --suite all --trim-only --no-examples
 
   compat-macos-intel:
     name: macOS 13 Intel cc
@@ -237,7 +269,7 @@ jobs:
           python-version: "3.12"
 
       - name: Run module and single-header tests
-        run: python tools/build.py --compiler cc --suite all --jobs 4
+        run: python tools/build.py --compiler clang --suite all --jobs 4
 
   compat-cross-qemu:
     name: Cross / ${{ matrix.arch }} (QEMU)
@@ -310,14 +342,14 @@ jobs:
       - name: Record size profile
         run: >-
           python tools/measure_size.py
-          --compiler cc
+          --compiler gcc
           --arch x64
           --report size_report_Linux.json
 
       - name: Record performance smoke
         run: >-
           python tools/measure_performance.py
-          --compiler cc
+          --compiler gcc
           --arch x64
           --smoke
           --report perf_report_Linux.json

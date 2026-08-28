@@ -121,6 +121,40 @@ class ReleaseStatusTest(unittest.TestCase):
 
 
 
+	def test_compiler_priority_has_explicit_ci_evidence(self) -> None:
+		"""GCC、TCC、XLang 和 VC 必须按分层策略保留明确门禁。"""
+
+		workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+			encoding="utf-8"
+		)
+		status = (ROOT / "docs" / "RELEASE_STATUS.md").read_text(
+			encoding="utf-8"
+		)
+		gcc = workflow.split("  gcc-baseline:\n", 1)[1].split(
+			"\n  tcc:\n", 1
+		)[0]
+		tcc = workflow.split("  tcc:\n", 1)[1].split(
+			"\n  xlang:\n", 1
+		)[0]
+		xlang = workflow.split("  xlang:\n", 1)[1].split(
+			"\n  native:\n", 1
+		)[0]
+
+		self.assertIn("container: gcc:12", gcc)
+		self.assertIn("--compiler gcc", gcc)
+		self.assertIn("--kind static --verify", gcc)
+		self.assertIn("runs-on: ubuntu-24.04", tcc)
+		self.assertIn("tcc version 0.9.27", tcc)
+		self.assertIn("--compiler tcc", tcc)
+		self.assertIn("--kind static --verify", tcc)
+		self.assertIn("continue-on-error: true", xlang)
+		self.assertRegex(xlang, r"XLANG_REF: [0-9a-f]{40}")
+		self.assertIn("cp single/xrt.h", xlang)
+		self.assertIn("release/bin/xl5 run-c", xlang)
+		self.assertIn("`GCC > TCC > XLang > VC`", status)
+
+
+
 	def test_android_matrix_uses_explicit_target(self) -> None:
 		"""Android 交叉编译不能按 Linux 宿主选择依赖和输出目录。"""
 

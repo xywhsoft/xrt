@@ -5,6 +5,7 @@
 /* 契约夹具只跨线程保存不可变终态，不借用回调临时结果。 */
 typedef struct test_http_client_contract {
 	xatomic32 Completed;
+	xnetpost Retired;
 	xnetresult Result;
 	xhttpcallstate State;
 	xhttpclienterror Error;
@@ -57,7 +58,26 @@ static void testHttpClientContractError(
 
 
 
-/* 预取消完成回调只复制终态，Call 和错误仍由调用方持有。 */
+/* Call 终态回调返回并释放运行时引用后，才允许主线程销毁 Engine。 */
+static void testHttpClientContractRetired(
+	xnetworker* pWorker,
+	ptr pData
+)
+{
+	test_http_client_contract* pState =
+		(test_http_client_contract*)pData;
+
+	(void)pWorker;
+	xrtAtomic32Store(
+		&pState->Completed,
+		1,
+		XMEMORY_RELEASE
+	);
+}
+
+
+
+/* 预取消完成回调复制终态，并在同一 Worker 排队一个退出哨兵。 */
 static void testHttpClientContractDone(
 	xhttpcall* pCall,
 	const xhttpcallresult* pResult,
@@ -79,10 +99,14 @@ static void testHttpClientContractDone(
 	pState->EmptyResponse =
 		(pResult->Response == NULL) &&
 		(pResult->Tcp == NULL);
-	xrtAtomic32Store(
-		&pState->Completed,
-		1,
-		XMEMORY_RELEASE
+	testRequire(
+		xrtNetPost(
+			xrtHttpCallWorker(pCall),
+			&pState->Retired,
+			testHttpClientContractRetired,
+			pState
+		),
+		"HTTP client could not post completion retirement sentinel"
 	);
 }
 
@@ -423,6 +447,10 @@ static void testHttpClientContractPreCancel(
 
 	memset(&State, 0, sizeof(State));
 	xrtAtomic32Init(&State.Completed, 0);
+	testRequire(
+		xrtNetPostInit(&State.Retired),
+		"HTTP client retirement sentinel setup failed"
+	);
 	pCancel = xrtCancelCreate();
 	testRequire(
 		(pCancel != NULL) &&
