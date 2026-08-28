@@ -228,6 +228,21 @@ int main(int argc, char** argv)
 		Config.Stdout.Mode = XPROCESS_IO_NULL;
 		Config.Stderr.Mode = XPROCESS_IO_PIPE;
 		pProcess = xrtProcessSpawn(&Config);
+		if ( pProcess == NULL ) {
+			pError = xrtGetError();
+			fprintf(
+				stderr,
+				"[diag] terminal spawn: kind=%d code=%d system=%d "
+				"operation=%s message=%s\n",
+				pError != NULL ? (int)xrtErrorKind(pError) : -1,
+				pError != NULL ? (int)xrtErrorCode(pError) : 0,
+				pError != NULL ? (int)xrtErrorSystemCode(pError) : 0,
+				(pError != NULL) && (xrtErrorOperation(pError) != NULL) ?
+					xrtErrorOperation(pError) : "",
+				(pError != NULL) && (xrtErrorMessage(pError) != NULL) ?
+					xrtErrorMessage(pError) : ""
+			);
+		}
 		testRequire(pProcess != NULL, "terminal process spawn failed");
 		testRequire(
 			xrtProcessStreamNative(pProcess, XPROCESS_STDIN) != -1,
