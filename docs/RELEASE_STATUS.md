@@ -19,7 +19,7 @@
 | GCC | Linux/Windows 全模块、单头、裁剪和包验证；GCC 12 基线 | 一级兼容，合并前必须通过 |
 | TCC | Linux 0.9.27 的 core、string、socket、单头、裁剪和静态包 | 二级兼容；稳定基础门禁必须通过，覆盖逐步扩展 |
 | XLang | 固定上游提交消费当前 XRT 单头的独立集成检查 | 三级集成兼容；上游构建可复现前作为观察性门禁 |
-| VC | cl/clang-cl x86/x64 包验证，cl x64 基础模块与单头 smoke | 四级兼容；不降低已经稳定的包 ABI 证据 |
+| VC | cl/clang-cl x86/x64 包验证，cl x64 模块头与单头声明 smoke | 四级兼容；不降低已经稳定的包 ABI 证据 |
 
 TCC 的 Windows shared 模式没有可移植 import library，当前只承诺静态包验证。XLang 兼容表示 XLang 的 C/TCC 后端可以消费 XRT 稳定头和 ABI，不把 XLang 仓库专用工具复制进 XRT。
 

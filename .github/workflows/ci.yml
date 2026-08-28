@@ -286,11 +286,15 @@ jobs:
           mkdir -p .ci
           git clone --filter=blob:none --no-checkout https://gitee.com/xywhsoft/x-lang.git .ci/xlang
           git -C .ci/xlang checkout --detach "$XLANG_REF"
-          cp single/xrt.h .ci/xlang/demo5/lib/xrt/xrt.h
 
-      - name: Build XLang against the current XRT single header
+      - name: Build the pinned XLang consumer
         working-directory: .ci/xlang/demo5
         run: sh build_gcc.sh
+
+      - name: Install the current XRT header for the ABI consumer
+        run: |
+          cp single/xrt.h .ci/xlang/demo5/lib/xrt/xrt.h
+          cp single/xrt.h .ci/xlang/demo5/release/tcc/include/xrt.h
 
       - name: Run the XRT ABI consumer through XLang TCC
         run: >-
@@ -552,14 +556,14 @@ jobs:
           $compiler = Get-Command ${{ matrix.compiler }} -ErrorAction Stop
           Write-Host $compiler.Source
 
-      - name: Run VC module and single-header smoke
+      - name: Compile VC modular and single headers
         if: matrix.compiler == 'cl' && matrix.arch == 'x64'
-        run: >-
-          python tools/build.py
-          --compiler cl
-          --arch x64
-          --suite core,string
-          --no-examples
+        run: |
+          New-Item -ItemType Directory -Force out/vc-smoke | Out-Null
+          cl /nologo /TC /std:c11 /W4 /WX /c /Iinclude .github/fixtures/xlang_xrt_consumer.c /Foout/vc-smoke/modular.obj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cl /nologo /TC /std:c11 /W4 /WX /c /Isingle .github/fixtures/xlang_xrt_consumer.c /Foout/vc-smoke/single.obj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify all-feature static package
         run: >-

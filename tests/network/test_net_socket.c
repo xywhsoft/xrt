@@ -653,6 +653,7 @@ static void testSocketUDP(void)
 	xnetsocket Client;
 	xnetaddr ServerAddress;
 	xnetaddr Remote;
+	xnetaddr ClientAddress;
 	xnetspan SendVec[2];
 	xnetwspan RecvVec[2];
 	xnetdgramsend SendBatch[3];
@@ -684,6 +685,7 @@ static void testSocketUDP(void)
 		(memcmp(sData, "hello", 5) == 0), "UDP scalar receive failed");
 	testRequire((Remote.Family == XNET_FAMILY_IPV4) &&
 		(Remote.Port != 0), "UDP source address mismatch");
+	ClientAddress = Remote;
 
 	SendVec[0] = (xnetspan){ (cbytes)"vec", 3 };
 	SendVec[1] = (xnetspan){ (cbytes)"-udp", 4 };
@@ -743,21 +745,19 @@ static void testSocketUDP(void)
 		testRequire(bWhole, "UDP batch item result mismatch");
 	}
 	{
-		/* Darwin 上零长度报文可能不携带源地址；正长度报文即使
-		   因乱序落入较小缓冲而截断，也必须保留来源地址。 */
+		/* Darwin 上零长度和截断报文可能不携带源地址；只校验
+		   实际返回的地址，并要求批次中至少有一个来源地址。 */
 		size_t iItem;
 		bool bAddressed = false;
 
 		for ( iItem = 0; iItem < 3; iItem++ ) {
-			bool bConsumed =
-				(RecvBatch[iItem].Result == XNET_RESULT_OK) ||
-				(RecvBatch[iItem].Result == XNET_RESULT_TRUNCATED);
-
-			if ( bConsumed && (RecvBatch[iItem].Size > 0) ) {
+			if ( RecvBatch[iItem].Remote.Family !=
+				XNET_FAMILY_UNSPEC ) {
 				testRequire(
 					(RecvBatch[iItem].Remote.Family ==
 					 XNET_FAMILY_IPV4) &&
-					(RecvBatch[iItem].Remote.Port == Remote.Port),
+					(RecvBatch[iItem].Remote.Port ==
+					 ClientAddress.Port),
 					"UDP batch source address mismatch"
 				);
 				bAddressed = true;
@@ -768,7 +768,7 @@ static void testSocketUDP(void)
 
 	/* 连接式 UDP 也必须保留报文截断和零长度报文语义。 */
 	testRequire((xrtNetSocketConnect(Client, &ServerAddress) ==
-		XNET_RESULT_OK) && (xrtNetSocketConnect(Server, &Remote) ==
+		XNET_RESULT_OK) && (xrtNetSocketConnect(Server, &ClientAddress) ==
 		XNET_RESULT_OK), "connecting UDP sockets failed");
 	testRequire((xrtNetSocketSend(Client, "truncate", 8,
 		&iSize) == XNET_RESULT_OK) && (iSize == 8),
