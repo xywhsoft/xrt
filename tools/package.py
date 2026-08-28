@@ -343,8 +343,11 @@ def _link_gnu_shared(
 			"-Xlinker",
 			str(import_library),
 		])
-	if (sys.platform != "win32") and (family != "tcc"):
-		command.append("-Wl,--no-undefined")
+	if family != "tcc":
+		if sys.platform == "darwin":
+			command.append("-Wl,-undefined,error")
+		elif sys.platform != "win32":
+			command.append("-Wl,--no-undefined")
 	command.extend(extra_ldflags)
 	command.extend(["-o", str(output)])
 	xrt_build._run_compiler(command, output.with_suffix(output.suffix + ".rsp"))

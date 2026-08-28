@@ -164,6 +164,42 @@ class CommandTest(unittest.TestCase):
 			for item in command
 		))
 
+	def test_shared_link_uses_platform_undefined_policy(self) -> None:
+		"""ELF 与 Mach-O 动态库必须使用各自链接器的严格未定义符号参数。"""
+
+		for platform, expected, rejected in [
+			("linux", "-Wl,--no-undefined", "-Wl,-undefined,error"),
+			("darwin", "-Wl,-undefined,error", "-Wl,--no-undefined"),
+		]:
+			with self.subTest(platform=platform), \
+				tempfile.TemporaryDirectory() as temporary, \
+				mock.patch.object(xrt_package.sys, "platform", platform), \
+				mock.patch.object(
+					xrt_package.xrt_build,
+					"_run_compiler",
+				) as run:
+				root = Path(temporary)
+				xrt_package._link_gnu_shared(
+					"clang",
+					"native",
+					"gnu",
+					[root / "a.o"],
+					[],
+					root / (
+						"libxrt.dylib" if platform == "darwin" else "libxrt.so"
+					),
+					None,
+					[],
+				)
+
+			command = run.call_args.args[0]
+			self.assertIn(expected, command)
+			self.assertNotIn(rejected, command)
+			self.assertIn(
+				"-dynamiclib" if platform == "darwin" else "-shared",
+				command,
+			)
+
 	def test_msvc_options_export_shared_symbols(self) -> None:
 		"""共享库对象必须通过公共导出宏编译。"""
 
