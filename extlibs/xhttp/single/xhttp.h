@@ -127951,6 +127951,14 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 				iResult = (iBytes > INT_MAX) ? INT_MAX : (int)iBytes;
 				Result = __xrtNetSocketRecvResult(iResult,
 					pReceived, true, "recv-from");
+				if ( (Result == XNET_RESULT_OK) && (iBytes > 0) ) {
+					/* Darwin 可以返回完整报文长度而不是已复制长度；
+					   对外始终报告实际写入缓冲区的字节数。 */
+					if ( (size_t)iBytes > iSize ) {
+						*pReceived = iSize;
+						Result = XNET_RESULT_TRUNCATED;
+					}
+				}
 				#if defined(MSG_TRUNC)
 					/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
 					   表示报文被完整交付，不视为截断。 */
@@ -128101,6 +128109,11 @@ XRT_API xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket,
 		iResult = (iBytes > INT_MAX) ? INT_MAX : (int)iBytes;
 		Result = __xrtNetSocketRecvResult(iResult,
 			pReceived, true, "recv-from-vec");
+		if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
+			 ((size_t)iBytes > iTotal) ) {
+			*pReceived = iTotal;
+			Result = XNET_RESULT_TRUNCATED;
+		}
 		#if defined(MSG_TRUNC)
 			/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
 			   表示报文被完整交付，不视为截断。 */
@@ -128295,6 +128308,11 @@ XRT_API xnetresult xrtNetSocketRecvMsgVec(
 			true,
 			"recv-message"
 		);
+		if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
+			 ((size_t)iBytes > iTotal) ) {
+			*pReceived = iTotal;
+			Result = XNET_RESULT_TRUNCATED;
+		}
 		#if defined(MSG_TRUNC)
 			/* Darwin 对零长度报文也设置 MSG_TRUNC；字节数为零
 			   表示报文被完整交付，不视为截断。 */
