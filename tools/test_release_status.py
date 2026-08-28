@@ -149,8 +149,11 @@ class ReleaseStatusTest(unittest.TestCase):
 		self.assertIn("--kind static --verify", tcc)
 		self.assertIn("continue-on-error: true", xlang)
 		self.assertRegex(xlang, r"XLANG_REF: [0-9a-f]{40}")
-		self.assertIn("cp single/xrt.h", xlang)
-		self.assertIn("release/bin/xl5 run-c", xlang)
+		self.assertIn("demo5/lib/tcc/tcc.c", xlang)
+		self.assertIn("tcc version 0.9.28rc", xlang)
+		self.assertIn("-I single", xlang)
+		self.assertIn("--compiler gcc --suite core --kind static", xlang)
+		self.assertIn("out/xlang/consumer", xlang)
 		self.assertIn("`GCC > TCC > XLang > VC`", status)
 
 
