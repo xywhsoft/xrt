@@ -20,8 +20,8 @@ static void testNetFileCancelStart(xnetworker* pWorker, ptr pData);
 
 
 
-#if defined(__ANDROID__)
-/* Android 的 epoll/select 不提供普通文件完成，必须明确拒绝而不是伪异步。 */
+#if defined(__ANDROID__) || (!defined(_WIN32) && !defined(__linux__))
+/* 非 io_uring/IOCP 平台不提供普通文件完成，必须明确拒绝而不是伪异步。 */
 static void testNetFileUnsupported(xnetworker* pWorker, ptr pData)
 {
 	testnetfile* pTest = (testnetfile*)pData;
@@ -37,7 +37,7 @@ static void testNetFileUnsupported(xnetworker* pWorker, ptr pData)
 	testRequire(
 		(Id == 0) &&
 		(xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED),
-		"Android native file capability mismatch"
+		"native file capability mismatch"
 	);
 	xrtClearError();
 	xrtAtomic32Store(&pTest->Done, 1, XMEMORY_RELEASE);
@@ -243,7 +243,7 @@ int main(void)
 		Config.Backend = XNET_PORT_EPOLL;
 	#elif defined(__linux__)
 		Config.Backend = XNET_PORT_URING;
-	#else
+	#elif defined(_WIN32)
 		Config.Backend = XNET_PORT_IOCP;
 	#endif
 	pEngine = xrtNetEngineCreate(&Config);
@@ -252,26 +252,26 @@ int main(void)
 		"native file engine start failed"
 	);
 	Test.Engine = pEngine;
-	#if defined(__ANDROID__)
+	#if defined(__ANDROID__) || (!defined(_WIN32) && !defined(__linux__))
 		testRequire(
 			xrtNetEnginePost(pEngine, 0, testNetFileUnsupported, &Test),
-			"Android native file capability post failed"
+			"native file capability post failed"
 		);
 		Deadline = xrtDeadlineAfter(UINT64_C(5000000));
 		while ( xrtAtomic32Load(&Test.Done, XMEMORY_ACQUIRE) == 0 ) {
 			testRequire(
 				!xrtDeadlineExpired(Deadline),
-				"Android native file capability check timed out"
+				"native file capability check timed out"
 			);
 			xrtThreadYield();
 		}
-		testRequire(xrtClose(Test.File), "Android native file close failed");
+		testRequire(xrtClose(Test.File), "native file close failed");
 		testRequire(
 			xrtNetEngineDestroy(pEngine),
-			"Android native file engine destroy failed"
+			"native file engine destroy failed"
 		);
-		testRequire(xrtFileDelete(sPath), "Android native file cleanup failed");
-		printf("[PASS] Android native file capability boundary\n");
+		testRequire(xrtFileDelete(sPath), "native file cleanup failed");
+		printf("[PASS] native file capability boundary\n");
 		return 0;
 	#endif
 	testRequire(
