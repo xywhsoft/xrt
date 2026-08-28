@@ -778,6 +778,10 @@ static void testSocketUDP(void)
 	}
 
 	/* 连接式 UDP 也必须保留报文截断和零长度报文语义。 */
+	testRequire(xrtNetSocketClose(Client) && xrtNetSocketClose(Server),
+		"closing unconnected UDP sockets failed");
+	Server = testSocketBound(XNET_SOCKET_DGRAM, &ServerAddress);
+	Client = testSocketBound(XNET_SOCKET_DGRAM, &ClientAddress);
 	testRequire((xrtNetSocketConnect(Client, &ServerAddress) ==
 		XNET_RESULT_OK) && (xrtNetSocketConnect(Server, &ClientAddress) ==
 		XNET_RESULT_OK), "connecting UDP sockets failed");
