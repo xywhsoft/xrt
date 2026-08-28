@@ -16292,22 +16292,26 @@ XRT_API bool xrtRngShuffle(xrng* pRng,
 
 #if defined(XRT_FEATURE_RANDOM_DEFAULT)
 
-/* 重置当前线程的便捷随机数状态。 */
+/*
+	重置当前线程的快速伪随机数状态。
+	该族 API 不是密码学安全随机源，绝不可用于密钥、nonce、token、
+	会话标识或任何攻击者可以猜测的值；此类用途必须使用 xrtSecureRandom。
+*/
 XRT_API void xrtRandSeed(uint64 iSeed, uint64 iStream);
 
 
 
-/* 从当前线程状态生成一个 32 位伪随机数。 */
+/* 从当前线程状态生成一个非密码学 32 位伪随机数。 */
 XRT_API uint32 xrtRand32(void);
 
 
 
-/* 从当前线程状态生成一个 64 位伪随机数。 */
+/* 从当前线程状态生成一个非密码学 64 位伪随机数。 */
 XRT_API uint64 xrtRand64(void);
 
 
 
-/* 使用当前线程随机状态按稳定的小端顺序填充字节。 */
+/* 使用当前线程非密码学随机状态按稳定的小端顺序填充字节。 */
 XRT_API bool xrtRandBytes(ptr pData, size_t iSize);
 
 
@@ -16334,6 +16338,22 @@ XRT_API double xrtRandReal(void);
 
 /* 使用当前线程随机状态原地打乱定长元素数组。 */
 XRT_API bool xrtRandShuffle(ptr pData, size_t iCount, size_t iItemSize);
+
+
+
+/*
+	以下别名明确表达快速、非密码学语义；与 xrtRand* 共享同一线程状态。
+	新代码应优先使用这些名称，旧 xrtRand* 名称保持兼容。
+*/
+XRT_API void xrtFastRandSeed(uint64 iSeed, uint64 iStream);
+XRT_API uint32 xrtFastRand32(void);
+XRT_API uint64 xrtFastRand64(void);
+XRT_API bool xrtFastRandBytes(ptr pData, size_t iSize);
+XRT_API uint64 xrtFastRandBelow(uint64 iBound);
+XRT_API int64 xrtFastRandRange(int64 iMin, int64 iMax);
+XRT_API int64 xrtFastRandRangeClosed(int64 iMin, int64 iMax);
+XRT_API double xrtFastRandReal(void);
+XRT_API bool xrtFastRandShuffle(ptr pData, size_t iCount, size_t iItemSize);
 
 #endif
 
@@ -16614,6 +16634,8 @@ typedef struct xwsclose {
 
 
 #if defined(XRT_FEATURE_WEBSOCKET_MESSAGE)
+
+#define XWS_MESSAGE_SIZE_SAFE_DEFAULT (16u * 1024u * 1024u)
 
 /* 消息事件标志同时描述逻辑消息边界、控制帧和扩展变换。 */
 typedef enum xwsmessageflag {
@@ -16996,6 +17018,14 @@ XRT_API bool xrtWsCloseWrite(
 	Config 必须是完整可写范围，可以未对齐；无效范围只设置线程错误。
 */
 XRT_API void xrtWsMessageConfigInit(xwsmessageconfig* pConfig);
+
+
+
+/*
+	初始化面向不可信对端的流式消息配置，默认拒绝超过 16 MiB 的单条消息。
+	需要无上限流时必须显式设置 MaxSize = SIZE_MAX。
+*/
+XRT_API void xrtWsMessageConfigInitSafe(xwsmessageconfig* pConfig);
 
 
 
@@ -30672,6 +30702,7 @@ XRT_EXTERN_C_END
 #if defined(XRT_FEATURE_HTTP_DECODE)
 
 #define XHTTP_DECODE_OUTPUT_UNLIMITED UINT64_MAX
+#define XHTTP_DECODE_OUTPUT_SAFE_DEFAULT (UINT64_C(16) * 1024u * 1024u)
 
 
 
@@ -30728,8 +30759,17 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 初始化严格配置：最多四层、64 KiB gzip Header、明文长度不设上限。 */
+/* 初始化兼容配置：最多四层、64 KiB gzip Header、明文长度不设上限。 */
 XRT_API void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig);
+
+
+
+/*
+	初始化面向不可信对端的安全配置；除协议限制外，明文最多 16 MiB。
+	需要更大正文时应显式修改 OutputLimit，使用无限制必须显式设为
+	XHTTP_DECODE_OUTPUT_UNLIMITED。
+*/
+XRT_API void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig);
 
 
 
@@ -36858,7 +36898,8 @@ typedef enum xvaluetype {
 	XVALUE_ARRAY,
 	XVALUE_INT_MAP,
 	XVALUE_SET,
-	XVALUE_OBJECT
+	XVALUE_OBJECT,
+	XVALUE_UINT
 } xvaluetype;
 
 
@@ -36914,6 +36955,11 @@ XRT_API xvalue* xrtValueBool(bool bValue);
 
 /* 创建不可变的 64 位整数值。 */
 XRT_API xvalue* xrtValueInt(int64 iValue);
+
+
+
+/* 创建不可变的 64 位无符号整数值。 */
+XRT_API xvalue* xrtValueUInt(uint64 iValue);
 
 
 
@@ -37013,6 +37059,11 @@ XRT_API bool xrtValueGetBool(const xvalue* pValue, bool* pResult);
 
 /* 精确读取整数值，类型不匹配时失败。 */
 XRT_API bool xrtValueGetInt(const xvalue* pValue, int64* pResult);
+
+
+
+/* 精确读取无符号整数值，类型不匹配时失败。 */
+XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult);
 
 
 
@@ -37750,7 +37801,7 @@ typedef enum xjsonduplicate {
 
 
 
-/* 超出 int64 的整数字面量默认失败，显式浮点策略允许有损接收。 */
+/* 超出 int64/uint64 的整数字面量默认失败，显式浮点策略允许有损接收。 */
 typedef enum xjsonbigint {
 	XJSON_BIGINT_REJECT = 0,
 	XJSON_BIGINT_FLOAT
@@ -37783,7 +37834,8 @@ typedef enum xjsoneventtype {
 	XJSON_EVENT_ARRAY_BEGIN,
 	XJSON_EVENT_ARRAY_END,
 	XJSON_EVENT_OBJECT_BEGIN,
-	XJSON_EVENT_OBJECT_END
+	XJSON_EVENT_OBJECT_END,
+	XJSON_EVENT_UINT
 } xjsoneventtype;
 
 
@@ -37818,6 +37870,7 @@ typedef struct xjsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
+		uint64 Unsigned;
 		double Float;
 		xstrview String;
 	} Value;
@@ -38035,6 +38088,11 @@ XRT_API bool xrtJsonWriterBool(xjsonwriter* pWriter, bool bValue);
 
 /* 写入 int64。 */
 XRT_API bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue);
+
+
+
+/* 写入 uint64。 */
+XRT_API bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue);
 
 
 
@@ -38285,7 +38343,7 @@ typedef enum xxsonduplicate {
 
 
 
-/* 超出 int64 的整数默认失败，可显式按 double 接收。 */
+/* 超出 int64/uint64 的整数默认失败，可显式按 double 接收。 */
 typedef enum xxsonbigint {
 	XXSON_BIGINT_REJECT = 0,
 	XXSON_BIGINT_FLOAT
@@ -38337,7 +38395,8 @@ typedef enum xxsoneventtype {
 	XXSON_EVENT_SET_BEGIN,
 	XXSON_EVENT_SET_END,
 	XXSON_EVENT_OBJECT_BEGIN,
-	XXSON_EVENT_OBJECT_END
+	XXSON_EVENT_OBJECT_END,
+	XXSON_EVENT_UINT
 } xxsoneventtype;
 
 
@@ -38378,6 +38437,7 @@ typedef struct xxsonevent {
 	union {
 		bool Boolean;
 		int64 Integer;
+		uint64 Unsigned;
 		double Float;
 		xstrview String;
 		xbytesview Bytes;
@@ -38593,6 +38653,11 @@ XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue);
 
 /* 写入 int64。 */
 XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
+
+
+
+/* 写入 uint64。 */
+XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
 
 
 
@@ -38883,6 +38948,7 @@ typedef struct xtemplatevalue {
 	const xvalue* Value;
 	bool Bool;
 	int64 Integer;
+	uint64 Unsigned;
 	double Float;
 	xstrview Text;
 	xtime Time;
@@ -38910,9 +38976,10 @@ typedef struct xtemplateconfig {
 
 
 
-/* 严格未定义模式把缺失路径从空输出提升为错误。 */
+/* 渲染标志可组合；HTML 转义只作用于动态 {$path} 输出，不改写模板文本。 */
 typedef enum xtemplaterenderflag {
-	XTEMPLATE_STRICT_UNDEFINED = 0x0001u
+	XTEMPLATE_STRICT_UNDEFINED = 0x0001u,
+	XTEMPLATE_ESCAPE_HTML_TEXT = 0x0002u
 } xtemplaterenderflag;
 
 
@@ -39035,8 +39102,17 @@ XRT_API void xrtTemplateConfigInit(xtemplateconfig* pConfig);
 
 
 
-/* 初始化默认作用域和有限渲染预算。 */
+/* 初始化默认作用域和有限渲染预算；默认保留通用模板的原样动态输出。 */
 XRT_API void xrtTemplateRenderConfigInit(xtemplaterenderconfig* pConfig);
+
+
+
+/*
+	初始化适合 HTML 文本节点的渲染配置；动态 {$path} 输出会转义
+	& < > " 和 '，模板原始文本保持不变。此模式不适用于 JavaScript、
+	CSS、URL、SQL 或 shell 上下文。
+*/
+XRT_API void xrtTemplateRenderHtmlConfigInit(xtemplaterenderconfig* pConfig);
 
 
 
