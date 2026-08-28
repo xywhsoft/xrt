@@ -12,16 +12,16 @@
 
 ## 编译器兼容优先级
 
-编译器兼容按 `GCC > TCC > XLang > VC` 分配门禁深度和回归修复优先级。Clang 不参与该产品优先级排序：Apple Clang 是 macOS/iOS 平台条件，Linux Clang 用于 sanitizer 和 fuzz，clang-cl 用于补充 Windows ABI 诊断。
+编译器兼容按 `GCC > TCC > Clang > VC` 分配门禁深度和回归修复优先级。Apple Clang 同时是 macOS/iOS 的平台条件；clang-cl 继续用于补充 Windows ABI 诊断，但不替代 cl 门禁。
 
 | 层级 | 当前门禁 | 发布承诺 |
 | --- | --- | --- |
 | GCC | Linux/Windows 全模块、单头、裁剪和包验证；GCC 12 基线 | 一级兼容，合并前必须通过 |
 | TCC | Linux 0.9.27 的 core、string、socket、单头、裁剪和静态包 | 二级兼容；稳定基础门禁必须通过，覆盖逐步扩展 |
-| XLang | 固定上游提交的内嵌 TCC 后端编译当前模块头与单头，并链接运行 GCC core ABI 消费者 | 三级集成兼容；完整语言驱动可复现前作为观察性门禁 |
+| Clang | Linux Clang 18 的 core、string、socket、单头、裁剪和静态/动态包；macOS Apple Clang 全模块；nightly 全模块与 sanitizer/fuzz | 三级兼容；基础门禁必须通过，平台和诊断覆盖独立保留 |
 | VC | cl/clang-cl x86/x64 包验证，cl x64 模块头与单头声明 smoke | 四级兼容；不降低已经稳定的包 ABI 证据 |
 
-TCC 的 Windows shared 模式没有可移植 import library，当前只承诺静态包验证。XLang 兼容表示固定版本的 XLang C/TCC 后端可以编译 XRT 稳定头并链接当前 ABI；完整 XLang 语言驱动仍需上游构建独立恢复，且不把上游专用工具复制进 XRT。
+TCC 的 Windows shared 模式没有可移植 import library，当前只承诺静态包验证。Clang 的 Linux C 驱动、Apple Clang 和 Windows clang-cl 分属不同平台证据；其中 Linux Clang 18 是固定基础线，不能用 sanitizer、fuzz 或 clang-cl 的成功代替。
 
 ## io_uring 门禁
 

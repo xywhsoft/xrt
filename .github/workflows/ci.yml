@@ -265,15 +265,12 @@ jobs:
           python tools/build.py --compiler tcc --suite core,string,net_socket --trim-only --no-examples
           python tools/package.py --compiler tcc --suite core,string,net_socket --kind static --verify
 
-  xlang:
-    name: XLang TCC backend (provisional)
+  clang:
+    name: Clang 18 basic
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    continue-on-error: true
-    env:
-      XLANG_REF: 6b01b1308f21ab726b5e895d71b42455b16c1968
+    timeout-minutes: 45
     steps:
-      - name: Checkout XRT
+      - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
@@ -281,47 +278,25 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install XLang build prerequisites
+      - name: Install pinned Clang compatibility line
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential git
+          sudo apt-get install -y --no-install-recommends clang-18
+          clang-18 --version
 
-      - name: Checkout the pinned XLang consumer
-        run: |
-          mkdir -p .ci
-          git clone --filter=blob:none --no-checkout https://gitee.com/xywhsoft/x-lang.git .ci/xlang
-          git -C .ci/xlang checkout --detach "$XLANG_REF"
+      - name: Run Clang module and single-header tests
+        run: >-
+          python tools/build.py
+          --compiler clang-18
+          --suite core,string,net_socket
+          --no-examples
+          --jobs 4
 
-      - name: Build the pinned XLang TCC backend
+      - name: Verify Clang trimming and packages
         run: |
-          gcc -O2 -w \
-            -I.ci/xlang/demo5/lib/tcc \
-            .ci/xlang/demo5/lib/tcc/tcc.c \
-            -ldl -lpthread -lm \
-            -o .ci/xlang-tcc
-          .ci/xlang-tcc -v 2>&1 | tee /tmp/xrt-xlang-tcc-version.txt
-          grep -F "tcc version 0.9.28rc" /tmp/xrt-xlang-tcc-version.txt
-
-      - name: Compile current modular and single headers with XLang TCC
-        run: |
-          mkdir -p out/xlang
-          multiarch="$(gcc -print-multiarch)"
-          private_dir="$GITHUB_WORKSPACE/.ci/xlang/demo5/lib/tcc"
-          system_dir="/usr/include/${multiarch}"
-          test -d "$system_dir"
-          .ci/xlang-tcc -B "$private_dir" -isystem "$system_dir" \
-            -I include -c .github/fixtures/xlang_xrt_consumer.c \
-            -o out/xlang/modular.o
-          .ci/xlang-tcc -B "$private_dir" -isystem "$system_dir" \
-            -I single -c .github/fixtures/xlang_xrt_consumer.c \
-            -o out/xlang/single.o
-
-      - name: Link and run the XLang TCC ABI consumer
-        run: |
-          python tools/package.py --compiler gcc --suite core --kind static --rebuild
-          gcc out/xlang/modular.o release/gnu/native/core/static/libxrt.a \
-            -pthread -lm -o out/xlang/consumer
-          out/xlang/consumer
+          python tools/build.py --compiler clang-18 --suite core,string,net_socket --trim-only --no-examples
+          python tools/package.py --compiler clang-18 --suite core,string,net_socket --kind static --verify
+          python tools/package.py --compiler clang-18 --suite core,string,net_socket --kind shared --verify
 
   native:
     name: Platform / ${{ matrix.name }}
@@ -582,9 +557,9 @@ jobs:
         if: matrix.compiler == 'cl' && matrix.arch == 'x64'
         run: |
           New-Item -ItemType Directory -Force out/vc-smoke | Out-Null
-          cl /nologo /TC /std:c11 /W4 /WX /c /Iinclude .github/fixtures/xlang_xrt_consumer.c /Foout/vc-smoke/modular.obj
+          cl /nologo /TC /std:c11 /W4 /WX /c /Iinclude .github/fixtures/compiler_xrt_consumer.c /Foout/vc-smoke/modular.obj
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cl /nologo /TC /std:c11 /W4 /WX /c /Isingle .github/fixtures/xlang_xrt_consumer.c /Foout/vc-smoke/single.obj
+          cl /nologo /TC /std:c11 /W4 /WX /c /Isingle .github/fixtures/compiler_xrt_consumer.c /Foout/vc-smoke/single.obj
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify all-feature static package

@@ -122,7 +122,7 @@ class ReleaseStatusTest(unittest.TestCase):
 
 
 	def test_compiler_priority_has_explicit_ci_evidence(self) -> None:
-		"""GCC、TCC、XLang 和 VC 必须按分层策略保留明确门禁。"""
+		"""GCC、TCC、Clang 和 VC 必须按分层策略保留明确门禁。"""
 
 		workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
 			encoding="utf-8"
@@ -134,9 +134,9 @@ class ReleaseStatusTest(unittest.TestCase):
 			"\n  tcc:\n", 1
 		)[0]
 		tcc = workflow.split("  tcc:\n", 1)[1].split(
-			"\n  xlang:\n", 1
+			"\n  clang:\n", 1
 		)[0]
-		xlang = workflow.split("  xlang:\n", 1)[1].split(
+		clang = workflow.split("  clang:\n", 1)[1].split(
 			"\n  native:\n", 1
 		)[0]
 
@@ -147,14 +147,14 @@ class ReleaseStatusTest(unittest.TestCase):
 		self.assertIn("tcc version 0.9.27", tcc)
 		self.assertIn("--compiler tcc", tcc)
 		self.assertIn("--kind static --verify", tcc)
-		self.assertIn("continue-on-error: true", xlang)
-		self.assertRegex(xlang, r"XLANG_REF: [0-9a-f]{40}")
-		self.assertIn("demo5/lib/tcc/tcc.c", xlang)
-		self.assertIn("tcc version 0.9.28rc", xlang)
-		self.assertIn("-I single", xlang)
-		self.assertIn("--compiler gcc --suite core --kind static", xlang)
-		self.assertIn("out/xlang/consumer", xlang)
-		self.assertIn("`GCC > TCC > XLang > VC`", status)
+		self.assertIn("runs-on: ubuntu-24.04", clang)
+		self.assertIn("clang-18 --version", clang)
+		self.assertIn("--compiler clang-18", clang)
+		self.assertIn("--kind static --verify", clang)
+		self.assertIn("--kind shared --verify", clang)
+		self.assertNotIn("continue-on-error: true", clang)
+		self.assertNotIn("  xlang:\n", workflow)
+		self.assertIn("`GCC > TCC > Clang > VC`", status)
 
 
 
