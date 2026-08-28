@@ -1131,6 +1131,14 @@ static void testHttpPoolGlobalFairness(void)
 		"first-b",
 		TEST_HTTP_POOL_SUCCESS
 	);
+	(void)testHttpPoolWaitStats(
+		State.Client,
+		1,
+		0,
+		0,
+		1,
+		"HTTP pool fairness older call did not queue first"
+	);
 	testHttpPoolCall(
 		&State,
 		2,
@@ -1175,18 +1183,20 @@ static void testHttpPoolGlobalFairness(void)
 		0,
 		"HTTP pool fairness final connection did not become idle"
 	);
-	testRequire(
-		(State.Calls[1].Order < State.Calls[2].Order) &&
-		(xrtAtomic32Load(
-			&State.Accepted,
-			XMEMORY_ACQUIRE
-		 ) == 3u) &&
-		(Stats.ConnectionsOpened == 3u) &&
-		(Stats.ConnectionsReused == 0u) &&
-		(Stats.ConnectionsClosed == 2u) &&
-		(Stats.PoolWaits == 2u),
-		"HTTP pool global fairness contract mismatch"
-	);
+	testRequire(State.Calls[1].Order < State.Calls[2].Order,
+		"HTTP pool global fairness order mismatch");
+	testRequire(xrtAtomic32Load(
+		&State.Accepted,
+		XMEMORY_ACQUIRE
+	 ) == 3u, "HTTP pool global fairness accept count mismatch");
+	testRequire(Stats.ConnectionsOpened == 3u,
+		"HTTP pool global fairness open count mismatch");
+	testRequire(Stats.ConnectionsReused == 0u,
+		"HTTP pool global fairness reuse count mismatch");
+	testRequire(Stats.ConnectionsClosed == 2u,
+		"HTTP pool global fairness close count mismatch");
+	testRequire(Stats.PoolWaits == 2u,
+		"HTTP pool global fairness wait count mismatch");
 	testHttpPoolStop(&State);
 }
 
@@ -1582,4 +1592,3 @@ int main(void)
 	);
 	return 0;
 }
-
