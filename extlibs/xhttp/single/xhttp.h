@@ -127507,38 +127507,6 @@ static xnetresult __xrtNetSocketRecvResult(int iResult,
 
 
 
-#if !defined(_WIN32) && !defined(_WIN64)
-
-/* Darwin 的 recvmsg 在部分连接式 UDP 路径上不会设置 MSG_TRUNC。
-   读取前查询下一报文长度，作为截断判定的补充依据。 */
-static bool __xrtNetSocketDgramPendingExceeds(xnetsocket Socket,
-	size_t iCapacity)
-{
-	#if defined(__APPLE__)
-		struct sockaddr_storage Peer;
-		socklen_t iPeerSize = (socklen_t)sizeof(Peer);
-		size_t iPending = 0;
-		int iCode = 0;
-
-		/* Darwin 的 FIONREAD 返回整个接收队列的字节数；仅在连接式
-		   数据报的单报文读取路径上把它用作截断补充判据。 */
-		if ( getpeername(__xrtNetSocketHandle(Socket),
-			(struct sockaddr*)&Peer, &iPeerSize) != 0 ) {
-			return false;
-		}
-		return __xrtNetSocketAvailableNative(
-			Socket, &iPending, &iCode) && (iPending > iCapacity);
-	#else
-		(void)Socket;
-		(void)iCapacity;
-		return false;
-	#endif
-}
-
-#endif
-
-
-
 /* 处理发送系统调用的统一结果。 */
 static xnetresult __xrtNetSocketSendResult(int iResult,
 	size_t* pSent, cstr sOperation)
@@ -127927,10 +127895,12 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 		}
 	#else
 		{
-			struct iovec Buffer;
+			struct iovec Buffer[2];
 			struct msghdr Message;
 			ssize_t iBytes;
-			bool bPendingTruncated = false;
+			#if defined(__APPLE__)
+				unsigned char Overflow = 0;
+			#endif
 
 			if ( iSize == 0 ) {
 				/* Darwin 对 NULL/零长度缓冲返回 EINVAL（recvmsg 与
@@ -127969,15 +127939,21 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 					goto ZeroDone;
 				}
 			} else {
-				bPendingTruncated = __xrtNetSocketDgramPendingExceeds(
-					Socket, iSize);
-				Buffer.iov_base = pData;
-				Buffer.iov_len = iSize;
+				Buffer[0].iov_base = pData;
+				Buffer[0].iov_len = iSize;
 				memset(&Message, 0, sizeof(Message));
 				Message.msg_name = &Storage;
 				Message.msg_namelen = iAddressSize;
-				Message.msg_iov = &Buffer;
-				Message.msg_iovlen = 1;
+				Message.msg_iov = Buffer;
+				#if defined(__APPLE__)
+					/* Darwin 的连接式 UDP 不总是回传 MSG_TRUNC；追加
+					   一字节丢弃槽，以实际复制长度判定截断。 */
+					Buffer[1].iov_base = &Overflow;
+					Buffer[1].iov_len = 1;
+					Message.msg_iovlen = 2;
+				#else
+					Message.msg_iovlen = 1;
+				#endif
 				do {
 					iBytes = recvmsg(
 						__xrtNetSocketHandle(Socket), &Message, 0);
@@ -127989,7 +127965,7 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 				if ( (Result == XNET_RESULT_OK) && (iBytes > 0) ) {
 					/* Darwin 可以返回完整报文长度而不是已复制长度；
 					   对外始终报告实际写入缓冲区的字节数。 */
-					if ( ((size_t)iBytes > iSize) || bPendingTruncated ) {
+					if ( (size_t)iBytes > iSize ) {
 						*pReceived = iSize;
 						Result = XNET_RESULT_TRUNCATED;
 					}
@@ -128126,20 +128102,26 @@ XRT_API xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket,
 				(size_t)iBytes, pReceived, true, "recv-from-vec");
 		}
 	#else
-		struct iovec Native[XRT_NET_SOCKET_VECTOR_LIMIT];
+		struct iovec Native[XRT_NET_SOCKET_VECTOR_LIMIT + 1u];
 		struct msghdr Message;
 		ssize_t iBytes;
 		socklen_t iAddressSize;
-		bool bPendingTruncated;
+		#if defined(__APPLE__)
+			unsigned char Overflow = 0;
+		#endif
 
-		bPendingTruncated = __xrtNetSocketDgramPendingExceeds(
-			Socket, iTotal);
 		__xrtNetSocketBuildReadVec(Native, pSpans, iCount);
 		memset(&Message, 0, sizeof(Message));
 		Message.msg_name = &Storage;
 		Message.msg_namelen = (socklen_t)sizeof(Storage);
 		Message.msg_iov = Native;
-		Message.msg_iovlen = iCount;
+		#if defined(__APPLE__)
+			Native[iCount].iov_base = &Overflow;
+			Native[iCount].iov_len = 1;
+			Message.msg_iovlen = iCount + 1u;
+		#else
+			Message.msg_iovlen = iCount;
+		#endif
 		do {
 			iBytes = recvmsg(__xrtNetSocketHandle(Socket), &Message, 0);
 		} while ( (iBytes < 0) && (errno == EINTR) );
@@ -128148,7 +128130,7 @@ XRT_API xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket,
 		Result = __xrtNetSocketRecvResult(iResult,
 			pReceived, true, "recv-from-vec");
 		if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
-			 (((size_t)iBytes > iTotal) || bPendingTruncated) ) {
+			 ((size_t)iBytes > iTotal) ) {
 			*pReceived = iTotal;
 			Result = XNET_RESULT_TRUNCATED;
 		}
@@ -128323,20 +128305,26 @@ XRT_API xnetresult xrtNetSocketRecvMsgVec(
 			}
 		}
 	#else
-		struct iovec Native[XRT_NET_SOCKET_VECTOR_LIMIT];
+		struct iovec Native[XRT_NET_SOCKET_VECTOR_LIMIT + 1u];
 		struct msghdr Message;
 		ssize_t iBytes;
 		int iResult;
-		bool bPendingTruncated;
+		#if defined(__APPLE__)
+			unsigned char Overflow = 0;
+		#endif
 
-		bPendingTruncated = __xrtNetSocketDgramPendingExceeds(
-			Socket, iTotal);
 		__xrtNetSocketBuildReadVec(Native, pSpans, iCount);
 		memset(&Message, 0, sizeof(Message));
 		Message.msg_name = &Storage;
 		Message.msg_namelen = (socklen_t)sizeof(Storage);
 		Message.msg_iov = Native;
-		Message.msg_iovlen = iCount;
+		#if defined(__APPLE__)
+			Native[iCount].iov_base = &Overflow;
+			Native[iCount].iov_len = 1;
+			Message.msg_iovlen = iCount + 1u;
+		#else
+			Message.msg_iovlen = iCount;
+		#endif
 		Message.msg_control = Control.Data;
 		Message.msg_controllen = sizeof(Control.Data);
 		do {
@@ -128350,7 +128338,7 @@ XRT_API xnetresult xrtNetSocketRecvMsgVec(
 			"recv-message"
 		);
 		if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
-			 (((size_t)iBytes > iTotal) || bPendingTruncated) ) {
+			 ((size_t)iBytes > iTotal) ) {
 			*pReceived = iTotal;
 			Result = XNET_RESULT_TRUNCATED;
 		}
