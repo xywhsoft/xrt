@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [http.md](http.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `118` 个函数、`132` 个常量或宏、
+当前登记 `119` 个函数、`133` 个常量或宏、
 `41` 个公共类型。
 
 ## `include/xrt/http.h`
@@ -201,9 +201,10 @@
 
 [查看带契约注释的公共头](../../include/xrt/http_decode.h)
 
-### 函数 (9)
+### 函数 (10)
 
 - `xrtHttpDecodeConfigInit`
+- `xrtHttpDecodeConfigInitSafe`
 - `xrtHttpDecodeCreate`
 - `xrtHttpDecodeDestroy`
 - `xrtHttpDecodeDone`
@@ -213,7 +214,7 @@
 - `xrtHttpDecodeReset`
 - `xrtHttpDecodeWrite`
 
-### 常量与宏 (12)
+### 常量与宏 (13)
 
 - `XHTTP_DECODE_ALLOW_RAW`
 - `XHTTP_DECODE_CONTENT`
@@ -225,6 +226,7 @@
 - `XHTTP_DECODE_ERROR_STATE`
 - `XHTTP_DECODE_ERROR_UNSUPPORTED`
 - `XHTTP_DECODE_IDENTITY`
+- `XHTTP_DECODE_OUTPUT_SAFE_DEFAULT`
 - `XHTTP_DECODE_OUTPUT_UNLIMITED`
 - `XHTTP_DECODE_RAW`
 

@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [websocket.md](websocket.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `103` 个函数、`138` 个常量或宏、
+当前登记 `104` 个函数、`139` 个常量或宏、
 `40` 个公共类型。
 
 ## `include/xrt/websocket.h`
 
 [查看带契约注释的公共头](../../include/xrt/websocket.h)
 
-### 函数 (56)
+### 函数 (57)
 
 - `xrtWsAccept`
 - `xrtWsAcceptValid`
@@ -60,6 +60,7 @@
 - `xrtWsKeyValid`
 - `xrtWsMask`
 - `xrtWsMessageConfigInit`
+- `xrtWsMessageConfigInitSafe`
 - `xrtWsMessageFrameBegin`
 - `xrtWsMessageFrameEnd`
 - `xrtWsMessageInit`
@@ -70,7 +71,7 @@
 - `xrtWsProtocolsHas`
 - `xrtWsProtocolsValid`
 
-### 常量与宏 (113)
+### 常量与宏 (114)
 
 - `XWS_ACCEPT_CAPACITY`
 - `XWS_ACCEPT_SIZE`
@@ -175,6 +176,7 @@
 - `XWS_MESSAGE_ERROR_STATE`
 - `XWS_MESSAGE_ERROR_UTF8`
 - `XWS_MESSAGE_EXTENDED`
+- `XWS_MESSAGE_SIZE_SAFE_DEFAULT`
 - `XWS_OPCODES_STANDARD`
 - `XWS_OPCODE_BINARY`
 - `XWS_OPCODE_CLOSE`

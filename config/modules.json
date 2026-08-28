@@ -148,23 +148,6 @@
 				"docs/api/memory.md",
 				"docs/api/error.md",
 				"docs/FEATURE_SELECTION.md"
-			],
-			"legacy": [
-				"LICENSE",
-				"tools/single_head_maker/README.md",
-				"xrt.h",
-				"xrt.c",
-				"lib/base.h",
-				"lib/memglobal.h",
-				"lib/xws.h",
-				"test/test_base.h",
-				"test/test_memglobal_core.h",
-				"test/test_xnet2_sync.h",
-				"examples/base/error_handling/main.c",
-				"examples/base/init_and_config/main.c",
-				"examples/base/memory_basic/main.c",
-				"docs/api/api-base.md",
-				"docs/api/api-base.en.md"
 			]
 		},
 		{
@@ -197,13 +180,6 @@
 			"docs": [
 				"docs/api/error.md",
 				"docs/FEATURE_SELECTION.md"
-			],
-			"legacy": [
-				"lib/base.h",
-				"test/test_base.h",
-				"examples/base/error_handling/main.c",
-				"docs/api/api-base.md",
-				"docs/api/api-base.en.md"
 			]
 		},
 		{
@@ -234,10 +210,6 @@
 			],
 			"docs": [
 				"docs/api/atomic.md"
-			],
-			"legacy": [
-				"lib/xws.h",
-				"test/test_atomic_compat.h"
 			]
 		},
 		{
@@ -266,8 +238,7 @@
 			],
 			"docs": [
 				"docs/api/spin.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "queue",
@@ -325,15 +296,6 @@
 			],
 			"docs": [
 				"docs/api/queue.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/queue.h",
-				"test/test_queue_core.h",
-				"docs/api/api-queue.md",
-				"docs/api/api-queue.en.md",
-				"docs/guide/queue-intro.md",
-				"docs/guide/queue-intro.en.md"
 			]
 		},
 		{
@@ -361,16 +323,6 @@
 			],
 			"docs": [
 				"docs/api/queue.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/queue.h",
-				"test/test_queue_core.h",
-				"docs/api/api-queue.md",
-				"docs/api/api-queue.en.md",
-				"docs/guide/queue-intro.md",
-				"docs/guide/queue-intro.en.md",
-				"examples/queue/spsc_basic/main.c"
 			]
 		},
 		{
@@ -398,16 +350,6 @@
 			],
 			"docs": [
 				"docs/api/queue.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/queue.h",
-				"test/test_queue_core.h",
-				"docs/api/api-queue.md",
-				"docs/api/api-queue.en.md",
-				"docs/guide/queue-intro.md",
-				"docs/guide/queue-intro.en.md",
-				"examples/queue/mpsc_batch/main.c"
 			]
 		},
 		{
@@ -435,16 +377,6 @@
 			],
 			"docs": [
 				"docs/api/queue.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/queue.h",
-				"test/test_queue_core.h",
-				"docs/api/api-queue.md",
-				"docs/api/api-queue.en.md",
-				"docs/guide/queue-intro.md",
-				"docs/guide/queue-intro.en.md",
-				"examples/queue/mpmc_basic/main.c"
 			]
 		},
 		{
@@ -482,17 +414,6 @@
 			],
 			"docs": [
 				"docs/api/channel.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/channel.h",
-				"lib/queue.h",
-				"test/test_queue_core.h",
-				"examples/queue/mpsc_wait/main.c",
-				"docs/api/api-queue.md",
-				"docs/api/api-queue.en.md",
-				"docs/guide/queue-intro.md",
-				"docs/guide/queue-intro.en.md"
 			]
 		},
 		{
@@ -519,9 +440,6 @@
 			],
 			"docs": [
 				"docs/api/channel.md"
-			],
-			"legacy": [
-				"lib/channel.h"
 			]
 		},
 		{
@@ -557,8 +475,7 @@
 			],
 			"docs": [
 				"docs/api/channel.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "channel_select_cancel",
@@ -583,8 +500,7 @@
 			],
 			"docs": [
 				"docs/api/channel.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "channel_coroutine",
@@ -619,8 +535,7 @@
 			],
 			"docs": [
 				"docs/api/channel.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "memory_debug",
@@ -649,13 +564,6 @@
 			],
 			"docs": [
 				"docs/api/memory_debug.md"
-			],
-			"legacy": [
-				"lib/memglobal.h",
-				"lib/memdebug_site_macros_base.h",
-				"lib/memdebug_site_macros_public.h",
-				"lib/memdebug_site_macros_undef.h",
-				"test/test_memdebug_core.h"
 			]
 		},
 		{
@@ -685,11 +593,6 @@
 			],
 			"docs": [
 				"docs/api/memory_debug.md"
-			],
-			"legacy": [
-				"xrt.c",
-				"test/test_memdebug_core.h",
-				"test/test_temparena_core.h"
 			]
 		},
 		{
@@ -718,14 +621,6 @@
 			],
 			"docs": [
 				"docs/api/memory_stats.md"
-			],
-			"legacy": [
-				"lib/base.h",
-				"xrt.c",
-				"xrt.h",
-				"test/test_memtelemetry.h",
-				"test/test_memtelemetry_baseline.h",
-				"examples/base/mem_telemetry/main.c"
 			]
 		},
 		{
@@ -757,13 +652,6 @@
 			],
 			"docs": [
 				"docs/api/temp.md"
-			],
-			"legacy": [
-				"lib/base.h",
-				"xrt.h",
-				"xrt.c",
-				"test/test_temparena_core.h",
-				"examples/base/temp_memory/main.c"
 			]
 		},
 		{
@@ -794,17 +682,6 @@
 			],
 			"docs": [
 				"docs/api/number.md"
-			],
-			"legacy": [
-				"lib/jnum.h",
-				"lib/string.h",
-				"test/test_jnum.h",
-				"test/test_string.h",
-				"examples/jnum/num_to_str/main.c",
-				"examples/jnum/str_to_num/main.c",
-				"docs/api/api-jnum.md",
-				"docs/api/api-jnum.en.md",
-				"docs/guide/jnum-intro.md"
 			]
 		},
 		{
@@ -839,15 +716,6 @@
 			"docs": [
 				"docs/api/number.md",
 				"src/third_party/yyjson/README.xrt.md"
-			],
-			"legacy": [
-				"lib/jnum.h",
-				"test/test_jnum.h",
-				"examples/jnum/num_to_str/main.c",
-				"examples/jnum/str_to_num/main.c",
-				"docs/api/api-jnum.md",
-				"docs/api/api-jnum.en.md",
-				"docs/guide/jnum-intro.md"
 			]
 		},
 		{
@@ -883,14 +751,6 @@
 			],
 			"docs": [
 				"docs/api/number.md"
-			],
-			"legacy": [
-				"lib/string.h",
-				"test/test_string.h",
-				"examples/string/number_format/main.c",
-				"docs/api/api-string.md",
-				"docs/api/api-string.en.md",
-				"docs/guide/jnum-intro.md"
 			]
 		},
 		{
@@ -926,17 +786,6 @@
 			],
 			"docs": [
 				"docs/api/string.md"
-			],
-			"legacy": [
-				"lib/string.h",
-				"lib/suplib.h",
-				"test/test_string.h",
-				"examples/string/case_convert/main.c",
-				"examples/string/copy_and_compare/main.c",
-				"examples/string/search_and_match/main.c",
-				"examples/string/trim_and_filter/main.c",
-				"docs/api/api-string.md",
-				"docs/api/api-string.en.md"
 			]
 		},
 		{
@@ -963,14 +812,6 @@
 			],
 			"docs": [
 				"docs/api/string.md"
-			],
-			"legacy": [
-				"lib/string.h",
-				"test/test_string.h",
-				"test/test_string_split_lines.c",
-				"examples/string/split/main.c",
-				"docs/api/api-string.md",
-				"docs/api/api-string.en.md"
 			]
 		},
 		{
@@ -1000,13 +841,6 @@
 			],
 			"docs": [
 				"docs/api/string.md"
-			],
-			"legacy": [
-				"lib/string.h",
-				"test/test_string.h",
-				"examples/string/format_and_replace/main.c",
-				"docs/api/api-string.md",
-				"docs/api/api-string.en.md"
 			]
 		},
 		{
@@ -1034,12 +868,6 @@
 			],
 			"docs": [
 				"docs/api/string.md"
-			],
-			"legacy": [
-				"lib/string.h",
-				"examples/string/search_and_match/main.c",
-				"docs/api/api-string.md",
-				"docs/api/api-string.en.md"
 			]
 		},
 		{
@@ -1067,11 +895,6 @@
 			],
 			"docs": [
 				"docs/api/charset.md"
-			],
-			"legacy": [
-				"lib/string.h",
-				"docs/api/api-string.md",
-				"docs/api/api-string.en.md"
 			]
 		},
 		{
@@ -1102,14 +925,6 @@
 			],
 			"docs": [
 				"docs/api/codec.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/string.h",
-				"test/test_string.h",
-				"examples/string/encoding/main.c",
-				"docs/api/api-string.md",
-				"docs/api/api-string.en.md"
 			]
 		},
 		{
@@ -1141,16 +956,6 @@
 			],
 			"docs": [
 				"docs/api/codec.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/string.h",
-				"lib/nettls.h",
-				"lib/xws.h",
-				"test/test_string.h",
-				"examples/string/encoding/main.c",
-				"docs/api/api-string.md",
-				"docs/api/api-string.en.md"
 			]
 		},
 		{
@@ -1183,14 +988,6 @@
 			],
 			"docs": [
 				"docs/api/codec.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xurl.h",
-				"lib/xhttp_util.h",
-				"test/test_xurl.h",
-				"examples/string/encoding/main.c",
-				"examples/http_util/query_and_header/main.c"
 			]
 		},
 		{
@@ -1220,8 +1017,7 @@
 			],
 			"docs": [
 				"docs/api/html.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_frame",
@@ -1256,11 +1052,6 @@
 			"docs": [
 				"docs/api/websocket.md",
 				"docs/api/websocket-reference.md"
-			],
-			"legacy": [
-				"lib/xcodec_ws.h",
-				"test/test_xnet2_codec.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -1292,10 +1083,6 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xws.h",
-				"test/test_xnet_ws.h"
 			]
 		},
 		{
@@ -1328,10 +1115,6 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xws.h",
-				"test/test_xnet_ws.h"
 			]
 		},
 		{
@@ -1365,9 +1148,6 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xws.h"
 			]
 		},
 		{
@@ -1396,9 +1176,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xws.h"
 			]
 		},
 		{
@@ -1431,9 +1208,6 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xws.h"
 			]
 		},
 		{
@@ -1465,10 +1239,6 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xws.h",
-				"test/test_xnet_ws.h"
 			]
 		},
 		{
@@ -1500,9 +1270,6 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xws.h"
 			]
 		},
 		{
@@ -1535,9 +1302,6 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xws.h"
 			]
 		},
 		{
@@ -1569,8 +1333,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_stream_ref",
@@ -1599,12 +1362,13 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_stream_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1622,8 +1386,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_stream_tls",
@@ -1647,8 +1410,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_stream_tls_tests",
@@ -1671,12 +1433,13 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_stream_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1693,8 +1456,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_stream_deflate",
@@ -1720,8 +1482,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_stream_tls_deflate_tests",
@@ -1743,8 +1504,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_upgrade",
@@ -1775,8 +1535,7 @@
 			],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_upgrade_deflate",
@@ -1802,8 +1561,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_upgrade_stream",
@@ -1830,8 +1588,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_upgrade_stream_deflate_tests",
@@ -1852,8 +1609,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_upgrade_stream_tls_tests",
@@ -1876,8 +1632,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "websocket_deflate_runtime_tests",
@@ -1898,12 +1653,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"lib/xdeflate.h",
-				"lib/xinflate.h",
-				"lib/xws.h",
-				"test/test_xnet_ws.h"
 			]
 		},
 		{
@@ -1928,9 +1677,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/websocket.md"
-			],
-			"legacy": [
-				"test/fuzz_xws_protocol.c"
 			]
 		},
 		{
@@ -1952,10 +1698,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/compress.md"
-			],
-			"legacy": [
-				"lib/xinflate.h",
-				"lib/xdeflate.h"
 			]
 		},
 		{
@@ -1991,16 +1733,6 @@
 			"docs": [
 				"docs/api/compress.md",
 				"docs/THIRD_PARTY.md"
-			],
-			"legacy": [
-				"lib/xinflate.h",
-				"lib/third_party/miniz/LICENSE",
-				"lib/third_party/miniz/README.xrt.md",
-				"lib/third_party/miniz/miniz_common.h",
-				"lib/third_party/miniz/miniz_export.h",
-				"lib/third_party/miniz/miniz_tinfl.c",
-				"lib/third_party/miniz/miniz_tinfl.h",
-				"test/test_xnet2_codec.h"
 			]
 		},
 		{
@@ -2036,17 +1768,6 @@
 			"docs": [
 				"docs/api/compress.md",
 				"docs/THIRD_PARTY.md"
-			],
-			"legacy": [
-				"lib/xdeflate.h",
-				"lib/third_party/miniz/LICENSE",
-				"lib/third_party/miniz/README.xrt.md",
-				"lib/third_party/miniz/miniz_common.h",
-				"lib/third_party/miniz/miniz_export.h",
-				"lib/third_party/miniz/miniz_tdef.c",
-				"lib/third_party/miniz/miniz_tdef.h",
-				"test/test_xnet_ws.h",
-				"test/test_xweb.h"
 			]
 		},
 		{
@@ -2065,13 +1786,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xdeflate.h",
-				"lib/xinflate.h",
-				"test/test_xnet2_codec.h",
-				"test/test_xnet_ws.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "http",
@@ -2102,11 +1817,6 @@
 			"docs": [
 				"docs/api/http.md",
 				"docs/api/http-reference.md"
-			],
-			"legacy": [
-				"lib/xhttp_util.h",
-				"lib/xws.h",
-				"test/test_xurl.h"
 			]
 		},
 		{
@@ -2127,8 +1837,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "http_expect",
@@ -2159,9 +1868,6 @@
 			"docs": [
 				"docs/api/http_expect.md",
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xhttp.h"
 			]
 		},
 		{
@@ -2190,9 +1896,6 @@
 			"docs": [
 				"docs/api/http_upgrade.md",
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xweb.h"
 			]
 		},
 		{
@@ -2224,9 +1927,6 @@
 			"docs": [
 				"docs/api/http_te.md",
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xhttp.h"
 			]
 		},
 		{
@@ -2256,9 +1956,6 @@
 			],
 			"docs": [
 				"docs/api/http_upgrade.md"
-			],
-			"legacy": [
-				"lib/xweb.h"
 			]
 		},
 		{
@@ -2279,8 +1976,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/http_upgrade.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "http_encoding",
@@ -2312,10 +2008,6 @@
 			"docs": [
 				"docs/api/http_encoding.md",
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xweb.h",
-				"test/test_xweb.h"
 			]
 		},
 		{
@@ -2350,8 +2042,7 @@
 			"docs": [
 				"docs/api/http_decode.md",
 				"docs/api/http.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "http_decode_oom_tests",
@@ -2371,8 +2062,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/http_decode.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "http_param",
@@ -2404,14 +2094,6 @@
 			],
 			"docs": [
 				"docs/api/http_fields.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xhttp_util.h",
-				"test/test_xurl.h",
-				"docs/api/api-http-util.md",
-				"docs/guide/http-util-intro.md",
-				"examples/http_util/cookie_and_media_type/main.c"
 			]
 		},
 		{
@@ -2443,9 +2125,6 @@
 			"docs": [
 				"docs/api/http_connection.md",
 				"docs/api/http_fields.md"
-			],
-			"legacy": [
-				"lib/xweb.h"
 			]
 		},
 		{
@@ -2478,9 +2157,6 @@
 			"docs": [
 				"docs/api/http_trailer.md",
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xcodec_http1.h"
 			]
 		},
 		{
@@ -2510,13 +2186,6 @@
 			],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xhttp.h",
-				"lib/xhttpd.h",
-				"lib/xurl.h",
-				"test/test_xnet_httpd.h",
-				"test/test_xurl.h"
 			]
 		},
 		{
@@ -2545,8 +2214,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "http_param_host_noalloc_tests",
@@ -2566,8 +2234,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "http_target",
@@ -2596,14 +2263,6 @@
 			],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xcodec_http1.h",
-				"lib/xhttpd.h",
-				"test/test_xnet2_codec.h",
-				"test/test_xnet_httpd.h",
-				"docs/api/api-xhttpd.md",
-				"docs/api/api-xhttpd.en.md"
 			]
 		},
 		{
@@ -2636,13 +2295,6 @@
 			],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xcodec_http1.h",
-				"lib/xws.h",
-				"test/test_xnet2_codec.h",
-				"test/fuzz_xhttp_protocol.c",
-				"xrt.h"
 			]
 		},
 		{
@@ -2671,8 +2323,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "http1_tls",
@@ -2696,8 +2347,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "http1_body",
@@ -2730,12 +2380,6 @@
 			],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xcodec_http1.h",
-				"test/test_xnet2_codec.h",
-				"test/fuzz_xhttp_protocol.c",
-				"xrt.h"
 			]
 		},
 		{
@@ -2767,12 +2411,6 @@
 			],
 			"docs": [
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xcodec_http1.h",
-				"test/test_xnet2_codec.h",
-				"test/fuzz_xhttp_protocol.c",
-				"xrt.h"
 			]
 		},
 		{
@@ -2802,9 +2440,6 @@
 			"docs": [
 				"docs/api/http.md",
 				"docs/design/http-runtime.md"
-			],
-			"legacy": [
-				"test/fuzz_xhttp_protocol.c"
 			]
 		},
 		{
@@ -2834,9 +2469,6 @@
 			],
 			"docs": [
 				"docs/api/asn1.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -2867,10 +2499,6 @@
 			],
 			"docs": [
 				"docs/api/pem.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -2903,12 +2531,6 @@
 			],
 			"docs": [
 				"docs/api/charset.md"
-			],
-			"legacy": [
-				"lib/charset.h",
-				"lib/suplib.h",
-				"test/test_charset.h",
-				"examples/charset/utf_convert/main.c"
 			]
 		},
 		{
@@ -2937,9 +2559,6 @@
 			],
 			"docs": [
 				"docs/api/charset.md"
-			],
-			"legacy": [
-				"lib/string.h"
 			]
 		},
 		{
@@ -2966,10 +2585,6 @@
 			],
 			"docs": [
 				"docs/api/charset.md"
-			],
-			"legacy": [
-				"lib/charset.h",
-				"examples/charset/endian_convert/main.c"
 			]
 		},
 		{
@@ -2995,14 +2610,6 @@
 			],
 			"docs": [
 				"docs/api/charset.md"
-			],
-			"legacy": [
-				"lib/charset.h",
-				"test/test_charset.h",
-				"examples/charset/charset_detect/main.c",
-				"docs/api/api-charset.md",
-				"docs/api/api-charset.en.md",
-				"docs/guide/charset-intro.md"
 			]
 		},
 		{
@@ -3030,12 +2637,6 @@
 			],
 			"docs": [
 				"docs/api/hash.md"
-			],
-			"legacy": [
-				"lib/hash.h",
-				"test/test_hash.h",
-				"examples/hash/hash32/main.c",
-				"xrt.h"
 			]
 		},
 		{
@@ -3061,12 +2662,6 @@
 			],
 			"docs": [
 				"docs/api/hash.md"
-			],
-			"legacy": [
-				"lib/hash.h",
-				"test/test_hash.h",
-				"examples/hash/hash64/main.c",
-				"xrt.h"
 			]
 		},
 		{
@@ -3092,11 +2687,6 @@
 			],
 			"docs": [
 				"docs/api/hash.md"
-			],
-			"legacy": [
-				"docs/api/api-hash.md",
-				"docs/api/api-hash.en.md",
-				"docs/guide/math-hash-intro.md"
 			]
 		},
 		{
@@ -3126,11 +2716,6 @@
 			],
 			"docs": [
 				"docs/api/random.md"
-			],
-			"legacy": [
-				"lib/math.h",
-				"test/test_math.h",
-				"examples/math/random/main.c"
 			]
 		},
 		{
@@ -3156,10 +2741,6 @@
 			],
 			"docs": [
 				"docs/api/random.md"
-			],
-			"legacy": [
-				"lib/math.h",
-				"xrt.c"
 			]
 		},
 		{
@@ -3185,11 +2766,6 @@
 			],
 			"docs": [
 				"docs/api/random.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -3218,10 +2794,6 @@
 			],
 			"docs": [
 				"docs/api/random.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h"
 			]
 		},
 		{
@@ -3248,9 +2820,6 @@
 			],
 			"docs": [
 				"docs/api/random.md"
-			],
-			"legacy": [
-				"lib/string.h"
 			]
 		},
 		{
@@ -3277,9 +2846,6 @@
 			],
 			"docs": [
 				"docs/api/random.md"
-			],
-			"legacy": [
-				"lib/string.h"
 			]
 		},
 		{
@@ -3310,12 +2876,6 @@
 			"docs": [
 				"docs/api/crypto.md",
 				"docs/guide/crypto.md"
-			],
-			"legacy": [
-				"docs/case/signed-rule-bundle.en.md",
-				"docs/case/signed-rule-bundle.md",
-				"lib/crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -3339,8 +2899,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_rsa",
@@ -3366,13 +2925,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/api/api-crypto.en.md",
-				"docs/guide/crypto-intro.md"
 			]
 		},
 		{
@@ -3396,10 +2948,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -3429,13 +2977,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/api/api-crypto.en.md",
-				"docs/guide/crypto-intro.md"
 			]
 		},
 		{
@@ -3463,10 +3004,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -3492,13 +3029,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/api/api-crypto.en.md",
-				"docs/guide/crypto-intro.md"
 			]
 		},
 		{
@@ -3525,10 +3055,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -3550,8 +3076,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_ecdsa_der",
@@ -3574,9 +3099,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h"
 			]
 		},
 		{
@@ -3600,8 +3122,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_p256",
@@ -3624,12 +3145,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -3653,12 +3168,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -3679,8 +3188,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_p256_keypair",
@@ -3706,13 +3214,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -3739,12 +3240,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -3765,8 +3260,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_ecdsa_verify",
@@ -3785,12 +3279,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"docs/api/api-crypto.md",
-				"docs/api/api-crypto.en.md",
-				"docs/guide/crypto-intro.md"
 			]
 		},
 		{
@@ -3815,9 +3303,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h"
 			]
 		},
 		{
@@ -3842,9 +3327,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h"
 			]
 		},
 		{
@@ -3865,8 +3347,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_ecdsa_p256_der",
@@ -3890,8 +3371,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_ecdsa_p384_der",
@@ -3915,8 +3395,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_ecdsa_sign",
@@ -3935,8 +3414,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_ecdsa_p256_sign",
@@ -3961,9 +3439,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h"
 			]
 		},
 		{
@@ -3989,9 +3464,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h"
 			]
 		},
 		{
@@ -4016,9 +3488,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h"
 			]
 		},
 		{
@@ -4039,8 +3508,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_ecdsa_p256_sign_der",
@@ -4066,8 +3534,7 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_ecdsa_p384_sign_der",
@@ -4093,8 +3560,7 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_sha1",
@@ -4119,10 +3585,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4152,11 +3614,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4180,9 +3637,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -4208,11 +3662,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4236,8 +3685,7 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_md5",
@@ -4262,8 +3710,7 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_hmac_sha256",
@@ -4288,11 +3735,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4318,11 +3760,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4348,12 +3785,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"test/test_pbkdf2.c",
-				"xrt.h"
 			]
 		},
 		{
@@ -4379,8 +3810,7 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "crypto_hkdf_sha256",
@@ -4405,11 +3835,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4435,10 +3860,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4464,11 +3885,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4494,9 +3910,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h"
 			]
 		},
 		{
@@ -4523,14 +3936,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"examples/crypto/chacha20/main.c",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -4556,11 +3961,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4589,14 +3989,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"examples/crypto/aes_gcm/main.c",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -4618,9 +4010,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h"
 			]
 		},
 		{
@@ -4644,13 +4033,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -4677,11 +4059,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"lib/nettls.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4707,11 +4084,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"lib/nettls.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4737,11 +4109,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"lib/nettls.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4768,12 +4135,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"lib/nettls.h",
-				"test/test_crypto.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -4797,12 +4158,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -4829,15 +4184,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"test/test_crypto.h",
-				"examples/crypto/key_exchange/main.c",
-				"examples/crypto/x25519_chacha20poly1305/main.c",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -4864,12 +4210,6 @@
 			],
 			"docs": [
 				"docs/api/crypto.md"
-			],
-			"legacy": [
-				"lib/crypto.h",
-				"docs/api/api-crypto.md",
-				"docs/guide/crypto-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -4893,10 +4233,6 @@
 			],
 			"docs": [
 				"docs/guide/crypto.md"
-			],
-			"legacy": [
-				"examples/crypto/x25519_chacha20poly1305/main.c",
-				"docs/guide/crypto-intro.md"
 			]
 		},
 		{
@@ -4915,8 +4251,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": []
+			"docs": []
 		},
 		{
 			"name": "math",
@@ -4944,13 +4279,6 @@
 			],
 			"docs": [
 				"docs/api/math.md"
-			],
-			"legacy": [
-				"lib/math.h",
-				"test/test_math.h",
-				"examples/math/approx/main.c",
-				"docs/api/api-math.md",
-				"docs/api/api-math.en.md"
 			]
 		},
 		{
@@ -4982,15 +4310,6 @@
 			],
 			"docs": [
 				"docs/api/time.md"
-			],
-			"legacy": [
-				"lib/time.h",
-				"test/test_time.h",
-				"examples/time/basic_datetime/main.c",
-				"examples/time/timer/main.c",
-				"examples/time/time_calc/main.c",
-				"examples/time/time_compare/main.c",
-				"examples/time/time_extract/main.c"
 			]
 		},
 		{
@@ -5024,11 +4343,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h",
-				"examples/example_tls_fixture.h"
 			]
 		},
 		{
@@ -5053,8 +4367,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "x509_crl",
@@ -5085,10 +4398,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5120,9 +4429,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5150,9 +4456,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5181,9 +4484,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5212,10 +4512,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5254,10 +4550,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"examples/example_tls_fixture.h"
 			]
 		},
 		{
@@ -5281,10 +4573,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5315,9 +4603,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5346,9 +4631,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5380,10 +4662,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5418,9 +4696,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5452,8 +4727,7 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "x509_crl_profile",
@@ -5485,9 +4759,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5513,10 +4784,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5542,9 +4809,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5578,8 +4842,7 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "x509_path",
@@ -5608,9 +4871,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5639,9 +4899,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5673,9 +4930,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5707,9 +4961,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5751,9 +5002,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -5777,10 +5025,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5806,10 +5050,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5832,10 +5072,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5868,10 +5104,6 @@
 			],
 			"docs": [
 				"docs/api/x509.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -5903,14 +5135,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/tls-reference.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h",
-				"test/test_xnet_ws.h",
-				"docs/api/api-network-tls.md",
-				"docs/api/api-network-tls.en.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -5942,11 +5166,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"docs/api/api-network-tls.md",
-				"docs/api/api-network-tls.en.md"
 			]
 		},
 		{
@@ -5971,10 +5190,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -5999,10 +5214,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6030,10 +5241,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6061,9 +5268,6 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6089,10 +5293,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6114,9 +5314,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6139,9 +5336,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6166,9 +5360,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6197,9 +5388,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6228,8 +5416,7 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "tls_key_exchange_x25519",
@@ -6254,9 +5441,6 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6282,9 +5466,6 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6310,9 +5491,6 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6338,9 +5516,6 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6366,10 +5541,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6397,9 +5568,6 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -6426,10 +5594,6 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6455,10 +5619,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6485,10 +5645,6 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6513,10 +5669,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6541,10 +5693,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6569,10 +5717,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6597,10 +5741,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6625,10 +5765,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6653,10 +5789,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -6677,8 +5809,7 @@
 			],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "wait",
@@ -6707,14 +5838,6 @@
 			],
 			"docs": [
 				"docs/api/wait.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/thread.h",
-				"lib/coroutine.h",
-				"lib/xnet_sync.h",
-				"test/test_thread_core.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -6742,8 +5865,7 @@
 			],
 			"docs": [
 				"docs/api/once.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "thread_key",
@@ -6771,15 +5893,6 @@
 			],
 			"docs": [
 				"docs/api/thread-key.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"xrt.c",
-				"test/test_thread_core.h",
-				"docs/api/api-thread.md",
-				"docs/api/api-thread.en.md",
-				"docs/guide/thread-intro.md",
-				"docs/guide/thread-intro.en.md"
 			]
 		},
 		{
@@ -6808,16 +5921,6 @@
 			],
 			"docs": [
 				"docs/api/thread.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/thread.h",
-				"test/test_thread.h",
-				"test/test_thread_core.h",
-				"docs/api/api-thread.md",
-				"docs/api/api-thread.en.md",
-				"docs/guide/thread-intro.md",
-				"docs/guide/thread-intro.en.md"
 			]
 		},
 		{
@@ -6839,8 +5942,7 @@
 			"docs": [
 				"docs/api/thread.md",
 				"docs/api/memory_stats.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "sync",
@@ -6863,10 +5965,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/sync.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/thread.h"
 			]
 		},
 		{
@@ -6893,11 +5991,6 @@
 			],
 			"docs": [
 				"docs/api/sync.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/thread.h",
-				"test/test_thread_core.h"
 			]
 		},
 		{
@@ -6925,11 +6018,6 @@
 			],
 			"docs": [
 				"docs/api/sync.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/thread.h",
-				"test/test_thread_core.h"
 			]
 		},
 		{
@@ -6960,11 +6048,6 @@
 			],
 			"docs": [
 				"docs/api/cancel.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -6995,14 +6078,6 @@
 			],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_sync.h",
-				"test/test_future_core.h",
-				"test/test_future_core_impl.h",
-				"test/test_xnet2_sync.h",
-				"examples/future/promise_basic/main.c"
 			]
 		},
 		{
@@ -7030,10 +6105,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -7054,10 +6125,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -7084,13 +6151,6 @@
 			],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_sync.h",
-				"test/test_future_core_impl.h",
-				"examples/future/continuation_chain/main.c",
-				"docs/api/api-future-task-promise.md"
 			]
 		},
 		{
@@ -7111,9 +6171,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"test/test_future_core_impl.h"
 			]
 		},
 		{
@@ -7134,9 +6191,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"test/test_future_core_impl.h"
 			]
 		},
 		{
@@ -7163,10 +6217,6 @@
 			],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_future_core_impl.h"
 			]
 		},
 		{
@@ -7187,9 +6237,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"test/test_future_core_impl.h"
 			]
 		},
 		{
@@ -7218,23 +6265,6 @@
 			"docs": [
 				"docs/api/task.md",
 				"docs/guide/concurrency.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_sync.h",
-				"test/test_future_core_impl.h",
-				"test/test_xnet2_sync.h",
-				"examples/future/task_thread/main.c",
-				"docs/guide/multitask-overview.md",
-				"docs/guide/multitask-overview.en.md",
-				"docs/case/session-registry-pool-index.en.md",
-				"docs/case/session-registry-pool-index.md",
-				"docs/case/tenant-index-registry.en.md",
-				"docs/case/tenant-index-registry.md",
-				"docs/case/cross-media-orchestration-dashboard.md",
-				"docs/case/cross-media-orchestration-dashboard.en.md",
-				"docs/case/hot-cold-tier-dashboard.md",
-				"docs/case/hot-cold-tier-dashboard.en.md"
 			]
 		},
 		{
@@ -7262,10 +6292,6 @@
 			],
 			"docs": [
 				"docs/api/task.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_future_core_impl.h"
 			]
 		},
 		{
@@ -7286,9 +6312,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/task.md"
-			],
-			"legacy": [
-				"test/test_future_core_impl.h"
 			]
 		},
 		{
@@ -7325,12 +6348,6 @@
 			],
 			"docs": [
 				"docs/api/task.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h",
-				"test/test_future_core_impl.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -7365,8 +6382,7 @@
 			],
 			"docs": [
 				"docs/api/executor.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "task_group_pool",
@@ -7392,10 +6408,6 @@
 			],
 			"docs": [
 				"docs/api/task.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -7416,8 +6428,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/task.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "coroutine",
@@ -7460,12 +6471,6 @@
 			],
 			"docs": [
 				"docs/api/coroutine.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/coroutine.h",
-				"test/test_coroutine.h",
-				"test/test_coroutine_min.h"
 			]
 		},
 		{
@@ -7499,10 +6504,6 @@
 			],
 			"docs": [
 				"docs/api/coroutine.md"
-			],
-			"legacy": [
-				"lib/coroutine.h",
-				"test/test_coroutine.h"
 			]
 		},
 		{
@@ -7529,11 +6530,6 @@
 			],
 			"docs": [
 				"docs/api/coroutine.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/coroutine.h",
-				"test/test_coroutine.h"
 			]
 		},
 		{
@@ -7560,12 +6556,6 @@
 			],
 			"docs": [
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_future_core_impl.h",
-				"test/test_xnet2_sync.h",
-				"examples/future/task_coroutine/main.c"
 			]
 		},
 		{
@@ -7593,12 +6583,6 @@
 			"docs": [
 				"docs/api/task.md",
 				"docs/api/coroutine.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_future_core_impl.h",
-				"test/test_xnet2_sync.h",
-				"examples/future/task_coroutine/main.c"
 			]
 		},
 		{
@@ -7626,10 +6610,6 @@
 			"docs": [
 				"docs/api/task.md",
 				"docs/api/coroutine.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -7652,12 +6632,6 @@
 			],
 			"docs": [
 				"docs/guide/task-group.md"
-			],
-			"legacy": [
-				"docs/guide/task-group-intro.md",
-				"docs/guide/task-group-intro.en.md",
-				"docs/case/thread-coroutine-future.md",
-				"docs/case/thread-coroutine-future.en.md"
 			]
 		},
 		{
@@ -7681,10 +6655,6 @@
 			],
 			"docs": [
 				"docs/guide/concurrency.md"
-			],
-			"legacy": [
-				"docs/case/queue-worker-future.md",
-				"docs/case/queue-worker-future.en.md"
 			]
 		},
 		{
@@ -7705,8 +6675,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/thread-key.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "net",
@@ -7744,11 +6713,6 @@
 			"docs": [
 				"docs/api/net.md",
 				"docs/api/net-reference.md"
-			],
-			"legacy": [
-				"lib/xnet_base.h",
-				"test/test_xnet2_base.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -7784,15 +6748,6 @@
 			"docs": [
 				"docs/api/net-interface.md",
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/network.h",
-				"test/test_network.h",
-				"examples/network/local_info/main.c",
-				"docs/api/api-network.md",
-				"docs/api/api-network.en.md",
-				"docs/guide/local-network-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -7822,15 +6777,6 @@
 			],
 			"docs": [
 				"docs/api/net-interface.md"
-			],
-			"legacy": [
-				"lib/network.h",
-				"test/test_network.h",
-				"examples/network/local_info/main.c",
-				"docs/api/api-network.md",
-				"docs/api/api-network.en.md",
-				"docs/guide/local-network-intro.md",
-				"xrt.h"
 			]
 		},
 		{
@@ -7859,11 +6805,6 @@
 			],
 			"docs": [
 				"docs/api/net-dns.md"
-			],
-			"legacy": [
-				"lib/xnet_base.h",
-				"test/test_xnet2_base.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -7889,8 +6830,7 @@
 			"docs": [
 				"docs/api/net.md",
 				"docs/api/net-dns.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "net_resolver",
@@ -7925,10 +6865,6 @@
 			],
 			"docs": [
 				"docs/api/net-resolver.md"
-			],
-			"legacy": [
-				"lib/xnet_engine.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -7958,10 +6894,6 @@
 			],
 			"docs": [
 				"docs/api/net-resolver.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -7997,14 +6929,6 @@
 			],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_base.h",
-				"lib/xnet_stream.h",
-				"lib/xnet_dgram.h",
-				"test/test_xnet2_stream.h",
-				"test/test_xnet2_dgram.h",
-				"examples/network/socket_basic/main.c"
 			]
 		},
 		{
@@ -8038,12 +6962,6 @@
 			],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_mem.h",
-				"test/test_xnet2_mem.h",
-				"examples/network/ringbuf/main.c",
-				"xrt.h"
 			]
 		},
 		{
@@ -8069,11 +6987,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/net-frame.md"
-			],
-			"legacy": [
-				"lib/xcodec.h",
-				"test/test_xnet2_codec.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -8099,11 +7012,6 @@
 			],
 			"docs": [
 				"docs/api/net-frame.md"
-			],
-			"legacy": [
-				"lib/xcodec.h",
-				"test/test_xnet2_codec.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -8129,11 +7037,6 @@
 			],
 			"docs": [
 				"docs/api/net-frame.md"
-			],
-			"legacy": [
-				"lib/xcodec.h",
-				"test/test_xnet2_codec.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -8159,12 +7062,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/proxy.md"
-			],
-			"legacy": [
-				"lib/xnet_proxy.h",
-				"xrt.h",
-				"docs/case/xhttp-client-proxy-tls.md",
-				"docs/case/xhttp-client-proxy-tls.en.md"
 			]
 		},
 		{
@@ -8193,9 +7090,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/proxy.md"
-			],
-			"legacy": [
-				"lib/xnet_proxy.h"
 			]
 		},
 		{
@@ -8227,12 +7121,6 @@
 			],
 			"docs": [
 				"docs/api/proxy.md"
-			],
-			"legacy": [
-				"lib/xnet_proxy.h",
-				"test/test_xnet_proxy.h",
-				"docs/case/xhttp-client-proxy-tls.md",
-				"docs/case/xhttp-client-proxy-tls.en.md"
 			]
 		},
 		{
@@ -8267,12 +7155,6 @@
 			"docs": [
 				"docs/api/proxy.md",
 				"docs/api/http.md"
-			],
-			"legacy": [
-				"lib/xnet_proxy.h",
-				"test/test_xnet_proxy.h",
-				"docs/case/xhttp-client-proxy-tls.md",
-				"docs/case/xhttp-client-proxy-tls.en.md"
 			]
 		},
 		{
@@ -8291,8 +7173,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": []
+			"docs": []
 		},
 		{
 			"name": "net_proxy_dial",
@@ -8318,10 +7199,6 @@
 			"docs": [
 				"docs/api/proxy.md",
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"lib/xnet_proxy.h",
-				"lib/xnet_stream.h"
 			]
 		},
 		{
@@ -8346,14 +7223,13 @@
 			"examples": [
 				"examples/network/proxy_dial/main.c"
 			],
-			"docs": [],
-			"legacy": [
-				"test/test_xnet_proxy.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_proxy_dial_socks5_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -8372,15 +7248,13 @@
 				"tests/single/test_single_net_proxy_dial_iocp.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"test/test_xnet_proxy.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_proxy_dial_socks5_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -8399,11 +7273,7 @@
 				"tests/single/test_single_net_proxy_dial_uring.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"test/test_xnet_proxy.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_proxy_dial_http_connect_tests",
@@ -8427,14 +7297,13 @@
 			],
 			"docs": [
 				"docs/api/proxy.md"
-			],
-			"legacy": [
-				"test/test_xnet_proxy.h"
 			]
 		},
 		{
 			"name": "net_proxy_dial_http_connect_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -8451,14 +7320,13 @@
 				"tests/single/test_single_net_proxy_dial_http_connect_iocp.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"test/test_xnet_proxy.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_proxy_dial_http_connect_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -8475,11 +7343,7 @@
 				"tests/single/test_single_net_proxy_dial_http_connect_uring.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"test/test_xnet_proxy.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "tls_session",
@@ -8515,10 +7379,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -8543,10 +7403,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h"
 			]
 		},
 		{
@@ -8580,10 +7436,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -8605,10 +7457,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -8632,9 +7480,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -8666,9 +7511,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -8698,10 +7540,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_anchor_verify.h"
 			]
 		},
 		{
@@ -8729,11 +7567,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"docs/api/api-network-tls.md",
-				"docs/api/api-network-tls.en.md"
 			]
 		},
 		{
@@ -8757,9 +7590,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"examples/network_tls/tls_session_resume/main.c"
 			]
 		},
 		{
@@ -8787,8 +7617,7 @@
 				"tests/single/test_single_tls_client_server_hello.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": []
+			"docs": []
 		},
 		{
 			"name": "tls_identity",
@@ -8820,9 +7649,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -8851,10 +7677,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"examples/example_tls_fixture.h"
 			]
 		},
 		{
@@ -8877,11 +7699,7 @@
 				"tests/single/test_single_tls_identity_rsa.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/nettls.h",
-				"examples/example_tls_fixture.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "tls_identity_ec",
@@ -8906,9 +7724,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -8934,10 +7749,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_crypto.h"
 			]
 		},
 		{
@@ -8958,11 +7769,7 @@
 				"tests/single/test_single_tls_identity_p256.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_crypto.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "tls_identity_p384",
@@ -8987,9 +7794,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -9010,10 +7814,7 @@
 				"tests/single/test_single_tls_identity_p384.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/nettls.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "tls_identity_ed25519",
@@ -9036,9 +7837,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -9059,10 +7857,7 @@
 				"tests/single/test_single_tls_identity_ed25519.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/nettls.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "tls_identity_builtin",
@@ -9085,10 +7880,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"examples/example_tls_fixture.h"
 			]
 		},
 		{
@@ -9109,10 +7900,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/nettls.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "tls_server",
@@ -9147,11 +7935,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h",
-				"test/test_tls_boundary.h",
-				"examples/network_tls/tls_session_handshake/main.c"
 			]
 		},
 		{
@@ -9178,9 +7961,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -9214,11 +7994,7 @@
 			"examples": [
 				"examples/tls/server/main.c"
 			],
-			"docs": [],
-			"legacy": [
-				"test/test_tls_boundary.h",
-				"examples/network_tls/tls_session_handshake/main.c"
-			]
+			"docs": []
 		},
 		{
 			"name": "tls_protocol_fuzz_tests",
@@ -9245,8 +8021,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "net_port",
@@ -9274,9 +8049,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_port.h"
 			]
 		},
 		{
@@ -9310,15 +8082,14 @@
 			],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_port_select.h",
-				"test/test_xnet2_port.h"
 			]
 		},
 		{
 			"name": "net_port_epoll",
-			"asset_platforms": ["linux", "android"],
+			"asset_platforms": [
+				"linux",
+				"android"
+			],
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_PORT_EPOLL",
 			"depends": [
@@ -9347,15 +8118,13 @@
 			],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_port_epoll.h",
-				"test/test_xnet2_port.h"
 			]
 		},
 		{
 			"name": "net_port_uring",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_PORT_URING",
 			"depends": [
@@ -9384,15 +8153,14 @@
 			],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"test/test_xnet2_port.h"
 			]
 		},
 		{
 			"name": "net_port_kqueue",
-			"asset_platforms": ["macos", "bsd"],
+			"asset_platforms": [
+				"macos",
+				"bsd"
+			],
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_PORT_KQUEUE",
 			"depends": [
@@ -9420,15 +8188,13 @@
 			],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_port_kqueue.h",
-				"test/test_xnet2_port.h"
 			]
 		},
 		{
 			"name": "net_port_iocp",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_PORT_IOCP",
 			"depends": [
@@ -9457,10 +8223,6 @@
 			],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"test/test_xnet2_port.h"
 			]
 		},
 		{
@@ -9527,12 +8289,6 @@
 			],
 			"docs": [
 				"docs/api/net.md"
-			],
-			"legacy": [
-				"lib/xnet_engine.h",
-				"test/test_xnet2_engine.h",
-				"test/test_xnet2_sync.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -9564,8 +8320,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/net-file.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "task_net",
@@ -9594,11 +8349,6 @@
 			],
 			"docs": [
 				"docs/api/task.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -9625,10 +8375,6 @@
 			],
 			"docs": [
 				"docs/api/task.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_sync.h"
 			]
 		},
 		{
@@ -9649,8 +8395,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/task.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "net_tcp",
@@ -9694,12 +8439,6 @@
 			],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_stream.h",
-				"test/test_xnet_ws.h"
 			]
 		},
 		{
@@ -9728,12 +8467,13 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "net_tcp_file_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -9750,8 +8490,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "net_tcp_server",
@@ -9784,12 +8523,6 @@
 			],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_stream.h",
-				"lib/xws.h",
-				"test/test_xnet_ws.h"
 			]
 		},
 		{
@@ -9816,11 +8549,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"lib/xnet_stream.h",
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -9839,8 +8567,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": []
+			"docs": []
 		},
 		{
 			"name": "net_tcp_server_sync",
@@ -9870,11 +8597,6 @@
 			],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"lib/xnet_stream.h",
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -9901,10 +8623,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/xnet_stream.h",
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -9935,12 +8653,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_tls.h"
 			]
 		},
 		{
@@ -9967,8 +8679,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tls.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "tls_stream_listener_future",
@@ -9995,8 +8706,7 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "tls_stream_listener_sync",
@@ -10022,8 +8732,7 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "tls_stream_listener_tests",
@@ -10054,8 +8763,7 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "tls_stream_future_tests",
@@ -10081,17 +8789,13 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_tls.h"
 			]
 		},
 		{
 			"name": "tls_stream_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10109,12 +8813,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"lib/xnet_sync.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_tls.h"
 			]
 		},
 		{
@@ -10136,12 +8834,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_tls.h"
 			]
 		},
 		{
@@ -10167,9 +8859,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/xnet_stream.h"
 			]
 		},
 		{
@@ -10199,11 +8888,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -10234,17 +8918,13 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_tls.h"
 			]
 		},
 		{
 			"name": "tls_stream_dial_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10266,12 +8946,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"lib/xnet_sync.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_tls.h"
 			]
 		},
 		{
@@ -10293,17 +8967,13 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_tls.h"
 			]
 		},
 		{
 			"name": "tls_stream_dial_future_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10325,12 +8995,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"lib/xnet_sync.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_tls.h"
 			]
 		},
 		{
@@ -10356,8 +9020,7 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/api/future.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "tls_stream_dial_tests",
@@ -10388,14 +9051,13 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/xnet_stream.h"
 			]
 		},
 		{
 			"name": "tls_stream_dial_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10417,15 +9079,13 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"lib/xnet_stream.h"
 			]
 		},
 		{
 			"name": "tls_stream_dial_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10447,10 +9107,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"lib/xnet_stream.h"
 			]
 		},
 		{
@@ -10476,8 +9132,7 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "tls_stream_tests",
@@ -10520,16 +9175,13 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/xnet_stream.h",
-				"lib/nettls.h",
-				"examples/network_tls/tls_session_handshake/main.c"
 			]
 		},
 		{
 			"name": "tls_stream_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10558,16 +9210,13 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"lib/xnet_stream.h",
-				"lib/nettls.h"
 			]
 		},
 		{
 			"name": "tls_stream_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10595,11 +9244,6 @@
 			"docs": [
 				"docs/api/tls.md",
 				"docs/design/tls-session.md"
-			],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"lib/xnet_stream.h",
-				"lib/nettls.h"
 			]
 		},
 		{
@@ -10623,10 +9267,6 @@
 			"docs": [
 				"docs/api/net.md",
 				"docs/api/future.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_sync.h"
 			]
 		},
 		{
@@ -10658,10 +9298,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"lib/xnet_stream.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -10692,14 +9328,13 @@
 			],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h"
 			]
 		},
 		{
 			"name": "net_tcp_dial_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10716,15 +9351,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"lib/xnet_stream.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_dial_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10741,15 +9374,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"lib/xnet_stream.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_dial_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10765,16 +9396,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"lib/xnet_stream.h",
-				"lib/xnet_sync.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_dial_future_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10790,12 +9418,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"lib/xnet_stream.h",
-				"lib/xnet_sync.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_future",
@@ -10829,12 +9452,6 @@
 			],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_convenience.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -10863,12 +9480,6 @@
 			],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_convenience.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -10897,14 +9508,13 @@
 			],
 			"docs": [
 				"docs/api/tcp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h"
 			]
 		},
 		{
 			"name": "net_tcp_sync_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10919,15 +9529,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_port_iocp.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_dial_sync_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -10942,11 +9550,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_port_iocp.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_sync_threads_tests",
@@ -10968,10 +9572,6 @@
 				"docs/api/net.md",
 				"docs/api/tcp.md",
 				"docs/api/udp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -10995,10 +9595,6 @@
 				"docs/api/net.md",
 				"docs/api/tcp.md",
 				"docs/api/udp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
@@ -11022,15 +9618,13 @@
 				"docs/api/future.md",
 				"docs/api/tcp.md",
 				"docs/api/udp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
 			]
 		},
 		{
 			"name": "net_future_coroutine_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11045,16 +9639,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_port_iocp.h",
-				"test/test_xnet2_sync.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_sync_oom_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11069,16 +9660,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_port_iocp.h",
-				"test/test_xnet2_sync.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_sync_threads_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11093,16 +9681,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_port_iocp.h",
-				"test/test_xnet2_sync.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11124,17 +9709,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_iocp.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_port.h",
-				"test/test_xnet2_stream.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11157,17 +9738,13 @@
 				"tests/single/test_single_net_tcp_uring.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"lib/xnet_stream.h",
-				"test/test_xnet2_port.h",
-				"test/test_xnet2_stream.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11185,15 +9762,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_tcp_future_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11211,12 +9786,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_port_uring.h",
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_udp",
@@ -11253,16 +9823,13 @@
 			],
 			"docs": [
 				"docs/api/udp.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/xnet_dgram.h",
-				"test/test_xnet2_dgram.h"
 			]
 		},
 		{
 			"name": "net_udp_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11282,17 +9849,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_dgram.h",
-				"lib/xnet_port_iocp.h",
-				"test/test_xnet2_dgram.h",
-				"test/test_xnet2_port.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_udp_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11313,13 +9876,7 @@
 				"tests/single/test_single_net_udp_uring.c"
 			],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_dgram.h",
-				"lib/xnet_port_uring.h",
-				"test/test_xnet2_dgram.h",
-				"test/test_xnet2_port.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_udp_future",
@@ -11352,12 +9909,6 @@
 			],
 			"docs": [
 				"docs/api/udp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_convenience.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -11387,17 +9938,13 @@
 			],
 			"docs": [
 				"docs/api/udp.md"
-			],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_convenience.h",
-				"xrt.h"
 			]
 		},
 		{
 			"name": "net_udp_sync_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11412,16 +9959,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_dgram.h",
-				"lib/xnet_port_iocp.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_udp_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11437,19 +9981,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_dgram.h",
-				"lib/xnet_port_iocp.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_dgram.h",
-				"test/test_xnet2_port.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_udp_sync_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11464,16 +10002,13 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_dgram.h",
-				"lib/xnet_port_uring.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "net_udp_future_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -11489,15 +10024,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": [
-				"lib/xnet_sync.h",
-				"lib/xnet_dgram.h",
-				"lib/xnet_port_uring.h",
-				"test/test_xnet2_sync.h",
-				"test/test_xnet2_dgram.h",
-				"test/test_xnet2_port.h"
-			]
+			"docs": []
 		},
 		{
 			"name": "sem",
@@ -11524,11 +10051,6 @@
 			],
 			"docs": [
 				"docs/api/sync.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/thread.h",
-				"test/test_thread_core.h"
 			]
 		},
 		{
@@ -11555,11 +10077,6 @@
 			],
 			"docs": [
 				"docs/api/sync.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/thread.h",
-				"test/test_rwlock.h"
 			]
 		},
 		{
@@ -11585,8 +10102,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/sync.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "time_local",
@@ -11611,10 +10127,6 @@
 			],
 			"docs": [
 				"docs/api/time.md"
-			],
-			"legacy": [
-				"lib/time.h",
-				"examples/time/timezone/main.c"
 			]
 		},
 		{
@@ -11643,14 +10155,6 @@
 			],
 			"docs": [
 				"docs/api/time.md"
-			],
-			"legacy": [
-				"lib/time.h",
-				"test/test_time.h",
-				"examples/time/time_format/main.c",
-				"docs/api/api-time.md",
-				"docs/api/api-time.en.md",
-				"docs/guide/time-path-file-intro.md"
 			]
 		},
 		{
@@ -11682,16 +10186,6 @@
 			],
 			"docs": [
 				"docs/api/path.md"
-			],
-			"legacy": [
-				"lib/path.h",
-				"test/test_path.h",
-				"examples/path/path_check/main.c",
-				"examples/path/path_join/main.c",
-				"examples/path/path_parse/main.c",
-				"docs/api/api-path.md",
-				"docs/api/api-path.en.md",
-				"docs/guide/time-path-file-intro.md"
 			]
 		},
 		{
@@ -11719,15 +10213,6 @@
 			],
 			"docs": [
 				"docs/api/path.md"
-			],
-			"legacy": [
-				"lib/path.h",
-				"test/test_path.h",
-				"examples/path/path_check/main.c",
-				"examples/path/path_parse/main.c",
-				"docs/api/api-path.md",
-				"docs/api/api-path.en.md",
-				"docs/guide/time-path-file-intro.md"
 			]
 		},
 		{
@@ -11752,13 +10237,6 @@
 			],
 			"docs": [
 				"docs/api/path.md"
-			],
-			"legacy": [
-				"lib/path.h",
-				"test/test_path.h",
-				"examples/path/path_check/main.c",
-				"docs/api/api-path.md",
-				"docs/api/api-path.en.md"
 			]
 		},
 		{
@@ -11789,14 +10267,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/file.h",
-				"test/test_file.h",
-				"test/test_file_core.h",
-				"examples/file/binary_io/main.c",
-				"examples/file/file_info/main.c",
-				"examples/file/read_write/main.c"
 			]
 		},
 		{
@@ -11822,8 +10292,7 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "file_map",
@@ -11849,8 +10318,7 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "file_temp",
@@ -11879,13 +10347,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/path.h",
-				"lib/file.h",
-				"test/test_path.h",
-				"docs/api/api-path.md",
-				"docs/api/api-file.md"
 			]
 		},
 		{
@@ -11909,9 +10370,6 @@
 			"examples": [],
 			"docs": [
 				"docs/api/file_async.md"
-			],
-			"legacy": [
-				"lib/file_async.h"
 			]
 		},
 		{
@@ -11947,16 +10405,6 @@
 			],
 			"docs": [
 				"docs/api/file_async.md"
-			],
-			"legacy": [
-				"lib/file_async.h",
-				"test/test_file_async.h",
-				"examples/file_async/async_read_write/main.c",
-				"examples/file_async/dir_tasks/main.c",
-				"examples/file_async/file_helpers/main.c",
-				"docs/api/api-file-async.md",
-				"docs/guide/file-async-intro.md",
-				"docs/guide/file-async-intro.en.md"
 			]
 		},
 		{
@@ -11988,11 +10436,6 @@
 			],
 			"docs": [
 				"docs/api/file_async.md"
-			],
-			"legacy": [
-				"lib/file_async.h",
-				"test/test_file_async.h",
-				"examples/file_async/file_helpers/main.c"
 			]
 		},
 		{
@@ -12024,11 +10467,6 @@
 			],
 			"docs": [
 				"docs/api/file_async.md"
-			],
-			"legacy": [
-				"lib/file_async.h",
-				"test/test_file_async.h",
-				"examples/file_async/file_helpers/main.c"
 			]
 		},
 		{
@@ -12060,11 +10498,6 @@
 			],
 			"docs": [
 				"docs/api/file_async.md"
-			],
-			"legacy": [
-				"lib/file_async.h",
-				"test/test_file_async.h",
-				"examples/file_async/dir_tasks/main.c"
 			]
 		},
 		{
@@ -12096,11 +10529,6 @@
 			],
 			"docs": [
 				"docs/api/file_async.md"
-			],
-			"legacy": [
-				"lib/file_async.h",
-				"test/test_file_async.h",
-				"examples/file_async/dir_tasks/main.c"
 			]
 		},
 		{
@@ -12127,13 +10555,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/file.h",
-				"test/test_file.h",
-				"test/test_file_core.h",
-				"examples/file/file_readall/main.c",
-				"examples/file/file_manage/main.c"
 			]
 		},
 		{
@@ -12161,13 +10582,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/file.h",
-				"test/test_file.h",
-				"examples/file/read_write/main.c",
-				"docs/api/api-file.md",
-				"docs/api/api-file.en.md"
 			]
 		},
 		{
@@ -12196,14 +10610,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/file.h",
-				"test/test_file.h",
-				"test/test_file_rootfs.h",
-				"test/test_file_dirscan_ex.h",
-				"test/test_file_dirscan_contract.h",
-				"examples/file/dir_operations/main.c"
 			]
 		},
 		{
@@ -12231,10 +10637,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/path.h",
-				"docs/api/api-path.md"
 			]
 		},
 		{
@@ -12261,12 +10663,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/file.h",
-				"test/test_file.h",
-				"test/test_file_dirscan_ex.h",
-				"test/test_file_dirscan_contract.h"
 			]
 		},
 		{
@@ -12294,9 +10690,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/file.h"
 			]
 		},
 		{
@@ -12327,8 +10720,7 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "file_tree",
@@ -12357,15 +10749,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/file.h",
-				"test/test_file.h",
-				"test/test_file_dirscan_ex.h",
-				"test/test_file_dirscan_contract.h",
-				"examples/file/dir_operations/main.c",
-				"docs/api/api-file.md",
-				"docs/api/api-file.en.md"
 			]
 		},
 		{
@@ -12391,9 +10774,6 @@
 			],
 			"docs": [
 				"docs/api/file.md"
-			],
-			"legacy": [
-				"lib/file.h"
 			]
 		},
 		{
@@ -12423,14 +10803,6 @@
 			],
 			"docs": [
 				"docs/api/pool.md"
-			],
-			"legacy": [
-				"lib/memunit.h",
-				"test/test_memunit.h",
-				"examples/memunit/mem_unit/main.c",
-				"docs/api/api-memunit.md",
-				"docs/api/api-memunit.en.md",
-				"docs/guide/memunit-intro.md"
 			]
 		},
 		{
@@ -12456,21 +10828,6 @@
 			],
 			"docs": [
 				"docs/api/pool.md"
-			],
-			"legacy": [
-				"lib/bsmm.h",
-				"lib/mempool_fs.h",
-				"test/test_bsmm.h",
-				"test/test_mempool_fs.h",
-				"examples/bsmm/block_memory/main.c",
-				"examples/mempool/fs_mempool/main.c",
-				"examples/mempool/mempool_gc/main.c",
-				"docs/api/api-bsmm.md",
-				"docs/api/api-bsmm.en.md",
-				"docs/api/api-mempool-fs.md",
-				"docs/api/api-mempool-fs.en.md",
-				"docs/guide/bsmm-intro.md",
-				"docs/guide/mempool-fs-intro.md"
 			]
 		},
 		{
@@ -12497,16 +10854,6 @@
 			],
 			"docs": [
 				"docs/api/pool.md"
-			],
-			"legacy": [
-				"lib/mempool.h",
-				"test/test_mempool.h",
-				"test/test_mempool_core.h",
-				"examples/mempool/general_mempool/main.c",
-				"examples/mempool/mempool_gc/main.c",
-				"docs/api/api-mempool.md",
-				"docs/api/api-mempool.en.md",
-				"docs/guide/mempool-intro.md"
 			]
 		},
 		{
@@ -12537,15 +10884,6 @@
 			],
 			"docs": [
 				"docs/api/array.md"
-			],
-			"legacy": [
-				"lib/array.h",
-				"test/test_array_struct.h",
-				"examples/array/array_sort/main.c",
-				"examples/array/struct_array/main.c",
-				"docs/api/api-array.md",
-				"docs/api/api-array.en.md",
-				"docs/guide/array-intro.md"
 			]
 		},
 		{
@@ -12575,13 +10913,6 @@
 			],
 			"docs": [
 				"docs/api/list.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"docs/api/api-llist-base.md",
-				"docs/api/api-llist-base.en.md",
-				"docs/api/api-llist.md",
-				"docs/api/api-llist.en.md"
 			]
 		},
 		{
@@ -12610,18 +10941,6 @@
 			],
 			"docs": [
 				"docs/api/buffer.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/buffer.h",
-				"lib/xws.h",
-				"test/test_buffer.h",
-				"test/test_buffer_insert_contract.c",
-				"examples/buffer/basic_buffer/main.c",
-				"examples/buffer/buffer_builder/main.c",
-				"docs/api/api-buffer.md",
-				"docs/api/api-buffer.en.md",
-				"docs/guide/buffer-intro.md"
 			]
 		},
 		{
@@ -12651,11 +10970,6 @@
 			],
 			"docs": [
 				"docs/api/io.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/stream.h",
-				"test/test_stream.c"
 			]
 		},
 		{
@@ -12686,11 +11000,6 @@
 			],
 			"docs": [
 				"docs/api/io.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/stream.h",
-				"test/test_stream.c"
 			]
 		},
 		{
@@ -12721,11 +11030,6 @@
 			],
 			"docs": [
 				"docs/api/io.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/stream.h",
-				"test/test_stream.c"
 			]
 		},
 		{
@@ -12756,9 +11060,6 @@
 			],
 			"docs": [
 				"docs/api/io.md"
-			],
-			"legacy": [
-				"examples/tools/log_analyzer/main.c"
 			]
 		},
 		{
@@ -12779,8 +11080,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/io.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "io_buffer_oom_tests",
@@ -12800,8 +11100,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/io.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "io_line_oom_tests",
@@ -12821,8 +11120,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/io.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "io_file_oom_tests",
@@ -12842,8 +11140,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/io.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "buffer_hex",
@@ -12872,11 +11169,6 @@
 			],
 			"docs": [
 				"docs/api/buffer.md"
-			],
-			"legacy": [
-				"lib/buffer.h",
-				"docs/api/api-buffer.md",
-				"docs/api/api-buffer.en.md"
 			]
 		},
 		{
@@ -12906,11 +11198,6 @@
 			],
 			"docs": [
 				"docs/api/buffer.md"
-			],
-			"legacy": [
-				"lib/buffer.h",
-				"docs/api/api-buffer.md",
-				"docs/api/api-buffer.en.md"
 			]
 		},
 		{
@@ -12936,14 +11223,6 @@
 			],
 			"docs": [
 				"docs/api/array.md"
-			],
-			"legacy": [
-				"lib/array_point.h",
-				"test/test_array_ptr.h",
-				"examples/array/ptr_array/main.c",
-				"docs/api/api-ptrarray.md",
-				"docs/api/api-ptrarray.en.md",
-				"docs/guide/ptrarray-intro.md"
 			]
 		},
 		{
@@ -12974,13 +11253,6 @@
 			],
 			"docs": [
 				"docs/api/slot_map.md"
-			],
-			"legacy": [
-				"lib/array_point.h",
-				"examples/array/ptr_array/main.c",
-				"docs/api/api-ptrarray.md",
-				"docs/api/api-ptrarray.en.md",
-				"docs/guide/ptrarray-intro.md"
 			]
 		},
 		{
@@ -13010,11 +11282,6 @@
 			],
 			"docs": [
 				"docs/api/avl.md"
-			],
-			"legacy": [
-				"lib/avltree_base.h",
-				"docs/api/api-avltree-base.md",
-				"docs/api/api-avltree-base.en.md"
 			]
 		},
 		{
@@ -13042,17 +11309,6 @@
 			],
 			"docs": [
 				"docs/api/avl.md"
-			],
-			"legacy": [
-				"lib/avltree.h",
-				"test/test_avltree.h",
-				"test/test_avltree_iterator.h",
-				"examples/avltree/avltree_custom/main.c",
-				"examples/avltree/avltree_iterator/main.c",
-				"examples/avltree/basic_avltree/main.c",
-				"docs/api/api-avltree.md",
-				"docs/api/api-avltree.en.md",
-				"docs/guide/avltree-intro.md"
 			]
 		},
 		{
@@ -13083,16 +11339,6 @@
 			],
 			"docs": [
 				"docs/api/map.md"
-			],
-			"legacy": [
-				"lib/list.h",
-				"test/test_list.h",
-				"test/test_list_iterator.h",
-				"examples/list/basic_list/main.c",
-				"examples/list/list_iterator/main.c",
-				"docs/api/api-list.md",
-				"docs/api/api-list.en.md",
-				"docs/guide/list-intro.md"
 			]
 		},
 		{
@@ -13128,17 +11374,6 @@
 			],
 			"docs": [
 				"docs/api/map.md"
-			],
-			"legacy": [
-				"lib/dict.h",
-				"test/test_dict.h",
-				"test/test_dict_iterator.h",
-				"examples/dict/basic_dict/main.c",
-				"examples/dict/dict_iterator/main.c",
-				"examples/dict/dict_ptr/main.c",
-				"docs/api/api-dict.md",
-				"docs/api/api-dict.en.md",
-				"docs/guide/dict-intro.md"
 			]
 		},
 		{
@@ -13167,9 +11402,6 @@
 				"docs/api/map.md",
 				"docs/api/avl.md",
 				"docs/api/pool.md"
-			],
-			"legacy": [
-				"test/test_runtime_phase2.h"
 			]
 		},
 		{
@@ -13206,11 +11438,6 @@
 			],
 			"docs": [
 				"docs/api/set.md"
-			],
-			"legacy": [
-				"lib/set.h",
-				"test/test_runtime_type.h",
-				"xrt.h"
 			]
 		},
 		{
@@ -13249,13 +11476,6 @@
 			],
 			"docs": [
 				"docs/api/value.md"
-			],
-			"legacy": [
-				"lib/value.h",
-				"xrt.h",
-				"test/test_value.h",
-				"docs/api/api-value.md",
-				"docs/api/api-value.en.md"
 			]
 		},
 		{
@@ -13295,22 +11515,6 @@
 			],
 			"docs": [
 				"docs/api/value.md"
-			],
-			"legacy": [
-				"lib/value.h",
-				"test/test_value.h",
-				"test/test_value_cow.c",
-				"test/test_value_negative_index.c",
-				"test/test_value_recursive_graph.h",
-				"test/test_value_shared_publish.c",
-				"examples/value/basic_types/main.c",
-				"examples/value/refcount/main.c",
-				"examples/value/value_array/main.c",
-				"examples/value/value_list/main.c",
-				"examples/value/value_coll/main.c",
-				"examples/value/value_table/main.c",
-				"docs/guide/xvalue-json-intro.md",
-				"docs/guide/xvalue-json-intro.en.md"
 			]
 		},
 		{
@@ -13344,14 +11548,6 @@
 			],
 			"docs": [
 				"docs/api/value.md"
-			],
-			"legacy": [
-				"lib/value.h",
-				"test/test_value.h",
-				"test/test_typed_container.h",
-				"examples/value/value_array/main.c",
-				"examples/value/value_coll/main.c",
-				"examples/value/value_table/main.c"
 			]
 		},
 		{
@@ -13379,13 +11575,6 @@
 			],
 			"docs": [
 				"docs/api/value.md"
-			],
-			"legacy": [
-				"lib/value.h",
-				"test/test_value_cow.c",
-				"test/test_value_recursive_graph.h",
-				"test/test_value_shared_publish.c",
-				"examples/value/deep_copy/main.c"
 			]
 		},
 		{
@@ -13412,11 +11601,6 @@
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/json.h",
-				"docs/api/api-json.md",
-				"docs/api/api-json.en.md"
 			]
 		},
 		{
@@ -13446,9 +11630,6 @@
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/json.h"
 			]
 		},
 		{
@@ -13482,16 +11663,6 @@
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/json.h",
-				"test/test_json.h",
-				"test/test_json_lifecycle.c",
-				"test/test_json_stream.c",
-				"examples/json/parse_json/main.c",
-				"examples/json/sax_parser/main.c",
-				"docs/api/api-json.md",
-				"docs/api/api-json.en.md"
 			]
 		},
 		{
@@ -13525,15 +11696,6 @@
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/json.h",
-				"test/test_json.h",
-				"test/test_json_stream.c",
-				"examples/json/generate_json/main.c",
-				"examples/json/sax_printer/main.c",
-				"docs/api/api-json.md",
-				"docs/api/api-json.en.md"
 			]
 		},
 		{
@@ -13563,13 +11725,6 @@
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/json.h",
-				"examples/json/json_file/main.c",
-				"examples/tools/json_config/main.c",
-				"docs/case/json-config-system.md",
-				"docs/case/json-config-system.en.md"
 			]
 		},
 		{
@@ -13606,17 +11761,6 @@
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/json.h",
-				"test/test_json.h",
-				"test/test_json_lifecycle.c",
-				"test/test_json_stream.c",
-				"test/test_json_xson_bench.h",
-				"docs/api/api-json.md",
-				"docs/api/api-json.en.md",
-				"docs/guide/xvalue-json-intro.md",
-				"docs/guide/xvalue-json-intro.en.md"
 			]
 		},
 		{
@@ -13643,11 +11787,6 @@
 			"docs": [
 				"docs/api/xson.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/xson.h",
-				"docs/api/api-xson.md",
-				"docs/api/api-xson.en.md"
 			]
 		},
 		{
@@ -13683,13 +11822,6 @@
 			"docs": [
 				"docs/api/xson.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/xson.h",
-				"test/test_xson.h",
-				"test/test_json_xson_bench.h",
-				"docs/guide/xson-intro.md",
-				"examples/xson/parse_xson/main.c"
 			]
 		},
 		{
@@ -13726,14 +11858,6 @@
 			"docs": [
 				"docs/api/xson.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/xson.h",
-				"test/test_xson.h",
-				"test/test_json_xson_bench.h",
-				"examples/xson/generate_xson/main.c",
-				"docs/api/api-xson.md",
-				"docs/api/api-xson.en.md"
 			]
 		},
 		{
@@ -13763,13 +11887,6 @@
 			"docs": [
 				"docs/api/xson.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/xson.h",
-				"test/test_xson.h",
-				"examples/xson/xson_file/main.c",
-				"docs/api/api-xson.md",
-				"docs/api/api-xson.en.md"
 			]
 		},
 		{
@@ -13806,14 +11923,6 @@
 			"docs": [
 				"docs/api/xson.md",
 				"docs/design/json-xson.md"
-			],
-			"legacy": [
-				"lib/xson.h",
-				"test/test_xson.h",
-				"test/test_json_xson_bench.h",
-				"docs/api/api-xson.md",
-				"docs/api/api-xson.en.md",
-				"docs/guide/xson-intro.md"
 			]
 		},
 		{
@@ -13852,22 +11961,6 @@
 			"docs": [
 				"docs/api/template.md",
 				"docs/design/template.md"
-			],
-			"legacy": [
-				"lib/template.h",
-				"test/test_template.h",
-				"docs/api/api-template.md",
-				"docs/api/api-template.en.md",
-				"docs/guide/template-intro.md",
-				"docs/case/http-json-template-chain.md",
-				"docs/case/http-json-template-chain.en.md",
-				"docs/case/template-render-html.md",
-				"docs/case/template-render-html.en.md",
-				"examples/template/basic_template/main.c",
-				"examples/template/template_control/main.c",
-				"examples/template/template_expr/main.c",
-				"examples/template/template_sub/main.c",
-				"examples/template/template_vars/main.c"
 			]
 		},
 		{
@@ -13903,8 +11996,7 @@
 			"docs": [
 				"docs/api/template.md",
 				"docs/design/template.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "template_compose",
@@ -13937,8 +12029,7 @@
 			"docs": [
 				"docs/api/template.md",
 				"docs/design/template.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "template_extension",
@@ -13971,8 +12062,7 @@
 			"docs": [
 				"docs/api/template.md",
 				"docs/design/template.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "template_file",
@@ -14004,8 +12094,7 @@
 			"docs": [
 				"docs/api/template.md",
 				"docs/design/template.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "xid",
@@ -14044,10 +12133,6 @@
 				"dev/bench/xid/bench_xid.c",
 				"dev/bench/xid/README.md",
 				"dev/bench/xid/XID_BENCH_20260801.md"
-			],
-			"legacy": [
-				"lib/xid.h",
-				"docs/guide/xid-intro.md"
 			]
 		},
 		{
@@ -14071,9 +12156,6 @@
 			],
 			"docs": [
 				"docs/guide/time-path-file.md"
-			],
-			"legacy": [
-				"docs/guide/time-path-file-intro.md"
 			]
 		},
 		{
@@ -14094,14 +12176,6 @@
 				"docs/PERFORMANCE.md",
 				"dev/bench/size/SIZE_BASELINE_WINDOWS_GCC16_X64.md",
 				"dev/bench/performance/PERFORMANCE_BASELINE_WINDOWS_GCC16_X64.md"
-			],
-			"legacy": [
-				"docs/BEST_PRACTICES.en.md",
-				"docs/BEST_PRACTICES.md",
-				"docs/FAQ.en.md",
-				"docs/FAQ.md",
-				"docs/guide/README.md",
-				"docs/guide/README.en.md"
 			]
 		},
 		{
@@ -14131,8 +12205,7 @@
 			],
 			"docs": [
 				"docs/api/console.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "logger_core",
@@ -14166,12 +12239,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h",
-				"test/test_logger.h",
-				"docs/api/api-logger.md",
-				"docs/guide/logger-intro.md"
 			]
 		},
 		{
@@ -14201,9 +12268,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h"
 			]
 		},
 		{
@@ -14232,9 +12296,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h"
 			]
 		},
 		{
@@ -14265,9 +12326,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h"
 			]
 		},
 		{
@@ -14299,9 +12357,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h"
 			]
 		},
 		{
@@ -14333,12 +12388,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h",
-				"test/test_logger.h",
-				"docs/api/api-logger.md",
-				"docs/guide/logger-intro.md"
 			]
 		},
 		{
@@ -14369,9 +12418,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h"
 			]
 		},
 		{
@@ -14404,12 +12450,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h",
-				"test/test_logger.h",
-				"docs/api/api-logger.md",
-				"docs/guide/logger-intro.md"
 			]
 		},
 		{
@@ -14439,10 +12479,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h",
-				"test/test_logger.h"
 			]
 		},
 		{
@@ -14472,10 +12508,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h",
-				"test/test_logger.h"
 			]
 		},
 		{
@@ -14509,12 +12541,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h",
-				"test/test_logger.h",
-				"docs/api/api-logger.md",
-				"docs/guide/logger-intro.md"
 			]
 		},
 		{
@@ -14549,12 +12575,6 @@
 			"docs": [
 				"docs/api/logger.md",
 				"docs/design/logger.md"
-			],
-			"legacy": [
-				"lib/logger.h",
-				"test/test_logger.h",
-				"docs/api/api-logger.md",
-				"docs/guide/logger-intro.md"
 			]
 		},
 		{
@@ -14582,11 +12602,6 @@
 			],
 			"docs": [
 				"docs/api/environment.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/os.h",
-				"test/test_os.h"
 			]
 		},
 		{
@@ -14605,8 +12620,7 @@
 			],
 			"single_tests": [],
 			"examples": [],
-			"docs": [],
-			"legacy": []
+			"docs": []
 		},
 		{
 			"name": "signal",
@@ -14641,10 +12655,6 @@
 			],
 			"docs": [
 				"docs/api/signal.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/signal.h"
 			]
 		},
 		{
@@ -14665,8 +12675,7 @@
 			"examples": [],
 			"docs": [
 				"docs/api/signal.md"
-			],
-			"legacy": []
+			]
 		},
 		{
 			"name": "process",
@@ -14701,20 +12710,6 @@
 			"docs": [
 				"docs/api/process.md",
 				"docs/design/process.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/subprocess.h",
-				"test/test_os.h",
-				"docs/api/api-subprocess.md",
-				"docs/guide/subprocess-intro.md",
-				"docs/guide/subprocess-intro.en.md",
-				"docs/case/subprocess-file-async-pipeline.md",
-				"docs/case/subprocess-file-async-pipeline.en.md",
-				"docs/case/subprocess-probe-dashboard.md",
-				"docs/case/subprocess-probe-dashboard.en.md",
-				"examples/os/subprocess_basic/main.c",
-				"docs/guide/os-intro.md"
 			]
 		},
 		{
@@ -14752,13 +12747,6 @@
 			"docs": [
 				"docs/api/process.md",
 				"docs/design/process.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"test/test_os.h",
-				"docs/api/api-os.md",
-				"docs/api/api-os.en.md",
-				"docs/guide/os-intro.md"
 			]
 		},
 		{
@@ -14792,20 +12780,6 @@
 			"docs": [
 				"docs/api/process.md",
 				"docs/design/process.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/subprocess.h",
-				"test/test_os.h",
-				"docs/api/api-subprocess.md",
-				"docs/guide/subprocess-intro.md",
-				"docs/guide/subprocess-intro.en.md",
-				"docs/case/subprocess-file-async-pipeline.md",
-				"docs/case/subprocess-file-async-pipeline.en.md",
-				"docs/case/subprocess-probe-dashboard.md",
-				"docs/case/subprocess-probe-dashboard.en.md",
-				"examples/os/subprocess_basic/main.c",
-				"docs/guide/os-intro.md"
 			]
 		},
 		{
@@ -14840,12 +12814,6 @@
 			"docs": [
 				"docs/api/process.md",
 				"docs/design/process.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/subprocess.h",
-				"test/test_os.h",
-				"docs/api/api-subprocess.md"
 			]
 		},
 		{
@@ -14878,19 +12846,6 @@
 			"docs": [
 				"docs/api/process.md",
 				"docs/design/process.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/subprocess.h",
-				"test/test_os.h",
-				"docs/api/api-subprocess.md",
-				"docs/guide/subprocess-intro.md",
-				"docs/guide/subprocess-intro.en.md",
-				"docs/case/subprocess-file-async-pipeline.md",
-				"docs/case/subprocess-file-async-pipeline.en.md",
-				"docs/case/subprocess-probe-dashboard.md",
-				"docs/case/subprocess-probe-dashboard.en.md",
-				"docs/guide/os-intro.md"
 			]
 		},
 		{
@@ -14922,12 +12877,6 @@
 			"docs": [
 				"docs/api/process.md",
 				"docs/design/process.md"
-			],
-			"legacy": [
-				"lib/subprocess.h",
-				"test/test_os.h",
-				"docs/case/subprocess-file-async-pipeline.md",
-				"docs/case/subprocess-file-async-pipeline.en.md"
 			]
 		},
 		{
@@ -14958,15 +12907,6 @@
 			"docs": [
 				"docs/api/process.md",
 				"docs/design/process.md"
-			],
-			"legacy": [
-				"xrt.h",
-				"lib/subprocess.h",
-				"test/test_os.h",
-				"docs/api/api-subprocess.md",
-				"docs/guide/subprocess-intro.md",
-				"docs/guide/subprocess-intro.en.md",
-				"examples/os/subprocess_basic/main.c"
 			]
 		},
 		{
@@ -15003,14 +12943,6 @@
 			],
 			"docs": [
 				"docs/api/stack.md"
-			],
-			"legacy": [
-				"lib/stack.h",
-				"test/test_stack.h",
-				"examples/stack/static_stack/main.c",
-				"docs/api/api-stack.md",
-				"docs/api/api-stack.en.md",
-				"docs/guide/stack-intro.md"
 			]
 		},
 		{
@@ -15041,14 +12973,6 @@
 			],
 			"docs": [
 				"docs/api/stack.md"
-			],
-			"legacy": [
-				"lib/stack.h",
-				"test/test_stack_ptr.h",
-				"examples/stack/ptr_stack/main.c",
-				"docs/api/api-stack.md",
-				"docs/api/api-stack.en.md",
-				"docs/guide/stack-intro.md"
 			]
 		},
 		{
@@ -15085,14 +13009,6 @@
 			],
 			"docs": [
 				"docs/api/stack.md"
-			],
-			"legacy": [
-				"lib/stack_dyn.h",
-				"test/test_dynstack.h",
-				"examples/stack/dynamic_stack/main.c",
-				"docs/api/api-dynstack.md",
-				"docs/api/api-dynstack.en.md",
-				"docs/guide/dynstack-intro.md"
 			]
 		},
 		{
@@ -15129,14 +13045,6 @@
 			],
 			"docs": [
 				"docs/api/stack.md"
-			],
-			"legacy": [
-				"lib/stack_dyn.h",
-				"test/test_dynstack.h",
-				"examples/stack/dynamic_stack/main.c",
-				"docs/api/api-dynstack.md",
-				"docs/api/api-dynstack.en.md",
-				"docs/guide/dynstack-intro.md"
 			]
 		},
 		{
@@ -15168,14 +13076,6 @@
 			],
 			"docs": [
 				"docs/api/stack.md"
-			],
-			"legacy": [
-				"lib/stack_dyn.h",
-				"test/test_dynstack_ptr.h",
-				"examples/stack/ptr_stack/main.c",
-				"docs/api/api-dynstack.md",
-				"docs/api/api-dynstack.en.md",
-				"docs/guide/dynstack-intro.md"
 			]
 		},
 		{
@@ -15194,7 +13094,6 @@
 			"docs": [
 				"docs/ARCHITECTURE.md"
 			],
-			"legacy": [],
 			"link_libraries": {
 				"windows": [
 					"ws2_32",

@@ -256,8 +256,7 @@ if ( xrtMapIterBegin(&map, &iterator) ) {
 - 退休基础容器内的 owner/shared 锁分支；线程同步由上层明确选择。
 - 调试分配位置统一由中央内存调试层处理，不再生成容器专属 Dbg API。
 
-旧版完整百万/千万压力测试保留在 `dev/ver1/test/test_dict.h`，并已迁移为
-`dev/bench/map/bench_map.c` 的当前单头发布基准。日常回归执行稳定地址、
+发布级百万/千万压力测试位于 `dev/bench/map/bench_map.c`。日常回归执行稳定地址、
 20,000 键扩容和 200,000 次查询；发布基准恢复 1,000,000 次插入和
 10,000,000 次命中查询，验证键数、每次查询值和最终校验和。当前同环境结果与使用边界
 记录在 `dev/bench/map/MAP_BENCH_20260728.md`。

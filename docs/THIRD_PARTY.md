@@ -44,8 +44,7 @@ SOFTWARE.
   分配 helper；`tdefl` 使用约 164 KiB 的低内存状态布局；增加 8 到 15 位
   精确窗口限制，使解码器校验线路
   回溯距离和当前流实际可用历史，编码器限制匹配距离并写出对应 zlib CINFO；
-  复位保留的字典内存不会被非法流作为历史读取。完整旧资产仍保留在只读
-  `dev/ver1`。
+  复位保留的字典内存不会被非法流作为历史读取。
 
 Copyright 2013-2014 RAD Game Tools and Valve Software
 Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
@@ -119,7 +118,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ## Brad Conte SHA-256
 
 - 作者：Brad Conte
-- 来源：旧版 XRT 资产 `dev/ver1/lib/crypto.h`；<https://github.com/B-Con/crypto-algorithms>
+- 来源：<https://github.com/B-Con/crypto-algorithms>
 - 使用位置：`src/crypto/sha256.c`
 - 许可证：Public Domain
 - 改动：扩展 SHA-224，共享压缩核心，并补充状态 Guard、累计长度上限、失败原子性、分块一致性和统一错误模型。
@@ -127,7 +126,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ## portable8439 与 poly1305-donna
 
 - 作者：portable8439 contributors；Andrew Moon（poly1305-donna）
-- 来源：旧版 XRT 资产 `dev/ver1/lib/crypto.h`；<https://github.com/floodyberry/poly1305-donna>
+- 来源：<https://github.com/floodyberry/poly1305-donna>
 - 使用位置：`src/crypto/chacha20.c`、`src/crypto/poly1305.c`
 - 许可证：portable8439 为 CC0-1.0；poly1305-donna 为 Public Domain
 - 改动：重构为 XRT 的无分配流状态、分离裁剪边界、参数检查、计数器上限、失败原子性和敏感数据清理；未直接复制旧版外围 API。
@@ -135,7 +134,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ## Mike Hamburg / STROBE X25519
 
 - 作者：Mike Hamburg；Cryptography Research, Inc.
-- 来源：旧版 XRT 资产 `dev/ver1/lib/crypto.h`，原实现来自 STROBE / mongoose 集成链。
+- 来源：STROBE / mongoose 集成链。
 - 使用位置：`src/crypto/curve25519.c`；X25519 与 Ed25519 共用该有限域算术层。
 - 许可证：MIT License
 - 改动：适配 XRT 类型、命名、裁剪和结构化错误；增加输入 u-coordinate 最高位屏蔽、低阶全零拒绝、失败原子性、任意缓冲重叠、敏感中间值清理，并用显式无符号借位替代实现定义的负数算术右移。

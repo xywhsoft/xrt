@@ -185,6 +185,8 @@ struct xnetstream {
 	bool AbortRequested;
 	bool EngineHeld;
 	bool RuntimeHeld;
+	uint32 ActiveDepth;
+	bool ReleasePending;
 	xnetstream* AcceptNext;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
 		__xrt_net_stream_control Control;

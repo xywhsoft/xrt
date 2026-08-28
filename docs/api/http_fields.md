@@ -91,5 +91,4 @@ asterisk-form，并结合方法检查 CONNECT 与 OPTIONS 的专用约束。结�
 
 动态 Header 容器、RFC 8187 扩展值、MIME、Structured Fields、Digest Fields、
 Forwarded、Link、Priority、Cache-Status、Proxy-Status 和 Content-Disposition
-不再属于 XRT HTTP 核心。原实现保存在 `extlibs/xhttp/archive`，后续由 `xhttp`
-按高级协议层重新组织。
+不属于 XRT HTTP 核心；需要这些高级协议能力时，请使用独立发布的 `xhttp` 扩展。

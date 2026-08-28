@@ -171,5 +171,5 @@ body reader，避免等待和复制整个消息。
 ## 扩展库边界
 
 客户端池、重定向、重试、缓存、认证、Cookie、MIME、Multipart、FormData、SSE、
-服务器路由和中间件已经迁入 `extlibs/xhttp/archive`。备份不参与 XRT 构建，下一
-阶段会在不破坏上述快速路径的前提下重建 `xhttp`。
+服务器路由和中间件属于独立发布的 `xhttp` 扩展；它们不参与 XRT 核心构建、单头包或
+兼容性承诺。

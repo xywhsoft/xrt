@@ -45464,6 +45464,8 @@ struct xnetstream {
 	bool AbortRequested;
 	bool EngineHeld;
 	bool RuntimeHeld;
+	uint32 ActiveDepth;
+	bool ReleasePending;
 	xnetstream* AcceptNext;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
 		__xrt_net_stream_control Control;
@@ -115038,6 +115040,43 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream);
 
 
 
+/* 进入可能同步触发底层关闭的发送调用帧。 */
+static void __xrtNetStreamActiveEnter(xnetstream* pStream)
+{
+	pStream->ActiveDepth++;
+}
+
+
+
+/* 立即或延迟释放 Stream 的运行时引用。 */
+static void __xrtNetStreamReleaseRuntime(xnetstream* pStream)
+{
+	if ( !pStream->RuntimeHeld ) {
+		return;
+	}
+	if ( pStream->ActiveDepth != 0 ) {
+		pStream->ReleasePending = true;
+		return;
+	}
+	pStream->ReleasePending = false;
+	pStream->RuntimeHeld = false;
+	xrtNetStreamDestroy(pStream);
+}
+
+
+
+/* 离开最外层发送调用帧后完成延迟释放；必须是调用函数的最后一条语句。 */
+static void __xrtNetStreamActiveLeave(xnetstream* pStream)
+{
+	pStream->ActiveDepth--;
+	if ( (pStream->ActiveDepth == 0) &&
+		pStream->ReleasePending ) {
+		__xrtNetStreamReleaseRuntime(pStream);
+	}
+}
+
+
+
 /* 判断 Worker 端口是否使用完成式 IO。 */
 static bool __xrtNetStreamCompletionPort(const xnetstream* pStream)
 {
@@ -115308,10 +115347,7 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 		}
 	#endif
 	__xrtNetStreamNotifyFutures(pStream, false);
-	if ( pStream->RuntimeHeld ) {
-		pStream->RuntimeHeld = false;
-		xrtNetStreamDestroy(pStream);
-	}
+	__xrtNetStreamReleaseRuntime(pStream);
 }
 
 
@@ -117437,6 +117473,7 @@ static xnetresult __xrtNetStreamSend(
 		 xrtNetWorkerIsCurrent(pStream->Worker) ) {
 		xnetspan Span = { (cbytes)pData, iSize };
 
+		__xrtNetStreamActiveEnter(pStream);
 		Result = __xrtNetStreamCopyCurrent(
 			pStream,
 			&Span,
@@ -117444,6 +117481,7 @@ static xnetresult __xrtNetStreamSend(
 			iSize
 		);
 		__xrtNetStreamEndSend(pStream);
+		__xrtNetStreamActiveLeave(pStream);
 		return Result;
 	}
 	pSend = __xrtNetStreamCreateSend(pStream, iSize, bCopy, &Result);
@@ -117460,8 +117498,10 @@ static xnetresult __xrtNetStreamSend(
 	} else {
 		pSend->Data = (cbytes)pData;
 	}
+	__xrtNetStreamActiveEnter(pStream);
 	Result = __xrtNetStreamSubmitSend(pSend);
 	__xrtNetStreamEndSend(pStream);
+	__xrtNetStreamActiveLeave(pStream);
 	return Result;
 }
 
@@ -117530,6 +117570,7 @@ XRT_API xnetresult xrtNetStreamSendVec(
 	}
 	if ( pStream->BuffersReady &&
 		 xrtNetWorkerIsCurrent(pStream->Worker) ) {
+		__xrtNetStreamActiveEnter(pStream);
 		Result = __xrtNetStreamCopyCurrent(
 			pStream,
 			pSpans,
@@ -117537,6 +117578,7 @@ XRT_API xnetresult xrtNetStreamSendVec(
 			iTotal
 		);
 		__xrtNetStreamEndSend(pStream);
+		__xrtNetStreamActiveLeave(pStream);
 		return Result;
 	}
 	pSend = __xrtNetStreamCreateSend(pStream, iTotal, true, &Result);
@@ -117555,8 +117597,10 @@ XRT_API xnetresult xrtNetStreamSendVec(
 		}
 	}
 	pSend->Data = pSend->Copy;
+	__xrtNetStreamActiveEnter(pStream);
 	Result = __xrtNetStreamSubmitSend(pSend);
 	__xrtNetStreamEndSend(pStream);
+	__xrtNetStreamActiveLeave(pStream);
 	return Result;
 }
 
@@ -117642,7 +117686,11 @@ XRT_API xnetresult xrtNetStreamSendRefs(
 		&Result
 	);
 	if ( pBatch != NULL ) {
+		__xrtNetStreamActiveEnter(pStream);
 		Result = __xrtNetStreamSubmitRefs(pBatch);
+		__xrtNetStreamEndSend(pStream);
+		__xrtNetStreamActiveLeave(pStream);
+		return Result;
 	}
 	__xrtNetStreamEndSend(pStream);
 	return Result;
@@ -117722,11 +117770,13 @@ XRT_API xnetresult xrtNetStreamSendBuffer(
 		__xrtNetStreamEndSend(pStream);
 		return Result;
 	}
+	__xrtNetStreamActiveEnter(pStream);
 	if ( !__xrtNetStreamAttachBuffer(pBatch, pBuffer) ) {
 		__xrtNetStreamDiscardBuffer(pBatch, iSize);
 		Result = XNET_RESULT_ERROR;
 	}
 	__xrtNetStreamEndSend(pStream);
+	__xrtNetStreamActiveLeave(pStream);
 	return Result;
 }
 
@@ -117798,12 +117848,14 @@ XRT_API xnetresult xrtNetStreamSendFile(
 	pFile->Offset = iOffset;
 	pFile->Size = iSize;
 
+	__xrtNetStreamActiveEnter(pStream);
 	Result = __xrtNetStreamSubmitFileNode(pFile);
 	if ( Result != XNET_RESULT_OK ) {
 		__xrtNetStreamUnreserveSend(pStream, iSize);
 		__xrtNetStreamFileRelease(pFile, NULL, 0);
 	}
 	__xrtNetStreamEndSend(pStream);
+	__xrtNetStreamActiveLeave(pStream);
 	return Result;
 }
 

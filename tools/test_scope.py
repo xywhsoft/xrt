@@ -100,8 +100,6 @@ class ScopeTest(unittest.TestCase):
 		)
 		self.assertNotIn("test_xlang_api", workflow)
 		for path in (ROOT / "docs").rglob("*.md"):
-			if "dev/ver1" in path.as_posix():
-				continue
 			text = path.read_text(encoding="utf-8")
 			self.assertNotIn("D:\\GIT\\x-lang", text, path.as_posix())
 			self.assertNotIn("demo6/", text, path.as_posix())
@@ -283,8 +281,8 @@ class ScopeTest(unittest.TestCase):
 
 
 
-	def test_browser_cors_client_is_archived(self) -> None:
-		"""浏览器 CORS 客户端策略不能重新进入 XRT 发布面。"""
+	def test_browser_cors_client_is_excluded(self) -> None:
+		"""浏览器 CORS 客户端策略不能进入 XRT 发布面。"""
 
 		public_assets = (
 			"include/xrt/http_cors_safelist.h",
@@ -309,12 +307,6 @@ class ScopeTest(unittest.TestCase):
 			"http_cors_cache",
 		}.isdisjoint(module_names))
 
-		archive = ROOT / "dev" / "archive" / "http_cors_client_20260812"
-		self.assertTrue((archive / "README.md").is_file())
-		self.assertTrue((
-			ROOT / "extlibs" / "xhttp" / "archive" / "xrt" /
-			"include" / "xrt" / "http_cors.h"
-		).is_file())
 
 
 

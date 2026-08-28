@@ -12,8 +12,8 @@ XRT-local changes:
 - `miniz_tinfl.h`, `miniz_tinfl.c`, `miniz_tdef.h`, and `miniz_tdef.c` retain
   only the allocation-free streaming codecs and parameter conversion used by
   XRT. The unused heap, fixed-buffer, callback wrapper, PNG, status getter, and
-  allocator helpers remain available in the read-only `dev/ver1` source asset
-  but are excluded from the maintained source and generated single header.
+  allocator helpers are intentionally excluded from the maintained source and
+  generated single header.
 - `TDEFL_LESS_MEMORY=1` reduces each compressor state from roughly 312 KiB to
   164 KiB. The XRT benchmark found equivalent throughput and only a negligible
   compressed-size difference for the representative mixed payload.
