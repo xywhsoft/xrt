@@ -3261,6 +3261,8 @@ static xnetresult __xrtNetSocketRecvResult(int iResult,
 
 
 
+#if !defined(_WIN32) && !defined(_WIN64)
+
 /* Darwin 的 recvmsg 在部分连接式 UDP 路径上不会设置 MSG_TRUNC。
    读取前查询下一报文长度，作为截断判定的补充依据。 */
 static bool __xrtNetSocketDgramPendingExceeds(xnetsocket Socket,
@@ -3286,6 +3288,8 @@ static bool __xrtNetSocketDgramPendingExceeds(xnetsocket Socket,
 		return false;
 	#endif
 }
+
+#endif
 
 
 
