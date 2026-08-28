@@ -3261,6 +3261,26 @@ static xnetresult __xrtNetSocketRecvResult(int iResult,
 
 
 
+/* Darwin 的 recvmsg 在部分连接式 UDP 路径上不会设置 MSG_TRUNC。
+   读取前查询下一报文长度，作为截断判定的补充依据。 */
+static bool __xrtNetSocketDgramPendingExceeds(xnetsocket Socket,
+	size_t iCapacity)
+{
+	#if defined(__APPLE__)
+		size_t iPending = 0;
+		int iCode = 0;
+
+		return __xrtNetSocketAvailableNative(
+			Socket, &iPending, &iCode) && (iPending > iCapacity);
+	#else
+		(void)Socket;
+		(void)iCapacity;
+		return false;
+	#endif
+}
+
+
+
 /* 处理发送系统调用的统一结果。 */
 static xnetresult __xrtNetSocketSendResult(int iResult,
 	size_t* pSent, cstr sOperation)
@@ -3652,6 +3672,7 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 			struct iovec Buffer;
 			struct msghdr Message;
 			ssize_t iBytes;
+			bool bPendingTruncated = false;
 
 			if ( iSize == 0 ) {
 				/* Darwin 对 NULL/零长度缓冲返回 EINVAL（recvmsg 与
@@ -3690,6 +3711,8 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 					goto ZeroDone;
 				}
 			} else {
+				bPendingTruncated = __xrtNetSocketDgramPendingExceeds(
+					Socket, iSize);
 				Buffer.iov_base = pData;
 				Buffer.iov_len = iSize;
 				memset(&Message, 0, sizeof(Message));
@@ -3708,7 +3731,7 @@ XRT_API xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
 				if ( (Result == XNET_RESULT_OK) && (iBytes > 0) ) {
 					/* Darwin 可以返回完整报文长度而不是已复制长度；
 					   对外始终报告实际写入缓冲区的字节数。 */
-					if ( (size_t)iBytes > iSize ) {
+					if ( ((size_t)iBytes > iSize) || bPendingTruncated ) {
 						*pReceived = iSize;
 						Result = XNET_RESULT_TRUNCATED;
 					}
@@ -3849,7 +3872,10 @@ XRT_API xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket,
 		struct msghdr Message;
 		ssize_t iBytes;
 		socklen_t iAddressSize;
+		bool bPendingTruncated;
 
+		bPendingTruncated = __xrtNetSocketDgramPendingExceeds(
+			Socket, iTotal);
 		__xrtNetSocketBuildReadVec(Native, pSpans, iCount);
 		memset(&Message, 0, sizeof(Message));
 		Message.msg_name = &Storage;
@@ -3864,7 +3890,7 @@ XRT_API xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket,
 		Result = __xrtNetSocketRecvResult(iResult,
 			pReceived, true, "recv-from-vec");
 		if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
-			 ((size_t)iBytes > iTotal) ) {
+			 (((size_t)iBytes > iTotal) || bPendingTruncated) ) {
 			*pReceived = iTotal;
 			Result = XNET_RESULT_TRUNCATED;
 		}
@@ -4043,7 +4069,10 @@ XRT_API xnetresult xrtNetSocketRecvMsgVec(
 		struct msghdr Message;
 		ssize_t iBytes;
 		int iResult;
+		bool bPendingTruncated;
 
+		bPendingTruncated = __xrtNetSocketDgramPendingExceeds(
+			Socket, iTotal);
 		__xrtNetSocketBuildReadVec(Native, pSpans, iCount);
 		memset(&Message, 0, sizeof(Message));
 		Message.msg_name = &Storage;
@@ -4063,7 +4092,7 @@ XRT_API xnetresult xrtNetSocketRecvMsgVec(
 			"recv-message"
 		);
 		if ( (Result == XNET_RESULT_OK) && (iBytes > 0) &&
-			 ((size_t)iBytes > iTotal) ) {
+			 (((size_t)iBytes > iTotal) || bPendingTruncated) ) {
 			*pReceived = iTotal;
 			Result = XNET_RESULT_TRUNCATED;
 		}
