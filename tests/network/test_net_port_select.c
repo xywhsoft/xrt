@@ -192,9 +192,7 @@ static void testPortPostFairness(xnetport* pPort)
 		xrtNetSocketLocal(Server, &Address) &&
 		xrtNetPortWatch(pPort, Server, 401, XNET_POLL_READ, NULL),
 		"fairness readiness setup failed");
-	testRequire(xrtNetPortPost(pPort, 501, NULL) &&
-		xrtNetPortPost(pPort, 502, NULL) &&
-		(xrtNetSocketSendTo(
+	testRequire((xrtNetSocketSendTo(
 			Client,
 			"ready",
 			5,
@@ -202,6 +200,20 @@ static void testPortPostFairness(xnetport* pPort)
 			&Address
 		) == XNET_RESULT_OK),
 		"fairness input setup failed");
+
+	/*
+		发送完成不保证数据报已经进入接收队列。先观察一次真实 readiness，
+		保留数据并重新 arm，避免把传输时序误判为 Post 公平性失败。
+	*/
+	testPortWait(pPort, &Event, 1, 1);
+	testRequire((Event.Type == XNET_PORT_EVENT_READY) &&
+		(Event.Id == 401) &&
+		((Event.Flags & XNET_PORT_EVENT_READ) != 0) &&
+		xrtNetPortWatch(pPort, Server, 401, XNET_POLL_READ, NULL),
+		"fairness readiness priming failed");
+	testRequire(xrtNetPortPost(pPort, 501, NULL) &&
+		xrtNetPortPost(pPort, 502, NULL),
+		"fairness post setup failed");
 
 	testPortWait(pPort, &Event, 1, 1);
 	testRequire((Event.Type == XNET_PORT_EVENT_USER) &&
