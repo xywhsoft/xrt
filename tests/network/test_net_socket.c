@@ -707,7 +707,7 @@ static void testSocketUDP(void)
 		&iSize, &Remote) == XNET_RESULT_OK) && (iSize == 0),
 		"UDP zero-length receive failed");
 
-	/* 未连接批量收发必须保留输入顺序、逐项截断结果和零长度报文。 */
+	/* 未连接批量收发必须保留逐项截断结果和零长度报文。 */
 	SendBatch[0] = (xnetdgramsend){ &ServerAddress, "one", 3 };
 	SendBatch[1] = (xnetdgramsend){ &ServerAddress, "truncate", 8 };
 	SendBatch[2] = (xnetdgramsend){ &ServerAddress, NULL, 0 };
@@ -715,34 +715,44 @@ static void testSocketUDP(void)
 		&iSize) == XNET_RESULT_OK) && (iSize == 3),
 		"UDP unconnected batch send failed");
 	RecvBatch[0] = (xnetdgramrecv){
-		.Data = BatchData[0], .Capacity = 3
+		.Data = BatchData[0], .Capacity = 4
 	};
 	RecvBatch[1] = (xnetdgramrecv){
 		.Data = BatchData[1], .Capacity = 4
 	};
-	RecvBatch[2] = (xnetdgramrecv){ .Data = NULL, .Capacity = 0 };
+	RecvBatch[2] = (xnetdgramrecv){
+		.Data = BatchData[2], .Capacity = 4
+	};
 	testSocketRecvBatchItems(Server, RecvBatch, 3,
 		"UDP unconnected batch receive failed");
 	{
-		/* UDP 不保证投递顺序（Darwin 环回即可乱序）。断言改为：
-		   每项结果合法且不超过容量，"one" 完整出现在某一项。 */
+		/* 不把缓冲容量绑定到投递顺序：完整、截断和空报文各出现一次。 */
 		bool bWhole = false;
+		bool bTruncated = false;
+		bool bEmpty = false;
 		size_t iItem;
 
 		for ( iItem = 0; iItem < 3; iItem++ ) {
-			size_t iCapacity = (iItem == 0) ? 3u :
-				((iItem == 1) ? 4u : 0u);
 			bool bOk = (RecvBatch[iItem].Result == XNET_RESULT_OK) ||
 				(RecvBatch[iItem].Result == XNET_RESULT_TRUNCATED);
 
-			testRequire(bOk && (RecvBatch[iItem].Size <= iCapacity),
-				"UDP batch item result mismatch");
-			if ( (RecvBatch[iItem].Size == 3) &&
+			testRequire(bOk && (RecvBatch[iItem].Size <= 4),
+				"UDP batch item bounds mismatch");
+			if ( (RecvBatch[iItem].Result == XNET_RESULT_OK) &&
+				(RecvBatch[iItem].Size == 3) &&
 				(memcmp(RecvBatch[iItem].Data, "one", 3) == 0) ) {
 				bWhole = true;
+			} else if ( (RecvBatch[iItem].Result == XNET_RESULT_TRUNCATED) &&
+				(RecvBatch[iItem].Size == 4) &&
+				(memcmp(RecvBatch[iItem].Data, "trun", 4) == 0) ) {
+				bTruncated = true;
+			} else if ( (RecvBatch[iItem].Result == XNET_RESULT_OK) &&
+				(RecvBatch[iItem].Size == 0) ) {
+				bEmpty = true;
 			}
 		}
-		testRequire(bWhole, "UDP batch item result mismatch");
+		testRequire(bWhole && bTruncated && bEmpty,
+			"UDP batch payload classification mismatch");
 	}
 	{
 		/* Darwin 上零长度和截断报文可能不携带源地址；只校验
@@ -811,14 +821,29 @@ static void testSocketUDP(void)
 	RecvBatch[0] = (xnetdgramrecv){
 		.Data = BatchData[0], .Capacity = sizeof(BatchData[0])
 	};
-	RecvBatch[1] = (xnetdgramrecv){ .Data = NULL, .Capacity = 0 };
+	RecvBatch[1] = (xnetdgramrecv){
+		.Data = BatchData[1], .Capacity = sizeof(BatchData[1])
+	};
 	testSocketRecvBatchItems(Server, RecvBatch, 2,
 		"connected UDP batch receive failed");
-	testRequire((RecvBatch[0].Result == XNET_RESULT_OK) &&
-		(RecvBatch[0].Size == 5) &&
-		(memcmp(RecvBatch[0].Data, "batch", 5) == 0) &&
-		(RecvBatch[1].Result == XNET_RESULT_OK) &&
-		(RecvBatch[1].Size == 0), "connected UDP batch item mismatch");
+	{
+		bool bPayload = false;
+		bool bEmpty = false;
+		size_t iItem;
+
+		for ( iItem = 0; iItem < 2; iItem++ ) {
+			if ( (RecvBatch[iItem].Result == XNET_RESULT_OK) &&
+				(RecvBatch[iItem].Size == 5) &&
+				(memcmp(RecvBatch[iItem].Data, "batch", 5) == 0) ) {
+				bPayload = true;
+			} else if ( (RecvBatch[iItem].Result == XNET_RESULT_OK) &&
+				(RecvBatch[iItem].Size == 0) ) {
+				bEmpty = true;
+			}
+		}
+		testRequire(bPayload && bEmpty,
+			"connected UDP batch item mismatch");
+	}
 
 	testRequire(xrtNetSocketClose(Client),
 		"closing UDP client failed");
