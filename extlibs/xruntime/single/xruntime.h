@@ -107047,9 +107047,17 @@ static bool __xrtNetSocketDgramPendingExceeds(xnetsocket Socket,
 	size_t iCapacity)
 {
 	#if defined(__APPLE__)
+		struct sockaddr_storage Peer;
+		socklen_t iPeerSize = (socklen_t)sizeof(Peer);
 		size_t iPending = 0;
 		int iCode = 0;
 
+		/* Darwin 的 FIONREAD 返回整个接收队列的字节数；仅在连接式
+		   数据报的单报文读取路径上把它用作截断补充判据。 */
+		if ( getpeername(__xrtNetSocketHandle(Socket),
+			(struct sockaddr*)&Peer, &iPeerSize) != 0 ) {
+			return false;
+		}
 		return __xrtNetSocketAvailableNative(
 			Socket, &iPending, &iCode) && (iPending > iCapacity);
 	#else
