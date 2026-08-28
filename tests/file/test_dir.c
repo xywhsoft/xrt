@@ -140,44 +140,55 @@ static void testDirStat(cstr sRoot)
 
 #if !defined(_WIN32) && !defined(_WIN64)
 
-/* POSIX 原始字节名称和链接元数据必须保持可表达。 */
+/* POSIX 链接元数据必须稳定；允许原始字节名的平台还要保留 UTF-8 标记。 */
 static void testDirPosixEntries(cstr sRoot)
 {
-	static const char arrRawName[] = {
-		'b', 'a', 'd', '-', (char)0xFF, '\0'
-	};
-	str sRawPath = xrtPathJoin(sRoot, arrRawName);
 	str sLinkPath = xrtPathJoin(sRoot, "nested-link");
 	xdir Dir;
 	xdirentry Entry;
 	xdirnext Next;
-	bool bRaw = false;
 	bool bLink = false;
+	#if !defined(__APPLE__)
+		static const char arrRawName[] = {
+			'b', 'a', 'd', '-', (char)0xFF, '\0'
+		};
+		str sRawPath = xrtPathJoin(sRoot, arrRawName);
+		bool bRaw = false;
+	#endif
 
-	testRequire((sRawPath != NULL) && (sLinkPath != NULL),
+	testRequire(sLinkPath != NULL,
 		"POSIX directory fixture path build failed");
-	testDirWrite(sRawPath, "raw");
+	#if !defined(__APPLE__)
+		testRequire(sRawPath != NULL,
+			"POSIX raw-name fixture path build failed");
+		testDirWrite(sRawPath, "raw");
+	#endif
 	testRequire(symlink("nested", sLinkPath) == 0,
 		"POSIX directory symlink fixture create failed");
 
 	Dir = xrtDirOpen(sRoot, XDIR_STAT);
 	testRequire(Dir != NULL, "POSIX no-follow directory iterator open failed");
 	while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
-		if ( (Entry.Name.Size == (sizeof(arrRawName) - 1u)) &&
-			 (memcmp(Entry.Name.Data, arrRawName,
-			 sizeof(arrRawName) - 1u) == 0) ) {
-			bRaw = true;
-			testRequire((Entry.Flags & XDIR_ENTRY_UTF8) == 0u,
-				"invalid POSIX filename was marked as UTF-8");
-		}
+		#if !defined(__APPLE__)
+			if ( (Entry.Name.Size == (sizeof(arrRawName) - 1u)) &&
+				 (memcmp(Entry.Name.Data, arrRawName,
+					sizeof(arrRawName) - 1u) == 0) ) {
+				bRaw = true;
+				testRequire((Entry.Flags & XDIR_ENTRY_UTF8) == 0u,
+					"invalid POSIX filename was marked as UTF-8");
+			}
+		#endif
 		if ( xrtStrEqual(Entry.Name, XRT_STR_LITERAL("nested-link")) ) {
 			bLink = true;
 			testRequire(Entry.Info.Type == XFILE_TYPE_LINK,
 				"no-follow directory stat lost the link type");
 		}
 	}
-	testRequire((Next == XDIR_NEXT_END) && bRaw && bLink,
-		"POSIX directory iterator lost a raw name or link");
+	testRequire((Next == XDIR_NEXT_END) && bLink,
+		"POSIX directory iterator lost a link");
+	#if !defined(__APPLE__)
+		testRequire(bRaw, "POSIX directory iterator lost a raw name");
+	#endif
 	testRequire(xrtDirClose(Dir), "POSIX no-follow iterator close failed");
 
 	Dir = xrtDirOpen(sRoot, XDIR_STAT | XDIR_FOLLOW_LINKS);
@@ -193,10 +204,14 @@ static void testDirPosixEntries(cstr sRoot)
 	testRequire((Next == XDIR_NEXT_END) && bLink,
 		"follow directory iterator lost the link entry");
 	testRequire(xrtDirClose(Dir), "POSIX follow iterator close failed");
-	testRequire(xrtFileDelete(sLinkPath) && xrtFileDelete(sRawPath),
-		"POSIX directory fixture cleanup failed");
+	testRequire(xrtFileDelete(sLinkPath),
+		"POSIX link fixture cleanup failed");
+	#if !defined(__APPLE__)
+		testRequire(xrtFileDelete(sRawPath),
+			"POSIX raw-name fixture cleanup failed");
+		xrtFree(sRawPath);
+	#endif
 	xrtFree(sLinkPath);
-	xrtFree(sRawPath);
 }
 
 #endif
