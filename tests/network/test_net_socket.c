@@ -664,6 +664,7 @@ static void testSocketUDP(void)
 	char aRight[8] = { 0 };
 	size_t iSize;
 	int64 iOption;
+	xnetresult Result;
 
 	Server = testSocketBound(XNET_SOCKET_DGRAM, &ServerAddress);
 	testRequire(testSocketNoInherit(Server),
@@ -784,8 +785,17 @@ static void testSocketUDP(void)
 		&iSize) == XNET_RESULT_OK) && (iSize == 8),
 		"connected UDP scalar send failed");
 	memset(sData, 0, sizeof(sData));
-	testRequire((xrtNetSocketRecv(Server, sData, 3,
-		&iSize) == XNET_RESULT_TRUNCATED) && (iSize == 3) &&
+	Result = xrtNetSocketRecv(Server, sData, 3, &iSize);
+	if ( (Result != XNET_RESULT_TRUNCATED) || (iSize != 3) ||
+		(memcmp(sData, "tru", 3) != 0) ) {
+		(void)fprintf(stderr,
+			"[DIAG] connected UDP scalar result=%d size=%zu data=%02x%02x%02x\n",
+			(int)Result, iSize,
+			(unsigned int)(unsigned char)sData[0],
+			(unsigned int)(unsigned char)sData[1],
+			(unsigned int)(unsigned char)sData[2]);
+	}
+	testRequire((Result == XNET_RESULT_TRUNCATED) && (iSize == 3) &&
 		(memcmp(sData, "tru", 3) == 0),
 		"connected UDP scalar truncation mismatch");
 
