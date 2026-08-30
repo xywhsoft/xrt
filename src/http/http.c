@@ -406,6 +406,103 @@ XRT_API bool xrtHttpTokenEqual(xstrview Left, xstrview Right)
 
 
 
+/* 按长度和字节直接分类常用方法，扩展方法只在未命中时扫描 token。 */
+XRT_API xhttpmethod xrtHttpMethodParse(xstrview Method)
+{
+	cstr sData;
+	size_t i;
+
+	if ( !__xrtHttpViewValid(Method) || (Method.Size == 0) ) {
+		return XHTTP_METHOD_INVALID;
+	}
+	sData = Method.Data;
+	switch ( Method.Size ) {
+	case 3:
+		if ( (sData[0] == 'G') &&
+			(sData[1] == 'E') &&
+			(sData[2] == 'T') ) {
+			return XHTTP_METHOD_GET;
+		}
+		if ( (sData[0] == 'P') &&
+			(sData[1] == 'U') &&
+			(sData[2] == 'T') ) {
+			return XHTTP_METHOD_PUT;
+		}
+		break;
+	case 4:
+		if ( (sData[0] == 'P') &&
+			(sData[1] == 'O') &&
+			(sData[2] == 'S') &&
+			(sData[3] == 'T') ) {
+			return XHTTP_METHOD_POST;
+		}
+		if ( (sData[0] == 'H') &&
+			(sData[1] == 'E') &&
+			(sData[2] == 'A') &&
+			(sData[3] == 'D') ) {
+			return XHTTP_METHOD_HEAD;
+		}
+		break;
+	case 5:
+		if ( (sData[0] == 'P') &&
+			(sData[1] == 'A') &&
+			(sData[2] == 'T') &&
+			(sData[3] == 'C') &&
+			(sData[4] == 'H') ) {
+			return XHTTP_METHOD_PATCH;
+		}
+		if ( (sData[0] == 'T') &&
+			(sData[1] == 'R') &&
+			(sData[2] == 'A') &&
+			(sData[3] == 'C') &&
+			(sData[4] == 'E') ) {
+			return XHTTP_METHOD_TRACE;
+		}
+		break;
+	case 6:
+		if ( (sData[0] == 'D') &&
+			(sData[1] == 'E') &&
+			(sData[2] == 'L') &&
+			(sData[3] == 'E') &&
+			(sData[4] == 'T') &&
+			(sData[5] == 'E') ) {
+			return XHTTP_METHOD_DELETE;
+		}
+		break;
+	case 7:
+		if ( (sData[0] == 'C') &&
+			(sData[1] == 'O') &&
+			(sData[2] == 'N') &&
+			(sData[3] == 'N') &&
+			(sData[4] == 'E') &&
+			(sData[5] == 'C') &&
+			(sData[6] == 'T') ) {
+			return XHTTP_METHOD_CONNECT;
+		}
+		if ( (sData[0] == 'O') &&
+			(sData[1] == 'P') &&
+			(sData[2] == 'T') &&
+			(sData[3] == 'I') &&
+			(sData[4] == 'O') &&
+			(sData[5] == 'N') &&
+			(sData[6] == 'S') ) {
+			return XHTTP_METHOD_OPTIONS;
+		}
+		break;
+	default:
+		break;
+	}
+
+	for ( i = 0; i < Method.Size; i++ ) {
+		if ( !__xrtHttpTokenByte((unsigned char)sData[i]) ) {
+			return XHTTP_METHOD_INVALID;
+		}
+	}
+	return XHTTP_METHOD_OTHER;
+}
+
+
+
 /* 按大小写敏感规则比较两个合法 HTTP 方法名。 */
 XRT_API bool xrtHttpMethodEqual(
 	xstrview Left,
@@ -422,22 +519,15 @@ XRT_API bool xrtHttpMethodEqual(
 /* 按 RFC 语义识别只读方法，供重试、Cookie 和缓存策略共同使用。 */
 XRT_API bool xrtHttpMethodSafe(xstrview Method)
 {
-	if ( !xrtHttpTokenValid(Method) ) {
+	switch ( xrtHttpMethodParse(Method) ) {
+	case XHTTP_METHOD_GET:
+	case XHTTP_METHOD_HEAD:
+	case XHTTP_METHOD_OPTIONS:
+	case XHTTP_METHOD_TRACE:
+		return true;
+	default:
 		return false;
 	}
-	return __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("GET")
-	) || __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("HEAD")
-	) || __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("OPTIONS")
-	) || __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("TRACE")
-	);
 }
 
 
@@ -445,16 +535,17 @@ XRT_API bool xrtHttpMethodSafe(xstrview Method)
 /* 幂等方法包含全部安全方法，以及具有替换或删除语义的 PUT、DELETE。 */
 XRT_API bool xrtHttpMethodIdempotent(xstrview Method)
 {
-	if ( xrtHttpMethodSafe(Method) ) {
+	switch ( xrtHttpMethodParse(Method) ) {
+	case XHTTP_METHOD_GET:
+	case XHTTP_METHOD_HEAD:
+	case XHTTP_METHOD_OPTIONS:
+	case XHTTP_METHOD_TRACE:
+	case XHTTP_METHOD_PUT:
+	case XHTTP_METHOD_DELETE:
 		return true;
+	default:
+		return false;
 	}
-	return __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("PUT")
-	) || __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("DELETE")
-	);
 }
 
 
@@ -465,15 +556,14 @@ XRT_API bool xrtHttpResponseContentAllowed(
 	uint16 iStatus
 )
 {
-	if ( !xrtHttpTokenValid(Method) ||
+	xhttpmethod MethodCode = xrtHttpMethodParse(Method);
+
+	if ( (MethodCode == XHTTP_METHOD_INVALID) ||
 		(iStatus < 100) ||
 		(iStatus > 999) ) {
 		return false;
 	}
-	if ( xrtHttpMethodEqual(
-		Method,
-		XRT_STR_LITERAL("HEAD")
-	) || (iStatus < 200) ||
+	if ( (MethodCode == XHTTP_METHOD_HEAD) || (iStatus < 200) ||
 		(iStatus == 204) ||
 		(iStatus == 205) ||
 		(iStatus == 304) ) {
@@ -481,10 +571,7 @@ XRT_API bool xrtHttpResponseContentAllowed(
 	}
 	if ( (iStatus >= 200) &&
 		(iStatus < 300) &&
-		xrtHttpMethodEqual(
-			Method,
-			XRT_STR_LITERAL("CONNECT")
-		) ) {
+		(MethodCode == XHTTP_METHOD_CONNECT) ) {
 		return false;
 	}
 	return true;

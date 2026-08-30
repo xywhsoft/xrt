@@ -325,7 +325,8 @@ static bool __xrtHttp1RequestLine(
 	pHead->Target.Size = (size_t)(sSecond - (sFirst + 1));
 	Version.Data = sSecond + 1;
 	Version.Size = Line.Size - (size_t)(Version.Data - Line.Data);
-	if ( !xrtHttpTokenValid(pHead->Method) ) {
+	pHead->MethodCode = xrtHttpMethodParse(pHead->Method);
+	if ( pHead->MethodCode == XHTTP_METHOD_INVALID ) {
 		(void)__xrtHttp1Fail(
 			pHead, pInfo, XHTTP1_ERROR_METHOD, 0, 1,
 			XERR_PROTOCOL, sOperation,

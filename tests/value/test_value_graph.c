@@ -101,8 +101,18 @@ static void testValueGraphClone(void)
 
 	testRequire(xrtValueObjectSetNew(pChild, XRT_STR_LITERAL("value"), xrtValueInt(7)), "graph child fixture failed");
 	testRequire(xrtValueArrayAppend(pRoot, pChild) && xrtValueArrayAppend(pRoot, pChild), "graph shared child fixture failed");
+	testRequire(
+		xrtValueTypeIdBind(pRoot, UINT64_C(0x8877665544332211)) &&
+		xrtValueTypeIdBind(pChild, UINT64_C(0x1122334455667788)),
+		"graph type identity fixture failed"
+	);
 	pCopy = xrtValueDeepClone(pRoot);
 	testRequire((pCopy != NULL) && xrtValueEqual(pRoot, pCopy), "graph deep clone mismatch");
+	testRequire(
+		(xrtValueTypeId(pCopy) == UINT64_C(0x8877665544332211)) &&
+		(xrtValueTypeId(xrtValueArrayGet(pCopy, 0)) == UINT64_C(0x1122334455667788)),
+		"graph deep clone lost type identity"
+	);
 	testRequire(xrtValueArrayGet(pCopy, 0) == xrtValueArrayGet(pCopy, 1), "graph clone lost shared child identity");
 	pCopyChild = xrtValueArrayEdit(pCopy, 0);
 	testRequire(xrtValueObjectSetNew(pCopyChild, XRT_STR_LITERAL("value"), xrtValueInt(8)), "graph clone mutation failed");
@@ -157,8 +167,16 @@ static void testValueGraphHandle(void)
 	testRequire(pHandle != NULL, "graph handle allocation failed");
 	*(int*)pHandle = 9;
 	pValue = xrtValueHandleTake(&pHandle, &tOps, &tState);
+	testRequire(
+		xrtValueTypeIdBind(pValue, UINT64_C(0xAABBCCDDEEFF0011)),
+		"graph handle type identity bind failed"
+	);
 	pCopy = xrtValueDeepClone(pValue);
 	testRequire((pCopy != NULL) && (pCopy != pValue) && (tState.CloneCount == 1), "graph handle clone mismatch");
+	testRequire(
+		xrtValueTypeId(pCopy) == UINT64_C(0xAABBCCDDEEFF0011),
+		"graph handle clone lost type identity"
+	);
 	testRequire(xrtValueGetHandle(pCopy, &pRead, NULL, NULL) && (*(int*)pRead == 9), "graph cloned handle value mismatch");
 	xrtValueRelease(pCopy);
 	xrtValueRelease(pValue);

@@ -542,6 +542,51 @@ static void testHttpWeights(void)
 /* 验证安全与幂等方法分类不把 POST 或扩展方法误判为可自动重试。 */
 static void testHttpMethods(void)
 {
+	static const struct {
+		xstrview Text;
+		xhttpmethod Method;
+	} Known[] = {
+		{ XRT_STR_INIT("GET"), XHTTP_METHOD_GET },
+		{ XRT_STR_INIT("HEAD"), XHTTP_METHOD_HEAD },
+		{ XRT_STR_INIT("POST"), XHTTP_METHOD_POST },
+		{ XRT_STR_INIT("PUT"), XHTTP_METHOD_PUT },
+		{ XRT_STR_INIT("DELETE"), XHTTP_METHOD_DELETE },
+		{ XRT_STR_INIT("CONNECT"), XHTTP_METHOD_CONNECT },
+		{ XRT_STR_INIT("OPTIONS"), XHTTP_METHOD_OPTIONS },
+		{ XRT_STR_INIT("TRACE"), XHTTP_METHOD_TRACE },
+		{ XRT_STR_INIT("PATCH"), XHTTP_METHOD_PATCH }
+	};
+	static const xstrview Other[] = {
+		XRT_STR_INIT("get"),
+		XRT_STR_INIT("Get"),
+		XRT_STR_INIT("GETX"),
+		XRT_STR_INIT("P0ST"),
+		XRT_STR_INIT("PURGE"),
+		XRT_STR_INIT("QUERY")
+	};
+	size_t i;
+
+	for ( i = 0; i < sizeof(Known) / sizeof(Known[0]); i++ ) {
+		testRequire(
+			xrtHttpMethodParse(Known[i].Text) == Known[i].Method,
+			"HTTP method parser missed a built-in method"
+		);
+	}
+	for ( i = 0; i < sizeof(Other) / sizeof(Other[0]); i++ ) {
+		testRequire(
+			xrtHttpMethodParse(Other[i]) == XHTTP_METHOD_OTHER,
+			"HTTP method parser confused a valid extension method"
+		);
+	}
+	testRequire(
+		(xrtHttpMethodParse((xstrview){ NULL, 0 }) ==
+			XHTTP_METHOD_INVALID) &&
+		(xrtHttpMethodParse(XRT_STR_LITERAL("BAD METHOD")) ==
+			XHTTP_METHOD_INVALID) &&
+		(xrtHttpMethodParse(XRT_STR_LITERAL("BAD(METHOD")) ==
+			XHTTP_METHOD_INVALID),
+		"HTTP method parser accepted an empty or invalid token"
+	);
 	testRequire(
 		xrtHttpMethodEqual(
 			XRT_STR_LITERAL("GET"),

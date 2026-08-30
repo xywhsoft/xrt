@@ -36822,6 +36822,20 @@ XRT_API xvaluetype xrtValueType(const xvalue* pValue);
 
 
 
+/* 返回调用者绑定的不透明语义类型身份；未绑定或空指针返回零。 */
+XRT_API uint64 xrtValueTypeId(const xvalue* pValue);
+
+
+
+/*
+	把非零语义类型身份一次性绑定到非静态值外壳。
+	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播，
+	但不参与 XRT 的相等、哈希或序列化语义。
+*/
+XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId);
+
+
+
 /* 返回稳定的类型名称。 */
 XRT_API cstr xrtValueTypeName(xvaluetype Type);
 
@@ -76946,6 +76960,8 @@ struct xvalue {
 	volatile int32 RefCount;
 	uint16 Type;
 	uint16 Flags;
+	/* 调用者可选绑定的不可变语义类型身份；零表示未绑定。 */
+	uint64 TypeId;
 	union {
 		bool Bool;
 		int64 Int;
@@ -285408,13 +285424,13 @@ XRT_API bool xrtSetEqual(const xset* pLeft, const xset* pRight)
 
 /* null 和布尔值不分配内存，统一允许 Retain 和 Release。 */
 static xvalue __xrtValueNull = {
-	INT32_MAX, XVALUE_NULL, XRT_VALUE_FLAG_STATIC, { 0 }
+	INT32_MAX, XVALUE_NULL, XRT_VALUE_FLAG_STATIC, 0, { 0 }
 };
 static xvalue __xrtValueFalse = {
-	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, { 0 }
+	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, 0, { 0 }
 };
 static xvalue __xrtValueTrue = {
-	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, { .Bool = true }
+	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, 0, { .Bool = true }
 };
 
 
@@ -286050,6 +286066,42 @@ XRT_API xvaluetype xrtValueType(const xvalue* pValue)
 		return XVALUE_INVALID;
 	}
 	return (xvaluetype)pValue->Type;
+}
+
+
+
+/* 返回调用者绑定的不透明语义类型身份。 */
+XRT_API uint64 xrtValueTypeId(const xvalue* pValue)
+{
+	if ( pValue == NULL ) {
+		return 0;
+	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return 0;
+	}
+	return pValue->TypeId;
+}
+
+
+
+/* 一次性绑定非零语义类型身份，禁止共享值被重新解释。 */
+XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId)
+{
+	if ( (pValue == NULL) || (iTypeId == 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_BUSY)) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( (pValue->TypeId != 0) && (pValue->TypeId != iTypeId) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pValue->TypeId = iTypeId;
+	return true;
 }
 
 
@@ -287598,6 +287650,7 @@ xvalue* __xrtValueContainerClone(const xvalue* pValue)
 		return NULL;
 	}
 	pCopy->Data.Backing = pBacking;
+	pCopy->TypeId = pValue->TypeId;
 	return pCopy;
 }
 
@@ -290523,6 +290576,7 @@ static xvalue* __xrtValueCloneHandle(
 		__xrtValueClonePop(pContext);
 		return NULL;
 	}
+	pTarget->TypeId = pSource->TypeId;
 	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ||
 		 !__xrtValueCloneFinish(pContext, pSource) ) {
 		__xrtValueCloneRelease(pContext, pTarget);
@@ -290680,6 +290734,7 @@ static xvalue* __xrtValueDeepClone(
 	if ( pTarget == NULL ) {
 		return NULL;
 	}
+	pTarget->TypeId = pSource->TypeId;
 	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ) {
 		xrtValueRelease(pTarget);
 		return NULL;

@@ -541,10 +541,7 @@ XRT_API bool xrtWsUpgradeRequestCheck(
 	) ) {
 		return false;
 	}
-	if ( !__xrtWsUpgradeTextEqual(
-		Request.Method,
-		XRT_STR_LITERAL("GET")
-	) ) {
+	if ( Request.MethodCode != XHTTP_METHOD_GET ) {
 		return __xrtWsUpgradeError(
 			XERR_PROTOCOL,
 			XWS_HANDSHAKE_ERROR_METHOD,

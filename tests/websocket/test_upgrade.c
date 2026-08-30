@@ -276,6 +276,13 @@ static void testUpgradeFailures(void)
 		"Sec-WebSocket-Version: 13\r\n"
 		"Sec-WebSocket-Protocol: chat\r\n"
 		"Sec-WebSocket-Protocol: telemetry, chat\r\n\r\n";
+	static const char LowercaseRequest[] =
+		"get / HTTP/1.1\r\n"
+		"Host: example.test\r\n"
+		"Upgrade: websocket\r\n"
+		"Connection: Upgrade\r\n"
+		"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+		"Sec-WebSocket-Version: 13\r\n\r\n";
 	static const char ExtensionResponse[] =
 		"HTTP/1.1 101 Switching Protocols\r\n"
 		"Upgrade: websocket\r\n"
@@ -301,6 +308,20 @@ static void testUpgradeFailures(void)
 	testUpgradeError(
 		XWS_HANDSHAKE_ERROR_BODY,
 		"WebSocket Upgrade body error mismatch"
+	);
+	Head = testUpgradeRequest(
+		LowercaseRequest,
+		Fields,
+		sizeof(Fields) / sizeof(Fields[0])
+	);
+	testRequire(
+		(Head.MethodCode == XHTTP_METHOD_OTHER) &&
+		!xrtWsUpgradeRequestCheck(&Head, &Server, &Upgrade),
+		"WebSocket Upgrade accepted a lowercase GET extension token"
+	);
+	testUpgradeError(
+		XWS_HANDSHAKE_ERROR_METHOD,
+		"WebSocket Upgrade lowercase method error mismatch"
 	);
 	Server.Protocols = XRT_STR_LITERAL("chat, telemetry");
 	Head = testUpgradeRequest(

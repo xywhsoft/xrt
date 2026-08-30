@@ -22,6 +22,8 @@ struct xvalue {
 	volatile int32 RefCount;
 	uint16 Type;
 	uint16 Flags;
+	/* 调用者可选绑定的不可变语义类型身份；零表示未绑定。 */
+	uint64 TypeId;
 	union {
 		bool Bool;
 		int64 Int;

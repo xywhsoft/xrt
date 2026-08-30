@@ -986,6 +986,7 @@ xvalue* __xrtValueContainerClone(const xvalue* pValue)
 		return NULL;
 	}
 	pCopy->Data.Backing = pBacking;
+	pCopy->TypeId = pValue->TypeId;
 	return pCopy;
 }
 
@@ -1208,6 +1209,40 @@ XRT_API size_t xrtValueCount(const xvalue* pValue)
 
 
 
+/* 返回可预留基础容器的当前容量。 */
+XRT_API size_t xrtValueCapacity(const xvalue* pValue)
+{
+	xvaluetype Type;
+	xvaluebacking* pBacking;
+
+	if ( pValue == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	Type = (xvaluetype)pValue->Type;
+	if ( !__xrtValueContainerType(Type) ) {
+		__xrtErrorSetType();
+		return 0;
+	}
+	pBacking = __xrtValueBacking(pValue, Type);
+	if ( pBacking == NULL ) {
+		return 0;
+	}
+	if ( Type == XVALUE_ARRAY ) {
+		return ((xvaluearraybacking*)pBacking)->Items.Capacity;
+	}
+	if ( Type == XVALUE_SET ) {
+		return xrtSetCapacity(&((xvaluesetbacking*)pBacking)->Items);
+	}
+	if ( Type == XVALUE_OBJECT ) {
+		return xrtMapCapacity(&((xvalueobjectbacking*)pBacking)->Items);
+	}
+	__xrtErrorSetUnsupported();
+	return 0;
+}
+
+
+
 /* 保证容器至少可容纳指定数量的元素。 */
 XRT_API bool xrtValueReserve(xvalue* pValue, size_t iCapacity)
 {
@@ -1287,6 +1322,28 @@ XRT_API bool xrtValueTrim(xvalue* pValue)
 		return xrtSetTrim(&((xvaluesetbacking*)pBacking)->Items);
 	}
 	return xrtMapTrim(&((xvalueobjectbacking*)pBacking)->Items);
+}
+
+
+
+/* 释放动态 IntMap 的空闲节点池页。 */
+XRT_API size_t xrtValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty)
+{
+	xvalueintmapbacking* pBacking;
+
+	if ( pMap == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	if ( pMap->Type != XVALUE_INT_MAP ) {
+		__xrtErrorSetType();
+		return 0;
+	}
+	if ( !__xrtValueEnsureUnique(pMap) ) {
+		return 0;
+	}
+	pBacking = (xvalueintmapbacking*)pMap->Data.Backing;
+	return xrtIntMapTrim(&pBacking->Items, iRetainEmpty);
 }
 
 

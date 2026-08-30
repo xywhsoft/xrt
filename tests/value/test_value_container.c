@@ -13,6 +13,49 @@ static int64 testValueReadInt(const xvalue* pValue)
 
 
 
+/* 验证统一动态容器容量查询与 Reserve 使用同一公开边界。 */
+static void testValueCapacity(void)
+{
+	xvalue* pArray = xrtValueArray();
+	xvalue* pSet = xrtValueSet();
+	xvalue* pObject = xrtValueObject();
+	xvalue* pIntMap = xrtValueIntMap();
+
+	testRequire(
+		(pArray != NULL) && (pSet != NULL) &&
+		(pObject != NULL) && (pIntMap != NULL),
+		"capacity fixture creation failed"
+	);
+	testRequire(
+		xrtValueReserve(pArray, 8) && (xrtValueCapacity(pArray) >= 8),
+		"array capacity mismatch"
+	);
+	testRequire(
+		xrtValueReserve(pSet, 8) && (xrtValueCapacity(pSet) >= 8),
+		"set capacity mismatch"
+	);
+	testRequire(
+		xrtValueReserve(pObject, 8) && (xrtValueCapacity(pObject) >= 8),
+		"object capacity mismatch"
+	);
+	testRequire(
+		xrtValueIntMapTrim(pIntMap, 1) == 0,
+		"empty int-map trim mismatch"
+	);
+	xrtClearError();
+	testRequire(
+		(xrtValueCapacity(pIntMap) == 0) &&
+		(xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED),
+		"int-map capacity did not report unsupported"
+	);
+	xrtValueRelease(pIntMap);
+	xrtValueRelease(pObject);
+	xrtValueRelease(pSet);
+	xrtValueRelease(pArray);
+}
+
+
+
 /* 验证数组、负索引和三种所有权写入路径。 */
 static void testValueArrayOps(void)
 {
@@ -256,6 +299,7 @@ static void testValueCowCycleGuard(void)
 /* 运行动态值容器回归。 */
 int main(void)
 {
+	testValueCapacity();
 	testValueArrayOps();
 	testValueIntMapOps();
 	testValueOwnedIterator();

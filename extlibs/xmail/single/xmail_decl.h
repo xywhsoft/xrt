@@ -37145,6 +37145,20 @@ XRT_API xvaluetype xrtValueType(const xvalue* pValue);
 
 
 
+/* 返回调用者绑定的不透明语义类型身份；未绑定或空指针返回零。 */
+XRT_API uint64 xrtValueTypeId(const xvalue* pValue);
+
+
+
+/*
+	把非零语义类型身份一次性绑定到非静态值外壳。
+	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播，
+	但不参与 XRT 的相等、哈希或序列化语义。
+*/
+XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId);
+
+
+
 /* 返回稳定的类型名称。 */
 XRT_API cstr xrtValueTypeName(xvaluetype Type);
 

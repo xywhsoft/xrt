@@ -32,6 +32,26 @@
 
 
 
+/*
+	常用 HTTP 方法使用稳定枚举供解析热路径和上层分派直接比较。
+	OTHER 表示语法合法但未内置分类的方法；INVALID 表示空值或非法 token。
+*/
+typedef enum xhttpmethod {
+	XHTTP_METHOD_INVALID = 0,
+	XHTTP_METHOD_OTHER = 1,
+	XHTTP_METHOD_GET = 2,
+	XHTTP_METHOD_HEAD = 3,
+	XHTTP_METHOD_POST = 4,
+	XHTTP_METHOD_PUT = 5,
+	XHTTP_METHOD_DELETE = 6,
+	XHTTP_METHOD_CONNECT = 7,
+	XHTTP_METHOD_OPTIONS = 8,
+	XHTTP_METHOD_TRACE = 9,
+	XHTTP_METHOD_PATCH = 10
+} xhttpmethod;
+
+
+
 /* HTTP 版本使用可直接比较的主次版本编码。 */
 typedef enum xhttpversion {
 	XHTTP_VERSION_1_0 = 10,
@@ -374,6 +394,14 @@ XRT_API bool xrtHttpTokenValid(xstrview Text);
 
 /* 按 ASCII 大小写不敏感规则比较两个 token。 */
 XRT_API bool xrtHttpTokenEqual(xstrview Left, xstrview Right);
+
+
+
+/*
+	按大小写敏感规则分类 HTTP 方法。
+	合法扩展方法返回 OTHER；空值或非法 token 返回 INVALID。
+*/
+XRT_API xhttpmethod xrtHttpMethodParse(xstrview Method);
 
 
 

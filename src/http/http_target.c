@@ -166,6 +166,7 @@ XRT_API bool xrtHttpTargetParse(
 )
 {
 	xhttptarget Target = { 0 };
+	xhttpmethod MethodCode;
 
 	if ( !__xrtRangeValid(pTarget, sizeof(Target)) ||
 		!__xrtHttpViewValid(Method) ||
@@ -177,13 +178,14 @@ XRT_API bool xrtHttpTargetParse(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !xrtHttpTokenValid(Method) || (Text.Size == 0) ) {
+	MethodCode = xrtHttpMethodParse(Method);
+	if ( (MethodCode == XHTTP_METHOD_INVALID) || (Text.Size == 0) ) {
 		return __xrtHttpTargetValueFail(pTarget);
 	}
 	Target.Method = Method;
 	Target.Text = Text;
 
-	if ( xrtHttpMethodEqual(Method, XRT_STR_LITERAL("CONNECT")) ) {
+	if ( MethodCode == XHTTP_METHOD_CONNECT ) {
 		if ( !xrtHttpHostParse(Text, &Target.Host) ||
 			(Target.Host.Host.Size == 0) ||
 			((Target.Host.Flags & XHTTP_AUTHORITY_HAS_PORT) == 0) ||
@@ -198,7 +200,7 @@ XRT_API bool xrtHttpTargetParse(
 	}
 
 	if ( (Text.Size == 1u) && (Text.Data[0] == '*') ) {
-		if ( !xrtHttpMethodEqual(Method, XRT_STR_LITERAL("OPTIONS")) ) {
+		if ( MethodCode != XHTTP_METHOD_OPTIONS ) {
 			return __xrtHttpTargetValueFail(pTarget);
 		}
 		Target.Form = XHTTP_TARGET_ASTERISK;

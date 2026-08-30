@@ -8,13 +8,13 @@
 
 /* null 和布尔值不分配内存，统一允许 Retain 和 Release。 */
 static xvalue __xrtValueNull = {
-	INT32_MAX, XVALUE_NULL, XRT_VALUE_FLAG_STATIC, { 0 }
+	INT32_MAX, XVALUE_NULL, XRT_VALUE_FLAG_STATIC, 0, { 0 }
 };
 static xvalue __xrtValueFalse = {
-	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, { 0 }
+	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, 0, { 0 }
 };
 static xvalue __xrtValueTrue = {
-	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, { .Bool = true }
+	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, 0, { .Bool = true }
 };
 
 
@@ -650,6 +650,66 @@ XRT_API xvaluetype xrtValueType(const xvalue* pValue)
 		return XVALUE_INVALID;
 	}
 	return (xvaluetype)pValue->Type;
+}
+
+
+
+/* 返回调用者绑定的不透明语义类型身份。 */
+XRT_API uint64 xrtValueTypeId(const xvalue* pValue)
+{
+	if ( pValue == NULL ) {
+		return 0;
+	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return 0;
+	}
+	return pValue->TypeId;
+}
+
+
+
+/* 一次性绑定非零语义类型身份，禁止共享值被重新解释。 */
+XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId)
+{
+	if ( (pValue == NULL) || (iTypeId == 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_BUSY)) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( (pValue->TypeId != 0) && (pValue->TypeId != iTypeId) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pValue->TypeId = iTypeId;
+	return true;
+}
+
+
+
+/* 只允许未发布且唯一拥有的外壳替换语义类型身份。 */
+XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
+{
+	if ( (pValue == NULL) || (iTypeId == 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_BUSY)) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( pValue->TypeId == iTypeId ) {
+		return true;
+	}
+	if ( pValue->RefCount != 1 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pValue->TypeId = iTypeId;
+	return true;
 }
 
 

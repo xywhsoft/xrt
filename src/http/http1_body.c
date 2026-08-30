@@ -701,8 +701,11 @@ XRT_API bool xrtHttp1ResponseBodyPlan(
 	xhttp1bodyplan* pPlan
 )
 {
+	xhttpmethod MethodCode;
+
+	MethodCode = xrtHttpMethodParse(RequestMethod);
 	if ( !__xrtHttp1BodyHeadValid(pHead, XHTTP_RESPONSE) ||
-		!xrtHttpTokenValid(RequestMethod) ||
+		(MethodCode == XHTTP_METHOD_INVALID) ||
 		(pPlan == NULL) ) {
 		return __xrtHttp1BodyPlanFail(
 			pPlan, XHTTP1_ERROR_ARGUMENT, XERR_ARGUMENT,
@@ -721,16 +724,12 @@ XRT_API bool xrtHttp1ResponseBodyPlan(
 		pPlan->Mode = XHTTP1_BODY_TUNNEL;
 		return true;
 	}
-	if ( xrtHttpMethodEqual(
-		RequestMethod, XRT_STR_LITERAL("CONNECT")
-	) &&
+	if ( (MethodCode == XHTTP_METHOD_CONNECT) &&
 		(pHead->Status >= 200) && (pHead->Status < 300) ) {
 		pPlan->Mode = XHTTP1_BODY_TUNNEL;
 		return true;
 	}
-	if ( xrtHttpMethodEqual(
-		RequestMethod, XRT_STR_LITERAL("HEAD")
-	) ) {
+	if ( MethodCode == XHTTP_METHOD_HEAD ) {
 		pPlan->Mode = XHTTP1_BODY_NONE;
 		return true;
 	}

@@ -27,7 +27,15 @@ static void testValueCowRoots(void)
 	xvalue* pTwo = xrtValueInt(2);
 
 	testRequire(xrtValueArrayAppendNew(pArray, xrtValueInt(1)), "COW array fixture failed");
+	testRequire(
+		xrtValueTypeIdBind(pArray, UINT64_C(0x1020304050607080)),
+		"COW array type identity bind failed"
+	);
 	pArrayCopy = xrtValueClone(pArray);
+	testRequire(
+		xrtValueTypeId(pArrayCopy) == UINT64_C(0x1020304050607080),
+		"COW clone lost type identity"
+	);
 	testRequire(xrtValueArrayAppendNew(pArrayCopy, xrtValueInt(2)), "COW array mutation failed");
 	testRequire((xrtValueCount(pArray) == 1) && (xrtValueCount(pArrayCopy) == 2), "COW array source changed");
 

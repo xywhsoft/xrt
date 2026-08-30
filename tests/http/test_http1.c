@@ -71,6 +71,7 @@ static void testHttp1Request(void)
 	) == XHTTP1_READY, "HTTP/1 request parse failed");
 	testRequire((Head.Kind == XHTTP_REQUEST) &&
 		(Head.Version == XHTTP_VERSION_1_1) &&
+		(Head.MethodCode == XHTTP_METHOD_POST) &&
 		(Head.Bytes == iHeadBytes) &&
 		(Head.FieldCount == 6) &&
 		(Head.ContentLength == 5) &&
@@ -108,9 +109,44 @@ static void testHttp1Response(void)
 	) == XHTTP1_READY, "HTTP/1 response parse failed");
 	testRequire((Head.Kind == XHTTP_RESPONSE) &&
 		(Head.Version == XHTTP_VERSION_1_0) &&
+		(Head.MethodCode == XHTTP_METHOD_INVALID) &&
 		(Head.Status == 204) && (Head.Reason.Size == 0) &&
 		((Head.Flags & (uint32)XHTTP1_KEEP_ALIVE) != 0),
 		"HTTP/1 response metadata mismatch");
+}
+
+
+
+/* 合法扩展方法必须保留文本并发布 OTHER，而不是被当成协议错误。 */
+static void testHttp1MethodCodes(void)
+{
+	static const char Extension[] =
+		"PURGE /cache HTTP/1.1\r\nHost: example.test\r\n\r\n";
+	static const char Lowercase[] =
+		"get / HTTP/1.1\r\nHost: example.test\r\n\r\n";
+	xhttpfield Fields[2];
+	xhttp1head Head;
+
+	xrtHttp1HeadInit(&Head, Fields, 2);
+	testRequire(
+		xrtHttp1RequestParse(
+			testHttp1Bytes(Extension, sizeof(Extension) - 1u),
+			&Head, NULL, NULL
+		) == XHTTP1_READY &&
+		(Head.MethodCode == XHTTP_METHOD_OTHER) &&
+		(Head.Method.Size == 5u) &&
+		(memcmp(Head.Method.Data, "PURGE", 5u) == 0),
+		"HTTP/1 parser rejected or changed an extension method"
+	);
+	xrtHttp1HeadInit(&Head, Fields, 2);
+	testRequire(
+		xrtHttp1RequestParse(
+			testHttp1Bytes(Lowercase, sizeof(Lowercase) - 1u),
+			&Head, NULL, NULL
+		) == XHTTP1_READY &&
+		(Head.MethodCode == XHTTP_METHOD_OTHER),
+		"HTTP/1 parser treated a lowercase extension token as GET"
+	);
 }
 
 
@@ -159,6 +195,7 @@ static void testHttp1FieldCapacity(void)
 	) == XHTTP1_FIELDS, "HTTP/1 small field array was not reported");
 	testRequire((Head.FieldCount == 3) &&
 		(Head.FieldCapacity == 1) &&
+		(Head.MethodCode == XHTTP_METHOD_GET) &&
 		((const unsigned char*)Small)[0] == UINT8_C(0xA5),
 		"HTTP/1 field shortage was not failure atomic");
 	xrtClearError();
@@ -392,6 +429,10 @@ static void testHttp1RejectsMalformed(void)
 	testHttp1Reject(
 		"GET / HTTP/1.1\r\n Folded: no\r\n\r\n",
 		false, XHTTP1_ERROR_FIELD_NAME
+	);
+	testHttp1Reject(
+		"GE(T / HTTP/1.1\r\n\r\n",
+		false, XHTTP1_ERROR_METHOD
 	);
 	testHttp1Reject(
 		"GET / HTTP/1.1\r\nBad Name: x\r\n\r\n",
@@ -779,6 +820,7 @@ int main(void)
 	testHttp1Target();
 	testHttp1Request();
 	testHttp1Response();
+	testHttp1MethodCodes();
 	testHttp1Incremental();
 	testHttp1FieldCapacity();
 	testHttp1DynamicFieldLength();

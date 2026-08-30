@@ -141,6 +141,7 @@ typedef struct xhttp1head {
 	xhttpfield* Fields;
 	size_t FieldCount;
 	size_t FieldCapacity;
+	xhttpmethod MethodCode;
 } xhttp1head;
 
 #endif

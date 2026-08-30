@@ -39,6 +39,11 @@ XRT 的 HTTP 模块是可直接组合 TCP、TLS 和自定义传输的 HTTP/1 线
 `xhttpfield`、`xhttp1head`、`xhttp1message` 和所有语法游标都借用调用方输入。
 解析器不复制字段名称和值，输入缓冲和字段描述符数组必须覆盖借用视图的使用期。
 
+请求方法同时以原始 `xhttp1head.Method` 视图和 `xhttp1head.MethodCode` 枚举发布。
+`xrtHttpMethodParse` 按大小写敏感规则识别 GET、HEAD、POST、PUT、DELETE、CONNECT、
+OPTIONS、TRACE 和 PATCH；合法但未内置的方法返回 `XHTTP_METHOD_OTHER`，非法 token
+返回 `XHTTP_METHOD_INVALID`。应用应使用枚举分派常用方法，同时保留原始视图处理扩展方法。
+
 字段描述符允许位于合法的未对齐存储。实现使用安全加载，不要求调用方为了协议
 解析调整缓冲布局。
 

@@ -189,6 +189,25 @@ XRT_API xvaluetype xrtValueType(const xvalue* pValue);
 
 
 
+/* 返回调用者绑定的不透明语义类型身份；未绑定或空指针返回零。 */
+XRT_API uint64 xrtValueTypeId(const xvalue* pValue);
+
+
+
+/*
+	把非零语义类型身份一次性绑定到非静态值外壳。
+	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播，
+	但不参与 XRT 的相等、哈希或序列化语义。
+*/
+XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId);
+
+
+
+/* 仅在值外壳唯一拥有时，把既有语义类型身份替换为新的非零身份。 */
+XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId);
+
+
+
 /* 返回稳定的类型名称。 */
 XRT_API cstr xrtValueTypeName(xvaluetype Type);
 
@@ -371,6 +390,11 @@ XRT_API size_t xrtValueCount(const xvalue* pValue);
 
 
 
+/* 返回 Array、Set 或 Object 的当前预留容量；IntMap 不承诺连续容量。 */
+XRT_API size_t xrtValueCapacity(const xvalue* pValue);
+
+
+
 /* 保证容器至少可容纳指定数量的元素。 */
 XRT_API bool xrtValueReserve(xvalue* pValue, size_t iCapacity);
 
@@ -378,6 +402,11 @@ XRT_API bool xrtValueReserve(xvalue* pValue, size_t iCapacity);
 
 /* 释放容器多余容量，保留现有元素。 */
 XRT_API bool xrtValueTrim(xvalue* pValue);
+
+
+
+/* 释放 IntMap 空闲节点池页并返回实际释放页数。 */
+XRT_API size_t xrtValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty);
 
 
 

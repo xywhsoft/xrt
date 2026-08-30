@@ -379,6 +379,7 @@ static xvalue* __xrtValueCloneHandle(
 		__xrtValueClonePop(pContext);
 		return NULL;
 	}
+	pTarget->TypeId = pSource->TypeId;
 	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ||
 		 !__xrtValueCloneFinish(pContext, pSource) ) {
 		__xrtValueCloneRelease(pContext, pTarget);
@@ -536,6 +537,7 @@ static xvalue* __xrtValueDeepClone(
 	if ( pTarget == NULL ) {
 		return NULL;
 	}
+	pTarget->TypeId = pSource->TypeId;
 	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ) {
 		xrtValueRelease(pTarget);
 		return NULL;

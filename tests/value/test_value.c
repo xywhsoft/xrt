@@ -26,6 +26,62 @@ static void testValueStatic(void)
 
 
 
+/* 验证可选语义类型身份只允许一次性、一致绑定。 */
+static void testValueTypeId(void)
+{
+	const uint64 iTypeId = UINT64_C(0x91A2B3C4D5E6F708);
+	xvalue* pValue = xrtValueInt(7);
+	xvalue* pShared;
+
+	testRequire(pValue != NULL, "type identity fixture failed");
+	testRequire(xrtValueTypeId(NULL) == 0, "null type identity mismatch");
+	testRequire(xrtValueTypeId(pValue) == 0, "fresh value has a type identity");
+	testRequire(
+		xrtValueTypeIdBind(pValue, iTypeId) &&
+		xrtValueTypeIdBind(pValue, iTypeId) &&
+		(xrtValueTypeId(pValue) == iTypeId),
+		"type identity bind mismatch"
+	);
+	xrtClearError();
+	testRequire(
+		!xrtValueTypeIdBind(pValue, iTypeId + 1u) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE) &&
+		(xrtValueTypeId(pValue) == iTypeId),
+		"conflicting type identity changed the value"
+	);
+	xrtClearError();
+	pShared = xrtValueRetain(pValue);
+	testRequire(pShared == pValue, "type identity shared fixture mismatch");
+	testRequire(
+		!xrtValueTypeIdRebind(pValue, iTypeId + 1u) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE) &&
+		(xrtValueTypeId(pValue) == iTypeId),
+		"shared value accepted a type identity rebind"
+	);
+	xrtValueRelease(pShared);
+	xrtClearError();
+	testRequire(
+		xrtValueTypeIdRebind(pValue, iTypeId + 1u) &&
+		xrtValueTypeIdRebind(pValue, iTypeId + 1u) &&
+		(xrtValueTypeId(pValue) == iTypeId + 1u),
+		"unique value type identity rebind mismatch"
+	);
+	testRequire(
+		!xrtValueTypeIdBind(xrtValueNull(), iTypeId) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"static value accepted a type identity"
+	);
+	xrtClearError();
+	testRequire(
+		!xrtValueTypeIdRebind(xrtValueNull(), iTypeId) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"static value accepted a type identity rebind"
+	);
+	xrtValueRelease(pValue);
+}
+
+
+
 /* 验证标量精确读取、真值和错误类别。 */
 static void testValueScalars(void)
 {
@@ -337,6 +393,7 @@ static void testValueHashing(void)
 int main(void)
 {
 	testValueStatic();
+	testValueTypeId();
 	testValueScalars();
 	testValueBlobs();
 	testValueOutputAliases();

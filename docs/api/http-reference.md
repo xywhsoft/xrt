@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [http.md](http.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `119` 个函数、`133` 个常量或宏、
-`41` 个公共类型。
+当前登记 `120` 个函数、`144` 个常量或宏、
+`42` 个公共类型。
 
 ## `include/xrt/http.h`
 
 [查看带契约注释的公共头](../../include/xrt/http.h)
 
-### 函数 (58)
+### 函数 (59)
 
 - `xrtHttpAuthorityPort`
 - `xrtHttpAuthorityValid`
@@ -41,6 +41,7 @@
 - `xrtHttpIpv6Valid`
 - `xrtHttpMethodEqual`
 - `xrtHttpMethodIdempotent`
+- `xrtHttpMethodParse`
 - `xrtHttpMethodSafe`
 - `xrtHttpOwsTrim`
 - `xrtHttpParamBuild`
@@ -72,12 +73,23 @@
 - `xrtHttpTokenValid`
 - `xrtHttpWeightedTokenNext`
 
-### 常量与宏 (81)
+### 常量与宏 (92)
 
 - `XHTTP_AUTHORITY_HAS_PORT`
 - `XHTTP_AUTHORITY_IP_LITERAL`
 - `XHTTP_AUTHORITY_PORT_EMPTY`
 - `XHTTP_AUTHORITY_PORT_VALUE`
+- `XHTTP_METHOD_CONNECT`
+- `XHTTP_METHOD_DELETE`
+- `XHTTP_METHOD_GET`
+- `XHTTP_METHOD_HEAD`
+- `XHTTP_METHOD_INVALID`
+- `XHTTP_METHOD_OPTIONS`
+- `XHTTP_METHOD_OTHER`
+- `XHTTP_METHOD_PATCH`
+- `XHTTP_METHOD_POST`
+- `XHTTP_METHOD_PUT`
+- `XHTTP_METHOD_TRACE`
 - `XHTTP_NEXT_END`
 - `XHTTP_NEXT_ERROR`
 - `XHTTP_NEXT_ITEM`
@@ -156,11 +168,12 @@
 - `XHTTP_VERSION_1_0`
 - `XHTTP_VERSION_1_1`
 
-### 类型 (12)
+### 类型 (13)
 
 - `xhttpauthority`
 - `xhttpfield`
 - `xhttpfieldtokencursor`
+- `xhttpmethod`
 - `xhttpnext`
 - `xhttpparam`
 - `xhttpparamflags`

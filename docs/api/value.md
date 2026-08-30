@@ -33,6 +33,7 @@ value_graph -> value_container
 - Getter 和 Hash 失败时不改输出；输出区间不得覆盖 Value 外壳或其拥有的字符串、字节、句柄首地址。
 - 句柄 `Hash`、`Equal`、`Clone` 和最终释放回调不得读取、保留或再次释放正在参与回调的 Value；这些重入以 `XERR_STATE` 拒绝。
 - 标量不可变。`Retain` 共享同一身份，`Clone` 对标量等价于 `Retain`。
+- 非静态值可在发布前用 `xrtValueTypeIdBind` 一次性绑定调用者定义的非零语义类型身份；重复绑定同一值成功，冲突绑定报告 `XERR_STATE`。该身份随浅克隆和深克隆传播，但不改变 XRT 的类别、相等、哈希或序列化语义。
 - 精确 Getter 不做文本解析或隐式类型转换，类型错误报告 `XERR_TYPE`。
 - `xrtValueHash` 只接受可哈希标量，并与数值相等规则保持一致；Pointer 和 Handle 的哈希仅在当前进程内有效，不可持久化或跨进程比较。
 - `xrtValueScalarEqual` 比较标量内容；有符号整数、无符号整数与可无损转换的浮点数按精确数值等价，所有 NaN 互相等价。
@@ -80,6 +81,9 @@ xvalue* xrtValueRetain(const xvalue* value);
 void xrtValueRelease(xvalue* value);
 xvalue* xrtValueClone(const xvalue* value);
 xvaluetype xrtValueType(const xvalue* value);
+uint64 xrtValueTypeId(const xvalue* value);
+bool xrtValueTypeIdBind(xvalue* value, uint64 type_id);
+bool xrtValueTypeIdRebind(xvalue* value, uint64 type_id);
 cstr xrtValueTypeName(xvaluetype type);
 bool xrtValueIs(const xvalue* value, xvaluetype type);
 bool xrtValueIsNumber(const xvalue* value);
@@ -104,6 +108,12 @@ bool xrtValueScalarEqual(const xvalue* left, const xvalue* right);
 `StringTake` 会把缓冲调整到 `size + 1` 并写入末尾零，失败时来源指针和内容不变。
 `BytesTake` 不增加隐藏终止字节。两者只接受由 XRT 分配器取得的内存；成功后来源
 指针被清空，Value 在最后释放时销毁该内存。
+
+`xrtValueTypeId` 对未绑定值和空指针返回零。`xrtValueTypeIdBind` 只接受非静态值与
+非零身份；调用方必须在把值外壳发布给其他线程之前完成首次绑定。类型身份属于宿主
+语义元数据，不会被 XRT 当作结构内容；COW 外壳克隆和 Value Graph 深克隆会保留它。
+`xrtValueTypeIdRebind` 仅供已经完成语义验证的唯一拥有外壳替换身份；冲突的共享外壳
+以 `XERR_STATE` 拒绝，调用方需要先创建独立 COW 外壳，不能重新解释其他持有者的值。
 
 ## Native Handle
 
@@ -147,13 +157,17 @@ xvalue* xrtValueObject(void);
 xvalue* xrtValueObjectLifo(void);
 
 size_t xrtValueCount(const xvalue* value);
+size_t xrtValueCapacity(const xvalue* value);
 bool xrtValueReserve(xvalue* value, size_t capacity);
 bool xrtValueTrim(xvalue* value);
+size_t xrtValueIntMapTrim(xvalue* value, size_t retain_empty);
 bool xrtValueClear(xvalue* value);
 ```
 
-`Reserve` 适用于 Array、Set 和 Object。树形 IntMap 没有可承诺的连续容量，调用
-`Reserve` 报告 `XERR_UNSUPPORTED`；`Trim` 和 `Clear` 支持四种容器。
+`Capacity` 和 `Reserve` 适用于 Array、Set 和 Object。树形 IntMap 没有可承诺的
+连续容量，调用二者报告 `XERR_UNSUPPORTED`；`Trim` 和 `Clear` 支持四种容器。
+需要取得 IntMap 实际释放的空闲页数时使用 `xrtValueIntMapTrim`，并可显式保留
+指定数量的空闲节点。
 
 `xrtValueObjectLifo` 创建与普通 Object 完全相同的字符串键对象，但在 `Clear` 或
 最后一个共享 backing 释放时，按键的当前插入顺序逆序释放仍由对象拥有的值。它用于
