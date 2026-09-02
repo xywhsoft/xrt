@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [tls.md](tls.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `267` 个函数、`242` 个常量或宏、
+当前登记 `268` 个函数、`242` 个常量或宏、
 `101` 个公共类型。
 
 ## `include/xrt/tls.h`
@@ -501,9 +501,10 @@
 
 [查看带契约注释的公共头](../../include/xrt/tls_server.h)
 
-### 函数 (8)
+### 函数 (9)
 
 - `xrtTlsServerConfigInit`
+- `xrtTlsServerCookie`
 - `xrtTlsServerCreate`
 - `xrtTlsServerDrive`
 - `xrtTlsServerKeyUpdate`

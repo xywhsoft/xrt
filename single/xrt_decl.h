@@ -26815,10 +26815,11 @@ typedef struct xtlsserverrequest {
 
 
 
-/* 选择结果默认带入静态身份和服务器偏好得到的 ALPN，回调可替换两者。 */
+/* 选择结果默认带入静态身份、ALPN 和零 Cookie，回调可替换这些结果。 */
 typedef struct xtlsserverchoice {
 	const xtlsidentity* Identity;
 	size_t Protocol;
+	uint64 Cookie;
 } xtlsserverchoice;
 
 
@@ -26906,6 +26907,14 @@ XRT_API xtlsresult xrtTlsServerKeyUpdate(
 XRT_API bool xrtTlsServerName(
 	const xtlssession* pSession,
 	xbytesview* pServerName
+);
+
+
+
+/* 返回选择器为本次握手保存的不透明宿主 Cookie；未设置时返回零。 */
+XRT_API bool xrtTlsServerCookie(
+	const xtlssession* pSession,
+	uint64* pCookie
 );
 
 

@@ -767,6 +767,51 @@ bool __xrtNetSocketAvailableNative(xnetsocket Socket,
 
 
 
+/* 控制 Windows UDP 是否把 ICMP Port Unreachable 投递成接收重置。 */
+bool __xrtNetSocketUdpConnReset(xnetsocket Socket, bool bEnabled)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		BOOL bReportConnectionReset = bEnabled ? TRUE : FALSE;
+		DWORD iReturned = 0;
+
+		if ( !__xrtNetSocketRequireType(
+			Socket,
+			XNET_SOCKET_DGRAM,
+			"set-udp-connreset",
+			"UDP connection reset control requires a datagram socket"
+		) ) {
+			return false;
+		}
+		if ( WSAIoctl(
+			__xrtNetSocketHandle(Socket),
+			SIO_UDP_CONNRESET,
+			&bReportConnectionReset,
+			(DWORD)sizeof(bReportConnectionReset),
+			NULL,
+			0,
+			&iReturned,
+			NULL,
+			NULL
+		) != 0 ) {
+			int iCode = __xrtNetSocketLastError();
+
+			__xrtNetSocketSetSystemError(
+				XNET_ERROR_SOCKET_OPTION,
+				"set-udp-connreset",
+				"setting UDP connection reset reporting failed",
+				iCode
+			);
+			return false;
+		}
+	#else
+		(void)Socket;
+		(void)bEnabled;
+	#endif
+	return true;
+}
+
+
+
 /* 查询当前可立即读取的字节数；数据报 Socket 返回下一报文可读长度。 */
 XRT_API bool xrtNetSocketAvailable(xnetsocket Socket, size_t* pSize)
 {

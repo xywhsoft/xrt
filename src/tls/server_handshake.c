@@ -16,6 +16,7 @@ typedef struct xtlsserverflight {
 	size_t OutputSize;
 	size_t Protocol;
 	size_t HashSize;
+	uint64 Cookie;
 	xtlscipher Cipher;
 	xtlssignature Signature;
 	uint8 ClientHandshake[XTLS_SERVER_SECRET_MAX_SIZE];
@@ -538,6 +539,7 @@ static bool __xrtTlsServerSelect(
 	Choice.Protocol = __xrtTlsServerProtocolDefault(
 		pState, pSelection->Protocols
 	);
+	Choice.Cookie = 0;
 	Request.ServerName = pSelection->ServerName;
 	Request.Protocols = pSelection->Protocols;
 	if ( (pState->Select != NULL) && !pState->Select(
@@ -568,6 +570,7 @@ static bool __xrtTlsServerSelect(
 			"TLS server could not retain the selected identity"
 		);
 	}
+	pSelection->Cookie = Choice.Cookie;
 	pSelection->Protocol = Choice.Protocol;
 	IdentityType = xrtTlsIdentityType(pSelection->Identity);
 	Result = xrtTlsCipherSelect(
@@ -1616,6 +1619,7 @@ static void __xrtTlsServerFlightCommit(
 		pState->Resumed = pFlight->Resumed;
 	#endif
 	pState->HashSize = pFlight->HashSize;
+	pState->Cookie = pFlight->Cookie;
 	pState->Version = XTLS_VERSION_13;
 	pState->Cipher = pFlight->Cipher;
 	pState->Signature = pFlight->Signature;
@@ -1703,6 +1707,7 @@ xtlsresult __xrtTlsServerFirstFlight(
 		goto cleanup;
 	}
 	Flight.Protocol = Selection.Protocol;
+	Flight.Cookie = Selection.Cookie;
 	if ( !__xrtTlsServerNameCopy(&Selection, &Flight) ||
 		!__xrtTlsServerHelloFlight(
 			pSession, pState, &Selection, pMessage,

@@ -45,6 +45,7 @@ typedef struct xtlsserverselection {
 	xbytesview Protocols;
 	const xtlsidentity* Identity;
 	size_t Protocol;
+	uint64 Cookie;
 	xtlsversion Version;
 	xtlscipher Cipher;
 	xtlssignature Signature;
@@ -78,6 +79,7 @@ typedef struct xtlsserverstate {
 	size_t SecretCapacity;
 	size_t HashSize;
 	size_t RecordOffset;
+	uint64 Cookie;
 	const xtlsidentity* Identity;
 	xtlsserverselectproc Select;
 	ptr SelectContext;

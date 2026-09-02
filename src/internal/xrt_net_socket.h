@@ -54,6 +54,11 @@ bool __xrtNetSocketAvailableNative(xnetsocket Socket,
 
 
 
+/* 控制 Windows 是否把 UDP ICMP Port Unreachable 映射为接收重置。 */
+bool __xrtNetSocketUdpConnReset(xnetsocket Socket, bool bEnabled);
+
+
+
 /* 清零并解析平台控制消息，只发布 Socket 已启用的字段。 */
 void __xrtNetSocketDgramMetaParse(
 	xnetsocket Socket,

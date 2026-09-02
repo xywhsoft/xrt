@@ -2,6 +2,24 @@
 
 
 
+/* TLS 1.2 与 TLS 1.3 使用同一个选择器 Cookie 契约。 */
+static bool testTlsServer12Select(
+	ptr pContext,
+	const xtlsserverrequest* pRequest,
+	xtlsserverchoice* pChoice
+)
+{
+	(void)pContext;
+	if ( (pRequest == NULL) || (pChoice == NULL) ||
+		(pChoice->Identity == NULL) ) {
+		return false;
+	}
+	pChoice->Cookie = UINT64_C(0x12C0011E12C0011E);
+	return true;
+}
+
+
+
 /* 创建只开放 TLS 1.2 ECDHE-RSA-AES-GCM 的测试上下文。 */
 static xtlscontext* testTlsServer12Context(void)
 {
@@ -60,6 +78,7 @@ int main(void)
 	xbytesview Name;
 	xbytesview ClientProtocol;
 	xbytesview ServerProtocol;
+	uint64 iCookie = 0;
 
 	testRequire((pContext != NULL) && (pIdentity != NULL),
 		"TLS 1.2 fixture creation failed");
@@ -79,6 +98,7 @@ int main(void)
 	ServerConfig.Identity = pIdentity;
 	ServerConfig.Protocols = Protocols;
 	ServerConfig.ProtocolCount = sizeof(Protocols) / sizeof(Protocols[0]);
+	ServerConfig.Select = testTlsServer12Select;
 	ServerConfig.RequireProtocol = true;
 	pClient = xrtTlsClientCreate(&ClientConfig, NULL);
 	pServer = xrtTlsServerCreate(&ServerConfig, NULL);
@@ -98,6 +118,9 @@ int main(void)
 		xrtTlsServerName(pServer, &Name) && (Name.Size == 11u) &&
 		(memcmp(Name.Data, "example.com", 11u) == 0),
 		"TLS 1.2 certificate or SNI state differs");
+	testRequire(xrtTlsServerCookie(pServer, &iCookie) &&
+		(iCookie == UINT64_C(0x12C0011E12C0011E)),
+		"TLS 1.2 server did not retain the selector Cookie");
 	testRequire(xrtTlsSessionProtocol(pClient, &ClientProtocol) &&
 		xrtTlsSessionProtocol(pServer, &ServerProtocol) &&
 		testTlsServerViewEqual(ClientProtocol, ServerProtocol) &&

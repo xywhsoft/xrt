@@ -7,6 +7,7 @@ typedef struct test_tls_server_select {
 	bool Called;
 	bool Name;
 	bool Protocols;
+	uint64 Cookie;
 } test_tls_server_select;
 
 
@@ -42,6 +43,7 @@ static bool testTlsServerSelect(
 	ProtocolResult = xrtTlsProtocolFind(pRequest->Protocols, Http11);
 	pState->Protocols = ProtocolResult == XTLS_ITEM_VALUE;
 	pChoice->Protocol = 1u;
+	pChoice->Cookie = pState->Cookie;
 	if ( !pState->Name || !pState->Protocols ) {
 		fprintf(
 			stderr,
@@ -118,6 +120,7 @@ static void testTlsServerHelloRetryRequest(
 	xtlssession* pClient;
 	xtlssession* pServer;
 	test_tls_server_rng Rng = { UINT32_C(0x71D30A5B) };
+	uint64 iCookie = UINT64_MAX;
 
 	xrtTlsPolicyInit(&ClientPolicy);
 	ClientPolicy.Versions = Versions;
@@ -168,6 +171,8 @@ static void testTlsServerHelloRetryRequest(
 	testRequire((pClient != NULL) && (pServer != NULL) &&
 		testTlsServerHandshake(pClient, pServer, &Rng),
 		"TLS HelloRetryRequest handshake failed");
+	testRequire(xrtTlsServerCookie(pServer, &iCookie) && (iCookie == 0),
+		"TLS server default selector Cookie is not zero");
 	testRequire((xrtTlsSessionVersion(pClient) == XTLS_VERSION_13) &&
 		(xrtTlsSessionVersion(pServer) == XTLS_VERSION_13) &&
 		testTlsServerTransfer(
@@ -202,7 +207,9 @@ int main(void)
 	xtlsverifier* pVerifier;
 	xtlsclientconfig ClientConfig;
 	xtlsserverconfig ServerConfig;
-	test_tls_server_select Select = { false, false, false };
+	test_tls_server_select Select = {
+		false, false, false, UINT64_C(0xD15EA5E5C001C0DE)
+	};
 	test_tls_server_resume Resume = { NULL, false, false };
 	test_tls_server_rng Rng = { UINT32_C(0x12345678) };
 	xtlssession* pClient;
@@ -214,6 +221,7 @@ int main(void)
 	xbytesview Name;
 	xbytesview ClientProtocol;
 	xbytesview ServerProtocol;
+	uint64 iCookie = UINT64_MAX;
 
 	testRequire((pContext != NULL) && (pIdentity != NULL),
 		"TLS server fixture creation failed");
@@ -240,6 +248,8 @@ int main(void)
 	pServer = xrtTlsServerCreate(&ServerConfig, NULL);
 	testRequire((pClient != NULL) && (pServer != NULL),
 		"TLS client or server session creation failed");
+	testRequire(xrtTlsServerCookie(pServer, &iCookie) && (iCookie == 0),
+		"TLS server Cookie is not zero before selection");
 	testRequire(testTlsServerHandshake(pClient, pServer, &Rng),
 		"TLS client/server fragmented handshake failed");
 	testRequire((xrtTlsSessionVersion(pClient) == XTLS_VERSION_13) &&
@@ -249,6 +259,9 @@ int main(void)
 		"TLS 1.3 negotiated snapshot differs");
 	testRequire(Select.Called && Select.Name && Select.Protocols,
 		"TLS server selector did not receive the expected request");
+	testRequire(xrtTlsServerCookie(pServer, &iCookie) &&
+		(iCookie == Select.Cookie),
+		"TLS server did not retain the selector Cookie");
 	testRequire(xrtTlsServerName(pServer, &Name) &&
 		(Name.Size == 11u) &&
 		(memcmp(Name.Data, "example.com", 11u) == 0),
@@ -313,7 +326,9 @@ int main(void)
 
 	/* 第二条连接只借用缓存对象，服务端核心负责全部绑定与 binder 验证。 */
 	Resume.Resume = pServerResume;
-	Select = (test_tls_server_select) { false, false, false };
+	Select = (test_tls_server_select) {
+		false, false, false, UINT64_C(0xD15EA5E5C001C0DE)
+	};
 	ClientConfig.Resume = pClientResume;
 	ServerConfig.Resume = testTlsServerResume;
 	ServerConfig.ResumeContext = &Resume;
@@ -324,6 +339,9 @@ int main(void)
 	testRequire((pClient != NULL) && (pServer != NULL) &&
 		testTlsServerHandshake(pClient, pServer, &Rng),
 		"TLS resumed client/server handshake failed");
+	testRequire(xrtTlsServerCookie(pServer, &iCookie) &&
+		(iCookie == Select.Cookie),
+		"TLS resumed server did not retain the selector Cookie");
 	testRequire(Resume.Called && Resume.Name &&
 		xrtTlsClientResumed(pClient) && xrtTlsServerResumed(pServer),
 		"TLS server did not accept the stored ticket");

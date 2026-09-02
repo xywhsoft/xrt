@@ -536,6 +536,7 @@ xtlsresult __xrtTlsServer12FirstFlight(
 	pState->Signature = pSelection->Signature;
 	pState->Group = pSelection->Group;
 	pState->HashSize = pCipher->HashSize;
+	pState->Cookie = pSelection->Cookie;
 	pState->Step = XTLS_SERVER_WAIT_CLIENT_KEY_EXCHANGE;
 	pSession->Version = XTLS_VERSION_12;
 	pSession->Cipher = pSelection->Cipher;

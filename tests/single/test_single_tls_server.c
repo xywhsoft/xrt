@@ -43,6 +43,7 @@ int main(void)
 	xtlsserverconfig ServerConfig;
 	xtlssession* pServer;
 	xtlsresume* pResume = (xtlsresume*)(uintptr_t)1u;
+	uint64 iCookie = UINT64_MAX;
 	bool bResult;
 
 	memset(&IdentityConfig, 0, sizeof(IdentityConfig));
@@ -64,6 +65,7 @@ int main(void)
 	bResult = (xrtTlsSessionRole(pServer) == XTLS_SERVER) &&
 		(xrtTlsSessionState(pServer) == XTLS_STATE_HANDSHAKE) &&
 		((xrtTlsSessionWait(pServer) & XTLS_WAIT_INPUT) != 0) &&
+		xrtTlsServerCookie(pServer, &iCookie) && (iCookie == 0) &&
 		!xrtTlsServerResumed(pServer) &&
 		(xrtTlsServerTicketNew(pServer, &pResume) == XTLS_ERROR) &&
 		(pResume == NULL) &&

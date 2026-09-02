@@ -181,6 +181,99 @@ static void testUdpSegmentation(xnetengine* pEngine)
 
 
 
+#if defined(_WIN32) || defined(_WIN64)
+
+/* 远端端口关闭产生的 ICMP 不能终止共享的无连接 IOCP UDP 端点。 */
+static void testUdpClosedPeerReset(xnetengine* pEngine)
+{
+	xnetudpconfig Config;
+	xnetudp* pServer;
+	xnetudp* pClient;
+	xnetudppacket* pPacket;
+	xnetsocket Probe;
+	xnetaddr ClosedPeer;
+	xnetaddr ServerAddress;
+	xnetaddr ClientAddress;
+	xdeadline Deadline;
+	const char sPayload[] = "udp-still-open";
+
+	if ( TEST_UDP_BACKEND != XNET_PORT_IOCP ) {
+		return;
+	}
+	Probe = xrtNetSocketOpen(
+		XNET_FAMILY_IPV4,
+		XNET_SOCKET_DGRAM,
+		XNET_SOCKET_NONBLOCK
+	);
+	testRequire(
+		(Probe != NULL) &&
+		xrtNetAddrLoopback(&ClosedPeer, XNET_FAMILY_IPV4, 0) &&
+		xrtNetSocketBind(Probe, &ClosedPeer) &&
+		xrtNetSocketLocal(Probe, &ClosedPeer) &&
+		xrtNetSocketClose(Probe),
+		"UDP closed-peer probe setup failed"
+	);
+
+	xrtNetUdpConfigInit(&Config);
+	testRequire(
+		xrtNetAddrLoopback(&ServerAddress, XNET_FAMILY_IPV4, 0) &&
+		xrtNetAddrLoopback(&ClientAddress, XNET_FAMILY_IPV4, 0),
+		"UDP closed-peer address setup failed"
+	);
+	pServer = xrtNetUdpBind(
+		pEngine, &ServerAddress, 0, &Config, NULL, NULL
+	);
+	testRequire((pServer != NULL) &&
+		xrtNetUdpLocal(pServer, &ServerAddress),
+		"UDP closed-peer server open failed");
+	pClient = xrtNetUdpConnect(
+		pEngine, &ServerAddress, 1, &Config, NULL, NULL
+	);
+	testRequire(pClient != NULL, "UDP closed-peer client open failed");
+	testUdpWaitState(pServer, XNET_UDP_OPEN);
+	testUdpWaitState(pClient, XNET_UDP_OPEN);
+
+	for ( size_t i = 0; i < 64u; i++ ) {
+		testRequire(xrtNetUdpSendTo(
+			pServer, &ClosedPeer, &i, sizeof(i)
+		) == XNET_RESULT_OK, "UDP closed-peer burst send failed");
+	}
+	Deadline = xrtDeadlineAfter(3000000u);
+	while ( xrtNetUdpPending(pServer) != 0 ) {
+		testRequire(!xrtDeadlineExpired(Deadline),
+			"UDP closed-peer burst did not drain");
+		xrtThreadYield();
+	}
+	xrtSleepUs(250000u);
+	testRequire(xrtNetUdpState(pServer) == XNET_UDP_OPEN,
+		"closed peer terminated unconnected UDP");
+	testRequire(xrtNetUdpSend(
+		pClient, sPayload, sizeof(sPayload) - 1u
+	) == XNET_RESULT_OK, "UDP post-reset send failed");
+	pPacket = testUdpReceive(pServer);
+	testRequire(
+		(xrtNetUdpPacketSize(pPacket) == (sizeof(sPayload) - 1u)) &&
+		(memcmp(
+			xrtNetUdpPacketData(pPacket),
+			sPayload,
+			sizeof(sPayload) - 1u
+		) == 0),
+		"UDP did not recover after closed-peer ICMP"
+	);
+	xrtNetUdpPacketDestroy(pPacket);
+
+	testRequire(xrtNetUdpClose(pClient) && xrtNetUdpClose(pServer),
+		"UDP closed-peer test close request failed");
+	testUdpWaitState(pClient, XNET_UDP_CLOSED);
+	testUdpWaitState(pServer, XNET_UDP_CLOSED);
+	xrtNetUdpDestroy(pClient);
+	xrtNetUdpDestroy(pServer);
+}
+
+#endif
+
+
+
 #if defined(__linux__)
 
 /* 在 Linux io_uring 路径验证拥有型异步错误队列。 */
@@ -310,6 +403,9 @@ int main(void)
 	pEngine = xrtNetEngineCreate(&EngineConfig);
 	testRequire((pEngine != NULL) && xrtNetEngineStart(pEngine),
 		"UDP engine start failed");
+	#if defined(_WIN32) || defined(_WIN64)
+		testUdpClosedPeerReset(pEngine);
+	#endif
 	testUdpSegmentation(pEngine);
 	#if defined(__linux__)
 		testUdpErrors(pEngine);

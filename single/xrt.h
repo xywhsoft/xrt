@@ -24632,10 +24632,11 @@ typedef struct xtlsserverrequest {
 
 
 
-/* 选择结果默认带入静态身份和服务器偏好得到的 ALPN，回调可替换两者。 */
+/* 选择结果默认带入静态身份、ALPN 和零 Cookie，回调可替换这些结果。 */
 typedef struct xtlsserverchoice {
 	const xtlsidentity* Identity;
 	size_t Protocol;
+	uint64 Cookie;
 } xtlsserverchoice;
 
 
@@ -24723,6 +24724,14 @@ XRT_API xtlsresult xrtTlsServerKeyUpdate(
 XRT_API bool xrtTlsServerName(
 	const xtlssession* pSession,
 	xbytesview* pServerName
+);
+
+
+
+/* 返回选择器为本次握手保存的不透明宿主 Cookie；未设置时返回零。 */
+XRT_API bool xrtTlsServerCookie(
+	const xtlssession* pSession,
+	uint64* pCookie
 );
 
 
@@ -45401,6 +45410,11 @@ bool __xrtNetSocketAvailableNative(xnetsocket Socket,
 
 
 
+/* 控制 Windows 是否把 UDP ICMP Port Unreachable 映射为接收重置。 */
+bool __xrtNetSocketUdpConnReset(xnetsocket Socket, bool bEnabled);
+
+
+
 /* 清零并解析平台控制消息，只发布 Socket 已启用的字段。 */
 void __xrtNetSocketDgramMetaParse(
 	xnetsocket Socket,
@@ -48726,6 +48740,7 @@ typedef struct xtlsserverselection {
 	xbytesview Protocols;
 	const xtlsidentity* Identity;
 	size_t Protocol;
+	uint64 Cookie;
 	xtlsversion Version;
 	xtlscipher Cipher;
 	xtlssignature Signature;
@@ -48759,6 +48774,7 @@ typedef struct xtlsserverstate {
 	size_t SecretCapacity;
 	size_t HashSize;
 	size_t RecordOffset;
+	uint64 Cookie;
 	const xtlsidentity* Identity;
 	xtlsserverselectproc Select;
 	ptr SelectContext;
@@ -101156,6 +101172,51 @@ bool __xrtNetSocketAvailableNative(xnetsocket Socket,
 
 
 
+/* 控制 Windows UDP 是否把 ICMP Port Unreachable 投递成接收重置。 */
+bool __xrtNetSocketUdpConnReset(xnetsocket Socket, bool bEnabled)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		BOOL bReportConnectionReset = bEnabled ? TRUE : FALSE;
+		DWORD iReturned = 0;
+
+		if ( !__xrtNetSocketRequireType(
+			Socket,
+			XNET_SOCKET_DGRAM,
+			"set-udp-connreset",
+			"UDP connection reset control requires a datagram socket"
+		) ) {
+			return false;
+		}
+		if ( WSAIoctl(
+			__xrtNetSocketHandle(Socket),
+			SIO_UDP_CONNRESET,
+			&bReportConnectionReset,
+			(DWORD)sizeof(bReportConnectionReset),
+			NULL,
+			0,
+			&iReturned,
+			NULL,
+			NULL
+		) != 0 ) {
+			int iCode = __xrtNetSocketLastError();
+
+			__xrtNetSocketSetSystemError(
+				XNET_ERROR_SOCKET_OPTION,
+				"set-udp-connreset",
+				"setting UDP connection reset reporting failed",
+				iCode
+			);
+			return false;
+		}
+	#else
+		(void)Socket;
+		(void)bEnabled;
+	#endif
+	return true;
+}
+
+
+
 /* 查询当前可立即读取的字节数；数据报 Socket 返回下一报文可读长度。 */
 XRT_API bool xrtNetSocketAvailable(xnetsocket Socket, size_t* pSize)
 {
@@ -148488,6 +148549,38 @@ XRT_API bool xrtTlsServerName(
 
 
 
+/* 读取动态选择器随已选身份提交的不透明宿主 Cookie。 */
+XRT_API bool xrtTlsServerCookie(
+	const xtlssession* pSession,
+	uint64* pCookie
+)
+{
+	xtlsserverstate* pState;
+
+	if ( (pSession == NULL) || (pCookie == NULL) ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "get-tls-server-cookie",
+			"TLS server session or cookie output is null"
+		);
+	}
+	if ( xrtTlsSessionRole(pSession) != XTLS_SERVER ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "get-tls-server-cookie",
+			"TLS session is not a server"
+		);
+	}
+	pState = (xtlsserverstate*)__xrtTlsSessionRoleData(
+		(xtlssession*)pSession
+	);
+	if ( pState == NULL ) {
+		return false;
+	}
+	*pCookie = pState->Cookie;
+	return true;
+}
+
+
+
 /* 把当前输入、输出和应用背压统一转换成等待位。 */
 bool __xrtTlsServerWait(
 	xtlssession* pSession,
@@ -149171,6 +149264,7 @@ typedef struct xtlsserverflight {
 	size_t OutputSize;
 	size_t Protocol;
 	size_t HashSize;
+	uint64 Cookie;
 	xtlscipher Cipher;
 	xtlssignature Signature;
 	uint8 ClientHandshake[XTLS_SERVER_SECRET_MAX_SIZE];
@@ -149693,6 +149787,7 @@ static bool __xrtTlsServerSelect(
 	Choice.Protocol = __xrtTlsServerProtocolDefault(
 		pState, pSelection->Protocols
 	);
+	Choice.Cookie = 0;
 	Request.ServerName = pSelection->ServerName;
 	Request.Protocols = pSelection->Protocols;
 	if ( (pState->Select != NULL) && !pState->Select(
@@ -149723,6 +149818,7 @@ static bool __xrtTlsServerSelect(
 			"TLS server could not retain the selected identity"
 		);
 	}
+	pSelection->Cookie = Choice.Cookie;
 	pSelection->Protocol = Choice.Protocol;
 	IdentityType = xrtTlsIdentityType(pSelection->Identity);
 	Result = xrtTlsCipherSelect(
@@ -150771,6 +150867,7 @@ static void __xrtTlsServerFlightCommit(
 		pState->Resumed = pFlight->Resumed;
 	#endif
 	pState->HashSize = pFlight->HashSize;
+	pState->Cookie = pFlight->Cookie;
 	pState->Version = XTLS_VERSION_13;
 	pState->Cipher = pFlight->Cipher;
 	pState->Signature = pFlight->Signature;
@@ -150858,6 +150955,7 @@ xtlsresult __xrtTlsServerFirstFlight(
 		goto cleanup;
 	}
 	Flight.Protocol = Selection.Protocol;
+	Flight.Cookie = Selection.Cookie;
 	if ( !__xrtTlsServerNameCopy(&Selection, &Flight) ||
 		!__xrtTlsServerHelloFlight(
 			pSession, pState, &Selection, pMessage,
@@ -151596,6 +151694,7 @@ xtlsresult __xrtTlsServer12FirstFlight(
 	pState->Signature = pSelection->Signature;
 	pState->Group = pSelection->Group;
 	pState->HashSize = pCipher->HashSize;
+	pState->Cookie = pSelection->Cookie;
 	pState->Step = XTLS_SERVER_WAIT_CLIENT_KEY_EXCHANGE;
 	pSession->Version = XTLS_VERSION_12;
 	pSession->Cipher = pSelection->Cipher;
@@ -231672,9 +231771,14 @@ XRT_API void xrtNetUdpConfigInit(xnetudpconfig* pConfig)
 static bool __xrtNetUdpSocketOptions(
 	xnetsocket Socket,
 	const xnetudpconfig* pConfig,
-	xnetfamily Family
+	xnetfamily Family,
+	bool bConnected
 )
 {
+	/* 共享端点不能让任一关闭远端的 ICMP 决定本地 socket 生命周期。 */
+	if ( !bConnected && !__xrtNetSocketUdpConnReset(Socket, false) ) {
+		return false;
+	}
 	if ( pConfig->ReuseAddress && !xrtNetSocketSet(
 		Socket,
 		XNET_OPTION_REUSE_ADDRESS,
@@ -232088,7 +232192,12 @@ XRT_API xnetudp* xrtNetUdpOpen(
 	if ( Socket == NULL ) {
 		return NULL;
 	}
-	if ( !__xrtNetUdpSocketOptions(Socket, &Config, Family) ||
+	if ( !__xrtNetUdpSocketOptions(
+		Socket,
+		&Config,
+		Family,
+		pPeer != NULL
+	) ||
 		 !xrtNetSocketBind(Socket, &Local) ) {
 		__xrtNetUdpClosePreserveError(Socket);
 		return NULL;

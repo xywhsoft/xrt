@@ -115,9 +115,14 @@ XRT_API void xrtNetUdpConfigInit(xnetudpconfig* pConfig)
 static bool __xrtNetUdpSocketOptions(
 	xnetsocket Socket,
 	const xnetudpconfig* pConfig,
-	xnetfamily Family
+	xnetfamily Family,
+	bool bConnected
 )
 {
+	/* 共享端点不能让任一关闭远端的 ICMP 决定本地 socket 生命周期。 */
+	if ( !bConnected && !__xrtNetSocketUdpConnReset(Socket, false) ) {
+		return false;
+	}
 	if ( pConfig->ReuseAddress && !xrtNetSocketSet(
 		Socket,
 		XNET_OPTION_REUSE_ADDRESS,
@@ -531,7 +536,12 @@ XRT_API xnetudp* xrtNetUdpOpen(
 	if ( Socket == NULL ) {
 		return NULL;
 	}
-	if ( !__xrtNetUdpSocketOptions(Socket, &Config, Family) ||
+	if ( !__xrtNetUdpSocketOptions(
+		Socket,
+		&Config,
+		Family,
+		pPeer != NULL
+	) ||
 		 !xrtNetSocketBind(Socket, &Local) ) {
 		__xrtNetUdpClosePreserveError(Socket);
 		return NULL;

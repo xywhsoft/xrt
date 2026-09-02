@@ -727,7 +727,7 @@ Session = xrtTlsServerCreate(&Config, Pool);
 错误、OOM 与销毁也执行相同的安全释放；最终需要排队发送的记录仍由公共 `Send` 队列
 独立拥有，不借用已经清理的临时内存。
 
-`Select` 在 ClientHello 完成严格解析、SNI/ALPN 提取之后，任何服务端输出生成之前执行。请求中的 SNI 和完整 ALPN 扩展负载只在回调期间借用；`xtlsserverchoice` 初始包含静态身份和按服务端偏好计算的协议下标，回调可以替换身份或协议。返回身份按共享对象处理，选择结果在回调返回后由会话持有。`XTLS_SERVER_PROTOCOL_NONE` 表示不协商 ALPN；`RequireProtocol` 为 `true` 时没有共同协议会明确失败。回调上下文只借用到首航完成，不能递归驱动同一会话。
+`Select` 在 ClientHello 完成严格解析、SNI/ALPN 提取之后，任何服务端输出生成之前执行。请求中的 SNI 和完整 ALPN 扩展负载只在回调期间借用；`xtlsserverchoice` 初始包含静态身份、按服务端偏好计算的协议下标和零值 `Cookie`，回调可以替换身份或协议，并写入一个 XRT 不解释的 64 位宿主路由标识。返回身份按共享对象处理，选择结果在回调返回后由会话持有。`xrtTlsServerCookie()` 在成功选择后返回该标识，未设置或选择尚未发生时返回零，适合让传输适配层把已完成握手的连接关联回选择身份时的配置代。`XTLS_SERVER_PROTOCOL_NONE` 表示不协商 ALPN；`RequireProtocol` 为 `true` 时没有共同协议会明确失败。回调上下文只借用到首航完成，不能递归驱动同一会话。
 
 `xrtTlsServerName()` 返回服务端从 ClientHello 深复制的 SNI，视图稳定到会话销毁；`xrtTlsSessionProtocol()` 返回最终 ALPN。进入 READY 后，`xrtTlsServerKeyUpdate()` 与收到的 KeyUpdate 都遵循“旧 epoch 完整排队，新 epoch 一次提交”的顺序，发送背压和分配失败不会发布半更新状态。
 

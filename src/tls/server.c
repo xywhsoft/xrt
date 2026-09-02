@@ -429,6 +429,38 @@ XRT_API bool xrtTlsServerName(
 
 
 
+/* 读取动态选择器随已选身份提交的不透明宿主 Cookie。 */
+XRT_API bool xrtTlsServerCookie(
+	const xtlssession* pSession,
+	uint64* pCookie
+)
+{
+	xtlsserverstate* pState;
+
+	if ( (pSession == NULL) || (pCookie == NULL) ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "get-tls-server-cookie",
+			"TLS server session or cookie output is null"
+		);
+	}
+	if ( xrtTlsSessionRole(pSession) != XTLS_SERVER ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "get-tls-server-cookie",
+			"TLS session is not a server"
+		);
+	}
+	pState = (xtlsserverstate*)__xrtTlsSessionRoleData(
+		(xtlssession*)pSession
+	);
+	if ( pState == NULL ) {
+		return false;
+	}
+	*pCookie = pState->Cookie;
+	return true;
+}
+
+
+
 /* 把当前输入、输出和应用背压统一转换成等待位。 */
 bool __xrtTlsServerWait(
 	xtlssession* pSession,
