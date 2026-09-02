@@ -26,7 +26,7 @@
 
 | 体系 | API 起点 | 典型示例 |
 | --- | --- | --- |
-| 基础与文本 | [String](../api/string.md)、[Charset](../api/charset.md)、[Number](../api/number.md)、[Time](../api/time.md) | `examples/string`、`examples/number`、`examples/time` |
+| 基础与文本 | [String](../api/string.md)、[Regex](../api/regex.md)、[Charset](../api/charset.md)、[Number](../api/number.md)、[Time](../api/time.md) | `examples/string`、`examples/text/regex`、`examples/number`、`examples/time` |
 | 文件与进程 | [Path](../api/path.md)、[File](../api/file.md)、[异步文件](../api/file_async.md)、[Process](../api/process.md) | `examples/path`、`examples/file`、`examples/process` |
 | 容器与数据 | [Buffer](../api/buffer.md)、[Typed Containers](../../extlibs/xruntime/docs/api/typed_containers.md)、[Value](../api/value.md)、[JSON](../api/json.md) | `examples/containers`、`examples/value`、`examples/data` |
 | 并发与任务 | [Thread](../api/thread.md)、[Sync](../api/sync.md)、[Future](../api/future.md)、[Coroutine](../api/coroutine.md)、[Task](../api/task.md) | `examples/concurrency`、`examples/runtime` |

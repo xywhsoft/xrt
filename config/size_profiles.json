@@ -32,6 +32,18 @@
 			"description": "字符串、时间、路径和整文件操作"
 		},
 		{
+			"name": "regex_core",
+			"system": "foundation",
+			"suite": "regex_core",
+			"description": "正则编译与不可变程序核心"
+		},
+		{
+			"name": "regex_full",
+			"system": "foundation",
+			"suite": "regex",
+			"description": "匹配、替换、拆分和多模式集合完整闭包"
+		},
+		{
 			"name": "concurrency",
 			"system": "concurrency",
 			"suite": "task_group_pool,task_group_coroutine,channel_select_cancel,executor",

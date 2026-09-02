@@ -13079,6 +13079,228 @@
 			]
 		},
 		{
+			"name": "regex_core",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_REGEX_CORE",
+			"depends": [
+				"core"
+			],
+			"public_headers": [
+				"include/xrt/regex.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_regex.h",
+				"src/third_party/bbre/bbre.h",
+				"src/third_party/bbre/bbre_xrt.h"
+			],
+			"sources": [
+				"src/third_party/bbre/bbre.c",
+				"src/text/regex_core.c",
+				"src/text/regex_escape.c"
+			],
+			"tests": [
+				"tests/regex/test_regex_core.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_regex_core.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/regex.md",
+				"docs/design/regex.md",
+				"src/third_party/bbre/README.xrt.md",
+				"docs/THIRD_PARTY.md"
+			]
+		},
+		{
+			"name": "regex_match",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_REGEX_MATCH",
+			"depends": [
+				"regex_core",
+				"unicode"
+			],
+			"public_headers": [
+				"include/xrt/regex.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_regex.h"
+			],
+			"sources": [
+				"src/text/regex_match.c"
+			],
+			"tests": [
+				"tests/regex/test_regex_match.c",
+				"tests/regex/test_regex_oom.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_regex_match.c"
+			],
+			"examples": [
+				"examples/text/regex/main.c"
+			],
+			"docs": [
+				"docs/api/regex.md",
+				"docs/design/regex.md"
+			]
+		},
+		{
+			"name": "regex_replace",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_REGEX_REPLACE",
+			"depends": [
+				"regex_match",
+				"string"
+			],
+			"public_headers": [
+				"include/xrt/regex.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_regex.h"
+			],
+			"sources": [
+				"src/text/regex_replace.c"
+			],
+			"tests": [
+				"tests/regex/test_regex_replace.c",
+				"tests/regex/test_regex_replace_oom.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_regex_replace.c"
+			],
+			"examples": [
+				"examples/text/regex_replace/main.c"
+			],
+			"docs": [
+				"docs/api/regex.md",
+				"docs/design/regex.md"
+			]
+		},
+		{
+			"name": "regex_split",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_REGEX_SPLIT",
+			"depends": [
+				"regex_match",
+				"string_split"
+			],
+			"public_headers": [
+				"include/xrt/regex.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_regex.h"
+			],
+			"sources": [
+				"src/text/regex_split.c"
+			],
+			"tests": [
+				"tests/regex/test_regex_split.c",
+				"tests/regex/test_regex_split_oom.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_regex_split.c"
+			],
+			"examples": [
+				"examples/text/regex_split/main.c"
+			],
+			"docs": [
+				"docs/api/regex.md",
+				"docs/design/regex.md"
+			]
+		},
+		{
+			"name": "regex_set",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_REGEX_SET",
+			"depends": [
+				"regex_core"
+			],
+			"public_headers": [
+				"include/xrt/regex.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_regex.h"
+			],
+			"sources": [
+				"src/text/regex_set.c"
+			],
+			"tests": [
+				"tests/regex/test_regex_set.c",
+				"tests/regex/test_regex_set_oom.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_regex_set.c"
+			],
+			"examples": [
+				"examples/text/regex_set/main.c"
+			],
+			"docs": [
+				"docs/api/regex.md",
+				"docs/design/regex.md"
+			]
+		},
+		{
+			"name": "regex",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_REGEX",
+			"depends": [
+				"regex_replace",
+				"regex_split",
+				"regex_set"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/regex/test_regex_core.c",
+				"tests/regex/test_regex_match.c",
+				"tests/regex/test_regex_oom.c",
+				"tests/regex/test_regex_replace.c",
+				"tests/regex/test_regex_replace_oom.c",
+				"tests/regex/test_regex_split.c",
+				"tests/regex/test_regex_split_oom.c",
+				"tests/regex/test_regex_set.c",
+				"tests/regex/test_regex_set_oom.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_regex.c",
+				"tests/single/test_single_regex_core.c",
+				"tests/single/test_single_regex_match.c",
+				"tests/single/test_single_regex_replace.c",
+				"tests/single/test_single_regex_split.c",
+				"tests/single/test_single_regex_set.c"
+			],
+			"examples": [
+				"examples/text/regex/main.c",
+				"examples/text/regex_replace/main.c",
+				"examples/text/regex_split/main.c",
+				"examples/text/regex_set/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"dev/bench/regex/bench_regex.c",
+				"dev/bench/regex/README.md",
+				"dev/bench/regex/REGEX_BENCH_20260731.md"
+			],
+			"docs": [
+				"docs/api/regex.md",
+				"docs/api/regex-reference.md",
+				"docs/design/regex.md",
+				"src/third_party/bbre/README.xrt.md",
+				"docs/THIRD_PARTY.md"
+			],
+			"legacy": [
+				"lib/regex.h",
+				"test/test_regex.h",
+				"docs/api/api-regex.md",
+				"docs/api/api-regex.en.md",
+				"docs/guide/regex-intro.md",
+				"examples/regex/capture_config_line/main.c",
+				"examples/regex/regex_set_scan/main.c",
+				"xrt.h"
+			]
+		},
+		{
 			"name": "single_all_tests",
 			"state": "implemented",
 			"feature": null,

@@ -2,6 +2,78 @@
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
 
+/* regex 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX)
+#ifndef XRT_FEATURE_REGEX
+#define XRT_FEATURE_REGEX
+#endif
+#ifndef XRT_MODULE_REGEX_REPLACE
+#define XRT_MODULE_REGEX_REPLACE
+#endif
+#ifndef XRT_MODULE_REGEX_SPLIT
+#define XRT_MODULE_REGEX_SPLIT
+#endif
+#ifndef XRT_MODULE_REGEX_SET
+#define XRT_MODULE_REGEX_SET
+#endif
+#endif
+
+/* regex_set 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_SET)
+#ifndef XRT_FEATURE_REGEX_SET
+#define XRT_FEATURE_REGEX_SET
+#endif
+#ifndef XRT_MODULE_REGEX_CORE
+#define XRT_MODULE_REGEX_CORE
+#endif
+#endif
+
+/* regex_split 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_SPLIT)
+#ifndef XRT_FEATURE_REGEX_SPLIT
+#define XRT_FEATURE_REGEX_SPLIT
+#endif
+#ifndef XRT_MODULE_REGEX_MATCH
+#define XRT_MODULE_REGEX_MATCH
+#endif
+#ifndef XRT_MODULE_STRING_SPLIT
+#define XRT_MODULE_STRING_SPLIT
+#endif
+#endif
+
+/* regex_replace 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_REPLACE)
+#ifndef XRT_FEATURE_REGEX_REPLACE
+#define XRT_FEATURE_REGEX_REPLACE
+#endif
+#ifndef XRT_MODULE_REGEX_MATCH
+#define XRT_MODULE_REGEX_MATCH
+#endif
+#ifndef XRT_MODULE_STRING
+#define XRT_MODULE_STRING
+#endif
+#endif
+
+/* regex_match 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_MATCH)
+#ifndef XRT_FEATURE_REGEX_MATCH
+#define XRT_FEATURE_REGEX_MATCH
+#endif
+#ifndef XRT_MODULE_REGEX_CORE
+#define XRT_MODULE_REGEX_CORE
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
+#endif
+#endif
+
+/* regex_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_CORE)
+#ifndef XRT_FEATURE_REGEX_CORE
+#define XRT_FEATURE_REGEX_CORE
+#endif
+#endif
+
 /* ptr_stack 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PTR_STACK)
 #ifndef XRT_FEATURE_PTR_STACK

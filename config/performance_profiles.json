@@ -761,6 +761,42 @@
 			]
 		},
 		{
+			"name": "regex",
+			"system": "foundation",
+			"description": "正则编译、matcher 复用、集合分类和替换写出热路径",
+			"benchmarks": [
+				{
+					"name": "regex",
+					"source": "dev/bench/regex/bench_regex.c",
+					"suite": "regex",
+					"args": [
+						"100000"
+					],
+					"smoke_args": [
+						"100"
+					],
+					"metrics": {
+						"compile_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"match_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"set_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						},
+						"replace_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		},
+		{
 			"name": "x509",
 			"system": "security_transport",
 			"description": "真实 DER 证书的零分配解析与 RSA 签名验证",

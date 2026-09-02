@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `287` 个可运行示例。
+当前共登记 `291` 个可运行示例。
 
 ## asn1 (2)
 
@@ -309,9 +309,13 @@
 - [template/extension](../examples/template/extension/main.c) - `template_extension`
 - [template/file](../examples/template/file/main.c) - `template_file`
 
-## text (1)
+## text (5)
 
 - [text/html_escape](../examples/text/html_escape/main.c) - `html_escape`
+- [text/regex](../examples/text/regex/main.c) - `regex`, `regex_match`
+- [text/regex_replace](../examples/text/regex_replace/main.c) - `regex`, `regex_replace`
+- [text/regex_set](../examples/text/regex_set/main.c) - `regex`, `regex_set`
+- [text/regex_split](../examples/text/regex_split/main.c) - `regex`, `regex_split`
 
 ## time (5)
 

@@ -1759,6 +1759,24 @@
 #if !defined(XRT_FEATURE_RANDOM_TEXT_DEFAULT)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_RANDOM_TEXT_DEFAULT 1
 #endif
+#if !defined(XRT_FEATURE_REGEX)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX 1
+#endif
+#if !defined(XRT_FEATURE_REGEX_CORE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_CORE 1
+#endif
+#if !defined(XRT_FEATURE_REGEX_MATCH)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_MATCH 1
+#endif
+#if !defined(XRT_FEATURE_REGEX_REPLACE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_REPLACE 1
+#endif
+#if !defined(XRT_FEATURE_REGEX_SET)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_SET 1
+#endif
+#if !defined(XRT_FEATURE_REGEX_SPLIT)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_SPLIT 1
+#endif
 #if !defined(XRT_FEATURE_RWLOCK)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_RWLOCK 1
 #endif
@@ -2841,6 +2859,24 @@
 #endif
 #if !defined(XRT_MODULE_RANDOM_TEXT_DEFAULT)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_TEXT_DEFAULT 1
+#endif
+#if !defined(XRT_MODULE_REGEX)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX 1
+#endif
+#if !defined(XRT_MODULE_REGEX_CORE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_CORE 1
+#endif
+#if !defined(XRT_MODULE_REGEX_MATCH)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_MATCH 1
+#endif
+#if !defined(XRT_MODULE_REGEX_REPLACE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_REPLACE 1
+#endif
+#if !defined(XRT_MODULE_REGEX_SET)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_SET 1
+#endif
+#if !defined(XRT_MODULE_REGEX_SPLIT)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_SPLIT 1
 #endif
 #if !defined(XRT_MODULE_RWLOCK)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_RWLOCK 1
@@ -6006,6 +6042,78 @@
 /* 此文件由 tools/generate_features.py 生成，请勿直接修改。 */
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
+
+/* regex 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX)
+#ifndef XRT_FEATURE_REGEX
+#define XRT_FEATURE_REGEX
+#endif
+#ifndef XRT_MODULE_REGEX_REPLACE
+#define XRT_MODULE_REGEX_REPLACE
+#endif
+#ifndef XRT_MODULE_REGEX_SPLIT
+#define XRT_MODULE_REGEX_SPLIT
+#endif
+#ifndef XRT_MODULE_REGEX_SET
+#define XRT_MODULE_REGEX_SET
+#endif
+#endif
+
+/* regex_set 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_SET)
+#ifndef XRT_FEATURE_REGEX_SET
+#define XRT_FEATURE_REGEX_SET
+#endif
+#ifndef XRT_MODULE_REGEX_CORE
+#define XRT_MODULE_REGEX_CORE
+#endif
+#endif
+
+/* regex_split 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_SPLIT)
+#ifndef XRT_FEATURE_REGEX_SPLIT
+#define XRT_FEATURE_REGEX_SPLIT
+#endif
+#ifndef XRT_MODULE_REGEX_MATCH
+#define XRT_MODULE_REGEX_MATCH
+#endif
+#ifndef XRT_MODULE_STRING_SPLIT
+#define XRT_MODULE_STRING_SPLIT
+#endif
+#endif
+
+/* regex_replace 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_REPLACE)
+#ifndef XRT_FEATURE_REGEX_REPLACE
+#define XRT_FEATURE_REGEX_REPLACE
+#endif
+#ifndef XRT_MODULE_REGEX_MATCH
+#define XRT_MODULE_REGEX_MATCH
+#endif
+#ifndef XRT_MODULE_STRING
+#define XRT_MODULE_STRING
+#endif
+#endif
+
+/* regex_match 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_MATCH)
+#ifndef XRT_FEATURE_REGEX_MATCH
+#define XRT_FEATURE_REGEX_MATCH
+#endif
+#ifndef XRT_MODULE_REGEX_CORE
+#define XRT_MODULE_REGEX_CORE
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
+#endif
+#endif
+
+/* regex_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX_CORE)
+#ifndef XRT_FEATURE_REGEX_CORE
+#define XRT_FEATURE_REGEX_CORE
+#endif
+#endif
 
 /* ptr_stack 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PTR_STACK)
@@ -10723,6 +10831,15 @@ typedef struct xerrordesc {
 
 
 
+/* 可选的源码位置；零值表示调用方没有提供对应信息。 */
+typedef struct xerrorlocation {
+	cstr File;
+	int32 Line;
+	int32 Column;
+} xerrorlocation;
+
+
+
 /* 错误处理器只借用错误对象，保存时必须增加引用。 */
 typedef void (*xerrorhandler)(const xerror* pError, ptr pUserData);
 
@@ -10734,6 +10851,14 @@ XRT_EXTERN_C_BEGIN
 
 /* 从完整描述创建一个错误对象。 */
 XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc);
+
+
+
+/* 从完整描述和可选源码位置创建一个错误对象。 */
+XRT_API xerror* xrtErrorBuildAt(
+	const xerrordesc* pDesc,
+	const xerrorlocation* pLocation
+);
 
 
 
@@ -10789,6 +10914,21 @@ XRT_API cstr xrtErrorMessage(const xerror* pError);
 
 /* 返回可选的机器可读附加数据。 */
 XRT_API cstr xrtErrorData(const xerror* pError);
+
+
+
+/* 返回可选的源码文件名。 */
+XRT_API cstr xrtErrorFile(const xerror* pError);
+
+
+
+/* 返回一基源码行号；零表示未知。 */
+XRT_API int32 xrtErrorLine(const xerror* pError);
+
+
+
+/* 返回一基源码列号；零表示未知。 */
+XRT_API int32 xrtErrorColumn(const xerror* pError);
 
 
 
@@ -18485,6 +18625,55 @@ XRT_EXTERN_C_END
 
 
 
+/*
+	常用 HTTP 方法使用互不重叠的单 bit 枚举值。非零值既表示一个解析后的
+	方法，也可以作为方法集合中的原子位；组合宏提供常用路由方法集合。
+	OTHER 表示语法合法但未内置分类的方法；INVALID 表示空值或非法 token，
+	在方法集合中也自然表示不匹配任何方法。
+*/
+typedef enum xhttpmethod {
+	XHTTP_METHOD_INVALID = 0,
+	XHTTP_METHOD_OTHER = UINT32_C(0x00000001),
+	XHTTP_METHOD_GET = UINT32_C(0x00000002),
+	XHTTP_METHOD_HEAD = UINT32_C(0x00000004),
+	XHTTP_METHOD_POST = UINT32_C(0x00000008),
+	XHTTP_METHOD_PUT = UINT32_C(0x00000010),
+	XHTTP_METHOD_DELETE = UINT32_C(0x00000020),
+	XHTTP_METHOD_CONNECT = UINT32_C(0x00000040),
+	XHTTP_METHOD_OPTIONS = UINT32_C(0x00000080),
+	XHTTP_METHOD_TRACE = UINT32_C(0x00000100),
+	XHTTP_METHOD_PATCH = UINT32_C(0x00000200)
+} xhttpmethod;
+
+
+
+/* 常用 CRUD 路由方法集合；PUT 和 PATCH 都属于更新方法。 */
+#define XHTTP_METHOD_CRUD ( \
+	XHTTP_METHOD_GET | \
+	XHTTP_METHOD_POST | \
+	XHTTP_METHOD_PUT | \
+	XHTTP_METHOD_PATCH | \
+	XHTTP_METHOD_DELETE \
+)
+
+
+
+/* 匹配任一内置方法或语法合法的扩展方法。 */
+#define XHTTP_METHOD_ANY ( \
+	XHTTP_METHOD_OTHER | \
+	XHTTP_METHOD_GET | \
+	XHTTP_METHOD_HEAD | \
+	XHTTP_METHOD_POST | \
+	XHTTP_METHOD_PUT | \
+	XHTTP_METHOD_DELETE | \
+	XHTTP_METHOD_CONNECT | \
+	XHTTP_METHOD_OPTIONS | \
+	XHTTP_METHOD_TRACE | \
+	XHTTP_METHOD_PATCH \
+)
+
+
+
 /* HTTP 版本使用可直接比较的主次版本编码。 */
 typedef enum xhttpversion {
 	XHTTP_VERSION_1_0 = 10,
@@ -18827,6 +19016,14 @@ XRT_API bool xrtHttpTokenValid(xstrview Text);
 
 /* 按 ASCII 大小写不敏感规则比较两个 token。 */
 XRT_API bool xrtHttpTokenEqual(xstrview Left, xstrview Right);
+
+
+
+/*
+	按大小写敏感规则分类 HTTP 方法。
+	合法扩展方法返回 OTHER；空值或非法 token 返回 INVALID。
+*/
+XRT_API xhttpmethod xrtHttpMethodParse(xstrview Method);
 
 
 
@@ -32550,6 +32747,7 @@ typedef struct xhttp1head {
 	xhttpfield* Fields;
 	size_t FieldCount;
 	size_t FieldCapacity;
+	xhttpmethod MethodCode;
 } xhttp1head;
 
 #endif
@@ -40022,6 +40220,28 @@ typedef struct xvalue xvalue;
 
 
 
+
+/*
+	语义值哈希器只借用已经绑定 TypeId 的容器值。回调可以通过只读 Value API
+	观察该值及其字段，也可以递归哈希字段，但不得修改、保留或释放输入值。
+*/
+typedef uint64 (*xvalueidentityhash)(const xvalue* pValue, ptr pUserData);
+
+
+
+
+/*
+	语义值相等器只借用同一 TypeId 和同一策略域中的两个容器值。回调可以
+	递归比较字段，但不得修改、保留或释放任一输入值。
+*/
+typedef bool (*xvalueidentityequal)(
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	ptr pUserData
+);
+
+
+
 /* 句柄克隆器创建独立句柄；失败时必须设置错误且不得在输出中遗留资源。 */
 typedef bool (*xvaluehandleclone)(ptr pHandle, ptr* pClone, ptr pUserData);
 
@@ -40049,6 +40269,17 @@ typedef struct xvaluehandleops {
 	xvaluehandlehash Hash;
 	xvaluehandleequal Equal;
 } xvaluehandleops;
+
+
+
+/*
+	Object finalizers borrow the last live object shell before its owned fields
+	are released.  The callback may inspect or mutate fields, but it must not
+	retain, clone or release the borrowed object itself.  A finalizer is attached
+	to the shared object backing and therefore runs exactly once, when the final
+	backing owner is released.
+*/
+typedef void (*xvalueobjectfinalizer)(xvalue* pObject, ptr pUserData);
 
 
 
@@ -40135,6 +40366,26 @@ XRT_API xvalue* xrtValueClone(const xvalue* pValue);
 
 
 
+/* 为动态 Value 创建一个拥有独立生命周期的弱引用值。 */
+XRT_API xvalue* xrtValueWeakRef(const xvalue* pTarget);
+
+
+
+/* 判断值是否是由 xrtValueWeakRef 创建的弱引用。 */
+XRT_API bool xrtValueIsWeakRef(const xvalue* pValue);
+
+
+
+/* 判断弱引用目标是否已经结束强生命周期。 */
+XRT_API bool xrtValueWeakRefExpired(const xvalue* pWeak);
+
+
+
+/* 尝试提升弱引用；过期时返回进程期 null 单例。 */
+XRT_API xvalue* xrtValueWeakRefLock(const xvalue* pWeak);
+
+
+
 /* 返回值类型，空指针返回 INVALID。 */
 XRT_API xvaluetype xrtValueType(const xvalue* pValue);
 
@@ -40147,10 +40398,32 @@ XRT_API uint64 xrtValueTypeId(const xvalue* pValue);
 
 /*
 	把非零语义类型身份一次性绑定到非静态值外壳。
-	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播，
-	但不参与 XRT 的相等、哈希或序列化语义。
+	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播。
+	TypeId 本身不改变相等、哈希或序列化语义；只有随后显式绑定的值身份
+	策略参与相等和哈希。
 */
 XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId);
+
+
+
+/* 仅在值外壳唯一拥有时，把既有语义类型身份替换为新的非零身份。 */
+XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId);
+
+
+
+
+/*
+	为已经绑定 TypeId 的非静态容器一次性绑定成对的值身份策略。
+	重复绑定同一策略域成功，冲突策略失败；策略函数和用户数据的生命周期
+	必须覆盖该值及其全部 Clone/DeepClone。具有完整策略的容器可以作为
+	Value Set 键，且 xrtValueEqual 优先使用同一策略域的语义相等规则。
+*/
+XRT_API bool xrtValueIdentityBind(
+	xvalue* pValue,
+	xvalueidentityhash pHash,
+	xvalueidentityequal pEqual,
+	ptr pUserData
+);
 
 
 
@@ -40229,7 +40502,12 @@ XRT_API bool xrtValueGetHandle(
 
 
 
-/* 为可哈希标量计算一致哈希；指针和句柄哈希只在当前进程内有效。 */
+/* 取走句柄资源并把所有共享外壳可见的资源状态清空；策略仍保留到值释放。 */
+XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle);
+
+
+
+/* 为可哈希标量或显式身份容器计算一致哈希；指针和句柄哈希只在当前进程内有效。 */
 XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash);
 
 
@@ -40328,8 +40606,26 @@ XRT_API xvalue* xrtValueObjectLifo(void);
 
 
 
+/*
+	Bind one finalizer to a unique Object backing.  Finalizer-backed objects keep
+	reference identity: Clone may share the backing, but a later COW split is
+	rejected so one logical object can never acquire two finalization duties.
+*/
+XRT_API bool xrtValueObjectFinalizerBind(
+	xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer,
+	ptr pUserData
+);
+
+
+
 /* 返回任一基础容器的元素数。 */
 XRT_API size_t xrtValueCount(const xvalue* pValue);
+
+
+
+/* 返回 Array、Set 或 Object 的当前预留容量；IntMap 不承诺连续容量。 */
+XRT_API size_t xrtValueCapacity(const xvalue* pValue);
 
 
 
@@ -40340,6 +40636,11 @@ XRT_API bool xrtValueReserve(xvalue* pValue, size_t iCapacity);
 
 /* 释放容器多余容量，保留现有元素。 */
 XRT_API bool xrtValueTrim(xvalue* pValue);
+
+
+
+/* 释放 IntMap 空闲节点池页并返回实际释放页数。 */
+XRT_API size_t xrtValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty);
 
 
 
@@ -40538,7 +40839,7 @@ XRT_API xvalue* xrtValueObjectTake(xvalue* pObject, xstrview Key);
 
 
 
-/* 增加引用后把可哈希标量加入集合。 */
+/* 增加引用后把可哈希标量或显式身份容器加入集合。 */
 XRT_API bool xrtValueSetAdd(xvalue* pSet, const xvalue* pItem);
 
 
@@ -40733,7 +41034,7 @@ XRT_API bool xrtValueSetIsDisjoint(
 
 
 
-/* 判断两个集合是否拥有相同的标量元素。 */
+/* 判断两个集合是否拥有相同的可哈希元素。 */
 XRT_API bool xrtValueSetEqual(
 	const xvalue* pLeft,
 	const xvalue* pRight
@@ -45122,6 +45423,622 @@ XRT_API ptr xrtPtrStackPeek(const xptrstack* pStack, size_t iDepth);
 
 /* 返回栈顶指针值；合法空值与错误通过错误状态区分。 */
 XRT_API ptr xrtPtrStackTop(const xptrstack* pStack);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/regex.h */
+/* ========================================================================== */
+
+#ifndef XRT_REGEX_H
+#define XRT_REGEX_H
+
+
+#if defined(XRT_FEATURE_REGEX_REPLACE) || defined(XRT_FEATURE_REGEX_SPLIT)
+#endif
+
+
+
+#if defined(XRT_FEATURE_REGEX_MATCH) && !defined(XRT_FEATURE_REGEX_CORE)
+	#error "XRT_FEATURE_REGEX_MATCH requires XRT_FEATURE_REGEX_CORE"
+#endif
+
+#if defined(XRT_FEATURE_REGEX_MATCH) && !defined(XRT_FEATURE_UNICODE)
+	#error "XRT_FEATURE_REGEX_MATCH requires XRT_FEATURE_UNICODE"
+#endif
+
+#if defined(XRT_FEATURE_REGEX_SET) && !defined(XRT_FEATURE_REGEX_CORE)
+	#error "XRT_FEATURE_REGEX_SET requires XRT_FEATURE_REGEX_CORE"
+#endif
+
+#if defined(XRT_FEATURE_REGEX_REPLACE) && !defined(XRT_FEATURE_REGEX_MATCH)
+	#error "XRT_FEATURE_REGEX_REPLACE requires XRT_FEATURE_REGEX_MATCH"
+#endif
+
+#if defined(XRT_FEATURE_REGEX_REPLACE) && !defined(XRT_FEATURE_STRING)
+	#error "XRT_FEATURE_REGEX_REPLACE requires XRT_FEATURE_STRING"
+#endif
+
+#if defined(XRT_FEATURE_REGEX_SPLIT) && !defined(XRT_FEATURE_REGEX_MATCH)
+	#error "XRT_FEATURE_REGEX_SPLIT requires XRT_FEATURE_REGEX_MATCH"
+#endif
+
+#if defined(XRT_FEATURE_REGEX_SPLIT) && !defined(XRT_FEATURE_STRING_SPLIT)
+	#error "XRT_FEATURE_REGEX_SPLIT requires XRT_FEATURE_STRING_SPLIT"
+#endif
+
+#if defined(XRT_FEATURE_REGEX) && \
+	(!defined(XRT_FEATURE_REGEX_REPLACE) || \
+	 !defined(XRT_FEATURE_REGEX_SPLIT) || \
+	 !defined(XRT_FEATURE_REGEX_SET))
+	#error "XRT_FEATURE_REGEX requires replace, split and set features"
+#endif
+
+
+
+#if defined(XRT_FEATURE_REGEX_CORE)
+
+/* 默认限制面向不可信表达式，防止编译阶段无界消耗资源。 */
+#define XREGEX_PATTERN_DEFAULT (1024u * 1024u)
+#define XREGEX_CAPTURES_DEFAULT 4096u
+
+
+
+/* 编译标志与表达式内的 (?i)、(?m)、(?s)、(?U) 语义一致。 */
+typedef enum xregexflag {
+	XREGEX_IGNORE_CASE = UINT32_C(0x00000001),
+	XREGEX_MULTILINE = UINT32_C(0x00000002),
+	XREGEX_DOT_ALL = UINT32_C(0x00000004),
+	XREGEX_UNGREEDY = UINT32_C(0x00000008)
+} xregexflag;
+
+
+
+/* 所有匹配入口使用同一三态结果，未匹配不属于错误。 */
+typedef enum xregexresult {
+	XREGEX_ERROR = -1,
+	XREGEX_NONE = 0,
+	XREGEX_MATCH = 1
+} xregexresult;
+
+
+
+/* 正则模块错误代码在 xrt.regex 域内保持稳定。 */
+typedef enum xregexerror {
+	XREGEX_ERROR_CONFIG = 1501,
+	XREGEX_ERROR_PATTERN,
+	XREGEX_ERROR_LIMIT,
+	XREGEX_ERROR_EXECUTE,
+	XREGEX_ERROR_REPLACEMENT,
+	XREGEX_ERROR_CALLBACK
+} xregexerror;
+
+
+
+/* 编译配置同时控制语义标志与可由调用方收紧的资源预算。 */
+typedef struct xregexconfig {
+	uint32 Flags;
+	size_t MaxPatternBytes;
+	size_t MaxCaptures;
+	uint32 Reserved[4];
+} xregexconfig;
+
+
+
+/* 匹配范围使用零基半开字节区间 [Begin, End)。 */
+typedef struct xregexspan {
+	size_t Begin;
+	size_t End;
+} xregexspan;
+
+
+
+/* 编译对象不可变、可跨线程共享并通过引用计数管理。 */
+typedef struct xregex xregex;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 初始化默认编译标志和有限资源预算。 */
+XRT_API void xrtRegexConfigInit(xregexconfig* pConfig);
+
+
+
+/* 返回字面量文本转义为正则表达式后的精确字节数，不包含末尾零。 */
+XRT_API bool xrtRegexEscapeSize(xstrview Text, size_t* pOutputSize);
+
+
+
+/* 将字面量文本转义到调用方缓冲区；容量必须包含末尾零。 */
+XRT_API bool xrtRegexEscapeWrite(
+	xstrview Text,
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pOutputSize
+);
+
+
+
+/* 创建由 xrtFree 释放的零结尾正则字面量，长度输出可以为空。 */
+XRT_API str xrtRegexEscape(xstrview Text, size_t* pOutputSize);
+
+
+
+/* 使用默认配置编译明确长度的 UTF-8 正则表达式。 */
+XRT_API xregex* xrtRegexCompile(xstrview Pattern);
+
+
+
+/* 使用高级配置编译正则表达式。 */
+XRT_API xregex* xrtRegexCompileConfig(
+	xstrview Pattern,
+	const xregexconfig* pConfig
+);
+
+
+
+/* 验证表达式能否使用默认配置完成编译。 */
+XRT_API bool xrtRegexValid(xstrview Pattern);
+
+
+
+/* 增加编译对象引用并返回原指针。 */
+XRT_API xregex* xrtRegexRef(xregex* pRegex);
+
+
+
+/* 释放编译对象引用。 */
+XRT_API void xrtRegexRelease(xregex* pRegex);
+
+
+
+/* 返回编译对象持有的原始表达式视图。 */
+XRT_API xstrview xrtRegexPattern(const xregex* pRegex);
+
+
+
+/* 返回编译时使用的标志。 */
+XRT_API uint32 xrtRegexFlags(const xregex* pRegex);
+
+
+
+/* 返回包含组 0 在内的捕获数量。 */
+XRT_API size_t xrtRegexCaptureCount(const xregex* pRegex);
+
+
+
+/* 返回指定捕获的借用名称；未命名捕获返回空视图。 */
+XRT_API bool xrtRegexCaptureName(
+	const xregex* pRegex,
+	size_t iIndex,
+	xstrview* pName
+);
+
+
+
+/* 按名称查找捕获索引，未找到时返回 XRT_NPOS。 */
+XRT_API size_t xrtRegexCaptureIndex(
+	const xregex* pRegex,
+	xstrview Name
+);
+
+
+
+/* 从 xrt.regex 错误的机器数据中读取字节位置。 */
+XRT_API bool xrtRegexErrorOffset(
+	const xerror* pError,
+	size_t* pOffset
+);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_REGEX_MATCH)
+
+/* matcher 独占可变执行缓存，捕获视图在下一次匹配前有效。 */
+typedef struct xregexmatcher xregexmatcher;
+
+
+
+/* 捕获记录区分未参与匹配与合法的空匹配。 */
+typedef struct xregexcapture {
+	bool Matched;
+	xregexspan Span;
+	xstrview Text;
+} xregexcapture;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 为一个不可变编译对象创建可复用 matcher。 */
+XRT_API xregexmatcher* xrtRegexMatcherCreate(xregex* pRegex);
+
+
+
+/* 释放 matcher、执行缓存和持有的编译对象引用。 */
+XRT_API void xrtRegexMatcherFree(xregexmatcher* pMatcher);
+
+
+
+/* 从字节位置开始搜索首个匹配。 */
+XRT_API xregexresult xrtRegexMatcherFind(
+	xregexmatcher* pMatcher,
+	xstrview Text,
+	size_t iStart
+);
+
+
+
+/* 要求首个匹配恰好从指定字节位置开始。 */
+XRT_API xregexresult xrtRegexMatcherAt(
+	xregexmatcher* pMatcher,
+	xstrview Text,
+	size_t iStart
+);
+
+
+
+/* 要求表达式覆盖完整输入。 */
+XRT_API xregexresult xrtRegexMatcherFull(
+	xregexmatcher* pMatcher,
+	xstrview Text
+);
+
+
+
+/* 继续查找下一项，空匹配会按一个 UTF-8 标量向前推进。 */
+XRT_API xregexresult xrtRegexMatcherNext(xregexmatcher* pMatcher);
+
+
+
+/* 返回 matcher 当前是否持有一次成功匹配。 */
+XRT_API bool xrtRegexMatcherMatched(const xregexmatcher* pMatcher);
+
+
+
+/* 返回当前输入的借用视图。 */
+XRT_API xstrview xrtRegexMatcherText(const xregexmatcher* pMatcher);
+
+
+
+/* 返回指定捕获的参与状态、绝对字节范围和借用文本。 */
+XRT_API bool xrtRegexMatcherCapture(
+	const xregexmatcher* pMatcher,
+	size_t iIndex,
+	xregexcapture* pCapture
+);
+
+
+
+/* 按名称返回当前捕获。 */
+XRT_API bool xrtRegexMatcherCaptureNamed(
+	const xregexmatcher* pMatcher,
+	xstrview Name,
+	xregexcapture* pCapture
+);
+
+
+
+/* 使用临时 matcher 搜索编译表达式。 */
+XRT_API xregexresult xrtRegexTest(
+	xregex* pRegex,
+	xstrview Text
+);
+
+
+
+/* 使用临时 matcher 检查编译表达式是否覆盖完整输入。 */
+XRT_API xregexresult xrtRegexFullTest(
+	xregex* pRegex,
+	xstrview Text
+);
+
+
+
+/* 编译默认表达式并执行一次搜索。 */
+XRT_API xregexresult xrtRegexMatch(
+	xstrview Pattern,
+	xstrview Text
+);
+
+
+
+/* 编译默认表达式并执行一次完整匹配。 */
+XRT_API xregexresult xrtRegexFullMatch(
+	xstrview Pattern,
+	xstrview Text
+);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_REGEX_REPLACE)
+
+/* 自定义替换器只能向输出尾部追加内容，返回 false 表示终止并报告错误。 */
+typedef bool (*xregexreplacefn)(
+	const xregexmatcher* pMatcher,
+	xstrbuf* pOutput,
+	ptr pUserData
+);
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 按模板替换至构建器，SIZE_MAX 表示不限制替换次数。 */
+XRT_API bool xrtRegexReplaceTo(
+	xregex* pRegex,
+	xstrview Text,
+	xstrview Replacement,
+	size_t iLimit,
+	xstrbuf* pOutput,
+	size_t* pCount
+);
+
+
+
+/* 由回调生成每次替换内容，失败时撤销本次调用追加的全部数据。 */
+XRT_API bool xrtRegexReplaceFuncTo(
+	xregex* pRegex,
+	xstrview Text,
+	size_t iLimit,
+	xregexreplacefn pReplace,
+	ptr pUserData,
+	xstrbuf* pOutput,
+	size_t* pCount
+);
+
+
+
+/* 替换全部匹配并返回零结尾独立字符串。 */
+XRT_API str xrtRegexReplace(
+	xregex* pRegex,
+	xstrview Text,
+	xstrview Replacement
+);
+
+
+
+/* 只替换第一个匹配并返回零结尾独立字符串。 */
+XRT_API str xrtRegexReplaceFirst(
+	xregex* pRegex,
+	xstrview Text,
+	xstrview Replacement
+);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_REGEX_SPLIT)
+
+/* 拆分标志控制捕获输出和空项过滤。 */
+typedef enum xregexsplitflag {
+	XREGEX_SPLIT_CAPTURES = UINT32_C(0x00000001),
+	XREGEX_SPLIT_SKIP_EMPTY = UINT32_C(0x00000002)
+} xregexsplitflag;
+
+
+
+/* Limit 是最多使用的分隔匹配数，SIZE_MAX 表示不限制。 */
+typedef struct xregexsplitconfig {
+	size_t Limit;
+	uint32 Flags;
+	uint32 Reserved[4];
+} xregexsplitconfig;
+
+
+
+/* 流式拆分器借用输入，并独占一个可重用 matcher。 */
+typedef struct xregexsplitter xregexsplitter;
+
+
+
+/* Capture 为 XRT_NPOS 时是普通字段，否则是捕获索引。 */
+typedef struct xregexsplitpart {
+	xstrview Text;
+	size_t Capture;
+	bool Matched;
+} xregexsplitpart;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 初始化不限制分隔次数且保留空字段的拆分配置。 */
+XRT_API void xrtRegexSplitConfigInit(xregexsplitconfig* pConfig);
+
+
+
+/* 创建借用输入的流式正则拆分器。 */
+XRT_API xregexsplitter* xrtRegexSplitterCreate(
+	xregex* pRegex,
+	xstrview Text,
+	const xregexsplitconfig* pConfig
+);
+
+
+
+/* 释放拆分器、matcher 和持有的正则引用。 */
+XRT_API void xrtRegexSplitterFree(xregexsplitter* pSplitter);
+
+
+
+/* 返回下一字段或捕获，XREGEX_NONE 表示遍历结束。 */
+XRT_API xregexresult xrtRegexSplitterNext(
+	xregexsplitter* pSplitter,
+	xregexsplitpart* pPart
+);
+
+
+
+/* 使用默认配置拆分并返回一个分配块内的零结尾字段。 */
+XRT_API xstrlist* xrtRegexSplit(
+	xregex* pRegex,
+	xstrview Text
+);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_REGEX_SET)
+
+/* 编译集合不可变并持有各模式引用。 */
+typedef struct xregexset xregexset;
+
+
+
+/* 集合 matcher 独占执行缓存和本轮命中索引。 */
+typedef struct xregexsetmatcher xregexsetmatcher;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 从已有编译对象创建集合，各模式可以使用不同标志。 */
+XRT_API xregexset* xrtRegexSetCreate(
+	xregex* const* arrRegex,
+	size_t iCount
+);
+
+
+
+/* 使用默认配置批量编译模式并创建集合。 */
+XRT_API xregexset* xrtRegexSetCompile(
+	const xstrview* arrPattern,
+	size_t iCount
+);
+
+
+
+/* 使用同一高级配置批量编译模式并创建集合。 */
+XRT_API xregexset* xrtRegexSetCompileConfig(
+	const xstrview* arrPattern,
+	size_t iCount,
+	const xregexconfig* pConfig
+);
+
+
+
+/* 增加集合引用并返回原指针。 */
+XRT_API xregexset* xrtRegexSetRef(xregexset* pSet);
+
+
+
+/* 释放集合引用。 */
+XRT_API void xrtRegexSetRelease(xregexset* pSet);
+
+
+
+/* 返回集合中的模式数量。 */
+XRT_API size_t xrtRegexSetCount(const xregexset* pSet);
+
+
+
+/* 返回集合借用的指定编译对象。 */
+XRT_API const xregex* xrtRegexSetRegex(
+	const xregexset* pSet,
+	size_t iIndex
+);
+
+
+
+/* 从批量编译错误中读取失败的模式索引。 */
+XRT_API bool xrtRegexSetErrorIndex(
+	const xerror* pError,
+	size_t* pIndex
+);
+
+
+
+/* 为不可变集合创建可复用 matcher。 */
+XRT_API xregexsetmatcher* xrtRegexSetMatcherCreate(xregexset* pSet);
+
+
+
+/* 释放集合 matcher 及其命中索引。 */
+XRT_API void xrtRegexSetMatcherFree(xregexsetmatcher* pMatcher);
+
+
+
+/* 从指定字节位置开始计算所有命中的模式。 */
+XRT_API xregexresult xrtRegexSetMatcherMatch(
+	xregexsetmatcher* pMatcher,
+	xstrview Text,
+	size_t iStart
+);
+
+
+
+/* 返回本轮命中的模式数量。 */
+XRT_API size_t xrtRegexSetMatcherCount(const xregexsetmatcher* pMatcher);
+
+
+
+/* 返回本轮第 iIndex 个命中的模式索引。 */
+XRT_API size_t xrtRegexSetMatcherIndex(
+	const xregexsetmatcher* pMatcher,
+	size_t iIndex
+);
+
+
+
+/* 判断指定模式是否在本轮命中。 */
+XRT_API bool xrtRegexSetMatcherMatched(
+	const xregexsetmatcher* pMatcher,
+	size_t iPattern
+);
+
+
+
+/* 返回本轮最小的命中模式索引，未命中时返回 XRT_NPOS。 */
+XRT_API size_t xrtRegexSetMatcherFirst(const xregexsetmatcher* pMatcher);
+
+
+
+/* 使用临时 matcher 检查集合中是否有模式命中。 */
+XRT_API xregexresult xrtRegexSetTest(
+	xregexset* pSet,
+	xstrview Text
+);
 
 
 
@@ -67224,6 +68141,30 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_RANDOM_TEXT_DEFAULT
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_RANDOM_TEXT_DEFAULT
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX)
+#undef XRT_FEATURE_REGEX
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_CORE)
+#undef XRT_FEATURE_REGEX_CORE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_CORE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_MATCH)
+#undef XRT_FEATURE_REGEX_MATCH
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_MATCH
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_REPLACE)
+#undef XRT_FEATURE_REGEX_REPLACE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_REPLACE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_SET)
+#undef XRT_FEATURE_REGEX_SET
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_SET
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_SPLIT)
+#undef XRT_FEATURE_REGEX_SPLIT
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_REGEX_SPLIT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_RWLOCK)
 #undef XRT_FEATURE_RWLOCK
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_RWLOCK
@@ -68667,6 +69608,30 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_TEXT_DEFAULT)
 #undef XRT_MODULE_RANDOM_TEXT_DEFAULT
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_TEXT_DEFAULT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX)
+#undef XRT_MODULE_REGEX
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_CORE)
+#undef XRT_MODULE_REGEX_CORE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_CORE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_MATCH)
+#undef XRT_MODULE_REGEX_MATCH
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_MATCH
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_REPLACE)
+#undef XRT_MODULE_REGEX_REPLACE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_REPLACE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_SET)
+#undef XRT_MODULE_REGEX_SET
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_SET
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_SPLIT)
+#undef XRT_MODULE_REGEX_SPLIT
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_REGEX_SPLIT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_RWLOCK)
 #undef XRT_MODULE_RWLOCK

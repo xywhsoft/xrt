@@ -151,9 +151,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - 作者：Max Nurzia
 - 来源：<https://github.com/mnurzia/bbre>；旧版 XRT 已保存完整源码、生成测试、模糊测试语料和开发工具
-- 使用位置：`extlibs/xregex/src/third_party/bbre/bbre.c`、`extlibs/xregex/src/third_party/bbre/bbre.h`
+- 使用位置：`src/third_party/bbre/bbre.c`、`src/third_party/bbre/bbre.h`
 - 许可证：MIT License
-- 改动：修复命名组释放大小与 clone 丢失组名；增加 XRT 独立执行上下文、非零起点捕获修复和真正的完整输入匹配；完整测试、基准与历史资产由 `extlibs/xregex` 维护。
+- 改动：修复命名组释放大小与 clone 丢失组名；增加 XRT 独立执行上下文、非零起点捕获修复和真正的完整输入匹配；完整测试、基准与历史资产由核心 Regex 模块维护。
 
 Copyright (c) 2024 Max Nurzia
 

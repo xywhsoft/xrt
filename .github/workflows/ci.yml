@@ -64,6 +64,14 @@ jobs:
           --constant-prefix XHTTP_
           --type-prefix xhttp
 
+      - name: Verify Regex API documentation
+        run: >-
+          python tools/check_api_docs.py
+          --module-prefix regex
+          --function-prefix xrtRegex
+          --constant-prefix XREGEX_
+          --type-prefix xregex
+
       - name: Verify Value API documentation
         run: >-
           python tools/check_api_docs.py
@@ -110,7 +118,6 @@ jobs:
           - xruntime
           - xhttp
           - xws
-          - xregex
           - xmail
           - xssh
     steps:
@@ -148,9 +155,6 @@ jobs:
           - product: xws
             test_suite: xws_tests
             package_suite: xws
-          - product: xregex
-            test_suite: xregex
-            package_suite: xregex
           - product: xmail
             test_suite: xmail_tests
             package_suite: xmail

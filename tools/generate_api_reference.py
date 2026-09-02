@@ -34,6 +34,14 @@ REFERENCES = {
 		"guide": "net.md",
 		"output": "docs/api/net-reference.md",
 	},
+	"regex": {
+		"title": "Regex 公共符号参考",
+		"function_prefix": "xrtRegex",
+		"constant_prefix": "XREGEX_",
+		"type_prefix": "xregex",
+		"guide": "regex.md",
+		"output": "docs/api/regex-reference.md",
+	},
 	"tls": {
 		"title": "TLS 公共符号参考",
 		"function_prefix": "xrtTls",

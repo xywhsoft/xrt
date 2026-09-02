@@ -8,7 +8,6 @@
 - `xruntime`：类型化运行时、动态值与语言运行时支撑。
 - `xhttp`：HTTP 高层语义、客户端和服务端抽象。
 - `xws`：WebSocket 高层客户端与服务端抽象。
-- `xregex`：正则表达式引擎。
 - `xmail`：邮件内容、SMTP、POP3 和 IMAP 客户端体系。
 - `xssh`：分层 SSH 协议扩展，wire 底层已经完成迁移。
 

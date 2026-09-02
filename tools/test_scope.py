@@ -140,7 +140,7 @@ class ScopeTest(unittest.TestCase):
 				ROOT / "extlibs" / product / "config" / "modules.json"
 			)
 			for product in (
-				"xruntime", "xhttp", "xws", "xregex", "xmail", "xssh",
+				"xruntime", "xhttp", "xws", "xmail", "xssh",
 			)
 		)
 		for manifest in manifests:
@@ -162,7 +162,6 @@ class ScopeTest(unittest.TestCase):
 			"xruntime": "integrated",
 			"xhttp": "deferred",
 			"xws": "deferred",
-			"xregex": "integrated",
 			"xmail": "deferred",
 			"xssh": "integrated",
 		}
