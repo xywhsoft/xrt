@@ -380,6 +380,9 @@ static xvalue* __xrtValueCloneHandle(
 		return NULL;
 	}
 	pTarget->TypeId = pSource->TypeId;
+	pTarget->IdentityHash = pSource->IdentityHash;
+	pTarget->IdentityEqual = pSource->IdentityEqual;
+	pTarget->IdentityUserData = pSource->IdentityUserData;
 	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ||
 		 !__xrtValueCloneFinish(pContext, pSource) ) {
 		__xrtValueCloneRelease(pContext, pTarget);
@@ -538,6 +541,9 @@ static xvalue* __xrtValueDeepClone(
 		return NULL;
 	}
 	pTarget->TypeId = pSource->TypeId;
+	pTarget->IdentityHash = pSource->IdentityHash;
+	pTarget->IdentityEqual = pSource->IdentityEqual;
+	pTarget->IdentityUserData = pSource->IdentityUserData;
 	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ) {
 		xrtValueRelease(pTarget);
 		return NULL;
@@ -937,6 +943,9 @@ static bool __xrtValueEqual(
 	}
 	if ( pLeft == pRight ) {
 		return true;
+	}
+	if ( (pLeft->IdentityEqual != NULL) || (pRight->IdentityEqual != NULL) ) {
+		return __xrtValueEqualKnown(pLeft, pRight);
 	}
 	if ( iDepth >= XRT_VALUE_DEPTH_MAX ) {
 		__xrtErrorSetValue();

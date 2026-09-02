@@ -5247,6 +5247,15 @@ typedef struct xerrordesc {
 
 
 
+/* 可选的源码位置；零值表示调用方没有提供对应信息。 */
+typedef struct xerrorlocation {
+	cstr File;
+	int32 Line;
+	int32 Column;
+} xerrorlocation;
+
+
+
 /* 错误处理器只借用错误对象，保存时必须增加引用。 */
 typedef void (*xerrorhandler)(const xerror* pError, ptr pUserData);
 
@@ -5258,6 +5267,14 @@ XRT_EXTERN_C_BEGIN
 
 /* 从完整描述创建一个错误对象。 */
 XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc);
+
+
+
+/* 从完整描述和可选源码位置创建一个错误对象。 */
+XRT_API xerror* xrtErrorBuildAt(
+	const xerrordesc* pDesc,
+	const xerrorlocation* pLocation
+);
 
 
 
@@ -5313,6 +5330,21 @@ XRT_API cstr xrtErrorMessage(const xerror* pError);
 
 /* 返回可选的机器可读附加数据。 */
 XRT_API cstr xrtErrorData(const xerror* pError);
+
+
+
+/* 返回可选的源码文件名。 */
+XRT_API cstr xrtErrorFile(const xerror* pError);
+
+
+
+/* 返回一基源码行号；零表示未知。 */
+XRT_API int32 xrtErrorLine(const xerror* pError);
+
+
+
+/* 返回一基源码列号；零表示未知。 */
+XRT_API int32 xrtErrorColumn(const xerror* pError);
 
 
 
@@ -13009,6 +13041,55 @@ XRT_EXTERN_C_END
 
 
 
+/*
+	常用 HTTP 方法使用互不重叠的单 bit 枚举值。非零值既表示一个解析后的
+	方法，也可以作为方法集合中的原子位；组合宏提供常用路由方法集合。
+	OTHER 表示语法合法但未内置分类的方法；INVALID 表示空值或非法 token，
+	在方法集合中也自然表示不匹配任何方法。
+*/
+typedef enum xhttpmethod {
+	XHTTP_METHOD_INVALID = 0,
+	XHTTP_METHOD_OTHER = UINT32_C(0x00000001),
+	XHTTP_METHOD_GET = UINT32_C(0x00000002),
+	XHTTP_METHOD_HEAD = UINT32_C(0x00000004),
+	XHTTP_METHOD_POST = UINT32_C(0x00000008),
+	XHTTP_METHOD_PUT = UINT32_C(0x00000010),
+	XHTTP_METHOD_DELETE = UINT32_C(0x00000020),
+	XHTTP_METHOD_CONNECT = UINT32_C(0x00000040),
+	XHTTP_METHOD_OPTIONS = UINT32_C(0x00000080),
+	XHTTP_METHOD_TRACE = UINT32_C(0x00000100),
+	XHTTP_METHOD_PATCH = UINT32_C(0x00000200)
+} xhttpmethod;
+
+
+
+/* 常用 CRUD 路由方法集合；PUT 和 PATCH 都属于更新方法。 */
+#define XHTTP_METHOD_CRUD ( \
+	XHTTP_METHOD_GET | \
+	XHTTP_METHOD_POST | \
+	XHTTP_METHOD_PUT | \
+	XHTTP_METHOD_PATCH | \
+	XHTTP_METHOD_DELETE \
+)
+
+
+
+/* 匹配任一内置方法或语法合法的扩展方法。 */
+#define XHTTP_METHOD_ANY ( \
+	XHTTP_METHOD_OTHER | \
+	XHTTP_METHOD_GET | \
+	XHTTP_METHOD_HEAD | \
+	XHTTP_METHOD_POST | \
+	XHTTP_METHOD_PUT | \
+	XHTTP_METHOD_DELETE | \
+	XHTTP_METHOD_CONNECT | \
+	XHTTP_METHOD_OPTIONS | \
+	XHTTP_METHOD_TRACE | \
+	XHTTP_METHOD_PATCH \
+)
+
+
+
 /* HTTP 版本使用可直接比较的主次版本编码。 */
 typedef enum xhttpversion {
 	XHTTP_VERSION_1_0 = 10,
@@ -13351,6 +13432,14 @@ XRT_API bool xrtHttpTokenValid(xstrview Text);
 
 /* 按 ASCII 大小写不敏感规则比较两个 token。 */
 XRT_API bool xrtHttpTokenEqual(xstrview Left, xstrview Right);
+
+
+
+/*
+	按大小写敏感规则分类 HTTP 方法。
+	合法扩展方法返回 OTHER；空值或非法 token 返回 INVALID。
+*/
+XRT_API xhttpmethod xrtHttpMethodParse(xstrview Method);
 
 
 
@@ -27074,6 +27163,7 @@ typedef struct xhttp1head {
 	xhttpfield* Fields;
 	size_t FieldCount;
 	size_t FieldCapacity;
+	xhttpmethod MethodCode;
 } xhttp1head;
 
 #endif
@@ -34546,6 +34636,28 @@ typedef struct xvalue xvalue;
 
 
 
+
+/*
+	语义值哈希器只借用已经绑定 TypeId 的容器值。回调可以通过只读 Value API
+	观察该值及其字段，也可以递归哈希字段，但不得修改、保留或释放输入值。
+*/
+typedef uint64 (*xvalueidentityhash)(const xvalue* pValue, ptr pUserData);
+
+
+
+
+/*
+	语义值相等器只借用同一 TypeId 和同一策略域中的两个容器值。回调可以
+	递归比较字段，但不得修改、保留或释放任一输入值。
+*/
+typedef bool (*xvalueidentityequal)(
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	ptr pUserData
+);
+
+
+
 /* 句柄克隆器创建独立句柄；失败时必须设置错误且不得在输出中遗留资源。 */
 typedef bool (*xvaluehandleclone)(ptr pHandle, ptr* pClone, ptr pUserData);
 
@@ -34573,6 +34685,17 @@ typedef struct xvaluehandleops {
 	xvaluehandlehash Hash;
 	xvaluehandleequal Equal;
 } xvaluehandleops;
+
+
+
+/*
+	Object finalizers borrow the last live object shell before its owned fields
+	are released.  The callback may inspect or mutate fields, but it must not
+	retain, clone or release the borrowed object itself.  A finalizer is attached
+	to the shared object backing and therefore runs exactly once, when the final
+	backing owner is released.
+*/
+typedef void (*xvalueobjectfinalizer)(xvalue* pObject, ptr pUserData);
 
 
 
@@ -34659,6 +34782,26 @@ XRT_API xvalue* xrtValueClone(const xvalue* pValue);
 
 
 
+/* 为动态 Value 创建一个拥有独立生命周期的弱引用值。 */
+XRT_API xvalue* xrtValueWeakRef(const xvalue* pTarget);
+
+
+
+/* 判断值是否是由 xrtValueWeakRef 创建的弱引用。 */
+XRT_API bool xrtValueIsWeakRef(const xvalue* pValue);
+
+
+
+/* 判断弱引用目标是否已经结束强生命周期。 */
+XRT_API bool xrtValueWeakRefExpired(const xvalue* pWeak);
+
+
+
+/* 尝试提升弱引用；过期时返回进程期 null 单例。 */
+XRT_API xvalue* xrtValueWeakRefLock(const xvalue* pWeak);
+
+
+
 /* 返回值类型，空指针返回 INVALID。 */
 XRT_API xvaluetype xrtValueType(const xvalue* pValue);
 
@@ -34671,8 +34814,9 @@ XRT_API uint64 xrtValueTypeId(const xvalue* pValue);
 
 /*
 	把非零语义类型身份一次性绑定到非静态值外壳。
-	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播，
-	但不参与 XRT 的相等、哈希或序列化语义。
+	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播。
+	TypeId 本身不改变相等、哈希或序列化语义；只有随后显式绑定的值身份
+	策略参与相等和哈希。
 */
 XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId);
 
@@ -34680,6 +34824,22 @@ XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId);
 
 /* 仅在值外壳唯一拥有时，把既有语义类型身份替换为新的非零身份。 */
 XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId);
+
+
+
+
+/*
+	为已经绑定 TypeId 的非静态容器一次性绑定成对的值身份策略。
+	重复绑定同一策略域成功，冲突策略失败；策略函数和用户数据的生命周期
+	必须覆盖该值及其全部 Clone/DeepClone。具有完整策略的容器可以作为
+	Value Set 键，且 xrtValueEqual 优先使用同一策略域的语义相等规则。
+*/
+XRT_API bool xrtValueIdentityBind(
+	xvalue* pValue,
+	xvalueidentityhash pHash,
+	xvalueidentityequal pEqual,
+	ptr pUserData
+);
 
 
 
@@ -34758,7 +34918,12 @@ XRT_API bool xrtValueGetHandle(
 
 
 
-/* 为可哈希标量计算一致哈希；指针和句柄哈希只在当前进程内有效。 */
+/* 取走句柄资源并把所有共享外壳可见的资源状态清空；策略仍保留到值释放。 */
+XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle);
+
+
+
+/* 为可哈希标量或显式身份容器计算一致哈希；指针和句柄哈希只在当前进程内有效。 */
 XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash);
 
 
@@ -34854,6 +35019,19 @@ XRT_API xvalue* xrtValueObject(void);
 
 /* 创建保持首次插入顺序、最终按逆插入顺序释放拥有值的字符串键对象。 */
 XRT_API xvalue* xrtValueObjectLifo(void);
+
+
+
+/*
+	Bind one finalizer to a unique Object backing.  Finalizer-backed objects keep
+	reference identity: Clone may share the backing, but a later COW split is
+	rejected so one logical object can never acquire two finalization duties.
+*/
+XRT_API bool xrtValueObjectFinalizerBind(
+	xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer,
+	ptr pUserData
+);
 
 
 
@@ -35077,7 +35255,7 @@ XRT_API xvalue* xrtValueObjectTake(xvalue* pObject, xstrview Key);
 
 
 
-/* 增加引用后把可哈希标量加入集合。 */
+/* 增加引用后把可哈希标量或显式身份容器加入集合。 */
 XRT_API bool xrtValueSetAdd(xvalue* pSet, const xvalue* pItem);
 
 
@@ -35272,7 +35450,7 @@ XRT_API bool xrtValueSetIsDisjoint(
 
 
 
-/* 判断两个集合是否拥有相同的标量元素。 */
+/* 判断两个集合是否拥有相同的可哈希元素。 */
 XRT_API bool xrtValueSetEqual(
 	const xvalue* pLeft,
 	const xvalue* pRight
@@ -58741,6 +58919,7 @@ bool __xrtSetAdoptHeap(xset* pTarget, xset* pSource);
 #define XRT_VALUE_FLAG_STATIC		0x0001u
 #define XRT_VALUE_FLAG_OWNED_DATA	0x0002u
 #define XRT_VALUE_FLAG_BUSY			0x0004u
+#define XRT_VALUE_FLAG_FINALIZING	0x0008u
 
 
 
@@ -58751,10 +58930,16 @@ typedef struct xvaluebacking xvaluebacking;
 /* 动态值外壳固定为紧凑标量或一个 backing 指针。 */
 struct xvalue {
 	volatile int32 RefCount;
+	/* 外壳资源结束后仍由弱引用保持分配，初始自持一个弱引用。 */
+	volatile int32 WeakCount;
 	uint16 Type;
 	uint16 Flags;
 	/* 调用者可选绑定的不可变语义类型身份；零表示未绑定。 */
 	uint64 TypeId;
+	/* 可选语义值身份策略；函数和用户数据随外壳 Clone 传播。 */
+	xvalueidentityhash IdentityHash;
+	xvalueidentityequal IdentityEqual;
+	ptr IdentityUserData;
 	union {
 		bool Bool;
 		int64 Int;
@@ -58817,6 +59002,11 @@ void __xrtValueCallbackUnprotect(
 
 /* 释放一个值外壳持有的容器 backing。 */
 void __xrtValueContainerRelease(xvalue* pValue);
+
+
+
+/* 在最后一个 Object backing owner 释放字段前执行一次已绑定 finalizer。 */
+void __xrtValueObjectFinalize(xvalue* pValue);
 
 
 
@@ -62813,6 +63003,9 @@ struct xerror {
 	cstr Operation;
 	cstr Message;
 	cstr Data;
+	cstr File;
+	int32 Line;
+	int32 Column;
 	xerror* Cause;
 };
 
@@ -62821,75 +63014,75 @@ struct xerror {
 /* 核心错误使用静态对象，保证分配失败时仍能报告。 */
 static xerror __xrtOutOfMemoryError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_MEMORY, 1, 0,
-	"xrt.memory", "allocate", "memory allocation failed", "", NULL
+	"xrt.memory", "allocate", "memory allocation failed", "", "", 0, 0, NULL
 };
 static xerror __xrtIoErrorStatic = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_IO, 1, 0,
-	"xrt.io", "io", "input or output operation failed", "", NULL
+	"xrt.io", "io", "input or output operation failed", "", "", 0, 0, NULL
 };
 static xerror __xrtNotFoundErrorStatic = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_NOT_FOUND, 1, 0,
-	"xrt.core", "lookup", "requested value was not found", "", NULL
+	"xrt.core", "lookup", "requested value was not found", "", "", 0, 0, NULL
 };
 static xerror __xrtPermissionErrorStatic = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_PERMISSION, 1, 0,
-	"xrt.core", "access", "operation is not permitted", "", NULL
+	"xrt.core", "access", "operation is not permitted", "", "", 0, 0, NULL
 };
 static xerror __xrtProtocolErrorStatic = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_PROTOCOL, 1, 0,
-	"xrt.core", "protocol", "protocol contract was violated", "", NULL
+	"xrt.core", "protocol", "protocol contract was violated", "", "", 0, 0, NULL
 };
 static xerror __xrtInvalidArgumentError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_ARGUMENT, 1, 0,
-	"xrt.core", "validate", "invalid argument", "", NULL
+	"xrt.core", "validate", "invalid argument", "", "", 0, 0, NULL
 };
 static xerror __xrtTypeError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_TYPE, 1, 0,
-	"xrt.core", "type", "value has an incompatible type", "", NULL
+	"xrt.core", "type", "value has an incompatible type", "", "", 0, 0, NULL
 };
 static xerror __xrtValueError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_VALUE, 1, 0,
-	"xrt.core", "value", "value is not valid for this operation", "", NULL
+	"xrt.core", "value", "value is not valid for this operation", "", "", 0, 0, NULL
 };
 static xerror __xrtInvalidStateError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_STATE, 1, 0,
-	"xrt.core", "state", "operation is not valid in the current state", "", NULL
+	"xrt.core", "state", "operation is not valid in the current state", "", "", 0, 0, NULL
 };
 static xerror __xrtSizeOverflowError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_RANGE, 1, 0,
-	"xrt.memory", "size", "memory size overflow", "", NULL
+	"xrt.memory", "size", "memory size overflow", "", "", 0, 0, NULL
 };
 static xerror __xrtRangeError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_RANGE, 2, 0,
-	"xrt.core", "index", "index or range is out of bounds", "", NULL
+	"xrt.core", "index", "index or range is out of bounds", "", "", 0, 0, NULL
 };
 static xerror __xrtAgainError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_AGAIN, 1, 0,
-	"xrt.core", "capacity", "operation cannot continue without available capacity", "", NULL
+	"xrt.core", "capacity", "operation cannot continue without available capacity", "", "", 0, 0, NULL
 };
 static xerror __xrtUnsupportedError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_UNSUPPORTED, 1, 0,
-	"xrt.core", "operation", "operation is not supported", "", NULL
+	"xrt.core", "operation", "operation is not supported", "", "", 0, 0, NULL
 };
 static xerror __xrtExistsError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_EXISTS, 1, 0,
-	"xrt.core", "insert", "value already exists", "", NULL
+	"xrt.core", "insert", "value already exists", "", "", 0, 0, NULL
 };
 static xerror __xrtCancelledError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_CANCELLED, 1, 0,
-	"xrt.core", "cancel", "operation was cancelled", "", NULL
+	"xrt.core", "cancel", "operation was cancelled", "", "", 0, 0, NULL
 };
 static xerror __xrtTimeoutError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_TIMEOUT, 1, 0,
-	"xrt.core", "wait", "operation timed out", "", NULL
+	"xrt.core", "wait", "operation timed out", "", "", 0, 0, NULL
 };
 static xerror __xrtClosedError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_CLOSED, 1, 0,
-	"xrt.core", "close", "resource is closed", "", NULL
+	"xrt.core", "close", "resource is closed", "", "", 0, 0, NULL
 };
 static xerror __xrtInternalError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_INTERNAL, 1, 0,
-	"xrt.core", "invariant", "internal contract was violated", "", NULL
+	"xrt.core", "invariant", "internal contract was violated", "", "", 0, 0, NULL
 };
 
 
@@ -63431,11 +63624,24 @@ xrt_error_context* __xrtErrorContextSwap(xrt_error_context* pContext)
 
 /* 从完整描述创建一个错误对象。 */
 XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc)
+
+{
+	return xrtErrorBuildAt(pDesc, NULL);
+}
+
+
+
+/* 从完整描述和可选源码位置创建一个错误对象。 */
+XRT_API xerror* xrtErrorBuildAt(
+	const xerrordesc* pDesc,
+	const xerrorlocation* pLocation
+)
 {
 	size_t iDomainSize;
 	size_t iOperationSize;
 	size_t iMessageSize;
 	size_t iDataSize;
+	size_t iFileSize;
 	size_t iTextSize;
 	xerror* pError;
 	char* pWrite;
@@ -63448,18 +63654,28 @@ XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
+	if ( (pLocation != NULL) &&
+		 ((pLocation->Line < 0) || (pLocation->Column < 0)) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
 
 	iDomainSize = strlen(pDesc->Domain != NULL ? pDesc->Domain : "") + 1;
 	iOperationSize = strlen(pDesc->Operation != NULL ? pDesc->Operation : "") + 1;
 	iMessageSize = strlen(pDesc->Message != NULL ? pDesc->Message : "") + 1;
 	iDataSize = strlen(pDesc->Data != NULL ? pDesc->Data : "") + 1;
+	iFileSize = strlen(
+		(pLocation != NULL) && (pLocation->File != NULL) ? pLocation->File : ""
+	) + 1;
 	if ( (iDomainSize > (SIZE_MAX - iOperationSize)) ||
 		 ((iDomainSize + iOperationSize) > (SIZE_MAX - iMessageSize)) ||
-		 ((iDomainSize + iOperationSize + iMessageSize) > (SIZE_MAX - iDataSize)) ) {
+		 ((iDomainSize + iOperationSize + iMessageSize) > (SIZE_MAX - iDataSize)) ||
+		 ((iDomainSize + iOperationSize + iMessageSize + iDataSize) >
+		  (SIZE_MAX - iFileSize)) ) {
 		__xrtErrorSetSizeOverflow();
 		return NULL;
 	}
-	iTextSize = iDomainSize + iOperationSize + iMessageSize + iDataSize;
+	iTextSize = iDomainSize + iOperationSize + iMessageSize + iDataSize + iFileSize;
 	if ( iTextSize > (SIZE_MAX - sizeof(xerror)) ) {
 		__xrtErrorSetSizeOverflow();
 		return NULL;
@@ -63474,6 +63690,8 @@ XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc)
 	pError->Kind = pDesc->Kind;
 	pError->Code = pDesc->Code;
 	pError->SystemCode = pDesc->SystemCode;
+	pError->Line = pLocation != NULL ? pLocation->Line : 0;
+	pError->Column = pLocation != NULL ? pLocation->Column : 0;
 	pError->Cause = xrtErrorRef(pDesc->Cause);
 	if ( (pDesc->Cause != NULL) && (pError->Cause == NULL) ) {
 		xrtFree(pError);
@@ -63485,6 +63703,10 @@ XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc)
 	pError->Operation = __xrtErrorCopyText(&pWrite, pDesc->Operation);
 	pError->Message = __xrtErrorCopyText(&pWrite, pDesc->Message);
 	pError->Data = __xrtErrorCopyText(&pWrite, pDesc->Data);
+	pError->File = __xrtErrorCopyText(
+		&pWrite,
+		pLocation != NULL ? pLocation->File : NULL
+	);
 
 	return pError;
 }
@@ -63605,6 +63827,30 @@ XRT_API cstr xrtErrorMessage(const xerror* pError)
 XRT_API cstr xrtErrorData(const xerror* pError)
 {
 	return pError != NULL ? pError->Data : "";
+}
+
+
+
+/* 返回可选的源码文件名。 */
+XRT_API cstr xrtErrorFile(const xerror* pError)
+{
+	return pError != NULL ? pError->File : "";
+}
+
+
+
+/* 返回一基源码行号；零表示未知。 */
+XRT_API int32 xrtErrorLine(const xerror* pError)
+{
+	return pError != NULL ? pError->Line : 0;
+}
+
+
+
+/* 返回一基源码列号；零表示未知。 */
+XRT_API int32 xrtErrorColumn(const xerror* pError)
+{
+	return pError != NULL ? pError->Column : 0;
 }
 
 
@@ -91724,6 +91970,103 @@ XRT_API bool xrtHttpTokenEqual(xstrview Left, xstrview Right)
 
 
 
+/* 按长度和字节直接分类常用方法，扩展方法只在未命中时扫描 token。 */
+XRT_API xhttpmethod xrtHttpMethodParse(xstrview Method)
+{
+	cstr sData;
+	size_t i;
+
+	if ( !__xrtHttpViewValid(Method) || (Method.Size == 0) ) {
+		return XHTTP_METHOD_INVALID;
+	}
+	sData = Method.Data;
+	switch ( Method.Size ) {
+	case 3:
+		if ( (sData[0] == 'G') &&
+			(sData[1] == 'E') &&
+			(sData[2] == 'T') ) {
+			return XHTTP_METHOD_GET;
+		}
+		if ( (sData[0] == 'P') &&
+			(sData[1] == 'U') &&
+			(sData[2] == 'T') ) {
+			return XHTTP_METHOD_PUT;
+		}
+		break;
+	case 4:
+		if ( (sData[0] == 'P') &&
+			(sData[1] == 'O') &&
+			(sData[2] == 'S') &&
+			(sData[3] == 'T') ) {
+			return XHTTP_METHOD_POST;
+		}
+		if ( (sData[0] == 'H') &&
+			(sData[1] == 'E') &&
+			(sData[2] == 'A') &&
+			(sData[3] == 'D') ) {
+			return XHTTP_METHOD_HEAD;
+		}
+		break;
+	case 5:
+		if ( (sData[0] == 'P') &&
+			(sData[1] == 'A') &&
+			(sData[2] == 'T') &&
+			(sData[3] == 'C') &&
+			(sData[4] == 'H') ) {
+			return XHTTP_METHOD_PATCH;
+		}
+		if ( (sData[0] == 'T') &&
+			(sData[1] == 'R') &&
+			(sData[2] == 'A') &&
+			(sData[3] == 'C') &&
+			(sData[4] == 'E') ) {
+			return XHTTP_METHOD_TRACE;
+		}
+		break;
+	case 6:
+		if ( (sData[0] == 'D') &&
+			(sData[1] == 'E') &&
+			(sData[2] == 'L') &&
+			(sData[3] == 'E') &&
+			(sData[4] == 'T') &&
+			(sData[5] == 'E') ) {
+			return XHTTP_METHOD_DELETE;
+		}
+		break;
+	case 7:
+		if ( (sData[0] == 'C') &&
+			(sData[1] == 'O') &&
+			(sData[2] == 'N') &&
+			(sData[3] == 'N') &&
+			(sData[4] == 'E') &&
+			(sData[5] == 'C') &&
+			(sData[6] == 'T') ) {
+			return XHTTP_METHOD_CONNECT;
+		}
+		if ( (sData[0] == 'O') &&
+			(sData[1] == 'P') &&
+			(sData[2] == 'T') &&
+			(sData[3] == 'I') &&
+			(sData[4] == 'O') &&
+			(sData[5] == 'N') &&
+			(sData[6] == 'S') ) {
+			return XHTTP_METHOD_OPTIONS;
+		}
+		break;
+	default:
+		break;
+	}
+
+	for ( i = 0; i < Method.Size; i++ ) {
+		if ( !__xrtHttpTokenByte((unsigned char)sData[i]) ) {
+			return XHTTP_METHOD_INVALID;
+		}
+	}
+	return XHTTP_METHOD_OTHER;
+}
+
+
+
 /* 按大小写敏感规则比较两个合法 HTTP 方法名。 */
 XRT_API bool xrtHttpMethodEqual(
 	xstrview Left,
@@ -91740,22 +92083,15 @@ XRT_API bool xrtHttpMethodEqual(
 /* 按 RFC 语义识别只读方法，供重试、Cookie 和缓存策略共同使用。 */
 XRT_API bool xrtHttpMethodSafe(xstrview Method)
 {
-	if ( !xrtHttpTokenValid(Method) ) {
+	switch ( xrtHttpMethodParse(Method) ) {
+	case XHTTP_METHOD_GET:
+	case XHTTP_METHOD_HEAD:
+	case XHTTP_METHOD_OPTIONS:
+	case XHTTP_METHOD_TRACE:
+		return true;
+	default:
 		return false;
 	}
-	return __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("GET")
-	) || __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("HEAD")
-	) || __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("OPTIONS")
-	) || __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("TRACE")
-	);
 }
 
 
@@ -91763,16 +92099,17 @@ XRT_API bool xrtHttpMethodSafe(xstrview Method)
 /* 幂等方法包含全部安全方法，以及具有替换或删除语义的 PUT、DELETE。 */
 XRT_API bool xrtHttpMethodIdempotent(xstrview Method)
 {
-	if ( xrtHttpMethodSafe(Method) ) {
+	switch ( xrtHttpMethodParse(Method) ) {
+	case XHTTP_METHOD_GET:
+	case XHTTP_METHOD_HEAD:
+	case XHTTP_METHOD_OPTIONS:
+	case XHTTP_METHOD_TRACE:
+	case XHTTP_METHOD_PUT:
+	case XHTTP_METHOD_DELETE:
 		return true;
+	default:
+		return false;
 	}
-	return __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("PUT")
-	) || __xrtHttpViewEqual(
-		Method,
-		XRT_STR_LITERAL("DELETE")
-	);
 }
 
 
@@ -91783,15 +92120,14 @@ XRT_API bool xrtHttpResponseContentAllowed(
 	uint16 iStatus
 )
 {
-	if ( !xrtHttpTokenValid(Method) ||
+	xhttpmethod MethodCode = xrtHttpMethodParse(Method);
+
+	if ( (MethodCode == XHTTP_METHOD_INVALID) ||
 		(iStatus < 100) ||
 		(iStatus > 999) ) {
 		return false;
 	}
-	if ( xrtHttpMethodEqual(
-		Method,
-		XRT_STR_LITERAL("HEAD")
-	) || (iStatus < 200) ||
+	if ( (MethodCode == XHTTP_METHOD_HEAD) || (iStatus < 200) ||
 		(iStatus == 204) ||
 		(iStatus == 205) ||
 		(iStatus == 304) ) {
@@ -91799,10 +92135,7 @@ XRT_API bool xrtHttpResponseContentAllowed(
 	}
 	if ( (iStatus >= 200) &&
 		(iStatus < 300) &&
-		xrtHttpMethodEqual(
-			Method,
-			XRT_STR_LITERAL("CONNECT")
-		) ) {
+		(MethodCode == XHTTP_METHOD_CONNECT) ) {
 		return false;
 	}
 	return true;
@@ -178340,7 +178673,8 @@ static bool __xrtHttp1RequestLine(
 	pHead->Target.Size = (size_t)(sSecond - (sFirst + 1));
 	Version.Data = sSecond + 1;
 	Version.Size = Line.Size - (size_t)(Version.Data - Line.Data);
-	if ( !xrtHttpTokenValid(pHead->Method) ) {
+	pHead->MethodCode = xrtHttpMethodParse(pHead->Method);
+	if ( pHead->MethodCode == XHTTP_METHOD_INVALID ) {
 		(void)__xrtHttp1Fail(
 			pHead, pInfo, XHTTP1_ERROR_METHOD, 0, 1,
 			XERR_PROTOCOL, sOperation,
@@ -180604,10 +180938,7 @@ XRT_API bool xrtWsUpgradeRequestCheck(
 	) ) {
 		return false;
 	}
-	if ( !__xrtWsUpgradeTextEqual(
-		Request.Method,
-		XRT_STR_LITERAL("GET")
-	) ) {
+	if ( Request.MethodCode != XHTTP_METHOD_GET ) {
 		return __xrtWsUpgradeError(
 			XERR_PROTOCOL,
 			XWS_HANDSHAKE_ERROR_METHOD,
@@ -185688,6 +186019,7 @@ XRT_API bool xrtHttpTargetParse(
 )
 {
 	xhttptarget Target = { 0 };
+	xhttpmethod MethodCode;
 
 	if ( !__xrtRangeValid(pTarget, sizeof(Target)) ||
 		!__xrtHttpViewValid(Method) ||
@@ -185699,13 +186031,14 @@ XRT_API bool xrtHttpTargetParse(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !xrtHttpTokenValid(Method) || (Text.Size == 0) ) {
+	MethodCode = xrtHttpMethodParse(Method);
+	if ( (MethodCode == XHTTP_METHOD_INVALID) || (Text.Size == 0) ) {
 		return __xrtHttpTargetValueFail(pTarget);
 	}
 	Target.Method = Method;
 	Target.Text = Text;
 
-	if ( xrtHttpMethodEqual(Method, XRT_STR_LITERAL("CONNECT")) ) {
+	if ( MethodCode == XHTTP_METHOD_CONNECT ) {
 		if ( !xrtHttpHostParse(Text, &Target.Host) ||
 			(Target.Host.Host.Size == 0) ||
 			((Target.Host.Flags & XHTTP_AUTHORITY_HAS_PORT) == 0) ||
@@ -185720,7 +186053,7 @@ XRT_API bool xrtHttpTargetParse(
 	}
 
 	if ( (Text.Size == 1u) && (Text.Data[0] == '*') ) {
-		if ( !xrtHttpMethodEqual(Method, XRT_STR_LITERAL("OPTIONS")) ) {
+		if ( MethodCode != XHTTP_METHOD_OPTIONS ) {
 			return __xrtHttpTargetValueFail(pTarget);
 		}
 		Target.Form = XHTTP_TARGET_ASTERISK;
@@ -186574,8 +186907,11 @@ XRT_API bool xrtHttp1ResponseBodyPlan(
 	xhttp1bodyplan* pPlan
 )
 {
+	xhttpmethod MethodCode;
+
+	MethodCode = xrtHttpMethodParse(RequestMethod);
 	if ( !__xrtHttp1BodyHeadValid(pHead, XHTTP_RESPONSE) ||
-		!xrtHttpTokenValid(RequestMethod) ||
+		(MethodCode == XHTTP_METHOD_INVALID) ||
 		(pPlan == NULL) ) {
 		return __xrtHttp1BodyPlanFail(
 			pPlan, XHTTP1_ERROR_ARGUMENT, XERR_ARGUMENT,
@@ -186594,16 +186930,12 @@ XRT_API bool xrtHttp1ResponseBodyPlan(
 		pPlan->Mode = XHTTP1_BODY_TUNNEL;
 		return true;
 	}
-	if ( xrtHttpMethodEqual(
-		RequestMethod, XRT_STR_LITERAL("CONNECT")
-	) &&
+	if ( (MethodCode == XHTTP_METHOD_CONNECT) &&
 		(pHead->Status >= 200) && (pHead->Status < 300) ) {
 		pPlan->Mode = XHTTP1_BODY_TUNNEL;
 		return true;
 	}
-	if ( xrtHttpMethodEqual(
-		RequestMethod, XRT_STR_LITERAL("HEAD")
-	) ) {
+	if ( MethodCode == XHTTP_METHOD_HEAD ) {
 		pPlan->Mode = XHTTP1_BODY_NONE;
 		return true;
 	}
@@ -261625,13 +261957,23 @@ XRT_API bool xrtSetEqual(const xset* pLeft, const xset* pRight)
 
 /* null 和布尔值不分配内存，统一允许 Retain 和 Release。 */
 static xvalue __xrtValueNull = {
-	INT32_MAX, XVALUE_NULL, XRT_VALUE_FLAG_STATIC, 0, { 0 }
+	.RefCount = INT32_MAX,
+	.WeakCount = INT32_MAX,
+	.Type = XVALUE_NULL,
+	.Flags = XRT_VALUE_FLAG_STATIC
 };
 static xvalue __xrtValueFalse = {
-	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, 0, { 0 }
+	.RefCount = INT32_MAX,
+	.WeakCount = INT32_MAX,
+	.Type = XVALUE_BOOL,
+	.Flags = XRT_VALUE_FLAG_STATIC
 };
 static xvalue __xrtValueTrue = {
-	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, 0, { .Bool = true }
+	.RefCount = INT32_MAX,
+	.WeakCount = INT32_MAX,
+	.Type = XVALUE_BOOL,
+	.Flags = XRT_VALUE_FLAG_STATIC,
+	.Data.Bool = true
 };
 
 
@@ -261745,6 +262087,74 @@ static bool __xrtValueCanRead(const xvalue* pValue)
 	}
 	return true;
 }
+
+
+
+/* 保留动态 Value 外壳的弱控制引用。 */
+static bool __xrtValueWeakRetain(xvalue* pValue)
+{
+	if ( pValue == NULL ) {
+		return false;
+	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_STATIC) != 0 ) {
+		return true;
+	}
+	return xrtRefRetain(&pValue->WeakCount) >= 0;
+}
+
+
+
+/* 释放弱控制引用；强生命周期已经结束时销毁最后的外壳分配。 */
+static void __xrtValueWeakRelease(xvalue* pValue)
+{
+	int32 iReferences;
+
+	if ( (pValue == NULL) ||
+		 ((pValue->Flags & XRT_VALUE_FLAG_STATIC) != 0) ) {
+		return;
+	}
+	iReferences = xrtRefRelease(&pValue->WeakCount);
+	if ( iReferences == 0 ) {
+		xrtFree(pValue);
+	}
+}
+
+
+
+/* 深克隆弱引用句柄时复制一个弱控制引用。 */
+static bool __xrtValueWeakHandleClone(
+	ptr pHandle,
+	ptr* pClone,
+	ptr pUserData
+)
+{
+	xvalue* pTarget = (xvalue*)pHandle;
+
+	(void)pUserData;
+	if ( (pClone == NULL) || !__xrtValueWeakRetain(pTarget) ) {
+		return false;
+	}
+	*pClone = pTarget;
+	return true;
+}
+
+
+
+/* 释放弱引用句柄持有的一个弱控制引用。 */
+static void __xrtValueWeakHandleDrop(ptr pHandle, ptr pUserData)
+{
+	(void)pUserData;
+	__xrtValueWeakRelease((xvalue*)pHandle);
+}
+
+
+
+static const xvaluehandleops __xrtValueWeakHandleOps = {
+	__xrtValueWeakHandleClone,
+	__xrtValueWeakHandleDrop,
+	NULL,
+	NULL
+};
 
 
 
@@ -261928,6 +262338,7 @@ static xvalue* __xrtValueBlob(
 	}
 	memset(pValue, 0, sizeof(xvalue));
 	pValue->RefCount = 1;
+	pValue->WeakCount = 1;
 	pValue->Type = (uint16)Type;
 	pCopy = (bytes)(pValue + 1);
 	if ( iSize != 0 ) {
@@ -261975,6 +262386,7 @@ xvalue* __xrtValueCreate(xvaluetype Type)
 		return NULL;
 	}
 	pValue->RefCount = 1;
+	pValue->WeakCount = 1;
 	pValue->Type = (uint16)Type;
 	return pValue;
 }
@@ -262189,6 +262601,10 @@ XRT_API xvalue* xrtValueRetain(const xvalue* pValue)
 	if ( !__xrtValueCanRead(pValue) ) {
 		return NULL;
 	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_FINALIZING) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
 	if ( (pValue->Flags & XRT_VALUE_FLAG_STATIC) != 0 ) {
 		return (xvalue*)pValue;
 	}
@@ -262221,11 +262637,19 @@ XRT_API void xrtValueRelease(xvalue* pValue)
 	if ( iReferences != 0 ) {
 		return;
 	}
+	#if defined(XRT_FEATURE_VALUE_CONTAINER)
+		if ( pValue->Type == XVALUE_OBJECT ) {
+			__xrtValueObjectFinalize(pValue);
+		}
+	#endif
 	pValue->Flags |= XRT_VALUE_FLAG_BUSY;
 	if ( ((pValue->Type == XVALUE_STRING) || (pValue->Type == XVALUE_BYTES)) &&
 		 ((pValue->Flags & XRT_VALUE_FLAG_OWNED_DATA) != 0) ) {
 		xrtFree((ptr)pValue->Data.Blob.Data);
-	} else if ( pValue->Type == XVALUE_HANDLE ) {
+	} else if (
+		(pValue->Type == XVALUE_HANDLE) &&
+		(pValue->Data.Handle.Data != NULL)
+	) {
 		pValue->Data.Handle.Ops->Drop(
 			pValue->Data.Handle.Data,
 			pValue->Data.Handle.UserData
@@ -262235,7 +262659,8 @@ XRT_API void xrtValueRelease(xvalue* pValue)
 		__xrtValueContainerRelease(pValue);
 	#endif
 	}
-	xrtFree(pValue);
+	/* 资源结束后释放外壳自持的弱引用；现存弱引用继续保持地址有效。 */
+	__xrtValueWeakRelease(pValue);
 }
 
 
@@ -262246,12 +262671,106 @@ XRT_API xvalue* xrtValueClone(const xvalue* pValue)
 	if ( !__xrtValueCanRead(pValue) ) {
 		return NULL;
 	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_FINALIZING) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
 	#if defined(XRT_FEATURE_VALUE_CONTAINER)
 		if ( __xrtValueContainerType((xvaluetype)pValue->Type) ) {
 			return __xrtValueContainerClone(pValue);
 		}
 	#endif
 	return xrtValueRetain(pValue);
+}
+
+
+
+/* 为动态 Value 创建一个弱引用 Handle。 */
+XRT_API xvalue* xrtValueWeakRef(const xvalue* pTarget)
+{
+	ptr pHandle;
+	xvalue* pWeak;
+
+	if ( !__xrtValueCanRead(pTarget) ) {
+		return NULL;
+	}
+	if ( ((pTarget->Flags &
+		  (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_FINALIZING)) != 0) ||
+		 (__xrtAtomicRefLoad(&pTarget->RefCount) <= 0) ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	if ( !__xrtValueWeakRetain((xvalue*)pTarget) ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	pHandle = (ptr)pTarget;
+	pWeak = xrtValueHandleTake(&pHandle, &__xrtValueWeakHandleOps, NULL);
+	if ( pWeak == NULL ) {
+		__xrtValueWeakRelease((xvalue*)pTarget);
+	}
+	return pWeak;
+}
+
+
+
+/* 判断值是否使用 Value weak-ref Handle 策略。 */
+XRT_API bool xrtValueIsWeakRef(const xvalue* pValue)
+{
+	if ( pValue == NULL ) {
+		return false;
+	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	return (pValue->Type == XVALUE_HANDLE) &&
+		(pValue->Data.Handle.Ops == &__xrtValueWeakHandleOps);
+}
+
+
+
+/* 判断弱引用目标是否已经结束强生命周期。 */
+XRT_API bool xrtValueWeakRefExpired(const xvalue* pWeak)
+{
+	xvalue* pTarget;
+
+	if ( !__xrtValueCanRead(pWeak) ||
+		 (pWeak->Type != XVALUE_HANDLE) ||
+		 (pWeak->Data.Handle.Ops != &__xrtValueWeakHandleOps) ) {
+		if ( pWeak != NULL &&
+			 (pWeak->Flags & XRT_VALUE_FLAG_BUSY) == 0 ) {
+			__xrtErrorSetType();
+		}
+		return true;
+	}
+	pTarget = (xvalue*)pWeak->Data.Handle.Data;
+	return (pTarget == NULL) ||
+		(__xrtAtomicRefLoad(&pTarget->RefCount) <= 0);
+}
+
+
+
+/* 原子提升弱引用；强引用计数为零时不允许复活。 */
+XRT_API xvalue* xrtValueWeakRefLock(const xvalue* pWeak)
+{
+	xvalue* pTarget;
+
+	if ( !__xrtValueCanRead(pWeak) ||
+		 (pWeak->Type != XVALUE_HANDLE) ||
+		 (pWeak->Data.Handle.Ops != &__xrtValueWeakHandleOps) ) {
+		if ( pWeak != NULL &&
+			 (pWeak->Flags & XRT_VALUE_FLAG_BUSY) == 0 ) {
+			__xrtErrorSetType();
+		}
+		return NULL;
+	}
+	pTarget = (xvalue*)pWeak->Data.Handle.Data;
+	if ( (pTarget == NULL) ||
+		 (xrtRefRetain(&pTarget->RefCount) < 0) ) {
+		return xrtValueNull();
+	}
+	return pTarget;
 }
 
 
@@ -262321,11 +262840,57 @@ XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
 	if ( pValue->TypeId == iTypeId ) {
 		return true;
 	}
+	if ( (pValue->IdentityHash != NULL) || (pValue->IdentityEqual != NULL) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
 	if ( pValue->RefCount != 1 ) {
 		__xrtErrorSetInvalidState();
 		return false;
 	}
 	pValue->TypeId = iTypeId;
+	return true;
+}
+
+
+
+
+/* 为带 TypeId 的容器一次性绑定完整值身份策略。 */
+XRT_API bool xrtValueIdentityBind(
+	xvalue* pValue,
+	xvalueidentityhash pHash,
+	xvalueidentityequal pEqual,
+	ptr pUserData
+)
+{
+	if ( (pValue == NULL) || (pHash == NULL) || (pEqual == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_BUSY)) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( !__xrtValueContainerType((xvaluetype)pValue->Type) ) {
+		__xrtErrorSetType();
+		return false;
+	}
+	if ( pValue->TypeId == 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( (pValue->IdentityHash != NULL) || (pValue->IdentityEqual != NULL) ) {
+		if ( (pValue->IdentityHash != pHash) ||
+			 (pValue->IdentityEqual != pEqual) ||
+			 (pValue->IdentityUserData != pUserData) ) {
+			__xrtErrorSetInvalidState();
+			return false;
+		}
+		return true;
+	}
+	pValue->IdentityHash = pHash;
+	pValue->IdentityEqual = pEqual;
+	pValue->IdentityUserData = pUserData;
 	return true;
 }
 
@@ -262647,12 +263212,41 @@ XRT_API bool xrtValueGetHandle(
 
 
 
+/* 取走句柄资源；共享该值外壳的观察者随后都看到空句柄。 */
+XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle)
+{
+	if (
+		!__xrtValueCanRead(pValue) ||
+		!__xrtValueOutputValid(pValue, pHandle, sizeof(*pHandle))
+	) {
+		return false;
+	}
+	if ( pValue->Type != XVALUE_HANDLE ) {
+		__xrtErrorSetType();
+		return false;
+	}
+	*pHandle = pValue->Data.Handle.Data;
+	pValue->Data.Handle.Data = NULL;
+	return true;
+}
+
+
+
 /* 不报告错误地计算已验证可哈希值。 */
 uint64 __xrtValueHashKnown(const xvalue* pValue)
 {
 	uint64 iBits;
 	uint64 iUnsigned;
 	int64 iInteger;
+	uint64 iHash;
+
+	if ( pValue->IdentityHash != NULL ) {
+		iHash = pValue->IdentityHash(pValue, pValue->IdentityUserData);
+		/* TypeId is part of the identity domain even when two domains happen to
+		 * return the same payload hash. */
+		return iHash ^ (pValue->TypeId + UINT64_C(0x9E3779B97F4A7C15) +
+			(iHash << 6) + (iHash >> 2));
+	}
 
 	switch ( (xvaluetype)pValue->Type ) {
 		case XVALUE_NULL:
@@ -262758,6 +263352,19 @@ bool __xrtValueEqualKnown(const xvalue* pLeft, const xvalue* pRight)
 	if ( pLeft == pRight ) {
 		return true;
 	}
+	if ( (pLeft->IdentityEqual != NULL) || (pRight->IdentityEqual != NULL) ) {
+		return (pLeft->IdentityHash != NULL) &&
+			(pRight->IdentityHash != NULL) &&
+			(pLeft->IdentityHash == pRight->IdentityHash) &&
+			(pLeft->IdentityEqual == pRight->IdentityEqual) &&
+			(pLeft->IdentityUserData == pRight->IdentityUserData) &&
+			(pLeft->TypeId != 0) && (pLeft->TypeId == pRight->TypeId) &&
+			pLeft->IdentityEqual(
+				pLeft,
+				pRight,
+				pLeft->IdentityUserData
+			);
+	}
 	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
 		  (pLeft->Type == XVALUE_FLOAT)) &&
 		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
@@ -262810,7 +263417,8 @@ XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash)
 		!__xrtValueOutputValid(pValue, pHash, sizeof(*pHash)) ) {
 		return false;
 	}
-	if ( __xrtValueContainerType((xvaluetype)pValue->Type) ||
+	if ( (__xrtValueContainerType((xvaluetype)pValue->Type) &&
+		  pValue->IdentityHash == NULL) ||
 		 ((pValue->Type == XVALUE_HANDLE) &&
 		  ((pValue->Data.Handle.Ops->Hash == NULL) ||
 		   (pValue->Data.Handle.Ops->Equal == NULL))) ) {
@@ -262931,6 +263539,8 @@ typedef struct xvaluesetbacking {
 typedef struct xvalueobjectbacking {
 	xvaluebacking Base;
 	xmap Items;
+	xvalueobjectfinalizer Finalizer;
+	ptr FinalizerUserData;
 } xvalueobjectbacking;
 
 
@@ -263446,6 +264056,13 @@ static bool __xrtValueEnsureUnique(xvalue* pValue)
 	if ( __xrtAtomicRefLoad(&pOld->RefCount) == 1 ) {
 		return true;
 	}
+	/* A finalizer denotes one reference-identity object.  Sharing its backing is
+	 * allowed, but splitting it would duplicate a single destruction duty. */
+	if ( pOld->Type == XVALUE_OBJECT &&
+		 ((xvalueobjectbacking*)pOld)->Finalizer != NULL ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
 	pValue->Flags |= XRT_VALUE_FLAG_BUSY;
 	pCopy = __xrtValueBackingCopy(pOld);
 	pValue->Flags &= ~XRT_VALUE_FLAG_BUSY;
@@ -263704,8 +264321,16 @@ static bool __xrtValueSetItemValid(const xvalue* pItem)
 	if ( !__xrtValueStoreItemValid(pItem) ) {
 		return false;
 	}
-	if ( __xrtValueContainerType((xvaluetype)pItem->Type) ||
-		 (pItem->Type > XVALUE_HANDLE) ) {
+	if ( __xrtValueContainerType((xvaluetype)pItem->Type) ) {
+		if ( (pItem->TypeId != 0) &&
+			 (pItem->IdentityHash != NULL) &&
+			 (pItem->IdentityEqual != NULL) ) {
+			return true;
+		}
+		__xrtErrorSetType();
+		return false;
+	}
+	if ( pItem->Type > XVALUE_HANDLE ) {
 		__xrtErrorSetType();
 		return false;
 	}
@@ -263851,6 +264476,36 @@ void __xrtValueContainerRelease(xvalue* pValue)
 
 
 
+/* Execute a backing-owned Object finalizer while the last shell remains a
+ * readable borrowed view and before reverse-order field release begins. */
+void __xrtValueObjectFinalize(xvalue* pValue)
+{
+	xvalueobjectbacking* pBacking;
+	xvalueobjectfinalizer pFinalizer;
+	ptr pUserData;
+
+	if ( (pValue == NULL) || (pValue->Type != XVALUE_OBJECT) ||
+		 ((pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) ) {
+		return;
+	}
+	pBacking = (xvalueobjectbacking*)pValue->Data.Backing;
+	if ( (pBacking == NULL) || (pBacking->Base.Type != XVALUE_OBJECT) ||
+		 (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1) ||
+		 (pBacking->Finalizer == NULL) ) {
+		return;
+	}
+	pFinalizer = pBacking->Finalizer;
+	pUserData = pBacking->FinalizerUserData;
+	/* Clear first so callback re-entry cannot schedule the same duty twice. */
+	pBacking->Finalizer = NULL;
+	pBacking->FinalizerUserData = NULL;
+	pValue->Flags |= XRT_VALUE_FLAG_FINALIZING;
+	pFinalizer(pValue, pUserData);
+	pValue->Flags &= (uint16)~XRT_VALUE_FLAG_FINALIZING;
+}
+
+
+
 /* 为容器创建共享 backing 的独立外壳。 */
 xvalue* __xrtValueContainerClone(const xvalue* pValue)
 {
@@ -263876,6 +264531,9 @@ xvalue* __xrtValueContainerClone(const xvalue* pValue)
 	}
 	pCopy->Data.Backing = pBacking;
 	pCopy->TypeId = pValue->TypeId;
+	pCopy->IdentityHash = pValue->IdentityHash;
+	pCopy->IdentityEqual = pValue->IdentityEqual;
+	pCopy->IdentityUserData = pValue->IdentityUserData;
 	return pCopy;
 }
 
@@ -264075,6 +264733,43 @@ XRT_API xvalue* xrtValueObjectLifo(void)
 		return NULL;
 	}
 	return pValue;
+}
+
+
+
+/* Bind one finalization duty to a unique Object backing. */
+XRT_API bool xrtValueObjectFinalizerBind(
+	xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer,
+	ptr pUserData
+)
+{
+	xvalueobjectbacking* pBacking;
+
+	if ( (pObject == NULL) || (pFinalizer == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (pObject->Flags &
+		  (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pBacking = (xvalueobjectbacking*)__xrtValueBacking(
+		pObject,
+		XVALUE_OBJECT
+	);
+	if ( pBacking == NULL ) {
+		return false;
+	}
+	if ( (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1) ||
+		 (pBacking->Finalizer != NULL) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pBacking->Finalizer = pFinalizer;
+	pBacking->FinalizerUserData = pUserData;
+	return true;
 }
 
 
@@ -266858,6 +267553,9 @@ static xvalue* __xrtValueCloneHandle(
 		return NULL;
 	}
 	pTarget->TypeId = pSource->TypeId;
+	pTarget->IdentityHash = pSource->IdentityHash;
+	pTarget->IdentityEqual = pSource->IdentityEqual;
+	pTarget->IdentityUserData = pSource->IdentityUserData;
 	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ||
 		 !__xrtValueCloneFinish(pContext, pSource) ) {
 		__xrtValueCloneRelease(pContext, pTarget);
@@ -267016,6 +267714,9 @@ static xvalue* __xrtValueDeepClone(
 		return NULL;
 	}
 	pTarget->TypeId = pSource->TypeId;
+	pTarget->IdentityHash = pSource->IdentityHash;
+	pTarget->IdentityEqual = pSource->IdentityEqual;
+	pTarget->IdentityUserData = pSource->IdentityUserData;
 	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ) {
 		xrtValueRelease(pTarget);
 		return NULL;
@@ -267415,6 +268116,9 @@ static bool __xrtValueEqual(
 	}
 	if ( pLeft == pRight ) {
 		return true;
+	}
+	if ( (pLeft->IdentityEqual != NULL) || (pRight->IdentityEqual != NULL) ) {
+		return __xrtValueEqualKnown(pLeft, pRight);
 	}
 	if ( iDepth >= XRT_VALUE_DEPTH_MAX ) {
 		__xrtErrorSetValue();

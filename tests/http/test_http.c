@@ -565,13 +565,49 @@ static void testHttpMethods(void)
 		XRT_STR_INIT("QUERY")
 	};
 	size_t i;
+	size_t j;
 
 	for ( i = 0; i < sizeof(Known) / sizeof(Known[0]); i++ ) {
 		testRequire(
 			xrtHttpMethodParse(Known[i].Text) == Known[i].Method,
 			"HTTP method parser missed a built-in method"
 		);
+		testRequire(
+			(Known[i].Method != XHTTP_METHOD_INVALID) &&
+			((Known[i].Method & (Known[i].Method - 1)) == 0),
+			"HTTP method code is not a single bit"
+		);
+		testRequire(
+			(XHTTP_METHOD_ANY & Known[i].Method) != 0,
+			"HTTP any-method set missed a built-in method"
+		);
+		for ( j = i + 1u;
+			j < sizeof(Known) / sizeof(Known[0]);
+			j++ ) {
+			testRequire(
+				(Known[i].Method & Known[j].Method) == 0,
+				"HTTP method codes share a bit"
+			);
+		}
 	}
+	testRequire(
+		((XHTTP_METHOD_ANY & XHTTP_METHOD_OTHER) != 0) &&
+		((XHTTP_METHOD_ANY & XHTTP_METHOD_INVALID) == 0),
+		"HTTP any-method set mishandled OTHER or INVALID"
+	);
+	testRequire(
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_GET) != 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_POST) != 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_PUT) != 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_PATCH) != 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_DELETE) != 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_HEAD) == 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_CONNECT) == 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_OPTIONS) == 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_TRACE) == 0) &&
+		((XHTTP_METHOD_CRUD & XHTTP_METHOD_OTHER) == 0),
+		"HTTP CRUD method set has incorrect members"
+	);
 	for ( i = 0; i < sizeof(Other) / sizeof(Other[0]); i++ ) {
 		testRequire(
 			xrtHttpMethodParse(Other[i]) == XHTTP_METHOD_OTHER,

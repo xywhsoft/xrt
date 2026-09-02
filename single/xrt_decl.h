@@ -6918,6 +6918,15 @@ typedef struct xerrordesc {
 
 
 
+/* 可选的源码位置；零值表示调用方没有提供对应信息。 */
+typedef struct xerrorlocation {
+	cstr File;
+	int32 Line;
+	int32 Column;
+} xerrorlocation;
+
+
+
 /* 错误处理器只借用错误对象，保存时必须增加引用。 */
 typedef void (*xerrorhandler)(const xerror* pError, ptr pUserData);
 
@@ -6929,6 +6938,14 @@ XRT_EXTERN_C_BEGIN
 
 /* 从完整描述创建一个错误对象。 */
 XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc);
+
+
+
+/* 从完整描述和可选源码位置创建一个错误对象。 */
+XRT_API xerror* xrtErrorBuildAt(
+	const xerrordesc* pDesc,
+	const xerrorlocation* pLocation
+);
 
 
 
@@ -6984,6 +7001,21 @@ XRT_API cstr xrtErrorMessage(const xerror* pError);
 
 /* 返回可选的机器可读附加数据。 */
 XRT_API cstr xrtErrorData(const xerror* pError);
+
+
+
+/* 返回可选的源码文件名。 */
+XRT_API cstr xrtErrorFile(const xerror* pError);
+
+
+
+/* 返回一基源码行号；零表示未知。 */
+XRT_API int32 xrtErrorLine(const xerror* pError);
+
+
+
+/* 返回一基源码列号；零表示未知。 */
+XRT_API int32 xrtErrorColumn(const xerror* pError);
 
 
 
@@ -14681,22 +14713,51 @@ XRT_EXTERN_C_END
 
 
 /*
-	常用 HTTP 方法使用稳定枚举供解析热路径和上层分派直接比较。
-	OTHER 表示语法合法但未内置分类的方法；INVALID 表示空值或非法 token。
+	常用 HTTP 方法使用互不重叠的单 bit 枚举值。非零值既表示一个解析后的
+	方法，也可以作为方法集合中的原子位；组合宏提供常用路由方法集合。
+	OTHER 表示语法合法但未内置分类的方法；INVALID 表示空值或非法 token，
+	在方法集合中也自然表示不匹配任何方法。
 */
 typedef enum xhttpmethod {
 	XHTTP_METHOD_INVALID = 0,
-	XHTTP_METHOD_OTHER = 1,
-	XHTTP_METHOD_GET = 2,
-	XHTTP_METHOD_HEAD = 3,
-	XHTTP_METHOD_POST = 4,
-	XHTTP_METHOD_PUT = 5,
-	XHTTP_METHOD_DELETE = 6,
-	XHTTP_METHOD_CONNECT = 7,
-	XHTTP_METHOD_OPTIONS = 8,
-	XHTTP_METHOD_TRACE = 9,
-	XHTTP_METHOD_PATCH = 10
+	XHTTP_METHOD_OTHER = UINT32_C(0x00000001),
+	XHTTP_METHOD_GET = UINT32_C(0x00000002),
+	XHTTP_METHOD_HEAD = UINT32_C(0x00000004),
+	XHTTP_METHOD_POST = UINT32_C(0x00000008),
+	XHTTP_METHOD_PUT = UINT32_C(0x00000010),
+	XHTTP_METHOD_DELETE = UINT32_C(0x00000020),
+	XHTTP_METHOD_CONNECT = UINT32_C(0x00000040),
+	XHTTP_METHOD_OPTIONS = UINT32_C(0x00000080),
+	XHTTP_METHOD_TRACE = UINT32_C(0x00000100),
+	XHTTP_METHOD_PATCH = UINT32_C(0x00000200)
 } xhttpmethod;
+
+
+
+/* 常用 CRUD 路由方法集合；PUT 和 PATCH 都属于更新方法。 */
+#define XHTTP_METHOD_CRUD ( \
+	XHTTP_METHOD_GET | \
+	XHTTP_METHOD_POST | \
+	XHTTP_METHOD_PUT | \
+	XHTTP_METHOD_PATCH | \
+	XHTTP_METHOD_DELETE \
+)
+
+
+
+/* 匹配任一内置方法或语法合法的扩展方法。 */
+#define XHTTP_METHOD_ANY ( \
+	XHTTP_METHOD_OTHER | \
+	XHTTP_METHOD_GET | \
+	XHTTP_METHOD_HEAD | \
+	XHTTP_METHOD_POST | \
+	XHTTP_METHOD_PUT | \
+	XHTTP_METHOD_DELETE | \
+	XHTTP_METHOD_CONNECT | \
+	XHTTP_METHOD_OPTIONS | \
+	XHTTP_METHOD_TRACE | \
+	XHTTP_METHOD_PATCH \
+)
 
 
 
@@ -36246,6 +36307,28 @@ typedef struct xvalue xvalue;
 
 
 
+
+/*
+	语义值哈希器只借用已经绑定 TypeId 的容器值。回调可以通过只读 Value API
+	观察该值及其字段，也可以递归哈希字段，但不得修改、保留或释放输入值。
+*/
+typedef uint64 (*xvalueidentityhash)(const xvalue* pValue, ptr pUserData);
+
+
+
+
+/*
+	语义值相等器只借用同一 TypeId 和同一策略域中的两个容器值。回调可以
+	递归比较字段，但不得修改、保留或释放任一输入值。
+*/
+typedef bool (*xvalueidentityequal)(
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	ptr pUserData
+);
+
+
+
 /* 句柄克隆器创建独立句柄；失败时必须设置错误且不得在输出中遗留资源。 */
 typedef bool (*xvaluehandleclone)(ptr pHandle, ptr* pClone, ptr pUserData);
 
@@ -36273,6 +36356,17 @@ typedef struct xvaluehandleops {
 	xvaluehandlehash Hash;
 	xvaluehandleequal Equal;
 } xvaluehandleops;
+
+
+
+/*
+	Object finalizers borrow the last live object shell before its owned fields
+	are released.  The callback may inspect or mutate fields, but it must not
+	retain, clone or release the borrowed object itself.  A finalizer is attached
+	to the shared object backing and therefore runs exactly once, when the final
+	backing owner is released.
+*/
+typedef void (*xvalueobjectfinalizer)(xvalue* pObject, ptr pUserData);
 
 
 
@@ -36359,6 +36453,26 @@ XRT_API xvalue* xrtValueClone(const xvalue* pValue);
 
 
 
+/* 为动态 Value 创建一个拥有独立生命周期的弱引用值。 */
+XRT_API xvalue* xrtValueWeakRef(const xvalue* pTarget);
+
+
+
+/* 判断值是否是由 xrtValueWeakRef 创建的弱引用。 */
+XRT_API bool xrtValueIsWeakRef(const xvalue* pValue);
+
+
+
+/* 判断弱引用目标是否已经结束强生命周期。 */
+XRT_API bool xrtValueWeakRefExpired(const xvalue* pWeak);
+
+
+
+/* 尝试提升弱引用；过期时返回进程期 null 单例。 */
+XRT_API xvalue* xrtValueWeakRefLock(const xvalue* pWeak);
+
+
+
 /* 返回值类型，空指针返回 INVALID。 */
 XRT_API xvaluetype xrtValueType(const xvalue* pValue);
 
@@ -36371,8 +36485,9 @@ XRT_API uint64 xrtValueTypeId(const xvalue* pValue);
 
 /*
 	把非零语义类型身份一次性绑定到非静态值外壳。
-	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播，
-	但不参与 XRT 的相等、哈希或序列化语义。
+	重复绑定同一身份成功，冲突身份失败；身份随 Clone 和 DeepClone 传播。
+	TypeId 本身不改变相等、哈希或序列化语义；只有随后显式绑定的值身份
+	策略参与相等和哈希。
 */
 XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId);
 
@@ -36380,6 +36495,22 @@ XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId);
 
 /* 仅在值外壳唯一拥有时，把既有语义类型身份替换为新的非零身份。 */
 XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId);
+
+
+
+
+/*
+	为已经绑定 TypeId 的非静态容器一次性绑定成对的值身份策略。
+	重复绑定同一策略域成功，冲突策略失败；策略函数和用户数据的生命周期
+	必须覆盖该值及其全部 Clone/DeepClone。具有完整策略的容器可以作为
+	Value Set 键，且 xrtValueEqual 优先使用同一策略域的语义相等规则。
+*/
+XRT_API bool xrtValueIdentityBind(
+	xvalue* pValue,
+	xvalueidentityhash pHash,
+	xvalueidentityequal pEqual,
+	ptr pUserData
+);
 
 
 
@@ -36458,7 +36589,12 @@ XRT_API bool xrtValueGetHandle(
 
 
 
-/* 为可哈希标量计算一致哈希；指针和句柄哈希只在当前进程内有效。 */
+/* 取走句柄资源并把所有共享外壳可见的资源状态清空；策略仍保留到值释放。 */
+XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle);
+
+
+
+/* 为可哈希标量或显式身份容器计算一致哈希；指针和句柄哈希只在当前进程内有效。 */
 XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash);
 
 
@@ -36554,6 +36690,19 @@ XRT_API xvalue* xrtValueObject(void);
 
 /* 创建保持首次插入顺序、最终按逆插入顺序释放拥有值的字符串键对象。 */
 XRT_API xvalue* xrtValueObjectLifo(void);
+
+
+
+/*
+	Bind one finalizer to a unique Object backing.  Finalizer-backed objects keep
+	reference identity: Clone may share the backing, but a later COW split is
+	rejected so one logical object can never acquire two finalization duties.
+*/
+XRT_API bool xrtValueObjectFinalizerBind(
+	xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer,
+	ptr pUserData
+);
 
 
 
@@ -36777,7 +36926,7 @@ XRT_API xvalue* xrtValueObjectTake(xvalue* pObject, xstrview Key);
 
 
 
-/* 增加引用后把可哈希标量加入集合。 */
+/* 增加引用后把可哈希标量或显式身份容器加入集合。 */
 XRT_API bool xrtValueSetAdd(xvalue* pSet, const xvalue* pItem);
 
 
@@ -36972,7 +37121,7 @@ XRT_API bool xrtValueSetIsDisjoint(
 
 
 
-/* 判断两个集合是否拥有相同的标量元素。 */
+/* 判断两个集合是否拥有相同的可哈希元素。 */
 XRT_API bool xrtValueSetEqual(
 	const xvalue* pLeft,
 	const xvalue* pRight

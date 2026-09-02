@@ -13,6 +13,160 @@ static int64 testValueReadInt(const xvalue* pValue)
 
 
 
+
+/* 测试策略按对象 id 字段定义值身份。 */
+static uint64 testValueIdentityHash(const xvalue* pValue, ptr pUserData)
+{
+	int64 iValue = 0;
+	xvalue* pField = xrtValueObjectGet(pValue, XRT_STR_LITERAL("id"));
+
+	(void)pUserData;
+	return (pField != NULL) && xrtValueGetInt(pField, &iValue)
+		? (uint64)iValue
+		: 0;
+}
+
+
+
+
+static bool testValueIdentityEqual(
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	ptr pUserData
+)
+{
+	int64 iLeft = 0;
+	int64 iRight = 0;
+	xvalue* pLeftField = xrtValueObjectGet(pLeft, XRT_STR_LITERAL("id"));
+	xvalue* pRightField = xrtValueObjectGet(pRight, XRT_STR_LITERAL("id"));
+
+	(void)pUserData;
+	return (pLeftField != NULL) && (pRightField != NULL) &&
+		xrtValueGetInt(pLeftField, &iLeft) &&
+		xrtValueGetInt(pRightField, &iRight) &&
+		(iLeft == iRight);
+}
+
+
+
+
+static xvalue* testValueIdentityObject(int64 iId)
+{
+	xvalue* pValue = xrtValueObject();
+
+	if ( (pValue == NULL) ||
+		 !xrtValueTypeIdBind(pValue, UINT64_C(0x1122334455667788)) ||
+		 !xrtValueIdentityBind(
+			pValue,
+			testValueIdentityHash,
+			testValueIdentityEqual,
+			NULL
+		 ) ||
+		 !xrtValueObjectSetNew(
+			pValue,
+			XRT_STR_LITERAL("id"),
+			xrtValueInt(iId)
+		 ) ) {
+		xrtValueRelease(pValue);
+		return NULL;
+	}
+	return pValue;
+}
+
+
+
+typedef struct testvaluefinalizerstate {
+	int Calls;
+	int64 Observed;
+	bool MutationWorked;
+	bool RetainRejected;
+	bool CloneRejected;
+	bool RebindRejected;
+} testvaluefinalizerstate;
+
+
+
+/* Finalizer callbacks receive a readable/mutable borrow but cannot resurrect
+ * or duplicate the object whose final backing owner is being released. */
+static void testValueObjectFinalizer(xvalue* pObject, ptr pUserData)
+{
+	testvaluefinalizerstate* pState = (testvaluefinalizerstate*)pUserData;
+	xvalue* pField = xrtValueObjectGet(pObject, XRT_STR_LITERAL("value"));
+
+	testRequire((pState != NULL) && (pField != NULL),
+		"object finalizer did not receive a readable field view");
+	pState->Calls += 1;
+	pState->Observed = testValueReadInt(pField);
+	pState->MutationWorked = xrtValueObjectSetNew(
+		pObject,
+		XRT_STR_LITERAL("during-finalize"),
+		xrtValueInt(1)
+	);
+	xrtClearError();
+	pState->RetainRejected = xrtValueRetain(pObject) == NULL &&
+		xrtErrorKind(xrtGetError()) == XERR_STATE;
+	xrtClearError();
+	pState->CloneRejected = xrtValueClone(pObject) == NULL &&
+		xrtErrorKind(xrtGetError()) == XERR_STATE;
+	xrtClearError();
+	pState->RebindRejected = !xrtValueObjectFinalizerBind(
+		pObject,
+		testValueObjectFinalizer,
+		pUserData
+	) && xrtErrorKind(xrtGetError()) == XERR_STATE;
+	xrtClearError();
+}
+
+
+
+/* Verify one backing-owned finalization duty, shared-shell behavior and the
+ * identity-preserving rejection of a COW split after binding. */
+static void testValueObjectFinalizerLifecycle(void)
+{
+	testvaluefinalizerstate State = {0};
+	xvalue* pObject = xrtValueObjectLifo();
+	xvalue* pClone;
+
+	testRequire(
+		(pObject != NULL) &&
+		xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("value"),
+			xrtValueInt(41)
+		) &&
+		xrtValueObjectFinalizerBind(
+			pObject,
+			testValueObjectFinalizer,
+			&State
+		),
+		"object finalizer fixture creation failed"
+	);
+	pClone = xrtValueClone(pObject);
+	testRequire(pClone != NULL, "finalizer-backed object Clone failed");
+	xrtClearError();
+	testRequire(
+		!xrtValueObjectSetNew(
+			pObject,
+			XRT_STR_LITERAL("split"),
+			xrtValueInt(2)
+		) && xrtErrorKind(xrtGetError()) == XERR_STATE,
+		"finalizer-backed object allowed a duplicate-duty COW split"
+	);
+	xrtClearError();
+	xrtValueRelease(pObject);
+	testRequire(State.Calls == 0,
+		"object finalizer ran before the last shared backing owner");
+	xrtValueRelease(pClone);
+	testRequire(
+		(State.Calls == 1) && (State.Observed == 41) &&
+		State.MutationWorked && State.RetainRejected && State.CloneRejected &&
+		State.RebindRejected,
+		"object finalizer lifecycle contract mismatch"
+	);
+}
+
+
+
 /* 验证统一动态容器容量查询与 Reserve 使用同一公开边界。 */
 static void testValueCapacity(void)
 {
@@ -233,6 +387,49 @@ static void testValueSetOps(void)
 
 
 
+
+/* 验证显式值身份容器在直接哈希、Clone 和 Set 中共享同一策略。 */
+static void testValueIdentitySetOps(void)
+{
+	xvalue* pSet = xrtValueSet();
+	xvalue* pLeft = testValueIdentityObject(7);
+	xvalue* pSame = testValueIdentityObject(7);
+	xvalue* pOther = testValueIdentityObject(8);
+	xvalue* pClone = xrtValueClone(pLeft);
+	uint64 iLeftHash = 0;
+	uint64 iSameHash = 0;
+
+	testRequire(
+		(pSet != NULL) && (pLeft != NULL) && (pSame != NULL) &&
+		(pOther != NULL) && (pClone != NULL),
+		"value identity fixture failed"
+	);
+	testRequire(
+		xrtValueHash(pLeft, &iLeftHash) &&
+		xrtValueHash(pSame, &iSameHash) &&
+		(iLeftHash == iSameHash),
+		"value identity hash mismatch"
+	);
+	testRequire(
+		xrtValueSetAdd(pSet, pLeft) &&
+		xrtValueSetAdd(pSet, pSame) &&
+		xrtValueSetAdd(pSet, pOther) &&
+		(xrtValueCount(pSet) == 2),
+		"value identity set did not combine equal containers"
+	);
+	testRequire(
+		xrtValueSetHas(pSet, pSame) && xrtValueSetHas(pSet, pClone),
+		"value identity set lookup or Clone propagation failed"
+	);
+	xrtValueRelease(pClone);
+	xrtValueRelease(pOther);
+	xrtValueRelease(pSame);
+	xrtValueRelease(pLeft);
+	xrtValueRelease(pSet);
+}
+
+
+
 /* 验证引用计数容器拒绝直接和间接环且不产生部分写入。 */
 static void testValueCycleGuard(void)
 {
@@ -300,11 +497,13 @@ static void testValueCowCycleGuard(void)
 int main(void)
 {
 	testValueCapacity();
+	testValueObjectFinalizerLifecycle();
 	testValueArrayOps();
 	testValueIntMapOps();
 	testValueOwnedIterator();
 	testValueObjectOps();
 	testValueSetOps();
+	testValueIdentitySetOps();
 	testValueCycleGuard();
 	testValueCowCycleGuard();
 	printf("[PASS] value container\n");

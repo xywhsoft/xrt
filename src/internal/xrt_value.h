@@ -10,6 +10,7 @@
 #define XRT_VALUE_FLAG_STATIC		0x0001u
 #define XRT_VALUE_FLAG_OWNED_DATA	0x0002u
 #define XRT_VALUE_FLAG_BUSY			0x0004u
+#define XRT_VALUE_FLAG_FINALIZING	0x0008u
 
 
 
@@ -20,10 +21,16 @@ typedef struct xvaluebacking xvaluebacking;
 /* 动态值外壳固定为紧凑标量或一个 backing 指针。 */
 struct xvalue {
 	volatile int32 RefCount;
+	/* 外壳资源结束后仍由弱引用保持分配，初始自持一个弱引用。 */
+	volatile int32 WeakCount;
 	uint16 Type;
 	uint16 Flags;
 	/* 调用者可选绑定的不可变语义类型身份；零表示未绑定。 */
 	uint64 TypeId;
+	/* 可选语义值身份策略；函数和用户数据随外壳 Clone 传播。 */
+	xvalueidentityhash IdentityHash;
+	xvalueidentityequal IdentityEqual;
+	ptr IdentityUserData;
 	union {
 		bool Bool;
 		int64 Int;
@@ -86,6 +93,11 @@ void __xrtValueCallbackUnprotect(
 
 /* 释放一个值外壳持有的容器 backing。 */
 void __xrtValueContainerRelease(xvalue* pValue);
+
+
+
+/* 在最后一个 Object backing owner 释放字段前执行一次已绑定 finalizer。 */
+void __xrtValueObjectFinalize(xvalue* pValue);
 
 
 

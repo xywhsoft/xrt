@@ -188,6 +188,75 @@ static void testValueHandleReentry(const xvaluehandleops* pOps)
 
 
 
+/* 验证 Value 弱引用只保持外壳分配，不延长目标资源强生命周期。 */
+static void testValueWeakRef(void)
+{
+	static const xvaluehandleops tOps = {
+		testValueHandleClone,
+		testValueHandleDrop,
+		testValueHandleHash,
+		testValueHandleEqual
+	};
+	testvaluehandlestate tState = { 0 };
+	ptr pHandle = xrtMalloc(sizeof(int));
+	xvalue* pTarget;
+	xvalue* pWeak;
+	xvalue* pShared;
+	xvalue* pLocked;
+
+	testRequire(pHandle != NULL, "weak-ref target allocation failed");
+	*(int*)pHandle = 109;
+	pTarget = xrtValueHandleTake(&pHandle, &tOps, &tState);
+	testRequire(
+		(pTarget != NULL) && (pHandle == NULL),
+		"weak-ref target take failed"
+	);
+	pWeak = xrtValueWeakRef(pTarget);
+	testRequire(
+		(pWeak != NULL) && xrtValueIsWeakRef(pWeak) &&
+		!xrtValueWeakRefExpired(pWeak),
+		"live weak-ref construction mismatch"
+	);
+	pLocked = xrtValueWeakRefLock(pWeak);
+	testRequire(
+		pLocked == pTarget,
+		"live weak-ref lock did not retain the target shell"
+	);
+	xrtValueRelease(pLocked);
+	pShared = xrtValueRetain(pWeak);
+	testRequire(pShared == pWeak, "weak-ref wrapper retain changed identity");
+
+	xrtClearError();
+	testRequire(
+		xrtValueWeakRefLock(pTarget) == NULL &&
+		(xrtErrorKind(xrtGetError()) == XERR_TYPE),
+		"weak-ref lock accepted a non-weak value"
+	);
+	xrtClearError();
+	testRequire(
+		xrtValueWeakRef(xrtValueNull()) == NULL &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"weak-ref accepted a process-static target"
+	);
+
+	xrtValueRelease(pTarget);
+	testRequire(
+		(tState.DropCount == 1) && xrtValueWeakRefExpired(pWeak),
+		"weak-ref kept target resources alive"
+	);
+	xrtClearError();
+	pLocked = xrtValueWeakRefLock(pWeak);
+	testRequire(
+		(pLocked == xrtValueNull()) && (xrtGetError() == NULL),
+		"expired weak-ref lock did not return a clean null"
+	);
+	xrtValueRelease(pLocked);
+	xrtValueRelease(pShared);
+	xrtValueRelease(pWeak);
+}
+
+
+
 /* 验证显式句柄所有权、共享身份和策略查询。 */
 int main(void)
 {
@@ -206,9 +275,11 @@ int main(void)
 	ptr pReadHandle;
 	ptr pReadUser;
 	ptr pOverlapped;
+	ptr pTaken;
 	uint64 iHash;
 
 	testValueHandlePolicy();
+	testValueWeakRef();
 	testRequire(pHandle != NULL, "handle allocation failed");
 	*(int*)pHandle = 77;
 	pValue = xrtValueHandleTake(&pHandle, &tOps, &tState);
@@ -289,6 +360,24 @@ int main(void)
 	xrtValueRelease(pEqual);
 	xrtValueRelease(pValue);
 	testRequire(tState.DropCount == 2, "owned handle drop mismatch");
+	pHandle = xrtMalloc(sizeof(int));
+	testRequire(pHandle != NULL, "detached handle allocation failed");
+	*(int*)pHandle = 91;
+	pValue = xrtValueHandleTake(&pHandle, &tOps, &tState);
+	pShared = xrtValueRetain(pValue);
+	testRequire(
+		(pValue != NULL) && (pShared == pValue) && (pHandle == NULL) &&
+		xrtValueTakeHandle(pShared, &pTaken) &&
+		(pTaken != NULL) && (*(int*)pTaken == 91) &&
+		xrtValueGetHandle(pValue, &pReadHandle, &pReadOps, &pReadUser) &&
+		(pReadHandle == NULL) && (pReadOps == &tOps) &&
+		(pReadUser == &tState),
+		"handle detach did not clear shared resource state"
+	);
+	xrtValueRelease(pShared);
+	xrtValueRelease(pValue);
+	testRequire(tState.DropCount == 2, "detached handle was dropped twice");
+	xrtFree(pTaken);
 	testValueHandleReentry(&tOps);
 	printf("[PASS] value handle\n");
 	return 0;

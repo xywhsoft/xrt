@@ -42,7 +42,10 @@ XRT 的 HTTP 模块是可直接组合 TCP、TLS 和自定义传输的 HTTP/1 线
 请求方法同时以原始 `xhttp1head.Method` 视图和 `xhttp1head.MethodCode` 枚举发布。
 `xrtHttpMethodParse` 按大小写敏感规则识别 GET、HEAD、POST、PUT、DELETE、CONNECT、
 OPTIONS、TRACE 和 PATCH；合法但未内置的方法返回 `XHTTP_METHOD_OTHER`，非法 token
-返回 `XHTTP_METHOD_INVALID`。应用应使用枚举分派常用方法，同时保留原始视图处理扩展方法。
+返回 `XHTTP_METHOD_INVALID`。每个非零枚举值占用独立 bit，既可以作为实际方法直接
+比较，也可以通过位或组合成路由方法集合。`XHTTP_METHOD_CRUD` 覆盖 GET、POST、PUT、
+PATCH 和 DELETE，`XHTTP_METHOD_ANY` 覆盖全部内置方法及 `OTHER`；应用仍应保留原始
+视图处理具体的扩展方法。
 
 字段描述符允许位于合法的未对齐存储。实现使用安全加载，不要求调用方为了协议
 解析调整缓冲布局。

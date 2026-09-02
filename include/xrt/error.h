@@ -48,6 +48,15 @@ typedef struct xerrordesc {
 
 
 
+/* 可选的源码位置；零值表示调用方没有提供对应信息。 */
+typedef struct xerrorlocation {
+	cstr File;
+	int32 Line;
+	int32 Column;
+} xerrorlocation;
+
+
+
 /* 错误处理器只借用错误对象，保存时必须增加引用。 */
 typedef void (*xerrorhandler)(const xerror* pError, ptr pUserData);
 
@@ -59,6 +68,14 @@ XRT_EXTERN_C_BEGIN
 
 /* 从完整描述创建一个错误对象。 */
 XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc);
+
+
+
+/* 从完整描述和可选源码位置创建一个错误对象。 */
+XRT_API xerror* xrtErrorBuildAt(
+	const xerrordesc* pDesc,
+	const xerrorlocation* pLocation
+);
 
 
 
@@ -114,6 +131,21 @@ XRT_API cstr xrtErrorMessage(const xerror* pError);
 
 /* 返回可选的机器可读附加数据。 */
 XRT_API cstr xrtErrorData(const xerror* pError);
+
+
+
+/* 返回可选的源码文件名。 */
+XRT_API cstr xrtErrorFile(const xerror* pError);
+
+
+
+/* 返回一基源码行号；零表示未知。 */
+XRT_API int32 xrtErrorLine(const xerror* pError);
+
+
+
+/* 返回一基源码列号；零表示未知。 */
+XRT_API int32 xrtErrorColumn(const xerror* pError);
 
 
 

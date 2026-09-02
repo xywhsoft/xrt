@@ -22,6 +22,9 @@ struct xerror {
 	cstr Operation;
 	cstr Message;
 	cstr Data;
+	cstr File;
+	int32 Line;
+	int32 Column;
 	xerror* Cause;
 };
 
@@ -30,75 +33,75 @@ struct xerror {
 /* 核心错误使用静态对象，保证分配失败时仍能报告。 */
 static xerror __xrtOutOfMemoryError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_MEMORY, 1, 0,
-	"xrt.memory", "allocate", "memory allocation failed", "", NULL
+	"xrt.memory", "allocate", "memory allocation failed", "", "", 0, 0, NULL
 };
 static xerror __xrtIoErrorStatic = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_IO, 1, 0,
-	"xrt.io", "io", "input or output operation failed", "", NULL
+	"xrt.io", "io", "input or output operation failed", "", "", 0, 0, NULL
 };
 static xerror __xrtNotFoundErrorStatic = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_NOT_FOUND, 1, 0,
-	"xrt.core", "lookup", "requested value was not found", "", NULL
+	"xrt.core", "lookup", "requested value was not found", "", "", 0, 0, NULL
 };
 static xerror __xrtPermissionErrorStatic = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_PERMISSION, 1, 0,
-	"xrt.core", "access", "operation is not permitted", "", NULL
+	"xrt.core", "access", "operation is not permitted", "", "", 0, 0, NULL
 };
 static xerror __xrtProtocolErrorStatic = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_PROTOCOL, 1, 0,
-	"xrt.core", "protocol", "protocol contract was violated", "", NULL
+	"xrt.core", "protocol", "protocol contract was violated", "", "", 0, 0, NULL
 };
 static xerror __xrtInvalidArgumentError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_ARGUMENT, 1, 0,
-	"xrt.core", "validate", "invalid argument", "", NULL
+	"xrt.core", "validate", "invalid argument", "", "", 0, 0, NULL
 };
 static xerror __xrtTypeError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_TYPE, 1, 0,
-	"xrt.core", "type", "value has an incompatible type", "", NULL
+	"xrt.core", "type", "value has an incompatible type", "", "", 0, 0, NULL
 };
 static xerror __xrtValueError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_VALUE, 1, 0,
-	"xrt.core", "value", "value is not valid for this operation", "", NULL
+	"xrt.core", "value", "value is not valid for this operation", "", "", 0, 0, NULL
 };
 static xerror __xrtInvalidStateError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_STATE, 1, 0,
-	"xrt.core", "state", "operation is not valid in the current state", "", NULL
+	"xrt.core", "state", "operation is not valid in the current state", "", "", 0, 0, NULL
 };
 static xerror __xrtSizeOverflowError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_RANGE, 1, 0,
-	"xrt.memory", "size", "memory size overflow", "", NULL
+	"xrt.memory", "size", "memory size overflow", "", "", 0, 0, NULL
 };
 static xerror __xrtRangeError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_RANGE, 2, 0,
-	"xrt.core", "index", "index or range is out of bounds", "", NULL
+	"xrt.core", "index", "index or range is out of bounds", "", "", 0, 0, NULL
 };
 static xerror __xrtAgainError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_AGAIN, 1, 0,
-	"xrt.core", "capacity", "operation cannot continue without available capacity", "", NULL
+	"xrt.core", "capacity", "operation cannot continue without available capacity", "", "", 0, 0, NULL
 };
 static xerror __xrtUnsupportedError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_UNSUPPORTED, 1, 0,
-	"xrt.core", "operation", "operation is not supported", "", NULL
+	"xrt.core", "operation", "operation is not supported", "", "", 0, 0, NULL
 };
 static xerror __xrtExistsError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_EXISTS, 1, 0,
-	"xrt.core", "insert", "value already exists", "", NULL
+	"xrt.core", "insert", "value already exists", "", "", 0, 0, NULL
 };
 static xerror __xrtCancelledError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_CANCELLED, 1, 0,
-	"xrt.core", "cancel", "operation was cancelled", "", NULL
+	"xrt.core", "cancel", "operation was cancelled", "", "", 0, 0, NULL
 };
 static xerror __xrtTimeoutError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_TIMEOUT, 1, 0,
-	"xrt.core", "wait", "operation timed out", "", NULL
+	"xrt.core", "wait", "operation timed out", "", "", 0, 0, NULL
 };
 static xerror __xrtClosedError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_CLOSED, 1, 0,
-	"xrt.core", "close", "resource is closed", "", NULL
+	"xrt.core", "close", "resource is closed", "", "", 0, 0, NULL
 };
 static xerror __xrtInternalError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_INTERNAL, 1, 0,
-	"xrt.core", "invariant", "internal contract was violated", "", NULL
+	"xrt.core", "invariant", "internal contract was violated", "", "", 0, 0, NULL
 };
 
 
@@ -640,11 +643,24 @@ xrt_error_context* __xrtErrorContextSwap(xrt_error_context* pContext)
 
 /* 从完整描述创建一个错误对象。 */
 XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc)
+
+{
+	return xrtErrorBuildAt(pDesc, NULL);
+}
+
+
+
+/* 从完整描述和可选源码位置创建一个错误对象。 */
+XRT_API xerror* xrtErrorBuildAt(
+	const xerrordesc* pDesc,
+	const xerrorlocation* pLocation
+)
 {
 	size_t iDomainSize;
 	size_t iOperationSize;
 	size_t iMessageSize;
 	size_t iDataSize;
+	size_t iFileSize;
 	size_t iTextSize;
 	xerror* pError;
 	char* pWrite;
@@ -657,18 +673,28 @@ XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
+	if ( (pLocation != NULL) &&
+		 ((pLocation->Line < 0) || (pLocation->Column < 0)) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
 
 	iDomainSize = strlen(pDesc->Domain != NULL ? pDesc->Domain : "") + 1;
 	iOperationSize = strlen(pDesc->Operation != NULL ? pDesc->Operation : "") + 1;
 	iMessageSize = strlen(pDesc->Message != NULL ? pDesc->Message : "") + 1;
 	iDataSize = strlen(pDesc->Data != NULL ? pDesc->Data : "") + 1;
+	iFileSize = strlen(
+		(pLocation != NULL) && (pLocation->File != NULL) ? pLocation->File : ""
+	) + 1;
 	if ( (iDomainSize > (SIZE_MAX - iOperationSize)) ||
 		 ((iDomainSize + iOperationSize) > (SIZE_MAX - iMessageSize)) ||
-		 ((iDomainSize + iOperationSize + iMessageSize) > (SIZE_MAX - iDataSize)) ) {
+		 ((iDomainSize + iOperationSize + iMessageSize) > (SIZE_MAX - iDataSize)) ||
+		 ((iDomainSize + iOperationSize + iMessageSize + iDataSize) >
+		  (SIZE_MAX - iFileSize)) ) {
 		__xrtErrorSetSizeOverflow();
 		return NULL;
 	}
-	iTextSize = iDomainSize + iOperationSize + iMessageSize + iDataSize;
+	iTextSize = iDomainSize + iOperationSize + iMessageSize + iDataSize + iFileSize;
 	if ( iTextSize > (SIZE_MAX - sizeof(xerror)) ) {
 		__xrtErrorSetSizeOverflow();
 		return NULL;
@@ -683,6 +709,8 @@ XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc)
 	pError->Kind = pDesc->Kind;
 	pError->Code = pDesc->Code;
 	pError->SystemCode = pDesc->SystemCode;
+	pError->Line = pLocation != NULL ? pLocation->Line : 0;
+	pError->Column = pLocation != NULL ? pLocation->Column : 0;
 	pError->Cause = xrtErrorRef(pDesc->Cause);
 	if ( (pDesc->Cause != NULL) && (pError->Cause == NULL) ) {
 		xrtFree(pError);
@@ -694,6 +722,10 @@ XRT_API xerror* xrtErrorBuild(const xerrordesc* pDesc)
 	pError->Operation = __xrtErrorCopyText(&pWrite, pDesc->Operation);
 	pError->Message = __xrtErrorCopyText(&pWrite, pDesc->Message);
 	pError->Data = __xrtErrorCopyText(&pWrite, pDesc->Data);
+	pError->File = __xrtErrorCopyText(
+		&pWrite,
+		pLocation != NULL ? pLocation->File : NULL
+	);
 
 	return pError;
 }
@@ -814,6 +846,30 @@ XRT_API cstr xrtErrorMessage(const xerror* pError)
 XRT_API cstr xrtErrorData(const xerror* pError)
 {
 	return pError != NULL ? pError->Data : "";
+}
+
+
+
+/* 返回可选的源码文件名。 */
+XRT_API cstr xrtErrorFile(const xerror* pError)
+{
+	return pError != NULL ? pError->File : "";
+}
+
+
+
+/* 返回一基源码行号；零表示未知。 */
+XRT_API int32 xrtErrorLine(const xerror* pError)
+{
+	return pError != NULL ? pError->Line : 0;
+}
+
+
+
+/* 返回一基源码列号；零表示未知。 */
+XRT_API int32 xrtErrorColumn(const xerror* pError)
+{
+	return pError != NULL ? pError->Column : 0;
 }
 
 

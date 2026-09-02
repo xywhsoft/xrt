@@ -42,6 +42,8 @@ typedef struct xvaluesetbacking {
 typedef struct xvalueobjectbacking {
 	xvaluebacking Base;
 	xmap Items;
+	xvalueobjectfinalizer Finalizer;
+	ptr FinalizerUserData;
 } xvalueobjectbacking;
 
 
@@ -557,6 +559,13 @@ static bool __xrtValueEnsureUnique(xvalue* pValue)
 	if ( __xrtAtomicRefLoad(&pOld->RefCount) == 1 ) {
 		return true;
 	}
+	/* A finalizer denotes one reference-identity object.  Sharing its backing is
+	 * allowed, but splitting it would duplicate a single destruction duty. */
+	if ( pOld->Type == XVALUE_OBJECT &&
+		 ((xvalueobjectbacking*)pOld)->Finalizer != NULL ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
 	pValue->Flags |= XRT_VALUE_FLAG_BUSY;
 	pCopy = __xrtValueBackingCopy(pOld);
 	pValue->Flags &= ~XRT_VALUE_FLAG_BUSY;
@@ -815,8 +824,16 @@ static bool __xrtValueSetItemValid(const xvalue* pItem)
 	if ( !__xrtValueStoreItemValid(pItem) ) {
 		return false;
 	}
-	if ( __xrtValueContainerType((xvaluetype)pItem->Type) ||
-		 (pItem->Type > XVALUE_HANDLE) ) {
+	if ( __xrtValueContainerType((xvaluetype)pItem->Type) ) {
+		if ( (pItem->TypeId != 0) &&
+			 (pItem->IdentityHash != NULL) &&
+			 (pItem->IdentityEqual != NULL) ) {
+			return true;
+		}
+		__xrtErrorSetType();
+		return false;
+	}
+	if ( pItem->Type > XVALUE_HANDLE ) {
 		__xrtErrorSetType();
 		return false;
 	}
@@ -962,6 +979,36 @@ void __xrtValueContainerRelease(xvalue* pValue)
 
 
 
+/* Execute a backing-owned Object finalizer while the last shell remains a
+ * readable borrowed view and before reverse-order field release begins. */
+void __xrtValueObjectFinalize(xvalue* pValue)
+{
+	xvalueobjectbacking* pBacking;
+	xvalueobjectfinalizer pFinalizer;
+	ptr pUserData;
+
+	if ( (pValue == NULL) || (pValue->Type != XVALUE_OBJECT) ||
+		 ((pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) ) {
+		return;
+	}
+	pBacking = (xvalueobjectbacking*)pValue->Data.Backing;
+	if ( (pBacking == NULL) || (pBacking->Base.Type != XVALUE_OBJECT) ||
+		 (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1) ||
+		 (pBacking->Finalizer == NULL) ) {
+		return;
+	}
+	pFinalizer = pBacking->Finalizer;
+	pUserData = pBacking->FinalizerUserData;
+	/* Clear first so callback re-entry cannot schedule the same duty twice. */
+	pBacking->Finalizer = NULL;
+	pBacking->FinalizerUserData = NULL;
+	pValue->Flags |= XRT_VALUE_FLAG_FINALIZING;
+	pFinalizer(pValue, pUserData);
+	pValue->Flags &= (uint16)~XRT_VALUE_FLAG_FINALIZING;
+}
+
+
+
 /* 为容器创建共享 backing 的独立外壳。 */
 xvalue* __xrtValueContainerClone(const xvalue* pValue)
 {
@@ -987,6 +1034,9 @@ xvalue* __xrtValueContainerClone(const xvalue* pValue)
 	}
 	pCopy->Data.Backing = pBacking;
 	pCopy->TypeId = pValue->TypeId;
+	pCopy->IdentityHash = pValue->IdentityHash;
+	pCopy->IdentityEqual = pValue->IdentityEqual;
+	pCopy->IdentityUserData = pValue->IdentityUserData;
 	return pCopy;
 }
 
@@ -1186,6 +1236,43 @@ XRT_API xvalue* xrtValueObjectLifo(void)
 		return NULL;
 	}
 	return pValue;
+}
+
+
+
+/* Bind one finalization duty to a unique Object backing. */
+XRT_API bool xrtValueObjectFinalizerBind(
+	xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer,
+	ptr pUserData
+)
+{
+	xvalueobjectbacking* pBacking;
+
+	if ( (pObject == NULL) || (pFinalizer == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (pObject->Flags &
+		  (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pBacking = (xvalueobjectbacking*)__xrtValueBacking(
+		pObject,
+		XVALUE_OBJECT
+	);
+	if ( pBacking == NULL ) {
+		return false;
+	}
+	if ( (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1) ||
+		 (pBacking->Finalizer != NULL) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pBacking->Finalizer = pFinalizer;
+	pBacking->FinalizerUserData = pUserData;
+	return true;
 }
 
 

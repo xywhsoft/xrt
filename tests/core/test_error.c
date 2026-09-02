@@ -54,7 +54,9 @@ int main(void)
 	char sOperation[] = "read";
 	char sMessage[] = "read failed";
 	char sData[] = "offset=12";
+	char sFile[] = "sample.xl";
 	xerrordesc tDesc;
+	xerrorlocation tLocation;
 	xerror* pCause;
 	xerror* pError;
 	xerror* pTaken;
@@ -75,17 +77,25 @@ int main(void)
 	tDesc.Message = sMessage;
 	tDesc.Data = sData;
 	tDesc.Cause = pCause;
-	pError = xrtErrorBuild(&tDesc);
+	memset(&tLocation, 0, sizeof(tLocation));
+	tLocation.File = sFile;
+	tLocation.Line = 12;
+	tLocation.Column = 7;
+	pError = xrtErrorBuildAt(&tDesc, &tLocation);
 	testRequire(pError != NULL, "error creation failed");
 
 	memset(sDomain, 'x', sizeof(sDomain) - 1);
 	memset(sOperation, 'x', sizeof(sOperation) - 1);
 	memset(sMessage, 'x', sizeof(sMessage) - 1);
 	memset(sData, 'x', sizeof(sData) - 1);
+	memset(sFile, 'x', sizeof(sFile) - 1);
 	testRequire(strcmp(xrtErrorDomain(pError), "test.io") == 0, "domain was not copied");
 	testRequire(strcmp(xrtErrorOperation(pError), "read") == 0, "operation was not copied");
 	testRequire(strcmp(xrtErrorMessage(pError), "read failed") == 0, "message was not copied");
 	testRequire(strcmp(xrtErrorData(pError), "offset=12") == 0, "data was not copied");
+	testRequire(strcmp(xrtErrorFile(pError), "sample.xl") == 0, "source file was not copied");
+	testRequire(xrtErrorLine(pError) == 12, "source line mismatch");
+	testRequire(xrtErrorColumn(pError) == 7, "source column mismatch");
 	testRequire(xrtErrorKind(pError) == XERR_IO, "kind mismatch");
 	testRequire(xrtErrorCode(pError) == 42, "code mismatch");
 	testRequire(xrtErrorSystemCode(pError) == 5, "system code mismatch");
@@ -175,6 +185,11 @@ int main(void)
 	tDesc.Kind = XERR_NONE;
 	testRequire(xrtErrorBuild(&tDesc) == NULL, "non-error kind must be rejected");
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT, "invalid kind error mismatch");
+	xrtClearError();
+	tDesc.Kind = XERR_IO;
+	tLocation.Line = -1;
+	testRequire(xrtErrorBuildAt(&tDesc, &tLocation) == NULL, "negative source location must be rejected");
+	testRequire(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT, "invalid source location error mismatch");
 	xrtClearError();
 	printf("[PASS] error\n");
 	return 0;

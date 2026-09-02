@@ -8,13 +8,23 @@
 
 /* null 和布尔值不分配内存，统一允许 Retain 和 Release。 */
 static xvalue __xrtValueNull = {
-	INT32_MAX, XVALUE_NULL, XRT_VALUE_FLAG_STATIC, 0, { 0 }
+	.RefCount = INT32_MAX,
+	.WeakCount = INT32_MAX,
+	.Type = XVALUE_NULL,
+	.Flags = XRT_VALUE_FLAG_STATIC
 };
 static xvalue __xrtValueFalse = {
-	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, 0, { 0 }
+	.RefCount = INT32_MAX,
+	.WeakCount = INT32_MAX,
+	.Type = XVALUE_BOOL,
+	.Flags = XRT_VALUE_FLAG_STATIC
 };
 static xvalue __xrtValueTrue = {
-	INT32_MAX, XVALUE_BOOL, XRT_VALUE_FLAG_STATIC, 0, { .Bool = true }
+	.RefCount = INT32_MAX,
+	.WeakCount = INT32_MAX,
+	.Type = XVALUE_BOOL,
+	.Flags = XRT_VALUE_FLAG_STATIC,
+	.Data.Bool = true
 };
 
 
@@ -128,6 +138,74 @@ static bool __xrtValueCanRead(const xvalue* pValue)
 	}
 	return true;
 }
+
+
+
+/* 保留动态 Value 外壳的弱控制引用。 */
+static bool __xrtValueWeakRetain(xvalue* pValue)
+{
+	if ( pValue == NULL ) {
+		return false;
+	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_STATIC) != 0 ) {
+		return true;
+	}
+	return xrtRefRetain(&pValue->WeakCount) >= 0;
+}
+
+
+
+/* 释放弱控制引用；强生命周期已经结束时销毁最后的外壳分配。 */
+static void __xrtValueWeakRelease(xvalue* pValue)
+{
+	int32 iReferences;
+
+	if ( (pValue == NULL) ||
+		 ((pValue->Flags & XRT_VALUE_FLAG_STATIC) != 0) ) {
+		return;
+	}
+	iReferences = xrtRefRelease(&pValue->WeakCount);
+	if ( iReferences == 0 ) {
+		xrtFree(pValue);
+	}
+}
+
+
+
+/* 深克隆弱引用句柄时复制一个弱控制引用。 */
+static bool __xrtValueWeakHandleClone(
+	ptr pHandle,
+	ptr* pClone,
+	ptr pUserData
+)
+{
+	xvalue* pTarget = (xvalue*)pHandle;
+
+	(void)pUserData;
+	if ( (pClone == NULL) || !__xrtValueWeakRetain(pTarget) ) {
+		return false;
+	}
+	*pClone = pTarget;
+	return true;
+}
+
+
+
+/* 释放弱引用句柄持有的一个弱控制引用。 */
+static void __xrtValueWeakHandleDrop(ptr pHandle, ptr pUserData)
+{
+	(void)pUserData;
+	__xrtValueWeakRelease((xvalue*)pHandle);
+}
+
+
+
+static const xvaluehandleops __xrtValueWeakHandleOps = {
+	__xrtValueWeakHandleClone,
+	__xrtValueWeakHandleDrop,
+	NULL,
+	NULL
+};
 
 
 
@@ -311,6 +389,7 @@ static xvalue* __xrtValueBlob(
 	}
 	memset(pValue, 0, sizeof(xvalue));
 	pValue->RefCount = 1;
+	pValue->WeakCount = 1;
 	pValue->Type = (uint16)Type;
 	pCopy = (bytes)(pValue + 1);
 	if ( iSize != 0 ) {
@@ -358,6 +437,7 @@ xvalue* __xrtValueCreate(xvaluetype Type)
 		return NULL;
 	}
 	pValue->RefCount = 1;
+	pValue->WeakCount = 1;
 	pValue->Type = (uint16)Type;
 	return pValue;
 }
@@ -572,6 +652,10 @@ XRT_API xvalue* xrtValueRetain(const xvalue* pValue)
 	if ( !__xrtValueCanRead(pValue) ) {
 		return NULL;
 	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_FINALIZING) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
 	if ( (pValue->Flags & XRT_VALUE_FLAG_STATIC) != 0 ) {
 		return (xvalue*)pValue;
 	}
@@ -604,11 +688,19 @@ XRT_API void xrtValueRelease(xvalue* pValue)
 	if ( iReferences != 0 ) {
 		return;
 	}
+	#if defined(XRT_FEATURE_VALUE_CONTAINER)
+		if ( pValue->Type == XVALUE_OBJECT ) {
+			__xrtValueObjectFinalize(pValue);
+		}
+	#endif
 	pValue->Flags |= XRT_VALUE_FLAG_BUSY;
 	if ( ((pValue->Type == XVALUE_STRING) || (pValue->Type == XVALUE_BYTES)) &&
 		 ((pValue->Flags & XRT_VALUE_FLAG_OWNED_DATA) != 0) ) {
 		xrtFree((ptr)pValue->Data.Blob.Data);
-	} else if ( pValue->Type == XVALUE_HANDLE ) {
+	} else if (
+		(pValue->Type == XVALUE_HANDLE) &&
+		(pValue->Data.Handle.Data != NULL)
+	) {
 		pValue->Data.Handle.Ops->Drop(
 			pValue->Data.Handle.Data,
 			pValue->Data.Handle.UserData
@@ -618,7 +710,8 @@ XRT_API void xrtValueRelease(xvalue* pValue)
 		__xrtValueContainerRelease(pValue);
 	#endif
 	}
-	xrtFree(pValue);
+	/* 资源结束后释放外壳自持的弱引用；现存弱引用继续保持地址有效。 */
+	__xrtValueWeakRelease(pValue);
 }
 
 
@@ -629,12 +722,106 @@ XRT_API xvalue* xrtValueClone(const xvalue* pValue)
 	if ( !__xrtValueCanRead(pValue) ) {
 		return NULL;
 	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_FINALIZING) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
 	#if defined(XRT_FEATURE_VALUE_CONTAINER)
 		if ( __xrtValueContainerType((xvaluetype)pValue->Type) ) {
 			return __xrtValueContainerClone(pValue);
 		}
 	#endif
 	return xrtValueRetain(pValue);
+}
+
+
+
+/* 为动态 Value 创建一个弱引用 Handle。 */
+XRT_API xvalue* xrtValueWeakRef(const xvalue* pTarget)
+{
+	ptr pHandle;
+	xvalue* pWeak;
+
+	if ( !__xrtValueCanRead(pTarget) ) {
+		return NULL;
+	}
+	if ( ((pTarget->Flags &
+		  (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_FINALIZING)) != 0) ||
+		 (__xrtAtomicRefLoad(&pTarget->RefCount) <= 0) ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	if ( !__xrtValueWeakRetain((xvalue*)pTarget) ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	pHandle = (ptr)pTarget;
+	pWeak = xrtValueHandleTake(&pHandle, &__xrtValueWeakHandleOps, NULL);
+	if ( pWeak == NULL ) {
+		__xrtValueWeakRelease((xvalue*)pTarget);
+	}
+	return pWeak;
+}
+
+
+
+/* 判断值是否使用 Value weak-ref Handle 策略。 */
+XRT_API bool xrtValueIsWeakRef(const xvalue* pValue)
+{
+	if ( pValue == NULL ) {
+		return false;
+	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	return (pValue->Type == XVALUE_HANDLE) &&
+		(pValue->Data.Handle.Ops == &__xrtValueWeakHandleOps);
+}
+
+
+
+/* 判断弱引用目标是否已经结束强生命周期。 */
+XRT_API bool xrtValueWeakRefExpired(const xvalue* pWeak)
+{
+	xvalue* pTarget;
+
+	if ( !__xrtValueCanRead(pWeak) ||
+		 (pWeak->Type != XVALUE_HANDLE) ||
+		 (pWeak->Data.Handle.Ops != &__xrtValueWeakHandleOps) ) {
+		if ( pWeak != NULL &&
+			 (pWeak->Flags & XRT_VALUE_FLAG_BUSY) == 0 ) {
+			__xrtErrorSetType();
+		}
+		return true;
+	}
+	pTarget = (xvalue*)pWeak->Data.Handle.Data;
+	return (pTarget == NULL) ||
+		(__xrtAtomicRefLoad(&pTarget->RefCount) <= 0);
+}
+
+
+
+/* 原子提升弱引用；强引用计数为零时不允许复活。 */
+XRT_API xvalue* xrtValueWeakRefLock(const xvalue* pWeak)
+{
+	xvalue* pTarget;
+
+	if ( !__xrtValueCanRead(pWeak) ||
+		 (pWeak->Type != XVALUE_HANDLE) ||
+		 (pWeak->Data.Handle.Ops != &__xrtValueWeakHandleOps) ) {
+		if ( pWeak != NULL &&
+			 (pWeak->Flags & XRT_VALUE_FLAG_BUSY) == 0 ) {
+			__xrtErrorSetType();
+		}
+		return NULL;
+	}
+	pTarget = (xvalue*)pWeak->Data.Handle.Data;
+	if ( (pTarget == NULL) ||
+		 (xrtRefRetain(&pTarget->RefCount) < 0) ) {
+		return xrtValueNull();
+	}
+	return pTarget;
 }
 
 
@@ -704,11 +891,57 @@ XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
 	if ( pValue->TypeId == iTypeId ) {
 		return true;
 	}
+	if ( (pValue->IdentityHash != NULL) || (pValue->IdentityEqual != NULL) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
 	if ( pValue->RefCount != 1 ) {
 		__xrtErrorSetInvalidState();
 		return false;
 	}
 	pValue->TypeId = iTypeId;
+	return true;
+}
+
+
+
+
+/* 为带 TypeId 的容器一次性绑定完整值身份策略。 */
+XRT_API bool xrtValueIdentityBind(
+	xvalue* pValue,
+	xvalueidentityhash pHash,
+	xvalueidentityequal pEqual,
+	ptr pUserData
+)
+{
+	if ( (pValue == NULL) || (pHash == NULL) || (pEqual == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_BUSY)) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( !__xrtValueContainerType((xvaluetype)pValue->Type) ) {
+		__xrtErrorSetType();
+		return false;
+	}
+	if ( pValue->TypeId == 0 ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( (pValue->IdentityHash != NULL) || (pValue->IdentityEqual != NULL) ) {
+		if ( (pValue->IdentityHash != pHash) ||
+			 (pValue->IdentityEqual != pEqual) ||
+			 (pValue->IdentityUserData != pUserData) ) {
+			__xrtErrorSetInvalidState();
+			return false;
+		}
+		return true;
+	}
+	pValue->IdentityHash = pHash;
+	pValue->IdentityEqual = pEqual;
+	pValue->IdentityUserData = pUserData;
 	return true;
 }
 
@@ -1030,12 +1263,41 @@ XRT_API bool xrtValueGetHandle(
 
 
 
+/* 取走句柄资源；共享该值外壳的观察者随后都看到空句柄。 */
+XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle)
+{
+	if (
+		!__xrtValueCanRead(pValue) ||
+		!__xrtValueOutputValid(pValue, pHandle, sizeof(*pHandle))
+	) {
+		return false;
+	}
+	if ( pValue->Type != XVALUE_HANDLE ) {
+		__xrtErrorSetType();
+		return false;
+	}
+	*pHandle = pValue->Data.Handle.Data;
+	pValue->Data.Handle.Data = NULL;
+	return true;
+}
+
+
+
 /* 不报告错误地计算已验证可哈希值。 */
 uint64 __xrtValueHashKnown(const xvalue* pValue)
 {
 	uint64 iBits;
 	uint64 iUnsigned;
 	int64 iInteger;
+	uint64 iHash;
+
+	if ( pValue->IdentityHash != NULL ) {
+		iHash = pValue->IdentityHash(pValue, pValue->IdentityUserData);
+		/* TypeId is part of the identity domain even when two domains happen to
+		 * return the same payload hash. */
+		return iHash ^ (pValue->TypeId + UINT64_C(0x9E3779B97F4A7C15) +
+			(iHash << 6) + (iHash >> 2));
+	}
 
 	switch ( (xvaluetype)pValue->Type ) {
 		case XVALUE_NULL:
@@ -1141,6 +1403,19 @@ bool __xrtValueEqualKnown(const xvalue* pLeft, const xvalue* pRight)
 	if ( pLeft == pRight ) {
 		return true;
 	}
+	if ( (pLeft->IdentityEqual != NULL) || (pRight->IdentityEqual != NULL) ) {
+		return (pLeft->IdentityHash != NULL) &&
+			(pRight->IdentityHash != NULL) &&
+			(pLeft->IdentityHash == pRight->IdentityHash) &&
+			(pLeft->IdentityEqual == pRight->IdentityEqual) &&
+			(pLeft->IdentityUserData == pRight->IdentityUserData) &&
+			(pLeft->TypeId != 0) && (pLeft->TypeId == pRight->TypeId) &&
+			pLeft->IdentityEqual(
+				pLeft,
+				pRight,
+				pLeft->IdentityUserData
+			);
+	}
 	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
 		  (pLeft->Type == XVALUE_FLOAT)) &&
 		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
@@ -1193,7 +1468,8 @@ XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash)
 		!__xrtValueOutputValid(pValue, pHash, sizeof(*pHash)) ) {
 		return false;
 	}
-	if ( __xrtValueContainerType((xvaluetype)pValue->Type) ||
+	if ( (__xrtValueContainerType((xvaluetype)pValue->Type) &&
+		  pValue->IdentityHash == NULL) ||
 		 ((pValue->Type == XVALUE_HANDLE) &&
 		  ((pValue->Data.Handle.Ops->Hash == NULL) ||
 		   (pValue->Data.Handle.Ops->Equal == NULL))) ) {
