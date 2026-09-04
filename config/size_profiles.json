@@ -10,6 +10,7 @@
 				"bbre_",
 				"tinfl_",
 				"tdefl_",
+				"xrtPattern",
 				"xrtRegex",
 				"xrtInflate",
 				"xrtDeflate",
@@ -36,6 +37,12 @@
 			"system": "foundation",
 			"suite": "regex_core",
 			"description": "正则编译与不可变程序核心"
+		},
+		{
+			"name": "pattern",
+			"system": "foundation",
+			"suite": "pattern",
+			"description": "结构化 Pattern 编译器、不可变匹配程序与 Builder"
 		},
 		{
 			"name": "regex_full",

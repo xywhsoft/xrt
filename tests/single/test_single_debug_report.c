@@ -1,5 +1,13 @@
+#define XRT_EXCLUDE_MEMORY_DEBUG
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
+
+
+
+#if !defined(XRT_FEATURE_MEMORY_DEBUG) || \
+	!defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
+	#error "explicit memory debug report selection must override the ALL exclusion"
+#endif
 
 
 

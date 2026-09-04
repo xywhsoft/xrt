@@ -761,6 +761,74 @@
 			]
 		},
 		{
+			"name": "pattern",
+			"system": "foundation",
+			"description": "结构化 Pattern 与前后缀捕获在 1 到 10000 条规则下的编译、查询和顺序捕获成本",
+			"benchmarks": [
+				{
+					"name": "pattern_scaling",
+					"source": "dev/bench/pattern/bench_pattern.c",
+					"suite": "pattern",
+					"args": [
+						"500000"
+					],
+					"smoke_args": [
+						"20000"
+					],
+					"metrics": {
+						"pattern_1_lookup_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_500_lookup_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_10000_lookup_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_1_capture_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_500_capture_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_10000_capture_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_10000_compile_elapsed_ns": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_affix_500_lookup_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_affix_10000_lookup_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_affix_500_capture_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_affix_10000_capture_ns_per_op": {
+							"direction": "lower",
+							"unit": "ns"
+						},
+						"pattern_affix_10000_compile_elapsed_ns": {
+							"direction": "lower",
+							"unit": "ns"
+						}
+					}
+				}
+			]
+		},
+		{
 			"name": "regex",
 			"system": "foundation",
 			"description": "正则编译、matcher 复用、集合分类和替换写出热路径",

@@ -4,9 +4,13 @@
 
 定义 `XRT_FEATURE_MEMORY_DEBUG` 后，`xrtMalloc`、`xrtCalloc`、`xrtRealloc`、`xrtFree` 和 `xrtMemDup` 自动记录 `__FILE__`、`__LINE__`。未定义该宏时，调试块头、canary、事件、活动链表和隔离队列全部从构建中裁掉。
 
+`XRT_MODULE_ALL` 默认包含内存调试。完整生产构建可以在首次包含 XRT 头之前定义
+`XRT_EXCLUDE_MEMORY_DEBUG`，同时裁掉调试核心和报告层而保留 `memory_stats`。该排除
+只影响 `XRT_MODULE_ALL` 的隐式选择；显式选择内存调试模块仍然优先。
+
 文本和 JSON 报告由单独的 `XRT_FEATURE_MEMORY_DEBUG_REPORT` 控制。它依赖调试核心，但不依赖文件、字符串构建器或 JSON 模块；不需要报告时不会带入格式化代码。
 
-调试构建默认开启运行时记录。运行时关闭只用于暂时停止统计，不会改变编译期内存布局。存在任何活动 XRT 分配时不能切换开关或重置状态。
+调试构建默认开启运行时记录。运行时关闭只用于暂时停止统计，不会改变编译期内存布局或移除调试分配路径，不能代替 `XRT_EXCLUDE_MEMORY_DEBUG`。存在任何活动 XRT 分配时不能切换开关或重置状态。
 
 故障注入同样只在调试构建存在。它按 `xrtMalloc`、`xrtCalloc`、非零 `xrtRealloc` 和 `xrtMemDup` 的逻辑调用计数，不受小对象池、线程缓存或 backing allocator 复用影响；状态属于当前线程，不会让并行任务随机失败。
 

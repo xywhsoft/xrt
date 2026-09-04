@@ -541,6 +541,7 @@
 			"name": "memory_debug",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_MEMORY_DEBUG",
+			"all_exclude_macro": "XRT_EXCLUDE_MEMORY_DEBUG",
 			"depends": [
 				"core"
 			],
@@ -570,6 +571,7 @@
 			"name": "memory_debug_report",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_MEMORY_DEBUG_REPORT",
+			"all_exclude_macro": "XRT_EXCLUDE_MEMORY_DEBUG",
 			"depends": [
 				"memory_debug"
 			],
@@ -13079,6 +13081,49 @@
 			]
 		},
 		{
+			"name": "pattern",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_PATTERN",
+			"depends": [
+				"core"
+			],
+			"public_headers": [
+				"include/xrt/pattern.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_pattern.h"
+			],
+			"sources": [
+				"src/text/pattern_core.c",
+				"src/text/pattern_builder.c",
+				"src/text/pattern_compile.c",
+				"src/text/pattern_match.c"
+			],
+			"tests": [
+				"tests/pattern/test_pattern.c",
+				"tests/pattern/test_pattern_differential.c",
+				"tests/pattern/test_pattern_builder.c",
+				"tests/pattern/test_pattern_oom.c",
+				"tests/pattern/test_pattern_threads.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_pattern.c"
+			],
+			"examples": [
+				"examples/text/pattern/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"dev/bench/pattern/bench_pattern.c",
+				"dev/bench/pattern/README.md"
+			],
+			"docs": [
+				"docs/api/pattern.md",
+				"docs/api/pattern-reference.md",
+				"docs/design/pattern.md"
+			]
+		},
+		{
 			"name": "regex_core",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_REGEX_CORE",
@@ -13310,7 +13355,8 @@
 			"sources": [],
 			"tests": [],
 			"single_tests": [
-				"tests/single/test_single_all.c"
+				"tests/single/test_single_all.c",
+				"tests/single/test_single_all_without_memory_debug.c"
 			],
 			"examples": [],
 			"docs": [

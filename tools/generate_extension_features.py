@@ -50,6 +50,20 @@ def _feature_roots(name: str, by_name: dict[str, dict]) -> list[str]:
 
 
 
+def _selection_test(all_macro: str, module_macro: str, module: dict) -> str:
+	"""返回扩展模块显式选择以及 ALL 可选排除条件。"""
+
+	module_test = f"defined({module_macro})"
+	all_exclude = module.get("all_exclude_macro")
+	if all_exclude is None:
+		return f"defined({all_macro}) || {module_test}"
+	return (
+		f"(defined({all_macro}) && !defined({all_exclude})) || \\\n"
+		f"\t{module_test}"
+	)
+
+
+
 def _content(manifest_path: Path) -> tuple[Path, str]:
 	"""构造一个扩展的完整模块选择头。"""
 
@@ -89,9 +103,10 @@ def _content(manifest_path: Path) -> tuple[Path, str]:
 
 	for module in reversed(feature_modules):
 		name = module["name"]
+		module_macro = _macro(prefix, name)
 		parts.extend((
 			f"/* {name} 及其直接依赖。 */\n",
-			f"#if defined({all_macro}) || defined({_macro(prefix, name)})\n",
+			f"#if {_selection_test(all_macro, module_macro, module)}\n",
 			f"#ifndef {module['feature']}\n",
 			f"#define {module['feature']}\n",
 			"#endif\n",

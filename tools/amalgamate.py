@@ -238,6 +238,7 @@ def _selection_macros(paths: list[str]) -> list[str]:
 def _declaration_selection_begin(
 	macros: list[str],
 	all_macros: list[str] | None = None,
+	exclude_macros: list[str] | None = None,
 ) -> str:
 	"""记录调用方选择状态并临时启用所有公共声明。"""
 
@@ -256,12 +257,23 @@ def _declaration_selection_begin(
 			f"#define {macro} 1\n",
 			"#endif\n",
 		))
+	for macro in exclude_macros or []:
+		marker = f"XRT_DECLARATIONS_RESTORE_{macro}"
+		parts.extend((
+			f"#if defined({macro})\n",
+			f"#define {marker} 1\n",
+			f"#undef {macro}\n",
+			"#endif\n",
+		))
 	return "".join(parts)
 
 
 
 
-def _declaration_selection_end(macros: list[str]) -> str:
+def _declaration_selection_end(
+	macros: list[str],
+	exclude_macros: list[str] | None = None,
+) -> str:
 	"""恢复调用方在包含声明头之前的模块和特性宏状态。"""
 
 	parts: list[str] = []
@@ -270,6 +282,14 @@ def _declaration_selection_end(macros: list[str]) -> str:
 		parts.extend((
 			f"#if defined({marker})\n",
 			f"#undef {macro}\n",
+			f"#undef {marker}\n",
+			"#endif\n",
+		))
+	for macro in exclude_macros or []:
+		marker = f"XRT_DECLARATIONS_RESTORE_{macro}"
+		parts.extend((
+			f"#if defined({marker})\n",
+			f"#define {macro} 1\n",
 			f"#undef {marker}\n",
 			"#endif\n",
 		))
@@ -582,6 +602,11 @@ def _declaration_content(
 		manifest.get("module_prefix", "XRT_MODULE_") + "ALL"
 		for manifest in manifests
 	]
+	exclude_macros = sorted({
+		module["all_exclude_macro"]
+		for module in modules
+		if module.get("all_exclude_macro") is not None
+	})
 	guard = _manifest_setting(
 		product,
 		"declaration_guard",
@@ -607,7 +632,11 @@ def _declaration_content(
 		f"#ifndef {guard}\n",
 		f"#define {guard}\n",
 		*(f"#define {marker} 1\n" for marker in declaration_markers),
-		_declaration_selection_begin(selection_macros, all_macros),
+		_declaration_selection_begin(
+			selection_macros,
+			all_macros,
+			exclude_macros,
+		),
 	]
 	seen: set[str] = set()
 	_append_section(
@@ -626,7 +655,7 @@ def _declaration_content(
 		known_headers,
 		include_dirs,
 	)
-	parts.append(_declaration_selection_end(selection_macros))
+	parts.append(_declaration_selection_end(selection_macros, exclude_macros))
 	parts.append("\n#endif\n")
 
 	output = ROOT / _manifest_setting(

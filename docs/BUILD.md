@@ -95,7 +95,8 @@ python tools/amalgamate.py --check
 ```
 
 生成结果为 `single/xrt.h`。调用方定义需要的 `XRT_MODULE_*` 根宏；实现单元再定义
-`XRT_IMPLEMENTATION`。完整宿主可以选择 `XRT_MODULE_ALL`，普通应用应只选择实际使用
+`XRT_IMPLEMENTATION`。完整宿主可以选择 `XRT_MODULE_ALL`；完整生产构建可同时定义
+`XRT_EXCLUDE_MEMORY_DEBUG` 以裁掉内存调试核心和报告层。普通应用应只选择实际使用
 的模块。生成器按清单和真实本地 include 图稳定排序、按来源文件去重，并拒绝任何会被
 展开规则移除却没有登记进清单的本地头；生成物不含时间戳，相同输入必须逐字节一致。
 `--check` 不写文件，并先验证特性头，避免两份同时过期的生成物彼此掩盖。

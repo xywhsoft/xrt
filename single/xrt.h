@@ -127,6 +127,13 @@
 #endif
 #endif
 
+/* pattern 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PATTERN)
+#ifndef XRT_FEATURE_PATTERN
+#define XRT_FEATURE_PATTERN
+#endif
+#endif
+
 /* ptr_stack 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PTR_STACK)
 #ifndef XRT_FEATURE_PTR_STACK
@@ -4311,7 +4318,8 @@
 #endif
 
 /* memory_debug_report 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MEMORY_DEBUG_REPORT)
+#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
+	defined(XRT_MODULE_MEMORY_DEBUG_REPORT)
 #ifndef XRT_FEATURE_MEMORY_DEBUG_REPORT
 #define XRT_FEATURE_MEMORY_DEBUG_REPORT
 #endif
@@ -4321,7 +4329,8 @@
 #endif
 
 /* memory_debug 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MEMORY_DEBUG)
+#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
+	defined(XRT_MODULE_MEMORY_DEBUG)
 #ifndef XRT_FEATURE_MEMORY_DEBUG
 #define XRT_FEATURE_MEMORY_DEBUG
 #endif
@@ -39455,6 +39464,391 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: include/xrt/pattern.h */
+/* ========================================================================== */
+
+#ifndef XRT_PATTERN_H
+#define XRT_PATTERN_H
+
+
+
+
+#if defined(XRT_FEATURE_PATTERN)
+
+/* 默认预算适用于大量路由，也阻止不可信模式造成无界编译。 */
+#define XPATTERN_PATTERN_DEFAULT		(1024u * 1024u)
+#define XPATTERN_PATTERNS_DEFAULT	100000u
+#define XPATTERN_CAPTURES_DEFAULT	256u
+#define XPATTERN_STATES_DEFAULT		1000000u
+#define XPATTERN_COMPILED_DEFAULT	(512u * 1024u * 1024u)
+
+
+
+/* 零值永远不是有效的 Builder 条目句柄。 */
+typedef uint64 xpatternid;
+
+#define XPATTERN_ID_INVALID ((xpatternid)0)
+
+
+
+/* 未命中不是错误，全部匹配入口使用同一三态结果。 */
+typedef enum xpatternresult {
+	XPATTERN_ERROR = -1,
+	XPATTERN_NONE = 0,
+	XPATTERN_MATCH = 1
+} xpatternresult;
+
+
+
+/* pattern 模块错误代码在 xrt.pattern 域内保持稳定。 */
+typedef enum xpatternerror {
+	XPATTERN_ERROR_CONFIG = 1601,
+	XPATTERN_ERROR_PATTERN,
+	XPATTERN_ERROR_LIMIT,
+	XPATTERN_ERROR_CONFLICT,
+	XPATTERN_ERROR_CAPACITY
+} xpatternerror;
+
+
+
+/*
+	分隔符是字节集合：模式中的分隔字节仍要求精确匹配，捕获不能吞掉
+	集合中的任意字节。全部模式共享一份配置，以便编译成单一确定性程序。
+*/
+typedef struct xpatternconfig {
+	uint32 Flags;
+	xstrview Separators;
+	size_t MaxPatternBytes;
+	size_t MaxPatterns;
+	size_t MaxCaptures;
+	size_t MaxStates;
+	size_t MaxCompiledBytes;
+	uint32 Reserved[4];
+} xpatternconfig;
+
+
+
+/* Value 仅作为借用值随命中返回，XRT 不获取或释放其所有权。 */
+typedef struct xpatternspec {
+	xstrview Pattern;
+	ptr Value;
+	int32 Priority;
+	uint32 Flags;
+} xpatternspec;
+
+
+
+/*
+	{name} 捕获非空字段，也可写成 prefix{name}suffix；一个字段至多一个普通
+	捕获，前后缀至少一侧非空。{*name} 仍独占最终字段并可捕获空尾部。
+	捕获由调用方数组按模式中的出现顺序保存，PatternIndex 属于当前快照。
+*/
+typedef struct xpatternmatch {
+	xpatternid Id;
+	size_t PatternIndex;
+	ptr Value;
+	size_t CaptureCount;
+} xpatternmatch;
+
+
+
+/* 编译对象不可变、可跨线程共享并通过引用计数管理。 */
+typedef struct xpattern xpattern;
+
+
+
+/* Builder 可变且不保证并发安全；成功编译不会清空其中的模式。 */
+typedef struct xpatternbuilder xpatternbuilder;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 初始化默认的 "/" 分隔符、严格语义和有限资源预算。 */
+XRT_API void xrtPatternConfigInit(xpatternconfig* pConfig);
+
+
+
+/*
+	直接解析并完整匹配一条模式。模式、参数和捕获容量有效时不分配内存；
+	捕获视图借用 Text。容量不足时返回错误并把所需数量写入
+	pCaptureCount，不产生部分捕获。
+*/
+XRT_API xpatternresult xrtPatternExtract(
+	xstrview Pattern,
+	xstrview Text,
+	xstrview* arrCapture,
+	size_t iCapacity,
+	size_t* pCaptureCount
+);
+
+
+
+/* 使用自定义分隔符和预算执行一次性匹配。 */
+XRT_API xpatternresult xrtPatternExtractConfig(
+	xstrview Pattern,
+	xstrview Text,
+	const xpatternconfig* pConfig,
+	xstrview* arrCapture,
+	size_t iCapacity,
+	size_t* pCaptureCount
+);
+
+
+
+/* 使用默认配置编译一条可重复匹配的模式。 */
+XRT_API xpattern* xrtPatternCompile(xstrview Pattern);
+
+
+
+/* 使用高级配置编译一条可重复匹配的模式。 */
+XRT_API xpattern* xrtPatternCompileConfig(
+	xstrview Pattern,
+	const xpatternconfig* pConfig
+);
+
+
+
+/* 使用默认配置把多条模式编译成一个不可变匹配程序。 */
+XRT_API xpattern* xrtPatternCompileMany(
+	const xpatternspec* arrSpec,
+	size_t iCount
+);
+
+
+
+/* 使用高级配置把多条模式编译成一个不可变匹配程序。 */
+XRT_API xpattern* xrtPatternCompileManyConfig(
+	const xpatternspec* arrSpec,
+	size_t iCount,
+	const xpatternconfig* pConfig
+);
+
+
+
+/* 增加不可变编译对象引用并返回原指针。 */
+XRT_API xpattern* xrtPatternRef(xpattern* pPattern);
+
+
+
+/* 释放不可变编译对象引用。 */
+XRT_API void xrtPatternRelease(xpattern* pPattern);
+
+
+
+/* 返回编译对象中的模式数量。 */
+XRT_API size_t xrtPatternCount(const xpattern* pPattern);
+
+
+
+/* 返回编译对象实际占用的单块存储字节数。 */
+XRT_API size_t xrtPatternCompiledBytes(const xpattern* pPattern);
+
+
+
+/* 返回编译对象复制并归一化后的分隔符集合。 */
+XRT_API xstrview xrtPatternSeparators(const xpattern* pPattern);
+
+
+
+/* 返回指定模式的原始表达式视图。 */
+XRT_API xstrview xrtPatternSource(
+	const xpattern* pPattern,
+	size_t iPattern
+);
+
+
+
+/* 返回指定模式的稳定 Builder ID。直接批量编译时 ID 也保持非零。 */
+XRT_API xpatternid xrtPatternId(
+	const xpattern* pPattern,
+	size_t iPattern
+);
+
+
+
+/* 返回指定模式携带的借用值。 */
+XRT_API ptr xrtPatternValue(
+	const xpattern* pPattern,
+	size_t iPattern
+);
+
+
+
+/* 返回指定模式的捕获数量。 */
+XRT_API size_t xrtPatternCaptureCount(
+	const xpattern* pPattern,
+	size_t iPattern
+);
+
+
+
+/* 返回整个编译对象中单条模式所需的最大捕获数量。 */
+XRT_API size_t xrtPatternMaxCaptureCount(const xpattern* pPattern);
+
+
+
+/* 返回指定捕获的借用名称。 */
+XRT_API bool xrtPatternCaptureName(
+	const xpattern* pPattern,
+	size_t iPattern,
+	size_t iCapture,
+	xstrview* pName
+);
+
+
+
+/* 按名称查找捕获索引，未找到时返回 XRT_NPOS。 */
+XRT_API size_t xrtPatternCaptureIndex(
+	const xpattern* pPattern,
+	size_t iPattern,
+	xstrview Name
+);
+
+
+
+/* 只选择最优模式，不记录或输出捕获。 */
+XRT_API xpatternresult xrtPatternLookup(
+	const xpattern* pPattern,
+	xstrview Text,
+	xpatternmatch* pMatch
+);
+
+
+
+/* 选择最优模式并按出现顺序输出借用 Text 的捕获视图。 */
+XRT_API xpatternresult xrtPatternMatch(
+	const xpattern* pPattern,
+	xstrview Text,
+	xstrview* arrCapture,
+	size_t iCapacity,
+	xpatternmatch* pMatch
+);
+
+
+
+/* 只判断是否有模式匹配，不返回模式或捕获。 */
+XRT_API xpatternresult xrtPatternTest(
+	const xpattern* pPattern,
+	xstrview Text
+);
+
+
+
+/* 从 pattern 错误的机器数据中读取模式内字节位置。 */
+XRT_API bool xrtPatternErrorOffset(
+	const xerror* pError,
+	size_t* pOffset
+);
+
+
+
+/* 从批量编译错误的机器数据中读取失败模式索引。 */
+XRT_API bool xrtPatternErrorPattern(
+	const xerror* pError,
+	size_t* pPatternIndex
+);
+
+
+
+/* 使用默认配置创建空 Builder。 */
+XRT_API xpatternbuilder* xrtPatternBuilderCreate(void);
+
+
+
+/* 使用高级配置创建空 Builder；分隔符会立即被复制。 */
+XRT_API xpatternbuilder* xrtPatternBuilderCreateConfig(
+	const xpatternconfig* pConfig
+);
+
+
+
+/* 释放 Builder、其中复制的模式以及内部缓存的编译快照。 */
+XRT_API void xrtPatternBuilderFree(xpatternbuilder* pBuilder);
+
+
+
+/* 清空全部条目并使已有 ID 失效，同时保留已分配槽容量。 */
+XRT_API void xrtPatternBuilderClear(xpatternbuilder* pBuilder);
+
+
+
+/* 保证 Builder 至少可保存指定数量的活动条目。 */
+XRT_API bool xrtPatternBuilderReserve(
+	xpatternbuilder* pBuilder,
+	size_t iCapacity
+);
+
+
+
+/* 返回 Builder 中的活动条目数量。 */
+XRT_API size_t xrtPatternBuilderCount(const xpatternbuilder* pBuilder);
+
+
+
+/* 返回每次成功结构修改后递增的版本。 */
+XRT_API uint64 xrtPatternBuilderVersion(const xpatternbuilder* pBuilder);
+
+
+
+/* 判断 Builder 是否存在尚未成功编译的结构修改。 */
+XRT_API bool xrtPatternBuilderDirty(const xpatternbuilder* pBuilder);
+
+
+
+/* 复制并追加一条模式，返回稳定代际 ID。 */
+XRT_API xpatternid xrtPatternBuilderAdd(
+	xpatternbuilder* pBuilder,
+	const xpatternspec* pSpec
+);
+
+
+
+/* 原子追加一批模式；任意一条失败时 Builder 保持不变。 */
+XRT_API bool xrtPatternBuilderAddMany(
+	xpatternbuilder* pBuilder,
+	const xpatternspec* arrSpec,
+	size_t iCount,
+	xpatternid* arrId
+);
+
+
+
+/* 替换有效 ID 的模式和值，同时保留 ID 与原始注册顺序。 */
+XRT_API bool xrtPatternBuilderSet(
+	xpatternbuilder* pBuilder,
+	xpatternid Id,
+	const xpatternspec* pSpec
+);
+
+
+
+/* 删除有效 ID；不存在或陈旧 ID 返回 false，但不属于执行错误。 */
+XRT_API bool xrtPatternBuilderRemove(
+	xpatternbuilder* pBuilder,
+	xpatternid Id
+);
+
+
+
+/*
+	编译当前版本并返回新引用。无修改时复用缓存；失败不影响上一个快照，
+	也不会撤销 Builder 中等待修正的修改。
+*/
+XRT_API xpattern* xrtPatternBuilderCompile(xpatternbuilder* pBuilder);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
 /* public: include/xrt/regex.h */
 /* ========================================================================== */
 
@@ -57185,6 +57579,382 @@ typedef struct xblockstackblock {
 	struct xblockstackblock* Next;
 	bytes Data;
 } xblockstackblock;
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_pattern.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_PATTERN)
+#ifndef XRT_INTERNAL_PATTERN_H
+#define XRT_INTERNAL_PATTERN_H
+
+
+
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+
+
+#if defined(XRT_FEATURE_PATTERN)
+
+#define __XRT_PATTERN_INDEX_NONE UINT32_MAX
+#define __XRT_PATTERN_SLOT_NONE UINT32_MAX
+#define __XRT_PATTERN_LINEAR_MAX 4u
+
+
+
+typedef enum __xrt_pattern_atom_kind {
+	__XRT_PATTERN_ATOM_SEPARATOR = 1,
+	__XRT_PATTERN_ATOM_LITERAL = 2,
+	__XRT_PATTERN_ATOM_CAPTURE = 3,
+	__XRT_PATTERN_ATOM_AFFIX = 4,
+	__XRT_PATTERN_ATOM_TAIL = 5
+} __xrt_pattern_atom_kind;
+
+
+
+typedef enum __xrt_pattern_separator_kind {
+	__XRT_PATTERN_SEPARATOR_NONE = 0,
+	__XRT_PATTERN_SEPARATOR_SLASH,
+	__XRT_PATTERN_SEPARATOR_BYTE,
+	__XRT_PATTERN_SEPARATOR_TWO,
+	__XRT_PATTERN_SEPARATOR_THREE,
+	__XRT_PATTERN_SEPARATOR_FOUR,
+	__XRT_PATTERN_SEPARATOR_BITMAP
+} __xrt_pattern_separator_kind;
+
+
+
+typedef enum __xrt_pattern_dispatch_kind {
+	__XRT_PATTERN_DISPATCH_NONE = 0,
+	__XRT_PATTERN_DISPATCH_LINEAR,
+	__XRT_PATTERN_DISPATCH_HASH
+} __xrt_pattern_dispatch_kind;
+
+
+
+/* 编译配置的自包含规范化形式，不再借用调用方分隔符视图。 */
+typedef struct __xrt_pattern_options {
+	uint64 SeparatorMask[4];
+	uint8 Separators[256];
+	size_t SeparatorCount;
+	__xrt_pattern_separator_kind SeparatorKind;
+	size_t MaxPatternBytes;
+	size_t MaxPatterns;
+	size_t MaxCaptures;
+	size_t MaxStates;
+	size_t MaxCompiledBytes;
+} __xrt_pattern_options;
+
+
+
+/* Builder 与编译快照共用的已解析原子语义。 */
+typedef struct __xrt_pattern_atom {
+	xstrview Text;
+	xstrview Suffix;
+	uint32 CaptureIndex;
+	uint8 Kind;
+	uint8 Byte;
+	uint16 Reserved;
+} __xrt_pattern_atom;
+
+
+
+typedef struct __xrt_pattern_capture {
+	xstrview Name;
+	uint32 FieldIndex;
+	uint32 PrefixSize;
+	uint32 SuffixSize;
+	uint8 Kind;
+	uint8 Reserved[3];
+} __xrt_pattern_capture;
+
+
+
+/* 每条 Builder 源模式使用单块存储并缓存解析结果。 */
+typedef struct __xrt_pattern_source {
+	xpatternid Id;
+	uint64 Order;
+	ptr Value;
+	int32 Priority;
+	uint32 Flags;
+	xstrview Pattern;
+	__xrt_pattern_atom* Atoms;
+	size_t AtomCount;
+	__xrt_pattern_capture* Captures;
+	size_t CaptureCount;
+	size_t StorageBytes;
+} __xrt_pattern_source;
+
+
+
+typedef struct __xrt_pattern_entry {
+	xpatternid Id;
+	ptr Value;
+	uint32 Rank;
+	uint32 CaptureCount;
+} __xrt_pattern_entry;
+
+
+
+/* 源文本、捕获名和重放程序只在冷路径访问。 */
+typedef struct __xrt_pattern_metadata {
+	xstrview Source;
+	const uint8* Replay;
+	__xrt_pattern_capture* Captures;
+	uint32 ReplayCount;
+	uint32 Reserved;
+} __xrt_pattern_metadata;
+
+
+
+/* Literal transition uses NextPlusOne==0 as an empty hash slot. */
+typedef struct __xrt_pattern_literal_transition {
+	const char* Data;
+	uint32 Size;
+	uint32 NextPlusOne;
+} __xrt_pattern_literal_transition;
+
+
+
+typedef struct __xrt_pattern_separator_transition {
+	uint32 NextPlusOne;
+	uint8 Byte;
+	uint8 Reserved[3];
+} __xrt_pattern_separator_transition;
+
+
+
+/* 混合字段的局部字节 DFA 使用稀疏覆盖加默认转移。 */
+typedef struct __xrt_pattern_affix_transition {
+	uint32 NextPlusOne;
+	uint8 Byte;
+	uint8 Reserved[3];
+} __xrt_pattern_affix_transition;
+
+
+
+typedef struct __xrt_pattern_affix_state {
+	uint32 TransitionOffset;
+	uint32 DefaultPlusOne;
+	uint32 OutputPlusOne;
+	uint16 TransitionCount;
+	uint16 Reserved;
+} __xrt_pattern_affix_state;
+
+
+
+typedef struct __xrt_pattern_state {
+	uint32 LiteralOffset;
+	uint32 LiteralCount;
+	uint32 LiteralSlots;
+	uint32 SeparatorOffset;
+	uint32 DefaultPlusOne;
+	uint32 TerminalPlusOne;
+	uint32 TailPlusOne;
+	uint16 SeparatorCount;
+	uint8 DispatchKind;
+	uint8 Reserved;
+} __xrt_pattern_state;
+
+
+
+/* 全部指针都指向 pPattern 自身单块分配中的只读区域。 */
+struct xpattern {
+	volatile int32 RefCount;
+	uint32 Reserved;
+	size_t CompiledBytes;
+	size_t Count;
+	size_t MaxCaptureCount;
+	xstrview Separators;
+	uint64 SeparatorMask[4];
+	__xrt_pattern_separator_kind SeparatorKind;
+	uint32 StateCount;
+	__xrt_pattern_entry* Entries;
+	__xrt_pattern_metadata* Metadata;
+	__xrt_pattern_state* States;
+	uint32* AffixRoots;
+	__xrt_pattern_literal_transition* Literals;
+	__xrt_pattern_separator_transition* SeparatorTransitions;
+	__xrt_pattern_affix_state* AffixStates;
+	__xrt_pattern_affix_transition* AffixTransitions;
+};
+
+
+
+typedef struct __xrt_pattern_builder_slot {
+	__xrt_pattern_source* Source;
+	uint32 Generation;
+	uint32 NextFree;
+} __xrt_pattern_builder_slot;
+
+
+
+struct xpatternbuilder {
+	__xrt_pattern_options Options;
+	__xrt_pattern_builder_slot* Slots;
+	size_t SlotCount;
+	size_t SlotCapacity;
+	size_t Count;
+	uint32 FreeSlot;
+	uint64 NextOrder;
+	uint64 Version;
+	uint64 CompiledVersion;
+	xpattern* Cached;
+};
+
+
+
+#define __xrtPatternSetInvalidArgument() \
+	xrtSetErrorInfo(XERR_ARGUMENT, "xrt.pattern", 0, "invalid argument")
+#define __xrtPatternSetOutOfMemory() \
+	xrtSetErrorInfo(XERR_MEMORY, "xrt.pattern", 0, "out of memory")
+#define __xrtPatternSetSizeOverflow() \
+	xrtSetErrorInfo(XERR_RANGE, "xrt.pattern", 0, "size overflow")
+#define __xrtPatternSetRange() \
+	xrtSetErrorInfo(XERR_RANGE, "xrt.pattern", 0, "value out of range")
+#define __xrtPatternSetInvalidState() \
+	xrtSetErrorInfo(XERR_STATE, "xrt.pattern", 0, "invalid state")
+#define __xrtPatternSetInternal() \
+	xrtSetErrorInfo(XERR_INTERNAL, "xrt.pattern", 0, "internal error")
+
+
+
+/* 设置带稳定代码以及可选模式索引、字节位置的模块错误。 */
+void __xrtPatternError(
+	xerrkind Kind,
+	xpatternerror Code,
+	cstr sOperation,
+	cstr sMessage,
+	bool bHasPattern,
+	size_t iPattern,
+	bool bHasOffset,
+	size_t iOffset
+);
+
+
+
+/* 验证字符串视图的指针和大小组合。 */
+bool __xrtPatternViewValid(xstrview Text);
+
+
+
+/* 验证并复制配置，同时建立 O(1) 分隔字节位图。 */
+bool __xrtPatternOptionsInit(
+	const xpatternconfig* pConfig,
+	__xrt_pattern_options* pOptions,
+	cstr sOperation
+);
+
+
+
+/* 返回一个字节是否属于规范化分隔符集合。 */
+static inline bool __xrtPatternIsSeparator(
+	const __xrt_pattern_options* pOptions,
+	uint8 iByte
+)
+{
+	return (
+		pOptions->SeparatorMask[iByte >> 6u] &
+		(UINT64_C(1) << (iByte & 63u))
+	) != 0;
+}
+
+
+
+/* 高扇出状态使用的快速、带状态盐的字段哈希。 */
+static inline uint64 __xrtPatternHashMix(uint64 iValue)
+{
+	iValue ^= iValue >> 30u;
+	iValue *= UINT64_C(0xbf58476d1ce4e5b9);
+	iValue ^= iValue >> 27u;
+	iValue *= UINT64_C(0x94d049bb133111eb);
+	iValue ^= iValue >> 31u;
+	return iValue;
+}
+
+
+
+static inline uint64 __xrtPatternHashField(
+	const char* sData,
+	size_t iSize,
+	uint32 iState
+)
+{
+	uint64 iHash =
+		UINT64_C(0x9e3779b97f4a7c15) ^
+		((uint64)iState * UINT64_C(0xd6e8feb86659fd93)) ^
+		((uint64)iSize * UINT64_C(0xa0761d6478bd642f));
+	size_t i = 0;
+
+	while ( (iSize - i) >= 8u ) {
+		uint64 iWord;
+
+		memcpy(&iWord, sData + i, sizeof(iWord));
+		iHash ^= __xrtPatternHashMix(iWord + (uint64)i);
+		iHash = (iHash << 27u) | (iHash >> 37u);
+		iHash *= UINT64_C(0x3c79ac492ba7b653);
+		i += 8u;
+	}
+	while ( i < iSize ) {
+		iHash ^= (uint64)(uint8)sData[i];
+		iHash *= UINT64_C(0x100000001b3);
+		i++;
+	}
+	return __xrtPatternHashMix(iHash);
+}
+
+
+
+/* 创建一条自包含、已解析的 Builder 源模式。 */
+__xrt_pattern_source* __xrtPatternSourceCreate(
+	const xpatternspec* pSpec,
+	const __xrt_pattern_options* pOptions,
+	cstr sOperation,
+	xpatternid Id,
+	uint64 iOrder,
+	bool bHasPatternIndex,
+	size_t iPatternIndex
+);
+
+
+
+/* 释放源模式的单块存储。 */
+void __xrtPatternSourceFree(__xrt_pattern_source* pSource);
+
+
+
+/* 把一组已解析源模式编译成不可变单块快照。 */
+xpattern* __xrtPatternCompileSources(
+	__xrt_pattern_source* const* arrSource,
+	size_t iCount,
+	const __xrt_pattern_options* pOptions,
+	cstr sOperation
+);
+
+
+
+/* 清理输出并执行不产生捕获的确定性匹配。 */
+uint32 __xrtPatternSelect(const xpattern* pPattern, xstrview Text);
+
+
+
+/* 按获胜模式重放输入并输出顺序捕获；编译器保证该模式必然匹配。 */
+bool __xrtPatternCaptureReplay(
+	const xpattern* pPattern,
+	const __xrt_pattern_entry* pEntry,
+	const __xrt_pattern_metadata* pMetadata,
+	xstrview Text,
+	xstrview* arrCapture
+);
 
 #endif
 
@@ -295658,6 +296428,5600 @@ XRT_API ptr xrtPtrStackPeek(const xptrstack* pStack, size_t iDepth)
 XRT_API ptr xrtPtrStackTop(const xptrstack* pStack)
 {
 	return xrtPtrStackPeek(pStack, 0);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/text/pattern_core.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_PATTERN)
+
+
+
+#if defined(XRT_FEATURE_PATTERN)
+
+typedef struct __xrt_pattern_measure {
+	size_t AtomCount;
+	size_t CaptureCount;
+	size_t DataBytes;
+} __xrt_pattern_measure;
+
+
+
+typedef struct __xrt_pattern_field {
+	__xrt_pattern_atom_kind Kind;
+	size_t NameOffset;
+	size_t NameSize;
+	size_t LiteralSize;
+	size_t PrefixSize;
+	size_t SuffixSize;
+	size_t CaptureOpen;
+	size_t CaptureEnd;
+} __xrt_pattern_field;
+
+
+
+/* 已验证字面量范围的双花括号解码；pTarget==NULL 时只返回字节数。 */
+static size_t __xrtPatternLiteralDecode(
+	xstrview Pattern,
+	size_t iStart,
+	size_t iEnd,
+	char* pTarget
+)
+{
+	size_t iWrite = 0;
+
+	for ( size_t i = iStart; i < iEnd; ) {
+		char iByte = Pattern.Data[i];
+
+		if ( pTarget != NULL ) {
+			pTarget[iWrite] = iByte;
+		}
+		iWrite++;
+		if ( (iByte == '{') || (iByte == '}') ) {
+			i += 2u;
+		} else {
+			i++;
+		}
+	}
+	return iWrite;
+}
+
+
+
+/* 比较已验证并按双花括号转义的字面量范围，不建立临时字符串。 */
+static bool __xrtPatternLiteralEqual(
+	xstrview Pattern,
+	size_t iStart,
+	size_t iEnd,
+	const char* sText,
+	size_t iTextSize
+)
+{
+	size_t iText = 0;
+
+	for ( size_t i = iStart; i < iEnd; ) {
+		char iExpected = Pattern.Data[i];
+
+		if ( (iText >= iTextSize) || (sText[iText] != iExpected) ) {
+			return false;
+		}
+		iText++;
+		if ( (iExpected == '{') || (iExpected == '}') ) {
+			i += 2u;
+		} else {
+			i++;
+		}
+	}
+	return iText == iTextSize;
+}
+
+
+
+/* 检查 size_t 加法并按指定类型对齐。 */
+static bool __xrtPatternLayout(
+	size_t* pTotal,
+	size_t iAlignment,
+	size_t iCount,
+	size_t iItemSize,
+	size_t* pOffset
+)
+{
+	size_t iPadding;
+	size_t iBytes;
+
+	if ( (pTotal == NULL) || (iAlignment == 0) ) {
+		__xrtPatternSetInternal();
+		return false;
+	}
+	iPadding = (iAlignment - (*pTotal % iAlignment)) % iAlignment;
+	if ( *pTotal > (SIZE_MAX - iPadding) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	*pTotal += iPadding;
+	if ( pOffset != NULL ) {
+		*pOffset = *pTotal;
+	}
+	if ( (iItemSize != 0) && (iCount > (SIZE_MAX / iItemSize)) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	iBytes = iCount * iItemSize;
+	if ( *pTotal > (SIZE_MAX - iBytes) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	*pTotal += iBytes;
+	return true;
+}
+
+
+
+/* 设置带可机器读取位置的错误；短数据始终完整写入固定缓冲区。 */
+void __xrtPatternError(
+	xerrkind Kind,
+	xpatternerror Code,
+	cstr sOperation,
+	cstr sMessage,
+	bool bHasPattern,
+	size_t iPattern,
+	bool bHasOffset,
+	size_t iOffset
+)
+{
+	char arrData[128];
+	xerrordesc Desc;
+	xerror* pError;
+
+	memset(&Desc, 0, sizeof(Desc));
+	memset(arrData, 0, sizeof(arrData));
+	Desc.Kind = Kind;
+	Desc.Code = (int32)Code;
+	Desc.Domain = "xrt.pattern";
+	Desc.Operation = sOperation;
+	Desc.Message = sMessage;
+	if ( bHasPattern && bHasOffset ) {
+		(void)snprintf(
+			arrData,
+			sizeof(arrData),
+			"pattern=%llu;offset=%llu",
+			(unsigned long long)iPattern,
+			(unsigned long long)iOffset
+		);
+		Desc.Data = arrData;
+	} else if ( bHasPattern ) {
+		(void)snprintf(
+			arrData,
+			sizeof(arrData),
+			"pattern=%llu",
+			(unsigned long long)iPattern
+		);
+		Desc.Data = arrData;
+	} else if ( bHasOffset ) {
+		(void)snprintf(
+			arrData,
+			sizeof(arrData),
+			"offset=%llu",
+			(unsigned long long)iOffset
+		);
+		Desc.Data = arrData;
+	}
+	pError = xrtErrorBuild(&Desc);
+	if ( pError != NULL ) {
+		xrtSetErrorTake(pError);
+	}
+}
+
+
+
+/* 检查明确长度视图没有非法的空指针与非零长度组合。 */
+bool __xrtPatternViewValid(xstrview Text)
+{
+	if ( (Text.Data == NULL) && (Text.Size != 0) ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 检查 ASCII 捕获名，避免 Unicode 归一化和 locale 进入热模块语义。 */
+static bool __xrtPatternNameValid(const char* sName, size_t iSize)
+{
+	uint8 iByte;
+
+	if ( (sName == NULL) || (iSize == 0) ) {
+		return false;
+	}
+	iByte = (uint8)sName[0];
+	if ( !(((iByte >= (uint8)'A') && (iByte <= (uint8)'Z')) ||
+		   ((iByte >= (uint8)'a') && (iByte <= (uint8)'z')) ||
+		   (iByte == (uint8)'_')) ) {
+		return false;
+	}
+	for ( size_t i = 1u; i < iSize; i++ ) {
+		iByte = (uint8)sName[i];
+		if ( !(((iByte >= (uint8)'A') && (iByte <= (uint8)'Z')) ||
+			   ((iByte >= (uint8)'a') && (iByte <= (uint8)'z')) ||
+			   ((iByte >= (uint8)'0') && (iByte <= (uint8)'9')) ||
+			   (iByte == (uint8)'_')) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+
+/*
+	把一个非分隔字段分类为字面量、整字段捕获、前后缀捕获或尾捕获；
+	字面量中的双花括号在写入阶段还原为单个字节。
+*/
+static bool __xrtPatternField(
+	xstrview Pattern,
+	size_t iStart,
+	size_t iEnd,
+	bool bLast,
+	bool bHasPatternIndex,
+	size_t iPatternIndex,
+	cstr sOperation,
+	__xrt_pattern_field* pField
+)
+{
+	const char* sData = Pattern.Data;
+	bool bCapture = false;
+	bool bTail = false;
+
+	memset(pField, 0, sizeof(*pField));
+	for ( size_t i = iStart; i < iEnd; ) {
+		if ( sData[i] == '{' ) {
+			size_t iClose;
+			size_t iName;
+
+			if ( ((i + 1u) < iEnd) && (sData[i + 1u] == '{') ) {
+				pField->LiteralSize++;
+				i += 2u;
+				continue;
+			}
+			if ( bCapture ) {
+				__xrtPatternError(
+					XERR_VALUE,
+					XPATTERN_ERROR_PATTERN,
+					sOperation,
+					"a pattern field cannot contain multiple captures",
+					bHasPatternIndex,
+					iPatternIndex,
+					true,
+					i
+				);
+				return false;
+			}
+			iClose = i + 1u;
+			while ( (iClose < iEnd) && (sData[iClose] != '}') ) {
+				if ( sData[iClose] == '{' ) {
+					__xrtPatternError(
+						XERR_VALUE,
+						XPATTERN_ERROR_PATTERN,
+						sOperation,
+						"capture contains an unexpected brace",
+						bHasPatternIndex,
+						iPatternIndex,
+						true,
+						iClose
+					);
+					return false;
+				}
+				iClose++;
+			}
+			if ( iClose == iEnd ) {
+				__xrtPatternError(
+					XERR_VALUE,
+					XPATTERN_ERROR_PATTERN,
+					sOperation,
+					"capture is missing its closing brace",
+					bHasPatternIndex,
+					iPatternIndex,
+					true,
+					i
+				);
+				return false;
+			}
+			iName = i + 1u;
+			if ( (iName < iClose) && (sData[iName] == '*') ) {
+				bTail = true;
+				iName++;
+			}
+			if ( !__xrtPatternNameValid(sData + iName, iClose - iName) ) {
+				__xrtPatternError(
+					XERR_VALUE,
+					XPATTERN_ERROR_PATTERN,
+					sOperation,
+					"capture name is not a valid ASCII identifier",
+					bHasPatternIndex,
+					iPatternIndex,
+					true,
+					iName
+				);
+				return false;
+			}
+			bCapture = true;
+			pField->NameOffset = iName;
+			pField->NameSize = iClose - iName;
+			pField->PrefixSize = pField->LiteralSize;
+			pField->CaptureOpen = i;
+			pField->CaptureEnd = iClose + 1u;
+			i = iClose + 1u;
+			continue;
+		}
+		if ( sData[i] == '}' ) {
+			if ( ((i + 1u) >= iEnd) || (sData[i + 1u] != '}') ) {
+				__xrtPatternError(
+					XERR_VALUE,
+					XPATTERN_ERROR_PATTERN,
+					sOperation,
+					"literal brace must be escaped by doubling it",
+					bHasPatternIndex,
+					iPatternIndex,
+					true,
+					i
+				);
+				return false;
+			}
+			pField->LiteralSize++;
+			i += 2u;
+			continue;
+		}
+		pField->LiteralSize++;
+		i++;
+	}
+	if ( !bCapture ) {
+		pField->Kind = __XRT_PATTERN_ATOM_LITERAL;
+		return true;
+	}
+	pField->SuffixSize = pField->LiteralSize - pField->PrefixSize;
+	if ( bTail ) {
+		if ( (pField->CaptureOpen != iStart) ||
+			 (pField->CaptureEnd != iEnd) || !bLast ) {
+			__xrtPatternError(
+				XERR_VALUE,
+				XPATTERN_ERROR_PATTERN,
+				sOperation,
+				"tail capture must occupy the final pattern field",
+				bHasPatternIndex,
+				iPatternIndex,
+				true,
+				pField->CaptureOpen
+			);
+			return false;
+		}
+		pField->Kind = __XRT_PATTERN_ATOM_TAIL;
+	} else if ( pField->LiteralSize == 0 ) {
+		pField->Kind = __XRT_PATTERN_ATOM_CAPTURE;
+	} else {
+		pField->Kind = __XRT_PATTERN_ATOM_AFFIX;
+	}
+	return true;
+}
+
+
+
+/* 判断当前捕获名是否已在前面的字段中出现。 */
+static bool __xrtPatternNameSeen(
+	xstrview Pattern,
+	size_t iLimit,
+	size_t iName,
+	size_t iNameSize
+)
+{
+	size_t i = 0;
+
+	while ( i < iLimit ) {
+		if ( Pattern.Data[i] != '{' ) {
+			i += (Pattern.Data[i] == '}') && ((i + 1u) < iLimit) &&
+				(Pattern.Data[i + 1u] == '}') ? 2u : 1u;
+			continue;
+		}
+		if ( ((i + 1u) < iLimit) && (Pattern.Data[i + 1u] == '{') ) {
+			i += 2u;
+			continue;
+		}
+		{
+			size_t iOldName = i + 1u;
+			size_t iClose = iOldName;
+
+			while ( (iClose < iLimit) && (Pattern.Data[iClose] != '}') ) {
+				iClose++;
+			}
+			if ( (iOldName < iClose) && (Pattern.Data[iOldName] == '*') ) {
+				iOldName++;
+			}
+			if ( ((iClose - iOldName) == iNameSize) &&
+				 (memcmp(
+					Pattern.Data + iOldName,
+					Pattern.Data + iName,
+					iNameSize
+				 ) == 0) ) {
+				return true;
+			}
+			i = iClose < iLimit ? iClose + 1u : iLimit;
+		}
+	}
+	return false;
+}
+
+
+
+/* 验证完整模式并可选地写入解析原子与捕获名称。 */
+static bool __xrtPatternParse(
+	xstrview Pattern,
+	const __xrt_pattern_options* pOptions,
+	bool bHasPatternIndex,
+	size_t iPatternIndex,
+	cstr sOperation,
+	__xrt_pattern_measure* pMeasure,
+	__xrt_pattern_atom* arrAtom,
+	__xrt_pattern_capture* arrCapture,
+	char* sStorage
+)
+{
+	__xrt_pattern_measure Measure;
+	size_t iStorage = 0;
+	size_t iField = 0;
+	size_t i = 0;
+
+	memset(&Measure, 0, sizeof(Measure));
+	while ( i < Pattern.Size ) {
+		if ( __xrtPatternIsSeparator(pOptions, (uint8)Pattern.Data[i]) ) {
+			if ( arrAtom != NULL ) {
+				arrAtom[Measure.AtomCount].Kind = __XRT_PATTERN_ATOM_SEPARATOR;
+				arrAtom[Measure.AtomCount].Byte = (uint8)Pattern.Data[i];
+			}
+			Measure.AtomCount++;
+			i++;
+			continue;
+		}
+		{
+			size_t iStart = i;
+			size_t iEnd;
+			__xrt_pattern_field Field;
+
+			while ( (i < Pattern.Size) &&
+				!__xrtPatternIsSeparator(pOptions, (uint8)Pattern.Data[i]) ) {
+				i++;
+			}
+			iEnd = i;
+			if ( !__xrtPatternField(
+				Pattern,
+				iStart,
+				iEnd,
+				iEnd == Pattern.Size,
+				bHasPatternIndex,
+				iPatternIndex,
+				sOperation,
+				&Field
+			) ) {
+				return false;
+			}
+			if ( (Field.Kind == __XRT_PATTERN_ATOM_CAPTURE) ||
+				 (Field.Kind == __XRT_PATTERN_ATOM_AFFIX) ||
+				 (Field.Kind == __XRT_PATTERN_ATOM_TAIL) ) {
+				if ( Measure.CaptureCount >= pOptions->MaxCaptures ) {
+					__xrtPatternError(
+						XERR_RANGE,
+						XPATTERN_ERROR_LIMIT,
+						sOperation,
+						"pattern exceeds its capture limit",
+						bHasPatternIndex,
+						iPatternIndex,
+						true,
+						iStart
+					);
+					return false;
+				}
+				if ( __xrtPatternNameSeen(
+					Pattern,
+					iStart,
+					Field.NameOffset,
+					Field.NameSize
+				) ) {
+					__xrtPatternError(
+						XERR_VALUE,
+						XPATTERN_ERROR_PATTERN,
+						sOperation,
+						"capture name is duplicated in the pattern",
+						bHasPatternIndex,
+						iPatternIndex,
+						true,
+						Field.NameOffset
+					);
+					return false;
+				}
+				if ( arrAtom != NULL ) {
+					arrAtom[Measure.AtomCount].Kind = (uint8)Field.Kind;
+					arrAtom[Measure.AtomCount].CaptureIndex =
+						(uint32)Measure.CaptureCount;
+					if ( Field.Kind == __XRT_PATTERN_ATOM_AFFIX ) {
+						arrAtom[Measure.AtomCount].Text = (xstrview){
+							sStorage + iStorage + Field.NameSize,
+							Field.PrefixSize
+						};
+						arrAtom[Measure.AtomCount].Suffix = (xstrview){
+							sStorage + iStorage + Field.NameSize + Field.PrefixSize,
+							Field.SuffixSize
+						};
+					}
+				}
+				if ( arrCapture != NULL ) {
+					arrCapture[Measure.CaptureCount].Name =
+						(xstrview){ sStorage + iStorage, Field.NameSize };
+					arrCapture[Measure.CaptureCount].FieldIndex = (uint32)iField;
+					arrCapture[Measure.CaptureCount].PrefixSize =
+						(uint32)Field.PrefixSize;
+					arrCapture[Measure.CaptureCount].SuffixSize =
+						(uint32)Field.SuffixSize;
+					arrCapture[Measure.CaptureCount].Kind = (uint8)Field.Kind;
+					memcpy(
+						sStorage + iStorage,
+						Pattern.Data + Field.NameOffset,
+						Field.NameSize
+					);
+				}
+				if ( Measure.DataBytes > (SIZE_MAX - Field.NameSize) ) {
+					__xrtPatternSetSizeOverflow();
+					return false;
+				}
+				Measure.DataBytes += Field.NameSize;
+				iStorage += Field.NameSize;
+				if ( Field.Kind == __XRT_PATTERN_ATOM_AFFIX ) {
+					size_t iLiteralBytes = Field.PrefixSize + Field.SuffixSize;
+
+					if ( (iLiteralBytes < Field.PrefixSize) ||
+						 (Measure.DataBytes > (SIZE_MAX - iLiteralBytes)) ) {
+						__xrtPatternSetSizeOverflow();
+						return false;
+					}
+					if ( sStorage != NULL ) {
+						(void)__xrtPatternLiteralDecode(
+							Pattern,
+							iStart,
+							Field.CaptureOpen,
+							sStorage + iStorage
+						);
+						(void)__xrtPatternLiteralDecode(
+							Pattern,
+							Field.CaptureEnd,
+							iEnd,
+							sStorage + iStorage + Field.PrefixSize
+						);
+					}
+					Measure.DataBytes += iLiteralBytes;
+					iStorage += iLiteralBytes;
+				}
+				Measure.CaptureCount++;
+			} else {
+				if ( arrAtom != NULL ) {
+					arrAtom[Measure.AtomCount].Kind = __XRT_PATTERN_ATOM_LITERAL;
+					arrAtom[Measure.AtomCount].Text =
+						(xstrview){ sStorage + iStorage, Field.LiteralSize };
+				}
+				if ( sStorage != NULL ) {
+					(void)__xrtPatternLiteralDecode(
+						Pattern,
+						iStart,
+						iEnd,
+						sStorage + iStorage
+					);
+				}
+				if ( Measure.DataBytes > (SIZE_MAX - Field.LiteralSize) ) {
+					__xrtPatternSetSizeOverflow();
+					return false;
+				}
+				Measure.DataBytes += Field.LiteralSize;
+				iStorage += Field.LiteralSize;
+			}
+			Measure.AtomCount++;
+			iField++;
+		}
+	}
+	if ( pMeasure != NULL ) {
+		*pMeasure = Measure;
+	}
+	return true;
+}
+
+
+
+/* 验证配置并将分隔字节集合规范化为升序无重复数组。 */
+bool __xrtPatternOptionsInit(
+	const xpatternconfig* pConfig,
+	__xrt_pattern_options* pOptions,
+	cstr sOperation
+)
+{
+	if ( (pConfig == NULL) || (pOptions == NULL) ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtPatternViewValid(pConfig->Separators) ) {
+		return false;
+	}
+	if ( (pConfig->Flags != 0) ||
+		 (pConfig->Separators.Size > 256u) ||
+		 (pConfig->MaxPatternBytes == 0) ||
+		 (pConfig->MaxPatternBytes >= UINT32_MAX) ||
+		 (pConfig->MaxPatterns == 0) ||
+		 (pConfig->MaxPatterns >= UINT32_MAX) ||
+		 (pConfig->MaxCaptures == 0) ||
+		 (pConfig->MaxCaptures > UINT32_MAX) ||
+		 (pConfig->MaxStates == 0) ||
+		 (pConfig->MaxStates >= UINT32_MAX) ||
+		 (pConfig->MaxCompiledBytes < sizeof(xpattern)) ) {
+		__xrtPatternError(
+			XERR_ARGUMENT,
+			XPATTERN_ERROR_CONFIG,
+			sOperation,
+			"invalid pattern configuration",
+			false,
+			0,
+			false,
+			0
+		);
+		return false;
+	}
+	for ( size_t i = 0; i <
+		(sizeof(pConfig->Reserved) / sizeof(pConfig->Reserved[0])); i++ ) {
+		if ( pConfig->Reserved[i] != 0 ) {
+			__xrtPatternError(
+				XERR_ARGUMENT,
+				XPATTERN_ERROR_CONFIG,
+				sOperation,
+				"reserved pattern configuration fields must be zero",
+				false,
+				0,
+				false,
+				0
+			);
+			return false;
+		}
+	}
+	memset(pOptions, 0, sizeof(*pOptions));
+	for ( size_t i = 0; i < pConfig->Separators.Size; i++ ) {
+		uint8 iByte = (uint8)pConfig->Separators.Data[i];
+		uint64 iBit = UINT64_C(1) << (iByte & 63u);
+		uint64* pWord = &pOptions->SeparatorMask[iByte >> 6u];
+
+		if ( (iByte == (uint8)'{') || (iByte == (uint8)'}') ) {
+			__xrtPatternError(
+				XERR_ARGUMENT,
+				XPATTERN_ERROR_CONFIG,
+				sOperation,
+				"brace bytes cannot be configured as separators",
+				false,
+				0,
+				false,
+				0
+			);
+			return false;
+		}
+		*pWord |= iBit;
+	}
+	for ( size_t i = 0; i < 256u; i++ ) {
+		if ( (pOptions->SeparatorMask[i >> 6u] &
+			 (UINT64_C(1) << (i & 63u))) != 0 ) {
+			pOptions->Separators[pOptions->SeparatorCount++] = (uint8)i;
+		}
+	}
+	if ( pOptions->SeparatorCount == 0 ) {
+		pOptions->SeparatorKind = __XRT_PATTERN_SEPARATOR_NONE;
+	} else if ( pOptions->SeparatorCount == 1u ) {
+		pOptions->SeparatorKind = pOptions->Separators[0] == (uint8)'/' ?
+			__XRT_PATTERN_SEPARATOR_SLASH : __XRT_PATTERN_SEPARATOR_BYTE;
+	} else if ( pOptions->SeparatorCount == 2u ) {
+		pOptions->SeparatorKind = __XRT_PATTERN_SEPARATOR_TWO;
+	} else if ( pOptions->SeparatorCount == 3u ) {
+		pOptions->SeparatorKind = __XRT_PATTERN_SEPARATOR_THREE;
+	} else if ( pOptions->SeparatorCount == 4u ) {
+		pOptions->SeparatorKind = __XRT_PATTERN_SEPARATOR_FOUR;
+	} else {
+		pOptions->SeparatorKind = __XRT_PATTERN_SEPARATOR_BITMAP;
+	}
+	pOptions->MaxPatternBytes = pConfig->MaxPatternBytes;
+	pOptions->MaxPatterns = pConfig->MaxPatterns;
+	pOptions->MaxCaptures = pConfig->MaxCaptures;
+	pOptions->MaxStates = pConfig->MaxStates;
+	pOptions->MaxCompiledBytes = pConfig->MaxCompiledBytes;
+	return true;
+}
+
+
+
+/* 创建并填充一条单块源模式，供 Builder 重复编译时直接复用。 */
+__xrt_pattern_source* __xrtPatternSourceCreate(
+	const xpatternspec* pSpec,
+	const __xrt_pattern_options* pOptions,
+	cstr sOperation,
+	xpatternid Id,
+	uint64 iOrder,
+	bool bHasPatternIndex,
+	size_t iPatternIndex
+)
+{
+	__xrt_pattern_measure Measure;
+	__xrt_pattern_source* pSource;
+	size_t iBytes = sizeof(*pSource);
+	size_t iAtomOffset;
+	size_t iCaptureOffset;
+	size_t iPatternOffset;
+	size_t iDataOffset;
+	uint8* pBase;
+
+	if ( (pSpec == NULL) || (pOptions == NULL) ||
+		 (sOperation == NULL) ||
+		 !__xrtPatternViewValid(pSpec != NULL ? pSpec->Pattern : (xstrview){ 0 }) ) {
+		return NULL;
+	}
+	if ( pSpec->Flags != 0 ) {
+		__xrtPatternError(
+			XERR_ARGUMENT,
+			XPATTERN_ERROR_CONFIG,
+			sOperation,
+			"pattern specification flags must be zero",
+			bHasPatternIndex,
+			iPatternIndex,
+			false,
+			0
+		);
+		return NULL;
+	}
+	if ( pSpec->Pattern.Size > pOptions->MaxPatternBytes ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			sOperation,
+			"pattern exceeds its byte limit",
+			bHasPatternIndex,
+			iPatternIndex,
+			false,
+			0
+		);
+		return NULL;
+	}
+	if ( !__xrtPatternParse(
+		pSpec->Pattern,
+		pOptions,
+		bHasPatternIndex,
+		iPatternIndex,
+		sOperation,
+		&Measure,
+		NULL,
+		NULL,
+		NULL
+	) ) {
+		return NULL;
+	}
+	if ( !__xrtPatternLayout(
+		&iBytes,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_atom),
+		Measure.AtomCount,
+		sizeof(__xrt_pattern_atom),
+		&iAtomOffset
+	) || !__xrtPatternLayout(
+		&iBytes,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_capture),
+		Measure.CaptureCount,
+		sizeof(__xrt_pattern_capture),
+		&iCaptureOffset
+	) || !__xrtPatternLayout(
+		&iBytes,
+		1u,
+		pSpec->Pattern.Size + 1u,
+		1u,
+		&iPatternOffset
+	) || !__xrtPatternLayout(
+		&iBytes,
+		1u,
+		Measure.DataBytes,
+		1u,
+		&iDataOffset
+	) ) {
+		return NULL;
+	}
+	pSource = (__xrt_pattern_source*)xrtCalloc(1u, iBytes);
+	if ( pSource == NULL ) {
+		return NULL;
+	}
+	pBase = (uint8*)pSource;
+	pSource->Id = Id;
+	pSource->Order = iOrder;
+	pSource->Value = pSpec->Value;
+	pSource->Priority = pSpec->Priority;
+	pSource->Flags = pSpec->Flags;
+	pSource->Atoms = (__xrt_pattern_atom*)(pBase + iAtomOffset);
+	pSource->AtomCount = Measure.AtomCount;
+	pSource->Captures = (__xrt_pattern_capture*)(pBase + iCaptureOffset);
+	pSource->CaptureCount = Measure.CaptureCount;
+	pSource->Pattern = (xstrview){
+		(const char*)(pBase + iPatternOffset),
+		pSpec->Pattern.Size
+	};
+	pSource->StorageBytes = iBytes;
+	if ( pSpec->Pattern.Size != 0 ) {
+		memcpy(
+			(char*)pSource->Pattern.Data,
+			pSpec->Pattern.Data,
+			pSpec->Pattern.Size
+		);
+	}
+	((char*)pSource->Pattern.Data)[pSpec->Pattern.Size] = 0;
+	if ( !__xrtPatternParse(
+		pSource->Pattern,
+		pOptions,
+		bHasPatternIndex,
+		iPatternIndex,
+		sOperation,
+		NULL,
+		pSource->Atoms,
+		pSource->Captures,
+		(char*)(pBase + iDataOffset)
+	) ) {
+		xrtFree(pSource);
+		return NULL;
+	}
+	return pSource;
+}
+
+
+
+void __xrtPatternSourceFree(__xrt_pattern_source* pSource)
+{
+	xrtFree(pSource);
+}
+
+
+
+/* 初始化公开默认配置。 */
+XRT_API void xrtPatternConfigInit(xpatternconfig* pConfig)
+{
+	if ( pConfig == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return;
+	}
+	memset(pConfig, 0, sizeof(*pConfig));
+	pConfig->Separators = XRT_STR_LITERAL("/");
+	pConfig->MaxPatternBytes = XPATTERN_PATTERN_DEFAULT;
+	pConfig->MaxPatterns = XPATTERN_PATTERNS_DEFAULT;
+	pConfig->MaxCaptures = XPATTERN_CAPTURES_DEFAULT;
+	pConfig->MaxStates = XPATTERN_STATES_DEFAULT;
+	pConfig->MaxCompiledBytes = XPATTERN_COMPILED_DEFAULT;
+}
+
+
+
+/* 解码并比较一个已经验证为字面量的模式字段。 */
+static bool __xrtPatternLiteralMatch(
+	xstrview Pattern,
+	size_t iStart,
+	size_t iEnd,
+	xstrview Text,
+	const __xrt_pattern_options* pOptions,
+	size_t* pText
+)
+{
+	size_t iText = *pText;
+
+	for ( size_t i = iStart; i < iEnd; ) {
+		char iExpected = Pattern.Data[i];
+
+		if ( (iText >= Text.Size) ||
+			 __xrtPatternIsSeparator(pOptions, (uint8)Text.Data[iText]) ||
+			 (Text.Data[iText] != iExpected) ) {
+			return false;
+		}
+		iText++;
+		if ( (iExpected == '{') || (iExpected == '}') ) {
+			i += 2u;
+		} else {
+			i++;
+		}
+	}
+	if ( (iText < Text.Size) &&
+		 !__xrtPatternIsSeparator(pOptions, (uint8)Text.Data[iText]) ) {
+		return false;
+	}
+	*pText = iText;
+	return true;
+}
+
+
+
+/* 已验证模式的一次性匹配实现。 */
+static xpatternresult __xrtPatternExtractValid(
+	xstrview Pattern,
+	xstrview Text,
+	const __xrt_pattern_options* pOptions,
+	xstrview* arrCapture
+)
+{
+	size_t iPattern = 0;
+	size_t iText = 0;
+	size_t iCapture = 0;
+
+	while ( iPattern < Pattern.Size ) {
+		if ( __xrtPatternIsSeparator(
+			pOptions,
+			(uint8)Pattern.Data[iPattern]
+		) ) {
+			if ( (iText >= Text.Size) ||
+				 (Text.Data[iText] != Pattern.Data[iPattern]) ) {
+				return XPATTERN_NONE;
+			}
+			iPattern++;
+			iText++;
+			continue;
+		}
+		{
+			size_t iStart = iPattern;
+			size_t iEnd;
+			__xrt_pattern_field Field;
+
+			while ( (iPattern < Pattern.Size) &&
+				!__xrtPatternIsSeparator(
+					pOptions,
+					(uint8)Pattern.Data[iPattern]
+				) ) {
+				iPattern++;
+			}
+			iEnd = iPattern;
+			/* 第一次验证已经成功，这里分类不应再失败。 */
+			if ( !__xrtPatternField(
+				Pattern,
+				iStart,
+				iEnd,
+				iEnd == Pattern.Size,
+				false,
+				0,
+				"extract",
+				&Field
+			) ) {
+				return XPATTERN_ERROR;
+			}
+			if ( Field.Kind == __XRT_PATTERN_ATOM_LITERAL ) {
+				if ( !__xrtPatternLiteralMatch(
+					Pattern,
+					iStart,
+					iEnd,
+					Text,
+					pOptions,
+					&iText
+				) ) {
+					return XPATTERN_NONE;
+				}
+			} else if ( Field.Kind == __XRT_PATTERN_ATOM_CAPTURE ) {
+				size_t iValue = iText;
+
+				while ( (iText < Text.Size) &&
+					!__xrtPatternIsSeparator(
+						pOptions,
+						(uint8)Text.Data[iText]
+					) ) {
+					iText++;
+				}
+				if ( iText == iValue ) {
+					return XPATTERN_NONE;
+				}
+				arrCapture[iCapture++] = (xstrview){
+					Text.Data + iValue,
+					iText - iValue
+				};
+			} else if ( Field.Kind == __XRT_PATTERN_ATOM_AFFIX ) {
+				size_t iFieldStart = iText;
+				size_t iFieldEnd;
+				size_t iFixed = Field.PrefixSize + Field.SuffixSize;
+
+				while ( (iText < Text.Size) &&
+					!__xrtPatternIsSeparator(
+						pOptions,
+						(uint8)Text.Data[iText]
+					) ) {
+					iText++;
+				}
+				iFieldEnd = iText;
+				if ( ((iFieldEnd - iFieldStart) <= iFixed) ||
+					 !__xrtPatternLiteralEqual(
+						Pattern,
+						iStart,
+						Field.CaptureOpen,
+						Text.Data + iFieldStart,
+						Field.PrefixSize
+					 ) || !__xrtPatternLiteralEqual(
+						Pattern,
+						Field.CaptureEnd,
+						iEnd,
+						Text.Data + iFieldEnd - Field.SuffixSize,
+						Field.SuffixSize
+					 ) ) {
+					return XPATTERN_NONE;
+				}
+				arrCapture[iCapture++] = (xstrview){
+					Text.Data + iFieldStart + Field.PrefixSize,
+					(iFieldEnd - iFieldStart) - iFixed
+				};
+			} else {
+				arrCapture[iCapture++] = (xstrview){
+					Text.Data != NULL ? Text.Data + iText : NULL,
+					Text.Size - iText
+				};
+				iText = Text.Size;
+			}
+		}
+	}
+	return iText == Text.Size ? XPATTERN_MATCH : XPATTERN_NONE;
+}
+
+
+
+/* 使用高级配置执行零分配单条匹配。 */
+XRT_API xpatternresult xrtPatternExtractConfig(
+	xstrview Pattern,
+	xstrview Text,
+	const xpatternconfig* pConfig,
+	xstrview* arrCapture,
+	size_t iCapacity,
+	size_t* pCaptureCount
+)
+{
+	__xrt_pattern_options Options;
+	__xrt_pattern_measure Measure;
+
+	if ( pCaptureCount != NULL ) {
+		*pCaptureCount = 0;
+	}
+	if ( (pCaptureCount == NULL) ||
+		 ((arrCapture == NULL) && (iCapacity != 0)) ) {
+		__xrtPatternSetInvalidArgument();
+		return XPATTERN_ERROR;
+	}
+	if ( !__xrtPatternViewValid(Pattern) ||
+		 !__xrtPatternViewValid(Text) ||
+		 !__xrtPatternOptionsInit(pConfig, &Options, "extract") ) {
+		return XPATTERN_ERROR;
+	}
+	if ( Pattern.Size > Options.MaxPatternBytes ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			"extract",
+			"pattern exceeds its byte limit",
+			false,
+			0,
+			false,
+			0
+		);
+		return XPATTERN_ERROR;
+	}
+	if ( !__xrtPatternParse(
+		Pattern,
+		&Options,
+		false,
+		0,
+		"extract",
+		&Measure,
+		NULL,
+		NULL,
+		NULL
+	) ) {
+		return XPATTERN_ERROR;
+	}
+	*pCaptureCount = Measure.CaptureCount;
+	if ( (Measure.CaptureCount > iCapacity) ||
+		 ((Measure.CaptureCount != 0) && (arrCapture == NULL)) ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_CAPACITY,
+			"extract",
+			"capture output capacity is insufficient",
+			false,
+			0,
+			false,
+			0
+		);
+		return XPATTERN_ERROR;
+	}
+	return __xrtPatternExtractValid(Pattern, Text, &Options, arrCapture);
+}
+
+
+
+/* 默认入口直接使用默认配置，保持与编译 API 相同语义。 */
+XRT_API xpatternresult xrtPatternExtract(
+	xstrview Pattern,
+	xstrview Text,
+	xstrview* arrCapture,
+	size_t iCapacity,
+	size_t* pCaptureCount
+)
+{
+	xpatternconfig Config;
+
+	xrtPatternConfigInit(&Config);
+	return xrtPatternExtractConfig(
+		Pattern,
+		Text,
+		&Config,
+		arrCapture,
+		iCapacity,
+		pCaptureCount
+	);
+}
+
+
+
+/* 批量解析源模式并进入共享编译器。 */
+XRT_API xpattern* xrtPatternCompileManyConfig(
+	const xpatternspec* arrSpec,
+	size_t iCount,
+	const xpatternconfig* pConfig
+)
+{
+	__xrt_pattern_options Options;
+	__xrt_pattern_source** arrSource = NULL;
+	xpattern* pPattern = NULL;
+	size_t iParsed = 0;
+
+	if ( !__xrtPatternOptionsInit(pConfig, &Options, "compile") ) {
+		return NULL;
+	}
+	if ( (arrSpec == NULL) && (iCount != 0) ) {
+		__xrtPatternSetInvalidArgument();
+		return NULL;
+	}
+	if ( iCount > Options.MaxPatterns ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			"compile",
+			"pattern set exceeds its pattern limit",
+			false,
+			0,
+			false,
+			0
+		);
+		return NULL;
+	}
+	if ( iCount > (SIZE_MAX / sizeof(*arrSource)) ) {
+		__xrtPatternSetSizeOverflow();
+		return NULL;
+	}
+	if ( iCount != 0 ) {
+		arrSource = (__xrt_pattern_source**)xrtCalloc(
+			iCount,
+			sizeof(*arrSource)
+		);
+		if ( arrSource == NULL ) {
+			return NULL;
+		}
+	}
+	for ( ; iParsed < iCount; iParsed++ ) {
+		xpatternid Id =
+			(((uint64)1u) << 32u) | ((uint64)((uint32)iParsed + 1u));
+
+		arrSource[iParsed] = __xrtPatternSourceCreate(
+			&arrSpec[iParsed],
+			&Options,
+			"compile",
+			Id,
+			(uint64)iParsed,
+			true,
+			iParsed
+		);
+		if ( arrSource[iParsed] == NULL ) {
+			break;
+		}
+	}
+	if ( iParsed == iCount ) {
+		pPattern = __xrtPatternCompileSources(
+			arrSource,
+			iCount,
+			&Options,
+			"compile"
+		);
+	}
+	for ( size_t i = 0; i < iCount; i++ ) {
+		__xrtPatternSourceFree(arrSource != NULL ? arrSource[i] : NULL);
+	}
+	xrtFree(arrSource);
+	return pPattern;
+}
+
+
+
+XRT_API xpattern* xrtPatternCompileMany(
+	const xpatternspec* arrSpec,
+	size_t iCount
+)
+{
+	xpatternconfig Config;
+
+	xrtPatternConfigInit(&Config);
+	return xrtPatternCompileManyConfig(arrSpec, iCount, &Config);
+}
+
+
+
+XRT_API xpattern* xrtPatternCompileConfig(
+	xstrview Pattern,
+	const xpatternconfig* pConfig
+)
+{
+	xpatternspec Spec;
+
+	memset(&Spec, 0, sizeof(Spec));
+	Spec.Pattern = Pattern;
+	return xrtPatternCompileManyConfig(&Spec, 1u, pConfig);
+}
+
+
+
+XRT_API xpattern* xrtPatternCompile(xstrview Pattern)
+{
+	xpatternconfig Config;
+
+	xrtPatternConfigInit(&Config);
+	return xrtPatternCompileConfig(Pattern, &Config);
+}
+
+
+
+XRT_API xpattern* xrtPatternRef(xpattern* pPattern)
+{
+	if ( pPattern == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return NULL;
+	}
+	if ( xrtRefRetain(&pPattern->RefCount) < 0 ) {
+		__xrtPatternSetInvalidState();
+		return NULL;
+	}
+	return pPattern;
+}
+
+
+
+XRT_API void xrtPatternRelease(xpattern* pPattern)
+{
+	if ( (pPattern != NULL) && (xrtRefRelease(&pPattern->RefCount) == 0) ) {
+		xrtFree(pPattern);
+	}
+}
+
+
+
+XRT_API size_t xrtPatternCount(const xpattern* pPattern)
+{
+	if ( pPattern == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return 0;
+	}
+	return pPattern->Count;
+}
+
+
+
+XRT_API size_t xrtPatternCompiledBytes(const xpattern* pPattern)
+{
+	if ( pPattern == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return 0;
+	}
+	return pPattern->CompiledBytes;
+}
+
+
+
+XRT_API xstrview xrtPatternSeparators(const xpattern* pPattern)
+{
+	if ( pPattern == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return (xstrview){ 0 };
+	}
+	return pPattern->Separators;
+}
+
+
+
+/* 验证编译对象及模式索引并返回内部条目。 */
+static const __xrt_pattern_entry* __xrtPatternEntry(
+	const xpattern* pPattern,
+	size_t iPattern
+)
+{
+	if ( pPattern == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return NULL;
+	}
+	if ( iPattern >= pPattern->Count ) {
+		__xrtPatternSetRange();
+		return NULL;
+	}
+	return &pPattern->Entries[iPattern];
+}
+
+
+
+XRT_API xstrview xrtPatternSource(
+	const xpattern* pPattern,
+	size_t iPattern
+)
+{
+	const __xrt_pattern_entry* pEntry = __xrtPatternEntry(pPattern, iPattern);
+
+	return pEntry != NULL ? pPattern->Metadata[iPattern].Source :
+		(xstrview){ 0 };
+}
+
+
+
+XRT_API xpatternid xrtPatternId(
+	const xpattern* pPattern,
+	size_t iPattern
+)
+{
+	const __xrt_pattern_entry* pEntry = __xrtPatternEntry(pPattern, iPattern);
+
+	return pEntry != NULL ? pEntry->Id : XPATTERN_ID_INVALID;
+}
+
+
+
+XRT_API ptr xrtPatternValue(
+	const xpattern* pPattern,
+	size_t iPattern
+)
+{
+	const __xrt_pattern_entry* pEntry = __xrtPatternEntry(pPattern, iPattern);
+
+	return pEntry != NULL ? pEntry->Value : NULL;
+}
+
+
+
+XRT_API size_t xrtPatternCaptureCount(
+	const xpattern* pPattern,
+	size_t iPattern
+)
+{
+	const __xrt_pattern_entry* pEntry = __xrtPatternEntry(pPattern, iPattern);
+
+	return pEntry != NULL ? pEntry->CaptureCount : 0;
+}
+
+
+
+XRT_API size_t xrtPatternMaxCaptureCount(const xpattern* pPattern)
+{
+	if ( pPattern == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return 0;
+	}
+	return pPattern->MaxCaptureCount;
+}
+
+
+
+XRT_API bool xrtPatternCaptureName(
+	const xpattern* pPattern,
+	size_t iPattern,
+	size_t iCapture,
+	xstrview* pName
+)
+{
+	const __xrt_pattern_entry* pEntry;
+	const __xrt_pattern_metadata* pMetadata;
+
+	if ( pName == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	*pName = (xstrview){ 0 };
+	pEntry = __xrtPatternEntry(pPattern, iPattern);
+	if ( pEntry == NULL ) {
+		return false;
+	}
+	if ( iCapture >= pEntry->CaptureCount ) {
+		__xrtPatternSetRange();
+		return false;
+	}
+	pMetadata = &pPattern->Metadata[iPattern];
+	*pName = pMetadata->Captures[iCapture].Name;
+	return true;
+}
+
+
+
+XRT_API size_t xrtPatternCaptureIndex(
+	const xpattern* pPattern,
+	size_t iPattern,
+	xstrview Name
+)
+{
+	const __xrt_pattern_entry* pEntry;
+	const __xrt_pattern_metadata* pMetadata;
+
+	if ( !__xrtPatternViewValid(Name) ) {
+		return XRT_NPOS;
+	}
+	pEntry = __xrtPatternEntry(pPattern, iPattern);
+	if ( pEntry == NULL ) {
+		return XRT_NPOS;
+	}
+	pMetadata = &pPattern->Metadata[iPattern];
+	for ( size_t i = 0; i < pEntry->CaptureCount; i++ ) {
+		xstrview Current = pMetadata->Captures[i].Name;
+
+		if ( (Current.Size == Name.Size) &&
+			 ((Name.Size == 0) ||
+			  (memcmp(Current.Data, Name.Data, Name.Size) == 0)) ) {
+			return i;
+		}
+	}
+	return XRT_NPOS;
+}
+
+
+
+/* 从分号分隔错误数据中读取一个无符号字段。 */
+static bool __xrtPatternErrorField(
+	const xerror* pError,
+	cstr sField,
+	size_t* pValue
+)
+{
+	cstr sData;
+	cstr sFound;
+	char* sEnd;
+	unsigned long long iValue;
+	size_t iFieldSize;
+
+	if ( (sField == NULL) || (pValue == NULL) ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	if ( (pError == NULL) || (xrtErrorDomain(pError) == NULL) ||
+		 (strcmp(xrtErrorDomain(pError), "xrt.pattern") != 0) ) {
+		return false;
+	}
+	sData = xrtErrorData(pError);
+	if ( sData == NULL ) {
+		return false;
+	}
+	iFieldSize = strlen(sField);
+	sFound = sData;
+	for ( ;; ) {
+		sFound = strstr(sFound, sField);
+		if ( sFound == NULL ) {
+			return false;
+		}
+		if ( ((sFound == sData) || (sFound[-1] == ';')) &&
+			 (sFound[iFieldSize] == '=') ) {
+			break;
+		}
+		sFound++;
+	}
+	sFound += iFieldSize + 1u;
+	iValue = strtoull(sFound, &sEnd, 10);
+	if ( (sEnd == sFound) || ((*sEnd != 0) && (*sEnd != ';')) ||
+		 (iValue > (unsigned long long)SIZE_MAX) ) {
+		return false;
+	}
+	*pValue = (size_t)iValue;
+	return true;
+}
+
+
+
+XRT_API bool xrtPatternErrorOffset(
+	const xerror* pError,
+	size_t* pOffset
+)
+{
+	return __xrtPatternErrorField(pError, "offset", pOffset);
+}
+
+
+
+XRT_API bool xrtPatternErrorPattern(
+	const xerror* pError,
+	size_t* pPatternIndex
+)
+{
+	return __xrtPatternErrorField(pError, "pattern", pPatternIndex);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/text/pattern_builder.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_PATTERN)
+
+
+
+#if defined(XRT_FEATURE_PATTERN)
+
+/* 将槽下标与非零代际编码为公开稳定 ID。 */
+static xpatternid __xrtPatternBuilderId(size_t iIndex, uint32 iGeneration)
+{
+	return
+		(((uint64)iGeneration) << 32u) |
+		((uint64)((uint32)iIndex + 1u));
+}
+
+
+
+/* 解析 ID 并验证其仍指向活动槽。 */
+static __xrt_pattern_builder_slot* __xrtPatternBuilderSlot(
+	xpatternbuilder* pBuilder,
+	xpatternid Id,
+	size_t* pIndex
+)
+{
+	uint32 iEncoded = (uint32)(Id & UINT64_C(0xffffffff));
+	uint32 iGeneration = (uint32)(Id >> 32u);
+	size_t iIndex;
+	__xrt_pattern_builder_slot* pSlot;
+
+	if ( (iEncoded == 0) || (iGeneration == 0) ) {
+		return NULL;
+	}
+	iIndex = (size_t)(iEncoded - 1u);
+	if ( iIndex >= pBuilder->SlotCount ) {
+		return NULL;
+	}
+	pSlot = &pBuilder->Slots[iIndex];
+	if ( (pSlot->Source == NULL) || (pSlot->Generation != iGeneration) ) {
+		return NULL;
+	}
+	if ( pIndex != NULL ) {
+		*pIndex = iIndex;
+	}
+	return pSlot;
+}
+
+
+
+/* 在修改前保留版本单调性，避免溢出后 Dirty 状态产生歧义。 */
+static bool __xrtPatternBuilderCanModify(xpatternbuilder* pBuilder)
+{
+	if ( pBuilder->Version == UINT64_MAX ) {
+		__xrtPatternSetInvalidState();
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 扩展槽数组，新增槽从代际 1 开始且尚未进入空闲链。 */
+static bool __xrtPatternBuilderReserveValid(
+	xpatternbuilder* pBuilder,
+	size_t iCapacity
+)
+{
+	__xrt_pattern_builder_slot* pSlots;
+	size_t iNewCapacity;
+	size_t iOldCapacity;
+
+	if ( iCapacity <= pBuilder->SlotCapacity ) {
+		return true;
+	}
+	if ( iCapacity > pBuilder->Options.MaxPatterns ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			"builder_reserve",
+			"builder capacity exceeds its pattern limit",
+			false,
+			0,
+			false,
+			0
+		);
+		return false;
+	}
+	iNewCapacity = pBuilder->SlotCapacity != 0 ? pBuilder->SlotCapacity :
+		(pBuilder->Options.MaxPatterns < 8u ?
+		 pBuilder->Options.MaxPatterns : 8u);
+	while ( iNewCapacity < iCapacity ) {
+		if ( iNewCapacity > (pBuilder->Options.MaxPatterns / 2u) ) {
+			iNewCapacity = pBuilder->Options.MaxPatterns;
+			break;
+		}
+		iNewCapacity *= 2u;
+	}
+	if ( iNewCapacity > (SIZE_MAX / sizeof(*pSlots)) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	iOldCapacity = pBuilder->SlotCapacity;
+	pSlots = (__xrt_pattern_builder_slot*)xrtRealloc(
+		pBuilder->Slots,
+		iNewCapacity * sizeof(*pSlots)
+	);
+	if ( pSlots == NULL ) {
+		return false;
+	}
+	memset(
+		pSlots + iOldCapacity,
+		0,
+		(iNewCapacity - iOldCapacity) * sizeof(*pSlots)
+	);
+	for ( size_t i = iOldCapacity; i < iNewCapacity; i++ ) {
+		pSlots[i].Generation = 1u;
+		pSlots[i].NextFree = __XRT_PATTERN_SLOT_NONE;
+	}
+	pBuilder->Slots = pSlots;
+	pBuilder->SlotCapacity = iNewCapacity;
+	return true;
+}
+
+
+
+/* 取一个已预留槽；本函数不分配，因此可用于批量事务提交。 */
+static size_t __xrtPatternBuilderTakeSlot(xpatternbuilder* pBuilder)
+{
+	size_t iIndex;
+	__xrt_pattern_builder_slot* pSlot;
+
+	if ( pBuilder->FreeSlot != __XRT_PATTERN_SLOT_NONE ) {
+		iIndex = pBuilder->FreeSlot;
+		pSlot = &pBuilder->Slots[iIndex];
+		pBuilder->FreeSlot = pSlot->NextFree;
+		pSlot->NextFree = __XRT_PATTERN_SLOT_NONE;
+		return iIndex;
+	}
+	iIndex = pBuilder->SlotCount++;
+	return iIndex;
+}
+
+
+
+/* 创建自包含 Builder。 */
+XRT_API xpatternbuilder* xrtPatternBuilderCreateConfig(
+	const xpatternconfig* pConfig
+)
+{
+	__xrt_pattern_options Options;
+	xpatternbuilder* pBuilder;
+
+	if ( !__xrtPatternOptionsInit(pConfig, &Options, "builder_create") ) {
+		return NULL;
+	}
+	pBuilder = (xpatternbuilder*)xrtCalloc(1u, sizeof(*pBuilder));
+	if ( pBuilder == NULL ) {
+		return NULL;
+	}
+	pBuilder->Options = Options;
+	pBuilder->FreeSlot = __XRT_PATTERN_SLOT_NONE;
+	pBuilder->NextOrder = 1u;
+	pBuilder->Version = 1u;
+	return pBuilder;
+}
+
+
+
+XRT_API xpatternbuilder* xrtPatternBuilderCreate(void)
+{
+	xpatternconfig Config;
+
+	xrtPatternConfigInit(&Config);
+	return xrtPatternBuilderCreateConfig(&Config);
+}
+
+
+
+XRT_API void xrtPatternBuilderFree(xpatternbuilder* pBuilder)
+{
+	if ( pBuilder == NULL ) {
+		return;
+	}
+	for ( size_t i = 0; i < pBuilder->SlotCount; i++ ) {
+		__xrtPatternSourceFree(pBuilder->Slots[i].Source);
+	}
+	xrtPatternRelease(pBuilder->Cached);
+	xrtFree(pBuilder->Slots);
+	xrtFree(pBuilder);
+}
+
+
+
+XRT_API void xrtPatternBuilderClear(xpatternbuilder* pBuilder)
+{
+	uint32 iFree = __XRT_PATTERN_SLOT_NONE;
+
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return;
+	}
+	if ( pBuilder->Count == 0 ) {
+		return;
+	}
+	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
+		return;
+	}
+	for ( size_t i = pBuilder->SlotCount; i != 0; i-- ) {
+		__xrt_pattern_builder_slot* pSlot = &pBuilder->Slots[i - 1u];
+
+		__xrtPatternSourceFree(pSlot->Source);
+		pSlot->Source = NULL;
+		pSlot->Generation++;
+		if ( pSlot->Generation == 0 ) {
+			pSlot->Generation = 1u;
+		}
+		pSlot->NextFree = iFree;
+		iFree = (uint32)(i - 1u);
+	}
+	pBuilder->FreeSlot = iFree;
+	pBuilder->Count = 0;
+	pBuilder->Version++;
+}
+
+
+
+XRT_API bool xrtPatternBuilderReserve(
+	xpatternbuilder* pBuilder,
+	size_t iCapacity
+)
+{
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	return __xrtPatternBuilderReserveValid(pBuilder, iCapacity);
+}
+
+
+
+XRT_API size_t xrtPatternBuilderCount(const xpatternbuilder* pBuilder)
+{
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return 0;
+	}
+	return pBuilder->Count;
+}
+
+
+
+XRT_API uint64 xrtPatternBuilderVersion(const xpatternbuilder* pBuilder)
+{
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return 0;
+	}
+	return pBuilder->Version;
+}
+
+
+
+XRT_API bool xrtPatternBuilderDirty(const xpatternbuilder* pBuilder)
+{
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	return (pBuilder->Cached == NULL) ||
+		(pBuilder->CompiledVersion != pBuilder->Version);
+}
+
+
+
+XRT_API xpatternid xrtPatternBuilderAdd(
+	xpatternbuilder* pBuilder,
+	const xpatternspec* pSpec
+)
+{
+	__xrt_pattern_source* pSource;
+	__xrt_pattern_builder_slot* pSlot;
+	xpatternid Id;
+	size_t iIndex;
+
+	if ( (pBuilder == NULL) || (pSpec == NULL) ) {
+		__xrtPatternSetInvalidArgument();
+		return XPATTERN_ID_INVALID;
+	}
+	if ( (pBuilder->Count >= pBuilder->Options.MaxPatterns) ||
+		 (pBuilder->NextOrder == UINT64_MAX) ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			"builder_add",
+			"builder cannot accept another pattern",
+			false,
+			0,
+			false,
+			0
+		);
+		return XPATTERN_ID_INVALID;
+	}
+	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
+		return XPATTERN_ID_INVALID;
+	}
+	pSource = __xrtPatternSourceCreate(
+		pSpec,
+		&pBuilder->Options,
+		"builder_add",
+		XPATTERN_ID_INVALID,
+		pBuilder->NextOrder,
+		false,
+		0
+	);
+	if ( pSource == NULL ) {
+		return XPATTERN_ID_INVALID;
+	}
+	if ( !__xrtPatternBuilderReserveValid(pBuilder, pBuilder->Count + 1u) ) {
+		__xrtPatternSourceFree(pSource);
+		return XPATTERN_ID_INVALID;
+	}
+	iIndex = __xrtPatternBuilderTakeSlot(pBuilder);
+	pSlot = &pBuilder->Slots[iIndex];
+	Id = __xrtPatternBuilderId(iIndex, pSlot->Generation);
+	pSource->Id = Id;
+	pSlot->Source = pSource;
+	pBuilder->Count++;
+	pBuilder->NextOrder++;
+	pBuilder->Version++;
+	return Id;
+}
+
+
+
+XRT_API bool xrtPatternBuilderAddMany(
+	xpatternbuilder* pBuilder,
+	const xpatternspec* arrSpec,
+	size_t iCount,
+	xpatternid* arrId
+)
+{
+	__xrt_pattern_source** arrSource = NULL;
+	size_t iParsed = 0;
+
+	if ( (pBuilder == NULL) || ((arrSpec == NULL) && (iCount != 0)) ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	if ( iCount == 0 ) {
+		return true;
+	}
+	if ( (iCount > (pBuilder->Options.MaxPatterns - pBuilder->Count)) ||
+		 (iCount > (UINT64_MAX - pBuilder->NextOrder)) ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			"builder_add_many",
+			"builder batch exceeds its pattern limit",
+			false,
+			0,
+			false,
+			0
+		);
+		return false;
+	}
+	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
+		return false;
+	}
+	if ( iCount > (SIZE_MAX / sizeof(*arrSource)) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	arrSource = (__xrt_pattern_source**)xrtCalloc(iCount, sizeof(*arrSource));
+	if ( arrSource == NULL ) {
+		return false;
+	}
+	for ( ; iParsed < iCount; iParsed++ ) {
+		arrSource[iParsed] = __xrtPatternSourceCreate(
+			&arrSpec[iParsed],
+			&pBuilder->Options,
+			"builder_add_many",
+			XPATTERN_ID_INVALID,
+			pBuilder->NextOrder + iParsed,
+			true,
+			iParsed
+		);
+		if ( arrSource[iParsed] == NULL ) {
+			break;
+		}
+	}
+	if ( (iParsed != iCount) ||
+		 !__xrtPatternBuilderReserveValid(pBuilder, pBuilder->Count + iCount) ) {
+		for ( size_t i = 0; i < iCount; i++ ) {
+			__xrtPatternSourceFree(arrSource[i]);
+		}
+		xrtFree(arrSource);
+		return false;
+	}
+	for ( size_t i = 0; i < iCount; i++ ) {
+		size_t iIndex = __xrtPatternBuilderTakeSlot(pBuilder);
+		__xrt_pattern_builder_slot* pSlot = &pBuilder->Slots[iIndex];
+		xpatternid Id = __xrtPatternBuilderId(iIndex, pSlot->Generation);
+
+		arrSource[i]->Id = Id;
+		pSlot->Source = arrSource[i];
+		if ( arrId != NULL ) {
+			arrId[i] = Id;
+		}
+	}
+	pBuilder->Count += iCount;
+	pBuilder->NextOrder += iCount;
+	pBuilder->Version++;
+	xrtFree(arrSource);
+	return true;
+}
+
+
+
+XRT_API bool xrtPatternBuilderSet(
+	xpatternbuilder* pBuilder,
+	xpatternid Id,
+	const xpatternspec* pSpec
+)
+{
+	__xrt_pattern_builder_slot* pSlot;
+	__xrt_pattern_source* pSource;
+
+	if ( (pBuilder == NULL) || (pSpec == NULL) ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	pSlot = __xrtPatternBuilderSlot(pBuilder, Id, NULL);
+	if ( pSlot == NULL ) {
+		return false;
+	}
+	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
+		return false;
+	}
+	pSource = __xrtPatternSourceCreate(
+		pSpec,
+		&pBuilder->Options,
+		"builder_set",
+		Id,
+		pSlot->Source->Order,
+		false,
+		0
+	);
+	if ( pSource == NULL ) {
+		return false;
+	}
+	__xrtPatternSourceFree(pSlot->Source);
+	pSlot->Source = pSource;
+	pBuilder->Version++;
+	return true;
+}
+
+
+
+XRT_API bool xrtPatternBuilderRemove(
+	xpatternbuilder* pBuilder,
+	xpatternid Id
+)
+{
+	__xrt_pattern_builder_slot* pSlot;
+	size_t iIndex;
+
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	pSlot = __xrtPatternBuilderSlot(pBuilder, Id, &iIndex);
+	if ( pSlot == NULL ) {
+		return false;
+	}
+	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
+		return false;
+	}
+	__xrtPatternSourceFree(pSlot->Source);
+	pSlot->Source = NULL;
+	pSlot->Generation++;
+	if ( pSlot->Generation == 0 ) {
+		pSlot->Generation = 1u;
+	}
+	pSlot->NextFree = pBuilder->FreeSlot;
+	pBuilder->FreeSlot = (uint32)iIndex;
+	pBuilder->Count--;
+	pBuilder->Version++;
+	return true;
+}
+
+
+
+/* qsort 比较器只用于恢复稳定注册顺序，不进入匹配热路径。 */
+static int __xrtPatternBuilderSourceCompare(
+	const void* pLeft,
+	const void* pRight
+)
+{
+	const __xrt_pattern_source* pA =
+		*(const __xrt_pattern_source* const*)pLeft;
+	const __xrt_pattern_source* pB =
+		*(const __xrt_pattern_source* const*)pRight;
+
+	if ( pA->Order < pB->Order ) {
+		return -1;
+	}
+	if ( pA->Order > pB->Order ) {
+		return 1;
+	}
+	return 0;
+}
+
+
+
+XRT_API xpattern* xrtPatternBuilderCompile(xpatternbuilder* pBuilder)
+{
+	__xrt_pattern_source** arrSource = NULL;
+	xpattern* pPattern;
+	size_t iWrite = 0;
+
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return NULL;
+	}
+	if ( (pBuilder->Cached != NULL) &&
+		 (pBuilder->CompiledVersion == pBuilder->Version) ) {
+		return xrtPatternRef(pBuilder->Cached);
+	}
+	if ( pBuilder->Count > (SIZE_MAX / sizeof(*arrSource)) ) {
+		__xrtPatternSetSizeOverflow();
+		return NULL;
+	}
+	if ( pBuilder->Count != 0 ) {
+		arrSource = (__xrt_pattern_source**)xrtMalloc(
+			pBuilder->Count * sizeof(*arrSource)
+		);
+		if ( arrSource == NULL ) {
+			return NULL;
+		}
+	}
+	for ( size_t i = 0; i < pBuilder->SlotCount; i++ ) {
+		if ( pBuilder->Slots[i].Source != NULL ) {
+			if ( (arrSource == NULL) || (iWrite >= pBuilder->Count) ) {
+				xrtFree(arrSource);
+				__xrtPatternSetInternal();
+				return NULL;
+			}
+			arrSource[iWrite++] = pBuilder->Slots[i].Source;
+		}
+	}
+	if ( iWrite != pBuilder->Count ) {
+		xrtFree(arrSource);
+		__xrtPatternSetInternal();
+		return NULL;
+	}
+	if ( pBuilder->Count > 1u ) {
+		qsort(
+			arrSource,
+			pBuilder->Count,
+			sizeof(*arrSource),
+			__xrtPatternBuilderSourceCompare
+		);
+	}
+	pPattern = __xrtPatternCompileSources(
+		arrSource,
+		pBuilder->Count,
+		&pBuilder->Options,
+		"builder_compile"
+	);
+	xrtFree(arrSource);
+	if ( pPattern == NULL ) {
+		return NULL;
+	}
+	xrtPatternRelease(pBuilder->Cached);
+	pBuilder->Cached = xrtPatternRef(pPattern);
+	if ( pBuilder->Cached == NULL ) {
+		xrtPatternRelease(pPattern);
+		return NULL;
+	}
+	pBuilder->CompiledVersion = pBuilder->Version;
+	return pPattern;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/text/pattern_compile.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_PATTERN)
+
+
+
+#if defined(XRT_FEATURE_PATTERN)
+
+typedef enum __xrt_pattern_nfa_edge_kind {
+	__XRT_PATTERN_NFA_SEPARATOR = 1,
+	__XRT_PATTERN_NFA_LITERAL = 2,
+	__XRT_PATTERN_NFA_AFFIX = 3
+} __xrt_pattern_nfa_edge_kind;
+
+
+
+typedef struct __xrt_pattern_nfa_edge {
+	xstrview Text;
+	xstrview Suffix;
+	uint32 Next;
+	uint8 Kind;
+	uint8 Byte;
+	uint16 Reserved;
+} __xrt_pattern_nfa_edge;
+
+
+
+typedef struct __xrt_pattern_nfa_node {
+	__xrt_pattern_nfa_edge* Edges;
+	size_t EdgeCount;
+	size_t EdgeCapacity;
+	uint32* EdgeSlots;
+	size_t EdgeSlotCapacity;
+	uint32 Param;
+	uint32 Terminal;
+	uint32 Tail;
+} __xrt_pattern_nfa_node;
+
+
+
+typedef struct __xrt_pattern_nfa {
+	__xrt_pattern_nfa_node* Nodes;
+	size_t Count;
+	size_t Capacity;
+} __xrt_pattern_nfa;
+
+
+
+typedef struct __xrt_pattern_temp_literal {
+	xstrview Text;
+	uint32 Next;
+} __xrt_pattern_temp_literal;
+
+
+
+typedef struct __xrt_pattern_temp_separator {
+	uint32 Next;
+	uint8 Byte;
+	uint8 Reserved[3];
+} __xrt_pattern_temp_separator;
+
+
+
+typedef struct __xrt_pattern_affix_nfa_edge {
+	uint32 Next;
+	uint8 Byte;
+	uint8 Reserved[3];
+} __xrt_pattern_affix_nfa_edge;
+
+
+
+typedef struct __xrt_pattern_affix_nfa_node {
+	__xrt_pattern_affix_nfa_edge* Edges;
+	size_t EdgeCount;
+	size_t EdgeCapacity;
+	uint32* Accepts;
+	size_t AcceptCount;
+	size_t AcceptCapacity;
+	uint32 Wild;
+} __xrt_pattern_affix_nfa_node;
+
+
+
+typedef struct __xrt_pattern_affix_nfa {
+	__xrt_pattern_affix_nfa_node* Nodes;
+	size_t Count;
+	size_t Capacity;
+} __xrt_pattern_affix_nfa;
+
+
+
+typedef struct __xrt_pattern_temp_affix_transition {
+	uint32 Next;
+	uint8 Byte;
+	uint8 Reserved[3];
+} __xrt_pattern_temp_affix_transition;
+
+
+
+typedef struct __xrt_pattern_temp_affix_state {
+	uint32* Nodes;
+	size_t NodeCount;
+	uint64 SetHash;
+	__xrt_pattern_temp_affix_transition* Transitions;
+	size_t TransitionCount;
+	size_t TransitionCapacity;
+	uint32 Default;
+	uint32 Output;
+} __xrt_pattern_temp_affix_state;
+
+
+
+typedef struct __xrt_pattern_temp_state {
+	uint32* Nodes;
+	size_t NodeCount;
+	uint64 SetHash;
+	__xrt_pattern_temp_literal* Literals;
+	size_t LiteralCount;
+	size_t LiteralCapacity;
+	__xrt_pattern_temp_separator* Separators;
+	size_t SeparatorCount;
+	size_t SeparatorCapacity;
+	__xrt_pattern_temp_affix_state* AffixStates;
+	size_t AffixStateCount;
+	uint32 Default;
+	uint32 Terminal;
+	uint32 Tail;
+} __xrt_pattern_temp_state;
+
+
+
+typedef struct __xrt_pattern_state_slot {
+	uint64 Hash;
+	uint32 StatePlusOne;
+	uint32 Reserved;
+} __xrt_pattern_state_slot;
+
+
+
+typedef struct __xrt_pattern_affix_dfa {
+	__xrt_pattern_temp_affix_state* States;
+	size_t Count;
+	size_t Capacity;
+	__xrt_pattern_state_slot* Slots;
+	size_t SlotCount;
+	size_t SlotCapacity;
+} __xrt_pattern_affix_dfa;
+
+
+
+typedef struct __xrt_pattern_dfa {
+	__xrt_pattern_temp_state* States;
+	size_t Count;
+	size_t Capacity;
+	__xrt_pattern_state_slot* Slots;
+	size_t SlotCount;
+	size_t SlotCapacity;
+} __xrt_pattern_dfa;
+
+
+
+typedef struct __xrt_pattern_u32_vector {
+	uint32* Data;
+	size_t Count;
+	size_t Capacity;
+} __xrt_pattern_u32_vector;
+
+
+
+typedef struct __xrt_pattern_key_ref {
+	const __xrt_pattern_nfa_edge* Edge;
+} __xrt_pattern_key_ref;
+
+
+
+typedef struct __xrt_pattern_rank_item {
+	const __xrt_pattern_source* Source;
+	uint32 Index;
+} __xrt_pattern_rank_item;
+
+
+
+typedef struct __xrt_pattern_compiler {
+	__xrt_pattern_source* const* Sources;
+	size_t SourceCount;
+	const __xrt_pattern_options* Options;
+	cstr Operation;
+	uint32* Ranks;
+	size_t AffixStateCount;
+	__xrt_pattern_nfa Nfa;
+	__xrt_pattern_dfa Dfa;
+} __xrt_pattern_compiler;
+
+
+
+/* 通用冷路径动态数组扩容。 */
+static bool __xrtPatternGrow(
+	ptr* pData,
+	size_t* pCapacity,
+	size_t iNeed,
+	size_t iItemSize
+)
+{
+	size_t iCapacity;
+	ptr pNew;
+
+	if ( iNeed <= *pCapacity ) {
+		return true;
+	}
+	iCapacity = *pCapacity != 0 ? *pCapacity : 8u;
+	while ( iCapacity < iNeed ) {
+		if ( iCapacity > (SIZE_MAX / 2u) ) {
+			iCapacity = iNeed;
+			break;
+		}
+		iCapacity *= 2u;
+	}
+	if ( (iItemSize != 0) && (iCapacity > (SIZE_MAX / iItemSize)) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	pNew = xrtRealloc(*pData, iCapacity * iItemSize);
+	if ( pNew == NULL ) {
+		return false;
+	}
+	*pData = pNew;
+	*pCapacity = iCapacity;
+	return true;
+}
+
+
+
+/* 释放逻辑 trie 的全部冷路径边数组。 */
+static void __xrtPatternNfaFree(__xrt_pattern_nfa* pNfa)
+{
+	for ( size_t i = 0; i < pNfa->Count; i++ ) {
+		xrtFree(pNfa->Nodes[i].Edges);
+		xrtFree(pNfa->Nodes[i].EdgeSlots);
+	}
+	xrtFree(pNfa->Nodes);
+	memset(pNfa, 0, sizeof(*pNfa));
+}
+
+
+
+/* 编译期边哈希避免高扇出节点逐次追加时退化为 O(N^2)。 */
+static uint64 __xrtPatternNfaEdgeHash(
+	uint8 iKind,
+	uint8 iByte,
+	xstrview Text,
+	xstrview Suffix
+)
+{
+	if ( iKind == __XRT_PATTERN_NFA_SEPARATOR ) {
+		return __xrtPatternHashMix(
+			UINT64_C(0x6a09e667f3bcc909) ^ (uint64)iByte
+		);
+	}
+	{
+		uint64 iHash = __xrtPatternHashField(
+		Text.Data,
+		Text.Size,
+		UINT32_C(0x7f4a7c15) ^ (uint32)iKind
+		);
+
+		if ( iKind == __XRT_PATTERN_NFA_AFFIX ) {
+			iHash ^= __xrtPatternHashMix(__xrtPatternHashField(
+				Suffix.Data,
+				Suffix.Size,
+				UINT32_C(0x85ebca6b)
+			));
+		}
+		return __xrtPatternHashMix(iHash);
+	}
+}
+
+
+
+static bool __xrtPatternNfaEdgeEqual(
+	const __xrt_pattern_nfa_edge* pEdge,
+	uint8 iKind,
+	uint8 iByte,
+	xstrview Text,
+	xstrview Suffix
+)
+{
+	if ( pEdge->Kind != iKind ) {
+		return false;
+	}
+	if ( iKind == __XRT_PATTERN_NFA_SEPARATOR ) {
+		return pEdge->Byte == iByte;
+	}
+	return (pEdge->Text.Size == Text.Size) &&
+		((Text.Size == 0) ||
+		 (memcmp(pEdge->Text.Data, Text.Data, Text.Size) == 0)) &&
+		(iKind != __XRT_PATTERN_NFA_AFFIX ||
+		 ((pEdge->Suffix.Size == Suffix.Size) &&
+		  ((Suffix.Size == 0) ||
+		   (memcmp(pEdge->Suffix.Data, Suffix.Data, Suffix.Size) == 0))));
+}
+
+
+
+/* 小扇出保持线性数组；第九条边开始建立低负载临时索引。 */
+static bool __xrtPatternNfaEdgeSlots(
+	__xrt_pattern_nfa_node* pNode,
+	size_t iNeed
+)
+{
+	uint32* arrSlot;
+	size_t iCapacity;
+
+	if ( (pNode->EdgeSlotCapacity == 0) && (iNeed <= 8u) ) {
+		return true;
+	}
+	iCapacity = pNode->EdgeSlotCapacity != 0 ?
+		pNode->EdgeSlotCapacity : 16u;
+	while ( iNeed > (iCapacity / 2u) ) {
+		if ( iCapacity > (SIZE_MAX / 2u) ) {
+			__xrtPatternSetSizeOverflow();
+			return false;
+		}
+		iCapacity *= 2u;
+	}
+	if ( iCapacity == pNode->EdgeSlotCapacity ) {
+		return true;
+	}
+	if ( iCapacity > (SIZE_MAX / sizeof(*arrSlot)) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	arrSlot = (uint32*)xrtCalloc(iCapacity, sizeof(*arrSlot));
+	if ( arrSlot == NULL ) {
+		return false;
+	}
+	for ( size_t i = 0; i < pNode->EdgeCount; i++ ) {
+		const __xrt_pattern_nfa_edge* pEdge = &pNode->Edges[i];
+		uint64 iHash = __xrtPatternNfaEdgeHash(
+			pEdge->Kind,
+			pEdge->Byte,
+			pEdge->Text,
+			pEdge->Suffix
+		);
+		size_t iSlot = (size_t)(iHash & (iCapacity - 1u));
+
+		while ( arrSlot[iSlot] != 0 ) {
+			iSlot = (iSlot + 1u) & (iCapacity - 1u);
+		}
+		arrSlot[iSlot] = (uint32)i + 1u;
+	}
+	xrtFree(pNode->EdgeSlots);
+	pNode->EdgeSlots = arrSlot;
+	pNode->EdgeSlotCapacity = iCapacity;
+	return true;
+}
+
+
+
+/* 追加一个空逻辑 trie 节点。 */
+static bool __xrtPatternNfaNode(
+	__xrt_pattern_compiler* pCompiler,
+	uint32* pIndex
+)
+{
+	__xrt_pattern_nfa* pNfa = &pCompiler->Nfa;
+	__xrt_pattern_nfa_node* pNode;
+
+	if ( pNfa->Count >= pCompiler->Options->MaxStates ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			pCompiler->Operation,
+			"logical pattern trie exceeds its state limit",
+			false,
+			0,
+			false,
+			0
+		);
+		return false;
+	}
+	if ( !__xrtPatternGrow(
+		(ptr*)&pNfa->Nodes,
+		&pNfa->Capacity,
+		pNfa->Count + 1u,
+		sizeof(*pNfa->Nodes)
+	) ) {
+		return false;
+	}
+	pNode = &pNfa->Nodes[pNfa->Count];
+	memset(pNode, 0, sizeof(*pNode));
+	pNode->Param = __XRT_PATTERN_INDEX_NONE;
+	pNode->Terminal = __XRT_PATTERN_INDEX_NONE;
+	pNode->Tail = __XRT_PATTERN_INDEX_NONE;
+	*pIndex = (uint32)pNfa->Count++;
+	return true;
+}
+
+
+
+/* 查找或创建一条精确分隔符/字面字段边。 */
+static bool __xrtPatternNfaEdge(
+	__xrt_pattern_compiler* pCompiler,
+	uint32 iNode,
+	uint8 iKind,
+	uint8 iByte,
+	xstrview Text,
+	xstrview Suffix,
+	uint32* pNext
+)
+{
+	__xrt_pattern_nfa_node* pNode = &pCompiler->Nfa.Nodes[iNode];
+	__xrt_pattern_nfa_edge* pEdge;
+	uint32 iNext;
+	uint64 iHash = __xrtPatternNfaEdgeHash(iKind, iByte, Text, Suffix);
+
+	if ( pNode->EdgeSlotCapacity != 0 ) {
+		size_t iSlot = (size_t)(
+			iHash & (pNode->EdgeSlotCapacity - 1u)
+		);
+
+		while ( pNode->EdgeSlots[iSlot] != 0 ) {
+			pEdge = &pNode->Edges[pNode->EdgeSlots[iSlot] - 1u];
+			if ( __xrtPatternNfaEdgeEqual(
+				pEdge,
+				iKind,
+				iByte,
+				Text,
+				Suffix
+			) ) {
+				*pNext = pEdge->Next;
+				return true;
+			}
+			iSlot = (iSlot + 1u) & (pNode->EdgeSlotCapacity - 1u);
+		}
+	} else {
+		for ( size_t i = 0; i < pNode->EdgeCount; i++ ) {
+			pEdge = &pNode->Edges[i];
+			if ( __xrtPatternNfaEdgeEqual(
+				pEdge,
+				iKind,
+				iByte,
+				Text,
+				Suffix
+			) ) {
+				*pNext = pEdge->Next;
+				return true;
+			}
+		}
+	}
+	if ( !__xrtPatternNfaEdgeSlots(pNode, pNode->EdgeCount + 1u) ) {
+		return false;
+	}
+	if ( !__xrtPatternNfaNode(pCompiler, &iNext) ) {
+		return false;
+	}
+	/* Node 数组可能重分配，必须重新取得父节点。 */
+	pNode = &pCompiler->Nfa.Nodes[iNode];
+	if ( !__xrtPatternGrow(
+		(ptr*)&pNode->Edges,
+		&pNode->EdgeCapacity,
+		pNode->EdgeCount + 1u,
+		sizeof(*pNode->Edges)
+	) ) {
+		return false;
+	}
+	pEdge = &pNode->Edges[pNode->EdgeCount++];
+	memset(pEdge, 0, sizeof(*pEdge));
+	pEdge->Kind = iKind;
+	pEdge->Byte = iByte;
+	pEdge->Text = Text;
+	pEdge->Suffix = Suffix;
+	pEdge->Next = iNext;
+	if ( pNode->EdgeSlotCapacity != 0 ) {
+		size_t iSlot = (size_t)(
+			iHash & (pNode->EdgeSlotCapacity - 1u)
+		);
+
+		while ( pNode->EdgeSlots[iSlot] != 0 ) {
+			iSlot = (iSlot + 1u) & (pNode->EdgeSlotCapacity - 1u);
+		}
+		pNode->EdgeSlots[iSlot] = (uint32)pNode->EdgeCount;
+	}
+	*pNext = iNext;
+	return true;
+}
+
+
+
+/* 同结构模式只允许优先级明确区分；否则编译失败而非依赖隐式顺序。 */
+static bool __xrtPatternNfaTerminal(
+	__xrt_pattern_compiler* pCompiler,
+	uint32* pCurrent,
+	uint32 iEntry
+)
+{
+	if ( *pCurrent == __XRT_PATTERN_INDEX_NONE ) {
+		*pCurrent = iEntry;
+		return true;
+	}
+	if ( pCompiler->Sources[*pCurrent]->Priority ==
+		 pCompiler->Sources[iEntry]->Priority ) {
+		__xrtPatternError(
+			XERR_EXISTS,
+			XPATTERN_ERROR_CONFLICT,
+			pCompiler->Operation,
+			"indistinguishable patterns have the same priority",
+			true,
+			iEntry,
+			false,
+			0
+		);
+		return false;
+	}
+	if ( pCompiler->Sources[iEntry]->Priority >
+		 pCompiler->Sources[*pCurrent]->Priority ) {
+		*pCurrent = iEntry;
+	}
+	return true;
+}
+
+
+
+/* 把一条已解析源模式插入逻辑 trie。 */
+static bool __xrtPatternNfaInsert(
+	__xrt_pattern_compiler* pCompiler,
+	uint32 iEntry
+)
+{
+	const __xrt_pattern_source* pSource = pCompiler->Sources[iEntry];
+	uint32 iNode = 0;
+
+	for ( size_t i = 0; i < pSource->AtomCount; i++ ) {
+		const __xrt_pattern_atom* pAtom = &pSource->Atoms[i];
+		uint32 iNext;
+
+		if ( pAtom->Kind == __XRT_PATTERN_ATOM_SEPARATOR ) {
+			if ( !__xrtPatternNfaEdge(
+				pCompiler,
+				iNode,
+				__XRT_PATTERN_NFA_SEPARATOR,
+				pAtom->Byte,
+				(xstrview){ 0 },
+				(xstrview){ 0 },
+				&iNext
+			) ) {
+				return false;
+			}
+			iNode = iNext;
+		} else if ( pAtom->Kind == __XRT_PATTERN_ATOM_LITERAL ) {
+			if ( !__xrtPatternNfaEdge(
+				pCompiler,
+				iNode,
+				__XRT_PATTERN_NFA_LITERAL,
+				0,
+				pAtom->Text,
+				(xstrview){ 0 },
+				&iNext
+			) ) {
+				return false;
+			}
+			iNode = iNext;
+		} else if ( pAtom->Kind == __XRT_PATTERN_ATOM_AFFIX ) {
+			if ( !__xrtPatternNfaEdge(
+				pCompiler,
+				iNode,
+				__XRT_PATTERN_NFA_AFFIX,
+				0,
+				pAtom->Text,
+				pAtom->Suffix,
+				&iNext
+			) ) {
+				return false;
+			}
+			iNode = iNext;
+		} else if ( pAtom->Kind == __XRT_PATTERN_ATOM_CAPTURE ) {
+			__xrt_pattern_nfa_node* pNode = &pCompiler->Nfa.Nodes[iNode];
+
+			if ( pNode->Param == __XRT_PATTERN_INDEX_NONE ) {
+				if ( !__xrtPatternNfaNode(pCompiler, &iNext) ) {
+					return false;
+				}
+				pCompiler->Nfa.Nodes[iNode].Param = iNext;
+			} else {
+				iNext = pNode->Param;
+			}
+			iNode = iNext;
+		} else if ( pAtom->Kind == __XRT_PATTERN_ATOM_TAIL ) {
+			return __xrtPatternNfaTerminal(
+				pCompiler,
+				&pCompiler->Nfa.Nodes[iNode].Tail,
+				iEntry
+			);
+		} else {
+			__xrtPatternSetInternal();
+			return false;
+		}
+	}
+	return __xrtPatternNfaTerminal(
+		pCompiler,
+		&pCompiler->Nfa.Nodes[iNode].Terminal,
+		iEntry
+	);
+}
+
+
+
+/* 精确原子高于混合捕获，混合捕获高于整字段与尾捕获。 */
+static int __xrtPatternAtomWeight(const __xrt_pattern_atom* pAtom)
+{
+	if ( pAtom == NULL ) {
+		return 5;
+	}
+	if ( (pAtom->Kind == __XRT_PATTERN_ATOM_SEPARATOR) ||
+		 (pAtom->Kind == __XRT_PATTERN_ATOM_LITERAL) ) {
+		return 4;
+	}
+	if ( pAtom->Kind == __XRT_PATTERN_ATOM_AFFIX ) {
+		return 3;
+	}
+	if ( pAtom->Kind == __XRT_PATTERN_ATOM_CAPTURE ) {
+		return 2;
+	}
+	return 1;
+}
+
+
+
+/* 建立与输入无关的确定性优先顺序，运行期只比较一个 Rank。 */
+static int __xrtPatternSourceCompare(
+	const __xrt_pattern_source* pA,
+	const __xrt_pattern_source* pB
+)
+{
+	size_t iMax = pA->AtomCount > pB->AtomCount ?
+		pA->AtomCount : pB->AtomCount;
+
+	for ( size_t i = 0; i <= iMax; i++ ) {
+		const __xrt_pattern_atom* pAtomA =
+			i < pA->AtomCount ? &pA->Atoms[i] : NULL;
+		const __xrt_pattern_atom* pAtomB =
+			i < pB->AtomCount ? &pB->Atoms[i] : NULL;
+		int iWeightA = __xrtPatternAtomWeight(pAtomA);
+		int iWeightB = __xrtPatternAtomWeight(pAtomB);
+
+		if ( iWeightA != iWeightB ) {
+			return iWeightA > iWeightB ? -1 : 1;
+		}
+		if ( (pAtomA == NULL) || (pAtomB == NULL) ) {
+			break;
+		}
+		if ( pAtomA->Kind != pAtomB->Kind ) {
+			return pAtomA->Kind < pAtomB->Kind ? -1 : 1;
+		}
+		if ( pAtomA->Kind == __XRT_PATTERN_ATOM_SEPARATOR ) {
+			if ( pAtomA->Byte != pAtomB->Byte ) {
+				return pAtomA->Byte < pAtomB->Byte ? -1 : 1;
+			}
+		} else if ( pAtomA->Kind == __XRT_PATTERN_ATOM_LITERAL ) {
+			size_t iCommon = pAtomA->Text.Size < pAtomB->Text.Size ?
+				pAtomA->Text.Size : pAtomB->Text.Size;
+			int iCompare = iCommon != 0 ? memcmp(
+				pAtomA->Text.Data,
+				pAtomB->Text.Data,
+				iCommon
+			) : 0;
+
+			if ( iCompare != 0 ) {
+				return iCompare;
+			}
+			if ( pAtomA->Text.Size != pAtomB->Text.Size ) {
+				return pAtomA->Text.Size < pAtomB->Text.Size ? -1 : 1;
+			}
+		} else if ( pAtomA->Kind == __XRT_PATTERN_ATOM_AFFIX ) {
+			size_t iFixedA = pAtomA->Text.Size + pAtomA->Suffix.Size;
+			size_t iFixedB = pAtomB->Text.Size + pAtomB->Suffix.Size;
+			size_t iCommon;
+			int iCompare;
+
+			if ( iFixedA != iFixedB ) {
+				return iFixedA > iFixedB ? -1 : 1;
+			}
+			if ( pAtomA->Text.Size != pAtomB->Text.Size ) {
+				return pAtomA->Text.Size > pAtomB->Text.Size ? -1 : 1;
+			}
+			iCommon = pAtomA->Text.Size;
+			iCompare = iCommon != 0 ? memcmp(
+				pAtomA->Text.Data,
+				pAtomB->Text.Data,
+				iCommon
+			) : 0;
+			if ( iCompare != 0 ) {
+				return iCompare;
+			}
+			iCommon = pAtomA->Suffix.Size < pAtomB->Suffix.Size ?
+				pAtomA->Suffix.Size : pAtomB->Suffix.Size;
+			iCompare = iCommon != 0 ? memcmp(
+				pAtomA->Suffix.Data,
+				pAtomB->Suffix.Data,
+				iCommon
+			) : 0;
+			if ( iCompare != 0 ) {
+				return iCompare;
+			}
+			if ( pAtomA->Suffix.Size != pAtomB->Suffix.Size ) {
+				return pAtomA->Suffix.Size < pAtomB->Suffix.Size ? -1 : 1;
+			}
+		}
+	}
+	if ( pA->Priority != pB->Priority ) {
+		return pA->Priority > pB->Priority ? -1 : 1;
+	}
+	if ( pA->Order != pB->Order ) {
+		return pA->Order < pB->Order ? -1 : 1;
+	}
+	return 0;
+}
+
+
+
+static int __xrtPatternRankCompare(const void* pLeft, const void* pRight)
+{
+	const __xrt_pattern_rank_item* pA =
+		(const __xrt_pattern_rank_item*)pLeft;
+	const __xrt_pattern_rank_item* pB =
+		(const __xrt_pattern_rank_item*)pRight;
+
+	return __xrtPatternSourceCompare(pA->Source, pB->Source);
+}
+
+
+
+/* 分配并写入每条源模式的全局优先 Rank。 */
+static bool __xrtPatternRanks(__xrt_pattern_compiler* pCompiler)
+{
+	__xrt_pattern_rank_item* arrItem;
+
+	if ( pCompiler->SourceCount == 0 ) {
+		return true;
+	}
+	if ( (pCompiler->SourceCount > (SIZE_MAX / sizeof(*arrItem))) ||
+		 (pCompiler->SourceCount > (SIZE_MAX / sizeof(*pCompiler->Ranks))) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	arrItem = (__xrt_pattern_rank_item*)xrtMalloc(
+		pCompiler->SourceCount * sizeof(*arrItem)
+	);
+	pCompiler->Ranks = (uint32*)xrtMalloc(
+		pCompiler->SourceCount * sizeof(*pCompiler->Ranks)
+	);
+	if ( (arrItem == NULL) || (pCompiler->Ranks == NULL) ) {
+		xrtFree(arrItem);
+		return false;
+	}
+	for ( size_t i = 0; i < pCompiler->SourceCount; i++ ) {
+		arrItem[i].Source = pCompiler->Sources[i];
+		arrItem[i].Index = (uint32)i;
+	}
+	qsort(
+		arrItem,
+		pCompiler->SourceCount,
+		sizeof(*arrItem),
+		__xrtPatternRankCompare
+	);
+	for ( size_t i = 0; i < pCompiler->SourceCount; i++ ) {
+		pCompiler->Ranks[arrItem[i].Index] = (uint32)i;
+	}
+	xrtFree(arrItem);
+	return true;
+}
+
+
+
+static int __xrtPatternU32Compare(const void* pLeft, const void* pRight)
+{
+	uint32 iLeft = *(const uint32*)pLeft;
+	uint32 iRight = *(const uint32*)pRight;
+
+	return iLeft < iRight ? -1 : (iLeft > iRight ? 1 : 0);
+}
+
+
+
+static bool __xrtPatternU32Push(
+	__xrt_pattern_u32_vector* pVector,
+	uint32 iValue
+)
+{
+	if ( !__xrtPatternGrow(
+		(ptr*)&pVector->Data,
+		&pVector->Capacity,
+		pVector->Count + 1u,
+		sizeof(*pVector->Data)
+	) ) {
+		return false;
+	}
+	pVector->Data[pVector->Count++] = iValue;
+	return true;
+}
+
+
+
+static void __xrtPatternU32Unique(__xrt_pattern_u32_vector* pVector)
+{
+	size_t iWrite = 0;
+
+	if ( pVector->Count > 1u ) {
+		qsort(
+			pVector->Data,
+			pVector->Count,
+			sizeof(*pVector->Data),
+			__xrtPatternU32Compare
+		);
+	}
+	for ( size_t i = 0; i < pVector->Count; i++ ) {
+		if ( (iWrite == 0) ||
+			 (pVector->Data[i] != pVector->Data[iWrite - 1u]) ) {
+			pVector->Data[iWrite++] = pVector->Data[i];
+		}
+	}
+	pVector->Count = iWrite;
+}
+
+
+
+/* 状态集合哈希只服务编译期去重。 */
+static uint64 __xrtPatternStateHash(const uint32* arrNode, size_t iCount)
+{
+	uint64 iHash = UINT64_C(0x243f6a8885a308d3) ^ (uint64)iCount;
+
+	for ( size_t i = 0; i < iCount; i++ ) {
+		iHash ^= __xrtPatternHashMix(
+			(uint64)arrNode[i] + UINT64_C(0x9e3779b97f4a7c15)
+		);
+		iHash = (iHash << 17u) | (iHash >> 47u);
+		iHash *= UINT64_C(0x94d049bb133111eb);
+	}
+	return __xrtPatternHashMix(iHash);
+}
+
+
+
+static void __xrtPatternDfaFree(__xrt_pattern_dfa* pDfa)
+{
+	for ( size_t i = 0; i < pDfa->Count; i++ ) {
+		for ( size_t j = 0; j < pDfa->States[i].AffixStateCount; j++ ) {
+			xrtFree(pDfa->States[i].AffixStates[j].Nodes);
+			xrtFree(pDfa->States[i].AffixStates[j].Transitions);
+		}
+		xrtFree(pDfa->States[i].Nodes);
+		xrtFree(pDfa->States[i].Literals);
+		xrtFree(pDfa->States[i].Separators);
+		xrtFree(pDfa->States[i].AffixStates);
+	}
+	xrtFree(pDfa->States);
+	xrtFree(pDfa->Slots);
+	memset(pDfa, 0, sizeof(*pDfa));
+}
+
+
+
+/* 扩展 DFA 状态集合索引并重哈希既有状态。 */
+static bool __xrtPatternDfaSlots(
+	__xrt_pattern_dfa* pDfa,
+	size_t iNeed
+)
+{
+	__xrt_pattern_state_slot* arrSlot;
+	size_t iCapacity = pDfa->SlotCapacity != 0 ? pDfa->SlotCapacity : 16u;
+
+	for ( ;; ) {
+		size_t iThreshold =
+			((iCapacity / 10u) * 7u) +
+			((((iCapacity % 10u) * 7u) + 9u) / 10u);
+
+		if ( iNeed < iThreshold ) {
+			break;
+		}
+		if ( iCapacity > (SIZE_MAX / 2u) ) {
+			__xrtPatternSetSizeOverflow();
+			return false;
+		}
+		iCapacity *= 2u;
+	}
+	if ( iCapacity == pDfa->SlotCapacity ) {
+		return true;
+	}
+	if ( iCapacity > (SIZE_MAX / sizeof(*arrSlot)) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	arrSlot = (__xrt_pattern_state_slot*)xrtCalloc(
+		iCapacity,
+		sizeof(*arrSlot)
+	);
+	if ( arrSlot == NULL ) {
+		return false;
+	}
+	for ( size_t i = 0; i < pDfa->Count; i++ ) {
+		size_t iSlot = (size_t)(pDfa->States[i].SetHash & (iCapacity - 1u));
+
+		while ( arrSlot[iSlot].StatePlusOne != 0 ) {
+			iSlot = (iSlot + 1u) & (iCapacity - 1u);
+		}
+		arrSlot[iSlot].Hash = pDfa->States[i].SetHash;
+		arrSlot[iSlot].StatePlusOne = (uint32)i + 1u;
+	}
+	xrtFree(pDfa->Slots);
+	pDfa->Slots = arrSlot;
+	pDfa->SlotCapacity = iCapacity;
+	pDfa->SlotCount = pDfa->Count;
+	return true;
+}
+
+
+
+/* 在 DFA 中查找或插入一个排好序的 NFA 节点集合。 */
+static bool __xrtPatternDfaState(
+	__xrt_pattern_compiler* pCompiler,
+	const uint32* arrNode,
+	size_t iNodeCount,
+	uint32* pState
+)
+{
+	__xrt_pattern_dfa* pDfa = &pCompiler->Dfa;
+	uint64 iHash = __xrtPatternStateHash(arrNode, iNodeCount);
+	size_t iSlot;
+	__xrt_pattern_temp_state* pNew;
+	uint32 iTerminal = __XRT_PATTERN_INDEX_NONE;
+	uint32 iTail = __XRT_PATTERN_INDEX_NONE;
+
+	if ( !__xrtPatternDfaSlots(pDfa, pDfa->Count + 1u) ) {
+		return false;
+	}
+	iSlot = (size_t)(iHash & (pDfa->SlotCapacity - 1u));
+	while ( pDfa->Slots[iSlot].StatePlusOne != 0 ) {
+		uint32 iExisting = pDfa->Slots[iSlot].StatePlusOne - 1u;
+		__xrt_pattern_temp_state* pExisting = &pDfa->States[iExisting];
+
+		if ( (pDfa->Slots[iSlot].Hash == iHash) &&
+			 (pExisting->NodeCount == iNodeCount) &&
+			 ((iNodeCount == 0) ||
+			  (memcmp(
+				pExisting->Nodes,
+				arrNode,
+				iNodeCount * sizeof(*arrNode)
+			  ) == 0)) ) {
+			*pState = iExisting;
+			return true;
+		}
+		iSlot = (iSlot + 1u) & (pDfa->SlotCapacity - 1u);
+	}
+	if ( (pDfa->Count >= pCompiler->Options->MaxStates) ||
+		 (pCompiler->AffixStateCount >=
+		  (pCompiler->Options->MaxStates - pDfa->Count)) ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			pCompiler->Operation,
+			"determinized matcher exceeds its state limit",
+			false,
+			0,
+			false,
+			0
+		);
+		return false;
+	}
+	if ( !__xrtPatternGrow(
+		(ptr*)&pDfa->States,
+		&pDfa->Capacity,
+		pDfa->Count + 1u,
+		sizeof(*pDfa->States)
+	) ) {
+		return false;
+	}
+	pNew = &pDfa->States[pDfa->Count];
+	memset(pNew, 0, sizeof(*pNew));
+	pNew->Default = __XRT_PATTERN_INDEX_NONE;
+	pNew->Terminal = __XRT_PATTERN_INDEX_NONE;
+	pNew->Tail = __XRT_PATTERN_INDEX_NONE;
+	if ( iNodeCount != 0 ) {
+		if ( iNodeCount > (SIZE_MAX / sizeof(*pNew->Nodes)) ) {
+			__xrtPatternSetSizeOverflow();
+			return false;
+		}
+		pNew->Nodes = (uint32*)xrtMalloc(iNodeCount * sizeof(*pNew->Nodes));
+		if ( pNew->Nodes == NULL ) {
+			return false;
+		}
+		memcpy(pNew->Nodes, arrNode, iNodeCount * sizeof(*pNew->Nodes));
+	}
+	pNew->NodeCount = iNodeCount;
+	pNew->SetHash = iHash;
+	for ( size_t i = 0; i < iNodeCount; i++ ) {
+		const __xrt_pattern_nfa_node* pNode =
+			&pCompiler->Nfa.Nodes[arrNode[i]];
+
+		if ( (pNode->Terminal != __XRT_PATTERN_INDEX_NONE) &&
+			 ((iTerminal == __XRT_PATTERN_INDEX_NONE) ||
+			  (pCompiler->Ranks[pNode->Terminal] <
+			   pCompiler->Ranks[iTerminal])) ) {
+			iTerminal = pNode->Terminal;
+		}
+		if ( (pNode->Tail != __XRT_PATTERN_INDEX_NONE) &&
+			 ((iTail == __XRT_PATTERN_INDEX_NONE) ||
+			  (pCompiler->Ranks[pNode->Tail] < pCompiler->Ranks[iTail])) ) {
+			iTail = pNode->Tail;
+		}
+	}
+	pNew->Terminal = iTerminal;
+	pNew->Tail = iTail;
+	*pState = (uint32)pDfa->Count;
+	pDfa->Count++;
+	pDfa->Slots[iSlot].Hash = iHash;
+	pDfa->Slots[iSlot].StatePlusOne = *pState + 1u;
+	pDfa->SlotCount++;
+	return true;
+}
+
+
+
+static bool __xrtPatternTempLiteral(
+	__xrt_pattern_dfa* pDfa,
+	uint32 iState,
+	xstrview Text,
+	uint32 iNext
+)
+{
+	__xrt_pattern_temp_state* pState = &pDfa->States[iState];
+	__xrt_pattern_temp_literal* pItem;
+
+	if ( !__xrtPatternGrow(
+		(ptr*)&pState->Literals,
+		&pState->LiteralCapacity,
+		pState->LiteralCount + 1u,
+		sizeof(*pState->Literals)
+	) ) {
+		return false;
+	}
+	pItem = &pState->Literals[pState->LiteralCount++];
+	pItem->Text = Text;
+	pItem->Next = iNext;
+	return true;
+}
+
+
+
+static bool __xrtPatternTempSeparator(
+	__xrt_pattern_dfa* pDfa,
+	uint32 iState,
+	uint8 iByte,
+	uint32 iNext
+)
+{
+	__xrt_pattern_temp_state* pState = &pDfa->States[iState];
+	__xrt_pattern_temp_separator* pItem;
+
+	if ( !__xrtPatternGrow(
+		(ptr*)&pState->Separators,
+		&pState->SeparatorCapacity,
+		pState->SeparatorCount + 1u,
+		sizeof(*pState->Separators)
+	) ) {
+		return false;
+	}
+	pItem = &pState->Separators[pState->SeparatorCount++];
+	pItem->Byte = iByte;
+	pItem->Next = iNext;
+	return true;
+}
+
+
+
+static void __xrtPatternByteSort(uint8* arrByte, size_t iCount)
+{
+	for ( size_t i = 1u; i < iCount; i++ ) {
+		uint8 iByte = arrByte[i];
+		size_t j = i;
+
+		while ( (j != 0) && (arrByte[j - 1u] > iByte) ) {
+			arrByte[j] = arrByte[j - 1u];
+			j--;
+		}
+		arrByte[j] = iByte;
+	}
+}
+
+
+
+static bool __xrtPatternAffixNfaNode(
+	__xrt_pattern_affix_nfa* pNfa,
+	uint32* pIndex
+)
+{
+	__xrt_pattern_affix_nfa_node* pNode;
+
+	if ( pNfa->Count >= UINT32_MAX ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	if ( !__xrtPatternGrow(
+		(ptr*)&pNfa->Nodes,
+		&pNfa->Capacity,
+		pNfa->Count + 1u,
+		sizeof(*pNfa->Nodes)
+	) ) {
+		return false;
+	}
+	pNode = &pNfa->Nodes[pNfa->Count];
+	memset(pNode, 0, sizeof(*pNode));
+	pNode->Wild = __XRT_PATTERN_INDEX_NONE;
+	*pIndex = (uint32)pNfa->Count++;
+	return true;
+}
+
+
+
+/* 共享字节 trie 边，父节点地址在追加子节点后必须重新取得。 */
+static bool __xrtPatternAffixNfaEdge(
+	__xrt_pattern_affix_nfa* pNfa,
+	uint32 iNode,
+	uint8 iByte,
+	uint32* pNext
+)
+{
+	__xrt_pattern_affix_nfa_node* pNode = &pNfa->Nodes[iNode];
+	__xrt_pattern_affix_nfa_edge* pEdge;
+	uint32 iNext;
+
+	for ( size_t i = 0; i < pNode->EdgeCount; i++ ) {
+		if ( pNode->Edges[i].Byte == iByte ) {
+			*pNext = pNode->Edges[i].Next;
+			return true;
+		}
+	}
+	if ( !__xrtPatternAffixNfaNode(pNfa, &iNext) ) {
+		return false;
+	}
+	pNode = &pNfa->Nodes[iNode];
+	if ( !__xrtPatternGrow(
+		(ptr*)&pNode->Edges,
+		&pNode->EdgeCapacity,
+		pNode->EdgeCount + 1u,
+		sizeof(*pNode->Edges)
+	) ) {
+		return false;
+	}
+	pEdge = &pNode->Edges[pNode->EdgeCount++];
+	pEdge->Byte = iByte;
+	pEdge->Next = iNext;
+	*pNext = iNext;
+	return true;
+}
+
+
+
+static bool __xrtPatternAffixNfaAccept(
+	__xrt_pattern_affix_nfa* pNfa,
+	uint32 iNode,
+	uint32 iNext
+)
+{
+	__xrt_pattern_affix_nfa_node* pNode = &pNfa->Nodes[iNode];
+
+	for ( size_t i = 0; i < pNode->AcceptCount; i++ ) {
+		if ( pNode->Accepts[i] == iNext ) {
+			return true;
+		}
+	}
+	if ( !__xrtPatternGrow(
+		(ptr*)&pNode->Accepts,
+		&pNode->AcceptCapacity,
+		pNode->AcceptCount + 1u,
+		sizeof(*pNode->Accepts)
+	) ) {
+		return false;
+	}
+	pNode->Accepts[pNode->AcceptCount++] = iNext;
+	return true;
+}
+
+
+
+/* prefix trie 与同前缀的 suffix trie 都共享，通配活跃集不随模式数复制。 */
+static bool __xrtPatternAffixNfaPattern(
+	__xrt_pattern_affix_nfa* pNfa,
+	const __xrt_pattern_nfa_edge* pEdge
+)
+{
+	uint32 iCurrent = 0;
+	uint32 iNext;
+
+	for ( size_t i = 0; i < pEdge->Text.Size; i++ ) {
+		if ( !__xrtPatternAffixNfaEdge(
+			pNfa,
+			iCurrent,
+			(uint8)pEdge->Text.Data[i],
+			&iNext
+		) ) {
+			return false;
+		}
+		iCurrent = iNext;
+	}
+	if ( pNfa->Nodes[iCurrent].Wild == __XRT_PATTERN_INDEX_NONE ) {
+		if ( !__xrtPatternAffixNfaNode(pNfa, &iNext) ) {
+			return false;
+		}
+		pNfa->Nodes[iCurrent].Wild = iNext;
+		pNfa->Nodes[iNext].Wild = iNext;
+	} else {
+		iNext = pNfa->Nodes[iCurrent].Wild;
+	}
+	iCurrent = iNext;
+	if ( pEdge->Suffix.Size == 0 ) {
+		return __xrtPatternAffixNfaAccept(pNfa, iCurrent, pEdge->Next);
+	}
+	for ( size_t i = 0; i < pEdge->Suffix.Size; i++ ) {
+		if ( !__xrtPatternAffixNfaEdge(
+			pNfa,
+			iCurrent,
+			(uint8)pEdge->Suffix.Data[i],
+			&iNext
+		) ) {
+			return false;
+		}
+		iCurrent = iNext;
+	}
+	return __xrtPatternAffixNfaAccept(pNfa, iCurrent, pEdge->Next);
+}
+
+
+
+static void __xrtPatternAffixDfaFree(__xrt_pattern_affix_dfa* pDfa)
+{
+	for ( size_t i = 0; i < pDfa->Count; i++ ) {
+		xrtFree(pDfa->States[i].Nodes);
+		xrtFree(pDfa->States[i].Transitions);
+	}
+	xrtFree(pDfa->States);
+	xrtFree(pDfa->Slots);
+	memset(pDfa, 0, sizeof(*pDfa));
+}
+
+
+
+static bool __xrtPatternAffixDfaSlots(
+	__xrt_pattern_affix_dfa* pDfa,
+	size_t iNeed
+)
+{
+	__xrt_pattern_state_slot* arrSlot;
+	size_t iCapacity = pDfa->SlotCapacity != 0 ? pDfa->SlotCapacity : 16u;
+
+	while ( iNeed >= ((iCapacity / 4u) * 3u) ) {
+		if ( iCapacity > (SIZE_MAX / 2u) ) {
+			__xrtPatternSetSizeOverflow();
+			return false;
+		}
+		iCapacity *= 2u;
+	}
+	if ( iCapacity == pDfa->SlotCapacity ) {
+		return true;
+	}
+	if ( iCapacity > (SIZE_MAX / sizeof(*arrSlot)) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	arrSlot = (__xrt_pattern_state_slot*)xrtCalloc(
+		iCapacity,
+		sizeof(*arrSlot)
+	);
+	if ( arrSlot == NULL ) {
+		return false;
+	}
+	for ( size_t i = 0; i < pDfa->Count; i++ ) {
+		size_t iSlot = (size_t)(pDfa->States[i].SetHash & (iCapacity - 1u));
+
+		while ( arrSlot[iSlot].StatePlusOne != 0 ) {
+			iSlot = (iSlot + 1u) & (iCapacity - 1u);
+		}
+		arrSlot[iSlot].Hash = pDfa->States[i].SetHash;
+		arrSlot[iSlot].StatePlusOne = (uint32)i + 1u;
+	}
+	xrtFree(pDfa->Slots);
+	pDfa->Slots = arrSlot;
+	pDfa->SlotCapacity = iCapacity;
+	pDfa->SlotCount = pDfa->Count;
+	return true;
+}
+
+
+
+static bool __xrtPatternAffixDfaState(
+	__xrt_pattern_compiler* pCompiler,
+	__xrt_pattern_affix_dfa* pDfa,
+	const uint32* arrNode,
+	size_t iNodeCount,
+	uint32* pState
+)
+{
+	uint64 iHash = __xrtPatternStateHash(arrNode, iNodeCount);
+	size_t iSlot;
+	__xrt_pattern_temp_affix_state* pNew;
+
+	if ( !__xrtPatternAffixDfaSlots(pDfa, pDfa->Count + 1u) ) {
+		return false;
+	}
+	iSlot = (size_t)(iHash & (pDfa->SlotCapacity - 1u));
+	while ( pDfa->Slots[iSlot].StatePlusOne != 0 ) {
+		uint32 iExisting = pDfa->Slots[iSlot].StatePlusOne - 1u;
+		const __xrt_pattern_temp_affix_state* pExisting =
+			&pDfa->States[iExisting];
+
+		if ( (pDfa->Slots[iSlot].Hash == iHash) &&
+			 (pExisting->NodeCount == iNodeCount) &&
+			 ((iNodeCount == 0) ||
+			  (memcmp(
+				pExisting->Nodes,
+				arrNode,
+				iNodeCount * sizeof(*arrNode)
+			  ) == 0)) ) {
+			*pState = iExisting;
+			return true;
+		}
+		iSlot = (iSlot + 1u) & (pDfa->SlotCapacity - 1u);
+	}
+	if ( (pCompiler->Dfa.Count >= pCompiler->Options->MaxStates) ||
+		 (pCompiler->AffixStateCount >=
+		  (pCompiler->Options->MaxStates - pCompiler->Dfa.Count)) ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			pCompiler->Operation,
+			"compiled matcher exceeds its combined state limit",
+			false,
+			0,
+			false,
+			0
+		);
+		return false;
+	}
+	if ( !__xrtPatternGrow(
+		(ptr*)&pDfa->States,
+		&pDfa->Capacity,
+		pDfa->Count + 1u,
+		sizeof(*pDfa->States)
+	) ) {
+		return false;
+	}
+	pNew = &pDfa->States[pDfa->Count];
+	memset(pNew, 0, sizeof(*pNew));
+	pNew->Default = __XRT_PATTERN_INDEX_NONE;
+	pNew->Output = __XRT_PATTERN_INDEX_NONE;
+	if ( iNodeCount != 0 ) {
+		if ( iNodeCount > (SIZE_MAX / sizeof(*pNew->Nodes)) ) {
+			__xrtPatternSetSizeOverflow();
+			return false;
+		}
+		pNew->Nodes = (uint32*)xrtMalloc(iNodeCount * sizeof(*pNew->Nodes));
+		if ( pNew->Nodes == NULL ) {
+			return false;
+		}
+		memcpy(pNew->Nodes, arrNode, iNodeCount * sizeof(*pNew->Nodes));
+	}
+	pNew->NodeCount = iNodeCount;
+	pNew->SetHash = iHash;
+	*pState = (uint32)pDfa->Count++;
+	pDfa->Slots[iSlot].Hash = iHash;
+	pDfa->Slots[iSlot].StatePlusOne = *pState + 1u;
+	pDfa->SlotCount++;
+	pCompiler->AffixStateCount++;
+	return true;
+}
+
+
+
+static bool __xrtPatternTempAffixTransition(
+	__xrt_pattern_affix_dfa* pDfa,
+	uint32 iState,
+	uint8 iByte,
+	uint32 iNext
+)
+{
+	__xrt_pattern_temp_affix_state* pState = &pDfa->States[iState];
+	__xrt_pattern_temp_affix_transition* pTransition;
+
+	if ( !__xrtPatternGrow(
+		(ptr*)&pState->Transitions,
+		&pState->TransitionCapacity,
+		pState->TransitionCount + 1u,
+		sizeof(*pState->Transitions)
+	) ) {
+		return false;
+	}
+	pTransition = &pState->Transitions[pState->TransitionCount++];
+	pTransition->Byte = iByte;
+	pTransition->Next = iNext;
+	return true;
+}
+
+
+
+/* 把一个外层 DFA 状态的全部混合字段边确定化为局部字节 DFA。 */
+static bool __xrtPatternAffixBuild(
+	__xrt_pattern_compiler* pCompiler,
+	uint32 iOuterState,
+	const __xrt_pattern_key_ref* arrEdge,
+	size_t iEdgeCount,
+	const __xrt_pattern_u32_vector* pOuterDefault
+)
+{
+	__xrt_pattern_affix_nfa Nfa = { 0 };
+	__xrt_pattern_affix_dfa Dfa = { 0 };
+	__xrt_pattern_u32_vector Default = { 0 };
+	__xrt_pattern_u32_vector Destination = { 0 };
+	__xrt_pattern_u32_vector Output = { 0 };
+	bool bResult = false;
+	uint32 iNfaRoot;
+	uint32 iRoot;
+
+	if ( iEdgeCount == 0 ) {
+		return true;
+	}
+	if ( !__xrtPatternAffixNfaNode(&Nfa, &iNfaRoot) || (iNfaRoot != 0) ) {
+		goto cleanup;
+	}
+	for ( size_t i = 0; i < iEdgeCount; i++ ) {
+		if ( !__xrtPatternAffixNfaPattern(&Nfa, arrEdge[i].Edge) ) {
+			goto cleanup;
+		}
+	}
+	if ( !__xrtPatternAffixDfaState(
+		pCompiler,
+		&Dfa,
+		&iNfaRoot,
+		1u,
+		&iRoot
+	) || (iRoot != 0) ) {
+		goto cleanup;
+	}
+	for ( size_t iState = 0; iState < Dfa.Count; iState++ ) {
+		const uint32* arrNode = Dfa.States[iState].Nodes;
+		size_t iNodeCount = Dfa.States[iState].NodeCount;
+		bool arrSeen[256] = { false };
+		uint8 arrByte[256];
+		size_t iByteCount = 0;
+		uint32 iNext;
+
+		Default.Count = 0;
+		Output.Count = 0;
+		for ( size_t i = 0; i < pOuterDefault->Count; i++ ) {
+			if ( !__xrtPatternU32Push(&Output, pOuterDefault->Data[i]) ) {
+				goto cleanup;
+			}
+		}
+		for ( size_t i = 0; i < iNodeCount; i++ ) {
+			const __xrt_pattern_affix_nfa_node* pNode = &Nfa.Nodes[arrNode[i]];
+
+			if ( (pNode->Wild != __XRT_PATTERN_INDEX_NONE) &&
+				 !__xrtPatternU32Push(&Default, pNode->Wild) ) {
+				goto cleanup;
+			}
+			for ( size_t j = 0; j < pNode->EdgeCount; j++ ) {
+				if ( !arrSeen[pNode->Edges[j].Byte] ) {
+					arrSeen[pNode->Edges[j].Byte] = true;
+					arrByte[iByteCount++] = pNode->Edges[j].Byte;
+				}
+			}
+			for ( size_t j = 0; j < pNode->AcceptCount; j++ ) {
+				if ( !__xrtPatternU32Push(&Output, pNode->Accepts[j]) ) {
+					goto cleanup;
+				}
+			}
+		}
+		__xrtPatternU32Unique(&Output);
+		if ( Output.Count != 0 ) {
+			if ( !__xrtPatternDfaState(
+				pCompiler,
+				Output.Data,
+				Output.Count,
+				&iNext
+			) ) {
+				goto cleanup;
+			}
+			Dfa.States[iState].Output = iNext;
+		}
+		__xrtPatternU32Unique(&Default);
+		if ( Default.Count != 0 ) {
+			if ( !__xrtPatternAffixDfaState(
+				pCompiler,
+				&Dfa,
+				Default.Data,
+				Default.Count,
+				&iNext
+			) ) {
+				goto cleanup;
+			}
+			Dfa.States[iState].Default = iNext;
+		}
+		__xrtPatternByteSort(arrByte, iByteCount);
+		for ( size_t iByte = 0; iByte < iByteCount; iByte++ ) {
+			Destination.Count = 0;
+			for ( size_t i = 0; i < Default.Count; i++ ) {
+				if ( !__xrtPatternU32Push(&Destination, Default.Data[i]) ) {
+					goto cleanup;
+				}
+			}
+			for ( size_t i = 0; i < iNodeCount; i++ ) {
+				const __xrt_pattern_affix_nfa_node* pNode =
+					&Nfa.Nodes[arrNode[i]];
+
+				for ( size_t j = 0; j < pNode->EdgeCount; j++ ) {
+					if ( (pNode->Edges[j].Byte == arrByte[iByte]) &&
+						 !__xrtPatternU32Push(
+							&Destination,
+							pNode->Edges[j].Next
+						 ) ) {
+						goto cleanup;
+					}
+				}
+			}
+			__xrtPatternU32Unique(&Destination);
+			if ( !__xrtPatternAffixDfaState(
+				pCompiler,
+				&Dfa,
+				Destination.Data,
+				Destination.Count,
+				&iNext
+			) ) {
+				goto cleanup;
+			}
+			if ( (Dfa.States[iState].Default == __XRT_PATTERN_INDEX_NONE) ||
+				 (iNext != Dfa.States[iState].Default) ) {
+				if ( !__xrtPatternTempAffixTransition(
+					&Dfa,
+					(uint32)iState,
+					arrByte[iByte],
+					iNext
+				) ) {
+					goto cleanup;
+				}
+			}
+		}
+	}
+	for ( size_t i = 0; i < Dfa.Count; i++ ) {
+		xrtFree(Dfa.States[i].Nodes);
+		Dfa.States[i].Nodes = NULL;
+		Dfa.States[i].NodeCount = 0;
+	}
+	xrtFree(Dfa.Slots);
+	Dfa.Slots = NULL;
+	pCompiler->Dfa.States[iOuterState].AffixStates = Dfa.States;
+	pCompiler->Dfa.States[iOuterState].AffixStateCount = Dfa.Count;
+	Dfa.States = NULL;
+	Dfa.Count = 0;
+	bResult = true;
+
+cleanup:
+	for ( size_t i = 0; i < Nfa.Count; i++ ) {
+		xrtFree(Nfa.Nodes[i].Edges);
+		xrtFree(Nfa.Nodes[i].Accepts);
+	}
+	xrtFree(Nfa.Nodes);
+	xrtFree(Default.Data);
+	xrtFree(Destination.Data);
+	xrtFree(Output.Data);
+	__xrtPatternAffixDfaFree(&Dfa);
+	return bResult;
+}
+
+
+
+static uint32 __xrtPatternTempAffixNext(
+	const __xrt_pattern_temp_state* pOuter,
+	uint32 iState,
+	uint8 iByte
+)
+{
+	const __xrt_pattern_temp_affix_state* pState = &pOuter->AffixStates[iState];
+
+	for ( size_t i = 0; i < pState->TransitionCount; i++ ) {
+		if ( pState->Transitions[i].Byte == iByte ) {
+			return pState->Transitions[i].Next;
+		}
+	}
+	return pState->Default;
+}
+
+
+
+/* 返回混合字段局部 DFA 对完整字面字段给出的外层目标集合。 */
+static uint32 __xrtPatternTempAffixOutput(
+	const __xrt_pattern_temp_state* pOuter,
+	xstrview Text
+)
+{
+	uint32 iState = 0;
+
+	if ( pOuter->AffixStateCount == 0 ) {
+		return pOuter->Default;
+	}
+	for ( size_t i = 0; i < Text.Size; i++ ) {
+		iState = __xrtPatternTempAffixNext(
+			pOuter,
+			iState,
+			(uint8)Text.Data[i]
+		);
+		if ( iState == __XRT_PATTERN_INDEX_NONE ) {
+			return pOuter->Default;
+		}
+	}
+	return pOuter->AffixStates[iState].Output;
+}
+
+
+
+static int __xrtPatternKeyCompare(const void* pLeft, const void* pRight)
+{
+	const __xrt_pattern_nfa_edge* pA =
+		((const __xrt_pattern_key_ref*)pLeft)->Edge;
+	const __xrt_pattern_nfa_edge* pB =
+		((const __xrt_pattern_key_ref*)pRight)->Edge;
+	size_t iCommon = pA->Text.Size < pB->Text.Size ?
+		pA->Text.Size : pB->Text.Size;
+	int iCompare = iCommon != 0 ? memcmp(
+		pA->Text.Data,
+		pB->Text.Data,
+		iCommon
+	) : 0;
+
+	if ( iCompare != 0 ) {
+		return iCompare;
+	}
+	return pA->Text.Size < pB->Text.Size ? -1 :
+		(pA->Text.Size > pB->Text.Size ? 1 : 0);
+}
+
+
+
+static bool __xrtPatternKeyEqual(
+	const __xrt_pattern_nfa_edge* pA,
+	const __xrt_pattern_nfa_edge* pB
+)
+{
+	return (pA->Text.Size == pB->Text.Size) &&
+		((pA->Text.Size == 0) ||
+		 (memcmp(pA->Text.Data, pB->Text.Data, pA->Text.Size) == 0));
+}
+
+
+
+/* 为一个 DFA 状态生成默认、字面量和精确分隔符转移。 */
+static bool __xrtPatternDfaExpand(
+	__xrt_pattern_compiler* pCompiler,
+	uint32 iState,
+	__xrt_pattern_u32_vector* pDefault,
+	__xrt_pattern_u32_vector* pDestination,
+	__xrt_pattern_key_ref** pKeys,
+	size_t* pKeyCapacity,
+	__xrt_pattern_key_ref** pAffixes,
+	size_t* pAffixCapacity
+)
+{
+	__xrt_pattern_temp_state* pState = &pCompiler->Dfa.States[iState];
+	size_t iKeyCount = 0;
+	size_t iAffixCount = 0;
+	bool arrSeparatorSeen[256] = { false };
+	uint8 arrSeparator[256];
+	size_t iSeparatorCount = 0;
+	uint32 iNext;
+
+	pDefault->Count = 0;
+	for ( size_t i = 0; i < pState->NodeCount; i++ ) {
+		const __xrt_pattern_nfa_node* pNode =
+			&pCompiler->Nfa.Nodes[pState->Nodes[i]];
+
+		if ( (pNode->Param != __XRT_PATTERN_INDEX_NONE) &&
+			 !__xrtPatternU32Push(pDefault, pNode->Param) ) {
+			return false;
+		}
+		for ( size_t j = 0; j < pNode->EdgeCount; j++ ) {
+			const __xrt_pattern_nfa_edge* pEdge = &pNode->Edges[j];
+
+			if ( pEdge->Kind == __XRT_PATTERN_NFA_SEPARATOR ) {
+				if ( !arrSeparatorSeen[pEdge->Byte] ) {
+					arrSeparatorSeen[pEdge->Byte] = true;
+					arrSeparator[iSeparatorCount++] = pEdge->Byte;
+				}
+			} else if ( pEdge->Kind == __XRT_PATTERN_NFA_LITERAL ) {
+				if ( !__xrtPatternGrow(
+					(ptr*)pKeys,
+					pKeyCapacity,
+					iKeyCount + 1u,
+					sizeof(**pKeys)
+				) ) {
+					return false;
+				}
+				(*pKeys)[iKeyCount++].Edge = pEdge;
+			} else if ( pEdge->Kind == __XRT_PATTERN_NFA_AFFIX ) {
+				if ( !__xrtPatternGrow(
+					(ptr*)pAffixes,
+					pAffixCapacity,
+					iAffixCount + 1u,
+					sizeof(**pAffixes)
+				) ) {
+					return false;
+				}
+				(*pAffixes)[iAffixCount++].Edge = pEdge;
+			} else {
+				__xrtPatternSetInternal();
+				return false;
+			}
+		}
+	}
+	__xrtPatternU32Unique(pDefault);
+	if ( pDefault->Count != 0 ) {
+		if ( !__xrtPatternDfaState(
+			pCompiler,
+			pDefault->Data,
+			pDefault->Count,
+			&iNext
+		) ) {
+			return false;
+		}
+		pCompiler->Dfa.States[iState].Default = iNext;
+	}
+	if ( !__xrtPatternAffixBuild(
+		pCompiler,
+		iState,
+		*pAffixes,
+		iAffixCount,
+		pDefault
+	) ) {
+		return false;
+	}
+	if ( iKeyCount > 1u ) {
+		qsort(*pKeys, iKeyCount, sizeof(**pKeys), __xrtPatternKeyCompare);
+	}
+	for ( size_t i = 0; i < iKeyCount; ) {
+		size_t iEnd = i + 1u;
+		uint32 iAffixOutput;
+
+		while ( (iEnd < iKeyCount) &&
+			 __xrtPatternKeyEqual((*pKeys)[i].Edge, (*pKeys)[iEnd].Edge) ) {
+			iEnd++;
+		}
+		pDestination->Count = 0;
+		pState = &pCompiler->Dfa.States[iState];
+		iAffixOutput = __xrtPatternTempAffixOutput(
+			pState,
+			(*pKeys)[i].Edge->Text
+		);
+		if ( iAffixOutput != __XRT_PATTERN_INDEX_NONE ) {
+			const __xrt_pattern_temp_state* pOutput =
+				&pCompiler->Dfa.States[iAffixOutput];
+
+			for ( size_t j = 0; j < pOutput->NodeCount; j++ ) {
+				if ( !__xrtPatternU32Push(pDestination, pOutput->Nodes[j]) ) {
+					return false;
+				}
+			}
+		}
+		for ( size_t j = i; j < iEnd; j++ ) {
+			if ( !__xrtPatternU32Push(
+				pDestination,
+				(*pKeys)[j].Edge->Next
+			) ) {
+				return false;
+			}
+		}
+		__xrtPatternU32Unique(pDestination);
+		if ( !__xrtPatternDfaState(
+			pCompiler,
+			pDestination->Data,
+			pDestination->Count,
+			&iNext
+		) || !__xrtPatternTempLiteral(
+			&pCompiler->Dfa,
+			iState,
+			(*pKeys)[i].Edge->Text,
+			iNext
+		) ) {
+			return false;
+		}
+		i = iEnd;
+	}
+	__xrtPatternByteSort(arrSeparator, iSeparatorCount);
+	for ( size_t iSeparator = 0;
+		iSeparator < iSeparatorCount; iSeparator++ ) {
+		uint8 iByte = arrSeparator[iSeparator];
+
+		pDestination->Count = 0;
+		/* State 数组可能增长，因此每轮都按索引重新取得集合。 */
+		pState = &pCompiler->Dfa.States[iState];
+		for ( size_t i = 0; i < pState->NodeCount; i++ ) {
+			const __xrt_pattern_nfa_node* pNode =
+				&pCompiler->Nfa.Nodes[pState->Nodes[i]];
+
+			for ( size_t j = 0; j < pNode->EdgeCount; j++ ) {
+				const __xrt_pattern_nfa_edge* pEdge = &pNode->Edges[j];
+
+				if ( (pEdge->Kind == __XRT_PATTERN_NFA_SEPARATOR) &&
+					 (pEdge->Byte == iByte) &&
+					 !__xrtPatternU32Push(pDestination, pEdge->Next) ) {
+					return false;
+				}
+			}
+		}
+		__xrtPatternU32Unique(pDestination);
+		if ( !__xrtPatternDfaState(
+			pCompiler,
+			pDestination->Data,
+			pDestination->Count,
+			&iNext
+		) || !__xrtPatternTempSeparator(
+			&pCompiler->Dfa,
+			iState,
+			iByte,
+			iNext
+		) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+
+/* 从逻辑 trie 构建无回溯字段 DFA。 */
+static bool __xrtPatternDfaBuild(__xrt_pattern_compiler* pCompiler)
+{
+	__xrt_pattern_u32_vector Default = { 0 };
+	__xrt_pattern_u32_vector Destination = { 0 };
+	__xrt_pattern_key_ref* arrKey = NULL;
+	__xrt_pattern_key_ref* arrAffix = NULL;
+	size_t iKeyCapacity = 0;
+	size_t iAffixCapacity = 0;
+	uint32 iRootNode = 0;
+	uint32 iRootState;
+	bool bResult = false;
+
+	if ( !__xrtPatternDfaState(
+		pCompiler,
+		&iRootNode,
+		1u,
+		&iRootState
+	) || (iRootState != 0) ) {
+		goto cleanup;
+	}
+	for ( size_t i = 0; i < pCompiler->Dfa.Count; i++ ) {
+		if ( !__xrtPatternDfaExpand(
+			pCompiler,
+			(uint32)i,
+			&Default,
+			&Destination,
+			&arrKey,
+			&iKeyCapacity,
+			&arrAffix,
+			&iAffixCapacity
+		) ) {
+			goto cleanup;
+		}
+	}
+	bResult = true;
+
+cleanup:
+	xrtFree(Default.Data);
+	xrtFree(Destination.Data);
+	xrtFree(arrKey);
+	xrtFree(arrAffix);
+	return bResult;
+}
+
+
+
+/* 安全累计最终单块布局。 */
+static bool __xrtPatternPackLayout(
+	size_t* pTotal,
+	size_t iAlign,
+	size_t iCount,
+	size_t iSize,
+	size_t* pOffset
+)
+{
+	size_t iPadding = (iAlign - (*pTotal % iAlign)) % iAlign;
+	size_t iBytes;
+
+	if ( *pTotal > (SIZE_MAX - iPadding) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	*pTotal += iPadding;
+	*pOffset = *pTotal;
+	if ( (iSize != 0) && (iCount > (SIZE_MAX / iSize)) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	iBytes = iCount * iSize;
+	if ( *pTotal > (SIZE_MAX - iBytes) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	*pTotal += iBytes;
+	return true;
+}
+
+
+
+static bool __xrtPatternSizeAdd(size_t* pTotal, size_t iAdd)
+{
+	if ( *pTotal > (SIZE_MAX - iAdd) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	*pTotal += iAdd;
+	return true;
+}
+
+
+
+/* 高扇出状态使用不超过 50% 负载的幂二开放寻址表。 */
+static bool __xrtPatternLiteralSlots(size_t iCount, size_t* pSlots)
+{
+	size_t iNeed;
+	size_t iSlots = 8u;
+
+	if ( iCount <= __XRT_PATTERN_LINEAR_MAX ) {
+		*pSlots = iCount;
+		return true;
+	}
+	if ( iCount > (SIZE_MAX / 2u) ) {
+		__xrtPatternSetSizeOverflow();
+		return false;
+	}
+	iNeed = iCount * 2u;
+	while ( iSlots < iNeed ) {
+		if ( iSlots > (SIZE_MAX / 2u) ) {
+			__xrtPatternSetSizeOverflow();
+			return false;
+		}
+		iSlots *= 2u;
+	}
+	*pSlots = iSlots;
+	return true;
+}
+
+
+
+/* 复制字节到最终字符串区并返回只读视图。 */
+static xstrview __xrtPatternPackText(
+	char* sStrings,
+	size_t* pCursor,
+	xstrview Text,
+	bool bTerminate
+)
+{
+	char* sTarget = sStrings + *pCursor;
+
+	if ( Text.Size != 0 ) {
+		memcpy(sTarget, Text.Data, Text.Size);
+	}
+	*pCursor += Text.Size;
+	if ( bTerminate ) {
+		sTarget[Text.Size] = 0;
+		(*pCursor)++;
+	}
+	return (xstrview){ sTarget, Text.Size };
+}
+
+
+
+/* 将临时 DFA、源元数据和字符串池打包成一个只读分配。 */
+static xpattern* __xrtPatternPack(__xrt_pattern_compiler* pCompiler)
+{
+	size_t iLiteralSlots = 0;
+	size_t iSeparatorTransitions = 0;
+	size_t iAffixStates = 0;
+	size_t iAffixTransitions = 0;
+	size_t iReplayBytes = 0;
+	size_t iCaptureCount = 0;
+	size_t iStringBytes = pCompiler->Options->SeparatorCount;
+	size_t iEntryOffset;
+	size_t iMetadataOffset;
+	size_t iStateOffset;
+	size_t iAffixRootOffset;
+	size_t iLiteralOffset;
+	size_t iSeparatorOffset;
+	size_t iAffixStateOffset;
+	size_t iAffixTransitionOffset;
+	size_t iReplayOffset;
+	size_t iCaptureOffset;
+	size_t iStringOffset;
+	size_t iTotal = sizeof(xpattern);
+	xpattern* pPattern;
+	uint8* pBase;
+	uint8* arrReplay;
+	__xrt_pattern_capture* arrCapture;
+	char* sStrings;
+	size_t iReplayCursor = 0;
+	size_t iCaptureCursor = 0;
+	size_t iLiteralCursor = 0;
+	size_t iSeparatorCursor = 0;
+	size_t iAffixStateCursor = 0;
+	size_t iAffixTransitionCursor = 0;
+	size_t iStringCursor = 0;
+
+	for ( size_t i = 0; i < pCompiler->Dfa.Count; i++ ) {
+		size_t iSlots;
+
+		if ( !__xrtPatternLiteralSlots(
+			pCompiler->Dfa.States[i].LiteralCount,
+			&iSlots
+		) || !__xrtPatternSizeAdd(&iLiteralSlots, iSlots) ||
+			 !__xrtPatternSizeAdd(
+				&iSeparatorTransitions,
+				pCompiler->Dfa.States[i].SeparatorCount
+			) ) {
+			return NULL;
+		}
+		for ( size_t j = 0;
+			j < pCompiler->Dfa.States[i].LiteralCount; j++ ) {
+			if ( !__xrtPatternSizeAdd(
+				&iStringBytes,
+				pCompiler->Dfa.States[i].Literals[j].Text.Size
+			) ) {
+				return NULL;
+			}
+		}
+		if ( !__xrtPatternSizeAdd(
+			&iAffixStates,
+			pCompiler->Dfa.States[i].AffixStateCount
+		) ) {
+			return NULL;
+		}
+		for ( size_t j = 0;
+			j < pCompiler->Dfa.States[i].AffixStateCount; j++ ) {
+			if ( !__xrtPatternSizeAdd(
+				&iAffixTransitions,
+				pCompiler->Dfa.States[i].AffixStates[j].TransitionCount
+			) ) {
+				return NULL;
+			}
+		}
+	}
+	for ( size_t i = 0; i < pCompiler->SourceCount; i++ ) {
+		const __xrt_pattern_source* pSource = pCompiler->Sources[i];
+
+		if ( !__xrtPatternSizeAdd(&iReplayBytes, pSource->AtomCount) ||
+			 !__xrtPatternSizeAdd(&iCaptureCount, pSource->CaptureCount) ||
+			 !__xrtPatternSizeAdd(&iStringBytes, pSource->Pattern.Size + 1u) ) {
+			return NULL;
+		}
+		for ( size_t j = 0; j < pSource->CaptureCount; j++ ) {
+			if ( !__xrtPatternSizeAdd(
+				&iStringBytes,
+				pSource->Captures[j].Name.Size
+			) ) {
+				return NULL;
+			}
+		}
+	}
+	if ( (iLiteralSlots > UINT32_MAX) ||
+		 (iSeparatorTransitions > UINT32_MAX) ||
+		 (iAffixStates > UINT32_MAX) ||
+		 (iAffixTransitions > UINT32_MAX) ||
+		 (pCompiler->Dfa.Count >= UINT32_MAX) ) {
+		__xrtPatternSetSizeOverflow();
+		return NULL;
+	}
+	if ( !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_entry),
+		pCompiler->SourceCount,
+		sizeof(__xrt_pattern_entry),
+		&iEntryOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_metadata),
+		pCompiler->SourceCount,
+		sizeof(__xrt_pattern_metadata),
+		&iMetadataOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_state),
+		pCompiler->Dfa.Count,
+		sizeof(__xrt_pattern_state),
+		&iStateOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(uint32),
+		iAffixStates != 0 ? pCompiler->Dfa.Count : 0,
+		sizeof(uint32),
+		&iAffixRootOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_literal_transition),
+		iLiteralSlots,
+		sizeof(__xrt_pattern_literal_transition),
+		&iLiteralOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_separator_transition),
+		iSeparatorTransitions,
+		sizeof(__xrt_pattern_separator_transition),
+		&iSeparatorOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_affix_state),
+		iAffixStates,
+		sizeof(__xrt_pattern_affix_state),
+		&iAffixStateOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_affix_transition),
+		iAffixTransitions,
+		sizeof(__xrt_pattern_affix_transition),
+		&iAffixTransitionOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		1u,
+		iReplayBytes,
+		sizeof(uint8),
+		&iReplayOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		XRT_INTERNAL_ALIGNOF(__xrt_pattern_capture),
+		iCaptureCount,
+		sizeof(__xrt_pattern_capture),
+		&iCaptureOffset
+	) || !__xrtPatternPackLayout(
+		&iTotal,
+		1u,
+		iStringBytes,
+		1u,
+		&iStringOffset
+	) ) {
+		return NULL;
+	}
+	if ( iTotal > pCompiler->Options->MaxCompiledBytes ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_LIMIT,
+			pCompiler->Operation,
+			"compiled matcher exceeds its byte limit",
+			false,
+			0,
+			false,
+			0
+		);
+		return NULL;
+	}
+	pPattern = (xpattern*)xrtCalloc(1u, iTotal);
+	if ( pPattern == NULL ) {
+		return NULL;
+	}
+	pBase = (uint8*)pPattern;
+	pPattern->RefCount = 1;
+	pPattern->CompiledBytes = iTotal;
+	pPattern->Count = pCompiler->SourceCount;
+	pPattern->SeparatorKind = pCompiler->Options->SeparatorKind;
+	pPattern->StateCount = (uint32)pCompiler->Dfa.Count;
+	memcpy(
+		pPattern->SeparatorMask,
+		pCompiler->Options->SeparatorMask,
+		sizeof(pPattern->SeparatorMask)
+	);
+	pPattern->Entries = (__xrt_pattern_entry*)(pBase + iEntryOffset);
+	pPattern->Metadata = (__xrt_pattern_metadata*)(pBase + iMetadataOffset);
+	pPattern->States = (__xrt_pattern_state*)(pBase + iStateOffset);
+	if ( iAffixStates != 0 ) {
+		pPattern->AffixRoots = (uint32*)(pBase + iAffixRootOffset);
+	}
+	pPattern->Literals =
+		(__xrt_pattern_literal_transition*)(pBase + iLiteralOffset);
+	pPattern->SeparatorTransitions =
+		(__xrt_pattern_separator_transition*)(pBase + iSeparatorOffset);
+	pPattern->AffixStates =
+		(__xrt_pattern_affix_state*)(pBase + iAffixStateOffset);
+	pPattern->AffixTransitions =
+		(__xrt_pattern_affix_transition*)(pBase + iAffixTransitionOffset);
+	arrReplay = pBase + iReplayOffset;
+	arrCapture = (__xrt_pattern_capture*)(pBase + iCaptureOffset);
+	sStrings = (char*)(pBase + iStringOffset);
+	if ( pCompiler->Options->SeparatorCount != 0 ) {
+		pPattern->Separators = (xstrview){
+			sStrings,
+			pCompiler->Options->SeparatorCount
+		};
+		memcpy(
+			sStrings,
+			pCompiler->Options->Separators,
+			pCompiler->Options->SeparatorCount
+		);
+		iStringCursor += pCompiler->Options->SeparatorCount;
+	}
+	for ( size_t i = 0; i < pCompiler->SourceCount; i++ ) {
+		const __xrt_pattern_source* pSource = pCompiler->Sources[i];
+		__xrt_pattern_entry* pEntry = &pPattern->Entries[i];
+		__xrt_pattern_metadata* pMetadata = &pPattern->Metadata[i];
+
+		pEntry->Id = pSource->Id;
+		pEntry->Rank = pCompiler->Ranks[i];
+		pEntry->Value = pSource->Value;
+		pMetadata->Source = __xrtPatternPackText(
+			sStrings,
+			&iStringCursor,
+			pSource->Pattern,
+			true
+		);
+		pMetadata->Replay = arrReplay + iReplayCursor;
+		pMetadata->ReplayCount = (uint32)pSource->AtomCount;
+		for ( size_t j = 0; j < pSource->AtomCount; j++ ) {
+			const __xrt_pattern_atom* pFrom = &pSource->Atoms[j];
+
+			arrReplay[iReplayCursor++] = pFrom->Kind;
+		}
+		pMetadata->Captures = arrCapture + iCaptureCursor;
+		pEntry->CaptureCount = (uint32)pSource->CaptureCount;
+		if ( pSource->CaptureCount > pPattern->MaxCaptureCount ) {
+			pPattern->MaxCaptureCount = pSource->CaptureCount;
+		}
+		for ( size_t j = 0; j < pSource->CaptureCount; j++ ) {
+			__xrt_pattern_capture* pTo = &arrCapture[iCaptureCursor++];
+
+			*pTo = pSource->Captures[j];
+			pTo->Name = __xrtPatternPackText(
+				sStrings,
+				&iStringCursor,
+				pSource->Captures[j].Name,
+				false
+			);
+		}
+	}
+	for ( size_t i = 0; i < pCompiler->Dfa.Count; i++ ) {
+		const __xrt_pattern_temp_state* pFrom = &pCompiler->Dfa.States[i];
+		__xrt_pattern_state* pTo = &pPattern->States[i];
+		size_t iSlots = 0;
+
+		(void)__xrtPatternLiteralSlots(pFrom->LiteralCount, &iSlots);
+		pTo->LiteralOffset = (uint32)iLiteralCursor;
+		pTo->LiteralCount = (uint32)pFrom->LiteralCount;
+		pTo->LiteralSlots = (uint32)iSlots;
+		pTo->SeparatorOffset = (uint32)iSeparatorCursor;
+		pTo->SeparatorCount = (uint16)pFrom->SeparatorCount;
+		if ( pPattern->AffixRoots != NULL ) {
+			pPattern->AffixRoots[i] = pFrom->AffixStateCount != 0 ?
+				(uint32)iAffixStateCursor + 1u : 0;
+		}
+		pTo->DefaultPlusOne = pFrom->Default != __XRT_PATTERN_INDEX_NONE ?
+			pFrom->Default + 1u : 0;
+		pTo->TerminalPlusOne = pFrom->Terminal != __XRT_PATTERN_INDEX_NONE ?
+			pFrom->Terminal + 1u : 0;
+		pTo->TailPlusOne = pFrom->Tail != __XRT_PATTERN_INDEX_NONE ?
+			pFrom->Tail + 1u : 0;
+		if ( pFrom->LiteralCount == 0 ) {
+			pTo->DispatchKind = __XRT_PATTERN_DISPATCH_NONE;
+		} else if ( pFrom->LiteralCount <= __XRT_PATTERN_LINEAR_MAX ) {
+			pTo->DispatchKind = __XRT_PATTERN_DISPATCH_LINEAR;
+			for ( size_t j = 0; j < pFrom->LiteralCount; j++ ) {
+				__xrt_pattern_literal_transition* pTransition =
+					&pPattern->Literals[iLiteralCursor++];
+				xstrview Text = __xrtPatternPackText(
+					sStrings,
+					&iStringCursor,
+					pFrom->Literals[j].Text,
+					false
+				);
+
+				pTransition->Data = Text.Data;
+				pTransition->Size = (uint32)Text.Size;
+				pTransition->NextPlusOne = pFrom->Literals[j].Next + 1u;
+			}
+		} else {
+			pTo->DispatchKind = __XRT_PATTERN_DISPATCH_HASH;
+			for ( size_t j = 0; j < pFrom->LiteralCount; j++ ) {
+				uint64 iHash = __xrtPatternHashField(
+					pFrom->Literals[j].Text.Data,
+					pFrom->Literals[j].Text.Size,
+					(uint32)i
+				);
+				size_t iSlot = (size_t)(iHash & (iSlots - 1u));
+				__xrt_pattern_literal_transition* pTransition;
+
+				while ( pPattern->Literals[
+					pTo->LiteralOffset + iSlot
+				].NextPlusOne != 0 ) {
+					iSlot = (iSlot + 1u) & (iSlots - 1u);
+				}
+				pTransition = &pPattern->Literals[pTo->LiteralOffset + iSlot];
+				{
+					xstrview Text = __xrtPatternPackText(
+						sStrings,
+						&iStringCursor,
+						pFrom->Literals[j].Text,
+						false
+					);
+
+					pTransition->Data = Text.Data;
+					pTransition->Size = (uint32)Text.Size;
+				}
+				pTransition->NextPlusOne = pFrom->Literals[j].Next + 1u;
+			}
+			iLiteralCursor += iSlots;
+		}
+		for ( size_t j = 0; j < pFrom->SeparatorCount; j++ ) {
+			__xrt_pattern_separator_transition* pTransition =
+				&pPattern->SeparatorTransitions[iSeparatorCursor++];
+
+			pTransition->Byte = pFrom->Separators[j].Byte;
+			pTransition->NextPlusOne = pFrom->Separators[j].Next + 1u;
+		}
+		if ( pFrom->AffixStateCount != 0 ) {
+			size_t iAffixBase = iAffixStateCursor;
+
+			for ( size_t j = 0; j < pFrom->AffixStateCount; j++ ) {
+				const __xrt_pattern_temp_affix_state* pAffixFrom =
+					&pFrom->AffixStates[j];
+				__xrt_pattern_affix_state* pAffixTo =
+					&pPattern->AffixStates[iAffixStateCursor++];
+
+				pAffixTo->TransitionOffset = (uint32)iAffixTransitionCursor;
+				pAffixTo->TransitionCount =
+					(uint16)pAffixFrom->TransitionCount;
+				pAffixTo->DefaultPlusOne =
+					pAffixFrom->Default != __XRT_PATTERN_INDEX_NONE ?
+					(uint32)iAffixBase + pAffixFrom->Default + 1u : 0;
+				pAffixTo->OutputPlusOne =
+					pAffixFrom->Output != __XRT_PATTERN_INDEX_NONE ?
+					pAffixFrom->Output + 1u : 0;
+				for ( size_t k = 0;
+					k < pAffixFrom->TransitionCount; k++ ) {
+					__xrt_pattern_affix_transition* pTransition =
+						&pPattern->AffixTransitions[iAffixTransitionCursor++];
+
+					pTransition->Byte = pAffixFrom->Transitions[k].Byte;
+					pTransition->NextPlusOne = (uint32)iAffixBase +
+						pAffixFrom->Transitions[k].Next + 1u;
+				}
+			}
+		}
+	}
+	if ( (iReplayCursor != iReplayBytes) ||
+		 (iCaptureCursor != iCaptureCount) ||
+		 (iLiteralCursor != iLiteralSlots) ||
+		 (iSeparatorCursor != iSeparatorTransitions) ||
+		 (iAffixStateCursor != iAffixStates) ||
+		 (iAffixTransitionCursor != iAffixTransitions) ||
+		 (iStringCursor != iStringBytes) ) {
+		xrtFree(pPattern);
+		__xrtPatternSetInternal();
+		return NULL;
+	}
+	return pPattern;
+}
+
+
+
+/* 释放编译过程的全部临时状态。 */
+static void __xrtPatternCompilerFree(__xrt_pattern_compiler* pCompiler)
+{
+	xrtFree(pCompiler->Ranks);
+	__xrtPatternNfaFree(&pCompiler->Nfa);
+	__xrtPatternDfaFree(&pCompiler->Dfa);
+}
+
+
+
+xpattern* __xrtPatternCompileSources(
+	__xrt_pattern_source* const* arrSource,
+	size_t iCount,
+	const __xrt_pattern_options* pOptions,
+	cstr sOperation
+)
+{
+	__xrt_pattern_compiler Compiler;
+	xpattern* pPattern = NULL;
+	uint32 iRoot;
+
+	if ( (pOptions == NULL) || ((arrSource == NULL) && (iCount != 0)) ||
+		 (iCount > pOptions->MaxPatterns) || (iCount >= UINT32_MAX) ) {
+		__xrtPatternSetInvalidArgument();
+		return NULL;
+	}
+	memset(&Compiler, 0, sizeof(Compiler));
+	Compiler.Sources = arrSource;
+	Compiler.SourceCount = iCount;
+	Compiler.Options = pOptions;
+	Compiler.Operation = sOperation;
+	if ( !__xrtPatternRanks(&Compiler) ||
+		 !__xrtPatternNfaNode(&Compiler, &iRoot) || (iRoot != 0) ) {
+		goto cleanup;
+	}
+	for ( size_t i = 0; i < iCount; i++ ) {
+		if ( !__xrtPatternNfaInsert(&Compiler, (uint32)i) ) {
+			goto cleanup;
+		}
+	}
+	if ( !__xrtPatternDfaBuild(&Compiler) ) {
+		goto cleanup;
+	}
+	pPattern = __xrtPatternPack(&Compiler);
+
+cleanup:
+	__xrtPatternCompilerFree(&Compiler);
+	return pPattern;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/text/pattern_match.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_PATTERN)
+
+
+
+#if defined(XRT_FEATURE_PATTERN)
+
+#define __XRT_PATTERN_FIELDS_INLINE 16u
+
+
+
+typedef struct __xrt_pattern_fields {
+	xstrview Values[__XRT_PATTERN_FIELDS_INLINE];
+	size_t Count;
+	bool Overflow;
+} __xrt_pattern_fields;
+
+
+
+/* 选择 Rank 更小的候选，并用加一编码保留零值未命中。 */
+static uint32 __xrtPatternCandidate(
+	const xpattern* pPattern,
+	uint32 iCurrentPlusOne,
+	uint32 iCandidatePlusOne
+)
+{
+	if ( iCandidatePlusOne == 0 ) {
+		return iCurrentPlusOne;
+	}
+	if ( iCurrentPlusOne == 0 ) {
+		return iCandidatePlusOne;
+	}
+	return pPattern->Entries[iCandidatePlusOne - 1u].Rank <
+		pPattern->Entries[iCurrentPlusOne - 1u].Rank ?
+		iCandidatePlusOne : iCurrentPlusOne;
+}
+
+
+
+/* 精确分隔符转移通常只有一条，小数组线性比较避免哈希开销。 */
+static uint32 __xrtPatternSeparatorNext(
+	const xpattern* pPattern,
+	const __xrt_pattern_state* pState,
+	uint8 iByte
+)
+{
+	const __xrt_pattern_separator_transition* arrTransition =
+		pPattern->SeparatorTransitions + pState->SeparatorOffset;
+
+	if ( pState->SeparatorCount <= __XRT_PATTERN_LINEAR_MAX ) {
+		for ( size_t i = 0; i < pState->SeparatorCount; i++ ) {
+			if ( arrTransition[i].Byte == iByte ) {
+				return arrTransition[i].NextPlusOne;
+			}
+		}
+		return 0;
+	}
+	{
+		size_t iLow = 0;
+		size_t iHigh = pState->SeparatorCount;
+
+		while ( iLow < iHigh ) {
+			size_t iMiddle = iLow + ((iHigh - iLow) >> 1u);
+
+			if ( arrTransition[iMiddle].Byte < iByte ) {
+				iLow = iMiddle + 1u;
+			} else {
+				iHigh = iMiddle;
+			}
+		}
+		return (iLow < pState->SeparatorCount) &&
+			(arrTransition[iLow].Byte == iByte) ?
+			arrTransition[iLow].NextPlusOne : 0;
+	}
+}
+
+
+
+/* 自适应查找字面字段，未命中时返回已经确定化的参数默认状态。 */
+static uint32 __xrtPatternLiteralNext(
+	const xpattern* pPattern,
+	uint32 iState,
+	const char* sField,
+	size_t iSize,
+	uint32 iFallbackPlusOne
+)
+{
+	const __xrt_pattern_state* pState = &pPattern->States[iState];
+	const __xrt_pattern_literal_transition* arrTransition =
+		pPattern->Literals + pState->LiteralOffset;
+
+	if ( iSize > UINT32_MAX ) {
+		return iFallbackPlusOne;
+	}
+	if ( pState->DispatchKind == __XRT_PATTERN_DISPATCH_LINEAR ) {
+		for ( size_t i = 0; i < pState->LiteralCount; i++ ) {
+			if ( (arrTransition[i].Size == (uint32)iSize) &&
+				 (memcmp(arrTransition[i].Data, sField, iSize) == 0) ) {
+				return arrTransition[i].NextPlusOne;
+			}
+		}
+	} else if ( pState->DispatchKind == __XRT_PATTERN_DISPATCH_HASH ) {
+		uint64 iHash = __xrtPatternHashField(sField, iSize, iState);
+		size_t iSlot = (size_t)(iHash & (pState->LiteralSlots - 1u));
+
+		for ( ;; ) {
+			const __xrt_pattern_literal_transition* pTransition =
+				&arrTransition[iSlot];
+
+			if ( pTransition->NextPlusOne == 0 ) {
+				break;
+			}
+			if ( (pTransition->Size == (uint32)iSize) &&
+				 (memcmp(pTransition->Data, sField, iSize) == 0) ) {
+				return pTransition->NextPlusOne;
+			}
+			iSlot = (iSlot + 1u) & (pState->LiteralSlots - 1u);
+		}
+	}
+	return iFallbackPlusOne;
+}
+
+
+
+/* 局部混合字段 DFA：稀疏字节覆盖，未覆盖字节走通配默认边。 */
+static uint32 __xrtPatternAffixNext(
+	const xpattern* pPattern,
+	uint32 iStatePlusOne,
+	uint8 iByte
+)
+{
+	const __xrt_pattern_affix_state* pState =
+		&pPattern->AffixStates[iStatePlusOne - 1u];
+	const __xrt_pattern_affix_transition* arrTransition =
+		pPattern->AffixTransitions + pState->TransitionOffset;
+
+	if ( pState->TransitionCount <= __XRT_PATTERN_LINEAR_MAX ) {
+		for ( size_t i = 0; i < pState->TransitionCount; i++ ) {
+			if ( arrTransition[i].Byte == iByte ) {
+				return arrTransition[i].NextPlusOne;
+			}
+		}
+		return pState->DefaultPlusOne;
+	}
+	{
+		size_t iLow = 0;
+		size_t iHigh = pState->TransitionCount;
+
+		while ( iLow < iHigh ) {
+			size_t iMiddle = iLow + ((iHigh - iLow) >> 1u);
+
+			if ( arrTransition[iMiddle].Byte < iByte ) {
+				iLow = iMiddle + 1u;
+			} else {
+				iHigh = iMiddle;
+			}
+		}
+		return (iLow < pState->TransitionCount) &&
+			(arrTransition[iLow].Byte == iByte) ?
+			arrTransition[iLow].NextPlusOne : pState->DefaultPlusOne;
+	}
+}
+
+
+
+/*
+	每种分隔符规模生成独立扫描循环；入口只分派一次，热循环中没有模式
+	开关。Condition 使用循环局部变量 iCurrent。
+*/
+#define __XRT_PATTERN_DEFINE_RUN(Name, Declaration, Condition) \
+	static uint32 Name(const xpattern* pPattern, xstrview Text) \
+	{ \
+		Declaration \
+		uint32 iState = 0; \
+		uint32 iBestPlusOne = 0; \
+		size_t iPosition = 0; \
+		for ( ;; ) { \
+			const __xrt_pattern_state* pState = &pPattern->States[iState]; \
+			uint32 iNextPlusOne; \
+			iBestPlusOne = __xrtPatternCandidate( \
+				pPattern, iBestPlusOne, pState->TailPlusOne \
+			); \
+			if ( iPosition == Text.Size ) { \
+				iBestPlusOne = __xrtPatternCandidate( \
+					pPattern, iBestPlusOne, pState->TerminalPlusOne \
+				); \
+				break; \
+			} \
+			{ \
+				uint8 iCurrent = (uint8)Text.Data[iPosition]; \
+				if ( Condition ) { \
+					iNextPlusOne = __xrtPatternSeparatorNext( \
+						pPattern, pState, iCurrent \
+					); \
+					iPosition++; \
+				} else { \
+					size_t iStart = iPosition++; \
+					uint32 iAffixPlusOne = pPattern->AffixRoots[iState]; \
+					uint32 iFallbackPlusOne; \
+					if ( iAffixPlusOne != 0 ) { \
+						iAffixPlusOne = __xrtPatternAffixNext( \
+							pPattern, iAffixPlusOne, iCurrent \
+						); \
+					} \
+					while ( iPosition < Text.Size ) { \
+						iCurrent = (uint8)Text.Data[iPosition]; \
+						if ( Condition ) { \
+							break; \
+						} \
+						if ( iAffixPlusOne != 0 ) { \
+							iAffixPlusOne = __xrtPatternAffixNext( \
+								pPattern, iAffixPlusOne, iCurrent \
+							); \
+						} \
+						iPosition++; \
+					} \
+					iFallbackPlusOne = iAffixPlusOne != 0 ? \
+						pPattern->AffixStates[ \
+							iAffixPlusOne - 1u \
+						].OutputPlusOne : pState->DefaultPlusOne; \
+					iNextPlusOne = __xrtPatternLiteralNext( \
+						pPattern, \
+						iState, \
+						Text.Data + iStart, \
+						iPosition - iStart, \
+						iFallbackPlusOne \
+					); \
+				} \
+			} \
+			if ( iNextPlusOne == 0 ) { \
+				break; \
+			} \
+			iState = iNextPlusOne - 1u; \
+		} \
+		return iBestPlusOne; \
+	}
+
+
+
+__XRT_PATTERN_DEFINE_RUN(
+	__xrtPatternRunAffixNone,
+	(void)pPattern->SeparatorKind;,
+	false
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN(
+	__xrtPatternRunAffixSlash,
+	(void)pPattern->SeparatorKind;,
+	iCurrent == (uint8)'/'
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN(
+	__xrtPatternRunAffixByte,
+	const uint8 iSeparator = (uint8)pPattern->Separators.Data[0];,
+	iCurrent == iSeparator
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN(
+	__xrtPatternRunAffixTwo,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN(
+	__xrtPatternRunAffixThree,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1]) ||
+	(iCurrent == arrSeparator[2])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN(
+	__xrtPatternRunAffixFour,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1]) ||
+	(iCurrent == arrSeparator[2]) || (iCurrent == arrSeparator[3])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN(
+	__xrtPatternRunAffixBitmap,
+	const uint64* arrMask = pPattern->SeparatorMask;,
+	(arrMask[iCurrent >> 6u] & (UINT64_C(1) << (iCurrent & 63u))) != 0
+)
+
+
+
+#undef __XRT_PATTERN_DEFINE_RUN
+
+
+
+/* 不含混合字段的快照使用更短的字段热循环。 */
+#define __XRT_PATTERN_DEFINE_RUN_PLAIN(Name, Declaration, Condition) \
+	static uint32 Name(const xpattern* pPattern, xstrview Text) \
+	{ \
+		Declaration \
+		uint32 iState = 0; \
+		uint32 iBestPlusOne = 0; \
+		size_t iPosition = 0; \
+		for ( ;; ) { \
+			const __xrt_pattern_state* pState = &pPattern->States[iState]; \
+			uint32 iNextPlusOne; \
+			iBestPlusOne = __xrtPatternCandidate( \
+				pPattern, iBestPlusOne, pState->TailPlusOne \
+			); \
+			if ( iPosition == Text.Size ) { \
+				iBestPlusOne = __xrtPatternCandidate( \
+					pPattern, iBestPlusOne, pState->TerminalPlusOne \
+				); \
+				break; \
+			} \
+			{ \
+				uint8 iCurrent = (uint8)Text.Data[iPosition]; \
+				if ( Condition ) { \
+					iNextPlusOne = __xrtPatternSeparatorNext( \
+						pPattern, pState, iCurrent \
+					); \
+					iPosition++; \
+				} else { \
+					size_t iStart = iPosition++; \
+					while ( iPosition < Text.Size ) { \
+						iCurrent = (uint8)Text.Data[iPosition]; \
+						if ( Condition ) { \
+							break; \
+						} \
+						iPosition++; \
+					} \
+					iNextPlusOne = __xrtPatternLiteralNext( \
+						pPattern, \
+						iState, \
+						Text.Data + iStart, \
+						iPosition - iStart, \
+						pState->DefaultPlusOne \
+					); \
+				} \
+			} \
+			if ( iNextPlusOne == 0 ) { \
+				break; \
+			} \
+			iState = iNextPlusOne - 1u; \
+		} \
+		return iBestPlusOne; \
+	}
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN(
+	__xrtPatternRunNone,
+	(void)pPattern->SeparatorKind;,
+	false
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN(
+	__xrtPatternRunSlash,
+	(void)pPattern->SeparatorKind;,
+	iCurrent == (uint8)'/'
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN(
+	__xrtPatternRunByte,
+	const uint8 iSeparator = (uint8)pPattern->Separators.Data[0];,
+	iCurrent == iSeparator
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN(
+	__xrtPatternRunTwo,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN(
+	__xrtPatternRunThree,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1]) ||
+	(iCurrent == arrSeparator[2])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN(
+	__xrtPatternRunFour,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1]) ||
+	(iCurrent == arrSeparator[2]) || (iCurrent == arrSeparator[3])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN(
+	__xrtPatternRunBitmap,
+	const uint64* arrMask = pPattern->SeparatorMask;,
+	(arrMask[iCurrent >> 6u] & (UINT64_C(1) << (iCurrent & 63u))) != 0
+)
+
+
+
+#undef __XRT_PATTERN_DEFINE_RUN_PLAIN
+
+
+
+/* Match 专用扫描器在同一次状态遍历中保留少量字段边界。 */
+#define __XRT_PATTERN_DEFINE_RUN_FIELDS(Name, Declaration, Condition) \
+	static uint32 Name( \
+		const xpattern* pPattern, \
+		xstrview Text, \
+		__xrt_pattern_fields* pFields \
+	) \
+	{ \
+		Declaration \
+		uint32 iState = 0; \
+		uint32 iBestPlusOne = 0; \
+		size_t iPosition = 0; \
+		for ( ;; ) { \
+			const __xrt_pattern_state* pState = &pPattern->States[iState]; \
+			uint32 iNextPlusOne; \
+			iBestPlusOne = __xrtPatternCandidate( \
+				pPattern, iBestPlusOne, pState->TailPlusOne \
+			); \
+			if ( iPosition == Text.Size ) { \
+				iBestPlusOne = __xrtPatternCandidate( \
+					pPattern, iBestPlusOne, pState->TerminalPlusOne \
+				); \
+				break; \
+			} \
+			{ \
+				uint8 iCurrent = (uint8)Text.Data[iPosition]; \
+				if ( Condition ) { \
+					iNextPlusOne = __xrtPatternSeparatorNext( \
+						pPattern, pState, iCurrent \
+					); \
+					iPosition++; \
+				} else { \
+					size_t iStart = iPosition++; \
+					uint32 iAffixPlusOne = pPattern->AffixRoots[iState]; \
+					uint32 iFallbackPlusOne; \
+					if ( iAffixPlusOne != 0 ) { \
+						iAffixPlusOne = __xrtPatternAffixNext( \
+							pPattern, iAffixPlusOne, iCurrent \
+						); \
+					} \
+					while ( iPosition < Text.Size ) { \
+						iCurrent = (uint8)Text.Data[iPosition]; \
+						if ( Condition ) { \
+							break; \
+						} \
+						if ( iAffixPlusOne != 0 ) { \
+							iAffixPlusOne = __xrtPatternAffixNext( \
+								pPattern, iAffixPlusOne, iCurrent \
+							); \
+						} \
+						iPosition++; \
+					} \
+					if ( pFields->Count < __XRT_PATTERN_FIELDS_INLINE ) { \
+						pFields->Values[pFields->Count] = (xstrview){ \
+							Text.Data + iStart, iPosition - iStart \
+						}; \
+					} else { \
+						pFields->Overflow = true; \
+					} \
+					pFields->Count++; \
+					iFallbackPlusOne = iAffixPlusOne != 0 ? \
+						pPattern->AffixStates[ \
+							iAffixPlusOne - 1u \
+						].OutputPlusOne : pState->DefaultPlusOne; \
+					iNextPlusOne = __xrtPatternLiteralNext( \
+						pPattern, \
+						iState, \
+						Text.Data + iStart, \
+						iPosition - iStart, \
+						iFallbackPlusOne \
+					); \
+				} \
+			} \
+			if ( iNextPlusOne == 0 ) { \
+				break; \
+			} \
+			iState = iNextPlusOne - 1u; \
+		} \
+		return iBestPlusOne; \
+	}
+
+
+
+__XRT_PATTERN_DEFINE_RUN_FIELDS(
+	__xrtPatternRunAffixFieldsNone,
+	(void)pPattern->SeparatorKind;,
+	false
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_FIELDS(
+	__xrtPatternRunAffixFieldsSlash,
+	(void)pPattern->SeparatorKind;,
+	iCurrent == (uint8)'/'
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_FIELDS(
+	__xrtPatternRunAffixFieldsByte,
+	const uint8 iSeparator = (uint8)pPattern->Separators.Data[0];,
+	iCurrent == iSeparator
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_FIELDS(
+	__xrtPatternRunAffixFieldsTwo,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_FIELDS(
+	__xrtPatternRunAffixFieldsThree,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1]) ||
+	(iCurrent == arrSeparator[2])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_FIELDS(
+	__xrtPatternRunAffixFieldsFour,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1]) ||
+	(iCurrent == arrSeparator[2]) || (iCurrent == arrSeparator[3])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_FIELDS(
+	__xrtPatternRunAffixFieldsBitmap,
+	const uint64* arrMask = pPattern->SeparatorMask;,
+	(arrMask[iCurrent >> 6u] & (UINT64_C(1) << (iCurrent & 63u))) != 0
+)
+
+
+
+#undef __XRT_PATTERN_DEFINE_RUN_FIELDS
+
+
+
+/* 不含混合字段时，记录边界也不引入局部 DFA 状态检查。 */
+#define __XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS(Name, Declaration, Condition) \
+	static uint32 Name( \
+		const xpattern* pPattern, \
+		xstrview Text, \
+		__xrt_pattern_fields* pFields \
+	) \
+	{ \
+		Declaration \
+		uint32 iState = 0; \
+		uint32 iBestPlusOne = 0; \
+		size_t iPosition = 0; \
+		for ( ;; ) { \
+			const __xrt_pattern_state* pState = &pPattern->States[iState]; \
+			uint32 iNextPlusOne; \
+			iBestPlusOne = __xrtPatternCandidate( \
+				pPattern, iBestPlusOne, pState->TailPlusOne \
+			); \
+			if ( iPosition == Text.Size ) { \
+				iBestPlusOne = __xrtPatternCandidate( \
+					pPattern, iBestPlusOne, pState->TerminalPlusOne \
+				); \
+				break; \
+			} \
+			{ \
+				uint8 iCurrent = (uint8)Text.Data[iPosition]; \
+				if ( Condition ) { \
+					iNextPlusOne = __xrtPatternSeparatorNext( \
+						pPattern, pState, iCurrent \
+					); \
+					iPosition++; \
+				} else { \
+					size_t iStart = iPosition++; \
+					while ( iPosition < Text.Size ) { \
+						iCurrent = (uint8)Text.Data[iPosition]; \
+						if ( Condition ) { \
+							break; \
+						} \
+						iPosition++; \
+					} \
+					if ( pFields->Count < __XRT_PATTERN_FIELDS_INLINE ) { \
+						pFields->Values[pFields->Count] = (xstrview){ \
+							Text.Data + iStart, iPosition - iStart \
+						}; \
+					} else { \
+						pFields->Overflow = true; \
+					} \
+					pFields->Count++; \
+					iNextPlusOne = __xrtPatternLiteralNext( \
+						pPattern, \
+						iState, \
+						Text.Data + iStart, \
+						iPosition - iStart, \
+						pState->DefaultPlusOne \
+					); \
+				} \
+			} \
+			if ( iNextPlusOne == 0 ) { \
+				break; \
+			} \
+			iState = iNextPlusOne - 1u; \
+		} \
+		return iBestPlusOne; \
+	}
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS(
+	__xrtPatternRunFieldsNone,
+	(void)pPattern->SeparatorKind;,
+	false
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS(
+	__xrtPatternRunFieldsSlash,
+	(void)pPattern->SeparatorKind;,
+	iCurrent == (uint8)'/'
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS(
+	__xrtPatternRunFieldsByte,
+	const uint8 iSeparator = (uint8)pPattern->Separators.Data[0];,
+	iCurrent == iSeparator
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS(
+	__xrtPatternRunFieldsTwo,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS(
+	__xrtPatternRunFieldsThree,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1]) ||
+	(iCurrent == arrSeparator[2])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS(
+	__xrtPatternRunFieldsFour,
+	const uint8* arrSeparator = (const uint8*)pPattern->Separators.Data;,
+	(iCurrent == arrSeparator[0]) || (iCurrent == arrSeparator[1]) ||
+	(iCurrent == arrSeparator[2]) || (iCurrent == arrSeparator[3])
+)
+
+
+
+__XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS(
+	__xrtPatternRunFieldsBitmap,
+	const uint64* arrMask = pPattern->SeparatorMask;,
+	(arrMask[iCurrent >> 6u] & (UINT64_C(1) << (iCurrent & 63u))) != 0
+)
+
+
+
+#undef __XRT_PATTERN_DEFINE_RUN_PLAIN_FIELDS
+
+
+
+uint32 __xrtPatternSelect(const xpattern* pPattern, xstrview Text)
+{
+	if ( pPattern->StateCount == 0 ) {
+		return 0;
+	}
+	if ( pPattern->AffixRoots != NULL ) {
+		switch ( pPattern->SeparatorKind ) {
+			case __XRT_PATTERN_SEPARATOR_NONE:
+				return __xrtPatternRunAffixNone(pPattern, Text);
+			case __XRT_PATTERN_SEPARATOR_SLASH:
+				return __xrtPatternRunAffixSlash(pPattern, Text);
+			case __XRT_PATTERN_SEPARATOR_BYTE:
+				return __xrtPatternRunAffixByte(pPattern, Text);
+			case __XRT_PATTERN_SEPARATOR_TWO:
+				return __xrtPatternRunAffixTwo(pPattern, Text);
+			case __XRT_PATTERN_SEPARATOR_THREE:
+				return __xrtPatternRunAffixThree(pPattern, Text);
+			case __XRT_PATTERN_SEPARATOR_FOUR:
+				return __xrtPatternRunAffixFour(pPattern, Text);
+			case __XRT_PATTERN_SEPARATOR_BITMAP:
+				return __xrtPatternRunAffixBitmap(pPattern, Text);
+			default:
+				return 0;
+		}
+	}
+	switch ( pPattern->SeparatorKind ) {
+		case __XRT_PATTERN_SEPARATOR_NONE:
+			return __xrtPatternRunNone(pPattern, Text);
+		case __XRT_PATTERN_SEPARATOR_SLASH:
+			return __xrtPatternRunSlash(pPattern, Text);
+		case __XRT_PATTERN_SEPARATOR_BYTE:
+			return __xrtPatternRunByte(pPattern, Text);
+		case __XRT_PATTERN_SEPARATOR_TWO:
+			return __xrtPatternRunTwo(pPattern, Text);
+		case __XRT_PATTERN_SEPARATOR_THREE:
+			return __xrtPatternRunThree(pPattern, Text);
+		case __XRT_PATTERN_SEPARATOR_FOUR:
+			return __xrtPatternRunFour(pPattern, Text);
+		case __XRT_PATTERN_SEPARATOR_BITMAP:
+			return __xrtPatternRunBitmap(pPattern, Text);
+		default:
+			return 0;
+	}
+}
+
+
+
+static uint32 __xrtPatternSelectFields(
+	const xpattern* pPattern,
+	xstrview Text,
+	__xrt_pattern_fields* pFields
+)
+{
+	if ( pPattern->StateCount == 0 ) {
+		return 0;
+	}
+	if ( pPattern->AffixRoots != NULL ) {
+		switch ( pPattern->SeparatorKind ) {
+			case __XRT_PATTERN_SEPARATOR_NONE:
+				return __xrtPatternRunAffixFieldsNone(
+					pPattern, Text, pFields
+				);
+			case __XRT_PATTERN_SEPARATOR_SLASH:
+				return __xrtPatternRunAffixFieldsSlash(
+					pPattern, Text, pFields
+				);
+			case __XRT_PATTERN_SEPARATOR_BYTE:
+				return __xrtPatternRunAffixFieldsByte(
+					pPattern, Text, pFields
+				);
+			case __XRT_PATTERN_SEPARATOR_TWO:
+				return __xrtPatternRunAffixFieldsTwo(
+					pPattern, Text, pFields
+				);
+			case __XRT_PATTERN_SEPARATOR_THREE:
+				return __xrtPatternRunAffixFieldsThree(
+					pPattern, Text, pFields
+				);
+			case __XRT_PATTERN_SEPARATOR_FOUR:
+				return __xrtPatternRunAffixFieldsFour(
+					pPattern, Text, pFields
+				);
+			case __XRT_PATTERN_SEPARATOR_BITMAP:
+				return __xrtPatternRunAffixFieldsBitmap(
+					pPattern, Text, pFields
+				);
+			default:
+				return 0;
+		}
+	}
+	switch ( pPattern->SeparatorKind ) {
+		case __XRT_PATTERN_SEPARATOR_NONE:
+			return __xrtPatternRunFieldsNone(pPattern, Text, pFields);
+		case __XRT_PATTERN_SEPARATOR_SLASH:
+			return __xrtPatternRunFieldsSlash(pPattern, Text, pFields);
+		case __XRT_PATTERN_SEPARATOR_BYTE:
+			return __xrtPatternRunFieldsByte(pPattern, Text, pFields);
+		case __XRT_PATTERN_SEPARATOR_TWO:
+			return __xrtPatternRunFieldsTwo(pPattern, Text, pFields);
+		case __XRT_PATTERN_SEPARATOR_THREE:
+			return __xrtPatternRunFieldsThree(pPattern, Text, pFields);
+		case __XRT_PATTERN_SEPARATOR_FOUR:
+			return __xrtPatternRunFieldsFour(pPattern, Text, pFields);
+		case __XRT_PATTERN_SEPARATOR_BITMAP:
+			return __xrtPatternRunFieldsBitmap(pPattern, Text, pFields);
+		default:
+			return 0;
+	}
+}
+
+
+
+/* 捕获重放使用位图分类；它只在调用方确实请求捕获时运行。 */
+static bool __xrtPatternCompiledSeparator(
+	const xpattern* pPattern,
+	uint8 iByte
+)
+{
+	return (pPattern->SeparatorMask[iByte >> 6u] &
+		(UINT64_C(1) << (iByte & 63u))) != 0;
+}
+
+
+
+bool __xrtPatternCaptureReplay(
+	const xpattern* pPattern,
+	const __xrt_pattern_entry* pEntry,
+	const __xrt_pattern_metadata* pMetadata,
+	xstrview Text,
+	xstrview* arrCapture
+)
+{
+	size_t iPosition = 0;
+	size_t iCapture = 0;
+
+	for ( size_t i = 0; i < pMetadata->ReplayCount; i++ ) {
+		uint8 iKind = pMetadata->Replay[i];
+
+		if ( iKind == __XRT_PATTERN_ATOM_SEPARATOR ) {
+			if ( iPosition >= Text.Size ) {
+				return false;
+			}
+			iPosition++;
+		} else if ( iKind == __XRT_PATTERN_ATOM_LITERAL ) {
+			while ( (iPosition < Text.Size) &&
+				 !__xrtPatternCompiledSeparator(
+					pPattern,
+					(uint8)Text.Data[iPosition]
+				 ) ) {
+				iPosition++;
+			}
+		} else if ( iKind == __XRT_PATTERN_ATOM_CAPTURE ) {
+			size_t iStart = iPosition;
+
+			while ( (iPosition < Text.Size) &&
+				 !__xrtPatternCompiledSeparator(
+					pPattern,
+					(uint8)Text.Data[iPosition]
+				 ) ) {
+				iPosition++;
+			}
+			if ( iPosition == iStart ) {
+				return false;
+			}
+			arrCapture[iCapture++] = (xstrview){
+				Text.Data + iStart,
+				iPosition - iStart
+			};
+		} else if ( iKind == __XRT_PATTERN_ATOM_AFFIX ) {
+			const __xrt_pattern_capture* pCapture =
+				&pMetadata->Captures[iCapture];
+			size_t iStart = iPosition;
+			size_t iFixed =
+				(size_t)pCapture->PrefixSize + pCapture->SuffixSize;
+
+			while ( (iPosition < Text.Size) &&
+				 !__xrtPatternCompiledSeparator(
+					pPattern,
+					(uint8)Text.Data[iPosition]
+				 ) ) {
+				iPosition++;
+			}
+			if ( (iPosition - iStart) <= iFixed ) {
+				return false;
+			}
+			arrCapture[iCapture++] = (xstrview){
+				Text.Data + iStart + pCapture->PrefixSize,
+				(iPosition - iStart) - iFixed
+			};
+		} else if ( iKind == __XRT_PATTERN_ATOM_TAIL ) {
+			arrCapture[iCapture++] = (xstrview){
+				Text.Data != NULL ? Text.Data + iPosition : NULL,
+				Text.Size - iPosition
+			};
+			iPosition = Text.Size;
+		} else {
+			return false;
+		}
+	}
+	return (iPosition == Text.Size) && (iCapture == pEntry->CaptureCount);
+}
+
+
+
+/* 常见短路径直接按选择阶段记录的字段视图填充，不再重扫输入。 */
+static bool __xrtPatternCaptureFields(
+	const __xrt_pattern_entry* pEntry,
+	const __xrt_pattern_metadata* pMetadata,
+	const __xrt_pattern_fields* pFields,
+	xstrview* arrCapture
+)
+{
+	for ( size_t i = 0; i < pEntry->CaptureCount; i++ ) {
+		const __xrt_pattern_capture* pCapture = &pMetadata->Captures[i];
+		xstrview Field;
+
+		if ( (pCapture->Kind == __XRT_PATTERN_ATOM_TAIL) ||
+			 (pCapture->FieldIndex >= pFields->Count) ||
+			 (pCapture->FieldIndex >= __XRT_PATTERN_FIELDS_INLINE) ) {
+			return false;
+		}
+		Field = pFields->Values[pCapture->FieldIndex];
+		if ( pCapture->Kind == __XRT_PATTERN_ATOM_CAPTURE ) {
+			arrCapture[i] = Field;
+		} else if ( pCapture->Kind == __XRT_PATTERN_ATOM_AFFIX ) {
+			size_t iFixed =
+				(size_t)pCapture->PrefixSize + pCapture->SuffixSize;
+
+			if ( Field.Size <= iFixed ) {
+				return false;
+			}
+			arrCapture[i] = (xstrview){
+				Field.Data + pCapture->PrefixSize,
+				Field.Size - iFixed
+			};
+		} else {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+
+static void __xrtPatternMatchClear(xpatternmatch* pMatch)
+{
+	pMatch->Id = XPATTERN_ID_INVALID;
+	pMatch->PatternIndex = XRT_NPOS;
+	pMatch->Value = NULL;
+	pMatch->CaptureCount = 0;
+}
+
+
+
+/* 填充不涉及捕获的公共命中元数据。 */
+static void __xrtPatternMatchSet(
+	const xpattern* pPattern,
+	uint32 iEntryPlusOne,
+	xpatternmatch* pMatch
+)
+{
+	const __xrt_pattern_entry* pEntry =
+		&pPattern->Entries[iEntryPlusOne - 1u];
+
+	pMatch->Id = pEntry->Id;
+	pMatch->PatternIndex = iEntryPlusOne - 1u;
+	pMatch->Value = pEntry->Value;
+	pMatch->CaptureCount = pEntry->CaptureCount;
+}
+
+
+
+XRT_API xpatternresult xrtPatternLookup(
+	const xpattern* pPattern,
+	xstrview Text,
+	xpatternmatch* pMatch
+)
+{
+	uint32 iEntryPlusOne;
+
+	if ( pMatch != NULL ) {
+		__xrtPatternMatchClear(pMatch);
+	}
+	if ( (pPattern == NULL) || (pMatch == NULL) ||
+		 ((Text.Data == NULL) && (Text.Size != 0)) ) {
+		__xrtPatternSetInvalidArgument();
+		return XPATTERN_ERROR;
+	}
+	iEntryPlusOne = __xrtPatternSelect(pPattern, Text);
+	if ( iEntryPlusOne == 0 ) {
+		return XPATTERN_NONE;
+	}
+	__xrtPatternMatchSet(pPattern, iEntryPlusOne, pMatch);
+	return XPATTERN_MATCH;
+}
+
+
+
+XRT_API xpatternresult xrtPatternMatch(
+	const xpattern* pPattern,
+	xstrview Text,
+	xstrview* arrCapture,
+	size_t iCapacity,
+	xpatternmatch* pMatch
+)
+{
+	uint32 iEntryPlusOne;
+	const __xrt_pattern_entry* pEntry;
+	const __xrt_pattern_metadata* pMetadata;
+	__xrt_pattern_fields Fields;
+
+	if ( pMatch != NULL ) {
+		__xrtPatternMatchClear(pMatch);
+	}
+	if ( (pPattern == NULL) || (pMatch == NULL) ||
+		 ((Text.Data == NULL) && (Text.Size != 0)) ||
+		 ((arrCapture == NULL) && (iCapacity != 0)) ) {
+		__xrtPatternSetInvalidArgument();
+		return XPATTERN_ERROR;
+	}
+	memset(&Fields, 0, sizeof(Fields));
+	iEntryPlusOne = pPattern->MaxCaptureCount != 0 ?
+		__xrtPatternSelectFields(pPattern, Text, &Fields) :
+		__xrtPatternSelect(pPattern, Text);
+	if ( iEntryPlusOne == 0 ) {
+		return XPATTERN_NONE;
+	}
+	__xrtPatternMatchSet(pPattern, iEntryPlusOne, pMatch);
+	pEntry = &pPattern->Entries[iEntryPlusOne - 1u];
+	pMetadata = &pPattern->Metadata[iEntryPlusOne - 1u];
+	if ( (pEntry->CaptureCount > iCapacity) ||
+		 ((pEntry->CaptureCount != 0) && (arrCapture == NULL)) ) {
+		__xrtPatternError(
+			XERR_RANGE,
+			XPATTERN_ERROR_CAPACITY,
+			"match",
+			"capture output capacity is insufficient",
+			true,
+			pMatch->PatternIndex,
+			false,
+			0
+		);
+		return XPATTERN_ERROR;
+	}
+	if ( pEntry->CaptureCount == 0 ) {
+		return XPATTERN_MATCH;
+	}
+	if ( !Fields.Overflow &&
+		 __xrtPatternCaptureFields(pEntry, pMetadata, &Fields, arrCapture) ) {
+		return XPATTERN_MATCH;
+	}
+	if ( !__xrtPatternCaptureReplay(
+		pPattern,
+		pEntry,
+		pMetadata,
+		Text,
+		arrCapture
+	) ) {
+		__xrtPatternSetInternal();
+		return XPATTERN_ERROR;
+	}
+	return XPATTERN_MATCH;
+}
+
+
+
+XRT_API xpatternresult xrtPatternTest(
+	const xpattern* pPattern,
+	xstrview Text
+)
+{
+	if ( (pPattern == NULL) ||
+		 ((Text.Data == NULL) && (Text.Size != 0)) ) {
+		__xrtPatternSetInvalidArgument();
+		return XPATTERN_ERROR;
+	}
+	return __xrtPatternSelect(pPattern, Text) != 0 ?
+		XPATTERN_MATCH : XPATTERN_NONE;
 }
 
 #endif

@@ -26,6 +26,21 @@ XRT 2.0 使用正向模块选择。用户只声明需要的根模块，XRT 根�
 #include "xrt.h"
 ```
 
+内存调试会改变全局分配路径。需要完整生产功能但不需要内存调试时，可以只排除这一
+侵入式诊断模块：
+
+```c
+#define XRT_MODULE_ALL
+#define XRT_EXCLUDE_MEMORY_DEBUG
+#define XRT_IMPLEMENTATION
+#include "xrt.h"
+```
+
+`XRT_EXCLUDE_MEMORY_DEBUG` 同时排除 `memory_debug` 和
+`memory_debug_report`，但保留 `memory_stats`。它只抑制 `XRT_MODULE_ALL` 的隐式选择；
+显式定义 `XRT_MODULE_MEMORY_DEBUG` 或 `XRT_MODULE_MEMORY_DEBUG_REPORT` 时，显式根模块
+仍然优先。
+
 普通应用不应默认选择全部模块。
 
 没有定义任何 `XRT_MODULE_*` 时只提供无特性宏的 Core 契约，不会隐式启用完整库。
@@ -107,5 +122,6 @@ python tools/build.py --compiler tcc --arch x86 --suite all --trim-only
 
 旧版 `XRT_NO_*` 和 `XRT_MINIMAL` 负向宏不再保留。负向模式会让新增功能默认进入旧
 构建，并要求在多个位置维护父子关闭关系；正向根选择使新增模块默认不增加调用方的
-声明、实现或依赖。旧 `XRT_NO_NETWORK`、`XRT_NO_NETTLS`、`XRT_NO_XHTTP` 等名称
-不能与当前宏混用，也不提供兼容映射。
+声明、实现或依赖。`XRT_EXCLUDE_MEMORY_DEBUG` 是只约束 `XRT_MODULE_ALL` 的窄例外，
+不构成通用负向选择体系。旧 `XRT_NO_NETWORK`、`XRT_NO_NETTLS`、`XRT_NO_XHTTP` 等
+名称不能与当前宏混用，也不提供兼容映射。

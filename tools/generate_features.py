@@ -109,6 +109,20 @@ def _append_dependencies(
 
 
 
+def _selection_test(module: dict) -> str:
+	"""返回模块显式选择以及 MODULE_ALL 可选排除条件。"""
+
+	module_test = f"defined({module_macro(module['name'])})"
+	all_exclude = module.get("all_exclude_macro")
+	if all_exclude is None:
+		return f"defined(XRT_MODULE_ALL) || {module_test}"
+	return (
+		f"(defined(XRT_MODULE_ALL) && !defined({all_exclude})) || \\\n"
+		f"\t{module_test}"
+	)
+
+
+
 def _content() -> str:
 	"""构造完整模块选择头内容。"""
 
@@ -130,7 +144,7 @@ def _content() -> str:
 		feature = module["feature"]
 		parts.extend((
 			f"/* {name} 及其直接依赖。 */\n",
-			f"#if defined(XRT_MODULE_ALL) || defined({module_macro(name)})\n",
+			f"#if {_selection_test(module)}\n",
 			f"#ifndef {feature}\n",
 			f"#define {feature}\n",
 			"#endif\n",

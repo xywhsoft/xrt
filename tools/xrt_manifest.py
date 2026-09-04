@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "config" / "modules.json"
 MODULE_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+MACRO_NAME = re.compile(r"^[A-Z_][A-Z0-9_]*$")
 SCOPE_STATES = {"retained", "review", "internal"}
 INTEGRATION_STATES = {"deferred", "integrated"}
 COLLECTABLE_ASSET_FIELDS = {"tests", "single_tests", "examples"}
@@ -59,6 +60,18 @@ def load_manifest(path: Path = MANIFEST) -> dict:
 	if len(features) != len(set(features)):
 		raise ValueError("module feature macros must be unique")
 	for module in modules:
+		all_exclude = module.get("all_exclude_macro")
+		if all_exclude is not None and (
+			not isinstance(all_exclude, str) or
+			not MACRO_NAME.fullmatch(all_exclude)
+		):
+			raise ValueError(
+				"all_exclude_macro must use uppercase C macro syntax"
+			)
+		if all_exclude is not None and module.get("feature") is None:
+			raise ValueError(
+				"all_exclude_macro requires a selectable feature module"
+			)
 		fields = module.get("collect_dependency_assets", [])
 		if not isinstance(fields, list) or any(
 			not isinstance(field, str) or field not in COLLECTABLE_ASSET_FIELDS

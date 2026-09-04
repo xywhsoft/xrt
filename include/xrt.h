@@ -24,6 +24,7 @@
 #include <xrt/queue.h>
 #include <xrt/number.h>
 #include <xrt/string.h>
+#include <xrt/pattern.h>
 #include <xrt/regex.h>
 #include <xrt/codec.h>
 #include <xrt/html.h>

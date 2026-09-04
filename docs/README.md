@@ -15,6 +15,7 @@
 - [并发](guide/concurrency.md)：任务、Future、取消和关闭顺序。
 - [任务组](guide/task-group.md)：管理一组并发任务的生命周期。
 - [加密](guide/crypto.md)：哈希、编码和随机数的边界。
+- [Pattern](api/pattern.md)：大量结构化字符串的编译匹配与顺序捕获。
 - [Regex](api/regex.md)：编译、匹配、替换、拆分和多模式集合。
 - [时间、路径与文件](guide/time-path-file.md)：跨平台文件系统操作。
 - [XID](guide/xid.md)：生成、解析和传递标识符。
@@ -29,6 +30,7 @@
 - [JSON 与 XSON](design/json-xson.md)
 - [日志](design/logger.md)
 - [进程](design/process.md)
+- [Pattern](design/pattern.md)
 - [Regex](design/regex.md)
 - [模板](design/template.md)
 - [TLS 会话](design/tls-session.md)

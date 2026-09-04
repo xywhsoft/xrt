@@ -14,6 +14,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import amalgamate as xrt_amalgamate
 import build as xrt_build
+import generate_extension_features as xrt_extension_features
 import generate_features as xrt_features
 import xrt_manifest
 
@@ -109,6 +110,22 @@ class ManifestDependencyTest(unittest.TestCase):
 			with self.assertRaisesRegex(ValueError, "only accepts"):
 				xrt_manifest.load_manifest(path)
 
+	def test_all_exclude_macro_is_validated(self) -> None:
+		"""MODULE_ALL 排除宏必须是可用于预处理器的公开宏名。"""
+
+		with tempfile.TemporaryDirectory() as temporary:
+			path = Path(temporary) / "modules.json"
+			path.write_text(json.dumps({
+				"modules": [{
+					"name": "invalid",
+					"feature": "XRT_FEATURE_INVALID",
+					"all_exclude_macro": "invalid macro",
+				}],
+			}), encoding="utf-8")
+
+			with self.assertRaisesRegex(ValueError, "uppercase C macro"):
+				xrt_manifest.load_manifest(path)
+
 
 
 class FeaturePlatformDependencyTest(unittest.TestCase):
@@ -152,6 +169,50 @@ class FeaturePlatformDependencyTest(unittest.TestCase):
 			"posix": ["select"],
 		})
 		self.assertIn("defined(__ANDROID__)", condition)
+
+
+
+class FeatureAllExclusionTest(unittest.TestCase):
+	"""验证 MODULE_ALL 排除只影响隐式选择。"""
+
+	def test_explicit_module_wins_over_all_exclusion(self) -> None:
+		"""显式根模块即使存在排除宏也必须继续启用。"""
+
+		manifest = {"modules": [{
+			"name": "debug",
+			"feature": "XRT_FEATURE_DEBUG",
+			"all_exclude_macro": "XRT_EXCLUDE_DEBUG",
+			"depends": [],
+		}]}
+		with mock.patch.object(
+			xrt_features,
+			"load_manifest",
+			return_value=manifest,
+		):
+			content = xrt_features._content()
+
+		self.assertIn(
+			"#if (defined(XRT_MODULE_ALL) && "
+			"!defined(XRT_EXCLUDE_DEBUG)) || \\\n"
+			"\tdefined(XRT_MODULE_DEBUG)",
+			content,
+		)
+
+	def test_extension_all_uses_the_same_exclusion_contract(self) -> None:
+		"""扩展模块清单不能丢失共享的 ALL 排除语义。"""
+
+		condition = xrt_extension_features._selection_test(
+			"XDEMO_MODULE_ALL",
+			"XDEMO_MODULE_DEBUG",
+			{"all_exclude_macro": "XDEMO_EXCLUDE_DEBUG"},
+		)
+
+		self.assertEqual(
+			condition,
+			"(defined(XDEMO_MODULE_ALL) && "
+			"!defined(XDEMO_EXCLUDE_DEBUG)) || \\\n"
+			"\tdefined(XDEMO_MODULE_DEBUG)",
+		)
 
 
 
@@ -570,8 +631,12 @@ class AmalgamateContractTest(unittest.TestCase):
 		"""完整声明的临时模块选择必须保留调用方已有宏。"""
 
 		macros = ["XRT_FEATURE_ALPHA", "XRT_MODULE_ALL"]
-		begin = xrt_amalgamate._declaration_selection_begin(macros)
-		end = xrt_amalgamate._declaration_selection_end(macros)
+		excludes = ["XRT_EXCLUDE_MEMORY_DEBUG"]
+		begin = xrt_amalgamate._declaration_selection_begin(
+			macros,
+			exclude_macros=excludes,
+		)
+		end = xrt_amalgamate._declaration_selection_end(macros, excludes)
 
 		self.assertIn(
 			"#if !defined(XRT_FEATURE_ALPHA)",
@@ -586,6 +651,8 @@ class AmalgamateContractTest(unittest.TestCase):
 			end,
 		)
 		self.assertIn("#undef XRT_FEATURE_ALPHA", end)
+		self.assertIn("#undef XRT_EXCLUDE_MEMORY_DEBUG", begin)
+		self.assertIn("#define XRT_EXCLUDE_MEMORY_DEBUG 1", end)
 
 
 

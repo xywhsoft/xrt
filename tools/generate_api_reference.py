@@ -34,6 +34,14 @@ REFERENCES = {
 		"guide": "net.md",
 		"output": "docs/api/net-reference.md",
 	},
+	"pattern": {
+		"title": "Pattern 公共符号参考",
+		"function_prefix": "xrtPattern",
+		"constant_prefix": "XPATTERN_",
+		"type_prefix": "xpattern",
+		"guide": "pattern.md",
+		"output": "docs/api/pattern-reference.md",
+	},
 	"regex": {
 		"title": "Regex 公共符号参考",
 		"function_prefix": "xrtRegex",

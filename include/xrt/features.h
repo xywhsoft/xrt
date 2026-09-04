@@ -74,6 +74,13 @@
 #endif
 #endif
 
+/* pattern 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PATTERN)
+#ifndef XRT_FEATURE_PATTERN
+#define XRT_FEATURE_PATTERN
+#endif
+#endif
+
 /* ptr_stack 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PTR_STACK)
 #ifndef XRT_FEATURE_PTR_STACK
@@ -4258,7 +4265,8 @@
 #endif
 
 /* memory_debug_report 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MEMORY_DEBUG_REPORT)
+#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
+	defined(XRT_MODULE_MEMORY_DEBUG_REPORT)
 #ifndef XRT_FEATURE_MEMORY_DEBUG_REPORT
 #define XRT_FEATURE_MEMORY_DEBUG_REPORT
 #endif
@@ -4268,7 +4276,8 @@
 #endif
 
 /* memory_debug 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MEMORY_DEBUG)
+#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
+	defined(XRT_MODULE_MEMORY_DEBUG)
 #ifndef XRT_FEATURE_MEMORY_DEBUG
 #define XRT_FEATURE_MEMORY_DEBUG
 #endif
