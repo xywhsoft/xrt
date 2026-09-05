@@ -163,6 +163,9 @@ int main(void)
 	testRequire((pEngine != NULL) && xrtNetEngineStart(pEngine),
 		"TLS Listener engine start failed");
 	xrtTlsListenerConfigInit(&ListenerConfig);
+	testRequire((ListenerConfig.HandshakeLimit == 128u) &&
+		(ListenerConfig.AcceptQueueLimit == 1024u),
+		"TLS Listener default resource budgets differ");
 	testRequire(xrtNetAddrLoopback(
 		&ListenerConfig.Listen.Address,
 		XNET_FAMILY_IPV4,

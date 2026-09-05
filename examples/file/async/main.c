@@ -17,6 +17,27 @@ static ptr waitValue(xfuture* pFuture)
 
 
 
+/*
+ * 范例：file/async —— 异步文件句柄：任务池上的偏移读写
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtTaskPoolCreate({线程数, 队列深度, 标志})   有界任务池
+ *   xrtAsyncOpen        打开异步句柄（绑定任务池）
+ *   WriteAtAsync / ReadAtAsync   绝对偏移异步读写
+ *   xrtFutureWait / Value        等待并取结果（xfiledata）
+ * 模块宏：XRT_MODULE_FILE_ASYNC（依赖 TASK/FUTURE）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/file/async/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   hello async file
+ *
+ * 异步的分工：IO 在池线程执行，调用线程拿 Future 继续；
+ *   有界队列（32）提供背压——池满时提交失败而非无限堆积。
+ *   read/write 顺序经 Future 链保证，close 也异步且等待完成。
+ */
+
+
 /* 使用有界任务池完成异步绝对偏移读写。 */
 int main(void)
 {

@@ -363,6 +363,14 @@ jobs:
       - name: Run WebSocket reconnect stress gate
         run: out/${{ matrix.compiler }}/native/xws_tests/test_http_reconnect 1000
 
+      - name: Install TLS test certificate dependency
+        run: python -m pip install cryptography==50.0.0
+
+      - name: Run independent TLS and RSA regressions
+        run: |
+          python tools/test_tls_interop.py --compiler ${{ matrix.compiler }}
+          python tools/test_rsa_blinding.py --compiler ${{ matrix.compiler }} --sizes 1024,2048,4096
+
       - name: Run protocol Clang fuzz gates
         if: matrix.runner == 'ubuntu-latest'
         env:

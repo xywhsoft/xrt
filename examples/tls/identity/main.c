@@ -28,6 +28,29 @@ static xtlssignature exampleSignature(const xtlsidentity* pIdentity)
 
 
 
+/*
+ * 范例：tls/identity —— 服务端身份：证书 + 私钥 → 签名能力
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   身份创建（DER 证书 + 私钥，common.h 封装读取）
+ *   xrtTlsIdentityType    身份类型（RSA/RSA-PSS/ECDSA×2/Ed25519）
+ *   xrtTlsSign            用身份对消息签名（含精确长度查询）
+ * 模块宏：XRT_MODULE_TLS（依赖 CRYPTO）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/tls/identity/main.c -lws2_32 -liphlpapi
+ * 用法：
+ *   identity <rsa|p256|p384|ed25519> <certificate.der> <private.der>
+ * 预期输出（无参数时）：
+ *   usage: identity <rsa|p256|p384|ed25519> ...
+ *
+ * 身份对象打包"证书 + 私钥 + 可用签名方案"——握手期
+ *   CertificateVerify 的签名就出自它。exampleSignature
+ *   按身份类型选常用方案（Ed25519 首选、RSA 走 PSS），
+ *   与 policy 签名白名单取交集即实际握手方案。
+ */
+
+
 /* 从 DER 证书与私钥创建身份，并演示精确长度查询和实际签名。 */
 int main(int argc, char** argv)
 {

@@ -4,6 +4,29 @@
 
 
 
+/*
+ * 范例：http/upgrade —— 协议升级：解析提议与生成应答列表
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtHttpUpgradeFieldCursorInit / FieldNext   迭代客户端提议
+ *   xrtHttpUpgradeWrite   把"我支持的子集"写成规范 Upgrade 值
+ * 模块宏：XRT_MODULE_HTTP_UPGRADE
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/http/upgrade/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   protocol: h2c
+ *   protocol: websocket
+ *   protocol: HTTP/2.0
+ *   field: websocket, HTTP/2.0
+ *
+ * 握手流程：客户端提议（可重复字段、逗号列表、名字大小写
+ *   不敏感）→ 服务端从支持列表里选出交集写成应答 →
+ *   101 Switching Protocols 后切换协议。WebSocket 升级
+ *   （websocket_upgrade 模块）建立在这套语义之上。
+ */
+
+
 /* 解析重复字段并规范生成一个 Upgrade 选择列表。 */
 int main(void)
 {

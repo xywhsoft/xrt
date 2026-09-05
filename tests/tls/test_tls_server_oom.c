@@ -11,6 +11,7 @@
 typedef struct test_tls_server_oom_alloc {
 	size_t Calls;
 	size_t FailAt;
+	size_t Denied;
 	size_t Live;
 } test_tls_server_oom_alloc;
 
@@ -25,6 +26,7 @@ static ptr testTlsServerOomAlloc(ptr pContext, size_t iSize)
 
 	pState->Calls++;
 	if ( pState->Calls == pState->FailAt ) {
+		pState->Denied++;
 		return NULL;
 	}
 	pMemory = malloc(iSize);
@@ -50,6 +52,7 @@ static ptr testTlsServerOomRealloc(
 
 	pState->Calls++;
 	if ( pState->Calls == pState->FailAt ) {
+		pState->Denied++;
 		return NULL;
 	}
 	pResult = realloc(pMemory, iSize);
@@ -78,24 +81,19 @@ static void testTlsServerOomFree(ptr pContext, ptr pMemory)
 
 
 
-/* 读取逻辑活动块；未启用调试时回退到底层存活计数。 */
+/* 堆的空闲 slab 可以保留；此测试模块启用 memory_debug 来比较逻辑活动块。 */
 static void testTlsServerOomLive(
 	const test_tls_server_oom_alloc* pState,
 	size_t* pCount,
 	size_t* pBytes
 )
 {
-	#if defined(XRT_FEATURE_MEMORY_DEBUG)
-		xmemdebugsnapshot Snapshot;
+	xmemdebugsnapshot Snapshot;
 
-		(void)pState;
-		xrtMemDebugSnapshot(&Snapshot);
-		*pCount = Snapshot.LiveCount;
-		*pBytes = Snapshot.LiveBytes;
-	#else
-		*pCount = pState->Live;
-		*pBytes = 0;
-	#endif
+	(void)pState;
+	xrtMemDebugSnapshot(&Snapshot);
+	*pCount = Snapshot.LiveCount;
+	*pBytes = Snapshot.LiveBytes;
 }
 
 
@@ -118,6 +116,7 @@ static void testTlsServerTicketOom(
 		size_t iLiveCount;
 		size_t iLiveBytes;
 		uint64 iSequence = pServer->WriteKey.Sequence;
+		size_t iDenied = pAllocator->Denied;
 		xtlsresult Result;
 
 		testTlsServerOomLive(
@@ -136,7 +135,7 @@ static void testTlsServerTicketOom(
 			60u, &pResume
 		);
 		testRequire((Result == XTLS_ERROR) && (pResume == NULL) &&
-			(pAllocator->Calls == pAllocator->FailAt) &&
+			(pAllocator->Denied == iDenied + 1u) &&
 			(xrtTlsSessionState(pServer) == XTLS_STATE_READY) &&
 			(xrtTlsSessionSendSize(pServer) == 0) &&
 			(pServer->WriteKey.Sequence == iSequence) &&
@@ -189,7 +188,8 @@ static void testTlsServerTicketOom(
 /* 验证服务端票据在每个提交前 OOM 后都保持 READY 且可重试。 */
 int main(void)
 {
-	test_tls_server_oom_alloc State = { 0, SIZE_MAX, 0 };
+	/* 底层分配器还会被 main 返回后的线程缓存析构使用。 */
+	static test_tls_server_oom_alloc State = { 0, SIZE_MAX, 0, 0 };
 	xallocator Allocator;
 	xtlscontext* pContext;
 	xtlsidentity* pIdentity;
@@ -231,5 +231,7 @@ int main(void)
 	xrtTlsVerifierRelease(pVerifier);
 	xrtTlsIdentityRelease(pIdentity);
 	xrtTlsContextRelease(pContext);
+	xrtClearError();
+	testMemoryDebugDrain("TLS server OOM left live allocations");
 	return 0;
 }

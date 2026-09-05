@@ -3,6 +3,25 @@
 
 
 
+/*
+ * 范例：file/tree_async —— 异步目录树复制（带统计结果）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtDirCopyAsync      异步递归复制
+ *   Future 值 = xwalkstats   复制统计（条目/文件/字节）
+ * 模块宏：XRT_MODULE_FILE_ASYNC
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/file/tree_async/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   copied 1 items
+ *
+ * Future 不只带"完成"信号——结果是遍历统计的直接借用，
+ *   进度汇报（"已复制 N 项 / M 字节"）不需要再扫一遍。
+ *   大树后台复制 + 主线程汇报进度的完整拼图。
+ */
+
+
 /* 异步复制目录树，并读取 Future 拥有的统计结果。 */
 int main(void)
 {

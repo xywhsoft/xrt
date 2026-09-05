@@ -1,3 +1,22 @@
+/*
+ * 范例：network/udp —— 事件驱动 UDP 回环（双形态同场）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   无连接端 recvfrom（带来源地址）/ 连接式 UDP
+ * 模块宏：XRT_MODULE_NET_UDP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/udp/main.c -lws2_32 -liphlpapi
+ * 预期输出（端口随机）：
+ *   UDP server: 127.0.0.1:NNNNN
+ *   received: hello UDP
+ *
+ * 无连接端能收任意来源（需自己过滤），连接端
+ *   connect 后只收该对端——服务端/客户端两种
+ *   形态各自的适用面同场演示。
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>

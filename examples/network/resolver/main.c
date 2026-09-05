@@ -10,6 +10,24 @@ typedef struct exampleresolver {
 
 
 
+/*
+ * 范例：network/resolver —— 异步 DNS：引擎亲和的解析入口
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   引擎版 DNS 解析   回调在 Worker 上执行
+ * 模块宏：XRT_MODULE_NET
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/resolver/main.c -lws2_32 -liphlpapi
+ * 预期输出（顺序可能互換）：
+ *   ::1
+ *   127.0.0.1
+ *
+ * 与 dns（同步版）对照：解析完成回调跑在引擎
+ *   Worker 上——与后续连接操作同线程，天然免锁。
+ */
+
+
 /* 输出异步查询得到的全部地址。 */
 static void exampleResolverDone(xnetresolveop* pOperation, ptr pData)
 {

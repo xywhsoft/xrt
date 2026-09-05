@@ -51,6 +51,7 @@ static bool __xrtTlsClient12Hello(
 	xtlsitemresult Result;
 	const xtlscipherinfo* pCipher;
 	bool bExtendedMasterSecret = false;
+	bool bSecureRenegotiation = false;
 
 	*ppCipher = NULL;
 	memset(pProtocol, 0, sizeof(*pProtocol));
@@ -112,6 +113,16 @@ static bool __xrtTlsClient12Hello(
 				);
 			}
 			bExtendedMasterSecret = true;
+		} else if ( Extension.Type == XTLS_EXTENSION_RENEGOTIATION_INFO ) {
+			if ( (Extension.Data.Size != 1u) ||
+				(Extension.Data.Data[0] != 0) ) {
+				return __xrtTlsClientError(
+					XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+					"process-tls12-server-hello",
+					"TLS initial renegotiation_info is not empty"
+				);
+			}
+			bSecureRenegotiation = true;
 		} else if ( Extension.Type == XTLS_EXTENSION_SERVER_NAME ) {
 			if ( (pState->SniName.Size == 0) ||
 				(Extension.Data.Size != 0) ) {
@@ -148,6 +159,13 @@ static bool __xrtTlsClient12Hello(
 			XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
 			"process-tls12-server-hello",
 			"TLS 1.2 server did not negotiate extended master secret"
+		);
+	}
+	if ( !bSecureRenegotiation ) {
+		return __xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+			"process-tls12-server-hello",
+			"TLS 1.2 server did not acknowledge secure renegotiation"
 		);
 	}
 	*ppCipher = pCipher;

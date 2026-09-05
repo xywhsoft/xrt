@@ -5039,6 +5039,9 @@
 #ifndef XRT_MODULE_CRYPTO_RSA
 #define XRT_MODULE_CRYPTO_RSA
 #endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
 #endif
 
 /* tls_record_aes 及其直接依赖。 */
@@ -9573,6 +9576,9 @@ XRT_EXTERN_C_END
 /* 单线程协程调度器对外保持不透明。 */
 typedef struct xcosched xcosched;
 
+/* 默认最多保留 1024 个尚未执行的用户投递；内部唤醒不占用此预算。 */
+#define XRT_CO_SCHED_POST_LIMIT_DEFAULT 1024u
+
 
 
 /* 调度器投递过程运行在所属线程的普通调用栈中，适合短小的调度操作。 */
@@ -9584,8 +9590,13 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 在当前原生线程创建一个协程调度器。 */
+/* 在当前原生线程创建使用默认投递上限的协程调度器。 */
 XRT_API xcosched* xrtCoSchedCreate(void);
+
+
+
+/* 指定待执行用户投递上限；0 使用默认值，SIZE_MAX 显式取消实际限额。 */
+XRT_API xcosched* xrtCoSchedCreateLimit(size_t iPostLimit);
 
 
 
@@ -9599,7 +9610,7 @@ XRT_API xcosched* xrtCoSchedCurrent(void);
 
 
 
-/* 从任意线程按 FIFO 顺序投递借用数据过程；失败时不受理该过程。 */
+/* 从任意线程按 FIFO 顺序投递借用数据过程；队满返回 XERR_AGAIN，不受理过程。 */
 XRT_API bool xrtCoSchedPost(
 	xcosched* pSched,
 	xcoschedpostproc pProc,
@@ -9608,7 +9619,7 @@ XRT_API bool xrtCoSchedPost(
 
 
 
-/* 从任意线程投递过程并接管数据；受理后在执行过程后恰好析构一次。 */
+/* 从任意线程投递过程并接管数据；失败不接管，受理后在过程返回后恰好析构一次。 */
 XRT_API bool xrtCoSchedPostOwned(
 	xcosched* pSched,
 	xcoschedpostproc pProc,
@@ -12959,8 +12970,8 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE) && \
-	!defined(XRT_FEATURE_CRYPTO_RSA)
-	#error "XRT RSA private operations require RSA"
+	(!defined(XRT_FEATURE_CRYPTO_RSA) || !defined(XRT_FEATURE_RANDOM_SECURE))
+	#error "XRT RSA private operations require RSA and secure random for blinding"
 #endif
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PSS) && \
@@ -27185,6 +27196,7 @@ typedef struct xtlslistenerevents {
 	Listen 负责 TCP 接入，Tls 和 Stream 负责每条连接的 TLS 会话与组合层限制。
 	AcceptQueueLimit 只限制完成握手但尚未被 pull/Future 消费的连接；
 	HandshakeLimit 在分配 TLS 会话前硬性限制并发握手数。
+	初始化默认完成队列 1024 条、并发握手 128 条，均可显式调整。
 */
 typedef struct xtlslistenerconfig {
 	xnetlistenconfig Listen;

@@ -2934,15 +2934,18 @@
 			"state": "implemented",
 			"feature": "XRT_FEATURE_CRYPTO_RSA_PRIVATE",
 			"depends": [
-				"crypto_rsa"
+				"crypto_rsa",
+				"random_secure"
 			],
 			"public_headers": [],
 			"internal_headers": [],
 			"sources": [
-				"src/crypto/rsa_private.c"
+				"src/crypto/rsa_private.c",
+				"src/crypto/rsa_blinding.c"
 			],
 			"tests": [
-				"tests/crypto/test_crypto_rsa_private.c"
+				"tests/crypto/test_crypto_rsa_private.c",
+				"tests/crypto/test_crypto_rsa_blinding.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_crypto_rsa_private.c"
@@ -7970,6 +7973,7 @@
 			"state": "implemented",
 			"feature": null,
 			"depends": [
+				"memory_debug",
 				"tls_server_resume",
 				"tls_client_resume",
 				"tls_identity_rsa",
@@ -8024,6 +8028,20 @@
 			"docs": [
 				"docs/api/tls.md"
 			]
+		},
+		{
+			"name": "tls_state_fuzz_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_server_tests"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"fuzz_sources": ["fuzz/tls_state.c"],
+			"tests": ["tests/tls/test_tls_state_fuzz.c"],
+			"single_tests": ["tests/single/test_single_tls_state_fuzz.c"],
+			"examples": [],
+			"docs": ["docs/api/tls.md", "fuzz/README.md"]
 		},
 		{
 			"name": "net_port",

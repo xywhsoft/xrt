@@ -4,6 +4,26 @@
 
 
 
+/*
+ * 范例：crypto/chacha20 —— 裸 ChaCha20 流密码（教学层）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtChaCha20   (密钥, nonce, 计数器, 输入, 输出) 流式异或
+ * 模块宏：XRT_MODULE_CRYPTO（CHACHA20 特性）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/crypto/chacha20/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   round trip: yes
+ *
+ * 裸流密码无认证——加密与解密是同一运算（密钥流异或），
+ *   示范"为什么不能直接用"：攻击者可随意翻转密文位。
+ *   实际数据一律用 AEAD 变体 chacha20_poly1305。
+ *   同密钥复用 nonce 会泄漏两消息的异或——范例注释
+ *   特别强调，生产代码计数器必须严格递增。
+ */
+
+
 /* 展示裸 ChaCha20 的分离输出和原位反向变换。 */
 int main(void)
 {

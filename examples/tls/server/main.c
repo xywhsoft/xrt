@@ -112,6 +112,30 @@ static void exampleTlsError(void)
 
 
 
+/*
+ * 范例：tls/server —— 传输无关 TLS 1.3 服务端（会话层对打）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   会话级 API：ServerContext / Client 会话驱动
+ *   exampleTlsMove             双会话密文搬运（内存回环传输）
+ *   服务端握手 + 双向数据      与真实客户端互验
+ * 模块宏：XRT_MODULE_TLS（依赖 CRYPTO/X509）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/tls/server/main.c -lws2_32 -liphlpapi
+ * 用法：
+ *   server <rsa|p256|p384|ed25519> <certificate.der> <private.der>
+ * 预期输出（无参数时）：
+ *   usage: server <rsa|p256|p384|ed25519> ...
+ *
+ * 会话层（xtlssession）是 Stream 层之下的"裸协议机"：
+ *   输入密文块、输出密文块，传输完全由调用方决定——
+ *   exampleTlsMove 用内存搬运演示"传输无关"；
+ *   接真实网络就是 stream 范例的形态。协议测试、
+ *   自定义传输（IoT/串口）用这一层。
+ */
+
+
 /* 用真实客户端演示传输无关 TLS 1.3 服务端握手与双向数据。 */
 int main(int argc, char** argv)
 {

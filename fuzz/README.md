@@ -36,6 +36,15 @@ python tools/test_protocol_fuzz.py tls x509 net-address --runs 20000
 
 ## 崩溃回流
 
+`tls-state` 目标使用真实 TLS 1.3 PSK+DHE 握手创建新会话，一部分输入从握手中途开始，另一部分从认证后的 READY 开始。输入控制分片、读写、背压、KeyUpdate、ticket、关闭、EOF、密文损坏和带有效 AEAD 的畸形后握手消息；同时断言队列预算、终态不可复活和逻辑分配回到基线。每条输入最多 4096 字节、256 个操作，drive 使用小预算。种子保存在工具的目标配置中；普通模块/单头测试执行固定种子与 200 条确定性随机轨迹。
+
+```text
+python tools/test_protocol_fuzz.py tls-state --runs 20000
+python tools/build.py --compiler gcc --suite tls_state_fuzz_tests --no-examples
+```
+
+TLS 外部互操作通过 `python tools/test_tls_interop.py` 对接 Python `ssl` 链接的 OpenSSL，打印实际版本，使用临时 CA 和短期证书，不访问公网或关闭证书验证。覆盖 TLS 1.2/1.3、RSA/P-256/P-384/Ed25519、AES-128/AES-256/ChaCha20、双端角色、分片、ALPN、数据、KeyUpdate、HRR 和认证关闭。Python `cryptography` 只用于测试生成证书和 RSA 差分，不是 XRT 运行依赖。
+
 崩溃工件写入 `out/fuzz/<platform>/<target>/artifacts`，CI 失败时保留 14 天。处理流程为：
 
 1. 用目标程序直接读取 `crash-*` 或 `timeout-*` 工件，确认能够稳定复现。

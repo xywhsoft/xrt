@@ -150,6 +150,29 @@ static void exampleTlsDialDone(
 
 
 
+/*
+ * 范例：tls/dial —— HTTPS 客户端拨号：DNS → TCP → TLS 全链路
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtNetDialAddr / 系统信任库 + 主机名验证
+ *   xrtTlsStreamAttach（客户端方向）   接管 TCP 流完成握手
+ *   事件回调 + 原子终态               安全流生命周期编排
+ * 模块宏：XRT_MODULE_TLS_STREAM（依赖 NET）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/tls/dial/main.c -lws2_32 -liphlpapi
+ * 用法：
+ *   dial <host> [port]
+ * 预期输出（无参数时）：
+ *   usage: dial <host> [port]
+ *
+ * "受管生命周期"的含义：DNS 解析、TCP 连接、TLS 握手
+ *   每一步失败都会清理前面已建的资源（无句柄泄漏）；
+ *   Finished 原子标志让主线程安全判断唯一终态。
+ *   对外请求走 xhttp 更省事——本范例展示裸内核层。
+ */
+
+
 /* 使用系统信任库连接主机名，并展示受管 DNS、TCP 与 TLS 生命周期。 */
 int main(int argc, char** argv)
 {

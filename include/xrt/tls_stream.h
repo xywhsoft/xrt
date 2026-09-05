@@ -211,6 +211,7 @@ typedef struct xtlslistenerevents {
 	Listen 负责 TCP 接入，Tls 和 Stream 负责每条连接的 TLS 会话与组合层限制。
 	AcceptQueueLimit 只限制完成握手但尚未被 pull/Future 消费的连接；
 	HandshakeLimit 在分配 TLS 会话前硬性限制并发握手数。
+	初始化默认完成队列 1024 条、并发握手 128 条，均可显式调整。
 */
 typedef struct xtlslistenerconfig {
 	xnetlistenconfig Listen;

@@ -3,6 +3,24 @@
 
 
 
+/*
+ * 范例：crypto/ed25519_verify —— Ed25519 验签（RFC 8032 向量）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtEd25519Verify   (公钥, 消息, 签名) → bool
+ * 模块宏：XRT_MODULE_CRYPTO（ED25519 特性）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/crypto/ed25519_verify/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   verified: yes
+ *
+ * 公钥/签名来自 RFC 8032 §7.1 TEST 1（空消息）——
+ *   标准向量命中即互操作证明：XRT 签的可被 OpenSSL 验，
+ *   反之亦然。验签是公开操作，无密钥可清。
+ */
+
+
 /* 验证 RFC 8032 的空消息签名。 */
 int main(void)
 {

@@ -1,3 +1,21 @@
+/*
+ * 范例：network/udp_future —— Future 化 UDP 收发
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   UDP 包拉取 Future
+ * 模块宏：XRT_MODULE_NET_UDP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/udp_future/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   server received: hello UDP Future
+ *   client received: received
+ *
+ * 与 tcp_future 同构的 UDP 版：无连接服务端 +
+ *   连接式客户端经 Future 完成请求响应。
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>

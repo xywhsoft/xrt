@@ -101,8 +101,8 @@
 #endif
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE) && \
-	!defined(XRT_FEATURE_CRYPTO_RSA)
-	#error "XRT RSA private operations require RSA"
+	(!defined(XRT_FEATURE_CRYPTO_RSA) || !defined(XRT_FEATURE_RANDOM_SECURE))
+	#error "XRT RSA private operations require RSA and secure random for blinding"
 #endif
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PSS) && \

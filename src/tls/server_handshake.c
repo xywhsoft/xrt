@@ -345,8 +345,10 @@ static bool __xrtTlsServerRetryClientHello(
 		xtlsextension Current;
 		xtlsitemresult Found;
 
+		/* RFC 8446 4.1.2 允许第二次 ClientHello 增删或调整 padding。 */
 		if ( (Extension.Type == XTLS_EXTENSION_KEY_SHARE) ||
-			(Extension.Type == XTLS_EXTENSION_EARLY_DATA) ) {
+			(Extension.Type == XTLS_EXTENSION_EARLY_DATA) ||
+			(Extension.Type == XTLS_EXTENSION_PADDING) ) {
 			continue;
 		}
 		if ( Extension.Type == XTLS_EXTENSION_COOKIE ) {
@@ -399,6 +401,9 @@ static bool __xrtTlsServerRetryClientHello(
 	while ( (Result = xrtTlsExtensionsRead(
 		&Cursor, &Extension
 	)) == XTLS_ITEM_VALUE ) {
+		if ( Extension.Type == XTLS_EXTENSION_PADDING ) {
+			continue;
+		}
 		if ( Extension.Type == XTLS_EXTENSION_KEY_SHARE ) {
 			xtlskeysharecursor Shares;
 			xtlskeyshare Share;

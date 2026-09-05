@@ -1,3 +1,19 @@
+/*
+ * 范例：network/udp_sync —— 阻塞式 UDP 接收
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   UDP 同步接收面（deadline 内等待状态/拉包）
+ * 模块宏：XRT_MODULE_NET_UDP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/udp_sync/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   received: hello
+ *
+ * 与 tcp_sync 对称的 UDP 阻塞面。
+ */
+
+
 #include <stdio.h>
 #include <xrt.h>
 

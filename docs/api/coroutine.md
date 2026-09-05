@@ -68,6 +68,8 @@ POSIX 手工栈切换在 AddressSanitizer 构建中使用官方 fiber switch 接
 
 `xrtCoSchedRun` 会排空调用时已经受理的投递和由它们创建的协程。它不是永久驻留的事件循环：当活跃协程和投递同时归零时返回。销毁前必须停止其他线程访问；有尚未执行的投递时，`xrtCoSchedDestroy` 返回 `XERR_STATE`，不会静默丢弃回调或 Owned 数据。
 
+`xrtCoSchedCreate()` 默认限制 1024 个尚未执行的用户投递（`XRT_CO_SCHED_POST_LIMIT_DEFAULT`）。`xrtCoSchedCreateLimit(n)` 可在创建时调整；0 使用默认值，`SIZE_MAX` 显式取消实际限额。队满立即返回 `false / XERR_AGAIN`，不接管 Owned 数据。过程从队列取出时释放名额，因此过程内部也可以继续投递。内部协程唤醒使用独立的无分配链，不受用户队列预算影响；已有批量生产者若一次提交超过 1024 项，需要显式预算或处理背压。
+
 `xrtCoWake` 线程安全，但句柄销毁不是并发操作。调用方必须保证 wake 返回前目标及所属调度器仍然有效；需要跨线程管理寿命时，应由更高层 Future/Task 持有引用，而不是裸传 `xcoro*`。
 
 ## 协程事件
@@ -103,6 +105,7 @@ POSIX 手工栈切换在 AddressSanitizer 构建中使用官方 fiber switch 接
 | `XRT_CORO_STACK_MIN` | 最小栈保留大小 32 KiB。 |
 | `XRT_CORO_STACK_MAX` | 最大栈保留大小 64 MiB。 |
 | `XRT_CO_EVENT_STORAGE_SIZE` | 当前平台的 `xcoevent` 内部存储容量；不能作为跨平台 ABI 尺寸。 |
+| `XRT_CO_SCHED_POST_LIMIT_DEFAULT` | 默认外部投递队列上限：1024 项，不限制内部协程唤醒队列。 |
 
 ## API 索引
 
@@ -134,6 +137,7 @@ POSIX 手工栈切换在 AddressSanitizer 构建中使用官方 fiber switch 接
 | API | 说明 |
 | --- | --- |
 | `xrtCoSchedCreate` | 在当前线程创建调度器。 |
+| `xrtCoSchedCreateLimit` | 创建时指定用户投递上限；0 使用默认 1024。 |
 | `xrtCoSchedDestroy` | 销毁空闲调度器及其保留的完成句柄。 |
 | `xrtCoSchedCurrent` | 返回当前协程所属的借用调度器。 |
 | `xrtCoSchedPost` | 从任意线程 FIFO 投递借用数据过程。 |

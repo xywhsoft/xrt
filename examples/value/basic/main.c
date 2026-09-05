@@ -1,6 +1,32 @@
 #include <stdio.h>
 #include <xrt.h>
 
+/*
+ * 范例：value/basic —— xvalue 全类型速览：构造、精确读取与判定
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   构造族   Int / Float / String / Bytes / Time / Pointer / Bool / Null
+ *   精确读取 GetInt / GetFloat / GetString / GetBytes / GetTime /
+ *            GetPointer / GetBool（类型不符即失败，不做隐式转换）
+ *   判定族   ValueType / Is / IsNumber / IsContainer / Truthy
+ *   数值相等 ScalarEqual：2 与 2.0 跨类型相等（宽松数值语义）
+ *   哈希     ValueHash：与 ScalarEqual 一致——int 2 与 float 2.0 同哈希
+ *   ValueTypeName  类型枚举 → 小写类型名（序列化/调试用）
+ * 模块宏：XRT_MODULE_VALUE
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c  *       examples/value/basic/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   xrt value API v2
+ *   time type: time
+ *
+ * 精确 Getter 的哲学："读什么类型就给什么类型的出参"——
+ *   GetInt 不会悄悄收下 float（要数值宽容用 ScalarEqual）。
+ *   这是配置解析场景防类型混乱的第一道闸。
+ *   Null 是进程级单例：每次返回同一指针（可安全 == 比较）。
+ */
+
+
+
 
 
 /* 演示全部基础标量、精确 Getter、类型查询、哈希和数值相等。 */

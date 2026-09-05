@@ -20,7 +20,8 @@ typedef enum __xrt_rsa_result {
 	XRT_RSA_RESULT_OK = 0,
 	XRT_RSA_RESULT_ARGUMENT,
 	XRT_RSA_RESULT_KEY,
-	XRT_RSA_RESULT_INPUT
+	XRT_RSA_RESULT_INPUT,
+	XRT_RSA_RESULT_RANDOM
 } __xrt_rsa_result;
 
 
@@ -52,7 +53,15 @@ __xrt_rsa_result __xrtRsaPower(
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE)
 
-/* 执行带结果复核的 RSA 私钥运算，不直接修改线程错误。 */
+/* 固定轨迹计算 x / y mod m；临时区至少容纳 3 * 模数字数，失败返回 0。 */
+uint32 __xrtRsaModDivide(uint32* x, const uint32* y, const uint32* m,
+	uint32 m0i, uint32* t);
+
+/* 只供盲化包装使用的 CRT/完整指数核心；输入已经随机化。 */
+__xrt_rsa_result __xrtRsaPrivateCore(const xrsaprivatekey* pKey,
+	const void* pInput, size_t iInputSize, void* pOutput);
+
+/* 随机基底盲化和结果复核；RANDOM 失败保留安全随机源的线程错误。 */
 __xrt_rsa_result __xrtRsaPrivatePower(
 	const xrsaprivatekey* pKey,
 	const void* pInput,

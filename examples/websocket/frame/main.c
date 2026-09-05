@@ -5,6 +5,28 @@
 
 
 
+/*
+ * 范例：websocket/frame —— 帧头封包/解析与分段解掩码
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtWsFrameConfigInit + Mask = XWS_MASK_REQUIRED   服务端方向
+ *   xrtWsFrameWrite   帧描述 → 线路帧头字节
+ *   xrtWsFrameParse   帧头字节 → 借用解析（三态）
+ *   xrtWsMask         负载掩码/解掩码（可按段推进）
+ * 模块宏：XRT_MODULE_WEBSOCKET
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/websocket/frame/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   opcode=1 payload=5 text=Hello
+ *
+ * 掩码样例 0x37FA213D 是 RFC 6455 第 5.7 节的规范示例——
+ *   掩码按"负载下标 mod 4"循环异或；分段解掩码演示：
+ *   前段结束时记住偏移（本例 0 与 2），下一段接着算——
+ *   网络分片到达时无需等整帧凑齐。
+ */
+
+
 /* 展示服务端方向的帧头解析和可分片负载解掩码。 */
 int main(void)
 {

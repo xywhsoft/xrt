@@ -149,6 +149,7 @@ struct xcosched {
 	size_t TimerCount;
 	size_t TimerCapacity;
 	size_t WorkCount;
+	size_t WorkLimit;
 	size_t Alive;
 	bool Closed;
 	bool Running;

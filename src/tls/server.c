@@ -349,6 +349,7 @@ XRT_API xtlssession* xrtTlsServerCreate(
 	}
 	pState = (xtlsserverstate*)__xrtTlsSessionRoleData(pSession);
 	__xrtTlsServerLayout(pState, pConfig, iSecretCapacity);
+	pSession->KeyUpdate = xrtTlsServerKeyUpdate;
 	{
 		xtempconfig TempConfig = {
 			4096u,
@@ -760,7 +761,7 @@ static xtlsresult __xrtTlsServerChangeCipherSpec(
 	if ( (!bRetryWindow &&
 		((pState->Version != XTLS_VERSION_13) ||
 		 (pState->Step != XTLS_SERVER_WAIT_CLIENT_FINISHED))) ||
-		pState->CompatibilityCcsSeen || pRecord->Protected ||
+		pRecord->Protected ||
 		(pRecord->Data.Size != 1u) ||
 		(pRecord->Data.Data[0] != 1u) ) {
 		return __xrtTlsServerProtocol(
@@ -771,7 +772,6 @@ static xtlsresult __xrtTlsServerChangeCipherSpec(
 	if ( __xrtTlsSessionRecordFinish(pSession, false) != XTLS_OK ) {
 		return __xrtTlsServerFailed(pSession);
 	}
-	pState->CompatibilityCcsSeen = true;
 	return XTLS_OK;
 }
 

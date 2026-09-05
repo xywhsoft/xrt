@@ -254,9 +254,54 @@ static bool __xrtTlsClientAddSize(size_t* pSize, size_t iAdd)
 
 
 
+/* 只声明本构建可验证的线路签名；混合版本不能暴露 TLS 1.3 的缺失后端。 */
+static bool __xrtTlsClientSignatureSupported(
+	xtlssignature Signature,
+	bool bTls12,
+	bool bTls13
+)
+{
+	(void)bTls12;
+	(void)bTls13;
+	switch ( Signature ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+			#if defined(XRT_FEATURE_X509_VERIFY_RSA)
+				case XTLS_SIGNATURE_RSA_PKCS1_SHA256:
+				case XTLS_SIGNATURE_RSA_PKCS1_SHA384:
+				case XTLS_SIGNATURE_RSA_PKCS1_SHA512:
+					return bTls12;
+				case XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256:
+				case XTLS_SIGNATURE_RSA_PSS_RSAE_SHA384:
+				case XTLS_SIGNATURE_RSA_PSS_RSAE_SHA512:
+				case XTLS_SIGNATURE_RSA_PSS_PSS_SHA256:
+				case XTLS_SIGNATURE_RSA_PSS_PSS_SHA384:
+				case XTLS_SIGNATURE_RSA_PSS_PSS_SHA512:
+					return true;
+			#endif
+			#if defined(XRT_FEATURE_X509_VERIFY_ECDSA)
+				case XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256:
+				case XTLS_SIGNATURE_ECDSA_SECP384R1_SHA384:
+					return true;
+				case XTLS_SIGNATURE_ECDSA_SECP521R1_SHA512:
+					/* TLS 1.2 的 0x0603 是 SHA-512/ECDSA，不限定 P-521。 */
+					return bTls12 && !bTls13;
+			#endif
+			#if defined(XRT_FEATURE_X509_VERIFY_ED25519)
+				case XTLS_SIGNATURE_ED25519:
+					return true;
+			#endif
+		#endif
+		default:
+			return false;
+	}
+}
+
+
+
 /* 收集当前构建可完整执行的 TLS 1.3 和已验证 TLS 1.2 首航能力。 */
 static bool __xrtTlsClientOffer(
 	const xtlspolicy* pPolicy,
+	bool bResumeOnly,
 	xtlsclientoffer* pOffer
 )
 {
@@ -357,8 +402,9 @@ static bool __xrtTlsClientOffer(
 			pPolicy->Signatures[i]
 		);
 
-		if ( (pInfo == NULL) ||
-			(!pOffer->Tls13 && ((pInfo->Minimum > XTLS_VERSION_12) ||
+		if ( (pInfo == NULL) || !__xrtTlsClientSignatureSupported(
+			pInfo->Signature, pOffer->Tls12, pOffer->Tls13
+		) || (!pOffer->Tls13 && ((pInfo->Minimum > XTLS_VERSION_12) ||
 			 (pInfo->Maximum < XTLS_VERSION_12))) ||
 			(!pOffer->Tls12 && ((pInfo->Minimum > XTLS_VERSION_13) ||
 			 (pInfo->Maximum < XTLS_VERSION_13))) ) {
@@ -373,7 +419,7 @@ static bool __xrtTlsClientOffer(
 		pOffer->Signatures[pOffer->SignatureCount++] =
 			(uint16)pInfo->Signature;
 	}
-	if ( pOffer->SignatureCount == 0 ) {
+	if ( (pOffer->SignatureCount == 0) && !bResumeOnly ) {
 		return __xrtTlsClientError(
 			XERR_UNSUPPORTED, XTLS_ERROR_NEGOTIATION,
 			"create-tls-client",
@@ -517,12 +563,14 @@ static bool __xrtTlsClientExtensionSize(
 	iSize += XTLS_EXTENSION_HEADER_SIZE + 1u +
 		(pOffer->VersionCount * 2u);
 	if ( pOffer->Tls12 ) {
-		iSize += XTLS_EXTENSION_HEADER_SIZE;
+		iSize += 2u * XTLS_EXTENSION_HEADER_SIZE + 1u;
 	}
 	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
 		(pOffer->GroupCount * 2u);
-	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
-		(pOffer->SignatureCount * 2u);
+	if ( pOffer->SignatureCount != 0 ) {
+		iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
+			(pOffer->SignatureCount * 2u);
+	}
 	for ( size_t i = 0; i < pConfig->ProtocolCount; i++ ) {
 		iProtocols += 1u + pConfig->Protocols[i].Size;
 	}
@@ -707,12 +755,14 @@ static bool __xrtTlsClientStateExtensionSize(
 	iSize += XTLS_EXTENSION_HEADER_SIZE + 1u +
 		(pState->VersionCount * 2u);
 	if ( pState->Offer12 ) {
-		iSize += XTLS_EXTENSION_HEADER_SIZE;
+		iSize += 2u * XTLS_EXTENSION_HEADER_SIZE + 1u;
 	}
 	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
 		(pState->GroupCount * 2u);
-	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
-		(pState->SignatureCount * 2u);
+	if ( pState->SignatureCount != 0 ) {
+		iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
+			(pState->SignatureCount * 2u);
+	}
 	for ( size_t i = 0; i < pState->ProtocolCount; i++ ) {
 		iProtocols += 1u + pState->Protocols[i].Size;
 	}
@@ -867,13 +917,16 @@ bool __xrtTlsClientHelloQueue(
 	) || (pState->Offer12 && !xrtTlsWriterExtension(
 		&Writer, XTLS_EXTENSION_EXTENDED_MASTER_SECRET,
 		(xbytesview) { NULL, 0 }
+	)) || (pState->Offer12 && !xrtTlsWriterExtension(
+		&Writer, XTLS_EXTENSION_RENEGOTIATION_INFO,
+		(xbytesview) { &Compression, 1u }
 	)) || !xrtTlsWriterIds(
 		&Writer, XTLS_EXTENSION_SUPPORTED_GROUPS,
 		pState->Groups, pState->GroupCount
-	) || !xrtTlsWriterIds(
+	) || ((pState->SignatureCount != 0) && !xrtTlsWriterIds(
 		&Writer, XTLS_EXTENSION_SIGNATURE_ALGORITHMS,
 		pState->Signatures, pState->SignatureCount
-	) ) {
+	)) ) {
 		goto cleanup;
 	}
 	if ( (pState->ProtocolCount != 0) && !xrtTlsWriterProtocols(
@@ -1187,7 +1240,7 @@ XRT_API xtlssession* xrtTlsClientCreate(
 	pPolicy = xrtTlsContextPolicy(pContext);
 	pLimits = xrtTlsContextLimits(pContext);
 	if ( (pPolicy == NULL) || (pLimits == NULL) ||
-		!__xrtTlsClientOffer(pPolicy, &Offer)
+		!__xrtTlsClientOffer(pPolicy, pConfig->ResumeOnly, &Offer)
 		#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 			|| ((pConfig->Resume != NULL) &&
 			 !__xrtTlsClientResumeOffer(&Offer, &ResumeInfo))
@@ -1270,6 +1323,7 @@ XRT_API xtlssession* xrtTlsClientCreate(
 	__xrtTlsClientLayout(
 		pState, pConfig, &Offer, iExtensions, iHello
 	);
+	pSession->KeyUpdate = xrtTlsClientKeyUpdate;
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		if ( pConfig->Resume != NULL ) {
 			pState->OfferResume = xrtTlsResumeRetain(pConfig->Resume);

@@ -64,6 +64,8 @@ struct xtlssession {
 	xtlsalert PeerAlert;
 	size_t AllocationSize;
 	xtlssessioncleanproc Clean;
+	/* 角色提供现有 KeyUpdate 入口，公共记录层不依赖客户端/服务端模块。 */
+	xtlsresult (*KeyUpdate)(xtlssession* pSession, xtlskeyupdate Request);
 };
 
 

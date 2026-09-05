@@ -5,6 +5,29 @@
 
 
 
+/*
+ * 范例：process/stream —— Argv 启动 + 双管道流式读写
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtProcessConfigInit      直接执行（不经 shell）的配置入口
+ *   Config.Program / Args / ArgCount   程序 + 参数数组（无注入面）
+ *   XPROCESS_IO_PIPE          该流接父进程管道
+ *   xrtProcessWrite / Read    向 stdin 写 / 从 stdout 读（流式）
+ *   xrtProcessClose           关闭指定流端（EOF 语义）
+ * 模块宏：XRT_MODULE_PROCESS
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c ${BS}
+ *       examples/process/stream/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   streamed through a child process
+ *
+ * Argv vs Shell：参数逐个传递、不经过解释器——
+ *   文件名带空格/引号都安全，不可信输入必走这条路。
+ * Close(STDIN) 的时机：写完立即关——子进程（more/cat）
+ *   看到 EOF 才会结束并刷出输出；不关会互相等死。
+ */
+
+
 /* 直接连接真实管道，适合需要自行控制流式读取的调用方。 */
 int main(void)
 {

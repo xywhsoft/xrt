@@ -559,6 +559,81 @@ static void testTlsClientResumeReject(void)
 
 
 
+/* 核对真实 ClientHello 的签名列表，而不是策略层的静态算法目录。 */
+static void testTlsClientSignatureOffer(void)
+{
+	static const xtlsversion Versions[] = {
+		XTLS_VERSION_13, XTLS_VERSION_12
+	};
+	static const xtlssignature Unavailable[] = {
+		XTLS_SIGNATURE_ED448, XTLS_SIGNATURE_ECDSA_SECP521R1_SHA512
+	};
+	static const xtlscipher Ciphers[] = {
+		XTLS_AES_128_GCM_SHA256, XTLS_ECDHE_RSA_AES_128_GCM_SHA256
+	};
+
+	for ( size_t i = 0; i < 5u; i++ ) {
+		xtlspolicy Policy;
+		xtlscontextconfig Context;
+		xtlsclientconfig Config;
+		xtlscontext* pContext;
+		xtlssession* pSession;
+		xtlsclienthello Hello;
+		xtlsextension Extension;
+		xtlsids Ids;
+
+		xrtTlsPolicyInit(&Policy);
+		if ( i != 0 ) {
+			Policy.Versions = &Versions[i == 2u ? 1 : 0];
+			Policy.VersionCount = 1u;
+			Policy.Ciphers = &Ciphers[i == 2u ? 1 : 0];
+			Policy.CipherCount = 1u;
+			if ( i == 1u ) {
+				Policy.SignatureCount -= 3u; /* PKCS#1 仅属于 TLS 1.2。 */
+			}
+		}
+		if ( i >= 3u ) {
+			Policy.Signatures = &Unavailable[i - 3u];
+			Policy.SignatureCount = 1u;
+		}
+		xrtTlsContextConfigInit(&Context);
+		Context.Policy = &Policy;
+		pContext = xrtTlsContextCreate(&Context);
+		testRequire(pContext != NULL, "signature offer context failed");
+		xrtTlsClientConfigInit(&Config);
+		Config.Context = pContext;
+		Config.Verifier = TestTlsClientVerifier;
+		pSession = xrtTlsClientCreate(&Config, NULL);
+		if ( i >= 3u ) {
+			testRequire((pSession == NULL) &&
+				(xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED),
+				"unsupported-only signature offer was accepted");
+			xrtClearError();
+		} else {
+			testRequire((pSession != NULL) &&
+				testTlsClientHello(pSession, &Hello, NULL) &&
+				(xrtTlsExtensionsFind(Hello.Extensions,
+					XTLS_EXTENSION_SIGNATURE_ALGORITHMS, &Extension
+				) == XTLS_ITEM_VALUE) &&
+				xrtTlsSignatures(Extension.Data, &Ids),
+				"signature offer parsing failed");
+			testRequire(!xrtTlsIdsContain(&Ids, XTLS_SIGNATURE_ED448) &&
+				(xrtTlsIdsContain(&Ids,
+					XTLS_SIGNATURE_ECDSA_SECP521R1_SHA512) == (i == 2u)) &&
+				(xrtTlsIdsContain(&Ids,
+					XTLS_SIGNATURE_RSA_PKCS1_SHA256) == (i != 1u)) &&
+				xrtTlsIdsContain(&Ids, XTLS_SIGNATURE_ED25519) &&
+				xrtTlsIdsContain(&Ids, XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256) &&
+				xrtTlsIdsContain(&Ids, XTLS_SIGNATURE_ECDSA_SECP384R1_SHA384),
+				"signature offer does not match executable backends");
+		}
+		xrtTlsSessionDestroy(pSession);
+		xrtTlsContextRelease(pContext);
+	}
+}
+
+
+
 /* 执行 TLS 客户端首航回归。 */
 int main(void)
 {
@@ -575,6 +650,7 @@ int main(void)
 		xrtClearError();
 	}
 	testTlsClientStart();
+	testTlsClientSignatureOffer();
 	testTlsClientVerifyName();
 	testTlsClientResumeStart();
 	testTlsClientConfig();

@@ -4,6 +4,26 @@
 
 
 
+/*
+ * 范例：x509/inspect —— 证书零分配解析：版本/主体/公钥一览
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtX509Parse        DER → xx509cert 借用视图（零拷贝）
+ *   xrtX509NameInit/Read   遍历 Subject 的 RDN 属性游标
+ *   xrtX509PublicKey    解析公钥算法与素材
+ * 模块宏：XRT_MODULE_X509
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/x509/inspect/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   version=1 subject=Subject key-type=0
+ *
+ * 解析结果全部是原 DER 内的视图（Subject/Issuer/有效期/
+ *   扩展区），不复制字节——大证书多连接场景内存稳定。
+ *   Version 字段缺省即 v1（枚举值 1 = X509_VERSION_1）。
+ */
+
+
 /* 演示零分配解析证书，并遍历其 Subject Name。 */
 int main(void)
 {

@@ -99,7 +99,6 @@ typedef struct xtlsserverstate {
 	xtlsserverstep Step;
 	bool RequireProtocol;
 	bool RetrySeen;
-	bool CompatibilityCcsSeen;
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		xtlsserverresumeproc Resume;
 		ptr ResumeContext;

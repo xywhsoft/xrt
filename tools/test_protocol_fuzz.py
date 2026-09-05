@@ -17,6 +17,20 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "config" / "modules.json"
 CORPUS_ROOT = ROOT / "fuzz" / "corpus"
 TARGETS = {
+	"tls-state": {
+		"module": "tls_state_fuzz_tests",
+		"label": "TLS state machine and post-handshake",
+		"output": "tls_state_fuzz",
+		"adapter": "XRT_TLS_STATE_LIBFUZZER",
+		"seeds": {
+			"ready": b"\x00\x02\x20\x0c\x00\x04\x00\x0c\x00",
+			"handshake": b"\x01\x00\x01\x0c\x00",
+			"ticket": b"\x00\x05\x08\x0c\x00",
+			"auto-update": b"\x00\x0b\x00\x02\x20\x0c\x00",
+			"bad-authenticated-message": b"\x00\x08\x05\x0c\x00",
+			"close-eof": b"\x00\x06\x00\x0c\x00\x09\x00",
+		},
+	},
 	"tls": {
 		"module": "tls_protocol_fuzz_tests",
 		"label": "TLS record and handshake",

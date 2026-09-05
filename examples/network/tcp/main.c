@@ -1,3 +1,23 @@
+/*
+ * 范例：network/tcp —— 事件驱动 TCP 回显（回调面完整形态）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtNetListen / Server 回调表   监听与连接接管
+ *   Stream 事件（读/写/关）        全事件模型
+ * 模块宏：XRT_MODULE_NET_TCP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/tcp/main.c -lws2_32 -liphlpapi
+ * 预期输出（端口随机）：
+ *   listening on 127.0.0.1:NNNNN
+ *   reply: hello TCP
+ *
+ * 引擎回调面全景：Accept 接管连接、事件表驱动读写、
+ *   服务端直移接收缓冲回显（零拷贝）、对端关写后排空
+ *   并正常关闭——生产 TCP 服务的标准骨架（硬背压内建）。
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>

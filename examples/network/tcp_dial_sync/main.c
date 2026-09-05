@@ -1,3 +1,19 @@
+/*
+ * 范例：network/tcp_dial_sync —— 同步主机名连接
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   阻塞式 Resolver + 连接（调用方 Engine）
+ * 模块宏：XRT_MODULE_NET_TCP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/tcp_dial_sync/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   connected: yes
+ *
+ * 工具/脚本场景的最少代码："连一个主机名"。
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>

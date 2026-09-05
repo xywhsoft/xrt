@@ -18,6 +18,25 @@ static bool onText(xbytesview Data, ptr pData)
 
 
 
+/*
+ * 范例：websocket/inflater —— 解压 permessage-deflate 消息
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtWsInflaterConfigInit / Create / Destroy
+ *   xrtWsInflaterBegin / Write / End   与 Deflater 对称的三段式
+ * 模块宏：XRT_MODULE_WEBSOCKET（DEFLATE 特性）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/websocket/inflater/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   Hello permessage-deflate
+ *
+ * 输入是 deflater 范例产物的线路形态（无同步尾部）——
+ *   End 会先补回尾部再收流，两侧互为逆运算验证。
+ *   解出的明文分片直达回调（onText），零中间拼接。
+ */
+
+
 /* 解码一条去除同步尾部的 permessage-deflate 负载。 */
 int main(void)
 {

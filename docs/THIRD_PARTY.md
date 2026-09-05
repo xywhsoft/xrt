@@ -115,6 +115,14 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+## BearSSL int31 modular division
+
+- 作者：Thomas Pornin，Copyright (c) 2018 Thomas Pornin <pornin@bolet.org>
+- 来源：[官方 i31_moddiv.c](https://www.bearssl.org/gitweb/?p=BearSSL;a=blob_plain;f=src/int/i31_moddiv.c;hb=HEAD)，2026-09-05 取用。
+- 使用位置：`src/crypto/rsa_blinding.c`；只随 RSA 私钥模块裁剪编入。
+- 许可证：MIT；文件开头完整保留原版权与许可声明，生成的单头也保留声明。
+- 改动：XRT 命名与类型适配；以 `memcpy` 保持原有位转换且避免严格别名违规；新增随机基底盲化包装，不修改模除法的固定迭代算法。
+
 ## Brad Conte SHA-256
 
 - 作者：Brad Conte

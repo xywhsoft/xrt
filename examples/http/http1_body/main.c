@@ -85,6 +85,32 @@ static bool writeResponseBody(void)
 
 
 
+/*
+ * 范例：http/http1_body —— chunked 正文：Plan 流式读 + 分块写出
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtHttp1ResponseBodyPlan   由头推导正文分帧方式（chunked/定长）
+ *   xrtHttp1BodyLimitsInit     上限防御（防超大正文）
+ *   xrtHttp1BodyInit/Read/Done 流式逐段读取（含 trailer 收集）
+ *   xrtHttp1ChunkWrite / ChunkEndWrite   生成 chunk 与终止块
+ * 模块宏：XRT_MODULE_HTTP1
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c ${BS}
+ *       examples/http/http1_body/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   chunked body
+ *   5
+ *   hello
+ *   0
+ *
+ * Plan 的意义：先由头确定"怎么读"（chunked/CL/无正文），
+ *   再按 Plan 初始化读取器——读侧与写侧共用同一分帧状态机，
+ *   响应方法参与语义（HEAD/204 无正文）。
+ * 写侧两板斧：ChunkWrite 生成"size 行 + 数据"，ChunkEndWrite
+ *   生成"0 终止块 + trailer"；大正文可边生成边向量发送。
+ */
+
+
 /* 展示 HTTP/1 Body Plan、流式读取和分块写出。 */
 int main(void)
 {

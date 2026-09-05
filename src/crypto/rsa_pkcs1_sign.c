@@ -73,6 +73,9 @@ bool xrtRsaPkcs1Sign(
 		bResult = true;
 	}
 	xrtSecureZero(Encoded, sizeof(Encoded));
+	if ( iPower == XRT_RSA_RESULT_RANDOM ) {
+		return false;
+	}
 	if ( !bResult ) {
 		return __xrtRsaPkcs1SignFail(
 			"the RSA PKCS#1 private key is invalid",

@@ -3,6 +3,26 @@
 
 
 
+/*
+ * 范例：crypto/poly1305 —— Poly1305 消息认证码（RFC 8439 向量）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtPoly1305Init / Update / Final   流式三段式
+ *   xrtPoly1305                        一次性
+ * 模块宏：XRT_MODULE_CRYPTO（POLY1305 特性）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/crypto/poly1305/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   Poly1305 vector: valid
+ *
+ * 期望标签来自 RFC 8439 §2.5.2 标准测试向量——
+ *   流式与一次性两条路径都命中同一向量。
+ *   单次密钥只签一条消息（one-time MAC），
+ *   组合用法是"ChaCha20 派生密钥 → 签本条消息"。
+ */
+
+
 /* 使用 RFC 8439 固定向量展示流式与一次性 Poly1305。 */
 int main(void)
 {

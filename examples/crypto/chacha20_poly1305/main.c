@@ -5,6 +5,26 @@
 
 
 
+/*
+ * 范例：crypto/chacha20_poly1305 —— ChaCha20-Poly1305 AEAD 便捷层
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtChaCha20Poly1305Seal / Open   无状态一对入口
+ *   XRT_CHACHA20_POLY1305_OVERHEAD   密文相对明文的固定开销
+ * 模块宏：XRT_MODULE_CRYPTO（CHACHA20_POLY1305 特性）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/crypto/chacha20_poly1305/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   authenticated message
+ *
+ * 与 AES-GCM 同级的 AEAD：无硬件加速平台上更快、
+ *   常量时间实现——移动端/物联网首选。
+ *   无状态便捷层密钥即用即走；高频同钥场景有
+ *   带状态的 Sealer/Opener 变体（TLS 内部即用）。
+ */
+
+
 /* 使用 packed 便捷层完成一次可认证的原位加解密。 */
 int main(void)
 {

@@ -25,6 +25,28 @@ static const xtlsgroupinfo* exampleGroup(void)
 
 
 
+/*
+ * 范例：tls/key_exchange —— 密钥交换原语：生成 / 派生 / 双向一致
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtTlsGroupAvailable / GroupInfo   当前构建可用的命名组
+ *   xrtTlsKeyShareGenerate   生成 (私钥, 公钥) 对
+ *   xrtTlsKeyShareDerive     私钥 + 对端公钥 → 共享秘密
+ *   xtlsgroupinfo            元数据：三种缓冲的精确尺寸
+ * 模块宏：XRT_MODULE_TLS（依赖 CRYPTO）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/tls/key_exchange/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   group=29 private=32 public=32 shared=32
+ *
+ * group=29 即 x25519（首选组，三尺寸全 32 字节）。
+ *   元数据驱动缓冲：调用方按 Info 的精确尺寸开数组，
+ *   不猜常数。双向 Derive 结果 memcmp 相等即 ECDH 语义
+ *   成立——TLS 1.3 握手密钥就是这么算出来的。
+ */
+
+
 /* 演示调用方按元数据提供缓冲，并完成双向共享秘密校验。 */
 int main(void)
 {

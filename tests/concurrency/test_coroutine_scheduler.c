@@ -358,7 +358,7 @@ static void testCoroutineSchedulerPostStress(void)
 		PRODUCERS * ITEMS_PER_PRODUCER * sizeof(testcoschedpoststressitem)
 	);
 	testRequire(pItems != NULL, "scheduler post stress allocation failed");
-	pSched = xrtCoSchedCreate();
+	pSched = xrtCoSchedCreateLimit(PRODUCERS * ITEMS_PER_PRODUCER);
 	testRequire(pSched != NULL, "scheduler post stress create failed");
 	for ( int i = 0; i < PRODUCERS; i++ ) {
 		tProducers[i].Sched = pSched;
@@ -386,6 +386,115 @@ static void testCoroutineSchedulerPostStress(void)
 	testRequire(xrtCoSchedDestroy(pSched),
 		"scheduler post stress destroy failed");
 	free(pItems);
+}
+
+
+
+/* 有界队列生产者各自记录受理和析构，避免测试计数自身的数据竞争。 */
+typedef struct testcoschedbounded {
+	xcosched* Sched;
+	size_t Accepted;
+	size_t Runs;
+	size_t Destroyed;
+} testcoschedbounded;
+
+static void testCoSchedBoundedProc(xcosched* pSched, ptr pData)
+{
+	testcoschedbounded* pState = (testcoschedbounded*)pData;
+
+	(void)pSched;
+	pState->Runs++;
+}
+
+static void testCoSchedBoundedDestroy(ptr pData)
+{
+	((testcoschedbounded*)pData)->Destroyed++;
+}
+
+static int testCoSchedBoundedProducer(ptr pData)
+{
+	testcoschedbounded* pState = (testcoschedbounded*)pData;
+
+	for ( size_t i = 0; i < 64u; i++ ) {
+		if ( xrtCoSchedPostOwned(pState->Sched, testCoSchedBoundedProc,
+			pState, testCoSchedBoundedDestroy) ) {
+			pState->Accepted++;
+		} else {
+			testRequire(xrtErrorKind(xrtGetError()) == XERR_AGAIN,
+				"full scheduler post did not return AGAIN");
+			xrtClearError();
+		}
+	}
+	return 0;
+}
+
+/* 多生产者严格遵守预算；队满不接管数据，也不能阻塞内部唤醒。 */
+static void testCoroutineSchedulerBounded(void)
+{
+	testcoschedbounded States[4] = { 0 };
+	testthread Threads[4] = { 0 };
+	testcoschedpark Park = { 0 };
+	testcoschedwake Wake = { 0 };
+	testthread WakeThread = { 0 };
+	xcosched* pSched = xrtCoSchedCreateLimit(7u);
+	size_t iAccepted = 0;
+
+	testRequire(pSched != NULL, "bounded scheduler create failed");
+	Wake.Co = xrtCoSpawn(pSched, testCoSchedParkProc, &Park, NULL);
+	testRequire((Wake.Co != NULL) &&
+		(xrtCoSchedStep(pSched) == XWAIT_OK) && Park.Entered,
+		"bounded scheduler park failed");
+	for ( size_t i = 0; i < 4u; i++ ) {
+		States[i].Sched = pSched;
+		Threads[i].Proc = testCoSchedBoundedProducer;
+		Threads[i].Data = &States[i];
+	}
+	testThreadsStart(Threads, 4);
+	testThreadsJoin(Threads, 4);
+	for ( size_t i = 0; i < 4u; i++ ) {
+		iAccepted += States[i].Accepted;
+		testRequire((States[i].Runs == 0) && (States[i].Destroyed == 0),
+			"rejected posts transferred ownership");
+	}
+	testRequire(iAccepted == 7u, "concurrent posts exceeded scheduler limit");
+	WakeThread.Proc = testCoSchedWakeThread;
+	WakeThread.Data = &Wake;
+	testThreadsStart(&WakeThread, 1);
+	testThreadsJoin(&WakeThread, 1);
+	testRequire(Wake.Result && xrtCoSchedRun(pSched) &&
+		(Park.Result == XWAIT_OK), "full queue blocked coroutine wake");
+	for ( size_t i = 0; i < 4u; i++ ) {
+		testRequire((States[i].Runs == States[i].Accepted) &&
+			(States[i].Destroyed == States[i].Accepted),
+			"bounded scheduler lost accepted ownership");
+	}
+	testRequire(xrtCoSchedPostOwned(pSched, testCoSchedBoundedProc,
+		&States[0], testCoSchedBoundedDestroy) && xrtCoSchedClose(pSched),
+		"drained queue did not release capacity");
+	testRequire(!xrtCoSchedPost(pSched, testCoSchedBoundedProc, &States[0]) &&
+		(xrtErrorKind(xrtGetError()) == XERR_CLOSED),
+		"closed scheduler accepted post");
+	xrtClearError();
+	testRequire(xrtCoSchedRun(pSched) &&
+		(States[0].Destroyed == States[0].Accepted + 1u) &&
+		xrtCoDestroy(Wake.Co) && xrtCoSchedDestroy(pSched),
+		"bounded close did not drain accepted post");
+
+	/* 0 与原创建入口使用相同默认值；不让新默认悄悄变回无限制。 */
+	for ( size_t i = 0; i < 2u; i++ ) {
+		pSched = i == 0 ? xrtCoSchedCreate() : xrtCoSchedCreateLimit(0);
+		testRequire(pSched != NULL, "default bounded scheduler create failed");
+		for ( size_t j = 0; j < XRT_CO_SCHED_POST_LIMIT_DEFAULT; j++ ) {
+			testRequire(xrtCoSchedPost(pSched, testCoSchedBoundedProc, &States[0]),
+				"default queue filled too early");
+		}
+		testRequire(!xrtCoSchedPost(pSched, testCoSchedBoundedProc, &States[0]) &&
+			(xrtErrorKind(xrtGetError()) == XERR_AGAIN),
+			"default queue is unbounded");
+		xrtClearError();
+		testRequire(xrtCoSchedRun(pSched) && xrtCoSchedDestroy(pSched),
+			"default queue cleanup failed");
+	}
 }
 
 
@@ -734,6 +843,7 @@ int main(void)
 {
 	testCoroutineSchedulerPost();
 	testCoroutineSchedulerPostStress();
+	testCoroutineSchedulerBounded();
 	testCoroutineSchedulerBasic();
 	testCoroutineSchedulerWake();
 	testCoroutineSchedulerStress();

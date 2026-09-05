@@ -5,6 +5,30 @@
 
 
 
+/*
+ * 范例：file/root —— 沙箱根：不可信相对名的安全文件操作
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtRootOpen / OpenIn      打开目录句柄（可嵌套）
+ *   xrtRootDirCreate / Remove 在根内建/删目录
+ *   xrtRootFileOpen           在根内打开文件（相对名）
+ *   xrtRootClose              关闭根
+ * 模块宏：XRT_MODULE_FILE
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/file/root/main.c -lws2_32 -liphlpapi
+ * 用法：
+ *   root [name]（默认 message.txt）
+ * 预期输出：
+ *   stored and removed .xrt-root-example-data/message.txt
+ *
+ * 沙箱语义：根内操作只接受相对名，../ 穿越、绝对路径
+ *   一律拒绝——解压上传包、插件资源访问的第一道防线
+ *   （词法校验 path/safe 之外的系统级保障）。
+ *   根句柄在目录被改名/移动后依然有效（不靠路径字符串）。
+ */
+
+
 /* 使用目录能力安全处理不可信的相对文件名。 */
 int main(int argc, char** argv)
 {

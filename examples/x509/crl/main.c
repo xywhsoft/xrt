@@ -4,6 +4,26 @@
 
 
 
+/*
+ * 范例：x509/crl —— CRL 解析与撤销条目遍历
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtX509CrlParse          DER → xx509crl 借用视图
+ *   xrtX509CrlEntryInit/Read 撤销序列号游标（三态）
+ * 模块宏：XRT_MODULE_X509
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/x509/crl/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   version=1 entries=complete
+ *
+ * 本例 CRL 的撤销列表为空：Read 立即返回 DONE——
+ *   "complete" 说明结构完整走到尾（区别于 error）。
+ *   条目非空时循环会逐条给出 Serial 视图与撤销时间，
+ *   序列号保持任意精度字节视图（不做截断式整数转换）。
+ */
+
+
 /* 演示零分配解析 CRL，并遍历其中的撤销序列号。 */
 int main(void)
 {

@@ -1,3 +1,22 @@
+/*
+ * 范例：network/proxy_http_connect —— CONNECT 握手纯协议层
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   HTTP CONNECT 请求生成（与任意传输组合）
+ * 模块宏：XRT_MODULE_PROXY
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/proxy_http_connect/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   CONNECT origin.example:443 HTTP/1.1
+ *   Host: origin.example:443
+ *
+ * 纯协议层：只生成握手字节，不依赖 Socket——
+ *   同步/异步传输都能接（与 tls/server 的
+ *   "传输无关"设计同一哲学）。
+ */
+
+
 #include <stdio.h>
 
 #include <xrt.h>

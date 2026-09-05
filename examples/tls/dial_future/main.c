@@ -32,6 +32,29 @@ static bool exampleTlsDialFutureClosed(xtlsstream* pStream)
 
 
 
+/*
+ * 范例：tls/dial_future —— Future 化 TLS 拨号：异步全链路
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   TLS 拨号的 Future 入口（DNS/TCP/TLS 一体异步）
+ *   xrtFutureWait 族          在普通线程等待完成
+ *   Stream 中止后的资源回收等待
+ * 模块宏：XRT_MODULE_TLS_STREAM（依赖 FUTURE/NET）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/tls/dial_future/main.c -lws2_32 -liphlpapi
+ * 用法：
+ *   dial_future <host> [port]
+ * 预期输出（无参数时）：
+ *   usage: dial_future <host> [port]
+ *
+ * 与 dial（回调式）对照：Future 把"发起与消费"解耦——
+ *   发起处拿到 Future 立即返回，任意线程/事件循环都能等。
+ *   中止（Abort）后仍需等后台释放完资源才能收尾，
+ *   这是流对象与 Future 生命周期的交界点。
+ */
+
+
 /* 使用系统信任库以 Future 连接一个 TLS 主机名。 */
 int main(int argc, char** argv)
 {

@@ -3341,6 +3341,26 @@ static void testTlsClientServerRecordReject(void)
 	testTlsClientServerFixtureInit(
 		&Fixture, TEST_TLS_SERVER_HELLO_VALID
 	);
+	Ccs = 1u;
+	iSize = xrtTlsRecordSize(1u);
+	testRequire(xrtTlsRecordEncode(
+		XTLS_RECORD_CHANGE_CIPHER_SPEC, XTLS_VERSION_12,
+		(xbytesview) { &Ccs, 1u }, Record, sizeof(Record)
+	), "TLS compatibility CCS encoding failed");
+	for ( size_t i = 0; i < 2u; i++ ) {
+		testRequire((xrtTlsSessionFeed(Fixture.Client, Record, iSize) == XTLS_OK) &&
+			(xrtTlsClientDrive(Fixture.Client) == XTLS_OK) &&
+			(Fixture.State->Step == XTLS_CLIENT_WAIT_SERVER_HELLO),
+			"TLS client rejected repeated compatibility CCS before ServerHello");
+	}
+	testRequire(testTlsClientServerFeed(&Fixture, 0, Fixture.ServerHelloSize) == XTLS_OK,
+		"TLS compatibility CCS damaged ServerHello processing");
+	testTlsClientServerFixtureUnit(&Fixture);
+
+	Ccs = 2u;
+	testTlsClientServerFixtureInit(
+		&Fixture, TEST_TLS_SERVER_HELLO_VALID
+	);
 	iSize = xrtTlsRecordSize(1u);
 	testRequire(xrtTlsRecordEncode(
 		XTLS_RECORD_CHANGE_CIPHER_SPEC, XTLS_VERSION_12,

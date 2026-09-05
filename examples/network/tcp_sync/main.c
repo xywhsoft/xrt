@@ -4,6 +4,27 @@
 
 
 
+/*
+ * 范例：network/tcp_sync —— 阻塞式 TCP：Accept 与收发的同步面
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtNetListen / xrtNetListenerLocal   监听与实际端点查询
+ *   xrtNetAccept（同步面）               阻塞等待连接
+ *   xnetstream 同步读                   一次完整接收
+ * 模块宏：XRT_MODULE_NET_TCP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/tcp_sync/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   received: hello
+ *
+ * "同步面"的定位：同一套 xnetstream 对象既有事件回调面
+ *   （见 tcp 范例）也有阻塞面——工具类程序（探活、
+ *   一次性迁移）用同步面最少代码；端口 0 = 系统分配，
+ *   ListenerLocal 取实际端口（并发测试不冲突的标准姿势）。
+ */
+
+
 /* 使用现有 Engine 完成一次本地阻塞 Accept 和接收。 */
 int main(void)
 {

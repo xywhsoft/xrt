@@ -5,6 +5,28 @@
 
 
 
+/*
+ * 范例：file/report —— 综合演练：临时目录 + 原子写 + 命名规范
+ * ----------------------------------------------------------------
+ * 演示 API（组合应用，见前序单项范例）：
+ *   xrtDirTemp          系统临时目录（排他创建）
+ *   xrtTimeWriteRFC3339 / xrtTimeWrite   正文时间 / 文件名安全时间
+ *   xrtFileWriteAtomic  原子落盘
+ *   xrtFileReadAll      读回验证
+ * 模块宏：XRT_MODULE_FILE（依赖 TIME）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/file/report/main.c -lws2_32 -liphlpapi
+ * 预期输出（时间戳随机）：
+ *   created: 2026-...Z
+ *   path: C:${BS}${BS}...${BS}${BS}report_20260905_042105_593549.txt
+ *
+ * 工程细节两个：不假设可执行目录可写（用系统临时目录）；
+ *   文件名时间用无冒号的紧凑格式（: 是 Windows 禁用字符）——
+ *   正文里才用完整 RFC 3339。"跑一次生成一份报告"的模板。
+ */
+
+
 /* 在安全临时目录中原子写入并读回一份带时间的运行报告。 */
 int main(void)
 {

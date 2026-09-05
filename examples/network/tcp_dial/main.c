@@ -1,3 +1,22 @@
+/*
+ * 范例：network/tcp_dial —— 托管拨号：DNS + TCP 生命周期托管
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   托管主机名拨号（示例 Resolver 映射到本机）
+ *   Dial Future + Stream 事件组合
+ * 模块宏：XRT_MODULE_NET_TCP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/tcp_dial/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   managed host connection received an echo
+ *
+ * "托管"语义：拨号失败时已建资源全部自动回收；
+ *   成功后连接生命周期由事件驱动。示例 Resolver
+ *   把主机名映射到本机——不依赖公网与系统 DNS。
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>

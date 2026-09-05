@@ -283,7 +283,7 @@ cleanup:
 
 
 /* 执行完整指数或 CRT 私钥运算，并以公开指数复核故障结果。 */
-__xrt_rsa_result __xrtRsaPrivatePower(
+__xrt_rsa_result __xrtRsaPrivateCore(
 	const xrsaprivatekey* pKey,
 	const void* pInput,
 	size_t iInputSize,
@@ -379,6 +379,9 @@ bool xrtRsaPrivate(
 
 	if ( iResult == XRT_RSA_RESULT_OK ) {
 		return true;
+	}
+	if ( iResult == XRT_RSA_RESULT_RANDOM ) {
+		return false;
 	}
 	if ( (iResult == XRT_RSA_RESULT_ARGUMENT) ||
 		 (iResult == XRT_RSA_RESULT_INPUT) ) {

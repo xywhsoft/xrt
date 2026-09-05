@@ -1,3 +1,20 @@
+/*
+ * 范例：network/tcp_server_sync —— 双面 Accept：Future 与阻塞同场
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   Future Accept + 非 Worker 线程阻塞 Accept
+ * 模块宏：XRT_MODULE_NET_TCP_SERVER
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/tcp_server_sync/main.c -lws2_32 -liphlpapi
+ * 预期输出（端口随机）：
+ *   accepted Future and synchronous connections on port NNNNN
+ *
+ * 同一 Server 两种取连接姿势并存：事件循环侧拉
+ *   Future、管理线程侧阻塞等——迁移期混用的真实形态。
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>

@@ -102,7 +102,6 @@ typedef struct xtlsclientstate {
 	bool ExtendedMasterSecret;
 	bool ResumeOnly;
 	bool RetrySeen;
-	bool CompatibilityCcsSeen;
 	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 		xtlsverifier* Verifier;
 		xtlsclientpeer* Peer;

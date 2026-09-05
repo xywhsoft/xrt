@@ -5,6 +5,25 @@
 
 
 
+/*
+ * 范例：network/socket —— 裸 UDP Socket：绑定/收发/元数据
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   UDP Socket 底层路径   绑定、发送、接收、对端查询
+ * 模块宏：XRT_MODULE_NET
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/socket/main.c -lws2_32 -liphlpapi
+ * 预期输出（端口随机）：
+ *   bytes=6 data=packet source-port=NNNNN meta=0x...
+ *
+ * 最底层视角：不经引擎的同步 UDP socket——
+ *   收到的是数据报边界（不是流）+ 来源地址 +
+ *   附带元数据（TOS/收包时间等）。常规业务用
+ *   udp 范例的引擎版（事件驱动 + 池化缓冲）。
+ */
+
+
 /* 展示最底层 UDP Socket 的绑定、发送、接收和地址查询路径。 */
 int main(void)
 {

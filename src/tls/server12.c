@@ -31,7 +31,8 @@ static bool __xrtTlsServer12Supports13(const xtlssession* pSession)
 	}
 	return false;
 }
-#define XTLS_SERVER12_EXTENSION_MAX_SIZE 272u
+#define XTLS_SERVER12_EXTENSION_MAX_SIZE \
+	(4u * XTLS_EXTENSION_HEADER_SIZE + 4u + UINT8_MAX)
 #define XTLS_SERVER12_FINISHED_MESSAGE_SIZE \
 	(XTLS_HANDSHAKE_HEADER_SIZE + XTLS12_FINISHED_SIZE)
 
@@ -177,7 +178,7 @@ static bool __xrtTlsServer12Records(
 
 
 
-/* 构造 ServerHello 的 EMS、SNI 和可选 ALPN 扩展。 */
+/* 构造 ServerHello 的 EMS、首次握手安全标记、SNI 和可选 ALPN 扩展。 */
 static bool __xrtTlsServer12Extensions(
 	const xtlsserverstate* pState,
 	const xtlsserverselection* pSelection,
@@ -188,11 +189,37 @@ static bool __xrtTlsServer12Extensions(
 {
 	xtlswriter Writer;
 	xbytesview Empty = { NULL, 0 };
+	xtlsextension Renegotiation;
+	xtlsitemresult Result;
+	uint8 iEmpty = 0;
 
 	if ( !xrtTlsWriterInit(&Writer, pOutput, iCapacity) ||
 		!xrtTlsWriterExtension(
 			&Writer, XTLS_EXTENSION_EXTENDED_MASTER_SECRET, Empty
 		) ) {
+		return false;
+	}
+	/* RFC 5746 3.6：只承认空初始绑定；收到扩展或 0x00FF SCSV 都必须应答。 */
+	Result = xrtTlsExtensionsFind(
+		pSelection->Hello.Extensions,
+		XTLS_EXTENSION_RENEGOTIATION_INFO, &Renegotiation
+	);
+	if ( Result == XTLS_ITEM_ERROR ) {
+		return false;
+	}
+	if ( (Result == XTLS_ITEM_VALUE) &&
+		((Renegotiation.Data.Size != 1u) ||
+		 (Renegotiation.Data.Data[0] != 0)) ) {
+		return __xrtTlsServerError(
+			XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+			"build-tls12-server-flight",
+			"TLS initial renegotiation_info is not empty"
+		);
+	}
+	if ( ((Result == XTLS_ITEM_VALUE) ||
+		xrtTlsIdsContain(&pSelection->Hello.CipherSuites, UINT16_C(0x00FF))) &&
+		!xrtTlsWriterExtension(&Writer, XTLS_EXTENSION_RENEGOTIATION_INFO,
+			(xbytesview) { &iEmpty, 1u }) ) {
 		return false;
 	}
 	if ( (pSelection->ServerName.Size != 0) &&

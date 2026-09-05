@@ -3,6 +3,24 @@
 
 
 
+/*
+ * 范例：crypto/ed25519_sign —— Ed25519 签名（展开密钥复用）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtEd25519KeyInit / SignKey / KeyClear   带状态签名
+ * 模块宏：XRT_MODULE_CRYPTO（ED25519 特性）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/crypto/ed25519_sign/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   signed: yes
+ *
+ * Key 状态预展开签名中间量：同钥多签（证书签发、
+ *   批量授权）比逐次入口快；KeyClear 抹除敏感中间态。
+ *   64 字节签名、无随机性需求（确定性签名）。
+ */
+
+
 /* 使用可复用展开密钥签署一条消息。 */
 int main(void)
 {

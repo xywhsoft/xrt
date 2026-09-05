@@ -233,6 +233,9 @@ XRT_EXTERN_C_END
 /* 单线程协程调度器对外保持不透明。 */
 typedef struct xcosched xcosched;
 
+/* 默认最多保留 1024 个尚未执行的用户投递；内部唤醒不占用此预算。 */
+#define XRT_CO_SCHED_POST_LIMIT_DEFAULT 1024u
+
 
 
 /* 调度器投递过程运行在所属线程的普通调用栈中，适合短小的调度操作。 */
@@ -244,8 +247,13 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 在当前原生线程创建一个协程调度器。 */
+/* 在当前原生线程创建使用默认投递上限的协程调度器。 */
 XRT_API xcosched* xrtCoSchedCreate(void);
+
+
+
+/* 指定待执行用户投递上限；0 使用默认值，SIZE_MAX 显式取消实际限额。 */
+XRT_API xcosched* xrtCoSchedCreateLimit(size_t iPostLimit);
 
 
 
@@ -259,7 +267,7 @@ XRT_API xcosched* xrtCoSchedCurrent(void);
 
 
 
-/* 从任意线程按 FIFO 顺序投递借用数据过程；失败时不受理该过程。 */
+/* 从任意线程按 FIFO 顺序投递借用数据过程；队满返回 XERR_AGAIN，不受理过程。 */
 XRT_API bool xrtCoSchedPost(
 	xcosched* pSched,
 	xcoschedpostproc pProc,
@@ -268,7 +276,7 @@ XRT_API bool xrtCoSchedPost(
 
 
 
-/* 从任意线程投递过程并接管数据；受理后在执行过程后恰好析构一次。 */
+/* 从任意线程投递过程并接管数据；失败不接管，受理后在过程返回后恰好析构一次。 */
 XRT_API bool xrtCoSchedPostOwned(
 	xcosched* pSched,
 	xcoschedpostproc pProc,

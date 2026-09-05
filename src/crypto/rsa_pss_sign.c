@@ -37,7 +37,7 @@ bool xrtRsaPssSignSalt(
 	size_t iPaddingSize;
 	size_t iOffset;
 	uint8 iUnusedBits;
-	__xrt_rsa_result iPower;
+	__xrt_rsa_result iPower = XRT_RSA_RESULT_KEY;
 	bool bResult = false;
 
 	if ( (pKey == NULL) || (pHash == NULL) || (pSignature == NULL) ||
@@ -113,6 +113,9 @@ bool xrtRsaPssSignSalt(
 cleanup:
 	xrtSecureZero(Encoded, sizeof(Encoded));
 	xrtSecureZero(Digest, sizeof(Digest));
+	if ( iPower == XRT_RSA_RESULT_RANDOM ) {
+		return false;
+	}
 	if ( !bResult ) {
 		return __xrtRsaPssSignFail(
 			"the RSA-PSS private key or encoding is invalid",

@@ -2,6 +2,22 @@
 
 
 
+/*
+ * 范例：file/dir_async —— 异步目录创建与删除
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtDirCreateAsync / xrtDirRemoveAsync   目录级异步 Helper
+ * 模块宏：XRT_MODULE_FILE_ASYNC
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/file/dir_async/main.c -lws2_32 -liphlpapi
+ * 预期输出：（静默成功，退出码 0）
+ *
+ * 与文件 Helper 同族：路径进、Future 出——
+ *   安装/迁移流程"建目录 → 拷文件 → 删旧目录"全链路异步化。
+ */
+
+
 /* 使用显式任务池创建并删除目录。 */
 int main(void)
 {

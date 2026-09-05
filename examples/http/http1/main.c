@@ -4,6 +4,30 @@
 
 
 
+/*
+ * 范例：http/http1 —— HTTP/1.1 请求解析与响应封包（零拷贝核心）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtHttp1HeadInit      绑定调用方字段数组（零分配解析）
+ *   xrtHttp1RequestParse  借用视图解析请求头（三态返回）
+ *   xrtHttp1ResponseWrite 状态行 + 字段一次封包（容量原子性）
+ * 模块宏：XRT_MODULE_HTTP1
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c ${BS}
+ *       examples/http/http1/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   GET /health
+ *   HTTP/1.1 200 OK
+ *   Content-Type: application/json
+ *   Content-Length: 11
+ *
+ * 这是 xhttp 运行时与自研网关的地基路径：
+ *   解析结果全是借用视图（Method/Target/字段数组），
+ *   一个线程一个 Head 结构反复复用，零逐请求分配；
+ *   ResponseWrite 容量不足时不写半个报文（原子性约定）。
+ */
+
+
 /* 展示零拷贝解析与直接响应封包的基础路径。 */
 int main(void)
 {

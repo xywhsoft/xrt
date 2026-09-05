@@ -1,3 +1,21 @@
+/*
+ * 范例：network/tcp_future —— Future 化 TCP 收发
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   Stream 读 Future（结果是 Future 持有的只读视图）
+ * 模块宏：XRT_MODULE_NET_TCP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/tcp_future/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   server received: hello future TCP
+ *   client received: received
+ *
+ * 拉取 Accept + 统一 Future 契约完成请求响应；
+ *   字节结果零拷贝（视图由 Future 持有）。
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>

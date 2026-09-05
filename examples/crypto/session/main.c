@@ -4,6 +4,29 @@
 
 
 
+/*
+ * 范例：crypto/session —— 原语组合：一次完整临时会话的建立
+ * ----------------------------------------------------------------
+ * 组合链路（前序范例的原语在此串成真实协议形态）：
+ *   xrtX25519KeyPair/Shared      双方交换 → 共享秘密
+ *   双方公钥拼接 Transcript       派生上下文绑定会话身份
+ *   xrtHkdfSha256                秘密 + 盐 + 上下文 → 会话密钥
+ *   xrtChaCha20Poly1305Seal/Open 用会话密钥认证加密消息
+ * 模块宏：XRT_MODULE_CRYPTO
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/crypto/session/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   session round trip: valid
+ *
+ * 三个安全设计点（示例代码里有对应注释）：
+ *   原始共享秘密不直接加密——必经 HKDF 派生；
+ *   公钥入 Transcript——派生绑定双方身份（防未知密钥共享）；
+ *   AAD 绑定记录序号——防重排/重放。
+ *   这正是 TLS 1.3 的骨架缩微版。
+ */
+
+
 /* 组合 X25519、HKDF-SHA256 和 ChaCha20-Poly1305 建立一次临时会话。 */
 int main(void)
 {

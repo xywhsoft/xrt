@@ -852,12 +852,22 @@ static xwaitresult __xrtCoSchedWait(
 /* 创建当前线程拥有的协程调度器。 */
 XRT_API xcosched* xrtCoSchedCreate(void)
 {
+	return xrtCoSchedCreateLimit(0);
+}
+
+
+
+/* 创建使用显式用户投递预算的调度器。 */
+XRT_API xcosched* xrtCoSchedCreateLimit(size_t iPostLimit)
+{
 	xcosched* pSched = (xcosched*)xrtCalloc(1, sizeof(xcosched));
 
 	if ( pSched == NULL ) {
 		return NULL;
 	}
 	pSched->OwnerThreadId = xrtThreadCurrentId();
+	pSched->WorkLimit = iPostLimit != 0 ?
+		iPostLimit : XRT_CO_SCHED_POST_LIMIT_DEFAULT;
 	if ( !xrtMutexInit(&pSched->PostLock) ) {
 		xrtFree(pSched);
 		return NULL;
@@ -933,6 +943,20 @@ static bool __xrtCoSchedPost(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	/* 快速拒绝已满队列，避免持续过载时仍反复分配投递节点。 */
+	(void)xrtMutexLock(&pSched->PostLock);
+	if ( pSched->Closed || (pSched->WorkCount >= pSched->WorkLimit) ) {
+		bool bClosed = pSched->Closed;
+
+		(void)xrtMutexUnlock(&pSched->PostLock);
+		if ( bClosed ) {
+			__xrtErrorSetClosed();
+		} else {
+			__xrtErrorSetAgain();
+		}
+		return false;
+	}
+	(void)xrtMutexUnlock(&pSched->PostLock);
 	pPost = (xrt_co_post*)xrtMalloc(sizeof(xrt_co_post));
 	if ( pPost == NULL ) {
 		return false;
@@ -950,10 +974,10 @@ static bool __xrtCoSchedPost(
 		__xrtErrorSetClosed();
 		return false;
 	}
-	if ( pSched->WorkCount == SIZE_MAX ) {
+	if ( pSched->WorkCount >= pSched->WorkLimit ) {
 		(void)xrtMutexUnlock(&pSched->PostLock);
 		xrtFree(pPost);
-		__xrtErrorSetSizeOverflow();
+		__xrtErrorSetAgain();
 		return false;
 	}
 	if ( pSched->WorkTail != NULL ) {

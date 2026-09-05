@@ -305,6 +305,8 @@ xrtTlsContextRelease(Context);
 
 `xtlslimits` 不会触发预分配。`FeedLimit`、`SendLimit` 和 `PlainLimit` 只是后续自适应 `xnetbuf` 队列的硬上限；空闲 context 或 session 不常驻 8 KiB 缓冲。三个队列至少容纳一条最大合法记录，避免对端发送标准大小记录后永久停滞。`HandshakeLimit` 限制单条重组消息，默认 1 MiB；`RecordBudget` 和 `HandshakeBudget` 限制一次非阻塞驱动处理的工作量，防止高吞吐连接独占 Worker。
 
+`xrtTlsListenerConfigInit` 默认限制 128 条并发握手和 1024 条已完成待领取连接。握手预算在创建 TLS 会话之前执行，调用方仍可显式设置 `HandshakeLimit` 和 `AcceptQueueLimit`。本次只收紧现有默认值，没有新增资源 profile 或改变缓冲的惰性分配策略。
+
 上下文当前保存协议策略，不把 Worker 专属 `xnetbufpool` 放入共享对象，也不把“协议已知”误当成“当前构建后端可执行”。客户端或服务端会话创建时再将上下文策略与已编入的组、AEAD、身份和验证能力求交集；无法得到完整执行路径时创建失败，而不会静默改写调用方优先级。
 
 ## 命名组与密钥交换
@@ -471,7 +473,7 @@ if ( !xrtTls12ServerKeyExchangeParse(Handshake.Body, &Exchange) ) {
 - TLS 1.3 使用静态 IV 异或 64 位序列号，外层类型固定为 `application_data`，打开后去除内层类型与零填充。
 - TLS 1.2 AES-GCM 使用 4 字节静态盐和 8 字节显式序列号；ChaCha20-Poly1305 不在线路上发送显式 nonce。
 - 只有认证成功才递增接收序列号；认证失败不会写出明文，也不会改变类型结果。
-- AES-GCM 在序列号达到 `2^24` 前由会话层执行 TLS 1.3 KeyUpdate，TLS 1.2 则关闭连接；ChaCha20-Poly1305 在序列号耗尽前更新或关闭。
+- TLS 1.3 角色会话写入应用数据时，在 AES-GCM 的 `2^24 - 1`（ChaCha20-Poly1305 的 `UINT64_MAX - 1`）计数处先发送 KeyUpdate，再用新密钥发送数据，为旧密钥保留最后一个记录号。输出背压可以重试，不会重复提交 epoch。控制消息密集但不写应用数据的连接仍可主动 KeyUpdate；TLS 1.2 和底层记录接口在硬上限处拒绝继续使用密钥，由应用关闭或重建连接。
 - TLS 1.3 单条记录可选零填充；TLS 1.2 AEAD 记录不接受这一参数。
 - 明文与密文缓冲允许精确原位处理；TLS 1.2 AES 打开时明文起点是显式 nonce 后的密文起点。
 
@@ -631,6 +633,7 @@ xtlsclientconfig ClientConfig;
 
 xrtTlsClientConfigInit(&ClientConfig);
 ClientConfig.Resume = Resume;
+ClientConfig.Verifier = Verifier; /* 允许票据被拒后回退到证书握手。 */
 Session = xrtTlsClientCreate(&ClientConfig, Pool);
 xrtTlsResumeRelease(Resume);
 ```
@@ -655,10 +658,11 @@ xrtTlsClientConfigInit(&Config);
 Config.ServerName = XRT_STR_LITERAL("example.com");
 Config.Protocols = Protocols;
 Config.ProtocolCount = sizeof(Protocols) / sizeof(Protocols[0]);
+Config.Verifier = Verifier; /* 使用下文创建的证书验证器。 */
 Session = xrtTlsClientCreate(&Config, Pool);
 ```
 
-空配置使用默认共享策略、无 SNI 和无 ALPN。构造器只发布当前裁剪构建可以完整执行的协议参数：密码套件必须同时具备记录 AEAD 和对应摘要调度后端，组必须具备密钥交换后端，签名方案必须适用于发布的版本。当前角色状态只接入 TLS 1.3，因此即使上下文同时允许 TLS 1.2，ClientHello 也不会虚假发布 TLS 1.2；纯 TLS 1.2 策略会以 `XTLS_ERROR_VERSION` 明确失败。
+初始化配置使用默认共享策略、无 SNI 和无 ALPN；完整证书握手必须显式绑定 verifier，否则在创建时失败。构造器只发布当前裁剪构建可以执行的参数：套件需要对应 AEAD 和摘要调度，组需要密钥交换后端，签名需要本构建的验签后端。TLS 1.2/1.3 均已接入；TLS 1.2 要求 EMS 和 RFC 5746 的空初始绑定，不提供重新协商。Ed448 不会发布；P-521/SHA-512 不会出现在允许 TLS 1.3 的实际 offer 中。TLS 1.2-only 的 `0x0603` 是 SHA-512/ECDSA 组合，仍可用于已有 P-256/P-384 后端。纯 PSK 恢复构建没有验签后端时可以省略签名扩展，不因此新增密码算法。
 
 创建成功会立即生成密码安全随机数、兼容 session ID 和首选可用组的一份 key share，并排队一条完整明文 ClientHello 记录。SNI、ALPN、版本、组、签名和 key_share 均使用公共 Hello writer 编码，不保留固定 1024 字节构建缓冲；发送队列仍受上下文 `SendLimit` 约束。此时会话进入 `XTLS_STATE_HANDSHAKE`，等待原因同时包含输入和输出，传输层可直接发送 `xrtTlsSessionSendFront()` 或 `xrtTlsSessionSendSpans()` 返回的密文。
 
@@ -695,7 +699,7 @@ xtlsresult Result = xrtTlsClientKeyUpdate(
 
 服务端可以不选择 PSK，此时客户端安全回退到完整证书握手。服务端选择时只接受 identity `0`，套件摘要必须与票据一致且仍必须提供有效 key share；接受后客户端跳过 Certificate/CertificateVerify，直接校验服务端 Finished，再按正常路径发送客户端 Finished 并切换应用 epoch。恢复连接的 ALPN 必须与票据绑定完全一致，后续新票据继承原来已经认证的 `PeerIdentity`。`xrtTlsClientResumed()` 在服务端 ServerHello 接受 identity `0` 后返回 `true`；它报告协商选择，不把后续握手成功状态混入同一个查询。
 
-当前门禁已经覆盖证书认证和 PSK+DHE 恢复型 TLS 1.3 客户端从 ClientHello 到持续 READY 的主路径：独立复算 binder、双方 Finished、应用流量秘密、resumption master 与 ticket PSK，验证恢复回退、错误 identity、缺失 key share、ALPN 绑定、双向应用数据、认证关闭、KeyUpdate 两种请求、主动更新、旧/新 epoch 顺序、票据分片/聚合/有界淘汰/深拷贝路由域、应用及输出背压、非法消息、目标 OOM、GCC、TinyCC x86 和单头文件。客户端同时支持带 extended master secret 的 TLS 1.2 ECDHE 证书完整握手、ALPN、双向应用数据与认证关闭；TLS 1.2 不提供会话恢复、重新协商或 KeyUpdate。没有 verifier 的客户端仍可生成首航，但收到证书认证航班时会以 `XTLS_ERROR_VERIFY` 安全失败。HRR、CertificateRequest、客户端证书、0-RTT 和自动密钥轮换策略仍属于后续工作。对应门禁位于 `tests/tls/test_tls_client.c`、`tests/tls/test_tls_client_server_hello.c`、`tests/tls/test_tls_server12.c`、`tests/tls/test_tls_client_oom.c`、`tests/single/test_single_tls_client.c` 和 `tests/single/test_single_tls_client_server_hello.c`。
+当前门禁已经覆盖证书认证和 PSK+DHE 恢复型 TLS 1.3 客户端从 ClientHello 到持续 READY 的主路径：独立复算 binder、双方 Finished、应用流量秘密、resumption master 与 ticket PSK，验证恢复回退、错误 identity、缺失 key share、ALPN 绑定、双向应用数据、认证关闭、KeyUpdate 两种请求、主动更新、旧/新 epoch 顺序、票据分片/聚合/有界淘汰/深拷贝路由域、应用及输出背压、非法消息、目标 OOM、GCC、TinyCC x86 和单头文件。客户端同时支持带 extended master secret 的 TLS 1.2 ECDHE 证书完整握手、ALPN、双向应用数据与认证关闭；TLS 1.2 不提供会话恢复、重新协商或 KeyUpdate。非 ResumeOnly 配置缺少 verifier 时在创建期拒绝。客户端与服务端支持单次 HRR；TLS 1.3 应用写入会在记录用量临界点自动换钥。CertificateRequest、客户端证书认证和 0-RTT 未实现。对应门禁位于 `tests/tls/test_tls_client.c`、`tests/tls/test_tls_client_server_hello.c`、`tests/tls/test_tls_server12.c`、`tests/tls/test_tls_client_oom.c`、`tests/single/test_single_tls_client.c` 和 `tests/single/test_single_tls_client_server_hello.c`。
 
 
 
@@ -735,7 +739,7 @@ Session = xrtTlsServerCreate(&Config, Pool);
 
 READY 服务端使用 `xrtTlsServerTicket()` 把调用方给出的非空不透明 ticket 和寿命编码为 NewSessionTicket，并把对应服务端恢复对象的所有权交给调用方；`xrtTlsServerTicketNew()` 使用 32 字节密码安全随机 ticket 和 86400 秒默认寿命。XRT 不维护进程全局票据缓存，调用方可以按租户、容量、过期和持久化需求选择 Map、分片缓存或外部存储。发送硬上限会在随机数、派生和分配之前预检；返回 `XTLS_AGAIN` 时输出对象为 `NULL`，写序号、traffic secret 和恢复状态均不变，排空输出后可原样重试。
 
-服务端门禁覆盖随机小分片 TLS 1.2/1.3 证书握手、SNI/ALPN 动态选择、双向应用数据、认证关闭、TLS 1.3 主动和被动 KeyUpdate、明文与受保护 fatal Alert、票据签发、第二连接 PSK+DHE 恢复、未知或过期票据回退、SNI/ALPN/年龄绑定、坏 binder、畸形 PSK 扩展、发送背压、定向 OOM 和单头文件。完整示例位于 `examples/tls/server/main.c`，测试位于 `tests/tls/test_tls_server*.c` 与 `tests/single/test_single_tls_server.c`。当前没有 HRR、客户端证书认证、0-RTT、TLS 1.2 会话恢复、重新协商或异步身份选择；TCP 组合入口由后文独立的 `tls_stream` 裁剪单元提供。
+服务端门禁覆盖随机小分片 TLS 1.2/1.3 证书握手、SNI/ALPN 动态选择、双向应用数据、认证关闭、TLS 1.3 主动和被动 KeyUpdate、明文与受保护 fatal Alert、票据签发、第二连接 PSK+DHE 恢复、未知或过期票据回退、SNI/ALPN/年龄绑定、坏 binder、畸形 PSK 扩展、发送背压、定向 OOM 和单头文件。完整示例位于 `examples/tls/server/main.c`，测试位于 `tests/tls/test_tls_server*.c` 与 `tests/single/test_single_tls_server.c`。已支持单次 HRR 和 TLS 1.3 应用写入自动换钥。当前没有客户端证书认证、0-RTT、TLS 1.2 会话恢复、重新协商或异步身份选择；TCP 组合入口由后文独立的 `tls_stream` 裁剪单元提供。
 
 ## TLS 对端验证
 

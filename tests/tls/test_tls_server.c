@@ -1,4 +1,5 @@
 #include "../fixtures/tls_server.h"
+#include "../../src/internal/xrt_tls_session.h"
 
 
 
@@ -121,6 +122,8 @@ static void testTlsServerHelloRetryRequest(
 	xtlssession* pServer;
 	test_tls_server_rng Rng = { UINT32_C(0x71D30A5B) };
 	uint64 iCookie = UINT64_MAX;
+	static const uint8 Ccs[] = { 20u, 3u, 3u, 0u, 1u, 1u };
+	xnetspan Flight;
 
 	xrtTlsPolicyInit(&ClientPolicy);
 	ClientPolicy.Versions = Versions;
@@ -168,8 +171,26 @@ static void testTlsServerHelloRetryRequest(
 	ServerConfig.RequireProtocol = true;
 	pClient = xrtTlsClientCreate(&ClientConfig, NULL);
 	pServer = xrtTlsServerCreate(&ServerConfig, NULL);
-	testRequire((pClient != NULL) && (pServer != NULL) &&
-		testTlsServerHandshake(pClient, pServer, &Rng),
+	testRequire((pClient != NULL) && (pServer != NULL),
+		"TLS HRR roles creation failed");
+	testRequire(xrtTlsSessionSendFront(pClient, &Flight) &&
+		(xrtTlsSessionFeed(pServer, Flight.Data, Flight.Size) == XTLS_OK) &&
+		xrtTlsSessionSendConsume(pClient, Flight.Size) &&
+		(xrtTlsServerDrive(pServer) == XTLS_OK) &&
+		xrtTlsSessionSendFront(pServer, &Flight) &&
+		(xrtTlsSessionFeed(pClient, Flight.Data, Flight.Size) == XTLS_OK) &&
+		xrtTlsSessionSendConsume(pServer, Flight.Size) &&
+		(xrtTlsClientDrive(pClient) == XTLS_OK),
+		"TLS HRR initial exchange failed");
+	/* HRR 后、第二个 ClientHello 处理前，两端都允许重复的明文兼容 CCS。 */
+	for ( size_t i = 0; i < 2u; i++ ) {
+		testRequire((xrtTlsSessionFeed(pClient, Ccs, sizeof(Ccs)) == XTLS_OK) &&
+			(xrtTlsSessionFeed(pServer, Ccs, sizeof(Ccs)) == XTLS_OK) &&
+			(xrtTlsClientDrive(pClient) == XTLS_OK) &&
+			(xrtTlsServerDrive(pServer) == XTLS_OK),
+			"TLS HRR rejected repeated compatibility CCS");
+	}
+	testRequire(testTlsServerHandshake(pClient, pServer, &Rng),
 		"TLS HelloRetryRequest handshake failed");
 	testRequire(xrtTlsServerCookie(pServer, &iCookie) && (iCookie == 0),
 		"TLS server default selector Cookie is not zero");
@@ -186,6 +207,85 @@ static void testTlsServerHelloRetryRequest(
 	xrtTlsSessionDestroy(pClient);
 	xrtTlsContextRelease(pServerContext);
 	xrtTlsContextRelease(pClientContext);
+}
+
+
+
+/* 把两端计数推进到边界，验证自动更新的旧/新 epoch 顺序和背压重试。 */
+static void testTlsServerAutomaticUpdate(
+	xtlssession* pClient,
+	xtlssession* pServer,
+	test_tls_server_rng* pRng
+)
+{
+	for ( size_t i = 0; i < 2u; i++ ) {
+		xtlssession* pSource = i == 0 ? pClient : pServer;
+		xtlssession* pTarget = i == 0 ? pServer : pClient;
+		uint64 iLimit = __xrtTlsRecordKeyLimit(&pSource->WriteKey);
+		uint64 iOpposite = pSource->ReadKey.Sequence;
+		uint8 Fill[1024] = { 0 };
+		size_t iWritten;
+		size_t iRemaining;
+		xtlsrecordkey Before;
+
+		/* 边界前一条仍用旧密钥；下一条必须先排队 KeyUpdate。 */
+		pSource->WriteKey.Sequence = iLimit - 2u;
+		pTarget->ReadKey.Sequence = iLimit - 2u;
+		testRequire(testTlsServerTransfer(pSource, pTarget, i == 0,
+			"old", 3u, pRng) &&
+			(pSource->WriteKey.Sequence == iLimit - 1u),
+			"automatic KeyUpdate ran before its boundary");
+		Before = pSource->WriteKey;
+		/* 填满密文预算；没有空间时不能消耗最后一个旧记录号。 */
+		iRemaining = xrtTlsContextLimits(pSource->Context)->SendLimit;
+		while ( iRemaining != 0 ) {
+			size_t iChunk = iRemaining < sizeof(Fill) ? iRemaining : sizeof(Fill);
+
+			testRequire(__xrtTlsSessionSend(pSource, Fill, iChunk) == XTLS_OK,
+				"automatic KeyUpdate backpressure setup failed");
+			iRemaining -= iChunk;
+		}
+		for ( size_t j = 0; j < 2u; j++ ) {
+			testRequire((xrtTlsSessionWrite(pSource, "new", 3u, &iWritten) ==
+				XTLS_AGAIN) && (iWritten == 0) &&
+				(memcmp(&Before, &pSource->WriteKey, sizeof(Before)) == 0) &&
+				(xrtTlsSessionState(pSource) == XTLS_STATE_READY),
+				"blocked automatic KeyUpdate changed its epoch");
+		}
+		testRequire(xrtTlsSessionSendConsume(pSource,
+			xrtTlsSessionSendSize(pSource)), "backpressure drain failed");
+		/* 仅够容纳更新记录：允许先提交新 epoch，再对应用数据返回 AGAIN。 */
+		{
+			size_t iUpdateSize = __xrtTlsRecordSealSize(&pSource->WriteKey, 5u, 0);
+			size_t iPrefix = xrtTlsContextLimits(pSource->Context)->SendLimit - iUpdateSize;
+
+			iRemaining = iPrefix;
+			while ( iRemaining != 0 ) {
+				size_t iChunk = iRemaining < sizeof(Fill) ? iRemaining : sizeof(Fill);
+
+				testRequire(__xrtTlsSessionSend(pSource, Fill, iChunk) == XTLS_OK,
+					"partial update capacity setup failed");
+				iRemaining -= iChunk;
+			}
+			testRequire((xrtTlsSessionWrite(pSource, "new", 3u, &iWritten) == XTLS_AGAIN) &&
+				(iWritten == 0) && (pSource->WriteKey.Sequence == 0),
+				"automatic KeyUpdate-only commit failed");
+			testRequire(xrtTlsSessionSendConsume(pSource, iPrefix) &&
+				testTlsServerPostHandshake(pClient, pServer, pRng) &&
+				(pTarget->ReadKey.Sequence == 0),
+				"automatic KeyUpdate-only record did not synchronize epochs");
+		}
+		testRequire(testTlsServerTransfer(pSource, pTarget, i == 0,
+			"new", 3u, pRng) && (pSource->WriteKey.Sequence == 1u) &&
+			(pTarget->ReadKey.Sequence == 1u) &&
+			(pSource->ReadKey.Sequence == iOpposite) &&
+			(xrtTlsSessionSendSize(pTarget) == 0),
+			"automatic KeyUpdate did not install exactly one matching epoch");
+		testRequire(testTlsServerTransfer(pSource, pTarget, i == 0,
+			"next", 4u, pRng) && (pSource->WriteKey.Sequence == 2u),
+			"automatic KeyUpdate repeated after retry");
+		xrtSecureZero(&Before, sizeof(Before));
+	}
 }
 
 
@@ -304,6 +404,7 @@ int main(void)
 		pServer, pClient, false,
 		ServerData, sizeof(ServerData) - 1u, &Rng
 	), "TLS data transfer after server KeyUpdate failed");
+	testTlsServerAutomaticUpdate(pClient, pServer, &Rng);
 	testRequire((xrtTlsServerTicketNew(
 		pServer, &pServerResume
 	) == XTLS_OK) && (pServerResume != NULL) &&

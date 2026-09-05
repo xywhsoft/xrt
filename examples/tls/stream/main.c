@@ -2,6 +2,29 @@
 
 
 
+/*
+ * 范例：tls/stream —— TLS 流回显服务端（事件驱动、背压感知）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtTlsStreamAccept        接管 TCP 流并完成 TLS 服务端握手
+ *   xrtTlsStreamRead/Write    明文读写（Span 分块、短写等 Writable）
+ *   xrtTlsStreamClose/Wait    干净关闭与后台资源回收
+ * 模块宏：XRT_MODULE_TLS_STREAM（依赖 NET）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/tls/stream/main.c -lws2_32 -liphlpapi
+ * 用法：
+ *   stream <rsa|p256|p384|ed25519> <certificate.der> <private.der> [port]
+ * 预期输出（无参数时）：
+ *   usage: stream <rsa|p256|p384|ed25519> ...
+ *
+ * Stream 层封装"TLS 状态机 + 传输"：业务只看到明文读写；
+ *   回显按 Span 逐块回送、短写暂停等可写事件——
+ *   慢客户端不会撑爆服务端内存（硬背压）。
+ *   共享配置引用计数，监听器与全部连接关闭后统一释放。
+ */
+
+
 /* Echo 服务共享配置只在 Listener 和全部连接关闭后释放。 */
 typedef struct example_tls_stream {
 	xtlsserverconfig ServerConfig;

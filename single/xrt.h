@@ -2846,6 +2846,9 @@
 #ifndef XRT_MODULE_CRYPTO_RSA
 #define XRT_MODULE_CRYPTO_RSA
 #endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
 #endif
 
 /* tls_record_aes 及其直接依赖。 */
@@ -7380,6 +7383,9 @@ XRT_EXTERN_C_END
 /* 单线程协程调度器对外保持不透明。 */
 typedef struct xcosched xcosched;
 
+/* 默认最多保留 1024 个尚未执行的用户投递；内部唤醒不占用此预算。 */
+#define XRT_CO_SCHED_POST_LIMIT_DEFAULT 1024u
+
 
 
 /* 调度器投递过程运行在所属线程的普通调用栈中，适合短小的调度操作。 */
@@ -7391,8 +7397,13 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 在当前原生线程创建一个协程调度器。 */
+/* 在当前原生线程创建使用默认投递上限的协程调度器。 */
 XRT_API xcosched* xrtCoSchedCreate(void);
+
+
+
+/* 指定待执行用户投递上限；0 使用默认值，SIZE_MAX 显式取消实际限额。 */
+XRT_API xcosched* xrtCoSchedCreateLimit(size_t iPostLimit);
 
 
 
@@ -7406,7 +7417,7 @@ XRT_API xcosched* xrtCoSchedCurrent(void);
 
 
 
-/* 从任意线程按 FIFO 顺序投递借用数据过程；失败时不受理该过程。 */
+/* 从任意线程按 FIFO 顺序投递借用数据过程；队满返回 XERR_AGAIN，不受理过程。 */
 XRT_API bool xrtCoSchedPost(
 	xcosched* pSched,
 	xcoschedpostproc pProc,
@@ -7415,7 +7426,7 @@ XRT_API bool xrtCoSchedPost(
 
 
 
-/* 从任意线程投递过程并接管数据；受理后在执行过程后恰好析构一次。 */
+/* 从任意线程投递过程并接管数据；失败不接管，受理后在过程返回后恰好析构一次。 */
 XRT_API bool xrtCoSchedPostOwned(
 	xcosched* pSched,
 	xcoschedpostproc pProc,
@@ -10766,8 +10777,8 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE) && \
-	!defined(XRT_FEATURE_CRYPTO_RSA)
-	#error "XRT RSA private operations require RSA"
+	(!defined(XRT_FEATURE_CRYPTO_RSA) || !defined(XRT_FEATURE_RANDOM_SECURE))
+	#error "XRT RSA private operations require RSA and secure random for blinding"
 #endif
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PSS) && \
@@ -24992,6 +25003,7 @@ typedef struct xtlslistenerevents {
 	Listen 负责 TCP 接入，Tls 和 Stream 负责每条连接的 TLS 会话与组合层限制。
 	AcceptQueueLimit 只限制完成握手但尚未被 pull/Future 消费的连接；
 	HandshakeLimit 在分配 TLS 会话前硬性限制并发握手数。
+	初始化默认完成队列 1024 条、并发握手 128 条，均可显式调整。
 */
 typedef struct xtlslistenerconfig {
 	xnetlistenconfig Listen;
@@ -42898,6 +42910,7 @@ struct xcosched {
 	size_t TimerCount;
 	size_t TimerCapacity;
 	size_t WorkCount;
+	size_t WorkLimit;
 	size_t Alive;
 	bool Closed;
 	bool Running;
@@ -47877,6 +47890,8 @@ struct xtlssession {
 	xtlsalert PeerAlert;
 	size_t AllocationSize;
 	xtlssessioncleanproc Clean;
+	/* 角色提供现有 KeyUpdate 入口，公共记录层不依赖客户端/服务端模块。 */
+	xtlsresult (*KeyUpdate)(xtlssession* pSession, xtlskeyupdate Request);
 };
 
 
@@ -48304,7 +48319,6 @@ typedef struct xtlsclientstate {
 	bool ExtendedMasterSecret;
 	bool ResumeOnly;
 	bool RetrySeen;
-	bool CompatibilityCcsSeen;
 	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 		xtlsverifier* Verifier;
 		xtlsclientpeer* Peer;
@@ -49188,7 +49202,6 @@ typedef struct xtlsserverstate {
 	xtlsserverstep Step;
 	bool RequireProtocol;
 	bool RetrySeen;
-	bool CompatibilityCcsSeen;
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		xtlsserverresumeproc Resume;
 		ptr ResumeContext;
@@ -52929,7 +52942,8 @@ typedef enum __xrt_rsa_result {
 	XRT_RSA_RESULT_OK = 0,
 	XRT_RSA_RESULT_ARGUMENT,
 	XRT_RSA_RESULT_KEY,
-	XRT_RSA_RESULT_INPUT
+	XRT_RSA_RESULT_INPUT,
+	XRT_RSA_RESULT_RANDOM
 } __xrt_rsa_result;
 
 
@@ -52961,7 +52975,15 @@ __xrt_rsa_result __xrtRsaPower(
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE)
 
-/* 执行带结果复核的 RSA 私钥运算，不直接修改线程错误。 */
+/* 固定轨迹计算 x / y mod m；临时区至少容纳 3 * 模数字数，失败返回 0。 */
+uint32 __xrtRsaModDivide(uint32* x, const uint32* y, const uint32* m,
+	uint32 m0i, uint32* t);
+
+/* 只供盲化包装使用的 CRT/完整指数核心；输入已经随机化。 */
+__xrt_rsa_result __xrtRsaPrivateCore(const xrsaprivatekey* pKey,
+	const void* pInput, size_t iInputSize, void* pOutput);
+
+/* 随机基底盲化和结果复核；RANDOM 失败保留安全随机源的线程错误。 */
 __xrt_rsa_result __xrtRsaPrivatePower(
 	const xrsaprivatekey* pKey,
 	const void* pInput,
@@ -73761,12 +73783,22 @@ static xwaitresult __xrtCoSchedWait(
 /* 创建当前线程拥有的协程调度器。 */
 XRT_API xcosched* xrtCoSchedCreate(void)
 {
+	return xrtCoSchedCreateLimit(0);
+}
+
+
+
+/* 创建使用显式用户投递预算的调度器。 */
+XRT_API xcosched* xrtCoSchedCreateLimit(size_t iPostLimit)
+{
 	xcosched* pSched = (xcosched*)xrtCalloc(1, sizeof(xcosched));
 
 	if ( pSched == NULL ) {
 		return NULL;
 	}
 	pSched->OwnerThreadId = xrtThreadCurrentId();
+	pSched->WorkLimit = iPostLimit != 0 ?
+		iPostLimit : XRT_CO_SCHED_POST_LIMIT_DEFAULT;
 	if ( !xrtMutexInit(&pSched->PostLock) ) {
 		xrtFree(pSched);
 		return NULL;
@@ -73842,6 +73874,20 @@ static bool __xrtCoSchedPost(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	/* 快速拒绝已满队列，避免持续过载时仍反复分配投递节点。 */
+	(void)xrtMutexLock(&pSched->PostLock);
+	if ( pSched->Closed || (pSched->WorkCount >= pSched->WorkLimit) ) {
+		bool bClosed = pSched->Closed;
+
+		(void)xrtMutexUnlock(&pSched->PostLock);
+		if ( bClosed ) {
+			__xrtErrorSetClosed();
+		} else {
+			__xrtErrorSetAgain();
+		}
+		return false;
+	}
+	(void)xrtMutexUnlock(&pSched->PostLock);
 	pPost = (xrt_co_post*)xrtMalloc(sizeof(xrt_co_post));
 	if ( pPost == NULL ) {
 		return false;
@@ -73859,10 +73905,10 @@ static bool __xrtCoSchedPost(
 		__xrtErrorSetClosed();
 		return false;
 	}
-	if ( pSched->WorkCount == SIZE_MAX ) {
+	if ( pSched->WorkCount >= pSched->WorkLimit ) {
 		(void)xrtMutexUnlock(&pSched->PostLock);
 		xrtFree(pPost);
-		__xrtErrorSetSizeOverflow();
+		__xrtErrorSetAgain();
 		return false;
 	}
 	if ( pSched->WorkTail != NULL ) {
@@ -135680,6 +135726,21 @@ xtlsresult __xrtTlsSessionRecordProtect(
 			"TLS protected record exceeds its version limit"
 		);
 	}
+	/* 为 KeyUpdate 保留旧 epoch 的最后一个记录号，应用数据使用新 epoch。
+	   仅角色会话自动轮换；TLS 1.2 和底层记录 API 仍在硬上限处拒绝。 */
+	if ( (Type == XTLS_RECORD_APPLICATION_DATA) &&
+		(pSession->State == XTLS_STATE_READY) &&
+		(pSession->Version == XTLS_VERSION_13) &&
+		(pSession->KeyUpdate != NULL) &&
+		(pSession->WriteKey.Sequence >=
+		 (__xrtTlsRecordKeyLimit(&pSession->WriteKey) - 1u)) ) {
+		Result = pSession->KeyUpdate(
+			pSession, XTLS_KEY_UPDATE_NOT_REQUESTED
+		);
+		if ( Result != XTLS_OK ) {
+			return Result;
+		}
+	}
 	Result = __xrtTlsSessionSendReserve(pSession, iRequired, &Span);
 	if ( Result != XTLS_OK ) {
 		return Result;
@@ -138213,9 +138274,54 @@ static bool __xrtTlsClientAddSize(size_t* pSize, size_t iAdd)
 
 
 
+/* 只声明本构建可验证的线路签名；混合版本不能暴露 TLS 1.3 的缺失后端。 */
+static bool __xrtTlsClientSignatureSupported(
+	xtlssignature Signature,
+	bool bTls12,
+	bool bTls13
+)
+{
+	(void)bTls12;
+	(void)bTls13;
+	switch ( Signature ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+			#if defined(XRT_FEATURE_X509_VERIFY_RSA)
+				case XTLS_SIGNATURE_RSA_PKCS1_SHA256:
+				case XTLS_SIGNATURE_RSA_PKCS1_SHA384:
+				case XTLS_SIGNATURE_RSA_PKCS1_SHA512:
+					return bTls12;
+				case XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256:
+				case XTLS_SIGNATURE_RSA_PSS_RSAE_SHA384:
+				case XTLS_SIGNATURE_RSA_PSS_RSAE_SHA512:
+				case XTLS_SIGNATURE_RSA_PSS_PSS_SHA256:
+				case XTLS_SIGNATURE_RSA_PSS_PSS_SHA384:
+				case XTLS_SIGNATURE_RSA_PSS_PSS_SHA512:
+					return true;
+			#endif
+			#if defined(XRT_FEATURE_X509_VERIFY_ECDSA)
+				case XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256:
+				case XTLS_SIGNATURE_ECDSA_SECP384R1_SHA384:
+					return true;
+				case XTLS_SIGNATURE_ECDSA_SECP521R1_SHA512:
+					/* TLS 1.2 的 0x0603 是 SHA-512/ECDSA，不限定 P-521。 */
+					return bTls12 && !bTls13;
+			#endif
+			#if defined(XRT_FEATURE_X509_VERIFY_ED25519)
+				case XTLS_SIGNATURE_ED25519:
+					return true;
+			#endif
+		#endif
+		default:
+			return false;
+	}
+}
+
+
+
 /* 收集当前构建可完整执行的 TLS 1.3 和已验证 TLS 1.2 首航能力。 */
 static bool __xrtTlsClientOffer(
 	const xtlspolicy* pPolicy,
+	bool bResumeOnly,
 	xtlsclientoffer* pOffer
 )
 {
@@ -138316,8 +138422,9 @@ static bool __xrtTlsClientOffer(
 			pPolicy->Signatures[i]
 		);
 
-		if ( (pInfo == NULL) ||
-			(!pOffer->Tls13 && ((pInfo->Minimum > XTLS_VERSION_12) ||
+		if ( (pInfo == NULL) || !__xrtTlsClientSignatureSupported(
+			pInfo->Signature, pOffer->Tls12, pOffer->Tls13
+		) || (!pOffer->Tls13 && ((pInfo->Minimum > XTLS_VERSION_12) ||
 			 (pInfo->Maximum < XTLS_VERSION_12))) ||
 			(!pOffer->Tls12 && ((pInfo->Minimum > XTLS_VERSION_13) ||
 			 (pInfo->Maximum < XTLS_VERSION_13))) ) {
@@ -138332,7 +138439,7 @@ static bool __xrtTlsClientOffer(
 		pOffer->Signatures[pOffer->SignatureCount++] =
 			(uint16)pInfo->Signature;
 	}
-	if ( pOffer->SignatureCount == 0 ) {
+	if ( (pOffer->SignatureCount == 0) && !bResumeOnly ) {
 		return __xrtTlsClientError(
 			XERR_UNSUPPORTED, XTLS_ERROR_NEGOTIATION,
 			"create-tls-client",
@@ -138476,12 +138583,14 @@ static bool __xrtTlsClientExtensionSize(
 	iSize += XTLS_EXTENSION_HEADER_SIZE + 1u +
 		(pOffer->VersionCount * 2u);
 	if ( pOffer->Tls12 ) {
-		iSize += XTLS_EXTENSION_HEADER_SIZE;
+		iSize += 2u * XTLS_EXTENSION_HEADER_SIZE + 1u;
 	}
 	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
 		(pOffer->GroupCount * 2u);
-	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
-		(pOffer->SignatureCount * 2u);
+	if ( pOffer->SignatureCount != 0 ) {
+		iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
+			(pOffer->SignatureCount * 2u);
+	}
 	for ( size_t i = 0; i < pConfig->ProtocolCount; i++ ) {
 		iProtocols += 1u + pConfig->Protocols[i].Size;
 	}
@@ -138666,12 +138775,14 @@ static bool __xrtTlsClientStateExtensionSize(
 	iSize += XTLS_EXTENSION_HEADER_SIZE + 1u +
 		(pState->VersionCount * 2u);
 	if ( pState->Offer12 ) {
-		iSize += XTLS_EXTENSION_HEADER_SIZE;
+		iSize += 2u * XTLS_EXTENSION_HEADER_SIZE + 1u;
 	}
 	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
 		(pState->GroupCount * 2u);
-	iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
-		(pState->SignatureCount * 2u);
+	if ( pState->SignatureCount != 0 ) {
+		iSize += XTLS_EXTENSION_HEADER_SIZE + 2u +
+			(pState->SignatureCount * 2u);
+	}
 	for ( size_t i = 0; i < pState->ProtocolCount; i++ ) {
 		iProtocols += 1u + pState->Protocols[i].Size;
 	}
@@ -138826,13 +138937,16 @@ bool __xrtTlsClientHelloQueue(
 	) || (pState->Offer12 && !xrtTlsWriterExtension(
 		&Writer, XTLS_EXTENSION_EXTENDED_MASTER_SECRET,
 		(xbytesview) { NULL, 0 }
+	)) || (pState->Offer12 && !xrtTlsWriterExtension(
+		&Writer, XTLS_EXTENSION_RENEGOTIATION_INFO,
+		(xbytesview) { &Compression, 1u }
 	)) || !xrtTlsWriterIds(
 		&Writer, XTLS_EXTENSION_SUPPORTED_GROUPS,
 		pState->Groups, pState->GroupCount
-	) || !xrtTlsWriterIds(
+	) || ((pState->SignatureCount != 0) && !xrtTlsWriterIds(
 		&Writer, XTLS_EXTENSION_SIGNATURE_ALGORITHMS,
 		pState->Signatures, pState->SignatureCount
-	) ) {
+	)) ) {
 		goto cleanup;
 	}
 	if ( (pState->ProtocolCount != 0) && !xrtTlsWriterProtocols(
@@ -139146,7 +139260,7 @@ XRT_API xtlssession* xrtTlsClientCreate(
 	pPolicy = xrtTlsContextPolicy(pContext);
 	pLimits = xrtTlsContextLimits(pContext);
 	if ( (pPolicy == NULL) || (pLimits == NULL) ||
-		!__xrtTlsClientOffer(pPolicy, &Offer)
+		!__xrtTlsClientOffer(pPolicy, pConfig->ResumeOnly, &Offer)
 		#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 			|| ((pConfig->Resume != NULL) &&
 			 !__xrtTlsClientResumeOffer(&Offer, &ResumeInfo))
@@ -139229,6 +139343,7 @@ XRT_API xtlssession* xrtTlsClientCreate(
 	__xrtTlsClientLayout(
 		pState, pConfig, &Offer, iExtensions, iHello
 	);
+	pSession->KeyUpdate = xrtTlsClientKeyUpdate;
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		if ( pConfig->Resume != NULL ) {
 			pState->OfferResume = xrtTlsResumeRetain(pConfig->Resume);
@@ -141249,13 +141364,12 @@ static xtlsresult __xrtTlsClientChangeCipherSpec(
 				pSession, pState, pRecord
 			);
 		}
-	#else
-		(void)pState;
 	#endif
-	if ( (pState->Version != XTLS_VERSION_13) ||
-		(pState->Step < XTLS_CLIENT_WAIT_ENCRYPTED_EXTENSIONS) ||
+	/* RFC 8446 5：首个 ClientHello 发出后（包括 HRR 前后）允许重复空操作 CCS。 */
+	if ( !pState->Offer13 ||
+		(pState->Step < XTLS_CLIENT_WAIT_SERVER_HELLO) ||
 		(pState->Step > XTLS_CLIENT_WAIT_FINISHED) ||
-		pState->CompatibilityCcsSeen || pRecord->Protected ||
+		pRecord->Protected ||
 		(pRecord->Data.Size != 1u) ||
 		(pRecord->Data.Data[0] != 1u) ) {
 		return __xrtTlsClientProtocol(
@@ -141267,7 +141381,6 @@ static xtlsresult __xrtTlsClientChangeCipherSpec(
 	if ( __xrtTlsSessionRecordFinish(pSession, false) != XTLS_OK ) {
 		return __xrtTlsClientFailed(pSession);
 	}
-	pState->CompatibilityCcsSeen = true;
 	return XTLS_OK;
 }
 
@@ -149239,6 +149352,7 @@ XRT_API xtlssession* xrtTlsServerCreate(
 	}
 	pState = (xtlsserverstate*)__xrtTlsSessionRoleData(pSession);
 	__xrtTlsServerLayout(pState, pConfig, iSecretCapacity);
+	pSession->KeyUpdate = xrtTlsServerKeyUpdate;
 	{
 		xtempconfig TempConfig = {
 			4096u,
@@ -149650,7 +149764,7 @@ static xtlsresult __xrtTlsServerChangeCipherSpec(
 	if ( (!bRetryWindow &&
 		((pState->Version != XTLS_VERSION_13) ||
 		 (pState->Step != XTLS_SERVER_WAIT_CLIENT_FINISHED))) ||
-		pState->CompatibilityCcsSeen || pRecord->Protected ||
+		pRecord->Protected ||
 		(pRecord->Data.Size != 1u) ||
 		(pRecord->Data.Data[0] != 1u) ) {
 		return __xrtTlsServerProtocol(
@@ -149661,7 +149775,6 @@ static xtlsresult __xrtTlsServerChangeCipherSpec(
 	if ( __xrtTlsSessionRecordFinish(pSession, false) != XTLS_OK ) {
 		return __xrtTlsServerFailed(pSession);
 	}
-	pState->CompatibilityCcsSeen = true;
 	return XTLS_OK;
 }
 
@@ -150363,8 +150476,10 @@ static bool __xrtTlsServerRetryClientHello(
 		xtlsextension Current;
 		xtlsitemresult Found;
 
+		/* RFC 8446 4.1.2 允许第二次 ClientHello 增删或调整 padding。 */
 		if ( (Extension.Type == XTLS_EXTENSION_KEY_SHARE) ||
-			(Extension.Type == XTLS_EXTENSION_EARLY_DATA) ) {
+			(Extension.Type == XTLS_EXTENSION_EARLY_DATA) ||
+			(Extension.Type == XTLS_EXTENSION_PADDING) ) {
 			continue;
 		}
 		if ( Extension.Type == XTLS_EXTENSION_COOKIE ) {
@@ -150417,6 +150532,9 @@ static bool __xrtTlsServerRetryClientHello(
 	while ( (Result = xrtTlsExtensionsRead(
 		&Cursor, &Extension
 	)) == XTLS_ITEM_VALUE ) {
+		if ( Extension.Type == XTLS_EXTENSION_PADDING ) {
+			continue;
+		}
 		if ( Extension.Type == XTLS_EXTENSION_KEY_SHARE ) {
 			xtlskeysharecursor Shares;
 			xtlskeyshare Share;
@@ -151959,7 +152077,8 @@ static bool __xrtTlsServer12Supports13(const xtlssession* pSession)
 	}
 	return false;
 }
-#define XTLS_SERVER12_EXTENSION_MAX_SIZE 272u
+#define XTLS_SERVER12_EXTENSION_MAX_SIZE \
+	(4u * XTLS_EXTENSION_HEADER_SIZE + 4u + UINT8_MAX)
 #define XTLS_SERVER12_FINISHED_MESSAGE_SIZE \
 	(XTLS_HANDSHAKE_HEADER_SIZE + XTLS12_FINISHED_SIZE)
 
@@ -152105,7 +152224,7 @@ static bool __xrtTlsServer12Records(
 
 
 
-/* 构造 ServerHello 的 EMS、SNI 和可选 ALPN 扩展。 */
+/* 构造 ServerHello 的 EMS、首次握手安全标记、SNI 和可选 ALPN 扩展。 */
 static bool __xrtTlsServer12Extensions(
 	const xtlsserverstate* pState,
 	const xtlsserverselection* pSelection,
@@ -152116,11 +152235,37 @@ static bool __xrtTlsServer12Extensions(
 {
 	xtlswriter Writer;
 	xbytesview Empty = { NULL, 0 };
+	xtlsextension Renegotiation;
+	xtlsitemresult Result;
+	uint8 iEmpty = 0;
 
 	if ( !xrtTlsWriterInit(&Writer, pOutput, iCapacity) ||
 		!xrtTlsWriterExtension(
 			&Writer, XTLS_EXTENSION_EXTENDED_MASTER_SECRET, Empty
 		) ) {
+		return false;
+	}
+	/* RFC 5746 3.6：只承认空初始绑定；收到扩展或 0x00FF SCSV 都必须应答。 */
+	Result = xrtTlsExtensionsFind(
+		pSelection->Hello.Extensions,
+		XTLS_EXTENSION_RENEGOTIATION_INFO, &Renegotiation
+	);
+	if ( Result == XTLS_ITEM_ERROR ) {
+		return false;
+	}
+	if ( (Result == XTLS_ITEM_VALUE) &&
+		((Renegotiation.Data.Size != 1u) ||
+		 (Renegotiation.Data.Data[0] != 0)) ) {
+		return __xrtTlsServerError(
+			XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+			"build-tls12-server-flight",
+			"TLS initial renegotiation_info is not empty"
+		);
+	}
+	if ( ((Result == XTLS_ITEM_VALUE) ||
+		xrtTlsIdsContain(&pSelection->Hello.CipherSuites, UINT16_C(0x00FF))) &&
+		!xrtTlsWriterExtension(&Writer, XTLS_EXTENSION_RENEGOTIATION_INFO,
+			(xbytesview) { &iEmpty, 1u }) ) {
 		return false;
 	}
 	if ( (pSelection->ServerName.Size != 0) &&
@@ -168460,6 +168605,7 @@ static bool __xrtTlsClient12Hello(
 	xtlsitemresult Result;
 	const xtlscipherinfo* pCipher;
 	bool bExtendedMasterSecret = false;
+	bool bSecureRenegotiation = false;
 
 	*ppCipher = NULL;
 	memset(pProtocol, 0, sizeof(*pProtocol));
@@ -168521,6 +168667,16 @@ static bool __xrtTlsClient12Hello(
 				);
 			}
 			bExtendedMasterSecret = true;
+		} else if ( Extension.Type == XTLS_EXTENSION_RENEGOTIATION_INFO ) {
+			if ( (Extension.Data.Size != 1u) ||
+				(Extension.Data.Data[0] != 0) ) {
+				return __xrtTlsClientError(
+					XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+					"process-tls12-server-hello",
+					"TLS initial renegotiation_info is not empty"
+				);
+			}
+			bSecureRenegotiation = true;
 		} else if ( Extension.Type == XTLS_EXTENSION_SERVER_NAME ) {
 			if ( (pState->SniName.Size == 0) ||
 				(Extension.Data.Size != 0) ) {
@@ -168557,6 +168713,13 @@ static bool __xrtTlsClient12Hello(
 			XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
 			"process-tls12-server-hello",
 			"TLS 1.2 server did not negotiate extended master secret"
+		);
+	}
+	if ( !bSecureRenegotiation ) {
+		return __xrtTlsClientError(
+			XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+			"process-tls12-server-hello",
+			"TLS 1.2 server did not acknowledge secure renegotiation"
 		);
 	}
 	*ppCipher = pCipher;
@@ -173940,7 +174103,7 @@ cleanup:
 
 
 /* 执行完整指数或 CRT 私钥运算，并以公开指数复核故障结果。 */
-__xrt_rsa_result __xrtRsaPrivatePower(
+__xrt_rsa_result __xrtRsaPrivateCore(
 	const xrsaprivatekey* pKey,
 	const void* pInput,
 	size_t iInputSize,
@@ -174037,6 +174200,9 @@ bool xrtRsaPrivate(
 	if ( iResult == XRT_RSA_RESULT_OK ) {
 		return true;
 	}
+	if ( iResult == XRT_RSA_RESULT_RANDOM ) {
+		return false;
+	}
 	if ( (iResult == XRT_RSA_RESULT_ARGUMENT) ||
 		 (iResult == XRT_RSA_RESULT_INPUT) ) {
 		__xrtRsaError(
@@ -174052,6 +174218,619 @@ bool xrtRsaPrivate(
 		);
 	}
 	return false;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/crypto/rsa_blinding.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE)
+/*
+ * Copyright (c) 2018 Thomas Pornin <pornin@bolet.org>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+
+#if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE)
+
+/* Adapted from BearSSL i31_moddiv.c (2018): keep its fixed-iteration GCD.
+ * Local changes: namespace, types, and memcpy bit casts for strict aliasing. */
+
+/*
+ * In this file, we handle big integers with a custom format, i.e.
+ * without the usual one-word header. Value is split into 31-bit words,
+ * each stored in a 32-bit slot (top bit is zero) in little-endian
+ * order. The length (in words) is provided explicitly. In some cases,
+ * the value can be negative (using two's complement representation). In
+ * some cases, the top word is allowed to have a 32th bit.
+ */
+
+/*
+ * Negate big integer conditionally. The value consists of 'len' words,
+ * with 31 bits in each word (the top bit of each word should be 0,
+ * except possibly for the last word). If 'ctl' is 1, the negation is
+ * computed; otherwise, if 'ctl' is 0, then the value is unchanged.
+ */
+static void
+__xrtRsaDivNegate(uint32 *a, size_t len, uint32 ctl)
+{
+	size_t k;
+	uint32 cc, xm;
+
+	cc = ctl;
+	xm = -ctl >> 1;
+	for (k = 0; k < len; k ++) {
+		uint32 aw;
+
+		aw = a[k];
+		aw = (aw ^ xm) + cc;
+		a[k] = aw & 0x7FFFFFFF;
+		cc = aw >> 31;
+	}
+}
+
+/*
+ * Finish modular reduction. Rules on input parameters:
+ *
+ *   if neg = 1, then -m <= a < 0
+ *   if neg = 0, then 0 <= a < 2*m
+ *
+ * If neg = 0, then the top word of a[] may use 32 bits.
+ *
+ * Also, modulus m must be odd.
+ */
+static void
+__xrtRsaDivFinish(uint32 *a, size_t len, const uint32 *m, uint32 neg)
+{
+	size_t k;
+	uint32 cc, xm, ym;
+
+	/*
+	 * First pass: compare a (assumed nonnegative) with m.
+	 * Note that if the final word uses the top extra bit, then
+	 * subtracting m must yield a value less than 2^31, since we
+	 * assumed that a < 2*m.
+	 */
+	cc = 0;
+	for (k = 0; k < len; k ++) {
+		uint32 aw, mw;
+
+		aw = a[k];
+		mw = m[k];
+		cc = (aw - mw - cc) >> 31;
+	}
+
+	/*
+	 * At this point:
+	 *   if neg = 1, then we must add m (regardless of cc)
+	 *   if neg = 0 and cc = 0, then we must subtract m
+	 *   if neg = 0 and cc = 1, then we must do nothing
+	 */
+	xm = -neg >> 1;
+	ym = -(neg | (1 - cc));
+	cc = neg;
+	for (k = 0; k < len; k ++) {
+		uint32 aw, mw;
+
+		aw = a[k];
+		mw = (m[k] ^ xm) & ym;
+		aw = aw - mw - cc;
+		a[k] = aw & 0x7FFFFFFF;
+		cc = aw >> 31;
+	}
+}
+
+/*
+ * Compute:
+ *   a <- (a*pa+b*pb)/(2^31)
+ *   b <- (a*qa+b*qb)/(2^31)
+ * The division is assumed to be exact (i.e. the low word is dropped).
+ * If the final a is negative, then it is negated. Similarly for b.
+ * Returned value is the combination of two bits:
+ *   bit 0: 1 if a had to be negated, 0 otherwise
+ *   bit 1: 1 if b had to be negated, 0 otherwise
+ *
+ * Factors pa, pb, qa and qb must be at most 2^31 in absolute value.
+ * Source integers a and b must be nonnegative; top word is not allowed
+ * to contain an extra 32th bit.
+ */
+static uint32
+__xrtRsaDivReduce(uint32 *a, uint32 *b, size_t len,
+	int64 pa, int64 pb, int64 qa, int64 qb)
+{
+	size_t k;
+	int64 cca, ccb;
+	uint32 nega, negb;
+
+	cca = 0;
+	ccb = 0;
+	for (k = 0; k < len; k ++) {
+		uint32 wa, wb;
+		uint64 za, zb;
+		uint64 tta, ttb;
+
+		/*
+		 * Since:
+		 *   |pa| <= 2^31
+		 *   |pb| <= 2^31
+		 *   0 <= wa <= 2^31 - 1
+		 *   0 <= wb <= 2^31 - 1
+		 *   |cca| <= 2^32 - 1
+		 * Then:
+		 *   |za| <= (2^31-1)*(2^32) + (2^32-1) = 2^63 - 1
+		 *
+		 * Thus, the new value of cca is such that |cca| <= 2^32 - 1.
+		 * The same applies to ccb.
+		 */
+		wa = a[k];
+		wb = b[k];
+		za = wa * (uint64)pa + wb * (uint64)pb + (uint64)cca;
+		zb = wa * (uint64)qa + wb * (uint64)qb + (uint64)ccb;
+		if (k > 0) {
+			a[k - 1] = za & 0x7FFFFFFF;
+			b[k - 1] = zb & 0x7FFFFFFF;
+		}
+
+		/*
+		 * For the new values of cca and ccb, we need a signed
+		 * right-shift; since, in C, right-shifting a signed
+		 * negative value is implementation-defined, we use a
+		 * custom portable sign extension expression.
+		 */
+#define XRT_RSA_DIV_SIGN_BIT   ((uint64)1 << 32)
+		tta = za >> 31;
+		ttb = zb >> 31;
+		tta = (tta ^ XRT_RSA_DIV_SIGN_BIT) - XRT_RSA_DIV_SIGN_BIT;
+		ttb = (ttb ^ XRT_RSA_DIV_SIGN_BIT) - XRT_RSA_DIV_SIGN_BIT;
+		memcpy(&cca, &tta, sizeof cca);
+		memcpy(&ccb, &ttb, sizeof ccb);
+#undef XRT_RSA_DIV_SIGN_BIT
+	}
+	a[len - 1] = (uint32)cca;
+	b[len - 1] = (uint32)ccb;
+
+	nega = (uint32)((uint64)cca >> 63);
+	negb = (uint32)((uint64)ccb >> 63);
+	__xrtRsaDivNegate(a, len, nega);
+	__xrtRsaDivNegate(b, len, negb);
+	return nega | (negb << 1);
+}
+
+/*
+ * Compute:
+ *   a <- (a*pa+b*pb)/(2^31) mod m
+ *   b <- (a*qa+b*qb)/(2^31) mod m
+ *
+ * m0i is equal to -1/m[0] mod 2^31.
+ *
+ * Factors pa, pb, qa and qb must be at most 2^31 in absolute value.
+ * Source integers a and b must be nonnegative; top word is not allowed
+ * to contain an extra 32th bit.
+ */
+static void
+__xrtRsaDivReduceMod(uint32 *a, uint32 *b, size_t len,
+	int64 pa, int64 pb, int64 qa, int64 qb,
+	const uint32 *m, uint32 m0i)
+{
+	size_t k;
+	int64 cca, ccb;
+	uint32 fa, fb;
+
+	cca = 0;
+	ccb = 0;
+	fa = ((a[0] * (uint32)pa + b[0] * (uint32)pb) * m0i) & 0x7FFFFFFF;
+	fb = ((a[0] * (uint32)qa + b[0] * (uint32)qb) * m0i) & 0x7FFFFFFF;
+	for (k = 0; k < len; k ++) {
+		uint32 wa, wb;
+		uint64 za, zb;
+		uint64 tta, ttb;
+
+		/*
+		 * In this loop, carries 'cca' and 'ccb' always fit on
+		 * 33 bits (in absolute value).
+		 */
+		wa = a[k];
+		wb = b[k];
+		za = wa * (uint64)pa + wb * (uint64)pb
+			+ m[k] * (uint64)fa + (uint64)cca;
+		zb = wa * (uint64)qa + wb * (uint64)qb
+			+ m[k] * (uint64)fb + (uint64)ccb;
+		if (k > 0) {
+			a[k - 1] = (uint32)za & 0x7FFFFFFF;
+			b[k - 1] = (uint32)zb & 0x7FFFFFFF;
+		}
+
+#define XRT_RSA_DIV_SIGN_BIT   ((uint64)1 << 32)
+		tta = za >> 31;
+		ttb = zb >> 31;
+		tta = (tta ^ XRT_RSA_DIV_SIGN_BIT) - XRT_RSA_DIV_SIGN_BIT;
+		ttb = (ttb ^ XRT_RSA_DIV_SIGN_BIT) - XRT_RSA_DIV_SIGN_BIT;
+		memcpy(&cca, &tta, sizeof cca);
+		memcpy(&ccb, &ttb, sizeof ccb);
+#undef XRT_RSA_DIV_SIGN_BIT
+	}
+	a[len - 1] = (uint32)cca;
+	b[len - 1] = (uint32)ccb;
+
+	/*
+	 * At this point:
+	 *   -m <= a < 2*m
+	 *   -m <= b < 2*m
+	 * (this is a case of Montgomery reduction)
+	 * The top word of 'a' and 'b' may have a 32-th bit set.
+	 * We may have to add or subtract the modulus.
+	 */
+	__xrtRsaDivFinish(a, len, m, (uint32)((uint64)cca >> 63));
+	__xrtRsaDivFinish(b, len, m, (uint32)((uint64)ccb >> 63));
+}
+
+/* see inner.h */
+uint32
+__xrtRsaModDivide(uint32 *x, const uint32 *y, const uint32 *m, uint32 m0i,
+	uint32 *t)
+{
+	/*
+	 * Algorithm is an extended binary GCD. We maintain four values
+	 * a, b, u and v, with the following invariants:
+	 *
+	 *   a * x = y * u mod m
+	 *   b * x = y * v mod m
+	 *
+	 * Starting values are:
+	 *
+	 *   a = y
+	 *   b = m
+	 *   u = x
+	 *   v = 0
+	 *
+	 * The formal definition of the algorithm is a sequence of steps:
+	 *
+	 *   - If a is even, then a <- a/2 and u <- u/2 mod m.
+	 *   - Otherwise, if b is even, then b <- b/2 and v <- v/2 mod m.
+	 *   - Otherwise, if a > b, then a <- (a-b)/2 and u <- (u-v)/2 mod m.
+	 *   - Otherwise, b <- (b-a)/2 and v <- (v-u)/2 mod m.
+	 *
+	 * Algorithm stops when a = b. At that point, they both are equal
+	 * to GCD(y,m); the modular division succeeds if that value is 1.
+	 * The result of the modular division is then u (or v: both are
+	 * equal at that point).
+	 *
+	 * Each step makes either a or b shrink by at least one bit; hence,
+	 * if m has bit length k bits, then 2k-2 steps are sufficient.
+	 *
+	 *
+	 * Though complexity is quadratic in the size of m, the bit-by-bit
+	 * processing is not very efficient. We can speed up processing by
+	 * remarking that the decisions are taken based only on observation
+	 * of the top and low bits of a and b.
+	 *
+	 * In the loop below, at each iteration, we use the two top words
+	 * of a and b, and the low words of a and b, to compute reduction
+	 * parameters pa, pb, qa and qb such that the new values for a
+	 * and b are:
+	 *
+	 *   a' = (a*pa + b*pb) / (2^31)
+	 *   b' = (a*qa + b*qb) / (2^31)
+	 *
+	 * the division being exact.
+	 *
+	 * Since the choices are based on the top words, they may be slightly
+	 * off, requiring an optional correction: if a' < 0, then we replace
+	 * pa with -pa, and pb with -pb. The total length of a and b is
+	 * thus reduced by at least 30 bits at each iteration.
+	 *
+	 * The stopping conditions are still the same, though: when a
+	 * and b become equal, they must be both odd (since m is odd,
+	 * the GCD cannot be even), therefore the next operation is a
+	 * subtraction, and one of the values becomes 0. At that point,
+	 * nothing else happens, i.e. one value is stuck at 0, and the
+	 * other one is the GCD.
+	 */
+	size_t len, k;
+	uint32 *a, *b, *u, *v;
+	uint32 num, r;
+
+	len = (m[0] + 31) >> 5;
+	a = t;
+	b = a + len;
+	u = x + 1;
+	v = b + len;
+	memcpy(a, y + 1, len * sizeof *y);
+	memcpy(b, m + 1, len * sizeof *m);
+	memset(v, 0, len * sizeof *v);
+
+	/*
+	 * Loop below ensures that a and b are reduced by some bits each,
+	 * for a total of at least 30 bits.
+	 */
+	for (num = ((m[0] - (m[0] >> 5)) << 1) + 30; num >= 30; num -= 30) {
+		size_t j;
+		uint32 c0, c1;
+		uint32 a0, a1, b0, b1;
+		uint64 a_hi, b_hi;
+		uint32 a_lo, b_lo;
+		int64 pa, pb, qa, qb;
+		int i;
+
+		/*
+		 * Extract top words of a and b. If j is the highest
+		 * index >= 1 such that a[j] != 0 or b[j] != 0, then we want
+		 * (a[j] << 31) + a[j - 1], and (b[j] << 31) + b[j - 1].
+		 * If a and b are down to one word each, then we use a[0]
+		 * and b[0].
+		 */
+		c0 = (uint32)-1;
+		c1 = (uint32)-1;
+		a0 = 0;
+		a1 = 0;
+		b0 = 0;
+		b1 = 0;
+		j = len;
+		while (j -- > 0) {
+			uint32 aw, bw;
+
+			aw = a[j];
+			bw = b[j];
+			a0 ^= (a0 ^ aw) & c0;
+			a1 ^= (a1 ^ aw) & c1;
+			b0 ^= (b0 ^ bw) & c0;
+			b1 ^= (b1 ^ bw) & c1;
+			c1 = c0;
+			c0 &= (((aw | bw) + 0x7FFFFFFF) >> 31) - (uint32)1;
+		}
+
+		/*
+		 * If c1 = 0, then we grabbed two words for a and b.
+		 * If c1 != 0 but c0 = 0, then we grabbed one word. It
+		 * is not possible that c1 != 0 and c0 != 0, because that
+		 * would mean that both integers are zero.
+		 */
+		a1 |= a0 & c1;
+		a0 &= ~c1;
+		b1 |= b0 & c1;
+		b0 &= ~c1;
+		a_hi = ((uint64)a0 << 31) + a1;
+		b_hi = ((uint64)b0 << 31) + b1;
+		a_lo = a[0];
+		b_lo = b[0];
+
+		/*
+		 * Compute reduction factors:
+		 *
+		 *   a' = a*pa + b*pb
+		 *   b' = a*qa + b*qb
+		 *
+		 * such that a' and b' are both multiple of 2^31, but are
+		 * only marginally larger than a and b.
+		 */
+		pa = 1;
+		pb = 0;
+		qa = 0;
+		qb = 1;
+		for (i = 0; i < 31; i ++) {
+			/*
+			 * At each iteration:
+			 *
+			 *   a <- (a-b)/2 if: a is odd, b is odd, a_hi > b_hi
+			 *   b <- (b-a)/2 if: a is odd, b is odd, a_hi <= b_hi
+			 *   a <- a/2 if: a is even
+			 *   b <- b/2 if: a is odd, b is even
+			 *
+			 * We multiply a_lo and b_lo by 2 at each
+			 * iteration, thus a division by 2 really is a
+			 * non-multiplication by 2.
+			 */
+			uint32 r, oa, ob, cAB, cBA, cA;
+			uint64 rz;
+
+			/*
+			 * r = GT(a_hi, b_hi)
+			 * But the GT() function works on uint32 operands,
+			 * so we inline a 64-bit version here.
+			 */
+			rz = b_hi - a_hi;
+			r = (uint32)((rz ^ ((a_hi ^ b_hi)
+				& (a_hi ^ rz))) >> 63);
+
+			/*
+			 * cAB = 1 if b must be subtracted from a
+			 * cBA = 1 if a must be subtracted from b
+			 * cA = 1 if a is divided by 2, 0 otherwise
+			 *
+			 * Rules:
+			 *
+			 *   cAB and cBA cannot be both 1.
+			 *   if a is not divided by 2, b is.
+			 */
+			oa = (a_lo >> i) & 1;
+			ob = (b_lo >> i) & 1;
+			cAB = oa & ob & r;
+			cBA = oa & ob & __xrtI31Not(r);
+			cA = cAB | __xrtI31Not(oa);
+
+			/*
+			 * Conditional subtractions.
+			 */
+			a_lo -= b_lo & -cAB;
+			a_hi -= b_hi & -(uint64)cAB;
+			pa -= qa & -(int64)cAB;
+			pb -= qb & -(int64)cAB;
+			b_lo -= a_lo & -cBA;
+			b_hi -= a_hi & -(uint64)cBA;
+			qa -= pa & -(int64)cBA;
+			qb -= pb & -(int64)cBA;
+
+			/*
+			 * Shifting.
+			 */
+			a_lo += a_lo & (cA - 1);
+			pa += pa & ((int64)cA - 1);
+			pb += pb & ((int64)cA - 1);
+			a_hi ^= (a_hi ^ (a_hi >> 1)) & -(uint64)cA;
+			b_lo += b_lo & -cA;
+			qa += qa & -(int64)cA;
+			qb += qb & -(int64)cA;
+			b_hi ^= (b_hi ^ (b_hi >> 1)) & ((uint64)cA - 1);
+		}
+
+		/*
+		 * Replace a and b with new values a' and b'.
+		 */
+		r = __xrtRsaDivReduce(a, b, len, pa, pb, qa, qb);
+		pa -= pa * ((r & 1) << 1);
+		pb -= pb * ((r & 1) << 1);
+		qa -= qa * (r & 2);
+		qb -= qb * (r & 2);
+		__xrtRsaDivReduceMod(u, v, len, pa, pb, qa, qb, m + 1, m0i);
+	}
+
+	/*
+	 * Now one of the arrays should be 0, and the other contains
+	 * the GCD. If a is 0, then u is 0 as well, and v contains
+	 * the division result.
+	 * Result is correct if and only if GCD is 1.
+	 */
+	r = (a[0] | b[0]) ^ 1;
+	u[0] |= v[0];
+	for (k = 1; k < len; k ++) {
+		r |= a[k] | b[k];
+		u[k] |= v[k];
+	}
+	return __xrtI31Equal(r, 0u);
+}
+
+/* 每次私钥运算使用全新的 r：先算 m*r^e，再私钥幂，最后乘 r^-1。
+   公钥复核覆盖解除盲化结果；失败不发布输出，也不回退到未盲化运算。 */
+__xrt_rsa_result __xrtRsaPrivatePower(
+	const xrsaprivatekey* pKey,
+	const void* pInput,
+	size_t iInputSize,
+	void* pOutput
+)
+{
+	uint32 Work[8u * XRT_RSA_MAX_I31_WORDS] = { 0 };
+	uint8 Encoded[XRT_RSA_MAX_MODULUS_SIZE];
+	uint32* pModulus = Work;
+	uint32* pRandom = pModulus + XRT_RSA_MAX_I31_WORDS;
+	uint32* pInverse = pRandom + XRT_RSA_MAX_I31_WORDS;
+	uint32* pSquare = pInverse + XRT_RSA_MAX_I31_WORDS;
+	uint32* pValue = pSquare + XRT_RSA_MAX_I31_WORDS;
+	uint32* pTemp = pValue + XRT_RSA_MAX_I31_WORDS;
+	size_t iWords;
+	uint32 iModulusInverse;
+	uint32 iBits;
+	bool bReady = false;
+	__xrt_rsa_result Result = XRT_RSA_RESULT_KEY;
+
+	if ( (pKey == NULL) || (pInput == NULL) || (pOutput == NULL) ) {
+		return XRT_RSA_RESULT_ARGUMENT;
+	}
+	if ( !__xrtRsaKeyValid(&pKey->Public) ||
+		(iInputSize != pKey->Public.ModulusSize) ) {
+		goto cleanup;
+	}
+	__xrtI31Decode(pModulus, pKey->Public.Modulus, iInputSize);
+	iWords = (pModulus[0] + 31u) >> 5u;
+	if ( (iWords + 1u) > XRT_RSA_MAX_I31_WORDS ) {
+		goto cleanup;
+	}
+	if ( !__xrtI31DecodeMod(pValue, pInput, iInputSize, pModulus) ) {
+		Result = XRT_RSA_RESULT_INPUT;
+		goto cleanup;
+	}
+	iBits = pModulus[0] - (pModulus[0] >> 5u);
+	iModulusInverse = __xrtI31NegativeInverse(pModulus[1]);
+	for ( size_t i = 0; i < 64u; i++ ) {
+		uint32 iNotOne;
+
+		if ( !xrtSecureRandom(Encoded, iInputSize) ) {
+			Result = XRT_RSA_RESULT_RANDOM;
+			goto cleanup;
+		}
+		Encoded[0] &= (uint8)(0xFFu >> ((0u - iBits) & 7u));
+		if ( !__xrtI31DecodeMod(pRandom, Encoded, iInputSize, pModulus) ) {
+			continue;
+		}
+		iNotOne = pRandom[1] ^ 1u;
+		for ( size_t j = 2u; j <= iWords; j++ ) {
+			iNotOne |= pRandom[j];
+		}
+		if ( __xrtI31IsZero(pRandom) || (iNotOne == 0) ) {
+			continue;
+		}
+		__xrtI31Zero(pInverse, pModulus[0]);
+		pInverse[1] = 1u;
+		if ( __xrtRsaModDivide(pInverse, pRandom, pModulus,
+			iModulusInverse, pTemp) ) {
+			bReady = true;
+			break;
+		}
+	}
+	if ( !bReady ) {
+		__xrtRsaError("crypto.rsa.blind",
+			"secure random did not yield an invertible RSA blinding factor",
+			XCRYPTO_ERROR_KEY);
+		Result = XRT_RSA_RESULT_RANDOM;
+		goto cleanup;
+	}
+	__xrtI31MontgomerySquare(pSquare, pModulus);
+	__xrtI31ModPower(pRandom, (const uint8*)pKey->Public.Exponent,
+		pKey->Public.ExponentSize, pModulus, pSquare, iModulusInverse,
+		pTemp, pTemp + XRT_RSA_MAX_I31_WORDS);
+	__xrtI31MontgomeryMultiply(pTemp, pValue, pSquare,
+		pModulus, iModulusInverse);
+	__xrtI31MontgomeryMultiply(pValue, pTemp, pRandom,
+		pModulus, iModulusInverse);
+	__xrtI31Encode(Encoded, iInputSize, pValue);
+	Result = __xrtRsaPrivateCore(pKey, Encoded, iInputSize, Encoded);
+	if ( Result != XRT_RSA_RESULT_OK ) {
+		goto cleanup;
+	}
+	if ( !__xrtI31DecodeMod(pValue, Encoded, iInputSize, pModulus) ) {
+		Result = XRT_RSA_RESULT_KEY;
+		goto cleanup;
+	}
+	__xrtI31MontgomeryMultiply(pTemp, pValue, pSquare,
+		pModulus, iModulusInverse);
+	__xrtI31MontgomeryMultiply(pValue, pTemp, pInverse,
+		pModulus, iModulusInverse);
+	__xrtI31Encode(Encoded, iInputSize, pValue);
+	/* 临时整数区此后不再参与模运算，可复用为公钥复核的字节输出。 */
+	Result = __xrtRsaPower(&pKey->Public, Encoded, iInputSize, pTemp);
+	if ( (Result != XRT_RSA_RESULT_OK) ||
+		!xrtConstTimeEqual(pTemp, pInput, iInputSize) ) {
+		Result = XRT_RSA_RESULT_KEY;
+		goto cleanup;
+	}
+	memcpy(pOutput, Encoded, iInputSize);
+
+cleanup:
+	xrtSecureZero(Work, sizeof(Work));
+	xrtSecureZero(Encoded, sizeof(Encoded));
+	return Result;
 }
 
 #endif
@@ -174101,7 +174880,7 @@ bool xrtRsaPssSignSalt(
 	size_t iPaddingSize;
 	size_t iOffset;
 	uint8 iUnusedBits;
-	__xrt_rsa_result iPower;
+	__xrt_rsa_result iPower = XRT_RSA_RESULT_KEY;
 	bool bResult = false;
 
 	if ( (pKey == NULL) || (pHash == NULL) || (pSignature == NULL) ||
@@ -174177,6 +174956,9 @@ bool xrtRsaPssSignSalt(
 cleanup:
 	xrtSecureZero(Encoded, sizeof(Encoded));
 	xrtSecureZero(Digest, sizeof(Digest));
+	if ( iPower == XRT_RSA_RESULT_RANDOM ) {
+		return false;
+	}
 	if ( !bResult ) {
 		return __xrtRsaPssSignFail(
 			"the RSA-PSS private key or encoding is invalid",
@@ -174308,6 +175090,9 @@ bool xrtRsaPkcs1Sign(
 		bResult = true;
 	}
 	xrtSecureZero(Encoded, sizeof(Encoded));
+	if ( iPower == XRT_RSA_RESULT_RANDOM ) {
+		return false;
+	}
 	if ( !bResult ) {
 		return __xrtRsaPkcs1SignFail(
 			"the RSA PKCS#1 private key is invalid",
@@ -225782,7 +226567,7 @@ XRT_API xfuture* xrtTlsStreamSendVecAsync(
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER)
 
 #define XRT_TLS_LISTENER_QUEUE_DEFAULT 1024u
-#define XRT_TLS_LISTENER_HANDSHAKE_DEFAULT 1024u
+#define XRT_TLS_LISTENER_HANDSHAKE_DEFAULT 128u
 
 
 

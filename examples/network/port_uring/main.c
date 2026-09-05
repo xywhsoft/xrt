@@ -4,6 +4,20 @@
 
 
 
+/*
+ * 范例：network/port_uring —— Linux io_uring 事件端口（直写调用方缓冲）
+ * ----------------------------------------------------------------
+ * port 层是引擎之下的"事件原语翻译层"：五种系统后端
+ *   （IOCP/epoll/kqueue/io_uring/select）暴露统一语义——
+ *   one-shot 观察 + 显式重武装，引擎在其上构建回调模型。
+ * 模块宏：XRT_MODULE_NET
+ * 编译（单头形态，Linux 5.1+）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
+ *       examples/network/port_uring/main.c -lws2_32 -liphlpapi
+ * 预期输出：（Linux 平台输出直收的数据报）
+ */
+
+
 /* 展示 io_uring 直接向调用方缓冲异步接收数据报。 */
 int main(void)
 {

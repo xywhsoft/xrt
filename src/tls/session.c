@@ -1949,6 +1949,21 @@ xtlsresult __xrtTlsSessionRecordProtect(
 			"TLS protected record exceeds its version limit"
 		);
 	}
+	/* 为 KeyUpdate 保留旧 epoch 的最后一个记录号，应用数据使用新 epoch。
+	   仅角色会话自动轮换；TLS 1.2 和底层记录 API 仍在硬上限处拒绝。 */
+	if ( (Type == XTLS_RECORD_APPLICATION_DATA) &&
+		(pSession->State == XTLS_STATE_READY) &&
+		(pSession->Version == XTLS_VERSION_13) &&
+		(pSession->KeyUpdate != NULL) &&
+		(pSession->WriteKey.Sequence >=
+		 (__xrtTlsRecordKeyLimit(&pSession->WriteKey) - 1u)) ) {
+		Result = pSession->KeyUpdate(
+			pSession, XTLS_KEY_UPDATE_NOT_REQUESTED
+		);
+		if ( Result != XTLS_OK ) {
+			return Result;
+		}
+	}
 	Result = __xrtTlsSessionSendReserve(pSession, iRequired, &Span);
 	if ( Result != XTLS_OK ) {
 		return Result;

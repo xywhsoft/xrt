@@ -3,6 +3,26 @@
 
 
 
+/*
+ * 范例：crypto/aes —— AES-128 块加密（FIPS 197 固定向量验证）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtAesInit / Encrypt / Decrypt / Clear   块密码状态机
+ *   XRT_AES128_KEY_SIZE / XRT_AES_BLOCK_SIZE 尺寸常量
+ * 模块宏：XRT_MODULE_CRYPTO（AES 特性）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/crypto/aes/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   AES-128 vector: valid
+ *
+ * 期望密文来自 FIPS 197 附录 C.1——对上即证明实现正确。
+ *   裸块加密仅是底座：真实数据一律走 AEAD（aes_gcm），
+ *   绝不手工 ECB 拼块。展开密钥状态可复用（多块同钥），
+ *   用完 AesClear 抹除密钥材料。
+ */
+
+
 /* 使用 FIPS 197 固定向量展示 AES 块加密、解密和状态清理。 */
 int main(void)
 {

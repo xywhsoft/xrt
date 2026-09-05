@@ -1,3 +1,21 @@
+/*
+ * 范例：network/udp_errors —— 异步错误接收与 PMTU 策略
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   拥有型异步错误队列 / PMTU 探测策略
+ * 模块宏：XRT_MODULE_NET_UDP
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/udp_errors/main.c -lws2_32 -liphlpapi
+ * 预期输出（Windows 无错误队列时）：
+ *   datagram error queue is unavailable on this platform
+ *
+ * 向关闭端口发包触发 ICMP 不可达——错误作为数据
+ *   异步送达（而非阻塞报错）；平台不支持时优雅报告，
+ *   能力探测范式与 file/fifo 一致。
+ */
+
+
 #include <stdio.h>
 
 #include <xrt.h>

@@ -1975,13 +1975,12 @@ static xtlsresult __xrtTlsClientChangeCipherSpec(
 				pSession, pState, pRecord
 			);
 		}
-	#else
-		(void)pState;
 	#endif
-	if ( (pState->Version != XTLS_VERSION_13) ||
-		(pState->Step < XTLS_CLIENT_WAIT_ENCRYPTED_EXTENSIONS) ||
+	/* RFC 8446 5：首个 ClientHello 发出后（包括 HRR 前后）允许重复空操作 CCS。 */
+	if ( !pState->Offer13 ||
+		(pState->Step < XTLS_CLIENT_WAIT_SERVER_HELLO) ||
 		(pState->Step > XTLS_CLIENT_WAIT_FINISHED) ||
-		pState->CompatibilityCcsSeen || pRecord->Protected ||
+		pRecord->Protected ||
 		(pRecord->Data.Size != 1u) ||
 		(pRecord->Data.Data[0] != 1u) ) {
 		return __xrtTlsClientProtocol(
@@ -1993,7 +1992,6 @@ static xtlsresult __xrtTlsClientChangeCipherSpec(
 	if ( __xrtTlsSessionRecordFinish(pSession, false) != XTLS_OK ) {
 		return __xrtTlsClientFailed(pSession);
 	}
-	pState->CompatibilityCcsSeen = true;
 	return XTLS_OK;
 }
 

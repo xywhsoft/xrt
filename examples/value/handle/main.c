@@ -1,6 +1,28 @@
 #include <stdio.h>
 #include <xrt.h>
 
+/*
+ * 范例：value/handle —— 句柄值：外部资源的可哈希一等封装
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xvaluehandleops            四回调：Drop（析构）/Hash/Equal/Clone
+ *   xrtValueHandleTake         接管句柄指针为值（来源槽被清空）
+ *   xrtValueGetHandle          借用读取：句柄 + ops 表 + 用户数据
+ *   xrtValueHash / ScalarEqual 句柄也参与哈希与相等（走 ops 回调）
+ * 模块宏：XRT_MODULE_VALUE
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c  *       examples/value/handle/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   handle value: 77, hash: 3966019471203017175
+ *
+ * 句柄值的价值：把 FILE 指针、fd、数据库连接等 C 资源放进 value 体系——
+ *   可进容器、可比较、可哈希；Drop 回调保证值释放时资源不泄漏。
+ * 两个 77 的句柄经 ops.Equal 判相等、同哈希——
+ *   句柄值语义完全由 ops 表定义（本例按指向的整数）。
+ */
+
+
+
 
 
 /* 释放 Value 独占的整数句柄。 */

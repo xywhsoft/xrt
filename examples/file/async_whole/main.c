@@ -3,6 +3,24 @@
 
 
 
+/*
+ * 范例：file/async_whole —— 异步整文件读写：原子写 + 全量读
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtFileWriteAtomicAsync   异步原子替换
+ *   xrtFileReadAllAsync       异步整读（结果 xfiledata）
+ * 模块宏：XRT_MODULE_FILE_ASYNC
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/file/async_whole/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   hello async whole file
+ *
+ * 同步版（whole 范例）语义完全一致，只是执行搬进池线程——
+ *   事件循环里保存状态文件、加载配置不阻塞主线的标准姿势。
+ */
+
+
 /* 使用显式任务池完成原子写入和整文件读取。 */
 int main(void)
 {

@@ -7,6 +7,27 @@
 
 
 
+/*
+ * 范例：x509/path_build —— 建链：从无序候选自动构造有效路径
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtX509PathBuild   逆向建链 + 正向验证一步完成
+ *   xx509pathsource    候选源：可用签发者 + 信任锚
+ *   xx509pathresult    结果：路径数组 + 数量
+ * 模块宏：XRT_MODULE_X509
+ * 编译（单头形态，Windows，仓库根目录）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -I . -include xrt.h impl.c ${BS}
+ *       examples/x509/path_build/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   certificate path contains 2 certificate(s)
+ *
+ * 与 path 范例的分工：Path 要求调用方自己排好链；
+ *   PathBuild 拿"一堆证书 + 锚点"自动找链——TLS 握手拿到
+ *   对端链（顺序不保证）后的标准处理。输出 2 张 =
+ *   叶 + 中间 CA（锚不计入）。候选池大时有深度/宽度约束。
+ */
+
+
 /* 从无序候选证书中构建并验证一条到独立信任锚的认证路径。 */
 int main(void)
 {

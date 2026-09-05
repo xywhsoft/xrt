@@ -4,6 +4,20 @@
 
 
 
+/*
+ * 范例：network/port_select —— select 兜底事件端口
+ * ----------------------------------------------------------------
+ * port 层是引擎之下的"事件原语翻译层"：五种系统后端
+ *   （IOCP/epoll/kqueue/io_uring/select）暴露统一语义——
+ *   one-shot 观察 + 显式重武装，引擎在其上构建回调模型。
+ * 模块宏：XRT_MODULE_NET
+ * 编译（单头形态，全平台）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
+ *       examples/network/port_select/main.c -lws2_32 -liphlpapi
+ * 预期输出：（输出观察结果）
+ */
+
+
 /* 展示 select fallback 的 one-shot 可读观察和显式重新观察模型。 */
 int main(void)
 {

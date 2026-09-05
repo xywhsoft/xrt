@@ -2793,6 +2793,9 @@
 #ifndef XRT_MODULE_CRYPTO_RSA
 #define XRT_MODULE_CRYPTO_RSA
 #endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
 #endif
 
 /* tls_record_aes 及其直接依赖。 */

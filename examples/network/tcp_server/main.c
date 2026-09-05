@@ -1,3 +1,21 @@
+/*
+ * 范例：network/tcp_server —— 拉取式 TCP Server（动态端口）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   拉取 Accept（队列式取连接，非回调）
+ * 模块宏：XRT_MODULE_NET_TCP_SERVER
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/tcp_server/main.c -lws2_32 -liphlpapi
+ * 预期输出（端口随机；回车结束）：
+ *   TCP echo server listening on 127.0.0.1:NNNNN
+ *   press Enter to stop accepting
+ *
+ * 拉取 vs 回调：Accept 变成"来一个取一个"——上层
+ *   限流/分发更直接；动态回环端口避免并发冲突。
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>

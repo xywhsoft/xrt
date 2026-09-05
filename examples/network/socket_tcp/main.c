@@ -4,6 +4,24 @@
 
 
 
+/*
+ * 范例：network/socket_tcp —— 裸 TCP Socket 全路径（含半关闭）
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   TCP Socket 底层路径   监听/连接/接受/收发/半关闭
+ * 模块宏：XRT_MODULE_NET
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/socket_tcp/main.c -lws2_32 -liphlpapi
+ * 预期输出（端口随机）：
+ *   bytes=5 data=hello client-port=NNNNN
+ *
+ * 与 tcp_sync 的分层：socket_tcp 是无引擎的纯系统
+ *   调用层；半关闭（shutdown 写端）演示了优雅关闭的
+ *   底层形态——业务代码用 xnetstream（见 tcp 范例）。
+ */
+
+
 /* 展示最底层 TCP Socket 的监听、连接、接受、收发和半关闭路径。 */
 int main(void)
 {

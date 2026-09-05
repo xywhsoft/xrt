@@ -1,3 +1,25 @@
+/*
+ * 范例：network/proxy_dial —— 真实代理隧道：托管 TCP + 完整回收
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   代理拨号（SOCKS5 / HTTP CONNECT 可切）→ 托管隧道
+ *   失败路径只借用回调期内的结构化错误
+ *   原子终态等待 + 所有权全量回收
+ * 模块宏：XRT_MODULE_PROXY（依赖 NET_TCP）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
+ *       examples/network/proxy_dial/main.c -lws2_32 -liphlpapi
+ * 用法：
+ *   proxy_dial <proxy-host> <proxy-port> <target-host> <target-port>
+ * 预期输出（无参数时）：
+ *   usage: proxy_dial <proxy-host> ...
+ *
+ * 代理状态机（RESOLVING→CONNECTING→HANDSHAKE→CONNECTED）
+ *   的失败区分：代理拒认 / TCP 失败 / DNS 失败——
+ *   结构化错误的原因链让三者在日志里一眼可辨。
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
