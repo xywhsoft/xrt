@@ -20,6 +20,23 @@ static xtaskoutcome groupedCoroutine(
 
 
 
+/*
+ * 范例：concurrency/task_group_coroutine —— 协程任务组
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   协程任务原子纳入组 + 统一运行等待
+ * 模块宏：XRT_MODULE_TASK（依赖 COROUTINE）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/task_group_coroutine/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   value = 47
+ *
+ * 与 task_group 同契约，工作形态换成协程——
+ *   轻量并发（千级）场景的组管理。
+ */
+
+
 /* 把协程任务原子纳入组，再统一运行和等待。 */
 int main(void)
 {

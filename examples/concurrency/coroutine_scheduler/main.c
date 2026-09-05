@@ -23,6 +23,27 @@ static void examplePost(xcosched* pSched, ptr pData)
 
 
 
+/*
+ * 范例：concurrency/coroutine_scheduler —— 调度器：投递与运行
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   轻量任务投递（post）
+ *   调度器运行至全部完成（投递任务 + 协程）
+ * 模块宏：XRT_MODULE_COROUTINE
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/coroutine_scheduler/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   task 1
+ *   task 2
+ *   task 3
+ *
+ * 调度器 = 协程的执行器：投递的任务按序/并发运行，
+ *   Run 驱动到全部完成才返回——网络引擎的协程面
+ *   （tls/dial 即此形态）。
+ */
+
+
 /* 先投递多个轻量任务，再运行到投递和协程全部完成。 */
 int main(void)
 {

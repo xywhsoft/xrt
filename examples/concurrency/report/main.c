@@ -113,6 +113,23 @@ cleanup:
 
 
 
+/*
+ * 范例：concurrency/report —— 综合演练：线程池 × 协程 × 任务组
+ * ----------------------------------------------------------------
+ * 演示 API（组合应用）：
+ *   有界线程池 + 协程调度器 + 结构化任务组
+ *   一次批量报告生成
+ * 模块宏：XRT_MODULE_TASK（依赖 COROUTINE）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/report/main.c -lws2_32 -liphlpapi
+ * 预期输出：（批量报告结果，见运行）
+ *
+ * 前序单项原语的组队实战：池跑 CPU 段、协程跑
+ *   等待段、组统一收口——真实服务的并发形态缩微。
+ */
+
+
 /* 创建有界线程池和协程调度器，运行一次结构化批量报告。 */
 int main(void)
 {

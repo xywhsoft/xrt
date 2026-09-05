@@ -98,6 +98,26 @@ static void exampleFinalize(
 
 
 
+/*
+ * 范例：concurrency/coroutine_lifecycle —— 协程完整生命周期
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   清理栈（CleanupPush/Defer——退出时逆序执行恰好一次）
+ *   挂起后协作取消（外部请求）
+ *   Join（等待终态）与终态回调
+ *   不可变终态快照
+ * 模块宏：XRT_MODULE_COROUTINE
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/coroutine_lifecycle/main.c -lws2_32 -liphlpapi
+ * 预期输出：（清理/终态过程输出，见运行）
+ *
+ * 三终态模型 RETURNED / CANCELLED / ERROR 的全景演练：
+ *   挂起中被取消、清理栈恰好执行一次、Join 方拿到
+ *   终态快照——长生命周期协程的全部收尾语义。
+ */
+
+
 /* 展示取消、Join、清理栈和终态回调之间的完整生命周期。 */
 int main(void)
 {

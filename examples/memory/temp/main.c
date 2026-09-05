@@ -9,6 +9,7 @@
  *   xrtTempEndDup      二进制提升（同上）
  *   xrtTempClear       清空默认 arena（成对管理者的收尾）
  *   xrtTempInit/Alloc/Dup/Reset/Trim/Unit   显式 arena 全家
+ *   xrtTempSecureReset / xrtTempSecureUnit   安全擦除版收尾（密钥残留清理）
  *   xtempconfig        三元组：块大小/保留水位/上限
  * 模块宏：XRT_MODULE_TEMP
  * 编译（单头形态，Windows）：
@@ -127,13 +128,22 @@ int main(void)
 	);
 
 	/*
-	 * 收尾两板斧：Reset 复用常规块（指针归零不还内存，下次免分配）；
-	 * Trim(0) 把保留容量也还给系统——彻底释放用 Unit。
-	 */
-	if ( !xrtTempReset(&tArena) || !xrtTempTrim(&tArena, 0) ) {
+	 * Secure 系：先把用户区字节安全擦除（SecureZero 级），
+	 *   再执行普通 Reset/Unit——arena 里待过密钥/令牌时用这组。
+	 * */
+	tScope = xrtTempBegin(&tArena);
+	(void)xrtTempAlloc(&tArena, 32);
+	if ( !xrtTempEnd(&tScope) ) {
 		xrtTempUnit(&tArena);
 		return 12;
 	}
-	xrtTempUnit(&tArena);
+	if ( !xrtTempSecureReset(&tArena) ) {
+		xrtTempUnit(&tArena);
+		return 13;
+	}
+	if ( !xrtTempReset(&tArena) || !xrtTempTrim(&tArena, 0) ) {
+		return 14;
+	}
+	xrtTempSecureUnit(&tArena);
 	return 0;
 }

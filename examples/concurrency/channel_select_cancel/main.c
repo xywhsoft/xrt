@@ -3,6 +3,24 @@
 
 
 
+/*
+ * 范例：concurrency/channel_select_cancel —— 可取消的多路等待
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtChannelSelectCancel   Select + 取消令牌
+ * 模块宏：XRT_MODULE_CHANNEL（依赖 CANCEL）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/channel_select_cancel/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   select wait result: 2
+ *
+ * 结果 2 = XWAIT_CANCELLED：两通道皆空时只有取消能唤醒
+ *   Select——多路等待同样可被打断，与 channel_cancel
+ *   单路版对称。
+ */
+
+
 /* 用取消令牌中止一个尚未就绪的 Channel Select。 */
 int main(void)
 {

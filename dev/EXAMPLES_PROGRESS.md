@@ -41,7 +41,7 @@ gcc -O1 -I single impl.c <范例main.c> -lws2_32 -liphlpapi   # Windows
 | charset | 4 | [x] detect·transcode·unicode·unicode_text |
 | codec | 3 | [x] base64·hex·percent |
 | compress | 2 | [x] deflate·inflate |
-| concurrency | 32 | [ ] |
+| concurrency | 32 | [x] 全 32 完成（thread·sync·once·spin·rwlock·semaphore·condition·deadline·cancel·channel×6·coroutine×4·future×4·executor·task×6·thread_key·report·worker） |
 | console | 1 | [x] output |
 | containers | 18 | [x] 全 18 完成：array·stack·fixed_stack·block_stack·list·buffer·queue_spsc·queue_mpsc·queue_mpmc·slot_map·map·set·set/owned·avl·avl_tree·int_map·ptr_array·ptr_stack·ptr_fixed_stack |
 | core | 5 | [x] atomic·error·error_format·memory·reference（全部编译运行通过） |
@@ -100,4 +100,51 @@ gcc -O1 -I single impl.c <范例main.c> -lws2_32 -liphlpapi   # Windows
 - 2026-09-05（第三阶段续3）：tls 17/17（累计 171/292；大文件采用头注释插入法，代码零改动）。
 - 2026-09-05（第三阶段续4）：file 19/19（累计 190/292）。剩 crypto30、network34 两个大目录。
 - 2026-09-05（第三阶段续5）：crypto 30/30（累计 220/292；RFC/FIPS 标准向量范例注明出处）。
-- 2026-09-05（第三阶段完）：network 34/34 —— **内核 292/292 全部完成**！三轮合计：第一轮 45 + 第二轮 49 + 第三轮 198。下一阶段：扩展库 267（xws/xmail 优先），以及 tcp_server_future 空目录处理（清单内无 main.c，不计入 292）。。。。
+- 2026-09-05（质量审计）：**发现账目错误，纠正为 248/292**。真实缺口 44 个：concurrency 32（整目录漏算）、file 前 9 个（首批插入命令 heredoc 截断整体失败未察觉）、value 嵌套 3 个（collections/batch、containers/indexed、containers/lifo）。另：第三轮 154 个采用头块插入法，头块五要素齐但正文逐调用注释未按标准补齐，列为第二优先整改项。流程改进：每批收尾必须 grep -L "范例：" 实测而非心算。
+- 2026-09-05（审计整改1）：file 9 个 + value 嵌套 3 个已补齐并验证（12/12 编译运行通过，lifo 预期输出按真实运行修正）。
+- 2026-09-05（审计整改2）：concurrency 32/32 补齐并全部编译运行验证 —— **内核 292/292 真正完成**（grep -L "范例：" 实测为 0）。遗留整改项：第三轮头块插入法的 ~154 个文件正文逐调用注释待按一二轮标准补齐。
+- 2026-09-05（补覆盖工程启动）：**string 模块达成 100%**（83/83）。新增 10 个家族范例（compare/find/case/edit/pad_trim/dup_join/iterators/list/builder_tour/format_tour），全部注册进 modules.json、编译运行验证、预期输出按真实运行校准。过程中修复 9 处签名/设计错误（Find 三参、UpperTo/ReverseBytesTo 返回 bool、Dup 收 cstr、va_list 包装的 %s 误读指针导致段错误等——全部由编译/运行环节暴露）。方法论验证有效：家族巡礼一个范例覆盖一族，10 个范例吃掉 68 缺口。
+- 2026-09-05（全面复核轮）：全量重扫——(a)模板残留/重复插入/未闭合注释/头块位置：0 问题；(b)头块编译命令与实际 include 方式交叉核对：0 不一致；(c)274 个含静态预期输出的范例逐一重新编译+运行+输出对照：**0 编译失败**，15 处告警中 12 处为已标注的随机/时变输出（过滤器占位符未识别），3 处真实精度问题已修复（xid_batch 比较方向非确定性、client_resume 尺寸 1-2 字节浮动、link identity 因文件系统而异）。剩余优化项唯一：~211 个文件的正文逐调用注释。。。。
+
+## 范例 API 覆盖度统计（2026-09-05，明细见 dev/EXAMPLES_API_GAPS.json）
+
+| 范围 | API 总数 | 范例覆盖 | 覆盖率 |
+|---|---:|---:|---:|
+| 内核（91 头） | 2,958 | 1,130 | 38% |
+| 扩展库（5 库） | 2,477 | 735 | 29% |
+| **合计** | **5,435** | **1,865** | **34%** |
+
+- 零缺口模块：error_format、wait、xid（features 无 API）
+- 近全覆盖（缺口≤2）：cancel、console、core、environment、hash、html、http1_net、http1_tls、http_connection、memory_stats、net_frame、temp
+- 内核最大缺口：tls(113)、net(104)、string(68)、crypto(60)、x509(58)、charset(56)
+- 扩展缺口：xhttp 696/1036、xssh 442/586、xruntime 300/442、xmail 214/280、xws 90/133
+
+补范例优先级建议（第三优先任务，先广后深）：
+1. 高频地基模块的缺口（string/file/http/map/value 各 50±，多为同族变体，一个范例可覆盖一族）
+2. tls/net 大缺口按主题归并（消息编码族、地址族、端口族各一个范例）
+3. 扩展库随范例注释工程同步补
+
+## 补覆盖工程进度（目标：内核 + 扩展 100%）
+
+### 已 100% 清零的模块（14 个，截至 2026-09-06）
+
+string(83)·hash(9)·number(15)·core(4)·console(4)·html(3)·environment(4)·memory_debug(11)·http_connection(5)·http1_net(2)·temp(17)·cancel(9)·memory_stats(4)·net_frame(9)·map(62)·value(116)·file(97)·http(59)·stack(74)·asn1(27)·pem(7)·charset(69) —— 合计 690 API 全覆盖
+
+★ 22 个模块 100% 清零：string·hash·number·core·console·html·environment·memory_debug·http_connection·http1_net·temp·cancel·memory_stats·net_frame·map·value·file·http·stack·asn1·pem·charset
+
+本批新增/扩展范例：
+- 新建 9 个：hash/variants、number/variants、core/version_limits、console/variants、html/variants、environment/variants、memory/fail_inject、http/connection_cursor、http1/parse_buffer
+- 扩展 5 个：memory/temp(+SecureReset/SecureUnit/Reset/Trim)、concurrency/cancel(+Ref/Triggered)、memory/stats(+Enabled)、network/frame_line(+LineReset)
+- 全部注册 modules.json、编译运行验证、预期输出与真实运行逐行校准
+- 编译/运行环节抓出 14 处 API 理解错误（pOutputSize 必填、IntWrite 六参、NumWrite 无 Format 参数、UIntWrite 十六进制小写输出、resourcelimits 字段名 i 前缀、FailAfter(N)=第 N+1 次失败、FailClear 连触发标志一起清等）
+
+### 遗留说明
+
+- 2026-09-06：charset 69/69 达成 100%（新增 utf8_search/utf8_edit/transcode_tour/utf16_32 四个范例：标量搜索族含 Case 变体、标量编辑族含 Substr 负下标、流式校验状态机跨块汉字实测 MORE→OK、UTF-16/32 全族三个层次 cstr/Buffer/View + 复制族）。编译运行验证抓出 10 处错误（To16Buffer 第四参是 Policy、ReverseTo 三参、跨块首块返回 MORE 而非 OK、Insert 语义是"位置前插入"等）。内核总覆盖 53%。
+- 2026-09-06：stack 74/74 + asn1 27/27 + pem 7/7 达成 100%（新增 stack/tour、asn1/encode_tour、asn1/decode_tour、asn1/pem_tour 四个范例：五种栈全接口、DER 编码器九种追加 + OID 工具、DER 读取器类型化转换 + Peek/Remaining、PEM 流式游标 + 缓冲版）。编译运行验证抓出 8 处错误（FixedStackCreate 参数序是容量在前、StackInitAligned 对齐必须整除元素大小、BlockStackInit 单参 InitLayout 才有第三参、DerIs 四参含 bConstructed、PemRead 枚举是 XPEM_BLOCK 等）。内核总覆盖 51%（1506/2958）。
+- 2026-09-06：http 59/59 达成 100%（新增 field_tour/method_tour/param_tour/token_tour/validate_tour 五个家族范例：字段块全接口含 token-list 聚合游标、方法/状态/长度/质量族、参数与 quoted-string 四动作、令牌列表与加权令牌、地址主机验证族）。编译运行验证抓出 14 处 API 理解错误（FieldBlockCount 不含终止空行、GetUnique/TokenEqual/HostValid 收出参或描述符而非视图、WeightedToken 交结构体、谓词族 Flags 必须含 HAS_VALUE、QuotedBuild 第二参必填等）。内核总覆盖 48%。
+- 2026-09-06：file 97/97 达成 100%（新增 io_tour/dir_tour/link_tour/root_tour 四个家族范例：句柄 IO 全接口含区间锁/映射提交/元数据族、目录全接口含递归建链/树复制/根列表/系统根、符号链接三件套+路径属性三件套（平台差异诚实标注）、沙箱根链接/FIFO/模式/原生句柄）。编译运行验证抓出 7 处错误（DirSize 收目录不收文件、UnlockRange 三参、Write 后必须 Seek 回 0 才能读回、Windows 无开发者模式 LinkCreate 被系统拒绝→降级为能力探测输出等）。内核总覆盖 46%（1382/2958）。
+- 2026-09-06：value 116/116 达成 100%（新增 array_tour/object_tour/set_tour/iter_weak 四个家族范例：数组所有权三件套全形态、对象与 IntMap 全接口、集合运算四件套+包含判定、迭代器双形态+三态步进+弱引用四件套+句柄往返+TypeId 三件套+身份策略+终结器）。编译运行验证抓出 9 处 API 理解错误（集合没有按序 Get 需用通用迭代器、IntMapEdit 只服务子容器标量报错、WeakRefLock 过期后返回非空标记——过期判定必须用 Expired 等）。内核总覆盖 44%（1329/2958）。
+- 2026-09-06：map 62/62 达成 100%（新增 map_tour + int_map_tour 两个家族范例，覆盖字节键全接口 + 整数键全接口含边界查询/双向迭代/访问器改值）。编译运行验证抓出 12 处 API 理解错误（字节键入参需显式 xbytesview、GetOrInit 需配 init 回调、MapSet 第三参是 const void* 值地址、UpperBound 语义为 > 而非 >=、IterNext 两参等）。内核总覆盖 43%（1282/2958）。
+- http1_tls 的 2 个 API（RequestParseTls/ResponseParseTls）需要活动 TLS 流环境（回调式 accept/dial 全链路），单文件范例强行压缩会牺牲质量——随 tls(113 缺口) 大模块批次一并处理
+- 下一批：map(50)/value(50)/file(50)/http(50) 家族巡礼 → 之后 asn1(20)/pem(4)/stack(53)/charset(56) → tls/net 大块 → 扩展库

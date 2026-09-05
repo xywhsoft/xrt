@@ -1,7 +1,7 @@
 /*
  * 范例：number/float —— 浮点严格解析与最短往返输出
  * ----------------------------------------------------------------
- * 漺示 API：
+ * 演示 API：
  *   xrtNumParse   严格解析 double（空白/下划线需显式允许）
  *   xrtNumString  最短往返表示（precision=0 表示自动）
  * 模块宏：XRT_MODULE_NUMBER

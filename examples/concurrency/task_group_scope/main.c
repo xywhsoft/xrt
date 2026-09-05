@@ -4,6 +4,27 @@
 
 
 /*
+ * 范例：concurrency/task_group_scope —— 父子作用域：取消传播
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   父子任务作用域建立
+ *   父级取消传播到子组与叶 Future
+ *   叶生产端自行确认最终取消状态
+ * 模块宏：XRT_MODULE_TASK
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/task_group_scope/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   parent completed = 1, cancelled = 1
+ *
+ * 结构化并发的取消树：取消父作用域 = 整棵子树收到
+ *   请求；叶的最终状态仍由其生产端确认（与
+ *   future_combine 的 Race 语义一致——框架不伪造）。
+ *   服务停机"一键取消全部在途工作"的机制本体。
+ */
+
+
+/*
  * 建立父子任务作用域，验证父级取消会传播到子组和叶 Future，
  * 同时仍由叶生产端确认最终取消状态。
  */

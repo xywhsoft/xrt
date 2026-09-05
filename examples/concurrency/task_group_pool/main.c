@@ -19,6 +19,26 @@ static xtaskoutcome groupedWork(
 
 
 
+/*
+ * 范例：concurrency/task_group_pool —— 线程池任务 × 任务组
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   有界线程池任务原子纳入任务组
+ *   统一提交、等待、按序取结果
+ * 模块宏：XRT_MODULE_TASK
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/task_group_pool/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   value[0] = 11
+ *   value[1] = 22
+ *   value[2] = 33
+ *
+ * 池（执行资源）+ 组（结构化作用域）正交组合：
+ *   三个池任务一次提交一个等待点，结果按下标对号。
+ */
+
+
 /* 用一个结构化任务组原子提交并等待多个有界线程池任务。 */
 int main(void)
 {

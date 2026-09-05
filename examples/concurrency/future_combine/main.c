@@ -4,6 +4,26 @@
 
 
 /*
+ * 范例：concurrency/future_combine —— 组合子：Any / Race / All
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   Any    任一完成即返回（索引 + 值）
+ *   Race   首胜 + 请求败者取消（不伪造败者终态！）
+ *   All    全部完成的值序列
+ * 模块宏：XRT_MODULE_FUTURE
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/future_combine/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   winner[1] = 22, values = 11, 22
+ *
+ * Race 的取消语义（本范例专门验证）：胜者出结果后
+ *   只对败者"请求取消"，败者的最终状态由其生产端
+ *   自行确认——框架不替它伪造 CANCELLED。
+ */
+
+
+/*
  * 同时观察 Any、Race 和 All 的结果，并验证 Race 只请求败者取消，
  * 不会替生产端伪造败者的最终状态。
  */

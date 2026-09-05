@@ -19,6 +19,7 @@
  *   本范例面向网络流收包路径，零中间缓冲。
  *   Redis/SMTP 类文本协议的分帧底座；粘包半包由
  *   解析器状态机吸收。
+ *   xrtNetLineReset   保留配置、丢弃增量搜索进度（新会话复用帧器）
  */
 
 
@@ -58,5 +59,9 @@ int main(void)
 		}
 	}
 	xrtNetBufClear(&Input);
+	/* Reset：保留配置、清掉半行进度——同一条连接上"重新开始对话"
+	 *   时复用帧器（省一次初始化）；Reset 后可继续喂新流。 */
+	(void)xrtNetLineReset(&Framer);
+	printf("reset=ok\n");
 	return 0;
 }

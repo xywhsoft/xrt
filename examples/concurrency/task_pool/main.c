@@ -31,6 +31,25 @@ static xtaskoutcome squareRun(
 
 
 
+/*
+ * 范例：concurrency/task_pool —— 任务池：提交、Future、所有权顺序
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   任务池创建 + 任务提交 + Future 读取
+ *   取消令牌观察（协作停止）
+ *   按所有权顺序释放对象
+ * 模块宏：XRT_MODULE_TASK
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/task_pool/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   square = 144
+ *
+ * 任务通过结果结构返回成功值、通过令牌观察取消——
+ *   两通道分离；范例同时演示标准释放顺序。
+ */
+
+
 /* 创建任务池、提交任务、读取 Future，并按所有权顺序释放对象。 */
 int main(void)
 {

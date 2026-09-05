@@ -16,8 +16,8 @@
  * 编译（单头形态，Windows）：
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
  *       examples/tls/client_resume/main.c -lws2_32 -liphlpapi
- * 预期输出：
- *   client hello=289 bytes, accepted=not yet
+ * 预期输出（289~290 字节，随密钥材料 1-2 字节浮动）：
+ *   client hello=~290 bytes, accepted=not yet
  *
  * accepted=not yet 是关键语义：PSK binder 已写入
  *   ClientHello（证明持有秘密），但"服务端是否接受恢复"

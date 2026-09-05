@@ -20,6 +20,23 @@ static xtaskoutcome delayedValue(
 
 
 
+/*
+ * 范例：concurrency/task_coroutine —— 协程任务：统一 Future 结果
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   协程任务提交（返回统一 Future）
+ * 模块宏：XRT_MODULE_TASK（依赖 COROUTINE）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/task_coroutine/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   value = 27
+ *
+ * 协程工作包装成任务：与线程任务同一 Future 契约，
+ *   消费端不关心工作跑在协程还是线程上。
+ */
+
+
 /* 提交协程任务，运行调度器并读取统一 Future 结果。 */
 int main(void)
 {

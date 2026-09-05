@@ -5,12 +5,14 @@
  *   xrtMemStatsEnable  开关统计采集（常驻服务按需开启窗口）
  *   xrtMemStatsReset   清零计数器（测量窗口起点）
  *   xrtMemStatsGet     一次取回统计结构
+ *   xrtMemStatsEnabled 采集开关状态查询
  *   xmemstats          计数器集合（调用数/字节数/峰值等）
  * 模块宏：XRT_MODULE_MEMORY_STATS
  * 编译（单头形态，Windows）：
  *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c \
  *       examples/memory/stats/main.c -lws2_32 -liphlpapi
  * 预期输出：
+ *   before=0 after=1
  *   malloc_calls=2 pooled=1 direct=1 backing=3
  *
  * 读数解释：
@@ -35,8 +37,10 @@ int main(void)
 	ptr pSmall;
 	ptr pLarge;
 
-	/* 打开采集并清零：接下来的计数全部属于本范例工作负载。 */
+	/* 开关可查询：先确认当前状态，再打开并清零。 */
+	printf("before=%d\n", xrtMemStatsEnabled() ? 1 : 0);
 	xrtMemStatsEnable(true);
+	printf("after=%d\n", xrtMemStatsEnabled() ? 1 : 0);
 	xrtMemStatsReset();
 
 	/* 一次小块（走池）+ 一次大块（直通）。 */

@@ -149,6 +149,24 @@ static int32 producerRun(ptr pData)
 
 
 
+/*
+ * 范例：concurrency/worker —— 专用 Worker：多生产者单消费者
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   多生产者 → 单 worker 的任务投递
+ *   关闭 / 排空 / 逐任务结果验证
+ * 模块宏：XRT_MODULE_EXECUTOR
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/worker/main.c -lws2_32 -liphlpapi
+ * 预期输出：（逐任务结果，见运行）
+ *
+ * 单消费者模式：所有任务亲和同一 worker——
+ *   状态无锁（只有它会碰）、顺序可控；
+ *   关闭后排空保证已提交任务不丢。
+ */
+
+
 /* 运行多生产者、单 worker，并验证关闭、排空和逐任务结果。 */
 int main(void)
 {

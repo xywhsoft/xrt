@@ -35,6 +35,24 @@ static ptr sendMessage(ptr pData)
 
 
 
+/*
+ * 范例：concurrency/channel_coroutine —— 协程 × 通道：挂起式收发
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   通道等待在协程内的挂起变体（Await 族）
+ * 模块宏：XRT_MODULE_CHANNEL（依赖 COROUTINE）
+ * 编译（单头形态，Windows）：
+ *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c $BS}
+ *       examples/concurrency/channel_coroutine/main.c -lws2_32 -liphlpapi
+ * 预期输出：
+ *   message: 42
+ *
+ * 通道 Recv 在协程里变成挂起而非阻塞——调度线程
+ *   被释放去跑别的协程，数据到达再唤醒本协程。
+ *   Go 语法的 channel + goroutine 在 C 里的对应物。
+ */
+
+
 /* 演示 Channel 等待挂起协程而不阻塞调度线程。 */
 int main(void)
 {

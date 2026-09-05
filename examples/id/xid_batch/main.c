@@ -14,12 +14,14 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c \
  *       examples/id/xid_batch/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   batch order: 1
+ *   batch order: ±1（方向非确定，见下）
  *   invalid offset: 3
  *
  * 读数解释：
- *   batch order = 1：本批次中 Values[0] 与 Values[1] 的三态比较
- *   结果——Compare 提供稳定全序（升序排序/去重的基础原语）；
+ *   batch order = 1 或 -1：两次批量生成的时间戳先后由微秒级
+ *   时钟决定，快速连续生成时方向不稳定（验证复现时两次运行
+ *   分别得到 1 与 -1）——Compare 提供稳定全序（排序/去重的
+ *   基础原语），单次比较的方向本身不是承诺；
  *   invalid offset = 3：解析 "bad" 时，第 3 字节（长度不足处）
  *   是首个非法位置——错误自带定位，无需解析错误消息字符串。
  */
@@ -77,7 +79,7 @@ int main(void)
 	bValid = true;
 
 cleanup:
-	/* 三态比较：为排序/去重提供稳定全序（本批次结果为 1）。 */
+	/* 三态比较：为排序/去重提供稳定全序（方向随时间戳，±1）。 */
 	printf("batch order: %d\n", xrtXidCompare(&Values[0], &Values[1]));
 	printf("invalid offset: %zu\n", iOffset);
 	xrtFree(sFormatted);
