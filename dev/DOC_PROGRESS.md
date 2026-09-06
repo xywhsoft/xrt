@@ -50,7 +50,7 @@
 | 43 | net-frame.md | 9 | 待办 |  |
 | 44 | net-interface.md | 12 | 待办 |  |
 | 45 | net-resolver.md | 172 | 待办 |  |
-| 46 | net.md | 184 | 进行中 [4/6 段] | 试点 2；地址族 20 + 缓冲/列表/DNS/Bytes 39 + Socket 39 + Port 29 + 嵌入式 Post 3 = 130/184 全绿，余 Engine/Worker（第 5 段）与 Resolver/Interfaces（第 6 段） |
+| 46 | net.md | 184 | 进行中 [5/6 段] | 试点 2；前 5 段 156/184 全绿（地址族 20 + 缓冲/DNS/Bytes 39 + Socket 39 + Port 29 + Post 3 + Engine 17 + Worker 9），余第 6 段 Resolver/Interfaces 26 |
 | 47 | number.md | 15 | 待办 |  |
 | 48 | once.md | 22 | 待办 |  |
 | 49 | path.md | 32 | 待办 |  |
@@ -114,3 +114,13 @@
   （门禁拦截 1 处不连续片段：Accept 终态等待与提交之间隔着 Connect
   等待，改为完整连续区间）；array.md 复验仍绿。表行同步修正
   第 2/3 段漏记（记录区已有、表格行停在 [1/6 段]）。
+- 2026-09-07 net.md 第 5 段（Engine 17 + Worker 9 = 26 函数）完成：
+  错误域码 ENGINE_CREATE/START/STOP/POST/TIMER 自 src/network/engine.c
+  溯源入档；Stop 的三态失败口径成文（STATE 自等待死锁/封口不收敛、
+  POOL_BUSY 外借池块——Engine 仍进 STOPPED 且可重启）；Pin/Unpin 的
+  CLOSED（未运行）与 STATE（未配对）区分；纯查询函数
+  EngineCurrent/WorkerEngine/WorkerIsCurrent 按门禁补显式
+  "无错误"节（查询语义非错误）；TimerCancelCurrent 失败不设错误的
+  契约（先试 Current 再走 TimerCancel）入档；EngineAfter 为 Schedule
+  转发（锚点用 network/engine 范例）。G3 151→177 片段全绿；
+  array.md 复验仍绿。

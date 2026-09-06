@@ -5977,6 +5977,297 @@ Worker 会原子封闭后续投递，继续执行封口前已经受理的任务�
 不能从 Engine 自己的 Worker 回调中调用 `Stop` 或 `Destroy`，这类调用返回
 `XERR_STATE`，避免自等待死锁。
 
+### `xrtNetEngineConfigInit`
+
+初始化兼顾吞吐与内存占用的 Engine 默认配置（见上表）。
+
+```c
+void xrtNetEngineConfigInit(xnetengineconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 纯初始化，不失败 |
+
+#### 范例
+
+[network/engine_tour · 生命周期](../../examples/network/engine_tour/main.c) · 覆盖 Worker 数后创建
+
+```c
+xrtNetEngineConfigInit(&Config);
+Config.Workers = 2;
+pEngine = xrtNetEngineCreate(&Config);
+```
+
+### `xrtNetEngineCreate`
+
+创建停止状态的 Engine；Worker 线程和端口在 `Start` 时建立。`BufferPool` 指向的配置在返回前完整复制。
+
+```c
+xnetengine* xrtNetEngineCreate(const xnetengineconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 通常为 `ConfigInit` 产物；字段越界（如 `Workers > 256`、`EventBatch > 4096`）立即失败 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 停止状态的 Engine | — |
+| `NULL` | 配置非法或内存不足 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_ENGINE_CREATE` — 配置指针为空或字段非法
+- 内存分配失败 — Engine 结构或初始表分配失败
+
+#### 范例
+
+[network/engine_tour · 生命周期](../../examples/network/engine_tour/main.c) · 创建即 `STOPPED`
+
+```c
+pEngine = xrtNetEngineCreate(&Config);
+if ( (pEngine == NULL) ||
+	(xrtNetEngineState(pEngine) != XNET_ENGINE_STOPPED) ||
+	!xrtNetEngineStart(pEngine) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetEngineStart`
+
+建立全部 Worker、端口和线程；已经运行时幂等成功。部分启动失败会完整回滚到 `STOPPED`，允许重试。
+
+```c
+bool xrtNetEngineStart(xnetengine* pEngine);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 停止或运行状态的 Engine |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已运行（或原本已运行） | — |
+| `false` | 参数非法、状态切换冲突或资源创建失败；失败后回到 `STOPPED` | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pEngine` 为空
+- `XERR_STATE` + `XNET_ERROR_ENGINE_START` — 状态正在切换（并发 Start/Stop）
+- `XERR_INTERNAL` + `XNET_ERROR_ENGINE_START` — Worker 端口、线程或缓冲池创建失败（含底层端口错误传播）
+
+#### 范例
+
+[network/engine_tour · 生命周期](../../examples/network/engine_tour/main.c) · Start 后自旋到 `RUNNING`
+
+```c
+!xrtNetEngineStart(pEngine) ) {
+	goto Cleanup;
+}
+while ( xrtNetEngineState(pEngine) != XNET_ENGINE_RUNNING ) {
+	xrtSleep(1u);
+}
+```
+
+### `xrtNetEngineStop`
+
+排空任务并释放运行资源。任务链不收敛或仍有外借池块时返回失败，但 Engine 仍进入可重启的停止状态。
+
+```c
+bool xrtNetEngineStop(xnetengine* pEngine);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 运行或停止状态的 Engine |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已排空并停止；可再次 `Start` | — |
+| `false` | 已进入 `STOPPED` 但排空不完整（见错误） | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pEngine` 为空
+- `XERR_STATE` + `XNET_ERROR_ENGINE_STOP` — 从 Worker 回调内调用（自等待死锁），或状态正在切换
+- `XERR_STATE` + `XNET_ERROR_ENGINE_STOP` — 任务链不收敛触发封口（`ShutdownStalls` 计数）
+- `XNET_ERROR_POOL_BUSY` — Worker 缓冲池仍有外借块；池和 Engine 保留，可 `Start` 后归还再 `Stop`
+
+#### 范例
+
+[network/engine_tour · 收尾](../../examples/network/engine_tour/main.c) · 先停再销毁
+
+```c
+(xrtNetEngineState(pEngine) != XNET_ENGINE_STOPPED) ) {
+	xrtNetEngineStop(pEngine);
+}
+```
+
+### `xrtNetEngineDestroy`
+
+停止并销毁 Engine；仍有高层对象或外借池块时失败并保留对象。
+
+```c
+bool xrtNetEngineDestroy(xnetengine* pEngine);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 允许空指针 | 空指针是空操作；运行中会先执行停止流程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | Engine 已销毁 | — |
+| `false` | 仍有活动对象或外借池块，Engine 保留 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_ENGINE_STOP` — 从 Worker 回调内调用
+- `XERR_STATE` + `XNET_ERROR_ENGINE_STOP` — 状态正在切换或仍有活动网络对象
+- `XNET_ERROR_POOL_BUSY` — 缓冲池仍有外借块
+
+#### 范例
+
+[network/engine_tour · 收尾](../../examples/network/engine_tour/main.c) · Stop 之后再 Destroy
+
+```c
+if ( pEngine != NULL ) {
+	xrtNetEngineDestroy(pEngine);
+}
+```
+
+### `xrtNetEngineState`
+
+返回当前生命周期状态，可安全跨线程查询。
+
+```c
+xnetenginestate xrtNetEngineState(const xnetengine* pEngine);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 允许空指针 | 空指针返回 `XNET_ENGINE_STOPPED`（零值） |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `XNET_ENGINE_STOPPED` | 停止（或空指针）；可 `Start` |
+| `XNET_ENGINE_STARTING` | 正在建立 Worker |
+| `XNET_ENGINE_RUNNING` | 运行中 |
+| `XNET_ENGINE_STOPPING` | 正在排空停机 |
+| `XNET_ENGINE_DESTROYING` | 正在销毁 |
+
+#### 范例
+
+[network/engine_tour · 生命周期](../../examples/network/engine_tour/main.c) · 自旋等待进入运行态
+
+```c
+while ( xrtNetEngineState(pEngine) != XNET_ENGINE_RUNNING ) {
+	xrtSleep(1u);
+}
+```
+
+### `xrtNetEnginePin`
+
+占用一个正在运行的 Engine 生命周期，供组合网络对象保存借用指针。每次成功占用必须由一次 `xrtNetEngineUnpin` 配对释放。
+
+```c
+bool xrtNetEnginePin(xnetengine* pEngine);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 必须处于 `RUNNING` |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 生命周期占用 +1，Destroy 被阻止 | — |
+| `false` | 未占用 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_CLOSED` + `XNET_ERROR_ENGINE_POST` — Engine 未运行（Pin 只对运行中的 Engine 有意义）
+
+#### 范例
+
+[network/engine_tour · 占用](../../examples/network/engine_tour/main.c) · Pin/Unpin 严格配对
+
+```c
+if ( !xrtNetEnginePin(pEngine) ||
+	!xrtNetEngineUnpin(pEngine) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetEngineUnpin`
+
+释放一次 Engine 生命周期占用；没有匹配占用时返回状态错误。
+
+```c
+bool xrtNetEngineUnpin(xnetengine* pEngine);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 必须有未释放的 Pin |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 占用 -1；归零后 Destroy 可继续 | — |
+| `false` | 参数非法或没有匹配占用 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pEngine` 为空
+- `XERR_STATE` — 没有匹配的 Pin 占用
+
+#### 范例
+
+[network/engine_tour · 占用](../../examples/network/engine_tour/main.c) · Pin/Unpin 严格配对
+
+```c
+if ( !xrtNetEnginePin(pEngine) ||
+	!xrtNetEngineUnpin(pEngine) ) {
+	goto Cleanup;
+}
+```
+
 ### Worker 与任务
 
 - `xrtNetEngineWorkerCount` 返回固定 Worker 数。
@@ -6013,6 +6304,432 @@ Worker 缓冲池供 TCP、UDP、TLS 和自定义协议共享，缓存预算按 W
 后续处理继续投递到同一 Worker；不能把带池块跨线程释放。需要跨线程长期保存时，
 应复制数据或使用 `Pool == NULL` 的独立缓冲。
 
+### `xrtNetEngineWorkerCount`
+
+返回 Engine 固定的 Worker 数量。
+
+```c
+uint32 xrtNetEngineWorkerCount(const xnetengine* pEngine);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 允许空指针 | 空指针返回 0 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `> 0` | Worker 数；创建后固定，跨 `Stop`/`Start` 不变 |
+| `0` | `pEngine` 为空 |
+
+#### 范例
+
+[network/engine_tour · 生命周期](../../examples/network/engine_tour/main.c) · 显式 2 Worker
+
+```c
+if ( (xrtNetEngineWorkerCount(pEngine) != 2u) ||
+	((pWorker0 = xrtNetEngineWorker(pEngine, 0u)) == NULL) ||
+```
+
+### `xrtNetEngineWorker`
+
+返回借用的指定 Worker；索引越界时返回空指针。
+
+```c
+xnetworker* xrtNetEngineWorker(xnetengine* pEngine, uint32 iIndex);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | Engine 指针 |
+| `iIndex` | 输入 | `< WorkerCount` | Worker 索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 借用 Worker，存活期由 Engine 决定 | — |
+| `NULL` | 索引越界 | `XERR_RANGE`（越界时设置） |
+
+#### 错误
+
+- `XERR_RANGE` — `iIndex >= WorkerCount`
+
+#### 范例
+
+[network/engine_tour · 生命周期](../../examples/network/engine_tour/main.c) · 越界索引返回空
+
+```c
+((pWorker0 = xrtNetEngineWorker(pEngine, 0u)) == NULL) ||
+((pWorker1 = xrtNetEngineWorker(pEngine, 1u)) == NULL) ||
+(xrtNetEngineWorker(pEngine, 99u) != NULL) ||
+```
+
+### `xrtNetEngineCurrent`
+
+返回当前线程所属的借用 Worker，不属于该 Engine 时返回空指针。
+
+```c
+xnetworker* xrtNetEngineCurrent(xnetengine* pEngine);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 允许空指针 | 空指针返回 `NULL` |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 非空 | 当前线程正是该 Worker（在其回调内调用） |
+| `NULL` | 当前线程不属于该 Engine（如外部主线程） |
+
+#### 错误
+
+- 无 — 不属于任何 Worker 是查询结果而非错误，不设置线程错误
+
+#### 范例
+
+[network/engine_tour · 生命周期](../../examples/network/engine_tour/main.c) · 主线程不属于任何 Worker
+
+```c
+(xrtNetEngineWorker(pEngine, 99u) != NULL) ||
+/* 主线程不属于任何 Worker → Current 为空。 */
+(xrtNetEngineCurrent(pEngine) != NULL) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetWorkerEngine`
+
+返回 Worker 所属的借用 Engine。
+
+```c
+xnetengine* xrtNetWorkerEngine(const xnetworker* pWorker);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 允许空指针 | 空指针返回 `NULL` |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 非空 | 所属 Engine（借用） |
+| `NULL` | `pWorker` 为空 |
+
+#### 错误
+
+- 无 — 空指针返回 `NULL`，不设置线程错误
+
+#### 范例
+
+[network/engine_tour · Worker 自省](../../examples/network/engine_tour/main.c) · 回调内反查 Engine
+
+```c
+pTask->bEngineOk =
+	(xrtNetWorkerEngine(pWorker) == pTask->pEngine);
+```
+
+### `xrtNetWorkerIndex`
+
+返回 Worker 在所属 Engine 内的稳定索引。
+
+```c
+uint32 xrtNetWorkerIndex(const xnetworker* pWorker);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 非空 | Worker 指针 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `[0, WorkerCount)` | 稳定索引，跨 `Stop`/`Start` 不变 |
+| `UINT32_MAX` | `pWorker` 为空 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pWorker` 为空（返回 `UINT32_MAX`）
+
+#### 范例
+
+[network/engine_tour · Worker 自省](../../examples/network/engine_tour/main.c) · 回调内核对亲和索引
+
+```c
+pTask->bIndexOk = (xrtNetWorkerIndex(pWorker) == 0u);
+```
+
+### `xrtNetWorkerIsCurrent`
+
+判断调用线程是否正是指定 Worker。
+
+```c
+bool xrtNetWorkerIsCurrent(const xnetworker* pWorker);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 允许空指针 | 空指针返回 `false` |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 当前线程正是该 Worker |
+| `false` | 不是，或 `pWorker` 为空 |
+
+#### 错误
+
+- 无 — 否定回答与空指针都是查询结果，不设置线程错误
+
+#### 范例
+
+[network/engine_tour · Worker 自省](../../examples/network/engine_tour/main.c) · 回调内确认自身
+
+```c
+pTask->bIsCurrent = xrtNetWorkerIsCurrent(pWorker);
+```
+
+### `xrtNetWorkerPort`
+
+返回运行期间借用的端口；调用方必须保证借用操作先于 Stop 结束。
+
+```c
+xnetport* xrtNetWorkerPort(xnetworker* pWorker);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 非空 | 运行中的 Worker |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 借用端口；除跨线程明确允许的操作外应在所属 Worker 使用 | — |
+| `NULL` | Worker 未运行 | `XERR_STATE`（未运行时设置） |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_ENGINE_POST` — Worker 未运行（Stop 后端口已释放）
+
+#### 范例
+
+[network/engine_tour · Worker 自省](../../examples/network/engine_tour/main.c) · 回调内取端口
+
+```c
+pTask->bPortOk = (xrtNetWorkerPort(pWorker) != NULL);
+```
+
+### `xrtNetWorkerBufPool`
+
+返回 Worker 独占的自适应缓冲池；只能从该 Worker 的回调中调用。
+
+```c
+xnetbufpool* xrtNetWorkerBufPool(xnetworker* pWorker);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 非空 | 目标 Worker |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 借用缓冲池；池块必须在所属 Worker 上归还 | — |
+| `NULL` | 参数非法或不在该 Worker 回调内 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pWorker` 为空
+- `XERR_STATE` + `XNET_ERROR_ENGINE_POST` — 不在所属 Worker 上调用（缓冲池仅 Worker 内可用）
+
+#### 范例
+
+[network/engine_tour · Worker 自省](../../examples/network/engine_tour/main.c) · 只在本 Worker 回调内可用
+
+```c
+/* BufPool 只能从本 Worker 回调内调用。 */
+pPool = xrtNetWorkerBufPool(pWorker);
+pTask->bBufPoolOk = (pPool != NULL);
+```
+
+### `xrtNetWorkerAlloc`
+
+从 Worker 的线程安全分级缓存分配并清零一块内存；调用方必须保持 Worker 生命周期有效。
+
+```c
+ptr xrtNetWorkerAlloc(xnetworker* pWorker, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 非空 | 分配归属的 Worker；归还也须同一 Worker |
+| `iSize` | 输入 | `> 0` | 请求字节数；按 64–1024 尺寸类圆整，更大直接堆分配 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 已清零的内存块 | — |
+| `NULL` | 参数非法或内存不足 | 参数非法时错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pWorker` 为空或 `iSize` 为零
+- 内存分配失败 — 缓存未命中且堆分配失败
+
+#### 范例
+
+[network/engine_tour · Worker 自省](../../examples/network/engine_tour/main.c) · 分配即清零，配对归还
+
+```c
+pBlock = xrtNetWorkerAlloc(pWorker, 32u);
+pTask->bAllocOk = (pBlock != NULL) &&
+	(((const uint8*)pBlock)[0] == 0u) &&
+	(((const uint8*)pBlock)[31] == 0u);
+xrtNetWorkerFree(pWorker, pBlock, 32u);
+```
+
+### `xrtNetWorkerFree`
+
+把 Worker 分配的内存归还同一 Worker；空指针可以直接释放。
+
+```c
+void xrtNetWorkerFree(
+	xnetworker* pWorker,
+	ptr pMemory,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 非空 | 必须与分配时的 Worker 相同 |
+| `pMemory` | 输入 | 允许空指针 | `Alloc` 返回的块；空指针为空操作 |
+| `iSize` | 输入 | 同分配时 | 必须传回原始请求大小 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 小节点回缓存，大节点直接释放 |
+
+#### 范例
+
+[network/engine_tour · Worker 自省](../../examples/network/engine_tour/main.c) · 原始大小配对归还
+
+```c
+xrtNetWorkerFree(pWorker, pBlock, 32u);
+pTask->bFreeOk = true;
+```
+
+### `xrtNetWorkerOperationId`
+
+分配 Engine 内唯一的非零端口操作 ID，可从任意线程调用。
+
+```c
+uint64 xrtNetWorkerOperationId(xnetworker* pWorker);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 非空 | 任意 Worker；ID 空间按 Engine 全局划分 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非零 | Engine 内唯一 ID，可直接作端口操作 `Id` | — |
+| `0` | 参数非法或 ID 空间耗尽 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pWorker` 为空
+- `XERR_INTERNAL` + `XNET_ERROR_ENGINE_POST` — 64 位 ID 空间耗尽（实际不可达）
+
+#### 范例
+
+[network/engine_tour · 占用](../../examples/network/engine_tour/main.c) · 不同 Worker 的 ID 互不相同
+
+```c
+IdOpA = xrtNetWorkerOperationId(pWorker0);
+IdOpB = xrtNetWorkerOperationId(pWorker1);
+if ( (IdOpA == 0u) || (IdOpB == 0u) || (IdOpA == IdOpB) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetEnginePost`
+
+有界投递任务；成功受理后必在亲和 Worker（`iAffinity % Workers`）上执行一次。
+
+```c
+bool xrtNetEnginePost(xnetengine* pEngine,
+	uint64 iAffinity, xnettaskproc pProc, ptr pData);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 运行中的 Engine |
+| `iAffinity` | 输入 | 任意值 | 亲和键；按模 Worker 数选目标 |
+| `pProc` | 输入 | 非空 | 任务回调，短小非阻塞 |
+| `pData` | 输入 | 任意值 | 原样传给回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；含与 `Stop` 并发时也必执行一次 | — |
+| `false` | 未受理，不留任务 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pEngine`/`pProc` 为空
+- `XERR_CLOSED` + `XNET_ERROR_ENGINE_POST` — Engine 未运行或停机封口已触发
+- `XERR_AGAIN` — 目标 Worker 命令队列达到 `CommandCapacity`
+- `XERR_INTERNAL` — Worker 唤醒失败
+
+#### 范例
+
+[network/engine_tour · 任务](../../examples/network/engine_tour/main.c) · 投递到 0 号亲和并自旋等待
+
+```c
+if ( !xrtNetEnginePost(pEngine, 0u, exampleWorkerTask,
+		(ptr)&Task) ||
+	!exampleSpinUntil(&Task.bDone, 2000u) ||
+```
+
 ### Timer
 
 `xrtNetEngineSchedule` 使用 `xrtClock` 的绝对微秒截止时间；
@@ -6043,6 +6760,176 @@ Timer 终态会先从堆和活动索引移除、归还节点并更新统计，�
 任务可以在回调中重新调度，并在 Worker 缓存已有节点时不依赖新的底层内存分配。
 回调收到的 ID、结果和用户数据已经保存为局部值，节点复用不会改变本次终态参数。
 
+### `xrtNetEngineSchedule`
+
+按单调时钟截止时间调度 Timer；成功返回非零 ID。
+
+```c
+uint64 xrtNetEngineSchedule(xnetengine* pEngine,
+	uint64 iAffinity, xdeadline iDeadline,
+	xnettimerproc pProc, ptr pData);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 运行中的 Engine |
+| `iAffinity` | 输入 | 任意值 | 亲和键；Timer 归属该 Worker |
+| `iDeadline` | 输入 | 单调微秒 | `xrtClock` 绝对截止时间 |
+| `pProc` | 输入 | 非空 | 终态回调（四种结果见上表） |
+| `pData` | 输入 | 任意值 | 原样传给回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非零 | Timer ID，Engine 内唯一；恰好一次终态回调 | — |
+| `0` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pEngine`/`pProc` 为空
+- `XERR_CLOSED` + `XNET_ERROR_ENGINE_TIMER` — Engine 未运行或停机封口
+- `XERR_AGAIN` + `XNET_ERROR_ENGINE_TIMER` — 在途 Timer 数达到 `TimerLimit`
+- `XERR_RANGE` + `XNET_ERROR_ENGINE_TIMER` — Timer 表无法表示更多条目
+- `XERR_INTERNAL` — 跨线程命令入队后唤醒失败
+
+#### 范例
+
+[network/engine_tour · 定时器](../../examples/network/engine_tour/main.c) · 即时到期 + 长时定时器
+
+```c
+IdFire = xrtNetEngineSchedule(pEngine, 0u,
+	xrtDeadlineAfter(0u), exampleFireTimer, (ptr)&Timers);
+Timers.iLongId = xrtNetEngineSchedule(pEngine, 0u,
+	xrtDeadlineAfter(3600000000ull), exampleLongTimer,
+	(ptr)&Timers);
+```
+
+### `xrtNetEngineAfter`
+
+按相对微秒数调度 Timer；零表示在下一次 Worker 循环到期。等价于 `Schedule` + `xrtDeadlineAfter`，错误集与之相同。
+
+```c
+uint64 xrtNetEngineAfter(xnetengine* pEngine,
+	uint64 iAffinity, uint64 iTimeout,
+	xnettimerproc pProc, ptr pData);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 运行中的 Engine |
+| `iAffinity` | 输入 | 任意值 | 亲和键 |
+| `iTimeout` | 输入 | 微秒 | 相对延迟；零表示尽快到期 |
+| `pProc` | 输入 | 非空 | 终态回调 |
+| `pData` | 输入 | 任意值 | 原样传给回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非零 | Timer ID | — |
+| `0` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtNetEngineSchedule`（`ARGUMENT`/`CLOSED`/`AGAIN`/`RANGE`/`INTERNAL`）
+
+#### 范例
+
+[network/engine · 延迟任务](../../examples/network/engine/main.c) · 100 毫秒后触发
+
+```c
+(xrtNetEngineAfter(
+	pEngine,
+	1,
+	100000u,
+	exampleTimer,
+	&State
+) == 0) ) {
+```
+
+### `xrtNetEngineTimerCancel`
+
+异步请求取消 Timer；成功只表示取消命令已进入目标 Worker。
+
+```c
+bool xrtNetEngineTimerCancel(xnetengine* pEngine, uint64 Id);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | Timer 所属 Engine |
+| `Id` | 输入 | 非零 | `Schedule`/`After` 返回的 ID |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 取消请求已入队；最终结果仍由唯一终态回调给出 | — |
+| `false` | 请求未入队 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pEngine` 为空或 `Id` 为零
+- `XERR_CLOSED` + `XNET_ERROR_ENGINE_TIMER` — Engine 未运行或停机封口
+- `XERR_AGAIN` — 目标 Worker 命令队列达到容量
+- `XERR_INTERNAL` — 唤醒失败
+
+#### 范例
+
+[network/engine_tour · 定时器](../../examples/network/engine_tour/main.c) · 异步取消长定时器
+
+```c
+if ( (IdFire == 0u) || (Timers.iLongId == 0u) ||
+	!xrtNetEngineTimerCancel(pEngine, Timers.iLongId) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetEngineTimerCancelCurrent`
+
+只在 Timer 所属 Worker 上立即取消且不分配内存。不在所属 Worker、Timer 尚未入堆或已经终结时返回 `false`，且不修改线程错误。
+
+```c
+bool xrtNetEngineTimerCancelCurrent(
+	xnetengine* pEngine,
+	uint64 Id
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | Timer 所属 Engine |
+| `Id` | 输入 | 非零 | 要取消的 Timer ID |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已取消；终态回调以 `CANCELLED` 触发 | — |
+| `false` | 不在所属 Worker、尚未入堆或已终结 | 不修改线程错误 |
+
+#### 错误
+
+- 无 — 失败路径刻意不设置错误（调用方可先试本函数，失败再走 `TimerCancel`）
+
+#### 范例
+
+[network/engine_tour · CancelCurrent](../../examples/network/engine_tour/main.c) · 同亲和回调内取消另一个 Timer
+
+```c
+pTimers->bCancelCurrentOk = xrtNetEngineTimerCancelCurrent(
+	xrtNetWorkerEngine(pWorker), pTimers->iLongId);
+```
+
 ### Completion
 
 `xrtNetCompletionInit` 初始化调用方拥有的 `xnetcompletion`。通过
@@ -6059,7 +6946,7 @@ Accept 结果由 Engine 自动关闭，避免泄漏已接受 Socket。
 `xrtNetWorkerStats` 返回单 Worker 并发快照，`xrtNetEngineStats` 聚合全部 Worker。
 统计覆盖任务受理、拒绝、执行，Timer 受理、拒绝及四种终态，端口事件、等待错误、
 唤醒错误、停机任务链不收敛次数、小节点缓存命中/未命中、当前缓存字节、当前命令
-深度和活动 Timer。`ShutdownStalls` 从 `XNET_STATS_BASIC` 开始记录，是跨
+深度和活动 Timer。`ShutdownStalls` 从 `XRT_STATS_BASIC` 开始记录，是跨
 `Stop/Start` 累计的诊断计数；一次失败停机中每个不收敛 Worker 最多增加一次。
 单 Worker 的 `LastWaitError` 和 `LastWaitSystemCode` 保留最近一次端口等待失败详情；
 从未失败时分别为 `XNET_ERROR_NONE` 和零。Engine 聚合统计只累计 `WaitErrors`，需要
@@ -6067,3 +6954,80 @@ Accept 结果由 Engine 自动关闭，避免泄漏已接受 Socket。
 `NodeCacheHits`/`NodeCacheMisses` 是累计分配路径计数；`NodeCachedBytes` 是并发快照，
 始终不超过各 Worker 的 `NodeCacheBytes`，停止后归零。累计计数跨 `Stop/Start` 保留，
 当前深度在停止后归零。
+
+### `xrtNetWorkerStats`
+
+读取一个 Worker 的统计快照。
+
+```c
+bool xrtNetWorkerStats(const xnetworker* pWorker,
+	xnetworkerstats* pStats);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 非空 | 目标 Worker |
+| `pStats` | 输出 | 非空 | 接收并发快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 快照已写入 | — |
+| `false` | 参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空
+
+#### 范例
+
+[network/engine_tour · 统计](../../examples/network/engine_tour/main.c) · 任务执行后核对计数
+
+```c
+if ( !xrtNetWorkerStats(pWorker0, &WorkerStats) ||
+	(WorkerStats.PostsExecuted < 1u) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetEngineStats`
+
+聚合全部 Worker 的统计快照。
+
+```c
+bool xrtNetEngineStats(const xnetengine* pEngine,
+	xnetenginestats* pStats);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | Engine 指针 |
+| `pStats` | 输出 | 非空 | 接收聚合快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 聚合快照已写入 | — |
+| `false` | 参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空
+
+#### 范例
+
+[network/engine_tour · 统计](../../examples/network/engine_tour/main.c) · 全 Worker 聚合计数
+
+```c
+if ( !xrtNetEngineStats(pEngine, &EngineStats) ||
+	(EngineStats.PostsExecuted < 2u) ||
+	(EngineStats.TimersFired < 2u) ) {
+	goto Cleanup;
+}
+```
