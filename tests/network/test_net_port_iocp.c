@@ -13,6 +13,8 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 
+#include "test_net_port_send_msg_cases.h"
+
 /* 验证 IOCP 创建的 Socket 句柄不会泄漏给后续子进程。 */
 static bool testIOCPNoInherit(xnetsocket Socket)
 {
@@ -832,6 +834,7 @@ int main(void)
 
 	testIOCPTCP();
 	testIOCPUDP();
+	testNetPortSendMsgCases(XNET_PORT_IOCP);
 	testIOCPCancel();
 	testIOCPInvalid();
 	testIOCPOwner();

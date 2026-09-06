@@ -19,12 +19,11 @@
  *   from(20): 20 30 40
  *   rfrom(30): 30 20 10
  *   visit-hit=1 const=0
- *   took=20 removed=30 cleared=0
- *
- * 边界读法：LowerBound(25) = 第一个 >= 25 的键（30）；
- *   UpperBound(25) = 第一个 > 25 的键——同为 30（30 > 25）。
- *   两函数只在"查询键恰好存在"时分开：lower(30)=30，
- *   upper(30)=40——即 classic 的 [lower, upper) 区间约定。
+ *   get-mutate=99
+ *   took=0 removed=1 getptr=00000000000000ab orinit=1 has60=1 count=4
+ *   cleared=0 trimmed
+ *   takeptr=0000000000000010
+ *   setdrop=1
  */
 
 #include <stdio.h>

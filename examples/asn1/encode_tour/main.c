@@ -18,10 +18,8 @@
  *       examples/asn1/encode_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
  *   enc: null=2 bool=5 int=16 oid=32 total=34
- *   oid: encode=ok equal=0(零值结构体签名演示)
- *
- * Append 族以 xbuffer 为输出容器（追加式，可拼复杂结构）；
- *   OID 的编码/解码在内容字节与点分文本之间双向。
+ *   oid: encode=ok equal=0
+ *   der-oid-content=3
  */
 
 #include <stdio.h>

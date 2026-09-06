@@ -137,5 +137,33 @@ int main(void)
 		return 10;
 	}
 	xrtPoolPageDestroy(pCreated);
+
+	/* 默认 16 对齐 Init + 显式布局 Init + 指定对齐 Create。 */
+	{
+		xpoolpage DefaultPage;
+		xpoolpage LayoutPage;
+		xpoolpage* pAligned;
+
+		if ( !xrtPoolPageInit(&DefaultPage, sizeof(uint64)) ) {
+			return 11;
+		}
+		if ( !xrtPoolPageInitLayout(&LayoutPage, sizeof(uint64),
+				32u, 8u) ||
+			(LayoutPage.Capacity != 8u) ) {
+			xrtPoolPageUnit(&LayoutPage);
+			return 12;
+		}
+		pAligned = xrtPoolPageCreateAligned(sizeof(uint64), 32u);
+		if ( (pAligned == NULL) ||
+			(pAligned->Alignment < 32u) ) {
+			xrtPoolPageDestroy(pAligned);
+			xrtPoolPageUnit(&LayoutPage);
+			xrtPoolPageUnit(&DefaultPage);
+			return 13;
+		}
+		xrtPoolPageDestroy(pAligned);
+		xrtPoolPageUnit(&LayoutPage);
+		xrtPoolPageUnit(&DefaultPage);
+	}
 	return 0;
 }

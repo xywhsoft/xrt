@@ -15,13 +15,9 @@
  *       examples/file/io_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
  *   pos-io: rd=4 rd-at=4 size=8 flags-readable=1
+ *   native=1
  *   resized=4 setsize=2 stat-size=2
  *   limit=ok lock=1 map-flush=1
- *
- * 单次语义：Write 后游标在文件尾——读回前必须 Seek 回 0
- *   （Read 成功读 0 字节即 EOF）；Write 允许短写；
- *   At 族不动共享游标。LockRange 解锁必须是完全相同的
- *   字节区间。MapFlush 只对共享写映射有意义。
  */
 
 #include <stdio.h>

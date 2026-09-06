@@ -15,12 +15,8 @@
  *   after-swap: a x c b
  *   after-remove: a c b
  *   at(-1)=b pop=b take(0)=a final-count=1
- *
- * 所有权三件套约定（全库一致）：
- *   Insert/Set   增加引用（源仍归调用方）；
- *   InsertNew/SetNew 接管"新建值"（函数名里的 New）；
- *   InsertTake/SetTake/AppendTake 移交"已有变量"（源槽清零）。
- *   At 支持负索引（-1 = 末元素）——与 Resolve 同一规则。
+ *   reserved-cap>=105 trimmed-cap=1 cleared-count=0
+ *   take-forms-count=3
  */
 
 #include <stdio.h>

@@ -16,13 +16,13 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/string/compare/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   equal=0 case-equal=1 cmp=1 blank=1 empty=1
- *   starts=1 ends=1 contains=1 contains-any=1 count=2 case-count=3
+ *   equal=0 case-equal=1
+ *   cmp=1
+ *   blank=1 empty=1
+ *   starts=1 ends=1
+ *   contains=1 contains-any=1
+ *   count=2 case-count=3
  *   starts=1 case-ends=1 case-contains=1 case-cmp=1
- *
- * 大小写变体一律按 ASCII 折叠（C 库 strcmp 风格），
- *   非 ASCII 字节原样参与比较——Unicode 大小写需先做
- *   charset 模块的折叠（见 charset 范例）。
  */
 
 #include <stdio.h>

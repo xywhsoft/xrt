@@ -19,9 +19,6 @@
  *   subset={1,2}<={1,2,3}:1 proper:1
  *   superset={1,2,3}>={1}:1
  *   take=2 removed=1
- *
- * 运算返回新集合（堆分配，Release 释放）；判定的 bProper
- *   参数区分"子集"与"真子集"——相等集合是子集但不是真子集。
  */
 
 #include <stdio.h>

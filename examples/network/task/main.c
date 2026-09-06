@@ -25,6 +25,8 @@ static xtaskoutcome buildValue(
  * 演示 API：
  *   网络任务提交（亲和 Worker 执行）
  *   统一 Future 等待立即任务
+ *   xrtTaskNetAfter / Until（延迟与截止时间提交）
+ *   xrtTaskGroupNetUntil（延迟任务原子纳入任务组）
  * 模块宏：XRT_MODULE_TASK_NET
  * 编译（单头形态，Windows）：
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
@@ -32,10 +34,12 @@ static xtaskoutcome buildValue(
  * 预期输出：
  *   worker=0
  *   value=42
- *
- * 任务与连接同 Worker：回调里访问本 Worker 的资源
- *   无需锁。返回值经 Future 交付（value=42）——
- *   网络层的轻量计算卸载入口。
+ *   worker=0
+ *   after: value=42
+ *   worker=0
+ *   until: value=42
+ *   worker=0
+ *   group-until: done
  */
 
 
@@ -65,5 +69,47 @@ int main(void)
 	}
 	printf("value=%d\n", *(int*)xrtFutureValue(pFuture));
 	xrtFutureDestroy(pFuture);
+
+	/* ---- After / Until：延迟与截止时间两种提交形态。 ---- */
+	pFuture = xrtTaskNetAfter(pEngine, 0, buildValue, &iValue,
+		NULL, 0u);
+	if ( (pFuture == NULL) ||
+		(xrtFutureWaitFor(pFuture, 3000000u) != XWAIT_OK) ) {
+		xrtFutureDestroy(pFuture);
+		(void)xrtNetEngineDestroy(pEngine);
+		return 2;
+	}
+	printf("after: value=%d\n", *(int*)xrtFutureValue(pFuture));
+	xrtFutureDestroy(pFuture);
+	pFuture = xrtTaskNetUntil(pEngine, 0, buildValue, &iValue,
+		NULL, xrtDeadlineAfter(0u));
+	if ( (pFuture == NULL) ||
+		(xrtFutureWaitFor(pFuture, 3000000u) != XWAIT_OK) ) {
+		xrtFutureDestroy(pFuture);
+		(void)xrtNetEngineDestroy(pEngine);
+		return 3;
+	}
+	printf("until: value=%d\n", *(int*)xrtFutureValue(pFuture));
+	xrtFutureDestroy(pFuture);
+
+	/* ---- GroupNetUntil：延迟任务原子纳入任务组。 ---- */
+	{
+		xtaskgroup* pGroup;
+
+		pGroup = xrtTaskGroupCreate(NULL);
+		if ( (pGroup == NULL) ||
+			(xrtTaskGroupNetUntil(pGroup, pEngine, 0,
+				buildValue, &iValue, NULL,
+				xrtDeadlineAfter(0u)) == NULL) ||
+			!xrtTaskGroupClose(pGroup) ||
+			(xrtTaskGroupWaitFor(pGroup, 3000000u) !=
+				XWAIT_OK) ) {
+			xrtTaskGroupDestroy(pGroup);
+			(void)xrtNetEngineDestroy(pEngine);
+			return 4;
+		}
+		printf("group-until: done\n");
+		xrtTaskGroupDestroy(pGroup);
+	}
 	return xrtNetEngineDestroy(pEngine) ? 0 : 1;
 }

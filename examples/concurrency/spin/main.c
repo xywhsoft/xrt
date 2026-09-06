@@ -15,6 +15,7 @@
  *       examples/concurrency/spin/main.c -lws2_32 -liphlpapi
  * 预期输出：
  *   counter=1
+ *   heap try=0/1 destroy ok
  *
  * 自旋 vs 互斥：等待时不睡眠而是忙等——临界区只有
  *   几条指令时比"睡眠-唤醒"的上下文切换便宜一个
@@ -40,5 +41,21 @@ int main(void)
 		return 3;
 	}
 	printf("counter=%llu\n", (unsigned long long)iCounter);
+
+	/* 堆形态补集：Create / TryLock 持有与空闲正反 / Destroy。 */
+	{
+		xspinlock* pHeap = xrtSpinCreate();
+
+		if ( (pHeap == NULL) ||
+			!xrtSpinLock(pHeap) ||
+			xrtSpinTryLock(pHeap) ||  /* 已持有：Try 必失败 */
+			!xrtSpinUnlock(pHeap) ||
+			!xrtSpinTryLock(pHeap) ||  /* 空闲：Try 必成功 */
+			!xrtSpinUnlock(pHeap) ||
+			!xrtSpinDestroy(pHeap) ) {
+			return 4;
+		}
+	}
+	printf("heap try=0/1 destroy ok\n");
 	return 0;
 }

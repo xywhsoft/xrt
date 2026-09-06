@@ -15,13 +15,11 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/value/iter_weak/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   iter: 1 2 3 | riter: 3 2 1
+ *   iter: 1 2 3 | rbegin-advance: 3 2 1 | riter: 3 2 1
  *   weak: is=1 expired-after-release=1 lock-after-expire=1
  *   handle-take=1 typeid=77 rebind=88
- *
- * 弱引用四件套：WeakRef 创建 → IsWeakRef 判型 → 目标 Release 后
- *   Expired=1 后 Lock 仍返回一个非空标记值——过期判定
- *   必须用 WeakRefExpired，不能只看 Lock 结果。
+ *   identity=1
+ *   finalizer fired
  */
 
 #include <stdio.h>

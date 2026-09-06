@@ -11,12 +11,9 @@
  *       examples/charset/utf8_search/main.c -lws2_32 -liphlpapi
  * 预期输出：
  *   count=5 offset(1)=1 at(1)=U+4F60
- *   find=1 rfind=3 case-find=2 case-rfind=4 index(4)=2
+ *   find=1 rfind=3 case-find=2
+ *   case-rfind=4 index(4)=2
  *   contains-any=1
- *
- * 标量 vs 字节下标：Count 数标量（5）、Offset 标量→字节、
- *   Index 字节→标量（互逆）。"a你x你b"中标量 2（x）的字节
- *   偏移是 4——Offset(2)=4 / Index(4)=2 一对可验证。
  */
 
 #include <stdio.h>

@@ -10,11 +10,7 @@
  *       examples/string/format_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
  *   direct=id=7 ok=true
- *   wrapped=x=1.50 tag=core
- *
- * xrtFormat 是日志/模板/HTTP 层的公共地基；FormatV 是
- *   "自己写可变参数包装函数"时的转发目标（本例 appendTag
- *   演示这个姿势——与 StrBufAppendFormatV 同理）。
+ *   wrapped=x=core
  */
 
 #include <stdio.h>

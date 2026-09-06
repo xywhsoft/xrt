@@ -12,11 +12,7 @@
  *       examples/asn1/pem_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
  *   blocks=1 label=CERTIFICATE data=5
- *   encode=ok roundtrip=ok
- *
- * 与 asn1/pem（Find/DecodeNew 一次性版）互补：
- *   PemInit/Read 是游标——多块文件逐个消费（证书链的标准姿势）；
- *   PemEncode/Decode 是缓冲版——容量自管。
+ *   encode=ok(49 chars) roundtrip=ok
  */
 
 #include <stdio.h>

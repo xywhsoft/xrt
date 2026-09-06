@@ -25,76 +25,723 @@ typedef struct xnetaddr {
 
 ## 构造与解析
 
+### `xrtNetAddrAny`
+
+构造指定族的未指定地址（IPv4 `0.0.0.0` 或 IPv6 `::`）。
+
 ```c
 bool xrtNetAddrAny(xnetaddr* pAddr, xnetfamily Family, uint16 iPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 接收构造结果 |
+| `Family` | 输入 | `IPV4` 或 `IPV6` | 其他值失败 |
+| `iPort` | 输入 | — | 填入端口；`0` 合法（服务器动态端口绑定） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已构造 | — |
+| `false` | 族不合法 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pAddr == NULL` 或 `Family` 非法
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 通配地址构造与判定
+
+```c
+if ( !xrtNetAddrAny(&Any, XNET_FAMILY_IPV4, 0u) ||
+```
+
+### `xrtNetAddrLoopback`
+
+构造指定族的回环地址（IPv4 `127.0.0.1` 或 IPv6 `::1`）。
+
+```c
 bool xrtNetAddrLoopback(xnetaddr* pAddr, xnetfamily Family, uint16 iPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 接收构造结果 |
+| `Family` | 输入 | `IPV4` 或 `IPV6` | — |
+| `iPort` | 输入 | — | 填入端口 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已构造 | — |
+| `false` | 族不合法 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pAddr == NULL` 或 `Family` 非法
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 回环以 `Parse("127.0.0.1")` 等价构造（见 `xrtNetAddrParse` 范例）
+
+```c
+if ( !xrtNetAddrParse(&Loopback, "127.0.0.1", 8080u) ||
+```
+
+### `xrtNetAddrParse`
+
+严格解析数字 IPv4 或 IPv6 文本；不执行 DNS。
+
+```c
 bool xrtNetAddrParse(xnetaddr* pAddr, cstr sIP, uint16 iPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 失败不修改 |
+| `sIP` | 输入 | 非空 | IPv4 四段十进制（拒绝越界/缺段/前导零歧义）；IPv6 支持 `::`、嵌入式 IPv4、`%42` 数字 Scope；启用 `XRT_FEATURE_NET_INTERFACE` 后还接受 `%eth0` 接口名 Scope |
+| `iPort` | 输入 | — | 填入端口，与文本无关 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解析构造 | — |
+| `false` | 文本非法 | `*pAddr` 不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_FORMAT` — 地址文本不符合严格语法
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 双地址构造供比较族使用
+
+```c
+if ( !xrtNetAddrParse(&Loopback, "127.0.0.1", 8080u) ||
+	!xrtNetAddrParse(&Private, "10.0.0.5", 8080u) ||
+```
+
+### `xrtNetAddrParseEndpoint`
+
+解析 `IPv4:port`、`[IPv6]:port` 或使用默认端口的裸地址。
+
+```c
 bool xrtNetAddrParseEndpoint(xnetaddr* pAddr, cstr sEndpoint, uint16 iDefaultPort);
 ```
 
-`Any` 构造 `0.0.0.0` 或 `::`；`Loopback` 构造 `127.0.0.1` 或 `::1`。族不合法时失败且不修改输出。
+#### 参数
 
-`xrtNetAddrParse` 只解析数字地址，不隐式执行 DNS：
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 失败不修改 |
+| `sEndpoint` | 输入 | 非空 | 裸 IPv6 的最后一段不会被猜测为端口——IPv6 显式端口必须方括号；地址按切片解析、不复制到定长临时数组 |
+| `iDefaultPort` | 输入 | — | 文本未带端口时使用；`0` 合法 |
 
-- IPv4 必须是四段十进制，拒绝越界、缺段和带前导零的歧义形式。
-- IPv6 支持 `::`、嵌入式 IPv4 和 `%42` 数字 Scope。
-- 启用独立的 `XRT_FEATURE_NET_INTERFACE` 后，也接受 `%eth0` 一类接口名称
-  Scope；未启用时基础层不会访问系统接口表。
-- 失败不修改 `*pAddr`。
+#### 返回值
 
-`xrtNetAddrParseEndpoint` 接受 `127.0.0.1:80`、`[::1]:80`、裸 `::1` 和不带显式端口的 `[::1]`。裸 IPv6 的最后一段不会被猜测为端口；IPv6 需要显式端口时必须使用方括号。地址部分直接按切片解析，不复制到固定长度临时数组。端口允许 `0`，因此同一接口可用于服务器动态端口绑定。
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解析构造 | — |
+| `false` | 文本非法 | `*pAddr` 不被修改；错误经 `xrtGetError()` 报告 |
 
-主机名与服务名解析属于独立 DNS 模块，不塞进地址语法函数。这样数字地址路径保持零分配、确定性和无阻塞。
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_FORMAT` — 端点语法非法
+
+#### 范例
+
+[network/address · 基础范例](../../examples/network/address/main.c) · 带 Scope 的 IPv6 端点
+
+```c
+if ( !xrtNetAddrParseEndpoint(&Addr, "[fe80::1%3]:8080", 0) ) {
+	return 1;
+}
+```
 
 ## 文本输出
 
+### `xrtNetAddrText`
+
+输出规范 IP 文本，返回不含结尾零字节的所需长度。
+
 ```c
 size_t xrtNetAddrText(const xnetaddr* pAddr, char* sText, size_t iCapacity);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | IPv6 按 RFC 5952：小写、去前导零、压缩第一个最长零段；IPv4 映射输出 `::ffff:192.0.2.1` |
+| `sText` | 输出 | 允许空指针 | `NULL, 0` 为零分配查询；容量不足仍尽量写零结尾文本 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 所需长度 | 不含结尾零；写入成功时即实际字节数 | — |
+| `XRT_NPOS` | 地址非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_BUFFER` — 容量不足（仍返回所需长度并尽量写出）
+- `XERR_ARGUMENT` — 参数非法
+
+#### 范例
+
+[network/interface · 基础范例](../../examples/network/interface/main.c) · 枚举接口地址文本
+
+```c
+if ( xrtNetAddrText(
+	&pAddress->Address, sAddress, sizeof(sAddress)
+) == XRT_NPOS ) {
+```
+
+### `xrtNetAddrEndpointText`
+
+输出带端口的规范端点文本，IPv6 始终使用方括号。
+
+```c
 size_t xrtNetAddrEndpointText(const xnetaddr* pAddr, char* sText, size_t iCapacity);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | 端口始终出现 |
+| `sText` | 输出 | 允许空指针 | 同 `xrtNetAddrText` 的两段式口径 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 所需长度 | 不含结尾零 | — |
+| `XRT_NPOS` | 地址非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_BUFFER` — 容量不足
+- `XERR_ARGUMENT` — 参数非法
+
+#### 范例
+
+[network/interface · 基础范例](../../examples/network/interface/main.c) · 端点输出与 `AddrText` 同口径（见其范例）
+
+```c
+if ( xrtNetAddrText(
+	&pAddress->Address, sAddress, sizeof(sAddress)
+) == XRT_NPOS ) {
+```
+
+### `xrtNetAddrString`
+
+分配并返回规范 IP 文本。
+
+```c
 str xrtNetAddrString(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拥有式零结尾文本，`xrtFree` 释放；可长期保存、跨函数传递、同表达式多次调用（替换旧版线程局部环形缓冲） | — |
+| `NULL` | 地址非法或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 参数非法
+- 分配失败 — 文本内存申请失败
+
+#### 范例
+
+[network/dns · 基础范例](../../examples/network/dns/main.c) · 同族拥有式端点文本用法
+
+```c
+str sEndpoint = xrtNetAddrEndpointString(
+```
+
+### `xrtNetAddrEndpointString`
+
+分配并返回带端口的规范端点文本。
+
+```c
 str xrtNetAddrEndpointString(const xnetaddr* pAddr);
 ```
 
-两个 `Text` 函数返回不含结尾零字节的所需长度。传入 `NULL, 0` 可零分配查询大小；容量不足时仍返回所需长度、尽可能写入零结尾文本，并设置 `XNET_ERROR_BUFFER`。其他失败返回 `XRT_NPOS`。
+#### 参数
 
-IPv6 按 RFC 5952 输出小写、无前导零并压缩第一个最长零段。IPv4 映射地址输出为 `::ffff:192.0.2.1`。端点输出始终包含端口，IPv6 始终带方括号。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | IPv6 自动加方括号 |
 
-两个 `String` Helper 返回拥有字符串，调用方使用 `xrtFree` 释放。它们替换了旧版线程局部环形缓冲，因此结果可以长期保存、跨函数传递并在同一表达式中多次使用。
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拥有式零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 地址非法或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 参数非法
+- 分配失败 — 文本内存申请失败
+
+#### 范例
+
+[network/address · 基础范例](../../examples/network/address/main.c) · 端点往返
+
+```c
+sEndpoint = xrtNetAddrEndpointString(&Addr);
+if ( sEndpoint == NULL ) {
+	return 1;
+}
+```
 
 ## 比较与分类
 
+### `xrtNetAddrEqual`
+
+比较完整端点：族、地址、IPv6 Scope 与端口全等。
+
 ```c
 bool xrtNetAddrEqual(const xnetaddr* pLeft, const xnetaddr* pRight);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | — |
+| `pRight` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 完整端点相同（端口不同即不等） |
+| `false` | 任一分量不同 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · SameIP 分界：同 IP 换端口
+
+```c
+if ( xrtNetAddrEqual(&Loopback, &Private) ||
+	!xrtNetAddrEqual(&Private, &Private) ||
+	xrtNetAddrEqual(&Private, &Other) ||
+```
+
+### `xrtNetAddrSameIP`
+
+只比较地址族、地址与 IPv6 Scope，不比较端口。
+
+```c
 bool xrtNetAddrSameIP(const xnetaddr* pLeft, const xnetaddr* pRight);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | — |
+| `pRight` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 同族同地址同 Scope（端口可不同） |
+| `false` | 地址分量不同 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 与 Equal 对照
+
+```c
+xrtNetAddrSameIP(&Loopback, &Private) ||
+	!xrtNetAddrSameIP(&Private, &Other) ) {
+```
+
+### `xrtNetAddrCompare`
+
+为 Map、排序和稳定去重提供完整端点全序。
+
+```c
 int xrtNetAddrCompare(const xnetaddr* pLeft, const xnetaddr* pRight);
 ```
 
-`Equal` 比较完整端点；`SameIP` 忽略端口；两者都把 IPv6 Scope 纳入比较。`Compare` 按地址族、地址、Scope、端口提供稳定全序，可用于排序、二叉树和确定性去重。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | — |
+| `pRight` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 负数 | 左端点按序在前（比较序：族 → 地址 → Scope → 端口） |
+| `0` | 完整端点相同 |
+| 正数 | 左端点在后 |
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 自反为零、10 < 127
+
+```c
+if ( (xrtNetAddrCompare(&Private, &Private) != 0) ||
+	(xrtNetAddrCompare(&Private, &Loopback) >= 0) ||
+```
+
+### `xrtNetAddrIsUnspecified`
+
+判断地址是否为 IPv4 `0.0.0.0` 或 IPv6 `::`。
 
 ```c
 bool xrtNetAddrIsUnspecified(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | 只看地址，端口无关 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 未指定地址 |
+| `false` | 其他地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · Any 构造后判定
+
+```c
+xrtNetAddrIsUnspecified(&Loopback) ||
+	!xrtNetAddrIsUnspecified(&Any) ||
+```
+
+### `xrtNetAddrIsLoopback`
+
+判断地址是否属于 IPv4 `127/8` 或 IPv6 `::1`。
+
+```c
 bool xrtNetAddrIsLoopback(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | IPv4 整个 `127/8` 段都算回环 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 回环地址 |
+| `false` | 其他地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 正反判定
+
+```c
+!xrtNetAddrIsLoopback(&Loopback) ||
+	xrtNetAddrIsLoopback(&Private) ||
+```
+
+### `xrtNetAddrIsMulticast`
+
+判断地址是否属于 IPv4 `224/4` 或 IPv6 `ff00::/8`。
+
+```c
 bool xrtNetAddrIsMulticast(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 多播组地址 |
+| `false` | 单播地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · `224.0.0.1` 命中
+
+```c
+!xrtNetAddrParse(&Other, "224.0.0.1", 0u) ||
+	!xrtNetAddrIsMulticast(&Other) ||
+```
+
+### `xrtNetAddrIsLinkLocal`
+
+判断地址是否属于 IPv4 `169.254/16` 或 IPv6 `fe80::/10`。
+
+```c
 bool xrtNetAddrIsLinkLocal(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 链路本地地址 |
+| `false` | 其他地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[network/address · 基础范例](../../examples/network/address/main.c) · Scope 端点解析后判定
+
+```c
+xrtNetAddrIsLinkLocal(&Addr) ? "yes" : "no");
+```
+
+### `xrtNetAddrIsPrivate`
+
+判断地址是否属于 RFC 1918 IPv4 或 RFC 4193 IPv6 私有范围。
+
+```c
 bool xrtNetAddrIsPrivate(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | 只含私有段——不把回环、链路本地、文档地址混入；按安全策略组合多个明确谓词 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 私有范围地址 |
+| `false` | 公网或其他范围 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · `192.168/10` 命中、`8.8.8.8` 不命中
+
+```c
+!xrtNetAddrParse(&Other, "192.168.1.1", 0u) ||
+	!xrtNetAddrIsPrivate(&Other) ||
+	!xrtNetAddrIsPrivate(&Private) ||
+```
+
+### `xrtNetAddrIsMapped`
+
+判断 IPv6 地址是否为 `::ffff:0:0/96` IPv4 映射地址。
+
+```c
 bool xrtNetAddrIsMapped(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | IPv4 地址恒为假 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | IPv4 映射 IPv6 |
+| `false` | 普通地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · `::ffff:192.168.0.1` 命中
+
+```c
+if ( !xrtNetAddrParse(&Mapped, "::ffff:192.168.0.1", 443u) ||
+	!xrtNetAddrIsMapped(&Mapped) ||
+```
+
+### `xrtNetAddrUnmap`
+
+把 IPv4 映射 IPv6 地址转换为 IPv4；其他地址原样复制（保留端口）。
+
+```c
 bool xrtNetAddrUnmap(const xnetaddr* pAddr, xnetaddr* pResult);
 ```
 
-`Private` 只表示 RFC 1918 IPv4 和 RFC 4193 IPv6 范围，不把回环、链路本地、文档地址或所有非公网地址混在一起。调用方可以按安全策略组合多个明确谓词。
+#### 参数
 
-`IsMapped` 识别 IPv4 映射 IPv6；`Unmap` 转为普通 IPv4 并保留端口。非映射地址原样复制，允许调用方统一执行规范化而不增加分支。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+| `pResult` | 输出 | 非空 | 非映射地址原样复制，允许统一规范化不加分支 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出（转换或原样） | — |
+| `false` | 参数非法 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 映射还原 + 非映射原样
+
+```c
+!xrtNetAddrUnmap(&Mapped, &Unmapped) ||
+	!xrtNetAddrParse(&Other, "192.168.0.1", 443u) ||
+	!xrtNetAddrEqual(&Unmapped, &Other) ||
+```
 
 ## Native 逃生口
 
+### `xrtNetAddrToNative`
+
+转换为平台 `sockaddr`；空输出可查询所需大小。
+
 ```c
 bool xrtNetAddrToNative(const xnetaddr* pAddr, void* pNative, size_t* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+| `pNative` | 输出 | 允许空指针 | `NULL` 时只经 `*pSize` 返回所需 `sockaddr_in`/`sockaddr_in6` 大小 |
+| `pSize` | 输入输出 | 非空 | 入参为容量、出参为实际大小；容量不足也会更新大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出（或已报告大小） | — |
+| `false` | 参数非法或容量不足 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_BUFFER` — 缓冲不足（`*pSize` 已更新为所需大小）
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 先查询后写出的两段式
+
+```c
+if ( !xrtNetAddrToNative(&Loopback, NULL, &iSize) ||
+```
+
+### `xrtNetAddrFromNative`
+
+从平台 `sockaddr` 转换为稳定地址结构。
+
+```c
 bool xrtNetAddrFromNative(xnetaddr* pAddr, const void* pNative, size_t iSize);
 ```
 
-`ToNative` 在 `pNative == NULL` 时通过 `*pSize` 返回所需的 `sockaddr_in` 或 `sockaddr_in6` 大小；缓冲不足也会更新大小。`FromNative` 接受平台 `sockaddr`，检查地址族和结构长度。两者都保留端口和 IPv6 Scope。
+#### 参数
 
-这组接口是有意保留的底层扩展路径：自定义 Socket 选项、第三方事件循环和上层协议可以直接连接平台 API，不需要复制 XRT 内部实现，也不会迫使公开地址结构绑定平台头文件。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 失败不修改 |
+| `pNative` | 输入 | 非空 | 平台 `sockaddr` |
+| `iSize` | 输入 | — | 检查地址族与结构长度合法性 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已转换（端口与 IPv6 Scope 保留） | — |
+| `false` | 族或长度非法 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_FAMILY` — 不支持的地址族
+- `XNET_ERROR_FORMAT` — 结构长度与族不符
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · sockaddr 往返等价
+
+```c
+!xrtNetAddrToNative(&Loopback, arrSockaddr, &iSize) ||
+	!xrtNetAddrFromNative(&Native, arrSockaddr, iSize) ||
+	!xrtNetAddrEqual(&Native, &Loopback) ) {
+```
+
+主机名与服务名解析属于独立 DNS 模块，不塞进地址语法函数。这组 Native 接口是有意保留的底层扩展路径：自定义 Socket 选项、第三方事件循环和上层协议可以直接连接平台 API，不需要复制 XRT 内部实现，也不会迫使公开地址结构绑定平台头文件。
 
 ## 网络缓冲
 
@@ -564,7 +1211,7 @@ bool xrtNetPortSendMsgVec(xnetport* pPort, xnetsocket Socket,
 bool xrtNetPortCancel(xnetport* pPort, uint64 Id);
 ```
 
-完成式 API 以 bytes 为基础，不创建隐藏 `chain`，也没有每对象 8K 或每数据报 64K 固定缓冲。后端在提交时复制 Span 描述符与地址，但不复制载荷；成功提交后，Socket、缓冲和只读发送数据必须保持有效且不变，直到同一 `Id` 的终态事件到达。`SendMsg` 还会复制 `xnetdgramcontrol` 并为该操作按需保留平台控制缓冲，终态类型为 `SEND_MSG`；调用方可在提交返回后立即复用地址、Span 数组和控制对象。常规 `SendTo` 操作不携带控制状态。`ReadProbe` 只接受流 Socket，成功事件为 `READ_PROBE`、`Bytes == 0`，且不会消费字节；其后仍须提交 `Recv` 才能读取数据或确认 EOF。`RecvMsg` 只接受已启用接收元数据的数据报 Socket，终态类型为 `RECV_MSG`，来源地址写入事件 `Address`，有效元数据写入事件 `Meta`。常规 `RecvFrom` 操作描述符不携带控制缓冲，只有显式 `RecvMsg` 才增加固定的小型尾部状态。单个 Span 与一次操作的 Span 总长度最多为 `INT_MAX`，超限在进入系统前返回 `XERR_ARGUMENT` 或 `XERR_RANGE`。`Id` 必须非零并在当前端口全部在途操作中唯一。每次成功提交恰好产生一个对应类型的终态；短读和短写由 `Bytes` 表达，调用方决定是否继续提交。
+完成式 API 以 bytes 为基础，不创建隐藏 `chain`，也没有每对象 8K 或每数据报 64K 固定缓冲。后端在提交时复制 Span 描述符与地址，但不复制载荷；成功提交后，Socket、缓冲和只读发送数据必须保持有效且不变，直到同一 `Id` 的终态事件到达。`SendMsg`/`SendMsgVec` 在控制非空且 `Flags != 0` 时复制 `xnetdgramcontrol` 并为该操作按需保留平台控制缓冲，终态类型为 `SEND_MSG`。控制为空或 `Flags == 0` 时走普通发送路径：提供 `pRemote` 的终态为 `SEND_TO`，否则为 `SEND`，此时 Socket 必须已连接；调用方可在提交返回后立即复用地址、Span 数组和控制对象。常规 `SendTo` 操作不携带控制状态。`ReadProbe` 只接受流 Socket，成功事件为 `READ_PROBE`、`Bytes == 0`，且不会消费字节；其后仍须提交 `Recv` 才能读取数据或确认 EOF。`RecvMsg` 只接受已启用接收元数据的数据报 Socket，终态类型为 `RECV_MSG`，来源地址写入事件 `Address`，有效元数据写入事件 `Meta`。常规 `RecvFrom` 操作描述符不携带控制缓冲，只有显式 `RecvMsg` 才增加固定的小型尾部状态。单个 Span 与一次操作的 Span 总长度最多为 `INT_MAX`，超限在进入系统前返回 `XERR_ARGUMENT` 或 `XERR_RANGE`。`Id` 必须非零并在当前端口全部在途操作中唯一。每次成功提交恰好产生一个对应类型的终态；短读和短写由 `Bytes` 表达，调用方决定是否继续提交。
 
 终态失败位于事件的 `Result` 与 `SystemCode`，不把一次操作失败误报为端口等待失败。流接收零字节返回 `CLOSED|EOF`；零长度 UDP 报文返回 `OK`；UDP 缓冲不足返回 `TRUNCATED` 并保留实际写入长度、远端地址和已取得的元数据。事件的 `Address` 与 `Meta` 都是值对象，不借用平台控制缓冲。`Cancel` 只请求取消，成功后仍等待原操作唯一的 `CANCELLED` 终态；完成已经先于取消发生时，仍提取原完成。`Destroy` 会取消并排空全部在途操作，返回后系统不再引用调用方缓冲。
 

@@ -14,13 +14,9 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/charset/transcode_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   valid=1 state-feed=OK error-pos=NPOS（无错误）
- *   （首块返回 MORE——跨块汉字的前缀挂起）
+ *   valid=1 state-feed=OK error-pos=none
  *   decode=U+4F60 encode=3 bytes scalar=1
- *   bom-size=3 unit=2
- *
- * Valid 一次性校验完整缓冲；State 族流式跨块校验
- *   （网络分块到达时用）——StateError 给绝对错误偏移。
+ *   bom-size=3 bom-encoding=1 unit=2
  */
 
 #include <stdio.h>
@@ -52,7 +48,15 @@ int main(void)
 			XUTF_MORE &&
 			xrtUtf8StateFeed(&State, (xstrview){ B, 2u }, true) ==
 			XUTF_OK) ? "OK" : "FAIL");
-		printf(" error-pos=%zu\n", xrtUtf8StateError(&State));
+		{
+			size_t iErr = xrtUtf8StateError(&State);
+
+			if ( iErr == XRT_NPOS ) {
+				printf(" error-pos=none\n");
+			} else {
+				printf(" error-pos=%zu\n", iErr);
+			}
+		}
 	}
 
 	/* 单标量编解码往返。 */

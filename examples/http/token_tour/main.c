@@ -12,13 +12,12 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/http/token_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   valid=1 eq=1 has=1 count=3
- *   build=gzip,deflate,br listwrite=gzip,deflate
+ *   valid=1 eq=1
+ *   has=1 count=3
+ *   build=gzip, deflate, br
+ *   listwrite=gzip, deflate
  *   weighted: gzip(500) deflate(250) identity(1000)
  *   trim=[value]
- *
- * 加权令牌 = Accept/TE 系头的核心语法：token;q=0.5——
- *   WeightedTokenNext 一次交出 token 与千分位权重（无标注默认 1000）。
  */
 
 #include <stdio.h>

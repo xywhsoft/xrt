@@ -17,9 +17,7 @@
  * 预期输出：
  *   valid=1 size=19 alias=1
  *   content=prefix: FF=255 42=4
- *
- * Alias 的用途：拿到构建器视图后，后续判断该视图是否仍
- *   指向构建器内部（决定能否安全继续 Append 或必须先复制）。
+ *   cleared-size=5
  */
 
 #include <stdio.h>

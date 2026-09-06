@@ -17,14 +17,11 @@
  * 预期输出：
  *   u8→16: len=2 valid=1 count=2
  *   u8→32: len=2 count=2
- *   16→8: [a你Ģ] 16→32: 3（缓冲版覆盖了 A16 后半段）
- *   32→8: [a你] 32→16: 2
- *   view-to32=2 view-to8=[a] dup=1
- *   encode=2 decode=U+4F60
- *
- * 三个层次：cstr 版（零结尾入）、Buffer 版（显式容量）、
- *   View 版（xutf16view/xutf32view + xutfpolicy 代理对策略）。
- *   嵌入零只有 View 版保留——Dup/DupView 的区别正在于此。
+ *   16→8: [a你] 16→32: 2
+ *   32→8: [] 32→16: 0
+ *   view-to32=2 view-to8=[a你] u32len=6 dup16=1 dup32=1 dup32v=1
+ *   u16len=2 u32valid=1 u8view-to32=2
+ *   encode=1 decode=U+4F60
  */
 
 #include <stdio.h>
@@ -74,12 +71,18 @@ int main(void)
 		}
 	}
 
-	/* UTF-16 → UTF-8 / UTF-32。 */
+	/* UTF-16 → UTF-8 / UTF-32：分配版收零结尾输入——上一段
+	 * 缓冲版已覆盖 A16 后半段，先复原内容并补结尾零。 */
 	{
-		str s8 = xrtUtf16To8(A16, &iSize);
+		(void)xrtUtf8To16Buffer(SV("a你"), A16, 8u,
+			XUTF_REPLACE);
+		A16[2] = 0u;
+		{
+			str s8 = xrtUtf16To8(A16, &iSize);
 
-		printf("16→8: [%.*s]", (int)iSize, s8 ? s8 : "?");
-		xrtFree(s8);
+			printf("16→8: [%.*s]", (int)iSize, s8 ? s8 : "?");
+			xrtFree(s8);
+		}
 		(void)xrtUtf16To8Buffer((xutf16view){ A16, 2u }, Back,
 			sizeof(Back), XUTF_REPLACE);
 		{

@@ -14,12 +14,11 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/string/find/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   find=5 case-find=0 rfind=16 case-rfind=5 miss=5
- *   byte=4 any=6
- *   prefix=fileName suffix=example name=file
- *
- * Find 族返回字节偏移（0 基）；Start 参数支持"从上一次
- *   命中之后继续找"的循环写法——本例 FindByte 演示该姿势。
+ *   find=5 case-find=0 rfind=16 miss=5
+ *   byte=3 any=4
+ *   prefix=archive.tar.gz
+ *   suffix=archive
+ *   name=txt
  */
 
 #include <stdio.h>

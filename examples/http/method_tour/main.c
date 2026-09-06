@@ -13,13 +13,9 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/http/method_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   parse=2 eq=1 safe=1 idem=1
+ *   parse=2 eq=1/0 safe=1 idem=1
  *   status=OK content-allowed=0
  *   cl=42 q=500
- *
- * Safe/Idempotent 的语义分层：安全方法（GET/HEAD/OPTIONS/TRACE）
- *   只读；幂等 = 安全 + PUT + DELETE（重复执行不改结果）。
- *   POST 既不安全也不幂等——网络层重试策略的依据。
  */
 
 #include <stdio.h>
@@ -32,10 +28,12 @@ int main(void)
 	uint64 iLength = 0;
 	uint16 iQuality = 0;
 
-	/* MethodParse 返回位枚举（GET=0x2）；Equal 比较文本与枚举。 */
+	/* MethodParse 返回位枚举（GET=0x2）；Equal 按 HTTP 规则
+	 * 大小写敏感——同形真/异形假各演示一次。 */
 	printf("parse=%u", (unsigned)xrtHttpMethodParse(SV("GET")));
-	printf(" eq=%d", xrtHttpMethodEqual(SV("PATCH"),
-		SV("patch")) ? 1 : 0);
+	printf(" eq=%d/%d",
+		xrtHttpMethodEqual(SV("PATCH"), SV("PATCH")) ? 1 : 0,
+		xrtHttpMethodEqual(SV("PATCH"), SV("patch")) ? 1 : 0);
 	printf(" safe=%d", xrtHttpMethodSafe(SV("GET")) ? 1 : 0);
 	printf(" idem=%d\n", xrtHttpMethodIdempotent(SV("DELETE")) ? 1 : 0);
 

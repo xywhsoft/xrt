@@ -13,12 +13,11 @@
  *       examples/file/root_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
  *   root=. diag=. native=1
- *   stat=1 link-read=target.txt
- *   fifo=unsupported(windows) mode=unsupported(windows)
- *
- * 与 file/root 范例（基础开门/关门）互补：这里覆盖根内
- *   链接/FIFO/模式等"平台敏感"入口——每个失败都用
- *   XERR_UNSUPPORTED 区分"沙箱拒绝"与"平台没有"。
+ *   stat=1 size=1
+ *   link-create=failed (dev mode)
+ *   link-hard=1
+ *   fifo=unsupported(windows)
+ *   mode=1
  */
 
 #include <stdio.h>

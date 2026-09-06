@@ -9,6 +9,9 @@
  *       examples/network/udp_errors/main.c -lws2_32 -liphlpapi
  * 预期输出（Windows 无错误队列时）：
  *   datagram error queue is unavailable on this platform
+ * 预期输出（有错误队列的平台，如 Linux，数值随平台）：
+ *   origin=N system=N mtu=0 payload=N
+ *   error-prefix=N bytes ref=ok
  *
  * 向关闭端口发包触发 ICMP 不可达——错误作为数据
  *   异步送达（而非阻塞报错）；平台不支持时优雅报告，
@@ -109,6 +112,17 @@ int main(void)
 		pError->PathMtu,
 		xrtNetUdpErrorPacketSize(pPacket)
 	);
+	/* Ref：错误包跨线程/跨 Future 保留；Data 借用原负载前缀。 */
+	{
+		xnetudperrorpacket* pRef = xrtNetUdpErrorPacketRef(pPacket);
+
+		if ( (pRef == pPacket) &&
+			 (xrtNetUdpErrorPacketData(pRef) != NULL) ) {
+			printf("error-prefix=%zu bytes ref=ok\n",
+				xrtNetUdpErrorPacketSize(pRef));
+		}
+		xrtNetUdpErrorPacketDestroy(pRef);
+	}
 	xrtNetUdpErrorPacketDestroy(pPacket);
 	pPacket = NULL;
 	if ( !xrtNetUdpClose(pUdp) || !xrtNetUdpWait(

@@ -17,11 +17,9 @@
  *   substr=你x
  *   trim=[你]
  *   pad=**a
- *   reverse=(见运行)
+ *   pad-r=a**
+ *   reverse=
  *   filter=ax
- *
- * 全部操作以 Unicode 标量为原子（与 string 模块的字节版互补）；
- *   Remove/Substr 支持负数倒序下标。
  */
 
 #include <stdio.h>

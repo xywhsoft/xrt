@@ -13,13 +13,10 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/file/dir_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   empty=1 size=7 stats(items=1 files=1 bytes=7)
- *   entry=data.txt
+ *   empty=1 size=7 stats(items=2 files=1 bytes=7)
+ *   dir=xrt-dir-tour/a/b/c entry=data.txt(full=xrt-dir-tour\a\b\c\data.txt)
  *   moved=1 clean-empty=1 ensure-empty=1
- *   treecopy(items=1) treeremove-keep=1 roots>=1
- *
- * Clean/EnsureEmpty 的区别：Clean 删除全部内容（目录必须存在）；
- *   EnsureEmpty = 存在则清空、不存在则创建（幂等准备目录）。
+ *   treecopy(items=10) treeremove-keep=1 roots>=5
  */
 
 #include <stdio.h>

@@ -9,15 +9,10 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/string/case/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   HELLO xrt
- *   hello XRT
- *   BUFFER-WAY
- *   buffer-way
- *
- * 转换只作用于 ASCII 字母（A-Z/a-z 互换），其他字节
- *   （含 UTF-8 多字节字符）原样通过——Unicode 大小写
- *   折叠属于 charset 模块职责。To 变体容量不足时原子
- *   失败，不写半个结果。
+ *   upper=HELLO XRT
+ *   lower=hello xrt
+ *   to-upper=BUFFER-WAY
+ *   to-lower=buffer-way
  */
 
 #include <stdio.h>

@@ -892,7 +892,7 @@
 			"single_tests": [
 				"extlibs/xws/tests/single/test_single_websocket_connection.c"
 			],
-			"examples": [],
+			"examples": ["extlibs/xws/examples/websocket/connection_tour/main.c"],
 			"docs": [
 				"extlibs/xws/docs/api/websocket.md",
 				"extlibs/xws/docs/design/websocket-runtime.md"

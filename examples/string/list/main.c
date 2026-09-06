@@ -10,11 +10,7 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/string/list/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   [0]=alpha [1]=beta [2]=gamma used=16
- *
- * 单块布局的价值：片段视图与文本数据同块分配——
- *   一次 Free 释放全部（无逐条 malloc/free），缓存局部性
- *   也更好。Split 系列内部就是用它构造结果。
+ *   [0]=alpha [1]=beta [2]=gamma used=17
  */
 
 #include <stdio.h>

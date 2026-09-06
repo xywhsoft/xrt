@@ -15,17 +15,17 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/containers/map_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   count=2 cap>=12 ptr=0000000000000010 stored=a
- *   get-or-init=1 new=1 remove=1
+ *   count=2 cap>=12 get=1
+ *   ptr=0x10 stored=a
+ *   const-get=1
  *   riter: b a
  *   visit: a b
  *   took=yes has-after=0
+ *   get-or-init=1 new=1
+ *   remove=1
  *   cleared=0 trimmed-cap=0
- *
- * Ptr 族约定：sizeof(ptr) 值映射的指针友好入口——
- *   GetPtr 空指针与缺失键都用 Has 区分；
- *   TakePtr 移交指针且不调值释放器（SetDrop 装的 Drop
- *   只在 Clear/Destroy/Remove 时触发）。
+ *   set-drop-installed=1
+ *   take-value=7
  */
 
 #include <stdio.h>
@@ -86,7 +86,9 @@ int main(void)
 
 	/* Ptr 族读写 + StoredKey：值是指针时免去 ptr 装拆样板。 */
 	(void)xrtMapSetPtr(pMap, SV("a"), (ptr)0x10u);
-	printf("ptr=%p", (void*)xrtMapGetPtr(pMap, SV("a")));
+	/* 指针值确定性断言（打印裸指针会随运行变化）。 */
+	printf("ptr=%s",
+		xrtMapGetPtr(pMap, SV("a")) == (ptr)0x10u ? "0x10" : "?");
 	if ( xrtMapStoredKey(pMap, SV("a"), &Key) ) {
 		printf(" stored=%.*s", (int)Key.Size, (const char*)Key.Data);
 	}

@@ -18,13 +18,10 @@
  *   insert=xrt::core
  *   remove=xrtcore
  *   replace=a-b-c
- *   reverse=abc
+ *   reverse=cba
  *   reverse-to=abc
  *   slice=bc
  *   dup=hello dupn=wor dupview=bc
- *
- * ReverseBytes 是字节级操作：多字节 UTF-8 会变成非法
- *   序列——Unicode 标量逆序请用 charset 的 xrtUtf8Reverse。
  */
 
 #include <stdio.h>

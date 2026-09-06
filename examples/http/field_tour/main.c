@@ -13,15 +13,10 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/http/field_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   block-count=2 next=2
- *   get=keep-alive count=2 unique=miss find=1
- *   tokens: gzip deflate count=2
- *   write=ok
- *
- * FieldNext 的输入是原始字节块（"Name: Value\r\n" 逐行游标），
- *   FieldNext 逐字段游标走同一块；FieldParse（单字段）互补；
- *   同名重复字段用 Count 数、
- *   FieldGet 取第一个、GetUnique 在重名时报冲突。
+ *   block-count=3 next=3
+ *   get=keep-alive, Upgrade value-valid=1 count=1 unique=hit find=1 find2=2
+ *   tokens: gzip deflate count=2 find=1
+ *   write=C blockwrite=ok
  */
 
 #include <stdio.h>

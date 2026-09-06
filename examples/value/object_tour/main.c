@@ -13,11 +13,8 @@
  *       examples/value/object_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
  *   has=1 removed=1 taken=v2
- *   edit=100 set=9 has=9 trim=0
- *
- * ObjectSet 借引用（源仍归调用方）；ObjectTake 把键对应值
- *   的所有权移交给调用方（键随之删除）。IntMapEdit 返回
- *   可写值槽——先取槽再改字段是"就地修改"的标准姿势。
+ *   uint=4294967296
+ *   replaced=100 edit-borrow=1 edit-count=2 set=1 has9=1 trim=0
  */
 
 #include <stdio.h>

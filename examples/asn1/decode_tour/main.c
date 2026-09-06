@@ -15,13 +15,8 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/asn1/decode_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   peek-tag=1 remaining=3 is-bool=1
- *   bool=true int=12345 unsigned-len=5
- *   octets=hello bitstring=A0 unused=4
- *
- * Peek vs Read：Read 消费游标；Peek 只窥不消费——
- *   "看一眼类型再决定怎么读"的分派入口。
- *   Unsigned 返回原始字节（非负 INTEGER 任意精度安全）。
+ *   peek-tag=1 remaining-after-peek=18 is-bool=1
+ *   bool=true int=12345 unsigned-len=2 octets=hello bitstring=A0 unused=4
  */
 
 #include <stdio.h>

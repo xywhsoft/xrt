@@ -19218,14 +19218,22 @@ XRT_API bool xrtNetPortSendToVec(xnetport* pPort, xnetsocket Socket,
 
 
 
-/* 异步发送带逐包控制的数据报；地址和控制值在提交时复制。 */
+/*
+	异步发送带逐包控制的数据报；地址和控制值在提交时复制。
+	非零控制 Flags 的终态为 SEND_MSG；空控制或零 Flags 走普通发送路径，
+	有 pRemote 时终态为 SEND_TO，否则为 SEND（Socket 须已连接）。
+*/
 XRT_API bool xrtNetPortSendMsg(xnetport* pPort, xnetsocket Socket,
 	const void* pData, size_t iSize, const xnetaddr* pRemote,
 	const xnetdgramcontrol* pControl, uint64 Id, ptr pUser);
 
 
 
-/* 异步聚集发送带逐包控制的数据报；终态类型为 SEND_MSG。 */
+/*
+	异步聚集发送带逐包控制的数据报；Span 描述符、地址和控制值在提交时复制。
+	终态类型与 SendMsg 相同：非零控制 Flags 为 SEND_MSG；空控制或零 Flags
+	在有 pRemote 时为 SEND_TO，否则为 SEND（Socket 须已连接）。
+*/
 XRT_API bool xrtNetPortSendMsgVec(xnetport* pPort, xnetsocket Socket,
 	const xnetspan* pSpans, size_t iCount, const xnetaddr* pRemote,
 	const xnetdgramcontrol* pControl, uint64 Id, ptr pUser);

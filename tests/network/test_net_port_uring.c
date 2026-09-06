@@ -6,6 +6,8 @@
 
 #if defined(__linux__)
 
+#include "test_net_port_send_msg_cases.h"
+
 /* 等待固定数量的无序终态，并由一份绝对截止时间约束整轮等待。 */
 static void testUringWait(
 	xnetport* pPort,
@@ -852,6 +854,7 @@ int main(void)
 
 	testUringTCP();
 	testUringUDP();
+	testNetPortSendMsgCases(XNET_PORT_URING);
 	testUringDgramError();
 	testUringCancel();
 	testUringDestroyPending();

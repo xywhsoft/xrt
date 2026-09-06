@@ -15,15 +15,11 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/stack/tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   dyn: push3 pop=30 peek=10 top=10 get(0)=10 space=0
- *   fixed: space=2 add=ok pop=20
- *   ptr: push2 pop=0x2a peek=0x1e top=0x1e
- *   block: add3 count=3 const-top=300
- *
- * Get vs Peek vs Top：Get 按栈底 0 基下标取；Peek 按距栈顶深度取
- *   （0=栈顶）；Top 恒等于 Peek(0)。Const 族是只读面。
- * Add vs Push：Add 只占零初始化槽（返回地址由调用方填充），
- *   Push 复制调用方数据——大结构避免一次拷贝。
+ *   dyn: push3 pop=30 peek=20 top=20 get(0)=10 cleared=0
+ *   fixed: space=4 add=ok top=20 peek=10 pop=20
+ *   ptr: push2 pop=B top=A
+ *   ptrfixed: space=3 pop=1
+ *   block: add3 count=3 const-top=300 pop=300
  */
 
 #include <stdio.h>
@@ -147,12 +143,13 @@ int main(void)
 		(void)xrtPtrStackPush(pPtr, (ptr)&B);
 		printf("ptr: push2");
 		if ( xrtPtrStackPop(pPtr, &pValue) ) {
-			printf(" pop=0x%X", (unsigned)(uintptr_t)pValue);
+			/* 指针值随运行变化——只断言身份（栈顶即局部变量 B）。 */
+			printf(" pop=%s", pValue == (ptr)&B ? "B" : "?");
 		}
 		{
 			ptr pTop = xrtPtrStackTop(pPtr);
 
-			printf(" top=0x%X", (unsigned)(uintptr_t)pTop);
+				printf(" top=%s", pTop == (ptr)&A ? "A" : "?");
 		}
 		(void)xrtPtrStackGet(pPtr, 0u);
 		(void)xrtPtrStackPeek(pPtr, 0u);
