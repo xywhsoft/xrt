@@ -14,7 +14,7 @@
 | 7 | channel.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；五族全成节，锚点跨 7 个已注册范例 |
 | 8 | charset.md | 69 | **完成** | 69/69 全绿（G3 69 片段，2026-09-07）；16 组全成节（原 131 问题清零），锚点跨 9 个已注册范例 |
 | 9 | codec.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；HEX/Base64/Percent 三族；codec/tour 补注册至 codec_hex |
-| 10 | compress.md | 18 | 待办 |  |
+| 10 | compress.md | 18 | **完成** | 18/18 全绿（G3 18 片段，2026-09-07）；Inflate/Deflate 对称 9+9；失败终态与 Reset 复用契约成文 |
 | 11 | console.md | 4 | 待办 |  |
 | 12 | core.md | 44 | 待办 |  |
 | 13 | coroutine.md | 51 | 待办 |  |
@@ -225,3 +225,12 @@
   10 ok + 69 problem（全部为待办文件的 missing-section，共 3762
   项，无签名/参数表/错误节/范例链接类历史问题）；G3 --all =
   79 文件 0 失败。已完成集合零回归，门禁基线健康。
+- 2026-09-07 compress.md 完成（18/18，G3 18 片段）：Inflate 9 +
+  Deflate 9 对称成节；xrt.inflate/xrt.deflate 双域六码错误矩阵
+  成总表（DATA 为 Inflate 独有、CODEC 为 Deflate 独有）；核心
+  契约入档——"参数失败不改状态、其余进入失败终态须 Reset 复用"
+  的两分法、"空回调=校验并丢弃"、"All 只在完整成功后写输出长度"；
+  四级 Flush 语义（NONE/SYNC/FULL/FINISH）与回调重入拒绝逐函数
+  标注；DeflateAll 的确定性输出（内容寻址/缓存关键性质）入档。
+  锚点：stream_tour（14 项）+ deflate/inflate 专项范例各 2。
+  双门禁一次全绿；既有文件抽查无回归。
