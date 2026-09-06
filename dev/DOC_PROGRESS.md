@@ -94,3 +94,10 @@
   补齐（错误码自 src/network/buffer.c 逐函数溯源——POOL_BUSY/BUFFER_STATE/
   BUFFER 三个域码首次入档；预留状态机与四类追加所有权全部落成参数表）。
   工具修复：多行签名括号内空白折叠。array.md 复验仍绿。
+- 2026-09-07 net.md 第 3 段（Socket 原语 39 函数）完成：错误码自
+  src/network/socket.c 溯源——域码体系首次完整入档（SOCKET_OPEN/
+  BIND/LISTEN/ACCEPT/CONNECT/READ/WRITE/CLOSE/SHUTDOWN/OPTION +
+  NATIVE），系统错误保留 SystemCode 的语义（错误种类由平台码映射）；
+  RecvMsg 族 pMeta 必填 vs RecvFrom 可空、Connect 的 AGAIN 不得二次调用、
+  RecvBatch 返回已到达前缀（Windows 环回补收口径）三个契约差异写入参数表。
+  G3 从 78→119 片段全绿；array.md 复验仍绿。

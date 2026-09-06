@@ -2928,227 +2928,1477 @@ size_t xrtNetBufConsume(xnetbuf* pBuffer, size_t iSize);
 
 ## Socket 原语
 
-`XRT_FEATURE_NET_SOCKET` 只依赖 `XRT_FEATURE_NET`。这一层拥有平台 Socket 句柄，但不包含事件循环、线程、协程、隐藏收发缓冲、TCP 重连或 UDP 队列；TCP/UDP 客户端与服务器模型在它和事件端口之上组合。这样原生扩展可以直接使用轻量原语，高层对象也不会各自重复跨平台 Socket 处理。
+`XRT_FEATURE_NET_SOCKET` 只依赖 `XRT_FEATURE_NET`。这一层拥有平台 Socket 句柄，但不包含事件循环、线程、协程、隐藏收发缓冲、TCP 重连或 UDP 队列；TCP/UDP 客户端与服务器模型在它和事件端口之上组合。
+
+**错误与线程**：收发族返回 `xnetresult` 三态（`OK`/`AGAIN`/`CLOSED`/`ERROR`），系统调用失败经 `xrtGetError()` 报告且保留平台错误码（`XNET_ERROR_SOCKET_*` 域码 + `SystemCode`）。Socket 无内部锁——同一 Socket 的收发应由单执行流执行；`xnetsocket` 是不透明指针，句柄值可为 0（视同空）。`NATIVE` 后缀在 Windows 上即 IOCP 兼容句柄。
+
+### `xrtNetSocketOpen`
+
+打开一个流式或数据报 Socket。
 
 ```c
-typedef struct xnetsocket_impl* xnetsocket;
+xnetsocket xrtNetSocketOpen(xnetfamily Family, xnetsockettype Type, uint32 iFlags);
+```
 
-typedef enum xnetresult {
-	XNET_RESULT_ERROR = -1,
-	XNET_RESULT_OK = 0,
-	XNET_RESULT_AGAIN,
-	XNET_RESULT_CLOSED,
-	XNET_RESULT_TRUNCATED,
-	XNET_RESULT_TIMEOUT,
-	XNET_RESULT_CANCELLED
-} xnetresult;
+#### 参数
 
-#define XNET_DGRAM_BATCH_MAX 64u
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Family` | 输入 | `IPV4` 或 `IPV6` | — |
+| `Type` | 输入 | `STREAM` 或 `DGRAM` | — |
+| `iFlags` | 输入 | `XNET_SOCKET_NONBLOCK` 或 `0` | 非阻塞从创建即生效 |
 
-typedef enum xnetdgrammetaflag {
-	XNET_DGRAM_META_DESTINATION = 0x0001,
-	XNET_DGRAM_META_INTERFACE = 0x0002,
-	XNET_DGRAM_META_HOP_LIMIT = 0x0004,
-	XNET_DGRAM_META_TRAFFIC_CLASS = 0x0008,
-	XNET_DGRAM_META_SEGMENT_SIZE = 0x0010,
-	XNET_DGRAM_META_TRUNCATED = 0x40000000
-} xnetdgrammetaflag;
+#### 返回值
 
-typedef struct xnetdgrammeta {
-	uint32 Flags;
-	xnetaddr Destination;
-	uint32 Interface;
-	int HopLimit;
-	int TrafficClass;
-	uint32 SegmentSize;
-} xnetdgrammeta;
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 成功返回的对象拥有原生句柄；配对 `xrtNetSocketClose()` 释放 | — |
+| `NULL` | 参数非法或系统创建失败 | 错误经 `xrtGetError()` 报告 |
 
-typedef enum xnetdgramcontrolflag {
-	XNET_DGRAM_CONTROL_SOURCE = 0x0001,
-	XNET_DGRAM_CONTROL_INTERFACE = 0x0002,
-	XNET_DGRAM_CONTROL_HOP_LIMIT = 0x0004,
-	XNET_DGRAM_CONTROL_TRAFFIC_CLASS = 0x0008,
-	XNET_DGRAM_CONTROL_SEGMENT_SIZE = 0x0010
-} xnetdgramcontrolflag;
+#### 错误
 
-typedef struct xnetdgramcontrol {
-	uint32 Flags;
-	xnetaddr Source;
-	uint32 Interface;
-	int HopLimit;
-	int TrafficClass;
-	uint32 SegmentSize;
-} xnetdgramcontrol;
+- `XERR_ARGUMENT` — 族/类型非法
+- `XNET_ERROR_SOCKET_OPEN`（系统错误）— 平台 `socket()` 失败，保留 `SystemCode`
 
-typedef enum xnetdgramcap {
-	XNET_DGRAM_CAP_PATH_MTU_MODE = 0x0001,
-	XNET_DGRAM_CAP_PATH_MTU_QUERY = 0x0002,
-	XNET_DGRAM_CAP_ERROR_QUEUE = 0x0004,
-	XNET_DGRAM_CAP_SEGMENT_SEND = 0x0008,
-	XNET_DGRAM_CAP_SEGMENT_RECEIVE = 0x0010
-} xnetdgramcap;
+#### 范例
 
-typedef struct xnetdgramrecv {
-	void* Data;
-	size_t Capacity;
-	xnetaddr Remote;
-	xnetdgrammeta Meta;
-	size_t Size;
-	xnetresult Result;
-} xnetdgramrecv;
+[socket_tour](../../examples/network/socket_tour/main.c) · 双 UDP 套接字
 
-typedef struct xnetdgramsend {
-	const xnetaddr* Remote;
-	const void* Data;
-	size_t Size;
-} xnetdgramsend;
+```c
+A = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_DGRAM, 0u);
+B = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_DGRAM, 0u);
+```
 
-xnetsocket xrtNetSocketOpen(xnetfamily Family,
-	xnetsockettype Type, uint32 iFlags);
+### `xrtNetSocketClose`
+
+关闭原生句柄并销毁对象；即使系统关闭失败，对象也立即失效。
+
+```c
 bool xrtNetSocketClose(xnetsocket Socket);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 允许空指针（0） | 空指针是空操作；关闭后句柄不可再用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 系统关闭成功或对象为空 | — |
+| `false` | 系统关闭失败 | **对象仍已销毁**；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_CLOSE`（系统错误）— `closesocket()` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 收尾统一关闭
+
+```c
+xrtNetSocketClose(C);
+xrtNetSocketClose(L);
+```
+
+### `xrtNetSocketNative`
+
+返回借用的原生句柄，调用方不得自行关闭。
+
+```c
 intptr_t xrtNetSocketNative(xnetsocket Socket);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 句柄值 | 平台 SOCKET/fd；所有权仍在 XRT 对象 |
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 创建后即验证非零
+
+```c
+(xrtNetSocketNative(A) == 0) ||
+```
+
+### `xrtNetSocketFamily`
+
+返回 Socket 创建时确定的地址族。
+
+```c
+xnetfamily xrtNetSocketFamily(xnetsocket Socket);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 族枚举 | 与 `Open` 传入值一致 |
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 创建后核对
+
+```c
+(xrtNetSocketFamily(A) != XNET_FAMILY_IPV4) ||
+```
+
+### `xrtNetSocketType`
+
+返回 Socket 创建时确定的类型。
+
+```c
+xnetsockettype xrtNetSocketType(xnetsocket Socket);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 类型枚举 | 与 `Open` 传入值一致 |
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 与 Family 成对核对
+
+```c
+(xrtNetSocketType(A) != XNET_SOCKET_DGRAM) ||
+```
+
+### `xrtNetSocketSet`
+
+设置一个通用 Socket 选项。
+
+```c
+bool xrtNetSocketSet(xnetsocket Socket, xnetoption Option, int64 iValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `Option` | 输入 | 见 `xnetoption` 枚举 | 部分选项仅特定平台支持 |
+| `iValue` | 输入 | — | 选项值；`NONBLOCK` 用 0/1 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已生效 | — |
+| `false` | 参数非法、不支持或系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空对象或非法选项
+- `XERR_UNSUPPORTED` — 平台不支持该选项
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— `setsockopt()` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 接收缓冲与逐字节读回
+
+```c
+!xrtNetSocketSet(A, XNET_OPTION_RECEIVE_BUFFER, 65536) ||
+	!xrtNetSocketGet(A, XNET_OPTION_RECEIVE_BUFFER, &iValue) ||
+```
+
+### `xrtNetSocketGet`
+
+查询一个通用 Socket 选项。
+
+```c
+bool xrtNetSocketGet(xnetsocket Socket, xnetoption Option, int64* pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `Option` | 输入 | — | — |
+| `pValue` | 输出 | 非空 | 接收选项当前值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 参数非法、不支持或系统失败 | `*pValue` 不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或非法选项
+- `XERR_UNSUPPORTED` — 平台不支持
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— `getsockopt()` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 见 `xrtNetSocketSet` 范例
+
+```c
+!xrtNetSocketGet(A, XNET_OPTION_RECEIVE_BUFFER, &iValue) ||
+	(iValue <= 0) ||
+```
+
+### `xrtNetSocketAvailable`
+
+查询当前可立即读取的字节数；成功才修改输出。
+
+```c
 bool xrtNetSocketAvailable(xnetsocket Socket, size_t* pSize);
 ```
 
-对象拥有原生句柄。`Close` 即使遇到系统关闭错误也销毁对象，不能重试关闭；POSIX `close` 被信号中断时同样不能重试，以免误关已经复用的文件描述符。生命周期操作不带隐藏锁，调用方必须把关闭与其他操作串行化；不同线程并行执行由操作系统允许的独立收发没有额外包装开销。
+#### 参数
 
-所有新句柄都禁止被子进程继承。Windows 使用 `WSA_FLAG_NO_HANDLE_INHERIT` 与 Overlapped Socket，在创建时同时建立不可继承和 IOCP 能力；不支持该标志的旧系统退回 `SetHandleInformation`。Linux 在平台支持时使用 `SOCK_CLOEXEC`，并通过 `SOCK_NONBLOCK` 原子建立初始非阻塞状态；接受连接时使用同口径的 `accept4`。其他 POSIX 平台以及旧内核退回 `fcntl` 二次设置。所有快路径之后仍会校验并补设 `FD_CLOEXEC` 或句柄继承位，不能建立安全属性时直接关闭句柄并报告错误，不返回半初始化对象。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pSize` | 输出 | 非空 | 空接收队列上成功返回 0 |
 
-`XNET_SOCKET_NONBLOCK` 决定初始阻塞模式，也可通过 `XNET_OPTION_NONBLOCK` 修改。`xrtNetSocketNative` 返回借用句柄，调用方可以连接第三方事件循环或平台专用选项，但不能自行关闭；通过 Native 修改状态后，调用方负责继续满足 XRT 契约。
+#### 返回值
 
-`Available` 是底层查询能力：流式 Socket 返回当前可立即读取的字节数，数据报 Socket 返回下一报文可读长度。结果只代表查询瞬间，不能代替非阻塞读取、事件通知或背压策略；它主要用于自定义事件循环、诊断和按需选择接收缓冲。
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出可读量 | — |
+| `false` | 参数非法或系统失败 | 错误经 `xrtGetError()` 报告 |
 
-### 生命周期与连接
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_READ`（系统错误）— `ioctlsocket`/`ioctl` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 空队列上恰为 0
+
+```c
+!xrtNetSocketAvailable(A, &iGot) ||
+	(iGot != 0u) ) {
+```
+
+### `xrtNetSocketBind`
+
+把 Socket 绑定到本地地址；端口为零时由系统分配。
 
 ```c
 bool xrtNetSocketBind(xnetsocket Socket, const xnetaddr* pAddress);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pAddress` | 输入 | 非空 | 通配地址绑定全部接口；实际端口由 `Local` 读回 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已绑定 | — |
+| `false` | 系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_BIND`（系统错误）— `bind()` 失败（端口占用等）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 通配绑定后 Local 读回实际端口
+
+```c
+!xrtNetSocketBind(A, &AddrA) ||
+	!xrtNetSocketLocal(A, &AddrA) ||
+```
+
+### `xrtNetSocketListen`
+
+把已绑定的流式 Socket 转为监听状态。
+
+```c
 bool xrtNetSocketListen(xnetsocket Socket, int iBacklog);
-xnetresult xrtNetSocketAccept(xnetsocket Socket,
-	xnetsocket* pClient, xnetaddr* pRemote);
-xnetresult xrtNetSocketConnect(xnetsocket Socket,
-	const xnetaddr* pRemote);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 必须已 `Bind` 且为 `STREAM` |
+| `iBacklog` | 输入 | `> 0` | 等待连接队列长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已监听 | — |
+| `false` | 系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_LISTEN`（系统错误）— `listen()` 失败
+
+#### 范例
+
+[network/socket_tcp · 基础范例](../../examples/network/socket_tcp/main.c) · 绑定→监听→接受
+
+```c
+!xrtNetSocketListen(Listener, 16) ||
+```
+
+### `xrtNetSocketAccept`
+
+接受一个连接；非阻塞 Socket 暂无连接时返回 `AGAIN`。
+
+```c
+xnetresult xrtNetSocketAccept(xnetsocket Socket, xnetsocket* pClient, xnetaddr* pRemote);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 监听中的流式 Socket |
+| `pClient` | 输出 | 非空 | 接受成功时获得新建 Socket（调用方拥有） |
+| `pRemote` | 输出 | 非空 | 接受成功时获得对端地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `OK` | 已接受，`*pClient`/`*pRemote` 已写出 | — |
+| `AGAIN` | 非阻塞暂无连接 | 输出不被修改 |
+| `ERROR` | 参数或系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_ACCEPT`（系统错误）— `accept()` 失败
+
+#### 范例
+
+[network/socket_tcp · 基础范例](../../examples/network/socket_tcp/main.c) · 连接后立即接受
+
+```c
+(xrtNetSocketAccept(Listener,
+	&Accepted, &Remote) != XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketConnect`
+
+发起连接；非阻塞连接尚未完成时返回 `AGAIN`。
+
+```c
+xnetresult xrtNetSocketConnect(xnetsocket Socket, const xnetaddr* pRemote);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pRemote` | 输入 | 非空 | 目标地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `OK` | 连接建立（含环回立即完成） | — |
+| `AGAIN` | 非阻塞连接在途 | **不得二次调用**，交给 `FinishConnect` 轮询收口 |
+| `ERROR` | 系统拒绝或失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_CONNECT`（系统错误）— `connect()` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · OK/AGAIN 双路收口
+
+```c
+xnetresult ConnResult = xrtNetSocketConnect(C, &AddrA);
+
+if ( (ConnResult != XNET_RESULT_OK) &&
+	(ConnResult != XNET_RESULT_AGAIN) ) {
+```
+
+### `xrtNetSocketFinishConnect`
+
+在可写事件到达后读取 `SO_ERROR`，完成非阻塞连接判定。
+
+```c
 xnetresult xrtNetSocketFinishConnect(xnetsocket Socket);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 处于在途连接的 Socket |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` | 连接已建立 |
+| `AGAIN` | 仍在途，继续轮询 |
+| `ERROR` | 连接被拒或失败（`SO_ERROR`） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空对象
+- `XNET_ERROR_SOCKET_CONNECT`（系统错误）— 远端拒绝等
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 2000ms 轮询收口
+
+```c
+Result = xrtNetSocketFinishConnect(Socket);
+```
+
+### `xrtNetSocketShutdown`
+
+半关闭指定方向，不销毁 Socket 对象。
+
+```c
 bool xrtNetSocketShutdown(xnetsocket Socket, xnetshutdown Direction);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `Direction` | 输入 | `READ`/`WRITE`/`BOTH` | `WRITE` 后对端读到 EOF |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已关闭指定方向 | — |
+| `false` | 系统失败 | 对象仍可用；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_SHUTDOWN`（系统错误）— `shutdown()` 失败
+
+#### 范例
+
+[network/socket_tcp · 基础范例](../../examples/network/socket_tcp/main.c) · 客户端写半关
+
+```c
+if ( !xrtNetSocketShutdown(Client, XNET_SHUTDOWN_WRITE) ) {
+```
+
+### `xrtNetSocketLocal`
+
+查询实际本地地址。
+
+```c
 bool xrtNetSocketLocal(xnetsocket Socket, xnetaddr* pAddress);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pAddress` | 输出 | 非空 | 接收本地地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 系统失败 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_NATIVE`（系统错误）— `getsockname()` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 绑定后读回实际端口
+
+```c
+!xrtNetSocketLocal(A, &AddrA) ||
+	(AddrA.Port == 0u) ||
+```
+
+### `xrtNetSocketRemote`
+
+查询已连接的对端地址。
+
+```c
 bool xrtNetSocketRemote(xnetsocket Socket, xnetaddr* pAddress);
 ```
 
-阻塞 Socket 的 `Connect` 和 `Accept` 直接等待系统完成。非阻塞操作暂时不能推进时返回 `XNET_RESULT_AGAIN`，这不是结构化错误；只有 `Connect` 返回 `AGAIN` 后，事件端口才能在观察到可写时调用 `FinishConnect` 读取 `SO_ERROR`，不能把“可写”直接当作连接成功。没有待完成连接时调用 `FinishConnect` 会返回契约错误。`Accept` 成功返回的对象继承 XRT 层记录的非阻塞模式，并再次显式设置平台状态，避免依赖各系统不同的继承规则。
+#### 参数
 
-`Bind` 要求地址族与 Socket 一致，允许端口为零；随后用 `Local` 取得实际端口。`Shutdown` 明确区分读、写和双向半关闭。流式接收遇到正常 EOF 返回 `XNET_RESULT_CLOSED`，连接复位等异常仍返回 `ERROR` 并保留系统代码，不把异常关闭伪装成正常 EOF。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 须为已连接 Socket |
+| `pAddress` | 输出 | 非空 | 接收对端地址 |
 
-### 收发、向量与报文批量
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 未连接或系统失败 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_NATIVE`（系统错误）— `getpeername()` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 连接后与目标地址全等
 
 ```c
-xnetresult xrtNetSocketRecv(xnetsocket Socket,
-	void* pData, size_t iSize, size_t* pReceived);
-xnetresult xrtNetSocketSend(xnetsocket Socket,
-	const void* pData, size_t iSize, size_t* pSent);
-xnetresult xrtNetSocketRecvVec(xnetsocket Socket,
-	xnetwspan* pSpans, size_t iCount, size_t* pReceived);
-xnetresult xrtNetSocketSendVec(xnetsocket Socket,
-	const xnetspan* pSpans, size_t iCount, size_t* pSent);
-xnetresult xrtNetSocketRecvFrom(xnetsocket Socket,
-	void* pData, size_t iSize, size_t* pReceived, xnetaddr* pRemote);
-xnetresult xrtNetSocketSendTo(xnetsocket Socket,
-	const void* pData, size_t iSize, size_t* pSent,
-	const xnetaddr* pRemote);
-xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket,
-	xnetwspan* pSpans, size_t iCount, size_t* pReceived,
-	xnetaddr* pRemote);
-xnetresult xrtNetSocketRecvMsg(xnetsocket Socket,
-	void* pData, size_t iSize, size_t* pReceived,
-	xnetaddr* pRemote, xnetdgrammeta* pMeta);
-xnetresult xrtNetSocketRecvMsgVec(xnetsocket Socket,
-	xnetwspan* pSpans, size_t iCount, size_t* pReceived,
-	xnetaddr* pRemote, xnetdgrammeta* pMeta);
-xnetresult xrtNetSocketSendToVec(xnetsocket Socket,
-	const xnetspan* pSpans, size_t iCount, size_t* pSent,
-	const xnetaddr* pRemote);
-xnetresult xrtNetSocketSendMsg(xnetsocket Socket,
-	const void* pData, size_t iSize, size_t* pSent,
-	const xnetaddr* pRemote, const xnetdgramcontrol* pControl);
-xnetresult xrtNetSocketSendMsgVec(xnetsocket Socket,
-	const xnetspan* pSpans, size_t iCount, size_t* pSent,
-	const xnetaddr* pRemote, const xnetdgramcontrol* pControl);
-xnetresult xrtNetSocketRecvBatch(xnetsocket Socket,
-	xnetdgramrecv* pItems, size_t iCapacity, size_t* pReceived);
-xnetresult xrtNetSocketSendBatch(xnetsocket Socket,
-	const xnetdgramsend* pItems, size_t iCount, size_t* pSent);
+!xrtNetSocketRemote(A, &Remote) ||
+	!xrtNetAddrEqual(&Remote, &DestB) ) {
 ```
 
-标量和向量函数只执行一次有效系统 IO，成功短读和短写由实际字节数表达。输出计数会先清零，地址只在成功后更新。单次标量或向量总长度最多为 `INT_MAX`；向量最多 64 段，平台描述符存放在栈上，不在热路径分配。POSIX 发送路径抑制 `SIGPIPE`，错误通过返回值和 `xrt.net` 结构化错误表达。
+### `xrtNetSocketSend`
 
-UDP 的零长度报文是有效报文，标量与向量 `Recv`/`RecvFrom` 都返回 `OK, 0` 并真正消费报文，不能与 TCP 的 `CLOSED` 混用；零长度发送也会真正发出一个报文。缓冲不足时返回 `XNET_RESULT_TRUNCATED`，`pReceived` 是实际复制进调用方缓冲的数据量，来源地址仍有效，且不会把跨平台正常截断伪装成结构化错误。
+单次发送；允许成功短写，非阻塞无法推进时返回 `AGAIN`。
 
-`RecvFrom`/`SendTo` 和对应向量函数保留一个系统报文边界；连接式 UDP 通过普通 `Connect` 配合 `Recv`/`Send` 使用，语义与显式地址版本一致。
+```c
+xnetresult xrtNetSocketSend(xnetsocket Socket, const void* pData, size_t iSize, size_t* pSent);
+```
 
-`RecvBatch`/`SendBatch` 是独立报文批量原语，容量上限为 64，不包含队列、所有权转移或隐藏分配。函数在任何系统调用前校验整批缓冲与显式地址，因此无效后项不会造成有效前缀提前发送。空批次返回 `OK, 0`；没有推进且非阻塞操作需要等待时返回 `AGAIN, 0`；已经推进正前缀时返回 `OK` 并由输出计数给出前缀长度；后续硬错误返回 `ERROR`，输出计数仍保留已经完成的前缀。
+#### 参数
 
-接收项的 `Data/Capacity` 是输入，`Remote/Meta/Size/Result` 是输出。函数先把全部输出初始化为零地址、零元数据、零长度与 `AGAIN`；每个已消费报文独立返回 `OK` 或 `TRUNCATED`，截断长度仍是实际写入容量内的可见前缀。Socket 启用元数据后，`RecvBatch` 同时收集每个报文的控制消息；未启用时没有控制缓冲和解析开销。发送项的 `Remote == NULL` 表示使用连接式 UDP 的固定 Peer。Linux 模块化构建使用 `recvmmsg/sendmmsg`；其他平台和未在包含单头文件前启用 `_GNU_SOURCE` 的 Linux 单头文件构建使用同契约的有界回退。阻塞接收回退只消费首个报文，避免为了填满批次产生隐藏的第二次阻塞。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pData` | 输入 | `iSize > 0` 时非空 | 发送内容 |
+| `iSize` | 输入 | — | 字节数 |
+| `pSent` | 输出 | 非空 | 成功时接收实际发送量（可短写） |
 
-### 数据报元数据与逐包发送控制
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` | `*pSent` 字节已受理 |
+| `AGAIN` | 非阻塞暂无法推进 |
+| `ERROR` | 系统失败 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_WRITE`（系统错误）— `send()` 失败
+
+#### 范例
+
+[network/socket_tcp · 基础范例](../../examples/network/socket_tcp/main.c) · 连接后即发送
+
+```c
+(xrtNetSocketSend(Client, "hello", 5,
+	&iSize) != XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketRecv`
+
+单次接收；流式 EOF 返回 `CLOSED`，非阻塞无数据返回 `AGAIN`。
+
+```c
+xnetresult xrtNetSocketRecv(xnetsocket Socket, void* pData, size_t iSize, size_t* pReceived);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pData` | 输出 | `iSize > 0` 时非空 | 接收缓冲 |
+| `iSize` | 输入 | — | 缓冲容量 |
+| `pReceived` | 输出 | 非空 | 成功时接收实际读取量 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` | `*pReceived` 字节可用 |
+| `AGAIN` | 非阻塞暂无数据 |
+| `CLOSED` | 流式对端已 EOF（`*pReceived` 为 0） |
+| `ERROR` | 系统失败 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_READ`（系统错误）— `recv()` 失败
+
+#### 范例
+
+[network/socket_tcp · 基础范例](../../examples/network/socket_tcp/main.c) · 服务端读取五字节
+
+```c
+(xrtNetSocketRecv(Accepted, sData, sizeof(sData) - 1,
+	&iSize) != XNET_RESULT_OK) ) {
+```
+
+### `xrtNetSocketSendVec`
+
+单次聚集发送；Span 数量不能超过 64。
+
+```c
+xnetresult xrtNetSocketSendVec(xnetsocket Socket, const xnetspan* pSpans, size_t iCount, size_t* pSent);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 连接式 |
+| `pSpans` | 输入 | `iCount > 0` 时非空 | 只读 Span 数组 |
+| `iCount` | 输入 | `<= 64` | Span 数 |
+| `pSent` | 输出 | 非空 | 实际发送量 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `ERROR` | 同 `Send` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或 Span 数超限
+- `XNET_ERROR_SOCKET_WRITE`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 两段 "xy"+"z" 三字节
+
+```c
+(xrtNetSocketSendVec(A, Out, 2u, &iSent) != XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketRecvVec`
+
+单次分散接收；Span 数量不能超过 64。
+
+```c
+xnetresult xrtNetSocketRecvVec(xnetsocket Socket, xnetwspan* pSpans, size_t iCount, size_t* pReceived);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 连接式 |
+| `pSpans` | 输出 | `iCount > 0` 时非空 | 可写 Span 数组 |
+| `iCount` | 输入 | `<= 64` | Span 数 |
+| `pReceived` | 输出 | 非空 | 实际读取量 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `CLOSED` / `ERROR` | 同 `Recv` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或超限
+- `XNET_ERROR_SOCKET_READ`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 与 SendVec 配对
+
+```c
+(xrtNetSocketRecvVec(B, In, 2u, &iGot) != XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketSendTo`
+
+单次发送数据报；允许发送零长度数据报。
+
+```c
+xnetresult xrtNetSocketSendTo(xnetsocket Socket, const void* pData, size_t iSize, size_t* pSent, const xnetaddr* pRemote);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pData` | 输入 | 允许空指针（零长度报文） | 发送内容 |
+| `iSize` | 输入 | — | 字节数 |
+| `pSent` | 输出 | 非空 | 实际发送量 |
+| `pRemote` | 输入 | 非空 | 目标地址 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `ERROR` | 同 `Send` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_WRITE`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 消息形态三字节
+
+```c
+(xrtNetSocketSendTo(A, "msg", 3u, &iSent, &DestB) !=
+		XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketRecvFrom`
+
+单次接收数据报；零长度返回 `OK`，缓冲不足返回 `TRUNCATED`。
+
+```c
+xnetresult xrtNetSocketRecvFrom(xnetsocket Socket, void* pData, size_t iSize, size_t* pReceived, xnetaddr* pRemote);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pData` | 输出 | `iSize > 0` 时非空 | 接收缓冲 |
+| `iSize` | 输入 | — | 缓冲容量 |
+| `pReceived` | 输出 | 非空 | 实际读取量 |
+| `pRemote` | 输出 | 非空 | 发送方地址 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` | `*pReceived` 字节可用（可为 0） |
+| `AGAIN` | 非阻塞暂无数据 |
+| `TRUNCATED` | 报文超过缓冲容量（余量被截去） |
+| `ERROR` | 系统失败 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_READ`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 多播自收一包
+
+```c
+McResult = xrtNetSocketRecvFrom(B, arrBuf, 8u, &iGot,
+	&From);
+```
+
+### `xrtNetSocketSendToVec`
+
+单次聚集发送数据报；Span 数量不能超过 64。
+
+```c
+xnetresult xrtNetSocketSendToVec(xnetsocket Socket, const xnetspan* pSpans, size_t iCount, size_t* pSent, const xnetaddr* pRemote);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pSpans` | 输入 | `iCount > 0` 时非空 | 聚集 Span |
+| `iCount` | 输入 | `<= 64` | Span 数 |
+| `pSent` | 输出 | 非空 | 实际发送量 |
+| `pRemote` | 输入 | 非空 | 目标地址 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `ERROR` | 同 `SendTo` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或超限
+- `XNET_ERROR_SOCKET_WRITE`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 两段 "ab"+"cd" 四字节
+
+```c
+if ( (xrtNetSocketSendToVec(A, Out, 2u, &iSent, &DestB) !=
+		XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketRecvFromVec`
+
+单次分散接收数据报；Span 数量不能超过 64。
+
+```c
+xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket, xnetwspan* pSpans, size_t iCount, size_t* pReceived, xnetaddr* pRemote);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pSpans` | 输出 | `iCount > 0` 时非空 | 分散 Span |
+| `iCount` | 输入 | `<= 64` | Span 数 |
+| `pReceived` | 输出 | 非空 | 实际读取量 |
+| `pRemote` | 输出 | 非空 | 发送方地址 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `TRUNCATED` / `ERROR` | 同 `RecvFrom` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或超限
+- `XNET_ERROR_SOCKET_READ`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 与 SendToVec 四字节配对
+
+```c
+(xrtNetSocketRecvFromVec(B, In, 2u, &iGot, &From) !=
+		XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketSendMsg`
+
+发送数据报并覆盖本包源地址、接口、Hop Limit 或 Traffic Class。
+
+```c
+xnetresult xrtNetSocketSendMsg(xnetsocket Socket, const void* pData, size_t iSize, size_t* pSent, const xnetaddr* pRemote, const xnetdgramcontrol* pControl);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pData` | 输入 | 允许空指针 | 发送内容 |
+| `iSize` | 输入 | — | 字节数 |
+| `pSent` | 输出 | 非空 | 实际发送量 |
+| `pRemote` | 输入 | 非空 | 目标地址 |
+| `pControl` | 输入 | 允许空指针 | 逐包控制；空表示无覆盖 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `ERROR` | 同 `SendTo` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_WRITE`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 多播自收一包（SendTo 同型路径）
+
+```c
+McResult = xrtNetSocketSendTo(A, "m", 1u, &iSent, &Group);
+```
+
+### `xrtNetSocketSendMsgVec`
+
+聚集发送带逐包控制的数据报；Span 数量不能超过 64。
+
+```c
+xnetresult xrtNetSocketSendMsgVec(xnetsocket Socket, const xnetspan* pSpans, size_t iCount, size_t* pSent, const xnetaddr* pRemote, const xnetdgramcontrol* pControl);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pSpans` | 输入 | `iCount > 0` 时非空 | 聚集 Span |
+| `iCount` | 输入 | `<= 64` | Span 数 |
+| `pSent` | 输出 | 非空 | 实际发送量 |
+| `pRemote` | 输入 | 非空 | 目标地址 |
+| `pControl` | 输入 | 允许空指针 | 逐包控制 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `ERROR` | 同 `SendTo` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或超限
+- `XNET_ERROR_SOCKET_WRITE`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 零控制双段四字节
+
+```c
+if ( (xrtNetSocketSendMsgVec(A, Out, 2u, &iSent, &DestB,
+		&Control) != XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketRecvMsg`
+
+接收数据报及已启用的目标、接口、Hop Limit 和 Traffic Class 元数据。
+
+```c
+xnetresult xrtNetSocketRecvMsg(xnetsocket Socket, void* pData, size_t iSize, size_t* pReceived, xnetaddr* pRemote, xnetdgrammeta* pMeta);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pData` | 输出 | `iSize > 0` 时非空 | 接收缓冲 |
+| `iSize` | 输入 | — | 缓冲容量 |
+| `pReceived` | 输出 | 非空 | 实际读取量 |
+| `pRemote` | 输出 | 非空 | 发送方地址 |
+| `pMeta` | 输出 | **非空** | 元数据结构；传 `NULL` 是参数错误——与 `RecvFrom` 的差异点 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `TRUNCATED` / `ERROR` | 同 `RecvFrom`；`Meta.Flags` 标记有效字段 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针（含 `pMeta == NULL`）
+- `XNET_ERROR_SOCKET_READ`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 与 SendTo 三字节配对
+
+```c
+(xrtNetSocketRecvMsg(B, arrBuf, 64u, &iGot, &From, &Meta) !=
+		XNET_RESULT_OK) ||
+	(iGot != 3u) ||
+```
+
+### `xrtNetSocketRecvMsgVec`
+
+分散接收数据报及元数据，Span 数量不能超过 64。
+
+```c
+xnetresult xrtNetSocketRecvMsgVec(xnetsocket Socket, xnetwspan* pSpans, size_t iCount, size_t* pReceived, xnetaddr* pRemote, xnetdgrammeta* pMeta);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pSpans` | 输出 | `iCount > 0` 时非空 | 分散 Span |
+| `iCount` | 输入 | `<= 64` | Span 数 |
+| `pReceived` | 输出 | 非空 | 实际读取量 |
+| `pRemote` | 输出 | 非空 | 发送方地址 |
+| `pMeta` | 输出 | 非空 | 元数据结构 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `TRUNCATED` / `ERROR` | 同 `RecvFrom` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或超限
+- `XNET_ERROR_SOCKET_READ`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 与 SendMsgVec 四字节配对
+
+```c
+(xrtNetSocketRecvMsgVec(B, In, 2u, &iGot, &From, &Meta) !=
+		XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketRecvBatch`
+
+接收最多 64 个数据报；返回已消费前缀，每项独立记录 `OK` 或 `TRUNCATED`。
+
+```c
+xnetresult xrtNetSocketRecvBatch(xnetsocket Socket, xnetdgramrecv* pItems, size_t iCapacity, size_t* pReceived);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pItems` | 输出 | `iCapacity > 0` 时非空 | 调用方提供缓冲的接收项数组 |
+| `iCapacity` | 输入 | `<= 64` | 最多接收数 |
+| `pReceived` | 输出 | 非空 | 已到达前缀数（可能小于发送量） |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `ERROR` | 每项自带 `Result`/`Size`/`Remote` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或超限
+- `XNET_ERROR_SOCKET_READ`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 两包批量含部分到达补收
+
+```c
+if ( (xrtNetSocketSendBatch(A, Send, 2u, &iSent) != XNET_RESULT_OK) ||
+	(iSent != 2u) ||
+	(xrtNetSocketRecvBatch(B, Recv, 2u, &iGot) != XNET_RESULT_OK) ) {
+```
+
+### `xrtNetSocketSendBatch`
+
+发送最多 64 个数据报；返回已经完整发送的输入前缀。
+
+```c
+xnetresult xrtNetSocketSendBatch(xnetsocket Socket, const xnetdgramsend* pItems, size_t iCount, size_t* pSent);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pItems` | 输入 | `iCount > 0` 时非空 | 调用期间借用数据 |
+| `iCount` | 输入 | `<= 64` | 发送项数 |
+| `pSent` | 输出 | 非空 | 已完整发送的项数 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` / `AGAIN` / `ERROR` | `AGAIN` 表示队列暂满，稍后重试剩余 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或超限
+- `XERR_IO` + `XNET_ERROR_SOCKET_WRITE` — 某项系统失败
+- `XNET_ERROR_SOCKET_WRITE`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 双项批量（连接式空远端）
+
+```c
+if ( (xrtNetSocketSendBatch(A, Send, 2u, &iSent) != XNET_RESULT_OK) ||
+```
+
+### `xrtNetSocketDgramMetaAvailable`
+
+返回当前平台和地址族可能提供的数据报接收元数据位。
 
 ```c
 uint32 xrtNetSocketDgramMetaAvailable(xnetsocket Socket);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 位集 | 平台可能支持的 `XNET_DGRAM_META_*` 位组合 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— 探测失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 与 Enabled 成对使用（见 DgramMetaSet 范例）
+
+```c
+(xrtNetSocketDgramMetaEnabled(A) != 0u) ||
+```
+
+### `xrtNetSocketDgramMetaEnabled`
+
+返回 Socket 当前已经启用的数据报接收元数据位。
+
+```c
 uint32 xrtNetSocketDgramMetaEnabled(xnetsocket Socket);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 位集 | 已启用位（默认 0） |
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 默认全零
+
+```c
+(xrtNetSocketDgramMetaEnabled(A) != 0u) ||
+```
+
+### `xrtNetSocketDgramMetaSet`
+
+成功后精确设置接收元数据位。
+
+```c
 bool xrtNetSocketDgramMetaSet(xnetsocket Socket, uint32 iFlags);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 数据报 Socket |
+| `iFlags` | 输入 | 合法元数据位组合 | 期望启用的位集 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已生效；`Enabled` 反映实际位 | — |
+| `false` | 参数非法、平台不支持或系统失败 | 可查询 `Enabled` 看实际生效状态；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空对象
+- `XERR_RANGE` — 含非法元数据位
+- `XERR_UNSUPPORTED` — 平台不支持全部请求位
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 启用 Hop Limit 后收包带 HopLimit
+
+```c
+if ( !xrtNetSocketDgramMetaSet(B, XNET_DGRAM_META_HOP_LIMIT) ||
+```
+
+### `xrtNetSocketDgramControlAvailable`
+
+返回当前平台、地址族和 Socket Provider 可用的逐数据报发送控制位。
+
+```c
 uint32 xrtNetSocketDgramControlAvailable(xnetsocket Socket);
-uint32 xrtNetSocketDgramCapabilities(xnetsocket Socket);
 ```
 
-接收元数据默认关闭。`Available` 在实际 Socket 和地址族上探测平台选项，返回可请求字段；调用方可以选取所需子集，再用 `DgramMetaSet` 精确启用。成功返回后 `Enabled` 与请求完全一致。原生套接字选项按组提交，罕见的中途系统失败可能已经改变前面的选项；此时函数返回失败，`Enabled` 返回实际已经生效的字段，调用方应关闭 Socket 或显式重设。配置必须由 Socket owner 在没有在途接收时串行执行。
+#### 参数
 
-`RecvMsg`/`RecvMsgVec` 与 `RecvFrom` 保持相同报文、零长度和载荷截断语义，并额外返回已启用字段。未启用任何字段时它们退回普通接收并将 `Meta` 清零；普通 `RecvFrom` 始终不请求控制消息。`Flags` 决定每个输出字段是否有效，平台未随该报文返回某字段时对应位保持零。`Destination` 表示报文到达的本地目标 IP，端口恒为零；IPv6 Scope 和 `Interface` 使用接口索引；Hop Limit 和 Traffic Class 保持系统返回的整数。Linux GRO 合并接收通过 `SEGMENT_SIZE` 返回原始数据报边界，最后一段允许短于该值。控制消息自身被截断时保留已经解析的字段，并增加只读结果位 `XNET_DGRAM_META_TRUNCATED`，该位不能用于配置。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
 
-发送控制与接收元数据是两个方向明确的结构，不能混用。调用方先用 `DgramControlAvailable` 查询当前 Socket、地址族和平台真正可构建的字段，再把所需子集写入 `xnetdgramcontrol.Flags`。`SOURCE` 要求具体、同地址族且端口为零的本地 IP，拒绝 `0.0.0.0` 和 `::`；IPv6 可以通过 `Source.Scope` 携带接口索引。`INTERFACE` 使用系统接口索引；Hop Limit 与 Traffic Class 的有效范围均为 0 到 255。`SEGMENT_SIZE` 要求 1 到 65535 字节、非空聚合载荷且最多产生 64 个数据报。未知、不可用或越界字段在系统调用前失败，不会静默忽略。
+#### 返回值
 
-Windows 在运行期取得 `WSASendMsg` 后提供 Source 与 Interface；Linux 按地址族提供 Source、Interface、Hop Limit、Traffic Class，并在内核支持时提供 UDP GSO；BSD/Darwin 按系统头实际具备的 `IP_SENDSRCADDR`、`IPV6_PKTINFO`、`IPV6_HOPLIMIT` 和 `IPV6_TCLASS` 返回能力。`SendMsg`/`SendMsgVec` 只覆盖当前提交，不修改 Socket 默认选项；空控制或零 Flags 直接退回普通发送路径。同步调用期间借用控制和载荷。普通 `Send`/`SendTo` 不构建控制缓冲，也不承担这项开销。
+| 返回 | 含义 |
+|---|---|
+| 位集 | 可用的 `XNET_DGRAM_CONTROL_*` 位组合 |
 
-### PMTU 与异步数据报错误
+#### 错误
+
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— 探测失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 与 DgramMetaAvailable 同族用法
+
+```c
+(xrtNetSocketDgramMetaEnabled(A) != 0u) ||
+```
+
+### `xrtNetSocketDgramCapabilities`
+
+返回 PMTU、错误队列及后续高级数据报能力。
 
 ```c
 uint32 xrtNetSocketDgramCapabilities(xnetsocket Socket);
-xnetresult xrtNetSocketDgramRecvError(xnetsocket Socket,
-	void* pData, size_t iSize, size_t* pReceived,
-	xnetdgramerror* pError);
 ```
 
-`DgramCapabilities` 是运行时能力查询，不以编译平台代替实际 Socket Provider。Windows 提供 PMTU，并在当前 Winsock Provider 支持 `UDP_SEND_MSG_SIZE`、`UDP_RECV_MAX_COALESCED_SIZE` 与消息扩展时提供分段发送和合并接收；Linux 提供 PMTU、错误队列，并在对应 `SOL_UDP` 选项可用时提供 GSO/GRO。其他平台返回零。PMTU 使用统一 `XNET_OPTION_PATH_MTU_MODE` 设置，使用只读 `XNET_OPTION_PATH_MTU` 查询；不支持的模式明确失败。
+#### 参数
 
-Windows 分段大小通过 `WSASendMsg` 的 `IPPROTO_UDP/UDP_SEND_MSG_SIZE` 控制消息逐包提交，不修改 Socket 全局状态，因此不会在并发发送之间串值。合并接收通过 `UDP_RECV_MAX_COALESCED_SIZE` 显式启用，`WSARecvMsg` 的 `UDP_COALESCED_INFO` 返回原始分段大小。合并属于允许发生的优化，不是每次接收的强制结果；未合并数据报保持原边界且不设置 `SEGMENT_SIZE`。启用合并后，接收缓冲仍由调用方提供，必须能够容纳期望的最大聚合载荷，否则按普通数据报截断契约返回。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 非数据报 Socket 返回零 |
 
-Linux 错误队列由 `XNET_OPTION_DGRAM_ERRORS` 显式启用。`DgramRecvError` 使用 `MSG_ERRQUEUE` 非阻塞读取一个 ICMP、ICMPv6 或本地错误，空队列返回 `AGAIN`；函数同时返回原始数据报负载前缀和结构化 `xnetdgramerror`。`Flags` 决定 Remote、Offender、PathMtu 和截断字段是否有效。该结果属于异步协议状态，不覆盖当前线程错误。事件端口的 `xrtNetPortRecvError` 提供相同结果的完成式操作，io_uring 通过错误就绪轮询后读取错误队列实现唯一终态。
+#### 返回值
 
-### 选项
+| 返回 | 含义 |
+|---|---|
+| 位集 | 数据报高级能力位；含 `XNET_OPTION_DGRAM_ERRORS` 可设性等 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— 探测失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 同族用法见 DgramMetaSet 范例
 
 ```c
-bool xrtNetSocketSet(xnetsocket Socket,
-	xnetoption Option, int64 iValue);
-bool xrtNetSocketGet(xnetsocket Socket,
-	xnetoption Option, int64* pValue);
+(xrtNetSocketDgramMetaEnabled(A) != 0u) ||
 ```
 
-统一选项覆盖非阻塞、地址复用、Windows 独占地址、TCP NoDelay、KeepAlive、广播、IPv6-only、系统收发缓冲、linger、Hop Limit、Traffic Class 和只读 `SO_ERROR`。NoDelay、KeepAlive 和 linger 只接受流式 Socket，广播只接受数据报 Socket，不依赖平台碰巧接受无意义选项。负 linger 值关闭 linger，零表示 abortive close，正值为等待秒数。平台没有等价语义时返回 `XERR_UNSUPPORTED`，不会静默忽略；`REUSE_PORT` 与 `EXCLUSIVE_ADDRESS` 因此分别保持 POSIX 和 Windows 的真实边界。
+### `xrtNetSocketDgramRecvError`
 
-### 多播
+非阻塞读取一个已启用的异步数据报错误。
 
 ```c
-bool xrtNetSocketMulticastJoin(xnetsocket Socket,
-	const xnetaddr* pGroup, const xnetaddr* pInterface);
-bool xrtNetSocketMulticastLeave(xnetsocket Socket,
-	const xnetaddr* pGroup, const xnetaddr* pInterface);
+xnetresult xrtNetSocketDgramRecvError(xnetsocket Socket, void* pData, size_t iSize, size_t* pReceived, xnetdgramerror* pError);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pData` | 输出 | 允许空指针 | 错误附带的原始数据 |
+| `iSize` | 输入 | — | 缓冲容量 |
+| `pReceived` | 输出 | 非空 | 附带数据量 |
+| `pError` | 输出 | 非空 | 错误描述结构 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `OK` | 已读取一个排队错误 |
+| `AGAIN` | 队列为空（Linux 上空队列返回本值） |
+| `ERROR` | 平台不支持或失败（Windows 恒 `ERROR`："not supported on this platform"） |
+
+#### 错误
+
+- `XERR_UNSUPPORTED` — 平台无 `IP_RECVERR` 等价物
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 平台能力门控（Windows 不支持）
+
+```c
+xnetresult ErrResult = xrtNetSocketDgramRecvError(A,
+	arrBuf, sizeof(arrBuf), &iGot, &DgramError);
+
+if ( ErrResult == XNET_RESULT_OK ) {
+```
+
+### `xrtNetSocketMulticastJoin`
+
+将数据报 Socket 加入一个同地址族多播组。
+
+```c
+bool xrtNetSocketMulticastJoin(xnetsocket Socket, const xnetaddr* pGroup, const xnetaddr* pInterface);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | 数据报 Socket |
+| `pGroup` | 输入 | 非空、同族多播地址 | 目标组 |
+| `pInterface` | 输入 | 非空 | 指定出接口；IPv6 使用 Scope 作为接口索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已加入 | — |
+| `false` | 系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— `setsockopt(IP_ADD_MEMBERSHIP)` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · Loop+Hop+Iface+Join 全指环回
+
+```c
+!xrtNetSocketMulticastJoin(B, &Group, &Iface) ) {
+```
+
+### `xrtNetSocketMulticastLeave`
+
+将数据报 Socket 移出一个多播组。
+
+```c
+bool xrtNetSocketMulticastLeave(xnetsocket Socket, const xnetaddr* pGroup, const xnetaddr* pInterface);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pGroup` | 输入 | 非空 | 已加入的组 |
+| `pInterface` | 输入 | 非空 | 与加入时相同的接口 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已移出 | — |
+| `false` | 系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— `IP_DROP_MEMBERSHIP` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 自收验证后移出
+
+```c
+if ( !xrtNetSocketMulticastLeave(B, &Group, &Iface) ||
+	!xrtNetSocketMulticastInterface(A, NULL) ) {
+```
+
+### `xrtNetSocketMulticastLoop`
+
+设置数据报 Socket 是否接收自己发出的多播报文。
+
+```c
 bool xrtNetSocketMulticastLoop(xnetsocket Socket, bool bEnabled);
-bool xrtNetSocketMulticastHopLimit(xnetsocket Socket, int iHopLimit);
-bool xrtNetSocketMulticastInterface(xnetsocket Socket,
-	const xnetaddr* pInterface);
 ```
 
-多播 API 只接受数据报 Socket，组地址必须与 Socket 地址族一致且确实属于多播范围。IPv4 接收和发送接口使用本地接口地址；IPv6 使用 `xnetaddr.Scope` 中的接口索引。空接口表示系统默认，多播跳数的有效范围为 0 到 255。
+#### 参数
 
-Socket 原语层不添加隐式成员管理：加入和离开必须显式成对，调用方可以在同一 Socket 上管理多个组和接口。高层 Engine UDP 对象通过 `<xrt/udp.h>` 提供 Worker 串行化包装。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `bEnabled` | 输入 | — | 自收开关 |
 
-UDP 与 TCP 原语示例分别位于 `examples/network/socket/main.c` 和 `examples/network/socket_tcp/main.c`。
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已设置 | — |
+| `false` | 系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— `IP_MULTICAST_LOOP` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 自收前提
+
+```c
+!xrtNetSocketMulticastLoop(A, true) ||
+```
+
+### `xrtNetSocketMulticastHopLimit`
+
+设置数据报 Socket 的多播跳数，合法范围为 0 到 255。
+
+```c
+bool xrtNetSocketMulticastHopLimit(xnetsocket Socket, int iHopLimit);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `iHopLimit` | 输入 | `[0, 255]` | 多播 TTL |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已设置 | — |
+| `false` | 系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— `IP_MULTICAST_TTL` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 单跳自收
+
+```c
+!xrtNetSocketMulticastHopLimit(A, 1) ||
+```
+
+### `xrtNetSocketMulticastInterface`
+
+选择多播发送接口；空接口恢复系统默认。
+
+```c
+bool xrtNetSocketMulticastInterface(xnetsocket Socket, const xnetaddr* pInterface);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Socket` | 输入 | 非空 | — |
+| `pInterface` | 输入 | 允许空指针 | 空恢复默认；IPv6 使用 Scope 接口索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已设置 | — |
+| `false` | 系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空对象
+- `XNET_ERROR_SOCKET_OPTION`（系统错误）— `IP_MULTICAST_IF` 失败
+
+#### 范例
+
+[socket_tour](../../examples/network/socket_tour/main.c) · 设环回接口并在收尾恢复默认
+
+```c
+!xrtNetSocketMulticastInterface(A, &Iface) ||
+```
 
 ## 网络事件端口
 
