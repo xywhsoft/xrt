@@ -3721,6 +3721,158 @@ X25519 输出只是密钥材料，不应直接作为 AES、ChaCha20 或业务密
 
 旧版 Mike Hamburg / STROBE 算术内核作为成熟资产保留，并补上 RFC 独立向量、Alice/Bob、1000 次迭代、输入最高位屏蔽、低阶点拒绝、任意缓冲重叠和失败原子性测试。旧版随机失败不可见、共享秘密不验证、API 参数顺序不统一和依赖实现定义有符号右移的部分已经替换。完整示例位于 `examples/crypto/x25519/main.c`。
 
+### `xrtX25519`
+
+执行 RFC 7748 X25519 标量乘法；三段固定长度缓冲可以任意重叠。
+
+```c
+bool xrtX25519(
+	const void* pScalar,
+	const void* pPoint,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pScalar` | 输入 | 借用、32 字节 | 标量 |
+| `pPoint` | 输入 | 借用、32 字节 | u 坐标点 |
+| `pOutput` | 输出 | 32 字节 | 结果（可与输入任意重叠） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 结果已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/x25519 · 密钥交换](../../examples/crypto/ecdh_tour/main.c) · 观察
+
+```c
+!xrtX25519(arrSecretA, arrPubB, arrSharedA) ||
+```
+
+
+### `xrtX25519Public`
+
+从 32 字节私钥导出 X25519 公钥，允许原位覆盖私钥。
+
+```c
+bool xrtX25519Public(const void* pPrivate, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输入 | 借用、32 字节 | 私钥 |
+| `pPublic` | 输出 | 32 字节 | 公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 公钥已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/x25519 · 密钥交换](../../examples/crypto/ecdh_tour/main.c) · 观察
+
+```c
+!xrtX25519Public(arrSecretA, arrPubA) ||
+```
+
+
+### `xrtX25519Shared`
+
+计算共享秘密并以常量时间拒绝低阶公钥产生的全零结果。
+
+```c
+bool xrtX25519Shared(
+	const void* pPrivate,
+	const void* pPeerPublic,
+	void* pShared
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输入 | 借用、32 字节 | 本方私钥 |
+| `pPeerPublic` | 输入 | 借用、32 字节 | 对端公钥 |
+| `pShared` | 输出 | 32 字节 | 共享秘密 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 共享秘密已写出 | — |
+| `false` | 对端公钥为低阶点（拒绝全零结果）或参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/x25519 · 密钥交换](../../examples/crypto/x25519/main.c) · 观察
+
+```c
+!xrtX25519Shared(AlicePrivate, BobPublic, AliceShared) ||
+```
+
+
+### `xrtX25519KeyPair`
+
+使用操作系统安全随机源生成私钥和对应公钥；两个输出不得重叠。
+
+```c
+bool xrtX25519KeyPair(void* pPrivate, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输出 | 32 字节 | 接收私钥 |
+| `pPublic` | 输出 | 32 字节 | 接收公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密钥对已写出 | — |
+| `false` | 参数非法或随机源失败 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_IO` — 安全随机源失败
+
+#### 范例
+
+[crypto/x25519 · 密钥交换](../../examples/crypto/x25519/main.c) · 观察
+
+```c
+!xrtX25519KeyPair(AlicePrivate, AlicePublic) ||
+```
+
+
 ## X448
 
 X448 与 X25519 使用相同的四层 API 结构，但采用 56 字节标量、u-coordinate 和共享秘密。算法层与随机密钥对层分别由 `XRT_FEATURE_CRYPTO_X448` 和 `XRT_FEATURE_CRYPTO_X448_KEYPAIR` 裁剪：
@@ -3751,6 +3903,158 @@ bool xrtX448KeyPair(void* pPrivate, void* pPublic);
 算法实现不分配内存、不使用共享可变状态，可并发调用。域运算保留旧版 14 x 32 位乘法和 Montgomery ladder，但替换了按秘密数据决定次数的规范化循环及容易产生无符号下溢传播错误的减法；归约、交换和标量路径均使用固定轮次。测试覆盖 RFC 两组独立向量、Alice/Bob、1000 次迭代、非规范输入、低阶点、任意重叠、失败原子性、随机密钥对、裁剪和单头文件。
 
 X448 提供约 224 位经典安全强度，代价明显高于 X25519。协议协商应按互操作和安全策略选择，而不是把 X448 输出直接当作业务密钥；共享秘密仍需绑定双方身份、握手 transcript 或协议上下文后交给 HKDF。完整示例位于 `examples/crypto/x448/main.c`。
+
+### `xrtX448Shared`
+
+计算共享秘密并以常量时间拒绝低阶公钥产生的全零结果。
+
+```c
+bool xrtX448Shared(
+	const void* pPrivate,
+	const void* pPeerPublic,
+	void* pShared
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输入 | 借用、56 字节 | 本方私钥 |
+| `pPeerPublic` | 输入 | 借用、56 字节 | 对端公钥 |
+| `pShared` | 输出 | 56 字节 | 共享秘密 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 共享秘密已写出 | — |
+| `false` | 对端公钥为低阶点（拒绝全零结果）或参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/x448 · 密钥交换](../../examples/crypto/x448/main.c) · 观察
+
+```c
+!xrtX448Shared(AlicePrivate, BobPublic, AliceShared) ||
+```
+
+
+### `xrtX448KeyPair`
+
+使用操作系统安全随机源生成私钥和对应公钥；两个输出不得重叠。
+
+```c
+bool xrtX448KeyPair(void* pPrivate, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输出 | 56 字节 | 接收私钥 |
+| `pPublic` | 输出 | 56 字节 | 接收公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密钥对已写出 | — |
+| `false` | 参数非法或随机源失败 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_IO` — 安全随机源失败
+
+#### 范例
+
+[crypto/x448 · 密钥交换](../../examples/crypto/x448/main.c) · 观察
+
+```c
+!xrtX448KeyPair(AlicePrivate, AlicePublic) ||
+```
+
+
+### `xrtX448`
+
+执行 RFC 7748 X448 标量乘法；三段固定长度缓冲可以任意重叠。
+
+```c
+bool xrtX448(
+	const void* pScalar,
+	const void* pPoint,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pScalar` | 输入 | 借用、56 字节 | 标量 |
+| `pPoint` | 输入 | 借用、56 字节 | u 坐标点 |
+| `pOutput` | 输出 | 56 字节 | 结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 结果已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/x448 · 密钥交换](../../examples/crypto/x448/main.c) · 观察
+
+```c
+if ( !xrtX448KeyPair(AlicePrivate, AlicePublic) ||
+```
+
+
+### `xrtX448Public`
+
+从 56 字节私钥导出 X448 公钥，允许原位覆盖私钥。
+
+```c
+bool xrtX448Public(const void* pPrivate, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输入 | 借用、56 字节 | 私钥 |
+| `pPublic` | 输出 | 56 字节 | 公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 公钥已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/x448 · 密钥交换](../../examples/crypto/x448/main.c) · 观察
+
+```c
+!xrtX448Shared(AlicePrivate, BobPublic, AliceShared) ||
+```
+
 
 ## P-256 与 P-384
 
@@ -3798,6 +4102,466 @@ P-384 与 P-256 保持完全对称的契约。私钥和点乘标量都必须严�
 
 旧版 P-256/P-384 的 API 场景、固定尺寸、未压缩点格式、双向 ECDH 和已有 `1*G` / `2*G` 向量作为历史资产保留。实现层已替换私钥位分支、未验证对端点、随机失败不可见和 P-384 每次运算构造堆大整数上下文的路径。新测试增加严格标量边界、非法点、结构化错误、结果原子性、任意缓冲重叠、单头文件、TinyCC/x86 以及对 OpenSSL 的随机差分。完整示例位于 `examples/crypto/p256/main.c` 和 `examples/crypto/p384/main.c`。
 
+### `xrtP256Valid`
+
+验证 65 字节未压缩 SEC 1 公钥是否为有效 P-256 曲线点。
+
+```c
+bool xrtP256Valid(const void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPublic` | 输入 | 借用、65 字节 | 未压缩公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 是曲线上的有效点 | — |
+| `false` | 非法点（正常结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/ecdh_tour · 点运算](../../examples/crypto/ecdh_tour/main.c) · 观察
+
+```c
+xrtP256Valid(arrPoint) ||
+```
+
+
+### `xrtP256Multiply`
+
+计算 scalar * point；三个固定长度缓冲可任意重叠。
+
+```c
+bool xrtP256Multiply(
+	const void* pScalar,
+	const void* pPoint,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pScalar` | 输入 | 借用、32 字节 | 大端标量 |
+| `pPoint` | 输入 | 借用、65 字节 | 未压缩点 |
+| `pOutput` | 输出 | 65 字节 | 结果点 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 结果已写出 | — |
+| `false` | 非法点或参数 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/ecdh_tour · 点运算](../../examples/crypto/ecdh_tour/main.c) · 观察
+
+```c
+!xrtP256Multiply(arrScalarTwo, arrPoint, arrDouble) ||
+```
+
+
+### `xrtP256Add`
+
+计算两个未压缩公共点之和；输入输出可任意重叠。
+
+```c
+bool xrtP256Add(
+	const void* pLeft,
+	const void* pRight,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 借用、65 字节 | 左点 |
+| `pRight` | 输入 | 借用、65 字节 | 右点 |
+| `pOutput` | 输出 | 65 字节 | 和点 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 结果已写出 | — |
+| `false` | 非法点或参数 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/ecdh_tour · 点运算](../../examples/crypto/ecdh_tour/main.c) · 观察
+
+```c
+!xrtP256Add(arrPoint, arrPoint, arrSum) ||
+```
+
+
+### `xrtP256Public`
+
+从 32 字节私钥派生未压缩 P-256 公钥。
+
+```c
+bool xrtP256Public(const void* pPrivate, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输入 | 借用、32 字节 | 私钥 |
+| `pPublic` | 输出 | 65 字节 | 公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 公钥已写出 | — |
+| `false` | 私钥为零或参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · 公钥派生](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtP256Public(arrPriv256, arrPub256) ||
+```
+
+
+### `xrtP256Shared`
+
+计算经过完整私钥和对端公钥验证的 P-256 ECDH 横坐标。
+
+```c
+bool xrtP256Shared(
+	const void* pPrivate,
+	const void* pPeerPublic,
+	void* pShared
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输入 | 借用、32 字节 | 本方私钥 |
+| `pPeerPublic` | 输入 | 借用、65 字节 | 对端公钥（完整验证） |
+| `pShared` | 输出 | 32 字节 | 横坐标共享秘密 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 共享秘密已写出 | — |
+| `false` | 私钥为零或对端公钥非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/p256 · 密钥交换](../../examples/crypto/p256/main.c) · 观察
+
+```c
+!xrtP256Shared(PrivateA, PublicB, SharedA) ||
+```
+
+
+### `xrtP256KeyPair`
+
+使用操作系统安全随机源生成 P-256 私钥和未压缩公钥。
+
+```c
+bool xrtP256KeyPair(void* pPrivate, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输出 | 32 字节 | 接收私钥 |
+| `pPublic` | 输出 | 65 字节 | 接收公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密钥对已写出 | — |
+| `false` | 参数非法或随机源失败 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_IO` — 安全随机源失败
+
+#### 范例
+
+[crypto/p256 · 密钥交换](../../examples/crypto/p256/main.c) · 观察
+
+```c
+!xrtP256KeyPair(PrivateA, PublicA) ||
+```
+
+
+### `xrtP384Valid`
+
+验证 97 字节未压缩 SEC 1 公钥是否为有效 P-384 曲线点。
+
+```c
+bool xrtP384Valid(const void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPublic` | 输入 | 借用、97 字节 | 未压缩公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 是曲线上的有效点 | — |
+| `false` | 非法点（正常结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/p384 · 密钥交换](../../examples/crypto/ecdh_tour/main.c) · 观察
+
+```c
+xrtP384Valid(arrPoint) ||
+```
+
+
+### `xrtP384Multiply`
+
+计算 scalar * point；三个固定长度缓冲可任意重叠。
+
+```c
+bool xrtP384Multiply(
+	const void* pScalar,
+	const void* pPoint,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pScalar` | 输入 | 借用、48 字节 | 大端标量 |
+| `pPoint` | 输入 | 借用、97 字节 | 未压缩点 |
+| `pOutput` | 输出 | 97 字节 | 结果点 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 结果已写出 | — |
+| `false` | 非法点或参数 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/p384 · 密钥交换](../../examples/crypto/ecdh_tour/main.c) · 观察
+
+```c
+!xrtP384Multiply(
+```
+
+
+### `xrtP384Add`
+
+计算两个未压缩公共点之和；输入输出可任意重叠。
+
+```c
+bool xrtP384Add(
+	const void* pLeft,
+	const void* pRight,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 借用、97 字节 | 左点 |
+| `pRight` | 输入 | 借用、97 字节 | 右点 |
+| `pOutput` | 输出 | 97 字节 | 和点 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 结果已写出 | — |
+| `false` | 非法点或参数 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/p384 · 密钥交换](../../examples/crypto/ecdh_tour/main.c) · 观察
+
+```c
+!xrtP384Add(
+```
+
+
+### `xrtP384Public`
+
+从 48 字节私钥派生未压缩 P-384 公钥。
+
+```c
+bool xrtP384Public(const void* pPrivate, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输入 | 借用、48 字节 | 私钥 |
+| `pPublic` | 输出 | 97 字节 | 公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 公钥已写出 | — |
+| `false` | 私钥为零或参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/p384 · 密钥交换](../../examples/crypto/p384/main.c) · 观察
+
+```c
+!xrtP384KeyPair(PrivateA, PublicA) ||
+```
+
+
+### `xrtP384Shared`
+
+计算经过完整私钥和对端公钥验证的 P-384 ECDH 横坐标。
+
+```c
+bool xrtP384Shared(
+	const void* pPrivate,
+	const void* pPeerPublic,
+	void* pShared
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输入 | 借用、48 字节 | 本方私钥 |
+| `pPeerPublic` | 输入 | 借用、97 字节 | 对端公钥（完整验证） |
+| `pShared` | 输出 | 48 字节 | 横坐标共享秘密 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 共享秘密已写出 | — |
+| `false` | 私钥为零或对端公钥非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/p384 · 密钥交换](../../examples/crypto/p384/main.c) · 观察
+
+```c
+!xrtP384Shared(PrivateA, PublicB, SharedA) ||
+```
+
+
+### `xrtP384KeyPair`
+
+使用操作系统安全随机源生成 P-384 私钥和未压缩公钥。
+
+```c
+bool xrtP384KeyPair(void* pPrivate, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrivate` | 输出 | 48 字节 | 接收私钥 |
+| `pPublic` | 输出 | 97 字节 | 接收公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密钥对已写出 | — |
+| `false` | 参数非法或随机源失败 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_IO` — 安全随机源失败
+
+#### 范例
+
+[crypto/p384 · 密钥交换](../../examples/crypto/p384/main.c) · 观察
+
+```c
+!xrtP384KeyPair(PrivateA, PublicA) ||
+```
+
+
 ## ECDSA DER 表示层
 
 `XRT_FEATURE_CRYPTO_ECDSA_DER` 只依赖密码核心和共享 ECDSA 错误层，不绑定具体曲线、摘要或签名实现。协议解析器可以独立使用它，在固定宽度 `raw r || s` 与 ASN.1 DER `SEQUENCE(INTEGER r, INTEGER s)` 之间转换：
@@ -3821,6 +4585,98 @@ bool xrtEcdsaDerDecode(
 编码器接受 `1..66` 字节的定宽标量。`pDer == NULL` 且容量为零时只查询精确长度；容量不足返回 `XERR_RANGE`，通过 `pSize` 返回所需长度，目标缓冲保持不变。编解码都先在局部缓冲完成，因此签名输入与字节输出可以任意重叠；`pSize` 是独立的标量输出，与输入或输出字节区间重叠时返回 `XERR_ARGUMENT`。
 
 解码器只接受规范 DER：长度必须使用最短形式，两个 INTEGER 必须为非负数，不允许冗余前导零、空整数、超宽整数、缺失字段或尾随数据。格式错误返回 `XERR_PROTOCOL` / `xrt.crypto` / `XCRYPTO_ERROR_SIGNATURE`，并保持 raw 输出逐字节不变。表示层允许 `r` 或 `s` 为零；具体曲线的签名验证层负责执行 `[1, n)` 范围检查，这样 DER 工具不会重复或猜测曲线规则。
+
+### `xrtEcdsaDerEncode`
+
+把定宽 raw r||s 签名编码为规范 DER；空输出可查询所需长度。
+
+```c
+bool xrtEcdsaDerEncode(
+	const void* pRaw,
+	size_t iScalarSize,
+	void* pDer,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRaw` | 输入 | 借用、`2 * iScalarSize` | 定宽 r||s |
+| `iScalarSize` | 输入 | 32（P-256）/ 48（P-384） | 单标量字节数 |
+| `pDer` | 输出 | 可空 | 空 + 零容量 = 只查询长度 |
+| `iCapacity` | 输入 | — | 输出容量 |
+| `pSize` | 输出 | 非空 | DER 长度（成功时写入） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已编码或长度已发布 | — |
+| `false` | 参数非法、非最短标量或容量不足 | `*pSize` 保持 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_PROTOCOL` — raw 签名标量含前导零的非最短形式
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[crypto/sign_tour · DER 往返](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+if ( !xrtEcdsaDerEncode(arrSignature, 32u, NULL, 0u, &iDerSize) ||
+	(iDerSize == 0u) ||
+	(iDerSize > sizeof(arrDer)) ||
+```
+
+
+### `xrtEcdsaDerDecode`
+
+严格解码规范 DER ECDSA 签名为定宽 raw r||s。
+
+```c
+bool xrtEcdsaDerDecode(
+	const void* pDer,
+	size_t iDerSize,
+	void* pRaw,
+	size_t iScalarSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDer` | 输入 | 借用 | DER 签名 |
+| `iDerSize` | 输入 | — | DER 字节数 |
+| `pRaw` | 输出 | `2 * iScalarSize` | 定宽 r||s |
+| `iScalarSize` | 输入 | 32 / 48 | 单标量字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解码为定宽形式 | — |
+| `false` | DER 非规范或参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_PROTOCOL` — 非规范 DER（非最短整数、多余元素、截断）
+
+#### 范例
+
+[crypto/sign_tour · DER 往返](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+if ( !xrtEcdsaDerDecode(arrDer, iDerSize, arrRaw2, 48u) ||
+	(memcmp(arrRaw2, arrSignature, 96u) != 0) ||
+```
+
 
 ## ECDSA 验签
 
@@ -3853,6 +4709,186 @@ bool xrtEcdsaP384Verify(
 对应容量常量是 `XRT_ECDSA_P256_DER_MAX_SIZE` 与 `XRT_ECDSA_P384_DER_MAX_SIZE`；它们是最坏情况容量，不是每个签名的实际编码长度。
 
 所有验证失败返回 `XERR_PROTOCOL` / `xrt.crypto` / `XCRYPTO_ERROR_SIGNATURE`，空参数返回 `XERR_ARGUMENT`。实现使用固定轨迹群阶求逆、共享 NIST 双标量点运算和常量时间最终比较，不分配堆内存，也不维护共享可变状态。旧版按公钥长度猜测 P-256/P-384、内嵌宽松 DER 解析和 P-384 每次创建堆大整数上下文的接口已经替换；可变摘要能力经过修订后保留为显式长度契约。新测试使用独立密码实现生成的有效签名，并覆盖短摘要、长摘要截断、零摘要、群阶边界、非法点、损坏签名、严格 DER、错误契约、裁剪和单头文件。
+
+### `xrtEcdsaP256Verify`
+
+验证任意非空摘要上的定宽 P-256 ECDSA raw r||s 签名。
+
+```c
+bool xrtEcdsaP256Verify(
+	const void* pHash,
+	size_t iHashSize,
+	const void* pSignature,
+	const void* pPublic
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `iHashSize` | 输入 | `> 0` | 摘要字节数 |
+| `pSignature` | 输入 | 借用 | 定宽签名 |
+| `pPublic` | 输入 | 借用 | 未压缩公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名有效 | — |
+| `false` | 验证失败（正常结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · 签名闭环](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEcdsaP256Verify(arrDigest, XRT_SHA256_SIZE, arrSignature,
+			arrPub256) ) {
+```
+
+
+### `xrtEcdsaP384Verify`
+
+验证任意非空摘要上的定宽 P-384 ECDSA raw r||s 签名。
+
+```c
+bool xrtEcdsaP384Verify(
+	const void* pHash,
+	size_t iHashSize,
+	const void* pSignature,
+	const void* pPublic
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `iHashSize` | 输入 | `> 0` | 摘要字节数 |
+| `pSignature` | 输入 | 借用 | 定宽签名 |
+| `pPublic` | 输入 | 借用 | 未压缩公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名有效 | — |
+| `false` | 验证失败（正常结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · 签名闭环](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEcdsaP384Verify(arrDigest, XRT_SHA384_SIZE, arrSignature,
+		arrPub384) ||
+```
+
+
+### `xrtEcdsaP256VerifyDer`
+
+严格解码 DER 后验证任意非空摘要上的签名。
+
+```c
+bool xrtEcdsaP256VerifyDer(
+	const void* pHash,
+	size_t iHashSize,
+	const void* pDer,
+	size_t iDerSize,
+	const void* pPublic
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `iHashSize` | 输入 | `> 0` | 摘要字节数 |
+| `pDer` | 输入 | 借用 | DER 签名 |
+| `iDerSize` | 输入 | — | DER 字节数 |
+| `pPublic` | 输入 | 借用 | 未压缩公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | DER 规范且签名有效 | — |
+| `false` | 验证失败或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · DER 验证](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEcdsaP256VerifyDer(arrDigest, XRT_SHA256_SIZE, arrDer,
+		iDerSize, arrPub256) ) {
+```
+
+
+### `xrtEcdsaP384VerifyDer`
+
+严格解码 DER 后验证任意非空摘要上的签名。
+
+```c
+bool xrtEcdsaP384VerifyDer(
+	const void* pHash,
+	size_t iHashSize,
+	const void* pDer,
+	size_t iDerSize,
+	const void* pPublic
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `iHashSize` | 输入 | `> 0` | 摘要字节数 |
+| `pDer` | 输入 | 借用 | DER 签名 |
+| `iDerSize` | 输入 | — | DER 字节数 |
+| `pPublic` | 输入 | 借用 | 未压缩公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | DER 规范且签名有效 | — |
+| `false` | 验证失败或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · DER 验证](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEcdsaP384VerifyDer(arrDigest, XRT_SHA384_SIZE, arrDer,
+		iDerSize, arrPub384) ) {
+```
+
 
 ## ECDSA 签名
 
@@ -3895,6 +4931,193 @@ bool xrtEcdsaP256SignDer(
 P-384 提供完全对称的入口。`pDer == NULL` 且容量为零可查询这一次确定性签名的精确编码长度；容量不足返回 `XERR_RANGE`、通过 `pSize` 返回所需长度且不修改目标。`pSize` 与 DER 输出重叠时返回 `XERR_ARGUMENT`。示例位于 `examples/crypto/ecdsa_p256/main.c` 与 `examples/crypto/ecdsa_p384/main.c`。
 
 固定向量与 RFC 6979 确定性签名在 low-S 规范化后逐字节一致。专项门禁覆盖 P-256/SHA-384、P-256/SHA-512、P-384/SHA-256 和 P-384/SHA-512，其中 P-384/SHA-256 明确验证需要拼接两个 HMAC 输出块的路径；同时检查 `s <= n/2`、XRT 自验和单头文件。旧版已有曲线场景和签名用途作为资产保留，随机 nonce、宽松 DER、重复 P-256/P-384 大整数实现、堆上下文和模糊的单一入口均被替换。
+
+### `xrtEcdsaP256Sign`
+
+使用指定摘要算法的 RFC 6979 路径生成定宽 low-S P-256 ECDSA 签名。
+
+```c
+bool xrtEcdsaP256Sign(
+	xcryptohash Hash,
+	const void* pHash,
+	const void* pPrivate,
+	void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Hash` | 输入 | 枚举 | 声明 pHash 的摘要算法（签名收摘要而非消息） |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pPrivate` | 输入 | 借用 | 私钥 |
+| `pSignature` | 输出 | 定宽 r||s | 签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 确定性签名已写出 | — |
+| `false` | 参数非法或私钥零 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_PROTOCOL` — 私钥为零标量
+
+#### 范例
+
+[crypto/sign_tour · 签名闭环](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEcdsaP256Sign(XCRYPTO_HASH_SHA256, arrDigest, arrPriv256,
+		arrSignature) ||
+```
+
+
+### `xrtEcdsaP384Sign`
+
+使用指定摘要算法的 RFC 6979 路径生成定宽 low-S P-384 ECDSA 签名。
+
+```c
+bool xrtEcdsaP384Sign(
+	xcryptohash Hash,
+	const void* pHash,
+	const void* pPrivate,
+	void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Hash` | 输入 | 枚举 | 声明 pHash 的摘要算法（签名收摘要而非消息） |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pPrivate` | 输入 | 借用 | 私钥 |
+| `pSignature` | 输出 | 定宽 r||s | 签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 确定性签名已写出 | — |
+| `false` | 参数非法或私钥零 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_PROTOCOL` — 私钥为零标量
+
+#### 范例
+
+[crypto/sign_tour · 签名闭环](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEcdsaP384Sign(XCRYPTO_HASH_SHA384, arrDigest, arrPriv384,
+		arrSignature) ||
+```
+
+
+### `xrtEcdsaP256SignDer`
+
+生成确定性 low-S 签名并编码为规范 DER。
+
+```c
+bool xrtEcdsaP256SignDer(
+	xcryptohash Hash,
+	const void* pHash,
+	const void* pPrivate,
+	void* pDer,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Hash` | 输入 | 枚举 | 摘要算法 |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pPrivate` | 输入 | 借用 | 私钥 |
+| `pDer` | 输出 | 非空 | DER 签名 |
+| `iCapacity` | 输入 | ≥ DER 上限 | 输出容量 |
+| `pSize` | 输出 | 非空 | DER 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | DER 签名已写出 | — |
+| `false` | 参数非法或容量不足 | `*pSize` 保持 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_PROTOCOL` — 私钥为零
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[crypto/ecdsa_p256 · DER 签名](../../examples/crypto/ecdsa_p256/main.c) · 观察
+
+```c
+!xrtEcdsaP256SignDer(
+		XCRYPTO_HASH_SHA256,
+		Hash, Private, Der, sizeof(Der), &iSize
+	) ) {
+```
+
+
+### `xrtEcdsaP384SignDer`
+
+生成确定性 low-S 签名并编码为规范 DER。
+
+```c
+bool xrtEcdsaP384SignDer(
+	xcryptohash Hash,
+	const void* pHash,
+	const void* pPrivate,
+	void* pDer,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Hash` | 输入 | 枚举 | 摘要算法 |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pPrivate` | 输入 | 借用 | 私钥 |
+| `pDer` | 输出 | 非空 | DER 签名 |
+| `iCapacity` | 输入 | ≥ DER 上限 | 输出容量 |
+| `pSize` | 输出 | 非空 | DER 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | DER 签名已写出 | — |
+| `false` | 参数非法或容量不足 | `*pSize` 保持 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_PROTOCOL` — 私钥为零
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[crypto/ecdsa_p384 · DER 签名](../../examples/crypto/ecdsa_p384/main.c) · 观察
+
+```c
+!xrtEcdsaP384SignDer(
+```
+
 
 ## RSA 公钥、私钥与签名
 
@@ -4015,6 +5238,356 @@ PKCS#1 v1.5 签名和验签共享唯一一份 SHA-1/SHA-256/SHA-384/SHA-512 规�
 
 原始公私钥运算、显式盐和随机盐 PSS 示例位于 `examples/crypto/rsa_pss/main.c`；PKCS#1 v1.5 签名与验签示例位于 `examples/crypto/rsa_pkcs1/main.c`。两个示例共用的固定 1024 位密钥只用于展示 API，不代表部署安全策略；生产系统应从受信任密钥存储加载符合当前策略的密钥。
 
+### `xrtRsaPublic`
+
+执行原始 RSA 公钥模幂运算；普通消息不得直接这样加密。
+
+```c
+bool xrtRsaPublic(
+	const xrsapublickey* pKey,
+	const void* pInput,
+	size_t iInputSize,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已装载公钥 | 模与公开指数 |
+| `pInput` | 输入 | 借用、长度 = 模长 | 输入整数 |
+| `iInputSize` | 输入 | — | 字节数 |
+| `pOutput` | 输出 | 模长字节 | 输出整数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出输出 | — |
+| `false` | 参数或密钥非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_RANGE` — 输入长度与模长不符
+
+#### 范例
+
+[crypto/rsa_pss · 原始运算](../../examples/crypto/rsa_pss/main.c) · 观察
+
+```c
+if ( !__xrtExampleRsaInit(&Fixture) ||
+	 !xrtRsaPublic(
+		&Fixture.Key.Public, Raw, sizeof(Raw), Cipher
+	 ) || !xrtRsaPrivate(
+```
+
+
+### `xrtRsaPrivate`
+
+执行原始 RSA 私钥运算；优先使用 CRT，并用公钥重新验证结果。
+
+```c
+bool xrtRsaPrivate(
+	const xrsaprivatekey* pKey,
+	const void* pInput,
+	size_t iInputSize,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已装载私钥 | 双素数 CRT 密钥 |
+| `pInput` | 输入 | 借用、长度 = 模长 | 输入整数 |
+| `iInputSize` | 输入 | — | 字节数 |
+| `pOutput` | 输出 | 模长字节 | 输出整数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出输出（内部经公钥复核） | — |
+| `false` | 参数、密钥非法或复核失败 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_RANGE` — 输入长度与模长不符
+- `XERR_PROTOCOL` — CRT 结果公钥复核失败
+
+#### 范例
+
+[crypto/rsa_pss · 原始运算](../../examples/crypto/rsa_pss/main.c) · 观察
+
+```c
+xrtRsaPrivate(
+		&Fixture.Key, Cipher, sizeof(Cipher), Plain
+	 ) || !xrtConstTimeEqual(Raw, Plain, sizeof(Raw)) ) {
+```
+
+
+### `xrtRsaPssSignSalt`
+
+使用调用方提供的盐生成 EMSA-PSS 签名，零长度盐允许传入空指针。
+
+```c
+bool xrtRsaPssSignSalt(
+	const xrsaprivatekey* pKey,
+	xcryptohash iHash,
+	xcryptohash iMaskHash,
+	const void* pSalt,
+	size_t iSaltSize,
+	const void* pHash,
+	void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已装载私钥 | 私钥 |
+| `iHash` | 输入 | 枚举 | 消息摘要算法 |
+| `iMaskHash` | 输入 | 枚举 | MGF1 摘要算法 |
+| `pSalt` | 输入 | 可空（零长盐） | 显式盐 |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pSignature` | 输出 | 模长字节 | 签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名已写出 | — |
+| `false` | 参数或盐长不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_RANGE` — 盐长超过摘要长度上限
+
+#### 范例
+
+[crypto/rsa_pss · 显式盐](../../examples/crypto/rsa_pss/main.c) · 观察
+
+```c
+if ( !xrtRsaPssSignSalt(
+		&Fixture.Key,
+		XCRYPTO_HASH_SHA256,
+		XCRYPTO_HASH_SHA256,
+		Fixture.Salt,
+```
+
+
+### `xrtRsaPssSign`
+
+使用与消息摘要等长的密码安全随机盐生成 EMSA-PSS 签名。
+
+```c
+bool xrtRsaPssSign(
+	const xrsaprivatekey* pKey,
+	xcryptohash iHash,
+	xcryptohash iMaskHash,
+	const void* pHash,
+	void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已装载私钥 | 私钥 |
+| `iHash` | 输入 | 枚举 | 消息摘要算法 |
+| `iMaskHash` | 输入 | 枚举 | MGF1 摘要算法 |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pSignature` | 输出 | 模长字节 | 签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名已写出 | — |
+| `false` | 参数非法或随机源失败 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_IO` — 安全随机源失败
+
+#### 范例
+
+[crypto/rsa_pss · 随机盐](../../examples/crypto/rsa_pss/main.c) · 观察
+
+```c
+) || !xrtRsaPssSign(
+		&Fixture.Key,
+		XCRYPTO_HASH_SHA256,
+		XCRYPTO_HASH_SHA256,
+		Fixture.Hash,
+		Signature
+	) || !xrtRsaPssVerify(
+```
+
+
+### `xrtRsaPssVerify`
+
+严格验证 EMSA-PSS 签名，可分别指定消息摘要与 MGF1 摘要。
+
+```c
+bool xrtRsaPssVerify(
+	const xrsapublickey* pKey,
+	xcryptohash iHash,
+	xcryptohash iMaskHash,
+	size_t iSaltSize,
+	const void* pHash,
+	const void* pSignature,
+	size_t iSignatureSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已装载公钥 | 公钥 |
+| `iHash` | 输入 | 枚举 | 消息摘要算法 |
+| `iMaskHash` | 输入 | 枚举 | MGF1 摘要算法 |
+| `iSaltSize` | 输入 | 或 `XRT_RSA_PSS_SALT_ANY` | 期望盐长 |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pSignature` | 输入 | 借用 | 待验证签名 |
+| `iSignatureSize` | 输入 | = 模长 | 签名字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名有效 | — |
+| `false` | 验证失败（正常结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/rsa_pss · 验签](../../examples/crypto/rsa_pss/main.c) · 观察
+
+```c
+) || !xrtRsaPssVerify(
+		&Fixture.Key.Public,
+		XCRYPTO_HASH_SHA256,
+		XCRYPTO_HASH_SHA256,
+		XRT_RSA_PSS_SALT_ANY,
+		Fixture.Hash,
+		Signature,
+```
+
+
+### `xrtRsaPkcs1Sign`
+
+使用规范 DigestInfo 生成 EMSA-PKCS1-v1_5 签名。
+
+```c
+bool xrtRsaPkcs1Sign(
+	const xrsaprivatekey* pKey,
+	xcryptohash iHash,
+	const void* pHash,
+	void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已装载私钥 | 私钥 |
+| `iHash` | 输入 | 枚举 | 消息摘要算法 |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pSignature` | 输出 | 模长字节 | 签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/rsa_pkcs1 · 签名](../../examples/crypto/rsa_pkcs1/main.c) · 观察
+
+```c
+if ( __xrtExampleRsaInit(&Fixture) &&
+	 xrtRsaPkcs1Sign(
+		&Fixture.Key,
+		XCRYPTO_HASH_SHA256,
+		Fixture.Hash,
+		Signature
+	 ) && xrtRsaPkcs1Verify(
+```
+
+
+### `xrtRsaPkcs1Verify`
+
+严格验证带规范 DigestInfo 的 EMSA-PKCS1-v1_5 签名。
+
+```c
+bool xrtRsaPkcs1Verify(
+	const xrsapublickey* pKey,
+	xcryptohash iHash,
+	const void* pHash,
+	const void* pSignature,
+	size_t iSignatureSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已装载公钥 | 公钥 |
+| `iHash` | 输入 | 枚举 | 消息摘要算法 |
+| `pHash` | 输入 | 借用 | 消息摘要 |
+| `pSignature` | 输入 | 借用 | 待验证签名 |
+| `iSignatureSize` | 输入 | = 模长 | 签名字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名有效 | — |
+| `false` | 验证失败（正常结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/rsa_pkcs1 · 验签](../../examples/crypto/rsa_pkcs1/main.c) · 观察
+
+```c
+) && xrtRsaPkcs1Verify(
+		&Fixture.Key.Public,
+		XCRYPTO_HASH_SHA256,
+		Fixture.Hash,
+		Signature,
+		sizeof(Signature)
+	 ) ) {
+```
+
+
 ## Ed25519
 
 Ed25519 拆成五个边界明确的裁剪单元：
@@ -4100,3 +5673,381 @@ bool xrtEd25519VerifyMode(
 旧版 `lib/crypto.h:4956-5469` 的 25519 字段表示、扩展坐标公式、RFC 签名流程，以及 `nettls.h` 中 Ed25519 证书和握手签名调用点均作为资产保留。新实现把与 X25519 重复的字段算术抽成唯一内部模块，替换了每次约简/乘加都分配堆大整数和私有标量点乘按位分支的实现，并补充单次平方根指数链、可复用展开密钥、RFC 8032 context/prehash 模式与严格子群检查。
 
 测试包括 RFC 8032 的纯、`ctx`、`ph` 固定向量，规范编码、低阶公钥、`S == L`、模式与上下文边界、输出重叠和失败原子性。独立随机差分使用 Python `cryptography`，覆盖 100 组随机种子以及 0 到 1024 字节消息，公钥和确定性签名逐字节一致，并双向验证篡改拒绝。示例分别位于 `examples/crypto/ed25519`、`examples/crypto/ed25519_sign` 和 `examples/crypto/ed25519_verify`。
+
+### `xrtEd25519KeyInit`
+
+从 32 字节种子展开 Ed25519 私有标量与前缀；展开密钥可复用多次签名。
+
+```c
+bool xrtEd25519KeyInit(
+	xed25519key* pKey,
+	const void* pSeed
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输出 | 非空 | 展开密钥对象 |
+| `pSeed` | 输入 | 借用、32 字节 | 种子 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 展开完成 | — |
+| `false` | 参数非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · 模式域](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+if ( !xrtEd25519KeyInit(&Key, arrSeed) ||
+```
+
+
+### `xrtEd25519KeyClear`
+
+不可消除地清除展开后的私有标量、前缀和公钥。
+
+```c
+void xrtEd25519KeyClear(xed25519key* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 允许空 | 要清除的展开密钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 全部密钥材料被安全清除 | — |
+
+#### 错误
+
+- 无 — 清理不失败
+
+#### 范例
+
+[crypto/sign_tour · 模式域](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+xrtEd25519KeyClear(&Key);
+```
+
+
+### `xrtEd25519KeyPair`
+
+生成随机种子和对应公钥；两个输出区域不得重叠。
+
+```c
+bool xrtEd25519KeyPair(void* pSeed, void* pPublic);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSeed` | 输出 | 32 字节 | 接收随机种子 |
+| `pPublic` | 输出 | 32 字节 | 接收公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 种子与公钥已写出 | — |
+| `false` | 参数非法或随机源失败 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_IO` — 安全随机源失败
+
+#### 范例
+
+[crypto/ed25519 · 密钥对](../../examples/crypto/ed25519/main.c) · 观察
+
+```c
+if ( !xrtEd25519KeyPair(Seed, Public) ||
+```
+
+
+### `xrtEd25519Public`
+
+从 32 字节种子导出规范 Ed25519 公钥，允许输出覆盖种子。
+
+```c
+bool xrtEd25519Public(
+	const void* pSeed,
+	void* pPublic
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSeed` | 输入 | 借用、32 字节 | 种子 |
+| `pPublic` | 输出 | 32 字节 | 公钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 公钥已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · 纯消息](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+if ( !xrtEd25519Public(arrSeed, arrPublic) ||
+```
+
+
+### `xrtEd25519Sign`
+
+使用种子签署纯 Ed25519 消息。
+
+```c
+bool xrtEd25519Sign(
+	const void* pSeed,
+	const void* pMessage,
+	size_t iMessageSize,
+	void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSeed` | 输入 | 借用、32 字节 | 种子 |
+| `pMessage` | 输入 | 借用 | 消息字节 |
+| `iMessageSize` | 输入 | — | 消息字节数 |
+| `pSignature` | 输出 | 64 字节 | 签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · 纯消息](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEd25519Sign(arrSeed, arrMessage, sizeof(arrMessage) - 1u,
+		arrSignature) ||
+```
+
+
+### `xrtEd25519SignKey`
+
+使用展开密钥签署纯 Ed25519 消息（一次展开多次签名）。
+
+```c
+bool xrtEd25519SignKey(
+	const xed25519key* pKey,
+	const void* pMessage,
+	size_t iMessageSize,
+	void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已展开 | 展开密钥 |
+| `pMessage` | 输入 | 借用 | 消息字节 |
+| `iMessageSize` | 输入 | — | 消息字节数 |
+| `pSignature` | 输出 | 64 字节 | 签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名已写出 | — |
+| `false` | 参数或密钥状态非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_STATE` — 密钥未初始化
+
+#### 范例
+
+[crypto/sign_tour · 纯消息](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+if ( !xrtEd25519KeyInit(&Key, arrSeed) ||
+```
+
+
+### `xrtEd25519SignMode`
+
+签署 RFC 8032 指定模式的数据；PREHASH 要求消息恰为 64 字节 SHA-512 预哈希。
+
+```c
+bool xrtEd25519SignMode(
+	const xed25519key* pKey,
+	xed25519mode iMode,
+	const void* pContext,
+	size_t iContextSize,
+	const void* pMessage,
+	size_t iMessageSize,
+	void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 已展开 | 展开密钥 |
+| `iMode` | 输入 | 枚举 | `XED25519_PURE`/`CONTEXT`/`PREHASH` |
+| `pContext` | 输入 | 可空 | 上下文字节 |
+| `iContextSize` | 输入 | `<= 255` | 上下文字节数 |
+| `pMessage` | 输入 | 借用 | 消息（PREHASH 为 64 字节预哈希） |
+| `iMessageSize` | 输入 | — | 消息字节数 |
+| `pSignature` | 输出 | 64 字节 | 签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名已写出 | — |
+| `false` | 参数、模式或上下文长度非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_RANGE` — 上下文超过 255 字节或 PREHASH 消息长度不等于 64
+
+#### 范例
+
+[crypto/sign_tour · 模式域](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEd25519SignMode(&Key, XED25519_CONTEXT, arrContext,
+		sizeof(arrContext), arrMessage,
+		sizeof(arrMessage) - 1u, arrSignature) ||
+```
+
+
+### `xrtEd25519Verify`
+
+严格验证纯 Ed25519 签名、规范编码和主子群公钥。
+
+```c
+bool xrtEd25519Verify(
+	const void* pPublic,
+	const void* pMessage,
+	size_t iMessageSize,
+	const void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPublic` | 输入 | 借用、32 字节 | 公钥 |
+| `pMessage` | 输入 | 借用 | 消息字节 |
+| `iMessageSize` | 输入 | — | 消息字节数 |
+| `pSignature` | 输入 | 借用、64 字节 | 待验证签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名有效 | — |
+| `false` | 验证失败（正常结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+
+#### 范例
+
+[crypto/sign_tour · 纯消息](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEd25519Verify(arrPublic, arrMessage,
+		sizeof(arrMessage) - 1u, arrSignature) ) {
+```
+
+
+### `xrtEd25519VerifyMode`
+
+严格验证 RFC 8032 指定模式的签名。
+
+```c
+bool xrtEd25519VerifyMode(
+	const void* pPublic,
+	xed25519mode iMode,
+	const void* pContext,
+	size_t iContextSize,
+	const void* pMessage,
+	size_t iMessageSize,
+	const void* pSignature
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPublic` | 输入 | 借用、32 字节 | 公钥 |
+| `iMode` | 输入 | 枚举 | 验证模式 |
+| `pContext` | 输入 | 可空 | 上下文 |
+| `iContextSize` | 输入 | `<= 255` | 上下文字节数 |
+| `pMessage` | 输入 | 借用 | 消息（PREHASH 为预哈希） |
+| `iMessageSize` | 输入 | — | 消息字节数 |
+| `pSignature` | 输入 | 借用 | 待验证签名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 签名有效 | — |
+| `false` | 验证失败（正常结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` — 签名/密钥格式非法或数学验证失败（含无效曲线点）
+- `XERR_ARGUMENT` — 指针为空或长度非法
+- `XERR_RANGE` — 上下文超长
+
+#### 范例
+
+[crypto/sign_tour · 模式域](../../examples/crypto/sign_tour/main.c) · 观察
+
+```c
+!xrtEd25519VerifyMode(arrPublic, XED25519_CONTEXT,
+		arrContext, sizeof(arrContext), arrMessage,
+		sizeof(arrMessage) - 1u, arrSignature) ) {
+```
+
