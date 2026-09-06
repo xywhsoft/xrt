@@ -6,7 +6,7 @@
 | # | 文件 | API 数 | 状态 | 备注 |
 |---|---|---|---|---|
 | 1 | array.md | 50 | **完成** | 试点 1；50 函数 G1-G4 全绿（2026-09-07） |
-| 2 | asn1.md | 27 | 待办 |  |
+| 2 | asn1.md | 27 | **完成** | 27/27 全绿（G3 27 片段，2026-09-07）；错误码 TAG/LENGTH/VALUE/TYPE/END/TRAILING/ORDER/DEPTH/RANGE 九码全表成文；编码器族（Append*8 + Oid 工具 3）首入文档 |
 | 3 | atomic.md | 29 | 待办 |  |
 | 4 | avl.md | 43 | 待办 |  |
 | 5 | buffer.md | 23 | 待办 |  |
@@ -138,3 +138,14 @@
   --all 模式因成员判断用裸文件名而字典键带 docs/api/ 前缀，
   恒空转（修复后 77 个待办文件正确报数）；G3 工具无此问题。
   array.md 复验仍绿（50/50 + 50 片段）。
+- 2026-09-07 asn1.md 完成（27/27，G3 27 片段）：九个 XASN1_ERROR 稳定码
+  （TAG/LENGTH/VALUE/TYPE/END/TRAILING/ORDER/DEPTH/RANGE）与
+  PROTOCOL/TYPE/RANGE/VALUE 四类别的映射关系自 src/asn1/der.c 溯源
+  成文为总表；编码器族（Append + 6 个常用 primitive + AppendOid +
+  OidEncode/OidDecode）首入文档——失败原子性（"不发布半个 TLV、
+  对外可见长度不变"）与 Content 借用契约入档；读取器族三类失败
+  （ARGUMENT/TYPE/VALUE）与 Unsigned 负值拒绝、UInt64/Int64 范围
+  门槛成文；纯判定函数 Is/Done/OidEqual 按门禁补显式"无错误"节。
+  范例锚点：der（游标链 7 API）/decode_tour（读取器族 8）/
+  encode_tour（编码器族 12）。双门禁一次全绿；array.md 与
+  net.md 复验无回归。
