@@ -13,7 +13,7 @@
 | 6 | cancel.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；修复 Ref/Destroy 合并节导致的 G1 签名不一致 |
 | 7 | channel.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；五族全成节，锚点跨 7 个已注册范例 |
 | 8 | charset.md | 69 | **完成** | 69/69 全绿（G3 69 片段，2026-09-07）；16 组全成节（原 131 问题清零），锚点跨 9 个已注册范例 |
-| 9 | codec.md | 20 | 待办 |  |
+| 9 | codec.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；HEX/Base64/Percent 三族；codec/tour 补注册至 codec_hex |
 | 10 | compress.md | 18 | 待办 |  |
 | 11 | console.md | 4 | 待办 |  |
 | 12 | core.md | 44 | 待办 |  |
@@ -209,3 +209,15 @@
   27 项 + unicode 5 + unicode_text 4 + transcode_tour 10 + utf8_edit
   10 + utf8_search 9 + transcode/detect/distance 各 1-2）。双门禁
   一次全绿；八个既有文件复验无回归。
+- 2026-09-07 codec.md 完成（20/20，G3 20 片段）：HEX 4 + Base64 4 +
+  Percent 12 三族全部成节；Percent 的"预检快速路径"分层成文
+  （MapInit→Measure→WriteMeasured/EncodeMeasured 与
+  DecodeMeasure→DecodeMeasured 各自的前置条件契约：同输入/同位图/
+  同模式、空间由调用方保证、不设错误的 no-check 路径）；PercentNext
+  的"ERROR 不推进游标不改线程错误"（解析器组合友好）入档；两段式
+  查询（空输出+零容量）与原地同址扩张/收缩契约逐函数标注；六个
+  XCODEC_ERROR_* 域码汇总成总表。发现并修复 manifest 缺口：
+  examples/codec/tour 未注册（G4 阻塞）——定点挂到 codec_hex 的
+  examples（1 行 diff，JSON + manifest 校验通过）。锚点：tour 14 +
+  hex/base64/percent 专项范例各 2。双门禁一次全绿；九个既有文件
+  复验无回归。
