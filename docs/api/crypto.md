@@ -49,15 +49,81 @@
 
 后续摘要、HMAC/HKDF、AEAD、密钥交换、签名、X.509 和 TLS Session 分别建立在这些最小原语之上。只使用 WebSocket SHA-1 或令牌随机数的程序不必携带完整 TLS 实现。
 
-## `xrtCryptoHashSize`
+## 核心工具
+
+### `xrtCryptoHashSize`
+
+返回算法标识的固定摘要长度；与具体实现是否编入无关。
 
 ```c
 size_t xrtCryptoHashSize(xcryptohash Hash);
 ```
 
-返回 `XCRYPTO_HASH_MD5`、`XCRYPTO_HASH_SHA1`、`XCRYPTO_HASH_SHA224`、`XCRYPTO_HASH_SHA256`、`XCRYPTO_HASH_SHA384`、`XCRYPTO_HASH_SHA512` 或 `XCRYPTO_HASH_SHA512_256` 的固定摘要长度。未知标识返回零且不修改错误槽。摘要长度与具体实现是否编入无关，因此协议元数据、容量计算和裁剪探测不必各自复制一份算法长度表；这项查询本身不表示对应摘要后端可执行。
+#### 参数
 
-公开枚举标签是 `xcrypto_hash`，常用类型名是 `xcryptohash`。两者表示同一组稳定算法标识。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Hash` | 输入 | 枚举值 | `XCRYPTO_HASH_MD5`/`SHA1`/`SHA224`/`SHA256`/`SHA384`/`SHA512`/`SHA512_256` |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 16/20/28/32/48/64 | 对应摘要字节数 |
+| `0` | 未知标识；不修改错误槽 |
+
+#### 错误
+
+- 无 — 元数据查询；查询成功不表示对应摘要后端已编入程序
+
+#### 范例
+
+[crypto/core · 元数据](../../examples/crypto/core/main.c) · 容量计算不依赖实现编入
+
+```c
+if ( xrtCryptoHashSize(XCRYPTO_HASH_SHA256) != sizeof(Left) ) {
+	return 1;
+}
+```
+
+### `xrtConstTimeEqual`
+
+常量时间字节区间比较；不因首个不同字节提前退出。
+
+```c
+bool xrtConstTimeEqual(const void* pLeft, const void* pRight, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 借用 | 左区间（摘要/标签/派生结果） |
+| `pRight` | 输入 | 借用 | 右区间 |
+| `iSize` | 输入 | — | 比较字节数；零允许空指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 逐字节相等（空区间恒真） | — |
+| `false` | 不相等，或非空区间传入空指针 | 非法时 `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 非空区间传入空指针
+
+#### 范例
+
+[crypto/core · 常量时间比较](../../examples/crypto/core/main.c) · 密文/MAC 比较不得早退
+
+```c
+bEqual = xrtConstTimeEqual(Left, Right, sizeof(Left));
+xrtSecureZero(Left, sizeof(Left));
+xrtSecureZero(Right, sizeof(Right));
+```
+
+公开枚举标签是 `xcrypto_hash`，常用类型名是 `xcryptohash`。两者表示同一组稳定算法标识。运行时间与公开的 `iSize` 成正比；不隐藏长度，也不等同于完整侧信道防护。
 
 ## `xrtSecureZero`
 
@@ -69,13 +135,7 @@ void xrtSecureZero(ptr pData, size_t iSize);
 
 这项保证只覆盖调用给出的内存区间。调用方仍须避免编译器、日志、交换文件、崩溃转储或上层副本留下其他敏感数据。
 
-## `xrtConstTimeEqual`
-
-```c
-bool xrtConstTimeEqual(const void* pLeft, const void* pRight, size_t iSize);
-```
-
-比较过程不会根据首个不同字节提前退出，适合摘要、认证标签和派生结果。运行时间仍与公开的 `iSize` 成正比；它不隐藏长度，也不等同于完整的侧信道防护。空区间返回 `true` 并允许空指针；非空区间的空指针设置 `XERR_ARGUMENT`。
+比较语义见上文"核心工具"；该节为正式模板节。
 
 密码模块使用独立 `XRT_FEATURE_RANDOM_SECURE` 提供的 `xrtSecureRandom`，契约、平台实现和示例见 `docs/api/random.md`。随机源不再属于 `crypto_core`，因此文件、网络和运行时基础设施可以安全复用而不携带密码算法。
 
@@ -97,6 +157,157 @@ bool xrtMd5(const void* pData, size_t iSize, void* pDigest);
 
 接口不分配内存。`Update` 仅缓存不足 64 字节的尾部；`Final` 在状态副本上完成填充，可重复调用并允许随后继续追加。参数、损坏状态和 64 位 bit-length 上限错误在修改状态前返回。完整示例位于 `examples/crypto/md5/main.c`。
 
+### `xrtMd5Init`
+
+初始化 MD5 摘要（仅历史协议互操作）的流式状态；不分配内存。
+
+```c
+void xrtMd5Init(xmd5* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有的流状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtMd5Init(&Md5State);
+```
+
+
+### `xrtMd5Update`
+
+向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
+
+```c
+bool xrtMd5Update(xmd5* pState, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 非空、已 Init | 流状态 |
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数；零是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数、状态或长度上限错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtMd5Init(&Md5State);
+if ( !xrtMd5Update(&Md5State, "hello ", 6u) ||
+	!xrtMd5Update(&Md5State, "world", 5u) ||
+```
+
+
+### `xrtMd5Final`
+
+从状态快照输出 16 字节摘要；不结束或修改原状态，可重复调用并继续追加。
+
+```c
+bool xrtMd5Final(const xmd5* pState, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 非空、已 Init | 流状态（快照上完成填充） |
+| `pDigest` | 输出 | 非空、至少 16 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | `*pDigest` 已写入 16 字节 | — |
+| `false` | 参数或状态错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtMd5Init(&Md5State);
+if ( !xrtMd5Update(&Md5State, "hello ", 6u) ||
+	!xrtMd5Update(&Md5State, "world", 5u) ||
+	!xrtMd5Final(&Md5State, arrStream) ||
+```
+
+
+### `xrtMd5`
+
+一次计算一段连续数据的 16 字节MD5 摘要。
+
+```c
+bool xrtMd5(const void* pData, size_t iSize, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pDigest` | 输出 | 非空、至少 16 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 摘要已写入 | — |
+| `false` | 参数或长度上限错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/md5 · 一次性](../../examples/crypto/md5/main.c) · 观察
+
+```c
+if ( !xrtMd5("abc", 3u, Digest) ) {
+```
+
+
 ## SHA-1
 
 `XRT_FEATURE_CRYPTO_SHA1` 是独立裁剪单元，只依赖 `CRYPTO_CORE`。它仅用于 WebSocket 握手和必须兼容 SHA-1 的历史协议，不应用于新签名、口令或抗碰撞安全设计。
@@ -112,6 +323,157 @@ bool xrtSha1(const void* pData, size_t iSize, void* pDigest);
 ```
 
 流状态由调用方持有，不分配内存。`Update` 直接压缩完整输入块，只复制不足 64 字节的尾部。`Final` 在状态快照上完成 padding，不修改或结束原状态，因此可以重复取得摘要，也可以继续追加数据。一次性函数覆盖常见的一行调用路径。
+
+### `xrtSha1Init`
+
+初始化 SHA-1 摘要（仅历史协议兼容）的流式状态；不分配内存。
+
+```c
+void xrtSha1Init(xsha1* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有的流状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha1Init(&Sha1State);
+```
+
+
+### `xrtSha1Update`
+
+向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
+
+```c
+bool xrtSha1Update(xsha1* pState, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 非空、已 Init | 流状态 |
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数；零是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数、状态或长度上限错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha1Init(&Sha1State);
+if ( !xrtSha1Update(&Sha1State, "hello ", 6u) ||
+	!xrtSha1Update(&Sha1State, "world", 5u) ||
+```
+
+
+### `xrtSha1Final`
+
+从状态快照输出 20 字节摘要；不结束或修改原状态，可重复调用并继续追加。
+
+```c
+bool xrtSha1Final(const xsha1* pState, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 非空、已 Init | 流状态（快照上完成填充） |
+| `pDigest` | 输出 | 非空、至少 20 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | `*pDigest` 已写入 20 字节 | — |
+| `false` | 参数或状态错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha1Init(&Sha1State);
+if ( !xrtSha1Update(&Sha1State, "hello ", 6u) ||
+	!xrtSha1Update(&Sha1State, "world", 5u) ||
+	!xrtSha1Final(&Sha1State, arrStream) ||
+```
+
+
+### `xrtSha1`
+
+一次计算一段连续数据的 20 字节SHA-1 摘要。
+
+```c
+bool xrtSha1(const void* pData, size_t iSize, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pDigest` | 输出 | 非空、至少 20 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 摘要已写入 | — |
+| `false` | 参数或长度上限错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/sha1 · 一次性](../../examples/crypto/sha1/main.c) · 观察
+
+```c
+if ( !xrtSha1("hello", 5, arrDigest) ) {
+```
+
 
 ## SHA-224 与 SHA-256
 
@@ -138,6 +500,309 @@ bool xrtSha256(const void* pData, size_t iSize, void* pDigest);
 SHA-1、SHA-224 与 SHA-256 都检查初始化 guard、尾部长度和 64 位 bit-length 上限。SHA-224 与 SHA-256 的状态布局相同，但 API 会拒绝跨算法混用。参数、状态或长度失败发生在本次状态修改之前；非空数据不允许空指针，空区间允许空指针。公开状态字段只用于栈上或内嵌存储，不允许调用方直接修改。
 
 完整示例位于 `examples/crypto/sha1/main.c`、`examples/crypto/sha224/main.c` 与 `examples/crypto/sha256/main.c`。
+
+### `xrtSha224Init`
+
+初始化 SHA-224 摘要的流式状态；不分配内存。
+
+```c
+void xrtSha224Init(xsha224* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有的流状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha224Init(&Sha224State);
+```
+
+
+### `xrtSha224Update`
+
+向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
+
+```c
+bool xrtSha224Update(xsha224* pState, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 非空、已 Init | 流状态 |
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数；零是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数、状态或长度上限错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha224Init(&Sha224State);
+if ( !xrtSha224Update(&Sha224State, "hello ", 6u) ||
+	!xrtSha224Update(&Sha224State, "world", 5u) ||
+```
+
+
+### `xrtSha224Final`
+
+从状态快照输出 28 字节摘要；不结束或修改原状态，可重复调用并继续追加。
+
+```c
+bool xrtSha224Final(const xsha224* pState, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 非空、已 Init | 流状态（快照上完成填充） |
+| `pDigest` | 输出 | 非空、至少 28 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | `*pDigest` 已写入 28 字节 | — |
+| `false` | 参数或状态错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha224Init(&Sha224State);
+if ( !xrtSha224Update(&Sha224State, "hello ", 6u) ||
+	!xrtSha224Update(&Sha224State, "world", 5u) ||
+	!xrtSha224Final(&Sha224State, arrStream) ||
+```
+
+
+### `xrtSha224`
+
+一次计算一段连续数据的 28 字节SHA-224 摘要。
+
+```c
+bool xrtSha224(const void* pData, size_t iSize, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pDigest` | 输出 | 非空、至少 28 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 摘要已写入 | — |
+| `false` | 参数或长度上限错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/sha224 · 一次性](../../examples/crypto/sha224/main.c) · 观察
+
+```c
+if ( !xrtSha224("xrt", 3, Digest) ) {
+```
+
+
+### `xrtSha256Init`
+
+初始化 SHA-256 摘要的流式状态；不分配内存。
+
+```c
+void xrtSha256Init(xsha256* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有的流状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[crypto/sha256 · 三段式](../../examples/crypto/sha256/main.c) · 观察
+
+```c
+xrtSha256Init(&State);
+```
+
+
+### `xrtSha256Update`
+
+向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
+
+```c
+bool xrtSha256Update(xsha256* pState, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 非空、已 Init | 流状态 |
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数；零是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数、状态或长度上限错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/sha256 · 三段式](../../examples/crypto/sha256/main.c) · 观察
+
+```c
+xrtSha256Init(&State);
+if ( !xrtSha256Update(&State, "hello ", 6) ||
+	 !xrtSha256Update(&State, "world", 5) ||
+	 !xrtSha256Final(&State, arrDigest) ) {
+```
+
+
+### `xrtSha256Final`
+
+从状态快照输出 32 字节摘要；不结束或修改原状态，可重复调用并继续追加。
+
+```c
+bool xrtSha256Final(const xsha256* pState, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 非空、已 Init | 流状态（快照上完成填充） |
+| `pDigest` | 输出 | 非空、至少 32 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | `*pDigest` 已写入 32 字节 | — |
+| `false` | 参数或状态错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/sha256 · 三段式](../../examples/crypto/sha256/main.c) · 观察
+
+```c
+xrtSha256Init(&State);
+if ( !xrtSha256Update(&State, "hello ", 6) ||
+	 !xrtSha256Update(&State, "world", 5) ||
+	 !xrtSha256Final(&State, arrDigest) ) {
+```
+
+
+### `xrtSha256`
+
+一次计算一段连续数据的 32 字节SHA-256 摘要。
+
+```c
+bool xrtSha256(const void* pData, size_t iSize, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pDigest` | 输出 | 非空、至少 32 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 摘要已写入 | — |
+| `false` | 参数或长度上限错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/ecdsa_p256 · 消息摘要](../../examples/crypto/ecdsa_p256/main.c) · 观察
+
+```c
+if ( !xrtSha256(Message, sizeof(Message) - 1u, Hash) ||
+```
+
 
 ## SHA-384、SHA-512 与 SHA-512/256
 
@@ -180,6 +845,471 @@ SHA-512/256 的固定向量、全部 257 个输入分割点、状态串用和失
 状态使用 `SizeHigh:SizeLow` 维护 128 位字节计数，Final 按 FIPS 180-4 写入完整 128 位 bit-length，不再把高 64 位固定为零。`xsha384` 与 `xsha512` 布局相同以共享压缩实现，但 Guard 会拒绝算法串用。完整块直接从调用方输入压缩，只有不足 128 字节的尾部进入状态缓冲。
 
 完整示例位于 `examples/crypto/sha512/main.c`。
+
+### `xrtSha384Init`
+
+初始化 SHA-384 摘要的流式状态；不分配内存。
+
+```c
+void xrtSha384Init(xsha384* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有的流状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[crypto/sha512 · 双变体](../../examples/crypto/sha512/main.c) · 观察
+
+```c
+xrtSha384Init(&State);
+```
+
+
+### `xrtSha384Update`
+
+向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
+
+```c
+bool xrtSha384Update(xsha384* pState, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 非空、已 Init | 流状态 |
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数；零是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数、状态或长度上限错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/sha512 · 双变体](../../examples/crypto/sha512/main.c) · 观察
+
+```c
+xrtSha384Init(&State);
+if ( !xrtSha384Update(&State, "hello ", 6) ||
+	 !xrtSha384Update(&State, "world", 5) ||
+	 !xrtSha384Final(&State, arrDigest) ) {
+```
+
+
+### `xrtSha384Final`
+
+从状态快照输出 48 字节摘要；不结束或修改原状态，可重复调用并继续追加。
+
+```c
+bool xrtSha384Final(const xsha384* pState, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 非空、已 Init | 流状态（快照上完成填充） |
+| `pDigest` | 输出 | 非空、至少 48 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | `*pDigest` 已写入 48 字节 | — |
+| `false` | 参数或状态错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/sha512 · 双变体](../../examples/crypto/sha512/main.c) · 观察
+
+```c
+xrtSha384Init(&State);
+if ( !xrtSha384Update(&State, "hello ", 6) ||
+	 !xrtSha384Update(&State, "world", 5) ||
+	 !xrtSha384Final(&State, arrDigest) ) {
+```
+
+
+### `xrtSha384`
+
+一次计算一段连续数据的 48 字节SHA-384 摘要。
+
+```c
+bool xrtSha384(const void* pData, size_t iSize, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pDigest` | 输出 | 非空、至少 48 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 摘要已写入 | — |
+| `false` | 参数或长度上限错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/ecdsa_p384 · 消息摘要](../../examples/crypto/ecdsa_p384/main.c) · 观察
+
+```c
+if ( !xrtSha384(Message, sizeof(Message) - 1u, Hash) ||
+```
+
+
+### `xrtSha512Init`
+
+初始化 SHA-512 摘要的流式状态；不分配内存。
+
+```c
+void xrtSha512Init(xsha512* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有的流状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha512Init(&Sha512State);
+```
+
+
+### `xrtSha512Update`
+
+向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
+
+```c
+bool xrtSha512Update(xsha512* pState, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 非空、已 Init | 流状态 |
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数；零是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数、状态或长度上限错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha512Init(&Sha512State);
+if ( !xrtSha512Update(&Sha512State, "hello ", 6u) ||
+	!xrtSha512Update(&Sha512State, "world", 5u) ||
+```
+
+
+### `xrtSha512Final`
+
+从状态快照输出 64 字节摘要；不结束或修改原状态，可重复调用并继续追加。
+
+```c
+bool xrtSha512Final(const xsha512* pState, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 非空、已 Init | 流状态（快照上完成填充） |
+| `pDigest` | 输出 | 非空、至少 64 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | `*pDigest` 已写入 64 字节 | — |
+| `false` | 参数或状态错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha512Init(&Sha512State);
+if ( !xrtSha512Update(&Sha512State, "hello ", 6u) ||
+	!xrtSha512Update(&Sha512State, "world", 5u) ||
+	!xrtSha512Final(&Sha512State, arrStream) ||
+```
+
+
+### `xrtSha512`
+
+一次计算一段连续数据的 64 字节SHA-512 摘要。
+
+```c
+bool xrtSha512(const void* pData, size_t iSize, void* pDigest);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pDigest` | 输出 | 非空、至少 64 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 摘要已写入 | — |
+| `false` | 参数或长度上限错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/sha512 · 一次性](../../examples/crypto/sha512/main.c) · 观察
+
+```c
+if ( !xrtSha512("hello world", 11, arrDigest) ) {
+```
+
+
+### `xrtSha512_256Init`
+
+初始化 SHA-512/256 摘要（32 字节）的流式状态；不分配内存。
+
+```c
+void xrtSha512_256Init(xsha512_256* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有的流状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha512_256Init(&Sha512256State);
+```
+
+
+### `xrtSha512_256Update`
+
+向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
+
+```c
+bool xrtSha512_256Update(
+	xsha512_256* pState,
+	const void* pData,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 非空、已 Init | 流状态 |
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数；零是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数、状态或长度上限错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha512_256Init(&Sha512256State);
+if ( !xrtSha512_256Update(&Sha512256State, "hello ", 6u) ||
+	!xrtSha512_256Update(&Sha512256State, "world", 5u) ||
+```
+
+
+### `xrtSha512_256Final`
+
+从状态快照输出 32 字节摘要；不结束或修改原状态，可重复调用并继续追加。
+
+```c
+bool xrtSha512_256Final(
+	const xsha512_256* pState,
+	void* pDigest
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 非空、已 Init | 流状态（快照上完成填充） |
+| `pDigest` | 输出 | 非空、至少 32 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | `*pDigest` 已写入 32 字节 | — |
+| `false` | 参数或状态错误 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+xrtSha512_256Init(&Sha512256State);
+if ( !xrtSha512_256Update(&Sha512256State, "hello ", 6u) ||
+	!xrtSha512_256Update(&Sha512256State, "world", 5u) ||
+	!xrtSha512_256Final(&Sha512256State, arrStream) ||
+```
+
+
+### `xrtSha512_256`
+
+一次计算一段连续数据的 32 字节SHA-512/256 摘要。
+
+```c
+bool xrtSha512_256(
+	const void* pData,
+	size_t iSize,
+	void* pDigest
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用、`iSize > 0` 时非空 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pDigest` | 输出 | 非空、至少 32 字节 | 接收摘要 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 摘要已写入 | — |
+| `false` | 参数或长度上限错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输出缓冲不足
+- `XERR_STATE` — 状态结构已损坏（魔数/校验不符）
+- `XERR_RANGE` — 累计输入超过 2^64 位长度上限
+
+#### 范例
+
+[crypto/sha512_256 · 一次性](../../examples/crypto/sha512_256/main.c) · 观察
+
+```c
+if ( !xrtSha512_256("abc", 3u, Digest) ) {
+```
+
 
 ## HMAC
 

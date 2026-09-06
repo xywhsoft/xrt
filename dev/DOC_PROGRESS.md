@@ -18,7 +18,7 @@
 | 11 | console.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；四码 xrt.console 域成节 |
 | 12 | core.md | 44 | **完成** | 44/44 全绿（G3 44 片段，2026-09-07）；四头并集（core/error/memory/features）；error/tour 补注册至 core 模块 |
 | 13 | coroutine.md | 51 | **完成** | 51/51 全绿（G3 51 片段，2026-09-07）；核心 18 + 调度器 23 + 事件 10；旧 API 索引表全部转模板节 |
-| 14 | crypto.md | 122 | 待办 |  |
+| 14 | crypto.md | 122 | 进行中 [1/3 段] | 第 1 段哈希族 30/122 全绿（G3 30 片段）；余密码 22 + MAC/KDF 24 + 签名曲线 46 |
 | 15 | environment.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；Lookup 的"不存在=成功+空输出"语义成文 |
 | 16 | error.md | 45 | 待办 |  |
 | 17 | executor.md | 10 | 待办 |  |
@@ -269,3 +269,15 @@
   scheduler）。G3 拦截 1 处不存在的 EventSet 片段（凭记忆写
   了未在范例中的调用形态，改为真实源行）后转绿；既有文件抽查
   无回归。
+- 2026-09-07 crypto.md 第 1 段（哈希族 28 + CryptoHashSize +
+  ConstTimeEqual = 30 节）完成：七族哈希（Md5/Sha1/Sha224/Sha256/
+  Sha384/Sha512/Sha512_256）各四形态（Init/Update/Final/一次性）
+  全部成节；镜像族按 DOC_SPEC 生成器产出（签名逐字符对齐头文件，
+  Sha512_256 多行形态单独处理）。核心契约入档：Final 在状态快照
+  上完成填充（可重复取摘要且不结束流）；Update 仅缓存不足一块的
+  尾部、失败原子；CryptoHashSize 元数据查询与实现编入解耦。
+  门禁拦截生成器两类真问题：Update/Final 片段尾部拼出源码不
+  存在的 ") {"（10 处，正则批量修正）；锚点跨 hash_tour（五族
+  三段式）+ sha256/sha512 双变体 + ecdsa_p256/p384（一次性）+
+  md5/sha1/sha224/sha512_256 专项。G3 30 片段全绿；G1/G2 余 92
+  全部为第 2/3 段 missing-section。既有文件抽查无回归。
