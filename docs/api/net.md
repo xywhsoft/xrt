@@ -745,6 +745,2043 @@ bool xrtNetAddrFromNative(xnetaddr* pAddr, const void* pNative, size_t iSize);
 
 ## 网络缓冲
 
+`XRT_FEATURE_NET_BUFFER` 依赖 `XRT_FEATURE_NET`，提供 TCP、UDP、TLS、HTTP 和 WebSocket 共用的可变尺寸缓冲底座。缓冲只在实际收到或排队数据时持有块；默认池尺寸类为 512、2048、8192、32768 字节，超过最大类的请求按实际大小单独分配；默认总缓存硬上限 2 MiB 且缓存属于 Worker 而非连接——一万个空闲连接不会因此各自占用 8K。
+
+**线程**：池与缓冲是线程归属对象，不在热路径加锁；同一时刻只能由所属 Worker 操作。跨线程长期保存数据时使用不绑定池的缓冲（`Init` 传空池）、复制到调用方内存，或让所属 Worker 执行最终释放。
+
+**所有权**：四种追加形态按复制/借用/接管/自定义释放区分；`Take`/`Ref` 只有成功才转移所有权，失败时数据仍归调用方。`xnetspan` 只借用块内数据——任何追加、提交、消费、Pullup、Move 或 Clear 后必须重新获取。
+
+### `xrtNetBufPoolConfigInit`
+
+初始化默认尺寸类与有界缓存策略的池配置。
+
+```c
+void xrtNetBufPoolConfigInit(xnetbufpoolconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 填入 512/2048/8192/32768 尺寸类与 2 MiB 总缓存上限 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 纯初始化；`pConfig == NULL` 是参数错误（经 `xrtGetError()` 可查） |
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 池生命周期起点
+
+```c
+xrtNetBufPoolConfigInit(&Config);
+pPool = xrtNetBufPoolCreate(&Config);
+```
+
+### `xrtNetBufPoolCreate`
+
+创建一个缓冲池；空配置使用默认值。
+
+```c
+xnetbufpool* xrtNetBufPoolCreate(const xnetbufpoolconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 允许空指针 | `NULL` 使用默认配置；配置内容在创建期间复制 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新池，配对 `xrtNetBufPoolDestroy()` 释放 | — |
+| `NULL` | 分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 分配失败 — 池结构内存申请失败
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 默认配置建池并挂两个缓冲
+
+```c
+if ( (pPool == NULL) ||
+	!xrtNetBufInit(&BufA, pPool) ||
+	!xrtNetBufInit(&BufB, pPool) ) {
+```
+
+### `xrtNetBufPoolDestroy`
+
+销毁已无实时块的池；仍有外借块时失败并保留池。
+
+```c
+bool xrtNetBufPoolDestroy(xnetbufpool* pPool);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 允许空指针 | 空指针是成功空操作；块即使被 `Move` 到别的缓冲也仍计入原池实时统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 池已释放（先 `Trim` 清空缓存） | — |
+| `false` | 仍有实时块 | 池保持完整、块中无悬空指针；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_POOL_BUSY` — `LiveBlocks != 0`
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 失败路径的销毁收尾
+
+```c
+if ( pPool != NULL ) {
+	xrtNetBufPoolDestroy(pPool);
+}
+```
+
+### `xrtNetBufPoolTrim`
+
+把缓存裁剪到不超过指定字节数，返回真正释放的块数。
+
+```c
+size_t xrtNetBufPoolTrim(xnetbufpool* pPool, size_t iRetainBytes);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 只释放缓存块，不影响实时数据 |
+| `iRetainBytes` | 输入 | — | 保留的缓存预算；`0` 清空全部缓存 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 释放块数 | 可能大于等于 0 | 参数非法时返回 0 并设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pPool == NULL`
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 清空全部缓存
+
+```c
+iGot = xrtNetBufPoolTrim(pPool, 0u);
+if ( iGot < 1u ) {
+```
+
+### `xrtNetBufPoolGet`
+
+复制缓冲池当前统计，不分配内存。
+
+```c
+void xrtNetBufPoolGet(const xnetbufpool* pPool, xnetbufpoolinfo* pInfo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | — |
+| `pInfo` | 输出 | 非空 | 实时/峰值块数与容量、缓存块数与容量、分配/复用/动态大块/外部引用计数；`LiveBytes` 对拥有块统计容量、对引用块统计逻辑长度 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 参数非法时不修改输出（经 `xrtGetError()` 可查） |
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 空池统计全零
+
+```c
+xrtNetBufPoolGet(pPool, &Info);
+if ( (Info.LiveBlocks != 0u) ||
+	(Info.AllocCount != 0u) ) {
+```
+
+### `xrtNetBufInit`
+
+初始化空缓冲链；池为空时使用全局分配器且不缓存。
+
+```c
+bool xrtNetBufInit(xnetbuf* pBuffer, xnetbufpool* pPool);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输出 | 非空 | 可栈上或嵌入连接对象；结构可继续 `Clear` 复用 |
+| `pPool` | 输入 | 允许空指针 | 空池适合跨线程所有权和低频独立使用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化为空链 | — |
+| `false` | 参数非法 | 结构不被触碰；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pBuffer == NULL`
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 挂到所属池
+
+```c
+!xrtNetBufInit(&BufA, pPool) ||
+```
+
+### `xrtNetBufClear`
+
+释放全部块并放弃尚未提交的写入预留。
+
+```c
+void xrtNetBufClear(xnetbuf* pBuffer);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 允许空指针 | 幂等；引用块的释放过程在此时执行 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作 |
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · Clear 触发 AppendRef 释放回调
+
+```c
+xrtNetBufClear(&BufA);
+xrtNetBufClear(&BufB);
+if ( iReleased != 1 ) {
+```
+
+### `xrtNetBufSize`
+
+返回缓冲链总字节数。
+
+```c
+size_t xrtNetBufSize(const xnetbuf* pBuffer);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 字节数 | 跨全部块的活动数据总量 |
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 四类追加后恰 11 字节
+
+```c
+iSize = xrtNetBufSize(&BufA);
+```
+
+### `xrtNetBufEmpty`
+
+返回缓冲链是否为空。
+
+```c
+bool xrtNetBufEmpty(const xnetbuf* pBuffer);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 无活动数据 |
+| `false` | 至少一个字节 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · Move 后源为空
+
+```c
+!xrtNetBufMove(&BufA, &BufB) ||
+	!xrtNetBufEmpty(&BufB) ||
+```
+
+### `xrtNetBufSpanCount`
+
+返回当前缓冲链的只读 Span 总数。
+
+```c
+size_t xrtNetBufSpanCount(const xnetbuf* pBuffer);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| Span 数 | 完整消费所需的数组容量 |
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 四类追加后至少 4 段
+
+```c
+iSpans = xrtNetBufSpanCount(&BufA);
+```
+
+### `xrtNetBufSpans`
+
+借用最多指定数量的只读 Span。
+
+```c
+size_t xrtNetBufSpans(const xnetbuf* pBuffer, xnetspan* pSpans, size_t iCapacity);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | — |
+| `pSpans` | 输出 | `iCapacity > 0` 时非空 | 接收 Span 数组；Span 借用块内数据 |
+| `iCapacity` | 输入 | — | 数组容量；完整数量由 `SpanCount` 查询 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 实际写入数 | `<= iCapacity` | 参数非法时返回 0 并设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pBuffer == NULL` 或 `iCapacity > 0 && pSpans == NULL`
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 首段恰 "hello" 5 字节
+
+```c
+(xrtNetBufSpans(&BufA, Spans, 8u) != iSpans) ||
+	(Spans[0].Size != 5u) ||
+```
+
+### `xrtNetBufFront`
+
+借用明文队列的第一个连续 Span；空缓冲返回假。
+
+```c
+bool xrtNetBufFront(const xnetbuf* pBuffer, xnetspan* pSpan);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | — |
+| `pSpan` | 输出 | 非空 | 空缓冲时被清为 `{ NULL, 0 }` |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 首段非空 | — |
+| `false` | 缓冲为空或参数非法 | 空缓冲属正常路径不设错；参数非法设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+
+#### 范例
+
+[network/buffer · 基础范例](../../examples/network/buffer/main.c) · Reserve→Commit 后取首段
+
+```c
+if ( !xrtNetBufCommit(&Buffer, 6) ||
+	!xrtNetBufFront(&Buffer, &Read) ) {
+```
+
+### `xrtNetBufAppend`
+
+复制一段数据到链尾；整个追加失败原子。
+
+```c
+bool xrtNetBufAppend(xnetbuf* pBuffer, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | 成功后 `Size += iSize` |
+| `pData` | 输入 | `iSize > 0` 时非空 | 来源借用调用期间 |
+| `iSize` | 输入 | — | 字节数；`0` 为成功空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已复制追加 | — |
+| `false` | 参数非法或分配失败 | 原数据不变（OOM 不留部分数据）；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- 溢出/分配失败 — 容量或总长字节数溢出、块分配失败
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 四类追加的第一段
+
+```c
+if ( !xrtNetBufAppend(&BufA, "hello", 5u) ||
+	!xrtNetBufAppendBorrow(&BufA, arrBorrow, 2u) ) {
+```
+
+### `xrtNetBufAppendBorrow`
+
+追加借用数据；调用方保证数据存活到该段被消费或清除。
+
+```c
+bool xrtNetBufAppendBorrow(xnetbuf* pBuffer, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | — |
+| `pData` | 输入 | `iSize > 0` 时非空 | **借用**——不复制，存活期由调用方保证 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已借用追加（零复制） | — |
+| `false` | 参数非法或登记失败 | 原数据不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- 溢出 — 总长溢出
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 与 Append 连用
+
+```c
+!xrtNetBufAppendBorrow(&BufA, arrBorrow, 2u) ) {
+```
+
+### `xrtNetBufAppendTake`
+
+接管由 `xrtMalloc` 家族分配的数据；成功后由缓冲最终 `xrtFree`。
+
+```c
+bool xrtNetBufAppendTake(xnetbuf* pBuffer, ptr pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | — |
+| `pData` | 输入 | `iSize > 0` 时非空 | **接管**——必须来自 `xrtMalloc` 家族；失败时所有权仍归调用方 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已接管追加 | — |
+| `false` | 参数非法或登记失败 | 数据仍归调用方释放；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- 溢出 — 总长溢出
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 失败路径自行释放
+
+```c
+if ( !xrtNetBufAppendTake(&BufA, pTaken, 2u) ) {
+	xrtFree(pTaken);
+```
+
+### `xrtNetBufAppendRef`
+
+接管带自定义释放过程的外部数据。
+
+```c
+bool xrtNetBufAppendRef(xnetbuf* pBuffer, const void* pData, size_t iSize, xnetreleaseproc pRelease, ptr pContext);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | — |
+| `pData` | 输入 | `iSize > 0` 时非空 | **接管**；失败时不会调用释放过程 |
+| `iSize` | 输入 | — | 字节数 |
+| `pRelease` | 输入 | 非空 | 释放过程；最后一部分离开缓冲（消费完或 `Clear`）时恰好执行一次 |
+| `pContext` | 输入 | — | 释放过程的用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已接管追加 | — |
+| `false` | 参数非法 | 数据与释放责任仍归调用方；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 释放回调恰好一次（Clear 时触发）
+
+```c
+if ( !xrtNetBufAppendRef(&BufA, arrRef, 2u,
+		exampleRelease, (ptr)&iReleased) ) {
+```
+
+### `xrtNetBufPrepend`
+
+把一段数据复制到新首块；不移动已有负载块。
+
+```c
+bool xrtNetBufPrepend(xnetbuf* pBuffer, const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | 原有块和外部引用保持不动——适合加协议头 |
+| `pData` | 输入 | `iSize > 0` 时非空 | 头内容 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已加首块 | — |
+| `false` | 参数非法或分配失败 | 原数据不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- 溢出/分配失败 — 溢出或首块分配失败
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 加 ">> " 前缀
+
+```c
+if ( !xrtNetBufPrepend(&BufA, ">> ", 3u) ||
+	(xrtNetBufSize(&BufA) != 14u) ||
+```
+
+### `xrtNetBufReserve`
+
+预留至少指定大小的连续尾部可写区。
+
+```c
+bool xrtNetBufReserve(xnetbuf* pBuffer, size_t iMinimum, xnetwspan* pSpan);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | 预留期间不能执行其他改变链结构的操作 |
+| `iMinimum` | 输入 | — | 最小连续字节数；IOCP/io_uring/`recv`/TLS 解密器可直接写入 |
+| `pSpan` | 输出 | 非空 | 可写 Span；完成后 `Commit` 实际字节数、`Cancel` 放弃 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已预留并借出可写区 | — |
+| `false` | 参数/状态非法或分配失败 | 原数据不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XERR_STATE` + `XNET_ERROR_BUFFER_STATE` — 已有在途预留（重复预留）
+- 溢出/分配失败 — 尾块扩容失败
+
+#### 范例
+
+[network/buffer · 基础范例](../../examples/network/buffer/main.c) · 直接写入式接收
+
+```c
+if ( (pPool == NULL) || !xrtNetBufInit(&Buffer, pPool) ||
+	!xrtNetBufReserve(&Buffer, 6, &Write) ) {
+```
+
+### `xrtNetBufCommit`
+
+提交预留空间中已经写入的字节数。
+
+```c
+bool xrtNetBufCommit(xnetbuf* pBuffer, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | 提交后预留结束，可再次 `Reserve` |
+| `iSize` | 输入 | `<=` 预留容量 | 实际写入字节数；`0` 合法（丢弃预留区） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已计入缓冲 | — |
+| `false` | 无预留、超量或溢出 | 预留仍可正确提交或取消；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_BUFFER_STATE` — 没有在途预留
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — `iSize` 超过预留容量
+- 溢出 — 总长溢出
+
+#### 范例
+
+[network/buffer · 基础范例](../../examples/network/buffer/main.c) · 写入 6 字节后提交
+
+```c
+memcpy(Write.Data, "packet", 6);
+if ( !xrtNetBufCommit(&Buffer, 6) ||
+```
+
+### `xrtNetBufCancel`
+
+放弃当前写入预留，缓冲内容保持不变。
+
+```c
+bool xrtNetBufCancel(xnetbuf* pBuffer);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | EAGAIN、取消或零字节结果用本接口收尾 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 预留已放弃（新块释放、登记复原） | — |
+| `false` | 没有在途预留 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_BUFFER_STATE` — 无预留可放弃
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · Cancel 后总长不变
+
+```c
+if ( !xrtNetBufReserve(&BufA, 8u, &Reserve) ||
+	!xrtNetBufCancel(&BufA) ||
+```
+
+### `xrtNetBufMove`
+
+把源缓冲的全部块移动到目标尾部，源恢复为空但保留池配置。
+
+```c
+bool xrtNetBufMove(xnetbuf* pTarget, xnetbuf* pSource);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入输出 | 非空 | 接收全部块；只重连块链不复制负载 |
+| `pSource` | 输出 | 非空 | 恢复为空；AGAIN 或失败时源缓冲保持不变 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已转移 | — |
+| `false` | 参数非法（如自移） | 双方不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针或 `pTarget == pSource`
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 块链零复制转移
+
+```c
+if ( !xrtNetBufAppend(&BufB, "!", 1u) ||
+	!xrtNetBufMove(&BufA, &BufB) ||
+```
+
+### `xrtNetBufPullup`
+
+确保指定长度的内存前缀连续。
+
+```c
+bool xrtNetBufPullup(xnetbuf* pBuffer, size_t iSize, xnetspan* pSpan);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | 首块足够时零复制返回，否则只复制指定前缀到首块——适合解析固定协议头 |
+| `iSize` | 输入 | `<= Size` | 需要连续的前缀字节数 |
+| `pSpan` | 输出 | 非空 | 连续前缀 Span；`iSize == 0` 输出空 Span 且成功 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 前缀已连续并借出 | — |
+| `false` | 参数/状态非法或前缀超长 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — `iSize` 超过缓冲现有数据
+- `XERR_STATE` + `XNET_ERROR_BUFFER_STATE` — 预留期间操作
+- 溢出/分配失败 — 首块扩容失败
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 拼合 5 字节协议头
+
+```c
+!xrtNetBufPullup(&BufA, 5u, &Span) ||
+	(Span.Size < 5u) ||
+```
+
+### `xrtNetBufPeek`
+
+从指定偏移复制最多给定字节；不消费。
+
+```c
+size_t xrtNetBufPeek(const xnetbuf* pBuffer, size_t iOffset, void* pOutput, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | — |
+| `iOffset` | 输入 | — | 起始偏移；遇到块边界外的引用段语义见实现（跨块复制、引用块按逻辑长度） |
+| `pOutput` | 输出 | `iSize > 0` 时非空 | 接收副本 |
+| `iSize` | 输入 | — | 最多复制字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 实际复制数 | 从 `iOffset` 起的可用前缀 | 参数非法时返回 0 并设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 偏移 8 读 3 字节
+
+```c
+(xrtNetBufPeek(&BufA, 8u, arrText, 3u) != 3u) ||
+```
+
+### `xrtNetBufRead`
+
+复制并消费：从链首取走最多给定字节。
+
+```c
+size_t xrtNetBufRead(xnetbuf* pBuffer, void* pOutput, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | 已消费部分脱离活动区 |
+| `pOutput` | 输出 | `iSize > 0` 时非空 | 接收副本 |
+| `iSize` | 输入 | — | 请求字节数；可用不足时短读 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 实际读取数 | 短读合法 | 参数非法时返回 0 并设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+
+#### 范例
+
+[network/tcp · 基础范例](../../examples/network/tcp/main.c) · 接收队列整段取出
+
+```c
+iSize = xrtNetBufRead(pBuffer, Data, sizeof(Data));
+```
+
+### `xrtNetBufFind`
+
+从指定偏移查找一个字节，未找到返回 `XRT_NPOS`。
+
+```c
+size_t xrtNetBufFind(const xnetbuf* pBuffer, uint8 iByte, size_t iOffset);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | 跨块查找 |
+| `iByte` | 输入 | — | 目标字节 |
+| `iOffset` | 输入 | — | 起始偏移 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 偏移 | 第一个命中位置 |
+| `XRT_NPOS` | 未命中 |
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 命中 'w' 与未命中 'z'
+
+```c
+(xrtNetBufFind(&BufA, 'w', 0u) != 9u) ||
+	(xrtNetBufFind(&BufA, 'z', 0u) != XRT_NPOS) ||
+```
+
+### `xrtNetBufConsume`
+
+消费最多给定字节的前缀。
+
+```c
+size_t xrtNetBufConsume(xnetbuf* pBuffer, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入输出 | 非空 | 不会释放仍被活动写预留借用的尾块；引用块消费到最后一段时执行释放 |
+| `iSize` | 输入 | — | 请求量；允许超过剩余数据（按剩余消费） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 实际消费量 | `<= iSize` 且 `<= Size` | 参数非法时返回 0 并设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+
+#### 范例
+
+[buf_tour](../../examples/network/buf_tour/main.c) · 消费 ">> " 三字节
+
+```c
+(xrtNetBufConsume(&BufA, 3u) != 3u) ||
+```
+
+## 拥有型字节结果
+
+### `xrtNetBytesRef`
+
+增加拥有型网络字节结果的引用并返回原指针。
+
+```c
+xnetbytes* xrtNetBytesRef(xnetbytes* pBytes);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBytes` | 输入 | 非空 | 接收结果（如 `xrtNetStreamRecv`）的拥有式对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 原指针 | 引用已增加；每次成功须一次 `xrtNetBytesDestroy` 配对 | — |
+| `NULL` | 参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pBytes == NULL`
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 共享持有接收结果
+
+```c
+xnetbytes* pShared = xrtNetBytesRef(pBytes);
+```
+
+### `xrtNetBytesDestroy`
+
+释放拥有型网络字节结果；空指针视为空操作。
+
+```c
+void xrtNetBytesDestroy(xnetbytes* pBytes);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBytes` | 输入 | 允许空指针 | 最后一个引用释放时对象销毁 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作 |
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 视图取出后释放
+
+```c
+xrtNetBytesDestroy(pBytes);
+```
+
+### `xrtNetBytesView`
+
+返回拥有型网络字节结果的借用视图。
+
+```c
+xbytesview xrtNetBytesView(const xnetbytes* pBytes);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBytes` | 输入 | 允许空指针 | 空指针返回空视图 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 视图 | 数据与长度的只读借用；对象销毁后失效 |
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 与期望输出逐位核对
+
+```c
+xbytesview View = xrtNetBytesView(pBytes);
+```
+
+
+## 地址列表与 DNS
+
+数字地址语法不包含主机名解析；DNS 与不可变地址列表属于 `XRT_FEATURE_NET_DNS`。列表是解析结果的不可变共享快照：复制、校验、去重调用方地址后建立，`Ref` 增引用、`Destroy` 配对释放，端口统一替换用 `WithPort`。
+
+### `xrtNetAddrListCreate`
+
+复制、校验并去重调用方地址，建立不可变列表。
+
+```c
+xnetaddrlist* xrtNetAddrListCreate(const xnetaddr* pAddresses, size_t iCount);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddresses` | 输入 | `iCount > 0` 时非空 | 来源数组在创建期间复制；重复项去除 |
+| `iCount` | 输入 | — | 地址数；`0` 建空列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新列表，配对 `xrtNetAddrListDestroy()` 释放 | — |
+| `NULL` | 参数非法或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `iCount > 0 && pAddresses == NULL`
+- 分配失败 — 列表内存申请失败
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 双地址建表
+
+```c
+pList = xrtNetAddrListCreate(arrTwo, 2u);
+if ( (pList == NULL) ||
+	(xrtNetAddrListCount(pList) != 2u) ) {
+```
+
+### `xrtNetAddrListWithPort`
+
+复制列表并统一替换端口；端口已一致时只增加引用。
+
+```c
+xnetaddrlist* xrtNetAddrListWithPort(xnetaddrlist* pList, uint16 iPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入 | 非空 | 原列表不受影响 |
+| `iPort` | 输入 | — | 新端口 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新列表（或原列表的引用）；独立 `Destroy` 配对 | — |
+| `NULL` | 参数非法或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pList == NULL`
+- 分配失败 — 新列表申请失败
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 两地址统一换 443
+
+```c
+pPortList = xrtNetAddrListWithPort(pList, 443u);
+if ( (pPortList == NULL) ||
+	(xrtNetAddrListCount(pPortList) != 2u) ||
+	(xrtNetAddrListGet(pPortList, 0u)->Port != 443u) ||
+```
+
+### `xrtNetAddrListRef`
+
+增加不可变列表引用并返回原指针。
+
+```c
+xnetaddrlist* xrtNetAddrListRef(xnetaddrlist* pList);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入 | 非空 | 对象内容在全部引用之间只读 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 原指针 | 引用已增加；每次成功须一次 `Destroy` 配对 | — |
+| `NULL` | 参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pList == NULL`
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 共享引用
+
+```c
+pRef = xrtNetAddrListRef(pPortList);
+if ( pRef != pPortList ) {
+```
+
+### `xrtNetAddrListDestroy`
+
+释放列表引用；空指针是空操作。
+
+```c
+void xrtNetAddrListDestroy(xnetaddrlist* pList);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入 | 允许空指针 | 最后一个引用释放时对象销毁 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作 |
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 引用与原件各自配对释放
+
+```c
+xrtNetAddrListDestroy(pRef);
+xrtNetAddrListDestroy(pPortList);
+```
+
+### `xrtNetAddrListCount`
+
+返回地址数量；空列表返回零。
+
+```c
+size_t xrtNetAddrListCount(const xnetaddrlist* pList);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入 | 允许空指针 | 空指针返回 0 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 数量 | 列表内地址数 |
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 见 `xrtNetAddrListCreate` 范例
+
+```c
+(xrtNetAddrListCount(pList) != 2u) ) {
+```
+
+### `xrtNetAddrListGet`
+
+返回借用地址；索引越界返回空指针并设置范围错误。
+
+```c
+const xnetaddr* xrtNetAddrListGet(const xnetaddrlist* pList, size_t iIndex);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入 | 非空 | — |
+| `iIndex` | 输入 | `< Count` | 0 基索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 借用地址；视图随列表最后一个引用失效 | — |
+| `NULL` | 越界或参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_RANGE` — `iIndex >= Count`
+- `XERR_ARGUMENT` — `pList == NULL`
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 读换端口后的首地址
+
+```c
+(xrtNetAddrListGet(pPortList, 0u)->Port != 443u) ||
+```
+
+### `xrtNetLookup`
+
+解析主机的全部地址；保留系统顺序、去重、端口为零。
+
+```c
+xnetaddrlist* xrtNetLookup(cstr sHost, xnetfamily Family);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sHost` | 输入 | 非空 | 主机名或数字地址 |
+| `Family` | 输入 | — | 限定族；`UNSPEC` 接受全部 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只查询主机地址的列表（端口全零），配对 `Destroy` 释放 | — |
+| `NULL` | 解析失败 | 错误经 `xrtGetError()` 报告（`XNET_ERROR_DNS_*` 族） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_DNS_RESOLVE` 等域名解析错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · localhost 本机解析不依赖外网
+
+```c
+xnetaddrlist* pLocal = xrtNetLookup("localhost",
+	XNET_FAMILY_IPV4);
+```
+
+### `xrtNetResolve`
+
+解析主机并统一端口。
+
+```c
+xnetaddrlist* xrtNetResolve(cstr sHost, uint16 iPort, xnetfamily Family);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sHost` | 输入 | 非空 | — |
+| `iPort` | 输入 | — | 写入全部结果的端口 |
+| `Family` | 输入 | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 带端口的列表，配对 `Destroy` 释放 | — |
+| `NULL` | 解析失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtNetLookup`
+
+#### 范例
+
+[network/dns · 基础范例](../../examples/network/dns/main.c) · 完整列表遍历
+
+```c
+xnetaddrlist* pList = xrtNetResolve(
+	"localhost",
+	443,
+	XNET_FAMILY_UNSPEC
+);
+```
+
+### `xrtNetResolveOne`
+
+解析并复制系统顺序中的第一个地址；单地址场景无需管理列表。
+
+```c
+bool xrtNetResolveOne(xnetaddr* pAddr, cstr sHost, uint16 iPort, xnetfamily Family);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 失败不修改 |
+| `sHost` | 输入 | 非空 | — |
+| `iPort` | 输入 | — | 写入端口 |
+| `Family` | 输入 | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已复制首地址 | — |
+| `false` | 解析失败 | `*pAddr` 不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtNetLookup`
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 端口 80 的单地址
+
+```c
+if ( !xrtNetResolveOne(&Resolved, "localhost", 80u,
+		XNET_FAMILY_IPV4) ||
+```
+
+### `xrtNetReverse`
+
+反向解析一个数字地址；成功返回调用方拥有的主机名。
+
+```c
+str xrtNetReverse(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | 只接受数字地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拥有式主机名，`xrtFree` 释放 | — |
+| `NULL` | 反查失败或参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_DNS_REVERSE` — 反查失败
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 回环地址反查
+
+```c
+sHost = xrtNetReverse(&Loopback);
+if ( sHost == NULL ) {
+```
+
+## 错误
+
+- `XERR_ARGUMENT` — `pAddr == NULL` 或 `Family` 非法
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 通配地址构造与判定
+
+```c
+if ( !xrtNetAddrAny(&Any, XNET_FAMILY_IPV4, 0u) ||
+```
+
+### `xrtNetAddrLoopback`
+
+构造指定族的回环地址（IPv4 `127.0.0.1` 或 IPv6 `::1`）。
+
+```c
+bool xrtNetAddrLoopback(xnetaddr* pAddr, xnetfamily Family, uint16 iPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 接收构造结果 |
+| `Family` | 输入 | `IPV4` 或 `IPV6` | — |
+| `iPort` | 输入 | — | 填入端口 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已构造 | — |
+| `false` | 族不合法 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pAddr == NULL` 或 `Family` 非法
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 回环以 `Parse("127.0.0.1")` 等价构造（见 `xrtNetAddrParse` 范例）
+
+```c
+if ( !xrtNetAddrParse(&Loopback, "127.0.0.1", 8080u) ||
+```
+
+### `xrtNetAddrParse`
+
+严格解析数字 IPv4 或 IPv6 文本；不执行 DNS。
+
+```c
+bool xrtNetAddrParse(xnetaddr* pAddr, cstr sIP, uint16 iPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 失败不修改 |
+| `sIP` | 输入 | 非空 | IPv4 四段十进制（拒绝越界/缺段/前导零歧义）；IPv6 支持 `::`、嵌入式 IPv4、`%42` 数字 Scope；启用 `XRT_FEATURE_NET_INTERFACE` 后还接受 `%eth0` 接口名 Scope |
+| `iPort` | 输入 | — | 填入端口，与文本无关 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解析构造 | — |
+| `false` | 文本非法 | `*pAddr` 不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_FORMAT` — 地址文本不符合严格语法
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 双地址构造供比较族使用
+
+```c
+if ( !xrtNetAddrParse(&Loopback, "127.0.0.1", 8080u) ||
+	!xrtNetAddrParse(&Private, "10.0.0.5", 8080u) ||
+```
+
+### `xrtNetAddrParseEndpoint`
+
+解析 `IPv4:port`、`[IPv6]:port` 或使用默认端口的裸地址。
+
+```c
+bool xrtNetAddrParseEndpoint(xnetaddr* pAddr, cstr sEndpoint, uint16 iDefaultPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 失败不修改 |
+| `sEndpoint` | 输入 | 非空 | 裸 IPv6 的最后一段不会被猜测为端口——IPv6 显式端口必须方括号；地址按切片解析、不复制到定长临时数组 |
+| `iDefaultPort` | 输入 | — | 文本未带端口时使用；`0` 合法 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解析构造 | — |
+| `false` | 文本非法 | `*pAddr` 不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_FORMAT` — 端点语法非法
+
+#### 范例
+
+[network/address · 基础范例](../../examples/network/address/main.c) · 带 Scope 的 IPv6 端点
+
+```c
+if ( !xrtNetAddrParseEndpoint(&Addr, "[fe80::1%3]:8080", 0) ) {
+	return 1;
+}
+```
+
+## 文本输出
+
+### `xrtNetAddrText`
+
+输出规范 IP 文本，返回不含结尾零字节的所需长度。
+
+```c
+size_t xrtNetAddrText(const xnetaddr* pAddr, char* sText, size_t iCapacity);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | IPv6 按 RFC 5952：小写、去前导零、压缩第一个最长零段；IPv4 映射输出 `::ffff:192.0.2.1` |
+| `sText` | 输出 | 允许空指针 | `NULL, 0` 为零分配查询；容量不足仍尽量写零结尾文本 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 所需长度 | 不含结尾零；写入成功时即实际字节数 | — |
+| `XRT_NPOS` | 地址非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_BUFFER` — 容量不足（仍返回所需长度并尽量写出）
+- `XERR_ARGUMENT` — 参数非法
+
+#### 范例
+
+[network/interface · 基础范例](../../examples/network/interface/main.c) · 枚举接口地址文本
+
+```c
+if ( xrtNetAddrText(
+	&pAddress->Address, sAddress, sizeof(sAddress)
+) == XRT_NPOS ) {
+```
+
+### `xrtNetAddrEndpointText`
+
+输出带端口的规范端点文本，IPv6 始终使用方括号。
+
+```c
+size_t xrtNetAddrEndpointText(const xnetaddr* pAddr, char* sText, size_t iCapacity);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | 端口始终出现 |
+| `sText` | 输出 | 允许空指针 | 同 `xrtNetAddrText` 的两段式口径 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 所需长度 | 不含结尾零 | — |
+| `XRT_NPOS` | 地址非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XNET_ERROR_BUFFER` — 容量不足
+- `XERR_ARGUMENT` — 参数非法
+
+#### 范例
+
+[network/interface · 基础范例](../../examples/network/interface/main.c) · 端点输出与 `AddrText` 同口径（见其范例）
+
+```c
+if ( xrtNetAddrText(
+	&pAddress->Address, sAddress, sizeof(sAddress)
+) == XRT_NPOS ) {
+```
+
+### `xrtNetAddrString`
+
+分配并返回规范 IP 文本。
+
+```c
+str xrtNetAddrString(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拥有式零结尾文本，`xrtFree` 释放；可长期保存、跨函数传递、同表达式多次调用（替换旧版线程局部环形缓冲） | — |
+| `NULL` | 地址非法或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 参数非法
+- 分配失败 — 文本内存申请失败
+
+#### 范例
+
+[network/dns · 基础范例](../../examples/network/dns/main.c) · 同族拥有式端点文本用法
+
+```c
+str sEndpoint = xrtNetAddrEndpointString(
+```
+
+### `xrtNetAddrEndpointString`
+
+分配并返回带端口的规范端点文本。
+
+```c
+str xrtNetAddrEndpointString(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | IPv6 自动加方括号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拥有式零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 地址非法或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 参数非法
+- 分配失败 — 文本内存申请失败
+
+#### 范例
+
+[network/address · 基础范例](../../examples/network/address/main.c) · 端点往返
+
+```c
+sEndpoint = xrtNetAddrEndpointString(&Addr);
+if ( sEndpoint == NULL ) {
+	return 1;
+}
+```
+
+## 比较与分类
+
+### `xrtNetAddrEqual`
+
+比较完整端点：族、地址、IPv6 Scope 与端口全等。
+
+```c
+bool xrtNetAddrEqual(const xnetaddr* pLeft, const xnetaddr* pRight);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | — |
+| `pRight` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 完整端点相同（端口不同即不等） |
+| `false` | 任一分量不同 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · SameIP 分界：同 IP 换端口
+
+```c
+if ( xrtNetAddrEqual(&Loopback, &Private) ||
+	!xrtNetAddrEqual(&Private, &Private) ||
+	xrtNetAddrEqual(&Private, &Other) ||
+```
+
+### `xrtNetAddrSameIP`
+
+只比较地址族、地址与 IPv6 Scope，不比较端口。
+
+```c
+bool xrtNetAddrSameIP(const xnetaddr* pLeft, const xnetaddr* pRight);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | — |
+| `pRight` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 同族同地址同 Scope（端口可不同） |
+| `false` | 地址分量不同 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 与 Equal 对照
+
+```c
+xrtNetAddrSameIP(&Loopback, &Private) ||
+	!xrtNetAddrSameIP(&Private, &Other) ) {
+```
+
+### `xrtNetAddrCompare`
+
+为 Map、排序和稳定去重提供完整端点全序。
+
+```c
+int xrtNetAddrCompare(const xnetaddr* pLeft, const xnetaddr* pRight);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | — |
+| `pRight` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 负数 | 左端点按序在前（比较序：族 → 地址 → Scope → 端口） |
+| `0` | 完整端点相同 |
+| 正数 | 左端点在后 |
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 自反为零、10 < 127
+
+```c
+if ( (xrtNetAddrCompare(&Private, &Private) != 0) ||
+	(xrtNetAddrCompare(&Private, &Loopback) >= 0) ||
+```
+
+### `xrtNetAddrIsUnspecified`
+
+判断地址是否为 IPv4 `0.0.0.0` 或 IPv6 `::`。
+
+```c
+bool xrtNetAddrIsUnspecified(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | 只看地址，端口无关 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 未指定地址 |
+| `false` | 其他地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · Any 构造后判定
+
+```c
+xrtNetAddrIsUnspecified(&Loopback) ||
+	!xrtNetAddrIsUnspecified(&Any) ||
+```
+
+### `xrtNetAddrIsLoopback`
+
+判断地址是否属于 IPv4 `127/8` 或 IPv6 `::1`。
+
+```c
+bool xrtNetAddrIsLoopback(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | IPv4 整个 `127/8` 段都算回环 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 回环地址 |
+| `false` | 其他地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 正反判定
+
+```c
+!xrtNetAddrIsLoopback(&Loopback) ||
+	xrtNetAddrIsLoopback(&Private) ||
+```
+
+### `xrtNetAddrIsMulticast`
+
+判断地址是否属于 IPv4 `224/4` 或 IPv6 `ff00::/8`。
+
+```c
+bool xrtNetAddrIsMulticast(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 多播组地址 |
+| `false` | 单播地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · `224.0.0.1` 命中
+
+```c
+!xrtNetAddrParse(&Other, "224.0.0.1", 0u) ||
+	!xrtNetAddrIsMulticast(&Other) ||
+```
+
+### `xrtNetAddrIsLinkLocal`
+
+判断地址是否属于 IPv4 `169.254/16` 或 IPv6 `fe80::/10`。
+
+```c
+bool xrtNetAddrIsLinkLocal(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 链路本地地址 |
+| `false` | 其他地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[network/address · 基础范例](../../examples/network/address/main.c) · Scope 端点解析后判定
+
+```c
+xrtNetAddrIsLinkLocal(&Addr) ? "yes" : "no");
+```
+
+### `xrtNetAddrIsPrivate`
+
+判断地址是否属于 RFC 1918 IPv4 或 RFC 4193 IPv6 私有范围。
+
+```c
+bool xrtNetAddrIsPrivate(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | 只含私有段——不把回环、链路本地、文档地址混入；按安全策略组合多个明确谓词 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 私有范围地址 |
+| `false` | 公网或其他范围 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · `192.168/10` 命中、`8.8.8.8` 不命中
+
+```c
+!xrtNetAddrParse(&Other, "192.168.1.1", 0u) ||
+	!xrtNetAddrIsPrivate(&Other) ||
+	!xrtNetAddrIsPrivate(&Private) ||
+```
+
+### `xrtNetAddrIsMapped`
+
+判断 IPv6 地址是否为 `::ffff:0:0/96` IPv4 映射地址。
+
+```c
+bool xrtNetAddrIsMapped(const xnetaddr* pAddr);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | IPv4 地址恒为假 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | IPv4 映射 IPv6 |
+| `false` | 普通地址 |
+
+#### 错误
+
+- 无——纯谓词不设置错误
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · `::ffff:192.168.0.1` 命中
+
+```c
+if ( !xrtNetAddrParse(&Mapped, "::ffff:192.168.0.1", 443u) ||
+	!xrtNetAddrIsMapped(&Mapped) ||
+```
+
+### `xrtNetAddrUnmap`
+
+把 IPv4 映射 IPv6 地址转换为 IPv4；其他地址原样复制（保留端口）。
+
+```c
+bool xrtNetAddrUnmap(const xnetaddr* pAddr, xnetaddr* pResult);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+| `pResult` | 输出 | 非空 | 非映射地址原样复制，允许统一规范化不加分支 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出（转换或原样） | — |
+| `false` | 参数非法 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 映射还原 + 非映射原样
+
+```c
+!xrtNetAddrUnmap(&Mapped, &Unmapped) ||
+	!xrtNetAddrParse(&Other, "192.168.0.1", 443u) ||
+	!xrtNetAddrEqual(&Unmapped, &Other) ||
+```
+
+## Native 逃生口
+
+### `xrtNetAddrToNative`
+
+转换为平台 `sockaddr`；空输出可查询所需大小。
+
+```c
+bool xrtNetAddrToNative(const xnetaddr* pAddr, void* pNative, size_t* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输入 | 非空 | — |
+| `pNative` | 输出 | 允许空指针 | `NULL` 时只经 `*pSize` 返回所需 `sockaddr_in`/`sockaddr_in6` 大小 |
+| `pSize` | 输入输出 | 非空 | 入参为容量、出参为实际大小；容量不足也会更新大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出（或已报告大小） | — |
+| `false` | 参数非法或容量不足 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_BUFFER` — 缓冲不足（`*pSize` 已更新为所需大小）
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · 先查询后写出的两段式
+
+```c
+if ( !xrtNetAddrToNative(&Loopback, NULL, &iSize) ||
+```
+
+### `xrtNetAddrFromNative`
+
+从平台 `sockaddr` 转换为稳定地址结构。
+
+```c
+bool xrtNetAddrFromNative(xnetaddr* pAddr, const void* pNative, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddr` | 输出 | 非空 | 失败不修改 |
+| `pNative` | 输入 | 非空 | 平台 `sockaddr` |
+| `iSize` | 输入 | — | 检查地址族与结构长度合法性 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已转换（端口与 IPv6 Scope 保留） | — |
+| `false` | 族或长度非法 | 输出不被修改；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 空指针
+- `XNET_ERROR_FAMILY` — 不支持的地址族
+- `XNET_ERROR_FORMAT` — 结构长度与族不符
+
+#### 范例
+
+[addr_tour](../../examples/network/addr_tour/main.c) · sockaddr 往返等价
+
+```c
+!xrtNetAddrToNative(&Loopback, arrSockaddr, &iSize) ||
+	!xrtNetAddrFromNative(&Native, arrSockaddr, iSize) ||
+	!xrtNetAddrEqual(&Native, &Loopback) ) {
+```
+
+主机名与服务名解析属于独立 DNS 模块，不塞进地址语法函数。这组 Native 接口是有意保留的底层扩展路径：自定义 Socket 选项、第三方事件循环和上层协议可以直接连接平台 API，不需要复制 XRT 内部实现，也不会迫使公开地址结构绑定平台头文件。
+
+## 网络缓冲
+
 `XRT_FEATURE_NET_BUFFER` 依赖 `XRT_FEATURE_NET`，提供 TCP、UDP、TLS、HTTP 和 WebSocket 共用的可变尺寸缓冲底座。它保留旧版 `xnetchain` 的分块、Span 和引用数据优势，但删除“每个连接常驻固定 8K 缓冲”的模型。
 
 缓冲只在实际收到或排队数据时持有块。默认池尺寸类为 512、2048、8192、32768 字节；超过最大类的请求按实际大小单独分配。默认总缓存硬上限为 2 MiB，并且缓存属于 worker，而不是连接：一万个空闲连接不会因此各自占用 8K。

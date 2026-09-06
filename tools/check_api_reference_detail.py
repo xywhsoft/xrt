@@ -84,7 +84,10 @@ def extract_header_functions(text):
 def normalize(text):
 	text = re.sub(r"^XRT_API\s+", "", text.strip())
 	text = text.rstrip(";").strip()
-	return re.sub(r"\s+", " ", text)
+	text = re.sub(r"\s+", " ", text)
+	text = text.replace("( ", "(").replace(" )", ")")
+	text = re.sub(r" ,", ",", text)
+	return text
 
 
 def param_names(param_text):
