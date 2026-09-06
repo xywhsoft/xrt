@@ -16,7 +16,7 @@
 | 9 | codec.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；HEX/Base64/Percent 三族；codec/tour 补注册至 codec_hex |
 | 10 | compress.md | 18 | **完成** | 18/18 全绿（G3 18 片段，2026-09-07）；Inflate/Deflate 对称 9+9；失败终态与 Reset 复用契约成文 |
 | 11 | console.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；四码 xrt.console 域成节 |
-| 12 | core.md | 44 | 待办 |  |
+| 12 | core.md | 44 | **完成** | 44/44 全绿（G3 44 片段，2026-09-07）；四头并集（core/error/memory/features）；error/tour 补注册至 core 模块 |
 | 13 | coroutine.md | 51 | 待办 |  |
 | 14 | crypto.md | 122 | 待办 |  |
 | 15 | environment.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；Lookup 的"不存在=成功+空输出"语义成文 |
@@ -241,3 +241,18 @@
   是正常结果的口径）；environment 的 Lookup"查询成功与存在性分离"
   （true + 空输出 = 不存在）与 Get/Remove 幂等口径入档。三个文件
   双门禁均一次全绿；锚点覆盖 stream_tour/variants 等已注册范例。
+- 2026-09-07 core.md 完成（44/44，G3 44 片段）：core 模块把四个头
+  （features/core/error/memory）都映射到 core.md，门禁按并集要求
+  44 节——core 4 + 内存 15 + 错误 25 全部成文。关键契约入档：
+  SetError"增引用不偷引用"（槽持自己的引用，调用方仍须释放自己
+  那份——源码核实 xrtErrorRef 实现）与 SetErrorTake"所有权转移"
+  的对比；访问器族"空指针安全"（Message 永不 NULL、其余返回
+  NONE/0/空串）；RefRetain/RefRelease 的 -1 哨兵口径（原语按
+  返回值报告，不设线程错误）；At 族仅 MEMORY_DEBUG 下提供。
+  发现并修复 manifest 缺口：examples/error/tour（覆盖错误族 19
+  API）未注册——定点挂到 core 模块 examples（1 行 diff，JSON +
+  manifest 校验通过）。锚点跨 9 个已注册范例（error/tour + core
+  四范例 + allocator_tour + process/open + proxy_dial + json_tour）。
+  门禁拦截 3 处查询函数缺错误节后补齐转绿；既有文件抽查无回归。
+  注：error.md（#16）与 memory.md 的门禁并集同为 44/45 函数，
+  其任务将复用本文件节内容按各文件侧重改写。
