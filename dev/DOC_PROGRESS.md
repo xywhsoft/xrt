@@ -8,7 +8,7 @@
 | 1 | array.md | 50 | **完成** | 试点 1；50 函数 G1-G4 全绿（2026-09-07） |
 | 2 | asn1.md | 27 | **完成** | 27/27 全绿（G3 27 片段，2026-09-07）；错误码 TAG/LENGTH/VALUE/TYPE/END/TRAILING/ORDER/DEPTH/RANGE 九码全表成文；编码器族（Append*8 + Oid 工具 3）首入文档 |
 | 3 | atomic.md | 29 | **完成** | 29/29 全绿（G3 29 片段，2026-09-07）；范例 atomic_tour 补 5 个缺口 API（32Store/FetchAdd/FetchSub、64Store、PtrInit/PtrStore）并实测通过 |
-| 4 | avl.md | 43 | 待办 |  |
+| 4 | avl.md | 43 | **完成** | 43/43 全绿（G3 43 片段，2026-09-07）；双形态 17+26 全部成节，锚点跨 3 个已注册范例 |
 | 5 | buffer.md | 23 | 待办 |  |
 | 6 | cancel.md | 9 | 待办 |  |
 | 7 | channel.md | 42 | 待办 |  |
@@ -159,3 +159,11 @@
   （gcc 16.1，EXIT=0，预期输出 4/5 行不变、64 位行 0→7）。
   门禁拦截 2 处 Init 参数表漏行后修复转绿；asn1/array/net 复验
   无回归。
+- 2026-09-07 avl.md 完成（43/43，G3 43 片段）：侵入式 17 + 拥有式 26
+  双形态全部成节；错误四域（ARGUMENT/STATE/RANGE/MEMORY）逐函数
+  对位（Insert 的节点非独立 STATE、TreeAdd 的键不等价 ARGUMENT、
+  SetDrop 的非空树 STATE、IterNext 的版本变化 STATE、Take 的
+  区间别名拒绝）；"未找到不是错误、不清除既有错误"的查询口径
+  逐函数标注。锚点跨三个已注册范例（avl_tour 40 项 + avl 的
+  IterBegin + avl_tree 的 Init/IterFrom）。双门禁一次全绿；
+  array/asn1/atomic/net 复验无回归。

@@ -48,17 +48,113 @@ typedef struct xavl {
 
 ### 生命周期
 
+### `xrtAVLNodeInit`
+
+将节点恢复为未挂入任何树的状态。每个新节点第一次插入前必须调用一次。
+
 ```c
 void xrtAVLNodeInit(xavlnode* pNode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pNode` | 输入 | 建议非空 | 要重置的嵌入节点；空指针是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 纯重置，不失败 |
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 每次插入前逐节点初始化
+
+```c
+for ( i = 0; i < 5; ++i ) {
+	xrtAVLNodeInit(&Items[i].Node);
+	Items[i].Key = Keys[i];
+	if ( xrtAVLInsert(&Tree, &Items[i].Node, &Keys[i],
+		exampleCompareIntrusive, NULL, NULL) ==
+		NULL ) {
+		return 1;
+	}
+}
+```
+
+### `xrtAVLInit`
+
+初始化一棵不拥有节点内存的空树。
+
+```c
 bool xrtAVLInit(xavl* pTree);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输出 | 非空 | 接收空树（`Root=NULL`、`Count=0`、`Version=0`） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 树已就绪 | — |
+| `false` | `pTree` 为空 | `*pTree` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pTree` 为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 初始化后乱序插入制造旋转
+
+```c
+(void)xrtAVLInit(&Tree);
+for ( i = 0; i < 5; ++i ) {
+	xrtAVLNodeInit(&Items[i].Node);
+```
+
+### `xrtAVLClear`
+
+忘记全部节点但不释放或逐个重置节点。适合外部对象整体失效或即将统一释放的场景；仍要复用旧节点时，调用方必须重新执行 `xrtAVLNodeInit()`。
+
+```c
 void xrtAVLClear(xavl* pTree);
 ```
 
-每个新节点第一次插入前必须调用 `xrtAVLNodeInit()`。成功删除的节点会自动恢复为相同的独立状态，可以再次插入。
+#### 参数
 
-`xrtAVLClear()` 只让树忘记所有节点，不遍历、不释放，也不逐个重置旧节点。它适合外部对象整体失效或即将统一释放的场景；仍要复用旧节点时，调用方必须重新执行 `xrtAVLNodeInit()`。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 建议非空 | 目标树；清空后 `Count == 0` |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 只清根指针与计数，不触碰节点本身 |
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 清空后计数归零
+
+```c
+xrtAVLClear(&Tree);
+if ( Tree.Count != 0u ) {
+	return 14;
+}
+```
 
 ### 插入、删除与查找
+
+### `xrtAVLInsert`
+
+插入已初始化的独立节点；重复键返回已有节点并通过 `pNew` 返回 `false`。
 
 ```c
 xavlnode* xrtAVLInsert(
@@ -69,14 +165,92 @@ xavlnode* xrtAVLInsert(
 	ptr pUserData,
 	bool* pNew
 );
+```
 
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入/输出 | 非空 | 目标树；成功插入后 `Count` 与 `Version` 前进 |
+| `pNode` | 输入 | 已 `NodeInit` | 候选节点；重复键时完全不变 |
+| `pKey` | 输入 | 借用 | 比较器理解的键表示；XRT 不解释 |
+| `pCompare` | 输入 | 非空 | 比较器 |
+| `pUserData` | 输入 | 任意值 | 原样传给比较器 |
+| `pNew` | 输出 | 可空 | 接收"是否新插入"；重复时为 `false` |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 树内节点 | 新插入时即 `pNode`；重复键时为已有节点 | — |
+| `NULL` | 参数非法或节点不是独立状态 | 树与候选节点均不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/节点/键/比较器为空
+- `XERR_STATE` — 候选节点仍挂在树上（非 `NodeInit` 后的独立状态）
+- `XERR_RANGE` — 计数溢出（`size_t` 已满）
+
+#### 范例
+
+[containers/avl · 会话索引](../../examples/containers/avl/main.c) · 返回值用于检测重复键
+
+```c
+xrtAVLNodeInit(&pSessions[i].Index);
+if (
+	xrtAVLInsert(
+```
+
+### `xrtAVLRemove`
+
+删除指定键并返回已经恢复为独立状态的原节点。
+
+```c
 xavlnode* xrtAVLRemove(
 	xavl* pTree,
 	const void* pKey,
 	xavlcompare pCompare,
 	ptr pUserData
 );
+```
 
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入/输出 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 要删除的键 |
+| `pCompare` | 输入 | 非空 | 比较器 |
+| `pUserData` | 输入 | 任意值 | 原样传给比较器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 原节点 | 调用方当初插入的节点，已恢复独立状态，可再次插入 | — |
+| `NULL` | 未找到（正常结果）或参数非法 | 未找到不设置错误；参数错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键/比较器为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 删除后 Find 不再命中
+
+```c
+Probe = 5;
+if ( xrtAVLRemove(&Tree, &Probe, exampleCompareIntrusive,
+	NULL) != &Items[0].Node ) {
+	return 12;
+}
+```
+
+### `xrtAVLFind`
+
+查找与 key 相等的节点，未找到是正常结果。
+
+```c
 xavlnode* xrtAVLFind(
 	const xavl* pTree,
 	const void* pKey,
@@ -85,29 +259,318 @@ xavlnode* xrtAVLFind(
 );
 ```
 
-`Insert` 成功插入时返回 `pNode` 并把 `*pNew` 设为 `true`；重复键返回已有节点并设为 `false`，候选节点完全不变。新键对应的候选节点若不是初始化后的独立状态，操作失败并设置 `XERR_STATE`。
+#### 参数
 
-`Remove` 返回调用方最初插入的原节点，即使删除双子节点时内部需要移动前驱节点也不会改变返回身份。未找到返回 `NULL`。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 查找键 |
+| `pCompare` | 输入 | 非空 | 比较器 |
+| `pUserData` | 输入 | 任意值 | 原样传给比较器 |
 
-`pKey` 可以是任何比较器理解的表示形式，包括整数地址、字符串视图或复合查找条件；XRT 不解释也不保存它。
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 节点 | 相等节点（借用，树期间有效） | — |
+| `NULL` | 未找到（正常结果）或参数非法 | 未找到不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键/比较器为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 命中返回插入时的原节点
+
+```c
+if ( (xrtAVLFind(&Tree, &Probe,
+		exampleCompareIntrusive, NULL) !=
+		&Items[0].Node) ) {
+	return 2;
+}
+```
 
 ### 边界与首尾
 
+### `xrtAVLLowerBound`
+
+返回第一项不小于 key 的节点。
+
 ```c
-xavlnode* xrtAVLLowerBound(const xavl* pTree, const void* pKey, xavlcompare pCompare, ptr pUserData);
-xavlnode* xrtAVLUpperBound(const xavl* pTree, const void* pKey, xavlcompare pCompare, ptr pUserData);
+xavlnode* xrtAVLLowerBound(
+	const xavl* pTree,
+	const void* pKey,
+	xavlcompare pCompare,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 边界键 |
+| `pCompare` | 输入 | 非空 | 比较器 |
+| `pUserData` | 输入 | 任意值 | 原样传给比较器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 节点 | 第一项 `>= key`（借用） | — |
+| `NULL` | 全部小于 key（正常结果）或参数非法 | 未找到不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键/比较器为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 键 4 不存在：下界与上界同为 5
+
+```c
+if ( (xrtAVLLowerBound(&Tree, &Probe,
+		exampleCompareIntrusive, NULL) !=
+		&Items[0].Node) ||
+```
+
+### `xrtAVLUpperBound`
+
+返回第一项严格大于 key 的节点。
+
+```c
+xavlnode* xrtAVLUpperBound(
+	const xavl* pTree,
+	const void* pKey,
+	xavlcompare pCompare,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 边界键 |
+| `pCompare` | 输入 | 非空 | 比较器 |
+| `pUserData` | 输入 | 任意值 | 原样传给比较器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 节点 | 第一项 `> key`（借用） | — |
+| `NULL` | 没有严格大于项（正常结果）或参数非法 | 未找到不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键/比较器为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 键 5 存在：上界严格大于 → 8
+
+```c
+Probe = 5;  /* 存在：UpperBound → 8（严格大于）。 */
+if ( xrtAVLUpperBound(&Tree, &Probe,
+		exampleCompareIntrusive, NULL) !=
+	&Items[2].Node ) {
+	return 4;
+}
+```
+
+### `xrtAVLFirst`
+
+返回按比较器顺序排列的第一项。
+
+```c
 xavlnode* xrtAVLFirst(const xavl* pTree);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 节点 | 升序首项（借用） | — |
+| `NULL` | 空树（正常结果）或参数非法 | 空树不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pTree` 为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 乱序插入 5,2,8,1,9 后首=1 末=9
+
+```c
+if ( (xrtAVLFirst(&Tree) != &Items[3].Node) ||
+	(xrtAVLLast(&Tree) != &Items[4].Node) ) {
+	return 5;
+}
+```
+
+### `xrtAVLLast`
+
+返回按比较器顺序排列的最后一项。
+
+```c
 xavlnode* xrtAVLLast(const xavl* pTree);
 ```
 
-`LowerBound` 返回第一项 `>= key` 的节点，`UpperBound` 返回第一项 `> key` 的节点。不存在符合项时返回 `NULL`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 节点 | 升序末项（借用） | — |
+| `NULL` | 空树（正常结果）或参数非法 | 空树不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pTree` 为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 与 First 配对核对
+
+```c
+if ( (xrtAVLFirst(&Tree) != &Items[3].Node) ||
+	(xrtAVLLast(&Tree) != &Items[4].Node) ) {
+	return 5;
+}
+```
 
 ### 访问与迭代
 
+### `xrtAVLVisit`
+
+按升序访问节点并返回实际访问数量。
+
 ```c
 size_t xrtAVLVisit(const xavl* pTree, xavlvisitor pVisitor, ptr pUserData);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树；访问期间不得修改结构 |
+| `pVisitor` | 输入 | 非空 | 访问器；返回 `false` 提前结束 |
+| `pUserData` | 输入 | 任意值 | 原样传给访问器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 实际访问数量（提前停止时小于总数） | — |
+| `0` | 参数非法或空树 | 参数非法时设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/访问器为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 第三个返回 false → 恰好访问 3 个
+
+```c
+iSeen = 0;
+if ( (xrtAVLVisit(&Tree, exampleVisitCount, &iSeen) !=
+	3u) || (iSeen != 3u) ) {
+	return 6;
+}
+```
+
+### `xrtAVLIterBegin`
+
+启动升序外置迭代器。
+
+```c
 bool xrtAVLIterBegin(const xavl* pTree, xavliter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树（空树也可启动，首次 `IterNext` 即 `NULL`） |
+| `pIterator` | 输出 | 非空 | 接收迭代状态，零分配 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 迭代器已就绪 | — |
+| `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/迭代器为空
+
+#### 范例
+
+[containers/avl · 中序迭代](../../examples/containers/avl/main.c) · 插入顺序与有序视图解耦
+
+```c
+xrtAVLIterBegin(&tSessions, &tIterator);
+while ( true ) {
+	xavlnode* pNode = xrtAVLIterNext(&tIterator);
+```
+
+### `xrtAVLIterRBegin`
+
+启动降序外置迭代器。
+
+```c
 bool xrtAVLIterRBegin(const xavl* pTree, xavliter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pIterator` | 输出 | 非空 | 接收降序迭代状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 迭代器已就绪 | — |
+| `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/迭代器为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 降序首项是最大键 9
+
+```c
+if ( !xrtAVLIterRBegin(&Tree, &Iter) ||
+	((pNode = xrtAVLIterNext(&Iter)) == NULL) ||
+```
+
+### `xrtAVLIterFrom`
+
+从第一项不小于 key 的节点开始升序迭代。
+
+```c
 bool xrtAVLIterFrom(
 	const xavl* pTree,
 	const void* pKey,
@@ -115,6 +578,48 @@ bool xrtAVLIterFrom(
 	ptr pUserData,
 	xavliter* pIterator
 );
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 范围起点键 |
+| `pCompare` | 输入 | 非空 | 比较器 |
+| `pUserData` | 输入 | 任意值 | 原样传给比较器 |
+| `pIterator` | 输出 | 非空 | 接收迭代状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 迭代器已就绪（O(log n) 构造起始路径） | — |
+| `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 从 5 起升序共 3 项
+
+```c
+if ( !xrtAVLIterFrom(&Tree, &Probe,
+		exampleCompareIntrusive, NULL, &Iter) ) {
+	return 8;
+}
+while ( (pNode = xrtAVLIterNext(&Iter)) != NULL ) {
+	++iSeen;
+}
+```
+
+### `xrtAVLIterRFrom`
+
+从第一项不大于 key 的节点开始降序迭代。
+
+```c
 bool xrtAVLIterRFrom(
 	const xavl* pTree,
 	const void* pKey,
@@ -122,15 +627,110 @@ bool xrtAVLIterRFrom(
 	ptr pUserData,
 	xavliter* pIterator
 );
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 范围起点键 |
+| `pCompare` | 输入 | 非空 | 比较器 |
+| `pUserData` | 输入 | 任意值 | 原样传给比较器 |
+| `pIterator` | 输出 | 非空 | 接收降序迭代状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 迭代器已就绪 | — |
+| `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 从 8 起降序共 4 项
+
+```c
+if ( !xrtAVLIterRFrom(&Tree, &Probe,
+		exampleCompareIntrusive, NULL, &Iter) ) {
+	return 10;
+}
+while ( (pNode = xrtAVLIterNext(&Iter)) != NULL ) {
+	++iSeen;
+}
+```
+
+### `xrtAVLIterNext`
+
+返回下一节点；正常结束或结构已修改时返回空指针。
+
+```c
 xavlnode* xrtAVLIterNext(xavliter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 非空、活动 | 步进；耗尽后自动转为结束状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 节点 | 下一节点（借用） | — |
+| `NULL` | 正常耗尽（不设错）、结构已修改或参数非法 | 结构修改设置 `XERR_STATE`；参数非法设置 `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pIterator` 为空或未处于活动状态
+- `XERR_STATE` — 迭代期间树结构被修改（版本变化）
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · while 循环驱动到耗尽
+
+```c
+while ( (pNode = xrtAVLIterNext(&Iter)) != NULL ) {
+	++iSeen;
+}
+xrtAVLIterEnd(&Iter);
+```
+
+### `xrtAVLIterEnd`
+
+提前结束迭代并清除它持有的借用状态。正常耗尽的迭代器已自动结束，再调用是无害的。
+
+```c
 void xrtAVLIterEnd(xavliter* pIterator);
 ```
 
-`Visit` 按升序访问，回调返回 `false` 时提前结束，函数返回实际访问数量。`IterBegin` 和 `IterRBegin` 分别启动升序和降序迭代。正常耗尽后迭代器会自动结束；提前退出时调用 `IterEnd`。
+#### 参数
 
-`IterFrom` 从第一项 `>= key` 的节点开始升序迭代，`IterRFrom` 从第一项
-`<= key` 的节点开始降序迭代。两者都以 O(log n) 构造起始路径，
-不需要先从树首或树尾扫描。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入 | 允许空 | 要结束的迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 纯清理，不失败 |
+
+#### 范例
+
+[containers/avl_tour · 侵入式](../../examples/containers/avl_tour/main.c) · 提前退出后显式结束
+
+```c
+xrtAVLIterEnd(&Iter);
+if ( iSeen != 4u ) {
+	return 11;
+}
+```
 
 ## 拥有型 AVLTree
 
@@ -160,26 +760,358 @@ typedef struct xavltree {
 
 ### 生命周期与对齐
 
+### `xrtAVLTreeInit`
+
+使用默认 16 字节对象对齐初始化拥有式树。
+
 ```c
-bool xrtAVLTreeInit(xavltree* pTree, size_t iItemSize, xavltreecompare pCompare, ptr pUserData);
-bool xrtAVLTreeInitAligned(xavltree* pTree, size_t iItemSize, size_t iAlignment, xavltreecompare pCompare, ptr pUserData);
-xavltree* xrtAVLTreeCreate(size_t iItemSize, xavltreecompare pCompare, ptr pUserData);
-xavltree* xrtAVLTreeCreateAligned(size_t iItemSize, size_t iAlignment, xavltreecompare pCompare, ptr pUserData);
+bool xrtAVLTreeInit(
+	xavltree* pTree,
+	size_t iItemSize,
+	xavltreecompare pCompare,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输出 | 非空 | 接收树；失败时内容不变 |
+| `iItemSize` | 输入 | `> 0` | 对象字节数（池槽大小） |
+| `pCompare` | 输入 | 非空 | 拥有式比较器 |
+| `pUserData` | 输入 | 任意值 | 存入树，供比较器与释放器使用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 空树已就绪（池页惰性分配） | — |
+| `false` | 参数非法或大小溢出 | `*pTree` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空、`iItemSize` 为零或对齐非法
+- `XERR_RANGE` — 对象大小或对齐计算溢出
+
+#### 范例
+
+[containers/avl_tree · 配置表](../../examples/containers/avl_tree/main.c) · 初始化即绑定大小与比较器
+
+```c
+if ( !xrtAVLTreeInit(&tConfigs, sizeof(exampleconfig), exampleCompare, NULL) ) {
+	return 1;
+}
+```
+
+### `xrtAVLTreeInitAligned`
+
+使用显式对象对齐初始化拥有式树。对齐必须是非零二次幂；对象大小不必是对齐的倍数（每个对象位于独立池槽内）。
+
+```c
+bool xrtAVLTreeInitAligned(
+	xavltree* pTree,
+	size_t iItemSize,
+	size_t iAlignment,
+	xavltreecompare pCompare,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输出 | 非空 | 接收树 |
+| `iItemSize` | 输入 | `> 0` | 对象字节数 |
+| `iAlignment` | 输入 | 非零二次幂 | 对象对齐 |
+| `pCompare` | 输入 | 非空 | 拥有式比较器 |
+| `pUserData` | 输入 | 任意值 | 存入树 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 空树已就绪 | — |
+| `false` | 参数非法或计算溢出 | `*pTree` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、大小为零或对齐不是二次幂
+- `XERR_RANGE` — 大小/对齐计算溢出
+
+#### 范例
+
+[containers/avl_tour · 对齐变体](../../examples/containers/avl_tour/main.c) · int 元素配 int 对齐
+
+```c
+if ( !xrtAVLTreeInitAligned(&Embedded, sizeof(int),
+	sizeof(int), exampleCompareOwned, NULL) ) {
+	return 30;
+}
+```
+
+### `xrtAVLTreeCreate`
+
+创建使用默认 16 字节对象对齐的拥有式树。
+
+```c
+xavltree* xrtAVLTreeCreate(
+	size_t iItemSize,
+	xavltreecompare pCompare,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | `> 0` | 对象字节数 |
+| `pCompare` | 输入 | 非空 | 拥有式比较器 |
+| `pUserData` | 输入 | 任意值 | 存入树，Drop 回调经它取计数器等 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 堆分配的空树，调用方负责 `Destroy` | — |
+| `NULL` | 参数非法、溢出或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 比较器为空或 `iItemSize` 为零
+- `XERR_RANGE` — 大小/对齐计算溢出
+- `XERR_MEMORY` — 树结构分配失败
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · Create 时传入 Drop 的用户数据
+
+```c
+pTree = xrtAVLTreeCreate(sizeof(int),
+	exampleCompareOwned, &iDropped);
+if ( pTree == NULL ) {
+	return 15;
+}
+```
+
+### `xrtAVLTreeCreateAligned`
+
+创建使用显式对象对齐的拥有式树。
+
+```c
+xavltree* xrtAVLTreeCreateAligned(
+	size_t iItemSize,
+	size_t iAlignment,
+	xavltreecompare pCompare,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | `> 0` | 对象字节数 |
+| `iAlignment` | 输入 | 非零二次幂 | 对象对齐 |
+| `pCompare` | 输入 | 非空 | 拥有式比较器 |
+| `pUserData` | 输入 | 任意值 | 存入树 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 堆分配的空树 | — |
+| `NULL` | 参数非法、溢出或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtAVLTreeCreate`（`ARGUMENT`/`RANGE`/`MEMORY`）
+
+#### 范例
+
+[containers/avl_tour · 对齐变体](../../examples/containers/avl_tour/main.c) · 对齐堆形态与 Destroy 配对
+
+```c
+xavltree* pAligned = xrtAVLTreeCreateAligned(
+	sizeof(int), sizeof(int),
+	exampleCompareOwned, NULL);
+
+if ( pAligned == NULL ) {
+	return 31;
+}
+xrtAVLTreeDestroy(pAligned);
+```
+
+### `xrtAVLTreeSetDrop`
+
+为仍为空的树设置对象资源释放器。
+
+```c
 bool xrtAVLTreeSetDrop(xavltree* pTree, xavltreedrop pDrop);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入/输出 | 非空、空树 | 目标树 |
+| `pDrop` | 输入 | 可空 | 释放器；空表示撤销（仍要求空树） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 释放器已安装 | — |
+| `false` | 树非空或参数非法 | 树不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pTree` 为空
+- `XERR_STATE` — 树中已有对象（避免漏调已有对象的释放器）
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · Create 后、Add 前安装
+
+```c
+if ( !xrtAVLTreeSetDrop(pTree, exampleDrop) ) {
+	xrtAVLTreeDestroy(pTree);
+	return 16;
+}
+```
+
+### `xrtAVLTreeUnit`
+
+释放全部对象和池页，但不释放树结构。内嵌形态的收尾。
+
+```c
 void xrtAVLTreeUnit(xavltree* pTree);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 允许空 | 目标树；先调用全部释放器再释放池页 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作；释放器内重入同一棵树会被忙状态拒绝 |
+
+#### 范例
+
+[containers/avl_tour · 对齐变体](../../examples/containers/avl_tour/main.c) · 内嵌树用后归位
+
+```c
+xrtAVLTreeUnit(&Embedded);
+```
+
+### `xrtAVLTreeDestroy`
+
+释放全部对象、池页和树结构。`Create`/`CreateAligned` 产物的收尾。
+
+```c
 void xrtAVLTreeDestroy(xavltree* pTree);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 允许空 | 目标树；流程为释放器 → 池页 → 树结构 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作；释放器重入 `Destroy` 的 `Unit` 被拒绝后不会继续释放树结构 |
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · Drop 之后 Destroy 不再触发 Drop
+
+```c
+xrtAVLTreeDestroy(pTree);
+if ( iDropped != 2u ) {
+	return 29;
+}
+```
+
+### `xrtAVLTreeClear`
+
+清空全部对象并保留固定池的复用能力。
+
+```c
 void xrtAVLTreeClear(xavltree* pTree);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 允许空 | 目标树；逐对象调用释放器后清索引 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 池页保留，后续 `Add` 不再分配 |
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · Clear 触发剩余对象的 Drop
+
+```c
+xrtAVLTreeClear(pTree);
+printf(" after-clear drop=%zu", iDropped);
+if ( (iDropped != 2u) || (xrtAVLTreeCount(pTree) != 0u) ) {
+```
+
+### `xrtAVLTreeCount`
+
+返回当前对象数量，非法树返回零。
+
+```c
 size_t xrtAVLTreeCount(const xavltree* pTree);
 ```
 
-默认对象对齐为 16 字节。显式对齐必须是非零二次幂；对象大小不必是对齐的倍数，因为每个对象位于独立池槽内。
+#### 参数
 
-释放器只能在空树上设置。`Clear` 调用全部对象的释放器，清空索引并保留池的复用能力；
-`Unit` 还释放池页并重置结构；`Destroy` 进一步释放树结构。
-释放器中不得调用同一棵树的任何 API；实现会以忙状态拒绝这种重入，
-尤其不会在重入 `Destroy` 的 `Unit` 被拒绝后继续释放树结构。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 允许空 | 目标树 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `>= 0` | 当前对象数量（并发快照口径由外部同步决定） |
+| `0` | 空树或非法树；纯查询不设置错误 |
+
+#### 错误
+
+- 无 — 空指针返回零是查询结果
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 添加 3 项后核对
+
+```c
+if ( (xrtAVLTreeCount(pTree) != 3u) ) {
+	xrtAVLTreeDestroy(pTree);
+	return 18;
+}
+```
 
 ### 添加与所有权移交
+
+### `xrtAVLTreeAdd`
+
+复制添加对象；`pKey` 必须等价于对象内排序键，重复时不覆盖已有对象。
 
 ```c
 ptr xrtAVLTreeAdd(
@@ -190,63 +1122,633 @@ ptr xrtAVLTreeAdd(
 );
 ```
 
-函数先复制完整对象，再把已经初始化的内部节点挂入树，不存在旧版“先插入未初始化槽、再由调用方填写排序字段”的瞬时错误状态。
+#### 参数
 
-`pKey` 必须与 `pItem` 内比较器可见的排序键等价，实现会在复制前验证比较结果为零。
-成功插入返回新对象并把 `*pNew` 设为 `true`；重复键不分配、不覆盖已有对象，
-返回旧对象并设为 `false`。不能把树结构、池元数据或同一树池内的对象作为复制来源，
-以免破坏容器状态或浅拷贝同一份资源所有权。
-OOM、键不等价、别名或参数错误时树、池计数和已有对象保持不变。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入/输出 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 复制前验证与 `pItem` 比较为零 |
+| `pItem` | 输入 | 借用、独立 | 复制来源；不得是树结构、池元数据或同树对象 |
+| `pNew` | 输出 | 可空 | 接收"是否新插入" |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 池内新对象（地址稳定到删除）；或重复键时已有对象 | — |
+| `NULL` | 参数非法、键不等价、别名或 OOM | 树、池计数与已有对象均不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、`pKey` 与 `pItem` 比较结果非零、或复制来源与树/池别名
+- `XERR_MEMORY` — 池页分配失败
+- `XERR_RANGE` — 计数溢出
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 键与对象同源（int 树）
+
+```c
+if ( xrtAVLTreeAdd(pTree, &Keys[i], &Keys[i], NULL) ==
+	NULL ) {
+	xrtAVLTreeDestroy(pTree);
+	return 17;
+}
+```
 
 ### 查找、边界与删除
 
+### `xrtAVLTreeFind`
+
+查找可修改对象，未找到是正常结果。
+
 ```c
 ptr xrtAVLTreeFind(xavltree* pTree, const void* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 查找键（树创建时的比较器解释） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 池内对象借用地址；可修改非排序字段 | — |
+| `NULL` | 未找到（正常结果）或参数非法 | 未找到不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键为空
+
+#### 范例
+
+[containers/avl_tree · 配置表](../../examples/containers/avl_tree/main.c) · 命中后直改非键字段
+
+```c
+exampleconfig* pConfig = (exampleconfig*)xrtAVLTreeFind(&tConfigs, &iSearch);
+```
+
+### `xrtAVLTreeConstFind`
+
+查找只读对象，未找到是正常结果。
+
+```c
 const void* xrtAVLTreeConstFind(const xavltree* pTree, const void* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 查找键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 只读对象借用地址 | — |
+| `NULL` | 未找到（正常结果）或参数非法 | 未找到不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 只读上下文取值
+
+```c
+(*(const int*)xrtAVLTreeConstFind(pTree,
+	&Probe) != 20) ||
+```
+
+### `xrtAVLTreeHas`
+
+判断指定键是否存在。
+
+```c
 bool xrtAVLTreeHas(const xavltree* pTree, const void* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 查找键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 键存在 | — |
+| `false` | 不存在（正常结果）或参数非法 | 不存在不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · Take 之后 Has 应为假
+
+```c
+if ( !xrtAVLTreeTake(pTree, &Probe, &Value) ||
+	(Value != 20) || xrtAVLTreeHas(pTree, &Probe) ) {
+```
+
+### `xrtAVLTreeRemove`
+
+删除对象并调用资源释放器。
+
+```c
 bool xrtAVLTreeRemove(xavltree* pTree, const void* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入/输出 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 要删除的键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已删除：先释放器、后归还池槽 | — |
+| `false` | 未找到（正常结果）或参数非法 | 未找到不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 删 10 后计数减一
+
+```c
+Probe = 10;
+if ( !xrtAVLTreeRemove(pTree, &Probe) ||
+	(xrtAVLTreeCount(pTree) != 1u) ) {
+```
+
+### `xrtAVLTreeTake`
+
+将对象字节移交给调用方后删除，不调用资源释放器。
+
+```c
 bool xrtAVLTreeTake(xavltree* pTree, const void* pKey, ptr pItem);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入/输出 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 要移出的键 |
+| `pItem` | 输出 | 非空、独立缓冲 | 接收完整对象字节；资源随输出移交 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已复制到 `*pItem` 并删除池槽 | — |
+| `false` | 未找到（正常结果）、参数非法或输出别名 | 未找到不设置错误；树不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或 `pItem` 触及树结构/池元数据/同树对象池（完整区间别名拒绝）
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 移出 20，资源归调用方（不计 Drop）
+
+```c
+Probe = 20;
+if ( !xrtAVLTreeTake(pTree, &Probe, &Value) ||
+	(Value != 20) || xrtAVLTreeHas(pTree, &Probe) ) {
+```
+
+### `xrtAVLTreeFirst`
+
+返回顺序第一项。
+
+```c
 ptr xrtAVLTreeFirst(xavltree* pTree);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 升序首对象（借用） | — |
+| `NULL` | 空树（正常结果）或参数非法 | 空树不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pTree` 为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 首尾与边界一次核对
+
+```c
+if ( (*(int*)xrtAVLTreeFirst(pTree) != 10) ||
+	(*(int*)xrtAVLTreeLast(pTree) != 30) ||
+```
+
+### `xrtAVLTreeLast`
+
+返回顺序最后一项。
+
+```c
 ptr xrtAVLTreeLast(xavltree* pTree);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 升序末对象（借用） | — |
+| `NULL` | 空树（正常结果）或参数非法 | 空树不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pTree` 为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 与 First 配对
+
+```c
+(*(int*)xrtAVLTreeLast(pTree) != 30) ||
+(*(int*)xrtAVLTreeLowerBound(pTree, &Probe) != 20) ||
+```
+
+### `xrtAVLTreeLowerBound`
+
+返回第一项不小于 key 的对象。
+
+```c
 ptr xrtAVLTreeLowerBound(xavltree* pTree, const void* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 边界键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 第一项 `>= key` 的对象（借用） | — |
+| `NULL` | 全部小于 key（正常结果）或参数非法 | 未找到不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · LowerBound(20)=20
+
+```c
+(*(int*)xrtAVLTreeLowerBound(pTree, &Probe) != 20) ||
+(*(int*)xrtAVLTreeUpperBound(pTree, &Probe) != 30) ) {
+```
+
+### `xrtAVLTreeUpperBound`
+
+返回第一项严格大于 key 的对象。
+
+```c
 ptr xrtAVLTreeUpperBound(xavltree* pTree, const void* pKey);
 ```
 
-`Find`、首尾和边界函数返回池内借用地址。可以修改非排序字段；不得修改比较器可见的键。
+#### 参数
 
-`Remove` 先调用释放器再归还池槽。`Take` 把完整对象字节复制到调用方缓冲区，
-再删除池槽且不调用释放器，因此对象内部资源随输出一起移交给调用方。
-输出缓冲不得触及树结构、池元数据或同一树的对象池；
-实现会在删除前拒绝这种可能覆盖容器状态的完整区间别名。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 边界键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 第一项 `> key` 的对象（借用） | — |
+| `NULL` | 没有严格大于项（正常结果）或参数非法 | 未找到不设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/键为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · UpperBound(20)=30
+
+```c
+(*(int*)xrtAVLTreeUpperBound(pTree, &Probe) != 30) ) {
+	xrtAVLTreeDestroy(pTree);
+	return 20;
+}
+```
 
 ### 访问与迭代
 
+### `xrtAVLTreeVisit`
+
+按升序访问对象；回调期间查询可用，结构和生命周期修改被拒绝。
+
 ```c
-size_t xrtAVLTreeVisit(xavltree* pTree, xavltreevisitor pVisitor, ptr pUserData);
+size_t xrtAVLTreeVisit(
+	xavltree* pTree,
+	xavltreevisitor pVisitor,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树；独占访问 |
+| `pVisitor` | 输入 | 非空 | 访问器；返回 `false` 提前结束 |
+| `pUserData` | 输入 | 任意值 | 原样传给访问器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 实际访问数量 | — |
+| `0` | 参数非法或空树 | 参数非法时设置错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/访问器为空
+- `XERR_STATE` — 回调内重入 `Add`/`Remove`/`Take`/`Clear`/`Unit`/`Destroy`/`SetDrop`/嵌套 `Visit`；外层访问继续有效
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 全量访问计数核对
+
+```c
+iSeen = 0;
+if ( (xrtAVLTreeVisit(pTree, exampleVisitOwned, &iSeen) !=
+	3u) || (iSeen != 3u) ) {
+```
+
+### `xrtAVLTreeIterBegin`
+
+启动拥有式树升序迭代。
+
+```c
 bool xrtAVLTreeIterBegin(xavltree* pTree, xavltreeiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pIterator` | 输出 | 非空 | 接收迭代状态，零分配 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 迭代器已就绪 | — |
+| `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/迭代器为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 升序走完全部 3 项
+
+```c
+if ( !xrtAVLTreeIterBegin(pTree, &Iter) ) {
+	xrtAVLTreeDestroy(pTree);
+	return 22;
+}
+while ( xrtAVLTreeIterNext(&Iter) != NULL ) {
+	++iSeen;
+}
+```
+
+### `xrtAVLTreeIterRBegin`
+
+启动拥有式树降序迭代。
+
+```c
 bool xrtAVLTreeIterRBegin(xavltree* pTree, xavltreeiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pIterator` | 输出 | 非空 | 接收降序迭代状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 迭代器已就绪 | — |
+| `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 树/迭代器为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 启动后即结束覆盖接口
+
+```c
+if ( xrtAVLTreeIterRBegin(pTree, &Iter) ) {
+	xrtAVLTreeIterEnd(&Iter);
+}
+```
+
+### `xrtAVLTreeIterFrom`
+
+从第一项不小于 key 的对象开始升序迭代。
+
+```c
 bool xrtAVLTreeIterFrom(
 	xavltree* pTree,
 	const void* pKey,
 	xavltreeiter* pIterator
 );
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 范围起点键（树创建时的比较器解释） |
+| `pIterator` | 输出 | 非空 | 接收迭代状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 迭代器已就绪（O(log n) 起点） | — |
+| `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空
+
+#### 范例
+
+[containers/avl_tree · 范围迭代](../../examples/containers/avl_tree/main.c) · 等价 `WHERE id >= 20 ORDER BY id`
+
+```c
+if ( xrtAVLTreeIterFrom(&tConfigs, &iSearch, &tIterator) ) {
+	exampleconfig* pConfig;
+
+	while ( (pConfig = (exampleconfig*)xrtAVLTreeIterNext(&tIterator)) != NULL ) {
+```
+
+### `xrtAVLTreeIterRFrom`
+
+从第一项不大于 key 的对象开始降序迭代。
+
+```c
 bool xrtAVLTreeIterRFrom(
 	xavltree* pTree,
 	const void* pKey,
 	xavltreeiter* pIterator
 );
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTree` | 输入 | 非空 | 目标树 |
+| `pKey` | 输入 | 借用 | 范围起点键 |
+| `pIterator` | 输出 | 非空 | 接收降序迭代状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 迭代器已就绪 | — |
+| `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · RFrom(20) 降序共 2 项
+
+```c
+if ( !xrtAVLTreeIterRFrom(pTree, &Probe, &Iter) ) {
+	xrtAVLTreeDestroy(pTree);
+	return 24;
+}
+while ( (pItem = xrtAVLTreeIterNext(&Iter)) != NULL ) {
+	++iSeen;
+}
+```
+
+### `xrtAVLTreeIterNext`
+
+返回下一对象；正常结束或结构已修改时返回空指针。
+
+```c
 ptr xrtAVLTreeIterNext(xavltreeiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 非空、活动 | 步进；耗尽后自动结束 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 下一对象（池内借用地址） | — |
+| `NULL` | 正常耗尽（不设错）、结构已修改或参数非法 | 结构修改设置 `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pIterator` 为空或未活动
+- `XERR_STATE` — 迭代期间树结构被修改（版本变化），迭代自动结束
+
+#### 范例
+
+[containers/avl_tree · 范围迭代](../../examples/containers/avl_tree/main.c) · while 驱动到范围末尾
+
+```c
+while ( (pConfig = (exampleconfig*)xrtAVLTreeIterNext(&tIterator)) != NULL ) {
+	printf("range id=%d timeout=%d\n", pConfig->ID, pConfig->Timeout);
+}
+```
+
+### `xrtAVLTreeIterEnd`
+
+提前结束拥有式树迭代。
+
+```c
 void xrtAVLTreeIterEnd(xavltreeiter* pIterator);
 ```
 
-语义与侵入式迭代一致，返回的是对象借用地址。
-`IterFrom` 和 `IterRFrom` 提供 O(log n) 的升序、降序范围起点。
-`xrtAVLTreeVisit` 的回调可以调用 `Count`、`Find`、`Has`、首尾、边界查询和外置迭代 API，
-也可以直接修改不参与比较的对象字段。`Add`、`Remove`、`Take`、`Clear`、`Unit`、
-`Destroy`、释放器替换和嵌套 `Visit` 会立即失败并报告 `XERR_STATE`，外层访问继续保持有效。
+#### 参数
 
-外置迭代器本身不占用树状态。调用方仍不得在它的有效期内改变树结构；
-若结构被其他路径修改，下一次 `IterNext` 会检测版本变化、结束迭代并报告 `XERR_STATE`。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入 | 允许空 | 要结束的迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 纯清理，不失败 |
+
+#### 范例
+
+[containers/avl_tour · 拥有式](../../examples/containers/avl_tour/main.c) · 每轮迭代结束后的收尾
+
+```c
+xrtAVLTreeIterEnd(&Iter);
+if ( iSeen != 3u ) {
+	xrtAVLTreeDestroy(pTree);
+	return 23;
+}
+```
 
 ## 错误
 
