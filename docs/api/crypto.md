@@ -1350,6 +1350,510 @@ bool xrtHmacSha512(
 
 完整示例位于 `examples/crypto/hmac_sha256/main.c` 和 `examples/crypto/hmac_sha512/main.c`。
 
+### `xrtHmacSha256Init`
+
+以密钥初始化 HMAC 流状态；密钥短于块被填充，长于块先做哈希。
+
+```c
+bool xrtHmacSha256Init(
+	xhmacsha256* pState,
+	const void* pKey,
+	size_t iKeySize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 流状态 |
+| `pKey` | 输入 | 借用 | 任意长度密钥 |
+| `iKeySize` | 输入 | — | 密钥字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 状态已就绪 | — |
+| `false` | 参数非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+if ( !xrtHmacSha256Init(&State, arrKey, sizeof(arrKey)) ||
+```
+
+
+### `xrtHmacSha256Update`
+
+向 HMAC 状态追加一段输入；失败时状态保持不变。
+
+```c
+bool xrtHmacSha256Update(
+	xhmacsha256* pState,
+	const void* pData,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 已 Init | 流状态 |
+| `pData` | 输入 | 借用 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数或状态错误 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+!xrtHmacSha256Update(&State, "hello ", 6u) ||
+```
+
+
+### `xrtHmacSha256Final`
+
+从状态快照输出 32 字节 HMAC，不结束或修改原状态。
+
+```c
+bool xrtHmacSha256Final(const xhmacsha256* pState, void* pMac);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 流状态 |
+| `pMac` | 输出 | 非空、32 字节 | 接收 MAC |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | MAC 已写入 | — |
+| `false` | 参数或状态错误 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+!xrtHmacSha256Final(&State, arrStream) ||
+```
+
+
+### `xrtHmacSha256`
+
+一次计算一段连续数据的 32 字节 HMAC。
+
+```c
+bool xrtHmacSha256(
+	const void* pKey,
+	size_t iKeySize,
+	const void* pData,
+	size_t iSize,
+	void* pMac
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用 | 任意长度密钥 |
+| `iKeySize` | 输入 | — | 密钥字节数 |
+| `pData` | 输入 | 借用 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pMac` | 输出 | 非空、32 字节 | 接收 MAC |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | MAC 已写入 | — |
+| `false` | 参数错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+!xrtHmacSha256(arrKey, sizeof(arrKey), "hello world",
+			11u, arrOnce) ||
+```
+
+
+### `xrtHmacSha384Init`
+
+以密钥初始化 HMAC 流状态；密钥短于块被填充，长于块先做哈希。
+
+```c
+bool xrtHmacSha384Init(
+	xhmacsha384* pState,
+	const void* pKey,
+	size_t iKeySize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 流状态 |
+| `pKey` | 输入 | 借用 | 任意长度密钥 |
+| `iKeySize` | 输入 | — | 密钥字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 状态已就绪 | — |
+| `false` | 参数非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hmac_sha512 · 流式](../../examples/crypto/hmac_sha512/main.c) · 观察
+
+```c
+if ( !xrtHmacSha384Init(&State, "secret", 6) ||
+```
+
+
+### `xrtHmacSha384Update`
+
+向 HMAC 状态追加一段输入；失败时状态保持不变。
+
+```c
+bool xrtHmacSha384Update(
+	xhmacsha384* pState,
+	const void* pData,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 已 Init | 流状态 |
+| `pData` | 输入 | 借用 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数或状态错误 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hmac_sha512 · 流式](../../examples/crypto/hmac_sha512/main.c) · 观察
+
+```c
+!xrtHmacSha384Update(&State, "hello ", 6) ||
+```
+
+
+### `xrtHmacSha384Final`
+
+从状态快照输出 48 字节 HMAC，不结束或修改原状态。
+
+```c
+bool xrtHmacSha384Final(const xhmacsha384* pState, void* pMac);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 流状态 |
+| `pMac` | 输出 | 非空、48 字节 | 接收 MAC |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | MAC 已写入 | — |
+| `false` | 参数或状态错误 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hmac_sha512 · 流式](../../examples/crypto/hmac_sha512/main.c) · 观察
+
+```c
+!xrtHmacSha384Final(&State, arrMac) ) {
+```
+
+
+### `xrtHmacSha384`
+
+一次计算一段连续数据的 48 字节 HMAC。
+
+```c
+bool xrtHmacSha384(
+	const void* pKey,
+	size_t iKeySize,
+	const void* pData,
+	size_t iSize,
+	void* pMac
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用 | 任意长度密钥 |
+| `iKeySize` | 输入 | — | 密钥字节数 |
+| `pData` | 输入 | 借用 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pMac` | 输出 | 非空、48 字节 | 接收 MAC |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | MAC 已写入 | — |
+| `false` | 参数错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 一次性](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+!xrtHmacSha384(arrKey, sizeof(arrKey), "hello world",
+			11u, arrOnce) ||
+```
+
+
+### `xrtHmacSha512Init`
+
+以密钥初始化 HMAC 流状态；密钥短于块被填充，长于块先做哈希。
+
+```c
+bool xrtHmacSha512Init(
+	xhmacsha512* pState,
+	const void* pKey,
+	size_t iKeySize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 流状态 |
+| `pKey` | 输入 | 借用 | 任意长度密钥 |
+| `iKeySize` | 输入 | — | 密钥字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 状态已就绪 | — |
+| `false` | 参数非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+if ( !xrtHmacSha512Init(&State, arrKey, sizeof(arrKey)) ||
+```
+
+
+### `xrtHmacSha512Update`
+
+向 HMAC 状态追加一段输入；失败时状态保持不变。
+
+```c
+bool xrtHmacSha512Update(
+	xhmacsha512* pState,
+	const void* pData,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 已 Init | 流状态 |
+| `pData` | 输入 | 借用 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数或状态错误 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+!xrtHmacSha512Update(&State, "hello ", 6u) ||
+```
+
+
+### `xrtHmacSha512Final`
+
+从状态快照输出 64 字节 HMAC，不结束或修改原状态。
+
+```c
+bool xrtHmacSha512Final(const xhmacsha512* pState, void* pMac);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 流状态 |
+| `pMac` | 输出 | 非空、64 字节 | 接收 MAC |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | MAC 已写入 | — |
+| `false` | 参数或状态错误 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+!xrtHmacSha512Final(&State, arrStream) ||
+```
+
+
+### `xrtHmacSha512`
+
+一次计算一段连续数据的 64 字节 HMAC。
+
+```c
+bool xrtHmacSha512(
+	const void* pKey,
+	size_t iKeySize,
+	const void* pData,
+	size_t iSize,
+	void* pMac
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用 | 任意长度密钥 |
+| `iKeySize` | 输入 | — | 密钥字节数 |
+| `pData` | 输入 | 借用 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pMac` | 输出 | 非空、64 字节 | 接收 MAC |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | MAC 已写入 | — |
+| `false` | 参数错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_STATE` — 状态结构已损坏
+- `XERR_RANGE` — 累计输入超过哈希族长度上限
+
+#### 范例
+
+[crypto/hash_tour · 流式对照](../../examples/crypto/hash_tour/main.c) · 观察
+
+```c
+!xrtHmacSha512(arrKey, sizeof(arrKey), "hello world",
+			11u, arrOnce) ||
+```
+
+
 ## PBKDF2
 
 PBKDF2 是面向密码的同步密钥派生原语。SHA-256 单独裁剪；SHA-384 与 SHA-512 共享一个裁剪单元和派生循环。三种入口参数顺序与语义完全一致：
@@ -1372,6 +1876,154 @@ bool xrtPbkdf2Sha512(/* 同上 */);
 PBKDF2 不是内存困难型密码哈希。新系统若面对离线口令猜测威胁，应优先评估 Argon2id 或 scrypt；xrt 的 PBKDF2 用于互操作、已有格式和明确选择 PBKDF2 的部署。该原语不负责生成 salt、不定义文本封装，也不隐式擦除调用方提供的密码或输出。
 
 完整示例位于 `examples/crypto/pbkdf2_sha256/main.c` 和 `examples/crypto/pbkdf2_sha512/main.c`。
+
+### `xrtPbkdf2Sha256`
+
+从密码和 salt 派生任意合规长度的密钥；同参数派生逐位确定。
+
+```c
+bool xrtPbkdf2Sha256(
+	const void* pPassword,
+	size_t iPasswordSize,
+	const void* pSalt,
+	size_t iSaltSize,
+	uint32 iIterations,
+	void* pOutput,
+	size_t iOutputSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPassword` | 输入 | 借用 | 口令字节 |
+| `iPasswordSize` | 输入 | — | 口令字节数 |
+| `pSalt` | 输入 | 借用 | 盐 |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `iIterations` | 输入 | `> 0` | 迭代次数 |
+| `pOutput` | 输出 | 非空 | 派生密钥 |
+| `iOutputSize` | 输入 | 合规长度 | 派生字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密钥已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出长度超过 `(2^32-1) × 哈希长度`
+
+#### 范例
+
+[crypto/pbkdf2_sha256 · 派生](../../examples/crypto/pbkdf2_sha256/main.c) · 观察
+
+```c
+if ( !xrtPbkdf2Sha256(
+```
+
+
+### `xrtPbkdf2Sha384`
+
+从密码和 salt 派生任意合规长度的密钥；同参数派生逐位确定。
+
+```c
+bool xrtPbkdf2Sha384(
+	const void* pPassword,
+	size_t iPasswordSize,
+	const void* pSalt,
+	size_t iSaltSize,
+	uint32 iIterations,
+	void* pOutput,
+	size_t iOutputSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPassword` | 输入 | 借用 | 口令字节 |
+| `iPasswordSize` | 输入 | — | 口令字节数 |
+| `pSalt` | 输入 | 借用 | 盐 |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `iIterations` | 输入 | `> 0` | 迭代次数 |
+| `pOutput` | 输出 | 非空 | 派生密钥 |
+| `iOutputSize` | 输入 | 合规长度 | 派生字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密钥已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出长度超过 `(2^32-1) × 哈希长度`
+
+#### 范例
+
+[crypto/kdf_tour · 确定性](../../examples/crypto/kdf_tour/main.c) · 观察
+
+```c
+if ( !xrtPbkdf2Sha384("password", 8u, arrSalt, sizeof(arrSalt),
+		2u, arrTwoStep, 32u) ||
+```
+
+
+### `xrtPbkdf2Sha512`
+
+从密码和 salt 派生任意合规长度的密钥；同参数派生逐位确定。
+
+```c
+bool xrtPbkdf2Sha512(
+	const void* pPassword,
+	size_t iPasswordSize,
+	const void* pSalt,
+	size_t iSaltSize,
+	uint32 iIterations,
+	void* pOutput,
+	size_t iOutputSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPassword` | 输入 | 借用 | 口令字节 |
+| `iPasswordSize` | 输入 | — | 口令字节数 |
+| `pSalt` | 输入 | 借用 | 盐 |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `iIterations` | 输入 | `> 0` | 迭代次数 |
+| `pOutput` | 输出 | 非空 | 派生密钥 |
+| `iOutputSize` | 输入 | 合规长度 | 派生字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密钥已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出长度超过 `(2^32-1) × 哈希长度`
+
+#### 范例
+
+[crypto/pbkdf2_sha512 · 派生](../../examples/crypto/pbkdf2_sha512/main.c) · 观察
+
+```c
+if ( !xrtPbkdf2Sha512(
+```
+
 
 ## HKDF
 
@@ -1411,6 +2063,436 @@ TLS 1.3 的 HKDF-Expand-Label 属于 TLS 编码层，将在 TLS 模块中基于�
 
 完整示例位于 `examples/crypto/hkdf_sha256/main.c` 和 `examples/crypto/hkdf_sha512/main.c`。
 
+### `xrtHkdfSha256Extract`
+
+从 salt 和输入密钥材料提取 32 字节 PRK。
+
+```c
+bool xrtHkdfSha256Extract(
+	const void* pSalt,
+	size_t iSaltSize,
+	const void* pIkm,
+	size_t iIkmSize,
+	void* pPrk
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSalt` | 输入 | 可空 | 盐（空 = 全零盐） |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `pIkm` | 输入 | 借用 | 输入密钥材料 |
+| `iIkmSize` | 输入 | — | IKM 字节数 |
+| `pPrk` | 输出 | 非空、32 字节 | 接收伪随机密钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | PRK 已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/kdf_tour · 两段式对照](../../examples/crypto/kdf_tour/main.c) · 观察
+
+```c
+if ( !xrtHkdfSha256Extract(arrSalt, sizeof(arrSalt),
+		arrIkm, sizeof(arrIkm), arrPrk) ||
+```
+
+
+### `xrtHkdfSha256Expand`
+
+从 PRK 和可选 info 展开最多 255 × 32 字节输出。
+
+```c
+bool xrtHkdfSha256Expand(
+	const void* pPrk,
+	size_t iPrkSize,
+	const void* pInfo,
+	size_t iInfoSize,
+	void* pOkm,
+	size_t iOkmSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrk` | 输入 | 借用、≥ 32 字节 | 伪随机密钥 |
+| `iPrkSize` | 输入 | — | PRK 字节数 |
+| `pInfo` | 输入 | 可空 | 上下文信息 |
+| `iInfoSize` | 输入 | — | info 字节数 |
+| `pOkm` | 输出 | 非空 | 输出密钥材料 |
+| `iOkmSize` | 输入 | `<= 255 × 32` | 输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | OKM 已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出超过 255 × 32 字节
+
+#### 范例
+
+[crypto/kdf_tour · 两段式对照](../../examples/crypto/kdf_tour/main.c) · 观察
+
+```c
+!xrtHkdfSha256Expand(arrPrk, XRT_SHA256_SIZE,
+```
+
+
+### `xrtHkdfSha256`
+
+组合 Extract 与 Expand 完成一次 HKDF 派生。
+
+```c
+bool xrtHkdfSha256(
+	const void* pSalt,
+	size_t iSaltSize,
+	const void* pIkm,
+	size_t iIkmSize,
+	const void* pInfo,
+	size_t iInfoSize,
+	void* pOkm,
+	size_t iOkmSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSalt` | 输入 | 可空 | 盐 |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `pIkm` | 输入 | 借用 | 输入密钥材料 |
+| `iIkmSize` | 输入 | — | IKM 字节数 |
+| `pInfo` | 输入 | 可空 | 上下文信息 |
+| `iInfoSize` | 输入 | — | info 字节数 |
+| `pOkm` | 输出 | 非空 | 输出密钥材料 |
+| `iOkmSize` | 输入 | 合规长度 | 输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | OKM 已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出超过 255 × 32 字节
+
+#### 范例
+
+[crypto/kdf_tour · 两段式对照](../../examples/crypto/kdf_tour/main.c) · 观察
+
+```c
+!xrtHkdfSha256(arrSalt, sizeof(arrSalt), arrIkm,
+```
+
+
+### `xrtHkdfSha384Extract`
+
+从 salt 和输入密钥材料提取 48 字节 PRK。
+
+```c
+bool xrtHkdfSha384Extract(
+	const void* pSalt,
+	size_t iSaltSize,
+	const void* pIkm,
+	size_t iIkmSize,
+	void* pPrk
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSalt` | 输入 | 可空 | 盐（空 = 全零盐） |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `pIkm` | 输入 | 借用 | 输入密钥材料 |
+| `iIkmSize` | 输入 | — | IKM 字节数 |
+| `pPrk` | 输出 | 非空、48 字节 | 接收伪随机密钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | PRK 已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/hkdf_sha512 · 流式](../../examples/crypto/hkdf_sha512/main.c) · 观察
+
+```c
+if ( !xrtHkdfSha384Extract("salt", 4, "ikm", 3, arrPrk) ||
+```
+
+
+### `xrtHkdfSha384Expand`
+
+从 PRK 和可选 info 展开最多 255 × 48 字节输出。
+
+```c
+bool xrtHkdfSha384Expand(
+	const void* pPrk,
+	size_t iPrkSize,
+	const void* pInfo,
+	size_t iInfoSize,
+	void* pOkm,
+	size_t iOkmSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrk` | 输入 | 借用、≥ 48 字节 | 伪随机密钥 |
+| `iPrkSize` | 输入 | — | PRK 字节数 |
+| `pInfo` | 输入 | 可空 | 上下文信息 |
+| `iInfoSize` | 输入 | — | info 字节数 |
+| `pOkm` | 输出 | 非空 | 输出密钥材料 |
+| `iOkmSize` | 输入 | `<= 255 × 48` | 输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | OKM 已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出超过 255 × 48 字节
+
+#### 范例
+
+[crypto/hkdf_sha512 · 流式](../../examples/crypto/hkdf_sha512/main.c) · 观察
+
+```c
+!xrtHkdfSha384Expand(
+		arrPrk, sizeof(arrPrk), "context", 7, arrKey, sizeof(arrKey)
+	 ) ) {
+```
+
+
+### `xrtHkdfSha384`
+
+组合 Extract 与 Expand 完成一次 HKDF 派生。
+
+```c
+bool xrtHkdfSha384(
+	const void* pSalt,
+	size_t iSaltSize,
+	const void* pIkm,
+	size_t iIkmSize,
+	const void* pInfo,
+	size_t iInfoSize,
+	void* pOkm,
+	size_t iOkmSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSalt` | 输入 | 可空 | 盐 |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `pIkm` | 输入 | 借用 | 输入密钥材料 |
+| `iIkmSize` | 输入 | — | IKM 字节数 |
+| `pInfo` | 输入 | 可空 | 上下文信息 |
+| `iInfoSize` | 输入 | — | info 字节数 |
+| `pOkm` | 输出 | 非空 | 输出密钥材料 |
+| `iOkmSize` | 输入 | 合规长度 | 输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | OKM 已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出超过 255 × 48 字节
+
+#### 范例
+
+[crypto/kdf_tour · 组合式](../../examples/crypto/kdf_tour/main.c) · 观察
+
+```c
+!xrtHkdfSha384(arrSalt, sizeof(arrSalt), arrIkm,
+```
+
+
+### `xrtHkdfSha512Extract`
+
+从 salt 和输入密钥材料提取 64 字节 PRK。
+
+```c
+bool xrtHkdfSha512Extract(
+	const void* pSalt,
+	size_t iSaltSize,
+	const void* pIkm,
+	size_t iIkmSize,
+	void* pPrk
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSalt` | 输入 | 可空 | 盐（空 = 全零盐） |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `pIkm` | 输入 | 借用 | 输入密钥材料 |
+| `iIkmSize` | 输入 | — | IKM 字节数 |
+| `pPrk` | 输出 | 非空、64 字节 | 接收伪随机密钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | PRK 已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/kdf_tour · 两段式对照](../../examples/crypto/kdf_tour/main.c) · 观察
+
+```c
+if ( !xrtHkdfSha512Extract(arrSalt, sizeof(arrSalt),
+		arrIkm, sizeof(arrIkm), arrPrk) ||
+```
+
+
+### `xrtHkdfSha512Expand`
+
+从 PRK 和可选 info 展开最多 255 × 64 字节输出。
+
+```c
+bool xrtHkdfSha512Expand(
+	const void* pPrk,
+	size_t iPrkSize,
+	const void* pInfo,
+	size_t iInfoSize,
+	void* pOkm,
+	size_t iOkmSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPrk` | 输入 | 借用、≥ 64 字节 | 伪随机密钥 |
+| `iPrkSize` | 输入 | — | PRK 字节数 |
+| `pInfo` | 输入 | 可空 | 上下文信息 |
+| `iInfoSize` | 输入 | — | info 字节数 |
+| `pOkm` | 输出 | 非空 | 输出密钥材料 |
+| `iOkmSize` | 输入 | `<= 255 × 64` | 输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | OKM 已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出超过 255 × 64 字节
+
+#### 范例
+
+[crypto/kdf_tour · 两段式对照](../../examples/crypto/kdf_tour/main.c) · 观察
+
+```c
+!xrtHkdfSha512Expand(arrPrk, XRT_SHA512_SIZE,
+```
+
+
+### `xrtHkdfSha512`
+
+组合 Extract 与 Expand 完成一次 HKDF 派生。
+
+```c
+bool xrtHkdfSha512(
+	const void* pSalt,
+	size_t iSaltSize,
+	const void* pIkm,
+	size_t iIkmSize,
+	const void* pInfo,
+	size_t iInfoSize,
+	void* pOkm,
+	size_t iOkmSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSalt` | 输入 | 可空 | 盐 |
+| `iSaltSize` | 输入 | — | 盐字节数 |
+| `pIkm` | 输入 | 借用 | 输入密钥材料 |
+| `iIkmSize` | 输入 | — | IKM 字节数 |
+| `pInfo` | 输入 | 可空 | 上下文信息 |
+| `iInfoSize` | 输入 | — | info 字节数 |
+| `pOkm` | 输出 | 非空 | 输出密钥材料 |
+| `iOkmSize` | 输入 | 合规长度 | 输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | OKM 已写出 | — |
+| `false` | 参数或长度不合规 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出超过 255 × 64 字节
+
+#### 范例
+
+[crypto/kdf_tour · 两段式对照](../../examples/crypto/kdf_tour/main.c) · 观察
+
+```c
+!xrtHkdfSha512(arrSalt, sizeof(arrSalt), arrIkm,
+```
+
+
 ## ChaCha20
 
 `XRT_FEATURE_CRYPTO_CHACHA20` 是独立的低层流密码裁剪单元，只依赖 `CRYPTO_CORE`。固定使用 32 字节密钥和 RFC 8439 的 12 字节 IETF nonce：
@@ -1438,6 +2520,54 @@ bool xrtChaCha20(
 
 完整示例位于 `examples/crypto/chacha20/main.c`。
 
+### `xrtChaCha20`
+
+以 32 字节密钥流加密一段数据（异或，同密钥流两次恢复原文）。
+
+```c
+bool xrtChaCha20(
+	const void* pKey,
+	const void* pNonce,
+	uint32 iCounter,
+	const void* pInput,
+	void* pOutput,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用、32 字节 | 密钥 |
+| `pNonce` | 输入 | 借用、12 字节 | nonce |
+| `iCounter` | 输入 | — | 起始块计数 |
+| `pInput` | 输入 | 借用 | 输入字节 |
+| `pOutput` | 输出 | 可与输入同址 | 输出字节 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写输出 | — |
+| `false` | 参数或重叠非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/chacha20 · 双向异或](../../examples/crypto/chacha20/main.c) · 观察
+
+```c
+if ( xrtChaCha20(
+		Key, Nonce, 1u, Message, Buffer, sizeof(Message)
+	) && xrtChaCha20(
+```
+
+
 ## Poly1305
 
 `XRT_FEATURE_CRYPTO_POLY1305` 同样独立裁剪，公开流式底层与一行便利函数：
@@ -1463,6 +2593,158 @@ bool xrtPoly1305(
 Poly1305 的 32 字节 key 是一次性密钥；同一 key 用于两条不同消息会破坏安全性。通用业务不应自行管理这个约束，ChaCha20-Poly1305 会按 nonce 从 ChaCha20 counter 0 自动生成一次性 key。
 
 流式和一次性入口的固定向量示例位于 `examples/crypto/poly1305/main.c`。
+
+### `xrtPoly1305Init`
+
+使用一个 32 字节一次性密钥初始化或重置 Poly1305 状态。
+
+```c
+bool xrtPoly1305Init(xpoly1305* pState, const void* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有的流状态 |
+| `pKey` | 输入 | 借用、32 字节 | 一次性密钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 状态已就绪 | — |
+| `false` | 参数非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/poly1305 · 流式](../../examples/crypto/poly1305/main.c) · 观察
+
+```c
+if ( xrtPoly1305Init(&State, Key) &&
+```
+
+
+### `xrtPoly1305Update`
+
+向状态追加一段输入；失败时状态保持不变。
+
+```c
+bool xrtPoly1305Update(
+	xpoly1305* pState,
+	const void* pData,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 非空、已 Init | 流状态 |
+| `pData` | 输入 | 借用 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数或状态错误 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/poly1305 · 流式](../../examples/crypto/poly1305/main.c) · 观察
+
+```c
+xrtPoly1305Update(&State, Message, 13u) &&
+```
+
+
+### `xrtPoly1305Final`
+
+从状态快照输出 16 字节标签，不结束或修改原状态。
+
+```c
+bool xrtPoly1305Final(const xpoly1305* pState, void* pTag);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 非空、已 Init | 流状态 |
+| `pTag` | 输出 | 非空、16 字节 | 接收标签 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 标签已写入 | — |
+| `false` | 参数或状态错误 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/poly1305 · 流式](../../examples/crypto/poly1305/main.c) · 观察
+
+```c
+xrtPoly1305Final(&State, StreamTag) &&
+```
+
+
+### `xrtPoly1305`
+
+一次计算一段连续数据的 16 字节 Poly1305 标签。
+
+```c
+bool xrtPoly1305(
+	const void* pKey,
+	const void* pData,
+	size_t iSize,
+	void* pTag
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用、32 字节 | 一次性密钥 |
+| `pData` | 输入 | 借用 | 输入字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `pTag` | 输出 | 非空、16 字节 | 接收标签 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 标签已写入 | — |
+| `false` | 参数错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/poly1305 · 一次性](../../examples/crypto/poly1305/main.c) · 观察
+
+```c
+xrtPoly1305(Key, Message, sizeof(Message) - 1u, OneShotTag) ) {
+```
+
 
 ## ChaCha20-Poly1305
 
@@ -1510,6 +2792,217 @@ bool xrtChaCha20Poly1305Open(
 
 完整示例位于 `examples/crypto/chacha20_poly1305/main.c`。
 
+### `xrtChaCha20Poly1305Encrypt`
+
+加密并把密文与 16 字节认证标签写入分离输出。
+
+```c
+bool xrtChaCha20Poly1305Encrypt(
+	const void* pKey,
+	const void* pNonce,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pPlain,
+	size_t iPlainSize,
+	void* pCipher,
+	void* pTag
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用、32 字节 | 密钥 |
+| `pNonce` | 输入 | 借用、12 字节 | nonce |
+| `pAad` | 输入 | 可空 | 附加认证数据 |
+| `iAadSize` | 输入 | — | AAD 字节数 |
+| `pPlain` | 输入 | 借用 | 明文 |
+| `iPlainSize` | 输入 | — | 明文字节数 |
+| `pCipher` | 输出 | 可与明文同址 | 密文 |
+| `pTag` | 输出 | 非空、16 字节 | 认证标签 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密文与标签已写入 | — |
+| `false` | 参数或重叠非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aead_tour · 分离式](../../examples/crypto/aead_tour/main.c) · 观察
+
+```c
+if ( !xrtChaCha20Poly1305Encrypt(arrKey32, arrNonce, arrAad,
+		sizeof(arrAad), arrPlain, 6u, arrCipher, arrTag) ||
+```
+
+
+### `xrtChaCha20Poly1305Decrypt`
+
+验证分离标签后解密；认证失败时不修改明文输出。
+
+```c
+bool xrtChaCha20Poly1305Decrypt(
+	const void* pKey,
+	const void* pNonce,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pCipher,
+	size_t iCipherSize,
+	const void* pTag,
+	void* pPlain
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用、32 字节 | 密钥 |
+| `pNonce` | 输入 | 借用、12 字节 | nonce |
+| `pAad` | 输入 | 可空 | AAD |
+| `iAadSize` | 输入 | — | AAD 字节数 |
+| `pCipher` | 输入 | 借用 | 密文 |
+| `iCipherSize` | 输入 | — | 密文字节数 |
+| `pTag` | 输入 | 借用、16 字节 | 待验证标签 |
+| `pPlain` | 输出 | 可与密文同址 | 明文输出 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 认证通过并已解密 | — |
+| `false` | 认证失败或参数非法 | 明文输出逐字节不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` / `XCRYPTO_ERROR_AUTHENTICATION` — 认证失败（输出逐字节不变）
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aead_tour · 篡改拒绝](../../examples/crypto/aead_tour/main.c) · 观察
+
+```c
+!xrtChaCha20Poly1305Decrypt(arrKey32, arrNonce, arrAad,
+		sizeof(arrAad), arrCipher, 6u, arrTag, arrOut) ||
+```
+
+
+### `xrtChaCha20Poly1305Seal`
+
+加密为 cipher || tag；输出容量至少为明文长度加 16。
+
+```c
+bool xrtChaCha20Poly1305Seal(
+	const void* pKey,
+	const void* pNonce,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pPlain,
+	size_t iPlainSize,
+	void* pOutput,
+	size_t iOutputSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用、32 字节 | 密钥 |
+| `pNonce` | 输入 | 借用、12 字节 | nonce |
+| `pAad` | 输入 | 可空 | AAD |
+| `iAadSize` | 输入 | — | AAD 字节数 |
+| `pPlain` | 输入 | 借用 | 明文 |
+| `iPlainSize` | 输入 | — | 明文字节数 |
+| `pOutput` | 输出 | 至少 `iPlainSize + 16` | 密文‖标签 |
+| `iOutputSize` | 输入 | — | 输出容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出密文与尾部标签 | — |
+| `false` | 容量不足或参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出容量不足
+
+#### 范例
+
+[crypto/chacha20_poly1305 · 拼接式](../../examples/crypto/chacha20_poly1305/main.c) · 观察
+
+```c
+if ( !xrtChaCha20Poly1305Seal(
+		Key, Nonce, "header", 6,
+		Message, iPlainSize, Message, sizeof(Message)
+	) || !xrtChaCha20Poly1305Open(
+```
+
+
+### `xrtChaCha20Poly1305Open`
+
+打开 cipher || tag；输出容量至少为输入长度减 16，认证失败不写明文。
+
+```c
+bool xrtChaCha20Poly1305Open(
+	const void* pKey,
+	const void* pNonce,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pInput,
+	size_t iInputSize,
+	void* pPlain,
+	size_t iPlainSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pKey` | 输入 | 借用、32 字节 | 密钥 |
+| `pNonce` | 输入 | 借用、12 字节 | nonce |
+| `pAad` | 输入 | 可空 | AAD |
+| `iAadSize` | 输入 | — | AAD 字节数 |
+| `pInput` | 输入 | 借用 | 密文‖标签 |
+| `iInputSize` | 输入 | ≥ 16 | 输入字节数 |
+| `pPlain` | 输出 | 至少 `iInputSize - 16` | 明文输出 |
+| `iPlainSize` | 输入 | — | 明文容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 认证通过并已解密 | — |
+| `false` | 认证失败或参数非法 | 明文输出逐字节不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` / `XCRYPTO_ERROR_AUTHENTICATION` — 认证失败（输出逐字节不变）
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/chacha20_poly1305 · 拼接式](../../examples/crypto/chacha20_poly1305/main.c) · 观察
+
+```c
+!xrtChaCha20Poly1305Open(
+		Key, Nonce, "header", 6,
+		Message, iSealedSize, Message, sizeof(Message)
+	) ) {
+```
+
+
 ## AES
 
 `XRT_FEATURE_CRYPTO_AES` 只依赖 `CRYPTO_CORE`，提供调用方持有、无动态分配的 AES-128、AES-192 与 AES-256 正向轮密钥状态：
@@ -1540,6 +3033,155 @@ PMULL。ARM AES 批量路径一次推进四个块，PMULL GHASH 在同一目标�
 低级 AES 块接口用于构建标准模式或兼容既有协议，不提供认证。业务消息、网络记录和文件块应优先使用 AES-GCM 或 ChaCha20-Poly1305。密钥使用结束后调用 `xrtAesClear`，它会使用不可优化删除的写入清除完整状态。
 
 AES-128 块加密、原位解密和状态清理示例位于 `examples/crypto/aes/main.c`。
+
+### `xrtAesInit`
+
+以 16/24/32 字节密钥展开 AES 轮密钥；状态可只读复用。
+
+```c
+bool xrtAesInit(xaes* pState, const void* pKey, size_t iKeySize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 密钥展开状态 |
+| `pKey` | 输入 | 借用 | 密钥 |
+| `iKeySize` | 输入 | 16/24/32 | 密钥字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 轮密钥已展开 | — |
+| `false` | 参数或密钥长度非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aes · 向量](../../examples/crypto/aes/main.c) · 观察
+
+```c
+if ( xrtAesInit(&State, Key, sizeof(Key)) &&
+```
+
+
+### `xrtAesEncrypt`
+
+加密一个 16 字节块；输入输出可完全相同。
+
+```c
+bool xrtAesEncrypt(
+	const xaes* pState,
+	const void* pInput,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态 |
+| `pInput` | 输入 | 借用、16 字节 | 明文块 |
+| `pOutput` | 输出 | 16 字节 | 密文块 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出密文块 | — |
+| `false` | 参数或重叠非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aes · 向量](../../examples/crypto/aes/main.c) · 观察
+
+```c
+xrtAesEncrypt(&State, Plain, Block) &&
+```
+
+
+### `xrtAesDecrypt`
+
+解密一个 16 字节块；输入输出可完全相同，不允许部分重叠。
+
+```c
+bool xrtAesDecrypt(
+	const xaes* pState,
+	const void* pInput,
+	void* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态 |
+| `pInput` | 输入 | 借用、16 字节 | 密文块 |
+| `pOutput` | 输出 | 16 字节 | 明文块 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出明文块 | — |
+| `false` | 参数或重叠非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aes · 向量](../../examples/crypto/aes/main.c) · 观察
+
+```c
+xrtAesDecrypt(&State, Block, Block) ) {
+```
+
+
+### `xrtAesClear`
+
+清除 AES 轮密钥状态；空指针视为空操作。
+
+```c
+void xrtAesClear(xaes* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 允许空 | 要清理的状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 密钥材料被安全清除 | — |
+
+#### 错误
+
+- 无 — 清理不失败
+
+#### 范例
+
+[crypto/aes · 收尾](../../examples/crypto/aes/main.c) · 观察
+
+```c
+xrtAesClear(&State);
+```
+
 
 ## AES-GCM 与 GMAC
 
@@ -1612,6 +3254,439 @@ bool xrtAesGmacVerify(
 解密先对 AAD 与密文计算 GHASH，再以常量时间验证标签，成功后才执行 GCTR 并写明文。认证失败设置 `XERR_PROTOCOL`、domain `xrt.crypto`、code `XCRYPTO_ERROR_AUTHENTICATION`，输出逐字节保持不变。`GMAC` 和 `GmacVerify` 复用同一条空明文 GCM 路径，不维护第二份认证实现。
 
 旧版 AES-128/256、通用 IV、空消息和 packed 输出能力均已保留；旧版全局 T 表懒初始化、缓存相关查表、缺少参数边界和验签前写明文的实现被替换。完整示例位于 `examples/crypto/aes_gcm/main.c`。
+
+### `xrtAesGcmInit`
+
+初始化 AES-GCM 并把 NIST 支持的固定标签长度绑定到该密钥状态。
+
+```c
+bool xrtAesGcmInit(
+	xaesgcm* pState,
+	const void* pKey,
+	size_t iKeySize,
+	size_t iTagSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 密钥与哈希子密钥状态 |
+| `pKey` | 输入 | 借用 | 密钥 |
+| `iKeySize` | 输入 | 16/24/32 | 密钥字节数 |
+| `iTagSize` | 输入 | NIST 支持值 | 绑定的标签长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 状态已就绪 | — |
+| `false` | 参数或长度非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aes_gcm · 封包](../../examples/crypto/aes_gcm/main.c) · 观察
+
+```c
+if ( !xrtAesGcmInit(
+		&State, Key, sizeof(Key), XRT_AES_GCM_TAG_DEFAULT_SIZE
+	) ) {
+```
+
+
+### `xrtAesGcmTagSize`
+
+返回状态绑定的标签长度；无效状态返回 0 并设置错误。
+
+```c
+size_t xrtAesGcmTagSize(const xaesgcm* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 绑定的标签长度 | — |
+| `0` | 无效状态 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 状态未初始化或已损坏
+
+#### 范例
+
+[crypto/aead_tour · 分离式](../../examples/crypto/aead_tour/main.c) · 观察
+
+```c
+(xrtAesGcmTagSize(&State) != 16u) ||
+```
+
+
+### `xrtAesGcmEncrypt`
+
+加密并把密文和固定长度认证标签写入分离输出。
+
+```c
+bool xrtAesGcmEncrypt(
+	const xaesgcm* pState,
+	const void* pNonce,
+	size_t iNonceSize,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pPlain,
+	size_t iPlainSize,
+	void* pCipher,
+	void* pTag
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态（标签长度已绑定） |
+| `pNonce` | 输入 | 借用 | nonce |
+| `iNonceSize` | 输入 | — | nonce 字节数 |
+| `pAad` | 输入 | 可空 | 附加认证数据 |
+| `iAadSize` | 输入 | — | AAD 字节数 |
+| `pPlain` | 输入 | 借用 | 明文 |
+| `iPlainSize` | 输入 | — | 明文字节数 |
+| `pCipher` | 输出 | 可与明文同址 | 密文 |
+| `pTag` | 输出 | 状态标签长度 | 认证标签 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 密文与标签已写出 | — |
+| `false` | 参数或重叠非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aead_tour · 分离式](../../examples/crypto/aead_tour/main.c) · 观察
+
+```c
+!xrtAesGcmEncrypt(&State, arrNonce, sizeof(arrNonce),
+		arrAad, sizeof(arrAad), arrPlain, 6u, arrCipher,
+		arrTag) ||
+```
+
+
+### `xrtAesGcmDecrypt`
+
+验证分离标签后解密；认证失败时不修改明文输出。
+
+```c
+bool xrtAesGcmDecrypt(
+	const xaesgcm* pState,
+	const void* pNonce,
+	size_t iNonceSize,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pCipher,
+	size_t iCipherSize,
+	const void* pTag,
+	void* pPlain
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态（标签长度已绑定） |
+| `pNonce` | 输入 | 借用 | nonce |
+| `iNonceSize` | 输入 | — | nonce 字节数 |
+| `pAad` | 输入 | 可空 | 附加认证数据 |
+| `iAadSize` | 输入 | — | AAD 字节数 |
+| `pCipher` | 输入 | 借用 | 密文 |
+| `iCipherSize` | 输入 | — | 密文字节数 |
+| `pTag` | 输入 | 借用 | 待验证标签 |
+| `pPlain` | 输出 | 可与密文同址 | 明文输出 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 认证通过并已解密 | — |
+| `false` | 认证失败或参数非法 | 明文输出逐字节不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` / `XCRYPTO_ERROR_AUTHENTICATION` — 认证失败（输出逐字节不变）
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aead_tour · 篡改拒绝](../../examples/crypto/aead_tour/main.c) · 观察
+
+```c
+!xrtAesGcmDecrypt(&State, arrNonce, sizeof(arrNonce),
+		arrAad, sizeof(arrAad), arrCipher, 6u, arrTag,
+		arrOut) ||
+```
+
+
+### `xrtAesGcmSeal`
+
+加密为 cipher || tag；输出容量至少为明文长度加状态标签长度。
+
+```c
+bool xrtAesGcmSeal(
+	const xaesgcm* pState,
+	const void* pNonce,
+	size_t iNonceSize,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pPlain,
+	size_t iPlainSize,
+	void* pOutput,
+	size_t iOutputSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态（标签长度已绑定） |
+| `pNonce` | 输入 | 借用 | nonce |
+| `iNonceSize` | 输入 | — | nonce 字节数 |
+| `pAad` | 输入 | 可空 | 附加认证数据 |
+| `iAadSize` | 输入 | — | AAD 字节数 |
+| `pPlain` | 输入 | 借用 | 明文 |
+| `iPlainSize` | 输入 | — | 明文字节数 |
+| `pOutput` | 输出 | 至少明文+标签 | 密文‖标签 |
+| `iOutputSize` | 输入 | — | 输出容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出密文与尾部标签 | — |
+| `false` | 容量不足或参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+- `XERR_RANGE` — 输出容量不足
+
+#### 范例
+
+[crypto/aes_gcm · 封包](../../examples/crypto/aes_gcm/main.c) · 观察
+
+```c
+if ( !xrtAesGcmSeal(
+		&State,
+		Nonce,
+		sizeof(Nonce),
+		pAad,
+		strlen(pAad),
+		Buffer,
+```
+
+
+### `xrtAesGcmOpen`
+
+打开 cipher || tag；认证失败时不修改明文输出。
+
+```c
+bool xrtAesGcmOpen(
+	const xaesgcm* pState,
+	const void* pNonce,
+	size_t iNonceSize,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pInput,
+	size_t iInputSize,
+	void* pPlain,
+	size_t iPlainSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态（标签长度已绑定） |
+| `pNonce` | 输入 | 借用 | nonce |
+| `iNonceSize` | 输入 | — | nonce 字节数 |
+| `pAad` | 输入 | 可空 | 附加认证数据 |
+| `iAadSize` | 输入 | — | AAD 字节数 |
+| `pInput` | 输入 | 借用 | 密文‖标签 |
+| `iInputSize` | 输入 | ≥ 标签长度 | 输入字节数 |
+| `pPlain` | 输出 | 至少输入−标签 | 明文输出 |
+| `iPlainSize` | 输入 | — | 明文容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 认证通过并已解密 | — |
+| `false` | 认证失败或参数非法 | 明文输出逐字节不变 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` / `XCRYPTO_ERROR_AUTHENTICATION` — 认证失败（输出逐字节不变）
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aes_gcm · 封包](../../examples/crypto/aes_gcm/main.c) · 观察
+
+```c
+if ( !xrtAesGcmOpen(
+		&State,
+		Nonce,
+		sizeof(Nonce),
+		pAad,
+		strlen(pAad),
+		Buffer,
+```
+
+
+### `xrtAesGcmClear`
+
+清除 AES-GCM 密钥、哈希子密钥及状态；空指针视为空操作。
+
+```c
+void xrtAesGcmClear(xaesgcm* pState);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 允许空 | 要清理的状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 全部密钥材料被安全清除 | — |
+
+#### 错误
+
+- 无 — 清理不失败
+
+#### 范例
+
+[crypto/aead_tour · 收尾](../../examples/crypto/aead_tour/main.c) · 观察
+
+```c
+xrtAesGcmClear(&State);
+```
+
+
+### `xrtAesGmac`
+
+以 GMAC 模式认证一段不加密的数据。
+
+```c
+bool xrtAesGmac(
+	const xaesgcm* pState,
+	const void* pNonce,
+	size_t iNonceSize,
+	const void* pData,
+	size_t iSize,
+	void* pTag
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态 |
+| `pNonce` | 输入 | 借用 | nonce |
+| `iNonceSize` | 输入 | — | nonce 字节数 |
+| `pData` | 输入 | 借用 | 要认证的数据 |
+| `iSize` | 输入 | — | 字节数 |
+| `pTag` | 输出 | 状态标签长度 | 认证标签 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 标签已写出 | — |
+| `false` | 参数非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aead_tour · GMAC](../../examples/crypto/aead_tour/main.c) · 观察
+
+```c
+!xrtAesGmac(&State, arrNonce, sizeof(arrNonce), arrAad,
+		sizeof(arrAad), arrTag) ||
+```
+
+
+### `xrtAesGmacVerify`
+
+以常量时间比较验证 GMAC 标签。
+
+```c
+bool xrtAesGmacVerify(
+	const xaesgcm* pState,
+	const void* pNonce,
+	size_t iNonceSize,
+	const void* pData,
+	size_t iSize,
+	const void* pTag
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 密钥状态 |
+| `pNonce` | 输入 | 借用 | nonce |
+| `iNonceSize` | 输入 | — | nonce 字节数 |
+| `pData` | 输入 | 借用 | 已认证的数据 |
+| `iSize` | 输入 | — | 字节数 |
+| `pTag` | 输入 | 借用 | 待验证标签 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 标签匹配 | — |
+| `false` | 标签不符（正常验证结果）或参数非法 | 不修改输出 |
+
+#### 错误
+
+- `XERR_PROTOCOL` + `xrt.crypto` / `XCRYPTO_ERROR_AUTHENTICATION` — 认证失败（输出逐字节不变）
+- `XERR_ARGUMENT` — 指针为空、密钥/标签长度非法或重叠非法
+
+#### 范例
+
+[crypto/aead_tour · GMAC](../../examples/crypto/aead_tour/main.c) · 观察
+
+```c
+!xrtAesGmacVerify(&State, arrNonce, sizeof(arrNonce),
+		arrAad, sizeof(arrAad), arrTag) ) {
+```
+
 
 ## X25519
 

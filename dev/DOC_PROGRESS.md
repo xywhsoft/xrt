@@ -18,7 +18,7 @@
 | 11 | console.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；四码 xrt.console 域成节 |
 | 12 | core.md | 44 | **完成** | 44/44 全绿（G3 44 片段，2026-09-07）；四头并集（core/error/memory/features）；error/tour 补注册至 core 模块 |
 | 13 | coroutine.md | 51 | **完成** | 51/51 全绿（G3 51 片段，2026-09-07）；核心 18 + 调度器 23 + 事件 10；旧 API 索引表全部转模板节 |
-| 14 | crypto.md | 122 | 进行中 [1/3 段] | 第 1 段哈希族 30/122 全绿（G3 30 片段）；余密码 22 + MAC/KDF 24 + 签名曲线 46 |
+| 14 | crypto.md | 122 | 进行中 [2/3 段] | 76/122 全绿（G3 76 片段）；余第 3 段签名/曲线 46 |
 | 15 | environment.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；Lookup 的"不存在=成功+空输出"语义成文 |
 | 16 | error.md | 45 | 待办 |  |
 | 17 | executor.md | 10 | 待办 |  |
@@ -281,3 +281,18 @@
   三段式）+ sha256/sha512 双变体 + ecdsa_p256/p384（一次性）+
   md5/sha1/sha224/sha512_256 专项。G3 30 片段全绿；G1/G2 余 92
   全部为第 2/3 段 missing-section。既有文件抽查无回归。
+- 2026-09-07 crypto.md 第 2 段（密码 22 + MAC/KDF 24 = 46 节）
+  完成：AES 块 4 + AES-GCM/GMAC 9 + ChaCha20 1 + ChaCha20-
+  Poly1305 4 + Poly1305 4 + HMAC 三族 12 + PBKDF2 三形态 3 +
+  HKDF 三族九形态 9。认证失败语义统一入档（XERR_PROTOCOL +
+  xrt.crypto/XCRYPTO_ERROR_AUTHENTICATION、明文输出逐字节
+  不变、GMAC Verify 常量时间比较）；分离式 Encrypt/Decrypt 与
+  拼接式 Seal/Open 双路径各自的容量契约成文；HKDF 的"Extract
+  可选空盐=全零 + Expand 上限 255×N"边界入档。生成器工作流
+  出现两类机械故障均被门禁拦截：修复脚本正则误替换签名块
+  （G1 抓出，回滚重生成）与 Sha384 族片段指向错误范例文件
+  （G3 抓出，烘焙进生成器）；heredoc 转义陷阱三次（最终全部
+  用 Write+Edit 工具完成）。锚点：aead_tour 10 + aes/aes_gcm
+  /chacha20/poly1305/cc20p1305 专项 + hash_tour/hmac_sha512
+  + kdf_tour/hkdf 系。G3 76 片段全绿；G1/G2 余 46 精确等于
+  第 3 段。既有文件抽查无回归。
