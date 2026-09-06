@@ -10,7 +10,7 @@
 | 3 | atomic.md | 29 | **完成** | 29/29 全绿（G3 29 片段，2026-09-07）；范例 atomic_tour 补 5 个缺口 API（32Store/FetchAdd/FetchSub、64Store、PtrInit/PtrStore）并实测通过 |
 | 4 | avl.md | 43 | **完成** | 43/43 全绿（G3 43 片段，2026-09-07）；双形态 17+26 全部成节，锚点跨 3 个已注册范例 |
 | 5 | buffer.md | 23 | **完成** | 23/23 全绿（G3 23 片段，2026-09-07）；含 HEX/Base64 解码构造器；范例 buffer_tour 补 Clear 并实测通过 |
-| 6 | cancel.md | 9 | 待办 |  |
+| 6 | cancel.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；修复 Ref/Destroy 合并节导致的 G1 签名不一致 |
 | 7 | channel.md | 42 | 待办 |  |
 | 8 | charset.md | 69 | 待办 |  |
 | 9 | codec.md | 20 | 待办 |  |
@@ -176,3 +176,14 @@
   零容量配空地址）入档。范例 buffer_tour 补 Clear 调用（此前仅
   asn1/encode_tour 覆盖），编译运行验证通过（EXIT=0，输出不变）。
   双门禁一次全绿；array/asn1/atomic/avl/net 复验无回归。
+- 2026-09-07 cancel.md 完成（9/9，G3 9 片段）：门禁曾报 33 问题
+  （9 函数）——根因是旧文 "xrtCancelRef / xrtCancelDestroy" 合并节
+  的首代码块含两条签名触发 G1，且 Destroy 无独立节；拆分后 9 节
+  全部按模板成文。核心契约逐函数入档：Request 的"首次 true/重复
+  false 不设错"、Requested 的"空指针=无取消源不设错"（可选取消
+  参数用法）、Watch 的"已取消令牌上注册即同步执行回调"、Unwatch
+  的跨线程等待与回调自注销延迟回收。Requested 锚点取自
+  task_group_pool（任务函数内的协作自查点），其余 8 个来自
+  concurrency/cancel。撰写中自查发现 Watch 签名块笔误（重复类型
+  名）先于门禁修复。双门禁一次全绿（修复笔误后）；六个既有文件
+  复验无回归。

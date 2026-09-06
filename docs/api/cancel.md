@@ -44,46 +44,218 @@ typedef void (*xcancelproc)(ptr pData);
 
 ### `xrtCancelCreate`
 
+创建独立根令牌并返回一个调用方拥有的引用。
+
 ```c
 xcancel* xrtCancelCreate(void);
 ```
 
-创建独立令牌并返回一个调用方拥有的引用。失败返回空指针并保留结构化错误。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 无参数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新令牌（引用计数 1）；`Destroy` 释放 | — |
+| `NULL` | 结构分配或内部互斥锁初始化失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_MEMORY` — 令牌结构分配失败或互斥锁初始化失败
+
+#### 范例
+
+[concurrency/cancel · 父子传播](../../examples/concurrency/cancel/main.c) · 根令牌起步
+
+```c
+xcancel* pRequest = xrtCancelCreate();
+xcancel* pOperation;
+xcancelwatch* pWatch;
+bool bStopped = false;
+
+if ( pRequest == NULL ) {
+	return 1;
+}
+```
 
 ### `xrtCancelChild`
+
+创建子令牌并持有父引用；`pParent` 为空时等价于创建新的根令牌。
 
 ```c
 xcancel* xrtCancelChild(xcancel* pParent);
 ```
 
-创建子令牌并持有父引用。`pParent` 可以为空，此时等价于创建新的根令牌。
+#### 参数
 
-### `xrtCancelRef` / `xrtCancelDestroy`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pParent` | 输入 | 允许空 | 父令牌；存活期由子令牌引用保证 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 子令牌；父链不可变，`Destroy` 子令牌时逐级释放父引用 | — |
+| `NULL` | 父引用获取失败或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 父令牌引用计数耗尽（`Ref` 失败）
+- `XERR_MEMORY` — 子令牌结构分配失败
+
+#### 范例
+
+[concurrency/cancel · 父子传播](../../examples/concurrency/cancel/main.c) · 父取消同步触发子监听
+
+```c
+pOperation = xrtCancelChild(pRequest);
+if ( pOperation == NULL ) {
+	xrtCancelDestroy(pRequest);
+	return 1;
+}
+```
+
+### `xrtCancelRef`
+
+增加取消令牌引用，供多个持有者共享同一取消源。
 
 ```c
 xcancel* xrtCancelRef(xcancel* pCancel);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCancel` | 输入 | 非空 | 目标令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 原指针，引用 +1；每个成功 `Ref` 须配一次 `Destroy` | — |
+| `NULL` | 参数非法或引用计数耗尽 | 令牌不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pCancel` 为空或引用计数已耗尽
+
+#### 范例
+
+[concurrency/cancel · 多持有者](../../examples/concurrency/cancel/main.c) · Ref 后各自 Destroy 一次
+
+```c
+/* Ref：增加令牌引用（多持有者共享同一取消源），用完各Destroy一次。 */
+xcancel* pExtra = xrtCancelRef(pOperation);
+```
+
+### `xrtCancelDestroy`
+
+释放取消令牌引用，并顺着唯一父引用迭代回收。空指针是空操作。
+
+```c
 void xrtCancelDestroy(xcancel* pCancel);
 ```
 
-增加和释放令牌引用。`xrtCancelDestroy(NULL)` 是空操作。每一个成功创建或增加的引用必须释放一次。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCancel` | 输入 | 允许空 | 要释放的引用；归零时释放令牌并继续释放父引用 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 每个成功创建或增加的引用必须释放一次 |
+
+#### 范例
+
+[concurrency/cancel · 收尾](../../examples/concurrency/cancel/main.c) · 子先于父销毁（顺序不强制）
+
+```c
+xrtCancelDestroy(pOperation);
+xrtCancelDestroy(pRequest);
+return bStopped ? 0 : 1;
+```
 
 ### `xrtCancelRequest`
+
+原子完成当前令牌的首次本地取消请求，摘除该节点上的监听后在令牌锁外同步通知。
 
 ```c
 bool xrtCancelRequest(xcancel* pCancel);
 ```
 
-原子完成当前令牌的首次本地取消请求，摘除该节点上的监听后在令牌锁外同步通知。首次请求返回 `true`，重复请求返回 `false` 且不设置错误。空令牌返回 `false` 并设置 `XERR_ARGUMENT`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCancel` | 输入 | 非空 | 目标令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 本次是第一个本地请求；回调已同步执行完毕 | — |
+| `false` | 已请求过（正常结果，不设错）或参数非法 | 重复请求不设置错误；空指针设置 `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pCancel` 为空
+
+#### 范例
+
+[concurrency/cancel · 父子传播](../../examples/concurrency/cancel/main.c) · 请求父令牌，子监听立即回调
+
+```c
+(void)xrtCancelRequest(pRequest);
+printf("operation stopped: %s\n", bStopped ? "yes" : "no");
+```
 
 ### `xrtCancelRequested`
+
+查询当前令牌或完整祖先链是否已取消。空指针表示没有取消源，返回 `false` 且不设置错误，便于可选取消参数直接使用。
 
 ```c
 bool xrtCancelRequested(const xcancel* pCancel);
 ```
 
-查询当前令牌或祖先是否已取消。空指针表示没有取消源，返回 `false` 且不设置错误，便于可选取消参数直接使用。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCancel` | 输入 | 允许空 | 目标令牌；空指针视为“无取消源” |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 本令牌或任一祖先已请求取消 | — |
+| `false` | 全链未取消或无取消源 | 纯查询，不设置错误 |
+
+#### 错误
+
+- 无 — 空指针是合法的“无取消源”查询
+
+#### 范例
+
+[concurrency/task_group_pool · 协作自查](../../examples/concurrency/task_group_pool/main.c) · 任务函数内的取消检查点
+
+```c
+if ( xrtCancelRequested(pCancel) ) {
+	return XTASK_CANCELLED;
+}
+```
 
 ### `xrtCancelWatch`
+
+注册一次同步回调。监听持有目标令牌引用，并用一次连续分配保存完整父链节点。
 
 ```c
 xcancelwatch* xrtCancelWatch(
@@ -93,23 +265,102 @@ xcancelwatch* xrtCancelWatch(
 );
 ```
 
-注册一次同步回调。监听持有目标令牌引用，并用一次连续分配保存完整父链节点。令牌或回调为空时失败并设置 `XERR_ARGUMENT`；分配失败设置 `XERR_MEMORY`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCancel` | 输入 | 非空 | 目标令牌；监听覆盖其全部祖先 |
+| `pProc` | 输入 | 非空 | 取消回调，至多执行一次 |
+| `pData` | 输入 | 任意值 | 原样传给回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 调用方拥有的监听；`Unwatch` 释放 | — |
+| `NULL` | 参数非法、链溢出或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 令牌或回调为空
+- `XERR_RANGE` — 父链长度超出可分配的监听节点数
+- `XERR_MEMORY` — 监听结构分配失败
+
+#### 范例
+
+[concurrency/cancel · 观察者](../../examples/concurrency/cancel/main.c) · 已取消令牌上注册会同步执行一次回调
+
+```c
+pWatch = xrtCancelWatch(pOperation, stopWork, &bStopped);
+if ( pWatch == NULL ) {
+	xrtCancelDestroy(pOperation);
+	xrtCancelDestroy(pRequest);
+	return 1;
+}
+```
 
 ### `xrtCancelTriggered`
+
+无锁查询监听是否已经命中取消。
 
 ```c
 bool xrtCancelTriggered(const xcancelwatch* pWatch);
 ```
 
-无锁查询监听是否已经命中取消。空监听返回 `false` 并设置 `XERR_ARGUMENT`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWatch` | 输入 | 非空 | 目标监听 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已命中取消（回调已执行或正在执行） | — |
+| `false` | 未命中或参数非法 | 空指针设置 `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pWatch` 为空
+
+#### 范例
+
+[concurrency/cancel · 观察者](../../examples/concurrency/cancel/main.c) · 请求后监听已触发
+
+```c
+printf("watch-triggered=%d\n", xrtCancelTriggered(pWatch) ? 1 : 0);
+```
 
 ### `xrtCancelUnwatch`
+
+注销并释放调用方拥有的监听。空指针是空操作。普通路径会保证返回时没有正在执行或未来可能执行的回调；回调自身注销使用延迟回收规则。
 
 ```c
 void xrtCancelUnwatch(xcancelwatch* pWatch);
 ```
 
-注销并释放调用方拥有的监听。空指针是空操作。普通路径会保证返回时没有正在执行或未来可能执行的回调；回调自身注销使用上文说明的延迟回收规则。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWatch` | 输入 | 允许空 | 要注销的监听；同一句柄只能注销一次 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作；从其他线程注销会等待已开始的回调返回 |
+
+#### 范例
+
+[concurrency/cancel · 收尾](../../examples/concurrency/cancel/main.c) · 注销后再销毁令牌
+
+```c
+xrtCancelUnwatch(pWatch);
+xrtCancelDestroy(pOperation);
+xrtCancelDestroy(pRequest);
+```
 
 ## 示例
 
