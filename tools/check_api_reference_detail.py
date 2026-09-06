@@ -154,7 +154,7 @@ def table_first_column(body):
 		if not line.startswith("|"):
 			continue
 		cell = line.split("|")[1].strip() if "|" in line[1:] else ""
-		match = re.fullmatch(r"`(\w+)`", cell)
+		match = re.fullmatch(r"`(\w+|\.\.\.)`", cell)
 		if match is not None:
 			names.append(match.group(1))
 	return names
