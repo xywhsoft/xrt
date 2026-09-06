@@ -11,7 +11,7 @@
 | 4 | avl.md | 43 | **完成** | 43/43 全绿（G3 43 片段，2026-09-07）；双形态 17+26 全部成节，锚点跨 3 个已注册范例 |
 | 5 | buffer.md | 23 | **完成** | 23/23 全绿（G3 23 片段，2026-09-07）；含 HEX/Base64 解码构造器；范例 buffer_tour 补 Clear 并实测通过 |
 | 6 | cancel.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；修复 Ref/Destroy 合并节导致的 G1 签名不一致 |
-| 7 | channel.md | 42 | 待办 |  |
+| 7 | channel.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；五族全成节，锚点跨 7 个已注册范例 |
 | 8 | charset.md | 69 | 待办 |  |
 | 9 | codec.md | 20 | 待办 |  |
 | 10 | compress.md | 18 | 待办 |  |
@@ -187,3 +187,13 @@
   concurrency/cancel。撰写中自查发现 Watch 签名块笔误（重复类型
   名）先于门禁修复。双门禁一次全绿（修复笔误后）；六个既有文件
   复验无回归。
+- 2026-09-07 channel.md 完成（42/42，G3 42 片段）：生命周期 5 +
+  非阻塞 2 + 阻塞收发 6 + 可取消 6 + 查询/关闭/重置 7 + Select 7 +
+  协程 Await 9 五族全部成节；XCHANNEL_*/XWAIT_* 双结果体系逐函数
+  成表（FULL/EMPTY/CLOSED 不设错 vs ERROR 设错），"零超时=try 语义、
+  取消优先于超时、关闭优先于取消"的判定顺序入档；Unit 的 STATE
+  （等待者/rendezvous 挂起）与 Reset 的 AGAIN（非空/挂起/Select
+  节点）区分；Await 族"非协程上下文 STATE"门槛成文。锚点跨 7 个
+  已注册范例（tour 34 项 + channel/cancel/select/select_cancel/
+  coroutine 补普通形态 + worker 补 Drain）。双门禁一次全绿；
+  七个既有文件复验无回归。
