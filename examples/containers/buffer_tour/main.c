@@ -2,7 +2,7 @@
  * 范例：containers/buffer_tour —— 连续字节缓冲编辑/接管族补集
  * ----------------------------------------------------------------
  * 演示 API：
- *   【容量】    xrtBufferReserve / Resize / Trim
+ *   【容量】    xrtBufferReserve / Resize / Trim / Clear
  *   【编辑】    xrtBufferAdd（尾部扩展返回直写指针）/
  *              InsertSpace / Insert / Remove / AppendByte / Assign
  *   【接管族】  xrtBufferSetTake（接管内存替换内容）/
@@ -103,6 +103,12 @@ int main(void)
 		}
 	}
 	printf("buffer: edit add+insert+remove+append assign=9\n");
+
+	/* ---- Clear：清空有效内容，容量保留。 ---- */
+	xrtBufferClear(pBuffer);
+	if ( xrtBufferView(pBuffer).Size != 0u ) {
+		goto Cleanup;
+	}
 
 	/* ---- 接管族 ---- */
 	/* SetTake：接管 xrtMalloc 内存替换缓冲内容。 */

@@ -9,7 +9,7 @@
 | 2 | asn1.md | 27 | **完成** | 27/27 全绿（G3 27 片段，2026-09-07）；错误码 TAG/LENGTH/VALUE/TYPE/END/TRAILING/ORDER/DEPTH/RANGE 九码全表成文；编码器族（Append*8 + Oid 工具 3）首入文档 |
 | 3 | atomic.md | 29 | **完成** | 29/29 全绿（G3 29 片段，2026-09-07）；范例 atomic_tour 补 5 个缺口 API（32Store/FetchAdd/FetchSub、64Store、PtrInit/PtrStore）并实测通过 |
 | 4 | avl.md | 43 | **完成** | 43/43 全绿（G3 43 片段，2026-09-07）；双形态 17+26 全部成节，锚点跨 3 个已注册范例 |
-| 5 | buffer.md | 23 | 待办 |  |
+| 5 | buffer.md | 23 | **完成** | 23/23 全绿（G3 23 片段，2026-09-07）；含 HEX/Base64 解码构造器；范例 buffer_tour 补 Clear 并实测通过 |
 | 6 | cancel.md | 9 | 待办 |  |
 | 7 | channel.md | 42 | 待办 |  |
 | 8 | charset.md | 69 | 待办 |  |
@@ -167,3 +167,12 @@
   逐函数标注。锚点跨三个已注册范例（avl_tour 40 项 + avl 的
   IterBegin + avl_tree 的 Init/IterFrom）。双门禁一次全绿；
   array/asn1/atomic/net 复验无回归。
+- 2026-09-07 buffer.md 完成（23/23，G3 23 片段）：生命周期/容量/
+  直写/编辑/所有权五组 + HEX/Base64 解码构造器全部成节；
+  "分配失败时原地址、长度、容量和已有内容保持不变"的原子失败
+  契约逐函数标注；Write 的稀疏写语义（越过末尾扩展+空洞补零）、
+  Take 的"空缓冲成功返回 NULL"哨兵口径、SetTake/CreateTake 的
+  槽有效性约束（xrtMalloc 家族 + 默认对齐 + size<=capacity +
+  零容量配空地址）入档。范例 buffer_tour 补 Clear 调用（此前仅
+  asn1/encode_tour 覆盖），编译运行验证通过（EXIT=0，输出不变）。
+  双门禁一次全绿；array/asn1/atomic/avl/net 复验无回归。
