@@ -90,4 +90,7 @@
 - 2026-09-07 Phase 0：DOC_SPEC v1.0-draft 定稿；两门禁工具上线
   （check_api_reference_detail.py / extract_doc_examples.py，验证于 array.md：改前 117 problem → 改后 0）；
   试点 1 array.md 完成（50 函数全绿）；试点 2 net.md 地址族完成（20/184，余 5 段）；
-  ptr_array 模块补挂公共头至 manifest（文档映射用）。规范冻结待用户审定。
+  ptr_array 模块补挂公共头至 manifest（文档映射用）。规范冻结待用户审定。- 2026-09-07 规范冻结 v1.0；net.md 第 2 段完成：缓冲/列表/DNS/Bytes 39 函数
+  补齐（错误码自 src/network/buffer.c 逐函数溯源——POOL_BUSY/BUFFER_STATE/
+  BUFFER 三个域码首次入档；预留状态机与四类追加所有权全部落成参数表）。
+  工具修复：多行签名括号内空白折叠。array.md 复验仍绿。
