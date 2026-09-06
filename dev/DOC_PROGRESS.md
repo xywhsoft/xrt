@@ -50,7 +50,7 @@
 | 43 | net-frame.md | 9 | 待办 |  |
 | 44 | net-interface.md | 12 | 待办 |  |
 | 45 | net-resolver.md | 172 | 待办 |  |
-| 46 | net.md | 184 | 进行中 [1/6 段] | 试点 2；地址族 20 函数全绿，余 buffer/socket/port/engine/resolver 164 待 |
+| 46 | net.md | 184 | 进行中 [4/6 段] | 试点 2；地址族 20 + 缓冲/列表/DNS/Bytes 39 + Socket 39 + Port 29 + 嵌入式 Post 3 = 130/184 全绿，余 Engine/Worker（第 5 段）与 Resolver/Interfaces（第 6 段） |
 | 47 | number.md | 15 | 待办 |  |
 | 48 | once.md | 22 | 待办 |  |
 | 49 | path.md | 32 | 待办 |  |
@@ -101,3 +101,16 @@
   RecvMsg 族 pMeta 必填 vs RecvFrom 可空、Connect 的 AGAIN 不得二次调用、
   RecvBatch 返回已到达前缀（Windows 环回补收口径）三个契约差异写入参数表。
   G3 从 78→119 片段全绿；array.md 复验仍绿。
+- 2026-09-07 net.md 第 4 段（Port 29 + 嵌入式 Post 3 = 32 函数）完成：
+  错误域码 PORT_CREATE/CLOSE/WATCH/SUBMIT/CANCEL/POST/WAIT 自
+  src/network/port.c 溯源入档，含后端层补充（WatchLimit→XERR_RANGE、
+  OperationLimit→XERR_AGAIN）；单缓冲 Recv/Send/SendTo/SendMsg 为
+  一跨度转发（错误集继承 Vec 形态）首次成文；Windows 后端能力分裂
+  （IOCP 仅 completion / SELECT 仅 readiness / AUTO 取 IOCP）写入节级
+  说明；Worker 归属契约（提交/取消/等待/销毁仅拥有线程；Post/Wake 可
+  跨线程）逐函数标注；嵌入式 Post 三态（受理 Pending→执行清除）与
+  XERR_CLOSED 关停口径入档。范例锚点跨 4 个已注册范例
+  （port_tour/port_iocp/port_uring/engine_tour）。G3 119→151 片段全绿
+  （门禁拦截 1 处不连续片段：Accept 终态等待与提交之间隔着 Connect
+  等待，改为完整连续区间）；array.md 复验仍绿。表行同步修正
+  第 2/3 段漏记（记录区已有、表格行停在 [1/6 段]）。

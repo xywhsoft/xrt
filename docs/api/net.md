@@ -4404,6 +4404,8 @@ bool xrtNetSocketMulticastInterface(xnetsocket Socket, const xnetaddr* pInterfac
 
 `XRT_FEATURE_NET_PORT` 依赖 Socket、单调截止时间和 Mutex，提供 backend-neutral 事件端口核心；具体后端使用独立裁剪宏。`XRT_FEATURE_NET_PORT_SELECT` 提供全平台 select fallback，`XRT_FEATURE_NET_PORT_EPOLL` 提供 Linux 原生 readiness，`XRT_FEATURE_NET_PORT_KQUEUE` 提供 Darwin/BSD 原生 readiness，`XRT_FEATURE_NET_PORT_IOCP` 提供 Windows 原生完成式 IO，`XRT_FEATURE_NET_PORT_URING` 提供 Linux 原生完成式 IO。readiness 与 completion 使用同一组事件、截止时间、错误和所有权口径，但不会被强迫伪装成相同执行模型。
 
+端口由创建线程拥有：`Watch`、提交、取消、等待和销毁只能由拥有线程执行；查询函数以及 `Post`、`Wake` 可跨线程调用，调用方仍须保证端口对象存活。
+
 ### Readiness 与 Completion
 
 旧版 select/epoll/kqueue 为了模仿 IOCP，在每个后端中重复执行 recv/send、分配事件 Chain，并持有固定 8K 临时接收区。这既重复网络与缓冲逻辑，也让 TLS 等需要 `WANT_READ`/`WANT_WRITE` 的协议无法自然使用端口。
@@ -4430,79 +4432,1311 @@ typedef enum xnetportcap {
 - 上层按 `xrtNetPortCapabilities` 只在后端边界分流一次，不需要每个协议复制平台分支。
 - 端口不拥有每连接缓冲，也不解析 TCP、UDP、TLS 或应用协议。
 
-### 创建与能力
+Windows 后端能力是分裂的：IOCP 只有 `COMPLETION`（`Watch` 提交返回 `XERR_UNSUPPORTED`），SELECT 只有 `READINESS`（完成式提交返回 `XERR_UNSUPPORTED`），`AUTO` 在 Windows 选择 IOCP；Linux 的 EPOLL/URING 二者兼备。
+
+### `xrtNetPortConfigInit`
+
+初始化端口配置为默认值：`Backend=AUTO`、`PostLimit=4096`、`WatchLimit=0`、`OperationLimit=0`、`OperationCache=64`。
 
 ```c
-typedef struct xnetportconfig {
-	xnetportbackend Backend;
-	uint32 Flags;
-	size_t PostLimit;
-	size_t WatchLimit;
-	size_t OperationLimit;
-	size_t OperationCache;
-} xnetportconfig;
-
 void xrtNetPortConfigInit(xnetportconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 纯初始化，不失败 |
+
+#### 范例
+
+[network/port_tour · 双后端](../../examples/network/port_tour/main.c) · 每次创建端口前重新初始化
+
+```c
+xrtNetPortConfigInit(&Config);
+Config.Backend = XNET_PORT_IOCP;
+pIocp = xrtNetPortCreate(&Config);
+xrtNetPortConfigInit(&Config);
+Config.Backend = XNET_PORT_SELECT;
+pSelect = xrtNetPortCreate(&Config);
+```
+
+### `xrtNetPortCreate`
+
+创建事件端口。`AUTO` 在当前已编译后端中选择最高能力实现：Windows 优先 IOCP，Linux 优先 epoll，Darwin/BSD 优先 kqueue，其他平台使用 select；显式指定的后端不可用时返回 `XERR_UNSUPPORTED`，不会静默换后端。
+
+```c
 xnetport* xrtNetPortCreate(const xnetportconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 通常为 `ConfigInit` 产物，可按需覆盖字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 端口已创建，创建线程即拥有线程 | — |
+| `NULL` | 配置非法、后端不可用或资源不足 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_CREATE` — 配置指针为空或字段非法
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_CREATE` — 显式后端未编译进当前构建
+- 内存分配失败 — 内部资源（唤醒通道、索引表）分配失败
+
+#### 范例
+
+[network/port_tour · 双后端](../../examples/network/port_tour/main.c) · 显式指定 IOCP 与 SELECT 各建一个
+
+```c
+xrtNetPortConfigInit(&Config);
+Config.Backend = XNET_PORT_IOCP;
+pIocp = xrtNetPortCreate(&Config);
+xrtNetPortConfigInit(&Config);
+Config.Backend = XNET_PORT_SELECT;
+pSelect = xrtNetPortCreate(&Config);
+```
+
+### `xrtNetPortDestroy`
+
+取消并排空全部在途 IO，再销毁端口、观察、用户事件及唤醒资源；返回后系统不再引用任何调用方缓冲。只能由拥有线程调用。
+
+```c
 bool xrtNetPortDestroy(xnetport* pPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 允许空指针 | 空指针是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 端口已销毁 | — |
+| `false` | 参数非法、非拥有线程或底层关闭失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pPort` 非法
+- `XERR_STATE` — 从非拥有线程调用
+- `XERR_IO` + `XNET_ERROR_PORT_CLOSE` — 关闭后端句柄失败
+
+#### 范例
+
+[network/port_tour · 收尾](../../examples/network/port_tour/main.c) · 先关 Socket 再销毁端口
+
+```c
+if ( pSelect != NULL ) {
+	xrtNetPortDestroy(pSelect);
+}
+if ( pIocp != NULL ) {
+	xrtNetPortDestroy(pIocp);
+}
+```
+
+### `xrtNetPortBackend`
+
+返回端口实际启用的后端。
+
+```c
 xnetportbackend xrtNetPortBackend(const xnetport* pPort);
-bool xrtNetPortGetConfig(const xnetport* pPort,
-	xnetportconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 端口指针 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `XNET_PORT_AUTO` | `pPort` 为空（`AUTO` 是零值，仅作失败哨兵） |
+| `XNET_PORT_IOCP`/`XNET_PORT_URING`/`XNET_PORT_EPOLL`/`XNET_PORT_KQUEUE`/`XNET_PORT_SELECT` | 实际后端；`AUTO` 创建后此处是解析结果 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pPort` 为空（返回值仍是 `XNET_PORT_AUTO`）
+
+#### 范例
+
+[network/port_tour · 双后端](../../examples/network/port_tour/main.c) · 校验显式后端未被替换
+
+```c
+if ( (pIocp == NULL) || (pSelect == NULL) ||
+	(xrtNetPortBackend(pIocp) != XNET_PORT_IOCP) ||
+	(xrtNetPortBackend(pSelect) != XNET_PORT_SELECT) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortGetConfig`
+
+返回已经解析 `AUTO` 容量和实际后端的有效配置。返回值是副本，修改它不影响端口。
+
+```c
+bool xrtNetPortGetConfig(
+	const xnetport* pPort,
+	xnetportconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 端口指针 |
+| `pConfig` | 输出 | 非空 | 接收解析后的配置副本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | `*pConfig` 已写入 | — |
+| `false` | 参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空
+
+#### 范例
+
+[network/port_tour · 自省](../../examples/network/port_tour/main.c) · 零值上限被解析为后端硬上限
+
+```c
+{
+	xnetportconfig Resolved;
+
+	if ( !xrtNetPortGetConfig(pIocp, &Resolved) ||
+		(Resolved.Backend != XNET_PORT_IOCP) ) {
+		goto Cleanup;
+	}
+}
+```
+
+### `xrtNetPortName`
+
+返回静态后端名称（如 `"iocp"`、`"select"`），字符串存活期与进程相同。
+
+```c
 cstr xrtNetPortName(const xnetport* pPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 端口指针 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 非空 `cstr` | 静态后端名称 |
+| `NULL` | `pPort` 为空 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pPort` 为空
+
+#### 范例
+
+[network/port_iocp · 完成式](../../examples/network/port_iocp/main.c) · 诊断输出中打印后端名
+
+```c
+printf("backend=%s bytes=%zu data=%s\n",
+	xrtNetPortName(pPort), Events[i].Bytes, sData);
+```
+
+### `xrtNetPortCapabilities`
+
+返回实际后端能力位（`XNET_PORT_CAP_*` 的按位或）。
+
+```c
 uint32 xrtNetPortCapabilities(const xnetport* pPort);
 ```
 
-`AUTO` 在已编译后端中选择当前平台最高优先级实现：Windows 优先 IOCP，Linux 优先 epoll，Darwin/BSD 优先 kqueue，其他平台当前使用 select；标准 Engine 同时编入 select 作为可显式选择的保底路径。显式后端不可用时返回 `XERR_UNSUPPORTED`，不会静默换后端。
+#### 参数
 
-默认配置为 `PostLimit=4096`、`WatchLimit=0`、`OperationLimit=0`、`OperationCache=64`。两个零值表示按实际后端自动选择硬上限，不表示禁用：select 的观察上限为 1024，epoll/kqueue 为 65536，其他后端为 4096；IOCP 的在途操作上限为 65536，其他后端为 4096。显式非零值始终作为调用方选择的硬边界。`xrtNetPortGetConfig` 返回实际后端和已经解析的容量，适合诊断、测试与部署检查；返回的结构是副本，修改它不会影响端口。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 端口指针 |
 
-`PostLimit`、`WatchLimit` 和 `OperationLimit` 分别约束跨线程用户事件、readiness 观察和原生在途 IO。`OperationCache` 表示 completion 后端每个 256/512/1024/2048 字节尺寸类最多缓存的终态操作描述符数，零值完全关闭缓存。缓存只复用描述符和 Span 副本空间，不持有 Socket 或载荷缓冲；超过 2048 字节的罕见描述符直接使用堆。completion 操作 ID 索引从 16 个桶开始，活动操作超过两倍桶数时才逐级扩展到由 `OperationLimit` 确定的上限；因此为高并发配置较大的硬上限不会让空端口提前分配整张索引。扩展内存不足会让触发扩展的当前提交明确失败，已有在途操作保持有效。用户事件队列或操作队列满时返回 `XERR_AGAIN`；失败提交不会留下节点、幽灵事件或被系统继续引用的缓冲。`Wait` 每轮最多先提取输出容量的一半 Post；队列仍有积压时，下一轮先给原生后端一次非阻塞提取机会，因此即使调用方使用容量为一的事件数组，持续跨线程 Post 也不会永久饿死 Socket 完成或 readiness。已经从 Post 队列取出的事件不会因为同轮后端等待失败而丢失。
+#### 返回值
 
-### 完成式 IO
+| 返回 | 含义 |
+|---|---|
+| 能力位组合 | `READINESS`/`COMPLETION`/`ONESHOT`/`EDGE`/`BATCH`/`WAKE`/`POST`/`CANCEL`/`READ_PROBE` 的按位或 |
+| `0` | `pPort` 为空（无后端具备零能力，可作失败哨兵） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pPort` 为空
+
+#### 范例
+
+[network/port_tour · 双后端](../../examples/network/port_tour/main.c) · IOCP 只有 COMPLETION，没有 READINESS
+
+```c
+iCaps = xrtNetPortCapabilities(pIocp);
+if ( ((iCaps & XNET_PORT_CAP_COMPLETION) == 0u) ||
+	((iCaps & XNET_PORT_CAP_READINESS) != 0u) ) {
+	goto Cleanup;
+}
+```
+
+### 配置与容量解析
+
+`PostLimit`、`WatchLimit` 和 `OperationLimit` 分别约束跨线程用户事件、readiness 观察和原生在途 IO。两个零值表示按实际后端自动选择硬上限，不表示禁用：select 的观察上限为 1024，epoll/kqueue 为 65536，其他后端为 4096；IOCP 的在途操作上限为 65536，其他后端为 4096。显式非零值始终作为调用方选择的硬边界。
+
+`OperationCache` 表示 completion 后端每个 256/512/1024/2048 字节尺寸类最多缓存的终态操作描述符数，零值完全关闭缓存。缓存只复用描述符和 Span 副本空间，不持有 Socket 或载荷缓冲；超过 2048 字节的罕见描述符直接使用堆。completion 操作 ID 索引从 16 个桶开始，活动操作超过两倍桶数时才逐级扩展到由 `OperationLimit` 确定的上限；因此为高并发配置较大的硬上限不会让空端口提前分配整张索引。扩展内存不足会让触发扩展的当前提交明确失败，已有在途操作保持有效。用户事件队列或操作队列满时返回 `XERR_AGAIN`；失败提交不会留下节点、幽灵事件或被系统继续引用的缓冲。`Wait` 每轮最多先提取输出容量的一半 Post；队列仍有积压时，下一轮先给原生后端一次非阻塞提取机会，因此即使调用方使用容量为一的事件数组，持续跨线程 Post 也不会永久饿死 Socket 完成或 readiness。已经从 Post 队列取出的事件不会因为同轮后端等待失败而丢失。
+
+### 完成式提交契约
+
+完成式 API 以 bytes 为基础，不创建隐藏 `chain`，也没有每对象 8K 或每数据报 64K 固定缓冲。后端在提交时复制 Span 描述符与地址，但不复制载荷；成功提交后，Socket、缓冲和只读发送数据必须保持有效且不变，直到同一 `Id` 的终态事件到达。`Id` 必须非零并在当前端口全部在途操作中唯一。每次成功提交恰好产生一个对应类型的终态；短读和短写由事件的 `Bytes` 表达，调用方决定是否继续提交。
+
+终态失败位于事件的 `Result` 与 `SystemCode`，不把一次操作失败误报为端口等待失败。流接收零字节返回 `CLOSED|EOF`；零长度 UDP 报文返回 `OK`；UDP 缓冲不足返回 `TRUNCATED` 并保留实际写入长度、远端地址和已取得的元数据。事件的 `Address` 与 `Meta` 都是值对象，不借用平台控制缓冲。`Cancel` 只请求取消，成功后仍等待原操作唯一的 `CANCELLED` 终态；完成已经先于取消发生时，仍提取原完成。`Destroy` 会取消并排空全部在途操作，返回后系统不再引用调用方缓冲。
+
+正常关闭顺序是取消并提取终态、关闭 Socket、销毁端口；也可以直接销毁端口来同步取消并排空在途 IO，再关闭相关 Socket，但这些 Socket 不能继续提交或改绑到另一个端口。IOCP 的 Socket 首次提交时永久关联当前完成端口，同一端口后续提交不再执行关联系统调用；Windows 不支持把该 Socket 改绑到另一个 IOCP。关联身份使用进程内单调 owner 标识，不使用可被分配器复用的上下文地址，因此旧端口销毁后仍不会把原 Socket 误认成新端口成员。
+
+### `xrtNetPortAccept`
+
+异步接受一个连接。成功提交后 `Accepted` Socket 由终态事件（`ACCEPT`）转移给调用方，调用方成为其唯一拥有者。
 
 ```c
 bool xrtNetPortAccept(xnetport* pPort,
 	xnetsocket Socket, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 已监听 | 必须是 `Listen` 状态的流 Socket |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已受理；`ACCEPT` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法或 `Socket` 不是监听流
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力（如 SELECT）
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · TCP](../../examples/network/port_tour/main.c) · `Event.Accepted` 是新 Socket
+
+```c
+!xrtNetPortConnect(pIocp, Client, &AddrListen, 201u, NULL) ||
+!xrtNetPortAccept(pIocp, Listener, 202u, NULL) ||
+!exampleWaitFor(pIocp, XNET_PORT_EVENT_CONNECT, 201u,
+	&Event, 2000000ull) ||
+(Event.Result != XNET_RESULT_OK) ||
+!exampleWaitFor(pIocp, XNET_PORT_EVENT_ACCEPT, 202u,
+	&Event, 2000000ull) ||
+(Event.Accepted == 0) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortConnect`
+
+异步连接远端地址。终态事件（`CONNECT`）到达前 Socket 必须保持有效。
+
+```c
 bool xrtNetPortConnect(xnetport* pPort, xnetsocket Socket,
 	const xnetaddr* pRemote, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 已打开 | 未连接的流 Socket |
+| `pRemote` | 输入 | 非空 | 目标地址；族必须与 Socket 一致 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`CONNECT` 终态事件待提取，结果在 `Event.Result` | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法或地址族与 Socket 不匹配
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · TCP](../../examples/network/port_tour/main.c) · 连接结果在终态事件的 `Result` 字段
+
+```c
+!xrtNetPortConnect(pIocp, Client, &AddrListen, 201u, NULL) ||
+!xrtNetPortAccept(pIocp, Listener, 202u, NULL) ||
+!exampleWaitFor(pIocp, XNET_PORT_EVENT_CONNECT, 201u,
+	&Event, 2000000ull) ||
+(Event.Result != XNET_RESULT_OK) ||
+```
+
+### `xrtNetPortReadProbe`
+
+异步等待流 Socket 可读；不借用数据缓冲，终态（`READ_PROBE`，`Bytes == 0`）到达后再提交 `Recv` 才读取数据或确认 EOF。适合 TLS 等由上层状态机驱动读取的场景。
+
+```c
 bool xrtNetPortReadProbe(xnetport* pPort,
 	xnetsocket Socket, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 具备 `READ_PROBE` 能力的后端 |
+| `Socket` | 输入 | 已连接流 | 只接受流 Socket |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；可读或 EOF 时产生 `READ_PROBE` 终态 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法或 `Socket` 不是流
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力，或后端无法探询流可读性（无 `READ_PROBE` 能力）
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · TCP](../../examples/network/port_tour/main.c) · 探针终态后再提交 `Recv`
+
+```c
+if ( !xrtNetPortReadProbe(pIocp, Server, 203u, NULL) ||
+	(xrtNetSocketSend(Client, "hi", 2u, &iSent) !=
+		XNET_RESULT_OK) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_READ_PROBE, 203u,
+		&Event, 2000000ull) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortRecv`
+
+异步接收到调用方缓冲；支持流和已连接数据报，单次最多 `INT_MAX` 字节。等价于单跨度 `RecvVec`，错误集与之相同。
+
+```c
 bool xrtNetPortRecv(xnetport* pPort, xnetsocket Socket,
 	void* pData, size_t iSize, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 已连接 | 流或已连接数据报 |
+| `pData` | 输入/输出 | 借用至终态 | 接收缓冲，流接收必须非空 |
+| `iSize` | 输入 | `<= INT_MAX` | 缓冲字节数 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`RECV` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、流接收缓冲为空或大小超限
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 请求字节数超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · TCP](../../examples/network/port_tour/main.c) · 实际读取量在 `Event.Bytes`
+
+```c
+if ( !xrtNetPortRecv(pIocp, Server, arrBuf, 8u, 204u, NULL) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 204u,
+		&Event, 2000000ull) ||
+	(Event.Bytes != 2u) ||
+	(memcmp(arrBuf, "hi", 2u) != 0) ||
+```
+
+### `xrtNetPortRecvVec`
+
+异步分散接收；支持流和已连接数据报，Span 总长度最多 `INT_MAX` 字节。
+
+```c
 bool xrtNetPortRecvVec(xnetport* pPort, xnetsocket Socket,
 	const xnetwspan* pSpans, size_t iCount, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 已连接 | 流或已连接数据报 |
+| `pSpans` | 输入/输出 | 借用至终态 | 可写跨度数组；提交时复制描述符 |
+| `iCount` | 输入 | `> 0` | 跨度数量 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`RECV` 终态事件待提取，`Bytes` 为全部跨度写入总量 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、跨度数组为空、单跨度非法或流接收总长为零
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 跨度总长超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · 流向量](../../examples/network/port_tour/main.c) · 两段分散接收
+
+```c
+if ( !xrtNetPortRecvVec(pIocp, Server, In, 2u, 210u, NULL) ||
+	(xrtNetSocketSendVec(Client, Out, 2u, &iSent) !=
+		XNET_RESULT_OK) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 210u,
+		&Event, 2000000ull) ||
+	(Event.Bytes != 4u) ||
+```
+
+### `xrtNetPortSend`
+
+异步发送调用方缓冲；支持流和已连接数据报，单次最多 `INT_MAX` 字节。等价于单跨度 `SendVec`，错误集与之相同。
+
+```c
 bool xrtNetPortSend(xnetport* pPort, xnetsocket Socket,
 	const void* pData, size_t iSize, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 已连接 | 流或已连接数据报 |
+| `pData` | 输入 | 借用至终态 | 只读发送数据，期间不得修改 |
+| `iSize` | 输入 | `<= INT_MAX` | 发送字节数 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`SEND` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法或发送缓冲/大小非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 发送字节数超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · TCP](../../examples/network/port_tour/main.c) · 发送完成即缓冲可复用
+
+```c
+!xrtNetPortSend(pIocp, Server, "ok", 2u, 205u, NULL) ||
+!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND, 205u,
+	&Event, 2000000ull) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortSendVec`
+
+异步聚集发送；支持流和已连接数据报，Span 总长度最多 `INT_MAX` 字节。
+
+```c
 bool xrtNetPortSendVec(xnetport* pPort, xnetsocket Socket,
 	const xnetspan* pSpans, size_t iCount, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 已连接 | 流或已连接数据报 |
+| `pSpans` | 输入 | 借用至终态 | 只读跨度数组；提交时复制描述符 |
+| `iCount` | 输入 | `> 0` | 跨度数量 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`SEND` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、跨度数组为空或单跨度非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 跨度总长超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · 流向量](../../examples/network/port_tour/main.c) · 两段聚集发送
+
+```c
+!xrtNetPortSendVec(pIocp, Server, Out, 2u, 211u, NULL) ||
+!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND, 211u,
+	&Event, 2000000ull) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortRecvFrom`
+
+异步接收数据报；远端地址由终态事件（`RECV_FROM`）的 `Address` 字段返回。等价于单跨度 `RecvFromVec`，错误集与之相同。
+
+```c
 bool xrtNetPortRecvFrom(xnetport* pPort, xnetsocket Socket,
 	void* pData, size_t iSize, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 数据报 | 未连接或已连接数据报 |
+| `pData` | 输入/输出 | 借用至终态 | 接收缓冲 |
+| `iSize` | 输入 | `<= INT_MAX` | 缓冲字节数；不足时终态为 `TRUNCATED` |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`RECV_FROM` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法或缓冲/大小非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 缓冲超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_iocp · 完成式](../../examples/network/port_iocp/main.c) · 终态事件带来源地址
+
+```c
+!xrtNetPortRecvFrom(pPort, Server,
+	sData, sizeof(sData) - 1, 1, NULL) ||
+```
+
+### `xrtNetPortRecvFromVec`
+
+异步分散接收数据报；缓冲不足由终态事件返回 `TRUNCATED`，`Bytes` 保留实际写入长度。
+
+```c
 bool xrtNetPortRecvFromVec(xnetport* pPort, xnetsocket Socket,
 	const xnetwspan* pSpans, size_t iCount, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 数据报 | 未连接或已连接数据报 |
+| `pSpans` | 输入/输出 | 借用至终态 | 可写跨度数组；提交时复制描述符 |
+| `iCount` | 输入 | `> 0` | 跨度数量 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`RECV_FROM` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、跨度数组为空或单跨度非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 跨度总长超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · 数据报](../../examples/network/port_tour/main.c) · 来源端口在 `Event.Address.Port`
+
+```c
+if ( !xrtNetPortRecvFromVec(pIocp, UdpA, In, 2u, 220u, NULL) ||
+	(xrtNetSocketSendTo(UdpB, "d1", 2u, &iSent, &DestUdpA) !=
+		XNET_RESULT_OK) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_FROM, 220u,
+		&Event, 2000000ull) ||
+```
+
+### `xrtNetPortRecvMsg`
+
+异步接收数据报及 Socket 已启用的元数据；终态事件（`RECV_MSG`）同时返回 `Address` 与 `Meta`。等价于单跨度 `RecvMsgVec`，错误集与之相同。
+
+```c
 bool xrtNetPortRecvMsg(xnetport* pPort, xnetsocket Socket,
 	void* pData, size_t iSize, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 已启用元数据 | 须先 `xrtNetSocketDgramMetaSet` 启用至少一位 |
+| `pData` | 输入/输出 | 借用至终态 | 接收缓冲 |
+| `iSize` | 输入 | `<= INT_MAX` | 缓冲字节数 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`RECV_MSG` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_PORT_SUBMIT` — Socket 未启用任何接收元数据
+- `XERR_ARGUMENT` / `XERR_RANGE` / `XERR_UNSUPPORTED` / `XERR_STATE`（拥有线程）— 同 `RecvVec`
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+
+#### 范例
+
+[network/port_tour · 数据报](../../examples/network/port_tour/main.c) · 终态事件携带已启用的元数据位
+
+```c
+if ( !xrtNetPortRecvMsg(pIocp, UdpA, arrBuf, 16u, 221u, NULL) ||
+	(xrtNetSocketSendTo(UdpB, "d2", 2u, &iSent, &DestUdpA) !=
+		XNET_RESULT_OK) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_MSG, 221u,
+		&Event, 2000000ull) ||
+	(Event.Bytes != 2u) ||
+```
+
+### `xrtNetPortRecvMsgVec`
+
+异步分散接收数据报及元数据；终态事件同时返回 `Address` 和 `Meta`。
+
+```c
 bool xrtNetPortRecvMsgVec(xnetport* pPort, xnetsocket Socket,
 	const xnetwspan* pSpans, size_t iCount, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 已启用元数据 | 须先 `xrtNetSocketDgramMetaSet` 启用至少一位 |
+| `pSpans` | 输入/输出 | 借用至终态 | 可写跨度数组；提交时复制描述符 |
+| `iCount` | 输入 | `> 0` | 跨度数量 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`RECV_MSG` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_PORT_SUBMIT` — Socket 未启用任何接收元数据
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、跨度数组为空或单跨度非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 跨度总长超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · 数据报](../../examples/network/port_tour/main.c) · 分散接收第三形态
+
+```c
+if ( !xrtNetPortRecvMsgVec(pIocp, UdpA, In, 2u, 222u, NULL) ||
+	(xrtNetSocketSendTo(UdpB, "d3", 2u, &iSent, &DestUdpA) !=
+		XNET_RESULT_OK) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_MSG, 222u,
+		&Event, 2000000ull) ||
+```
+
+### `xrtNetPortRecvError`
+
+异步等待并读取一个数据报错误；终态（`RECV_ERROR`）同时返回原负载前缀和 `DgramError`。要求 Socket 已启用数据报错误队列，且后端支持等待该队列。
+
+```c
+bool xrtNetPortRecvError(xnetport* pPort, xnetsocket Socket,
+	void* pData, size_t iSize, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 支持数据报错误等待的后端 |
+| `Socket` | 输入 | 已启用错误队列 | 须先 `xrtNetSocketDgramErrorSet` 启用 |
+| `pData` | 输入/输出 | 借用至终态 | 接收原负载前缀的缓冲 |
+| `iSize` | 输入 | `<= INT_MAX` | 缓冲字节数 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`RECV_ERROR` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_PORT_SUBMIT` — Socket 未启用数据报错误队列
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — Socket 不支持错误队列（平台限制），或后端无法等待数据报错误（如 IOCP）
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法或缓冲/大小非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 缓冲超过 `INT_MAX`
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · 平台门控](../../examples/network/port_tour/main.c) · Windows IOCP 上提交被拒是预期行为
+
+```c
+if ( xrtNetPortRecvError(pIocp, UdpA, arrBuf, 16u, 300u, NULL) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortSendTo`
+
+异步发送数据报；远端地址在提交时复制，提交返回后可立即复用地址对象。等价于单跨度 `SendToVec`，错误集与之相同。
+
+```c
 bool xrtNetPortSendTo(xnetport* pPort, xnetsocket Socket,
 	const void* pData, size_t iSize, const xnetaddr* pRemote,
 	uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 数据报 | 未连接数据报 Socket |
+| `pData` | 输入 | 借用至终态 | 只读发送数据 |
+| `iSize` | 输入 | `<= INT_MAX` | 发送字节数，允许零长度报文 |
+| `pRemote` | 输入 | 非空 | 目标地址；族与 Socket 一致，提交时复制 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`SEND_TO` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、地址族不匹配或缓冲/大小非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 发送字节数超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_uring · 完成式](../../examples/network/port_uring/main.c) · 提交后地址对象即可复用
+
+```c
+!xrtNetPortSendTo(
+	pPort,
+	Client,
+	"completion",
+	10,
+	&Address,
+	2,
+	NULL
+ ) ||
+```
+
+### `xrtNetPortSendToVec`
+
+异步聚集发送数据报；远端地址和 Span 描述符在提交时复制。
+
+```c
 bool xrtNetPortSendToVec(xnetport* pPort, xnetsocket Socket,
 	const xnetspan* pSpans, size_t iCount, const xnetaddr* pRemote,
 	uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 数据报 | 未连接数据报 Socket |
+| `pSpans` | 输入 | 借用至终态 | 只读跨度数组；提交时复制描述符 |
+| `iCount` | 输入 | `> 0` | 跨度数量 |
+| `pRemote` | 输入 | 非空 | 目标地址；提交时复制 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；`SEND_TO` 终态事件待提取 | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、地址族不匹配、跨度数组为空或单跨度非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 跨度总长超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · 数据报发送](../../examples/network/port_tour/main.c) · 两段聚集发送
+
+```c
+if ( !xrtNetPortSendToVec(pIocp, UdpB, Out, 2u, &DestUdpA,
+		230u, NULL) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND_TO, 230u,
+		&Event, 2000000ull) ||
+	(Event.Result != XNET_RESULT_OK) ||
+```
+
+### `xrtNetPortSendMsg`
+
+异步发送带逐包控制的数据报；地址和控制值在提交时复制。非零控制 `Flags` 的终态为 `SEND_MSG`；空控制或零 `Flags` 走普通发送路径，有 `pRemote` 时终态为 `SEND_TO`，否则为 `SEND`（Socket 须已连接）。等价于单跨度 `SendMsgVec`，错误集与之相同。
+
+```c
 bool xrtNetPortSendMsg(xnetport* pPort, xnetsocket Socket,
 	const void* pData, size_t iSize, const xnetaddr* pRemote,
 	const xnetdgramcontrol* pControl, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 数据报 | 数据报 Socket |
+| `pData` | 输入 | 借用至终态 | 只读发送数据 |
+| `iSize` | 输入 | `<= INT_MAX` | 发送字节数 |
+| `pRemote` | 输入 | 可空 | 目标地址；空表示 Socket 已连接 |
+| `pControl` | 输入 | 可空 | 逐包控制；空或零 `Flags` 走普通发送 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；终态类型按控制与地址组合（见上文） | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、地址族不匹配或缓冲/大小非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 发送字节数超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_iocp · 完成式](../../examples/network/port_iocp/main.c) · 逐包覆盖源地址发送
+
+```c
+!xrtNetPortSendMsg(pPort, Client,
+	"completion", 10, &Address, &Control, 2, NULL) ||
+```
+
+### `xrtNetPortSendMsgVec`
+
+异步聚集发送带逐包控制的数据报；Span 描述符、地址和控制值在提交时复制。终态类型与 `SendMsg` 相同。
+
+```c
 bool xrtNetPortSendMsgVec(xnetport* pPort, xnetsocket Socket,
 	const xnetspan* pSpans, size_t iCount, const xnetaddr* pRemote,
 	const xnetdgramcontrol* pControl, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | completion 后端端口 |
+| `Socket` | 输入 | 数据报 | 数据报 Socket |
+| `pSpans` | 输入 | 借用至终态 | 只读跨度数组；提交时复制描述符 |
+| `iCount` | 输入 | `> 0` | 跨度数量 |
+| `pRemote` | 输入 | 可空 | 目标地址；空表示 Socket 已连接 |
+| `pControl` | 输入 | 可空 | 逐包控制；空或零 `Flags` 走普通发送 |
+| `Id` | 输入 | 非零且唯一 | 终态事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入终态事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；终态类型按控制与地址组合（同 `SendMsg`） | — |
+| `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_SUBMIT` — 参数非法、地址族不匹配、跨度数组为空或单跨度非法
+- `XERR_RANGE` + `XNET_ERROR_PORT_SUBMIT` — 跨度总长超过 `INT_MAX`
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_SUBMIT` — 后端没有 completion 能力
+- `XERR_AGAIN` + `XNET_ERROR_PORT_SUBMIT` — 在途操作数达到 `OperationLimit`
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · 数据报发送](../../examples/network/port_tour/main.c) · 零 `Flags` 控制走 `SEND_TO` 路径
+
+```c
+!xrtNetPortSendMsgVec(pIocp, UdpB, Out, 2u, &DestUdpA,
+	&Control, 231u, NULL) ||
+!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND_TO, 231u,
+	&Event, 2000000ull) ||
+(Event.Result != XNET_RESULT_OK) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortCancel`
+
+请求取消指定 `Id` 的在途操作。操作仍以一个终态事件结束：取消成功时为 `CANCELLED`，完成先于取消发生时仍是原完成。
+
+```c
 bool xrtNetPortCancel(xnetport* pPort, uint64 Id);
 ```
 
-完成式 API 以 bytes 为基础，不创建隐藏 `chain`，也没有每对象 8K 或每数据报 64K 固定缓冲。后端在提交时复制 Span 描述符与地址，但不复制载荷；成功提交后，Socket、缓冲和只读发送数据必须保持有效且不变，直到同一 `Id` 的终态事件到达。`SendMsg`/`SendMsgVec` 在控制非空且 `Flags != 0` 时复制 `xnetdgramcontrol` 并为该操作按需保留平台控制缓冲，终态类型为 `SEND_MSG`。控制为空或 `Flags == 0` 时走普通发送路径：提供 `pRemote` 的终态为 `SEND_TO`，否则为 `SEND`，此时 Socket 必须已连接；调用方可在提交返回后立即复用地址、Span 数组和控制对象。常规 `SendTo` 操作不携带控制状态。`ReadProbe` 只接受流 Socket，成功事件为 `READ_PROBE`、`Bytes == 0`，且不会消费字节；其后仍须提交 `Recv` 才能读取数据或确认 EOF。`RecvMsg` 只接受已启用接收元数据的数据报 Socket，终态类型为 `RECV_MSG`，来源地址写入事件 `Address`，有效元数据写入事件 `Meta`。常规 `RecvFrom` 操作描述符不携带控制缓冲，只有显式 `RecvMsg` 才增加固定的小型尾部状态。单个 Span 与一次操作的 Span 总长度最多为 `INT_MAX`，超限在进入系统前返回 `XERR_ARGUMENT` 或 `XERR_RANGE`。`Id` 必须非零并在当前端口全部在途操作中唯一。每次成功提交恰好产生一个对应类型的终态；短读和短写由 `Bytes` 表达，调用方决定是否继续提交。
+#### 参数
 
-终态失败位于事件的 `Result` 与 `SystemCode`，不把一次操作失败误报为端口等待失败。流接收零字节返回 `CLOSED|EOF`；零长度 UDP 报文返回 `OK`；UDP 缓冲不足返回 `TRUNCATED` 并保留实际写入长度、远端地址和已取得的元数据。事件的 `Address` 与 `Meta` 都是值对象，不借用平台控制缓冲。`Cancel` 只请求取消，成功后仍等待原操作唯一的 `CANCELLED` 终态；完成已经先于取消发生时，仍提取原完成。`Destroy` 会取消并排空全部在途操作，返回后系统不再引用调用方缓冲。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 支持取消的后端 |
+| `Id` | 输入 | 非零 | 要取消的在途操作 ID |
 
-IOCP 的 Socket 首次提交时永久关联当前完成端口，同一端口后续提交不再执行关联系统调用；Windows 不支持把该 Socket 改绑到另一个 IOCP。关联身份使用进程内单调 owner 标识，不使用可被分配器复用的上下文地址，因此旧端口销毁后仍不会把原 Socket 误认成新端口成员。操作描述符只把 `OVERLAPPED`、活动索引和稳定事件字段放在公共头中，Accept、地址和接收标志等类型专属状态按需放在尾部；因此空闲读探针与常规流收发落入 256 字节尺寸类，不再为每个连接携带 `sockaddr_storage` 和 Accept 状态。正常关闭顺序是取消并提取终态、关闭 Socket、销毁端口；也可以直接销毁端口来同步取消并排空在途 IO，再关闭相关 Socket，但这些 Socket 不能继续提交或改绑到另一个端口。IOCP 提交、取消和等待属于 owner 线程，`Post` 与 `Wake` 可跨线程。
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 取消请求已受理；仍须等待该操作唯一终态 | — |
+| `false` | 参数非法、后端不支持取消或非拥有线程 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_CANCEL` — `pPort`/`Id` 非法
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_CANCEL` — 后端不支持取消
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · 取消](../../examples/network/port_tour/main.c) · 在途 `Recv` 以 `CANCELLED` 终结
+
+```c
+if ( !xrtNetPortRecv(pIocp, UdpA, arrBuf, 8u, 600u, NULL) ||
+	!xrtNetPortCancel(pIocp, 600u) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 600u,
+		&Event, 2000000ull) ||
+	(Event.Result != XNET_RESULT_CANCELLED) ) {
+```
+
+### 观察与等待（readiness）
+
+一个端口对一个 Socket 保留一份 readiness 观察。`Watch` 替换关注位和事件身份，零关注位等价于 `Unwatch`；`Unwatch` 幂等。`Id` 与 `User` 原样进入事件，端口不拥有用户上下文。错误和挂断由后端隐式观察，不需要加入关注掩码。
+
+readiness 采用 one-shot 契约：已报告的读写方向自动清除，transport 排空或推进状态机后显式重新观察。这样 level、edge 和 completion 后端都不会因未消费状态持续空转。`Wait` 使用 `xrtClock` 单调微秒截止时间；定时器不再由每个后端各自维护链表，后续 engine 使用统一最小堆，并把最近截止时间直接传给 `Wait`。
+
+`Watch`、`Unwatch` 和 `Wait` 属于端口拥有线程。关闭 Socket 前必须先移除仍在生效的观察，销毁端口前必须停止所有生产者。
+
+### `xrtNetPortWatch`
+
+替换一个 Socket 的 readiness 关注位；事件为零等价于 `Unwatch`。每 Socket 单份观察，重复 `Watch` 覆盖旧关注位与事件身份。
+
+```c
+bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | readiness 后端端口 |
+| `Socket` | 输入 | 已打开 | 要观察的 Socket |
+| `Id` | 输入 | 非零 | 事件身份；替换观察时同时替换 |
+| `iEvents` | 输入 | `XNET_PORT_EVENT_*` 位 | 关注方向；`READ`/`WRITE` 等，零等价 `Unwatch` |
+| `pUser` | 输入 | 任意值 | 原样进入事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 内核观察与用户身份均已登记 | — |
+| `false` | 未登记 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_WATCH` — 参数非法
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_WATCH` — 后端没有 readiness 能力（如 IOCP）
+- `XERR_RANGE` + `XNET_ERROR_PORT_WATCH` — 观察数达到 `WatchLimit`（select 还受 `FD_SETSIZE` 约束）
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · readiness](../../examples/network/port_tour/main.c) · SELECT 端口上观察读方向
+
+```c
+if ( !xrtNetPortWatch(pSelect, UdpA, 100u, XNET_PORT_EVENT_READ,
+		NULL) ||
+	(xrtNetSocketSendTo(UdpB, "r", 1u, &iSent, &DestUdpA) !=
+		XNET_RESULT_OK) ||
+	!exampleWaitFor(pSelect, XNET_PORT_EVENT_READY, 100u,
+		&Event, 2000000ull) ||
+	!xrtNetPortUnwatch(pSelect, UdpA) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortUnwatch`
+
+幂等移除观察。失败也会退休用户身份，调用方随后必须关闭该 Socket，不能继续观察或执行 IO。
+
+```c
+bool xrtNetPortUnwatch(xnetport* pPort, xnetsocket Socket);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | readiness 后端端口 |
+| `Socket` | 输入 | 已打开 | 要移除观察的 Socket |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 内核观察和用户身份均已移除 | — |
+| `false` | 移除失败，但用户身份仍已退休；须立即关闭该 Socket | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_WATCH` — 参数非法
+- `XERR_UNSUPPORTED` + `XNET_ERROR_PORT_WATCH` — 后端没有 readiness 能力
+- `XERR_STATE` — 从非拥有线程调用
+
+#### 范例
+
+[network/port_tour · readiness](../../examples/network/port_tour/main.c) · 消费事件后移除观察
+
+```c
+!exampleWaitFor(pSelect, XNET_PORT_EVENT_READY, 100u,
+	&Event, 2000000ull) ||
+!xrtNetPortUnwatch(pSelect, UdpA) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPortWait`
+
+等待到事件、截止时间或错误；成功和超时都会先清零 `*pCount`。只能由拥有线程调用。
+
+```c
+xnetresult xrtNetPortWait(xnetport* pPort,
+	xnetportevent* pEvents, size_t iCapacity,
+	xdeadline iDeadline, size_t* pCount);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 端口指针 |
+| `pEvents` | 输出 | 非空数组 | 事件输出缓冲 |
+| `iCapacity` | 输入 | `> 0` | 输出容量；后端一次最多写入这么多事件 |
+| `iDeadline` | 输入 | 单调微秒 | `xrtClock` 截止时间；`xrtDeadlineAfter`/`xrtDeadlineNever` |
+| `pCount` | 输出 | 非空 | 实际写入事件数；进入时即清零 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_RESULT_OK` | 提取到 `*pCount > 0` 个事件 | — |
+| `XNET_RESULT_TIMEOUT` | 到达截止时间，`*pCount == 0` | — |
+| `XNET_RESULT_ERROR` | 参数非法、非拥有线程或后端等待失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_WAIT` — 缓冲为空、容量为零或 `pCount` 为空
+- `XERR_STATE` — 从非拥有线程调用
+- `XERR_IO` + `XNET_ERROR_PORT_WAIT` — 后端等待系统调用失败
+
+#### 范例
+
+[network/port_tour · 等待辅助](../../examples/network/port_tour/main.c) · 截止时间分片轮询
+
+```c
+if ( xrtNetPortWait(pPort, Events, 8u,
+		xrtDeadlineAfter(iTimeoutUs / 100u),
+		&iCount) != XNET_RESULT_OK ) {
+	continue;
+}
+```
+
+### 用户事件与唤醒
+
+每次成功 `Post` 产生一个 FIFO `USER` 事件，不会合并。`Wake` 只请求一个可合并的 `WAKE` 事件，适合“命令队列已有工作”通知；连续 Wake 不会让 worker 重复空转。端口会合并底层通知而不合并用户事件，因此突发的数千次 `Post` 不需要执行同等数量的唤醒系统调用。事件入队与首次底层通知在同一临界区原子成立，`Post` 返回 `false` 时不会留下随后仍可提取的幽灵事件。select 后端使用两个非阻塞 UDP Socket 形成全平台唤醒通道；epoll 使用 `EFD_NONBLOCK|EFD_CLOEXEC` eventfd，并为不支持原子标志的旧内核补设 `O_NONBLOCK` 与 `FD_CLOEXEC`；kqueue 使用可合并的 `EVFILT_USER/NOTE_TRIGGER`，不再创建旧版 pipe。三者都只承载通知，不承载用户事件本体。
+
+### `xrtNetPortPost`
+
+跨线程投递一个不会合并的用户事件（`USER`）。`Id` 与 `pUser` 原样进入事件。
+
+```c
+bool xrtNetPortPost(xnetport* pPort, uint64 Id, ptr pUser);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 端口指针；跨线程调用仍须保证对象存活 |
+| `Id` | 输入 | 非零 | 事件身份 |
+| `pUser` | 输入 | 任意值 | 原样进入事件 `User` 字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 事件已入队，等待中必然可提取 | — |
+| `false` | 未入队，不留幽灵事件 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_POST` — `pPort`/`Id` 非法
+- `XERR_STATE` + `XNET_ERROR_PORT_POST` — 端口正在关闭
+- `XERR_AGAIN` + `XNET_ERROR_PORT_POST` — 用户事件队列达到 `PostLimit`
+
+#### 范例
+
+[network/port_tour · 用户事件](../../examples/network/port_tour/main.c) · `USER` 事件携带 `Id`
+
+```c
+if ( !xrtNetPortPost(pIocp, 777u, NULL) ||
+	!exampleWaitFor(pIocp, XNET_PORT_EVENT_USER, 777u,
+		&Event, 2000000ull) ||
+```
+
+### `xrtNetPortWake`
+
+跨线程请求一个可合并的 `WAKE` 事件；连续请求只产生一个事件。适合“命令队列已有工作”式通知。
+
+```c
+bool xrtNetPortWake(xnetport* pPort);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPort` | 输入 | 非空 | 端口指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已有挂起 `WAKE` 或新请求了一个 | — |
+| `false` | 未请求 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` + `XNET_ERROR_PORT_POST` — `pPort` 非法
+- `XERR_STATE` + `XNET_ERROR_PORT_POST` — 端口正在关闭
+
+#### 范例
+
+[network/port_tour · 唤醒](../../examples/network/port_tour/main.c) · `WAKE` 事件 `Id` 为零
+
+```c
+!xrtNetPortWake(pIocp) ||
+!exampleWaitFor(pIocp, XNET_PORT_EVENT_WAKE, 0u,
+	&Event, 2000000ull) ) {
+	goto Cleanup;
+}
+```
 
 ### Io_uring 边界
 
@@ -4521,32 +5755,6 @@ SQE 或系统调用被信号中断时会继续提交剩余项。提交函数成�
 `OperationLimit` 对 io_uring 的最大值为 32768，CQ 至少按活动操作与取消控制完成的总量配置。SQ dropped 或 CQ overflow 被视为端口一致性故障，不会继续交付可能缺失的终态。销毁会先请求取消并排空全部活动操作；只有端口进入不可恢复故障时才关闭 ring，利用内核关闭语义同步撤销剩余引用。
 
 当前 `AUTO` 仍在 Linux 选择 epoll。io_uring 必须由 `XNET_PORT_URING` 显式选择，待 Linux 真实运行期的 TCP、UDP、取消、慢端、OOM 和长稳压力门禁在发布 runner 上持续稳定后再提升默认优先级；交叉编译和链接证据不冒充运行期证据。基础、OOM、预提交批量压力、示例和单头文件入口分别位于 `tests/network/test_net_port_uring*.c`、`examples/network/port_uring/main.c` 与 `tests/single/test_single_net_port_uring.c`。TCP、UDP、Future、Dial、慢对端和并发关闭沿用原有 transport 契约测试，Linux io_uring 入口为 `tests/network/test_net_*_uring.c`；单头 transport 入口为 `tests/single/test_single_net_tcp_uring.c` 与 `tests/single/test_single_net_udp_uring.c`，不复制另一套测试逻辑。
-
-### 观察与等待
-
-```c
-bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
-	uint64 Id, uint32 iEvents, ptr pUser);
-bool xrtNetPortUnwatch(xnetport* pPort, xnetsocket Socket);
-xnetresult xrtNetPortWait(xnetport* pPort,
-	xnetportevent* pEvents, size_t iCapacity,
-	xdeadline iDeadline, size_t* pCount);
-```
-
-一个端口对一个 Socket 保留一份 readiness 观察。`Watch` 替换关注位和事件身份，零关注位等价于 `Unwatch`；`Unwatch` 幂等。成功返回表示内核观察和用户身份都已移除；失败返回仍会退休用户身份并屏蔽迟到事件，但调用方必须立即关闭该 Socket，不能继续观察或执行 IO。`Id` 与 `User` 原样进入事件，端口不拥有用户上下文。错误和挂断由后端隐式观察，不需要加入关注掩码。
-
-readiness 采用 one-shot 契约：已报告的读写方向自动清除，transport 排空或推进状态机后显式重新观察。这样 level、edge 和 completion 后端都不会因未消费状态持续空转。`Wait` 使用 `xrtClock` 单调微秒截止时间；有事件返回 `OK`，到期返回 `TIMEOUT`，两者都会先清零 `*pCount`。定时器不再由每个后端各自维护链表，后续 engine 使用统一最小堆，并把最近截止时间直接传给 `Wait`。
-
-`Watch`、`Unwatch` 和 `Wait` 属于端口 owner 线程；`Post` 与 `Wake` 可跨线程。关闭 Socket 前必须先移除仍在生效的观察，销毁端口前必须停止所有生产者。
-
-### 用户事件与唤醒
-
-```c
-bool xrtNetPortPost(xnetport* pPort, uint64 Id, ptr pUser);
-bool xrtNetPortWake(xnetport* pPort);
-```
-
-每次成功 `Post` 产生一个 FIFO `USER` 事件，不会合并。`Wake` 只请求一个可合并的 `WAKE` 事件，适合“命令队列已有工作”通知；连续 Wake 不会让 worker 重复空转。端口会合并底层通知而不合并用户事件，因此突发的数千次 `Post` 不需要执行同等数量的唤醒系统调用。事件入队与首次底层通知在同一临界区原子成立，`Post` 返回 `false` 时不会留下随后仍可提取的幽灵事件。select 后端使用两个非阻塞 UDP Socket 形成全平台唤醒通道；epoll 使用 `EFD_NONBLOCK|EFD_CLOEXEC` eventfd，并为不支持原子标志的旧内核补设 `O_NONBLOCK` 与 `FD_CLOEXEC`；kqueue 使用可合并的 `EVFILT_USER/NOTE_TRIGGER`，不再创建旧版 pipe。三者都只承载通知，不承载用户事件本体。
 
 ### Epoll 边界
 
@@ -4569,6 +5777,134 @@ kqueue 基础、OOM、数百 Socket 批量压力和单头文件回归分别位�
 select 是 Tier C fallback，能力为 readiness、one-shot、batch wait、wake 和 post，不宣称 completion 或 edge。Windows 的 `fd_set` 受 `FD_SETSIZE` 数量限制，内部唤醒 Socket 占一个槽位；POSIX 同时要求原生 fd 小于 `FD_SETSIZE`。用户 Socket 超限在 `Watch` 时确定性失败；进程已有大量文件导致内部唤醒 fd 无法表示时，端口直接在 `Create` 阶段返回 `XNET_ERROR_PORT_CREATE`，两条路径都不会进入越界的 `FD_SET`。高连接数部署应选择 IOCP、io_uring、epoll 或 kqueue。
 
 select、epoll、kqueue、IOCP 和 io_uring 示例分别位于 `examples/network/port_select/main.c`、`examples/network/port_epoll/main.c`、`examples/network/port_kqueue/main.c`、`examples/network/port_iocp/main.c` 与 `examples/network/port_uring/main.c`。
+
+## 嵌入式任务投递
+
+`xnetpost` 是嵌入调用方结构的无分配任务节点：`xrtNetPostInit` 初始化，`xrtNetPost` 投递到指定 Worker 队列，出队前 `xrtNetPostPending` 为真。与 `xrtNetEnginePost` 相比它不分配节点，适合高频、固定生命周期的任务；同一 `xnetpost` 在出队并执行完成前不能再次投递。调用方必须通过网络对象引用保证 Worker 和 `xnetpost` 存活到回调返回。
+
+### `xrtNetPostInit`
+
+初始化一个尚未投递的嵌入式 Post；清零节点并写入内部魔数。
+
+```c
+bool xrtNetPostInit(xnetpost* pPost);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPost` | 输出 | 非空 | 嵌入调用方结构的 `xnetpost` |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 节点已就绪，可投递 | — |
+| `false` | `pPost` 非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pPost` 为空或范围非法
+
+#### 范例
+
+[network/engine_tour · 嵌入式 Post](../../examples/network/engine_tour/main.c) · 初始化后立即投递
+
+```c
+if ( !xrtNetPostInit(&Post) ||
+	!xrtNetPost(pWorker0, &Post,
+		exampleSimpleTask, (ptr)&bTaskDone) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPostPending`
+
+判断嵌入式 Post 是否仍在 Worker 队列中等待执行；执行完成后清除。
+
+```c
+bool xrtNetPostPending(const xnetpost* pPost);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPost` | 输入 | 非空 | 已 `PostInit` 的节点 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理投递、尚未执行 | — |
+| `false` | 已执行完成，或从未投递成功 | 参数非法/状态非法时错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pPost` 为空或范围非法
+- `XERR_STATE` — 节点未经 `xrtNetPostInit` 初始化（魔数不匹配）
+
+#### 范例
+
+[network/engine_tour · 嵌入式 Post](../../examples/network/engine_tour/main.c) · 受理为真，执行后为假
+
+```c
+if ( !xrtNetPostPending(&Post) ) {
+	goto Cleanup;
+}
+if ( !exampleSpinUntil(&bTaskDone, 2000u) ||
+	xrtNetPostPending(&Post) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetPost`
+
+无分配地投递到指定 Worker；同一 Post 在出队前不能再次投递。从 Worker 自身线程调用时直接入队不阻塞，跨线程投递经有界提交段进入。受理失败时节点状态回滚，不留半提交状态。
+
+```c
+bool xrtNetPost(
+	xnetworker* pWorker,
+	xnetpost* pPost,
+	xnettaskproc pProc,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWorker` | 输入 | 非空 | 目标 Worker；须保持存活到回调返回 |
+| `pPost` | 输入/输出 | 已 `PostInit` | 嵌入式任务节点 |
+| `pProc` | 输入 | 非空 | 任务回调，在亲和 Worker 上执行一次 |
+| `pData` | 输入 | 任意值 | 原样传给回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；回调必在目标 Worker 上执行一次 | — |
+| `false` | 未受理，节点无残留状态 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pWorker`/`pPost`/`pProc` 为空或非法
+- `XERR_STATE` — `pPost` 未经 `xrtNetPostInit` 初始化，或仍在队列中等待（不能重复投递）
+- `XERR_CLOSED` + `XNET_ERROR_ENGINE_POST` — Worker 未运行、不再受理投递或关停已封口
+
+#### 范例
+
+[network/engine_tour · 嵌入式 Post](../../examples/network/engine_tour/main.c) · 投递固定任务并自旋等待
+
+```c
+if ( !xrtNetPostInit(&Post) ||
+	!xrtNetPost(pWorker0, &Post,
+		exampleSimpleTask, (ptr)&bTaskDone) ) {
+	goto Cleanup;
+}
+```
 
 ## 网络 Engine
 
