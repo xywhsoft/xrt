@@ -21,7 +21,7 @@
 | 14 | crypto.md | 122 | **完成** | 122/122 全绿（G3 122 片段，2026-09-07）；三段：哈希 30 + 密码/MAC-KDF 46 + 签名/曲线 46 |
 | 15 | environment.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；Lookup 的"不存在=成功+空输出"语义成文 |
 | 16 | error.md | 45 | **完成** | 45/45 全绿（G3 45 片段，2026-09-07）；错误族 26（含 SetErrorFormat）+ Core 并集附录 19；门禁工具补变参支持 |
-| 17 | executor.md | 10 | 待办 |  |
+| 17 | executor.md | 10 | **完成** | 10/10 全绿（G3 10 片段，2026-09-07）；双门禁一次全绿 |
 | 18 | file.md | 97 | 待办 |  |
 | 19 | file_async.md | 34 | 待办 |  |
 | 20 | future.md | 104 | 待办 |  |
@@ -319,3 +319,11 @@
   签名永远过不了参数覆盖检查）——扩展为 `\w+|\.\.\.`，属工具
   缺陷修正（同 --all 前缀 bug 一类），不影响既有文件（core/array/
   crypto 复验全绿）。
+- 2026-09-07 executor.md 完成（10/10，G3 10 片段）：十函数全部
+  成节。契约入档：Submit/SubmitBatch 的"成功接管析构、失败不
+  调用析构"所有权边界；SubmitBatch 单 Worker 队列"全成或全败"
+  原子性；AGAIN 满载背压（QueueLimit 为每 Worker 硬上限）；
+  Wait 族"只对已关闭执行器有意义"+ Worker 不能等待/销毁自身
+  的 STATE；Cancel"丢弃排队工作并执行析构、运行中不强停"。
+  锚点：executor（千次 Submit + 失败 Cancel）+ executor_tour
+  （Batch/Get 六计数/Close+Wait 三形态）。双门禁一次全绿。
