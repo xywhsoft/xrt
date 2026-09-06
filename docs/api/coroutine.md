@@ -107,73 +107,1842 @@ POSIX 手工栈切换在 AddressSanitizer 构建中使用官方 fiber switch 接
 | `XRT_CO_EVENT_STORAGE_SIZE` | 当前平台的 `xcoevent` 内部存储容量；不能作为跨平台 ABI 尺寸。 |
 | `XRT_CO_SCHED_POST_LIMIT_DEFAULT` | 默认外部投递队列上限：1024 项，不限制内部协程唤醒队列。 |
 
-## API 索引
+## 协程核心
 
-### 协程核心
+### `xrtCoCreate`
 
-| API | 说明 |
-| --- | --- |
-| `xrtCoCreate` | 创建 `READY` 协程；失败返回空指针并设置结构化错误。 |
-| `xrtCoDestroy` | 销毁未启动或已完成对象；活跃对象失败且保持有效。 |
-| `xrtCoResume` | 在所属线程恢复协程，直到让出或完成。 |
-| `xrtCoYield` | 让出当前协程，并在恢复后返回取消状态。 |
-| `xrtCoCurrent` | 返回当前协程的借用句柄；普通调用栈返回空指针。 |
-| `xrtCoState` | 返回可恢复状态快照。 |
-| `xrtCoTerm` | 仅在状态已发布为 `DONE` 后返回终态，否则返回 `NONE`。 |
-| `xrtCoResult` | 返回正常终态的借用结果。 |
-| `xrtCoError` | 返回错误终态的借用结构化错误。 |
-| `xrtCoCancel` | 线程安全且幂等地请求协作取消，并通知可选调度器。 |
-| `xrtCoCancelToken` | 返回增加引用后的取消令牌。 |
-| `xrtCoStopping` | 查询当前协程是否收到取消请求。 |
-| `xrtCoConfirmCancel` | 确认用户过程返回时发布取消终态。 |
-| `xrtCoThreadDetach` | 释放当前外部线程的惰性协程运行时。 |
-| `xrtCoCleanupPush` | 压入零初始化、调用方存储的无分配清理节点。 |
-| `xrtCoDefer` | 分配并压入由协程管理存储期的清理节点。 |
-| `xrtCoCleanupPop` | 弹出栈顶节点，并可立即执行清理过程。 |
-| `xrtCoBackend` | 返回当前目标的静态后端名称。 |
+创建 `XCORO_READY` 状态的协程对象；未恢复前不分配运行栈之外的状态。
 
-### 调度器
+```c
+xcoro* xrtCoCreate(xcoroproc pProc, ptr pData, const xcoroargs* pArgs);
+```
 
-| API | 说明 |
-| --- | --- |
-| `xrtCoSchedCreate` | 在当前线程创建调度器。 |
-| `xrtCoSchedCreateLimit` | 创建时指定用户投递上限；0 使用默认 1024。 |
-| `xrtCoSchedDestroy` | 销毁空闲调度器及其保留的完成句柄。 |
-| `xrtCoSchedCurrent` | 返回当前协程所属的借用调度器。 |
-| `xrtCoSchedPost` | 从任意线程 FIFO 投递借用数据过程。 |
-| `xrtCoSchedPostOwned` | 投递并在成功受理后接管数据，执行后恰好析构一次。 |
-| `xrtCoSpawn` | 创建完成后保留句柄的调度协程。 |
-| `xrtCoGo` | 创建完成后自动回收的分离协程。 |
-| `xrtCoSchedClose` | 停止受理新工作并请求取消全部活跃协程。 |
-| `xrtCoSchedStep` | 非阻塞地执行至多一个投递和一个就绪协程。 |
-| `xrtCoSchedPollFor` | 在相对微秒期限内等待，并执行至多一个调度步。 |
-| `xrtCoSchedPollUntil` | 在绝对截止时间前等待，并执行至多一个调度步。 |
-| `xrtCoSchedRun` | 运行到活跃协程和已受理投递全部排空。 |
-| `xrtCoSchedAlive` | 在所属线程返回尚未完成的协程数量。 |
-| `xrtCoWake` | 线程安全且幂等地唤醒仍然有效的调度协程。 |
-| `xrtCoPark` | 挂起当前协程直到 wake 或取消。 |
-| `xrtCoParkFor` | 挂起到相对微秒期限、wake 或取消。 |
-| `xrtCoParkUntil` | 挂起到绝对截止时间、wake 或取消。 |
-| `xrtCoSleep` | 睡眠相对微秒数；自然到期或提前 wake 返回 `OK`。 |
-| `xrtCoSleepUntil` | 睡眠到绝对截止时间。 |
-| `xrtCoJoin` | 等待同一调度器的保留句柄完成。 |
-| `xrtCoJoinFor` | 在相对微秒期限内等待目标完成。 |
-| `xrtCoJoinUntil` | 在绝对截止时间前等待目标完成。 |
+#### 参数
 
-### 协程事件
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProc` | 输入 | 非空 | 协程入口过程 |
+| `pData` | 输入 | 任意值 | 原样传给过程 |
+| `pArgs` | 输入 | 允许空 | 栈大小/父取消令牌/终结过程；空 = 全默认 |
 
-| API | 说明 |
-| --- | --- |
-| `xrtCoEventInit` | 初始化调用方存储的自动或手动复位事件。 |
-| `xrtCoEventUnit` | 释放固定存储事件；有活动等待时失败且保持有效。 |
-| `xrtCoEventCreate` | 创建堆存储的自动或手动复位事件。 |
-| `xrtCoEventDestroy` | 销毁堆事件；有活动等待时失败且不释放。 |
-| `xrtCoEventSet` | 置位事件，并按复位模式唤醒一个或全部等待者。 |
-| `xrtCoEventReset` | 清除后续等待可见的信号态。 |
-| `xrtCoEventAwait` | 等待信号或取消。 |
-| `xrtCoEventTryAwait` | 非阻塞检查信号，并消费自动复位信号。 |
-| `xrtCoEventAwaitFor` | 在相对微秒期限内等待信号。 |
-| `xrtCoEventAwaitUntil` | 在绝对截止时间前等待信号。 |
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | `READY` 协程，归属当前线程 | — |
+| `NULL` | 参数非法、栈大小越界或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 过程为空或 `pArgs` 字段非法
+- `XERR_RANGE` — 栈大小超出 32 KiB–64 MiB 边界
+- `XERR_MEMORY` — 对象或栈分配失败
+
+#### 范例
+
+[concurrency/coroutine · 基础](../../examples/concurrency/coroutine/main.c) · 创建-恢复-取结果-销毁
+
+```c
+xcoro* pCo = xrtCoCreate(exampleCoroutine, &iValue, NULL);
+
+if ( pCo == NULL ) {
+	return 1;
+}
+(void)xrtCoResume(pCo);
+```
+
+### `xrtCoDestroy`
+
+销毁未启动或已完成对象；活跃对象失败且保持有效。
+
+```c
+bool xrtCoDestroy(xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 允许空 | 目标协程；只接受 `READY` 或 `DONE` 状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 对象已释放 | — |
+| `false` | 对象活跃或非本线程 | 对象保持有效；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `XERR_STATE` — 栈仍活跃（拒绝跳过清理）或从其他线程销毁
+
+#### 范例
+
+[concurrency/coroutine · 收尾](../../examples/concurrency/coroutine/main.c) · 完成后销毁并 detach
+
+```c
+(void)xrtCoDestroy(pCo);
+(void)xrtCoThreadDetach();
+return 0;
+```
+
+### `xrtCoResume`
+
+在所属线程恢复协程，直到让出或完成。
+
+```c
+bool xrtCoResume(xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 非空 | 目标协程；须处于 `READY`/`SUSPENDED` |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 本次恢复段已执行到让出或返回 | — |
+| `false` | 状态不可恢复或非本线程 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `XERR_STATE` — `RUNNING`/`DONE` 状态或从其他线程恢复
+
+#### 范例
+
+[concurrency/coroutine · 基础](../../examples/concurrency/coroutine/main.c) · 两次恢复走完 yield 前后两段
+
+```c
+(void)xrtCoResume(pCo);
+printf("after yield: %d\n", iValue);
+(void)xrtCoResume(pCo);
+printf("result: %d\n", *(int*)xrtCoResult(pCo));
+```
+
+### `xrtCoYield`
+
+让出当前协程，并在恢复后返回取消状态。
+
+```c
+xwaitresult xrtCoYield(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 仅协程内可调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 正常恢复 | — |
+| `XWAIT_CANCELLED` | 恢复时收到取消请求 | 协作取消的检查点 |
+| `XWAIT_ERROR` | 不在协程内 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 普通调用栈（非协程）中调用
+
+#### 范例
+
+[concurrency/coroutine · 基础](../../examples/concurrency/coroutine/main.c) · yield 即取消检查点
+
+```c
+if ( xrtCoYield() != XWAIT_OK ) {
+	return NULL;
+}
+```
+
+### `xrtCoCurrent`
+
+返回当前协程的借用句柄；普通调用栈返回空指针。
+
+```c
+xcoro* xrtCoCurrent(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 无参数 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 非空 | 当前协程借用（回调期间有效） |
+| `NULL` | 普通线程调用栈（正常结果） |
+
+#### 错误
+
+- 无 — 空返回是上下文查询结果
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 协程内自省起点
+
+```c
+xcoro* pSelf = xrtCoCurrent();
+```
+
+### `xrtCoState`
+
+返回可恢复状态快照。
+
+```c
+xcorostate xrtCoState(const xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 允许空 | 目标协程 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `XCORO_READY` / `XCORO_RUNNING` / `XCORO_SUSPENDED` / `XCORO_DONE` | 状态枚举；空句柄返回 `READY`（零值） |
+
+#### 错误
+
+- 无 — 快照查询
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 运行中自检 + 终态核对
+
+```c
+pJob->iRunning = xrtCoState(pSelf) == XCORO_RUNNING ? 1 : 0;
+```
+
+### `xrtCoTerm`
+
+仅在状态已发布为 `DONE` 后返回终态，否则返回 `NONE`。
+
+```c
+xcoroterm xrtCoTerm(const xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 允许空 | 目标协程 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `XCORO_TERM_NONE` | 尚未终结 |
+| `XCORO_TERM_RETURNED` / `XCORO_TERM_CANCELLED` / `XCORO_TERM_ERROR` | 终态原因 |
+
+#### 错误
+
+- 无 — 终态查询
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 完成后核对 RETURNED
+
+```c
+(xrtCoState(pLife) != XCORO_DONE) ||
+(xrtCoTerm(pLife) != XCORO_TERM_RETURNED) ||
+```
+
+### `xrtCoResult`
+
+返回正常终态的借用结果。
+
+```c
+ptr xrtCoResult(const xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 允许空 | 目标协程 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 非空 | 过程返回值（所有权由调用方约定） |
+| `NULL` | 未完成、取消终态或过程返回了空 |
+
+#### 错误
+
+- 无 — 借用查询
+
+#### 范例
+
+[concurrency/coroutine · 取结果](../../examples/concurrency/coroutine/main.c) · 完成后读取返回值
+
+```c
+printf("result: %d\n", *(int*)xrtCoResult(pCo));
+```
+
+### `xrtCoError`
+
+返回错误终态的借用结构化错误。
+
+```c
+const xerror* xrtCoError(const xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 允许空 | 目标协程 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 非空 | `XCORO_TERM_ERROR` 终态的错误借用 |
+| `NULL` | 非错误终态或未完成 |
+
+#### 错误
+
+- 无 — 借用查询
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 正常终态应为空错误
+
+```c
+(xrtCoError(pLife) != NULL) ||
+(xrtCoResult(pLife) != (ptr)1) ) {
+```
+
+### `xrtCoCancel`
+
+线程安全且幂等地请求协作取消，并通知可选调度器。
+
+```c
+bool xrtCoCancel(xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 非空 | 目标协程；可从任意线程调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 请求已受理（重复请求同样成功） | — |
+| `false` | 句柄为空或已终结 | 已终结不设错；空句柄设 `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · 协作取消](../../examples/concurrency/coroutine_lifecycle/main.c) · 工作协程挂起后请求取消
+
+```c
+return xrtCoCancel(pContext->Worker) ? pContext : NULL;
+```
+
+### `xrtCoCancelToken`
+
+返回增加引用后的取消令牌。
+
+```c
+xcancel* xrtCoCancelToken(const xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 非空、当前协程 | 只能在协程内取自己的令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 引用 +1 的令牌；调用方 `xrtCancelDestroy` 释放 | — |
+| `NULL` | 非协程上下文或句柄为空 | `XERR_STATE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `XERR_STATE` — 普通调用栈中调用
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 协程内取令牌传给可中断等待
+
+```c
+pJob->pToken = xrtCoCancelToken(pSelf);
+```
+
+### `xrtCoStopping`
+
+查询当前协程是否收到取消请求。
+
+```c
+bool xrtCoStopping(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 仅协程内有意义 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `true` | 已收到取消请求（尚未确认） |
+| `false` | 无请求或普通线程路径（正常结果） |
+
+#### 错误
+
+- 无 — 查询语义
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 自省字段之一
+
+```c
+pJob->iStopping = xrtCoStopping() ? 1 : 0;
+```
+
+### `xrtCoConfirmCancel`
+
+确认用户过程返回时发布取消终态。
+
+```c
+bool xrtCoConfirmCancel(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 仅协程内、收到请求后可调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 终态将发布为 `XCORO_TERM_CANCELLED` | — |
+| `false` | 无取消请求、普通线程或清理栈中 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 无请求或非法上下文
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · 协作取消](../../examples/concurrency/coroutine_lifecycle/main.c) · park 被取消后确认终态
+
+```c
+Result = xrtCoPark();
+if ( Result == XWAIT_CANCELLED ) {
+	(void)xrtCoConfirmCancel();
+}
+```
+
+### `xrtCoThreadDetach`
+
+释放当前外部线程的惰性协程运行时。
+
+```c
+bool xrtCoThreadDetach(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 外部创建的线程在最后一个协程结束后调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 运行时已释放 | — |
+| `false` | 仍有挂起协程 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 仍有协程未终结
+
+#### 范例
+
+[concurrency/coroutine · 收尾](../../examples/concurrency/coroutine/main.c) · 销毁全部协程后 detach
+
+```c
+(void)xrtCoDestroy(pCo);
+(void)xrtCoThreadDetach();
+return 0;
+```
+
+### `xrtCoCleanupPush`
+
+压入零初始化、调用方存储的无分配清理节点。
+
+```c
+bool xrtCoCleanupPush(
+	xcocleanup* pCleanup,
+	xcocleanupproc pProc,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCleanup` | 输入/输出 | `XRT_CO_CLEANUP_INIT` 或全零 | 存储期须覆盖协程终态 |
+| `pProc` | 输入 | 非空 | 不可挂起的清理过程 |
+| `pData` | 输入 | 任意值 | 原样传给清理过程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已按后进先出压栈 | — |
+| `false` | 参数非法或非协程上下文 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_STATE` — 普通调用栈调用
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · 清理栈](../../examples/concurrency/coroutine_lifecycle/main.c) · 调用方存储节点
+
+```c
+if ( !xrtCoCleanupPush(
+	&pContext->ManualCleanup,
+	exampleCleanup,
+	&pContext->ManualCleaned
+) ) {
+```
+
+### `xrtCoDefer`
+
+分配并压入由协程管理存储期的清理节点。
+
+```c
+xcocleanup* xrtCoDefer(xcocleanupproc pProc, ptr pData);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProc` | 输入 | 非空 | 清理过程 |
+| `pData` | 输入 | 任意值 | 原样传给清理过程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 节点句柄，可用于提前弹出 | — |
+| `NULL` | 参数非法、非协程上下文或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` / `XERR_STATE` / `XERR_MEMORY`
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · 清理栈](../../examples/concurrency/coroutine_lifecycle/main.c) · 托管节点
+
+```c
+pDeferred = xrtCoDefer(exampleCleanup, &pContext->DeferredCleaned);
+if ( pDeferred == NULL ) {
+	return NULL;
+}
+```
+
+### `xrtCoCleanupPop`
+
+弹出栈顶节点，并可立即执行清理过程。
+
+```c
+bool xrtCoCleanupPop(xcocleanup* pCleanup, bool bRun);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCleanup` | 输入 | 非空、栈顶节点 | `Defer` 句柄或 `CleanupPush` 节点 |
+| `bRun` | 输入 | — | 为真时立即执行清理过程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已弹出（并按需执行） | — |
+| `false` | 节点不在栈顶或非协程上下文 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_STATE` — 节点非栈顶
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · 清理栈](../../examples/concurrency/coroutine_lifecycle/main.c) · 失败路径弹出托管节点
+
+```c
+(void)xrtCoCleanupPop(pDeferred, true);
+return NULL;
+```
+
+### `xrtCoBackend`
+
+返回当前目标的静态后端名称。
+
+```c
+cstr xrtCoBackend(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 无参数 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `cstr` | 静态字符串（如 `"fiber"`、`"asm"`），进程存活期有效 |
+
+#### 错误
+
+- 无 — 静态查询
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 自省字段之一
+
+```c
+pJob->sBackend = xrtCoBackend();
+```
+
+## 调度器
+
+### `xrtCoSchedCreate`
+
+在当前线程创建调度器；默认投递上限 1024。
+
+```c
+xcosched* xrtCoSchedCreate(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 无参数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 归属当前线程的调度器 | — |
+| `NULL` | 分配失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_MEMORY` — 调度器结构分配失败
+
+#### 范例
+
+[concurrency/coroutine_event · 事件](../../examples/concurrency/coroutine_event/main.c) · 创建后 spawn 消费者
+
+```c
+pSched = xrtCoSchedCreate();
+if ( pSched == NULL ) {
+	(void)xrtCoEventUnit(&tEvent);
+	return 1;
+}
+```
+
+### `xrtCoSchedCreateLimit`
+
+创建时指定用户投递上限；0 使用默认 1024。
+
+```c
+xcosched* xrtCoSchedCreateLimit(size_t iPostLimit);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iPostLimit` | 输入 | — | 尚未执行的用户投递上限；0 = 默认，`SIZE_MAX` = 不限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 调度器 | — |
+| `NULL` | 分配失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 显式 16 项上限
+
+```c
+pStep = xrtCoSchedCreateLimit(16u);
+```
+
+### `xrtCoSchedDestroy`
+
+销毁空闲调度器及其保留的完成句柄。
+
+```c
+bool xrtCoSchedDestroy(xcosched* pSched);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 允许空 | 须在所属线程且无未执行投递 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 调度器与保留句柄已释放 | — |
+| `false` | 仍有未执行投递或活跃协程句柄 | 不静默丢弃；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` — 有未执行投递/保留句柄未销毁，或非所属线程
+
+#### 范例
+
+[concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 排空后销毁
+
+```c
+!xrtCoSchedDestroy(pStep) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtCoSchedCurrent`
+
+返回当前协程所属的借用调度器。
+
+```c
+xcosched* xrtCoSchedCurrent(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 无参数 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 非空 | 当前协程的调度器借用 |
+| `NULL` | 普通调用栈（正常结果） |
+
+#### 错误
+
+- 无 — 上下文查询
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 协程内反查调度器
+
+```c
+pJob->pSched = xrtCoSchedCurrent();
+```
+
+### `xrtCoSchedPost`
+
+从任意线程 FIFO 投递借用数据过程。
+
+```c
+bool xrtCoSchedPost(
+	xcosched* pSched,
+	xcoschedpostproc pProc,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空 | 目标调度器 |
+| `pProc` | 输入 | 非空 | 所属线程普通栈执行的短过程 |
+| `pData` | 输入 | 借用 | 原样传给过程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已入队 | — |
+| `false` | 队满、已关闭或参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_AGAIN` — 投递队列达到上限（背压）
+- `XERR_STATE` — 调度器已 Close
+
+#### 范例
+
+[concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 投递后单步执行
+
+```c
+!xrtCoSchedPost(pStep, examplePostProc, NULL) ||
+(xrtCoSchedAlive(pStep) != 0u) ||
+(xrtCoSchedStep(pStep) != XWAIT_OK) ||
+```
+
+### `xrtCoSchedPostOwned`
+
+从任意线程投递过程并接管数据；失败不接管，受理后在过程返回后恰好析构一次。
+
+```c
+bool xrtCoSchedPostOwned(
+	xcosched* pSched,
+	xcoschedpostproc pProc,
+	ptr pData,
+	xcocleanupproc pDestroy
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空 | 目标调度器 |
+| `pProc` | 输入 | 非空 | 短过程 |
+| `pData` | 输入 | 成功受理后移交 | 数据所有权 |
+| `pDestroy` | 输入 | 非空 | 析构过程，恰好执行一次 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；析构由调度器保证 | — |
+| `false` | 队满、已关闭或参数非法 | 数据仍归调用方 |
+
+#### 错误
+
+- `XERR_ARGUMENT` / `XERR_AGAIN` / `XERR_STATE` — 同 `xrtCoSchedPost`
+
+#### 范例
+
+[concurrency/coroutine_tour · PostOwned](../../examples/concurrency/coroutine_tour/main.c) · 析构恰好一次核对
+
+```c
+if ( !xrtCoSchedPostOwned(pSched, examplePostProc, (ptr)7,
+		examplePostDestroy) ||
+	!xrtCoSchedRun(pSched) ||
+	(g_Destroyed != 1) ) {
+```
+
+### `xrtCoSpawn`
+
+创建由调度器管理且在完成后保留句柄的协程。
+
+```c
+xcoro* xrtCoSpawn(
+	xcosched* pSched,
+	xcoroproc pProc,
+	ptr pData,
+	const xcoroargs* pArgs
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空、未关闭 | 所属调度器 |
+| `pProc` | 输入 | 非空 | 协程过程 |
+| `pData` | 输入 | 任意值 | 过程数据 |
+| `pArgs` | 输入 | 允许空 | 栈/令牌/终结配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 保留句柄；完成后可读终态，最后 `Destroy` | — |
+| `NULL` | 调度器关闭、参数非法或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` / `XERR_STATE`（已关闭）/ `XERR_MEMORY`
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · spawn 后 Run 到完成
+
+```c
+pLife = xrtCoSpawn(pSched, exampleCoLife, &Life, NULL);
+if ( (pLife == NULL) || !xrtCoSchedRun(pSched) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtCoGo`
+
+创建完成后由调度器自动回收的分离协程。
+
+```c
+bool xrtCoGo(
+	xcosched* pSched,
+	xcoroproc pProc,
+	ptr pData,
+	const xcoroargs* pArgs
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空、未关闭 | 所属调度器 |
+| `pProc` | 输入 | 非空 | 协程过程 |
+| `pData` | 输入 | 任意值 | 过程数据 |
+| `pArgs` | 输入 | 允许空 | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已受理；完成后自动回收，无句柄 | — |
+| `false` | 同 `xrtCoSpawn` 失败条件 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtCoSpawn`
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · 三协程同场](../../examples/concurrency/coroutine_lifecycle/main.c) · 工作协程 + 两个 Go 辅助
+
+```c
+xrtCoGo(pSched, exampleCancel, &Context, NULL) &&
+xrtCoGo(pSched, exampleJoin, &Context, NULL) ) {
+```
+
+### `xrtCoSchedClose`
+
+请求取消全部活跃协程并停止接收新协程和新投递。
+
+```c
+bool xrtCoSchedClose(xcosched* pSched);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空 | 目标调度器；幂等 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已停止受理；已受理投递仍按 FIFO 排空 | — |
+| `false` | 指针非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · 失败路径](../../examples/concurrency/coroutine_lifecycle/main.c) · spawn 失败时关闭排空
+
+```c
+(void)xrtCoSchedClose(pSched);
+(void)xrtCoSchedRun(pSched);
+```
+
+### `xrtCoSchedStep`
+
+非阻塞地执行至多一个投递和一个就绪协程。
+
+```c
+xwaitresult xrtCoSchedStep(xcosched* pSched);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空、所属线程 | 目标调度器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 执行了工作 | — |
+| `XWAIT_CLOSED` | 无活跃协程与待执行投递 | 正常排空结果 |
+| `XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_STATE` — 非所属线程
+
+#### 范例
+
+[concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 投递后单步执行
+
+```c
+(xrtCoSchedStep(pStep) != XWAIT_OK) ||
+```
+
+### `xrtCoSchedPollFor`
+
+在相对微秒期限内等待，并执行至多一个调度步。
+
+```c
+xwaitresult xrtCoSchedPollFor(xcosched* pSched, uint64 iTimeout);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空、所属线程 | 目标调度器 |
+| `iTimeout` | 输入 | 微秒 | 等待期限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 执行了工作 | — |
+| `XWAIT_TIMEOUT` | 到期但仍有挂起协程 | 正常结果 |
+| `XWAIT_CLOSED` | 全部排空 | 正常结果 |
+| `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtCoSchedStep`
+
+#### 范例
+
+[concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 期限轮询
+
+```c
+(xrtCoSchedPollFor(pStep, EXAMPLE_LONG_US) !=
+	XWAIT_OK) ||
+```
+
+### `xrtCoSchedPollUntil`
+
+在绝对截止时间前等待，并执行至多一个调度步。
+
+```c
+xwaitresult xrtCoSchedPollUntil(xcosched* pSched, xdeadline iDeadline);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空、所属线程 | 目标调度器 |
+| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CLOSED` | 同 `xrtCoSchedPollFor` | — |
+| `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtCoSchedStep`
+
+#### 范例
+
+[concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 截止轮询
+
+```c
+(xrtCoSchedPollUntil(pStep,
+	xrtDeadlineAfter(EXAMPLE_LONG_US)) !=
+	XWAIT_OK) ||
+```
+
+### `xrtCoSchedRun`
+
+运行到活跃协程和已受理投递全部排空。
+
+```c
+bool xrtCoSchedRun(xcosched* pSched);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 非空、所属线程 | 目标调度器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已排空（不驻留的事件循环） | — |
+| `false` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_STATE` — 非所属线程
+
+#### 范例
+
+[concurrency/coroutine_event · 事件](../../examples/concurrency/coroutine_event/main.c) · 消费者 + 生产者一次排空
+
+```c
+bOkay =
+	(pConsumer != NULL) &&
+	xrtCoGo(pSched, producer, &tEvent, NULL) &&
+	xrtCoSchedRun(pSched) &&
+	(xrtCoResult(pConsumer) == &tEvent) &&
+```
+
+### `xrtCoSchedAlive`
+
+在所属线程返回尚未完成的协程数量。
+
+```c
+size_t xrtCoSchedAlive(const xcosched* pSched);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSched` | 输入 | 允许空 | 目标调度器 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `>= 0` | 活跃协程计数（含分离协程） |
+| `0` | 无活跃协程或句柄为空 |
+
+#### 错误
+
+- 无 — 计数查询
+
+#### 范例
+
+[concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 空转核对为零
+
+```c
+(xrtCoSchedAlive(pStep) != 0u) ||
+```
+
+### `xrtCoWake`
+
+线程安全且幂等地唤醒仍然有效的调度协程。
+
+```c
+bool xrtCoWake(xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 非空 | 目标协程；句柄销毁不是并发操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 唤醒已投递（提前 wake 保留到下一次 park） | — |
+| `false` | 句柄为空或非调度协程 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `XERR_STATE` — 目标不由调度器管理
+
+#### 范例
+
+[concurrency/coroutine_tour · Join/Park](../../examples/concurrency/coroutine_tour/main.c) · 唤醒挂起的 parker
+
+```c
+(void)xrtCoWake(pParker);
+```
+
+### `xrtCoPark`
+
+挂起当前协程直到 wake 或取消。
+
+```c
+xwaitresult xrtCoPark(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 仅调度协程内可调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 被 wake 唤醒 | — |
+| `XWAIT_CANCELLED` | 收到取消请求 | 协作检查点 |
+| `XWAIT_ERROR` | 非调度协程上下文 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 普通协程或普通调用栈
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · 协作取消](../../examples/concurrency/coroutine_lifecycle/main.c) · park 被取消打断
+
+```c
+Result = xrtCoPark();
+if ( Result == XWAIT_CANCELLED ) {
+	(void)xrtCoConfirmCancel();
+}
+```
+
+### `xrtCoParkFor`
+
+挂起到相对微秒期限、wake 或取消。
+
+```c
+xwaitresult xrtCoParkFor(uint64 iTimeout);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iTimeout` | 输入 | 微秒 | 相对期限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | wake/到期/取消 | — |
+| `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 非调度协程上下文
+
+#### 范例
+
+[concurrency/coroutine_tour · Join/Park](../../examples/concurrency/coroutine_tour/main.c) · 被唤醒返回 OK
+
+```c
+pJob->iForResult = (int)xrtCoParkFor(EXAMPLE_LONG_US);
+```
+
+### `xrtCoParkUntil`
+
+挂起到绝对截止时间、wake 或取消。
+
+```c
+xwaitresult xrtCoParkUntil(xdeadline iDeadline);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 同 `xrtCoParkFor` | — |
+| `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 非调度协程上下文
+
+#### 范例
+
+[concurrency/coroutine_tour · Join/Park](../../examples/concurrency/coroutine_tour/main.c) · 过期返回 TIMEOUT
+
+```c
+pJob->iUntilResult = (int)xrtCoParkUntil(
+```
+
+### `xrtCoSleep`
+
+睡眠相对微秒数；自然到期或提前 wake 返回 `OK`。
+
+```c
+xwaitresult xrtCoSleep(uint64 iTimeout);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iTimeout` | 输入 | 微秒 | 睡眠时长 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 到期或被 wake 提前结束 | — |
+| `XWAIT_CANCELLED` | 取消请求打断 | — |
+| `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 非调度协程上下文
+
+#### 范例
+
+[concurrency/coroutine_event · 生产者](../../examples/concurrency/coroutine_event/main.c) · 短睡后置位事件
+
+```c
+if ( xrtCoSleep(1000) != XWAIT_OK ) {
+```
+
+### `xrtCoSleepUntil`
+
+睡眠到绝对截止时间。
+
+```c
+xwaitresult xrtCoSleepUntil(xdeadline iDeadline);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_CANCELLED` | 到期/取消 | — |
+| `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 非调度协程上下文
+
+#### 范例
+
+[concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 协程内短睡
+
+```c
+(void)xrtCoSleepUntil(xrtDeadlineAfter(EXAMPLE_SHORT_US));
+```
+
+### `xrtCoJoin`
+
+等待同一调度器的保留句柄完成。
+
+```c
+xwaitresult xrtCoJoin(xcoro* pCo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 非空 | 保留句柄；须与等待者同调度器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 目标已完成 | — |
+| `XWAIT_CANCELLED` | 等待者自身被取消 | — |
+| `XWAIT_ERROR` | 参数非法或跨调度器 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空或分离协程
+- `XERR_STATE` — 跨调度器 join 或检测到依赖环
+
+#### 范例
+
+[concurrency/coroutine_lifecycle · Join](../../examples/concurrency/coroutine_lifecycle/main.c) · 同调度器等待工作协程
+
+```c
+pContext->JoinResult = xrtCoJoin(pContext->Worker);
+```
+
+### `xrtCoJoinFor`
+
+在相对微秒期限内等待目标完成。
+
+```c
+xwaitresult xrtCoJoinFor(xcoro* pCo, uint64 iTimeout);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 非空 | 保留句柄 |
+| `iTimeout` | 输入 | 微秒 | 相对期限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 完成/到期/取消 | — |
+| `XWAIT_ERROR` | 同 `xrtCoJoin` 错误条件 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtCoJoin`
+
+#### 范例
+
+[concurrency/coroutine_tour · Join/Park](../../examples/concurrency/coroutine_tour/main.c) · 短窗超时
+
+```c
+pJob->iForResult = (int)xrtCoJoinFor(pJob->pTarget,
+```
+
+### `xrtCoJoinUntil`
+
+在绝对截止时间前等待目标完成。
+
+```c
+xwaitresult xrtCoJoinUntil(xcoro* pCo, xdeadline iDeadline);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCo` | 输入 | 非空 | 保留句柄 |
+| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 完成/到期/取消 | — |
+| `XWAIT_ERROR` | 同 `xrtCoJoin` | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtCoJoin`
+
+#### 范例
+
+[concurrency/coroutine_tour · Join/Park](../../examples/concurrency/coroutine_tour/main.c) · 截止等待完成
+
+```c
+pJob->iUntilResult = (int)xrtCoJoinUntil(pJob->pTarget,
+```
+
+## 协程事件
+
+### `xrtCoEventInit`
+
+初始化调用方存储的自动或手动复位事件。
+
+```c
+bool xrtCoEventInit(
+	xcoevent* pEvent,
+	bool bManualReset,
+	bool bSignaled
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输出 | 非空 | 固定存储（可嵌入调用方结构） |
+| `bManualReset` | 输入 | — | 手动复位唤醒全部；自动复位按 FIFO 唤醒一个 |
+| `bSignaled` | 输入 | — | 初始信号态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 事件已就绪 | — |
+| `false` | 指针非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+
+#### 范例
+
+[concurrency/coroutine_event · 事件](../../examples/concurrency/coroutine_event/main.c) · 自动复位、无初始信号
+
+```c
+if ( !xrtCoEventInit(&tEvent, false, false) ) {
+	return 1;
+}
+```
+
+### `xrtCoEventUnit`
+
+释放协程事件；仍有尚未返回的等待者时失败并保持对象有效。
+
+```c
+bool xrtCoEventUnit(xcoevent* pEvent);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输入 | 非空 | `Init` 产物；与其他操作不能并发 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 固定存储已释放 | — |
+| `false` | 仍有 Await 未返回 | 对象保持有效；`XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_STATE` — 仍有等待者（即使已获信号）
+
+#### 范例
+
+[concurrency/coroutine_event · 收尾](../../examples/concurrency/coroutine_event/main.c) · 排空后释放
+
+```c
+(void)xrtCoSchedDestroy(pSched);
+(void)xrtCoEventUnit(&tEvent);
+(void)xrtCoThreadDetach();
+```
+
+### `xrtCoEventCreate`
+
+创建自动或手动复位协程事件（堆存储易用层）。
+
+```c
+xcoevent* xrtCoEventCreate(
+	bool bManualReset,
+	bool bSignaled
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `bManualReset` | 输入 | — | 复位模式 |
+| `bSignaled` | 输入 | — | 初始信号态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 堆事件；`EventDestroy` 释放 | — |
+| `NULL` | 分配失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[concurrency/coroutine_tour · 事件族](../../examples/concurrency/coroutine_tour/main.c) · 自动复位事件
+
+```c
+pAuto = xrtCoEventCreate(false, false);
+if ( (pAuto == NULL) || !xrtCoEventSet(pAuto) ) {
+	goto Cleanup;  /* 预置位供 TryAwait 立即消费 */
+}
+```
+
+### `xrtCoEventDestroy`
+
+释放 `Create` 返回的协程事件；仍有等待者时失败且不释放对象。
+
+```c
+bool xrtCoEventDestroy(xcoevent* pEvent);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输入 | 允许空 | `Create` 产物 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已释放 | — |
+| `false` | 仍有等待者 | 对象不释放；`XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 仍有 Await 未返回
+
+#### 范例
+
+[concurrency/coroutine_tour · 事件族](../../examples/concurrency/coroutine_tour/main.c) · 全部唤醒核对后销毁
+
+```c
+if ( (pWaiter == NULL) || (pEvtDriver == NULL) ||
+	!xrtCoSchedRun(pSched) ||
+	(Evt.iWoken != 3) ||
+	!xrtCoEventDestroy(pAuto) ) {
+```
+
+### `xrtCoEventSet`
+
+置位事件；手动复位唤醒全部等待者，自动复位按 FIFO 唤醒一个。
+
+```c
+bool xrtCoEventSet(xcoevent* pEvent);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输入 | 非空 | 目标事件；线程安全 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已置位并投递唤醒 | — |
+| `false` | 指针非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+
+#### 范例
+
+[concurrency/coroutine_event · 生产者](../../examples/concurrency/coroutine_event/main.c) · 短睡后置位事件
+
+```c
+return xrtCoEventSet(pEvent) ? pEvent : NULL;
+```
+
+### `xrtCoEventReset`
+
+清除事件的信号态；已经获得信号的等待者不受影响。
+
+```c
+bool xrtCoEventReset(xcoevent* pEvent);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输入 | 非空 | 目标事件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 后续等待不再看到信号 | — |
+| `false` | 指针非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+
+#### 范例
+
+[concurrency/coroutine_tour · 事件族](../../examples/concurrency/coroutine_tour/main.c) · 双 Set 后清信号覆盖
+
+```c
+(void)xrtCoEventReset(pJob->pAuto);  /* 清信号（覆盖点） */
+```
+
+### `xrtCoEventAwait`
+
+挂起当前调度协程，直到事件置位或协程取消。
+
+```c
+xwaitresult xrtCoEventAwait(xcoevent* pEvent);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输入 | 非空 | 目标事件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 取得信号（自动复位信号被消费） | — |
+| `XWAIT_CANCELLED` | 协程被取消 | — |
+| `XWAIT_ERROR` | 非调度协程或终结过程内 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_STATE` — 非调度协程，或终结过程中调用
+
+#### 范例
+
+[concurrency/coroutine_event · 消费者](../../examples/concurrency/coroutine_event/main.c) · 等待生产者置位
+
+```c
+if ( xrtCoEventAwait(pEvent) != XWAIT_OK ) {
+```
+
+### `xrtCoEventTryAwait`
+
+非阻塞地检查并消费自动复位事件。
+
+```c
+xwaitresult xrtCoEventTryAwait(xcoevent* pEvent);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输入 | 非空 | 目标事件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 有信号并已消费（自动复位） | — |
+| `XWAIT_TIMEOUT` | 无信号（正常结果） | 不设错 |
+| `XWAIT_CANCELLED` | 已取消 | — |
+| `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtCoEventAwait`
+
+#### 范例
+
+[concurrency/coroutine_tour · 事件族](../../examples/concurrency/coroutine_tour/main.c) · 预置位立即消费
+
+```c
+if ( xrtCoEventTryAwait(pJob->pAuto) == XWAIT_OK ) {
+```
+
+### `xrtCoEventAwaitFor`
+
+在相对微秒数内等待事件置位。
+
+```c
+xwaitresult xrtCoEventAwaitFor(
+	xcoevent* pEvent,
+	uint64 iTimeout
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输入 | 非空 | 目标事件 |
+| `iTimeout` | 输入 | 微秒 | 相对期限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 信号/到期/取消 | — |
+| `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtCoEventAwait`
+
+#### 范例
+
+[concurrency/coroutine_tour · 事件族](../../examples/concurrency/coroutine_tour/main.c) · 期限等待由 Set 唤醒
+
+```c
+if ( xrtCoEventAwaitFor(pJob->pAuto, EXAMPLE_LONG_US) ==
+```
+
+### `xrtCoEventAwaitUntil`
+
+等待事件置位、协程取消或到达截止时间。
+
+```c
+xwaitresult xrtCoEventAwaitUntil(
+	xcoevent* pEvent,
+	xdeadline iDeadline
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEvent` | 输入 | 非空 | 目标事件 |
+| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 信号/到期/取消 | — |
+| `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtCoEventAwait`
+
+#### 范例
+
+[concurrency/coroutine_tour · 事件族](../../examples/concurrency/coroutine_tour/main.c) · 截止等待由 Set 唤醒
+
+```c
+if ( xrtCoEventAwaitUntil(pJob->pAuto,
+```
 
 ## 示例
 

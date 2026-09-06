@@ -17,7 +17,7 @@
 | 10 | compress.md | 18 | **完成** | 18/18 全绿（G3 18 片段，2026-09-07）；Inflate/Deflate 对称 9+9；失败终态与 Reset 复用契约成文 |
 | 11 | console.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；四码 xrt.console 域成节 |
 | 12 | core.md | 44 | **完成** | 44/44 全绿（G3 44 片段，2026-09-07）；四头并集（core/error/memory/features）；error/tour 补注册至 core 模块 |
-| 13 | coroutine.md | 51 | 待办 |  |
+| 13 | coroutine.md | 51 | **完成** | 51/51 全绿（G3 51 片段，2026-09-07）；核心 18 + 调度器 23 + 事件 10；旧 API 索引表全部转模板节 |
 | 14 | crypto.md | 122 | 待办 |  |
 | 15 | environment.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；Lookup 的"不存在=成功+空输出"语义成文 |
 | 16 | error.md | 45 | 待办 |  |
@@ -256,3 +256,16 @@
   门禁拦截 3 处查询函数缺错误节后补齐转绿；既有文件抽查无回归。
   注：error.md（#16）与 memory.md 的门禁并集同为 44/45 函数，
   其任务将复用本文件节内容按各文件侧重改写。
+- 2026-09-07 coroutine.md 完成（51/51，G3 51 片段）：三组全部
+  成节——协程核心 18（生命周期/自省/协作取消/清理栈/后端）、
+  调度器 23（创建/投递含 PostOwned 恰好一次析构/单步与轮询/
+  Park-Wake-Sleep-Join）、事件 10（自动/手动复位 + 四形态等待）。
+  关键契约入档：Cancel 与 ConfirmCancel 的"请求-确认"两段式
+  （处理后正常返回仍是 RETURNED）；Destroy 拒绝活跃栈的 STATE
+  语义；SchedPost 的 AGAIN 背压与 PostOwned"失败不接管"；
+  Step/Poll 的 CLOSED=排空正常结果口径；Event Unit/Destroy 的
+  "仍有等待者即失败保持对象"。锚点跨 5 个已注册范例
+  （coroutine_tour 36 项 + lifecycle 10 + coroutine/event/
+  scheduler）。G3 拦截 1 处不存在的 EventSet 片段（凭记忆写
+  了未在范例中的调用形态，改为真实源行）后转绿；既有文件抽查
+  无回归。
