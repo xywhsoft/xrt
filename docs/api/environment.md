@@ -21,39 +21,157 @@
 
 内存不足继续使用统一的 `XERR_MEMORY`。全部错误都进入当前 XRT 错误执行上下文，因此上层宿主可以映射，C 调用方也可通过 `xrtGetError` 检查。
 
-## `xrtEnvLookup`
+## API
+
+### `xrtEnvLookup`
+
+无歧义基础入口：查询过程成功返回 `true`，变量是否存在由输出指针区分。
 
 ```c
 bool xrtEnvLookup(cstr sName, str* psValue);
 ```
 
-这是无歧义基础入口。返回 `true` 表示查询过程成功：变量存在时 `*psValue` 是由 `xrtFree` 释放的 UTF-8 副本，不存在时 `*psValue == NULL`。空变量值会返回独立的空字符串，因此不会与变量不存在混淆。
+#### 参数
 
-函数进入后先把有效输出参数设为 `NULL`。名称必须非空、不能包含 `=`，并且必须是严格 UTF-8。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sName` | 输入 | 非空、不含 `=`、严格 UTF-8 | 变量名 |
+| `psValue` | 输出 | 非空 | 进入时先置 `NULL`；存在时为 `xrtFree` 释放的副本 |
 
-## `xrtEnvGet`
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 查询成功；`*psValue` 非空 = 值副本，`NULL` = 变量不存在 | — |
+| `false` | 名称非法、系统失败或 OOM | `*psValue` 保持 `NULL`；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XENV_ERROR_NAME` — 名称非法
+- `XENV_ERROR_VALUE` — 系统值无法转换为 UTF-8
+- `XENV_ERROR_SYSTEM` — 环境 API 失败
+- `XERR_MEMORY` — 副本分配失败
+
+#### 范例
+
+[environment/variants · 缺失语义](../../examples/environment/variants/main.c) · 不存在是成功状态（输出为空）
+
+```c
+/* 不存在的变量：成功返回 + 空输出。 */
+if ( xrtEnvLookup("XRT_DEFINITELY_MISSING", &sValue) ) {
+	printf("missing=ok\n");
+}
+xrtFree(sValue);
+```
+
+### `xrtEnvGet`
+
+常见路径的一行便捷入口；需要区分缺失和失败的代码应使用 `xrtEnvLookup`。
 
 ```c
 str xrtEnvGet(cstr sName);
 ```
 
-常见路径的一行便捷入口。成功时返回拥有副本；变量不存在或查询失败时返回 `NULL`。需要区分缺失和失败的代码应使用 `xrtEnvLookup`。
+#### 参数
 
-## `xrtEnvSet`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sName` | 输入 | 非空、不含 `=`、严格 UTF-8 | 变量名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 拥有式 UTF-8 副本（空变量值返回独立空串） | — |
+| `NULL` | 变量不存在或查询失败 | 失败时错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtEnvLookup`（`NAME` / `VALUE` / `SYSTEM` / `XERR_MEMORY`）
+
+#### 范例
+
+[system/environment · 拥有式读取](../../examples/system/environment/main.c) · 副本不受后续环境修改影响
+
+```c
+sValue = xrtEnvGet("XRT_ENVIRONMENT_EXAMPLE");
+if ( sValue == NULL ) {
+	return 2;
+}
+printf("value=%s\n", sValue);
+```
+
+### `xrtEnvSet`
+
+设置或覆盖进程级变量。
 
 ```c
 bool xrtEnvSet(cstr sName, cstr sValue);
 ```
 
-设置或覆盖进程级变量。值不能为空指针，但允许为空字符串。名称和值都按严格 UTF-8 验证；Windows 使用宽字符系统 API，不经过当前 ANSI 代码页。
+#### 参数
 
-## `xrtEnvRemove`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sName` | 输入 | 非空、不含 `=`、严格 UTF-8 | 变量名 |
+| `sValue` | 输入 | 非空、严格 UTF-8；允许空串 | 新值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已设置（子进程会继承） | — |
+| `false` | 名称/值非法、系统失败或 OOM | 环境不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XENV_ERROR_NAME` / `XENV_ERROR_VALUE` — 名称或值非法
+- `XENV_ERROR_SYSTEM` — 设置 API 失败（Windows 用宽字符 API，不经 ANSI 代码页）
+- `XERR_MEMORY`
+
+#### 范例
+
+[system/environment · 全流程](../../examples/system/environment/main.c) · 真实进程环境生效
+
+```c
+if ( !xrtEnvSet("XRT_ENVIRONMENT_EXAMPLE", "hello") ) {
+	return 1;
+}
+```
+
+### `xrtEnvRemove`
+
+幂等删除变量；变量原本不存在仍返回 `true`。
 
 ```c
 bool xrtEnvRemove(cstr sName);
 ```
 
-幂等删除变量。变量原本不存在仍返回 `true`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sName` | 输入 | 非空、不含 `=`、严格 UTF-8 | 变量名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已删除或本就不存在（幂等） | — |
+| `false` | 名称非法或系统失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XENV_ERROR_NAME` — 名称非法
+- `XENV_ERROR_SYSTEM` — 删除 API 失败
+
+#### 范例
+
+[system/environment · 收尾](../../examples/system/environment/main.c) · 范例不留下全局副作用
+
+```c
+return xrtEnvRemove("XRT_ENVIRONMENT_EXAMPLE") ? 0 : 3;
+```
 
 ## 并发与外部修改
 
@@ -77,4 +195,4 @@ if ( sValue != NULL ) {
 xrtEnvRemove("APP_MODE");
 ```
 
-完整示例见 `examples/system/environment/main.c`。
+完整示例见 `examples/system/environment/main.c` 与 `examples/environment/variants/main.c`。

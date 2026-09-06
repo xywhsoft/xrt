@@ -15,11 +15,11 @@
 | 8 | charset.md | 69 | **完成** | 69/69 全绿（G3 69 片段，2026-09-07）；16 组全成节（原 131 问题清零），锚点跨 9 个已注册范例 |
 | 9 | codec.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；HEX/Base64/Percent 三族；codec/tour 补注册至 codec_hex |
 | 10 | compress.md | 18 | **完成** | 18/18 全绿（G3 18 片段，2026-09-07）；Inflate/Deflate 对称 9+9；失败终态与 Reset 复用契约成文 |
-| 11 | console.md | 4 | 待办 |  |
+| 11 | console.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；四码 xrt.console 域成节 |
 | 12 | core.md | 44 | 待办 |  |
 | 13 | coroutine.md | 51 | 待办 |  |
 | 14 | crypto.md | 122 | 待办 |  |
-| 15 | environment.md | 4 | 待办 |  |
+| 15 | environment.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；Lookup 的"不存在=成功+空输出"语义成文 |
 | 16 | error.md | 45 | 待办 |  |
 | 17 | executor.md | 10 | 待办 |  |
 | 18 | file.md | 97 | 待办 |  |
@@ -234,3 +234,10 @@
   标注；DeflateAll 的确定性输出（内容寻址/缓存关键性质）入档。
   锚点：stream_tour（14 项）+ deflate/inflate 专项范例各 2。
   双门禁一次全绿；既有文件抽查无回归。
+- 2026-09-07 compress.md（18/18，d460c23b）、console.md（4/4）、
+  environment.md（4/4）完成：compress 的 Inflate/Deflate 对称族 +
+  双域六码错误矩阵 + "参数失败不改状态 vs 失败终态须 Reset"两分法；
+  console 四函数与 xrt.console 四码域成节（重定向 IsTerminal=false
+  是正常结果的口径）；environment 的 Lookup"查询成功与存在性分离"
+  （true + 空输出 = 不存在）与 Get/Remove 幂等口径入档。三个文件
+  双门禁均一次全绿；锚点覆盖 stream_tour/variants 等已注册范例。
