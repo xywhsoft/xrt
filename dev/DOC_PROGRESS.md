@@ -7,7 +7,7 @@
 |---|---|---|---|---|
 | 1 | array.md | 50 | **完成** | 试点 1；50 函数 G1-G4 全绿（2026-09-07） |
 | 2 | asn1.md | 27 | **完成** | 27/27 全绿（G3 27 片段，2026-09-07）；错误码 TAG/LENGTH/VALUE/TYPE/END/TRAILING/ORDER/DEPTH/RANGE 九码全表成文；编码器族（Append*8 + Oid 工具 3）首入文档 |
-| 3 | atomic.md | 29 | 待办 |  |
+| 3 | atomic.md | 29 | **完成** | 29/29 全绿（G3 29 片段，2026-09-07）；范例 atomic_tour 补 5 个缺口 API（32Store/FetchAdd/FetchSub、64Store、PtrInit/PtrStore）并实测通过 |
 | 4 | avl.md | 43 | 待办 |  |
 | 5 | buffer.md | 23 | 待办 |  |
 | 6 | cancel.md | 9 | 待办 |  |
@@ -149,3 +149,13 @@
   范例锚点：der（游标链 7 API）/decode_tour（读取器族 8）/
   encode_tour（编码器族 12）。双门禁一次全绿；array.md 与
   net.md 复验无回归。
+- 2026-09-07 atomic.md 完成（29/29，G3 29 片段）：三族（32/64/Ptr）
+  统一的顺序矩阵（加载三种/存储三种/读改写五种/CAS 失败序约束）成文
+  为错误总表；"失败的写操作不修改对象"与 CAS 失败回写 *pExpected
+  的强语义逐函数入档；Init/Store/栅栏对非法参数静默空操作、读改写
+  返回零值设错的差异化口径区分；IsLockFree 保守口径（false ≠ 非原子）
+  入档。范例 atomic_tour 补齐 5 个缺口 API（32 Store/FetchAdd/
+  FetchSub、64 Store、Ptr Init/Store），真实编译运行验证
+  （gcc 16.1，EXIT=0，预期输出 4/5 行不变、64 位行 0→7）。
+  门禁拦截 2 处 Init 参数表漏行后修复转绿；asn1/array/net 复验
+  无回归。

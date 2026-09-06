@@ -2,11 +2,13 @@
  * 范例：core/atomic_tour —— 原子操作 RMW/栅栏补集
  * ----------------------------------------------------------------
  * 演示 API：
- *   【RMW 补集】  xrtAtomic32Exchange / FetchAnd / FetchOr /
+ *   【RMW 补集】  xrtAtomic32Init / Load / Store / Exchange /
+ *                FetchAdd / FetchSub / FetchAnd / FetchOr /
  *                FetchXor / CompareExchange（强语义失败回写）
- *   【64 位】    xrtAtomic64Init / Exchange / FetchSub / FetchAnd /
- *                FetchOr / FetchXor
- *   【指针】    xrtAtomicPtrExchange / PtrCompareExchange
+ *   【64 位】    xrtAtomic64Init / Load / Store / Exchange /
+ *                FetchSub / FetchAnd / FetchOr / FetchXor
+ *   【指针】    xrtAtomicPtrInit / Load / Store / Exchange /
+ *                PtrCompareExchange
  *   【杂项】    xrtAtomicIsLockFree / ThreadFence / SignalFence /
  *              Pause
  * 模块宏：XRT_MODULE_ATOMIC
@@ -16,7 +18,7 @@
  * 预期输出：
  *   atomic: 32-bit exchange=0F and/or/xor = E/C/5
  *   atomic: cas ok=1 fail-rewrites=A
- *   atomic: 64-bit init/exchange/sub/and/or/xor = 0
+ *   atomic: 64-bit init/exchange/sub/and/or/xor = 7
  *   atomic: ptr exchange/cas = ok
  *   atomic: lockfree(4/8)=1 fence+pause ok
  */
@@ -86,6 +88,19 @@ int main(void)
 	printf("atomic: cas ok=1 fail-rewrites=%X\n",
 		(unsigned)iExpected);
 
+	/* ---- 32 位：Store / FetchAdd / FetchSub（加减按模回绕） ---- */
+	xrtAtomic32Store(&A32, 0x33u, XMEMORY_RELEASE);
+	iOld32 = xrtAtomic32FetchAdd(&A32, 0x0Cu, XMEMORY_ACQ_REL);
+	if ( (iOld32 != 0x33u) ||
+		(xrtAtomic32Load(&A32, XMEMORY_ACQUIRE) != 0x3Fu) ) {
+		goto Cleanup;
+	}
+	iOld32 = xrtAtomic32FetchSub(&A32, 0x0Fu, XMEMORY_ACQ_REL);
+	if ( (iOld32 != 0x3Fu) ||
+		(xrtAtomic32Load(&A32, XMEMORY_ACQUIRE) != 0x30u) ) {
+		goto Cleanup;
+	}
+
 	/* ---- 64 位：Init / Exchange / Sub / And / Or / Xor ---- */
 	xrtAtomic64Init(&A64, UINT64_C(100));
 	iOld64 = xrtAtomic64Exchange(&A64, UINT64_C(50),
@@ -117,13 +132,16 @@ int main(void)
 		(xrtAtomic64Load(&A64, XMEMORY_ACQUIRE) != 0u) ) {
 		goto Cleanup;  /* 31 ^ 31 = 0 */
 	}
+	xrtAtomic64Store(&A64, UINT64_C(7), XMEMORY_RELEASE);
+	if ( xrtAtomic64Load(&A64, XMEMORY_ACQUIRE) != UINT64_C(7) ) {
+		goto Cleanup;
+	}
 	printf("atomic: 64-bit init/exchange/sub/and/or/xor = %llu\n",
 		(unsigned long long)xrtAtomic64Load(&A64,
 			XMEMORY_ACQUIRE));
 
-	/* ---- 指针：Exchange / CompareExchange ---- */
-	(void)xrtAtomicPtrStore(&APtr, (ptr)&s_Target[0],
-		XMEMORY_RELEASE);
+	/* ---- 指针：Init / Exchange / CompareExchange ---- */
+	xrtAtomicPtrInit(&APtr, (ptr)&s_Target[0]);
 	pOld = xrtAtomicPtrExchange(&APtr, (ptr)&s_Target[1],
 		XMEMORY_ACQ_REL);
 	if ( (pOld != (ptr)&s_Target[0]) ||
@@ -142,6 +160,12 @@ int main(void)
 	if ( !xrtAtomicPtrCompareExchange(&APtr, &pExpected,
 			(ptr)&s_Target[0], XMEMORY_ACQ_REL,
 			XMEMORY_ACQUIRE) ) {
+		goto Cleanup;
+	}
+	/* Store：CAS 后直接写回并核对。 */
+	xrtAtomicPtrStore(&APtr, (ptr)&s_Target[1], XMEMORY_RELEASE);
+	if ( xrtAtomicPtrLoad(&APtr, XMEMORY_ACQUIRE) !=
+		(ptr)&s_Target[1] ) {
 		goto Cleanup;
 	}
 	printf("atomic: ptr exchange/cas = ok\n");
