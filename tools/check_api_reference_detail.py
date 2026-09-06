@@ -232,7 +232,7 @@ def main():
 		for doc in sorted(DOCS_DIR.glob("*.md")):
 			if doc.name.endswith("-reference.md"):
 				continue
-			if doc.name in doc_headers:
+			if "docs/api/" + doc.name in doc_headers:
 				targets.append(doc)
 	else:
 		targets.append(DOCS_DIR / args.doc)

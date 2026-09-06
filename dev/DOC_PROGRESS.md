@@ -50,7 +50,7 @@
 | 43 | net-frame.md | 9 | 待办 |  |
 | 44 | net-interface.md | 12 | 待办 |  |
 | 45 | net-resolver.md | 172 | 待办 |  |
-| 46 | net.md | 184 | 进行中 [5/6 段] | 试点 2；前 5 段 156/184 全绿（地址族 20 + 缓冲/DNS/Bytes 39 + Socket 39 + Port 29 + Post 3 + Engine 17 + Worker 9），余第 6 段 Resolver/Interfaces 26 |
+| 46 | net.md | 184 | **完成** | 试点 2；六段全绿（184/184，G3 203 片段）：地址族 20 + 缓冲/DNS/Bytes 39 + Socket 39 + Port 29 + Post 3 + Engine 17 + Worker 9 + 第 6 段 26 + CompletionInit 1 |
 | 47 | number.md | 15 | 待办 |  |
 | 48 | once.md | 22 | 待办 |  |
 | 49 | path.md | 32 | 待办 |  |
@@ -124,3 +124,17 @@
   契约（先试 Current 再走 TimerCancel）入档；EngineAfter 为 Schedule
   转发（锚点用 network/engine 范例）。G3 151→177 片段全绿；
   array.md 复验仍绿。
+- 2026-09-07 net.md 第 6 段（Resolver 7 + ResolveOp 6 + ResolveAsync +
+  Interface 4 + Local/Host 8 + CompletionInit = 26 函数）完成，
+  net.md 全文件达成（184/184，G3 203 片段全绿）：
+  错误域码 RESOLVER_CREATE/CLOSED/SUBMIT/QUERY + FAMILY 自
+  src/network/resolver.c、INTERFACE_INDEX/NAME/ADDRESS/HARDWARE +
+  BUFFER（两段式缓冲不足=NOT_FOUND/RANGE 区分）自 interface*.c
+  溯源入档；Resolver 的 VALUE/CLOSED/RANGE/AGAIN 四层受理门与
+  缓存命中共享查询组语义入档；OpRef 引用计数与"回调后保留须先取
+  引用"契约成文；接口族"两段式查询→写入"统一口径成文；
+  String 形态判空即失败（不设线程错误）与 Text 形态 XRT_NPOS
+  的区分入档。门禁工具修复：check_api_reference_detail.py 的
+  --all 模式因成员判断用裸文件名而字典键带 docs/api/ 前缀，
+  恒空转（修复后 77 个待办文件正确报数）；G3 工具无此问题。
+  array.md 复验仍绿（50/50 + 50 片段）。

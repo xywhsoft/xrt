@@ -6941,6 +6941,42 @@ Worker 上调用 `Proc(worker, event, data)`。
 的 Completion，因此 TCP、UDP、监听器和自定义协议可以任意组合。无人接收的
 Accept 结果由 Engine 自动关闭，避免泄漏已接受 Socket。
 
+### `xrtNetCompletionInit`
+
+初始化一个借用过程和数据的端口 Completion；空指针是空操作，不设置错误。
+
+```c
+void xrtNetCompletionInit(xnetcompletion* pCompletion,
+	xnetcompletionproc pProc, ptr pData);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCompletion` | 输出 | 建议非空 | 调用方拥有的 Completion；空指针是空操作 |
+| `pProc` | 输入 | 可空 | 终态回调 `Proc(worker, event, data)`，在所属 Worker 上执行 |
+| `pData` | 输入 | 任意值 | 原样传给回调 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 纯初始化；存活期约束见上文 Completion 契约 |
+
+#### 错误
+
+- 无 — 初始化不失败，空指针静默忽略
+
+#### 范例
+
+[network/engine_tour · Completion](../../examples/network/engine_tour/main.c) · 借用过程与数据的初始化形态
+
+```c
+xrtNetCompletionInit(&Completion, exampleCompletionProc,
+	(ptr)&bTaskDone);
+```
+
 ### 统计
 
 `xrtNetWorkerStats` 返回单 Worker 并发快照，`xrtNetEngineStats` 聚合全部 Worker。
@@ -7030,4 +7066,982 @@ if ( !xrtNetEngineStats(pEngine, &EngineStats) ||
 	(EngineStats.TimersFired < 2u) ) {
 	goto Cleanup;
 }
+```
+
+## 名称解析（Resolver）
+
+Resolver 提供独立于 Engine 的异步名称解析：自带工作线程池、成功/失败结果缓存与并发上限。同一规范化主机与地址族只执行一次底层查询，并发请求共享同一查询组。`xrtNetResolveAsync` 把查询包装为 Future。Op（`xnetresolveop`）是引用计数对象：回调在 Resolver Worker 上恰好执行一次，回调后仍可查询状态与结果，跨线程保留须先 `xrtNetResolveOpRef`。
+
+### `xrtNetResolverConfigInit`
+
+写入兼顾桌面与高并发服务的默认配置：`Workers=2`、`RequestLimit=8192`、`QueryLimit=4096`、`CacheEntries=256`、`SuccessTTL=60s`、`FailureTTL=5s`、`HostLimit=1024`。
+
+```c
+void xrtNetResolverConfigInit(xnetresolverconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 建议非空 | 接收默认配置；空指针是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 纯初始化，不失败 |
+
+#### 范例
+
+[network/resolve_tour · 创建](../../examples/network/resolve_tour/main.c) · 初始化后直接创建
+
+```c
+xrtNetResolverConfigInit(&Config);
+pResolver = xrtNetResolverCreate(&Config);
+```
+
+### `xrtNetResolverCreate`
+
+创建并立即启动独立解析工作池；空配置使用默认值（内部先取默认再整体复制调用方配置）。
+
+```c
+xnetresolver* xrtNetResolverCreate(
+	const xnetresolverconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 允许空指针 | 空指针用默认值；非空时字段任一上限为零或不支持即失败 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 运行中的 Resolver | — |
+| `NULL` | 配置非法或资源不足 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_VALUE` + `XNET_ERROR_RESOLVER_CREATE` — 配置含零值或不支持的限额（如 `Workers > 32`、`RequestLimit == 0`）
+- 内存分配失败 — 结构或线程池创建失败
+
+#### 范例
+
+[network/resolve_tour · 创建](../../examples/network/resolve_tour/main.c) · 默认配置 + 初始统计核对
+
+```c
+pResolver = xrtNetResolverCreate(&Config);
+if ( (pResolver == NULL) ||
+	!xrtNetResolverStats(pResolver, &Stats) ||
+	(Stats.Submitted != 0u) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetResolverDestroy`
+
+排空已受理请求并等待全部回调；必须与其他 Resolver 所有者操作串行，返回后指针失效。
+
+```c
+bool xrtNetResolverDestroy(xnetresolver* pResolver);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResolver` | 输入 | 允许空指针 | 空指针是空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已排空并销毁 | — |
+| `false` | 参数非法、状态非法或回调内部失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_STATE` + `XNET_ERROR_RESOLVER_CLOSED` — 从 Resolver 自己的 Worker 回调内调用，或已在关闭/已销毁
+
+#### 范例
+
+[network/resolve_tour · 收尾](../../examples/network/resolve_tour/main.c) · 销毁失败以退出码暴露
+
+```c
+if ( (pResolver != NULL) &&
+	!xrtNetResolverDestroy(pResolver) ) {
+	iResult = 2;
+}
+```
+
+### `xrtNetResolverResolve`
+
+提交主机查询；同一规范化主机与地址族只执行一次底层查询，命中缓存立即返回已关联的 Op。
+
+```c
+xnetresolveop* xrtNetResolverResolve(
+	xnetresolver* pResolver,
+	cstr sHost,
+	xnetfamily Family,
+	xnetresolveproc pDone,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResolver` | 输入 | 非空 | 运行中的 Resolver |
+| `sHost` | 输入 | 非空、以零结尾 | 主机名；长度不得超过 `HostLimit` |
+| `Family` | 输入 | `UNSPEC`/`IPV4`/`IPV6` | 目标地址族 |
+| `pDone` | 输入 | 非空 | 完成回调，在 Resolver Worker 上恰好执行一次 |
+| `pData` | 输入 | 任意值 | 原样传给回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 解析操作（引用归调用方，用后 `ResolveOpDestroy`） | — |
+| `NULL` | 未受理 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pResolver`/`sHost`/`pDone` 为空
+- `XERR_VALUE` + `XNET_ERROR_FAMILY` — `Family` 不是三种支持值之一
+- `XERR_CLOSED` + `XNET_ERROR_RESOLVER_CLOSED` — Resolver 已关闭或正在关闭
+- `XERR_RANGE` + `XNET_ERROR_RESOLVER_SUBMIT` — 主机名超过 `HostLimit`
+- `XERR_AGAIN` + `XNET_ERROR_RESOLVER_SUBMIT` — 在途请求达到 `RequestLimit`，或唯一查询数达到 `QueryLimit`
+
+#### 范例
+
+[network/resolve_tour · 查询](../../examples/network/resolve_tour/main.c) · 提交 localhost 并核对初始状态
+
+```c
+pOperation = xrtNetResolverResolve(pResolver, "localhost",
+	XNET_FAMILY_IPV4, exampleResolveDone, (ptr)&State);
+```
+
+### `xrtNetResolverClear`
+
+清空成功和失败缓存；已经运行或排队的查询不受影响。
+
+```c
+bool xrtNetResolverClear(xnetresolver* pResolver);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResolver` | 输入 | 非空 | 运行中的 Resolver |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 缓存已清空 | — |
+| `false` | 参数非法或 Resolver 已关闭 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pResolver` 为空
+- `XERR_STATE` + `XNET_ERROR_RESOLVER_CLOSED` — 正在关闭或已销毁
+
+#### 范例
+
+[network/resolve_tour · 清缓存](../../examples/network/resolve_tour/main.c) · 清空后缓存计数归零
+
+```c
+if ( !xrtNetResolverClear(pResolver) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetResolverStats`
+
+取得 Resolver 的并发一致统计快照。
+
+```c
+bool xrtNetResolverStats(
+	const xnetresolver* pResolver,
+	xnetresolverstats* pStats
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResolver` | 输入 | 非空 | Resolver 指针 |
+| `pStats` | 输出 | 非空 | 接收快照（Submitted/Resolved/CachedResults 等） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 快照已写入 | — |
+| `false` | 参数非法 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 任一指针为空
+
+#### 范例
+
+[network/resolve_tour · 统计](../../examples/network/resolve_tour/main.c) · 查询后核对计数推进
+
+```c
+if ( !xrtNetResolverStats(pResolver, &Stats) ||
+	(Stats.Submitted < 1u) ||
+	(Stats.Resolved < 1u) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetResolveOpRef`
+
+增加解析操作引用并返回原指针。跨线程保留 Op（回调后仍要查询）必须先取引用。
+
+```c
+xnetresolveop* xrtNetResolveOpRef(xnetresolveop* pOperation);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOperation` | 输入 | 非空 | 解析操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 原指针，引用 +1；之后必须多一次 `ResolveOpDestroy` | — |
+| `NULL` | 参数非法或引用耗尽 | 参数非法时错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOperation` 为空
+
+#### 范例
+
+[network/resolve_tour · OpRef](../../examples/network/resolve_tour/main.c) · 共享引用后双份销毁
+
+```c
+pRef = xrtNetResolveOpRef(pOperation);
+if ( (pRef == NULL) || (pRef != pOperation) ) {
+	goto Cleanup;
+}
+xrtNetResolveOpDestroy(pRef);
+xrtNetResolveOpDestroy(pOperation);
+```
+
+### `xrtNetResolveOpDestroy`
+
+释放解析操作引用；空指针视为空操作。归零时释放操作与关联结果。
+
+```c
+void xrtNetResolveOpDestroy(xnetresolveop* pOperation);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOperation` | 输入 | 允许空指针 | 要释放引用的操作 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作 |
+
+#### 范例
+
+[network/resolve_tour · OpRef](../../examples/network/resolve_tour/main.c) · 每份引用各自配对销毁
+
+```c
+xrtNetResolveOpDestroy(pRef);
+xrtNetResolveOpDestroy(pOperation);
+```
+
+### `xrtNetResolveOpCancel`
+
+协作取消尚未进入终态的操作；回调仍在 Resolver Worker 上执行一次（以 `CANCELLED` 终态）。
+
+```c
+bool xrtNetResolveOpCancel(xnetresolveop* pOperation);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOperation` | 输入 | 非空 | 要取消的操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 取消请求已受理（或查询组已在取消） | — |
+| `false` | 参数非法或操作已进入终态 | 参数非法时错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOperation` 为空
+- 无额外错误 — 已终态的取消失败是查询结果，不设置错误
+
+#### 范例
+
+[network/resolver · 超时取消](../../examples/network/resolver/main.c) · 等待截止后协作取消
+
+```c
+if ( xrtDeadlineExpired(iDeadline) ) {
+	(void)xrtNetResolveOpCancel(pOperation);
+	break;
+}
+```
+
+### `xrtNetResolveOpState`
+
+返回解析操作当前状态的原子快照。
+
+```c
+xnetresolveopstate xrtNetResolveOpState(
+	const xnetresolveop* pOperation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOperation` | 输入 | 非空 | 解析操作 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `XNET_RESOLVE_PENDING` | 已受理、尚未开始底层查询 |
+| `XNET_RESOLVE_RUNNING` | 底层查询进行中 |
+| `XNET_RESOLVE_RESOLVED` | 成功终态（结果可取） |
+| `XNET_RESOLVE_FAILED` | 失败终态（错误可借） |
+| `XNET_RESOLVE_CANCELLED` | 取消终态 |
+
+#### 范例
+
+[network/resolve_tour · 状态机](../../examples/network/resolve_tour/main.c) · 提交时未完成、回调后已解析
+
+```c
+if ( (pOperation == NULL) ||
+	(xrtNetResolveOpState(pOperation) ==
+		XNET_RESOLVE_RESOLVED) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetResolveOpResult`
+
+成功时返回增加引用的完整地址列表，其他状态返回空指针并设置对应错误。
+
+```c
+xnetaddrlist* xrtNetResolveOpResult(
+	const xnetresolveop* pOperation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOperation` | 输入 | 非空 | 解析操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 地址列表（引用 +1，调用方 `xrtNetAddrListDestroy`） | — |
+| `NULL` | 未终态或非成功终态 | 错误经 `xrtGetError()` 报告；失败详情另见 `ResolveOpError` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOperation` 为空
+- `XERR_VALUE` + `XNET_ERROR_RESOLVER_QUERY` — 操作尚未完成（终态前查询结果）
+- 失败/取消状态 — `NULL`，结构化错误经 `ResolveOpError` 借用返回
+
+#### 范例
+
+[network/resolve_tour · 结果](../../examples/network/resolve_tour/main.c) · 返回的列表由调用方销毁
+
+```c
+pList = xrtNetResolveOpResult(pOperation);
+if ( (pList == NULL) ||
+	(xrtNetAddrListCount(pList) < 1u) ) {
+	goto Cleanup;
+}
+xrtNetAddrListDestroy(pList);
+```
+
+### `xrtNetResolveOpError`
+
+失败或取消时返回借用的结构化错误，其他状态返回空指针。
+
+```c
+const xerror* xrtNetResolveOpError(
+	const xnetresolveop* pOperation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOperation` | 输入 | 非空 | 解析操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 借用的 `xerror`，存活到操作销毁；不转移所有权 | — |
+| `NULL` | 非失败/取消状态 | 非错误状态，不设置线程错误 |
+
+#### 错误
+
+- 无 — 空返回是状态查询结果而非错误
+
+#### 范例
+
+[network/resolver · 失败路径](../../examples/network/resolver/main.c) · 借用错误打印消息
+
+```c
+const xerror* pError = xrtNetResolveOpError(pOperation);
+
+fprintf(stderr, "%s\n", pError != NULL ?
+	xrtErrorMessage(pError) : "resolve failed");
+```
+
+### `xrtNetResolveAsync`
+
+把 Resolver 查询包装为 Future；成功值是由 Future 持有的地址列表。
+
+```c
+xfuture* xrtNetResolveAsync(
+	xnetresolver* pResolver,
+	cstr sHost,
+	xnetfamily Family
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResolver` | 输入 | 非空 | 运行中的 Resolver |
+| `sHost` | 输入 | 非空 | 主机名 |
+| `Family` | 输入 | 三种支持值 | 目标地址族 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Future：成功值 `xnetaddrlist*`（Future 持有），失败值 `xerror` | — |
+| `NULL` | 提交失败（同 `ResolverResolve`）或 Future 分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 同 `xrtNetResolverResolve`（`ARGUMENT`/`VALUE`/`CLOSED`/`RANGE`/`AGAIN`）
+- 内存分配失败 — Future 包装失败
+
+#### 范例
+
+[network/resolver_future · Future 形态](../../examples/network/resolver_future/main.c) · 提交后 `xrtFutureWaitFor` 等待
+
+```c
+pFuture = xrtNetResolveAsync(
+	pResolver,
+	"localhost",
+	XNET_FAMILY_UNSPEC
+);
+```
+
+## 网络接口与本机信息
+
+接口族回答三类问题：名字与接口索引互查（`InterfaceIndex`/`InterfaceName`）、整机一致快照（`Interfaces`）、本机诊断偏好（`LocalAddress`/`LocalHardware`/`HostName` 及其文本形态）。本机诊断函数是确定性偏好查询，不代表公网出口、默认路由或服务监听策略。缓冲输出统一采用两段式：空缓冲查询所需大小，缓冲不足不写入并报告完整所需大小。
+
+### `xrtNetInterfaceIndex`
+
+把规范名称或显示名称转换为接口索引。`UNSPEC` 优先返回 IPv6 索引，再返回 IPv4 索引；失败返回零。
+
+```c
+uint32 xrtNetInterfaceIndex(cstr sName, xnetfamily Family);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sName` | 输入 | 非空 | 规范名或系统显示名（Windows 为显示名） |
+| `Family` | 输入 | 地址族 | `UNSPEC` 两族都匹配，优先 IPv6 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非 `0` | 接口索引 | — |
+| `0` | 未找到或系统查询失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_NOT_FOUND` + `XNET_ERROR_INTERFACE_INDEX` — 没有该名称的接口
+- `XERR_IO` + `XNET_ERROR_INTERFACE_INDEX` — 系统接口查询失败
+
+#### 范例
+
+[network/interface_tour · 往返](../../examples/network/interface_tour/main.c) · 跨平台回环命名差异
+
+```c
+iIndex = xrtNetInterfaceIndex("loopback4", XNET_FAMILY_IPV4);
+if ( iIndex == 0u ) {
+	iIndex = xrtNetInterfaceIndex(
+		"Loopback Pseudo-Interface 1", XNET_FAMILY_IPV4);
+}
+```
+
+### `xrtNetInterfaceName`
+
+输出指定接口索引的规范名称并返回所需长度。`UNSPEC` 同时匹配 IPv4 与 IPv6 索引；空输出可查询所需大小。
+
+```c
+size_t xrtNetInterfaceName(
+	uint32 iIndex,
+	xnetfamily Family,
+	char* sName,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iIndex` | 输入 | 非零 | 接口索引 |
+| `Family` | 输入 | 地址族 | 指定匹配哪族索引；`UNSPEC` 两族都试 |
+| `sName` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
+| `0` | 索引未找到 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_NOT_FOUND` + `XNET_ERROR_INTERFACE_NAME` — 没有该索引的接口
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — 缓冲不足：不写入，返回完整所需大小
+
+#### 范例
+
+[network/interface_tour · 往返](../../examples/network/interface_tour/main.c) · 两段式：先查大小再写入
+
+```c
+iNeed = xrtNetInterfaceName(iIndex, XNET_FAMILY_IPV4, NULL,
+	0u);
+if ( (iNeed == 0u) || (iNeed >= sizeof(sName)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetInterfaceName(iIndex, XNET_FAMILY_IPV4, sName,
+	sizeof(sName));
+```
+
+### `xrtNetInterfaces`
+
+创建当前系统接口、地址和元数据的一致快照。
+
+```c
+bool xrtNetInterfaces(xnetinterfacelist* pList);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输出 | 非空 | 接收拥有型快照；用后 `InterfacesFree` 释放 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 快照已写入（`Items`/`Count` 与每接口地址数组） | — |
+| `false` | 参数非法或系统查询/分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pList` 为空
+- `XERR_IO` — 系统接口枚举失败
+- 内存分配失败 — 快照存储分配失败
+
+#### 范例
+
+[network/interface · 枚举](../../examples/network/interface/main.c) · 遍历接口与地址前缀
+
+```c
+if ( !xrtNetInterfaces(&List) ) {
+	return 1;
+}
+for ( i = 0; i < List.Count; i++ ) {
+	const xnetinterface* pInterface = &List.Items[i];
+```
+
+### `xrtNetInterfacesFree`
+
+释放接口快照拥有的全部存储并清零。
+
+```c
+void xrtNetInterfacesFree(xnetinterfacelist* pList);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入 | 允许空指针 | `Interfaces` 产物；释放后清零可复用 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作 |
+
+#### 范例
+
+[network/interface · 枚举](../../examples/network/interface/main.c) · 用后释放
+
+```c
+xrtNetInterfacesFree(&List);
+return 0;
+}
+```
+
+### `xrtNetLocalAddress`
+
+选择一个适合本机诊断的单播地址。这是确定性偏好查询，不代表公网出口、默认路由或服务监听策略。
+
+```c
+bool xrtNetLocalAddress(
+	xnetaddr* pAddress,
+	xnetfamily Family
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddress` | 输出 | 非空 | 接收地址；端口为零 |
+| `Family` | 输入 | `IPV4`/`IPV6`/`UNSPEC` | 期望族；`UNSPEC` 按平台偏好选择 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写入偏好地址 | — |
+| `false` | 参数非法或无可用地址 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pAddress` 为空或 `Family` 非法
+- `XERR_NOT_FOUND` + `XNET_ERROR_INTERFACE_ADDRESS` — 没有可用的本机单播地址
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 结构体出参形态
+
+```c
+if ( !xrtNetLocalAddress(&Address, XNET_FAMILY_IPV4) ||
+	(Address.Family != XNET_FAMILY_IPV4) ||
+	(Address.Port != 0u) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetLocalAddressText`
+
+输出首选本机地址文本并返回不含结尾零字节的所需长度。
+
+```c
+size_t xrtNetLocalAddressText(
+	xnetfamily Family,
+	char* sAddress,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Family` | 输入 | 地址族 | 期望族 |
+| `sAddress` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
+| `XRT_NPOS` | 无可用本机地址 | 错误经 `xrtGetError()` 报告（`NOT_FOUND` 族） |
+
+#### 错误
+
+- 同 `xrtNetLocalAddress` — 地址选择失败时透传（`NOT_FOUND` + `INTERFACE_ADDRESS`）
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 两段式文本输出
+
+```c
+iNeed = xrtNetLocalAddressText(XNET_FAMILY_IPV4, NULL, 0u);
+if ( (iNeed == 0u) || (iNeed >= sizeof(sText)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetLocalAddressText(XNET_FAMILY_IPV4, sText,
+	sizeof(sText));
+```
+
+### `xrtNetLocalAddressString`
+
+分配并返回首选本机地址文本。
+
+```c
+str xrtNetLocalAddressString(xnetfamily Family);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Family` | 输入 | 地址族 | 期望族 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
+| `NULL` | 无可用地址或分配失败 | 不设置线程错误（查询语义） |
+
+#### 错误
+
+- 无 — `NULL` 表示本机无可用地址或分配失败，调用方判空即可
+
+#### 范例
+
+[network/local_info · 一览](../../examples/network/local_info/main.c) · 启动日志三件套之一
+
+```c
+str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
+str sHost = xrtNetHostNameString();
+str sHardware = xrtNetLocalHardwareString();
+```
+
+### `xrtNetLocalHardware`
+
+输出首选活动接口的原始硬件地址并返回所需字节数。空输出可查询大小；缓冲不足时不写入并报告完整所需大小。
+
+```c
+size_t xrtNetLocalHardware(
+	void* pAddress,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddress` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 所需字节数（典型 MAC 为 6）；缓冲足够时已写入 | — |
+| `0` | 无可用硬件地址 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_NOT_FOUND` + `XNET_ERROR_INTERFACE_HARDWARE` — 没有可用的本机硬件地址
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — 缓冲不足：不写入，返回完整所需大小
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 原始字节两段式
+
+```c
+iNeed = xrtNetLocalHardware(NULL, 0u);
+if ( (iNeed < 6u) || (iNeed > sizeof(Hardware)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetLocalHardware(Hardware, sizeof(Hardware));
+```
+
+### `xrtNetLocalHardwareText`
+
+输出首选接口硬件地址的大写紧凑 HEX 文本。
+
+```c
+size_t xrtNetLocalHardwareText(
+	char* sAddress,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sAddress` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 不含结尾零的所需长度（6 字节 MAC 为 12 字符） | — |
+| `0` | 无可用硬件地址 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_NOT_FOUND` — 无可用硬件地址（透传 `LocalHardware`）
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — 缓冲不足：不写入，返回完整所需大小
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 6 字节 MAC → 12 个 HEX 字符
+
+```c
+iNeed = xrtNetLocalHardwareText(NULL, 0u);
+if ( (iNeed < 12u) || (iNeed >= sizeof(sText)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetLocalHardwareText(sText, sizeof(sText));
+```
+
+### `xrtNetLocalHardwareString`
+
+分配并返回首选接口硬件地址的大写紧凑 HEX 文本。
+
+```c
+str xrtNetLocalHardwareString(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 取首选活动接口 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
+| `NULL` | 无可用硬件地址或分配失败（如纯回环环境） | 不设置线程错误（查询语义） |
+
+#### 错误
+
+- 无 — `NULL` 表示不可用，调用方判空即可
+
+#### 范例
+
+[network/local_info · 一览](../../examples/network/local_info/main.c) · 判空后回退占位文本
+
+```c
+str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
+str sHost = xrtNetHostNameString();
+str sHardware = xrtNetLocalHardwareString();
+```
+
+### `xrtNetHostName`
+
+输出本机主机名并返回不含结尾零字节的所需长度。
+
+```c
+size_t xrtNetHostName(
+	char* sName,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sName` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
+| `0` | 系统查询失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_IO` — 系统主机名查询失败
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — 缓冲不足：不写入，返回完整所需大小
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 两段式输出
+
+```c
+iNeed = xrtNetHostName(NULL, 0u);
+if ( (iNeed == 0u) || (iNeed >= sizeof(sName)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetHostName(sName, sizeof(sName));
+```
+
+### `xrtNetHostNameString`
+
+分配并返回本机主机名。
+
+```c
+str xrtNetHostNameString(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 查询系统主机名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
+| `NULL` | 系统查询或分配失败 | 不设置线程错误（查询语义） |
+
+#### 错误
+
+- 无 — `NULL` 表示不可用，调用方判空即可
+
+#### 范例
+
+[network/local_info · 一览](../../examples/network/local_info/main.c) · 三件套打印后统一释放
+
+```c
+str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
+str sHost = xrtNetHostNameString();
+str sHardware = xrtNetLocalHardwareString();
 ```
