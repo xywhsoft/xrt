@@ -28,7 +28,7 @@
 | P19 卷十xhttp服务端 | ✅ 完成 | 6 | 28,133 |
 | P20 卷十一xws | ✅ 完成 | 4 | 16,994 |
 | P21 卷十一xssh | ✅ 完成 | 7 | 33,309 |
-| P22 卷十一xmail | 🔄 进行中 | 0 | — |
+| P22 卷十一xmail | ✅ 完成 | 5 | 22,344 |
 | P23–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -102,6 +102,11 @@
 | 110 | 110-xws-send.md | practice | 4,179 | 2 | 1 | 3 | 3 | P20 |
 | 111 | 111-xws-group.md | practice | 4,049 | 2 | 1 | 3 | 3 | P20 |
 | 112 | 112-xws-server.md | practice | 4,764 | 2 | 1 | 3 | 3 | P20 |
+| 115 | 115-xmail-mail.md | practice | 4,830 | 2 | 1 | 3 | 3 | P22 |
+| 116 | 116-xmail-smtp.md | practice | 4,590 | 2 | 1 | 3 | 3 | P22 |
+| 117 | 117-xmail-pop3.md | practice | 4,105 | 2 | 1 | 3 | 3 | P22 |
+| 118 | 118-xmail-imap.md | practice | 4,573 | 2 | 1 | 3 | 3 | P22 |
+| 119 | 119-xmail-compose.md | practice | 4,246 | 2 | 2 | 3 | 3 | P22 |
 | 117 | 117-xssh-transport.md | practice | 5,598 | 2 | 1 | 3 | 3 | P21 |
 | 118 | 118-xssh-kex.md | practice | 5,086 | 2 | 1 | 3 | 3 | P21 |
 | 119 | 119-xssh-hostkey.md | practice | 4,263 | 2 | 1 | 3 | 3 | P21 |
@@ -117,6 +122,24 @@
 
 
 
+
+## P22 阶段记录
+
+- 卷十一 xmail 5 章（xmail 全部成型，素材 34 契约卡/23 示例）：
+  ch115 邮件消息与 MIME（新增章：消息视图零树零复制/严格 CRLF/multipart
+  游标与三标记/编码词三层与大字符集插槽/QP-Base64 MIME 版）、ch116 SMTP
+  （协议原语注入防御/DATA 流式 dot transparency/CHUNKING/STARTTLS 重 EHLO）、
+  ch117 POP3（新增章：下载式模型/四级入口/逐行流式收取/凭据清零/UPDATE
+  两阶段删除）、ch118 IMAP（tagged 响应/literal 预算纪律/两级命令与流水线/
+  IDLE/失败三分）、ch119 组合收发（新增章：Compose 三层自动选型/确定性键/
+  Bcc 协议级正确/Submit 闭环——五章合体收官）。
+- 全书第二十一次重编号：三插入 mail(115)/pop3(117)/compose(119)，
+  smtp 115→116、imap 116→118，21 文件位移，全书 138 章；卷十一 109-126
+  十八章骨架（xws 4 + xruntime 2 + xmail 5 + xssh 7）。
+- xssh 系列内部交叉引用批量 +3（117→120、118→121...123→126）。
+- 门禁拦下：XMAIL_ERROR_* 通配（改描述写法）、XOAUTH2/OAUTHBEARER 机制名
+  裸词（改"OAuth 机制"描述）。
+- 行文章号修正 7 处（testing→130、perf→132）。
 
 ## P21 阶段记录
 
