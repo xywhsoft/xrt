@@ -25,7 +25,7 @@
 | P16 卷九HTTP核心 | ✅ 完成 | 5 | 22,879 |
 | P17 卷九WebSocket | ✅ 完成 | 4 | 18,724 |
 | P18 卷十xhttp客户端 | ✅ 完成 | 6 | 28,006 |
-| P19 卷十xhttp服务端 | 🔄 进行中 | 0 | — |
+| P19 卷十xhttp服务端 | ✅ 完成 | 6 | 28,133 |
 | P20–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -89,6 +89,12 @@
 | 100 | 100-xhttp-cache.md | practice | 4,703 | 2 | 1 | 3 | 3 | P18 |
 | 101 | 101-xhttp-url.md | practice | 5,290 | 2 | 1 | 3 | 3 | P18 |
 | 102 | 102-xhttp-query.md | practice | 4,998 | 2 | 1 | 3 | 3 | P18 |
+| 103 | 103-xhttp-server.md | practice | 5,027 | 2 | 1 | 3 | 3 | P19 |
+| 104 | 104-xhttp-middleware.md | practice | 4,370 | 2 | 1 | 3 | 3 | P19 |
+| 105 | 105-xhttp-auth.md | practice | 4,850 | 2 | 1 | 3 | 3 | P19 |
+| 106 | 106-xhttp-sse.md | practice | 4,960 | 2 | 1 | 3 | 3 | P19 |
+| 107 | 107-xhttp-stream.md | practice | 4,809 | 2 | 1 | 3 | 3 | P19 |
+| 108 | 108-xhttp-advanced.md | practice | 4,117 | 2 | 2 | 3 | 3 | P19 |
 
 
 
@@ -97,6 +103,26 @@
 
 
 
+
+## P19 阶段记录
+
+- 卷十 xhttp 服务端 6 章（卷十 12 章全部收官）：ch103 服务端上（五段超时/
+  Headers 五策/Body 应用背压/响应三路/Drain）、ch104 中间件（洋葱模型/
+  Next 同步栈语义/短路纪律/静态文件层）、ch105 认证（新增章：Basic/Bearer/
+  Digest 挑战应答/verify 四态/重放表）、ch106 SSE（新增章：无专用状态机/
+  事件四要素/AGAIN+WaitWritable/Last-Event-ID 续传）、ch107 流式正文
+  （新增章：五来源与重放矩阵/租约式 Reader/有界生产流/异步文件正文）、
+  ch108 服务端收官（压缩协商/Range 写侧/代理头族/卷十全景）。
+- 范围调整（PHASES 注明）：P19 定义的"连接池深潜/重试策略"新章已在 P18
+  ch98/99 提前完成——按素材量替换为 auth/SSE/流式正文三章。
+- 全书第十八次重编号：三插入 auth(105)/sse(106)/stream(107)，
+  advanced 105→108 并改题"服务端收官"，21 文件 +3，全书 128 章；
+  卷十 97-108 共 12 章成型（客户端 6 + 服务端 6）。
+- 门禁拦下：XHTTP_DIGEST_VALID 真名 XHTTP_DIGEST_VERIFY_* 四态、
+  xhttpdigestresult 真名 xhttpdigestverifycheck、xrtHttpServerFile 真名
+  xrtHttpConnFile 族、xrtHttpServerRequest*Auth 通配展开实名、
+  ch108 初稿字数不足（补读者走法节）。
+- 行文章号修正 7 处（testing→120、perf→122）。
 
 ## P18 阶段记录
 
