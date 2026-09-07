@@ -1024,4 +1024,13 @@
   的 pArgs != NULL 条件消费中容忍）。抽样正确率 25/25。
   启发式教训（第三次重演）：单函数体的 NULL 检查不足以判定，
   必须追到转发链终点。约束列经抽样验证可信。
+- 2026-09-07 约束列反向抽样（非空声明 1538 处，抽 20）：首轮
+  启发式报 8 疑点，逐个沿转发链溯源后全部合规——非空要求存在于
+  Require/Valid 辅助函数（cond 的 __xrtCondRequire 首行 NULL 拒绝；
+  socket 的 __xrtNetSocketAddress；param 的 TokenValid）或转发
+  目标（CondWaitFor→WaitUntil 的 Require；FutureWaitUntil→
+  Cancel 链的 pFuture==NULL 拒绝；CoJoin→JoinUntil 的 pTarget
+  NULL 拒绝；AsyncFileWriteAtRef 对 Data.Data/pRelease 的条件
+  非空；TlsDialAsync/TlsClientCreate 的后续校验）。抽样 20/20。
+  约束列两个方向（允许空 25/25 + 非空 20/20）均经实现级溯源验证。
 
