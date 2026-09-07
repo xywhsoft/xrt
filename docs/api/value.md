@@ -115,6 +115,687 @@ bool xrtValueScalarEqual(const xvalue* left, const xvalue* right);
 `xrtValueTypeIdRebind` 仅供已经完成语义验证的唯一拥有外壳替换身份；冲突的共享外壳
 以 `XERR_STATE` 拒绝，调用方需要先创建独立 COW 外壳，不能重新解释其他持有者的值。
 
+### `xrtValueNull`
+
+返回进程期不可变的 null 单例。
+
+```c
+xvalue* xrtValueNull(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 进程期单例，不必释放 | — |
+
+#### 错误
+
+- 无 — 单例不失败
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · null 单例
+
+```c
+		(xrtValueType(xrtValueNull()) != XVALUE_NULL)
+```
+
+### `xrtValueBool`
+
+返回进程期不可变的布尔单例。
+
+```c
+xvalue* xrtValueBool(bool bValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `bValue` | 输入 | — | 布尔值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 进程期单例，不必释放 | — |
+
+#### 错误
+
+- 无 — 单例不失败
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 布尔单例
+
+```c
+	xvalue* pTrue = xrtValueBool(true);
+```
+
+### `xrtValueInt`
+
+创建不可变的 64 位整数值。
+
+```c
+xvalue* xrtValueInt(int64 iValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 整数值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- 无 — 标量创建不失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 整数
+
+```c
+		xvalue* pA = xrtValueInt(1);
+```
+
+### `xrtValueUInt`
+
+创建不可变的 64 位无符号整数值。
+
+```c
+xvalue* xrtValueUInt(uint64 iValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 无符号值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- 无 — 标量创建不失败
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 无符号整数
+
+```c
+		xvalue* pU = xrtValueUInt(UINT64_C(4294967296));
+```
+
+### `xrtValueFloat`
+
+创建不可变的双精度浮点值。
+
+```c
+xvalue* xrtValueFloat(double fValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 浮点值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- 无 — 标量创建不失败
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 浮点
+
+```c
+		xrtValueFloat(2.0),
+```
+
+### `xrtValueString`
+
+复制字节并创建带末尾零但允许内嵌零的字符串值。
+
+```c
+xvalue* xrtValueString(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 文本视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 字符串
+
+```c
+	(void)xrtValueArrayAppendNew(pArray, xrtValueString(SV("a")));
+```
+
+### `xrtValueStringTake`
+
+接管 XRT 字符串并清空独立来源槽；来源槽不得位于被接管内存中。
+
+```c
+xvalue* xrtValueStringTake(str* pText, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pText` | 输入/输出 | 非空、独立来源槽 | 拥有的字符串 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 所有权或快照状态非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[ownership](../../examples/value/ownership/main.c) · 接管字符串
+
+```c
+	pText = xrtValueStringTake(&sText, 5);
+```
+
+### `xrtValueBytes`
+
+复制任意字节并创建二进制值。
+
+```c
+xvalue* xrtValueBytes(xbytesview Data)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | 借用 | 二进制视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 二进制
+
+```c
+		xrtValueBytes((xbytesview){ arrBytes, sizeof(arrBytes) }),
+```
+
+### `xrtValueBytesTake`
+
+接管 XRT 二进制块并清空独立来源槽；来源槽不得位于被接管内存中。
+
+```c
+xvalue* xrtValueBytesTake(bytes* pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入/输出 | 非空、独立来源槽 | 拥有的字节块 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 所有权或快照状态非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[ownership](../../examples/value/ownership/main.c) · 接管二进制
+
+```c
+	pBytes = xrtValueBytesTake(&pData, 3);
+```
+
+### `xrtValueTime`
+
+创建使用 Unix Epoch 微秒表示的时间值。
+
+```c
+xvalue* xrtValueTime(xtime Time)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Time` | 输入 | — | Unix 微秒 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- 无 — 标量创建不失败
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 时间
+
+```c
+		xrtValueTime((xtime)1234567),
+```
+
+### `xrtValuePointer`
+
+创建不拥有目标生命周期的裸指针值。
+
+```c
+xvalue* xrtValuePointer(ptr pPointer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPointer` | 输入 | — | 指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- 无 — 标量创建不失败
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 裸指针
+
+```c
+		xrtValuePointer(&iMarker)
+```
+
+### `xrtValueGetBool`
+
+精确读取布尔值，类型不匹配时失败。
+
+```c
+bool xrtValueGetBool(const xvalue* pValue, bool* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、BOOL | 源值 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 读布尔
+
+```c
+		!xrtValueGetBool(pTrue, &bTrue) ||
+```
+
+### `xrtValueGetInt`
+
+精确读取整数值，类型不匹配时失败。
+
+```c
+bool xrtValueGetInt(const xvalue* pValue, int64* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、INT | 源值 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 读整数
+
+```c
+		!xrtValueGetInt(arrValues[0], &iVersion) ||
+```
+
+### `xrtValueGetUInt`
+
+精确读取无符号整数值，类型不匹配时失败。
+
+```c
+bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、UINT | 源值 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 读无符号
+
+```c
+		(void)xrtValueGetUInt(pU, &uValue);
+```
+
+### `xrtValueGetFloat`
+
+精确读取浮点值，类型不匹配时失败。
+
+```c
+bool xrtValueGetFloat(const xvalue* pValue, double* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、FLOAT | 源值 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 读浮点
+
+```c
+		!xrtValueGetFloat(arrValues[1], &fVersion) ||
+```
+
+### `xrtValueGetString`
+
+借用字符串视图，值释放后视图失效。
+
+```c
+bool xrtValueGetString(const xvalue* pValue, xstrview* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、STRING | 源值 |
+| `pResult` | 输出 | 非空 | 接收视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 读字符串
+
+```c
+		(void)xrtValueGetString(xrtValueArrayGet(pArray, i), &Text);
+```
+
+### `xrtValueGetBytes`
+
+借用二进制视图，值释放后视图失效。
+
+```c
+bool xrtValueGetBytes(const xvalue* pValue, xbytesview* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、BYTES | 源值 |
+| `pResult` | 输出 | 非空 | 接收视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 读二进制
+
+```c
+		!xrtValueGetBytes(arrValues[3], &Data) ||
+```
+
+### `xrtValueGetTime`
+
+精确读取时间值。
+
+```c
+bool xrtValueGetTime(const xvalue* pValue, xtime* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、TIME | 源值 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 读时间
+
+```c
+		!xrtValueGetTime(arrValues[4], &Time) ||
+```
+
+### `xrtValueGetPointer`
+
+精确读取不拥有目标的裸指针。
+
+```c
+bool xrtValueGetPointer(const xvalue* pValue, ptr* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、POINTER | 源值 |
+| `pResult` | 输出 | 非空 | 接收指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 读指针
+
+```c
+		!xrtValueGetPointer(arrValues[5], &pPointer) ||
+```
+
+### `xrtValueTruthy`
+
+按 xlang 语义返回值的真值。
+
+```c
+bool xrtValueTruthy(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 源值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 真值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 真值
+
+```c
+		!xrtValueTruthy(arrValues[2]) ||
+```
+
 ## Native Handle
 
 ```c
@@ -146,6 +827,115 @@ bool xrtValueGetHandle(
 策略结构是不可变静态描述；`user_data` 与策略生命周期都必须覆盖关联的全部 Value。
 只读句柄 Value 可跨线程发布，因此 Hash、Equal 和 Clone 回调若可能并发执行，回调
 自身必须线程安全。完整用法见 `examples/value/handle/main.c`。
+
+### `xrtValueHandleTake`
+
+接管句柄并清空独立来源槽；Hash 和 Equal 必须同时提供或同时省略。
+
+```c
+xvalue* xrtValueHandleTake(ptr* pHandle, const xvaluehandleops* pOps, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandle` | 输入/输出 | 非空、独立来源槽 | 拥有的句柄 |
+| `pOps` | 输入 | 同时提供或同时为空 | 句柄策略 |
+| `pUserData` | 输入 | 任意值 | 策略数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_VALUE` — Hash 与 Equal 只提供一个
+- `XERR_STATE` — 所有权或快照状态非法
+
+#### 范例
+
+[containers_lifo](../../examples/value/containers/lifo/main.c) · 接管句柄
+
+```c
+	pValue = xrtValueHandleTake(&pHandle, &tOps, NULL);
+```
+
+### `xrtValueGetHandle`
+
+借用句柄及其策略数据。
+
+```c
+bool xrtValueGetHandle(const xvalue* pValue, ptr* pHandle, const xvaluehandleops** pOps, ptr* pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、HANDLE | 源值 |
+| `pHandle` | 输出 | 允许空 | 接收句柄 |
+| `pOps` | 输出 | 允许空 | 接收策略表 |
+| `pUserData` | 输出 | 允许空 | 接收策略数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[handle](../../examples/value/handle/main.c) · 借用句柄
+
+```c
+		!xrtValueGetHandle(pLeft, &pReadHandle, &pReadOps, NULL) ||
+```
+
+### `xrtValueTakeHandle`
+
+取走句柄资源并把所有共享外壳可见的资源状态清空；策略仍保留到值释放。
+
+```c
+bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、HANDLE | 源值 |
+| `pHandle` | 输出 | 非空 | 接收句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 句柄已被取走
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 取走句柄
+
+```c
+			xrtValueTakeHandle(pHandleValue, (ptr*)&pBack) &&
+```
 
 ## 容器与所有权
 
@@ -273,6 +1063,1921 @@ xvalue* xrtValueSetTake(xvalue* set, const xvalue* item);
 
 Set 只接受可哈希不可变标量。有符号整数 `42`、无符号整数 `42` 与浮点数 `42.0` 等价且哈希一致；超过 `INT64_MAX` 的无符号整数仍保持完整精度。重复加入保持原规范值和首次插入顺序。`SetTake` 返回集合中实际保存的规范值，不一定是查询指针。
 
+### `xrtValueRetain`
+
+增加值外壳引用并返回原指针。
+
+```c
+xvalue* xrtValueRetain(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[ownership](../../examples/value/ownership/main.c) · 外壳引用
+
+```c
+	pRetained = xrtValueRetain(pText);
+```
+
+### `xrtValueRelease`
+
+释放值外壳引用，允许传入空指针。
+
+```c
+void xrtValueRelease(xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 释放引用
+
+```c
+		xrtValueRelease(pOwned);
+```
+
+### `xrtValueClone`
+
+标量增加引用，容器创建共享 backing 的独立 COW 外壳。
+
+```c
+xvalue* xrtValueClone(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 源值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 浅克隆
+
+```c
+	pMerged = xrtValueClone(pLeft);
+```
+
+### `xrtValueDeepClone`
+
+递归复制全部可克隆内容。
+
+```c
+xvalue* xrtValueDeepClone(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 源值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 含不可克隆的句柄值
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[graph](../../examples/value/graph/main.c) · 深克隆
+
+```c
+	pCopy = xrtValueDeepClone(pRoot);
+```
+
+### `xrtValueClear`
+
+清空容器并释放其中持有的全部值引用。
+
+```c
+bool xrtValueClear(xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入/输出 | 非空、容器 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 清空容器
+
+```c
+	xrtValueClear(pArray);
+```
+
+### `xrtValueReserve`
+
+保证容器至少可容纳指定数量的元素。
+
+```c
+bool xrtValueReserve(xvalue* pValue, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入/输出 | 非空、容器 | 目标值 |
+| `iCapacity` | 输入 | — | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 预留容量
+
+```c
+	(void)xrtValueReserve(pArray, 100u);
+```
+
+### `xrtValueTrim`
+
+释放容器多余容量，保留现有元素。
+
+```c
+bool xrtValueTrim(xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入/输出 | 非空、容器 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 收缩容量
+
+```c
+	(void)xrtValueTrim(pArray);
+```
+
+### `xrtValueCount`
+
+返回任一基础容器的元素数。
+
+```c
+size_t xrtValueCount(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 元素数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 元素数
+
+```c
+	for ( size_t i = 0; i < xrtValueCount(pArray); i++ ) {
+```
+
+### `xrtValueCapacity`
+
+返回 Array、Set 或 Object 的当前预留容量；IntMap 不承诺连续容量。
+
+```c
+size_t xrtValueCapacity(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 当前容量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 容量查询
+
+```c
+	printf("reserved-cap>=%zu", xrtValueCapacity(pArray));
+```
+
+### `xrtValueArray`
+
+创建空的稠密动态值数组。
+
+```c
+xvalue* xrtValueArray(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 创建数组
+
+```c
+	xvalue* pArray = xrtValueArray();
+```
+
+### `xrtValueArrayResolve`
+
+把现有数组元素的正负索引解析为 0 基位置，失败时保持输出不变。
+
+```c
+bool xrtValueArrayResolve(const xvalue* pArray, int64 iIndex, size_t* pResolved)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | — | 正负索引 |
+| `pResolved` | 输出 | 非空 | 接收 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+
+#### 范例
+
+[containers](../../examples/value/containers/main.c) · 解析索引
+
+```c
+		 !xrtValueArrayResolve(pMutableTags, -1, &iLast) ||
+```
+
+### `xrtValueArrayGet`
+
+返回数组指定 0 基索引处借用的值。
+
+```c
+xvalue* xrtValueArrayGet(const xvalue* pArray, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | < 元素数 | 0 基索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 值借用（来源存活期间有效） | — |
+| `NULL` | 不存在或越界 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 按位借用
+
+```c
+		(void)xrtValueGetString(xrtValueArrayGet(pArray, i), &Text);
+```
+
+### `xrtValueArrayAt`
+
+支持负数倒序索引，越界时返回空指针。
+
+```c
+xvalue* xrtValueArrayAt(const xvalue* pArray, int64 iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | — | 正负索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 值借用（来源存活期间有效） | — |
+| `NULL` | 不存在或越界 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 倒序索引借用
+
+```c
+	(void)xrtValueGetString(xrtValueArrayAt(pArray, -1), &Text);
+```
+
+### `xrtValueArrayEdit`
+
+返回已经沿 COW 路径分离的可变子容器，标量子项报告类型错误。
+
+```c
+xvalue* xrtValueArrayEdit(xvalue* pArray, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | < 元素数 | 0 基索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 已分离的可变子容器借用 | — |
+| `NULL` | 标量子项或越界 | `XERR_TYPE` / `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+
+#### 范例
+
+[graph](../../examples/value/graph/main.c) · 可变子容器
+
+```c
+	pCopyChild = xrtValueArrayEdit(pCopy, 0);
+```
+
+### `xrtValueArrayAppend`
+
+增加引用后向数组末尾加入值。
+
+```c
+bool xrtValueArrayAppend(xvalue* pArray, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `pItem` | 输入 | 非空 | 要加入的值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[graph](../../examples/value/graph/main.c) · 追加引用
+
+```c
+		 !xrtValueArrayAppend(pRoot, pChild) ||
+```
+
+### `xrtValueArrayAppendTake`
+
+成功时把来源引用移交给数组并清空来源。
+
+```c
+bool xrtValueArrayAppendTake(xvalue* pArray, xvalue** pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `pItem` | 输入/输出 | 非空 | 来源槽，成功后清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 追加移交
+
+```c
+		(void)xrtValueArrayAppendTake(pArray, &pB);
+```
+
+### `xrtValueArrayAppendNew`
+
+无论成功失败都消费临时值，适合单行构造与加入。
+
+```c
+bool xrtValueArrayAppendNew(xvalue* pArray, xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `pItem` | 输入 | 拥有 | 临时值，总是被消费 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 追加消费
+
+```c
+	(void)xrtValueArrayAppendNew(pArray, xrtValueString(SV("a")));
+```
+
+### `xrtValueArrayInsert`
+
+增加引用后在指定位置插入值。
+
+```c
+bool xrtValueArrayInsert(xvalue* pArray, size_t iIndex, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | <= 元素数 | 插入位置 |
+| `pItem` | 输入 | 非空 | 要插入的值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 插入引用
+
+```c
+		(void)xrtValueArrayInsert(pArray, 1u, pOwned);   /* 借用 */
+```
+
+### `xrtValueArrayInsertTake`
+
+成功时把来源引用移交到指定插入位置。
+
+```c
+bool xrtValueArrayInsertTake(xvalue* pArray, size_t iIndex, xvalue** pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | <= 元素数 | 插入位置 |
+| `pItem` | 输入/输出 | 非空 | 来源槽，成功后清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 插入移交
+
+```c
+		(void)xrtValueArrayInsertTake(pArray, 1u, &pA);
+```
+
+### `xrtValueArrayInsertNew`
+
+无论成功失败都消费临时值并在指定位置插入。
+
+```c
+bool xrtValueArrayInsertNew(xvalue* pArray, size_t iIndex, xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | <= 元素数 | 插入位置 |
+| `pItem` | 输入 | 拥有 | 临时值，总是被消费 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 插入消费
+
+```c
+		(void)xrtValueArrayInsertNew(pArray, 0u, xrtValueInt(0));
+```
+
+### `xrtValueArraySet`
+
+增加引用后替换旧值；同一指针是引用平衡的成功无操作。
+
+```c
+bool xrtValueArraySet(xvalue* pArray, size_t iIndex, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | < 元素数 | 0 基索引 |
+| `pItem` | 输入 | 非空 | 新值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 替换引用
+
+```c
+		(void)xrtValueArraySet(pArray, 1u, pOwned);      /* 借用替换 */
+```
+
+### `xrtValueArraySetTake`
+
+成功时把来源引用移交到指定位置。
+
+```c
+bool xrtValueArraySetTake(xvalue* pArray, size_t iIndex, xvalue** pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | < 元素数 | 0 基索引 |
+| `pItem` | 输入/输出 | 非空 | 来源槽，成功后清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 替换移交
+
+```c
+		(void)xrtValueArraySetTake(pArray, 1u, &pOwned); /* 移交替换 */
+```
+
+### `xrtValueArraySetNew`
+
+无论成功失败都消费临时值并替换指定位置。
+
+```c
+bool xrtValueArraySetNew(xvalue* pArray, size_t iIndex, xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | < 元素数 | 0 基索引 |
+| `pItem` | 输入 | 拥有 | 临时值，总是被消费 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers](../../examples/value/containers/main.c) · 替换消费
+
+```c
+		 !xrtValueArraySetNew(
+			pMutableTags,
+			iLast,
+			xrtValueString(XRT_STR_LITERAL("http"))
+		 ) ) {
+```
+
+### `xrtValueArrayRemove`
+
+删除数组区间并释放其中的值。
+
+```c
+bool xrtValueArrayRemove(xvalue* pArray, size_t iIndex, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | < 元素数 | 区间起点 |
+| `iCount` | 输入 | — | 删除数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 删除区间
+
+```c
+	(void)xrtValueArrayRemove(pArray, 1u, 1u);          /* 删掉 x2 */
+```
+
+### `xrtValueArrayTake`
+
+从数组移交指定值，调用方获得一个引用。
+
+```c
+xvalue* xrtValueArrayTake(xvalue* pArray, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iIndex` | 输入 | < 元素数 | 0 基索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 移交出的值引用 | — |
+| `NULL` | 越界 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 移交元素
+
+```c
+	pTaken = xrtValueArrayTake(pArray, 0u);
+```
+
+### `xrtValueArrayPop`
+
+从数组末尾移交一个值。
+
+```c
+xvalue* xrtValueArrayPop(xvalue* pArray)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 移交出的值引用 | — |
+| `NULL` | 数组为空 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 数组为空
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 弹出末尾
+
+```c
+	pTaken = xrtValueArrayPop(pArray);
+```
+
+### `xrtValueArraySwap`
+
+交换两个数组元素。
+
+```c
+bool xrtValueArraySwap(xvalue* pArray, size_t iLeft, size_t iRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArray` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `iLeft` | 输入 | < 元素数 | 左索引 |
+| `iRight` | 输入 | < 元素数 | 右索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+
+#### 范例
+
+[array_tour](../../examples/value/array_tour/main.c) · 交换元素
+
+```c
+	(void)xrtValueArraySwap(pArray, 2u, 3u);
+```
+
+### `xrtValueArrayExtend`
+
+失败原子地把来源数组全部追加到目标数组，允许来源与目标相同。
+
+```c
+bool xrtValueArrayExtend(xvalue* pTarget, const xvalue* pSource)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入/输出 | 非空、ARRAY | 目标数组 |
+| `pSource` | 输入 | 非空、ARRAY | 来源数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_OVERFLOW` — 结果尺寸溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections_batch](../../examples/value/collections/batch/main.c) · 批量追加
+
+```c
+		 !xrtValueArrayExtend(pLeft, pRight) ) {
+```
+
+### `xrtValueArrayConcat`
+
+创建按左右顺序连接的新数组。
+
+```c
+xvalue* xrtValueArrayConcat(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、ARRAY | 左数组 |
+| `pRight` | 输入 | 非空、ARRAY | 右数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections_batch](../../examples/value/collections/batch/main.c) · 连接
+
+```c
+	pJoined = xrtValueArrayConcat(pLeft, pRight);
+```
+
+### `xrtValueObject`
+
+创建保持首次插入顺序的字符串键对象。
+
+```c
+xvalue* xrtValueObject(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 创建对象
+
+```c
+	xvalue* pDefaults = xrtValueObject();
+```
+
+### `xrtValueObjectLifo`
+
+创建保持首次插入顺序、最终按逆插入顺序释放拥有值的字符串键对象。
+
+```c
+xvalue* xrtValueObjectLifo(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers_lifo](../../examples/value/containers/lifo/main.c) · 创建 LIFO 对象
+
+```c
+	xvalue* pObject = xrtValueObjectLifo();
+```
+
+### `xrtValueObjectGet`
+
+返回对象字符串键借用的值，键按完整字节匹配。
+
+```c
+xvalue* xrtValueObjectGet(const xvalue* pObject, xstrview Key)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入 | 非空、OBJECT | 目标对象 |
+| `Key` | 输入 | 借用 | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 值借用（来源存活期间有效） | — |
+| `NULL` | 不存在或越界 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- 键缺失返回 `NULL` 且不设置错误
+
+#### 范例
+
+[graph](../../examples/value/graph/main.c) · 按键借用
+
+```c
+			xrtValueObjectGet(
+				pChild,
+				XRT_STR_LITERAL("count")
+			),
+```
+
+### `xrtValueObjectAt`
+
+按首次插入顺序返回借用的键和值；替换已有键不会改变顺序。
+
+```c
+xvalue* xrtValueObjectAt(const xvalue* pObject, size_t iIndex, xstrview* pKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入 | 非空、OBJECT | 目标对象 |
+| `iIndex` | 输入 | < 元素数 | 0 基位置 |
+| `pKey` | 输出 | 允许空 | 接收键视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 值借用（来源存活期间有效） | — |
+| `NULL` | 不存在或越界 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_RANGE` — 索引越界
+
+#### 范例
+
+[containers_lifo](../../examples/value/containers/lifo/main.c) · 按位借用
+
+```c
+		 (xrtValueObjectAt(pObject, 0, &Key) == NULL) ) {
+```
+
+### `xrtValueObjectEdit`
+
+返回已经沿 COW 路径分离的可变子容器，标量子项报告类型错误。
+
+```c
+xvalue* xrtValueObjectEdit(xvalue* pObject, xstrview Key)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入/输出 | 非空、OBJECT | 目标对象 |
+| `Key` | 输入 | 借用 | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 已分离的可变子容器借用 | — |
+| `NULL` | 标量子项或键缺失 | `XERR_TYPE` / 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- 键缺失返回 `NULL` 且不设置错误
+
+#### 范例
+
+[containers](../../examples/value/containers/main.c) · 可变子容器
+
+```c
+	pMutableTags = xrtValueObjectEdit(
+		pCopy,
+		XRT_STR_LITERAL("tags")
+	);
+```
+
+### `xrtValueObjectHas`
+
+判断对象键是否存在。
+
+```c
+bool xrtValueObjectHas(const xvalue* pObject, xstrview Key)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入 | 非空、OBJECT | 目标对象 |
+| `Key` | 输入 | 借用 | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否存在 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 键存在判断
+
+```c
+	printf("has=%d ", xrtValueObjectHas(pObject, SV("k")) ? 1 : 0);
+```
+
+### `xrtValueObjectSet`
+
+增加引用后设置对象键值；同一指针不分离且保留首次键位置。
+
+```c
+bool xrtValueObjectSet(xvalue* pObject, xstrview Key, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入/输出 | 非空、OBJECT | 目标对象 |
+| `Key` | 输入 | 借用 | 键 |
+| `pItem` | 输入 | 非空 | 新值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 设置引用
+
+```c
+		(void)xrtValueObjectSet(pObject, SV("k"), pOwned);
+```
+
+### `xrtValueObjectSetTake`
+
+成功时把来源引用移交到对象键。
+
+```c
+bool xrtValueObjectSetTake(xvalue* pObject, xstrview Key, xvalue** pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入/输出 | 非空、OBJECT | 目标对象 |
+| `Key` | 输入 | 借用 | 键 |
+| `pItem` | 输入/输出 | 非空 | 来源槽，成功后清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers](../../examples/value/containers/main.c) · 设置移交
+
+```c
+		 !xrtValueObjectSetTake(
+			pResponse,
+			XRT_STR_LITERAL("tags"),
+			&pTags
+		 ) ) {
+```
+
+### `xrtValueObjectSetNew`
+
+无论成功失败都消费临时值并设置对象键。
+
+```c
+bool xrtValueObjectSetNew(xvalue* pObject, xstrview Key, xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入/输出 | 非空、OBJECT | 目标对象 |
+| `Key` | 输入 | 借用 | 键 |
+| `pItem` | 输入 | 拥有 | 临时值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 设置消费
+
+```c
+		 !xrtValueObjectSetNew(
+			pDefaults,
+			XRT_STR_LITERAL("timeout"),
+			xrtValueInt(30)
+		 ) ||
+```
+
+### `xrtValueObjectRemove`
+
+删除对象键并释放对应值。
+
+```c
+bool xrtValueObjectRemove(xvalue* pObject, xstrview Key)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入/输出 | 非空、OBJECT | 目标对象 |
+| `Key` | 输入 | 借用 | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 键缺失 | 不设错误 |
+
+#### 错误
+
+- 键缺失返回 `false` 且不设置错误；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 删除键
+
+```c
+	printf("removed=%d ", xrtValueObjectRemove(pObject, SV("k")) ? 1 : 0);
+```
+
+### `xrtValueObjectTake`
+
+移交对象键对应值，缺失时返回空指针。
+
+```c
+xvalue* xrtValueObjectTake(xvalue* pObject, xstrview Key)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入/输出 | 非空、OBJECT | 目标对象 |
+| `Key` | 输入 | 借用 | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 移交出的值引用 | — |
+| `NULL` | 键缺失 | 不设错误 |
+
+#### 错误
+
+- 键缺失返回 `NULL` 且不设置错误；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 移交键值
+
+```c
+	pTaken = xrtValueObjectTake(pObject, SV("k2"));
+```
+
+### `xrtValueObjectMerge`
+
+按冲突策略失败原子地合并两个对象，并保留目标已有键位置。
+
+```c
+bool xrtValueObjectMerge(xvalue* pTarget, const xvalue* pSource, xvaluemergepolicy Policy)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入/输出 | 非空、OBJECT | 目标对象 |
+| `pSource` | 输入 | 非空、OBJECT | 来源对象 |
+| `Policy` | 输入 | — | 冲突策略 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_VALUE` — 冲突策略拒绝重叠键
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 合并对象
+
+```c
+		 !xrtValueObjectMerge(
+			pDefaults,
+			pOptions,
+			XVALUE_MERGE_REPLACE
+		 ) ||
+```
+
+### `xrtValueObjectFinalizerBind`
+
+为对象绑定最终释放拥有的值时执行的终化器。
+
+```c
+bool xrtValueObjectFinalizerBind(xvalue* pObject, xvalueobjectfinalizer pFinalizer, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pObject` | 输入/输出 | 非空、OBJECT | 目标对象 |
+| `pFinalizer` | 输入 | 非空 | 终化器 |
+| `pUserData` | 输入 | 任意值 | 终化器数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 绑定终化器
+
+```c
+		(void)xrtValueObjectFinalizerBind(pObject, onFinalize, NULL);
+```
+
+### `xrtValueIntMap`
+
+创建空的 int64 键稀疏映射。
+
+```c
+xvalue* xrtValueIntMap(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections_batch](../../examples/value/collections/batch/main.c) · 创建整数映射
+
+```c
+	xvalue* pDefaults = xrtValueIntMap();
+```
+
+### `xrtValueIntMapGet`
+
+返回稀疏整数键借用的值，缺失是正常结果。
+
+```c
+xvalue* xrtValueIntMapGet(const xvalue* pMap, int64 iKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空、INT_MAP | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 值借用（来源存活期间有效） | — |
+| `NULL` | 不存在或越界 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- 键缺失返回 `NULL` 且不设置错误
+
+#### 范例
+
+[collections_batch](../../examples/value/collections/batch/main.c) · 按键借用
+
+```c
+		 !xrtValueGetInt(xrtValueIntMapGet(pDefaults, 1), &iValue) ) {
+```
+
+### `xrtValueIntMapEdit`
+
+返回已经沿 COW 路径分离的可变子容器，标量子项报告类型错误。
+
+```c
+xvalue* xrtValueIntMapEdit(xvalue* pMap, int64 iKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、INT_MAP | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 已分离的可变子容器借用 | — |
+| `NULL` | 标量子项或键缺失 | `XERR_TYPE` / 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- 键缺失返回 `NULL` 且不设置错误
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 可变子容器
+
+```c
+		pSlot = xrtValueIntMapEdit(pMap, 3);
+```
+
+### `xrtValueIntMapHas`
+
+判断整数键是否存在。
+
+```c
+bool xrtValueIntMapHas(const xvalue* pMap, int64 iKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空、INT_MAP | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否存在 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 键存在判断
+
+```c
+	printf("set=%d ", xrtValueIntMapHas(pMap, 2) ? 1 : 0);
+```
+
+### `xrtValueIntMapSet`
+
+增加引用后设置整数键值；同一指针是引用平衡的成功无操作。
+
+```c
+bool xrtValueIntMapSet(xvalue* pMap, int64 iKey, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、INT_MAP | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+| `pItem` | 输入 | 非空 | 新值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 设置引用
+
+```c
+		(void)xrtValueIntMapSet(pMap, 1, pOwned);
+```
+
+### `xrtValueIntMapSetTake`
+
+成功时把来源引用移交到整数键。
+
+```c
+bool xrtValueIntMapSetTake(xvalue* pMap, int64 iKey, xvalue** pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、INT_MAP | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+| `pItem` | 输入/输出 | 非空 | 来源槽，成功后清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 设置移交
+
+```c
+		(void)xrtValueIntMapSetTake(pMap, 2, &pOwned);       /* 移交 */
+```
+
+### `xrtValueIntMapSetNew`
+
+无论成功失败都消费临时值并设置整数键。
+
+```c
+bool xrtValueIntMapSetNew(xvalue* pMap, int64 iKey, xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、INT_MAP | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+| `pItem` | 输入 | 拥有 | 临时值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections_batch](../../examples/value/collections/batch/main.c) · 设置消费
+
+```c
+		 !xrtValueIntMapSetNew(pDefaults, 1, xrtValueInt(30)) ||
+```
+
+### `xrtValueIntMapRemove`
+
+删除整数键并释放对应值。
+
+```c
+bool xrtValueIntMapRemove(xvalue* pMap, int64 iKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、INT_MAP | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 键缺失 | 不设错误 |
+
+#### 错误
+
+- 键缺失返回 `false` 且不设置错误；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 删除键
+
+```c
+	(void)xrtValueIntMapRemove(pMap, 1);
+```
+
+### `xrtValueIntMapTake`
+
+移交整数键对应值，缺失时返回空指针。
+
+```c
+xvalue* xrtValueIntMapTake(xvalue* pMap, int64 iKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、INT_MAP | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 移交出的值引用 | — |
+| `NULL` | 键缺失 | 不设错误 |
+
+#### 错误
+
+- 键缺失返回 `NULL` 且不设置错误；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[containers_indexed](../../examples/value/containers/indexed/main.c) · 移交键值
+
+```c
+	pTaken = xrtValueIntMapTake(pMap, -7);
+```
+
+### `xrtValueIntMapMerge`
+
+按冲突策略失败原子地合并两个整数键映射。
+
+```c
+bool xrtValueIntMapMerge(xvalue* pTarget, const xvalue* pSource, xvaluemergepolicy Policy)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入/输出 | 非空、INT_MAP | 目标映射 |
+| `pSource` | 输入 | 非空、INT_MAP | 来源映射 |
+| `Policy` | 输入 | — | 冲突策略 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_VALUE` — 冲突策略拒绝重叠键
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections_batch](../../examples/value/collections/batch/main.c) · 合并映射
+
+```c
+		 !xrtValueIntMapMerge(
+			pDefaults,
+			pOverrides,
+			XVALUE_MERGE_REPLACE
+		 ) ||
+```
+
+### `xrtValueIntMapTrim`
+
+释放 IntMap 空闲节点池页并返回实际释放页数。
+
+```c
+size_t xrtValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、INT_MAP | 目标映射 |
+| `iRetainEmpty` | 输入 | — | 保留页数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际释放页数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[object_tour](../../examples/value/object_tour/main.c) · 裁剪节点池
+
+```c
+	printf("trim=%zu\n", xrtValueIntMapTrim(pMap, 0));
+```
+
 ## COW 与线程
 
 `xrtValueClone` 为容器创建独立外壳并共享 backing，复杂度为 `O(1)`。首次有效写入先浅拷贝 backing，失败时可见内容不变。越界或标量 Edit、同值覆盖、缺失删除、重复 Set 加入、空容器清空和不增加容量的 Reserve 都不会无意义地分离 backing。`ArrayEdit`、`IntMapEdit` 和 `ObjectEdit` 只分离需要修改的嵌套路径。
@@ -314,6 +3019,285 @@ void xrtValueIterDestroy(xvalueiter* iterator);
 `xrtValueIterNext` 是不隔离当前错误的最短快速路径，返回空值时调用方需按自身上下文判断结束。需要严格区分结果时使用 `xrtValueIterAdvance`：`XVALUE_ITER_ITEM` 表示写出一个借用元素，`XVALUE_ITER_END` 表示正常结束，`XVALUE_ITER_ERROR` 表示失败且当前错误已更新。成功项和正常结束均保留调用前已有错误；空指针或未活动迭代器属于错误。
 
 `Create/RCreate` 提供相同语义的拥有式入口，适合 FFI、语言运行时和不保存公开结构布局的消费者。成功后必须用 `xrtValueIterDestroy` 结束并释放；`Destroy(NULL)` 是空操作。栈上固定存储仍优先使用 `Begin/End`，不会产生一次迭代器分配。
+
+### `xrtValueIterBegin`
+
+启动稳定顺序快照；输出不得覆盖 Value，且不能已处于活动状态。
+
+```c
+bool xrtValueIterBegin(const xvalue* pValue, xvalueiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、容器 | 目标值 |
+| `pIterator` | 输出 | 非空 | 接收迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_EXISTS` — 迭代器已处于活动状态
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers](../../examples/value/containers/main.c) · 启动快照
+
+```c
+	if ( !xrtValueIterBegin(pCopy, &tIterator) ) {
+```
+
+### `xrtValueIterRBegin`
+
+启动稳定逆序快照；输出不得覆盖 Value，且不能已处于活动状态。
+
+```c
+bool xrtValueIterRBegin(const xvalue* pValue, xvalueiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、容器 | 目标值 |
+| `pIterator` | 输出 | 非空 | 接收迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_EXISTS` — 迭代器已处于活动状态
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 启动逆序快照
+
+```c
+		(void)xrtValueIterRBegin(pArray, &rIter);
+```
+
+### `xrtValueIterNext`
+
+返回下一借用值及其键；键输出不得覆盖迭代器，正常结束返回空指针。
+
+```c
+xvalue* xrtValueIterNext(xvalueiter* pIterator, xvaluekey* pKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 已启动 | 目标迭代器 |
+| `pKey` | 输出 | 允许空 | 接收键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 借用值；遍历结束为 `NULL` | — |
+| `NULL` | 遍历结束 | 不设错误 |
+
+#### 错误
+
+- 遍历结束返回 `NULL` 且不设置错误；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[containers](../../examples/value/containers/main.c) · 下一元素
+
+```c
+	while ( (pItem = xrtValueIterNext(&tIterator, &Key)) != NULL ) {
+```
+
+### `xrtValueIterAdvance`
+
+三态推进快照；成功项写入借用值，正常结束不设置错误。
+
+```c
+xvalueiterresult xrtValueIterAdvance(xvalueiter* pIterator, xvaluekey* pKey, xvalue** ppValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 已启动 | 目标迭代器 |
+| `pKey` | 输出 | 允许空 | 接收键 |
+| `ppValue` | 输出 | 非空 | 接收借用值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XVALUE_ITER_OK` | 已产出 | — |
+| `XVALUE_ITER_END` | 遍历结束 | 不设错误 |
+| `XVALUE_ITER_ERROR` | 失败 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 迭代器未启动或已结束
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 三态推进
+
+```c
+		while ( xrtValueIterAdvance(&rIter, &rKey, &pItem) == XVALUE_ITER_ITEM ) {
+```
+
+### `xrtValueIterEnd`
+
+结束迭代并释放 backing 快照。
+
+```c
+void xrtValueIterEnd(xvalueiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已结束 | — |
+
+#### 错误
+
+- 无 — 结束不失败
+
+#### 范例
+
+[containers](../../examples/value/containers/main.c) · 结束快照
+
+```c
+	xrtValueIterEnd(&tIterator);
+```
+
+### `xrtValueIterCreate`
+
+创建按稳定正序推进的拥有式快照迭代器；调用方必须 Destroy。
+
+```c
+xvalueiter* xrtValueIterCreate(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、容器 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拥有式迭代器 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 创建拥有式迭代器
+
+```c
+		xvalueiter* pIter = xrtValueIterCreate(pArray);
+```
+
+### `xrtValueIterRCreate`
+
+创建按稳定逆序推进的拥有式快照迭代器；调用方必须 Destroy。
+
+```c
+xvalueiter* xrtValueIterRCreate(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、容器 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拥有式迭代器 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 创建逆序迭代器
+
+```c
+		xvalueiter* pRIter = xrtValueIterRCreate(pArray);
+```
+
+### `xrtValueIterDestroy`
+
+结束并释放拥有式迭代器；允许传入空指针。
+
+```c
+void xrtValueIterDestroy(xvalueiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 销毁迭代器
+
+```c
+		xrtValueIterDestroy(pIter);
+```
 
 ## 批量操作与集合代数
 
@@ -372,6 +3356,567 @@ Object 的来源新键按来源顺序追加。Set 运算直接复用通用 Set �
 
 Value Set 的 Handle `Hash`/`Equal` 策略执行期间，左右 Value 外壳和底层 Set 同时进入忙状态；回调不能读取、Clone、释放或修改任一参与外壳。映射批量提交释放被替换旧值时，目标外壳同样保持忙状态。关系不成立是正常的 `false`；非法参数、类型、忙状态和分配失败分别报告结构化错误。
 
+### `xrtValueSet`
+
+创建空的可哈希动态值集合。
+
+```c
+xvalue* xrtValueSet(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 创建集合
+
+```c
+	xvalue* pLeft = xrtValueSet();
+```
+
+### `xrtValueSetAdd`
+
+增加引用后把可哈希标量或显式身份容器加入集合。
+
+```c
+bool xrtValueSetAdd(xvalue* pSet, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空、SET | 目标集合 |
+| `pItem` | 输入 | 非空 | 要加入的值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers_indexed](../../examples/value/containers/indexed/main.c) · 加入引用
+
+```c
+		 !xrtValueSetAdd(pSet, pQuery) ) {
+```
+
+### `xrtValueSetAddTake`
+
+成功时消费来源引用；重复元素同样视为成功。
+
+```c
+bool xrtValueSetAddTake(xvalue* pSet, xvalue** pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空、SET | 目标集合 |
+| `pItem` | 输入/输出 | 非空 | 来源槽，成功后清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[set_tour](../../examples/value/set_tour/main.c) · 加入移交
+
+```c
+		(void)xrtValueSetAddTake(pA, &pOwned);
+```
+
+### `xrtValueSetAddNew`
+
+无论成功失败都消费临时值并尝试加入集合。
+
+```c
+bool xrtValueSetAddNew(xvalue* pSet, xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空、SET | 目标集合 |
+| `pItem` | 输入 | 拥有 | 临时值，总是被消费 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 加入消费
+
+```c
+		 !xrtValueSetAddNew(pLeft, xrtValueString(XRT_STR_LITERAL("read"))) ||
+```
+
+### `xrtValueSetHas`
+
+判断等价值是否在集合中。
+
+```c
+bool xrtValueSetHas(const xvalue* pSet, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空、SET | 目标集合 |
+| `pItem` | 输入 | 非空 | 查找值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否存在 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[containers_indexed](../../examples/value/containers/indexed/main.c) · 成员判断
+
+```c
+		 !xrtValueSetHas(pSet, pQuery) ) {
+```
+
+### `xrtValueSetRemove`
+
+删除等价值并释放集合持有的引用。
+
+```c
+bool xrtValueSetRemove(xvalue* pSet, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空、SET | 目标集合 |
+| `pItem` | 输入 | 非空 | 查找值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 不存在 | 不设错误 |
+
+#### 错误
+
+- 不存在返回 `false` 且不设置错误；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[set_tour](../../examples/value/set_tour/main.c) · 删除成员
+
+```c
+	printf("removed=%d\n", xrtValueSetRemove(pB, xrtValueInt(3)) ? 1 : 0);
+```
+
+### `xrtValueSetTake`
+
+移交集合中的规范值，缺失时返回空指针。
+
+```c
+xvalue* xrtValueSetTake(xvalue* pSet, const xvalue* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空、SET | 目标集合 |
+| `pItem` | 输入 | 非空 | 查找值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 移交出的值引用 | — |
+| `NULL` | 不存在 | 不设错误 |
+
+#### 错误
+
+- 不存在返回 `NULL` 且不设置错误；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[set_tour](../../examples/value/set_tour/main.c) · 移交成员
+
+```c
+	pTaken = xrtValueSetTake(pA, xrtValueInt(2));
+```
+
+### `xrtValueSetMerge`
+
+失败原子地把来源集合中的缺失元素追加到目标集合。
+
+```c
+bool xrtValueSetMerge(xvalue* pTarget, const xvalue* pSource)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入/输出 | 非空、SET | 目标集合 |
+| `pSource` | 输入 | 非空、SET | 来源集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 合并集合
+
+```c
+		 !xrtValueSetMerge(pMerged, pRight) ||
+```
+
+### `xrtValueSetEqual`
+
+判断两个集合是否拥有相同元素。
+
+```c
+bool xrtValueSetEqual(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、SET | 左集合 |
+| `pRight` | 输入 | 非空、SET | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否相同 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 集合相等
+
+```c
+		 !xrtValueSetEqual(pMerged, pUnion) ) {
+```
+
+### `xrtValueSetUnion`
+
+创建两个集合的并集，结果先保持左集合顺序。
+
+```c
+xvalue* xrtValueSetUnion(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、SET | 左集合 |
+| `pRight` | 输入 | 非空、SET | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 并集
+
+```c
+	pUnion = xrtValueSetUnion(pLeft, pRight);
+```
+
+### `xrtValueSetIntersection`
+
+创建两个集合的交集，结果保持左集合顺序。
+
+```c
+xvalue* xrtValueSetIntersection(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、SET | 左集合 |
+| `pRight` | 输入 | 非空、SET | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[set_tour](../../examples/value/set_tour/main.c) · 交集
+
+```c
+	pResult = xrtValueSetIntersection(pA, pB);
+```
+
+### `xrtValueSetDifference`
+
+创建左集合相对右集合的差集。
+
+```c
+xvalue* xrtValueSetDifference(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、SET | 左集合 |
+| `pRight` | 输入 | 非空、SET | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[set_tour](../../examples/value/set_tour/main.c) · 差集
+
+```c
+	pResult = xrtValueSetDifference(pA, pB);
+```
+
+### `xrtValueSetSymmetricDifference`
+
+创建两个集合的对称差集，右侧独有元素追加在左侧独有元素之后。
+
+```c
+xvalue* xrtValueSetSymmetricDifference(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、SET | 左集合 |
+| `pRight` | 输入 | 非空、SET | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[set_tour](../../examples/value/set_tour/main.c) · 对称差集
+
+```c
+	pResult = xrtValueSetSymmetricDifference(pA, pB);
+```
+
+### `xrtValueSetIsSubset`
+
+判断左集合是否为右集合的子集，可选择严格子集。
+
+```c
+bool xrtValueSetIsSubset(const xvalue* pLeft, const xvalue* pRight, bool bProper)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、SET | 左集合 |
+| `pRight` | 输入 | 非空、SET | 右集合 |
+| `bProper` | 输入 | — | 是否严格 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否子集 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[set_tour](../../examples/value/set_tour/main.c) · 子集判断
+
+```c
+		xrtValueSetIsSubset(pA, pBig, false) ? 1 : 0,
+```
+
+### `xrtValueSetIsSuperset`
+
+判断左集合是否为右集合的超集，可选择严格超集。
+
+```c
+bool xrtValueSetIsSuperset(const xvalue* pLeft, const xvalue* pRight, bool bProper)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、SET | 左集合 |
+| `pRight` | 输入 | 非空、SET | 右集合 |
+| `bProper` | 输入 | — | 是否严格 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否超集 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[set_tour](../../examples/value/set_tour/main.c) · 超集判断
+
+```c
+		xrtValueSetIsSuperset(pBig, pSmall, false) ? 1 : 0);
+```
+
+### `xrtValueSetIsDisjoint`
+
+判断两个集合是否没有任何共同元素。
+
+```c
+bool xrtValueSetIsDisjoint(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、SET | 左集合 |
+| `pRight` | 输入 | 非空、SET | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否无共同元素 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[collections](../../examples/value/collections/main.c) · 互斥判断
+
+```c
+		 !xrtValueSetIsDisjoint(pLeft, pRight) ) {
+```
+
 ## 值图
 
 ```c
@@ -399,6 +3944,544 @@ Set 的等价元素关系；有符号整数、无符号整数与可无损转换�
 Handle Clone/Equal 和嵌套 Set 的 Hash/Equal 执行期间，当前 Handle、当前容器以及从
 根到当前位置的活动祖先都进入忙状态。回调不得对这些 Value 执行读取、Clone、写入
 或释放；同一外壳的跨线程调用仍由调用方同步。
+
+### `xrtValueType`
+
+返回值类型，空指针返回 `INVALID`。
+
+```c
+xvaluetype xrtValueType(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 类型枚举 | 当前类型 | — |
+
+#### 错误
+
+- 无 — 空指针返回 `INVALID` 不设错
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 类型查询
+
+```c
+		(xrtValueType(arrValues[2]) != XVALUE_STRING) ||
+```
+
+### `xrtValueTypeName`
+
+返回稳定的类型名称。
+
+```c
+cstr xrtValueTypeName(xvaluetype Type)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Type` | 输入 | — | 类型枚举 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 静态类型名称 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 类型名称
+
+```c
+	printf("time type: %s\n", xrtValueTypeName(xrtValueType(arrValues[4])));
+```
+
+### `xrtValueIs`
+
+判断值是否具有指定类型。
+
+```c
+bool xrtValueIs(const xvalue* pValue, xvaluetype Type)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+| `Type` | 输入 | — | 类型枚举 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否该类型 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 类型判断
+
+```c
+		!xrtValueIs(arrValues[2], XVALUE_STRING) ||
+```
+
+### `xrtValueIsNumber`
+
+判断值是否为整数或浮点数。
+
+```c
+bool xrtValueIsNumber(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否数值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 数值判断
+
+```c
+		!xrtValueIsNumber(arrValues[0]) ||
+```
+
+### `xrtValueIsContainer`
+
+判断值是否为四种基础容器之一。
+
+```c
+bool xrtValueIsContainer(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否容器 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 容器判断
+
+```c
+		xrtValueIsContainer(arrValues[0]) ||
+```
+
+### `xrtValueIsWeakRef`
+
+判断值是否是由 `xrtValueWeakRef` 创建的弱引用。
+
+```c
+bool xrtValueIsWeakRef(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否弱引用 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 弱引用判断
+
+```c
+	printf("weak: is=%d", xrtValueIsWeakRef(pWeak) ? 1 : 0);
+```
+
+### `xrtValueTypeId`
+
+返回调用者绑定的不透明语义类型身份；未绑定或空指针返回零。
+
+```c
+uint64 xrtValueTypeId(const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 绑定的身份；未绑定为 0 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 语义类型身份
+
+```c
+			(unsigned long long)xrtValueTypeId(pObject));
+```
+
+### `xrtValueTypeIdBind`
+
+为值绑定不透明语义类型身份。
+
+```c
+bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入/输出 | 非空 | 目标值 |
+| `iTypeId` | 输入 | 非零 | 身份标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_VALUE` — 身份为零或已绑定
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 绑定身份
+
+```c
+		(void)xrtValueTypeIdBind(pObject, 77u);
+```
+
+### `xrtValueTypeIdRebind`
+
+仅在值外壳唯一拥有时，把既有语义类型身份替换为新的非零身份。
+
+```c
+bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入/输出 | 非空、唯一拥有 | 目标值 |
+| `iTypeId` | 输入 | 非零 | 新身份 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 外壳非唯一拥有
+- `XERR_VALUE` — 未绑定或新身份为零
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 重绑身份
+
+```c
+		(void)xrtValueTypeIdRebind(pObject, 88u);
+```
+
+### `xrtValueIdentityBind`
+
+为容器绑定自定义哈希与相等函数，使其可加入集合。
+
+```c
+bool xrtValueIdentityBind(xvalue* pValue, xvalueidentityhash pHash, xvalueidentityequal pEqual, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入/输出 | 非空、容器 | 目标值 |
+| `pHash` | 输入 | 非空 | 哈希函数 |
+| `pEqual` | 输入 | 非空 | 相等函数 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+- `XERR_STATE` — 容器已绑定或非空
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 绑定身份函数
+
+```c
+				xrtValueIdentityBind(pSet, intHash, intEqual, NULL) ? 1 : 0);
+```
+
+### `xrtValueHash`
+
+为可哈希标量或显式身份容器计算一致哈希；指针和句柄哈希只在当前进程内有效。
+
+```c
+bool xrtValueHash(const xvalue* pValue, uint64* pHash)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 目标值 |
+| `pHash` | 输出 | 非空 | 接收哈希 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 一致哈希
+
+```c
+		!xrtValueHash(arrValues[0], &iIntHash) ||
+```
+
+### `xrtValueEqual`
+
+按数值与标量内容判断相等；不可比较句柄和容器报告类型错误。
+
+```c
+bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | 左值 |
+| `pRight` | 输入 | 非空 | 右值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否相等 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[graph](../../examples/value/graph/main.c) · 深度相等
+
+```c
+		 !xrtValueEqual(pRoot, pCopy) ||
+```
+
+### `xrtValueScalarEqual`
+
+按标量数值判断相等。
+
+```c
+bool xrtValueScalarEqual(const xvalue* pLeft, const xvalue* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | 左值 |
+| `pRight` | 输入 | 非空 | 右值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否相等 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[basic](../../examples/value/basic/main.c) · 标量相等
+
+```c
+		!xrtValueScalarEqual(arrValues[0], arrValues[1]) ||
+```
+
+### `xrtValueWeakRef`
+
+为动态 Value 创建一个拥有独立生命周期的弱引用值。
+
+```c
+xvalue* xrtValueWeakRef(const xvalue* pTarget)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入 | 非空 | 目标值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新值（引用 1），用后 `xrtValueRelease` | — |
+| `NULL` | 创建失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 目标是静态标量单例
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 创建弱引用
+
+```c
+	pWeak = xrtValueWeakRef(pTarget);
+```
+
+### `xrtValueWeakRefExpired`
+
+判断弱引用目标是否已经结束强生命周期。
+
+```c
+bool xrtValueWeakRefExpired(const xvalue* pWeak)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWeak` | 输入 | 非空、WEAK | 弱引用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否过期 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 过期判断
+
+```c
+		xrtValueWeakRefExpired(pWeak) ? 1 : 0);
+```
+
+### `xrtValueWeakRefLock`
+
+尝试提升弱引用；过期时返回进程期 null 单例。
+
+```c
+xvalue* xrtValueWeakRefLock(const xvalue* pWeak)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWeak` | 输入 | 非空、WEAK | 弱引用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 提升后的强引用（过期时为 null 单例） | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_TYPE` — 值类型与操作不匹配
+
+#### 范例
+
+[iter_weak](../../examples/value/iter_weak/main.c) · 提升弱引用
+
+```c
+	pLocked = xrtValueWeakRefLock(pWeak);
+```
 
 ## 错误
 

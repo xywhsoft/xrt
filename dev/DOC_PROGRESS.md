@@ -78,7 +78,7 @@
 | 71 | time.md | 58 | **完成** | 58/58 全绿（G3 58 片段，2026-09-07）；九组入档；字段越界 RANGE、解析族 ARGUMENT、Write 容量原子失败；锚点 10 范例；manifest 补注册 text_parse |
 | 72 | tls.md | 268 | 待办 |  |
 | 73 | udp.md | 73 | **完成** | 73/73 全绿（G3 73 片段，2026-09-07）；打开 6 + 接收 7 + 错误包 5 + Future/批量/包 17 + 发送 13 + 组播 5 + 关闭查询 20 七组；批量容量 1–256 RANGE、Worker 归属 STATE 全表；manifest 补注册三范例 |
-| 74 | value.md | 116 | 待办 |  |
+| 74 | value.md | 116 | **完成** | 116/116 全绿（G3 116 片段，2026-09-07）；标量 20 + 句柄 3 + 生命周期 9 + Array 20 + Object 13 + IntMap 11 + 迭代 8 + Set 16 + 类型身份 13 + 弱引用 3 十组；引用/移交/消费三形态全表；XERR_TYPE/VALUE/EXISTS 特有口径；锚点 13 范例 |
 | 75 | wait.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；Deadline 三函数；NEVER 语义（Expired 永假、Remaining UINT64_MAX）；锚点 concurrency/deadline |
 | 76 | websocket.md | 104 | 待办 |  |
 | 77 | x509.md | 89 | 待办 |  |
@@ -786,4 +786,9 @@
   写入器上 = XERR_STATE、StringifyFile/WriteFile 原子替换、文件族
   超输入上限 = xrt.file 域错误。
   完成 API 3052→3087/3664（84.3%），75/79 文件。
+- 2026-09-07 value.md 完成（116/116，G3 116 片段全绿）：十组；
+  三种所有权形态（引用/移交/消费）逐函数成表、COW Edit 分离语义、
+  快照迭代 EXISTS 活动状态、Merge 冲突策略 VALUE、TypeIdRebind 唯一
+  拥有 STATE、WeakRef 过期锁返回 null 单例。
+  完成 API 3087→3203/3664（87.4%），76/79 文件。
 
