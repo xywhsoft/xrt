@@ -2,6 +2,34 @@
 
 XID 模块生成 192 位分布式标识。它保留旧版 XRT 的 24 字节二进制和 32 字符紧凑文本优势，但使用跨平台固定布局、系统安全随机源和值类型 API，删除对本机 IP、结构体端序和逐对象堆分配的依赖。
 
+## 类型与常量
+
+### `xid`
+
+XID 是按时间排序的 192 位值；字节布局和宿主端序无关。
+
+```c
+typedef struct xid {
+	uint8 Data[XID_BINARY_SIZE];
+} xid;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+
+### `xiderror`
+
+XID 文本解析错误使用稳定域 xrt.xid。
+
+```c
+typedef enum xiderror {
+	XID_ERROR_FORMAT = 1
+} xiderror;
+```
+
+| 值 | 语义 |
+|---|---|
+
 ## 模块
 
 `XRT_MODULE_XID` 启用 `XRT_FEATURE_XID`，并精确依赖 `time`、`random_secure` 和 `codec_base64`。模块不依赖网络、线程、任务或容器。

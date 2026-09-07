@@ -3,6 +3,38 @@
 `html_escape` 是独立于 Template、HTTP 和网络的轻量文本原语。它只依赖
 `unicode`，可以被模板引擎、HTTP 响应、日志查看器或任意自定义渲染器复用。
 
+## 类型与常量
+
+### `xhtmlescapemode`
+
+HTML 转义上下文；属性模式只适用于由引号包围的属性值。
+
+```c
+typedef enum xhtmlescapemode {
+	XHTML_ESCAPE_TEXT = 0,
+	XHTML_ESCAPE_ATTRIBUTE
+} xhtmlescapemode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTML_ESCAPE_TEXT` | XHTMLESCAPE文本 |
+
+### `xhtmlerror`
+
+HTML 文本原语的稳定错误代码。
+
+```c
+typedef enum xhtmlerror {
+	XHTML_ERROR_MODE = 1,
+	XHTML_ERROR_UTF8
+} xhtmlerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTML_ERROR_MODE` | XHTML失败MODE |
+
 ## 裁剪
 
 ```c

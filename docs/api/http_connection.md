@@ -3,6 +3,42 @@
 `xrt/http_connection.h` 提供 HTTP `Connection` 字段的解析和 HTTP/1 持久性判断。
 协议层不依赖客户端、服务器、代理或网络对象，可直接处理借用的 `xhttpfield` 数组。
 
+## 类型与常量
+
+### `xhttpconnectionstatus`
+
+连接持久性结果区分协议错误、当前响应后关闭和继续复用。
+
+```c
+typedef enum xhttpconnectionstatus {
+	XHTTP_CONNECTION_ERROR = -1,
+	XHTTP_CONNECTION_CLOSE = 0,
+	XHTTP_CONNECTION_PERSIST = 1
+} xhttpconnectionstatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_CONNECTION_ERROR` | 失败 |
+| `XHTTP_CONNECTION_CLOSE` | CLOSE |
+
+### `xhttpconnectionflag`
+
+HTTP/1.0 持久性判断所需的消息方向、接收角色和本地策略。
+
+```c
+typedef enum xhttpconnectionflag {
+	XHTTP_CONNECTION_RESPONSE = UINT32_C(0x00000001),
+	XHTTP_CONNECTION_PROXY = UINT32_C(0x00000002),
+	XHTTP_CONNECTION_ALLOW_HTTP10_KEEP_ALIVE = UINT32_C(0x00000004)
+} xhttpconnectionflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_CONNECTION_RESPONSE` | RESPONSE |
+| `XHTTP_CONNECTION_PROXY` | PROXY |
+
 ## 裁剪
 
 - 模块：`http_connection`

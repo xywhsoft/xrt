@@ -3,6 +3,42 @@
 `console` 模块提供跨平台 UTF-8 标准输出。它只管理进程已有的
 `stdout` 和 `stderr`，不会创建、接管或关闭原生控制台。
 
+## 类型与常量
+
+### `xconsolestream`
+
+标准输出流名称跨平台稳定，不直接暴露 FILE 或原生句柄。
+
+```c
+typedef enum xconsolestream {
+	XCONSOLE_STDOUT = 1,
+	XCONSOLE_STDERR
+} xconsolestream;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XCONSOLE_STDOUT` | XCONSOLE标准输出 |
+
+### `xconsoleerror`
+
+Console 错误代码在 xrt.console 域内稳定。
+
+```c
+typedef enum xconsoleerror {
+	XCONSOLE_ERROR_STREAM = 1,
+	XCONSOLE_ERROR_UTF8,
+	XCONSOLE_ERROR_WRITE,
+	XCONSOLE_ERROR_FLUSH
+} xconsoleerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XCONSOLE_ERROR_STREAM` | STREAM |
+| `XCONSOLE_ERROR_UTF8` | UTF-8 |
+| `XCONSOLE_ERROR_WRITE` | 写方向 |
+
 ## 选择模块
 
 ```c

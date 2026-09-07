@@ -2,6 +2,30 @@
 
 `spin` 提供不记录所有者、不可递归的短临界区锁。它先使用处理器暂停提示自旋，持续竞争时主动让出时间片；等待时间不可预测或临界区可能阻塞时，应改用 `mutex`。
 
+## 类型与常量
+
+### `xspinlock`
+
+短临界区自旋锁不记录所有者，也不支持递归进入。
+
+```c
+typedef struct xspinlock {
+	xatomic32 State;
+	uint32 Magic;
+} xspinlock;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `State` | `xatomic32` | State |
+| `Magic` | `uint32` | Magic |
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_SPIN_MAGIC` | `UINT32_C(0x5853504e)` | XRTSPINMAGIC |
+
 ## 裁剪
 
 启用 `XRT_FEATURE_SPIN`，模块依赖 `atomic`。未启用时不声明类型和函数，也不编译实现。

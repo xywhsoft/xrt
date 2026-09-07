@@ -3,6 +3,39 @@
 `wait` 定义线程、协程、Future、任务和网络共用的等待结果与 deadline 口径。
 启用宏为 `XRT_FEATURE_WAIT`，依赖 `XRT_FEATURE_TIME`。
 
+## 类型与常量
+
+### `xwaitresult`
+
+等待结果把正常控制流与真正错误分开表达。
+
+```c
+typedef enum xwaitresult {
+	XWAIT_ERROR = -1,
+	XWAIT_OK = 0,
+	XWAIT_TIMEOUT = 1,
+	XWAIT_CANCELLED = 2,
+	XWAIT_CLOSED = 3
+} xwaitresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWAIT_ERROR` | 失败 |
+| `XWAIT_OK` | 成功 |
+| `XWAIT_TIMEOUT` | 超时 |
+| `XWAIT_CANCELLED` | 已取消 |
+
+### `xdeadline`
+
+截止时间使用 xrtClock 的单调微秒刻度。
+
+```c
+typedef uint64 xdeadline;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 ## 时间单位
 
 `xdeadline` 是 `xrtClock()` 使用的单调微秒刻度。它只适合计算进程内经过时间，
