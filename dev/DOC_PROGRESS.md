@@ -1015,4 +1015,13 @@
   （该结构无 Open 字段——上上轮空表回填时臆测的「无操作占位」），
   删除。终扫类型列零幽灵、列断裂零（长签名不含管道）；
   G1+G5/G3 全绿。
+- 2026-09-07 约束列抽样审计（参数表最后一个未机检列）：全库
+  「允许空」声明 602 处，随机抽 25 项到实现源逐一对账。首轮
+  启发式报 9 疑点，逐个溯源后全部合规——NULL 容忍路径存在于
+  转发目标或辅助校验函数（如 xrtIntMapClear→__xrtIntMapValid
+  首行 NULL 检查；xrtPtrFixedStackDestroy→转发 xrtFixedStackDestroy
+  的 NULL 早退；xrtTaskSubmitUntil 的 pArgs 在 __xrtTaskPoolSubmit
+  的 pArgs != NULL 条件消费中容忍）。抽样正确率 25/25。
+  启发式教训（第三次重演）：单函数体的 NULL 检查不足以判定，
+  必须追到转发链终点。约束列经抽样验证可信。
 
