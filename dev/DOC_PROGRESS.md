@@ -49,7 +49,7 @@
 | 42 | net-file.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；错误码对照 src/network/file.c（Worker 归属 STATE、范围 RANGE、无文件 I/O 能力 UNSUPPORTED）；锚点 file_tour |
 | 43 | net-frame.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；FRAME_CONFIG/STATE/LIMIT/LENGTH 四域码入档；xnetframestatus 逐值成表；锚点 frame_line/frame_length |
 | 44 | net-interface.md | 12 | **完成** | 12/12 全绿（G3 12 片段，2026-09-07）；全部节复用自 net.md「网络接口与本机信息」组 |
-| 45 | net-resolver.md | 172 | 待办 |  |
+| 45 | net-resolver.md | 172 | **完成** | 172/172 全绿（G3 172 片段，2026-09-07）；同 net-dns（net.h 172），Resolver 组置首 + 其余 11 组镜像 |
 | 46 | net.md | 184 | **完成** | 试点 2；六段全绿（184/184，G3 203 片段）：地址族 20 + 缓冲/DNS/Bytes 39 + Socket 39 + Port 29 + Post 3 + Engine 17 + Worker 9 + 第 6 段 26 + CompletionInit 1 |
 | 47 | number.md | 15 | 待办 |  |
 | 48 | once.md | 22 | 待办 |  |
@@ -602,4 +602,9 @@
 - 2026-09-07 net-interface.md 完成（12/12，G3 12 片段全绿）：
   节复用自 net.md 网络接口与本机信息组（net.md 184 − 本 12 = net-dns 172
   的差集闭环）。完成 API 1835→1847/3664（50.4%），45/79 文件。
+- 2026-09-07 net-resolver.md 全文件达成（172/172，G3 172 片段
+  全绿）：与 net-dns.md 同构（同映射 include/xrt/net.h），名称解析
+  （Resolver）组置首、其余 11 组按 net.md 顺序镜像；原 74 行桩文档
+  （分层/配置/查询合并/生命周期/统计/Future 便捷层）保留在前。
+  完成 API 1847→2019/3664（55.1%），46/79 文件。
 
