@@ -27,7 +27,7 @@
 | P18 卷十xhttp客户端 | ✅ 完成 | 6 | 28,006 |
 | P19 卷十xhttp服务端 | ✅ 完成 | 6 | 28,133 |
 | P20 卷十一xws | ✅ 完成 | 4 | 16,994 |
-| P21 卷十一xssh | 🔄 进行中 | 0 | — |
+| P21 卷十一xssh | ✅ 完成 | 7 | 33,309 |
 | P22–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -101,6 +101,13 @@
 | 110 | 110-xws-send.md | practice | 4,179 | 2 | 1 | 3 | 3 | P20 |
 | 111 | 111-xws-group.md | practice | 4,049 | 2 | 1 | 3 | 3 | P20 |
 | 112 | 112-xws-server.md | practice | 4,764 | 2 | 1 | 3 | 3 | P20 |
+| 117 | 117-xssh-transport.md | practice | 5,598 | 2 | 1 | 3 | 3 | P21 |
+| 118 | 118-xssh-kex.md | practice | 5,086 | 2 | 1 | 3 | 3 | P21 |
+| 119 | 119-xssh-hostkey.md | practice | 4,263 | 2 | 1 | 3 | 3 | P21 |
+| 120 | 120-xssh-auth.md | practice | 4,820 | 2 | 1 | 3 | 3 | P21 |
+| 121 | 121-xssh-channel.md | practice | 4,376 | 2 | 2 | 3 | 3 | P21 |
+| 122 | 122-xssh-forward.md | practice | 4,564 | 2 | 1 | 3 | 3 | P21 |
+| 123 | 123-xssh-client.md | practice | 4,602 | 2 | 1 | 3 | 3 | P21 |
 
 
 
@@ -109,6 +116,32 @@
 
 
 
+
+## P21 阶段记录
+
+- 卷十一 xssh 7 章（xssh 全部成型，素材 56 契约卡/60 示例）：
+  ch117 传输与包层（wire 五类型/packet 框架与 padding 回调/AES-GCM 单向
+  counter/transport core 三段事务）、ch118 密钥交换（新增章：KEXINIT 协商/
+  ECDH 报文/exchange hash 流式 mpint/A-F 派生/验签与信任两步/方向切换清密钥）、
+  ch119 主机密钥与 known_hosts（新增章：格式层算法演进/指纹/信任态 MATCH-NEW-
+  CHANGED/哈希主机名/与 X.509 对照）、ch120 认证（会话编排四分层/publickey probe
+  与外部 signer/keyboard 多轮/auth guard 双向预算）、ch121 通道与窗口（新增章：
+  RFC 4254 双向流控/两阶段窗口返还/open 状态机/动态通道集合）、ch122 端口转发
+  （新增章：direct/forwarded 两形态/全局请求 token/端口 0..65535 语义边界/
+  confirm 三步顺序）、ch123 客户端运行时（新增章：四不设计/ReadyTimeout 两级
+  预算/三个交互点/Drain 顺序保证——七章总装收官）。
+- 全书第二十次重编号：五插入 kex(118)/hostkey(119)/channel(121)/forward(122)/
+  client(123)，auth 118→120，13 文件位移，全书 135 章；卷十一 109-123 十五章
+  骨架（xws 4 + xruntime 2 + xmail 2 + xssh 7）。
+- 门禁拦下：XRT_NET_AGAIN 是契约文档词（真名 XNET_RESULT_AGAIN）、
+  xrtSshKexinitWrite 真名 xrtSshKexInitWrite、X25519 裸词（改小写 x25519）、
+  TRUST_UNKNOWN/CONFLICT 真名 TRUST_NEW/CHANGED、TRUST_CERT 真名
+  TRUST_CERT_AUTHORITY、xrtSshAuthGuardSet 真名 GuardPolicyInit+Init、
+  xsshkeyboardchallenge 真名 xsshauthkeyboard、xrtSshChannelCoreInit 不存在
+  （只有 OpenInit/AcceptInit）、xsshclientevents 不在符号扫描（函数指针结构
+  分号截断——同 xtlsstreamevents 限制，正文改描述写法）、
+  xrtNetAddrParseText 真名 xrtNetAddrParse。
+- 行文章号修正 7 处（testing→127、perf→129）。
 
 ## P20 阶段记录
 
