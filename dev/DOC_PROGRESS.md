@@ -47,7 +47,7 @@
 | 40 | memory_stats.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；纯开关/清空函数显式"不失败"错误节；锚点 stats |
 | 41 | net-dns.md | 172 | **完成** | 172/172 全绿（G3 172 片段，2026-09-07）；映射 net.h（=net.md 减 net_interface.h 12 个）；全部节复用自 net.md，12 组结构镜像，同名组（错误/文本输出等）合并 |
 | 42 | net-file.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；错误码对照 src/network/file.c（Worker 归属 STATE、范围 RANGE、无文件 I/O 能力 UNSUPPORTED）；锚点 file_tour |
-| 43 | net-frame.md | 9 | 待办 |  |
+| 43 | net-frame.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；FRAME_CONFIG/STATE/LIMIT/LENGTH 四域码入档；xnetframestatus 逐值成表；锚点 frame_line/frame_length |
 | 44 | net-interface.md | 12 | 待办 |  |
 | 45 | net-resolver.md | 172 | 待办 |  |
 | 46 | net.md | 184 | **完成** | 试点 2；六段全绿（184/184，G3 203 片段）：地址族 20 + 缓冲/DNS/Bytes 39 + Socket 39 + Port 29 + Post 3 + Engine 17 + Worker 9 + 第 6 段 26 + CompletionInit 1 |
@@ -593,4 +593,10 @@
   范围校验（偏移+长度超出完成事件表达范围 = xrt.net/PORT_SUBMIT·RANGE）、
   SELECT 等后端无文件 I/O 能力 = XERR_UNSUPPORTED 三类契约入档。
   完成 API 1822→1826/3664（49.8%），43/79 文件。
+- 2026-09-07 net-frame.md 完成（9/9，G3 9 片段全绿）：错误域码
+  FRAME_CONFIG/STATE/LIMIT/LENGTH 对照 src/network/frame*.c 溯源；
+  xnetframestatus 三值逐值成表（READY/MORE/ERROR）。生成器修复：
+  `#### 错误` 子节含 `## 错误` 子串导致 str.index 锚点落进已插入块
+  内部——改为行首正则锚定后一次全绿（该陷阱记入长期记忆）。
+  完成 API 1826→1835/3664（50.1%），44/79 文件。
 
