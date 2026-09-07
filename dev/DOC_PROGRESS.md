@@ -808,4 +808,18 @@
   自检四种密钥形态（openssl 新生成 RSA/P-384/Ed25519 材料，build.py
   实测 identity=1/3/4/6 全通过）；handshake_extra 补注册（#14）。
   完成 API 3396→3664/3664（100.0%），79/79 文件。
+- 2026-09-07 周期全量复审 #6 · 终审（79/79 收官）：(a) G1/G2/G4 --all
+  79 文件全绿、问题数 0——全库 3664 API 节全部达标；(b) G3 --all
+  79 文件 3683 片段全绿；(c) 全库函数节禁用词零命中；(d) 台账对账：
+  79 完成行，API 求和 3664 = 头文件并集总数（100.0%）。
+
+== 任务总结 ==
+  80 任务（79 文件 + Phase 0 规范/工具）全部完成；生成器管线
+  （头文件签名/形参/契约注释程序化提取 + callline 锚点 + 族模板）
+  覆盖新写 2428 节，节复用覆盖 897 节（core/memory/error/net-dns/
+  net-resolver/net-interface/tcp-proxy/thread/thread-key/http_fields 等
+  共享头文件族）；manifest 补注册范例 14 次，范例工程扩展 2 次
+  （tls identity 四形态 + openssl 新材料实测）。建议后续：
+  - 修正记录中已注明的门禁工具两处修复保持回归覆盖；
+  - 新增 API 时按 DOC_SPEC §1.2 模板同步补节并跑双门禁。
 
