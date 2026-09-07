@@ -50,53 +50,375 @@
 
 ### `xrtMemDebugEnable`
 
-在没有活动分配时开启或关闭运行时记录。违反生命周期约束返回 `false` 并设置 `XERR_STATE`。
+在没有活动分配时开启或关闭运行时内存调试记录。
+
+```c
+bool xrtMemDebugEnable(bool bEnable)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `bEnable` | 输入 | — | 目标开关状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已切换 | — |
+| `false` | 存在活动分配 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 仍存在活动分配或临时内存字节
+
+#### 范例
+
+[fail_inject](../../examples/memory/fail_inject/main.c) · 开关
+
+```c
+	(void)xrtMemDebugEnable(true);
+```
 
 ### `xrtMemDebugEnabled`
 
-返回当前运行时记录开关。
+原子读取运行时内存调试开关。
+
+```c
+bool xrtMemDebugEnabled(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 当前开关状态 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[fail_inject](../../examples/memory/fail_inject/main.c) · 开关读取
+
+```c
+	printf("enabled=%d\n", xrtMemDebugEnabled() ? 1 : 0);
+```
 
 ### `xrtMemDebugFailAfter`
 
-允许当前线程继续成功执行指定次数的逻辑分配，然后让下一次逻辑分配返回 `NULL` 并设置 `XERR_MEMORY`。故障触发后自动解除；传入零表示下一次分配失败。常规编译器的状态不需要动态内存；TinyCC 首次创建系统 TLS 状态可能失败，此时函数返回 `false` 并保留错误。成功返回 `true` 后可用于确定性扫描 OOM 回滚路径。
+当前线程允许指定次数成功分配后，让下一次逻辑分配失败一次。
+
+```c
+bool xrtMemDebugFailAfter(uint64 iSuccessfulAllocations)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iSuccessfulAllocations` | 输入 | — | 放行的成功分配次数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 故障已武装 | — |
+| `false` | 线程故障状态分配失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_MEMORY` — 线程局部故障状态惰性分配失败
+
+#### 范例
+
+[fail_inject](../../examples/memory/fail_inject/main.c) · 故障注入
+
+```c
+	(void)xrtMemDebugFailAfter(1u);
+```
 
 ### `xrtMemDebugFailClear`
 
-清除当前线程尚未触发的分配故障及触发标志。测试离开故障区间前应显式调用。
+清除当前线程尚未触发的分配故障。
+
+```c
+void xrtMemDebugFailClear(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清除 | — |
+
+#### 错误
+
+- 无 — 清除不失败
+
+#### 范例
+
+[fail_inject](../../examples/memory/fail_inject/main.c) · 清除注入
+
+```c
+	xrtMemDebugFailClear();
+```
 
 ### `xrtMemDebugFailTriggered`
 
-返回当前线程最近一次 `xrtMemDebugFailAfter` 是否已经触发。该查询不改变故障状态，也不分配内存。
+返回当前线程最近配置的分配故障是否已经触发。
+
+```c
+bool xrtMemDebugFailTriggered(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否已触发 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[fail_inject](../../examples/memory/fail_inject/main.c) · 触发查询
+
+```c
+		xrtMemDebugFailTriggered() ? 1 : 0);
+```
 
 ### `xrtMemDebugReset`
 
-清空统计和事件，并立即释放隔离队列。存在活动分配时失败且不改变现有状态。
+在没有活动分配时清空统计、事件和隔离队列。
+
+```c
+bool xrtMemDebugReset(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已清空 | — |
+| `false` | 存在活动分配 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 仍存在活动分配或临时内存字节
+
+#### 范例
+
+[fail_inject](../../examples/memory/fail_inject/main.c) · 清空记录
+
+```c
+	(void)xrtMemDebugReset();
+```
 
 ### `xrtMemDebugSnapshot`
 
-复制统计快照。输出参数为 `NULL` 时设置 `XERR_ARGUMENT`。
+获取字段相互一致的内存调试统计快照。
+
+```c
+void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSnapshot` | 输出 | 非空 | 接收快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 快照已写出 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[debug](../../examples/memory/debug/main.c) · 统计快照
+
+```c
+	xrtMemDebugSnapshot(&tSnapshot);
+```
 
 ### `xrtMemDebugVisit`
 
-按事件序号访问当前有界历史。访问器返回 `false` 时停止，返回值是已经调用访问器的次数。
+按时间顺序访问当前保留的有界调试事件。
+
+```c
+size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pVisitor` | 输入 | 非空 | 事件回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际访问的事件数；0 = 无事件或失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` / `XERR_OVERFLOW` — 事件快照捕获失败
+- `XERR_STATE` — 快照在遍历中途失效（调试状态被关闭或清空）
+
+#### 范例
+
+[fail_inject](../../examples/memory/fail_inject/main.c) · 事件遍历
+
+```c
+	(void)xrtMemDebugVisit(printEvent, &iEvents);
+```
 
 ### `xrtMemDebugVisitLive`
 
-访问内部锁线性化点捕获的完整活动分配快照。并发增长超过预分配容量时会重新申请并重试，不会静默截断；实现使用底层分配器，不会递归进入 XRT 调试分配路径。
+访问内部锁线性化点捕获的完整活动分配快照。
+
+```c
+size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pVisitor` | 输入 | 非空 | 分配回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际访问的分配数；0 = 无分配或失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` / `XERR_OVERFLOW` — 活动分配快照捕获失败
+
+#### 范例
+
+[debug](../../examples/memory/debug/main.c) · 活动分配遍历
+
+```c
+	(void)xrtMemDebugVisitLive(printAllocation, NULL);
+```
 
 ### `xrtMemDebugEventName`
 
-返回稳定的小写事件名称，未知枚举返回 `unknown`，适合日志、报告和测试使用。
+返回调试事件种类的稳定小写名称。
+
+```c
+cstr xrtMemDebugEventName(xmemdebugeventkind Kind)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Kind` | 输入 | — | 事件种类 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | `"alloc"`、`"free"`、`"realloc"` 等静态名称 | — |
+| `"unknown"` | 种类非法 | 不设错 |
+
+#### 错误
+
+- 无 — 非法种类返回 `"unknown"` 且不设置错误
+
+#### 范例
+
+[fail_inject](../../examples/memory/fail_inject/main.c) · 事件名称
+
+```c
+			xrtMemDebugEventName(pEvent->Kind));
+```
 
 ### `xrtMemDebugReport`
 
-启用 `XRT_FEATURE_MEMORY_DEBUG_REPORT` 后，把首次输出前分别捕获的统计、完整活动分配和有界事件写为文本或 JSON。写入器接收借用的字节片段，可以直接连接文件、网络、日志系统或调用方缓冲；报告层不替调用方选择存储位置。三组数据各自具有明确的线性化点，但不承诺组成一个跨锁原子的全局事务快照。
+把首次输出前分别捕获的统计、完整活动分配和有界事件流式写为文本或 JSON；写入器接收借用字节片段。
 
-报告在第一次调用写入器前完成快照，因此写入器自身产生的 XRT 分配不会进入本次报告。写入器返回 `false` 时报告立即停止；写入器没有设置更具体错误时，XRT 设置 `XERR_STATE`。
+```c
+bool xrtMemDebugReport(
+	xmemdebugreportformat Format,
+	xmemdebugwriteproc pWriter,
+	ptr pUserData
+)
+```
 
-### `xrtMallocAt` 等调用点函数
+#### 参数
 
-`xrtMallocAt`、`xrtCallocAt`、`xrtReallocAt`、`xrtFreeAt`、`xrtMemDupAt` 是宏重定向的目标，也允许诊断工具直接调用。除调用点外，所有权和错误契约与普通函数一致。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Format` | 输入 | `TEXT` 或 `JSON` | 报告格式 |
+| `pWriter` | 输入 | 非空 | 字节写入回调 |
+| `pUserData` | 输入 | 任意值 | 写入器数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已完整写出 | — |
+| `false` | 参数非法、捕获或写入失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` / `XERR_OVERFLOW` — 活动分配捕获失败
+- `XERR_STATE` — 写入器返回失败但未设置更具体错误
+
+#### 范例
+
+[debug_report](../../examples/memory/debug_report/main.c) · 流式报告
+
+```c
+	bResult = xrtMemDebugReport(XMEMDEBUG_REPORT_JSON, writeReport, stdout);
+```
+
+调用点函数：`xrtMallocAt`、`xrtCallocAt`、`xrtReallocAt`、`xrtFreeAt`、`xrtMemDupAt` 是宏重定向的目标，也允许诊断工具直接调用；除调用点外，所有权和错误契约与普通函数一致（见 [memory.md](memory.md)）。
 
 ## 范例
 
