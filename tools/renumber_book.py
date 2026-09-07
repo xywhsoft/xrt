@@ -114,16 +114,19 @@ def main():
         if txt != orig:
             io.open(f, "w", encoding="utf-8", newline="\n").write(txt)
 
-    # 4) md 源重命名 + front matter num
+    # 4) md 源重命名 + front matter num（按旧文件名精确匹配，避免后缀碰撞）
     for slug, old, new, entry in renames:
-        hits = glob.glob(os.path.join(repo, "docs", "book", "*-%s.md" % slug))
-        for src in hits:
-            txt = io.open(src, encoding="utf-8").read()
+        old_md = os.path.join(repo, "docs", "book",
+                              "%s-%s.md" % (("%d" % int(re.match(r"ch(\d+)-", old).group(1)))
+                                            if int(re.match(r"ch(\d+)-", old).group(1)) >= 100
+                                            else "%02d" % int(re.match(r"ch(\d+)-", old).group(1)), slug))
+        if os.path.exists(old_md):
+            txt = io.open(old_md, encoding="utf-8").read()
             txt = re.sub(r"(?m)^num:\s*\d+", "num: %d" % entry["num"], txt)
-            dst = os.path.join(os.path.dirname(src), "%s-%s.md" % (fmt_num(entry["num"]), slug))
+            dst = os.path.join(os.path.dirname(old_md), "%s-%s.md" % (fmt_num(entry["num"]), slug))
             io.open(dst, "w", encoding="utf-8", newline="\n").write(txt)
-            os.remove(src)
-            print("md: %s -> %s" % (os.path.basename(src), os.path.basename(dst)))
+            os.remove(old_md)
+            print("md: %s -> %s" % (os.path.basename(old_md), os.path.basename(dst)))
 
     print("完成：重命名 %d 文件 + 全站引用替换" % len(renames))
 
