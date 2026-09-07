@@ -529,3 +529,2265 @@ if ( xrtIntMapIterBegin(&map, &iterator) ) {
 - 去掉容器内部 owner/shared 分支和锁对象，使基础容器的成本、依赖和线程合同更清晰。
 
 旧版的百万插入和千万查找不放入每次单元回归，它们作为性能基准资产保留；日常回归使用更快的稳定地址、OOM、顺序和所有权边界测试。
+
+## API
+
+### 字节键 Map
+
+### `xrtMapInit`
+
+使用默认 16 字节值对齐初始化空字节键映射。
+
+```c
+bool xrtMapInit(xmap* pMap, size_t iValueSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输出 | 非空 | 接收空映射 |
+| `iValueSize` | 输入 | `> 0` | 每值字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/map · 生命周期](../../examples/containers/map/main.c) · 观察
+
+```c
+	if ( !xrtMapInit(&tRoutes, sizeof(routestat)) ) {
+```
+
+
+### `xrtMapInitAligned`
+
+使用显式值对齐初始化空字节键映射。
+
+```c
+bool xrtMapInitAligned(
+	xmap* pMap,
+	size_t iValueSize,
+	size_t iAlignment
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输出 | 非空 | 接收空映射 |
+| `iValueSize` | 输入 | `> 0` | 每值字节数 |
+| `iAlignment` | 输入 | 非零二次幂 | 值对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/map_tour · 生命周期](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		if ( !xrtMapInitAligned(&Aligned, sizeof(uint64), 64u) ) {
+```
+
+
+### `xrtMapCreate`
+
+创建使用默认 16 字节值对齐的空字节键映射。
+
+```c
+xmap* xrtMapCreate(size_t iValueSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValueSize` | 输入 | `> 0` | 每值字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 堆映射；`Destroy` 释放 | — |
+| `NULL` | 参数非法或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/map_tour · 生命周期](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	xmap* pMap = xrtMapCreate(sizeof(ptr));
+```
+
+
+### `xrtMapCreateAligned`
+
+创建使用显式值对齐的空字节键映射。
+
+```c
+xmap* xrtMapCreateAligned(size_t iValueSize, size_t iAlignment);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValueSize` | 输入 | `> 0` | 每值字节数 |
+| `iAlignment` | 输入 | 非零二次幂 | 值对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 堆映射 | — |
+| `NULL` | 参数非法或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/map_tour · 生命周期](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		xmap* pAlignedHeap = xrtMapCreateAligned(sizeof(uint64), 64u);
+```
+
+
+### `xrtMapSetKeyPolicy`
+
+为仍为空的映射设置成对的自定义哈希器和相等器；两个空指针恢复默认策略。
+
+```c
+bool xrtMapSetKeyPolicy(
+	xmap* pMap,
+	xmaphash pHash,
+	xmapequal pEqual,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、空映射 | 目标映射 |
+| `pHash` | 输入 | 允许空（成对） | 哈希器 |
+| `pEqual` | 输入 | 允许空（成对） | 相等器 |
+| `pUserData` | 输入 | 任意值 | 原样传给二者 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 策略已安装 | — |
+| `false` | 映射非空或参数非法 | — |
+
+#### 错误
+
+- `XERR_STATE` — 映射非空（策略/释放器只能在空映射上设置）或迭代期间结构被修改
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/map_tour · 生命周期](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		if ( !xrtMapSetKeyPolicy(&Aligned, NULL, NULL, NULL) ) {
+```
+
+
+### `xrtMapSetDrop`
+
+为仍为空的映射设置值资源释放器和独立用户数据。
+
+```c
+bool xrtMapSetDrop(xmap* pMap, xmapdrop pDrop, ptr pUserData);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、空映射 | 目标映射 |
+| `pDrop` | 输入 | 非空 | 值释放器 |
+| `pUserData` | 输入 | 任意值 | 原样传给释放器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 释放器已安装 | — |
+| `false` | 映射非空 | — |
+
+#### 错误
+
+- `XERR_STATE` — 映射非空（策略/释放器只能在空映射上设置）或迭代期间结构被修改
+
+#### 范例
+
+[containers/map_tour · 生命周期](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		, xrtMapSetDrop(&Aligned, NULL, NULL) ? 1 : 0);
+```
+
+
+### `xrtMapUnit`
+
+释放全部键值和桶数组，但不释放映射结构（内嵌形态收尾）。
+
+```c
+void xrtMapUnit(xmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 调用全部值释放器后释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[containers/map · 生命周期](../../examples/containers/map/main.c) · 观察
+
+```c
+		xrtMapUnit(&tRoutes);
+```
+
+
+### `xrtMapDestroy`
+
+释放全部键值、桶数组和映射结构。
+
+```c
+void xrtMapDestroy(xmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 全部资源已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[containers/map_tour · 生命周期](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+			xrtMapDestroy(pMap);
+```
+
+
+### `xrtMapClear`
+
+清空全部键值并保留桶数组供复用。
+
+```c
+void xrtMapClear(xmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | Count 归零；容量保留 | — |
+
+#### 错误
+
+- 无 — 清空不失败
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	xrtMapClear(pMap);
+```
+
+
+### `xrtMapReserve`
+
+确保映射无需扩容即可容纳指定数量的键。
+
+```c
+bool xrtMapReserve(xmap* pMap, size_t iCapacity);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `iCapacity` | 输入 | — | 最低容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 容量已保证 | — |
+| `false` | 参数或 OOM | 映射不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		(void)xrtMapReserve(pMap, 8u);
+```
+
+
+### `xrtMapTrim`
+
+把桶数组收缩到当前键数所需的最小容量。
+
+```c
+bool xrtMapTrim(xmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已收缩 | — |
+| `false` | 参数或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	(void)xrtMapTrim(pMap);
+```
+
+
+### `xrtMapCount`
+
+返回当前键值数量，非法映射返回零。
+
+```c
+size_t xrtMapCount(const xmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 目标映射 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 键值数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/map_tour · 查询](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	printf("count=%zu cap>=%zu ", xrtMapCount(pMap), xrtMapCapacity(pMap));
+```
+
+
+### `xrtMapCapacity`
+
+返回当前桶数组在再次扩容前可容纳的键数。
+
+```c
+size_t xrtMapCapacity(const xmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 目标映射 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 容量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/map_tour · 查询](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	printf("count=%zu cap>=%zu ", xrtMapCount(pMap), xrtMapCapacity(pMap));
+```
+
+
+### `xrtMapGetOrAdd`
+
+返回已有值槽，或复制键并原地创建、清零一个新值槽。
+
+```c
+ptr xrtMapGetOrAdd(xmap* pMap, xbytesview Key, bool* pNew);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 字节键（成功后内部持副本） |
+| `pNew` | 输出 | 可空 | 是否新插入 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 值槽（新槽已清零） | — |
+| `NULL` | 参数非法或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/map · 编辑](../../examples/containers/map/main.c) · 观察
+
+```c
+	pStat = (routestat*)xrtMapGetOrAdd(&tRoutes, XRT_BYTES_LITERAL("/health"), &bNew);
+```
+
+
+### `xrtMapGetOrInit`
+
+返回已有值槽，或失败原子地复制键并原位初始化新值。
+
+```c
+ptr xrtMapGetOrInit(
+	xmap* pMap,
+	xbytesview Key,
+	xmapinit pInit,
+	ptr pUserData,
+	bool* pNew
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 字节键 |
+| `pInit` | 输入 | 非空 | 原位初始化回调 |
+| `pUserData` | 输入 | 任意值 | 传给回调 |
+| `pNew` | 输出 | 可空 | 是否新插入 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 值槽 | — |
+| `NULL` | 回调失败（原子回滚）或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+- 回调失败 — 回滚新条目，映射不变
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		pSlot = xrtMapGetOrInit(pMap, SV("c"), initSlot, NULL, &bNew);
+```
+
+
+### `xrtMapSet`
+
+复制插入或替换值；来源不得触及映射元数据或目标条目。
+
+```c
+bool xrtMapSet(xmap* pMap, xbytesview Key, const void* pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 字节键 |
+| `pValue` | 输入 | 借用、独立 | 值来源 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已插入/替换（旧值先过释放器） | — |
+| `false` | 参数或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		if ( !xrtMapSet(pMap, SV("a"), &iZero) ) {
+```
+
+
+### `xrtMapGet`
+
+返回指定键的可写值槽，未找到是正常结果。
+
+```c
+ptr xrtMapGet(xmap* pMap, xbytesview Key);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 字节键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 可写值槽 | — |
+| `NULL` | 未找到（正常结果） | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/map_tour · 查询](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		, xrtMapGet(pMap, SV("b")) != NULL ? 1 : 0);
+```
+
+
+### `xrtMapConstGet`
+
+返回指定键的只读值槽，未找到是正常结果。
+
+```c
+const void* xrtMapConstGet(const xmap* pMap, xbytesview Key);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 字节键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 只读值槽 | — |
+| `NULL` | 未找到 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/map_tour · 查询](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		xrtMapConstGet(pMap, SV("b")) != NULL ? 1 : 0);
+```
+
+
+### `xrtMapHas`
+
+判断指定字节键是否存在。
+
+```c
+bool xrtMapHas(const xmap* pMap, xbytesview Key);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 字节键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 存在 | — |
+| `false` | 不存在 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/map_tour · 查询](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+			xrtMapHas(pMap, SV("a")) ? 1 : 0);
+```
+
+
+### `xrtMapStoredKey`
+
+返回与查询键等价的内部键副本，缺失时清空输出。
+
+```c
+bool xrtMapStoredKey(
+	const xmap* pMap,
+	xbytesview Key,
+	xbytesview* pStoredKey
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 查询键 |
+| `pStoredKey` | 输出 | 非空 | 接收内部键视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 视图已发布（存活到键被删除） | — |
+| `false` | 未找到 | `*pStoredKey` 清空 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/map_tour · 查询](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	if ( xrtMapStoredKey(pMap, SV("a"), &Key) ) {
+```
+
+
+### `xrtMapRemove`
+
+删除指定键并调用值释放器。
+
+```c
+bool xrtMapRemove(xmap* pMap, xbytesview Key);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 要删除的键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 未找到（正常结果） | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		, xrtMapRemove(pMap, SV("c")) ? 1 : 0);
+```
+
+
+### `xrtMapTake`
+
+将值移交给映射外缓冲后删除；输出不得触及映射拥有的内存。
+
+```c
+bool xrtMapTake(xmap* pMap, xbytesview Key, ptr pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 键 |
+| `pValue` | 输出 | 非空、独立 | 接收值字节 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 值已移交且条目已删除（不调释放器） | — |
+| `false` | 未找到 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+			(void)xrtMapTake(&Aligned, SV("k"), &iValue);
+```
+
+
+### `xrtMapSetPtr`
+
+对 `sizeof(ptr)` 值映射执行指针类型友好的插入或替换。
+
+```c
+bool xrtMapSetPtr(xmap* pMap, xbytesview Key, ptr pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 值大小为 `sizeof(ptr)` 的映射 |
+| `Key` | 输入 | 借用 | 字节键 |
+| `pValue` | 输入 | — | 指针值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已插入/替换 | — |
+| `false` | 参数或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	(void)xrtMapSetPtr(pMap, SV("a"), (ptr)0x10u);
+```
+
+
+### `xrtMapGetPtr`
+
+返回 `sizeof(ptr)` 值映射中保存的指针；空值与缺失键用 `Has` 区分。
+
+```c
+ptr xrtMapGetPtr(xmap* pMap, xbytesview Key);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 字节键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空或空 | 保存的指针（可为 NULL 值） | — |
+| 区分缺失 | 用 `xrtMapHas` | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/map_tour · 查询](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		xrtMapGetPtr(pMap, SV("a")) == (ptr)0x10u ? "0x10" : "?");
+```
+
+
+### `xrtMapTakePtr`
+
+从 `sizeof(ptr)` 值映射中移交指针，不调用值释放器。
+
+```c
+bool xrtMapTakePtr(xmap* pMap, xbytesview Key, ptr* pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `Key` | 输入 | 借用 | 键 |
+| `pValue` | 输出 | 非空、独立 | 接收指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 指针已移交且条目已删除 | — |
+| `false` | 未找到 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/map_tour · 编辑](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+		bool bTook = xrtMapTakePtr(pMap, SV("a"), &pTaken);
+```
+
+
+### `xrtMapVisit`
+
+按插入顺序访问键值，并返回实际访问数量。
+
+```c
+size_t xrtMapVisit(xmap* pMap, xmapvisitor pVisitor, ptr pUserData);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `pVisitor` | 输入 | 非空 | 访问器 |
+| `pUserData` | 输入 | 任意值 | 传给访问器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 实际访问数（提前停止时小于总数） | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/map_tour · 迭代](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	(void)xrtMapVisit(pMap, visitPair, &iVisited);
+```
+
+
+### `xrtMapIterBegin`
+
+启动按插入顺序的外置迭代器。
+
+```c
+bool xrtMapIterBegin(xmap* pMap, xmapiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射（空映射可启动） |
+| `pIterator` | 输出 | 非空 | 迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/map · 迭代](../../examples/containers/map/main.c) · 观察
+
+```c
+	if ( !xrtMapIterBegin(&tRoutes, &tIterator) ) {
+```
+
+
+### `xrtMapIterRBegin`
+
+启动按插入顺序逆序遍历的外置迭代器。
+
+```c
+bool xrtMapIterRBegin(xmap* pMap, xmapiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `pIterator` | 输出 | 非空 | 迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/map_tour · 迭代](../../examples/containers/map_tour/main.c) · 观察
+
+```c
+	(void)xrtMapIterRBegin(pMap, &Iter);
+```
+
+
+### `xrtMapIterNext`
+
+返回下一值槽并可选返回内部键视图；结构修改后报告状态错误。
+
+```c
+ptr xrtMapIterNext(xmapiter* pIterator, xbytesview* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 非空、活动 | 迭代器 |
+| `pKey` | 输出 | 可空 | 接收内部键视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 下一值槽 | — |
+| `NULL` | 自然耗尽（不设错）或结构被修改 | 结构修改时 `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_STATE` — 迭代期间结构被修改
+
+#### 范例
+
+[containers/map · 迭代](../../examples/containers/map/main.c) · 观察
+
+```c
+	while ( (pStat = (routestat*)xrtMapIterNext(&tIterator, &Path)) != NULL ) {
+```
+
+
+### `xrtMapIterEnd`
+
+提前结束迭代并清除借用状态。
+
+```c
+void xrtMapIterEnd(xmapiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯清理 | — |
+
+#### 错误
+
+- 无 — 清理不失败
+
+#### 范例
+
+[containers/map · 迭代](../../examples/containers/map/main.c) · 观察
+
+```c
+	xrtMapIterEnd(&tIterator);
+```
+
+
+### `xrtIntMapInit`
+
+使用默认 16 字节值对齐初始化空整数映射（按键有序存储）。
+
+```c
+bool xrtIntMapInit(xintmap* pMap, size_t iValueSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输出 | 非空 | 接收空映射 |
+| `iValueSize` | 输入 | `> 0` | 每值字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map · 生命周期](../../examples/containers/int_map/main.c) · 观察
+
+```c
+	if ( !xrtIntMapInit(&tSessions, sizeof(sessionstate)) ) {
+```
+
+
+
+### 整数键 IntMap
+
+### `xrtIntMapInitAligned`
+
+使用显式值对齐初始化空整数映射。
+
+```c
+bool xrtIntMapInitAligned(
+	xintmap* pMap,
+	size_t iValueSize,
+	size_t iAlignment
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输出 | 非空 | 接收空映射 |
+| `iValueSize` | 输入 | `> 0` | 每值字节数 |
+| `iAlignment` | 输入 | 非零二次幂 | 值对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map_tour · 生命周期](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+		if ( !xrtIntMapInitAligned(&Aligned, sizeof(ptr), 64u) ) {
+```
+
+
+### `xrtIntMapCreate`
+
+创建使用默认 16 字节值对齐的空整数映射。
+
+```c
+xintmap* xrtIntMapCreate(size_t iValueSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValueSize` | 输入 | `> 0` | 每值字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 堆映射；`Destroy` 释放 | — |
+| `NULL` | 参数非法或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/int_map_tour · 生命周期](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	xintmap* pMap = xrtIntMapCreate(sizeof(int64));
+```
+
+
+### `xrtIntMapCreateAligned`
+
+创建使用显式值对齐的空整数映射。
+
+```c
+xintmap* xrtIntMapCreateAligned(size_t iValueSize, size_t iAlignment);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValueSize` | 输入 | `> 0` | 每值字节数 |
+| `iAlignment` | 输入 | 非零二次幂 | 值对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 堆映射 | — |
+| `NULL` | 参数非法或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/int_map_tour · 生命周期](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+		xintmap* pHeap = xrtIntMapCreateAligned(sizeof(ptr), 64u);
+```
+
+
+### `xrtIntMapSetDrop`
+
+为仍为空的映射设置值资源释放器和用户数据。
+
+```c
+bool xrtIntMapSetDrop(
+	xintmap* pMap,
+	xintmapdrop pDrop,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空、空映射 | 目标映射 |
+| `pDrop` | 输入 | 非空 | 值释放器 |
+| `pUserData` | 输入 | 任意值 | 传给释放器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已安装 | — |
+| `false` | 映射非空 | — |
+
+#### 错误
+
+- `XERR_STATE` — 映射非空（策略/释放器只能在空映射上设置）或迭代期间结构被修改
+
+#### 范例
+
+[containers/int_map_tour · 生命周期](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+		printf("setdrop=%d\n", xrtIntMapSetDrop(&Aligned, NULL, NULL) ? 1 : 0);
+```
+
+
+### `xrtIntMapUnit`
+
+释放全部值和池页，但不释放映射结构。
+
+```c
+void xrtIntMapUnit(xintmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 值释放器先执行 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[containers/int_map · 生命周期](../../examples/containers/int_map/main.c) · 观察
+
+```c
+		xrtIntMapUnit(&tSessions);
+```
+
+
+### `xrtIntMapDestroy`
+
+释放全部值、池页和映射结构。
+
+```c
+void xrtIntMapDestroy(xintmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 全部资源已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[containers/int_map_tour · 生命周期](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+			xrtIntMapDestroy(pMap);
+```
+
+
+### `xrtIntMapClear`
+
+清空全部值并保留固定池的复用能力。
+
+```c
+void xrtIntMapClear(xintmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | Count 归零；池页保留 | — |
+
+#### 错误
+
+- 无 — 清空不失败
+
+#### 范例
+
+[containers/int_map_tour · 编辑](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	xrtIntMapClear(pMap);
+```
+
+
+### `xrtIntMapTrim`
+
+释放空闲池页，并返回实际释放的页数。
+
+```c
+size_t xrtIntMapTrim(xintmap* pMap, size_t iRetainEmpty);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `iRetainEmpty` | 输入 | — | 至少保留的空页数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 实际释放页数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map_tour · 编辑](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapTrim(pMap, 0);
+```
+
+
+### `xrtIntMapCount`
+
+返回当前键值数量，非法映射返回零。
+
+```c
+size_t xrtIntMapCount(const xintmap* pMap);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 目标映射 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 键值数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+		xrtIntMapCount(pMap));
+```
+
+
+### `xrtIntMapGetOrAdd`
+
+返回已有值槽，或原地创建并清零一个新值槽。
+
+```c
+ptr xrtIntMapGetOrAdd(xintmap* pMap, int64 iKey, bool* pNew);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 整数键 |
+| `pNew` | 输出 | 可空 | 是否新插入 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 值槽（新槽已清零） | — |
+| `NULL` | 参数非法或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/int_map · 编辑](../../examples/containers/int_map/main.c) · 观察
+
+```c
+	pState = (sessionstate*)xrtIntMapGetOrAdd(&tSessions, 1000001, &bNew);
+```
+
+
+### `xrtIntMapGetOrInit`
+
+返回已有值槽，或失败原子地原位初始化一个新值。
+
+```c
+ptr xrtIntMapGetOrInit(
+	xintmap* pMap,
+	int64 iKey,
+	xintmapinit pInit,
+	ptr pUserData,
+	bool* pNew
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 整数键 |
+| `pInit` | 输入 | 非空 | 原位初始化回调 |
+| `pUserData` | 输入 | 任意值 | 传给回调 |
+| `pNew` | 输出 | 可空 | 是否新插入 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 值槽 | — |
+| `NULL` | 回调失败（原子回滚）或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+- 回调失败 — 回滚新条目
+
+#### 范例
+
+[containers/int_map_tour · 编辑](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	pSlot = xrtIntMapGetOrInit(pMap, 60, initZero, NULL, NULL);
+```
+
+
+### `xrtIntMapSet`
+
+复制插入或替换值；替换时先调用旧值释放器。
+
+```c
+bool xrtIntMapSet(xintmap* pMap, int64 iKey, const void* pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 整数键 |
+| `pValue` | 输入 | 借用、独立 | 值来源 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已插入/替换 | — |
+| `false` | 参数或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/int_map_tour · 编辑](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+		if ( !xrtIntMapSet(pMap, Keys[i], &iValue) ) {
+```
+
+
+### `xrtIntMapGet`
+
+返回指定键的可写值槽，未找到是正常结果。
+
+```c
+ptr xrtIntMapGet(xintmap* pMap, int64 iKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 整数键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 可写值槽 | — |
+| `NULL` | 未找到 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	if ( (pSlot = xrtIntMapGet(pMap, 20)) != NULL ) {
+```
+
+
+### `xrtIntMapConstGet`
+
+返回指定键的只读值槽，未找到是正常结果。
+
+```c
+const void* xrtIntMapConstGet(const xintmap* pMap, int64 iKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 整数键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 只读值槽 | — |
+| `NULL` | 未找到 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+		(long long)*(const int64*)xrtIntMapConstGet(pMap, 10));
+```
+
+
+### `xrtIntMapHas`
+
+判断指定整数键是否存在。
+
+```c
+bool xrtIntMapHas(const xintmap* pMap, int64 iKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 整数键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 存在 | — |
+| `false` | 不存在 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+		pSlot != NULL ? 1 : 0, xrtIntMapHas(pMap, 60) ? 1 : 0,
+```
+
+
+### `xrtIntMapRemove`
+
+删除指定键并调用值释放器。
+
+```c
+bool xrtIntMapRemove(xintmap* pMap, int64 iKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 要删除的键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 未找到 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 编辑](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	printf("removed=%d ", xrtIntMapRemove(pMap, 30) ? 1 : 0);
+```
+
+
+### `xrtIntMapTake`
+
+将指定键的值字节移交给调用方后删除，不调用值释放器。
+
+```c
+bool xrtIntMapTake(xintmap* pMap, int64 iKey, ptr pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+| `pValue` | 输出 | 非空、独立 | 接收值字节 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 值已移交且条目已删除 | — |
+| `false` | 未找到 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 编辑](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapTake(pMap, 10, &iValue);
+```
+
+
+### `xrtIntMapSetPtr`
+
+对 `sizeof(ptr)` 值映射执行指针类型友好的插入或替换。
+
+```c
+bool xrtIntMapSetPtr(xintmap* pMap, int64 iKey, ptr pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 值大小为 `sizeof(ptr)` 的映射 |
+| `iKey` | 输入 | — | 整数键 |
+| `pValue` | 输入 | — | 指针值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已插入/替换 | — |
+| `false` | 参数或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[containers/int_map_tour · 编辑](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapSetPtr(pMap, 50, (ptr)0xABu);
+```
+
+
+### `xrtIntMapGetPtr`
+
+返回 `sizeof(ptr)` 值映射中保存的指针；空指针值与缺失键用 `Has` 区分。
+
+```c
+ptr xrtIntMapGetPtr(xintmap* pMap, int64 iKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 整数键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空或空 | 保存的指针（可为 NULL 值） | — |
+| 区分缺失 | 用 `xrtIntMapHas` | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	printf("getptr=%p ", (void*)xrtIntMapGetPtr(pMap, 50));
+```
+
+
+### `xrtIntMapTakePtr`
+
+从 `sizeof(ptr)` 值映射中移交指针，不调用值释放器。
+
+```c
+bool xrtIntMapTakePtr(xintmap* pMap, int64 iKey, ptr* pValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 键 |
+| `pValue` | 输出 | 非空、独立 | 接收指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 指针已移交且条目已删除 | — |
+| `false` | 未找到 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 编辑](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+			(void)xrtIntMapTakePtr(&Aligned, 1, &pTaken);
+```
+
+
+### `xrtIntMapFirst`
+
+返回顺序第一项的值槽，并可选返回键。
+
+```c
+ptr xrtIntMapFirst(xintmap* pMap, int64* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `pKey` | 输出 | 可空 | 接收键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 首项值槽（键最小） | — |
+| `NULL` | 空映射 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapFirst(pMap, &iKey);
+```
+
+
+### `xrtIntMapLast`
+
+返回顺序最后一项的值槽，并可选返回键。
+
+```c
+ptr xrtIntMapLast(xintmap* pMap, int64* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `pKey` | 输出 | 可空 | 接收键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 末项值槽（键最大） | — |
+| `NULL` | 空映射 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapLast(pMap, &iKey);
+```
+
+
+### `xrtIntMapLowerBound`
+
+返回第一个不小于指定键的值槽和实际键。
+
+```c
+ptr xrtIntMapLowerBound(xintmap* pMap, int64 iKey, int64* pActualKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 边界键 |
+| `pActualKey` | 输出 | 可空 | 接收实际键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 首个 `>= iKey` 项 | — |
+| `NULL` | 全部小于 iKey | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapLowerBound(pMap, 25, &iKey);
+```
+
+
+### `xrtIntMapUpperBound`
+
+返回第一个严格大于指定键的值槽和实际键。
+
+```c
+ptr xrtIntMapUpperBound(xintmap* pMap, int64 iKey, int64* pActualKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 边界键 |
+| `pActualKey` | 输出 | 可空 | 接收实际键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 首个 `> iKey` 项 | — |
+| `NULL` | 无严格大于项 | 不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- 未找到不是错误
+
+#### 范例
+
+[containers/int_map_tour · 查询](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapUpperBound(pMap, 25, &iKey);
+```
+
+
+### `xrtIntMapVisit`
+
+按键升序访问值；回调期间查询可用，结构和生命周期修改被拒绝。
+
+```c
+size_t xrtIntMapVisit(
+	xintmap* pMap,
+	xintmapvisitor pVisitor,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `pVisitor` | 输入 | 非空 | 访问器 |
+| `pUserData` | 输入 | 任意值 | 传给访问器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 实际访问数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map_tour · 迭代](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapVisit(pMap, doubleValue, &iHit);
+```
+
+
+### `xrtIntMapIterBegin`
+
+启动按键升序的外置迭代器。
+
+```c
+bool xrtIntMapIterBegin(xintmap* pMap, xintmapiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `pIterator` | 输出 | 非空 | 迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map · 迭代](../../examples/containers/int_map/main.c) · 观察
+
+```c
+	if ( !xrtIntMapIterBegin(&tSessions, &tIterator) ) {
+```
+
+
+### `xrtIntMapIterRBegin`
+
+启动按键降序的外置迭代器。
+
+```c
+bool xrtIntMapIterRBegin(xintmap* pMap, xintmapiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `pIterator` | 输出 | 非空 | 迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map_tour · 迭代](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapIterRBegin(pMap, &Iter);
+```
+
+
+### `xrtIntMapIterFrom`
+
+从第一个不小于指定键的项开始升序迭代。
+
+```c
+bool xrtIntMapIterFrom(
+	xintmap* pMap,
+	int64 iKey,
+	xintmapiter* pIterator
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 起点键 |
+| `pIterator` | 输出 | 非空 | 迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪（O(log n) 起点） | — |
+| `false` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map_tour · 迭代](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapIterFrom(pMap, 20, &Iter);
+```
+
+
+### `xrtIntMapIterRFrom`
+
+从第一个不大于指定键的项开始降序迭代。
+
+```c
+bool xrtIntMapIterRFrom(
+	xintmap* pMap,
+	int64 iKey,
+	xintmapiter* pIterator
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标映射 |
+| `iKey` | 输入 | — | 起点键 |
+| `pIterator` | 输出 | 非空 | 迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已就绪 | — |
+| `false` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+
+#### 范例
+
+[containers/int_map_tour · 迭代](../../examples/containers/int_map_tour/main.c) · 观察
+
+```c
+	(void)xrtIntMapIterRFrom(pMap, 30, &Iter);
+```
+
+
+### `xrtIntMapIterNext`
+
+返回下一值槽并可选返回键；自然耗尽不设错。
+
+```c
+ptr xrtIntMapIterNext(xintmapiter* pIterator, int64* pKey);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 非空、活动 | 迭代器 |
+| `pKey` | 输出 | 可空 | 接收键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 下一值槽 | — |
+| `NULL` | 耗尽或结构被修改 | 结构修改时 `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或大小/对齐非法
+- `XERR_STATE` — 迭代期间结构被修改
+
+#### 范例
+
+[containers/int_map · 迭代](../../examples/containers/int_map/main.c) · 观察
+
+```c
+	while ( (pState = (sessionstate*)xrtIntMapIterNext(&tIterator, &iSessionId)) != NULL ) {
+```
+
+
+### `xrtIntMapIterEnd`
+
+提前结束迭代并清除借用状态。
+
+```c
+void xrtIntMapIterEnd(xintmapiter* pIterator);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯清理 | — |
+
+#### 错误
+
+- 无 — 清理不失败
+
+#### 范例
+
+[containers/int_map · 迭代](../../examples/containers/int_map/main.c) · 观察
+
+```c
+	xrtIntMapIterEnd(&tIterator);
+```
+
+
