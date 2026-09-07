@@ -1764,9 +1764,9 @@ xhttpnext xrtWsProtocolNext(xstrview Protocols, size_t* pOffset, xstrview* pProt
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_OK` | 已产出一项 | — |
-| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
-| `XHTTP_NEXT_ERROR` | 语法非法 | `XERR_PROTOCOL` |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -1952,9 +1952,9 @@ xhttpnext xrtWsExtensionNext(xstrview Extensions, size_t* pOffset, xwsextension*
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_OK` | 已产出一项 | — |
-| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
-| `XHTTP_NEXT_ERROR` | 语法非法 | `XERR_PROTOCOL` |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -1993,9 +1993,9 @@ xhttpnext xrtWsExtensionParamNext(const xwsextension* pExtension, size_t* pOffse
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_OK` | 已产出一项 | — |
-| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
-| `XHTTP_NEXT_ERROR` | 语法非法 | `XERR_PROTOCOL` |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -3754,9 +3754,13 @@ xnetresult xrtWsStreamSend(xwsstream* pStream, xwsopcode Opcode, xbytesview Payl
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -3794,9 +3798,13 @@ xnetresult xrtWsStreamSendCompressed(xwsstream* pStream, xwsopcode Opcode, xbyte
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -3833,9 +3841,13 @@ xnetresult xrtWsStreamSendRef(xwsstream* pStream, xwsopcode Opcode, const xnetre
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -3873,9 +3885,13 @@ xnetresult xrtWsStreamSendTake(xwsstream* pStream, xwsopcode Opcode, ptr pData, 
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -3912,9 +3928,13 @@ xnetresult xrtWsStreamText(xwsstream* pStream, xstrview Text)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -3955,9 +3975,13 @@ xnetresult xrtWsStreamTextCompressed(xwsstream* pStream, xstrview Text)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -3994,9 +4018,13 @@ xnetresult xrtWsStreamTextRef(xwsstream* pStream, const xnetref* pRef)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4032,9 +4060,13 @@ xnetresult xrtWsStreamTextTake(xwsstream* pStream, str sText, size_t iSize)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4070,9 +4102,13 @@ xnetresult xrtWsStreamBinary(xwsstream* pStream, xbytesview Data)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4108,9 +4144,13 @@ xnetresult xrtWsStreamBinaryCompressed(xwsstream* pStream, xbytesview Data)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4146,9 +4186,13 @@ xnetresult xrtWsStreamBinaryRef(xwsstream* pStream, const xnetref* pRef)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4184,9 +4228,13 @@ xnetresult xrtWsStreamBinaryTake(xwsstream* pStream, bytes pData, size_t iSize)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4222,9 +4270,13 @@ xnetresult xrtWsStreamPing(xwsstream* pStream, xbytesview Payload)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4261,9 +4313,13 @@ xnetresult xrtWsStreamPong(xwsstream* pStream, xbytesview Payload)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4301,9 +4357,13 @@ xnetresult xrtWsStreamClose(xwsstream* pStream, uint16 iCode, xstrview Reason)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.ws` / `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 

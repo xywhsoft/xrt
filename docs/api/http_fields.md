@@ -2009,7 +2009,9 @@ xhttpnext xrtHttpFieldTokenNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态；输入在游标结束前必须不变 | 错误时 `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -2090,7 +2092,9 @@ xhttpnext xrtHttpFieldTokenFind(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/字段非法 | — |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -2499,7 +2503,9 @@ xhttpnext xrtHttpParamNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态；错误时游标与输出不变 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -2720,7 +2726,9 @@ xhttpnext xrtHttpParamValueNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -2926,7 +2934,9 @@ xhttpnext xrtHttpDirectiveNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -3001,7 +3011,9 @@ xhttpnext xrtHttpDirectiveFind(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 命中/未命中（不设错）/错误 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 

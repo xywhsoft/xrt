@@ -1891,9 +1891,13 @@ xnetresult xrtNetUdpSend(xnetudp* pUdp, const void* pData, size_t iSize)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -1931,9 +1935,13 @@ xnetresult xrtNetUdpSendTo(xnetudp* pUdp, const xnetaddr* pRemote, const void* p
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -1974,9 +1982,13 @@ xnetresult xrtNetUdpSendVec(xnetudp* pUdp, const xnetspan* pSpans, size_t iCount
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2013,9 +2025,13 @@ xnetresult xrtNetUdpSendVecTo(xnetudp* pUdp, const xnetaddr* pRemote, const xnet
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2054,9 +2070,13 @@ xnetresult xrtNetUdpSendRef(xnetudp* pUdp, const void* pData, size_t iSize, xnet
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2096,9 +2116,13 @@ xnetresult xrtNetUdpSendRefTo(xnetudp* pUdp, const xnetaddr* pRemote, const void
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2135,9 +2159,13 @@ xnetresult xrtNetUdpSendTake(xnetudp* pUdp, ptr pData, size_t iSize)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2175,9 +2203,13 @@ xnetresult xrtNetUdpSendTakeTo(xnetudp* pUdp, const xnetaddr* pRemote, ptr pData
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2217,9 +2249,13 @@ xnetresult xrtNetUdpSendMsg(xnetudp* pUdp, const xnetaddr* pRemote, const xnetdg
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2265,9 +2301,13 @@ xnetresult xrtNetUdpSendMsgRef(xnetudp* pUdp, const xnetaddr* pRemote, const xne
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2306,9 +2346,13 @@ xnetresult xrtNetUdpSendMsgTake(xnetudp* pUdp, const xnetaddr* pRemote, const xn
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2347,9 +2391,13 @@ xnetresult xrtNetUdpSendBatch(xnetudp* pUdp, const xnetdgramsend* pItems, size_t
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 全部受理 | — |
-| `XNET_AGAIN` | 前缀受理后队列已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 

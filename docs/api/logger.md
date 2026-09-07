@@ -1529,8 +1529,13 @@ xloglevel xrtLogLevel(const xlogger* pLogger)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 当前阈值 | `XLOG_TRACE` … `XLOG_OFF` | — |
-| `XLOG_OFF` | 参数非法 | `XERR_ARGUMENT` |
+| `XLOG_TRACE` | 最详细级别 | — |
+| `XLOG_DEBUG` | 调试级别 | — |
+| `XLOG_INFO` | 信息级别 | — |
+| `XLOG_WARN` | 警告级别 | — |
+| `XLOG_ERROR` | 错误级别 | — |
+| `XLOG_FATAL` | 致命级别 | — |
+| `XLOG_OFF` | 关闭过滤 | — |
 
 #### 错误
 
@@ -1805,8 +1810,13 @@ xloglevel xrtLogSinkLevel(const xlogsink* pSink)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 当前阈值 | `XLOG_TRACE` … `XLOG_OFF` | — |
-| `XLOG_OFF` | 参数非法 | `XERR_ARGUMENT` |
+| `XLOG_TRACE` | 最详细级别 | — |
+| `XLOG_DEBUG` | 调试级别 | — |
+| `XLOG_INFO` | 信息级别 | — |
+| `XLOG_WARN` | 警告级别 | — |
+| `XLOG_ERROR` | 错误级别 | — |
+| `XLOG_FATAL` | 致命级别 | — |
+| `XLOG_OFF` | 关闭过滤 | — |
 
 #### 错误
 

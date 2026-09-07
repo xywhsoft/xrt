@@ -677,7 +677,10 @@ xnetproxyhandshakestate xrtNetProxyHandshakeStep(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 新状态 | `WRITE` / `READ` / `READY` / `ERROR` | `ERROR` 时见 `HandshakeError` |
+| `XNET_PROXY_HANDSHAKE_WRITE` | 有输出待发送 | — |
+| `XNET_PROXY_HANDSHAKE_READ` | 等待代理回复 | — |
+| `XNET_PROXY_HANDSHAKE_READY` | 隧道已建立 | — |
+| `XNET_PROXY_HANDSHAKE_ERROR` | 失败 | — |
 
 #### 错误
 

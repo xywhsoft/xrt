@@ -2755,8 +2755,10 @@ xhttpcoding xrtHttpCodingParse(xstrview Token);
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_CODING_IDENTITY/GZIP/DEFLATE` | 内置编码 | — |
-| `XHTTP_CODING_NONE` | 未知编码（如 zstd） | 不设错 |
+| `XHTTP_CODING_NONE` | Header 缺失 | — |
+| `XHTTP_CODING_IDENTITY` | identity | — |
+| `XHTTP_CODING_GZIP` | gzip | — |
+| `XHTTP_CODING_DEFLATE` | deflate | — |
 
 #### 错误
 
@@ -3281,7 +3283,9 @@ xhttpnext xrtHttpFieldTokenNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态；输入在游标结束前必须不变 | 错误时 `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -3364,7 +3368,9 @@ xhttpnext xrtHttpFieldTokenFind(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/字段非法 | — |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -3566,7 +3572,9 @@ xhttpnext xrtHttpParamNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态；错误时游标与输出不变 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -3793,7 +3801,9 @@ xhttpnext xrtHttpParamValueNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -4001,7 +4011,9 @@ xhttpnext xrtHttpDirectiveNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -4080,7 +4092,9 @@ xhttpnext xrtHttpDirectiveFind(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 命中/未命中（不设错）/错误 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -4308,7 +4322,9 @@ xhttpnext xrtHttpTeNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -4350,7 +4366,9 @@ xhttpnext xrtHttpTeFieldNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -4700,7 +4718,9 @@ xhttpnext xrtHttpExpectNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -4742,7 +4762,9 @@ xhttpnext xrtHttpExpectFieldNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -5010,7 +5032,9 @@ xhttpnext xrtHttpUpgradeNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -5052,7 +5076,9 @@ xhttpnext xrtHttpUpgradeFieldNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -5355,7 +5381,9 @@ xhttpnext xrtHttpTrailerFind(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/声明非法 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5687,8 +5715,10 @@ xhttpcoding xrtHttpAcceptEncodingSelect(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 编码值 | 选中的编码 | — |
-| `XHTTP_CODING_NONE` | 无可用匹配 | `XERR_ARGUMENT`（参数错误时） |
+| `XHTTP_CODING_NONE` | Header 缺失 | — |
+| `XHTTP_CODING_IDENTITY` | identity | — |
+| `XHTTP_CODING_GZIP` | gzip | — |
+| `XHTTP_CODING_DEFLATE` | deflate | — |
 
 #### 错误
 
@@ -5772,7 +5802,9 @@ xhttpnext xrtHttpContentEncodingNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态（未知扩展 Coding=NONE） | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -6443,9 +6475,10 @@ xhttp1status xrtHttp1RequestParse(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK` | Header 完整解析 | — |
-| `XHTTP1_MORE` | 需要更多输入（不设错） | — |
-| `XHTTP1_ERROR` | 协议错误 | `xrt.http1` 域错误 |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | — |
+| `XHTTP1_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -6488,7 +6521,10 @@ xhttp1status xrtHttp1ResponseParse(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK/MORE/ERROR` | 同请求解析三态 | — |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | 不设错误 |
+| `XHTTP1_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -6530,7 +6566,9 @@ xhttpnext xrtHttp1TransferCodingNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http1` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -6934,7 +6972,10 @@ xhttp1status xrtHttp1TrailersParse(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | 不设错误 |
+| `XHTTP1_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -7262,7 +7303,10 @@ xhttp1status xrtHttp1RequestMessageParse(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK/MORE/ERROR` | 完整/需更多/错误 | `xrt.http1` 域错误 |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | — |
+| `XHTTP1_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -7315,7 +7359,10 @@ xhttp1status xrtHttp1ResponseMessageParse(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | 不设错误 |
+| `XHTTP1_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -7441,7 +7488,10 @@ xhttp1status xrtHttp1RequestParseBuffer(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | 不设错误 |
+| `XHTTP1_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -7483,7 +7533,10 @@ xhttp1status xrtHttp1ResponseParseBuffer(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | 不设错误 |
+| `XHTTP1_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -7525,7 +7578,10 @@ xhttp1status xrtHttp1RequestParseTls(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | 不设错误 |
+| `XHTTP1_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -7575,7 +7631,10 @@ xhttp1status xrtHttp1ResponseParseTls(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+| `XHTTP1_READY` | 完整消息就绪 | — |
+| `XHTTP1_FIELDS` | 头部就绪（还差消息体） | — |
+| `XHTTP1_MORE` | 需要更多输入 | 不设错误 |
+| `XHTTP1_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -7898,7 +7957,10 @@ xnetproxyhandshakestate xrtNetProxyHandshakeState(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `WRITE/READ/READY/ERROR` | 状态枚举 | 零值 = 参数非法 |
+| `XNET_PROXY_HANDSHAKE_WRITE` | 有输出待发送 | — |
+| `XNET_PROXY_HANDSHAKE_READ` | 等待代理回复 | — |
+| `XNET_PROXY_HANDSHAKE_READY` | 隧道已建立 | — |
+| `XNET_PROXY_HANDSHAKE_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -7936,7 +7998,10 @@ xnetproxyhandshakestate xrtNetProxyHandshakeStep(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `WRITE/READ/READY/ERROR` | 处理后的状态 | `xrt.proxy` 域错误 |
+| `XNET_PROXY_HANDSHAKE_WRITE` | 有输出待发送 | — |
+| `XNET_PROXY_HANDSHAKE_READ` | 等待代理回复 | — |
+| `XNET_PROXY_HANDSHAKE_READY` | 隧道已建立 | — |
+| `XNET_PROXY_HANDSHAKE_ERROR` | 失败 | — |
 
 #### 错误
 

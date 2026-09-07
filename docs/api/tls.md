@@ -2360,9 +2360,9 @@ xtlsresult xrtTlsRecordParse(xbytesview Input, xtlsrecord* pRecord, size_t* pReq
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -2540,9 +2540,9 @@ xtlsresult xrtTlsHandshakeParse(xbytesview Input, xtlshandshake* pHandshake, siz
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -2649,9 +2649,9 @@ xtlsresult xrtTlsHandshakeReaderRead(xtlshandshakereader* pReader, xbytesview In
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -3052,9 +3052,9 @@ xtlsresult xrtTlsExtensionParse(xbytesview Input, xtlsextension* pExtension, siz
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -3133,7 +3133,9 @@ xtlsitemresult xrtTlsExtensionsFind(xbytesview Extensions, xtlsextensiontype Typ
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -3203,7 +3205,9 @@ xtlsitemresult xrtTlsExtensionsRead(xtlsextensioncursor* pCursor, xtlsextension*
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -4003,7 +4007,9 @@ xtlsitemresult xrtTlsAuthoritiesRead(xtlsauthoritycursor* pCursor, xbytesview* p
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5132,7 +5138,9 @@ xtlsitemresult xrtTlsCipherSelect(xtlsversion Version, const xtlsids* pOffered, 
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5268,7 +5276,9 @@ xtlsitemresult xrtTlsHostName(xbytesview Data, xbytesview* pHost)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5410,7 +5420,9 @@ xtlsitemresult xrtTlsIdsSelect(const xtlsids* pOffered, const uint16* pPreferred
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5575,7 +5587,9 @@ xtlsitemresult xrtTlsProtocolFind(xbytesview Data, xbytesview Protocol)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5611,7 +5625,9 @@ xtlsitemresult xrtTlsProtocolSelect(xbytesview Offered, xbytesview Preferred, xb
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5721,7 +5737,9 @@ xtlsitemresult xrtTlsProtocolsRead(xtlsprotocolcursor* pCursor, xbytesview* pPro
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5794,7 +5812,9 @@ xtlsitemresult xrtTlsPsksRead(xtlspskcursor* pCursor, xtlspsk* pPsk)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -5984,7 +6004,9 @@ xtlsitemresult xrtTlsSignatureSelect(xtlsversion Version, const xtlsids* pOffere
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -6091,7 +6113,9 @@ xtlsitemresult xrtTlsVersionSelect(const xtlsids* pOffered, const xtlsversion* p
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -6422,7 +6446,9 @@ xtlsitemresult xrtTlsKeyShareFind(xbytesview KeyShares, uint16 iGroup, xtlskeysh
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -6509,7 +6535,9 @@ xtlsitemresult xrtTlsKeyShareSelect(const xtlsids* pGroups, xbytesview KeyShares
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -6546,7 +6574,9 @@ xtlsitemresult xrtTlsKeySharesRead(xtlskeysharecursor* pCursor, xtlskeyshare* pS
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -7666,9 +7696,9 @@ xtlsresult xrtTlsSessionClose(xtlssession* pSession)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -7769,9 +7799,9 @@ xtlsresult xrtTlsSessionEof(xtlssession* pSession)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -7809,9 +7839,9 @@ xtlsresult xrtTlsSessionFeed(xtlssession* pSession, const void* pData, size_t iS
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -7852,9 +7882,9 @@ xtlsresult xrtTlsSessionFeedBorrow(xtlssession* pSession, const void* pData, siz
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -7889,9 +7919,9 @@ xtlsresult xrtTlsSessionFeedBuffer(xtlssession* pSession, xnetbuf* pBuffer)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -7929,9 +7959,9 @@ xtlsresult xrtTlsSessionFeedRef(xtlssession* pSession, const void* pData, size_t
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -8000,9 +8030,9 @@ xtlsresult xrtTlsSessionFeedTake(xtlssession* pSession, ptr pData, size_t iSize)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -8278,9 +8308,9 @@ xtlsresult xrtTlsSessionRead(xtlssession* pSession, void* pOutput, size_t iCapac
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -8618,9 +8648,9 @@ xtlsresult xrtTlsSessionWrite(xtlssession* pSession, const void* pData, size_t i
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -9109,9 +9139,9 @@ xtlsresult xrtTlsClientDrive(xtlssession* pSession)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -9186,9 +9216,9 @@ xtlsresult xrtTlsClientKeyUpdate(xtlssession* pSession, xtlskeyupdate Request)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -9393,7 +9423,9 @@ xtlsitemresult xrtTlsClientVersionSelect(const xtlsclienthello* pHello, const xt
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -9629,9 +9661,9 @@ xtlsresult xrtTlsServerDrive(xtlssession* pSession)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -9705,9 +9737,9 @@ xtlsresult xrtTlsServerKeyUpdate(xtlssession* pSession, xtlskeyupdate Request)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -9824,7 +9856,9 @@ xtlsitemresult xrtTlsServerNamesRead(xtlsservernamecursor* pCursor, xtlsserverna
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 枚举值 | 当前取值 | — |
+| `XTLS_ITEM_VALUE` | 已产出一项 | — |
+| `XTLS_ITEM_DONE` | 遍历结束 | — |
+| `XTLS_ITEM_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -9932,9 +9966,9 @@ xtlsresult xrtTlsServerTicket(xtlssession* pSession, xbytesview Ticket, uint32 i
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -9972,9 +10006,9 @@ xtlsresult xrtTlsServerTicketNew(xtlssession* pSession, xtlsresume** ppResume)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -12186,9 +12220,9 @@ xtlsresult xrtTlsStreamRead(xtlsstream* pStream, void* pOutput, size_t iCapacity
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -12334,9 +12368,9 @@ xtlsresult xrtTlsStreamSend(xtlsstream* pStream, const void* pData, size_t iSize
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -12456,9 +12490,9 @@ xtlsresult xrtTlsStreamSendVec(xtlsstream* pStream, const xnetspan* pSpans, size
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XTLS_OK` | 成功 | — |
-| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
-| `XTLS_CLOSED` | 已关闭 | 不设错误 |
-| `XTLS_ERROR` | 失败 | 见错误 |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 

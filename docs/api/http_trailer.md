@@ -222,7 +222,9 @@ xhttpnext xrtHttpTrailerFind(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/声明非法 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | — |
+| `XHTTP_NEXT_ERROR` | 失败 | — |
 
 #### 错误
 

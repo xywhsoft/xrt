@@ -334,7 +334,9 @@ xhttpnext xrtHttpTeNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 
@@ -412,7 +414,9 @@ xhttpnext xrtHttpTeFieldNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 

@@ -559,8 +559,11 @@ xfuturestate xrtFutureState(const xfuture* pFuture);
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XFUTURE_PENDING/RESOLVED/FAILED/CANCELLED/CLOSED` | 终态枚举 | — |
-| `CLOSED`（零值） | 参数无效 | `XERR_ARGUMENT` |
+| `XFUTURE_PENDING` | 等待中 | — |
+| `XFUTURE_RESOLVED` | 已完成 | — |
+| `XFUTURE_FAILED` | 已失败 | — |
+| `XFUTURE_CANCELLED` | 已取消 | — |
+| `XFUTURE_CLOSED` | 已关闭 | — |
 
 #### 错误
 
@@ -4066,8 +4069,10 @@ xtlsresult xrtTlsStreamSend(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_RESULT_OK` | 已受理（可能短写） | — |
-| `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -4109,8 +4114,10 @@ xtlsresult xrtTlsStreamSendVec(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_RESULT_OK` | 前缀已受理 | — |
-| `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 
@@ -4339,8 +4346,10 @@ xtlsresult xrtTlsStreamRead(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_RESULT_OK` | 已复制并消费 | — |
-| `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 需要更多输入 | — |
+| `XTLS_CLOSED` | 会话已关闭 | — |
+| `XTLS_ERROR` | 失败 | — |
 
 #### 错误
 

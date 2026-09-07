@@ -247,8 +247,10 @@ xhttpcoding xrtHttpCodingParse(xstrview Token);
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_CODING_IDENTITY/GZIP/DEFLATE` | 内置编码 | — |
-| `XHTTP_CODING_NONE` | 未知编码（如 zstd） | 不设错 |
+| `XHTTP_CODING_NONE` | Header 缺失 | — |
+| `XHTTP_CODING_IDENTITY` | identity | — |
+| `XHTTP_CODING_GZIP` | gzip | — |
+| `XHTTP_CODING_DEFLATE` | deflate | — |
 
 #### 错误
 
@@ -517,8 +519,10 @@ xhttpcoding xrtHttpAcceptEncodingSelect(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 编码值 | 选中的编码 | — |
-| `XHTTP_CODING_NONE` | 无可用匹配 | `XERR_ARGUMENT`（参数错误时） |
+| `XHTTP_CODING_NONE` | Header 缺失 | — |
+| `XHTTP_CODING_IDENTITY` | identity | — |
+| `XHTTP_CODING_GZIP` | gzip | — |
+| `XHTTP_CODING_DEFLATE` | deflate | — |
 
 #### 错误
 
@@ -601,7 +605,9 @@ xhttpnext xrtHttpContentEncodingNext(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XHTTP_NEXT_ITEM/END/ERROR` | 三态（未知扩展 Coding=NONE） | `xrt.http` 域错误 |
+| `XHTTP_NEXT_ITEM` | 已产出一项 | — |
+| `XHTTP_NEXT_END` | 遍历结束 | 不设错误 |
+| `XHTTP_NEXT_ERROR` | 解析失败 | `xrt.http` 域错误 |
 
 #### 错误
 

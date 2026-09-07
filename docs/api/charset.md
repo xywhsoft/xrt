@@ -2670,8 +2670,12 @@ xencoding xrtEncodingBom(xbytesview Data, size_t* pSize);
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 编码值 | 识别到的 BOM 对应编码；`*pSize` 为其字节数 | — |
-| `XENCODING_UNKNOWN` | 无 BOM（`*pSize` 为零，正常结果） | 无 BOM 不设错；参数非法设 `XERR_ARGUMENT` |
+| `XENCODING_UTF8` | UTF-8 | — |
+| `XENCODING_UTF16_LE` | UTF-16LE | — |
+| `XENCODING_UTF16_BE` | UTF-16BE | — |
+| `XENCODING_UTF32_LE` | UTF-32LE | — |
+| `XENCODING_UTF32_BE` | UTF-32BE | — |
+| `XENCODING_UNKNOWN` | 无法判定 | — |
 
 #### 错误
 

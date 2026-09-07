@@ -966,4 +966,17 @@
   的第四字段按头文件实测为 Error（首个非法码元偏移）——上一轮
   手写表误作 Codepoint，本轮一并纠正。复扫整表缺失零。
   enum 无值表扫描本就为零。G1+G5/G3 全绿。
+- 2026-09-07 枚举逐值专项（§1.2 明文要求，最后一条未审计的返回值
+  规则）：(a) 全库审计发现 137 处枚举返回函数未逐值；分批修复
+  xnetresult(35+48 全名化)/xtlsresult/xhttpnext/xhttp1status/
+  xhttpcoding/xencoding/xfuturestate 等 10 族 135 处换逐值行
+  （值语义逐一对照头文件实测，纠正四组臆测：xhttp1status 实为
+  READY/FIELDS/MORE/ERROR、xhttpcoding 有 NONE=缺头、xencoding
+  值名带下划线、xfuturestate 五态）。(b) 重大发现：tls/future 两
+  文档存在 100 处幻觉值名 XTLS_RESULT_*——真实枚举是 XTLS_OK/
+  AGAIN/CLOSED/ERROR（我此前 post-processor 臆造 RESULT 前缀），
+  G1 只查函数签名不查表内容故漏网——已全量替换为真实值名。
+  (c) 剩余 44 处为单值状态查询（State/Family/Method 类），值表
+  已在对应类型节逐值（抽查确认），函数节引用枚举名合规。
+  门禁 G1+G5/G3 全绿。
 

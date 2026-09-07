@@ -1724,9 +1724,13 @@ xnetresult xrtNetStreamSendFile(xnetstream* pStream, xfile File, uint64 iOffset,
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2781,9 +2785,13 @@ xnetresult xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iSize
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2823,9 +2831,13 @@ xnetresult xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pSpans, size
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2863,9 +2875,13 @@ xnetresult xrtNetStreamSendRef(xnetstream* pStream, const void* pData, size_t iS
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2902,9 +2918,13 @@ xnetresult xrtNetStreamSendRefs(xnetstream* pStream, const xnetref* pRefs, size_
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已全部受理 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2940,9 +2960,13 @@ xnetresult xrtNetStreamSendTake(xnetstream* pStream, ptr pData, size_t iSize)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理并接管 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -2979,9 +3003,13 @@ xnetresult xrtNetStreamSendBuffer(xnetstream* pStream, xnetbuf* pBuffer)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_OK` | 已受理并接管 | — |
-| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
-| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -4461,7 +4489,10 @@ xnetproxyhandshakestate xrtNetProxyHandshakeStep(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| 新状态 | `WRITE` / `READ` / `READY` / `ERROR` | `ERROR` 时见 `HandshakeError` |
+| `XNET_PROXY_HANDSHAKE_WRITE` | 有输出待发送 | — |
+| `XNET_PROXY_HANDSHAKE_READ` | 等待代理回复 | — |
+| `XNET_PROXY_HANDSHAKE_READY` | 隧道已建立 | — |
+| `XNET_PROXY_HANDSHAKE_ERROR` | 失败 | — |
 
 #### 错误
 

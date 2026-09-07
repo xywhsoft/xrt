@@ -3757,9 +3757,13 @@ xnetresult xrtNetSocketAccept(xnetsocket Socket, xnetsocket* pClient, xnetaddr* 
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `OK` | 已接受，`*pClient`/`*pRemote` 已写出 | — |
-| `AGAIN` | 非阻塞暂无连接 | 输出不被修改 |
-| `ERROR` | 参数或系统失败 | 错误经 `xrtGetError()` 报告 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -3793,9 +3797,13 @@ xnetresult xrtNetSocketConnect(xnetsocket Socket, const xnetaddr* pRemote);
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `OK` | 连接建立（含环回立即完成） | — |
-| `AGAIN` | 非阻塞连接在途 | **不得二次调用**，交给 `FinishConnect` 轮询收口 |
-| `ERROR` | 系统拒绝或失败 | 错误经 `xrtGetError()` 报告 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_ERROR` | 失败 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | — |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | — |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | — |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | — |
+| `XNET_RESULT_CANCELLED` | 被取消 | — |
 
 #### 错误
 
@@ -3829,9 +3837,9 @@ xnetresult xrtNetSocketFinishConnect(xnetsocket Socket);
 
 | 返回 | 含义 |
 |---|---|
-| `OK` | 连接已建立 |
-| `AGAIN` | 仍在途，继续轮询 |
-| `ERROR` | 连接被拒或失败（`SO_ERROR`） |
+| `XNET_RESULT_OK` | 连接已建立 |
+| `XNET_RESULT_AGAIN` | 仍在途，继续轮询 |
+| `XNET_RESULT_ERROR` | 连接被拒或失败（`SO_ERROR`） |
 
 #### 错误
 
@@ -3950,7 +3958,7 @@ bool xrtNetSocketRemote(xnetsocket Socket, xnetaddr* pAddress);
 ```
 
 ### `xrtNetSocketSend`
-单次发送；允许成功短写，非阻塞无法推进时返回 `AGAIN`。
+单次发送；允许成功短写，非阻塞无法推进时返回 `XNET_RESULT_AGAIN`。
 
 ```c
 xnetresult xrtNetSocketSend(xnetsocket Socket, const void* pData, size_t iSize, size_t* pSent);
@@ -3969,9 +3977,9 @@ xnetresult xrtNetSocketSend(xnetsocket Socket, const void* pData, size_t iSize, 
 
 | 返回 | 含义 |
 |---|---|
-| `OK` | `*pSent` 字节已受理 |
-| `AGAIN` | 非阻塞暂无法推进 |
-| `ERROR` | 系统失败 |
+| `XNET_RESULT_OK` | `*pSent` 字节已受理 |
+| `XNET_RESULT_AGAIN` | 非阻塞暂无法推进 |
+| `XNET_RESULT_ERROR` | 系统失败 |
 
 #### 错误
 
@@ -3988,7 +3996,7 @@ xnetresult xrtNetSocketSend(xnetsocket Socket, const void* pData, size_t iSize, 
 ```
 
 ### `xrtNetSocketRecv`
-单次接收；流式 EOF 返回 `CLOSED`，非阻塞无数据返回 `AGAIN`。
+单次接收；流式 EOF 返回 `XNET_RESULT_CLOSED`，非阻塞无数据返回 `XNET_RESULT_AGAIN`。
 
 ```c
 xnetresult xrtNetSocketRecv(xnetsocket Socket, void* pData, size_t iSize, size_t* pReceived);
@@ -4007,10 +4015,10 @@ xnetresult xrtNetSocketRecv(xnetsocket Socket, void* pData, size_t iSize, size_t
 
 | 返回 | 含义 |
 |---|---|
-| `OK` | `*pReceived` 字节可用 |
-| `AGAIN` | 非阻塞暂无数据 |
-| `CLOSED` | 流式对端已 EOF（`*pReceived` 为 0） |
-| `ERROR` | 系统失败 |
+| `XNET_RESULT_OK` | `*pReceived` 字节可用 |
+| `XNET_RESULT_AGAIN` | 非阻塞暂无数据 |
+| `XNET_RESULT_CLOSED` | 流式对端已 EOF（`*pReceived` 为 0） |
+| `XNET_RESULT_ERROR` | 系统失败 |
 
 #### 错误
 
@@ -4046,7 +4054,7 @@ xnetresult xrtNetSocketSendVec(xnetsocket Socket, const xnetspan* pSpans, size_t
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `ERROR` | 同 `Send` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_ERROR` | 同 `Send` |
 
 #### 错误
 
@@ -4081,7 +4089,7 @@ xnetresult xrtNetSocketRecvVec(xnetsocket Socket, xnetwspan* pSpans, size_t iCou
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `CLOSED` / `ERROR` | 同 `Recv` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_CLOSED` / `XNET_RESULT_ERROR` | 同 `Recv` |
 
 #### 错误
 
@@ -4117,7 +4125,7 @@ xnetresult xrtNetSocketSendTo(xnetsocket Socket, const void* pData, size_t iSize
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `ERROR` | 同 `Send` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_ERROR` | 同 `Send` |
 
 #### 错误
 
@@ -4134,7 +4142,7 @@ xnetresult xrtNetSocketSendTo(xnetsocket Socket, const void* pData, size_t iSize
 ```
 
 ### `xrtNetSocketRecvFrom`
-单次接收数据报；零长度返回 `OK`，缓冲不足返回 `TRUNCATED`。
+单次接收数据报；零长度返回 `XNET_RESULT_OK`，缓冲不足返回 `XNET_RESULT_TRUNCATED`。
 
 ```c
 xnetresult xrtNetSocketRecvFrom(xnetsocket Socket, void* pData, size_t iSize, size_t* pReceived, xnetaddr* pRemote);
@@ -4154,10 +4162,10 @@ xnetresult xrtNetSocketRecvFrom(xnetsocket Socket, void* pData, size_t iSize, si
 
 | 返回 | 含义 |
 |---|---|
-| `OK` | `*pReceived` 字节可用（可为 0） |
-| `AGAIN` | 非阻塞暂无数据 |
-| `TRUNCATED` | 报文超过缓冲容量（余量被截去） |
-| `ERROR` | 系统失败 |
+| `XNET_RESULT_OK` | `*pReceived` 字节可用（可为 0） |
+| `XNET_RESULT_AGAIN` | 非阻塞暂无数据 |
+| `XNET_RESULT_TRUNCATED` | 报文超过缓冲容量（余量被截去） |
+| `XNET_RESULT_ERROR` | 系统失败 |
 
 #### 错误
 
@@ -4194,7 +4202,7 @@ xnetresult xrtNetSocketSendToVec(xnetsocket Socket, const xnetspan* pSpans, size
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `ERROR` | 同 `SendTo` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_ERROR` | 同 `SendTo` |
 
 #### 错误
 
@@ -4231,7 +4239,7 @@ xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket, xnetwspan* pSpans, size_t 
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `TRUNCATED` / `ERROR` | 同 `RecvFrom` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_TRUNCATED` / `XNET_RESULT_ERROR` | 同 `RecvFrom` |
 
 #### 错误
 
@@ -4269,7 +4277,7 @@ xnetresult xrtNetSocketSendMsg(xnetsocket Socket, const void* pData, size_t iSiz
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `ERROR` | 同 `SendTo` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_ERROR` | 同 `SendTo` |
 
 #### 错误
 
@@ -4306,7 +4314,7 @@ xnetresult xrtNetSocketSendMsgVec(xnetsocket Socket, const xnetspan* pSpans, siz
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `ERROR` | 同 `SendTo` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_ERROR` | 同 `SendTo` |
 
 #### 错误
 
@@ -4344,7 +4352,7 @@ xnetresult xrtNetSocketRecvMsg(xnetsocket Socket, void* pData, size_t iSize, siz
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `TRUNCATED` / `ERROR` | 同 `RecvFrom`；`Meta.Flags` 标记有效字段 |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_TRUNCATED` / `XNET_RESULT_ERROR` | 同 `RecvFrom`；`Meta.Flags` 标记有效字段 |
 
 #### 错误
 
@@ -4383,7 +4391,7 @@ xnetresult xrtNetSocketRecvMsgVec(xnetsocket Socket, xnetwspan* pSpans, size_t i
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `TRUNCATED` / `ERROR` | 同 `RecvFrom` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_TRUNCATED` / `XNET_RESULT_ERROR` | 同 `RecvFrom` |
 
 #### 错误
 
@@ -4400,7 +4408,7 @@ xnetresult xrtNetSocketRecvMsgVec(xnetsocket Socket, xnetwspan* pSpans, size_t i
 ```
 
 ### `xrtNetSocketRecvBatch`
-接收最多 64 个数据报；返回已消费前缀，每项独立记录 `OK` 或 `TRUNCATED`。
+接收最多 64 个数据报；返回已消费前缀，每项独立记录 `XNET_RESULT_OK` 或 `XNET_RESULT_TRUNCATED`。
 
 ```c
 xnetresult xrtNetSocketRecvBatch(xnetsocket Socket, xnetdgramrecv* pItems, size_t iCapacity, size_t* pReceived);
@@ -4419,7 +4427,7 @@ xnetresult xrtNetSocketRecvBatch(xnetsocket Socket, xnetdgramrecv* pItems, size_
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `ERROR` | 每项自带 `Result`/`Size`/`Remote` |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_ERROR` | 每项自带 `Result`/`Size`/`Remote` |
 
 #### 错误
 
@@ -4456,7 +4464,7 @@ xnetresult xrtNetSocketSendBatch(xnetsocket Socket, const xnetdgramsend* pItems,
 
 | 返回 | 含义 |
 |---|---|
-| `OK` / `AGAIN` / `ERROR` | `AGAIN` 表示队列暂满，稍后重试剩余 |
+| `XNET_RESULT_OK` / `XNET_RESULT_AGAIN` / `XNET_RESULT_ERROR` | `XNET_RESULT_AGAIN` 表示队列暂满，稍后重试剩余 |
 
 #### 错误
 
@@ -4649,9 +4657,9 @@ xnetresult xrtNetSocketDgramRecvError(xnetsocket Socket, void* pData, size_t iSi
 
 | 返回 | 含义 |
 |---|---|
-| `OK` | 已读取一个排队错误 |
-| `AGAIN` | 队列为空（Linux 上空队列返回本值） |
-| `ERROR` | 平台不支持或失败（Windows 恒 `ERROR`："not supported on this platform"） |
+| `XNET_RESULT_OK` | 已读取一个排队错误 |
+| `XNET_RESULT_AGAIN` | 队列为空（Linux 上空队列返回本值） |
+| `XNET_RESULT_ERROR` | 平台不支持或失败（Windows 恒 `XNET_RESULT_ERROR`："not supported on this platform"） |
 
 #### 错误
 
@@ -5993,9 +6001,13 @@ xnetresult xrtNetPortWait(xnetport* pPort,
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XNET_RESULT_OK` | 提取到 `*pCount > 0` 个事件 | — |
-| `XNET_RESULT_TIMEOUT` | 到达截止时间，`*pCount == 0` | — |
-| `XNET_RESULT_ERROR` | 参数非法、非拥有线程或后端等待失败 | 错误经 `xrtGetError()` 报告 |
+| `XNET_RESULT_OK` | 操作成功 | — |
+| `XNET_RESULT_AGAIN` | 非阻塞暂不可推进 | 不设错误 |
+| `XNET_RESULT_CLOSED` | 对象已关闭 | 不设错误 |
+| `XNET_RESULT_TRUNCATED` | 结果被截断 | 不设错误 |
+| `XNET_RESULT_TIMEOUT` | 期限先到期 | 不设错误 |
+| `XNET_RESULT_CANCELLED` | 被取消 | 不设错误 |
+| `XNET_RESULT_ERROR` | 失败 | `xrt.net` 域错误 |
 
 #### 错误
 
