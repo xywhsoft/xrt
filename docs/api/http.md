@@ -1723,7 +1723,7 @@ identity 和显式原样回退路径不复制输入。gzip/deflate 路径按 Con
 2. 用 `xrtNetStreamSendVec` 一次提交 Header 与小正文；
 3. 大正文用 `xrtNetStreamSendRef`、`SendRefs`、`SendTake` 或 `SendBuffer`；
 4. chunked 正文只用 `xrtHttp1ChunkLineWrite` 生成短前缀，数据本身保持引用发送；
-5. `XRT_NET_AGAIN` 时等待 writable/drain，不绕过网络队列硬上限。
+5. `XNET_RESULT_AGAIN` 时等待 writable/drain，不绕过网络队列硬上限。
 
 这条路径只构造必需的线路字节，不创建请求、响应、字典或正文对象。
 

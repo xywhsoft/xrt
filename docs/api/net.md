@@ -7776,7 +7776,7 @@ xrtNetCompletionInit(&Completion, exampleCompletionProc,
 `xrtNetWorkerStats` 返回单 Worker 并发快照，`xrtNetEngineStats` 聚合全部 Worker。
 统计覆盖任务受理、拒绝、执行，Timer 受理、拒绝及四种终态，端口事件、等待错误、
 唤醒错误、停机任务链不收敛次数、小节点缓存命中/未命中、当前缓存字节、当前命令
-深度和活动 Timer。`ShutdownStalls` 从 `XRT_STATS_BASIC` 开始记录，是跨
+深度和活动 Timer。`ShutdownStalls` 从 `XNET_STATS_BASIC` 开始记录，是跨
 `Stop/Start` 累计的诊断计数；一次失败停机中每个不收敛 Worker 最多增加一次。
 单 Worker 的 `LastWaitError` 和 `LastWaitSystemCode` 保留最近一次端口等待失败详情；
 从未失败时分别为 `XNET_ERROR_NONE` 和零。Engine 聚合统计只累计 `WaitErrors`，需要
