@@ -277,7 +277,7 @@ def normalize_out(s):
     return s
 
 
-BRAND_TOKENS = {"XRT", "XSON", "xson", "JSON", "HTTP", "TLS", "SSE", "DNS", "API", "CMake",
+BRAND_TOKENS = {"XRT", "XSON", "xson", "JSON", "HTTP", "TLS", "SSE", "DNS", "API", "CMake", "xlang",
                 "xhttp", "xws", "xmail", "xssh", "xruntime",
                 "XID", "xrtMath"}  # 产品/协议/格式名与数学函数族前缀，非单个 API
 
