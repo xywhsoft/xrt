@@ -27,7 +27,7 @@
 | 20 | future.md | 104 | **完成** | 104/104 全绿（G3 104 片段，2026-09-07）；三段：核心 44 + 桥/listener/dial 29 + TLS stream 31 |
 | 21 | hash.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；合并节全部拆立 |
 | 22 | html.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；html/variants 补注册 |
-| 23 | http.md | 167 | 进行中 [1/4 段] | 第 1 段方法/令牌/Host/编码 28/167 全绿（G3 27 片段）；余 field/param、te/expect/decode、http1/proxy 139 |
+| 23 | http.md | 167 | 进行中 [2/4 段] | 61/167 全绿（G3 60 片段）；余第 3 段 te/expect/upgrade/trailer/encoding/decode 与第 4 段 http1/proxy 106 |
 | 24 | http_connection.md | 5 | 待办 |  |
 | 25 | http_decode.md | 10 | 待办 |  |
 | 26 | http_encoding.md | 12 | 待办 |  |
@@ -436,3 +436,15 @@
   补记：examples/http/small_fields 未注册（G4 拦截），已定点
   挂到 http 模块 examples（JSON + manifest 校验通过），余 140
   全部为第 2-4 段 missing-section。
+- 2026-09-07 http.md 第 2 段（33 节）完成：字段解析与写出 6
+  （FieldParse 单行 / FieldNext 三态块游标 / FieldWrite 与
+  BlockWrite 含终止空行）+ 字段查找 5（Find 返回下标、Get 借用
+  地址、GetUnique 三态区分"唯一/未找到/同名重复"）+ 同名字段
+  token 游标 4（跨重复字段保持线路顺序）+ quoted-string 4 +
+  参数 12（ParamNext 三态、Token 族"纯谓词不修改线程错误"、
+  ValueNext 逐字节游标、Write 的 HAS_VALUE/QUOTED/NONE 三形态）
+  + 指令 3（Next/Count/Find 与参数族的分号 vs 逗号语法差异）。
+  G3 拦截 quoted 族反斜杠引号片段两次（SV 转义序列在文档、
+  python、shell 三层往返中变形），最终以 chr(34)+chr(92) 构造
+  逐字符重建。G3 60 片段全绿；G1/G2 余 106 = 第 3/4 段。
+  array 复验无回归。

@@ -1194,6 +1194,1329 @@ xhttpcoding xrtHttpCodingParse(xstrview Token);
 
 
 
+## 字段解析与写出
+
+### `xrtHttpFieldValueValid`
+
+判断合法连续文本是否能安全作为字段值或 reason-phrase；空视图允许为 NULL/0。
+
+```c
+bool xrtHttpFieldValueValid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 待判定文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 可安全作为字段值 | — |
+| `false` | 含 CR/LF/NUL 等非法字节 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/field_tour · 字段值](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		xrtHttpFieldValueValid(Fields[0].Value) ? 1
+```
+
+
+### `xrtHttpFieldParse`
+
+严格解析一行不含 CRLF 的 HTTP 字段；未对齐输出在返回前一次性发布。
+
+```c
+bool xrtHttpFieldParse(xstrview Line, xhttpfield* pField);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Line` | 输入 | 借用、不含 CRLF | 字段行 |
+| `pField` | 输出 | 非空、支持未对齐 | 接收 Name/Value 借用视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 名称非法或缺少冒号
+
+#### 范例
+
+[http/base · 字段解析](../../examples/http/base/main.c) · 观察
+
+```c
+	if ( !xrtHttpFieldParse(
+		XRT_STR_LITERAL("Connection: keep-alive, Upgrade"), &Field
+	) ) {
+```
+
+
+### `xrtHttpFieldNext`
+
+严格读取不含终止空行的字段块；游标和字段输出支持未对齐存储。
+
+```c
+xhttpnext xrtHttpFieldNext(
+	xstrview Block,
+	size_t* pOffset,
+	xhttpfield* pField
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Block` | 输入 | 借用 | 字段块（CRLF 分隔，不含终止空行） |
+| `pOffset` | 输入/输出 | 初始零 | 游标 |
+| `pField` | 输出 | 非空、未对齐可用 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 取得一个字段 | — |
+| `XHTTP_NEXT_END` | 块耗尽 | 不设错 |
+| `XHTTP_NEXT_ERROR` | 语法错误 | 游标不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/field_tour · 块迭代](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		while ( xrtHttpFieldNext(SV(sBlock), &iOffset, &Field) ==
+```
+
+
+### `xrtHttpFieldBlockCount`
+
+严格统计完整字段块；空字段块成功返回零。
+
+```c
+bool xrtHttpFieldBlockCount(
+	xstrview Block,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Block` | 输入 | 借用 | 字段块 |
+| `pCount` | 输出 | 非空、未对齐可用 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/field_tour · 块统计](../../examples/http/field_tour/main.c) · 观察
+
+```c
+	if ( !xrtHttpFieldBlockCount(SV(sBlock), &iCount) || (iCount != 3u) ) {
+```
+
+
+### `xrtHttpFieldWrite`
+
+写出单个字段行及 CRLF；描述符和长度输出支持未对齐存储。
+
+```c
+bool xrtHttpFieldWrite(
+	const xhttpfield* pField,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pField` | 输入 | 非空 | 字段描述符 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 实际/所需长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出（含 CRLF） | — |
+| `false` | 容量不足或参数错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/field_tour · 写出](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		(void)xrtHttpFieldWrite(&Fields[0], Buffer, sizeof(Buffer), &iSize);
+```
+
+
+### `xrtHttpFieldBlockWrite`
+
+写出字段数组及最终空行（块终止 CRLFCRLF）。
+
+```c
+bool xrtHttpFieldBlockWrite(
+	const xhttpfield* pFields,
+	size_t iCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段描述符数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出全部字段及终止空行 | — |
+| `false` | 容量不足或参数错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/base · 写出](../../examples/http/base/main.c) · 观察
+
+```c
+	if ( (Next != XHTTP_NEXT_END) || !xrtHttpFieldBlockWrite(
+		&Field, 1, Output, sizeof(Output), &iSize
+	) ) {
+```
+
+
+## 字段查找
+
+### `xrtHttpFieldNameEqual`
+
+按 ASCII 大小写不敏感规则比较字段名称。
+
+```c
+bool xrtHttpFieldNameEqual(xstrview Left, xstrview Right);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左名称 |
+| `Right` | 输入 | 借用 | 右名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 相等 | — |
+| `false` | 不等 | 纯比较 |
+
+#### 错误
+
+- 无 — 纯比较
+
+#### 范例
+
+[http/field_tour · 查找](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		xrtHttpFieldNameEqual(SV("connection"), SV("Connection")) ? 1
+```
+
+
+### `xrtHttpFieldFind`
+
+从指定位置查找字段；未找到返回 `XRT_NPOS`。
+
+```c
+size_t xrtHttpFieldFind(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name,
+	size_t iStart
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组、可未对齐 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 查找名称 |
+| `iStart` | 输入 | — | 起始下标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 首个命中下标 | — |
+| `XRT_NPOS` | 未找到（正常结果） | 不设错 |
+
+#### 错误
+
+- 无 — 未找到是查询结果
+
+#### 范例
+
+[http/field_tour · 查找](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		iFound = xrtHttpFieldFind(Fields, 3u, SV("Connection"), 0u);
+```
+
+
+### `xrtHttpFieldGet`
+
+返回原数组中第一个同名字段的借用地址，未找到返回空指针。
+
+```c
+const xhttpfield* xrtHttpFieldGet(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 查找名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 借用字段地址 | — |
+| `NULL` | 未找到 | 不设错 |
+
+#### 错误
+
+- 无 — 未找到是查询结果
+
+#### 范例
+
+[http/field_tour · 查找](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		const xhttpfield* pGet = xrtHttpFieldGet(Fields, 3u,
+```
+
+
+### `xrtHttpFieldGetUnique`
+
+返回唯一同名字段的借用地址；重复时区分命中/重复/未找到。
+
+```c
+xhttpnext xrtHttpFieldGetUnique(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name,
+	const xhttpfield** ppField
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 查找名称 |
+| `ppField` | 输出 | 非空、未对齐可用 | 接收唯一命中地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 唯一命中 | — |
+| `XHTTP_NEXT_END` | 未找到 | 不设错 |
+| `XHTTP_NEXT_ERROR` | 同名重复（协议错误） | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 同名字段出现多次
+
+#### 范例
+
+[http/field_tour · 查找](../../examples/http/field_tour/main.c) · 观察
+
+```c
+			xrtHttpFieldGetUnique(Fields, 3u, SV("Accept-Encoding"),
+```
+
+
+### `xrtHttpFieldCount`
+
+统计同名字段数量。
+
+```c
+size_t xrtHttpFieldCount(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 统计名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 同名字段数（零 = 无） | — |
+
+#### 错误
+
+- 无 — 纯统计
+
+#### 范例
+
+[http/field_tour · 查找](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		xrtHttpFieldCount(Fields, 3u, SV("Connection")));
+```
+
+
+## 同名字段 token 游标
+
+### `xrtHttpFieldTokenCursorInit`
+
+初始化可重复使用的同名字段 token-list 游标。
+
+```c
+void xrtHttpFieldTokenCursorInit(
+	xhttpfieldtokencursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[http/field_tour · token 游标](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		xrtHttpFieldTokenCursorInit(&Cursor);
+```
+
+
+### `xrtHttpFieldTokenNext`
+
+跨重复同名字段读取 token-list 条目，保持字段与条目线路顺序；首次发布前完整验证全部同名字段。
+
+```c
+xhttpnext xrtHttpFieldTokenNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name,
+	xhttpfieldtokencursor* pCursor,
+	xstrview* pToken
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 目标字段名 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pToken` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态；输入在游标结束前必须不变 | 错误时 `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 任一同名字段值非法
+
+#### 范例
+
+[http/field_tour · token 游标](../../examples/http/field_tour/main.c) · 观察
+
+```c
+		while ( xrtHttpFieldTokenNext(Dup, 2u, SV("Accept-Encoding"),
+```
+
+
+### `xrtHttpFieldTokenCount`
+
+完整验证并统计全部重复同名字段中的非空 token 条目。
+
+```c
+bool xrtHttpFieldTokenCount(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name,
+	size_t* pTokenCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 目标字段名 |
+| `pTokenCount` | 输出 | 非空 | 接收合计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合计已写出 | — |
+| `false` | 任一字段非法 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/field_tour · token 游标](../../examples/http/field_tour/main.c) · 观察
+
+```c
+			(void)xrtHttpFieldTokenCount(Dup, 2u,
+```
+
+
+### `xrtHttpFieldTokenFind`
+
+完整验证并在重复同名字段中查找 token；返回值区分找到/未找到/错误。
+
+```c
+xhttpnext xrtHttpFieldTokenFind(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name,
+	xstrview Token
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 目标字段名 |
+| `Token` | 输入 | 借用 | 查找 token |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/字段非法 | — |
+
+#### 错误
+
+- `xrt.http` 域错误 — 字段值非法
+
+#### 范例
+
+[http/field_tour · token 游标](../../examples/http/field_tour/main.c) · 观察
+
+```c
+			xrtHttpFieldTokenFind(Dup, 2u, SV("Accept-Encoding"),
+```
+
+
+## quoted-string
+
+### `xrtHttpQuotedValid`
+
+判断文本是否是一段完整、合法的 HTTP quoted-string。
+
+```c
+bool xrtHttpQuotedValid(xstrview Quoted);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Quoted` | 输入 | 借用 | 含首尾引号的文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/param_tour · quoted](../../examples/http/param_tour/main.c) · 观察
+
+```c
+	(void)xrtHttpQuotedValid(SV("\"part;42\""));
+```
+
+
+### `xrtHttpQuotedRead`
+
+解码完整 quoted-string；空输出查询长度且不附加零字符。
+
+```c
+bool xrtHttpQuotedRead(
+	xstrview Quoted,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Quoted` | 输入 | 借用 | quoted-string |
+| `pOutput` | 输出 | 可空 | 解码输出 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 解码长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解码（删除转义） | — |
+| `false` | 非法或容量不足 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 非法 quoted-string
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/param_tour · quoted](../../examples/http/param_tour/main.c) · 观察
+
+```c
+	if ( xrtHttpQuotedRead(SV("\"part;42\""), Buffer, sizeof(Buffer) - 1u,
+```
+
+
+### `xrtHttpQuotedWrite`
+
+写出带引号和必要转义的 quoted-string；不附加零字符。
+
+```c
+bool xrtHttpQuotedWrite(
+	xstrview Value,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 未转义语义值 |
+| `pOutput` | 输出 | 可空 | 编码输出 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 编码长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已编码 | — |
+| `false` | 容量不足或参数错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/param_tour · quoted](../../examples/http/param_tour/main.c) · 观察
+
+```c
+	(void)xrtHttpQuotedWrite(SV("a\"b"), Buffer, sizeof(Buffer), &iSize);
+```
+
+
+### `xrtHttpQuotedBuild`
+
+构建零结尾 quoted-string；返回值由 `xrtFree` 释放。
+
+```c
+str xrtHttpQuotedBuild(
+	xstrview Value,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 语义值 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾编码结果 | — |
+| `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/param_tour · quoted](../../examples/http/param_tour/main.c) · 观察
+
+```c
+	sBuilt = xrtHttpQuotedBuild(SV("a\"b"), NULL);
+```
+
+
+## 参数
+
+### `xrtHttpParamNext`
+
+严格读取分号参数；错误不推进游标并清空结果。
+
+```c
+xhttpnext xrtHttpParamNext(
+	xstrview Parameters,
+	size_t* pOffset,
+	xhttpparam* pParam
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Parameters` | 输入 | 借用 | 参数串 |
+| `pOffset` | 输入/输出 | 初始零 | 游标 |
+| `pParam` | 输出 | 非空、未对齐可用 | 接收 Name/Value/Flags |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态；错误时游标与输出不变 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/param · 迭代](../../examples/http/param/main.c) · 观察
+
+```c
+	while ( (Next = xrtHttpParamNext(
+		Text, &iOffset, &Param
+	)) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpParamCount`
+
+严格统计完整参数列表；空列表或失败分别发布零。
+
+```c
+bool xrtHttpParamCount(
+	xstrview Parameters,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Parameters` | 输入 | 借用 | 参数串 |
+| `pCount` | 输出 | 非空、未对齐可用 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/param_tour · 统计](../../examples/http/param_tour/main.c) · 观察
+
+```c
+	if ( !xrtHttpParamCount(SV(sParams), &iCount) || (iCount != 2u) ) {
+```
+
+
+### `xrtHttpParamFind`
+
+严格查找参数并验证全部后缀；未命中或错误时清空结果。
+
+```c
+xhttpnext xrtHttpParamFind(
+	xstrview Parameters,
+	xstrview Name,
+	xhttpparam* pParam
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Parameters` | 输入 | 借用 | 参数串 |
+| `Name` | 输入 | 借用 | 查找名称 |
+| `pParam` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 命中 | — |
+| `XHTTP_NEXT_END` | 未命中（不设错） | — |
+| `XHTTP_NEXT_ERROR` | 语法错误 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/param_tour · 查找](../../examples/http/param_tour/main.c) · 观察
+
+```c
+	if ( xrtHttpParamFind(SV(sParams), SV("boundary"), &Param) ==
+```
+
+
+### `xrtHttpParamTokenValid`
+
+判断参数是否带值且解码语义值为非空 token；不修改线程错误。
+
+```c
+bool xrtHttpParamTokenValid(const xhttpparam* pParam);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pParam` | 输入 | 非空、可未对齐 | 参数描述符 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 值是非空 token | — |
+| `false` | 无值/非 token 语义 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词（协议参数要求 token 语义时使用）
+
+#### 范例
+
+[http/param_tour · token 语义](../../examples/http/param_tour/main.c) · 观察
+
+```c
+		xrtHttpParamTokenValid(&TokenParam) ? 1
+```
+
+
+### `xrtHttpParamTokenEqual`
+
+按 ASCII 大小写不敏感规则比较参数的解码 token 值；纯谓词。
+
+```c
+bool xrtHttpParamTokenEqual(
+	const xhttpparam* pParam,
+	xstrview Token
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pParam` | 输入 | 非空 | 参数描述符 |
+| `Token` | 输入 | 借用 | 比较目标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 相等 | — |
+| `false` | 不等 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/param_tour · token 语义](../../examples/http/param_tour/main.c) · 观察
+
+```c
+		xrtHttpParamTokenEqual(&TokenParam, SV("utf-8")) ? 1
+```
+
+
+### `xrtHttpParamValueCursorInit`
+
+初始化参数值逐字节游标。
+
+```c
+void xrtHttpParamValueCursorInit(
+	xhttpparamvaluecursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[http/param_tour · 值游标](../../examples/http/param_tour/main.c) · 观察
+
+```c
+		xrtHttpParamValueCursorInit(&Cursor);
+```
+
+
+### `xrtHttpParamValueNext`
+
+逐字节读取参数的解码语义值；首次调用完整验证并绑定参数；输入在迭代结束前必须不变。
+
+```c
+xhttpnext xrtHttpParamValueNext(
+	const xhttpparam* pParam,
+	xhttpparamvaluecursor* pCursor,
+	uint8* pByte
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pParam` | 输入 | 非空 | 参数描述符 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pByte` | 输出 | 非空 | 接收一个解码字节 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 值非法
+
+#### 范例
+
+[http/param_tour · 值游标](../../examples/http/param_tour/main.c) · 观察
+
+```c
+		while ( xrtHttpParamValueNext(&Param, &Cursor, &iByte) ==
+```
+
+
+### `xrtHttpParamValueWrite`
+
+解码参数值；token 复制，quoted-string 删除转义。
+
+```c
+bool xrtHttpParamValueWrite(
+	const xhttpparam* pParam,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pParam` | 输入 | 非空、可未对齐 | 参数描述符 |
+| `pOutput` | 输出 | 可空 | 解码输出 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 解码长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解码 | — |
+| `false` | 容量不足或值非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_RANGE` — 容量不足
+- `xrt.http` 域错误 — quoted-string 非法
+
+#### 范例
+
+[http/param · 解码](../../examples/http/param/main.c) · 观察
+
+```c
+		if ( !xrtHttpParamValueWrite(
+			&Param, Value, sizeof(Value), &iSize
+		) ) {
+```
+
+
+### `xrtHttpParamWrite`
+
+写出单个参数；QUOTED 转义正文，NONE 省略等号和值。
+
+```c
+bool xrtHttpParamWrite(
+	xstrview Name,
+	xstrview Value,
+	uint32 iFlags,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 参数名 |
+| `Value` | 输入 | 借用 | 参数值 |
+| `iFlags` | 输入 | `XHTTP_PARAM_*` | HAS_VALUE/QUOTED/NONE |
+| `pOutput` | 输出 | 可空 | 输出缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 容量不足或参数错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/param_tour · 写出](../../examples/http/param_tour/main.c) · 观察
+
+```c
+	if ( xrtHttpParamWrite(SV("charset"), SV("UTF-8"), XHTTP_PARAM_HAS_VALUE, Buffer,
+```
+
+
+### `xrtHttpParamBuild`
+
+构建零结尾参数文本；返回值由 `xrtFree` 释放。
+
+```c
+str xrtHttpParamBuild(
+	xstrview Name,
+	xstrview Value,
+	uint32 iFlags,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 参数名 |
+| `Value` | 输入 | 借用 | 参数值 |
+| `iFlags` | 输入 | — | 形态标志 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾结果 | — |
+| `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/param_tour · 构建](../../examples/http/param_tour/main.c) · 观察
+
+```c
+	sBuilt = xrtHttpParamBuild(SV("charset"), SV("UTF-8"), XHTTP_PARAM_HAS_VALUE, NULL);
+```
+
+
+### `xrtHttpParamHostValid`
+
+判断参数解码值是否为合法 Host（用于 URI 解析层的 host 参数）。
+
+```c
+bool xrtHttpParamHostValid(const xhttpparam* pParam);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pParam` | 输入 | 非空 | 参数描述符 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 值是合法 Host | — |
+| `false` | 无值或非法 Host | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/param_tour · host 参数](../../examples/http/param_tour/main.c) · 观察
+
+```c
+		xrtHttpParamHostValid(&HostParam) ? 1
+```
+
+
+### `xrtHttpDirectiveNext`
+
+读取逗号分隔 name[=value] 指令的下一项；空列表项被忽略，值可为 token 或 quoted-string。
+
+```c
+xhttpnext xrtHttpDirectiveNext(
+	xstrview Directives,
+	size_t* pOffset,
+	xhttpparam* pDirective
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Directives` | 输入 | 借用 | 指令列表 |
+| `pOffset` | 输入/输出 | 初始零 | 游标 |
+| `pDirective` | 输出 | 非空、未对齐可用 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/param_tour · 指令](../../examples/http/param_tour/main.c) · 观察
+
+```c
+		while ( xrtHttpDirectiveNext(SV(sDirectives), &iOffset,
+```
+
+
+## 指令
+
+### `xrtHttpDirectiveCount`
+
+严格统计完整指令列表；空项不计数，失败发布零。
+
+```c
+bool xrtHttpDirectiveCount(
+	xstrview Directives,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Directives` | 输入 | 借用 | 指令列表 |
+| `pCount` | 输出 | 非空 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/param_tour · 指令](../../examples/http/param_tour/main.c) · 观察
+
+```c
+		(void)xrtHttpDirectiveCount(SV(sDirectives), &iCount);
+```
+
+
+### `xrtHttpDirectiveFind`
+
+查找首个指令并验证全部后缀；未命中或错误时清空。
+
+```c
+xhttpnext xrtHttpDirectiveFind(
+	xstrview Directives,
+	xstrview Name,
+	xhttpparam* pDirective
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Directives` | 输入 | 借用 | 指令列表 |
+| `Name` | 输入 | 借用 | 查找名称 |
+| `pDirective` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 命中/未命中（不设错）/错误 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/param_tour · 指令](../../examples/http/param_tour/main.c) · 观察
+
+```c
+			xrtHttpDirectiveFind(SV(sDirectives), SV("no-store"),
+```
+
+
+
 ## 扩展库边界
 
 客户端池、重定向、重试、缓存、认证、Cookie、MIME、Multipart、FormData、SSE、
