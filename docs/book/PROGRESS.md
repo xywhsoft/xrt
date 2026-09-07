@@ -32,7 +32,7 @@
 | P23 卷十一xruntime | ✅ 完成 | 4 | 17,646 |
 | P24 卷十二工程实践 | ✅ 完成 | 8 | 32,870 |
 | P25 卷十三项目上 | 🔄 进行中（2/5） | 2 | 14,416 |
-| P26 卷十三项目下 | 🔄 进行中 | 0 | — |
+| P26 卷十三项目下 | ✅ 完成 | 3 | 24,698 |
 | P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -132,6 +132,9 @@
 | 136 | 136-perf.md | practice | 4,064 | 2 | 1 | 3 | 3 | P24 |
 | 137 | 137-project-cli.md | project | 8,033 | 3 | 2 | 4 | 3 | P25 |
 | 138 | 138-project-config-design.md | concept | 6,383 | 2 | 1 | 4 | 3 | P25 |
+| 142 | 142-project-downloader.md | project | 8,401 | 2 | 2 | 4 | 3 | P26 |
+| 143 | 143-project-ws.md | project | 8,242 | 2 | 2 | 4 | 3 | P26 |
+| 144 | 144-project-static.md | project | 8,055 | 3 | 1 | 4 | 3 | P26 |
 
 
 
@@ -140,6 +143,24 @@
 
 
 
+
+## P26 阶段记录
+
+- 卷十三项目下 3 章（全书 144 章正文全部成型）：ch142 项目四
+  HTTPS 下载器（验收七条/If-Range 协议原子续传/.part+改名原子交付/
+  错误三分类重试/断点续传三窗口分析/CLI 契约与退出码/十二条经验）、
+  ch143 项目五 WebSocket 推送服务（频道即组/快照引用广播/慢客户端
+  三档/序号自愈协议/停机七步/验收矩阵与压测方法/SSE 边界复查——
+  十七条经验清单）、ch144 项目六 综合静态服务器（全书收官章：
+  六项目合体/穿越双防/ETag 元组+缓存双档/压缩白名单/装配主函数
+  走查/性能安全双清单/发布原子切换/知识地图总收拢 144 章+
+  全书结语与"从读者到作者"最后一课）。
+- P26 全部按定义完成；遗留：P25 的 ch139-141（config 实现/chat
+  设计+实现）仍待补写——PROGRESS 状态行 P25 保持进行中（2/5）。
+- 门禁拦下：xget/xdl 裸词改 dl_ 前缀（避开 x 开头小写类型规则）、
+  xrtValueGetStr 真名 ObjectGet+GetString 组合、xhttpserversecureconfig
+  真名 xhttpservertlsconfig（Handshake.Identity 嵌套）、StartSecure
+  真名 RouterStartTls、ref 页 xws- 前缀。
 
 ## P25 阶段记录（进行中——2/5 章完成）
 
