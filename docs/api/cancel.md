@@ -110,7 +110,7 @@ xcancel* xrtCancelChild(xcancel* pParent);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 子令牌；父链不可变，`Destroy` 子令牌时逐级释放父引用 | — |
 | `NULL` | 父引用获取失败或分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -148,7 +148,7 @@ xcancel* xrtCancelRef(xcancel* pCancel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1；每个成功 `Ref` 须配一次 `Destroy` | — |
 | `NULL` | 参数非法或引用计数耗尽 | 令牌不变；错误经 `xrtGetError()` 报告 |
 
@@ -212,7 +212,7 @@ bool xrtCancelRequest(xcancel* pCancel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 本次是第一个本地请求；回调已同步执行完毕 | — |
 | `false` | 已请求过（正常结果，不设错）或参数非法 | 重复请求不设置错误；空指针设置 `XERR_ARGUMENT` |
 
@@ -246,7 +246,7 @@ bool xrtCancelRequested(const xcancel* pCancel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 本令牌或任一祖先已请求取消 | — |
 | `false` | 全链未取消或无取消源 | 纯查询，不设置错误 |
 
@@ -287,7 +287,7 @@ xcancelwatch* xrtCancelWatch(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 调用方拥有的监听；`Unwatch` 释放 | — |
 | `NULL` | 参数非法、链溢出或分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -327,7 +327,7 @@ bool xrtCancelTriggered(const xcancelwatch* pWatch);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已命中取消（回调已执行或正在执行） | — |
 | `false` | 未命中或参数非法 | 空指针设置 `XERR_ARGUMENT` |
 

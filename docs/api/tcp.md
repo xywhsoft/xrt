@@ -3328,7 +3328,7 @@ size_t xrtNetStreamConsume(xnetstream* pStream, size_t iSize)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `>= 0` | 实际消费字节数 | — |
-| 越界钳制到可用量 | — |
+| 钳制值 | 越界钳制到可用量 | — |
 
 #### 错误
 

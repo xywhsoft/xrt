@@ -246,7 +246,7 @@ xhttpcoding xrtHttpCodingParse(xstrview Token);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_CODING_IDENTITY/GZIP/DEFLATE` | 内置编码 | — |
 | `XHTTP_CODING_NONE` | 未知编码（如 zstd） | 不设错 |
 
@@ -280,7 +280,7 @@ xstrview xrtHttpCodingName(xhttpcoding Coding);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 静态小写 token | — |
 | 空视图 | `XHTTP_CODING_NONE` | 纯查询 |
 
@@ -318,7 +318,7 @@ void xrtHttpAcceptEncodingInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -352,7 +352,7 @@ bool xrtHttpAcceptEncodingValid(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 自洽 | — |
 | `false` | 不自洽 | 纯谓词 |
 
@@ -389,7 +389,7 @@ bool xrtHttpAcceptEncodingAdd(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已合并（失败原子） | — |
 | `false` | 语法错误 | 状态不变 |
 
@@ -433,7 +433,7 @@ bool xrtHttpAcceptEncodingParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 状态已构建 | — |
 | `false` | 任一字段非法 | 输出不变 |
 
@@ -475,7 +475,7 @@ uint16 xrtHttpAcceptEncodingQuality(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `0–1000` | 有效质量（缺失按 RFC 缺省 1000） | — |
 | `0` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -516,7 +516,7 @@ xhttpcoding xrtHttpAcceptEncodingSelect(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 编码值 | 选中的编码 | — |
 | `XHTTP_CODING_NONE` | 无可用匹配 | `XERR_ARGUMENT`（参数错误时） |
 
@@ -560,7 +560,7 @@ void xrtHttpContentEncodingCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -600,7 +600,7 @@ xhttpnext xrtHttpContentEncodingNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态（未知扩展 Coding=NONE） | `xrt.http` 域错误 |
 
 #### 错误
@@ -641,7 +641,7 @@ bool xrtHttpContentEncodingPlan(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计划已发布 | — |
 | `false` | 字段非法 | 输出不变 |
 
@@ -688,7 +688,7 @@ bool xrtHttpContentEncodingWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出（不附加零） | — |
 | `false` | 容量不足 | 输出不变 |
 

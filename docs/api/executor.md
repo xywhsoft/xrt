@@ -148,7 +148,7 @@ xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 运行中的执行器 | — |
 | `NULL` | 配置非法、溢出或分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -193,7 +193,7 @@ bool xrtExecutorSubmit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；执行完成或被取消丢弃时析构恰好一次 | — |
 | `false` | 队列满、已关闭或参数非法 | 数据所有权不变 |
 
@@ -241,7 +241,7 @@ bool xrtExecutorSubmitBatch(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 整组受理；析构责任整体移交 | — |
 | `false` | 容量不足、已关闭或参数非法 | 整组所有权不变（全成或全败） |
 
@@ -278,7 +278,7 @@ bool xrtExecutorClose(xexecutor* pExecutor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已停止受理；已受理工作继续执行 | — |
 | `false` | 指针为空 | `XERR_ARGUMENT` |
 
@@ -313,7 +313,7 @@ bool xrtExecutorCancel(xexecutor* pExecutor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已停止受理；排队工作的析构被立即执行 | — |
 | `false` | 指针为空 | `XERR_ARGUMENT` |
 
@@ -348,7 +348,7 @@ xwaitresult xrtExecutorWait(xexecutor* pExecutor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已排空 | — |
 | `XWAIT_ERROR` | 未关闭、参数非法或本执行器 Worker 调用 | 错误经 `xrtGetError()` 报告 |
 
@@ -385,7 +385,7 @@ xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, uint64 iTimeout);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已排空（排空优先于超时） | — |
 | `XWAIT_TIMEOUT` | 到期未排空 | 不设置错误 |
 | `XWAIT_ERROR` | 同 `xrtExecutorWait` 的失败条件 | 错误经 `xrtGetError()` 报告 |
@@ -424,7 +424,7 @@ xwaitresult xrtExecutorWaitUntil(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_ERROR` | 同 `xrtExecutorWaitFor` 口径 | — |
 
 #### 错误
@@ -462,7 +462,7 @@ bool xrtExecutorGet(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 并发一致快照已写入 | — |
 | `false` | 指针为空 | `XERR_ARGUMENT` |
 
@@ -498,7 +498,7 @@ bool xrtExecutorDestroy(xexecutor* pExecutor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已关闭、排空并释放 | — |
 | `false` | 参数非法或 Worker 自销毁 | 对象保留；错误经 `xrtGetError()` 报告 |
 

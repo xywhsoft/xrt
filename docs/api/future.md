@@ -549,7 +549,7 @@ xfuturestate xrtFutureState(const xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XFUTURE_PENDING/RESOLVED/FAILED/CANCELLED/CLOSED` | 终态枚举 | — |
 | `CLOSED`（零值） | 参数无效 | `XERR_ARGUMENT` |
 
@@ -583,7 +583,7 @@ bool xrtFutureDone(const xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已终态（RESOLVED/FAILED/CANCELLED/CLOSED） | — |
 | `false` | 仍待定或参数非法 | — |
 
@@ -632,7 +632,7 @@ xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 生产端 Promise（初始引用 1） | — |
 | `NULL` | 创建失败 | `XERR_MEMORY` |
 
@@ -667,7 +667,7 @@ xpromise* xrtPromiseRef(xpromise* pPromise);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1 | — |
 | `NULL` | 参数非法或引用耗尽 | `XERR_ARGUMENT` |
 
@@ -705,7 +705,7 @@ void xrtPromiseDestroy(xpromise* pPromise);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 归零时 Future 进入 `CLOSED` 终态 | — |
 
 #### 错误
@@ -739,7 +739,7 @@ xfuture* xrtFutureRef(xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1 | — |
 | `NULL` | 参数非法或引用耗尽 | `XERR_ARGUMENT` |
 
@@ -774,7 +774,7 @@ void xrtFutureDestroy(xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 归零时释放值/错误与对象 | — |
 
 #### 错误
@@ -837,7 +837,7 @@ bool xrtPromiseResolve(xpromise* pPromise, ptr pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已发布 `RESOLVED` 终态 | — |
 | `false` | 已完成或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
 
@@ -880,7 +880,7 @@ bool xrtPromiseResolveOwned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已完成；Future 归零时执行析构恰好一次 | — |
 | `false` | 已完成 | 所有权仍归调用方 |
 
@@ -920,7 +920,7 @@ bool xrtPromiseReject(xpromise* pPromise, const xerror* pError);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已发布 `FAILED` 终态 | — |
 | `false` | 已完成或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
 
@@ -957,7 +957,7 @@ bool xrtPromiseForward(xpromise* pPromise, xfuture* pSource);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 源终态已透传 | — |
 | `false` | 源待定或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
 
@@ -1019,7 +1019,7 @@ bool xrtFutureResult(const xfuture* pFuture, xfutureresult* pResult);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 终态快照已写出（值/错误由 Future 引用保护） | — |
 | `false` | 待定或参数非法 | `XERR_AGAIN`（待定） |
 
@@ -1055,7 +1055,7 @@ ptr xrtFutureValue(const xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 成功值（借用，由 Future 引用保护） | — |
 | `NULL` | 非成功终态或参数非法 | 对应错误已设置 |
 
@@ -1090,7 +1090,7 @@ const xerror* xrtFutureError(const xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 失败错误借用（存活到 Future 释放） | — |
 | `NULL` | 非失败终态 | 纯查询 |
 
@@ -1138,7 +1138,7 @@ bool xrtFutureCancel(xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 取消请求已发出（幂等） | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -1172,7 +1172,7 @@ xcancel* xrtFutureCancelToken(const xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 引用 +1 的令牌 | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -1206,7 +1206,7 @@ xcancel* xrtPromiseCancelToken(const xpromise* pPromise);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 引用 +1 的令牌 | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -1240,7 +1240,7 @@ bool xrtPromiseCancel(xpromise* pPromise);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已发布 `CANCELLED` 终态 | — |
 | `false` | 已完成或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
 
@@ -1291,7 +1291,7 @@ bool xrtPromiseClose(xpromise* pPromise);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已发布 `CLOSED` 终态 | — |
 | `false` | 已完成或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
 
@@ -1327,7 +1327,7 @@ bool xrtPromiseDone(const xpromise* pPromise);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Future 已终态 | — |
 | `false` | 待定或参数非法 | — |
 
@@ -1370,7 +1370,7 @@ bool xrtFutureWatchInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Watch 已就绪 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -1409,7 +1409,7 @@ xfuturewatchresult xrtFutureWatchAdd(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XFUTURE_WATCH_PENDING` | 已进入等待链，完成时执行 Notify | — |
 | `XFUTURE_WATCH_READY` | Future 已终态；回调不执行、Release 不执行 | — |
 | `XFUTURE_WATCH_ERROR` | 参数或状态错误 | `XERR_ARGUMENT` / `XERR_STATE` |
@@ -1462,7 +1462,7 @@ bool xrtFutureWatchDetach(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已摘除并同步执行 Release | — |
 | `false` | 通知已开始或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
 
@@ -1501,7 +1501,7 @@ void xrtFutureWatchRemove(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 返回后通知不再触发；Release 已执行 | — |
 
 #### 错误
@@ -1534,7 +1534,7 @@ xwaitresult xrtFutureWait(xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已终态 | — |
 | `XWAIT_ERROR` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -1570,7 +1570,7 @@ xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已终态 | — |
 | `XWAIT_TIMEOUT` | 到期仍待定（不设错） | — |
 | `XWAIT_ERROR` | 参数非法 | `XERR_ARGUMENT` |
@@ -1607,7 +1607,7 @@ xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_ERROR` | 同 `WaitFor` 口径 | — |
 
 #### 错误
@@ -1647,7 +1647,7 @@ xwaitresult xrtFutureWaitUntilCancel(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` | 终态/到期 | — |
 | `XWAIT_CANCELLED` | 令牌触发（优先于迟到终态） | 不设错 |
 | `XWAIT_ERROR` | 参数非法 | `XERR_ARGUMENT` |
@@ -1683,7 +1683,7 @@ xwaitresult xrtFutureAwait(xfuture* pFuture);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已终态 | — |
 | `XWAIT_ERROR` | 参数非法或非协程上下文 | 错误经 `xrtGetError()` 报告 |
 
@@ -1719,7 +1719,7 @@ xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` | 终态/到期 | — |
 | `XWAIT_ERROR` | 参数/上下文错误 | 错误经 `xrtGetError()` 报告 |
 
@@ -1755,7 +1755,7 @@ xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` | 终态/到期 | — |
 | `XWAIT_ERROR` | 参数/上下文错误 | 错误经 `xrtGetError()` 报告 |
 
@@ -1818,7 +1818,7 @@ xfuture* xrtFutureContinue(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -1864,7 +1864,7 @@ xfuture* xrtFutureContinueOwned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -1910,7 +1910,7 @@ xfuture* xrtFutureContinueOwnedCancelSource(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -1953,7 +1953,7 @@ xfuture* xrtFutureThen(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -1998,7 +1998,7 @@ xfuture* xrtFutureThenOwned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2044,7 +2044,7 @@ xfuture* xrtFutureThenOwnedCancelSource(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2086,7 +2086,7 @@ xfuture* xrtFutureCatch(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2132,7 +2132,7 @@ xfuture* xrtFutureCatchOwned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2175,7 +2175,7 @@ xfuture* xrtFutureFinally(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2221,7 +2221,7 @@ xfuture* xrtFutureFinallyOwned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 输出 Future | — |
 | `NULL` | 参数非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2278,7 +2278,7 @@ xfuture* xrtFutureAny(xfuture* const* pFutures, size_t iCount);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 组合 Future；成功值为 `xfuturepick{Index,Future}` | — |
 | `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2314,7 +2314,7 @@ xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 组合 Future；成功值按输入顺序借用全部源 | — |
 | `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2350,7 +2350,7 @@ xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 组合 Future；其余源收到取消请求 | — |
 | `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2393,7 +2393,7 @@ bool xrtFutureBridgeInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 桥已就绪 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -2431,7 +2431,7 @@ xfuture* xrtFutureBridgeCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 消费端 Future | — |
 | `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -2468,7 +2468,7 @@ xpromise* xrtFutureBridgePromise(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 借用的 Promise（不增引用） | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -2508,7 +2508,7 @@ bool xrtFutureBridgeWatch(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 监听已建立 | — |
 | `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
 
@@ -2544,7 +2544,7 @@ bool xrtFutureBridgeReady(xfuturebridge* pBridge);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Ready 之前的挂起终态写入被放行 | — |
 | `false` | 状态非法（已发布） | `XERR_STATE` |
 
@@ -2578,7 +2578,7 @@ bool xrtFutureBridgeFail(xfuturebridge* pBridge);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 后续终态写入将被拒收 | — |
 | `false` | 状态非法（已发布） | `XERR_STATE` |
 
@@ -2614,7 +2614,7 @@ bool xrtFutureBridgeWait(const xfuturebridge* pBridge);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已 Ready：结果可写入 Promise | — |
 | `false` | 已 Fail：只回收结果（不设错，是查询结果） | — |
 
@@ -2648,7 +2648,7 @@ void xrtFutureBridgeUnwatch(xfuturebridge* pBridge);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 返回后取消回调不再触发 | — |
 
 #### 错误
@@ -2686,7 +2686,7 @@ void xrtTlsListenerConfigInit(xtlslistenerconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -2729,7 +2729,7 @@ xtlslistener* xrtTlsListenerStart(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 监听器（`OPEN` 状态） | — |
 | `NULL` | 绑定或启动失败 | `xrt.tls` 域错误经 `xrtGetError()` 报告 |
 
@@ -2765,7 +2765,7 @@ xtlslistener* xrtTlsListenerRef(xtlslistener* pListener);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1 | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -2799,7 +2799,7 @@ void xrtTlsListenerDestroy(xtlslistener* pListener);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 引用 -1 | — |
 
 #### 错误
@@ -2833,7 +2833,7 @@ xtlsstream* xrtTlsListenerAccept(xtlslistener* pListener);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 已完成握手的 Stream（引用转移给调用方） | — |
 | `NULL` | 队列空（正常结果）或失败 | 空队列不设错 |
 
@@ -2867,7 +2867,7 @@ xfuture* xrtTlsListenerAcceptAsync(xtlslistener* pListener);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Future；成功值为 Stream 引用 | — |
 | `NULL` | 提交失败 | `xrt.tls` 域错误 |
 
@@ -2907,7 +2907,7 @@ xtlsstream* xrtTlsListenerAcceptWait(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 已完成握手的 Stream | — |
 | `NULL` | 到期/取消/失败 | 到期与取消不设错 |
 
@@ -2943,7 +2943,7 @@ bool xrtTlsListenerClose(xtlslistener* pListener);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已停止接入 | — |
 | `false` | 参数非法或已关闭 | `XERR_ARGUMENT` / `XERR_STATE` |
 
@@ -2982,7 +2982,7 @@ xtlslistenerstate xrtTlsListenerState(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XTLS_LISTENER_OPEN/CLOSED/...` | 状态枚举 | — |
 | 零值 | 参数非法 | `XERR_ARGUMENT` |
 
@@ -3020,7 +3020,7 @@ bool xrtTlsListenerLocal(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 地址已写出 | — |
 | `false` | 参数或系统错误 | `XERR_ARGUMENT` / 系统错误 |
 
@@ -3055,7 +3055,7 @@ ptr xrtTlsListenerData(const xtlslistener* pListener);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 任意值 | 创建时传入的 `pData` | — |
 | `NULL` | 未设置或参数非法 | — |
 
@@ -3093,7 +3093,7 @@ bool xrtTlsListenerStats(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 快照已写出 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -3133,7 +3133,7 @@ void xrtTlsDialConfigInit(xtlsdialconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -3186,7 +3186,7 @@ xtlsdial* xrtTlsDial(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Dial 对象（终态后 Destroy 释放） | — |
 | `NULL` | 提交失败 | `xrt.tls` 域错误 |
 
@@ -3242,7 +3242,7 @@ xfuture* xrtTlsDialAsync(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Future；成功值为 Stream 引用，失败值为 `xrt.tls` 错误链 | — |
 | `NULL` | 提交失败 | `xrt.tls` 域错误 |
 
@@ -3285,7 +3285,7 @@ xtlsdial* xrtTlsDialRef(xtlsdial* pDial);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1 | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -3319,7 +3319,7 @@ void xrtTlsDialDestroy(xtlsdial* pDial);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 引用 -1 | — |
 
 #### 错误
@@ -3352,7 +3352,7 @@ bool xrtTlsDialCancel(xtlsdial* pDial);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 取消已受理；最终结果必为 CANCELLED/FAILED | — |
 | `false` | 已终态（成功无法撤回）或参数非法 | `XERR_ARGUMENT` |
 
@@ -3386,7 +3386,7 @@ xtlsdialstate xrtTlsDialState(const xtlsdial* pDial);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 阶段/终态枚举 | 解析/连接/握手或终态 | — |
 | 零值 | 参数非法 | `XERR_ARGUMENT` |
 
@@ -3420,7 +3420,7 @@ const xerror* xrtTlsDialError(const xtlsdial* pDial);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 错误借用（含 DNS/TCP/TLS 分层 cause 链） | — |
 | `NULL` | 未失败或参数非法 | 纯查询 |
 
@@ -3458,7 +3458,7 @@ bool xrtTlsDialTransportStats(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 统计已写出 | — |
 | `false` | 参数非法或尚未开始 | `XERR_ARGUMENT` |
 
@@ -3499,7 +3499,7 @@ void xrtTlsStreamConfigInit(xtlsstreamconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -3548,7 +3548,7 @@ xtlsstream* xrtTlsStreamConnect(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | TLS Stream（握手异步完成，`Open` 事件通知） | — |
 | `NULL` | 提交失败 | `xrt.tls` 域错误 |
 
@@ -3595,7 +3595,7 @@ bool xrtTlsStreamAttach(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已接管两者引用 | — |
 | `false` | 参数/状态非法 | 所有权不变 |
 
@@ -3644,7 +3644,7 @@ bool xrtTlsStreamClient(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已接管 | — |
 | `false` | 参数/状态非法 | 所有权不变 |
 
@@ -3691,7 +3691,7 @@ bool xrtTlsStreamAccept(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已接管（作为回调结果放行） | — |
 | `false` | 参数/状态非法 | 所有权不变 |
 
@@ -3732,7 +3732,7 @@ xtlsstream* xrtTlsStreamRef(xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1 | — |
 | `NULL` | 参数非法或引用耗尽 | `XERR_ARGUMENT` / `XERR_STATE` |
 
@@ -3768,7 +3768,7 @@ void xrtTlsStreamDestroy(xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 引用 -1 | — |
 
 #### 错误
@@ -3807,7 +3807,7 @@ bool xrtTlsStreamSetEvents(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已替换 | — |
 | `false` | 参数/状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
 
@@ -3842,7 +3842,7 @@ xtlsstreamstate xrtTlsStreamState(const xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 状态枚举 | 连接/握手/开放/关闭等阶段 | — |
 | 零值 | 参数非法 | `XERR_ARGUMENT` |
 
@@ -3876,7 +3876,7 @@ xnetstream* xrtTlsStreamTransport(const xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 底层 TCP Stream 借用 | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -3910,7 +3910,7 @@ xtlssession* xrtTlsStreamSession(xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 会话借用（Worker 内） | — |
 | `NULL` | 无会话或参数非法 | — |
 
@@ -3944,7 +3944,7 @@ ptr xrtTlsStreamData(const xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 任意值 | 创建时/Switch 后的 `pData` | — |
 | `NULL` | 未设置或参数非法 | — |
 
@@ -3978,7 +3978,7 @@ const xerror* xrtTlsStreamError(const xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 根因错误借用 | — |
 | `NULL` | 无失败或参数非法 | 纯查询 |
 
@@ -4012,7 +4012,7 @@ size_t xrtTlsStreamPending(const xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 两级队列总待发字节 | — |
 | `0` | 无待发或参数非法 | `XERR_ARGUMENT`（非法时） |
 
@@ -4056,7 +4056,7 @@ xtlsresult xrtTlsStreamSend(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XNET_RESULT_OK` | 已受理（可能短写） | — |
 | `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
 
@@ -4099,7 +4099,7 @@ xtlsresult xrtTlsStreamSendVec(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XNET_RESULT_OK` | 前缀已受理 | — |
 | `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
 
@@ -4140,7 +4140,7 @@ bool xrtTlsStreamSendBound(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 上界已写出 | — |
 | `false` | 参数/状态非法 | `*pBound` 不变 |
 
@@ -4175,7 +4175,7 @@ size_t xrtTlsStreamAvailable(const xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 待消费明文字节 | — |
 | `0` | 无明文或参数非法 | `XERR_ARGUMENT`（非法时） |
 
@@ -4209,7 +4209,7 @@ const xnetbuf* xrtTlsStreamBuffer(xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 明文链借用（回调期间有效） | — |
 | `NULL` | 无明文或参数非法 | `XERR_ARGUMENT` |
 
@@ -4250,7 +4250,7 @@ bool xrtTlsStreamPullup(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 视图已写出（下次缓冲修改前有效） | — |
 | `false` | 零长度/越界或状态非法 | `XERR_RANGE` / `XERR_STATE` |
 
@@ -4286,7 +4286,7 @@ bool xrtTlsStreamReadMore(xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已请求（明文增长后再次发布 Read） | — |
 | `false` | 无 Read 回调保留或超限 | `XERR_STATE` / `XERR_RANGE` |
 
@@ -4329,7 +4329,7 @@ xtlsresult xrtTlsStreamRead(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XNET_RESULT_OK` | 已复制并消费 | — |
 | `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
 
@@ -4365,7 +4365,7 @@ bool xrtTlsStreamConsume(xtlsstream* pStream, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已消费并恢复底层读取 | — |
 | `false` | 越界或状态非法 | `XERR_RANGE` / `XERR_STATE` |
 
@@ -4403,7 +4403,7 @@ bool xrtTlsStreamClose(xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 关闭流程已发起 | — |
 | `false` | 参数/状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
 
@@ -4438,7 +4438,7 @@ bool xrtTlsStreamAbort(xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 中止已发起 | — |
 | `false` | 参数/状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
 
@@ -4475,7 +4475,7 @@ size_t xrtTlsStreamAsyncBytes(const xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 在途异步发送负载字节 | — |
 | `0` | 无在途或参数非法 | `XERR_ARGUMENT`（非法时） |
 
@@ -4509,7 +4509,7 @@ uint32 xrtTlsStreamAsyncCount(const xtlsstream* pStream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 在途异步操作合计 | — |
 | `0` | 无在途或参数非法 | `XERR_ARGUMENT`（非法时） |
 
@@ -4547,7 +4547,7 @@ xfuture* xrtTlsStreamWaitAsync(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 条件 Future | — |
 | `NULL` | 提交失败 | `xrt.tls` 域错误 |
 
@@ -4588,7 +4588,7 @@ xfuture* xrtTlsStreamRecvAsync(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Future；成功值为 `xnetbytes` | — |
 | `NULL` | 提交失败 | `xrt.tls` 域错误 |
 
@@ -4631,7 +4631,7 @@ xfuture* xrtTlsStreamSendAsync(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Future（全部明文被会话受理时完成） | — |
 | `NULL` | 提交失败 | `xrt.tls` 域错误 |
 
@@ -4675,7 +4675,7 @@ xfuture* xrtTlsStreamSendVecAsync(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Future | — |
 | `NULL` | 校验/提交失败（不发布部分操作） | `xrt.tls` 域错误 |
 

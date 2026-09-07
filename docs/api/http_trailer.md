@@ -94,7 +94,7 @@ bool xrtHttpTrailerNameValid(xstrview Name);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 可发送（非禁投递集合） | — |
 | `false` | 禁止作为 trailer | 纯谓词 |
 
@@ -132,7 +132,7 @@ bool xrtHttpTrailerSectionValid(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 名称与值全部合法 | — |
 | `false` | 存在禁投递名或非法值 | 纯谓词 |
 
@@ -175,7 +175,7 @@ bool xrtHttpTrailerCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 声明非法 | 计数不变 |
 
@@ -221,7 +221,7 @@ xhttpnext xrtHttpTrailerFind(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/声明非法 | `xrt.http` 域错误 |
 
 #### 错误
@@ -265,7 +265,7 @@ bool xrtHttpTrailerNamesWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 容量不足或重叠 | 输出不变 |
 
@@ -309,7 +309,7 @@ str xrtHttpTrailerNamesBuild(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 零结尾声明值 | — |
 | `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
 

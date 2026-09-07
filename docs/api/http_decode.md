@@ -179,7 +179,7 @@ void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -211,7 +211,7 @@ void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -249,7 +249,7 @@ xhttpdecode* xrtHttpDecodeCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 解码器（按 Content-Encoding/Content-Length 决定模式） | — |
 | `NULL` | Header 不一致或 OOM | `xrt.http` 域错误 |
 
@@ -291,7 +291,7 @@ bool xrtHttpDecodeReset(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已复位可处理下一条 | — |
 | `false` | 前一条未完成或 Header 非法 | 状态不变 |
 
@@ -332,7 +332,7 @@ void xrtHttpDecodeDestroy(xhttpdecode* pDecode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 引用与窗口已释放 | — |
 
 #### 错误
@@ -377,7 +377,7 @@ bool xrtHttpDecodeWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已消费（终段校验通过） | — |
 | `false` | 数据损坏、超限或回调中止 | 进入失败终态 |
 
@@ -420,7 +420,7 @@ xhttpdecodemode xrtHttpDecodeMode(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_DECODE_*` | 直通/identity/解码模式 | — |
 | 零值 | 参数非法 | `XERR_ARGUMENT` |
 
@@ -462,7 +462,7 @@ bool xrtHttpDecodeDone(const xhttpdecode* pDecode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 消息完整终结 | — |
 | `false` | 未完成或失败终态 | 纯查询 |
 
@@ -495,7 +495,7 @@ uint64 xrtHttpDecodeInputSize(const xhttpdecode* pDecode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 线路字节数 | — |
 | `0` | 无或参数非法 | `XERR_ARGUMENT`（非法时） |
 
@@ -529,7 +529,7 @@ uint64 xrtHttpDecodeOutputSize(const xhttpdecode* pDecode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 明文字节数（含丢弃） | — |
 | `0` | 无或参数非法 | `XERR_ARGUMENT`（非法时） |
 

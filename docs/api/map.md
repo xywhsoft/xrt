@@ -679,7 +679,7 @@ bool xrtMapInit(xmap* pMap, size_t iValueSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -719,7 +719,7 @@ bool xrtMapInitAligned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -753,7 +753,7 @@ xmap* xrtMapCreate(size_t iValueSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 堆映射；`Destroy` 释放 | — |
 | `NULL` | 参数非法或 OOM | — |
 
@@ -789,7 +789,7 @@ xmap* xrtMapCreateAligned(size_t iValueSize, size_t iAlignment);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 堆映射 | — |
 | `NULL` | 参数非法或 OOM | — |
 
@@ -832,7 +832,7 @@ bool xrtMapSetKeyPolicy(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 策略已安装 | — |
 | `false` | 映射非空或参数非法 | — |
 
@@ -869,7 +869,7 @@ bool xrtMapSetDrop(xmap* pMap, xmapdrop pDrop, ptr pUserData);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 释放器已安装 | — |
 | `false` | 映射非空 | — |
 
@@ -903,7 +903,7 @@ void xrtMapUnit(xmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 调用全部值释放器后释放 | — |
 
 #### 错误
@@ -936,7 +936,7 @@ void xrtMapDestroy(xmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 全部资源已释放 | — |
 
 #### 错误
@@ -969,7 +969,7 @@ void xrtMapClear(xmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | Count 归零；容量保留 | — |
 
 #### 错误
@@ -1003,7 +1003,7 @@ bool xrtMapReserve(xmap* pMap, size_t iCapacity);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 容量已保证 | — |
 | `false` | 参数或 OOM | 映射不变 |
 
@@ -1038,7 +1038,7 @@ bool xrtMapTrim(xmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已收缩 | — |
 | `false` | 参数或 OOM | — |
 
@@ -1073,7 +1073,7 @@ size_t xrtMapCount(const xmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 键值数 | — |
 
 #### 错误
@@ -1106,7 +1106,7 @@ size_t xrtMapCapacity(const xmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 容量 | — |
 
 #### 错误
@@ -1141,7 +1141,7 @@ ptr xrtMapGetOrAdd(xmap* pMap, xbytesview Key, bool* pNew);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 值槽（新槽已清零） | — |
 | `NULL` | 参数非法或 OOM | — |
 
@@ -1186,7 +1186,7 @@ ptr xrtMapGetOrInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 值槽 | — |
 | `NULL` | 回调失败（原子回滚）或 OOM | — |
 
@@ -1224,7 +1224,7 @@ bool xrtMapSet(xmap* pMap, xbytesview Key, const void* pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入/替换（旧值先过释放器） | — |
 | `false` | 参数或 OOM | — |
 
@@ -1260,7 +1260,7 @@ ptr xrtMapGet(xmap* pMap, xbytesview Key);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 可写值槽 | — |
 | `NULL` | 未找到（正常结果） | 不设错 |
 
@@ -1296,7 +1296,7 @@ const void* xrtMapConstGet(const xmap* pMap, xbytesview Key);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 只读值槽 | — |
 | `NULL` | 未找到 | 不设错 |
 
@@ -1332,7 +1332,7 @@ bool xrtMapHas(const xmap* pMap, xbytesview Key);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 存在 | — |
 | `false` | 不存在 | 不设错 |
 
@@ -1373,7 +1373,7 @@ bool xrtMapStoredKey(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 视图已发布（存活到键被删除） | — |
 | `false` | 未找到 | `*pStoredKey` 清空 |
 
@@ -1409,7 +1409,7 @@ bool xrtMapRemove(xmap* pMap, xbytesview Key);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已删除 | — |
 | `false` | 未找到（正常结果） | 不设错 |
 
@@ -1446,7 +1446,7 @@ bool xrtMapTake(xmap* pMap, xbytesview Key, ptr pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 值已移交且条目已删除（不调释放器） | — |
 | `false` | 未找到 | 不设错 |
 
@@ -1483,7 +1483,7 @@ bool xrtMapSetPtr(xmap* pMap, xbytesview Key, ptr pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入/替换 | — |
 | `false` | 参数或 OOM | — |
 
@@ -1519,7 +1519,7 @@ ptr xrtMapGetPtr(xmap* pMap, xbytesview Key);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空或空 | 保存的指针（可为 NULL 值） | — |
 | 区分缺失 | 用 `xrtMapHas` | 不设错 |
 
@@ -1556,7 +1556,7 @@ bool xrtMapTakePtr(xmap* pMap, xbytesview Key, ptr* pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 指针已移交且条目已删除 | — |
 | `false` | 未找到 | 不设错 |
 
@@ -1593,7 +1593,7 @@ size_t xrtMapVisit(xmap* pMap, xmapvisitor pVisitor, ptr pUserData);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 实际访问数（提前停止时小于总数） | — |
 
 #### 错误
@@ -1627,7 +1627,7 @@ bool xrtMapIterBegin(xmap* pMap, xmapiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -1662,7 +1662,7 @@ bool xrtMapIterRBegin(xmap* pMap, xmapiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -1697,7 +1697,7 @@ ptr xrtMapIterNext(xmapiter* pIterator, xbytesview* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 下一值槽 | — |
 | `NULL` | 自然耗尽（不设错）或结构被修改 | 结构修改时 `XERR_STATE` |
 
@@ -1732,7 +1732,7 @@ void xrtMapIterEnd(xmapiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯清理 | — |
 
 #### 错误
@@ -1766,7 +1766,7 @@ bool xrtIntMapInit(xintmap* pMap, size_t iValueSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -1809,7 +1809,7 @@ bool xrtIntMapInitAligned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -1843,7 +1843,7 @@ xintmap* xrtIntMapCreate(size_t iValueSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 堆映射；`Destroy` 释放 | — |
 | `NULL` | 参数非法或 OOM | — |
 
@@ -1879,7 +1879,7 @@ xintmap* xrtIntMapCreateAligned(size_t iValueSize, size_t iAlignment);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 堆映射 | — |
 | `NULL` | 参数非法或 OOM | — |
 
@@ -1920,7 +1920,7 @@ bool xrtIntMapSetDrop(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已安装 | — |
 | `false` | 映射非空 | — |
 
@@ -1954,7 +1954,7 @@ void xrtIntMapUnit(xintmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 值释放器先执行 | — |
 
 #### 错误
@@ -1987,7 +1987,7 @@ void xrtIntMapDestroy(xintmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 全部资源已释放 | — |
 
 #### 错误
@@ -2020,7 +2020,7 @@ void xrtIntMapClear(xintmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | Count 归零；池页保留 | — |
 
 #### 错误
@@ -2054,7 +2054,7 @@ size_t xrtIntMapTrim(xintmap* pMap, size_t iRetainEmpty);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 实际释放页数 | — |
 
 #### 错误
@@ -2087,7 +2087,7 @@ size_t xrtIntMapCount(const xintmap* pMap);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 键值数 | — |
 
 #### 错误
@@ -2122,7 +2122,7 @@ ptr xrtIntMapGetOrAdd(xintmap* pMap, int64 iKey, bool* pNew);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 值槽（新槽已清零） | — |
 | `NULL` | 参数非法或 OOM | — |
 
@@ -2167,7 +2167,7 @@ ptr xrtIntMapGetOrInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 值槽 | — |
 | `NULL` | 回调失败（原子回滚）或 OOM | — |
 
@@ -2205,7 +2205,7 @@ bool xrtIntMapSet(xintmap* pMap, int64 iKey, const void* pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入/替换 | — |
 | `false` | 参数或 OOM | — |
 
@@ -2241,7 +2241,7 @@ ptr xrtIntMapGet(xintmap* pMap, int64 iKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 可写值槽 | — |
 | `NULL` | 未找到 | 不设错 |
 
@@ -2277,7 +2277,7 @@ const void* xrtIntMapConstGet(const xintmap* pMap, int64 iKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 只读值槽 | — |
 | `NULL` | 未找到 | 不设错 |
 
@@ -2313,7 +2313,7 @@ bool xrtIntMapHas(const xintmap* pMap, int64 iKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 存在 | — |
 | `false` | 不存在 | 不设错 |
 
@@ -2349,7 +2349,7 @@ bool xrtIntMapRemove(xintmap* pMap, int64 iKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已删除 | — |
 | `false` | 未找到 | 不设错 |
 
@@ -2386,7 +2386,7 @@ bool xrtIntMapTake(xintmap* pMap, int64 iKey, ptr pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 值已移交且条目已删除 | — |
 | `false` | 未找到 | 不设错 |
 
@@ -2423,7 +2423,7 @@ bool xrtIntMapSetPtr(xintmap* pMap, int64 iKey, ptr pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入/替换 | — |
 | `false` | 参数或 OOM | — |
 
@@ -2459,7 +2459,7 @@ ptr xrtIntMapGetPtr(xintmap* pMap, int64 iKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空或空 | 保存的指针（可为 NULL 值） | — |
 | 区分缺失 | 用 `xrtIntMapHas` | 不设错 |
 
@@ -2496,7 +2496,7 @@ bool xrtIntMapTakePtr(xintmap* pMap, int64 iKey, ptr* pValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 指针已移交且条目已删除 | — |
 | `false` | 未找到 | 不设错 |
 
@@ -2532,7 +2532,7 @@ ptr xrtIntMapFirst(xintmap* pMap, int64* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 首项值槽（键最小） | — |
 | `NULL` | 空映射 | 不设错 |
 
@@ -2568,7 +2568,7 @@ ptr xrtIntMapLast(xintmap* pMap, int64* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 末项值槽（键最大） | — |
 | `NULL` | 空映射 | 不设错 |
 
@@ -2605,7 +2605,7 @@ ptr xrtIntMapLowerBound(xintmap* pMap, int64 iKey, int64* pActualKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 首个 `>= iKey` 项 | — |
 | `NULL` | 全部小于 iKey | 不设错 |
 
@@ -2642,7 +2642,7 @@ ptr xrtIntMapUpperBound(xintmap* pMap, int64 iKey, int64* pActualKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 首个 `> iKey` 项 | — |
 | `NULL` | 无严格大于项 | 不设错 |
 
@@ -2683,7 +2683,7 @@ size_t xrtIntMapVisit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 实际访问数 | — |
 
 #### 错误
@@ -2717,7 +2717,7 @@ bool xrtIntMapIterBegin(xintmap* pMap, xintmapiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -2752,7 +2752,7 @@ bool xrtIntMapIterRBegin(xintmap* pMap, xintmapiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -2792,7 +2792,7 @@ bool xrtIntMapIterFrom(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪（O(log n) 起点） | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -2832,7 +2832,7 @@ bool xrtIntMapIterRFrom(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已就绪 | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -2867,7 +2867,7 @@ ptr xrtIntMapIterNext(xintmapiter* pIterator, int64* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 下一值槽 | — |
 | `NULL` | 耗尽或结构被修改 | 结构修改时 `XERR_STATE` |
 
@@ -2902,7 +2902,7 @@ void xrtIntMapIterEnd(xintmapiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯清理 | — |
 
 #### 错误

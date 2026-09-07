@@ -744,7 +744,7 @@ void xrtJsonReadConfigInit(xjsonreadconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -777,7 +777,7 @@ xvalue* xrtJsonParse(xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有的 Value DOM（`xvalue` 族操作/释放） | — |
 | `NULL` | 语法错误、超限或 OOM | `xrt.json` 域错误 |
 
@@ -818,7 +818,7 @@ xvalue* xrtJsonRead(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有的 Value DOM | — |
 | `NULL` | 失败 | `xrt.json` 域错误 |
 
@@ -853,7 +853,7 @@ bool xrtJsonValid(xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 JSON | — |
 | `false` | 非法 | `xrt.json` 域错误 |
 
@@ -895,7 +895,7 @@ xjsonvisitresult xrtJsonVisit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XJSON_VISIT_OK/STOP/ERROR` | 完成/回调请求停止/错误 | 错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -938,7 +938,7 @@ bool xrtJsonErrorLocation(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 位置已写出 | — |
 | `false` | 错误不带位置数据或参数非法 | `XERR_ARGUMENT` |
 
@@ -974,7 +974,7 @@ xjsonwriter* xrtJsonWriterCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 内存型写入器 | — |
 | `NULL` | 参数错误或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -1015,7 +1015,7 @@ xjsonwriter* xrtJsonWriterCreateSink(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 回调型写入器 | — |
 | `NULL` | 参数错误或 OOM | — |
 
@@ -1051,7 +1051,7 @@ bool xrtJsonWriterObject(xjsonwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已进入对象 | — |
 | `false` | 嵌套超限或状态非法 | `xrt.json` 域错误 |
 
@@ -1085,7 +1085,7 @@ bool xrtJsonWriterArray(xjsonwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已进入数组 | — |
 | `false` | 嵌套超限或状态非法 | `xrt.json` 域错误 |
 
@@ -1119,7 +1119,7 @@ bool xrtJsonWriterEnd(xjsonwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 容器已闭合 | — |
 | `false` | 无未闭合容器或状态非法 | `xrt.json` 域错误 |
 
@@ -1154,7 +1154,7 @@ bool xrtJsonWriterName(xjsonwriter* pWriter, xstrview Name);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 位置/UTF-8 非法 | `xrt.json` 域错误 |
 
@@ -1188,7 +1188,7 @@ bool xrtJsonWriterNull(xjsonwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 状态非法 | `xrt.json` 域错误 |
 
@@ -1223,7 +1223,7 @@ bool xrtJsonWriterBool(xjsonwriter* pWriter, bool bValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 状态非法 | `xrt.json` 域错误 |
 
@@ -1258,7 +1258,7 @@ bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 状态非法 | `xrt.json` 域错误 |
 
@@ -1293,7 +1293,7 @@ bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 状态非法 | `xrt.json` 域错误 |
 
@@ -1328,7 +1328,7 @@ bool xrtJsonWriterFloat(xjsonwriter* pWriter, double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | NaN/Inf（严格模式）或状态非法 | `xrt.json` 域错误 |
 
@@ -1363,7 +1363,7 @@ bool xrtJsonWriterString(xjsonwriter* pWriter, xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已转义写出 | — |
 | `false` | UTF-8 非法或状态非法 | `xrt.json` 域错误 |
 
@@ -1401,7 +1401,7 @@ bool xrtJsonWriterValue(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已递归写出 | — |
 | `false` | Value 类型非法或超限 | `xrt.json` 域错误 |
 
@@ -1435,7 +1435,7 @@ bool xrtJsonWriterFinish(xjsonwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已封闭（后续只能 Take/Free） | — |
 | `false` | 根值缺失或容器未闭合 | `xrt.json` 域错误 |
 
@@ -1470,7 +1470,7 @@ str xrtJsonWriterTake(xjsonwriter* pWriter, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 零结尾 JSON 文本 | — |
 | `NULL` | 未 Finish 或非内存型 | `XERR_STATE` |
 
@@ -1505,7 +1505,7 @@ void xrtJsonWriterFree(xjsonwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 写入器与内部缓冲已释放 | — |
 
 #### 错误
@@ -1538,7 +1538,7 @@ void xrtJsonWriteConfigInit(xjsonwriteconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -1577,7 +1577,7 @@ str xrtJsonStringify(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 零结尾 JSON 文本 | — |
 | `NULL` | 类型非法或 OOM | `xrt.json` 域错误 |
 
@@ -1620,7 +1620,7 @@ bool xrtJsonWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已完整写出 | — |
 | `false` | 类型非法、超限或回调中止 | `xrt.json` 域错误 |
 
@@ -1667,7 +1667,7 @@ bool xrtJsonQuoteWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已流式写出（含首尾引号） | — |
 | `false` | UTF-8 非法或回调失败 | `xrt.json` 域错误 |
 
@@ -1704,7 +1704,7 @@ xvalue* xrtJsonParseFile(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有的 Value DOM | — |
 | `NULL` | 读取或解析失败 | `xrt.io` / `xrt.json` 域错误 |
 
@@ -1744,7 +1744,7 @@ xvalue* xrtJsonReadFile(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Value DOM | — |
 | `NULL` | 失败 | 域错误 |
 
@@ -1784,7 +1784,7 @@ bool xrtJsonWriteFile(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已原子发布 | — |
 | `false` | 序列化或写入失败 | 域错误 |
 
@@ -1825,7 +1825,7 @@ bool xrtJsonStringifyFile(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已原子发布 | — |
 | `false` | 序列化或写入失败 | 域错误 |
 

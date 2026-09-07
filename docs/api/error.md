@@ -432,7 +432,7 @@ xerror* xrtErrorBuild(const xerrordesc* pDesc);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有引用的错误对象 | — |
 | `NULL` | 描述非法或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
 
@@ -474,7 +474,7 @@ xerror* xrtErrorBuildAt(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 带位置的错误对象 | — |
 | `NULL` | 参数非法或 OOM | 同 `xrtErrorBuild` |
 
@@ -513,7 +513,7 @@ xerror* xrtErrorCreate(xerrkind Kind, cstr sDomain, int32 iCode, cstr sMessage);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有引用的错误对象 | — |
 | `NULL` | 参数非法或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -550,7 +550,7 @@ xerror* xrtErrorWrap(const xerror* pCause, xerrkind Kind, cstr sDomain, int32 iC
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 上层错误，`Cause` 指向原因对象 | — |
 | `NULL` | 参数非法或 OOM | 原因对象不受影响 |
 
@@ -584,7 +584,7 @@ xerror* xrtErrorRef(const xerror* pError);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 原指针 | 引用 +1；须配一次 `ErrorFree` | — |
 | `NULL` | 参数非法或引用耗尽 | `XERR_ARGUMENT` |
 
@@ -1070,7 +1070,7 @@ xerror* xrtTakeError(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有引用；槽被清空，调用方负责 `ErrorFree` | — |
 | `NULL` | 槽为空 | 纯取走，不设置错误 |
 
@@ -1441,7 +1441,7 @@ int32 xrtRefRetain(volatile int32* pCount);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 新计数值 | — |
 | `-1` | 空指针、非正计数或达到 `INT32_MAX`（溢出保护） | 计数不变，不设置错误 |
 
@@ -1475,7 +1475,7 @@ int32 xrtRefRelease(volatile int32* pCount);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 仍有其他持有者 | — |
 | `0` | 调用方是最后持有者，执行析构 | — |
 | `-1` | 空指针或非正计数（重复释放） | 计数不变，不设置错误 |
@@ -1508,7 +1508,7 @@ bool xrtSetAllocator(const xallocator* pAllocator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 分配器已替换 | — |
 | `false` | 已有分配发生后再替换，或分配器非法 | 原分配器保持；错误经 `xrtGetError()` 报告 |
 
@@ -1574,7 +1574,7 @@ ptr xrtMalloc(size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 未初始化内存 | — |
 | `NULL` | 分配失败 | `XERR_MEMORY` 已设置 |
 
@@ -1607,7 +1607,7 @@ ptr xrtCalloc(size_t iCount, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 已清零内存 | — |
 | `NULL` | 分配失败或乘法溢出 | `XERR_MEMORY` / `XERR_RANGE` |
 
@@ -1644,7 +1644,7 @@ ptr xrtRealloc(ptr pMemory, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 新块（内容前 min(旧,新) 字节保留） | — |
 | `NULL` | 分配失败 | 原块仍有效，调用方继续持有 |
 
@@ -1709,7 +1709,7 @@ ptr xrtMemDup(const void* pData, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 与源逐字节一致的独立副本 | — |
 | `NULL` | 分配失败 | `XERR_MEMORY` |
 
@@ -1776,7 +1776,7 @@ ptr xrtMallocAt(size_t iSize, cstr sFile, uint32 iLine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 未初始化内存（位置进入分配记录） | — |
 | `NULL` | 分配失败 | `XERR_MEMORY` |
 
@@ -1807,7 +1807,7 @@ ptr xrtCallocAt(size_t iCount, size_t iSize, cstr sFile, uint32 iLine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 已清零内存 | — |
 | `NULL` | 失败或溢出 | 同 `xrtCalloc` |
 
@@ -1838,7 +1838,7 @@ ptr xrtReallocAt(ptr pMemory, size_t iSize, cstr sFile, uint32 iLine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 新块 | — |
 | `NULL` | 分配失败 | 原块仍有效 |
 
@@ -1899,7 +1899,7 @@ ptr xrtMemDupAt(const void* pData, size_t iSize, cstr sFile, uint32 iLine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立副本 | — |
 | `NULL` | 分配失败 | `XERR_MEMORY` |
 

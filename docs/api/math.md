@@ -146,7 +146,7 @@ double xrtMathMin(double fLeft, double fRight);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 较小者 | — |
 
 #### 错误
@@ -184,7 +184,7 @@ double xrtMathMax(double fLeft, double fRight);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 较大者 | — |
 
 #### 错误
@@ -219,7 +219,7 @@ double xrtMathClamp(double fValue, double fMin, double fMax);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 限制后的值 | — |
 
 #### 错误
@@ -252,7 +252,7 @@ int xrtMathSign(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `-1/0/+1` | 符号 | — |
 
 #### 错误
@@ -287,7 +287,7 @@ double xrtMathTrunc(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 截断后的整值 | — |
 
 #### 错误
@@ -321,7 +321,7 @@ double xrtMathFract(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 带符号小数部分 | — |
 
 #### 错误
@@ -355,7 +355,7 @@ double xrtMathMod(double fValue, double fDivisor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | `fValue - divisor * trunc(fValue/divisor)` | — |
 
 #### 错误
@@ -389,7 +389,7 @@ double xrtMathRad(double fDegrees);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 弧度 | — |
 
 #### 错误
@@ -422,7 +422,7 @@ double xrtMathDeg(double fRadians);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 角度 | — |
 
 #### 错误
@@ -455,7 +455,7 @@ bool xrtMathIsNaN(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 是 NaN | — |
 | `false` | 非 NaN | 纯谓词 |
 
@@ -497,7 +497,7 @@ bool xrtMathIsInf(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 是无穷 | — |
 | `false` | 有限或 NaN | 纯谓词 |
 
@@ -531,7 +531,7 @@ bool xrtMathIsFinite(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 有限 | — |
 | `false` | NaN 或无穷 | 纯谓词 |
 
@@ -565,7 +565,7 @@ double xrtMathLog2(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | log2 | — |
 
 #### 错误
@@ -604,7 +604,7 @@ double xrtMathExp2(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 2^x | — |
 
 #### 错误
@@ -637,7 +637,7 @@ double xrtMathLog1p(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | ln(1+x) | — |
 
 #### 错误
@@ -670,7 +670,7 @@ double xrtMathExpm1(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | e^x - 1 | — |
 
 #### 错误
@@ -703,7 +703,7 @@ double xrtMathCbrt(double fValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 带符号立方根 | — |
 
 #### 错误
@@ -739,7 +739,7 @@ double xrtMathHypot(double fX, double fY);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 数值 | 欧氏长度 | — |
 
 #### 错误
@@ -776,7 +776,7 @@ bool xrtMathNear(double fLeft, double fRight,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 在容差内相等 | — |
 | `false` | 超出容差 | 纯谓词 |
 
@@ -812,8 +812,8 @@ bool xrtMathIntNear(int64 iLeft, int64 iRight, uint64 iTolerance);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
-| `true` | `|L-R| <= iTolerance`（含 INT64_MIN 边界） | — |
+|---|---|---|
+| `true` | `‖L-R‖ <= iTolerance`（含 INT64_MIN 边界） | — |
 | `false` | 超出容差 | 纯谓词 |
 
 #### 错误

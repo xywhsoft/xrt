@@ -1774,7 +1774,7 @@ xhttpmethod xrtHttpMethodParse(xstrview Method);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_METHOD_GET/POST/...` | 已知方法 | — |
 | `XHTTP_METHOD_OTHER` | 合法扩展方法 | — |
 | `XHTTP_METHOD_INVALID` | 空值或非法 token | 不设置错误 |
@@ -1813,7 +1813,7 @@ bool xrtHttpMethodEqual(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 逐字节相等（HTTP 方法区分大小写） | — |
 | `false` | 不等 | 纯比较 |
 
@@ -1847,7 +1847,7 @@ bool xrtHttpMethodSafe(xstrview Method);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 安全方法 | — |
 | `false` | 非安全 | 纯谓词 |
 
@@ -1881,7 +1881,7 @@ bool xrtHttpMethodIdempotent(xstrview Method);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 幂等 | — |
 | `false` | 非幂等 | 纯谓词 |
 
@@ -1915,7 +1915,7 @@ xstrview xrtHttpStatusText(uint16 iStatus);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 静态原因短语（人类可读，协议逻辑不得依赖） | — |
 | 空视图 | 未注册状态码 | 纯查询 |
 
@@ -1953,7 +1953,7 @@ bool xrtHttpResponseContentAllowed(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 允许携带内容 | — |
 | `false` | 禁止内容状态或无效方法/状态 | 纯谓词 |
 
@@ -1990,7 +1990,7 @@ bool xrtHttpTokenValid(xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 非空合法 token | — |
 | `false` | 空或含非法字符 | 纯谓词 |
 
@@ -2025,7 +2025,7 @@ bool xrtHttpTokenEqual(xstrview Left, xstrview Right);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 大小写不敏感相等 | — |
 | `false` | 不等 | 纯比较 |
 
@@ -2059,7 +2059,7 @@ xstrview xrtHttpOwsTrim(xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 子视图 | 去除两端 OWS 的借用视图 | 纯切片 |
 
 #### 错误
@@ -2098,7 +2098,7 @@ xhttpnext xrtHttpTokenNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 取得一个 token，游标前进 | — |
 | `XHTTP_NEXT_END` | 迭代完成 | 不设错 |
 | `XHTTP_NEXT_ERROR` | 非空元素语法错误 | `xrt.http` 域错误 |
@@ -2136,7 +2136,7 @@ bool xrtHttpTokenListHas(xstrview List, xstrview Token);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 包含 | — |
 | `false` | 不包含，或列表非法 | 非法时设置 `xrt.http` 域错误 |
 
@@ -2171,7 +2171,7 @@ bool xrtHttpTokenListCount(xstrview List, size_t* pCount);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 非空元素语法错误 | `*pCount` 不变 |
 
@@ -2215,7 +2215,7 @@ bool xrtHttpTokenListWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出或长度已发布 | — |
 | `false` | 参数或容量错误 | 输出不变 |
 
@@ -2256,7 +2256,7 @@ str xrtHttpTokenListBuild(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 零结尾列表 | — |
 | `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -2297,7 +2297,7 @@ bool xrtHttpQualityParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出（0–1000） | — |
 | `false` | 语法错误或参数错误 | 输出保持为零/不变 |
 
@@ -2338,7 +2338,7 @@ xhttpnext xrtHttpWeightedTokenNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 取得一项 | — |
 | `XHTTP_NEXT_END` | 完成 | 不设错 |
 | `XHTTP_NEXT_ERROR` | 语法错误 | `xrt.http` 域错误 |
@@ -2378,7 +2378,7 @@ bool xrtHttpContentLengthParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 长度已写出 | — |
 | `false` | 非法/重复不一致 | 输出保持为零 |
 
@@ -2418,7 +2418,7 @@ bool xrtHttpHostParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 结构已发布（视图借用输入） | — |
 | `false` | 语法错误 | 输出不变 |
 
@@ -2454,7 +2454,7 @@ bool xrtHttpHostValid(xstrview Value);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法 | 纯谓词 |
 
@@ -2488,7 +2488,7 @@ bool xrtHttpIpv4Valid(xstrview Value);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法（含 `01.2.3.4` 前导零） | 纯谓词 |
 
@@ -2522,7 +2522,7 @@ bool xrtHttpIpv6Valid(xstrview Value);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法 | 纯谓词 |
 
@@ -2557,7 +2557,7 @@ bool xrtHttpHostEqual(xstrview Left, xstrview Right);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 相等（host 大小写不敏感） | — |
 | `false` | 不等 | 纯比较 |
 
@@ -2593,7 +2593,7 @@ bool xrtHttpAuthorityValid(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 一致 | — |
 | `false` | 不一致 | 纯谓词 |
 
@@ -2633,7 +2633,7 @@ bool xrtHttpAuthorityPort(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 端口已写出 | — |
 | `false` | 端口越界或参数错误 | 输出不变 |
 
@@ -2673,7 +2673,7 @@ bool xrtHttpTargetParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解析 | — |
 | `false` | 语法错误 | 输出不变 |
 
@@ -2718,7 +2718,7 @@ bool xrtHttpTargetAuthority(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 无可用 authority 或非法 | 输出不变 |
 
@@ -2754,7 +2754,7 @@ xhttpcoding xrtHttpCodingParse(xstrview Token);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_CODING_IDENTITY/GZIP/DEFLATE` | 内置编码 | — |
 | `XHTTP_CODING_NONE` | 未知编码（如 zstd） | 不设错 |
 
@@ -2792,7 +2792,7 @@ bool xrtHttpFieldValueValid(xstrview Value);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 可安全作为字段值 | — |
 | `false` | 含 CR/LF/NUL 等非法字节 | 纯谓词 |
 
@@ -2827,7 +2827,7 @@ bool xrtHttpFieldParse(xstrview Line, xhttpfield* pField);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解析 | — |
 | `false` | 语法错误 | 输出不变 |
 
@@ -2869,7 +2869,7 @@ xhttpnext xrtHttpFieldNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 取得一个字段 | — |
 | `XHTTP_NEXT_END` | 块耗尽 | 不设错 |
 | `XHTTP_NEXT_ERROR` | 语法错误 | 游标不变 |
@@ -2908,7 +2908,7 @@ bool xrtHttpFieldBlockCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 语法错误 | 计数不变 |
 
@@ -2950,7 +2950,7 @@ bool xrtHttpFieldWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出（含 CRLF） | — |
 | `false` | 容量不足或参数错误 | 输出不变 |
 
@@ -2995,7 +2995,7 @@ bool xrtHttpFieldBlockWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出全部字段及终止空行 | — |
 | `false` | 容量不足或参数错误 | 输出不变 |
 
@@ -3035,7 +3035,7 @@ bool xrtHttpFieldNameEqual(xstrview Left, xstrview Right);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 相等 | — |
 | `false` | 不等 | 纯比较 |
 
@@ -3077,7 +3077,7 @@ size_t xrtHttpFieldFind(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 首个命中下标 | — |
 | `XRT_NPOS` | 未找到（正常结果） | 不设错 |
 
@@ -3117,7 +3117,7 @@ const xhttpfield* xrtHttpFieldGet(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 借用字段地址 | — |
 | `NULL` | 未找到 | 不设错 |
 
@@ -3159,7 +3159,7 @@ xhttpnext xrtHttpFieldGetUnique(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 唯一命中 | — |
 | `XHTTP_NEXT_END` | 未找到 | 不设错 |
 | `XHTTP_NEXT_ERROR` | 同名重复（协议错误） | `xrt.http` 域错误 |
@@ -3200,7 +3200,7 @@ size_t xrtHttpFieldCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 同名字段数（零 = 无） | — |
 
 #### 错误
@@ -3237,7 +3237,7 @@ void xrtHttpFieldTokenCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -3280,7 +3280,7 @@ xhttpnext xrtHttpFieldTokenNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态；输入在游标结束前必须不变 | 错误时 `xrt.http` 域错误 |
 
 #### 错误
@@ -3321,7 +3321,7 @@ bool xrtHttpFieldTokenCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合计已写出 | — |
 | `false` | 任一字段非法 | 计数不变 |
 
@@ -3363,7 +3363,7 @@ xhttpnext xrtHttpFieldTokenFind(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/字段非法 | — |
 
 #### 错误
@@ -3398,7 +3398,7 @@ bool xrtHttpQuotedValid(xstrview Quoted);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法 | 纯谓词 |
 
@@ -3440,7 +3440,7 @@ bool xrtHttpQuotedRead(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解码（删除转义） | — |
 | `false` | 非法或容量不足 | 输出不变 |
 
@@ -3483,7 +3483,7 @@ bool xrtHttpQuotedWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已编码 | — |
 | `false` | 容量不足或参数错误 | 输出不变 |
 
@@ -3522,7 +3522,7 @@ str xrtHttpQuotedBuild(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 零结尾编码结果 | — |
 | `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -3565,7 +3565,7 @@ xhttpnext xrtHttpParamNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态；错误时游标与输出不变 | `xrt.http` 域错误 |
 
 #### 错误
@@ -3604,7 +3604,7 @@ bool xrtHttpParamCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 语法错误 | 计数不变 |
 
@@ -3644,7 +3644,7 @@ xhttpnext xrtHttpParamFind(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 命中 | — |
 | `XHTTP_NEXT_END` | 未命中（不设错） | — |
 | `XHTTP_NEXT_ERROR` | 语法错误 | `xrt.http` 域错误 |
@@ -3679,7 +3679,7 @@ bool xrtHttpParamTokenValid(const xhttpparam* pParam);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 值是非空 token | — |
 | `false` | 无值/非 token 语义 | 纯谓词 |
 
@@ -3717,7 +3717,7 @@ bool xrtHttpParamTokenEqual(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 相等 | — |
 | `false` | 不等 | 纯谓词 |
 
@@ -3753,7 +3753,7 @@ void xrtHttpParamValueCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -3792,7 +3792,7 @@ xhttpnext xrtHttpParamValueNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -3833,7 +3833,7 @@ bool xrtHttpParamValueWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解码 | — |
 | `false` | 容量不足或值非法 | 输出不变 |
 
@@ -3882,7 +3882,7 @@ bool xrtHttpParamWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 容量不足或参数错误 | 输出不变 |
 
@@ -3925,7 +3925,7 @@ str xrtHttpParamBuild(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 零结尾结果 | — |
 | `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -3960,7 +3960,7 @@ bool xrtHttpParamHostValid(const xhttpparam* pParam);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 值是合法 Host | — |
 | `false` | 无值或非法 Host | 纯谓词 |
 
@@ -4000,7 +4000,7 @@ xhttpnext xrtHttpDirectiveNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -4039,7 +4039,7 @@ bool xrtHttpDirectiveCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 语法错误 | 计数不变 |
 
@@ -4079,7 +4079,7 @@ xhttpnext xrtHttpDirectiveFind(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 命中/未命中（不设错）/错误 | `xrt.http` 域错误 |
 
 #### 错误
@@ -4115,7 +4115,7 @@ void xrtHttpTeCursorInit(xhttptecursor* pCursor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -4150,7 +4150,7 @@ void xrtHttpTeFieldCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -4187,7 +4187,7 @@ bool xrtHttpTeCodingParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解析 | — |
 | `false` | 语法错误 | 输出不变 |
 
@@ -4224,7 +4224,7 @@ bool xrtHttpTeValid(xstrview Value);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法 | 纯谓词 |
 
@@ -4266,7 +4266,7 @@ bool xrtHttpTeCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 语法错误 | 计数不变 |
 
@@ -4307,7 +4307,7 @@ xhttpnext xrtHttpTeNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -4349,7 +4349,7 @@ xhttpnext xrtHttpTeFieldNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -4389,7 +4389,7 @@ bool xrtHttpTeParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 汇总已发布 | — |
 | `false` | 任一字段非法 | 输出不变 |
 
@@ -4470,7 +4470,7 @@ xhttpnext xrtHttpTeAcceptsTrailers(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 声明 trailers（`TE: trailers`） | — |
 | `XHTTP_NEXT_END` | 未声明 | 不设错 |
 | `XHTTP_NEXT_ERROR` | 字段非法 | `xrt.http` 域错误 |
@@ -4510,7 +4510,7 @@ void xrtHttpExpectCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -4545,7 +4545,7 @@ void xrtHttpExpectFieldCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -4582,7 +4582,7 @@ bool xrtHttpExpectationParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解析 | — |
 | `false` | 语法错误 | 输出不变 |
 
@@ -4620,7 +4620,7 @@ bool xrtHttpExpectValid(xstrview Value);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法 | 纯谓词 |
 
@@ -4658,7 +4658,7 @@ bool xrtHttpExpectCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 语法错误 | 计数不变 |
 
@@ -4699,7 +4699,7 @@ xhttpnext xrtHttpExpectNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -4741,7 +4741,7 @@ xhttpnext xrtHttpExpectFieldNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -4780,7 +4780,7 @@ xhttpexpectresult xrtHttpExpectFields(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_EXPECT_NONE` | 无 Expect 字段 | — |
 | `XHTTP_EXPECT_100_CONTINUE` | 声明 100-continue | — |
 | `XHTTP_EXPECT_UNSUPPORTED` | 合法但服务器不支持的 expectation | — |
@@ -4821,7 +4821,7 @@ void xrtHttpUpgradeCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -4856,7 +4856,7 @@ void xrtHttpUpgradeFieldCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -4893,7 +4893,7 @@ bool xrtHttpUpgradeParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解析 | — |
 | `false` | 语法错误 | 输出不变 |
 
@@ -4928,7 +4928,7 @@ bool xrtHttpUpgradeValid(xstrview Value);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法 | 纯谓词 |
 
@@ -4967,7 +4967,7 @@ bool xrtHttpUpgradeCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 语法错误 | 计数不变 |
 
@@ -5009,7 +5009,7 @@ xhttpnext xrtHttpUpgradeNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -5051,7 +5051,7 @@ xhttpnext xrtHttpUpgradeFieldNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -5096,7 +5096,7 @@ bool xrtHttpUpgradeWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 容量不足或参数错误 | 输出不变 |
 
@@ -5145,7 +5145,7 @@ bool xrtHttpUpgradeElementWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 容量不足或参数错误 | 输出不变 |
 
@@ -5190,7 +5190,7 @@ str xrtHttpUpgradeBuild(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 零结尾结果 | — |
 | `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -5227,7 +5227,7 @@ bool xrtHttpTrailerNameValid(xstrview Name);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 可发送（非禁投递集合） | — |
 | `false` | 禁止作为 trailer | 纯谓词 |
 
@@ -5266,7 +5266,7 @@ bool xrtHttpTrailerSectionValid(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 名称与值全部合法 | — |
 | `false` | 存在禁投递名或非法值 | 纯谓词 |
 
@@ -5307,7 +5307,7 @@ bool xrtHttpTrailerCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 声明非法 | 计数不变 |
 
@@ -5354,7 +5354,7 @@ xhttpnext xrtHttpTrailerFind(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/声明非法 | `xrt.http` 域错误 |
 
 #### 错误
@@ -5399,7 +5399,7 @@ bool xrtHttpTrailerNamesWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 容量不足或重叠 | 输出不变 |
 
@@ -5444,7 +5444,7 @@ str xrtHttpTrailerNamesBuild(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 零结尾声明值 | — |
 | `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -5483,7 +5483,7 @@ void xrtHttpAcceptEncodingInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -5518,7 +5518,7 @@ bool xrtHttpAcceptEncodingValid(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 自洽 | — |
 | `false` | 不自洽 | 纯谓词 |
 
@@ -5556,7 +5556,7 @@ bool xrtHttpAcceptEncodingAdd(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已合并（失败原子） | — |
 | `false` | 语法错误 | 状态不变 |
 
@@ -5601,7 +5601,7 @@ bool xrtHttpAcceptEncodingParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 状态已构建 | — |
 | `false` | 任一字段非法 | 输出不变 |
 
@@ -5644,7 +5644,7 @@ uint16 xrtHttpAcceptEncodingQuality(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `0–1000` | 有效质量（缺失按 RFC 缺省 1000） | — |
 | `0` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -5686,7 +5686,7 @@ xhttpcoding xrtHttpAcceptEncodingSelect(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 编码值 | 选中的编码 | — |
 | `XHTTP_CODING_NONE` | 无可用匹配 | `XERR_ARGUMENT`（参数错误时） |
 
@@ -5730,7 +5730,7 @@ void xrtHttpContentEncodingCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -5771,7 +5771,7 @@ xhttpnext xrtHttpContentEncodingNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态（未知扩展 Coding=NONE） | `xrt.http` 域错误 |
 
 #### 错误
@@ -5813,7 +5813,7 @@ bool xrtHttpContentEncodingPlan(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计划已发布 | — |
 | `false` | 字段非法 | 输出不变 |
 
@@ -5861,7 +5861,7 @@ bool xrtHttpContentEncodingWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出（不附加零） | — |
 | `false` | 容量不足 | 输出不变 |
 
@@ -5899,7 +5899,7 @@ xstrview xrtHttpCodingName(xhttpcoding Coding);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 静态小写 token | — |
 | 空视图 | `XHTTP_CODING_NONE` | 纯查询 |
 
@@ -5935,7 +5935,7 @@ void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -5968,7 +5968,7 @@ void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -6007,7 +6007,7 @@ xhttpdecode* xrtHttpDecodeCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 解码器（按 Content-Encoding/Content-Length 决定模式） | — |
 | `NULL` | Header 不一致或 OOM | `xrt.http` 域错误 |
 
@@ -6050,7 +6050,7 @@ bool xrtHttpDecodeReset(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已复位可处理下一条 | — |
 | `false` | 前一条未完成或 Header 非法 | 状态不变 |
 
@@ -6102,7 +6102,7 @@ bool xrtHttpDecodeWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已消费（终段校验通过） | — |
 | `false` | 数据损坏、超限或回调中止 | 进入失败终态 |
 
@@ -6146,7 +6146,7 @@ xhttpdecodemode xrtHttpDecodeMode(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_DECODE_*` | 直通/identity/解码模式 | — |
 | 零值 | 参数非法 | `XERR_ARGUMENT` |
 
@@ -6189,7 +6189,7 @@ bool xrtHttpDecodeDone(const xhttpdecode* pDecode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 消息完整终结 | — |
 | `false` | 未完成或失败终态 | 纯查询 |
 
@@ -6223,7 +6223,7 @@ uint64 xrtHttpDecodeInputSize(const xhttpdecode* pDecode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 线路字节数 | — |
 | `0` | 无或参数非法 | `XERR_ARGUMENT`（非法时） |
 
@@ -6258,7 +6258,7 @@ uint64 xrtHttpDecodeOutputSize(const xhttpdecode* pDecode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 明文字节数（含丢弃） | — |
 | `0` | 无或参数非法 | `XERR_ARGUMENT`（非法时） |
 
@@ -6292,7 +6292,7 @@ void xrtHttpDecodeDestroy(xhttpdecode* pDecode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 引用与窗口已释放 | — |
 
 #### 错误
@@ -6328,7 +6328,7 @@ bool xrtHttp1TargetValid(xstrview Target);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法 | 纯谓词 |
 
@@ -6362,7 +6362,7 @@ void xrtHttp1LimitsInit(xhttp1limits* pLimits);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -6401,7 +6401,7 @@ void xrtHttp1HeadInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -6442,7 +6442,7 @@ xhttp1status xrtHttp1RequestParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK` | Header 完整解析 | — |
 | `XHTTP1_MORE` | 需要更多输入（不设错） | — |
 | `XHTTP1_ERROR` | 协议错误 | `xrt.http1` 域错误 |
@@ -6487,7 +6487,7 @@ xhttp1status xrtHttp1ResponseParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK/MORE/ERROR` | 同请求解析三态 | — |
 
 #### 错误
@@ -6529,7 +6529,7 @@ xhttpnext xrtHttp1TransferCodingNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http1` 域错误 |
 
 #### 错误
@@ -6575,7 +6575,7 @@ const xhttpfield* xrtHttp1Field(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 借用字段地址 | — |
 | `NULL` | 未找到 | 不设错 |
 
@@ -6626,7 +6626,7 @@ bool xrtHttp1RequestWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 完整报文已写出 | — |
 | `false` | 校验失败或容量不足 | 输出不变 |
 
@@ -6678,7 +6678,7 @@ bool xrtHttp1ResponseWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 完整报文已写出 | — |
 | `false` | 校验失败或容量不足 | 输出不变 |
 
@@ -6718,7 +6718,7 @@ void xrtHttp1BodyLimitsInit(xhttp1bodylimits* pLimits);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -6755,7 +6755,7 @@ bool xrtHttp1RequestBodyPlan(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计划已生成 | — |
 | `false` | 分帧字段矛盾（如 TE+CL 并存） | 输出不变 |
 
@@ -6796,7 +6796,7 @@ bool xrtHttp1ResponseBodyPlan(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计划已生成 | — |
 | `false` | 分帧字段矛盾 | 输出不变 |
 
@@ -6842,7 +6842,7 @@ bool xrtHttp1BodyInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Reader 已就绪 | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -6884,7 +6884,7 @@ bool xrtHttp1BodyTrailers(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已重绑 | — |
 | `false` | 状态非 FIELDS 或参数错误 | 进度不变 |
 
@@ -6933,7 +6933,7 @@ xhttp1status xrtHttp1TrailersParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
 
 #### 错误
@@ -6982,7 +6982,7 @@ bool xrtHttp1ChunkLineWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写出 | — |
 | `false` | 容量不足或扩展非法 | 输出不变 |
 
@@ -7032,7 +7032,7 @@ bool xrtHttp1ChunkWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 完整 chunk 已写出 | — |
 | `false` | 空正文配非空操作以外错误 | 输出不变 |
 
@@ -7083,7 +7083,7 @@ bool xrtHttp1ChunkEndWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 结束序列已写出 | — |
 | `false` | 容量不足 | 输出不变 |
 
@@ -7130,7 +7130,7 @@ xhttp1bodystatus xrtHttp1BodyRead(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_BODY_DATA` | 一段明文已发布 | — |
 | `XHTTP1_BODY_FIELDS` | 进入 trailer 解析 | — |
 | `XHTTP1_BODY_DONE` | 正文与 trailer 完整消费 | — |
@@ -7170,7 +7170,7 @@ bool xrtHttp1BodyDone(const xhttp1body* pBody);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已完整消费 | — |
 | `false` | 未完成、失败或参数非法 | 纯查询 |
 
@@ -7216,7 +7216,7 @@ void xrtHttp1MessageInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -7261,7 +7261,7 @@ xhttp1status xrtHttp1RequestMessageParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK/MORE/ERROR` | 完整/需更多/错误 | `xrt.http1` 域错误 |
 
 #### 错误
@@ -7314,7 +7314,7 @@ xhttp1status xrtHttp1ResponseMessageParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
 
 #### 错误
@@ -7351,7 +7351,7 @@ xbytesview xrtHttp1MessageBodyView(const xhttp1message* pMessage);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 借用正文视图 | — |
 | 空视图 | chunked/空正文（应改用 BodyCopy） | 纯查询 |
 
@@ -7393,7 +7393,7 @@ bool xrtHttp1MessageBodyCopy(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已复制（含去分帧） | — |
 | `false` | 容量不足或超限 | 输出不变 |
 
@@ -7440,7 +7440,7 @@ xhttp1status xrtHttp1RequestParseBuffer(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
 
 #### 错误
@@ -7482,7 +7482,7 @@ xhttp1status xrtHttp1ResponseParseBuffer(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
 
 #### 错误
@@ -7524,7 +7524,7 @@ xhttp1status xrtHttp1RequestParseTls(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
 
 #### 错误
@@ -7574,7 +7574,7 @@ xhttp1status xrtHttp1ResponseParseTls(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
 
 #### 错误
@@ -7612,7 +7612,7 @@ void xrtNetProxyConfigInit(xnetproxyconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -7645,7 +7645,7 @@ xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 不可变代理对象（引用计数） | — |
 | `NULL` | 配置非法或 OOM | `xrt.proxy` 域错误 |
 
@@ -7680,7 +7680,7 @@ xnetproxy* xrtNetProxyRetain(const xnetproxy* pProxy);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1 | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -7714,7 +7714,7 @@ void xrtNetProxyRelease(xnetproxy* pProxy);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 引用 -1 | — |
 
 #### 错误
@@ -7751,7 +7751,7 @@ bool xrtNetProxyInfo(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 视图已写出 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -7793,7 +7793,7 @@ void xrtNetProxyHandshakeConfigInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -7828,7 +7828,7 @@ xnetproxyhandshake* xrtNetProxyHandshakeCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 握手对象（首报文待发送） | — |
 | `NULL` | 配置非法或 OOM | `xrt.proxy` 域错误 |
 
@@ -7862,7 +7862,7 @@ void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 全部敏感状态已清零并释放 | — |
 
 #### 错误
@@ -7897,7 +7897,7 @@ xnetproxyhandshakestate xrtNetProxyHandshakeState(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `WRITE/READ/READY/ERROR` | 状态枚举 | 零值 = 参数非法 |
 
 #### 错误
@@ -7935,7 +7935,7 @@ xnetproxyhandshakestate xrtNetProxyHandshakeStep(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `WRITE/READ/READY/ERROR` | 处理后的状态 | `xrt.proxy` 域错误 |
 
 #### 错误
@@ -7973,7 +7973,7 @@ bool xrtNetProxyHandshakeOutput(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Span 已发布（可为空 = 无待发送） | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -8011,7 +8011,7 @@ size_t xrtNetProxyHandshakeSent(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 剩余待发送字节数 | — |
 | `0` | 全部已确认或参数错误 | `XERR_ARGUMENT`（非法时） |
 
@@ -8049,7 +8049,7 @@ bool xrtNetProxyHandshakeBound(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 端点已复制 | — |
 | `false` | 未 READY 或无端点信息 | `XERR_NOT_FOUND`（HTTP CONNECT） |
 
@@ -8087,7 +8087,7 @@ const xerror* xrtNetProxyHandshakeError(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 错误借用 | — |
 | `NULL` | 无失败或参数非法 | 纯查询 |
 
@@ -8125,7 +8125,7 @@ bool xrtNetProxyHandshakeCode(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 回复码已复制 | — |
 | `false` | 尚未收到回复或失败 | `XERR_STATE`（未收到时） |
 
@@ -8161,7 +8161,7 @@ void xrtNetProxyDialConfigInit(xnetproxydialconfig* pConfig);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -8214,7 +8214,7 @@ xnetproxydial* xrtNetProxyDial(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Dial 对象（终态后 Destroy） | — |
 | `NULL` | 提交失败 | `xrt.proxy` 域错误 |
 
@@ -8258,7 +8258,7 @@ xnetproxydial* xrtNetProxyDialRef(xnetproxydial* pDial);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1 | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -8292,7 +8292,7 @@ void xrtNetProxyDialDestroy(xnetproxydial* pDial);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 引用 -1 | — |
 
 #### 错误
@@ -8325,7 +8325,7 @@ bool xrtNetProxyDialCancel(xnetproxydial* pDial);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 取消已受理 | — |
 | `false` | 已终态或参数非法 | `XERR_ARGUMENT` |
 
@@ -8361,7 +8361,7 @@ xnetproxydialstate xrtNetProxyDialState(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 阶段/终态枚举 | 解析/连接/握手或终态 | 零值 = 参数非法 |
 
 #### 错误
@@ -8396,7 +8396,7 @@ const xerror* xrtNetProxyDialError(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 错误借用（含分层 cause 链） | — |
 | `NULL` | 未失败或参数非法 | 纯查询 |
 
@@ -8434,7 +8434,7 @@ bool xrtNetProxyDialStats(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 统计已复制 | — |
 | `false` | 参数非法 | `XERR_ARGUMENT` |
 

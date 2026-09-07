@@ -400,7 +400,7 @@ uint32* xrtUtf32Dup(const uint32* pText);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾副本，`xrtFree` 释放 | — |
 | `NULL` | 内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -434,7 +434,7 @@ uint16* xrtUtf16DupView(xutf16view Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立副本 + 零码元结尾，`xrtFree` 释放 | — |
 | `NULL` | 溢出或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -472,7 +472,7 @@ uint32* xrtUtf32DupView(xutf32view Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立副本 + 零码元结尾 | — |
 | `NULL` | 溢出或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -622,7 +622,7 @@ size_t xrtUtf8Encode(uint32 iScalar, char arrOutput[4]);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 1–4 | 实际写入字节数 | — |
 | `0` | 标量无效或目标为空 | 错误经 `xrtGetError()` 报告 |
 
@@ -658,7 +658,7 @@ size_t xrtUtf16Encode(uint32 iScalar, uint16 arrOutput[2]);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 1–2 | 实际写入码元数 | — |
 | `0` | 标量无效或目标为空 | 错误经 `xrtGetError()` 报告 |
 
@@ -695,7 +695,7 @@ bool xrtUtf8Valid(xstrview Text, size_t* pError);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 整个视图是严格合法 UTF-8 | — |
 | `false` | 内容非法（`*pError` 给出位置）或参数非法 | 内容无效不设错误；参数无效设 `XERR_ARGUMENT` |
 
@@ -729,7 +729,7 @@ bool xrtUtf16Valid(xutf16view Text, size_t* pError);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法（代理项全部成对） | — |
 | `false` | 内容非法或参数非法 | 内容无效不设错误 |
 
@@ -764,7 +764,7 @@ bool xrtUtf32Valid(xutf32view Text, size_t* pError);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 全部码元都是合法标量 | — |
 | `false` | 有代理项或越界值，或参数非法 | 内容无效不设错误 |
 
@@ -797,7 +797,7 @@ size_t xrtUtf8Count(xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 标量数 | — |
 | `XRT_NPOS` | 输入非法 UTF-8 | `XERR_VALUE` + 带字节位置的 `xrt.unicode` 错误 |
 
@@ -831,7 +831,7 @@ size_t xrtUtf16Count(xutf16view Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 标量数（代理对算一个） | — |
 | `XRT_NPOS` | 输入非法 | `XERR_VALUE` + `xrt.unicode` 错误 |
 
@@ -865,7 +865,7 @@ size_t xrtUtf8Offset(xstrview Text, size_t iIndex);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 对应字节偏移 | — |
 | `XRT_NPOS` | 索引越界或输入非法 | `XERR_RANGE`（越界）或 `XERR_VALUE`（非法 UTF-8） |
 
@@ -900,7 +900,7 @@ size_t xrtUtf8Index(xstrview Text, size_t iOffset);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 对应标量索引 | — |
 | `XRT_NPOS` | 落在多字节序列中间、越界或输入非法 | `XERR_RANGE` 或 `XERR_VALUE` |
 
@@ -937,7 +937,7 @@ bool xrtUtf8At(xstrview Text, size_t iIndex, uint32* pScalar);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pScalar` 已发布 | — |
 | `false` | 索引在末端无可读标量、输入非法或参数无效 | `XERR_RANGE` / `XERR_VALUE` / `XERR_ARGUMENT` |
 
@@ -976,7 +976,7 @@ bool xrtUtf8Slice(xstrview Text, size_t iStart, size_t iCount, xstrview* pSlice)
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pSlice` 已发布（空结果也是成功） | — |
 | `false` | 参数无效或遍历前缀非法 | `XERR_ARGUMENT` / `XERR_VALUE` |
 
@@ -1023,7 +1023,7 @@ bool xrtUtf8Range(xstrview Text, int64 iStart, int64 iCount,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pRange` 已发布（空区间也是成功） | — |
 | `false` | 参数无效或文本非法 | `XERR_ARGUMENT` / `XERR_VALUE` |
 
@@ -1062,7 +1062,7 @@ str xrtUtf8Substr(xstrview Text, int64 iStart, int64 iCount);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾副本，`xrtFree` 释放 | — |
 | `NULL` | 文本非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -1102,7 +1102,7 @@ size_t xrtUtf8Find(xstrview Text, xstrview Part, size_t iStart);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 首个命中的标量索引 | — |
 | `XRT_NPOS` | 未找到（正常结果）或输入非法 | 未找到不设错；非法输入设 `XERR_VALUE` |
 
@@ -1139,7 +1139,7 @@ size_t xrtUtf8CaseFind(xstrview Text, xstrview Part, size_t iStart);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 首个命中的标量索引 | — |
 | `XRT_NPOS` | 未找到或输入非法 | 同 `xrtUtf8Find` |
 
@@ -1173,7 +1173,7 @@ size_t xrtUtf8RFind(xstrview Text, xstrview Part);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 最后一个命中的标量索引 | — |
 | `XRT_NPOS` | 未找到或输入非法 | 未找到不设错 |
 
@@ -1207,7 +1207,7 @@ size_t xrtUtf8CaseRFind(xstrview Text, xstrview Part);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 最后一个命中的标量索引 | — |
 | `XRT_NPOS` | 未找到或输入非法 | 未找到不设错 |
 
@@ -1241,7 +1241,7 @@ bool xrtUtf8ContainsAny(xstrview Text, xstrview Set);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 文本包含集合中至少一个标量 | — |
 | `false` | 不包含（正常结果）或输入非法 | 不包含不设错；非法设 `XERR_VALUE` |
 
@@ -1282,7 +1282,7 @@ bool xrtUtf8TrimLeftSet(xstrview Text, xstrview Set,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布（可能为空视图） | — |
 | `false` | 文本或集合非法 | `XERR_VALUE` |
 
@@ -1322,7 +1322,7 @@ bool xrtUtf8TrimRightSet(xstrview Text, xstrview Set,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布 | — |
 | `false` | 输入非法 | `XERR_VALUE` |
 
@@ -1359,7 +1359,7 @@ bool xrtUtf8TrimSet(xstrview Text, xstrview Set,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布 | — |
 | `false` | 输入非法 | `XERR_VALUE` |
 
@@ -1397,7 +1397,7 @@ str xrtUtf8Insert(xstrview Text, int64 iPosition, xstrview Part);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 结果的独立零结尾副本 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -1433,7 +1433,7 @@ str xrtUtf8Remove(xstrview Text, int64 iStart, int64 iCount);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 结果的独立零结尾副本 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -1469,7 +1469,7 @@ str xrtUtf8PadLeft(xstrview Text, size_t iWidth, xstrview Fill);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 填充结果的独立零结尾副本 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -1506,7 +1506,7 @@ str xrtUtf8PadRight(xstrview Text, size_t iWidth, xstrview Fill);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 填充结果的独立副本 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -1541,7 +1541,7 @@ str xrtUtf8PadCenter(xstrview Text, size_t iWidth, xstrview Fill);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 填充结果的独立副本 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -1583,7 +1583,7 @@ bool xrtUtf8ReverseTo(xstrview Text, char* sOutput, size_t iCapacity);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写入反转结果 | — |
 | `false` | 容量不足、重叠非法或输入非法 | 目标不变；`XERR_RANGE` / `XERR_ARGUMENT` / `XERR_VALUE` |
 
@@ -1621,7 +1621,7 @@ str xrtUtf8Reverse(xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 反转结果的独立副本 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -1664,7 +1664,7 @@ bool xrtUtf8FilterTo(xstrview Text, xstrview Set,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已过滤写入（或长度已发布） | — |
 | `false` | 容量不足、重叠非法或输入非法 | 目标不变；错误经 `xrtGetError()` 报告 |
 
@@ -1704,7 +1704,7 @@ str xrtUtf8Filter(xstrview Text, xstrview Set);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 过滤结果的独立零结尾副本 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -1747,7 +1747,7 @@ size_t xrtUtf8Distance(xstrview Left, xstrview Right, size_t iLimit);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 编辑距离（插入/删除/替换各计 1） | — |
 | `XRT_NPOS` | 超过限制（正常阈值结果，不设错）或输入非法/内存不足 | 非法时设置 `XERR_VALUE` / `XERR_MEMORY` |
 
@@ -1787,7 +1787,7 @@ double xrtUtf8Similarity(xstrview Left, xstrview Right);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `0.0–1.0` | `1 - distance / max(left, right)` | — |
 | `< 0.0` | 输入非法或内存不足 | 结构化错误保留 |
 
@@ -1861,7 +1861,7 @@ xutfstatus xrtUtf8StateFeed(xutf8state* pState, xstrview Text, bool bFinal);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XUTF_OK` | 本块接受；末块后整流合法 | — |
 | `XUTF_MORE` | 分块结束在合法前缀中间（非错误） | 不设置错误 |
 | `XUTF_INVALID` | 非法序列或末块不完整 | `XERR_VALUE` + `xrt.unicode`；状态锁定失败 |
@@ -1899,7 +1899,7 @@ size_t xrtUtf8StateError(const xutf8state* pState);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 首个错误的绝对字节位置 | — |
 | `XRT_NPOS` | 流从未失败 | 纯查询 |
 
@@ -1944,7 +1944,7 @@ xutfresult xrtUtf8To16Buffer(xstrview Source, uint16* pTarget,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Status == XUTF_OK` | 转换完成；`Read`/`Written` 为码元单位 | — |
 | `Status == XUTF_NO_SPACE` | 目标不足；`Read` 停在完整标量前 | 不覆盖执行上下文错误 |
 | `Status == XUTF_INVALID` | 严格模式遇错；`Error` 为源内首错位置 | `XERR_VALUE` + `xrt.unicode` |
@@ -1984,7 +1984,7 @@ xutfresult xrtUtf8To32Buffer(xstrview Source, uint32* pTarget,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Status == XUTF_OK` | 转换完成 | — |
 | `XUTF_NO_SPACE` / `XUTF_INVALID` | 同 `xrtUtf8To16Buffer` | 同左 |
 
@@ -2021,7 +2021,7 @@ xutfresult xrtUtf16To8Buffer(xutf16view Source, char* pTarget,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Status == XUTF_OK` | 转换完成；`Written` 为字节数 | — |
 | 其余 | 同 `xrtUtf8To16Buffer` 的流控口径 | 同左 |
 
@@ -2059,7 +2059,7 @@ xutfresult xrtUtf16To32Buffer(xutf16view Source, uint32* pTarget,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Status == XUTF_OK` | 转换完成 | — |
 | 其余 | 同缓冲族流控口径 | 同左 |
 
@@ -2096,7 +2096,7 @@ xutfresult xrtUtf32To8Buffer(xutf32view Source, char* pTarget,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Status == XUTF_OK` | 转换完成 | — |
 | 其余 | 同缓冲族流控口径 | 同左 |
 
@@ -2134,7 +2134,7 @@ xutfresult xrtUtf32To16Buffer(xutf32view Source, uint16* pTarget,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Status == XUTF_OK` | 转换完成 | — |
 | 其余 | 同缓冲族流控口径 | 同左 |
 
@@ -2174,7 +2174,7 @@ uint16* xrtUtf8To16(cstr sText, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-16 数组 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2211,7 +2211,7 @@ uint32* xrtUtf8To32(cstr sText, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-32 数组 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2247,7 +2247,7 @@ str xrtUtf16To8(const uint16* pText, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-8 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2283,7 +2283,7 @@ uint32* xrtUtf16To32(const uint16* pText, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-32 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2319,7 +2319,7 @@ str xrtUtf32To8(const uint32* pText, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-8 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2355,7 +2355,7 @@ uint16* xrtUtf32To16(const uint32* pText, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-16 | — |
 | `NULL` | 输入非法或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2396,7 +2396,7 @@ uint16* xrtUtf8ViewTo16(xstrview Source, xutfpolicy Policy, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-16（含末尾零码元） | — |
 | `NULL` | 严格遇错或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2435,7 +2435,7 @@ uint32* xrtUtf8ViewTo32(xstrview Source, xutfpolicy Policy, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-32 | — |
 | `NULL` | 严格遇错或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2472,7 +2472,7 @@ str xrtUtf16ViewTo8(xutf16view Source, xutfpolicy Policy, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-8 | — |
 | `NULL` | 严格遇错或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2512,7 +2512,7 @@ uint32* xrtUtf16ViewTo32(xutf16view Source, xutfpolicy Policy, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-32 | — |
 | `NULL` | 严格遇错或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2548,7 +2548,7 @@ str xrtUtf32ViewTo8(xutf32view Source, xutfpolicy Policy, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-8 | — |
 | `NULL` | 严格遇错或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2584,7 +2584,7 @@ uint16* xrtUtf32ViewTo16(xutf32view Source, xutfpolicy Policy, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立零结尾 UTF-16 | — |
 | `NULL` | 严格遇错或内存不足 | 错误经 `xrtGetError()` 报告 |
 
@@ -2654,7 +2654,7 @@ xencoding xrtEncodingBom(xbytesview Data, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 编码值 | 识别到的 BOM 对应编码；`*pSize` 为其字节数 | — |
 | `XENCODING_UNKNOWN` | 无 BOM（`*pSize` 为零，正常结果） | 无 BOM 不设错；参数非法设 `XERR_ARGUMENT` |
 
@@ -2692,7 +2692,7 @@ size_t xrtEncodingWriteBom(xencoding Encoding, bytes pTarget, size_t iCapacity);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 所需或实际写出字节数 | — |
 | `0` | 容量不足、编码未知或参数非法 | 目标不变；`XERR_RANGE` / `XERR_ARGUMENT` |
 
@@ -2733,7 +2733,7 @@ bytes xrtTranscode(xbytesview Source, xencoding SourceEncoding,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 独立字节缓冲（含 BOM 若请求），`xrtFree` 释放 | — |
 | `NULL` | 参数非法、严格遇错或内存不足 | 源与 `*pSize` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -2787,7 +2787,7 @@ xencodingguess xrtEncodingGuess(xbytesview Data);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 结构体 | 按值返回，零分配；`BomSize` 可用于解码前跳过签名 | — |
 
 #### 错误

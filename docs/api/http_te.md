@@ -180,7 +180,7 @@ void xrtHttpTeCursorInit(xhttptecursor* pCursor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -216,7 +216,7 @@ bool xrtHttpTeCodingParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解析 | — |
 | `false` | 语法错误 | 输出不变 |
 
@@ -252,7 +252,7 @@ bool xrtHttpTeValid(xstrview Value);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合法 | — |
 | `false` | 非法 | 纯谓词 |
 
@@ -293,7 +293,7 @@ bool xrtHttpTeCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 计数已写出 | — |
 | `false` | 语法错误 | 计数不变 |
 
@@ -333,7 +333,7 @@ xhttpnext xrtHttpTeNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -371,7 +371,7 @@ void xrtHttpTeFieldCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -411,7 +411,7 @@ xhttpnext xrtHttpTeFieldNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
 
 #### 错误
@@ -450,7 +450,7 @@ bool xrtHttpTeParse(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 汇总已发布 | — |
 | `false` | 任一字段非法 | 输出不变 |
 
@@ -529,7 +529,7 @@ xhttpnext xrtHttpTeAcceptsTrailers(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 声明 trailers（`TE: trailers`） | — |
 | `XHTTP_NEXT_END` | 未声明 | 不设错 |
 | `XHTTP_NEXT_ERROR` | 字段非法 | `xrt.http` 域错误 |

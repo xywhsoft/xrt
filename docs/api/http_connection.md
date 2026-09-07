@@ -135,7 +135,7 @@ void xrtHttpConnectionCursorInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -176,7 +176,7 @@ xhttpnext xrtHttpConnectionNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 发布一个选项 | — |
 | `XHTTP_NEXT_END` | 正常结束并清空输出 | 不设错 |
 | `XHTTP_NEXT_ERROR` | 参数/游标/字段语法错误 | 游标不变 |
@@ -219,7 +219,7 @@ bool xrtHttpConnectionCount(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 合计已写出 | — |
 | `false` | 任一字段非法 | 计数不变 |
 
@@ -261,7 +261,7 @@ xhttpnext xrtHttpConnectionFind(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_NEXT_ITEM` | 找到 | — |
 | `XHTTP_NEXT_END` | 未找到（不设错） | — |
 | `XHTTP_NEXT_ERROR` | 字段值非法 | `xrt.http` 域错误 |
@@ -306,7 +306,7 @@ xhttpconnectionstatus xrtHttpConnectionPersistence(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XHTTP_CONNECTION_PERSIST` | 可复用（close 不存在且版本策略满足） | — |
 | `XHTTP_CONNECTION_CLOSE` | `close` 存在或版本默认关闭 | — |
 | `XHTTP_CONNECTION_ERROR` | 非法版本/标志/字段 | `XERR_ARGUMENT` 或 `xrt.http` 域错误 |

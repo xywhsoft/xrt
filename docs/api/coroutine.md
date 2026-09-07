@@ -334,7 +334,7 @@ bool xrtCoDestroy(xcoro* pCo);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 对象已释放 | — |
 | `false` | 对象活跃或非本线程 | 对象保持有效；错误经 `xrtGetError()` 报告 |
 
@@ -370,7 +370,7 @@ bool xrtCoResume(xcoro* pCo);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 本次恢复段已执行到让出或返回 | — |
 | `false` | 状态不可恢复或非本线程 | 错误经 `xrtGetError()` 报告 |
 
@@ -407,7 +407,7 @@ xwaitresult xrtCoYield(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 正常恢复 | — |
 | `XWAIT_CANCELLED` | 恢复时收到取消请求 | 协作取消的检查点 |
 | `XWAIT_ERROR` | 不在协程内 | `XERR_STATE` |
@@ -609,7 +609,7 @@ bool xrtCoCancel(xcoro* pCo);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 请求已受理（重复请求同样成功） | — |
 | `false` | 句柄为空或已终结 | 已终结不设错；空句柄设 `XERR_ARGUMENT` |
 
@@ -642,7 +642,7 @@ xcancel* xrtCoCancelToken(const xcoro* pCo);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 引用 +1 的令牌；调用方 `xrtCancelDestroy` 释放 | — |
 | `NULL` | 非协程上下文或句柄为空 | `XERR_STATE` / `XERR_ARGUMENT` |
 
@@ -709,7 +709,7 @@ bool xrtCoConfirmCancel(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 终态将发布为 `XCORO_TERM_CANCELLED` | — |
 | `false` | 无取消请求、普通线程或清理栈中 | `XERR_STATE` |
 
@@ -745,7 +745,7 @@ bool xrtCoThreadDetach(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 运行时已释放 | — |
 | `false` | 仍有挂起协程 | `XERR_STATE` |
 
@@ -786,7 +786,7 @@ bool xrtCoCleanupPush(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已按后进先出压栈 | — |
 | `false` | 参数非法或非协程上下文 | 错误经 `xrtGetError()` 报告 |
 
@@ -825,7 +825,7 @@ xcocleanup* xrtCoDefer(xcocleanupproc pProc, ptr pData);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 节点句柄，可用于提前弹出 | — |
 | `NULL` | 参数非法、非协程上下文或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -862,7 +862,7 @@ bool xrtCoCleanupPop(xcocleanup* pCleanup, bool bRun);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已弹出（并按需执行） | — |
 | `false` | 节点不在栈顶或非协程上下文 | `XERR_STATE` |
 
@@ -931,7 +931,7 @@ xcosched* xrtCoSchedCreate(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 归属当前线程的调度器 | — |
 | `NULL` | 分配失败 | `XERR_MEMORY` |
 
@@ -968,7 +968,7 @@ xcosched* xrtCoSchedCreateLimit(size_t iPostLimit);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 调度器 | — |
 | `NULL` | 分配失败 | `XERR_MEMORY` |
 
@@ -1001,7 +1001,7 @@ bool xrtCoSchedDestroy(xcosched* pSched);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 调度器与保留句柄已释放 | — |
 | `false` | 仍有未执行投递或活跃协程句柄 | 不静默丢弃；错误经 `xrtGetError()` 报告 |
 
@@ -1075,7 +1075,7 @@ bool xrtCoSchedPost(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已入队 | — |
 | `false` | 队满、已关闭或参数非法 | 错误经 `xrtGetError()` 报告 |
 
@@ -1120,7 +1120,7 @@ bool xrtCoSchedPostOwned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；析构由调度器保证 | — |
 | `false` | 队满、已关闭或参数非法 | 数据仍归调用方 |
 
@@ -1164,7 +1164,7 @@ xcoro* xrtCoSpawn(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 保留句柄；完成后可读终态，最后 `Destroy` | — |
 | `NULL` | 调度器关闭、参数非法或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -1208,7 +1208,7 @@ bool xrtCoGo(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；完成后自动回收，无句柄 | — |
 | `false` | 同 `xrtCoSpawn` 失败条件 | 错误经 `xrtGetError()` 报告 |
 
@@ -1242,7 +1242,7 @@ bool xrtCoSchedClose(xcosched* pSched);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已停止受理；已受理投递仍按 FIFO 排空 | — |
 | `false` | 指针非法 | `XERR_ARGUMENT` |
 
@@ -1276,7 +1276,7 @@ xwaitresult xrtCoSchedStep(xcosched* pSched);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 执行了工作 | — |
 | `XWAIT_CLOSED` | 无活跃协程与待执行投递 | 正常排空结果 |
 | `XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
@@ -1312,7 +1312,7 @@ xwaitresult xrtCoSchedPollFor(xcosched* pSched, uint64 iTimeout);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 执行了工作 | — |
 | `XWAIT_TIMEOUT` | 到期但仍有挂起协程 | 正常结果 |
 | `XWAIT_CLOSED` | 全部排空 | 正常结果 |
@@ -1349,7 +1349,7 @@ xwaitresult xrtCoSchedPollUntil(xcosched* pSched, xdeadline iDeadline);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CLOSED` | 同 `xrtCoSchedPollFor` | — |
 | `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
 
@@ -1384,7 +1384,7 @@ bool xrtCoSchedRun(xcosched* pSched);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已排空（不驻留的事件循环） | — |
 | `false` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
 
@@ -1455,7 +1455,7 @@ bool xrtCoWake(xcoro* pCo);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 唤醒已投递（提前 wake 保留到下一次 park） | — |
 | `false` | 句柄为空或非调度协程 | `XERR_ARGUMENT` / `XERR_STATE` |
 
@@ -1489,7 +1489,7 @@ xwaitresult xrtCoPark(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 被 wake 唤醒 | — |
 | `XWAIT_CANCELLED` | 收到取消请求 | 协作检查点 |
 | `XWAIT_ERROR` | 非调度协程上下文 | `XERR_STATE` |
@@ -1526,7 +1526,7 @@ xwaitresult xrtCoParkFor(uint64 iTimeout);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | wake/到期/取消 | — |
 | `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
 
@@ -1559,7 +1559,7 @@ xwaitresult xrtCoParkUntil(xdeadline iDeadline);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 同 `xrtCoParkFor` | — |
 | `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
 
@@ -1592,7 +1592,7 @@ xwaitresult xrtCoSleep(uint64 iTimeout);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 到期或被 wake 提前结束 | — |
 | `XWAIT_CANCELLED` | 取消请求打断 | — |
 | `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
@@ -1626,7 +1626,7 @@ xwaitresult xrtCoSleepUntil(xdeadline iDeadline);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_CANCELLED` | 到期/取消 | — |
 | `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
 
@@ -1659,7 +1659,7 @@ xwaitresult xrtCoJoin(xcoro* pCo);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 目标已完成 | — |
 | `XWAIT_CANCELLED` | 等待者自身被取消 | — |
 | `XWAIT_ERROR` | 参数非法或跨调度器 | `XERR_ARGUMENT` / `XERR_STATE` |
@@ -1695,7 +1695,7 @@ xwaitresult xrtCoJoinFor(xcoro* pCo, uint64 iTimeout);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 完成/到期/取消 | — |
 | `XWAIT_ERROR` | 同 `xrtCoJoin` 错误条件 | 错误经 `xrtGetError()` 报告 |
 
@@ -1729,7 +1729,7 @@ xwaitresult xrtCoJoinUntil(xcoro* pCo, xdeadline iDeadline);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 完成/到期/取消 | — |
 | `XWAIT_ERROR` | 同 `xrtCoJoin` | 错误经 `xrtGetError()` 报告 |
 
@@ -1770,7 +1770,7 @@ bool xrtCoEventInit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 事件已就绪 | — |
 | `false` | 指针非法 | `XERR_ARGUMENT` |
 
@@ -1805,7 +1805,7 @@ bool xrtCoEventUnit(xcoevent* pEvent);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 固定存储已释放 | — |
 | `false` | 仍有 Await 未返回 | 对象保持有效；`XERR_STATE` |
 
@@ -1845,7 +1845,7 @@ xcoevent* xrtCoEventCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 堆事件；`EventDestroy` 释放 | — |
 | `NULL` | 分配失败 | `XERR_MEMORY` |
 
@@ -1881,7 +1881,7 @@ bool xrtCoEventDestroy(xcoevent* pEvent);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已释放 | — |
 | `false` | 仍有等待者 | 对象不释放；`XERR_STATE` |
 
@@ -1917,7 +1917,7 @@ bool xrtCoEventSet(xcoevent* pEvent);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已置位并投递唤醒 | — |
 | `false` | 指针非法 | `XERR_ARGUMENT` |
 
@@ -1950,7 +1950,7 @@ bool xrtCoEventReset(xcoevent* pEvent);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 后续等待不再看到信号 | — |
 | `false` | 指针非法 | `XERR_ARGUMENT` |
 
@@ -1983,7 +1983,7 @@ xwaitresult xrtCoEventAwait(xcoevent* pEvent);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 取得信号（自动复位信号被消费） | — |
 | `XWAIT_CANCELLED` | 协程被取消 | — |
 | `XWAIT_ERROR` | 非调度协程或终结过程内 | `XERR_STATE` |
@@ -2018,7 +2018,7 @@ xwaitresult xrtCoEventTryAwait(xcoevent* pEvent);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 有信号并已消费（自动复位） | — |
 | `XWAIT_TIMEOUT` | 无信号（正常结果） | 不设错 |
 | `XWAIT_CANCELLED` | 已取消 | — |
@@ -2057,7 +2057,7 @@ xwaitresult xrtCoEventAwaitFor(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 信号/到期/取消 | — |
 | `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
 
@@ -2094,7 +2094,7 @@ xwaitresult xrtCoEventAwaitUntil(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 信号/到期/取消 | — |
 | `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
 

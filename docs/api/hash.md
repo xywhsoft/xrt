@@ -65,7 +65,7 @@ uint32 xrtHash32(const void* pData, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 哈希值 | — |
 | `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
 
@@ -100,7 +100,7 @@ uint64 xrtHash64(const void* pData, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 哈希值 | — |
 | `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
 
@@ -136,7 +136,7 @@ uint32 xrtHash32Seed(const void* pData, size_t iSize, uint32 iSeed);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 哈希值 | — |
 | `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
 
@@ -173,7 +173,7 @@ uint64 xrtHash64Seed(const void* pData, size_t iSize, uint64 iSeed);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 哈希值 | — |
 | `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
 
@@ -212,7 +212,7 @@ uint64 xrtSipHash(const void* pData, size_t iSize, xsipkey Key);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 哈希值 | — |
 | `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
 
@@ -248,7 +248,7 @@ xsipkey xrtSipKey(uint64 iLow, uint64 iHigh);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `xsipkey` | 按值返回的密钥结构 | — |
 
 #### 错误
@@ -289,7 +289,7 @@ void xrtSipHashInit(xsiphash* pState, xsipkey Key);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化，不失败 | — |
 
 #### 错误
@@ -324,7 +324,7 @@ bool xrtSipHashUpdate(xsiphash* pState, const void* pData, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已并入状态 | — |
 | `false` | 参数/状态错误或累计溢出 | 状态不变；错误经 `xrtGetError()` 报告 |
 
@@ -361,7 +361,7 @@ uint64 xrtSipHashFinal(const xsiphash* pState);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 哈希值 | — |
 | `0` | 状态非法 | `XERR_STATE` |
 

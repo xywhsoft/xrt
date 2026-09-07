@@ -389,7 +389,7 @@ uint32 xrtAtomic32FetchAdd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 加法前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -425,7 +425,7 @@ uint32 xrtAtomic32FetchSub(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 减法前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -461,7 +461,7 @@ uint32 xrtAtomic32FetchAnd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 与运算前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -496,7 +496,7 @@ uint32 xrtAtomic32FetchOr(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 或运算前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -531,7 +531,7 @@ uint32 xrtAtomic32FetchXor(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 异或运算前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -566,7 +566,7 @@ uint64 xrtAtomic64Load(const xatomic64* pAtomic, xmemoryorder iOrder);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 当前值 | 原子快照 | 参数非法时返回 `0`；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -631,7 +631,7 @@ uint64 xrtAtomic64Exchange(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 替换前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -675,7 +675,7 @@ bool xrtAtomic64CompareExchange(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 匹配并已写入 `iDesired` | — |
 | `false` | 不匹配或参数非法 | 不匹配时 `*pExpected` 已回写；参数非法时对象不变；错误经 `xrtGetError()` 报告 |
 
@@ -718,7 +718,7 @@ uint64 xrtAtomic64FetchAdd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 加法前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -752,7 +752,7 @@ uint64 xrtAtomic64FetchSub(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 减法前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -789,7 +789,7 @@ uint64 xrtAtomic64FetchAnd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 与运算前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -826,7 +826,7 @@ uint64 xrtAtomic64FetchOr(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 或运算前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -863,7 +863,7 @@ uint64 xrtAtomic64FetchXor(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrde
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧值 | 异或运算前的原子快照 | 参数非法时返回 `0` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -903,7 +903,7 @@ ptr xrtAtomicPtrLoad(const xatomicptr* pAtomic, xmemoryorder iOrder);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 当前指针 | 原子快照；空指针是合法值 | 参数非法时返回 `NULL`；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -971,7 +971,7 @@ ptr xrtAtomicPtrExchange(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 旧指针 | 替换前的原子快照 | 参数非法时返回 `NULL` 且对象不变；错误经 `xrtGetError()` 报告 |
 
 #### 错误
@@ -1015,7 +1015,7 @@ bool xrtAtomicPtrCompareExchange(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 匹配并已写入 `pDesired` | — |
 | `false` | 不匹配（对象不变，`*pExpected` 已回写）或参数非法 | 参数非法时对象与 `*pExpected` 均不变；错误经 `xrtGetError()` 报告 |
 

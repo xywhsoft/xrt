@@ -518,7 +518,7 @@ xavlnode* xrtAVLUpperBound(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 节点 | 第一项 `> key`（借用） | — |
 | `NULL` | 没有严格大于项（正常结果）或参数非法 | 未找到不设置错误 |
 
@@ -556,7 +556,7 @@ xavlnode* xrtAVLFirst(const xavl* pTree);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 节点 | 升序首项（借用） | — |
 | `NULL` | 空树（正常结果）或参数非法 | 空树不设置错误 |
 
@@ -592,7 +592,7 @@ xavlnode* xrtAVLLast(const xavl* pTree);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 节点 | 升序末项（借用） | — |
 | `NULL` | 空树（正常结果）或参数非法 | 空树不设置错误 |
 
@@ -632,7 +632,7 @@ size_t xrtAVLVisit(const xavl* pTree, xavlvisitor pVisitor, ptr pUserData);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 实际访问数量（提前停止时小于总数） | — |
 | `0` | 参数非法或空树 | 参数非法时设置错误 |
 
@@ -670,7 +670,7 @@ bool xrtAVLIterBegin(const xavl* pTree, xavliter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪 | — |
 | `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -706,7 +706,7 @@ bool xrtAVLIterRBegin(const xavl* pTree, xavliter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪 | — |
 | `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -750,7 +750,7 @@ bool xrtAVLIterFrom(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪（O(log n) 构造起始路径） | — |
 | `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -799,7 +799,7 @@ bool xrtAVLIterRFrom(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪 | — |
 | `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -838,7 +838,7 @@ xavlnode* xrtAVLIterNext(xavliter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 节点 | 下一节点（借用） | — |
 | `NULL` | 正常耗尽（不设错）、结构已修改或参数非法 | 结构修改设置 `XERR_STATE`；参数非法设置 `XERR_ARGUMENT` |
 
@@ -1078,7 +1078,7 @@ xavltree* xrtAVLTreeCreateAligned(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 堆分配的空树 | — |
 | `NULL` | 参数非法、溢出或分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -1119,7 +1119,7 @@ bool xrtAVLTreeSetDrop(xavltree* pTree, xavltreedrop pDrop);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 释放器已安装 | — |
 | `false` | 树非空或参数非法 | 树不变；错误经 `xrtGetError()` 报告 |
 
@@ -1291,7 +1291,7 @@ ptr xrtAVLTreeAdd(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 池内新对象（地址稳定到删除）；或重复键时已有对象 | — |
 | `NULL` | 参数非法、键不等价、别名或 OOM | 树、池计数与已有对象均不变；错误经 `xrtGetError()` 报告 |
 
@@ -1333,7 +1333,7 @@ ptr xrtAVLTreeFind(xavltree* pTree, const void* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 池内对象借用地址；可修改非排序字段 | — |
 | `NULL` | 未找到（正常结果）或参数非法 | 未找到不设置错误 |
 
@@ -1367,7 +1367,7 @@ const void* xrtAVLTreeConstFind(const xavltree* pTree, const void* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 只读对象借用地址 | — |
 | `NULL` | 未找到（正常结果）或参数非法 | 未找到不设置错误 |
 
@@ -1402,7 +1402,7 @@ bool xrtAVLTreeHas(const xavltree* pTree, const void* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 键存在 | — |
 | `false` | 不存在（正常结果）或参数非法 | 不存在不设置错误 |
 
@@ -1437,7 +1437,7 @@ bool xrtAVLTreeRemove(xavltree* pTree, const void* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已删除：先释放器、后归还池槽 | — |
 | `false` | 未找到（正常结果）或参数非法 | 未找到不设置错误 |
 
@@ -1474,7 +1474,7 @@ bool xrtAVLTreeTake(xavltree* pTree, const void* pKey, ptr pItem);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已复制到 `*pItem` 并删除池槽 | — |
 | `false` | 未找到（正常结果）、参数非法或输出别名 | 未找到不设置错误；树不变 |
 
@@ -1509,7 +1509,7 @@ ptr xrtAVLTreeFirst(xavltree* pTree);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 升序首对象（借用） | — |
 | `NULL` | 空树（正常结果）或参数非法 | 空树不设置错误 |
 
@@ -1543,7 +1543,7 @@ ptr xrtAVLTreeLast(xavltree* pTree);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 升序末对象（借用） | — |
 | `NULL` | 空树（正常结果）或参数非法 | 空树不设置错误 |
 
@@ -1578,7 +1578,7 @@ ptr xrtAVLTreeLowerBound(xavltree* pTree, const void* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 第一项 `>= key` 的对象（借用） | — |
 | `NULL` | 全部小于 key（正常结果）或参数非法 | 未找到不设置错误 |
 
@@ -1613,7 +1613,7 @@ ptr xrtAVLTreeUpperBound(xavltree* pTree, const void* pKey);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 第一项 `> key` 的对象（借用） | — |
 | `NULL` | 没有严格大于项（正常结果）或参数非法 | 未找到不设置错误 |
 
@@ -1657,7 +1657,7 @@ size_t xrtAVLTreeVisit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 实际访问数量 | — |
 | `0` | 参数非法或空树 | 参数非法时设置错误 |
 
@@ -1694,7 +1694,7 @@ bool xrtAVLTreeIterBegin(xavltree* pTree, xavltreeiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪 | — |
 | `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -1734,7 +1734,7 @@ bool xrtAVLTreeIterRBegin(xavltree* pTree, xavltreeiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪 | — |
 | `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -1775,7 +1775,7 @@ bool xrtAVLTreeIterFrom(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪（O(log n) 起点） | — |
 | `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -1817,7 +1817,7 @@ bool xrtAVLTreeIterRFrom(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪 | — |
 | `false` | 参数非法 | `*pIterator` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -1856,7 +1856,7 @@ ptr xrtAVLTreeIterNext(xavltreeiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 下一对象（池内借用地址） | — |
 | `NULL` | 正常耗尽（不设错）、结构已修改或参数非法 | 结构修改设置 `XERR_STATE` |
 

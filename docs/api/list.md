@@ -269,7 +269,7 @@ void xrtListInit(xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化 | — |
 
 #### 错误
@@ -302,7 +302,7 @@ void xrtListNodeInit(xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化（恢复未连接状态） | — |
 
 #### 错误
@@ -335,7 +335,7 @@ bool xrtListReady(const xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已初始化 | — |
 | `false` | 未初始化 | 纯查询 |
 
@@ -376,7 +376,7 @@ bool xrtListValidate(const xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 全部不变量成立 | — |
 | `false` | 结构被破坏 | `XERR_STATE` |
 
@@ -411,7 +411,7 @@ bool xrtListEmpty(const xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 无节点 | — |
 | `false` | 非空 | 纯查询 |
 
@@ -445,7 +445,7 @@ size_t xrtListCount(const xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 节点数 | — |
 
 #### 错误
@@ -478,7 +478,7 @@ xlistnode* xrtListFirst(const xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 首节点（借用） | — |
 | `NULL` | 空链表（正常结果） | 不设错 |
 
@@ -514,7 +514,7 @@ xlistnode* xrtListLast(const xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 尾节点（借用） | — |
 | `NULL` | 空链表 | 不设错 |
 
@@ -548,7 +548,7 @@ xlistnode* xrtListPrev(const xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 前驱 | — |
 | `NULL` | 首节点或未连接 | 不设错 |
 
@@ -582,7 +582,7 @@ xlistnode* xrtListNext(const xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 后继 | — |
 | `NULL` | 尾节点或未连接 | 不设错 |
 
@@ -616,7 +616,7 @@ xlist* xrtListOwner(const xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 所属链表 | — |
 | `NULL` | 未连接 | 不设错 |
 
@@ -651,7 +651,7 @@ bool xrtListContains(const xlist* pList, const xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 属于 | — |
 | `false` | 不属于或未连接 | 不设错 |
 
@@ -693,7 +693,7 @@ bool xrtListLinked(const xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已连接 | — |
 | `false` | 独立 | 不设错 |
 
@@ -728,7 +728,7 @@ bool xrtListPushFront(xlist* pList, xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入；Count +1 | — |
 | `false` | 参数或状态错误 | 链表不变 |
 
@@ -764,7 +764,7 @@ bool xrtListPushBack(xlist* pList, xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入；Count +1 | — |
 | `false` | 参数或状态错误 | 链表不变 |
 
@@ -815,7 +815,7 @@ bool xrtListInsertBefore(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入 | — |
 | `false` | 参数或所有权错误 | 链表不变 |
 
@@ -857,7 +857,7 @@ bool xrtListInsertAfter(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入 | — |
 | `false` | 参数或所有权错误 | 链表不变 |
 
@@ -894,7 +894,7 @@ bool xrtListRemove(xlist* pList, xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已移除；Count -1 | — |
 | `false` | 参数或所有权错误 | 链表不变 |
 
@@ -932,7 +932,7 @@ xlistnode* xrtListPopFront(xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 已脱离的首节点（独立状态） | — |
 | `NULL` | 空链表（正常结果） | 不设错 |
 
@@ -966,7 +966,7 @@ xlistnode* xrtListPopBack(xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 已脱离的尾节点 | — |
 | `NULL` | 空链表 | 不设错 |
 
@@ -1001,7 +1001,7 @@ bool xrtListMoveFront(xlist* pList, xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已移动 | — |
 | `false` | 参数或所有权错误 | 链表不变 |
 
@@ -1037,7 +1037,7 @@ bool xrtListMoveBack(xlist* pList, xlistnode* pNode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已移动 | — |
 | `false` | 参数或所有权错误 | 链表不变 |
 
@@ -1074,7 +1074,7 @@ bool xrtListClear(xlist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已清空；Count 归零 | — |
 | `false` | 参数或状态错误 | — |
 
@@ -1110,7 +1110,7 @@ bool xrtListIterBegin(xlist* pList, xlistiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪（空链表也可启动） | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -1145,7 +1145,7 @@ bool xrtListIterRBegin(xlist* pList, xlistiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 迭代器已就绪 | — |
 | `false` | 参数错误 | `XERR_ARGUMENT` |
 
@@ -1179,7 +1179,7 @@ xlistnode* xrtListIterNext(xlistiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 下一节点 | — |
 | `NULL` | 自然耗尽（不设错）或结构被修改 | 结构被修改时 `XERR_STATE` |
 
@@ -1214,7 +1214,7 @@ bool xrtListIterRemove(xlistiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已移除（Count -1，迭代继续） | — |
 | `false` | 尚未取节点或已结束 | `XERR_STATE` |
 
@@ -1249,7 +1249,7 @@ void xrtListIterEnd(xlistiter* pIterator);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 借用状态已清除 | — |
 
 #### 错误

@@ -94,7 +94,7 @@ bool xrtConsoleWrite(xconsolestream Stream, xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写入标准流 | — |
 | `false` | 流枚举非法、UTF-8 非法或写入失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -130,7 +130,7 @@ bool xrtConsoleWriteLine(xconsolestream Stream, xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 文本与换行已在同一锁内写入 | — |
 | `false` | 同 `xrtConsoleWrite` 的失败条件 | 错误经 `xrtGetError()` 报告 |
 
@@ -175,7 +175,7 @@ bool xrtConsoleFlush(xconsolestream Stream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 缓冲已落地 | — |
 | `false` | 流枚举非法或刷新失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -209,7 +209,7 @@ bool xrtConsoleIsTerminal(xconsolestream Stream);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 流连接到交互终端 | — |
 | `false` | 文件/管道重定向（正常结果）或流枚举非法 | 重定向不设错；非法流设置错误 |
 

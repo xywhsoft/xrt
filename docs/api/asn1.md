@@ -240,7 +240,7 @@ bool xrtDerDone(const xdercursor* pCursor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `Offset == Size`：恰好消费完 | — |
 | `false` | 还有剩余或游标非法 | 纯查询，不设置错误 |
 
@@ -274,7 +274,7 @@ size_t xrtDerRemaining(const xdercursor* pCursor);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | `Size - Offset`，尚未消费的字节数 | — |
 | `0` | 游标非法（空指针/偏移越界） | `XERR_ARGUMENT`（非法时设置） |
 
@@ -317,7 +317,7 @@ bool xrtDerIs(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 三项全部匹配 | — |
 | `false` | 任一不匹配或 `pValue` 为空 | 纯判定，不设置错误 |
 
@@ -364,7 +364,7 @@ bool xrtDerValidate(const void* pData, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 整棵构造树规范：单一顶层值、SET 按完整编码排序、嵌套 ≤ 64 层 | — |
 | `false` | 参数非法或发现违规 | 错误经 `xrtGetError()` 报告，`Data` 含 `offset=` |
 
@@ -407,7 +407,7 @@ bool xrtDerBoolean(const xdervalue* pValue, bool* pResult);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布 | — |
 | `false` | 参数非法、类型不符或值非规范 | `*pResult` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -446,7 +446,7 @@ bool xrtDerUnsigned(const xdervalue* pValue, xbytesview* pResult);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布（借用原输入） | — |
 | `false` | 参数非法、类型不符或整数为负 | `*pResult` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -487,7 +487,7 @@ bool xrtDerUInt64(const xdervalue* pValue, uint64* pResult);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布 | — |
 | `false` | 参数非法、类型不符、为负或超出 64 位 | `*pResult` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -525,7 +525,7 @@ bool xrtDerInt64(const xdervalue* pValue, int64* pResult);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布 | — |
 | `false` | 参数非法、类型不符或超出 64 位 | `*pResult` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -568,7 +568,7 @@ bool xrtDerBitString(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 两个输出已发布 | — |
 | `false` | 参数非法、类型不符或值非规范 | 输出不变；错误经 `xrtGetError()` 报告 |
 
@@ -608,7 +608,7 @@ bool xrtDerOctets(const xdervalue* pValue, xbytesview* pResult);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布（借用原输入） | — |
 | `false` | 参数非法或类型不符 | `*pResult` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -646,7 +646,7 @@ bool xrtDerOid(const xdervalue* pValue, xbytesview* pResult);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `*pResult` 已发布（借用原输入） | — |
 | `false` | 参数非法、类型不符或内容非规范 | `*pResult` 不变；错误经 `xrtGetError()` 报告 |
 
@@ -688,7 +688,7 @@ bool xrtDerOidEqual(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 值是 OID primitive 且内容逐字节相等 | — |
 | `false` | 类型不符、长度不等或内容不同 | 纯比较，不设置错误 |
 
@@ -926,7 +926,7 @@ bool xrtDerAppend(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 完整 TLV 已追加（含最短长度形式） | — |
 | `false` | 参数非法或缓冲扩展失败 | 对外可见长度不变；错误经 `xrtGetError()` 报告 |
 
@@ -962,7 +962,7 @@ bool xrtDerAppendBoolean(xbuffer* pOutput, bool bValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 3 字节 TLV 已追加 | — |
 | `false` | 参数非法或缓冲扩展失败 | 长度不变；错误经 `xrtGetError()` 报告 |
 
@@ -997,7 +997,7 @@ bool xrtDerAppendUInt64(xbuffer* pOutput, uint64 iValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 最短 INTEGER TLV 已追加 | — |
 | `false` | 参数非法或缓冲扩展失败 | 长度不变；错误经 `xrtGetError()` 报告 |
 
@@ -1033,7 +1033,7 @@ bool xrtDerAppendInt64(xbuffer* pOutput, int64 iValue);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 最短 INTEGER TLV 已追加 | — |
 | `false` | 参数非法或缓冲扩展失败 | 长度不变；错误经 `xrtGetError()` 报告 |
 
@@ -1069,7 +1069,7 @@ bool xrtDerAppendOctets(xbuffer* pOutput, xbytesview Content);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | TLV 已追加 | — |
 | `false` | 参数非法或缓冲扩展失败 | 长度不变；错误经 `xrtGetError()` 报告 |
 
@@ -1103,7 +1103,7 @@ bool xrtDerAppendNull(xbuffer* pOutput);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 2 字节 TLV 已追加 | — |
 | `false` | 参数非法或缓冲扩展失败 | 长度不变；错误经 `xrtGetError()` 报告 |
 
@@ -1143,7 +1143,7 @@ bool xrtDerAppendBitString(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | TLV 已追加（首字节为未用位数） | — |
 | `false` | 参数非法或缓冲扩展失败 | 长度不变；错误经 `xrtGetError()` 报告 |
 
@@ -1178,7 +1178,7 @@ bool xrtDerAppendOid(xbuffer* pOutput, xstrview Text);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | OID TLV 已追加 | — |
 | `false` | 文本非法或缓冲扩展失败 | 长度不变；错误经 `xrtGetError()` 报告 |
 
@@ -1214,7 +1214,7 @@ bool xrtDerOidEncode(xstrview Text, xbuffer* pOutput);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 内容八位组已追加 | — |
 | `false` | 文本非法或缓冲扩展失败 | Output 不变；错误经 `xrtGetError()` 报告 |
 
@@ -1252,7 +1252,7 @@ bool xrtDerOidDecode(xbytesview Oid, xbuffer* pOutput);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 点分文本已追加（首两段由 `40 * first + second` 拆开） | — |
 | `false` | 内容非法或缓冲扩展失败 | Output 不变；错误经 `xrtGetError()` 报告 |
 

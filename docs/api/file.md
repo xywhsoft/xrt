@@ -795,7 +795,7 @@ void xrtFileOptionsInit(xfileoptions* pOptions);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化，不失败 | — |
 
 #### 错误
@@ -829,7 +829,7 @@ xfile xrtFileOpen(cstr sPath, const xfileoptions* pOptions);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 打开的文件对象 | — |
 | `NULL` | 打开失败 | 系统错误经 `xrtGetError()` 报告 |
 
@@ -864,7 +864,7 @@ xfile xrtOpen(cstr sPath, uint32 iFlags);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 打开的文件对象 | — |
 | `NULL` | 打开失败 | 系统错误经 `xrtGetError()` 报告 |
 
@@ -934,7 +934,7 @@ bool xrtClose(xfile File);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已关闭并释放 | — |
 | `false` | 系统关闭失败（对象仍被销毁） | 系统错误经 `xrtGetError()` 报告 |
 
@@ -973,7 +973,7 @@ bool xrtRead(xfile File, ptr pBuffer, size_t iRequest, size_t* pRead);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已读取（可能短读） | — |
 | `false` | 参数或系统错误 | `*pRead` 语义不定 |
 
@@ -1012,7 +1012,7 @@ bool xrtWrite(xfile File, const void* pBuffer,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写入（可能短写） | — |
 | `false` | 参数或系统错误 | `*pWritten` 语义不定 |
 
@@ -1051,7 +1051,7 @@ bool xrtReadFull(xfile File, ptr pBuffer,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 缓冲已填满 | — |
 | `false` | 提前 EOF 或系统错误 | `*pRead` 保留已读量 |
 
@@ -1089,7 +1089,7 @@ bool xrtWriteFull(xfile File, const void* pBuffer,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 全部写入完成 | — |
 | `false` | 系统错误 | `*pWritten` 保留已写量 |
 
@@ -1128,7 +1128,7 @@ bool xrtReadAt(xfile File, uint64 iOffset,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已读取（可能短读） | — |
 | `false` | 参数或系统错误 | — |
 
@@ -1168,7 +1168,7 @@ bool xrtWriteAt(xfile File, uint64 iOffset,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写入（可能短写） | — |
 | `false` | 参数或系统错误 | — |
 
@@ -1208,7 +1208,7 @@ bool xrtReadAtFull(xfile File, uint64 iOffset,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 缓冲已填满 | — |
 | `false` | 提前 EOF 或系统错误 | `*pRead` 保留已读量 |
 
@@ -1247,7 +1247,7 @@ bool xrtWriteAtFull(xfile File, uint64 iOffset,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 全部写入完成 | — |
 | `false` | 系统错误 | `*pWritten` 保留已写量 |
 
@@ -1307,7 +1307,7 @@ bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 游标已移动 | — |
 | `false` | 参数或系统错误 | — |
 
@@ -1343,7 +1343,7 @@ bool xrtTell(xfile File, uint64* pPosition);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 位置已写出 | — |
 | `false` | 参数或系统错误 | — |
 
@@ -1378,7 +1378,7 @@ bool xrtFlush(xfile File);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已提交稳定存储 | — |
 | `false` | 系统错误 | — |
 
@@ -1413,7 +1413,7 @@ bool xrtFileSize(xfile File, uint64* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 大小已写出 | — |
 | `false` | 参数或系统错误 | — |
 
@@ -1449,7 +1449,7 @@ bool xrtFileResize(xfile File, uint64 iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 大小已修改 | — |
 | `false` | 系统错误 | — |
 
@@ -1484,7 +1484,7 @@ bool xrtFileSetSize(cstr sPath, uint64 iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 大小已修改 | — |
 | `false` | 路径不存在或系统错误 | — |
 
@@ -1544,7 +1544,7 @@ bool xrtFileLock(xfile File, xfilelock Mode, bool bWait);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已取得锁 | — |
 | `false` | 冲突（非阻塞）或系统错误 | — |
 
@@ -1579,7 +1579,7 @@ bool xrtFileUnlock(xfile File);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解锁 | — |
 | `false` | 系统错误 | — |
 
@@ -1618,7 +1618,7 @@ bool xrtFileLockRange(xfile File, xfilelock Mode,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 区间锁已取得 | — |
 | `false` | 冲突或系统错误 | — |
 
@@ -1655,7 +1655,7 @@ bool xrtFileUnlockRange(xfile File,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解锁 | — |
 | `false` | 系统错误 | — |
 
@@ -1719,7 +1719,7 @@ xfilemap xrtFileMap(xfile File, uint64 iOffset,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 映射对象 | — |
 | `NULL` | 系统错误 | 错误经 `xrtGetError()` 报告 |
 
@@ -1753,7 +1753,7 @@ ptr xrtFileMapData(xfilemap Map);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 映射首字节（借用，随 Unmap 失效） | — |
 | `NULL` | 空映射或参数非法 | — |
 
@@ -1788,7 +1788,7 @@ size_t xrtFileMapSize(xfilemap Map);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 可访问字节数 | — |
 | `0` | 空映射或参数非法 | — |
 
@@ -1825,7 +1825,7 @@ bool xrtFileMapFlush(xfilemap Map,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已提交 | — |
 | `false` | 参数或系统错误 | — |
 
@@ -1860,7 +1860,7 @@ bool xrtFileUnmap(xfilemap Map);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已解除并释放 | — |
 | `false` | 系统错误 | — |
 
@@ -1953,7 +1953,7 @@ uint32 xrtFileFlags(xfile File);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XFILE_*` 组合 | 打开时的标志 | — |
 | `0` | 对象非法 | 系统错误经 `xrtGetError()` 报告 |
 
@@ -1987,7 +1987,7 @@ intptr_t xrtFileNative(xfile File);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 平台原生句柄（借用，随 Close 失效） | — |
 | `-1` | 对象非法 | 系统错误经 `xrtGetError()` 报告 |
 
@@ -2022,7 +2022,7 @@ bool xrtFileStat(xfile File, xfileinfo* pInfo);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 快照已写出 | — |
 | `false` | 参数或系统错误 | — |
 
@@ -2057,7 +2057,7 @@ bool xrtFileExists(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 存在普通文件 | — |
 | `false` | 不存在或查询失败（区分二者用 `xrtPathStat`） | — |
 
@@ -2091,7 +2091,7 @@ bool xrtFileTouch(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已创建或时间戳已刷新 | — |
 | `false` | 系统错误 | — |
 
@@ -2125,7 +2125,7 @@ bool xrtFileDelete(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已删除 | — |
 | `false` | 不存在或系统错误 | — |
 
@@ -2161,7 +2161,7 @@ bool xrtPathRename(cstr sSource, cstr sTarget, bool bReplace);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已重命名 | — |
 | `false` | 目标存在且不替换，或系统错误 | — |
 
@@ -2197,7 +2197,7 @@ bool xrtFileCopy(cstr sSource, cstr sTarget, bool bReplace);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已复制 | — |
 | `false` | 目标存在且不替换，或系统错误 | — |
 
@@ -2233,7 +2233,7 @@ bool xrtFileMove(cstr sSource, cstr sTarget, bool bReplace);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已移动 | — |
 | `false` | 目标存在且不替换，或系统错误 | — |
 
@@ -2269,7 +2269,7 @@ bool xrtPathStat(cstr sPath, bool bFollowLink, xfileinfo* pInfo);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 快照已写出 | — |
 | `false` | 不存在或系统错误 | 区分二者靠错误码 |
 
@@ -2304,7 +2304,7 @@ bool xrtPathExists(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 存在某种对象 | — |
 | `false` | 不存在或查询失败（区分用 `xrtPathStat`） | — |
 
@@ -2342,7 +2342,7 @@ bool xrtPathSetTimes(cstr sPath, bool bFollowLink,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 时间已更新 | — |
 | `false` | 两项全空或系统错误 | — |
 
@@ -2379,7 +2379,7 @@ bool xrtPathSetMode(cstr sPath, bool bFollowLink, uint32 iMode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 模式已设置 | — |
 | `false` | Windows 上必然失败 | `XERR_UNSUPPORTED`（Windows） |
 
@@ -2415,7 +2415,7 @@ bool xrtPathSetAttributes(cstr sPath, uint32 iAttributes);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 属性已设置 | — |
 | `false` | POSIX 上必然失败 | `XERR_UNSUPPORTED`（POSIX） |
 
@@ -2492,7 +2492,7 @@ xfile xrtFileTemp(cstr sDirectory, cstr sPrefix,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 排他打开的临时文件 | — |
 | `NULL` | 创建失败；`*pPath` 未定义 | 错误经 `xrtGetError()` 报告 |
 
@@ -2529,7 +2529,7 @@ str xrtDirTemp(cstr sDirectory, cstr sPrefix, cstr sSuffix);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有路径（`xrtFree` 释放） | — |
 | `NULL` | 创建失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -2596,7 +2596,7 @@ bytes xrtFileReadAll(cstr sPath, size_t* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 完整内容 + 零哨兵，`xrtFree` 释放 | — |
 | `NULL` | 系统错误或 OOM | 错误经 `xrtGetError()` 报告 |
 
@@ -2637,7 +2637,7 @@ bytes xrtFileReadAllLimit(cstr sPath,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 上限内的完整内容 + 零哨兵 | — |
 | `NULL` | 超上限或失败 | — |
 
@@ -2674,7 +2674,7 @@ bool xrtFileWriteAll(cstr sPath, xbytesview Data);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已完整写入 | — |
 | `false` | 系统错误 | — |
 
@@ -2709,7 +2709,7 @@ bool xrtFileAppend(cstr sPath, xbytesview Data);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已追加 | — |
 | `false` | 系统错误 | — |
 
@@ -2744,7 +2744,7 @@ bool xrtFileWriteAtomic(cstr sPath, xbytesview Data);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已原子发布 | — |
 | `false` | 系统错误 | — |
 
@@ -2803,7 +2803,7 @@ str xrtFileReadText(cstr sPath, xencoding Encoding,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | UTF-8 文本 + 零结尾，`xrtFree` 释放 | — |
 | `NULL` | 编码错误或失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -2844,7 +2844,7 @@ str xrtFileReadTextLimit(cstr sPath, xencoding Encoding,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 上限内的 UTF-8 文本 | — |
 | `NULL` | 超上限或失败 | — |
 
@@ -2887,7 +2887,7 @@ bool xrtFileWriteText(cstr sPath, xstrview Text,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已转换并写入 | — |
 | `false` | 编码错误或系统错误 | — |
 
@@ -2927,7 +2927,7 @@ bool xrtFileWriteTextAtomic(cstr sPath, xstrview Text,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已原子发布 | — |
 | `false` | 编码错误或系统错误 | — |
 
@@ -3025,7 +3025,7 @@ xdir xrtDirOpen(cstr sPath, uint32 iFlags);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 目录迭代器 | — |
 | `NULL` | 打开失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -3060,7 +3060,7 @@ xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XDIR_NEXT_ITEM` | 取得一条 | — |
 | `XDIR_NEXT_END` | 枚举完毕（正常结果） | 不设置错误 |
 | `XDIR_NEXT_ERROR` | 系统错误 | 错误经 `xrtGetError()` 报告 |
@@ -3095,7 +3095,7 @@ bool xrtDirClose(xdir Dir);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已关闭 | — |
 | `false` | 系统错误 | — |
 
@@ -3129,7 +3129,7 @@ cstr xrtDirPath(xdir Dir);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `cstr` | 借用路径（存活到 Close） | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -3164,7 +3164,7 @@ str xrtDirEntryPath(xdir Dir, const xdirentry* pEntry);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有路径（`xrtFree` 释放） | — |
 | `NULL` | 参数或系统错误 | — |
 
@@ -3221,7 +3221,7 @@ bool xrtDirExists(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 存在目录 | — |
 | `false` | 非目录或查询失败 | — |
 
@@ -3255,7 +3255,7 @@ bool xrtDirCreate(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已创建 | — |
 | `false` | 已存在或系统错误 | — |
 
@@ -3291,7 +3291,7 @@ bool xrtDirCreateMode(cstr sPath, uint32 iMode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已创建 | — |
 | `false` | 已存在或系统错误 | — |
 
@@ -3326,7 +3326,7 @@ bool xrtDirCreateAll(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 全链已存在或已创建 | — |
 | `false` | 系统错误 | — |
 
@@ -3361,7 +3361,7 @@ bool xrtDirCreateAllMode(cstr sPath, uint32 iMode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 全链就绪 | — |
 | `false` | 系统错误（已建前缀保留） | — |
 
@@ -3395,7 +3395,7 @@ bool xrtDirRemove(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已删除 | — |
 | `false` | 非空/不存在或系统错误 | — |
 
@@ -3430,7 +3430,7 @@ bool xrtDirRemoveAll(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 整树已删除 | — |
 | `false` | 系统错误 | — |
 
@@ -3465,7 +3465,7 @@ bool xrtDirEmpty(cstr sPath, bool* pEmpty);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 判定已写出 | — |
 | `false` | 不存在或系统错误 | `*pEmpty` 不变 |
 
@@ -3499,7 +3499,7 @@ bool xrtDirEnsureEmpty(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 目录存在且为空 | — |
 | `false` | 系统错误 | — |
 
@@ -3533,7 +3533,7 @@ bool xrtDirClean(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 内容已清空 | — |
 | `false` | 系统错误 | — |
 
@@ -3569,7 +3569,7 @@ bool xrtDirMove(cstr sSource, cstr sTarget, bool bReplace);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已移动 | — |
 | `false` | 目标存在且不替换，或系统错误 | — |
 
@@ -3605,7 +3605,7 @@ bool xrtDirCopy(cstr sSource, cstr sTarget, bool bReplace);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 整树已复制 | — |
 | `false` | 冲突或系统错误 | — |
 
@@ -3641,7 +3641,7 @@ bool xrtDirStats(cstr sPath, bool bRecursive, xwalkstats* pStats);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 统计已写出 | — |
 | `false` | 不存在或系统错误 | — |
 
@@ -3677,7 +3677,7 @@ bool xrtDirSize(cstr sPath, bool bRecursive, uint64* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 总量已写出 | — |
 | `false` | 不存在或系统错误 | — |
 
@@ -3711,7 +3711,7 @@ bool xrtDirRoots(xdirroots* pRoots);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 列表已写出（用后 `DirRootsFree`） | — |
 | `false` | 系统错误 | — |
 
@@ -3745,7 +3745,7 @@ void xrtDirRootsFree(xdirroots* pRoots);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 列表已释放 | — |
 
 #### 错误
@@ -3860,7 +3860,7 @@ void xrtWalkOptionsInit(xwalkoptions* pOptions);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化，不失败 | — |
 
 #### 错误
@@ -3899,7 +3899,7 @@ bool xrtFileWalk(cstr sPath, const xwalkoptions* pOptions,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 遍历完成（或被回调中止且算成功） | — |
 | `false` | 起点不存在或系统错误 | — |
 
@@ -3950,7 +3950,7 @@ bool xrtLinkCreate(cstr sTarget, cstr sLink, bool bDirectory);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 链接已创建 | — |
 | `false` | 系统错误 | — |
 
@@ -3985,7 +3985,7 @@ bool xrtLinkHard(cstr sExisting, cstr sLink);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 硬链接已创建 | — |
 | `false` | 跨卷/目标存在或系统错误 | — |
 
@@ -4019,7 +4019,7 @@ str xrtLinkRead(cstr sLink);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 目标文本（`xrtFree` 释放） | — |
 | `NULL` | 非链接或系统错误 | 错误经 `xrtGetError()` 报告 |
 
@@ -4054,7 +4054,7 @@ bool xrtLinkDelete(cstr sLink);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 链接已删除（目标不受影响） | — |
 | `false` | 系统错误 | — |
 
@@ -4089,7 +4089,7 @@ bool xrtFifoCreate(cstr sPath, uint32 iMode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | FIFO 已创建 | — |
 | `false` | Windows 必然失败 | `XERR_UNSUPPORTED`（Windows） |
 
@@ -4182,7 +4182,7 @@ xroot xrtRootOpen(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 锚定的根对象 | — |
 | `NULL` | 打开失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -4217,7 +4217,7 @@ xroot xrtRootOpenIn(xroot Root, cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 子根（父根保持独立） | — |
 | `NULL` | 越界或打开失败 | — |
 
@@ -4252,7 +4252,7 @@ bool xrtRootClose(xroot Root);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已关闭并释放 | — |
 | `false` | 系统错误 | — |
 
@@ -4286,7 +4286,7 @@ cstr xrtRootPath(xroot Root);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `cstr` | 借用诊断路径（存活到 Close） | — |
 | `NULL` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -4320,7 +4320,7 @@ intptr_t xrtRootNative(xroot Root);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 原生句柄（借用） | — |
 | `-1` | 参数非法 | `XERR_ARGUMENT` |
 
@@ -4357,7 +4357,7 @@ xfile xrtRootFileOpen(xroot Root, cstr sPath,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 打开的文件 | — |
 | `NULL` | 越界或打开失败 | — |
 
@@ -4396,7 +4396,7 @@ bool xrtRootStat(xroot Root, cstr sPath,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 快照已写出 | — |
 | `false` | 越界/不存在或系统错误 | — |
 
@@ -4433,7 +4433,7 @@ bool xrtRootDirCreate(xroot Root, cstr sPath, uint32 iMode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已创建 | — |
 | `false` | 越界/已存在或系统错误 | — |
 
@@ -4469,7 +4469,7 @@ bool xrtRootRemove(xroot Root, cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已删除 | — |
 | `false` | 越界/不存在或系统错误 | — |
 
@@ -4505,7 +4505,7 @@ str xrtRootLinkRead(xroot Root, cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 目标文本（`xrtFree` 释放） | — |
 | `NULL` | 非链接或失败 | — |
 
@@ -4544,7 +4544,7 @@ bool xrtRootLinkCreate(xroot Root, cstr sTarget,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 链接已创建 | — |
 | `false` | 越界或系统错误 | — |
 
@@ -4580,7 +4580,7 @@ bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 硬链接已创建 | — |
 | `false` | 越界/跨卷或系统错误 | — |
 
@@ -4616,7 +4616,7 @@ bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | FIFO 已创建 | — |
 | `false` | Windows 必然失败 | `XERR_UNSUPPORTED`（Windows） |
 
@@ -4655,7 +4655,7 @@ bool xrtRootSetMode(xroot Root, cstr sPath,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 模式已设置 | — |
 | `false` | Windows 必然失败或越界 | `XERR_UNSUPPORTED`（Windows） |
 
@@ -4789,7 +4789,7 @@ void xrtTreeCopyOptionsInit(xtreecopyoptions* pOptions);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 无 | 纯初始化，不失败 | — |
 
 #### 错误
@@ -4826,7 +4826,7 @@ bool xrtFileTreeCopy(cstr sSource, cstr sTarget,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 整树已复制 | — |
 | `false` | 目标冲突或系统错误 | — |
 
@@ -4864,7 +4864,7 @@ bool xrtFileTreeRemove(cstr sPath, bool bKeepRoot,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 整树（或内容）已删除 | — |
 | `false` | 系统错误 | — |
 

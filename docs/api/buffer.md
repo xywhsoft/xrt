@@ -98,7 +98,7 @@ xbuffer* xrtBufferCreate(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 堆分配的空缓冲；`Destroy` 释放 | — |
 | `NULL` | 结构分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -226,7 +226,7 @@ xbytesview xrtBufferView(const xbuffer* pBuffer);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 视图 | `[Data, Data + Size)` 的借用；下一次容量变更前有效 | — |
 | 空视图 | 缓冲为空或参数非法 | 参数非法时设置 `XERR_ARGUMENT` |
 
@@ -263,7 +263,7 @@ bool xrtBufferReserve(xbuffer* pBuffer, size_t iCapacity);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `Capacity >= iCapacity`；内容与长度不变 | — |
 | `false` | 参数非法或重分配失败 | 原地址、长度、容量与内容不变；错误经 `xrtGetError()` 报告 |
 
@@ -301,7 +301,7 @@ bool xrtBufferResize(xbuffer* pBuffer, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `Size == iSize` | — |
 | `false` | 参数非法或扩容失败 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -338,7 +338,7 @@ bool xrtBufferTrim(xbuffer* pBuffer);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | `Capacity == Size`（或空缓冲已释放存储） | — |
 | `false` | 参数非法或重分配失败 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -378,7 +378,7 @@ bytes xrtBufferAdd(xbuffer* pBuffer, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 新增区域首地址，调用方立即完整写入 | — |
 | `NULL` | 参数非法或扩容失败 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -423,7 +423,7 @@ bytes xrtBufferInsertSpace(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 新增区域首地址 | — |
 | `NULL` | 参数非法或扩容失败 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -467,7 +467,7 @@ bool xrtBufferAssign(xbuffer* pBuffer, xbytesview Data);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 内容已替换；零长度视图清空但保留容量 | — |
 | `false` | 参数非法、非法视图或扩容失败 | 原缓冲完全不变；错误经 `xrtGetError()` 报告 |
 
@@ -503,7 +503,7 @@ bool xrtBufferAppend(xbuffer* pBuffer, xbytesview Data);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已追加到末尾 | — |
 | `false` | 参数非法或扩容失败 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -539,7 +539,7 @@ bool xrtBufferAppendByte(xbuffer* pBuffer, uint8 iByte);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已追加 | — |
 | `false` | 参数非法或扩容失败 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -580,7 +580,7 @@ bool xrtBufferInsert(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已插入 | — |
 | `false` | 参数非法、越界或扩容失败 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -622,7 +622,7 @@ bool xrtBufferWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已覆盖；`Size` 按写入末端扩展 | — |
 | `false` | 参数非法、溢出或扩容失败 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -664,7 +664,7 @@ bool xrtBufferRemove(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已删除并保序前移后缀 | — |
 | `false` | 参数非法或区间越界 | 缓冲不变；错误经 `xrtGetError()` 报告 |
 
@@ -709,7 +709,7 @@ bool xrtBufferSetTake(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 缓冲已接管来源内存，原内存已释放 | — |
 | `false` | 参数非法或槽无效 | 双方所有权与内容不变；错误经 `xrtGetError()` 报告 |
 
@@ -750,7 +750,7 @@ bytes xrtBufferTake(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 连续内存所有权（`xrtFree` 释放） | — |
 | `NULL` | 空缓冲的成功结果，或参数非法 | 参数非法时缓冲不变并设置错误 |
 
@@ -787,7 +787,7 @@ xbuffer* xrtBufferFrom(xbytesview Data);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 内容独立的新缓冲；来源不受影响 | — |
 | `NULL` | 视图非法或分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -829,7 +829,7 @@ xbuffer* xrtBufferCreateTake(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 已接管内存的新缓冲 | — |
 | `NULL` | 参数非法或结构分配失败 | 来源所有权与内容不变；错误经 `xrtGetError()` 报告 |
 
@@ -870,7 +870,7 @@ xbuffer* xrtBufferFromHex(xstrview Text, uint32 iFlags);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 解码字节的独立缓冲 | — |
 | `NULL` | 文本非法或分配失败 | 保留 codec 的稳定错误域与代码 |
 
@@ -911,7 +911,7 @@ xbuffer* xrtBufferFromBase64(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 解码字节的独立缓冲（可含零字节） | — |
 | `NULL` | 文本或配置非法、分配失败 | 保留 codec 的稳定错误域与代码 |
 

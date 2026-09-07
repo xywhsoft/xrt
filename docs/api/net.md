@@ -6256,7 +6256,7 @@ bool xrtNetPortConnect(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`CONNECT` 终态事件待提取，结果在 `Event.Result` | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6300,7 +6300,7 @@ bool xrtNetPortReadProbe(xnetport* pPort,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；可读或 EOF 时产生 `READ_PROBE` 终态 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6348,7 +6348,7 @@ bool xrtNetPortRecv(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`RECV` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6395,7 +6395,7 @@ bool xrtNetPortRecvVec(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`RECV` 终态事件待提取，`Bytes` 为全部跨度写入总量 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6443,7 +6443,7 @@ bool xrtNetPortSend(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`SEND` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6490,7 +6490,7 @@ bool xrtNetPortSendVec(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`SEND` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6537,7 +6537,7 @@ bool xrtNetPortRecvFrom(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`RECV_FROM` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6581,7 +6581,7 @@ bool xrtNetPortRecvFromVec(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`RECV_FROM` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6628,7 +6628,7 @@ bool xrtNetPortRecvMsg(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`RECV_MSG` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6674,7 +6674,7 @@ bool xrtNetPortRecvMsgVec(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`RECV_MSG` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6722,7 +6722,7 @@ bool xrtNetPortRecvError(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`RECV_ERROR` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6770,7 +6770,7 @@ bool xrtNetPortSendTo(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`SEND_TO` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6823,7 +6823,7 @@ bool xrtNetPortSendToVec(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；`SEND_TO` 终态事件待提取 | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6873,7 +6873,7 @@ bool xrtNetPortSendMsg(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；终态类型按控制与地址组合（见上文） | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6920,7 +6920,7 @@ bool xrtNetPortSendMsgVec(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；终态类型按控制与地址组合（同 `SendMsg`） | — |
 | `false` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -6964,7 +6964,7 @@ bool xrtNetPortCancel(xnetport* pPort, uint64 Id);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 取消请求已受理；仍须等待该操作唯一终态 | — |
 | `false` | 参数非法、后端不支持取消或非拥有线程 | 错误经 `xrtGetError()` 报告 |
 
@@ -7016,7 +7016,7 @@ bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 内核观察与用户身份均已登记 | — |
 | `false` | 未登记 | 错误经 `xrtGetError()` 报告 |
 
@@ -7061,7 +7061,7 @@ bool xrtNetPortUnwatch(xnetport* pPort, xnetsocket Socket);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 内核观察和用户身份均已移除 | — |
 | `false` | 移除失败，但用户身份仍已退休；须立即关闭该 Socket | 错误经 `xrtGetError()` 报告 |
 
@@ -7152,7 +7152,7 @@ bool xrtNetPortPost(xnetport* pPort, uint64 Id, ptr pUser);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 事件已入队，等待中必然可提取 | — |
 | `false` | 未入队，不留幽灵事件 | 错误经 `xrtGetError()` 报告 |
 
@@ -7189,7 +7189,7 @@ bool xrtNetPortWake(xnetport* pPort);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已有挂起 `WAKE` 或新请求了一个 | — |
 | `false` | 未请求 | 错误经 `xrtGetError()` 报告 |
 
@@ -7308,7 +7308,7 @@ bool xrtNetPostPending(const xnetpost* pPost);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理投递、尚未执行 | — |
 | `false` | 已执行完成，或从未投递成功 | 参数非法/状态非法时错误经 `xrtGetError()` 报告 |
 
@@ -7356,7 +7356,7 @@ bool xrtNetPost(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；回调必在目标 Worker 上执行一次 | — |
 | `false` | 未受理，节点无残留状态 | 错误经 `xrtGetError()` 报告 |
 
@@ -7535,7 +7535,7 @@ bool xrtNetEngineStart(xnetengine* pEngine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已运行（或原本已运行） | — |
 | `false` | 参数非法、状态切换冲突或资源创建失败；失败后回到 `STOPPED` | 错误经 `xrtGetError()` 报告 |
 
@@ -7575,7 +7575,7 @@ bool xrtNetEngineStop(xnetengine* pEngine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已排空并停止；可再次 `Start` | — |
 | `false` | 已进入 `STOPPED` 但排空不完整（见错误） | 错误经 `xrtGetError()` 报告 |
 
@@ -7613,7 +7613,7 @@ bool xrtNetEngineDestroy(xnetengine* pEngine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Engine 已销毁 | — |
 | `false` | 仍有活动对象或外借池块，Engine 保留 | 错误经 `xrtGetError()` 报告 |
 
@@ -7684,7 +7684,7 @@ bool xrtNetEnginePin(xnetengine* pEngine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 生命周期占用 +1，Destroy 被阻止 | — |
 | `false` | 未占用 | 错误经 `xrtGetError()` 报告 |
 
@@ -7720,7 +7720,7 @@ bool xrtNetEngineUnpin(xnetengine* pEngine);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 占用 -1；归零后 Destroy 可继续 | — |
 | `false` | 参数非法或没有匹配占用 | 错误经 `xrtGetError()` 报告 |
 
@@ -7824,7 +7824,7 @@ xnetworker* xrtNetEngineWorker(xnetengine* pEngine, uint32 iIndex);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 借用 Worker，存活期由 Engine 决定 | — |
 | `NULL` | 索引越界 | `XERR_RANGE`（越界时设置） |
 
@@ -7996,7 +7996,7 @@ xnetport* xrtNetWorkerPort(xnetworker* pWorker);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 借用端口；除跨线程明确允许的操作外应在所属 Worker 使用 | — |
 | `NULL` | Worker 未运行 | `XERR_STATE`（未运行时设置） |
 
@@ -8029,7 +8029,7 @@ xnetbufpool* xrtNetWorkerBufPool(xnetworker* pWorker);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 借用缓冲池；池块必须在所属 Worker 上归还 | — |
 | `NULL` | 参数非法或不在该 Worker 回调内 | 错误经 `xrtGetError()` 报告 |
 
@@ -8066,7 +8066,7 @@ ptr xrtNetWorkerAlloc(xnetworker* pWorker, size_t iSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 已清零的内存块 | — |
 | `NULL` | 参数非法或内存不足 | 参数非法时错误经 `xrtGetError()` 报告 |
 
@@ -8139,7 +8139,7 @@ uint64 xrtNetWorkerOperationId(xnetworker* pWorker);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非零 | Engine 内唯一 ID，可直接作端口操作 `Id` | — |
 | `0` | 参数非法或 ID 空间耗尽 | 错误经 `xrtGetError()` 报告 |
 
@@ -8181,7 +8181,7 @@ bool xrtNetEnginePost(xnetengine* pEngine,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已受理；含与 `Stop` 并发时也必执行一次 | — |
 | `false` | 未受理，不留任务 | 错误经 `xrtGetError()` 报告 |
 
@@ -8255,7 +8255,7 @@ uint64 xrtNetEngineSchedule(xnetengine* pEngine,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非零 | Timer ID，Engine 内唯一；恰好一次终态回调 | — |
 | `0` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -8302,7 +8302,7 @@ uint64 xrtNetEngineAfter(xnetengine* pEngine,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非零 | Timer ID | — |
 | `0` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -8342,7 +8342,7 @@ bool xrtNetEngineTimerCancel(xnetengine* pEngine, uint64 Id);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 取消请求已入队；最终结果仍由唯一终态回调给出 | — |
 | `false` | 请求未入队 | 错误经 `xrtGetError()` 报告 |
 
@@ -8385,7 +8385,7 @@ bool xrtNetEngineTimerCancelCurrent(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已取消；终态回调以 `CANCELLED` 触发 | — |
 | `false` | 不在所属 Worker、尚未入堆或已终结 | 不修改线程错误 |
 
@@ -8482,7 +8482,7 @@ bool xrtNetWorkerStats(const xnetworker* pWorker,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 快照已写入 | — |
 | `false` | 参数非法 | 错误经 `xrtGetError()` 报告 |
 
@@ -8520,7 +8520,7 @@ bool xrtNetEngineStats(const xnetengine* pEngine,
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 聚合快照已写入 | — |
 | `false` | 参数非法 | 错误经 `xrtGetError()` 报告 |
 
@@ -8631,7 +8631,7 @@ bool xrtNetResolverDestroy(xnetresolver* pResolver);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已排空并销毁 | — |
 | `false` | 参数非法、状态非法或回调内部失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -8677,7 +8677,7 @@ xnetresolveop* xrtNetResolverResolve(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 解析操作（引用归调用方，用后 `ResolveOpDestroy`） | — |
 | `NULL` | 未受理 | 错误经 `xrtGetError()` 报告 |
 
@@ -8715,7 +8715,7 @@ bool xrtNetResolverClear(xnetresolver* pResolver);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 缓存已清空 | — |
 | `false` | 参数非法或 Resolver 已关闭 | 错误经 `xrtGetError()` 报告 |
 
@@ -8755,7 +8755,7 @@ bool xrtNetResolverStats(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 快照已写入 | — |
 | `false` | 参数非法 | 错误经 `xrtGetError()` 报告 |
 
@@ -8792,7 +8792,7 @@ xnetresolveop* xrtNetResolveOpRef(xnetresolveop* pOperation);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 原指针，引用 +1；之后必须多一次 `ResolveOpDestroy` | — |
 | `NULL` | 参数非法或引用耗尽 | 参数非法时错误经 `xrtGetError()` 报告 |
 
@@ -8859,7 +8859,7 @@ bool xrtNetResolveOpCancel(xnetresolveop* pOperation);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 取消请求已受理（或查询组已在取消） | — |
 | `false` | 参数非法或操作已进入终态 | 参数非法时错误经 `xrtGetError()` 报告 |
 
@@ -8936,7 +8936,7 @@ xnetaddrlist* xrtNetResolveOpResult(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 地址列表（引用 +1，调用方 `xrtNetAddrListDestroy`） | — |
 | `NULL` | 未终态或非成功终态 | 错误经 `xrtGetError()` 报告；失败详情另见 `ResolveOpError` |
 
@@ -8978,7 +8978,7 @@ const xerror* xrtNetResolveOpError(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 借用的 `xerror`，存活到操作销毁；不转移所有权 | — |
 | `NULL` | 非失败/取消状态 | 非错误状态，不设置线程错误 |
 
@@ -9020,7 +9020,7 @@ xfuture* xrtNetResolveAsync(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Future：成功值 `xnetaddrlist*`（Future 持有），失败值 `xerror` | — |
 | `NULL` | 提交失败（同 `ResolverResolve`）或 Future 分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -9063,7 +9063,7 @@ uint32 xrtNetInterfaceIndex(cstr sName, xnetfamily Family);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非 `0` | 接口索引 | — |
 | `0` | 未找到或系统查询失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -9109,7 +9109,7 @@ size_t xrtNetInterfaceName(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
 | `0` | 索引未找到 | 错误经 `xrtGetError()` 报告 |
 
@@ -9149,7 +9149,7 @@ bool xrtNetInterfaces(xnetinterfacelist* pList);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 快照已写入（`Items`/`Count` 与每接口地址数组） | — |
 | `false` | 参数非法或系统查询/分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -9222,7 +9222,7 @@ bool xrtNetLocalAddress(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写入偏好地址 | — |
 | `false` | 参数非法或无可用地址 | 错误经 `xrtGetError()` 报告 |
 
@@ -9266,7 +9266,7 @@ size_t xrtNetLocalAddressText(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
 | `XRT_NPOS` | 无可用本机地址 | 错误经 `xrtGetError()` 报告（`NOT_FOUND` 族） |
 
@@ -9304,7 +9304,7 @@ str xrtNetLocalAddressString(xnetfamily Family);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
 | `NULL` | 无可用地址或分配失败 | 不设置线程错误（查询语义） |
 
@@ -9343,7 +9343,7 @@ size_t xrtNetLocalHardware(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 所需字节数（典型 MAC 为 6）；缓冲足够时已写入 | — |
 | `0` | 无可用硬件地址 | 错误经 `xrtGetError()` 报告 |
 
@@ -9385,7 +9385,7 @@ size_t xrtNetLocalHardwareText(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 不含结尾零的所需长度（6 字节 MAC 为 12 字符） | — |
 | `0` | 无可用硬件地址 | 错误经 `xrtGetError()` 报告 |
 
@@ -9423,7 +9423,7 @@ str xrtNetLocalHardwareString(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
 | `NULL` | 无可用硬件地址或分配失败（如纯回环环境） | 不设置线程错误（查询语义） |
 
@@ -9462,7 +9462,7 @@ size_t xrtNetHostName(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
 | `0` | 系统查询失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -9500,7 +9500,7 @@ str xrtNetHostNameString(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
 | `NULL` | 系统查询或分配失败 | 不设置线程错误（查询语义） |
 

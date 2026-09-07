@@ -544,7 +544,7 @@ xreader* xrtReaderCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 自定义 Reader | — |
 | `NULL` | 参数错误或 OOM | 所有权不变 |
 
@@ -579,7 +579,7 @@ xreader* xrtReaderFromMemory(xbytesview Data);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 可定位 Reader（Size/Tell/Seek 全支持） | — |
 | `NULL` | 参数错误或 OOM | — |
 
@@ -614,7 +614,7 @@ xreader* xrtReaderFromBuffer(const xbuffer* pBuffer);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 可定位 Reader | — |
 | `NULL` | 参数错误或 OOM | — |
 
@@ -649,7 +649,7 @@ xreader* xrtReaderTakeBuffer(xbuffer** ppBuffer);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Reader（拥有 Buffer） | — |
 | `NULL` | 参数错误或 OOM | 所有权不变 |
 
@@ -684,7 +684,7 @@ xreader* xrtReaderFromFile(xfile File);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 可定位 Reader | — |
 | `NULL` | 参数错误或 OOM | — |
 
@@ -719,7 +719,7 @@ xreader* xrtReaderTakeFile(xfile* pFile);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Reader（拥有文件） | — |
 | `NULL` | 参数错误或 OOM | 所有权不变 |
 
@@ -754,7 +754,7 @@ xreader* xrtReaderOpen(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Reader（拥有内部打开的文件） | — |
 | `NULL` | 打开失败 | `xrt.io` 域错误 |
 
@@ -800,7 +800,7 @@ bool xrtReaderRead(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已读取（可短读；零 = EOF） | — |
 | `false` | 参数或底层错误 | `*pRead` 语义不定 |
 
@@ -842,7 +842,7 @@ bool xrtReaderReadFull(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 缓冲已填满 | — |
 | `false` | 提前 EOF 或底层错误 | `*pRead` 保留 |
 
@@ -882,7 +882,7 @@ bool xrtReaderCopy(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已复制到 EOF | — |
 | `false` | 底层错误 | `*pCopied` 保留 |
 
@@ -924,7 +924,7 @@ bool xrtReaderCopyN(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已复制 iSize 字节 | — |
 | `false` | 提前 EOF 或错误 | `*pCopied` 保留 |
 
@@ -966,7 +966,7 @@ bool xrtReaderCopyLimit(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | EOF 且未超限 | — |
 | `false` | 超限或错误 | 超限时 `*pCopied` 为 iLimit+1 |
 
@@ -1002,7 +1002,7 @@ xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 拥有全部剩余内容的 Buffer | — |
 | `NULL` | 超限、OOM 或读取失败 | — |
 
@@ -1049,7 +1049,7 @@ bool xrtReaderSeek(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 游标已移动、EOF 解锁 | — |
 | `false` | 不支持或越界 | — |
 
@@ -1089,7 +1089,7 @@ bool xrtReaderTell(xreader* pReader, uint64* pPosition);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 位置已写出 | — |
 | `false` | 不支持或参数错误 | — |
 
@@ -1125,7 +1125,7 @@ bool xrtReaderSize(xreader* pReader, uint64* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 大小已写出 | — |
 | `false` | 不支持或参数错误 | — |
 
@@ -1160,7 +1160,7 @@ bool xrtReaderCanSeek(const xreader* pReader);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 支持 Seek/Tell | — |
 | `false` | 不支持或参数错误 | 纯查询 |
 
@@ -1194,7 +1194,7 @@ bool xrtReaderCanSize(const xreader* pReader);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 支持 Size | — |
 | `false` | 不支持或参数错误 | 纯查询 |
 
@@ -1228,7 +1228,7 @@ bool xrtReaderEOF(const xreader* pReader);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | EOF 已锁定 | — |
 | `false` | 未观察或参数错误 | 纯查询 |
 
@@ -1265,7 +1265,7 @@ bool xrtReaderDestroy(xreader* pReader);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Close 成功且已释放 | — |
 | `false` | Close 失败（对象仍释放） | 错误经 `xrtGetError()` 报告 |
 
@@ -1306,7 +1306,7 @@ xlinereader* xrtLineReaderCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Line Reader | — |
 | `NULL` | 参数错误或 OOM | — |
 
@@ -1345,7 +1345,7 @@ xlinereader* xrtLineReaderTake(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Line Reader（拥有底层） | — |
 | `NULL` | 参数错误或 OOM | 所有权不变 |
 
@@ -1384,7 +1384,7 @@ xlinenext xrtLineReaderNext(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XLINE_NEXT_LINE` | 一行已发布 | — |
 | `XLINE_NEXT_END` | EOF | 不设错 |
 | `XLINE_NEXT_ERROR` | 超限或读取失败 | 对象锁定失败态 |
@@ -1419,7 +1419,7 @@ bool xrtLineReaderDestroy(xlinereader* pLines);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已释放（接管模式含底层） | — |
 | `false` | 底层 Close 失败（仍释放） | 错误经 `xrtGetError()` 报告 |
 
@@ -1460,7 +1460,7 @@ xwriter* xrtWriterCreate(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 自定义 Writer | — |
 | `NULL` | 参数错误或 OOM | 所有权不变 |
 
@@ -1496,7 +1496,7 @@ xwriter* xrtWriterFromMemory(ptr pData, size_t iCapacity);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 可定位 Writer | — |
 | `NULL` | 参数错误或 OOM | — |
 
@@ -1534,7 +1534,7 @@ xwriter* xrtWriterDiscard(void);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 丢弃型 Writer | — |
 | `NULL` | OOM | `XERR_MEMORY` |
 
@@ -1568,7 +1568,7 @@ xwriter* xrtWriterFromBuffer(xbuffer* pBuffer);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Writer（追加语义） | — |
 | `NULL` | 参数错误或 OOM | — |
 
@@ -1603,7 +1603,7 @@ xwriter* xrtWriterFromFile(xfile File);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Writer | — |
 | `NULL` | 参数错误或 OOM | — |
 
@@ -1638,7 +1638,7 @@ xwriter* xrtWriterTakeFile(xfile* pFile);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Writer（拥有文件） | — |
 | `NULL` | 参数错误或 OOM | 所有权不变 |
 
@@ -1673,7 +1673,7 @@ xwriter* xrtWriterOpen(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | Writer（拥有内部打开的文件） | — |
 | `NULL` | 打开失败 | `xrt.io` 域错误 |
 
@@ -1708,7 +1708,7 @@ xwriter* xrtWriterOpenAppend(cstr sPath);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 追加语义 Writer | — |
 | `NULL` | 打开失败 | `xrt.io` 域错误 |
 
@@ -1754,7 +1754,7 @@ bool xrtWriterWrite(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已写入（可短写；零进展拒绝） | — |
 | `false` | 参数或底层错误 | — |
 
@@ -1796,7 +1796,7 @@ bool xrtWriterWriteFull(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 全部写入 | — |
 | `false` | 底层错误 | `*pWritten` 保留 |
 
@@ -1830,7 +1830,7 @@ bool xrtWriterFlush(xwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已刷新（或无回调） | — |
 | `false` | 底层错误 | — |
 
@@ -1868,7 +1868,7 @@ bool xrtWriterWriteBuffer(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已完整写入 | — |
 | `false` | 参数或底层错误 | — |
 
@@ -1915,7 +1915,7 @@ bool xrtWriterSeek(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 游标已移动 | — |
 | `false` | 不支持或越界 | — |
 
@@ -1951,7 +1951,7 @@ bool xrtWriterTell(xwriter* pWriter, uint64* pPosition);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 位置已写出 | — |
 | `false` | 不支持或参数错误 | — |
 
@@ -1987,7 +1987,7 @@ bool xrtWriterSize(xwriter* pWriter, uint64* pSize);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 大小已写出 | — |
 | `false` | 不支持或参数错误 | — |
 
@@ -2022,7 +2022,7 @@ bool xrtWriterCanSeek(const xwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 支持 Seek/Tell | — |
 | `false` | 不支持或参数错误 | 纯查询 |
 
@@ -2056,7 +2056,7 @@ bool xrtWriterCanSize(const xwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 支持 Size | — |
 | `false` | 不支持或参数错误 | 纯查询 |
 
@@ -2090,7 +2090,7 @@ bool xrtWriterDestroy(xwriter* pWriter);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Close 成功且已释放 | — |
 | `false` | Close 失败（对象仍释放） | 错误经 `xrtGetError()` 报告 |
 

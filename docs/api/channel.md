@@ -161,7 +161,7 @@ bool xrtChannelInit(xchannel* pChannel, size_t iCapacity);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Channel 已就绪；`Unit` 释放 | — |
 | `false` | 参数非法或容量溢出 | 结构清零；错误经 `xrtGetError()` 报告 |
 
@@ -204,7 +204,7 @@ bool xrtChannelInitBuffer(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | Channel 已就绪，不分配消息区 | — |
 | `false` | 参数非法 | 结构不变；错误经 `xrtGetError()` 报告 |
 
@@ -240,7 +240,7 @@ xchannel* xrtChannelCreate(size_t iCapacity);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | 非空 | 堆分配的 Channel；`Destroy` 释放 | — |
 | `NULL` | 参数非法或分配失败 | 错误经 `xrtGetError()` 报告 |
 
@@ -277,7 +277,7 @@ bool xrtChannelUnit(xchannel* pChannel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 内部资源已释放，对象可弃置或重新 `Init` | — |
 | `false` | 参数非法或仍有等待者/挂起值 | 对象保留；错误经 `xrtGetError()` 报告 |
 
@@ -312,7 +312,7 @@ bool xrtChannelDestroy(xchannel* pChannel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 全部资源与结构已释放 | — |
 | `false` | 同 `Unit` 的失败条件 | 对象保留，可重试；错误经 `xrtGetError()` 报告 |
 
@@ -361,7 +361,7 @@ xchannelresult xrtChannelTrySend(xchannel* pChannel, ptr pItem);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XCHANNEL_OK` | 已提交（有缓冲入环，或 rendezvous 已配对） | — |
 | `XCHANNEL_FULL` | 缓冲已满，值仍归调用方 | 不设置错误 |
 | `XCHANNEL_CLOSED` | 发送端已关闭 | 不设置错误 |
@@ -402,7 +402,7 @@ xchannelresult xrtChannelTryRecv(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XCHANNEL_OK` | 已取得一个值写入 `*pItem` | — |
 | `XCHANNEL_EMPTY` | 暂无可接收值 | 不设置错误 |
 | `XCHANNEL_CLOSED` | 已关闭且已排空 | 不设置错误 |
@@ -469,7 +469,7 @@ xwaitresult xrtChannelSend(xchannel* pChannel, ptr pItem);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
 | `XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
@@ -512,7 +512,7 @@ xwaitresult xrtChannelSendFor(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_TIMEOUT` | 到期未提交，值仍归调用方 | 不设置错误 |
 | `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
@@ -557,7 +557,7 @@ xwaitresult xrtChannelSendUntil(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_TIMEOUT` | 到期未提交 | 不设置错误 |
 | `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
@@ -596,7 +596,7 @@ xwaitresult xrtChannelRecv(xchannel* pChannel, ptr* pItem);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值写入 `*pItem` | — |
 | `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
 | `XWAIT_ERROR` | 参数或状态错误 | 输出未写入；错误经 `xrtGetError()` 报告 |
@@ -639,7 +639,7 @@ xwaitresult xrtChannelRecvFor(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值 | — |
 | `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
 | `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
@@ -685,7 +685,7 @@ xwaitresult xrtChannelRecvUntil(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值 | — |
 | `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
 | `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
@@ -733,7 +733,7 @@ xwaitresult xrtChannelSendCancel(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_CANCELLED` | 提交前被令牌中断，值仍归调用方 | 不设置错误 |
 | `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
@@ -777,7 +777,7 @@ xwaitresult xrtChannelSendForCancel(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_TIMEOUT` | 到期未提交 | 不设置错误 |
 | `XWAIT_CANCELLED` | 提交前被令牌中断 | 不设置错误 |
@@ -822,7 +822,7 @@ xwaitresult xrtChannelSendUntilCancel(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_TIMEOUT` | 到期未提交 | 不设置错误 |
 | `XWAIT_CANCELLED` | 提交前被令牌中断 | 不设置错误 |
@@ -866,7 +866,7 @@ xwaitresult xrtChannelRecvCancel(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值 | — |
 | `XWAIT_CANCELLED` | 完成前被令牌中断，输出未写入 | 不设置错误 |
 | `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
@@ -910,7 +910,7 @@ xwaitresult xrtChannelRecvForCancel(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值 | — |
 | `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
 | `XWAIT_CANCELLED` | 完成前被令牌中断 | 不设置错误 |
@@ -956,7 +956,7 @@ xwaitresult xrtChannelRecvUntilCancel(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值 | — |
 | `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
 | `XWAIT_CANCELLED` | 完成前被令牌中断 | 不设置错误 |
@@ -995,7 +995,7 @@ size_t xrtChannelCount(xchannel* pChannel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 当前缓冲元素数；容量 0 恒为 0 | — |
 | `0` | 空通道或参数/状态非法 | 非法时错误经 `xrtGetError()` 报告 |
 
@@ -1031,7 +1031,7 @@ size_t xrtChannelCapacity(xchannel* pChannel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 精确容量（同步 Channel 为 0） | — |
 | `0` | 容量 0 或参数/状态非法 | 非法时错误经 `xrtGetError()` 报告 |
 
@@ -1067,7 +1067,7 @@ bool xrtChannelIsClosed(xchannel* pChannel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已 `Close` | — |
 | `false` | 未关闭或参数/状态非法 | 非法时错误经 `xrtGetError()` 报告 |
 
@@ -1106,7 +1106,7 @@ bool xrtChannelIsDrained(xchannel* pChannel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 已关闭且缓冲已排空 | — |
 | `false` | 未关闭、仍有值，或参数/状态非法 | 非法时错误经 `xrtGetError()` 报告 |
 
@@ -1178,7 +1178,7 @@ size_t xrtChannelDrain(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `>= 0` | 移除并交给回调的值数量；回调新发送的值不计入 | — |
 | `0` | 无值或参数/状态非法 | 非法时错误经 `xrtGetError()` 报告 |
 
@@ -1215,7 +1215,7 @@ bool xrtChannelReset(xchannel* pChannel);
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `true` | 关闭状态清除，容量保留，可重新使用 | — |
 | `false` | 非空、有挂起值或有 Select 等待者 | 状态不变；错误经 `xrtGetError()` 报告 |
 
@@ -1277,7 +1277,7 @@ xchannelcase xrtChannelCaseSend(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | case 值 | 只描述操作，不持有 Channel 或消息所有权 | — |
 
 #### 范例
@@ -1310,7 +1310,7 @@ xchannelcase xrtChannelCaseRecv(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | case 值 | 输出只在 case 被选中时写入 | — |
 
 #### 范例
@@ -1343,7 +1343,7 @@ xchannelselectresult xrtChannelSelectTry(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Wait == XWAIT_OK` | 有 case 立即提交；`Index` 为其下标，`Result` 为其 Channel 结果 | — |
 | `Wait == XWAIT_TIMEOUT` | 无 case 可立即提交；`Index == XCHANNEL_SELECT_NONE` | 不设置错误 |
 | `Wait == XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
@@ -1384,7 +1384,7 @@ xchannelselectresult xrtChannelSelect(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Wait == XWAIT_OK` | 某 case 已提交；`Index` 与 `Result` 有效 | — |
 | `Wait == XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
 
@@ -1427,7 +1427,7 @@ xchannelselectresult xrtChannelSelectFor(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Wait == XWAIT_OK` | 某 case 已提交 | — |
 | `Wait == XWAIT_TIMEOUT` | 到期无 case 提交 | 不设置错误 |
 | `Wait == XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
@@ -1470,7 +1470,7 @@ xchannelselectresult xrtChannelSelectUntil(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Wait == XWAIT_OK` | 某 case 已提交 | — |
 | `Wait == XWAIT_TIMEOUT` | 到期无 case 提交 | 不设置错误 |
 | `Wait == XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
@@ -1515,7 +1515,7 @@ xchannelselectresult xrtChannelSelectUntilCancel(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Wait == XWAIT_OK` | 某 case 已提交 | — |
 | `Wait == XWAIT_TIMEOUT` | 到期无 case 提交 | 不设置错误 |
 | `Wait == XWAIT_CANCELLED` | 提交前被令牌中断 | 不设置错误 |
@@ -1582,7 +1582,7 @@ xwaitresult xrtChannelSendAwait(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
 | `XWAIT_ERROR` | 参数/状态错误，或不在调度协程中 | 错误经 `xrtGetError()` 报告 |
@@ -1628,7 +1628,7 @@ xwaitresult xrtChannelSendAwaitFor(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_TIMEOUT` | 到期未提交 | 不设置错误 |
 | `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
@@ -1670,7 +1670,7 @@ xwaitresult xrtChannelSendAwaitUntil(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已提交 | — |
 | `XWAIT_TIMEOUT` | 到期未提交 | 不设置错误 |
 | `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
@@ -1710,7 +1710,7 @@ xwaitresult xrtChannelRecvAwait(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值 | — |
 | `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
 | `XWAIT_ERROR` | 参数/状态错误或非协程上下文 | 输出未写入；错误经 `xrtGetError()` 报告 |
@@ -1752,7 +1752,7 @@ xwaitresult xrtChannelRecvAwaitFor(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值 | — |
 | `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
 | `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
@@ -1794,7 +1794,7 @@ xwaitresult xrtChannelRecvAwaitUntil(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `XWAIT_OK` | 已取得值 | — |
 | `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
 | `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
@@ -1834,7 +1834,7 @@ xchannelselectresult xrtChannelSelectAwait(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Wait == XWAIT_OK` | 某 case 已提交；`Index` 与 `Result` 有效 | — |
 | `Wait == XWAIT_ERROR` | 参数/状态错误或非协程上下文 | 错误经 `xrtGetError()` 报告 |
 
@@ -1877,7 +1877,7 @@ xchannelselectresult xrtChannelSelectAwaitFor(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Wait == XWAIT_OK` | 某 case 已提交 | — |
 | `Wait == XWAIT_TIMEOUT` | 到期无 case 提交 | 不设置错误 |
 | `Wait == XWAIT_ERROR` | 参数/状态错误或非协程上下文 | 错误经 `xrtGetError()` 报告 |
@@ -1919,7 +1919,7 @@ xchannelselectresult xrtChannelSelectAwaitUntil(
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
-|---|---|---|---|
+|---|---|---|
 | `Wait == XWAIT_OK` | 某 case 已提交 | — |
 | `Wait == XWAIT_TIMEOUT` | 到期无 case 提交 | 不设置错误 |
 | `Wait == XWAIT_ERROR` | 参数/状态错误或非协程上下文 | 错误经 `xrtGetError()` 报告 |
