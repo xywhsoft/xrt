@@ -35,7 +35,7 @@
 | P21 | 卷十一·xssh：传输与包层/kex/hostkey/认证/通道/端口转发/客户端运行时 | 7 | ✅ 完成 |
 | P22 | 卷十一·xmail：SMTP/IMAP/POP3/MIME/组合收发 | 5 | ✅ 完成 |
 | P23 | 卷十一·xruntime：类型系统/对象图/动态调用/typed 容器 | 4 | ✅ 完成（卷十一 20 章收官） |
-| P24 | 卷十二·工程实践：build/trim/package/testing/embed/perf + 性能分析方法章 + OOM 与故障注入测试章 | 8 | ⬜ |
+| P24 | 卷十二·工程实践：build/trim/package/testing/embed/perf + 性能分析方法章 + OOM 与故障注入测试章 | 8 | ✅ 完成（卷十二 8 章收官） |
 | P25 | 卷十三·项目上：CLI 工具/配置服务/聊天服务（设计+实现） | 5 | ⬜ |
 | P26 | 卷十三·项目下：下载器/WebSocket 服务 + 全书收官 | 5 | ⬜ |
 | P27 | 收尾：index.html 目录全量重建、卷导言核对、全站链接校验、漂移总报告、CI 接线 | — | ⬜ |
