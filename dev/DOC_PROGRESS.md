@@ -24,7 +24,7 @@
 | 17 | executor.md | 10 | **完成** | 10/10 全绿（G3 10 片段，2026-09-07）；双门禁一次全绿 |
 | 18 | file.md | 97 | **完成** | 97/97 全绿（G3 97 片段，2026-09-07）；三段：IO/文本 36 + 锁/映射/目录 37 + 遍历/链接/根 24 |
 | 19 | file_async.md | 34 | **完成** | 34/34 全绿（G3 34 片段，2026-09-07）；七组：文件对象 4 + 定位读写 5 + 大小 3 + 整文件 5 + 管理 3 + 目录 6 + 目录树 8 |
-| 20 | future.md | 104 | 待办 |  |
+| 20 | future.md | 104 | 进行中 [1/3 段] | 第 1 段核心 44/104 全绿（G3 41 片段）；余 bridge 8 + TLS listener/dial 21 + TLS stream 31 |
 | 21 | hash.md | 9 | 待办 |  |
 | 22 | html.md | 3 | 待办 |  |
 | 23 | http.md | 167 | 待办 |  |
@@ -373,3 +373,17 @@
   未进目录树组，missing-section 报出后定点补插）。
   锚点：async_tour 21 + async 5 + whole/manage/dir_async/
   tree_async 专项。五文件复验无回归。
+- 2026-09-07 future.md 第 1 段（核心 44 节）完成：创建/生命周期 5、
+  状态与结果 5、取消 4（Future 请求 vs Promise 发布终态的两段式）、
+  Promise 完成族 6（Resolve 借用 vs ResolveOwned 移交"失败不偷
+  引用"、Reject 增引用、Forward 透传、Close 关闭终态）、Watch 4
+  （调用方 64 字节存储无分配；Add 的 READY=不接管不执行 Release、
+  Detach 同步 Release、Remove 禁止自通知调用）、同步等待 4、
+  协程等待 3、组合器 3（Any pick/All 保序借用/Race 取消其余）、
+  延续 9（Continue 任意终态/Then 成功/Catch 失败/Finally 观察
+  透传 × 借用与 Owned 双形态 + CancelSource 独占源变体）。
+  门禁两次拦截：组合器片段实参 "2" 被写成 "2u"（G3）；Await 三节
+  被边界 bug 吞失（missing-section 报出后补插）。锚点跨 10 个已
+  注册范例（future_tour 25 + combine 8 + worker/report/
+  resolver_future/tcp_server_sync 等真实场景）。G1/G2 余 63 =
+  第 2/3 段缺口。array 抽查无回归。
