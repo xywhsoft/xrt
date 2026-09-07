@@ -24,7 +24,7 @@
 | P15 卷八TLS下 | ✅ 完成 | 3 | 15,847 |
 | P16 卷九HTTP核心 | ✅ 完成 | 5 | 22,879 |
 | P17 卷九WebSocket | ✅ 完成 | 4 | 18,724 |
-| P18 卷十xhttp客户端 | 🔄 进行中 | 0 | — |
+| P18 卷十xhttp客户端 | ✅ 完成 | 6 | 28,006 |
 | P19–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -82,6 +82,12 @@
 | 94 | 94-ws-frame.md | practice | 4,611 | 2 | 1 | 3 | 3 | P17 |
 | 95 | 95-ws-stream.md | practice | 4,693 | 2 | 1 | 3 | 3 | P17 |
 | 96 | 96-ws-composition.md | practice | 4,894 | 2 | 2 | 3 | 3 | P17 |
+| 97 | 97-xhttp-easy.md | practice | 4,667 | 2 | 1 | 3 | 3 | P18 |
+| 98 | 98-xhttp-runtime.md | practice | 4,946 | 2 | 1 | 3 | 3 | P18 |
+| 99 | 99-xhttp-redirect.md | practice | 4,402 | 2 | 1 | 3 | 3 | P18 |
+| 100 | 100-xhttp-cache.md | practice | 4,703 | 2 | 1 | 3 | 3 | P18 |
+| 101 | 101-xhttp-url.md | practice | 5,290 | 2 | 1 | 3 | 3 | P18 |
+| 102 | 102-xhttp-query.md | practice | 4,998 | 2 | 1 | 3 | 3 | P18 |
 
 
 
@@ -89,6 +95,28 @@
 
 
 
+
+
+## P18 阶段记录
+
+- 卷十 xhttp 客户端 6 章：ch97 easy（无第二实现的便利层/三入口三形态/
+  正文语义分界/故意不接受边界）、ch98 运行时（构建器冻结语义/两类截止时间/
+  双限额/Info 诊断/origin 分片连接池）、ch99 自动行为（重定向方法语义与
+  凭据边界/幂等重试三条件/Cookie Jar 挂载）、ch100 自动缓存（四模式/
+  存储契约/条件提交/Range 组合/分区键）、ch101 URL 解析（RFC 3986 全形态/
+  存在位/端口词法/引用展开）、ch102 查询与表单（新增章：零分配遍历四形态/
+  容器四动词/编码层/multipart 双形态）。
+- 基础设施（规范变更流程）：符号表扩展到 extlibs/*/include/xrt（SPEC 7.1
+  同步修订）；用户宏白名单加 XHTTP/XWS 前缀并扫 extlibs features.h；
+  品牌词加 xlang。扩展后既有 95 章全绿不变——门禁红线未降，扫描面更全。
+- 全书第十七次重编号：插入 xhttp-query（102），23 文件 +1，全书 125 章；
+  卷十 97-105 九章骨架（P18 完成 97-102 客户端侧）。
+- 门禁拦下：ref 页名带 xhttp- 前缀（api 字段改 xhttp-*）、
+  xrtHttpRequestSetMethodUrl 真名 SetMethod+SetUrl、xhttpclientredirectoptions
+  实为 xhttpcalloptions 字段、xhttpcookiejar 真名 xcookiejar、
+  XURL_HAS_* 通配改具体、xrtFormData* 通配展开、XHTTP_MODULE_HTTP_CLIENT_EASY
+  等 17 个真宏（白名单扩展后放行）。
+- 行文章号修正 6 处（testing→117、perf→119）。
 
 ## P17 阶段记录
 
