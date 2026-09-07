@@ -53,6 +53,9 @@ typedef enum xseek {
 
 ### `xrtresourcelimits`
 
+资源限额结构：限制输入/输出/单项字节数、条目数、节点数、深度与压缩比；`iFlags` 启用符号链接/硬链接/设备文件/外部实体的放行位。结构带 `iSize`/`iVersion` 前向兼容字段，未指定字段保持零值。
+
+
 ```c
 typedef struct xrtresourcelimits {
 	uint32 iSize;
@@ -85,6 +88,9 @@ typedef struct xrtresourcelimits {
 
 ### `xrtprogressflag`
 
+进度事件标志：`TOTAL_KNOWN` 表示总输入量已知，`FINAL` 表示本次事件为最后一次。
+
+
 ```c
 typedef enum xrtprogressflag {
 	XRT_PROGRESS_TOTAL_KNOWN = 1u << 0,
@@ -97,6 +103,9 @@ typedef enum xrtprogressflag {
 | `XRT_PROGRESS_TOTAL_KNOWN` | XRTPROGRESSTOTALKNOWN |
 
 ### `xrtprogress`
+
+长耗时流操作共用的进度事件（带 `iSize`/`iVersion` 前向兼容字段）；回调仅在发起操作的线程内同步调用。
+
 
 ```c
 typedef struct xrtprogress {
@@ -297,6 +306,9 @@ typedef ptr (*xallocproc)(ptr pContext, size_t iSize);
 
 ### `xreallocproc`
 
+底层分配器的重分配回调：把 `pMemory` 调整为 `iSize` 字节，失败返回 `NULL`；`pMemory == NULL` 等价分配，`iSize == 0` 等价释放。
+
+
 ```c
 typedef ptr (*xreallocproc)(ptr pContext, ptr pMemory, size_t iSize);
 ```
@@ -304,6 +316,9 @@ typedef ptr (*xreallocproc)(ptr pContext, ptr pMemory, size_t iSize);
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
 ### `xfreeproc`
+
+底层分配器的释放回调：释放 `pMemory`；`pMemory == NULL` 应为空操作。
+
 
 ```c
 typedef void (*xfreeproc)(ptr pContext, ptr pMemory);

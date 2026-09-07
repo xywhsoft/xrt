@@ -323,6 +323,9 @@ typedef struct xtemplate xtemplate;
 
 ### `xtemplateregistry`
 
+扩展注册表（不透明）：不可变且可跨线程共享，持有扩展定义与被接管的用户数据。
+
+
 ```c
 typedef struct xtemplateregistry xtemplateregistry;
 ```
@@ -330,6 +333,9 @@ typedef struct xtemplateregistry xtemplateregistry;
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
 ### `xtemplatecall`
+
+扩展调用上下文（不透明）：渲染期间传给扩展回调，提供参数、作用域值与渲染出口。
+
 
 ```c
 typedef struct xtemplatecall xtemplatecall;
