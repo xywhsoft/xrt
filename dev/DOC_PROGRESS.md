@@ -83,7 +83,7 @@
 | 76 | websocket.md | 104 | 待办 |  |
 | 77 | x509.md | 89 | 待办 |  |
 | 78 | xid.md | 11 | **完成** | 11/11 全绿（G3 11 片段，2026-09-07）；生成/文本/时间比较三组；系统随机源 IO、Write 容量 33 字节、ErrorOffset 定位器；锚点 xid/xid_batch |
-| 79 | xson.md | 35 | 待办 |  |
+| 79 | xson.md | 35 | **完成** | 35/35 全绿（G3 35 片段，2026-09-07）；读取/DOM/事件/写出/writer 22/文件/错误八组；WriterTake 未 Finish = STATE；锚点 xson/xson_tour |
 
 ## 记录
 
@@ -781,4 +781,9 @@
   Parse 失败不改输出且字节位置可由 ErrorOffset 读取、Compare/Equal/
   IsZero 纯比较不设错。
   完成 API 3041→3052/3664（83.4%），74/79 文件。
+- 2026-09-07 xson.md 完成（35/35，G3 35 片段全绿）：八组；契约——
+  Writer 族容器顺序/预算 = xrt.xson 域错误、Take 在未 Finish 或 sink
+  写入器上 = XERR_STATE、StringifyFile/WriteFile 原子替换、文件族
+  超输入上限 = xrt.file 域错误。
+  完成 API 3052→3087/3664（84.3%），75/79 文件。
 

@@ -126,6 +126,41 @@ bool xrtXsonErrorLocation(
 `Offset` 是零基 UTF-8 字节偏移，行列从 1 开始。函数只读取机器数据，不修改
 当前错误；错误域不匹配或错误没有位置时返回 `false`。
 
+### `xrtXsonErrorLocation`
+
+从 `xrt.xson` 错误的机器数据中读取文本位置。
+
+```c
+bool xrtXsonErrorLocation(const xerror* pError, xxsonlocation* pLocation)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pError` | 输入 | 非空、`xrt.xson` 域 | 解析/写出错误 |
+| `pLocation` | 输出 | 非空 | 接收文本位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出位置 | — |
+| `false` | 错误不含位置数据 | 不设错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 无位置数据返回 `false` 且不设置错误
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 错误定位
+
+```c
+			!xrtXsonErrorLocation(pError, &Location) ||
+```
+
 ## 读取配置
 
 ```c
@@ -179,6 +214,38 @@ void xrtXsonReadConfigInit(xxsonreadconfig* pConfig);
 `XXSON_EVENT_CUSTOM`；DOM 解析还要求 `Decode` 返回一个拥有引用，解析器成功挂入
 后接管该引用。解码器失败返回 `NULL`，并应设置业务错误。`Reserved` 必须保持零。
 
+### `xrtXsonReadConfigInit`
+
+初始化严格语法、拒绝重复键和有限资源预算。
+
+```c
+void xrtXsonReadConfigInit(xxsonreadconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 读取配置
+
+```c
+	xrtXsonReadConfigInit(&ReadConfig);
+```
+
 ## DOM 读取
 
 ```c
@@ -208,6 +275,115 @@ bool xrtXsonValid(xstrview Text);
 | `set[...]` | `XVALUE_SET` |
 | `{...}` | `XVALUE_OBJECT` |
 | custom tag | 由 `Decode` 决定 |
+
+### `xrtXsonParse`
+
+使用默认严格配置解析一个完整 XSON 文本。
+
+```c
+xvalue* xrtXsonParse(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | XSON 文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Value DOM 根，用后 `xrtValueFree` 释放 | — |
+| `NULL` | 解析失败 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 语法或结构非法，位置可由 `xrtXsonErrorLocation` 读取
+- `xrt.xson` 域错误 — 超出嵌套深度或资源预算
+- `XERR_MEMORY` — DOM 或缓冲分配失败
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 默认解析
+
+```c
+	pRoot = xrtXsonParse((xstrview){ sInput, sizeof(sInput) - 1u });
+```
+
+### `xrtXsonRead`
+
+使用高级配置解析一个完整 XSON 文本。
+
+```c
+xvalue* xrtXsonRead(xstrview Text, const xxsonreadconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | XSON 文本 |
+| `pConfig` | 输入 | 允许空 | 读取配置，空 = 默认 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Value DOM 根，用后 `xrtValueFree` 释放 | — |
+| `NULL` | 解析失败 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 语法或结构非法，位置可由 `xrtXsonErrorLocation` 读取
+- `xrt.xson` 域错误 — 超出嵌套深度或资源预算
+- `XERR_MEMORY` — DOM 或缓冲分配失败
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 高级配置解析
+
+```c
+		((pDom = xrtXsonRead(XRT_STR_LITERAL(
+			"{\"n\":7}"), &ReadConfig)) == NULL) ) {
+```
+
+### `xrtXsonValid`
+
+验证默认 XSON 语法和内建标签，不构造 Value DOM。
+
+```c
+bool xrtXsonValid(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | XSON 文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 语法合法 | — |
+| `false` | 语法非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 语法或结构非法，位置可由 `xrtXsonErrorLocation` 读取
+- `xrt.xson` 域错误 — 超出嵌套深度或资源预算
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 语法校验
+
+```c
+	if ( xrtXsonValid((xstrview) { sBad, 6u }) ||
+		!xrtXsonValid(XRT_STR_LITERAL("[1,2,3]")) ||
+		((pDom = xrtXsonRead(XRT_STR_LITERAL(
+			"{\"n\":7}"), &ReadConfig)) == NULL) ) {
+```
 
 ## 事件访问
 
@@ -291,6 +467,50 @@ xxsonvisitresult xrtXsonVisit(
 `STOP` 是正常提前完成。`FAIL` 应先设置具体业务错误；没有新错误时 XSON 层建立
 `XXSON_ERROR_STATE`。
 
+### `xrtXsonVisit`
+
+直接访问解析事件，不构造中间 DOM。
+
+```c
+xxsonvisitresult xrtXsonVisit(xstrview Text, const xxsonreadconfig* pConfig, xxsonvisitproc pVisitor, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | XSON 文本 |
+| `pConfig` | 输入 | 允许空 | 读取配置，空 = 默认 |
+| `pVisitor` | 输入 | 非空 | 事件回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XXSON_VISIT_OK` | 已完整遍历 | — |
+| `XXSON_VISIT_STOP` | 回调请求停止 | 不设错误 |
+| `XXSON_VISIT_ERROR` | 失败 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.xson` 域错误 — 语法或结构非法，位置可由 `xrtXsonErrorLocation` 读取
+- `xrt.xson` 域错误 — 超出嵌套深度或资源预算
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 事件访问
+
+```c
+		xrtXsonVisit(
+			(xstrview){ sInput, sizeof(sInput) - 1u },
+			&ReadConfig,
+			printXsonEvent,
+			NULL
+		) != XXSON_VISIT_DONE
+```
+
 ## 写出配置
 
 ```c
@@ -347,6 +567,38 @@ Handle 默认失败，`Encode` 可把它们映射为非保留自定义标签。�
 `WriterValue` 仍失败。选择 SKIP 时这些成员不会再进入编码器。`Indent` 范围为
 0 到 16，`Reserved` 必须保持零。
 
+### `xrtXsonWriteConfigInit`
+
+初始化紧凑输出、严格类型和有限输出预算。
+
+```c
+void xrtXsonWriteConfigInit(xxsonwriteconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 写出配置
+
+```c
+	xrtXsonWriteConfigInit(&WriteConfig);
+```
+
 ## DOM 与 sink 写出
 
 ```c
@@ -371,6 +623,160 @@ bool xrtXsonWrite(
 因此 sink 路径不提供事务输出。
 
 Bytes 使用固定小块流式 Base64 编码，不建立第二份等大的 Base64 临时字符串。
+
+### `xrtXsonStringify`
+
+紧凑或美化地序列化 Value，并返回由 `xrtFree` 释放的文本。
+
+```c
+str xrtXsonStringify(const xvalue* pValue, bool bPretty, size_t* pSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 源 Value |
+| `bPretty` | 输入 | — | 是否美化 |
+| `pSize` | 输出 | 允许空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.xson` 域错误等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_MEMORY` — 输出缓冲分配失败
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 序列化
+
+```c
+	sText = xrtXsonStringify(pRoot, true, &iSize);
+```
+
+### `xrtXsonWrite`
+
+使用高级配置把 Value 同步写入调用方输出回调。
+
+```c
+bool xrtXsonWrite(const xvalue* pValue, const xxsonwriteconfig* pConfig, xxsonwriteproc pWrite, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | 源 Value |
+| `pConfig` | 输入 | 允许空 | 写出配置，空 = 默认 |
+| `pWrite` | 输入 | 非空 | 输出回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已完整写出 | — |
+| `false` | 失败 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 内部缓冲分配失败
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 回调写出
+
+```c
+	if ( !xrtXsonWrite(pDom, &WriteConfig, exampleSink,
+			(ptr)&Sink) ||
+		(Sink.iBytes != 7u) ) { /* {"n":7} 恰七字节。 */
+```
+
+### `xrtXsonStringifyFile`
+
+紧凑或美化地序列化并原子替换 XSON 文件。
+
+```c
+bool xrtXsonStringifyFile(cstr sPath, const xvalue* pValue, bool bPretty)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 目标文件路径 |
+| `pValue` | 输入 | 非空 | 源 Value |
+| `bPretty` | 输入 | — | 是否美化 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已原子写入 | — |
+| `false` | 失败 | `xrt.xson` / `xrt.file` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.file` 域错误 — 临时文件创建或替换失败
+- `xrt.xson` 域错误 — 序列化失败
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 序列化到文件
+
+```c
+		!xrtXsonStringifyFile(sFile, pDom, true) ||
+```
+
+### `xrtXsonWriteFile`
+
+使用高级配置序列化并原子替换 XSON 文件。
+
+```c
+bool xrtXsonWriteFile(cstr sPath, const xvalue* pValue, const xxsonwriteconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 目标文件路径 |
+| `pValue` | 输入 | 非空 | 源 Value |
+| `pConfig` | 输入 | 允许空 | 写出配置，空 = 默认 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已原子写入 | — |
+| `false` | 失败 | `xrt.xson` / `xrt.file` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.file` 域错误 — 临时文件创建或替换失败
+- `xrt.xson` 域错误 — 序列化失败
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 高级配置写文件
+
+```c
+	if ( !xrtXsonWriteFile(sFile, pDom, &WriteConfig) ||
+		!xrtXsonStringifyFile(sFile, pDom, true) ||
+		(xrtXsonParseFile(sFile) == NULL) ) {
+```
 
 ## 增量 writer
 
@@ -419,6 +825,767 @@ Object 必须按 `Name -> Value` 交替写入；IntMap 按 `Key -> Value` 交替
 `Take` 只适用于已完成的内存 writer，只能成功一次，结果由 `xrtFree` 释放。
 sink writer 不支持 `Take`。`Free` 可接收空指针。
 
+### `xrtXsonWriterCreate`
+
+创建把增量结果保存在内存中的 XSON 写入器。
+
+```c
+xxsonwriter* xrtXsonWriterCreate(const xxsonwriteconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 允许空 | 写出配置，空 = 默认 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 写入器 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — DOM 或缓冲分配失败
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 内存写入器
+
+```c
+	pWriter = xrtXsonWriterCreate(&WriteConfig);
+```
+
+### `xrtXsonWriterCreateSink`
+
+创建把增量结果同步提交给回调的 XSON 写入器。
+
+```c
+xxsonwriter* xrtXsonWriterCreateSink(const xxsonwriteconfig* pConfig, xxsonwriteproc pWrite, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 允许空 | 写出配置，空 = 默认 |
+| `pWrite` | 输入 | 非空 | 输出回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 写入器 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — DOM 或缓冲分配失败
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 回调写入器
+
+```c
+	pWriter = xrtXsonWriterCreateSink(&WriteConfig, exampleSink,
+		(ptr)&Sink);
+```
+
+### `xrtXsonWriterFree`
+
+销毁写入器和未移交的内存结果。
+
+```c
+void xrtXsonWriterFree(xxsonwriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 销毁写入器
+
+```c
+		xrtXsonWriterFree(pWriter);
+```
+
+### `xrtXsonWriterObject`
+
+在当前位置开始对象。
+
+```c
+bool xrtXsonWriterObject(xxsonwriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已开始 | — |
+| `false` | 位置或预算非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 开始对象
+
+```c
+		!xrtXsonWriterObject(pWriter) ||
+```
+
+### `xrtXsonWriterArray`
+
+在当前位置开始数组。
+
+```c
+bool xrtXsonWriterArray(xxsonwriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已开始 | — |
+| `false` | 位置或预算非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 开始数组
+
+```c
+		!xrtXsonWriterArray(pWriter) ||
+```
+
+### `xrtXsonWriterIntMap`
+
+在当前位置开始整数键映射。
+
+```c
+bool xrtXsonWriterIntMap(xxsonwriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已开始 | — |
+| `false` | 位置或预算非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 开始整数映射
+
+```c
+		!xrtXsonWriterIntMap(pWriter) ||
+```
+
+### `xrtXsonWriterSet`
+
+在当前位置开始集合。
+
+```c
+bool xrtXsonWriterSet(xxsonwriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已开始 | — |
+| `false` | 位置或预算非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 开始集合
+
+```c
+		!xrtXsonWriterSet(pWriter) ||                     /* 开 set */
+```
+
+### `xrtXsonWriterEnd`
+
+结束最近开始的容器。
+
+```c
+bool xrtXsonWriterEnd(xxsonwriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已结束 | — |
+| `false` | 没有未结束容器 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 没有可结束的容器
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 结束容器
+
+```c
+		!xrtXsonWriterEnd(pWriter) ||                     /* 闭 set */
+```
+
+### `xrtXsonWriterName`
+
+为对象中的下一个值写入字符串名称。
+
+```c
+bool xrtXsonWriterName(xxsonwriter* pWriter, xstrview Name)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `Name` | 输入 | 借用、严格 UTF-8 | 成员名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置或 UTF-8 非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 写字符串键
+
+```c
+		!xrtXsonWriterName(pWriter, XRT_STR_LITERAL("code")) ||
+```
+
+### `xrtXsonWriterKey`
+
+为整数映射中的下一个值写入 int64 键。
+
+```c
+bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `iKey` | 输入 | — | 键值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写整数键
+
+```c
+		!xrtXsonWriterKey(pWriter, 7) ||
+```
+
+### `xrtXsonWriterNull`
+
+写入 null。
+
+```c
+bool xrtXsonWriterNull(xxsonwriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写 null
+
+```c
+		!xrtXsonWriterNull(pWriter) ||
+```
+
+### `xrtXsonWriterBool`
+
+写入布尔值。
+
+```c
+bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `bValue` | 输入 | — | 布尔值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写布尔
+
+```c
+		!xrtXsonWriterBool(pWriter, true) ||
+```
+
+### `xrtXsonWriterInt`
+
+写入 int64。
+
+```c
+bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `iValue` | 输入 | — | 整数值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 写 int64
+
+```c
+		!xrtXsonWriterInt(pWriter, 200) ||
+```
+
+### `xrtXsonWriterUInt`
+
+写入 uint64。
+
+```c
+bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `iValue` | 输入 | — | 无符号值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写 uint64
+
+```c
+		!xrtXsonWriterUInt(pWriter, 12u) ||
+```
+
+### `xrtXsonWriterFloat`
+
+写入 double，非有限值使用显式 float 标签。
+
+```c
+bool xrtXsonWriterFloat(xxsonwriter* pWriter, double fValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `fValue` | 输入 | — | 浮点值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写 double
+
+```c
+		!xrtXsonWriterFloat(pWriter, 0.5) ||
+```
+
+### `xrtXsonWriterString`
+
+写入严格 UTF-8 字符串。
+
+```c
+bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `Text` | 输入 | 借用、严格 UTF-8 | 文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | UTF-8 或位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 写字符串
+
+```c
+		!xrtXsonWriterString(pWriter, XRT_STR_LITERAL("xrt")) ||
+```
+
+### `xrtXsonWriterBytes`
+
+写入规范 Base64 二进制标签。
+
+```c
+bool xrtXsonWriterBytes(xxsonwriter* pWriter, xbytesview Data)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `Data` | 输入 | 借用 | 二进制数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写二进制
+
+```c
+		!xrtXsonWriterBytes(pWriter,
+			(xbytesview) { (const uint8*)"xy", 2u }) ||
+```
+
+### `xrtXsonWriterTime`
+
+写入 UTC RFC 3339 时间标签。
+
+```c
+bool xrtXsonWriterTime(xxsonwriter* pWriter, xtime Time)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `Time` | 输入 | — | UTC 时间值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置非法 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写时间
+
+```c
+		!xrtXsonWriterTime(pWriter, (xtime)1000000) ||
+```
+
+### `xrtXsonWriterTag`
+
+写入已经验证名称和载荷的自定义标签。
+
+```c
+bool xrtXsonWriterTag(xxsonwriter* pWriter, xstrview Tag, xstrview Payload)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `Tag` | 输入 | 借用、已验证 | 标签名 |
+| `Payload` | 输入 | 借用 | 载荷文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 标签名或载荷未通过验证 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 标签名非法或载荷不是合法标签载荷
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写自定义标签
+
+```c
+		!xrtXsonWriterTag(pWriter, XRT_STR_LITERAL("base64"),
+			XRT_STR_LITERAL("eHl6")) ||
+```
+
+### `xrtXsonWriterValue`
+
+在当前位置写入完整 Value 子树。
+
+```c
+bool xrtXsonWriterValue(xxsonwriter* pWriter, const xvalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+| `pValue` | 输入 | 非空 | 源 Value |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 序列化失败 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.xson` 域错误 — Value 类型不受支持或输出预算耗尽
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 写 Value 子树
+
+```c
+		!xrtXsonWriterValue(pWriter, pSub) ||
+```
+
+### `xrtXsonWriterFinish`
+
+验证根值和容器已完整结束，并关闭写入器。
+
+```c
+bool xrtXsonWriterFinish(xxsonwriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 目标写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已完成并关闭 | — |
+| `false` | 根值缺失或容器未结束 | `xrt.xson` 域错误 |
+
+#### 错误
+
+- `xrt.xson` 域错误 — 根值缺失、容器未全部结束或根值重复
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 完成写入
+
+```c
+		!xrtXsonWriterFinish(pWriter)
+```
+
+### `xrtXsonWriterTake`
+
+从已完成的内存写入器移交文本。
+
+```c
+str xrtXsonWriterTake(xxsonwriter* pWriter, size_t* pSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空、已完成 | 目标写入器 |
+| `pSize` | 输出 | 允许空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 未完成或非内存写入器 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 写入器尚未成功 Finish 或为 sink 写入器
+
+#### 范例
+
+[xson](../../examples/data/xson/main.c) · 移交文本
+
+```c
+	sText = xrtXsonWriterTake(pWriter, &iSize);
+```
+
 ## 文件
 
 ```c
@@ -443,3 +1610,80 @@ bool xrtXsonStringifyFile(
 临时文件、刷新或替换失败建立 `XXSON_ERROR_IO`，底层文件错误保留在原因链。
 
 完整可运行示例位于 `examples/data/xson/main.c`。
+
+### `xrtXsonParseFile`
+
+使用默认严格配置读取并解析 XSON 文件。
+
+```c
+xvalue* xrtXsonParseFile(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | UTF-8 文件路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Value DOM 根，用后 `xrtValueFree` 释放 | — |
+| `NULL` | 解析失败 | `xrt.xson` 域错误 |
+（读取失败同错误节）
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.file` 域错误 — 文件读取失败
+- `xrt.xson` 域错误 — 语法或结构非法，位置可由 `xrtXsonErrorLocation` 读取
+- `xrt.xson` 域错误 — 超出嵌套深度或资源预算
+- `XERR_MEMORY` — DOM 或缓冲分配失败
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 默认解析文件
+
+```c
+	pFileDom = xrtXsonParseFile(sFile);
+```
+
+### `xrtXsonReadFile`
+
+使用读取配置及其输入上限解析 XSON 文件。
+
+```c
+xvalue* xrtXsonReadFile(cstr sPath, const xxsonreadconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | UTF-8 文件路径 |
+| `pConfig` | 输入 | 允许空 | 读取配置，空 = 默认 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Value DOM 根，用后 `xrtValueFree` 释放 | — |
+| `NULL` | 解析失败 | `xrt.xson` 域错误 |
+（读取失败同错误节）
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.file` 域错误 — 文件读取失败或超过输入上限
+- `xrt.xson` 域错误 — 语法或结构非法，位置可由 `xrtXsonErrorLocation` 读取
+- `xrt.xson` 域错误 — 超出嵌套深度或资源预算
+- `XERR_MEMORY` — DOM 或缓冲分配失败
+
+#### 范例
+
+[xson_tour](../../examples/data/xson_tour/main.c) · 高级配置解析文件
+
+```c
+		(xrtXsonReadFile(sFile, &ReadConfig) == NULL) ) {
+```
