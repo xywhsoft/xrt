@@ -95,11 +95,11 @@ typedef struct xslotmap {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Storage` | — | 槽存储（内联+外部） |
-| `Count` | — | 活动句柄数 |
-| `Version` | — | 结构版本号（代际） |
-| `FreeHead` | — | 空闲链头 |
-| `Flags` | — | 内部状态位 |
+| `Storage` | `xarray` | 槽存储（内联+外部） |
+| `Count` | `size_t` | 活动句柄数 |
+| `Version` | `uint64` | 结构版本号（代际） |
+| `FreeHead` | `uint32` | 空闲链头 |
+| `Flags` | `uint32` | 内部状态位 |
 
 ### `xslotmapiter`
 
@@ -115,9 +115,9 @@ typedef struct xslotmapiter {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Map` | — | 目标槽表借用 |
-| `Next` | — | 下一扫描槽位 |
-| `Version` | — | 启动时代际 |
+| `Map` | `const xslotmap*` | 目标槽表借用 |
+| `Next` | `size_t` | 下一扫描槽位 |
+| `Version` | `uint64` | 启动时代际 |
 
 ## 句柄诊断
 

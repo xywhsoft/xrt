@@ -32,8 +32,8 @@ typedef struct xstrview {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | — | 起点指针 |
-| `Size` | — | 字节数 |
+| `Data` | `str` | 起点指针 |
+| `Size` | `size_t` | 字节数 |
 
 ### `xstrbuf`
 
@@ -51,9 +51,9 @@ typedef struct xstrbuf {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | — | 当前数据起点 |
-| `Size` | — | 当前长度（不含末尾零） |
-| `Capacity` | — | 分配容量 |
+| `Data` | `str` | 当前数据起点 |
+| `Size` | `size_t` | 当前长度（不含末尾零） |
+| `Capacity` | `size_t` | 分配容量 |
 
 ### `xstrsplit`、`xstrlines`、`xstrfields` 与 `xstrlist`
 

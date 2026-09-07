@@ -38,10 +38,10 @@ typedef struct xallocator {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Context` | — | 回调上下文（原样传递） |
-| `Alloc` | — | 分配回调 |
-| `Realloc` | — | 重分配回调 |
-| `Free` | — | 释放回调 |
+| `Context` | `ptr` | 回调上下文（原样传递） |
+| `Alloc` | `xallocproc` | 分配回调 |
+| `Realloc` | `xreallocproc` | 重分配回调 |
+| `Free` | `xfreeproc` | 释放回调 |
 
 ### `xseek`
 

@@ -40,9 +40,9 @@ typedef struct xbuffer {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | — | 当前数据起点 |
-| `Size` | — | 当前字节数 |
-| `Capacity` | — | 分配容量 |
+| `Data` | `bytes` | 当前数据起点 |
+| `Size` | `size_t` | 当前字节数 |
+| `Capacity` | `size_t` | 分配容量 |
 
 ## 生命周期
 

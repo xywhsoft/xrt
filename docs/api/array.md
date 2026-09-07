@@ -82,12 +82,12 @@ typedef struct xarray {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | — | 内联小缓冲（柔性数组起点） |
-| `Allocation` | — | 外部分配块（超出内联时） |
-| `ItemSize` | — | 单元素字节数 |
-| `Count` | — | 当前元素数 |
-| `Capacity` | — | 当前容量 |
-| `Flags` | — | 内部状态位 |
+| `Data` | `bytes` | 内联小缓冲（柔性数组起点） |
+| `Allocation` | `ptr` | 外部分配块（超出内联时） |
+| `ItemSize` | `size_t` | 单元素字节数 |
+| `Count` | `size_t` | 当前元素数 |
+| `Capacity` | `size_t` | 当前容量 |
+| `Flags` | `uint32` | 内部状态位 |
 
 ### `xptrarray`
 

@@ -140,10 +140,10 @@ typedef enum xutfstatus {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Status` | — | 完成状态 |
-| `Read` | — | 本次消费字节数 |
-| `Written` | — | 本次写出单元数 |
-| `Codepoint` | — | 待处理代理半对的码点 |
+| `Status` | `xutfstatus` | 完成状态 |
+| `Read` | `size_t` | 本次消费字节数 |
+| `Written` | `size_t` | 本次写出单元数 |
+| `Codepoint` | `uint32` | 待处理代理半对的码点 |
 
 ### `xutfresult`
 
