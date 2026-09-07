@@ -2985,6 +2985,1223 @@ bool xrtTlsDialTransportStats(
 
 
 
+## TLS Stream
+
+TLS Stream 组合 TCP 传输与 TLS 会话为单一明文接口：Worker 专用同步收发（Send/Buffer/Pullup/Read/Consume）与任意线程 Future 收发（SendAsync/RecvAsync/WaitAsync）双模型。
+
+### 构造
+
+### `xrtTlsStreamConfigInit`
+
+初始化握手与认证关闭超时的默认配置。
+
+```c
+void xrtTlsStreamConfigInit(xtlsstreamconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tls/stream · 配置](../../examples/tls/stream/main.c) · 观察
+
+```c
+	xrtTlsStreamConfigInit(&Example.StreamConfig);
+```
+
+
+### `xrtTlsStreamConnect`
+
+创建 TLS 客户端并异步连接数字 TCP 地址（免 DNS，适用于直连/测试）。
+
+```c
+xtlsstream* xrtTlsStreamConnect(
+	xnetengine* pEngine,
+	const xnetaddr* pRemote,
+	uint64 iAffinity,
+	const xnetstreamconfig* pTransport,
+	const xtlsclientconfig* pTls,
+	const xtlsstreamconfig* pConfig,
+	const xtlsstreamevents* pEvents,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络引擎 |
+| `pRemote` | 输入 | 非空 | 数字地址 |
+| `iAffinity` | 输入 | — | Worker 亲和键 |
+| `pTransport` | 输入 | 允许空 | TCP 配置 |
+| `pTls` | 输入 | 非空 | 客户端 TLS 配置 |
+| `pConfig` | 输入 | 允许空 | 流配置 |
+| `pEvents` | 输入 | 非空 | 流事件 |
+| `pData` | 输入 | 任意值 | 用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | TLS Stream（握手异步完成，`Open` 事件通知） | — |
+| `NULL` | 提交失败 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误 — 提交失败
+
+#### 范例
+
+[tls/listener_tour · 直连](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	pClientB = xrtTlsStreamConnect(pEngine, &Address, 0, NULL,
+		&ClientConfigB, NULL, &ClientEvents, &ClientB);
+```
+
+
+### `xrtTlsStreamAttach`
+
+在已公开的 TCP Stream 所属 Worker 上接管 Transport 和 Session；失败时所有权与事件均保持不变、输出清空。
+
+```c
+bool xrtTlsStreamAttach(
+	xnetstream* pTransport,
+	xtlssession* pSession,
+	const xtlsstreamconfig* pConfig,
+	const xtlsstreamevents* pEvents,
+	ptr pData,
+	xtlsstream** ppStream
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTransport` | 输入 | 双向可用 | 成功后调用方引用被接管 |
+| `pSession` | 输入 | 非空 | 已就绪会话 |
+| `pConfig` | 输入 | 允许空 | 流配置 |
+| `pEvents` | 输入 | 非空 | 流事件 |
+| `pData` | 输入 | 任意值 | 用户数据 |
+| `ppStream` | 输出 | 非空、独立 | 接收 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已接管两者引用 | — |
+| `false` | 参数/状态非法 | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · 会话接管](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+		pTask->bOk = xrtTlsStreamAttach(pTask->pTcp,
+			pTask->pSession, pTask->pStream, pTask->pEvents,
+			pTask->pData, &pTask->pTls);
+```
+
+
+### `xrtTlsStreamClient`
+
+在已连接 TCP Stream 上创建 TLS 客户端；适用于代理隧道、STARTTLS 和自定义拨号，成功时接管 Transport 引用。
+
+```c
+bool xrtTlsStreamClient(
+	xnetstream* pTransport,
+	const xtlsclientconfig* pTls,
+	const xtlsstreamconfig* pConfig,
+	const xtlsstreamevents* pEvents,
+	ptr pData,
+	xtlsstream** ppStream
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTransport` | 输入 | 已连接 | 成功后接管引用 |
+| `pTls` | 输入 | 非空 | 客户端 TLS 配置 |
+| `pConfig` | 输入 | 允许空 | 流配置 |
+| `pEvents` | 输入 | 非空 | 流事件 |
+| `pData` | 输入 | 任意值 | 用户数据 |
+| `ppStream` | 输出 | 非空、独立 | 接收 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已接管 | — |
+| `false` | 参数/状态非法 | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · STARTTLS](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+		pTask->bOk = xrtTlsStreamClient(pTask->pTcp,
+```
+
+
+### `xrtTlsStreamAccept`
+
+在 TCP Accept 回调内接管 Stream；返回值应直接作为该回调结果。
+
+```c
+bool xrtTlsStreamAccept(
+	xnetstream* pTransport,
+	const xtlsserverconfig* pTls,
+	const xtlsstreamconfig* pConfig,
+	const xtlsstreamevents* pEvents,
+	ptr pData,
+	xtlsstream** ppStream
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTransport` | 输入 | 刚被接受 | 成功后接管引用 |
+| `pTls` | 输入 | 非空 | 服务端 TLS 配置 |
+| `pConfig` | 输入 | 允许空 | 流配置 |
+| `pEvents` | 输入 | 非空 | 流事件 |
+| `pData` | 输入 | 任意值 | 用户数据 |
+| `ppStream` | 输出 | 非空、独立 | 接收 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已接管（作为回调结果放行） | — |
+| `false` | 参数/状态非法 | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream · 服务端](../../examples/tls/stream/main.c) · 观察
+
+```c
+	bAccepted = xrtTlsStreamAccept(
+		pTransport,
+		&pExample->ServerConfig,
+		&pExample->StreamConfig,
+		&pExample->StreamEvents,
+```
+
+
+### 生命周期与查询
+
+### `xrtTlsStreamRef`
+
+增加 TLS Stream 引用并返回原指针；引用耗尽时返回空并设置状态错误。
+
+```c
+xtlsstream* xrtTlsStreamRef(xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法或引用耗尽 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/dial_future · Future 值引用](../../examples/tls/dial_future/main.c) · 观察
+
+```c
+	pStream = xrtTlsStreamRef(
+		(xtlsstream*)xrtFutureValue(pFuture)
+	);
+```
+
+
+### `xrtTlsStreamDestroy`
+
+释放 TLS Stream 引用；关闭必须另行请求。
+
+```c
+void xrtTlsStreamDestroy(xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tls/stream · 收尾](../../examples/tls/stream/main.c) · 观察
+
+```c
+		xrtTlsStreamDestroy(pStream);
+```
+
+
+### `xrtTlsStreamSetEvents`
+
+在所属 Worker 上替换已打开 Stream 的事件与用户数据；不自动重放当前明文缓冲。
+
+```c
+bool xrtTlsStreamSetEvents(
+	xtlsstream* pStream,
+	const xtlsstreamevents* pEvents,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pEvents` | 输入 | 非空 | 新事件表 |
+| `pData` | 输入 | 任意值 | 新用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已替换 | — |
+| `false` | 参数/状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · 协议升级](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	pTask->bOk = xrtTlsStreamSetEvents(pTask->pStream,
+```
+
+
+### `xrtTlsStreamState`
+
+返回组合 Stream 状态的并发快照。
+
+```c
+xtlsstreamstate xrtTlsStreamState(const xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 状态枚举 | 连接/握手/开放/关闭等阶段 | — |
+| 零值 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/stream_tour · 状态](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+					xrtTlsStreamState(Streams[i]);
+```
+
+
+### `xrtTlsStreamTransport`
+
+借用底层 TCP Stream，调用方不得改变其 IO 状态机。
+
+```c
+xnetstream* xrtTlsStreamTransport(const xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 底层 TCP Stream 借用 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/stream · 传输层](../../examples/tls/stream/main.c) · 观察
+
+```c
+		xrtTlsStreamTransport(pStream),
+```
+
+
+### `xrtTlsStreamSession`
+
+在所属 Worker 上借用协议会话，供 ALPN、票据等高级查询。
+
+```c
+xtlssession* xrtTlsStreamSession(xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 会话借用（Worker 内） | — |
+| `NULL` | 无会话或参数非法 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/stream_tour · 自省](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	pClient->bSessionOk = xrtTlsStreamSession(pStream) != NULL;
+```
+
+
+### `xrtTlsStreamData`
+
+返回线程安全的用户数据指针快照，不延长目标生命周期。
+
+```c
+ptr xrtTlsStreamData(const xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 任意值 | 创建时/Switch 后的 `pData` | — |
+| `NULL` | 未设置或参数非法 | — |
+
+#### 错误
+
+- 无 — 数据查询
+
+#### 范例
+
+[tls/stream_tour · 自省](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	pClient->bDataOk = xrtTlsStreamData(pStream) == pClient;
+```
+
+
+### `xrtTlsStreamError`
+
+终态失败时借用保存的 TLS 或传输根因。
+
+```c
+const xerror* xrtTlsStreamError(const xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 根因错误借用 | — |
+| `NULL` | 无失败或参数非法 | 纯查询 |
+
+#### 错误
+
+- 无 — 非失败状态返回空是查询结果
+
+#### 范例
+
+[tls/stream_tour · 失败输出](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+		xrtTlsStreamError(pClientA) == NULL ? "(none)"
+```
+
+
+### `xrtTlsStreamPending`
+
+返回 TLS 密文暂存与底层 TCP 队列的总待发字节并发快照。
+
+```c
+size_t xrtTlsStreamPending(const xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 两级队列总待发字节 | — |
+| `0` | 无待发或参数非法 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/stream_tour · 排空等待](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	while ( xrtTlsStreamPending(pClientB) != 0u ) {
+```
+
+
+### Worker 专用收发
+
+### `xrtTlsStreamSend`
+
+在所属 Worker 上把明文编码为记录；允许成功短写。
+
+```c
+xtlsresult xrtTlsStreamSend(
+	xtlsstream* pStream,
+	const void* pData,
+	size_t iSize,
+	size_t* pWritten
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pData` | 输入 | 借用 | 明文 |
+| `iSize` | 输入 | — | 字节数 |
+| `pWritten` | 输出 | 可空 | 实际受理量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XNET_RESULT_OK` | 已受理（可能短写） | — |
+| `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · Worker 收发](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+		pTask->bOk = (xrtTlsStreamSend(pTask->pStream, arrRequest,
+```
+
+
+### `xrtTlsStreamSendVec`
+
+在所属 Worker 上依次编码明文片段；返回跨片段的连续受理前缀。
+
+```c
+xtlsresult xrtTlsStreamSendVec(
+	xtlsstream* pStream,
+	const xnetspan* pSpans,
+	size_t iCount,
+	size_t* pWritten
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pSpans` | 输入 | 借用 | 明文片段数组 |
+| `iCount` | 输入 | — | 片段数 |
+| `pWritten` | 输出 | 可空 | 连续前缀量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XNET_RESULT_OK` | 前缀已受理 | — |
+| `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · Worker 收发](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	(void)xrtTlsStreamSendVec(pStream, Vec, 2, &iWritten);
+```
+
+
+### `xrtTlsStreamSendBound`
+
+在所属 Worker 上返回一次明文发送的精确密文线路字节数（含记录头/nonce/标签）；失败不修改 `pBound`。
+
+```c
+bool xrtTlsStreamSendBound(
+	xtlsstream* pStream,
+	size_t iPlainSize,
+	size_t* pBound
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iPlainSize` | 输入 | — | 明文字节数 |
+| `pBound` | 输出 | 非空、不得与 Stream/Session 重叠 | 接收密文上界 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 上界已写出 | — |
+| `false` | 参数/状态非法 | `*pBound` 不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · 密文上界](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	(void)xrtTlsStreamSendBound(pStream, 64u, &pClient->iBound);
+```
+
+
+### `xrtTlsStreamAvailable`
+
+返回当前待应用消费明文字节数的并发快照。
+
+```c
+size_t xrtTlsStreamAvailable(const xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 待消费明文字节 | — |
+| `0` | 无明文或参数非法 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/stream_tour · 明文循环](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	while ( xrtTlsStreamAvailable(pStream) >= 3u ) {
+```
+
+
+### `xrtTlsStreamBuffer`
+
+在所属 Worker 上借用明文块链，借用期不超过本次回调；默认暂停底层读取。
+
+```c
+const xnetbuf* xrtTlsStreamBuffer(xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 明文链借用（回调期间有效） | — |
+| `NULL` | 无明文或参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream · 明文消费](../../examples/tls/stream/main.c) · 观察
+
+```c
+		const xnetbuf* pBuffer = xrtTlsStreamBuffer(pStream);
+```
+
+
+### `xrtTlsStreamPullup`
+
+在所属 Worker 上把精确明文前缀按需连续化并返回借用视图；不消费明文，零长度和越界请求失败。
+
+```c
+bool xrtTlsStreamPullup(
+	xtlsstream* pStream,
+	size_t iSize,
+	xnetspan* pSpan
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iSize` | 输入 | `> 0` 且 `<= Available` | 请求前缀长度 |
+| `pSpan` | 输出 | 非空 | 接收连续借用视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 视图已写出（下次缓冲修改前有效） | — |
+| `false` | 零长度/越界或状态非法 | `XERR_RANGE` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+- `XERR_RANGE` — 零长度或超过可用量
+
+#### 范例
+
+[tls/stream_tour · 协议解析](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+		if ( !xrtTlsStreamPullup(pStream, 3u, &Span) ||
+```
+
+
+### `xrtTlsStreamReadMore`
+
+在 Read 回调保留现有明文时请求继续解密；累积受 PlainLimit 硬约束，重复请求幂等。
+
+```c
+bool xrtTlsStreamReadMore(xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已请求（明文增长后再次发布 Read） | — |
+| `false` | 无 Read 回调保留或超限 | `XERR_STATE` / `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+- `XERR_RANGE` — 累积将超过 PlainLimit
+
+#### 范例
+
+[tls/stream_tour · 增量解析](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	pClient->bReadMore = xrtTlsStreamReadMore(pStream);
+```
+
+
+### `xrtTlsStreamRead`
+
+在所属 Worker 上复制并安全消费明文。
+
+```c
+xtlsresult xrtTlsStreamRead(
+	xtlsstream* pStream,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pRead
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pOutput` | 输出 | 非空 | 接收缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pRead` | 输出 | 可空 | 实际复制量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XNET_RESULT_OK` | 已复制并消费 | — |
+| `XNET_RESULT_ERROR` | 参数/状态错误 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · Worker 收发](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	(void)xrtTlsStreamRead(pStream, pClient->ReadOut, 4u,
+```
+
+
+### `xrtTlsStreamConsume`
+
+在所属 Worker 上安全消费精确数量的明文。
+
+```c
+bool xrtTlsStreamConsume(xtlsstream* pStream, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iSize` | 输入 | `<= Available` | 消费字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已消费并恢复底层读取 | — |
+| `false` | 越界或状态非法 | `XERR_RANGE` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+- `XERR_RANGE` — 超过可用明文
+
+#### 范例
+
+[tls/stream_tour · 协议解析](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+		if ( !xrtTlsStreamConsume(pStream, 1u) ) {
+```
+
+
+### 关闭
+
+### `xrtTlsStreamClose`
+
+从任意线程请求 close_notify、等待对端认证关闭并排空 TCP；已接纳的异步发送先按 FIFO 完成。
+
+```c
+bool xrtTlsStreamClose(xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream；幂等 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 关闭流程已发起 | — |
+| `false` | 参数/状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · 关闭](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+				(void)xrtTlsStreamClose(Streams[i]);
+```
+
+
+### `xrtTlsStreamAbort`
+
+立即中止：不发送 close_notify，直接丢弃在途状态并触发底层 TCP 复位语义。
+
+```c
+bool xrtTlsStreamAbort(xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 中止已发起 | — |
+| `false` | 参数/状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 不在所属 Worker 上（Worker 专用操作）或状态非法
+
+#### 范例
+
+[tls/stream_tour · 错误路径](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+			(void)xrtTlsStreamAbort(pStream);
+```
+
+
+### 异步观测与 Future 收发
+
+### `xrtTlsStreamAsyncBytes`
+
+返回尚未由所属 Worker 终结的异步发送负载字节数。
+
+```c
+size_t xrtTlsStreamAsyncBytes(const xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 在途异步发送负载字节 | — |
+| `0` | 无在途或参数非法 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/stream_tour · 异步观测](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	(void)xrtTlsStreamAsyncBytes(pClientA);
+```
+
+
+### `xrtTlsStreamAsyncCount`
+
+返回异步发送、接收和条件等待的合计操作数。
+
+```c
+uint32 xrtTlsStreamAsyncCount(const xtlsstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 在途异步操作合计 | — |
+| `0` | 无在途或参数非法 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/stream_tour · 异步观测](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	(void)xrtTlsStreamAsyncCount(pClientA);
+```
+
+
+### `xrtTlsStreamWaitAsync`
+
+建立 OPEN/READ/WRITE/DRAIN/END/CLOSE 条件 Future；取消只移除本次等待。
+
+```c
+xfuture* xrtTlsStreamWaitAsync(
+	xtlsstream* pStream,
+	xtlsstreamwait Wait
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `Wait` | 输入 | 枚举 | 条件类型（无值 Future） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 条件 Future | — |
+| `NULL` | 提交失败 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误 — 条件非法或提交失败
+
+#### 范例
+
+[tls/stream_future · 排空](../../examples/tls/stream_future/main.c) · 观察
+
+```c
+	return exampleTlsFutureResolved(xrtTlsStreamWaitAsync(
+		pStream,
+		XTLS_STREAM_WAIT_DRAIN
+	));
+```
+
+
+### `xrtTlsStreamRecvAsync`
+
+在拉取模式下复制并消费当前可用明文；成功值是由 Future 持有的 `xnetbytes`。
+
+```c
+xfuture* xrtTlsStreamRecvAsync(
+	xtlsstream* pStream,
+	size_t iMaxBytes
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iMaxBytes` | 输入 | 零 = 全部当前明文 | 读取上限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Future；成功值为 `xnetbytes` | — |
+| `NULL` | 提交失败 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误
+
+#### 范例
+
+[tls/stream_future · 拉取](../../examples/tls/stream_future/main.c) · 观察
+
+```c
+	xfuture* pFuture = xrtTlsStreamRecvAsync(
+		pStream,
+		64u * 1024u
+	);
+```
+
+
+### `xrtTlsStreamSendAsync`
+
+从任意线程复制并按 FIFO 提交一段完整明文；取消只在首个字节受理前有效，Close 线性化前已接纳的发送保证先完成。
+
+```c
+xfuture* xrtTlsStreamSendAsync(
+	xtlsstream* pStream,
+	const void* pData,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pData` | 输入 | 借用、提交时复制 | 明文 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Future（全部明文被会话受理时完成） | — |
+| `NULL` | 提交失败 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误 — 提交失败；Close 后新发送以 STATE 拒绝
+
+#### 范例
+
+[tls/stream_future · 发送](../../examples/tls/stream_future/main.c) · 观察
+
+```c
+	if ( !exampleTlsFutureResolved(xrtTlsStreamSendAsync(
+		pStream,
+		pData,
+		iSize
+	)) ) {
+```
+
+
+### `xrtTlsStreamSendVecAsync`
+
+从任意线程复制片段并按 FIFO 提交为一段连续明文；全部片段在返回前完成校验和复制，失败不发布部分操作。
+
+```c
+xfuture* xrtTlsStreamSendVecAsync(
+	xtlsstream* pStream,
+	const xnetspan* pSpans,
+	size_t iCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pSpans` | 输入 | 借用、提交时复制 | 片段数组 |
+| `iCount` | 输入 | — | 片段数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Future | — |
+| `NULL` | 校验/提交失败（不发布部分操作） | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误
+
+#### 范例
+
+[tls/stream_tour · Future 式发送](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	pSendFuture = xrtTlsStreamSendVecAsync(pClientB, AsyncVec, 2);
+```
+
+
+
 ## 示例
 
 ```c

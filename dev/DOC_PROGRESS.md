@@ -24,7 +24,7 @@
 | 17 | executor.md | 10 | **完成** | 10/10 全绿（G3 10 片段，2026-09-07）；双门禁一次全绿 |
 | 18 | file.md | 97 | **完成** | 97/97 全绿（G3 97 片段，2026-09-07）；三段：IO/文本 36 + 锁/映射/目录 37 + 遍历/链接/根 24 |
 | 19 | file_async.md | 34 | **完成** | 34/34 全绿（G3 34 片段，2026-09-07）；七组：文件对象 4 + 定位读写 5 + 大小 3 + 整文件 5 + 管理 3 + 目录 6 + 目录树 8 |
-| 20 | future.md | 104 | 进行中 [2/3 段] | 73/104 全绿（G3 73 片段）；余第 3 段 TLS stream 31 |
+| 20 | future.md | 104 | **完成** | 104/104 全绿（G3 104 片段，2026-09-07）；三段：核心 44 + 桥/listener/dial 29 + TLS stream 31 |
 | 21 | hash.md | 9 | 待办 |  |
 | 22 | html.md | 3 | 待办 |  |
 | 23 | http.md | 167 | 待办 |  |
@@ -399,3 +399,16 @@
   边界 bug 吞失（missing-section 报出后重建）。锚点：bridge_tour
   8 + listener_tour 17 + dial/dial_future。G3 73 片段全绿；
   G1/G2 余 31 = 第 3 段缺口。array 复验无回归。
+- 2026-09-07 future.md 第 3 段（TLS stream 31 节）完成，全文件
+  达成（104/104，G3 104 片段）：构造 5（Connect 数字地址直连 /
+  Attach 接管 Transport+Session / Client 代理隧道与 STARTTLS /
+  Accept 在 TCP 回调内接管——四种组装模型各自的所有权边界）+
+  生命周期与查询 9 + Worker 专用收发 9（Send 短写、SendVec 连续
+  前缀、SendBound 精确密文上界、Buffer 借用链默认暂停底层读取、
+  Pullup 连续化不消费、ReadMore 增量协议且受 PlainLimit、Read
+  复制并消费、Consume 精确消费）+ 关闭 2（Close 认证关闭 FIFO
+  排空 vs Abort 立即中止）+ 异步观测与 Future 收发 6（SendAsync
+  取消仅在首字节受理前有效、SendVecAsync 失败不发布部分操作、
+  WaitAsync 六条件、RecvAsync 零上限=全部明文）。一次生成全绿。
+  锚点：stream_tour 19 + stream 5 + stream_future 4 +
+  listener_tour/dial_future。六文件复验无回归。
