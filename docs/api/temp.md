@@ -42,6 +42,9 @@
 
 ### `xtempblock`
 
+临时内存的常规块结构（不透明；arena 持有块链，块内按 16 字节对齐分配）。
+
+
 ```c
 typedef struct xtempblock xtempblock;
 ```

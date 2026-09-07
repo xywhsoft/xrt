@@ -5,6 +5,91 @@ Stack 体系提供五种成本清晰的后进先出容器：`fixed_stack` 使用
 `block_stack` 按块增长并保持活动元素地址稳定；`ptr_stack` 在连续动态栈上提供指针类型友好接口。
 各层不隐式加锁，也不析构元素内部资源。
 
+## 类型与常量
+
+### `xfixedstack`
+
+固定栈可借用外部缓冲，也可拥有创建时分配的固定缓冲。
+
+```c
+typedef struct xfixedstack {
+	bytes Data;
+	ptr Allocation;
+	size_t ItemSize;
+	size_t Count;
+	size_t Capacity;
+} xfixedstack;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `bytes` | Data |
+| `Allocation` | `ptr` | Allocation |
+| `ItemSize` | `size_t` | ItemSize |
+| `Count` | `size_t` | Count |
+| `Capacity` | `size_t` | Capacity |
+
+### `xblockstack`
+
+* 分块栈只移动块索引，不移动块内元素。 * Blocks 的元素类型属于内部实现，调用方只能读取其 Count 和 Capacity 做诊断。
+
+```c
+typedef struct xblockstack {
+	xarray Blocks;
+	size_t ItemSize;
+	size_t Count;
+	size_t Capacity;
+	size_t BlockItems;
+	size_t Alignment;
+} xblockstack;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Blocks` | `xarray` | Blocks |
+| `ItemSize` | `size_t` | ItemSize |
+| `Count` | `size_t` | Count |
+| `Capacity` | `size_t` | Capacity |
+| `BlockItems` | `size_t` | BlockItems |
+| `Alignment` | `size_t` | Alignment |
+
+### `xptrfixedstack`
+
+固定指针栈只保存指针值，不拥有指针指向的对象。
+
+```c
+typedef xfixedstack xptrfixedstack;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xstack`
+
+动态栈复用连续数组存储，结构性修改可能改变元素地址。
+
+```c
+typedef xarray xstack;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xptrstack`
+
+指针栈只保存指针值，不拥有指针指向的对象。
+
+```c
+typedef xstack xptrstack;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_BLOCK_STACK_ITEMS_MAX` | `256u` | ITEMS上限 |
+| `XRT_BLOCK_STACK_BYTES_DEFAULT` | `16384u` | BYTES默认值 |
+
 ## 裁剪与依赖
 
 | 能力 | 宏 | 依赖 |

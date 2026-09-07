@@ -2,6 +2,164 @@
 
 Queue 体系提供有界、无运行时扩容的并发指针队列。公共层只定义容量、结果和排空回调；SPSC、MPSC、MPMC 与等待适配层分别裁剪，调用方只承担实际使用的并发模型成本。
 
+## 类型与常量
+
+### `xqueueresult`
+
+队列结果把正常流控状态与真正错误分开表达。
+
+```c
+typedef enum xqueueresult {
+	XQUEUE_ERROR = -1,
+	XQUEUE_OK = 0,
+	XQUEUE_EMPTY = 1,
+	XQUEUE_FULL = 2,
+	XQUEUE_CLOSED = 3
+} xqueueresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XQUEUE_ERROR` | 失败 |
+| `XQUEUE_OK` | 成功 |
+| `XQUEUE_EMPTY` | 已空 |
+| `XQUEUE_FULL` | 已满 |
+
+### `xqueuebatchresult`
+
+批量操作同时返回流控状态和实际处理数量。
+
+```c
+typedef struct xqueuebatchresult {
+	xqueueresult Result;
+	size_t Count;
+} xqueuebatchresult;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Result` | `xqueueresult` | Result |
+| `Count` | `size_t` | Count |
+
+### `xqueuecursor32`
+
+32 位游标独占一个架构隔离跨度，避免生产者和消费者伪共享。
+
+```c
+typedef struct xqueuecursor32 {
+	xatomic32 Position;
+	uint8 Reserved[XRT_QUEUE_CACHE_SPAN - sizeof(xatomic32)];
+} xqueuecursor32;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Position` | `xatomic32` | Position |
+
+### `xqueueslot`
+
+序列槽保存一个不拥有目标的指针，并用序号表达空闲和就绪代次。
+
+```c
+typedef struct xqueueslot {
+	xatomic32 Sequence;
+	ptr Item;
+} xqueueslot;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Sequence` | `xatomic32` | Sequence |
+| `Item` | `ptr` | Item |
+
+### `xspscqueue`
+
+SPSC 保存指针值，只允许一个生产者和一个消费者并发操作。
+
+```c
+typedef struct xspscqueue {
+	ptr* Items;
+	ptr Allocation;
+	size_t Capacity;
+	size_t Mask;
+	xatomic32 Closed;
+	xqueuecursor32 Tail;
+	xqueuecursor32 Head;
+} xspscqueue;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Items` | `ptr*` | Items |
+| `Allocation` | `ptr` | Allocation |
+| `Capacity` | `size_t` | Capacity |
+| `Mask` | `size_t` | Mask |
+| `Closed` | `xatomic32` | Closed |
+| `Tail` | `xqueuecursor32` | Tail |
+| `Head` | `xqueuecursor32` | Head |
+
+### `xmpscqueue`
+
+MPSC 允许多个生产者并发写入，只允许一个消费者读取。
+
+```c
+typedef struct xmpscqueue {
+	xqueueslot* Slots;
+	ptr Allocation;
+	size_t Capacity;
+	size_t Mask;
+	xatomic32 Closed;
+	xqueuecursor32 Tail;
+	xqueuecursor32 Head;
+} xmpscqueue;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Slots` | `xqueueslot*` | Slots |
+| `Allocation` | `ptr` | Allocation |
+| `Capacity` | `size_t` | Capacity |
+| `Mask` | `size_t` | Mask |
+| `Closed` | `xatomic32` | Closed |
+| `Tail` | `xqueuecursor32` | Tail |
+| `Head` | `xqueuecursor32` | Head |
+
+### `xmpmcqueue`
+
+MPMC 允许多个生产者和多个消费者并发访问同一个有界序列槽环。
+
+```c
+typedef struct xmpmcqueue {
+	xqueueslot* Slots;
+	ptr Allocation;
+	size_t Capacity;
+	size_t Mask;
+	xatomic32 Closed;
+	xqueuecursor32 Tail;
+	xqueuecursor32 Head;
+} xmpmcqueue;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Slots` | `xqueueslot*` | Slots |
+| `Allocation` | `ptr` | Allocation |
+| `Capacity` | `size_t` | Capacity |
+| `Mask` | `size_t` | Mask |
+| `Closed` | `xatomic32` | Closed |
+| `Tail` | `xqueuecursor32` | Tail |
+| `Head` | `xqueuecursor32` | Head |
+
+### `xqueuedrainfn`
+
+排空回调接收已从队列移除的指针值。
+
+```c
+typedef void (*xqueuedrainfn)(ptr pItem, ptr pContext);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 裁剪与依赖
 
 | 功能宏 | 能力 | 直接依赖 |

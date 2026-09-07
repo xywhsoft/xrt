@@ -3,6 +3,124 @@
 `<xrt/http_te.h>` 实现 RFC 9110 `TE` 请求字段的传输无关协议层。直接路径不分配内存，
 也不绑定客户端、服务器或网络对象。
 
+## 类型与常量
+
+### `xhttptecodingflag`
+
+单个 TE 成员标志区分 trailers、传输参数和显式权重。
+
+```c
+typedef enum xhttptecodingflag {
+	XHTTP_TE_CODING_NONE = 0,
+	XHTTP_TE_CODING_TRAILERS = UINT32_C(0x00000001),
+	XHTTP_TE_CODING_HAS_PARAMETERS = UINT32_C(0x00000002),
+	XHTTP_TE_CODING_HAS_WEIGHT = UINT32_C(0x00000004)
+} xhttptecodingflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_TE_CODING_NONE` | 无 |
+| `XHTTP_TE_CODING_TRAILERS` | TRAILERS |
+| `XHTTP_TE_CODING_HAS_PARAMETERS` | HASPARAMETERS |
+
+### `xhttptecoding`
+
+TE 成员借用完整元素、编码名称和不含 q 权重的传输参数。
+
+```c
+typedef struct xhttptecoding {
+	xstrview Element;
+	xstrview Coding;
+	xstrview Parameters;
+	size_t ParameterCount;
+	uint16 Quality;
+	uint32 Flags;
+} xhttptecoding;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Element` | `xstrview` | Element |
+| `Coding` | `xstrview` | Coding |
+| `Parameters` | `xstrview` | Parameters |
+| `ParameterCount` | `size_t` | ParameterCount |
+| `Quality` | `uint16` | Quality |
+| `Flags` | `uint32` | Flags |
+
+### `xhttptecursor`
+
+单字段游标由初始化函数建立，调用方不得直接修改。
+
+```c
+typedef struct xhttptecursor {
+	size_t Offset;
+	uint8 Validated;
+} xhttptecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttptefieldcursor`
+
+重复字段游标同时记录当前字段和字段内位置。
+
+```c
+typedef struct xhttptefieldcursor {
+	size_t Field;
+	size_t Offset;
+	uint8 Validated;
+} xhttptefieldcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpteflag`
+
+TE 汇总标志明确区分字段缺失、空字段和 trailers 能力。
+
+```c
+typedef enum xhttpteflag {
+	XHTTP_TE_NONE = 0,
+	XHTTP_TE_PRESENT = UINT32_C(0x00000001),
+	XHTTP_TE_ACCEPTS_TRAILERS = UINT32_C(0x00000002),
+	XHTTP_TE_HAS_TRANSFER_CODINGS = UINT32_C(0x00000004)
+} xhttpteflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_TE_NONE` | 无 |
+| `XHTTP_TE_PRESENT` | PRESENT |
+| `XHTTP_TE_ACCEPTS_TRAILERS` | ACCEPTSTRAILERS |
+
+### `xhttpteinfo`
+
+TE 汇总保留字段、总成员和实际传输编码数量。
+
+```c
+typedef struct xhttpteinfo {
+	size_t FieldCount;
+	size_t CodingCount;
+	size_t TransferCodingCount;
+	uint32 Flags;
+} xhttpteinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `FieldCount` | `size_t` | FieldCount |
+| `CodingCount` | `size_t` | CodingCount |
+| `TransferCodingCount` | `size_t` | TransferCodingCount |
+| `Flags` | `uint32` | Flags |
+
 ## 成员
 
 `xhttptecoding` 借用完整 `Element`、大小写不敏感的 `Coding`，以及不包含最终 `q`

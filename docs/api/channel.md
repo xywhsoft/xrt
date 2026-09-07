@@ -5,6 +5,113 @@ MPMC 通信和容量为零的同步 rendezvous；无锁 SPSC、MPSC、MPMC 队�
 `queue.h` 独立提供。
 
 
+## 类型与常量
+
+### `xchannelresult`
+
+Channel 非阻塞结果把正常流控状态与真正错误分开表达。
+
+```c
+typedef enum xchannelresult {
+	XCHANNEL_ERROR = -1,
+	XCHANNEL_OK = 0,
+	XCHANNEL_EMPTY = 1,
+	XCHANNEL_FULL = 2,
+	XCHANNEL_CLOSED = 3
+} xchannelresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XCHANNEL_ERROR` | 失败 |
+| `XCHANNEL_OK` | 成功 |
+| `XCHANNEL_EMPTY` | 已空 |
+| `XCHANNEL_FULL` | 已满 |
+
+### `xchannel`
+
+Channel 保存不透明同步状态，允许嵌入调用方结构。
+
+```c
+typedef union xchannel {
+	uint64 Alignment;
+	uint8 Storage[XRT_CHANNEL_STORAGE_SIZE];
+} xchannel;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xchannelop`
+
+Select case 明确区分发送输入和接收输出。
+
+```c
+typedef enum xchannelop {
+	XCHANNEL_OP_RECV = 0,
+	XCHANNEL_OP_SEND = 1
+} xchannelop;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XCHANNEL_OP_RECV` | XCHANNELOPRECV |
+
+### `xchannelcase`
+
+一个 Select case 只描述操作，不持有 Channel 或消息的所有权。
+
+```c
+typedef struct xchannelcase {
+	xchannel* Channel;
+	xchannelop Operation;
+	ptr Value;
+	ptr* Output;
+} xchannelcase;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Channel` | `xchannel*` | Channel |
+| `Operation` | `xchannelop` | Operation |
+| `Value` | `ptr` | Value |
+| `Output` | `ptr*` | Output |
+
+### `xchannelselectresult`
+
+Select 结果同时表达等待状态、被选索引和该 Channel 操作结果。
+
+```c
+typedef struct xchannelselectresult {
+	xwaitresult Wait;
+	size_t Index;
+	xchannelresult Result;
+} xchannelselectresult;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Wait` | `xwaitresult` | Wait |
+| `Index` | `size_t` | Index |
+| `Result` | `xchannelresult` | Result |
+
+### `xchanneldrainfn`
+
+排空回调接收已从 Channel 移除的指针值。
+
+```c
+typedef void (*xchanneldrainfn)(ptr pItem, ptr pContext);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XCHANNEL_SELECT_NONE` | `SIZE_MAX` | 没有 case 被选中时使用无效索引。 |
+
 ## 裁剪
 
 | 宏 | 能力 | 依赖 |

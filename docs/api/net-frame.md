@@ -1,5 +1,143 @@
 # 网络 Framing API
 
+## 类型与常量
+
+### `xnetframestatus`
+
+增量 framing 只区分失败、等待更多字节和完整帧。
+
+```c
+typedef enum xnetframestatus {
+	XNET_FRAME_ERROR = -1,
+	XNET_FRAME_MORE = 0,
+	XNET_FRAME_READY = 1
+} xnetframestatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_FRAME_ERROR` | 失败 |
+| `XNET_FRAME_MORE` | 需要更多输入 |
+
+### `xnetframe`
+
+所有偏移都相对当前输入头部，Declared 保存协议字段原值。
+
+```c
+typedef struct xnetframe {
+	size_t PayloadOffset;
+	size_t PayloadSize;
+	size_t FrameSize;
+	uint64 Declared;
+} xnetframe;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `PayloadOffset` | `size_t` | PayloadOffset |
+| `PayloadSize` | `size_t` | PayloadSize |
+| `FrameSize` | `size_t` | FrameSize |
+| `Declared` | `uint64` | Declared |
+
+### `xnetlineconfig`
+
+分隔符只借用调用方字节，并且必须存活到 Framer 不再使用。
+
+```c
+typedef struct xnetlineconfig {
+	xbytesview Delimiter;
+	size_t MaxPayload;
+	bool IncludeDelimiter;
+} xnetlineconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Delimiter` | `xbytesview` | Delimiter |
+| `MaxPayload` | `size_t` | MaxPayload |
+| `IncludeDelimiter` | `bool` | IncludeDelimiter |
+
+### `xnetlineframer`
+
+Line Framer 保存块内增量游标，字段公开只用于无分配栈存储。
+
+```c
+typedef struct xnetlineframer {
+	xnetlineconfig Config;
+	const xnetbuf* Input;
+	xnetblock* Cursor;
+	size_t CursorOffset;
+	size_t Search;
+	size_t PreviousSize;
+	uint32 Guard;
+} xnetlineframer;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Config` | `xnetlineconfig` | Config |
+| `Input` | `const xnetbuf*` | Input |
+| `Cursor` | `xnetblock*` | Cursor |
+| `CursorOffset` | `size_t` | CursorOffset |
+| `Search` | `size_t` | Search |
+| `PreviousSize` | `size_t` | PreviousSize |
+| `Guard` | `uint32` | Guard |
+
+### `xnetframeorder`
+
+长度字段字节序独立于主机字节序。
+
+```c
+typedef enum xnetframeorder {
+	XNET_FRAME_BIG_ENDIAN = 0,
+	XNET_FRAME_LITTLE_ENDIAN = 1
+} xnetframeorder;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_FRAME_BIG_ENDIAN` | XNETFRAMEBIGENDIAN |
+
+### `xnetlengthconfig`
+
+FrameSize = LengthOffset + LengthSize + Declared + Adjustment。
+
+```c
+typedef struct xnetlengthconfig {
+	size_t LengthOffset;
+	size_t LengthSize;
+	int64 Adjustment;
+	size_t Strip;
+	size_t MaxFrame;
+	xnetframeorder Order;
+} xnetlengthconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `LengthOffset` | `size_t` | LengthOffset |
+| `LengthSize` | `size_t` | LengthSize |
+| `Adjustment` | `int64` | Adjustment |
+| `Strip` | `size_t` | Strip |
+| `MaxFrame` | `size_t` | MaxFrame |
+| `Order` | `xnetframeorder` | Order |
+
+### `xnetlengthframer`
+
+Length Framer 复制并验证配置，解析本身不保存输入状态。
+
+```c
+typedef struct xnetlengthframer {
+	xnetlengthconfig Config;
+	uint32 Guard;
+} xnetlengthframer;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Config` | `xnetlengthconfig` | Config |
+| `Guard` | `uint32` | Guard |
+
 ## 分层与裁剪
 
 - `XRT_FEATURE_NET_FRAME`：统一帧描述、payload 复制和精确消费，只依赖 `NET_BUFFER`。

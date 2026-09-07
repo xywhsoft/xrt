@@ -117,6 +117,9 @@ typedef enum xpoolerror {
 
 ### `xmempoolbucket`
 
+变长池的 16 字节尺寸类内部桶结构（不透明，仅实现内部使用）。
+
+
 ```c
 typedef struct xmempoolbucket xmempoolbucket;
 ```
@@ -124,6 +127,9 @@ typedef struct xmempoolbucket xmempoolbucket;
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
 ### `xmempoollarge`
+
+超过池化上限的独立大块登记结构（不透明，仅实现内部使用）。
+
 
 ```c
 typedef struct xmempoollarge xmempoollarge;

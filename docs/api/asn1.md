@@ -707,6 +707,190 @@ printf(" equal=%d",
 		OidBytes, iOidSize) ? 0 : 0); /* 结构体零值仅演示签名 */
 ```
 
+### `xasn1class`
+
+ASN.1 标签类别使用 X.690 的两位稳定值。
+
+```c
+typedef enum xasn1class {
+	XASN1_UNIVERSAL = 0,
+	XASN1_APPLICATION,
+	XASN1_CONTEXT,
+	XASN1_PRIVATE
+} xasn1class;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XASN1_UNIVERSAL` | UNIVERSAL |
+| `XASN1_APPLICATION` | APPLICATION |
+| `XASN1_CONTEXT` | CONTEXT |
+
+### `xasn1universal`
+
+X.509、PKCS 与 TLS 常用的 ASN.1 Universal 标签号。
+
+```c
+typedef enum xasn1universal {
+	XASN1_BOOLEAN = 1,
+	XASN1_INTEGER = 2,
+	XASN1_BIT_STRING = 3,
+	XASN1_OCTET_STRING = 4,
+	XASN1_NULL = 5,
+	XASN1_OBJECT_IDENTIFIER = 6,
+	XASN1_ENUMERATED = 10,
+	XASN1_UTF8_STRING = 12,
+	XASN1_RELATIVE_OID = 13,
+	XASN1_SEQUENCE = 16,
+	XASN1_SET = 17,
+	XASN1_NUMERIC_STRING = 18,
+	XASN1_PRINTABLE_STRING = 19,
+	XASN1_TELETEX_STRING = 20,
+	XASN1_IA5_STRING = 22,
+	XASN1_UTC_TIME = 23,
+	XASN1_GENERALIZED_TIME = 24,
+	XASN1_VISIBLE_STRING = 26,
+	XASN1_GENERAL_STRING = 27,
+	XASN1_UNIVERSAL_STRING = 28,
+	XASN1_BMP_STRING = 30
+} xasn1universal;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XASN1_BOOLEAN` | BOOLEAN |
+| `XASN1_INTEGER` | INTEGER |
+| `XASN1_BIT_STRING` | BIT字符串 |
+| `XASN1_OCTET_STRING` | OCTET字符串 |
+| `XASN1_NULL` | 空值 |
+| `XASN1_OBJECT_IDENTIFIER` | 对象形态IDENTIFIER |
+| `XASN1_ENUMERATED` | ENUMERATED |
+| `XASN1_UTF8_STRING` | UTF-8字符串 |
+| `XASN1_RELATIVE_OID` | RELATIVEOID |
+| `XASN1_SEQUENCE` | SEQUENCE |
+| `XASN1_SET` | 集合形态 |
+| `XASN1_NUMERIC_STRING` | NUMERIC字符串 |
+| `XASN1_PRINTABLE_STRING` | PRINTABLE字符串 |
+| `XASN1_TELETEX_STRING` | TELETEX字符串 |
+| `XASN1_IA5_STRING` | IA5字符串 |
+| `XASN1_UTC_TIME` | UTC时间 |
+| `XASN1_GENERALIZED_TIME` | GENERALIZED时间 |
+| `XASN1_VISIBLE_STRING` | VISIBLE字符串 |
+| `XASN1_GENERAL_STRING` | GENERAL字符串 |
+| `XASN1_UNIVERSAL_STRING` | UNIVERSAL字符串 |
+
+### `xasn1tag`
+
+DER 标签保留类别、构造位和完整的高标签号。
+
+```c
+typedef struct xasn1tag {
+	xasn1class Class;
+	uint32 Number;
+	bool Constructed;
+} xasn1tag;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Class` | `xasn1class` | Class |
+| `Number` | `uint32` | Number |
+| `Constructed` | `bool` | Constructed |
+
+### `xdervalue`
+
+DER 值中的所有视图都借用原输入，不分配也不复制。
+
+```c
+typedef struct xdervalue {
+	xasn1tag Tag;
+	xbytesview Raw;
+	xbytesview Value;
+	size_t HeaderSize;
+} xdervalue;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Tag` | `xasn1tag` | Tag |
+| `Raw` | `xbytesview` | Raw |
+| `Value` | `xbytesview` | Value |
+| `HeaderSize` | `size_t` | HeaderSize |
+
+### `xdercursor`
+
+DER 游标保存不可变输入和下一项偏移，可安全复制后独立遍历。
+
+```c
+typedef struct xdercursor {
+	cbytes Data;
+	size_t Size;
+	size_t Offset;
+} xdercursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `cbytes` | Data |
+| `Size` | `size_t` | Size |
+| `Offset` | `size_t` | Offset |
+
+### `xderresult`
+
+Read/Peek 把正常结束与协议错误分开表达。
+
+```c
+typedef enum xderresult {
+	XDER_ERROR = -1,
+	XDER_DONE = 0,
+	XDER_VALUE = 1
+} xderresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XDER_ERROR` | 失败 |
+| `XDER_DONE` | 完成 |
+
+### `xasn1error`
+
+ASN.1/DER 模块稳定错误码。
+
+```c
+typedef enum xasn1error {
+	XASN1_ERROR_TAG = 1,
+	XASN1_ERROR_LENGTH,
+	XASN1_ERROR_VALUE,
+	XASN1_ERROR_TYPE,
+	XASN1_ERROR_END,
+	XASN1_ERROR_TRAILING,
+	XASN1_ERROR_ORDER,
+	XASN1_ERROR_DEPTH,
+	XASN1_ERROR_RANGE
+} xasn1error;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XASN1_ERROR_TAG` | TAG |
+| `XASN1_ERROR_LENGTH` | LENGTH |
+| `XASN1_ERROR_VALUE` | 值非法 |
+| `XASN1_ERROR_TYPE` | 类型 |
+| `XASN1_ERROR_END` | END |
+| `XASN1_ERROR_TRAILING` | TRAILING |
+| `XASN1_ERROR_ORDER` | ORDER |
+| `XASN1_ERROR_DEPTH` | DEPTH |
+
+### `xbuffer`
+
+DER 写入接口只需要缓冲的不透明指针。
+
+```c
+typedef struct xbuffer xbuffer;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 ## 编码器
 
 编码器族向 `xbuffer` 尾部追加规范 DER：失败时不修改对外可见长度，不发布半个 TLV。`Content` 一律借用——追加的是编码后的字节，不是调用方对象；构造类型（SEQUENCE/SET/显式标签）的子项由调用方预先编码后作为 `Content` 传入。

@@ -3,6 +3,102 @@
 `<xrt/http_expect.h>` 实现 RFC 9110 `Expect` 字段的传输无关协议层。它不绑定
 HTTP 客户端、服务器或网络对象，直接路径不分配内存。
 
+## 类型与常量
+
+### `xhttpexpectflag`
+
+Expectation 标志区分扩展值、quoted-string 和参数。
+
+```c
+typedef enum xhttpexpectflag {
+	XHTTP_EXPECT_BARE = 0,
+	XHTTP_EXPECT_HAS_VALUE = UINT32_C(0x00000001),
+	XHTTP_EXPECT_VALUE_QUOTED = UINT32_C(0x00000002),
+	XHTTP_EXPECT_HAS_PARAMETERS = UINT32_C(0x00000004)
+} xhttpexpectflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_EXPECT_BARE` | BARE |
+| `XHTTP_EXPECT_HAS_VALUE` | HAS值非法 |
+| `XHTTP_EXPECT_VALUE_QUOTED` | 值非法QUOTED |
+
+### `xhttpexpectation`
+
+Expectation 借用完整元素、名称、线路值和原始参数片段。
+
+```c
+typedef struct xhttpexpectation {
+	xstrview Element;
+	xstrview Name;
+	xstrview Value;
+	xstrview Parameters;
+	uint32 Flags;
+} xhttpexpectation;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Element` | `xstrview` | Element |
+| `Name` | `xstrview` | Name |
+| `Value` | `xstrview` | Value |
+| `Parameters` | `xstrview` | Parameters |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpexpectcursor`
+
+单字段游标由初始化函数建立，调用方不得直接修改。
+
+```c
+typedef struct xhttpexpectcursor {
+	size_t Offset;
+	uint8 Validated;
+} xhttpexpectcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpexpectfieldcursor`
+
+重复字段游标同时记录当前字段和字段内位置。
+
+```c
+typedef struct xhttpexpectfieldcursor {
+	size_t Field;
+	size_t Offset;
+	uint8 Validated;
+} xhttpexpectfieldcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpexpectresult`
+
+字段分类保留语法错误与语法正确但不受支持的扩展差异。
+
+```c
+typedef enum xhttpexpectresult {
+	XHTTP_EXPECT_ERROR = -1,
+	XHTTP_EXPECT_NONE = 0,
+	XHTTP_EXPECT_CONTINUE = 1,
+	XHTTP_EXPECT_UNSUPPORTED = 2
+} xhttpexpectresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_EXPECT_ERROR` | 失败 |
+| `XHTTP_EXPECT_NONE` | 无 |
+| `XHTTP_EXPECT_CONTINUE` | CONTINUE |
+
 ## 元素
 
 `xhttpexpectation` 借用完整 `Element`、大小写不敏感的 `Name`、可选线路 `Value`

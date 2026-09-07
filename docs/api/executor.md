@@ -3,6 +3,119 @@
 `Executor` 是独立可裁剪的高吞吐 detached 工作执行器。它不创建 `Future`，不传递返回值，
 也不提供运行中任务的强制取消；需要结果、错误传播或协作取消时应使用 `TaskPool`。
 
+## 类型与常量
+
+### `xexecutoritem`
+
+批量描述符只在提交调用期间借用，成功后各项数据责任转移给执行器。
+
+```c
+typedef struct xexecutoritem {
+	xexecutorproc Proc;
+	ptr Data;
+	xexecutorfreeproc Destroy;
+	ptr DestroyContext;
+} xexecutoritem;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Proc` | `xexecutorproc` | Proc |
+| `Data` | `ptr` | Data |
+| `Destroy` | `xexecutorfreeproc` | Destroy |
+| `DestroyContext` | `ptr` | DestroyContext |
+
+### `xexecutorconfig`
+
+QueueLimit 是每个 Worker 的硬队列上限；总排队容量等于 Threads 乘 QueueLimit。
+
+```c
+typedef struct xexecutorconfig {
+	uint32 Threads;
+	size_t QueueLimit;
+	size_t StackSize;
+} xexecutorconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Threads` | `uint32` | Threads |
+| `QueueLimit` | `size_t` | QueueLimit |
+| `StackSize` | `size_t` | StackSize |
+
+### `xexecutorstats`
+
+统计区分瞬时负载、累计受理、执行、窃取、取消和拒绝数量。
+
+```c
+typedef struct xexecutorstats {
+	uint32 Threads;
+	size_t QueueLimit;
+	size_t Queued;
+	size_t Running;
+	uint64 Submitted;
+	uint64 Completed;
+	uint64 Executed;
+	uint64 Stolen;
+	uint64 Cancelled;
+	uint64 Rejected;
+	bool Closed;
+	bool Cancelling;
+} xexecutorstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Threads` | `uint32` | Threads |
+| `QueueLimit` | `size_t` | QueueLimit |
+| `Queued` | `size_t` | Queued |
+| `Running` | `size_t` | Running |
+| `Submitted` | `uint64` | Submitted |
+| `Completed` | `uint64` | Completed |
+| `Executed` | `uint64` | Executed |
+| `Stolen` | `uint64` | Stolen |
+| `Cancelled` | `uint64` | Cancelled |
+| `Rejected` | `uint64` | Rejected |
+| `Closed` | `bool` | Closed |
+| `Cancelling` | `bool` | Cancelling |
+
+### `xexecutor`
+
+Executor 是无 Future 的有界高吞吐执行器，与传播结果和取消的 TaskPool 分工。
+
+```c
+typedef struct xexecutor xexecutor;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xexecutorproc`
+
+工作过程不返回结果；错误上下文只在当前工作内有效，返回后由执行器清理。
+
+```c
+typedef void (*xexecutorproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xexecutorfreeproc`
+
+工作数据析构在过程返回或排队工作被取消后执行一次。
+
+```c
+typedef void (*xexecutorfreeproc)(ptr pData, ptr pContext);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_EXECUTOR_QUEUE_LIMIT_DEFAULT` | `((size_t)1024u)` | QUEUE超限默认值 |
+| `XRT_EXECUTOR_THREAD_LIMIT` | `256u` | 线程标识超限 |
+
 ## 性能契约
 
 - 创建时按 `Threads * QueueLimit` 预分配全部作业槽。

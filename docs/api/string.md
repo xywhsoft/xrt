@@ -46,6 +46,114 @@ typedef struct xstrbuf {
 
 `xstrsplit`、`xstrlines` 和 `xstrfields` 是零分配迭代器，返回的片段借用输入数据。迭代器必须通过对应的 `Init` 函数初始化，公开字段只用于栈上存储，不应由调用方修改。`xstrfields` 跳过连续 ASCII 空白且不返回空字段。`xstrlist` 是便捷结果；结构、视图数组和所有零结尾片段位于同一个分配块中，只需调用一次 `xrtStrListFree`。
 
+### `xstrerror`
+
+字符串体系的稳定错误代码。
+
+```c
+typedef enum xstrerror {
+	XSTR_ERROR_FORMAT = 1,
+	XSTR_ERROR_PATTERN
+} xstrerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XSTR_ERROR_FORMAT` | XSTR失败FORMAT |
+
+### `xstrsplit`
+
+通用字符串拆分迭代器不分配内存。
+
+```c
+typedef struct xstrsplit {
+	xstrview Text;
+	xstrview Separator;
+	size_t Position;
+	uint32 State;
+	bool Done;
+} xstrsplit;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Text` | `xstrview` | Text |
+| `Separator` | `xstrview` | Separator |
+| `Position` | `size_t` | Position |
+| `State` | `uint32` | State |
+| `Done` | `bool` | Done |
+
+### `xstrlines`
+
+行迭代器同时识别 LF、CRLF 和 CR。
+
+```c
+typedef struct xstrlines {
+	xstrview Text;
+	size_t Position;
+	uint32 State;
+	bool Done;
+} xstrlines;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Text` | `xstrview` | Text |
+| `Position` | `size_t` | Position |
+| `State` | `uint32` | State |
+| `Done` | `bool` | Done |
+
+### `xstrfields`
+
+字段迭代器跳过连续 ASCII 空白且不返回空字段。
+
+```c
+typedef struct xstrfields {
+	xstrview Text;
+	size_t Position;
+	uint32 State;
+	bool Done;
+} xstrfields;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Text` | `xstrview` | Text |
+| `Position` | `size_t` | Position |
+| `State` | `uint32` | State |
+| `Done` | `bool` | Done |
+
+### `xstrlist`
+
+便捷拆分结果在一个分配块内保存视图和零结尾副本。
+
+```c
+typedef struct xstrlist {
+	size_t Count;
+	xstrview* Items;
+	size_t DataSize;
+} xstrlist;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Count` | `size_t` | Count |
+| `Items` | `xstrview*` | Items |
+| `DataSize` | `size_t` | DataSize |
+
+### `xstrglobflag`
+
+通配匹配可以选择只对 ASCII 字母忽略大小写。
+
+```c
+typedef enum xstrglobflag {
+	XSTR_GLOB_CASE_ASCII = 0x01
+} xstrglobflag;
+```
+
+| 值 | 语义 |
+|---|---|
+
 ## 视图函数
 
 ### `xrtStrView`

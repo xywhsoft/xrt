@@ -348,6 +348,133 @@ typedef bool (*xintmapvisitor)(int64 key, ptr value, ptr user_data);
 返回 `true` 继续遍历，返回 `false` 停止。回调可以查询同一映射并直接修改当前值槽，
 但不得插入、替换、删除、清空、裁剪、释放映射或嵌套调用 `Visit`。
 
+### `xmap`
+
+字节键映射使用哈希桶查找，并以独立条目保持键和值地址稳定。
+
+```c
+typedef struct xmap {
+	xmapentry** Buckets;
+	xmapentry* First;
+	xmapentry* Last;
+	size_t ValueSize;
+	size_t ValueOffset;
+	size_t KeyOffset;
+	size_t Alignment;
+	size_t Count;
+	size_t BucketCount;
+	size_t Threshold;
+	uint64 Version;
+	xmaphash Hash;
+	xmapequal Equal;
+	xmapdrop Drop;
+	ptr KeyUserData;
+	ptr DropUserData;
+	uint32 Flags;
+} xmap;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Buckets` | `xmapentry**` | Buckets |
+| `First` | `xmapentry*` | First |
+| `Last` | `xmapentry*` | Last |
+| `ValueSize` | `size_t` | ValueSize |
+| `ValueOffset` | `size_t` | ValueOffset |
+| `KeyOffset` | `size_t` | KeyOffset |
+| `Alignment` | `size_t` | Alignment |
+| `Count` | `size_t` | Count |
+| `BucketCount` | `size_t` | BucketCount |
+| `Threshold` | `size_t` | Threshold |
+| `Version` | `uint64` | Version |
+| `Hash` | `xmaphash` | Hash |
+| `Equal` | `xmapequal` | Equal |
+| `Drop` | `xmapdrop` | Drop |
+| `KeyUserData` | `ptr` | KeyUserData |
+| `DropUserData` | `ptr` | DropUserData |
+| `Flags` | `uint32` | Flags |
+
+### `xmapiter`
+
+外置迭代器允许同一映射存在多个独立遍历状态。
+
+```c
+typedef struct xmapiter {
+	xmap* Map;
+	xmapentry* Next;
+	uint64 Version;
+	int Direction;
+} xmapiter;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Map` | `xmap*` | Map |
+| `Next` | `xmapentry*` | Next |
+| `Version` | `uint64` | Version |
+| `Direction` | `int` | Direction |
+
+### `xmapentry`
+
+Map 内部条目结构（不透明，仅实现内部使用）。
+
+
+```c
+typedef struct xmapentry xmapentry;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xmaphash`
+
+键哈希器必须保证相等键产生相同哈希值，且不得重入当前映射。
+
+```c
+typedef uint64 (*xmaphash)(xbytesview Key, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xmapequal`
+
+键相等器只比较键内容，不取得所有权，也不得重入当前映射。
+
+```c
+typedef bool (*xmapequal)(xbytesview Left, xbytesview Right, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xmapdrop`
+
+映射释放器处理值内部的拥有资源，不释放值槽、键或重入当前映射。
+
+```c
+typedef void (*xmapdrop)(xbytesview Key, ptr pValue, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xmapinit`
+
+新值初始化器失败时自行清理部分状态并设置错误。
+
+```c
+typedef bool (*xmapinit)(xbytesview Key, ptr pValue, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xmapvisitor`
+
+访问器返回 false 时停止遍历；回调内允许查询，不允许结构修改。
+
+```c
+typedef bool (*xmapvisitor)(xbytesview Key, ptr pValue, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 生命周期
 
 | API | 语义 |

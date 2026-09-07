@@ -24,6 +24,73 @@ typedef void (*xthreadkeyproc)(ptr pValue);
 
 可选值析构过程。非空值被替换、清除、随线程退出或随键销毁时调用。调用过程取得值的所有权。
 
+### `xonce`
+
+Once 对象的字段保持不透明，只能使用 XRT_ONCE_INIT 或全零初始化。
+
+```c
+typedef union xonce {
+	uint64 Alignment;
+	uint8 Storage[XRT_ONCE_STORAGE_SIZE];
+} xonce;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xthreadstate`
+
+线程只有运行和完成两种可观测状态，停止请求不伪装成执行状态。
+
+```c
+typedef enum xthreadstate {
+	XTHREAD_RUNNING = 0,
+	XTHREAD_FINISHED = 1
+} xthreadstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTHREAD_RUNNING` | XTHREAD运行中 |
+
+### `xthread`
+
+原生线程对象对外保持不透明，并使用引用计数管理生命周期。
+
+```c
+typedef struct xthread xthread;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xonceproc`
+
+初始化过程返回 true 时永久完成，返回 false 时允许后续调用重试。
+
+```c
+typedef bool (*xonceproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xthreadproc`
+
+线程入口返回稳定的 32 位退出码。
+
+```c
+typedef int32 (*xthreadproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_ONCE_STORAGE_SIZE` | `16u` | Once 使用固定存储并允许静态零初始化。 |
+| `XRT_ONCE_INIT` | `{ 0 }` | 静态 Once 对象初始化值。 |
+
 ## 所有权与线程规则
 
 - `xrtThreadKeySet` 成功后，键取得非空值的所有权。

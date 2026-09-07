@@ -58,6 +58,82 @@ typedef struct job {
 job* pJob = XRT_CONTAINER_OF(pNode, job, Ready);
 ```
 
+### `xlistnode`
+
+侵入式链表节点（不透明）：由宿主对象嵌入，一个对象可嵌入多个独立节点分别挂入不同链表。
+
+
+```c
+typedef struct xlistnode {
+	struct xlistnode* Prev;
+	struct xlistnode* Next;
+	xlist* Owner;
+} xlistnode;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Prev` | `struct xlistnode*` | Prev |
+| `Next` | `struct xlistnode*` | Next |
+| `Owner` | `xlist*` | Owner |
+
+### `xlistiter`
+
+外置迭代器不分配内存，并允许通过专用操作删除当前节点。
+
+```c
+typedef struct xlistiter {
+	xlist* List;
+	xlistnode* Next;
+	xlistnode* Current;
+	uint64 Version;
+	bool Reverse;
+} xlistiter;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `List` | `xlist*` | List |
+| `Next` | `xlistnode*` | Next |
+| `Current` | `xlistnode*` | Current |
+| `Version` | `uint64` | Version |
+| `Reverse` | `bool` | Reverse |
+
+### `xlisterror`
+
+链表模块稳定错误代码。
+
+```c
+typedef enum xlisterror {
+	XLIST_ERROR_ARGUMENT = 1,
+	XLIST_ERROR_STATE,
+	XLIST_ERROR_RANGE,
+	XLIST_ERROR_MODIFIED
+} xlisterror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XLIST_ERROR_ARGUMENT` | 参数非法 |
+| `XLIST_ERROR_STATE` | 状态非法 |
+| `XLIST_ERROR_RANGE` | 范围越界 |
+
+### `xlist`
+
+侵入式链表不拥有节点内存；一个对象可嵌入多个独立节点。
+
+```c
+typedef struct xlist xlist;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_CONTAINER_OF` | `(pMember, Type, Member) \` | 从嵌入成员地址恢复所属结构地址；参数只求值一次。 |
+
 ## 查询
 
 - `xrtListEmpty` / `xrtListCount` 返回空状态和节点数。

@@ -82,6 +82,135 @@ typedef struct xutfresult {
 
 这里没有含义随平台改变的 “OEM” 编码。Windows 代码页、GBK、Shift-JIS 等传统编码属于可选的平台/外部编解码边界，不能在非 Windows 平台静默等价为 UTF-8。
 
+### `xutf16view`
+
+UTF-16 视图的 Size 表示 16 位码元数。
+
+```c
+typedef struct xutf16view {
+	const uint16* Data;
+	size_t Size;
+} xutf16view;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `const uint16*` | Data |
+| `Size` | `size_t` | Size |
+
+### `xutf32view`
+
+UTF-32 视图的 Size 表示 32 位码元数。
+
+```c
+typedef struct xutf32view {
+	const uint32* Data;
+	size_t Size;
+} xutf32view;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `const uint32*` | Data |
+| `Size` | `size_t` | Size |
+
+### `xutfstatus`
+
+UTF 原语和转换缓冲区共同使用的状态。
+
+```c
+typedef enum xutfstatus {
+	XUTF_OK = 0,
+	XUTF_MORE,
+	XUTF_INVALID,
+	XUTF_NO_SPACE,
+	XUTF_OVERFLOW
+} xutfstatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XUTF_OK` | 成功 |
+| `XUTF_MORE` | 需要更多输入 |
+| `XUTF_INVALID` | 无效 |
+| `XUTF_NO_SPACE` | NOSPACE |
+
+### `xutfresult`
+
+转换结果明确区分读取量、写入量和首个错误位置。
+
+```c
+typedef struct xutfresult {
+	xutfstatus Status;
+	size_t Read;
+	size_t Written;
+	size_t Error;
+} xutfresult;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Status` | `xutfstatus` | Status |
+| `Read` | `size_t` | Read |
+| `Written` | `size_t` | Written |
+| `Error` | `size_t` | Error |
+
+### `xutf8state`
+
+流式 UTF-8 校验器最多保留一个未完成标量的前缀。
+
+```c
+typedef struct xutf8state {
+	unsigned char Pending[4];
+	size_t Total;
+	size_t PendingOffset;
+	size_t Error;
+	uint8 PendingSize;
+	bool Failed;
+} xutf8state;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Total` | `size_t` | Total |
+| `PendingOffset` | `size_t` | PendingOffset |
+| `Error` | `size_t` | Error |
+| `PendingSize` | `uint8` | PendingSize |
+| `Failed` | `bool` | Failed |
+
+### `xutferror`
+
+Unicode 模块的稳定错误代码。
+
+```c
+typedef enum xutferror {
+	XUTF_ERROR_INVALID = 1,
+	XUTF_ERROR_OVERFLOW
+} xutferror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XUTF_ERROR_INVALID` | XUTF失败无效 |
+
+### `xencodingguess`
+
+检测结果明确表达猜测强度，零表示没有可靠结论。
+
+```c
+typedef struct xencodingguess {
+	xencoding Encoding;
+	size_t BomSize;
+	uint8 Confidence;
+} xencodingguess;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Encoding` | `xencoding` | Encoding |
+| `BomSize` | `size_t` | BomSize |
+| `Confidence` | `uint8` | Confidence |
+
 ## 视图与宽字符串
 
 ### `xrtUtf16View`

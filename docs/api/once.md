@@ -28,6 +28,61 @@ typedef bool (*xonceproc)(ptr pData);
 
 静态和自动对象的初始化值。`XRT_ONCE_STORAGE_SIZE` 表示公开不透明存储的字节数，不应依赖其内部布局。
 
+### `xthreadstate`
+
+线程只有运行和完成两种可观测状态，停止请求不伪装成执行状态。
+
+```c
+typedef enum xthreadstate {
+	XTHREAD_RUNNING = 0,
+	XTHREAD_FINISHED = 1
+} xthreadstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTHREAD_RUNNING` | XTHREAD运行中 |
+
+### `xthreadkey`
+
+动态键按原生线程隔离，同一线程上的 Fiber 和协程共享其值。
+
+```c
+typedef struct xthreadkey xthreadkey;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xthread`
+
+原生线程对象对外保持不透明，并使用引用计数管理生命周期。
+
+```c
+typedef struct xthread xthread;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xthreadkeyproc`
+
+非空线程局部值在线程退出、显式清理或被替换时交给析构过程。
+
+```c
+typedef void (*xthreadkeyproc)(ptr pValue);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xthreadproc`
+
+线程入口返回稳定的 32 位退出码。
+
+```c
+typedef int32 (*xthreadproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 函数
 
 ### `xrtOnce`

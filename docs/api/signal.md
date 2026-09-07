@@ -11,6 +11,112 @@
 
 依赖闭包为 `atomic`、`once`、`cond`、`thread` 及这些模块的基础依赖。原生处理器要求目标平台提供锁自由 32 位原子操作，不满足时首次订阅返回 `XERR_UNSUPPORTED`。未启用 `signal` 时，不会编译平台处理器、调度线程或唤醒资源。
 
+## 类型与常量
+
+### `xsignal`
+
+XRT 信号代码跨平台稳定；并非每个平台都支持全部代码。
+
+```c
+typedef enum xsignal {
+	XSIGNAL_NONE = 0,
+	XSIGNAL_HUP = 1,
+	XSIGNAL_INT = 2,
+	XSIGNAL_TERM = 15,
+	XSIGNAL_BREAK = 1001,
+	XSIGNAL_CLOSE = 1002,
+	XSIGNAL_LOGOFF = 1003,
+	XSIGNAL_SHUTDOWN = 1004
+} xsignal;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XSIGNAL_NONE` | 无 |
+| `XSIGNAL_HUP` | HUP |
+| `XSIGNAL_INT` | 有符号整数 |
+| `XSIGNAL_TERM` | TERM |
+| `XSIGNAL_BREAK` | BREAK |
+| `XSIGNAL_CLOSE` | CLOSE |
+| `XSIGNAL_LOGOFF` | LOGOFF |
+
+### `xsignalerror`
+
+信号错误代码在 xrt.signal 错误域内稳定。
+
+```c
+typedef enum xsignalerror {
+	XSIGNAL_ERROR_CODE = 1,
+	XSIGNAL_ERROR_UNSUPPORTED,
+	XSIGNAL_ERROR_SYSTEM,
+	XSIGNAL_ERROR_STATE
+} xsignalerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XSIGNAL_ERROR_CODE` | CODE |
+| `XSIGNAL_ERROR_UNSUPPORTED` | 不支持 |
+| `XSIGNAL_ERROR_SYSTEM` | SYSTEM |
+
+### `xsignalevent`
+
+一次调度可以合并多个同类原生通知，Count 是本批数量，Total 是清零后的累计数量。
+
+```c
+typedef struct xsignalevent {
+	xsignal Code;
+	int32 SystemCode;
+	uint32 Count;
+	uint64 Total;
+	xtime Time;
+	cstr Name;
+} xsignalevent;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Code` | `xsignal` | Code |
+| `SystemCode` | `int32` | SystemCode |
+| `Count` | `uint32` | Count |
+| `Total` | `uint64` | Total |
+| `Time` | `xtime` | Time |
+| `Name` | `cstr` | Name |
+
+### `xsignalwatch`
+
+信号监听句柄由 XRT 引用计数管理，对外保持不透明。
+
+```c
+typedef struct xsignalwatch xsignalwatch;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xsignalproc`
+
+用户回调始终在 XRT 信号调度线程执行，不在原生信号处理上下文执行。
+
+```c
+typedef void (*xsignalproc)(
+	xsignalwatch* pWatch,
+	const xsignalevent* pEvent,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xsignalfreeproc`
+
+Owned 监听句柄最终释放时执行数据析构器。
+
+```c
+typedef void (*xsignalfreeproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 信号代码
 
 `xsignal` 使用跨平台稳定代码：

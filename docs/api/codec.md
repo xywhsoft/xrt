@@ -1,5 +1,119 @@
 # Codec
 
+## 类型与常量
+
+### `xhexflag`
+
+HEX 编码可选大写字母，解码可选忽略 ASCII 空白。
+
+```c
+typedef enum xhexflag {
+	XHEX_UPPER = UINT32_C(0x00000001),
+	XHEX_IGNORE_SPACE = UINT32_C(0x00000002)
+} xhexflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHEX_UPPER` | XHEX大写 |
+
+### `xbase64flag`
+
+Base64 配置标志；默认使用标准字母表、规范填充并严格拒绝空白。
+
+```c
+typedef enum xbase64flag {
+	XBASE64_URL = UINT32_C(0x00000001),
+	XBASE64_NO_PADDING = UINT32_C(0x00000002),
+	XBASE64_IGNORE_SPACE = UINT32_C(0x00000004),
+	XBASE64_OPTIONAL_PADDING = UINT32_C(0x00000008)
+} xbase64flag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XBASE64_URL` | URL |
+| `XBASE64_NO_PADDING` | NOPADDING |
+| `XBASE64_IGNORE_SPACE` | IGNORESPACE |
+
+### `xbase64config`
+
+自定义字母表必须是 64 个互不重复的可见 ASCII 字符；空指针表示使用内置字母表。
+
+```c
+typedef struct xbase64config {
+	cstr Alphabet;
+	uint32 Flags;
+} xbase64config;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alphabet` | `cstr` | Alphabet |
+| `Flags` | `uint32` | Flags |
+
+### `xcodecerror`
+
+Codec 模块稳定错误码；各编码族使用独立编号区间。
+
+```c
+typedef enum xcodecerror {
+	#if defined(XRT_FEATURE_CODEC_HEX)
+	XCODEC_ERROR_HEX_CONFIG = 901,
+	XCODEC_ERROR_HEX_FORMAT = 902,
+	#endif
+
+	#if defined(XRT_FEATURE_CODEC_BASE64)
+	XCODEC_ERROR_BASE64_CONFIG = 1001,
+	XCODEC_ERROR_BASE64_FORMAT = 1002,
+	#endif
+
+	#if defined(XRT_FEATURE_CODEC_PERCENT)
+	XCODEC_ERROR_PERCENT_CONFIG = 1101,
+	XCODEC_ERROR_PERCENT_FORMAT = 1102,
+	#endif
+} xcodecerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XCODEC_ERROR_HEX_CONFIG` | HEX配置非法 |
+| `XCODEC_ERROR_HEX_FORMAT` | HEXFORMAT |
+| `XCODEC_ERROR_BASE64_CONFIG` | BASE64配置非法 |
+| `XCODEC_ERROR_BASE64_FORMAT` | BASE64FORMAT |
+| `XCODEC_ERROR_PERCENT_CONFIG` | PERCENT配置非法 |
+| `XCODEC_ERROR_PERCENT_FORMAT` | PERCENTFORMAT |
+
+### `xpercentnext`
+
+逐字节 percent 解码明确区分非法转义、输入结束和一个有效字节。
+
+```c
+typedef enum xpercentnext {
+	XPERCENT_NEXT_ERROR = -1,
+	XPERCENT_NEXT_END = 0,
+	XPERCENT_NEXT_BYTE = 1
+} xpercentnext;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPERCENT_NEXT_ERROR` | 失败 |
+| `XPERCENT_NEXT_END` | END |
+
+### `xpercentmap`
+
+预编译的 ASCII 安全字符集合。 该结构可按值复制，供大量字段编码时复用，避免反复构建字符位图。
+
+```c
+typedef struct xpercentmap {
+	uint64 Bits[2];
+} xpercentmap;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+
 ## HEX Codec
 
 `codec_hex` 是任意字节与十六进制文本之间的最小编码层，只依赖 `core`。启用：

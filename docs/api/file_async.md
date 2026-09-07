@@ -2,6 +2,135 @@
 
 异步文件体系把可能阻塞的文件系统操作提交到调用方拥有的有界 `xtaskpool`，并通过 `xfuture` 统一表达结果、错误、等待和取消。它不为每个操作创建线程，也不使用隐藏的全局执行器。
 
+## 类型与常量
+
+### `xfiledata`
+
+读取结果及其 Data 都由 Future 拥有，Future 释放前保持有效。
+
+```c
+typedef struct xfiledata {
+	bytes Data;
+	size_t Size;
+	uint64 Offset;
+	bool End;
+} xfiledata;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `bytes` | Data |
+| `Size` | `size_t` | Size |
+| `Offset` | `uint64` | Offset |
+| `End` | `bool` | End |
+
+### `xfilechange`
+
+写入、查询大小和修改大小统一返回偏移与字节数。
+
+```c
+typedef struct xfilechange {
+	uint64 Offset;
+	uint64 Size;
+} xfilechange;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `uint64` | Offset |
+| `Size` | `uint64` | Size |
+
+### `xfilesize`
+
+文件或目录树大小查询使用独立结果，避免混入写入偏移语义。
+
+```c
+typedef struct xfilesize {
+	uint64 Size;
+} xfilesize;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Size` | `uint64` | Size |
+
+### `xdirquery`
+
+目录属性查询结果由 Future 拥有。
+
+```c
+typedef struct xdirquery {
+	bool Empty;
+} xdirquery;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Empty` | `bool` | Empty |
+
+### `xfileasyncerror`
+
+异步文件错误保留外层操作，并通过 cause 保留文件或任务池错误。
+
+```c
+typedef enum xfileasyncerror {
+	XFILE_ASYNC_ERROR_OPEN = 1,
+	XFILE_ASYNC_ERROR_SUBMIT,
+	XFILE_ASYNC_ERROR_READ,
+	XFILE_ASYNC_ERROR_WRITE,
+	XFILE_ASYNC_ERROR_FLUSH,
+	XFILE_ASYNC_ERROR_SIZE,
+	XFILE_ASYNC_ERROR_RESIZE,
+	XFILE_ASYNC_ERROR_CLOSE,
+	XFILE_ASYNC_ERROR_COPY,
+	XFILE_ASYNC_ERROR_MOVE,
+	XFILE_ASYNC_ERROR_DELETE,
+	XFILE_ASYNC_ERROR_CREATE,
+	XFILE_ASYNC_ERROR_TREE,
+	XFILE_ASYNC_ERROR_QUERY
+} xfileasyncerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFILE_ASYNC_ERROR_OPEN` | OPEN |
+| `XFILE_ASYNC_ERROR_SUBMIT` | SUBMIT |
+| `XFILE_ASYNC_ERROR_READ` | 读方向 |
+| `XFILE_ASYNC_ERROR_WRITE` | 写方向 |
+| `XFILE_ASYNC_ERROR_FLUSH` | 刷新 |
+| `XFILE_ASYNC_ERROR_SIZE` | 尺寸 |
+| `XFILE_ASYNC_ERROR_RESIZE` | RESIZE |
+| `XFILE_ASYNC_ERROR_CLOSE` | CLOSE |
+| `XFILE_ASYNC_ERROR_COPY` | COPY |
+| `XFILE_ASYNC_ERROR_MOVE` | MOVE |
+| `XFILE_ASYNC_ERROR_DELETE` | DELETE |
+| `XFILE_ASYNC_ERROR_CREATE` | 创建 |
+| `XFILE_ASYNC_ERROR_TREE` | TREE |
+
+### `xasyncfile`
+
+异步文件对象绑定一个有界任务池，并在关闭前保留全部已受理操作。
+
+```c
+typedef struct xasyncfile xasyncfile;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xfileasyncreleaseproc`
+
+零复制写入受理后，在数据不再被任务使用时执行一次释放过程。
+
+```c
+typedef void (*xfileasyncreleaseproc)(
+	ptr pContext,
+	cbytes pData,
+	size_t iSize
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 裁剪层
 
 功能按真实依赖拆分，应用只启用需要的层：

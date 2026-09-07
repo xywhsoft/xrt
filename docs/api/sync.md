@@ -3,6 +3,83 @@
 同步体系提供 mutex、condition、semaphore、RWLock 和 event。每种能力独立裁剪，
 公共对象不暴露 Win32 或 pthread 类型。
 
+## 类型与常量
+
+### `xmutex`
+
+Mutex 使用固定对齐存储，允许嵌入用户结构且不暴露平台头。
+
+```c
+typedef union xmutex {
+	uint64 Alignment;
+	uint8 Storage[XRT_MUTEX_STORAGE_SIZE];
+} xmutex;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xcond`
+
+条件变量必须和 XRT mutex 配合使用。
+
+```c
+typedef union xcond {
+	uint64 Alignment;
+	uint8 Storage[XRT_COND_STORAGE_SIZE];
+} xcond;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xsem`
+
+信号量的计数范围在所有平台统一为 [0, INT32_MAX]。
+
+```c
+typedef union xsem {
+	uint64 Alignment;
+	uint8 Storage[XRT_SEM_STORAGE_SIZE];
+} xsem;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xrwlock`
+
+读写锁采用写者优先策略并支持升级和降级。
+
+```c
+typedef union xrwlock {
+	uint64 Alignment;
+	uint8 Storage[XRT_RWLOCK_STORAGE_SIZE];
+} xrwlock;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xevent`
+
+事件保存显式信号状态，可选择自动或手动复位。
+
+```c
+typedef union xevent {
+	uint64 Alignment;
+	uint8 Storage[XRT_EVENT_STORAGE_SIZE];
+} xevent;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
 ## 裁剪宏
 
 | 能力 | 启用宏 | 依赖 |

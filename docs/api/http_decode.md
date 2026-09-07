@@ -4,6 +4,109 @@
 独立、可裁剪的流式正文解码器。它不依赖 HTTP 客户端、服务器、Body 对象或网络
 缓冲区，可以直接接在 `xrtHttp1BodyRead` 产生的数据片段之后。
 
+## 类型与常量
+
+### `xhttpdecodemode`
+
+解码模式明确区分无编码、成功接管的内置编码和显式允许的原样回退。
+
+```c
+typedef enum xhttpdecodemode {
+	XHTTP_DECODE_IDENTITY = 0,
+	XHTTP_DECODE_CONTENT,
+	XHTTP_DECODE_RAW
+} xhttpdecodemode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_DECODE_IDENTITY` | IDENTITY |
+| `XHTTP_DECODE_CONTENT` | CONTENT |
+
+### `xhttpdecodeflag`
+
+默认拒绝未知编码；调用方可显式选择保留整个原始表示。
+
+```c
+typedef enum xhttpdecodeflag {
+	XHTTP_DECODE_ALLOW_RAW = UINT32_C(0x00000001)
+} xhttpdecodeflag;
+```
+
+| 值 | 语义 |
+|---|---|
+
+### `xhttpdecodeerror`
+
+错误码覆盖配置、Content-Encoding、状态和输出边界。
+
+```c
+typedef enum xhttpdecodeerror {
+	XHTTP_DECODE_ERROR_ARGUMENT = 1,
+	XHTTP_DECODE_ERROR_CONFIG,
+	XHTTP_DECODE_ERROR_CONTENT_ENCODING,
+	XHTTP_DECODE_ERROR_UNSUPPORTED,
+	XHTTP_DECODE_ERROR_STATE,
+	XHTTP_DECODE_ERROR_LIMIT,
+	XHTTP_DECODE_ERROR_OUTPUT
+} xhttpdecodeerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_DECODE_ERROR_ARGUMENT` | 参数非法 |
+| `XHTTP_DECODE_ERROR_CONFIG` | 配置非法 |
+| `XHTTP_DECODE_ERROR_CONTENT_ENCODING` | CONTENTENCODING |
+| `XHTTP_DECODE_ERROR_UNSUPPORTED` | 不支持 |
+| `XHTTP_DECODE_ERROR_STATE` | 状态非法 |
+| `XHTTP_DECODE_ERROR_LIMIT` | 超限 |
+
+### `xhttpdecodeconfig`
+
+每个解码层和最终明文都受同一个硬限额约束。
+
+```c
+typedef struct xhttpdecodeconfig {
+	uint64 OutputLimit;
+	uint32 GzipHeaderLimit;
+	uint32 MaxCodings;
+	uint32 Flags;
+} xhttpdecodeconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `OutputLimit` | `uint64` | OutputLimit |
+| `GzipHeaderLimit` | `uint32` | GzipHeaderLimit |
+| `MaxCodings` | `uint32` | MaxCodings |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpdecode`
+
+HTTP 解码器拥有并复用底层 Inflate 状态。
+
+```c
+typedef struct xhttpdecode xhttpdecode;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xhttpdecodeoutputproc`
+
+输出视图只在回调期间有效，返回 false 会终止当前解码器。
+
+```c
+typedef bool (*xhttpdecodeoutputproc)(xbytesview Data, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XHTTP_DECODE_OUTPUT_SAFE_DEFAULT` | `(UINT64_C(16) * 1024u * 1024u)` | XHTTPDECODE输出失败SAFE默认值 |
+
 ## 模式
 
 - `XHTTP_DECODE_IDENTITY`：没有内容编码或只有 `identity`，输入视图直接交给回调；
