@@ -80,7 +80,7 @@
 | 73 | udp.md | 73 | **完成** | 73/73 全绿（G3 73 片段，2026-09-07）；打开 6 + 接收 7 + 错误包 5 + Future/批量/包 17 + 发送 13 + 组播 5 + 关闭查询 20 七组；批量容量 1–256 RANGE、Worker 归属 STATE 全表；manifest 补注册三范例 |
 | 74 | value.md | 116 | **完成** | 116/116 全绿（G3 116 片段，2026-09-07）；标量 20 + 句柄 3 + 生命周期 9 + Array 20 + Object 13 + IntMap 11 + 迭代 8 + Set 16 + 类型身份 13 + 弱引用 3 十组；引用/移交/消费三形态全表；XERR_TYPE/VALUE/EXISTS 特有口径；锚点 13 范例 |
 | 75 | wait.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；Deadline 三函数；NEVER 语义（Expired 永假、Remaining UINT64_MAX）；锚点 concurrency/deadline |
-| 76 | websocket.md | 104 | 待办 |  |
+| 76 | websocket.md | 104 | **完成** | 104/104 全绿（G3 104 片段，2026-09-07）；帧/消息 12 + 握手 19 + 升级 9 + 压缩协商 30 + 流 34 五组；控制帧 125 字节上限、permessage-deflate 尾块约定入档；锚点 20 范例 |
 | 77 | x509.md | 89 | **完成** | 89/89 全绿（G3 89 片段，2026-09-07）；视图/算法/名称/扩展/名称约束/CRL 三层/策略/签名/身份/路径/信任库十三组；X509_DONE/VALUE/ERROR 三值逐函数成表；锚点 19 范例 |
 | 78 | xid.md | 11 | **完成** | 11/11 全绿（G3 11 片段，2026-09-07）；生成/文本/时间比较三组；系统随机源 IO、Write 容量 33 字节、ErrorOffset 定位器；锚点 xid/xid_batch |
 | 79 | xson.md | 35 | **完成** | 35/35 全绿（G3 35 片段，2026-09-07）；读取/DOM/事件/写出/writer 22/文件/错误八组；WriterTake 未 Finish = STATE；锚点 xson/xson_tour |
@@ -796,4 +796,9 @@
   不受支持算法 = XERR_UNSUPPORTED、PathBuild 无法到达信任源 = NOT_FOUND、
   StoreAddFile 走 xrt.file 域错误。
   完成 API 3203→3292/3664（89.9%），77/79 文件。
+- 2026-09-07 websocket.md 完成（104/104，G3 104 片段全绿）：三头并集
+  五组；契约——控制帧载荷 > 125 = XERR_RANGE、InflaterEnd 尾块不符
+  permessage-deflate 约定 = PROTOCOL、文本帧 UTF-8 严格校验、流层
+  Send 族 AGAIN/STATE 口径与 tcp 一致、Tcp/Tls 借用与引用双形态。
+  完成 API 3292→3396/3664（92.7%），78/79 文件。仅余 tls.md(268)。
 
