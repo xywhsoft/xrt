@@ -77,7 +77,7 @@
 | 70 | thread.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；全部节复用自 once.md（同映射 thread.h），按线程视角重组 |
 | 71 | time.md | 58 | **完成** | 58/58 全绿（G3 58 片段，2026-09-07）；九组入档；字段越界 RANGE、解析族 ARGUMENT、Write 容量原子失败；锚点 10 范例；manifest 补注册 text_parse |
 | 72 | tls.md | 268 | 待办 |  |
-| 73 | udp.md | 73 | 待办 |  |
+| 73 | udp.md | 73 | **完成** | 73/73 全绿（G3 73 片段，2026-09-07）；打开 6 + 接收 7 + 错误包 5 + Future/批量/包 17 + 发送 13 + 组播 5 + 关闭查询 20 七组；批量容量 1–256 RANGE、Worker 归属 STATE 全表；manifest 补注册三范例 |
 | 74 | value.md | 116 | 待办 |  |
 | 75 | wait.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；Deadline 三函数；NEVER 语义（Expired 永假、Remaining UINT64_MAX）；锚点 concurrency/deadline |
 | 76 | websocket.md | 104 | 待办 |  |
@@ -761,4 +761,10 @@
   饱和为 NEVER、Expired 永假、Remaining 为 UINT64_MAX——NEVER 语义三连
   全部入档；xwaitresult 枚举文档原有内容保留。
   完成 API 2965→2968/3664（81.0%），72/79 文件。
+- 2026-09-07 udp.md 完成（73/73，G3 73 片段全绿）：七组；契约——
+  批量容量 1–256 = XERR_RANGE、组播五操作仅 UDP Worker 内 = STATE、
+  SendBatch 前缀受理语义（pAccepted 写出实际数量）、BatchTake 转移后
+  位置为空、PathMtu 未知为零。manifest 补注册 #13：net_udp
+  batch/introspect/multicast 三范例。
+  完成 API 2968→3041/3664（83.0%），73/79 文件。
 
