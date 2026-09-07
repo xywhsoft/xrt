@@ -219,11 +219,57 @@ def check_doc(doc_path, headers, registered):
 	return problems, len(functions)
 
 
+def extract_public_types_consts(text):
+	"""返回 (types, consts)；按 DOC_SPEC §1.3 排除注册表项。"""
+	text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+	types = set()
+	for m in re.finditer(
+			r"typedef\s+(?:struct|enum|union)(?:\s+\w+)?\s*\{[^}]*\}\s*(\w+)\s*;", text):
+		types.add(m.group(1))
+	for m in re.finditer(r"typedef\s+(?:struct\s+\w+\s+)?\w+\s*\*?\s*(\w+)\s*;", text):
+		types.add(m.group(1))
+	for m in re.finditer(r"typedef\s+struct\s+\w+\s+(\w+)\s*;", text):
+		types.add(m.group(1))
+	for m in re.finditer(r"typedef\s+[^;{]*\(\s*\*\s*(\w+)\s*\)\s*\(", text):
+		types.add(m.group(1))
+	consts = set(re.findall(r"^#define\s+((?:X|XRT)[A-Z0-9_]+)\b", text, re.M))
+	types = {t for t in types if len(t) >= 3 and t[0] in "xX"}
+	consts = {c for c in consts
+		if not c.startswith("XRT_FEATURE_") and not c.startswith("XRT_MODULE_")
+		and not c.endswith("_H")}
+	return types, consts
+
+
+def check_doc_types(doc_path, headers):
+	"""G5：类型逐节 + 常量反引号提及（DOC_SPEC §1.3）。"""
+	text = doc_path.read_text(encoding="utf-8")
+	sections = set(re.findall(r"^### `(\w+)`\s*$", text, re.M))
+	problems = []
+	n_types = n_consts = 0
+	for header in sorted(headers):
+		header_path = ROOT / header
+		if not header_path.exists():
+			continue
+		types, consts = extract_public_types_consts(
+			header_path.read_text(encoding="utf-8"))
+		for t in sorted(types):
+			n_types += 1
+			if t not in sections:
+				problems.append(f"G5 missing-type-section: {t}")
+		for c in sorted(consts):
+			n_consts += 1
+			if f"`{c}`" not in text:
+				problems.append(f"G5 missing-const: {c}")
+	return problems, n_types, n_consts
+
+
 def main():
 	parser = argparse.ArgumentParser(description=__doc__)
 	group = parser.add_mutually_exclusive_group(required=True)
 	group.add_argument("--doc", help="docs/api 下的文件名，如 array.md")
 	group.add_argument("--all", action="store_true")
+	parser.add_argument("--types", action="store_true",
+		help="附加 G5 检查：公共类型/常量覆盖（DOC_SPEC §1.3）")
 	args = parser.parse_args()
 
 	doc_headers, registered = load_manifest()
@@ -244,8 +290,12 @@ def main():
 			print(f"[skip] {doc.name}: manifest 未登记公共头")
 			continue
 		problems, count = check_doc(doc, headers, registered)
+		if args.types:
+			tproblems, n_types, n_consts = check_doc_types(doc, headers)
+			problems += tproblems
+			count = f"{count} functions, {n_types} types, {n_consts} consts"
 		status = "ok" if not problems else f"{len(problems)} problem(s)"
-		print(f"[{status}] {doc.name} ({count} functions)")
+		print(f"[{status}] {doc.name} ({count})")
 		for problem in problems:
 			print(f"  - {problem}")
 		total_problems += len(problems)

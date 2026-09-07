@@ -41,6 +41,217 @@ Deflate 的 `RAW` 与 `ZLIB` 生成对应标准数据流；`GZIP` 使用 `MTIME=
 中的 CINFO 会同步反映该窗口。相同输入、配置和 Flush 序列产生稳定输出，不启用
 依赖未初始化内存的快速模式。
 
+## 类型与常量
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XINFLATE_OUTPUT_UNLIMITED` | `UINT64_MAX` | Inflate 解码输出不设总量上限 |
+| `XINFLATE_GZIP_HEADER_DEFAULT` | `65536` | gzip member 头部字节上限默认值 |
+| `XINFLATE_WINDOW_MIN` | `8u` | 滑动窗口位数下限 |
+| `XINFLATE_WINDOW_MAX` | `15u` | 滑动窗口位数上限 |
+| `XDEFLATE_OUTPUT_UNLIMITED` | `UINT64_MAX` | Deflate 输出不设总量上限 |
+| `XDEFLATE_LEVEL_DEFAULT` | `6` | 默认压缩级别 |
+| `XDEFLATE_WINDOW_MIN` | `8u` | 滑动窗口位数下限 |
+| `XDEFLATE_WINDOW_MAX` | `15u` | 滑动窗口位数上限 |
+
+### `xdeflatestrategy`
+
+```c
+typedef enum xdeflatestrategy {
+	XDEFLATE_STRATEGY_DEFAULT = 0,
+	XDEFLATE_STRATEGY_FILTERED,
+	XDEFLATE_STRATEGY_HUFFMAN,
+	XDEFLATE_STRATEGY_RLE,
+	XDEFLATE_STRATEGY_FIXED
+} xdeflatestrategy;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XDEFLATE_STRATEGY_DEFAULT` | 通用平衡策略 |
+| `XDEFLATE_STRATEGY_FILTERED` | 适合含大量重复字节的滤波数据 |
+| `XDEFLATE_STRATEGY_HUFFMAN` | 仅霍夫曼编码，不做字符串匹配 |
+| `XDEFLATE_STRATEGY_RLE` | 侧重游程匹配 |
+| `XDEFLATE_STRATEGY_FIXED` | 使用固定霍夫曼码表 |
+
+### `xinflateformat`
+
+```c
+typedef enum xinflateformat {
+	XINFLATE_RAW = 0,
+	XINFLATE_ZLIB,
+	XINFLATE_DEFLATE,
+	XINFLATE_GZIP
+} xinflateformat;
+```
+
+Inflate 支持原始 DEFLATE、zlib、兼容 HTTP deflate 和 gzip 数据流。
+
+| 值 | 语义 |
+|---|---|
+| `XINFLATE_RAW` | 裸 DEFLATE 流 |
+| `XINFLATE_ZLIB` | zlib 包装流 |
+| `XINFLATE_DEFLATE` | HTTP `deflate` 内容编码兼容形态 |
+| `XINFLATE_GZIP` | gzip member 流 |
+
+### `xinflateerror`
+
+```c
+typedef enum xinflateerror {
+	XINFLATE_ERROR_ARGUMENT = 1,
+	XINFLATE_ERROR_CONFIG,
+	XINFLATE_ERROR_STATE,
+	XINFLATE_ERROR_DATA,
+	XINFLATE_ERROR_LIMIT,
+	XINFLATE_ERROR_OUTPUT
+} xinflateerror;
+```
+
+Inflate 错误码区分配置、状态、数据、限额和输出消费者失败。
+
+| 值 | 语义 |
+|---|---|
+| `XINFLATE_ERROR_ARGUMENT` | 参数非法 |
+| `XINFLATE_ERROR_CONFIG` | 配置组合非法 |
+| `XINFLATE_ERROR_STATE` | 状态非法（未初始化/已终态） |
+| `XINFLATE_ERROR_DATA` | 输入数据损坏 |
+| `XINFLATE_ERROR_LIMIT` | 超出输出或头部限额 |
+| `XINFLATE_ERROR_OUTPUT` | 输出回调失败 |
+
+### `xinflateconfig`
+
+```c
+typedef struct xinflateconfig {
+	xinflateformat Format;
+	uint64 OutputLimit;
+	uint32 GzipHeaderLimit;
+	uint8 WindowBits;
+} xinflateconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Format` | `xinflateformat` | 输入流包装形态 |
+| `OutputLimit` | `uint64` | 所有 gzip member 或单个 DEFLATE 流的解码总上限 |
+| `GzipHeaderLimit` | `uint32` | 单个 gzip member 头部字节上限 |
+| `WindowBits` | `uint8` | 8–15；严格限制允许引用的历史距离 |
+
+### `xinflate`
+
+```c
+typedef struct xinflate xinflate;
+```
+
+不透明 Inflate 对象；按需拥有一个算法必需的 32 KiB 滑动窗口，并可复位复用。
+
+### `xinflateoutputproc`
+
+```c
+typedef bool (*xinflateoutputproc)(xbytesview Data, ptr pData);
+```
+
+输出视图只在回调期间有效；返回 `false` 会使当前 Inflate 进入失败终态。回调可设置更具体的当前错误，未设置时由 Inflate 建立输出错误。
+
+### `xdeflateformat`
+
+```c
+typedef enum xdeflateformat {
+	XDEFLATE_RAW = 0,
+	XDEFLATE_ZLIB,
+	XDEFLATE_GZIP
+} xdeflateformat;
+```
+
+Deflate 输出可选择原始数据流、zlib 包装或确定性 gzip member。
+
+| 值 | 语义 |
+|---|---|
+| `XDEFLATE_RAW` | 裸 DEFLATE 流 |
+| `XDEFLATE_ZLIB` | zlib 包装流 |
+| `XDEFLATE_GZIP` | 确定性 gzip member |
+
+### `xdeflateflush`
+
+```c
+typedef enum xdeflateflush {
+	XDEFLATE_FLUSH_NONE = 0,
+	XDEFLATE_FLUSH_SYNC,
+	XDEFLATE_FLUSH_FULL,
+	XDEFLATE_FLUSH_FINISH
+} xdeflateflush;
+```
+
+Flush 决定是否只推进、同步边界、清空历史匹配或结束完整数据流。
+
+| 值 | 语义 |
+|---|---|
+| `XDEFLATE_FLUSH_NONE` | 只推进，不保证边界 |
+| `XDEFLATE_FLUSH_SYNC` | 同步边界（可分段解码） |
+| `XDEFLATE_FLUSH_FULL` | 清空历史匹配状态 |
+| `XDEFLATE_FLUSH_FINISH` | 结束完整数据流 |
+
+### `xdeflateerror`
+
+```c
+typedef enum xdeflateerror {
+	XDEFLATE_ERROR_ARGUMENT = 1,
+	XDEFLATE_ERROR_CONFIG,
+	XDEFLATE_ERROR_STATE,
+	XDEFLATE_ERROR_LIMIT,
+	XDEFLATE_ERROR_OUTPUT,
+	XDEFLATE_ERROR_CODEC
+} xdeflateerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XDEFLATE_ERROR_ARGUMENT` | 参数非法 |
+| `XDEFLATE_ERROR_CONFIG` | 配置组合非法 |
+| `XDEFLATE_ERROR_STATE` | 状态非法 |
+| `XDEFLATE_ERROR_LIMIT` | 超出输出限额 |
+| `XDEFLATE_ERROR_OUTPUT` | 输出回调失败 |
+| `XDEFLATE_ERROR_CODEC` | 内部编解码失败 |
+
+### `xdeflateconfig`
+
+```c
+typedef struct xdeflateconfig {
+	xdeflateformat Format;
+	int32 Level;
+	xdeflatestrategy Strategy;
+	uint64 OutputLimit;
+	uint8 WindowBits;
+} xdeflateconfig;
+```
+
+Level 接受 0 到 10；WindowBits 接受 8 到 15。OutputLimit 包含 zlib 或 gzip 包装字节。默认配置使用 gzip、级别 6、默认策略和无限输出。
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Format` | `xdeflateformat` | 输出包装形态 |
+| `Level` | `int32` | 压缩级别 0–10 |
+| `Strategy` | `xdeflatestrategy` | 匹配策略 |
+| `OutputLimit` | `uint64` | 输出总量上限（含包装字节） |
+| `WindowBits` | `uint8` | 滑动窗口位数 8–15 |
+
+### `xdeflate`
+
+```c
+typedef struct xdeflate xdeflate;
+```
+
+不透明 Deflate 对象；按需拥有算法字典和编码表，并可复位复用。
+
+### `xdeflateoutputproc`
+
+```c
+typedef bool (*xdeflateoutputproc)(xbytesview Data, ptr pData);
+```
+
+输出视图只在回调期间有效；返回 `false` 会使当前 Deflate 进入失败终态。回调可设置更具体的当前错误，未设置时由 Deflate 建立输出错误。
+
 ## Inflate 解码 API
 
 ### `xrtInflateConfigInit`
