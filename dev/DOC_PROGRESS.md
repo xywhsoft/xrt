@@ -952,4 +952,11 @@
   终态三项零：标题跳级零、重复节零；G1+G5/G3 全绿（79/79）。
   过程教训入档：大跨度正则删除前必须先核对跨度内容边界；
   门禁的存在使误删在提交前被拦截，未污染历史。
+- 2026-09-07 空表清零专项：空表扫描（表头+分隔行后无数据行）发现
+  14 处——10 个事件回调结构（tls/tcp/ws/udp/server/listener）字段表、
+  xpercentmap/xid 字段表、3 个 void 构造函数参数表。全部按头文件
+  实测字段回填（事件字段逐一与 typedef 对照，纠正四组臆测：
+  ws 实为 Message 分片+Pong+Backpressure 而非 Text/Binary；
+  tls 实为 Writable 而非 High/LowWater；server/listener 含 Error
+  与 HandshakeError）。复扫空表零；G1+G5/G3 全绿。
 

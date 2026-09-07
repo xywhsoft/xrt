@@ -118,6 +118,7 @@ typedef struct xpercentmap {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `Bits` | `uint64[2]` | 256 位字符位图（每字节一位） |
 
 ## HEX Codec
 

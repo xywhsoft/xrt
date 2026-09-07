@@ -401,6 +401,13 @@ typedef struct xnetstreamevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `Open` | `回调` | 流开放 |
+| `Read` | `回调` | 收到数据缓冲 |
+| `End` | `回调` | 对端写关闭 |
+| `HighWater` | `回调` | 发送占用越过高水位 |
+| `LowWater` | `回调` | 发送占用落回低水位 |
+| `Drain` | `回调` | 发送队列排空 |
+| `Close` | `回调` | 流关闭（含终态结果与错误） |
 
 ### `xnetlistenerevents`
 
@@ -418,6 +425,9 @@ typedef struct xnetlistenerevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `Accept` | `回调` | 新流被接受（返回是否保留） |
+| `Error` | `回调` | 监听级错误 |
+| `Close` | `回调` | 监听器关闭 |
 
 ### `xnetstreamreadmode`
 
@@ -724,6 +734,9 @@ typedef struct xnetserverevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `Accept` | `回调` | 新流被接受（返回是否保留） |
+| `Error` | `回调` | 端点级错误 |
+| `Close` | `回调` | 服务器关闭 |
 
 ### `xnetserverconfig`
 

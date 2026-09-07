@@ -160,6 +160,11 @@ typedef struct xnetudpevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `Open` | `回调` | 对象就绪 |
+| `Receive` | `回调` | 收到完整数据报 |
+| `DatagramError` | `回调` | ICMP/配额错误到达 |
+| `Error` | `回调` | 对象级错误 |
+| `Close` | `回调` | 对象关闭 |
 
 ### `xnetudpconfig`
 

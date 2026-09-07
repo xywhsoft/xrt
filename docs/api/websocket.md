@@ -845,6 +845,14 @@ typedef struct xwsstreamevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `MessageBegin` | `回调` | 消息开始（含元信息） |
+| `MessageData` | `回调` | 消息分片 |
+| `MessageEnd` | `回调` | 消息结束 |
+| `Pong` | `回调` | 收到 Pong |
+| `Backpressure` | `回调` | 发送占用越过高水位 |
+| `Writable` | `回调` | 发送占用落回 |
+| `Drain` | `回调` | 发送队列排空 |
+| `Close` | `回调` | 流关闭（含 Close 帧信息） |
 
 ### `xwsstream`
 

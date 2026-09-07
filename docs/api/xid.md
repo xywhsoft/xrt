@@ -16,6 +16,7 @@ typedef struct xid {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `Data` | `uint8[12]` | 24 字节 XID（4 字节时间 + 20 字节随机） |
 
 ### `xiderror`
 

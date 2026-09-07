@@ -1853,6 +1853,12 @@ typedef struct xtlsstreamevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `Open` | `回调` | 流开放（握手完成） |
+| `Read` | `回调` | 收到解密缓冲 |
+| `End` | `回调` | 对端写关闭 |
+| `Writable` | `回调` | 发送预算可用 |
+| `Drain` | `回调` | 发送队列排空 |
+| `Close` | `回调` | 流关闭（含错误） |
 
 ### `xtlslistenerstate`
 
@@ -1890,6 +1896,10 @@ typedef struct xtlslistenerevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
+| `Accept` | `回调` | 新 TLS 流完成接受（返回是否保留） |
+| `HandshakeError` | `回调` | 接受后握手失败 |
+| `Error` | `回调` | 监听级错误 |
+| `Close` | `回调` | 监听器关闭 |
 
 ### `xtlslistenerconfig`
 
