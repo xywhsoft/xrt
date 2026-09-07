@@ -23,7 +23,7 @@
 | P14 卷八TLS上 | ✅ 完成 | 4 | 21,347 |
 | P15 卷八TLS下 | ✅ 完成 | 3 | 15,847 |
 | P16 卷九HTTP核心 | ✅ 完成 | 5 | 22,879 |
-| P17 卷九WebSocket | 🔄 进行中 | 0 | — |
+| P17 卷九WebSocket | ✅ 完成 | 4 | 18,724 |
 | P18–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -77,12 +77,35 @@
 | 90 | 90-http-framing.md | practice | 4,912 | 2 | 2 | 3 | 3 | P16 |
 | 91 | 91-http-headers.md | practice | 5,096 | 2 | 1 | 3 | 3 | P16 |
 | 92 | 92-http-decode.md | practice | 4,502 | 2 | 2 | 3 | 3 | P16 |
+| 93 | 93-http-upgrade.md | practice | 4,526 | 2 | 1 | 3 | 3 | P17 |
+| 94 | 94-ws-frame.md | practice | 4,611 | 2 | 1 | 3 | 3 | P17 |
+| 95 | 95-ws-stream.md | practice | 4,693 | 2 | 1 | 3 | 3 | P17 |
+| 96 | 96-ws-composition.md | practice | 4,894 | 2 | 2 | 3 | 3 | P17 |
 
 
 
 
 
 
+
+
+## P17 阶段记录
+
+- 卷九 WebSocket 4 章（卷九 9 章全部收官）：ch93 HTTP 升级（新增章：提议迭代/
+  应答生成/Accept RFC 向量/子协议协商/校验绑定 Key）、ch94 WS 帧（帧头三态/
+  分段相位掩码/分片重组与控制帧旁路/增量 UTF-8 跨帧校验）、ch95 WS 流
+  （Attach 精确衔接/事件视图即用即弃/发送三形态与统一背压/引用发送计数释放/
+  stream_tour 全特性巡检）、ch96 WS 组合（新增章：关闭码语义域与写侧强制/
+  permessage-deflate 协商最小合规子集/流式压缩双重上限/一条消息的旅程全景）。
+- 全书第十六次重编号：双插入 http-upgrade(93)/ws-composition(96)，
+  30 文件 +2，全书 124 章；卷九 88-96 共 9 章成型
+  （P16 HTTP 核心 5 + P17 升级与 WS 4）。
+- 门禁拦下：XRT_MODULE_WEBSOCKET 裸宏不存在（真名拆为 _FRAME/_MESSAGE/
+  _HANDSHAKE/_STREAM 等 17 个细粒度宏——正文改用细分表述）、
+  xrtWsInflaterInit 真名 InflaterConfigInit/InflaterCreate 族。
+- 素材侦察发现 examples/websocket 部分子目录为空壳（真文件在
+  extlibs/xws/examples/websocket）——本章只用有真实 main.c 的 13 个示例。
+- 行文章号修正 9 处（testing→116、perf→118、xhttp→97）。
 
 ## P16 阶段记录
 
