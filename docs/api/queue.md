@@ -35,6 +35,38 @@ Queue 体系提供有界、无运行时扩容的并发指针队列。公共层�
 
 等待、期限和取消不是基础队列结果。后续等待包装层使用统一的 `xwaitresult`，不会把同步原语依赖反向引入队列核心。
 
+### `xrtQueueCapacity`
+
+把最小容量向上取整为队列可使用的 2 次幂容量。
+
+```c
+size_t xrtQueueCapacity(size_t iMinimum)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iMinimum` | 输入 | — | 期望最小容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 可用 2 的幂容量 | — |
+
+#### 错误
+
+- 无 — 纯计算，不设置错误
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 容量取整
+
+```c
+		xrtQueueCapacity(3u), xrtQueueCapacity(16u));
+```
+
 ## SPSC
 
 `xspscqueue` 只允许一个生产者执行入队、批量入队和关闭，只允许一个消费者执行弹出、批量弹出和排空。状态查询可以由其他线程调用。违反角色数量约束属于调用方错误，库无法在不损失热路径性能的情况下检测。
@@ -69,6 +101,544 @@ Queue 体系提供有界、无运行时扩容的并发指针队列。公共层�
 
 `xrtSPSCQueueReset` 只允许在调用方独占队列且队列为空时执行。成功后游标归零并重新开放；队列非空时失败并报告 `XERR_AGAIN`。重置不是并发操作，也不承担元素析构。
 
+### `xrtSPSCQueueInit`
+
+初始化拥有内部指针环的 SPSC 队列；容量向上取整为 2 的幂。
+
+```c
+bool xrtSPSCQueueInit(xspscqueue* pQueue, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输出 | 非空 | 接收队列 |
+| `iCapacity` | 输入 | > 0 | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_MEMORY` — 内部环分配失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 内嵌初始化
+
+```c
+		if ( !xrtSPSCQueueInit(&Queue, 4u) ) {
+```
+
+### `xrtSPSCQueueInitBuffer`
+
+在调用方提供的 2 的幂指针环上初始化 SPSC 队列。
+
+```c
+bool xrtSPSCQueueInitBuffer(
+	xspscqueue* pQueue,
+	ptr* pItems,
+	size_t iCapacity
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输出 | 非空 | 接收队列 |
+| `pItems` | 输入 | 非空、2 的幂容量 | 指针环数组 |
+| `iCapacity` | 输入 | 2 的幂 | 槽数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_VALUE` — 容量不是 2 的幂
+
+#### 范例
+
+[spsc](../../examples/containers/queue_spsc/main.c) · 外部存储初始化
+
+```c
+	if ( !xrtSPSCQueueInitBuffer(&Queue, Storage, 8u) ) {
+```
+
+### `xrtSPSCQueueCreate`
+
+创建拥有结构和内部指针环的 SPSC 队列。
+
+```c
+xspscqueue* xrtSPSCQueueCreate(size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iCapacity` | 输入 | > 0 | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 队列 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_MEMORY` — 内部环分配失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 堆创建
+
+```c
+			xspscqueue* pHeap = xrtSPSCQueueCreate(8u);
+```
+
+### `xrtSPSCQueueUnit`
+
+释放拥有的指针环，但不释放队列结构或指针目标。
+
+```c
+void xrtSPSCQueueUnit(xspscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 内部指针环已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[spsc](../../examples/containers/queue_spsc/main.c) · 释放内部环
+
+```c
+			xrtSPSCQueueUnit(&Queue);
+```
+
+### `xrtSPSCQueueDestroy`
+
+释放 Create 返回的队列结构和内部指针环。
+
+```c
+void xrtSPSCQueueDestroy(xspscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 队列已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 销毁队列
+
+```c
+			xrtSPSCQueueDestroy(pHeap);
+```
+
+### `xrtSPSCQueueTryPush`
+
+尝试压入一个可为空的指针值。
+
+```c
+xqueueresult xrtSPSCQueueTryPush(xspscqueue* pQueue, ptr pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItem` | 输入 | 任意值 | 要压入的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XQUEUE_OK` | 操作成功 | — |
+| `XQUEUE_FULL` / `XQUEUE_EMPTY` | 队列满 / 空 | 不设错误 |
+| `XQUEUE_CLOSED` | 写入端已关闭（推送），或已关闭且排空（弹出） | 不设错误 |
+| `XQUEUE_ERROR` | 参数非法或内部状态破坏 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 单值推送
+
+```c
+		if ( (xrtSPSCQueueTryPush(&Queue, (ptr)1) != XQUEUE_OK) ||
+			(xrtSPSCQueueTryPush(&Queue, (ptr)2) != XQUEUE_OK) ||
+			(xrtSPSCQueueCount(&Queue) != 2u) ) {
+```
+
+### `xrtSPSCQueuePushBatch`
+
+尝试批量压入连续指针值；数组必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueuebatchresult xrtSPSCQueuePushBatch(
+	xspscqueue* pQueue,
+	ptr const* pItems,
+	size_t iCount
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItems` | 输入 | 非空数组 | 指针数组 |
+| `iCount` | 输入 | > 0 | 期望压入数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `.Result` | 同单值口径（`OK` / `FULL` / `EMPTY` / `CLOSED` / `ERROR`） | — |
+| `.Count` | 实际完成数量，允许部分完成 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+- `XERR_ARGUMENT` — 数组为空或与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 批量推送
+
+```c
+		Batch = xrtSPSCQueuePushBatch(&Queue, Items, 3u);
+```
+
+### `xrtSPSCQueueTryPop`
+
+尝试弹出一个指针值；输出必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueueresult xrtSPSCQueueTryPop(xspscqueue* pQueue, ptr* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItem` | 输出 | 非空 | 接收弹出的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XQUEUE_OK` | 操作成功 | — |
+| `XQUEUE_FULL` / `XQUEUE_EMPTY` | 队列满 / 空 | 不设错误 |
+| `XQUEUE_CLOSED` | 写入端已关闭（推送），或已关闭且排空（弹出） | 不设错误 |
+| `XQUEUE_ERROR` | 参数非法或内部状态破坏 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 单值弹出
+
+```c
+			if ( (xrtSPSCQueueTryPop(&Queue, &Value) !=
+				XQUEUE_OK) || ((intptr_t)Value != 1) ) {
+```
+
+### `xrtSPSCQueuePopBatch`
+
+尝试批量弹出连续指针值；数组必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueuebatchresult xrtSPSCQueuePopBatch(
+	xspscqueue* pQueue,
+	ptr* pItems,
+	size_t iCapacity
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItems` | 输出 | 非空数组 | 接收数组 |
+| `iCapacity` | 输入 | > 0 | 期望弹出容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `.Result` | 同单值口径（`OK` / `FULL` / `EMPTY` / `CLOSED` / `ERROR`） | — |
+| `.Count` | 实际完成数量，允许部分完成 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+- `XERR_ARGUMENT` — 数组为空或与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 批量弹出
+
+```c
+		Batch = xrtSPSCQueuePopBatch(&Queue, Out, 4u);
+```
+
+### `xrtSPSCQueueCount`
+
+返回并发快照下的近似元素数量。
+
+```c
+size_t xrtSPSCQueueCount(const xspscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 近似元素数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 数量快照
+
+```c
+			(xrtSPSCQueueCount(&Queue) != 2u) ) {
+```
+
+### `xrtSPSCQueueClose`
+
+由唯一生产者幂等关闭写入端，并允许消费者继续排空已有元素。
+
+```c
+void xrtSPSCQueueClose(xspscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 写入端已关闭 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 关闭写入端
+
+```c
+		xrtSPSCQueueClose(&Queue);
+```
+
+### `xrtSPSCQueueIsClosed`
+
+判断队列写入端是否已经关闭。
+
+```c
+bool xrtSPSCQueueIsClosed(const xspscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否已关闭 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 关闭查询
+
+```c
+			XQUEUE_CLOSED) || !xrtSPSCQueueIsClosed(&Queue) ||
+```
+
+### `xrtSPSCQueueIsDrained`
+
+判断队列是否已经关闭且排空。
+
+```c
+bool xrtSPSCQueueIsDrained(const xspscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否关闭且排空 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 排空查询
+
+```c
+			!xrtSPSCQueueIsDrained(&Queue) ||
+```
+
+### `xrtSPSCQueueDrain`
+
+排空当前可见元素；回调为空时直接丢弃指针值。
+
+```c
+size_t xrtSPSCQueueDrain(
+	xspscqueue* pQueue,
+	xqueuedrainfn pDrain,
+	ptr pContext
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+| `pDrain` | 输入 | 允许空 | 逐值回调 |
+| `pContext` | 输入 | 任意值 | 回调上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际移除数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 排空
+
+```c
+		if ( (xrtSPSCQueueDrain(&Queue, exampleDrainAdd, &Sum) !=
+			1u) || (Sum.Count != 1u) ||
+			(xrtAtomic64Load(&Sum.Total, XMEMORY_RELAXED) != 7) ) {
+```
+
+### `xrtSPSCQueueReset`
+
+在调用方独占且队列为空时重置游标并重新开放。
+
+```c
+bool xrtSPSCQueueReset(xspscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已重置并重新开放 | — |
+| `false` | 队列非空或状态不允许 | 不设错误 |
+
+#### 错误
+
+- 队列非空或未满足独占前提返回 `false` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 重置
+
+```c
+		if ( !xrtSPSCQueueReset(&Queue) ||
+			(xrtSPSCQueueTryPush(&Queue, (ptr)7) !=
+				XQUEUE_OK) ||
+			xrtSPSCQueueIsClosed(&Queue) ) {
+```
+
 ## MPSC
 
 `xmpscqueue` 允许多个生产者并发执行入队和批量入队，只允许一个消费者执行弹出、批量弹出和排空。状态查询可以由其他线程调用。实现继承旧版 XRT 已验证的有界序列槽环，但用 32 位模运算代替旧版 64 位游标，避免 32 位目标上昂贵的 64 位原子操作。
@@ -97,6 +667,542 @@ MPSC 的关闭合同刻意避免增加每次入队的引用计数成本：调用
 
 `xrtMPSCQueueIsDrained` 仅在队列已关闭且头尾游标相等时返回真。`xrtMPSCQueueReset` 只允许在调用方独占且队列为空时执行；它会重新初始化全部槽序号并开放写入端。
 
+### `xrtMPSCQueueInit`
+
+初始化拥有内部序列槽环的 MPSC 队列；容量向上取整为 2 的幂。
+
+```c
+bool xrtMPSCQueueInit(xmpscqueue* pQueue, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输出 | 非空 | 接收队列 |
+| `iCapacity` | 输入 | > 0 | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_MEMORY` — 内部环分配失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 内嵌初始化
+
+```c
+		if ( !xrtMPSCQueueInit(&Queue, 8u) ||
+			(xrtMPSCQueueTryPush(&Queue, (ptr)11) !=
+				XQUEUE_OK) ) {
+```
+
+### `xrtMPSCQueueInitBuffer`
+
+在调用方提供的 2 的幂序列槽环上初始化 MPSC 队列。
+
+```c
+bool xrtMPSCQueueInitBuffer(
+	xmpscqueue* pQueue,
+	xqueueslot* pSlots,
+	size_t iCapacity
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输出 | 非空 | 接收队列 |
+| `pSlots` | 输入 | 非空、2 的幂容量 | 序列槽环数组 |
+| `iCapacity` | 输入 | 2 的幂 | 槽数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_VALUE` — 容量不是 2 的幂
+
+#### 范例
+
+[mpsc](../../examples/containers/queue_mpsc/main.c) · 外部存储初始化
+
+```c
+	if ( !xrtMPSCQueueInitBuffer(&Queue, Storage, 8u) ) {
+```
+
+### `xrtMPSCQueueCreate`
+
+创建拥有结构和内部序列槽环的 MPSC 队列。
+
+```c
+xmpscqueue* xrtMPSCQueueCreate(size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iCapacity` | 输入 | > 0 | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 队列 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_MEMORY` — 内部环分配失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 堆创建
+
+```c
+		xmpscqueue* pQueue = xrtMPSCQueueCreate(64u);
+```
+
+### `xrtMPSCQueueUnit`
+
+释放拥有的序列槽环，但不释放队列结构或指针目标。
+
+```c
+void xrtMPSCQueueUnit(xmpscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 内部序列槽环已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[mpsc](../../examples/containers/queue_mpsc/main.c) · 释放内部环
+
+```c
+		xrtMPSCQueueUnit(&Queue);
+```
+
+### `xrtMPSCQueueDestroy`
+
+释放 Create 返回的队列结构和内部序列槽环。
+
+```c
+void xrtMPSCQueueDestroy(xmpscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 队列已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 销毁队列
+
+```c
+		xrtMPSCQueueDestroy(pQueue);
+```
+
+### `xrtMPSCQueueTryPush`
+
+尝试压入一个可为空的指针值。
+
+```c
+xqueueresult xrtMPSCQueueTryPush(xmpscqueue* pQueue, ptr pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItem` | 输入 | 任意值 | 要压入的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XQUEUE_OK` | 操作成功 | — |
+| `XQUEUE_FULL` / `XQUEUE_EMPTY` | 队列满 / 空 | 不设错误 |
+| `XQUEUE_CLOSED` | 写入端已关闭（推送），或已关闭且排空（弹出） | 不设错误 |
+| `XQUEUE_ERROR` | 参数非法或内部状态破坏 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 单值推送
+
+```c
+		while ( xrtMPSCQueueTryPush(pJob->pQueue, Value) ==
+			XQUEUE_FULL ) {
+```
+
+### `xrtMPSCQueuePushBatch`
+
+尝试批量压入连续指针值；数组必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueuebatchresult xrtMPSCQueuePushBatch(
+	xmpscqueue* pQueue,
+	ptr const* pItems,
+	size_t iCount
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItems` | 输入 | 非空数组 | 指针数组 |
+| `iCount` | 输入 | > 0 | 期望压入数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `.Result` | 同单值口径（`OK` / `FULL` / `EMPTY` / `CLOSED` / `ERROR`） | — |
+| `.Count` | 实际完成数量，允许部分完成 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+- `XERR_ARGUMENT` — 数组为空或与队列对象重叠
+
+#### 范例
+
+[mpsc](../../examples/containers/queue_mpsc/main.c) · 批量推送
+
+```c
+	if ( xrtMPSCQueuePushBatch(&Queue, pFirstBatch, 2u).Count != 2u ) {
+```
+
+### `xrtMPSCQueueTryPop`
+
+尝试弹出一个指针值；输出必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueueresult xrtMPSCQueueTryPop(xmpscqueue* pQueue, ptr* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItem` | 输出 | 非空 | 接收弹出的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XQUEUE_OK` | 操作成功 | — |
+| `XQUEUE_FULL` / `XQUEUE_EMPTY` | 队列满 / 空 | 不设错误 |
+| `XQUEUE_CLOSED` | 写入端已关闭（推送），或已关闭且排空（弹出） | 不设错误 |
+| `XQUEUE_ERROR` | 参数非法或内部状态破坏 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 单值弹出
+
+```c
+			while ( xrtMPSCQueueTryPop(pQueue, &Value) ==
+				XQUEUE_OK ) {
+```
+
+### `xrtMPSCQueuePopBatch`
+
+尝试批量弹出连续指针值；数组必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueuebatchresult xrtMPSCQueuePopBatch(
+	xmpscqueue* pQueue,
+	ptr* pItems,
+	size_t iCapacity
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItems` | 输出 | 非空数组 | 接收数组 |
+| `iCapacity` | 输入 | > 0 | 期望弹出容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `.Result` | 同单值口径（`OK` / `FULL` / `EMPTY` / `CLOSED` / `ERROR`） | — |
+| `.Count` | 实际完成数量，允许部分完成 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+- `XERR_ARGUMENT` — 数组为空或与队列对象重叠
+
+#### 范例
+
+[mpsc](../../examples/containers/queue_mpsc/main.c) · 批量弹出
+
+```c
+	Batch = xrtMPSCQueuePopBatch(&Queue, pOutput, 4u);
+```
+
+### `xrtMPSCQueueCount`
+
+返回并发快照下的近似元素数量。
+
+```c
+size_t xrtMPSCQueueCount(const xmpscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 近似元素数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 数量快照
+
+```c
+			(xrtMPSCQueueCount(pQueue) != 0u) ) {
+```
+
+### `xrtMPSCQueueClose`
+
+由唯一生产者幂等关闭写入端，并允许消费者继续排空已有元素。
+
+```c
+void xrtMPSCQueueClose(xmpscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 写入端已关闭 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 关闭写入端
+
+```c
+		xrtMPSCQueueClose(&Queue);
+```
+
+### `xrtMPSCQueueIsClosed`
+
+判断队列写入端是否已经关闭。
+
+```c
+bool xrtMPSCQueueIsClosed(const xmpscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否已关闭 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 关闭查询
+
+```c
+		if ( !xrtMPSCQueueIsClosed(pQueue) ||
+			!xrtMPSCQueueIsDrained(pQueue) ||
+			!xrtMPSCQueueReset(pQueue) ) {
+```
+
+### `xrtMPSCQueueIsDrained`
+
+判断队列是否已经关闭且排空。
+
+```c
+bool xrtMPSCQueueIsDrained(const xmpscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否关闭且排空 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 排空查询
+
+```c
+			!xrtMPSCQueueIsDrained(pQueue) ||
+```
+
+### `xrtMPSCQueueDrain`
+
+排空当前可见元素；回调为空时直接丢弃指针值。
+
+```c
+size_t xrtMPSCQueueDrain(
+	xmpscqueue* pQueue,
+	xqueuedrainfn pDrain,
+	ptr pContext
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+| `pDrain` | 输入 | 允许空 | 逐值回调 |
+| `pContext` | 输入 | 任意值 | 回调上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际移除数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 排空
+
+```c
+		(void)xrtMPSCQueueDrain(&Queue, exampleDrainAdd, &Sum);
+```
+
+### `xrtMPSCQueueReset`
+
+在调用方独占且队列为空时重置游标并重新开放。
+
+```c
+bool xrtMPSCQueueReset(xmpscqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已重置并重新开放 | — |
+| `false` | 队列非空或状态不允许 | 不设错误 |
+
+#### 错误
+
+- 队列非空或未满足独占前提返回 `false` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 重置
+
+```c
+		if ( (Sum.Count != 1u) || !xrtMPSCQueueReset(&Queue) ) {
+```
+
 ## MPMC
 
 `xmpmcqueue` 允许多个生产者并发入队，也允许多个消费者并发弹出。生产者热路径与 MPSC 共用同一份内部序列槽实现；消费者通过 CAS 领取头部的一个槽或一个连续批量区间。两套公开 API 分别表达不同角色合同，不要求调用方接触通用基类或函数指针。
@@ -124,6 +1230,546 @@ MPMC 与 MPSC 使用相同的 32 位模序号、`2^30` 容量上限、release/ac
 `xrtMPMCQueueIsDrained` 表示队列已关闭且没有尚未领取的元素，不表示其他消费者已经完成本地处理或返回。销毁、释放和重置前必须另外等待所有消费者退出。`xrtMPMCQueueDrain` 与其他消费者并发时只保证排空当前线程成功领取的元素，回调也可能由多个调用线程并发执行。
 
 `xrtMPMCQueueReset` 只允许在所有生产者和消费者停止、队列为空且调用方独占对象时执行。成功后重新初始化全部槽序号并开放写入端。
+
+### `xrtMPMCQueueInit`
+
+初始化拥有内部序列槽环的 MPMC 队列；容量向上取整为 2 的幂。
+
+```c
+bool xrtMPMCQueueInit(xmpmcqueue* pQueue, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输出 | 非空 | 接收队列 |
+| `iCapacity` | 输入 | > 0 | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_MEMORY` — 内部环分配失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 内嵌初始化
+
+```c
+		if ( !xrtMPMCQueueInit(&Queue, 8u) ||
+			(xrtMPMCQueueTryPush(&Queue, (ptr)21) !=
+				XQUEUE_OK) ||
+			(xrtMPMCQueueTryPush(&Queue, (ptr)22) !=
+				XQUEUE_OK) ) {
+```
+
+### `xrtMPMCQueueInitBuffer`
+
+在调用方提供的 2 的幂序列槽环上初始化 MPMC 队列。
+
+```c
+bool xrtMPMCQueueInitBuffer(
+	xmpmcqueue* pQueue,
+	xqueueslot* pSlots,
+	size_t iCapacity
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输出 | 非空 | 接收队列 |
+| `pSlots` | 输入 | 非空、2 的幂容量 | 序列槽环数组 |
+| `iCapacity` | 输入 | 2 的幂 | 槽数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_VALUE` — 容量不是 2 的幂
+
+#### 范例
+
+[mpmc](../../examples/containers/queue_mpmc/main.c) · 外部存储初始化
+
+```c
+	if ( !xrtMPMCQueueInitBuffer(&Queue, Storage, 8u) ) {
+```
+
+### `xrtMPMCQueueCreate`
+
+创建拥有结构和内部序列槽环的 MPMC 队列。
+
+```c
+xmpmcqueue* xrtMPMCQueueCreate(size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iCapacity` | 输入 | > 0 | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 队列 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_MEMORY` — 内部环分配失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 堆创建
+
+```c
+		xmpmcqueue* pQueue = xrtMPMCQueueCreate(64u);
+```
+
+### `xrtMPMCQueueUnit`
+
+释放拥有的序列槽环，但不释放队列结构或指针目标。
+
+```c
+void xrtMPMCQueueUnit(xmpmcqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 内部序列槽环已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[mpmc](../../examples/containers/queue_mpmc/main.c) · 释放内部环
+
+```c
+		xrtMPMCQueueUnit(&Queue);
+```
+
+### `xrtMPMCQueueDestroy`
+
+释放 Create 返回的队列结构和内部序列槽环。
+
+```c
+void xrtMPMCQueueDestroy(xmpmcqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 队列已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 销毁队列
+
+```c
+		xrtMPMCQueueDestroy(NULL);  /* 空指针是空操作 */
+```
+
+### `xrtMPMCQueueTryPush`
+
+尝试压入一个可为空的指针值。
+
+```c
+xqueueresult xrtMPMCQueueTryPush(xmpmcqueue* pQueue, ptr pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItem` | 输入 | 任意值 | 要压入的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XQUEUE_OK` | 操作成功 | — |
+| `XQUEUE_FULL` / `XQUEUE_EMPTY` | 队列满 / 空 | 不设错误 |
+| `XQUEUE_CLOSED` | 写入端已关闭（推送），或已关闭且排空（弹出） | 不设错误 |
+| `XQUEUE_ERROR` | 参数非法或内部状态破坏 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 单值推送
+
+```c
+		while ( xrtMPMCQueueTryPush(pJob->pQueue, Value) ==
+			XQUEUE_FULL ) {
+```
+
+### `xrtMPMCQueuePushBatch`
+
+尝试批量压入连续指针值；数组必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueuebatchresult xrtMPMCQueuePushBatch(
+	xmpmcqueue* pQueue,
+	ptr const* pItems,
+	size_t iCount
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItems` | 输入 | 非空数组 | 指针数组 |
+| `iCount` | 输入 | > 0 | 期望压入数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `.Result` | 同单值口径（`OK` / `FULL` / `EMPTY` / `CLOSED` / `ERROR`） | — |
+| `.Count` | 实际完成数量，允许部分完成 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+- `XERR_ARGUMENT` — 数组为空或与队列对象重叠
+
+#### 范例
+
+[mpmc](../../examples/containers/queue_mpmc/main.c) · 批量推送
+
+```c
+	if ( xrtMPMCQueuePushBatch(&Queue, pFirstBatch, 2u).Count != 2u ) {
+```
+
+### `xrtMPMCQueueTryPop`
+
+尝试弹出一个指针值；输出必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueueresult xrtMPMCQueueTryPop(xmpmcqueue* pQueue, ptr* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItem` | 输出 | 非空 | 接收弹出的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XQUEUE_OK` | 操作成功 | — |
+| `XQUEUE_FULL` / `XQUEUE_EMPTY` | 队列满 / 空 | 不设错误 |
+| `XQUEUE_CLOSED` | 写入端已关闭（推送），或已关闭且排空（弹出） | 不设错误 |
+| `XQUEUE_ERROR` | 参数非法或内部状态破坏 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 单值弹出
+
+```c
+		if ( xrtMPMCQueueTryPop(pJob->pQueue, &Value) ==
+			XQUEUE_OK ) {
+```
+
+### `xrtMPMCQueuePopBatch`
+
+尝试批量弹出连续指针值；数组必须对齐且不与队列对象或内部环重叠。
+
+```c
+xqueuebatchresult xrtMPMCQueuePopBatch(
+	xmpmcqueue* pQueue,
+	ptr* pItems,
+	size_t iCapacity
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+| `pItems` | 输出 | 非空数组 | 接收数组 |
+| `iCapacity` | 输入 | > 0 | 期望弹出容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `.Result` | 同单值口径（`OK` / `FULL` / `EMPTY` / `CLOSED` / `ERROR`） | — |
+| `.Count` | 实际完成数量，允许部分完成 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 队列指针为空
+- `XERR_STATE` — 内部游标破坏（已损坏的队列对象）
+- `XERR_ARGUMENT` — 数组为空或与队列对象重叠
+
+#### 范例
+
+[mpmc](../../examples/containers/queue_mpmc/main.c) · 批量弹出
+
+```c
+	Batch = xrtMPMCQueuePopBatch(&Queue, pOutput, 4u);
+```
+
+### `xrtMPMCQueueCount`
+
+返回并发快照下的近似元素数量。
+
+```c
+size_t xrtMPMCQueueCount(const xmpmcqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 近似元素数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 数量快照
+
+```c
+			(xrtMPMCQueueCount(pJob->pQueue) == 0u) ) {
+```
+
+### `xrtMPMCQueueClose`
+
+由唯一生产者幂等关闭写入端，并允许消费者继续排空已有元素。
+
+```c
+void xrtMPMCQueueClose(xmpmcqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 写入端已关闭 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 关闭写入端
+
+```c
+		xrtMPMCQueueClose(pQueue);
+```
+
+### `xrtMPMCQueueIsClosed`
+
+判断队列写入端是否已经关闭。
+
+```c
+bool xrtMPMCQueueIsClosed(const xmpmcqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否已关闭 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 关闭查询
+
+```c
+		else if ( xrtMPMCQueueIsClosed(pJob->pQueue) &&
+			(xrtMPMCQueueCount(pJob->pQueue) == 0u) ) {
+```
+
+### `xrtMPMCQueueIsDrained`
+
+判断队列是否已经关闭且排空。
+
+```c
+bool xrtMPMCQueueIsDrained(const xmpmcqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否关闭且排空 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 排空查询
+
+```c
+			!xrtMPMCQueueIsDrained(pQueue) ) {
+```
+
+### `xrtMPMCQueueDrain`
+
+排空当前可见元素；回调为空时直接丢弃指针值。
+
+```c
+size_t xrtMPMCQueueDrain(
+	xmpmcqueue* pQueue,
+	xqueuedrainfn pDrain,
+	ptr pContext
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+| `pDrain` | 输入 | 允许空 | 逐值回调 |
+| `pContext` | 输入 | 任意值 | 回调上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际移除数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 排空
+
+```c
+		if ( (xrtMPMCQueueDrain(&Queue, exampleDrainAdd, &Sum) !=
+			2u) || (Sum.Count != 2u) ||
+			(xrtAtomic64Load(&Sum.Total, XMEMORY_RELAXED) != 43) ||
+			!xrtMPMCQueueReset(&Queue) ) {
+```
+
+### `xrtMPMCQueueReset`
+
+在调用方独占且队列为空时重置游标并重新开放。
+
+```c
+bool xrtMPMCQueueReset(xmpmcqueue* pQueue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pQueue` | 输入/输出 | 非空 | 目标队列 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已重置并重新开放 | — |
+| `false` | 队列非空或状态不允许 | 不设错误 |
+
+#### 错误
+
+- 队列非空或未满足独占前提返回 `false` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/concurrency/queue_tour/main.c) · 重置
+
+```c
+			!xrtMPMCQueueReset(&Queue) ) {
+```
 
 ## 示例
 

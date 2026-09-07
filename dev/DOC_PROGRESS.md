@@ -59,7 +59,7 @@
 | 52 | pool.md | 58 | **完成** | 58/58 全绿（G3 58 片段，2026-09-07）；单页 20 + 固定池 20 + 变长池 18 三族；旧合并式小节（`X` / `Y` 双名）拆分；AGAIN 页满、RANGE 乘法溢出入档；锚点 pool_page/pool/memory_pool |
 | 53 | process.md | 37 | **完成** | 37/37 全绿（G3 37 片段，2026-09-07）；xrt.process 域 14 码（ARGUMENT..TERMINAL）入档；Read/Write int64 三态口径；Run 族 false=仅基础设施失败；manifest 补注册 tour |
 | 54 | proxy.md | 23 | **完成** | 23/23 全绿（G3 23 片段，2026-09-07）；对象 5 + 握手 10 + 拨号 8 三组；六域码（CONFIG/CREATE/LIMIT/PROTOCOL/CONNECT/UNSUPPORTED）；两状态机逐值成表；锚点 tour/socks5/dial |
-| 55 | queue.md | 46 | 待办 |  |
+| 55 | queue.md | 46 | **完成** | 46/46 全绿（G3 46 片段，2026-09-07）；SPSC/MPSC/MPMC 三族 ×15 + Capacity；xqueueresult 四值与批量部分完成口径；CLOSED 弹出=关闭且排空；锚点 queue_tour + containers 三范例 |
 | 56 | random.md | 39 | 待办 |  |
 | 57 | regex.md | 54 | 待办 |  |
 | 58 | set.md | 34 | 待办 |  |
@@ -664,4 +664,9 @@
   Bound 的 HTTP CONNECT = NOT_FOUND、DialCancel 终态或并发已受理
   不设错、Dial 11 参口径（Stream 引用转移给完成回调）。
   完成 API 2227→2250/3664（61.4%），54/79 文件。
+- 2026-09-07 queue.md 完成（46/46，G3 46 片段全绿）：三族模板化；
+  TryPush 关闭 = CLOSED、TryPop 关闭且排空 = CLOSED、Reset 非空不设错、
+  Batch 返回 {Result, Count} 允许部分完成；InitBuffer 外部环须 2 的幂。
+  生成器加锚点回退（SPSC Batch 真实调用在 tour 而非 containers）。
+  完成 API 2250→2296/3664（62.7%），55/79 文件。
 
