@@ -925,57 +925,71 @@
   },
   {
     "num": 133,
-    "slug": "embed",
-    "file": "133-embed",
-    "title": "嵌入宿主程序",
+    "slug": "test-oom",
+    "file": "133-test-oom",
+    "title": "OOM 与故障注入测试",
     "volume": "卷十二 工程实践"
   },
   {
     "num": 134,
+    "slug": "embed",
+    "file": "134-embed",
+    "title": "嵌入宿主程序",
+    "volume": "卷十二 工程实践"
+  },
+  {
+    "num": 135,
+    "slug": "perf-analysis",
+    "file": "135-perf-analysis",
+    "title": "性能分析方法：基准设计与度量",
+    "volume": "卷十二 工程实践"
+  },
+  {
+    "num": 136,
     "slug": "perf",
-    "file": "134-perf",
+    "file": "136-perf",
     "title": "性能调优与内存调试实战",
     "volume": "卷十二 工程实践 · 卷十二收官"
   },
   {
-    "num": 135,
+    "num": 137,
     "slug": "project-cli",
-    "file": "135-project-cli",
+    "file": "137-project-cli",
     "title": "命令行工具：文本与文件处理",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 136,
+    "num": 138,
     "slug": "project-config",
-    "file": "136-project-config",
+    "file": "138-project-config",
     "title": "JSON 配置中心：value 与模板",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 137,
+    "num": 139,
     "slug": "project-chat",
-    "file": "137-project-chat",
+    "file": "139-project-chat",
     "title": "TCP 聊天室：网络与并发",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 138,
+    "num": 140,
     "slug": "project-downloader",
-    "file": "138-project-downloader",
+    "file": "140-project-downloader",
     "title": "HTTPS 下载器：xhttp 与文件",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 139,
+    "num": 141,
     "slug": "project-ws",
-    "file": "139-project-ws",
+    "file": "141-project-ws",
     "title": "WebSocket 实时推送服务",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 140,
+    "num": 142,
     "slug": "project-static",
-    "file": "140-project-static",
+    "file": "142-project-static",
     "title": "综合：迷你静态文件服务器",
     "volume": "卷十三 实战项目 · 全书收官"
   }
