@@ -860,4 +860,13 @@
   共 33 处逐一人工补正（不透明句柄/回调/进度与限额结构等）。
   门禁复验：--all --types 79 ok、G1-G4 默认模式 79 ok、G3 79 全绿，
   零回归。全库公共类型 100% 成节、公共常量 100% 可检索。
+- 2026-09-07 周期全量复审 #7（阶段 3 后）：(a) CI 全门禁本地复跑——
+  check_api_docs 12 个模块族（websocket/net/http/regex/value/future×2/
+  task/coroutine/tls/x509/xson）missing=0；check_release_maturity 通过
+  （477 模块 356 实现）；test_api_docs 4/4 OK；(b) 新增类型签名保真
+  审计（1048 个类型节签名块 vs 头文件逐字符）：真差异 1 组——map.md
+  三个 int-map 回调形参名 key/value/user_data → iKey/pValue/pUserData，
+  已修正（visitor 返回类型本为 bool，doc 误写 void 一并改正）；其余
+  2 处为有意跨模块引用（core 的 xbytesview/xstrview 在 charset/string
+  文档重复展示并注明来源），判合规；(c) 阶段 3 新增内容禁用词零命中。
 

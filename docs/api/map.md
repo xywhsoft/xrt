@@ -317,7 +317,7 @@ int_map -> avl_tree -> avl + pool -> core
 ### `xintmapdrop`
 
 ```c
-typedef void (*xintmapdrop)(int64 key, ptr value, ptr user_data);
+typedef void (*xintmapdrop)(int64 iKey, ptr pValue, ptr pUserData);
 ```
 
 回调只释放值内部拥有的资源，不释放 `value` 值槽本身。它在以下路径调用：
@@ -332,7 +332,7 @@ typedef void (*xintmapdrop)(int64 key, ptr value, ptr user_data);
 ### `xintmapinit`
 
 ```c
-typedef bool (*xintmapinit)(int64 key, ptr value, ptr user_data);
+typedef bool (*xintmapinit)(int64 iKey, ptr pValue, ptr pUserData);
 ```
 
 该回调用于 `xrtIntMapGetOrInit` 原位建立一个缺失键的值。回调失败时必须自行释放
@@ -342,7 +342,7 @@ typedef bool (*xintmapinit)(int64 key, ptr value, ptr user_data);
 ### `xintmapvisitor`
 
 ```c
-typedef bool (*xintmapvisitor)(int64 key, ptr value, ptr user_data);
+typedef bool (*xintmapvisitor)(int64 iKey, ptr pValue, ptr pUserData);
 ```
 
 返回 `true` 继续遍历，返回 `false` 停止。回调可以查询同一映射并直接修改当前值槽，
