@@ -11,7 +11,8 @@
 | P2 卷二全部 + 卷三前半 | ✅ 完成 | 7 | 28,790 |
 | P3 卷三后半 + 选型章 | ✅ 完成 | 7 | 27,804 |
 | P4 卷四前半 | ✅ 完成 | 6 | 22,441 |
-| P5–P27 | ⬜ 未开始 | — | — |
+| P5 卷四后半 | ✅ 完成 | 7 | 30,235 |
+| P6–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
 
@@ -33,6 +34,14 @@
 | 15 | 15-stack.md | practice | 4,003 | 2 | 1 | 2 | 3 | P2 |
 | 16 | 16-list-slotmap.md | practice | 4,037 | 2 | 1 | 2 | 3 | P2 |
 | 55 | 59-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
+
+## P5 阶段记录
+
+- 卷四后半 7 章：regex 归位卷四（原卷十一 ch88 → ch30）、value/json/xson/template 重写、
+  新增组合章 ch35（composition 型首章：6000 字/2 程序/5 坑）。
+- 全书第四次重编号（77 文件）：regex 前插 + text-pipeline 尾插，卷四扩为 12 章。
+- 门禁拦下：xrtValueRef→xrtValueRetain、xrtValueObjectNew→xrtValueObject、
+  FindAdvance→Next、StringSub→String、模板 {+%}→真实语法、xson 补品牌词。
 
 ## P4 阶段记录
 
