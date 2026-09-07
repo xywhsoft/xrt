@@ -62,6 +62,204 @@ value_graph -> value_container
 | `XVALUE_OBJECT` | 保持首次插入顺序的字符串键对象。 |
 | `XVALUE_UINT` | 无符号 64 位整数。 |
 
+### `xvaluetype`
+
+动态值类型保持紧凑稳定，语言运行时类型在独立模块扩展。
+
+```c
+typedef enum xvaluetype {
+	XVALUE_INVALID = -1,
+	XVALUE_NULL = 0,
+	XVALUE_BOOL,
+	XVALUE_INT,
+	XVALUE_FLOAT,
+	XVALUE_STRING,
+	XVALUE_BYTES,
+	XVALUE_TIME,
+	XVALUE_POINTER,
+	XVALUE_HANDLE,
+	XVALUE_ARRAY,
+	XVALUE_INT_MAP,
+	XVALUE_SET,
+	XVALUE_OBJECT,
+	XVALUE_UINT
+} xvaluetype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XVALUE_INVALID` | 无效 |
+| `XVALUE_NULL` | 空值 |
+| `XVALUE_BOOL` | 布尔 |
+| `XVALUE_INT` | 有符号整数 |
+| `XVALUE_FLOAT` | 浮点 |
+| `XVALUE_STRING` | 字符串 |
+| `XVALUE_BYTES` | BYTES |
+| `XVALUE_TIME` | 时间 |
+| `XVALUE_POINTER` | POINTER |
+| `XVALUE_HANDLE` | HANDLE |
+| `XVALUE_ARRAY` | 数组形态 |
+| `XVALUE_INT_MAP` | 有符号整数映射形态 |
+| `XVALUE_SET` | 集合形态 |
+| `XVALUE_OBJECT` | 对象形态 |
+
+### `xvaluehandleops`
+
+句柄策略是静态不可变描述，其生命周期必须覆盖全部关联值。
+
+```c
+typedef struct xvaluehandleops {
+	xvaluehandleclone Clone;
+	xvaluehandledrop Drop;
+	xvaluehandlehash Hash;
+	xvaluehandleequal Equal;
+} xvaluehandleops;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Clone` | `xvaluehandleclone` | Clone |
+| `Drop` | `xvaluehandledrop` | Drop |
+| `Hash` | `xvaluehandlehash` | Hash |
+| `Equal` | `xvaluehandleequal` | Equal |
+
+### `xvaluekeytype`
+
+通用迭代键区分数组索引、稀疏整数键、对象字符串键和无键集合。
+
+```c
+typedef enum xvaluekeytype {
+	XVALUE_KEY_NONE = 0,
+	XVALUE_KEY_INDEX,
+	XVALUE_KEY_INT,
+	XVALUE_KEY_STRING
+} xvaluekeytype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XVALUE_KEY_NONE` | 无 |
+| `XVALUE_KEY_INDEX` | 索引 |
+| `XVALUE_KEY_INT` | 有符号整数 |
+
+### `xvalueiterresult`
+
+三态推进结果显式区分元素、正常结束和迭代错误。
+
+```c
+typedef enum xvalueiterresult {
+	XVALUE_ITER_ERROR = -1,
+	XVALUE_ITER_END = 0,
+	XVALUE_ITER_ITEM = 1
+} xvalueiterresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XVALUE_ITER_ERROR` | 失败 |
+| `XVALUE_ITER_END` | END |
+
+### `xvaluemergepolicy`
+
+映射批量合并时对已有键采用明确且互斥的处理策略。
+
+```c
+typedef enum xvaluemergepolicy {
+	XVALUE_MERGE_KEEP = 0,
+	XVALUE_MERGE_REPLACE,
+	XVALUE_MERGE_ERROR
+} xvaluemergepolicy;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XVALUE_MERGE_KEEP` | KEEP |
+| `XVALUE_MERGE_REPLACE` | REPLACE |
+
+### `xvalue`
+
+动态值结构保持不透明，所有权通过 Retain、Release 和 Take 系列表达。
+
+```c
+typedef struct xvalue xvalue;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xvalueidentityhash`
+
+语义值哈希器只借用已经绑定 TypeId 的容器值。回调可以通过只读 Value API 观察该值及其字段，也可以递归哈希字段，但不得修改、保留或释放输入值。
+
+```c
+typedef uint64 (*xvalueidentityhash)(const xvalue* pValue, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xvalueidentityequal`
+
+语义值相等器只借用同一 TypeId 和同一策略域中的两个容器值。回调可以 递归比较字段，但不得修改、保留或释放任一输入值。
+
+```c
+typedef bool (*xvalueidentityequal)(
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xvaluehandleclone`
+
+句柄克隆器创建独立句柄；失败时必须设置错误且不得在输出中遗留资源。
+
+```c
+typedef bool (*xvaluehandleclone)(ptr pHandle, ptr* pClone, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xvaluehandledrop`
+
+句柄释放器销毁 Value 独占的一个句柄。
+
+```c
+typedef void (*xvaluehandledrop)(ptr pHandle, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xvaluehandlehash`
+
+句柄哈希器必须与相等器成对提供、保持一致且不得重入父 Value。
+
+```c
+typedef uint64 (*xvaluehandlehash)(ptr pHandle, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xvaluehandleequal`
+
+句柄相等器只借用两个句柄，必须与哈希器成对提供且不得重入父 Value。
+
+```c
+typedef bool (*xvaluehandleequal)(ptr pLeft, ptr pRight, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xvalueobjectfinalizer`
+
+Object finalizers borrow the last live object shell before its owned fields are released.  The callback may inspect or mutate fields, but it must not retain, clone or release the borrowed object itself.  A finalizer is attached to the shared object backing and therefore runs exactly once, when the final backing owner is released.
+
+```c
+typedef void (*xvalueobjectfinalizer)(xvalue* pObject, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 标量
 
 ```c

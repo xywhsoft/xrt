@@ -2,6 +2,146 @@
 
 `set.h` 提供固定大小元素的通用哈希集合。空集合不分配内存，每个元素使用一个紧凑独立条目，平均查找复杂度为 `O(1)`，并保持元素地址和首次插入顺序稳定。
 
+## 类型与常量
+
+### `xset`
+
+集合使用独立哈希条目保存固定大小元素，并保持元素地址和插入顺序稳定。
+
+```c
+typedef struct xset {
+	xsetentry** Buckets;
+	xsetentry* First;
+	xsetentry* Last;
+	size_t ItemSize;
+	size_t ItemOffset;
+	size_t Alignment;
+	size_t Count;
+	size_t BucketCount;
+	size_t Threshold;
+	uint64 Version;
+	xsethash Hash;
+	xsetequal Equal;
+	xsetcopy Copy;
+	xsetdrop Drop;
+	ptr KeyUserData;
+	ptr LifecycleUserData;
+	uint32 Flags;
+} xset;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Buckets` | `xsetentry**` | Buckets |
+| `First` | `xsetentry*` | First |
+| `Last` | `xsetentry*` | Last |
+| `ItemSize` | `size_t` | ItemSize |
+| `ItemOffset` | `size_t` | ItemOffset |
+| `Alignment` | `size_t` | Alignment |
+| `Count` | `size_t` | Count |
+| `BucketCount` | `size_t` | BucketCount |
+| `Threshold` | `size_t` | Threshold |
+| `Version` | `uint64` | Version |
+| `Hash` | `xsethash` | Hash |
+| `Equal` | `xsetequal` | Equal |
+| `Copy` | `xsetcopy` | Copy |
+| `Drop` | `xsetdrop` | Drop |
+| `KeyUserData` | `ptr` | KeyUserData |
+| `LifecycleUserData` | `ptr` | LifecycleUserData |
+| `Flags` | `uint32` | Flags |
+
+### `xsetiter`
+
+外置迭代器允许同一集合存在多个独立遍历状态。
+
+```c
+typedef struct xsetiter {
+	xset* Set;
+	xsetentry* Next;
+	uint64 Version;
+	int Direction;
+} xsetiter;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Set` | `xset*` | Set |
+| `Next` | `xsetentry*` | Next |
+| `Version` | `uint64` | Version |
+| `Direction` | `int` | Direction |
+
+### `xsetentry`
+
+Set 内部条目结构（不透明，仅实现内部使用）。
+
+
+```c
+typedef struct xsetentry xsetentry;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xsethash`
+
+哈希器必须保证相等元素产生相同哈希值，回调中不得调用同一集合的 API。
+
+```c
+typedef uint64 (*xsethash)(const void* pItem, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xsetequal`
+
+相等器只借用元素且不得调用同一集合的 API。
+
+```c
+typedef bool (*xsetequal)(
+	const void* pLeft,
+	const void* pRight,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xsetcopy`
+
+复制器成功时保持键等价，失败时不得在已清零目标槽遗留资源。
+
+```c
+typedef bool (*xsetcopy)(ptr pTarget, const void* pSource, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xsetdrop`
+
+释放器处理元素内部资源且不得调用同一集合的 API，不释放元素槽本身。
+
+```c
+typedef void (*xsetdrop)(ptr pItem, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xsetvisitor`
+
+访问器可查询同一集合但不得修改、结束或再次访问，返回 false 时停止。
+
+```c
+typedef bool (*xsetvisitor)(const void* pItem, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_SET_ALIGNMENT_DEFAULT` | `16u` | ALIGNMENT默认值 |
+| `XRT_SET_BUCKETS_MIN` | `16u` | BUCKETS下限 |
+
 ## 启用与依赖
 
 ```c

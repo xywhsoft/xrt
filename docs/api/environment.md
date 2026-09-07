@@ -11,6 +11,25 @@
 
 模块依赖 Unicode 基础转换，用于保证 Windows 宽字符环境与 POSIX 字节环境共享同一份严格 UTF-8 契约。
 
+## 类型与常量
+
+### `xenverror`
+
+环境变量错误代码在 xrt.environment 域内稳定。
+
+```c
+typedef enum xenverror {
+	XENV_ERROR_NAME = 1,
+	XENV_ERROR_VALUE,
+	XENV_ERROR_SYSTEM
+} xenverror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XENV_ERROR_NAME` | 名称 |
+| `XENV_ERROR_VALUE` | 值非法 |
+
 ## 错误代码
 
 `xenverror` 属于 `xrt.environment` 域：

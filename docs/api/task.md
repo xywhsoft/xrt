@@ -2,6 +2,228 @@
 
 任务层把阻塞工作、Future 结果、结构化错误、取消和资源所有权组合成独立于网络的并发契约。`xfuture` 就是任务句柄，不再额外维护一套任务状态对象。
 
+## 类型与常量
+
+### `xtaskoutcome`
+
+任务过程必须显式说明成功、失败或协作取消，避免依赖残留错误状态。
+
+```c
+typedef enum xtaskoutcome {
+	XTASK_SUCCESS = 0,
+	XTASK_FAILED = 1,
+	XTASK_CANCELLED = 2
+} xtaskoutcome;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTASK_SUCCESS` | SUCCESS |
+| `XTASK_FAILED` | 已失败 |
+
+### `xtaskvalue`
+
+成功结果可以借用值，也可以把值及其析构过程转移给 Future。
+
+```c
+typedef struct xtaskvalue {
+	ptr Value;
+	xfuturefreeproc Destroy;
+	ptr DestroyData;
+} xtaskvalue;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Value` | `ptr` | Value |
+| `Destroy` | `xfuturefreeproc` | Destroy |
+| `DestroyData` | `ptr` | DestroyData |
+
+### `xtaskargs`
+
+提交参数控制父取消关系及任务数据在受理后的释放方式。
+
+```c
+typedef struct xtaskargs {
+	xcancel* Cancel;
+	xfuturefreeproc Destroy;
+	ptr DestroyData;
+} xtaskargs;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Cancel` | `xcancel*` | Cancel |
+| `Destroy` | `xfuturefreeproc` | Destroy |
+| `DestroyData` | `ptr` | DestroyData |
+
+### `xtaskgroupconfig`
+
+全零配置表示不限活动项数量、不自动取消兄弟项且使用独立取消源。
+
+```c
+typedef struct xtaskgroupconfig {
+	xcancel* Cancel;
+	size_t Limit;
+	uint32 CancelOn;
+} xtaskgroupconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Cancel` | `xcancel*` | Cancel |
+| `Limit` | `size_t` | Limit |
+| `CancelOn` | `uint32` | CancelOn |
+
+### `xtaskgroupstats`
+
+任务组统计保留全部历史终态计数，但只为当前活动项占用节点内存。
+
+```c
+typedef struct xtaskgroupstats {
+	size_t Active;
+	uint64 Added;
+	uint64 Completed;
+	uint64 Succeeded;
+	uint64 Failed;
+	uint64 Cancelled;
+	uint64 Closed;
+	uint64 Rejected;
+	size_t FirstIndex;
+	xfuturestate FirstState;
+	bool Accepting;
+	bool Cancelling;
+} xtaskgroupstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Active` | `size_t` | Active |
+| `Added` | `uint64` | Added |
+| `Completed` | `uint64` | Completed |
+| `Succeeded` | `uint64` | Succeeded |
+| `Failed` | `uint64` | Failed |
+| `Cancelled` | `uint64` | Cancelled |
+| `Closed` | `uint64` | Closed |
+| `Rejected` | `uint64` | Rejected |
+| `FirstIndex` | `size_t` | FirstIndex |
+| `FirstState` | `xfuturestate` | FirstState |
+| `Accepting` | `bool` | Accepting |
+| `Cancelling` | `bool` | Cancelling |
+
+### `xtaskpoolconfig`
+
+全零配置使用逻辑处理器数量、默认队列上限和平台默认线程栈。
+
+```c
+typedef struct xtaskpoolconfig {
+	uint32 Threads;
+	size_t QueueLimit;
+	size_t StackSize;
+} xtaskpoolconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Threads` | `uint32` | Threads |
+| `QueueLimit` | `size_t` | QueueLimit |
+| `StackSize` | `size_t` | StackSize |
+
+### `xtaskpoolstats`
+
+统计快照区分瞬时负载、终态分布、拒绝量和生命周期状态。
+
+```c
+typedef struct xtaskpoolstats {
+	uint32 Threads;
+	size_t QueueLimit;
+	size_t Queued;
+	size_t Running;
+	uint64 Submitted;
+	uint64 Completed;
+	uint64 Succeeded;
+	uint64 Failed;
+	uint64 Cancelled;
+	uint64 Rejected;
+	bool Closed;
+	bool Cancelling;
+} xtaskpoolstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Threads` | `uint32` | Threads |
+| `QueueLimit` | `size_t` | QueueLimit |
+| `Queued` | `size_t` | Queued |
+| `Running` | `size_t` | Running |
+| `Submitted` | `uint64` | Submitted |
+| `Completed` | `uint64` | Completed |
+| `Succeeded` | `uint64` | Succeeded |
+| `Failed` | `uint64` | Failed |
+| `Cancelled` | `uint64` | Cancelled |
+| `Rejected` | `uint64` | Rejected |
+| `Closed` | `bool` | Closed |
+| `Cancelling` | `bool` | Cancelling |
+
+### `xtaskgroup`
+
+任务组跟踪一组 Future，并在关闭且全部完成后发布唯一 Done Future。
+
+```c
+typedef struct xtaskgroup xtaskgroup;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtaskpool`
+
+任务池对外保持不透明；销毁期间调用方必须停止其他并发访问。
+
+```c
+typedef struct xtaskpool xtaskpool;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtaskproc`
+
+任务过程借用取消令牌，并把成功值写入预先清零的结果结构。
+
+```c
+typedef xtaskoutcome (*xtaskproc)(
+	xcancel* pCancel,
+	ptr pData,
+	xtaskvalue* pResult
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtaskgroupstartproc`
+
+Future 启动器同步返回一个新引用，返回空时保留自己的结构化错误。
+
+```c
+typedef xfuture* (*xtaskgroupstartproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtasknetproc`
+
+网络任务过程额外借用亲和 Worker，并复用任务核心的取消和结果合同。
+
+```c
+typedef xtaskoutcome (*xtasknetproc)(
+	xnetworker* pWorker,
+	xcancel* pCancel,
+	ptr pData,
+	xtaskvalue* pResult
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 裁剪
 
 - `XRT_FEATURE_TASK`：任务过程、显式结果和内部执行生命周期，依赖 Future 与临时内存。

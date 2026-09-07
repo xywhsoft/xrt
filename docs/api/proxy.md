@@ -2,6 +2,280 @@
 
 `<xrt/proxy.h>` 把代理能力拆成不可变配置、纯协议握手和托管传输三层。SOCKS5 CONNECT 与 HTTP CONNECT 共用同一套对象、缓冲、错误和托管拨号契约；HTTP 后端直接复用公开的 HTTP/1 Header 解析与封包能力，代理模块不维护第二套解析器。
 
+## 类型与常量
+
+### `xnetproxytype`
+
+代理类型只描述协议；TCP、TLS 和上层客户端决定如何承载协议。
+
+```c
+typedef enum xnetproxytype {
+	XNET_PROXY_SOCKS5 = 1,
+	XNET_PROXY_HTTP_CONNECT
+} xnetproxytype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PROXY_SOCKS5` | XNETPROXYSOCKS5 |
+
+### `xnetproxyauth`
+
+AUTO 在存在凭据时要求认证，否则只允许匿名；OPTIONAL 显式允许降级为匿名。
+
+```c
+typedef enum xnetproxyauth {
+	XNET_PROXY_AUTH_AUTO = 0,
+	XNET_PROXY_AUTH_NONE,
+	XNET_PROXY_AUTH_REQUIRED,
+	XNET_PROXY_AUTH_OPTIONAL
+} xnetproxyauth;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PROXY_AUTH_AUTO` | 自动 |
+| `XNET_PROXY_AUTH_NONE` | 无 |
+| `XNET_PROXY_AUTH_REQUIRED` | REQUIRED |
+
+### `xnetproxyconfig`
+
+代理对象持有配置深拷贝；主机不要求零结尾，凭据允许任意字节。
+
+```c
+typedef struct xnetproxyconfig {
+	xnetproxytype Type;
+	xstrview Host;
+	uint16 Port;
+	xnetproxyauth Auth;
+	xbytesview Username;
+	xbytesview Password;
+} xnetproxyconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xnetproxytype` | Type |
+| `Host` | `xstrview` | Host |
+| `Port` | `uint16` | Port |
+| `Auth` | `xnetproxyauth` | Auth |
+| `Username` | `xbytesview` | Username |
+| `Password` | `xbytesview` | Password |
+
+### `xnetproxyinfo`
+
+信息视图由代理对象持有，只能在至少一个对象引用存活时借用。
+
+```c
+typedef struct xnetproxyinfo {
+	xnetproxytype Type;
+	xstrview Host;
+	uint16 Port;
+	xnetproxyauth Auth;
+	xbytesview Username;
+	xbytesview Password;
+} xnetproxyinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xnetproxytype` | Type |
+| `Host` | `xstrview` | Host |
+| `Port` | `uint16` | Port |
+| `Auth` | `xnetproxyauth` | Auth |
+| `Username` | `xbytesview` | Username |
+| `Password` | `xbytesview` | Password |
+
+### `xnetproxyhandshakestate`
+
+握手状态同时告诉传输层下一步应发送、接收还是发布隧道。
+
+```c
+typedef enum xnetproxyhandshakestate {
+	XNET_PROXY_HANDSHAKE_WRITE = 1,
+	XNET_PROXY_HANDSHAKE_READ,
+	XNET_PROXY_HANDSHAKE_READY,
+	XNET_PROXY_HANDSHAKE_ERROR
+} xnetproxyhandshakestate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PROXY_HANDSHAKE_WRITE` | 写方向 |
+| `XNET_PROXY_HANDSHAKE_READ` | 读方向 |
+| `XNET_PROXY_HANDSHAKE_READY` | 就绪 |
+
+### `xnetproxyendpoint`
+
+域名端点使用 Host；数字端点使用 Address，端口始终保存在 Address.Port。
+
+```c
+typedef struct xnetproxyendpoint {
+	xnetaddr Address;
+	xstrview Host;
+} xnetproxyendpoint;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Address` | `xnetaddr` | Address |
+| `Host` | `xstrview` | Host |
+
+### `xnetproxyhandshakeconfig`
+
+输入缓冲池由调用方借用，并且必须比握手对象存活更久。
+
+```c
+typedef struct xnetproxyhandshakeconfig {
+	const xnetproxy* Proxy;
+	xstrview TargetHost;
+	uint16 TargetPort;
+	size_t ReceiveLimit;
+	xnetbufpool* Pool;
+} xnetproxyhandshakeconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Proxy` | `const xnetproxy*` | Proxy |
+| `TargetHost` | `xstrview` | TargetHost |
+| `TargetPort` | `uint16` | TargetPort |
+| `ReceiveLimit` | `size_t` | ReceiveLimit |
+| `Pool` | `xnetbufpool*` | Pool |
+
+### `xnetsocks5reply`
+
+SOCKS5 CONNECT 回复码保留 RFC 1928 的线路值，便于日志和策略判断。
+
+```c
+typedef enum xnetsocks5reply {
+	XNET_SOCKS5_SUCCEEDED = 0,
+	XNET_SOCKS5_GENERAL_FAILURE = 1,
+	XNET_SOCKS5_RULESET_DENIED = 2,
+	XNET_SOCKS5_NETWORK_UNREACHABLE = 3,
+	XNET_SOCKS5_HOST_UNREACHABLE = 4,
+	XNET_SOCKS5_CONNECTION_REFUSED = 5,
+	XNET_SOCKS5_TTL_EXPIRED = 6,
+	XNET_SOCKS5_COMMAND_UNSUPPORTED = 7,
+	XNET_SOCKS5_ADDRESS_UNSUPPORTED = 8
+} xnetsocks5reply;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_SOCKS5_SUCCEEDED` | SUCCEEDED |
+| `XNET_SOCKS5_GENERAL_FAILURE` | GENERALFAILURE |
+| `XNET_SOCKS5_RULESET_DENIED` | RULESETDENIED |
+| `XNET_SOCKS5_NETWORK_UNREACHABLE` | NETWORKUNREACHABLE |
+| `XNET_SOCKS5_HOST_UNREACHABLE` | HOSTUNREACHABLE |
+| `XNET_SOCKS5_CONNECTION_REFUSED` | CONNECTIONREFUSED |
+| `XNET_SOCKS5_TTL_EXPIRED` | TTLEXPIRED |
+| `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
+
+### `xnetproxydialstate`
+
+Proxy Dial 状态区分代理端点解析、TCP 连接和协议握手。
+
+```c
+typedef enum xnetproxydialstate {
+	XNET_PROXY_DIAL_RESOLVING = 0,
+	XNET_PROXY_DIAL_CONNECTING,
+	XNET_PROXY_DIAL_HANDSHAKE,
+	XNET_PROXY_DIAL_CONNECTED,
+	XNET_PROXY_DIAL_FAILED,
+	XNET_PROXY_DIAL_CANCELLED
+} xnetproxydialstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PROXY_DIAL_RESOLVING` | 解析中 |
+| `XNET_PROXY_DIAL_CONNECTING` | 连接中 |
+| `XNET_PROXY_DIAL_HANDSHAKE` | 握手阶段 |
+| `XNET_PROXY_DIAL_CONNECTED` | 已连接 |
+| `XNET_PROXY_DIAL_FAILED` | 已失败 |
+
+### `xnetproxydialconfig`
+
+Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时。
+
+```c
+typedef struct xnetproxydialconfig {
+	xnetdialconfig Transport;
+	uint64 Timeout;
+	size_t ReceiveLimit;
+} xnetproxydialconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Transport` | `xnetdialconfig` | Transport |
+| `Timeout` | `uint64` | Timeout |
+| `ReceiveLimit` | `size_t` | ReceiveLimit |
+
+### `xnetproxydialstats`
+
+Proxy Dial 保持底层 TCP Dial 统计，并补充当前协议阶段。
+
+```c
+typedef struct xnetproxydialstats {
+	xnetproxydialstate State;
+	xnetdialstats Transport;
+} xnetproxydialstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `State` | `xnetproxydialstate` | State |
+| `Transport` | `xnetdialstats` | Transport |
+
+### `xnetproxy`
+
+不可变代理端点可以跨请求和线程共享。
+
+```c
+typedef struct xnetproxy xnetproxy;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetproxyhandshake`
+
+单个握手由一个传输执行上下文独占驱动。
+
+```c
+typedef struct xnetproxyhandshake xnetproxyhandshake;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetproxydial`
+
+托管代理拨号对象（不透明）：内部串联名称解析、TCP 连接与代理握手，完成时经回调移交 Stream。
+
+
+```c
+typedef struct xnetproxydial xnetproxydial;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetproxydialproc`
+
+完成回调在代理传输 Worker 上至多执行一次，不会从提交调用栈重入。 pDial 和 Error 只在回调期间借用；成功回调接管隧道 Stream 引用。
+
+```c
+typedef void (*xnetproxydialproc)(
+	xnetproxydial* pDial,
+	xnetresult Result,
+	xnetstream* pStream,
+	const xerror* pError,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 裁剪宏
 
 | 宏 | 依赖 | 能力 |

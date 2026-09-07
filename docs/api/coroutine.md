@@ -2,6 +2,170 @@
 
 `XRT_FEATURE_COROUTINE` 提供不依赖调度器的有栈协程核心。对象、平台上下文和栈布局均不公开；启用该功能会同时启用 `thread`、`wait`、`cancel`、`temp_memory`、`mutex` 和 `cond` 依赖。
 
+## 类型与常量
+
+### `xcorostate`
+
+协程状态只描述可恢复性，退出原因由 xcoroterm 单独表达。
+
+```c
+typedef enum xcorostate {
+	XCORO_READY = 0,
+	XCORO_RUNNING = 1,
+	XCORO_SUSPENDED = 2,
+	XCORO_DONE = 3
+} xcorostate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XCORO_READY` | 就绪 |
+| `XCORO_RUNNING` | 运行中 |
+| `XCORO_SUSPENDED` | 已挂起 |
+
+### `xcoroterm`
+
+协程终态区分正常返回、协作取消和未处理错误。
+
+```c
+typedef enum xcoroterm {
+	XCORO_TERM_NONE = 0,
+	XCORO_TERM_RETURNED = 1,
+	XCORO_TERM_CANCELLED = 2,
+	XCORO_TERM_ERROR = 3
+} xcoroterm;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XCORO_TERM_NONE` | 无 |
+| `XCORO_TERM_RETURNED` | RETURNED |
+| `XCORO_TERM_CANCELLED` | 已取消 |
+
+### `xcoroargs`
+
+创建配置只保存会改变核心执行契约的选项。
+
+```c
+typedef struct xcoroargs {
+	size_t StackSize;
+	xcancel* Cancel;
+	xcorofinalproc Finalize;
+	ptr FinalizeData;
+} xcoroargs;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `StackSize` | `size_t` | StackSize |
+| `Cancel` | `xcancel*` | Cancel |
+| `Finalize` | `xcorofinalproc` | Finalize |
+| `FinalizeData` | `ptr` | FinalizeData |
+
+### `xcocleanup`
+
+调用方提供清理节点存储，避免每次压栈产生堆分配。
+
+```c
+typedef struct xcocleanup {
+	struct xcocleanup* Previous;
+	xcoro* Owner;
+	xcocleanupproc Proc;
+	ptr Data;
+	bool Active;
+	bool Managed;
+} xcocleanup;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Previous` | `struct xcocleanup*` | Previous |
+| `Owner` | `xcoro*` | Owner |
+| `Proc` | `xcocleanupproc` | Proc |
+| `Data` | `ptr` | Data |
+| `Active` | `bool` | Active |
+| `Managed` | `bool` | Managed |
+
+### `xcoevent`
+
+协程事件允许嵌入调用方结构，不需要为对象本身分配内存。
+
+```c
+typedef union xcoevent {
+	uint64 Alignment;
+	uint8 Storage[XRT_CO_EVENT_STORAGE_SIZE];
+} xcoevent;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xcoro`
+
+协程对象对外保持不透明，并且固定归属于创建它的原生线程。
+
+```c
+typedef struct xcoro xcoro;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xcosched`
+
+单线程协程调度器对外保持不透明。
+
+```c
+typedef struct xcosched xcosched;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xcoroproc`
+
+协程过程返回的指针由调用方定义所有权。
+
+```c
+typedef ptr (*xcoroproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xcocleanupproc`
+
+协程退出清理过程在所属协程的执行上下文中运行。
+
+```c
+typedef void (*xcocleanupproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xcorofinalproc`
+
+终结过程接收最终终态快照，不能让出、恢复或销毁当前协程。
+
+```c
+typedef void (*xcorofinalproc)(
+	xcoroterm Term,
+	ptr pResult,
+	const xerror* pError,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xcoschedpostproc`
+
+调度器投递过程运行在所属线程的普通调用栈中，适合短小的调度操作。
+
+```c
+typedef void (*xcoschedpostproc)(xcosched* pSched, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 执行契约
 
 - 协程固定归属于创建它的原生线程，`Resume`、活跃对象的销毁和调度操作只能在该线程执行。

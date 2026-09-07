@@ -47,6 +47,256 @@ Reader 的非零 `Read` 成功返回零字节表示永久 EOF。EOF 会被对象
 | `XIO_ERROR_LIMIT` | ReadAll、CopyLimit 或 Line Reader 超过硬上限 |
 | `XIO_ERROR_CALLBACK` | 回调返回不合法计数 |
 
+### `xlineend`
+
+行结束类型区分无终止符的末行、LF 与 CRLF。
+
+```c
+typedef enum xlineend {
+	XLINE_END_NONE = 0,
+	XLINE_END_LF,
+	XLINE_END_CRLF
+} xlineend;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XLINE_END_NONE` | 无 |
+| `XLINE_END_LF` | LF |
+
+### `xlinenext`
+
+行迭代结果明确区分正常结束、有效行和失败。
+
+```c
+typedef enum xlinenext {
+	XLINE_NEXT_ERROR = -1,
+	XLINE_NEXT_END = 0,
+	XLINE_NEXT_LINE = 1
+} xlinenext;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XLINE_NEXT_ERROR` | 失败 |
+| `XLINE_NEXT_END` | END |
+
+### `xlineview`
+
+行内容借用到下一次迭代或销毁，不执行编码检查且不保证补零。
+
+```c
+typedef struct xlineview {
+	xstrview Text;
+	xlineend End;
+} xlineview;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Text` | `xstrview` | Text |
+| `End` | `xlineend` | End |
+
+### `xioerror`
+
+IO 层稳定错误代码使用 xrt.io 域。
+
+```c
+typedef enum xioerror {
+	XIO_ERROR_READ = 1,
+	XIO_ERROR_WRITE,
+	XIO_ERROR_SEEK,
+	XIO_ERROR_TELL,
+	XIO_ERROR_SIZE,
+	XIO_ERROR_FLUSH,
+	XIO_ERROR_CLOSE,
+	XIO_ERROR_EOF,
+	XIO_ERROR_NO_PROGRESS,
+	XIO_ERROR_LIMIT,
+	XIO_ERROR_CALLBACK
+} xioerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XIO_ERROR_READ` | 读方向 |
+| `XIO_ERROR_WRITE` | 写方向 |
+| `XIO_ERROR_SEEK` | SEEK |
+| `XIO_ERROR_TELL` | TELL |
+| `XIO_ERROR_SIZE` | 尺寸 |
+| `XIO_ERROR_FLUSH` | 刷新 |
+| `XIO_ERROR_CLOSE` | CLOSE |
+| `XIO_ERROR_EOF` | EOF |
+| `XIO_ERROR_NO_PROGRESS` | NOPROGRESS |
+| `XIO_ERROR_LIMIT` | 超限 |
+
+### `xreaderops`
+
+Reader 回调表会在创建时复制；只有 Read 是必需过程。
+
+```c
+typedef struct xreaderops {
+	xreadproc Read;
+	xseekproc Seek;
+	xtellproc Tell;
+	xsizeproc Size;
+	xcloseproc Close;
+} xreaderops;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Read` | `xreadproc` | Read |
+| `Seek` | `xseekproc` | Seek |
+| `Tell` | `xtellproc` | Tell |
+| `Size` | `xsizeproc` | Size |
+| `Close` | `xcloseproc` | Close |
+
+### `xwriterops`
+
+Writer 回调表会在创建时复制；只有 Write 是必需过程。
+
+```c
+typedef struct xwriterops {
+	xwriteproc Write;
+	xseekproc Seek;
+	xtellproc Tell;
+	xsizeproc Size;
+	xflushproc Flush;
+	xcloseproc Close;
+} xwriterops;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Write` | `xwriteproc` | Write |
+| `Seek` | `xseekproc` | Seek |
+| `Tell` | `xtellproc` | Tell |
+| `Size` | `xsizeproc` | Size |
+| `Flush` | `xflushproc` | Flush |
+| `Close` | `xcloseproc` | Close |
+
+### `xreader`
+
+Reader 和 Writer 是同步字节 IO 对象；同一对象的操作必须由调用方串行化。
+
+```c
+typedef struct xreader xreader;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xwriter`
+
+同步字节 Writer 对象（不透明）；同一对象的操作必须由调用方串行化。
+
+
+```c
+typedef struct xwriter xwriter;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xlinereader`
+
+Line Reader 在通用 Reader 上提供有界流式行迭代。
+
+```c
+typedef struct xlinereader xlinereader;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xreadproc`
+
+Read 和 Write 允许短操作；成功读取零字节只表示 EOF。
+
+```c
+typedef bool (*xreadproc)(
+	ptr pContext,
+	ptr pBuffer,
+	size_t iRequest,
+	size_t* pRead
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xwriteproc`
+
+写入回调：向 `pContext` 写入至多 `iRequest` 字节，`pWritten` 返回实际写入数，`false` 表示失败。
+
+
+```c
+typedef bool (*xwriteproc)(
+	ptr pContext,
+	const void* pBuffer,
+	size_t iRequest,
+	size_t* pWritten
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xseekproc`
+
+可选定位、查询、刷新和关闭过程失败时必须设置当前错误。
+
+```c
+typedef bool (*xseekproc)(
+	ptr pContext,
+	int64 iOffset,
+	xseek Origin,
+	uint64* pPosition
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtellproc`
+
+位置查询回调：返回 `pContext` 当前读写位置，`false` 表示对象不可寻址。
+
+
+```c
+typedef bool (*xtellproc)(ptr pContext, uint64* pPosition);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xsizeproc`
+
+大小查询回调：返回 `pContext` 内容总字节数，`false` 表示大小不可知。
+
+
+```c
+typedef bool (*xsizeproc)(ptr pContext, uint64* pSize);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xflushproc`
+
+冲刷回调：把 `pContext` 已缓冲数据提交到后端，`false` 表示失败。
+
+
+```c
+typedef bool (*xflushproc)(ptr pContext);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xcloseproc`
+
+关闭回调：释放 `pContext` 的后端资源；返回值保留供扩展，当前实现忽略。
+
+
+```c
+typedef bool (*xcloseproc)(ptr pContext);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 创建
 
 ### `xrtReaderCreate`

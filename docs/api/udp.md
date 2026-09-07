@@ -1,5 +1,359 @@
 # UDP 传输 API
 
+## 类型与常量
+
+### `xnetudpstate`
+
+UDP 状态只向前推进，CLOSED 是唯一终态。
+
+```c
+typedef enum xnetudpstate {
+	XNET_UDP_OPENING = 0,
+	XNET_UDP_OPEN,
+	XNET_UDP_CLOSING,
+	XNET_UDP_CLOSED
+} xnetudpstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_UDP_OPENING` | OPENING |
+| `XNET_UDP_OPEN` | OPEN |
+| `XNET_UDP_CLOSING` | CLOSING |
+
+### `xnetudpwait`
+
+UDP 等待条件是水平条件；Future 只表示本次等待，不接管 UDP 对象。
+
+```c
+typedef enum xnetudpwait {
+	XNET_UDP_WAIT_OPEN = 0,
+	XNET_UDP_WAIT_RECEIVE,
+	XNET_UDP_WAIT_ERROR,
+	XNET_UDP_WAIT_DRAIN,
+	XNET_UDP_WAIT_CLOSE
+} xnetudpwait;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_UDP_WAIT_OPEN` | OPEN |
+| `XNET_UDP_WAIT_RECEIVE` | RECEIVE |
+| `XNET_UDP_WAIT_ERROR` | 失败 |
+| `XNET_UDP_WAIT_DRAIN` | 排空策略 |
+
+### `xnetudpoverflow`
+
+拉取队列满时绝不阻塞 Worker，由调用方明确选择丢弃策略。
+
+```c
+typedef enum xnetudpoverflow {
+	XNET_UDP_DROP_NEWEST = 0,
+	XNET_UDP_DROP_OLDEST,
+	XNET_UDP_DROP_ERROR
+} xnetudpoverflow;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_UDP_DROP_NEWEST` | NEWEST |
+| `XNET_UDP_DROP_OLDEST` | OLDEST |
+
+### `xnetudptruncation`
+
+接收缓冲不足时可以投递已截断前缀、静默丢弃或报告可恢复错误。
+
+```c
+typedef enum xnetudptruncation {
+	XNET_UDP_TRUNCATE_DELIVER = 0,
+	XNET_UDP_TRUNCATE_DROP,
+	XNET_UDP_TRUNCATE_ERROR
+} xnetudptruncation;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_UDP_TRUNCATE_DELIVER` | DELIVER |
+| `XNET_UDP_TRUNCATE_DROP` | 丢弃策略 |
+
+### `xnetudpflag`
+
+消息标志在推送消息和拥有型数据包之间保持一致。
+
+```c
+typedef enum xnetudpflag {
+	XNET_UDP_MESSAGE_TRUNCATED = 0x01
+} xnetudpflag;
+```
+
+| 值 | 语义 |
+|---|---|
+
+### `xnetudpmessage`
+
+推送消息只在 Receive 回调期间借用地址与数据。
+
+```c
+typedef struct xnetudpmessage {
+	xnetaddr Remote;
+	xnetdgrammeta Meta;
+	cbytes Data;
+	size_t Size;
+	uint32 Flags;
+} xnetudpmessage;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Remote` | `xnetaddr` | Remote |
+| `Meta` | `xnetdgrammeta` | Meta |
+| `Data` | `cbytes` | Data |
+| `Size` | `size_t` | Size |
+| `Flags` | `uint32` | Flags |
+
+### `xnetudperrormessage`
+
+数据报协议错误只在 DatagramError 回调期间借用负载前缀。
+
+```c
+typedef struct xnetudperrormessage {
+	xnetdgramerror Error;
+	cbytes Data;
+	size_t Size;
+} xnetudperrormessage;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Error` | `xnetdgramerror` | Error |
+| `Data` | `cbytes` | Data |
+| `Size` | `size_t` | Size |
+
+### `xnetudpevents`
+
+所有事件均在 UDP 所属 Worker 上串行执行。
+
+```c
+typedef struct xnetudpevents {
+	void (*Open)(xnetudp* pUdp, ptr pData);
+	void (*Receive)(xnetudp* pUdp,
+		const xnetudpmessage* pMessage, ptr pData);
+	void (*DatagramError)(xnetudp* pUdp,
+		const xnetudperrormessage* pMessage, ptr pData);
+	void (*Error)(xnetudp* pUdp, const xerror* pError, ptr pData);
+	void (*HighWater)(xnetudp* pUdp,
+		size_t iBytes, size_t iPackets, ptr pData);
+	void (*LowWater)(xnetudp* pUdp,
+		size_t iBytes, size_t iPackets, ptr pData);
+	void (*Drain)(xnetudp* pUdp, ptr pData);
+	void (*Close)(xnetudp* pUdp, xnetresult Result,
+		const xerror* pError, ptr pData);
+} xnetudpevents;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+
+### `xnetudpconfig`
+
+completion 收发并发独立配置；readiness 后端不为并发槽增加对象内存。
+
+```c
+typedef struct xnetudpconfig {
+	size_t ReceiveSize;
+	uint32 ReceiveConcurrency;
+	uint32 ReceiveBatch;
+	uint32 ReceiveMeta;
+	size_t ReceiveQueueLimit;
+	size_t ReceiveQueueByteLimit;
+	xnetudpoverflow Overflow;
+	xnetudptruncation Truncation;
+	size_t ErrorSize;
+	size_t ErrorQueueLimit;
+	size_t ErrorQueueByteLimit;
+	xnetudpoverflow ErrorOverflow;
+	size_t SendHighWater;
+	size_t SendLowWater;
+	size_t SendLimit;
+	size_t SendPacketLimit;
+	/* 大于一时允许发送完成和外部数据释放乱序；默认一保持提交顺序。 */
+	uint32 SendConcurrency;
+	int ReceiveBuffer;
+	int SendBuffer;
+	int HopLimit;
+	int TrafficClass;
+	xnetpmtumode PathMtu;
+	bool ReuseAddress;
+	bool ReusePort;
+	bool ExclusiveAddress;
+	bool Broadcast;
+	bool IPv6Only;
+	bool ReceiveErrors;
+} xnetudpconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `ReceiveSize` | `size_t` | ReceiveSize |
+| `ReceiveConcurrency` | `uint32` | ReceiveConcurrency |
+| `ReceiveBatch` | `uint32` | ReceiveBatch |
+| `ReceiveMeta` | `uint32` | ReceiveMeta |
+| `ReceiveQueueLimit` | `size_t` | ReceiveQueueLimit |
+| `ReceiveQueueByteLimit` | `size_t` | ReceiveQueueByteLimit |
+| `Overflow` | `xnetudpoverflow` | Overflow |
+| `Truncation` | `xnetudptruncation` | Truncation |
+| `ErrorSize` | `size_t` | ErrorSize |
+| `ErrorQueueLimit` | `size_t` | ErrorQueueLimit |
+| `ErrorQueueByteLimit` | `size_t` | ErrorQueueByteLimit |
+| `ErrorOverflow` | `xnetudpoverflow` | ErrorOverflow |
+| `SendHighWater` | `size_t` | SendHighWater |
+| `SendLowWater` | `size_t` | SendLowWater |
+| `SendLimit` | `size_t` | SendLimit |
+| `SendPacketLimit` | `size_t` | SendPacketLimit |
+| `SendConcurrency` | `uint32` | SendConcurrency |
+| `ReceiveBuffer` | `int` | ReceiveBuffer |
+| `SendBuffer` | `int` | SendBuffer |
+| `HopLimit` | `int` | HopLimit |
+| `TrafficClass` | `int` | TrafficClass |
+| `PathMtu` | `xnetpmtumode` | PathMtu |
+| `ReuseAddress` | `bool` | ReuseAddress |
+| `ReusePort` | `bool` | ReusePort |
+| `ExclusiveAddress` | `bool` | ExclusiveAddress |
+| `Broadcast` | `bool` | Broadcast |
+| `IPv6Only` | `bool` | IPv6Only |
+| `ReceiveErrors` | `bool` | ReceiveErrors |
+
+### `xnetudpstats`
+
+UDP 统计是无锁并发快照，累计值在关闭后仍可读取。
+
+```c
+typedef struct xnetudpstats {
+	xnetudpstate State;
+	uint64 ReceivedPackets;
+	/* 实际捕获的前缀字节；截断报文不包含内核丢弃的尾部。 */
+	uint64 ReceivedBytes;
+	uint64 SentPackets;
+	uint64 SentBytes;
+	uint64 Truncated;
+	uint64 TruncatedDropped;
+	uint64 DroppedNewest;
+	uint64 DroppedOldest;
+	uint64 ReceiveErrors;
+	uint64 SendErrors;
+	uint64 SendRejected;
+	uint64 DatagramErrors;
+	uint64 DatagramErrorsDropped;
+	uint64 PathMtuUpdates;
+	size_t PathMtu;
+	size_t QueuedBytes;
+	size_t PeakQueuedBytes;
+	size_t QueuedPackets;
+	size_t PeakQueuedPackets;
+	size_t ReceiveQueued;
+	size_t PeakReceiveQueued;
+	size_t ReceiveQueuedBytes;
+	size_t PeakReceiveQueuedBytes;
+	size_t ErrorQueued;
+	size_t PeakErrorQueued;
+	size_t ErrorQueuedBytes;
+	size_t PeakErrorQueuedBytes;
+	size_t ReceiveWaiters;
+	size_t ErrorWaiters;
+	uint32 ActiveReceives;
+	uint32 ActiveSends;
+	uint32 PeakActiveSends;
+	bool Connected;
+} xnetudpstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `State` | `xnetudpstate` | State |
+| `ReceivedPackets` | `uint64` | ReceivedPackets |
+| `ReceivedBytes` | `uint64` | ReceivedBytes |
+| `SentPackets` | `uint64` | SentPackets |
+| `SentBytes` | `uint64` | SentBytes |
+| `Truncated` | `uint64` | Truncated |
+| `TruncatedDropped` | `uint64` | TruncatedDropped |
+| `DroppedNewest` | `uint64` | DroppedNewest |
+| `DroppedOldest` | `uint64` | DroppedOldest |
+| `ReceiveErrors` | `uint64` | ReceiveErrors |
+| `SendErrors` | `uint64` | SendErrors |
+| `SendRejected` | `uint64` | SendRejected |
+| `DatagramErrors` | `uint64` | DatagramErrors |
+| `DatagramErrorsDropped` | `uint64` | DatagramErrorsDropped |
+| `PathMtuUpdates` | `uint64` | PathMtuUpdates |
+| `PathMtu` | `size_t` | PathMtu |
+| `QueuedBytes` | `size_t` | QueuedBytes |
+| `PeakQueuedBytes` | `size_t` | PeakQueuedBytes |
+| `QueuedPackets` | `size_t` | QueuedPackets |
+| `PeakQueuedPackets` | `size_t` | PeakQueuedPackets |
+| `ReceiveQueued` | `size_t` | ReceiveQueued |
+| `PeakReceiveQueued` | `size_t` | PeakReceiveQueued |
+| `ReceiveQueuedBytes` | `size_t` | ReceiveQueuedBytes |
+| `PeakReceiveQueuedBytes` | `size_t` | PeakReceiveQueuedBytes |
+| `ErrorQueued` | `size_t` | ErrorQueued |
+| `PeakErrorQueued` | `size_t` | PeakErrorQueued |
+| `ErrorQueuedBytes` | `size_t` | ErrorQueuedBytes |
+| `PeakErrorQueuedBytes` | `size_t` | PeakErrorQueuedBytes |
+| `ReceiveWaiters` | `size_t` | ReceiveWaiters |
+| `ErrorWaiters` | `size_t` | ErrorWaiters |
+| `ActiveReceives` | `uint32` | ActiveReceives |
+| `ActiveSends` | `uint32` | ActiveSends |
+| `PeakActiveSends` | `uint32` | PeakActiveSends |
+| `Connected` | `bool` | Connected |
+
+### `xnetudp`
+
+UDP 对象（不透明）：绑定 Engine Worker 的有界收发队列载体。
+
+
+```c
+typedef struct xnetudp xnetudp;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetudppacket`
+
+拥有型数据包（不透明）：含载荷、远端与接收元数据，用后 `xrtNetUdpPacketDestroy`。
+
+
+```c
+typedef struct xnetudppacket xnetudppacket;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetudperrorpacket`
+
+拥有型数据报错误包（不透明）：含结构化错误与原负载前缀，用后销毁。
+
+
+```c
+typedef struct xnetudperrorpacket xnetudperrorpacket;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetudpbatch`
+
+拥有型批量接收结果（不透明）：持有最多 256 个数据包，可逐个转移。
+
+
+```c
+typedef struct xnetudpbatch xnetudpbatch;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XNET_UDP_PAYLOAD_MAX` | `65507u` | 普通 IPv4 和 IPv6 UDP 的保守最大载荷，避免依赖 IP 分片外的扩展语义。 |
+
 ## 分层与设计
 
 `XRT_FEATURE_NET_UDP` 依赖 `XRT_FEATURE_NET_ENGINE`，公开头文件为 `<xrt/udp.h>`。这一层提供未连接与连接式 UDP、推送与拉取接收、多种发送所有权、批量 API、硬背压、组播、关闭契约和并发统计。

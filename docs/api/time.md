@@ -50,6 +50,150 @@ typedef struct xdatetime {
 
 `xtimeunit` 定义微秒到周的固定时长单位，以及月、季度、年的日历单位。`xtimefold` 定义重复本地时间的 `REJECT`、`EARLIER`、`LATER` 选择。
 
+### `xtimeweekday`
+
+星期值固定从星期日零开始，便于和 C/POSIX 及 HTTP-date 对接。
+
+```c
+typedef enum xtimeweekday {
+	XTIME_SUNDAY = 0,
+	XTIME_MONDAY,
+	XTIME_TUESDAY,
+	XTIME_WEDNESDAY,
+	XTIME_THURSDAY,
+	XTIME_FRIDAY,
+	XTIME_SATURDAY
+} xtimeweekday;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTIME_SUNDAY` | SUNDAY |
+| `XTIME_MONDAY` | MONDAY |
+| `XTIME_TUESDAY` | TUESDAY |
+| `XTIME_WEDNESDAY` | WEDNESDAY |
+| `XTIME_THURSDAY` | THURSDAY |
+| `XTIME_FRIDAY` | FRIDAY |
+
+### `xtimeunit`
+
+日期计算单位；月、季度和年使用日历语义，其余单位使用固定时长。
+
+```c
+typedef enum xtimeunit {
+	XTIME_UNIT_MICROSECOND = 0,
+	XTIME_UNIT_MILLISECOND,
+	XTIME_UNIT_SECOND,
+	XTIME_UNIT_MINUTE,
+	XTIME_UNIT_HOUR,
+	XTIME_UNIT_DAY,
+	XTIME_UNIT_WEEK,
+	XTIME_UNIT_MONTH,
+	XTIME_UNIT_QUARTER,
+	XTIME_UNIT_YEAR
+} xtimeunit;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTIME_UNIT_MICROSECOND` | MICROSECOND |
+| `XTIME_UNIT_MILLISECOND` | MILLISECOND |
+| `XTIME_UNIT_SECOND` | SECOND |
+| `XTIME_UNIT_MINUTE` | MINUTE |
+| `XTIME_UNIT_HOUR` | HOUR |
+| `XTIME_UNIT_DAY` | DAY |
+| `XTIME_UNIT_WEEK` | WEEK |
+| `XTIME_UNIT_MONTH` | MONTH |
+| `XTIME_UNIT_QUARTER` | QUARTER |
+
+### `xtimefold`
+
+本地时间在夏令时回拨区间出现两个候选值时的选择规则。
+
+```c
+typedef enum xtimefold {
+	XTIME_FOLD_REJECT = 0,
+	XTIME_FOLD_EARLIER,
+	XTIME_FOLD_LATER
+} xtimefold;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTIME_FOLD_REJECT` | REJECT |
+| `XTIME_FOLD_EARLIER` | EARLIER |
+
+### `xtimeerror`
+
+时间模块稳定错误代码。
+
+```c
+typedef enum xtimeerror {
+	XTIME_ERROR_RANGE = 1,
+	XTIME_ERROR_OVERFLOW,
+	XTIME_ERROR_FORMAT,
+	XTIME_ERROR_PARSE,
+	XTIME_ERROR_LOCAL_GAP,
+	XTIME_ERROR_LOCAL_FOLD,
+	XTIME_ERROR_LOCAL_UNSUPPORTED
+} xtimeerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTIME_ERROR_RANGE` | 范围越界 |
+| `XTIME_ERROR_OVERFLOW` | 溢出 |
+| `XTIME_ERROR_FORMAT` | FORMAT |
+| `XTIME_ERROR_PARSE` | PARSE |
+| `XTIME_ERROR_LOCAL_GAP` | LOCALGAP |
+| `XTIME_ERROR_LOCAL_FOLD` | LOCALFOLD |
+
+### `xdatetime`
+
+分解后的 Gregorian 日期时间；Offset 为 UTC 以东秒数。
+
+```c
+typedef struct xdatetime {
+	int64 Year;
+	int Month;
+	int Day;
+	int Hour;
+	int Minute;
+	int Second;
+	int Microsecond;
+	int Offset;
+	int Weekday;
+	int YearDay;
+	int IsDST;
+} xdatetime;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Year` | `int64` | Year |
+| `Month` | `int` | Month |
+| `Day` | `int` | Day |
+| `Hour` | `int` | Hour |
+| `Minute` | `int` | Minute |
+| `Second` | `int` | Second |
+| `Microsecond` | `int` | Microsecond |
+| `Offset` | `int` | Offset |
+| `Weekday` | `int` | Weekday |
+| `YearDay` | `int` | YearDay |
+| `IsDST` | `int` | IsDST |
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_TIME_MICROSECOND` | `INT64_C(1)` | xtime 和固定时长统一使用微秒，避免浮点计时和隐式单位换算。 |
+| `XRT_TIME_MILLISECOND` | `INT64_C(1000)` | MILLISECOND |
+| `XRT_TIME_SECOND` | `INT64_C(1000000)` | SECOND |
+| `XRT_TIME_MINUTE` | `INT64_C(60000000)` | MINUTE |
+| `XRT_TIME_HOUR` | `INT64_C(3600000000)` | HOUR |
+| `XRT_TIME_DAY` | `INT64_C(86400000000)` | DAY |
+| `XRT_TIME_WEEK` | `INT64_C(604800000000)` | WEEK |
+
 ## 时钟与休眠
 
 ```c

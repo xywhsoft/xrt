@@ -2,6 +2,163 @@
 
 `avl` 是不拥有节点内存的侵入式有序索引；`avl_tree` 在它上面增加固定对象池、按值复制和资源释放回调。两层使用同一套 AVL 平衡核心，但面向不同成本模型，调用方不需要为了使用底层能力而承担拥有型容器的分配和所有权规则。
 
+## 类型与常量
+
+### `xavlnode`
+
+侵入式节点只保存平衡树链接，业务结构可将它嵌入任意位置。
+
+```c
+typedef struct xavlnode {
+	struct xavlnode* Left;
+	struct xavlnode* Right;
+	uint8 Height;
+} xavlnode;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Left` | `struct xavlnode*` | Left |
+| `Right` | `struct xavlnode*` | Right |
+| `Height` | `uint8` | Height |
+
+### `xavl`
+
+侵入式树不拥有节点内存，版本号用于检测遍历期结构修改。
+
+```c
+typedef struct xavl {
+	xavlnode* Root;
+	size_t Count;
+	uint64 Version;
+} xavl;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Root` | `xavlnode*` | Root |
+| `Count` | `size_t` | Count |
+| `Version` | `uint64` | Version |
+
+### `xavliter`
+
+外置迭代器允许同一棵树存在多个并行读迭代，不发生堆分配。
+
+```c
+typedef struct xavliter {
+	const xavl* Tree;
+	xavlnode* Path[XRT_AVL_HEIGHT_MAX];
+	size_t Depth;
+	uint64 Version;
+	bool Reverse;
+	bool Active;
+} xavliter;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Tree` | `const xavl*` | Tree |
+| `Depth` | `size_t` | Depth |
+| `Version` | `uint64` | Version |
+| `Reverse` | `bool` | Reverse |
+| `Active` | `bool` | Active |
+
+### `xavltree`
+
+拥有式树使用固定对象池，节点地址在删除前保持稳定。
+
+```c
+typedef struct xavltree {
+	xavl Base;
+	xpool Pool;
+	size_t ItemSize;
+	size_t ItemOffset;
+	size_t Alignment;
+	xavltreecompare Compare;
+	xavltreedrop Drop;
+	ptr UserData;
+	uint32 Flags;
+} xavltree;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Base` | `xavl` | Base |
+| `Pool` | `xpool` | Pool |
+| `ItemSize` | `size_t` | ItemSize |
+| `ItemOffset` | `size_t` | ItemOffset |
+| `Alignment` | `size_t` | Alignment |
+| `Compare` | `xavltreecompare` | Compare |
+| `Drop` | `xavltreedrop` | Drop |
+| `UserData` | `ptr` | UserData |
+| `Flags` | `uint32` | Flags |
+
+### `xavltreeiter`
+
+拥有式迭代器复用零分配侵入式路径栈。
+
+```c
+typedef struct xavltreeiter {
+	xavltree* Tree;
+	xavliter Base;
+} xavltreeiter;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Tree` | `xavltree*` | Tree |
+| `Base` | `xavliter` | Base |
+
+### `xavlcompare`
+
+比较器返回 key 与节点的顺序关系，并可通过用户数据恢复业务结构。
+
+```c
+typedef int (*xavlcompare)(const void* pKey, const xavlnode* pNode, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xavlvisitor`
+
+访问器返回 false 时停止遍历。
+
+```c
+typedef bool (*xavlvisitor)(xavlnode* pNode, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xavltreecompare`
+
+拥有式树比较器返回 key 与对象的顺序关系，不得重入同一棵树。
+
+```c
+typedef int (*xavltreecompare)(const void* pKey, const void* pItem, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xavltreedrop`
+
+对象释放器只处理内部资源，回调期间不得调用同一棵树的 API。
+
+```c
+typedef void (*xavltreedrop)(ptr pItem, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xavltreevisitor`
+
+访问器可查询树和修改非键字段，不得修改结构或生命周期。
+
+```c
+typedef bool (*xavltreevisitor)(ptr pItem, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 裁剪与依赖
 
 | 能力 | 宏 | 依赖 |

@@ -1,5 +1,189 @@
 # Path API
 
+## 类型与常量
+
+### `xpathstyle`
+
+路径风格决定根、分隔符和绝对路径语义，不读取目标文件系统。
+
+```c
+typedef enum xpathstyle {
+	XPATH_NATIVE = 0,
+	XPATH_POSIX,
+	XPATH_WINDOWS
+} xpathstyle;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPATH_NATIVE` | NATIVE |
+| `XPATH_POSIX` | POSIX |
+
+### `xpathroot`
+
+根类型明确区分 Windows 驱动器相对路径、根相对路径和完整绝对路径。
+
+```c
+typedef enum xpathroot {
+	XPATH_ROOT_NONE = 0,
+	XPATH_ROOT_POSIX,
+	XPATH_ROOT_WINDOWS,
+	XPATH_ROOT_DRIVE_RELATIVE,
+	XPATH_ROOT_DRIVE,
+	XPATH_ROOT_UNC,
+	XPATH_ROOT_DEVICE
+} xpathroot;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPATH_ROOT_NONE` | 无 |
+| `XPATH_ROOT_POSIX` | POSIX |
+| `XPATH_ROOT_WINDOWS` | WINDOWS |
+| `XPATH_ROOT_DRIVE_RELATIVE` | DRIVERELATIVE |
+| `XPATH_ROOT_DRIVE` | DRIVE |
+| `XPATH_ROOT_UNC` | UNC |
+
+### `xpathflag`
+
+路径分解标志。
+
+```c
+typedef enum xpathflag {
+	XPATH_FLAG_ROOTED = 0x01,
+	XPATH_FLAG_ABSOLUTE = 0x02,
+	XPATH_FLAG_TRAILING_SEPARATOR = 0x04
+} xpathflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPATH_FLAG_ROOTED` | ROOTED |
+| `XPATH_FLAG_ABSOLUTE` | ABSOLUTE |
+
+### `xpathparts`
+
+全部字段都借用输入路径；Ext 包含前导点，隐藏文件名本身不算扩展名。
+
+```c
+typedef struct xpathparts {
+	xstrview Root;
+	xstrview Parent;
+	xstrview Name;
+	xstrview Stem;
+	xstrview Ext;
+	xpathroot RootKind;
+	uint32 Flags;
+} xpathparts;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Root` | `xstrview` | Root |
+| `Parent` | `xstrview` | Parent |
+| `Name` | `xstrview` | Name |
+| `Stem` | `xstrview` | Stem |
+| `Ext` | `xstrview` | Ext |
+| `RootKind` | `xpathroot` | RootKind |
+| `Flags` | `uint32` | Flags |
+
+### `xpathcomponentkind`
+
+路径组件类型；根、点、双点和普通名称保持明确语义。
+
+```c
+typedef enum xpathcomponentkind {
+	XPATH_COMPONENT_ROOT = 1,
+	XPATH_COMPONENT_CURRENT,
+	XPATH_COMPONENT_PARENT,
+	XPATH_COMPONENT_NORMAL
+} xpathcomponentkind;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPATH_COMPONENT_ROOT` | ROOT |
+| `XPATH_COMPONENT_CURRENT` | CURRENT |
+| `XPATH_COMPONENT_PARENT` | PARENT |
+
+### `xpathcomponent`
+
+路径组件借用输入文本。
+
+```c
+typedef struct xpathcomponent {
+	xstrview Text;
+	xpathcomponentkind Kind;
+} xpathcomponent;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Text` | `xstrview` | Text |
+| `Kind` | `xpathcomponentkind` | Kind |
+
+### `xpathiter`
+
+零分配路径组件迭代器；字段仅由路径 API 维护。
+
+```c
+typedef struct xpathiter {
+	xstrview Path;
+	size_t Position;
+	size_t RootSize;
+	xpathstyle Style;
+	uint32 State;
+} xpathiter;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Path` | `xstrview` | Path |
+| `Position` | `size_t` | Position |
+| `RootSize` | `size_t` | RootSize |
+| `Style` | `xpathstyle` | Style |
+| `State` | `uint32` | State |
+
+### `xpatherror`
+
+路径模块稳定错误代码。
+
+```c
+typedef enum xpatherror {
+	XPATH_ERROR_FORMAT = 1,
+	XPATH_ERROR_OVERFLOW,
+	XPATH_ERROR_ROOT,
+	XPATH_ERROR_SYSTEM
+} xpatherror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPATH_ERROR_FORMAT` | FORMAT |
+| `XPATH_ERROR_OVERFLOW` | 溢出 |
+| `XPATH_ERROR_ROOT` | ROOT |
+
+### `xpathsafesegment`
+
+固定存储只允许通过 Path Safe Segment API 访问。
+
+```c
+typedef union xpathsafesegment {
+	uint64 Alignment;
+	uint8 Storage[XPATH_SAFE_SEGMENT_STORAGE_SIZE];
+} xpathsafesegment;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XPATH_SAFE_SEGMENT_STORAGE_SIZE` | `40u` | 流式可移植路径段检查器使用固定存储，不分配内存。 |
+
 ## 设计契约
 
 路径体系分成三个可独立裁剪的层次：

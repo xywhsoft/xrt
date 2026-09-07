@@ -3,6 +3,154 @@
 Pattern 是面向大量结构化字节模式的编译式匹配器。它只负责完整字符串
 匹配、顺序捕获和模式选择，不包含 HTTP、路由处理函数或正则表达式语义。
 
+## 类型与常量
+
+### `xpatternresult`
+
+未命中不是错误，全部匹配入口使用同一三态结果。
+
+```c
+typedef enum xpatternresult {
+	XPATTERN_ERROR = -1,
+	XPATTERN_NONE = 0,
+	XPATTERN_MATCH = 1
+} xpatternresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPATTERN_ERROR` | 失败 |
+| `XPATTERN_NONE` | 无 |
+
+### `xpatternerror`
+
+pattern 模块错误代码在 xrt.pattern 域内保持稳定。
+
+```c
+typedef enum xpatternerror {
+	XPATTERN_ERROR_CONFIG = 1601,
+	XPATTERN_ERROR_PATTERN,
+	XPATTERN_ERROR_LIMIT,
+	XPATTERN_ERROR_CONFLICT,
+	XPATTERN_ERROR_CAPACITY
+} xpatternerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPATTERN_ERROR_CONFIG` | 配置非法 |
+| `XPATTERN_ERROR_PATTERN` | PATTERN |
+| `XPATTERN_ERROR_LIMIT` | 超限 |
+| `XPATTERN_ERROR_CONFLICT` | CONFLICT |
+
+### `xpatternconfig`
+
+分隔符是字节集合：模式中的分隔字节仍要求精确匹配，捕获不能吞掉 集合中的任意字节。全部模式共享一份配置，以便编译成单一确定性程序。
+
+```c
+typedef struct xpatternconfig {
+	uint32 Flags;
+	xstrview Separators;
+	size_t MaxPatternBytes;
+	size_t MaxPatterns;
+	size_t MaxCaptures;
+	size_t MaxStates;
+	size_t MaxCompiledBytes;
+	uint32 Reserved[4];
+} xpatternconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Separators` | `xstrview` | Separators |
+| `MaxPatternBytes` | `size_t` | MaxPatternBytes |
+| `MaxPatterns` | `size_t` | MaxPatterns |
+| `MaxCaptures` | `size_t` | MaxCaptures |
+| `MaxStates` | `size_t` | MaxStates |
+| `MaxCompiledBytes` | `size_t` | MaxCompiledBytes |
+
+### `xpatternspec`
+
+Value 仅作为借用值随命中返回，XRT 不获取或释放其所有权。
+
+```c
+typedef struct xpatternspec {
+	xstrview Pattern;
+	ptr Value;
+	int32 Priority;
+	uint32 Flags;
+} xpatternspec;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Pattern` | `xstrview` | Pattern |
+| `Value` | `ptr` | Value |
+| `Priority` | `int32` | Priority |
+| `Flags` | `uint32` | Flags |
+
+### `xpatternmatch`
+
+{name} 捕获非空字段，也可写成 prefix{name}suffix；一个字段至多一个普通 捕获，前后缀至少一侧非空。{*name} 仍独占最终字段并可捕获空尾部。 捕获由调用方数组按模式中的出现顺序保存，PatternIndex 属于当前快照。
+
+```c
+typedef struct xpatternmatch {
+	xpatternid Id;
+	size_t PatternIndex;
+	ptr Value;
+	size_t CaptureCount;
+} xpatternmatch;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Id` | `xpatternid` | Id |
+| `PatternIndex` | `size_t` | PatternIndex |
+| `Value` | `ptr` | Value |
+| `CaptureCount` | `size_t` | CaptureCount |
+
+### `xpatternid`
+
+零值永远不是有效的 Builder 条目句柄。
+
+```c
+typedef uint64 xpatternid;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xpattern`
+
+编译对象不可变、可跨线程共享并通过引用计数管理。
+
+```c
+typedef struct xpattern xpattern;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xpatternbuilder`
+
+Builder 可变且不保证并发安全；成功编译不会清空其中的模式。
+
+```c
+typedef struct xpatternbuilder xpatternbuilder;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XPATTERN_PATTERN_DEFAULT` | `(1024u * 1024u)` | 默认预算适用于大量路由，也阻止不可信模式造成无界编译。 |
+| `XPATTERN_PATTERNS_DEFAULT` | `100000u` | PATTERNS默认值 |
+| `XPATTERN_CAPTURES_DEFAULT` | `256u` | CAPTURES默认值 |
+| `XPATTERN_STATES_DEFAULT` | `1000000u` | STATES默认值 |
+| `XPATTERN_COMPILED_DEFAULT` | `(512u * 1024u * 1024u)` | COMPILED默认值 |
+| `XPATTERN_ID_INVALID` | `((xpatternid)0)` | 标识无效 |
+
 ## 模式语法
 
 - 字面字段按字节精确匹配。

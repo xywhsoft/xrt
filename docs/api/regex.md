@@ -2,6 +2,241 @@
 
 正则模块使用非回溯线性时间引擎。编译对象 `xregex` 不可变、引用计数且可以跨线程共享；`xregexmatcher` 保存可变执行缓存，只能由一个执行流使用，但可以反复匹配以避免热路径分配。
 
+## 类型与常量
+
+### `xregexflag`
+
+编译标志与表达式内的 (?i)、(?m)、(?s)、(?U) 语义一致。
+
+```c
+typedef enum xregexflag {
+	XREGEX_IGNORE_CASE = UINT32_C(0x00000001),
+	XREGEX_MULTILINE = UINT32_C(0x00000002),
+	XREGEX_DOT_ALL = UINT32_C(0x00000004),
+	XREGEX_UNGREEDY = UINT32_C(0x00000008)
+} xregexflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XREGEX_IGNORE_CASE` | IGNORECASE |
+| `XREGEX_MULTILINE` | MULTILINE |
+| `XREGEX_DOT_ALL` | DOT全部 |
+
+### `xregexresult`
+
+所有匹配入口使用同一三态结果，未匹配不属于错误。
+
+```c
+typedef enum xregexresult {
+	XREGEX_ERROR = -1,
+	XREGEX_NONE = 0,
+	XREGEX_MATCH = 1
+} xregexresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XREGEX_ERROR` | 失败 |
+| `XREGEX_NONE` | 无 |
+
+### `xregexerror`
+
+正则模块错误代码在 xrt.regex 域内保持稳定。
+
+```c
+typedef enum xregexerror {
+	XREGEX_ERROR_CONFIG = 1501,
+	XREGEX_ERROR_PATTERN,
+	XREGEX_ERROR_LIMIT,
+	XREGEX_ERROR_EXECUTE,
+	XREGEX_ERROR_REPLACEMENT,
+	XREGEX_ERROR_CALLBACK
+} xregexerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XREGEX_ERROR_CONFIG` | 配置非法 |
+| `XREGEX_ERROR_PATTERN` | PATTERN |
+| `XREGEX_ERROR_LIMIT` | 超限 |
+| `XREGEX_ERROR_EXECUTE` | EXECUTE |
+| `XREGEX_ERROR_REPLACEMENT` | REPLACEMENT |
+
+### `xregexconfig`
+
+编译配置同时控制语义标志与可由调用方收紧的资源预算。
+
+```c
+typedef struct xregexconfig {
+	uint32 Flags;
+	size_t MaxPatternBytes;
+	size_t MaxCaptures;
+	uint32 Reserved[4];
+} xregexconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `MaxPatternBytes` | `size_t` | MaxPatternBytes |
+| `MaxCaptures` | `size_t` | MaxCaptures |
+
+### `xregexspan`
+
+匹配范围使用零基半开字节区间 [Begin, End)。
+
+```c
+typedef struct xregexspan {
+	size_t Begin;
+	size_t End;
+} xregexspan;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Begin` | `size_t` | Begin |
+| `End` | `size_t` | End |
+
+### `xregexcapture`
+
+捕获记录区分未参与匹配与合法的空匹配。
+
+```c
+typedef struct xregexcapture {
+	bool Matched;
+	xregexspan Span;
+	xstrview Text;
+} xregexcapture;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Matched` | `bool` | Matched |
+| `Span` | `xregexspan` | Span |
+| `Text` | `xstrview` | Text |
+
+### `xregexsplitflag`
+
+拆分标志控制捕获输出和空项过滤。
+
+```c
+typedef enum xregexsplitflag {
+	XREGEX_SPLIT_CAPTURES = UINT32_C(0x00000001),
+	XREGEX_SPLIT_SKIP_EMPTY = UINT32_C(0x00000002)
+} xregexsplitflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XREGEX_SPLIT_CAPTURES` | XREGEX按级别分流CAPTURES |
+
+### `xregexsplitconfig`
+
+Limit 是最多使用的分隔匹配数，SIZE_MAX 表示不限制。
+
+```c
+typedef struct xregexsplitconfig {
+	size_t Limit;
+	uint32 Flags;
+	uint32 Reserved[4];
+} xregexsplitconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Limit` | `size_t` | Limit |
+| `Flags` | `uint32` | Flags |
+
+### `xregexsplitpart`
+
+Capture 为 XRT_NPOS 时是普通字段，否则是捕获索引。
+
+```c
+typedef struct xregexsplitpart {
+	xstrview Text;
+	size_t Capture;
+	bool Matched;
+} xregexsplitpart;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Text` | `xstrview` | Text |
+| `Capture` | `size_t` | Capture |
+| `Matched` | `bool` | Matched |
+
+### `xregex`
+
+编译对象不可变、可跨线程共享并通过引用计数管理。
+
+```c
+typedef struct xregex xregex;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xregexmatcher`
+
+matcher 独占可变执行缓存，捕获视图在下一次匹配前有效。
+
+```c
+typedef struct xregexmatcher xregexmatcher;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xregexsplitter`
+
+流式拆分器借用输入，并独占一个可重用 matcher。
+
+```c
+typedef struct xregexsplitter xregexsplitter;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xregexset`
+
+编译集合不可变并持有各模式引用。
+
+```c
+typedef struct xregexset xregexset;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xregexsetmatcher`
+
+集合 matcher 独占执行缓存和本轮命中索引。
+
+```c
+typedef struct xregexsetmatcher xregexsetmatcher;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xregexreplacefn`
+
+自定义替换器只能向输出尾部追加内容，返回 false 表示终止并报告错误。
+
+```c
+typedef bool (*xregexreplacefn)(
+	const xregexmatcher* pMatcher,
+	xstrbuf* pOutput,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XREGEX_PATTERN_DEFAULT` | `(1024u * 1024u)` | 默认限制面向不可信表达式，防止编译阶段无界消耗资源。 |
+| `XREGEX_CAPTURES_DEFAULT` | `4096u` | CAPTURES默认值 |
+
 ## 模块
 
 - `XRT_MODULE_REGEX`：启用完整正则能力。
