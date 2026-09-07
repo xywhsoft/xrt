@@ -48,153 +48,2894 @@ typedef struct xstrbuf {
 
 ## 视图函数
 
-### `xrtStrView` 与 `xrtStrViewN`
+### `xrtStrView`
 
-`xrtStrView` 从零结尾字符串创建视图，`NULL` 表示空字符串。`xrtStrViewN` 保留明确字节数，可包含内嵌零字节；它只构造视图，使用视图的操作负责验证参数。
+从零结尾字符串创建借用视图，空指针视为空字符串。
 
-### `xrtStrEmpty` 与 `xrtStrBlank`
+```c
+xstrview xrtStrView(cstr sText)
+```
 
-`xrtStrEmpty` 判断长度是否为零。`xrtStrBlank` 判断所有字节是否属于 ASCII 空白集合：空格、制表、CR、LF、垂直制表和换页；空字符串也属于 blank。
+#### 参数
 
-### `xrtStrCompare`、`xrtStrCaseCompare`、`xrtStrEqual` 与 `xrtStrCaseEqual`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sText` | 输入 | 允许空 | 零结尾字符串 |
 
-比较按无符号字节进行，返回值只保证小于、等于或大于零。`Case` 版本只折叠 ASCII `A-Z`，非 ASCII 字节保持原样，不分配临时字符串。
+#### 返回值
 
-### `xrtStrFind`、`xrtStrCaseFind`、`xrtStrRFind` 与 `xrtStrCaseRFind`
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 借用视图；空指针为空视图 | — |
 
-返回匹配起始字节偏移，未找到返回 `XRT_NPOS`。`xrtStrFind` 和 `xrtStrCaseFind` 接受起始偏移；空模式匹配该偏移。反向版本返回最右匹配，空模式匹配输入结尾。查找不分配内存，长模式使用经过旧版验证并修订的 Boyer-Moore-Horspool 跳转策略。`Case` 版本只折叠 ASCII 字母。
+#### 错误
 
-### `xrtStrFindByte`、`xrtStrFindAny` 与 `xrtStrContainsAny`
+- 无 — 纯借用操作，不设置错误
 
-`xrtStrFindByte` 从指定偏移查找一个无符号字节。`xrtStrFindAny` 查找集合中的任意字节，`xrtStrContainsAny` 是对应谓词。集合按字节解释，不是子串或 Unicode 标量集合。
+#### 范例
 
-### `xrtStrCount`、`xrtStrContains`、`xrtStrStarts` 与 `xrtStrEnds`
+[path/basic](../../examples/path/basic/main.c) · 视图创建
 
-`xrtStrCount` 统计不重叠匹配，空模式返回零。`xrtStrCaseCount` 提供 ASCII 大小写不敏感版本。其余函数分别判断包含、前缀和后缀，空模式是有效匹配，并各自提供 `xrtStrCaseContains`、`xrtStrCaseStarts` 和 `xrtStrCaseEnds`。
+```c
+	if ( !xrtPathIterInit(&Iterator, xrtStrView(sJoined), XPATH_NATIVE) ) {
+```
 
-### `xrtStrCut`、`xrtStrRCut`、`xrtStrCutPrefix` 与 `xrtStrCutSuffix`
+### `xrtStrViewN`
 
-这些函数只返回借用视图，不分配内存。`Cut` 围绕第一个分隔符拆分，`RCut` 围绕最后一个分隔符拆分；未找到时返回 `false`，`Before` 仍取得完整输入，`After` 为空。`CutPrefix` 和 `CutSuffix` 仅在前缀或后缀匹配时删除它，未匹配时 `Rest` 仍取得完整输入。全部输出参数都可以为 `NULL`。
+从明确长度创建借用视图。
+
+```c
+xstrview xrtStrViewN(cstr sText, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sText` | 输入 | — | 字符串起点 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 借用视图 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[text/regex](../../examples/text/regex/main.c) · 定长视图
+
+```c
+	pRegex = xrtRegexCompile(xrtStrViewN(sLiteral, iLiteralSize));
+```
+
+### `xrtStrEmpty`
+
+判断字符串视图是否为空。
+
+```c
+bool xrtStrEmpty(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否为空 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 空判断
+
+```c
+		xrtStrEmpty(SV("")) ? 1 : 0);
+```
+
+### `xrtStrBlank`
+
+判断字符串是否只包含 ASCII 空白。
+
+```c
+bool xrtStrBlank(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否全空白 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 空白判断
+
+```c
+		xrtStrBlank(SV("  \t ")) ? 1 : 0,
+```
+
+### `xrtStrEqual`
+
+判断两个字符串视图是否完全相等。
+
+```c
+bool xrtStrEqual(xstrview Left, xstrview Right)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左视图 |
+| `Right` | 输入 | 借用 | 右视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否相等 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[compare](../../examples/string/compare/main.c) · 相等判断
+
+```c
+		xrtStrEqual(Hello, HelloUp) ? 1 : 0,
+```
+
+### `xrtStrCaseEqual`
+
+按 ASCII 大小写不敏感规则判断相等。
+
+```c
+bool xrtStrCaseEqual(xstrview Left, xstrview Right)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左视图 |
+| `Right` | 输入 | 借用 | 右视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否相等 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 大小写不敏感相等
+
+```c
+		xrtStrCaseEqual(Hello, HelloUp) ? 1 : 0);
+```
+
+### `xrtStrCompare`
+
+按无符号字节进行词典序比较。
+
+```c
+int xrtStrCompare(xstrview Left, xstrview Right)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左视图 |
+| `Right` | 输入 | 借用 | 右视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `< 0` / `0` / `> 0` | 比较结果 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[compare](../../examples/string/compare/main.c) · 词典序比较
+
+```c
+	printf("cmp=%d\n", xrtStrCompare(Hello, HelloUp) > 0 ? 1 : -1);
+```
+
+### `xrtStrCaseCompare`
+
+按 ASCII 大小写不敏感规则进行词典序比较。
+
+```c
+int xrtStrCaseCompare(xstrview Left, xstrview Right)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左视图 |
+| `Right` | 输入 | 借用 | 右视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `< 0` / `0` / `> 0` | 比较结果 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 大小写不敏感比较
+
+```c
+		xrtStrCaseCompare(Hello, HelloUp) == 0 ? 1 : -1);
+```
+
+### `xrtStrFind`
+
+从指定字节位置查找子串，未找到返回 `XRT_NPOS`。
+
+```c
+size_t xrtStrFind(xstrview Text, xstrview Part, size_t iStart)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+| `iStart` | 输入 | — | 起始字节位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字节位置 | 首个匹配位置 | — |
+| `XRT_NPOS` | 未找到 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[find](../../examples/string/find/main.c) · 查找子串
+
+```c
+		(int)xrtStrFind(Path, SV("archive"), 0u),
+```
+
+### `xrtStrRFind`
+
+从右侧查找最后一个子串，未找到返回 `XRT_NPOS`。
+
+```c
+size_t xrtStrRFind(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字节位置 | 首个匹配位置 | — |
+| `XRT_NPOS` | 未找到 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[find](../../examples/string/find/main.c) · 右查找子串
+
+```c
+		(int)xrtStrRFind(Path, SV(".")),
+```
+
+### `xrtStrCaseFind`
+
+按 ASCII 大小写不敏感规则查找子串。
+
+```c
+size_t xrtStrCaseFind(xstrview Text, xstrview Part, size_t iStart)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+| `iStart` | 输入 | — | 起始字节位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字节位置 | 首个匹配位置 | — |
+| `XRT_NPOS` | 未找到 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/find](../../examples/string/find/main.c) · 大小写不敏感查找
+
+```c
+		(int)xrtStrCaseFind(SV("Xrt-Core"), SV("xrt"), 0u),
+```
+
+### `xrtStrCaseRFind`
+
+按 ASCII 大小写不敏感规则从右侧查找最后一个子串。
+
+```c
+size_t xrtStrCaseRFind(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字节位置 | 首个匹配位置 | — |
+| `XRT_NPOS` | 未找到 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/find](../../examples/string/find/main.c) · 大小写不敏感右查找
+
+```c
+	(int)xrtStrCaseRFind(SV("a.Tar.GZ"), SV(".gz")),
+```
+
+### `xrtStrFindByte`
+
+从指定字节位置查找单个字节。
+
+```c
+size_t xrtStrFindByte(xstrview Text, unsigned char iByte, size_t iStart)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iByte` | 输入 | — | 目标字节 |
+| `iStart` | 输入 | — | 起始字节位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字节位置 | 首个匹配位置 | — |
+| `XRT_NPOS` | 未找到 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[find](../../examples/string/find/main.c) · 查找字节
+
+```c
+		(int)xrtStrFindByte(SV("a/b/c"), '/', 2u),
+```
+
+### `xrtStrFindAny`
+
+从指定字节位置查找属于集合的首个字节。
+
+```c
+size_t xrtStrFindAny(xstrview Text, xstrview Set, size_t iStart)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Set` | 输入 | 借用 | 字节集合 |
+| `iStart` | 输入 | — | 起始字节位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字节位置 | 首个匹配位置 | — |
+| `XRT_NPOS` | 未找到 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[find](../../examples/string/find/main.c) · 查找集合字节
+
+```c
+		(int)xrtStrFindAny(SV("host:8080"), SV(": /"), 0u));
+```
+
+### `xrtStrContains`
+
+判断字符串是否包含指定子串。
+
+```c
+bool xrtStrContains(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否包含 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 包含判断
+
+```c
+		xrtStrContains(Hello, SV("lo X")) ? 1 : 0,
+```
+
+### `xrtStrCaseContains`
+
+按 ASCII 大小写不敏感规则判断是否包含子串。
+
+```c
+bool xrtStrCaseContains(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否包含 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 大小写不敏感包含
+
+```c
+		xrtStrCaseContains(SV("Config"), SV("FIG")) ? 1 : 0,
+```
+
+### `xrtStrContainsAny`
+
+判断字符串是否包含集合中的任意字节。
+
+```c
+bool xrtStrContainsAny(xstrview Text, xstrview Set)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Set` | 输入 | 借用 | 字节集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否包含 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 包含集合字节
+
+```c
+		xrtStrContainsAny(SV("host:8080"), SV(";:/")) ? 1 : 0);
+```
+
+### `xrtStrCount`
+
+统计不重叠子串数量，空子串返回零。
+
+```c
+size_t xrtStrCount(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 不重叠出现次数 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 计数
+
+```c
+		(int)xrtStrCount(SV("ab aB ab"), SV("ab")),
+```
+
+### `xrtStrCaseCount`
+
+按 ASCII 大小写不敏感规则统计不重叠子串数量。
+
+```c
+size_t xrtStrCaseCount(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 不重叠出现次数 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 大小写不敏感计数
+
+```c
+		(int)xrtStrCaseCount(SV("Ab aB ab"), SV("ab")));
+```
+
+### `xrtStrStarts`
+
+判断字符串是否以指定子串开始。
+
+```c
+bool xrtStrStarts(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否前缀 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 前缀判断
+
+```c
+		xrtStrStarts(HelloUp, SV("HELLO")) ? 1 : 0,
+```
+
+### `xrtStrEnds`
+
+判断字符串是否以指定子串结束。
+
+```c
+bool xrtStrEnds(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否后缀 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 后缀判断
+
+```c
+		xrtStrEnds(Hello, SV("XRT")) ? 1 : 0);
+```
+
+### `xrtStrCaseStarts`
+
+按 ASCII 大小写不敏感规则判断是否以子串开始。
+
+```c
+bool xrtStrCaseStarts(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否前缀 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 大小写不敏感前缀
+
+```c
+		xrtStrCaseStarts(Hello, SV("hello")) ? 1 : 0,
+```
+
+### `xrtStrCaseEnds`
+
+按 ASCII 大小写不敏感规则判断是否以子串结束。
+
+```c
+bool xrtStrCaseEnds(xstrview Text, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否后缀 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/compare](../../examples/string/compare/main.c) · 大小写不敏感后缀
+
+```c
+		xrtStrCaseEnds(Hello, SV("xrt")) ? 1 : 0,
+```
+
+### `xrtStrCut`
+
+围绕首个分隔符切分借用视图，未找到时 Before 返回完整输入。
+
+```c
+bool xrtStrCut(xstrview Text, xstrview Separator, xstrview* pBefore, xstrview* pAfter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Separator` | 输入 | 借用 | 分隔符 |
+| `pBefore` | 输出 | 非空 | 接收借用视图（分隔符前） |
+| `pAfter` | 输出 | 非空 | 接收借用视图（分隔符后） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 找到分隔符并已切分 | — |
+| `false` | 未找到，Before = 完整输入 | 不设错误 |
+
+#### 错误
+
+- 未找到分隔符返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[string/basic](../../examples/string/basic/main.c) · 首个分隔切分
+
+```c
+	if ( !xrtStrCut(Text, XRT_STR_LITERAL("/"), &Name, NULL) ||
+		 !xrtStrFilterTo(Name, XRT_STR_LITERAL("_-"), arrName,
+			sizeof(arrName), &iNameSize) ) {
+```
+
+### `xrtStrRCut`
+
+围绕最后一个分隔符切分借用视图，未找到时 Before 返回完整输入。
+
+```c
+bool xrtStrRCut(xstrview Text, xstrview Separator, xstrview* pBefore, xstrview* pAfter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Separator` | 输入 | 借用 | 分隔符 |
+| `pBefore` | 输出 | 非空 | 接收借用视图（分隔符前） |
+| `pAfter` | 输出 | 非空 | 接收借用视图（分隔符后） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 找到分隔符并已切分 | — |
+| `false` | 未找到，Before = 完整输入 | 不设错误 |
+
+#### 错误
+
+- 未找到分隔符返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[string/find](../../examples/string/find/main.c) · 最后分隔切分
+
+```c
+	(void)xrtStrRCut(SV("report.final.txt"), SV("."), NULL, &Name);
+```
+
+### `xrtStrCutPrefix`
+
+删除匹配的前缀并返回剩余借用视图。
+
+```c
+bool xrtStrCutPrefix(xstrview Text, xstrview Prefix, xstrview* pRest)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Prefix` | 输入 | 借用 | 前缀 |
+| `pRest` | 输出 | 非空 | 接收借用视图（剩余） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 前缀匹配且已写出剩余 | — |
+| `false` | 前缀不匹配 | 不设错误 |
+
+#### 错误
+
+- 前缀不匹配返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[string/find](../../examples/string/find/main.c) · 删前缀
+
+```c
+	(void)xrtStrCutPrefix(Path, SV("/tmp/"), &Rest);
+```
+
+### `xrtStrCutSuffix`
+
+删除匹配的后缀并返回剩余借用视图。
+
+```c
+bool xrtStrCutSuffix(xstrview Text, xstrview Suffix, xstrview* pRest)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Suffix` | 输入 | 借用 | 后缀 |
+| `pRest` | 输出 | 非空 | 接收借用视图（剩余） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 后缀匹配且已写出剩余 | — |
+| `false` | 后缀不匹配 | 不设错误 |
+
+#### 错误
+
+- 后缀不匹配返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[string/find](../../examples/string/find/main.c) · 删后缀
+
+```c
+	(void)xrtStrCutSuffix(Rest, SV(".tar.gz"), &Rest);
+```
 
 ### `xrtStrSlice`
 
-按字节返回借用子视图。起始位置和长度会钳制到输入范围，因此可以直接使用 `XRT_NPOS` 表示剩余全部内容。函数不分配内存。
-
-### `xrtStrTrimLeft`、`xrtStrTrimRight` 与 `xrtStrTrim`
-
-删除相应方向的 ASCII 空白并返回借用视图，不修改输入。需要独立字符串时可直接写成：
+按字节截取借用视图，范围会钳制到源字符串。
 
 ```c
-str sText = xrtStrDupView(xrtStrTrim(xrtStrView("  value  ")));
+xstrview xrtStrSlice(xstrview Text, size_t iStart, size_t iCount)
 ```
 
-### `xrtStrTrimLeftSet`、`xrtStrTrimRightSet` 与 `xrtStrTrimSet`
+#### 参数
 
-把 `Set` 解释为无符号字节集合，删除输入两端属于集合的字节。集合不是子串或 Unicode 字符集合。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iStart` | 输入 | — | 起始字节位置 |
+| `iCount` | 输入 | — | 截取字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 截取结果（范围已钳制） | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/edit](../../examples/string/edit/main.c) · 截取
+
+```c
+	xstrview Part = xrtStrSlice(SV("abcd"), 1u, 2u);
+```
+
+### `xrtStrTrimLeft`
+
+删除左侧 ASCII 空白并返回借用视图。
+
+```c
+xstrview xrtStrTrimLeft(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 去除左侧空白后的借用 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[pad_trim](../../examples/string/pad_trim/main.c) · 删左空白
+
+```c
+	xstrview Trimmed = xrtStrTrimRight(xrtStrTrimLeft(SV("  mid  ")));
+```
+
+### `xrtStrTrimRight`
+
+删除右侧 ASCII 空白并返回借用视图。
+
+```c
+xstrview xrtStrTrimRight(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 去除右侧空白后的借用 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[pad_trim](../../examples/string/pad_trim/main.c) · 删右空白
+
+```c
+	xstrview Trimmed = xrtStrTrimRight(xrtStrTrimLeft(SV("  mid  ")));
+```
+
+### `xrtStrTrim`
+
+删除两侧 ASCII 空白并返回借用视图。
+
+```c
+xstrview xrtStrTrim(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 去除两侧空白后的借用 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[string/basic](../../examples/string/basic/main.c) · 删两侧空白
+
+```c
+	xstrview Text = xrtStrTrim(XRT_STR_LITERAL("  alpha/beta  "));
+```
+
+### `xrtStrTrimLeftSet`
+
+删除左侧属于指定字节集合的内容。
+
+```c
+xstrview xrtStrTrimLeftSet(xstrview Text, xstrview Set)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Set` | 输入 | 借用 | 字节集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 去除后的借用 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[pad_trim](../../examples/string/pad_trim/main.c) · 删左集合
+
+```c
+	xstrview Hex = xrtStrTrimLeftSet(SV("0xFF00"), SV("0x"));
+```
+
+### `xrtStrTrimRightSet`
+
+删除右侧属于指定字节集合的内容。
+
+```c
+xstrview xrtStrTrimRightSet(xstrview Text, xstrview Set)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Set` | 输入 | 借用 | 字节集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 去除后的借用 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[pad_trim](../../examples/string/pad_trim/main.c) · 删右集合
+
+```c
+	xstrview Num = xrtStrTrimRightSet(SV("42 ms"), SV(" ms"));
+```
+
+### `xrtStrTrimSet`
+
+删除两侧属于指定字节集合的内容。
+
+```c
+xstrview xrtStrTrimSet(xstrview Text, xstrview Set)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Set` | 输入 | 借用 | 字节集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 去除后的借用 | — |
+
+#### 错误
+
+- 无 — 纯借用操作，不设置错误
+
+#### 范例
+
+[pad_trim](../../examples/string/pad_trim/main.c) · 删两侧集合
+
+```c
+	xstrview Value = xrtStrTrimSet(SV("{ \"value\" }"), SV("{}\" "));
+```
 
 ## 独立字符串
 
-### `xrtStrDup`、`xrtStrDupN` 与 `xrtStrDupView`
+### `xrtStrDup`
 
-复制输入并追加零字节。成功结果始终由 `xrtFree` 释放，包括空字符串；`xrtStrDup(NULL)` 创建一个独立空字符串。
+复制零结尾字符串，返回值始终由 `xrtFree` 释放。
 
-### `xrtStrConcat`、`xrtStrJoin` 与 `xrtStrRepeat`
+```c
+str xrtStrDup(cstr sText)
+```
 
-分别连接两个视图、使用分隔符连接视图数组、重复一个视图。输入可以包含内嵌零字节。`iCount == 0` 仍返回独立空字符串。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sText` | 输入 | 允许空 | 零结尾字符串（空 = 空串） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/edit](../../examples/string/edit/main.c) · 复制字符串
+
+```c
+	str sDup = xrtStrDup("hello");
+```
+
+### `xrtStrDupN`
+
+复制明确长度字符串并追加零结尾。
+
+```c
+str xrtStrDupN(cstr sText, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sText` | 输入 | — | 字符串起点 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/edit](../../examples/string/edit/main.c) · 定长复制
+
+```c
+	str sDupN = xrtStrDupN("world", 3u);
+```
+
+### `xrtStrDupView`
+
+复制字符串视图并追加零结尾。
+
+```c
+str xrtStrDupView(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/edit](../../examples/string/edit/main.c) · 视图复制
+
+```c
+	str sDupView = xrtStrDupView(Part);
+```
+
+### `xrtStrConcat`
+
+连接两个字符串视图。
+
+```c
+str xrtStrConcat(xstrview Left, xstrview Right)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左视图 |
+| `Right` | 输入 | 借用 | 右视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/basic](../../examples/string/basic/main.c) · 连接
+
+```c
+	sResult = xrtStrConcat((xstrview){ arrName, iNameSize },
+		XRT_STR_LITERAL(".txt"));
+```
+
+### `xrtStrJoin`
+
+使用分隔符连接一组字符串视图。
+
+```c
+str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Separator` | 输入 | 借用 | 分隔符 |
+| `arrText` | 输入 | 非空数组 | 视图数组 |
+| `iCount` | 输入 | — | 视图数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[dup_join](../../examples/string/dup_join/main.c) · 分隔连接
+
+```c
+	str sJoin = xrtStrJoin(SV(", "), Parts, 3u);
+```
+
+### `xrtStrRepeat`
+
+重复字符串指定次数。
+
+```c
+str xrtStrRepeat(xstrview Text, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iCount` | 输入 | — | 重复次数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[dup_join](../../examples/string/dup_join/main.c) · 重复
+
+```c
+	str sRepeat = xrtStrRepeat(SV("ab-"), 3u);
+```
 
 ### `xrtStrReplace`
 
-替换全部不重叠匹配。空查找模式不进行插入，而是复制原字符串，避免产生隐含的 `Size + 1` 个匹配点。
+替换所有不重叠子串。
 
-### `xrtStrInsert` 与 `xrtStrRemove`
+```c
+str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement)
+```
 
-按字节位置插入或删除。超出末尾的位置钳制到末尾，删除长度钳制到剩余内容。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Part` | 输入 | 借用 | 子串 |
+| `Replacement` | 输入 | 借用 | 替换内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[edit](../../examples/string/edit/main.c) · 替换
+
+```c
+	showOwned("replace", xrtStrReplace(SV("a.b.c"), SV("."), SV("-")));
+```
+
+### `xrtStrInsert`
+
+按字节位置插入子串。
+
+```c
+str xrtStrInsert(xstrview Text, size_t iPosition, xstrview Part)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iPosition` | 输入 | — | 插入字节位置 |
+| `Part` | 输入 | 借用 | 插入内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[edit](../../examples/string/edit/main.c) · 插入
+
+```c
+	showOwned("insert", xrtStrInsert(SV("xrtcore"), 3u, SV("::")));
+```
+
+### `xrtStrRemove`
+
+按字节范围删除内容。
+
+```c
+str xrtStrRemove(xstrview Text, size_t iPosition, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iPosition` | 输入 | — | 删除起点 |
+| `iCount` | 输入 | — | 删除字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[edit](../../examples/string/edit/main.c) · 删除
+
+```c
+	showOwned("remove", xrtStrRemove(SV("xrt::core"), 3u, 2u));
+```
 
 ### `xrtStrReverseBytes`
 
-反转字节顺序。它适用于二进制和 ASCII；对 UTF-8 文本使用字符集模块提供的标量或字素操作。`xrtStrReverseBytesTo` 写入调用方缓冲区并支持输入与输出起点相同的原地路径；目标容量必须包含末尾零，部分重叠被拒绝。
+按字节反转字符串。
 
-### `xrtStrLower` 与 `xrtStrUpper`
+```c
+str xrtStrReverseBytes(xstrview Text)
+```
 
-只转换 ASCII 字母并复制其他字节。`xrtStrLowerTo` 和 `xrtStrUpperTo` 写入调用方缓冲区并支持原地转换，分配型版本返回由 `xrtFree` 释放的独立字符串。完整 Unicode 大小写映射属于字符集模块。
+#### 参数
 
-### `xrtStrFilterTo` 与 `xrtStrFilter`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
 
-删除 `Set` 中列出的全部字节。`xrtStrFilterTo` 在输出为 `NULL`、容量为零时只查询结果长度；实际写入要求容量额外包含末尾零，并允许输入与输出起点相同。容量不足时返回所需长度且不改动目标。实现先把集合编译为 256 位栈上位图，再单次扫描输入，不会随集合长度增加每个输入字节的查找成本。`xrtStrFilter` 是一次分配的便捷层。
+#### 返回值
 
-如果集合表达的是 Unicode 字符而不是原始字节，必须使用 `XRT_FEATURE_UNICODE_TEXT` 中的 `xrtUtf8FilterTo` 或 `xrtUtf8Filter`；把 UTF-8 多字节序列当作独立字节过滤可能破坏其他标量。
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
 
-### `xrtStrPadLeft`、`xrtStrPadRight` 与 `xrtStrPadCenter`
+#### 错误
 
-按字节宽度重复填充视图，最后一次填充可以截断。空填充视图使用一个空格。居中时奇数个额外字节放在右侧。
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[edit](../../examples/string/edit/main.c) · 反转
+
+```c
+	showOwned("reverse", xrtStrReverseBytes(SV("abc")));
+```
+
+### `xrtStrReverseBytesTo`
+
+按字节反转到调用方缓冲区并补零；允许输入和输出起点相同。
+
+```c
+bool xrtStrReverseBytesTo(xstrview Text, char* sOutput, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `sOutput` | 输出 | 非空 | 输出缓冲，须含末尾零 |
+| `iCapacity` | 输入 | — | 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补零 | — |
+| `false` | 容量不足或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 容量不足（须含末尾零字节），不写半个结果
+
+#### 范例
+
+[edit](../../examples/string/edit/main.c) · 反转到缓冲
+
+```c
+	if ( xrtStrReverseBytesTo(SV("cba"), Buffer, sizeof(Buffer)) ) {
+```
+
+### `xrtStrLower`
+
+复制字符串并把 ASCII 字母转换为小写。
+
+```c
+str xrtStrLower(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[case](../../examples/string/case/main.c) · 转小写
+
+```c
+	printOwned("lower", xrtStrLower(SV("HELLO XRT")));
+```
+
+### `xrtStrLowerTo`
+
+把 ASCII 字母转换为小写并写入调用方缓冲区；允许原地转换。
+
+```c
+bool xrtStrLowerTo(xstrview Text, char* sOutput, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `sOutput` | 输出 | 非空 | 输出缓冲，须含末尾零 |
+| `iCapacity` | 输入 | — | 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补零 | — |
+| `false` | 容量不足或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 容量不足（须含末尾零字节），不写半个结果
+
+#### 范例
+
+[case](../../examples/string/case/main.c) · 转小写到缓冲
+
+```c
+	if ( xrtStrLowerTo(SV("BUFFER-WAY"), Buffer, sizeof(Buffer)) ) {
+```
+
+### `xrtStrUpper`
+
+复制字符串并把 ASCII 字母转换为大写。
+
+```c
+str xrtStrUpper(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[case](../../examples/string/case/main.c) · 转大写
+
+```c
+	printOwned("upper", xrtStrUpper(SV("hello xrt")));
+```
+
+### `xrtStrUpperTo`
+
+把 ASCII 字母转换为大写并写入调用方缓冲区；允许原地转换。
+
+```c
+bool xrtStrUpperTo(xstrview Text, char* sOutput, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `sOutput` | 输出 | 非空 | 输出缓冲，须含末尾零 |
+| `iCapacity` | 输入 | — | 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补零 | — |
+| `false` | 容量不足或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 容量不足（须含末尾零字节），不写半个结果
+
+#### 范例
+
+[case](../../examples/string/case/main.c) · 转大写到缓冲
+
+```c
+	if ( xrtStrUpperTo(SV("buffer-way"), Buffer, sizeof(Buffer)) ) {
+```
+
+### `xrtStrFilter`
+
+删除集合中的全部字节并创建独立字符串。
+
+```c
+str xrtStrFilter(xstrview Text, xstrview Set)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Set` | 输入 | 借用 | 字节集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/dup_join](../../examples/string/dup_join/main.c) · 过滤
+
+```c
+	str sFilter = xrtStrFilter(SV("xrt::core//"), SV(":/"));
+```
+
+### `xrtStrFilterTo`
+
+删除集合中的全部字节并写入调用方缓冲区。
+
+```c
+bool xrtStrFilterTo(xstrview Text, xstrview Set, char* sOutput, size_t iCapacity, size_t* pOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Set` | 输入 | 借用 | 字节集合 |
+| `sOutput` | 输出 | 非空 | 输出缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pOutputSize` | 输出 | 允许空 | 接收输出长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入 | — |
+| `false` | 容量不足或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 容量不足（须含末尾零字节），不写半个结果
+
+#### 范例
+
+[string/basic](../../examples/string/basic/main.c) · 过滤到缓冲
+
+```c
+		 !xrtStrFilterTo(Name, XRT_STR_LITERAL("_-"), arrName,
+			sizeof(arrName), &iNameSize) ) {
+```
+
+### `xrtStrPadLeft`
+
+按字节宽度在左侧重复填充字符串。
+
+```c
+str xrtStrPadLeft(xstrview Text, size_t iWidth, xstrview Fill)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iWidth` | 输入 | — | 目标字节宽度 |
+| `Fill` | 输入 | 借用、非空 | 填充内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[pad_trim](../../examples/string/pad_trim/main.c) · 左填充
+
+```c
+	showOwned("pad-left", xrtStrPadLeft(SV("id"), 5u, SV("*")));
+```
+
+### `xrtStrPadRight`
+
+按字节宽度在右侧重复填充字符串。
+
+```c
+str xrtStrPadRight(xstrview Text, size_t iWidth, xstrview Fill)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iWidth` | 输入 | — | 目标字节宽度 |
+| `Fill` | 输入 | 借用、非空 | 填充内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[pad_trim](../../examples/string/pad_trim/main.c) · 右填充
+
+```c
+	showOwned("pad-right", xrtStrPadRight(SV("id"), 5u, SV("*")));
+```
+
+### `xrtStrPadCenter`
+
+按字节宽度在两侧重复填充字符串。
+
+```c
+str xrtStrPadCenter(xstrview Text, size_t iWidth, xstrview Fill)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iWidth` | 输入 | — | 目标字节宽度 |
+| `Fill` | 输入 | 借用、非空 | 填充内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[pad_trim](../../examples/string/pad_trim/main.c) · 居中填充
+
+```c
+	showOwned("pad-center", xrtStrPadCenter(SV("id"), 5u, SV("*")));
+```
 
 ## 字符串构建器
 
-### `xrtStrBufInit`、`xrtStrBufFree` 与 `xrtStrBufClear`
+### `xrtStrBufInit`
 
-初始化、释放或清空构建器。`Clear` 保留容量，`Free` 重置全部字段并允许传入 `NULL`。
+初始化空字符串构建器。
+
+```c
+void xrtStrBufInit(xstrbuf* pBuffer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输出 | 非空 | 接收构建器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[builder](../../examples/string/builder/main.c) · 初始化
+
+```c
+	xrtStrBufInit(&tBuffer);
+```
+
+### `xrtStrBufValid`
+
+检查字符串构建器的公开状态是否自洽。
+
+```c
+bool xrtStrBufValid(const xstrbuf* pBuffer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | 目标构建器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否自洽 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[builder_tour](../../examples/string/builder_tour/main.c) · 状态自检
+
+```c
+	if ( !xrtStrBufReserve(&Buffer, 64u) || !xrtStrBufValid(&Buffer) ) {
+```
+
+### `xrtStrBufFree`
+
+释放字符串构建器持有的内存。
+
+```c
+void xrtStrBufFree(xstrbuf* pBuffer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[builder](../../examples/string/builder/main.c) · 释放
+
+```c
+		xrtStrBufFree(&tBuffer);
+```
+
+### `xrtStrBufClear`
+
+清空字符串构建器但保留容量。
+
+```c
+void xrtStrBufClear(xstrbuf* pBuffer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[string/builder_tour](../../examples/string/builder_tour/main.c) · 清空
+
+```c
+	xrtStrBufClear(&Buffer);
+```
 
 ### `xrtStrBufView`
 
-返回当前内容的借用视图。任何可能增长构建器的操作之后，都应重新取得视图。
+返回字符串构建器当前内容的借用视图。
 
-### `xrtStrBufReserve` 与 `xrtStrBufResize`
+```c
+xstrview xrtStrBufView(const xstrbuf* pBuffer)
+```
 
-`Reserve` 保证数据容量，不把末尾零字节计入 `Capacity`。`Resize` 改变逻辑长度，扩展区域全部填零。两者都会检测整数溢出，并在分配失败时保留原构建器。
+#### 参数
 
-### `xrtStrBufAppend`、`xrtStrBufAppendByte` 与 `xrtStrBufAppendRepeat`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | 目标构建器 |
 
-追加视图、单字节或重复视图。接口按显式长度工作，允许追加零字节，也允许源视图来自构建器当前有效内容。
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 当前内容借用 | — |
+| 空视图 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[string/builder_tour](../../examples/string/builder_tour/main.c) · 内容视图
+
+```c
+	(void)xrtStrBufResize(&Buffer, xrtStrBufView(&Buffer).Size - 1u);
+```
+
+### `xrtStrBufAlias`
+
+检查视图是否借用构建器当前内容，并返回原始字节偏移。
+
+```c
+bool xrtStrBufAlias(const xstrbuf* pBuffer, xstrview Text, bool* pAlias, size_t* pOffset)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空 | 目标构建器 |
+| `Text` | 输入 | 借用 | 待检查视图 |
+| `pAlias` | 输出 | 允许空 | 接收是否别名 |
+| `pOffset` | 输出 | 允许空 | 接收原始字节偏移 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 视图是构建器内容的别名 | — |
+| `false` | 非别名或参数非法 | 不设错误 |
+
+#### 错误
+
+- 非别名返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[builder_tour](../../examples/string/builder_tour/main.c) · 别名检查
+
+```c
+	(void)xrtStrBufAlias(&Buffer, View, &bAlias, &iAliasOffset);
+```
+
+### `xrtStrBufReserve`
+
+保证字符串构建器至少具有指定数据容量。
+
+```c
+bool xrtStrBufReserve(xstrbuf* pBuffer, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+| `iCapacity` | 输入 | — | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 容量已保证 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/builder_tour](../../examples/string/builder_tour/main.c) · 预留容量
+
+```c
+	if ( !xrtStrBufReserve(&Buffer, 64u) || !xrtStrBufValid(&Buffer) ) {
+```
+
+### `xrtStrBufResize`
+
+调整字符串构建器长度，扩展区域填零。
+
+```c
+bool xrtStrBufResize(xstrbuf* pBuffer, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+| `iSize` | 输入 | — | 新长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 长度已调整 | — |
+| `false` | 调整失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/builder_tour](../../examples/string/builder_tour/main.c) · 调整长度
+
+```c
+	(void)xrtStrBufResize(&Buffer, xrtStrBufView(&Buffer).Size - 1u);
+```
+
+### `xrtStrBufAppend`
+
+追加字符串视图，允许追加自身的有效子视图。
+
+```c
+bool xrtStrBufAppend(xstrbuf* pBuffer, xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+| `Text` | 输入 | 借用 | 追加内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已追加 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[builder](../../examples/string/builder/main.c) · 追加视图
+
+```c
+	if ( !xrtStrBufAppend(&tBuffer, XRT_STR_LITERAL("items=")) ||
+		 !xrtStrBufAppendRepeat(&tBuffer, XRT_STR_LITERAL("ab"), 3) ) {
+```
+
+### `xrtStrBufAppendByte`
+
+追加一个字节。
+
+```c
+bool xrtStrBufAppendByte(xstrbuf* pBuffer, char iByte)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+| `iByte` | 输入 | — | 追加的字节 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已追加 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/builder_tour](../../examples/string/builder_tour/main.c) · 追加字节
+
+```c
+	if ( !xrtStrBufAppendByte(pBuffer, ' ') ||
+		!xrtStrBufAppend(pBuffer, (xstrview){ sTag, strlen(sTag) }) ) {
+```
+
+### `xrtStrBufAppendRepeat`
+
+重复追加字符串视图。
+
+```c
+bool xrtStrBufAppendRepeat(xstrbuf* pBuffer, xstrview Text, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+| `Text` | 输入 | 借用 | 追加内容 |
+| `iCount` | 输入 | — | 重复次数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已追加 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/builder](../../examples/string/builder/main.c) · 重复追加
+
+```c
+		 !xrtStrBufAppendRepeat(&tBuffer, XRT_STR_LITERAL("ab"), 3) ) {
+```
+
+### `xrtStrBufAppendFormat`
+
+使用 printf 规则直接追加到构建器；拒绝 `%n`。
+
+```c
+bool xrtStrBufAppendFormat(xstrbuf* pBuffer, cstr sFormat, ...)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `...` | 输入 | 与格式串匹配 | 变参 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已追加 | — |
+| `false` | 格式化或扩容失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 扩容失败
+
+#### 范例
+
+[string/format](../../examples/string/format/main.c) · 格式化追加
+
+```c
+		 !xrtStrBufAppendFormat(&tBuffer, "%08X / %.2f", 255u, 3.5) ) {
+```
+
+### `xrtStrBufAppendFormatV`
+
+使用 printf 规则和已有参数列表直接追加到构建器。
+
+```c
+bool xrtStrBufAppendFormatV(xstrbuf* pBuffer, cstr sFormat, va_list Args)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `Args` | 输入 | 已由 `va_start` 初始化 | 变参列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已追加 | — |
+| `false` | 格式化或扩容失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 扩容失败
+
+#### 范例
+
+[string/builder_tour](../../examples/string/builder_tour/main.c) · 格式化追加（va_list）
+
+```c
+	bool bOk = xrtStrBufAppendFormatV(pBuffer, "=%d", Args);
+```
 
 ### `xrtStrBufTake`
 
-把构建器内存所有权转给调用方并将构建器重置为空。结果由 `xrtFree` 释放；从空构建器取走时也会返回独立空字符串。
+取走构建器内存并把构建器重置为空。
+
+```c
+str xrtStrBufTake(xstrbuf* pBuffer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 目标构建器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 构建器为空 | 不设错误 |
+
+#### 错误
+
+- 空构建器返回 `NULL` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[string/builder](../../examples/string/builder/main.c) · 取走内存
+
+```c
+	sResult = xrtStrBufTake(&tBuffer);
+```
 
 ## 拆分与行处理
 
-### `xrtStrSplitInit` 与 `xrtStrSplitNext`
+### `xrtStrSplitInit`
 
-初始化并遍历通用拆分器。连续或位于边界的分隔符会产生空片段；空分隔符把整个输入作为唯一片段；空输入也产生一个空片段。迭代结束返回 `false`，不会设置错误。
+初始化不分配内存的字符串拆分迭代器。
 
-### `xrtStrLinesInit` 与 `xrtStrLinesNext`
+```c
+bool xrtStrSplitInit(xstrsplit* pSplit, xstrview Text, xstrview Separator)
+```
 
-识别 LF、CRLF 和 CR。输入末尾的单个换行符只终止上一行，不额外产生一行；换行符之前的显式空行仍会保留。空输入没有行。
+#### 参数
 
-### `xrtStrFieldsInit` 与 `xrtStrFieldsNext`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSplit` | 输出 | 非空 | 接收迭代器 |
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Separator` | 输入 | 借用、非空 | 分隔符 |
 
-按连续 ASCII 空白拆分字段，跳过前导、尾随和重复空白，不返回空字段。它与 `xrtStrSplit` 的保留空片段契约不同，适合命令行、简单记录和一般单词扫描。
+#### 返回值
 
-### `xrtStrSplit`、`xrtStrSplitLines` 与 `xrtStrFields`
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
 
-对应迭代器的单调用便捷版本。每个 `Items[i]` 都有明确长度和独立零结尾，整个结果只发生一次分配。
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[split](../../examples/string/split/main.c) · 初始化拆分
+
+```c
+	if ( !xrtStrSplitInit(&tSplit, XRT_STR_LITERAL("alpha,beta,,gamma"), XRT_STR_LITERAL(",")) ) {
+```
+
+### `xrtStrSplitNext`
+
+返回下一个借用片段，结束时返回 `false`。
+
+```c
+bool xrtStrSplitNext(xstrsplit* pSplit, xstrview* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSplit` | 输入/输出 | 已初始化 | 目标迭代器 |
+| `pItem` | 输出 | 非空 | 接收借用视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已产出片段 | — |
+| `false` | 遍历结束 | 不设错误 |
+
+#### 错误
+
+- 遍历结束返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[split](../../examples/string/split/main.c) · 下一片段
+
+```c
+	while ( xrtStrSplitNext(&tSplit, &Item) ) {
+```
+
+### `xrtStrFieldsInit`
+
+初始化按连续 ASCII 空白拆分的零分配字段迭代器。
+
+```c
+bool xrtStrFieldsInit(xstrfields* pFields, xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输出 | 非空 | 接收迭代器 |
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[iterators](../../examples/string/iterators/main.c) · 初始化字段
+
+```c
+	if ( xrtStrFieldsInit(&Fields, SV("  user\tport  443 ")) ) {
+```
+
+### `xrtStrFieldsNext`
+
+返回下一个非空借用字段，结束时返回 `false`。
+
+```c
+bool xrtStrFieldsNext(xstrfields* pFields, xstrview* pField)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入/输出 | 已初始化 | 目标迭代器 |
+| `pField` | 输出 | 非空 | 接收借用视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已产出字段 | — |
+| `false` | 遍历结束 | 不设错误 |
+
+#### 错误
+
+- 遍历结束返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[iterators](../../examples/string/iterators/main.c) · 下一字段
+
+```c
+		while ( xrtStrFieldsNext(&Fields, &Field) ) {
+```
+
+### `xrtStrLinesInit`
+
+初始化不分配内存的行迭代器。
+
+```c
+bool xrtStrLinesInit(xstrlines* pLines, xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLines` | 输出 | 非空 | 接收迭代器 |
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[iterators](../../examples/string/iterators/main.c) · 初始化行
+
+```c
+	if ( xrtStrLinesInit(&Lines, SV("first\nsecond\r\n")) ) {
+```
+
+### `xrtStrLinesNext`
+
+返回下一行借用视图，结束时返回 `false`。
+
+```c
+bool xrtStrLinesNext(xstrlines* pLines, xstrview* pLine)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLines` | 输入/输出 | 已初始化 | 目标迭代器 |
+| `pLine` | 输出 | 非空 | 接收借用视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已产出行 | — |
+| `false` | 遍历结束 | 不设错误 |
+
+#### 错误
+
+- 遍历结束返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[iterators](../../examples/string/iterators/main.c) · 下一行
+
+```c
+		while ( xrtStrLinesNext(&Lines, &Line) ) {
+```
+
+### `xrtStrSplit`
+
+一次性拆分字符串并返回独立的零结尾片段。
+
+```c
+xstrlist* xrtStrSplit(xstrview Text, xstrview Separator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Separator` | 输入 | 借用 | 分隔符 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 片段列表，整体一次 `xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/dup_join](../../examples/string/dup_join/main.c) · 一次性拆分
+
+```c
+	xstrlist* pList = xrtStrSplit(SV("alpha,beta,gamma"), SV(","));
+```
+
+### `xrtStrSplitLines`
+
+一次性按行拆分字符串。
+
+```c
+xstrlist* xrtStrSplitLines(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 行列表，整体一次 `xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[iterators](../../examples/string/iterators/main.c) · 一次性拆行
+
+```c
+	xstrlist* pList = xrtStrSplitLines(SV("a\nb\nc"));
+```
+
+### `xrtStrFields`
+
+一次性按连续 ASCII 空白拆分字符串。
+
+```c
+xstrlist* xrtStrFields(xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 字段列表，整体一次 `xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_MEMORY` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[iterators](../../examples/string/iterators/main.c) · 一次性拆字段
+
+```c
+	xstrlist* pFields = xrtStrFields(SV("one two  three"));
+```
+
+### `xrtStrListAlloc`
+
+为指定片段数量和零结尾数据容量分配单块字符串列表。
+
+```c
+xstrlist* xrtStrListAlloc(size_t iCount, size_t iDataSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iCount` | 输入 | — | 片段数量 |
+| `iDataSize` | 输入 | — | 数据区字节容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 单块列表，整体一次 `xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 列表尺寸溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[list](../../examples/string/list/main.c) · 分配列表
+
+```c
+	xstrlist* pList = xrtStrListAlloc(3u, iDataSize);
+```
+
+### `xrtStrListWrite`
+
+将片段复制到列表数据区并推进字节偏移。
+
+```c
+bool xrtStrListWrite(xstrlist* pList, size_t iIndex, xstrview Item, size_t* pOffset)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入/输出 | 非空 | 目标列表 |
+| `iIndex` | 输入 | — | 片段索引 |
+| `Item` | 输入 | 借用 | 片段内容 |
+| `pOffset` | 输出 | 允许空 | 接收/推进数据区偏移 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已复制并推进 | — |
+| `false` | 索引越界或容量不足 | `XERR_RANGE` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 索引越界或数据区剩余容量不足
+
+#### 范例
+
+[list](../../examples/string/list/main.c) · 写入片段
+
+```c
+		if ( !xrtStrListWrite(pList, i, Source[i], &iOffset) ) {
+```
 
 ### `xrtStrListFree`
 
-释放便捷拆分结果，允许传入 `NULL`。不能单独释放或长期保留 `Items[i].Data`。
+释放便捷拆分结果。
+
+```c
+void xrtStrListFree(xstrlist* pList)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[list](../../examples/string/list/main.c) · 释放列表
+
+```c
+			xrtStrListFree(pList);
+```
 
 ## 格式化
 
-### `xrtFormat` 与 `xrtFormatV`
+### `xrtFormat`
 
-使用平台 C 运行库的 `printf` 规则创建独立字符串。`xrtFormatV` 不消耗调用方传入的 `va_list`。格式串及参数类型必须匹配；不受信任的格式串不应直接传入。会写入调用方内存的 `%n` 转换（包括长度修饰和位置参数形式）始终被拒绝。空结果仍返回独立空字符串。
+使用 printf 规则创建字符串；拒绝 `%n`。
 
-### `xrtStrBufAppendFormat` 与 `xrtStrBufAppendFormatV`
+```c
+str xrtFormat(cstr sFormat, ...)
+```
 
-把格式化结果直接追加到构建器。短结果使用内部栈缓冲，长结果只使用一个临时分配；因此 `%s` 参数可以安全借用构建器当前内容，即使最终追加触发增长。空结果是成功的无操作。失败时保持原逻辑长度和零结尾，`V` 版本不消耗调用方参数列表。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `...` | 输入 | 与格式串匹配 | 变参 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/format_tour](../../examples/string/format_tour/main.c) · 格式化创建
+
+```c
+	str sDirect = xrtFormat("id=%d ok=%s", 7, "true");
+```
+
+### `xrtFormatV`
+
+使用 printf 规则和已有参数列表创建字符串。
+
+```c
+str xrtFormatV(cstr sFormat, va_list Args)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `Args` | 输入 | 已由 `va_start` 初始化 | 变参列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[string/format_tour](../../examples/string/format_tour/main.c) · 格式化创建（va_list）
+
+```c
+	sBody = xrtFormatV("x=%s", Args);
+```
 
 ## 通配匹配
 
 ### `xrtStrGlob`
 
-匹配完整字符串，不进行子串搜索。模式支持：
+使用严格 UTF-8 通配模式匹配完整字符串。
 
-- `*`：零个或多个 Unicode 标量。
-- `?`：一个 Unicode 标量。
-- `[abc]`、`[a-z]`：字符类和闭区间。
-- `[!abc]`、`[^abc]`：反选字符类。
-- `\`：转义下一个模式字符。
+```c
+bool xrtStrGlob(xstrview Text, xstrview Pattern, uint32 iFlags)
+```
 
-文本和模式都必须是严格 UTF-8，通配符按 Unicode 标量前进，不会切开多字节序列。`XSTR_GLOB_CASE_ASCII` 只折叠 ASCII 字母，不假装实现完整 Unicode 大小写折叠。算法不分配内存；非法 UTF-8 产生 `xrt.unicode` 值错误，未闭合字符类、反向范围和末尾转义产生 `xrt.string`/`XSTR_ERROR_PATTERN`。普通“不匹配”返回 `false`，不会设置新错误。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `Pattern` | 输入 | 借用 | 通配模式 |
+| `iFlags` | 输入 | — | 匹配标志 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否完整匹配 | 不匹配不设错 |
+
+#### 错误
+
+- 不匹配返回 `false` 且不设置错误；指针为空或模式非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[glob](../../examples/string/glob/main.c) · 通配匹配
+
+```c
+	printf("%s\n", xrtStrGlob(Name, Pattern, XSTR_GLOB_CASE_ASCII) ?
+		"matched" : "not matched");
+```
 
 ## 错误
 
