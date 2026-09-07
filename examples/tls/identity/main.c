@@ -1,4 +1,5 @@
 #include "../common.h"
+#include "../embedded_identity.h"
 
 
 
@@ -51,6 +52,69 @@ static xtlssignature exampleSignature(const xtlsidentity* pIdentity)
  */
 
 
+/* 无参数时用嵌入材料自检四种密钥形态构造器（材料见 embedded_identity.h）。 */
+static int exampleEmbeddedCheck(void)
+{
+	struct {
+		const uint8* pCertificate;
+		size_t iCertificateSize;
+		const uint8* pPrivateKey;
+		size_t iPrivateKeySize;
+		cstr sName;
+	} arrForms[4];
+	xtlsidentity* pIdentity;
+	size_t i;
+
+	arrForms[0].pCertificate = g_ExampleRsaCertDer;
+	arrForms[0].iCertificateSize = sizeof(g_ExampleRsaCertDer);
+	arrForms[0].pPrivateKey = g_ExampleRsaKeyDer;
+	arrForms[0].iPrivateKeySize = sizeof(g_ExampleRsaKeyDer);
+	arrForms[0].sName = "rsa";
+	arrForms[1].pCertificate = g_ExampleCertDer;
+	arrForms[1].iCertificateSize = sizeof(g_ExampleCertDer);
+	arrForms[1].pPrivateKey = g_ExampleKeyDer;
+	arrForms[1].iPrivateKeySize = sizeof(g_ExampleKeyDer);
+	arrForms[1].sName = "p256";
+	arrForms[2].pCertificate = g_ExampleP384CertDer;
+	arrForms[2].iCertificateSize = sizeof(g_ExampleP384CertDer);
+	arrForms[2].pPrivateKey = g_ExampleP384KeyDer;
+	arrForms[2].iPrivateKeySize = sizeof(g_ExampleP384KeyDer);
+	arrForms[2].sName = "p384";
+	arrForms[3].pCertificate = g_ExampleEd25519CertDer;
+	arrForms[3].iCertificateSize = sizeof(g_ExampleEd25519CertDer);
+	arrForms[3].pPrivateKey = g_ExampleEd25519KeyDer;
+	arrForms[3].iPrivateKeySize = sizeof(g_ExampleEd25519KeyDer);
+	arrForms[3].sName = "ed25519";
+
+	for ( i = 0; i < 4u; i++ ) {
+		const xbytesview arrCertificates[1] = {
+			(xbytesview){ arrForms[i].pCertificate, arrForms[i].iCertificateSize }
+		};
+		xbytesview PrivateKey = { arrForms[i].pPrivateKey, arrForms[i].iPrivateKeySize };
+
+		if ( strcmp(arrForms[i].sName, "rsa") == 0 ) {
+			pIdentity = xrtTlsIdentityRsa(arrCertificates, 1u, PrivateKey);
+		} else if ( strcmp(arrForms[i].sName, "p256") == 0 ) {
+			pIdentity = xrtTlsIdentityP256(arrCertificates, 1u, PrivateKey);
+		} else if ( strcmp(arrForms[i].sName, "p384") == 0 ) {
+			pIdentity = xrtTlsIdentityP384(arrCertificates, 1u, PrivateKey);
+		} else {
+			pIdentity = xrtTlsIdentityEd25519(arrCertificates, 1u, PrivateKey);
+		}
+		if ( (pIdentity == NULL)
+			|| (xrtTlsIdentityCertificateCount(pIdentity) != 1u) ) {
+			fprintf(stderr, "embedded %s identity failed\n", arrForms[i].sName);
+			return 1;
+		}
+		printf("embedded %s identity=%d certificates=1\n",
+			arrForms[i].sName, (int)xrtTlsIdentityType(pIdentity));
+		xrtTlsIdentityRelease(pIdentity);
+	}
+	return 0;
+}
+
+
+
 /* 从 DER 证书与私钥创建身份，并演示精确长度查询和实际签名。 */
 int main(int argc, char** argv)
 {
@@ -66,8 +130,12 @@ int main(int argc, char** argv)
 	xtlssignature Signature;
 	int iResult = 1;
 
+	if ( argc == 1 ) {
+		return exampleEmbeddedCheck();
+	}
 	if ( argc != 4 ) {
 		printf("usage: identity <rsa|p256|p384|ed25519> <certificate.der> <private.der>\n");
+		printf("       identity            （无参数：嵌入材料自检四种形态）\n");
 		return 0;
 	}
 	if ( !exampleTlsReadFile(
