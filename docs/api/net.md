@@ -3561,13 +3561,6 @@ if ( sHost == NULL ) {
 
 - `XERR_ARGUMENT` — `pAddr == NULL` 或 `Family` 非法
 
-#### 范例
-
-[addr_tour](../../examples/network/addr_tour/main.c) · 通配地址构造与判定
-
-```c
-if ( !xrtNetAddrAny(&Any, XNET_FAMILY_IPV4, 0u) ||
-```
 
 ## 网络缓冲
 
