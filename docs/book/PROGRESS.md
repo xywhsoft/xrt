@@ -10,7 +10,7 @@
 | P1 卷一 起步与核心 | ✅ 完成 | 8 | 34,150 |
 | P2 卷二全部 + 卷三前半 | ✅ 完成 | 7 | 28,790 |
 | P3 卷三后半 + 选型章 | ✅ 完成 | 7 | 27,804 |
-| P4 卷四前半 | 🔄 进行中 | 0 | — |
+| P4 卷四前半 | ✅ 完成 | 6 | 22,441 |
 | P5–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -33,6 +33,15 @@
 | 15 | 15-stack.md | practice | 4,003 | 2 | 1 | 2 | 3 | P2 |
 | 16 | 16-list-slotmap.md | practice | 4,037 | 2 | 1 | 2 | 3 | P2 |
 | 55 | 58-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
+
+## P4 阶段记录
+
+- 卷四前半 6 章（插入卷四导言 ch24，全书第三次重编号，82 文件位移）。
+- 门禁拦下并修正：xrtStrStartsWith→xrtStrStarts、xrtStrMatch→xrtStrGlob、
+  XRT_ENCODING_*→XENCODING_*、XUTF_IGNORE 不存在（仅 STRICT/REPLACE）、
+  BOM 是 bool 参数非标志、xrtBase64EncodeUrl→字母表参数、xrtTimeNow→xrtNow。
+- 经验沉淀：diagram 围栏内容不计讲解字数——扩字数必须改正文段落。
+- stream_tour 示例预期输出有第 4 行（config corrupt rejected），term 已对齐。
 
 ## P3 阶段记录
 
