@@ -66,7 +66,7 @@
 | 59 | signal.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；代码/订阅/句柄/原生处理/计数关闭五组；Owned 数据失败不转移、Shutdown 回调线程自关闭 STATE 入档；锚点 signal/signal_tour |
 | 60 | slot_map.md | 16 | **完成** | 16/16 全绿（G3 16 片段，2026-09-07）；诊断/生命周期/基本/迭代四组；旧合并式双名小节拆分；陈旧句柄一律不设错；锚点 slot_map/slot_map_tour |
 | 61 | spin.md | 7 | **完成** | 7/7 全绿（G3 7 片段，2026-09-07）；Unit/Destroy 持有中失败、TryLock 忙碌不设错；锚点 spin |
-| 62 | stack.md | 74 | 待办 |  |
+| 62 | stack.md | 74 | **完成** | 74/74 全绿（G3 74 片段，2026-09-07）；五族（Stack 18/Fixed 15/PtrFixed 11/Block 18/Ptr 12）；固定族满 = AGAIN、空弹/越界 = RANGE、Block 族块布局溢出 = OVERFLOW；锚点 tour + containers 五范例 |
 | 63 | string.md | 83 | 待办 |  |
 | 64 | sync.md | 48 | 待办 |  |
 | 65 | task.md | 42 | 待办 |  |
@@ -698,4 +698,10 @@
   临界区两组；错误对照 src/concurrency/spin.c——持有中 Unit/Destroy =
   STATE、TryLock 忙碌不设错。
   完成 API 2459→2466/3664（67.3%），61/79 文件。
+- 2026-09-07 stack.md 完成（74/74，G3 74 片段全绿）：五族全接口；
+  错误对照 src/containers/*stack*.c——固定族 Push/Add 满 = XERR_AGAIN、
+  Pop 空/Get/Peek 越界 = XERR_RANGE、Block 族 Add/Push 块布局溢出 =
+  XERR_OVERFLOW、动态族自动扩容仅 OVERFLOW/MEMORY、Ptr 族合法空值与
+  错误经错误状态区分。
+  完成 API 2466→2540/3664（69.3%），62/79 文件。
 

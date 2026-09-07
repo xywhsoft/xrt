@@ -92,6 +92,523 @@ const void* xrtFixedStackConstTop(const xfixedstack* pStack);
 固定栈的 `Add/Pop`、`Push/Pop` 和 `ConstTop` 性能基线位于
 `dev/bench/fixed_stack/FIXED_STACK_BENCH_20260728.md`，用于约束后续安全检查的热路径成本。
 
+### `xrtFixedStackInit`
+
+在不与栈结构重叠的调用方缓冲上初始化固定容量栈。
+
+```c
+bool xrtFixedStackInit(
+	xfixedstack* pStack,
+	ptr pMemory,
+	size_t iMemorySize,
+	size_t iItemSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输出 | 非空 | 接收栈 |
+| `pMemory` | 输入 | 非空、不与栈重叠 | 元素缓冲 |
+| `iMemorySize` | 输入 | 足够容纳容量 | 缓冲字节数 |
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | `XERR_ARGUMENT` / `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 缓冲尺寸与元素大小不匹配
+
+#### 范例
+
+[fixed](../../examples/containers/fixed_stack/main.c) · 外部缓冲初始化
+
+```c
+	if ( !xrtFixedStackInit(&tFrames, pStorage, sizeof(pStorage), sizeof(exampleframe)) ) {
+```
+
+### `xrtFixedStackCreate`
+
+创建拥有固定容量缓冲的栈。
+
+```c
+xfixedstack* xrtFixedStackCreate(size_t iCapacity, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iCapacity` | 输入 | > 0 | 元素容量 |
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 栈（含缓冲） | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 堆创建
+
+```c
+		xfixedstack* pFixed = xrtFixedStackCreate(4u, sizeof(int));
+```
+
+### `xrtFixedStackUnit`
+
+释放创建时取得的固定缓冲，但不释放栈结构。
+
+```c
+void xrtFixedStackUnit(xfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 缓冲已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[fixed](../../examples/containers/fixed_stack/main.c) · 释放缓冲
+
+```c
+	xrtFixedStackUnit(&tFrames);
+```
+
+### `xrtFixedStackDestroy`
+
+释放固定缓冲和创建的栈结构。
+
+```c
+void xrtFixedStackDestroy(xfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 栈已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 销毁
+
+```c
+		xrtFixedStackDestroy(pFixed);
+```
+
+### `xrtFixedStackClear`
+
+清空栈内容并保留固定容量。
+
+```c
+void xrtFixedStackClear(xfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 清空
+
+```c
+		xrtFixedStackClear(pFixed);
+```
+
+### `xrtFixedStackSpace`
+
+返回剩余可压入元素数量。
+
+```c
+size_t xrtFixedStackSpace(const xfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 剩余容量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 剩余容量
+
+```c
+		iSpace = xrtFixedStackSpace(pFixed);
+```
+
+### `xrtFixedStackGet`
+
+返回指定 0 基位置的可写元素借用地址。
+
+```c
+ptr xrtFixedStackGet(xfixedstack* pStack, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iIndex` | 输入 | < 深度 | 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 按位取写
+
+```c
+		(void)xrtFixedStackGet(pFixed, 0u);
+```
+
+### `xrtFixedStackConstGet`
+
+返回指定 0 基位置的只读元素借用地址。
+
+```c
+const void* xrtFixedStackConstGet(const xfixedstack* pStack, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iIndex` | 输入 | < 深度 | 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 按位取读
+
+```c
+		(void)xrtFixedStackConstGet(pFixed, 0u);
+```
+
+### `xrtFixedStackAdd`
+
+取得一个未初始化栈顶槽，栈满时失败。
+
+```c
+ptr xrtFixedStackAdd(xfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 未初始化栈顶槽 | — |
+| `NULL` | 栈满或参数非法 | `XERR_AGAIN` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_AGAIN` — 固定容量已满
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 取得栈顶槽
+
+```c
+		pSlot = (int*)xrtFixedStackAdd(pFixed);
+```
+
+### `xrtFixedStackPush`
+
+复制一个元素压入固定栈。
+
+```c
+bool xrtFixedStackPush(xfixedstack* pStack, const void* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pItem` | 输入 | 非空 | 要压入的元素 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已压入 | — |
+| `false` | 栈满或参数非法 | `XERR_AGAIN` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_AGAIN` — 固定容量已满
+
+#### 范例
+
+[fixed](../../examples/containers/fixed_stack/main.c) · 复制压入
+
+```c
+		if ( !xrtFixedStackPush(&tFrames, &pInput[i]) ) {
+```
+
+### `xrtFixedStackPop`
+
+弹出栈顶元素，并可把内容复制到外部输出缓冲。
+
+```c
+bool xrtFixedStackPop(xfixedstack* pStack, ptr pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pItem` | 输出 | 允许空；不与栈重叠 | 接收弹出的元素 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已弹出 | — |
+| `false` | 栈空或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[fixed](../../examples/containers/fixed_stack/main.c) · 弹出
+
+```c
+	while ( xrtFixedStackPop(&tFrames, &tFrame) ) {
+```
+
+### `xrtFixedStackPeek`
+
+返回距栈顶指定深度的可写元素，深度 0 表示栈顶。
+
+```c
+ptr xrtFixedStackPeek(xfixedstack* pStack, size_t iDepth)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iDepth` | 输入 | < 深度 | 距栈顶深度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 深度取写
+
+```c
+		(void)xrtFixedStackPeek(pFixed, 0u);
+```
+
+### `xrtFixedStackConstPeek`
+
+返回距栈顶指定深度的只读元素，深度 0 表示栈顶。
+
+```c
+const void* xrtFixedStackConstPeek(const xfixedstack* pStack, size_t iDepth)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iDepth` | 输入 | < 深度 | 距栈顶深度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 深度取读
+
+```c
+			const int* pPeek = (const int*)xrtFixedStackConstPeek(pFixed, 1u);
+```
+
+### `xrtFixedStackTop`
+
+返回可写栈顶元素借用地址。
+
+```c
+ptr xrtFixedStackTop(xfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 栈顶写
+
+```c
+			int* pTop = (int*)xrtFixedStackTop(pFixed);
+```
+
+### `xrtFixedStackConstTop`
+
+返回只读栈顶元素借用地址。
+
+```c
+const void* xrtFixedStackConstTop(const xfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 栈顶读
+
+```c
+		(void)xrtFixedStackConstTop(pFixed);
+```
+
 ## PtrFixedStack
 
 ```c
@@ -122,6 +639,382 @@ PtrFixedStack 只保存指针值，不拥有目标。它允许保存合法 `NULL
 已知索引小于公开 `Count` 时，返回的 `NULL` 就是合法值。
 所有入口都会拒绝元素宽度不是 `sizeof(ptr)` 的 FixedStack，
 避免旧版“在更宽结构体前几个字节写入指针”的隐式布局。
+
+### `xrtPtrFixedStackInit`
+
+在不与栈结构重叠的调用方指针数组上初始化固定容量指针栈。
+
+```c
+bool xrtPtrFixedStackInit(
+	xptrfixedstack* pStack,
+	ptr* pMemory,
+	size_t iCapacity
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输出 | 非空 | 接收栈 |
+| `pMemory` | 输入 | 非空 | 指针槽数组 |
+| `iCapacity` | 输入 | > 0 | 槽数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法或溢出 | `XERR_ARGUMENT` / `XERR_OVERFLOW` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量尺寸溢出
+
+#### 范例
+
+[pfixed](../../examples/containers/ptr_fixed_stack/main.c) · 外部数组初始化
+
+```c
+	if ( !xrtPtrFixedStackInit(&tCleanup, pStorage, 4) ) {
+```
+
+### `xrtPtrFixedStackCreate`
+
+创建拥有指定固定容量的指针栈。
+
+```c
+xptrfixedstack* xrtPtrFixedStackCreate(size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iCapacity` | 输入 | > 0 | 槽数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 指针栈 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 堆创建
+
+```c
+		xptrfixedstack* pPtr = xrtPtrFixedStackCreate(4u);
+```
+
+### `xrtPtrFixedStackUnit`
+
+释放拥有的指针存储区，但不释放任何指针目标或栈结构。
+
+```c
+void xrtPtrFixedStackUnit(xptrfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 存储已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[pfixed](../../examples/containers/ptr_fixed_stack/main.c) · 释放存储
+
+```c
+			xrtPtrFixedStackUnit(&tCleanup);
+```
+
+### `xrtPtrFixedStackDestroy`
+
+释放创建的指针栈结构，但不释放任何指针目标。
+
+```c
+void xrtPtrFixedStackDestroy(xptrfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 栈已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 销毁
+
+```c
+		xrtPtrFixedStackDestroy(pPtr);
+```
+
+### `xrtPtrFixedStackClear`
+
+清空固定指针栈，但不释放任何指针目标。
+
+```c
+void xrtPtrFixedStackClear(xptrfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 清空
+
+```c
+		xrtPtrFixedStackClear(pPtr);
+```
+
+### `xrtPtrFixedStackSpace`
+
+返回固定指针栈剩余容量。
+
+```c
+size_t xrtPtrFixedStackSpace(const xptrfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 剩余容量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 剩余容量
+
+```c
+		printf("ptrfixed: space=%zu", xrtPtrFixedStackSpace(pPtr));
+```
+
+### `xrtPtrFixedStackGet`
+
+返回指定 0 基位置的指针值。
+
+```c
+ptr xrtPtrFixedStackGet(const xptrfixedstack* pStack, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iIndex` | 输入 | < 深度 | 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 指针值 | 存储的值（可为空值） | — |
+| `NULL` | 越界 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 按位取值
+
+```c
+		(void)xrtPtrFixedStackGet(pPtr, 0u);
+```
+
+### `xrtPtrFixedStackPush`
+
+压入一个可为空的指针值。
+
+```c
+bool xrtPtrFixedStackPush(xptrfixedstack* pStack, ptr pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pValue` | 输入 | 任意值 | 要压入的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已压入 | — |
+| `false` | 栈满或参数非法 | `XERR_AGAIN` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_AGAIN` — 固定容量已满
+
+#### 范例
+
+[pfixed](../../examples/containers/ptr_fixed_stack/main.c) · 压入
+
+```c
+		if ( !xrtPtrFixedStackPush(&tCleanup, &pResources[i]) ) {
+```
+
+### `xrtPtrFixedStackPop`
+
+弹出指针值；输出为空表示只删除栈顶。
+
+```c
+bool xrtPtrFixedStackPop(xptrfixedstack* pStack, ptr* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pValue` | 输出 | 允许空 | 接收弹出的值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已弹出 | — |
+| `false` | 栈空或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[pfixed](../../examples/containers/ptr_fixed_stack/main.c) · 弹出
+
+```c
+	while ( xrtPtrFixedStackPop(&tCleanup, &pResource) ) {
+```
+
+### `xrtPtrFixedStackPeek`
+
+返回距栈顶指定深度的指针值，深度 0 表示栈顶。
+
+```c
+ptr xrtPtrFixedStackPeek(const xptrfixedstack* pStack, size_t iDepth)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iDepth` | 输入 | < 深度 | 距栈顶深度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 指针值 | 存储的值（可为空值） | — |
+| `NULL` | 越界 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 深度取值
+
+```c
+		(void)xrtPtrFixedStackPeek(pPtr, 0u);
+```
+
+### `xrtPtrFixedStackTop`
+
+返回栈顶指针值；合法空值与错误通过错误状态区分。
+
+```c
+ptr xrtPtrFixedStackTop(const xptrfixedstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 指针值 | 栈顶值（可为合法空值） | — |
+| `NULL` | 栈空 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 栈顶值
+
+```c
+		(void)xrtPtrFixedStackTop(pPtr);
+```
 
 ## Stack
 
@@ -171,6 +1064,634 @@ const void* xrtStackConstTop(const xstack* pStack);
 ```
 
 `Push` 继承 Array 的自引用支持：来源可以是当前完整活动元素，即使本次压栈触发扩容也能得到正确副本。`Pop` 拒绝输出到栈自身存储区，失败时不减少深度。
+
+### `xrtStackInit`
+
+初始化使用默认对齐的空动态栈。
+
+```c
+bool xrtStackInit(xstack* pStack, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输出 | 非空 | 接收栈 |
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[cstack](../../examples/containers/stack/main.c) · 默认初始化
+
+```c
+	if ( !xrtStackInit(&tValues, sizeof(int)) ) {
+```
+
+### `xrtStackInitAligned`
+
+初始化显式过对齐动态栈。
+
+```c
+bool xrtStackInitAligned(xstack* pStack, size_t iItemSize, size_t iAlignment)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输出 | 非空 | 接收栈 |
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+| `iAlignment` | 输入 | 二次幂 | 元素对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 对齐初始化
+
+```c
+		if ( !xrtStackInitAligned(&Aligned, sizeof(int), 4u) ) {
+```
+
+### `xrtStackCreate`
+
+创建使用默认对齐的空动态栈。
+
+```c
+xstack* xrtStackCreate(size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 栈 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 堆创建
+
+```c
+		xstack* pStack = xrtStackCreate(sizeof(int));
+```
+
+### `xrtStackCreateAligned`
+
+创建显式过对齐动态栈。
+
+```c
+xstack* xrtStackCreateAligned(size_t iItemSize, size_t iAlignment)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+| `iAlignment` | 输入 | 二次幂 | 元素对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 栈 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 堆创建（对齐）
+
+```c
+		xrtStackDestroy(xrtStackCreateAligned(sizeof(int), 4u));
+```
+
+### `xrtStackUnit`
+
+释放动态栈元素内存，但不释放栈结构。
+
+```c
+void xrtStackUnit(xstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 元素内存已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[cstack](../../examples/containers/stack/main.c) · 释放元素内存
+
+```c
+			xrtStackUnit(&tValues);
+```
+
+### `xrtStackDestroy`
+
+释放动态栈全部资源和栈结构。
+
+```c
+void xrtStackDestroy(xstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 栈已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 销毁
+
+```c
+		xrtStackDestroy(pStack);
+```
+
+### `xrtStackClear`
+
+清空动态栈并保留容量。
+
+```c
+void xrtStackClear(xstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 清空
+
+```c
+		(void)xrtStackClear(pStack);
+```
+
+### `xrtStackReserve`
+
+保证动态栈至少具有指定元素容量。
+
+```c
+bool xrtStackReserve(xstack* pStack, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `iCapacity` | 输入 | — | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 容量已保证 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 预留容量
+
+```c
+		(void)xrtStackReserve(pStack, 32u);
+```
+
+### `xrtStackTrim`
+
+将动态栈容量裁剪到当前深度。
+
+```c
+bool xrtStackTrim(xstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已裁剪（或无需裁剪） | — |
+| `false` | 裁剪失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 裁剪容量
+
+```c
+		(void)xrtStackTrim(pStack);
+```
+
+### `xrtStackGet`
+
+返回指定 0 基位置的可写元素借用地址。
+
+```c
+ptr xrtStackGet(xstack* pStack, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iIndex` | 输入 | < 深度 | 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 按位取写
+
+```c
+		(void)xrtStackGet(pStack, 0u);
+```
+
+### `xrtStackConstGet`
+
+返回指定 0 基位置的只读元素借用地址。
+
+```c
+const void* xrtStackConstGet(const xstack* pStack, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iIndex` | 输入 | < 深度 | 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 按位取读
+
+```c
+			const int* pGet = (const int*)xrtStackConstGet(pStack, 0u);
+```
+
+### `xrtStackAdd`
+
+取得一个未初始化栈顶槽；容量不足时自动扩容。
+
+```c
+ptr xrtStackAdd(xstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 未初始化栈顶槽 | — |
+| `NULL` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 取得栈顶槽
+
+```c
+			int* pSlot = (int*)xrtStackAdd(pStack);
+```
+
+### `xrtStackPush`
+
+复制一个元素压入动态栈；容量不足时自动扩容。
+
+```c
+bool xrtStackPush(xstack* pStack, const void* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pItem` | 输入 | 非空 | 要压入的元素 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已压入 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 复制压入
+
+```c
+			if ( !xrtStackPush(pStack, &iValue) ) {
+```
+
+### `xrtStackPop`
+
+弹出栈顶元素，并可把内容复制到外部输出缓冲。
+
+```c
+bool xrtStackPop(xstack* pStack, ptr pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pItem` | 输出 | 允许空；不与栈重叠 | 接收弹出的元素 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已弹出 | — |
+| `false` | 栈空或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[cstack](../../examples/containers/stack/main.c) · 弹出
+
+```c
+	while ( xrtStackPop(&tValues, &iValue) ) {
+```
+
+### `xrtStackPeek`
+
+返回距栈顶指定深度的可写元素，深度 0 表示栈顶。
+
+```c
+ptr xrtStackPeek(xstack* pStack, size_t iDepth)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iDepth` | 输入 | < 深度 | 距栈顶深度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 深度取写
+
+```c
+		(void)xrtStackPeek(pStack, 0u);
+```
+
+### `xrtStackConstPeek`
+
+返回距栈顶指定深度的只读元素，深度 0 表示栈顶。
+
+```c
+const void* xrtStackConstPeek(const xstack* pStack, size_t iDepth)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iDepth` | 输入 | < 深度 | 距栈顶深度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 深度取读
+
+```c
+			const int* pPeek = (const int*)xrtStackConstPeek(pStack, 0u);
+```
+
+### `xrtStackTop`
+
+返回可写栈顶元素借用地址。
+
+```c
+ptr xrtStackTop(xstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 栈顶写
+
+```c
+			int* pTop = (int*)xrtStackTop(pStack);
+```
+
+### `xrtStackConstTop`
+
+返回只读栈顶元素借用地址。
+
+```c
+const void* xrtStackConstTop(const xstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 栈顶读
+
+```c
+		(void)xrtStackConstTop(pStack);
+```
 
 ## BlockStack
 
@@ -247,6 +1768,645 @@ BlockStack 的常用 LIFO 和随机检查路径均为 O(1)；新块分配是摊�
 
 这是 C 指针前置条件；违反时行为未定义。连续 Stack 和 FixedStack 可以常数时间判断完整存储区，因此会主动拒绝内部输出别名。
 
+### `xrtBlockStackInit`
+
+使用自动块尺寸初始化默认对齐分块栈。
+
+```c
+bool xrtBlockStackInit(xblockstack* pStack, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输出 | 非空 | 接收栈 |
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 默认初始化
+
+```c
+			(void)xrtBlockStackInit(&tInit, sizeof(int));
+```
+
+### `xrtBlockStackInitLayout`
+
+使用指定元素对齐和每块元素数初始化分块栈。
+
+```c
+bool xrtBlockStackInitLayout(
+	xblockstack* pStack,
+	size_t iItemSize,
+	size_t iAlignment,
+	size_t iBlockItems
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输出 | 非空 | 接收栈 |
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+| `iAlignment` | 输入 | 二次幂 | 元素对齐 |
+| `iBlockItems` | 输入 | > 0 | 每块元素数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[block](../../examples/containers/block_stack/main.c) · 完整布局初始化
+
+```c
+	if ( !xrtBlockStackInitLayout(&tFrames, sizeof(int), sizeof(int), 4) ) {
+```
+
+### `xrtBlockStackCreate`
+
+创建使用自动块尺寸的默认对齐分块栈。
+
+```c
+xblockstack* xrtBlockStackCreate(size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 分块栈 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 堆创建
+
+```c
+		xblockstack* pBlock = xrtBlockStackCreate(sizeof(int));
+```
+
+### `xrtBlockStackCreateLayout`
+
+创建使用指定元素对齐和每块元素数的分块栈。
+
+```c
+xblockstack* xrtBlockStackCreateLayout(
+	size_t iItemSize,
+	size_t iAlignment,
+	size_t iBlockItems
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+| `iAlignment` | 输入 | 二次幂 | 元素对齐 |
+| `iBlockItems` | 输入 | > 0 | 每块元素数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 分块栈 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 堆创建（完整布局）
+
+```c
+		xrtBlockStackDestroy(xrtBlockStackCreateLayout(sizeof(int), 4u, 8u));
+```
+
+### `xrtBlockStackUnit`
+
+释放全部数据块和块索引，但不释放栈结构。
+
+```c
+void xrtBlockStackUnit(xblockstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 数据块已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[block](../../examples/containers/block_stack/main.c) · 释放数据块
+
+```c
+		xrtBlockStackUnit(&tFrames);
+```
+
+### `xrtBlockStackDestroy`
+
+释放分块栈全部资源和创建的栈结构。
+
+```c
+void xrtBlockStackDestroy(xblockstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 栈已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 销毁
+
+```c
+		xrtBlockStackDestroy(xrtBlockStackCreateLayout(sizeof(int), 4u, 8u));
+```
+
+### `xrtBlockStackClear`
+
+清空分块栈并保留已经分配的数据块。
+
+```c
+void xrtBlockStackClear(xblockstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 清空
+
+```c
+		xrtBlockStackClear(pBlock);
+```
+
+### `xrtBlockStackReserve`
+
+保证分块栈至少具有指定元素容量，失败时保持原状态。
+
+```c
+bool xrtBlockStackReserve(xblockstack* pStack, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `iCapacity` | 输入 | — | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 容量已保证 | — |
+| `false` | 扩容失败，原状态保持 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 预留容量
+
+```c
+		(void)xrtBlockStackReserve(pBlock, 16u);
+```
+
+### `xrtBlockStackTrim`
+
+释放当前深度不再需要的数据块，保留轻量块索引缓存。
+
+```c
+bool xrtBlockStackTrim(xblockstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已裁剪 | — |
+| `false` | 裁剪失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 裁剪
+
+```c
+		(void)xrtBlockStackTrim(pBlock);
+```
+
+### `xrtBlockStackGet`
+
+返回指定 0 基位置的可写元素借用地址。
+
+```c
+ptr xrtBlockStackGet(xblockstack* pStack, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iIndex` | 输入 | < 深度 | 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[block](../../examples/containers/block_stack/main.c) · 按位取写
+
+```c
+		xrtBlockStackGet(&tFrames, 0) == pRoot ? "yes" : "no"
+```
+
+### `xrtBlockStackConstGet`
+
+返回指定 0 基位置的只读元素借用地址。
+
+```c
+const void* xrtBlockStackConstGet(const xblockstack* pStack, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iIndex` | 输入 | < 深度 | 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 按位取读
+
+```c
+		(void)xrtBlockStackConstGet(pBlock, 0u);
+```
+
+### `xrtBlockStackAdd`
+
+取得一个未初始化栈顶槽，既有活动元素地址保持稳定。
+
+```c
+ptr xrtBlockStackAdd(xblockstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 未初始化栈顶槽 | — |
+| `NULL` | 新块分配失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 块布局尺寸溢出
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[block](../../examples/containers/block_stack/main.c) · 取得栈顶槽
+
+```c
+	pRoot = (int*)xrtBlockStackAdd(&tFrames);
+```
+
+### `xrtBlockStackPush`
+
+浅复制一个完整可读元素压入分块栈，来源可以是任一活动元素。
+
+```c
+bool xrtBlockStackPush(xblockstack* pStack, const void* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pItem` | 输入 | 非空 | 要压入的元素 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已压入 | — |
+| `false` | 分配失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 块布局尺寸溢出
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[block](../../examples/containers/block_stack/main.c) · 浅复制压入
+
+```c
+		if ( !xrtBlockStackPush(&tFrames, &i) ) {
+```
+
+### `xrtBlockStackPop`
+
+弹出栈顶元素；调用方必须保证可选输出不与该栈的任何数据块重叠。
+
+```c
+bool xrtBlockStackPop(xblockstack* pStack, ptr pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pItem` | 输出 | 允许空；不与数据块重叠 | 接收弹出的元素 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已弹出 | — |
+| `false` | 栈空或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 弹出
+
+```c
+			(void)xrtBlockStackPop(pBlock, &iPop);
+```
+
+### `xrtBlockStackPeek`
+
+返回距栈顶指定深度的可写元素，深度 0 表示栈顶。
+
+```c
+ptr xrtBlockStackPeek(xblockstack* pStack, size_t iDepth)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iDepth` | 输入 | < 深度 | 距栈顶深度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 深度取写
+
+```c
+		(void)xrtBlockStackPeek(pBlock, 0u);
+```
+
+### `xrtBlockStackConstPeek`
+
+返回距栈顶指定深度的只读元素，深度 0 表示栈顶。
+
+```c
+const void* xrtBlockStackConstPeek(const xblockstack* pStack, size_t iDepth)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iDepth` | 输入 | < 深度 | 距栈顶深度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 深度取读
+
+```c
+		(void)xrtBlockStackConstPeek(pBlock, 0u);
+```
+
+### `xrtBlockStackTop`
+
+返回可写栈顶元素借用地址。
+
+```c
+ptr xrtBlockStackTop(xblockstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 栈顶写
+
+```c
+		(void)xrtBlockStackTop(pBlock);
+```
+
+### `xrtBlockStackConstTop`
+
+返回只读栈顶元素借用地址。
+
+```c
+const void* xrtBlockStackConstTop(const xblockstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读元素借用地址 | — |
+| `NULL` | 越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 栈顶读
+
+```c
+			const int* pTop = (const int*)xrtBlockStackConstTop(pBlock);
+```
+
 ## PtrStack
 
 ```c
@@ -275,6 +2435,413 @@ ptr xrtPtrStackTop(const xptrstack* pStack);
 Array 增长原语；因此 `Push` 不需要通用字节复制和来源别名分析。分配失败保持
 地址、深度、容量和已有指针值不变。`Pop` 继续复用通用栈的输出别名检查，
 若输出指向自身存储区则设置 `XERR_ARGUMENT` 且不删除栈顶。
+
+### `xrtPtrStackInit`
+
+初始化空指针栈。
+
+```c
+bool xrtPtrStackInit(xptrstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输出 | 非空 | 接收栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+
+#### 范例
+
+[pstack](../../examples/containers/ptr_stack/main.c) · 初始化
+
+```c
+	if ( !xrtPtrStackInit(&tResources) ) {
+```
+
+### `xrtPtrStackCreate`
+
+创建空指针栈。
+
+```c
+xptrstack* xrtPtrStackCreate(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 指针栈 | — |
+| `NULL` | 分配失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_MEMORY` — 结构分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 堆创建
+
+```c
+		xptrstack* pPtr = xrtPtrStackCreate();
+```
+
+### `xrtPtrStackUnit`
+
+释放指针存储区但不释放指针目标。
+
+```c
+void xrtPtrStackUnit(xptrstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 存储已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[pstack](../../examples/containers/ptr_stack/main.c) · 释放存储
+
+```c
+			xrtPtrStackUnit(&tResources);
+```
+
+### `xrtPtrStackDestroy`
+
+释放指针栈全部资源和栈结构，但不释放指针目标。
+
+```c
+void xrtPtrStackDestroy(xptrstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 栈已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 销毁
+
+```c
+		xrtPtrStackDestroy(pPtr);
+```
+
+### `xrtPtrStackClear`
+
+清空指针栈并保留容量，但不释放指针目标。
+
+```c
+void xrtPtrStackClear(xptrstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 清空
+
+```c
+		xrtPtrStackClear(pPtr);
+```
+
+### `xrtPtrStackReserve`
+
+保证指针栈至少具有指定容量。
+
+```c
+bool xrtPtrStackReserve(xptrstack* pStack, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `iCapacity` | 输入 | — | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 容量已保证 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 预留容量
+
+```c
+		(void)xrtPtrStackReserve(pPtr, 16u);
+```
+
+### `xrtPtrStackTrim`
+
+将指针栈容量裁剪到当前深度。
+
+```c
+bool xrtPtrStackTrim(xptrstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已裁剪 | — |
+| `false` | 裁剪失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 裁剪容量
+
+```c
+		(void)xrtPtrStackTrim(pPtr);
+```
+
+### `xrtPtrStackGet`
+
+返回指定 0 基位置的指针值。
+
+```c
+ptr xrtPtrStackGet(const xptrstack* pStack, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iIndex` | 输入 | < 深度 | 0 基位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 指针值 | 存储的值（可为空值） | — |
+| `NULL` | 越界 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 按位取值
+
+```c
+		(void)xrtPtrStackGet(pPtr, 0u);
+```
+
+### `xrtPtrStackPush`
+
+压入一个可为空的指针值；容量不足时自动扩容。
+
+```c
+bool xrtPtrStackPush(xptrstack* pStack, ptr pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pValue` | 输入 | 任意值 | 要压入的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已压入 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_MEMORY` — 扩容分配失败
+
+#### 范例
+
+[pstack](../../examples/containers/ptr_stack/main.c) · 压入
+
+```c
+		if ( !xrtPtrStackPush(&tResources, &pValues[i]) ) {
+```
+
+### `xrtPtrStackPop`
+
+弹出指针值；输出为空表示只删除栈顶。
+
+```c
+bool xrtPtrStackPop(xptrstack* pStack, ptr* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入/输出 | 非空 | 目标栈 |
+| `pValue` | 输出 | 允许空 | 接收弹出的值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已弹出 | — |
+| `false` | 栈空或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[pstack](../../examples/containers/ptr_stack/main.c) · 弹出
+
+```c
+	while ( xrtPtrStackPop(&tResources, &pValue) ) {
+```
+
+### `xrtPtrStackPeek`
+
+返回距栈顶指定深度的指针值，深度 0 表示栈顶。
+
+```c
+ptr xrtPtrStackPeek(const xptrstack* pStack, size_t iDepth)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+| `iDepth` | 输入 | < 深度 | 距栈顶深度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 指针值 | 存储的值（可为空值） | — |
+| `NULL` | 越界 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 索引或深度越界
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 深度取值
+
+```c
+		(void)xrtPtrStackPeek(pPtr, 0u);
+```
+
+### `xrtPtrStackTop`
+
+返回栈顶指针值；合法空值与错误通过错误状态区分。
+
+```c
+ptr xrtPtrStackTop(const xptrstack* pStack)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStack` | 输入 | 非空 | 目标栈 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 指针值 | 栈顶值（可为合法空值） | — |
+| `NULL` | 栈空 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
+- `XERR_RANGE` — 栈为空
+
+#### 范例
+
+[tour](../../examples/stack/tour/main.c) · 栈顶值
+
+```c
+			ptr pTop = xrtPtrStackTop(pPtr);
+```
 
 ## 错误与原子性
 
