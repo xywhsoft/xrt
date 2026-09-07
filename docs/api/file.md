@@ -3147,6 +3147,80 @@ bool xrtFileWalk(cstr sPath, const xwalkoptions* pOptions,
 
 跟随链接时使用目录身份检测祖先环，环目录仍产生带 `CYCLE` 标志的 `ENTER/LEAVE`，但不会下降。`ONE_FILESYSTEM` 对跨设备目录做同样处理并设置 `CROSS_FILESYSTEM`。平台无法提供稳定目录身份时，这两种安全模式返回不支持，而不是在未知状态继续。遍历使用显式堆栈，不消耗与目录深度成正比的 C 调用栈；条目顺序保持系统枚举顺序，不为排序缓存整个目录。
 
+### `xrtWalkOptionsInit`
+
+初始化遍历选项：不跟随链接、允许跨文件系统、深度无限。
+
+```c
+void xrtWalkOptionsInit(xwalkoptions* pOptions);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOptions` | 输出 | 非空 | 接收默认选项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化，不失败 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[file/walk · 限深遍历](../../examples/file/walk/main.c) · 观察
+
+```c
+	xrtWalkOptionsInit(&Options);
+	Options.MaxDepth = 1u;
+```
+
+
+### `xrtFileWalk`
+
+深度优先遍历一个文件系统对象；回调为空时只计算统计。
+
+```c
+bool xrtFileWalk(cstr sPath, const xwalkoptions* pOptions,
+	xwalkproc pProc, ptr pUserData, xwalkstats* pStats);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 遍历起点 |
+| `pOptions` | 输入 | 允许空 | 空 = 默认选项 |
+| `pProc` | 输入 | 可空 | 访问回调；返回假中止遍历 |
+| `pUserData` | 输入 | 任意值 | 原样传给回调 |
+| `pStats` | 输出 | 可空 | 接收统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 遍历完成（或被回调中止且算成功） | — |
+| `false` | 起点不存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_NOT_FOUND` — 起点不存在
+
+#### 范例
+
+[file/walk · 限深遍历](../../examples/file/walk/main.c) · 观察
+
+```c
+	if ( !xrtFileWalk(".", &Options, printEntry, NULL, &Stats) ) {
+```
+
+
 ## 链接和 FIFO
 
 ```c
@@ -3160,6 +3234,185 @@ bool xrtFifoCreate(cstr sPath, uint32 iMode);
 符号链接目标可以不存在，并按传入文本存储；Windows 创建链接时必须通过 `bDirectory` 提供目标类别提示。`xrtLinkRead` 返回拥有的零结尾目标文本，不把相对目标改写成绝对路径。`xrtLinkDelete` 只删除链接自身。硬链接要求已有普通文件，链接关系受文件系统限制。
 
 `xrtFifoCreate` 在 POSIX 调用 `mkfifo`，路径必须尚不存在，模式只允许低 12 位且仍受 `umask` 影响；Windows 明确返回 `XERR_UNSUPPORTED`。FIFO 的打开、阻塞和 IO 直接使用文件原语及系统语义，创建函数本身不打开 FIFO，也不隐藏可能阻塞的打开行为。
+
+### `xrtLinkCreate`
+
+创建符号链接；目标可以不存在，目录提示在 Windows 上是必需信息。
+
+```c
+bool xrtLinkCreate(cstr sTarget, cstr sLink, bool bDirectory);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sTarget` | 输入 | 非空 | 链接目标（按原文本保存） |
+| `sLink` | 输入 | 非空 | 链接路径 |
+| `bDirectory` | 输入 | — | 目标是否目录（Windows 必需） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 链接已创建 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/link_tour · 符号链接](../../examples/file/link_tour/main.c) · 观察
+
+```c
+	if ( !xrtLinkCreate(sRenamed, sLink, false) ) {
+```
+
+
+### `xrtLinkHard`
+
+为已存在文件创建硬链接。
+
+```c
+bool xrtLinkHard(cstr sExisting, cstr sLink);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sExisting` | 输入 | 非空 | 已存在的普通文件 |
+| `sLink` | 输入 | 非空 | 新链接路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 硬链接已创建 | — |
+| `false` | 跨卷/目标存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/link · 硬链接](../../examples/file/link/main.c) · 观察
+
+```c
+		 !xrtClose(File) || !xrtLinkHard(sSource, sLink) ||
+```
+
+
+### `xrtLinkRead`
+
+读取符号链接中存储的目标文本，返回拥有的零结尾路径字节。
+
+```c
+str xrtLinkRead(cstr sLink);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sLink` | 输入 | 非空 | 链接路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 目标文本（`xrtFree` 释放） | — |
+| `NULL` | 非链接或系统错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_NOT_FOUND` — 链接不存在
+
+#### 范例
+
+[file/link_tour · 读目标](../../examples/file/link_tour/main.c) · 观察
+
+```c
+		str sTarget = xrtLinkRead(sLink);
+```
+
+
+### `xrtLinkDelete`
+
+删除符号链接自身，不跟随也不删除目标。
+
+```c
+bool xrtLinkDelete(cstr sLink);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sLink` | 输入 | 非空 | 链接路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 链接已删除（目标不受影响） | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/link_tour · 删链接](../../examples/file/link_tour/main.c) · 观察
+
+```c
+	if ( !xrtLinkDelete(sLink) ) {
+```
+
+
+### `xrtFifoCreate`
+
+创建不存在的 POSIX FIFO；模式只允许低 12 位且仍受 umask 影响，Windows 返回不支持。
+
+```c
+bool xrtFifoCreate(cstr sPath, uint32 iMode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | FIFO 路径 |
+| `iMode` | 输入 | 低 12 位 | POSIX 权限（受 umask） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | FIFO 已创建 | — |
+| `false` | Windows 必然失败 | `XERR_UNSUPPORTED`（Windows） |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_UNSUPPORTED` — Windows 平台
+- `XERR_EXISTS` — 已存在
+
+#### 范例
+
+[file/fifo · 平台门控](../../examples/file/fifo/main.c) · 观察
+
+```c
+		if ( !xrtFifoCreate(sPath, 0600u) &&
+			(xrtGetError() != NULL) &&
+			(xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED) ) {
+```
+
 
 ## 目录能力
 
@@ -3215,6 +3468,514 @@ if ( xrtRootStat(Root, "uploads/item.bin", true, &Info) ) {
 ```
 
 Windows 使用根句柄加 `NtCreateFile` 的 `RootDirectory` 逐段解析，并拒绝未知重解析点；POSIX 使用 `openat`、`fstatat`、`mkdirat`、`unlinkat` 和 `readlinkat`，每个遍历步骤启用 `O_NOFOLLOW`。该契约防止普通路径和链接交换把操作带出根目录，但不承诺隔离拥有系统特权的对手，也不阻止管理员通过挂载、绑定挂载、卷管理或原生句柄直接改变可见文件系统。需要进程级安全边界时仍应结合操作系统沙箱、权限和独立身份。
+
+### `xrtRootOpen`
+
+打开并锚定一个真实目录；根路径自身允许包含链接。
+
+```c
+xroot xrtRootOpen(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 根目录路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 锚定的根对象 | — |
+| `NULL` | 打开失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/root · 父根与子根](../../examples/file/root/main.c) · 观察
+
+```c
+	Parent = xrtRootOpen(".");
+```
+
+
+### `xrtRootOpenIn`
+
+在已有根内打开并锚定一个子目录。
+
+```c
+xroot xrtRootOpenIn(xroot Root, cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 父根 |
+| `sPath` | 输入 | 非空、根内相对 | 子目录 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 子根（父根保持独立） | — |
+| `NULL` | 越界或打开失败 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_ARGUMENT` — 相对路径越出根外
+
+#### 范例
+
+[file/root · 父根与子根](../../examples/file/root/main.c) · 观察
+
+```c
+	Root = xrtRootOpenIn(Parent, sDirectory);
+```
+
+
+### `xrtRootClose`
+
+关闭原生目录句柄并销毁根对象；关闭不得与其他根操作并发。
+
+```c
+bool xrtRootClose(xroot Root);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已关闭并释放 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/root · 收尾](../../examples/file/root/main.c) · 观察
+
+```c
+		 !xrtRootClose(Root) ||
+```
+
+
+### `xrtRootPath`
+
+返回创建根对象时保存的诊断路径，不参与任何安全判断。
+
+```c
+cstr xrtRootPath(xroot Root);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `cstr` | 借用诊断路径（存活到 Close） | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[file/root_tour · 自省](../../examples/file/root_tour/main.c) · 观察
+
+```c
+		xrtRootPath(Root), xrtRootPath(Root),
+```
+
+
+### `xrtRootNative`
+
+返回根目录 HANDLE 或文件描述符的整数表示，所有权仍属于根对象。
+
+```c
+intptr_t xrtRootNative(xroot Root);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 原生句柄（借用） | — |
+| `-1` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[file/root_tour · 自省](../../examples/file/root_tour/main.c) · 观察
+
+```c
+		xrtRootNative(Root) != 0 ? 1 : 0);
+```
+
+
+### `xrtRootFileOpen`
+
+在根内使用完整文件选项打开普通文件。
+
+```c
+xfile xrtRootFileOpen(xroot Root, cstr sPath,
+	const xfileoptions* pOptions);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sPath` | 输入 | 非空、根内相对 | 文件路径 |
+| `pOptions` | 输入 | 允许空 | 打开选项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 打开的文件 | — |
+| `NULL` | 越界或打开失败 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_ARGUMENT` — 越界路径
+
+#### 范例
+
+[file/root · 根内文件](../../examples/file/root/main.c) · 观察
+
+```c
+	File = xrtRootFileOpen(Root, sName, &Options);
+```
+
+
+### `xrtRootStat`
+
+查询根内对象元数据；`bFollowLink` 决定是否解析末级链接。
+
+```c
+bool xrtRootStat(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sPath` | 输入 | 非空、根内相对 | 对象路径 |
+| `bFollowLink` | 输入 | — | 解析末级链接 |
+| `pInfo` | 输出 | 非空 | 接收元数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 越界/不存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_NOT_FOUND`
+
+#### 范例
+
+[file/root_tour · 元数据](../../examples/file/root_tour/main.c) · 观察
+
+```c
+	bOk = xrtRootStat(Root, "xrt-root-tour-target.tmp", true, &Info);
+```
+
+
+### `xrtRootDirCreate`
+
+在根内创建一个目录；POSIX 使用显式模式，Windows 接受但忽略模式。
+
+```c
+bool xrtRootDirCreate(xroot Root, cstr sPath, uint32 iMode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sPath` | 输入 | 非空、根内相对 | 目录路径 |
+| `iMode` | 输入 | 八进制位 | POSIX 权限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已创建 | — |
+| `false` | 越界/已存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_EXISTS`
+
+#### 范例
+
+[file/root · 父根与子根](../../examples/file/root/main.c) · 观察
+
+```c
+	if ( !xrtRootDirCreate(Parent, sDirectory, 0700u) ) {
+```
+
+
+### `xrtRootRemove`
+
+删除根内一个非目录对象或空目录，不跟随末级链接。
+
+```c
+bool xrtRootRemove(xroot Root, cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sPath` | 输入 | 非空、根内相对 | 目标路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 越界/不存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_NOT_FOUND`
+
+#### 范例
+
+[file/root · 收尾](../../examples/file/root/main.c) · 观察
+
+```c
+		 !xrtRootRemove(Root, sName) ||
+```
+
+
+### `xrtRootLinkRead`
+
+读取根内末级符号链接或受支持重解析点保存的目标文本。
+
+```c
+str xrtRootLinkRead(xroot Root, cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sPath` | 输入 | 非空、根内相对 | 链接路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 目标文本（`xrtFree` 释放） | — |
+| `NULL` | 非链接或失败 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_NOT_FOUND`
+
+#### 范例
+
+[file/root_tour · 链接族](../../examples/file/root_tour/main.c) · 观察
+
+```c
+		sTarget = xrtRootLinkRead(Root, "xrt-root-tour-link");
+```
+
+
+### `xrtRootLinkCreate`
+
+在根内创建符号链接；链接目标按原文本保存，链接路径的父目录始终锚定。
+
+```c
+bool xrtRootLinkCreate(xroot Root, cstr sTarget,
+	cstr sLink, bool bDirectory);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sTarget` | 输入 | 非空 | 目标文本（不经根解析） |
+| `sLink` | 输入 | 非空、根内相对 | 链接路径 |
+| `bDirectory` | 输入 | — | 目标目录提示（Windows） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 链接已创建 | — |
+| `false` | 越界或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/root_tour · 链接族](../../examples/file/root_tour/main.c) · 观察
+
+```c
+	bOk = xrtRootLinkCreate(Root, "target.txt", "xrt-root-tour-link", false);
+```
+
+
+### `xrtRootLinkHard`
+
+在同一根内为普通文件创建硬链接，源和目标路径都经过根解析。
+
+```c
+bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sExisting` | 输入 | 非空、根内相对 | 已存在文件 |
+| `sLink` | 输入 | 非空、根内相对 | 新链接 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 硬链接已创建 | — |
+| `false` | 越界/跨卷或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/root_tour · 链接族](../../examples/file/root_tour/main.c) · 观察
+
+```c
+	bOk = xrtRootLinkHard(Root, "xrt-root-tour-target.tmp",
+```
+
+
+### `xrtRootFifoCreate`
+
+在根内创建 POSIX FIFO；不支持 FIFO 的平台返回 `XERR_UNSUPPORTED`。
+
+```c
+bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sPath` | 输入 | 非空、根内相对 | FIFO 路径 |
+| `iMode` | 输入 | 低 12 位 | POSIX 权限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | FIFO 已创建 | — |
+| `false` | Windows 必然失败 | `XERR_UNSUPPORTED`（Windows） |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_UNSUPPORTED` — Windows
+
+#### 范例
+
+[file/root_tour · 平台门控](../../examples/file/root_tour/main.c) · 观察
+
+```c
+	bOk = xrtRootFifoCreate(Root, "xrt-root-tour-fifo", 0600u);
+```
+
+
+### `xrtRootSetMode`
+
+在根内设置对象权限；跟随链接时仍由根解析器阻止越界。
+
+```c
+bool xrtRootSetMode(xroot Root, cstr sPath,
+	bool bFollowLink, uint32 iMode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Root` | 输入 | 非空 | 根对象 |
+| `sPath` | 输入 | 非空、根内相对 | 对象路径 |
+| `bFollowLink` | 输入 | — | 解析末级链接 |
+| `iMode` | 输入 | 八进制位 | POSIX 权限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 模式已设置 | — |
+| `false` | Windows 必然失败或越界 | `XERR_UNSUPPORTED`（Windows） |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_UNSUPPORTED` — Windows
+
+#### 范例
+
+[file/root_tour · 平台门控](../../examples/file/root_tour/main.c) · 观察
+
+```c
+	bOk = xrtRootSetMode(Root, "xrt-root-tour-target.tmp", true, 0600u);
+```
+
 
 ## 目录树
 
@@ -3314,6 +4075,115 @@ if ( !xrtFileTreeRemove("cache", true, &Stats) ) {
 	return false;
 }
 ```
+
+### `xrtTreeCopyOptionsInit`
+
+初始化树复制选项：目标必须不存在、保留符号链接、拒绝特殊对象。
+
+```c
+void xrtTreeCopyOptionsInit(xtreecopyoptions* pOptions);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOptions` | 输出 | 非空 | 接收默认选项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化，不失败 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[file/dir_tour · 高级树复制](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+		xrtTreeCopyOptionsInit(&Options);
+```
+
+
+### `xrtFileTreeCopy`
+
+使用高级选项复制目录树，统计成功时返回源树对象数量。
+
+```c
+bool xrtFileTreeCopy(cstr sSource, cstr sTarget,
+	const xtreecopyoptions* pOptions, xwalkstats* pStats);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sSource` | 输入 | 非空 | 源树根 |
+| `sTarget` | 输入 | 非空 | 目标路径（默认须不存在） |
+| `pOptions` | 输入 | 允许空 | 空 = 默认保守选项 |
+| `pStats` | 输出 | 可空 | 接收复制统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 整树已复制 | — |
+| `false` | 目标冲突或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_EXISTS` — 目标已存在且选项要求不存在
+
+#### 范例
+
+[file/dir_tour · 高级树复制](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+		if ( !xrtFileTreeCopy(sRoot, "xrt-dir-tour-copy", &Options, &Stats) ||
+```
+
+
+### `xrtFileTreeRemove`
+
+后序删除目录树；`bKeepRoot` 为真时只清空内容。
+
+```c
+bool xrtFileTreeRemove(cstr sPath, bool bKeepRoot,
+	xwalkstats* pStats);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 树根路径 |
+| `bKeepRoot` | 输入 | — | 保留根目录（等价只清空） |
+| `pStats` | 输出 | 可空 | 接收删除统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 整树（或内容）已删除 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 后序删除](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtFileTreeRemove(sRoot, true, &Stats) ) {
+```
+
 
 ## 错误域
 

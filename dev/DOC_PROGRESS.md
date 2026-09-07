@@ -22,7 +22,7 @@
 | 15 | environment.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；Lookup 的"不存在=成功+空输出"语义成文 |
 | 16 | error.md | 45 | **完成** | 45/45 全绿（G3 45 片段，2026-09-07）；错误族 26（含 SetErrorFormat）+ Core 并集附录 19；门禁工具补变参支持 |
 | 17 | executor.md | 10 | **完成** | 10/10 全绿（G3 10 片段，2026-09-07）；双门禁一次全绿 |
-| 18 | file.md | 97 | 进行中 [2/3 段] | 73/97 全绿（G3 73 片段）；余第 3 段遍历/树/链接/FIFO/根 24 |
+| 18 | file.md | 97 | **完成** | 97/97 全绿（G3 97 片段，2026-09-07）；三段：IO/文本 36 + 锁/映射/目录 37 + 遍历/链接/根 24 |
 | 19 | file_async.md | 34 | 待办 |  |
 | 20 | future.md | 104 | 待办 |  |
 | 21 | hash.md | 9 | 待办 |  |
@@ -351,3 +351,13 @@
   一次生成双门禁全绿（37 片段）。锚点：dir_tour 13 + io_tour 3 +
   lock/map/temp/dir_temp/link_tour/link/tree/directory。G1/G2
   余 24 = 第 3 段缺口。array 复验无回归。
+- 2026-09-07 file.md 第 3 段（24 节）完成，全文件达成
+  （97/97，G3 97 片段）：遍历 2（WalkOptionsInit 保守默认 +
+  FileWalk 回调空=纯统计）、树 3（TreeCopyOptionsInit 目标须
+  不存在/保留链接/拒特殊对象；TreeRemove 的 bKeepRoot=Clean
+  语义）、链接 4（Create 目录提示 Windows 必需、Delete 不跟随
+  目标、Read 返拥有文本）、FIFO 1（Windows UNSUPPORTED 门控）、
+  根 14（RootOpen 锚定真实目录 + 根内相对路径解析器阻止 ..
+  与绝对路径越界；RootPath 仅诊断不参与安全判断；Root 族
+  LinkCreate 目标文本不经根解析的对比语义）。两段连续一次
+  生成全绿（73+24 片段零返工）。五文件复验无回归。
