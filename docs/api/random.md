@@ -67,6 +67,151 @@ xrtSecureZero(sToken, 33);
 xrtFree(sToken);
 ```
 
+### `xrtSecureRandom`
+
+使用操作系统密码安全随机源填满缓冲；失败时清零整个输出。
+
+```c
+bool xrtSecureRandom(ptr pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输出 | 非空 | 接收缓冲 |
+| `iSize` | 输入 | > 0 | 缓冲字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已填满密码安全随机字节 | — |
+| `false` | 系统随机源失败，输出已清零 | `XERR_IO` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或长度为零
+- `XERR_IO` — 操作系统随机源读取失败
+
+#### 范例
+
+[random_secure](../../examples/math/random_secure/main.c) · 系统安全随机
+
+```c
+	if ( !xrtSecureRandom(arrId, sizeof(arrId)) ) {
+```
+
+### `xrtSecureText`
+
+使用操作系统安全随机源和自定义字母表写入随机文本并补零。
+
+```c
+bool xrtSecureText(xstrview Alphabet,
+	char* sOutput, size_t iCapacity, size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Alphabet` | 输入 | 借用、非空 | 字母表 |
+| `sOutput` | 输出 | 非空 | 输出缓冲 |
+| `iCapacity` | 输入 | > `iLength` | 容量，须含末尾零 |
+| `iLength` | 输入 | — | 文本长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补零 | — |
+| `false` | 失败 | `XERR_ARGUMENT` / `XERR_IO` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 字母表为空、容量不足或指针为空
+- `XERR_IO` — 操作系统随机源读取失败
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 安全随机文本
+
+```c
+	if ( !xrtSecureText(SV(sHex), TextA, sizeof(TextA), 8u) ||
+		!exampleInAlphabet(TextA, 8u, SV(sHex)) ) {
+```
+
+### `xrtSecureStringFrom`
+
+使用自定义字母表创建由 `xrtFree` 释放的密码安全随机字符串。
+
+```c
+str xrtSecureStringFrom(xstrview Alphabet, size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Alphabet` | 输入 | 借用、非空 | 字母表 |
+| `iLength` | 输入 | — | 字符串长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾字符串，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` / `XERR_IO` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 字母表为空或长度非法
+- `XERR_IO` — 系统随机源失败
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 安全随机字符串（自定义字母表）
+
+```c
+	sGenerated = xrtSecureStringFrom(SV(sHex), 8u);
+```
+
+### `xrtSecureString`
+
+使用 URL-safe 64 字符字母表创建密码安全随机字符串。
+
+```c
+str xrtSecureString(size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iLength` | 输入 | — | 字符串长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾字符串，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` / `XERR_IO` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 长度非法
+- `XERR_IO` — 系统随机源失败
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[random_secure_text](../../examples/math/random_secure_text/main.c) · 安全随机字符串
+
+```c
+	str sToken = xrtSecureString(32);   /* 32 字符 ≈ 192 位熵 */
+```
+
 ## 显式状态
 
 ### `xrng`
@@ -92,85 +237,9 @@ xrng Rng = XRT_RNG_INITIALIZER;
 
 静态初始化得到固定有效状态，适合无需自定义 seed 的确定性路径。多数程序仍应调用 `xrtRngSeed`，明确记录 seed 与 stream。
 
-### `xrtRngSeed`
-
-```c
-void xrtRngSeed(xrng* pRng, uint64 iSeed, uint64 iStream);
-```
-
-按 PCG 推荐过程初始化或重置状态。相同 seed、stream 和调用序列在支持的平台、指针宽度和编译器上产生相同结果。不同并行任务应使用不同 stream，不能只在共享状态上并发调用。
-
-PCG32 的增量由 `(stream << 1) | 1` 构造，因此 stream 的低 63 位标识序列，最高位不参与选择。需要自动分配流编号时，应在 `[0, 2^63)` 内生成唯一编号。
-
-空状态指针设置 `XERR_ARGUMENT`。成功后 guard 和奇数增量约束同时建立。
-
-### `xrtRng32` 与 `xrtRng64`
-
-```c
-uint32 xrtRng32(xrng* pRng);
-uint64 xrtRng64(xrng* pRng);
-```
-
-`xrtRng32` 保留旧版已经使用的 PCG XSH RR 32 位序列。`xrtRng64` 从同一状态连续取两个 32 位字，以第一次结果为低位、第二次结果为高位；不再要求调用方维护两个不相关状态。
-
-未初始化、被修改或增量为偶数的状态设置 `XERR_STATE`，返回零且不推进状态。
-
-### `xrtRngBytes`
-
-```c
-bool xrtRngBytes(xrng* pRng, ptr pData, size_t iSize);
-```
-
-按小端顺序展开连续 PCG32 结果，零分配填满任意长度缓冲。相同状态在不同 CPU 字节序上得到同样的字节序列；每四个输出字节消费一个 32 位结果，尾部不足四字节仍消费完整结果。空区间允许空指针且不推进状态，输出不能与 `xrng` 重叠。
-
-该接口用于可复现测试数据、模拟和非安全协议夹具；名字中的 `Bytes` 不代表密码安全。安全字节必须使用 `xrtSecureRandom`。
-
 ## 有界整数
 
-### `xrtRngBelow32` 与 `xrtRngBelow64`
-
-```c
-uint32 xrtRngBelow32(xrng* pRng, uint32 iBound);
-uint64 xrtRngBelow64(xrng* pRng, uint64 iBound);
-```
-
-使用拒绝采样生成 `[0, iBound)`，不会产生 `% iBound` 的模偏差。`iBound == 0` 设置 `XERR_ARGUMENT`，并保证状态不变。边界为 1 时结果恒为零。
-
-### `xrtRngRange`
-
-```c
-int64 xrtRngRange(xrng* pRng, int64 iMin, int64 iMax);
-```
-
-生成半开区间 `[iMin, iMax)`。这与 Python `randrange`、Go 的有界随机和常见容器下标语义一致，适合数组索引、采样和循环范围。必须满足 `iMin < iMax`；空区间或反向区间设置 `XERR_ARGUMENT`，状态不变。
-
-实现根据宽度选择 32 位或 64 位采样，完整覆盖跨零区间和接近 `INT64_MIN`、`INT64_MAX` 的区间，所有宽度计算都使用无溢出位模式运算。
-
-### `xrtRngRangeClosed`
-
-```c
-int64 xrtRngRangeClosed(xrng* pRng, int64 iMin, int64 iMax);
-```
-
-生成闭区间 `[iMin, iMax]`，适合骰子、离散等级和明确包含上界的业务规则。允许 `iMin == iMax`，并支持整个 `[INT64_MIN, INT64_MAX]` 域。反向区间设置 `XERR_ARGUMENT`，不会自动交换边界，以免把调用错误静默变成另一种业务语义。
-
-```c
-xrng Rng;
-
-xrtRngSeed(&Rng, 2026, 7);
-int64 iIndex = xrtRngRange(&Rng, 0, itemCount);
-int64 iDice = xrtRngRangeClosed(&Rng, 1, 6);
-```
-
 ## 单位实数
-
-### `xrtRngReal`
-
-```c
-double xrtRngReal(xrng* pRng);
-```
-
-使用一个 64 位随机字的高 53 位生成 `[0.0, 1.0)`，与双精度尾数能力匹配。结果可能为 0.0，永远小于 1.0。需要闭区间或其他分布时，调用方应在此均匀原语上构建明确算法。
 
 ## 数组洗牌
 
@@ -182,6 +251,497 @@ bool xrtRngShuffle(xrng* pRng,
 使用无偏有界采样执行原地 Fisher-Yates 洗牌，支持任意固定大小元素且不分配内存。函数先验证状态、空指针、元素大小、总字节数溢出和数组/状态重叠，再推进随机状态；失败时数组和状态都不变。空数组允许空指针并直接成功。
 
 这个原语承接旧文档中反复手写的洗牌与随机采样底座。抽取前 N 项可以先复制数据、调用 `xrtRngShuffle`，再读取前 N 项；权重采样和特定概率分布仍由上层按业务规则组合。
+
+### `xrtRngSeed`
+
+用 seed 和 stream 初始化或重置一个显式随机数状态。
+
+```c
+void xrtRngSeed(xrng* pRng, uint64 iSeed, uint64 iStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输出 | 非空 | 显式状态 |
+| `iSeed` | 输入 | — | 种子 |
+| `iStream` | 输入 | — | 流序号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 状态指针为空
+
+#### 范例
+
+[random](../../examples/math/random/main.c) · 初始化状态
+
+```c
+	xrtRngSeed(&Rng, 2026, 7);       /* 种子 2026，流 7 */
+```
+
+### `xrtRngReady`
+
+判断显式随机数状态是否已经初始化且内部约束自洽。
+
+```c
+bool xrtRngReady(const xrng* pRng)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 非空 | 显式状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否可用 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 状态自检
+
+```c
+	if ( !xrtRngReady(&RngA) ||
+		(xrtRngReady(NULL)) ) {
+```
+
+### `xrtRng32`
+
+从显式状态生成一个 32 位伪随机数。
+
+```c
+uint32 xrtRng32(xrng* pRng)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 32 位值 | 伪随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random](../../examples/math/random/main.c) · 32 位生成
+
+```c
+	printf("explicit: %u\n", (unsigned int)xrtRng32(&Rng));
+```
+
+### `xrtRng64`
+
+从同一个显式状态连续生成并组合一个 64 位伪随机数。
+
+```c
+uint64 xrtRng64(xrng* pRng)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 伪随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 64 位生成
+
+```c
+		if ( xrtRng64(&RngA) != xrtRng64(&RngB) ) {
+```
+
+### `xrtRngBytes`
+
+按稳定的小端字节顺序填充缓冲区；同一状态在所有平台产生相同结果。
+
+```c
+bool xrtRngBytes(xrng* pRng, ptr pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `pData` | 输出 | 非空 | 接收缓冲 |
+| `iSize` | 输入 | > 0 | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已填充 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 状态未初始化、缓冲为空或长度为零
+
+#### 范例
+
+[random](../../examples/math/random/main.c) · 字节填充
+
+```c
+	if ( !xrtRngBytes(&Rng, arrBytes, sizeof(arrBytes)) ||
+		 !xrtRngShuffle(&Rng, arrOrder,
+			sizeof(arrOrder) / sizeof(arrOrder[0]), sizeof(arrOrder[0])) ) {
+```
+
+### `xrtRngBelow32`
+
+无偏生成 `[0, iBound)` 内的 32 位整数。
+
+```c
+uint32 xrtRngBelow32(xrng* pRng, uint32 iBound)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `iBound` | 输入 | > 0 | 上界（不含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 32 位值 | 无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 32 位无偏上界
+
+```c
+		uint32 uA = xrtRngBelow32(&RngA, 100u);
+```
+
+### `xrtRngBelow64`
+
+无偏生成 `[0, iBound)` 内的 64 位整数。
+
+```c
+uint64 xrtRngBelow64(xrng* pRng, uint64 iBound)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `iBound` | 输入 | > 0 | 上界（不含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 64 位无偏上界
+
+```c
+			uint64 uA = xrtRngBelow64(&RngA,
+				UINT64_C(1000000));
+```
+
+### `xrtRngRange`
+
+无偏生成半开区间 `[iMin, iMax)` 内的整数。
+
+```c
+int64 xrtRngRange(xrng* pRng, int64 iMin, int64 iMax)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `iMin` | 输入 | — | 下界（含） |
+| `iMax` | 输入 | > `iMin` | 上界（不含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 区间内无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 半开区间
+
+```c
+		int64 iA = xrtRngRange(&RngA, -100, 100);
+```
+
+### `xrtRngRangeClosed`
+
+无偏生成闭区间 `[iMin, iMax]` 内的整数，包括完整 int64 域。
+
+```c
+int64 xrtRngRangeClosed(xrng* pRng, int64 iMin, int64 iMax)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `iMin` | 输入 | — | 下界（含） |
+| `iMax` | 输入 | >= `iMin` | 上界（含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 区间内无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random](../../examples/math/random/main.c) · 闭区间
+
+```c
+	printf("dice    : %lld\n", (long long)xrtRngRangeClosed(&Rng, 1, 6));
+```
+
+### `xrtRngReal`
+
+生成半开区间 `[0.0, 1.0)` 内具有 53 位精度的双精度数。
+
+```c
+double xrtRngReal(xrng* pRng)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| double | `[0.0, 1.0)` 内随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random](../../examples/math/random/main.c) · 单位实数
+
+```c
+	printf("real    : %.12f\n", xrtRngReal(&Rng));
+```
+
+### `xrtRngShuffle`
+
+使用 Fisher-Yates 算法原地打乱定长元素数组，不执行内存分配。
+
+```c
+bool xrtRngShuffle(xrng* pRng,
+	ptr pData, size_t iCount, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `pData` | 输入/输出 | 非空 | 元素数组 |
+| `iCount` | 输入 | — | 元素数量 |
+| `iItemSize` | 输入 | > 0 | 单元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已打乱 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_OVERFLOW` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — `iCount * iItemSize` 溢出
+- `XERR_STATE` — 状态未初始化
+
+#### 范例
+
+[random](../../examples/math/random/main.c) · 数组洗牌
+
+```c
+		 !xrtRngShuffle(&Rng, arrOrder,
+			sizeof(arrOrder) / sizeof(arrOrder[0]), sizeof(arrOrder[0])) ) {
+```
+
+### `xrtRngText`
+
+把可复现随机文本写入调用方缓冲区并补零。
+
+```c
+bool xrtRngText(xrng* pRng, xstrview Alphabet,
+	char* sOutput, size_t iCapacity, size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `Alphabet` | 输入 | 借用、非空 | 字母表 |
+| `sOutput` | 输出 | 非空 | 输出缓冲 |
+| `iCapacity` | 输入 | > `iLength` | 容量 |
+| `iLength` | 输入 | — | 文本长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补零 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 状态未初始化、字母表为空或容量不足
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 随机文本
+
+```c
+	if ( !xrtRngText(&RngA, SV(sHex), TextA, sizeof(TextA), 8u) ||
+		!xrtRngText(&RngB, SV(sHex), TextB, sizeof(TextB), 8u) ||
+		(memcmp(TextA, TextB, 8u) != 0) ||
+		!exampleInAlphabet(TextA, 8u, SV(sHex)) ) {
+```
+
+### `xrtRngStringFrom`
+
+使用自定义字母表创建由 `xrtFree` 释放的可复现随机字符串。
+
+```c
+str xrtRngStringFrom(xrng* pRng, xstrview Alphabet, size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `Alphabet` | 输入 | 借用、非空 | 字母表 |
+| `iLength` | 输入 | — | 字符串长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾字符串，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 状态未初始化或字母表为空
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 随机字符串（自定义字母表）
+
+```c
+	sGenerated = xrtRngStringFrom(&RngA, SV(sHex), 12u);
+```
+
+### `xrtRngString`
+
+使用 URL-safe 64 字符字母表创建可复现随机字符串。
+
+```c
+str xrtRngString(xrng* pRng, size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRng` | 输入 | 已初始化 | 显式状态 |
+| `iLength` | 输入 | — | 字符串长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾字符串，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 状态未初始化或长度非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[random_text](../../examples/math/random_text/main.c) · 随机字符串
+
+```c
+	sText = xrtRngString(&Rng, 24);
+```
 
 ## 当前线程便捷层
 
@@ -234,6 +794,716 @@ int64 iChoice = xrtRandRange(0, 10);
 - 原来的区间函数同时承担“自动交换边界”和“闭区间”两种隐藏规则；现在半开与闭区间分名表达，反向边界明确失败。
 - 修复完整 32 位闭区间宽度转换为零后执行除零的问题，并把范围扩展到完整 `int64`。
 - 删除普通伪随机数可生成安全 UUID/GUID 的旧文档建议。
+
+### `xrtRandSeed`
+
+重置当前线程的快速伪随机数状态；与 `xrtFastRand*` 别名族共享同一线程状态。
+
+```c
+void xrtRandSeed(uint64 iSeed, uint64 iStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iSeed` | 输入 | — | 种子 |
+| `iStream` | 输入 | — | 流序号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已重置 | — |
+
+#### 错误
+
+- 无 — 重置不失败
+
+#### 范例
+
+[thread_random](../../examples/math/thread_random/main.c) · 重置线程状态
+
+```c
+	xrtRandSeed(2026, 7);             /* 重置本线程状态 → 序列可复现 */
+```
+
+### `xrtRand32`
+
+从当前线程状态生成一个非密码学 32 位伪随机数。
+
+```c
+uint32 xrtRand32(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 32 位值 | 伪随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[thread_random](../../examples/math/thread_random/main.c) · 32 位生成
+
+```c
+	printf("value: %u\n", (unsigned int)xrtRand32());
+```
+
+### `xrtRand64`
+
+从当前线程状态生成一个非密码学 64 位伪随机数。
+
+```c
+uint64 xrtRand64(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 伪随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 64 位生成
+
+```c
+	(void)xrtRand64();
+```
+
+### `xrtRandBytes`
+
+使用当前线程非密码学随机状态按稳定的小端顺序填充字节。
+
+```c
+bool xrtRandBytes(ptr pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输出 | 非空 | 接收缓冲 |
+| `iSize` | 输入 | > 0 | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已填充 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 缓冲为空或长度为零
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 字节填充
+
+```c
+	if ( !xrtRandBytes(Buffer, sizeof(Buffer)) ) {
+```
+
+### `xrtRandBelow`
+
+从当前线程状态无偏生成 `[0, iBound)` 内的整数。
+
+```c
+uint64 xrtRandBelow(uint64 iBound)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iBound` | 输入 | > 0 | 上界（不含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 无偏上界
+
+```c
+	if ( (xrtRandBelow(10u) >= 10u) ||
+		(xrtRandBelow(1u) != 0u) ) {
+```
+
+### `xrtRandRange`
+
+从当前线程状态无偏生成半开区间 `[iMin, iMax)` 内的整数。
+
+```c
+int64 xrtRandRange(int64 iMin, int64 iMax)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iMin` | 输入 | — | 下界（含） |
+| `iMax` | 输入 | > `iMin` | 上界（不含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 区间内无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 半开区间
+
+```c
+			iMax = xrtRandRange(-5, 5);
+```
+
+### `xrtRandRangeClosed`
+
+从当前线程状态无偏生成闭区间 `[iMin, iMax]` 内的整数。
+
+```c
+int64 xrtRandRangeClosed(int64 iMin, int64 iMax)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iMin` | 输入 | — | 下界（含） |
+| `iMax` | 输入 | >= `iMin` | 上界（含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 区间内无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[thread_random](../../examples/math/thread_random/main.c) · 闭区间
+
+```c
+	printf("dice : %lld\n", (long long)xrtRandRangeClosed(1, 6));
+```
+
+### `xrtRandReal`
+
+从当前线程状态生成 `[0.0, 1.0)` 内的双精度数。
+
+```c
+double xrtRandReal(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| double | `[0.0, 1.0)` 内随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[thread_random](../../examples/math/thread_random/main.c) · 单位实数
+
+```c
+	printf("real : %.12f\n", xrtRandReal());
+```
+
+### `xrtRandShuffle`
+
+使用当前线程随机状态原地打乱定长元素数组。
+
+```c
+bool xrtRandShuffle(ptr pData, size_t iCount, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入/输出 | 非空 | 元素数组 |
+| `iCount` | 输入 | — | 元素数量 |
+| `iItemSize` | 输入 | > 0 | 单元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已打乱 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_OVERFLOW` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 尺寸乘法溢出
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 数组洗牌
+
+```c
+		if ( !xrtRandShuffle(Numbers, 6u, sizeof(int)) ) {
+```
+
+### `xrtRandText`
+
+使用当前线程随机状态把文本写入调用方缓冲区并补零。
+
+```c
+bool xrtRandText(xstrview Alphabet,
+	char* sOutput, size_t iCapacity, size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Alphabet` | 输入 | 借用、非空 | 字母表 |
+| `sOutput` | 输出 | 非空 | 输出缓冲 |
+| `iCapacity` | 输入 | > `iLength` | 容量 |
+| `iLength` | 输入 | — | 文本长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补零 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 字母表为空、容量不足或指针为空
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 随机文本
+
+```c
+	if ( !xrtRandText(SV(sHex), TextA, sizeof(TextA), 8u) ||
+		!exampleInAlphabet(TextA, 8u, SV(sHex)) ) {
+```
+
+### `xrtRandStringFrom`
+
+使用当前线程随机状态和自定义字母表创建随机字符串。
+
+```c
+str xrtRandStringFrom(xstrview Alphabet, size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Alphabet` | 输入 | 借用、非空 | 字母表 |
+| `iLength` | 输入 | — | 字符串长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾字符串，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 字母表为空或长度非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 随机字符串（自定义字母表）
+
+```c
+	sGenerated = xrtRandStringFrom(SV(sHex), 16u);
+```
+
+### `xrtRandString`
+
+使用当前线程随机状态和默认字母表创建随机字符串。
+
+```c
+str xrtRandString(size_t iLength)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iLength` | 输入 | — | 字符串长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾字符串，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 长度非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 随机字符串
+
+```c
+	sGenerated = xrtRandString(12u);
+```
+
+### `xrtFastRandSeed`
+
+重置当前线程的快速伪随机数状态；旧 `xrtRand*` 名称是本族的兼容别名。
+
+```c
+void xrtFastRandSeed(uint64 iSeed, uint64 iStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iSeed` | 输入 | — | 种子 |
+| `iStream` | 输入 | — | 流序号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已重置 | — |
+
+#### 错误
+
+- 无 — 重置不失败
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 重置线程状态
+
+```c
+	xrtFastRandSeed(12345u, 67890u);
+```
+
+### `xrtFastRand32`
+
+从当前线程状态生成一个非密码学 32 位伪随机数。
+
+```c
+uint32 xrtFastRand32(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 32 位值 | 伪随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 32 位生成
+
+```c
+	(void)xrtFastRand32();
+```
+
+### `xrtFastRand64`
+
+从当前线程状态生成一个非密码学 64 位伪随机数。
+
+```c
+uint64 xrtFastRand64(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 伪随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 64 位生成
+
+```c
+	(void)xrtFastRand64();
+```
+
+### `xrtFastRandBytes`
+
+使用当前线程非密码学随机状态按稳定的小端顺序填充字节。
+
+```c
+bool xrtFastRandBytes(ptr pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输出 | 非空 | 接收缓冲 |
+| `iSize` | 输入 | > 0 | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已填充 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 缓冲为空或长度为零
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 字节填充
+
+```c
+	if ( !xrtFastRandBytes(BytesA, sizeof(BytesA)) ) {
+```
+
+### `xrtFastRandBelow`
+
+从当前线程状态无偏生成 `[0, iBound)` 内的整数。
+
+```c
+uint64 xrtFastRandBelow(uint64 iBound)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iBound` | 输入 | > 0 | 上界（不含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 无偏上界
+
+```c
+		if ( (xrtFastRandBelow(7u) >= 7u) ||
+			(iRange < -3) || (iRange > 3) ||
+			(xrtFastRandRangeClosed(1, 1) != 1) ) {
+```
+
+### `xrtFastRandRange`
+
+从当前线程状态无偏生成半开区间 `[iMin, iMax)` 内的整数。
+
+```c
+int64 xrtFastRandRange(int64 iMin, int64 iMax)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iMin` | 输入 | — | 下界（含） |
+| `iMax` | 输入 | > `iMin` | 上界（不含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 区间内无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 半开区间
+
+```c
+		int64 iRange = xrtFastRandRange(-3, 3);
+```
+
+### `xrtFastRandRangeClosed`
+
+从当前线程状态无偏生成闭区间 `[iMin, iMax]` 内的整数。
+
+```c
+int64 xrtFastRandRangeClosed(int64 iMin, int64 iMax)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iMin` | 输入 | — | 下界（含） |
+| `iMax` | 输入 | >= `iMin` | 上界（含） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 64 位值 | 区间内无偏随机数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空、边界为零或区间为空
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 闭区间
+
+```c
+			(xrtFastRandRangeClosed(1, 1) != 1) ) {
+```
+
+### `xrtFastRandReal`
+
+从当前线程状态生成 `[0.0, 1.0)` 内的双精度数。
+
+```c
+double xrtFastRandReal(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| double | `[0.0, 1.0)` 内随机数 | — |
+
+#### 错误
+
+- 无错误设置约束 — 本族不是密码学安全随机源，绝不可用于密钥、nonce、token、会话标识或任何攻击者可以猜测的值
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 单位实数
+
+```c
+		double dReal = xrtFastRandReal();
+```
+
+### `xrtFastRandShuffle`
+
+使用当前线程随机状态原地打乱定长元素数组。
+
+```c
+bool xrtFastRandShuffle(ptr pData, size_t iCount, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入/输出 | 非空 | 元素数组 |
+| `iCount` | 输入 | — | 元素数量 |
+| `iItemSize` | 输入 | > 0 | 单元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已打乱 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_OVERFLOW` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 尺寸乘法溢出
+
+#### 范例
+
+[random_tour](../../examples/math/random_tour/main.c) · 数组洗牌
+
+```c
+		if ( !xrtFastRandShuffle(Numbers, 4u, sizeof(int)) ) {
+```
 
 ## 完整示例
 

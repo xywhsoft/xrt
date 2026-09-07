@@ -60,7 +60,7 @@
 | 53 | process.md | 37 | **完成** | 37/37 全绿（G3 37 片段，2026-09-07）；xrt.process 域 14 码（ARGUMENT..TERMINAL）入档；Read/Write int64 三态口径；Run 族 false=仅基础设施失败；manifest 补注册 tour |
 | 54 | proxy.md | 23 | **完成** | 23/23 全绿（G3 23 片段，2026-09-07）；对象 5 + 握手 10 + 拨号 8 三组；六域码（CONFIG/CREATE/LIMIT/PROTOCOL/CONNECT/UNSUPPORTED）；两状态机逐值成表；锚点 tour/socks5/dial |
 | 55 | queue.md | 46 | **完成** | 46/46 全绿（G3 46 片段，2026-09-07）；SPSC/MPSC/MPMC 三族 ×15 + Capacity；xqueueresult 四值与批量部分完成口径；CLOSED 弹出=关闭且排空；锚点 queue_tour + containers 三范例 |
-| 56 | random.md | 39 | 待办 |  |
+| 56 | random.md | 39 | **完成** | 39/39 全绿（G3 39 片段，2026-09-07）；安全 4 + 显式 14 + 线程默认 12 + Fast 别名 9 四组；非密码学安全警示逐节标注；Secure 失败清零输出；锚点 6 范例 |
 | 57 | regex.md | 54 | 待办 |  |
 | 58 | set.md | 34 | 待办 |  |
 | 59 | signal.md | 20 | 待办 |  |
@@ -669,4 +669,10 @@
   Batch 返回 {Result, Count} 允许部分完成；InitBuffer 外部环须 2 的幂。
   生成器加锚点回退（SPSC Batch 真实调用在 tour 而非 containers）。
   完成 API 2250→2296/3664（62.7%），55/79 文件。
+- 2026-09-07 random.md 完成（39/39，G3 39 片段全绿）：错误码对照
+  src/math/random*.c——SecureRandom 系统源失败 = XERR_IO 且清零整个输出、
+  Shuffle 溢出 = XERR_OVERFLOW、Below/Range 零界/空区间 = XERR_ARGUMENT；
+  非密码学族逐节保留"不得用于密钥/nonce/token"警示；FastRand 为显式
+  别名族（旧 xrtRand* 兼容）。
+  完成 API 2296→2335/3664（63.7%），56/79 文件。
 
