@@ -82,7 +82,7 @@
 | 75 | wait.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；Deadline 三函数；NEVER 语义（Expired 永假、Remaining UINT64_MAX）；锚点 concurrency/deadline |
 | 76 | websocket.md | 104 | 待办 |  |
 | 77 | x509.md | 89 | 待办 |  |
-| 78 | xid.md | 11 | 待办 |  |
+| 78 | xid.md | 11 | **完成** | 11/11 全绿（G3 11 片段，2026-09-07）；生成/文本/时间比较三组；系统随机源 IO、Write 容量 33 字节、ErrorOffset 定位器；锚点 xid/xid_batch |
 | 79 | xson.md | 35 | 待办 |  |
 
 ## 记录
@@ -776,4 +776,9 @@
   API 求和 3041 = 记录值 3041/3664（83.0%）。结论：质量体系正常。
   剩余 6 文件中 tls(268) 为全任务最大，value(116)/websocket(104)/
   x509(89) 次之；xid(11)/xson(35) 为小文件。
+- 2026-09-07 xid.md 完成（11/11，G3 11 片段全绿）：三组；Make 族
+  系统安全随机源失败 = XERR_IO、Write 容量不足 = RANGE（须 33 字节）、
+  Parse 失败不改输出且字节位置可由 ErrorOffset 读取、Compare/Equal/
+  IsZero 纯比较不设错。
+  完成 API 3041→3052/3664（83.4%），74/79 文件。
 

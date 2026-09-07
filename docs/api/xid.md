@@ -41,6 +41,78 @@ XID 模块生成 192 位分布式标识。它保留旧版 XRT 的 24 字节二�
 
 XID 用于唯一标识，不是身份验证令牌。虽然随机后缀来自安全随机源，文本仍公开生成时间，不应代替 session secret、CSRF token 或访问凭据。
 
+### `xrtXidMake`
+
+生成一个使用当前 Unix 微秒和 128 位系统安全随机数的 XID。
+
+```c
+bool xrtXidMake(xid* pXid)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pXid` | 输出 | 非空 | 接收 XID |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已生成 | — |
+| `false` | 系统随机源失败 | `XERR_IO` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 输出为空
+- `XERR_IO` — 系统安全随机源读取失败
+
+#### 范例
+
+[xid](../../examples/id/xid/main.c) · 生成
+
+```c
+	if ( !xrtXidMake(&Value) ||
+		 !xrtXidWrite(&Value, arrText, sizeof(arrText)) ||
+		 !xrtXidParse((xstrview){ arrText, XID_TEXT_SIZE }, &Parsed) ||
+		 !xrtXidTime(&Parsed, &iTime) ) {
+```
+
+### `xrtXidMakeMany`
+
+批量生成 XID，一次取得整批安全随机字节以降低系统调用成本。
+
+```c
+bool xrtXidMakeMany(xid* pXids, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pXids` | 输出 | 非空数组 | 接收 XID 数组 |
+| `iCount` | 输入 | > 0 | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 全部生成 | — |
+| `false` | 失败，输出内容不确定 | `XERR_IO` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或数量为零
+- `XERR_IO` — 系统安全随机源读取失败
+
+#### 范例
+
+[xid_batch](../../examples/id/xid_batch/main.c) · 批量生成
+
+```c
+	if ( !xrtXidMakeMany(Values, 4u) || xrtXidIsZero(&Values[0]) ) {
+```
+
 ## 文本
 
 `XID_TEXT_SIZE` 固定为 32，`XID_TEXT_CAPACITY` 是包含末尾零字节所需的 33 字节容量。字母表为：
@@ -55,11 +127,317 @@ XID 用于唯一标识，不是身份验证令牌。虽然随机后缀来自安�
 
 `xrtXidParse` 只接受完整 32 字节规范文本，不接受空白、填充、别名字母、截断或附加数据。解析失败不修改输出 `xid`。错误域为 `xrt.xid`，代码是 `XID_ERROR_FORMAT`；`xrtXidErrorOffset` 返回第一个非法字节、文本末尾或第一个多余字节的位置。
 
+### `xrtXidMakeString`
+
+生成一个由 `xrtFree` 释放的 32 字符 XID。
+
+```c
+str xrtXidMakeString(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾 XID 文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_IO` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_IO` — 系统安全随机源失败
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[xid_batch](../../examples/id/xid_batch/main.c) · 生成并格式化
+
+```c
+	sGenerated = xrtXidMakeString();
+```
+
+### `xrtXidWrite`
+
+把 XID 写为 32 字符有序 URL-safe 文本，并在末尾补零。
+
+```c
+bool xrtXidWrite(const xid* pXid, char* sOutput, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pXid` | 输入 | 非空 | 源 XID |
+| `sOutput` | 输出 | 非空 | 输出缓冲 |
+| `iCapacity` | 输入 | >= 33 | 容量，须含末尾零 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补零 | — |
+| `false` | 容量不足或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 容量小于 33 字节，不写半个结果
+
+#### 范例
+
+[xid](../../examples/id/xid/main.c) · 写入缓冲
+
+```c
+		 !xrtXidWrite(&Value, arrText, sizeof(arrText)) ||
+```
+
+### `xrtXidFormat`
+
+创建由 `xrtFree` 释放的 XID 文本。
+
+```c
+str xrtXidFormat(const xid* pXid)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pXid` | 输入 | 非空 | 源 XID |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾 XID 文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[xid_batch](../../examples/id/xid_batch/main.c) · 格式化
+
+```c
+	sFormatted = xrtXidFormat(&Values[0]);
+```
+
+### `xrtXidParse`
+
+严格解析完整的 32 字符 XID；失败时不修改输出值。
+
+```c
+bool xrtXidParse(xstrview Text, xid* pXid)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 32 字符文本 |
+| `pXid` | 输出 | 非空 | 接收 XID |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 文本非法 | `XERR_ARGUMENT` / `xrt.xid` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `xrt.xid` 域错误 — 长度不是 32 或含非法字符；字节位置可由 `xrtXidErrorOffset` 读取
+
+#### 范例
+
+[xid](../../examples/id/xid/main.c) · 解析
+
+```c
+		 !xrtXidParse((xstrview){ arrText, XID_TEXT_SIZE }, &Parsed) ||
+```
+
+### `xrtXidErrorOffset`
+
+从 `xrt.xid` 格式错误的机器数据中读取文本字节位置。
+
+```c
+bool xrtXidErrorOffset(const xerror* pError, size_t* pOffset)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pError` | 输入 | 非空、`xrt.xid` 域 | 解析错误 |
+| `pOffset` | 输出 | 非空 | 接收文本字节偏移 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出偏移 | — |
+| `false` | 错误不含位置数据 | 不设错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 无位置数据返回 `false` 且不设置错误
+
+#### 范例
+
+[xid_batch](../../examples/id/xid_batch/main.c) · 错误定位
+
+```c
+		 !xrtXidErrorOffset(xrtGetError(), &iOffset) ||
+```
+
 ## 时间与比较
 
 `xrtXidTime` 从固定前缀恢复 Unix 微秒，不访问系统时钟。任意 24 字节值都能按同一布局解释，因此二进制反序列化不需要额外“有效”标记。
 
 `xrtXidCompare` 返回负数、零或正数的规范三态结果，先比较时间前缀，再比较随机后缀。`xrtXidEqual` 比较全部 24 字节。空指针是参数错误；XID 是小型值类型，通常应直接嵌入结构或数组，而不是以可空堆对象表示。
+
+### `xrtXidTime`
+
+提取生成时间；任意 24 字节值都可以按稳定布局解释。
+
+```c
+bool xrtXidTime(const xid* pXid, xtime* pTime)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pXid` | 输入 | 非空 | 源 XID |
+| `pTime` | 输出 | 非空 | 接收生成时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 时间已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[xid](../../examples/id/xid/main.c) · 提取时间
+
+```c
+		 !xrtXidTime(&Parsed, &iTime) ) {
+```
+
+### `xrtXidCompare`
+
+按时间前缀和随机后缀执行三态字典序比较。
+
+```c
+int xrtXidCompare(const xid* pLeft, const xid* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | 左 XID |
+| `pRight` | 输入 | 非空 | 右 XID |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `< 0` / `0` / `> 0` | 比较结果 | — |
+
+#### 错误
+
+- 无 — 纯比较，不设置错误
+
+#### 范例
+
+[xid_batch](../../examples/id/xid_batch/main.c) · 三态比较
+
+```c
+	printf("batch order: %d\n", xrtXidCompare(&Values[0], &Values[1]));
+```
+
+### `xrtXidEqual`
+
+判断两个 XID 的全部 24 字节是否相同。
+
+```c
+bool xrtXidEqual(const xid* pLeft, const xid* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空 | 左 XID |
+| `pRight` | 输入 | 非空 | 右 XID |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否相同 | — |
+
+#### 错误
+
+- 无 — 纯比较，不设置错误
+
+#### 范例
+
+[xid_batch](../../examples/id/xid_batch/main.c) · 相等判断
+
+```c
+		 ) || !xrtXidEqual(&Values[0], &Parsed) ||
+```
+
+### `xrtXidIsZero`
+
+判断 XID 是否为全零值。
+
+```c
+bool xrtXidIsZero(const xid* pXid)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pXid` | 输入 | 非空 | 源 XID |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否全零 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[xid_batch](../../examples/id/xid_batch/main.c) · 全零判断
+
+```c
+	if ( !xrtXidMakeMany(Values, 4u) || xrtXidIsZero(&Values[0]) ) {
+```
 
 ## 示例
 
