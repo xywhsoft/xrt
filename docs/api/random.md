@@ -1,5 +1,20 @@
 # Random API
 
+## 类型与常量
+
+### `xrandomerror`
+
+操作系统安全随机源稳定错误代码。
+
+```c
+typedef enum xrandomerror {
+	XRANDOM_ERROR_SYSTEM = 1
+} xrandomerror;
+```
+
+| 值 | 语义 |
+|---|---|
+
 ## 设计契约
 
 XRT 把伪随机数分成两个可独立裁剪的层次：
