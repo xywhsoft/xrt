@@ -42,7 +42,7 @@
 
 ## 每阶段执行流程（模板引用此处）
 
-1. 读 `BOOK_SPEC.md`、本文件对应阶段行、金标准章（03/52）、`PROGRESS.md`。
+1. 读 `BOOK_SPEC.md`、本文件对应阶段行、金标准章（04/55）、`PROGRESS.md`。
 2. 列本阶段章节清单（含新增/拆分/合并），涉及新增时先更新 `order.json`
    并在 `wwwroot/book/index.html` 对应卷分组插入条目。
 3. 分批执行，每批 3–5 章：
@@ -67,7 +67,7 @@
 前置，按顺序完成，禁止跳过：
 1. 读 D:\GIT\xrt\docs\book\BOOK_SPEC.md —— 源格式规范与门禁红线
 2. 读 D:\GIT\xrt\docs\book\PHASES.md 中 P{n} 的阶段定义与执行流程
-3. 读金标准章 docs/book/03-error.md 与 docs/book/52-net-tcp.md，以其深度、结构、语气为基准
+3. 读金标准章 docs/book/04-error.md 与 docs/book/55-net-tcp.md，以其深度、结构、语气为基准
 4. 在 docs/book/PROGRESS.md 标记 P{n} 开始
 
 执行纪律（防漂移，逐条遵守）：

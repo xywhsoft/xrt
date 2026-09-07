@@ -675,6 +675,57 @@ def cmd_material(args):
 # build
 # ---------------------------------------------------------------------------
 
+def cmd_sync_index(args):
+    """按 order.json 同步 wwwroot/book/index.html：整卷重建章节列表（章号/顺序/徽章/缺失条目/卷范围）。"""
+    order = load_order(args.repo)
+    done = set()
+    for f in glob.glob(os.path.join(args.repo, "docs", "book", "*.md")):
+        m = re.match(r"^(\d+)-(.+)\.md$", os.path.basename(f))
+        if m:
+            done.add(m.group(2))
+    wip = set(x.strip() for x in args.wip.split(",")) if args.wip else set()
+
+    def badge_for(slug):
+        if slug in done:
+            return "done", "已完成"
+        if slug in wip:
+            return "wip", "重写中"
+        return "plan", "规划中"
+
+    path = os.path.join(args.wwwroot, "book", "index.html")
+    txt = io.open(path, encoding="utf-8").read()
+
+    li_re = re.compile(
+        r'<li class="book-ch ([\w-]+)"><a href="ch([\w-]+)\.html"><span class="ch-no">\d+</span>'
+        r'<span class="ch-title">[^<]*</span><span class="badge badge-[\w-]+">[^<]*</span></a></li>')
+
+    def vol_token(s):
+        m = re.match(r"(卷[一二三四五六七八九十]+)", s)
+        return m.group(1) if m else None
+
+    def fix_vol(m):
+        head = m.group(1)
+        vol_key = re.search(r"<h3>(卷[一二三四五六七八九十]+)", head)
+        if not vol_key:
+            return m.group(0)
+        key = vol_key.group(1)
+        items = [it for it in order if vol_token(it["volume"]) == key]
+        nums = [it["num"] for it in items]
+        lis = []
+        for it in items:
+            cls, label = badge_for(it["slug"])
+            lis.append('<li class="book-ch %s"><a href="ch%s.html"><span class="ch-no">%d</span>'
+                       '<span class="ch-title">%s</span><span class="badge badge-%s">%s</span></a></li>'
+                       % (cls, it["file"], it["num"], it["title"], cls, label))
+        head = re.sub(r"第\s*[\d–-]+\s*章", "第 %d–%d 章" % (min(nums), max(nums)), head)
+        return head + "\n      " + "\n      ".join(lis) + "\n    </ul>"
+
+    txt = re.sub(r'(<div class="book-vol-head">.*?</div>\s*<ul class="book-ch-list">)(.*?)</ul>',
+                 lambda m: fix_vol(m), txt, flags=re.S)
+    io.open(path, "w", encoding="utf-8", newline="\n").write(txt)
+    print("index.html 已同步（各卷列表按 order.json 重建）")
+
+
 def cmd_build(args):
     repo = args.repo
     www = args.wwwroot
@@ -856,12 +907,15 @@ def main():
     sub.add_parser("init-order")
     b = sub.add_parser("build")
     b.add_argument("--only")
+    s = sub.add_parser("sync-index")
+    s.add_argument("--wip", help="逗号分隔的重写中 slug 列表")
     m = sub.add_parser("material")
     m.add_argument("slug")
     args = ap.parse_args()
     args.repo = args.repo.replace("\\", "/")
     args.wwwroot = args.wwwroot.replace("\\", "/")
-    {"init-order": cmd_init_order, "build": cmd_build, "material": cmd_material}[args.cmd](args)
+    {"init-order": cmd_init_order, "build": cmd_build, "material": cmd_material,
+     "sync-index": cmd_sync_index}[args.cmd](args)
 
 
 if __name__ == "__main__":

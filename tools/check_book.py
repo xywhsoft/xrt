@@ -128,7 +128,7 @@ def metrics(ch, repo):
 # 校验
 # ---------------------------------------------------------------------------
 
-def validate(ch, path, repo, sym_map, order, wwwroot):
+def validate(ch, path, repo, sym_map, order, wwwroot, allow=()):
     fails = []
     warns = []
     fm = chapter_meta(ch)  # 缺字段直接抛
@@ -229,7 +229,7 @@ def validate(ch, path, repo, sym_map, order, wwwroot):
         for t in texts:
             t = URL_RE.sub(" ", t)
             for tok in IDENT_RE.findall(t):
-                if tok in BRAND_TOKENS:
+                if tok in BRAND_TOKENS or tok in allow:
                     continue
                 if re.match(r"^xrt[A-Z]", tok) or re.match(r"^X[A-Z0-9_]{2,}$", tok) \
                         or re.match(r"^x[a-z]\w{2,}$", tok):
@@ -277,7 +277,19 @@ def normalize_out(s):
     return s
 
 
-BRAND_TOKENS = {"XRT"}  # 项目名出现在正文是正常的，不是 API 标识符
+BRAND_TOKENS = {"XRT", "XSON", "JSON", "HTTP", "TLS", "SSE", "DNS", "API", "CMake",
+                "xhttp", "xws", "xmail", "xssh", "xruntime"}  # 产品/协议名，非 API 标识符
+
+# 用户侧集成宏：XRT_IMPLEMENTATION 与被 features.h 消费的 XRT_MODULE_* 选择宏
+# （库里只 #if defined(...) 消费、不定义它们，故不在声明符号表中）
+USER_MACROS = {"XRT_IMPLEMENTATION", "XRT_MODULE_", "XRT_FEATURE_"}
+
+
+def collect_user_macros(repo):
+    import io as _io
+    src = _io.open(os.path.join(repo, "include", "xrt", "features.h"),
+                   encoding="utf-8", errors="replace").read()
+    return set(re.findall(r"\bXRT_MODULE_[A-Z0-9_]+", src))
 
 
 # ---------------------------------------------------------------------------
@@ -287,6 +299,7 @@ BRAND_TOKENS = {"XRT"}  # 项目名出现在正文是正常的，不是 API 标�
 def cmd_check(args, repo, wwwroot):
     order = json.load(io.open(os.path.join(repo, "docs", "book", "order.json"), encoding="utf-8"))
     sym_map, _, _ = scan_all_headers(repo)
+    allow = USER_MACROS | collect_user_macros(repo)
     any_fail = False
     rows = []
     for num, path in iter_sources(repo):
@@ -295,7 +308,7 @@ def cmd_check(args, repo, wwwroot):
         try:
             ch = Chapter(path)
             chapter_meta(ch)
-            fails, warns, m = validate(ch, path, repo, sym_map, order, wwwroot)
+            fails, warns, m = validate(ch, path, repo, sym_map, order, wwwroot, allow)
         except ValueError as ex:
             fails, warns, m = [str(ex)], [], {"prose": 0, "programs": 0, "terms": 0, "diagrams": 0,
                                               "pits": 0, "pit_pairs": 0, "exercises": 0, "prog_without_term": 0}

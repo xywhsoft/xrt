@@ -1,5 +1,5 @@
 ---
-num: 52
+num: 55
 slug: net-tcp
 title: TCP 流（上）：连接与读写
 volume: 卷七 网络
@@ -10,7 +10,7 @@ api: tcp, tcp_server, net
 
 ## 导读
 
-第 48～51 章解决了"地址从哪来"——解析、端口、缓冲与 DNS。本章开始真正传输数据：建立 Engine、监听端口、发起连接、收发字节，最后干净地关闭一切。TCP 模块是后面所有内容的地基——第 53 章的背压与服务端形态、卷八的 TLS、卷九的 HTTP，全部构建在 `xnetstream` 这一个对象之上。本章先掌握两个面：阻塞的同步面（工具程序的最少代码路径）与事件回调面（生产服务的骨架），并把"状态机"和"关闭时序"这两件最容易出错的事彻底讲清楚。
+第 51～54 章解决了"地址从哪来"——解析、端口、缓冲与 DNS。本章开始真正传输数据：建立 Engine、监听端口、发起连接、收发字节，最后干净地关闭一切。TCP 模块是后面所有内容的地基——第 56 章的背压与服务端形态、卷八的 TLS、卷九的 HTTP，全部构建在 `xnetstream` 这一个对象之上。本章先掌握两个面：阻塞的同步面（工具程序的最少代码路径）与事件回调面（生产服务的骨架），并把"状态机"和"关闭时序"这两件最容易出错的事彻底讲清楚。
 
 ## 引入
 
@@ -22,7 +22,7 @@ XRT 的 TCP 层把这些坑内建成了对象契约：流有明确的状态机�
 
 ### 三个对象，一台发动机
 
-- **`xnetengine`**：网络引擎。管理平台事件后端（IOCP / epoll / kqueue / io_uring）与一组 Worker 线程，所有 Listener 和 Stream 都挂在某个 Engine 上工作。配置里 `Workers` 指定线程数。Worker 数量的经验值：工具程序与单元测试 1～2 个即可——Engine 的线程只做事件分发与回调，不承载业务计算；服务端的容量规划（Worker 数、队列深度、背压水位）是第 53 章的主题。多个 Engine 可以共存，但本章与后续章节的惯例是一个进程一个 Engine。
+- **`xnetengine`**：网络引擎。管理平台事件后端（IOCP / epoll / kqueue / io_uring）与一组 Worker 线程，所有 Listener 和 Stream 都挂在某个 Engine 上工作。配置里 `Workers` 指定线程数。Worker 数量的经验值：工具程序与单元测试 1～2 个即可——Engine 的线程只做事件分发与回调，不承载业务计算；服务端的容量规划（Worker 数、队列深度、背压水位）是第 56 章的主题。多个 Engine 可以共存，但本章与后续章节的惯例是一个进程一个 Engine。
 - **`xnetlistener`**：监听器。绑定地址（端口填 0 表示让系统分配），接受接入连接。
 - **`xnetstream`**：流。一条 TCP 连接的读写面，客户端与服务端各自持有一条。
 
@@ -71,7 +71,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/network/tcp_
 received: hello
 ```
 
-**刚才发生了什么。** 六个节点值得注意。① `Workers = 2`——工具程序给两个 Worker 就够，Engine 本身不做业务。② 监听地址用 `xrtNetAddrLoopback` 生成回环地址，**端口填 0**，随后 `xrtNetListenerLocal` 取回系统分配的真实端口——这是并发测试不互相冲突的标准姿势。③ 客户端 `xrtNetStreamConnect` 的第 3 个参数 `1` 是地址数量；同步面下连接由 Engine 在后台完成。④ `xrtNetListenerAcceptWait` 带一个 `xrtDeadlineAfter` 截止时间，到点没连接就返回 `NULL` 并在线程错误槽留下超时类别（第 3 章的模型在这里兑现）。⑤ `xrtNetStreamRecv` 返回**拥有式**的 `xnetbytes`，用 `xrtNetBytesView` 借出视图读取，读完 `xrtNetBytesDestroy` 释放。⑥ 收尾段先 `Abort` 两条流与监听器，**自旋等三者都到 `CLOSED`**，再逐个 `Destroy`，最后 `xrtNetEngineDestroy`。
+**刚才发生了什么。** 六个节点值得注意。① `Workers = 2`——工具程序给两个 Worker 就够，Engine 本身不做业务。② 监听地址用 `xrtNetAddrLoopback` 生成回环地址，**端口填 0**，随后 `xrtNetListenerLocal` 取回系统分配的真实端口——这是并发测试不互相冲突的标准姿势。③ 客户端 `xrtNetStreamConnect` 的第 3 个参数 `1` 是地址数量；同步面下连接由 Engine 在后台完成。④ `xrtNetListenerAcceptWait` 带一个 `xrtDeadlineAfter` 截止时间，到点没连接就返回 `NULL` 并在线程错误槽留下超时类别（第 4 章的模型在这里兑现）。⑤ `xrtNetStreamRecv` 返回**拥有式**的 `xnetbytes`，用 `xrtNetBytesView` 借出视图读取，读完 `xrtNetBytesDestroy` 释放。⑥ 收尾段先 `Abort` 两条流与监听器，**自旋等三者都到 `CLOSED`**，再逐个 `Destroy`，最后 `xrtNetEngineDestroy`。
 
 ### 事件面完整形态：回调驱动的回显服务
 
@@ -86,7 +86,7 @@ listening on 127.0.0.1:52173
 reply: hello TCP
 ```
 
-**事件面的三个要点。** ① `Accept` 回调接管每一条新连接：调用 `xrtNetStreamSetData` 把业务上下文挂到流上，之后所有回调都能取回，不必自己维护"流→上下文"映射。② 服务端 `Read` 回调里直接 `xrtNetStreamSendBuffer` 把接收缓冲**引用移交**回去——数据从接收缓冲到发送队列零拷贝，这是回显类服务的正确写法；客户端 `Read` 则演示普通读取（`xrtNetBufRead` 拷贝到栈缓冲）。③ `Close` 回调是唯一终态通知：参数里的 `xnetresult` 与错误对象区分"正常关闭"与"出错关闭"，示例只对干净关闭计数。回调运行在 Engine 的 Worker 线程上，主线程用原子计数与截止时间观察进度——第 53 章会把这里的等待升级成正经的同步原语与背压控制。
+**事件面的三个要点。** ① `Accept` 回调接管每一条新连接：调用 `xrtNetStreamSetData` 把业务上下文挂到流上，之后所有回调都能取回，不必自己维护"流→上下文"映射。② 服务端 `Read` 回调里直接 `xrtNetStreamSendBuffer` 把接收缓冲**引用移交**回去——数据从接收缓冲到发送队列零拷贝，这是回显类服务的正确写法；客户端 `Read` 则演示普通读取（`xrtNetBufRead` 拷贝到栈缓冲）。③ `Close` 回调是唯一终态通知：参数里的 `xnetresult` 与错误对象区分"正常关闭"与"出错关闭"，示例只对干净关闭计数。回调运行在 Engine 的 Worker 线程上，主线程用原子计数与截止时间观察进度——第 56 章会把这里的等待升级成正经的同步原语与背压控制。
 
 ## 契约
 
@@ -94,7 +94,7 @@ reply: hello TCP
 - **引用**：创建返回调用方引用；运行时持内部引用直到 `Close` 回调结束；先请求关闭、等 `CLOSED`、再 `Destroy`；`Ref` 可跨线程、不可复活。
 - **关闭**：`Close` 排空，`Abort` 立即；错误路径一律 `Abort`，正常路径让数据走完。
 - **线程**：事件回调在 Engine Worker 上执行；`Close` 回调可能仍在 Worker 上收尾，`xrtNetEngineDestroy` 会等待 Worker 正常退出。
-- **错误**：失败经返回值宣告（`NULL` / 非 `XNET_RESULT_OK`），详情在线程错误槽，类别与域沿用第 3 章模型。
+- **错误**：失败经返回值宣告（`NULL` / 非 `XNET_RESULT_OK`），详情在线程错误槽，类别与域沿用第 4 章模型。
 
 ## 避坑
 
@@ -121,7 +121,7 @@ xrtNetStreamDestroy(pStream);
 
 症状：长时间运行的程序内存持续增长；分配统计里 `xnetbytes` 只增不减。
 
-原因：`xrtNetStreamRecv` 返回的是**拥有式**字节结果，与第 11 章缓冲不同，它的生命周期完全归调用方。
+原因：`xrtNetStreamRecv` 返回的是**拥有式**字节结果，与第 14 章缓冲不同，它的生命周期完全归调用方。
 
 ```c bad
 xnetbytes* pBytes = xrtNetStreamRecv(pStream, 0, deadline, NULL);
@@ -155,7 +155,7 @@ if ( pBytes != NULL ) {
 
 ### 进阶：给接收加超时类别判断
 
-用更短的截止时间调用 `xrtNetListenerAcceptWait`，在超时分支用 `xrtErrorIs(xrtGetError(), XERR_TIMEOUT)` 判断并打印 `accept timeout`。提示：先确认函数宣告失败（返回 `NULL`）再读线程错误槽——这是第 3 章"坑 3"的实操。
+用更短的截止时间调用 `xrtNetListenerAcceptWait`，在超时分支用 `xrtErrorIs(xrtGetError(), XERR_TIMEOUT)` 判断并打印 `accept timeout`。提示：先确认函数宣告失败（返回 `NULL`）再读线程错误槽——这是第 4 章"坑 3"的实操。
 
 ### 挑战：写一个端口探测工具
 

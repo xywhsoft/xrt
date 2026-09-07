@@ -168,7 +168,7 @@ def scan_header(path):
                 syms.setdefault(name, ("type", flat))
             continue
         m = FN_RE.search(flat)
-        if m and flat.endswith(";"):
+        if m and (flat.endswith(";") or flat.rstrip().endswith("}")) and "typedef" not in flat:
             syms.setdefault(m.group(1), ("fn", flat))
     # 枚举常量: 在完整源码上扫（枚举体可能横跨多条“语句”）
     for m in ENUM_RE.finditer(src):
