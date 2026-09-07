@@ -81,7 +81,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/value/collections/main.c -l
 options=1 permissions=2
 ```
 
-**刚才发生了什么。** ① 对象合并 `Merge(默认, 用户, REPLACE)`：用户配置的 timeout 5 覆盖默认的 30——合并后 count 仍是 1，覆盖不增键。② 集合并集两条路：`Union` 产新集合与 `Merge` 就地并入，产物用 `SetEqual` 判等——两条路殊途同归。③ `IsDisjoint` 判断两集合不相交——权限检查的"有无交集"一步到位。④ 这两个操作合起来就是"默认配置 + 用户覆盖 + 权限合并"的配置层骨架，第 36 章模板与第 31 章 JSON 读出的值树都直接用它们。
+**刚才发生了什么。** ① 对象合并 `Merge(默认, 用户, REPLACE)`：用户配置的 timeout 5 覆盖默认的 30——合并后 count 仍是 1，覆盖不增键。② 集合并集两条路：`Union` 产新集合与 `Merge` 就地并入，产物用 `SetEqual` 判等——两条路殊途同归。③ `IsDisjoint` 判断两集合不相交——权限检查的"有无交集"一步到位。④ 这两个操作合起来就是"默认配置 + 用户覆盖 + 权限合并"的配置层骨架，第 37 章模板与第 31 章 JSON 读出的值树都直接用它们。
 
 ## 契约
 
