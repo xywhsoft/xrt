@@ -141,6 +141,168 @@ Stream，终态后归还目标 Worker 的统一小节点缓存；缓存总量由
 
 `ExclusiveAddress` 不能和 `ReuseAddress`、`ReusePort` 同时启用。`ReusePort` 是否可用仍由平台 Socket 层决定，失败会返回结构化错误。
 
+### `xrtNetStreamConfigInit`
+
+初始化 Stream 的自适应读取、背压和连接超时默认值。
+
+```c
+void xrtNetStreamConfigInit(xnetstreamconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · Stream 配置
+
+```c
+	xrtNetStreamConfigInit(&StreamConfig);
+```
+
+### `xrtNetListenConfigInit`
+
+初始化 IPv4 动态端口 Listener 及其默认 Stream 配置。
+
+```c
+void xrtNetListenConfigInit(xnetlistenconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · Listener 配置
+
+```c
+	xrtNetListenConfigInit(&ListenConfig);
+```
+
+### `xrtNetDialConfigInit`
+
+初始化双栈交错、总超时和单地址 Stream 的默认策略。
+
+```c
+void xrtNetDialConfigInit(xnetdialconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · Dial 配置
+
+```c
+	xrtNetDialConfigInit(&DialConfig);
+```
+
+### `xrtNetDialConfigValid`
+
+完整验证 Dial 策略及其嵌套 Stream 配置。
+
+```c
+bool xrtNetDialConfigValid(const xnetdialconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 待验证配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 配置自洽 | — |
+| `false` | 不自洽 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · Dial 配置校验
+
+```c
+	printf("dial-config: valid=%d", xrtNetDialConfigValid(&DialConfig) ?
+		1 : 0);
+```
+
+### `xrtNetServerConfigInit`
+
+初始化单 IPv4 动态端口、共享 Listener 和有界 Accept 队列。
+
+```c
+void xrtNetServerConfigInit(xnetserverconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tcp_server](../../examples/network/tcp_server/main.c) · Server 配置
+
+```c
+	xrtNetServerConfigInit(&ServerConfig);
+```
+
 ## 连接与监听
 
 ```c
@@ -176,6 +338,541 @@ xnetstream* xrtNetListenerAccept(xnetlistener* pListener);
 
 `xrtNetListen` 的 `pData` 只属于 Listener。拉取接受得到的 Stream 不继承该指针；调用方可以继续使用拉取接收，或在 Stream 所属 Worker 上调用 `xrtNetStreamSetEvents`，为每条连接安装独立事件和数据。推送模式也应在 `Accept` 回调中完成同样的每连接接管。
 
+### `xrtNetStreamConnect`
+
+在指定 Worker 上连接数字地址并创建 Stream。
+
+```c
+xnetstream* xrtNetStreamConnect(xnetengine* pEngine, const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pConfig, const xnetstreamevents* pEvents, ptr pData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pRemote` | 输入 | 非空 | 远端地址 |
+| `iAffinity` | 输入 | — | 亲和 Worker 标识 |
+| `pConfig` | 输入 | 允许空 | Stream 配置 |
+| `pEvents` | 输入 | 允许空 | 事件表 |
+| `pData` | 输入 | 任意值 | 用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Stream（引用 1） | — |
+| `NULL` | 创建或连接失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` 域错误 — DNS 解析、连接或监听失败（`XNET_ERROR_DNS_*`、`SOCKET_CONNECT/LISTEN/BIND` 等），系统错误保留在原因链
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 数字地址连接
+
+```c
+	Example.Client = xrtNetStreamConnect(
+		pEngine,
+		&Address,
+		1,
+		NULL,
+		&StreamEvents,
+		&Example
+	);
+```
+
+### `xrtNetListen`
+
+同步完成创建、选项、绑定和监听，再异步预投递 Accept。
+
+```c
+xnetlistener* xrtNetListen(xnetengine* pEngine, const xnetlistenconfig* pConfig, const xnetlistenerevents* pEvents, const xnetstreamevents* pStreamEvents, ptr pData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pConfig` | 输入 | 非空 | 监听配置 |
+| `pEvents` | 输入 | 允许空 | Listener 事件表 |
+| `pStreamEvents` | 输入 | 允许空 | Stream 事件表 |
+| `pData` | 输入 | 任意值 | 用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Listener（引用 1） | — |
+| `NULL` | 创建失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` 域错误 — DNS 解析、连接或监听失败（`XNET_ERROR_DNS_*`、`SOCKET_CONNECT/LISTEN/BIND` 等），系统错误保留在原因链
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 开始监听
+
+```c
+	pListener = xrtNetListen(
+		pEngine,
+		&ListenConfig,
+		&ListenerEvents,
+		&StreamEvents,
+		&Example
+	);
+```
+
+### `xrtNetStreamRef`
+
+线程安全地增加 Stream 引用；无效计数或溢出时返回空。
+
+```c
+xnetstream* xrtNetStreamRef(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 计数无效 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_dial](../../examples/network/tcp_dial/main.c) · Stream 共享引用
+
+```c
+	Context.Client = xrtNetStreamRef(
+		(xnetstream*)xrtFutureValue(pDial)
+	);
+```
+
+### `xrtNetStreamDestroy`
+
+释放 Stream 引用；空指针视为空操作。
+
+```c
+void xrtNetStreamDestroy(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · Stream 释放
+
+```c
+	xrtNetStreamDestroy(Example.Client);
+```
+
+### `xrtNetListenerRef`
+
+线程安全地增加 Listener 引用；无效计数或溢出时返回空。
+
+```c
+xnetlistener* xrtNetListenerRef(xnetlistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 计数无效 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · Listener 共享引用
+
+```c
+	pListenerRef = xrtNetListenerRef(pListener);
+```
+
+### `xrtNetListenerDestroy`
+
+释放 Listener 引用；关闭操作必须另行请求。
+
+```c
+void xrtNetListenerDestroy(xnetlistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · Listener 释放
+
+```c
+	xrtNetListenerDestroy(pListener);
+```
+
+### `xrtNetListenerClose`
+
+请求停止接受新连接并排空在途 Accept。
+
+```c
+bool xrtNetListenerClose(xnetlistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已请求关闭 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 关闭监听
+
+```c
+	(void)xrtNetListenerClose(pListener);
+```
+
+### `xrtNetListenerState`
+
+返回 Listener 当前状态的并发快照。
+
+```c
+xnetlistenerstate xrtNetListenerState(const xnetlistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 状态枚举值 | 当前生命周期状态 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · Listener 状态
+
+```c
+	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
+```
+
+### `xrtNetListenerStats`
+
+复制 Listener 并发统计。
+
+```c
+bool xrtNetListenerStats(const xnetlistener* pListener, xnetlistenerstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+| `pStats` | 输出 | 非空 | 接收统计快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · Listener 统计
+
+```c
+		 !xrtNetListenerStats(pListener, &ListenStats) ||
+```
+
+### `xrtNetListenerLocal`
+
+复制 Listener 实际绑定地址，支持查询动态端口。
+
+```c
+bool xrtNetListenerLocal(const xnetlistener* pListener, xnetaddr* pAddress)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+| `pAddress` | 输出 | 非空 | 接收地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 地址已复制 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 绑定地址
+
+```c
+		 !xrtNetListenerLocal(pListener, &Address) ) {
+```
+
+### `xrtNetListenerWorker`
+
+返回 Listener 所属的借用 Worker。
+
+```c
+xnetworker* xrtNetListenerWorker(const xnetlistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Worker 借用 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 所属 Worker
+
+```c
+		 (xrtNetListenerWorker(pListener) == NULL) ) {
+```
+
+### `xrtNetListenerData`
+
+返回创建时保存的 Listener 用户数据，不延长目标生命周期。
+
+```c
+ptr xrtNetListenerData(const xnetlistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 值 | 创建时传入的用户数据 | — |
+| `NULL` | 未设置 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 未设置返回 `NULL` 且不设置错误
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · Listener 数据
+
+```c
+	(void)xrtNetListenerData(pListener);
+```
+
+### `xrtNetListenerAccept`
+
+拉取模式下非阻塞取走一个已接受 Stream；空队列返回空指针，Stream 不继承 Listener 数据。
+
+```c
+xnetstream* xrtNetListenerAccept(xnetlistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 已接受 Stream（引用 1） | — |
+| `NULL` | 队列为空 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 空队列返回 `NULL` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 非阻塞接受
+
+```c
+		xnetstream* pStream = xrtNetListenerAccept(pListener);
+```
+
+### `xrtNetListenerAcceptAsync`
+
+拉取模式下异步接受一个连接；成功值由 Future 持有一个 Stream 引用。
+
+```c
+xfuture* xrtNetListenerAcceptAsync(xnetlistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Future，失败时完成并携带错误 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_future](../../examples/network/tcp_future/main.c) · 异步接受
+
+```c
+	pAccept = xrtNetListenerAcceptAsync(pListener);
+```
+
+### `xrtNetListenerAcceptWait`
+
+阻塞接受一个不继承 Listener 数据的连接并返回调用方引用；禁止从 Listener Worker 调用。
+
+```c
+xnetstream* xrtNetListenerAcceptWait(xnetlistener* pListener, xdeadline iDeadline, xcancel* pCancel)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 目标 Listener |
+| `iDeadline` | 输入 | — | 截止时间 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Stream（引用 1） | — |
+| `NULL` | 创建或连接失败 | `xrt.net` 域错误 |
+（超时/取消返回 `NULL` 不设错）
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 从 Listener 所属 Worker 调用
+- `xrt.net` 域错误 — DNS 解析、连接或监听失败（`XNET_ERROR_DNS_*`、`SOCKET_CONNECT/LISTEN/BIND` 等），系统错误保留在原因链
+
+#### 范例
+
+[tcp_dial_sync](../../examples/network/tcp_dial_sync/main.c) · 阻塞接受
+
+```c
+	pServer = xrtNetListenerAcceptWait(
+		pListener,
+		xrtDeadlineAfter(3000000u),
+		NULL
+	);
+```
+
 ## 文件区间发送
 
 ```c
@@ -200,6 +897,46 @@ Windows IOCP 使用异步 `TransmitFile`，Linux io_uring 在内核支持时使�
 
 该入口仅用于明文 TCP。TLS 必须把文件数据读入用户态完成加密，HTTP/TLS 组合层应
 选择异步文件正文路径，不能把明文 `sendfile` 绕过加密层。
+
+### `xrtNetStreamSendFile`
+
+把文件区间提交到发送队列；数据在队列排空前不得关闭文件。
+
+```c
+xnetresult xrtNetStreamSendFile(xnetstream* pStream, xfile File, uint64 iOffset, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `File` | 输入 | 非空 | 已打开文件 |
+| `iOffset` | 输入 | — | 起始偏移 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_OK` | 已受理 | — |
+| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
+| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_AGAIN` — 占用字节数达到 `WriteLimit`
+- `XERR_STATE` — Stream 非开放状态
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 文件区间发送
+
+```c
+		 (xrtNetStreamSendFile(pClient, File, 0, 10) !=
+		  XNET_RESULT_OK) ) {
+```
 
 ## TCP Server
 
@@ -268,6 +1005,498 @@ FIFO；启用 `XRT_FEATURE_NET_TCP_SERVER_SYNC` 后，`xrtNetServerAcceptWait` �
 `examples/network/tcp_server/main.c`，双端点、reuse-port、关闭重入、队列溢出、
 OOM、Future、同步和单头真实收发均有独立回归测试。
 
+### `xrtNetServerStart`
+
+按配置在 Engine 上启动多端点 TCP Server。
+
+```c
+xnetserver* xrtNetServerStart(xnetengine* pEngine, const xnetserverconfig* pConfig, const xnetserverevents* pEvents, const xnetstreamevents* pStreamEvents, ptr pData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pConfig` | 输入 | 非空 | Server 配置 |
+| `pEvents` | 输入 | 允许空 | Server 事件表 |
+| `pStreamEvents` | 输入 | 允许空 | Stream 事件表 |
+| `pData` | 输入 | 任意值 | 用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Server（引用 1） | — |
+| `NULL` | 启动失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` 域错误 — DNS 解析、连接或监听失败（`XNET_ERROR_DNS_*`、`SOCKET_CONNECT/LISTEN/BIND` 等），系统错误保留在原因链
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_server](../../examples/network/tcp_server/main.c) · 启动 Server
+
+```c
+	pServer = xrtNetServerStart(
+		pEngine,
+		&ServerConfig,
+		&ServerEvents,
+		&StreamEvents,
+		NULL
+	);
+```
+
+### `xrtNetServerRef`
+
+线程安全地增加 Server 引用；无效计数或溢出时返回空。
+
+```c
+xnetserver* xrtNetServerRef(xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 计数无效 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_server_tour](../../examples/network/tcp_server_tour/main.c) · 共享引用
+
+```c
+	pServerRef = xrtNetServerRef(pServer);
+```
+
+### `xrtNetServerDestroy`
+
+释放 Server 引用；不会隐式关闭仍在运行的 Server。
+
+```c
+void xrtNetServerDestroy(xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tcp_server](../../examples/network/tcp_server/main.c) · 释放引用
+
+```c
+	xrtNetServerDestroy(pServer);
+```
+
+### `xrtNetServerAccept`
+
+拉取模式下非阻塞取走一个已接受 Stream；空队列返回空指针。
+
+```c
+xnetstream* xrtNetServerAccept(xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 已接受 Stream（引用 1） | — |
+| `NULL` | 队列为空 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 空队列返回 `NULL` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tcp_server_tour](../../examples/network/tcp_server_tour/main.c) · 非阻塞接受
+
+```c
+			xnetstream* pOne = xrtNetServerAccept(pServer);
+```
+
+### `xrtNetServerAcceptAsync`
+
+拉取模式下异步接受一个连接；成功值由 Future 持有一个 Stream 引用。
+
+```c
+xfuture* xrtNetServerAcceptAsync(xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Future，失败时完成并携带错误 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_server_sync](../../examples/network/tcp_server_sync/main.c) · 异步接受
+
+```c
+	pAccept = xrtNetServerAcceptAsync(State.Server);
+```
+
+### `xrtNetServerAcceptWait`
+
+阻塞接受一个连接；禁止从任意 Engine Worker 调用。
+
+```c
+xnetstream* xrtNetServerAcceptWait(xnetserver* pServer, xdeadline iDeadline, xcancel* pCancel)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+| `iDeadline` | 输入 | — | 截止时间 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Stream（引用 1） | — |
+| `NULL` | 创建或连接失败 | `xrt.net` 域错误 |
+（超时/取消返回 `NULL` 不设错）
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 从 Engine Worker 调用
+- `xrt.net` 域错误 — DNS 解析、连接或监听失败（`XNET_ERROR_DNS_*`、`SOCKET_CONNECT/LISTEN/BIND` 等），系统错误保留在原因链
+
+#### 范例
+
+[tcp_server_sync](../../examples/network/tcp_server_sync/main.c) · 阻塞接受
+
+```c
+	State.AcceptedSync = xrtNetServerAcceptWait(
+		State.Server,
+		xrtDeadlineAfter(UINT64_C(5000000)),
+		NULL
+	);
+```
+
+### `xrtNetServerClose`
+
+原子停止全部 Listener，并丢弃尚未交给调用方的排队 Stream。
+
+```c
+bool xrtNetServerClose(xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已关闭 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_server](../../examples/network/tcp_server/main.c) · 关闭
+
+```c
+	(void)xrtNetServerClose(pServer);
+```
+
+### `xrtNetServerState`
+
+返回 Server 当前生命周期状态。
+
+```c
+xnetserverstate xrtNetServerState(const xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 状态枚举值 | 当前生命周期状态 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_server](../../examples/network/tcp_server/main.c) · 状态
+
+```c
+	while ( xrtNetServerState(pServer) != XNET_SERVER_CLOSED ) {
+```
+
+### `xrtNetServerEndpointCount`
+
+返回配置中的逻辑端点数量。
+
+```c
+size_t xrtNetServerEndpointCount(const xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 逻辑端点数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_server_tour](../../examples/network/tcp_server_tour/main.c) · 端点数量
+
+```c
+	if ( (xrtNetServerEndpointCount(pServer) != 2u) ||
+		 (xrtNetServerListenerCount(pServer) != 2u) ||
+		 !xrtNetServerLocal(pServer, 0, &Addr0) ||
+		 !xrtNetServerLocal(pServer, 1, &Addr1) ||
+		 (Addr0.Port == 0u) || (Addr0.Port != Addr1.Port) ) {
+```
+
+### `xrtNetServerLocal`
+
+复制指定逻辑端点的实际地址，支持共享动态端口。
+
+```c
+bool xrtNetServerLocal(const xnetserver* pServer, size_t iEndpoint, xnetaddr* pAddress)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+| `iEndpoint` | 输入 | < 端点数量 | 端点索引 |
+| `pAddress` | 输出 | 非空 | 接收地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 地址已复制 | — |
+| `false` | 索引越界或参数非法 | `XERR_RANGE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_RANGE` — 端点索引越界；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tcp_server](../../examples/network/tcp_server/main.c) · 端点地址
+
+```c
+		!xrtNetServerLocal(pServer, 0, &Address) ) {
+```
+
+### `xrtNetServerListenerCount`
+
+返回实际 Listener 数量；reuse-port 模式通常是端点数乘 Worker 数。
+
+```c
+size_t xrtNetServerListenerCount(const xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际 Listener 数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_server_tour](../../examples/network/tcp_server_tour/main.c) · Listener 数量
+
+```c
+		 (xrtNetServerListenerCount(pServer) != 2u) ||
+```
+
+### `xrtNetServerListener`
+
+返回借用 Listener；返回值只用于诊断，不参与引用计数。
+
+```c
+xnetlistener* xrtNetServerListener(xnetserver* pServer, size_t iListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+| `iListener` | 输入 | < Listener 数量 | 序号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Listener 借用 | — |
+| `NULL` | 序号越界 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_RANGE` — 序号越界；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tcp_server_tour](../../examples/network/tcp_server_tour/main.c) · Listener 借用
+
+```c
+	pListener0 = xrtNetServerListener(pServer, 0);
+```
+
+### `xrtNetServerData`
+
+返回创建时保存的用户数据，不延长目标生命周期。
+
+```c
+ptr xrtNetServerData(const xnetserver* pServer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 值 | 创建时传入的用户数据 | — |
+| `NULL` | 未设置 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 未设置返回 `NULL` 且不设置错误
+
+#### 范例
+
+[tcp_server_tour](../../examples/network/tcp_server_tour/main.c) · 用户数据
+
+```c
+		 (xrtNetServerData(pServer) != &g_Tag) ) {
+```
+
+### `xrtNetServerStats`
+
+复制 Server 并发统计。
+
+```c
+bool xrtNetServerStats(const xnetserver* pServer, xnetserverstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pServer` | 输入 | 非空 | 目标 Server |
+| `pStats` | 输出 | 非空 | 接收统计快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_server_tour](../../examples/network/tcp_server_tour/main.c) · 统计
+
+```c
+	if ( !xrtNetServerStats(pServer, &Stats) ||
+		 (Stats.Accepted < 2u) ||
+		 (xrtNetServerData(pServer) != &g_Tag) ) {
+```
+
 ## 托管主机连接
 
 启用 `XRT_FEATURE_NET_TCP_DIAL` 后，主机名解析和多地址连接策略作为独立裁剪层建立在 Resolver 与数字地址 TCP 之上：
@@ -335,6 +1564,352 @@ bool xrtNetDialStats(const xnetdial* pDial, xnetdialstats* pStats);
 
 统计包含可用地址数、已经启动和失败的候选数、当前/峰值并发数以及获胜索引。它是跨线程无锁快照，只有 `HasWinner == true` 时 `WinnerIndex` 才有效。多个计数字段不承诺来自同一个瞬间。
 
+### `xrtNetConnect`
+
+阻塞完成主机解析、候选竞速与连接，并返回调用方 Stream 引用。
+
+```c
+xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, uint16 iPort, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData, xdeadline iDeadline, xcancel* pCancel)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pResolver` | 输入 | 允许空 | 名称解析器 |
+| `sHost` | 输入 | 非空、零结尾 | 主机名 |
+| `iPort` | 输入 | — | 端口 |
+| `pConfig` | 输入 | 允许空 | Dial 配置 |
+| `pStreamEvents` | 输入 | 允许空 | Stream 事件表 |
+| `pStreamData` | 输入 | 任意值 | Stream 数据 |
+| `iDeadline` | 输入 | — | 截止时间 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Stream（引用 1） | — |
+| `NULL` | 创建或连接失败 | `xrt.net` 域错误 |
+（超时/取消返回 `NULL`）
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` 域错误 — DNS 解析、连接或监听失败（`XNET_ERROR_DNS_*`、`SOCKET_CONNECT/LISTEN/BIND` 等），系统错误保留在原因链
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_dial_sync](../../examples/network/tcp_dial_sync/main.c) · 阻塞主机连接
+
+```c
+	pClient = xrtNetConnect(
+		pEngine,
+		pResolver,
+		"local.example",
+		ExampleAddress.Port,
+		NULL,
+		NULL,
+		NULL,
+		xrtDeadlineAfter(3000000u),
+		NULL
+	);
+```
+
+### `xrtNetDial`
+
+发起托管主机拨号；成功时 Stream 引用转移给完成回调，非 Worker 提交者可能与回调并发。
+
+```c
+xnetdial* xrtNetDial(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, uint16 iPort, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData, xnetdialproc pDone, ptr pDoneData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pResolver` | 输入 | 允许空 | 名称解析器 |
+| `sHost` | 输入 | 非空、零结尾 | 主机名 |
+| `iPort` | 输入 | — | 端口 |
+| `pConfig` | 输入 | 允许空 | Dial 配置 |
+| `pStreamEvents` | 输入 | 允许空 | Stream 事件表 |
+| `pStreamData` | 输入 | 任意值 | Stream 数据 |
+| `pDone` | 输入 | 非空 | 完成回调 |
+| `pDoneData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Dial（引用 1） | — |
+| `NULL` | 提交失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` 域错误 — DNS 解析、连接或监听失败（`XNET_ERROR_DNS_*`、`SOCKET_CONNECT/LISTEN/BIND` 等），系统错误保留在原因链
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 托管拨号
+
+```c
+	pDial = xrtNetDial(pEngine, pResolver, "127.0.0.1", Address.Port,
+		&DialConfig, NULL, NULL, exampleDialDone, &Task);
+```
+
+### `xrtNetDialAsync`
+
+把托管连接包装为 Future；成功值是由 Future 持有的 Stream。
+
+```c
+xfuture* xrtNetDialAsync(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, uint16 iPort, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pResolver` | 输入 | 允许空 | 名称解析器 |
+| `sHost` | 输入 | 非空、零结尾 | 主机名 |
+| `iPort` | 输入 | — | 端口 |
+| `pConfig` | 输入 | 允许空 | Dial 配置 |
+| `pStreamEvents` | 输入 | 允许空 | Stream 事件表 |
+| `pStreamData` | 输入 | 任意值 | Stream 数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Future，失败时完成并携带错误 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_dial](../../examples/network/tcp_dial/main.c) · Future 拨号
+
+```c
+	pDial = xrtNetDialAsync(
+		pEngine,
+		pResolver,
+		"service.local",
+		Address.Port,
+		NULL,
+		&StreamEvents,
+		&Context
+	);
+```
+
+### `xrtNetDialRef`
+
+增加 Dial 引用并返回原指针。
+
+```c
+xnetdial* xrtNetDialRef(xnetdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标 Dial |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 共享引用
+
+```c
+		 (xrtNetDialRef(pDial) != pDial) ) {  /* 引用配对在收尾多一次 Destroy */
+```
+
+### `xrtNetDialDestroy`
+
+释放 Dial 引用；空指针视为空操作。
+
+```c
+void xrtNetDialDestroy(xnetdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 释放引用
+
+```c
+	xrtNetDialDestroy(pDial);
+```
+
+### `xrtNetDialCancel`
+
+原子争取取消终态；返回真后完成结果必为 `CANCELLED`。
+
+```c
+bool xrtNetDialCancel(xnetdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标 Dial |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 本次调用赢得取消权 | — |
+| `false` | 已终态或并发取消已被受理 | 不设错误 |
+
+#### 错误
+
+- 已终态或并发取消已被受理返回 `false` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 取消
+
+```c
+		bool bCancelled = xrtNetDialCancel(pCancelDial);
+```
+
+### `xrtNetDialState`
+
+返回 Dial 当前状态的原子快照。
+
+```c
+xnetdialstate xrtNetDialState(const xnetdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标 Dial |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 状态枚举值 | 当前拨号阶段或终态 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 状态
+
+```c
+	pTask->State = xrtNetDialState(pDial);
+```
+
+### `xrtNetDialError`
+
+失败或取消后返回借用的结构化错误，其他状态返回空指针。
+
+```c
+const xerror* xrtNetDialError(const xnetdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标 Dial |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 错误借用（存活到对象销毁） | — |
+| `NULL` | 进行中或已连接 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 无失败时返回 `NULL` 且不设置错误
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 错误
+
+```c
+	(void)xrtNetDialError(pBadDial);
+```
+
+### `xrtNetDialStats`
+
+取得解析地址、并发尝试和获胜地址的无锁统计快照。
+
+```c
+bool xrtNetDialStats(const xnetdial* pDial, xnetdialstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标 Dial |
+| `pStats` | 输出 | 非空 | 接收统计快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 统计
+
+```c
+	if ( !xrtNetDialStats(pDial, &DialStats) ||
+		 (DialStats.Addresses < 1u) ||
+		 (DialStats.AttemptsStarted < 1u) ||
+		 (DialStats.WinnerIndex != 0u) ) {
+```
+
 ## 发送与背压
 
 ```c
@@ -381,6 +1956,242 @@ size_t xrtNetStreamWritable(const xnetstream* pStream);
 
 `Pending` 返回当前已占用的发送预算，不等同于内核 Socket 缓冲字节数。成功短写或 completion 每确认一段前缀，值就按实际发送字节下降；外部 ref/take 的释放过程仍只在所属完整片段离队后调用。`WriteLimit` 返回创建时固定的发送硬上限，供上层协议判断一条原子输出是否永远能够容纳。`Writable` 返回 `WriteLimit - Pending` 的并发快照，供 HTTP、TLS 和自定义协议限制下一段输出；它只是观察值，实际受理结果始终以 `Send` 返回值为准。
 
+### `xrtNetStreamSend`
+
+有界复制发送；队列达到 `WriteLimit` 时返回 `AGAIN`。
+
+```c
+xnetresult xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pData` | 输入 | 非空 | 待发送数据 |
+| `iSize` | 输入 | > 0 | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_OK` | 已受理 | — |
+| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
+| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_AGAIN` — 占用字节数达到 `WriteLimit`
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 复制发送
+
+```c
+	if ( xrtNetStreamSend(
+		Example.Client,
+		"hello TCP",
+		9
+	) != XNET_RESULT_OK ) {
+```
+
+### `xrtNetStreamSendVec`
+
+有界聚集复制发送；所有片段在返回前完成复制。
+
+```c
+xnetresult xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pSpans, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pSpans` | 输入 | 非空数组 | 分片视图 |
+| `iCount` | 输入 | > 0 | 分片数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_OK` | 已受理 | — |
+| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
+| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_AGAIN` — 占用字节数达到 `WriteLimit`
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 聚集发送
+
+```c
+	if ( xrtNetStreamSendVec(pClient, Vec, 2) != XNET_RESULT_OK ) {
+```
+
+### `xrtNetStreamSendRef`
+
+有界零复制发送；成功后在数据离开队列时执行一次释放过程。
+
+```c
+xnetresult xrtNetStreamSendRef(xnetstream* pStream, const void* pData, size_t iSize, xnetreleaseproc pRelease, ptr pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pData` | 输入 | 非空 | 借用数据 |
+| `iSize` | 输入 | > 0 | 字节数 |
+| `pRelease` | 输入 | 非空 | 释放回调 |
+| `pContext` | 输入 | 任意值 | 回调上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_OK` | 已受理 | — |
+| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
+| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_AGAIN` — 占用字节数达到 `WriteLimit`
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 零复制发送
+
+```c
+	if ( xrtNetStreamSendRef(pClient, "ref-zero-copy", 13,
+		exampleCountRelease, &g_Releases) != XNET_RESULT_OK ) {
+```
+
+### `xrtNetStreamSendRefs`
+
+原子受理一组零复制引用；失败时全部所有权仍归调用方。
+
+```c
+xnetresult xrtNetStreamSendRefs(xnetstream* pStream, const xnetref* pRefs, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pRefs` | 输入 | 非空数组 | 引用数组 |
+| `iCount` | 输入 | > 0 | 引用数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_OK` | 已全部受理 | — |
+| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
+| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_AGAIN` — 占用字节数达到 `WriteLimit`，全部所有权不转移
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 零复制批量发送
+
+```c
+	if ( xrtNetStreamSendRefs(pClient, Refs, 2) != XNET_RESULT_OK ) {
+```
+
+### `xrtNetStreamSendTake`
+
+有界接管非空数据；`NULL,0` 是无操作，非空指针配零长度是参数错误。
+
+```c
+xnetresult xrtNetStreamSendTake(xnetstream* pStream, ptr pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pData` | 输入 | 允许空 | 拥有的数据 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_OK` | 已受理并接管 | — |
+| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
+| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_ARGUMENT` — 非空指针配零长度
+- `XERR_AGAIN` — 占用字节数达到 `WriteLimit`，所有权不转移
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 接管发送
+
+```c
+	if ( xrtNetStreamSendTake(pClient, pTake, 10) ==
+		 XNET_RESULT_OK ) {
+```
+
+### `xrtNetStreamSendBuffer`
+
+在所属 Worker 上零复制接管缓冲链；失败时源缓冲保持不变。
+
+```c
+xnetresult xrtNetStreamSendBuffer(xnetstream* pStream, xnetbuf* pBuffer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pBuffer` | 输入 | 非空 | 缓冲链 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_OK` | 已受理并接管 | — |
+| `XNET_AGAIN` | 发送预算已满 | `XERR_AGAIN` |
+| `XNET_ERROR` | 失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非所属 Worker 调用
+- `XERR_AGAIN` — 预算已满，源缓冲保持不变
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 缓冲链发送
+
+```c
+		(void)xrtNetStreamSendBuffer(pStream, pBuffer);
+```
+
 ## 读取控制与关闭
 
 ```c
@@ -403,6 +2214,176 @@ bool xrtNetListenerClose(xnetlistener* pListener);
 `Abort` 取消在途 IO、丢弃发送队列并使用异常关闭。被丢弃的 ref/take 数据仍执行释放过程。三种操作都幂等；Abort 可以把尚未完成的普通关闭升级为异常关闭，即使 Close 与 Abort 已经按顺序进入同一 Worker 的生命周期命令队列，最终结果仍为 `XNET_RESULT_CANCELLED`。
 
 Listener `Close` 停止接受新连接，取消全部预投递 Accept，并在其终态到达后发布唯一 Close。关闭使用对象内预留命令，不受公开命令容量和运行期分配失败影响；对有效 Listener 的首次和重复关闭都返回 `true`。已经交给 Accept 回调并返回 `true` 的 Stream 独立存活。
+
+### `xrtNetStreamPause`
+
+暂停新读取；一个已经提交的 completion 仍可能到达。
+
+```c
+void xrtNetStreamPause(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已请求暂停 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 暂停读取
+
+```c
+	xrtNetStreamPause(pServer);
+```
+
+### `xrtNetStreamResume`
+
+无分配恢复读取，并把并发请求合并后唤醒所属 Worker。
+
+```c
+bool xrtNetStreamResume(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已恢复 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 恢复读取
+
+```c
+	if ( !xrtNetStreamResume(pServer) ||
+		 !xrtNetStreamWaitAvailable(pServer, 4u,
+			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ) {
+```
+
+### `xrtNetStreamShutdownWrite`
+
+排空发送队列后执行 TCP 写半关闭，读取方向继续工作。
+
+```c
+bool xrtNetStreamShutdownWrite(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已请求 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 写半关闭
+
+```c
+	if ( !xrtNetStreamShutdownWrite(pClient) ) {
+```
+
+### `xrtNetStreamClose`
+
+停止读取并在发送队列排空后正常关闭。
+
+```c
+bool xrtNetStreamClose(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已请求 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 正常关闭
+
+```c
+	(void)xrtNetStreamClose(Example.Client);
+```
+
+### `xrtNetStreamAbort`
+
+取消在途 IO、丢弃发送队列并立即异常关闭。
+
+```c
+bool xrtNetStreamAbort(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已关闭 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 异常关闭
+
+```c
+		(void)xrtNetStreamAbort(Example.Client);
+```
 
 ## 拉取读取与 Future
 
@@ -469,6 +2450,326 @@ xfuture* xrtNetDialAsync(
 
 成功值是 Future 持有一个调用方引用的 `xnetstream*`，取值时 Stream 已经处于 `OPEN`。需要在销毁 Future 后继续使用时，先调用 `xrtNetStreamRef`。Future 取消会转发给整个 Dial，而不是某一个候选；成功与取消相撞时只发布一个终态，未被 Promise 接受的成功 Stream 会自动 Abort 并释放。解析和连接的结构化原因链原样进入 Future 错误。Future 进入失败或取消终态前，Dial 已经分离迟到的 Resolver 回调并清空 Timer、候选和 Engine 活动占用；成功终态只保留作为公开结果交付的 Stream。
 
+### `xrtNetStreamBuffer`
+
+在所属 Worker 内返回借用的只读接收缓冲；不能保存或直接消费。
+
+```c
+const xnetbuf* xrtNetStreamBuffer(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 只读缓冲借用（回调期间有效） | — |
+| `NULL` | 非所属 Worker | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非所属 Worker 调用
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 接收缓冲借用
+
+```c
+	pBuffer = xrtNetStreamBuffer(pTask->pStream);
+```
+
+### `xrtNetStreamAvailable`
+
+返回当前累积的可读字节数；该并发快照不会借出缓冲。
+
+```c
+size_t xrtNetStreamAvailable(const xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 可读字节数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 可读字节数
+
+```c
+			if ( xrtNetStreamAvailable(pServer) != 0u ) {
+```
+
+### `xrtNetStreamConsume`
+
+在所属 Worker 内消费最多指定字节而不复制。
+
+```c
+size_t xrtNetStreamConsume(xnetstream* pStream, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iSize` | 输入 | — | 最多消费字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际消费字节数 | — |
+| 越界钳制到可用量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非所属 Worker 调用
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 消费字节
+
+```c
+	pTask->iConsume = xrtNetStreamConsume(pTask->pStream, 4u);
+```
+
+### `xrtNetStreamRead`
+
+在所属 Worker 内复制并消费最多指定字节。
+
+```c
+size_t xrtNetStreamRead(xnetstream* pStream, void* pOutput, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pOutput` | 输出 | 非空 | 输出缓冲 |
+| `iSize` | 输入 | — | 最多复制字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际复制字节数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非所属 Worker 调用
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 复制并消费
+
+```c
+	pTask->iRead = xrtNetStreamRead(pTask->pStream,
+		pTask->ReadOut, 4u);
+```
+
+### `xrtNetStreamWait`
+
+阻塞等待一个 Stream 条件；禁止从该 Stream 所属 Worker 调用。
+
+```c
+bool xrtNetStreamWait(xnetstream* pStream, xnetstreamwait Wait, xdeadline iDeadline, xcancel* pCancel)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `Wait` | 输入 | — | 等待条件 |
+| `iDeadline` | 输入 | — | 截止时间 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 条件达成 | — |
+| `false` | 超时或取消 | 不设错误 |
+（错误见错误节）
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 从所属 Worker 调用
+- `xrt.net` 域错误 — 等待失败
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 阻塞等待条件
+
+```c
+		xrtNetStreamWait(pClient, XNET_STREAM_WAIT_READ,
+			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ? 1 : 0);
+```
+
+### `xrtNetStreamWaitAsync`
+
+异步等待 Stream 条件；成功、失败、取消和关闭映射到统一 Future 终态。
+
+```c
+xfuture* xrtNetStreamWaitAsync(xnetstream* pStream, xnetstreamwait Wait)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `Wait` | 输入 | — | 等待条件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Future | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_future](../../examples/network/tcp_future/main.c) · 异步等待条件
+
+```c
+	pOpen = xrtNetStreamWaitAsync(pClient, XNET_STREAM_WAIT_OPEN);
+```
+
+### `xrtNetStreamWaitAvailable`
+
+阻塞等待至少指定数量的可读字节。
+
+```c
+bool xrtNetStreamWaitAvailable(xnetstream* pStream, size_t iMinimum, xdeadline iDeadline, xcancel* pCancel)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iMinimum` | 输入 | — | 最少字节数 |
+| `iDeadline` | 输入 | — | 截止时间 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 字节已就绪 | — |
+| `false` | 超时或取消 | 不设错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 从所属 Worker 调用
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 阻塞等待数据量
+
+```c
+	if ( !xrtNetStreamWaitAvailable(pServer, sizeof(sExpected) - 1u,
+		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ) {
+```
+
+### `xrtNetStreamWaitAvailableAsync`
+
+异步等待至少指定数量的可读字节。
+
+```c
+xfuture* xrtNetStreamWaitAvailableAsync(xnetstream* pStream, size_t iMinimum)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iMinimum` | 输入 | — | 最少字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Future | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 异步等待数据量
+
+```c
+	pAvailable = xrtNetStreamWaitAvailableAsync(pClient, 4u);
+```
+
+### `xrtNetStreamRecvAsync`
+
+拉取模式下异步接收当前可用字节；成功值是借用的 `xnetbytes`。
+
+```c
+xfuture* xrtNetStreamRecvAsync(xnetstream* pStream, size_t iMaxBytes)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iMaxBytes` | 输入 | — | 最多字节数，0 = 全部当前缓冲 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Future，成功值借用字节 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tcp_future](../../examples/network/tcp_future/main.c) · 异步接收
+
+```c
+	pRequest = xrtNetStreamRecvAsync(pServer, 0);
+```
+
 ## 阻塞便利层
 
 `XRT_FEATURE_NET_TCP_SYNC` 依赖 TCP Future 与通用网络同步桥，只阻塞调用线程，不创建隐藏 Engine、Worker、辅助线程或第二套连接状态机。以下函数都复用已有对象所属 Engine：
@@ -496,6 +2797,488 @@ xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver,
 ```
 
 它不创建默认 Resolver 或隐藏 Engine。截止时间和外部取消结束本次阻塞连接并取消整个 Dial；成功返回已经 `OPEN` 的调用方 Stream 引用。Resolver、候选连接和系统错误的原因链与 `xrtNetDialAsync` 完全一致。
+
+### `xrtNetStreamRecv`
+
+阻塞接收一段拥有型字节；零上限表示读取全部当前缓冲。
+
+```c
+xnetbytes* xrtNetStreamRecv(xnetstream* pStream, size_t iMaxBytes, xdeadline iDeadline, xcancel* pCancel)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `iMaxBytes` | 输入 | — | 最多字节数，0 = 全部 |
+| `iDeadline` | 输入 | — | 截止时间 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拥有型字节，用后释放 | — |
+| `NULL` | 超时、取消或失败 | 超时/取消不设错 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 从所属 Worker 调用
+- `xrt.net` 域错误 — 接收失败
+
+#### 范例
+
+[tcp_dial_tour](../../examples/network/tcp_dial_tour/main.c) · 阻塞接收
+
+```c
+		xnetbytes* pBytes = xrtNetStreamRecv(pServer, 4,
+			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+```
+
+### `xrtNetStreamState`
+
+返回 Stream 当前状态的并发快照。
+
+```c
+xnetstreamstate xrtNetStreamState(const xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 状态枚举值 | 当前生命周期状态 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · Stream 状态
+
+```c
+		 (xrtNetStreamState(Example.Client) != XNET_STREAM_CLOSED) ) {
+```
+
+### `xrtNetStreamError`
+
+返回导致 Stream 关闭的借用错误；正常关闭时为空。
+
+```c
+const xerror* xrtNetStreamError(const xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 关闭原因借用 | — |
+| `NULL` | 正常关闭 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 正常关闭返回 `NULL` 且不设置错误
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · Stream 错误
+
+```c
+		xrtNetStreamError(pClient) == NULL ? "(none)" : "err");
+```
+
+### `xrtNetStreamStats`
+
+复制 Stream 并发统计。
+
+```c
+bool xrtNetStreamStats(const xnetstream* pStream, xnetstreamstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pStats` | 输出 | 非空 | 接收统计快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · Stream 统计
+
+```c
+	if ( !xrtNetStreamStats(pClient, &Stats) ||
+		 (Stats.SentBytes < 63u) ) {
+```
+
+### `xrtNetStreamLocal`
+
+复制 Stream 本地地址，成功才修改输出。
+
+```c
+bool xrtNetStreamLocal(const xnetstream* pStream, xnetaddr* pAddress)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pAddress` | 输出 | 非空 | 接收地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 地址已复制 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 本地地址
+
+```c
+	(void)xrtNetStreamLocal(pClient, &Address);
+```
+
+### `xrtNetStreamRemote`
+
+复制 Stream 远端地址，成功才修改输出。
+
+```c
+bool xrtNetStreamRemote(const xnetstream* pStream, xnetaddr* pAddress)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pAddress` | 输出 | 非空 | 接收地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 地址已复制 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls_stream](../../examples/tls/stream/main.c) · 远端地址
+
+```c
+	if ( xrtNetStreamRemote(
+		xrtTlsStreamTransport(pStream),
+		&Remote
+	) && xrtNetAddrText(
+		&Remote,
+		Address,
+		sizeof(Address)
+	) ) {
+```
+
+### `xrtNetStreamPending`
+
+返回已经占用发送预算但尚未离开队列的字节数。
+
+```c
+size_t xrtNetStreamPending(const xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 占用预算字节数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 占用字节数
+
+```c
+		while ( xrtNetStreamPending(pClient) != 0u ) {
+```
+
+### `xrtNetStreamWriteLimit`
+
+返回创建 Stream 时固定的发送硬上限。
+
+```c
+size_t xrtNetStreamWriteLimit(const xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 发送硬上限 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 发送硬上限
+
+```c
+		xrtNetStreamWriteLimit(pClient) >= 65536u ? "64k" : "?",
+```
+
+### `xrtNetStreamWritable`
+
+返回当前仍可受理的发送硬预算快照。
+
+```c
+size_t xrtNetStreamWritable(const xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 剩余发送预算 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 剩余预算
+
+```c
+		xrtNetStreamWritable(pClient) > 0u ? "0" : "?");
+```
+
+### `xrtNetStreamSocket`
+
+只在 Stream Worker 回调内返回借用 Socket；不能关闭或接管其 IO。
+
+```c
+xnetsocket xrtNetStreamSocket(xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 句柄 | Socket 借用（回调期间有效） | — |
+| 无效句柄 | 非回调内 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非所属 Worker 回调内调用
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · Socket 借用
+
+```c
+	pTask->bSocket = xrtNetStreamSocket(pTask->pStream) != NULL;
+```
+
+### `xrtNetStreamWorker`
+
+返回 Stream 所属的借用 Worker。
+
+```c
+xnetworker* xrtNetStreamWorker(const xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Worker 借用 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 所属 Worker
+
+```c
+		xrtNetStreamWorker(pServer), &Post, exampleStreamTask,
+```
+
+### `xrtNetStreamData`
+
+返回线程安全的 Stream 用户数据指针快照，不延长目标生命周期。
+
+```c
+ptr xrtNetStreamData(const xnetstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 值 | 用户数据快照 | — |
+| `NULL` | 未设置 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 未设置返回 `NULL` 且不设置错误
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 用户数据快照
+
+```c
+		 (xrtNetStreamData(pServer) != NULL)) ? "ok" : "fail");
+```
+
+### `xrtNetStreamSetData`
+
+只在 Stream Worker 回调内替换用户数据。
+
+```c
+bool xrtNetStreamSetData(xnetstream* pStream, ptr pData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pData` | 输入 | 任意值 | 新用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已替换 | — |
+| `false` | 非回调内 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非所属 Worker 回调内调用
+
+#### 范例
+
+[tcp](../../examples/network/tcp/main.c) · 替换用户数据
+
+```c
+	(void)xrtNetStreamSetData(pStream, pExample);
+```
+
+### `xrtNetStreamSetEvents`
+
+替换 Stream 事件表与用户数据。
+
+```c
+bool xrtNetStreamSetEvents(xnetstream* pStream, const xnetstreamevents* pEvents, ptr pData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空 | 目标 Stream |
+| `pEvents` | 输入 | 非空 | 新事件表 |
+| `pData` | 输入 | 任意值 | 事件数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已替换 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（已关闭/非所属 Worker 等）
+
+#### 范例
+
+[tcp_stream_tour](../../examples/network/tcp_stream_tour/main.c) · 替换事件表
+
+```c
+	pTask->bSetEvents = xrtNetStreamSetEvents(pTask->pStream,
+		&s_Events, NULL);
+```
 
 ## 查询与统计
 
@@ -533,6 +3316,856 @@ Listener 用户数据在创建时保存，之后不可替换，因此 `xrtNetLis
 `xrtNetStreamError` 只在 Stream 到达 `CLOSED` 后返回导致终止的借用错误；正常关闭或尚未终止返回空。状态的 acquire 读取保证终态错误已经发布。
 
 Stream 统计包含收发字节、Read/Write 完成次数、硬上限拒绝次数、当前/峰值发送预算、当前接收缓冲、自动读背压、写背压和读写终态。Listener 统计区分已接受、用户或队列拒绝、内部错误、内核在途 Accept、跨 Worker 初始化任务、当前/峰值拉取队列和异步等待者；关闭会等待在途 Accept 和初始化任务归零，并把队列与等待者清空。统计是无锁快照，多个字段之间不保证同一瞬间一致。
+
+## 代理层（proxy.h）
+
+以下各节复用自 [proxy.md](proxy.md)（tcp.md 与其共享 `include/xrt/proxy.h`）。
+
+### `xrtNetProxyConfigInit`
+
+初始化 SOCKS5、自动认证且没有固定容量字段的代理配置。
+
+```c
+void xrtNetProxyConfigInit(xnetproxyconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 默认配置
+
+```c
+	xrtNetProxyConfigInit(&ProxyConfig);
+```
+
+### `xrtNetProxyCreate`
+
+深拷贝代理端点和凭据，创建可跨线程共享的不可变对象。
+
+```c
+xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空且通过校验 | 代理配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 代理对象（引用 1） | — |
+| `NULL` | 创建失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `xrt.net` / `XNET_ERROR_PROXY_CONFIG`（`XERR_ARGUMENT` / `XERR_VALUE`） — 配置字段非法或组合不支持
+- `xrt.net` / `XNET_ERROR_PROXY_CREATE` — 对象或内部缓冲分配失败（`XERR_MEMORY` 等）
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 创建代理对象
+
+```c
+	pProxy = xrtNetProxyCreate(&ProxyConfig);
+```
+
+### `xrtNetProxyRetain`
+
+增加代理对象引用并返回原指针。
+
+```c
+xnetproxy* xrtNetProxyRetain(const xnetproxy* pProxy)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 非空 | 目标代理 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 共享引用
+
+```c
+		((pRetained = xrtNetProxyRetain(pProxy)) != pProxy) ) {
+```
+
+### `xrtNetProxyRelease`
+
+释放代理对象引用；最后一个引用会清零整块配置存储。
+
+```c
+void xrtNetProxyRelease(xnetproxy* pProxy)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 释放引用
+
+```c
+	xrtNetProxyRelease(pRetained);
+```
+
+### `xrtNetProxyInfo`
+
+复制代理对象的只读信息视图。
+
+```c
+bool xrtNetProxyInfo(
+	const xnetproxy* pProxy,
+	xnetproxyinfo* pInfo
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 非空 | 目标代理 |
+| `pInfo` | 输出 | 非空 | 接收信息快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已复制 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 信息视图
+
+```c
+	if ( !xrtNetProxyInfo(pProxy, &Info) ||
+		(Info.Type != XNET_PROXY_SOCKS5) ||
+		(Info.Host.Size != 12u) ||
+		(memcmp(Info.Host.Data, "socks5.local", 12u) != 0) ||
+		(Info.Port != 1080u) ) {
+```
+
+### `xrtNetProxyHandshakeConfigInit`
+
+初始化握手配置；64 KiB 上限主要约束后续 HTTP CONNECT Header。
+
+```c
+void xrtNetProxyHandshakeConfigInit(
+	xnetproxyhandshakeconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 握手配置
+
+```c
+	xrtNetProxyHandshakeConfigInit(&HsConfig);
+```
+
+### `xrtNetProxyHandshakeCreate`
+
+创建握手并立即生成首个协议报文；目标主机会被深拷贝。
+
+```c
+xnetproxyhandshake* xrtNetProxyHandshakeCreate(
+	const xnetproxyhandshakeconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空且通过校验 | 握手配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 握手对象，首个报文已就绪 | — |
+| `NULL` | 创建失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `xrt.net` / `XNET_ERROR_PROXY_CONFIG`（`XERR_ARGUMENT` / `XERR_VALUE`） — 配置字段非法或组合不支持
+- `xrt.net` / `XNET_ERROR_PROXY_CREATE` — 对象或内部缓冲分配失败（`XERR_MEMORY` 等）
+- `xrt.net` / `XNET_ERROR_PROXY_LIMIT`（`XERR_RANGE`） — 超出协议上限
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 创建握手
+
+```c
+	pHandshake = xrtNetProxyHandshakeCreate(&HsConfig);
+```
+
+### `xrtNetProxyHandshakeDestroy`
+
+销毁握手，并清零尚未发送的认证报文和内部目标信息。
+
+```c
+void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 销毁握手
+
+```c
+	xrtNetProxyHandshakeDestroy(pHandshake);
+```
+
+### `xrtNetProxyHandshakeState`
+
+返回当前握手状态；空指针返回 `ERROR`。
+
+```c
+xnetproxyhandshakestate xrtNetProxyHandshakeState(
+	const xnetproxyhandshake* pHandshake
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 目标握手 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_PROXY_HANDSHAKE_WRITE` | 有输出待发送 | — |
+| `XNET_PROXY_HANDSHAKE_READ` | 等待代理回复 | — |
+| `XNET_PROXY_HANDSHAKE_READY` | 隧道已建立 | — |
+| `XNET_PROXY_HANDSHAKE_ERROR` | 失败（含空句柄） | 见 `HandshakeError` |
+
+#### 错误
+
+- 无 — 状态查询不设置错误；空句柄返回 `ERROR`
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 握手状态
+
+```c
+		(xrtNetProxyHandshakeState(pHandshake) !=
+			XNET_PROXY_HANDSHAKE_WRITE) ||
+```
+
+### `xrtNetProxyHandshakeStep`
+
+处理输入链中的完整协议前缀；只消费代理回复，成功后的应用数据保持原位。`WRITE` 状态必须先发送并确认全部输出，`READ` 状态才会继续解析输入。
+
+```c
+xnetproxyhandshakestate xrtNetProxyHandshakeStep(
+	xnetproxyhandshake* pHandshake,
+	xnetbuf* pInput
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入/输出 | 非空 | 目标握手 |
+| `pInput` | 输入/输出 | 非空 | 输入链 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 新状态 | `WRITE` / `READ` / `READY` / `ERROR` | `ERROR` 时见 `HandshakeError` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` / `XNET_ERROR_PROXY_PROTOCOL` — 协议状态非法、回复不完整或回复码表示失败
+- `xrt.net` / `XNET_ERROR_PROXY_LIMIT`（`XERR_RANGE`） — 超出协议上限
+
+#### 范例
+
+[proxy_socks5](../../examples/network/proxy_socks5/main.c) · 推进握手
+
+```c
+		(xrtNetProxyHandshakeStep(pHandshake, &Input) !=
+		 XNET_PROXY_HANDSHAKE_WRITE) ||
+```
+
+### `xrtNetProxyHandshakeOutput`
+
+借用当前待发送的首段连续输出；失败时把非空输出规范化为空 Span。
+
+```c
+bool xrtNetProxyHandshakeOutput(
+	const xnetproxyhandshake* pHandshake,
+	xnetspan* pOutput
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 目标握手 |
+| `pOutput` | 输出 | 非空 | 接收输出 Span |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | Span 已写出（可为空） | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非 `WRITE` 状态请求输出
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 待发送输出
+
+```c
+		!xrtNetProxyHandshakeOutput(pHandshake, &Output) ||
+```
+
+### `xrtNetProxyHandshakeSent`
+
+确认已经发送的输出前缀；支持 Socket 部分写入。
+
+```c
+size_t xrtNetProxyHandshakeSent(
+	xnetproxyhandshake* pHandshake,
+	size_t iSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入/输出 | 非空、`WRITE` 状态 | 目标握手 |
+| `iSize` | 输入 | <= 待发送量 | 本次已发送字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 剩余待发送字节数，0 = 全部确认 | — |
+| `0` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非 `WRITE` 状态或确认量超出待发送量
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 确认发送
+
+```c
+	(void)xrtNetProxyHandshakeSent(pHandshake, Output.Size);
+```
+
+### `xrtNetProxyHandshakeBound`
+
+`READY` 后复制可用的绑定端点；HTTP CONNECT 没有该信息并返回 `NOT_FOUND`。
+
+```c
+bool xrtNetProxyHandshakeBound(
+	const xnetproxyhandshake* pHandshake,
+	xnetproxyendpoint* pEndpoint
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空、已 READY | 目标握手 |
+| `pEndpoint` | 输出 | 非空 | 接收端点 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 端点已复制 | — |
+| `false` | 无绑定信息或状态非法 | `XERR_NOT_FOUND` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_STATE` — 尚未 READY
+- `XERR_NOT_FOUND`（`xrt.net` / `PROXY_PROTOCOL`） — HTTP CONNECT 无绑定端点
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 绑定端点
+
+```c
+	if ( xrtNetProxyHandshakeBound(pHandshake, &Endpoint) ||
+		xrtNetProxyHandshakeCode(pHandshake, &iCode) ||
+		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
+```
+
+### `xrtNetProxyHandshakeError`
+
+返回协议失败时捕获的不可变错误；对象所有权仍属于握手。
+
+```c
+const xerror* xrtNetProxyHandshakeError(
+	const xnetproxyhandshake* pHandshake
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 目标握手 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 错误借用（存活到销毁或下一次 Step） | — |
+| `NULL` | 尚无错误 | 不设错 |
+
+#### 错误
+
+- 无错误 — 非 `ERROR` 状态返回 `NULL` 且不设置错误
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 握手错误
+
+```c
+		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
+```
+
+### `xrtNetProxyHandshakeCode`
+
+复制 SOCKS5 线路回复码或 HTTP 状态码；尚未收到回复时返回 `false`。
+
+```c
+bool xrtNetProxyHandshakeCode(
+	const xnetproxyhandshake* pHandshake,
+	uint32* pCode
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 目标握手 |
+| `pCode` | 输出 | 非空 | 接收回复码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 回复码已复制 | — |
+| `false` | 尚未收到回复 | 不设错 |
+
+#### 错误
+
+- 尚未收到回复返回 `false` 且不设置错误；句柄或输出为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 线路回复码
+
+```c
+		xrtNetProxyHandshakeCode(pHandshake, &iCode) ||
+```
+
+### `xrtNetProxyDialConfigInit`
+
+初始化 TCP 拨号、64 KiB 协议上限和 30 秒全过程超时。
+
+```c
+void xrtNetProxyDialConfigInit(xnetproxydialconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 拨号配置
+
+```c
+	xrtNetProxyDialConfigInit(&DialConfig);
+```
+
+### `xrtNetProxyDial`
+
+连接代理端点并完成目标 CONNECT；成功 Stream 引用转移给完成回调。非 Worker 提交者可能与完成回调并发，不能依赖返回值已经完成赋值。
+
+```c
+xnetproxydial* xrtNetProxyDial(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sTargetHost,
+	uint16 iTargetPort,
+	const xnetproxydialconfig* pConfig,
+	const xnetstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xnetproxydialproc pDone,
+	ptr pDoneData
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pResolver` | 输入 | 允许空 | 名称解析器 |
+| `pProxy` | 输入 | 非空 | 代理对象 |
+| `sTargetHost` | 输入 | 非空、零结尾 | 目标主机 |
+| `iTargetPort` | 输入 | — | 目标端口 |
+| `pConfig` | 输入 | 允许空 | 空 = 默认配置 |
+| `pStreamEvents` | 输入 | 允许空 | Stream 事件表 |
+| `pStreamData` | 输入 | 任意值 | Stream 数据 |
+| `pDone` | 输入 | 非空 | 完成回调 |
+| `pDoneData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拨号对象（引用 1） | — |
+| `NULL` | 提交失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` / `XNET_ERROR_PROXY_CONFIG`（`XERR_ARGUMENT` / `XERR_VALUE`） — 配置字段非法或组合不支持
+- `xrt.net` / `XNET_ERROR_PROXY_CREATE` — 对象或内部缓冲分配失败（`XERR_MEMORY` 等）
+- `xrt.net` / `XNET_ERROR_PROXY_CONNECT` — 连接提交失败
+- `xrt.net` / `XNET_ERROR_PROXY_UNSUPPORTED`（`XERR_UNSUPPORTED`） — 配置的协议或地址族不支持
+
+#### 范例
+
+[proxy_dial](../../examples/network/proxy_dial/main.c) · 发起拨号
+
+```c
+	pDial = xrtNetProxyDial(
+		pEngine,
+		pResolver,
+		pProxy,
+		argv[3],
+		iTargetPort,
+		&DialConfig,
+		&StreamEvents,
+		&Example,
+		exampleProxyDialDone,
+		&Example
+	);
+```
+
+### `xrtNetProxyDialRef`
+
+增加 Proxy Dial 引用并返回原指针。
+
+```c
+xnetproxydial* xrtNetProxyDialRef(xnetproxydial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 共享引用
+
+```c
+	pDialRef = xrtNetProxyDialRef(pDial);
+```
+
+### `xrtNetProxyDialDestroy`
+
+释放 Proxy Dial 引用；空指针视为空操作。
+
+```c
+void xrtNetProxyDialDestroy(xnetproxydial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 释放引用
+
+```c
+	xrtNetProxyDialDestroy(pDialRef);
+```
+
+### `xrtNetProxyDialCancel`
+
+协作取消名称解析、TCP 连接或代理握手；首个取消请求获胜，已终态对象返回 `false` 且不设错。
+
+```c
+bool xrtNetProxyDialCancel(xnetproxydial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 取消请求已被受理 | — |
+| `false` | 已连接、已失败、已取消或并发取消已被受理 | 不设错误 |
+
+#### 错误
+
+- 已终态或并发取消已被受理返回 `false` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[proxy_dial](../../examples/network/proxy_dial/main.c) · 协作取消
+
+```c
+		(void)xrtNetProxyDialCancel(pDial);
+```
+
+### `xrtNetProxyDialState`
+
+返回当前拨号阶段或不可变终态。
+
+```c
+xnetproxydialstate xrtNetProxyDialState(
+	const xnetproxydial* pDial
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_PROXY_DIAL_RESOLVING` / `CONNECTING` / `HANDSHAKE` | 进行中阶段 | — |
+| `XNET_PROXY_DIAL_CONNECTED` / `FAILED` / `CANCELLED` | 不可变终态 | — |
+
+#### 错误
+
+- 无 — 原子状态查询不设置错误；空句柄返回 `RESOLVING`
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 拨号状态
+
+```c
+		xnetproxydialstate State = xrtNetProxyDialState(pDial);
+```
+
+### `xrtNetProxyDialError`
+
+失败或取消后借用完整错误原因链。
+
+```c
+const xerror* xrtNetProxyDialError(
+	const xnetproxydial* pDial
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 错误借用（存活到对象销毁） | — |
+| `NULL` | 进行中或已连接 | 不设错 |
+
+#### 错误
+
+- 无错误 — 无失败时返回 `NULL` 且不设置错误
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 拨号错误
+
+```c
+			(xrtNetProxyDialError(pDial) == NULL) ||
+```
+
+### `xrtNetProxyDialStats`
+
+复制代理阶段和底层 TCP 地址竞速统计。
+
+```c
+bool xrtNetProxyDialStats(
+	const xnetproxydial* pDial,
+	xnetproxydialstats* pStats
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+| `pStats` | 输出 | 非空 | 接收统计快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已复制 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 拨号统计
+
+```c
+			!xrtNetProxyDialStats(pDial, &DialStats) ||
+```
 
 ## 示例与发布门槛
 

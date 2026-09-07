@@ -70,7 +70,7 @@
 | 63 | string.md | 83 | **完成** | 83/83 全绿（G3 83 片段，2026-09-07）；八组：视图/查询 23 + 借用切分 11 + 独立操作 20 + 拆分列表 12 + 构建器 14 + 格式化 2 + 通配 1；参数名自动提取自签名；锚点 16+ 范例 |
 | 64 | sync.md | 48 | **完成** | 48/48 全绿（G3 48 片段，2026-09-07）；Mutex 7 + Cond 9 + Sem 9 + RWLock 12 + Event 9 五族；虚假唤醒契约、Sem 上限不部分发布、RWLock 升降级前置条件入档；锚点 5 范例 |
 | 65 | task.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；组 15 + 池 14 + 组池提交 5 + 协程 2 + 网络 6 五组；AGAIN 队满回滚、工作线程自等待/自销毁 STATE 入档；锚点 8 范例 |
-| 66 | tcp.md | 101 | 待办 |  |
+| 66 | tcp.md | 101 | **完成** | 101/101 全绿（G3 101 片段，2026-09-07）；tcp.h 63 + tcp_server 15 新写按 12 组入档 + proxy.h 23 节复用自 proxy.md；WriteLimit 背压 AGAIN、Worker 归属 STATE 全表；锚点 13 范例 |
 | 67 | temp.md | 17 | **完成** | 17/17 全绿（G3 17 片段，2026-09-07）；arena 14 + 上下文便捷层 3；作用域后进先出 STATE、Trim 忙碌 STATE 入档；锚点 memory/temp |
 | 68 | template.md | 32 | **完成** | 32/32 全绿（G3 32 片段，2026-09-07）；编译/注册表 13 + 扩展调用 13 + 渲染 6 三组；XTEMPLATE 12 域码；ErrorLocation 定位器；锚点 6 范例；manifest 补注册 tour |
 | 69 | thread-key.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；全部节复用自 once.md（同映射 thread.h），以键为主线重组 |
@@ -744,4 +744,11 @@
   template tour（16 个 API 主锚点）。生成器修复：`*pTarget =` 解引用
   星号被误判注释行——注释跳过规则改为 /*, //, */, "星号+空格"。
   完成 API 2774→2806/3664（76.6%），69/79 文件。
+- 2026-09-07 tcp.md 完成（101/101，G3 101 片段全绿）：三头并集
+  （tcp.h 63 + tcp_server.h 15 新写、proxy.h 23 复用自 proxy.md）；契约——
+  发送族 WriteLimit 背压 = XERR_AGAIN（SendRefs 失败全部所有权不转移）、
+  Buffer/Consume/Socket/SetData 非所属 Worker = STATE、AcceptWait 禁止
+  Worker 内阻塞、DialCancel 原子争取（败者不设错）、Remote 锚点在
+  examples/tls/stream。
+  完成 API 2806→2907/3664（79.3%），70/79 文件。
 
