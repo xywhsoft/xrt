@@ -4,9 +4,9 @@
 > 每个工作会话的第一步：重读本文件 + `dev/DOC_PROGRESS.md` 台账，然后才动笔。
 > 任何与记忆冲突之处，以本文件为准。
 
-版本：v1.2（v1.0 冻结于试点审定；v1.1：计数校正；v1.2：新增 §1.3 类型与常量
-节标准及 G5 门禁。后续修改必须升版本号并在 `dev/DOC_PROGRESS.md` 记录
-变更理由与影响范围）。
+版本：v1.3（v1.0 冻结；v1.1 计数校正；v1.2 类型/常量标准与 G5；v1.3：G5
+并入默认门禁（阶段 3 已全绿，防回归）。后续修改必须升版本号并在
+`dev/DOC_PROGRESS.md` 记录变更理由与影响范围）。
 
 适用范围：`docs/api/*.md` 全部 79 个手写文件（`*-reference.md` 为自动生成，不适用；计数校正：原 80 为并档前的旧计数）。
 
@@ -99,9 +99,9 @@
 裁剪宏、`XRT_MODULE_*` 模块名注册表——它们由 `config/modules.json` 与
 `tools/generate_features.py` 的生成产物承载，不属于模块语义文档。
 
-**G5 门禁**：`python tools/check_api_reference_detail.py --doc <f>.md --types`
-（或 `--all --types`）校验上述覆盖；本检查在阶段 3 逐文件验收时使用，
-默认模式（函数四门禁）行为不变。
+**G5 门禁**：`python tools/check_api_reference_detail.py --doc <f>.md`
+（或 `--all`）默认包含类型/常量覆盖检查（v1.3 起并入；`--no-types` 可
+单独关闭用于对照）。
 
 ---
 

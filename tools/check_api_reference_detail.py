@@ -268,8 +268,10 @@ def main():
 	group = parser.add_mutually_exclusive_group(required=True)
 	group.add_argument("--doc", help="docs/api 下的文件名，如 array.md")
 	group.add_argument("--all", action="store_true")
-	parser.add_argument("--types", action="store_true",
-		help="附加 G5 检查：公共类型/常量覆盖（DOC_SPEC §1.3）")
+	parser.add_argument("--types", dest="types", action="store_true",
+		default=True, help="G5 检查：公共类型/常量覆盖（默认开启，DOC_SPEC §1.3）")
+	parser.add_argument("--no-types", dest="types", action="store_false",
+		help="关闭 G5 检查（对照用）")
 	args = parser.parse_args()
 
 	doc_headers, registered = load_manifest()
