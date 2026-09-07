@@ -40,6 +40,12 @@ jobs:
       - name: Verify repository release maturity
         run: python tools/check_release_maturity.py
 
+      - name: Verify API reference detail gates (G1-G5)
+        run: python tools/check_api_reference_detail.py --all
+
+      - name: Verify doc deep audits (ghosts/tables/rows/headings)
+        run: python tools/doc_audit.py --all
+
       - name: Verify WebSocket API documentation
         run: >-
           python tools/check_api_docs.py
