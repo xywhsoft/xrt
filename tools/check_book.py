@@ -278,7 +278,8 @@ def normalize_out(s):
 
 
 BRAND_TOKENS = {"XRT", "XSON", "JSON", "HTTP", "TLS", "SSE", "DNS", "API", "CMake",
-                "xhttp", "xws", "xmail", "xssh", "xruntime"}  # 产品/协议名，非 API 标识符
+                "xhttp", "xws", "xmail", "xssh", "xruntime",
+                "XID", "xrtMath"}  # 产品/协议/格式名与数学函数族前缀，非单个 API
 
 # 用户侧集成宏：XRT_IMPLEMENTATION 与被 features.h 消费的 XRT_MODULE_* 选择宏
 # （库里只 #if defined(...) 消费、不定义它们，故不在声明符号表中）
