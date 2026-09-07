@@ -53,7 +53,7 @@
 | 46 | net.md | 184 | **完成** | 试点 2；六段全绿（184/184，G3 203 片段）：地址族 20 + 缓冲/DNS/Bytes 39 + Socket 39 + Port 29 + Post 3 + Engine 17 + Worker 9 + 第 6 段 26 + CompletionInit 1 |
 | 47 | number.md | 15 | **完成** | 15/15 全绿（G3 15 片段，2026-09-07）；xrt.number 域 CONFIG/FORMAT/RANGE 三码入档；容量原子失败 XERR_RANGE （查询仍返回长度）；锚点 integer/float/format/variants |
 | 48 | once.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；thread.h 全集：Once 1 + 原生线程 15 + 线程局部键 6；Wait 自等待 STATE、Once 同线程重入 STATE 入档；锚点 once/thread/thread_tour |
-| 49 | path.md | 32 | 待办 |  |
+| 49 | path.md | 32 | **完成** | 32/32 全绿（G3 32 片段，2026-09-07）；xrt.path 域 FORMAT/OVERFLOW/ROOT/SYSTEM 四码入档；safe 族纯谓词不设错；manifest 补注册 tour/system/safe 三范例 |
 | 50 | pattern.md | 37 | 待办 |  |
 | 51 | pem.md | 7 | 待办 |  |
 | 52 | pool.md | 58 | 待办 |  |
@@ -630,4 +630,10 @@
   KeyDestroy/Get/Set/Take 键已关闭 = XERR_STATE、KeysClear 外部线程
   无上下文 = XERR_STATE、平台创建失败 = xrt.thread 域错误保留系统码。
   完成 API 2034→2056/3664（56.1%），48/79 文件。
+- 2026-09-07 path.md 完成（32/32，G3 32 片段全绿）：七组（根分解/常用分解/清理拼接/相对/改名的系统/安全条目）；错误码对照 src/fs/path.c、
+  path_system.c——Relative 根不同 = VALUE/ROOT、Windows 跨卷 =
+  UNSUPPORTED/ROOT、系统族 = XPATH_ERROR_SYSTEM（kind 由系统码映射）、
+  Home 缺失 = NOT_FOUND；SafeSegment/IsSafeEntry 为纯谓词（false 不设错）。
+  manifest 补注册 #9：path tour/system/safe 三范例。
+  完成 API 2056→2088/3664（57.0%），49/79 文件。
 

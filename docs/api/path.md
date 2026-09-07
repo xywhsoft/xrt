@@ -125,6 +125,259 @@ bool xrtPathNext(xpathiter* pIterator, xpathcomponent* pComponent);
 
 迭代器先返回根，再依次返回 `.`、`..` 和普通名称；重复分隔符不会制造空组件。组件视图借用原输入，`xpathiter` 的公开字段只用于栈上保存状态，不由调用方修改。初始化失败不修改迭代器；`xrtPathNext` 返回 `false` 表示遍历结束，迭代器或输出参数无效时会设置统一参数/状态错误。
 
+### `xrtPathParse`
+
+按指定风格零分配地分解路径，成功后所有视图都借用输入。
+
+```c
+bool xrtPathParse(xstrview Path, xpathstyle Style, xpathparts* pParts)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Path` | 输入 | 借用 | 待分解路径 |
+| `Style` | 输入 | — | 路径风格 |
+| `pParts` | 输出 | 非空 | 接收分解结果，视图借用输入 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已分解 | — |
+| `false` | 格式或参数非法 | `XERR_ARGUMENT` / `xrt.path` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 零分配分解
+
+```c
+	if ( !xrtPathParse(SV("C:\\dir\\file.txt"), XPATH_WINDOWS,
+			&Parts) ||
+		(Parts.RootKind != XPATH_ROOT_DRIVE) ||
+		(Parts.Root.Size != 3u) ||
+		(memcmp(Parts.Root.Data, "C:\\", 3u) != 0) ||
+		((Parts.Flags & XPATH_FLAG_ABSOLUTE) == 0u) ||
+		((Parts.Flags & XPATH_FLAG_ROOTED) == 0u) ||
+		(Parts.Name.Size != 8u) ||
+		(memcmp(Parts.Name.Data, "file.txt", 8u) != 0) ||
+		(Parts.Stem.Size != 4u) ||
+		(memcmp(Parts.Stem.Data, "file", 4u) != 0) ||
+		(Parts.Ext.Size != 4u) ||
+```
+
+### `xrtPathIterInit`
+
+初始化零分配路径组件迭代器，成功后迭代器借用输入。
+
+```c
+bool xrtPathIterInit(xpathiter* pIterator,
+	xstrview Path, xpathstyle Style)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输出 | 非空 | 接收迭代器 |
+| `Path` | 输入 | 借用 | 待遍历路径 |
+| `Style` | 输入 | — | 路径风格 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 格式或参数非法 | `XERR_ARGUMENT` / `xrt.path` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+
+#### 范例
+
+[basic](../../examples/path/basic/main.c) · 初始化迭代
+
+```c
+	if ( !xrtPathIterInit(&Iterator, xrtStrView(sJoined), XPATH_NATIVE) ) {
+```
+
+### `xrtPathNext`
+
+返回下一个借用组件，遍历结束时返回 `false`。
+
+```c
+bool xrtPathNext(xpathiter* pIterator, xpathcomponent* pComponent)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 已初始化 | 目标迭代器 |
+| `pComponent` | 输出 | 非空 | 接收组件视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已产出组件 | — |
+| `false` | 遍历结束 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 遍历结束返回 `false` 且不设置错误；空句柄设置 `XERR_ARGUMENT`
+
+#### 范例
+
+[basic](../../examples/path/basic/main.c) · 逐段迭代
+
+```c
+	while ( xrtPathNext(&Iterator, &Component) ) {
+```
+
+### `xrtPathIsAbs`
+
+判断本机路径是否完整绝对；Windows 驱动器相对和根相对路径返回 `false`。
+
+```c
+bool xrtPathIsAbs(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 本机路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否完整绝对 | 空句柄返回 `false` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 完整绝对
+
+```c
+	if ( !xrtPathIsAbs("C:\\a") ||
+		xrtPathIsAbs("a\\b") ||
+		!xrtPathIsRoot("C:\\") ||
+		xrtPathIsRoot("C:\\a") ||
+		!xrtPathIsRooted("\\a") ||
+		xrtPathIsRooted("a") ) {
+```
+
+### `xrtPathIsRoot`
+
+判断本机路径词法上是否恰好为一个完整文件系统根。
+
+```c
+bool xrtPathIsRoot(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 本机路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否为根 | 空句柄返回 `false` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 恰好为根
+
+```c
+		!xrtPathIsRoot("C:\\") ||
+```
+
+### `xrtPathIsRooted`
+
+判断本机路径是否带根；Windows 的 `C:foo` 和 `\foo` 也属于带根路径。
+
+```c
+bool xrtPathIsRooted(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 本机路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否带根 | 空句柄返回 `false` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 带根判断
+
+```c
+		!xrtPathIsRooted("\\a") ||
+```
+
+### `xrtPathIsLocal`
+
+判断路径是否能被安全拼入任意基目录；只做词法检查，不解析符号链接。
+
+```c
+bool xrtPathIsLocal(xstrview Path, xpathstyle Style)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Path` | 输入 | 借用 | 待检查路径 |
+| `Style` | 输入 | — | 路径风格 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否相对且可拼接 | 格式非法时 `false` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+
+#### 范例
+
+[basic](../../examples/path/basic/main.c) · 可拼接判断
+
+```c
+		xrtPathIsLocal(xrtStrView(sJoined), XPATH_NATIVE) ? 1 : 0);
+```
+
 ## 常用分解函数
 
 ```c
@@ -148,6 +401,142 @@ str sExt = xrtPathExt("logs/server.log");
 
 xrtFree(sName);
 xrtFree(sExt);
+```
+
+### `xrtPathName`
+
+复制本机路径的末级名称，包含扩展名。
+
+```c
+str xrtPathName(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 本机路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[basic](../../examples/path/basic/main.c) · 名称分解
+
+```c
+	sName = xrtPathName(sJoined);
+```
+
+### `xrtPathStem`
+
+复制本机路径的末级名称，不包含最后一个扩展名。
+
+```c
+str xrtPathStem(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 本机路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[basic](../../examples/path/basic/main.c) · 主干分解
+
+```c
+	sStem = xrtPathStem(sJoined);
+```
+
+### `xrtPathExt`
+
+复制本机路径的最后一个扩展名，结果包含前导点。
+
+```c
+str xrtPathExt(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 本机路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[basic](../../examples/path/basic/main.c) · 扩展名分解
+
+```c
+	sExt = xrtPathExt(sJoined);
+```
+
+### `xrtPathParent`
+
+复制本机路径的父路径；没有父路径时返回已分配的空字符串。
+
+```c
+str xrtPathParent(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 本机路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 父路径
+
+```c
+	sParent = xrtPathParent("C:\\dir\\file.txt");
 ```
 
 ## 清理和拼接
@@ -183,6 +572,180 @@ str sPath = xrtPathBuild(arrParts, 3, XPATH_POSIX);
 xrtFree(sPath);
 ```
 
+### `xrtPathJoin`
+
+按本机风格拼接两个路径；Windows 根相对右项保留已有卷前缀。
+
+```c
+str xrtPathJoin(cstr sLeft, cstr sRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sLeft` | 输入 | 非空、零结尾 | 左项 |
+| `sRight` | 输入 | 非空、零结尾 | 右项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[basic](../../examples/path/basic/main.c) · 两段拼接
+
+```c
+	sJoined = xrtPathJoin("project", "src/../include/xrt.h");
+```
+
+### `xrtPathBuild`
+
+按指定风格拼接并清理；Windows 根相对项保留已有卷前缀。
+
+```c
+str xrtPathBuild(const xstrview* arrParts, size_t iCount, xpathstyle Style)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `arrParts` | 输入 | 非空数组 | 路径分段视图 |
+| `iCount` | 输入 | > 0 | 分段数量 |
+| `Style` | 输入 | — | 目标路径风格 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+- `XERR_MEMORY` — 结果分配失败
+- `XERR_OVERFLOW` — 结果长度引起尺寸溢出
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 多段拼接
+
+```c
+	sBuilt = xrtPathBuild(arrParts, 3u, XPATH_WINDOWS);
+```
+
+### `xrtPathClean`
+
+纯词法清理分隔符、点和双点段，不访问文件系统或解析符号链接。
+
+```c
+str xrtPathClean(xstrview Path, xpathstyle Style)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Path` | 输入 | 借用 | 待清理路径 |
+| `Style` | 输入 | — | 路径风格 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 词法清理
+
+```c
+	sClean = xrtPathClean(SV("C:\\a\\..\\b\\\\c\\"), XPATH_WINDOWS);
+```
+
+### `xrtPathSep`
+
+返回本机路径分隔符。
+
+```c
+char xrtPathSep(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 分隔字符 | Windows 为 `\\`，POSIX 为 `/` | — |
+
+#### 错误
+
+- 无 — 纯常量查询
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 分隔符
+
+```c
+	printf("path: sep=%c list=%c", xrtPathSep(),
+		xrtPathListSep());
+```
+
+### `xrtPathListSep`
+
+返回本机路径列表分隔符，Windows 为分号，POSIX 为冒号。
+
+```c
+char xrtPathListSep(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 分隔字符 | Windows 为 `;`，POSIX 为 `:` | — |
+
+#### 错误
+
+- 无 — 纯常量查询
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 列表分隔符
+
+```c
+		xrtPathListSep());
+```
+
 ## 相对路径
 
 ```c
@@ -206,6 +769,82 @@ str sRel = xrtPathRelative(XRT_STR_LITERAL("/srv/app"),
 xrtFree(sRel);
 ```
 
+### `xrtPathRelative`
+
+纯词法计算从目录 `Base` 到 `Target` 的相对路径；根不同时报错。
+
+```c
+str xrtPathRelative(xstrview Base, xstrview Target, xpathstyle Style)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Base` | 输入 | 借用 | 基目录 |
+| `Target` | 输入 | 借用 | 目标路径 |
+| `Style` | 输入 | — | 路径风格 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+- `XERR_MEMORY` — 结果分配失败
+- `xrt.path` / `XPATH_ERROR_ROOT`（`XERR_VALUE`） — 两路径根不同
+- `xrt.path` / `XPATH_ERROR_ROOT`（`XERR_UNSUPPORTED`） — Windows 跨卷相对化不可表达
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 词法相对化
+
+```c
+	sRel = xrtPathRelative(SV("C:\\a\\b"), SV("C:\\a\\c\\d"),
+		XPATH_WINDOWS);
+```
+
+### `xrtPathRel`
+
+把两个路径转为绝对路径后计算从 `Base` 到 `Target` 的相对路径。
+
+```c
+str xrtPathRel(cstr sBase, cstr sTarget)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sBase` | 输入 | 非空、零结尾 | 基目录 |
+| `sTarget` | 输入 | 非空、零结尾 | 目标路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的路径 | — |
+| `NULL` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 绝对化相对化
+
+```c
+		str sRelSys = xrtPathRel("C:\\a\\b", "C:\\a\\c\\d");
+```
+
 ## 修改名称
 
 ```c
@@ -220,6 +859,79 @@ str sPath = xrtPathWithExt("archive/data.tar.gz", "zip");
 
 /* sPath == "archive/data.tar.zip" */
 xrtFree(sPath);
+```
+
+### `xrtPathWithName`
+
+替换本机路径的末级名称；新名称可以包含相对路径段。
+
+```c
+str xrtPathWithName(cstr sPath, cstr sName)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 原路径 |
+| `sName` | 输入 | 非空、零结尾 | 新末级名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[basic](../../examples/path/basic/main.c) · 替换名称
+
+```c
+	sRenamed = xrtPathWithName(sJoined, "runtime.h");
+```
+
+### `xrtPathWithExt`
+
+替换最后一个扩展名；空扩展名删除扩展名，非空值可省略前导点。
+
+```c
+str xrtPathWithExt(cstr sPath, cstr sExtension)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 原路径 |
+| `sExtension` | 输入 | 非空或空串 | 新扩展名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的结果 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
+- `XERR_MEMORY` — 结果分配失败
+- `XERR_OVERFLOW` — 结果长度引起尺寸溢出
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 替换扩展名
+
+```c
+	sExt = xrtPathWithExt("C:\\dir\\file", ".md");
 ```
 
 ## 系统路径
@@ -250,6 +962,283 @@ str xrtPathAppDir(void);
 Windows 系统调用使用宽字符 API 和严格 UTF-8 转换。动态查询不使用固定长度缓冲。系统查询失败会在错误中保留原始 Win32 或 `errno` 代码。
 
 `xrtPathReal` 适合比较已存在对象的物理位置、诊断链接和做目录树操作的前置校验，但它本身不是安全沙箱：查询完成后路径仍可能被其他线程或进程替换。需要抵抗恶意并发替换时，应使用后续文件层的目录句柄相对操作和禁止跟随链接选项。
+
+### `xrtPathCwd`
+
+返回当前工作目录的绝对 UTF-8 路径。
+
+```c
+str xrtPathCwd(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的路径 | — |
+| `NULL` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+
+#### 范例
+
+[system](../../examples/path/system/main.c) · 工作目录
+
+```c
+	sCwd = xrtPathCwd();
+```
+
+### `xrtPathSetCwd`
+
+修改进程当前工作目录；该操作影响进程内其他线程。
+
+```c
+bool xrtPathSetCwd(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 新工作目录 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已切换 | — |
+| `false` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 切换目录
+
+```c
+	if ( !xrtPathSetCwd(sCwd) ) {  /* 切到当前目录（等价还原） */
+```
+
+### `xrtPathAbs`
+
+使用操作系统规则返回绝对路径；空路径表示当前工作目录。
+
+```c
+str xrtPathAbs(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 允许空串 | 待绝对化路径，空 = 当前目录 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的路径 | — |
+| `NULL` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 绝对化
+
+```c
+	sAbs = xrtPathAbs(".");
+```
+
+### `xrtPathReal`
+
+返回已存在路径跟随符号链接后的物理绝对路径。
+
+```c
+str xrtPathReal(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | 已存在的路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的路径 | — |
+| `NULL` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+- `XERR_MEMORY` — 结果分配失败
+
+#### 范例
+
+[system](../../examples/path/system/main.c) · 物理路径
+
+```c
+	sReal = xrtPathReal(".");
+```
+
+### `xrtPathHome`
+
+返回当前用户主目录。
+
+```c
+str xrtPathHome(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的路径 | — |
+| `NULL` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+
+#### 范例
+
+[system](../../examples/path/system/main.c) · 主目录
+
+```c
+	sHome = xrtPathHome();
+```
+
+### `xrtPathTemp`
+
+返回操作系统临时目录。
+
+```c
+str xrtPathTemp(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的路径 | — |
+| `NULL` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+
+#### 范例
+
+[system](../../examples/path/system/main.c) · 临时目录
+
+```c
+	sTemp = xrtPathTemp();
+```
+
+### `xrtPathExecutable`
+
+返回当前可执行文件的绝对 UTF-8 路径。
+
+```c
+str xrtPathExecutable(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的路径 | — |
+| `NULL` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 可执行文件
+
+```c
+	sExe = xrtPathExecutable();
+```
+
+### `xrtPathAppDir`
+
+返回当前可执行文件所在目录。
+
+```c
+str xrtPathAppDir(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 由 `xrtFree` 释放的路径 | — |
+| `NULL` | 失败 | `xrt.path` 域错误 |
+
+#### 错误
+
+- `xrt.path` / `XPATH_ERROR_SYSTEM` — 平台调用失败，kind 由系统错误码映射并保留系统码
+- `XERR_NOT_FOUND`（`XPATH_ERROR_SYSTEM`） — 主目录环境变量缺失等查询失败
+
+#### 范例
+
+[system](../../examples/path/system/main.c) · 应用目录
+
+```c
+	sApp = xrtPathAppDir();
+```
 
 ## 安全条目
 
@@ -295,6 +1284,145 @@ bool bTraversal = xrtPathIsSafeEntry(
 ```
 
 这是词法入口检查，不是完整文件系统沙箱。攻击者仍可能借助目标目录内已有符号链接或挂载点逃逸。安全解包和静态文件服务还必须使用后续文件模块提供的“相对可信目录句柄打开、禁止跟随符号链接、验证最终对象”能力。
+
+### `xrtPathSafeSegmentInit`
+
+初始化一个可跨任意输入分块复用的可移植路径段检查器。
+
+```c
+void xrtPathSafeSegmentInit(xpathsafesegment* pState)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 接收检查器状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 初始化检查器
+
+```c
+	xrtPathSafeSegmentInit(&Safe);
+```
+
+### `xrtPathSafeSegmentFeed`
+
+加入一个已解码字节；一旦确定非法便返回 `false`。
+
+```c
+bool xrtPathSafeSegmentFeed(
+	xpathsafesegment* pState,
+	uint8 iValue
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 已初始化 | 检查器状态 |
+| `iValue` | 输入 | — | 已解码 UTF-8 字节 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 字节仍合法，可继续 | — |
+| `false` | 段已确定非法 | 不设错误 |
+
+#### 错误
+
+- 无 — 返回 `false` 表示检查不通过，不设置错误
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 逐字节检查
+
+```c
+			if ( !xrtPathSafeSegmentFeed(&Safe,
+					(uint8)sCheck[i]) ) {
+```
+
+### `xrtPathSafeSegmentFinish`
+
+完成空段、点段、尾部规则和 Windows 设备保留名检查。
+
+```c
+bool xrtPathSafeSegmentFinish(
+	const xpathsafesegment* pState
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已初始化且已喂入完整段 | 检查器状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 段可移植安全 | — |
+| `false` | 段不安全 | 不设错误 |
+
+#### 错误
+
+- 无 — 返回 `false` 表示检查不通过，不设置错误
+
+#### 范例
+
+[tour](../../examples/path/tour/main.c) · 完成检查
+
+```c
+		if ( !xrtPathSafeSegmentFinish(&Safe) ) {
+```
+
+### `xrtPathIsSafeEntry`
+
+检查归档条目是否为跨 Windows/POSIX 可移植的 UTF-8 相对路径。
+
+```c
+bool xrtPathIsSafeEntry(xstrview Path, bool bDirectory)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Path` | 输入 | 借用 | 条目路径 |
+| `bDirectory` | 输入 | — | 是否目录条目（允许尾分隔符） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 条目安全 | — |
+| `false` | 绝对路径、空、非 UTF-8 或含不安全段 | 不设错误 |
+
+#### 错误
+
+- 无 — 返回 `false` 表示检查不通过，不设置错误
+
+#### 范例
+
+[safe](../../examples/path/safe/main.c) · 条目检查
+
+```c
+			xrtPathIsSafeEntry(xrtStrView(arrEntries[i]), false) ?
+```
 
 ## 错误
 
