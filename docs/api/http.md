@@ -9,6 +9,1558 @@ XRT 的 HTTP 模块是可直接组合 TCP、TLS 和自定义传输的 HTTP/1 线
 完整函数、常量和类型索引见 [HTTP 公共符号参考](http-reference.md)。精确参数、所有权和
 失败契约以对应公共头的中文注释为准。
 
+## 类型与常量
+
+### `xhttpmethod`
+
+常用 HTTP 方法使用互不重叠的单 bit 枚举值。非零值既表示一个解析后的 方法，也可以作为方法集合中的原子位；组合宏提供常用路由方法集合。 OTHER 表示语法合法但未内置分类的方法；INVALID 表示空值或非法 token， 在方法集合中也自然表示不匹配任何方法。
+
+```c
+typedef enum xhttpmethod {
+	XHTTP_METHOD_INVALID = 0,
+	XHTTP_METHOD_OTHER = UINT32_C(0x00000001),
+	XHTTP_METHOD_GET = UINT32_C(0x00000002),
+	XHTTP_METHOD_HEAD = UINT32_C(0x00000004),
+	XHTTP_METHOD_POST = UINT32_C(0x00000008),
+	XHTTP_METHOD_PUT = UINT32_C(0x00000010),
+	XHTTP_METHOD_DELETE = UINT32_C(0x00000020),
+	XHTTP_METHOD_CONNECT = UINT32_C(0x00000040),
+	XHTTP_METHOD_OPTIONS = UINT32_C(0x00000080),
+	XHTTP_METHOD_TRACE = UINT32_C(0x00000100),
+	XHTTP_METHOD_PATCH = UINT32_C(0x00000200)
+} xhttpmethod;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_METHOD_INVALID` | 无效 |
+| `XHTTP_METHOD_OTHER` | OTHER |
+| `XHTTP_METHOD_GET` | GET |
+| `XHTTP_METHOD_HEAD` | HEAD |
+| `XHTTP_METHOD_POST` | POST |
+| `XHTTP_METHOD_PUT` | PUT |
+| `XHTTP_METHOD_DELETE` | DELETE |
+| `XHTTP_METHOD_CONNECT` | CONNECT |
+| `XHTTP_METHOD_OPTIONS` | OPTIONS |
+| `XHTTP_METHOD_TRACE` | 最详细级别 |
+
+### `xhttpversion`
+
+HTTP 版本使用可直接比较的主次版本编码。
+
+```c
+typedef enum xhttpversion {
+	XHTTP_VERSION_1_0 = 10,
+	XHTTP_VERSION_1_1 = 11
+} xhttpversion;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_VERSION_1_0` | XHTTPVERSION10 |
+
+### `xhttpstatus`
+
+HTTP 状态常量只收录 IANA 已正式分配的通用状态。 未分配、临时分配和明确标记为 Unused 的数值仍可直接使用 uint16 表达。
+
+```c
+typedef enum xhttpstatus {
+	/* 1xx：信息响应。 */
+	XHTTP_STATUS_CONTINUE = 100,
+	XHTTP_STATUS_SWITCHING_PROTOCOLS = 101,
+	XHTTP_STATUS_PROCESSING = 102,
+	XHTTP_STATUS_EARLY_HINTS = 103,
+
+	/* 2xx：成功响应。 */
+	XHTTP_STATUS_OK = 200,
+	XHTTP_STATUS_CREATED = 201,
+	XHTTP_STATUS_ACCEPTED = 202,
+	XHTTP_STATUS_NON_AUTHORITATIVE_INFORMATION = 203,
+	XHTTP_STATUS_NO_CONTENT = 204,
+	XHTTP_STATUS_RESET_CONTENT = 205,
+	XHTTP_STATUS_PARTIAL_CONTENT = 206,
+	XHTTP_STATUS_MULTI_STATUS = 207,
+	XHTTP_STATUS_ALREADY_REPORTED = 208,
+	XHTTP_STATUS_IM_USED = 226,
+
+	/* 3xx：重定向响应。 */
+	XHTTP_STATUS_MULTIPLE_CHOICES = 300,
+	XHTTP_STATUS_MOVED_PERMANENTLY = 301,
+	XHTTP_STATUS_FOUND = 302,
+	XHTTP_STATUS_SEE_OTHER = 303,
+	XHTTP_STATUS_NOT_MODIFIED = 304,
+	XHTTP_STATUS_USE_PROXY = 305,
+	XHTTP_STATUS_TEMPORARY_REDIRECT = 307,
+	XHTTP_STATUS_PERMANENT_REDIRECT = 308,
+
+	/* 4xx：客户端错误响应。 */
+	XHTTP_STATUS_BAD_REQUEST = 400,
+	XHTTP_STATUS_UNAUTHORIZED = 401,
+	XHTTP_STATUS_PAYMENT_REQUIRED = 402,
+	XHTTP_STATUS_FORBIDDEN = 403,
+	XHTTP_STATUS_NOT_FOUND = 404,
+	XHTTP_STATUS_METHOD_NOT_ALLOWED = 405,
+	XHTTP_STATUS_NOT_ACCEPTABLE = 406,
+	XHTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED = 407,
+	XHTTP_STATUS_REQUEST_TIMEOUT = 408,
+	XHTTP_STATUS_CONFLICT = 409,
+	XHTTP_STATUS_GONE = 410,
+	XHTTP_STATUS_LENGTH_REQUIRED = 411,
+	XHTTP_STATUS_PRECONDITION_FAILED = 412,
+	XHTTP_STATUS_CONTENT_TOO_LARGE = 413,
+	XHTTP_STATUS_URI_TOO_LONG = 414,
+	XHTTP_STATUS_UNSUPPORTED_MEDIA_TYPE = 415,
+	XHTTP_STATUS_RANGE_NOT_SATISFIABLE = 416,
+	XHTTP_STATUS_EXPECTATION_FAILED = 417,
+	XHTTP_STATUS_MISDIRECTED_REQUEST = 421,
+	XHTTP_STATUS_UNPROCESSABLE_CONTENT = 422,
+	XHTTP_STATUS_LOCKED = 423,
+	XHTTP_STATUS_FAILED_DEPENDENCY = 424,
+	XHTTP_STATUS_TOO_EARLY = 425,
+	XHTTP_STATUS_UPGRADE_REQUIRED = 426,
+	XHTTP_STATUS_PRECONDITION_REQUIRED = 428,
+	XHTTP_STATUS_TOO_MANY_REQUESTS = 429,
+	XHTTP_STATUS_REQUEST_HEADER_FIELDS_TOO_LARGE = 431,
+	XHTTP_STATUS_UNAVAILABLE_FOR_LEGAL_REASONS = 451,
+
+	/* 5xx：服务器错误响应。 */
+	XHTTP_STATUS_INTERNAL_SERVER_ERROR = 500,
+	XHTTP_STATUS_NOT_IMPLEMENTED = 501,
+	XHTTP_STATUS_BAD_GATEWAY = 502,
+	XHTTP_STATUS_SERVICE_UNAVAILABLE = 503,
+	XHTTP_STATUS_GATEWAY_TIMEOUT = 504,
+	XHTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED = 505,
+	XHTTP_STATUS_VARIANT_ALSO_NEGOTIATES = 506,
+	XHTTP_STATUS_INSUFFICIENT_STORAGE = 507,
+	XHTTP_STATUS_LOOP_DETECTED = 508,
+	XHTTP_STATUS_NOT_EXTENDED = 510,
+	XHTTP_STATUS_NETWORK_AUTHENTICATION_REQUIRED = 511
+} xhttpstatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_STATUS_CONTINUE` | CONTINUE |
+| `XHTTP_STATUS_SWITCHING_PROTOCOLS` | SWITCHINGPROTOCOLS |
+| `XHTTP_STATUS_PROCESSING` | PROCESSING |
+| `XHTTP_STATUS_EARLY_HINTS` | EARLYHINTS |
+| `XHTTP_STATUS_OK` | 成功 |
+| `XHTTP_STATUS_CREATED` | CREATED |
+| `XHTTP_STATUS_ACCEPTED` | ACCEPTED |
+| `XHTTP_STATUS_NON_AUTHORITATIVE_INFORMATION` | NONAUTHORITATIVEINFORMATION |
+| `XHTTP_STATUS_NO_CONTENT` | NOCONTENT |
+| `XHTTP_STATUS_RESET_CONTENT` | RESETCONTENT |
+| `XHTTP_STATUS_PARTIAL_CONTENT` | PARTIALCONTENT |
+| `XHTTP_STATUS_MULTI_STATUS` | MULTISTATUS |
+| `XHTTP_STATUS_ALREADY_REPORTED` | ALREADYREPORTED |
+| `XHTTP_STATUS_IM_USED` | IMUSED |
+| `XHTTP_STATUS_MULTIPLE_CHOICES` | MULTIPLECHOICES |
+| `XHTTP_STATUS_MOVED_PERMANENTLY` | MOVEDPERMANENTLY |
+| `XHTTP_STATUS_FOUND` | FOUND |
+| `XHTTP_STATUS_SEE_OTHER` | SEEOTHER |
+| `XHTTP_STATUS_NOT_MODIFIED` | NOTMODIFIED |
+| `XHTTP_STATUS_USE_PROXY` | USEPROXY |
+| `XHTTP_STATUS_TEMPORARY_REDIRECT` | TEMPORARYREDIRECT |
+| `XHTTP_STATUS_PERMANENT_REDIRECT` | PERMANENTREDIRECT |
+| `XHTTP_STATUS_BAD_REQUEST` | BADREQUEST |
+| `XHTTP_STATUS_UNAUTHORIZED` | UNAUTHORIZED |
+| `XHTTP_STATUS_PAYMENT_REQUIRED` | PAYMENTREQUIRED |
+| `XHTTP_STATUS_FORBIDDEN` | FORBIDDEN |
+| `XHTTP_STATUS_NOT_FOUND` | NOTFOUND |
+| `XHTTP_STATUS_METHOD_NOT_ALLOWED` | METHODNOTALLOWED |
+| `XHTTP_STATUS_NOT_ACCEPTABLE` | NOTACCEPTABLE |
+| `XHTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED` | PROXYAUTHENTICATIONREQUIRED |
+| `XHTTP_STATUS_REQUEST_TIMEOUT` | REQUEST超时 |
+| `XHTTP_STATUS_CONFLICT` | CONFLICT |
+| `XHTTP_STATUS_GONE` | GONE |
+| `XHTTP_STATUS_LENGTH_REQUIRED` | LENGTHREQUIRED |
+| `XHTTP_STATUS_PRECONDITION_FAILED` | PRECONDITION已失败 |
+| `XHTTP_STATUS_CONTENT_TOO_LARGE` | CONTENTTOOLARGE |
+| `XHTTP_STATUS_URI_TOO_LONG` | URITOOLONG |
+| `XHTTP_STATUS_UNSUPPORTED_MEDIA_TYPE` | 不支持MEDIA类型 |
+| `XHTTP_STATUS_RANGE_NOT_SATISFIABLE` | 范围越界NOTSATISFIABLE |
+| `XHTTP_STATUS_EXPECTATION_FAILED` | EXPECTATION已失败 |
+| `XHTTP_STATUS_MISDIRECTED_REQUEST` | MISDIRECTEDREQUEST |
+| `XHTTP_STATUS_UNPROCESSABLE_CONTENT` | UNPROCESSABLECONTENT |
+| `XHTTP_STATUS_LOCKED` | LOCKED |
+| `XHTTP_STATUS_FAILED_DEPENDENCY` | 已失败DEPENDENCY |
+| `XHTTP_STATUS_TOO_EARLY` | TOOEARLY |
+| `XHTTP_STATUS_UPGRADE_REQUIRED` | UPGRADEREQUIRED |
+| `XHTTP_STATUS_PRECONDITION_REQUIRED` | PRECONDITIONREQUIRED |
+| `XHTTP_STATUS_TOO_MANY_REQUESTS` | TOOMANYREQUESTS |
+| `XHTTP_STATUS_REQUEST_HEADER_FIELDS_TOO_LARGE` | REQUESTHEADER字段TOOLARGE |
+| `XHTTP_STATUS_UNAVAILABLE_FOR_LEGAL_REASONS` | UNAVAILABLEFORLEGALREASONS |
+| `XHTTP_STATUS_INTERNAL_SERVER_ERROR` | 内部错误服务端角色失败 |
+| `XHTTP_STATUS_NOT_IMPLEMENTED` | NOTIMPLEMENTED |
+| `XHTTP_STATUS_BAD_GATEWAY` | BADGATEWAY |
+| `XHTTP_STATUS_SERVICE_UNAVAILABLE` | SERVICEUNAVAILABLE |
+| `XHTTP_STATUS_GATEWAY_TIMEOUT` | GATEWAY超时 |
+| `XHTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED` | HTTPVERSIONNOTSUPPORTED |
+| `XHTTP_STATUS_VARIANT_ALSO_NEGOTIATES` | VARIANTALSONEGOTIATES |
+| `XHTTP_STATUS_INSUFFICIENT_STORAGE` | INSUFFICIENTSTORAGE |
+| `XHTTP_STATUS_LOOP_DETECTED` | LOOPDETECTED |
+| `XHTTP_STATUS_NOT_EXTENDED` | NOTEXTENDED |
+
+### `xhttpfield`
+
+字段名称和值都是借用视图，不要求零结尾。
+
+```c
+typedef struct xhttpfield {
+	xstrview Name;
+	xstrview Value;
+} xhttpfield;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Value` | `xstrview` | Value |
+
+### `xhttpnext`
+
+HTTP 值迭代结果明确区分条目、正常结束和语法错误。
+
+```c
+typedef enum xhttpnext {
+	XHTTP_NEXT_ERROR = -1,
+	XHTTP_NEXT_END = 0,
+	XHTTP_NEXT_ITEM = 1
+} xhttpnext;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_NEXT_ERROR` | 失败 |
+| `XHTTP_NEXT_END` | END |
+
+### `xhttpfieldtokencursor`
+
+重复同名 token-list 字段游标由初始化函数建立，调用方不得直接修改。
+
+```c
+typedef struct xhttpfieldtokencursor {
+	const void* Source;
+	xstrview Name;
+	size_t Count;
+	size_t Field;
+	size_t Offset;
+	uint8 Validated;
+	uint8 Required;
+} xhttpfieldtokencursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Source` | `const void*` | Source |
+| `Name` | `xstrview` | Name |
+| `Count` | `size_t` | Count |
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+| `Required` | `uint8` | Required |
+
+### `xhttpweightedtoken`
+
+加权 token 借用原字段值，Quality 使用 0 到 1000 的无浮点定点值。
+
+```c
+typedef struct xhttpweightedtoken {
+	xstrview Token;
+	uint16 Quality;
+} xhttpweightedtoken;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Token` | `xstrview` | Token |
+| `Quality` | `uint16` | Quality |
+
+### `xhttpauthority`
+
+HTTP authority 借用原始文本，不接受 userinfo。
+
+```c
+typedef struct xhttpauthority {
+	uint32 Flags;
+	uint16 Port;
+	xstrview Text;
+	xstrview Host;
+	xstrview PortText;
+} xhttpauthority;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Port` | `uint16` | Port |
+| `Text` | `xstrview` | Text |
+| `Host` | `xstrview` | Host |
+| `PortText` | `xstrview` | PortText |
+
+### `xhttptargetform`
+
+Request-target 形式由方法与线路文本共同决定。
+
+```c
+typedef enum xhttptargetform {
+	XHTTP_TARGET_ORIGIN = 1,
+	XHTTP_TARGET_ABSOLUTE,
+	XHTTP_TARGET_AUTHORITY,
+	XHTTP_TARGET_ASTERISK
+} xhttptargetform;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_TARGET_ORIGIN` | ORIGIN |
+| `XHTTP_TARGET_ABSOLUTE` | ABSOLUTE |
+| `XHTTP_TARGET_AUTHORITY` | AUTHORITY |
+
+### `xhttptarget`
+
+Target 借用原始方法与 request-target，并只保留 HTTP 路径需要的 URI 组件。
+
+```c
+typedef struct xhttptarget {
+	xhttptargetform Form;
+	uint32 Flags;
+	xstrview Method;
+	xstrview Text;
+	xstrview Scheme;
+	xstrview Authority;
+	xstrview Path;
+	xstrview Query;
+	xhttpauthority Host;
+} xhttptarget;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Form` | `xhttptargetform` | Form |
+| `Flags` | `uint32` | Flags |
+| `Method` | `xstrview` | Method |
+| `Text` | `xstrview` | Text |
+| `Scheme` | `xstrview` | Scheme |
+| `Authority` | `xstrview` | Authority |
+| `Path` | `xstrview` | Path |
+| `Query` | `xstrview` | Query |
+| `Host` | `xhttpauthority` | Host |
+
+### `xhttpparamflags`
+
+参数值标志区分省略值、token 值和 quoted-string 值。
+
+```c
+typedef enum xhttpparamflags {
+	XHTTP_PARAM_NONE = 0,
+	XHTTP_PARAM_HAS_VALUE = 0x01,
+	XHTTP_PARAM_QUOTED = 0x02
+} xhttpparamflags;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_PARAM_NONE` | 无 |
+| `XHTTP_PARAM_HAS_VALUE` | HAS值非法 |
+
+### `xhttpparam`
+
+参数名称和值借用原文本；quoted-string 值不含双引号，但保留反斜杠转义。
+
+```c
+typedef struct xhttpparam {
+	xstrview Name;
+	xstrview Value;
+	uint32 Flags;
+} xhttpparam;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Value` | `xstrview` | Value |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpparamvaluecursor`
+
+参数语义值游标由初始化函数建立；Offset 是下一次读取的原始值偏移。
+
+```c
+typedef struct xhttpparamvaluecursor {
+	const void* Source;
+	const void* Value;
+	size_t ValueSize;
+	size_t Offset;
+	uint32 Flags;
+	uint8 Validated;
+} xhttpparamvaluecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Source` | `const void*` | Source |
+| `Value` | `const void*` | Value |
+| `ValueSize` | `size_t` | ValueSize |
+| `Offset` | `size_t` | Offset |
+| `Flags` | `uint32` | Flags |
+| `Validated` | `uint8` | Validated |
+
+### `xhttp1status`
+
+HTTP/1 解析返回值区分数据不足、字段描述符不足和真正的协议错误。
+
+```c
+typedef enum xhttp1status {
+	XHTTP1_ERROR = -1,
+	XHTTP1_MORE = 0,
+	XHTTP1_READY = 1,
+	XHTTP1_FIELDS = 2
+} xhttp1status;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP1_ERROR` | 失败 |
+| `XHTTP1_MORE` | 需要更多输入 |
+| `XHTTP1_READY` | 就绪 |
+
+### `xhttpkind`
+
+起始行决定消息方向，调用方不需要依赖启发式自动识别。
+
+```c
+typedef enum xhttpkind {
+	XHTTP_REQUEST = 1,
+	XHTTP_RESPONSE
+} xhttpkind;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_REQUEST` | XHTTPREQUEST |
+
+### `xhttp1flag`
+
+Header 只描述线上的显式语义，完整消息体计划由上层结合请求方法计算。
+
+```c
+typedef enum xhttp1flag {
+	XHTTP1_KEEP_ALIVE = UINT32_C(0x00000001),
+	XHTTP1_CONNECTION_CLOSE = UINT32_C(0x00000002),
+	XHTTP1_UPGRADE = UINT32_C(0x00000004),
+	XHTTP1_CONTENT_LENGTH = UINT32_C(0x00000008),
+	XHTTP1_CHUNKED = UINT32_C(0x00000010),
+	XHTTP1_TRANSFER_ENCODING = UINT32_C(0x00000020),
+	XHTTP1_TRANSFER_OTHER = UINT32_C(0x00000040)
+} xhttp1flag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP1_KEEP_ALIVE` | KEEPALIVE |
+| `XHTTP1_CONNECTION_CLOSE` | CONNECTIONCLOSE |
+| `XHTTP1_UPGRADE` | UPGRADE |
+| `XHTTP1_CONTENT_LENGTH` | CONTENTLENGTH |
+| `XHTTP1_CHUNKED` | CHUNKED |
+| `XHTTP1_TRANSFER_ENCODING` | TRANSFERENCODING |
+
+### `xhttp1error`
+
+HTTP/1 解析与封包使用稳定错误码，Offset 和 Line 提供精确协议位置。
+
+```c
+typedef enum xhttp1error {
+	XHTTP1_ERROR_ARGUMENT = 1,
+	XHTTP1_ERROR_HEAD_INCOMPLETE,
+	XHTTP1_ERROR_HEAD_TOO_LARGE,
+	XHTTP1_ERROR_START_LINE_TOO_LARGE,
+	XHTTP1_ERROR_FIELD_LINE_TOO_LARGE,
+	XHTTP1_ERROR_TOO_MANY_FIELDS,
+	XHTTP1_ERROR_LINE_END,
+	XHTTP1_ERROR_START_LINE,
+	XHTTP1_ERROR_METHOD,
+	XHTTP1_ERROR_TARGET,
+	XHTTP1_ERROR_VERSION,
+	XHTTP1_ERROR_STATUS,
+	XHTTP1_ERROR_REASON,
+	XHTTP1_ERROR_FIELD_NAME,
+	XHTTP1_ERROR_FIELD_VALUE,
+	XHTTP1_ERROR_CONTENT_LENGTH,
+	XHTTP1_ERROR_CONFLICTING_CONTENT_LENGTH,
+	XHTTP1_ERROR_TRANSFER_LENGTH,
+	XHTTP1_ERROR_TRANSFER_ENCODING,
+	XHTTP1_ERROR_UNSUPPORTED_TRANSFER_ENCODING,
+	XHTTP1_ERROR_CONNECTION,
+	XHTTP1_ERROR_OUTPUT_SIZE,
+	XHTTP1_ERROR_REQUEST_TRANSFER_ENCODING,
+	XHTTP1_ERROR_BODY_TOO_LARGE,
+	XHTTP1_ERROR_BODY_INCOMPLETE,
+	XHTTP1_ERROR_CHUNK_LINE_TOO_LARGE,
+	XHTTP1_ERROR_CHUNK_SIZE,
+	XHTTP1_ERROR_CHUNK_EXTENSION,
+	XHTTP1_ERROR_CHUNK_TERMINATOR,
+	XHTTP1_ERROR_TRAILER_TOO_LARGE,
+	XHTTP1_ERROR_TRAILER_LINE_TOO_LARGE,
+	XHTTP1_ERROR_TOO_MANY_TRAILERS,
+	XHTTP1_ERROR_FORBIDDEN_TRAILER,
+	XHTTP1_ERROR_UPGRADE
+} xhttp1error;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP1_ERROR_ARGUMENT` | 参数非法 |
+| `XHTTP1_ERROR_HEAD_INCOMPLETE` | HEADINCOMPLETE |
+| `XHTTP1_ERROR_HEAD_TOO_LARGE` | HEADTOOLARGE |
+| `XHTTP1_ERROR_START_LINE_TOO_LARGE` | STARTLINETOOLARGE |
+| `XHTTP1_ERROR_FIELD_LINE_TOO_LARGE` | FIELDLINETOOLARGE |
+| `XHTTP1_ERROR_TOO_MANY_FIELDS` | TOOMANY字段 |
+| `XHTTP1_ERROR_LINE_END` | LINEEND |
+| `XHTTP1_ERROR_START_LINE` | STARTLINE |
+| `XHTTP1_ERROR_METHOD` | METHOD |
+| `XHTTP1_ERROR_TARGET` | TARGET |
+| `XHTTP1_ERROR_VERSION` | VERSION |
+| `XHTTP1_ERROR_STATUS` | STATUS |
+| `XHTTP1_ERROR_REASON` | REASON |
+| `XHTTP1_ERROR_FIELD_NAME` | FIELD名称 |
+| `XHTTP1_ERROR_FIELD_VALUE` | FIELD值非法 |
+| `XHTTP1_ERROR_CONTENT_LENGTH` | CONTENTLENGTH |
+| `XHTTP1_ERROR_CONFLICTING_CONTENT_LENGTH` | CONFLICTINGCONTENTLENGTH |
+| `XHTTP1_ERROR_TRANSFER_LENGTH` | TRANSFERLENGTH |
+| `XHTTP1_ERROR_TRANSFER_ENCODING` | TRANSFERENCODING |
+| `XHTTP1_ERROR_UNSUPPORTED_TRANSFER_ENCODING` | 不支持TRANSFERENCODING |
+| `XHTTP1_ERROR_CONNECTION` | CONNECTION |
+| `XHTTP1_ERROR_OUTPUT_SIZE` | 输出失败尺寸 |
+| `XHTTP1_ERROR_REQUEST_TRANSFER_ENCODING` | REQUESTTRANSFERENCODING |
+| `XHTTP1_ERROR_BODY_TOO_LARGE` | BODYTOOLARGE |
+| `XHTTP1_ERROR_BODY_INCOMPLETE` | BODYINCOMPLETE |
+| `XHTTP1_ERROR_CHUNK_LINE_TOO_LARGE` | CHUNKLINETOOLARGE |
+| `XHTTP1_ERROR_CHUNK_SIZE` | CHUNK尺寸 |
+| `XHTTP1_ERROR_CHUNK_EXTENSION` | CHUNKEXTENSION |
+| `XHTTP1_ERROR_CHUNK_TERMINATOR` | CHUNKTERMINATOR |
+| `XHTTP1_ERROR_TRAILER_TOO_LARGE` | TRAILERTOOLARGE |
+| `XHTTP1_ERROR_TRAILER_LINE_TOO_LARGE` | TRAILERLINETOOLARGE |
+| `XHTTP1_ERROR_TOO_MANY_TRAILERS` | TOOMANYTRAILERS |
+| `XHTTP1_ERROR_FORBIDDEN_TRAILER` | FORBIDDENTRAILER |
+
+### `xhttp1limits`
+
+默认限额面向公网协议输入，调用方可以按服务端路由或客户端策略收紧。
+
+```c
+typedef struct xhttp1limits {
+	size_t MaxHead;
+	size_t MaxStartLine;
+	size_t MaxFieldLine;
+	size_t MaxFields;
+} xhttp1limits;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `MaxHead` | `size_t` | MaxHead |
+| `MaxStartLine` | `size_t` | MaxStartLine |
+| `MaxFieldLine` | `size_t` | MaxFieldLine |
+| `MaxFields` | `size_t` | MaxFields |
+
+### `xhttp1errorinfo`
+
+解析错误位置从消息首字节开始计数，Line 从一开始计数。
+
+```c
+typedef struct xhttp1errorinfo {
+	xhttp1error Code;
+	size_t Offset;
+	size_t Line;
+} xhttp1errorinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Code` | `xhttp1error` | Code |
+| `Offset` | `size_t` | Offset |
+| `Line` | `size_t` | Line |
+
+### `xhttp1transfercoding`
+
+Transfer Coding 名称和原样参数都借用字段值，Parameters 不含首个分号。
+
+```c
+typedef struct xhttp1transfercoding {
+	xstrview Name;
+	xstrview Parameters;
+} xhttp1transfercoding;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Parameters` | `xstrview` | Parameters |
+
+### `xhttp1head`
+
+Head 只借用输入和字段数组；输入与数组必须覆盖 Head 的使用期。 FIELDS 状态下 FieldCount 是需要的描述符数量，其余字段已经可读取。
+
+```c
+typedef struct xhttp1head {
+	xhttpkind Kind;
+	xhttpversion Version;
+	uint32 Flags;
+	uint16 Status;
+	uint64 ContentLength;
+	size_t Bytes;
+	xstrview Method;
+	xstrview Target;
+	xstrview Reason;
+	xhttpfield* Fields;
+	size_t FieldCount;
+	size_t FieldCapacity;
+	xhttpmethod MethodCode;
+} xhttp1head;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Kind` | `xhttpkind` | Kind |
+| `Version` | `xhttpversion` | Version |
+| `Flags` | `uint32` | Flags |
+| `Status` | `uint16` | Status |
+| `ContentLength` | `uint64` | ContentLength |
+| `Bytes` | `size_t` | Bytes |
+| `Method` | `xstrview` | Method |
+| `Target` | `xstrview` | Target |
+| `Reason` | `xstrview` | Reason |
+| `Fields` | `xhttpfield*` | Fields |
+| `FieldCount` | `size_t` | FieldCount |
+| `FieldCapacity` | `size_t` | FieldCapacity |
+| `MethodCode` | `xhttpmethod` | MethodCode |
+
+### `xhttp1bodymode`
+
+Body Plan 明确区分无正文、定长、分块、关闭定界和升级后的非 HTTP 字节。
+
+```c
+typedef enum xhttp1bodymode {
+	XHTTP1_BODY_NONE = 0,
+	XHTTP1_BODY_FIXED,
+	XHTTP1_BODY_CHUNKED,
+	XHTTP1_BODY_CLOSE,
+	XHTTP1_BODY_TUNNEL
+} xhttp1bodymode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP1_BODY_NONE` | 无 |
+| `XHTTP1_BODY_FIXED` | FIXED |
+| `XHTTP1_BODY_CHUNKED` | CHUNKED |
+| `XHTTP1_BODY_CLOSE` | CLOSE |
+
+### `xhttp1bodystatus`
+
+Body Reader 每次只发布一个借用数据片段或一个终态。
+
+```c
+typedef enum xhttp1bodystatus {
+	XHTTP1_BODY_ERROR = -1,
+	XHTTP1_BODY_MORE = 0,
+	XHTTP1_BODY_DATA = 1,
+	XHTTP1_BODY_DONE = 2,
+	XHTTP1_BODY_FIELDS = 3
+} xhttp1bodystatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP1_BODY_ERROR` | 失败 |
+| `XHTTP1_BODY_MORE` | 需要更多输入 |
+| `XHTTP1_BODY_DATA` | 数据损坏 |
+| `XHTTP1_BODY_DONE` | 完成 |
+
+### `xhttp1bodyplan`
+
+Body Plan 是 Header 事实结合请求方法和响应状态后的唯一分帧结论。
+
+```c
+typedef struct xhttp1bodyplan {
+	xhttp1bodymode Mode;
+	uint64 Length;
+} xhttp1bodyplan;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Mode` | `xhttp1bodymode` | Mode |
+| `Length` | `uint64` | Length |
+
+### `xhttp1bodylimits`
+
+流式正文不预分配内存；限额约束累计正文、chunk 行和 trailer 区。
+
+```c
+typedef struct xhttp1bodylimits {
+	uint64 MaxBody;
+	size_t MaxChunkLine;
+	size_t MaxTrailer;
+	size_t MaxTrailerLine;
+	size_t MaxTrailers;
+} xhttp1bodylimits;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `MaxBody` | `uint64` | MaxBody |
+| `MaxChunkLine` | `size_t` | MaxChunkLine |
+| `MaxTrailer` | `size_t` | MaxTrailer |
+| `MaxTrailerLine` | `size_t` | MaxTrailerLine |
+| `MaxTrailers` | `size_t` | MaxTrailers |
+
+### `xhttp1body`
+
+Body Reader 由调用方持有且不分配内存；Trailers 借用完成调用中的输入。 公开计数可用于进度与诊断，其余状态只能由本模块推进。
+
+```c
+typedef struct xhttp1body {
+	xhttp1bodymode Mode;
+	uint64 Remaining;
+	uint64 Received;
+	uint64 WireBytes;
+	xhttpfield* Trailers;
+	size_t TrailerCount;
+	size_t TrailerCapacity;
+	xhttp1bodylimits Limits;
+	uint64 ChunkSize;
+	size_t ChunkLineBytes;
+	uint32 State;
+} xhttp1body;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Mode` | `xhttp1bodymode` | Mode |
+| `Remaining` | `uint64` | Remaining |
+| `Received` | `uint64` | Received |
+| `WireBytes` | `uint64` | WireBytes |
+| `Trailers` | `xhttpfield*` | Trailers |
+| `TrailerCount` | `size_t` | TrailerCount |
+| `TrailerCapacity` | `size_t` | TrailerCapacity |
+| `Limits` | `xhttp1bodylimits` | Limits |
+| `ChunkSize` | `uint64` | ChunkSize |
+| `ChunkLineBytes` | `size_t` | ChunkLineBytes |
+| `State` | `uint32` | State |
+
+### `xhttp1message`
+
+完整消息便利层借用连续输入、Header 和 trailer 描述符，不持有堆内存。 Wire 只覆盖第一条完整消息，BodyBytes 是移除 chunked 分帧后的正文长度。
+
+```c
+typedef struct xhttp1message {
+	xhttp1head Head;
+	xhttp1bodyplan Plan;
+	xhttp1bodylimits Limits;
+	xbytesview Wire;
+	xhttpfield* Trailers;
+	size_t TrailerCount;
+	size_t TrailerCapacity;
+	size_t BodyBytes;
+} xhttp1message;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Head` | `xhttp1head` | Head |
+| `Plan` | `xhttp1bodyplan` | Plan |
+| `Limits` | `xhttp1bodylimits` | Limits |
+| `Wire` | `xbytesview` | Wire |
+| `Trailers` | `xhttpfield*` | Trailers |
+| `TrailerCount` | `size_t` | TrailerCount |
+| `TrailerCapacity` | `size_t` | TrailerCapacity |
+| `BodyBytes` | `size_t` | BodyBytes |
+
+### `xhttpdecodemode`
+
+解码模式明确区分无编码、成功接管的内置编码和显式允许的原样回退。
+
+```c
+typedef enum xhttpdecodemode {
+	XHTTP_DECODE_IDENTITY = 0,
+	XHTTP_DECODE_CONTENT,
+	XHTTP_DECODE_RAW
+} xhttpdecodemode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_DECODE_IDENTITY` | IDENTITY |
+| `XHTTP_DECODE_CONTENT` | CONTENT |
+
+### `xhttpdecodeflag`
+
+默认拒绝未知编码；调用方可显式选择保留整个原始表示。
+
+```c
+typedef enum xhttpdecodeflag {
+	XHTTP_DECODE_ALLOW_RAW = UINT32_C(0x00000001)
+} xhttpdecodeflag;
+```
+
+| 值 | 语义 |
+|---|---|
+
+### `xhttpdecodeerror`
+
+错误码覆盖配置、Content-Encoding、状态和输出边界。
+
+```c
+typedef enum xhttpdecodeerror {
+	XHTTP_DECODE_ERROR_ARGUMENT = 1,
+	XHTTP_DECODE_ERROR_CONFIG,
+	XHTTP_DECODE_ERROR_CONTENT_ENCODING,
+	XHTTP_DECODE_ERROR_UNSUPPORTED,
+	XHTTP_DECODE_ERROR_STATE,
+	XHTTP_DECODE_ERROR_LIMIT,
+	XHTTP_DECODE_ERROR_OUTPUT
+} xhttpdecodeerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_DECODE_ERROR_ARGUMENT` | 参数非法 |
+| `XHTTP_DECODE_ERROR_CONFIG` | 配置非法 |
+| `XHTTP_DECODE_ERROR_CONTENT_ENCODING` | CONTENTENCODING |
+| `XHTTP_DECODE_ERROR_UNSUPPORTED` | 不支持 |
+| `XHTTP_DECODE_ERROR_STATE` | 状态非法 |
+| `XHTTP_DECODE_ERROR_LIMIT` | 超限 |
+
+### `xhttpdecodeconfig`
+
+每个解码层和最终明文都受同一个硬限额约束。
+
+```c
+typedef struct xhttpdecodeconfig {
+	uint64 OutputLimit;
+	uint32 GzipHeaderLimit;
+	uint32 MaxCodings;
+	uint32 Flags;
+} xhttpdecodeconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `OutputLimit` | `uint64` | OutputLimit |
+| `GzipHeaderLimit` | `uint32` | GzipHeaderLimit |
+| `MaxCodings` | `uint32` | MaxCodings |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpdecode`
+
+HTTP 解码器拥有并复用底层 Inflate 状态。
+
+```c
+typedef struct xhttpdecode xhttpdecode;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xhttpdecodeoutputproc`
+
+输出视图只在回调期间有效，返回 false 会终止当前解码器。
+
+```c
+typedef bool (*xhttpdecodeoutputproc)(xbytesview Data, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xhttpcoding`
+
+内置编码值同时可作为可用编码位掩码，NONE 表示没有可接受表示。
+
+```c
+typedef enum xhttpcoding {
+	XHTTP_CODING_NONE = 0,
+	XHTTP_CODING_IDENTITY = UINT32_C(0x00000001),
+	XHTTP_CODING_GZIP = UINT32_C(0x00000002),
+	XHTTP_CODING_DEFLATE = UINT32_C(0x00000004)
+} xhttpcoding;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_CODING_NONE` | 无 |
+| `XHTTP_CODING_IDENTITY` | IDENTITY |
+| `XHTTP_CODING_GZIP` | gzip 包装 |
+
+### `xhttpacceptencodingflag`
+
+解析标志区分 Header 缺失与各个显式编码成员。
+
+```c
+typedef enum xhttpacceptencodingflag {
+	XHTTP_ACCEPT_ENCODING_NONE = 0,
+	XHTTP_ACCEPT_ENCODING_PRESENT = UINT32_C(0x00000001),
+	XHTTP_ACCEPT_ENCODING_GZIP = UINT32_C(0x00000002),
+	XHTTP_ACCEPT_ENCODING_DEFLATE = UINT32_C(0x00000004),
+	XHTTP_ACCEPT_ENCODING_IDENTITY = UINT32_C(0x00000008),
+	XHTTP_ACCEPT_ENCODING_WILDCARD = UINT32_C(0x00000010)
+} xhttpacceptencodingflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_ACCEPT_ENCODING_NONE` | 无 |
+| `XHTTP_ACCEPT_ENCODING_PRESENT` | PRESENT |
+| `XHTTP_ACCEPT_ENCODING_GZIP` | gzip 包装 |
+| `XHTTP_ACCEPT_ENCODING_DEFLATE` | deflate 包装 |
+| `XHTTP_ACCEPT_ENCODING_IDENTITY` | IDENTITY |
+
+### `xhttpacceptencoding`
+
+质量值使用 0 到 1000 的定点表示。 同一编码重复出现时保留最高质量，Flags 记录是否显式出现。
+
+```c
+typedef struct xhttpacceptencoding {
+	uint16 Gzip;
+	uint16 Deflate;
+	uint16 Identity;
+	uint16 Wildcard;
+	uint32 Flags;
+} xhttpacceptencoding;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Gzip` | `uint16` | Gzip |
+| `Deflate` | `uint16` | Deflate |
+| `Identity` | `uint16` | Identity |
+| `Wildcard` | `uint16` | Wildcard |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpcontentencodingflag`
+
+Content-Encoding 计划保留字段存在性、容错层和未知扩展。
+
+```c
+typedef enum xhttpcontentencodingflag {
+	XHTTP_CONTENT_ENCODING_NONE = 0,
+	XHTTP_CONTENT_ENCODING_PRESENT = UINT32_C(0x00000001),
+	XHTTP_CONTENT_ENCODING_IDENTITY = UINT32_C(0x00000002),
+	XHTTP_CONTENT_ENCODING_UNKNOWN = UINT32_C(0x00000004),
+	XHTTP_CONTENT_ENCODING_LEGACY = UINT32_C(0x00000008)
+} xhttpcontentencodingflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_CONTENT_ENCODING_NONE` | 无 |
+| `XHTTP_CONTENT_ENCODING_PRESENT` | PRESENT |
+| `XHTTP_CONTENT_ENCODING_IDENTITY` | IDENTITY |
+| `XHTTP_CONTENT_ENCODING_UNKNOWN` | 未知 |
+
+### `xhttpcontentencodingcursor`
+
+游标可在重复 Content-Encoding 字段之间无分配前向迭代。
+
+```c
+typedef struct xhttpcontentencodingcursor {
+	size_t Field;
+	size_t Offset;
+} xhttpcontentencodingcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+
+### `xhttpcontentencodingitem`
+
+每个成员保留原 token，并把内置编码映射到统一枚举。
+
+```c
+typedef struct xhttpcontentencodingitem {
+	xstrview Token;
+	xhttpcoding Coding;
+} xhttpcontentencodingitem;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Token` | `xstrview` | Token |
+| `Coding` | `xhttpcoding` | Coding |
+
+### `xhttpcontentencodingplan`
+
+计划只保存解析事实，不绑定具体解码算法或未知编码策略。
+
+```c
+typedef struct xhttpcontentencodingplan {
+	size_t FieldCount;
+	size_t CodingCount;
+	size_t DecoderCount;
+	size_t UnknownCount;
+	size_t JoinedSize;
+	uint32 Flags;
+} xhttpcontentencodingplan;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `FieldCount` | `size_t` | FieldCount |
+| `CodingCount` | `size_t` | CodingCount |
+| `DecoderCount` | `size_t` | DecoderCount |
+| `UnknownCount` | `size_t` | UnknownCount |
+| `JoinedSize` | `size_t` | JoinedSize |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpexpectflag`
+
+Expectation 标志区分扩展值、quoted-string 和参数。
+
+```c
+typedef enum xhttpexpectflag {
+	XHTTP_EXPECT_BARE = 0,
+	XHTTP_EXPECT_HAS_VALUE = UINT32_C(0x00000001),
+	XHTTP_EXPECT_VALUE_QUOTED = UINT32_C(0x00000002),
+	XHTTP_EXPECT_HAS_PARAMETERS = UINT32_C(0x00000004)
+} xhttpexpectflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_EXPECT_BARE` | BARE |
+| `XHTTP_EXPECT_HAS_VALUE` | HAS值非法 |
+| `XHTTP_EXPECT_VALUE_QUOTED` | 值非法QUOTED |
+
+### `xhttpexpectation`
+
+Expectation 借用完整元素、名称、线路值和原始参数片段。
+
+```c
+typedef struct xhttpexpectation {
+	xstrview Element;
+	xstrview Name;
+	xstrview Value;
+	xstrview Parameters;
+	uint32 Flags;
+} xhttpexpectation;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Element` | `xstrview` | Element |
+| `Name` | `xstrview` | Name |
+| `Value` | `xstrview` | Value |
+| `Parameters` | `xstrview` | Parameters |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpexpectcursor`
+
+单字段游标由初始化函数建立，调用方不得直接修改。
+
+```c
+typedef struct xhttpexpectcursor {
+	size_t Offset;
+	uint8 Validated;
+} xhttpexpectcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpexpectfieldcursor`
+
+重复字段游标同时记录当前字段和字段内位置。
+
+```c
+typedef struct xhttpexpectfieldcursor {
+	size_t Field;
+	size_t Offset;
+	uint8 Validated;
+} xhttpexpectfieldcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpexpectresult`
+
+字段分类保留语法错误与语法正确但不受支持的扩展差异。
+
+```c
+typedef enum xhttpexpectresult {
+	XHTTP_EXPECT_ERROR = -1,
+	XHTTP_EXPECT_NONE = 0,
+	XHTTP_EXPECT_CONTINUE = 1,
+	XHTTP_EXPECT_UNSUPPORTED = 2
+} xhttpexpectresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_EXPECT_ERROR` | 失败 |
+| `XHTTP_EXPECT_NONE` | 无 |
+| `XHTTP_EXPECT_CONTINUE` | CONTINUE |
+
+### `xhttptecodingflag`
+
+单个 TE 成员标志区分 trailers、传输参数和显式权重。
+
+```c
+typedef enum xhttptecodingflag {
+	XHTTP_TE_CODING_NONE = 0,
+	XHTTP_TE_CODING_TRAILERS = UINT32_C(0x00000001),
+	XHTTP_TE_CODING_HAS_PARAMETERS = UINT32_C(0x00000002),
+	XHTTP_TE_CODING_HAS_WEIGHT = UINT32_C(0x00000004)
+} xhttptecodingflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_TE_CODING_NONE` | 无 |
+| `XHTTP_TE_CODING_TRAILERS` | TRAILERS |
+| `XHTTP_TE_CODING_HAS_PARAMETERS` | HASPARAMETERS |
+
+### `xhttptecoding`
+
+TE 成员借用完整元素、编码名称和不含 q 权重的传输参数。
+
+```c
+typedef struct xhttptecoding {
+	xstrview Element;
+	xstrview Coding;
+	xstrview Parameters;
+	size_t ParameterCount;
+	uint16 Quality;
+	uint32 Flags;
+} xhttptecoding;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Element` | `xstrview` | Element |
+| `Coding` | `xstrview` | Coding |
+| `Parameters` | `xstrview` | Parameters |
+| `ParameterCount` | `size_t` | ParameterCount |
+| `Quality` | `uint16` | Quality |
+| `Flags` | `uint32` | Flags |
+
+### `xhttptecursor`
+
+单字段游标由初始化函数建立，调用方不得直接修改。
+
+```c
+typedef struct xhttptecursor {
+	size_t Offset;
+	uint8 Validated;
+} xhttptecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttptefieldcursor`
+
+重复字段游标同时记录当前字段和字段内位置。
+
+```c
+typedef struct xhttptefieldcursor {
+	size_t Field;
+	size_t Offset;
+	uint8 Validated;
+} xhttptefieldcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpteflag`
+
+TE 汇总标志明确区分字段缺失、空字段和 trailers 能力。
+
+```c
+typedef enum xhttpteflag {
+	XHTTP_TE_NONE = 0,
+	XHTTP_TE_PRESENT = UINT32_C(0x00000001),
+	XHTTP_TE_ACCEPTS_TRAILERS = UINT32_C(0x00000002),
+	XHTTP_TE_HAS_TRANSFER_CODINGS = UINT32_C(0x00000004)
+} xhttpteflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_TE_NONE` | 无 |
+| `XHTTP_TE_PRESENT` | PRESENT |
+| `XHTTP_TE_ACCEPTS_TRAILERS` | ACCEPTSTRAILERS |
+
+### `xhttpteinfo`
+
+TE 汇总保留字段、总成员和实际传输编码数量。
+
+```c
+typedef struct xhttpteinfo {
+	size_t FieldCount;
+	size_t CodingCount;
+	size_t TransferCodingCount;
+	uint32 Flags;
+} xhttpteinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `FieldCount` | `size_t` | FieldCount |
+| `CodingCount` | `size_t` | CodingCount |
+| `TransferCodingCount` | `size_t` | TransferCodingCount |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpupgradeitem`
+
+一个 Upgrade 协议借用原字段值；空 Version 表示线路中没有版本。
+
+```c
+typedef struct xhttpupgradeitem {
+	xstrview Protocol;
+	xstrview Version;
+} xhttpupgradeitem;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Protocol` | `xstrview` | Protocol |
+| `Version` | `xstrview` | Version |
+
+### `xhttpupgradecursor`
+
+单字段游标由初始化函数建立，调用方不得直接修改。
+
+```c
+typedef struct xhttpupgradecursor {
+	size_t Offset;
+	uint8 Validated;
+} xhttpupgradecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpupgradefieldcursor`
+
+重复字段游标同时记录当前字段和字段内位置。
+
+```c
+typedef struct xhttpupgradefieldcursor {
+	size_t Field;
+	size_t Offset;
+	uint8 Validated;
+} xhttpupgradefieldcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xnetproxytype`
+
+代理类型只描述协议；TCP、TLS 和上层客户端决定如何承载协议。
+
+```c
+typedef enum xnetproxytype {
+	XNET_PROXY_SOCKS5 = 1,
+	XNET_PROXY_HTTP_CONNECT
+} xnetproxytype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PROXY_SOCKS5` | XNETPROXYSOCKS5 |
+
+### `xnetproxyauth`
+
+AUTO 在存在凭据时要求认证，否则只允许匿名；OPTIONAL 显式允许降级为匿名。
+
+```c
+typedef enum xnetproxyauth {
+	XNET_PROXY_AUTH_AUTO = 0,
+	XNET_PROXY_AUTH_NONE,
+	XNET_PROXY_AUTH_REQUIRED,
+	XNET_PROXY_AUTH_OPTIONAL
+} xnetproxyauth;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PROXY_AUTH_AUTO` | 自动 |
+| `XNET_PROXY_AUTH_NONE` | 无 |
+| `XNET_PROXY_AUTH_REQUIRED` | REQUIRED |
+
+### `xnetproxyconfig`
+
+代理对象持有配置深拷贝；主机不要求零结尾，凭据允许任意字节。
+
+```c
+typedef struct xnetproxyconfig {
+	xnetproxytype Type;
+	xstrview Host;
+	uint16 Port;
+	xnetproxyauth Auth;
+	xbytesview Username;
+	xbytesview Password;
+} xnetproxyconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xnetproxytype` | Type |
+| `Host` | `xstrview` | Host |
+| `Port` | `uint16` | Port |
+| `Auth` | `xnetproxyauth` | Auth |
+| `Username` | `xbytesview` | Username |
+| `Password` | `xbytesview` | Password |
+
+### `xnetproxyinfo`
+
+信息视图由代理对象持有，只能在至少一个对象引用存活时借用。
+
+```c
+typedef struct xnetproxyinfo {
+	xnetproxytype Type;
+	xstrview Host;
+	uint16 Port;
+	xnetproxyauth Auth;
+	xbytesview Username;
+	xbytesview Password;
+} xnetproxyinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xnetproxytype` | Type |
+| `Host` | `xstrview` | Host |
+| `Port` | `uint16` | Port |
+| `Auth` | `xnetproxyauth` | Auth |
+| `Username` | `xbytesview` | Username |
+| `Password` | `xbytesview` | Password |
+
+### `xnetproxyhandshakestate`
+
+握手状态同时告诉传输层下一步应发送、接收还是发布隧道。
+
+```c
+typedef enum xnetproxyhandshakestate {
+	XNET_PROXY_HANDSHAKE_WRITE = 1,
+	XNET_PROXY_HANDSHAKE_READ,
+	XNET_PROXY_HANDSHAKE_READY,
+	XNET_PROXY_HANDSHAKE_ERROR
+} xnetproxyhandshakestate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PROXY_HANDSHAKE_WRITE` | 写方向 |
+| `XNET_PROXY_HANDSHAKE_READ` | 读方向 |
+| `XNET_PROXY_HANDSHAKE_READY` | 就绪 |
+
+### `xnetproxyendpoint`
+
+域名端点使用 Host；数字端点使用 Address，端口始终保存在 Address.Port。
+
+```c
+typedef struct xnetproxyendpoint {
+	xnetaddr Address;
+	xstrview Host;
+} xnetproxyendpoint;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Address` | `xnetaddr` | Address |
+| `Host` | `xstrview` | Host |
+
+### `xnetproxyhandshakeconfig`
+
+输入缓冲池由调用方借用，并且必须比握手对象存活更久。
+
+```c
+typedef struct xnetproxyhandshakeconfig {
+	const xnetproxy* Proxy;
+	xstrview TargetHost;
+	uint16 TargetPort;
+	size_t ReceiveLimit;
+	xnetbufpool* Pool;
+} xnetproxyhandshakeconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Proxy` | `const xnetproxy*` | Proxy |
+| `TargetHost` | `xstrview` | TargetHost |
+| `TargetPort` | `uint16` | TargetPort |
+| `ReceiveLimit` | `size_t` | ReceiveLimit |
+| `Pool` | `xnetbufpool*` | Pool |
+
+### `xnetsocks5reply`
+
+SOCKS5 CONNECT 回复码保留 RFC 1928 的线路值，便于日志和策略判断。
+
+```c
+typedef enum xnetsocks5reply {
+	XNET_SOCKS5_SUCCEEDED = 0,
+	XNET_SOCKS5_GENERAL_FAILURE = 1,
+	XNET_SOCKS5_RULESET_DENIED = 2,
+	XNET_SOCKS5_NETWORK_UNREACHABLE = 3,
+	XNET_SOCKS5_HOST_UNREACHABLE = 4,
+	XNET_SOCKS5_CONNECTION_REFUSED = 5,
+	XNET_SOCKS5_TTL_EXPIRED = 6,
+	XNET_SOCKS5_COMMAND_UNSUPPORTED = 7,
+	XNET_SOCKS5_ADDRESS_UNSUPPORTED = 8
+} xnetsocks5reply;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_SOCKS5_SUCCEEDED` | SUCCEEDED |
+| `XNET_SOCKS5_GENERAL_FAILURE` | GENERALFAILURE |
+| `XNET_SOCKS5_RULESET_DENIED` | RULESETDENIED |
+| `XNET_SOCKS5_NETWORK_UNREACHABLE` | NETWORKUNREACHABLE |
+| `XNET_SOCKS5_HOST_UNREACHABLE` | HOSTUNREACHABLE |
+| `XNET_SOCKS5_CONNECTION_REFUSED` | CONNECTIONREFUSED |
+| `XNET_SOCKS5_TTL_EXPIRED` | TTLEXPIRED |
+| `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
+
+### `xnetproxydialstate`
+
+Proxy Dial 状态区分代理端点解析、TCP 连接和协议握手。
+
+```c
+typedef enum xnetproxydialstate {
+	XNET_PROXY_DIAL_RESOLVING = 0,
+	XNET_PROXY_DIAL_CONNECTING,
+	XNET_PROXY_DIAL_HANDSHAKE,
+	XNET_PROXY_DIAL_CONNECTED,
+	XNET_PROXY_DIAL_FAILED,
+	XNET_PROXY_DIAL_CANCELLED
+} xnetproxydialstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PROXY_DIAL_RESOLVING` | 解析中 |
+| `XNET_PROXY_DIAL_CONNECTING` | 连接中 |
+| `XNET_PROXY_DIAL_HANDSHAKE` | 握手阶段 |
+| `XNET_PROXY_DIAL_CONNECTED` | 已连接 |
+| `XNET_PROXY_DIAL_FAILED` | 已失败 |
+
+### `xnetproxydialconfig`
+
+Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时。
+
+```c
+typedef struct xnetproxydialconfig {
+	xnetdialconfig Transport;
+	uint64 Timeout;
+	size_t ReceiveLimit;
+} xnetproxydialconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Transport` | `xnetdialconfig` | Transport |
+| `Timeout` | `uint64` | Timeout |
+| `ReceiveLimit` | `size_t` | ReceiveLimit |
+
+### `xnetproxydialstats`
+
+Proxy Dial 保持底层 TCP Dial 统计，并补充当前协议阶段。
+
+```c
+typedef struct xnetproxydialstats {
+	xnetproxydialstate State;
+	xnetdialstats Transport;
+} xnetproxydialstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `State` | `xnetproxydialstate` | State |
+| `Transport` | `xnetdialstats` | Transport |
+
+### `xnetproxy`
+
+不可变代理端点可以跨请求和线程共享。
+
+```c
+typedef struct xnetproxy xnetproxy;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetproxyhandshake`
+
+单个握手由一个传输执行上下文独占驱动。
+
+```c
+typedef struct xnetproxyhandshake xnetproxyhandshake;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetproxydial`
+
+托管代理拨号对象（不透明）：内部串联名称解析、TCP 连接与代理握手。
+
+
+```c
+typedef struct xnetproxydial xnetproxydial;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetproxydialproc`
+
+完成回调在代理传输 Worker 上至多执行一次，不会从提交调用栈重入。 pDial 和 Error 只在回调期间借用；成功回调接管隧道 Stream 引用。
+
+```c
+typedef void (*xnetproxydialproc)(
+	xnetproxydial* pDial,
+	xnetresult Result,
+	xnetstream* pStream,
+	const xerror* pError,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XHTTP_QUALITY_MAX` | `1000u` | QUALITY上限 |
+| `XHTTP_AUTHORITY_HAS_PORT` | `UINT32_C(0x00000001)` | Authority 包含显式端口分隔符。 |
+| `XHTTP_AUTHORITY_IP_LITERAL` | `UINT32_C(0x00000002)` | Host 是 IPv6 或 IPvFuture 字面地址，Host 视图不包含方括号。 |
+| `XHTTP_AUTHORITY_PORT_EMPTY` | `UINT32_C(0x00000004)` | 显式端口只有冒号而没有数字。 |
+| `XHTTP_TARGET_HAS_SCHEME` | `UINT32_C(0x00000001)` | Target 包含 scheme。 |
+| `XHTTP_TARGET_HAS_AUTHORITY` | `UINT32_C(0x00000002)` | Target 包含双斜杠引入的 authority。 |
+| `XHTTP_TARGET_HAS_QUERY` | `UINT32_C(0x00000004)` | Target 包含问号引入的 query，包括显式空 query。 |
+| `XHTTP_DECODE_OUTPUT_SAFE_DEFAULT` | `(UINT64_C(16) * 1024u * 1024u)` | DECODE输出失败SAFE默认值 |
+| `XHTTP_CONTENT_CODINGS_DEFAULT` | `4u` | Content-Encoding 解析与通用 Body 解码共享的安全层数边界。 |
+| `XHTTP_CONTENT_CODINGS_MAX` | `16u` | CONTENTCODINGS上限 |
+
 ## 模块边界
 
 | 模块 | 裁剪宏 | 作用 |

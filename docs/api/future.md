@@ -435,6 +435,9 @@ typedef struct xtlsstream xtlsstream;
 
 ### `xtlslistener`
 
+TLS 监听器（不透明）：在 TCP 监听器上完成 TLS 接受。
+
+
 TLS 监听器（不透明）：在 TCP 监听器上完成 TLS 接受，产出 TLS 组合流。
 
 
@@ -445,6 +448,9 @@ typedef struct xtlslistener xtlslistener;
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
 ### `xtlsdial`
+
+托管 TLS 拨号对象（不透明）：串联 TCP 拨号与 TLS 握手。
+
 
 托管 TLS 拨号对象（不透明）：串联 TCP 拨号与 TLS 握手，完成时经回调移交 TLS 流。
 

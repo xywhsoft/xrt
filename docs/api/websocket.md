@@ -6,6 +6,947 @@ permessage-deflate，但不包含 Future、协程、重连、心跳调度、连�
 
 完整公共符号清单见 [WebSocket API 参考](websocket-reference.md)。
 
+## 类型与常量
+
+### `xwsopcode`
+
+WebSocket 标准数据帧和控制帧操作码。
+
+```c
+typedef enum xwsopcode {
+	XWS_OPCODE_CONTINUATION = 0x0,
+	XWS_OPCODE_TEXT = 0x1,
+	XWS_OPCODE_BINARY = 0x2,
+	XWS_OPCODE_CLOSE = 0x8,
+	XWS_OPCODE_PING = 0x9,
+	XWS_OPCODE_PONG = 0xA
+} xwsopcode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_OPCODE_CONTINUATION` | CONTINUATION |
+| `XWS_OPCODE_TEXT` | 文本 |
+| `XWS_OPCODE_BINARY` | 二进制 |
+| `XWS_OPCODE_CLOSE` | CLOSE |
+| `XWS_OPCODE_PING` | PING |
+
+### `xwsframeflag`
+
+帧标志使用逻辑位，调用方不需要了解线路字节布局。
+
+```c
+typedef enum xwsframeflag {
+	XWS_FRAME_FIN = UINT32_C(0x00000001),
+	XWS_FRAME_MASKED = UINT32_C(0x00000002),
+	XWS_FRAME_RSV1 = UINT32_C(0x00000004),
+	XWS_FRAME_RSV2 = UINT32_C(0x00000008),
+	XWS_FRAME_RSV3 = UINT32_C(0x00000010)
+} xwsframeflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_FRAME_FIN` | FIN |
+| `XWS_FRAME_MASKED` | MASKED |
+| `XWS_FRAME_RSV1` | RSV1 |
+| `XWS_FRAME_RSV2` | RSV2 |
+
+### `xwsmaskpolicy`
+
+接收方向使用角色对应的掩码策略，ANY 仅适合协议工具和中间层。
+
+```c
+typedef enum xwsmaskpolicy {
+	XWS_MASK_ANY = 0,
+	XWS_MASK_REQUIRED,
+	XWS_MASK_FORBIDDEN
+} xwsmaskpolicy;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_MASK_ANY` | 任意 |
+| `XWS_MASK_REQUIRED` | REQUIRED |
+
+### `xwsframestatus`
+
+帧头解析只区分协议错误、数据不足和头部就绪。
+
+```c
+typedef enum xwsframestatus {
+	XWS_FRAME_ERROR = -1,
+	XWS_FRAME_MORE = 0,
+	XWS_FRAME_READY = 1
+} xwsframestatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_FRAME_ERROR` | 失败 |
+| `XWS_FRAME_MORE` | 需要更多输入 |
+
+### `xwsframeerror`
+
+帧层错误码覆盖参数、扩展策略和 RFC 6455 线路约束。
+
+```c
+typedef enum xwsframeerror {
+	XWS_FRAME_ERROR_ARGUMENT = 1,
+	XWS_FRAME_ERROR_CONFIG,
+	XWS_FRAME_ERROR_RSV,
+	XWS_FRAME_ERROR_OPCODE,
+	XWS_FRAME_ERROR_MASK,
+	XWS_FRAME_ERROR_LENGTH,
+	XWS_FRAME_ERROR_CONTROL,
+	XWS_FRAME_ERROR_CLOSE,
+	XWS_FRAME_ERROR_OUTPUT
+} xwsframeerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_FRAME_ERROR_ARGUMENT` | 参数非法 |
+| `XWS_FRAME_ERROR_CONFIG` | 配置非法 |
+| `XWS_FRAME_ERROR_RSV` | RSV |
+| `XWS_FRAME_ERROR_OPCODE` | OPCODE |
+| `XWS_FRAME_ERROR_MASK` | MASK |
+| `XWS_FRAME_ERROR_LENGTH` | LENGTH |
+| `XWS_FRAME_ERROR_CONTROL` | CONTROL |
+| `XWS_FRAME_ERROR_CLOSE` | CLOSE |
+
+### `xwsframeconfig`
+
+帧配置不持有资源；AllowedRsv 使用 XWS_FRAME_RSV* 位。 AllowedOpcodes 的第 n 位表示是否允许操作码 n。
+
+```c
+typedef struct xwsframeconfig {
+	uint64 MaxPayload;
+	uint16 AllowedOpcodes;
+	uint16 AllowedRsv;
+	xwsmaskpolicy Mask;
+} xwsframeconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `MaxPayload` | `uint64` | MaxPayload |
+| `AllowedOpcodes` | `uint16` | AllowedOpcodes |
+| `AllowedRsv` | `uint16` | AllowedRsv |
+| `Mask` | `xwsmaskpolicy` | Mask |
+
+### `xwsframeerrorinfo`
+
+错误位置从帧头首字节开始计数。
+
+```c
+typedef struct xwsframeerrorinfo {
+	xwsframeerror Code;
+	size_t Offset;
+} xwsframeerrorinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Code` | `xwsframeerror` | Code |
+| `Offset` | `size_t` | Offset |
+
+### `xwsframe`
+
+帧只描述头部和负载长度，不借用负载，也不要求负载已经到达。 HeadSize 在解析成功后有效，封包时由模块重新计算。
+
+```c
+typedef struct xwsframe {
+	uint32 Flags;
+	uint8 Opcode;
+	uint8 Mask[XWS_MASK_SIZE];
+	uint64 PayloadSize;
+	size_t HeadSize;
+} xwsframe;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Opcode` | `uint8` | Opcode |
+| `PayloadSize` | `uint64` | PayloadSize |
+| `HeadSize` | `size_t` | HeadSize |
+
+### `xwsclosecode`
+
+1005、1006 和 1015 只表示本地观察结果，不允许写入 Close 帧。 Code 为零由 xwsclose 专门表示线上负载没有携带状态码。
+
+```c
+typedef enum xwsclosecode {
+	XWS_CLOSE_NORMAL = 1000,
+	XWS_CLOSE_GOING_AWAY = 1001,
+	XWS_CLOSE_PROTOCOL = 1002,
+	XWS_CLOSE_UNSUPPORTED = 1003,
+	XWS_CLOSE_NO_STATUS = 1005,
+	XWS_CLOSE_ABNORMAL = 1006,
+	XWS_CLOSE_INVALID_DATA = 1007,
+	XWS_CLOSE_POLICY = 1008,
+	XWS_CLOSE_TOO_BIG = 1009,
+	XWS_CLOSE_EXTENSION_REQUIRED = 1010,
+	XWS_CLOSE_INTERNAL = 1011,
+	XWS_CLOSE_RESTART = 1012,
+	XWS_CLOSE_TRY_AGAIN = 1013,
+	XWS_CLOSE_BAD_GATEWAY = 1014,
+	XWS_CLOSE_TLS = 1015
+} xwsclosecode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_CLOSE_NORMAL` | NORMAL |
+| `XWS_CLOSE_GOING_AWAY` | GOINGAWAY |
+| `XWS_CLOSE_PROTOCOL` | 协议非法 |
+| `XWS_CLOSE_UNSUPPORTED` | 不支持 |
+| `XWS_CLOSE_NO_STATUS` | NOSTATUS |
+| `XWS_CLOSE_ABNORMAL` | ABNORMAL |
+| `XWS_CLOSE_INVALID_DATA` | 无效数据损坏 |
+| `XWS_CLOSE_POLICY` | POLICY |
+| `XWS_CLOSE_TOO_BIG` | TOOBIG |
+| `XWS_CLOSE_EXTENSION_REQUIRED` | EXTENSIONREQUIRED |
+| `XWS_CLOSE_INTERNAL` | 内部错误 |
+| `XWS_CLOSE_RESTART` | RESTART |
+| `XWS_CLOSE_TRY_AGAIN` | TRY暂不可推进 |
+| `XWS_CLOSE_BAD_GATEWAY` | BADGATEWAY |
+
+### `xwscloseerror`
+
+Close 负载错误区分参数、协议状态码、UTF-8、长度和输出容量。
+
+```c
+typedef enum xwscloseerror {
+	XWS_CLOSE_ERROR_ARGUMENT = 1,
+	XWS_CLOSE_ERROR_SIZE,
+	XWS_CLOSE_ERROR_CODE,
+	XWS_CLOSE_ERROR_UTF8,
+	XWS_CLOSE_ERROR_OUTPUT
+} xwscloseerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_CLOSE_ERROR_ARGUMENT` | 参数非法 |
+| `XWS_CLOSE_ERROR_SIZE` | 尺寸 |
+| `XWS_CLOSE_ERROR_CODE` | CODE |
+| `XWS_CLOSE_ERROR_UTF8` | UTF-8 |
+
+### `xwsclose`
+
+关闭原因直接借用原始负载；Code 为零表示负载为空。 结构不拥有内存，也不会把本地合成的 1005 写回线路。
+
+```c
+typedef struct xwsclose {
+	uint16 Code;
+	xstrview Reason;
+} xwsclose;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Code` | `uint16` | Code |
+| `Reason` | `xstrview` | Reason |
+
+### `xwsmessageflag`
+
+消息事件标志同时描述逻辑消息边界、控制帧和扩展变换。
+
+```c
+typedef enum xwsmessageflag {
+	XWS_MESSAGE_BEGIN = UINT32_C(0x00000001),
+	XWS_MESSAGE_END = UINT32_C(0x00000002),
+	XWS_MESSAGE_CONTROL = UINT32_C(0x00000004),
+	XWS_MESSAGE_EXTENDED = UINT32_C(0x00000008),
+	XWS_MESSAGE_COMPRESSED = UINT32_C(0x00000010)
+} xwsmessageflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_MESSAGE_BEGIN` | BEGIN |
+| `XWS_MESSAGE_END` | END |
+| `XWS_MESSAGE_CONTROL` | CONTROL |
+| `XWS_MESSAGE_EXTENDED` | EXTENDED |
+
+### `xwsmessageerror`
+
+消息层错误可稳定映射到协议错误、非法数据或消息过大关闭码。
+
+```c
+typedef enum xwsmessageerror {
+	XWS_MESSAGE_ERROR_ARGUMENT = 1,
+	XWS_MESSAGE_ERROR_CONFIG,
+	XWS_MESSAGE_ERROR_STATE,
+	XWS_MESSAGE_ERROR_OPCODE,
+	XWS_MESSAGE_ERROR_FRAGMENT,
+	XWS_MESSAGE_ERROR_RSV,
+	XWS_MESSAGE_ERROR_PAYLOAD,
+	XWS_MESSAGE_ERROR_SIZE,
+	XWS_MESSAGE_ERROR_UTF8,
+	XWS_MESSAGE_ERROR_CLOSE
+} xwsmessageerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_MESSAGE_ERROR_ARGUMENT` | 参数非法 |
+| `XWS_MESSAGE_ERROR_CONFIG` | 配置非法 |
+| `XWS_MESSAGE_ERROR_STATE` | 状态非法 |
+| `XWS_MESSAGE_ERROR_OPCODE` | OPCODE |
+| `XWS_MESSAGE_ERROR_FRAGMENT` | FRAGMENT |
+| `XWS_MESSAGE_ERROR_RSV` | RSV |
+| `XWS_MESSAGE_ERROR_PAYLOAD` | PAYLOAD |
+| `XWS_MESSAGE_ERROR_SIZE` | 尺寸 |
+| `XWS_MESSAGE_ERROR_UTF8` | UTF-8 |
+
+### `xwsmessageconfig`
+
+MaxSize 限制扩展解码后的单条消息字节数；零表示只允许空消息。 三个 RSV 位图分别描述扩展允许在哪类帧上出现，默认全部禁止。
+
+```c
+typedef struct xwsmessageconfig {
+	size_t MaxSize;
+	uint16 FirstRsv;
+	uint16 ContinuationRsv;
+	uint16 ControlRsv;
+	bool ValidateText;
+} xwsmessageconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `MaxSize` | `size_t` | MaxSize |
+| `FirstRsv` | `uint16` | FirstRsv |
+| `ContinuationRsv` | `uint16` | ContinuationRsv |
+| `ControlRsv` | `uint16` | ControlRsv |
+| `ValidateText` | `bool` | ValidateText |
+
+### `xwsmessageinfo`
+
+帧开始时发布的只读语义，不借用帧对象，也不持有负载。
+
+```c
+typedef struct xwsmessageinfo {
+	uint32 Flags;
+	uint16 Rsv;
+	uint8 Opcode;
+	uint8 FrameOpcode;
+	uint64 PayloadSize;
+	size_t Offset;
+} xwsmessageinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Rsv` | `uint16` | Rsv |
+| `Opcode` | `uint8` | Opcode |
+| `FrameOpcode` | `uint8` | FrameOpcode |
+| `PayloadSize` | `uint64` | PayloadSize |
+| `Offset` | `size_t` | Offset |
+
+### `xwsmessageerrorinfo`
+
+可选错误详情给出消息内偏移和应该发送给对端的 Close 状态码。
+
+```c
+typedef struct xwsmessageerrorinfo {
+	xwsmessageerror Code;
+	uint16 CloseCode;
+	size_t Offset;
+} xwsmessageerrorinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Code` | `xwsmessageerror` | Code |
+| `CloseCode` | `uint16` | CloseCode |
+| `Offset` | `size_t` | Offset |
+
+### `xwsmessagestate`
+
+消息状态可放在连接对象内；它只保存有限状态、两个 UTF-8 校验器和 Close 状态码前缀，不缓存帧负载或完整消息。
+
+```c
+typedef struct xwsmessagestate {
+	xwsmessageconfig Config;
+	xutf8state Utf8;
+	xutf8state CloseUtf8;
+	size_t Size;
+	size_t FrameSize;
+	uint64 FramePayloadSize;
+	uint32 MessageRsv;
+	uint32 FrameRsv;
+	uint8 Opcode;
+	uint8 FrameOpcode;
+	uint8 CloseHead[2];
+	uint8 CloseHeadSize;
+	bool Fragmented;
+	bool FrameActive;
+	bool FrameFinal;
+	bool Initialized;
+	bool Failed;
+	bool Closed;
+} xwsmessagestate;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Config` | `xwsmessageconfig` | Config |
+| `Utf8` | `xutf8state` | Utf8 |
+| `CloseUtf8` | `xutf8state` | CloseUtf8 |
+| `Size` | `size_t` | Size |
+| `FrameSize` | `size_t` | FrameSize |
+| `FramePayloadSize` | `uint64` | FramePayloadSize |
+| `MessageRsv` | `uint32` | MessageRsv |
+| `FrameRsv` | `uint32` | FrameRsv |
+| `Opcode` | `uint8` | Opcode |
+| `FrameOpcode` | `uint8` | FrameOpcode |
+| `CloseHeadSize` | `uint8` | CloseHeadSize |
+| `Fragmented` | `bool` | Fragmented |
+| `FrameActive` | `bool` | FrameActive |
+| `FrameFinal` | `bool` | FrameFinal |
+| `Initialized` | `bool` | Initialized |
+| `Failed` | `bool` | Failed |
+| `Closed` | `bool` | Closed |
+
+### `xwshandshakeerror`
+
+握手错误码覆盖纯协议工具和后续 HTTP/1.1 Upgrade 层。
+
+```c
+typedef enum xwshandshakeerror {
+	XWS_HANDSHAKE_ERROR_ARGUMENT = 1,
+	XWS_HANDSHAKE_ERROR_KEY,
+	XWS_HANDSHAKE_ERROR_ACCEPT,
+	XWS_HANDSHAKE_ERROR_PROTOCOL,
+	XWS_HANDSHAKE_ERROR_EXTENSION,
+	XWS_HANDSHAKE_ERROR_METHOD,
+	XWS_HANDSHAKE_ERROR_VERSION,
+	XWS_HANDSHAKE_ERROR_HOST,
+	XWS_HANDSHAKE_ERROR_UPGRADE,
+	XWS_HANDSHAKE_ERROR_CONNECTION,
+	XWS_HANDSHAKE_ERROR_BODY,
+	XWS_HANDSHAKE_ERROR_STATUS,
+	XWS_HANDSHAKE_ERROR_FIELD,
+	XWS_HANDSHAKE_ERROR_OUTPUT,
+	XWS_HANDSHAKE_ERROR_RANDOM
+} xwshandshakeerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_HANDSHAKE_ERROR_ARGUMENT` | 参数非法 |
+| `XWS_HANDSHAKE_ERROR_KEY` | KEY |
+| `XWS_HANDSHAKE_ERROR_ACCEPT` | ACCEPT |
+| `XWS_HANDSHAKE_ERROR_PROTOCOL` | 协议非法 |
+| `XWS_HANDSHAKE_ERROR_EXTENSION` | EXTENSION |
+| `XWS_HANDSHAKE_ERROR_METHOD` | METHOD |
+| `XWS_HANDSHAKE_ERROR_VERSION` | VERSION |
+| `XWS_HANDSHAKE_ERROR_HOST` | HOST |
+| `XWS_HANDSHAKE_ERROR_UPGRADE` | UPGRADE |
+| `XWS_HANDSHAKE_ERROR_CONNECTION` | CONNECTION |
+| `XWS_HANDSHAKE_ERROR_BODY` | BODY |
+| `XWS_HANDSHAKE_ERROR_STATUS` | STATUS |
+| `XWS_HANDSHAKE_ERROR_FIELD` | FIELD |
+| `XWS_HANDSHAKE_ERROR_OUTPUT` | 输出失败 |
+
+### `xwsrole`
+
+本地端点角色同时用于协议方向、掩码规则和扩展协商。
+
+```c
+typedef enum xwsrole {
+	XWS_ROLE_CLIENT = 0,
+	XWS_ROLE_SERVER
+} xwsrole;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_ROLE_CLIENT` | XWSROLE客户端角色 |
+
+### `xwsextension`
+
+扩展名称和参数段都借用 Sec-WebSocket-Extensions 原字段值。 Parameters 不包含名称后的第一个分号，空视图表示没有参数。
+
+```c
+typedef struct xwsextension {
+	xstrview Name;
+	xstrview Parameters;
+} xwsextension;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Parameters` | `xstrview` | Parameters |
+
+### `xwsdeflateflag`
+
+标志同时表达参数是否出现，以及 offer 中 client 窗口是否省略值。
+
+```c
+typedef enum xwsdeflateflag {
+	XWS_DEFLATE_SERVER_NO_CONTEXT = UINT32_C(0x00000001),
+	XWS_DEFLATE_CLIENT_NO_CONTEXT = UINT32_C(0x00000002),
+	XWS_DEFLATE_SERVER_MAX_WINDOW = UINT32_C(0x00000004),
+	XWS_DEFLATE_CLIENT_MAX_WINDOW = UINT32_C(0x00000008),
+	XWS_DEFLATE_CLIENT_MAX_WINDOW_ANY = UINT32_C(0x00000010)
+} xwsdeflateflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_DEFLATE_SERVER_NO_CONTEXT` | 服务端角色NOCONTEXT |
+| `XWS_DEFLATE_CLIENT_NO_CONTEXT` | 客户端角色NOCONTEXT |
+| `XWS_DEFLATE_SERVER_MAX_WINDOW` | 服务端角色上限WINDOW |
+| `XWS_DEFLATE_CLIENT_MAX_WINDOW` | 客户端角色上限WINDOW |
+
+### `xwsdeflateerror`
+
+permessage-deflate 错误码区分通用参数、重复项、窗口和协商响应。
+
+```c
+typedef enum xwsdeflateerror {
+	XWS_DEFLATE_ERROR_ARGUMENT = 1,
+	XWS_DEFLATE_ERROR_EXTENSION,
+	XWS_DEFLATE_ERROR_PARAMETER,
+	XWS_DEFLATE_ERROR_DUPLICATE,
+	XWS_DEFLATE_ERROR_WINDOW,
+	XWS_DEFLATE_ERROR_RESPONSE,
+	XWS_DEFLATE_ERROR_OUTPUT,
+	XWS_DEFLATE_ERROR_CONFIG,
+	XWS_DEFLATE_ERROR_STATE,
+	XWS_DEFLATE_ERROR_DATA,
+	XWS_DEFLATE_ERROR_LIMIT,
+	XWS_DEFLATE_ERROR_CODEC
+} xwsdeflateerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_DEFLATE_ERROR_ARGUMENT` | 参数非法 |
+| `XWS_DEFLATE_ERROR_EXTENSION` | EXTENSION |
+| `XWS_DEFLATE_ERROR_PARAMETER` | PARAMETER |
+| `XWS_DEFLATE_ERROR_DUPLICATE` | DUPLICATE |
+| `XWS_DEFLATE_ERROR_WINDOW` | WINDOW |
+| `XWS_DEFLATE_ERROR_RESPONSE` | RESPONSE |
+| `XWS_DEFLATE_ERROR_OUTPUT` | 输出失败 |
+| `XWS_DEFLATE_ERROR_CONFIG` | 配置非法 |
+| `XWS_DEFLATE_ERROR_STATE` | 状态非法 |
+| `XWS_DEFLATE_ERROR_DATA` | 数据损坏 |
+| `XWS_DEFLATE_ERROR_LIMIT` | 超限 |
+
+### `xwsdeflate`
+
+配置不持有资源；Flags 表达参数是否存在。 窗口参数未出现，或 offer 的 client 窗口省略值时，对应字段保持 15。
+
+```c
+typedef struct xwsdeflate {
+	uint32 Flags;
+	uint8 ServerMaxWindowBits;
+	uint8 ClientMaxWindowBits;
+} xwsdeflate;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `ServerMaxWindowBits` | `uint8` | ServerMaxWindowBits |
+| `ClientMaxWindowBits` | `uint8` | ClientMaxWindowBits |
+
+### `xwsdeflatedirection`
+
+单向运行参数不持有资源，也不混淆客户端与服务端参数名。
+
+```c
+typedef struct xwsdeflatedirection {
+	uint8 WindowBits;
+	bool NoContextTakeover;
+} xwsdeflatedirection;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `WindowBits` | `uint8` | WindowBits |
+| `NoContextTakeover` | `bool` | NoContextTakeover |
+
+### `xwsinflaterconfig`
+
+OutputLimit 是每条逻辑消息的解码后上限。 Retain 只在禁用上下文接管时决定是否保留已复位的算法对象。
+
+```c
+typedef struct xwsinflaterconfig {
+	uint64 OutputLimit;
+	uint8 WindowBits;
+	bool NoContextTakeover;
+	bool Retain;
+} xwsinflaterconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `OutputLimit` | `uint64` | OutputLimit |
+| `WindowBits` | `uint8` | WindowBits |
+| `NoContextTakeover` | `bool` | NoContextTakeover |
+| `Retain` | `bool` | Retain |
+
+### `xwsdeflaterconfig`
+
+OutputLimit 是每条逻辑消息实际交付的线路负载上限；中间 Flush 尾部计入， 最终 End 尾部会被剥离。 Retain 只在禁用上下文接管时决定是否保留已复位的算法对象。
+
+```c
+typedef struct xwsdeflaterconfig {
+	uint64 OutputLimit;
+	int32 Level;
+	xdeflatestrategy Strategy;
+	uint8 WindowBits;
+	bool NoContextTakeover;
+	bool Retain;
+} xwsdeflaterconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `OutputLimit` | `uint64` | OutputLimit |
+| `Level` | `int32` | Level |
+| `Strategy` | `xdeflatestrategy` | Strategy |
+| `WindowBits` | `uint8` | WindowBits |
+| `NoContextTakeover` | `bool` | NoContextTakeover |
+| `Retain` | `bool` | Retain |
+
+### `xwsinflater`
+
+接收变换对象按需创建底层 Inflate，不缓存线路或解码后消息。
+
+```c
+typedef struct xwsinflater xwsinflater;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xwsdeflater`
+
+发送变换对象按需创建底层 Deflate，只额外暂存四字节同步尾部。
+
+```c
+typedef struct xwsdeflater xwsdeflater;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xwsoutputproc`
+
+WebSocket 压缩变换的输出视图只在同步回调期间有效。
+
+```c
+typedef bool (*xwsoutputproc)(xbytesview Data, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xwsstreamstate`
+
+WebSocket Stream 只包含开放、关闭握手和传输终态。
+
+```c
+typedef enum xwsstreamstate {
+	XWS_STREAM_OPEN = 0,
+	XWS_STREAM_CLOSING,
+	XWS_STREAM_CLOSED
+} xwsstreamstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_STREAM_OPEN` | OPEN |
+| `XWS_STREAM_CLOSING` | CLOSING |
+
+### `xwsstreamerror`
+
+Stream 错误区分协议、资源、发送和底层传输边界。
+
+```c
+typedef enum xwsstreamerror {
+	XWS_STREAM_ERROR_ARGUMENT = 1,
+	XWS_STREAM_ERROR_CONFIG,
+	XWS_STREAM_ERROR_MEMORY,
+	XWS_STREAM_ERROR_STATE,
+	XWS_STREAM_ERROR_FRAME,
+	XWS_STREAM_ERROR_MESSAGE,
+	XWS_STREAM_ERROR_RANDOM,
+	XWS_STREAM_ERROR_SEND,
+	XWS_STREAM_ERROR_LIMIT,
+	XWS_STREAM_ERROR_TRANSPORT,
+	XWS_STREAM_ERROR_TIMEOUT
+} xwsstreamerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_STREAM_ERROR_ARGUMENT` | 参数非法 |
+| `XWS_STREAM_ERROR_CONFIG` | 配置非法 |
+| `XWS_STREAM_ERROR_MEMORY` | 内存分配失败 |
+| `XWS_STREAM_ERROR_STATE` | 状态非法 |
+| `XWS_STREAM_ERROR_FRAME` | FRAME |
+| `XWS_STREAM_ERROR_MESSAGE` | 消息 |
+| `XWS_STREAM_ERROR_RANDOM` | RANDOM |
+| `XWS_STREAM_ERROR_SEND` | SEND |
+| `XWS_STREAM_ERROR_LIMIT` | 超限 |
+| `XWS_STREAM_ERROR_TRANSPORT` | TRANSPORT |
+
+### `xwsstreamcloseflag`
+
+Close 标志描述本地、远端和 RFC 6455 完整关闭结果。
+
+```c
+typedef enum xwsstreamcloseflag {
+	XWS_STREAM_CLOSE_SENT = UINT32_C(0x00000001),
+	XWS_STREAM_CLOSE_RECEIVED = UINT32_C(0x00000002),
+	XWS_STREAM_CLOSE_CLEAN = UINT32_C(0x00000004),
+	XWS_STREAM_CLOSE_REMOTE = UINT32_C(0x00000008)
+} xwsstreamcloseflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWS_STREAM_CLOSE_SENT` | SENT |
+| `XWS_STREAM_CLOSE_RECEIVED` | RECEIVED |
+| `XWS_STREAM_CLOSE_CLEAN` | CLEAN |
+
+### `xwsstreamconfig`
+
+消息和帧上限分别约束解码后语义与线路输入。 发送上限包含 WebSocket 与底层传输待发字节；控制预算保留 Ping、Pong 和 Close。 Stream 不分配固定接收缓冲，协议数据直接消费 TCP 或 TLS 的现有缓冲链。
+
+```c
+typedef struct xwsstreamconfig {
+	xwsrole Role;
+	xstrview Protocol;
+	size_t MessageLimit;
+	uint64 FrameLimit;
+	size_t SendLimit;
+	size_t ControlReserve;
+	uint64 CloseTimeout;
+	bool AutoPong;
+	xwsdeflate Deflate;
+	xwsinflaterconfig Inflater;
+	xwsdeflaterconfig Deflater;
+	bool DeflateEnabled;
+} xwsstreamconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Role` | `xwsrole` | Role |
+| `Protocol` | `xstrview` | Protocol |
+| `MessageLimit` | `size_t` | MessageLimit |
+| `FrameLimit` | `uint64` | FrameLimit |
+| `SendLimit` | `size_t` | SendLimit |
+| `ControlReserve` | `size_t` | ControlReserve |
+| `CloseTimeout` | `uint64` | CloseTimeout |
+| `AutoPong` | `bool` | AutoPong |
+| `Deflate` | `xwsdeflate` | Deflate |
+| `Inflater` | `xwsinflaterconfig` | Inflater |
+| `Deflater` | `xwsdeflaterconfig` | Deflater |
+| `DeflateEnabled` | `bool` | DeflateEnabled |
+
+### `xwsstreamclose`
+
+Reason 借用 Stream 内部不可变副本，至少保持到 Stream 销毁。
+
+```c
+typedef struct xwsstreamclose {
+	uint32 Flags;
+	xnetresult Transport;
+	uint16 LocalCode;
+	uint16 RemoteCode;
+	xstrview Reason;
+} xwsstreamclose;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Transport` | `xnetresult` | Transport |
+| `LocalCode` | `uint16` | LocalCode |
+| `RemoteCode` | `uint16` | RemoteCode |
+| `Reason` | `xstrview` | Reason |
+
+### `xwsstreamevents`
+
+数据消息按 Begin、零个或多个 Data、End 流式发布，不拼接完整消息。 回调视图只在当前同步调用期间有效，全部事件在传输所属 Worker 上串行执行。
+
+```c
+typedef struct xwsstreamevents {
+	void (*MessageBegin)(
+		xwsstream* pStream,
+		const xwsmessageinfo* pInfo,
+		ptr pData
+	);
+	void (*MessageData)(
+		xwsstream* pStream,
+		xbytesview Data,
+		ptr pData
+	);
+	void (*MessageEnd)(xwsstream* pStream, ptr pData);
+	void (*Ping)(
+		xwsstream* pStream,
+		xbytesview Payload,
+		ptr pData
+	);
+	void (*Pong)(
+		xwsstream* pStream,
+		xbytesview Payload,
+		ptr pData
+	);
+	void (*Backpressure)(
+		xwsstream* pStream,
+		size_t iPending,
+		ptr pData
+	);
+	void (*Writable)(
+		xwsstream* pStream,
+		size_t iPending,
+		ptr pData
+	);
+	void (*Drain)(xwsstream* pStream, ptr pData);
+	void (*Error)(
+		xwsstream* pStream,
+		const xerror* pError,
+		ptr pData
+	);
+	void (*Close)(
+		xwsstream* pStream,
+		const xwsstreamclose* pClose,
+		ptr pData
+	);
+} xwsstreamevents;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+
+### `xwsstream`
+
+WebSocket 流对象（不透明）：组合传输上的帧/消息层，绑定所属 Worker。
+
+
+```c
+typedef struct xwsstream xwsstream;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xwsupgradeserverconfig`
+
+服务端配置只描述子协议和可选压缩策略，不绑定 HTTP 或网络对象。
+
+```c
+typedef struct xwsupgradeserverconfig {
+	xstrview Protocols;
+	xwsupgradeacceptproc AcceptDeflate;
+	ptr DeflateData;
+	bool EnableDeflate;
+	bool RequireDeflate;
+} xwsupgradeserverconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Protocols` | `xstrview` | Protocols |
+| `AcceptDeflate` | `xwsupgradeacceptproc` | AcceptDeflate |
+| `DeflateData` | `ptr` | DeflateData |
+| `EnableDeflate` | `bool` | EnableDeflate |
+| `RequireDeflate` | `bool` | RequireDeflate |
+
+### `xwsupgradeclientconfig`
+
+客户端配置保存本次实际发出的子协议和压缩 offer。
+
+```c
+typedef struct xwsupgradeclientconfig {
+	xstrview Protocols;
+	xwsdeflate Deflate;
+	bool EnableDeflate;
+	bool RequireDeflate;
+} xwsupgradeclientconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Protocols` | `xstrview` | Protocols |
+| `Deflate` | `xwsdeflate` | Deflate |
+| `EnableDeflate` | `bool` | EnableDeflate |
+| `RequireDeflate` | `bool` | RequireDeflate |
+
+### `xwsupgrade`
+
+Protocol 借用被校验的 HTTP Header；Accept 和压缩响应由结果自身持有。 结果只保存建立 WebSocket Stream 所需的协商事实。
+
+```c
+typedef struct xwsupgrade {
+	char Accept[XWS_ACCEPT_CAPACITY];
+	xstrview Protocol;
+	xwsdeflate Deflate;
+	char Extensions[XWS_DEFLATE_MAX_SIZE + 1u];
+	size_t ExtensionSize;
+	bool DeflateEnabled;
+} xwsupgrade;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Protocol` | `xstrview` | Protocol |
+| `Deflate` | `xwsdeflate` | Deflate |
+| `ExtensionSize` | `size_t` | ExtensionSize |
+| `DeflateEnabled` | `bool` | DeflateEnabled |
+
+### `xwsupgradeacceptproc`
+
+服务端压缩策略返回 true 表示接受并写回 Response。 返回 false 且不设置错误表示主动放弃，设置错误表示协商失败。
+
+```c
+typedef bool (*xwsupgradeacceptproc)(
+	const xwsdeflate* pOffer,
+	xwsdeflate* pResponse,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XWS_OPCODES_STANDARD` | `UINT16_C(0x0707)` | 标准操作码集合按操作码数值映射到十六位位图。 |
+| `XWS_FRAME_HEAD_MAX` | `14u` | WebSocket 固定线路边界。 |
+| `XWS_FRAME_PAYLOAD_MAX` | `UINT64_C(0x7FFFFFFFFFFFFFFF)` | FRAMEPAYLOAD上限 |
+| `XWS_CLOSE_PAYLOAD_MAX` | `125u` | Close 控制帧负载最多包含两字节状态码和 123 字节 UTF-8 原因。 |
+| `XWS_CLOSE_REASON_MAX` | `123u` | CLOSEREASON上限 |
+| `XWS_VERSION` | `13u` | RFC 6455 握手使用版本 13、十六字节随机 nonce 和两个固定 Base64 长度。 |
+| `XWS_KEY_BYTES` | `16u` | KEYBYTES |
+| `XWS_KEY_SIZE` | `24u` | KEY尺寸 |
+| `XWS_KEY_CAPACITY` | `25u` | KEYCAPACITY |
+| `XWS_ACCEPT_SIZE` | `28u` | ACCEPT尺寸 |
+| `XWS_ACCEPT_CAPACITY` | `29u` | ACCEPTCAPACITY |
+| `XWS_DEFLATE_NAME` | `"permessage-deflate"` | permessage-deflate 的固定名称、窗口范围和最长规范字段项。 |
+| `XWS_DEFLATE_WINDOW_MIN` | `8u` | deflate 包装WINDOW下限 |
+| `XWS_DEFLATE_WINDOW_MAX` | `15u` | deflate 包装WINDOW上限 |
+| `XWS_DEFLATE_MAX_SIZE` | `128u` | deflate 包装上限尺寸 |
+| `XWS_INFLATE_OUTPUT_DEFAULT` | `UINT64_C(67108864)` | INFLATE输出失败默认值 |
+| `XWS_STREAM_MESSAGE_LIMIT_DEFAULT` | `((size_t)1048576u)` | STREAM消息超限默认值 |
+| `XWS_STREAM_FRAME_LIMIT_DEFAULT` | `UINT64_C(1048576)` | STREAMFRAME超限默认值 |
+| `XWS_STREAM_SEND_LIMIT_DEFAULT` | `((size_t)1048576u)` | STREAMSEND超限默认值 |
+| `XWS_STREAM_CONTROL_RESERVE_DEFAULT` | `((size_t)512u)` | STREAMCONTROLRESERVE默认值 |
+| `XWS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `UINT64_C(5000000)` | STREAMCLOSE超时默认值 |
+| `XWS_UPGRADE_REQUEST_FIELDS_MAX` | `7u` | UPGRADEREQUEST字段上限 |
+| `XWS_UPGRADE_RESPONSE_FIELDS_MAX` | `5u` | UPGRADERESPONSE字段上限 |
+
 ## 模块边界
 
 | 层次 | 模块 | 能力 |

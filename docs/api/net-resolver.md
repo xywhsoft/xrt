@@ -2,6 +2,1369 @@
 
 `XRT_FEATURE_NET_RESOLVER` 在同步 DNS 原语之上提供独立的受限工作池。它不依赖网络 Engine，也不会创建隐藏 Engine；TCP、HTTP、WebSocket 和应用代码可以共享同一个 Resolver，纯 Socket 或 Engine 程序不需要携带该模块。
 
+## 类型与常量
+
+### `xnetfamily`
+
+地址族使用稳定值，不依赖平台 AF_INET 和 AF_INET6 常量。
+
+```c
+typedef enum xnetfamily {
+	XNET_FAMILY_UNSPEC = 0,
+	XNET_FAMILY_IPV4 = 4,
+	XNET_FAMILY_IPV6 = 6
+} xnetfamily;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_FAMILY_UNSPEC` | UNSPEC |
+| `XNET_FAMILY_IPV4` | IPV4 |
+
+### `xnetaddr`
+
+端口使用主机字节序，地址字节始终使用网络字节序。
+
+```c
+typedef struct xnetaddr {
+	uint16 Family;
+	uint16 Port;
+	uint32 Scope;
+	uint8 Address[16];
+} xnetaddr;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Family` | `uint16` | Family |
+| `Port` | `uint16` | Port |
+| `Scope` | `uint32` | Scope |
+
+### `xnetresult`
+
+网络操作把正常控制结果与结构化错误分开表达。
+
+```c
+typedef enum xnetresult {
+	XNET_RESULT_ERROR = -1,
+	XNET_RESULT_OK = 0,
+	XNET_RESULT_AGAIN,
+	XNET_RESULT_CLOSED,
+	XNET_RESULT_TRUNCATED,
+	XNET_RESULT_TIMEOUT,
+	XNET_RESULT_CANCELLED
+} xnetresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_RESULT_ERROR` | 失败 |
+| `XNET_RESULT_OK` | 成功 |
+| `XNET_RESULT_AGAIN` | 暂不可推进 |
+| `XNET_RESULT_CLOSED` | 已关闭 |
+| `XNET_RESULT_TRUNCATED` | TRUNCATED |
+| `XNET_RESULT_TIMEOUT` | 超时 |
+
+### `xneterror`
+
+网络基础层稳定错误代码。
+
+```c
+typedef enum xneterror {
+	XNET_ERROR_NONE = 0,
+	XNET_ERROR_FORMAT,
+	XNET_ERROR_FAMILY,
+	XNET_ERROR_PORT,
+	XNET_ERROR_SCOPE,
+	XNET_ERROR_BUFFER,
+	XNET_ERROR_NATIVE,
+	XNET_ERROR_SYSTEM,
+	XNET_ERROR_INTERFACE_QUERY,
+	XNET_ERROR_INTERFACE_NAME,
+	XNET_ERROR_INTERFACE_INDEX,
+	XNET_ERROR_INTERFACE_ADDRESS,
+	XNET_ERROR_INTERFACE_HARDWARE,
+	XNET_ERROR_HOST_NAME,
+	XNET_ERROR_DNS_RESOLVE,
+	XNET_ERROR_DNS_REVERSE,
+	XNET_ERROR_DNS_RESULT,
+	XNET_ERROR_RESOLVER_CREATE,
+	XNET_ERROR_RESOLVER_SUBMIT,
+	XNET_ERROR_RESOLVER_CLOSED,
+	XNET_ERROR_RESOLVER_QUERY,
+	XNET_ERROR_BUFFER_STATE,
+	XNET_ERROR_POOL_BUSY,
+	XNET_ERROR_FRAME_CONFIG,
+	XNET_ERROR_FRAME_STATE,
+	XNET_ERROR_FRAME_LIMIT,
+	XNET_ERROR_FRAME_LENGTH,
+	XNET_ERROR_SOCKET_OPEN,
+	XNET_ERROR_SOCKET_CLOSE,
+	XNET_ERROR_SOCKET_OPTION,
+	XNET_ERROR_SOCKET_BIND,
+	XNET_ERROR_SOCKET_LISTEN,
+	XNET_ERROR_SOCKET_ACCEPT,
+	XNET_ERROR_SOCKET_CONNECT,
+	XNET_ERROR_SOCKET_SHUTDOWN,
+	XNET_ERROR_SOCKET_READ,
+	XNET_ERROR_SOCKET_WRITE,
+	XNET_ERROR_SOCKET_DGRAM_ERROR,
+	XNET_ERROR_PORT_CREATE,
+	XNET_ERROR_PORT_CLOSE,
+	XNET_ERROR_PORT_WATCH,
+	XNET_ERROR_PORT_WAIT,
+	XNET_ERROR_PORT_POST,
+	XNET_ERROR_PORT_SUBMIT,
+	XNET_ERROR_PORT_CANCEL,
+	XNET_ERROR_ENGINE_CREATE,
+	XNET_ERROR_ENGINE_START,
+	XNET_ERROR_ENGINE_STOP,
+	XNET_ERROR_ENGINE_POST,
+	XNET_ERROR_ENGINE_TIMER,
+	XNET_ERROR_STREAM_CONFIG,
+	XNET_ERROR_STREAM_CREATE,
+	XNET_ERROR_STREAM_CONNECT,
+	XNET_ERROR_STREAM_READ,
+	XNET_ERROR_STREAM_WRITE,
+	XNET_ERROR_STREAM_CLOSE,
+	XNET_ERROR_DIAL_CONFIG,
+	XNET_ERROR_DIAL_CREATE,
+	XNET_ERROR_DIAL_RESOLVE,
+	XNET_ERROR_DIAL_CONNECT,
+	XNET_ERROR_LISTENER_CREATE,
+	XNET_ERROR_LISTENER_ACCEPT,
+	XNET_ERROR_LISTENER_CLOSE,
+	XNET_ERROR_SERVER_CONFIG,
+	XNET_ERROR_SERVER_START,
+	XNET_ERROR_SERVER_ACCEPT,
+	XNET_ERROR_UDP_CONFIG,
+	XNET_ERROR_UDP_CREATE,
+	XNET_ERROR_UDP_RECEIVE,
+	XNET_ERROR_UDP_RECEIVE_QUEUE,
+	XNET_ERROR_UDP_SEND,
+	XNET_ERROR_UDP_CLOSE,
+	XNET_ERROR_PROXY_CONFIG,
+	XNET_ERROR_PROXY_CREATE,
+	XNET_ERROR_PROXY_PROTOCOL,
+	XNET_ERROR_PROXY_AUTH,
+	XNET_ERROR_PROXY_CONNECT,
+	XNET_ERROR_PROXY_LIMIT,
+	XNET_ERROR_PROXY_UNSUPPORTED
+} xneterror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_ERROR_NONE` | 无 |
+| `XNET_ERROR_FORMAT` | FORMAT |
+| `XNET_ERROR_FAMILY` | FAMILY |
+| `XNET_ERROR_PORT` | PORT |
+| `XNET_ERROR_SCOPE` | SCOPE |
+| `XNET_ERROR_BUFFER` | BUFFER |
+| `XNET_ERROR_NATIVE` | NATIVE |
+| `XNET_ERROR_SYSTEM` | SYSTEM |
+| `XNET_ERROR_INTERFACE_QUERY` | INTERFACEQUERY |
+| `XNET_ERROR_INTERFACE_NAME` | INTERFACE名称 |
+| `XNET_ERROR_INTERFACE_INDEX` | INTERFACE索引 |
+| `XNET_ERROR_INTERFACE_ADDRESS` | INTERFACEADDRESS |
+| `XNET_ERROR_INTERFACE_HARDWARE` | INTERFACEHARDWARE |
+| `XNET_ERROR_HOST_NAME` | HOST名称 |
+| `XNET_ERROR_DNS_RESOLVE` | DNSRESOLVE |
+| `XNET_ERROR_DNS_REVERSE` | DNSREVERSE |
+| `XNET_ERROR_DNS_RESULT` | DNSRESULT |
+| `XNET_ERROR_RESOLVER_CREATE` | RESOLVER创建 |
+| `XNET_ERROR_RESOLVER_SUBMIT` | RESOLVERSUBMIT |
+| `XNET_ERROR_RESOLVER_CLOSED` | RESOLVER已关闭 |
+| `XNET_ERROR_RESOLVER_QUERY` | RESOLVERQUERY |
+| `XNET_ERROR_BUFFER_STATE` | BUFFER状态非法 |
+| `XNET_ERROR_POOL_BUSY` | POOLBUSY |
+| `XNET_ERROR_FRAME_CONFIG` | FRAME配置非法 |
+| `XNET_ERROR_FRAME_STATE` | FRAME状态非法 |
+| `XNET_ERROR_FRAME_LIMIT` | FRAME超限 |
+| `XNET_ERROR_FRAME_LENGTH` | FRAMELENGTH |
+| `XNET_ERROR_SOCKET_OPEN` | SOCKETOPEN |
+| `XNET_ERROR_SOCKET_CLOSE` | SOCKETCLOSE |
+| `XNET_ERROR_SOCKET_OPTION` | SOCKETOPTION |
+| `XNET_ERROR_SOCKET_BIND` | SOCKETBIND |
+| `XNET_ERROR_SOCKET_LISTEN` | SOCKETLISTEN |
+| `XNET_ERROR_SOCKET_ACCEPT` | SOCKETACCEPT |
+| `XNET_ERROR_SOCKET_CONNECT` | SOCKETCONNECT |
+| `XNET_ERROR_SOCKET_SHUTDOWN` | SOCKETSHUTDOWN |
+| `XNET_ERROR_SOCKET_READ` | SOCKET读方向 |
+| `XNET_ERROR_SOCKET_WRITE` | SOCKET写方向 |
+| `XNET_ERROR_SOCKET_DGRAM_ERROR` | SOCKETDGRAM失败 |
+| `XNET_ERROR_PORT_CREATE` | PORT创建 |
+| `XNET_ERROR_PORT_CLOSE` | PORTCLOSE |
+| `XNET_ERROR_PORT_WATCH` | PORTWATCH |
+| `XNET_ERROR_PORT_WAIT` | PORTWAIT |
+| `XNET_ERROR_PORT_POST` | PORTPOST |
+| `XNET_ERROR_PORT_SUBMIT` | PORTSUBMIT |
+| `XNET_ERROR_PORT_CANCEL` | PORTCANCEL |
+| `XNET_ERROR_ENGINE_CREATE` | ENGINE创建 |
+| `XNET_ERROR_ENGINE_START` | ENGINESTART |
+| `XNET_ERROR_ENGINE_STOP` | ENGINESTOP |
+| `XNET_ERROR_ENGINE_POST` | ENGINEPOST |
+| `XNET_ERROR_ENGINE_TIMER` | ENGINETIMER |
+| `XNET_ERROR_STREAM_CONFIG` | STREAM配置非法 |
+| `XNET_ERROR_STREAM_CREATE` | STREAM创建 |
+| `XNET_ERROR_STREAM_CONNECT` | STREAMCONNECT |
+| `XNET_ERROR_STREAM_READ` | STREAM读方向 |
+| `XNET_ERROR_STREAM_WRITE` | STREAM写方向 |
+| `XNET_ERROR_STREAM_CLOSE` | STREAMCLOSE |
+| `XNET_ERROR_DIAL_CONFIG` | DIAL配置非法 |
+| `XNET_ERROR_DIAL_CREATE` | DIAL创建 |
+| `XNET_ERROR_DIAL_RESOLVE` | DIALRESOLVE |
+| `XNET_ERROR_DIAL_CONNECT` | DIALCONNECT |
+| `XNET_ERROR_LISTENER_CREATE` | LISTENER创建 |
+| `XNET_ERROR_LISTENER_ACCEPT` | LISTENERACCEPT |
+| `XNET_ERROR_LISTENER_CLOSE` | LISTENERCLOSE |
+| `XNET_ERROR_SERVER_CONFIG` | 服务端角色配置非法 |
+| `XNET_ERROR_SERVER_START` | 服务端角色START |
+| `XNET_ERROR_SERVER_ACCEPT` | 服务端角色ACCEPT |
+| `XNET_ERROR_UDP_CONFIG` | UDP配置非法 |
+| `XNET_ERROR_UDP_CREATE` | UDP创建 |
+| `XNET_ERROR_UDP_RECEIVE` | UDPRECEIVE |
+| `XNET_ERROR_UDP_RECEIVE_QUEUE` | UDPRECEIVEQUEUE |
+| `XNET_ERROR_UDP_SEND` | UDPSEND |
+| `XNET_ERROR_UDP_CLOSE` | UDPCLOSE |
+| `XNET_ERROR_PROXY_CONFIG` | PROXY配置非法 |
+| `XNET_ERROR_PROXY_CREATE` | PROXY创建 |
+| `XNET_ERROR_PROXY_PROTOCOL` | PROXY协议非法 |
+| `XNET_ERROR_PROXY_AUTH` | PROXYAUTH |
+| `XNET_ERROR_PROXY_CONNECT` | PROXYCONNECT |
+| `XNET_ERROR_PROXY_LIMIT` | PROXY超限 |
+
+### `xnetspan`
+
+只读 Span 借用调用方内存，不拥有数据。
+
+```c
+typedef struct xnetspan {
+	cbytes Data;
+	size_t Size;
+} xnetspan;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `cbytes` | Data |
+| `Size` | `size_t` | Size |
+
+### `xnetwspan`
+
+可写 Span 借用调用方内存，不拥有数据。
+
+```c
+typedef struct xnetwspan {
+	bytes Data;
+	size_t Size;
+} xnetwspan;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `bytes` | Data |
+| `Size` | `size_t` | Size |
+
+### `xnetresolveopstate`
+
+解析操作只允许从等待态进入运行态，再进入一个不可变终态。
+
+```c
+typedef enum xnetresolveopstate {
+	XNET_RESOLVE_PENDING = 0,
+	XNET_RESOLVE_RUNNING,
+	XNET_RESOLVE_RESOLVED,
+	XNET_RESOLVE_FAILED,
+	XNET_RESOLVE_CANCELLED
+} xnetresolveopstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_RESOLVE_PENDING` | 等待中 |
+| `XNET_RESOLVE_RUNNING` | 运行中 |
+| `XNET_RESOLVE_RESOLVED` | RESOLVED |
+| `XNET_RESOLVE_FAILED` | 已失败 |
+
+### `xnetresolverconfig`
+
+所有限额都是硬边界；TTL 使用单调微秒，零值关闭对应缓存。
+
+```c
+typedef struct xnetresolverconfig {
+	uint32 Workers;
+	size_t RequestLimit;
+	size_t QueryLimit;
+	size_t CacheEntries;
+	uint64 SuccessTTL;
+	uint64 FailureTTL;
+	size_t HostLimit;
+	size_t ThreadStack;
+	xnetresolverlookup Lookup;
+	ptr LookupData;
+} xnetresolverconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Workers` | `uint32` | Workers |
+| `RequestLimit` | `size_t` | RequestLimit |
+| `QueryLimit` | `size_t` | QueryLimit |
+| `CacheEntries` | `size_t` | CacheEntries |
+| `SuccessTTL` | `uint64` | SuccessTTL |
+| `FailureTTL` | `uint64` | FailureTTL |
+| `HostLimit` | `size_t` | HostLimit |
+| `ThreadStack` | `size_t` | ThreadStack |
+| `Lookup` | `xnetresolverlookup` | Lookup |
+| `LookupData` | `ptr` | LookupData |
+
+### `xnetresolverstats`
+
+统计值在 Resolver 锁内取得一致快照，不要求调用方停止提交。
+
+```c
+typedef struct xnetresolverstats {
+	uint32 Workers;
+	uint64 Submitted;
+	uint64 Rejected;
+	uint64 CacheHits;
+	uint64 CacheMisses;
+	uint64 Coalesced;
+	uint64 QueriesStarted;
+	uint64 Resolved;
+	uint64 Failed;
+	uint64 Cancelled;
+	size_t Outstanding;
+	size_t ActiveQueries;
+	size_t QueuedQueries;
+	size_t RunningQueries;
+	size_t ReadyCallbacks;
+	size_t CachedResults;
+} xnetresolverstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Workers` | `uint32` | Workers |
+| `Submitted` | `uint64` | Submitted |
+| `Rejected` | `uint64` | Rejected |
+| `CacheHits` | `uint64` | CacheHits |
+| `CacheMisses` | `uint64` | CacheMisses |
+| `Coalesced` | `uint64` | Coalesced |
+| `QueriesStarted` | `uint64` | QueriesStarted |
+| `Resolved` | `uint64` | Resolved |
+| `Failed` | `uint64` | Failed |
+| `Cancelled` | `uint64` | Cancelled |
+| `Outstanding` | `size_t` | Outstanding |
+| `ActiveQueries` | `size_t` | ActiveQueries |
+| `QueuedQueries` | `size_t` | QueuedQueries |
+| `RunningQueries` | `size_t` | RunningQueries |
+| `ReadyCallbacks` | `size_t` | ReadyCallbacks |
+| `CachedResults` | `size_t` | CachedResults |
+
+### `xnetsockettype`
+
+Socket 类型使用稳定值，不直接暴露平台 SOCK_* 常量。
+
+```c
+typedef enum xnetsockettype {
+	XNET_SOCKET_STREAM = 1,
+	XNET_SOCKET_DGRAM = 2
+} xnetsockettype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_SOCKET_STREAM` | XNETSOCKETSTREAM |
+
+### `xnetdgrammetaflag`
+
+数据报元数据位既用于能力、启用配置，也用于标记每个报文的有效字段。
+
+```c
+typedef enum xnetdgrammetaflag {
+	XNET_DGRAM_META_DESTINATION = 0x0001,
+	XNET_DGRAM_META_INTERFACE = 0x0002,
+	XNET_DGRAM_META_HOP_LIMIT = 0x0004,
+	XNET_DGRAM_META_TRAFFIC_CLASS = 0x0008,
+	/* 合并接收时表示每个原始数据报的分段大小，最后一段允许更短。 */
+	XNET_DGRAM_META_SEGMENT_SIZE = 0x0010,
+	/* 控制缓冲被平台截断时保留已解析字段，并显式标记结果不完整。 */
+	XNET_DGRAM_META_TRUNCATED = 0x40000000
+} xnetdgrammetaflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_DGRAM_META_DESTINATION` | DESTINATION |
+| `XNET_DGRAM_META_INTERFACE` | INTERFACE |
+| `XNET_DGRAM_META_HOP_LIMIT` | HOP超限 |
+| `XNET_DGRAM_META_TRAFFIC_CLASS` | TRAFFICCLASS |
+| `XNET_DGRAM_META_SEGMENT_SIZE` | SEGMENT尺寸 |
+
+### `xnetdgrammeta`
+
+Destination 的端口恒为零；Flags 决定其余字段是否有效。
+
+```c
+typedef struct xnetdgrammeta {
+	uint32 Flags;
+	xnetaddr Destination;
+	uint32 Interface;
+	int HopLimit;
+	int TrafficClass;
+	uint32 SegmentSize;
+} xnetdgrammeta;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Destination` | `xnetaddr` | Destination |
+| `Interface` | `uint32` | Interface |
+| `HopLimit` | `int` | HopLimit |
+| `TrafficClass` | `int` | TrafficClass |
+| `SegmentSize` | `uint32` | SegmentSize |
+
+### `xnetdgramcontrolflag`
+
+逐数据报发送控制位与接收元数据分离，避免 Source 和 Destination 语义混淆。
+
+```c
+typedef enum xnetdgramcontrolflag {
+	XNET_DGRAM_CONTROL_SOURCE = 0x0001,
+	XNET_DGRAM_CONTROL_INTERFACE = 0x0002,
+	XNET_DGRAM_CONTROL_HOP_LIMIT = 0x0004,
+	XNET_DGRAM_CONTROL_TRAFFIC_CLASS = 0x0008,
+	/* 把一个聚合负载分段发送；最后一个数据报允许短于 SegmentSize。 */
+	XNET_DGRAM_CONTROL_SEGMENT_SIZE = 0x0010
+} xnetdgramcontrolflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_DGRAM_CONTROL_SOURCE` | 源码位置 |
+| `XNET_DGRAM_CONTROL_INTERFACE` | INTERFACE |
+| `XNET_DGRAM_CONTROL_HOP_LIMIT` | HOP超限 |
+| `XNET_DGRAM_CONTROL_TRAFFIC_CLASS` | TRAFFICCLASS |
+
+### `xnetdgramcontrol`
+
+Source 的端口必须为零；Flags 决定本次发送覆盖哪些 Socket 默认值。
+
+```c
+typedef struct xnetdgramcontrol {
+	uint32 Flags;
+	xnetaddr Source;
+	uint32 Interface;
+	int HopLimit;
+	int TrafficClass;
+	uint32 SegmentSize;
+} xnetdgramcontrol;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Source` | `xnetaddr` | Source |
+| `Interface` | `uint32` | Interface |
+| `HopLimit` | `int` | HopLimit |
+| `TrafficClass` | `int` | TrafficClass |
+| `SegmentSize` | `uint32` | SegmentSize |
+
+### `xnetdgramcap`
+
+数据报高级能力按当前平台和 Socket 类型查询，不能用编译平台作运行时假设。
+
+```c
+typedef enum xnetdgramcap {
+	XNET_DGRAM_CAP_PATH_MTU_MODE = 0x0001,
+	XNET_DGRAM_CAP_PATH_MTU_QUERY = 0x0002,
+	XNET_DGRAM_CAP_ERROR_QUEUE = 0x0004,
+	XNET_DGRAM_CAP_SEGMENT_SEND = 0x0008,
+	XNET_DGRAM_CAP_SEGMENT_RECEIVE = 0x0010
+} xnetdgramcap;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_DGRAM_CAP_PATH_MTU_MODE` | PATHMTUMODE |
+| `XNET_DGRAM_CAP_PATH_MTU_QUERY` | PATHMTUQUERY |
+| `XNET_DGRAM_CAP_ERROR_QUEUE` | 失败QUEUE |
+| `XNET_DGRAM_CAP_SEGMENT_SEND` | SEGMENTSEND |
+
+### `xnetpmtumode`
+
+SYSTEM 保留平台默认；DISCOVER 禁止 IP 分片；FRAGMENT 允许分片；PROBE 忽略路径缓存。
+
+```c
+typedef enum xnetpmtumode {
+	XNET_PMTU_SYSTEM = 0,
+	XNET_PMTU_DISCOVER,
+	XNET_PMTU_FRAGMENT,
+	XNET_PMTU_PROBE
+} xnetpmtumode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PMTU_SYSTEM` | SYSTEM |
+| `XNET_PMTU_DISCOVER` | DISCOVER |
+| `XNET_PMTU_FRAGMENT` | FRAGMENT |
+
+### `xnetdgramerrororigin`
+
+错误来源独立于 ICMP Type/Code，LOCAL 也可以携带路径 MTU。
+
+```c
+typedef enum xnetdgramerrororigin {
+	XNET_DGRAM_ERROR_UNKNOWN = 0,
+	XNET_DGRAM_ERROR_LOCAL,
+	XNET_DGRAM_ERROR_ICMP,
+	XNET_DGRAM_ERROR_ICMP6
+} xnetdgramerrororigin;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_DGRAM_ERROR_UNKNOWN` | 未知 |
+| `XNET_DGRAM_ERROR_LOCAL` | LOCAL |
+| `XNET_DGRAM_ERROR_ICMP` | ICMP |
+
+### `xnetdgramerrorflag`
+
+Flags 精确说明地址、路径 MTU 与负载截断字段是否有效。
+
+```c
+typedef enum xnetdgramerrorflag {
+	XNET_DGRAM_ERROR_REMOTE = 0x0001,
+	XNET_DGRAM_ERROR_OFFENDER = 0x0002,
+	XNET_DGRAM_ERROR_PATH_MTU = 0x0004,
+	XNET_DGRAM_ERROR_PAYLOAD_TRUNCATED = 0x0008,
+	XNET_DGRAM_ERROR_META_TRUNCATED = 0x0010
+} xnetdgramerrorflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_DGRAM_ERROR_REMOTE` | REMOTE |
+| `XNET_DGRAM_ERROR_OFFENDER` | OFFENDER |
+| `XNET_DGRAM_ERROR_PATH_MTU` | PATHMTU |
+| `XNET_DGRAM_ERROR_PAYLOAD_TRUNCATED` | PAYLOADTRUNCATED |
+
+### `xnetdgramerror`
+
+异步网络错误是可读取数据，不会污染当前执行上下文的错误对象。
+
+```c
+typedef struct xnetdgramerror {
+	uint32 Flags;
+	xnetdgramerrororigin Origin;
+	xerrkind Kind;
+	int SystemCode;
+	int Type;
+	int Code;
+	uint32 Info;
+	uint32 Data;
+	size_t PathMtu;
+	xnetaddr Remote;
+	xnetaddr Offender;
+} xnetdgramerror;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Origin` | `xnetdgramerrororigin` | Origin |
+| `Kind` | `xerrkind` | Kind |
+| `SystemCode` | `int` | SystemCode |
+| `Type` | `int` | Type |
+| `Code` | `int` | Code |
+| `Info` | `uint32` | Info |
+| `Data` | `uint32` | Data |
+| `PathMtu` | `size_t` | PathMtu |
+| `Remote` | `xnetaddr` | Remote |
+| `Offender` | `xnetaddr` | Offender |
+
+### `xnetdgramrecv`
+
+批量接收项由调用方提供缓冲，函数写入来源、可见长度和单报文结果。
+
+```c
+typedef struct xnetdgramrecv {
+	void* Data;
+	size_t Capacity;
+	xnetaddr Remote;
+	xnetdgrammeta Meta;
+	size_t Size;
+	xnetresult Result;
+} xnetdgramrecv;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `void*` | Data |
+| `Capacity` | `size_t` | Capacity |
+| `Remote` | `xnetaddr` | Remote |
+| `Meta` | `xnetdgrammeta` | Meta |
+| `Size` | `size_t` | Size |
+| `Result` | `xnetresult` | Result |
+
+### `xnetdgramsend`
+
+批量发送项在调用期间借用数据；空远端表示使用连接式 UDP 的固定 Peer。
+
+```c
+typedef struct xnetdgramsend {
+	const xnetaddr* Remote;
+	const void* Data;
+	size_t Size;
+} xnetdgramsend;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Remote` | `const xnetaddr*` | Remote |
+| `Data` | `const void*` | Data |
+| `Size` | `size_t` | Size |
+
+### `xnetsocketflag`
+
+Socket 打开标志可以组合；系统句柄始终禁止被子进程继承。
+
+```c
+typedef enum xnetsocketflag {
+	XNET_SOCKET_NONBLOCK = 0x01
+} xnetsocketflag;
+```
+
+| 值 | 语义 |
+|---|---|
+
+### `xnetshutdown`
+
+半关闭方向与平台 SHUT_* 常量保持隔离。
+
+```c
+typedef enum xnetshutdown {
+	XNET_SHUTDOWN_READ = 1,
+	XNET_SHUTDOWN_WRITE,
+	XNET_SHUTDOWN_BOTH
+} xnetshutdown;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_SHUTDOWN_READ` | 读方向 |
+| `XNET_SHUTDOWN_WRITE` | 写方向 |
+
+### `xnetoption`
+
+通用 Socket 选项以 int64 表达；负 linger 值表示关闭 linger。
+
+```c
+typedef enum xnetoption {
+	XNET_OPTION_NONBLOCK = 1,
+	XNET_OPTION_REUSE_ADDRESS,
+	XNET_OPTION_REUSE_PORT,
+	XNET_OPTION_EXCLUSIVE_ADDRESS,
+	XNET_OPTION_NO_DELAY,
+	XNET_OPTION_KEEP_ALIVE,
+	XNET_OPTION_BROADCAST,
+	XNET_OPTION_IPV6_ONLY,
+	XNET_OPTION_RECEIVE_BUFFER,
+	XNET_OPTION_SEND_BUFFER,
+	XNET_OPTION_LINGER,
+	XNET_OPTION_HOP_LIMIT,
+	XNET_OPTION_TRAFFIC_CLASS,
+	XNET_OPTION_PATH_MTU_MODE,
+	XNET_OPTION_PATH_MTU,
+	XNET_OPTION_DGRAM_ERRORS,
+	XNET_OPTION_ERROR
+} xnetoption;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_OPTION_NONBLOCK` | NONBLOCK |
+| `XNET_OPTION_REUSE_ADDRESS` | REUSEADDRESS |
+| `XNET_OPTION_REUSE_PORT` | REUSEPORT |
+| `XNET_OPTION_EXCLUSIVE_ADDRESS` | EXCLUSIVEADDRESS |
+| `XNET_OPTION_NO_DELAY` | NODELAY |
+| `XNET_OPTION_KEEP_ALIVE` | KEEPALIVE |
+| `XNET_OPTION_BROADCAST` | BROADCAST |
+| `XNET_OPTION_IPV6_ONLY` | IPV6ONLY |
+| `XNET_OPTION_RECEIVE_BUFFER` | RECEIVEBUFFER |
+| `XNET_OPTION_SEND_BUFFER` | SENDBUFFER |
+| `XNET_OPTION_LINGER` | LINGER |
+| `XNET_OPTION_HOP_LIMIT` | HOP超限 |
+| `XNET_OPTION_TRAFFIC_CLASS` | TRAFFICCLASS |
+| `XNET_OPTION_PATH_MTU_MODE` | PATHMTUMODE |
+| `XNET_OPTION_PATH_MTU` | PATHMTU |
+| `XNET_OPTION_DGRAM_ERRORS` | DGRAMERRORS |
+
+### `xnetportbackend`
+
+AUTO 选择当前平台最优后端，显式值用于测试、降级和部署控制。
+
+```c
+typedef enum xnetportbackend {
+	XNET_PORT_AUTO = 0,
+	XNET_PORT_IOCP,
+	XNET_PORT_URING,
+	XNET_PORT_EPOLL,
+	XNET_PORT_KQUEUE,
+	XNET_PORT_SELECT
+} xnetportbackend;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PORT_AUTO` | 自动 |
+| `XNET_PORT_IOCP` | IOCP |
+| `XNET_PORT_URING` | URING |
+| `XNET_PORT_EPOLL` | EPOLL |
+| `XNET_PORT_KQUEUE` | KQUEUE |
+
+### `xnetportcap`
+
+能力位明确区分完成式 IO 与 readiness，避免后端伪造同一种语义。
+
+```c
+typedef enum xnetportcap {
+	XNET_PORT_CAP_READINESS = 0x0001,
+	XNET_PORT_CAP_COMPLETION = 0x0002,
+	XNET_PORT_CAP_ONESHOT = 0x0004,
+	XNET_PORT_CAP_EDGE = 0x0008,
+	XNET_PORT_CAP_BATCH = 0x0010,
+	XNET_PORT_CAP_WAKE = 0x0020,
+	XNET_PORT_CAP_POST = 0x0040,
+	XNET_PORT_CAP_CANCEL = 0x0080,
+	XNET_PORT_CAP_READ_PROBE = 0x0100,
+	XNET_PORT_CAP_DGRAM_ERROR = 0x0200,
+	XNET_PORT_CAP_SEND_FILE = 0x0400,
+	XNET_PORT_CAP_FILE_IO = 0x0800
+} xnetportcap;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PORT_CAP_READINESS` | READINESS |
+| `XNET_PORT_CAP_COMPLETION` | COMPLETION |
+| `XNET_PORT_CAP_ONESHOT` | ONESHOT |
+| `XNET_PORT_CAP_EDGE` | EDGE |
+| `XNET_PORT_CAP_BATCH` | BATCH |
+| `XNET_PORT_CAP_WAKE` | WAKE |
+| `XNET_PORT_CAP_POST` | POST |
+| `XNET_PORT_CAP_CANCEL` | CANCEL |
+| `XNET_PORT_CAP_READ_PROBE` | 读方向PROBE |
+| `XNET_PORT_CAP_DGRAM_ERROR` | DGRAM失败 |
+| `XNET_PORT_CAP_SEND_FILE` | SENDFILE |
+
+### `xnetpoll`
+
+readiness 关注位；错误与挂断始终隐式观察。
+
+```c
+typedef enum xnetpoll {
+	XNET_POLL_READ = 0x01,
+	XNET_POLL_WRITE = 0x02
+} xnetpoll;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_POLL_READ` | XNETPOLL读方向 |
+
+### `xnetporteventtype`
+
+一个事件只属于一个稳定类别，具体 readiness 状态由 Flags 组合表达。
+
+```c
+typedef enum xnetporteventtype {
+	XNET_PORT_EVENT_READY = 1,
+	XNET_PORT_EVENT_ACCEPT,
+	XNET_PORT_EVENT_CONNECT,
+	XNET_PORT_EVENT_READ_PROBE,
+	XNET_PORT_EVENT_RECV,
+	XNET_PORT_EVENT_SEND,
+	XNET_PORT_EVENT_RECV_FROM,
+	XNET_PORT_EVENT_RECV_MSG,
+	XNET_PORT_EVENT_RECV_ERROR,
+	XNET_PORT_EVENT_SEND_TO,
+	XNET_PORT_EVENT_SEND_MSG,
+	XNET_PORT_EVENT_SEND_FILE,
+	XNET_PORT_EVENT_FILE_READ,
+	XNET_PORT_EVENT_FILE_WRITE,
+	XNET_PORT_EVENT_USER,
+	XNET_PORT_EVENT_WAKE
+} xnetporteventtype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PORT_EVENT_READY` | 就绪 |
+| `XNET_PORT_EVENT_ACCEPT` | ACCEPT |
+| `XNET_PORT_EVENT_CONNECT` | CONNECT |
+| `XNET_PORT_EVENT_READ_PROBE` | 读方向PROBE |
+| `XNET_PORT_EVENT_RECV` | RECV |
+| `XNET_PORT_EVENT_SEND` | SEND |
+| `XNET_PORT_EVENT_RECV_FROM` | RECVFROM |
+| `XNET_PORT_EVENT_RECV_MSG` | RECVMSG |
+| `XNET_PORT_EVENT_RECV_ERROR` | RECV失败 |
+| `XNET_PORT_EVENT_SEND_TO` | SENDTO |
+| `XNET_PORT_EVENT_SEND_MSG` | SENDMSG |
+| `XNET_PORT_EVENT_SEND_FILE` | SENDFILE |
+| `XNET_PORT_EVENT_FILE_READ` | FILE读方向 |
+| `XNET_PORT_EVENT_FILE_WRITE` | FILE写方向 |
+| `XNET_PORT_EVENT_USER` | USER |
+
+### `xnetporteventflag`
+
+事件标志表达 readiness 方向及完成式 EOF、错误等稳定状态。
+
+```c
+typedef enum xnetporteventflag {
+	XNET_PORT_EVENT_READ = 0x0001,
+	XNET_PORT_EVENT_WRITE = 0x0002,
+	XNET_PORT_EVENT_ERROR = 0x0004,
+	XNET_PORT_EVENT_HANGUP = 0x0008,
+	XNET_PORT_EVENT_EOF = 0x0010,
+	XNET_PORT_EVENT_MORE = 0x0020
+} xnetporteventflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_PORT_EVENT_READ` | 读方向 |
+| `XNET_PORT_EVENT_WRITE` | 写方向 |
+| `XNET_PORT_EVENT_ERROR` | 失败 |
+| `XNET_PORT_EVENT_HANGUP` | HANGUP |
+| `XNET_PORT_EVENT_EOF` | EOF |
+
+### `xnetportconfig`
+
+配置不带版本字段；OperationCache 是每个完成操作尺寸类的缓存上限，零值关闭缓存。
+
+```c
+typedef struct xnetportconfig {
+	xnetportbackend Backend;
+	uint32 Flags;
+	size_t PostLimit;
+	/* Watch/Operation 为零时按实际后端选择可扩展默认值。 */
+	size_t WatchLimit;
+	size_t OperationLimit;
+	size_t OperationCache;
+} xnetportconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Backend` | `xnetportbackend` | Backend |
+| `Flags` | `uint32` | Flags |
+| `PostLimit` | `size_t` | PostLimit |
+| `WatchLimit` | `size_t` | WatchLimit |
+| `OperationLimit` | `size_t` | OperationLimit |
+| `OperationCache` | `size_t` | OperationCache |
+
+### `xnetportevent`
+
+端口事件借用原 Socket；只有 Accepted 在接受完成时转移新对象所有权。
+
+```c
+typedef struct xnetportevent {
+	xnetporteventtype Type;
+	uint32 Flags;
+	xnetresult Result;
+	int SystemCode;
+	size_t Bytes;
+	uint64 Id;
+	xnetsocket Socket;
+	xnetsocket Accepted;
+	xnetaddr Address;
+	xnetdgrammeta Meta;
+	xnetdgramerror DgramError;
+	ptr User;
+} xnetportevent;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xnetporteventtype` | Type |
+| `Flags` | `uint32` | Flags |
+| `Result` | `xnetresult` | Result |
+| `SystemCode` | `int` | SystemCode |
+| `Bytes` | `size_t` | Bytes |
+| `Id` | `uint64` | Id |
+| `Socket` | `xnetsocket` | Socket |
+| `Accepted` | `xnetsocket` | Accepted |
+| `Address` | `xnetaddr` | Address |
+| `Meta` | `xnetdgrammeta` | Meta |
+| `DgramError` | `xnetdgramerror` | DgramError |
+| `User` | `ptr` | User |
+
+### `xnetenginestate`
+
+Engine 生命周期状态可安全地跨线程查询。
+
+```c
+typedef enum xnetenginestate {
+	XNET_ENGINE_STOPPED = 0,
+	XNET_ENGINE_STARTING,
+	XNET_ENGINE_RUNNING,
+	XNET_ENGINE_STOPPING,
+	XNET_ENGINE_DESTROYING
+} xnetenginestate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_ENGINE_STOPPED` | STOPPED |
+| `XNET_ENGINE_STARTING` | STARTING |
+| `XNET_ENGINE_RUNNING` | 运行中 |
+| `XNET_ENGINE_STOPPING` | STOPPING |
+
+### `xnetpost`
+
+Post 的队列节点与并发门保持不透明，允许嵌入网络对象。
+
+```c
+typedef union xnetpost {
+	uint64 Alignment;
+	uint8 Storage[XNET_POST_STORAGE_SIZE];
+} xnetpost;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xnetcompletion`
+
+Completion 借用过程与数据，必须存活到对应端口事件回调结束。
+
+```c
+typedef struct xnetcompletion {
+	xnetcompletionproc Proc;
+	ptr Data;
+} xnetcompletion;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Proc` | `xnetcompletionproc` | Proc |
+| `Data` | `ptr` | Data |
+
+### `xnetengineconfig`
+
+容量字段都是硬边界；CommandCapacity 会向上取整为 2 次幂。
+
+```c
+typedef struct xnetengineconfig {
+	xnetportbackend Backend;
+	uint32 Workers;
+	const xnetbufpoolconfig* BufferPool;
+	size_t CommandCapacity;
+	size_t NodeCacheBytes;
+	size_t TimerLimit;
+	size_t EventBatch;
+	size_t PortPostLimit;
+	/* 两个端口容量为零时由每个 Worker 的实际后端解析。 */
+	size_t PortWatchLimit;
+	size_t PortOperationLimit;
+	size_t PortOperationCache;
+	uint64 IdleWait;
+	size_t ThreadStack;
+} xnetengineconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Backend` | `xnetportbackend` | Backend |
+| `Workers` | `uint32` | Workers |
+| `BufferPool` | `const xnetbufpoolconfig*` | BufferPool |
+| `CommandCapacity` | `size_t` | CommandCapacity |
+| `NodeCacheBytes` | `size_t` | NodeCacheBytes |
+| `TimerLimit` | `size_t` | TimerLimit |
+| `EventBatch` | `size_t` | EventBatch |
+| `PortPostLimit` | `size_t` | PortPostLimit |
+| `PortWatchLimit` | `size_t` | PortWatchLimit |
+| `PortOperationLimit` | `size_t` | PortOperationLimit |
+| `PortOperationCache` | `size_t` | PortOperationCache |
+| `IdleWait` | `uint64` | IdleWait |
+| `ThreadStack` | `size_t` | ThreadStack |
+
+### `xnetworkerstats`
+
+Worker 统计是并发快照，计数在 Engine 重启后继续累计。
+
+```c
+typedef struct xnetworkerstats {
+	uint64 PostsAccepted;
+	uint64 PostsRejected;
+	uint64 PostsExecuted;
+	uint64 TimersAccepted;
+	uint64 TimersRejected;
+	uint64 TimersFired;
+	uint64 TimersCancelled;
+	uint64 TimersClosed;
+	uint64 TimerErrors;
+	uint64 Events;
+	uint64 WaitErrors;
+	uint64 WakeErrors;
+	/* BASIC 以上统计中，停机任务链未在安全代数内收敛的累计次数。 */
+	uint64 ShutdownStalls;
+	/* 最近一次端口等待错误；没有错误时 Code 为 XNET_ERROR_NONE。 */
+	xneterror LastWaitError;
+	int LastWaitSystemCode;
+	uint64 NodeCacheHits;
+	uint64 NodeCacheMisses;
+	size_t PendingCommands;
+	size_t ActiveTimers;
+	size_t NodeCachedBytes;
+} xnetworkerstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `PostsAccepted` | `uint64` | PostsAccepted |
+| `PostsRejected` | `uint64` | PostsRejected |
+| `PostsExecuted` | `uint64` | PostsExecuted |
+| `TimersAccepted` | `uint64` | TimersAccepted |
+| `TimersRejected` | `uint64` | TimersRejected |
+| `TimersFired` | `uint64` | TimersFired |
+| `TimersCancelled` | `uint64` | TimersCancelled |
+| `TimersClosed` | `uint64` | TimersClosed |
+| `TimerErrors` | `uint64` | TimerErrors |
+| `Events` | `uint64` | Events |
+| `WaitErrors` | `uint64` | WaitErrors |
+| `WakeErrors` | `uint64` | WakeErrors |
+| `ShutdownStalls` | `uint64` | ShutdownStalls |
+| `LastWaitError` | `xneterror` | LastWaitError |
+| `LastWaitSystemCode` | `int` | LastWaitSystemCode |
+| `NodeCacheHits` | `uint64` | NodeCacheHits |
+| `NodeCacheMisses` | `uint64` | NodeCacheMisses |
+| `PendingCommands` | `size_t` | PendingCommands |
+| `ActiveTimers` | `size_t` | ActiveTimers |
+| `NodeCachedBytes` | `size_t` | NodeCachedBytes |
+
+### `xnetenginestats`
+
+Engine 统计聚合全部 Worker，并附带当前生命周期状态。
+
+```c
+typedef struct xnetenginestats {
+	xnetenginestate State;
+	uint32 Workers;
+	uint64 PostsAccepted;
+	uint64 PostsRejected;
+	uint64 PostsExecuted;
+	uint64 TimersAccepted;
+	uint64 TimersRejected;
+	uint64 TimersFired;
+	uint64 TimersCancelled;
+	uint64 TimersClosed;
+	uint64 TimerErrors;
+	uint64 Events;
+	uint64 WaitErrors;
+	uint64 WakeErrors;
+	/* BASIC 以上统计中，全部 Worker 停机任务链未收敛次数之和。 */
+	uint64 ShutdownStalls;
+	uint64 NodeCacheHits;
+	uint64 NodeCacheMisses;
+	size_t PendingCommands;
+	size_t ActiveTimers;
+	size_t NodeCachedBytes;
+	size_t LiveObjects;
+} xnetenginestats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `State` | `xnetenginestate` | State |
+| `Workers` | `uint32` | Workers |
+| `PostsAccepted` | `uint64` | PostsAccepted |
+| `PostsRejected` | `uint64` | PostsRejected |
+| `PostsExecuted` | `uint64` | PostsExecuted |
+| `TimersAccepted` | `uint64` | TimersAccepted |
+| `TimersRejected` | `uint64` | TimersRejected |
+| `TimersFired` | `uint64` | TimersFired |
+| `TimersCancelled` | `uint64` | TimersCancelled |
+| `TimersClosed` | `uint64` | TimersClosed |
+| `TimerErrors` | `uint64` | TimerErrors |
+| `Events` | `uint64` | Events |
+| `WaitErrors` | `uint64` | WaitErrors |
+| `WakeErrors` | `uint64` | WakeErrors |
+| `ShutdownStalls` | `uint64` | ShutdownStalls |
+| `NodeCacheHits` | `uint64` | NodeCacheHits |
+| `NodeCacheMisses` | `uint64` | NodeCacheMisses |
+| `PendingCommands` | `size_t` | PendingCommands |
+| `ActiveTimers` | `size_t` | ActiveTimers |
+| `NodeCachedBytes` | `size_t` | NodeCachedBytes |
+| `LiveObjects` | `size_t` | LiveObjects |
+
+### `xnetref`
+
+引用 Span 在受理后转移释放责任，零长度 Span 不转移所有权。
+
+```c
+typedef struct xnetref {
+	cbytes Data;
+	size_t Size;
+	xnetreleaseproc Release;
+	ptr Context;
+} xnetref;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `cbytes` | Data |
+| `Size` | `size_t` | Size |
+| `Release` | `xnetreleaseproc` | Release |
+| `Context` | `ptr` | Context |
+
+### `xnetbufpoolinfo`
+
+缓冲池统计区分实时、缓存、分配、复用和动态大块。
+
+```c
+typedef struct xnetbufpoolinfo {
+	size_t LiveBlocks;
+	size_t LiveBytes;
+	size_t PeakBlocks;
+	size_t PeakBytes;
+	size_t CachedBlocks;
+	size_t CachedBytes;
+	uint64 AllocCount;
+	uint64 ReuseCount;
+	uint64 DynamicCount;
+	uint64 RefCount;
+} xnetbufpoolinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `LiveBlocks` | `size_t` | LiveBlocks |
+| `LiveBytes` | `size_t` | LiveBytes |
+| `PeakBlocks` | `size_t` | PeakBlocks |
+| `PeakBytes` | `size_t` | PeakBytes |
+| `CachedBlocks` | `size_t` | CachedBlocks |
+| `CachedBytes` | `size_t` | CachedBytes |
+| `AllocCount` | `uint64` | AllocCount |
+| `ReuseCount` | `uint64` | ReuseCount |
+| `DynamicCount` | `uint64` | DynamicCount |
+| `RefCount` | `uint64` | RefCount |
+
+### `xnetbuf`
+
+缓冲链可栈上使用；字段用于零分配查询，调用方不得直接修改。
+
+```c
+typedef struct xnetbuf {
+	xnetblock* Head;
+	xnetblock* Tail;
+	xnetblock* Reserved;
+	xnetbufpool* Pool;
+	size_t Size;
+	size_t Blocks;
+	bool ReservedNew;
+} xnetbuf;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Head` | `xnetblock*` | Head |
+| `Tail` | `xnetblock*` | Tail |
+| `Reserved` | `xnetblock*` | Reserved |
+| `Pool` | `xnetbufpool*` | Pool |
+| `Size` | `size_t` | Size |
+| `Blocks` | `size_t` | Blocks |
+| `ReservedNew` | `bool` | ReservedNew |
+
+### `xnetaddrlist`
+
+地址列表是不可变共享结果，解析器缓存和调用方可以独立持有引用。
+
+```c
+typedef struct xnetaddrlist xnetaddrlist;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetresolver`
+
+Resolver 与解析操作均保持不透明，解析操作可以独立于调用方引用继续执行。
+
+```c
+typedef struct xnetresolver xnetresolver;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetresolveop`
+
+解析操作对象（不透明）：线程安全的可等待句柄，内含查询状态与结果地址列表。
+
+
+```c
+typedef struct xnetresolveop xnetresolveop;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetport`
+
+网络端口隐藏平台事件对象、注册表和跨线程唤醒资源。
+
+```c
+typedef struct xnetport_impl xnetport;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetbufpoolconfig`
+
+网络缓冲池配置：按尺寸类预分配缓冲，供 `xrtNetBufPool` 创建共享池。
+
+
+```c
+typedef struct xnetbufpoolconfig xnetbufpoolconfig;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetbufpool`
+
+网络缓冲池（不透明）：进程内共享的按类缓冲池，降低热路径分配。
+
+
+```c
+typedef struct xnetbufpool xnetbufpool;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetbytes`
+
+拥有型字节结果（不透明）：一次性消费的动态缓冲，用后销毁。
+
+
+```c
+typedef struct xnetbytes xnetbytes;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetengine`
+
+Engine 与 Worker 对外保持不透明，所有 Worker 资源都归所属 Engine 管理。
+
+```c
+typedef struct xnetengine xnetengine;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetworker`
+
+网络 Worker（不透明）：Engine 的执行单元，流与监听器绑定其上。
+
+
+```c
+typedef struct xnetworker xnetworker;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetblock`
+
+网络分块借用（opaque 由 net.md 正文描述）：面向 Completion 的零拷贝视图单元。
+
+
+```c
+typedef struct xnetblock xnetblock;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xnetresolverlookup`
+
+自定义查询过程必须返回端口为零的不可变地址列表，并在失败时设置结构化错误。
+
+```c
+typedef xnetaddrlist* (*xnetresolverlookup)(
+	cstr sHost,
+	xnetfamily Family,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xnetresolveproc`
+
+完成回调借用操作对象；保留到回调之后时必须显式增加引用。
+
+```c
+typedef void (*xnetresolveproc)(xnetresolveop* pOperation, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xnettaskproc`
+
+Engine 任务始终在选定 Worker 上串行执行。
+
+```c
+typedef void (*xnettaskproc)(xnetworker* pWorker, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xnettimerproc`
+
+Timer 受理后恰好终结一次，结果区分到期、取消、停止和内部失败。
+
+```c
+typedef void (*xnettimerproc)(xnetworker* pWorker,
+	uint64 Id, xnetresult Result, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xnetcompletionproc`
+
+Engine 内的端口事件通过 Completion 回到所属 Worker。
+
+```c
+typedef void (*xnetcompletionproc)(xnetworker* pWorker,
+	const xnetportevent* pEvent, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xnetreleaseproc`
+
+外部引用的释放过程在最后一段数据离开缓冲时执行一次。
+
+```c
+typedef void (*xnetreleaseproc)(ptr pContext, cbytes pData, size_t iSize);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XNET_STATS_OFF` | `0` | 网络累计统计按编译期级别裁剪；状态量和背压计数始终保留。 |
+| `XNET_STATS_BASIC` | `1` | STATSBASIC |
+| `XNET_STATS_FULL` | `2` | STATS已满 |
+| `XNET_DGRAM_BATCH_MAX` | `64u` | DGRAMBATCH上限 |
+| `XNET_POST_STORAGE_SIZE` | `64u` | 嵌入式 Post 提供不分配内存且不占公开命令队列容量的 Worker 投递。 |
+| `XNET_BUFFER_CLASS_COUNT` | `4u` | 网络缓冲池包含四个可配置尺寸类。 |
+
 ## 分层
 
 ```c

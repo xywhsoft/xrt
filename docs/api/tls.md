@@ -2,6 +2,2131 @@
 
 `tls` 是 XRT 内建 TLS 体系的协议基础层。当前这一层公开稳定的版本、状态、Alert 和记录编解码契约；它不直接持有 socket，也不建立第二套异步模型。
 
+## 类型与常量
+
+### `xtlsresult`
+
+TLS 协议操作把正常控制结果与结构化错误分开表达。
+
+```c
+typedef enum xtlsresult {
+	XTLS_ERROR = -1,
+	XTLS_OK = 0,
+	XTLS_AGAIN,
+	XTLS_CLOSED
+} xtlsresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_ERROR` | 失败 |
+| `XTLS_OK` | 成功 |
+| `XTLS_AGAIN` | 暂不可推进 |
+
+### `xtlsversion`
+
+XRT 只协商 TLS 1.2 和 TLS 1.3。
+
+```c
+typedef enum xtlsversion {
+	XTLS_VERSION_12 = 0x0303,
+	XTLS_VERSION_13 = 0x0304
+} xtlsversion;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_VERSION_12` | XTLSVERSION12 |
+
+### `xtlscipher`
+
+XRT 支持的密码套件全部使用 AEAD，TLS 1.2 只保留前向保密套件。
+
+```c
+typedef enum xtlscipher {
+	XTLS_AES_128_GCM_SHA256 = 0x1301,
+	XTLS_AES_256_GCM_SHA384 = 0x1302,
+	XTLS_CHACHA20_POLY1305_SHA256 = 0x1303,
+	XTLS_ECDHE_ECDSA_AES_128_GCM_SHA256 = 0xC02B,
+	XTLS_ECDHE_RSA_AES_128_GCM_SHA256 = 0xC02F,
+	XTLS_ECDHE_ECDSA_AES_256_GCM_SHA384 = 0xC02C,
+	XTLS_ECDHE_RSA_AES_256_GCM_SHA384 = 0xC030,
+	XTLS_ECDHE_RSA_CHACHA20_POLY1305_SHA256 = 0xCCA8,
+	XTLS_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256 = 0xCCA9
+} xtlscipher;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_AES_128_GCM_SHA256` | AES128GCMSHA256 |
+| `XTLS_AES_256_GCM_SHA384` | AES256GCMSHA384 |
+| `XTLS_CHACHA20_POLY1305_SHA256` | CHACHA20POLY1305SHA256 |
+| `XTLS_ECDHE_ECDSA_AES_128_GCM_SHA256` | ECDHEECDSAAES128GCMSHA256 |
+| `XTLS_ECDHE_RSA_AES_128_GCM_SHA256` | ECDHERSAAES128GCMSHA256 |
+| `XTLS_ECDHE_ECDSA_AES_256_GCM_SHA384` | ECDHEECDSAAES256GCMSHA384 |
+| `XTLS_ECDHE_RSA_AES_256_GCM_SHA384` | ECDHERSAAES256GCMSHA384 |
+| `XTLS_ECDHE_RSA_CHACHA20_POLY1305_SHA256` | ECDHERSACHACHA20POLY1305SHA256 |
+
+### `xtlshash`
+
+TLS 密码套件使用的摘要算法与密码后端解耦。
+
+```c
+typedef enum xtlshash {
+	XTLS_HASH_SHA256 = 1,
+	XTLS_HASH_SHA384
+} xtlshash;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_HASH_SHA256` | XTLSHASHSHA256 |
+
+### `xtlsaead`
+
+TLS 记录保护当前只保留两类现代 AEAD。
+
+```c
+typedef enum xtlsaead {
+	XTLS_AEAD_AES_GCM = 1,
+	XTLS_AEAD_CHACHA20_POLY1305
+} xtlsaead;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_AEAD_AES_GCM` | XTLSAEADAESGCM |
+
+### `xtlscipherauth`
+
+TLS 1.2 把认证类型编码进套件，TLS 1.3 则与套件独立。
+
+```c
+typedef enum xtlscipherauth {
+	XTLS_CIPHER_AUTH_INDEPENDENT = 0,
+	XTLS_CIPHER_AUTH_RSA,
+	XTLS_CIPHER_AUTH_ECDSA
+} xtlscipherauth;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_CIPHER_AUTH_INDEPENDENT` | INDEPENDENT |
+| `XTLS_CIPHER_AUTH_RSA` | RSA |
+
+### `xtlsrole`
+
+TLS 角色决定握手状态机的方向。
+
+```c
+typedef enum xtlsrole {
+	XTLS_CLIENT = 1,
+	XTLS_SERVER = 2
+} xtlsrole;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_CLIENT` | XTLS客户端角色 |
+
+### `xtlsstate`
+
+会话状态只描述公开生命周期，不暴露内部握手步骤。
+
+```c
+typedef enum xtlsstate {
+	XTLS_STATE_NEW = 0,
+	XTLS_STATE_HANDSHAKE,
+	XTLS_STATE_READY,
+	XTLS_STATE_CLOSING,
+	XTLS_STATE_CLOSED,
+	XTLS_STATE_FAILED
+} xtlsstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_STATE_NEW` | NEW |
+| `XTLS_STATE_HANDSHAKE` | 握手阶段 |
+| `XTLS_STATE_READY` | 就绪 |
+| `XTLS_STATE_CLOSING` | CLOSING |
+| `XTLS_STATE_CLOSED` | 已关闭 |
+
+### `xtlsrecordtype`
+
+TLS 记录内容类型使用协议规定的稳定数值。
+
+```c
+typedef enum xtlsrecordtype {
+	XTLS_RECORD_CHANGE_CIPHER_SPEC = 20,
+	XTLS_RECORD_ALERT = 21,
+	XTLS_RECORD_HANDSHAKE = 22,
+	XTLS_RECORD_APPLICATION_DATA = 23
+} xtlsrecordtype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_RECORD_CHANGE_CIPHER_SPEC` | CHANGECIPHERSPEC |
+| `XTLS_RECORD_ALERT` | ALERT |
+| `XTLS_RECORD_HANDSHAKE` | 握手阶段 |
+
+### `xtlshandshaketype`
+
+TLS 1.2 与 TLS 1.3 握手消息类型保留标准线路数值。
+
+```c
+typedef enum xtlshandshaketype {
+	XTLS_HANDSHAKE_HELLO_REQUEST = 0,
+	XTLS_HANDSHAKE_CLIENT_HELLO = 1,
+	XTLS_HANDSHAKE_SERVER_HELLO = 2,
+	XTLS_HANDSHAKE_NEW_SESSION_TICKET = 4,
+	XTLS_HANDSHAKE_END_OF_EARLY_DATA = 5,
+	XTLS_HANDSHAKE_ENCRYPTED_EXTENSIONS = 8,
+	XTLS_HANDSHAKE_CERTIFICATE = 11,
+	XTLS_HANDSHAKE_SERVER_KEY_EXCHANGE = 12,
+	XTLS_HANDSHAKE_CERTIFICATE_REQUEST = 13,
+	XTLS_HANDSHAKE_SERVER_HELLO_DONE = 14,
+	XTLS_HANDSHAKE_CERTIFICATE_VERIFY = 15,
+	XTLS_HANDSHAKE_CLIENT_KEY_EXCHANGE = 16,
+	XTLS_HANDSHAKE_FINISHED = 20,
+	XTLS_HANDSHAKE_CERTIFICATE_STATUS = 22,
+	XTLS_HANDSHAKE_SUPPLEMENTAL_DATA = 23,
+	XTLS_HANDSHAKE_KEY_UPDATE = 24,
+	XTLS_HANDSHAKE_COMPRESSED_CERTIFICATE = 25,
+	XTLS_HANDSHAKE_MESSAGE_HASH = 254
+} xtlshandshaketype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_HANDSHAKE_HELLO_REQUEST` | HELLOREQUEST |
+| `XTLS_HANDSHAKE_CLIENT_HELLO` | 客户端角色HELLO |
+| `XTLS_HANDSHAKE_SERVER_HELLO` | 服务端角色HELLO |
+| `XTLS_HANDSHAKE_NEW_SESSION_TICKET` | NEWSESSIONTICKET |
+| `XTLS_HANDSHAKE_END_OF_EARLY_DATA` | ENDOFEARLY数据损坏 |
+| `XTLS_HANDSHAKE_ENCRYPTED_EXTENSIONS` | ENCRYPTEDEXTENSIONS |
+| `XTLS_HANDSHAKE_CERTIFICATE` | CERTIFICATE |
+| `XTLS_HANDSHAKE_SERVER_KEY_EXCHANGE` | 服务端角色KEYEXCHANGE |
+| `XTLS_HANDSHAKE_CERTIFICATE_REQUEST` | CERTIFICATEREQUEST |
+| `XTLS_HANDSHAKE_SERVER_HELLO_DONE` | 服务端角色HELLO完成 |
+| `XTLS_HANDSHAKE_CERTIFICATE_VERIFY` | CERTIFICATEVERIFY |
+| `XTLS_HANDSHAKE_CLIENT_KEY_EXCHANGE` | 客户端角色KEYEXCHANGE |
+| `XTLS_HANDSHAKE_FINISHED` | 已完成 |
+| `XTLS_HANDSHAKE_CERTIFICATE_STATUS` | CERTIFICATESTATUS |
+| `XTLS_HANDSHAKE_SUPPLEMENTAL_DATA` | SUPPLEMENTAL数据损坏 |
+| `XTLS_HANDSHAKE_KEY_UPDATE` | KEYUPDATE |
+| `XTLS_HANDSHAKE_COMPRESSED_CERTIFICATE` | COMPRESSEDCERTIFICATE |
+
+### `xtlsextensiontype`
+
+常用 TLS 扩展类型使用 IANA 分配的线路数值。
+
+```c
+typedef enum xtlsextensiontype {
+	XTLS_EXTENSION_SERVER_NAME = 0,
+	XTLS_EXTENSION_MAX_FRAGMENT_LENGTH = 1,
+	XTLS_EXTENSION_STATUS_REQUEST = 5,
+	XTLS_EXTENSION_SUPPORTED_GROUPS = 10,
+	XTLS_EXTENSION_EC_POINT_FORMATS = 11,
+	XTLS_EXTENSION_SIGNATURE_ALGORITHMS = 13,
+	XTLS_EXTENSION_USE_SRTP = 14,
+	XTLS_EXTENSION_HEARTBEAT = 15,
+	XTLS_EXTENSION_ALPN = 16,
+	XTLS_EXTENSION_SIGNED_CERTIFICATE_TIMESTAMP = 18,
+	XTLS_EXTENSION_CLIENT_CERTIFICATE_TYPE = 19,
+	XTLS_EXTENSION_SERVER_CERTIFICATE_TYPE = 20,
+	XTLS_EXTENSION_PADDING = 21,
+	XTLS_EXTENSION_ENCRYPT_THEN_MAC = 22,
+	XTLS_EXTENSION_EXTENDED_MASTER_SECRET = 23,
+	XTLS_EXTENSION_COMPRESS_CERTIFICATE = 27,
+	XTLS_EXTENSION_RECORD_SIZE_LIMIT = 28,
+	XTLS_EXTENSION_SESSION_TICKET = 35,
+	XTLS_EXTENSION_PRE_SHARED_KEY = 41,
+	XTLS_EXTENSION_EARLY_DATA = 42,
+	XTLS_EXTENSION_SUPPORTED_VERSIONS = 43,
+	XTLS_EXTENSION_COOKIE = 44,
+	XTLS_EXTENSION_PSK_KEY_EXCHANGE_MODES = 45,
+	XTLS_EXTENSION_CERTIFICATE_AUTHORITIES = 47,
+	XTLS_EXTENSION_OID_FILTERS = 48,
+	XTLS_EXTENSION_POST_HANDSHAKE_AUTH = 49,
+	XTLS_EXTENSION_SIGNATURE_ALGORITHMS_CERT = 50,
+	XTLS_EXTENSION_KEY_SHARE = 51,
+	XTLS_EXTENSION_RENEGOTIATION_INFO = 65281
+} xtlsextensiontype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_EXTENSION_SERVER_NAME` | 服务端角色名称 |
+| `XTLS_EXTENSION_MAX_FRAGMENT_LENGTH` | 上限FRAGMENTLENGTH |
+| `XTLS_EXTENSION_STATUS_REQUEST` | STATUSREQUEST |
+| `XTLS_EXTENSION_SUPPORTED_GROUPS` | SUPPORTEDGROUPS |
+| `XTLS_EXTENSION_EC_POINT_FORMATS` | ECPOINTFORMATS |
+| `XTLS_EXTENSION_SIGNATURE_ALGORITHMS` | SIGNATUREALGORITHMS |
+| `XTLS_EXTENSION_USE_SRTP` | USESRTP |
+| `XTLS_EXTENSION_HEARTBEAT` | HEARTBEAT |
+| `XTLS_EXTENSION_ALPN` | ALPN |
+| `XTLS_EXTENSION_SIGNED_CERTIFICATE_TIMESTAMP` | SIGNEDCERTIFICATETIMESTAMP |
+| `XTLS_EXTENSION_CLIENT_CERTIFICATE_TYPE` | 客户端角色CERTIFICATE类型 |
+| `XTLS_EXTENSION_SERVER_CERTIFICATE_TYPE` | 服务端角色CERTIFICATE类型 |
+| `XTLS_EXTENSION_PADDING` | PADDING |
+| `XTLS_EXTENSION_ENCRYPT_THEN_MAC` | ENCRYPTTHENMAC |
+| `XTLS_EXTENSION_EXTENDED_MASTER_SECRET` | EXTENDEDMASTERSECRET |
+| `XTLS_EXTENSION_COMPRESS_CERTIFICATE` | COMPRESSCERTIFICATE |
+| `XTLS_EXTENSION_RECORD_SIZE_LIMIT` | RECORD尺寸超限 |
+| `XTLS_EXTENSION_SESSION_TICKET` | SESSIONTICKET |
+| `XTLS_EXTENSION_PRE_SHARED_KEY` | PRESHAREDKEY |
+| `XTLS_EXTENSION_EARLY_DATA` | EARLY数据损坏 |
+| `XTLS_EXTENSION_SUPPORTED_VERSIONS` | SUPPORTEDVERSIONS |
+| `XTLS_EXTENSION_COOKIE` | COOKIE |
+| `XTLS_EXTENSION_PSK_KEY_EXCHANGE_MODES` | PSKKEYEXCHANGEMODES |
+| `XTLS_EXTENSION_CERTIFICATE_AUTHORITIES` | CERTIFICATEAUTHORITIES |
+| `XTLS_EXTENSION_OID_FILTERS` | OIDFILTERS |
+| `XTLS_EXTENSION_POST_HANDSHAKE_AUTH` | POST握手阶段AUTH |
+| `XTLS_EXTENSION_SIGNATURE_ALGORITHMS_CERT` | SIGNATUREALGORITHMSCERT |
+| `XTLS_EXTENSION_KEY_SHARE` | KEYSHARE |
+
+### `xtlsnamedgroup`
+
+常用命名组保留 IANA 线路值，未知组仍可由 uint16 视图访问。
+
+```c
+typedef enum xtlsnamedgroup {
+	XTLS_GROUP_SECP256R1 = 23,
+	XTLS_GROUP_SECP384R1 = 24,
+	XTLS_GROUP_SECP521R1 = 25,
+	XTLS_GROUP_X25519 = 29,
+	XTLS_GROUP_X448 = 30,
+	XTLS_GROUP_FFDHE2048 = 256,
+	XTLS_GROUP_FFDHE3072 = 257,
+	XTLS_GROUP_FFDHE4096 = 258,
+	XTLS_GROUP_FFDHE6144 = 259,
+	XTLS_GROUP_FFDHE8192 = 260
+} xtlsnamedgroup;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_GROUP_SECP256R1` | SECP256R1 |
+| `XTLS_GROUP_SECP384R1` | SECP384R1 |
+| `XTLS_GROUP_SECP521R1` | SECP521R1 |
+| `XTLS_GROUP_X25519` | X25519 |
+| `XTLS_GROUP_X448` | X448 |
+| `XTLS_GROUP_FFDHE2048` | FFDHE2048 |
+| `XTLS_GROUP_FFDHE3072` | FFDHE3072 |
+| `XTLS_GROUP_FFDHE4096` | FFDHE4096 |
+| `XTLS_GROUP_FFDHE6144` | FFDHE6144 |
+
+### `xtlssignature`
+
+TLS 1.2 与 TLS 1.3 常用签名方案保留 IANA 线路值。
+
+```c
+typedef enum xtlssignature {
+	XTLS_SIGNATURE_RSA_PKCS1_SHA256 = 0x0401,
+	XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256 = 0x0403,
+	XTLS_SIGNATURE_RSA_PKCS1_SHA384 = 0x0501,
+	XTLS_SIGNATURE_ECDSA_SECP384R1_SHA384 = 0x0503,
+	XTLS_SIGNATURE_RSA_PKCS1_SHA512 = 0x0601,
+	XTLS_SIGNATURE_ECDSA_SECP521R1_SHA512 = 0x0603,
+	XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256 = 0x0804,
+	XTLS_SIGNATURE_RSA_PSS_RSAE_SHA384 = 0x0805,
+	XTLS_SIGNATURE_RSA_PSS_RSAE_SHA512 = 0x0806,
+	XTLS_SIGNATURE_ED25519 = 0x0807,
+	XTLS_SIGNATURE_ED448 = 0x0808,
+	XTLS_SIGNATURE_RSA_PSS_PSS_SHA256 = 0x0809,
+	XTLS_SIGNATURE_RSA_PSS_PSS_SHA384 = 0x080A,
+	XTLS_SIGNATURE_RSA_PSS_PSS_SHA512 = 0x080B
+} xtlssignature;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_SIGNATURE_RSA_PKCS1_SHA256` | RSAPKCS1SHA256 |
+| `XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256` | ECDSASECP256R1SHA256 |
+| `XTLS_SIGNATURE_RSA_PKCS1_SHA384` | RSAPKCS1SHA384 |
+| `XTLS_SIGNATURE_ECDSA_SECP384R1_SHA384` | ECDSASECP384R1SHA384 |
+| `XTLS_SIGNATURE_RSA_PKCS1_SHA512` | RSAPKCS1SHA512 |
+| `XTLS_SIGNATURE_ECDSA_SECP521R1_SHA512` | ECDSASECP521R1SHA512 |
+| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256` | RSAPSSRSAESHA256 |
+| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA384` | RSAPSSRSAESHA384 |
+| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA512` | RSAPSSRSAESHA512 |
+| `XTLS_SIGNATURE_ED25519` | ED25519 |
+| `XTLS_SIGNATURE_ED448` | ED448 |
+| `XTLS_SIGNATURE_RSA_PSS_PSS_SHA256` | RSAPSSPSSSHA256 |
+| `XTLS_SIGNATURE_RSA_PSS_PSS_SHA384` | RSAPSSPSSSHA384 |
+
+### `xtlsitemresult`
+
+TLS 游标把正常结束、读取到值和协议错误分开表达。
+
+```c
+typedef enum xtlsitemresult {
+	XTLS_ITEM_ERROR = -1,
+	XTLS_ITEM_DONE = 0,
+	XTLS_ITEM_VALUE = 1
+} xtlsitemresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_ITEM_ERROR` | 失败 |
+| `XTLS_ITEM_DONE` | 完成 |
+
+### `xtlskeyupdate`
+
+KeyUpdate 请求值保留 TLS 1.3 线路数值。
+
+```c
+typedef enum xtlskeyupdate {
+	XTLS_KEY_UPDATE_NOT_REQUESTED = 0,
+	XTLS_KEY_UPDATE_REQUESTED = 1
+} xtlskeyupdate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_KEY_UPDATE_NOT_REQUESTED` | XTLSKEYUPDATENOTREQUESTED |
+
+### `xtlscertificatetype`
+
+TLS 1.2 CertificateRequest 证书类型保留标准线路数值。
+
+```c
+typedef enum xtlscertificatetype {
+	XTLS_CERTIFICATE_RSA_SIGN = 1,
+	XTLS_CERTIFICATE_DSS_SIGN = 2,
+	XTLS_CERTIFICATE_ECDSA_SIGN = 64
+} xtlscertificatetype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_CERTIFICATE_RSA_SIGN` | RSASIGN |
+| `XTLS_CERTIFICATE_DSS_SIGN` | DSSSIGN |
+
+### `xtlscertificatestatustype`
+
+CertificateStatus 当前标准化的正文类型是 OCSP。
+
+```c
+typedef enum xtlscertificatestatustype {
+	XTLS_CERTIFICATE_STATUS_OCSP = 1
+} xtlscertificatestatustype;
+```
+
+| 值 | 语义 |
+|---|---|
+
+### `xtlscertificatecompression`
+
+TLS 1.3 压缩证书算法保留 RFC 8879 线路数值。
+
+```c
+typedef enum xtlscertificatecompression {
+	XTLS_CERTIFICATE_COMPRESSION_ZLIB = 1,
+	XTLS_CERTIFICATE_COMPRESSION_BROTLI = 2,
+	XTLS_CERTIFICATE_COMPRESSION_ZSTD = 3
+} xtlscertificatecompression;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_CERTIFICATE_COMPRESSION_ZLIB` | zlib 包装 |
+| `XTLS_CERTIFICATE_COMPRESSION_BROTLI` | BROTLI |
+
+### `xtlsalertlevel`
+
+Alert 级别保留 TLS 线上的稳定数值。
+
+```c
+typedef enum xtlsalertlevel {
+	XTLS_ALERT_WARNING = 1,
+	XTLS_ALERT_FATAL = 2
+} xtlsalertlevel;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_ALERT_WARNING` | XTLSALERTWARNING |
+
+### `xtlsalert`
+
+TLS 1.2 和 TLS 1.3 仍可在线路上出现的 Alert 描述。
+
+```c
+typedef enum xtlsalert {
+	XTLS_ALERT_CLOSE_NOTIFY = 0,
+	XTLS_ALERT_UNEXPECTED_MESSAGE = 10,
+	XTLS_ALERT_BAD_RECORD_MAC = 20,
+	XTLS_ALERT_RECORD_OVERFLOW = 22,
+	XTLS_ALERT_HANDSHAKE_FAILURE = 40,
+	XTLS_ALERT_BAD_CERTIFICATE = 42,
+	XTLS_ALERT_UNSUPPORTED_CERTIFICATE = 43,
+	XTLS_ALERT_CERTIFICATE_REVOKED = 44,
+	XTLS_ALERT_CERTIFICATE_EXPIRED = 45,
+	XTLS_ALERT_CERTIFICATE_UNKNOWN = 46,
+	XTLS_ALERT_ILLEGAL_PARAMETER = 47,
+	XTLS_ALERT_UNKNOWN_CA = 48,
+	XTLS_ALERT_ACCESS_DENIED = 49,
+	XTLS_ALERT_DECODE_ERROR = 50,
+	XTLS_ALERT_DECRYPT_ERROR = 51,
+	XTLS_ALERT_PROTOCOL_VERSION = 70,
+	XTLS_ALERT_INSUFFICIENT_SECURITY = 71,
+	XTLS_ALERT_INTERNAL_ERROR = 80,
+	XTLS_ALERT_INAPPROPRIATE_FALLBACK = 86,
+	XTLS_ALERT_USER_CANCELED = 90,
+	XTLS_ALERT_MISSING_EXTENSION = 109,
+	XTLS_ALERT_UNSUPPORTED_EXTENSION = 110,
+	XTLS_ALERT_UNRECOGNIZED_NAME = 112,
+	XTLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE = 113,
+	XTLS_ALERT_UNKNOWN_PSK_IDENTITY = 115,
+	XTLS_ALERT_CERTIFICATE_REQUIRED = 116,
+	XTLS_ALERT_NO_APPLICATION_PROTOCOL = 120
+} xtlsalert;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_ALERT_CLOSE_NOTIFY` | CLOSENOTIFY |
+| `XTLS_ALERT_UNEXPECTED_MESSAGE` | UNEXPECTED消息 |
+| `XTLS_ALERT_BAD_RECORD_MAC` | BADRECORDMAC |
+| `XTLS_ALERT_RECORD_OVERFLOW` | RECORD溢出 |
+| `XTLS_ALERT_HANDSHAKE_FAILURE` | 握手阶段FAILURE |
+| `XTLS_ALERT_BAD_CERTIFICATE` | BADCERTIFICATE |
+| `XTLS_ALERT_UNSUPPORTED_CERTIFICATE` | 不支持CERTIFICATE |
+| `XTLS_ALERT_CERTIFICATE_REVOKED` | CERTIFICATEREVOKED |
+| `XTLS_ALERT_CERTIFICATE_EXPIRED` | CERTIFICATEEXPIRED |
+| `XTLS_ALERT_CERTIFICATE_UNKNOWN` | CERTIFICATE未知 |
+| `XTLS_ALERT_ILLEGAL_PARAMETER` | ILLEGALPARAMETER |
+| `XTLS_ALERT_UNKNOWN_CA` | 未知CA |
+| `XTLS_ALERT_ACCESS_DENIED` | ACCESSDENIED |
+| `XTLS_ALERT_DECODE_ERROR` | DECODE失败 |
+| `XTLS_ALERT_DECRYPT_ERROR` | DECRYPT失败 |
+| `XTLS_ALERT_PROTOCOL_VERSION` | 协议非法VERSION |
+| `XTLS_ALERT_INSUFFICIENT_SECURITY` | INSUFFICIENTSECURITY |
+| `XTLS_ALERT_INTERNAL_ERROR` | 内部错误失败 |
+| `XTLS_ALERT_INAPPROPRIATE_FALLBACK` | INAPPROPRIATEFALLBACK |
+| `XTLS_ALERT_USER_CANCELED` | USERCANCELED |
+| `XTLS_ALERT_MISSING_EXTENSION` | MISSINGEXTENSION |
+| `XTLS_ALERT_UNSUPPORTED_EXTENSION` | 不支持EXTENSION |
+| `XTLS_ALERT_UNRECOGNIZED_NAME` | UNRECOGNIZED名称 |
+| `XTLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE` | BADCERTIFICATESTATUSRESPONSE |
+| `XTLS_ALERT_UNKNOWN_PSK_IDENTITY` | 未知PSKIDENTITY |
+| `XTLS_ALERT_CERTIFICATE_REQUIRED` | CERTIFICATEREQUIRED |
+
+### `xtlserror`
+
+TLS 错误码稳定描述失败发生的协议阶段。
+
+```c
+typedef enum xtlserror {
+	XTLS_ERROR_ARGUMENT = 1,
+	XTLS_ERROR_VERSION,
+	XTLS_ERROR_RECORD_TYPE,
+	XTLS_ERROR_RECORD_VERSION,
+	XTLS_ERROR_RECORD_SIZE,
+	XTLS_ERROR_RECORD_BUFFER,
+	XTLS_ERROR_ALERT,
+	XTLS_ERROR_STATE,
+	XTLS_ERROR_LIMIT,
+	XTLS_ERROR_NEGOTIATION,
+	XTLS_ERROR_KEY_EXCHANGE,
+	XTLS_ERROR_CIPHER,
+	XTLS_ERROR_HANDSHAKE,
+	XTLS_ERROR_EXTENSION,
+	XTLS_ERROR_TRANSCRIPT,
+	XTLS_ERROR_KEY_DERIVATION,
+	XTLS_ERROR_CERTIFICATE,
+	XTLS_ERROR_IDENTITY,
+	XTLS_ERROR_VERIFY,
+	XTLS_ERROR_RESUME,
+	XTLS_ERROR_CLOSED,
+	XTLS_ERROR_TRUNCATED,
+	XTLS_ERROR_INTERNAL
+} xtlserror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_ERROR_ARGUMENT` | 参数非法 |
+| `XTLS_ERROR_VERSION` | VERSION |
+| `XTLS_ERROR_RECORD_TYPE` | RECORD类型 |
+| `XTLS_ERROR_RECORD_VERSION` | RECORDVERSION |
+| `XTLS_ERROR_RECORD_SIZE` | RECORD尺寸 |
+| `XTLS_ERROR_RECORD_BUFFER` | RECORDBUFFER |
+| `XTLS_ERROR_ALERT` | ALERT |
+| `XTLS_ERROR_STATE` | 状态非法 |
+| `XTLS_ERROR_LIMIT` | 超限 |
+| `XTLS_ERROR_NEGOTIATION` | NEGOTIATION |
+| `XTLS_ERROR_KEY_EXCHANGE` | KEYEXCHANGE |
+| `XTLS_ERROR_CIPHER` | CIPHER |
+| `XTLS_ERROR_HANDSHAKE` | 握手阶段 |
+| `XTLS_ERROR_EXTENSION` | EXTENSION |
+| `XTLS_ERROR_TRANSCRIPT` | TRANSCRIPT |
+| `XTLS_ERROR_KEY_DERIVATION` | KEYDERIVATION |
+| `XTLS_ERROR_CERTIFICATE` | CERTIFICATE |
+| `XTLS_ERROR_IDENTITY` | IDENTITY |
+| `XTLS_ERROR_VERIFY` | VERIFY |
+| `XTLS_ERROR_RESUME` | RESUME |
+| `XTLS_ERROR_CLOSED` | 已关闭 |
+| `XTLS_ERROR_TRUNCATED` | TRUNCATED |
+
+### `xtlsrecord`
+
+记录视图借用输入内存；EncodedSize 是头与负载的总长度。
+
+```c
+typedef struct xtlsrecord {
+	xtlsrecordtype Type;
+	uint16 LegacyVersion;
+	xbytesview Payload;
+	size_t EncodedSize;
+} xtlsrecord;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xtlsrecordtype` | Type |
+| `LegacyVersion` | `uint16` | LegacyVersion |
+| `Payload` | `xbytesview` | Payload |
+| `EncodedSize` | `size_t` | EncodedSize |
+
+### `xtlscipherinfo`
+
+密码套件元数据是进程期只读对象，尺寸字段都以字节计。
+
+```c
+typedef struct xtlscipherinfo {
+	xtlscipher Cipher;
+	xtlsversion Version;
+	xtlshash Hash;
+	xtlsaead Aead;
+	xtlscipherauth Authentication;
+	uint8 HashSize;
+	uint8 KeySize;
+	uint8 IvSize;
+	uint8 ExplicitNonceSize;
+	uint8 TagSize;
+} xtlscipherinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Cipher` | `xtlscipher` | Cipher |
+| `Version` | `xtlsversion` | Version |
+| `Hash` | `xtlshash` | Hash |
+| `Aead` | `xtlsaead` | Aead |
+| `Authentication` | `xtlscipherauth` | Authentication |
+| `HashSize` | `uint8` | HashSize |
+| `KeySize` | `uint8` | KeySize |
+| `IvSize` | `uint8` | IvSize |
+| `ExplicitNonceSize` | `uint8` | ExplicitNonceSize |
+| `TagSize` | `uint8` | TagSize |
+
+### `xtlsgroupkind`
+
+命名组类型区分 Montgomery XDH 与未压缩短 Weierstrass ECDH 公钥。
+
+```c
+typedef enum xtlsgroupkind {
+	XTLS_GROUP_KIND_XDH = 1,
+	XTLS_GROUP_KIND_ECDH
+} xtlsgroupkind;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_GROUP_KIND_XDH` | XTLSGROUPKINDXDH |
+
+### `xtlsgroupinfo`
+
+命名组元数据是进程期只读对象，所有尺寸字段均以字节计。
+
+```c
+typedef struct xtlsgroupinfo {
+	uint16 Group;
+	xtlsgroupkind Kind;
+	uint16 PrivateSize;
+	uint16 PublicSize;
+	uint16 SharedSize;
+} xtlsgroupinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Group` | `uint16` | Group |
+| `Kind` | `xtlsgroupkind` | Kind |
+| `PrivateSize` | `uint16` | PrivateSize |
+| `PublicSize` | `uint16` | PublicSize |
+| `SharedSize` | `uint16` | SharedSize |
+
+### `xtlshandshake`
+
+握手消息视图借用输入，EncodedSize 包含 4 字节头和正文。
+
+```c
+typedef struct xtlshandshake {
+	xtlshandshaketype Type;
+	xbytesview Body;
+	size_t EncodedSize;
+} xtlshandshake;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xtlshandshaketype` | Type |
+| `Body` | `xbytesview` | Body |
+| `EncodedSize` | `size_t` | EncodedSize |
+
+### `xtlsextension`
+
+扩展视图借用输入，EncodedSize 包含类型、长度和扩展负载。
+
+```c
+typedef struct xtlsextension {
+	xtlsextensiontype Type;
+	xbytesview Data;
+	size_t EncodedSize;
+} xtlsextension;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xtlsextensiontype` | Type |
+| `Data` | `xbytesview` | Data |
+| `EncodedSize` | `size_t` | EncodedSize |
+
+### `xtlsextensioncursor`
+
+扩展游标借用完整扩展向量，并用小型精确桶检测重复类型。
+
+```c
+typedef struct xtlsextensioncursor {
+	xbytesview Data;
+	size_t Offset;
+	uint64 Seen[4];
+} xtlsextensioncursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `xbytesview` | Data |
+| `Offset` | `size_t` | Offset |
+
+### `xtlsids`
+
+16 位标识列表借用去除线路长度前缀后的偶数字节序列。
+
+```c
+typedef struct xtlsids {
+	xbytesview Data;
+} xtlsids;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `xbytesview` | Data |
+
+### `xtlsservername`
+
+SNI 名称保留名称类型和借用的原始名称字节。
+
+```c
+typedef struct xtlsservername {
+	uint8 Type;
+	xbytesview Name;
+} xtlsservername;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `uint8` | Type |
+| `Name` | `xbytesview` | Name |
+
+### `xtlsservernamecursor`
+
+SNI 名称游标在 256 种名称类型上精确检测重复。
+
+```c
+typedef struct xtlsservernamecursor {
+	xbytesview Data;
+	size_t Offset;
+	uint64 Seen[4];
+} xtlsservernamecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `xbytesview` | Data |
+| `Offset` | `size_t` | Offset |
+
+### `xtlsprotocolcursor`
+
+ALPN 游标借用去除 16 位列表长度后的 ProtocolNameList。
+
+```c
+typedef struct xtlsprotocolcursor {
+	xbytesview Data;
+	size_t Offset;
+} xtlsprotocolcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `xbytesview` | Data |
+| `Offset` | `size_t` | Offset |
+
+### `xtlskeyshare`
+
+TLS 1.3 密钥共享保留命名组和借用的线路公钥。
+
+```c
+typedef struct xtlskeyshare {
+	uint16 Group;
+	xbytesview Key;
+} xtlskeyshare;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Group` | `uint16` | Group |
+| `Key` | `xbytesview` | Key |
+
+### `xtlskeysharecursor`
+
+ClientHello 密钥共享游标借用列表并检测重复命名组。
+
+```c
+typedef struct xtlskeysharecursor {
+	xbytesview Data;
+	size_t Offset;
+	uint64 Seen[4];
+} xtlskeysharecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `xbytesview` | Data |
+| `Offset` | `size_t` | Offset |
+
+### `xtlsclienthello`
+
+ClientHello 视图只发布已经严格验证且恰好消费完整正文的字段。
+
+```c
+typedef struct xtlsclienthello {
+	uint16 LegacyVersion;
+	xbytesview Random;
+	xbytesview SessionId;
+	xtlsids CipherSuites;
+	xbytesview CompressionMethods;
+	xbytesview Extensions;
+} xtlsclienthello;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `LegacyVersion` | `uint16` | LegacyVersion |
+| `Random` | `xbytesview` | Random |
+| `SessionId` | `xbytesview` | SessionId |
+| `CipherSuites` | `xtlsids` | CipherSuites |
+| `CompressionMethods` | `xbytesview` | CompressionMethods |
+| `Extensions` | `xbytesview` | Extensions |
+
+### `xtlsserverhello`
+
+ServerHello 视图保留 HelloRetryRequest 标记和全部借用字段。
+
+```c
+typedef struct xtlsserverhello {
+	uint16 LegacyVersion;
+	xbytesview Random;
+	xbytesview SessionId;
+	uint16 CipherSuite;
+	uint8 CompressionMethod;
+	xbytesview Extensions;
+	bool Retry;
+} xtlsserverhello;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `LegacyVersion` | `uint16` | LegacyVersion |
+| `Random` | `xbytesview` | Random |
+| `SessionId` | `xbytesview` | SessionId |
+| `CipherSuite` | `uint16` | CipherSuite |
+| `CompressionMethod` | `uint8` | CompressionMethod |
+| `Extensions` | `xbytesview` | Extensions |
+| `Retry` | `bool` | Retry |
+
+### `xtlspskmode`
+
+TLS 1.3 PSK 密钥交换模式保留标准线路值。
+
+```c
+typedef enum xtlspskmode {
+	XTLS_PSK_KE = 0,
+	XTLS_PSK_DHE_KE = 1
+} xtlspskmode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_PSK_KE` | XTLSPSKKE |
+
+### `xtlspsk`
+
+一项客户端 PSK 同时借用 identity、混淆年龄和对应 binder。
+
+```c
+typedef struct xtlspsk {
+	xbytesview Identity;
+	uint32 ObfuscatedAge;
+	xbytesview Binder;
+} xtlspsk;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Identity` | `xbytesview` | Identity |
+| `ObfuscatedAge` | `uint32` | ObfuscatedAge |
+| `Binder` | `xbytesview` | Binder |
+
+### `xtlspskcursor`
+
+PSK 游标同步遍历已经验证为等长的 identities 与 binders 列表。
+
+```c
+typedef struct xtlspskcursor {
+	xbytesview Identities;
+	xbytesview Binders;
+	size_t IdentityOffset;
+	size_t BinderOffset;
+} xtlspskcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Identities` | `xbytesview` | Identities |
+| `Binders` | `xbytesview` | Binders |
+| `IdentityOffset` | `size_t` | IdentityOffset |
+| `BinderOffset` | `size_t` | BinderOffset |
+
+### `xtlsidentitytype`
+
+身份类型只描述握手签名密钥，不把协商层绑到 X.509 实现。
+
+```c
+typedef enum xtlsidentitytype {
+	XTLS_IDENTITY_NONE = 0,
+	XTLS_IDENTITY_RSA,
+	XTLS_IDENTITY_RSA_PSS,
+	XTLS_IDENTITY_ECDSA_P256,
+	XTLS_IDENTITY_ECDSA_P384,
+	XTLS_IDENTITY_ECDSA_P521,
+	XTLS_IDENTITY_ED25519,
+	XTLS_IDENTITY_ED448
+} xtlsidentitytype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_IDENTITY_NONE` | 无 |
+| `XTLS_IDENTITY_RSA` | RSA |
+| `XTLS_IDENTITY_RSA_PSS` | RSAPSS |
+| `XTLS_IDENTITY_ECDSA_P256` | ECDSAP256 |
+| `XTLS_IDENTITY_ECDSA_P384` | ECDSAP384 |
+| `XTLS_IDENTITY_ECDSA_P521` | ECDSAP521 |
+| `XTLS_IDENTITY_ED25519` | ED25519 |
+
+### `xtlssignatureinfo`
+
+签名方案元数据描述线路方案要求的密钥身份、摘要长度和协议版本范围。
+
+```c
+typedef struct xtlssignatureinfo {
+	xtlssignature Signature;
+	xtlsidentitytype Identity;
+	uint8 HashSize;
+	xtlsversion Minimum;
+	xtlsversion Maximum;
+} xtlssignatureinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Signature` | `xtlssignature` | Signature |
+| `Identity` | `xtlsidentitytype` | Identity |
+| `HashSize` | `uint8` | HashSize |
+| `Minimum` | `xtlsversion` | Minimum |
+| `Maximum` | `xtlsversion` | Maximum |
+
+### `xtlskeysharepolicy`
+
+密钥共享策略可选择本地组优先级或避免 HelloRetryRequest。
+
+```c
+typedef enum xtlskeysharepolicy {
+	XTLS_KEY_SHARE_PREFER_GROUP = 0,
+	XTLS_KEY_SHARE_PREFER_READY
+} xtlskeysharepolicy;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_KEY_SHARE_PREFER_GROUP` | XTLSKEYSHAREPREFERGROUP |
+
+### `xtlskeyshareselection`
+
+密钥共享选择成功时发布借用公钥；Retry 时 Key 为空。
+
+```c
+typedef struct xtlskeyshareselection {
+	xtlskeyshare Share;
+	bool Retry;
+} xtlskeyshareselection;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Share` | `xtlskeyshare` | Share |
+| `Retry` | `bool` | Retry |
+
+### `xtlspolicy`
+
+TLS 策略借用有序偏好数组；默认初始化后的数组具有进程期生命周期。
+
+```c
+typedef struct xtlspolicy {
+	const xtlsversion* Versions;
+	size_t VersionCount;
+	const xtlscipher* Ciphers;
+	size_t CipherCount;
+	const uint16* Groups;
+	size_t GroupCount;
+	const xtlssignature* Signatures;
+	size_t SignatureCount;
+	xtlskeysharepolicy KeySharePolicy;
+} xtlspolicy;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Versions` | `const xtlsversion*` | Versions |
+| `VersionCount` | `size_t` | VersionCount |
+| `Ciphers` | `const xtlscipher*` | Ciphers |
+| `CipherCount` | `size_t` | CipherCount |
+| `Groups` | `const uint16*` | Groups |
+| `GroupCount` | `size_t` | GroupCount |
+| `Signatures` | `const xtlssignature*` | Signatures |
+| `SignatureCount` | `size_t` | SignatureCount |
+| `KeySharePolicy` | `xtlskeysharepolicy` | KeySharePolicy |
+
+### `xtlslimits`
+
+TLS 限制只描述硬上限与公平性预算，不会触发预分配。
+
+```c
+typedef struct xtlslimits {
+	size_t FeedLimit;
+	size_t SendLimit;
+	size_t PlainLimit;
+	size_t HandshakeLimit;
+	uint32 RecordBudget;
+	uint32 HandshakeBudget;
+} xtlslimits;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `FeedLimit` | `size_t` | FeedLimit |
+| `SendLimit` | `size_t` | SendLimit |
+| `PlainLimit` | `size_t` | PlainLimit |
+| `HandshakeLimit` | `size_t` | HandshakeLimit |
+| `RecordBudget` | `uint32` | RecordBudget |
+| `HandshakeBudget` | `uint32` | HandshakeBudget |
+
+### `xtlscontextconfig`
+
+创建配置借用可选策略；创建成功后上下文持有独立快照。
+
+```c
+typedef struct xtlscontextconfig {
+	const xtlspolicy* Policy;
+	xtlslimits Limits;
+} xtlscontextconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Policy` | `const xtlspolicy*` | Policy |
+| `Limits` | `xtlslimits` | Limits |
+
+### `xtlswriter`
+
+TLS writer 直接使用调用方缓冲，并只在完整追加成功后推进 Size。
+
+```c
+typedef struct xtlswriter {
+	bytes Data;
+	size_t Capacity;
+	size_t Size;
+} xtlswriter;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `bytes` | Data |
+| `Capacity` | `size_t` | Capacity |
+| `Size` | `size_t` | Size |
+
+### `xtlshandshakereaderconfig`
+
+Reader 配置分开控制单消息硬上限和跨消息保留容量。
+
+```c
+typedef struct xtlshandshakereaderconfig {
+	size_t Limit;
+	size_t Retain;
+} xtlshandshakereaderconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Limit` | `size_t` | Limit |
+| `Retain` | `size_t` | Retain |
+
+### `xtlshandshakereader`
+
+Reader 只在消息跨输入分片时渐进分配连续重组缓冲。
+
+```c
+typedef struct xtlshandshakereader {
+	bytes Data;
+	size_t Size;
+	size_t Capacity;
+	size_t Required;
+	size_t Limit;
+	size_t Retain;
+	uint8 Header[XTLS_HANDSHAKE_HEADER_SIZE];
+	uint8 HeaderSize;
+	bool Ready;
+} xtlshandshakereader;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `bytes` | Data |
+| `Size` | `size_t` | Size |
+| `Capacity` | `size_t` | Capacity |
+| `Required` | `size_t` | Required |
+| `Limit` | `size_t` | Limit |
+| `Retain` | `size_t` | Retain |
+| `HeaderSize` | `uint8` | HeaderSize |
+| `Ready` | `bool` | Ready |
+
+### `xtlscertificatemessage`
+
+Certificate 消息视图保留版本、请求上下文和完整条目向量。
+
+```c
+typedef struct xtlscertificatemessage {
+	xtlsversion Version;
+	xbytesview RequestContext;
+	xbytesview Entries;
+} xtlscertificatemessage;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Version` | `xtlsversion` | Version |
+| `RequestContext` | `xbytesview` | RequestContext |
+| `Entries` | `xbytesview` | Entries |
+
+### `xtlscertificateentry`
+
+证书条目借用 DER 数据；TLS 1.2 条目的 Extensions 为空。
+
+```c
+typedef struct xtlscertificateentry {
+	xbytesview Data;
+	xbytesview Extensions;
+} xtlscertificateentry;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `xbytesview` | Data |
+| `Extensions` | `xbytesview` | Extensions |
+
+### `xtlscertificatecursor`
+
+证书游标不限制链长度，也不复制证书或扩展。
+
+```c
+typedef struct xtlscertificatecursor {
+	xtlsversion Version;
+	xbytesview Data;
+	size_t Offset;
+} xtlscertificatecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Version` | `xtlsversion` | Version |
+| `Data` | `xbytesview` | Data |
+| `Offset` | `size_t` | Offset |
+
+### `xtlscertificateverify`
+
+CertificateVerify 视图保留未知签名方案和签名字节。
+
+```c
+typedef struct xtlscertificateverify {
+	uint16 Scheme;
+	xbytesview Signature;
+} xtlscertificateverify;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Scheme` | `uint16` | Scheme |
+| `Signature` | `xbytesview` | Signature |
+
+### `xtlssessionticket`
+
+NewSessionTicket 统一暴露 TLS 1.2 与 TLS 1.3 字段。
+
+```c
+typedef struct xtlssessionticket {
+	xtlsversion Version;
+	uint32 Lifetime;
+	uint32 AgeAdd;
+	xbytesview Nonce;
+	xbytesview Ticket;
+	xbytesview Extensions;
+} xtlssessionticket;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Version` | `xtlsversion` | Version |
+| `Lifetime` | `uint32` | Lifetime |
+| `AgeAdd` | `uint32` | AgeAdd |
+| `Nonce` | `xbytesview` | Nonce |
+| `Ticket` | `xbytesview` | Ticket |
+| `Extensions` | `xbytesview` | Extensions |
+
+### `xtlsauthoritycursor`
+
+证书颁发者游标借用去除外层 16 位长度后的名称条目。
+
+```c
+typedef struct xtlsauthoritycursor {
+	xbytesview Data;
+	size_t Offset;
+} xtlsauthoritycursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `xbytesview` | Data |
+| `Offset` | `size_t` | Offset |
+
+### `xtls12certificaterequest`
+
+TLS 1.2 CertificateRequest 保留证书类型、签名方案和完整颁发者向量。
+
+```c
+typedef struct xtls12certificaterequest {
+	xbytesview CertificateTypes;
+	xtlsids Signatures;
+	xbytesview AuthorityData;
+} xtls12certificaterequest;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `CertificateTypes` | `xbytesview` | CertificateTypes |
+| `Signatures` | `xtlsids` | Signatures |
+| `AuthorityData` | `xbytesview` | AuthorityData |
+
+### `xtls13certificaterequest`
+
+TLS 1.3 CertificateRequest 保留原始扩展和常用认证选择的便捷视图。
+
+```c
+typedef struct xtls13certificaterequest {
+	xbytesview RequestContext;
+	xbytesview Extensions;
+	xtlsids Signatures;
+	xtlsids CertificateSignatures;
+	xbytesview AuthorityData;
+} xtls13certificaterequest;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `RequestContext` | `xbytesview` | RequestContext |
+| `Extensions` | `xbytesview` | Extensions |
+| `Signatures` | `xtlsids` | Signatures |
+| `CertificateSignatures` | `xtlsids` | CertificateSignatures |
+| `AuthorityData` | `xbytesview` | AuthorityData |
+
+### `xtls12serverkeyexchange`
+
+TLS 1.2 ECDHE ServerKeyExchange 公开可直接参与验签的参数切片。
+
+```c
+typedef struct xtls12serverkeyexchange {
+	uint16 Group;
+	xbytesview PublicKey;
+	xbytesview Parameters;
+	xtlscertificateverify Verify;
+} xtls12serverkeyexchange;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Group` | `uint16` | Group |
+| `PublicKey` | `xbytesview` | PublicKey |
+| `Parameters` | `xbytesview` | Parameters |
+| `Verify` | `xtlscertificateverify` | Verify |
+
+### `xtlscertificatestatusmessage`
+
+CertificateStatus 保留状态类型和不透明响应。
+
+```c
+typedef struct xtlscertificatestatusmessage {
+	uint8 Type;
+	xbytesview Response;
+} xtlscertificatestatusmessage;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `uint8` | Type |
+| `Response` | `xbytesview` | Response |
+
+### `xtlscompressedcertificate`
+
+CompressedCertificate 只描述线路对象，解压和协商属于会话层。
+
+```c
+typedef struct xtlscompressedcertificate {
+	uint16 Algorithm;
+	size_t UncompressedSize;
+	xbytesview Data;
+} xtlscompressedcertificate;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Algorithm` | `uint16` | Algorithm |
+| `UncompressedSize` | `size_t` | UncompressedSize |
+| `Data` | `xbytesview` | Data |
+
+### `xtlscontext`
+
+共享 TLS 上下文（不透明）：持有策略、身份与信任库，可跨线程复用。
+
+
+```c
+typedef struct xtlscontext xtlscontext;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsclientconfig`
+
+配置在创建期间借用全部对象和视图；成功会话持有共享对象并深拷贝视图。 ServerName 只用于线路 SNI，VerifyName 用于证书身份验证和恢复票据绑定。 VerifyName 为空时继承 ServerName，允许 DNS 名称保持一字段常用写法； 连接 IP 字面量时应只设置 VerifyName，避免发送协议不允许的 IP SNI。
+
+```c
+typedef struct xtlsclientconfig {
+	const xtlscontext* Context;
+	xstrview ServerName;
+	xstrview VerifyName;
+	const xstrview* Protocols;
+	size_t ProtocolCount;
+	const xtlsverifier* Verifier;
+	const xtlsresume* Resume;
+	size_t ResumeLimit;
+	/* 必须接受所给票据；禁止回退完整证书握手。 */
+	bool ResumeOnly;
+} xtlsclientconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Context` | `const xtlscontext*` | Context |
+| `ServerName` | `xstrview` | ServerName |
+| `VerifyName` | `xstrview` | VerifyName |
+| `Protocols` | `const xstrview*` | Protocols |
+| `ProtocolCount` | `size_t` | ProtocolCount |
+| `Verifier` | `const xtlsverifier*` | Verifier |
+| `Resume` | `const xtlsresume*` | Resume |
+| `ResumeLimit` | `size_t` | ResumeLimit |
+| `ResumeOnly` | `bool` | ResumeOnly |
+
+### `xtlsverifier`
+
+对端验证器（不透明）：持有信任库与主机名策略，可被多个握手共享。
+
+
+```c
+typedef struct xtlsverifier xtlsverifier;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsresume`
+
+会话恢复对象（不透明）：持有票据与参数，供客户端恢复握手。
+
+
+```c
+typedef struct xtlsresume xtlsresume;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsidentityconfig`
+
+自定义身份配置借用输入证书和回调，仅在创建成功后接管 Context。 创建后的身份是不可变快照，外部签名器必须允许并发调用。
+
+```c
+typedef struct xtlsidentityconfig {
+	const xbytesview* Certificates;
+	size_t CertificateCount;
+	xtlsidentitytype Type;
+	xtlsidentitysupportsproc Supports;
+	xtlsidentitysignproc Sign;
+	xtlsidentityreleaseproc Release;
+	ptr Context;
+} xtlsidentityconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Certificates` | `const xbytesview*` | Certificates |
+| `CertificateCount` | `size_t` | CertificateCount |
+| `Type` | `xtlsidentitytype` | Type |
+| `Supports` | `xtlsidentitysupportsproc` | Supports |
+| `Sign` | `xtlsidentitysignproc` | Sign |
+| `Release` | `xtlsidentityreleaseproc` | Release |
+| `Context` | `ptr` | Context |
+
+### `xtlsidentity`
+
+TLS 身份（不透明）：证书链 + 私钥 + 可签名方案。
+
+
+```c
+typedef struct xtlsidentity xtlsidentity;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsidentitysupportsproc`
+
+外部签名器可以进一步限制同一密钥类型实际支持的协议签名方案。
+
+```c
+typedef bool (*xtlsidentitysupportsproc)(
+	ptr pContext,
+	xtlsversion Version,
+	xtlssignature Signature
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlsidentitysignproc`
+
+签名器接收完整 TLS 待签内容，内部负责协议方案要求的摘要与编码。 pOutput 为空且容量为零时只查询所需长度；失败时不得修改输出和长度。
+
+```c
+typedef bool (*xtlsidentitysignproc)(
+	ptr pContext,
+	xtlsversion Version,
+	xtlssignature Signature,
+	xbytesview Message,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlsidentityreleaseproc`
+
+身份释放过程只管理外部签名器上下文，不管理已经深复制的证书链。
+
+```c
+typedef void (*xtlsidentityreleaseproc)(ptr pContext);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlsresumeconfig`
+
+恢复配置在创建期间借用全部视图；成功后对象持有一份不可变深拷贝。 PeerIdentity 是调用方定义的已认证对端标识，可为空，但不参与线路编码。
+
+```c
+typedef struct xtlsresumeconfig {
+	xtlsversion Version;
+	xtlscipher Cipher;
+	xbytesview Ticket;
+	xbytesview Secret;
+	xstrview ServerName;
+	xbytesview Protocol;
+	xbytesview PeerIdentity;
+	uint32 Lifetime;
+	uint32 AgeAdd;
+	uint32 MaxEarlyData;
+	xtime IssuedAt;
+} xtlsresumeconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Version` | `xtlsversion` | Version |
+| `Cipher` | `xtlscipher` | Cipher |
+| `Ticket` | `xbytesview` | Ticket |
+| `Secret` | `xbytesview` | Secret |
+| `ServerName` | `xstrview` | ServerName |
+| `Protocol` | `xbytesview` | Protocol |
+| `PeerIdentity` | `xbytesview` | PeerIdentity |
+| `Lifetime` | `uint32` | Lifetime |
+| `AgeAdd` | `uint32` | AgeAdd |
+| `MaxEarlyData` | `uint32` | MaxEarlyData |
+| `IssuedAt` | `xtime` | IssuedAt |
+
+### `xtlsresumeinfo`
+
+信息快照中的视图由恢复对象持有，只能在对象引用存活期间借用。
+
+```c
+typedef struct xtlsresumeinfo {
+	xtlsversion Version;
+	xtlscipher Cipher;
+	xbytesview Ticket;
+	xbytesview Secret;
+	xstrview ServerName;
+	xbytesview Protocol;
+	xbytesview PeerIdentity;
+	uint32 Lifetime;
+	uint32 AgeAdd;
+	uint32 MaxEarlyData;
+	xtime IssuedAt;
+	xtime ExpiresAt;
+} xtlsresumeinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Version` | `xtlsversion` | Version |
+| `Cipher` | `xtlscipher` | Cipher |
+| `Ticket` | `xbytesview` | Ticket |
+| `Secret` | `xbytesview` | Secret |
+| `ServerName` | `xstrview` | ServerName |
+| `Protocol` | `xbytesview` | Protocol |
+| `PeerIdentity` | `xbytesview` | PeerIdentity |
+| `Lifetime` | `uint32` | Lifetime |
+| `AgeAdd` | `uint32` | AgeAdd |
+| `MaxEarlyData` | `uint32` | MaxEarlyData |
+| `IssuedAt` | `xtime` | IssuedAt |
+| `ExpiresAt` | `xtime` | ExpiresAt |
+
+### `xtlsserverrequest`
+
+选择请求中的视图只在回调期间借用，Protocols 是完整 ALPN 扩展负载。
+
+```c
+typedef struct xtlsserverrequest {
+	xbytesview ServerName;
+	xbytesview Protocols;
+} xtlsserverrequest;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `ServerName` | `xbytesview` | ServerName |
+| `Protocols` | `xbytesview` | Protocols |
+
+### `xtlsserverchoice`
+
+选择结果默认带入静态身份、ALPN 和零 Cookie，回调可替换这些结果。
+
+```c
+typedef struct xtlsserverchoice {
+	const xtlsidentity* Identity;
+	size_t Protocol;
+	uint64 Cookie;
+} xtlsserverchoice;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Identity` | `const xtlsidentity*` | Identity |
+| `Protocol` | `size_t` | Protocol |
+| `Cookie` | `uint64` | Cookie |
+
+### `xtlsserverresumerequest`
+
+票据查找请求中的全部视图仅在回调期间借用。
+
+```c
+typedef struct xtlsserverresumerequest {
+	xbytesview ServerName;
+	xbytesview Protocols;
+	xbytesview Ticket;
+	uint32 Age;
+} xtlsserverresumerequest;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `ServerName` | `xbytesview` | ServerName |
+| `Protocols` | `xbytesview` | Protocols |
+| `Ticket` | `xbytesview` | Ticket |
+| `Age` | `uint32` | Age |
+
+### `xtlsserverconfig`
+
+创建期间借用配置；会话持有身份、深复制协议，两个回调上下文借用到首航结束。
+
+```c
+typedef struct xtlsserverconfig {
+	const xtlscontext* Context;
+	const xtlsidentity* Identity;
+	const xstrview* Protocols;
+	size_t ProtocolCount;
+	xtlsserverselectproc Select;
+	ptr SelectContext;
+	bool RequireProtocol;
+	xtlsserverresumeproc Resume;
+	ptr ResumeContext;
+	uint32 ResumeAgeTolerance;
+} xtlsserverconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Context` | `const xtlscontext*` | Context |
+| `Identity` | `const xtlsidentity*` | Identity |
+| `Protocols` | `const xstrview*` | Protocols |
+| `ProtocolCount` | `size_t` | ProtocolCount |
+| `Select` | `xtlsserverselectproc` | Select |
+| `SelectContext` | `ptr` | SelectContext |
+| `RequireProtocol` | `bool` | RequireProtocol |
+| `Resume` | `xtlsserverresumeproc` | Resume |
+| `ResumeContext` | `ptr` | ResumeContext |
+| `ResumeAgeTolerance` | `uint32` | ResumeAgeTolerance |
+
+### `xtlsserverselectproc`
+
+同步选择器用于 SNI、多身份和租户路由；返回 false 会拒绝握手。
+
+```c
+typedef bool (*xtlsserverselectproc)(
+	ptr pContext,
+	const xtlsserverrequest* pRequest,
+	xtlsserverchoice* pChoice
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlsserverresumeproc`
+
+返回借用恢复对象；服务器会在回调返回后立即 retain，再读取其不可变快照。
+
+```c
+typedef const xtlsresume* (*xtlsserverresumeproc)(
+	ptr pContext,
+	const xtlsserverresumerequest* pRequest
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlswait`
+
+等待原因是可组合位；驱动器据此决定继续读、写或等待应用动作。
+
+```c
+typedef enum xtlswait {
+	XTLS_WAIT_NONE = 0,
+	XTLS_WAIT_INPUT = (1u << 0),
+	XTLS_WAIT_OUTPUT = (1u << 1),
+	XTLS_WAIT_APPLICATION = (1u << 2),
+	XTLS_WAIT_IDENTITY = (1u << 3),
+	XTLS_WAIT_VERIFY = (1u << 4)
+} xtlswait;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_WAIT_NONE` | 无 |
+| `XTLS_WAIT_INPUT` | 输入 |
+| `XTLS_WAIT_OUTPUT` | 输出失败 |
+| `XTLS_WAIT_APPLICATION` | APPLICATION |
+| `XTLS_WAIT_IDENTITY` | IDENTITY |
+
+### `xtlssession`
+
+TLS 会话（不透明）：记录层与握手状态机载体。
+
+
+```c
+typedef struct xtlssession xtlssession;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsstreamconfig`
+
+两个超时都使用微秒；零值显式关闭对应计时器。 AsyncBytesLimit 和 AsyncCountLimit 是未完成操作的独立硬边界， AsyncBatch 限制一次 Worker 轮转完成的操作数。
+
+```c
+typedef struct xtlsstreamconfig {
+	uint64 HandshakeTimeout;
+	uint64 CloseTimeout;
+	size_t AsyncBytesLimit;
+	uint32 AsyncCountLimit;
+	uint32 AsyncBatch;
+} xtlsstreamconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `HandshakeTimeout` | `uint64` | HandshakeTimeout |
+| `CloseTimeout` | `uint64` | CloseTimeout |
+| `AsyncBytesLimit` | `size_t` | AsyncBytesLimit |
+| `AsyncCountLimit` | `uint32` | AsyncCountLimit |
+| `AsyncBatch` | `uint32` | AsyncBatch |
+
+### `xtlsstreamstate`
+
+FAILED 保存 TLS 或传输根因；CLOSED 只表示完成认证关闭。
+
+```c
+typedef enum xtlsstreamstate {
+	XTLS_STREAM_CONNECTING = 0,
+	XTLS_STREAM_HANDSHAKE,
+	XTLS_STREAM_OPEN,
+	XTLS_STREAM_CLOSING,
+	XTLS_STREAM_CLOSED,
+	XTLS_STREAM_FAILED
+} xtlsstreamstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_STREAM_CONNECTING` | 连接中 |
+| `XTLS_STREAM_HANDSHAKE` | 握手阶段 |
+| `XTLS_STREAM_OPEN` | OPEN |
+| `XTLS_STREAM_CLOSING` | CLOSING |
+| `XTLS_STREAM_CLOSED` | 已关闭 |
+
+### `xtlsstreamwait`
+
+条件 Future 是水平条件；END 表示收到认证 close_notify， CLOSE 表示底层传输和 TLS 组合对象进入最终终态。
+
+```c
+typedef enum xtlsstreamwait {
+	XTLS_STREAM_WAIT_OPEN = 0,
+	XTLS_STREAM_WAIT_READ,
+	XTLS_STREAM_WAIT_WRITE,
+	XTLS_STREAM_WAIT_DRAIN,
+	XTLS_STREAM_WAIT_END,
+	XTLS_STREAM_WAIT_CLOSE
+} xtlsstreamwait;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_STREAM_WAIT_OPEN` | OPEN |
+| `XTLS_STREAM_WAIT_READ` | 读方向 |
+| `XTLS_STREAM_WAIT_WRITE` | 写方向 |
+| `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
+| `XTLS_STREAM_WAIT_END` | END |
+
+### `xtlsdialstate`
+
+Dial 状态区分名称解析、TCP 连接和 TLS 握手三个可取消阶段。
+
+```c
+typedef enum xtlsdialstate {
+	XTLS_DIAL_RESOLVING = 0,
+	XTLS_DIAL_CONNECTING,
+	XTLS_DIAL_HANDSHAKE,
+	XTLS_DIAL_CONNECTED,
+	XTLS_DIAL_FAILED,
+	XTLS_DIAL_CANCELLED
+} xtlsdialstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_DIAL_RESOLVING` | 解析中 |
+| `XTLS_DIAL_CONNECTING` | 连接中 |
+| `XTLS_DIAL_HANDSHAKE` | 握手阶段 |
+| `XTLS_DIAL_CONNECTED` | 已连接 |
+| `XTLS_DIAL_FAILED` | 已失败 |
+
+### `xtlsdialconfig`
+
+Timeout 覆盖 DNS、TCP 和 TLS 全过程；零值只保留各阶段超时。
+
+```c
+typedef struct xtlsdialconfig {
+	xnetdialconfig Transport;
+	xtlsstreamconfig Stream;
+	uint64 Timeout;
+	bool ServerNameFromHost;
+} xtlsdialconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Transport` | `xnetdialconfig` | Transport |
+| `Stream` | `xtlsstreamconfig` | Stream |
+| `Timeout` | `uint64` | Timeout |
+| `ServerNameFromHost` | `bool` | ServerNameFromHost |
+
+### `xtlsstreamevents`
+
+全部回调都在底层 TCP Stream 所属 Worker 上串行执行。
+
+```c
+typedef struct xtlsstreamevents {
+	void (*Open)(xtlsstream* pStream, ptr pData);
+	void (*Read)(xtlsstream* pStream,
+		const xnetbuf* pBuffer, ptr pData);
+	void (*End)(xtlsstream* pStream, ptr pData);
+	void (*Writable)(xtlsstream* pStream, ptr pData);
+	void (*Drain)(xtlsstream* pStream, ptr pData);
+	void (*Close)(xtlsstream* pStream, xnetresult Result,
+		const xerror* pError, ptr pData);
+	/*
+		客户端恢复队列新增票据时发布边沿；未启用恢复实现时不会调用。
+		回调使用 xrtTlsClientTakeResume 接管一张或全部票据。
+	*/
+	void (*Ticket)(xtlsstream* pStream, ptr pData);
+} xtlsstreamevents;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+
+### `xtlslistenerstate`
+
+Listener 只发布已经完成 TLS 握手的 Stream，关闭监听不会隐式关闭已发布连接。
+
+```c
+typedef enum xtlslistenerstate {
+	XTLS_LISTENER_OPEN = 0,
+	XTLS_LISTENER_CLOSING,
+	XTLS_LISTENER_CLOSED
+} xtlslistenerstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_LISTENER_OPEN` | OPEN |
+| `XTLS_LISTENER_CLOSING` | CLOSING |
+
+### `xtlslistenerevents`
+
+Accept 在目标 Stream 的 Worker 上执行，返回 true 后接管一个 Stream 引用。 Error 只报告监听层错误；单连接握手失败通过 HandshakeError 独立报告。
+
+```c
+typedef struct xtlslistenerevents {
+	bool (*Accept)(xtlslistener* pListener,
+		xtlsstream* pStream, ptr pData);
+	void (*HandshakeError)(xtlslistener* pListener,
+		const xerror* pError, ptr pData);
+	void (*Error)(xtlslistener* pListener,
+		const xerror* pError, ptr pData);
+	void (*Close)(xtlslistener* pListener, ptr pData);
+} xtlslistenerevents;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+
+### `xtlslistenerconfig`
+
+Listen 负责 TCP 接入，Tls 和 Stream 负责每条连接的 TLS 会话与组合层限制。 AcceptQueueLimit 只限制完成握手但尚未被 pull/Future 消费的连接； HandshakeLimit 在分配 TLS 会话前硬性限制并发握手数。 初始化默认完成队列 1024 条、并发握手 128 条，均可显式调整。
+
+```c
+typedef struct xtlslistenerconfig {
+	xnetlistenconfig Listen;
+	xtlsserverconfig Tls;
+	xtlsstreamconfig Stream;
+	uint32 AcceptQueueLimit;
+	uint32 HandshakeLimit;
+} xtlslistenerconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Listen` | `xnetlistenconfig` | Listen |
+| `Tls` | `xtlsserverconfig` | Tls |
+| `Stream` | `xtlsstreamconfig` | Stream |
+| `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
+| `HandshakeLimit` | `uint32` | HandshakeLimit |
+
+### `xtlslistenerstats`
+
+统计值均为并发快照，累计计数在关闭后仍可读取。
+
+```c
+typedef struct xtlslistenerstats {
+	xtlslistenerstate State;
+	uint64 Handshakes;
+	uint64 Accepted;
+	uint64 Rejected;
+	uint64 HandshakeErrors;
+	uint32 ActiveHandshakes;
+	uint32 PeakHandshakes;
+	uint32 QueuedAccepts;
+	uint32 PeakQueuedAccepts;
+	uint32 AcceptWaiters;
+} xtlslistenerstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `State` | `xtlslistenerstate` | State |
+| `Handshakes` | `uint64` | Handshakes |
+| `Accepted` | `uint64` | Accepted |
+| `Rejected` | `uint64` | Rejected |
+| `HandshakeErrors` | `uint64` | HandshakeErrors |
+| `ActiveHandshakes` | `uint32` | ActiveHandshakes |
+| `PeakHandshakes` | `uint32` | PeakHandshakes |
+| `QueuedAccepts` | `uint32` | QueuedAccepts |
+| `PeakQueuedAccepts` | `uint32` | PeakQueuedAccepts |
+| `AcceptWaiters` | `uint32` | AcceptWaiters |
+
+### `xtlsstream`
+
+公开句柄声明不随 TLS Stream 实现裁剪变化。
+
+```c
+typedef struct xtlsstream xtlsstream;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlslistener`
+
+TLS 监听器（不透明）：在 TCP 监听器上完成 TLS 接受。
+
+
+```c
+typedef struct xtlslistener xtlslistener;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsdial`
+
+托管 TLS 拨号对象（不透明）：串联 TCP 拨号与 TLS 握手。
+
+
+```c
+typedef struct xtlsdial xtlsdial;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsdialproc`
+
+成功回调接管 TLS Stream 引用；失败时 Stream 为空且 Error 只在回调期间借用。
+
+```c
+typedef void (*xtlsdialproc)(
+	xtlsdial* pDial,
+	xnetresult Result,
+	xtlsstream* pStream,
+	const xerror* pError,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlsverifydecision`
+
+自定义验证过程可以接管信任决策，也可以回退到不可变信任库。
+
+```c
+typedef enum xtlsverifydecision {
+	XTLS_VERIFY_ERROR = -1,
+	XTLS_VERIFY_DEFAULT = 0,
+	XTLS_VERIFY_ACCEPT,
+	XTLS_VERIFY_REJECT
+} xtlsverifydecision;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_VERIFY_ERROR` | 失败 |
+| `XTLS_VERIFY_DEFAULT` | 默认值 |
+| `XTLS_VERIFY_ACCEPT` | ACCEPT |
+
+### `xtlspeer`
+
+对端证书视图仅在验证调用期间有效，证书按叶到根的线路顺序排列。
+
+```c
+typedef struct xtlspeer {
+	xtlsrole Role;
+	xstrview Name;
+	xtime Time;
+	const xx509cert* Certificates;
+	size_t CertificateCount;
+} xtlspeer;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Role` | `xtlsrole` | Role |
+| `Name` | `xstrview` | Name |
+| `Time` | `xtime` | Time |
+| `Certificates` | `const xx509cert*` | Certificates |
+| `CertificateCount` | `size_t` | CertificateCount |
+
+### `xtlsverifiedpeer`
+
+已验证路径按叶到根排列但不包含独立 trust anchor，全部视图只在策略回调期间有效。
+
+```c
+typedef struct xtlsverifiedpeer {
+	const xtlspeer* Peer;
+	const xx509cert* const* Path;
+	size_t PathCount;
+	const xx509anchor* Anchor;
+} xtlsverifiedpeer;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Peer` | `const xtlspeer*` | Peer |
+| `Path` | `const xx509cert* const*` | Path |
+| `PathCount` | `size_t` | PathCount |
+| `Anchor` | `const xx509anchor*` | Anchor |
+
+### `xtlsverifierconfig`
+
+创建时深复制可选信任库并借用回调；成功后接管上下文。
+
+```c
+typedef struct xtlsverifierconfig {
+	const xx509store* Store;
+	xtlsverifyproc Verify;
+	xtlsverifypolicyproc Policy;
+	xtlsverifytimeproc Time;
+	xtlsverifyreleaseproc Release;
+	ptr Context;
+	/* 默认 false；只在必须兼容历史证书链时显式允许 SHA-1。 */
+	bool AllowSha1;
+} xtlsverifierconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Store` | `const xx509store*` | Store |
+| `Verify` | `xtlsverifyproc` | Verify |
+| `Policy` | `xtlsverifypolicyproc` | Policy |
+| `Time` | `xtlsverifytimeproc` | Time |
+| `Release` | `xtlsverifyreleaseproc` | Release |
+| `Context` | `ptr` | Context |
+| `AllowSha1` | `bool` | AllowSha1 |
+
+### `xtlsverifyproc`
+
+自定义验证过程必须允许并发调用，不负责 TLS 握手签名验证。
+
+```c
+typedef xtlsverifydecision (*xtlsverifyproc)(
+	const xtlspeer* pPeer,
+	ptr pContext
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlsverifypolicyproc`
+
+默认链和身份验证成功后执行附加策略；返回 false 时可以设置结构化原因。
+
+```c
+typedef bool (*xtlsverifypolicyproc)(
+	const xtlsverifiedpeer* pPeer,
+	ptr pContext
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlsverifytimeproc`
+
+自定义时间源用于确定性测试、重放验证和受控时钟环境。
+
+```c
+typedef xtime (*xtlsverifytimeproc)(ptr pContext);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtlsverifyreleaseproc`
+
+最后一个验证器引用释放时清理调用方上下文。
+
+```c
+typedef void (*xtlsverifyreleaseproc)(ptr pContext);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XTLS_EXTENSION_DATA_MAX` | `65535u` | 单个 TLS 扩展负载受线路 16 位长度字段限制。 |
+| `XTLS13_TICKET_LIFETIME_MAX` | `604800u` | TLS 1.3 会话票据最长只能在七天内恢复。 |
+| `XTLS_HANDSHAKE_HEADER_SIZE` | `4u` | TLS 握手消息头由类型和 24 位正文长度组成。 |
+| `XTLS_HANDSHAKE_BODY_MAX` | `16777215u` | TLS 握手正文受线路 24 位长度字段限制。 |
+| `XTLS_HANDSHAKE_LIMIT_DEFAULT` | `1048576u` | 默认单条握手消息上限为 1 MiB，远低于 24 位线路极限。 |
+| `XTLS_EXTENSION_HEADER_SIZE` | `4u` | TLS 扩展头由 16 位类型和 16 位负载长度组成。 |
+| `XTLS_HANDSHAKE_RETAIN_DEFAULT` | `16384u` | 默认只跨消息保留最多 16 KiB 已分配缓冲。 |
+| `XTLS_RANDOM_SIZE` | `32u` | ClientHello 与 ServerHello 的 random 字段固定为 32 字节。 |
+| `XTLS_SESSION_ID_MAX` | `32u` | 兼容会话标识受 TLS 握手线路格式限制为最多 32 字节。 |
+| `XTLS_FALLBACK_SCSV` | `UINT16_C(0x5600)` | TLS_FALLBACK_SCSV 是 ClientHello 中的信号值，不属于可协商密码套件。 |
+| `XTLS_FEED_LIMIT_DEFAULT` | `262144u` | 默认队列上限容纳多个完整 TLS 记录，但不会按连接预分配。 |
+| `XTLS_SEND_LIMIT_DEFAULT` | `262144u` | XTLSSEND超限默认值 |
+| `XTLS_PLAIN_LIMIT_DEFAULT` | `262144u` | XTLSPLAIN超限默认值 |
+| `XTLS_DRIVE_RECORD_BUDGET_DEFAULT` | `64u` | 单次驱动预算限制一个连接连续占用事件循环的工作量。 |
+| `XTLS_DRIVE_HANDSHAKE_BUDGET_DEFAULT` | `64u` | XTLSDRIVE握手阶段BUDGET默认值 |
+| `XTLS_CLIENT_RESUME_LIMIT_DEFAULT` | `4u` | 客户端默认保留四张票据，兼顾并行恢复与每连接常驻内存。 |
+| `XTLS_CLIENT_RESUME_LIMIT_MAX` | `64u` | 显式队列上限避免不可信服务端用连续票据放大内存占用。 |
+| `XTLS_SERVER_RESUME_AGE_TOLERANCE_DEFAULT` | `10000u` | XTLS服务端角色RESUMEAGETOLERANCE默认值 |
+| `XTLS_SERVER_TICKET_LIFETIME_DEFAULT` | `86400u` | XTLS服务端角色TICKETLIFETIME默认值 |
+| `XTLS_SERVER_TICKET_SIZE_DEFAULT` | `32u` | XTLS服务端角色TICKET尺寸默认值 |
+| `XTLS_STREAM_HANDSHAKE_TIMEOUT_DEFAULT` | `UINT64_C(10000000)` | XTLSSTREAM握手阶段超时默认值 |
+| `XTLS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `UINT64_C(5000000)` | XTLSSTREAMCLOSE超时默认值 |
+| `XTLS_STREAM_ASYNC_BYTES_DEFAULT` | `((size_t)1048576u)` | XTLSSTREAMASYNCBYTES默认值 |
+| `XTLS_STREAM_ASYNC_COUNT_DEFAULT` | `UINT32_C(1024)` | XTLSSTREAMASYNC数量默认值 |
+| `XTLS_STREAM_ASYNC_BATCH_DEFAULT` | `UINT32_C(64)` | XTLSSTREAMASYNCBATCH默认值 |
+
 ## 裁剪
 
 启用宏：

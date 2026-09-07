@@ -251,6 +251,9 @@ typedef struct xnetproxyhandshake xnetproxyhandshake;
 
 ### `xnetproxydial`
 
+托管代理拨号对象（不透明）：内部串联名称解析、TCP 连接与代理握手。
+
+
 托管代理拨号对象（不透明）：内部串联名称解析、TCP 连接与代理握手，完成时经回调移交 Stream。
 
 

@@ -1,5 +1,400 @@
 # Crypto 基础 API
 
+## 类型与常量
+
+### `xcryptohash`
+
+密码协议中允许公开选择的摘要算法。
+
+```c
+typedef enum xcrypto_hash {
+	XCRYPTO_HASH_SHA1 = 1,
+	XCRYPTO_HASH_SHA224,
+	XCRYPTO_HASH_SHA256,
+	XCRYPTO_HASH_SHA384,
+	XCRYPTO_HASH_SHA512,
+	XCRYPTO_HASH_SHA512_256,
+	XCRYPTO_HASH_MD5
+} xcryptohash;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XCRYPTO_HASH_SHA1` | SHA1 |
+| `XCRYPTO_HASH_SHA224` | SHA224 |
+| `XCRYPTO_HASH_SHA256` | SHA256 |
+| `XCRYPTO_HASH_SHA384` | SHA384 |
+| `XCRYPTO_HASH_SHA512` | SHA512 |
+| `XCRYPTO_HASH_SHA512_256` | SHA512256 |
+
+### `xrsapublickey`
+
+RSA 公钥是对调用方持有的定宽大端模数和指数的只读视图。
+
+```c
+typedef struct xrsa_public_key {
+	const void* Modulus;
+	size_t ModulusSize;
+	const void* Exponent;
+	size_t ExponentSize;
+} xrsapublickey;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Modulus` | `const void*` | Modulus |
+| `ModulusSize` | `size_t` | ModulusSize |
+| `Exponent` | `const void*` | Exponent |
+| `ExponentSize` | `size_t` | ExponentSize |
+
+### `xrsaprivatekey`
+
+RSA 私钥是调用方持有字节的只读视图。 完整 CRT 五参数存在时优先使用 CRT；否则必须提供完整私有指数。
+
+```c
+typedef struct xrsa_private_key {
+	xrsapublickey Public;
+	const void* PrivateExponent;
+	size_t PrivateExponentSize;
+	const void* Prime1;
+	size_t Prime1Size;
+	const void* Prime2;
+	size_t Prime2Size;
+	const void* Exponent1;
+	size_t Exponent1Size;
+	const void* Exponent2;
+	size_t Exponent2Size;
+	const void* Coefficient;
+	size_t CoefficientSize;
+} xrsaprivatekey;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Public` | `xrsapublickey` | Public |
+| `PrivateExponent` | `const void*` | PrivateExponent |
+| `PrivateExponentSize` | `size_t` | PrivateExponentSize |
+| `Prime1` | `const void*` | Prime1 |
+| `Prime1Size` | `size_t` | Prime1Size |
+| `Prime2` | `const void*` | Prime2 |
+| `Prime2Size` | `size_t` | Prime2Size |
+| `Exponent1` | `const void*` | Exponent1 |
+| `Exponent1Size` | `size_t` | Exponent1Size |
+| `Exponent2` | `const void*` | Exponent2 |
+| `Exponent2Size` | `size_t` | Exponent2Size |
+| `Coefficient` | `const void*` | Coefficient |
+| `CoefficientSize` | `size_t` | CoefficientSize |
+
+### `xaes`
+
+AES 状态由调用方持有；RoundKey 保存标准正向轮密钥，Backend 仅供实现选择后端。
+
+```c
+typedef struct xaes {
+	uint8 RoundKey[XRT_AES_MAX_ROUND_KEY_SIZE];
+	uint32 Guard;
+	uint32 Rounds;
+	uint32 Backend;
+} xaes;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Guard` | `uint32` | Guard |
+| `Rounds` | `uint32` | Rounds |
+| `Backend` | `uint32` | Backend |
+
+### `xaesgcm`
+
+AES-GCM 状态固定绑定一个 AES 密钥和标签长度，可供多个线程只读并发使用。
+
+```c
+typedef struct xaesgcm {
+	xaes Cipher;
+	uint8 Hash[XRT_AES_BLOCK_SIZE];
+	uint32 Guard;
+	uint32 TagSize;
+} xaesgcm;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Cipher` | `xaes` | Cipher |
+| `Guard` | `uint32` | Guard |
+| `TagSize` | `uint32` | TagSize |
+
+### `xmd5`
+
+MD5 流状态由调用方持有；仅用于必须兼容 MD5 的历史协议。
+
+```c
+typedef struct xmd5 {
+	uint32 State[4];
+	uint64 Size;
+	uint8 Buffer[XRT_MD5_BLOCK_SIZE];
+	uint32 Guard;
+	uint32 BufferSize;
+} xmd5;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Size` | `uint64` | Size |
+| `Guard` | `uint32` | Guard |
+| `BufferSize` | `uint32` | BufferSize |
+
+### `xsha1`
+
+SHA-1 流状态由调用方持有；字段公开只用于无分配存储。
+
+```c
+typedef struct xsha1 {
+	uint32 State[5];
+	uint64 Size;
+	uint8 Buffer[XRT_SHA1_BLOCK_SIZE];
+	uint32 Guard;
+	uint32 BufferSize;
+} xsha1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Size` | `uint64` | Size |
+| `Guard` | `uint32` | Guard |
+| `BufferSize` | `uint32` | BufferSize |
+
+### `xsha256`
+
+SHA-256 流状态由调用方持有；字段公开只用于无分配存储。
+
+```c
+typedef struct xsha256 {
+	uint32 State[8];
+	uint64 Size;
+	uint8 Buffer[XRT_SHA256_BLOCK_SIZE];
+	uint32 Guard;
+	uint32 BufferSize;
+} xsha256;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Size` | `uint64` | Size |
+| `Guard` | `uint32` | Guard |
+| `BufferSize` | `uint32` | BufferSize |
+
+### `xsha512`
+
+SHA-384/512 共享压缩状态布局；Guard 区分具体算法。
+
+```c
+typedef struct xsha512 {
+	uint64 State[8];
+	uint64 SizeLow;
+	uint64 SizeHigh;
+	uint8 Buffer[XRT_SHA512_BLOCK_SIZE];
+	uint32 Guard;
+	uint32 BufferSize;
+} xsha512;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `SizeLow` | `uint64` | SizeLow |
+| `SizeHigh` | `uint64` | SizeHigh |
+| `Guard` | `uint32` | Guard |
+| `BufferSize` | `uint32` | BufferSize |
+
+### `xhmacsha256`
+
+HMAC-SHA256 保存预计算的 inner/outer 摘要状态。
+
+```c
+typedef struct xhmacsha256 {
+	xsha256 Inner;
+	xsha256 Outer;
+	uint32 Guard;
+} xhmacsha256;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Inner` | `xsha256` | Inner |
+| `Outer` | `xsha256` | Outer |
+| `Guard` | `uint32` | Guard |
+
+### `xhmacsha512`
+
+HMAC-SHA384/512 共享状态布局；Guard 区分具体算法。
+
+```c
+typedef struct xhmacsha512 {
+	xsha512 Inner;
+	xsha512 Outer;
+	uint32 Guard;
+} xhmacsha512;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Inner` | `xsha512` | Inner |
+| `Outer` | `xsha512` | Outer |
+| `Guard` | `uint32` | Guard |
+
+### `xed25519mode`
+
+RFC 8032 的纯消息、带上下文消息和预哈希消息三种互不兼容的域。
+
+```c
+typedef enum xed25519_mode {
+	XED25519_PURE = 0,
+	XED25519_CONTEXT,
+	XED25519_PREHASH
+} xed25519mode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XED25519_PURE` | PURE |
+| `XED25519_CONTEXT` | CONTEXT |
+
+### `xed25519key`
+
+展开的 Ed25519 签名密钥由调用方持有，避免重复派生公钥和私有前缀。
+
+```c
+typedef struct xed25519_key {
+	uint8 Scalar[XRT_ED25519_SEED_SIZE];
+	uint8 Prefix[XRT_ED25519_SEED_SIZE];
+	uint8 Public[XRT_ED25519_PUBLIC_SIZE];
+	uint32 Guard;
+} xed25519key;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Guard` | `uint32` | Guard |
+
+### `xpoly1305`
+
+Poly1305 流状态由调用方持有；同一密钥不得用于不同消息。
+
+```c
+typedef struct xpoly1305 {
+	uint32 R[5];
+	uint32 H[5];
+	uint32 Pad[4];
+	uint8 Buffer[XRT_POLY1305_BLOCK_SIZE];
+	uint32 Guard;
+	uint32 BufferSize;
+} xpoly1305;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Guard` | `uint32` | Guard |
+| `BufferSize` | `uint32` | BufferSize |
+
+### `xsha224`
+
+SHA-224 与 SHA-256 共享状态布局，但初始化标记严格区分算法。
+
+```c
+typedef xsha256 xsha224;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xsha384`
+
+SHA-384 增量哈希上下文（按值持有，sizeof 固定）。
+
+
+```c
+typedef xsha512 xsha384;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xsha512_256`
+
+SHA-512/256 复用 SHA-512 状态布局，但使用独立初始向量和状态标记。
+
+```c
+typedef xsha512 xsha512_256;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xhmacsha384`
+
+HMAC-SHA-384 增量上下文（按值持有）。
+
+
+```c
+typedef xhmacsha512 xhmacsha384;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_MD5_SIZE` | `16u` | MD5尺寸 |
+| `XRT_SHA1_SIZE` | `20u` | SHA1尺寸 |
+| `XRT_SHA224_SIZE` | `28u` | SHA224尺寸 |
+| `XRT_SHA256_SIZE` | `32u` | SHA256尺寸 |
+| `XRT_SHA384_SIZE` | `48u` | SHA384尺寸 |
+| `XRT_SHA512_SIZE` | `64u` | SHA512尺寸 |
+| `XRT_RSA_MODULUS_MIN_SIZE` | `128u` | RSAMODULUS下限尺寸 |
+| `XRT_RSA_MODULUS_MAX_SIZE` | `1024u` | RSAMODULUS上限尺寸 |
+| `XRT_AES_BLOCK_SIZE` | `16u` | AES阻塞策略尺寸 |
+| `XRT_AES128_KEY_SIZE` | `16u` | AES128KEY尺寸 |
+| `XRT_AES192_KEY_SIZE` | `24u` | AES192KEY尺寸 |
+| `XRT_AES256_KEY_SIZE` | `32u` | AES256KEY尺寸 |
+| `XRT_AES_MAX_ROUND_KEY_SIZE` | `240u` | AES上限ROUNDKEY尺寸 |
+| `XRT_AES_GCM_TAG_MIN_SIZE` | `4u` | AESGCMTAG下限尺寸 |
+| `XRT_AES_GCM_TAG_MAX_SIZE` | `16u` | AESGCMTAG上限尺寸 |
+| `XRT_AES_GCM_TAG_DEFAULT_SIZE` | `16u` | AESGCMTAG默认值尺寸 |
+| `XRT_AES_GCM_NONCE_DEFAULT_SIZE` | `12u` | AESGCMNONCE默认值尺寸 |
+| `XRT_MD5_BLOCK_SIZE` | `64u` | MD5阻塞策略尺寸 |
+| `XRT_SHA1_BLOCK_SIZE` | `64u` | SHA1阻塞策略尺寸 |
+| `XRT_SHA256_BLOCK_SIZE` | `64u` | SHA256阻塞策略尺寸 |
+| `XRT_SHA224_BLOCK_SIZE` | `XRT_SHA256_BLOCK_SIZE` | SHA224阻塞策略尺寸 |
+| `XRT_SHA384_BLOCK_SIZE` | `128u` | SHA384阻塞策略尺寸 |
+| `XRT_SHA512_BLOCK_SIZE` | `128u` | SHA512阻塞策略尺寸 |
+| `XRT_SHA512_256_BLOCK_SIZE` | `XRT_SHA512_BLOCK_SIZE` | SHA512256阻塞策略尺寸 |
+| `XRT_X25519_PRIVATE_SIZE` | `32u` | X25519PRIVATE尺寸 |
+| `XRT_X25519_PUBLIC_SIZE` | `32u` | X25519PUBLIC尺寸 |
+| `XRT_X25519_SHARED_SIZE` | `32u` | X25519SHARED尺寸 |
+| `XRT_ED25519_SEED_SIZE` | `32u` | ED25519SEED尺寸 |
+| `XRT_ED25519_PUBLIC_SIZE` | `32u` | ED25519PUBLIC尺寸 |
+| `XRT_ED25519_SIGNATURE_SIZE` | `64u` | ED25519SIGNATURE尺寸 |
+| `XRT_ED25519_PREHASH_SIZE` | `64u` | ED25519PREHASH尺寸 |
+| `XRT_ED25519_CONTEXT_MAX_SIZE` | `255u` | ED25519CONTEXT上限尺寸 |
+| `XRT_X448_PRIVATE_SIZE` | `56u` | X448PRIVATE尺寸 |
+| `XRT_X448_PUBLIC_SIZE` | `56u` | X448PUBLIC尺寸 |
+| `XRT_X448_SHARED_SIZE` | `56u` | X448SHARED尺寸 |
+| `XRT_P256_PRIVATE_SIZE` | `32u` | P256PRIVATE尺寸 |
+| `XRT_P256_PUBLIC_SIZE` | `65u` | P256PUBLIC尺寸 |
+| `XRT_P256_SHARED_SIZE` | `32u` | P256SHARED尺寸 |
+| `XRT_P384_PRIVATE_SIZE` | `48u` | P384PRIVATE尺寸 |
+| `XRT_P384_PUBLIC_SIZE` | `97u` | P384PUBLIC尺寸 |
+| `XRT_P384_SHARED_SIZE` | `48u` | P384SHARED尺寸 |
+| `XRT_ECDSA_P256_SIGNATURE_SIZE` | `64u` | ECDSAP256SIGNATURE尺寸 |
+| `XRT_ECDSA_P384_SIGNATURE_SIZE` | `96u` | ECDSAP384SIGNATURE尺寸 |
+| `XRT_CHACHA20_KEY_SIZE` | `32u` | CHACHA20KEY尺寸 |
+| `XRT_CHACHA20_NONCE_SIZE` | `12u` | CHACHA20NONCE尺寸 |
+| `XRT_CHACHA20_BLOCK_SIZE` | `64u` | CHACHA20阻塞策略尺寸 |
+| `XRT_POLY1305_KEY_SIZE` | `32u` | POLY1305KEY尺寸 |
+| `XRT_POLY1305_TAG_SIZE` | `16u` | POLY1305TAG尺寸 |
+| `XRT_POLY1305_BLOCK_SIZE` | `16u` | POLY1305阻塞策略尺寸 |
+| `XRT_CHACHA20_POLY1305_KEY_SIZE` | `32u` | CHACHA20POLY1305KEY尺寸 |
+| `XRT_CHACHA20_POLY1305_NONCE_SIZE` | `12u` | CHACHA20POLY1305NONCE尺寸 |
+| `XRT_CHACHA20_POLY1305_TAG_SIZE` | `16u` | CHACHA20POLY1305TAG尺寸 |
+| `XRT_CHACHA20_POLY1305_OVERHEAD` | `16u` | CHACHA20POLY1305OVERHEAD |
+
 ## 分层与裁剪
 
 密码学底座从最小共同原语开始，避免把 TLS 所需的全部算法重新合并为旧版单体：
