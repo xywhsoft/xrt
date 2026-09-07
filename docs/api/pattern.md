@@ -1298,13 +1298,13 @@ bool xrtPatternBuilderReserve(
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 容量已保证 | — |
-| `false` | 扩容失败 | `XERR_MEMORY` / `XERR_OVERFLOW` |
+| `false` | 扩容失败 | `XERR_MEMORY` / `XERR_RANGE` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `XERR_MEMORY` — 槽数组扩容失败
-- `XERR_OVERFLOW` — 容量引起尺寸溢出
+- `XERR_RANGE` — 容量引起尺寸溢出
 
 #### 范例
 

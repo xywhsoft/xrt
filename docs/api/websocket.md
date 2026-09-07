@@ -1091,7 +1091,7 @@ xwsframestatus xrtWsFrameParse(xbytesview Input, xwsframe* pFrame, const xwsfram
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XWS_FRAME_OK` | 已解析完整帧头 | — |
+| `XWS_FRAME_READY` | 已解析完整帧头 | — |
 | `XWS_FRAME_MORE` | 输入不足 | 不设错误 |
 | `XWS_FRAME_ERROR` | 帧非法或超限 | `XERR_PROTOCOL` / `XERR_RANGE` |
 
@@ -4499,7 +4499,7 @@ xwsrole xrtWsStreamRole(const xwsstream* pStream)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XWS_CLIENT` / `XWS_SERVER` | 本端角色 | — |
+| `XWS_ROLE_CLIENT` / `XWS_ROLE_SERVER` | 本端角色 | — |
 
 #### 错误
 

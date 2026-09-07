@@ -435,7 +435,7 @@ xhttpexpectresult xrtHttpExpectFields(
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `XHTTP_EXPECT_NONE` | 无 Expect 字段 | — |
-| `XHTTP_EXPECT_100_CONTINUE` | 声明 100-continue | — |
+| `XHTTP_EXPECT_CONTINUE` | 声明 100-continue | — |
 | `XHTTP_EXPECT_UNSUPPORTED` | 合法但服务器不支持的 expectation | — |
 | 参数非法时 | — | `XERR_ARGUMENT` |
 

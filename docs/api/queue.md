@@ -285,7 +285,7 @@ bool xrtSPSCQueueInit(xspscqueue* pQueue, size_t iCapacity)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
-- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_RANGE` — 容量取整或分配尺寸溢出
 - `XERR_MEMORY` — 内部环分配失败
 
 #### 范例
@@ -360,7 +360,7 @@ xspscqueue* xrtSPSCQueueCreate(size_t iCapacity)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
-- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_RANGE` — 容量取整或分配尺寸溢出
 - `XERR_MEMORY` — 内部环分配失败
 
 #### 范例
@@ -851,7 +851,7 @@ bool xrtMPSCQueueInit(xmpscqueue* pQueue, size_t iCapacity)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
-- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_RANGE` — 容量取整或分配尺寸溢出
 - `XERR_MEMORY` — 内部环分配失败
 
 #### 范例
@@ -928,7 +928,7 @@ xmpscqueue* xrtMPSCQueueCreate(size_t iCapacity)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
-- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_RANGE` — 容量取整或分配尺寸溢出
 - `XERR_MEMORY` — 内部环分配失败
 
 #### 范例
@@ -1415,7 +1415,7 @@ bool xrtMPMCQueueInit(xmpmcqueue* pQueue, size_t iCapacity)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
-- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_RANGE` — 容量取整或分配尺寸溢出
 - `XERR_MEMORY` — 内部环分配失败
 
 #### 范例
@@ -1494,7 +1494,7 @@ xmpmcqueue* xrtMPMCQueueCreate(size_t iCapacity)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、容量为零或缓冲与队列对象重叠
-- `XERR_OVERFLOW` — 容量取整或分配尺寸溢出
+- `XERR_RANGE` — 容量取整或分配尺寸溢出
 - `XERR_MEMORY` — 内部环分配失败
 
 #### 范例

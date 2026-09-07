@@ -879,7 +879,7 @@ xxsonvisitresult xrtXsonVisit(xstrview Text, const xxsonreadconfig* pConfig, xxs
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XXSON_VISIT_OK` | 已完整遍历 | — |
+| `XXSON_VISIT_NEXT` | 已完整遍历 | — |
 | `XXSON_VISIT_STOP` | 回调请求停止 | 不设错误 |
 | `XXSON_VISIT_ERROR` | 失败 | `xrt.xson` 域错误 |
 

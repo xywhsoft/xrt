@@ -1458,7 +1458,7 @@ bool xrtValueReserve(xvalue* pValue, size_t iCapacity)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_TYPE` — 值类型与操作不匹配
 - `XERR_MEMORY` — 分配失败
 
@@ -2259,7 +2259,7 @@ bool xrtValueArrayExtend(xvalue* pTarget, const xvalue* pSource)
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `XERR_TYPE` — 值类型与操作不匹配
-- `XERR_OVERFLOW` — 结果尺寸溢出
+- `XERR_RANGE` — 结果尺寸溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -3350,7 +3350,7 @@ xvalueiterresult xrtValueIterAdvance(xvalueiter* pIterator, xvaluekey* pKey, xva
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `XVALUE_ITER_OK` | 已产出 | — |
+| `XVALUE_ITER_ITEM` | 已产出 | — |
 | `XVALUE_ITER_END` | 遍历结束 | 不设错误 |
 | `XVALUE_ITER_ERROR` | 失败 | `XERR_ARGUMENT` / `XERR_STATE` |
 

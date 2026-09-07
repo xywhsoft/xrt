@@ -306,7 +306,7 @@ bytes xrtPemDecodeNew(
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.pem` / `XPEM_ERROR_BODY`（`XERR_PROTOCOL`） — 正文不是规范 Base64
 - `XERR_MEMORY` — 分配失败
-- `XERR_OVERFLOW` — 长度引起尺寸溢出
+- `XERR_RANGE` — 长度引起尺寸溢出
 
 #### 范例
 

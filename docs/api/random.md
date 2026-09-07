@@ -638,12 +638,12 @@ bool xrtRngShuffle(xrng* pRng,
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已打乱 | — |
-| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_OVERFLOW` |
+| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_RANGE` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — `iCount * iItemSize` 溢出
+- `XERR_RANGE` — `iCount * iItemSize` 溢出
 - `XERR_STATE` — 状态未初始化
 
 #### 范例
@@ -1105,12 +1105,12 @@ bool xrtRandShuffle(ptr pData, size_t iCount, size_t iItemSize)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已打乱 | — |
-| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_OVERFLOW` |
+| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_RANGE` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 尺寸乘法溢出
+- `XERR_RANGE` — 尺寸乘法溢出
 
 #### 范例
 
@@ -1514,12 +1514,12 @@ bool xrtFastRandShuffle(ptr pData, size_t iCount, size_t iItemSize)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已打乱 | — |
-| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_OVERFLOW` |
+| `false` | 参数非法 | `XERR_ARGUMENT` / `XERR_RANGE` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 尺寸乘法溢出
+- `XERR_RANGE` — 尺寸乘法溢出
 
 #### 范例
 

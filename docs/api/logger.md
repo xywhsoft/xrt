@@ -1397,7 +1397,7 @@ xlogger* xrtLogCreate(xstrview Name, xloglevel Level)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 名称长度引起尺寸溢出
+- `XERR_RANGE` — 名称长度引起尺寸溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2896,7 +2896,7 @@ xlogsink* xrtLogFile(const xlogfileconfig* pConfig)
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
 - `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
-- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_RANGE` — 路径长度引起尺寸溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -3080,7 +3080,7 @@ xlogsink* xrtLogTextFile(
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
 - `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
-- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_RANGE` — 路径长度引起尺寸溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -3124,7 +3124,7 @@ bool xrtLogAddTextFile(
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
 - `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
-- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_RANGE` — 路径长度引起尺寸溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -3166,7 +3166,7 @@ xlogsink* xrtLogJsonFile(
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
 - `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
-- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_RANGE` — 路径长度引起尺寸溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -3210,7 +3210,7 @@ bool xrtLogAddJsonFile(
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
 - `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
-- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_RANGE` — 路径长度引起尺寸溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例

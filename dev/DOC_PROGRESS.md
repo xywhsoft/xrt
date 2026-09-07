@@ -979,4 +979,15 @@
   (c) 剩余 44 处为单值状态查询（State/Family/Method 类），值表
   已在对应类型节逐值（抽查确认），函数节引用枚举名合规。
   门禁 G1+G5/G3 全绿。
+- 2026-09-07 幽灵标识符清零（上轮 XTLS_RESULT 教训的系统化推广）：
+  新审计——全库表格单元中反引号的 X 前缀标识符逐一与公共头
+  交叉比对（头文件共 19 个 XERR 种类等作为唯一真值源）。
+  发现 8 种 30 处幽灵并全部修正：XERR_OVERFLOW→XERR_RANGE
+  （21 处，error.h 从无 OVERFLOW 种类——pattern/queue/stack 等
+  多文件污染）、XHTTP_EXPECT_100_CONTINUE→XHTTP_EXPECT_CONTINUE、
+  XVALUE_ITER_OK→XVALUE_ITER_ITEM、XWS_FRAME_OK→READY、
+  XWS_CLIENT/SERVER→XWS_ROLE_*、XXSON_VISIT_OK→NEXT、
+  XRT_FEATURE_CORE（once.md 依赖表）→core 模块文字说明（该模块
+  feature=null 无裁剪宏）。复扫幽灵零；G1+G5/G3 全绿。
+  该审计脚本沉淀于本记录，可随任何表内容变更复跑。
 

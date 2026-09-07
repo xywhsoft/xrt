@@ -7,7 +7,7 @@
 | 项目 | 值 |
 | --- | --- |
 | 裁剪宏 | `XRT_FEATURE_ONCE` |
-| 直接依赖 | `XRT_FEATURE_CORE` |
+| 直接依赖 | `core` 模块（无独立裁剪宏） |
 | 头文件 | `<xrt/thread.h>` 或 `<xrt.h>` |
 
 ## 类型与常量

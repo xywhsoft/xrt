@@ -232,7 +232,7 @@ bool xrtSetInit(xset* pSet, size_t iItemSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 桶数组分配失败
 
@@ -274,7 +274,7 @@ bool xrtSetInitAligned(
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 桶数组分配失败
 
@@ -313,7 +313,7 @@ xset* xrtSetCreate(size_t iItemSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 桶数组分配失败
 
@@ -350,7 +350,7 @@ xset* xrtSetCreateAligned(size_t iItemSize, size_t iAlignment)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 桶数组分配失败
 
@@ -649,7 +649,7 @@ const void* xrtSetGetOrAdd(
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 容量增长溢出
+- `XERR_RANGE` — 容量增长溢出
 - `XERR_MEMORY` — 扩容或复制分配失败
 
 #### 范例
@@ -685,7 +685,7 @@ bool xrtSetAdd(xset* pSet, const void* pItem)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 容量增长溢出
+- `XERR_RANGE` — 容量增长溢出
 - `XERR_MEMORY` — 扩容或复制分配失败
 
 #### 范例
@@ -934,12 +934,12 @@ bool xrtSetReserve(xset* pSet, size_t iCapacity)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 容量已保证 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或元素大小为零
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_MEMORY` — 桶数组分配失败
 
 #### 范例

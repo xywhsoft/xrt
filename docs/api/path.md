@@ -826,7 +826,7 @@ str xrtPathBuild(const xstrview* arrParts, size_t iCount, xpathstyle Style)
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
 - `XERR_MEMORY` — 结果分配失败
-- `XERR_OVERFLOW` — 结果长度引起尺寸溢出
+- `XERR_RANGE` — 结果长度引起尺寸溢出
 
 #### 范例
 
@@ -1114,7 +1114,7 @@ str xrtPathWithExt(cstr sPath, cstr sExtension)
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.path` / `XPATH_ERROR_FORMAT`（`XERR_VALUE`） — 路径格式非法
 - `XERR_MEMORY` — 结果分配失败
-- `XERR_OVERFLOW` — 结果长度引起尺寸溢出
+- `XERR_RANGE` — 结果长度引起尺寸溢出
 
 #### 范例
 

@@ -750,12 +750,12 @@ bool xrtPtrFixedStackInit(
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已初始化 | — |
-| `false` | 参数非法或溢出 | `XERR_ARGUMENT` / `XERR_OVERFLOW` |
+| `false` | 参数非法或溢出 | `XERR_ARGUMENT` / `XERR_RANGE` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量尺寸溢出
+- `XERR_RANGE` — 容量尺寸溢出
 
 #### 范例
 
@@ -1175,7 +1175,7 @@ bool xrtStackInit(xstack* pStack, size_t iItemSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 缓冲分配失败
 
@@ -1213,7 +1213,7 @@ bool xrtStackInitAligned(xstack* pStack, size_t iItemSize, size_t iAlignment)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 缓冲分配失败
 
@@ -1249,7 +1249,7 @@ xstack* xrtStackCreate(size_t iItemSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 缓冲分配失败
 
@@ -1286,7 +1286,7 @@ xstack* xrtStackCreateAligned(size_t iItemSize, size_t iAlignment)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 缓冲分配失败
 
@@ -1414,12 +1414,12 @@ bool xrtStackReserve(xstack* pStack, size_t iCapacity)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 容量已保证 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_MEMORY` — 扩容分配失败
 
 #### 范例
@@ -1553,12 +1553,12 @@ ptr xrtStackAdd(xstack* pStack)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | 非空 | 未初始化栈顶槽 | — |
-| `NULL` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `NULL` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_MEMORY` — 扩容分配失败
 
 #### 范例
@@ -1589,12 +1589,12 @@ bool xrtStackPush(xstack* pStack, const void* pItem)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已压入 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_MEMORY` — 扩容分配失败
 
 #### 范例
@@ -1878,7 +1878,7 @@ bool xrtBlockStackInit(xblockstack* pStack, size_t iItemSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 缓冲分配失败
 
@@ -1922,7 +1922,7 @@ bool xrtBlockStackInitLayout(
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 缓冲分配失败
 
@@ -1958,7 +1958,7 @@ xblockstack* xrtBlockStackCreate(size_t iItemSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 缓冲分配失败
 
@@ -2000,7 +2000,7 @@ xblockstack* xrtBlockStackCreateLayout(
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_VALUE` — 对齐不是二次幂
 - `XERR_MEMORY` — 缓冲分配失败
 
@@ -2128,12 +2128,12 @@ bool xrtBlockStackReserve(xblockstack* pStack, size_t iCapacity)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 容量已保证 | — |
-| `false` | 扩容失败，原状态保持 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败，原状态保持 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_MEMORY` — 扩容分配失败
 
 #### 范例
@@ -2267,12 +2267,12 @@ ptr xrtBlockStackAdd(xblockstack* pStack)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | 非空 | 未初始化栈顶槽 | — |
-| `NULL` | 新块分配失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `NULL` | 新块分配失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 块布局尺寸溢出
+- `XERR_RANGE` — 块布局尺寸溢出
 - `XERR_MEMORY` — 扩容分配失败
 
 #### 范例
@@ -2303,12 +2303,12 @@ bool xrtBlockStackPush(xblockstack* pStack, const void* pItem)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已压入 | — |
-| `false` | 分配失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 分配失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 块布局尺寸溢出
+- `XERR_RANGE` — 块布局尺寸溢出
 - `XERR_MEMORY` — 扩容分配失败
 
 #### 范例
@@ -2703,12 +2703,12 @@ bool xrtPtrStackReserve(xptrstack* pStack, size_t iCapacity)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 容量已保证 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_MEMORY` — 扩容分配失败
 
 #### 范例
@@ -2808,12 +2808,12 @@ bool xrtPtrStackPush(xptrstack* pStack, ptr pValue)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已压入 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空、元素大小为零或参数非法
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_MEMORY` — 扩容分配失败
 
 #### 范例

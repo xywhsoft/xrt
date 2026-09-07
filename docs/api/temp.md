@@ -178,7 +178,7 @@ ptr xrtTempAlloc(xtemparena* pArena, size_t iSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_RANGE` — 尺寸计算溢出
 - `XERR_MEMORY` — 新块分配失败
 
 #### 范例
@@ -215,7 +215,7 @@ ptr xrtTempDup(xtemparena* pArena, const void* pData, size_t iSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_RANGE` — 尺寸计算溢出
 - `XERR_MEMORY` — 新块分配失败
 
 #### 范例
@@ -251,7 +251,7 @@ str xrtTempStr(xtemparena* pArena, xstrview Text)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_RANGE` — 尺寸计算溢出
 - `XERR_MEMORY` — 新块分配失败
 
 #### 范例
@@ -492,7 +492,7 @@ ptr xrtTempEndDup(xtempmark* pMark, const void* pData, size_t iSize)
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `XERR_STATE` — 违反后进先出顺序
-- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_RANGE` — 尺寸计算溢出
 - `XERR_MEMORY` — 新块分配失败
 
 #### 范例
@@ -529,7 +529,7 @@ str xrtTempEndStr(xtempmark* pMark, xstrview Text)
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `XERR_STATE` — 违反后进先出顺序
-- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_RANGE` — 尺寸计算溢出
 - `XERR_MEMORY` — 新块分配失败
 
 #### 范例
@@ -599,7 +599,7 @@ ptr xrtTemp(size_t iSize)
 #### 错误
 
 - 无默认 arena 时按需建立
-- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_RANGE` — 尺寸计算溢出
 - `XERR_MEMORY` — 新块分配失败
 
 #### 范例

@@ -1336,7 +1336,7 @@ str xrtStrDup(cstr sText)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1372,7 +1372,7 @@ str xrtStrDupN(cstr sText, size_t iSize)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1407,7 +1407,7 @@ str xrtStrDupView(xstrview Text)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1443,7 +1443,7 @@ str xrtStrConcat(xstrview Left, xstrview Right)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1481,7 +1481,7 @@ str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1517,7 +1517,7 @@ str xrtStrRepeat(xstrview Text, size_t iCount)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1554,7 +1554,7 @@ str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1591,7 +1591,7 @@ str xrtStrInsert(xstrview Text, size_t iPosition, xstrview Part)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1628,7 +1628,7 @@ str xrtStrRemove(xstrview Text, size_t iPosition, size_t iCount)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1663,7 +1663,7 @@ str xrtStrReverseBytes(xstrview Text)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1734,7 +1734,7 @@ str xrtStrLower(xstrview Text)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1805,7 +1805,7 @@ str xrtStrUpper(xstrview Text)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1877,7 +1877,7 @@ str xrtStrFilter(xstrview Text, xstrview Set)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1953,7 +1953,7 @@ str xrtStrPadLeft(xstrview Text, size_t iWidth, xstrview Fill)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -1990,7 +1990,7 @@ str xrtStrPadRight(xstrview Text, size_t iWidth, xstrview Fill)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2027,7 +2027,7 @@ str xrtStrPadCenter(xstrview Text, size_t iWidth, xstrview Fill)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2257,12 +2257,12 @@ bool xrtStrBufReserve(xstrbuf* pBuffer, size_t iCapacity)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 容量已保证 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 容量溢出
+- `XERR_RANGE` — 容量溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2293,12 +2293,12 @@ bool xrtStrBufResize(xstrbuf* pBuffer, size_t iSize)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 长度已调整 | — |
-| `false` | 调整失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 调整失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 长度溢出
+- `XERR_RANGE` — 长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2329,12 +2329,12 @@ bool xrtStrBufAppend(xstrbuf* pBuffer, xstrview Text)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已追加 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2366,12 +2366,12 @@ bool xrtStrBufAppendByte(xstrbuf* pBuffer, char iByte)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已追加 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2404,12 +2404,12 @@ bool xrtStrBufAppendRepeat(xstrbuf* pBuffer, xstrview Text, size_t iCount)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已追加 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2447,7 +2447,7 @@ bool xrtStrBufAppendFormat(xstrbuf* pBuffer, cstr sFormat, ...)
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 扩容失败
 
 #### 范例
@@ -2485,7 +2485,7 @@ bool xrtStrBufAppendFormatV(xstrbuf* pBuffer, cstr sFormat, va_list Args)
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 扩容失败
 
 #### 范例
@@ -2761,7 +2761,7 @@ xstrlist* xrtStrSplit(xstrview Text, xstrview Separator)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2796,7 +2796,7 @@ xstrlist* xrtStrSplitLines(xstrview Text)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2831,7 +2831,7 @@ xstrlist* xrtStrFields(xstrview Text)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2862,12 +2862,12 @@ xstrlist* xrtStrListAlloc(size_t iCount, size_t iDataSize)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | 非空 | 单块列表，整体一次 `xrtFree` 释放 | — |
-| `NULL` | 失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `NULL` | 失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 列表尺寸溢出
+- `XERR_RANGE` — 列表尺寸溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -2975,7 +2975,7 @@ str xrtFormat(cstr sFormat, ...)
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例
@@ -3012,7 +3012,7 @@ str xrtFormatV(cstr sFormat, va_list Args)
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
-- `XERR_OVERFLOW` — 结果长度溢出
+- `XERR_RANGE` — 结果长度溢出
 - `XERR_MEMORY` — 分配失败
 
 #### 范例

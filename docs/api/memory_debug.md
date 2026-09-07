@@ -347,7 +347,7 @@ size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_MEMORY` / `XERR_OVERFLOW` — 事件快照捕获失败
+- `XERR_MEMORY` / `XERR_RANGE` — 事件快照捕获失败
 - `XERR_STATE` — 快照在遍历中途失效（调试状态被关闭或清空）
 
 #### 范例
@@ -382,7 +382,7 @@ size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData)
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_MEMORY` / `XERR_OVERFLOW` — 活动分配快照捕获失败
+- `XERR_MEMORY` / `XERR_RANGE` — 活动分配快照捕获失败
 
 #### 范例
 
@@ -455,7 +455,7 @@ bool xrtMemDebugReport(
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_MEMORY` / `XERR_OVERFLOW` — 活动分配捕获失败
+- `XERR_MEMORY` / `XERR_RANGE` — 活动分配捕获失败
 - `XERR_STATE` — 写入器返回失败但未设置更具体错误
 
 #### 范例

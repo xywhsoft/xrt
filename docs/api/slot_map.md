@@ -371,12 +371,12 @@ bool xrtSlotMapReserve(xslotmap* pMap, size_t iCapacity)
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 容量已保证 | — |
-| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+| `false` | 扩容失败 | `XERR_RANGE` / `XERR_MEMORY` |
 
 #### 错误
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_RANGE` — 容量或尺寸计算溢出
 - `XERR_MEMORY` — 存储分配失败
 
 #### 范例
@@ -415,7 +415,7 @@ xslot xrtSlotMapInsert(xslotmap* pMap, ptr pValue)
 
 - `XERR_ARGUMENT` — 指针为空或参数非法
 - `XERR_STATE` — 空闲链状态破坏
-- `XERR_OVERFLOW` — 槽位空间耗尽或尺寸溢出
+- `XERR_RANGE` — 槽位空间耗尽或尺寸溢出
 
 #### 范例
 
