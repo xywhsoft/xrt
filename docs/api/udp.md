@@ -160,11 +160,11 @@ typedef struct xnetudpevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Open` | `回调` | 对象就绪 |
-| `Receive` | `回调` | 收到完整数据报 |
-| `DatagramError` | `回调` | ICMP/配额错误到达 |
-| `Error` | `回调` | 对象级错误 |
-| `Close` | `回调` | 对象关闭 |
+| `Open` | `void (*Open)(xnetudp* pUdp, ptr pData)` | 对象就绪 |
+| `Receive` | `void (*Receive)(xnetudp* pUdp, const xnetudpmessage* pMessage, ptr pData)` | 收到完整数据报 |
+| `DatagramError` | `void (*DatagramError)(xnetudp* pUdp, const xnetudperrormessage* pMessage, ptr pData)` | ICMP/配额错误到达 |
+| `Error` | `void (*Error)(xnetudp* pUdp, const xerror* pError, ptr pData)` | 对象级错误 |
+| `Close` | `void (*Close)(xnetudp* pUdp, xnetresult Result, const xerror* pError, ptr pData)` | 对象关闭 |
 
 ### `xnetudpconfig`
 

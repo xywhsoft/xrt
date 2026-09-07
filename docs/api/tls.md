@@ -1853,12 +1853,12 @@ typedef struct xtlsstreamevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Open` | `回调` | 流开放（握手完成） |
-| `Read` | `回调` | 收到解密缓冲 |
-| `End` | `回调` | 对端写关闭 |
-| `Writable` | `回调` | 发送预算可用 |
-| `Drain` | `回调` | 发送队列排空 |
-| `Close` | `回调` | 流关闭（含错误） |
+| `Open` | `void (*Open)(xtlsstream* pStream, ptr pData)` | 流开放（握手完成） |
+| `Read` | `void (*Read)(xtlsstream* pStream, const xnetbuf* pBuffer, ptr pData)` | 收到解密缓冲 |
+| `End` | `void (*End)(xtlsstream* pStream, ptr pData)` | 对端写关闭 |
+| `Writable` | `void (*Writable)(xtlsstream* pStream, ptr pData)` | 发送预算可用 |
+| `Drain` | `void (*Drain)(xtlsstream* pStream, ptr pData)` | 发送队列排空 |
+| `Close` | `void (*Close)(xtlsstream* pStream, xnetresult Result, const xerror* pError, ptr pData)` | 流关闭（含错误） |
 
 ### `xtlslistenerstate`
 
@@ -1896,10 +1896,10 @@ typedef struct xtlslistenerevents {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Accept` | `回调` | 新 TLS 流完成接受（返回是否保留） |
-| `HandshakeError` | `回调` | 接受后握手失败 |
-| `Error` | `回调` | 监听级错误 |
-| `Close` | `回调` | 监听器关闭 |
+| `Accept` | `bool (*Accept)(xtlslistener* pListener, xtlsstream* pStream, ptr pData)` | 新 TLS 流完成接受（返回是否保留） |
+| `HandshakeError` | `void (*HandshakeError)(xtlslistener* pListener, const xerror* pError, ptr pData)` | 接受后握手失败 |
+| `Error` | `void (*Error)(xtlslistener* pListener, const xerror* pError, ptr pData)` | 监听级错误 |
+| `Close` | `void (*Close)(xtlslistener* pListener, ptr pData)` | 监听器关闭 |
 
 ### `xtlslistenerconfig`
 
