@@ -433,3 +433,6 @@
   锚点：method_tour/token_tour/validate_tour/host/target/
   base/encoding/small_fields。G3 27 片段全绿；G1/G2 余 141。
   array 复验无回归。
+  补记：examples/http/small_fields 未注册（G4 拦截），已定点
+  挂到 http 模块 examples（JSON + manifest 校验通过），余 140
+  全部为第 2-4 段 missing-section。
