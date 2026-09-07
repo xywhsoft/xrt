@@ -44,6 +44,20 @@ typedef struct xstrview {
 
 `XRT_BYTES_LITERAL` 和 `XRT_STR_LITERAL` 在编译期创建不含末尾零字节的视图。
 
+`xbytesview` 字段：
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `cbytes` | 起点指针 |
+| `Size` | `size_t` | 字节数 |
+
+`xstrview` 字段：
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `cstr` | 起点指针 |
+| `Size` | `size_t` | 字节数 |
+
 ### `xutf16view` 与 `xutf32view`
 
 `xutf16view.Size` 是 16 位码元数，`xutf32view.Size` 是 32 位码元数。`xrtUtf16View` 和 `xrtUtf32View` 只构造借用视图，不校验内容、不分配内存。
@@ -75,6 +89,15 @@ typedef struct xutfresult {
 	size_t Error;
 } xutfresult;
 ```
+
+`xutfresult` 字段：
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Status` | `xutfstatus` | 完成状态 |
+| `Read` | `size_t` | 本次消费码元数 |
+| `Written` | `size_t` | 本次写出单元数 |
+| `Error` | `size_t` | 首个非法码元偏移（`XUTF_INVALID` 时有效） |
 
 `Read` 和 `Written` 使用各自视图的码元单位。`Error` 是源视图中的首个错误位置，成功时为 `XRT_NPOS`。目标空间不足时，`Read` 停在尚未写入的完整标量前，因此调用方可以更换缓冲区后继续。
 

@@ -959,4 +959,11 @@
   ws 实为 Message 分片+Pong+Backpressure 而非 Text/Binary；
   tls 实为 Writable 而非 High/LowWater；server/listener 含 Error
   与 HandshakeError）。复扫空表零；G1+G5/G3 全绿。
+- 2026-09-07 整表缺失清零（空表专项的补集）：struct 节「有字段签名
+  但全无字段表」扫描发现 2 处——charset 的两个合并标题节
+  （xbytesview 与 xstrview、xutfstatus 与 xutfresult，此前行完备
+  审计因「全缺视为无表意图」跳过）。补三张字段表，其中 xutfresult
+  的第四字段按头文件实测为 Error（首个非法码元偏移）——上一轮
+  手写表误作 Codepoint，本轮一并纠正。复扫整表缺失零。
+  enum 无值表扫描本就为零。G1+G5/G3 全绿。
 
