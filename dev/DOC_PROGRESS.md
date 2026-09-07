@@ -611,4 +611,16 @@
   原子失败且 pOutputSize 仍返回所需长度（internal/xrt_number.h
   __xrtNumberWriteResult 契约）、解析溢出 = RANGE 保输出不变、文本格式
   非法 = PROTOCOL/FORMAT。完成 API 2019→2034/3664（55.6%），47/79。
+- 2026-09-07 周期全量复审 #3（47/79 节点）：(a) G1/G2/G4 --all
+  47 文件 ok、32 待办文件问题数符合预期，零回归；(b) G3 --all 79 文件
+  2053 片段全绿；(c) 本会话 10 文件禁用词零命中；(d) 错误码抽检 5 项
+  （Attach 重复=XERR_EXISTS、number 容量=XERR_RANGE 且查询仍返回
+  长度、net-file 无 FILE_IO 能力=XERR_UNSUPPORTED、memory_debug
+  活动分配=XERR_STATE、net-frame 行超限=FRAME_LIMIT·RANGE）全部
+  与源码一致；(e) 台账-门禁对账：47 完成行 = 47 gate-ok（零差异），
+  完成行 API 求和 2034 = 记录值 2034/3664（55.6%）。结论：质量体系
+  正常。剩余 32 文件中 value(116)/websocket(104)/tls(268)/x509(89)/
+  string(83)/tcp(101) 六个 80+ 大文件需拆段，其余 26 个为中小文件。
+  本会话新增可复用资产：net-dns/net-resolver 双镜像已闭环，后续
+  tcp/udp/http 系若有共享头子集可走同型节复用。
 
