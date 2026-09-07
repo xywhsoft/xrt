@@ -2,6 +2,459 @@
 
 `<xrt/process.h>` 提供直接执行、真实标准流管道、等待、退出状态和进程树控制。详细设计与平台约束见 [Process 设计](../design/process.md)。
 
+## 类型与常量
+
+### `xprocesserror`
+
+xrt.process 域错误码稳定区分配置、平台操作和资源边界。
+
+```c
+typedef enum xprocesserror {
+	XPROCESS_ERROR_ARGUMENT = 1,
+	XPROCESS_ERROR_CONFIG,
+	XPROCESS_ERROR_COMMAND,
+	XPROCESS_ERROR_ENVIRONMENT,
+	XPROCESS_ERROR_PIPE,
+	XPROCESS_ERROR_SPAWN,
+	XPROCESS_ERROR_OPEN,
+	XPROCESS_ERROR_WAIT,
+	XPROCESS_ERROR_READ,
+	XPROCESS_ERROR_WRITE,
+	XPROCESS_ERROR_CLOSE,
+	XPROCESS_ERROR_SIGNAL,
+	XPROCESS_ERROR_CALLBACK,
+	XPROCESS_ERROR_TERMINAL,
+	XPROCESS_ERROR_THREAD,
+	XPROCESS_ERROR_LIMIT
+} xprocesserror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPROCESS_ERROR_ARGUMENT` | 参数非法 |
+| `XPROCESS_ERROR_CONFIG` | 配置非法 |
+| `XPROCESS_ERROR_COMMAND` | COMMAND |
+| `XPROCESS_ERROR_ENVIRONMENT` | ENVIRONMENT |
+| `XPROCESS_ERROR_PIPE` | PIPE |
+| `XPROCESS_ERROR_SPAWN` | SPAWN |
+| `XPROCESS_ERROR_OPEN` | OPEN |
+| `XPROCESS_ERROR_WAIT` | WAIT |
+| `XPROCESS_ERROR_READ` | 读方向 |
+| `XPROCESS_ERROR_WRITE` | 写方向 |
+| `XPROCESS_ERROR_CLOSE` | CLOSE |
+| `XPROCESS_ERROR_SIGNAL` | SIGNAL |
+| `XPROCESS_ERROR_CALLBACK` | CALLBACK |
+| `XPROCESS_ERROR_TERMINAL` | TERMINAL |
+| `XPROCESS_ERROR_THREAD` | 线程标识 |
+
+### `xprocesstarget`
+
+直接执行不经过命令解释器；Shell 模式只用于明确需要解释语法的命令。
+
+```c
+typedef enum xprocesstarget {
+	XPROCESS_EXEC = 0,
+	XPROCESS_SHELL = 1
+} xprocesstarget;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPROCESS_EXEC` | XPROCESSEXEC |
+
+### `xprocessiomode`
+
+标准流可以继承、建立父子管道、连接空设备或复制调用方原生句柄。
+
+```c
+typedef enum xprocessiomode {
+	XPROCESS_IO_INHERIT = 0,
+	XPROCESS_IO_PIPE,
+	XPROCESS_IO_NULL,
+	XPROCESS_IO_HANDLE,
+	XPROCESS_IO_MERGE
+} xprocessiomode;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPROCESS_IO_INHERIT` | INHERIT |
+| `XPROCESS_IO_PIPE` | PIPE |
+| `XPROCESS_IO_NULL` | 空值 |
+| `XPROCESS_IO_HANDLE` | HANDLE |
+
+### `xprocessstream`
+
+标准流标识同时用于读写、关闭、原生句柄和输出回调。
+
+```c
+typedef enum xprocessstream {
+	XPROCESS_STDIN = 0,
+	XPROCESS_STDOUT,
+	XPROCESS_STDERR
+} xprocessstream;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPROCESS_STDIN` | STDIN |
+| `XPROCESS_STDOUT` | 标准输出 |
+
+### `xprocessstate`
+
+成功启动后的进程只有运行与退出两种公共状态。
+
+```c
+typedef enum xprocessstate {
+	XPROCESS_RUNNING = 0,
+	XPROCESS_EXITED = 1
+} xprocessstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPROCESS_RUNNING` | XPROCESS运行中 |
+
+### `xprocessexitkind`
+
+正常退出、信号退出和平台等待失败保持互斥。
+
+```c
+typedef enum xprocessexitkind {
+	XPROCESS_EXIT_NONE = 0,
+	XPROCESS_EXIT_CODE,
+	XPROCESS_EXIT_SIGNAL,
+	XPROCESS_EXIT_LOST
+} xprocessexitkind;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPROCESS_EXIT_NONE` | 无 |
+| `XPROCESS_EXIT_CODE` | CODE |
+| `XPROCESS_EXIT_SIGNAL` | SIGNAL |
+
+### `xprocessstop`
+
+停止强度逐级增加，KILL_TREE 以创建时的进程组为边界。
+
+```c
+typedef enum xprocessstop {
+	XPROCESS_STOP_NONE = 0,
+	XPROCESS_STOP_INTERRUPT,
+	XPROCESS_STOP_TERMINATE,
+	XPROCESS_STOP_KILL,
+	XPROCESS_STOP_KILL_TREE
+} xprocessstop;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPROCESS_STOP_NONE` | 无 |
+| `XPROCESS_STOP_INTERRUPT` | INTERRUPT |
+| `XPROCESS_STOP_TERMINATE` | TERMINATE |
+| `XPROCESS_STOP_KILL` | KILL |
+
+### `xprocessio`
+
+HANDLE 模式借用原生句柄，Spawn 在返回前完成复制，不接管调用方句柄。
+
+```c
+typedef struct xprocessio {
+	xprocessiomode Mode;
+	intptr_t Handle;
+} xprocessio;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Mode` | `xprocessiomode` | Mode |
+| `Handle` | `intptr_t` | Handle |
+
+### `xprocessenv`
+
+Value 为空表示从子进程环境删除变量，非空值允许为空字符串。
+
+```c
+typedef struct xprocessenv {
+	cstr Name;
+	cstr Value;
+} xprocessenv;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `cstr` | Name |
+| `Value` | `cstr` | Value |
+
+### `xprocessstatus`
+
+退出状态由进程对象保存，成功等待后可重复读取。
+
+```c
+typedef struct xprocessstatus {
+	xprocessexitkind Kind;
+	int32 Code;
+	int32 Signal;
+	xprocessstop Stop;
+	bool CoreDumped;
+} xprocessstatus;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Kind` | `xprocessexitkind` | Kind |
+| `Code` | `int32` | Code |
+| `Signal` | `int32` | Signal |
+| `Stop` | `xprocessstop` | Stop |
+| `CoreDumped` | `bool` | CoreDumped |
+
+### `xprocessconfig`
+
+配置中的全部字符串、数组和原生句柄只借用到 Spawn 返回。 Args 不包含 argv[0]；Arg0 为空时直接使用 Program。
+
+```c
+typedef struct xprocessconfig {
+	xprocesstarget Target;
+	cstr Program;
+	cstr Arg0;
+	const cstr* Args;
+	size_t ArgCount;
+	cstr Command;
+	cstr WorkDir;
+	const xprocessenv* Env;
+	size_t EnvCount;
+	bool InheritEnv;
+	bool NewGroup;
+	bool NewConsole;
+	bool HideWindow;
+	bool Terminal;
+	uint32 Columns;
+	uint32 Rows;
+	xprocessio Stdin;
+	xprocessio Stdout;
+	xprocessio Stderr;
+} xprocessconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Target` | `xprocesstarget` | Target |
+| `Program` | `cstr` | Program |
+| `Arg0` | `cstr` | Arg0 |
+| `Args` | `const cstr*` | Args |
+| `ArgCount` | `size_t` | ArgCount |
+| `Command` | `cstr` | Command |
+| `WorkDir` | `cstr` | WorkDir |
+| `Env` | `const xprocessenv*` | Env |
+| `EnvCount` | `size_t` | EnvCount |
+| `InheritEnv` | `bool` | InheritEnv |
+| `NewGroup` | `bool` | NewGroup |
+| `NewConsole` | `bool` | NewConsole |
+| `HideWindow` | `bool` | HideWindow |
+| `Terminal` | `bool` | Terminal |
+| `Columns` | `uint32` | Columns |
+| `Rows` | `uint32` | Rows |
+| `Stdin` | `xprocessio` | Stdin |
+| `Stdout` | `xprocessio` | Stdout |
+| `Stderr` | `xprocessio` | Stderr |
+
+### `xprocessoverflow`
+
+捕获达到上限时可以失败、保留开头或保留结尾。
+
+```c
+typedef enum xprocessoverflow {
+	XPROCESS_OVERFLOW_ERROR = 0,
+	XPROCESS_OVERFLOW_KEEP_FIRST,
+	XPROCESS_OVERFLOW_KEEP_LAST
+} xprocessoverflow;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPROCESS_OVERFLOW_ERROR` | 失败 |
+| `XPROCESS_OVERFLOW_KEEP_FIRST` | KEEPFIRST |
+
+### `xprocessrunoptions`
+
+Run 选项把等待控制、输入、捕获边界和流式观察集中在一个稳定结构中。 Deadline 为 NEVER 时不超时；Cancel 只借用到 Run 返回。
+
+```c
+typedef struct xprocessrunoptions {
+	xbytesview Input;
+	xdeadline Deadline;
+	xcancel* Cancel;
+	uint64 StopGrace;
+	size_t StdoutLimit;
+	size_t StderrLimit;
+	xprocessoverflow Overflow;
+	xprocessoutputproc Output;
+	ptr UserData;
+} xprocessrunoptions;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Input` | `xbytesview` | Input |
+| `Deadline` | `xdeadline` | Deadline |
+| `Cancel` | `xcancel*` | Cancel |
+| `StopGrace` | `uint64` | StopGrace |
+| `StdoutLimit` | `size_t` | StdoutLimit |
+| `StderrLimit` | `size_t` | StderrLimit |
+| `Overflow` | `xprocessoverflow` | Overflow |
+| `Output` | `xprocessoutputproc` | Output |
+| `UserData` | `ptr` | UserData |
+
+### `xprocessresult`
+
+Run 结果拥有两个动态输出；基础设施成功不等价于子进程退出码为零。
+
+```c
+typedef struct xprocessresult {
+	xprocessstatus Status;
+	xwaitresult Wait;
+	size_t InputWritten;
+	bytes Stdout;
+	size_t StdoutSize;
+	bytes Stderr;
+	size_t StderrSize;
+	bool StdoutTruncated;
+	bool StderrTruncated;
+	uint64 Duration;
+} xprocessresult;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Status` | `xprocessstatus` | Status |
+| `Wait` | `xwaitresult` | Wait |
+| `InputWritten` | `size_t` | InputWritten |
+| `Stdout` | `bytes` | Stdout |
+| `StdoutSize` | `size_t` | StdoutSize |
+| `Stderr` | `bytes` | Stderr |
+| `StderrSize` | `size_t` | StderrSize |
+| `StdoutTruncated` | `bool` | StdoutTruncated |
+| `StderrTruncated` | `bool` | StderrTruncated |
+| `Duration` | `uint64` | Duration |
+
+### `xprocesspipelineoptions`
+
+Pipeline 选项独立表达首段输入、共享等待控制和逐流捕获边界。
+
+```c
+typedef struct xprocesspipelineoptions {
+	xbytesview Input;
+	xdeadline Deadline;
+	xcancel* Cancel;
+	uint64 StopGrace;
+	size_t StdoutLimit;
+	size_t StderrLimit;
+	xprocessoverflow Overflow;
+	xprocesspipelineoutputproc Output;
+	ptr UserData;
+} xprocesspipelineoptions;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Input` | `xbytesview` | Input |
+| `Deadline` | `xdeadline` | Deadline |
+| `Cancel` | `xcancel*` | Cancel |
+| `StopGrace` | `uint64` | StopGrace |
+| `StdoutLimit` | `size_t` | StdoutLimit |
+| `StderrLimit` | `size_t` | StderrLimit |
+| `Overflow` | `xprocessoverflow` | Overflow |
+| `Output` | `xprocesspipelineoutputproc` | Output |
+| `UserData` | `ptr` | UserData |
+
+### `xprocessstageresult`
+
+每段结果独立拥有 stderr，避免跨阶段拼接后丢失错误归属。
+
+```c
+typedef struct xprocessstageresult {
+	xprocessstatus Status;
+	bytes Stderr;
+	size_t StderrSize;
+	bool StderrTruncated;
+} xprocessstageresult;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Status` | `xprocessstatus` | Status |
+| `Stderr` | `bytes` | Stderr |
+| `StderrSize` | `size_t` | StderrSize |
+| `StderrTruncated` | `bool` | StderrTruncated |
+
+### `xprocesspipelineresult`
+
+Pipeline 结果拥有全部阶段结果与末段 stdout。
+
+```c
+typedef struct xprocesspipelineresult {
+	xprocessstageresult* Stages;
+	size_t StageCount;
+	size_t InputWritten;
+	bytes Stdout;
+	size_t StdoutSize;
+	bool StdoutTruncated;
+	xwaitresult Wait;
+	uint64 Duration;
+} xprocesspipelineresult;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Stages` | `xprocessstageresult*` | Stages |
+| `StageCount` | `size_t` | StageCount |
+| `InputWritten` | `size_t` | InputWritten |
+| `Stdout` | `bytes` | Stdout |
+| `StdoutSize` | `size_t` | StdoutSize |
+| `StdoutTruncated` | `bool` | StdoutTruncated |
+| `Wait` | `xwaitresult` | Wait |
+| `Duration` | `uint64` | Duration |
+
+### `xprocess`
+
+进程对象使用引用计数；内部等待引用保证提前释放调用方引用仍可安全回收。
+
+```c
+typedef struct xprocess xprocess;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xprocessoutputproc`
+
+输出回调借用当前读取块；stdout 与 stderr 回调可能并发执行。
+
+```c
+typedef bool (*xprocessoutputproc)(
+	xprocessstream Stream,
+	xbytesview Data,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xprocesspipelineoutputproc`
+
+Pipeline 流式回调携带阶段索引；不同阶段与流可能并发调用。
+
+```c
+typedef bool (*xprocesspipelineoutputproc)(
+	size_t iStage,
+	xprocessstream Stream,
+	xbytesview Data,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 快速开始
 
 ```c

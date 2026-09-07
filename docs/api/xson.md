@@ -8,6 +8,387 @@ XSON；XSON 只通过显式语法补充 bytes、time、int-map、set、非有限
 自定义标签名称不设置固定字节上限；读取时由 `MaxInputBytes` 约束，写出时由
 `MaxOutputBytes` 约束。标签视图由 parser 或调用方借用，长名称不会产生等长临时分配。
 
+## 类型与常量
+
+### `xxsonerror`
+
+XSON 模块错误码在 xrt.xson 域内保持稳定。
+
+```c
+typedef enum xxsonerror {
+	XXSON_ERROR_CONFIG = 1401,
+	XXSON_ERROR_SYNTAX,
+	XXSON_ERROR_LIMIT,
+	XXSON_ERROR_DUPLICATE,
+	XXSON_ERROR_NUMBER,
+	XXSON_ERROR_TAG,
+	XXSON_ERROR_STATE,
+	XXSON_ERROR_UNSUPPORTED,
+	XXSON_ERROR_OUTPUT,
+	XXSON_ERROR_IO
+} xxsonerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_ERROR_CONFIG` | 配置非法 |
+| `XXSON_ERROR_SYNTAX` | SYNTAX |
+| `XXSON_ERROR_LIMIT` | 超限 |
+| `XXSON_ERROR_DUPLICATE` | DUPLICATE |
+| `XXSON_ERROR_NUMBER` | NUMBER |
+| `XXSON_ERROR_TAG` | TAG |
+| `XXSON_ERROR_STATE` | 状态非法 |
+| `XXSON_ERROR_UNSUPPORTED` | 不支持 |
+| `XXSON_ERROR_OUTPUT` | 输出失败 |
+
+### `xxsonlocation`
+
+文本位置使用零基字节偏移和一基行列。
+
+```c
+typedef struct xxsonlocation {
+	size_t Offset;
+	size_t Line;
+	size_t Column;
+} xxsonlocation;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Line` | `size_t` | Line |
+| `Column` | `size_t` | Column |
+
+### `xxsonreadflag`
+
+非标准空白扩展和自定义标签默认全部关闭。
+
+```c
+typedef enum xxsonreadflag {
+	XXSON_READ_COMMENTS = UINT32_C(0x00000001),
+	XXSON_READ_TRAILING_COMMA = UINT32_C(0x00000002),
+	XXSON_READ_CUSTOM = UINT32_C(0x00000004)
+} xxsonreadflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_READ_COMMENTS` | COMMENTS |
+| `XXSON_READ_TRAILING_COMMA` | TRAILINGCOMMA |
+
+### `xxsonduplicate`
+
+对象和整数映射使用同一套明确的重复键策略。
+
+```c
+typedef enum xxsonduplicate {
+	XXSON_DUPLICATE_REJECT = 0,
+	XXSON_DUPLICATE_KEEP,
+	XXSON_DUPLICATE_REPLACE
+} xxsonduplicate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_DUPLICATE_REJECT` | REJECT |
+| `XXSON_DUPLICATE_KEEP` | KEEP |
+
+### `xxsonbigint`
+
+超出 int64/uint64 的整数默认失败，可显式按 double 接收。
+
+```c
+typedef enum xxsonbigint {
+	XXSON_BIGINT_REJECT = 0,
+	XXSON_BIGINT_FLOAT
+} xxsonbigint;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_BIGINT_REJECT` | XXSONBIGINTREJECT |
+
+### `xxsonreadconfig`
+
+XSON 读取配置同时约束语法、资源预算和自定义类型入口。
+
+```c
+typedef struct xxsonreadconfig {
+	uint32 Flags;
+	xxsonduplicate Duplicate;
+	xxsonbigint BigInteger;
+	uint32 MaxDepth;
+	size_t MaxInputBytes;
+	size_t MaxStringBytes;
+	size_t MaxValues;
+	size_t MaxContainerItems;
+	size_t MaxDecodedBytes;
+	xxsondecodeproc Decode;
+	ptr DecodeData;
+	uint32 Reserved[4];
+} xxsonreadconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Duplicate` | `xxsonduplicate` | Duplicate |
+| `BigInteger` | `xxsonbigint` | BigInteger |
+| `MaxDepth` | `uint32` | MaxDepth |
+| `MaxInputBytes` | `size_t` | MaxInputBytes |
+| `MaxStringBytes` | `size_t` | MaxStringBytes |
+| `MaxValues` | `size_t` | MaxValues |
+| `MaxContainerItems` | `size_t` | MaxContainerItems |
+| `MaxDecodedBytes` | `size_t` | MaxDecodedBytes |
+| `Decode` | `xxsondecodeproc` | Decode |
+| `DecodeData` | `ptr` | DecodeData |
+
+### `xxsoneventtype`
+
+访问事件直接表达全部可移植 XSON 类型。
+
+```c
+typedef enum xxsoneventtype {
+	XXSON_EVENT_NULL = 0,
+	XXSON_EVENT_BOOL,
+	XXSON_EVENT_INT,
+	XXSON_EVENT_FLOAT,
+	XXSON_EVENT_STRING,
+	XXSON_EVENT_BYTES,
+	XXSON_EVENT_TIME,
+	XXSON_EVENT_CUSTOM,
+	XXSON_EVENT_ARRAY_BEGIN,
+	XXSON_EVENT_ARRAY_END,
+	XXSON_EVENT_INT_MAP_BEGIN,
+	XXSON_EVENT_INT_MAP_END,
+	XXSON_EVENT_SET_BEGIN,
+	XXSON_EVENT_SET_END,
+	XXSON_EVENT_OBJECT_BEGIN,
+	XXSON_EVENT_OBJECT_END,
+	XXSON_EVENT_UINT
+} xxsoneventtype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_EVENT_NULL` | 空值 |
+| `XXSON_EVENT_BOOL` | 布尔 |
+| `XXSON_EVENT_INT` | 有符号整数 |
+| `XXSON_EVENT_FLOAT` | 浮点 |
+| `XXSON_EVENT_STRING` | 字符串 |
+| `XXSON_EVENT_BYTES` | BYTES |
+| `XXSON_EVENT_TIME` | 时间 |
+| `XXSON_EVENT_CUSTOM` | CUSTOM |
+| `XXSON_EVENT_ARRAY_BEGIN` | 数组形态BEGIN |
+| `XXSON_EVENT_ARRAY_END` | 数组形态END |
+| `XXSON_EVENT_INT_MAP_BEGIN` | 有符号整数映射形态BEGIN |
+| `XXSON_EVENT_INT_MAP_END` | 有符号整数映射形态END |
+| `XXSON_EVENT_SET_BEGIN` | 集合形态BEGIN |
+| `XXSON_EVENT_SET_END` | 集合形态END |
+| `XXSON_EVENT_OBJECT_BEGIN` | 对象形态BEGIN |
+| `XXSON_EVENT_OBJECT_END` | 对象形态END |
+
+### `xxsonvisitaction`
+
+回调可继续、正常提前停止或报告失败。
+
+```c
+typedef enum xxsonvisitaction {
+	XXSON_VISIT_NEXT = 0,
+	XXSON_VISIT_STOP,
+	XXSON_VISIT_FAIL
+} xxsonvisitaction;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_VISIT_NEXT` | NEXT |
+| `XXSON_VISIT_STOP` | STOP |
+
+### `xxsonvisitresult`
+
+访问结果明确区分完成、调用方停止和失败。
+
+```c
+typedef enum xxsonvisitresult {
+	XXSON_VISIT_ERROR = -1,
+	XXSON_VISIT_DONE = 0,
+	XXSON_VISIT_STOPPED = 1
+} xxsonvisitresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_VISIT_ERROR` | 失败 |
+| `XXSON_VISIT_DONE` | 完成 |
+
+### `xxsontag`
+
+自定义标签保留名称和已经完成 JSON 反转义的字符串载荷。
+
+```c
+typedef struct xxsontag {
+	xstrview Name;
+	xstrview Payload;
+} xxsontag;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Payload` | `xstrview` | Payload |
+
+### `xxsonwriteflag`
+
+输出标志只改变文本布局和字符串转义。
+
+```c
+typedef enum xxsonwriteflag {
+	XXSON_WRITE_PRETTY = UINT32_C(0x00000001),
+	XXSON_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
+	XXSON_WRITE_ESCAPE_HTML = UINT32_C(0x00000004),
+	XXSON_WRITE_ESCAPE_NON_ASCII = UINT32_C(0x00000008)
+} xxsonwriteflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_WRITE_PRETTY` | PRETTY |
+| `XXSON_WRITE_ESCAPE_SLASH` | ESCAPESLASH |
+| `XXSON_WRITE_ESCAPE_HTML` | ESCAPEHTML |
+
+### `xxsonunsupported`
+
+不可直接表示的值默认失败，也可显式跳过容器成员。
+
+```c
+typedef enum xxsonunsupported {
+	XXSON_UNSUPPORTED_REJECT = 0,
+	XXSON_UNSUPPORTED_SKIP
+} xxsonunsupported;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_UNSUPPORTED_REJECT` | XXSON不支持REJECT |
+
+### `xxsoncoderesult`
+
+自定义编码回调明确区分不处理、成功和失败。
+
+```c
+typedef enum xxsoncoderesult {
+	XXSON_CODE_ERROR = -1,
+	XXSON_CODE_UNSUPPORTED = 0,
+	XXSON_CODE_OK = 1
+} xxsoncoderesult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XXSON_CODE_ERROR` | 失败 |
+| `XXSON_CODE_UNSUPPORTED` | 不支持 |
+
+### `xxsonwriteconfig`
+
+XSON 写出配置提供固定上限和唯一自定义类型入口。
+
+```c
+typedef struct xxsonwriteconfig {
+	uint32 Flags;
+	xxsonunsupported Unsupported;
+	uint32 MaxDepth;
+	uint32 Indent;
+	size_t MaxOutputBytes;
+	xxsonencodeproc Encode;
+	ptr EncodeData;
+	uint32 Reserved[4];
+} xxsonwriteconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Unsupported` | `xxsonunsupported` | Unsupported |
+| `MaxDepth` | `uint32` | MaxDepth |
+| `Indent` | `uint32` | Indent |
+| `MaxOutputBytes` | `size_t` | MaxOutputBytes |
+| `Encode` | `xxsonencodeproc` | Encode |
+| `EncodeData` | `ptr` | EncodeData |
+
+### `xxsonwriter`
+
+增量写入器保持不透明，所有方法都拒绝回调重入。
+
+```c
+typedef struct xxsonwriter xxsonwriter;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xxsondecodeproc`
+
+自定义标签解码器返回一个拥有引用；失败时应设置具体错误。
+
+```c
+typedef xvalue* (*xxsondecodeproc)(
+	xstrview Tag,
+	xstrview Payload,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xxsonvisitproc`
+
+XSON 访问器不得保存事件中的借用视图。
+
+```c
+typedef xxsonvisitaction (*xxsonvisitproc)(
+	const xxsonevent* pEvent,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xxsonencodeproc`
+
+编码器接收仅在回调期间有效的只读快照；返回视图保持到本次调用返回。
+
+```c
+typedef xxsoncoderesult (*xxsonencodeproc)(
+	const xvalue* pValue,
+	xstrview* pTag,
+	xstrview* pPayload,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xxsonwriteproc`
+
+输出回调必须在返回前消费借用字节。
+
+```c
+typedef bool (*xxsonwriteproc)(xbytesview Data, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XXSON_DEPTH_DEFAULT` | `256u` | DEPTH默认值 |
+| `XXSON_INPUT_DEFAULT` | `(64u * 1024u * 1024u)` | 输入默认值 |
+| `XXSON_STRING_DEFAULT` | `(16u * 1024u * 1024u)` | 字符串默认值 |
+| `XXSON_VALUES_DEFAULT` | `1000000u` | VALUES默认值 |
+| `XXSON_CONTAINER_DEFAULT` | `1000000u` | CONTAINER默认值 |
+| `XXSON_DECODED_DEFAULT` | `(64u * 1024u * 1024u)` | DECODED默认值 |
+
 ## 裁剪与依赖
 
 | 能力 | 公开选择宏 | 实现宏 | 主要依赖 |

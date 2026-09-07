@@ -1,5 +1,677 @@
 # File API
 
+## 类型与常量
+
+### `xrooterror`
+
+目录根模块稳定错误代码。
+
+```c
+typedef enum xrooterror {
+	XROOT_ERROR_OPEN = 1,
+	XROOT_ERROR_CLOSE,
+	XROOT_ERROR_RESOLVE,
+	XROOT_ERROR_ESCAPE,
+	XROOT_ERROR_LIMIT,
+	XROOT_ERROR_FILE,
+	XROOT_ERROR_STAT,
+	XROOT_ERROR_CREATE,
+	XROOT_ERROR_REMOVE,
+	XROOT_ERROR_LINK
+} xrooterror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XROOT_ERROR_OPEN` | OPEN |
+| `XROOT_ERROR_CLOSE` | CLOSE |
+| `XROOT_ERROR_RESOLVE` | RESOLVE |
+| `XROOT_ERROR_ESCAPE` | ESCAPE |
+| `XROOT_ERROR_LIMIT` | 超限 |
+| `XROOT_ERROR_FILE` | FILE |
+| `XROOT_ERROR_STAT` | STAT |
+| `XROOT_ERROR_CREATE` | 创建 |
+| `XROOT_ERROR_REMOVE` | REMOVE |
+
+### `xfileflag`
+
+打开标志允许组合；至少指定 READ 或 WRITE。
+
+```c
+typedef enum xfileflag {
+	XFILE_READ = 0x0001,
+	XFILE_WRITE = 0x0002,
+	XFILE_CREATE = 0x0004,
+	XFILE_TRUNCATE = 0x0008,
+	XFILE_APPEND = 0x0010,
+	XFILE_EXCLUSIVE = 0x0020,
+	XFILE_NOFOLLOW = 0x0040,
+	XFILE_SYNC = 0x0080,
+	/* 为完成式异步 I/O 打开；普通 Read/Write API 不接受该对象。 */
+	XFILE_ASYNC = 0x0100
+} xfileflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFILE_READ` | 读方向 |
+| `XFILE_WRITE` | 写方向 |
+| `XFILE_CREATE` | 创建 |
+| `XFILE_TRUNCATE` | TRUNCATE |
+| `XFILE_APPEND` | 追加 |
+| `XFILE_EXCLUSIVE` | EXCLUSIVE |
+| `XFILE_NOFOLLOW` | NOFOLLOW |
+| `XFILE_SYNC` | SYNC |
+
+### `xfileshare`
+
+Windows 共享策略；POSIX 接受这些字段但没有对应打开限制。
+
+```c
+typedef enum xfileshare {
+	XFILE_SHARE_READ = 0x01,
+	XFILE_SHARE_WRITE = 0x02,
+	XFILE_SHARE_DELETE = 0x04,
+	XFILE_SHARE_ALL = 0x07
+} xfileshare;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFILE_SHARE_READ` | 读方向 |
+| `XFILE_SHARE_WRITE` | 写方向 |
+| `XFILE_SHARE_DELETE` | DELETE |
+
+### `xfileoptions`
+
+高级打开选项；Mode 只使用 POSIX 权限低 12 位。
+
+```c
+typedef struct xfileoptions {
+	uint32 Flags;
+	uint32 Mode;
+	uint32 Share;
+} xfileoptions;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Mode` | `uint32` | Mode |
+| `Share` | `uint32` | Share |
+
+### `xfiletype`
+
+跨平台稳定的文件对象类别。
+
+```c
+typedef enum xfiletype {
+	XFILE_TYPE_NONE = 0,
+	XFILE_TYPE_FILE,
+	XFILE_TYPE_DIRECTORY,
+	XFILE_TYPE_LINK,
+	XFILE_TYPE_FIFO,
+	XFILE_TYPE_SOCKET,
+	XFILE_TYPE_DEVICE,
+	XFILE_TYPE_OTHER
+} xfiletype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFILE_TYPE_NONE` | 无 |
+| `XFILE_TYPE_FILE` | FILE |
+| `XFILE_TYPE_DIRECTORY` | DIRECTORY |
+| `XFILE_TYPE_LINK` | LINK |
+| `XFILE_TYPE_FIFO` | FIFO |
+| `XFILE_TYPE_SOCKET` | SOCKET |
+| `XFILE_TYPE_DEVICE` | DEVICE |
+
+### `xfileinfoflag`
+
+元数据可用位避免用零伪装平台不提供的时间或身份。
+
+```c
+typedef enum xfileinfoflag {
+	XFILE_INFO_SIZE = 0x0001,
+	XFILE_INFO_MODE = 0x0002,
+	XFILE_INFO_ACCESS_TIME = 0x0004,
+	XFILE_INFO_MODIFY_TIME = 0x0008,
+	XFILE_INFO_CREATE_TIME = 0x0010,
+	XFILE_INFO_CHANGE_TIME = 0x0020,
+	XFILE_INFO_IDENTITY = 0x0040,
+	XFILE_INFO_LINK_COUNT = 0x0080
+} xfileinfoflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFILE_INFO_SIZE` | 尺寸 |
+| `XFILE_INFO_MODE` | MODE |
+| `XFILE_INFO_ACCESS_TIME` | ACCESS时间 |
+| `XFILE_INFO_MODIFY_TIME` | MODIFY时间 |
+| `XFILE_INFO_CREATE_TIME` | 创建时间 |
+| `XFILE_INFO_CHANGE_TIME` | CHANGE时间 |
+| `XFILE_INFO_IDENTITY` | IDENTITY |
+
+### `xfileinfo`
+
+文件元数据时间统一使用 Unix Epoch 微秒。
+
+```c
+typedef struct xfileinfo {
+	xfiletype Type;
+	uint32 Available;
+	uint32 Mode;
+	uint32 Attributes;
+	uint64 Size;
+	uint64 Device;
+	uint64 Identity;
+	uint64 LinkCount;
+	xtime Accessed;
+	xtime Modified;
+	xtime Created;
+	xtime Changed;
+} xfileinfo;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xfiletype` | Type |
+| `Available` | `uint32` | Available |
+| `Mode` | `uint32` | Mode |
+| `Attributes` | `uint32` | Attributes |
+| `Size` | `uint64` | Size |
+| `Device` | `uint64` | Device |
+| `Identity` | `uint64` | Identity |
+| `LinkCount` | `uint64` | LinkCount |
+| `Accessed` | `xtime` | Accessed |
+| `Modified` | `xtime` | Modified |
+| `Created` | `xtime` | Created |
+| `Changed` | `xtime` | Changed |
+
+### `xfileerror`
+
+文件模块稳定错误代码。
+
+```c
+typedef enum xfileerror {
+	XFILE_ERROR_OPEN = 1,
+	XFILE_ERROR_READ,
+	XFILE_ERROR_WRITE,
+	XFILE_ERROR_SEEK,
+	XFILE_ERROR_STAT,
+	XFILE_ERROR_RESIZE,
+	XFILE_ERROR_SYNC,
+	XFILE_ERROR_CLOSE,
+	XFILE_ERROR_EOF,
+	XFILE_ERROR_COPY,
+	XFILE_ERROR_MOVE,
+	XFILE_ERROR_DELETE,
+	XFILE_ERROR_TEMP,
+	XFILE_ERROR_METADATA,
+	XFILE_ERROR_TOUCH,
+	XFILE_ERROR_TEXT,
+	XFILE_ERROR_LIMIT,
+	XFILE_ERROR_LOCK,
+	XFILE_ERROR_MAP
+} xfileerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFILE_ERROR_OPEN` | OPEN |
+| `XFILE_ERROR_READ` | 读方向 |
+| `XFILE_ERROR_WRITE` | 写方向 |
+| `XFILE_ERROR_SEEK` | SEEK |
+| `XFILE_ERROR_STAT` | STAT |
+| `XFILE_ERROR_RESIZE` | RESIZE |
+| `XFILE_ERROR_SYNC` | SYNC |
+| `XFILE_ERROR_CLOSE` | CLOSE |
+| `XFILE_ERROR_EOF` | EOF |
+| `XFILE_ERROR_COPY` | COPY |
+| `XFILE_ERROR_MOVE` | MOVE |
+| `XFILE_ERROR_DELETE` | DELETE |
+| `XFILE_ERROR_TEMP` | TEMP |
+| `XFILE_ERROR_METADATA` | METADATA |
+| `XFILE_ERROR_TOUCH` | TOUCH |
+| `XFILE_ERROR_TEXT` | 文本 |
+| `XFILE_ERROR_LIMIT` | 超限 |
+| `XFILE_ERROR_LOCK` | LOCK |
+
+### `xfilelock`
+
+文件锁支持共享读和排他写两种跨进程模式。
+
+```c
+typedef enum xfilelock {
+	XFILE_LOCK_SHARED = 1,
+	XFILE_LOCK_EXCLUSIVE
+} xfilelock;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFILE_LOCK_SHARED` | XFILELOCKSHARED |
+
+### `xfilemapflag`
+
+映射始终可读，可选择共享写或私有写，两种写模式不能同时启用。
+
+```c
+typedef enum xfilemapflag {
+	XFILE_MAP_READ = 0x01,
+	XFILE_MAP_WRITE = 0x02,
+	XFILE_MAP_COPY = 0x04
+} xfilemapflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFILE_MAP_READ` | 读方向 |
+| `XFILE_MAP_WRITE` | 写方向 |
+
+### `xdirflag`
+
+完整元数据可能增加每个条目一次系统查询，默认只返回枚举器已有信息。
+
+```c
+typedef enum xdirflag {
+	XDIR_STAT = 0x01,
+	XDIR_FOLLOW_LINKS = 0x02,
+	XDIR_INCLUDE_DOTS = 0x04
+} xdirflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XDIR_STAT` | STAT |
+| `XDIR_FOLLOW_LINKS` | FOLLOWLINKS |
+
+### `xdirnext`
+
+目录迭代结果明确区分条目、正常结束和失败。
+
+```c
+typedef enum xdirnext {
+	XDIR_NEXT_ERROR = -1,
+	XDIR_NEXT_END = 0,
+	XDIR_NEXT_ITEM = 1
+} xdirnext;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XDIR_NEXT_ERROR` | 失败 |
+| `XDIR_NEXT_END` | END |
+
+### `xdirentryflag`
+
+POSIX 文件名允许原始字节；该标志表示名称已经通过严格 UTF-8 检查。
+
+```c
+typedef enum xdirentryflag {
+	XDIR_ENTRY_UTF8 = 0x01
+} xdirentryflag;
+```
+
+| 值 | 语义 |
+|---|---|
+
+### `xdirentry`
+
+名称和元数据借用到下一次迭代或关闭；Name 始终额外带零结尾。
+
+```c
+typedef struct xdirentry {
+	xstrview Name;
+	xfileinfo Info;
+	uint32 Flags;
+} xdirentry;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Info` | `xfileinfo` | Info |
+| `Flags` | `uint32` | Flags |
+
+### `xdirroots`
+
+系统根目录列表拥有每个字符串以及指针数组。
+
+```c
+typedef struct xdirroots {
+	str* Items;
+	size_t Count;
+} xdirroots;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Items` | `str*` | Items |
+| `Count` | `size_t` | Count |
+
+### `xdirerror`
+
+目录模块稳定错误代码。
+
+```c
+typedef enum xdirerror {
+	XDIR_ERROR_OPEN = 1,
+	XDIR_ERROR_NEXT,
+	XDIR_ERROR_CLOSE,
+	XDIR_ERROR_CREATE,
+	XDIR_ERROR_REMOVE,
+	XDIR_ERROR_ROOTS,
+	XDIR_ERROR_ENTRY,
+	XDIR_ERROR_TEMP
+} xdirerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XDIR_ERROR_OPEN` | OPEN |
+| `XDIR_ERROR_NEXT` | NEXT |
+| `XDIR_ERROR_CLOSE` | CLOSE |
+| `XDIR_ERROR_CREATE` | 创建 |
+| `XDIR_ERROR_REMOVE` | REMOVE |
+| `XDIR_ERROR_ROOTS` | ROOTS |
+| `XDIR_ERROR_ENTRY` | ENTRY |
+
+### `xtreecopyflag`
+
+目录树复制默认要求目标不存在并保留符号链接。
+
+```c
+typedef enum xtreecopyflag {
+	XTREE_COPY_MERGE = 0x01,
+	XTREE_COPY_REPLACE = 0x02,
+	XTREE_COPY_FOLLOW_LINKS = 0x04,
+	XTREE_COPY_SKIP_LINKS = 0x08,
+	XTREE_COPY_ONE_FILESYSTEM = 0x10,
+	XTREE_COPY_SKIP_SPECIAL = 0x20,
+	XTREE_COPY_METADATA = 0x40
+} xtreecopyflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTREE_COPY_MERGE` | MERGE |
+| `XTREE_COPY_REPLACE` | REPLACE |
+| `XTREE_COPY_FOLLOW_LINKS` | FOLLOWLINKS |
+| `XTREE_COPY_SKIP_LINKS` | 跳过LINKS |
+| `XTREE_COPY_ONE_FILESYSTEM` | ONEFILESYSTEM |
+| `XTREE_COPY_SKIP_SPECIAL` | 跳过SPECIAL |
+
+### `xtreecopyoptions`
+
+高级目录树复制选项。
+
+```c
+typedef struct xtreecopyoptions {
+	uint32 Flags;
+} xtreecopyoptions;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+
+### `xtreeerror`
+
+目录树模块稳定错误代码。
+
+```c
+typedef enum xtreeerror {
+	XTREE_ERROR_OPTIONS = 1,
+	XTREE_ERROR_SOURCE,
+	XTREE_ERROR_TARGET,
+	XTREE_ERROR_DESCENDANT,
+	XTREE_ERROR_LINK_CYCLE,
+	XTREE_ERROR_SPECIAL,
+	XTREE_ERROR_ROOT
+} xtreeerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTREE_ERROR_OPTIONS` | OPTIONS |
+| `XTREE_ERROR_SOURCE` | 源码位置 |
+| `XTREE_ERROR_TARGET` | TARGET |
+| `XTREE_ERROR_DESCENDANT` | DESCENDANT |
+| `XTREE_ERROR_LINK_CYCLE` | LINKCYCLE |
+| `XTREE_ERROR_SPECIAL` | SPECIAL |
+
+### `xlinkerror`
+
+链接模块稳定错误代码。
+
+```c
+typedef enum xlinkerror {
+	XLINK_ERROR_CREATE = 1,
+	XLINK_ERROR_READ,
+	XLINK_ERROR_DELETE,
+	XLINK_ERROR_FORMAT
+} xlinkerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XLINK_ERROR_CREATE` | 创建 |
+| `XLINK_ERROR_READ` | 读方向 |
+| `XLINK_ERROR_DELETE` | DELETE |
+
+### `xfifoerror`
+
+FIFO 模块稳定错误代码。
+
+```c
+typedef enum xfifoerror {
+	XFIFO_ERROR_CREATE = 1
+} xfifoerror;
+```
+
+| 值 | 语义 |
+|---|---|
+
+### `xwalkflag`
+
+遍历默认不跟随链接，可选择限制在根文件系统内。
+
+```c
+typedef enum xwalkflag {
+	XWALK_FOLLOW_LINKS = 0x01,
+	XWALK_ONE_FILESYSTEM = 0x02
+} xwalkflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWALK_FOLLOW_LINKS` | XWALKFOLLOWLINKS |
+
+### `xwalkevent`
+
+每个目录产生进入和离开事件，其他对象产生条目事件。
+
+```c
+typedef enum xwalkevent {
+	XWALK_ENTER = 1,
+	XWALK_ITEM,
+	XWALK_LEAVE
+} xwalkevent;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWALK_ENTER` | ENTER |
+| `XWALK_ITEM` | ITEM |
+
+### `xwalkentryflag`
+
+条目标志保留物理链接身份以及不能继续下降的原因。
+
+```c
+typedef enum xwalkentryflag {
+	XWALK_ENTRY_UTF8 = 0x01,
+	XWALK_ENTRY_LINK = 0x02,
+	XWALK_ENTRY_CYCLE = 0x04,
+	XWALK_ENTRY_CROSS_FILESYSTEM = 0x08
+} xwalkentryflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWALK_ENTRY_UTF8` | UTF-8 |
+| `XWALK_ENTRY_LINK` | LINK |
+| `XWALK_ENTRY_CYCLE` | CYCLE |
+
+### `xwalkcontrol`
+
+回调可继续、跳过当前目录、成功停止或报告失败。
+
+```c
+typedef enum xwalkcontrol {
+	XWALK_CONTINUE = 0,
+	XWALK_SKIP,
+	XWALK_STOP,
+	XWALK_ERROR
+} xwalkcontrol;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWALK_CONTINUE` | CONTINUE |
+| `XWALK_SKIP` | 跳过 |
+| `XWALK_STOP` | STOP |
+
+### `xwalkerroraction`
+
+遍历系统错误可终止、跳过当前路径，或成功停止。
+
+```c
+typedef enum xwalkerroraction {
+	XWALK_ERROR_ABORT = 0,
+	XWALK_ERROR_SKIP,
+	XWALK_ERROR_STOP
+} xwalkerroraction;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWALK_ERROR_ABORT` | ABORT |
+| `XWALK_ERROR_SKIP` | 跳过 |
+
+### `xwalkoptions`
+
+遍历选项为空时等价于不跟随链接且深度无限。
+
+```c
+typedef struct xwalkoptions {
+	uint32 Flags;
+	size_t MaxDepth;
+	xwalkerrorproc OnError;
+} xwalkoptions;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `MaxDepth` | `size_t` | MaxDepth |
+| `OnError` | `xwalkerrorproc` | OnError |
+
+### `xwalkentry`
+
+Path、Parent 和 Name 只在回调期间借用，Info 在跟随链接时描述目标。
+
+```c
+typedef struct xwalkentry {
+	cstr Path;
+	xstrview Parent;
+	xstrview Name;
+	xfileinfo Info;
+	xwalkevent Event;
+	uint32 Flags;
+	size_t Depth;
+} xwalkentry;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Path` | `cstr` | Path |
+| `Parent` | `xstrview` | Parent |
+| `Name` | `xstrview` | Name |
+| `Info` | `xfileinfo` | Info |
+| `Event` | `xwalkevent` | Event |
+| `Flags` | `uint32` | Flags |
+| `Depth` | `size_t` | Depth |
+
+### `xwalkstats`
+
+遍历统计按对象计数，目录只在进入时计一次。
+
+```c
+typedef struct xwalkstats {
+	uint64 Items;
+	uint64 Files;
+	uint64 Directories;
+	uint64 Links;
+	uint64 Others;
+	uint64 Bytes;
+	bool Stopped;
+} xwalkstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Items` | `uint64` | Items |
+| `Files` | `uint64` | Files |
+| `Directories` | `uint64` | Directories |
+| `Links` | `uint64` | Links |
+| `Others` | `uint64` | Others |
+| `Bytes` | `uint64` | Bytes |
+| `Stopped` | `bool` | Stopped |
+
+### `xwalkerror`
+
+遍历模块稳定错误代码。
+
+```c
+typedef enum xwalkerror {
+	XWALK_ERROR_OPTIONS = 1,
+	XWALK_ERROR_CALLBACK,
+	XWALK_ERROR_IDENTITY,
+	XWALK_ERROR_OVERFLOW
+} xwalkerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XWALK_ERROR_OPTIONS` | OPTIONS |
+| `XWALK_ERROR_CALLBACK` | CALLBACK |
+| `XWALK_ERROR_IDENTITY` | IDENTITY |
+
+### `xwalkerrorproc`
+
+错误和路径只在回调期间借用；用户数据与条目回调共用。
+
+```c
+typedef xwalkerroraction (*xwalkerrorproc)(cstr sPath,
+	const xerror* pError, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xwalkproc`
+
+遍历回调不拥有条目，返回错误时应先设置结构化错误。
+
+```c
+typedef xwalkcontrol (*xwalkproc)(const xwalkentry* pEntry, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 设计契约
 
 文件体系按使用层次拆成十三个可裁剪功能组。每一层只复用下层原语，不维护第二套文件实现：

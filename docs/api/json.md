@@ -1,5 +1,318 @@
 # JSON
 
+## 类型与常量
+
+### `xjsonerror`
+
+JSON 模块错误码在 xrt.json 域内保持稳定。
+
+```c
+typedef enum xjsonerror {
+	XJSON_ERROR_CONFIG = 1301,
+	XJSON_ERROR_SYNTAX,
+	XJSON_ERROR_LIMIT,
+	XJSON_ERROR_DUPLICATE,
+	XJSON_ERROR_NUMBER,
+	XJSON_ERROR_STATE,
+	XJSON_ERROR_UNSUPPORTED,
+	XJSON_ERROR_OUTPUT,
+	XJSON_ERROR_IO
+} xjsonerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_ERROR_CONFIG` | 配置非法 |
+| `XJSON_ERROR_SYNTAX` | SYNTAX |
+| `XJSON_ERROR_LIMIT` | 超限 |
+| `XJSON_ERROR_DUPLICATE` | DUPLICATE |
+| `XJSON_ERROR_NUMBER` | NUMBER |
+| `XJSON_ERROR_STATE` | 状态非法 |
+| `XJSON_ERROR_UNSUPPORTED` | 不支持 |
+| `XJSON_ERROR_OUTPUT` | 输出失败 |
+
+### `xjsonlocation`
+
+文本位置使用零基字节偏移和一基行列；列按 UTF-8 字节计算。
+
+```c
+typedef struct xjsonlocation {
+	size_t Offset;
+	size_t Line;
+	size_t Column;
+} xjsonlocation;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Line` | `size_t` | Line |
+| `Column` | `size_t` | Column |
+
+### `xjsonreadflag`
+
+非标准读取能力默认全部关闭，只能由调用方逐项开启。
+
+```c
+typedef enum xjsonreadflag {
+	XJSON_READ_COMMENTS = UINT32_C(0x00000001),
+	XJSON_READ_TRAILING_COMMA = UINT32_C(0x00000002)
+} xjsonreadflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_READ_COMMENTS` | XJSON读方向COMMENTS |
+
+### `xjsonduplicate`
+
+对象重复键必须由 DOM 调用方明确选择处理口径。
+
+```c
+typedef enum xjsonduplicate {
+	XJSON_DUPLICATE_REJECT = 0,
+	XJSON_DUPLICATE_KEEP,
+	XJSON_DUPLICATE_REPLACE
+} xjsonduplicate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_DUPLICATE_REJECT` | REJECT |
+| `XJSON_DUPLICATE_KEEP` | KEEP |
+
+### `xjsonbigint`
+
+超出 int64/uint64 的整数字面量默认失败，显式浮点策略允许有损接收。
+
+```c
+typedef enum xjsonbigint {
+	XJSON_BIGINT_REJECT = 0,
+	XJSON_BIGINT_FLOAT
+} xjsonbigint;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_BIGINT_REJECT` | XJSONBIGINTREJECT |
+
+### `xjsonreadconfig`
+
+JSON 读取配置同时约束资源消耗和少量显式兼容语法。
+
+```c
+typedef struct xjsonreadconfig {
+	uint32 Flags;
+	xjsonduplicate Duplicate;
+	xjsonbigint BigInteger;
+	uint32 MaxDepth;
+	size_t MaxInputBytes;
+	size_t MaxStringBytes;
+	size_t MaxValues;
+	size_t MaxContainerItems;
+	uint32 Reserved[4];
+} xjsonreadconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Duplicate` | `xjsonduplicate` | Duplicate |
+| `BigInteger` | `xjsonbigint` | BigInteger |
+| `MaxDepth` | `uint32` | MaxDepth |
+| `MaxInputBytes` | `size_t` | MaxInputBytes |
+| `MaxStringBytes` | `size_t` | MaxStringBytes |
+| `MaxValues` | `size_t` | MaxValues |
+| `MaxContainerItems` | `size_t` | MaxContainerItems |
+
+### `xjsoneventtype`
+
+访问事件在回调返回后失效；字符串与名称已经完成反转义。
+
+```c
+typedef enum xjsoneventtype {
+	XJSON_EVENT_NULL = 0,
+	XJSON_EVENT_BOOL,
+	XJSON_EVENT_INT,
+	XJSON_EVENT_FLOAT,
+	XJSON_EVENT_STRING,
+	XJSON_EVENT_ARRAY_BEGIN,
+	XJSON_EVENT_ARRAY_END,
+	XJSON_EVENT_OBJECT_BEGIN,
+	XJSON_EVENT_OBJECT_END,
+	XJSON_EVENT_UINT
+} xjsoneventtype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_EVENT_NULL` | 空值 |
+| `XJSON_EVENT_BOOL` | 布尔 |
+| `XJSON_EVENT_INT` | 有符号整数 |
+| `XJSON_EVENT_FLOAT` | 浮点 |
+| `XJSON_EVENT_STRING` | 字符串 |
+| `XJSON_EVENT_ARRAY_BEGIN` | 数组形态BEGIN |
+| `XJSON_EVENT_ARRAY_END` | 数组形态END |
+| `XJSON_EVENT_OBJECT_BEGIN` | 对象形态BEGIN |
+| `XJSON_EVENT_OBJECT_END` | 对象形态END |
+
+### `xjsonvisitaction`
+
+回调可继续、正常提前停止或报告失败。
+
+```c
+typedef enum xjsonvisitaction {
+	XJSON_VISIT_NEXT = 0,
+	XJSON_VISIT_STOP,
+	XJSON_VISIT_FAIL
+} xjsonvisitaction;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_VISIT_NEXT` | NEXT |
+| `XJSON_VISIT_STOP` | STOP |
+
+### `xjsonvisitresult`
+
+访问结果明确区分完整完成、调用方停止和解析失败。
+
+```c
+typedef enum xjsonvisitresult {
+	XJSON_VISIT_ERROR = -1,
+	XJSON_VISIT_DONE = 0,
+	XJSON_VISIT_STOPPED = 1
+} xjsonvisitresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_VISIT_ERROR` | 失败 |
+| `XJSON_VISIT_DONE` | 完成 |
+
+### `xjsonwriteflag`
+
+输出标志只改变文本表示，不改变 Value 数据。
+
+```c
+typedef enum xjsonwriteflag {
+	XJSON_WRITE_PRETTY = UINT32_C(0x00000001),
+	XJSON_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
+	XJSON_WRITE_ESCAPE_HTML = UINT32_C(0x00000004),
+	XJSON_WRITE_ESCAPE_NON_ASCII = UINT32_C(0x00000008),
+	XJSON_WRITE_CONTAINER_COMPAT = UINT32_C(0x00000010)
+} xjsonwriteflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_WRITE_PRETTY` | PRETTY |
+| `XJSON_WRITE_ESCAPE_SLASH` | ESCAPESLASH |
+| `XJSON_WRITE_ESCAPE_HTML` | ESCAPEHTML |
+| `XJSON_WRITE_ESCAPE_NON_ASCII` | ESCAPENONASCII |
+
+### `xjsonnonfinite`
+
+非有限浮点默认失败，也可显式写成 null 或字符串。
+
+```c
+typedef enum xjsonnonfinite {
+	XJSON_NONFINITE_REJECT = 0,
+	XJSON_NONFINITE_NULL,
+	XJSON_NONFINITE_STRING
+} xjsonnonfinite;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_NONFINITE_REJECT` | REJECT |
+| `XJSON_NONFINITE_NULL` | 空值 |
+
+### `xjsonunsupported`
+
+不受 JSON 表达的 Value 默认失败，也可显式写 null 或跳过成员。
+
+```c
+typedef enum xjsonunsupported {
+	XJSON_UNSUPPORTED_REJECT = 0,
+	XJSON_UNSUPPORTED_NULL,
+	XJSON_UNSUPPORTED_SKIP
+} xjsonunsupported;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XJSON_UNSUPPORTED_REJECT` | REJECT |
+| `XJSON_UNSUPPORTED_NULL` | 空值 |
+
+### `xjsonwriteconfig`
+
+JSON 写出配置提供固定上限；Indent 只在美化输出时生效。
+
+```c
+typedef struct xjsonwriteconfig {
+	uint32 Flags;
+	xjsonnonfinite NonFinite;
+	xjsonunsupported Unsupported;
+	uint32 MaxDepth;
+	uint32 Indent;
+	size_t MaxOutputBytes;
+	uint32 Reserved[4];
+} xjsonwriteconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `NonFinite` | `xjsonnonfinite` | NonFinite |
+| `Unsupported` | `xjsonunsupported` | Unsupported |
+| `MaxDepth` | `uint32` | MaxDepth |
+| `Indent` | `uint32` | Indent |
+| `MaxOutputBytes` | `size_t` | MaxOutputBytes |
+
+### `xjsonwriter`
+
+增量写入器保持不透明，写入方法不可从输出回调重入。
+
+```c
+typedef struct xjsonwriter xjsonwriter;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xjsonvisitproc`
+
+JSON 访问器不得保存事件中的借用视图，失败时应设置更具体的错误。
+
+```c
+typedef xjsonvisitaction (*xjsonvisitproc)(
+	const xjsonevent* pEvent,
+	ptr pUserData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xjsonwriteproc`
+
+输出回调必须在返回前消费借用字节，失败时应设置具体错误。
+
+```c
+typedef bool (*xjsonwriteproc)(xbytesview Data, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XJSON_DEPTH_DEFAULT` | `256u` | DEPTH默认值 |
+| `XJSON_INPUT_DEFAULT` | `(64u * 1024u * 1024u)` | 输入默认值 |
+| `XJSON_STRING_DEFAULT` | `(16u * 1024u * 1024u)` | 字符串默认值 |
+| `XJSON_VALUES_DEFAULT` | `1000000u` | VALUES默认值 |
+| `XJSON_CONTAINER_DEFAULT` | `1000000u` | CONTAINER默认值 |
+
 ## 字符串 token
 
 `json_escape` 是不依赖 DOM、Buffer 和完整 Writer 的底层能力。`xrtJsonQuoteWrite` 严格校验 UTF-8，并把包含首尾双引号的 JSON 字符串 token 分段写入同步回调。可独立选择斜杠、HTML 字节和非 ASCII 转义；失败时返回 `xrt.json` 错误及 UTF-8 字节位置。

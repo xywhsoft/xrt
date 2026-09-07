@@ -1,5 +1,321 @@
 # 错误 API
 
+## 类型与常量
+
+### `xseek`
+
+通用 IO 与文件游标共享的移动基准。
+
+```c
+typedef enum xseek {
+	XSEEK_START = 0,
+	XSEEK_CURRENT,
+	XSEEK_END
+} xseek;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XSEEK_START` | START |
+| `XSEEK_CURRENT` | CURRENT |
+
+### `xrtresourcelimits`
+
+```c
+typedef struct xrtresourcelimits {
+	uint32 iSize;
+	uint32 iVersion;
+	uint64 iMaxInputBytes;
+	uint64 iMaxOutputBytes;
+	uint64 iMaxItemBytes;
+	uint64 iMaxEntries;
+	uint64 iMaxNodes;
+	uint32 iMaxDepth;
+	uint32 iMaxCompressionRatio;
+	uint32 iFlags;
+	uint32 iReserved;
+} xrtresourcelimits;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `iSize` | `uint32` | iSize |
+| `iVersion` | `uint32` | iVersion |
+| `iMaxInputBytes` | `uint64` | iMaxInputBytes |
+| `iMaxOutputBytes` | `uint64` | iMaxOutputBytes |
+| `iMaxItemBytes` | `uint64` | iMaxItemBytes |
+| `iMaxEntries` | `uint64` | iMaxEntries |
+| `iMaxNodes` | `uint64` | iMaxNodes |
+| `iMaxDepth` | `uint32` | iMaxDepth |
+| `iMaxCompressionRatio` | `uint32` | iMaxCompressionRatio |
+| `iFlags` | `uint32` | iFlags |
+| `iReserved` | `uint32` | iReserved |
+
+### `xrtprogressflag`
+
+```c
+typedef enum xrtprogressflag {
+	XRT_PROGRESS_TOTAL_KNOWN = 1u << 0,
+	XRT_PROGRESS_FINAL = 1u << 1
+} xrtprogressflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XRT_PROGRESS_TOTAL_KNOWN` | XRTPROGRESSTOTALKNOWN |
+
+### `xrtprogress`
+
+```c
+typedef struct xrtprogress {
+	uint32 iSize;
+	uint32 iVersion;
+	uint32 iFlags;
+	uint32 iReserved;
+	uint64 iInputBytes;
+	uint64 iTotalInputBytes;
+	uint64 iOutputBytes;
+} xrtprogress;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `iSize` | `uint32` | iSize |
+| `iVersion` | `uint32` | iVersion |
+| `iFlags` | `uint32` | iFlags |
+| `iReserved` | `uint32` | iReserved |
+| `iInputBytes` | `uint64` | iInputBytes |
+| `iTotalInputBytes` | `uint64` | iTotalInputBytes |
+| `iOutputBytes` | `uint64` | iOutputBytes |
+
+### `xbytesview`
+
+字节视图只借用内存，不拥有数据，也不要求末尾补零。
+
+```c
+typedef struct xbytesview {
+	cbytes Data;
+	size_t Size;
+} xbytesview;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `cbytes` | Data |
+| `Size` | `size_t` | Size |
+
+### `xstrview`
+
+字符串视图只借用字节，不拥有数据，也不要求末尾补零。
+
+```c
+typedef struct xstrview {
+	cstr Data;
+	size_t Size;
+} xstrview;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `cstr` | Data |
+| `Size` | `size_t` | Size |
+
+### `xtime`
+
+绝对时间使用 Unix Epoch 微秒；该标量也是 xlang time 类型的底层表示。
+
+```c
+typedef int64 xtime;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xrtprogressproc`
+
+返回 false 请求取消。实现不得在回调返回后继续保存 pProgress 或 pUserData。
+
+```c
+typedef bool (*xrtprogressproc)(const xrtprogress* pProgress, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xerrkind`
+
+跨模块稳定的错误类别。
+
+```c
+typedef enum xerrkind {
+	XERR_NONE = 0,
+	XERR_ARGUMENT,
+	XERR_TYPE,
+	XERR_VALUE,
+	XERR_RANGE,
+	XERR_STATE,
+	XERR_MEMORY,
+	XERR_IO,
+	XERR_NOT_FOUND,
+	XERR_EXISTS,
+	XERR_PERMISSION,
+	XERR_AGAIN,
+	XERR_TIMEOUT,
+	XERR_CANCELLED,
+	XERR_CLOSED,
+	XERR_PROTOCOL,
+	XERR_UNSUPPORTED,
+	XERR_INTERNAL
+} xerrkind;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XERR_NONE` | 无 |
+| `XERR_ARGUMENT` | 参数非法 |
+| `XERR_TYPE` | 类型 |
+| `XERR_VALUE` | 值非法 |
+| `XERR_RANGE` | 范围越界 |
+| `XERR_STATE` | 状态非法 |
+| `XERR_MEMORY` | 内存分配失败 |
+| `XERR_IO` | 系统 IO 失败 |
+| `XERR_NOT_FOUND` | NOTFOUND |
+| `XERR_EXISTS` | 已存在 |
+| `XERR_PERMISSION` | PERMISSION |
+| `XERR_AGAIN` | 暂不可推进 |
+| `XERR_TIMEOUT` | 超时 |
+| `XERR_CANCELLED` | 已取消 |
+| `XERR_CLOSED` | 已关闭 |
+| `XERR_PROTOCOL` | 协议非法 |
+| `XERR_UNSUPPORTED` | 不支持 |
+
+### `xerrordesc`
+
+描述一个完整错误，所有字符串在创建时复制。
+
+```c
+typedef struct xerrordesc {
+	xerrkind Kind;
+	int32 Code;
+	int32 SystemCode;
+	cstr Domain;
+	cstr Operation;
+	cstr Message;
+	cstr Data;
+	const xerror* Cause;
+} xerrordesc;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Kind` | `xerrkind` | Kind |
+| `Code` | `int32` | Code |
+| `SystemCode` | `int32` | SystemCode |
+| `Domain` | `cstr` | Domain |
+| `Operation` | `cstr` | Operation |
+| `Message` | `cstr` | Message |
+| `Data` | `cstr` | Data |
+| `Cause` | `const xerror*` | Cause |
+
+### `xerrorlocation`
+
+可选的源码位置；零值表示调用方没有提供对应信息。
+
+```c
+typedef struct xerrorlocation {
+	cstr File;
+	int32 Line;
+	int32 Column;
+} xerrorlocation;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `File` | `cstr` | File |
+| `Line` | `int32` | Line |
+| `Column` | `int32` | Column |
+
+### `xerror`
+
+错误对象由 XRT 管理，对外保持不可变。
+
+```c
+typedef struct xerror xerror;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xerrorhandler`
+
+错误处理器只借用错误对象，保存时必须增加引用。
+
+```c
+typedef void (*xerrorhandler)(const xerror* pError, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xallocator`
+
+XRT 所有动态内存最终使用同一个底层分配器。
+
+```c
+typedef struct xallocator {
+	ptr Context;
+	xallocproc Alloc;
+	xreallocproc Realloc;
+	xfreeproc Free;
+} xallocator;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Context` | `ptr` | Context |
+| `Alloc` | `xallocproc` | Alloc |
+| `Realloc` | `xreallocproc` | Realloc |
+| `Free` | `xfreeproc` | Free |
+
+### `xallocproc`
+
+自定义底层分配器回调。
+
+```c
+typedef ptr (*xallocproc)(ptr pContext, size_t iSize);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xreallocproc`
+
+```c
+typedef ptr (*xreallocproc)(ptr pContext, ptr pMemory, size_t iSize);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xfreeproc`
+
+```c
+typedef void (*xfreeproc)(ptr pContext, ptr pMemory);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_VERSION_MAJOR` | `2` | XRT 版本信息。 |
+| `XRT_VERSION_MINOR` | `0` | VERSIONMINOR |
+| `XRT_VERSION_PATCH` | `0` | VERSIONPATCH |
+| `XRT_NPOS` | `SIZE_MAX` | 所有基于 size_t 的查找接口共用的未找到标记。 |
+| `XRT_RESOURCE_LIMITS_VERSION` | `1u` | 解析器、压缩器与归档器共用的资源边界。零值表示不限制对应项目。 |
+| `XRT_RESOURCE_ALLOW_SYMLINKS` | `0x00000001u` | RESOURCEALLOWSYMLINKS |
+| `XRT_RESOURCE_ALLOW_HARDLINKS` | `0x00000002u` | RESOURCEALLOWHARDLINKS |
+| `XRT_RESOURCE_ALLOW_DEVICE_FILES` | `0x00000004u` | RESOURCEALLOWDEVICEFILES |
+| `XRT_RESOURCE_ALLOW_EXTERNAL_ENTITIES` | `0x00000008u` | RESOURCEALLOWEXTERNALENTITIES |
+| `XRT_PROGRESS_VERSION` | `1u` | 长耗时流操作共用的进度事件。回调仅在发起操作的线程内同步调用。 |
+| `XRT_BYTES_INIT` | `(sData) \` | INIT 用于聚合初始化器；LITERAL 用于赋值和函数实参表达式。 |
+| `XRT_STR_INIT` | `(sText) { (sText), sizeof(sText) - 1u }` | STR初始化 |
+
 ## 设计契约
 
 `xerror` 是不可变、可跨线程持有的结构化错误对象。错误由通用类别、稳定域、模块代码、系统代码、操作名、UTF-8 消息、可选数据和原因链组成。通用类别用于跨模块控制流，域与代码用于模块精确判断，消息只用于展示。

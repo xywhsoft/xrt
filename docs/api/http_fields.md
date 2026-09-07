@@ -3,6 +3,452 @@
 `<xrt/http.h>` 提供 HTTP 线协议共享的零分配语法工具。所有结果借用输入，适合
 HTTP/1、WebSocket 握手、代理协议和扩展库复用。
 
+## 类型与常量
+
+### `xhttpmethod`
+
+常用 HTTP 方法使用互不重叠的单 bit 枚举值。非零值既表示一个解析后的 方法，也可以作为方法集合中的原子位；组合宏提供常用路由方法集合。 OTHER 表示语法合法但未内置分类的方法；INVALID 表示空值或非法 token， 在方法集合中也自然表示不匹配任何方法。
+
+```c
+typedef enum xhttpmethod {
+	XHTTP_METHOD_INVALID = 0,
+	XHTTP_METHOD_OTHER = UINT32_C(0x00000001),
+	XHTTP_METHOD_GET = UINT32_C(0x00000002),
+	XHTTP_METHOD_HEAD = UINT32_C(0x00000004),
+	XHTTP_METHOD_POST = UINT32_C(0x00000008),
+	XHTTP_METHOD_PUT = UINT32_C(0x00000010),
+	XHTTP_METHOD_DELETE = UINT32_C(0x00000020),
+	XHTTP_METHOD_CONNECT = UINT32_C(0x00000040),
+	XHTTP_METHOD_OPTIONS = UINT32_C(0x00000080),
+	XHTTP_METHOD_TRACE = UINT32_C(0x00000100),
+	XHTTP_METHOD_PATCH = UINT32_C(0x00000200)
+} xhttpmethod;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_METHOD_INVALID` | 无效 |
+| `XHTTP_METHOD_OTHER` | OTHER |
+| `XHTTP_METHOD_GET` | GET |
+| `XHTTP_METHOD_HEAD` | HEAD |
+| `XHTTP_METHOD_POST` | POST |
+| `XHTTP_METHOD_PUT` | PUT |
+| `XHTTP_METHOD_DELETE` | DELETE |
+| `XHTTP_METHOD_CONNECT` | CONNECT |
+| `XHTTP_METHOD_OPTIONS` | OPTIONS |
+| `XHTTP_METHOD_TRACE` | 最详细级别 |
+
+### `xhttpversion`
+
+HTTP 版本使用可直接比较的主次版本编码。
+
+```c
+typedef enum xhttpversion {
+	XHTTP_VERSION_1_0 = 10,
+	XHTTP_VERSION_1_1 = 11
+} xhttpversion;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_VERSION_1_0` | XHTTPVERSION10 |
+
+### `xhttpstatus`
+
+HTTP 状态常量只收录 IANA 已正式分配的通用状态。 未分配、临时分配和明确标记为 Unused 的数值仍可直接使用 uint16 表达。
+
+```c
+typedef enum xhttpstatus {
+	/* 1xx：信息响应。 */
+	XHTTP_STATUS_CONTINUE = 100,
+	XHTTP_STATUS_SWITCHING_PROTOCOLS = 101,
+	XHTTP_STATUS_PROCESSING = 102,
+	XHTTP_STATUS_EARLY_HINTS = 103,
+
+	/* 2xx：成功响应。 */
+	XHTTP_STATUS_OK = 200,
+	XHTTP_STATUS_CREATED = 201,
+	XHTTP_STATUS_ACCEPTED = 202,
+	XHTTP_STATUS_NON_AUTHORITATIVE_INFORMATION = 203,
+	XHTTP_STATUS_NO_CONTENT = 204,
+	XHTTP_STATUS_RESET_CONTENT = 205,
+	XHTTP_STATUS_PARTIAL_CONTENT = 206,
+	XHTTP_STATUS_MULTI_STATUS = 207,
+	XHTTP_STATUS_ALREADY_REPORTED = 208,
+	XHTTP_STATUS_IM_USED = 226,
+
+	/* 3xx：重定向响应。 */
+	XHTTP_STATUS_MULTIPLE_CHOICES = 300,
+	XHTTP_STATUS_MOVED_PERMANENTLY = 301,
+	XHTTP_STATUS_FOUND = 302,
+	XHTTP_STATUS_SEE_OTHER = 303,
+	XHTTP_STATUS_NOT_MODIFIED = 304,
+	XHTTP_STATUS_USE_PROXY = 305,
+	XHTTP_STATUS_TEMPORARY_REDIRECT = 307,
+	XHTTP_STATUS_PERMANENT_REDIRECT = 308,
+
+	/* 4xx：客户端错误响应。 */
+	XHTTP_STATUS_BAD_REQUEST = 400,
+	XHTTP_STATUS_UNAUTHORIZED = 401,
+	XHTTP_STATUS_PAYMENT_REQUIRED = 402,
+	XHTTP_STATUS_FORBIDDEN = 403,
+	XHTTP_STATUS_NOT_FOUND = 404,
+	XHTTP_STATUS_METHOD_NOT_ALLOWED = 405,
+	XHTTP_STATUS_NOT_ACCEPTABLE = 406,
+	XHTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED = 407,
+	XHTTP_STATUS_REQUEST_TIMEOUT = 408,
+	XHTTP_STATUS_CONFLICT = 409,
+	XHTTP_STATUS_GONE = 410,
+	XHTTP_STATUS_LENGTH_REQUIRED = 411,
+	XHTTP_STATUS_PRECONDITION_FAILED = 412,
+	XHTTP_STATUS_CONTENT_TOO_LARGE = 413,
+	XHTTP_STATUS_URI_TOO_LONG = 414,
+	XHTTP_STATUS_UNSUPPORTED_MEDIA_TYPE = 415,
+	XHTTP_STATUS_RANGE_NOT_SATISFIABLE = 416,
+	XHTTP_STATUS_EXPECTATION_FAILED = 417,
+	XHTTP_STATUS_MISDIRECTED_REQUEST = 421,
+	XHTTP_STATUS_UNPROCESSABLE_CONTENT = 422,
+	XHTTP_STATUS_LOCKED = 423,
+	XHTTP_STATUS_FAILED_DEPENDENCY = 424,
+	XHTTP_STATUS_TOO_EARLY = 425,
+	XHTTP_STATUS_UPGRADE_REQUIRED = 426,
+	XHTTP_STATUS_PRECONDITION_REQUIRED = 428,
+	XHTTP_STATUS_TOO_MANY_REQUESTS = 429,
+	XHTTP_STATUS_REQUEST_HEADER_FIELDS_TOO_LARGE = 431,
+	XHTTP_STATUS_UNAVAILABLE_FOR_LEGAL_REASONS = 451,
+
+	/* 5xx：服务器错误响应。 */
+	XHTTP_STATUS_INTERNAL_SERVER_ERROR = 500,
+	XHTTP_STATUS_NOT_IMPLEMENTED = 501,
+	XHTTP_STATUS_BAD_GATEWAY = 502,
+	XHTTP_STATUS_SERVICE_UNAVAILABLE = 503,
+	XHTTP_STATUS_GATEWAY_TIMEOUT = 504,
+	XHTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED = 505,
+	XHTTP_STATUS_VARIANT_ALSO_NEGOTIATES = 506,
+	XHTTP_STATUS_INSUFFICIENT_STORAGE = 507,
+	XHTTP_STATUS_LOOP_DETECTED = 508,
+	XHTTP_STATUS_NOT_EXTENDED = 510,
+	XHTTP_STATUS_NETWORK_AUTHENTICATION_REQUIRED = 511
+} xhttpstatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_STATUS_CONTINUE` | CONTINUE |
+| `XHTTP_STATUS_SWITCHING_PROTOCOLS` | SWITCHINGPROTOCOLS |
+| `XHTTP_STATUS_PROCESSING` | PROCESSING |
+| `XHTTP_STATUS_EARLY_HINTS` | EARLYHINTS |
+| `XHTTP_STATUS_OK` | 成功 |
+| `XHTTP_STATUS_CREATED` | CREATED |
+| `XHTTP_STATUS_ACCEPTED` | ACCEPTED |
+| `XHTTP_STATUS_NON_AUTHORITATIVE_INFORMATION` | NONAUTHORITATIVEINFORMATION |
+| `XHTTP_STATUS_NO_CONTENT` | NOCONTENT |
+| `XHTTP_STATUS_RESET_CONTENT` | RESETCONTENT |
+| `XHTTP_STATUS_PARTIAL_CONTENT` | PARTIALCONTENT |
+| `XHTTP_STATUS_MULTI_STATUS` | MULTISTATUS |
+| `XHTTP_STATUS_ALREADY_REPORTED` | ALREADYREPORTED |
+| `XHTTP_STATUS_IM_USED` | IMUSED |
+| `XHTTP_STATUS_MULTIPLE_CHOICES` | MULTIPLECHOICES |
+| `XHTTP_STATUS_MOVED_PERMANENTLY` | MOVEDPERMANENTLY |
+| `XHTTP_STATUS_FOUND` | FOUND |
+| `XHTTP_STATUS_SEE_OTHER` | SEEOTHER |
+| `XHTTP_STATUS_NOT_MODIFIED` | NOTMODIFIED |
+| `XHTTP_STATUS_USE_PROXY` | USEPROXY |
+| `XHTTP_STATUS_TEMPORARY_REDIRECT` | TEMPORARYREDIRECT |
+| `XHTTP_STATUS_PERMANENT_REDIRECT` | PERMANENTREDIRECT |
+| `XHTTP_STATUS_BAD_REQUEST` | BADREQUEST |
+| `XHTTP_STATUS_UNAUTHORIZED` | UNAUTHORIZED |
+| `XHTTP_STATUS_PAYMENT_REQUIRED` | PAYMENTREQUIRED |
+| `XHTTP_STATUS_FORBIDDEN` | FORBIDDEN |
+| `XHTTP_STATUS_NOT_FOUND` | NOTFOUND |
+| `XHTTP_STATUS_METHOD_NOT_ALLOWED` | METHODNOTALLOWED |
+| `XHTTP_STATUS_NOT_ACCEPTABLE` | NOTACCEPTABLE |
+| `XHTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED` | PROXYAUTHENTICATIONREQUIRED |
+| `XHTTP_STATUS_REQUEST_TIMEOUT` | REQUEST超时 |
+| `XHTTP_STATUS_CONFLICT` | CONFLICT |
+| `XHTTP_STATUS_GONE` | GONE |
+| `XHTTP_STATUS_LENGTH_REQUIRED` | LENGTHREQUIRED |
+| `XHTTP_STATUS_PRECONDITION_FAILED` | PRECONDITION已失败 |
+| `XHTTP_STATUS_CONTENT_TOO_LARGE` | CONTENTTOOLARGE |
+| `XHTTP_STATUS_URI_TOO_LONG` | URITOOLONG |
+| `XHTTP_STATUS_UNSUPPORTED_MEDIA_TYPE` | 不支持MEDIA类型 |
+| `XHTTP_STATUS_RANGE_NOT_SATISFIABLE` | 范围越界NOTSATISFIABLE |
+| `XHTTP_STATUS_EXPECTATION_FAILED` | EXPECTATION已失败 |
+| `XHTTP_STATUS_MISDIRECTED_REQUEST` | MISDIRECTEDREQUEST |
+| `XHTTP_STATUS_UNPROCESSABLE_CONTENT` | UNPROCESSABLECONTENT |
+| `XHTTP_STATUS_LOCKED` | LOCKED |
+| `XHTTP_STATUS_FAILED_DEPENDENCY` | 已失败DEPENDENCY |
+| `XHTTP_STATUS_TOO_EARLY` | TOOEARLY |
+| `XHTTP_STATUS_UPGRADE_REQUIRED` | UPGRADEREQUIRED |
+| `XHTTP_STATUS_PRECONDITION_REQUIRED` | PRECONDITIONREQUIRED |
+| `XHTTP_STATUS_TOO_MANY_REQUESTS` | TOOMANYREQUESTS |
+| `XHTTP_STATUS_REQUEST_HEADER_FIELDS_TOO_LARGE` | REQUESTHEADER字段TOOLARGE |
+| `XHTTP_STATUS_UNAVAILABLE_FOR_LEGAL_REASONS` | UNAVAILABLEFORLEGALREASONS |
+| `XHTTP_STATUS_INTERNAL_SERVER_ERROR` | 内部错误服务端角色失败 |
+| `XHTTP_STATUS_NOT_IMPLEMENTED` | NOTIMPLEMENTED |
+| `XHTTP_STATUS_BAD_GATEWAY` | BADGATEWAY |
+| `XHTTP_STATUS_SERVICE_UNAVAILABLE` | SERVICEUNAVAILABLE |
+| `XHTTP_STATUS_GATEWAY_TIMEOUT` | GATEWAY超时 |
+| `XHTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED` | HTTPVERSIONNOTSUPPORTED |
+| `XHTTP_STATUS_VARIANT_ALSO_NEGOTIATES` | VARIANTALSONEGOTIATES |
+| `XHTTP_STATUS_INSUFFICIENT_STORAGE` | INSUFFICIENTSTORAGE |
+| `XHTTP_STATUS_LOOP_DETECTED` | LOOPDETECTED |
+| `XHTTP_STATUS_NOT_EXTENDED` | NOTEXTENDED |
+
+### `xhttpfield`
+
+字段名称和值都是借用视图，不要求零结尾。
+
+```c
+typedef struct xhttpfield {
+	xstrview Name;
+	xstrview Value;
+} xhttpfield;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Value` | `xstrview` | Value |
+
+### `xhttpnext`
+
+HTTP 值迭代结果明确区分条目、正常结束和语法错误。
+
+```c
+typedef enum xhttpnext {
+	XHTTP_NEXT_ERROR = -1,
+	XHTTP_NEXT_END = 0,
+	XHTTP_NEXT_ITEM = 1
+} xhttpnext;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_NEXT_ERROR` | 失败 |
+| `XHTTP_NEXT_END` | END |
+
+### `xhttpfieldtokencursor`
+
+重复同名 token-list 字段游标由初始化函数建立，调用方不得直接修改。
+
+```c
+typedef struct xhttpfieldtokencursor {
+	const void* Source;
+	xstrview Name;
+	size_t Count;
+	size_t Field;
+	size_t Offset;
+	uint8 Validated;
+	uint8 Required;
+} xhttpfieldtokencursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Source` | `const void*` | Source |
+| `Name` | `xstrview` | Name |
+| `Count` | `size_t` | Count |
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+| `Required` | `uint8` | Required |
+
+### `xhttpweightedtoken`
+
+加权 token 借用原字段值，Quality 使用 0 到 1000 的无浮点定点值。
+
+```c
+typedef struct xhttpweightedtoken {
+	xstrview Token;
+	uint16 Quality;
+} xhttpweightedtoken;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Token` | `xstrview` | Token |
+| `Quality` | `uint16` | Quality |
+
+### `xhttpauthority`
+
+HTTP authority 借用原始文本，不接受 userinfo。
+
+```c
+typedef struct xhttpauthority {
+	uint32 Flags;
+	uint16 Port;
+	xstrview Text;
+	xstrview Host;
+	xstrview PortText;
+} xhttpauthority;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Flags` | `uint32` | Flags |
+| `Port` | `uint16` | Port |
+| `Text` | `xstrview` | Text |
+| `Host` | `xstrview` | Host |
+| `PortText` | `xstrview` | PortText |
+
+### `xhttptargetform`
+
+Request-target 形式由方法与线路文本共同决定。
+
+```c
+typedef enum xhttptargetform {
+	XHTTP_TARGET_ORIGIN = 1,
+	XHTTP_TARGET_ABSOLUTE,
+	XHTTP_TARGET_AUTHORITY,
+	XHTTP_TARGET_ASTERISK
+} xhttptargetform;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_TARGET_ORIGIN` | ORIGIN |
+| `XHTTP_TARGET_ABSOLUTE` | ABSOLUTE |
+| `XHTTP_TARGET_AUTHORITY` | AUTHORITY |
+
+### `xhttptarget`
+
+Target 借用原始方法与 request-target，并只保留 HTTP 路径需要的 URI 组件。
+
+```c
+typedef struct xhttptarget {
+	xhttptargetform Form;
+	uint32 Flags;
+	xstrview Method;
+	xstrview Text;
+	xstrview Scheme;
+	xstrview Authority;
+	xstrview Path;
+	xstrview Query;
+	xhttpauthority Host;
+} xhttptarget;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Form` | `xhttptargetform` | Form |
+| `Flags` | `uint32` | Flags |
+| `Method` | `xstrview` | Method |
+| `Text` | `xstrview` | Text |
+| `Scheme` | `xstrview` | Scheme |
+| `Authority` | `xstrview` | Authority |
+| `Path` | `xstrview` | Path |
+| `Query` | `xstrview` | Query |
+| `Host` | `xhttpauthority` | Host |
+
+### `xhttpparamflags`
+
+参数值标志区分省略值、token 值和 quoted-string 值。
+
+```c
+typedef enum xhttpparamflags {
+	XHTTP_PARAM_NONE = 0,
+	XHTTP_PARAM_HAS_VALUE = 0x01,
+	XHTTP_PARAM_QUOTED = 0x02
+} xhttpparamflags;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_PARAM_NONE` | 无 |
+| `XHTTP_PARAM_HAS_VALUE` | HAS值非法 |
+
+### `xhttpparam`
+
+参数名称和值借用原文本；quoted-string 值不含双引号，但保留反斜杠转义。
+
+```c
+typedef struct xhttpparam {
+	xstrview Name;
+	xstrview Value;
+	uint32 Flags;
+} xhttpparam;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Value` | `xstrview` | Value |
+| `Flags` | `uint32` | Flags |
+
+### `xhttpparamvaluecursor`
+
+参数语义值游标由初始化函数建立；Offset 是下一次读取的原始值偏移。
+
+```c
+typedef struct xhttpparamvaluecursor {
+	const void* Source;
+	const void* Value;
+	size_t ValueSize;
+	size_t Offset;
+	uint32 Flags;
+	uint8 Validated;
+} xhttpparamvaluecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Source` | `const void*` | Source |
+| `Value` | `const void*` | Value |
+| `ValueSize` | `size_t` | ValueSize |
+| `Offset` | `size_t` | Offset |
+| `Flags` | `uint32` | Flags |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpconnectionstatus`
+
+连接持久性结果区分协议错误、当前响应后关闭和继续复用。
+
+```c
+typedef enum xhttpconnectionstatus {
+	XHTTP_CONNECTION_ERROR = -1,
+	XHTTP_CONNECTION_CLOSE = 0,
+	XHTTP_CONNECTION_PERSIST = 1
+} xhttpconnectionstatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_CONNECTION_ERROR` | 失败 |
+| `XHTTP_CONNECTION_CLOSE` | CLOSE |
+
+### `xhttpconnectionflag`
+
+HTTP/1.0 持久性判断所需的消息方向、接收角色和本地策略。
+
+```c
+typedef enum xhttpconnectionflag {
+	XHTTP_CONNECTION_RESPONSE = UINT32_C(0x00000001),
+	XHTTP_CONNECTION_PROXY = UINT32_C(0x00000002),
+	XHTTP_CONNECTION_ALLOW_HTTP10_KEEP_ALIVE = UINT32_C(0x00000004)
+} xhttpconnectionflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XHTTP_CONNECTION_RESPONSE` | RESPONSE |
+| `XHTTP_CONNECTION_PROXY` | PROXY |
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XHTTP_QUALITY_MAX` | `1000u` | QUALITY上限 |
+| `XHTTP_METHOD_CRUD` | `( \` | 常用 CRUD 路由方法集合；PUT 和 PATCH 都属于更新方法。 |
+| `XHTTP_METHOD_ANY` | `( \` | 匹配任一内置方法或语法合法的扩展方法。 |
+| `XHTTP_AUTHORITY_HAS_PORT` | `UINT32_C(0x00000001)` | Authority 包含显式端口分隔符。 |
+| `XHTTP_AUTHORITY_IP_LITERAL` | `UINT32_C(0x00000002)` | Host 是 IPv6 或 IPvFuture 字面地址，Host 视图不包含方括号。 |
+| `XHTTP_AUTHORITY_PORT_EMPTY` | `UINT32_C(0x00000004)` | 显式端口只有冒号而没有数字。 |
+| `XHTTP_AUTHORITY_PORT_VALUE` | `UINT32_C(0x00000008)` | Port 保存可由 uint16 无损表达的显式端口。 |
+| `XHTTP_TARGET_HAS_SCHEME` | `UINT32_C(0x00000001)` | Target 包含 scheme。 |
+| `XHTTP_TARGET_HAS_AUTHORITY` | `UINT32_C(0x00000002)` | Target 包含双斜杠引入的 authority。 |
+| `XHTTP_TARGET_HAS_QUERY` | `UINT32_C(0x00000004)` | Target 包含问号引入的 query，包括显式空 query。 |
+
 ## 字段
 
 `xhttpfield` 只有 `Name` 和 `Value` 两个借用视图。字段名称不带冒号，字段值不带

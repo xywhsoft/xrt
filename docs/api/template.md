@@ -2,6 +2,385 @@
 
 模板模块把“编译一次、重复渲染”作为基本模型。`xtemplate` 是不可变引用对象，可以跨线程共享；每次渲染的作用域、预算、输出和外部解析状态互相独立。模板源、路径、参数和输出都使用明确长度，允许嵌入零字节。
 
+## 类型与常量
+
+### `xtemplateerror`
+
+模板错误代码在 xrt.template 域内稳定标识失败阶段。
+
+```c
+typedef enum xtemplateerror {
+	XTEMPLATE_ERROR_CONFIG = 1,
+	XTEMPLATE_ERROR_SYNTAX,
+	XTEMPLATE_ERROR_LIMIT,
+	XTEMPLATE_ERROR_UNDEFINED,
+	XTEMPLATE_ERROR_TYPE,
+	XTEMPLATE_ERROR_FORMAT,
+	XTEMPLATE_ERROR_ITERATE,
+	XTEMPLATE_ERROR_WRITE,
+	XTEMPLATE_ERROR_CALLBACK,
+	XTEMPLATE_ERROR_INCLUDE,
+	XTEMPLATE_ERROR_CYCLE
+} xtemplateerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTEMPLATE_ERROR_CONFIG` | 配置非法 |
+| `XTEMPLATE_ERROR_SYNTAX` | SYNTAX |
+| `XTEMPLATE_ERROR_LIMIT` | 超限 |
+| `XTEMPLATE_ERROR_UNDEFINED` | UNDEFINED |
+| `XTEMPLATE_ERROR_TYPE` | 类型 |
+| `XTEMPLATE_ERROR_FORMAT` | FORMAT |
+| `XTEMPLATE_ERROR_ITERATE` | ITERATE |
+| `XTEMPLATE_ERROR_WRITE` | 写方向 |
+| `XTEMPLATE_ERROR_CALLBACK` | CALLBACK |
+| `XTEMPLATE_ERROR_INCLUDE` | INCLUDE |
+
+### `xtemplatelocation`
+
+源码位置使用 0 基字节偏移和 1 基行列。
+
+```c
+typedef struct xtemplatelocation {
+	size_t Offset;
+	size_t Size;
+	size_t Line;
+	size_t Column;
+} xtemplatelocation;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Size` | `size_t` | Size |
+| `Line` | `size_t` | Line |
+| `Column` | `size_t` | Column |
+
+### `xtemplatenodetype`
+
+核心层节点区分原样文本和动态输出。
+
+```c
+typedef enum xtemplatenodetype {
+	XTEMPLATE_NODE_TEXT = 1,
+	XTEMPLATE_NODE_OUTPUT,
+	XTEMPLATE_NODE_INLINE_IF,
+	XTEMPLATE_NODE_IF,
+	XTEMPLATE_NODE_FOR,
+	XTEMPLATE_NODE_FOREACH,
+	XTEMPLATE_NODE_BREAK,
+	XTEMPLATE_NODE_CONTINUE,
+	XTEMPLATE_NODE_DEFINE,
+	XTEMPLATE_NODE_INCLUDE,
+	XTEMPLATE_NODE_RAW,
+	XTEMPLATE_NODE_EXTENSION
+} xtemplatenodetype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTEMPLATE_NODE_TEXT` | 文本 |
+| `XTEMPLATE_NODE_OUTPUT` | 输出失败 |
+| `XTEMPLATE_NODE_INLINE_IF` | INLINEIF |
+| `XTEMPLATE_NODE_IF` | IF |
+| `XTEMPLATE_NODE_FOR` | FOR |
+| `XTEMPLATE_NODE_FOREACH` | FOREACH |
+| `XTEMPLATE_NODE_BREAK` | BREAK |
+| `XTEMPLATE_NODE_CONTINUE` | CONTINUE |
+| `XTEMPLATE_NODE_DEFINE` | DEFINE |
+| `XTEMPLATE_NODE_INCLUDE` | INCLUDE |
+| `XTEMPLATE_NODE_RAW` | 裸格式 |
+
+### `xtemplateoutputtype`
+
+输出类型决定动态值允许的类型与格式化规则。
+
+```c
+typedef enum xtemplateoutputtype {
+	XTEMPLATE_OUTPUT_TEXT = 1,
+	XTEMPLATE_OUTPUT_NUMBER,
+	XTEMPLATE_OUTPUT_TIME
+} xtemplateoutputtype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTEMPLATE_OUTPUT_TEXT` | 文本 |
+| `XTEMPLATE_OUTPUT_NUMBER` | NUMBER |
+
+### `xtemplatenodeview`
+
+节点视图中的字符串全部借用模板，模板释放后立即失效。
+
+```c
+typedef struct xtemplatenodeview {
+	xtemplatenodetype Type;
+	xtemplateoutputtype Output;
+	xtemplatelocation Location;
+	xstrview Source;
+	xstrview Expression;
+	xstrview Format;
+	xstrview Name;
+} xtemplatenodeview;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xtemplatenodetype` | Type |
+| `Output` | `xtemplateoutputtype` | Output |
+| `Location` | `xtemplatelocation` | Location |
+| `Source` | `xstrview` | Source |
+| `Expression` | `xstrview` | Expression |
+| `Format` | `xstrview` | Format |
+| `Name` | `xstrview` | Name |
+
+### `xtemplateextensiontype`
+
+扩展类型明确区分行内调用、解析主体和完全原样主体。
+
+```c
+typedef enum xtemplateextensiontype {
+	XTEMPLATE_EXTENSION_FUNCTION = 1,
+	XTEMPLATE_EXTENSION_STATEMENT,
+	XTEMPLATE_EXTENSION_BLOCK,
+	XTEMPLATE_EXTENSION_RAW_BLOCK
+} xtemplateextensiontype;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTEMPLATE_EXTENSION_FUNCTION` | FUNCTION |
+| `XTEMPLATE_EXTENSION_STATEMENT` | STATEMENT |
+| `XTEMPLATE_EXTENSION_BLOCK` | 阻塞策略 |
+
+### `xtemplateextension`
+
+注册描述在创建期间借用，注册表成功创建后复制名称并接管用户数据。
+
+```c
+typedef struct xtemplateextension {
+	xstrview Name;
+	xtemplateextensiontype Type;
+	size_t MinArguments;
+	size_t MaxArguments;
+	xtemplateextensionfn Call;
+	ptr Data;
+	xtemplateextensiondrop Drop;
+} xtemplateextension;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Name` | `xstrview` | Name |
+| `Type` | `xtemplateextensiontype` | Type |
+| `MinArguments` | `size_t` | MinArguments |
+| `MaxArguments` | `size_t` | MaxArguments |
+| `Call` | `xtemplateextensionfn` | Call |
+| `Data` | `ptr` | Data |
+| `Drop` | `xtemplateextensiondrop` | Drop |
+
+### `xtemplateargview`
+
+参数视图借用模板源码，并以调用内相对索引作为稳定句柄。
+
+```c
+typedef struct xtemplateargview {
+	size_t Index;
+	xstrview Name;
+	xstrview Source;
+} xtemplateargview;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Index` | `size_t` | Index |
+| `Name` | `xstrview` | Name |
+| `Source` | `xstrview` | Source |
+
+### `xtemplatevalue`
+
+求值结果借用输入值或模板文本，仅对应当前类型的字段有效。
+
+```c
+typedef struct xtemplatevalue {
+	xvaluetype Type;
+	const xvalue* Value;
+	bool Bool;
+	int64 Integer;
+	uint64 Unsigned;
+	double Float;
+	xstrview Text;
+	xtime Time;
+} xtemplatevalue;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Type` | `xvaluetype` | Type |
+| `Value` | `const xvalue*` | Value |
+| `Bool` | `bool` | Bool |
+| `Integer` | `int64` | Integer |
+| `Unsigned` | `uint64` | Unsigned |
+| `Float` | `double` | Float |
+| `Text` | `xstrview` | Text |
+| `Time` | `xtime` | Time |
+
+### `xtemplateconfig`
+
+编译配置限制源码和编译产物规模，并允许替换成对标签括号。
+
+```c
+typedef struct xtemplateconfig {
+	xstrview Open;
+	xstrview Close;
+	size_t MaxSourceBytes;
+	size_t MaxNodes;
+	size_t MaxPathSegments;
+	size_t MaxPathDepth;
+	size_t MaxExpressions;
+	size_t MaxBlockDepth;
+	size_t MaxExpressionDepth;
+	const xtemplateregistry* Registry;
+	size_t MaxArguments;
+	size_t MaxCallArguments;
+} xtemplateconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Open` | `xstrview` | Open |
+| `Close` | `xstrview` | Close |
+| `MaxSourceBytes` | `size_t` | MaxSourceBytes |
+| `MaxNodes` | `size_t` | MaxNodes |
+| `MaxPathSegments` | `size_t` | MaxPathSegments |
+| `MaxPathDepth` | `size_t` | MaxPathDepth |
+| `MaxExpressions` | `size_t` | MaxExpressions |
+| `MaxBlockDepth` | `size_t` | MaxBlockDepth |
+| `MaxExpressionDepth` | `size_t` | MaxExpressionDepth |
+| `Registry` | `const xtemplateregistry*` | Registry |
+| `MaxArguments` | `size_t` | MaxArguments |
+| `MaxCallArguments` | `size_t` | MaxCallArguments |
+
+### `xtemplaterenderflag`
+
+渲染标志可组合；HTML 转义只作用于动态 {$path} 输出，不改写模板文本。
+
+```c
+typedef enum xtemplaterenderflag {
+	XTEMPLATE_STRICT_UNDEFINED = 0x0001u,
+	XTEMPLATE_ESCAPE_HTML_TEXT = 0x0002u
+} xtemplaterenderflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTEMPLATE_STRICT_UNDEFINED` | XTEMPLATESTRICTUNDEFINED |
+
+### `xtemplaterenderconfig`
+
+每次渲染使用独立配置，因此同一模板可以并发执行。
+
+```c
+typedef struct xtemplaterenderconfig {
+	const xvalue* Root;
+	const xvalue* Current;
+	const xvalue* Global;
+	size_t MaxOutputBytes;
+	size_t MaxSteps;
+	size_t MaxDepth;
+	size_t MaxLoopIterations;
+	xtemplateresolvefn Resolve;
+	ptr ResolveData;
+	size_t MaxIncludeDepth;
+	uint32 Flags;
+} xtemplaterenderconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Root` | `const xvalue*` | Root |
+| `Current` | `const xvalue*` | Current |
+| `Global` | `const xvalue*` | Global |
+| `MaxOutputBytes` | `size_t` | MaxOutputBytes |
+| `MaxSteps` | `size_t` | MaxSteps |
+| `MaxDepth` | `size_t` | MaxDepth |
+| `MaxLoopIterations` | `size_t` | MaxLoopIterations |
+| `Resolve` | `xtemplateresolvefn` | Resolve |
+| `ResolveData` | `ptr` | ResolveData |
+| `MaxIncludeDepth` | `size_t` | MaxIncludeDepth |
+| `Flags` | `uint32` | Flags |
+
+### `xtemplate`
+
+编译模板是不可变且可跨线程共享的对象。
+
+```c
+typedef struct xtemplate xtemplate;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtemplateregistry`
+
+```c
+typedef struct xtemplateregistry xtemplateregistry;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtemplatecall`
+
+```c
+typedef struct xtemplatecall xtemplatecall;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtemplateextensionfn`
+
+扩展回调返回 false 时直接传播模板错误；其他错误会保留为 cause 并补充调用位置。
+
+```c
+typedef bool (*xtemplateextensionfn)(xtemplatecall* pCall);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtemplateextensiondrop`
+
+注册表释放时调用数据析构；每个描述项独立拥有自己的数据。
+
+```c
+typedef void (*xtemplateextensiondrop)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtemplateresolvefn`
+
+输出初始为空，回调写入的任何非空模板引用都会由渲染器接管。
+
+```c
+typedef bool (*xtemplateresolvefn)(
+	ptr pUserData,
+	xstrview Name,
+	xtemplate** pTemplate
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xtemplatewritefn`
+
+Writer 借用当前分片；返回 false 会停止渲染并保留回调设置的错误。
+
+```c
+typedef bool (*xtemplatewritefn)(ptr pUserData, xstrview Text);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 模块
 
 - `XRT_MODULE_TEMPLATE_CORE`：文本、字符串值、数字和时间输出，编译对象、节点检查、流式与字符串渲染。
