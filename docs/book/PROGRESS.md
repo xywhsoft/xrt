@@ -19,7 +19,7 @@
 | P10 卷七前半 | ✅ 完成 | 8 | 31,742 |
 | P11 卷七后半 | ✅ 完成 | 2 | 13,099 |
 | P12 卷八密码基础 | ✅ 完成 | 5 | 25,122 |
-| P13 卷八证书链 | 🔄 进行中 | 0 | — |
+| P13 卷八证书链 | ✅ 完成 | 4 | 23,822 |
 | P14–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -57,8 +57,28 @@
 | 74 | 74-crypto-aead.md | practice | 5,509 | 2 | 1 | 3 | 3 | P12 |
 | 75 | 75-crypto-asym.md | practice | 6,228 | 3 | 1 | 3 | 3 | P12 |
 | 76 | 76-crypto-discipline.md | practice | 5,275 | 2 | 2 | 3 | 3 | P12 |
+| 77 | 77-der-pem.md | practice | 5,382 | 2 | 1 | 3 | 3 | P13 |
+| 78 | 78-x509.md | practice | 5,934 | 2 | 1 | 3 | 3 | P13 |
+| 79 | 79-x509-verify.md | practice | 5,518 | 2 | 1 | 3 | 3 | P13 |
+| 80 | 80-cert-chain.md | practice | 6,988 | 3 | 1 | 3 | 3 | P13 |
 
 
+
+
+## P13 阶段记录
+
+- 卷八证书链 4 章：ch77 DER 与 PEM（TLV 游标/严格 DER/PEM 块协议）、
+  ch78 X.509 证书解析（零拷贝视图/RDN 游标/OID 翻译层/消费侧校验清单）、
+  ch79 签名验证与服务身份（三问模型/协议分派/RFC 9525 匹配三态）、
+  ch80 信任链与吊销（新增章：PathValidate/PathBuild/信任库四形态/
+  CRL 两层与吊销三态）——三问模型（签名/身份/信任）贯穿 79-80 两章。
+- 全书第十二次重编号：插入 cert-chain（80），37 文件 +1，全书 117 章；
+  卷八 12 章（72-83）骨架就位。
+- 门禁拦下：XRT_MODULE_ASN1 不存在（真名 XRT_MODULE_ASN1_DER——DER 游标
+  是独立模块）、X509/X25519/X448 裸词（PEM 标签例换 TRUSTED CERTIFICATE、
+  枚举斜杠列表改中文）、xrtAlloc（真名 xrtMalloc）、X509_VERIFY_* 简写
+  （补全 XRT_FEATURE_X509_VERIFY_* 全名）、xrtX509Store* 通配（展开实名）。
+- 行文章号修正 12 处（tls-client→81、tls-stream→83、卷八范围 80-82→81-83）。
 
 ## P12 阶段记录
 
