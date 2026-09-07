@@ -27,6 +27,78 @@ while ( xrtPemRead(&cursor, &block) == XPEM_BLOCK ) {
 
 游标和块只在成功时更新。`Raw` 精确覆盖本次消费的块，从开始边界到结束边界的行尾；原输入必须在所有借用视图使用完之前保持有效，输入不要求以零字节结尾。
 
+### `xrtPemInit`
+
+初始化一个严格有界、借用输入的 PEM 游标。
+
+```c
+bool xrtPemInit(xpemcursor* pCursor, cstr sText, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 接收游标 |
+| `sText` | 输入 | 借用 | PEM 文本 |
+| `iSize` | 输入 | — | 文本字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[pem_tour](../../examples/asn1/pem_tour/main.c) · 初始化游标
+
+```c
+	if ( !xrtPemInit(&Cursor, sText, sizeof(sText) - 1u) ) {
+```
+
+### `xrtPemRead`
+
+读取下一个 PEM 块；失败时游标和输出保持不变。
+
+```c
+xpemresult xrtPemRead(xpemcursor* pCursor, xpemblock* pBlock)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 已初始化 | 目标游标 |
+| `pBlock` | 输出 | 非空 | 接收块视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XPEM_BLOCK` | 已读取一个块，`pBlock` 有效 | — |
+| `XPEM_DONE` | 输入耗尽，无更多块 | 不设错误 |
+| `XPEM_ERROR` | 参数或格式错误 | `XERR_ARGUMENT` / `xrt.pem` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或游标状态非法
+- `xrt.pem` / `XPEM_ERROR_LABEL`（`XERR_PROTOCOL`） — 标签缺失或不完整
+- `xrt.pem` / `XPEM_ERROR_BOUNDARY`（`XERR_PROTOCOL`） — 起止边界不匹配或残缺
+
+#### 范例
+
+[pem_tour](../../examples/asn1/pem_tour/main.c) · 读取下一块
+
+```c
+	while ( xrtPemRead(&Cursor, &Block) == XPEM_BLOCK ) {
+```
+
 ## 查找与解码
 
 ```c
@@ -43,6 +115,133 @@ if ( xrtPemFind(text, text_size, "CERTIFICATE", &block) ) {
 
 正文使用严格、规范的 Base64 解码，只忽略 RFC 文本封装允许的 SP、HT、VT、FF、CR 和 LF。正文格式失败使用 `xrt.pem` 的 `XPEM_ERROR_BODY`，并通过 `xrtErrorCause` 保留原始 `xrt.codec` 错误。
 
+### `xrtPemFind`
+
+查找第一个标签完全匹配的 PEM 块。
+
+```c
+bool xrtPemFind(
+	cstr sText,
+	size_t iSize,
+	cstr sLabel,
+	xpemblock* pBlock
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sText` | 输入 | 借用 | PEM 文本 |
+| `iSize` | 输入 | — | 文本字节数 |
+| `sLabel` | 输入 | 非空、零结尾 | 目标标签 |
+| `pBlock` | 输出 | 非空 | 接收块视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已找到，`pBlock` 有效 | — |
+| `false` | 未找到或失败 | `XERR_NOT_FOUND` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.pem` / `XPEM_ERROR_LABEL`（`XERR_VALUE`） — 标签为空或非法
+- `xrt.pem` / `XPEM_ERROR_NOT_FOUND`（`XERR_NOT_FOUND`） — 无匹配块
+- `xrt.pem` 域错误 — 遍历中遇到的格式错误（LABEL/BOUNDARY）
+
+#### 范例
+
+[pem](../../examples/asn1/pem/main.c) · 查找块
+
+```c
+		!xrtPemFind(sText, strlen(sText), "XRT DATA", &Block) ) {
+```
+
+### `xrtPemDecode`
+
+解码 PEM 块正文；输出为空且容量为零时只验证并查询长度。
+
+```c
+bool xrtPemDecode(
+	const xpemblock* pBlock,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pOutputSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBlock` | 输入 | 非空、来自 Init/Read/Find | PEM 块 |
+| `pOutput` | 输出 | 允许空 | 空 + 零容量 = 验证查询 |
+| `iCapacity` | 输入 | — | 输出容量 |
+| `pOutputSize` | 输出 | 非空 | 接收解码字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解码（或已验证） | — |
+| `false` | 正文或容量非法 | `xrt.pem` / 底座错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.pem` / `XPEM_ERROR_BODY`（`XERR_PROTOCOL`） — 正文不是规范 Base64
+- `XERR_RANGE` — 容量不足，由 Base64 底座透传，不写半个结果
+
+#### 范例
+
+[pem_tour](../../examples/asn1/pem_tour/main.c) · 解码正文
+
+```c
+		if ( xrtPemDecode(&Block, Data, sizeof(Data), &iDataSize) ) {
+```
+
+### `xrtPemDecodeNew`
+
+解码并返回由 `xrtFree` 释放的字节。
+
+```c
+bytes xrtPemDecodeNew(
+	const xpemblock* pBlock,
+	size_t* pOutputSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBlock` | 输入 | 非空、来自 Init/Read/Find | PEM 块 |
+| `pOutputSize` | 输出 | 非空 | 接收解码字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 解码字节，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.pem` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.pem` / `XPEM_ERROR_BODY`（`XERR_PROTOCOL`） — 正文不是规范 Base64
+- `XERR_MEMORY` — 分配失败
+- `XERR_OVERFLOW` — 长度引起尺寸溢出
+
+#### 范例
+
+[pem](../../examples/asn1/pem/main.c) · 分配解码
+
+```c
+	pDecoded = xrtPemDecodeNew(&Block, &iDecodedSize);
+```
+
 ## 规范编码
 
 ```c
@@ -58,6 +257,91 @@ xrtPemEncode(
 编码器统一输出五连字符边界、每行恰好最多 64 个 Base64 字符和 LF 换行。`xrtPemEncode` 在输出为空且容量为零时只查询长度；实际写入要求容量额外包含末尾零字节。容量和重叠失败不会修改输出缓冲。
 
 空二进制正文生成相邻的开始行与结束行，不添加无意义空行。
+
+### `xrtPemEncode`
+
+生成 RFC 7468 文本，Base64 每行 64 字符并统一使用 LF；输出为空且容量为零时只查询文本长度，实际写入要求额外的末尾零字节。
+
+```c
+bool xrtPemEncode(
+	cstr sLabel,
+	const void* pData,
+	size_t iSize,
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pOutputSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sLabel` | 输入 | 非空、零结尾 | 块标签 |
+| `pData` | 输入 | 非空 | 原始字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `sOutput` | 输出 | 允许空 | 空 + 零容量 = 查询长度 |
+| `iCapacity` | 输入 | — | 容量，须含末尾零字节 |
+| `pOutputSize` | 输出 | 非空 | 接收不含零字节的长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补零 | — |
+| `false` | 参数、标签或容量失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.pem` / `XPEM_ERROR_LABEL`（`XERR_VALUE`） — 标签为空或非法
+- `XERR_RANGE` — 容量不足（须含末尾零字节），不写半个结果
+
+#### 范例
+
+[pem_tour](../../examples/asn1/pem_tour/main.c) · 规范编码
+
+```c
+	if ( !xrtPemEncode("DATA", Data, iDataSize, Text, sizeof(Text),
+		&iTextSize) ) {
+```
+
+### `xrtPemEncodeNew`
+
+生成并返回由 `xrtFree` 释放的 PEM 文本。
+
+```c
+str xrtPemEncodeNew(cstr sLabel, const void* pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sLabel` | 输入 | 非空、零结尾 | 块标签 |
+| `pData` | 输入 | 非空 | 原始字节 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾 PEM 文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.pem` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.pem` / `XPEM_ERROR_LABEL`（`XERR_VALUE`） — 标签为空或非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[pem](../../examples/asn1/pem/main.c) · 分配编码
+
+```c
+	sText = xrtPemEncodeNew("XRT DATA", Data, sizeof(Data));
+```
 
 ## 错误
 

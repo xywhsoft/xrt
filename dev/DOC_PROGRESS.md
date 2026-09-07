@@ -55,7 +55,7 @@
 | 48 | once.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；thread.h 全集：Once 1 + 原生线程 15 + 线程局部键 6；Wait 自等待 STATE、Once 同线程重入 STATE 入档；锚点 once/thread/thread_tour |
 | 49 | path.md | 32 | **完成** | 32/32 全绿（G3 32 片段，2026-09-07）；xrt.path 域 FORMAT/OVERFLOW/ROOT/SYSTEM 四码入档；safe 族纯谓词不设错；manifest 补注册 tour/system/safe 三范例 |
 | 50 | pattern.md | 37 | **完成** | 37/37 全绿（G3 37 片段，2026-09-07）；xrt.pattern 域 CONFIG/PATTERN/LIMIT/CONFLICT/CAPACITY 五码入档；ErrorOffset/ErrorPattern 机器数据定位器；锚点 pattern/pattern_tour |
-| 51 | pem.md | 7 | 待办 |  |
+| 51 | pem.md | 7 | **完成** | 7/7 全绿（G3 7 片段，2026-09-07）；xrt.pem 域 LABEL/BOUNDARY/BODY/NOT_FOUND 四码入档；xpemresult 三值逐值成表；锚点 pem/pem_tour（后者挂 asn1_der） |
 | 52 | pool.md | 58 | 待办 |  |
 | 53 | process.md | 37 | 待办 |  |
 | 54 | proxy.md | 23 | 待办 |  |
@@ -642,4 +642,8 @@
   语法错 = PATTERN·VALUE（含字节偏移机器数据）、不可区分同优先级 =
   CONFLICT·EXISTS、预算 = LIMIT·RANGE；BuilderRemove/Set 陈旧 ID 不设错。
   完成 API 2088→2125/3664（58.0%），50/79 文件。
+- 2026-09-07 pem.md 完成（7/7，G3 7 片段全绿）：遍历/查找解码/编码三组；错误码对照 src/asn1/pem.c——Read 失败游标输出不变、
+  Find 未命中 = NOT_FOUND、Body 非规范 Base64 = PROTOCOL/BODY、
+  Decode 容量不足由 Base64 底座透传 RANGE。
+  完成 API 2125→2132/3664（58.2%），51/79 文件。
 
