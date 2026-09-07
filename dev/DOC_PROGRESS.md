@@ -708,4 +708,14 @@
   ——借用族（查找/切分/裁剪）一律不设错、分配族 OVERFLOW+MEMORY、
   缓冲族容量不足 = RANGE 不写半个结果、Format 族拒绝 %n。
   完成 API 2540→2623/3664（71.6%），63/79 文件。
+- 2026-09-07 周期全量复审 #4（63/79 节点）：(a) G1/G2/G4 --all
+  63 文件 ok、16 待办文件（sync/task/tcp/temp/template/thread/thread-key/
+  time/tls/udp/value/wait/websocket/x509/xid/xson）问题数符合预期，零回归；
+  (b) G3 --all 79 文件 2642 片段全绿；(c) 本轮 5 文件禁用词零命中；
+  (d) 错误码抽检 3 项（栈固定族满=AGAIN/空弹=RANGE、signal 域码、
+  Format 拒绝 %n）全部与源码一致；(e) 台账-门禁对账：63 完成行 =
+  63 gate-ok（零差异），API 求和 2623 = 记录值 2623/3664（71.6%）。
+  结论：质量体系正常。剩余 16 文件含 tls(268)/value(116)/websocket(104)/
+  tcp(101)/x509(89) 五个大文件；thread.md 可复用 once.md 的 22 节
+  （同映射 thread.h），thread-key.md 同理可子集复用。
 
