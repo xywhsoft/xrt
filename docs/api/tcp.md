@@ -1,5 +1,7 @@
 # TCP 传输 API
 
+TCP 在 Engine 之上提供完整传输层：Listener/Server 接受、托管与 Future 拨号、有界背压的流式读写；代理层（proxy.h）各节复用自 [proxy.md](proxy.md)。
+
 ## 类型与常量
 
 ### `xnetproxytype`

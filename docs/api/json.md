@@ -1,5 +1,7 @@
 # JSON
 
+JSON 提供严格 RFC 8259 解析、事件流访问与序列化；不构造中间 DOM 时可用 Visit 直达事件。
+
 ## 类型与常量
 
 ### `xjsonerror`

@@ -1,5 +1,7 @@
 # Codec
 
+Codec 提供 Base64、HEX 与 Percent 三种字节文本编码的缓冲版、流式与分配型入口；全部入口为无共享状态的纯函数。
+
 ## 类型与常量
 
 ### `xhexflag`

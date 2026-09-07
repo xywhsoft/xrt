@@ -1,5 +1,7 @@
 # 网络接口
 
+Net Interface 枚举本机网络接口与地址，提供硬件地址、MTU、标志位查询；本文件各节复用自 [net.md](net.md)（共享 `net_interface.h`）。
+
 ## 类型与常量
 
 ### `xnetinterfaceflag`

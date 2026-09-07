@@ -1,5 +1,7 @@
 # Unicode 与字符集 API
 
+XRT 的内部文本主线是 UTF-8：`unicode` 处理标量与 UTF 编码形式，`charset` 处理带字节序的编码方案与 BOM，`charset_detect` 提供启发式检测；三层可独立裁剪。
+
 ## 设计契约
 
 XRT 的内部文本主线是 UTF-8。`unicode` 模块只处理 Unicode 标量值和 UTF-8/16/32 编码形式；`charset` 模块处理带明确字节序的编码方案与 BOM；`charset_detect` 提供不承诺绝对正确的启发式检测。三层可以独立裁剪：

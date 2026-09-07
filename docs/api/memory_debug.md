@@ -1,5 +1,7 @@
 # 内存调试 API
 
+Memory Debug 在运行时跟踪每一次 XRT 分配：调用点登记、活动分配快照、双写/越界检测与流式报告；仅在诊断构建中启用。
+
 ## 启用与裁剪
 
 定义 `XRT_FEATURE_MEMORY_DEBUG` 后，`xrtMalloc`、`xrtCalloc`、`xrtRealloc`、`xrtFree` 和 `xrtMemDup` 自动记录 `__FILE__`、`__LINE__`。未定义该宏时，调试块头、canary、事件、活动链表和隔离队列全部从构建中裁掉。

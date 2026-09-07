@@ -1,5 +1,7 @@
 # 临时内存 API
 
+Temp 提供线程/协程绑定的临时内存 arena：作用域后进先出回退、父作用域结果复制与上下文便捷层。
+
 ## 分层模型
 
 临时内存提供两层 API：`xtemparena` 是可显式放入对象、请求或协程上下文的原语；`xrtTemp`、`xrtTempCurrent` 和 `xrtTempClear` 使用当前执行上下文的默认 arena，覆盖常见的一行式临时分配。

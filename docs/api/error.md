@@ -1,5 +1,7 @@
 # 错误 API
 
+Error 是全库统一的结构化错误对象与线程错误报告机制；本文件同时收录 core 并集的公共函数，与 [memory.md](memory.md)、[core.md](core.md) 共享头文件。
+
 ## 类型与常量
 
 ### `xseek`

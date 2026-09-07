@@ -1,5 +1,7 @@
 # 网络 Framing API
 
+Net Framing 提供行分隔与长度前缀两种流式帧解析器；零分配、借用输入，供 TCP/UDP 上层协议复用。
+
 ## 类型与常量
 
 ### `xnetframestatus`

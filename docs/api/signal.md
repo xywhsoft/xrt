@@ -11,6 +11,14 @@
 
 依赖闭包为 `atomic`、`once`、`cond`、`thread` 及这些模块的基础依赖。原生处理器要求目标平台提供锁自由 32 位原子操作，不满足时首次订阅返回 `XERR_UNSUPPORTED`。未启用 `signal` 时，不会编译平台处理器、调度线程或唤醒资源。
 
+## 裁剪与依赖
+
+| 项目 | 值 |
+| --- | --- |
+| 裁剪宏 | `XRT_FEATURE_SIGNAL` |
+| 直接依赖 | `atomic`、`once`、`cond`、`thread` |
+| 头文件 | `<xrt/signal.h>` 或 `<xrt.h>` |
+
 ## 类型与常量
 
 ### `xsignal`

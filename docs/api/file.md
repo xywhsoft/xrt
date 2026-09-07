@@ -1,5 +1,7 @@
 # File API
 
+File 提供跨平台的同步文件 I/O：打开/读写/定位、整文件读写、元数据与目录遍历；异步完成式文件见 [file_async.md](file_async.md)。
+
 ## 类型与常量
 
 ### `xrooterror`

@@ -1,5 +1,7 @@
 # Crypto 基础 API
 
+Crypto 提供自包含的哈希、HMAC、分组密码、AEAD、RSA 与椭圆曲线原语；不依赖任何外部加密库，算法实现以可审计的小型代码为目标。
+
 ## 类型与常量
 
 ### `xcryptohash`

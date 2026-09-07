@@ -3,6 +3,14 @@
 `console` 模块提供跨平台 UTF-8 标准输出。它只管理进程已有的
 `stdout` 和 `stderr`，不会创建、接管或关闭原生控制台。
 
+## 裁剪与依赖
+
+| 项目 | 值 |
+| --- | --- |
+| 裁剪宏 | `XRT_FEATURE_CONSOLE` |
+| 直接依赖 | `core` |
+| 头文件 | `<xrt/console.h>` 或 `<xrt.h>` |
+
 ## 类型与常量
 
 ### `xconsolestream`

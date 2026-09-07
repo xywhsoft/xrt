@@ -1,5 +1,7 @@
 # Path API
 
+Path 提供跨 POSIX/Windows 的路径词法操作：拼接、清理、相对化、分解与可移植性检查；纯词法，不访问文件系统。
+
 ## 类型与常量
 
 ### `xpathstyle`
