@@ -360,7 +360,6 @@ bool xrtPathParse(xstrview Path, xpathstyle Style, xpathparts* pParts)
 		(memcmp(Parts.Name.Data, "file.txt", 8u) != 0) ||
 		(Parts.Stem.Size != 4u) ||
 		(memcmp(Parts.Stem.Data, "file", 4u) != 0) ||
-		(Parts.Ext.Size != 4u) ||
 ```
 
 ### `xrtPathIterInit`

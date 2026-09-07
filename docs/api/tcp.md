@@ -336,7 +336,7 @@ typedef enum xnetacceptdistribution {
 | 值 | 语义 |
 |---|---|
 | `XNET_ACCEPT_ROUND_ROBIN` | XNETACCEPTROUNDROBIN |
-| `XNET_ACCEPT_LOCAL` | 仅本机地址接受 |
+| `XNET_ACCEPT_LOCAL` | 固定留在监听器所属 Worker（不轮转） |
 
 ### `xnetdialstate`
 
@@ -435,7 +435,7 @@ typedef enum xnetstreamreadmode {
 |---|---|
 | `XNET_STREAM_READ_ADAPTIVE` | 读方向 |
 | `XNET_STREAM_READ_DIRECT` | 读方向 |
-| `XNET_STREAM_READ_PROBE` | 读探测 |
+| `XNET_STREAM_READ_PROBE` | 探测模式（低内存优先） |
 
 ### `xnetstreamconfig`
 
@@ -4751,7 +4751,6 @@ xnetproxydial* xrtNetProxyDial(
 		&Example,
 		exampleProxyDialDone,
 		&Example
-	);
 ```
 
 ### `xrtNetProxyDialRef`

@@ -1001,7 +1001,7 @@ typedef enum xtlskeysharepolicy {
 | 值 | 语义 |
 |---|---|
 | `XTLS_KEY_SHARE_PREFER_GROUP` | XTLSKEYSHAREPREFERGROUP |
-| `XTLS_KEY_SHARE_PREFER_READY` | 优先就绪密钥份额 |
+| `XTLS_KEY_SHARE_PREFER_READY` | 优先已就绪份额（避免 HelloRetry） |
 
 ### `xtlskeyshareselection`
 
@@ -3101,7 +3101,6 @@ size_t xrtTlsExtensionSize(size_t iDataSize)
 			(iRequired != 4u) ||
 			(xrtTlsExtensionParse(
 				(xbytesview) { arrOut, 5u },
-				&Extension, &iRequired) != XTLS_AGAIN) ||
 ```
 
 ### `xrtTlsExtensionsFind`
@@ -4304,7 +4303,6 @@ size_t xrtTlsEncryptedExtensionsSize(xbytesview Extensions)
 				(xbytesview) { arrAck, 4u }) != 6u) ||
 			!xrtTlsEncryptedExtensionsEncode(
 				(xbytesview) { arrAck, 4u }, arrOut, 6u) ||
-			!xrtTlsEncryptedExtensionsParse(
 ```
 
 ### `xrtTlsFinishedEncode`
@@ -5032,7 +5030,6 @@ bool xrtTlsCipherCompatible(xtlsversion Version, xtlscipher Cipher, xtlsidentity
 			XTLS_IDENTITY_ECDSA_P256) ||
 		xrtTlsCipherCompatible(XTLS_VERSION_13,
 			XTLS_ECDHE_RSA_AES_128_GCM_SHA256,
-			XTLS_IDENTITY_RSA) ) {
 ```
 
 ### `xrtTlsCipherInfo`
@@ -6477,7 +6474,6 @@ bool xrtTlsKeyShareGenerate(uint16 iGroup, void* pPrivate, size_t iPrivateCapaci
 	) || !xrtTlsKeyShareDerive(
 		pInfo->Group,
 		(xbytesview) { ClientPrivate, pInfo->PrivateSize },
-		(xbytesview) { ServerPublic, pInfo->PublicSize },
 ```
 
 ### `xrtTlsKeyShareSelect`
@@ -7394,7 +7390,6 @@ bool xrtTls13CertificateVerifyContentEncode(xtlsrole Signer, xbytesview Transcri
 			!xrtTls13CertificateVerifySignature(XTLS_SERVER,
 				XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256,
 				(xbytesview) { arrHash, 32u },
-				(xbytesview) { arrDer, iDerSize },
 ```
 
 ### `xrtTls13CertificateVerifyContentSize`
@@ -9798,7 +9793,6 @@ bool xrtTlsServerNames(xbytesview Data, xtlsservernamecursor* pCursor)
 			XTLS_ITEM_DONE) ||
 		(xrtTlsHostName((xbytesview) { arrSni, 8u },
 			&Host) != XTLS_ITEM_VALUE) ||
-		(Host.Size != 3u) ) {
 ```
 
 ### `xrtTlsServerNamesRead`
@@ -10858,7 +10852,6 @@ xtlsdial* xrtTlsDial(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, u
 		&Example,
 		exampleTlsDialDone,
 		&Example
-	);
 ```
 
 ### `xrtTlsDialAsync`

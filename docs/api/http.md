@@ -666,7 +666,7 @@ typedef enum xhttp1bodymode {
 | `XHTTP1_BODY_FIXED` | FIXED |
 | `XHTTP1_BODY_CHUNKED` | CHUNKED |
 | `XHTTP1_BODY_CLOSE` | CLOSE |
-| `XHTTP1_BODY_TUNNEL` | 隧道体（无框架） |
+| `XHTTP1_BODY_TUNNEL` | 升级后的非 HTTP 字节流 |
 
 ### `xhttp1bodystatus`
 
@@ -8238,7 +8238,6 @@ xnetproxydial* xrtNetProxyDial(
 		&Example,
 		exampleProxyDialDone,
 		&Example
-	);
 ```
 
 

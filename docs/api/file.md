@@ -507,7 +507,7 @@ typedef enum xwalkflag {
 | 值 | 语义 |
 |---|---|
 | `XWALK_FOLLOW_LINKS` | XWALKFOLLOWLINKS |
-| `XWALK_ONE_FILESYSTEM` | 单文件系统 |
+| `XWALK_ONE_FILESYSTEM` | 限制在根文件系统内 |
 
 ### `xwalkevent`
 

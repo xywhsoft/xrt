@@ -84,7 +84,7 @@ typedef enum xprocessiomode {
 | `XPROCESS_IO_PIPE` | 系统 IO 失败 |
 | `XPROCESS_IO_NULL` | 空值 |
 | `XPROCESS_IO_HANDLE` | 系统 IO 失败 |
-| `XPROCESS_IO_MERGE` | 合并 stdin/stdout |
+| `XPROCESS_IO_MERGE` | 合并到另一管道（仅 STDERR 可选） |
 
 ### `xprocessstream`
 

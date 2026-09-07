@@ -1510,7 +1510,6 @@ bool xrtWsKeyGenerate(char* sKey, size_t iCapacity)
 			&iFieldCount
 		) || !xrtHttp1RequestWrite(
 			XRT_STR_LITERAL("GET"),
-			XRT_STR_LITERAL("/socket"),
 ```
 
 ### `xrtWsKeyValid`
@@ -2288,7 +2287,6 @@ bool xrtWsUpgradeRequestFields(xstrview Host, xstrview Key, xstrview Protocols, 
 		) || !xrtHttp1RequestWrite(
 			XRT_STR_LITERAL("GET"),
 			XRT_STR_LITERAL("/socket"),
-			XHTTP_VERSION_1_1,
 ```
 
 ### `xrtWsUpgradeResponseCheck`
@@ -2537,7 +2535,6 @@ bool xrtWsDeflateOfferParse(const xwsextension* pExtension, xwsdeflate* pOffer)
 		Output,
 		XWS_DEFLATE_MAX_SIZE,
 		&iSize
-	) ) {
 ```
 
 ### `xrtWsDeflateOfferWrite`
@@ -4692,7 +4689,6 @@ size_t xrtWsStreamWritable(const xwsstream* pStream)
 		(CloseInfo.RemoteCode != 1000u) ||
 		(xrtWsStreamError(Client.pStream) != NULL) ||
 		(xrtWsStreamError(Server.pStream) != NULL) ||
-		(xrtAtomic32Load(&Client.Errors, XMEMORY_ACQUIRE) != 0) ||
 ```
 
 ### `xrtWsStreamPaused`

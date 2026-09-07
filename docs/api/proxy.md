@@ -1067,7 +1067,6 @@ xnetproxydial* xrtNetProxyDial(
 		&Example,
 		exampleProxyDialDone,
 		&Example
-	);
 ```
 
 ### `xrtNetProxyDialRef`

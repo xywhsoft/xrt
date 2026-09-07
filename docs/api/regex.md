@@ -442,7 +442,6 @@ xregex* xrtRegexCompile(xstrview Pattern)
 
 	/* ---- 转义两段式：先量尺寸再写入 ---- */
 	if ( !xrtRegexEscapeSize(SV("a.b*c"), &iSize) ||
-		(iSize != 7u) ||
 ```
 
 ### `xrtRegexCompileConfig`
