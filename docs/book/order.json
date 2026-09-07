@@ -344,421 +344,435 @@
  },
  {
   "num": 50,
-  "slug": "process",
-  "file": "50-process",
-  "title": "子进程管理",
+  "slug": "vol6-intro",
+  "file": "50-vol6-intro",
+  "title": "卷六 进程与并发：导言",
   "volume": "卷六 进程与并发"
  },
  {
   "num": 51,
-  "slug": "thread-sync",
-  "file": "51-thread-sync",
-  "title": "线程与同步原语",
+  "slug": "process",
+  "file": "51-process",
+  "title": "子进程管理",
   "volume": "卷六 进程与并发"
  },
  {
   "num": 52,
-  "slug": "coroutine",
-  "file": "52-coroutine",
-  "title": "协程（上）：创建、切换与清理栈",
+  "slug": "thread-sync",
+  "file": "52-thread-sync",
+  "title": "线程与同步原语",
   "volume": "卷六 进程与并发"
  },
  {
   "num": 53,
-  "slug": "coroutine-sched",
-  "file": "53-coroutine-sched",
-  "title": "协程（中）：调度器与定时器",
+  "slug": "cancel-system",
+  "file": "53-cancel-system",
+  "title": "取消体系：令牌、传播与终态",
   "volume": "卷六 进程与并发"
  },
  {
   "num": 54,
-  "slug": "channel",
-  "file": "54-channel",
-  "title": "Channel 与 Select",
+  "slug": "coroutine",
+  "file": "54-coroutine",
+  "title": "协程（上）：创建、切换与清理栈",
   "volume": "卷六 进程与并发"
  },
  {
   "num": 55,
-  "slug": "future",
-  "file": "55-future",
-  "title": "Future / Promise 与组合子",
+  "slug": "coroutine-sched",
+  "file": "55-coroutine-sched",
+  "title": "协程（中）：调度器与定时器",
   "volume": "卷六 进程与并发"
  },
  {
   "num": 56,
-  "slug": "executor",
-  "file": "56-executor",
-  "title": "执行器与任务",
+  "slug": "channel",
+  "file": "56-channel",
+  "title": "Channel 与 Select",
   "volume": "卷六 进程与并发"
  },
  {
   "num": 57,
-  "slug": "task-cancel",
-  "file": "57-task-cancel",
-  "title": "取消与结构化并发",
-  "volume": "卷六 进程与并发 · 卷六收官"
+  "slug": "future",
+  "file": "57-future",
+  "title": "Future / Promise 与组合子",
+  "volume": "卷六 进程与并发"
  },
  {
   "num": 58,
+  "slug": "executor",
+  "file": "58-executor",
+  "title": "执行器与任务",
+  "volume": "卷六 进程与并发"
+ },
+ {
+  "num": 59,
+  "slug": "task-cancel",
+  "file": "59-task-cancel",
+  "title": "取消与结构化并发",
+  "volume": "卷六 进程与并发"
+ },
+ {
+  "num": 60,
   "slug": "net-addr",
-  "file": "58-net-addr",
+  "file": "60-net-addr",
   "title": "网络引擎与地址模型",
   "volume": "卷七 网络"
  },
  {
-  "num": 59,
+  "num": 61,
   "slug": "net-port",
-  "file": "59-net-port",
+  "file": "61-net-port",
   "title": "事件端口与五后端",
   "volume": "卷七 网络"
  },
  {
-  "num": 60,
+  "num": 62,
   "slug": "net-buf",
-  "file": "60-net-buf",
+  "file": "62-net-buf",
   "title": "缓冲与缓冲池",
   "volume": "卷七 网络"
  },
  {
-  "num": 61,
+  "num": 63,
   "slug": "net-dns",
-  "file": "61-net-dns",
+  "file": "63-net-dns",
   "title": "DNS 解析器",
   "volume": "卷七 网络"
  },
  {
-  "num": 62,
+  "num": 64,
   "slug": "net-tcp",
-  "file": "62-net-tcp",
+  "file": "64-net-tcp",
   "title": "TCP 流（上）：连接与读写",
   "volume": "卷七 网络"
  },
  {
-  "num": 63,
+  "num": 65,
   "slug": "net-tcp-adv",
-  "file": "63-net-tcp-adv",
+  "file": "65-net-tcp-adv",
   "title": "TCP（下）：背压、引用与服务端",
   "volume": "卷七 网络"
  },
  {
-  "num": 64,
+  "num": 66,
   "slug": "net-udp",
-  "file": "64-net-udp",
+  "file": "66-net-udp",
   "title": "UDP 数据报",
   "volume": "卷七 网络"
  },
  {
-  "num": 65,
+  "num": 67,
   "slug": "net-proxy",
-  "file": "65-net-proxy",
+  "file": "67-net-proxy",
   "title": "代理：SOCKS5 与 HTTP CONNECT",
   "volume": "卷七 网络"
  },
  {
-  "num": 66,
+  "num": 68,
   "slug": "net-misc",
-  "file": "66-net-misc",
+  "file": "68-net-misc",
   "title": "分帧、端口文件与网卡",
   "volume": "卷七 网络 · 卷七收官"
  },
  {
-  "num": 67,
+  "num": 69,
   "slug": "crypto-hash",
-  "file": "67-crypto-hash",
+  "file": "69-crypto-hash",
   "title": "密码学（上）：哈希与 HMAC",
   "volume": "卷八 安全"
  },
  {
-  "num": 68,
+  "num": 70,
   "slug": "crypto-aead",
-  "file": "68-crypto-aead",
+  "file": "70-crypto-aead",
   "title": "密码学（中）：AEAD 加密",
   "volume": "卷八 安全"
  },
  {
-  "num": 69,
+  "num": 71,
   "slug": "crypto-asym",
-  "file": "69-crypto-asym",
+  "file": "71-crypto-asym",
   "title": "密码学（下）：RSA 与 ECDSA 与 Ed25519 与 X25519",
   "volume": "卷八 安全"
  },
  {
-  "num": 70,
+  "num": 72,
   "slug": "der-pem",
-  "file": "70-der-pem",
+  "file": "72-der-pem",
   "title": "DER 与 PEM",
   "volume": "卷八 安全"
  },
  {
-  "num": 71,
+  "num": 73,
   "slug": "x509",
-  "file": "71-x509",
+  "file": "73-x509",
   "title": "X.509 证书解析",
   "volume": "卷八 安全"
  },
  {
-  "num": 72,
+  "num": 74,
   "slug": "x509-verify",
-  "file": "72-x509-verify",
+  "file": "74-x509-verify",
   "title": "X.509 路径验证与 CRL",
   "volume": "卷八 安全"
  },
  {
-  "num": 73,
+  "num": 75,
   "slug": "tls-client",
-  "file": "73-tls-client",
+  "file": "75-tls-client",
   "title": "TLS（上）：客户端握手",
   "volume": "卷八 安全"
  },
  {
-  "num": 74,
+  "num": 76,
   "slug": "tls-server",
-  "file": "74-tls-server",
+  "file": "76-tls-server",
   "title": "TLS（中）：服务端",
   "volume": "卷八 安全"
  },
  {
-  "num": 75,
+  "num": 77,
   "slug": "tls-stream",
-  "file": "75-tls-stream",
+  "file": "77-tls-stream",
   "title": "TLS（下）：流与恢复",
   "volume": "卷八 安全 · 卷八收官"
  },
  {
-  "num": 76,
+  "num": 78,
   "slug": "http",
-  "file": "76-http",
+  "file": "78-http",
   "title": "HTTP 语义原语",
   "volume": "卷九 Web 协议核心"
  },
  {
-  "num": 77,
+  "num": 79,
   "slug": "http1",
-  "file": "77-http1",
+  "file": "79-http1",
   "title": "HTTP/1.x 解析与封包",
   "volume": "卷九 Web 协议核心"
  },
  {
-  "num": 78,
+  "num": 80,
   "slug": "http-headers",
-  "file": "78-http-headers",
+  "file": "80-http-headers",
   "title": "HTTP 语义头族",
   "volume": "卷九 Web 协议核心"
  },
  {
-  "num": 79,
+  "num": 81,
   "slug": "http-decode",
-  "file": "79-http-decode",
+  "file": "81-http-decode",
   "title": "内容解码与编码协商",
   "volume": "卷九 Web 协议核心"
  },
  {
-  "num": 80,
+  "num": 82,
   "slug": "ws-frame",
-  "file": "80-ws-frame",
+  "file": "82-ws-frame",
   "title": "WebSocket 帧协议",
   "volume": "卷九 Web 协议核心"
  },
  {
-  "num": 81,
+  "num": 83,
   "slug": "ws-stream",
-  "file": "81-ws-stream",
+  "file": "83-ws-stream",
   "title": "WebSocket 流与升级",
   "volume": "卷九 Web 协议核心 · 卷九收官"
  },
  {
-  "num": 82,
+  "num": 84,
   "slug": "xhttp-easy",
-  "file": "82-xhttp-easy",
+  "file": "84-xhttp-easy",
   "title": "xhttp 入门与 easy 客户端",
   "volume": "卷十 扩展库：xhttp"
  },
  {
-  "num": 83,
+  "num": 85,
   "slug": "xhttp-runtime",
-  "file": "83-xhttp-runtime",
+  "file": "85-xhttp-runtime",
   "title": "客户端运行时与连接池",
   "volume": "卷十 扩展库：xhttp"
  },
  {
-  "num": 84,
+  "num": 86,
   "slug": "xhttp-redirect",
-  "file": "84-xhttp-redirect",
+  "file": "86-xhttp-redirect",
   "title": "重定向、重试与断点续传",
   "volume": "卷十 扩展库：xhttp"
  },
  {
-  "num": 85,
+  "num": 87,
   "slug": "xhttp-cache",
-  "file": "85-xhttp-cache",
+  "file": "87-xhttp-cache",
   "title": "客户端缓存与 Cookie",
   "volume": "卷十 扩展库：xhttp"
  },
  {
-  "num": 86,
+  "num": 88,
   "slug": "xhttp-url",
-  "file": "86-xhttp-url",
+  "file": "88-xhttp-url",
   "title": "URL、Query 与表单",
   "volume": "卷十 扩展库：xhttp"
  },
  {
-  "num": 87,
+  "num": 89,
   "slug": "xhttp-server",
-  "file": "87-xhttp-server",
+  "file": "89-xhttp-server",
   "title": "服务端（上）：启动、连接与路由",
   "volume": "卷十 扩展库：xhttp"
  },
  {
-  "num": 88,
+  "num": 90,
   "slug": "xhttp-middleware",
-  "file": "88-xhttp-middleware",
+  "file": "90-xhttp-middleware",
   "title": "服务端（中）：中间件与静态文件",
   "volume": "卷十 扩展库：xhttp"
  },
  {
-  "num": 89,
+  "num": 91,
   "slug": "xhttp-advanced",
-  "file": "89-xhttp-advanced",
+  "file": "91-xhttp-advanced",
   "title": "服务端（下）：SSE、multipart 与认证",
   "volume": "卷十 扩展库：xhttp · 卷十收官"
  },
  {
-  "num": 90,
+  "num": 92,
   "slug": "xws-conn",
-  "file": "90-xws-conn",
+  "file": "92-xws-conn",
   "title": "xws（上）：连接与收发",
   "volume": "卷十一 其他扩展库"
  },
  {
-  "num": 91,
+  "num": 93,
   "slug": "xws-server",
-  "file": "91-xws-server",
+  "file": "93-xws-server",
   "title": "xws（下）：服务端路由与组播",
   "volume": "卷十一 其他扩展库"
  },
  {
-  "num": 92,
+  "num": 94,
   "slug": "xruntime",
-  "file": "92-xruntime",
+  "file": "94-xruntime",
   "title": "xruntime（上）：类型与对象",
   "volume": "卷十一 其他扩展库"
  },
  {
-  "num": 93,
+  "num": 95,
   "slug": "xruntime-typed",
-  "file": "93-xruntime-typed",
+  "file": "95-xruntime-typed",
   "title": "xruntime（下）：动态调用与 typed 容器",
   "volume": "卷十一 其他扩展库"
  },
  {
-  "num": 94,
+  "num": 96,
   "slug": "xmail-smtp",
-  "file": "94-xmail-smtp",
+  "file": "96-xmail-smtp",
   "title": "xmail（上）：SMTP",
   "volume": "卷十一 其他扩展库"
  },
  {
-  "num": 95,
+  "num": 97,
   "slug": "xmail-imap",
-  "file": "95-xmail-imap",
+  "file": "97-xmail-imap",
   "title": "xmail（下）：IMAP / POP3 与 MIME",
   "volume": "卷十一 其他扩展库"
  },
  {
-  "num": 96,
+  "num": 98,
   "slug": "xssh-transport",
-  "file": "96-xssh-transport",
+  "file": "98-xssh-transport",
   "title": "xssh（上）：传输与密钥交换",
   "volume": "卷十一 其他扩展库"
  },
  {
-  "num": 97,
+  "num": 99,
   "slug": "xssh-auth",
-  "file": "97-xssh-auth",
+  "file": "99-xssh-auth",
   "title": "xssh（下）：认证与通道",
   "volume": "卷十一 其他扩展库 · 卷十一收官"
  },
  {
-  "num": 98,
+  "num": 100,
   "slug": "build",
-  "file": "98-build",
+  "file": "100-build",
   "title": "构建系统全解",
   "volume": "卷十二 工程实践"
  },
  {
-  "num": 99,
+  "num": 101,
   "slug": "trim",
-  "file": "99-trim",
+  "file": "101-trim",
   "title": "特性裁剪与体积控制",
   "volume": "卷十二 工程实践"
  },
  {
-  "num": 100,
+  "num": 102,
   "slug": "package",
-  "file": "100-package",
+  "file": "102-package",
   "title": "打包、分发与单头",
   "volume": "卷十二 工程实践"
  },
  {
-  "num": 101,
+  "num": 103,
   "slug": "testing",
-  "file": "101-testing",
+  "file": "103-testing",
   "title": "测试、故障注入与模糊测试",
   "volume": "卷十二 工程实践"
  },
  {
-  "num": 102,
+  "num": 104,
   "slug": "embed",
-  "file": "102-embed",
+  "file": "104-embed",
   "title": "嵌入宿主程序",
   "volume": "卷十二 工程实践"
  },
  {
-  "num": 103,
+  "num": 105,
   "slug": "perf",
-  "file": "103-perf",
+  "file": "105-perf",
   "title": "性能调优与内存调试实战",
   "volume": "卷十二 工程实践 · 卷十二收官"
  },
  {
-  "num": 104,
+  "num": 106,
   "slug": "project-cli",
-  "file": "104-project-cli",
+  "file": "106-project-cli",
   "title": "命令行工具：文本与文件处理",
   "volume": "卷十三 实战项目"
  },
  {
-  "num": 105,
+  "num": 107,
   "slug": "project-config",
-  "file": "105-project-config",
+  "file": "107-project-config",
   "title": "JSON 配置中心：value 与模板",
   "volume": "卷十三 实战项目"
  },
  {
-  "num": 106,
+  "num": 108,
   "slug": "project-chat",
-  "file": "106-project-chat",
+  "file": "108-project-chat",
   "title": "TCP 聊天室：网络与并发",
   "volume": "卷十三 实战项目"
  },
  {
-  "num": 107,
+  "num": 109,
   "slug": "project-downloader",
-  "file": "107-project-downloader",
+  "file": "109-project-downloader",
   "title": "HTTPS 下载器：xhttp 与文件",
   "volume": "卷十三 实战项目"
  },
  {
-  "num": 108,
+  "num": 110,
   "slug": "project-ws",
-  "file": "108-project-ws",
+  "file": "110-project-ws",
   "title": "WebSocket 实时推送服务",
   "volume": "卷十三 实战项目"
  },
  {
-  "num": 109,
+  "num": 111,
   "slug": "project-static",
-  "file": "109-project-static",
+  "file": "111-project-static",
   "title": "综合：迷你静态文件服务器",
   "volume": "卷十三 实战项目 · 全书收官"
  }
