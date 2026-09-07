@@ -43,3 +43,407 @@ WebSocket、HTTP 客户端、服务器或具体网络传输。
 - `XRT_FEATURE_HTTP_UPGRADE_WRITE`：直接写出与 Build；依赖 `HTTP_UPGRADE`。
 
 示例位于 `examples/http/upgrade/main.c`。
+
+## API
+
+### 单值解析
+
+### `xrtHttpUpgradeCursorInit`
+
+初始化单个 Upgrade 字段值游标。
+
+```c
+void xrtHttpUpgradeCursorInit(
+	xhttpupgradecursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		xrtHttpUpgradeCursorInit(&UpCursor);
+```
+
+### `xrtHttpUpgradeParse`
+
+严格解析一个 protocol-name[/protocol-version] 元素。
+
+```c
+bool xrtHttpUpgradeParse(
+	xstrview Text,
+	xhttpupgradeitem* pUpgrade
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 单个协议元素 |
+| `pUpgrade` | 输出 | 非空 | 接收名称/版本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpUpgradeParse(SV("websocket"), &Upgrade) ||
+			(Upgrade.Protocol.Size != 9u) ) {
+```
+
+### `xrtHttpUpgradeValid`
+
+完整验证一个 Upgrade 字段值；空列表符合列表语法。
+
+```c
+bool xrtHttpUpgradeValid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpUpgradeValid(SV("websocket")) ||
+			xrtHttpUpgradeValid(SV("bad token")) ) {
+```
+
+### `xrtHttpUpgradeCount`
+
+完整验证并统计一个 Upgrade 字段值中的协议数量。
+
+```c
+bool xrtHttpUpgradeCount(
+	xstrview Value,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCount` | 输出 | 非空 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpUpgradeCount(SV("websocket, h2c"),
+				&iCount) ||
+			(iCount != 2u) ||
+```
+
+### `xrtHttpUpgradeNext`
+
+按线路顺序迭代一个完整 Upgrade 字段值。
+
+```c
+xhttpnext xrtHttpUpgradeNext(
+	xstrview Value,
+	xhttpupgradecursor* pCursor,
+	xhttpupgradeitem* pUpgrade
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pUpgrade` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		while ( xrtHttpUpgradeNext(SV("websocket, h2c"),
+				&UpCursor, &Upgrade) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### 跨字段与写出
+
+### `xrtHttpUpgradeFieldCursorInit`
+
+初始化跨重复 Upgrade 字段游标。
+
+```c
+void xrtHttpUpgradeFieldCursorInit(
+	xhttpupgradefieldcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/upgrade · 字段游标](../../examples/http/upgrade/main.c) · 观察
+
+```c
+	xrtHttpUpgradeFieldCursorInit(&Cursor);
+```
+
+### `xrtHttpUpgradeFieldNext`
+
+跨重复 Upgrade 字段行按线路顺序迭代协议。
+
+```c
+xhttpnext xrtHttpUpgradeFieldNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpupgradefieldcursor* pCursor,
+	xhttpupgradeitem* pUpgrade
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pUpgrade` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/upgrade · 字段游标](../../examples/http/upgrade/main.c) · 观察
+
+```c
+	while ( (Next = xrtHttpUpgradeFieldNext(
+		Fields, 2u, &Cursor, &Upgrade
+	)) == XHTTP_NEXT_ITEM ) {
+```
+
+### `xrtHttpUpgradeWrite`
+
+规范写出一个或多个 Upgrade 协议；空输出可精确查询长度。
+
+```c
+bool xrtHttpUpgradeWrite(
+	const xhttpupgradeitem* pUpgrades,
+	size_t iCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pUpgrades` | 输入 | 借用数组 | 协议元素数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 容量不足或参数错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/upgrade · 写出](../../examples/http/upgrade/main.c) · 观察
+
+```c
+		!xrtHttpUpgradeWrite(
+			Offered,
+			2u,
+			sOutput,
+			sizeof(sOutput),
+			&iSize
+		) ) {
+```
+
+### `xrtHttpUpgradeElementWrite`
+
+规范写出一个 Upgrade 协议元素。
+
+```c
+bool xrtHttpUpgradeElementWrite(
+	const xhttpupgradeitem* pUpgrade,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pUpgrade` | 输入 | 非空 | 协议元素 |
+| `pOutput` | 输出 | 可空 | 输出缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 容量不足或参数错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE`
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			if ( !xrtHttpUpgradeElementWrite(
+					&(xhttpupgradeitem){ SV("h2c"), SV("v2") },
+					Buffer, sizeof(Buffer), &iCount) ||
+				(iCount != 6u) ||
+				(memcmp(Buffer, "h2c/v2", 6u) != 0) ) {
+```
+
+### `xrtHttpUpgradeBuild`
+
+构建零结尾 Upgrade 字段值，返回值由 `xrtFree` 释放。
+
+```c
+str xrtHttpUpgradeBuild(
+	const xhttpupgradeitem* pUpgrades,
+	size_t iCount,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pUpgrades` | 输入 | 借用数组 | 协议元素数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾结果 | — |
+| `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			str sBuilt = xrtHttpUpgradeBuild(arrUp, 2u, &iCount);
+```
+

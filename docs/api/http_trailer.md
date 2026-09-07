@@ -72,3 +72,257 @@ HTTP/1 的 chunked 解析和末块写出仍由 `http1_body` 负责；客户端�
 [RFC 9110 Trailer](https://www.rfc-editor.org/rfc/rfc9110.html#section-6.6.2)、
 [RFC 9112 Chunked Trailer Section](https://www.rfc-editor.org/rfc/rfc9112.html#section-7.1.2)
 以及 [RFC 9530 Digest Fields](https://www.rfc-editor.org/rfc/rfc9530.html)。
+
+## API
+
+### 名称校验
+
+### `xrtHttpTrailerNameValid`
+
+判断字段名是否可作为通用 HTTP trailer 发送。
+
+```c
+bool xrtHttpTrailerNameValid(xstrview Name);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 可发送（非禁投递集合） | — |
+| `false` | 禁止作为 trailer | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpTrailerNameValid(SV("X-Checksum")) ||
+			xrtHttpTrailerNameValid(SV("Bad Name")) ) {
+```
+
+### `xrtHttpTrailerSectionValid`
+
+完整验证实际 trailer section 的字段名称和值。
+
+```c
+bool xrtHttpTrailerSectionValid(
+	const xhttpfield* pTrailers,
+	size_t iCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTrailers` | 输入 | 借用数组 | 实际 trailer 字段 |
+| `iCount` | 输入 | — | 条目数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 名称与值全部合法 | — |
+| `false` | 存在禁投递名或非法值 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			if ( !xrtHttpTrailerSectionValid(arrSection, 1u) ||
+				xrtHttpTrailerSectionValid(arrBad, 1u) ) {
+```
+
+
+### 声明生成与查询
+
+### `xrtHttpTrailerCount`
+
+完整验证重复 Trailer 字段行并统计其中声明的名称。
+
+```c
+bool xrtHttpTrailerCount(
+	const xhttpfield* pFields,
+	size_t iCount,
+	size_t* pNameCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 声明字段 |
+| `iCount` | 输入 | — | 条目数 |
+| `pNameCount` | 输出 | 非空 | 接收声明计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 声明非法 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpTrailerCount(arrTrailer, 2u, &iCount) ||
+			(iCount != 3u) ||
+			!xrtHttpTrailerFind(arrTrailer, 2u,
+				SV("X-Checksum")) ||
+			xrtHttpTrailerFind(arrTrailer, 2u,
+				SV("X-Missing")) ||
+			!xrtHttpTrailerNameValid(SV("X-Checksum")) ||
+			xrtHttpTrailerNameValid(SV("Bad Name")) ) {
+```
+
+### `xrtHttpTrailerFind`
+
+查找已声明的 trailer 字段名；返回 ITEM、END 或 ERROR。
+
+```c
+xhttpnext xrtHttpTrailerFind(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 声明字段 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 查找名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/声明非法 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpTrailerFind(arrTrailer, 2u,
+				SV("X-Checksum")) ||
+			xrtHttpTrailerFind(arrTrailer, 2u,
+```
+
+### `xrtHttpTrailerNamesWrite`
+
+从实际 trailer 字段写出规范的 Trailer 声明值；同名按大小写不敏感去重并保留首现顺序。
+
+```c
+bool xrtHttpTrailerNamesWrite(
+	const xhttpfield* pTrailers,
+	size_t iTrailerCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTrailers` | 输入 | 借用数组 | 实际字段 |
+| `iTrailerCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空、不得与描述符重叠 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 容量不足或重叠 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			if ( !xrtHttpTrailerNamesWrite(arrActual, 2u,
+					Buffer, sizeof(Buffer), &iCount) ||
+				(iCount != 19u) ||
+				(memcmp(Buffer, "X-Checksum, X-Total",
+					19u) != 0) ) {
+```
+
+### `xrtHttpTrailerNamesBuild`
+
+构建零结尾的 Trailer 声明值，返回值由 `xrtFree` 释放。
+
+```c
+str xrtHttpTrailerNamesBuild(
+	const xhttpfield* pTrailers,
+	size_t iTrailerCount,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTrailers` | 输入 | 借用数组 | 实际字段 |
+| `iTrailerCount` | 输入 | — | 条目数 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾声明值 | — |
+| `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/trailer · 构建](../../examples/http/trailer/main.c) · 观察
+
+```c
+	sNames = xrtHttpTrailerNamesBuild(Trailers, 2u, NULL);
+```
+

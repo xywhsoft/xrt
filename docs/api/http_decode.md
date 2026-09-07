@@ -47,3 +47,391 @@ xrtHttpDecodeWrite(
 HTTP/1 的报文边界仍由 `xrtHttp1BodyRead` 决定。只有该 reader 返回最终完成状态时，
 最后一次 `xrtHttpDecodeWrite` 才传入 `bFinal = true`；解码器随后会验证压缩流结束、
 gzip CRC 与长度 trailer。
+
+## API
+
+### 配置与生命周期
+
+### `xrtHttpDecodeConfigInit`
+
+初始化兼容配置：最多四层、64 KiB gzip Header、明文长度不设上限。
+
+```c
+void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收兼容配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/decode_tour · 配置](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+	xrtHttpDecodeConfigInit(&Compat);
+```
+
+### `xrtHttpDecodeConfigInitSafe`
+
+初始化面向不可信对端的安全配置；明文最多 16 MiB，更大正文需显式修改 OutputLimit。
+
+```c
+void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收安全配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无；无限明文须显式设 `XHTTP_DECODE_OUTPUT_UNLIMITED`
+
+#### 范例
+
+[http/decode_tour · 配置](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+	xrtHttpDecodeConfigInitSafe(&Safe);
+```
+
+### `xrtHttpDecodeCreate`
+
+根据全部 Header 创建解码器；字段和值只在本次调用期间借用。
+
+```c
+xhttpdecode* xrtHttpDecodeCreate(
+	const xhttpfield* pFields,
+	size_t iCount,
+	const xhttpdecodeconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用（仅调用期间） | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pConfig` | 输入 | 允许空 | 空 = 兼容配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 解码器（按 Content-Encoding/Content-Length 决定模式） | — |
+| `NULL` | Header 不一致或 OOM | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 编码组合非法或长度矛盾
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/decode · 创建](../../examples/http/decode/main.c) · 观察
+
+```c
+	xhttpdecode* pDecode = xrtHttpDecodeCreate(Fields, 1, NULL);
+```
+
+### `xrtHttpDecodeReset`
+
+为下一条消息复位并复用已经分配的 Inflate 窗口。
+
+```c
+bool xrtHttpDecodeReset(
+	xhttpdecode* pDecode,
+	const xhttpfield* pFields,
+	size_t iCount,
+	const xhttpdecodeconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入/输出 | 非空 | 解码器 |
+| `pFields` | 输入 | 借用 | 新消息字段 |
+| `iCount` | 输入 | — | 条目数 |
+| `pConfig` | 输入 | 允许空 | 新配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已复位可处理下一条 | — |
+| `false` | 前一条未完成或 Header 非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_STATE` — 前一条消息未终结
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/decode_tour · 复用](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+	if ( !xrtHttpDecodeReset(pDecode, Fields, 1u, &Compat) ||
+		(xrtHttpDecodeMode(pDecode) != XHTTP_DECODE_IDENTITY) ||
+		!xrtHttpDecodeWrite(pDecode,
+			(xbytesview) { arrGzip, 4u }, true,
+			exampleOutput, (ptr)&Out) ||
+		!xrtHttpDecodeDone(pDecode) ||
+		(Out.iBytes != 4u) ||
+		(xrtHttpDecodeInputSize(pDecode) != 4u) ) {
+```
+
+### `xrtHttpDecodeDestroy`
+
+销毁解码器；空指针是安全的空操作。
+
+```c
+void xrtHttpDecodeDestroy(xhttpdecode* pDecode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 引用与窗口已释放 | — |
+
+#### 错误
+
+- 无 — 销毁不失败
+
+#### 范例
+
+[http/decode · 收尾](../../examples/http/decode/main.c) · 观察
+
+```c
+	xrtHttpDecodeDestroy(pDecode);
+```
+
+
+### 流式解码与观测
+
+### `xrtHttpDecodeWrite`
+
+同步消费完整输入片段；`bFinal` 表示正文已达协议边界。无编码和原样回退路径直接调用 Output，不复制输入。
+
+```c
+bool xrtHttpDecodeWrite(
+	xhttpdecode* pDecode,
+	xbytesview Input,
+	bool bFinal,
+	xhttpdecodeoutputproc pOutput,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入/输出 | 非空 | 解码器 |
+| `Input` | 输入 | 借用 | 本段线路字节 |
+| `bFinal` | 输入 | — | 末段标记 |
+| `pOutput` | 输入 | 允许空 | 明文回调；空 = 丢弃 |
+| `pData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已消费（终段校验通过） | — |
+| `false` | 数据损坏、超限或回调中止 | 进入失败终态 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 压缩流损坏/截断
+- `XERR_RANGE` — 超 OutputLimit
+- `XERR_CANCELLED` — 回调中止
+
+#### 范例
+
+[http/decode · 解码](../../examples/http/decode/main.c) · 观察
+
+```c
+	bSuccess = xrtHttpDecodeWrite(
+		pDecode,
+		(xbytesview){ Gzip, sizeof(Gzip) },
+		true,
+		printBody,
+		stdout
+	) && xrtHttpDecodeDone(pDecode);
+```
+
+### `xrtHttpDecodeMode`
+
+返回当前消息的交付模式。
+
+```c
+xhttpdecodemode xrtHttpDecodeMode(
+	const xhttpdecode* pDecode
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 解码器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_DECODE_*` | 直通/identity/解码模式 | — |
+| 零值 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/decode_tour · 自省](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+	if ( (xrtHttpDecodeMode(pDecode) != XHTTP_DECODE_CONTENT) ||
+		!xrtHttpDecodeWrite(pDecode,
+			(xbytesview) { arrGzip, sizeof(arrGzip) }, true,
+			exampleOutput, (ptr)&Out) ||
+		!xrtHttpDecodeDone(pDecode) ||
+		(Out.iBytes != 26u) ||
+		(memcmp(Out.arrText, "identity-passthrough-check",
+			26u) != 0) ||
+		(xrtHttpDecodeInputSize(pDecode) != 46u) ||
+		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
+```
+
+### `xrtHttpDecodeDone`
+
+判断最终正文边界和全部压缩流 trailer 均已验证。
+
+```c
+bool xrtHttpDecodeDone(const xhttpdecode* pDecode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 解码器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 消息完整终结 | — |
+| `false` | 未完成或失败终态 | 纯查询 |
+
+#### 错误
+
+- 无 — 纯查询
+
+#### 范例
+
+[http/decode · 完成](../../examples/http/decode/main.c) · 观察
+
+```c
+	) && xrtHttpDecodeDone(pDecode);
+```
+
+### `xrtHttpDecodeInputSize`
+
+返回成功提交给当前消息的线路正文总字节数。
+
+```c
+uint64 xrtHttpDecodeInputSize(const xhttpdecode* pDecode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 解码器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 线路字节数 | — |
+| `0` | 无或参数非法 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/decode_tour · 自省](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+		(xrtHttpDecodeInputSize(pDecode) != 46u) ||
+		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
+```
+
+### `xrtHttpDecodeOutputSize`
+
+返回已经被输出回调接受或明确丢弃的正文总字节数。
+
+```c
+uint64 xrtHttpDecodeOutputSize(const xhttpdecode* pDecode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 解码器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 明文字节数（含丢弃） | — |
+| `0` | 无或参数非法 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/decode_tour · 自省](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
+```
+

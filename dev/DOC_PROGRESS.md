@@ -28,14 +28,14 @@
 | 21 | hash.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；合并节全部拆立 |
 | 22 | html.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；html/variants 补注册 |
 | 23 | http.md | 167 | **完成** | 167/167 全绿（G3 167 片段，2026-09-07）；四段：核心 28 + field/param 33 + te/decode 55 + http1/proxy 52 |
-| 24 | http_connection.md | 5 | 待办 |  |
-| 25 | http_decode.md | 10 | 待办 |  |
-| 26 | http_encoding.md | 12 | 待办 |  |
-| 27 | http_expect.md | 8 | 待办 |  |
+| 24 | http_connection.md | 5 | **完成** | 5/5 全绿（G3 5 片段，2026-09-07）；与 error.md 同型的共享头子集复用策略 |
+| 25 | http_decode.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
+| 26 | http_encoding.md | 12 | **完成** | 12/12 全绿；节复用自 http.md |
+| 27 | http_expect.md | 8 | **完成** | 8/8 全绿；节复用自 http.md |
 | 28 | http_fields.md | 64 | 待办 |  |
-| 29 | http_te.md | 10 | 待办 |  |
-| 30 | http_trailer.md | 6 | 待办 |  |
-| 31 | http_upgrade.md | 10 | 待办 |  |
+| 29 | http_te.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
+| 30 | http_trailer.md | 6 | **完成** | 6/6 全绿；节复用自 http.md |
+| 31 | http_upgrade.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
 | 32 | io.md | 42 | 待办 |  |
 | 33 | json.md | 30 | 待办 |  |
 | 34 | list.md | 28 | 待办 |  |
@@ -478,3 +478,12 @@
   pStats 类型实为 xnetproxydialstats*）；callline 锚点对
   缺失文件自动全库搜索补齐（http1_body/websocket 等）。
   七文件复验无回归。
+- 2026-09-07 http 系列 7 个小文件批量完成（61 节全部双门
+  禁一次全绿）：http_connection 5（新写——Persistence 的
+  PERSIST/CLOSE/ERROR 三态与 HTTP/1.0 keep-alive 显式策略；
+  选项游标复用通用 xhttpfieldtokencursor）+ decode 10 +
+  encoding 12 + expect 8 + te 10 + trailer 6 + upgrade 10。
+  后六者采用"节复用"策略：直接从 http.md 已过门禁的对应节
+  提取（含范例锚点），按各文件分组重组后追加——复用节仍经
+  双门禁二次确认。这是多文件共享头并集的第二个成熟模式
+  （第一个是 error.md 的 Core 附录）。http.md 复验无回归。

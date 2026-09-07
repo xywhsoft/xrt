@@ -41,3 +41,312 @@ quoted-pair 不会被误当作外层分隔符。
 ## 范例
 
 参见 `examples/http/expect/main.c`。
+
+## API
+
+### 单值解析
+
+### `xrtHttpExpectCursorInit`
+
+初始化单个 Expect 字段值游标。
+
+```c
+void xrtHttpExpectCursorInit(
+	xhttpexpectcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		xrtHttpExpectCursorInit(&ExCursor);
+```
+
+### `xrtHttpExpectationParse`
+
+严格解析一个不含列表分隔逗号的 expectation。
+
+```c
+bool xrtHttpExpectationParse(
+	xstrview Element,
+	xhttpexpectation* pExpectation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Element` | 输入 | 借用 | 单个 expectation |
+| `pExpectation` | 输出 | 非空 | 接收名称/参数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpExpectationParse(SV("100-continue"),
+				&Expectation) ||
+			(Expectation.Name.Size != 12u) ||
+			(memcmp(Expectation.Name.Data, "100-continue",
+					12u) != 0) ) {
+```
+
+### `xrtHttpExpectValid`
+
+完整验证一个 Expect 字段值；空列表符合 HTTP 列表语法。
+
+```c
+bool xrtHttpExpectValid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpExpectValid(arrExpect[0].Value) ) {
+```
+
+### `xrtHttpExpectCount`
+
+完整验证并统计一个 Expect 字段值中的 expectation 数量。
+
+```c
+bool xrtHttpExpectCount(
+	xstrview Value,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCount` | 输出 | 非空 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpExpectCount(arrExpect[0].Value, &iCount) ||
+			(iCount != 2u) ||
+```
+
+### `xrtHttpExpectNext`
+
+按线路顺序迭代一个完整 Expect 字段值。
+
+```c
+xhttpnext xrtHttpExpectNext(
+	xstrview Value,
+	xhttpexpectcursor* pCursor,
+	xhttpexpectation* pExpectation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pExpectation` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		while ( xrtHttpExpectNext(arrExpect[0].Value, &ExCursor,
+				&Expectation) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### 跨字段与分类
+
+### `xrtHttpExpectFieldCursorInit`
+
+初始化跨重复 Expect 字段游标。
+
+```c
+void xrtHttpExpectFieldCursorInit(
+	xhttpexpectfieldcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/expect · 字段游标](../../examples/http/expect/main.c) · 观察
+
+```c
+	xrtHttpExpectFieldCursorInit(&Cursor);
+```
+
+### `xrtHttpExpectFieldNext`
+
+跨重复 Expect 字段行按线路顺序迭代 expectation。
+
+```c
+xhttpnext xrtHttpExpectFieldNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpexpectfieldcursor* pCursor,
+	xhttpexpectation* pExpectation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pExpectation` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/expect · 字段游标](../../examples/http/expect/main.c) · 观察
+
+```c
+	while ( xrtHttpExpectFieldNext(
+		Fields, 2u, &Cursor, &Expectation
+	) == XHTTP_NEXT_ITEM ) {
+```
+
+### `xrtHttpExpectFields`
+
+分类全部重复 Expect 字段并完整验证所有元素。
+
+```c
+xhttpexpectresult xrtHttpExpectFields(
+	const xhttpfield* pFields,
+	size_t iCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_EXPECT_NONE` | 无 Expect 字段 | — |
+| `XHTTP_EXPECT_100_CONTINUE` | 声明 100-continue | — |
+| `XHTTP_EXPECT_UNSUPPORTED` | 合法但服务器不支持的 expectation | — |
+| 参数非法时 | — | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/expect · 分类](../../examples/http/expect/main.c) · 观察
+
+```c
+		xrtHttpExpectFields(Fields, 2u) ==
+			XHTTP_EXPECT_CONTINUE ? "yes" : "no"
+```
+

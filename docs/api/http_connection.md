@@ -76,6 +76,221 @@ if ( status == XHTTP_CONNECTION_CLOSE ) {
 连接持久还要求消息具有自描述长度并被完整消费；该函数只判断版本和 `Connection` 字段，
 不会替代 HTTP/1 消息分帧或传输状态检查。
 
+## API
+
+### `xrtHttpConnectionCursorInit`
+
+初始化重复 Connection 字段选项游标（复用通用 `xhttpfieldtokencursor`）。
+
+```c
+void xrtHttpConnectionCursorInit(
+	xhttpfieldtokencursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[http/connection_cursor · 迭代](../../examples/http/connection_cursor/main.c) · 观察
+
+```c
+	xrtHttpConnectionCursorInit(&Cursor);
+```
+
+
+### `xrtHttpConnectionNext`
+
+跨重复 Connection 字段行按线路顺序迭代连接选项；首次发布前完整验证所有字段，选项借用原字段值。
+
+```c
+xhttpnext xrtHttpConnectionNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpfieldtokencursor* pCursor,
+	xstrview* pOption
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标（输入在结束前不变） |
+| `pOption` | 输出 | 非空 | 接收选项（借用字段值） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 发布一个选项 | — |
+| `XHTTP_NEXT_END` | 正常结束并清空输出 | 不设错 |
+| `XHTTP_NEXT_ERROR` | 参数/游标/字段语法错误 | 游标不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `xrt.http` 域错误 — Connection 字段值语法非法
+
+#### 范例
+
+[http/connection_cursor · 迭代](../../examples/http/connection_cursor/main.c) · 观察
+
+```c
+	while ( xrtHttpConnectionNext(Fields, 2u, &Cursor, &Option) ==
+		XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpConnectionCount`
+
+完整验证并统计全部重复 Connection 字段中的非空选项。
+
+```c
+bool xrtHttpConnectionCount(
+	const xhttpfield* pFields,
+	size_t iCount,
+	size_t* pOptionCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pOptionCount` | 输出 | 非空、可未对齐 | 接收合计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合计已写出 | — |
+| `false` | 任一字段非法 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误 — Connection 字段值语法非法
+
+#### 范例
+
+[http/connection · 统计](../../examples/http/connection/main.c) · 观察
+
+```c
+	if ( !xrtHttpConnectionCount(
+		Fields, 2u, &iCount
+	) || (iCount != 2u) ||
+```
+
+
+### `xrtHttpConnectionFind`
+
+在全部重复 Connection 字段中查找大小写不敏感的连接选项；先验证所有值再返回。
+
+```c
+xhttpnext xrtHttpConnectionFind(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Option
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Option` | 输入 | 借用 | 查找选项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 找到 | — |
+| `XHTTP_NEXT_END` | 未找到（不设错） | — |
+| `XHTTP_NEXT_ERROR` | 字段值非法 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误 — Connection 字段值语法非法
+
+#### 范例
+
+[http/connection · 查找](../../examples/http/connection/main.c) · 观察
+
+```c
+	xrtHttpConnectionFind(
+		Fields, 2u, XRT_STR_LITERAL("te")
+	) != XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpConnectionPersistence`
+
+按 RFC 9112 判断 HTTP/1 连接能否在当前响应后继续复用。HTTP/1.0 只有显式允许、含 keep-alive 且满足代理方向限制才持久。
+
+```c
+xhttpconnectionstatus xrtHttpConnectionPersistence(
+	xhttpversion Version,
+	const xhttpfield* pFields,
+	size_t iCount,
+	uint32 iFlags
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | HTTP 版本 | 1.0 或 1.1 |
+| `pFields` | 输入 | 借用数组 | Connection 字段 |
+| `iCount` | 输入 | — | 条目数 |
+| `iFlags` | 输入 | `XHTTP_CONNECTION_*` | RESPONSE/PROXY/ALLOW_HTTP10_KEEP_ALIVE |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_CONNECTION_PERSIST` | 可复用（close 不存在且版本策略满足） | — |
+| `XHTTP_CONNECTION_CLOSE` | `close` 存在或版本默认关闭 | — |
+| `XHTTP_CONNECTION_ERROR` | 非法版本/标志/字段 | `XERR_ARGUMENT` 或 `xrt.http` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `xrt.http` 域错误 — Connection 字段值语法非法
+- 注：只判断版本与字段，不替代分帧完整性检查
+
+#### 范例
+
+[http/connection · 持久性](../../examples/http/connection/main.c) · 观察
+
+```c
+	Status = xrtHttpConnectionPersistence(
+		XHTTP_VERSION_1_1, Fields, 2u, 0
+	);
+```
+
+
+
 ## 分层复用
 
 - 规范写出选项数组使用 `xrtHttpTokenListWrite` 或 `xrtHttpTokenListBuild`；

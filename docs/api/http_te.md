@@ -38,3 +38,392 @@ RFC 9110 要求发送 `TE` 的发起端同时在 `Connection` 中声明 `TE`，�
 ## 范例
 
 参见 `examples/http/te/main.c`。
+
+## API
+
+### 单值解析
+
+### `xrtHttpTeCursorInit`
+
+初始化单个 TE 字段值游标。
+
+```c
+void xrtHttpTeCursorInit(xhttptecursor* pCursor);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	xrtHttpTeCursorInit(&TeCursor);
+```
+
+### `xrtHttpTeCodingParse`
+
+严格解析一个不含列表分隔逗号的 TE 成员。
+
+```c
+bool xrtHttpTeCodingParse(
+	xstrview Element,
+	xhttptecoding* pCoding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Element` | 输入 | 借用 | 单个成员文本 |
+| `pCoding` | 输出 | 非空 | 接收名称/权重 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	if ( !xrtHttpTeCodingParse(SV("trailers"), &TeCoding) ||
+		(TeCoding.Quality != 1000u) ||
+		!xrtHttpTeCodingParse(SV("gzip;q=0.8"), &TeCoding) ||
+		(TeCoding.Quality != 800u) ) {
+```
+
+### `xrtHttpTeValid`
+
+完整验证一个 TE 字段值；HTTP 列表空成员会被忽略。
+
+```c
+bool xrtHttpTeValid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	if ( !xrtHttpTeValid(SV("gzip, deflate")) ||
+		!xrtHttpTeValid(SV("gzip,, ,")) ||
+		xrtHttpTeValid(SV("gzip;;")) ||
+		!xrtHttpTeCount(SV("gzip, deflate, br"), &iCount) ||
+		(iCount != 3u) ) {
+```
+
+### `xrtHttpTeCount`
+
+完整验证并统计一个 TE 字段值中的非空成员。
+
+```c
+bool xrtHttpTeCount(
+	xstrview Value,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCount` | 输出 | 非空 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		!xrtHttpTeCount(SV("gzip, deflate, br"), &iCount) ||
+		(iCount != 3u) ) {
+```
+
+### `xrtHttpTeNext`
+
+按线路顺序迭代一个完整 TE 字段值。
+
+```c
+xhttpnext xrtHttpTeNext(
+	xstrview Value,
+	xhttptecursor* pCursor,
+	xhttptecoding* pCoding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pCoding` | 输出 | 非空 | 接收成员 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	while ( xrtHttpTeNext(SV("gzip, trailers"), &TeCursor,
+			&TeCoding) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### 跨字段与汇总
+
+### `xrtHttpTeFieldCursorInit`
+
+初始化跨重复 TE 字段游标。
+
+```c
+void xrtHttpTeFieldCursorInit(
+	xhttptefieldcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	xrtHttpTeFieldCursorInit(&TeFieldCursor);
+```
+
+### `xrtHttpTeFieldNext`
+
+跨重复 TE 字段行按线路顺序迭代全部成员。
+
+```c
+xhttpnext xrtHttpTeFieldNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttptefieldcursor* pCursor,
+	xhttptecoding* pCoding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pCoding` | 输出 | 非空 | 接收成员 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	while ( xrtHttpTeFieldNext(arrTeFields, 2u, &TeFieldCursor,
+			&TeCoding) == XHTTP_NEXT_ITEM ) {
+```
+
+### `xrtHttpTeParse`
+
+完整解析全部重复 TE 字段并发布零分配汇总。
+
+```c
+bool xrtHttpTeParse(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpteinfo* pInfo
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pInfo` | 输出 | 非空 | 接收汇总（chunked/编码集等） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 汇总已发布 | — |
+| `false` | 任一字段非法 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/te · 汇总](../../examples/http/te/main.c) · 观察
+
+```c
+	if ( !xrtHttpTeParse(Fields, 2u, &Info) ) {
+```
+
+### `xrtHttpTeQuality`
+
+返回指定传输编码的最高有效权重；缺失或不匹配返回零。
+
+```c
+uint16 xrtHttpTeQuality(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Coding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | TE 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Coding` | 输入 | 借用 | 编码名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `0–1000` | 最高有效权重 | — |
+| `0` | 缺失或不匹配（或参数错误） | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `xrt.http` 域错误 — 字段值非法
+
+#### 范例
+
+[http/te · 权重](../../examples/http/te/main.c) · 观察
+
+```c
+		(unsigned int)xrtHttpTeQuality(
+			Fields, 2u, XRT_STR_LITERAL("gzip")
+		)
+```
+
+### `xrtHttpTeAcceptsTrailers`
+
+完整验证并判断客户端是否声明不会丢弃 Trailer。
+
+```c
+xhttpnext xrtHttpTeAcceptsTrailers(
+	const xhttpfield* pFields,
+	size_t iCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 声明 trailers（`TE: trailers`） | — |
+| `XHTTP_NEXT_END` | 未声明 | 不设错 |
+| `XHTTP_NEXT_ERROR` | 字段非法 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	if ( xrtHttpTeAcceptsTrailers(arrTeFields, 2u) !=
+		XHTTP_NEXT_ITEM ) {
+```
+

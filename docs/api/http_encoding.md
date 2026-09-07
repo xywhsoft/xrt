@@ -71,3 +71,487 @@ Coding = xrtHttpAcceptEncodingSelect(
 	XHTTP_CODING_GZIP
 );
 ```
+
+## API
+
+### 编码枚举
+
+### `xrtHttpCodingParse`
+
+把编码 token 解析为内置枚举（identity/gzip/deflate，x-gzip 为 gzip 别名）；未知返回 NONE。
+
+```c
+xhttpcoding xrtHttpCodingParse(xstrview Token);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Token` | 输入 | 借用 | 编码 token（大小写不敏感） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_CODING_IDENTITY/GZIP/DEFLATE` | 内置编码 | — |
+| `XHTTP_CODING_NONE` | 未知编码（如 zstd） | 不设错 |
+
+#### 错误
+
+- 无 — NONE 是分类结果
+
+#### 范例
+
+[http/small_fields · 编码枚举](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( (xrtHttpCodingParse(SV("gzip")) !=
+				XHTTP_CODING_GZIP) ||
+```
+
+### `xrtHttpCodingName`
+
+返回 identity、gzip 或 deflate 的静态小写 token；NONE 返回空视图。
+
+```c
+xstrview xrtHttpCodingName(xhttpcoding Coding);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Coding` | 输入 | — | 编码枚举 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 静态小写 token | — |
+| 空视图 | `XHTTP_CODING_NONE` | 纯查询 |
+
+#### 错误
+
+- 无 — 纯查询
+
+#### 范例
+
+[http/encoding · 编码名](../../examples/http/encoding/main.c) · 观察
+
+```c
+	Name = xrtHttpCodingName(Coding);
+```
+
+
+### Accept-Encoding 协商
+
+### `xrtHttpAcceptEncodingInit`
+
+初始化为 Header 缺失状态；按 RFC 该状态接受任意内容编码。
+
+```c
+void xrtHttpAcceptEncodingInit(
+	xhttpacceptencoding* pAccept
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输出 | 非空 | 协商状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/encoding · 协商](../../examples/http/encoding/main.c) · 观察
+
+```c
+	xrtHttpAcceptEncodingInit(&Accept);
+```
+
+### `xrtHttpAcceptEncodingValid`
+
+判断公开协商状态字段是否自洽；纯查询不修改线程原有错误。
+
+```c
+bool xrtHttpAcceptEncodingValid(
+	const xhttpacceptencoding* pAccept
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输入 | 非空 | 协商状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 自洽 | — |
+| `false` | 不自洽 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · 协商](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpAcceptEncodingValid(&Accept) ) {
+```
+
+### `xrtHttpAcceptEncodingAdd`
+
+失败原子地合并一个 Accept-Encoding 字段值；空值只记录 Header 存在，未知编码语法有效但不进入内置集合。
+
+```c
+bool xrtHttpAcceptEncodingAdd(
+	xhttpacceptencoding* pAccept,
+	xstrview Value
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输入/输出 | 非空 | 协商状态 |
+| `Value` | 输入 | 借用 | 单个字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已合并（失败原子） | — |
+| `false` | 语法错误 | 状态不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/encoding · 协商](../../examples/http/encoding/main.c) · 观察
+
+```c
+	if ( !xrtHttpAcceptEncodingAdd(
+		&Accept,
+		XRT_STR_LITERAL(
+			"gzip;q=0.8, deflate;q=0.4, identity;q=0.1"
+		)
+	) ) {
+```
+
+### `xrtHttpAcceptEncodingParse`
+
+扫描全部同名字段并构建零分配协商状态；Fields 为空且 Count 为零表示没有任何字段。
+
+```c
+bool xrtHttpAcceptEncodingParse(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpacceptencoding* pAccept
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pAccept` | 输出 | 非空 | 接收协商状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 状态已构建 | — |
+| `false` | 任一字段非法 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · 协商](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpAcceptEncodingParse(arrAe, 1u, &Accept) ||
+			(xrtHttpAcceptEncodingQuality(&Accept,
+				XHTTP_CODING_GZIP) != 900u) ||
+			(xrtHttpAcceptEncodingQuality(&Accept,
+				XHTTP_CODING_IDENTITY) != 1000u) ||
+			!xrtHttpAcceptEncodingValid(&Accept) ) {
+```
+
+### `xrtHttpAcceptEncodingQuality`
+
+返回指定内置编码的有效质量；参数错误返回零并设置错误。
+
+```c
+uint16 xrtHttpAcceptEncodingQuality(
+	const xhttpacceptencoding* pAccept,
+	xhttpcoding Coding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输入 | 非空 | 协商状态 |
+| `Coding` | 输入 | — | 内置编码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `0–1000` | 有效质量（缺失按 RFC 缺省 1000） | — |
+| `0` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/small_fields · 协商](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			(xrtHttpAcceptEncodingQuality(&Accept,
+				XHTTP_CODING_GZIP) != 900u) ||
+			(xrtHttpAcceptEncodingQuality(&Accept,
+```
+
+### `xrtHttpAcceptEncodingSelect`
+
+从 Available 位掩码中选择最高质量编码；等质量时先选 Preferred，再按 gzip、deflate、identity 顺序。
+
+```c
+xhttpcoding xrtHttpAcceptEncodingSelect(
+	const xhttpacceptencoding* pAccept,
+	uint32 iAvailable,
+	xhttpcoding Preferred
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输入 | 非空 | 协商状态 |
+| `iAvailable` | 输入 | `XHTTP_CODING_*` 位掩码 | 服务器可用集 |
+| `Preferred` | 输入 | — | 等质量偏好 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 编码值 | 选中的编码 | — |
+| `XHTTP_CODING_NONE` | 无可用匹配 | `XERR_ARGUMENT`（参数错误时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/encoding · 选择](../../examples/http/encoding/main.c) · 观察
+
+```c
+	Coding = xrtHttpAcceptEncodingSelect(
+		&Accept,
+		XHTTP_CODING_IDENTITY |
+			XHTTP_CODING_GZIP |
+			XHTTP_CODING_DEFLATE,
+		XHTTP_CODING_GZIP
+	);
+```
+
+
+### Content-Encoding 响应链
+
+### `xrtHttpContentEncodingCursorInit`
+
+初始化可重复使用的 Content-Encoding 前向游标。
+
+```c
+void xrtHttpContentEncodingCursorInit(
+	xhttpcontentencodingcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/small_fields · 响应链](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			xrtHttpContentEncodingCursorInit(&Cursor);
+```
+
+### `xrtHttpContentEncodingNext`
+
+按字段出现顺序迭代全部 Content-Encoding 成员；未知扩展仍返回 ITEM 且 Coding 为 NONE。
+
+```c
+xhttpnext xrtHttpContentEncodingNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpcontentencodingcursor* pCursor,
+	xhttpcontentencodingitem* pItem
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pItem` | 输出 | 非空 | 接收编码条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态（未知扩展 Coding=NONE） | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · 响应链](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			if ( xrtHttpContentEncodingNext(arrCe, 1u,
+					&Cursor, &Item) != XHTTP_NEXT_ITEM ||
+				(Item.Token.Size != 4u) ||
+				(Item.Coding != XHTTP_CODING_GZIP) ) {
+```
+
+### `xrtHttpContentEncodingPlan`
+
+无分配构建完整 Content-Encoding 计划；DecoderCount 只统计 gzip/deflate。
+
+```c
+bool xrtHttpContentEncodingPlan(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpcontentencodingplan* pPlan
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pPlan` | 输出 | 非空 | 接收解码器数/连接串大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计划已发布 | — |
+| `false` | 字段非法 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/encoding · 响应链](../../examples/http/encoding/main.c) · 观察
+
+```c
+	if ( !xrtHttpContentEncodingPlan(
+		Fields,
+		sizeof(Fields) / sizeof(Fields[0]),
+		&Plan
+	) ) {
+```
+
+### `xrtHttpContentEncodingWrite`
+
+按字段出现顺序写出以逗号空格连接的原始值；空输出可查大小，容量不足不写部分结果。
+
+```c
+bool xrtHttpContentEncodingWrite(
+	const xhttpfield* pFields,
+	size_t iCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出（不附加零） | — |
+| `false` | 容量不足 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE`
+
+#### 范例
+
+[http/small_fields · 响应链](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpContentEncodingWrite(arrCe, 1u, Buffer,
+				sizeof(Buffer), &iCount) ||
+			(iCount != 8u) ||
+			(memcmp(Buffer, "gzip, br", 8u) != 0) ) {
+```
+
