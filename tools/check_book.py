@@ -282,14 +282,18 @@ BRAND_TOKENS = {"XRT", "XSON", "JSON", "HTTP", "TLS", "SSE", "DNS", "API", "CMak
 
 # 用户侧集成宏：XRT_IMPLEMENTATION 与被 features.h 消费的 XRT_MODULE_* 选择宏
 # （库里只 #if defined(...) 消费、不定义它们，故不在声明符号表中）
-USER_MACROS = {"XRT_IMPLEMENTATION", "XRT_MODULE_", "XRT_FEATURE_"}
+USER_MACROS = {"XRT_IMPLEMENTATION", "XRT_MODULE_", "XRT_FEATURE_", "XRT_EXCLUDE_"}
 
 
 def collect_user_macros(repo):
     import io as _io
     src = _io.open(os.path.join(repo, "include", "xrt", "features.h"),
                    encoding="utf-8", errors="replace").read()
-    return set(re.findall(r"\bXRT_MODULE_[A-Z0-9_]+", src))
+    out = set()
+    out |= set(re.findall(r"\bXRT_MODULE_[A-Z0-9_]+", src))
+    out |= set(re.findall(r"\bXRT_FEATURE_[A-Z0-9_]+", src))    # 依赖闭包生成
+    out |= set(re.findall(r"\bXRT_EXCLUDE_[A-Z0-9_]+", src))    # 排除宏
+    return out
 
 
 # ---------------------------------------------------------------------------
