@@ -29,7 +29,7 @@
 | P20 卷十一xws | ✅ 完成 | 4 | 16,994 |
 | P21 卷十一xssh | ✅ 完成 | 7 | 33,309 |
 | P22 卷十一xmail | ✅ 完成 | 5 | 22,344 |
-| P23 卷十一xruntime | 🔄 进行中 | 0 | — |
+| P23 卷十一xruntime | ✅ 完成 | 4 | 17,646 |
 | P24–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -103,6 +103,10 @@
 | 110 | 110-xws-send.md | practice | 4,179 | 2 | 1 | 3 | 3 | P20 |
 | 111 | 111-xws-group.md | practice | 4,049 | 2 | 1 | 3 | 3 | P20 |
 | 112 | 112-xws-server.md | practice | 4,764 | 2 | 1 | 3 | 3 | P20 |
+| 113 | 113-xruntime.md | practice | 4,730 | 2 | 1 | 3 | 3 | P23 |
+| 114 | 114-xruntime-object.md | practice | 4,310 | 2 | 2 | 3 | 3 | P23 |
+| 115 | 115-xruntime-call.md | practice | 4,024 | 2 | 3 | 3 | 3 | P23 |
+| 116 | 116-xruntime-typed.md | practice | 4,582 | 2 | 1 | 3 | 3 | P23 |
 | 115 | 115-xmail-mail.md | practice | 4,830 | 2 | 1 | 3 | 3 | P22 |
 | 116 | 116-xmail-smtp.md | practice | 4,590 | 2 | 1 | 3 | 3 | P22 |
 | 117 | 117-xmail-pop3.md | practice | 4,105 | 2 | 1 | 3 | 3 | P22 |
@@ -123,6 +127,29 @@
 
 
 
+
+## P23 阶段记录
+
+- 卷十一 xruntime 4 章（卷十一 20 章全部收官；素材 17 契约卡/31 示例）：
+  ch113 类型系统（ABI 名派生稳定 ID/22 存储类别/值实例两层操作表/单继承
+  255 深/注册表/转换判定执行分离）、ch114 对象与对象图（新增章：一次分配
+  引用计数对象/弱引用 Lock 唯一提升/Trace 铁律/安全点环收集 O(N+E)/
+  失败原子性——候选同时终结）、ch115 动态调用（新增章：签名借用/帧校验/
+  结果前四内联/Invoke 六步原子——失败不破坏原结果/单一类型明确入口
+  边界）、ch116 typed 容器（六族共同契约/描述指针相等/所有权动词统一/
+  复用 XRT 快速路径——四章合流收官）。
+- 全书第二十二次重编号：双插入 object(114)/call(115)，typed 114→116，
+  25 文件位移，全书 140 章；卷十一 109-128 共 20 章成型
+  （xws 4 + xruntime 4 + xmail 5 + xssh 7）——卷十一收官。
+- 基础设施：用户宏白名单扩展 XRUNTIME 前缀并扫 extlibs/*/*/*/features.h
+  （xruntime 的 features.h 在双层目录）。事故与修复：heredoc 写
+  check_book.py 时反斜杠转义产生两处字面退格符（）导致 XRUNTIME
+  正则失效——字节级修复；教训：写含正则的脚本改用临时文件或 chr(92)。
+- 门禁拦下：xrtmethod/xrttypeRegistry 真名（方法表描述/TypeRegistryCreate
+  族）、xrtType*Value 通配（改"类型描述的值操作族"）、ref 页 typed_
+  containers 不存在（改 typed_array+typed_dict 实页）、ch115/116 初稿
+  漏图示（各补分层 diagram）。
+- 行文章号修正 7 处（testing→132、perf→134）。
 
 ## P22 阶段记录
 
