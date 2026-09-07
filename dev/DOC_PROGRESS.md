@@ -52,7 +52,7 @@
 | 45 | net-resolver.md | 172 | **完成** | 172/172 全绿（G3 172 片段，2026-09-07）；同 net-dns（net.h 172），Resolver 组置首 + 其余 11 组镜像 |
 | 46 | net.md | 184 | **完成** | 试点 2；六段全绿（184/184，G3 203 片段）：地址族 20 + 缓冲/DNS/Bytes 39 + Socket 39 + Port 29 + Post 3 + Engine 17 + Worker 9 + 第 6 段 26 + CompletionInit 1 |
 | 47 | number.md | 15 | **完成** | 15/15 全绿（G3 15 片段，2026-09-07）；xrt.number 域 CONFIG/FORMAT/RANGE 三码入档；容量原子失败 XERR_RANGE （查询仍返回长度）；锚点 integer/float/format/variants |
-| 48 | once.md | 22 | 待办 |  |
+| 48 | once.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；thread.h 全集：Once 1 + 原生线程 15 + 线程局部键 6；Wait 自等待 STATE、Once 同线程重入 STATE 入档；锚点 once/thread/thread_tour |
 | 49 | path.md | 32 | 待办 |  |
 | 50 | pattern.md | 37 | 待办 |  |
 | 51 | pem.md | 7 | 待办 |  |
@@ -623,4 +623,11 @@
   string(83)/tcp(101) 六个 80+ 大文件需拆段，其余 26 个为中小文件。
   本会话新增可复用资产：net-dns/net-resolver 双镜像已闭环，后续
   tcp/udp/http 系若有共享头子集可走同型节复用。
+- 2026-09-07 once.md 完成（22/22，G3 22 片段全绿）：映射
+  include/xrt/thread.h（once 模块 docs 指向本文件），Once/线程/键三组；
+  错误语义对照 src/concurrency/once.c、thread.c、thread_key.c——
+  Wait 族等待自身线程 = XERR_STATE、Once 同线程递归重入 = XERR_STATE、
+  KeyDestroy/Get/Set/Take 键已关闭 = XERR_STATE、KeysClear 外部线程
+  无上下文 = XERR_STATE、平台创建失败 = xrt.thread 域错误保留系统码。
+  完成 API 2034→2056/3664（56.1%），48/79 文件。
 
