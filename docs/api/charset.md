@@ -136,6 +136,14 @@ typedef enum xutfstatus {
 | `XUTF_MORE` | 需要更多输入 |
 | `XUTF_INVALID` | 无效 |
 | `XUTF_NO_SPACE` | NOSPACE |
+| `XUTF_OVERFLOW` | （见枚举语义） |
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Status` | — | 完成状态 |
+| `Read` | — | 本次消费字节数 |
+| `Written` | — | 本次写出单元数 |
+| `Codepoint` | — | 待处理代理半对的码点 |
 
 ### `xutfresult`
 
@@ -194,6 +202,7 @@ typedef enum xutferror {
 | 值 | 语义 |
 |---|---|
 | `XUTF_ERROR_INVALID` | XUTF失败无效 |
+| `XUTF_ERROR_OVERFLOW` | （见枚举语义） |
 
 ### `xencodingguess`
 

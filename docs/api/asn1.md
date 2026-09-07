@@ -725,6 +725,7 @@ typedef enum xasn1class {
 | `XASN1_UNIVERSAL` | universal 类 |
 | `XASN1_APPLICATION` | application 类 |
 | `XASN1_CONTEXT` | context 类 |
+| `XASN1_PRIVATE` | （见枚举语义） |
 
 ### `xasn1universal`
 
@@ -778,6 +779,7 @@ typedef enum xasn1universal {
 | `XASN1_VISIBLE_STRING` | VISIBLE字符串 |
 | `XASN1_GENERAL_STRING` | GENERAL字符串 |
 | `XASN1_UNIVERSAL_STRING` | UNIVERSAL字符串 |
+| `XASN1_BMP_STRING` | BMPString（UTF-16） |
 
 ### `xasn1tag`
 
@@ -851,6 +853,7 @@ typedef enum xderresult {
 |---|---|
 | `XDER_ERROR` | 失败 |
 | `XDER_DONE` | 完成 |
+| `XDER_VALUE` | 已产出值 |
 
 ### `xasn1error`
 
@@ -880,6 +883,7 @@ typedef enum xasn1error {
 | `XASN1_ERROR_TRAILING` | 失败 |
 | `XASN1_ERROR_ORDER` | 失败 |
 | `XASN1_ERROR_DEPTH` | 深度超限 |
+| `XASN1_ERROR_RANGE` | （见枚举语义） |
 
 ### `xbuffer`
 

@@ -20,6 +20,7 @@ typedef enum xnetframestatus {
 |---|---|
 | `XNET_FRAME_ERROR` | 失败 |
 | `XNET_FRAME_MORE` | 需要更多输入 |
+| `XNET_FRAME_READY` | （见枚举语义） |
 
 ### `xnetframe`
 
@@ -99,6 +100,7 @@ typedef enum xnetframeorder {
 | 值 | 语义 |
 |---|---|
 | `XNET_FRAME_BIG_ENDIAN` | XNETFRAMEBIGENDIAN |
+| `XNET_FRAME_LITTLE_ENDIAN` | （见枚举语义） |
 
 ### `xnetlengthconfig`
 

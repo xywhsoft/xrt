@@ -27,6 +27,7 @@ typedef enum xchannelresult {
 | `XCHANNEL_OK` | 成功 |
 | `XCHANNEL_EMPTY` | 已空 |
 | `XCHANNEL_FULL` | 已满 |
+| `XCHANNEL_CLOSED` | 已关闭 |
 
 ### `xchannel`
 
@@ -57,6 +58,7 @@ typedef enum xchannelop {
 | 值 | 语义 |
 |---|---|
 | `XCHANNEL_OP_RECV` | XCHANNELOPRECV |
+| `XCHANNEL_OP_SEND` | 发送方向 |
 
 ### `xchannelcase`
 

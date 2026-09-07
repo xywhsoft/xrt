@@ -22,6 +22,7 @@ typedef enum xhttpdecodemode {
 |---|---|
 | `XHTTP_DECODE_IDENTITY` | 无变换 |
 | `XHTTP_DECODE_CONTENT` | 按内容编码解码 |
+| `XHTTP_DECODE_RAW` | （见枚举语义） |
 
 ### `xhttpdecodeflag`
 
@@ -35,6 +36,7 @@ typedef enum xhttpdecodeflag {
 
 | 值 | 语义 |
 |---|---|
+| `XHTTP_DECODE_ALLOW_RAW` | 允许透传原始字节 |
 
 ### `xhttpdecodeerror`
 
@@ -60,6 +62,7 @@ typedef enum xhttpdecodeerror {
 | `XHTTP_DECODE_ERROR_UNSUPPORTED` | 不支持 |
 | `XHTTP_DECODE_ERROR_STATE` | 状态非法 |
 | `XHTTP_DECODE_ERROR_LIMIT` | 超限 |
+| `XHTTP_DECODE_ERROR_OUTPUT` | （见枚举语义） |
 
 ### `xhttpdecodeconfig`
 

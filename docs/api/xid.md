@@ -29,6 +29,7 @@ typedef enum xiderror {
 
 | 值 | 语义 |
 |---|---|
+| `XID_ERROR_FORMAT` | 文本格式非法 |
 
 ## 模块
 

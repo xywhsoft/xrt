@@ -20,6 +20,7 @@ typedef enum xnetfamily {
 |---|---|
 | `XNET_FAMILY_UNSPEC` | 不指定（双栈） |
 | `XNET_FAMILY_IPV4` | IPv4 |
+| `XNET_FAMILY_IPV6` | （见枚举语义） |
 
 ### `xnetaddr`
 
@@ -64,6 +65,7 @@ typedef enum xnetresult {
 | `XNET_RESULT_CLOSED` | 已关闭 |
 | `XNET_RESULT_TRUNCATED` | 已截断 |
 | `XNET_RESULT_TIMEOUT` | 超时 |
+| `XNET_RESULT_CANCELLED` | 已取消 |
 
 ### `xneterror`
 
@@ -233,6 +235,7 @@ typedef enum xneterror {
 | `XNET_ERROR_PROXY_AUTH` | 失败 |
 | `XNET_ERROR_PROXY_CONNECT` | Proxy连接失败 |
 | `XNET_ERROR_PROXY_LIMIT` | PROXY超限 |
+| `XNET_ERROR_PROXY_UNSUPPORTED` | （见枚举语义） |
 
 ### `xnetspan`
 
@@ -286,6 +289,7 @@ typedef enum xnetresolveopstate {
 | `XNET_RESOLVE_RUNNING` | 运行中 |
 | `XNET_RESOLVE_RESOLVED` | 已解析 |
 | `XNET_RESOLVE_FAILED` | 已失败 |
+| `XNET_RESOLVE_CANCELLED` | 已取消 |
 
 ### `xnetresolverconfig`
 
@@ -377,6 +381,7 @@ typedef enum xnetsockettype {
 | 值 | 语义 |
 |---|---|
 | `XNET_SOCKET_STREAM` | 流式（TCP） |
+| `XNET_SOCKET_DGRAM` | （见枚举语义） |
 
 ### `xnetdgrammetaflag`
 
@@ -402,6 +407,7 @@ typedef enum xnetdgrammetaflag {
 | `XNET_DGRAM_META_HOP_LIMIT` | HOP超限 |
 | `XNET_DGRAM_META_TRAFFIC_CLASS` | 流量类别 |
 | `XNET_DGRAM_META_SEGMENT_SIZE` | SEGMENT尺寸 |
+| `XNET_DGRAM_META_TRUNCATED` | （见枚举语义） |
 
 ### `xnetdgrammeta`
 
@@ -448,6 +454,7 @@ typedef enum xnetdgramcontrolflag {
 | `XNET_DGRAM_CONTROL_INTERFACE` | 指定发送接口 |
 | `XNET_DGRAM_CONTROL_HOP_LIMIT` | HOP超限 |
 | `XNET_DGRAM_CONTROL_TRAFFIC_CLASS` | 指定流量类别 |
+| `XNET_DGRAM_CONTROL_SEGMENT_SIZE` | （见枚举语义） |
 
 ### `xnetdgramcontrol`
 
@@ -493,6 +500,7 @@ typedef enum xnetdgramcap {
 | `XNET_DGRAM_CAP_PATH_MTU_QUERY` | 支持路径 MTU 查询 |
 | `XNET_DGRAM_CAP_ERROR_QUEUE` | 失败QUEUE |
 | `XNET_DGRAM_CAP_SEGMENT_SEND` | 发送方向 |
+| `XNET_DGRAM_CAP_SEGMENT_RECEIVE` | 接收方向 |
 
 ### `xnetpmtumode`
 
@@ -512,6 +520,7 @@ typedef enum xnetpmtumode {
 | `XNET_PMTU_SYSTEM` | 沿用系统设置 |
 | `XNET_PMTU_DISCOVER` | 启用发现 |
 | `XNET_PMTU_FRAGMENT` | 禁用（允许分片） |
+| `XNET_PMTU_PROBE` | （见枚举语义） |
 
 ### `xnetdgramerrororigin`
 
@@ -531,6 +540,7 @@ typedef enum xnetdgramerrororigin {
 | `XNET_DGRAM_ERROR_UNKNOWN` | 未知 |
 | `XNET_DGRAM_ERROR_LOCAL` | 失败 |
 | `XNET_DGRAM_ERROR_ICMP` | 失败 |
+| `XNET_DGRAM_ERROR_ICMP6` | （见枚举语义） |
 
 ### `xnetdgramerrorflag`
 
@@ -552,6 +562,7 @@ typedef enum xnetdgramerrorflag {
 | `XNET_DGRAM_ERROR_OFFENDER` | 失败 |
 | `XNET_DGRAM_ERROR_PATH_MTU` | 失败 |
 | `XNET_DGRAM_ERROR_PAYLOAD_TRUNCATED` | 已截断 |
+| `XNET_DGRAM_ERROR_META_TRUNCATED` | （见枚举语义） |
 
 ### `xnetdgramerror`
 
@@ -641,6 +652,7 @@ typedef enum xnetsocketflag {
 
 | 值 | 语义 |
 |---|---|
+| `XNET_SOCKET_NONBLOCK` | 非阻塞模式 |
 
 ### `xnetshutdown`
 
@@ -658,6 +670,7 @@ typedef enum xnetshutdown {
 |---|---|
 | `XNET_SHUTDOWN_READ` | 读方向 |
 | `XNET_SHUTDOWN_WRITE` | 写方向 |
+| `XNET_SHUTDOWN_BOTH` | （见枚举语义） |
 
 ### `xnetoption`
 
@@ -703,6 +716,7 @@ typedef enum xnetoption {
 | `XNET_OPTION_PATH_MTU_MODE` | 路径 MTU 模式 |
 | `XNET_OPTION_PATH_MTU` | 路径 MTU 探测上限 |
 | `XNET_OPTION_DGRAM_ERRORS` | ICMP 错误投递 |
+| `XNET_OPTION_ERROR` | 失败 |
 
 ### `xnetportbackend`
 
@@ -726,6 +740,7 @@ typedef enum xnetportbackend {
 | `XNET_PORT_URING` | Linux io_uring |
 | `XNET_PORT_EPOLL` | Linux epoll |
 | `XNET_PORT_KQUEUE` | BSD kqueue |
+| `XNET_PORT_SELECT` | select 就绪 |
 
 ### `xnetportcap`
 
@@ -761,6 +776,7 @@ typedef enum xnetportcap {
 | `XNET_PORT_CAP_READ_PROBE` | 读方向PROBE |
 | `XNET_PORT_CAP_DGRAM_ERROR` | DGRAM失败 |
 | `XNET_PORT_CAP_SEND_FILE` | 发送方向 |
+| `XNET_PORT_CAP_FILE_IO` | （见枚举语义） |
 
 ### `xnetpoll`
 
@@ -776,6 +792,7 @@ typedef enum xnetpoll {
 | 值 | 语义 |
 |---|---|
 | `XNET_POLL_READ` | XNETPOLL读方向 |
+| `XNET_POLL_WRITE` | （见枚举语义） |
 
 ### `xnetporteventtype`
 
@@ -819,6 +836,7 @@ typedef enum xnetporteventtype {
 | `XNET_PORT_EVENT_FILE_READ` | FILE读方向 |
 | `XNET_PORT_EVENT_FILE_WRITE` | FILE写方向 |
 | `XNET_PORT_EVENT_USER` | 用户唤醒 |
+| `XNET_PORT_EVENT_WAKE` | （见枚举语义） |
 
 ### `xnetporteventflag`
 
@@ -842,6 +860,7 @@ typedef enum xnetporteventflag {
 | `XNET_PORT_EVENT_ERROR` | 失败 |
 | `XNET_PORT_EVENT_HANGUP` | 对端关闭 |
 | `XNET_PORT_EVENT_EOF` | 读到末尾 |
+| `XNET_PORT_EVENT_MORE` | 需要更多输入 |
 
 ### `xnetportconfig`
 
@@ -924,6 +943,7 @@ typedef enum xnetenginestate {
 | `XNET_ENGINE_STARTING` | 启动中 |
 | `XNET_ENGINE_RUNNING` | 运行中 |
 | `XNET_ENGINE_STOPPING` | 停止中 |
+| `XNET_ENGINE_DESTROYING` | （见枚举语义） |
 
 ### `xnetpost`
 
@@ -1376,6 +1396,7 @@ typedef enum xnetinterfaceflag {
 | `XNET_INTERFACE_LOOPBACK` | 回环接口 |
 | `XNET_INTERFACE_BROADCAST` | 广播 |
 | `XNET_INTERFACE_POINT_TO_POINT` | 点对点链路 |
+| `XNET_INTERFACE_MULTICAST` | （见枚举语义） |
 
 ### `xnetinterfaceaddress`
 

@@ -53,6 +53,7 @@ typedef enum xthreadstate {
 | 值 | 语义 |
 |---|---|
 | `XTHREAD_RUNNING` | XTHREAD运行中 |
+| `XTHREAD_FINISHED` | （见枚举语义） |
 
 ### `xthread`
 

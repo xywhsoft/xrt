@@ -28,6 +28,7 @@ typedef enum xloglevel {
 | `XLOG_WARN` | 警告级别 |
 | `XLOG_ERROR` | 失败 |
 | `XLOG_FATAL` | 致命级别 |
+| `XLOG_OFF` | （见枚举语义） |
 
 ### `xlogresult`
 
@@ -47,6 +48,7 @@ typedef enum xlogresult {
 | `XLOG_RESULT_ERROR` | 失败 |
 | `XLOG_RESULT_SKIPPED` | SKIPPED |
 | `XLOG_RESULT_WRITTEN` | WRITTEN |
+| `XLOG_RESULT_DROPPED` | （见枚举语义） |
 
 ### `xlogerror`
 
@@ -118,6 +120,7 @@ typedef enum xlogerror {
 | `XLOG_ERROR_RING_CLOSED` | RING已关闭 |
 | `XLOG_ERROR_RING_TARGET` | 失败 |
 | `XLOG_ERROR_RING_FLUSH` | RING刷新 |
+| `XLOG_ERROR_RING_THREAD` | （见枚举语义） |
 
 ### `xlogfieldtype`
 
@@ -145,6 +148,7 @@ typedef enum xlogfieldtype {
 | `XLOG_FIELD_FLOAT` | 浮点 |
 | `XLOG_FIELD_STRING` | 字符串 |
 | `XLOG_FIELD_TIME` | 时间 |
+| `XLOG_FIELD_ERROR` | 失败 |
 
 ### `xlogrecord`
 
@@ -240,6 +244,7 @@ typedef enum xlogtextstyle {
 |---|---|
 | `XLOG_TEXT_FULL` | 已满 |
 | `XLOG_TEXT_SIMPLE` | 简单格式 |
+| `XLOG_TEXT_MESSAGE` | （见枚举语义） |
 
 ### `xlogtextflag`
 
@@ -267,6 +272,7 @@ typedef enum xlogtextflag {
 | `XLOG_TEXT_THREAD` | 线程标识 |
 | `XLOG_TEXT_FIELDS` | 字段 |
 | `XLOG_TEXT_NEWLINE` | 换行 |
+| `XLOG_TEXT_RAW_MESSAGE` | （见枚举语义） |
 
 ### `xlogtextconfig`
 
@@ -298,6 +304,7 @@ typedef enum xlogjsonfieldstyle {
 | 值 | 语义 |
 |---|---|
 | `XLOG_JSON_FIELDS_OBJECT` | XLOGJSON字段对象形态 |
+| `XLOG_JSON_FIELDS_ARRAY` | （见枚举语义） |
 
 ### `xlogjsonnonfinite`
 
@@ -315,6 +322,7 @@ typedef enum xlogjsonnonfinite {
 |---|---|
 | `XLOG_JSON_NONFINITE_REJECT` | REJECT |
 | `XLOG_JSON_NONFINITE_NULL` | 空值 |
+| `XLOG_JSON_NONFINITE_STRING` | （见枚举语义） |
 
 ### `xlogjsonflag`
 
@@ -342,6 +350,7 @@ typedef enum xlogjsonflag {
 | `XLOG_JSON_SOURCE` | 源码位置 |
 | `XLOG_JSON_THREAD` | 线程标识 |
 | `XLOG_JSON_FIELDS` | 字段 |
+| `XLOG_JSON_NEWLINE` | （见枚举语义） |
 
 ### `xlogjsonconfig`
 
@@ -381,6 +390,7 @@ typedef enum xlogconsoletarget {
 |---|---|
 | `XLOG_CONSOLE_STDOUT` | 标准输出 |
 | `XLOG_CONSOLE_STDERR` | 标准错误 |
+| `XLOG_CONSOLE_SPLIT` | （见枚举语义） |
 
 ### `xlogconsolecolor`
 
@@ -398,6 +408,7 @@ typedef enum xlogconsolecolor {
 |---|---|
 | `XLOG_CONSOLE_COLOR_AUTO` | 自动 |
 | `XLOG_CONSOLE_COLOR_NEVER` | 永不 |
+| `XLOG_CONSOLE_COLOR_ALWAYS` | （见枚举语义） |
 
 ### `xlogconsoleconfig`
 
@@ -437,6 +448,7 @@ typedef enum xlogfilemode {
 | 值 | 语义 |
 |---|---|
 | `XLOG_FILE_APPEND` | XLOGFILE追加 |
+| `XLOG_FILE_TRUNCATE` | 创建时截断 |
 
 ### `xlogfilesync`
 
@@ -454,6 +466,7 @@ typedef enum xlogfilesync {
 |---|---|
 | `XLOG_FILE_SYNC_MANUAL` | 手动 |
 | `XLOG_FILE_SYNC_RECORD` | RECORD |
+| `XLOG_FILE_SYNC_INTERVAL` | （见枚举语义） |
 
 ### `xlogfileoptions`
 
@@ -545,6 +558,7 @@ typedef enum xlogasyncfull {
 |---|---|
 | `XLOG_ASYNC_BLOCK` | 阻塞策略 |
 | `XLOG_ASYNC_DROP_NEWEST` | 丢弃策略NEWEST |
+| `XLOG_ASYNC_DROP_OLDEST` | （见枚举语义） |
 
 ### `xlogasyncshutdown`
 
@@ -560,6 +574,7 @@ typedef enum xlogasyncshutdown {
 | 值 | 语义 |
 |---|---|
 | `XLOG_ASYNC_DRAIN` | XLOGASYNC排空策略 |
+| `XLOG_ASYNC_DISCARD` | （见枚举语义） |
 
 ### `xlogasyncconfig`
 

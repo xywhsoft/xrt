@@ -25,6 +25,7 @@ typedef enum xwaitresult {
 | `XWAIT_OK` | 成功 |
 | `XWAIT_TIMEOUT` | 超时 |
 | `XWAIT_CANCELLED` | 已取消 |
+| `XWAIT_CLOSED` | 已关闭 |
 
 ### `xdeadline`
 

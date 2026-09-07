@@ -18,6 +18,7 @@ typedef enum xhexflag {
 | 值 | 语义 |
 |---|---|
 | `XHEX_UPPER` | XHEX大写 |
+| `XHEX_IGNORE_SPACE` | 忽略空白 |
 
 ### `xbase64flag`
 
@@ -37,6 +38,7 @@ typedef enum xbase64flag {
 | `XBASE64_URL` | URL |
 | `XBASE64_NO_PADDING` | NOPADDING |
 | `XBASE64_IGNORE_SPACE` | IGNORESPACE |
+| `XBASE64_OPTIONAL_PADDING` | 允许省略填充 |
 
 ### `xbase64config`
 
@@ -102,6 +104,7 @@ typedef enum xpercentnext {
 |---|---|
 | `XPERCENT_NEXT_ERROR` | 失败 |
 | `XPERCENT_NEXT_END` | END |
+| `XPERCENT_NEXT_BYTE` | 已产出字节 |
 
 ### `xpercentmap`
 

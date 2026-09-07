@@ -28,6 +28,7 @@ typedef enum xseek {
 |---|---|
 | `XSEEK_START` | 从文件起点 |
 | `XSEEK_CURRENT` | 从当前位置 |
+| `XSEEK_END` | 遍历结束 |
 
 ### `xrtresourcelimits`
 
@@ -205,6 +206,7 @@ typedef enum xerrkind {
 | `XERR_CLOSED` | 已关闭 |
 | `XERR_PROTOCOL` | 协议非法 |
 | `XERR_UNSUPPORTED` | 不支持 |
+| `XERR_INTERNAL` | （见枚举语义） |
 
 ### `xerrordesc`
 

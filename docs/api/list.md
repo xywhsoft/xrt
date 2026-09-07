@@ -117,6 +117,7 @@ typedef enum xlisterror {
 | `XLIST_ERROR_ARGUMENT` | 参数非法 |
 | `XLIST_ERROR_STATE` | 状态非法 |
 | `XLIST_ERROR_RANGE` | 范围越界 |
+| `XLIST_ERROR_MODIFIED` | （见枚举语义） |
 
 ### `xlist`
 

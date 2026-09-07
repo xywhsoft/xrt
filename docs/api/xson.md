@@ -40,6 +40,7 @@ typedef enum xxsonerror {
 | `XXSON_ERROR_STATE` | 状态非法 |
 | `XXSON_ERROR_UNSUPPORTED` | 不支持 |
 | `XXSON_ERROR_OUTPUT` | 输出失败 |
+| `XXSON_ERROR_IO` | （见枚举语义） |
 
 ### `xxsonlocation`
 
@@ -75,6 +76,7 @@ typedef enum xxsonreadflag {
 |---|---|
 | `XXSON_READ_COMMENTS` | 读方向 |
 | `XXSON_READ_TRAILING_COMMA` | 读方向 |
+| `XXSON_READ_CUSTOM` | （见枚举语义） |
 
 ### `xxsonduplicate`
 
@@ -92,6 +94,7 @@ typedef enum xxsonduplicate {
 |---|---|
 | `XXSON_DUPLICATE_REJECT` | REJECT |
 | `XXSON_DUPLICATE_KEEP` | KEEP |
+| `XXSON_DUPLICATE_REPLACE` | （见枚举语义） |
 
 ### `xxsonbigint`
 
@@ -107,6 +110,7 @@ typedef enum xxsonbigint {
 | 值 | 语义 |
 |---|---|
 | `XXSON_BIGINT_REJECT` | XXSONBIGINTREJECT |
+| `XXSON_BIGINT_FLOAT` | （见枚举语义） |
 
 ### `xxsonreadconfig`
 
@@ -187,6 +191,7 @@ typedef enum xxsoneventtype {
 | `XXSON_EVENT_SET_END` | 集合形态END |
 | `XXSON_EVENT_OBJECT_BEGIN` | 对象形态BEGIN |
 | `XXSON_EVENT_OBJECT_END` | 对象形态END |
+| `XXSON_EVENT_UINT` | （见枚举语义） |
 
 ### `xxsonvisitaction`
 
@@ -204,6 +209,7 @@ typedef enum xxsonvisitaction {
 |---|---|
 | `XXSON_VISIT_NEXT` | NEXT |
 | `XXSON_VISIT_STOP` | STOP |
+| `XXSON_VISIT_FAIL` | （见枚举语义） |
 
 ### `xxsonvisitresult`
 
@@ -221,6 +227,7 @@ typedef enum xxsonvisitresult {
 |---|---|
 | `XXSON_VISIT_ERROR` | 失败 |
 | `XXSON_VISIT_DONE` | 完成 |
+| `XXSON_VISIT_STOPPED` | （见枚举语义） |
 
 ### `xxsontag`
 
@@ -256,6 +263,7 @@ typedef enum xxsonwriteflag {
 | `XXSON_WRITE_PRETTY` | 写方向 |
 | `XXSON_WRITE_ESCAPE_SLASH` | 写方向 |
 | `XXSON_WRITE_ESCAPE_HTML` | 写方向 |
+| `XXSON_WRITE_ESCAPE_NON_ASCII` | （见枚举语义） |
 
 ### `xxsonunsupported`
 
@@ -271,6 +279,7 @@ typedef enum xxsonunsupported {
 | 值 | 语义 |
 |---|---|
 | `XXSON_UNSUPPORTED_REJECT` | XXSON不支持REJECT |
+| `XXSON_UNSUPPORTED_SKIP` | 跳过 |
 
 ### `xxsoncoderesult`
 
@@ -288,6 +297,7 @@ typedef enum xxsoncoderesult {
 |---|---|
 | `XXSON_CODE_ERROR` | 失败 |
 | `XXSON_CODE_UNSUPPORTED` | 不支持 |
+| `XXSON_CODE_OK` | 成功 |
 
 ### `xxsonwriteconfig`
 

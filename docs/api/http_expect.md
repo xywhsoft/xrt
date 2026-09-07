@@ -23,6 +23,7 @@ typedef enum xhttpexpectflag {
 | `XHTTP_EXPECT_BARE` | 裸 Expect 头 |
 | `XHTTP_EXPECT_HAS_VALUE` | HAS值非法 |
 | `XHTTP_EXPECT_VALUE_QUOTED` | 值非法QUOTED |
+| `XHTTP_EXPECT_HAS_PARAMETERS` | （见枚举语义） |
 
 ### `xhttpexpectation`
 
@@ -98,6 +99,7 @@ typedef enum xhttpexpectresult {
 | `XHTTP_EXPECT_ERROR` | 失败 |
 | `XHTTP_EXPECT_NONE` | 无 |
 | `XHTTP_EXPECT_CONTINUE` | CONTINUE（100 继续） |
+| `XHTTP_EXPECT_UNSUPPORTED` | （见枚举语义） |
 
 ## 元素
 

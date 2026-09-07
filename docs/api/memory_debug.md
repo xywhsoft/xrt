@@ -62,6 +62,7 @@ typedef enum xmemdebugreportformat {
 | 值 | 语义 |
 |---|---|
 | `XMEMDEBUG_REPORT_TEXT` | XMEMDEBUGREPORT文本 |
+| `XMEMDEBUG_REPORT_JSON` | （见枚举语义） |
 
 ### `xmemdebugvisitor`
 

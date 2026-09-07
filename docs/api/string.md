@@ -30,6 +30,11 @@ typedef struct xstrview {
 
 `XRT_STR_LITERAL("text")` 在编译期创建不含末尾零字节的视图。`XRT_NPOS` 表示未找到，也可以作为“直到结尾”的长度传给 `xrtStrSlice`。
 
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | — | 起点指针 |
+| `Size` | — | 字节数 |
+
 ### `xstrbuf`
 
 ```c
@@ -43,6 +48,12 @@ typedef struct xstrbuf {
 构建器拥有 `Data`。有效状态始终满足 `Size <= Capacity`；`Data != NULL` 时始终满足 `Data[Size] == 0`。内容仍可包含内嵌零字节，真实长度以 `Size` 为准。
 
 构建器必须先由 `xrtStrBufInit` 初始化。增长可能移动 `Data`，外部借用视图随之失效；追加当前构建器有效内容中的子视图是受支持的。失败不会改变逻辑内容，调用方可以检查错误后重试或释放构建器。
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | — | 当前数据起点 |
+| `Size` | — | 当前长度（不含末尾零） |
+| `Capacity` | — | 分配容量 |
 
 ### `xstrsplit`、`xstrlines`、`xstrfields` 与 `xstrlist`
 
@@ -62,6 +73,7 @@ typedef enum xstrerror {
 | 值 | 语义 |
 |---|---|
 | `XSTR_ERROR_FORMAT` | XSTR失败FORMAT |
+| `XSTR_ERROR_PATTERN` | （见枚举语义） |
 
 ### `xstrsplit`
 
@@ -155,6 +167,7 @@ typedef enum xstrglobflag {
 
 | 值 | 语义 |
 |---|---|
+| `XSTR_GLOB_CASE_ASCII` | ASCII 大小写不敏感 |
 
 ## 视图函数
 

@@ -43,6 +43,7 @@ typedef enum xhttpmethod {
 | `XHTTP_METHOD_CONNECT` | CONNECT 方法 |
 | `XHTTP_METHOD_OPTIONS` | OPTIONS 方法 |
 | `XHTTP_METHOD_TRACE` | 最详细级别 |
+| `XHTTP_METHOD_PATCH` | （见枚举语义） |
 
 ### `xhttpversion`
 
@@ -58,6 +59,7 @@ typedef enum xhttpversion {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_VERSION_1_0` | HTTP/1.0 |
+| `XHTTP_VERSION_1_1` | （见枚举语义） |
 
 ### `xhttpstatus`
 
@@ -200,6 +202,7 @@ typedef enum xhttpstatus {
 | `XHTTP_STATUS_INSUFFICIENT_STORAGE` | 507 存储不足 |
 | `XHTTP_STATUS_LOOP_DETECTED` | 508 检测到循环 |
 | `XHTTP_STATUS_NOT_EXTENDED` | 510 未扩展 |
+| `XHTTP_STATUS_NETWORK_AUTHENTICATION_REQUIRED` | （见枚举语义） |
 
 ### `xhttpfield`
 
@@ -233,6 +236,7 @@ typedef enum xhttpnext {
 |---|---|
 | `XHTTP_NEXT_ERROR` | 失败 |
 | `XHTTP_NEXT_END` | 遍历结束 |
+| `XHTTP_NEXT_ITEM` | （见枚举语义） |
 
 ### `xhttpfieldtokencursor`
 
@@ -316,6 +320,7 @@ typedef enum xhttptargetform {
 | `XHTTP_TARGET_ORIGIN` | origin-form（最常见） |
 | `XHTTP_TARGET_ABSOLUTE` | absolute-form（代理） |
 | `XHTTP_TARGET_AUTHORITY` | authority-form（CONNECT） |
+| `XHTTP_TARGET_ASTERISK` | （见枚举语义） |
 
 ### `xhttptarget`
 
@@ -363,6 +368,7 @@ typedef enum xhttpparamflags {
 |---|---|
 | `XHTTP_PARAM_NONE` | 无 |
 | `XHTTP_PARAM_HAS_VALUE` | HAS值非法 |
+| `XHTTP_PARAM_QUOTED` | （见枚举语义） |
 
 ### `xhttpparam`
 
@@ -424,6 +430,7 @@ typedef enum xhttp1status {
 | `XHTTP1_ERROR` | 失败 |
 | `XHTTP1_MORE` | 需要更多输入 |
 | `XHTTP1_READY` | 就绪 |
+| `XHTTP1_FIELDS` | （见枚举语义） |
 
 ### `xhttpkind`
 
@@ -439,6 +446,7 @@ typedef enum xhttpkind {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_REQUEST` | 请求方向 |
+| `XHTTP_RESPONSE` | （见枚举语义） |
 
 ### `xhttp1flag`
 
@@ -464,6 +472,7 @@ typedef enum xhttp1flag {
 | `XHTTP1_CONTENT_LENGTH` | Content-Length |
 | `XHTTP1_CHUNKED` | chunked |
 | `XHTTP1_TRANSFER_ENCODING` | TRANSFERENCODING |
+| `XHTTP1_TRANSFER_OTHER` | （见枚举语义） |
 
 ### `xhttp1error`
 
@@ -543,6 +552,7 @@ typedef enum xhttp1error {
 | `XHTTP1_ERROR_TRAILER_LINE_TOO_LARGE` | 失败 |
 | `XHTTP1_ERROR_TOO_MANY_TRAILERS` | 失败 |
 | `XHTTP1_ERROR_FORBIDDEN_TRAILER` | 失败 |
+| `XHTTP1_ERROR_UPGRADE` | （见枚举语义） |
 
 ### `xhttp1limits`
 
@@ -656,6 +666,7 @@ typedef enum xhttp1bodymode {
 | `XHTTP1_BODY_FIXED` | FIXED |
 | `XHTTP1_BODY_CHUNKED` | CHUNKED |
 | `XHTTP1_BODY_CLOSE` | CLOSE |
+| `XHTTP1_BODY_TUNNEL` | （见枚举语义） |
 
 ### `xhttp1bodystatus`
 
@@ -677,6 +688,7 @@ typedef enum xhttp1bodystatus {
 | `XHTTP1_BODY_MORE` | 需要更多输入 |
 | `XHTTP1_BODY_DATA` | 数据损坏 |
 | `XHTTP1_BODY_DONE` | 完成 |
+| `XHTTP1_BODY_FIELDS` | （见枚举语义） |
 
 ### `xhttp1bodyplan`
 
@@ -794,6 +806,7 @@ typedef enum xhttpdecodemode {
 |---|---|
 | `XHTTP_DECODE_IDENTITY` | 无变换 |
 | `XHTTP_DECODE_CONTENT` | 按内容编码解码 |
+| `XHTTP_DECODE_RAW` | （见枚举语义） |
 
 ### `xhttpdecodeflag`
 
@@ -807,6 +820,7 @@ typedef enum xhttpdecodeflag {
 
 | 值 | 语义 |
 |---|---|
+| `XHTTP_DECODE_ALLOW_RAW` | 允许透传原始字节 |
 
 ### `xhttpdecodeerror`
 
@@ -832,6 +846,7 @@ typedef enum xhttpdecodeerror {
 | `XHTTP_DECODE_ERROR_UNSUPPORTED` | 不支持 |
 | `XHTTP_DECODE_ERROR_STATE` | 状态非法 |
 | `XHTTP_DECODE_ERROR_LIMIT` | 超限 |
+| `XHTTP_DECODE_ERROR_OUTPUT` | （见枚举语义） |
 
 ### `xhttpdecodeconfig`
 
@@ -891,6 +906,7 @@ typedef enum xhttpcoding {
 | `XHTTP_CODING_NONE` | 无 |
 | `XHTTP_CODING_IDENTITY` | 无编码 |
 | `XHTTP_CODING_GZIP` | gzip 包装 |
+| `XHTTP_CODING_DEFLATE` | （见枚举语义） |
 
 ### `xhttpacceptencodingflag`
 
@@ -914,6 +930,7 @@ typedef enum xhttpacceptencodingflag {
 | `XHTTP_ACCEPT_ENCODING_GZIP` | gzip 包装 |
 | `XHTTP_ACCEPT_ENCODING_DEFLATE` | deflate 包装 |
 | `XHTTP_ACCEPT_ENCODING_IDENTITY` | 允许 identity |
+| `XHTTP_ACCEPT_ENCODING_WILDCARD` | （见枚举语义） |
 
 ### `xhttpacceptencoding`
 
@@ -957,6 +974,7 @@ typedef enum xhttpcontentencodingflag {
 | `XHTTP_CONTENT_ENCODING_PRESENT` | 响应携带 Content-Encoding |
 | `XHTTP_CONTENT_ENCODING_IDENTITY` | 内容未编码 |
 | `XHTTP_CONTENT_ENCODING_UNKNOWN` | 未知 |
+| `XHTTP_CONTENT_ENCODING_LEGACY` | （见枚举语义） |
 
 ### `xhttpcontentencodingcursor`
 
@@ -1032,6 +1050,7 @@ typedef enum xhttpexpectflag {
 | `XHTTP_EXPECT_BARE` | 裸 Expect 头 |
 | `XHTTP_EXPECT_HAS_VALUE` | HAS值非法 |
 | `XHTTP_EXPECT_VALUE_QUOTED` | 值非法QUOTED |
+| `XHTTP_EXPECT_HAS_PARAMETERS` | （见枚举语义） |
 
 ### `xhttpexpectation`
 
@@ -1107,6 +1126,7 @@ typedef enum xhttpexpectresult {
 | `XHTTP_EXPECT_ERROR` | 失败 |
 | `XHTTP_EXPECT_NONE` | 无 |
 | `XHTTP_EXPECT_CONTINUE` | CONTINUE（100 继续） |
+| `XHTTP_EXPECT_UNSUPPORTED` | （见枚举语义） |
 
 ### `xhttptecodingflag`
 
@@ -1126,6 +1146,7 @@ typedef enum xhttptecodingflag {
 | `XHTTP_TE_CODING_NONE` | 无 |
 | `XHTTP_TE_CODING_TRAILERS` | 支持 trailer |
 | `XHTTP_TE_CODING_HAS_PARAMETERS` | 带参数 |
+| `XHTTP_TE_CODING_HAS_WEIGHT` | （见枚举语义） |
 
 ### `xhttptecoding`
 
@@ -1203,6 +1224,7 @@ typedef enum xhttpteflag {
 | `XHTTP_TE_NONE` | 无 |
 | `XHTTP_TE_PRESENT` | 请求携带 TE |
 | `XHTTP_TE_ACCEPTS_TRAILERS` | 接受 trailer |
+| `XHTTP_TE_HAS_TRANSFER_CODINGS` | （见枚举语义） |
 
 ### `xhttpteinfo`
 
@@ -1288,6 +1310,7 @@ typedef enum xnetproxytype {
 | 值 | 语义 |
 |---|---|
 | `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
+| `XNET_PROXY_HTTP_CONNECT` | （见枚举语义） |
 
 ### `xnetproxyauth`
 
@@ -1307,6 +1330,7 @@ typedef enum xnetproxyauth {
 | `XNET_PROXY_AUTH_AUTO` | 自动 |
 | `XNET_PROXY_AUTH_NONE` | 无 |
 | `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
+| `XNET_PROXY_AUTH_OPTIONAL` | （见枚举语义） |
 
 ### `xnetproxyconfig`
 
@@ -1374,6 +1398,7 @@ typedef enum xnetproxyhandshakestate {
 | `XNET_PROXY_HANDSHAKE_WRITE` | 写方向 |
 | `XNET_PROXY_HANDSHAKE_READ` | 读方向 |
 | `XNET_PROXY_HANDSHAKE_READY` | 就绪 |
+| `XNET_PROXY_HANDSHAKE_ERROR` | 失败 |
 
 ### `xnetproxyendpoint`
 
@@ -1441,6 +1466,7 @@ typedef enum xnetsocks5reply {
 | `XNET_SOCKS5_CONNECTION_REFUSED` | 连接被拒绝 |
 | `XNET_SOCKS5_TTL_EXPIRED` | TTL 过期 |
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
+| `XNET_SOCKS5_ADDRESS_UNSUPPORTED` | （见枚举语义） |
 
 ### `xnetproxydialstate`
 
@@ -1464,6 +1490,7 @@ typedef enum xnetproxydialstate {
 | `XNET_PROXY_DIAL_HANDSHAKE` | 握手阶段 |
 | `XNET_PROXY_DIAL_CONNECTED` | 已连接 |
 | `XNET_PROXY_DIAL_FAILED` | 已失败 |
+| `XNET_PROXY_DIAL_CANCELLED` | 已取消 |
 
 ### `xnetproxydialconfig`
 

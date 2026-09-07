@@ -20,6 +20,7 @@ typedef enum xtaskoutcome {
 |---|---|
 | `XTASK_SUCCESS` | SUCCESS |
 | `XTASK_FAILED` | 已失败 |
+| `XTASK_CANCELLED` | 已取消 |
 
 ### `xtaskvalue`
 

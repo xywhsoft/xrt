@@ -22,6 +22,7 @@ typedef enum xnetudpstate {
 | `XNET_UDP_OPENING` | OPENING |
 | `XNET_UDP_OPEN` | OPEN |
 | `XNET_UDP_CLOSING` | 关闭中 |
+| `XNET_UDP_CLOSED` | 已关闭 |
 
 ### `xnetudpwait`
 
@@ -43,6 +44,7 @@ typedef enum xnetudpwait {
 | `XNET_UDP_WAIT_RECEIVE` | 接收方向 |
 | `XNET_UDP_WAIT_ERROR` | 失败 |
 | `XNET_UDP_WAIT_DRAIN` | 排空策略 |
+| `XNET_UDP_WAIT_CLOSE` | （见枚举语义） |
 
 ### `xnetudpoverflow`
 
@@ -60,6 +62,7 @@ typedef enum xnetudpoverflow {
 |---|---|
 | `XNET_UDP_DROP_NEWEST` | NEWEST |
 | `XNET_UDP_DROP_OLDEST` | OLDEST |
+| `XNET_UDP_DROP_ERROR` | 失败 |
 
 ### `xnetudptruncation`
 
@@ -77,6 +80,7 @@ typedef enum xnetudptruncation {
 |---|---|
 | `XNET_UDP_TRUNCATE_DELIVER` | DELIVER |
 | `XNET_UDP_TRUNCATE_DROP` | 丢弃策略 |
+| `XNET_UDP_TRUNCATE_ERROR` | 失败 |
 
 ### `xnetudpflag`
 
@@ -90,6 +94,7 @@ typedef enum xnetudpflag {
 
 | 值 | 语义 |
 |---|---|
+| `XNET_UDP_MESSAGE_TRUNCATED` | 报文被截断 |
 
 ### `xnetudpmessage`
 

@@ -182,6 +182,7 @@ typedef enum xmemoryorder {
 | `XMEMORY_ACQUIRE` | ACQUIRE |
 | `XMEMORY_RELEASE` | RELEASE |
 | `XMEMORY_ACQ_REL` | ACQREL |
+| `XMEMORY_SEQ_CST` | 顺序一致（默认最强） |
 
 ### 常量总表
 

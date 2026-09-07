@@ -24,6 +24,7 @@ typedef enum xfuturestate {
 | `XFUTURE_RESOLVED` | RESOLVED |
 | `XFUTURE_FAILED` | 已失败 |
 | `XFUTURE_CANCELLED` | 已取消 |
+| `XFUTURE_CLOSED` | 已关闭 |
 
 ### `xfutureresult`
 
@@ -74,6 +75,7 @@ typedef enum xfuturewatchresult {
 |---|---|
 | `XFUTURE_WATCH_ERROR` | 失败 |
 | `XFUTURE_WATCH_READY` | 就绪 |
+| `XFUTURE_WATCH_PENDING` | （见枚举语义） |
 
 ### `xfuturepick`
 
@@ -241,6 +243,7 @@ typedef enum xtlsstreamstate {
 | `XTLS_STREAM_OPEN` | 开放（握手完成） |
 | `XTLS_STREAM_CLOSING` | 关闭中 |
 | `XTLS_STREAM_CLOSED` | 已关闭 |
+| `XTLS_STREAM_FAILED` | （见枚举语义） |
 
 ### `xtlsstreamwait`
 
@@ -264,6 +267,7 @@ typedef enum xtlsstreamwait {
 | `XTLS_STREAM_WAIT_WRITE` | 写方向 |
 | `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
 | `XTLS_STREAM_WAIT_END` | 等待关闭完成 |
+| `XTLS_STREAM_WAIT_CLOSE` | （见枚举语义） |
 
 ### `xtlsdialstate`
 
@@ -287,6 +291,7 @@ typedef enum xtlsdialstate {
 | `XTLS_DIAL_HANDSHAKE` | 握手阶段 |
 | `XTLS_DIAL_CONNECTED` | 已连接 |
 | `XTLS_DIAL_FAILED` | 已失败 |
+| `XTLS_DIAL_CANCELLED` | 已取消 |
 
 ### `xtlsdialconfig`
 
@@ -349,6 +354,7 @@ typedef enum xtlslistenerstate {
 |---|---|
 | `XTLS_LISTENER_OPEN` | 监听中 |
 | `XTLS_LISTENER_CLOSING` | 关闭中 |
+| `XTLS_LISTENER_CLOSED` | 已关闭 |
 
 ### `xtlslistenerevents`
 

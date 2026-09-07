@@ -93,6 +93,14 @@ typedef struct xslotmap {
 `Storage.Count` 是已经建立代际历史的槽跨度，可能大于活动 `Count`。
 公开结构支持栈上和嵌入式生命周期，不表示调用方可以修改其不变量。
 
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Storage` | — | 槽存储（内联+外部） |
+| `Count` | — | 活动句柄数 |
+| `Version` | — | 结构版本号（代际） |
+| `FreeHead` | — | 空闲链头 |
+| `Flags` | — | 内部状态位 |
+
 ### `xslotmapiter`
 
 ```c
@@ -104,6 +112,12 @@ typedef struct xslotmapiter {
 ```
 
 迭代器由 `IterBegin` 初始化并由 `IterEnd` 清理，不应手工修改字段。
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Map` | — | 目标槽表借用 |
+| `Next` | — | 下一扫描槽位 |
+| `Version` | — | 启动时代际 |
 
 ## 句柄诊断
 

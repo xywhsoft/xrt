@@ -36,6 +36,13 @@ typedef struct xallocator {
 
 三个回调必须成套提供。回调负责原始内存，不得再次调用 XRT 分配 API。`Context` 原样传给每个回调，生命周期必须覆盖进程使用 XRT 的完整时期。回调可能由多个线程并发执行。
 
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Context` | — | 回调上下文（原样传递） |
+| `Alloc` | — | 分配回调 |
+| `Realloc` | — | 重分配回调 |
+| `Free` | — | 释放回调 |
+
 ### `xseek`
 
 通用 IO 与文件游标共享的移动基准。
@@ -52,6 +59,7 @@ typedef enum xseek {
 |---|---|
 | `XSEEK_START` | 从文件起点 |
 | `XSEEK_CURRENT` | 从当前位置 |
+| `XSEEK_END` | 遍历结束 |
 
 ### `xrtresourcelimits`
 
@@ -229,6 +237,7 @@ typedef enum xerrkind {
 | `XERR_CLOSED` | 已关闭 |
 | `XERR_PROTOCOL` | 协议非法 |
 | `XERR_UNSUPPORTED` | 不支持 |
+| `XERR_INTERNAL` | （见枚举语义） |
 
 ### `xerrordesc`
 

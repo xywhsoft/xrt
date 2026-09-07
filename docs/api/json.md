@@ -32,6 +32,7 @@ typedef enum xjsonerror {
 | `XJSON_ERROR_STATE` | 状态非法 |
 | `XJSON_ERROR_UNSUPPORTED` | 不支持 |
 | `XJSON_ERROR_OUTPUT` | 输出失败 |
+| `XJSON_ERROR_IO` | （见枚举语义） |
 
 ### `xjsonlocation`
 
@@ -65,6 +66,7 @@ typedef enum xjsonreadflag {
 | 值 | 语义 |
 |---|---|
 | `XJSON_READ_COMMENTS` | XJSON读方向COMMENTS |
+| `XJSON_READ_TRAILING_COMMA` | （见枚举语义） |
 
 ### `xjsonduplicate`
 
@@ -82,6 +84,7 @@ typedef enum xjsonduplicate {
 |---|---|
 | `XJSON_DUPLICATE_REJECT` | REJECT |
 | `XJSON_DUPLICATE_KEEP` | KEEP |
+| `XJSON_DUPLICATE_REPLACE` | （见枚举语义） |
 
 ### `xjsonbigint`
 
@@ -97,6 +100,7 @@ typedef enum xjsonbigint {
 | 值 | 语义 |
 |---|---|
 | `XJSON_BIGINT_REJECT` | XJSONBIGINTREJECT |
+| `XJSON_BIGINT_FLOAT` | （见枚举语义） |
 
 ### `xjsonreadconfig`
 
@@ -157,6 +161,7 @@ typedef enum xjsoneventtype {
 | `XJSON_EVENT_ARRAY_END` | 数组形态END |
 | `XJSON_EVENT_OBJECT_BEGIN` | 对象形态BEGIN |
 | `XJSON_EVENT_OBJECT_END` | 对象形态END |
+| `XJSON_EVENT_UINT` | （见枚举语义） |
 
 ### `xjsonvisitaction`
 
@@ -174,6 +179,7 @@ typedef enum xjsonvisitaction {
 |---|---|
 | `XJSON_VISIT_NEXT` | NEXT |
 | `XJSON_VISIT_STOP` | STOP |
+| `XJSON_VISIT_FAIL` | （见枚举语义） |
 
 ### `xjsonvisitresult`
 
@@ -191,6 +197,7 @@ typedef enum xjsonvisitresult {
 |---|---|
 | `XJSON_VISIT_ERROR` | 失败 |
 | `XJSON_VISIT_DONE` | 完成 |
+| `XJSON_VISIT_STOPPED` | （见枚举语义） |
 
 ### `xjsonwriteflag`
 
@@ -212,6 +219,7 @@ typedef enum xjsonwriteflag {
 | `XJSON_WRITE_ESCAPE_SLASH` | 写方向 |
 | `XJSON_WRITE_ESCAPE_HTML` | 写方向 |
 | `XJSON_WRITE_ESCAPE_NON_ASCII` | 写方向 |
+| `XJSON_WRITE_CONTAINER_COMPAT` | （见枚举语义） |
 
 ### `xjsonnonfinite`
 
@@ -229,6 +237,7 @@ typedef enum xjsonnonfinite {
 |---|---|
 | `XJSON_NONFINITE_REJECT` | REJECT |
 | `XJSON_NONFINITE_NULL` | 空值 |
+| `XJSON_NONFINITE_STRING` | （见枚举语义） |
 
 ### `xjsonunsupported`
 
@@ -246,6 +255,7 @@ typedef enum xjsonunsupported {
 |---|---|
 | `XJSON_UNSUPPORTED_REJECT` | 不支持 |
 | `XJSON_UNSUPPORTED_NULL` | 空值 |
+| `XJSON_UNSUPPORTED_SKIP` | 跳过 |
 
 ### `xjsonwriteconfig`
 

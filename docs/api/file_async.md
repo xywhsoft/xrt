@@ -106,6 +106,7 @@ typedef enum xfileasyncerror {
 | `XFILE_ASYNC_ERROR_DELETE` | Delete失败 |
 | `XFILE_ASYNC_ERROR_CREATE` | 创建 |
 | `XFILE_ASYNC_ERROR_TREE` | 失败 |
+| `XFILE_ASYNC_ERROR_QUERY` | （见枚举语义） |
 
 ### `xasyncfile`
 

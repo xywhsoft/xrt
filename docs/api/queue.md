@@ -24,6 +24,7 @@ typedef enum xqueueresult {
 | `XQUEUE_OK` | 成功 |
 | `XQUEUE_EMPTY` | 已空 |
 | `XQUEUE_FULL` | 已满 |
+| `XQUEUE_CLOSED` | 已关闭 |
 
 ### `xqueuebatchresult`
 

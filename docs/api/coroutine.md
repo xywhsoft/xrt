@@ -22,6 +22,7 @@ typedef enum xcorostate {
 | `XCORO_READY` | 就绪 |
 | `XCORO_RUNNING` | 运行中 |
 | `XCORO_SUSPENDED` | 已挂起 |
+| `XCORO_DONE` | 已完成 |
 
 ### `xcoroterm`
 
@@ -41,6 +42,7 @@ typedef enum xcoroterm {
 | `XCORO_TERM_NONE` | 无 |
 | `XCORO_TERM_RETURNED` | RETURNED |
 | `XCORO_TERM_CANCELLED` | 已取消 |
+| `XCORO_TERM_ERROR` | 失败 |
 
 ### `xcoroargs`
 

@@ -76,6 +76,7 @@ typedef enum xtimeweekday {
 | `XTIME_WEDNESDAY` | 周三 |
 | `XTIME_THURSDAY` | 周四 |
 | `XTIME_FRIDAY` | 周五 |
+| `XTIME_SATURDAY` | （见枚举语义） |
 
 ### `xtimeunit`
 
@@ -107,6 +108,7 @@ typedef enum xtimeunit {
 | `XTIME_UNIT_WEEK` | 周 |
 | `XTIME_UNIT_MONTH` | 月 |
 | `XTIME_UNIT_QUARTER` | 季度 |
+| `XTIME_UNIT_YEAR` | （见枚举语义） |
 
 ### `xtimefold`
 
@@ -124,6 +126,7 @@ typedef enum xtimefold {
 |---|---|
 | `XTIME_FOLD_REJECT` | REJECT |
 | `XTIME_FOLD_EARLIER` | EARLIER |
+| `XTIME_FOLD_LATER` | （见枚举语义） |
 
 ### `xtimeerror`
 
@@ -149,6 +152,7 @@ typedef enum xtimeerror {
 | `XTIME_ERROR_PARSE` | 失败 |
 | `XTIME_ERROR_LOCAL_GAP` | 失败 |
 | `XTIME_ERROR_LOCAL_FOLD` | 失败 |
+| `XTIME_ERROR_LOCAL_UNSUPPORTED` | （见枚举语义） |
 
 ### `xdatetime`
 

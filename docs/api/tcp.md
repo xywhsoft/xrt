@@ -18,6 +18,7 @@ typedef enum xnetproxytype {
 | 值 | 语义 |
 |---|---|
 | `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
+| `XNET_PROXY_HTTP_CONNECT` | （见枚举语义） |
 
 ### `xnetproxyauth`
 
@@ -37,6 +38,7 @@ typedef enum xnetproxyauth {
 | `XNET_PROXY_AUTH_AUTO` | 自动 |
 | `XNET_PROXY_AUTH_NONE` | 无 |
 | `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
+| `XNET_PROXY_AUTH_OPTIONAL` | （见枚举语义） |
 
 ### `xnetproxyconfig`
 
@@ -104,6 +106,7 @@ typedef enum xnetproxyhandshakestate {
 | `XNET_PROXY_HANDSHAKE_WRITE` | 写方向 |
 | `XNET_PROXY_HANDSHAKE_READ` | 读方向 |
 | `XNET_PROXY_HANDSHAKE_READY` | 就绪 |
+| `XNET_PROXY_HANDSHAKE_ERROR` | 失败 |
 
 ### `xnetproxyendpoint`
 
@@ -171,6 +174,7 @@ typedef enum xnetsocks5reply {
 | `XNET_SOCKS5_CONNECTION_REFUSED` | 连接被拒绝 |
 | `XNET_SOCKS5_TTL_EXPIRED` | TTL 过期 |
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
+| `XNET_SOCKS5_ADDRESS_UNSUPPORTED` | （见枚举语义） |
 
 ### `xnetproxydialstate`
 
@@ -194,6 +198,7 @@ typedef enum xnetproxydialstate {
 | `XNET_PROXY_DIAL_HANDSHAKE` | 握手阶段 |
 | `XNET_PROXY_DIAL_CONNECTED` | 已连接 |
 | `XNET_PROXY_DIAL_FAILED` | 已失败 |
+| `XNET_PROXY_DIAL_CANCELLED` | 已取消 |
 
 ### `xnetproxydialconfig`
 
@@ -297,6 +302,7 @@ typedef enum xnetstreamstate {
 | `XNET_STREAM_CONNECTING` | 连接中 |
 | `XNET_STREAM_OPEN` | OPEN |
 | `XNET_STREAM_CLOSING` | 关闭中 |
+| `XNET_STREAM_CLOSED` | 已关闭 |
 
 ### `xnetlistenerstate`
 
@@ -314,6 +320,7 @@ typedef enum xnetlistenerstate {
 |---|---|
 | `XNET_LISTENER_OPEN` | OPEN |
 | `XNET_LISTENER_CLOSING` | 关闭中 |
+| `XNET_LISTENER_CLOSED` | 已关闭 |
 
 ### `xnetacceptdistribution`
 
@@ -329,6 +336,7 @@ typedef enum xnetacceptdistribution {
 | 值 | 语义 |
 |---|---|
 | `XNET_ACCEPT_ROUND_ROBIN` | XNETACCEPTROUNDROBIN |
+| `XNET_ACCEPT_LOCAL` | （见枚举语义） |
 
 ### `xnetdialstate`
 
@@ -350,6 +358,7 @@ typedef enum xnetdialstate {
 | `XNET_DIAL_CONNECTING` | 连接中 |
 | `XNET_DIAL_CONNECTED` | 已连接 |
 | `XNET_DIAL_FAILED` | 已失败 |
+| `XNET_DIAL_CANCELLED` | 已取消 |
 
 ### `xnetstreamwait`
 
@@ -371,6 +380,7 @@ typedef enum xnetstreamwait {
 | `XNET_STREAM_WAIT_READ` | 读方向 |
 | `XNET_STREAM_WAIT_WRITE` | 写方向 |
 | `XNET_STREAM_WAIT_DRAIN` | 排空策略 |
+| `XNET_STREAM_WAIT_CLOSE` | （见枚举语义） |
 
 ### `xnetstreamevents`
 
@@ -425,6 +435,7 @@ typedef enum xnetstreamreadmode {
 |---|---|
 | `XNET_STREAM_READ_ADAPTIVE` | 读方向 |
 | `XNET_STREAM_READ_DIRECT` | 读方向 |
+| `XNET_STREAM_READ_PROBE` | （见枚举语义） |
 
 ### `xnetstreamconfig`
 
@@ -679,6 +690,7 @@ typedef enum xnetserverstate {
 | `XNET_SERVER_STARTING` | 启动中 |
 | `XNET_SERVER_OPEN` | 服务端角色 |
 | `XNET_SERVER_CLOSING` | 关闭中 |
+| `XNET_SERVER_CLOSED` | 已关闭 |
 
 ### `xnetservermode`
 
@@ -694,6 +706,7 @@ typedef enum xnetservermode {
 | 值 | 语义 |
 |---|---|
 | `XNET_SERVER_SHARED` | XNET服务端角色SHARED |
+| `XNET_SERVER_REUSE_PORT` | （见枚举语义） |
 
 ### `xnetserverevents`
 
