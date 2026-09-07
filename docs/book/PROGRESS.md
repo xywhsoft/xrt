@@ -20,7 +20,7 @@
 | P11 卷七后半 | ✅ 完成 | 2 | 13,099 |
 | P12 卷八密码基础 | ✅ 完成 | 5 | 25,122 |
 | P13 卷八证书链 | ✅ 完成 | 4 | 23,822 |
-| P14 卷八TLS上 | 🔄 进行中 | 0 | — |
+| P14 卷八TLS上 | ✅ 完成 | 4 | 21,347 |
 | P15–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -62,9 +62,28 @@
 | 78 | 78-x509.md | practice | 5,934 | 2 | 1 | 3 | 3 | P13 |
 | 79 | 79-x509-verify.md | practice | 5,518 | 2 | 1 | 3 | 3 | P13 |
 | 80 | 80-cert-chain.md | practice | 6,988 | 3 | 1 | 3 | 3 | P13 |
+| 81 | 81-tls-client.md | practice | 5,719 | 2 | 1 | 3 | 3 | P14 |
+| 82 | 82-tls-identity.md | practice | 5,482 | 2 | 1 | 3 | 3 | P14 |
+| 83 | 83-tls-handshake.md | practice | 5,174 | 2 | 2 | 3 | 3 | P14 |
+| 84 | 84-tls-policy.md | practice | 4,972 | 2 | 2 | 3 | 3 | P14 |
 
 
 
+
+
+## P14 阶段记录
+
+- 卷八 TLS 上 4 章：ch81 TLS 客户端（托管拨号/回调与 Future 双形态/READY 后
+  收发与认证关闭/会话恢复）、ch82 TLS 身份（新增章：四构造器/CanSign/两段式
+  Sign/HSM 扩展）、ch83 握手时序图解（新增章：四消息时序/HKDF 密钥调度链/
+  HRR/协商/KeyUpdate/证书条目）、ch84 验证策略（新增章：策略对象白名单/
+  验证器三层决策/无隐式联网边界）。
+- 全书第十三次重编号：三插入 tls-identity(82)/tls-handshake(83)/tls-policy(84)，
+  36 文件 +3，全书 120 章；卷八 15 章（72-86）骨架就位。
+- 门禁拦下：xtlsstreamevents 在符号表提取规则外（结构体内部字段分号切断
+  typedef 语句——正文改用"事件表：Open/Read/Writable/Close"描述性写法）；
+  ch82 初稿漏图示（补生命周期 diagram）。
+- 行文章号修正 2 处（tls-stream→86）。
 
 ## P13 阶段记录
 
