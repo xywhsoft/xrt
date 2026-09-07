@@ -63,7 +63,7 @@
 | 56 | random.md | 39 | **完成** | 39/39 全绿（G3 39 片段，2026-09-07）；安全 4 + 显式 14 + 线程默认 12 + Fast 别名 9 四组；非密码学安全警示逐节标注；Secure 失败清零输出；锚点 6 范例 |
 | 57 | regex.md | 54 | **完成** | 54/54 全绿（G3 54 片段，2026-09-07）；编译/转义 15 + matcher 10 + 便捷 4 + 替换 4 + 拆分 5 + 集合 16 六组；xrt.regex 六域码；xregexresult 三值；锚点 5 范例 |
 | 58 | set.md | 34 | **完成** | 34/34 全绿（G3 34 片段，2026-09-07）；七组按既有散文结构入节；GetOrAdd 原子插入 + pNew 出参；集合运算族兼容性 STATE；锚点 set/owned/set_tour |
-| 59 | signal.md | 20 | 待办 |  |
+| 59 | signal.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；代码/订阅/句柄/原生处理/计数关闭五组；Owned 数据失败不转移、Shutdown 回调线程自关闭 STATE 入档；锚点 signal/signal_tour |
 | 60 | slot_map.md | 16 | 待办 |  |
 | 61 | spin.md | 7 | 待办 |  |
 | 62 | stack.md | 74 | 待办 |  |
@@ -684,4 +684,9 @@
   接触集合内存、IterNext 结构修改后 STATE、运算族两集合不兼容 STATE、
   Remove/Take 未命中不设错。
   完成 API 2389→2423/3664（66.1%），58/79 文件。
+- 2026-09-07 signal.md 完成（20/20，G3 20 片段全绿）：五组；错误域
+  CODE/UNSUPPORTED/STATE 对照 src/process/signal.c——订阅族 ID 空间耗尽
+  = RANGE、调度线程创建失败 = STATE、Shutdown 在回调线程 = STATE、
+  Name 未知代码返回 "UNKNOWN" 不设错。
+  完成 API 2423→2443/3664（66.7%），59/79 文件。
 

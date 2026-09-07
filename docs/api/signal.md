@@ -23,6 +23,74 @@
 
 先用 `xrtSignalSupported` 判断平台能力。`xrtSignalName` 对已知代码返回稳定大写名称，对未知代码返回 `UNKNOWN`。
 
+### `xrtSignalSupported`
+
+判断当前平台是否支持指定信号代码。
+
+```c
+bool xrtSignalSupported(xsignal Code)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | — | 信号代码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否支持 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 平台支持查询
+
+```c
+	if ( !xrtSignalSupported(XSIGNAL_INT) ||
+		!xrtSignalSupported(XSIGNAL_TERM) ||  /* Windows 无 TERM */
+		(xrtSignalName(XSIGNAL_INT) == NULL) ||
+		(xrtSignalName(XSIGNAL_NONE) == NULL) ||
+		!xrtSignalHealthy() ) {
+```
+
+### `xrtSignalName`
+
+返回稳定信号名称；未知代码返回 `"UNKNOWN"`。
+
+```c
+cstr xrtSignalName(xsignal Code)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | — | 信号代码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 稳定名称（`"INT"`、`"TERM"` 等）；未知为 `"UNKNOWN"` | — |
+
+#### 错误
+
+- 无 — 未知代码返回 `"UNKNOWN"` 且不设置错误
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 信号名称
+
+```c
+		(xrtSignalName(XSIGNAL_INT) == NULL) ||
+```
+
 ## 订阅
 
 ```c
@@ -58,6 +126,188 @@ void callback(
 
 同一进程的信号回调由唯一调度线程串行执行。一个事件开始调度后新增的监听不会回看该事件。回调可以注销自身，也可以注册其他监听。
 
+### `xrtSignalOn`
+
+订阅信号；成功后调用方拥有返回句柄，回调可重复执行。
+
+```c
+xsignalwatch* xrtSignalOn(
+	xsignal Code,
+	xsignalproc pProc,
+	ptr pData
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效且平台支持 | 信号代码 |
+| `pProc` | 输入 | 非空 | 信号回调 |
+| `pData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 监听句柄（引用 1） | — |
+| `NULL` | 订阅失败 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` / `XSIGNAL_ERROR_CODE`（`XERR_ARGUMENT`） — 信号代码无效
+- `xrt.signal` / `XSIGNAL_ERROR_UNSUPPORTED`（`XERR_UNSUPPORTED`） — 当前平台不支持该信号
+- `xrt.signal` / `XSIGNAL_ERROR_STATE`（`XERR_STATE`） — 调度线程创建失败
+- `xrt.signal` 域错误（`XERR_RANGE`） — 监听句柄标识空间耗尽
+- `XERR_MEMORY` — 句柄分配失败
+
+#### 范例
+
+[signal](../../examples/process/signal/main.c) · 订阅
+
+```c
+	xsignalwatch* pWatch = xrtSignalOn(
+		XSIGNAL_INT,
+		exampleSignal,
+		&Received
+	);
+```
+
+### `xrtSignalOnOwned`
+
+订阅信号并在句柄最终释放时析构用户数据；失败时数据所有权不转移。
+
+```c
+xsignalwatch* xrtSignalOnOwned(
+	xsignal Code,
+	xsignalproc pProc,
+	ptr pData,
+	xsignalfreeproc pFree
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效且平台支持 | 信号代码 |
+| `pProc` | 输入 | 非空 | 信号回调 |
+| `pData` | 输入 | 任意值 | 回调数据，成功后所有权转移 |
+| `pFree` | 输入 | 非空 | 数据析构回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 监听句柄（引用 1） | — |
+| `NULL` | 订阅失败，数据仍归调用方 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` / `XSIGNAL_ERROR_CODE`（`XERR_ARGUMENT`） — 信号代码无效
+- `xrt.signal` / `XSIGNAL_ERROR_UNSUPPORTED`（`XERR_UNSUPPORTED`） — 当前平台不支持该信号
+- `xrt.signal` / `XSIGNAL_ERROR_STATE`（`XERR_STATE`） — 调度线程创建失败
+- `xrt.signal` 域错误（`XERR_RANGE`） — 监听句柄标识空间耗尽
+- `XERR_MEMORY` — 句柄分配失败
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 订阅（接管数据）
+
+```c
+	pOwned = xrtSignalOnOwned(XSIGNAL_INT, exampleOnCallback,
+		NULL, exampleFree);
+```
+
+### `xrtSignalOnce`
+
+订阅一次信号；第一次入选调度后先注销，再执行用户回调。
+
+```c
+xsignalwatch* xrtSignalOnce(
+	xsignal Code,
+	xsignalproc pProc,
+	ptr pData
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效且平台支持 | 信号代码 |
+| `pProc` | 输入 | 非空 | 信号回调 |
+| `pData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 一次性监听句柄（引用 1） | — |
+| `NULL` | 订阅失败 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` / `XSIGNAL_ERROR_CODE`（`XERR_ARGUMENT`） — 信号代码无效
+- `xrt.signal` / `XSIGNAL_ERROR_UNSUPPORTED`（`XERR_UNSUPPORTED`） — 当前平台不支持该信号
+- `xrt.signal` / `XSIGNAL_ERROR_STATE`（`XERR_STATE`） — 调度线程创建失败
+- `xrt.signal` 域错误（`XERR_RANGE`） — 监听句柄标识空间耗尽
+- `XERR_MEMORY` — 句柄分配失败
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 订阅一次
+
+```c
+	pOnce = xrtSignalOnce(XSIGNAL_INT, exampleOnceCallback, NULL);
+```
+
+### `xrtSignalOnceOwned`
+
+订阅一次信号并接管用户数据；失败时数据所有权不转移。
+
+```c
+xsignalwatch* xrtSignalOnceOwned(
+	xsignal Code,
+	xsignalproc pProc,
+	ptr pData,
+	xsignalfreeproc pFree
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效且平台支持 | 信号代码 |
+| `pProc` | 输入 | 非空 | 信号回调 |
+| `pData` | 输入 | 任意值 | 回调数据，成功后所有权转移 |
+| `pFree` | 输入 | 非空 | 数据析构回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 一次性监听句柄（引用 1） | — |
+| `NULL` | 订阅失败，数据仍归调用方 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` / `XSIGNAL_ERROR_CODE`（`XERR_ARGUMENT`） — 信号代码无效
+- `xrt.signal` / `XSIGNAL_ERROR_UNSUPPORTED`（`XERR_UNSUPPORTED`） — 当前平台不支持该信号
+- `xrt.signal` / `XSIGNAL_ERROR_STATE`（`XERR_STATE`） — 调度线程创建失败
+- `xrt.signal` 域错误（`XERR_RANGE`） — 监听句柄标识空间耗尽
+- `XERR_MEMORY` — 句柄分配失败
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 订阅一次（接管数据）
+
+```c
+	pOnceOwned = xrtSignalOnceOwned(XSIGNAL_INT,
+		exampleOnceCallback, NULL, exampleFree);
+```
+
 ## 句柄生命周期
 
 ```c
@@ -73,6 +323,170 @@ xsignal xrtSignalCode(const xsignalwatch* pWatch);
 
 平台等待后端发生不可恢复错误时，XRT 会立即停用监听、尝试恢复原生处理方式，并把结构化错误交给进程级错误处理器。`xrtSignalHealthy` 返回 `false` 并在当前执行上下文重建同一系统错误；调用 `xrtSignalShutdown` 完成清理后可以重新惰性启动。
 
+### `xrtSignalRef`
+
+增加监听句柄引用并返回原指针。
+
+```c
+xsignalwatch* xrtSignalRef(xsignalwatch* pWatch)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWatch` | 输入 | 非空 | 目标句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或信号代码非法
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 共享引用
+
+```c
+	pRef = xrtSignalRef(pOwned);
+```
+
+### `xrtSignalOff`
+
+幂等注销监听；从其他线程调用时，返回前保证该句柄回调已经结束。
+
+```c
+bool xrtSignalOff(xsignalwatch* pWatch)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWatch` | 输入 | 非空 | 目标句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已注销（或此前已注销） | — |
+| `false` | 参数非法或引用失败 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或信号代码非法
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 幂等注销
+
+```c
+	if ( !xrtSignalOff(pOwned) ||
+		xrtSignalActive(pOwned) ) {
+```
+
+### `xrtSignalFree`
+
+注销监听并释放一个调用方引用；空指针可安全传入。
+
+```c
+void xrtSignalFree(xsignalwatch* pWatch)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWatch` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1，归零时释放并析构数据 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[signal](../../examples/process/signal/main.c) · 释放引用
+
+```c
+		xrtSignalFree(pWatch);
+```
+
+### `xrtSignalActive`
+
+判断监听是否仍会进入新的回调。
+
+```c
+bool xrtSignalActive(const xsignalwatch* pWatch)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWatch` | 输入 | 非空 | 目标句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否仍活跃 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 活跃查询
+
+```c
+		!xrtSignalActive(pOwned) ||
+```
+
+### `xrtSignalCode`
+
+返回监听对应的信号代码；空指针返回 `XSIGNAL_NONE`。
+
+```c
+xsignal xrtSignalCode(const xsignalwatch* pWatch)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWatch` | 输入 | 非空 | 目标句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 信号代码 | 订阅的代码 | — |
+| `XSIGNAL_NONE` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或信号代码非法
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 信号代码查询
+
+```c
+		(xrtSignalCode(pOwned) != XSIGNAL_INT) ) {
+```
+
 ## 原生处理方式
 
 ```c
@@ -86,6 +500,143 @@ Ignore 和 Restore 都会先注销对应代码的全部 XRT 监听。Restore 恢
 
 Windows 的 INT 在 XRT 监听或忽略期间使用进程内逻辑投递，避免 `GenerateConsoleCtrlEvent` 把 Ctrl+C 广播到整个控制台进程组；未接管时仍使用 CRT 默认处理。Close、Logoff 和 Shutdown 没有安全的单进程程序化发送入口，`xrtSignalRaise` 对这些代码返回 `XERR_UNSUPPORTED`。这些生命周期事件还受到系统控制台处理超时约束，操作系统可能在长回调完成前终止进程，因此回调应只做快速通知，把收尾工作交给应用主流程。
 
+### `xrtSignalIgnore`
+
+忽略指定信号并注销该代码的全部 XRT 监听。
+
+```c
+bool xrtSignalIgnore(xsignal Code)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效且平台支持 | 信号代码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已忽略并注销 | — |
+| `false` | 失败 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` / `XSIGNAL_ERROR_CODE`（`XERR_ARGUMENT`） — 信号代码无效
+- `xrt.signal` / `XSIGNAL_ERROR_UNSUPPORTED`（`XERR_UNSUPPORTED`） — 当前平台不支持该信号
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 忽略信号
+
+```c
+	if ( !xrtSignalIgnore(XSIGNAL_INT) ||
+		!xrtSignalRestore(XSIGNAL_INT) ||
+		!xrtSignalIgnore(XSIGNAL_INT) ||
+		!xrtSignalRestoreAll() ) {
+```
+
+### `xrtSignalRestore`
+
+注销指定代码的全部监听，并恢复 XRT 接管前的原生处理方式。
+
+```c
+bool xrtSignalRestore(xsignal Code)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效 | 信号代码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已恢复 | — |
+| `false` | 失败 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` / `XSIGNAL_ERROR_CODE`（`XERR_ARGUMENT`） — 信号代码无效
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 恢复原生处理
+
+```c
+		!xrtSignalRestore(XSIGNAL_INT) ||
+```
+
+### `xrtSignalRestoreAll`
+
+注销全部监听并恢复全部由 XRT 接管的原生处理方式。
+
+```c
+bool xrtSignalRestoreAll(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已全部恢复 | — |
+| `false` | 失败 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` 域错误 — 恢复过程中平台调用失败
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 恢复全部
+
+```c
+		!xrtSignalRestoreAll() ) {
+```
+
+### `xrtSignalRaise`
+
+向当前进程发送原生信号；默认处理方式可能终止进程。
+
+```c
+bool xrtSignalRaise(xsignal Code)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效且平台可发送 | 信号代码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已发送 | — |
+| `false` | 发送失败 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` / `XSIGNAL_ERROR_CODE`（`XERR_ARGUMENT`） — 信号代码无效
+- `xrt.signal` / `XSIGNAL_ERROR_UNSUPPORTED`（`XERR_UNSUPPORTED`） — 该信号无法在当前平台发送
+
+#### 范例
+
+[signal](../../examples/process/signal/main.c) · 发送信号
+
+```c
+	if ( (pWatch == NULL) || !xrtSignalRaise(XSIGNAL_INT) ) {
+```
+
 ## 计数与关闭
 
 ```c
@@ -98,6 +649,172 @@ bool xrtSignalShutdown(void);
 向 Count 或 Clear 传入 `XSIGNAL_NONE` 表示全部信号。待处理计数使用饱和 32 位原子数，自管道或 Windows Event 只负责唤醒，因此高频通知不会因为唤醒对象暂时已满而静默丢失。
 
 Shutdown 注销全部监听、恢复所有原生处理方式、等待调度线程结束并释放平台唤醒资源。调度线程回调内调用会返回 `XERR_STATE`，避免等待自身。关闭后再次订阅会惰性创建一套新的调度资源。
+
+### `xrtSignalCount`
+
+返回指定信号的累计接收数；`XSIGNAL_NONE` 返回全部信号之和。
+
+```c
+uint64 xrtSignalCount(xsignal Code)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效或 `XSIGNAL_NONE` | 信号代码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 累计接收数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或信号代码非法
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 累计接收数
+
+```c
+		uint64 iBefore = xrtSignalCount(XSIGNAL_INT);
+```
+
+### `xrtSignalReceived`
+
+判断指定信号自上次清零后是否至少接收过一次。
+
+```c
+bool xrtSignalReceived(xsignal Code)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效 | 信号代码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否接收过 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或信号代码非法
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 接收判断
+
+```c
+		if ( !xrtSignalReceived(XSIGNAL_INT) ||
+			(xrtSignalCount(XSIGNAL_INT) < 2u) ||
+			(iBefore < 2u) ) {
+```
+
+### `xrtSignalClear`
+
+清零指定信号的累计数与尚未调度数量；`XSIGNAL_NONE` 清零全部。
+
+```c
+bool xrtSignalClear(xsignal Code)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Code` | 输入 | 有效或 `XSIGNAL_NONE` | 信号代码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已清零 | — |
+| `false` | 代码无效 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或信号代码非法
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 清零计数
+
+```c
+		if ( !xrtSignalClear(XSIGNAL_INT) ||
+			xrtSignalReceived(XSIGNAL_INT) ||
+			(xrtSignalCount(XSIGNAL_INT) != 0u) ) {
+```
+
+### `xrtSignalHealthy`
+
+判断调度后端是否健康；故障时重建前必须先调用 `xrtSignalShutdown`。
+
+```c
+bool xrtSignalHealthy(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 后端是否健康 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[signal_tour](../../examples/process/signal_tour/main.c) · 后端健康
+
+```c
+		!xrtSignalHealthy() ) {
+```
+
+### `xrtSignalShutdown`
+
+停止调度线程、注销全部监听并恢复原生处理方式；回调线程内不可调用。
+
+```c
+bool xrtSignalShutdown(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已停止并恢复 | — |
+| `false` | 失败 | `xrt.signal` 域错误 |
+
+#### 错误
+
+- `xrt.signal` / `XSIGNAL_ERROR_STATE`（`XERR_STATE`） — 在信号回调线程内调用（自关闭）
+
+#### 范例
+
+[signal](../../examples/process/signal/main.c) · 关闭调度
+
+```c
+	return xrtSignalShutdown() ? 0 : 3;
+```
 
 ## 错误
 
