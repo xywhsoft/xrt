@@ -46,7 +46,7 @@
 | 39 | memory_debug.md | 11 | **完成** | 11/11 全绿（G3 11 片段，2026-09-07）；Enable/Reset 活动分配 XERR_STATE、Report 写者失败 XERR_STATE 入档；锚点 fail_inject/debug/debug_report 三范例 |
 | 40 | memory_stats.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；纯开关/清空函数显式"不失败"错误节；锚点 stats |
 | 41 | net-dns.md | 172 | **完成** | 172/172 全绿（G3 172 片段，2026-09-07）；映射 net.h（=net.md 减 net_interface.h 12 个）；全部节复用自 net.md，12 组结构镜像，同名组（错误/文本输出等）合并 |
-| 42 | net-file.md | 4 | 待办 |  |
+| 42 | net-file.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；错误码对照 src/network/file.c（Worker 归属 STATE、范围 RANGE、无文件 I/O 能力 UNSUPPORTED）；锚点 file_tour |
 | 43 | net-frame.md | 9 | 待办 |  |
 | 44 | net-interface.md | 12 | 待办 |  |
 | 45 | net-resolver.md | 172 | 待办 |  |
@@ -589,4 +589,8 @@
   重复的同名组（文本输出/比较与分类/Native 逃生口/网络缓冲/错误）合并；
   原桩文档速览节保留并改名「API 速览」。完成 API 1650→1822/3664
   （49.7%），42/79 文件。
+- 2026-09-07 net-file.md 完成（4/4，G3 4 片段全绿）：Worker 归属、
+  范围校验（偏移+长度超出完成事件表达范围 = xrt.net/PORT_SUBMIT·RANGE）、
+  SELECT 等后端无文件 I/O 能力 = XERR_UNSUPPORTED 三类契约入档。
+  完成 API 1822→1826/3664（49.8%），43/79 文件。
 
