@@ -51,7 +51,7 @@
 | 44 | net-interface.md | 12 | **完成** | 12/12 全绿（G3 12 片段，2026-09-07）；全部节复用自 net.md「网络接口与本机信息」组 |
 | 45 | net-resolver.md | 172 | **完成** | 172/172 全绿（G3 172 片段，2026-09-07）；同 net-dns（net.h 172），Resolver 组置首 + 其余 11 组镜像 |
 | 46 | net.md | 184 | **完成** | 试点 2；六段全绿（184/184，G3 203 片段）：地址族 20 + 缓冲/DNS/Bytes 39 + Socket 39 + Port 29 + Post 3 + Engine 17 + Worker 9 + 第 6 段 26 + CompletionInit 1 |
-| 47 | number.md | 15 | 待办 |  |
+| 47 | number.md | 15 | **完成** | 15/15 全绿（G3 15 片段，2026-09-07）；xrt.number 域 CONFIG/FORMAT/RANGE 三码入档；容量原子失败 XERR_RANGE （查询仍返回长度）；锚点 integer/float/format/variants |
 | 48 | once.md | 22 | 待办 |  |
 | 49 | path.md | 32 | 待办 |  |
 | 50 | pattern.md | 37 | 待办 |  |
@@ -607,4 +607,8 @@
   （Resolver）组置首、其余 11 组按 net.md 顺序镜像；原 74 行桩文档
   （分层/配置/查询合并/生命周期/统计/Future 便捷层）保留在前。
   完成 API 1847→2019/3664（55.1%），46/79 文件。
+- 2026-09-07 number.md 完成（15/15，G3 15 片段全绿）：写入/解析/展示格式三族；错误码对照 src/text/number_*.c——容量不足 = XERR_RANGE
+  原子失败且 pOutputSize 仍返回所需长度（internal/xrt_number.h
+  __xrtNumberWriteResult 契约）、解析溢出 = RANGE 保输出不变、文本格式
+  非法 = PROTOCOL/FORMAT。完成 API 2019→2034/3664（55.6%），47/79。
 

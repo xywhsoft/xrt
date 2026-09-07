@@ -78,6 +78,271 @@ bool xrtIntParse(xstrview text, uint32 base, uint32 flags, int64* value);
 
 无符号解析拒绝正负号。有符号解析完整覆盖 `INT64_MIN` 到 `INT64_MAX`。自动基数默认仍是十进制，文本 `077` 不会被隐式解释为八进制。
 
+### `xrtUIntWrite`
+
+按 2 到 36 进制写出无符号整数；输出为空且容量为零时只查询长度。
+
+```c
+bool xrtUIntWrite(
+	uint64 iValue,
+	uint32 iBase,
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pOutputSize,
+	uint32 iFlags
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 要写出的值 |
+| `iBase` | 输入 | 2–36 | 目标进制 |
+| `sOutput` | 输出 | 允许空 | 空 + 零容量 = 查询长度 |
+| `iCapacity` | 输入 | — | 缓冲容量，须含末尾零字节 |
+| `pOutputSize` | 输出 | 非空 | 接收不含零字节的长度 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 输出标志 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补末尾零 | — |
+| `false` | 参数、配置或容量失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOutputSize` 为空、输出与容量组合非法或与输出区间重叠
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 进制不在 2–36 或标志组合非法
+- `XERR_RANGE` — 容量不足（需含末尾零字节）；失败不写半个结果，`pOutputSize` 仍返回所需长度
+
+#### 范例
+
+[variants](../../examples/number/variants/main.c) · 缓冲写入
+
+```c
+	if ( xrtUIntWrite(UINT64_C(300), 16u, Buffer, sizeof(Buffer), &iNeed, 0u) ) {
+```
+
+### `xrtIntWrite`
+
+按 2 到 36 进制写出有符号整数；负号位于进制前缀之前，`XNUMBER_PLUS` 只影响非负值。
+
+```c
+bool xrtIntWrite(
+	int64 iValue,
+	uint32 iBase,
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pOutputSize,
+	uint32 iFlags
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 要写出的值 |
+| `iBase` | 输入 | 2–36 | 目标进制 |
+| `sOutput` | 输出 | 允许空 | 空 + 零容量 = 查询长度 |
+| `iCapacity` | 输入 | — | 缓冲容量，须含末尾零字节 |
+| `pOutputSize` | 输出 | 非空 | 接收不含零字节的长度 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 输出标志 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补末尾零 | — |
+| `false` | 参数、配置或容量失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOutputSize` 为空、输出与容量组合非法或与输出区间重叠
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 进制不在 2–36 或标志组合非法
+- `XERR_RANGE` — 容量不足（需含末尾零字节）；失败不写半个结果，`pOutputSize` 仍返回所需长度
+
+#### 范例
+
+[variants](../../examples/number/variants/main.c) · 缓冲写入
+
+```c
+	(void)xrtIntWrite(-42, 10u, NULL, 0u, &iNeed, 0u);
+```
+
+### `xrtUIntString`
+
+写出无符号整数并返回由 `xrtFree` 释放的末尾补零文本。
+
+```c
+str xrtUIntString(
+	uint64 iValue,
+	uint32 iBase,
+	uint32 iFlags
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 要写出的值 |
+| `iBase` | 输入 | 2–36 | 目标进制 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 输出标志 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.number` 错误 |
+
+#### 错误
+
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 进制不在 2–36 或标志组合非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[variants](../../examples/number/variants/main.c) · 分配写入
+
+```c
+	str sText = xrtUIntString(UINT64_C(4294967296), 10u, 0u);
+```
+
+### `xrtIntString`
+
+写出有符号整数并返回由 `xrtFree` 释放的末尾补零文本。
+
+```c
+str xrtIntString(
+	int64 iValue,
+	uint32 iBase,
+	uint32 iFlags
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 要写出的值 |
+| `iBase` | 输入 | 2–36 | 目标进制 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 输出标志 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.number` 错误 |
+
+#### 错误
+
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 进制不在 2–36 或标志组合非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[integer](../../examples/number/integer/main.c) · 分配写入
+
+```c
+	sDecimal = xrtIntString(iValue, 10, 0);
+```
+
+### `xrtUIntParse`
+
+严格解析无符号整数；`iBase` 为零时默认十进制，并在允许前缀时自动识别 `0b`、`0o`、`0x`。
+
+```c
+bool xrtUIntParse(
+	xstrview Text,
+	uint32 iBase,
+	uint32 iFlags,
+	uint64* pValue
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iBase` | 输入 | 0 或 2–36 | 0 = 十进制 + 前缀识别 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 解析标志 |
+| `pValue` | 输出 | 非空 | 接收结果，失败保持不变 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 文本、配置非法或溢出 | `xrt.number` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pValue` 为空
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 进制或标志组合非法
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_PROTOCOL`） — 文本为空、符号错位、包含越基数数字或以分隔符结尾
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 数值溢出目标类型，输出保持不变
+
+#### 范例
+
+[variants](../../examples/number/variants/main.c) · 严格解析
+
+```c
+	if ( sText == NULL || !xrtUIntParse(XRT_STR_LITERAL("4294967296"),
+		10u, 0u, &iValue) ) {
+```
+
+### `xrtIntParse`
+
+严格解析有符号整数；正负号必须位于可选进制前缀之前，溢出时保持输出不变。
+
+```c
+bool xrtIntParse(
+	xstrview Text,
+	uint32 iBase,
+	uint32 iFlags,
+	int64* pValue
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iBase` | 输入 | 0 或 2–36 | 0 = 十进制 + 前缀识别 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 解析标志 |
+| `pValue` | 输出 | 非空 | 接收结果，失败保持不变 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 文本、配置非法或溢出 | `xrt.number` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pValue` 为空
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 进制或标志组合非法
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_PROTOCOL`） — 文本为空、符号错位、包含越基数数字或以分隔符结尾
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 数值溢出目标类型，输出保持不变
+
+#### 范例
+
+[integer](../../examples/number/integer/main.c) · 严格解析
+
+```c
+	if ( !xrtIntParse(XRT_STR_LITERAL(" -9_223_372_036_854_775_808 "),
+		10, (uint32)XNUMBER_PARSE_SPACE |
+		(uint32)XNUMBER_PARSE_SEPARATOR, &iValue) ) {
+```
+
 ## 浮点
 
 `number_float` 保留旧版适合动态宿主和跨平台 C 的使用语义：
@@ -129,6 +394,136 @@ bool xrtNumParse(xstrview text, uint32 flags, double* value);
 - `XNUMBER_PARSE_SPECIAL`：不区分 ASCII 大小写地允许 `nan`、`inf`、`infinity`。
 
 任意长尾数均不分配内存。实现只保留正确舍入所需的 769 位高位有效数字，并把更低的非零信息折叠为 sticky 位。有限文本向零下溢时成功返回带正确符号的零；向无穷溢出时返回 `XNUMBER_ERROR_RANGE` 并保持输出不变。
+
+### `xrtNumWrite`
+
+写出 IEEE-754 double 的最短往返文本；负零、无穷和 NaN 均有稳定表示。
+
+```c
+bool xrtNumWrite(
+	double fValue,
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pOutputSize,
+	uint32 iFlags
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 要写出的值 |
+| `sOutput` | 输出 | 允许空 | 空 + 零容量 = 查询长度 |
+| `iCapacity` | 输入 | — | 缓冲容量，须含末尾零字节 |
+| `pOutputSize` | 输出 | 非空 | 接收不含零字节的长度 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 浮点标志 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补末尾零 | — |
+| `false` | 参数、标志或容量失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOutputSize` 为空或输出与容量组合非法
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 标志组合非法
+- `XERR_RANGE` — 容量不足（需含末尾零字节）；不写半个结果
+
+#### 范例
+
+[variants](../../examples/number/variants/main.c) · 缓冲写入
+
+```c
+	if ( xrtNumWrite(2.5, Buffer, sizeof(Buffer), &iNeed, 0u) ) {
+```
+
+### `xrtNumString`
+
+写出 double 并返回由 `xrtFree` 释放的末尾补零文本。
+
+```c
+str xrtNumString(
+	double fValue,
+	uint32 iFlags
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 要写出的值 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 浮点标志 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.number` 错误 |
+
+#### 错误
+
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 进制不在 2–36 或标志组合非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[float](../../examples/number/float/main.c) · 分配写入
+
+```c
+	sText = xrtNumString(fValue, 0);
+```
+
+### `xrtNumParse`
+
+严格解析完整十进制浮点文本并执行 IEEE-754 正确舍入；特殊值和分隔符需显式开启。
+
+```c
+bool xrtNumParse(
+	xstrview Text,
+	uint32 iFlags,
+	double* pValue
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+| `iFlags` | 输入 | — | `XNUMBER_*` 解析标志 |
+| `pValue` | 输出 | 非空 | 接收结果，失败保持不变 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 文本、标志非法或超范围 | `xrt.number` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pValue` 为空
+- `xrt.number` / `XNUMBER_ERROR_CONFIG`（`XERR_VALUE`） — 标志组合非法
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_PROTOCOL`） — 文本为空、格式非法或特殊值未显式允许
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 数值超出 double 可表示范围
+
+#### 范例
+
+[float](../../examples/number/float/main.c) · 严格解析
+
+```c
+	if ( !xrtNumParse(
+		XRT_STR_LITERAL(" -1_234.567_890e-2 "),
+		(uint32)XNUMBER_PARSE_SPACE |
+		(uint32)XNUMBER_PARSE_SEPARATOR,
+		&fValue
+	) ) {
+```
 
 ## 展示格式
 
@@ -208,6 +603,243 @@ xrtFree(sCount);
 xrtFree(sBits);
 xrtFree(sPrice);
 xrtFree(sRatio);
+```
+
+### `xrtIntFormatTo`
+
+按照展示格式写出有符号整数；输出为空且容量为零时只查询长度。
+
+```c
+bool xrtIntFormatTo(int64 iValue, xstrview Format,
+	char* sOutput, size_t iCapacity, size_t* pOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 要写出的值 |
+| `Format` | 输入 | 借用 | 展示格式 |
+| `sOutput` | 输出 | 允许空 | 空 + 零容量 = 查询长度 |
+| `iCapacity` | 输入 | — | 缓冲容量，须含末尾零字节 |
+| `pOutputSize` | 输出 | 非空 | 接收不含零字节的长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补末尾零 | — |
+| `false` | 格式、参数或容量失败 | `xrt.number` 错误等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOutputSize` 为空或输出与容量组合非法
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_VALUE`） — 格式语法非法
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 宽度或精度超出实现上限
+- `XERR_RANGE` — 容量不足（需含末尾零字节）；不写半个结果
+
+#### 范例
+
+[variants](../../examples/number/variants/main.c) · 缓冲格式化
+
+```c
+	if ( xrtIntFormatTo(-1234567, XRT_STR_LITERAL(",d"),
+		Buffer, sizeof(Buffer), &iNeed) ) {
+```
+
+### `xrtUIntFormatTo`
+
+按照展示格式写出无符号整数。
+
+```c
+bool xrtUIntFormatTo(uint64 iValue, xstrview Format,
+	char* sOutput, size_t iCapacity, size_t* pOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 要写出的值 |
+| `Format` | 输入 | 借用 | 展示格式 |
+| `sOutput` | 输出 | 允许空 | 空 + 零容量 = 查询长度 |
+| `iCapacity` | 输入 | — | 缓冲容量，须含末尾零字节 |
+| `pOutputSize` | 输出 | 非空 | 接收不含零字节的长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补末尾零 | — |
+| `false` | 格式、参数或容量失败 | `xrt.number` 错误等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOutputSize` 为空或输出与容量组合非法
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_VALUE`） — 格式语法非法
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 宽度或精度超出实现上限
+- `XERR_RANGE` — 容量不足（需含末尾零字节）；不写半个结果
+
+#### 范例
+
+[variants](../../examples/number/variants/main.c) · 缓冲格式化
+
+```c
+	if ( xrtUIntFormatTo(UINT64_C(255), XRT_STR_LITERAL("#X"),
+		Buffer, sizeof(Buffer), &iNeed) ) {
+```
+
+### `xrtNumFormatTo`
+
+按照展示格式写出 double，固定支持正确舍入、负零和特殊值。
+
+```c
+bool xrtNumFormatTo(double fValue, xstrview Format,
+	char* sOutput, size_t iCapacity, size_t* pOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 要写出的值 |
+| `Format` | 输入 | 借用 | 展示格式 |
+| `sOutput` | 输出 | 允许空 | 空 + 零容量 = 查询长度 |
+| `iCapacity` | 输入 | — | 缓冲容量，须含末尾零字节 |
+| `pOutputSize` | 输出 | 非空 | 接收不含零字节的长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写入并补末尾零 | — |
+| `false` | 格式、参数或容量失败 | `xrt.number` 错误等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pOutputSize` 为空或输出与容量组合非法
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_VALUE`） — 格式语法非法
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 宽度或精度超出实现上限
+- `XERR_RANGE` — 容量不足（需含末尾零字节）；不写半个结果
+
+#### 范例
+
+[variants](../../examples/number/variants/main.c) · 缓冲格式化
+
+```c
+	if ( xrtNumFormatTo(3.5, XRT_STR_LITERAL(".2f"),
+		Buffer, sizeof(Buffer), &iNeed) ) {
+```
+
+### `xrtIntFormat`
+
+按照展示格式格式化有符号整数并返回由 `xrtFree` 释放的零结尾字符串。
+
+```c
+str xrtIntFormat(int64 iValue, xstrview Format)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 要写出的值 |
+| `Format` | 输入 | 借用 | 展示格式 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.number` 错误 |
+
+#### 错误
+
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_VALUE`） — 格式语法非法
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 宽度或精度超出实现上限
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[format](../../examples/number/format/main.c) · 分配格式化
+
+```c
+	str sInteger = xrtIntFormat(
+		INT64_C(-123456789), XRT_STR_LITERAL(",d"));
+```
+
+### `xrtUIntFormat`
+
+按照展示格式格式化无符号整数并返回由 `xrtFree` 释放的零结尾字符串。
+
+```c
+str xrtUIntFormat(uint64 iValue, xstrview Format)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | — | 要写出的值 |
+| `Format` | 输入 | 借用 | 展示格式 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.number` 错误 |
+
+#### 错误
+
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_VALUE`） — 格式语法非法
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 宽度或精度超出实现上限
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[format](../../examples/number/format/main.c) · 分配格式化
+
+```c
+	str sHex = xrtUIntFormat(
+		UINT64_C(0xDEADBEEF), XRT_STR_LITERAL("#_X"));
+```
+
+### `xrtNumFormat`
+
+按照展示格式格式化 double 并返回由 `xrtFree` 释放的零结尾字符串。
+
+```c
+str xrtNumFormat(double fValue, xstrview Format)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 要写出的值 |
+| `Format` | 输入 | 借用 | 展示格式 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `xrt.number` 错误 |
+
+#### 错误
+
+- `xrt.number` / `XNUMBER_ERROR_FORMAT`（`XERR_VALUE`） — 格式语法非法
+- `xrt.number` / `XNUMBER_ERROR_RANGE`（`XERR_RANGE`） — 宽度或精度超出实现上限
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[format](../../examples/number/format/main.c) · 分配格式化
+
+```c
+	str sFloat = xrtNumFormat(
+		1234567.895, XRT_STR_LITERAL(",.2f"));
 ```
 
 ## 错误
