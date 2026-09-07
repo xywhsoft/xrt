@@ -109,107 +109,447 @@ typedef struct xslotmapiter {
 
 ### `xrtSlotIndex`
 
+返回句柄中的零基槽索引，无效句柄返回 `XRT_SLOT_INDEX_INVALID`。
+
 ```c
-uint32 xrtSlotIndex(xslot Slot);
+uint32 xrtSlotIndex(xslot Slot)
 ```
 
-返回零基槽索引。无效句柄返回 `XRT_SLOT_INDEX_INVALID`，不设置错误。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Slot` | 输入 | — | 槽句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 零基槽索引 | — |
+| `XRT_SLOT_INDEX_INVALID` | 无效句柄 | — |
+
+#### 错误
+
+- 无 — 纯位域解码，不设置错误
+
+#### 范例
+
+[slot_map](../../examples/containers/slot_map/main.c) · 槽索引
+
+```c
+		xrtSlotIndex(First) == xrtSlotIndex(Replacement) ? "yes" : "no",
+```
 
 ### `xrtSlotGeneration`
 
+返回句柄中的代际，无效句柄返回零。
+
 ```c
-uint32 xrtSlotGeneration(xslot Slot);
+uint32 xrtSlotGeneration(xslot Slot)
 ```
 
-返回非零代际。无效句柄返回零，不设置错误。
+#### 参数
 
-索引只适合日志和诊断。对象身份必须使用完整 `xslot`，不能只保存索引。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Slot` | 输入 | — | 槽句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 句柄代际 | — |
+| `0` | 无效句柄 | — |
+
+#### 错误
+
+- 无 — 纯位域解码，不设置错误
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 代际
+
+```c
+		(xrtSlotGeneration(SlotA) != 1u) ||
+```
 
 ## 生命周期与容量
 
-### `xrtSlotMapInit` / `xrtSlotMapCreate`
+### `xrtSlotMapInit`
+
+初始化调用方持有的空槽表。
 
 ```c
-bool xrtSlotMapInit(xslotmap* pMap);
-xslotmap* xrtSlotMapCreate(void);
+bool xrtSlotMapInit(xslotmap* pMap)
 ```
 
-`Init` 初始化调用方持有的结构，成功后使用 `Unit`。`Create` 分配槽表结构，
-成功后使用 `Destroy`。
+#### 参数
 
-### `xrtSlotMapUnit` / `xrtSlotMapDestroy`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输出 | 非空 | 接收槽表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[slot_map](../../examples/containers/slot_map/main.c) · 内嵌初始化
 
 ```c
-void xrtSlotMapUnit(xslotmap* pMap);
-void xrtSlotMapDestroy(xslotmap* pMap);
+	if ( !xrtSlotMapInit(&tConnections) ) {
 ```
 
-两者允许空指针，只释放槽存储，不释放槽内对象。`Unit` 后结构归零。
+### `xrtSlotMapCreate`
+
+创建堆上的空槽表。
+
+```c
+xslotmap* xrtSlotMapCreate(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽表 | — |
+| `NULL` | 分配失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_MEMORY` — 结构分配失败
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 堆创建
+
+```c
+	pMap = xrtSlotMapCreate();
+```
+
+### `xrtSlotMapUnit`
+
+释放槽表存储，但不释放槽内指针指向的对象。
+
+```c
+void xrtSlotMapUnit(xslotmap* pMap)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 存储已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[slot_map](../../examples/containers/slot_map/main.c) · 释放存储
+
+```c
+		xrtSlotMapUnit(&tConnections);
+```
+
+### `xrtSlotMapDestroy`
+
+释放槽表存储和槽表结构，但不释放槽内对象。
+
+```c
+void xrtSlotMapDestroy(xslotmap* pMap)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 槽表已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 销毁槽表
+
+```c
+	xrtSlotMapDestroy(pMap);
+```
 
 ### `xrtSlotMapClear`
 
+清空全部活动槽并使已有句柄失效，同时保留已分配容量。
+
 ```c
-void xrtSlotMapClear(xslotmap* pMap);
+void xrtSlotMapClear(xslotmap* pMap)
 ```
 
-删除全部活动槽，推进它们的代际并保留容量。调用前应先遍历和释放由调用方
-拥有的对象。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标槽表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空，全部句柄失效 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 清空
+
+```c
+	xrtSlotMapClear(pMap);
+```
 
 ### `xrtSlotMapReserve`
 
+保证槽表至少具有指定存储容量。
+
 ```c
-bool xrtSlotMapReserve(xslotmap* pMap, size_t iCapacity);
+bool xrtSlotMapReserve(xslotmap* pMap, size_t iCapacity)
 ```
 
-保证内部存储至少可容纳指定数量的槽。最大请求为 `UINT32_MAX`；实际容量可能
-因几何增长更大。预留容量不会创建槽、改变 `Count` 或使句柄和迭代器失效。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标槽表 |
+| `iCapacity` | 输入 | — | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 容量已保证 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_MEMORY` — 存储分配失败
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 预留容量
+
+```c
+		!xrtSlotMapReserve(pMap, 8u) ) {
+```
 
 ## 基本操作
 
 ### `xrtSlotMapInsert`
 
+插入非空指针并返回稳定代际句柄，失败返回 `XRT_SLOT_INVALID`。
+
 ```c
-xslot xrtSlotMapInsert(xslotmap* pMap, ptr pValue);
+xslot xrtSlotMapInsert(xslotmap* pMap, ptr pValue)
 ```
 
-插入非空借用指针并返回句柄。优先 O(1) 复用空闲槽，没有空闲槽时在末尾建立
-新槽。失败返回 `XRT_SLOT_INVALID`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标槽表 |
+| `pValue` | 输入 | 非空 | 要存储的指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非零 | 稳定代际句柄 | — |
+| `XRT_SLOT_INVALID` | 插入失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 空闲链状态破坏
+- `XERR_OVERFLOW` — 槽位空间耗尽或尺寸溢出
+
+#### 范例
+
+[slot_map](../../examples/containers/slot_map/main.c) · 插入
+
+```c
+	First = xrtSlotMapInsert(&tConnections, &tFirst);
+```
 
 ### `xrtSlotMapGet`
 
+返回有效句柄对应的指针，陈旧或不存在的句柄返回空指针。
+
 ```c
-ptr xrtSlotMapGet(const xslotmap* pMap, xslot Slot);
+ptr xrtSlotMapGet(const xslotmap* pMap, xslot Slot)
 ```
 
-返回当前句柄对应的对象指针。零句柄、越界句柄、已删除句柄和旧代际句柄均
-返回 `NULL` 并设置 `XERR_RANGE`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标槽表 |
+| `Slot` | 输入 | — | 槽句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内指针 | — |
+| `NULL` | 句柄陈旧或不存在 | 不设错误 |
+
+#### 错误
+
+- 陈旧句柄返回 `NULL` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 取指针
+
+```c
+		(xrtSlotMapGet(pMap, SlotA) != (ptr)1) ||
+```
 
 ### `xrtSlotMapContains`
 
+判断句柄当前是否仍指向活动槽，句柄失效不是错误。
+
 ```c
-bool xrtSlotMapContains(const xslotmap* pMap, xslot Slot);
+bool xrtSlotMapContains(const xslotmap* pMap, xslot Slot)
 ```
 
-判断句柄是否活动。句柄无效只是查询结果，不设置新错误；槽表状态无效仍会
-报告错误。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标槽表 |
+| `Slot` | 输入 | — | 槽句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否活动 | 不设错误 |
+
+#### 错误
+
+- 无 — 句柄失效是正常结果，不设置错误
+
+#### 范例
+
+[slot_map](../../examples/containers/slot_map/main.c) · 句柄有效性
+
+```c
+		xrtSlotMapContains(&tConnections, First) ? "yes" : "no"
+```
 
 ### `xrtSlotMapSet`
 
+替换有效槽中的非空指针，句柄和迭代顺序保持不变。
+
 ```c
-bool xrtSlotMapSet(xslotmap* pMap, xslot Slot, ptr pValue);
+bool xrtSlotMapSet(xslotmap* pMap, xslot Slot, ptr pValue)
 ```
 
-用非空指针替换现有值。句柄、代际和结构版本不变。函数不释放旧对象；需要
-旧值时先调用 `Get`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标槽表 |
+| `Slot` | 输入 | — | 有效槽句柄 |
+| `pValue` | 输入 | 非空 | 新指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已替换 | — |
+| `false` | 句柄陈旧或参数非法 | 不设错误 / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 陈旧句柄返回 `false` 且不设置错误
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 替换指针
+
+```c
+		!xrtSlotMapSet(pMap, SlotA, (ptr)11) ||
+```
 
 ### `xrtSlotMapRemove`
 
+删除有效槽并可返回原指针，删除后旧句柄永久失效。
+
 ```c
-bool xrtSlotMapRemove(xslotmap* pMap, xslot Slot, ptr* pValue);
+bool xrtSlotMapRemove(xslotmap* pMap, xslot Slot, ptr* pValue)
 ```
 
-删除有效槽并推进代际。`pValue` 可为空；非空时返回被移除的指针。输出地址
-不得位于槽表内部存储区。失败时槽表和输出保持不变。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入/输出 | 非空 | 目标槽表 |
+| `Slot` | 输入 | — | 有效槽句柄 |
+| `pValue` | 输出 | 允许空；不得与槽表存储重叠 | 接收原指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 句柄陈旧 | 不设错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 陈旧句柄返回 `false` 且不设置错误
+- `XERR_STATE` — 计数与槽状态不一致（内部损坏）
+
+#### 范例
+
+[slot_map](../../examples/containers/slot_map/main.c) · 删除槽
+
+```c
+	if ( !xrtSlotMapRemove(&tConnections, First, NULL) ) {
+```
 
 ## 迭代
 
@@ -224,6 +564,107 @@ void xrtSlotMapIterEnd(xslotmapiter* pIterator);
 
 开始迭代后执行 `Insert`、`Remove` 或非空 `Clear`，下一次 `IterNext` 返回
 `NULL` 并设置 `XERR_STATE`。`Set` 和 `Reserve` 不改变槽结构，允许继续迭代。
+
+### `xrtSlotMapIterBegin`
+
+启动按槽索引递增的外置迭代器。
+
+```c
+bool xrtSlotMapIterBegin(const xslotmap* pMap, xslotmapiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMap` | 输入 | 非空 | 目标槽表 |
+| `pIterator` | 输出 | 非空 | 接收迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已启动 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 启动迭代
+
+```c
+	if ( !xrtSlotMapIterBegin(pMap, &Iter) ) {
+```
+
+### `xrtSlotMapIterNext`
+
+返回下一个活动指针，并可返回与其匹配的稳定句柄。
+
+```c
+ptr xrtSlotMapIterNext(xslotmapiter* pIterator, xslot* pSlot)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 已启动 | 目标迭代器 |
+| `pSlot` | 输出 | 允许空 | 接收匹配句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 活动指针借用；遍历结束为 `NULL` | — |
+| `NULL` | 遍历结束或迭代器失效 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 槽表结构在迭代期间被修改；遍历结束返回 `NULL` 不设错
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 下一活动槽
+
+```c
+	while ( (pValue = xrtSlotMapIterNext(&Iter, &SlotA)) !=
+		NULL ) {
+```
+
+### `xrtSlotMapIterEnd`
+
+提前结束迭代并清除借用状态。
+
+```c
+void xrtSlotMapIterEnd(xslotmapiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已结束 | — |
+
+#### 错误
+
+- 无 — 结束不失败
+
+#### 范例
+
+[slot_map_tour](../../examples/containers/slot_map_tour/main.c) · 结束迭代
+
+```c
+	xrtSlotMapIterEnd(&Iter);
+```
 
 ## 示例
 
