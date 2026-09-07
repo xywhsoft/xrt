@@ -28,19 +28,131 @@
 
 ### `xrtMemStatsEnable`
 
-开启或关闭运行时统计。切换与所有已经进入统计临界区的调用形成线性化顺序。
+开启或关闭进程级内存统计；切换与已进入统计临界区的调用形成线性化顺序。
+
+```c
+void xrtMemStatsEnable(bool bEnable)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `bEnable` | 输入 | — | 目标开关状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已切换 | — |
+
+#### 错误
+
+- 无 — 切换不失败
+
+#### 范例
+
+[stats](../../examples/memory/stats/main.c) · 开关
+
+```c
+	xrtMemStatsEnable(true);
+```
 
 ### `xrtMemStatsEnabled`
 
-原子读取当前运行时统计开关。
+原子读取进程级统计开关。
+
+```c
+bool xrtMemStatsEnabled(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 当前开关状态 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[stats](../../examples/memory/stats/main.c) · 开关读取
+
+```c
+	printf("before=%d\n", xrtMemStatsEnabled() ? 1 : 0);
+```
 
 ### `xrtMemStatsReset`
 
-清空所有计数但保留开关状态。返回后开始的操作不会被清除。
+在线性化边界清空所有内存统计，但保留开关状态；返回后开始的操作不会被清除。
+
+```c
+void xrtMemStatsReset(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空 | — |
+
+#### 错误
+
+- 无 — 清空不失败
+
+#### 范例
+
+[stats](../../examples/memory/stats/main.c) · 清空计数
+
+```c
+	xrtMemStatsReset();
+```
 
 ### `xrtMemStatsGet`
 
-获取字段相互一致的快照。输出参数为 `NULL` 时设置 `XERR_ARGUMENT`。
+获取一份字段相互一致的内存统计快照。
+
+```c
+void xrtMemStatsGet(xmemstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStats` | 输出 | 非空 | 接收快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 快照已写出 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[stats](../../examples/memory/stats/main.c) · 统计快照
+
+```c
+	xrtMemStatsGet(&tStats);
+```
 
 ## 旧版资产决策
 

@@ -43,8 +43,8 @@
 | 36 | map.md | 62 | **完成** | 62/62 全绿（G3 62 片段，2026-09-07）；字节键 Map 31 + 整数键 IntMap 31 双形态 |
 | 37 | math.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；math/tour 补注册 |
 | 38 | memory.md | 44 | **完成** | 44/44 全绿（G3 44 片段，2026-09-07）；节复用自 core.md（分配器 13 + 引用/运行时 4 + 错误族 27 三组重组），旧短式「## 函数」段整体替换 |
-| 39 | memory_debug.md | 11 | 待办 |  |
-| 40 | memory_stats.md | 4 | 待办 |  |
+| 39 | memory_debug.md | 11 | **完成** | 11/11 全绿（G3 11 片段，2026-09-07）；Enable/Reset 活动分配 XERR_STATE、Report 写者失败 XERR_STATE 入档；锚点 fail_inject/debug/debug_report 三范例 |
+| 40 | memory_stats.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；纯开关/清空函数显式"不失败"错误节；锚点 stats |
 | 41 | net-dns.md | 172 | 待办 |  |
 | 42 | net-file.md | 4 | 待办 |  |
 | 43 | net-frame.md | 9 | 待办 |  |
@@ -576,4 +576,11 @@
   运行时信息 / 错误对象与线程错误 三组重组；旧版手写短式「## 函数」
   段（8 个无表格节 + 调试位置函数小节）整体替换，原有正文/类型/
   范例/旧版资产决策保留。完成 API 1591→1635/3664（44.6%），39/79。
+- 2026-09-07 memory_debug.md（11/11）与 memory_stats.md（4/4）完成：
+  错误语义对照 src/memory/debug.c、stats.c、debug_report.c——Enable/Reset
+  在存在活动分配或临时字节时 XERR_STATE、FailAfter 仅 TLS 状态分配失败
+  设 XERR_MEMORY、EventName 非法种类返回 "unknown" 不设错、Report 写入器
+  返回失败且未设错时 XERR_STATE（沿用原文档既有契约）。调用点函数小节
+  （xrtMallocAt 等）改为指向 memory.md 的普通段落。完成 API 1635→1650
+  /3664（45.1%），41/79 文件。
 
