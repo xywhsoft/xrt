@@ -47,7 +47,7 @@ proxy 模块把"经代理建立连接"工程化：**代理拨号**（`xnetproxyd
 
 ### 认证与安全
 
-**认证**：SOCKS5 无认证/用户密码（RFC 1929）；HTTP Basic/自定义头。**通道安全**：代理本身不加密——TLS over 代理（CONNECT 后跑 TLS 握手——第 80 章组合）；**代理链**：理论上可串联（拨号经代理 A 到代理 B 到目标——配置层组合）。
+**认证**：SOCKS5 无认证/用户密码（RFC 1929）；HTTP Basic/自定义头。**通道安全**：代理本身不加密——TLS over 代理（CONNECT 后跑 TLS 握手——第 81 章组合）；**代理链**：理论上可串联（拨号经代理 A 到代理 B 到目标——配置层组合）。
 
 ### 托管语义
 
@@ -142,7 +142,7 @@ SendSecret(S, Data);
 ```c good
 /* 敏感数据走 TLS over 代理——CONNECT 后先 TLS 握手（卷八），认证也在 TLS 内 */
 xnetstream* S = ManagedDial(Engine, &Dial);
-/* S 上跑 TLS（第 80 章组合形态）——通道内容加密 */
+/* S 上跑 TLS（第 81 章组合形态）——通道内容加密 */
 ```
 
 ## 练习
