@@ -14,7 +14,7 @@
 | P5 卷四后半 | ✅ 完成 | 7 | 30,235 |
 | P6 卷五前半 | ✅ 完成 | 6 | 24,273 |
 | P7 卷五后半 | ✅ 完成 | 8 | 34,240 |
-| P8 卷六前半 | 🔄 进行中 | 0 | — |
+| P8 卷六前半 | ✅ 完成 | 8 | 32,911 |
 | P9–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -37,6 +37,17 @@
 | 15 | 15-stack.md | practice | 4,003 | 2 | 1 | 2 | 3 | P2 |
 | 16 | 16-list-slotmap.md | practice | 4,037 | 2 | 1 | 2 | 3 | P2 |
 | 55 | 64-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
+
+## P8 阶段记录
+
+- 卷六前半 8 章（插入卷六导言 ch50 与取消体系专章 ch53，全书第七次重编号 60 文件）。
+- 门禁拦下并修正：xrtThreadWait 无出参（返回 xwaitresult、值经原子/Future 回传）、
+  取消语义精确化（Requested 含祖先链查询/Watch 至多同步一次/Triggered 查监听——三 API 分工）、
+  调度器族全面重写（SchedCreate→CoSchedCreate + CoGo/Post + Run/Poll/Step + Sleep/Park/Wake——
+  泵族三形态按头文件实际划分）、Future 三态→四态（RESOLVED/FAILED/CANCELLED/CLOSED——
+  Reject/Resolve/Close 三入口）、xchannelresult TrySend、
+  Spawn 签名(配置)、Line 返回 uint32、xson 品牌词。
+- 卷六主线确立：取消贯穿（53 立地基→58 各章方言）+ 三层装配线（原语/协作/结构化）。
 
 ## P7 阶段记录
 
