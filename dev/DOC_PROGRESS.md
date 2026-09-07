@@ -25,8 +25,8 @@
 | 18 | file.md | 97 | **完成** | 97/97 全绿（G3 97 片段，2026-09-07）；三段：IO/文本 36 + 锁/映射/目录 37 + 遍历/链接/根 24 |
 | 19 | file_async.md | 34 | **完成** | 34/34 全绿（G3 34 片段，2026-09-07）；七组：文件对象 4 + 定位读写 5 + 大小 3 + 整文件 5 + 管理 3 + 目录 6 + 目录树 8 |
 | 20 | future.md | 104 | **完成** | 104/104 全绿（G3 104 片段，2026-09-07）；三段：核心 44 + 桥/listener/dial 29 + TLS stream 31 |
-| 21 | hash.md | 9 | 待办 |  |
-| 22 | html.md | 3 | 待办 |  |
+| 21 | hash.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；合并节全部拆立 |
+| 22 | html.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；html/variants 补注册 |
 | 23 | http.md | 167 | 待办 |  |
 | 24 | http_connection.md | 5 | 待办 |  |
 | 25 | http_decode.md | 10 | 待办 |  |
@@ -412,3 +412,15 @@
   WaitAsync 六条件、RecvAsync 零上限=全部明文）。一次生成全绿。
   锚点：stream_tour 19 + stream 5 + stream_future 4 +
   listener_tour/dial_future。六文件复验无回归。
+- 2026-09-07 hash.md（9/9）+ html.md（3/3）完成：hash 把
+  "Hash32 与 Hash64"等四处合并节拆立，SipHash 流式三段式
+  （Init guard 校验/Update 7 尾字节失败原子/Final 副本终结可
+  重复）+ SipKey"只组装不产生随机性"成文；html 三层
+  Size/Write/Escape（两段式查询、同址扩张允许、TEXT/ATTRIBUTE
+  双模式）。发现并修复 manifest 缺口：examples/html/variants
+  未注册（定点挂 html_escape，G4 阻塞解除）。门禁连环追击一处
+  老文档遗留：Final 节范例区尾部嵌着占位符示意块（secret0/
+  header 等非源码标识），G3 拒绝；连同 shell 转义两次把
+  printf 的反斜杠 n 写丢（用 chr(92) 构造修复），最后把示意
+  块迁至模块级"线程与所有权"散文区（范例区只留可追溯片段）。
+  双文件全绿；array 复验无回归。

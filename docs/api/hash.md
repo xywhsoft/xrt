@@ -27,52 +27,223 @@ XRT 把“快速确定性哈希”和“哈希表抗碰撞攻击”拆成两个�
 
 ## 确定性哈希
 
-### `xrtHash32` 与 `xrtHash64`
+### `xrtHash32`
+
+nmhash32x v2.0 一次性 32 位哈希（默认 seed 为零）；输出已按旧版向量冻结。
 
 ```c
 uint32 xrtHash32(const void* pData, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用；空输入允许空指针 | 任意字节，不要求对齐 |
+| `iSize` | 输入 | — | 字节数；显式长度，零字节不是结尾 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 哈希值 | — |
+| `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 非零 `iSize` 配空 `pData`（零输入返回零值域哈希）
+
+#### 范例
+
+[hash/hash32 · 默认 seed](../../examples/hash/hash32/main.c) · 观察
+
+```c
+	printf("default: %08X\n", (unsigned int)xrtHash32(sKey, sizeof(sKey) - 1u));
+```
+
+
+### `xrtHash64`
+
+rapidhash v3.0 compact 一次性 64 位哈希（默认 seed 为零）；适合通用内存索引与低碰撞分桶。
+
+```c
 uint64 xrtHash64(const void* pData, size_t iSize);
 ```
 
-最短名称保留给默认 seed 为零的常见路径。函数读取恰好 `iSize` 字节，不要求对齐，也不把文本零字节视为结尾。`pData == NULL && iSize == 0` 是合法空输入；非零长度配空指针返回零并设置 `XERR_ARGUMENT`。
+#### 参数
 
-`xrtHash32` 不是简单截断 `xrtHash64`。它保留专门的 32 位算法，在 32 位容器中避免不必要的 64 位运算和存储。长输入根据编译目标使用 SIMD 或无未定义行为的标量路径，两条路径输出相同。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用；空输入允许空指针 | 任意字节 |
+| `iSize` | 输入 | — | 字节数 |
 
-### `xrtHash32Seed` 与 `xrtHash64Seed`
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 哈希值 | — |
+| `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 非零 `iSize` 配空 `pData`
+
+#### 范例
+
+[hash/hash64 · 通用索引](../../examples/hash/hash64/main.c) · 观察
+
+```c
+	uint64 iHash = xrtHash64(sKey, sizeof(sKey) - 1u);
+```
+
+
+### `xrtHash32Seed`
+
+带显式 seed 的 32 位哈希；适合固定分片、布隆过滤与独立哈希域。
 
 ```c
 uint32 xrtHash32Seed(const void* pData, size_t iSize, uint32 iSeed);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用 | 任意字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `iSeed` | 输入 | — | 分片/域 seed（不是密钥） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 哈希值 | — |
+| `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 非零 `iSize` 配空 `pData`
+
+#### 范例
+
+[hash/hash32 · 固定 seed](../../examples/hash/hash32/main.c) · 观察
+
+```c
+	printf("seeded : %08X\n", (unsigned int)xrtHash32Seed(sKey,
+		sizeof(sKey) - 1u, UINT32_C(0x12345678)));
+```
+
+
+### `xrtHash64Seed`
+
+带显式 seed 的 64 位哈希；跨节点分片时输入序列化与 seed 都必须固定。
+
+```c
 uint64 xrtHash64Seed(const void* pData, size_t iSize, uint64 iSeed);
 ```
 
-显式 seed 适合固定分片、布隆过滤器派生和调用方定义的独立哈希域。需要跨进程稳定时，输入序列化方式和 seed 都必须固定：文本编码、换行、数值字节序、字段顺序和结构体填充都会改变输入字节。
+#### 参数
 
-不要直接哈希含有未初始化填充的 C 结构体。稳定协议应逐字段编码为明确字节序后再哈希。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用 | 任意字节 |
+| `iSize` | 输入 | — | 字节数 |
+| `iSeed` | 输入 | — | 分片 seed |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 哈希值 | — |
+| `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 非零 `iSize` 配空 `pData`
+
+#### 范例
+
+[hash/variants · 分片](../../examples/hash/variants/main.c) · 观察
+
+```c
+		(unsigned long long)xrtHash64Seed("user:42", 7u, UINT64_C(0x1234)));
+```
+
+
 
 ## 带密钥哈希
 
-### `xsipkey` 与 `xrtSipKey`
-
-```c
-typedef struct xsipkey {
-	uint64 Low;
-	uint64 High;
-} xsipkey;
-
-xsipkey xrtSipKey(uint64 iLow, uint64 iHigh);
-```
-
-SipHash 使用完整 128 位密钥。面向不可信输入的哈希表应从操作系统密码随机源生成密钥，并按表或进程保存；不能使用时间、地址、递增计数或普通伪随机默认 seed 代替。`xrtSipKey` 只组装调用方已有的两个字，不负责产生随机性，因此 hash 模块不会被迫依赖 random/crypto。
-
-后续容器模块会在自身生命周期内持有密钥；底层用户仍可显式提供密钥，避免隐藏全局状态。
-
 ### `xrtSipHash`
+
+SipHash-2-4 一次性带密钥哈希；面向不可信哈希表键的抗选择碰撞散列。
 
 ```c
 uint64 xrtSipHash(const void* pData, size_t iSize, xsipkey Key);
 ```
 
-一次性便捷函数执行 SipHash-2-4。它与流式 API 共享同一实现和结果，可直接处理空输入与嵌入零字节。SipHash 用于短输入认证式散列和抗选择碰撞，不替代通用消息认证码；协议认证仍使用 crypto 模块的 HMAC 或专用 AEAD。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 借用；空输入允许空指针 | 任意字节（可含嵌入零） |
+| `iSize` | 输入 | — | 字节数 |
+| `Key` | 输入 | — | 128 位密钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 哈希值 | — |
+| `0` | 非零长度配空指针 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 非零 `iSize` 配空 `pData`
+- 注：不替代通用 MAC——协议认证仍使用 crypto 模块 HMAC/AEAD
+
+#### 范例
+
+[hash/variants · 一次性](../../examples/hash/variants/main.c) · 观察
+
+```c
+		(unsigned long long)xrtSipHash("request:user-input", 18u, Key));
+```
+
+
+### `xrtSipKey`
+
+组装 128 位 SipHash 密钥；只拼装调用方已有的两个字，不产生随机性。
+
+```c
+xsipkey xrtSipKey(uint64 iLow, uint64 iHigh);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iLow` | 输入 | — | 密钥低 64 位 |
+| `iHigh` | 输入 | — | 密钥高 64 位 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `xsipkey` | 按值返回的密钥结构 | — |
+
+#### 错误
+
+- 无 — 纯组装；密钥应来自系统密码随机源
+
+#### 范例
+
+[hash/keyed · 密钥](../../examples/hash/keyed/main.c) · 观察
+
+```c
+	xsipkey Key = xrtSipKey(UINT64_C(0x0123456789ABCDEF),
+```
+
+
 
 ## 流式 SipHash
 
@@ -82,27 +253,116 @@ uint64 xrtSipHash(const void* pData, size_t iSize, xsipkey Key);
 
 ### `xrtSipHashInit`
 
+初始化或重置流式 SipHash 状态；每次使用前必须调用。
+
 ```c
 void xrtSipHashInit(xsiphash* pState, xsipkey Key);
 ```
 
-初始化或重置状态。每次使用前都必须调用。库会写入 guard，并在后续操作中校验尾部长度与累计长度关系；漏初始化或状态损坏返回 `XERR_STATE`，不会访问越界尾部。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输出 | 非空 | 调用方持有（栈/对象/连接上下文） |
+| `Key` | 输入 | — | 128 位密钥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化，不失败 | — |
+
+#### 错误
+
+- 无 — 初始化不失败；库写入 guard 供后续校验
+
+#### 范例
+
+[hash/keyed · 流式](../../examples/hash/keyed/main.c) · 观察
+
+```c
+	xrtSipHashInit(&State, Key);
+```
+
 
 ### `xrtSipHashUpdate`
+
+向流式状态追加任意分块；最多保留 7 个尾字节，不随输入增长分配。失败时状态不变。
 
 ```c
 bool xrtSipHashUpdate(xsiphash* pState, const void* pData, size_t iSize);
 ```
 
-追加任意分块。实现最多在状态中保留 7 个尾字节，不随总输入增长分配缓冲区。输入字节不能与状态对象重叠，避免更新状态时破坏尚未读取的数据。空块是合法 no-op。参数、状态或累计长度检查失败时，本次调用不修改状态；累计长度超过 `uint64` 时设置 `XERR_RANGE`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入/输出 | 已 Init | 流状态 |
+| `pData` | 输入 | 借用、不得与状态重叠 | 输入字节；空块是合法 no-op |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已并入状态 | — |
+| `false` | 参数/状态错误或累计溢出 | 状态不变；错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或输入与状态重叠
+- `XERR_STATE` — 状态未初始化或 guard 损坏
+- `XERR_RANGE` — 累计长度超过 `uint64`
+
+#### 范例
+
+[hash/keyed · 流式](../../examples/hash/keyed/main.c) · 观察
+
+```c
+	if ( !xrtSipHashUpdate(&State, "request:", 8) ||
+		 !xrtSipHashUpdate(&State, "user-input", 10) ) {
+```
+
 
 ### `xrtSipHashFinal`
+
+在状态副本上终结并返回 64 位结果；可重复调用，也可观察中间结果后继续 Update。
 
 ```c
 uint64 xrtSipHashFinal(const xsiphash* pState);
 ```
 
-在状态副本上终结，因此可以重复调用，也可以在观察中间结果后继续 `Update`。这避免了“Final 后状态是否失效”的隐式规则。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pState` | 输入 | 已 Init | 流状态（副本上终结） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 哈希值 | — |
+| `0` | 状态非法 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 状态未初始化或尾部长度与累计不符
+
+#### 范例
+
+[hash/keyed · 流式](../../examples/hash/keyed/main.c) · 观察
+
+```c
+	iHash = xrtSipHashFinal(&State);
+	printf("%016llX\n", (unsigned long long)iHash);
+```
+
+
+
+## 线程与所有权
+
+流式三段式的完整形态（占位符示意，可运行版本见 keyed 范例）：
 
 ```c
 xsipkey Key = xrtSipKey(secret0, secret1);
@@ -114,7 +374,6 @@ xrtSipHashUpdate(&State, body, bodySize);
 uint64 iHash = xrtSipHashFinal(&State);
 ```
 
-## 线程与所有权
 
 一次性函数没有可变全局状态，可以并发调用。同一个 `xsiphash` 不能由多个线程同时修改；不同状态完全独立。所有函数只借用输入，不保存指针、不分配结果，也不要求调用初始化整个 XRT 运行时。
 

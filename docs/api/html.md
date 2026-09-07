@@ -75,3 +75,139 @@ Template 保持通用文本模板语义，不会隐式调用本模块。模板�
 - `tests/text/test_html_escape_noalloc.c`
 - `tests/text/test_html_escape_oom.c`
 - `tests/single/test_single_html_escape.c`
+## API
+
+### `xrtHtmlEscapeSize`
+
+严格校验 UTF-8 并返回转义后的精确字节数（不含末尾零）。
+
+```c
+bool xrtHtmlEscapeSize(
+	xstrview Text,
+	xhtmlescapemode Mode,
+	size_t* pOutputSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用、严格 UTF-8 | 允许嵌入零 |
+| `Mode` | 输入 | 枚举 | TEXT 只转 `& < >`；ATTRIBUTE 额外转 `" '` |
+| `pOutputSize` | 输出 | 非空 | 接收精确字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 长度已写出 | — |
+| `false` | 输入非法 UTF-8 或参数错误 | `*pOutputSize` 不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `xrt.charset` 域错误 — 非法 UTF-8（严格模式）
+
+#### 范例
+
+[html/variants · 查询](../../examples/html/variants/main.c) · 观察
+
+```c
+	if ( !xrtHtmlEscapeSize(XRT_STR_LITERAL("<a>"),
+		XHTML_ESCAPE_TEXT, &iSize) ) {
+```
+
+
+### `xrtHtmlEscapeWrite`
+
+转义到调用方缓冲区；容量须含末尾零，空输出可只查询长度，同址扩张允许、部分重叠拒绝。
+
+```c
+bool xrtHtmlEscapeWrite(
+	xstrview Text,
+	xhtmlescapemode Mode,
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pOutputSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用、严格 UTF-8 | 输入视图 |
+| `Mode` | 输入 | 枚举 | 转义模式 |
+| `sOutput` | 输出 | 可空 | 空+零容量 = 只查长度；可与输入同址 |
+| `iCapacity` | 输入 | — | 容量（含末尾零） |
+| `pOutputSize` | 输出 | 可空 | 实际长度（不含零） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出零结尾结果 | — |
+| `false` | 容量不足、重叠非法或输入非法 | 输出不变；`*pOutputSize` 给出所需长度 |
+
+#### 错误
+
+- `XERR_RANGE` — 容量不足（不修改输出）
+- `XERR_ARGUMENT` — 部分重叠或指针非法
+- `xrt.charset` 域错误 — 非法 UTF-8
+
+#### 范例
+
+[html/variants · 写入](../../examples/html/variants/main.c) · 观察
+
+```c
+	if ( !xrtHtmlEscapeWrite(XRT_STR_LITERAL("<a>"),
+		XHTML_ESCAPE_TEXT, Buffer, sizeof(Buffer), &iSize) ) {
+```
+
+
+### `xrtHtmlEscape`
+
+创建由 `xrtFree` 释放的零结尾转义文本；空输入仍返回独立可释放的空字符串。
+
+```c
+str xrtHtmlEscape(
+	xstrview Text,
+	xhtmlescapemode Mode,
+	size_t* pOutputSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用、严格 UTF-8 | 输入视图 |
+| `Mode` | 输入 | 枚举 | 转义模式 |
+| `pOutputSize` | 输出 | 可空 | 接收长度（不含零） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾结果，`xrtFree` 释放 | — |
+| `NULL` | 输入非法或分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `xrt.charset` 域错误 — 非法 UTF-8
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[text/html_escape · 双模式](../../examples/text/html_escape/main.c) · 观察
+
+```c
+	sText = xrtHtmlEscape(
+		XRT_STR_LITERAL("状态：<ready> & 可用"),
+		XHTML_ESCAPE_TEXT,
+		NULL
+	);
+```
+
+
