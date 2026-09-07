@@ -69,7 +69,7 @@
 | 62 | stack.md | 74 | **完成** | 74/74 全绿（G3 74 片段，2026-09-07）；五族（Stack 18/Fixed 15/PtrFixed 11/Block 18/Ptr 12）；固定族满 = AGAIN、空弹/越界 = RANGE、Block 族块布局溢出 = OVERFLOW；锚点 tour + containers 五范例 |
 | 63 | string.md | 83 | **完成** | 83/83 全绿（G3 83 片段，2026-09-07）；八组：视图/查询 23 + 借用切分 11 + 独立操作 20 + 拆分列表 12 + 构建器 14 + 格式化 2 + 通配 1；参数名自动提取自签名；锚点 16+ 范例 |
 | 64 | sync.md | 48 | **完成** | 48/48 全绿（G3 48 片段，2026-09-07）；Mutex 7 + Cond 9 + Sem 9 + RWLock 12 + Event 9 五族；虚假唤醒契约、Sem 上限不部分发布、RWLock 升降级前置条件入档；锚点 5 范例 |
-| 65 | task.md | 42 | 待办 |  |
+| 65 | task.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；组 15 + 池 14 + 组池提交 5 + 协程 2 + 网络 6 五组；AGAIN 队满回滚、工作线程自等待/自销毁 STATE 入档；锚点 8 范例 |
 | 66 | tcp.md | 101 | 待办 |  |
 | 67 | temp.md | 17 | 待办 |  |
 | 68 | template.md | 32 | 待办 |  |
@@ -724,4 +724,10 @@
   = STATE 保持有效、SemPost 达上限计数不变、PostMany 不部分发布、
   RWLockUpgrade 恰好一个读锁前置条件、CondWait 虚假唤醒须谓词循环。
   完成 API 2623→2671/3664（72.9%），64/79 文件。
+- 2026-09-07 task.md 完成（42/42，G3 42 片段全绿）：双头（task.h
+  36 + task_net.h 6）五组；错误对照 src/concurrency/task*.c——Submit 队满
+  = AGAIN、组提交队满完整回滚预留、池工作线程内 SubmitWait/Destroy =
+  STATE、组池关闭后提交 = CLOSED、槽位等待超时 = TIMEOUT、可取消等待
+  取消 = CANCELLED 且不取消已受理任务。
+  完成 API 2671→2713/3664（74.0%），65/79 文件。
 
