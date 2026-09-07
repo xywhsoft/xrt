@@ -79,7 +79,7 @@
 | 72 | tls.md | 268 | 待办 |  |
 | 73 | udp.md | 73 | 待办 |  |
 | 74 | value.md | 116 | 待办 |  |
-| 75 | wait.md | 3 | 待办 |  |
+| 75 | wait.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；Deadline 三函数；NEVER 语义（Expired 永假、Remaining UINT64_MAX）；锚点 concurrency/deadline |
 | 76 | websocket.md | 104 | 待办 |  |
 | 77 | x509.md | 89 | 待办 |  |
 | 78 | xid.md | 11 | 待办 |  |
@@ -757,4 +757,8 @@
   （RFC3339/HTTP 严格/HTTP 宽松/自动识别）逐值成表。manifest 补注册
   #12：time text_parse（8 个文本 API 主锚点）。
   完成 API 2907→2965/3664（80.9%），71/79 文件。
+- 2026-09-07 wait.md 完成（3/3，G3 3 片段全绿）：After 溢出
+  饱和为 NEVER、Expired 永假、Remaining 为 UINT64_MAX——NEVER 语义三连
+  全部入档；xwaitresult 枚举文档原有内容保留。
+  完成 API 2965→2968/3664（81.0%），72/79 文件。
 

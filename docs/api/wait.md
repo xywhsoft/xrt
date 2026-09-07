@@ -35,28 +35,100 @@ typedef uint64 xdeadline;
 
 ### `xrtDeadlineAfter`
 
+从当前单调时钟和相对微秒数构造截止时间，溢出时返回 `NEVER`。
+
 ```c
-xdeadline xrtDeadlineAfter(uint64 iTimeout);
+xdeadline xrtDeadlineAfter(uint64 iTimeout)
 ```
 
-使用当前单调时钟和相对微秒数构造 deadline。加法溢出或 `iTimeout == UINT64_MAX`
-时返回 `XRT_DEADLINE_NEVER`。相对超时应在重试循环外只转换一次，避免伪唤醒延长总超时。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iTimeout` | 输入 | — | 相对微秒数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 截止时间 | 可传给 `*WaitUntil` 族 | — |
+| `NEVER` | 溢出 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯计算，溢出饱和为 `NEVER`
+
+#### 范例
+
+[deadline](../../examples/concurrency/deadline/main.c) · 构造截止时间
+
+```c
+	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(50000));
+```
 
 ### `xrtDeadlineExpired`
 
+判断截止时间是否已经到达；`NEVER` 永远不会到达。
+
 ```c
-bool xrtDeadlineExpired(xdeadline iDeadline);
+bool xrtDeadlineExpired(xdeadline iDeadline)
 ```
 
-deadline 已到时返回 `true`；`XRT_DEADLINE_NEVER` 永远返回 `false`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iDeadline` | 输入 | — | 截止时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否已到达 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[deadline](../../examples/concurrency/deadline/main.c) · 到达判断
+
+```c
+	printf("expired: %s\n", xrtDeadlineExpired(iDeadline) ? "yes" : "no");
+```
 
 ### `xrtDeadlineRemaining`
 
+返回截止时间前剩余微秒数；已到达返回零，`NEVER` 返回 `UINT64_MAX`。
+
 ```c
-uint64 xrtDeadlineRemaining(xdeadline iDeadline);
+uint64 xrtDeadlineRemaining(xdeadline iDeadline)
 ```
 
-返回剩余微秒数。已到期返回 `0`，`XRT_DEADLINE_NEVER` 返回 `UINT64_MAX`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iDeadline` | 输入 | — | 截止时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 剩余微秒；已到达为 0，`NEVER` 为 `UINT64_MAX` | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[deadline](../../examples/concurrency/deadline/main.c) · 剩余时间
+
+```c
+		(unsigned long long)xrtDeadlineRemaining(iDeadline));
+```
 
 ## 示例
 
