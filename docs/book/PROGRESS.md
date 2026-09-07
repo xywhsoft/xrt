@@ -31,9 +31,9 @@
 | P22 卷十一xmail | ✅ 完成 | 5 | 22,344 |
 | P23 卷十一xruntime | ✅ 完成 | 4 | 17,646 |
 | P24 卷十二工程实践 | ✅ 完成 | 8 | 32,870 |
-| P25 卷十三项目上 | 🔄 进行中（2/5） | 2 | 14,416 |
+| P25 卷十三项目上 | ✅ 完成（139-141 由 P27 补齐） | 5 | 36,530 |
 | P26 卷十三项目下 | ✅ 完成 | 3 | 24,698 |
-| P27 收尾 | 🔄 进行中 | — | — |
+| P27 收尾 | ✅ 完成 | — | — |
 
 ## 章节明细
 
@@ -132,6 +132,9 @@
 | 136 | 136-perf.md | practice | 4,064 | 2 | 1 | 3 | 3 | P24 |
 | 137 | 137-project-cli.md | project | 8,033 | 3 | 2 | 4 | 3 | P25 |
 | 138 | 138-project-config-design.md | concept | 6,383 | 2 | 1 | 4 | 3 | P25 |
+| 139 | 139-project-config.md | project | 8,005 | 2 | 1 | 4 | 3 | P25（P27 补齐） |
+| 140 | 140-project-chat-design.md | concept | 6,098 | 2 | 1 | 4 | 3 | P25（P27 补齐） |
+| 141 | 141-project-chat.md | project | 8,011 | 2 | 1 | 4 | 3 | P25（P27 补齐） |
 | 142 | 142-project-downloader.md | project | 8,401 | 2 | 2 | 4 | 3 | P26 |
 | 143 | 143-project-ws.md | project | 8,242 | 2 | 2 | 4 | 3 | P26 |
 | 144 | 144-project-static.md | project | 8,055 | 3 | 1 | 4 | 3 | P26 |
@@ -143,6 +146,43 @@
 
 
 
+
+## P27 阶段记录
+
+- 前置完整性核查：order.json 144 条目对磁盘核出 4 个缺 md——ch09
+  （遗留，见遗留项）与 ch139/140/141（P25 遗留三章）。判定：链接
+  校验与漂移总报告依赖章节完整，先补齐再收尾。
+- 补写 P25 遗留三章（全部门禁绿）：ch139 配置中心实现 8,005 字
+  （七层管线落地/cfg_merge 双侧对象才递归/cfg_expand 专用模板三十行/
+  规则数组校验路径化/cfg_reload 第 7 步原子换指针/两处修正留痕）、
+  ch140 聊天服务设计 6,098 字（六决策五要素：房间模型 B 用户独立于
+  连接/线协议 C 行+JSON/定序 B 服务端单点取号/六态状态机/存储 A
+  内存环 1024 帧/降级矩阵踢-拒）、ch141 聊天服务实现 8,011 字
+  （chuser-chroom-chmsg 三结构/锁内快照锁外投递/resume 补齐分批重放/
+  成员快照两段式广播/三迁移细节/压测替身与序号审计器/一页验收单）。
+  至此全书 144 章正文全部成型。
+- index.html 目录全量重建：144 条目从 order.json 重建，13 卷分组，
+  href 用 file 字段（含补零）——首版用 ch%d 生成导致 9 个断链，改用
+  file 字段后归零；done/plan 以编号 138/139 分界。
+- 卷导言核对：卷一、卷三至卷八共 7 个 vol-intro + ch2 全书导读齐备；
+  卷二（2 章小卷）与卷九至卷十三（Web 协议/扩展库/工程实践/项目卷）
+  历史设计即无导言章——记录现状，不新增。
+- 卷十一分组修正：ch125 误带"卷十一收官"后缀（ch126/127 未标，
+  收官组与主组交叠 125-127），去掉后收官组收敛为 ch128 单章，
+  与卷十二（136）/卷十三（144）单章收官一致。
+- 全站链接校验：book 目录 7,267 条站内链接 0 断链（ch140 写完后
+  复验归零）。
+- 漂移总报告：143 章 md 全绿——practice 123 / concept 4 / project 6 /
+  composition 3 / intro 7；总字数 660,939（均 4,621）；完整程序 282；
+  图示 165；避坑条目 364；三级练习 408 组。
+- CI 接线：ci.yml metadata job 新增 "Verify book chapter gates
+  (docs/book)" 步骤（python tools/check_book.py check），本机验证
+  exit 0（ch09 缺 md 不阻断）。
+- 门禁拦下（三章补写期间）：xrtValueIsObject/IsInt 真名
+  xrtValueIs(v, XVALUE_OBJECT)、xrtValueDestroy/Free 真名
+  xrtValueRelease、xrtValueFind 不存在（ObjectGet）、xrtmap 类型
+  不存在（void* 句柄）、XRT_LITERAL 真名 XRT_STR_LITERAL、ch140
+  term 尾随多余行与头注释对齐。
 
 ## P26 阶段记录
 
@@ -157,12 +197,13 @@
   全书结语与"从读者到作者"最后一课）。
 - P26 全部按定义完成；遗留：P25 的 ch139-141（config 实现/chat
   设计+实现）仍待补写——PROGRESS 状态行 P25 保持进行中（2/5）。
+  （P27 补记：三章已于 P27 阶段补齐，P25 状态改完成 5/5。）
 - 门禁拦下：xget/xdl 裸词改 dl_ 前缀（避开 x 开头小写类型规则）、
   xrtValueGetStr 真名 ObjectGet+GetString 组合、xhttpserversecureconfig
   真名 xhttpservertlsconfig（Handshake.Identity 嵌套）、StartSecure
   真名 RouterStartTls、ref 页 xws- 前缀。
 
-## P25 阶段记录（进行中——2/5 章完成）
+## P25 阶段记录（完成 5/5——139-141 由 P27 补齐）
 
 - 卷十三项目上已完成的 2 章：ch137 项目一日志统计工具（project 型
   8000 字：验收先行/选型决策表/完整 logstat 源码走查/五条验收对账/
@@ -175,7 +216,8 @@
   5 文件位移，全书 144 章；卷十三 137-144 八章骨架。
 - P25 剩余：ch139 配置中心实现（project 8000）、ch140 聊天设计
   （concept 6000）、ch141 聊天实现（project 8000）——设计决策已在
-  ch138 定案，实现章按决策清单逐条落地。
+  ch138 定案，实现章按决策清单逐条落地。（P27 补记：三章已于 P27
+  阶段全部补齐并过门禁，本阶段以 5/5 收官。）
 - 门禁拦下：XRT_STR_C_LIT 不存在（改 strlen 视图构造）、xrtStrBufData
   不存在（改 AppendFormat 路径）、"实现走查/验收走查/扩展路径"三个
   h2 超出八节规范（降级 h3 并入概念节——项目型八节骨架的适配发现：
@@ -537,4 +579,8 @@
 
 ## 遗留项
 
+- ch09-atomic（原子操作）：全书唯一无 md 源的章——HTML 存在、链接
+  通、check 跳过不阻断。原 md 在早期重编号中遗失。如需重建，按
+  practice 型 4000 字红线从素材包（tools/gen_web_book.py material
+  atomic）重写即可，不影响其余 143 章。
 - ch82-xregex 旧重定向页仍指向 ch85-regex，属 P5 卷四 regex 归位时处理。

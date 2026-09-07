@@ -46,6 +46,9 @@ jobs:
       - name: Verify doc deep audits (ghosts/tables/rows/headings)
         run: python tools/doc_audit.py --all
 
+      - name: Verify book chapter gates (docs/book)
+        run: python tools/check_book.py check
+
       - name: Verify WebSocket API documentation
         run: >-
           python tools/check_api_docs.py
