@@ -960,36 +960,50 @@
   },
   {
     "num": 138,
-    "slug": "project-config",
-    "file": "138-project-config",
-    "title": "JSON 配置中心：value 与模板",
+    "slug": "project-config-design",
+    "file": "138-project-config-design",
+    "title": "配置中心：设计",
     "volume": "卷十三 实战项目"
   },
   {
     "num": 139,
-    "slug": "project-chat",
-    "file": "139-project-chat",
-    "title": "TCP 聊天室：网络与并发",
+    "slug": "project-config",
+    "file": "139-project-config",
+    "title": "JSON 配置中心：value 与模板",
     "volume": "卷十三 实战项目"
   },
   {
     "num": 140,
-    "slug": "project-downloader",
-    "file": "140-project-downloader",
-    "title": "HTTPS 下载器：xhttp 与文件",
+    "slug": "project-chat-design",
+    "file": "140-project-chat-design",
+    "title": "聊天服务：设计",
     "volume": "卷十三 实战项目"
   },
   {
     "num": 141,
-    "slug": "project-ws",
-    "file": "141-project-ws",
-    "title": "WebSocket 实时推送服务",
+    "slug": "project-chat",
+    "file": "141-project-chat",
+    "title": "TCP 聊天室：网络与并发",
     "volume": "卷十三 实战项目"
   },
   {
     "num": 142,
+    "slug": "project-downloader",
+    "file": "142-project-downloader",
+    "title": "HTTPS 下载器：xhttp 与文件",
+    "volume": "卷十三 实战项目"
+  },
+  {
+    "num": 143,
+    "slug": "project-ws",
+    "file": "143-project-ws",
+    "title": "WebSocket 实时推送服务",
+    "volume": "卷十三 实战项目"
+  },
+  {
+    "num": 144,
     "slug": "project-static",
-    "file": "142-project-static",
+    "file": "144-project-static",
     "title": "综合：迷你静态文件服务器",
     "volume": "卷十三 实战项目 · 全书收官"
   }
