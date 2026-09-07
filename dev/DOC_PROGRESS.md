@@ -37,7 +37,7 @@
 | 30 | http_trailer.md | 6 | **完成** | 6/6 全绿；节复用自 http.md |
 | 31 | http_upgrade.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
 | 32 | io.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；Reader/LineReader/Writer 三族；全库自动锚点一次生成 |
-| 33 | json.md | 30 | 待办 |  |
+| 33 | json.md | 30 | **完成** | 30/30 全绿（G3 30 片段，2026-09-07）；读取/写入器/序列化/文件四族 |
 | 34 | list.md | 28 | 待办 |  |
 | 35 | logger.md | 76 | 待办 |  |
 | 36 | map.md | 62 | 待办 |  |
@@ -505,3 +505,12 @@
   零进展、Destroy 不隐式 Flush）。callline 全库自动锚点首次
   覆盖整文件（42/42 零手工、零返工）。http_fields 复验无
   回归。
+- 2026-09-07 json.md 完成（30/30，G3 30 片段，双门禁一次
+  全绿）：读取 6（Parse 默认严格 vs Read 高配置、Valid 零 DOM
+  验证、Visit 事件流（STOP→CANCELLED 映射）、ErrorLocation
+  从错误 Data 读行列）+ 增量写入器 16（Create 内存型 vs
+  CreateSink 回调型；Object/Array/End/Name/五值型/Value 子树/
+  Finish 封闭校验/Take 仅限已 Finish 的内存型/Free）+ 序列化
+  4（Stringify/Pretty、Write 回调、QuoteWrite 流式字符串
+  token）+ 文件 4（ReadFile 含输入上限、WriteFile 原子替换）。
+  callline 自动锚点 30/30。io.md 复验无回归。

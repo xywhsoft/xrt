@@ -399,3 +399,1121 @@ xrtJsonWriterFree(pWriter);
 ## JSON 与 XSON
 
 JSON 保持标准、严格和可互操作。需要无损保存 bytes、time、set、int-map 等 XRT 扩展值时使用 XSON；不要通过非标准 JSON 字面量偷偷扩展 JSON 语义。两者共享底层文本、安全预算和错误设计，但保持独立裁剪入口与格式契约。
+
+## API
+
+### `xrtJsonReadConfigInit`
+
+初始化严格 JSON、重复键拒绝和有限资源预算的读取配置。
+
+```c
+void xrtJsonReadConfigInit(xjsonreadconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[data/json · data/json_tour · 读取](../../examples/data/json/main.c) · 观察
+
+```c
+	xrtJsonReadConfigInit(&ReadConfig);
+```
+
+
+### `xrtJsonParse`
+
+使用默认严格配置解析一个完整 JSON 文本。
+
+```c
+xvalue* xrtJsonParse(xstrview Text);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用、严格 UTF-8 | 完整 JSON 文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 拥有的 Value DOM（`xvalue` 族操作/释放） | — |
+| `NULL` | 语法错误、超限或 OOM | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+- `XERR_MEMORY`
+
+#### 范例
+
+[data/json · data/json · 解析](../../examples/data/json/main.c) · 观察
+
+```c
+	pRoot = xrtJsonParse(XRT_STR_LITERAL(
+		"{\"name\":\"xrt\",\"features\":[\"json\",\"http\"]}"
+	));
+```
+
+
+### `xrtJsonRead`
+
+使用高级配置解析一个完整 JSON 文本。
+
+```c
+xvalue* xrtJsonRead(
+	xstrview Text,
+	const xjsonreadconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 完整 JSON 文本 |
+| `pConfig` | 输入 | 允许空 | 空 = 默认严格配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 拥有的 Value DOM | — |
+| `NULL` | 失败 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+- `XERR_MEMORY`
+
+#### 范例
+
+[data/json_tour · data/json_tour · 读取](../../examples/data/json_tour/main.c) · 观察
+
+```c
+	pDom = xrtJsonRead(SV(sText), &ReadConfig);
+```
+
+
+### `xrtJsonValid`
+
+使用默认严格配置验证一个完整 JSON 文本，不构造 Value DOM。
+
+```c
+bool xrtJsonValid(xstrview Text);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 待验证文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 JSON | — |
+| `false` | 非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 验证](../../examples/data/json_tour/main.c) · 观察
+
+```c
+		!xrtJsonValid(SV(sText)) ||
+```
+
+
+### `xrtJsonVisit`
+
+直接访问解析事件，不构造中间 DOM。
+
+```c
+xjsonvisitresult xrtJsonVisit(
+	xstrview Text,
+	const xjsonreadconfig* pConfig,
+	xjsonvisitproc pVisitor,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 完整 JSON 文本 |
+| `pConfig` | 输入 | 允许空 | 读取配置 |
+| `pVisitor` | 输入 | 非空 | 事件回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XJSON_VISIT_OK/STOP/ERROR` | 完成/回调请求停止/错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+- `XERR_CANCELLED` — 回调请求停止（STOP 映射）
+
+#### 范例
+
+[data/json · data/json_tour · 事件](../../examples/data/json/main.c) · 观察
+
+```c
+		xrtJsonVisit(
+			XRT_STR_LITERAL("{\"code\":200,\"ok\":true}"),
+			&ReadConfig,
+			printJsonEvent,
+			NULL
+		) != XJSON_VISIT_DONE
+```
+
+
+### `xrtJsonErrorLocation`
+
+从 `xrt.json` 错误的机器数据中读取文本位置。
+
+```c
+bool xrtJsonErrorLocation(
+	const xerror* pError,
+	xjsonlocation* pLocation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pError` | 输入 | 非空、`xrt.json` 域 | 解析错误 |
+| `pLocation` | 输出 | 非空 | 接收 Line/Column |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 位置已写出 | — |
+| `false` | 错误不带位置数据或参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[data/json_tour · data/report · 错误定位](../../examples/data/json_tour/main.c) · 观察
+
+```c
+			!xrtJsonErrorLocation(pError, &Location) ||
+```
+
+
+### `xrtJsonWriterCreate`
+
+创建把增量结果保存在内存中的 JSON 写入器。
+
+```c
+xjsonwriter* xrtJsonWriterCreate(
+	const xjsonwriteconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 允许空 | 空 = `WriteConfigInit` 默认 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 内存型写入器 | — |
+| `NULL` | 参数错误或 OOM | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+	pWriter = xrtJsonWriterCreate(&WriteConfig);
+```
+
+
+### `xrtJsonWriterCreateSink`
+
+创建把增量结果同步提交给回调的 JSON 写入器。
+
+```c
+xjsonwriter* xrtJsonWriterCreateSink(
+	const xjsonwriteconfig* pConfig,
+	xjsonwriteproc pWrite,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 允许空 | 输出配置 |
+| `pWrite` | 输入 | 非空 | 输出回调（返回前消费字节） |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 回调型写入器 | — |
+| `NULL` | 参数错误或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[data/json_tour · data/json_tour · 写入器](../../examples/data/json_tour/main.c) · 观察
+
+```c
+	pWriter = xrtJsonWriterCreateSink(&WriteConfig, exampleCollect,
+		&Sink);
+```
+
+
+### `xrtJsonWriterObject`
+
+在当前位置开始对象；对象中必须先写 Name，数组中直接写值。
+
+```c
+bool xrtJsonWriterObject(xjsonwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已进入对象 | — |
+| `false` | 嵌套超限或状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+		!xrtJsonWriterObject(pWriter) ||                     /* 开对象 */
+```
+
+
+### `xrtJsonWriterArray`
+
+在当前位置开始数组。
+
+```c
+bool xrtJsonWriterArray(xjsonwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已进入数组 | — |
+| `false` | 嵌套超限或状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 写入器](../../examples/data/json_tour/main.c) · 观察
+
+```c
+		!xrtJsonWriterArray(pWriter) ||
+```
+
+
+### `xrtJsonWriterEnd`
+
+结束最近开始的对象或数组。
+
+```c
+bool xrtJsonWriterEnd(xjsonwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 容器已闭合 | — |
+| `false` | 无未闭合容器或状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+		!xrtJsonWriterEnd(pWriter) ||                       /* 闭对象 */
+```
+
+
+### `xrtJsonWriterName`
+
+为对象中的下一个值写入名称。
+
+```c
+bool xrtJsonWriterName(xjsonwriter* pWriter, xstrview Name);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器（对象上下文） |
+| `Name` | 输入 | 借用、严格 UTF-8 | 成员名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置/UTF-8 非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+		!xrtJsonWriterName(pWriter, XRT_STR_LITERAL("code")) ||
+```
+
+
+### `xrtJsonWriterNull`
+
+写入 null。
+
+```c
+bool xrtJsonWriterNull(xjsonwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 写入器](../../examples/data/json_tour/main.c) · 观察
+
+```c
+		!xrtJsonWriterNull(pWriter) ||
+```
+
+
+### `xrtJsonWriterBool`
+
+写入布尔值。
+
+```c
+bool xrtJsonWriterBool(xjsonwriter* pWriter, bool bValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+| `bValue` | 输入 | — | 布尔值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 写入器](../../examples/data/json_tour/main.c) · 观察
+
+```c
+		!xrtJsonWriterBool(pWriter, true) ||
+```
+
+
+### `xrtJsonWriterInt`
+
+写入 int64。
+
+```c
+bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+| `iValue` | 输入 | — | 整数值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+		!xrtJsonWriterInt(pWriter, 200) ||
+```
+
+
+### `xrtJsonWriterUInt`
+
+写入 uint64。
+
+```c
+bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+| `iValue` | 输入 | — | 无符号值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 写入器](../../examples/data/json_tour/main.c) · 观察
+
+```c
+		!xrtJsonWriterUInt(pWriter, 1u) ||
+```
+
+
+### `xrtJsonWriterFloat`
+
+按配置写入 double。
+
+```c
+bool xrtJsonWriterFloat(xjsonwriter* pWriter, double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+| `fValue` | 输入 | 有限值 | 浮点值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | NaN/Inf（严格模式）或状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 写入器](../../examples/data/json_tour/main.c) · 观察
+
+```c
+		!xrtJsonWriterFloat(pWriter, 2.5) ) {
+```
+
+
+### `xrtJsonWriterString`
+
+写入严格 UTF-8 字符串。
+
+```c
+bool xrtJsonWriterString(xjsonwriter* pWriter, xstrview Text);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+| `Text` | 输入 | 借用、严格 UTF-8 | 字符串 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已转义写出 | — |
+| `false` | UTF-8 非法或状态非法 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+		!xrtJsonWriterString(pWriter, XRT_STR_LITERAL("OK")) ||
+```
+
+
+### `xrtJsonWriterValue`
+
+在当前位置写入完整 Value 子树。
+
+```c
+bool xrtJsonWriterValue(
+	xjsonwriter* pWriter,
+	const xvalue* pValue
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+| `pValue` | 输入 | 非空 | Value 子树 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已递归写出 | — |
+| `false` | Value 类型非法或超限 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 写入器](../../examples/data/json_tour/main.c) · 观察
+
+```c
+		!xrtJsonWriterValue(pWriter, pInner) ||
+```
+
+
+### `xrtJsonWriterFinish`
+
+验证根值和容器已经完整结束，并封闭写入器。
+
+```c
+bool xrtJsonWriterFinish(xjsonwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | 写入器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已封闭（后续只能 Take/Free） | — |
+| `false` | 根值缺失或容器未闭合 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+		!xrtJsonWriterFinish(pWriter)                       /* 完整性校验 */
+```
+
+
+### `xrtJsonWriterTake`
+
+从已完成的内存写入器移交文本；结果由 `xrtFree` 释放。
+
+```c
+str xrtJsonWriterTake(xjsonwriter* pWriter, size_t* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空、已 Finish | 内存型写入器 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾 JSON 文本 | — |
+| `NULL` | 未 Finish 或非内存型 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_STATE` — 未 Finish 或回调型写入器
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+	sText = xrtJsonWriterTake(pWriter, &iSize);
+```
+
+
+### `xrtJsonWriterFree`
+
+释放写入器；空指针是空操作。未 Take 的内存结果一并释放。
+
+```c
+void xrtJsonWriterFree(xjsonwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 写入器与内部缓冲已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[data/json · data/json_tour · 写入器](../../examples/data/json/main.c) · 观察
+
+```c
+		xrtJsonWriterFree(pWriter);
+```
+
+
+### `xrtJsonWriteConfigInit`
+
+初始化紧凑输出、严格类型和有限输出预算的写入配置。
+
+```c
+void xrtJsonWriteConfigInit(xjsonwriteconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[data/json · data/json_tour · 序列化](../../examples/data/json/main.c) · 观察
+
+```c
+	xrtJsonWriteConfigInit(&WriteConfig);
+```
+
+
+### `xrtJsonStringify`
+
+紧凑或美化地序列化 Value，并返回由 `xrtFree` 释放的字符串。
+
+```c
+str xrtJsonStringify(
+	const xvalue* pValue,
+	bool bPretty,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | Value 树 |
+| `bPretty` | 输入 | — | 缩进美化 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾 JSON 文本 | — |
+| `NULL` | 类型非法或 OOM | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+- `XERR_MEMORY`
+
+#### 范例
+
+[data/json · data/json · 序列化](../../examples/data/json/main.c) · 观察
+
+```c
+	sText = xrtJsonStringify(pRoot, true, &iSize);
+```
+
+
+### `xrtJsonWrite`
+
+使用高级配置把 Value 同步写入调用方输出回调。
+
+```c
+bool xrtJsonWrite(
+	const xvalue* pValue,
+	const xjsonwriteconfig* pConfig,
+	xjsonwriteproc pWrite,
+	ptr pUserData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空 | Value 树 |
+| `pConfig` | 输入 | 允许空 | 写入配置 |
+| `pWrite` | 输入 | 非空 | 输出回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已完整写出 | — |
+| `false` | 类型非法、超限或回调中止 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 序列化](../../examples/data/json_tour/main.c) · 观察
+
+```c
+	if ( !xrtJsonWrite(pDom, &WriteConfig, exampleCollect, &Sink) ||
+		(Sink.Size != sizeof(sText) - 1u) ||
+		(memcmp(Sink.Buffer, sText,
+			sizeof(sText) - 1u) != 0) ) {
+```
+
+
+### `xrtJsonQuoteWrite`
+
+严格校验 UTF-8 并流式写出包含双引号的 JSON 字符串 token。
+
+```c
+bool xrtJsonQuoteWrite(
+	xstrview Text,
+	uint32 iFlags,
+	xjsonwriteproc pWrite,
+	ptr pUserData,
+	size_t* pWritten
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用、严格 UTF-8 | 原始字符串 |
+| `iFlags` | 输入 | `XJSON_WRITE_*` | 转义标志 |
+| `pWrite` | 输入 | 非空 | 输出回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+| `pWritten` | 输出 | 可空 | 写出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已流式写出（含首尾引号） | — |
+| `false` | UTF-8 非法或回调失败 | `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+
+#### 范例
+
+[data/json_tour · data/json_tour · 转义](../../examples/data/json_tour/main.c) · 观察
+
+```c
+	if ( !xrtJsonQuoteWrite(SV("a\"b\\c"), 0u, exampleCollect,
+			&Sink, &iWritten) ||
+		(Sink.Size != 9u) ||  /* 带引号转义 "a\"b\\c" 共 9 字节 */
+		(memcmp(Sink.Buffer, "\"a\\\"b\\\\c\"", 9u) != 0) ) {
+```
+
+
+### `xrtJsonParseFile`
+
+使用默认严格配置读取并解析 JSON 文件。
+
+```c
+xvalue* xrtJsonParseFile(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 文件路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 拥有的 Value DOM | — |
+| `NULL` | 读取或解析失败 | `xrt.io` / `xrt.json` 域错误 |
+
+#### 错误
+
+- `xrt.io` 域错误 — 文件读取失败
+- - `xrt.json` 域错误 — 语法非法、超限或截断（Data 含 offset）
+- `XERR_MEMORY`
+
+#### 范例
+
+[data/json_tour · data/json · 文件](../../examples/data/json_tour/main.c) · 观察
+
+```c
+	pFileDom = xrtJsonParseFile(sFile);
+```
+
+
+### `xrtJsonReadFile`
+
+使用读取配置和其中的输入上限解析 JSON 文件。
+
+```c
+xvalue* xrtJsonReadFile(
+	cstr sPath,
+	const xjsonreadconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 文件路径 |
+| `pConfig` | 输入 | 允许空 | 含 InputLimit |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Value DOM | — |
+| `NULL` | 失败 | 域错误 |
+
+#### 错误
+
+- `xrt.io` / `xrt.json` 域错误 / `XERR_MEMORY`
+
+#### 范例
+
+[data/json_tour · data/json_tour · 文件](../../examples/data/json_tour/main.c) · 观察
+
+```c
+	pReadDom = xrtJsonReadFile(sFile, &ReadConfig);
+```
+
+
+### `xrtJsonWriteFile`
+
+使用高级配置序列化并原子替换 JSON 文件。
+
+```c
+bool xrtJsonWriteFile(
+	cstr sPath,
+	const xvalue* pValue,
+	const xjsonwriteconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目标路径 |
+| `pValue` | 输入 | 非空 | Value 树 |
+| `pConfig` | 输入 | 允许空 | 写入配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已原子发布 | — |
+| `false` | 序列化或写入失败 | 域错误 |
+
+#### 错误
+
+- `xrt.json` / `xrt.io` 域错误
+
+#### 范例
+
+[data/json_tour · data/json_tour · 文件](../../examples/data/json_tour/main.c) · 观察
+
+```c
+	if ( !xrtJsonWriteFile(sFile, pDom, &WriteConfig) ||
+		((pInner = xrtJsonParseFile(sFile)) == NULL) ) {
+```
+
+
+### `xrtJsonStringifyFile`
+
+紧凑或美化地序列化并原子替换 JSON 文件。
+
+```c
+bool xrtJsonStringifyFile(
+	cstr sPath,
+	const xvalue* pValue,
+	bool bPretty
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目标路径 |
+| `pValue` | 输入 | 非空 | Value 树 |
+| `bPretty` | 输入 | — | 缩进美化 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已原子发布 | — |
+| `false` | 序列化或写入失败 | 域错误 |
+
+#### 错误
+
+- `xrt.json` / `xrt.io` 域错误
+
+#### 范例
+
+[data/json_tour · data/json · 文件](../../examples/data/json_tour/main.c) · 观察
+
+```c
+	if ( !xrtJsonStringifyFile(sFile, pDom, true) ) {
+```
+
+
