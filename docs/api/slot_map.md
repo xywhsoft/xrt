@@ -98,8 +98,8 @@ typedef struct xslotmap {
 | `Storage` | `xarray` | 槽存储（内联+外部） |
 | `Count` | `size_t` | 活动句柄数 |
 | `Version` | `uint64` | 结构版本号（代际） |
-| `FreeHead` | `uint32` | 空闲链头 |
-| `Flags` | `uint32` | 内部状态位 |
+| `FreeSlot` | `uint32` | 空闲链头 |
+| `Reserved` | `uint32` | 保留字段，必须保持为零 |
 
 ### `xslotmapiter`
 

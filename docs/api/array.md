@@ -87,7 +87,7 @@ typedef struct xarray {
 | `ItemSize` | `size_t` | 单元素字节数 |
 | `Count` | `size_t` | 当前元素数 |
 | `Capacity` | `size_t` | 当前容量 |
-| `Flags` | `uint32` | 内部状态位 |
+| `Alignment` | `size_t` | 元素对齐（二次幂） |
 
 ### `xptrarray`
 

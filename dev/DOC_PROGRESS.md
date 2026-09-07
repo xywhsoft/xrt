@@ -1033,4 +1033,15 @@
   NULL 拒绝；AsyncFileWriteAtRef 对 Data.Data/pRelease 的条件
   非空；TlsDialAsync/TlsClientCreate 的后续校验）。抽样 20/20。
   约束列两个方向（允许空 25/25 + 非空 20/20）均经实现级溯源验证。
+- 2026-09-07 审计套件固化（防资产流失）：任务期间沉淀于临时目录的
+  全部机检审计 consolidated 为 tools/doc_audit.py（11 项子命令：
+  ghost-table/prose/code/type 四层幽灵 + tables 结构 + enum-values/
+  struct-fields 行完备 + headings + snippets + banned-words +
+  const-values，真值源=公共头全集含单头）。首跑即发现 7 处残留：
+  xarray 字段表臆造 Flags（头文件实为 Alignment）、xrng/xslotmap
+  缺 Reserved、xslotmap 的 FreeHead/Flags 系臆造名（实为 FreeSlot/
+  Reserved）、charset 旧合并节残留致 xutfstatus 值表缺 OVERFLOW——
+  全部修正。另修审计器两处误报（random「不保证 X 之类的 Y」系
+  准确行为声明豁免；proxy 裁剪宏表非常量表）。终跑 0 findings；
+  G1+G5/G3 全绿。此后任何文档变更可一条命令复跑全部深度审计。
 

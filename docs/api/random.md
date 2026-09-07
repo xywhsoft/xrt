@@ -252,6 +252,7 @@ typedef struct xrng {
 | `State` | `uint64` | 状态字 |
 | `Increment` | `uint64` | 流增量（须为奇数） |
 | `Guard` | `uint32` | 守卫字（Ready 校验） |
+| `Reserved` | `uint32` | 保留字段，必须保持为零 |
 
 ### `XRT_RNG_INITIALIZER`
 

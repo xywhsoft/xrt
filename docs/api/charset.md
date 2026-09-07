@@ -69,38 +69,6 @@ typedef struct xstrview {
 
 协议字段、标识符、源代码和安全边界通常应使用严格模式。展示来源不可靠的普通文本时可以明确选择替换模式。
 
-### `xutfstatus` 与 `xutfresult`
-
-`xutfstatus` 包含：
-
-- `XUTF_OK`：输入已成功处理。
-- `XUTF_MORE`：单标量或流式输入还缺少后续码元。
-- `XUTF_INVALID`：输入或参数无效。
-- `XUTF_NO_SPACE`：调用方目标缓冲区不足。
-- `XUTF_OVERFLOW`：结果长度无法由 `size_t` 表示。
-
-缓冲区转换返回：
-
-```c
-typedef struct xutfresult {
-	xutfstatus Status;
-	size_t Read;
-	size_t Written;
-	size_t Error;
-} xutfresult;
-```
-
-`xutfresult` 字段：
-
-| 字段 | 类型 | 语义 |
-|---|---|---|
-| `Status` | `xutfstatus` | 完成状态 |
-| `Read` | `size_t` | 本次消费码元数 |
-| `Written` | `size_t` | 本次写出单元数 |
-| `Error` | `size_t` | 首个非法码元偏移（`XUTF_INVALID` 时有效） |
-
-`Read` 和 `Written` 使用各自视图的码元单位。`Error` 是源视图中的首个错误位置，成功时为 `XRT_NPOS`。目标空间不足时，`Read` 停在尚未写入的完整标量前，因此调用方可以更换缓冲区后继续。
-
 ### `xencoding`
 
 编码方案包含 `XENCODING_UTF8`、`XENCODING_UTF16_LE`、`XENCODING_UTF16_BE`、`XENCODING_UTF32_LE`、`XENCODING_UTF32_BE` 和无法判断时使用的 `XENCODING_UNKNOWN`。
@@ -236,6 +204,7 @@ typedef enum xutfstatus {
 | `XUTF_MORE` | 需要更多输入 |
 | `XUTF_INVALID` | 无效 |
 | `XUTF_NO_SPACE` | NOSPACE |
+| `XUTF_OVERFLOW` | 结果长度无法由 `size_t` 表示 |
 
 ## 视图与宽字符串
 
