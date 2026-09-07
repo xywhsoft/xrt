@@ -27,7 +27,7 @@
 | 20 | future.md | 104 | **完成** | 104/104 全绿（G3 104 片段，2026-09-07）；三段：核心 44 + 桥/listener/dial 29 + TLS stream 31 |
 | 21 | hash.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；合并节全部拆立 |
 | 22 | html.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；html/variants 补注册 |
-| 23 | http.md | 167 | 待办 |  |
+| 23 | http.md | 167 | 进行中 [1/4 段] | 第 1 段方法/令牌/Host/编码 28/167 全绿（G3 27 片段）；余 field/param、te/expect/decode、http1/proxy 139 |
 | 24 | http_connection.md | 5 | 待办 |  |
 | 25 | http_decode.md | 10 | 待办 |  |
 | 26 | http_encoding.md | 12 | 待办 |  |
@@ -424,3 +424,12 @@
   printf 的反斜杠 n 写丢（用 chr(92) 构造修复），最后把示意
   块迁至模块级"线程与所有权"散文区（范例区只留可追溯片段）。
   双文件全绿；array 复验无回归。
+- 2026-09-07 http.md 第 1 段（28 节）完成：方法与状态 6（含
+  ContentAllowed 的"方法+状态"双参判定——门禁 G1/G3 双拦截
+  纠正了我按臆测写的单参签名与臆测调用）+ 令牌与 OWS 8 +
+  权重与长度 3（qvalue 千分值口径、ContentLength 重复一致
+  才成功）+ Host/Authority 8（IPv4 拒前导零、PORT_VALUE 语义、
+  Target 按 CONNECT/星号分流）+ 编码枚举 2（x-gzip 别名）。
+  锚点：method_tour/token_tour/validate_tour/host/target/
+  base/encoding/small_fields。G3 27 片段全绿；G1/G2 余 141。
+  array 复验无回归。

@@ -176,6 +176,1024 @@ ALPN 仍属于通用 TLS 模块。它按需连续化实际 Header，不增加连
 正文使用 `xrtHttp1MessageBodyCopy` 去除分帧。真正的网络热路径应优先使用流式
 body reader，避免等待和复制整个消息。
 
+## 方法与状态
+
+### `xrtHttpMethodParse`
+
+按大小写敏感规则分类 HTTP 方法；合法扩展方法返回 OTHER。
+
+```c
+xhttpmethod xrtHttpMethodParse(xstrview Method);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Method` | 输入 | 借用 | 方法文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_METHOD_GET/POST/...` | 已知方法 | — |
+| `XHTTP_METHOD_OTHER` | 合法扩展方法 | — |
+| `XHTTP_METHOD_INVALID` | 空值或非法 token | 不设置错误 |
+
+#### 错误
+
+- 无 — INVALID 是分类结果
+
+#### 范例
+
+[http/method_tour · 方法](../../examples/http/method_tour/main.c) · 观察
+
+```c
+		printf("parse=%u", (unsigned)xrtHttpMethodParse(SV("GET")));
+```
+
+
+### `xrtHttpMethodEqual`
+
+按 HTTP 大小写敏感规则比较两个合法方法名。
+
+```c
+bool xrtHttpMethodEqual(
+	xstrview Left,
+	xstrview Right
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左方法名 |
+| `Right` | 输入 | 借用 | 右方法名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 逐字节相等（HTTP 方法区分大小写） | — |
+| `false` | 不等 | 纯比较 |
+
+#### 错误
+
+- 无 — 纯比较
+
+#### 范例
+
+[http/method_tour · 方法](../../examples/http/method_tour/main.c) · 观察
+
+```c
+		xrtHttpMethodEqual(SV("PATCH"), SV("PATCH")) ? 1
+```
+
+
+### `xrtHttpMethodSafe`
+
+判断方法是否只读取资源语义；GET、HEAD、OPTIONS 和 TRACE 属于安全方法。
+
+```c
+bool xrtHttpMethodSafe(xstrview Method);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Method` | 输入 | 借用 | 方法文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 安全方法 | — |
+| `false` | 非安全 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/method_tour · 方法](../../examples/http/method_tour/main.c) · 观察
+
+```c
+		printf(" safe=%d", xrtHttpMethodSafe(SV("GET")) ? 1
+```
+
+
+### `xrtHttpMethodIdempotent`
+
+判断方法是否允许重复执行而不改变预期效果；安全方法、PUT 和 DELETE 属于幂等方法。
+
+```c
+bool xrtHttpMethodIdempotent(xstrview Method);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Method` | 输入 | 借用 | 方法文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 幂等 | — |
+| `false` | 非幂等 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/method_tour · 方法](../../examples/http/method_tour/main.c) · 观察
+
+```c
+		printf(" idem=%d\n", xrtHttpMethodIdempotent(SV("DELETE")) ? 1
+```
+
+
+### `xrtHttpStatusText`
+
+返回已注册状态码的标准原因短语；未知、临时或未分配状态返回空视图。
+
+```c
+xstrview xrtHttpStatusText(uint16 iStatus);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iStatus` | 输入 | — | 状态码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 静态原因短语（人类可读，协议逻辑不得依赖） | — |
+| 空视图 | 未注册状态码 | 纯查询 |
+
+#### 错误
+
+- 无 — 查询结果即答案
+
+#### 范例
+
+[http/method_tour · 状态](../../examples/http/method_tour/main.c) · 观察
+
+```c
+		xstrview Text = xrtHttpStatusText(200);
+```
+
+
+### `xrtHttpResponseContentAllowed`
+
+判断最终响应是否允许携带内容；HEAD、1xx、204、205、304 和成功 CONNECT 返回假。
+
+```c
+bool xrtHttpResponseContentAllowed(
+	xstrview Method,
+	uint16 iStatus
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Method` | 输入 | 借用、大小写敏感 | 请求方法 |
+| `iStatus` | 输入 | 100–999 | 状态码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 允许携带内容 | — |
+| `false` | 禁止内容状态或无效方法/状态 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/method_tour · 状态](../../examples/http/method_tour/main.c) · 观察
+
+```c
+		printf(" content-allowed=%d\n",
+			xrtHttpResponseContentAllowed(SV("HEAD"), 204) ? 1 : 0);
+```
+
+
+## 令牌与 OWS
+
+### `xrtHttpTokenValid`
+
+判断文本是否是非空 HTTP token。
+
+```c
+bool xrtHttpTokenValid(xstrview Text);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 待判定文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 非空合法 token | — |
+| `false` | 空或含非法字符 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/token_tour · 令牌](../../examples/http/token_tour/main.c) · 观察
+
+```c
+		printf("valid=%d", xrtHttpTokenValid(SV("gzip")) ? 1
+```
+
+
+### `xrtHttpTokenEqual`
+
+按 ASCII 大小写不敏感规则比较两个 token。
+
+```c
+bool xrtHttpTokenEqual(xstrview Left, xstrview Right);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左 token |
+| `Right` | 输入 | 借用 | 右 token |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 大小写不敏感相等 | — |
+| `false` | 不等 | 纯比较 |
+
+#### 错误
+
+- 无 — 纯比较
+
+#### 范例
+
+[http/token_tour · 令牌](../../examples/http/token_tour/main.c) · 观察
+
+```c
+		printf(" eq=%d\n", xrtHttpTokenEqual(SV("GZIP"), SV("gzip")) ? 1
+```
+
+
+### `xrtHttpOwsTrim`
+
+剥离两端的可选空白（SP/HTAB）并返回剩余视图。
+
+```c
+xstrview xrtHttpOwsTrim(xstrview Text);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 输入文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 子视图 | 去除两端 OWS 的借用视图 | 纯切片 |
+
+#### 错误
+
+- 无 — 纯切片
+
+#### 范例
+
+[http/token_tour · OWS](../../examples/http/token_tour/main.c) · 观察
+
+```c
+	Trimmed = xrtHttpOwsTrim(SV("  value  "));
+```
+
+
+### `xrtHttpTokenNext`
+
+按 RFC 接收方规则迭代 token-list，忽略逗号空元素；`Offset` 初始为零。
+
+```c
+xhttpnext xrtHttpTokenNext(
+	xstrview List,
+	size_t* pOffset,
+	xstrview* pToken
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `List` | 输入 | 借用 | token-list 文本 |
+| `pOffset` | 输入/输出 | 非空、初始零 | 游标 |
+| `pToken` | 输出 | 非空 | 接收条目（借用输入） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 取得一个 token，游标前进 | — |
+| `XHTTP_NEXT_END` | 迭代完成 | 不设错 |
+| `XHTTP_NEXT_ERROR` | 非空元素语法错误 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 非空元素非法 token
+
+#### 范例
+
+[http/base · 字段值迭代](../../examples/http/base/main.c) · 观察
+
+```c
+	while ( (Next = xrtHttpTokenNext(
+		Field.Value, &iOffset, &Token
+	)) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpTokenListHas`
+
+判断完整 token-list 是否包含指定 token；非空元素语法错误仍返回 false 并设置错误。
+
+```c
+bool xrtHttpTokenListHas(xstrview List, xstrview Token);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `List` | 输入 | 借用 | token-list |
+| `Token` | 输入 | 借用 | 查找目标（大小写不敏感） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 包含 | — |
+| `false` | 不包含，或列表非法 | 非法时设置 `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 非空元素非法
+
+#### 范例
+
+[http/token_tour · 列表](../../examples/http/token_tour/main.c) · 观察
+
+```c
+		printf("has=%d", xrtHttpTokenListHas(SV(sList), SV("deflate")) ? 1
+```
+
+
+### `xrtHttpTokenListCount`
+
+统计 token-list 非空条目；空列表成功返回零。
+
+```c
+bool xrtHttpTokenListCount(xstrview List, size_t* pCount);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `List` | 输入 | 借用 | token-list |
+| `pCount` | 输出 | 非空 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 非空元素语法错误 | `*pCount` 不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/token_tour · 列表](../../examples/http/token_tour/main.c) · 观察
+
+```c
+		if ( xrtHttpTokenListCount(SV(sList), &iCount) ) {
+```
+
+
+### `xrtHttpTokenListWrite`
+
+规范写出逗号空格分隔的 token-list；空输出可精确查询长度。
+
+```c
+bool xrtHttpTokenListWrite(
+	const xstrview* pTokens,
+	size_t iCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTokens` | 输入 | 借用数组 | token 视图数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 只查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 实际/所需长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出或长度已发布 | — |
+| `false` | 参数或容量错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足（给出所需长度）
+
+#### 范例
+
+[http/token_tour · 列表](../../examples/http/token_tour/main.c) · 观察
+
+```c
+		if ( xrtHttpTokenListWrite(Tokens, 2u, Buffer, sizeof(Buffer), &iSize) ) {
+```
+
+
+### `xrtHttpTokenListBuild`
+
+构建零结尾 token-list，返回值由 `xrtFree` 释放。
+
+```c
+str xrtHttpTokenListBuild(
+	const xstrview* pTokens,
+	size_t iCount,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTokens` | 输入 | 借用数组 | token 数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾列表 | — |
+| `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/token_tour · 列表](../../examples/http/token_tour/main.c) · 观察
+
+```c
+		sBuilt = xrtHttpTokenListBuild(Tokens, 3u, NULL);
+```
+
+
+## 权重与长度
+
+### `xrtHttpQualityParse`
+
+严格解析 RFC qvalue（接受两端 OWS），结果范围 0–1000。
+
+```c
+bool xrtHttpQualityParse(
+	xstrview Text,
+	uint16* pQuality
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | qvalue 文本 |
+| `pQuality` | 输出 | 非空、不得与 Text 重叠 | 接收千分值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出（0–1000） | — |
+| `false` | 语法错误或参数错误 | 输出保持为零/不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `xrt.http` 域错误 — 非法 qvalue
+
+#### 范例
+
+[http/method_tour · 权重](../../examples/http/method_tour/main.c) · 观察
+
+```c
+		if ( !xrtHttpQualityParse(SV("0.5"), &iQuality) ) {
+```
+
+
+### `xrtHttpWeightedTokenNext`
+
+迭代 token [ weight ] 列表并忽略空成员；缺省 Quality 为 1000。可直接用于 Accept-Encoding 等字段。
+
+```c
+xhttpnext xrtHttpWeightedTokenNext(
+	xstrview List,
+	size_t* pOffset,
+	xhttpweightedtoken* pItem
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `List` | 输入 | 借用 | 加权列表文本 |
+| `pOffset` | 输入/输出 | 初始零 | 游标 |
+| `pItem` | 输出 | 非空 | 接收 Token+Quality |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 取得一项 | — |
+| `XHTTP_NEXT_END` | 完成 | 不设错 |
+| `XHTTP_NEXT_ERROR` | 语法错误 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/token_tour · 加权迭代](../../examples/http/token_tour/main.c) · 观察
+
+```c
+		while ( xrtHttpWeightedTokenNext(SV(sWeighted), &iOffset,
+			&Item) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpContentLengthParse`
+
+解析 Content-Length；逗号分隔的重复值只有完全一致时才成功。
+
+```c
+bool xrtHttpContentLengthParse(
+	xstrview Value,
+	uint64* pLength
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pLength` | 输出 | 非空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 长度已写出 | — |
+| `false` | 非法/重复不一致 | 输出保持为零 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 非数字或重复值不一致
+
+#### 范例
+
+[http/method_tour · 长度](../../examples/http/method_tour/main.c) · 观察
+
+```c
+		if ( !xrtHttpContentLengthParse(SV("42"), &iLength) ) {
+```
+
+
+## Host 与 Authority
+
+### `xrtHttpHostParse`
+
+解析单个 Host 字段值为借用 authority 结构；空字段值与空端口按 RFC 保留，PORT_VALUE 表示可用网络数值。
+
+```c
+bool xrtHttpHostParse(
+	xstrview Value,
+	xhttpauthority* pHost
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用、不含 OWS/字段名 | 字段值 |
+| `pHost` | 输出 | 非空、支持未对齐存储 | 接收借用视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 结构已发布（视图借用输入） | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 非法 authority
+
+#### 范例
+
+[http/host · 解析](../../examples/http/host/main.c) · 观察
+
+```c
+	if ( !xrtHttpHostParse(
+		XRT_STR_LITERAL("[2001:db8::1]:8443"), &Host
+	) || !xrtHttpAuthorityPort(&Host, 80u, &iPort) ) {
+```
+
+
+### `xrtHttpHostValid`
+
+验证 Host 字段值是单个、无 userinfo 的 URI authority。
+
+```c
+bool xrtHttpHostValid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/validate_tour · Host](../../examples/http/validate_tour/main.c) · 观察
+
+```c
+		xrtHttpHostValid(SV("example.com")) ? 1
+```
+
+
+### `xrtHttpIpv4Valid`
+
+严格验证 RFC 3986 IPv4 文本；拒绝多段、越界值和前导零。
+
+```c
+bool xrtHttpIpv4Valid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | IPv4 文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法（含 `01.2.3.4` 前导零） | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/validate_tour · IPv4](../../examples/http/validate_tour/main.c) · 观察
+
+```c
+		xrtHttpIpv4Valid(SV("01.2.3.4")) ? 1
+```
+
+
+### `xrtHttpIpv6Valid`
+
+严格验证 IPv6 文本，支持压缩和嵌入式 IPv4，不接受 ZoneID。
+
+```c
+bool xrtHttpIpv6Valid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | IPv6 文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/validate_tour · IPv6](../../examples/http/validate_tour/main.c) · 观察
+
+```c
+		xrtHttpIpv6Valid(SV("
+```
+
+
+### `xrtHttpHostEqual`
+
+按 ASCII 大小写不敏感规则比较两个已拆分 Host 视图。
+
+```c
+bool xrtHttpHostEqual(xstrview Left, xstrview Right);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Left` | 输入 | 借用 | 左 Host |
+| `Right` | 输入 | 借用 | 右 Host |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 相等（host 大小写不敏感） | — |
+| `false` | 不等 | 纯比较 |
+
+#### 错误
+
+- 无 — 纯比较
+
+#### 范例
+
+[http/validate_tour · Host](../../examples/http/validate_tour/main.c) · 观察
+
+```c
+		xrtHttpHostEqual(SV("EXAMPLE.com"), SV("example.com")) ? 1
+```
+
+
+### `xrtHttpAuthorityValid`
+
+验证拆分后的 authority 字段、标志与端口数值保持一致。
+
+```c
+bool xrtHttpAuthorityValid(
+	const xhttpauthority* pAuthority
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAuthority` | 输入 | 非空 | 待验证结构 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 一致 | — |
+| `false` | 不一致 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/validate_tour · Authority](../../examples/http/validate_tour/main.c) · 观察
+
+```c
+		xrtHttpAuthorityValid(&Auth) ? 1
+```
+
+
+### `xrtHttpAuthorityPort`
+
+取得显式端口；省略或空端口使用调用方给出的默认值。
+
+```c
+bool xrtHttpAuthorityPort(
+	const xhttpauthority* pAuthority,
+	uint16 iDefaultPort,
+	uint16* pPort
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAuthority` | 输入 | 非空 | authority |
+| `iDefaultPort` | 输入 | — | 默认端口 |
+| `pPort` | 输出 | 非空 | 接收端口 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 端口已写出 | — |
+| `false` | 端口越界或参数错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 端口超出 `uint16`
+
+#### 范例
+
+[http/host · 端口](../../examples/http/host/main.c) · 观察
+
+```c
+	) || !xrtHttpAuthorityPort(&Host, 80u, &iPort) ) {
+```
+
+
+### `xrtHttpTargetParse`
+
+按方法严格解析 request-target；CONNECT 只接受带非空端口 authority，OPTIONS 星号须精确为 "*"。
+
+```c
+bool xrtHttpTargetParse(
+	xstrview Method,
+	xstrview Text,
+	xhttptarget* pTarget
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Method` | 输入 | 借用 | 方法文本 |
+| `Text` | 输入 | 借用 | target 文本 |
+| `pTarget` | 输出 | 支持未对齐存储、不得覆盖输入 | 接收解析结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 非法 target
+
+#### 范例
+
+[http/target · 解析](../../examples/http/target/main.c) · 观察
+
+```c
+	if ( !xrtHttpTargetParse(
+		XRT_STR_LITERAL("GET"),
+		XRT_STR_LITERAL(
+			"https://example.test:8443/items?q=1"
+```
+
+
+## 编码枚举
+
+### `xrtHttpTargetAuthority`
+
+解析请求的有效 authority：absolute/CONNECT 用 target，origin/星号用 Host 字段值。
+
+```c
+bool xrtHttpTargetAuthority(
+	const xhttptarget* pTarget,
+	xstrview Host,
+	xhttpauthority* pAuthority
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入 | 非空 | 已解析 target |
+| `Host` | 输入 | 借用 | Host 字段值 |
+| `pAuthority` | 输出 | 未对齐存储、不得覆盖输入 | 接收 authority |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 无可用 authority 或非法 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/target · authority](../../examples/http/target/main.c) · 观察
+
+```c
+	) || !xrtHttpTargetAuthority(
+		&Target,
+		XRT_STR_LITERAL("ignored.test"),
+```
+
+
+### `xrtHttpCodingParse`
+
+把编码 token 解析为内置枚举（identity/gzip/deflate，x-gzip 为 gzip 别名）；未知返回 NONE。
+
+```c
+xhttpcoding xrtHttpCodingParse(xstrview Token);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Token` | 输入 | 借用 | 编码 token（大小写不敏感） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_CODING_IDENTITY/GZIP/DEFLATE` | 内置编码 | — |
+| `XHTTP_CODING_NONE` | 未知编码（如 zstd） | 不设错 |
+
+#### 错误
+
+- 无 — NONE 是分类结果
+
+#### 范例
+
+[http/small_fields · 编码枚举](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( (xrtHttpCodingParse(SV("gzip")) !=
+				XHTTP_CODING_GZIP) ||
+```
+
+
+
 ## 扩展库边界
 
 客户端池、重定向、重试、缓存、认证、Cookie、MIME、Multipart、FormData、SSE、
