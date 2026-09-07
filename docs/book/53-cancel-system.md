@@ -85,7 +85,7 @@ cancelled: yes
 
 ### 从示例到工程：取消的三个宿主
 
-**服务停机**（第 48 章信号章的下半场）：根令牌挂在停止信号上 → 各工作线程的等待全部改可取消形态（RecvCancel/Future 带 token）→ 停止信号 Request 根 → 全树苏醒 → 各自收尾 → 主线程汇合（Wait 全部线程）后退出。停机的"等存量"限时（第 48 章五秒约定）在令牌体系里自然实现：Request 后 WaitFor 汇合带 deadline，超时即强退。**请求超时**：每个请求处理派生子令牌（`CancelChild(根)`）挂在请求 deadline 上——单个请求超时只取消自己的工作树，根与兄弟无感；第 62 章 TCP 的 AcceptWait deadline 是它的网络版。**用户取消**：CLI 的 Ctrl+C、界面按钮——Watch 回调把 UI 事件翻译成 Request；"取消按钮"的全部实现就是一行 Request。
+**服务停机**（第 48 章信号章的下半场）：根令牌挂在停止信号上 → 各工作线程的等待全部改可取消形态（RecvCancel/Future 带 token）→ 停止信号 Request 根 → 全树苏醒 → 各自收尾 → 主线程汇合（Wait 全部线程）后退出。停机的"等存量"限时（第 48 章五秒约定）在令牌体系里自然实现：Request 后 WaitFor 汇合带 deadline，超时即强退。**请求超时**：每个请求处理派生子令牌（`CancelChild(根)`）挂在请求 deadline 上——单个请求超时只取消自己的工作树，根与兄弟无感；第 63 章 TCP 的 AcceptWait deadline 是它的网络版。**用户取消**：CLI 的 Ctrl+C、界面按钮——Watch 回调把 UI 事件翻译成 Request；"取消按钮"的全部实现就是一行 Request。
 
 ### 取消树与作用域：结构化并发的预演
 

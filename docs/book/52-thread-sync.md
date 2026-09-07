@@ -26,7 +26,7 @@ api: thread, sync, atomic
 - 创建：xrtThreadCreate(过程, 数据, 栈大小) → 句柄（栈大小 0 用默认）
 - 运行：过程签名 xthreadproc——返回值即线程结果（int）
 - 汇合：xrtThreadWait(句柄) → 取回结果并释放——不 Wait 则泄漏
-- 辅助：Current/Yield/CurrentId——自省与让出（第 62 章 TCP 示例用过 Yield）
+- 辅助：Current/Yield/CurrentId——自省与让出（第 63 章 TCP 示例用过 Yield）
 ```
 
 `Wait` 的纪律是本章第一条铁律：**创建的每个线程恰好 Wait 一次**——不 Wait 是资源泄漏，Wait 两次是未定义。线程的返回值（`exit: 42` 输出来源）经 Wait 取回，是线程间最原始的结果传递。
