@@ -81,7 +81,7 @@
 | 74 | value.md | 116 | **完成** | 116/116 全绿（G3 116 片段，2026-09-07）；标量 20 + 句柄 3 + 生命周期 9 + Array 20 + Object 13 + IntMap 11 + 迭代 8 + Set 16 + 类型身份 13 + 弱引用 3 十组；引用/移交/消费三形态全表；XERR_TYPE/VALUE/EXISTS 特有口径；锚点 13 范例 |
 | 75 | wait.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；Deadline 三函数；NEVER 语义（Expired 永假、Remaining UINT64_MAX）；锚点 concurrency/deadline |
 | 76 | websocket.md | 104 | 待办 |  |
-| 77 | x509.md | 89 | 待办 |  |
+| 77 | x509.md | 89 | **完成** | 89/89 全绿（G3 89 片段，2026-09-07）；视图/算法/名称/扩展/名称约束/CRL 三层/策略/签名/身份/路径/信任库十三组；X509_DONE/VALUE/ERROR 三值逐函数成表；锚点 19 范例 |
 | 78 | xid.md | 11 | **完成** | 11/11 全绿（G3 11 片段，2026-09-07）；生成/文本/时间比较三组；系统随机源 IO、Write 容量 33 字节、ErrorOffset 定位器；锚点 xid/xid_batch |
 | 79 | xson.md | 35 | **完成** | 35/35 全绿（G3 35 片段，2026-09-07）；读取/DOM/事件/写出/writer 22/文件/错误八组；WriterTake 未 Finish = STATE；锚点 xson/xson_tour |
 
@@ -791,4 +791,9 @@
   快照迭代 EXISTS 活动状态、Merge 冲突策略 VALUE、TypeIdRebind 唯一
   拥有 STATE、WeakRef 过期锁返回 null 单例。
   完成 API 3087→3203/3664（87.4%），76/79 文件。
+- 2026-09-07 x509.md 完成（89/89，G3 89 片段全绿）：十三组；三值口径
+  ——DONE=字段不存在/遍历完成不设错、VALUE=判定成立、ERROR=结构非法；
+  不受支持算法 = XERR_UNSUPPORTED、PathBuild 无法到达信任源 = NOT_FOUND、
+  StoreAddFile 走 xrt.file 域错误。
+  完成 API 3203→3292/3664（89.9%），77/79 文件。
 
