@@ -22,7 +22,7 @@
 | P13 卷八证书链 | ✅ 完成 | 4 | 23,822 |
 | P14 卷八TLS上 | ✅ 完成 | 4 | 21,347 |
 | P15 卷八TLS下 | ✅ 完成 | 3 | 15,847 |
-| P16 卷九HTTP核心 | 🔄 进行中 | 0 | — |
+| P16 卷九HTTP核心 | ✅ 完成 | 5 | 22,879 |
 | P17–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -71,11 +71,36 @@
 | 85 | 85-tls-server.md | practice | 5,691 | 2 | 1 | 3 | 3 | P15 |
 | 86 | 86-tls-stream.md | practice | 4,937 | 2 | 1 | 3 | 3 | P15 |
 | 87 | 87-tls-resume.md | practice | 5,219 | 3 | 1 | 3 | 3 | P15 |
+| 88 | 88-http.md | practice | 4,513 | 2 | 1 | 3 | 3 | P16 |
+| 89 | 89-http1.md | practice | 4,356 | 2 | 1 | 3 | 3 | P16 |
+| 90 | 90-http-framing.md | practice | 4,912 | 2 | 2 | 3 | 3 | P16 |
+| 91 | 91-http-headers.md | practice | 5,096 | 2 | 1 | 3 | 3 | P16 |
+| 92 | 92-http-decode.md | practice | 4,502 | 2 | 2 | 3 | 3 | P16 |
 
 
 
 
 
+
+
+## P16 阶段记录
+
+- 卷九 HTTP 核心 5 章：ch88 HTTP 地基（字段/token/Host/参数三纪律：严格解析+
+  借用视图+容量原子性）、ch89 HTTP/1 消息（绑定数组零分配/三态返回/封包原子性/
+  上限防御）、ch90 正文分帧图解（新增章：三种定界/Plan 先行/Body 流式三态/
+  chunk 写出/trailer/TE 协商/走私防御）、ch91 头字段族（参数与 quoted-string/
+  token 语义查找/GetUnique 唯一值/五专字段族）、ch92 正文解码（Create 由头/
+  Write 推回调/Done CRC 校验/bFinal 语义/内容协商闭环）。
+- 全书第十五次重编号：插入 http-framing（90），32 文件 +1，全书 122 章；
+  卷九 88-94 七章骨架就位（P16 完成 88-92，ws-frame/ws-stream 93/94 归 P17）。
+- 门禁拦下：XHTTP1_NEXT 真名 XHTTP1_MORE、xrtHttp1HeadFind/FieldValue 实为
+  地基层 FieldFind/FieldGet 族、xhttphost 真名 xhttpauthority、ParamEncode/Decode
+  真名 ParamBuild/ParamWrite/ParamNext 族、XRT_MODULE_HTTP1 拆为 _HEAD/_BODY/
+  _MESSAGE、xrtHttpExpectParse 真名 ExpectFields/ExpectValid、
+  xrtHttpEncodingQuality 真名 xrtHttpAcceptEncodingQuality、head_tour 预期输出
+  实为 6 行（term 补齐）、small_fields 头注释后源码字符串污染预期输出提取
+  （换 field_tour 作 embed）、ch88/91 初稿漏图示（补管线/分层 diagram）。
+- 行文章号修正 7 处（testing→114、perf→116、xhttp→95）。
 
 ## P15 阶段记录
 

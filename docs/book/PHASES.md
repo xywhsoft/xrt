@@ -27,7 +27,7 @@
 | P13 | 卷八·证书链：der-pem/x509/x509-verify + 信任链与吊销章 | 4 | ✅ 完成 |
 | P14 | 卷八·TLS 上：tls-client/tls-identity + 握手时序图解章 + 验证策略章 | 4 | ✅ 完成 |
 | P15 | 卷八·TLS 下：tls-server/tls-stream + 会话恢复章 | 3 | ✅ 完成（卷八 16 章收官） |
-| P16 | 卷九·HTTP 核心：http/http1/headers/decode + 分帧图解章 | 5 | ⬜ |
+| P16 | 卷九·HTTP 核心：http/http1/headers/decode + 分帧图解章 | 5 | ✅ 完成 |
 | P17 | 卷九·WebSocket：ws-frame/ws-stream/http-upgrade + 双向通信组合章 | 4 | ⬜ |
 | P18 | 卷十·xhttp 客户端：easy/runtime/redirect/cache/url+query 重组 | 6 | ⬜ |
 | P19 | 卷十·xhttp 服务端与高级：server/middleware + SSE/流式上传/连接池深潜/重试策略新章 | 6 | ⬜ |
