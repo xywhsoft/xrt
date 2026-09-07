@@ -67,6 +67,226 @@ xrtSetDestroy(pHeap);
 xrtSetUnit(&tStack);
 ```
 
+### `xrtSetInit`
+
+使用默认 16 字节对齐初始化空集合。
+
+```c
+bool xrtSetInit(xset* pSet, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输出 | 非空 | 接收集合 |
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 桶数组分配失败
+
+#### 范例
+
+[set](../../examples/containers/set/main.c) · 内嵌初始化
+
+```c
+	if ( !xrtSetInit(&tEnabled, sizeof(int)) ) {
+```
+
+### `xrtSetInitAligned`
+
+使用显式元素对齐初始化空集合。
+
+```c
+bool xrtSetInitAligned(
+	xset* pSet,
+	size_t iItemSize,
+	size_t iAlignment
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输出 | 非空 | 接收集合 |
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+| `iAlignment` | 输入 | 二次幂 | 元素对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 桶数组分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 对齐初始化
+
+```c
+	if ( !xrtSetInitAligned(&tAligned, sizeof(int),
+			sizeof(int)) ||
+		!xrtSetAdd(&tAligned, &Values[2]) ||
+		(xrtSetCount(&tAligned) != 1u) ) {
+```
+
+### `xrtSetCreate`
+
+创建使用默认 16 字节对齐的空集合。
+
+```c
+xset* xrtSetCreate(size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 集合 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 桶数组分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 堆创建
+
+```c
+	pA = xrtSetCreate(sizeof(int));
+```
+
+### `xrtSetCreateAligned`
+
+创建使用显式元素对齐的空集合。
+
+```c
+xset* xrtSetCreateAligned(size_t iItemSize, size_t iAlignment)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 元素字节数 |
+| `iAlignment` | 输入 | 二次幂 | 元素对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 集合 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 容量或尺寸计算溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 桶数组分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 堆创建（对齐）
+
+```c
+		xset* pAligned = xrtSetCreateAligned(sizeof(int),
+			sizeof(int));
+```
+
+### `xrtSetUnit`
+
+释放全部元素和桶数组，但不释放集合结构。
+
+```c
+void xrtSetUnit(xset* pSet)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[set](../../examples/containers/set/main.c) · 释放内部资源
+
+```c
+		xrtSetUnit(&tEnabled);
+```
+
+### `xrtSetDestroy`
+
+释放全部元素、桶数组和集合结构。
+
+```c
+void xrtSetDestroy(xset* pSet)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[set](../../examples/containers/set/main.c) · 销毁集合
+
+```c
+		xrtSetDestroy(pAllowed);
+```
+
 ## 键策略
 
 ```c
@@ -84,6 +304,53 @@ bool xrtSetSetKeyPolicy(
 哈希器和相等器必须成对设置，并且只可在集合为空时修改。相等关系必须满足自反、对称和传递，相等元素必须产生相同哈希。自定义策略适合忽略结构填充、按业务键去重、字符串内容比较或抗碰撞哈希。
 
 键策略回调只借用输入元素，不得保留指针，也不得调用同一集合的任何 API。回调期间尝试重入同一集合会得到 `XERR_STATE`。不同集合之间不存在隐式同步；共享回调上下文时仍由调用方保证线程安全。
+
+### `xrtSetSetKeyPolicy`
+
+为仍为空的集合设置成对的自定义哈希器和相等器。
+
+```c
+bool xrtSetSetKeyPolicy(
+	xset* pSet,
+	xsethash pHash,
+	xsetequal pEqual,
+	ptr pUserData
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空且为空 | 目标集合 |
+| `pHash` | 输入 | 非空 | 哈希函数 |
+| `pEqual` | 输入 | 非空 | 相等函数 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已设置 | — |
+| `false` | 集合非空或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+
+#### 范例
+
+[owned](../../examples/containers/set/owned/main.c) · 键策略
+
+```c
+		!xrtSetSetKeyPolicy(
+			&tTags,
+			exampleTagHash,
+			exampleTagEqual,
+			NULL
+		) ||
+```
 
 ## 资源生命周期
 
@@ -107,6 +374,53 @@ bool xrtSetSetLifecycle(
 
 完整的拥有型结构示例见 `examples/containers/set/owned/main.c`。它按业务编号实现
 `xsethash`、`xsetequal`，用 `xsetcopy` 深复制字符串，并用 `xsetdrop` 释放资源。
+
+### `xrtSetSetLifecycle`
+
+为仍为空的集合设置成对的资源复制器和释放器。
+
+```c
+bool xrtSetSetLifecycle(
+	xset* pSet,
+	xsetcopy pCopy,
+	xsetdrop pDrop,
+	ptr pUserData
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空且为空 | 目标集合 |
+| `pCopy` | 输入 | 非空 | 复制器 |
+| `pDrop` | 输入 | 非空 | 释放器 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已设置 | — |
+| `false` | 集合非空或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+
+#### 范例
+
+[owned](../../examples/containers/set/owned/main.c) · 资源生命周期
+
+```c
+		!xrtSetSetLifecycle(
+			&tTags,
+			exampleTagCopy,
+			exampleTagDrop,
+			NULL
+		)
+```
 
 ## 基础操作
 
@@ -164,6 +478,256 @@ if ( !xrtSetTrim(&tSet) ) {
 xrtSetUnit(&tSet);
 ```
 
+### `xrtSetGetOrAdd`
+
+返回规范存储元素，缺失时失败原子地复制插入。
+
+```c
+const void* xrtSetGetOrAdd(
+	xset* pSet,
+	const void* pItem,
+	bool* pNew
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空 | 目标集合 |
+| `pItem` | 输入 | 非空 | 查找或插入的元素 |
+| `pNew` | 输出 | 允许空 | 接收是否本次新插入 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 规范元素借用（集合存活且未修改期间有效） | — |
+| `NULL` | 缺失或失败 | 不设错误 / 见错误 |
+（插入失败时见错误）
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 容量增长溢出
+- `XERR_MEMORY` — 扩容或复制分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 取或加
+
+```c
+	pSlot = xrtSetGetOrAdd(pA, &Values[0], &bNew);
+```
+
+### `xrtSetAdd`
+
+复制加入元素，已有等价元素时成功且不替换规范元素。
+
+```c
+bool xrtSetAdd(xset* pSet, const void* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空 | 目标集合 |
+| `pItem` | 输入 | 非空 | 要加入的元素 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已加入或已存在 | — |
+| `false` | 失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 容量增长溢出
+- `XERR_MEMORY` — 扩容或复制分配失败
+
+#### 范例
+
+[set](../../examples/containers/set/main.c) · 复制加入
+
+```c
+		if ( !xrtSetAdd(&tEnabled, &arrEnabled[i]) ||
+			!xrtSetAdd(&tRequested, &arrRequested[i]) ) {
+```
+
+### `xrtSetGet`
+
+返回集合内部的规范元素，缺失是正常结果。
+
+```c
+const void* xrtSetGet(const xset* pSet, const void* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空 | 目标集合 |
+| `pItem` | 输入 | 非空 | 查找键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 规范元素借用（集合存活且未修改期间有效） | — |
+| `NULL` | 缺失或失败 | 不设错误 / 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+
+#### 范例
+
+[owned](../../examples/containers/set/owned/main.c) · 规范元素查询
+
+```c
+	pStored = (const exampletag*)xrtSetGet(&tTags, &tDuplicate);
+```
+
+### `xrtSetHas`
+
+判断等价元素是否存在。
+
+```c
+bool xrtSetHas(const xset* pSet, const void* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空 | 目标集合 |
+| `pItem` | 输入 | 非空 | 查找键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否存在 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 存在判断
+
+```c
+		!xrtSetHas(pA, &Values[0]) ) {
+```
+
+### `xrtSetRemove`
+
+删除等价元素并调用资源释放器。
+
+```c
+bool xrtSetRemove(xset* pSet, const void* pItem)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空 | 目标集合 |
+| `pItem` | 输入 | 非空 | 查找键 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 不存在 | 不设错误 |
+
+#### 错误
+
+- 元素不存在返回 `false` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 删除
+
+```c
+		!xrtSetRemove(pA, &Values[2]) ||
+```
+
+### `xrtSetTake`
+
+把规范元素移交后删除；输出区间不得接触集合拥有的任何内存。
+
+```c
+bool xrtSetTake(xset* pSet, const void* pItem, ptr pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空 | 目标集合 |
+| `pItem` | 输入 | 非空 | 查找键 |
+| `pValue` | 输出 | 非空、不与集合重叠 | 接收移交的元素 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已移交并删除 | — |
+| `false` | 不存在 | 不设错误 |
+
+#### 错误
+
+- 元素不存在返回 `false` 且不设置错误；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[owned](../../examples/containers/set/owned/main.c) · 移交删除
+
+```c
+	if ( !xrtSetTake(&tTags, &tPrimary, &tTaken) ) {
+```
+
+### `xrtSetVisit`
+
+按插入顺序访问元素，并返回实际访问数量。
+
+```c
+size_t xrtSetVisit(xset* pSet, xsetvisitor pVisitor, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空 | 目标集合 |
+| `pVisitor` | 输入 | 非空 | 访问回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际访问数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 访问全部元素
+
+```c
+	if ( (xrtSetVisit(pA, exampleVisitCount, &iSeen) != 2u) ||
+		(iSeen != 2u) ) {
+```
+
 ## 容量
 
 ```c
@@ -177,6 +741,172 @@ size_t xrtSetCapacity(const xset* set);
 
 `xrtSetCount(&tSet)` 返回当前元素数，`xrtSetCapacity(&tSet)` 返回已预留的元素容量。
 空集合调用 `Trim` 会释放桶数组；非空集合只把桶数缩到当前元素数所需的最小值。
+
+### `xrtSetClear`
+
+清空全部元素并保留桶数组供后续复用。
+
+```c
+void xrtSetClear(xset* pSet)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空 | 目标集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已清空 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 清空
+
+```c
+	xrtSetClear(&tAligned);
+```
+
+### `xrtSetReserve`
+
+确保集合无需扩容即可容纳指定数量的元素。
+
+```c
+bool xrtSetReserve(xset* pSet, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空 | 目标集合 |
+| `iCapacity` | 输入 | — | 期望容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 容量已保证 | — |
+| `false` | 扩容失败 | `XERR_OVERFLOW` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_OVERFLOW` — 容量溢出
+- `XERR_MEMORY` — 桶数组分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 预留容量
+
+```c
+		!xrtSetReserve(pA, 16u) ||
+```
+
+### `xrtSetTrim`
+
+把桶数组收缩到当前元素数需要的最小容量。
+
+```c
+bool xrtSetTrim(xset* pSet)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入/输出 | 非空 | 目标集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已收缩（或无需收缩） | — |
+| `false` | 收缩失败 | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_MEMORY` — 新桶数组分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 收缩容量
+
+```c
+		!xrtSetTrim(pA) ||
+```
+
+### `xrtSetCount`
+
+返回当前元素数，非法集合返回零。
+
+```c
+size_t xrtSetCount(const xset* pSet)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空 | 目标集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 当前元素数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 元素数量
+
+```c
+		(xrtSetCount(pA) != 2u) ||
+```
+
+### `xrtSetCapacity`
+
+返回再次扩容前可容纳的元素数。
+
+```c
+size_t xrtSetCapacity(const xset* pSet)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空 | 目标集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 当前容量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 容量查询
+
+```c
+		(xrtSetCapacity(pA) < 2u) ||
+```
 
 ## 遍历
 
@@ -219,6 +949,139 @@ if ( xrtSetIterRBegin(&tSet, &tIterator) ) {
 	}
 	xrtSetIterEnd(&tIterator);
 }
+```
+
+### `xrtSetIterBegin`
+
+启动按插入顺序的外置迭代器。
+
+```c
+bool xrtSetIterBegin(xset* pSet, xsetiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空 | 目标集合 |
+| `pIterator` | 输出 | 非空 | 接收迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已启动 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+
+#### 范例
+
+[set](../../examples/containers/set/main.c) · 正向迭代
+
+```c
+	if ( !xrtSetIterBegin(pAllowed, &tIterator) ) {
+```
+
+### `xrtSetIterRBegin`
+
+启动按插入顺序逆序遍历的外置迭代器。
+
+```c
+bool xrtSetIterRBegin(xset* pSet, xsetiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空 | 目标集合 |
+| `pIterator` | 输出 | 非空 | 接收迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已启动 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 逆向迭代
+
+```c
+		if ( !xrtSetIterRBegin(pA, &Iter) ) {
+```
+
+### `xrtSetIterNext`
+
+返回下一规范元素，结构修改后报告状态错误。
+
+```c
+const void* xrtSetIterNext(xsetiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 已启动 | 目标迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 规范元素借用；遍历结束为 `NULL` | — |
+| `NULL` | 遍历结束或迭代器失效 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 集合结构在迭代期间被修改；遍历结束返回 `NULL` 不设错
+
+#### 范例
+
+[set](../../examples/containers/set/main.c) · 下一元素
+
+```c
+	while ( (pPort = (const int*)xrtSetIterNext(&tIterator)) != NULL ) {
+```
+
+### `xrtSetIterEnd`
+
+提前结束迭代并清除借用状态。
+
+```c
+void xrtSetIterEnd(xsetiter* pIterator)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIterator` | 输入/输出 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已结束 | — |
+
+#### 错误
+
+- 无 — 结束不失败
+
+#### 范例
+
+[set](../../examples/containers/set/main.c) · 结束迭代
+
+```c
+	xrtSetIterEnd(&tIterator);
 ```
 
 ## 集合运算
@@ -286,6 +1149,379 @@ cleanup:
 	}
 	return bResult;
 }
+```
+
+### `xrtSetClone`
+
+深度复制集合结构，并按生命周期复制器复制元素。
+
+```c
+xset* xrtSetClone(const xset* pSet)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSet` | 输入 | 非空 | 源集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新集合 | — |
+| `NULL` | 复制失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_MEMORY` — 结构或元素复制分配失败
+- `XERR_STATE` — 元素复制器失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 深度复制
+
+```c
+			xset* pClone = xrtSetClone(pA);
+```
+
+### `xrtSetMerge`
+
+事务合并缺失元素，失败不变且保留已有元素地址和相对顺序。
+
+```c
+bool xrtSetMerge(xset* pTarget, const xset* pSource)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入/输出 | 非空 | 目标集合 |
+| `pSource` | 输入 | 非空、兼容 | 源集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已合并全部缺失元素 | — |
+| `false` | 失败，目标保持不变 | `XERR_STATE` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+- `XERR_MEMORY` — 扩容或复制分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 事务合并
+
+```c
+		!xrtSetMerge(pMerged, pB) ||
+```
+
+### `xrtSetUnion`
+
+创建两个兼容集合的并集。
+
+```c
+xset* xrtSetUnion(const xset* pLeft, const xset* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、兼容 | 左集合 |
+| `pRight` | 输入 | 非空、兼容 | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新集合 | — |
+| `NULL` | 创建失败 | `XERR_STATE` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 并集
+
+```c
+	pUnion = xrtSetUnion(pA, pB);
+```
+
+### `xrtSetIntersection`
+
+创建两个兼容集合的交集。
+
+```c
+xset* xrtSetIntersection(const xset* pLeft, const xset* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、兼容 | 左集合 |
+| `pRight` | 输入 | 非空、兼容 | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新集合 | — |
+| `NULL` | 创建失败 | `XERR_STATE` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[set](../../examples/containers/set/main.c) · 交集
+
+```c
+	pAllowed = xrtSetIntersection(&tRequested, &tEnabled);
+```
+
+### `xrtSetDifference`
+
+创建左集合相对右集合的差集。
+
+```c
+xset* xrtSetDifference(const xset* pLeft, const xset* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、兼容 | 左集合 |
+| `pRight` | 输入 | 非空、兼容 | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新集合 | — |
+| `NULL` | 创建失败 | `XERR_STATE` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 差集
+
+```c
+	pDiff = xrtSetDifference(pUnion, pB);
+```
+
+### `xrtSetSymmetricDifference`
+
+创建两个兼容集合的对称差集。
+
+```c
+xset* xrtSetSymmetricDifference(
+	const xset* pLeft,
+	const xset* pRight
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、兼容 | 左集合 |
+| `pRight` | 输入 | 非空、兼容 | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 新集合 | — |
+| `NULL` | 创建失败 | `XERR_STATE` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 对称差集
+
+```c
+		pSym = xrtSetSymmetricDifference(pThree, pB);
+```
+
+### `xrtSetIsSubset`
+
+判断左集合是否为右集合的子集，可选择严格子集。
+
+```c
+bool xrtSetIsSubset(
+	const xset* pLeft,
+	const xset* pRight,
+	bool bProper
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、兼容 | 左集合 |
+| `pRight` | 输入 | 非空、兼容 | 右集合 |
+| `bProper` | 输入 | — | 是否要求严格子集 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否子集 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 子集判断
+
+```c
+		if ( xrtSetIsSubset(pThree, pA, false) ||
+			!xrtSetIsSubset(pA, pThree, false) ||
+			!xrtSetIsSubset(pA, pThree, true) ||
+			!xrtSetIsSuperset(pThree, pA, false) ||
+			!xrtSetIsSuperset(pThree, pA, true) ||
+			xrtSetIsSuperset(pA, pThree, false) ||
+			xrtSetIsDisjoint(pA, pThree) ) {
+```
+
+### `xrtSetIsSuperset`
+
+判断左集合是否为右集合的超集，可选择严格超集。
+
+```c
+bool xrtSetIsSuperset(
+	const xset* pLeft,
+	const xset* pRight,
+	bool bProper
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、兼容 | 左集合 |
+| `pRight` | 输入 | 非空、兼容 | 右集合 |
+| `bProper` | 输入 | — | 是否要求严格超集 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否超集 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 超集判断
+
+```c
+			!xrtSetIsSuperset(pThree, pA, false) ||
+```
+
+### `xrtSetIsDisjoint`
+
+判断两个兼容集合是否没有任何共同元素。
+
+```c
+bool xrtSetIsDisjoint(
+	const xset* pLeft,
+	const xset* pRight
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、兼容 | 左集合 |
+| `pRight` | 输入 | 非空、兼容 | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否无共同元素 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 互斥判断
+
+```c
+		!xrtSetIsDisjoint(pA, pB) ) {
+```
+
+### `xrtSetEqual`
+
+判断两个兼容集合是否拥有相同元素。
+
+```c
+bool xrtSetEqual(const xset* pLeft, const xset* pRight)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLeft` | 输入 | 非空、兼容 | 左集合 |
+| `pRight` | 输入 | 非空、兼容 | 右集合 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否相同 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或元素大小为零
+- `XERR_STATE` — 集合非空、状态非法或两个集合不兼容
+
+#### 范例
+
+[tour](../../examples/containers/set_tour/main.c) · 相等判断
+
+```c
+				!xrtSetEqual(pA, pClone) ) {
 ```
 
 ## 错误
