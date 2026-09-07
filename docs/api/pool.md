@@ -98,53 +98,709 @@
 
 `ItemSize` 是用户对象大小，`Stride` 是实际槽步长，`Alignment` 是对齐；`LiveCount`、`FreeCount` 和 `Capacity` 分别表示活动槽、可直接复用槽和总槽数。
 
-### `xrtPoolPageInit` / `xrtPoolPageInitAligned`
+### `xrtPoolPageInit`
 
-初始化调用方提供的 256 槽页结构。对象大小必须非零。失败后结构保持可安全 `Unit` 的零状态。
+使用默认 16 字节对齐初始化一个空的 256 槽页。
+
+```c
+bool xrtPoolPageInit(xpoolpage* pPage, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输出 | 非空 | 接收页 |
+| `iItemSize` | 输入 | > 0 | 每槽字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 默认初始化
+
+```c
+		if ( !xrtPoolPageInit(&DefaultPage, sizeof(uint64)) ) {
+```
+
+### `xrtPoolPageInitAligned`
+
+使用指定的二次幂对齐初始化一个空的 256 槽页。
+
+```c
+bool xrtPoolPageInitAligned(xpoolpage* pPage, size_t iItemSize, size_t iAlignment)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输出 | 非空 | 接收页 |
+| `iItemSize` | 输入 | > 0 | 每槽字节数 |
+| `iAlignment` | 输入 | 二次幂 | 槽对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 对齐初始化
+
+```c
+	if ( !xrtPoolPageInitAligned(&tPage, sizeof(int), 32) ) {
+```
 
 ### `xrtPoolPageInitLayout`
 
-使用显式对象大小、对齐和 1 到 256 的槽数初始化页。适合大对象、低延迟分配器或需要精确控制单页占用的上层模块。
+使用显式对齐和槽数初始化一个空页。
 
-### `xrtPoolPageCreate` / `xrtPoolPageCreateAligned`
+```c
+bool xrtPoolPageInitLayout(
+	xpoolpage* pPage,
+	size_t iItemSize,
+	size_t iAlignment,
+	size_t iCapacity
+)
+```
 
-创建 256 槽页结构和槽区。失败返回 `NULL`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输出 | 非空 | 接收页 |
+| `iItemSize` | 输入 | > 0 | 每槽字节数 |
+| `iAlignment` | 输入 | 二次幂 | 槽对齐 |
+| `iCapacity` | 输入 | > 0 | 槽数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 完整布局初始化
+
+```c
+		if ( !xrtPoolPageInitLayout(&LayoutPage, sizeof(uint64),
+				32u, 8u) ||
+			(LayoutPage.Capacity != 8u) ) {
+```
+
+### `xrtPoolPageCreate`
+
+创建一个使用默认 16 字节对齐的 256 槽页。
+
+```c
+xpoolpage* xrtPoolPageCreate(size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 每槽字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 页（含槽内存） | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 创建页
+
+```c
+	pCreated = xrtPoolPageCreate(sizeof(uint64));
+```
+
+### `xrtPoolPageCreateAligned`
+
+创建一个使用指定对齐的 256 槽页。
+
+```c
+xpoolpage* xrtPoolPageCreateAligned(size_t iItemSize, size_t iAlignment)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 每槽字节数 |
+| `iAlignment` | 输入 | 二次幂 | 槽对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 页（含槽内存） | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 创建页（对齐）
+
+```c
+		pAligned = xrtPoolPageCreateAligned(sizeof(uint64), 32u);
+```
 
 ### `xrtPoolPageCreateLayout`
 
-创建使用显式对齐和槽数的页。失败返回 `NULL`。
+创建一个使用显式对齐和槽数的页。
 
-### `xrtPoolPageUnit` / `xrtPoolPageDestroy`
+```c
+xpoolpage* xrtPoolPageCreateLayout(
+	size_t iItemSize,
+	size_t iAlignment,
+	size_t iCapacity
+)
+```
 
-`Unit` 只释放页持有的槽区，`Destroy` 还释放由 `Create` 返回的页结构。
+#### 参数
 
-### `xrtPoolPageAlloc` / `xrtPoolPageCalloc`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 每槽字节数 |
+| `iAlignment` | 输入 | 二次幂 | 槽对齐 |
+| `iCapacity` | 输入 | > 0 | 槽数 |
 
-分配一个槽。`Calloc` 清零 `ItemSize` 字节。页满时返回 `NULL` 和 `XERR_AGAIN`，不会自动扩页。
+#### 返回值
 
-### `xrtPoolPageFree` / `xrtPoolPageFreeAt`
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 页（含槽内存） | — |
+| `NULL` | 创建失败 | 见错误 |
 
-分别按精确对象指针或槽索引释放活动槽。成功返回 `true`。
+#### 错误
 
-### `xrtPoolPageGet` / `xrtPoolPageIndex`
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
 
-`Get` 按索引返回活动对象，空闲或越界返回 `NULL`。`Index` 把活动对象转换为槽索引；输出参数不能为 `NULL`。
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 创建页（完整布局）
+
+```c
+	pCompact = xrtPoolPageCreateLayout(8192, 64, 4);
+```
+
+### `xrtPoolPageUnit`
+
+释放页持有的槽内存，但不释放页结构。
+
+```c
+void xrtPoolPageUnit(xpoolpage* pPage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 槽内存已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 释放槽内存
+
+```c
+		xrtPoolPageUnit(&tPage);
+```
+
+### `xrtPoolPageDestroy`
+
+释放页持有的全部资源和页结构。
+
+```c
+void xrtPoolPageDestroy(xpoolpage* pPage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 页已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 销毁页
+
+```c
+		xrtPoolPageDestroy(pCompact);
+```
+
+### `xrtPoolPageAlloc`
+
+分配一个未初始化槽，页满时返回空指针并设置 `XERR_AGAIN`。
+
+```c
+ptr xrtPoolPageAlloc(xpoolpage* pPage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 非空 | 目标页 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内存，至少按 16 字节对齐 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_AGAIN` — 页已满，无空闲槽
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 分配槽
+
+```c
+	pDrop = (int*)xrtPoolPageAlloc(&tPage);
+```
+
+### `xrtPoolPageCalloc`
+
+分配并清零一个槽，页满时返回空指针并设置 `XERR_AGAIN`。
+
+```c
+ptr xrtPoolPageCalloc(xpoolpage* pPage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 非空 | 目标页 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内存，至少按 16 字节对齐 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_AGAIN` — 页已满，无空闲槽
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 清零分配槽
+
+```c
+	pKeep = (int*)xrtPoolPageCalloc(&tPage);
+```
+
+### `xrtPoolPageFree`
+
+安全释放一个活动槽，非法、跨页或重复释放均返回 `false`。
+
+```c
+bool xrtPoolPageFree(xpoolpage* pPage, ptr pMemory)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 非空 | 目标页 |
+| `pMemory` | 输入 | 本页活动槽 | 要释放的槽 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已释放 | — |
+| `false` | 非法、跨页或重复释放 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 重复释放、指针不属于本对象或内部状态非法
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 释放槽
+
+```c
+	if ( (pValue == NULL) || !xrtPoolPageFree(&tPage, pValue) ) {
+```
+
+### `xrtPoolPageFreeAt`
+
+按槽索引释放活动对象。
+
+```c
+bool xrtPoolPageFreeAt(xpoolpage* pPage, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 非空 | 目标页 |
+| `iIndex` | 输入 | < 槽数 | 槽索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已释放 | — |
+| `false` | 空闲或越界 | 不设错 |
+
+#### 错误
+
+- 空闲槽或索引越界返回 `false` 且不设置错误；空句柄 `XERR_ARGUMENT`
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 按索引释放
+
+```c
+		!xrtPoolPageFreeAt(&tPage, iIndex)
+```
+
+### `xrtPoolPageGet`
+
+返回指定索引处的活动对象，空闲或越界时返回空指针。
+
+```c
+ptr xrtPoolPageGet(const xpoolpage* pPage, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 非空 | 目标页 |
+| `iIndex` | 输入 | < 槽数 | 槽索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 活动对象 | — |
+| `NULL` | 空闲或越界 | 不设错 |
+
+#### 错误
+
+- 空闲槽或索引越界返回 `NULL` 且不设置错误；空句柄 `XERR_ARGUMENT`
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 按索引取对象
+
+```c
+		(xrtPoolPageGet(&tPage, iIndex) != pKeep)
+```
+
+### `xrtPoolPageIndex`
+
+获取活动对象的槽索引。
+
+```c
+bool xrtPoolPageIndex(const xpoolpage* pPage, const void* pMemory, size_t* pIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 非空 | 目标页 |
+| `pMemory` | 输入 | 本页活动槽 | 目标对象 |
+| `pIndex` | 输出 | 非空 | 接收槽索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出索引 | — |
+| `false` | 非本页活动对象 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 重复释放、指针不属于本对象或内部状态非法
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 对象索引
+
+```c
+		!xrtPoolPageIndex(&tPage, pKeep, &iIndex) ||
+```
 
 ### `xrtPoolPageOwns`
 
-仅当指针是该页当前活动槽的起始地址时返回 `true`。
+判断指针当前是否属于该页的活动槽。
 
-### `xrtPoolPageMark` / `xrtPoolPageSweep` / `xrtPoolPageFreeMarked`
+```c
+bool xrtPoolPageOwns(const xpoolpage* pPage, const void* pMemory)
+```
 
-提供单页显式标记、释放未标记槽和释放已标记槽。两个释放函数返回释放数量。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 非空 | 目标页 |
+| `pMemory` | 输入 | 任意 | 待判断指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否本页活动槽 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 归属判断
+
+```c
+		!xrtPoolPageOwns(&tPage, pKeep) ||
+```
+
+### `xrtPoolPageMark`
+
+将一个活动槽标记为本轮可达对象。
+
+```c
+bool xrtPoolPageMark(xpoolpage* pPage, ptr pMemory)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入/输出 | 非空 | 目标页 |
+| `pMemory` | 输入 | 本页活动槽 | 目标对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已标记 | — |
+| `false` | 非本页/池活动对象 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 重复释放、指针不属于本对象或内部状态非法
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 标记
+
+```c
+	if ( !xrtPoolPageMark(&tPage, pKeep) || (xrtPoolPageSweep(&tPage) != 1) ) {
+```
+
+### `xrtPoolPageSweep`
+
+释放未标记槽，并清除幸存槽的标记。
+
+```c
+size_t xrtPoolPageSweep(xpoolpage* pPage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入/输出 | 非空 | 目标页 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的未标记槽数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 清扫
+
+```c
+	if ( !xrtPoolPageMark(&tPage, pKeep) || (xrtPoolPageSweep(&tPage) != 1) ) {
+```
+
+### `xrtPoolPageFreeMarked`
+
+释放已标记槽，适合显式批量选择释放。
+
+```c
+size_t xrtPoolPageFreeMarked(xpoolpage* pPage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入/输出 | 非空 | 目标页 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的已标记槽数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 释放已标记
+
+```c
+	if ( !xrtPoolPageMark(&tPage, pKeep) || (xrtPoolPageFreeMarked(&tPage) != 1) ) {
+```
 
 ### `xrtPoolPageReset`
 
-一次释放全部活动槽并返回数量；页恢复到新建后的分配状态，槽内容不清零。
+将页内全部槽恢复为空闲状态并返回释放的活动槽数。
+
+```c
+size_t xrtPoolPageReset(xpoolpage* pPage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入/输出 | 非空 | 目标页 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的活动槽数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 全部重置
+
+```c
+		(xrtPoolPageReset(&tPage) != 2)
+```
 
 ### `xrtPoolPageGetInfo`
 
-复制页状态。输出参数为空时不执行操作；页无效时输出零结构。
+获取单页当前状态。
+
+```c
+void xrtPoolPageGetInfo(const xpoolpage* pPage, xpoolpageinfo* pInfo)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPage` | 输入 | 非空 | 目标页 |
+| `pInfo` | 输出 | 非空 | 接收状态快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 快照已写出 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[page](../../examples/memory/pool_page/main.c) · 状态查询
+
+```c
+	xrtPoolPageGetInfo(&tPage, &tInfo);
+```
 
 ## 固定对象池
 
@@ -160,53 +816,705 @@
 
 签名为 `bool visitor(ptr object, size_t index, ptr userData)`。`index` 是本次遍历从零开始的连续序号，不是可持久化句柄。返回 `false` 提前停止。
 
-### `xrtPoolInit` / `xrtPoolInitAligned`
+### `xrtPoolInit`
 
-初始化固定对象池，初始不分配页，默认保留一个空页。对象大小必须非零。每页槽数按 `XRT_POOL_PAGE_BYTES_DEFAULT` 自动选择。
+使用默认 16 字节对齐初始化固定对象池。
+
+```c
+bool xrtPoolInit(xpool* pPool, size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输出 | 非空 | 接收池 |
+| `iItemSize` | 输入 | > 0 | 每对象字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 默认初始化
+
+```c
+		if ( !xrtPoolInit(&DefaultPool, sizeof(examplejob)) ) {
+```
+
+### `xrtPoolInitAligned`
+
+使用指定的二次幂对齐初始化固定对象池。
+
+```c
+bool xrtPoolInitAligned(xpool* pPool, size_t iItemSize, size_t iAlignment)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输出 | 非空 | 接收池 |
+| `iItemSize` | 输入 | > 0 | 每对象字节数 |
+| `iAlignment` | 输入 | 二次幂 | 对象对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 对齐初始化
+
+```c
+	if ( !xrtPoolInitAligned(&tPool, sizeof(examplejob), 32) ) {
+```
 
 ### `xrtPoolInitLayout`
 
-使用显式对象大小、对齐和每页槽数初始化固定池。槽数必须在 1 到 256 范围内。显式布局可在较少页与较低单次页分配延迟之间作出领域相关的选择。
+使用显式对齐和每页槽数初始化固定对象池。
 
-### `xrtPoolCreate` / `xrtPoolCreateAligned`
+```c
+bool xrtPoolInitLayout(
+	xpool* pPool,
+	size_t iItemSize,
+	size_t iAlignment,
+	size_t iPageCapacity
+)
+```
 
-创建堆上固定对象池，并使用自动页容量。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输出 | 非空 | 接收池 |
+| `iItemSize` | 输入 | > 0 | 每对象字节数 |
+| `iAlignment` | 输入 | 二次幂 | 对象对齐 |
+| `iPageCapacity` | 输入 | > 0 | 每页槽数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 布局参数非法 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 完整布局初始化
+
+```c
+		if ( !xrtPoolInitLayout(&LayoutPool, sizeof(examplejob),
+				32u, 64u) ||
+			(LayoutPool.PageCapacity != 64u) ) {
+```
+
+### `xrtPoolCreate`
+
+创建使用默认 16 字节对齐的固定对象池。
+
+```c
+xpool* xrtPoolCreate(size_t iItemSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 每对象字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 池 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 创建池
+
+```c
+	pCompact = xrtPoolCreate(8192);
+```
+
+### `xrtPoolCreateAligned`
+
+创建使用指定对齐的固定对象池。
+
+```c
+xpool* xrtPoolCreateAligned(size_t iItemSize, size_t iAlignment)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 每对象字节数 |
+| `iAlignment` | 输入 | 二次幂 | 对象对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 池 | — |
+| `NULL` | 创建失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 创建池（对齐）
+
+```c
+		pAligned = xrtPoolCreateAligned(sizeof(examplejob), 32u);
+```
 
 ### `xrtPoolCreateLayout`
 
-创建使用显式对齐和每页槽数的堆上固定对象池。
+创建使用显式对齐和每页槽数的固定对象池。
 
-### `xrtPoolUnit` / `xrtPoolDestroy`
+```c
+xpool* xrtPoolCreateLayout(
+	size_t iItemSize,
+	size_t iAlignment,
+	size_t iPageCapacity
+)
+```
 
-释放全部页和索引；不会逐个调用对象清理逻辑。
+#### 参数
 
-### `xrtPoolAlloc` / `xrtPoolCalloc`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iItemSize` | 输入 | > 0 | 每对象字节数 |
+| `iAlignment` | 输入 | 二次幂 | 对象对齐 |
+| `iPageCapacity` | 输入 | > 0 | 每页槽数 |
 
-从可用页分配对象，必要时自动创建新页。`Calloc` 清零对象的 `ItemSize` 字节。
+#### 返回值
 
-### `xrtPoolFree` / `xrtPoolOwns`
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 池 | — |
+| `NULL` | 创建失败 | 见错误 |
 
-安全释放对象或查询活动所有权。释放导致空页数超过 `RetainEmpty` 时，会立即回收多余页。
+#### 错误
 
-### `xrtPoolMark` / `xrtPoolSweep` / `xrtPoolFreeMarked`
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 项大小或容量为零、溢出
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
 
-对整个固定池执行显式标记和两种明确的释放模式，返回释放对象数。扫描后按当前保留策略裁剪空页。
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 创建池（完整布局）
+
+```c
+	pCreated = xrtPoolCreateLayout(sizeof(examplejob), 32, 128);
+```
+
+### `xrtPoolUnit`
+
+释放池持有的全部页，但不释放池结构。
+
+```c
+void xrtPoolUnit(xpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 全部页已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 释放页
+
+```c
+			xrtPoolUnit(&tPool);
+```
+
+### `xrtPoolDestroy`
+
+释放池持有的全部资源和池结构。
+
+```c
+void xrtPoolDestroy(xpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 池已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 销毁池
+
+```c
+		xrtPoolDestroy(pCompact);
+```
+
+### `xrtPoolAlloc`
+
+分配一个未初始化对象；池需要新页时可能分配内存。
+
+```c
+ptr xrtPoolAlloc(xpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内存，至少按 16 字节对齐 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 分配对象
+
+```c
+	pReused = (examplejob*)xrtPoolAlloc(&tPool);
+```
+
+### `xrtPoolCalloc`
+
+分配并清零一个对象；池需要新页时可能分配内存。
+
+```c
+ptr xrtPoolCalloc(xpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内存，至少按 16 字节对齐 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 清零分配对象
+
+```c
+		arrJob[i] = (examplejob*)xrtPoolCalloc(&tPool);
+```
+
+### `xrtPoolFree`
+
+安全释放活动对象，非法、跨池或重复释放均返回 `false`。
+
+```c
+bool xrtPoolFree(xpool* pPool, ptr pObject)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pObject` | 输入 | 本池活动对象 | 要释放的对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已释放 | — |
+| `false` | 非法、跨页或重复释放 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 重复释放、指针不属于本对象或内部状态非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 释放对象
+
+```c
+	if ( !xrtPoolFree(&tPool, pReleased) ) {
+```
+
+### `xrtPoolOwns`
+
+判断指针当前是否属于该池的活动对象。
+
+```c
+bool xrtPoolOwns(const xpool* pPool, const void* pObject)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pObject` | 输入 | 任意 | 待判断指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否本池活动对象 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 归属判断
+
+```c
+	if ( !xrtPoolOwns(&tPool, pReused) ) {
+```
+
+### `xrtPoolMark`
+
+标记一个活动对象为本轮可达。
+
+```c
+bool xrtPoolMark(xpool* pPool, ptr pObject)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+| `pObject` | 输入 | 本池活动对象 | 目标对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已标记 | — |
+| `false` | 非本页/池活动对象 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 重复释放、指针不属于本对象或内部状态非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 标记
+
+```c
+	if ( !xrtPoolMark(&tPool, arrJob[0]) || (xrtPoolSweep(&tPool) != 299) ) {
+```
+
+### `xrtPoolSweep`
+
+释放全部未标记对象，并清除幸存对象标记。
+
+```c
+size_t xrtPoolSweep(xpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的未标记对象数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 清扫
+
+```c
+	if ( !xrtPoolMark(&tPool, arrJob[0]) || (xrtPoolSweep(&tPool) != 299) ) {
+```
+
+### `xrtPoolFreeMarked`
+
+释放全部已标记对象。
+
+```c
+size_t xrtPoolFreeMarked(xpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的已标记对象数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 释放已标记
+
+```c
+	if ( !xrtPoolMark(&tPool, arrJob[0]) || (xrtPoolFreeMarked(&tPool) != 1) ) {
+```
 
 ### `xrtPoolReset`
 
-释放全部活动对象，保留不超过 `RetainEmpty` 个空页，返回对象数。
+释放全部活动对象，并按保留策略回收空页。
 
-### `xrtPoolTrim` / `xrtPoolSetRetain`
+```c
+size_t xrtPoolReset(xpool* pPool)
+```
 
-`Trim` 立即把空页裁剪到指定数量并返回释放页数，但不修改自动保留策略。`SetRetain` 修改自动策略并立即裁剪。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的活动对象数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 全部重置
+
+```c
+	if ( xrtPoolReset(&tPool) != 300 ) {
+```
+
+### `xrtPoolTrim`
+
+回收多余空页，返回真正释放的页数。
+
+```c
+size_t xrtPoolTrim(xpool* pPool, size_t iRetainEmpty)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+| `iRetainEmpty` | 输入 | — | 保留的空页数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的页数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 裁剪空页
+
+```c
+	if ( xrtPoolTrim(&tPool, 0) == 0 ) {
+```
+
+### `xrtPoolSetRetain`
+
+设置自动保留的空页数，并立即执行一次裁剪。
+
+```c
+void xrtPoolSetRetain(xpool* pPool, size_t iRetainEmpty)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+| `iRetainEmpty` | 输入 | — | 保留的空页数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已设置并裁剪 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 设置保留策略
+
+```c
+	xrtPoolSetRetain(&tPool, 2);
+```
 
 ### `xrtPoolGet`
 
-复制固定池诊断状态，不分配内存。
+获取固定对象池当前状态。
+
+```c
+void xrtPoolGet(const xpool* pPool, xpoolinfo* pInfo)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pInfo` | 输出 | 非空 | 接收状态快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 快照已写出 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 状态查询
+
+```c
+	xrtPoolGet(&tPool, &tInfo);
+```
 
 ### `xrtPoolVisit`
 
-访问当前活动对象并返回已调用回调的数量。遍历期间可以查询和调用 `xrtPoolMark`。分配、释放、扫描、重置、裁剪、改变保留策略、释放池和嵌套访问都会以 `XPOOL_ERROR_VISIT_ACTIVE` 拒绝。保护状态会同步到全部页，因此经公共结构取得页后直接调用页级修改接口也不能让迭代器持有悬空页。
+访问活动对象；遍历期间只允许查询和标记，不得改变池的分配集合。
+
+```c
+size_t xrtPoolVisit(xpool* pPool, xpoolvisitor pVisitor, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pVisitor` | 输入 | 非空 | 访问回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际访问的对象数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[pool](../../examples/memory/pool/main.c) · 遍历对象
+
+```c
+	if ( xrtPoolVisit(&tPool, exampleVisitJob, &iVisited) != 300 ) {
+```
 
 ## 变长内存池
 
@@ -222,55 +1530,620 @@
 
 签名为 `bool visitor(ptr memory, size_t size, size_t alignment, ptr userData)`。`size` 是 `xrtMemPoolSize` 可查询的安全可用大小，返回 `false` 提前停止。
 
-### `xrtMemPoolInit` / `xrtMemPoolCreate`
+### `xrtMemPoolInit`
 
-建立变长池。`cutoff == 0` 使用 1024；其他值是池化小块的最大请求大小。尺寸类数量为 `ceil(cutoff / 16)`，初始化时只建立尺寸类状态，不分配槽页。
+初始化变长池，`iCutoff` 为零时使用默认值 1024。
 
-### `xrtMemPoolUnit` / `xrtMemPoolDestroy`
+```c
+bool xrtMemPoolInit(xmempool* pPool, size_t iCutoff)
+```
 
-释放全部小块页、独立大块、登记表和尺寸类。不会调用块内对象析构器。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输出 | 非空 | 接收池 |
+| `iCutoff` | 输入 | 0 = 1024 | 池化小块上限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 初始化
+
+```c
+	if ( !xrtMemPoolInit(&tPool, 128) ) {
+```
+
+### `xrtMemPoolCreate`
+
+创建变长池，`iCutoff` 为零时使用默认值 1024。
+
+```c
+xmempool* xrtMemPoolCreate(size_t iCutoff)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iCutoff` | 输入 | 0 = 1024 | 池化小块上限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 变长池 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 创建池
+
+```c
+	pCreated = xrtMemPoolCreate(0);
+```
+
+### `xrtMemPoolUnit`
+
+释放池持有的全部资源，但不释放池结构；不调用块内对象析构器。
+
+```c
+void xrtMemPoolUnit(xmempool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 全部资源已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 释放资源
+
+```c
+		xrtMemPoolUnit(&tPool);
+```
+
+### `xrtMemPoolDestroy`
+
+释放池持有的全部资源和池结构；不调用块内对象析构器。
+
+```c
+void xrtMemPoolDestroy(xmempool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 池已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 销毁池
+
+```c
+	xrtMemPoolDestroy(pCreated);
+```
 
 ### `xrtMemPoolAlloc`
 
-默认按 16 字节对齐。零大小与 `xrtMalloc(0)` 一致，仍返回至少一个可用字节。请求不大于 `cutoff` 时进入 `ceil(size / 16)` 尺寸类，否则作为独立大块登记。
+按 16 字节对齐分配内存，大小为零时仍返回至少一个可用字节。
+
+```c
+ptr xrtMemPoolAlloc(xmempool* pPool, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `iSize` | 输入 | — | 请求字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内存，至少按 16 字节对齐 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 分配块
+
+```c
+	pPacket = (bytes)xrtMemPoolAlloc(&tPool, 4096);
+```
 
 ### `xrtMemPoolCalloc`
 
-分配 `count * size` 字节并清零。乘法溢出失败；总大小为零时仍分配并清零至少一个字节。
+分配 `iCount * iSize` 字节并清零；乘法溢出时失败，总大小为零时仍分配至少一个字节。
+
+```c
+ptr xrtMemPoolCalloc(xmempool* pPool, size_t iCount, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `iCount` | 输入 | — | 元素数量 |
+| `iSize` | 输入 | — | 每元素字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内存，至少按 16 字节对齐 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — `iCount * iSize` 乘法溢出
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 清零分配块
+
+```c
+	sText = (char*)xrtMemPoolCalloc(&tPool, 1, 24);
+```
 
 ### `xrtMemPoolAllocAligned`
 
-接受二次幂对齐。对齐不大于 16 且大小不超过分界时使用尺寸类，更大对齐使用独立大块。零大小仍有效。
+按指定二次幂对齐分配，零大小仍有效，超过 16 字节对齐时走独立大块。
+
+```c
+ptr xrtMemPoolAllocAligned(xmempool* pPool, size_t iSize, size_t iAlignment)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `iSize` | 输入 | — | 请求字节数 |
+| `iAlignment` | 输入 | 二次幂 | 对齐 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内存，至少按 16 字节对齐 | — |
+| `NULL` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_VALUE` — 对齐不是二次幂
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 对齐分配块
+
+```c
+	pAligned = (bytes)xrtMemPoolAllocAligned(&tPool, 7, 64);
+```
 
 ### `xrtMemPoolRealloc`
 
-`memory == NULL` 等同 `Alloc`；非空块的新大小为零时释放并返回 `NULL`。同一小块尺寸类内或独立大块缩小时保持地址；增长时分配新块并复制 `min(oldUsableSize, newSize)` 字节。失败时原块保持有效。
+调整池内块大小并保留已有内容，大小为零时释放。
 
-小块不保存原请求大小，因此 `oldUsableSize` 和 `xrtMemPoolSize` 返回尺寸类大小。独立大块缩小只改变逻辑可用大小，不保证立即缩减底层保留内存。
+```c
+ptr xrtMemPoolRealloc(xmempool* pPool, ptr pMemory, size_t iSize)
+```
 
-### `xrtMemPoolFree` / `xrtMemPoolOwns` / `xrtMemPoolSize`
+#### 参数
 
-`Free` 安全释放活动块。`Owns` 查询活动所有权。`Size` 对小块返回尺寸类可用大小，对大块返回逻辑大小，未找到返回零。
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pMemory` | 输入 | 本池活动块或空 | 要调整的块 |
+| `iSize` | 输入 | — | 新字节数，0 = 释放 |
 
-### `xrtMemPoolMark` / `xrtMemPoolSweep` / `xrtMemPoolFreeMarked`
+#### 返回值
 
-标记和扫描同时覆盖尺寸类小块与独立大块。`Sweep` 清除幸存标记；两个释放函数返回总块数。
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 槽内存，至少按 16 字节对齐 | — |
+| `NULL` | 失败 | 见错误 |
+（`pMemory` 为空且大小非零时等价分配）
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 重复释放、指针不属于本对象或内部状态非法
+- `XERR_MEMORY` — 槽内存分配失败
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 调整块大小
+
+```c
+	sText = (char*)xrtMemPoolRealloc(&tPool, sText, 80);
+```
+
+### `xrtMemPoolFree`
+
+安全释放池内活动块，非法、跨池或重复释放均返回 `false`。
+
+```c
+bool xrtMemPoolFree(xmempool* pPool, ptr pMemory)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pMemory` | 输入 | 本池活动块 | 要释放的块 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已释放 | — |
+| `false` | 非法、跨页或重复释放 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 重复释放、指针不属于本对象或内部状态非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 释放块
+
+```c
+		!xrtMemPoolFree(&tPool, sText)
+```
+
+### `xrtMemPoolSize`
+
+返回活动块可安全使用的字节数，不属于该池时返回零。
+
+```c
+size_t xrtMemPoolSize(const xmempool* pPool, const void* pMemory)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pMemory` | 输入 | 任意 | 待查询指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 可用字节数；0 = 不属于本池 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 块大小查询
+
+```c
+		(xrtMemPoolSize(&tPool, sText) < 80) ||
+```
+
+### `xrtMemPoolOwns`
+
+判断指针当前是否属于该池的活动块。
+
+```c
+bool xrtMemPoolOwns(const xmempool* pPool, const void* pMemory)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pMemory` | 输入 | 任意 | 待判断指针 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否本池活动块 | 不设错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 归属判断
+
+```c
+		!xrtMemPoolOwns(&tPool, sText) ||
+```
+
+### `xrtMemPoolMark`
+
+标记一个活动块为本轮可达。
+
+```c
+bool xrtMemPoolMark(xmempool* pPool, ptr pMemory)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+| `pMemory` | 输入 | 本池活动块 | 目标块 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已标记 | — |
+| `false` | 非本页/池活动对象 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 重复释放、指针不属于本对象或内部状态非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 标记
+
+```c
+		!xrtMemPoolMark(&tPool, sText) ||
+```
+
+### `xrtMemPoolSweep`
+
+释放全部未标记块，并清除幸存块标记。
+
+```c
+size_t xrtMemPoolSweep(xmempool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的未标记块数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 清扫
+
+```c
+		(xrtMemPoolSweep(&tPool) != 1)
+```
+
+### `xrtMemPoolFreeMarked`
+
+释放全部已标记块。
+
+```c
+size_t xrtMemPoolFreeMarked(xmempool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的已标记块数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 释放已标记
+
+```c
+		(xrtMemPoolFreeMarked(&tPool) != 1) ||
+```
 
 ### `xrtMemPoolReset`
 
-释放全部活动块，释放所有独立大块，并让每个曾使用的尺寸类最多保留一个空页。登记表和尺寸类配置继续复用；登记表槽会恢复为空状态，不会留下墓碑并在下一次分配时触发无意义扩容。
+释放全部活动块，并保留每个尺寸类的一个空页。
+
+```c
+size_t xrtMemPoolReset(xmempool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的活动块数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 全部重置
+
+```c
+		(xrtMemPoolReset(&tPool) != 2)
+```
 
 ### `xrtMemPoolTrim`
 
-把每个尺寸类的空页裁剪到指定数量，返回释放页总数。该操作不申请内存，也不缩小大块登记表，适合内存压力路径。
+将每个尺寸类的空页裁剪到指定数量。
+
+```c
+size_t xrtMemPoolTrim(xmempool* pPool, size_t iRetainEmptyPerClass)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入/输出 | 非空 | 目标池 |
+| `iRetainEmptyPerClass` | 输入 | — | 每尺寸类保留空页数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 释放的页数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 裁剪空页
+
+```c
+	(void)xrtMemPoolTrim(&tPool, 0);
+```
 
 ### `xrtMemPoolGet`
 
-复制变长池诊断状态，不分配内存。
+获取变长池当前状态。
+
+```c
+void xrtMemPoolGet(const xmempool* pPool, xmempoolinfo* pInfo)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pInfo` | 输出 | 非空 | 接收状态快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 快照已写出 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 状态查询
+
+```c
+	xrtMemPoolGet(&tPool, &tInfo);
+```
 
 ### `xrtMemPoolVisit`
 
-依次访问尺寸类活动块和独立大块，返回已调用回调的数量。遍历顺序不是稳定排序。遍历期间可以查询和标记块；会改变分配集合的操作、释放池和嵌套访问都会以 `XPOOL_ERROR_VISIT_ACTIVE` 拒绝。保护状态同时覆盖内部尺寸类与小块页，不能通过公开诊断字段绕过。
+访问活动块；遍历期间只允许查询和标记，不得改变池的分配集合。
+
+```c
+size_t xrtMemPoolVisit(
+	xmempool* pPool,
+	xmempoolvisitor pVisitor,
+	ptr pUserData
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPool` | 输入 | 非空 | 目标池 |
+| `pVisitor` | 输入 | 非空 | 访问回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际访问的块数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[mempool](../../examples/memory/memory_pool/main.c) · 遍历块
+
+```c
+	if ( xrtMemPoolVisit(&tPool, exampleVisitMemory, &iVisited) != 3 ) {
+```
 
 ## 旧版资产复用
 

@@ -56,7 +56,7 @@
 | 49 | path.md | 32 | **完成** | 32/32 全绿（G3 32 片段，2026-09-07）；xrt.path 域 FORMAT/OVERFLOW/ROOT/SYSTEM 四码入档；safe 族纯谓词不设错；manifest 补注册 tour/system/safe 三范例 |
 | 50 | pattern.md | 37 | **完成** | 37/37 全绿（G3 37 片段，2026-09-07）；xrt.pattern 域 CONFIG/PATTERN/LIMIT/CONFLICT/CAPACITY 五码入档；ErrorOffset/ErrorPattern 机器数据定位器；锚点 pattern/pattern_tour |
 | 51 | pem.md | 7 | **完成** | 7/7 全绿（G3 7 片段，2026-09-07）；xrt.pem 域 LABEL/BOUNDARY/BODY/NOT_FOUND 四码入档；xpemresult 三值逐值成表；锚点 pem/pem_tour（后者挂 asn1_der） |
-| 52 | pool.md | 58 | 待办 |  |
+| 52 | pool.md | 58 | **完成** | 58/58 全绿（G3 58 片段，2026-09-07）；单页 20 + 固定池 20 + 变长池 18 三族；旧合并式小节（`X` / `Y` 双名）拆分；AGAIN 页满、RANGE 乘法溢出入档；锚点 pool_page/pool/memory_pool |
 | 53 | process.md | 37 | 待办 |  |
 | 54 | proxy.md | 23 | 待办 |  |
 | 55 | queue.md | 46 | 待办 |  |
@@ -646,4 +646,10 @@
   Find 未命中 = NOT_FOUND、Body 非规范 Base64 = PROTOCOL/BODY、
   Decode 容量不足由 Base64 底座透传 RANGE。
   完成 API 2125→2132/3664（58.2%），51/79 文件。
+- 2026-09-07 pool.md 完成（58/58，G3 58 片段全绿）：三族全接口；
+  错误口径对照 src/memory/pool*.c、memory_pool.c——页满 Alloc = XERR_AGAIN、
+  Calloc 乘法溢出 = XERR_RANGE、Free/Mark 跨对象 = XERR_STATE、
+  FreeAt/Get 空闲越界不设错、Owns/Size 纯查询不设错。原有合并式
+  `X` / `Y` 双名小节全部拆为单函数节（G2 拦截合并式残留）。
+  完成 API 2132→2190/3664（59.8%），52/79 文件。
 
