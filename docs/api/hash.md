@@ -360,6 +360,16 @@ uint64 xrtSipHashFinal(const xsiphash* pState);
 
 
 
+## 模块契约：错误
+
+哈希 API 的失败经 `xrtGetError()` 报告：
+
+| 错误 | 触发场景 |
+|---|---|
+| `XERR_ARGUMENT` | 指针为空、长度为零或种子非法 |
+| `XERR_RANGE` | 单次更新超过单块上限（需分段） |
+| `XERR_STATE` | 上下文已终结后继续使用 |
+
 ## 线程与所有权
 
 流式三段式的完整形态（占位符示意，可运行版本见 keyed 范例）：

@@ -950,6 +950,10 @@ pDecoded = xrtPercentDecodeNew(
 ```
 
 
+## 模块契约：所有权
+
+两段式缓冲 API 的输出写入调用方缓冲；`*New` 族返回由 `xrtFree` 释放的独立结果；流式游标借用输入视图，不拥有数据。
+
 ## 错误总表
 
 codec 三族共用 `xrt.codec` 域：

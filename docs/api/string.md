@@ -2937,6 +2937,10 @@ bool xrtStrGlob(xstrview Text, xstrview Pattern, uint32 iFlags)
 		"matched" : "not matched");
 ```
 
+## 模块契约：线程
+
+视图、查找与变换等纯函数可任意线程并发调用；构建器、拆分迭代器等有状态对象由创建线程独占使用，不可跨线程共享。
+
 ## 错误
 
 - 无效指针、无效视图或无效公开结构产生 `XERR_ARGUMENT` 或 `XERR_STATE`。

@@ -6290,3 +6290,13 @@ pFuture = xrtNetResolveAsync(
 	XNET_FAMILY_UNSPEC
 );
 ```
+
+## 模块契约：错误
+
+本文件与 [net.md](net.md) 共享 `include/xrt/net.h` 的错误体系；失败经 `xrtGetError()` 报告，`SystemCode` 保存平台码：
+
+| 域/种类 | 触发场景 |
+|---|---|
+| `xrt.net` / `XNET_ERROR_DNS_RESOLVE`·`DNS_REVERSE`·`DNS_RESULT` | 名称服务解析、反查与结果转换失败 |
+| `XERR_AGAIN` / `XERR_CLOSED` | 资源暂不可用 / 对象已关闭 |
+| `XERR_UNSUPPORTED`·`XERR_IO`·`XERR_STATE`·`XERR_RANGE`·`XERR_VALUE` | 能力、系统调用、状态、范围与配置类失败 |

@@ -350,3 +350,6 @@ xhttpexpectresult xrtHttpExpectFields(
 			XHTTP_EXPECT_CONTINUE ? "yes" : "no"
 ```
 
+## 模块契约：线程
+
+Expect 语义 API 为无共享状态的纯函数，可任意线程并发调用。

@@ -2666,6 +2666,10 @@ printf("encoding=%d bom=%llu confidence=%u\n", (int)Guess.Encoding,
 	(unsigned long long)Guess.BomSize, (unsigned int)Guess.Confidence);
 ```
 
+## 模块契约：线程
+
+转换 API 为无共享状态的纯函数；同一输入可被多线程并发转换。转换器上下文对象（如启用）由创建线程独占使用。
+
 ## 错误
 
 严格转换失败时，执行上下文错误具有：

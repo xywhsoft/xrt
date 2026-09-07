@@ -447,3 +447,16 @@ str xrtHttpUpgradeBuild(
 			str sBuilt = xrtHttpUpgradeBuild(arrUp, 2u, &iCount);
 ```
 
+## 模块契约：错误
+
+失败经 `xrtGetError()` 报告：
+
+| 域/种类 | 触发场景 |
+|---|---|
+| `XERR_ARGUMENT` / `XERR_RANGE` | 参数与字段数组容量 |
+| `XERR_MEMORY` | 输出缓冲分配失败 |
+| `xrt.http` 域错误 | 升级字段缺失、Accept 不匹配等协议错误 |
+
+## 模块契约：线程
+
+升级协商 API 均为无共享状态的纯函数，可任意线程并发调用。

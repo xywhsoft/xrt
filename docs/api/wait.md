@@ -130,6 +130,10 @@ uint64 xrtDeadlineRemaining(xdeadline iDeadline)
 		(unsigned long long)xrtDeadlineRemaining(iDeadline));
 ```
 
+## 模块契约：所有权
+
+截止时间为纯值类型，按值传递，无所有权语义。
+
 ## 示例
 
 ```c

@@ -826,4 +826,10 @@ bool xrtMathIntNear(int64 iLeft, int64 iRight, uint64 iTolerance);
 		xrtMathIntNear(1000, 1003, 5) ? "near" : "different");
 ```
 
+## 模块契约：错误
 
+数学函数为纯计算：合法输入不设置错误；非法参数（如近似比较的容差为负、量化步长为零）设置 `XERR_ARGUMENT`，经 `xrtGetError()` 取得。
+
+## 模块契约：所有权
+
+全部函数按值传入传出，无动态所有权。

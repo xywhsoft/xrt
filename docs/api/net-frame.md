@@ -413,6 +413,10 @@ xnetframestatus xrtNetLengthNext(
 			XNET_FRAME_READY) ||
 ```
 
+## 模块契约：线程
+
+帧解析器为调用方栈上的值对象，无共享状态；解析与帧操作可任意线程并发调用（不同解析器实例之间与同一实例的顺序调用均安全，实例本身非多线程共享）。
+
 ## 错误
 
 - `XNET_ERROR_FRAME_CONFIG`：配置本身不可能形成合法帧。

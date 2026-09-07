@@ -783,6 +783,10 @@ bool xrtThreadKeysClear(void)
 	xrtThreadKeysClear();
 ```
 
+## 模块契约：所有权
+
+`xonce` 为固定存储对象，初始化开始后不可复制或移动；线程键为引用计数对象（`Create` 引用 1，`Ref` 递增，`Destroy` 递减）；`KeySet`/`KeyTake` 转移槽内值的所有权。
+
 ## 示例
 
 ```c

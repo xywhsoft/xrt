@@ -7,7 +7,7 @@
 版本：v1.0-draft（试点 array + net 审定后冻结为 v1.0；此后修改必须升版本号并在
 `dev/DOC_PROGRESS.md` 记录变更理由与影响范围）。
 
-适用范围：`docs/api/*.md` 全部 80 个手写文件（`*-reference.md` 为自动生成，不适用）。
+适用范围：`docs/api/*.md` 全部 79 个手写文件（`*-reference.md` 为自动生成，不适用；计数校正：原 80 为并档前的旧计数）。
 
 ---
 

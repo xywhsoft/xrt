@@ -822,4 +822,13 @@
   （tls identity 四形态 + openssl 新材料实测）。建议后续：
   - 修正记录中已注明的门禁工具两处修复保持回归覆盖；
   - 新增 API 时按 DOC_SPEC §1.2 模板同步补节并跑双门禁。
+- 2026-09-07 收官补遗（任务后持续改进）：(a) DOC_SPEC §1.1 模块级三要素
+  全库审计——错误码总表缺 14、线程约束缺 14、所有权规则缺 4，逐文件
+  补「模块契约」节（错误表取自各文件函数节已核实标识：cancel/hash/
+  memory_stats/net-dns/net-file/net-interface/http_fields/http_upgrade/
+  math/charset/html/http/http_expect/http_te/http_trailer/net-frame/string/
+  codec/compress/once/wait/thread-key/websocket/http_decode 共 25 文件），
+  复审三要素零缺口；(b) DOC_SPEC 适用范围计数 80→79 校正（并档前旧
+  计数，manifest/磁盘/台账三方一致为 79）；(c) 全量门禁复验：G1-G4
+  79 文件 0 问题、G3 79 文件全绿——模块契约补遗未引入回归。
 

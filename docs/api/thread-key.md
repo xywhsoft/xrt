@@ -35,6 +35,17 @@ typedef void (*xthreadkeyproc)(ptr pValue);
 - 销毁会立即关闭新访问并析构当前线程的值；其他线程的值在线程退出或显式清理时析构。
 - 析构过程可以操作其他键。正在关闭的键会拒绝析构过程中的重入访问。
 
+## 模块契约：错误
+
+失败经 `xrtGetError()` 报告：
+
+| 错误 | 触发场景 |
+|---|---|
+| `XERR_ARGUMENT` | 指针为空或参数非法 |
+| `XERR_STATE` | 键已关闭、槽状态非法或外部线程无 XRT 上下文 |
+| `XERR_MEMORY` | 键对象分配失败 |
+| `xrt.thread` 域错误 | 平台 TLS 槽创建失败（保留系统码） |
+
 ## 函数
 
 ### `xrtThreadKeyCreate`

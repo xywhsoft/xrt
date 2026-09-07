@@ -326,3 +326,6 @@ str xrtHttpTrailerNamesBuild(
 	sNames = xrtHttpTrailerNamesBuild(Trailers, 2u, NULL);
 ```
 
+## 模块契约：线程
+
+Trailer 解析 API 为无共享状态的纯函数，可任意线程并发调用。

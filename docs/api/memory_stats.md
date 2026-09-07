@@ -154,6 +154,14 @@ void xrtMemStatsGet(xmemstats* pStats)
 	xrtMemStatsGet(&tStats);
 ```
 
+## 模块契约：错误
+
+统计 API 仅在参数非法时失败并经 `xrtGetError()` 报告：
+
+| 错误 | 触发场景 |
+|---|---|
+| `XERR_ARGUMENT` | 快照输出指针为空 |
+
 ## 旧版资产决策
 
 旧版 `xrtMemTelemetry` 的公开请求计数、临时内存计数、尺寸类直方图以及启用后重置语义全部保留，并由独立模块、并发槽和单头文件测试承接。

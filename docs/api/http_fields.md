@@ -87,6 +87,10 @@ HTTP/1、WebSocket 握手、代理协议和扩展库复用。
 asterisk-form，并结合方法检查 CONNECT 与 OPTIONS 的专用约束。结果同样只借用输入，
 核心层不构建 URL 对象，也不执行查询参数解码。
 
+## 模块契约：线程
+
+字段解析与编码 API 为无共享状态的纯函数，可任意线程并发调用。
+
 ## 已迁出能力
 
 动态 Header 容器、RFC 8187 扩展值、MIME、Structured Fields、Digest Fields、
@@ -2557,3 +2561,12 @@ xhttpnext xrtHttpDirectiveFind(
 			xrtHttpDirectiveFind(SV(sDirectives), SV("no-store"),
 ```
 
+## 模块契约：错误
+
+本文件各节复用自 [http.md](http.md) 与 [http_connection.md](http_connection.md)；失败经 `xrtGetError()` 报告：
+
+| 域/种类 | 触发场景 |
+|---|---|
+| `XERR_ARGUMENT` / `XERR_STATE` / `XERR_RANGE` | 参数、字段表状态与游标范围 |
+| `XERR_MEMORY` | 字段数组扩容失败 |
+| `xrt.http` 域错误 | 名称、值与连接语义错误 |

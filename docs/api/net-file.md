@@ -215,3 +215,14 @@ static void start(xnetworker* pWorker, ptr pData)
 		Buffer, sizeof(Buffer), &Completion);
 }
 ```
+
+## 模块契约：错误
+
+失败经 `xrtGetError()` 报告：
+
+| 域/种类 | 触发场景 |
+|---|---|
+| `XERR_ARGUMENT` / `XERR_STATE` / `XERR_RANGE` | 参数、Worker 归属与偏移范围 |
+| `XERR_UNSUPPORTED` | Worker 端口后端无原生文件 I/O 能力 |
+| `xrt.net` / `XNET_ERROR_PORT_SUBMIT` | 提交失败（`RANGE`/`UNSUPPORTED` 等 kind） |
+| `xrt.file` 域错误 | 打开失败（同 `xrtFileOpen`） |

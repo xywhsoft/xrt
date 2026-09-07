@@ -126,6 +126,17 @@ str xrtNetHostNameString(void);
 底层示例位于 `examples/network/interface/main.c`，便捷层示例位于
 `examples/network/local_info/main.c`。
 
+## 模块契约：错误
+
+本文件与 [net.md](net.md) 共享 `include/xrt/net_interface.h` 的错误体系；失败经 `xrtGetError()` 报告：
+
+| 域/种类 | 触发场景 |
+|---|---|
+| `XERR_ARGUMENT` / `XERR_RANGE` | 参数与索引越界 |
+| `XERR_NOT_FOUND` | 指定接口或地址不存在 |
+| `XERR_IO` | 系统接口枚举失败 |
+| `xrt.net` / `XNET_ERROR_INTERFACE_*` | 接口地址、硬件等平台查询失败 |
+
 ## API
 
 ### `xrtNetInterfaceIndex`

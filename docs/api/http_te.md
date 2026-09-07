@@ -427,3 +427,6 @@ xhttpnext xrtHttpTeAcceptsTrailers(
 		XHTTP_NEXT_ITEM ) {
 ```
 
+## 模块契约：线程
+
+传输编码解析/编码 API 为无共享状态的纯函数，可任意线程并发调用。
