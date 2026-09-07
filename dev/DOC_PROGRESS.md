@@ -75,7 +75,7 @@
 | 68 | template.md | 32 | **完成** | 32/32 全绿（G3 32 片段，2026-09-07）；编译/注册表 13 + 扩展调用 13 + 渲染 6 三组；XTEMPLATE 12 域码；ErrorLocation 定位器；锚点 6 范例；manifest 补注册 tour |
 | 69 | thread-key.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；全部节复用自 once.md（同映射 thread.h），以键为主线重组 |
 | 70 | thread.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；全部节复用自 once.md（同映射 thread.h），按线程视角重组 |
-| 71 | time.md | 58 | 待办 |  |
+| 71 | time.md | 58 | **完成** | 58/58 全绿（G3 58 片段，2026-09-07）；九组入档；字段越界 RANGE、解析族 ARGUMENT、Write 容量原子失败；锚点 10 范例；manifest 补注册 text_parse |
 | 72 | tls.md | 268 | 待办 |  |
 | 73 | udp.md | 73 | 待办 |  |
 | 74 | value.md | 116 | 待办 |  |
@@ -751,4 +751,10 @@
   Worker 内阻塞、DialCancel 原子争取（败者不设错）、Remote 锚点在
   examples/tls/stream。
   完成 API 2806→2907/3664（79.3%），70/79 文件。
+- 2026-09-07 time.md 完成（58/58，G3 58 片段全绿）：九组；错误对照
+  src/system/time*.c——日历字段组合非法/解析不匹配 = XERR_ARGUMENT、
+  域越界 = XERR_RANGE、Write 族容量不足原子失败。协议族三形态
+  （RFC3339/HTTP 严格/HTTP 宽松/自动识别）逐值成表。manifest 补注册
+  #12：time text_parse（8 个文本 API 主锚点）。
+  完成 API 2907→2965/3664（80.9%），71/79 文件。
 
