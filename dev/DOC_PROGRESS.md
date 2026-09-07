@@ -1052,4 +1052,16 @@
   「仓库永久门禁」。至此文档深化任务完成三级跳：内容建设（79
   文件 3664 API 全覆盖）→ 质量深化（21 项审计闭环、约 205 处
   修正）→ 防线制度化（六门禁 + 11 项深度审计全部 CI 强制）。
+- 2026-09-07 周期全量复审 #9 · 任务终验（全防线本地复跑）：
+  (a) G1-G5 六门禁 79/79 全绿；(b) G3 片段 79/79 全绿；
+  (c) doc_audit 11 项深度审计 0 findings；(d) CI 五族符号检索
+  （websocket/net/http/regex/value）missing=0；(e) release
+  maturity、test_api_docs、reference --check 全部通过；
+  (f) 工作区干净。== 任务状态 == 文档深化长期任务在规范 v1.4
+  下完全收敛，无剩余待办。质量资产清单：79 手写文件、3664 函数
+  节、约 1100 类型节、210 常量表项、约 3700 个可追溯范例片段；
+  两级门禁（check_api_reference_detail + doc_audit）已 CI 强制。
+  可选后续（独立任务线，需另行启动）：examples 注释工程
+  （EXAMPLES_PROGRESS.md 台记 267 扩展范例）、docs/design/*.md
+  深化（不在 DOC_SPEC 适用范围）。
 
