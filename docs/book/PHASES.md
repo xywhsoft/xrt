@@ -13,7 +13,7 @@
 | --- | --- | --- | --- |
 | P0 | 基础设施：SPEC + 生成器 + 门禁 + 金标准章（03、52） | 2 | ✅ 完成 |
 | P1 | 卷一：ch01/02 重写、memory 拆 2 章、temp、新增 core 章（版本/ABI/模块查询/单头原理）、卷导言 | 8 | ✅ 完成 |
-| P2 | 卷二全部 + 卷三前半：math/random/hash-xid + array/buffer/stack/list-slotmap | 9 | ⬜ |
+| P2 | 卷二全部 + 卷三前半：math/random/hash-xid + array/buffer/stack/list-slotmap | 9 | ✅ 完成 |
 | P3 | 卷三后半 + 新增：map/set/avl/queue/pool + 容器选型决策章 + 卷导言 | 7 | ⬜ |
 | P4 | 卷四前半：string/number/charset/codec/compress | 6 | ⬜ |
 | P5 | 卷四后半：value/json/xson/template + regex 归位本卷 + JSON+模板组合章 | 7 | ⬜ |

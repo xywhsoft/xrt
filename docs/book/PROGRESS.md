@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | P0 基础设施 + 金标准 | ✅ 完成 | 2 | 10,093 |
 | P1 卷一 起步与核心 | ✅ 完成 | 8 | 34,150 |
-| P2 卷二全部 + 卷三前半 | 🔄 进行中 | 0 | — |
+| P2 卷二全部 + 卷三前半 | ✅ 完成 | 7 | 28,790 |
 | P3–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -23,16 +23,24 @@
 | 6 | 06-memory-debug.md | practice | 4,018 | 2 | 1 | 2 | 3 | P1 |
 | 7 | 07-temp.md | practice | 4,007 | 2 | 1 | 2 | 3 | P1 |
 | 8 | 08-core-trim.md | practice | 4,003 | 2 | 1 | 2 | 3 | P1 |
+| 10 | 10-math.md | practice | 4,250 | 2 | 1 | 2 | 3 | P2 |
+| 11 | 11-random.md | practice | 4,079 | 2 | 1 | 2 | 3 | P2 |
+| 12 | 12-hash-xid.md | practice | 4,086 | 3 | 1 | 2 | 3 | P2 |
+| 13 | 13-array.md | practice | 4,300 | 2 | 1 | 2 | 3 | P2 |
+| 14 | 14-buffer.md | practice | 4,035 | 2 | 1 | 2 | 3 | P2 |
+| 15 | 15-stack.md | practice | 4,003 | 2 | 1 | 2 | 3 | P2 |
+| 16 | 16-list-slotmap.md | practice | 4,037 | 2 | 1 | 2 | 3 | P2 |
 | 55 | 55-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
 
-## P1 阶段记录
+## P2 阶段记录
 
-- 卷一扩为 9 章（原 6 章：插入卷导言 ch01、内存调试统计 ch06、版本裁剪 ch08）；
-  ch09-atomic（卷一收官）不在 P1 范围、未改动。
-- 全书重编号一次（100 个页面文件 + 全站引用），工具 tools/renumber_book.py 沉淀。
-- 新增工具命令：gen_web_book.py sync-index（目录按 order.json 整卷重建，三态徽章）。
-- 每批门禁全绿后双仓库提交（批次 1/2/3）。
+- 批次 1（卷二）：ch10 数学 / ch11 随机 / ch12 哈希与 XID；顺带修复仓库示例
+  examples/hash/variants/main.c 预期输出注释缺第三行的问题。
+- 批次 2（卷三前半）：ch13 数组 / ch14 缓冲 / ch15 栈族 / ch16 链表与 slot_map。
+- 本阶段无新增章节，无重编号；门禁全绿后双仓库各两次提交。
+- checker 白名单补充：家族前缀 xrtMath、产品名 XID（BRAND_TOKENS）。
+- 经验沉淀：初稿字数普遍落在目标的 70-80%，需按 1.3 倍余量起稿。
 
 ## 遗留项
 
-- （无）ch82-xregex 旧重定向页仍指向 ch85-regex，属 P5 卷四 regex 归位时处理。
+- ch82-xregex 旧重定向页仍指向 ch85-regex，属 P5 卷四 regex 归位时处理。
