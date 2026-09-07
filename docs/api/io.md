@@ -266,3 +266,1591 @@ xrtWriterDestroy(writer);
 ```
 
 完整范例位于 `examples/io/memory`、`examples/io/buffer`、`examples/io/file` 和 `examples/io/line`。
+## API
+
+### Reader 构造
+
+### `xrtReaderCreate`
+
+创建自定义 Reader；失败时 Context 所有权不变，销毁时调用一次 Close。
+
+```c
+xreader* xrtReaderCreate(
+	const xreaderops* pOps,
+	ptr pContext
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOps` | 输入 | 非空、静态存储 | 操作表 |
+| `pContext` | 输入 | 成功后归 Reader | 自定义上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 自定义 Reader | — |
+| `NULL` | 参数错误或 OOM | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 构造](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+	pCustom = xrtReaderCreate(&ReaderOps, &Mem);
+```
+
+
+### `xrtReaderFromMemory`
+
+创建借用固定字节视图的可定位 Reader。
+
+```c
+xreader* xrtReaderFromMemory(xbytesview Data);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | 借用、存活期覆盖 Reader | 字节视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 可定位 Reader（Size/Tell/Seek 全支持） | — |
+| `NULL` | 参数错误或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/line · 内存](../../examples/io/line/main.c) · 观察
+
+```c
+	pReader = xrtReaderFromMemory(XRT_BYTES_LITERAL(sLog));
+```
+
+
+### `xrtReaderFromBuffer`
+
+创建借用 Buffer 的 Reader；使用期间不得修改或销毁 Buffer。
+
+```c
+xreader* xrtReaderFromBuffer(const xbuffer* pBuffer);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空、借用 | Buffer |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 可定位 Reader | — |
+| `NULL` | 参数错误或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 缓冲](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+			xreader* pBorrowed = xrtReaderFromBuffer(pBuffer);
+```
+
+
+### `xrtReaderTakeBuffer`
+
+接管 Buffer 并创建 Reader；成功时把调用方槽清空。
+
+```c
+xreader* xrtReaderTakeBuffer(xbuffer** ppBuffer);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `ppBuffer` | 输入/输出 | 非空 | 成功后槽被清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Reader（拥有 Buffer） | — |
+| `NULL` | 参数错误或 OOM | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 缓冲](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		xreader* pBufReader = xrtReaderTakeBuffer(&pBuffer);
+```
+
+
+### `xrtReaderFromFile`
+
+创建借用文件对象的 Reader。
+
+```c
+xreader* xrtReaderFromFile(xfile File);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空、借用 | 文件对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 可定位 Reader | — |
+| `NULL` | 参数错误或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 文件](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+			xrtReaderFromFile(FileB) : NULL;
+```
+
+
+### `xrtReaderTakeFile`
+
+接管文件对象并创建 Reader；成功时把调用方槽清空。
+
+```c
+xreader* xrtReaderTakeFile(xfile* pFile);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFile` | 输入/输出 | 非空 | 成功后槽被清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Reader（拥有文件） | — |
+| `NULL` | 参数错误或 OOM | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 文件](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+			xreader* pTaken = xrtReaderTakeFile(&FileB);
+```
+
+
+### `xrtReaderOpen`
+
+打开路径并创建拥有文件对象的 Reader。
+
+```c
+xreader* xrtReaderOpen(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Reader（拥有内部打开的文件） | — |
+| `NULL` | 打开失败 | `xrt.io` 域错误 |
+
+#### 错误
+
+- `xrt.io` 域错误 — 打开失败
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/file · 文件](../../examples/io/file/main.c) · 观察
+
+```c
+	pReader = xrtReaderOpen(sPath);
+```
+
+
+
+### Reader 读取与复制
+
+### `xrtReaderRead`
+
+单次读取；成功读取零字节表示并锁定 EOF，直到下一次成功 Seek。
+
+```c
+bool xrtReaderRead(
+	xreader* pReader,
+	ptr pBuffer,
+	size_t iRequest,
+	size_t* pRead
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+| `pBuffer` | 输出 | 非空（非零请求） | 接收缓冲 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pRead` | 输出 | 可空 | 实际读取量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已读取（可短读；零 = EOF） | — |
+| `false` | 参数或底层错误 | `*pRead` 语义不定 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 读取](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtReaderRead(pReader, Out, 4u, &iRead) ||
+```
+
+
+### `xrtReaderReadFull`
+
+持续读取到填满缓冲；提前 EOF 返回失败并保留实际读取量。
+
+```c
+bool xrtReaderReadFull(
+	xreader* pReader,
+	ptr pBuffer,
+	size_t iRequest,
+	size_t* pRead
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+| `pBuffer` | 输出 | 非空 | 接收缓冲 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pRead` | 输出 | 可空 | 已读量（失败保留） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 缓冲已填满 | — |
+| `false` | 提前 EOF 或底层错误 | `*pRead` 保留 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/file · 读取](../../examples/io/file/main.c) · 观察
+
+```c
+		 xrtReaderReadFull(pReader, arrData, sizeof(arrData), NULL) ) {
+```
+
+
+### `xrtReaderCopy`
+
+持续复制到输入 EOF；使用固定大小栈缓冲且不随数据量分配。
+
+```c
+bool xrtReaderCopy(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64* pCopied
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | 源 |
+| `pWriter` | 输入 | 非空 | 目标 |
+| `pCopied` | 输出 | 可空 | 累计复制量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已复制到 EOF | — |
+| `false` | 底层错误 | `*pCopied` 保留 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/memory · 复制](../../examples/io/memory/main.c) · 观察
+
+```c
+		 xrtReaderCopy(pReader, pWriter, &iCopied) ) {
+```
+
+
+### `xrtReaderCopyN`
+
+精确复制指定字节数；输入提前 EOF 时返回失败和已复制量。
+
+```c
+bool xrtReaderCopyN(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iSize,
+	uint64* pCopied
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | 源 |
+| `pWriter` | 输入 | 非空 | 目标 |
+| `iSize` | 输入 | — | 精确字节数 |
+| `pCopied` | 输出 | 可空 | 已复制量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已复制 iSize 字节 | — |
+| `false` | 提前 EOF 或错误 | `*pCopied` 保留 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 复制](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtReaderCopyN(pReader, pWriter, 5u, &uCopied) ||
+```
+
+
+### `xrtReaderCopyLimit`
+
+在硬上限内复制到 EOF；超限时消费一个探测字节并返回范围错误。
+
+```c
+bool xrtReaderCopyLimit(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iLimit,
+	uint64* pCopied
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | 源 |
+| `pWriter` | 输入 | 非空 | 目标 |
+| `iLimit` | 输入 | — | 硬上限 |
+| `pCopied` | 输出 | 可空 | 已复制量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | EOF 且未超限 | — |
+| `false` | 超限或错误 | 超限时 `*pCopied` 为 iLimit+1 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 输入超过硬上限
+
+#### 范例
+
+[io/stream_tour · 复制](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtReaderCopyLimit(pReader, pWriter, 64u, &uCopied) ||
+```
+
+
+### `xrtReaderReadAll`
+
+在硬上限内读取到新 Buffer；超限时消费一个探测字节。
+
+```c
+xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+| `iLimit` | 输入 | — | 硬上限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 拥有全部剩余内容的 Buffer | — |
+| `NULL` | 超限、OOM 或读取失败 | — |
+
+#### 错误
+
+- `XERR_RANGE` — 内容超过上限
+- `XERR_MEMORY`
+- 底层读取错误
+
+#### 范例
+
+[io/stream_tour · 缓冲](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+	pReadAll = xrtReaderReadAll(pReader, 64u);
+```
+
+
+
+### Reader 定位与查询
+
+### `xrtReaderSeek`
+
+移动 Reader 游标；成功后清除已锁定的 EOF。
+
+```c
+bool xrtReaderSeek(
+	xreader* pReader,
+	int64 iOffset,
+	xseek Origin,
+	uint64* pPosition
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+| `iOffset` | 输入 | 可负 | 偏移 |
+| `Origin` | 输入 | — | 基准 |
+| `pPosition` | 输出 | 可空 | 新位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 游标已移动、EOF 解锁 | — |
+| `false` | 不支持或越界 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 该 Reader/Writer 不提供定位或大小查询
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+	if ( !xrtReaderSeek(pReader, 2, XSEEK_START, &uPos) ||
+		!xrtReaderRead(pReader, Out, 4u, &iRead) ||
+		(memcmp(Out, "2345", 4u) != 0) ||
+		!xrtReaderTell(pReader, &uPos) || (uPos != 6u) ||
+		xrtReaderEOF(pReader) ) {
+```
+
+
+### `xrtReaderTell`
+
+查询 Reader 游标；不支持时返回 `XERR_UNSUPPORTED`。
+
+```c
+bool xrtReaderTell(xreader* pReader, uint64* pPosition);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+| `pPosition` | 输出 | 非空 | 游标位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 位置已写出 | — |
+| `false` | 不支持或参数错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 该 Reader/Writer 不提供定位或大小查询
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtReaderTell(pReader, &uPos) || (uPos != 4u) ) {
+```
+
+
+### `xrtReaderSize`
+
+查询 Reader 当前总大小；不支持时返回 `XERR_UNSUPPORTED`。
+
+```c
+bool xrtReaderSize(xreader* pReader, uint64* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+| `pSize` | 输出 | 非空 | 总大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 大小已写出 | — |
+| `false` | 不支持或参数错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 该 Reader/Writer 不提供定位或大小查询
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtReaderSize(pReader, &uSize) ||
+```
+
+
+### `xrtReaderCanSeek`
+
+判断 Reader 是否提供定位能力。
+
+```c
+bool xrtReaderCanSeek(const xreader* pReader);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 支持 Seek/Tell | — |
+| `false` | 不支持或参数错误 | 纯查询 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtReaderCanSeek(pReader) ||
+```
+
+
+### `xrtReaderCanSize`
+
+判断 Reader 是否提供大小查询能力。
+
+```c
+bool xrtReaderCanSize(const xreader* pReader);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 支持 Size | — |
+| `false` | 不支持或参数错误 | 纯查询 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtReaderCanSize(pReader) ||
+```
+
+
+### `xrtReaderEOF`
+
+判断 Reader 是否已通过非零请求观察到 EOF。
+
+```c
+bool xrtReaderEOF(const xreader* pReader);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空 | Reader |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | EOF 已锁定 | — |
+| `false` | 未观察或参数错误 | 纯查询 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		xrtReaderEOF(pReader) ) {
+```
+
+
+
+### Reader 销毁
+
+### `xrtReaderDestroy`
+
+调用一次 Close 并销毁 Reader；Close 失败也一定释放对象。
+
+```c
+bool xrtReaderDestroy(xreader* pReader);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | Close 成功且已释放 | — |
+| `false` | Close 失败（对象仍释放） | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 底层错误 — Close 失败；对象总是被释放
+
+#### 范例
+
+[io/file · 生命周期](../../examples/io/file/main.c) · 观察
+
+```c
+	xrtReaderDestroy(pReader);
+```
+
+
+
+### 行读取
+
+### `xrtLineReaderCreate`
+
+创建借用 Reader 的 Line Reader；最大行长只计算终止符之前的内容字节。
+
+```c
+xlinereader* xrtLineReaderCreate(
+	xreader* pReader,
+	size_t iMaxLine
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入 | 非空、借用 | 底层 Reader |
+| `iMaxLine` | 输入 | `> 0` | 内容字节上限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Line Reader | — |
+| `NULL` | 参数错误或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 行读取](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		pLines = xrtLineReaderCreate(pFileReader, 64u);
+```
+
+
+### `xrtLineReaderTake`
+
+原子接管 Reader 槽；成功时清空来源，失败时所有权保持不变。
+
+```c
+xlinereader* xrtLineReaderTake(
+	xreader** ppReader,
+	size_t iMaxLine
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `ppReader` | 输入/输出 | 非空 | 成功后槽被清空 |
+| `iMaxLine` | 输入 | `> 0` | 内容字节上限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Line Reader（拥有底层） | — |
+| `NULL` | 参数错误或 OOM | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/line · 行读取](../../examples/io/line/main.c) · 观察
+
+```c
+	pLines = xrtLineReaderTake(&pReader, 1024u);
+```
+
+
+### `xrtLineReaderNext`
+
+返回下一行借用视图；超限或底层读取失败后对象进入失败状态。
+
+```c
+xlinenext xrtLineReaderNext(
+	xlinereader* pLines,
+	xlineview* pLine
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLines` | 输入 | 非空 | Line Reader |
+| `pLine` | 输出 | 非空 | 接收行视图（借用） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XLINE_NEXT_LINE` | 一行已发布 | — |
+| `XLINE_NEXT_END` | EOF | 不设错 |
+| `XLINE_NEXT_ERROR` | 超限或读取失败 | 对象锁定失败态 |
+
+#### 错误
+
+- 行超限或底层读取错误（对象进入失败状态）
+
+#### 范例
+
+[io/line · 行读取](../../examples/io/line/main.c) · 观察
+
+```c
+	while ( (Next = xrtLineReaderNext(pLines, &Line)) == XLINE_NEXT_LINE ) {
+```
+
+
+### `xrtLineReaderDestroy`
+
+释放 Line Reader；接管模式同时销毁底层 Reader 并返回关闭结果。
+
+```c
+bool xrtLineReaderDestroy(xlinereader* pLines);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLines` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已释放（接管模式含底层） | — |
+| `false` | 底层 Close 失败（仍释放） | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 底层错误 — Close 失败；对象总是被释放
+
+#### 范例
+
+[io/line · 行读取](../../examples/io/line/main.c) · 观察
+
+```c
+	if ( !xrtLineReaderDestroy(pLines) ) {
+```
+
+
+
+### Writer 构造
+
+### `xrtWriterCreate`
+
+创建自定义 Writer；失败时 Context 所有权不变，销毁时调用一次 Close。
+
+```c
+xwriter* xrtWriterCreate(
+	const xwriterops* pOps,
+	ptr pContext
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOps` | 输入 | 非空、静态存储 | 操作表 |
+| `pContext` | 输入 | 成功后归 Writer | 自定义上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 自定义 Writer | — |
+| `NULL` | 参数错误或 OOM | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 构造](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+	pSink = xrtWriterCreate(&WriterOps, &Sink);
+```
+
+
+### `xrtWriterFromMemory`
+
+创建借用固定容量的可定位 Writer；稀疏写入产生的空洞会填零。
+
+```c
+xwriter* xrtWriterFromMemory(ptr pData, size_t iCapacity);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pData` | 输入 | 非空、可写 | 输出缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 可定位 Writer | — |
+| `NULL` | 参数错误或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/memory · 内存](../../examples/io/memory/main.c) · 观察
+
+```c
+	xwriter* pWriter = xrtWriterFromMemory(
+		arrOutput,
+		sizeof(arrOutput)
+	);
+```
+
+
+### `xrtWriterDiscard`
+
+创建只统计并丢弃全部输入的 Writer。
+
+```c
+xwriter* xrtWriterDiscard(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 无参数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 丢弃型 Writer | — |
+| `NULL` | OOM | `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 构造](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+			xwriter* pDiscard = xrtWriterDiscard();
+```
+
+
+### `xrtWriterFromBuffer`
+
+创建借用 Buffer 的 Writer，初始游标位于已有内容末尾。
+
+```c
+xwriter* xrtWriterFromBuffer(xbuffer* pBuffer);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入 | 非空、可写、借用 | Buffer |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Writer（追加语义） | — |
+| `NULL` | 参数错误或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/buffer · 缓冲](../../examples/io/buffer/main.c) · 观察
+
+```c
+	pWriter = xrtWriterFromBuffer(&Buffer);
+```
+
+
+### `xrtWriterFromFile`
+
+创建借用文件对象的 Writer。
+
+```c
+xwriter* xrtWriterFromFile(xfile File);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空、借用 | 文件对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Writer | — |
+| `NULL` | 参数错误或 OOM | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 文件](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+			xrtWriterFromFile(FileW) : NULL;
+```
+
+
+### `xrtWriterTakeFile`
+
+接管文件对象并创建 Writer；成功时把调用方槽清空。
+
+```c
+xwriter* xrtWriterTakeFile(xfile* pFile);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFile` | 输入/输出 | 非空 | 成功后槽被清空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Writer（拥有文件） | — |
+| `NULL` | 参数错误或 OOM | 所有权不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 文件](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		pTakeWriter = xrtWriterTakeFile(&FileC);
+```
+
+
+### `xrtWriterOpen`
+
+创建或截断路径并创建拥有文件对象的 Writer。
+
+```c
+xwriter* xrtWriterOpen(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Writer（拥有内部打开的文件） | — |
+| `NULL` | 打开失败 | `xrt.io` 域错误 |
+
+#### 错误
+
+- `xrt.io` 域错误
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/file · 文件](../../examples/io/file/main.c) · 观察
+
+```c
+	xwriter* pWriter = xrtWriterOpen(sPath);   /* 拥有式：Destroy 关文件 */
+```
+
+
+### `xrtWriterOpenAppend`
+
+以操作系统追加语义打开路径并创建拥有文件对象的 Writer。
+
+```c
+xwriter* xrtWriterOpenAppend(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 追加语义 Writer | — |
+| `NULL` | 打开失败 | `xrt.io` 域错误 |
+
+#### 错误
+
+- `xrt.io` 域错误
+- `XERR_MEMORY`
+
+#### 范例
+
+[io/stream_tour · 文件](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+	pAppend = xrtWriterOpenAppend("xrt-io-tour.tmp");
+```
+
+
+
+### Writer 写入
+
+### `xrtWriterWrite`
+
+单次写入，允许成功短写但拒绝非零请求不产生进展。
+
+```c
+bool xrtWriterWrite(
+	xwriter* pWriter,
+	const void* pBuffer,
+	size_t iRequest,
+	size_t* pWritten
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+| `pBuffer` | 输入 | 借用 | 写入数据 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pWritten` | 输出 | 可空 | 实际写入量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写入（可短写；零进展拒绝） | — |
+| `false` | 参数或底层错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 写入](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtWriterWrite(pAppend, "cd\n", 3u, &iRead) ||
+```
+
+
+### `xrtWriterWriteFull`
+
+持续写入到全部完成；失败时保留实际写入量。
+
+```c
+bool xrtWriterWriteFull(
+	xwriter* pWriter,
+	const void* pBuffer,
+	size_t iRequest,
+	size_t* pWritten
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+| `pBuffer` | 输入 | 借用 | 写入数据 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pWritten` | 输出 | 可空 | 已写量（失败保留） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 全部写入 | — |
+| `false` | 底层错误 | `*pWritten` 保留 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/buffer · 写入](../../examples/io/buffer/main.c) · 观察
+
+```c
+		 xrtWriterWriteFull(pWriter, "hello world", 11u, NULL) &&
+```
+
+
+### `xrtWriterFlush`
+
+显式刷新 Writer；没有 Flush 回调时为空操作。
+
+```c
+bool xrtWriterFlush(xwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已刷新（或无回调） | — |
+| `false` | 底层错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 写入](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtWriterFlush(pSink) || (Sink.Flushes != 1) ) {
+```
+
+
+### `xrtWriterWriteBuffer`
+
+完整写入 Buffer 当前有效内容。
+
+```c
+bool xrtWriterWriteBuffer(
+	xwriter* pWriter,
+	const xbuffer* pBuffer
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+| `pBuffer` | 输入 | 非空 | 内容源 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已完整写入 | — |
+| `false` | 参数或底层错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 缓冲](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+			if ( !xrtWriterWriteBuffer(pWriter, pBuffer) ||
+				!xrtWriterTell(pWriter, &uPos) ||
+				(uPos != 2u) ) {
+```
+
+
+
+### Writer 定位与销毁
+
+### `xrtWriterSeek`
+
+移动 Writer 游标；不支持时返回 `XERR_UNSUPPORTED`。
+
+```c
+bool xrtWriterSeek(
+	xwriter* pWriter,
+	int64 iOffset,
+	xseek Origin,
+	uint64* pPosition
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+| `iOffset` | 输入 | 可负 | 偏移 |
+| `Origin` | 输入 | — | 基准 |
+| `pPosition` | 输出 | 可空 | 新位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 游标已移动 | — |
+| `false` | 不支持或越界 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 该 Reader/Writer 不提供定位或大小查询
+
+#### 范例
+
+[io/buffer · 定位](../../examples/io/buffer/main.c) · 观察
+
+```c
+		 xrtWriterSeek(pWriter, 6, XSEEK_START, NULL) &&
+```
+
+
+### `xrtWriterTell`
+
+查询 Writer 游标。
+
+```c
+bool xrtWriterTell(xwriter* pWriter, uint64* pPosition);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+| `pPosition` | 输出 | 非空 | 游标位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 位置已写出 | — |
+| `false` | 不支持或参数错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 该 Reader/Writer 不提供定位或大小查询
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+				!xrtWriterTell(pWriter, &uPos) ||
+```
+
+
+### `xrtWriterSize`
+
+查询 Writer 当前逻辑大小。
+
+```c
+bool xrtWriterSize(xwriter* pWriter, uint64* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+| `pSize` | 输出 | 非空 | 逻辑大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 大小已写出 | — |
+| `false` | 不支持或参数错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 该 Reader/Writer 不提供定位或大小查询
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtWriterSize(pAppend, &uSize) ||
+```
+
+
+### `xrtWriterCanSeek`
+
+判断 Writer 是否提供定位能力。
+
+```c
+bool xrtWriterCanSeek(const xwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 支持 Seek/Tell | — |
+| `false` | 不支持或参数错误 | 纯查询 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+		!xrtWriterCanSeek(pAppend) ||
+```
+
+
+### `xrtWriterCanSize`
+
+判断 Writer 是否提供大小查询能力。
+
+```c
+bool xrtWriterCanSize(const xwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 非空 | Writer |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 支持 Size | — |
+| `false` | 不支持或参数错误 | 纯查询 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[io/stream_tour · 定位](../../examples/io/stream_tour/main.c) · 观察
+
+```c
+			!xrtWriterCanSize(pFileWriter) ||
+```
+
+
+### `xrtWriterDestroy`
+
+调用一次 Close 并销毁 Writer；不会隐式调用可能昂贵的 Flush。
+
+```c
+bool xrtWriterDestroy(xwriter* pWriter);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | Close 成功且已释放 | — |
+| `false` | Close 失败（对象仍释放） | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 底层错误 — Close 失败；对象总是被释放
+
+#### 范例
+
+[io/buffer · 生命周期](../../examples/io/buffer/main.c) · 观察
+
+```c
+	xrtWriterDestroy(pWriter);
+```
+
+

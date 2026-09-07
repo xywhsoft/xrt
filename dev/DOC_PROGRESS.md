@@ -36,7 +36,7 @@
 | 29 | http_te.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
 | 30 | http_trailer.md | 6 | **完成** | 6/6 全绿；节复用自 http.md |
 | 31 | http_upgrade.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
-| 32 | io.md | 42 | 待办 |  |
+| 32 | io.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；Reader/LineReader/Writer 三族；全库自动锚点一次生成 |
 | 33 | json.md | 30 | 待办 |  |
 | 34 | list.md | 28 | 待办 |  |
 | 35 | logger.md | 76 | 待办 |  |
@@ -494,3 +494,14 @@
   二次确认。两个源文件复验无回归。至此 http 全家族（母文件
   167 + 7 子文件 61 + fields 64）完成，共享头并集的"节复用"
   模式在 132 个复用节上验证稳定。
+- 2026-09-07 io.md 完成（42/42，G3 42 片段，双门禁一次
+  全绿）：Reader 20（自定义 ops 表 Create/五个来源形态（内存
+  借用/Buffer 借用与接管/文件借用与接管/路径拥有）/Read 的
+  "零字节=锁定 EOF 直到下次成功 Seek"/ReadFull 保留已读量/
+  Copy 三形态（到 EOF 固定栈缓冲、精确 N、Limit 超限消费
+  探测字节报 RANGE））+ LineReader 4（Create 借用 vs Take
+  接管双形态、Next 三态 LINE/END/ERROR 且失败锁定）+ Writer
+  18（同构 ops 表与来源族 + Discard 统计丢弃型、Write 拒绝
+  零进展、Destroy 不隐式 Flush）。callline 全库自动锚点首次
+  覆盖整文件（42/42 零手工、零返工）。http_fields 复验无
+  回归。
