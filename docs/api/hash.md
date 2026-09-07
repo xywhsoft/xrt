@@ -1,5 +1,23 @@
 # Hash API
 
+## 类型与常量
+
+### `xsipkey`
+
+SipHash 使用完整的 128 位密钥，不能用普通 64 位 seed 代替。
+
+```c
+typedef struct xsipkey {
+	uint64 Low;
+	uint64 High;
+} xsipkey;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Low` | `uint64` | Low |
+| `High` | `uint64` | High |
+
 ## 设计契约
 
 XRT 把“快速确定性哈希”和“哈希表抗碰撞攻击”拆成两个契约，不再把校验和、内容寻址、唯一 ID 或密码摘要混进 `hash`：
