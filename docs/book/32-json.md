@@ -1,5 +1,5 @@
 ---
-num: 31
+num: 32
 slug: json
 title: JSON 读写
 volume: 卷四 文本与结构化数据
@@ -46,7 +46,7 @@ xrtJsonWriterEnd(W);             /* 闭对象 */
 str s = xrtJsonWriterFinish(W);  /* 校验配对完整性并取走 */
 ```
 
-开闭配对由 `Finish` 校验——少个 End 在这里暴露，不是产出残缺 JSON。Writer 支持输出到内存（Take 拥有式串）或直接写 sink（第 33 章 Logger 的 sink 体系同构）——后者让序列化直连文件/网络。
+开闭配对由 `Finish` 校验——少个 End 在这里暴露，不是产出残缺 JSON。Writer 支持输出到内存（Take 拥有式串）或直接写 sink（第 34 章 Logger 的 sink 体系同构）——后者让序列化直连文件/网络。
 
 ### 路径选择规则
 
@@ -103,7 +103,7 @@ json: sink-writer [[1,true,null,2.5,"v"]] ok
 json: error-location line=1 ok
 ```
 
-**刚才发生了什么。** ① 文件路径：Parse 与 Stringify 直接对接文件——配置加载与导出的文件形态。② 流式写：Writer 逐元素写、计数 23 个元素 9 个引号——"边生成边输出"的实证。③ sink 写：Writer 输出直接接目标（缓冲/文件）——序列化与 IO 的组合形态，省掉中间字符串。四种姿势覆盖了 JSON 与文件系统（第 41 章）的全部交汇点。
+**刚才发生了什么。** ① 文件路径：Parse 与 Stringify 直接对接文件——配置加载与导出的文件形态。② 流式写：Writer 逐元素写、计数 23 个元素 9 个引号——"边生成边输出"的实证。③ sink 写：Writer 输出直接接目标（缓冲/文件）——序列化与 IO 的组合形态，省掉中间字符串。四种姿势覆盖了 JSON 与文件系统（第 43 章）的全部交汇点。
 
 ## 契约
 

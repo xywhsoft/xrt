@@ -1,5 +1,5 @@
 ---
-num: 32
+num: 33
 slug: xson
 title: XSON 扩展序列化
 volume: 卷四 文本与结构化数据
@@ -143,7 +143,7 @@ xrtValueGetString(pUpdated, &When);   /* 类型是 Time——精确读取失败 
 ```c good
 xtime When;
 xrtValueGetTime(pUpdated, &When);     /* GetTime 读微秒整数 */
-/* 要展示格式：自己格式化（第 38 章时间模块） */
+/* 要展示格式：自己格式化（第 40 章时间模块） */
 ```
 
 ## 练习
