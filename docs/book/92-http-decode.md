@@ -51,7 +51,7 @@ api: http_decode, http_encoding, http1
 - 校验：DecodeDone + BodyDone —— 内容与边界双确认
 ```
 
-四层各司其职、层间只有视图与回调——这是卷九前五章搭出的完整骨架，第 95 章的 xhttp 运行时把它封装成高层 API。
+四层各司其职、层间只有视图与回调——这是卷九前五章搭出的完整骨架，第 97 章的 xhttp 运行时把它封装成高层 API。
 
 ## 示例
 
