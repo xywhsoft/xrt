@@ -21,7 +21,7 @@
 | P12 卷八密码基础 | ✅ 完成 | 5 | 25,122 |
 | P13 卷八证书链 | ✅ 完成 | 4 | 23,822 |
 | P14 卷八TLS上 | ✅ 完成 | 4 | 21,347 |
-| P15 卷八TLS下 | 🔄 进行中 | 0 | — |
+| P15 卷八TLS下 | ✅ 完成 | 3 | 15,847 |
 | P16–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -67,10 +67,28 @@
 | 82 | 82-tls-identity.md | practice | 5,482 | 2 | 1 | 3 | 3 | P14 |
 | 83 | 83-tls-handshake.md | practice | 5,174 | 2 | 2 | 3 | 3 | P14 |
 | 84 | 84-tls-policy.md | practice | 4,972 | 2 | 2 | 3 | 3 | P14 |
+| 85 | 85-tls-server.md | practice | 5,691 | 2 | 1 | 3 | 3 | P15 |
+| 86 | 86-tls-stream.md | practice | 4,937 | 2 | 1 | 3 | 3 | P15 |
+| 87 | 87-tls-resume.md | practice | 5,219 | 3 | 1 | 3 | 3 | P15 |
 
 
 
 
+
+
+## P15 阶段记录
+
+- 卷八 TLS 下 3 章（卷八 16 章全部收官）：ch85 TLS 服务端（会话层裸协议机/
+  Feed-Drive-Send 三步循环/SNI 动态选择与 Cookie 路由/惰性首航 Arena/
+  票据签发与恢复接受）、ch86 TLS 流（StreamAccept 组合层/事件模型与硬背压/
+  共享配置与服务级生命周期/stream_tour 全特性巡检含 starttls）、
+  ch87 会话恢复（新增章：恢复对象契约/签发-接管-缓存-恢复闭环/
+  PSK+DHE 前向保密/binder 认证边界/路由绑定）。
+- 全书第十四次重编号：插入 tls-resume（87），34 文件 +1，全书 121 章；
+  卷八 72-87 共 16 章成型（P12 密码基础 5 + P13 证书链 4 + P14 TLS 上 4 + P15 TLS 下 3）。
+- 门禁拦下：ch85/86 初稿各只有 1 个完整程序（server/stream 示例），
+  补 session_tour/stream_tour 作为第二程序——正好承担"可执行速查表"角色。
+- 行文章号修正 7 处（xhttp→94、testing→113、perf→115）。
 
 ## P14 阶段记录
 
