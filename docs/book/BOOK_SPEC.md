@@ -86,7 +86,7 @@ api: error, error_format, core
 ## 7. 事实性红线（check_book.py 逐条判定）
 
 1. **API 幻觉 0 容忍**：正文中出现的 `xrt[A-Z]\w*` 函数、`X[A-Z0-9_]{2,}` 常量、`x[a-z]\w{2,}` 类型，
-   必须存在于 include/xrt/*.h 符号表（由 gen_web_api.scan_all_headers 提供）。
+   必须存在于符号表（`include/xrt/*.h` 与 `extlibs/*/include/xrt/*.h`，由 gen_web_api.scan_all_headers 扫描提供）。
 2. **嵌入路径必须存在**；`lines` 区间必须落在文件行数内。
 3. **跨章引用目标必须存在**于 order.json。
 4. **api 列表的 ref 页必须存在**。

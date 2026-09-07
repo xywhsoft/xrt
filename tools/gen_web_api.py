@@ -187,7 +187,10 @@ def scan_all_headers(repo):
     sym_map={name: [hdr,...]}, hdr_syms={hdr: {name:(kind,decl)}}, hdr_srcs={hdr: 去注释源码}"""
     hdr_syms = {}
     hdr_srcs = {}
-    for path in sorted(glob.glob(os.path.join(repo, "include", "xrt", "*.h"))):
+    paths = sorted(glob.glob(os.path.join(repo, "include", "xrt", "*.h")))
+    paths += sorted(glob.glob(os.path.join(repo, "extlibs", "*", "include",
+                                           "xrt", "*.h")))
+    for path in paths:
         base = os.path.basename(path)[:-2]
         hdr_srcs[base] = strip_c_comments(io.open(path, encoding="utf-8", errors="replace").read())
         hdr_syms[base] = scan_header(path)
