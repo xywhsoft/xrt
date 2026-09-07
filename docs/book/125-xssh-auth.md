@@ -1,5 +1,5 @@
 ---
-num: 123
+num: 125
 slug: xssh-auth
 title: SSH（四）：认证
 volume: 卷十一 其他扩展库

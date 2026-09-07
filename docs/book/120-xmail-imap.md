@@ -1,5 +1,5 @@
 ---
-num: 118
+num: 120
 slug: xmail-imap
 title: IMAP：服务端邮箱
 volume: 卷十一 其他扩展库

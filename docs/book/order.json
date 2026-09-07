@@ -787,181 +787,195 @@
     "num": 113,
     "slug": "xruntime",
     "file": "113-xruntime",
-    "title": "xruntime（上）：类型与对象",
+    "title": "xruntime（一）：类型系统",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 114,
-    "slug": "xruntime-typed",
-    "file": "114-xruntime-typed",
-    "title": "xruntime（下）：动态调用与 typed 容器",
+    "slug": "xruntime-object",
+    "file": "114-xruntime-object",
+    "title": "xruntime（二）：对象与对象图",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 115,
-    "slug": "xmail-mail",
-    "file": "115-xmail-mail",
-    "title": "邮件消息与 MIME",
+    "slug": "xruntime-call",
+    "file": "115-xruntime-call",
+    "title": "xruntime（三）：动态调用",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 116,
-    "slug": "xmail-smtp",
-    "file": "116-xmail-smtp",
-    "title": "xmail（上）：SMTP",
+    "slug": "xruntime-typed",
+    "file": "116-xruntime-typed",
+    "title": "xruntime（四）：typed 容器",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 117,
-    "slug": "xmail-pop3",
-    "file": "117-xmail-pop3",
-    "title": "POP3：收取邮件",
+    "slug": "xmail-mail",
+    "file": "117-xmail-mail",
+    "title": "邮件消息与 MIME",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 118,
-    "slug": "xmail-imap",
-    "file": "118-xmail-imap",
-    "title": "xmail（下）：IMAP / POP3 与 MIME",
+    "slug": "xmail-smtp",
+    "file": "118-xmail-smtp",
+    "title": "xmail（上）：SMTP",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 119,
-    "slug": "xmail-compose",
-    "file": "119-xmail-compose",
-    "title": "组合收发：附件、编码与收发闭环",
+    "slug": "xmail-pop3",
+    "file": "119-xmail-pop3",
+    "title": "POP3：收取邮件",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 120,
-    "slug": "xssh-transport",
-    "file": "120-xssh-transport",
-    "title": "xssh（上）：传输与密钥交换",
+    "slug": "xmail-imap",
+    "file": "120-xmail-imap",
+    "title": "xmail（下）：IMAP / POP3 与 MIME",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 121,
-    "slug": "xssh-kex",
-    "file": "121-xssh-kex",
-    "title": "SSH（二）：密钥交换",
+    "slug": "xmail-compose",
+    "file": "121-xmail-compose",
+    "title": "组合收发：附件、编码与收发闭环",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 122,
-    "slug": "xssh-hostkey",
-    "file": "122-xssh-hostkey",
-    "title": "SSH（三）：主机密钥与 known_hosts",
+    "slug": "xssh-transport",
+    "file": "122-xssh-transport",
+    "title": "xssh（上）：传输与密钥交换",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 123,
-    "slug": "xssh-auth",
-    "file": "123-xssh-auth",
-    "title": "xssh（下）：认证与通道",
-    "volume": "卷十一 其他扩展库 · 卷十一收官"
+    "slug": "xssh-kex",
+    "file": "123-xssh-kex",
+    "title": "SSH（二）：密钥交换",
+    "volume": "卷十一 其他扩展库"
   },
   {
     "num": 124,
-    "slug": "xssh-channel",
-    "file": "124-xssh-channel",
-    "title": "SSH（五）：通道与窗口",
+    "slug": "xssh-hostkey",
+    "file": "124-xssh-hostkey",
+    "title": "SSH（三）：主机密钥与 known_hosts",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 125,
+    "slug": "xssh-auth",
+    "file": "125-xssh-auth",
+    "title": "xssh（下）：认证与通道",
+    "volume": "卷十一 其他扩展库 · 卷十一收官"
+  },
+  {
+    "num": 126,
+    "slug": "xssh-channel",
+    "file": "126-xssh-channel",
+    "title": "SSH（五）：通道与窗口",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 127,
     "slug": "xssh-forward",
-    "file": "125-xssh-forward",
+    "file": "127-xssh-forward",
     "title": "SSH（六）：端口转发",
     "volume": "卷十一 其他扩展库"
   },
   {
-    "num": 126,
+    "num": 128,
     "slug": "xssh-client",
-    "file": "126-xssh-client",
+    "file": "128-xssh-client",
     "title": "SSH（七）：客户端运行时",
     "volume": "卷十一 其他扩展库 · 卷十一收官"
   },
   {
-    "num": 127,
+    "num": 129,
     "slug": "build",
-    "file": "127-build",
+    "file": "129-build",
     "title": "构建系统全解",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 128,
+    "num": 130,
     "slug": "trim",
-    "file": "128-trim",
+    "file": "130-trim",
     "title": "特性裁剪与体积控制",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 129,
+    "num": 131,
     "slug": "package",
-    "file": "129-package",
+    "file": "131-package",
     "title": "打包、分发与单头",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 130,
+    "num": 132,
     "slug": "testing",
-    "file": "130-testing",
+    "file": "132-testing",
     "title": "测试、故障注入与模糊测试",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 131,
+    "num": 133,
     "slug": "embed",
-    "file": "131-embed",
+    "file": "133-embed",
     "title": "嵌入宿主程序",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 132,
+    "num": 134,
     "slug": "perf",
-    "file": "132-perf",
+    "file": "134-perf",
     "title": "性能调优与内存调试实战",
     "volume": "卷十二 工程实践 · 卷十二收官"
   },
   {
-    "num": 133,
+    "num": 135,
     "slug": "project-cli",
-    "file": "133-project-cli",
+    "file": "135-project-cli",
     "title": "命令行工具：文本与文件处理",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 134,
+    "num": 136,
     "slug": "project-config",
-    "file": "134-project-config",
+    "file": "136-project-config",
     "title": "JSON 配置中心：value 与模板",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 135,
+    "num": 137,
     "slug": "project-chat",
-    "file": "135-project-chat",
+    "file": "137-project-chat",
     "title": "TCP 聊天室：网络与并发",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 136,
+    "num": 138,
     "slug": "project-downloader",
-    "file": "136-project-downloader",
+    "file": "138-project-downloader",
     "title": "HTTPS 下载器：xhttp 与文件",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 137,
+    "num": 139,
     "slug": "project-ws",
-    "file": "137-project-ws",
+    "file": "139-project-ws",
     "title": "WebSocket 实时推送服务",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 138,
+    "num": 140,
     "slug": "project-static",
-    "file": "138-project-static",
+    "file": "140-project-static",
     "title": "综合：迷你静态文件服务器",
     "volume": "卷十三 实战项目 · 全书收官"
   }

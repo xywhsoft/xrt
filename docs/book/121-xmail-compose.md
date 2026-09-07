@@ -1,5 +1,5 @@
 ---
-num: 119
+num: 121
 slug: xmail-compose
 title: 组合收发：附件、编码与收发闭环
 volume: 卷十一 其他扩展库

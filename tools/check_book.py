@@ -284,7 +284,8 @@ BRAND_TOKENS = {"XRT", "XSON", "xson", "JSON", "HTTP", "TLS", "SSE", "DNS", "API
 # 用户侧集成宏：XRT_IMPLEMENTATION 与被 features.h 消费的 XRT_MODULE_* 选择宏
 # （库里只 #if defined(...) 消费、不定义它们，故不在声明符号表中）
 USER_MACROS = {"XRT_IMPLEMENTATION", "XRT_MODULE_", "XRT_FEATURE_", "XRT_EXCLUDE_",
-               "XHTTP_MODULE_", "XHTTP_FEATURE_", "XWS_MODULE_", "XWS_FEATURE_"}
+               "XHTTP_MODULE_", "XHTTP_FEATURE_", "XWS_MODULE_", "XWS_FEATURE_",
+               "XRUNTIME_MODULE_", "XRUNTIME_FEATURE_"}
 
 
 def collect_user_macros(repo):
@@ -293,6 +294,8 @@ def collect_user_macros(repo):
     paths = [os.path.join(repo, "include", "xrt", "features.h")]
     paths += _glob.glob(os.path.join(repo, "extlibs", "*", "include",
                                      "*", "features.h"))
+    paths += _glob.glob(os.path.join(repo, "extlibs", "*", "include",
+                                     "*", "*", "features.h"))
     out = set()
     for path in paths:
         src = _io.open(path, encoding="utf-8", errors="replace").read()
@@ -303,6 +306,8 @@ def collect_user_macros(repo):
         out |= set(re.findall(r"\bXHTTP_FEATURE_[A-Z0-9_]+", src))
         out |= set(re.findall(r"\bXWS_MODULE_[A-Z0-9_]+", src))
         out |= set(re.findall(r"\bXWS_FEATURE_[A-Z0-9_]+", src))
+        out |= set(re.findall(r"\bXRUNTIME_MODULE_[A-Z0-9_]+", src))
+        out |= set(re.findall(r"\bXRUNTIME_FEATURE_[A-Z0-9_]+", src))
     return out
 
 

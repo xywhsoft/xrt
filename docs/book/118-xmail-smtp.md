@@ -1,5 +1,5 @@
 ---
-num: 116
+num: 118
 slug: xmail-smtp
 title: SMTP：发送邮件
 volume: 卷十一 其他扩展库

@@ -1,5 +1,5 @@
 ---
-num: 122
+num: 124
 slug: xssh-hostkey
 title: SSH（三）：主机密钥与 known_hosts
 volume: 卷十一 其他扩展库
