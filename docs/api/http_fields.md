@@ -28,14 +28,14 @@ typedef enum xhttpmethod {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_METHOD_INVALID` | 无效 |
-| `XHTTP_METHOD_OTHER` | OTHER |
-| `XHTTP_METHOD_GET` | GET |
-| `XHTTP_METHOD_HEAD` | HEAD |
-| `XHTTP_METHOD_POST` | POST |
-| `XHTTP_METHOD_PUT` | PUT |
-| `XHTTP_METHOD_DELETE` | DELETE |
-| `XHTTP_METHOD_CONNECT` | CONNECT |
-| `XHTTP_METHOD_OPTIONS` | OPTIONS |
+| `XHTTP_METHOD_OTHER` | 扩展/未知方法 |
+| `XHTTP_METHOD_GET` | GET 方法 |
+| `XHTTP_METHOD_HEAD` | HEAD 方法 |
+| `XHTTP_METHOD_POST` | POST 方法 |
+| `XHTTP_METHOD_PUT` | PUT 方法 |
+| `XHTTP_METHOD_DELETE` | DELETE 方法 |
+| `XHTTP_METHOD_CONNECT` | CONNECT 方法 |
+| `XHTTP_METHOD_OPTIONS` | OPTIONS 方法 |
 | `XHTTP_METHOD_TRACE` | 最详细级别 |
 
 ### `xhttpversion`
@@ -51,7 +51,7 @@ typedef enum xhttpversion {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_VERSION_1_0` | XHTTPVERSION10 |
+| `XHTTP_VERSION_1_0` | HTTP/1.0 |
 
 ### `xhttpstatus`
 
@@ -134,66 +134,66 @@ typedef enum xhttpstatus {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_STATUS_CONTINUE` | CONTINUE |
-| `XHTTP_STATUS_SWITCHING_PROTOCOLS` | SWITCHINGPROTOCOLS |
-| `XHTTP_STATUS_PROCESSING` | PROCESSING |
-| `XHTTP_STATUS_EARLY_HINTS` | EARLYHINTS |
+| `XHTTP_STATUS_CONTINUE` | CONTINUE（100 继续） |
+| `XHTTP_STATUS_SWITCHING_PROTOCOLS` | 101 协议切换 |
+| `XHTTP_STATUS_PROCESSING` | 102 处理中 |
+| `XHTTP_STATUS_EARLY_HINTS` | 103 早期提示 |
 | `XHTTP_STATUS_OK` | 成功 |
-| `XHTTP_STATUS_CREATED` | CREATED |
-| `XHTTP_STATUS_ACCEPTED` | ACCEPTED |
-| `XHTTP_STATUS_NON_AUTHORITATIVE_INFORMATION` | NONAUTHORITATIVEINFORMATION |
-| `XHTTP_STATUS_NO_CONTENT` | NOCONTENT |
-| `XHTTP_STATUS_RESET_CONTENT` | RESETCONTENT |
-| `XHTTP_STATUS_PARTIAL_CONTENT` | PARTIALCONTENT |
-| `XHTTP_STATUS_MULTI_STATUS` | MULTISTATUS |
-| `XHTTP_STATUS_ALREADY_REPORTED` | ALREADYREPORTED |
-| `XHTTP_STATUS_IM_USED` | IMUSED |
-| `XHTTP_STATUS_MULTIPLE_CHOICES` | MULTIPLECHOICES |
-| `XHTTP_STATUS_MOVED_PERMANENTLY` | MOVEDPERMANENTLY |
-| `XHTTP_STATUS_FOUND` | FOUND |
-| `XHTTP_STATUS_SEE_OTHER` | SEEOTHER |
-| `XHTTP_STATUS_NOT_MODIFIED` | NOTMODIFIED |
-| `XHTTP_STATUS_USE_PROXY` | USEPROXY |
-| `XHTTP_STATUS_TEMPORARY_REDIRECT` | TEMPORARYREDIRECT |
-| `XHTTP_STATUS_PERMANENT_REDIRECT` | PERMANENTREDIRECT |
-| `XHTTP_STATUS_BAD_REQUEST` | BADREQUEST |
-| `XHTTP_STATUS_UNAUTHORIZED` | UNAUTHORIZED |
-| `XHTTP_STATUS_PAYMENT_REQUIRED` | PAYMENTREQUIRED |
-| `XHTTP_STATUS_FORBIDDEN` | FORBIDDEN |
-| `XHTTP_STATUS_NOT_FOUND` | NOTFOUND |
-| `XHTTP_STATUS_METHOD_NOT_ALLOWED` | METHODNOTALLOWED |
-| `XHTTP_STATUS_NOT_ACCEPTABLE` | NOTACCEPTABLE |
-| `XHTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED` | PROXYAUTHENTICATIONREQUIRED |
+| `XHTTP_STATUS_CREATED` | 201 已创建 |
+| `XHTTP_STATUS_ACCEPTED` | 202 已接受 |
+| `XHTTP_STATUS_NON_AUTHORITATIVE_INFORMATION` | 203 非权威信息 |
+| `XHTTP_STATUS_NO_CONTENT` | 204 无内容 |
+| `XHTTP_STATUS_RESET_CONTENT` | 205 重置内容 |
+| `XHTTP_STATUS_PARTIAL_CONTENT` | 206 部分内容 |
+| `XHTTP_STATUS_MULTI_STATUS` | 207 多状态 |
+| `XHTTP_STATUS_ALREADY_REPORTED` | 208 已报告 |
+| `XHTTP_STATUS_IM_USED` | 226 IM 已使用 |
+| `XHTTP_STATUS_MULTIPLE_CHOICES` | 300 多选项 |
+| `XHTTP_STATUS_MOVED_PERMANENTLY` | 301 永久移动 |
+| `XHTTP_STATUS_FOUND` | 302 找到（临时移动） |
+| `XHTTP_STATUS_SEE_OTHER` | 303 见其他 |
+| `XHTTP_STATUS_NOT_MODIFIED` | 304 未修改 |
+| `XHTTP_STATUS_USE_PROXY` | 305 使用代理 |
+| `XHTTP_STATUS_TEMPORARY_REDIRECT` | 307 临时重定向 |
+| `XHTTP_STATUS_PERMANENT_REDIRECT` | 308 永久重定向 |
+| `XHTTP_STATUS_BAD_REQUEST` | 400 错误请求 |
+| `XHTTP_STATUS_UNAUTHORIZED` | 401 未认证 |
+| `XHTTP_STATUS_PAYMENT_REQUIRED` | 402 需要付费 |
+| `XHTTP_STATUS_FORBIDDEN` | 403 禁止 |
+| `XHTTP_STATUS_NOT_FOUND` | 未找到 |
+| `XHTTP_STATUS_METHOD_NOT_ALLOWED` | 405 方法不允许 |
+| `XHTTP_STATUS_NOT_ACCEPTABLE` | 406 不可接受 |
+| `XHTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED` | 407 需代理认证 |
 | `XHTTP_STATUS_REQUEST_TIMEOUT` | REQUEST超时 |
-| `XHTTP_STATUS_CONFLICT` | CONFLICT |
-| `XHTTP_STATUS_GONE` | GONE |
-| `XHTTP_STATUS_LENGTH_REQUIRED` | LENGTHREQUIRED |
+| `XHTTP_STATUS_CONFLICT` | 冲突 |
+| `XHTTP_STATUS_GONE` | 410 已消失 |
+| `XHTTP_STATUS_LENGTH_REQUIRED` | 411 需要 Content-Length |
 | `XHTTP_STATUS_PRECONDITION_FAILED` | PRECONDITION已失败 |
-| `XHTTP_STATUS_CONTENT_TOO_LARGE` | CONTENTTOOLARGE |
-| `XHTTP_STATUS_URI_TOO_LONG` | URITOOLONG |
+| `XHTTP_STATUS_CONTENT_TOO_LARGE` | 413 内容过大 |
+| `XHTTP_STATUS_URI_TOO_LONG` | 414 URI 过长 |
 | `XHTTP_STATUS_UNSUPPORTED_MEDIA_TYPE` | 不支持MEDIA类型 |
 | `XHTTP_STATUS_RANGE_NOT_SATISFIABLE` | 范围越界NOTSATISFIABLE |
 | `XHTTP_STATUS_EXPECTATION_FAILED` | EXPECTATION已失败 |
-| `XHTTP_STATUS_MISDIRECTED_REQUEST` | MISDIRECTEDREQUEST |
-| `XHTTP_STATUS_UNPROCESSABLE_CONTENT` | UNPROCESSABLECONTENT |
-| `XHTTP_STATUS_LOCKED` | LOCKED |
+| `XHTTP_STATUS_MISDIRECTED_REQUEST` | 421 请求被误送 |
+| `XHTTP_STATUS_UNPROCESSABLE_CONTENT` | 422 无法处理 |
+| `XHTTP_STATUS_LOCKED` | 423 已锁定 |
 | `XHTTP_STATUS_FAILED_DEPENDENCY` | 已失败DEPENDENCY |
-| `XHTTP_STATUS_TOO_EARLY` | TOOEARLY |
-| `XHTTP_STATUS_UPGRADE_REQUIRED` | UPGRADEREQUIRED |
-| `XHTTP_STATUS_PRECONDITION_REQUIRED` | PRECONDITIONREQUIRED |
-| `XHTTP_STATUS_TOO_MANY_REQUESTS` | TOOMANYREQUESTS |
+| `XHTTP_STATUS_TOO_EARLY` | 425 过早 |
+| `XHTTP_STATUS_UPGRADE_REQUIRED` | 426 需要升级 |
+| `XHTTP_STATUS_PRECONDITION_REQUIRED` | 428 需要前提条件 |
+| `XHTTP_STATUS_TOO_MANY_REQUESTS` | 429 请求过多 |
 | `XHTTP_STATUS_REQUEST_HEADER_FIELDS_TOO_LARGE` | REQUESTHEADER字段TOOLARGE |
-| `XHTTP_STATUS_UNAVAILABLE_FOR_LEGAL_REASONS` | UNAVAILABLEFORLEGALREASONS |
+| `XHTTP_STATUS_UNAVAILABLE_FOR_LEGAL_REASONS` | 451 因法律原因不可用 |
 | `XHTTP_STATUS_INTERNAL_SERVER_ERROR` | 内部错误服务端角色失败 |
-| `XHTTP_STATUS_NOT_IMPLEMENTED` | NOTIMPLEMENTED |
-| `XHTTP_STATUS_BAD_GATEWAY` | BADGATEWAY |
-| `XHTTP_STATUS_SERVICE_UNAVAILABLE` | SERVICEUNAVAILABLE |
+| `XHTTP_STATUS_NOT_IMPLEMENTED` | 501 未实现 |
+| `XHTTP_STATUS_BAD_GATEWAY` | 502 网关错误 |
+| `XHTTP_STATUS_SERVICE_UNAVAILABLE` | 503 服务不可用 |
 | `XHTTP_STATUS_GATEWAY_TIMEOUT` | GATEWAY超时 |
-| `XHTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED` | HTTPVERSIONNOTSUPPORTED |
-| `XHTTP_STATUS_VARIANT_ALSO_NEGOTIATES` | VARIANTALSONEGOTIATES |
-| `XHTTP_STATUS_INSUFFICIENT_STORAGE` | INSUFFICIENTSTORAGE |
-| `XHTTP_STATUS_LOOP_DETECTED` | LOOPDETECTED |
-| `XHTTP_STATUS_NOT_EXTENDED` | NOTEXTENDED |
+| `XHTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED` | 505 版本不支持 |
+| `XHTTP_STATUS_VARIANT_ALSO_NEGOTIATES` | 506 变体协商错误 |
+| `XHTTP_STATUS_INSUFFICIENT_STORAGE` | 507 存储不足 |
+| `XHTTP_STATUS_LOOP_DETECTED` | 508 检测到循环 |
+| `XHTTP_STATUS_NOT_EXTENDED` | 510 未扩展 |
 
 ### `xhttpfield`
 
@@ -208,8 +208,8 @@ typedef struct xhttpfield {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Value` | `xstrview` | Value |
+| `Name` | `xstrview` | 名称 |
+| `Value` | `xstrview` | 值 |
 
 ### `xhttpnext`
 
@@ -226,7 +226,7 @@ typedef enum xhttpnext {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_NEXT_ERROR` | 失败 |
-| `XHTTP_NEXT_END` | END |
+| `XHTTP_NEXT_END` | 遍历结束 |
 
 ### `xhttpfieldtokencursor`
 
@@ -246,13 +246,13 @@ typedef struct xhttpfieldtokencursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Source` | `const void*` | Source |
-| `Name` | `xstrview` | Name |
-| `Count` | `size_t` | Count |
+| `Source` | `const void*` | 源视图 |
+| `Name` | `xstrview` | 名称 |
+| `Count` | `size_t` | 数量 |
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
-| `Required` | `uint8` | Required |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
+| `Required` | `uint8` | 是否必需 |
 
 ### `xhttpweightedtoken`
 
@@ -286,10 +286,10 @@ typedef struct xhttpauthority {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
-| `Port` | `uint16` | Port |
-| `Text` | `xstrview` | Text |
-| `Host` | `xstrview` | Host |
+| `Flags` | `uint32` | 标志位 |
+| `Port` | `uint16` | 端口 |
+| `Text` | `xstrview` | 文本视图 |
+| `Host` | `xstrview` | 主机名 |
 | `PortText` | `xstrview` | PortText |
 
 ### `xhttptargetform`
@@ -307,9 +307,9 @@ typedef enum xhttptargetform {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_TARGET_ORIGIN` | ORIGIN |
-| `XHTTP_TARGET_ABSOLUTE` | ABSOLUTE |
-| `XHTTP_TARGET_AUTHORITY` | AUTHORITY |
+| `XHTTP_TARGET_ORIGIN` | origin-form（最常见） |
+| `XHTTP_TARGET_ABSOLUTE` | absolute-form（代理） |
+| `XHTTP_TARGET_AUTHORITY` | authority-form（CONNECT） |
 
 ### `xhttptarget`
 
@@ -332,14 +332,14 @@ typedef struct xhttptarget {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Form` | `xhttptargetform` | Form |
-| `Flags` | `uint32` | Flags |
-| `Method` | `xstrview` | Method |
-| `Text` | `xstrview` | Text |
-| `Scheme` | `xstrview` | Scheme |
+| `Flags` | `uint32` | 标志位 |
+| `Method` | `xstrview` | 方法 |
+| `Text` | `xstrview` | 文本视图 |
+| `Scheme` | `xstrview` | 协议方案 |
 | `Authority` | `xstrview` | Authority |
-| `Path` | `xstrview` | Path |
-| `Query` | `xstrview` | Query |
-| `Host` | `xhttpauthority` | Host |
+| `Path` | `xstrview` | 路径 |
+| `Query` | `xstrview` | 查询串 |
+| `Host` | `xhttpauthority` | 主机名 |
 
 ### `xhttpparamflags`
 
@@ -372,9 +372,9 @@ typedef struct xhttpparam {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Value` | `xstrview` | Value |
-| `Flags` | `uint32` | Flags |
+| `Name` | `xstrview` | 名称 |
+| `Value` | `xstrview` | 值 |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpparamvaluecursor`
 
@@ -393,12 +393,12 @@ typedef struct xhttpparamvaluecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Source` | `const void*` | Source |
-| `Value` | `const void*` | Value |
+| `Source` | `const void*` | 源视图 |
+| `Value` | `const void*` | 值 |
 | `ValueSize` | `size_t` | ValueSize |
-| `Offset` | `size_t` | Offset |
-| `Flags` | `uint32` | Flags |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Flags` | `uint32` | 标志位 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpconnectionstatus`
 
@@ -415,7 +415,7 @@ typedef enum xhttpconnectionstatus {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_CONNECTION_ERROR` | 失败 |
-| `XHTTP_CONNECTION_CLOSE` | CLOSE |
+| `XHTTP_CONNECTION_CLOSE` | 协商了 close |
 
 ### `xhttpconnectionflag`
 
@@ -431,8 +431,8 @@ typedef enum xhttpconnectionflag {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_CONNECTION_RESPONSE` | RESPONSE |
-| `XHTTP_CONNECTION_PROXY` | PROXY |
+| `XHTTP_CONNECTION_RESPONSE` | 响应保留连接 |
+| `XHTTP_CONNECTION_PROXY` | 代理保留连接 |
 
 ### 常量总表
 

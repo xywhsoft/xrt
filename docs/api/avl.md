@@ -18,8 +18,8 @@ typedef struct xavlnode {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Left` | `struct xavlnode*` | Left |
-| `Right` | `struct xavlnode*` | Right |
+| `Left` | `struct xavlnode*` | 左操作数 |
+| `Right` | `struct xavlnode*` | 右操作数 |
 | `Height` | `uint8` | Height |
 
 ### `xavl`
@@ -37,8 +37,8 @@ typedef struct xavl {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Root` | `xavlnode*` | Root |
-| `Count` | `size_t` | Count |
-| `Version` | `uint64` | Version |
+| `Count` | `size_t` | 数量 |
+| `Version` | `uint64` | 结构版本 |
 
 ### `xavliter`
 
@@ -59,7 +59,7 @@ typedef struct xavliter {
 |---|---|---|
 | `Tree` | `const xavl*` | Tree |
 | `Depth` | `size_t` | Depth |
-| `Version` | `uint64` | Version |
+| `Version` | `uint64` | 结构版本 |
 | `Reverse` | `bool` | Reverse |
 | `Active` | `bool` | Active |
 
@@ -85,13 +85,13 @@ typedef struct xavltree {
 |---|---|---|
 | `Base` | `xavl` | Base |
 | `Pool` | `xpool` | Pool |
-| `ItemSize` | `size_t` | ItemSize |
-| `ItemOffset` | `size_t` | ItemOffset |
-| `Alignment` | `size_t` | Alignment |
+| `ItemSize` | `size_t` | 单元素字节数 |
+| `ItemOffset` | `size_t` | 元素偏移 |
+| `Alignment` | `size_t` | 对齐（二次幂） |
 | `Compare` | `xavltreecompare` | Compare |
 | `Drop` | `xavltreedrop` | Drop |
-| `UserData` | `ptr` | UserData |
-| `Flags` | `uint32` | Flags |
+| `UserData` | `ptr` | 用户数据 |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xavltreeiter`
 

@@ -95,8 +95,8 @@ typedef struct xutf16view {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `const uint16*` | Data |
-| `Size` | `size_t` | Size |
+| `Data` | `const uint16*` | 数据 |
+| `Size` | `size_t` | 字节数 |
 
 ### `xutf32view`
 
@@ -111,8 +111,8 @@ typedef struct xutf32view {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `const uint32*` | Data |
-| `Size` | `size_t` | Size |
+| `Data` | `const uint32*` | 数据 |
+| `Size` | `size_t` | 字节数 |
 
 ### `xutfstatus`
 
@@ -150,10 +150,10 @@ typedef struct xutfresult {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Status` | `xutfstatus` | Status |
+| `Status` | `xutfstatus` | 状态输出 |
 | `Read` | `size_t` | Read |
 | `Written` | `size_t` | Written |
-| `Error` | `size_t` | Error |
+| `Error` | `size_t` | 错误输出 |
 
 ### `xutf8state`
 
@@ -172,9 +172,9 @@ typedef struct xutf8state {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Total` | `size_t` | Total |
+| `Total` | `size_t` | 总量 |
 | `PendingOffset` | `size_t` | PendingOffset |
-| `Error` | `size_t` | Error |
+| `Error` | `size_t` | 错误输出 |
 | `PendingSize` | `uint8` | PendingSize |
 | `Failed` | `bool` | Failed |
 

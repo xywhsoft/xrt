@@ -41,7 +41,7 @@ typedef union xchannel {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xchannelop`
 
@@ -74,9 +74,9 @@ typedef struct xchannelcase {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Channel` | `xchannel*` | Channel |
-| `Operation` | `xchannelop` | Operation |
-| `Value` | `ptr` | Value |
-| `Output` | `ptr*` | Output |
+| `Operation` | `xchannelop` | 失败操作名 |
+| `Value` | `ptr` | 值 |
+| `Output` | `ptr*` | 输出缓冲 |
 
 ### `xchannelselectresult`
 
@@ -93,8 +93,8 @@ typedef struct xchannelselectresult {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Wait` | `xwaitresult` | Wait |
-| `Index` | `size_t` | Index |
-| `Result` | `xchannelresult` | Result |
+| `Index` | `size_t` | 索引 |
+| `Result` | `xchannelresult` | 结果输出 |
 
 ### `xchanneldrainfn`
 

@@ -35,8 +35,8 @@ typedef enum xconsoleerror {
 
 | 值 | 语义 |
 |---|---|
-| `XCONSOLE_ERROR_STREAM` | STREAM |
-| `XCONSOLE_ERROR_UTF8` | UTF-8 |
+| `XCONSOLE_ERROR_STREAM` | 失败 |
+| `XCONSOLE_ERROR_UTF8` | 失败 |
 | `XCONSOLE_ERROR_WRITE` | 写方向 |
 
 ## 选择模块

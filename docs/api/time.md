@@ -68,12 +68,12 @@ typedef enum xtimeweekday {
 
 | 值 | 语义 |
 |---|---|
-| `XTIME_SUNDAY` | SUNDAY |
-| `XTIME_MONDAY` | MONDAY |
-| `XTIME_TUESDAY` | TUESDAY |
-| `XTIME_WEDNESDAY` | WEDNESDAY |
-| `XTIME_THURSDAY` | THURSDAY |
-| `XTIME_FRIDAY` | FRIDAY |
+| `XTIME_SUNDAY` | 周日 |
+| `XTIME_MONDAY` | 周一 |
+| `XTIME_TUESDAY` | 周二 |
+| `XTIME_WEDNESDAY` | 周三 |
+| `XTIME_THURSDAY` | 周四 |
+| `XTIME_FRIDAY` | 周五 |
 
 ### `xtimeunit`
 
@@ -96,15 +96,15 @@ typedef enum xtimeunit {
 
 | 值 | 语义 |
 |---|---|
-| `XTIME_UNIT_MICROSECOND` | MICROSECOND |
-| `XTIME_UNIT_MILLISECOND` | MILLISECOND |
-| `XTIME_UNIT_SECOND` | SECOND |
-| `XTIME_UNIT_MINUTE` | MINUTE |
-| `XTIME_UNIT_HOUR` | HOUR |
-| `XTIME_UNIT_DAY` | DAY |
-| `XTIME_UNIT_WEEK` | WEEK |
-| `XTIME_UNIT_MONTH` | MONTH |
-| `XTIME_UNIT_QUARTER` | QUARTER |
+| `XTIME_UNIT_MICROSECOND` | 微秒 |
+| `XTIME_UNIT_MILLISECOND` | 毫秒 |
+| `XTIME_UNIT_SECOND` | 秒 |
+| `XTIME_UNIT_MINUTE` | 分 |
+| `XTIME_UNIT_HOUR` | 时 |
+| `XTIME_UNIT_DAY` | 日 |
+| `XTIME_UNIT_WEEK` | 周 |
+| `XTIME_UNIT_MONTH` | 月 |
+| `XTIME_UNIT_QUARTER` | 季度 |
 
 ### `xtimefold`
 
@@ -143,10 +143,10 @@ typedef enum xtimeerror {
 |---|---|
 | `XTIME_ERROR_RANGE` | 范围越界 |
 | `XTIME_ERROR_OVERFLOW` | 溢出 |
-| `XTIME_ERROR_FORMAT` | FORMAT |
-| `XTIME_ERROR_PARSE` | PARSE |
-| `XTIME_ERROR_LOCAL_GAP` | LOCALGAP |
-| `XTIME_ERROR_LOCAL_FOLD` | LOCALFOLD |
+| `XTIME_ERROR_FORMAT` | 格式非法 |
+| `XTIME_ERROR_PARSE` | 失败 |
+| `XTIME_ERROR_LOCAL_GAP` | 失败 |
+| `XTIME_ERROR_LOCAL_FOLD` | 失败 |
 
 ### `xdatetime`
 
@@ -177,7 +177,7 @@ typedef struct xdatetime {
 | `Minute` | `int` | Minute |
 | `Second` | `int` | Second |
 | `Microsecond` | `int` | Microsecond |
-| `Offset` | `int` | Offset |
+| `Offset` | `int` | 偏移量 |
 | `Weekday` | `int` | Weekday |
 | `YearDay` | `int` | YearDay |
 | `IsDST` | `int` | IsDST |

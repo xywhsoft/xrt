@@ -36,7 +36,7 @@ typedef enum xtlsversion {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_VERSION_12` | XTLSVERSION12 |
+| `XTLS_VERSION_12` | TLS 1.2 |
 
 ### `xtlscipher`
 
@@ -58,13 +58,13 @@ typedef enum xtlscipher {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_AES_128_GCM_SHA256` | AES128GCMSHA256 |
-| `XTLS_AES_256_GCM_SHA384` | AES256GCMSHA384 |
-| `XTLS_CHACHA20_POLY1305_SHA256` | CHACHA20POLY1305SHA256 |
-| `XTLS_ECDHE_ECDSA_AES_128_GCM_SHA256` | ECDHEECDSAAES128GCMSHA256 |
-| `XTLS_ECDHE_RSA_AES_128_GCM_SHA256` | ECDHERSAAES128GCMSHA256 |
-| `XTLS_ECDHE_ECDSA_AES_256_GCM_SHA384` | ECDHEECDSAAES256GCMSHA384 |
-| `XTLS_ECDHE_RSA_AES_256_GCM_SHA384` | ECDHERSAAES256GCMSHA384 |
+| `XTLS_AES_128_GCM_SHA256` | TLS_AES_128_GCM_SHA256 |
+| `XTLS_AES_256_GCM_SHA384` | TLS_AES_256_GCM_SHA384 |
+| `XTLS_CHACHA20_POLY1305_SHA256` | TLS_CHACHA20_POLY1305_SHA256 |
+| `XTLS_ECDHE_ECDSA_AES_128_GCM_SHA256` | ECDHE-ECDSA-AES128-GCM-SHA256 |
+| `XTLS_ECDHE_RSA_AES_128_GCM_SHA256` | ECDHE-RSA-AES128-GCM-SHA256 |
+| `XTLS_ECDHE_ECDSA_AES_256_GCM_SHA384` | ECDHE-ECDSA-AES256-GCM-SHA384 |
+| `XTLS_ECDHE_RSA_AES_256_GCM_SHA384` | ECDHE-RSA-AES256-GCM-SHA384 |
 | `XTLS_ECDHE_RSA_CHACHA20_POLY1305_SHA256` | ECDHERSACHACHA20POLY1305SHA256 |
 
 ### `xtlshash`
@@ -146,10 +146,10 @@ typedef enum xtlsstate {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_STATE_NEW` | NEW |
+| `XTLS_STATE_NEW` | 状态非法 |
 | `XTLS_STATE_HANDSHAKE` | 握手阶段 |
 | `XTLS_STATE_READY` | 就绪 |
-| `XTLS_STATE_CLOSING` | CLOSING |
+| `XTLS_STATE_CLOSING` | 关闭中 |
 | `XTLS_STATE_CLOSED` | 已关闭 |
 
 ### `xtlsrecordtype`
@@ -200,23 +200,23 @@ typedef enum xtlshandshaketype {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_HANDSHAKE_HELLO_REQUEST` | HELLOREQUEST |
+| `XTLS_HANDSHAKE_HELLO_REQUEST` | 握手阶段 |
 | `XTLS_HANDSHAKE_CLIENT_HELLO` | 客户端角色HELLO |
 | `XTLS_HANDSHAKE_SERVER_HELLO` | 服务端角色HELLO |
-| `XTLS_HANDSHAKE_NEW_SESSION_TICKET` | NEWSESSIONTICKET |
+| `XTLS_HANDSHAKE_NEW_SESSION_TICKET` | 握手阶段 |
 | `XTLS_HANDSHAKE_END_OF_EARLY_DATA` | ENDOFEARLY数据损坏 |
-| `XTLS_HANDSHAKE_ENCRYPTED_EXTENSIONS` | ENCRYPTEDEXTENSIONS |
-| `XTLS_HANDSHAKE_CERTIFICATE` | CERTIFICATE |
+| `XTLS_HANDSHAKE_ENCRYPTED_EXTENSIONS` | 握手阶段 |
+| `XTLS_HANDSHAKE_CERTIFICATE` | 握手阶段 |
 | `XTLS_HANDSHAKE_SERVER_KEY_EXCHANGE` | 服务端角色KEYEXCHANGE |
-| `XTLS_HANDSHAKE_CERTIFICATE_REQUEST` | CERTIFICATEREQUEST |
+| `XTLS_HANDSHAKE_CERTIFICATE_REQUEST` | 握手阶段 |
 | `XTLS_HANDSHAKE_SERVER_HELLO_DONE` | 服务端角色HELLO完成 |
-| `XTLS_HANDSHAKE_CERTIFICATE_VERIFY` | CERTIFICATEVERIFY |
+| `XTLS_HANDSHAKE_CERTIFICATE_VERIFY` | 握手阶段 |
 | `XTLS_HANDSHAKE_CLIENT_KEY_EXCHANGE` | 客户端角色KEYEXCHANGE |
 | `XTLS_HANDSHAKE_FINISHED` | 已完成 |
-| `XTLS_HANDSHAKE_CERTIFICATE_STATUS` | CERTIFICATESTATUS |
+| `XTLS_HANDSHAKE_CERTIFICATE_STATUS` | 握手阶段 |
 | `XTLS_HANDSHAKE_SUPPLEMENTAL_DATA` | SUPPLEMENTAL数据损坏 |
-| `XTLS_HANDSHAKE_KEY_UPDATE` | KEYUPDATE |
-| `XTLS_HANDSHAKE_COMPRESSED_CERTIFICATE` | COMPRESSEDCERTIFICATE |
+| `XTLS_HANDSHAKE_KEY_UPDATE` | 握手阶段 |
+| `XTLS_HANDSHAKE_COMPRESSED_CERTIFICATE` | 握手阶段 |
 
 ### `xtlsextensiontype`
 
@@ -343,19 +343,19 @@ typedef enum xtlssignature {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_SIGNATURE_RSA_PKCS1_SHA256` | RSAPKCS1SHA256 |
-| `XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256` | ECDSASECP256R1SHA256 |
-| `XTLS_SIGNATURE_RSA_PKCS1_SHA384` | RSAPKCS1SHA384 |
-| `XTLS_SIGNATURE_ECDSA_SECP384R1_SHA384` | ECDSASECP384R1SHA384 |
-| `XTLS_SIGNATURE_RSA_PKCS1_SHA512` | RSAPKCS1SHA512 |
-| `XTLS_SIGNATURE_ECDSA_SECP521R1_SHA512` | ECDSASECP521R1SHA512 |
-| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256` | RSAPSSRSAESHA256 |
-| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA384` | RSAPSSRSAESHA384 |
-| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA512` | RSAPSSRSAESHA512 |
-| `XTLS_SIGNATURE_ED25519` | ED25519 |
-| `XTLS_SIGNATURE_ED448` | ED448 |
-| `XTLS_SIGNATURE_RSA_PSS_PSS_SHA256` | RSAPSSPSSSHA256 |
-| `XTLS_SIGNATURE_RSA_PSS_PSS_SHA384` | RSAPSSPSSSHA384 |
+| `XTLS_SIGNATURE_RSA_PKCS1_SHA256` | PKCS#1 v1.5 + SHA-256（TLS 1.2 遗留） |
+| `XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256` | ECDSA P-256 + SHA-256 |
+| `XTLS_SIGNATURE_RSA_PKCS1_SHA384` | PKCS#1 v1.5 + SHA-384（TLS 1.2 遗留） |
+| `XTLS_SIGNATURE_ECDSA_SECP384R1_SHA384` | ECDSA P-384 + SHA-384 |
+| `XTLS_SIGNATURE_RSA_PKCS1_SHA512` | PKCS#1 v1.5 + SHA-512（TLS 1.2 遗留） |
+| `XTLS_SIGNATURE_ECDSA_SECP521R1_SHA512` | ECDSA P-521 + SHA-512 |
+| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256` | RSA-PSS（RSAE 密钥）+ SHA-256 |
+| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA384` | RSA-PSS（RSAE）+ SHA-384 |
+| `XTLS_SIGNATURE_RSA_PSS_RSAE_SHA512` | RSA-PSS（RSAE）+ SHA-512 |
+| `XTLS_SIGNATURE_ED25519` | Ed25519 |
+| `XTLS_SIGNATURE_ED448` | Ed448 |
+| `XTLS_SIGNATURE_RSA_PSS_PSS_SHA256` | RSA-PSS（PSS 密钥）+ SHA-256 |
+| `XTLS_SIGNATURE_RSA_PSS_PSS_SHA384` | RSA-PSS（PSS）+ SHA-384 |
 
 ### `xtlsitemresult`
 
@@ -449,7 +449,7 @@ typedef enum xtlsalertlevel {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_ALERT_WARNING` | XTLSALERTWARNING |
+| `XTLS_ALERT_WARNING` | Warning |
 
 ### `xtlsalert`
 
@@ -489,32 +489,32 @@ typedef enum xtlsalert {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_ALERT_CLOSE_NOTIFY` | CLOSENOTIFY |
+| `XTLS_ALERT_CLOSE_NOTIFY` | 关闭Notify |
 | `XTLS_ALERT_UNEXPECTED_MESSAGE` | UNEXPECTED消息 |
-| `XTLS_ALERT_BAD_RECORD_MAC` | BADRECORDMAC |
+| `XTLS_ALERT_BAD_RECORD_MAC` | 错误记录Mac |
 | `XTLS_ALERT_RECORD_OVERFLOW` | RECORD溢出 |
 | `XTLS_ALERT_HANDSHAKE_FAILURE` | 握手阶段FAILURE |
-| `XTLS_ALERT_BAD_CERTIFICATE` | BADCERTIFICATE |
+| `XTLS_ALERT_BAD_CERTIFICATE` | 错误证书 |
 | `XTLS_ALERT_UNSUPPORTED_CERTIFICATE` | 不支持CERTIFICATE |
-| `XTLS_ALERT_CERTIFICATE_REVOKED` | CERTIFICATEREVOKED |
-| `XTLS_ALERT_CERTIFICATE_EXPIRED` | CERTIFICATEEXPIRED |
+| `XTLS_ALERT_CERTIFICATE_REVOKED` | 证书Revoked |
+| `XTLS_ALERT_CERTIFICATE_EXPIRED` | 证书已过期 |
 | `XTLS_ALERT_CERTIFICATE_UNKNOWN` | CERTIFICATE未知 |
-| `XTLS_ALERT_ILLEGAL_PARAMETER` | ILLEGALPARAMETER |
+| `XTLS_ALERT_ILLEGAL_PARAMETER` | 非法Parameter |
 | `XTLS_ALERT_UNKNOWN_CA` | 未知CA |
-| `XTLS_ALERT_ACCESS_DENIED` | ACCESSDENIED |
+| `XTLS_ALERT_ACCESS_DENIED` | 访问被拒绝 |
 | `XTLS_ALERT_DECODE_ERROR` | DECODE失败 |
 | `XTLS_ALERT_DECRYPT_ERROR` | DECRYPT失败 |
 | `XTLS_ALERT_PROTOCOL_VERSION` | 协议非法VERSION |
-| `XTLS_ALERT_INSUFFICIENT_SECURITY` | INSUFFICIENTSECURITY |
+| `XTLS_ALERT_INSUFFICIENT_SECURITY` | InsufficientSecurity |
 | `XTLS_ALERT_INTERNAL_ERROR` | 内部错误失败 |
-| `XTLS_ALERT_INAPPROPRIATE_FALLBACK` | INAPPROPRIATEFALLBACK |
-| `XTLS_ALERT_USER_CANCELED` | USERCANCELED |
-| `XTLS_ALERT_MISSING_EXTENSION` | MISSINGEXTENSION |
+| `XTLS_ALERT_INAPPROPRIATE_FALLBACK` | InappropriateFallback |
+| `XTLS_ALERT_USER_CANCELED` | UserCanceled |
+| `XTLS_ALERT_MISSING_EXTENSION` | 缺失Extension |
 | `XTLS_ALERT_UNSUPPORTED_EXTENSION` | 不支持EXTENSION |
 | `XTLS_ALERT_UNRECOGNIZED_NAME` | UNRECOGNIZED名称 |
-| `XTLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE` | BADCERTIFICATESTATUSRESPONSE |
+| `XTLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE` | 错误证书StatusResponse |
 | `XTLS_ALERT_UNKNOWN_PSK_IDENTITY` | 未知PSKIDENTITY |
-| `XTLS_ALERT_CERTIFICATE_REQUIRED` | CERTIFICATEREQUIRED |
+| `XTLS_ALERT_CERTIFICATE_REQUIRED` | 证书必需项 |
 
 ### `xtlserror`
 
@@ -551,27 +551,27 @@ typedef enum xtlserror {
 | 值 | 语义 |
 |---|---|
 | `XTLS_ERROR_ARGUMENT` | 参数非法 |
-| `XTLS_ERROR_VERSION` | VERSION |
+| `XTLS_ERROR_VERSION` | 失败 |
 | `XTLS_ERROR_RECORD_TYPE` | RECORD类型 |
-| `XTLS_ERROR_RECORD_VERSION` | RECORDVERSION |
+| `XTLS_ERROR_RECORD_VERSION` | 失败 |
 | `XTLS_ERROR_RECORD_SIZE` | RECORD尺寸 |
-| `XTLS_ERROR_RECORD_BUFFER` | RECORDBUFFER |
-| `XTLS_ERROR_ALERT` | ALERT |
+| `XTLS_ERROR_RECORD_BUFFER` | 失败 |
+| `XTLS_ERROR_ALERT` | 失败 |
 | `XTLS_ERROR_STATE` | 状态非法 |
 | `XTLS_ERROR_LIMIT` | 超限 |
-| `XTLS_ERROR_NEGOTIATION` | NEGOTIATION |
-| `XTLS_ERROR_KEY_EXCHANGE` | KEYEXCHANGE |
-| `XTLS_ERROR_CIPHER` | CIPHER |
+| `XTLS_ERROR_NEGOTIATION` | 失败 |
+| `XTLS_ERROR_KEY_EXCHANGE` | 失败 |
+| `XTLS_ERROR_CIPHER` | 失败 |
 | `XTLS_ERROR_HANDSHAKE` | 握手阶段 |
-| `XTLS_ERROR_EXTENSION` | EXTENSION |
-| `XTLS_ERROR_TRANSCRIPT` | TRANSCRIPT |
-| `XTLS_ERROR_KEY_DERIVATION` | KEYDERIVATION |
-| `XTLS_ERROR_CERTIFICATE` | CERTIFICATE |
-| `XTLS_ERROR_IDENTITY` | IDENTITY |
-| `XTLS_ERROR_VERIFY` | VERIFY |
-| `XTLS_ERROR_RESUME` | RESUME |
+| `XTLS_ERROR_EXTENSION` | 失败 |
+| `XTLS_ERROR_TRANSCRIPT` | 失败 |
+| `XTLS_ERROR_KEY_DERIVATION` | 失败 |
+| `XTLS_ERROR_CERTIFICATE` | 失败 |
+| `XTLS_ERROR_IDENTITY` | 失败 |
+| `XTLS_ERROR_VERIFY` | 失败 |
+| `XTLS_ERROR_RESUME` | 失败 |
 | `XTLS_ERROR_CLOSED` | 已关闭 |
-| `XTLS_ERROR_TRUNCATED` | TRUNCATED |
+| `XTLS_ERROR_TRUNCATED` | 已截断 |
 
 ### `xtlsrecord`
 
@@ -588,9 +588,9 @@ typedef struct xtlsrecord {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xtlsrecordtype` | Type |
+| `Type` | `xtlsrecordtype` | 类型 |
 | `LegacyVersion` | `uint16` | LegacyVersion |
-| `Payload` | `xbytesview` | Payload |
+| `Payload` | `xbytesview` | 载荷 |
 | `EncodedSize` | `size_t` | EncodedSize |
 
 ### `xtlscipherinfo`
@@ -615,7 +615,7 @@ typedef struct xtlscipherinfo {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Cipher` | `xtlscipher` | Cipher |
-| `Version` | `xtlsversion` | Version |
+| `Version` | `xtlsversion` | 结构版本 |
 | `Hash` | `xtlshash` | Hash |
 | `Aead` | `xtlsaead` | Aead |
 | `Authentication` | `xtlscipherauth` | Authentication |
@@ -657,7 +657,7 @@ typedef struct xtlsgroupinfo {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Group` | `uint16` | Group |
-| `Kind` | `xtlsgroupkind` | Kind |
+| `Kind` | `xtlsgroupkind` | 错误种类 |
 | `PrivateSize` | `uint16` | PrivateSize |
 | `PublicSize` | `uint16` | PublicSize |
 | `SharedSize` | `uint16` | SharedSize |
@@ -676,8 +676,8 @@ typedef struct xtlshandshake {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xtlshandshaketype` | Type |
-| `Body` | `xbytesview` | Body |
+| `Type` | `xtlshandshaketype` | 类型 |
+| `Body` | `xbytesview` | 主体 |
 | `EncodedSize` | `size_t` | EncodedSize |
 
 ### `xtlsextension`
@@ -694,8 +694,8 @@ typedef struct xtlsextension {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xtlsextensiontype` | Type |
-| `Data` | `xbytesview` | Data |
+| `Type` | `xtlsextensiontype` | 类型 |
+| `Data` | `xbytesview` | 数据 |
 | `EncodedSize` | `size_t` | EncodedSize |
 
 ### `xtlsextensioncursor`
@@ -712,8 +712,8 @@ typedef struct xtlsextensioncursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `xbytesview` | Data |
-| `Offset` | `size_t` | Offset |
+| `Data` | `xbytesview` | 数据 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xtlsids`
 
@@ -727,7 +727,7 @@ typedef struct xtlsids {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `xbytesview` | Data |
+| `Data` | `xbytesview` | 数据 |
 
 ### `xtlsservername`
 
@@ -742,8 +742,8 @@ typedef struct xtlsservername {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `uint8` | Type |
-| `Name` | `xbytesview` | Name |
+| `Type` | `uint8` | 类型 |
+| `Name` | `xbytesview` | 名称 |
 
 ### `xtlsservernamecursor`
 
@@ -759,8 +759,8 @@ typedef struct xtlsservernamecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `xbytesview` | Data |
-| `Offset` | `size_t` | Offset |
+| `Data` | `xbytesview` | 数据 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xtlsprotocolcursor`
 
@@ -775,8 +775,8 @@ typedef struct xtlsprotocolcursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `xbytesview` | Data |
-| `Offset` | `size_t` | Offset |
+| `Data` | `xbytesview` | 数据 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xtlskeyshare`
 
@@ -792,7 +792,7 @@ typedef struct xtlskeyshare {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Group` | `uint16` | Group |
-| `Key` | `xbytesview` | Key |
+| `Key` | `xbytesview` | 键 |
 
 ### `xtlskeysharecursor`
 
@@ -808,8 +808,8 @@ typedef struct xtlskeysharecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `xbytesview` | Data |
-| `Offset` | `size_t` | Offset |
+| `Data` | `xbytesview` | 数据 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xtlsclienthello`
 
@@ -1061,7 +1061,7 @@ typedef struct xtlscontextconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Policy` | `const xtlspolicy*` | Policy |
+| `Policy` | `const xtlspolicy*` | 策略 |
 | `Limits` | `xtlslimits` | Limits |
 
 ### `xtlswriter`
@@ -1078,9 +1078,9 @@ typedef struct xtlswriter {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `bytes` | Data |
-| `Capacity` | `size_t` | Capacity |
-| `Size` | `size_t` | Size |
+| `Data` | `bytes` | 数据 |
+| `Capacity` | `size_t` | 容量 |
+| `Size` | `size_t` | 字节数 |
 
 ### `xtlshandshakereaderconfig`
 
@@ -1095,7 +1095,7 @@ typedef struct xtlshandshakereaderconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Limit` | `size_t` | Limit |
+| `Limit` | `size_t` | 上限 |
 | `Retain` | `size_t` | Retain |
 
 ### `xtlshandshakereader`
@@ -1118,11 +1118,11 @@ typedef struct xtlshandshakereader {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `bytes` | Data |
-| `Size` | `size_t` | Size |
-| `Capacity` | `size_t` | Capacity |
-| `Required` | `size_t` | Required |
-| `Limit` | `size_t` | Limit |
+| `Data` | `bytes` | 数据 |
+| `Size` | `size_t` | 字节数 |
+| `Capacity` | `size_t` | 容量 |
+| `Required` | `size_t` | 是否必需 |
+| `Limit` | `size_t` | 上限 |
 | `Retain` | `size_t` | Retain |
 | `HeaderSize` | `uint8` | HeaderSize |
 | `Ready` | `bool` | Ready |
@@ -1141,9 +1141,9 @@ typedef struct xtlscertificatemessage {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Version` | `xtlsversion` | Version |
+| `Version` | `xtlsversion` | 结构版本 |
 | `RequestContext` | `xbytesview` | RequestContext |
-| `Entries` | `xbytesview` | Entries |
+| `Entries` | `xbytesview` | 条目数组 |
 
 ### `xtlscertificateentry`
 
@@ -1158,7 +1158,7 @@ typedef struct xtlscertificateentry {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `xbytesview` | Data |
+| `Data` | `xbytesview` | 数据 |
 | `Extensions` | `xbytesview` | Extensions |
 
 ### `xtlscertificatecursor`
@@ -1175,9 +1175,9 @@ typedef struct xtlscertificatecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Version` | `xtlsversion` | Version |
-| `Data` | `xbytesview` | Data |
-| `Offset` | `size_t` | Offset |
+| `Version` | `xtlsversion` | 结构版本 |
+| `Data` | `xbytesview` | 数据 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xtlscertificateverify`
 
@@ -1192,7 +1192,7 @@ typedef struct xtlscertificateverify {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Scheme` | `uint16` | Scheme |
+| `Scheme` | `uint16` | 协议方案 |
 | `Signature` | `xbytesview` | Signature |
 
 ### `xtlssessionticket`
@@ -1212,7 +1212,7 @@ typedef struct xtlssessionticket {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Version` | `xtlsversion` | Version |
+| `Version` | `xtlsversion` | 结构版本 |
 | `Lifetime` | `uint32` | Lifetime |
 | `AgeAdd` | `uint32` | AgeAdd |
 | `Nonce` | `xbytesview` | Nonce |
@@ -1232,8 +1232,8 @@ typedef struct xtlsauthoritycursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `xbytesview` | Data |
-| `Offset` | `size_t` | Offset |
+| `Data` | `xbytesview` | 数据 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xtls12certificaterequest`
 
@@ -1308,7 +1308,7 @@ typedef struct xtlscertificatestatusmessage {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `uint8` | Type |
+| `Type` | `uint8` | 类型 |
 | `Response` | `xbytesview` | Response |
 
 ### `xtlscompressedcertificate`
@@ -1327,7 +1327,7 @@ typedef struct xtlscompressedcertificate {
 |---|---|---|
 | `Algorithm` | `uint16` | Algorithm |
 | `UncompressedSize` | `size_t` | UncompressedSize |
-| `Data` | `xbytesview` | Data |
+| `Data` | `xbytesview` | 数据 |
 
 ### `xtlscontext`
 
@@ -1361,7 +1361,7 @@ typedef struct xtlsclientconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Context` | `const xtlscontext*` | Context |
+| `Context` | `const xtlscontext*` | 回调上下文 |
 | `ServerName` | `xstrview` | ServerName |
 | `VerifyName` | `xstrview` | VerifyName |
 | `Protocols` | `const xstrview*` | Protocols |
@@ -1413,11 +1413,11 @@ typedef struct xtlsidentityconfig {
 |---|---|---|
 | `Certificates` | `const xbytesview*` | Certificates |
 | `CertificateCount` | `size_t` | CertificateCount |
-| `Type` | `xtlsidentitytype` | Type |
+| `Type` | `xtlsidentitytype` | 类型 |
 | `Supports` | `xtlsidentitysupportsproc` | Supports |
-| `Sign` | `xtlsidentitysignproc` | Sign |
+| `Sign` | `xtlsidentitysignproc` | 符号 |
 | `Release` | `xtlsidentityreleaseproc` | Release |
-| `Context` | `ptr` | Context |
+| `Context` | `ptr` | 回调上下文 |
 
 ### `xtlsidentity`
 
@@ -1494,7 +1494,7 @@ typedef struct xtlsresumeconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Version` | `xtlsversion` | Version |
+| `Version` | `xtlsversion` | 结构版本 |
 | `Cipher` | `xtlscipher` | Cipher |
 | `Ticket` | `xbytesview` | Ticket |
 | `Secret` | `xbytesview` | Secret |
@@ -1529,7 +1529,7 @@ typedef struct xtlsresumeinfo {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Version` | `xtlsversion` | Version |
+| `Version` | `xtlsversion` | 结构版本 |
 | `Cipher` | `xtlscipher` | Cipher |
 | `Ticket` | `xbytesview` | Ticket |
 | `Secret` | `xbytesview` | Secret |
@@ -1617,7 +1617,7 @@ typedef struct xtlsserverconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Context` | `const xtlscontext*` | Context |
+| `Context` | `const xtlscontext*` | 回调上下文 |
 | `Identity` | `const xtlsidentity*` | Identity |
 | `Protocols` | `const xstrview*` | Protocols |
 | `ProtocolCount` | `size_t` | ProtocolCount |
@@ -1730,8 +1730,8 @@ typedef enum xtlsstreamstate {
 |---|---|
 | `XTLS_STREAM_CONNECTING` | 连接中 |
 | `XTLS_STREAM_HANDSHAKE` | 握手阶段 |
-| `XTLS_STREAM_OPEN` | OPEN |
-| `XTLS_STREAM_CLOSING` | CLOSING |
+| `XTLS_STREAM_OPEN` | 开放（握手完成） |
+| `XTLS_STREAM_CLOSING` | 关闭中 |
 | `XTLS_STREAM_CLOSED` | 已关闭 |
 
 ### `xtlsstreamwait`
@@ -1751,11 +1751,11 @@ typedef enum xtlsstreamwait {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_STREAM_WAIT_OPEN` | OPEN |
+| `XTLS_STREAM_WAIT_OPEN` | 等待开放 |
 | `XTLS_STREAM_WAIT_READ` | 读方向 |
 | `XTLS_STREAM_WAIT_WRITE` | 写方向 |
 | `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
-| `XTLS_STREAM_WAIT_END` | END |
+| `XTLS_STREAM_WAIT_END` | 等待关闭完成 |
 
 ### `xtlsdialstate`
 
@@ -1796,8 +1796,8 @@ typedef struct xtlsdialconfig {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
-| `Stream` | `xtlsstreamconfig` | Stream |
-| `Timeout` | `uint64` | Timeout |
+| `Stream` | `xtlsstreamconfig` | 流选择 |
+| `Timeout` | `uint64` | 超时（微秒） |
 | `ServerNameFromHost` | `bool` | ServerNameFromHost |
 
 ### `xtlsstreamevents`
@@ -1839,8 +1839,8 @@ typedef enum xtlslistenerstate {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_LISTENER_OPEN` | OPEN |
-| `XTLS_LISTENER_CLOSING` | CLOSING |
+| `XTLS_LISTENER_OPEN` | 监听中 |
+| `XTLS_LISTENER_CLOSING` | 关闭中 |
 
 ### `xtlslistenerevents`
 
@@ -1879,7 +1879,7 @@ typedef struct xtlslistenerconfig {
 |---|---|---|
 | `Listen` | `xnetlistenconfig` | Listen |
 | `Tls` | `xtlsserverconfig` | Tls |
-| `Stream` | `xtlsstreamconfig` | Stream |
+| `Stream` | `xtlsstreamconfig` | 流选择 |
 | `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
 | `HandshakeLimit` | `uint32` | HandshakeLimit |
 
@@ -1904,7 +1904,7 @@ typedef struct xtlslistenerstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xtlslistenerstate` | State |
+| `State` | `xtlslistenerstate` | 状态 |
 | `Handshakes` | `uint64` | Handshakes |
 | `Accepted` | `uint64` | Accepted |
 | `Rejected` | `uint64` | Rejected |
@@ -1998,9 +1998,9 @@ typedef struct xtlspeer {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Role` | `xtlsrole` | Role |
-| `Name` | `xstrview` | Name |
-| `Time` | `xtime` | Time |
+| `Role` | `xtlsrole` | 角色 |
+| `Name` | `xstrview` | 名称 |
+| `Time` | `xtime` | 时间戳（Unix 微秒） |
 | `Certificates` | `const xx509cert*` | Certificates |
 | `CertificateCount` | `size_t` | CertificateCount |
 
@@ -2020,7 +2020,7 @@ typedef struct xtlsverifiedpeer {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Peer` | `const xtlspeer*` | Peer |
-| `Path` | `const xx509cert* const*` | Path |
+| `Path` | `const xx509cert* const*` | 路径 |
 | `PathCount` | `size_t` | PathCount |
 | `Anchor` | `const xx509anchor*` | Anchor |
 
@@ -2045,10 +2045,10 @@ typedef struct xtlsverifierconfig {
 |---|---|---|
 | `Store` | `const xx509store*` | Store |
 | `Verify` | `xtlsverifyproc` | Verify |
-| `Policy` | `xtlsverifypolicyproc` | Policy |
-| `Time` | `xtlsverifytimeproc` | Time |
+| `Policy` | `xtlsverifypolicyproc` | 策略 |
+| `Time` | `xtlsverifytimeproc` | 时间戳（Unix 微秒） |
 | `Release` | `xtlsverifyreleaseproc` | Release |
-| `Context` | `ptr` | Context |
+| `Context` | `ptr` | 回调上下文 |
 | `AllowSha1` | `bool` | AllowSha1 |
 
 ### `xtlsverifyproc`

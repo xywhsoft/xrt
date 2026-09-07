@@ -19,10 +19,10 @@ typedef struct xfiledata {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `bytes` | Data |
-| `Size` | `size_t` | Size |
-| `Offset` | `uint64` | Offset |
-| `End` | `bool` | End |
+| `Data` | `bytes` | 数据 |
+| `Size` | `size_t` | 字节数 |
+| `Offset` | `uint64` | 偏移量 |
+| `End` | `bool` | 结束 |
 
 ### `xfilechange`
 
@@ -37,8 +37,8 @@ typedef struct xfilechange {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `uint64` | Offset |
-| `Size` | `uint64` | Size |
+| `Offset` | `uint64` | 偏移量 |
+| `Size` | `uint64` | 字节数 |
 
 ### `xfilesize`
 
@@ -52,7 +52,7 @@ typedef struct xfilesize {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Size` | `uint64` | Size |
+| `Size` | `uint64` | 字节数 |
 
 ### `xdirquery`
 
@@ -93,19 +93,19 @@ typedef enum xfileasyncerror {
 
 | 值 | 语义 |
 |---|---|
-| `XFILE_ASYNC_ERROR_OPEN` | OPEN |
-| `XFILE_ASYNC_ERROR_SUBMIT` | SUBMIT |
+| `XFILE_ASYNC_ERROR_OPEN` | 失败 |
+| `XFILE_ASYNC_ERROR_SUBMIT` | 失败 |
 | `XFILE_ASYNC_ERROR_READ` | 读方向 |
 | `XFILE_ASYNC_ERROR_WRITE` | 写方向 |
 | `XFILE_ASYNC_ERROR_FLUSH` | 刷新 |
 | `XFILE_ASYNC_ERROR_SIZE` | 尺寸 |
-| `XFILE_ASYNC_ERROR_RESIZE` | RESIZE |
-| `XFILE_ASYNC_ERROR_CLOSE` | CLOSE |
-| `XFILE_ASYNC_ERROR_COPY` | COPY |
-| `XFILE_ASYNC_ERROR_MOVE` | MOVE |
-| `XFILE_ASYNC_ERROR_DELETE` | DELETE |
+| `XFILE_ASYNC_ERROR_RESIZE` | 失败 |
+| `XFILE_ASYNC_ERROR_CLOSE` | 失败 |
+| `XFILE_ASYNC_ERROR_COPY` | 失败 |
+| `XFILE_ASYNC_ERROR_MOVE` | 失败 |
+| `XFILE_ASYNC_ERROR_DELETE` | Delete失败 |
 | `XFILE_ASYNC_ERROR_CREATE` | 创建 |
-| `XFILE_ASYNC_ERROR_TREE` | TREE |
+| `XFILE_ASYNC_ERROR_TREE` | 失败 |
 
 ### `xasyncfile`
 

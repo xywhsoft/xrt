@@ -27,15 +27,15 @@ typedef enum xtemplateerror {
 | 值 | 语义 |
 |---|---|
 | `XTEMPLATE_ERROR_CONFIG` | 配置非法 |
-| `XTEMPLATE_ERROR_SYNTAX` | SYNTAX |
+| `XTEMPLATE_ERROR_SYNTAX` | 语法非法 |
 | `XTEMPLATE_ERROR_LIMIT` | 超限 |
-| `XTEMPLATE_ERROR_UNDEFINED` | UNDEFINED |
+| `XTEMPLATE_ERROR_UNDEFINED` | 失败 |
 | `XTEMPLATE_ERROR_TYPE` | 类型 |
-| `XTEMPLATE_ERROR_FORMAT` | FORMAT |
-| `XTEMPLATE_ERROR_ITERATE` | ITERATE |
+| `XTEMPLATE_ERROR_FORMAT` | 格式非法 |
+| `XTEMPLATE_ERROR_ITERATE` | 失败 |
 | `XTEMPLATE_ERROR_WRITE` | 写方向 |
-| `XTEMPLATE_ERROR_CALLBACK` | CALLBACK |
-| `XTEMPLATE_ERROR_INCLUDE` | INCLUDE |
+| `XTEMPLATE_ERROR_CALLBACK` | 回调失败 |
+| `XTEMPLATE_ERROR_INCLUDE` | 失败 |
 
 ### `xtemplatelocation`
 
@@ -52,10 +52,10 @@ typedef struct xtemplatelocation {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Size` | `size_t` | Size |
-| `Line` | `size_t` | Line |
-| `Column` | `size_t` | Column |
+| `Offset` | `size_t` | 偏移量 |
+| `Size` | `size_t` | 字节数 |
+| `Line` | `size_t` | 行号 |
+| `Column` | `size_t` | 列号 |
 
 ### `xtemplatenodetype`
 
@@ -82,14 +82,14 @@ typedef enum xtemplatenodetype {
 |---|---|
 | `XTEMPLATE_NODE_TEXT` | 文本 |
 | `XTEMPLATE_NODE_OUTPUT` | 输出失败 |
-| `XTEMPLATE_NODE_INLINE_IF` | INLINEIF |
-| `XTEMPLATE_NODE_IF` | IF |
-| `XTEMPLATE_NODE_FOR` | FOR |
-| `XTEMPLATE_NODE_FOREACH` | FOREACH |
-| `XTEMPLATE_NODE_BREAK` | BREAK |
-| `XTEMPLATE_NODE_CONTINUE` | CONTINUE |
-| `XTEMPLATE_NODE_DEFINE` | DEFINE |
-| `XTEMPLATE_NODE_INCLUDE` | INCLUDE |
+| `XTEMPLATE_NODE_INLINE_IF` | 行内条件（{{...}}） |
+| `XTEMPLATE_NODE_IF` | 条件块 |
+| `XTEMPLATE_NODE_FOR` | 数值循环 |
+| `XTEMPLATE_NODE_FOREACH` | 迭代循环 |
+| `XTEMPLATE_NODE_BREAK` | break |
+| `XTEMPLATE_NODE_CONTINUE` | CONTINUE（100 继续） |
+| `XTEMPLATE_NODE_DEFINE` | 模板定义 |
+| `XTEMPLATE_NODE_INCLUDE` | 包含 |
 | `XTEMPLATE_NODE_RAW` | 裸格式 |
 
 ### `xtemplateoutputtype`
@@ -107,7 +107,7 @@ typedef enum xtemplateoutputtype {
 | 值 | 语义 |
 |---|---|
 | `XTEMPLATE_OUTPUT_TEXT` | 文本 |
-| `XTEMPLATE_OUTPUT_NUMBER` | NUMBER |
+| `XTEMPLATE_OUTPUT_NUMBER` | 输出失败 |
 
 ### `xtemplatenodeview`
 
@@ -127,13 +127,13 @@ typedef struct xtemplatenodeview {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xtemplatenodetype` | Type |
-| `Output` | `xtemplateoutputtype` | Output |
+| `Type` | `xtemplatenodetype` | 类型 |
+| `Output` | `xtemplateoutputtype` | 输出缓冲 |
 | `Location` | `xtemplatelocation` | Location |
-| `Source` | `xstrview` | Source |
+| `Source` | `xstrview` | 源视图 |
 | `Expression` | `xstrview` | Expression |
-| `Format` | `xstrview` | Format |
-| `Name` | `xstrview` | Name |
+| `Format` | `xstrview` | 格式 |
+| `Name` | `xstrview` | 名称 |
 
 ### `xtemplateextensiontype`
 
@@ -172,12 +172,12 @@ typedef struct xtemplateextension {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Type` | `xtemplateextensiontype` | Type |
+| `Name` | `xstrview` | 名称 |
+| `Type` | `xtemplateextensiontype` | 类型 |
 | `MinArguments` | `size_t` | MinArguments |
 | `MaxArguments` | `size_t` | MaxArguments |
 | `Call` | `xtemplateextensionfn` | Call |
-| `Data` | `ptr` | Data |
+| `Data` | `ptr` | 数据 |
 | `Drop` | `xtemplateextensiondrop` | Drop |
 
 ### `xtemplateargview`
@@ -194,9 +194,9 @@ typedef struct xtemplateargview {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Index` | `size_t` | Index |
-| `Name` | `xstrview` | Name |
-| `Source` | `xstrview` | Source |
+| `Index` | `size_t` | 索引 |
+| `Name` | `xstrview` | 名称 |
+| `Source` | `xstrview` | 源视图 |
 
 ### `xtemplatevalue`
 
@@ -217,14 +217,14 @@ typedef struct xtemplatevalue {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xvaluetype` | Type |
-| `Value` | `const xvalue*` | Value |
+| `Type` | `xvaluetype` | 类型 |
+| `Value` | `const xvalue*` | 值 |
 | `Bool` | `bool` | Bool |
 | `Integer` | `int64` | Integer |
 | `Unsigned` | `uint64` | Unsigned |
 | `Float` | `double` | Float |
-| `Text` | `xstrview` | Text |
-| `Time` | `xtime` | Time |
+| `Text` | `xstrview` | 文本视图 |
+| `Time` | `xtime` | 时间戳（Unix 微秒） |
 
 ### `xtemplateconfig`
 
@@ -309,7 +309,7 @@ typedef struct xtemplaterenderconfig {
 | `Resolve` | `xtemplateresolvefn` | Resolve |
 | `ResolveData` | `ptr` | ResolveData |
 | `MaxIncludeDepth` | `size_t` | MaxIncludeDepth |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xtemplate`
 

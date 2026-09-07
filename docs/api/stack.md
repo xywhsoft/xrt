@@ -23,11 +23,11 @@ typedef struct xfixedstack {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `bytes` | Data |
+| `Data` | `bytes` | 数据 |
 | `Allocation` | `ptr` | Allocation |
-| `ItemSize` | `size_t` | ItemSize |
-| `Count` | `size_t` | Count |
-| `Capacity` | `size_t` | Capacity |
+| `ItemSize` | `size_t` | 单元素字节数 |
+| `Count` | `size_t` | 数量 |
+| `Capacity` | `size_t` | 容量 |
 
 ### `xblockstack`
 
@@ -47,11 +47,11 @@ typedef struct xblockstack {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Blocks` | `xarray` | Blocks |
-| `ItemSize` | `size_t` | ItemSize |
-| `Count` | `size_t` | Count |
-| `Capacity` | `size_t` | Capacity |
+| `ItemSize` | `size_t` | 单元素字节数 |
+| `Count` | `size_t` | 数量 |
+| `Capacity` | `size_t` | 容量 |
 | `BlockItems` | `size_t` | BlockItems |
-| `Alignment` | `size_t` | Alignment |
+| `Alignment` | `size_t` | 对齐（二次幂） |
 
 ### `xptrfixedstack`
 

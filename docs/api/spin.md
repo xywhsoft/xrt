@@ -17,8 +17,8 @@ typedef struct xspinlock {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xatomic32` | State |
-| `Magic` | `uint32` | Magic |
+| `State` | `xatomic32` | 状态 |
+| `Magic` | `uint32` | 魔数 |
 
 ### 常量总表
 

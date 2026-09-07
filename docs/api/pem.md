@@ -18,8 +18,8 @@ typedef struct xpemblock {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Label` | `xstrview` | Label |
-| `Body` | `xstrview` | Body |
+| `Label` | `xstrview` | 标签 |
+| `Body` | `xstrview` | 主体 |
 | `Raw` | `xstrview` | Raw |
 
 ### `xpemcursor`
@@ -35,8 +35,8 @@ typedef struct xpemcursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Text` | `xstrview` | Text |
-| `Offset` | `size_t` | Offset |
+| `Text` | `xstrview` | 文本视图 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xpemresult`
 
@@ -70,9 +70,9 @@ typedef enum xpemerror {
 
 | 值 | 语义 |
 |---|---|
-| `XPEM_ERROR_BOUNDARY` | BOUNDARY |
-| `XPEM_ERROR_LABEL` | LABEL |
-| `XPEM_ERROR_BODY` | BODY |
+| `XPEM_ERROR_BOUNDARY` | 失败 |
+| `XPEM_ERROR_LABEL` | 失败 |
+| `XPEM_ERROR_BODY` | 失败 |
 
 ## 裁剪
 

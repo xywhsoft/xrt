@@ -21,8 +21,8 @@ typedef enum xhttptecodingflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_TE_CODING_NONE` | 无 |
-| `XHTTP_TE_CODING_TRAILERS` | TRAILERS |
-| `XHTTP_TE_CODING_HAS_PARAMETERS` | HASPARAMETERS |
+| `XHTTP_TE_CODING_TRAILERS` | 支持 trailer |
+| `XHTTP_TE_CODING_HAS_PARAMETERS` | 带参数 |
 
 ### `xhttptecoding`
 
@@ -46,7 +46,7 @@ typedef struct xhttptecoding {
 | `Parameters` | `xstrview` | Parameters |
 | `ParameterCount` | `size_t` | ParameterCount |
 | `Quality` | `uint16` | Quality |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttptecursor`
 
@@ -61,8 +61,8 @@ typedef struct xhttptecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttptefieldcursor`
 
@@ -79,8 +79,8 @@ typedef struct xhttptefieldcursor {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpteflag`
 
@@ -98,8 +98,8 @@ typedef enum xhttpteflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_TE_NONE` | 无 |
-| `XHTTP_TE_PRESENT` | PRESENT |
-| `XHTTP_TE_ACCEPTS_TRAILERS` | ACCEPTSTRAILERS |
+| `XHTTP_TE_PRESENT` | 请求携带 TE |
+| `XHTTP_TE_ACCEPTS_TRAILERS` | 接受 trailer |
 
 ### `xhttpteinfo`
 
@@ -119,7 +119,7 @@ typedef struct xhttpteinfo {
 | `FieldCount` | `size_t` | FieldCount |
 | `CodingCount` | `size_t` | CodingCount |
 | `TransferCodingCount` | `size_t` | TransferCodingCount |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ## 成员
 

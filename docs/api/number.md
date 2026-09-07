@@ -51,7 +51,7 @@ typedef enum xnumbererror {
 | 值 | 语义 |
 |---|---|
 | `XNUMBER_ERROR_CONFIG` | 配置非法 |
-| `XNUMBER_ERROR_FORMAT` | FORMAT |
+| `XNUMBER_ERROR_FORMAT` | 格式非法 |
 
 ### `xnumberwriteflag`
 

@@ -722,9 +722,9 @@ typedef enum xasn1class {
 
 | 值 | 语义 |
 |---|---|
-| `XASN1_UNIVERSAL` | UNIVERSAL |
-| `XASN1_APPLICATION` | APPLICATION |
-| `XASN1_CONTEXT` | CONTEXT |
+| `XASN1_UNIVERSAL` | universal 类 |
+| `XASN1_APPLICATION` | application 类 |
+| `XASN1_CONTEXT` | context 类 |
 
 ### `xasn1universal`
 
@@ -812,9 +812,9 @@ typedef struct xdervalue {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Tag` | `xasn1tag` | Tag |
+| `Tag` | `xasn1tag` | 标签名 |
 | `Raw` | `xbytesview` | Raw |
-| `Value` | `xbytesview` | Value |
+| `Value` | `xbytesview` | 值 |
 | `HeaderSize` | `size_t` | HeaderSize |
 
 ### `xdercursor`
@@ -831,9 +831,9 @@ typedef struct xdercursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `cbytes` | Data |
-| `Size` | `size_t` | Size |
-| `Offset` | `size_t` | Offset |
+| `Data` | `cbytes` | 数据 |
+| `Size` | `size_t` | 字节数 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xderresult`
 
@@ -872,14 +872,14 @@ typedef enum xasn1error {
 
 | 值 | 语义 |
 |---|---|
-| `XASN1_ERROR_TAG` | TAG |
-| `XASN1_ERROR_LENGTH` | LENGTH |
+| `XASN1_ERROR_TAG` | 失败 |
+| `XASN1_ERROR_LENGTH` | 失败 |
 | `XASN1_ERROR_VALUE` | 值非法 |
 | `XASN1_ERROR_TYPE` | 类型 |
-| `XASN1_ERROR_END` | END |
-| `XASN1_ERROR_TRAILING` | TRAILING |
-| `XASN1_ERROR_ORDER` | ORDER |
-| `XASN1_ERROR_DEPTH` | DEPTH |
+| `XASN1_ERROR_END` | 失败 |
+| `XASN1_ERROR_TRAILING` | 失败 |
+| `XASN1_ERROR_ORDER` | 失败 |
+| `XASN1_ERROR_DEPTH` | 深度超限 |
 
 ### `xbuffer`
 

@@ -73,8 +73,8 @@ typedef struct xlistnode {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Prev` | `struct xlistnode*` | Prev |
-| `Next` | `struct xlistnode*` | Next |
+| `Prev` | `struct xlistnode*` | 前驱 |
+| `Next` | `struct xlistnode*` | 后继 |
 | `Owner` | `xlist*` | Owner |
 
 ### `xlistiter`
@@ -94,9 +94,9 @@ typedef struct xlistiter {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `List` | `xlist*` | List |
-| `Next` | `xlistnode*` | Next |
+| `Next` | `xlistnode*` | 后继 |
 | `Current` | `xlistnode*` | Current |
-| `Version` | `uint64` | Version |
+| `Version` | `uint64` | 结构版本 |
 | `Reverse` | `bool` | Reverse |
 
 ### `xlisterror`

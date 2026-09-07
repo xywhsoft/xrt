@@ -20,12 +20,12 @@ typedef enum xcrypto_hash {
 
 | 值 | 语义 |
 |---|---|
-| `XCRYPTO_HASH_SHA1` | SHA1 |
-| `XCRYPTO_HASH_SHA224` | SHA224 |
-| `XCRYPTO_HASH_SHA256` | SHA256 |
-| `XCRYPTO_HASH_SHA384` | SHA384 |
-| `XCRYPTO_HASH_SHA512` | SHA512 |
-| `XCRYPTO_HASH_SHA512_256` | SHA512256 |
+| `XCRYPTO_HASH_SHA1` | SHA-1 |
+| `XCRYPTO_HASH_SHA224` | SHA-224 |
+| `XCRYPTO_HASH_SHA256` | SHA-256 |
+| `XCRYPTO_HASH_SHA384` | SHA-384 |
+| `XCRYPTO_HASH_SHA512` | SHA-512 |
+| `XCRYPTO_HASH_SHA512_256` | SHA-512/256 |
 
 ### `xrsapublickey`
 
@@ -44,7 +44,7 @@ typedef struct xrsa_public_key {
 |---|---|---|
 | `Modulus` | `const void*` | Modulus |
 | `ModulusSize` | `size_t` | ModulusSize |
-| `Exponent` | `const void*` | Exponent |
+| `Exponent` | `const void*` | 指数 |
 | `ExponentSize` | `size_t` | ExponentSize |
 
 ### `xrsaprivatekey`
@@ -100,7 +100,7 @@ typedef struct xaes {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Guard` | `uint32` | Guard |
+| `Guard` | `uint32` | 守卫字（防误用） |
 | `Rounds` | `uint32` | Rounds |
 | `Backend` | `uint32` | Backend |
 
@@ -120,7 +120,7 @@ typedef struct xaesgcm {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Cipher` | `xaes` | Cipher |
-| `Guard` | `uint32` | Guard |
+| `Guard` | `uint32` | 守卫字（防误用） |
 | `TagSize` | `uint32` | TagSize |
 
 ### `xmd5`
@@ -139,8 +139,8 @@ typedef struct xmd5 {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Size` | `uint64` | Size |
-| `Guard` | `uint32` | Guard |
+| `Size` | `uint64` | 字节数 |
+| `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
 ### `xsha1`
@@ -159,8 +159,8 @@ typedef struct xsha1 {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Size` | `uint64` | Size |
-| `Guard` | `uint32` | Guard |
+| `Size` | `uint64` | 字节数 |
+| `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
 ### `xsha256`
@@ -179,8 +179,8 @@ typedef struct xsha256 {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Size` | `uint64` | Size |
-| `Guard` | `uint32` | Guard |
+| `Size` | `uint64` | 字节数 |
+| `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
 ### `xsha512`
@@ -202,7 +202,7 @@ typedef struct xsha512 {
 |---|---|---|
 | `SizeLow` | `uint64` | SizeLow |
 | `SizeHigh` | `uint64` | SizeHigh |
-| `Guard` | `uint32` | Guard |
+| `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
 ### `xhmacsha256`
@@ -221,7 +221,7 @@ typedef struct xhmacsha256 {
 |---|---|---|
 | `Inner` | `xsha256` | Inner |
 | `Outer` | `xsha256` | Outer |
-| `Guard` | `uint32` | Guard |
+| `Guard` | `uint32` | 守卫字（防误用） |
 
 ### `xhmacsha512`
 
@@ -239,7 +239,7 @@ typedef struct xhmacsha512 {
 |---|---|---|
 | `Inner` | `xsha512` | Inner |
 | `Outer` | `xsha512` | Outer |
-| `Guard` | `uint32` | Guard |
+| `Guard` | `uint32` | 守卫字（防误用） |
 
 ### `xed25519mode`
 
@@ -273,7 +273,7 @@ typedef struct xed25519_key {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Guard` | `uint32` | Guard |
+| `Guard` | `uint32` | 守卫字（防误用） |
 
 ### `xpoly1305`
 
@@ -292,7 +292,7 @@ typedef struct xpoly1305 {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Guard` | `uint32` | Guard |
+| `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
 ### `xsha224`

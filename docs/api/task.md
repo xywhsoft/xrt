@@ -35,7 +35,7 @@ typedef struct xtaskvalue {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Value` | `ptr` | Value |
+| `Value` | `ptr` | 值 |
 | `Destroy` | `xfuturefreeproc` | Destroy |
 | `DestroyData` | `ptr` | DestroyData |
 
@@ -53,7 +53,7 @@ typedef struct xtaskargs {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Cancel` | `xcancel*` | Cancel |
+| `Cancel` | `xcancel*` | 取消令牌 |
 | `Destroy` | `xfuturefreeproc` | Destroy |
 | `DestroyData` | `ptr` | DestroyData |
 
@@ -71,8 +71,8 @@ typedef struct xtaskgroupconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Cancel` | `xcancel*` | Cancel |
-| `Limit` | `size_t` | Limit |
+| `Cancel` | `xcancel*` | 取消令牌 |
+| `Limit` | `size_t` | 上限 |
 | `CancelOn` | `uint32` | CancelOn |
 
 ### `xtaskgroupstats`
@@ -125,9 +125,9 @@ typedef struct xtaskpoolconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Threads` | `uint32` | Threads |
+| `Threads` | `uint32` | 线程数 |
 | `QueueLimit` | `size_t` | QueueLimit |
-| `StackSize` | `size_t` | StackSize |
+| `StackSize` | `size_t` | 栈大小 |
 
 ### `xtaskpoolstats`
 
@@ -152,7 +152,7 @@ typedef struct xtaskpoolstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Threads` | `uint32` | Threads |
+| `Threads` | `uint32` | 线程数 |
 | `QueueLimit` | `size_t` | QueueLimit |
 | `Queued` | `size_t` | Queued |
 | `Running` | `size_t` | Running |

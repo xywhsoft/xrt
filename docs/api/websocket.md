@@ -25,11 +25,11 @@ typedef enum xwsopcode {
 
 | 值 | 语义 |
 |---|---|
-| `XWS_OPCODE_CONTINUATION` | CONTINUATION |
+| `XWS_OPCODE_CONTINUATION` | 延续帧（0x0） |
 | `XWS_OPCODE_TEXT` | 文本 |
 | `XWS_OPCODE_BINARY` | 二进制 |
-| `XWS_OPCODE_CLOSE` | CLOSE |
-| `XWS_OPCODE_PING` | PING |
+| `XWS_OPCODE_CLOSE` | 关闭帧（0x8） |
+| `XWS_OPCODE_PING` | Ping（0x9） |
 
 ### `xwsframeflag`
 
@@ -47,10 +47,10 @@ typedef enum xwsframeflag {
 
 | 值 | 语义 |
 |---|---|
-| `XWS_FRAME_FIN` | FIN |
-| `XWS_FRAME_MASKED` | MASKED |
-| `XWS_FRAME_RSV1` | RSV1 |
-| `XWS_FRAME_RSV2` | RSV2 |
+| `XWS_FRAME_FIN` | 最终分片 |
+| `XWS_FRAME_MASKED` | 已掩码 |
+| `XWS_FRAME_RSV1` | RSV1（压缩） |
+| `XWS_FRAME_RSV2` | RSV2（保留） |
 
 ### `xwsmaskpolicy`
 
@@ -67,7 +67,7 @@ typedef enum xwsmaskpolicy {
 | 值 | 语义 |
 |---|---|
 | `XWS_MASK_ANY` | 任意 |
-| `XWS_MASK_REQUIRED` | REQUIRED |
+| `XWS_MASK_REQUIRED` | 必须掩码（客户端） |
 
 ### `xwsframestatus`
 
@@ -108,12 +108,12 @@ typedef enum xwsframeerror {
 |---|---|
 | `XWS_FRAME_ERROR_ARGUMENT` | 参数非法 |
 | `XWS_FRAME_ERROR_CONFIG` | 配置非法 |
-| `XWS_FRAME_ERROR_RSV` | RSV |
-| `XWS_FRAME_ERROR_OPCODE` | OPCODE |
-| `XWS_FRAME_ERROR_MASK` | MASK |
-| `XWS_FRAME_ERROR_LENGTH` | LENGTH |
-| `XWS_FRAME_ERROR_CONTROL` | CONTROL |
-| `XWS_FRAME_ERROR_CLOSE` | CLOSE |
+| `XWS_FRAME_ERROR_RSV` | 失败 |
+| `XWS_FRAME_ERROR_OPCODE` | 失败 |
+| `XWS_FRAME_ERROR_MASK` | 失败 |
+| `XWS_FRAME_ERROR_LENGTH` | 失败 |
+| `XWS_FRAME_ERROR_CONTROL` | 失败 |
+| `XWS_FRAME_ERROR_CLOSE` | 失败 |
 
 ### `xwsframeconfig`
 
@@ -148,8 +148,8 @@ typedef struct xwsframeerrorinfo {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Code` | `xwsframeerror` | Code |
-| `Offset` | `size_t` | Offset |
+| `Code` | `xwsframeerror` | 错误码 |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xwsframe`
 
@@ -167,7 +167,7 @@ typedef struct xwsframe {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `Opcode` | `uint8` | Opcode |
 | `PayloadSize` | `uint64` | PayloadSize |
 | `HeadSize` | `size_t` | HeadSize |
@@ -198,20 +198,20 @@ typedef enum xwsclosecode {
 
 | 值 | 语义 |
 |---|---|
-| `XWS_CLOSE_NORMAL` | NORMAL |
-| `XWS_CLOSE_GOING_AWAY` | GOINGAWAY |
+| `XWS_CLOSE_NORMAL` | 1000 正常关闭 |
+| `XWS_CLOSE_GOING_AWAY` | 1001 端点离开 |
 | `XWS_CLOSE_PROTOCOL` | 协议非法 |
 | `XWS_CLOSE_UNSUPPORTED` | 不支持 |
-| `XWS_CLOSE_NO_STATUS` | NOSTATUS |
-| `XWS_CLOSE_ABNORMAL` | ABNORMAL |
+| `XWS_CLOSE_NO_STATUS` | 1005 无状态码 |
+| `XWS_CLOSE_ABNORMAL` | 1006 异常关闭（无关闭帧） |
 | `XWS_CLOSE_INVALID_DATA` | 无效数据损坏 |
-| `XWS_CLOSE_POLICY` | POLICY |
-| `XWS_CLOSE_TOO_BIG` | TOOBIG |
-| `XWS_CLOSE_EXTENSION_REQUIRED` | EXTENSIONREQUIRED |
+| `XWS_CLOSE_POLICY` | 1008 策略违反 |
+| `XWS_CLOSE_TOO_BIG` | 1009 消息过大 |
+| `XWS_CLOSE_EXTENSION_REQUIRED` | 1010 缺少必需扩展 |
 | `XWS_CLOSE_INTERNAL` | 内部错误 |
-| `XWS_CLOSE_RESTART` | RESTART |
+| `XWS_CLOSE_RESTART` | 1012 服务重启 |
 | `XWS_CLOSE_TRY_AGAIN` | TRY暂不可推进 |
-| `XWS_CLOSE_BAD_GATEWAY` | BADGATEWAY |
+| `XWS_CLOSE_BAD_GATEWAY` | 1014 网关错误 |
 
 ### `xwscloseerror`
 
@@ -231,8 +231,8 @@ typedef enum xwscloseerror {
 |---|---|
 | `XWS_CLOSE_ERROR_ARGUMENT` | 参数非法 |
 | `XWS_CLOSE_ERROR_SIZE` | 尺寸 |
-| `XWS_CLOSE_ERROR_CODE` | CODE |
-| `XWS_CLOSE_ERROR_UTF8` | UTF-8 |
+| `XWS_CLOSE_ERROR_CODE` | 失败 |
+| `XWS_CLOSE_ERROR_UTF8` | 失败 |
 
 ### `xwsclose`
 
@@ -247,8 +247,8 @@ typedef struct xwsclose {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Code` | `uint16` | Code |
-| `Reason` | `xstrview` | Reason |
+| `Code` | `uint16` | 错误码 |
+| `Reason` | `xstrview` | 原因文本 |
 
 ### `xwsmessageflag`
 
@@ -266,10 +266,10 @@ typedef enum xwsmessageflag {
 
 | 值 | 语义 |
 |---|---|
-| `XWS_MESSAGE_BEGIN` | BEGIN |
-| `XWS_MESSAGE_END` | END |
-| `XWS_MESSAGE_CONTROL` | CONTROL |
-| `XWS_MESSAGE_EXTENDED` | EXTENDED |
+| `XWS_MESSAGE_BEGIN` | 纯消息 |
+| `XWS_MESSAGE_END` | 纯消息 |
+| `XWS_MESSAGE_CONTROL` | 纯消息 |
+| `XWS_MESSAGE_EXTENDED` | 纯消息 |
 
 ### `xwsmessageerror`
 
@@ -295,12 +295,12 @@ typedef enum xwsmessageerror {
 | `XWS_MESSAGE_ERROR_ARGUMENT` | 参数非法 |
 | `XWS_MESSAGE_ERROR_CONFIG` | 配置非法 |
 | `XWS_MESSAGE_ERROR_STATE` | 状态非法 |
-| `XWS_MESSAGE_ERROR_OPCODE` | OPCODE |
-| `XWS_MESSAGE_ERROR_FRAGMENT` | FRAGMENT |
-| `XWS_MESSAGE_ERROR_RSV` | RSV |
-| `XWS_MESSAGE_ERROR_PAYLOAD` | PAYLOAD |
+| `XWS_MESSAGE_ERROR_OPCODE` | 失败 |
+| `XWS_MESSAGE_ERROR_FRAGMENT` | 失败 |
+| `XWS_MESSAGE_ERROR_RSV` | 失败 |
+| `XWS_MESSAGE_ERROR_PAYLOAD` | 失败 |
 | `XWS_MESSAGE_ERROR_SIZE` | 尺寸 |
-| `XWS_MESSAGE_ERROR_UTF8` | UTF-8 |
+| `XWS_MESSAGE_ERROR_UTF8` | 失败 |
 
 ### `xwsmessageconfig`
 
@@ -341,12 +341,12 @@ typedef struct xwsmessageinfo {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `Rsv` | `uint16` | Rsv |
 | `Opcode` | `uint8` | Opcode |
 | `FrameOpcode` | `uint8` | FrameOpcode |
 | `PayloadSize` | `uint64` | PayloadSize |
-| `Offset` | `size_t` | Offset |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xwsmessageerrorinfo`
 
@@ -362,9 +362,9 @@ typedef struct xwsmessageerrorinfo {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Code` | `xwsmessageerror` | Code |
+| `Code` | `xwsmessageerror` | 错误码 |
 | `CloseCode` | `uint16` | CloseCode |
-| `Offset` | `size_t` | Offset |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xwsmessagestate`
 
@@ -395,10 +395,10 @@ typedef struct xwsmessagestate {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Config` | `xwsmessageconfig` | Config |
+| `Config` | `xwsmessageconfig` | 配置 |
 | `Utf8` | `xutf8state` | Utf8 |
 | `CloseUtf8` | `xutf8state` | CloseUtf8 |
-| `Size` | `size_t` | Size |
+| `Size` | `size_t` | 字节数 |
 | `FrameSize` | `size_t` | FrameSize |
 | `FramePayloadSize` | `uint64` | FramePayloadSize |
 | `MessageRsv` | `uint32` | MessageRsv |
@@ -440,18 +440,18 @@ typedef enum xwshandshakeerror {
 | 值 | 语义 |
 |---|---|
 | `XWS_HANDSHAKE_ERROR_ARGUMENT` | 参数非法 |
-| `XWS_HANDSHAKE_ERROR_KEY` | KEY |
-| `XWS_HANDSHAKE_ERROR_ACCEPT` | ACCEPT |
+| `XWS_HANDSHAKE_ERROR_KEY` | 失败 |
+| `XWS_HANDSHAKE_ERROR_ACCEPT` | 失败 |
 | `XWS_HANDSHAKE_ERROR_PROTOCOL` | 协议非法 |
-| `XWS_HANDSHAKE_ERROR_EXTENSION` | EXTENSION |
-| `XWS_HANDSHAKE_ERROR_METHOD` | METHOD |
-| `XWS_HANDSHAKE_ERROR_VERSION` | VERSION |
-| `XWS_HANDSHAKE_ERROR_HOST` | HOST |
-| `XWS_HANDSHAKE_ERROR_UPGRADE` | UPGRADE |
-| `XWS_HANDSHAKE_ERROR_CONNECTION` | CONNECTION |
-| `XWS_HANDSHAKE_ERROR_BODY` | BODY |
-| `XWS_HANDSHAKE_ERROR_STATUS` | STATUS |
-| `XWS_HANDSHAKE_ERROR_FIELD` | FIELD |
+| `XWS_HANDSHAKE_ERROR_EXTENSION` | 失败 |
+| `XWS_HANDSHAKE_ERROR_METHOD` | 失败 |
+| `XWS_HANDSHAKE_ERROR_VERSION` | 失败 |
+| `XWS_HANDSHAKE_ERROR_HOST` | 失败 |
+| `XWS_HANDSHAKE_ERROR_UPGRADE` | 失败 |
+| `XWS_HANDSHAKE_ERROR_CONNECTION` | 失败 |
+| `XWS_HANDSHAKE_ERROR_BODY` | 失败 |
+| `XWS_HANDSHAKE_ERROR_STATUS` | 失败 |
+| `XWS_HANDSHAKE_ERROR_FIELD` | 失败 |
 | `XWS_HANDSHAKE_ERROR_OUTPUT` | 输出失败 |
 
 ### `xwsrole`
@@ -482,7 +482,7 @@ typedef struct xwsextension {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
+| `Name` | `xstrview` | 名称 |
 | `Parameters` | `xstrview` | Parameters |
 
 ### `xwsdeflateflag`
@@ -530,11 +530,11 @@ typedef enum xwsdeflateerror {
 | 值 | 语义 |
 |---|---|
 | `XWS_DEFLATE_ERROR_ARGUMENT` | 参数非法 |
-| `XWS_DEFLATE_ERROR_EXTENSION` | EXTENSION |
-| `XWS_DEFLATE_ERROR_PARAMETER` | PARAMETER |
-| `XWS_DEFLATE_ERROR_DUPLICATE` | DUPLICATE |
-| `XWS_DEFLATE_ERROR_WINDOW` | WINDOW |
-| `XWS_DEFLATE_ERROR_RESPONSE` | RESPONSE |
+| `XWS_DEFLATE_ERROR_EXTENSION` | 失败 |
+| `XWS_DEFLATE_ERROR_PARAMETER` | 失败 |
+| `XWS_DEFLATE_ERROR_DUPLICATE` | 失败 |
+| `XWS_DEFLATE_ERROR_WINDOW` | 失败 |
+| `XWS_DEFLATE_ERROR_RESPONSE` | 失败 |
 | `XWS_DEFLATE_ERROR_OUTPUT` | 输出失败 |
 | `XWS_DEFLATE_ERROR_CONFIG` | 配置非法 |
 | `XWS_DEFLATE_ERROR_STATE` | 状态非法 |
@@ -555,7 +555,7 @@ typedef struct xwsdeflate {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `ServerMaxWindowBits` | `uint8` | ServerMaxWindowBits |
 | `ClientMaxWindowBits` | `uint8` | ClientMaxWindowBits |
 
@@ -613,7 +613,7 @@ typedef struct xwsdeflaterconfig {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `OutputLimit` | `uint64` | OutputLimit |
-| `Level` | `int32` | Level |
+| `Level` | `int32` | 级别 |
 | `Strategy` | `xdeflatestrategy` | Strategy |
 | `WindowBits` | `uint8` | WindowBits |
 | `NoContextTakeover` | `bool` | NoContextTakeover |
@@ -664,7 +664,7 @@ typedef enum xwsstreamstate {
 | 值 | 语义 |
 |---|---|
 | `XWS_STREAM_OPEN` | OPEN |
-| `XWS_STREAM_CLOSING` | CLOSING |
+| `XWS_STREAM_CLOSING` | 关闭中 |
 
 ### `xwsstreamerror`
 
@@ -692,12 +692,12 @@ typedef enum xwsstreamerror {
 | `XWS_STREAM_ERROR_CONFIG` | 配置非法 |
 | `XWS_STREAM_ERROR_MEMORY` | 内存分配失败 |
 | `XWS_STREAM_ERROR_STATE` | 状态非法 |
-| `XWS_STREAM_ERROR_FRAME` | FRAME |
+| `XWS_STREAM_ERROR_FRAME` | 失败 |
 | `XWS_STREAM_ERROR_MESSAGE` | 消息 |
-| `XWS_STREAM_ERROR_RANDOM` | RANDOM |
-| `XWS_STREAM_ERROR_SEND` | SEND |
+| `XWS_STREAM_ERROR_RANDOM` | 失败 |
+| `XWS_STREAM_ERROR_SEND` | 发送方向 |
 | `XWS_STREAM_ERROR_LIMIT` | 超限 |
-| `XWS_STREAM_ERROR_TRANSPORT` | TRANSPORT |
+| `XWS_STREAM_ERROR_TRANSPORT` | 失败 |
 
 ### `xwsstreamcloseflag`
 
@@ -741,7 +741,7 @@ typedef struct xwsstreamconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Role` | `xwsrole` | Role |
+| `Role` | `xwsrole` | 角色 |
 | `Protocol` | `xstrview` | Protocol |
 | `MessageLimit` | `size_t` | MessageLimit |
 | `FrameLimit` | `uint64` | FrameLimit |
@@ -770,11 +770,11 @@ typedef struct xwsstreamclose {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `Transport` | `xnetresult` | Transport |
 | `LocalCode` | `uint16` | LocalCode |
 | `RemoteCode` | `uint16` | RemoteCode |
-| `Reason` | `xstrview` | Reason |
+| `Reason` | `xstrview` | 原因文本 |
 
 ### `xwsstreamevents`
 

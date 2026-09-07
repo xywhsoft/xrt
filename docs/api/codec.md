@@ -49,8 +49,8 @@ typedef struct xbase64config {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alphabet` | `cstr` | Alphabet |
-| `Flags` | `uint32` | Flags |
+| `Alphabet` | `cstr` | 字母表 |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xcodecerror`
 
@@ -78,11 +78,11 @@ typedef enum xcodecerror {
 | 值 | 语义 |
 |---|---|
 | `XCODEC_ERROR_HEX_CONFIG` | HEX配置非法 |
-| `XCODEC_ERROR_HEX_FORMAT` | HEXFORMAT |
+| `XCODEC_ERROR_HEX_FORMAT` | 格式非法 |
 | `XCODEC_ERROR_BASE64_CONFIG` | BASE64配置非法 |
-| `XCODEC_ERROR_BASE64_FORMAT` | BASE64FORMAT |
+| `XCODEC_ERROR_BASE64_FORMAT` | 格式非法 |
 | `XCODEC_ERROR_PERCENT_CONFIG` | PERCENT配置非法 |
-| `XCODEC_ERROR_PERCENT_FORMAT` | PERCENTFORMAT |
+| `XCODEC_ERROR_PERCENT_FORMAT` | 格式非法 |
 
 ### `xpercentnext`
 

@@ -32,11 +32,11 @@ typedef enum xxsonerror {
 | 值 | 语义 |
 |---|---|
 | `XXSON_ERROR_CONFIG` | 配置非法 |
-| `XXSON_ERROR_SYNTAX` | SYNTAX |
+| `XXSON_ERROR_SYNTAX` | 语法非法 |
 | `XXSON_ERROR_LIMIT` | 超限 |
-| `XXSON_ERROR_DUPLICATE` | DUPLICATE |
-| `XXSON_ERROR_NUMBER` | NUMBER |
-| `XXSON_ERROR_TAG` | TAG |
+| `XXSON_ERROR_DUPLICATE` | 失败 |
+| `XXSON_ERROR_NUMBER` | 失败 |
+| `XXSON_ERROR_TAG` | 失败 |
 | `XXSON_ERROR_STATE` | 状态非法 |
 | `XXSON_ERROR_UNSUPPORTED` | 不支持 |
 | `XXSON_ERROR_OUTPUT` | 输出失败 |
@@ -55,9 +55,9 @@ typedef struct xxsonlocation {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Line` | `size_t` | Line |
-| `Column` | `size_t` | Column |
+| `Offset` | `size_t` | 偏移量 |
+| `Line` | `size_t` | 行号 |
+| `Column` | `size_t` | 列号 |
 
 ### `xxsonreadflag`
 
@@ -73,8 +73,8 @@ typedef enum xxsonreadflag {
 
 | 值 | 语义 |
 |---|---|
-| `XXSON_READ_COMMENTS` | COMMENTS |
-| `XXSON_READ_TRAILING_COMMA` | TRAILINGCOMMA |
+| `XXSON_READ_COMMENTS` | 读方向 |
+| `XXSON_READ_TRAILING_COMMA` | 读方向 |
 
 ### `xxsonduplicate`
 
@@ -131,7 +131,7 @@ typedef struct xxsonreadconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `Duplicate` | `xxsonduplicate` | Duplicate |
 | `BigInteger` | `xxsonbigint` | BigInteger |
 | `MaxDepth` | `uint32` | MaxDepth |
@@ -235,8 +235,8 @@ typedef struct xxsontag {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Payload` | `xstrview` | Payload |
+| `Name` | `xstrview` | 名称 |
+| `Payload` | `xstrview` | 载荷 |
 
 ### `xxsonwriteflag`
 
@@ -253,9 +253,9 @@ typedef enum xxsonwriteflag {
 
 | 值 | 语义 |
 |---|---|
-| `XXSON_WRITE_PRETTY` | PRETTY |
-| `XXSON_WRITE_ESCAPE_SLASH` | ESCAPESLASH |
-| `XXSON_WRITE_ESCAPE_HTML` | ESCAPEHTML |
+| `XXSON_WRITE_PRETTY` | 写方向 |
+| `XXSON_WRITE_ESCAPE_SLASH` | 写方向 |
+| `XXSON_WRITE_ESCAPE_HTML` | 写方向 |
 
 ### `xxsonunsupported`
 
@@ -308,7 +308,7 @@ typedef struct xxsonwriteconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `Unsupported` | `xxsonunsupported` | Unsupported |
 | `MaxDepth` | `uint32` | MaxDepth |
 | `Indent` | `uint32` | Indent |

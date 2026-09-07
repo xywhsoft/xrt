@@ -20,8 +20,8 @@ typedef struct xexecutoritem {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Proc` | `xexecutorproc` | Proc |
-| `Data` | `ptr` | Data |
+| `Proc` | `xexecutorproc` | 过程指针 |
+| `Data` | `ptr` | 数据 |
 | `Destroy` | `xexecutorfreeproc` | Destroy |
 | `DestroyContext` | `ptr` | DestroyContext |
 
@@ -39,9 +39,9 @@ typedef struct xexecutorconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Threads` | `uint32` | Threads |
+| `Threads` | `uint32` | 线程数 |
 | `QueueLimit` | `size_t` | QueueLimit |
-| `StackSize` | `size_t` | StackSize |
+| `StackSize` | `size_t` | 栈大小 |
 
 ### `xexecutorstats`
 
@@ -66,7 +66,7 @@ typedef struct xexecutorstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Threads` | `uint32` | Threads |
+| `Threads` | `uint32` | 线程数 |
 | `QueueLimit` | `size_t` | QueueLimit |
 | `Queued` | `size_t` | Queued |
 | `Running` | `size_t` | Running |

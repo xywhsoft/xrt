@@ -376,23 +376,23 @@ typedef struct xmap {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Buckets` | `xmapentry**` | Buckets |
-| `First` | `xmapentry*` | First |
-| `Last` | `xmapentry*` | Last |
+| `Buckets` | `xmapentry**` | 桶数组 |
+| `First` | `xmapentry*` | 首元素 |
+| `Last` | `xmapentry*` | 末元素 |
 | `ValueSize` | `size_t` | ValueSize |
 | `ValueOffset` | `size_t` | ValueOffset |
 | `KeyOffset` | `size_t` | KeyOffset |
-| `Alignment` | `size_t` | Alignment |
-| `Count` | `size_t` | Count |
-| `BucketCount` | `size_t` | BucketCount |
-| `Threshold` | `size_t` | Threshold |
-| `Version` | `uint64` | Version |
+| `Alignment` | `size_t` | 对齐（二次幂） |
+| `Count` | `size_t` | 数量 |
+| `BucketCount` | `size_t` | 桶数量 |
+| `Threshold` | `size_t` | 阈值 |
+| `Version` | `uint64` | 结构版本 |
 | `Hash` | `xmaphash` | Hash |
 | `Equal` | `xmapequal` | Equal |
 | `Drop` | `xmapdrop` | Drop |
 | `KeyUserData` | `ptr` | KeyUserData |
 | `DropUserData` | `ptr` | DropUserData |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xmapiter`
 
@@ -410,8 +410,8 @@ typedef struct xmapiter {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Map` | `xmap*` | Map |
-| `Next` | `xmapentry*` | Next |
-| `Version` | `uint64` | Version |
+| `Next` | `xmapentry*` | 后继 |
+| `Version` | `uint64` | 结构版本 |
 | `Direction` | `int` | Direction |
 
 ### `xmapentry`

@@ -22,7 +22,7 @@ typedef enum xhttpcoding {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_CODING_NONE` | 无 |
-| `XHTTP_CODING_IDENTITY` | IDENTITY |
+| `XHTTP_CODING_IDENTITY` | 无编码 |
 | `XHTTP_CODING_GZIP` | gzip 包装 |
 
 ### `xhttpacceptencodingflag`
@@ -43,10 +43,10 @@ typedef enum xhttpacceptencodingflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_ACCEPT_ENCODING_NONE` | 无 |
-| `XHTTP_ACCEPT_ENCODING_PRESENT` | PRESENT |
+| `XHTTP_ACCEPT_ENCODING_PRESENT` | 请求携带 Accept-Encoding |
 | `XHTTP_ACCEPT_ENCODING_GZIP` | gzip 包装 |
 | `XHTTP_ACCEPT_ENCODING_DEFLATE` | deflate 包装 |
-| `XHTTP_ACCEPT_ENCODING_IDENTITY` | IDENTITY |
+| `XHTTP_ACCEPT_ENCODING_IDENTITY` | 允许 identity |
 
 ### `xhttpacceptencoding`
 
@@ -68,7 +68,7 @@ typedef struct xhttpacceptencoding {
 | `Deflate` | `uint16` | Deflate |
 | `Identity` | `uint16` | Identity |
 | `Wildcard` | `uint16` | Wildcard |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpcontentencodingflag`
 
@@ -87,8 +87,8 @@ typedef enum xhttpcontentencodingflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_CONTENT_ENCODING_NONE` | 无 |
-| `XHTTP_CONTENT_ENCODING_PRESENT` | PRESENT |
-| `XHTTP_CONTENT_ENCODING_IDENTITY` | IDENTITY |
+| `XHTTP_CONTENT_ENCODING_PRESENT` | 响应携带 Content-Encoding |
+| `XHTTP_CONTENT_ENCODING_IDENTITY` | 内容未编码 |
 | `XHTTP_CONTENT_ENCODING_UNKNOWN` | 未知 |
 
 ### `xhttpcontentencodingcursor`
@@ -105,7 +105,7 @@ typedef struct xhttpcontentencodingcursor {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xhttpcontentencodingitem`
 
@@ -145,7 +145,7 @@ typedef struct xhttpcontentencodingplan {
 | `DecoderCount` | `size_t` | DecoderCount |
 | `UnknownCount` | `size_t` | UnknownCount |
 | `JoinedSize` | `size_t` | JoinedSize |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### 常量总表
 

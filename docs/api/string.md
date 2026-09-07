@@ -77,10 +77,10 @@ typedef struct xstrsplit {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Text` | `xstrview` | Text |
+| `Text` | `xstrview` | 文本视图 |
 | `Separator` | `xstrview` | Separator |
-| `Position` | `size_t` | Position |
-| `State` | `uint32` | State |
+| `Position` | `size_t` | 位置 |
+| `State` | `uint32` | 状态 |
 | `Done` | `bool` | Done |
 
 ### `xstrlines`
@@ -98,9 +98,9 @@ typedef struct xstrlines {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Text` | `xstrview` | Text |
-| `Position` | `size_t` | Position |
-| `State` | `uint32` | State |
+| `Text` | `xstrview` | 文本视图 |
+| `Position` | `size_t` | 位置 |
+| `State` | `uint32` | 状态 |
 | `Done` | `bool` | Done |
 
 ### `xstrfields`
@@ -118,9 +118,9 @@ typedef struct xstrfields {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Text` | `xstrview` | Text |
-| `Position` | `size_t` | Position |
-| `State` | `uint32` | State |
+| `Text` | `xstrview` | 文本视图 |
+| `Position` | `size_t` | 位置 |
+| `State` | `uint32` | 状态 |
 | `Done` | `bool` | Done |
 
 ### `xstrlist`
@@ -137,8 +137,8 @@ typedef struct xstrlist {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Count` | `size_t` | Count |
-| `Items` | `xstrview*` | Items |
+| `Count` | `size_t` | 数量 |
+| `Items` | `xstrview*` | 元素数组 |
 | `DataSize` | `size_t` | DataSize |
 
 ### `xstrglobflag`

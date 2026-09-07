@@ -33,18 +33,18 @@ typedef enum xprocesserror {
 |---|---|
 | `XPROCESS_ERROR_ARGUMENT` | 参数非法 |
 | `XPROCESS_ERROR_CONFIG` | 配置非法 |
-| `XPROCESS_ERROR_COMMAND` | COMMAND |
-| `XPROCESS_ERROR_ENVIRONMENT` | ENVIRONMENT |
-| `XPROCESS_ERROR_PIPE` | PIPE |
-| `XPROCESS_ERROR_SPAWN` | SPAWN |
-| `XPROCESS_ERROR_OPEN` | OPEN |
-| `XPROCESS_ERROR_WAIT` | WAIT |
+| `XPROCESS_ERROR_COMMAND` | 失败 |
+| `XPROCESS_ERROR_ENVIRONMENT` | 失败 |
+| `XPROCESS_ERROR_PIPE` | 失败 |
+| `XPROCESS_ERROR_SPAWN` | 失败 |
+| `XPROCESS_ERROR_OPEN` | 失败 |
+| `XPROCESS_ERROR_WAIT` | 失败 |
 | `XPROCESS_ERROR_READ` | 读方向 |
 | `XPROCESS_ERROR_WRITE` | 写方向 |
-| `XPROCESS_ERROR_CLOSE` | CLOSE |
-| `XPROCESS_ERROR_SIGNAL` | SIGNAL |
-| `XPROCESS_ERROR_CALLBACK` | CALLBACK |
-| `XPROCESS_ERROR_TERMINAL` | TERMINAL |
+| `XPROCESS_ERROR_CLOSE` | 失败 |
+| `XPROCESS_ERROR_SIGNAL` | 失败 |
+| `XPROCESS_ERROR_CALLBACK` | 回调失败 |
+| `XPROCESS_ERROR_TERMINAL` | 失败 |
 | `XPROCESS_ERROR_THREAD` | 线程标识 |
 
 ### `xprocesstarget`
@@ -60,7 +60,7 @@ typedef enum xprocesstarget {
 
 | 值 | 语义 |
 |---|---|
-| `XPROCESS_EXEC` | XPROCESSEXEC |
+| `XPROCESS_EXEC` | 直接执行形态 |
 
 ### `xprocessiomode`
 
@@ -78,10 +78,10 @@ typedef enum xprocessiomode {
 
 | 值 | 语义 |
 |---|---|
-| `XPROCESS_IO_INHERIT` | INHERIT |
-| `XPROCESS_IO_PIPE` | PIPE |
+| `XPROCESS_IO_INHERIT` | 系统 IO 失败 |
+| `XPROCESS_IO_PIPE` | 系统 IO 失败 |
 | `XPROCESS_IO_NULL` | 空值 |
-| `XPROCESS_IO_HANDLE` | HANDLE |
+| `XPROCESS_IO_HANDLE` | 系统 IO 失败 |
 
 ### `xprocessstream`
 
@@ -97,7 +97,7 @@ typedef enum xprocessstream {
 
 | 值 | 语义 |
 |---|---|
-| `XPROCESS_STDIN` | STDIN |
+| `XPROCESS_STDIN` | 标准输入流 |
 | `XPROCESS_STDOUT` | 标准输出 |
 
 ### `xprocessstate`
@@ -131,8 +131,8 @@ typedef enum xprocessexitkind {
 | 值 | 语义 |
 |---|---|
 | `XPROCESS_EXIT_NONE` | 无 |
-| `XPROCESS_EXIT_CODE` | CODE |
-| `XPROCESS_EXIT_SIGNAL` | SIGNAL |
+| `XPROCESS_EXIT_CODE` | 退出码终态 |
+| `XPROCESS_EXIT_SIGNAL` | 信号终态 |
 
 ### `xprocessstop`
 
@@ -151,9 +151,9 @@ typedef enum xprocessstop {
 | 值 | 语义 |
 |---|---|
 | `XPROCESS_STOP_NONE` | 无 |
-| `XPROCESS_STOP_INTERRUPT` | INTERRUPT |
-| `XPROCESS_STOP_TERMINATE` | TERMINATE |
-| `XPROCESS_STOP_KILL` | KILL |
+| `XPROCESS_STOP_INTERRUPT` | 中断（Ctrl+C/SIGINT） |
+| `XPROCESS_STOP_TERMINATE` | 温和终止 |
+| `XPROCESS_STOP_KILL` | 强制结束 |
 
 ### `xprocessio`
 
@@ -168,8 +168,8 @@ typedef struct xprocessio {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Mode` | `xprocessiomode` | Mode |
-| `Handle` | `intptr_t` | Handle |
+| `Mode` | `xprocessiomode` | 模式 |
+| `Handle` | `intptr_t` | 平台句柄 |
 
 ### `xprocessenv`
 
@@ -184,8 +184,8 @@ typedef struct xprocessenv {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `cstr` | Name |
-| `Value` | `cstr` | Value |
+| `Name` | `cstr` | 名称 |
+| `Value` | `cstr` | 值 |
 
 ### `xprocessstatus`
 
@@ -203,8 +203,8 @@ typedef struct xprocessstatus {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Kind` | `xprocessexitkind` | Kind |
-| `Code` | `int32` | Code |
+| `Kind` | `xprocessexitkind` | 错误种类 |
+| `Code` | `int32` | 错误码 |
 | `Signal` | `int32` | Signal |
 | `Stop` | `xprocessstop` | Stop |
 | `CoreDumped` | `bool` | CoreDumped |
@@ -239,7 +239,7 @@ typedef struct xprocessconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Target` | `xprocesstarget` | Target |
+| `Target` | `xprocesstarget` | 目标视图 |
 | `Program` | `cstr` | Program |
 | `Arg0` | `cstr` | Arg0 |
 | `Args` | `const cstr*` | Args |
@@ -274,7 +274,7 @@ typedef enum xprocessoverflow {
 | 值 | 语义 |
 |---|---|
 | `XPROCESS_OVERFLOW_ERROR` | 失败 |
-| `XPROCESS_OVERFLOW_KEEP_FIRST` | KEEPFIRST |
+| `XPROCESS_OVERFLOW_KEEP_FIRST` | 溢出 |
 
 ### `xprocessrunoptions`
 
@@ -296,15 +296,15 @@ typedef struct xprocessrunoptions {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Input` | `xbytesview` | Input |
-| `Deadline` | `xdeadline` | Deadline |
-| `Cancel` | `xcancel*` | Cancel |
+| `Input` | `xbytesview` | 输入视图 |
+| `Deadline` | `xdeadline` | 截止时间 |
+| `Cancel` | `xcancel*` | 取消令牌 |
 | `StopGrace` | `uint64` | StopGrace |
 | `StdoutLimit` | `size_t` | StdoutLimit |
 | `StderrLimit` | `size_t` | StderrLimit |
 | `Overflow` | `xprocessoverflow` | Overflow |
-| `Output` | `xprocessoutputproc` | Output |
-| `UserData` | `ptr` | UserData |
+| `Output` | `xprocessoutputproc` | 输出缓冲 |
+| `UserData` | `ptr` | 用户数据 |
 
 ### `xprocessresult`
 
@@ -327,7 +327,7 @@ typedef struct xprocessresult {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Status` | `xprocessstatus` | Status |
+| `Status` | `xprocessstatus` | 状态输出 |
 | `Wait` | `xwaitresult` | Wait |
 | `InputWritten` | `size_t` | InputWritten |
 | `Stdout` | `bytes` | Stdout |
@@ -358,15 +358,15 @@ typedef struct xprocesspipelineoptions {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Input` | `xbytesview` | Input |
-| `Deadline` | `xdeadline` | Deadline |
-| `Cancel` | `xcancel*` | Cancel |
+| `Input` | `xbytesview` | 输入视图 |
+| `Deadline` | `xdeadline` | 截止时间 |
+| `Cancel` | `xcancel*` | 取消令牌 |
 | `StopGrace` | `uint64` | StopGrace |
 | `StdoutLimit` | `size_t` | StdoutLimit |
 | `StderrLimit` | `size_t` | StderrLimit |
 | `Overflow` | `xprocessoverflow` | Overflow |
-| `Output` | `xprocesspipelineoutputproc` | Output |
-| `UserData` | `ptr` | UserData |
+| `Output` | `xprocesspipelineoutputproc` | 输出缓冲 |
+| `UserData` | `ptr` | 用户数据 |
 
 ### `xprocessstageresult`
 
@@ -383,7 +383,7 @@ typedef struct xprocessstageresult {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Status` | `xprocessstatus` | Status |
+| `Status` | `xprocessstatus` | 状态输出 |
 | `Stderr` | `bytes` | Stderr |
 | `StderrSize` | `size_t` | StderrSize |
 | `StderrTruncated` | `bool` | StderrTruncated |

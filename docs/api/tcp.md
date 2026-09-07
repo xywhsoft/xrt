@@ -15,7 +15,7 @@ typedef enum xnetproxytype {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_PROXY_SOCKS5` | XNETPROXYSOCKS5 |
+| `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
 
 ### `xnetproxyauth`
 
@@ -34,7 +34,7 @@ typedef enum xnetproxyauth {
 |---|---|
 | `XNET_PROXY_AUTH_AUTO` | 自动 |
 | `XNET_PROXY_AUTH_NONE` | 无 |
-| `XNET_PROXY_AUTH_REQUIRED` | REQUIRED |
+| `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
 
 ### `xnetproxyconfig`
 
@@ -53,9 +53,9 @@ typedef struct xnetproxyconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xnetproxytype` | Type |
-| `Host` | `xstrview` | Host |
-| `Port` | `uint16` | Port |
+| `Type` | `xnetproxytype` | 类型 |
+| `Host` | `xstrview` | 主机名 |
+| `Port` | `uint16` | 端口 |
 | `Auth` | `xnetproxyauth` | Auth |
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
@@ -77,9 +77,9 @@ typedef struct xnetproxyinfo {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xnetproxytype` | Type |
-| `Host` | `xstrview` | Host |
-| `Port` | `uint16` | Port |
+| `Type` | `xnetproxytype` | 类型 |
+| `Host` | `xstrview` | 主机名 |
+| `Port` | `uint16` | 端口 |
 | `Auth` | `xnetproxyauth` | Auth |
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
@@ -116,8 +116,8 @@ typedef struct xnetproxyendpoint {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Address` | `xnetaddr` | Address |
-| `Host` | `xstrview` | Host |
+| `Address` | `xnetaddr` | 地址 |
+| `Host` | `xstrview` | 主机名 |
 
 ### `xnetproxyhandshakeconfig`
 
@@ -161,13 +161,13 @@ typedef enum xnetsocks5reply {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_SOCKS5_SUCCEEDED` | SUCCEEDED |
-| `XNET_SOCKS5_GENERAL_FAILURE` | GENERALFAILURE |
-| `XNET_SOCKS5_RULESET_DENIED` | RULESETDENIED |
-| `XNET_SOCKS5_NETWORK_UNREACHABLE` | NETWORKUNREACHABLE |
-| `XNET_SOCKS5_HOST_UNREACHABLE` | HOSTUNREACHABLE |
-| `XNET_SOCKS5_CONNECTION_REFUSED` | CONNECTIONREFUSED |
-| `XNET_SOCKS5_TTL_EXPIRED` | TTLEXPIRED |
+| `XNET_SOCKS5_SUCCEEDED` | 成功 |
+| `XNET_SOCKS5_GENERAL_FAILURE` | 通用失败 |
+| `XNET_SOCKS5_RULESET_DENIED` | 被规则集拒绝 |
+| `XNET_SOCKS5_NETWORK_UNREACHABLE` | 网络不可达 |
+| `XNET_SOCKS5_HOST_UNREACHABLE` | 主机不可达 |
+| `XNET_SOCKS5_CONNECTION_REFUSED` | 连接被拒绝 |
+| `XNET_SOCKS5_TTL_EXPIRED` | TTL 过期 |
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
 
 ### `xnetproxydialstate`
@@ -208,7 +208,7 @@ typedef struct xnetproxydialconfig {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
-| `Timeout` | `uint64` | Timeout |
+| `Timeout` | `uint64` | 超时（微秒） |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 
 ### `xnetproxydialstats`
@@ -224,7 +224,7 @@ typedef struct xnetproxydialstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xnetproxydialstate` | State |
+| `State` | `xnetproxydialstate` | 状态 |
 | `Transport` | `xnetdialstats` | Transport |
 
 ### `xnetproxy`
@@ -294,7 +294,7 @@ typedef enum xnetstreamstate {
 |---|---|
 | `XNET_STREAM_CONNECTING` | 连接中 |
 | `XNET_STREAM_OPEN` | OPEN |
-| `XNET_STREAM_CLOSING` | CLOSING |
+| `XNET_STREAM_CLOSING` | 关闭中 |
 
 ### `xnetlistenerstate`
 
@@ -311,7 +311,7 @@ typedef enum xnetlistenerstate {
 | 值 | 语义 |
 |---|---|
 | `XNET_LISTENER_OPEN` | OPEN |
-| `XNET_LISTENER_CLOSING` | CLOSING |
+| `XNET_LISTENER_CLOSING` | 关闭中 |
 
 ### `xnetacceptdistribution`
 
@@ -421,8 +421,8 @@ typedef enum xnetstreamreadmode {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_STREAM_READ_ADAPTIVE` | ADAPTIVE |
-| `XNET_STREAM_READ_DIRECT` | DIRECT |
+| `XNET_STREAM_READ_ADAPTIVE` | 读方向 |
+| `XNET_STREAM_READ_DIRECT` | 读方向 |
 
 ### `xnetstreamconfig`
 
@@ -476,9 +476,9 @@ typedef struct xnetlistenconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Address` | `xnetaddr` | Address |
-| `Stream` | `xnetstreamconfig` | Stream |
-| `Affinity` | `uint64` | Affinity |
+| `Address` | `xnetaddr` | 地址 |
+| `Stream` | `xnetstreamconfig` | 流选择 |
+| `Affinity` | `uint64` | 亲和 Worker |
 | `AcceptConcurrency` | `uint32` | AcceptConcurrency |
 | `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
 | `Backlog` | `int` | Backlog |
@@ -513,7 +513,7 @@ typedef struct xnetstreamstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xnetstreamstate` | State |
+| `State` | `xnetstreamstate` | 状态 |
 | `ReceivedBytes` | `uint64` | ReceivedBytes |
 | `SentBytes` | `uint64` | SentBytes |
 | `ReadEvents` | `uint64` | ReadEvents |
@@ -545,10 +545,10 @@ typedef struct xnetdialconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Stream` | `xnetstreamconfig` | Stream |
-| `Family` | `xnetfamily` | Family |
-| `Affinity` | `uint64` | Affinity |
-| `Timeout` | `uint64` | Timeout |
+| `Stream` | `xnetstreamconfig` | 流选择 |
+| `Family` | `xnetfamily` | 地址族 |
+| `Affinity` | `uint64` | 亲和 Worker |
+| `Timeout` | `uint64` | 超时（微秒） |
 | `FallbackDelay` | `uint64` | FallbackDelay |
 | `MaxAttempts` | `uint32` | MaxAttempts |
 
@@ -571,7 +571,7 @@ typedef struct xnetdialstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xnetdialstate` | State |
+| `State` | `xnetdialstate` | 状态 |
 | `Addresses` | `uint32` | Addresses |
 | `AttemptsStarted` | `uint32` | AttemptsStarted |
 | `AttemptsFailed` | `uint32` | AttemptsFailed |
@@ -600,7 +600,7 @@ typedef struct xnetlistenerstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xnetlistenerstate` | State |
+| `State` | `xnetlistenerstate` | 状态 |
 | `Accepted` | `uint64` | Accepted |
 | `Rejected` | `uint64` | Rejected |
 | `Errors` | `uint64` | Errors |
@@ -674,9 +674,9 @@ typedef enum xnetserverstate {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_SERVER_STARTING` | STARTING |
-| `XNET_SERVER_OPEN` | OPEN |
-| `XNET_SERVER_CLOSING` | CLOSING |
+| `XNET_SERVER_STARTING` | 启动中 |
+| `XNET_SERVER_OPEN` | 服务端角色 |
+| `XNET_SERVER_CLOSING` | 关闭中 |
 
 ### `xnetservermode`
 
@@ -731,7 +731,7 @@ typedef struct xnetserverconfig {
 | `Additional` | `const xnetlistenconfig*` | Additional |
 | `AdditionalCount` | `size_t` | AdditionalCount |
 | `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
-| `Mode` | `xnetservermode` | Mode |
+| `Mode` | `xnetservermode` | 模式 |
 | `SharedPort` | `bool` | SharedPort |
 
 ### `xnetserverstats`
@@ -755,7 +755,7 @@ typedef struct xnetserverstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xnetserverstate` | State |
+| `State` | `xnetserverstate` | 状态 |
 | `Accepted` | `uint64` | Accepted |
 | `Rejected` | `uint64` | Rejected |
 | `Errors` | `uint64` | Errors |

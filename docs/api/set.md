@@ -32,23 +32,23 @@ typedef struct xset {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Buckets` | `xsetentry**` | Buckets |
-| `First` | `xsetentry*` | First |
-| `Last` | `xsetentry*` | Last |
-| `ItemSize` | `size_t` | ItemSize |
-| `ItemOffset` | `size_t` | ItemOffset |
-| `Alignment` | `size_t` | Alignment |
-| `Count` | `size_t` | Count |
-| `BucketCount` | `size_t` | BucketCount |
-| `Threshold` | `size_t` | Threshold |
-| `Version` | `uint64` | Version |
+| `Buckets` | `xsetentry**` | 桶数组 |
+| `First` | `xsetentry*` | 首元素 |
+| `Last` | `xsetentry*` | 末元素 |
+| `ItemSize` | `size_t` | 单元素字节数 |
+| `ItemOffset` | `size_t` | 元素偏移 |
+| `Alignment` | `size_t` | 对齐（二次幂） |
+| `Count` | `size_t` | 数量 |
+| `BucketCount` | `size_t` | 桶数量 |
+| `Threshold` | `size_t` | 阈值 |
+| `Version` | `uint64` | 结构版本 |
 | `Hash` | `xsethash` | Hash |
 | `Equal` | `xsetequal` | Equal |
 | `Copy` | `xsetcopy` | Copy |
 | `Drop` | `xsetdrop` | Drop |
 | `KeyUserData` | `ptr` | KeyUserData |
 | `LifecycleUserData` | `ptr` | LifecycleUserData |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xsetiter`
 
@@ -66,8 +66,8 @@ typedef struct xsetiter {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Set` | `xset*` | Set |
-| `Next` | `xsetentry*` | Next |
-| `Version` | `uint64` | Version |
+| `Next` | `xsetentry*` | 后继 |
+| `Version` | `uint64` | 结构版本 |
 | `Direction` | `int` | Direction |
 
 ### `xsetentry`

@@ -48,8 +48,8 @@ typedef enum xseek {
 
 | 值 | 语义 |
 |---|---|
-| `XSEEK_START` | START |
-| `XSEEK_CURRENT` | CURRENT |
+| `XSEEK_START` | 从文件起点 |
+| `XSEEK_CURRENT` | 从当前位置 |
 
 ### `xrtresourcelimits`
 
@@ -142,8 +142,8 @@ typedef struct xbytesview {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `cbytes` | Data |
-| `Size` | `size_t` | Size |
+| `Data` | `cbytes` | 数据 |
+| `Size` | `size_t` | 字节数 |
 
 ### `xstrview`
 
@@ -158,8 +158,8 @@ typedef struct xstrview {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Data` | `cstr` | Data |
-| `Size` | `size_t` | Size |
+| `Data` | `cstr` | 数据 |
+| `Size` | `size_t` | 字节数 |
 
 ### `xtime`
 
@@ -218,9 +218,9 @@ typedef enum xerrkind {
 | `XERR_STATE` | 状态非法 |
 | `XERR_MEMORY` | 内存分配失败 |
 | `XERR_IO` | 系统 IO 失败 |
-| `XERR_NOT_FOUND` | NOTFOUND |
+| `XERR_NOT_FOUND` | 未找到 |
 | `XERR_EXISTS` | 已存在 |
-| `XERR_PERMISSION` | PERMISSION |
+| `XERR_PERMISSION` | 权限不足 |
 | `XERR_AGAIN` | 暂不可推进 |
 | `XERR_TIMEOUT` | 超时 |
 | `XERR_CANCELLED` | 已取消 |
@@ -247,14 +247,14 @@ typedef struct xerrordesc {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Kind` | `xerrkind` | Kind |
-| `Code` | `int32` | Code |
-| `SystemCode` | `int32` | SystemCode |
-| `Domain` | `cstr` | Domain |
-| `Operation` | `cstr` | Operation |
-| `Message` | `cstr` | Message |
-| `Data` | `cstr` | Data |
-| `Cause` | `const xerror*` | Cause |
+| `Kind` | `xerrkind` | 错误种类 |
+| `Code` | `int32` | 错误码 |
+| `SystemCode` | `int32` | 平台错误码 |
+| `Domain` | `cstr` | 错误域 |
+| `Operation` | `cstr` | 失败操作名 |
+| `Message` | `cstr` | 消息文本 |
+| `Data` | `cstr` | 数据 |
+| `Cause` | `const xerror*` | 原因链 |
 
 ### `xerrorlocation`
 
@@ -270,9 +270,9 @@ typedef struct xerrorlocation {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `File` | `cstr` | File |
-| `Line` | `int32` | Line |
-| `Column` | `int32` | Column |
+| `File` | `cstr` | 文件名 |
+| `Line` | `int32` | 行号 |
+| `Column` | `int32` | 列号 |
 
 ### `xerror`
 

@@ -55,9 +55,9 @@ typedef enum xsignalerror {
 
 | 值 | 语义 |
 |---|---|
-| `XSIGNAL_ERROR_CODE` | CODE |
+| `XSIGNAL_ERROR_CODE` | 失败 |
 | `XSIGNAL_ERROR_UNSUPPORTED` | 不支持 |
-| `XSIGNAL_ERROR_SYSTEM` | SYSTEM |
+| `XSIGNAL_ERROR_SYSTEM` | 失败 |
 
 ### `xsignalevent`
 
@@ -76,12 +76,12 @@ typedef struct xsignalevent {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Code` | `xsignal` | Code |
-| `SystemCode` | `int32` | SystemCode |
-| `Count` | `uint32` | Count |
-| `Total` | `uint64` | Total |
-| `Time` | `xtime` | Time |
-| `Name` | `cstr` | Name |
+| `Code` | `xsignal` | 错误码 |
+| `SystemCode` | `int32` | 平台错误码 |
+| `Count` | `uint32` | 数量 |
+| `Total` | `uint64` | 总量 |
+| `Time` | `xtime` | 时间戳（Unix 微秒） |
+| `Name` | `cstr` | 名称 |
 
 ### `xsignalwatch`
 

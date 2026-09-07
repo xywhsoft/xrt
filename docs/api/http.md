@@ -34,14 +34,14 @@ typedef enum xhttpmethod {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_METHOD_INVALID` | 无效 |
-| `XHTTP_METHOD_OTHER` | OTHER |
-| `XHTTP_METHOD_GET` | GET |
-| `XHTTP_METHOD_HEAD` | HEAD |
-| `XHTTP_METHOD_POST` | POST |
-| `XHTTP_METHOD_PUT` | PUT |
-| `XHTTP_METHOD_DELETE` | DELETE |
-| `XHTTP_METHOD_CONNECT` | CONNECT |
-| `XHTTP_METHOD_OPTIONS` | OPTIONS |
+| `XHTTP_METHOD_OTHER` | 扩展/未知方法 |
+| `XHTTP_METHOD_GET` | GET 方法 |
+| `XHTTP_METHOD_HEAD` | HEAD 方法 |
+| `XHTTP_METHOD_POST` | POST 方法 |
+| `XHTTP_METHOD_PUT` | PUT 方法 |
+| `XHTTP_METHOD_DELETE` | DELETE 方法 |
+| `XHTTP_METHOD_CONNECT` | CONNECT 方法 |
+| `XHTTP_METHOD_OPTIONS` | OPTIONS 方法 |
 | `XHTTP_METHOD_TRACE` | 最详细级别 |
 
 ### `xhttpversion`
@@ -57,7 +57,7 @@ typedef enum xhttpversion {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_VERSION_1_0` | XHTTPVERSION10 |
+| `XHTTP_VERSION_1_0` | HTTP/1.0 |
 
 ### `xhttpstatus`
 
@@ -140,66 +140,66 @@ typedef enum xhttpstatus {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_STATUS_CONTINUE` | CONTINUE |
-| `XHTTP_STATUS_SWITCHING_PROTOCOLS` | SWITCHINGPROTOCOLS |
-| `XHTTP_STATUS_PROCESSING` | PROCESSING |
-| `XHTTP_STATUS_EARLY_HINTS` | EARLYHINTS |
+| `XHTTP_STATUS_CONTINUE` | CONTINUE（100 继续） |
+| `XHTTP_STATUS_SWITCHING_PROTOCOLS` | 101 协议切换 |
+| `XHTTP_STATUS_PROCESSING` | 102 处理中 |
+| `XHTTP_STATUS_EARLY_HINTS` | 103 早期提示 |
 | `XHTTP_STATUS_OK` | 成功 |
-| `XHTTP_STATUS_CREATED` | CREATED |
-| `XHTTP_STATUS_ACCEPTED` | ACCEPTED |
-| `XHTTP_STATUS_NON_AUTHORITATIVE_INFORMATION` | NONAUTHORITATIVEINFORMATION |
-| `XHTTP_STATUS_NO_CONTENT` | NOCONTENT |
-| `XHTTP_STATUS_RESET_CONTENT` | RESETCONTENT |
-| `XHTTP_STATUS_PARTIAL_CONTENT` | PARTIALCONTENT |
-| `XHTTP_STATUS_MULTI_STATUS` | MULTISTATUS |
-| `XHTTP_STATUS_ALREADY_REPORTED` | ALREADYREPORTED |
-| `XHTTP_STATUS_IM_USED` | IMUSED |
-| `XHTTP_STATUS_MULTIPLE_CHOICES` | MULTIPLECHOICES |
-| `XHTTP_STATUS_MOVED_PERMANENTLY` | MOVEDPERMANENTLY |
-| `XHTTP_STATUS_FOUND` | FOUND |
-| `XHTTP_STATUS_SEE_OTHER` | SEEOTHER |
-| `XHTTP_STATUS_NOT_MODIFIED` | NOTMODIFIED |
-| `XHTTP_STATUS_USE_PROXY` | USEPROXY |
-| `XHTTP_STATUS_TEMPORARY_REDIRECT` | TEMPORARYREDIRECT |
-| `XHTTP_STATUS_PERMANENT_REDIRECT` | PERMANENTREDIRECT |
-| `XHTTP_STATUS_BAD_REQUEST` | BADREQUEST |
-| `XHTTP_STATUS_UNAUTHORIZED` | UNAUTHORIZED |
-| `XHTTP_STATUS_PAYMENT_REQUIRED` | PAYMENTREQUIRED |
-| `XHTTP_STATUS_FORBIDDEN` | FORBIDDEN |
-| `XHTTP_STATUS_NOT_FOUND` | NOTFOUND |
-| `XHTTP_STATUS_METHOD_NOT_ALLOWED` | METHODNOTALLOWED |
-| `XHTTP_STATUS_NOT_ACCEPTABLE` | NOTACCEPTABLE |
-| `XHTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED` | PROXYAUTHENTICATIONREQUIRED |
+| `XHTTP_STATUS_CREATED` | 201 已创建 |
+| `XHTTP_STATUS_ACCEPTED` | 202 已接受 |
+| `XHTTP_STATUS_NON_AUTHORITATIVE_INFORMATION` | 203 非权威信息 |
+| `XHTTP_STATUS_NO_CONTENT` | 204 无内容 |
+| `XHTTP_STATUS_RESET_CONTENT` | 205 重置内容 |
+| `XHTTP_STATUS_PARTIAL_CONTENT` | 206 部分内容 |
+| `XHTTP_STATUS_MULTI_STATUS` | 207 多状态 |
+| `XHTTP_STATUS_ALREADY_REPORTED` | 208 已报告 |
+| `XHTTP_STATUS_IM_USED` | 226 IM 已使用 |
+| `XHTTP_STATUS_MULTIPLE_CHOICES` | 300 多选项 |
+| `XHTTP_STATUS_MOVED_PERMANENTLY` | 301 永久移动 |
+| `XHTTP_STATUS_FOUND` | 302 找到（临时移动） |
+| `XHTTP_STATUS_SEE_OTHER` | 303 见其他 |
+| `XHTTP_STATUS_NOT_MODIFIED` | 304 未修改 |
+| `XHTTP_STATUS_USE_PROXY` | 305 使用代理 |
+| `XHTTP_STATUS_TEMPORARY_REDIRECT` | 307 临时重定向 |
+| `XHTTP_STATUS_PERMANENT_REDIRECT` | 308 永久重定向 |
+| `XHTTP_STATUS_BAD_REQUEST` | 400 错误请求 |
+| `XHTTP_STATUS_UNAUTHORIZED` | 401 未认证 |
+| `XHTTP_STATUS_PAYMENT_REQUIRED` | 402 需要付费 |
+| `XHTTP_STATUS_FORBIDDEN` | 403 禁止 |
+| `XHTTP_STATUS_NOT_FOUND` | 未找到 |
+| `XHTTP_STATUS_METHOD_NOT_ALLOWED` | 405 方法不允许 |
+| `XHTTP_STATUS_NOT_ACCEPTABLE` | 406 不可接受 |
+| `XHTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED` | 407 需代理认证 |
 | `XHTTP_STATUS_REQUEST_TIMEOUT` | REQUEST超时 |
-| `XHTTP_STATUS_CONFLICT` | CONFLICT |
-| `XHTTP_STATUS_GONE` | GONE |
-| `XHTTP_STATUS_LENGTH_REQUIRED` | LENGTHREQUIRED |
+| `XHTTP_STATUS_CONFLICT` | 冲突 |
+| `XHTTP_STATUS_GONE` | 410 已消失 |
+| `XHTTP_STATUS_LENGTH_REQUIRED` | 411 需要 Content-Length |
 | `XHTTP_STATUS_PRECONDITION_FAILED` | PRECONDITION已失败 |
-| `XHTTP_STATUS_CONTENT_TOO_LARGE` | CONTENTTOOLARGE |
-| `XHTTP_STATUS_URI_TOO_LONG` | URITOOLONG |
+| `XHTTP_STATUS_CONTENT_TOO_LARGE` | 413 内容过大 |
+| `XHTTP_STATUS_URI_TOO_LONG` | 414 URI 过长 |
 | `XHTTP_STATUS_UNSUPPORTED_MEDIA_TYPE` | 不支持MEDIA类型 |
 | `XHTTP_STATUS_RANGE_NOT_SATISFIABLE` | 范围越界NOTSATISFIABLE |
 | `XHTTP_STATUS_EXPECTATION_FAILED` | EXPECTATION已失败 |
-| `XHTTP_STATUS_MISDIRECTED_REQUEST` | MISDIRECTEDREQUEST |
-| `XHTTP_STATUS_UNPROCESSABLE_CONTENT` | UNPROCESSABLECONTENT |
-| `XHTTP_STATUS_LOCKED` | LOCKED |
+| `XHTTP_STATUS_MISDIRECTED_REQUEST` | 421 请求被误送 |
+| `XHTTP_STATUS_UNPROCESSABLE_CONTENT` | 422 无法处理 |
+| `XHTTP_STATUS_LOCKED` | 423 已锁定 |
 | `XHTTP_STATUS_FAILED_DEPENDENCY` | 已失败DEPENDENCY |
-| `XHTTP_STATUS_TOO_EARLY` | TOOEARLY |
-| `XHTTP_STATUS_UPGRADE_REQUIRED` | UPGRADEREQUIRED |
-| `XHTTP_STATUS_PRECONDITION_REQUIRED` | PRECONDITIONREQUIRED |
-| `XHTTP_STATUS_TOO_MANY_REQUESTS` | TOOMANYREQUESTS |
+| `XHTTP_STATUS_TOO_EARLY` | 425 过早 |
+| `XHTTP_STATUS_UPGRADE_REQUIRED` | 426 需要升级 |
+| `XHTTP_STATUS_PRECONDITION_REQUIRED` | 428 需要前提条件 |
+| `XHTTP_STATUS_TOO_MANY_REQUESTS` | 429 请求过多 |
 | `XHTTP_STATUS_REQUEST_HEADER_FIELDS_TOO_LARGE` | REQUESTHEADER字段TOOLARGE |
-| `XHTTP_STATUS_UNAVAILABLE_FOR_LEGAL_REASONS` | UNAVAILABLEFORLEGALREASONS |
+| `XHTTP_STATUS_UNAVAILABLE_FOR_LEGAL_REASONS` | 451 因法律原因不可用 |
 | `XHTTP_STATUS_INTERNAL_SERVER_ERROR` | 内部错误服务端角色失败 |
-| `XHTTP_STATUS_NOT_IMPLEMENTED` | NOTIMPLEMENTED |
-| `XHTTP_STATUS_BAD_GATEWAY` | BADGATEWAY |
-| `XHTTP_STATUS_SERVICE_UNAVAILABLE` | SERVICEUNAVAILABLE |
+| `XHTTP_STATUS_NOT_IMPLEMENTED` | 501 未实现 |
+| `XHTTP_STATUS_BAD_GATEWAY` | 502 网关错误 |
+| `XHTTP_STATUS_SERVICE_UNAVAILABLE` | 503 服务不可用 |
 | `XHTTP_STATUS_GATEWAY_TIMEOUT` | GATEWAY超时 |
-| `XHTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED` | HTTPVERSIONNOTSUPPORTED |
-| `XHTTP_STATUS_VARIANT_ALSO_NEGOTIATES` | VARIANTALSONEGOTIATES |
-| `XHTTP_STATUS_INSUFFICIENT_STORAGE` | INSUFFICIENTSTORAGE |
-| `XHTTP_STATUS_LOOP_DETECTED` | LOOPDETECTED |
-| `XHTTP_STATUS_NOT_EXTENDED` | NOTEXTENDED |
+| `XHTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED` | 505 版本不支持 |
+| `XHTTP_STATUS_VARIANT_ALSO_NEGOTIATES` | 506 变体协商错误 |
+| `XHTTP_STATUS_INSUFFICIENT_STORAGE` | 507 存储不足 |
+| `XHTTP_STATUS_LOOP_DETECTED` | 508 检测到循环 |
+| `XHTTP_STATUS_NOT_EXTENDED` | 510 未扩展 |
 
 ### `xhttpfield`
 
@@ -214,8 +214,8 @@ typedef struct xhttpfield {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Value` | `xstrview` | Value |
+| `Name` | `xstrview` | 名称 |
+| `Value` | `xstrview` | 值 |
 
 ### `xhttpnext`
 
@@ -232,7 +232,7 @@ typedef enum xhttpnext {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_NEXT_ERROR` | 失败 |
-| `XHTTP_NEXT_END` | END |
+| `XHTTP_NEXT_END` | 遍历结束 |
 
 ### `xhttpfieldtokencursor`
 
@@ -252,13 +252,13 @@ typedef struct xhttpfieldtokencursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Source` | `const void*` | Source |
-| `Name` | `xstrview` | Name |
-| `Count` | `size_t` | Count |
+| `Source` | `const void*` | 源视图 |
+| `Name` | `xstrview` | 名称 |
+| `Count` | `size_t` | 数量 |
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
-| `Required` | `uint8` | Required |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
+| `Required` | `uint8` | 是否必需 |
 
 ### `xhttpweightedtoken`
 
@@ -292,10 +292,10 @@ typedef struct xhttpauthority {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
-| `Port` | `uint16` | Port |
-| `Text` | `xstrview` | Text |
-| `Host` | `xstrview` | Host |
+| `Flags` | `uint32` | 标志位 |
+| `Port` | `uint16` | 端口 |
+| `Text` | `xstrview` | 文本视图 |
+| `Host` | `xstrview` | 主机名 |
 | `PortText` | `xstrview` | PortText |
 
 ### `xhttptargetform`
@@ -313,9 +313,9 @@ typedef enum xhttptargetform {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_TARGET_ORIGIN` | ORIGIN |
-| `XHTTP_TARGET_ABSOLUTE` | ABSOLUTE |
-| `XHTTP_TARGET_AUTHORITY` | AUTHORITY |
+| `XHTTP_TARGET_ORIGIN` | origin-form（最常见） |
+| `XHTTP_TARGET_ABSOLUTE` | absolute-form（代理） |
+| `XHTTP_TARGET_AUTHORITY` | authority-form（CONNECT） |
 
 ### `xhttptarget`
 
@@ -338,14 +338,14 @@ typedef struct xhttptarget {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Form` | `xhttptargetform` | Form |
-| `Flags` | `uint32` | Flags |
-| `Method` | `xstrview` | Method |
-| `Text` | `xstrview` | Text |
-| `Scheme` | `xstrview` | Scheme |
+| `Flags` | `uint32` | 标志位 |
+| `Method` | `xstrview` | 方法 |
+| `Text` | `xstrview` | 文本视图 |
+| `Scheme` | `xstrview` | 协议方案 |
 | `Authority` | `xstrview` | Authority |
-| `Path` | `xstrview` | Path |
-| `Query` | `xstrview` | Query |
-| `Host` | `xhttpauthority` | Host |
+| `Path` | `xstrview` | 路径 |
+| `Query` | `xstrview` | 查询串 |
+| `Host` | `xhttpauthority` | 主机名 |
 
 ### `xhttpparamflags`
 
@@ -378,9 +378,9 @@ typedef struct xhttpparam {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Value` | `xstrview` | Value |
-| `Flags` | `uint32` | Flags |
+| `Name` | `xstrview` | 名称 |
+| `Value` | `xstrview` | 值 |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpparamvaluecursor`
 
@@ -399,12 +399,12 @@ typedef struct xhttpparamvaluecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Source` | `const void*` | Source |
-| `Value` | `const void*` | Value |
+| `Source` | `const void*` | 源视图 |
+| `Value` | `const void*` | 值 |
 | `ValueSize` | `size_t` | ValueSize |
-| `Offset` | `size_t` | Offset |
-| `Flags` | `uint32` | Flags |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Flags` | `uint32` | 标志位 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttp1status`
 
@@ -438,7 +438,7 @@ typedef enum xhttpkind {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_REQUEST` | XHTTPREQUEST |
+| `XHTTP_REQUEST` | 请求方向 |
 
 ### `xhttp1flag`
 
@@ -458,11 +458,11 @@ typedef enum xhttp1flag {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP1_KEEP_ALIVE` | KEEPALIVE |
-| `XHTTP1_CONNECTION_CLOSE` | CONNECTIONCLOSE |
-| `XHTTP1_UPGRADE` | UPGRADE |
-| `XHTTP1_CONTENT_LENGTH` | CONTENTLENGTH |
-| `XHTTP1_CHUNKED` | CHUNKED |
+| `XHTTP1_KEEP_ALIVE` | keep-alive |
+| `XHTTP1_CONNECTION_CLOSE` | close |
+| `XHTTP1_UPGRADE` | Upgrade |
+| `XHTTP1_CONTENT_LENGTH` | Content-Length |
+| `XHTTP1_CHUNKED` | chunked |
 | `XHTTP1_TRANSFER_ENCODING` | TRANSFERENCODING |
 
 ### `xhttp1error`
@@ -511,38 +511,38 @@ typedef enum xhttp1error {
 | 值 | 语义 |
 |---|---|
 | `XHTTP1_ERROR_ARGUMENT` | 参数非法 |
-| `XHTTP1_ERROR_HEAD_INCOMPLETE` | HEADINCOMPLETE |
-| `XHTTP1_ERROR_HEAD_TOO_LARGE` | HEADTOOLARGE |
-| `XHTTP1_ERROR_START_LINE_TOO_LARGE` | STARTLINETOOLARGE |
-| `XHTTP1_ERROR_FIELD_LINE_TOO_LARGE` | FIELDLINETOOLARGE |
+| `XHTTP1_ERROR_HEAD_INCOMPLETE` | HeadIncomplete失败 |
+| `XHTTP1_ERROR_HEAD_TOO_LARGE` | HeadTooLarge失败 |
+| `XHTTP1_ERROR_START_LINE_TOO_LARGE` | 失败 |
+| `XHTTP1_ERROR_FIELD_LINE_TOO_LARGE` | 失败 |
 | `XHTTP1_ERROR_TOO_MANY_FIELDS` | TOOMANY字段 |
-| `XHTTP1_ERROR_LINE_END` | LINEEND |
-| `XHTTP1_ERROR_START_LINE` | STARTLINE |
-| `XHTTP1_ERROR_METHOD` | METHOD |
-| `XHTTP1_ERROR_TARGET` | TARGET |
-| `XHTTP1_ERROR_VERSION` | VERSION |
-| `XHTTP1_ERROR_STATUS` | STATUS |
-| `XHTTP1_ERROR_REASON` | REASON |
+| `XHTTP1_ERROR_LINE_END` | 失败 |
+| `XHTTP1_ERROR_START_LINE` | 失败 |
+| `XHTTP1_ERROR_METHOD` | 失败 |
+| `XHTTP1_ERROR_TARGET` | 失败 |
+| `XHTTP1_ERROR_VERSION` | 失败 |
+| `XHTTP1_ERROR_STATUS` | 失败 |
+| `XHTTP1_ERROR_REASON` | 失败 |
 | `XHTTP1_ERROR_FIELD_NAME` | FIELD名称 |
 | `XHTTP1_ERROR_FIELD_VALUE` | FIELD值非法 |
-| `XHTTP1_ERROR_CONTENT_LENGTH` | CONTENTLENGTH |
-| `XHTTP1_ERROR_CONFLICTING_CONTENT_LENGTH` | CONFLICTINGCONTENTLENGTH |
-| `XHTTP1_ERROR_TRANSFER_LENGTH` | TRANSFERLENGTH |
-| `XHTTP1_ERROR_TRANSFER_ENCODING` | TRANSFERENCODING |
+| `XHTTP1_ERROR_CONTENT_LENGTH` | 失败 |
+| `XHTTP1_ERROR_CONFLICTING_CONTENT_LENGTH` | 失败 |
+| `XHTTP1_ERROR_TRANSFER_LENGTH` | 失败 |
+| `XHTTP1_ERROR_TRANSFER_ENCODING` | 失败 |
 | `XHTTP1_ERROR_UNSUPPORTED_TRANSFER_ENCODING` | 不支持TRANSFERENCODING |
-| `XHTTP1_ERROR_CONNECTION` | CONNECTION |
+| `XHTTP1_ERROR_CONNECTION` | 失败 |
 | `XHTTP1_ERROR_OUTPUT_SIZE` | 输出失败尺寸 |
-| `XHTTP1_ERROR_REQUEST_TRANSFER_ENCODING` | REQUESTTRANSFERENCODING |
-| `XHTTP1_ERROR_BODY_TOO_LARGE` | BODYTOOLARGE |
-| `XHTTP1_ERROR_BODY_INCOMPLETE` | BODYINCOMPLETE |
-| `XHTTP1_ERROR_CHUNK_LINE_TOO_LARGE` | CHUNKLINETOOLARGE |
+| `XHTTP1_ERROR_REQUEST_TRANSFER_ENCODING` | 失败 |
+| `XHTTP1_ERROR_BODY_TOO_LARGE` | 失败 |
+| `XHTTP1_ERROR_BODY_INCOMPLETE` | 失败 |
+| `XHTTP1_ERROR_CHUNK_LINE_TOO_LARGE` | 失败 |
 | `XHTTP1_ERROR_CHUNK_SIZE` | CHUNK尺寸 |
-| `XHTTP1_ERROR_CHUNK_EXTENSION` | CHUNKEXTENSION |
-| `XHTTP1_ERROR_CHUNK_TERMINATOR` | CHUNKTERMINATOR |
-| `XHTTP1_ERROR_TRAILER_TOO_LARGE` | TRAILERTOOLARGE |
-| `XHTTP1_ERROR_TRAILER_LINE_TOO_LARGE` | TRAILERLINETOOLARGE |
-| `XHTTP1_ERROR_TOO_MANY_TRAILERS` | TOOMANYTRAILERS |
-| `XHTTP1_ERROR_FORBIDDEN_TRAILER` | FORBIDDENTRAILER |
+| `XHTTP1_ERROR_CHUNK_EXTENSION` | 失败 |
+| `XHTTP1_ERROR_CHUNK_TERMINATOR` | 失败 |
+| `XHTTP1_ERROR_TRAILER_TOO_LARGE` | 失败 |
+| `XHTTP1_ERROR_TRAILER_LINE_TOO_LARGE` | 失败 |
+| `XHTTP1_ERROR_TOO_MANY_TRAILERS` | 失败 |
+| `XHTTP1_ERROR_FORBIDDEN_TRAILER` | 失败 |
 
 ### `xhttp1limits`
 
@@ -578,9 +578,9 @@ typedef struct xhttp1errorinfo {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Code` | `xhttp1error` | Code |
-| `Offset` | `size_t` | Offset |
-| `Line` | `size_t` | Line |
+| `Code` | `xhttp1error` | 错误码 |
+| `Offset` | `size_t` | 偏移量 |
+| `Line` | `size_t` | 行号 |
 
 ### `xhttp1transfercoding`
 
@@ -595,7 +595,7 @@ typedef struct xhttp1transfercoding {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
+| `Name` | `xstrview` | 名称 |
 | `Parameters` | `xstrview` | Parameters |
 
 ### `xhttp1head`
@@ -622,15 +622,15 @@ typedef struct xhttp1head {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Kind` | `xhttpkind` | Kind |
-| `Version` | `xhttpversion` | Version |
-| `Flags` | `uint32` | Flags |
-| `Status` | `uint16` | Status |
+| `Kind` | `xhttpkind` | 错误种类 |
+| `Version` | `xhttpversion` | 结构版本 |
+| `Flags` | `uint32` | 标志位 |
+| `Status` | `uint16` | 状态输出 |
 | `ContentLength` | `uint64` | ContentLength |
 | `Bytes` | `size_t` | Bytes |
-| `Method` | `xstrview` | Method |
-| `Target` | `xstrview` | Target |
-| `Reason` | `xstrview` | Reason |
+| `Method` | `xstrview` | 方法 |
+| `Target` | `xstrview` | 目标视图 |
+| `Reason` | `xstrview` | 原因文本 |
 | `Fields` | `xhttpfield*` | Fields |
 | `FieldCount` | `size_t` | FieldCount |
 | `FieldCapacity` | `size_t` | FieldCapacity |
@@ -691,8 +691,8 @@ typedef struct xhttp1bodyplan {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Mode` | `xhttp1bodymode` | Mode |
-| `Length` | `uint64` | Length |
+| `Mode` | `xhttp1bodymode` | 模式 |
+| `Length` | `uint64` | 长度 |
 
 ### `xhttp1bodylimits`
 
@@ -738,7 +738,7 @@ typedef struct xhttp1body {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Mode` | `xhttp1bodymode` | Mode |
+| `Mode` | `xhttp1bodymode` | 模式 |
 | `Remaining` | `uint64` | Remaining |
 | `Received` | `uint64` | Received |
 | `WireBytes` | `uint64` | WireBytes |
@@ -748,7 +748,7 @@ typedef struct xhttp1body {
 | `Limits` | `xhttp1bodylimits` | Limits |
 | `ChunkSize` | `uint64` | ChunkSize |
 | `ChunkLineBytes` | `size_t` | ChunkLineBytes |
-| `State` | `uint32` | State |
+| `State` | `uint32` | 状态 |
 
 ### `xhttp1message`
 
@@ -769,7 +769,7 @@ typedef struct xhttp1message {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Head` | `xhttp1head` | Head |
+| `Head` | `xhttp1head` | 头指针 |
 | `Plan` | `xhttp1bodyplan` | Plan |
 | `Limits` | `xhttp1bodylimits` | Limits |
 | `Wire` | `xbytesview` | Wire |
@@ -792,8 +792,8 @@ typedef enum xhttpdecodemode {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_DECODE_IDENTITY` | IDENTITY |
-| `XHTTP_DECODE_CONTENT` | CONTENT |
+| `XHTTP_DECODE_IDENTITY` | 无变换 |
+| `XHTTP_DECODE_CONTENT` | 按内容编码解码 |
 
 ### `xhttpdecodeflag`
 
@@ -828,7 +828,7 @@ typedef enum xhttpdecodeerror {
 |---|---|
 | `XHTTP_DECODE_ERROR_ARGUMENT` | 参数非法 |
 | `XHTTP_DECODE_ERROR_CONFIG` | 配置非法 |
-| `XHTTP_DECODE_ERROR_CONTENT_ENCODING` | CONTENTENCODING |
+| `XHTTP_DECODE_ERROR_CONTENT_ENCODING` | 失败 |
 | `XHTTP_DECODE_ERROR_UNSUPPORTED` | 不支持 |
 | `XHTTP_DECODE_ERROR_STATE` | 状态非法 |
 | `XHTTP_DECODE_ERROR_LIMIT` | 超限 |
@@ -851,7 +851,7 @@ typedef struct xhttpdecodeconfig {
 | `OutputLimit` | `uint64` | OutputLimit |
 | `GzipHeaderLimit` | `uint32` | GzipHeaderLimit |
 | `MaxCodings` | `uint32` | MaxCodings |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpdecode`
 
@@ -889,7 +889,7 @@ typedef enum xhttpcoding {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_CODING_NONE` | 无 |
-| `XHTTP_CODING_IDENTITY` | IDENTITY |
+| `XHTTP_CODING_IDENTITY` | 无编码 |
 | `XHTTP_CODING_GZIP` | gzip 包装 |
 
 ### `xhttpacceptencodingflag`
@@ -910,10 +910,10 @@ typedef enum xhttpacceptencodingflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_ACCEPT_ENCODING_NONE` | 无 |
-| `XHTTP_ACCEPT_ENCODING_PRESENT` | PRESENT |
+| `XHTTP_ACCEPT_ENCODING_PRESENT` | 请求携带 Accept-Encoding |
 | `XHTTP_ACCEPT_ENCODING_GZIP` | gzip 包装 |
 | `XHTTP_ACCEPT_ENCODING_DEFLATE` | deflate 包装 |
-| `XHTTP_ACCEPT_ENCODING_IDENTITY` | IDENTITY |
+| `XHTTP_ACCEPT_ENCODING_IDENTITY` | 允许 identity |
 
 ### `xhttpacceptencoding`
 
@@ -935,7 +935,7 @@ typedef struct xhttpacceptencoding {
 | `Deflate` | `uint16` | Deflate |
 | `Identity` | `uint16` | Identity |
 | `Wildcard` | `uint16` | Wildcard |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpcontentencodingflag`
 
@@ -954,8 +954,8 @@ typedef enum xhttpcontentencodingflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_CONTENT_ENCODING_NONE` | 无 |
-| `XHTTP_CONTENT_ENCODING_PRESENT` | PRESENT |
-| `XHTTP_CONTENT_ENCODING_IDENTITY` | IDENTITY |
+| `XHTTP_CONTENT_ENCODING_PRESENT` | 响应携带 Content-Encoding |
+| `XHTTP_CONTENT_ENCODING_IDENTITY` | 内容未编码 |
 | `XHTTP_CONTENT_ENCODING_UNKNOWN` | 未知 |
 
 ### `xhttpcontentencodingcursor`
@@ -972,7 +972,7 @@ typedef struct xhttpcontentencodingcursor {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
+| `Offset` | `size_t` | 偏移量 |
 
 ### `xhttpcontentencodingitem`
 
@@ -1012,7 +1012,7 @@ typedef struct xhttpcontentencodingplan {
 | `DecoderCount` | `size_t` | DecoderCount |
 | `UnknownCount` | `size_t` | UnknownCount |
 | `JoinedSize` | `size_t` | JoinedSize |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpexpectflag`
 
@@ -1029,7 +1029,7 @@ typedef enum xhttpexpectflag {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_EXPECT_BARE` | BARE |
+| `XHTTP_EXPECT_BARE` | 裸 Expect 头 |
 | `XHTTP_EXPECT_HAS_VALUE` | HAS值非法 |
 | `XHTTP_EXPECT_VALUE_QUOTED` | 值非法QUOTED |
 
@@ -1050,10 +1050,10 @@ typedef struct xhttpexpectation {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Element` | `xstrview` | Element |
-| `Name` | `xstrview` | Name |
-| `Value` | `xstrview` | Value |
+| `Name` | `xstrview` | 名称 |
+| `Value` | `xstrview` | 值 |
 | `Parameters` | `xstrview` | Parameters |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpexpectcursor`
 
@@ -1068,8 +1068,8 @@ typedef struct xhttpexpectcursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpexpectfieldcursor`
 
@@ -1086,8 +1086,8 @@ typedef struct xhttpexpectfieldcursor {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpexpectresult`
 
@@ -1106,7 +1106,7 @@ typedef enum xhttpexpectresult {
 |---|---|
 | `XHTTP_EXPECT_ERROR` | 失败 |
 | `XHTTP_EXPECT_NONE` | 无 |
-| `XHTTP_EXPECT_CONTINUE` | CONTINUE |
+| `XHTTP_EXPECT_CONTINUE` | CONTINUE（100 继续） |
 
 ### `xhttptecodingflag`
 
@@ -1124,8 +1124,8 @@ typedef enum xhttptecodingflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_TE_CODING_NONE` | 无 |
-| `XHTTP_TE_CODING_TRAILERS` | TRAILERS |
-| `XHTTP_TE_CODING_HAS_PARAMETERS` | HASPARAMETERS |
+| `XHTTP_TE_CODING_TRAILERS` | 支持 trailer |
+| `XHTTP_TE_CODING_HAS_PARAMETERS` | 带参数 |
 
 ### `xhttptecoding`
 
@@ -1149,7 +1149,7 @@ typedef struct xhttptecoding {
 | `Parameters` | `xstrview` | Parameters |
 | `ParameterCount` | `size_t` | ParameterCount |
 | `Quality` | `uint16` | Quality |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttptecursor`
 
@@ -1164,8 +1164,8 @@ typedef struct xhttptecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttptefieldcursor`
 
@@ -1182,8 +1182,8 @@ typedef struct xhttptefieldcursor {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpteflag`
 
@@ -1201,8 +1201,8 @@ typedef enum xhttpteflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_TE_NONE` | 无 |
-| `XHTTP_TE_PRESENT` | PRESENT |
-| `XHTTP_TE_ACCEPTS_TRAILERS` | ACCEPTSTRAILERS |
+| `XHTTP_TE_PRESENT` | 请求携带 TE |
+| `XHTTP_TE_ACCEPTS_TRAILERS` | 接受 trailer |
 
 ### `xhttpteinfo`
 
@@ -1222,7 +1222,7 @@ typedef struct xhttpteinfo {
 | `FieldCount` | `size_t` | FieldCount |
 | `CodingCount` | `size_t` | CodingCount |
 | `TransferCodingCount` | `size_t` | TransferCodingCount |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpupgradeitem`
 
@@ -1238,7 +1238,7 @@ typedef struct xhttpupgradeitem {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Protocol` | `xstrview` | Protocol |
-| `Version` | `xstrview` | Version |
+| `Version` | `xstrview` | 结构版本 |
 
 ### `xhttpupgradecursor`
 
@@ -1253,8 +1253,8 @@ typedef struct xhttpupgradecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpupgradefieldcursor`
 
@@ -1271,8 +1271,8 @@ typedef struct xhttpupgradefieldcursor {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xnetproxytype`
 
@@ -1287,7 +1287,7 @@ typedef enum xnetproxytype {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_PROXY_SOCKS5` | XNETPROXYSOCKS5 |
+| `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
 
 ### `xnetproxyauth`
 
@@ -1306,7 +1306,7 @@ typedef enum xnetproxyauth {
 |---|---|
 | `XNET_PROXY_AUTH_AUTO` | 自动 |
 | `XNET_PROXY_AUTH_NONE` | 无 |
-| `XNET_PROXY_AUTH_REQUIRED` | REQUIRED |
+| `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
 
 ### `xnetproxyconfig`
 
@@ -1325,9 +1325,9 @@ typedef struct xnetproxyconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xnetproxytype` | Type |
-| `Host` | `xstrview` | Host |
-| `Port` | `uint16` | Port |
+| `Type` | `xnetproxytype` | 类型 |
+| `Host` | `xstrview` | 主机名 |
+| `Port` | `uint16` | 端口 |
 | `Auth` | `xnetproxyauth` | Auth |
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
@@ -1349,9 +1349,9 @@ typedef struct xnetproxyinfo {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xnetproxytype` | Type |
-| `Host` | `xstrview` | Host |
-| `Port` | `uint16` | Port |
+| `Type` | `xnetproxytype` | 类型 |
+| `Host` | `xstrview` | 主机名 |
+| `Port` | `uint16` | 端口 |
 | `Auth` | `xnetproxyauth` | Auth |
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
@@ -1388,8 +1388,8 @@ typedef struct xnetproxyendpoint {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Address` | `xnetaddr` | Address |
-| `Host` | `xstrview` | Host |
+| `Address` | `xnetaddr` | 地址 |
+| `Host` | `xstrview` | 主机名 |
 
 ### `xnetproxyhandshakeconfig`
 
@@ -1433,13 +1433,13 @@ typedef enum xnetsocks5reply {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_SOCKS5_SUCCEEDED` | SUCCEEDED |
-| `XNET_SOCKS5_GENERAL_FAILURE` | GENERALFAILURE |
-| `XNET_SOCKS5_RULESET_DENIED` | RULESETDENIED |
-| `XNET_SOCKS5_NETWORK_UNREACHABLE` | NETWORKUNREACHABLE |
-| `XNET_SOCKS5_HOST_UNREACHABLE` | HOSTUNREACHABLE |
-| `XNET_SOCKS5_CONNECTION_REFUSED` | CONNECTIONREFUSED |
-| `XNET_SOCKS5_TTL_EXPIRED` | TTLEXPIRED |
+| `XNET_SOCKS5_SUCCEEDED` | 成功 |
+| `XNET_SOCKS5_GENERAL_FAILURE` | 通用失败 |
+| `XNET_SOCKS5_RULESET_DENIED` | 被规则集拒绝 |
+| `XNET_SOCKS5_NETWORK_UNREACHABLE` | 网络不可达 |
+| `XNET_SOCKS5_HOST_UNREACHABLE` | 主机不可达 |
+| `XNET_SOCKS5_CONNECTION_REFUSED` | 连接被拒绝 |
+| `XNET_SOCKS5_TTL_EXPIRED` | TTL 过期 |
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
 
 ### `xnetproxydialstate`
@@ -1480,7 +1480,7 @@ typedef struct xnetproxydialconfig {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
-| `Timeout` | `uint64` | Timeout |
+| `Timeout` | `uint64` | 超时（微秒） |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 
 ### `xnetproxydialstats`
@@ -1496,7 +1496,7 @@ typedef struct xnetproxydialstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xnetproxydialstate` | State |
+| `State` | `xnetproxydialstate` | 状态 |
 | `Transport` | `xnetdialstats` | Transport |
 
 ### `xnetproxy`

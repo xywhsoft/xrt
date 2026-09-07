@@ -20,8 +20,8 @@ typedef enum xhttpdecodemode {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_DECODE_IDENTITY` | IDENTITY |
-| `XHTTP_DECODE_CONTENT` | CONTENT |
+| `XHTTP_DECODE_IDENTITY` | 无变换 |
+| `XHTTP_DECODE_CONTENT` | 按内容编码解码 |
 
 ### `xhttpdecodeflag`
 
@@ -56,7 +56,7 @@ typedef enum xhttpdecodeerror {
 |---|---|
 | `XHTTP_DECODE_ERROR_ARGUMENT` | 参数非法 |
 | `XHTTP_DECODE_ERROR_CONFIG` | 配置非法 |
-| `XHTTP_DECODE_ERROR_CONTENT_ENCODING` | CONTENTENCODING |
+| `XHTTP_DECODE_ERROR_CONTENT_ENCODING` | 失败 |
 | `XHTTP_DECODE_ERROR_UNSUPPORTED` | 不支持 |
 | `XHTTP_DECODE_ERROR_STATE` | 状态非法 |
 | `XHTTP_DECODE_ERROR_LIMIT` | 超限 |
@@ -79,7 +79,7 @@ typedef struct xhttpdecodeconfig {
 | `OutputLimit` | `uint64` | OutputLimit |
 | `GzipHeaderLimit` | `uint32` | GzipHeaderLimit |
 | `MaxCodings` | `uint32` | MaxCodings |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpdecode`
 

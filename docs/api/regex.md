@@ -58,10 +58,10 @@ typedef enum xregexerror {
 | 值 | 语义 |
 |---|---|
 | `XREGEX_ERROR_CONFIG` | 配置非法 |
-| `XREGEX_ERROR_PATTERN` | PATTERN |
+| `XREGEX_ERROR_PATTERN` | 失败 |
 | `XREGEX_ERROR_LIMIT` | 超限 |
-| `XREGEX_ERROR_EXECUTE` | EXECUTE |
-| `XREGEX_ERROR_REPLACEMENT` | REPLACEMENT |
+| `XREGEX_ERROR_EXECUTE` | 失败 |
+| `XREGEX_ERROR_REPLACEMENT` | 失败 |
 
 ### `xregexconfig`
 
@@ -78,7 +78,7 @@ typedef struct xregexconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `MaxPatternBytes` | `size_t` | MaxPatternBytes |
 | `MaxCaptures` | `size_t` | MaxCaptures |
 
@@ -96,7 +96,7 @@ typedef struct xregexspan {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Begin` | `size_t` | Begin |
-| `End` | `size_t` | End |
+| `End` | `size_t` | 结束 |
 
 ### `xregexcapture`
 
@@ -114,7 +114,7 @@ typedef struct xregexcapture {
 |---|---|---|
 | `Matched` | `bool` | Matched |
 | `Span` | `xregexspan` | Span |
-| `Text` | `xstrview` | Text |
+| `Text` | `xstrview` | 文本视图 |
 
 ### `xregexsplitflag`
 
@@ -145,8 +145,8 @@ typedef struct xregexsplitconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Limit` | `size_t` | Limit |
-| `Flags` | `uint32` | Flags |
+| `Limit` | `size_t` | 上限 |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xregexsplitpart`
 
@@ -162,7 +162,7 @@ typedef struct xregexsplitpart {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Text` | `xstrview` | Text |
+| `Text` | `xstrview` | 文本视图 |
 | `Capture` | `size_t` | Capture |
 | `Matched` | `bool` | Matched |
 

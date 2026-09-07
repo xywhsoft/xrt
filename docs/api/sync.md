@@ -18,7 +18,7 @@ typedef union xmutex {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xcond`
 
@@ -33,7 +33,7 @@ typedef union xcond {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xsem`
 
@@ -48,7 +48,7 @@ typedef union xsem {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xrwlock`
 
@@ -63,7 +63,7 @@ typedef union xrwlock {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xevent`
 
@@ -78,7 +78,7 @@ typedef union xevent {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ## 裁剪宏
 

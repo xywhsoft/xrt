@@ -19,7 +19,7 @@ typedef enum xnetudpstate {
 |---|---|
 | `XNET_UDP_OPENING` | OPENING |
 | `XNET_UDP_OPEN` | OPEN |
-| `XNET_UDP_CLOSING` | CLOSING |
+| `XNET_UDP_CLOSING` | 关闭中 |
 
 ### `xnetudpwait`
 
@@ -38,7 +38,7 @@ typedef enum xnetudpwait {
 | 值 | 语义 |
 |---|---|
 | `XNET_UDP_WAIT_OPEN` | OPEN |
-| `XNET_UDP_WAIT_RECEIVE` | RECEIVE |
+| `XNET_UDP_WAIT_RECEIVE` | 接收方向 |
 | `XNET_UDP_WAIT_ERROR` | 失败 |
 | `XNET_UDP_WAIT_DRAIN` | 排空策略 |
 
@@ -106,10 +106,10 @@ typedef struct xnetudpmessage {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Remote` | `xnetaddr` | Remote |
-| `Meta` | `xnetdgrammeta` | Meta |
-| `Data` | `cbytes` | Data |
-| `Size` | `size_t` | Size |
-| `Flags` | `uint32` | Flags |
+| `Meta` | `xnetdgrammeta` | 元数据 |
+| `Data` | `cbytes` | 数据 |
+| `Size` | `size_t` | 字节数 |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xnetudperrormessage`
 
@@ -125,9 +125,9 @@ typedef struct xnetudperrormessage {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Error` | `xnetdgramerror` | Error |
-| `Data` | `cbytes` | Data |
-| `Size` | `size_t` | Size |
+| `Error` | `xnetdgramerror` | 错误输出 |
+| `Data` | `cbytes` | 数据 |
+| `Size` | `size_t` | 字节数 |
 
 ### `xnetudpevents`
 
@@ -269,12 +269,12 @@ typedef struct xnetudpstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xnetudpstate` | State |
+| `State` | `xnetudpstate` | 状态 |
 | `ReceivedPackets` | `uint64` | ReceivedPackets |
 | `ReceivedBytes` | `uint64` | ReceivedBytes |
 | `SentPackets` | `uint64` | SentPackets |
 | `SentBytes` | `uint64` | SentBytes |
-| `Truncated` | `uint64` | Truncated |
+| `Truncated` | `uint64` | 是否截断 |
 | `TruncatedDropped` | `uint64` | TruncatedDropped |
 | `DroppedNewest` | `uint64` | DroppedNewest |
 | `DroppedOldest` | `uint64` | DroppedOldest |

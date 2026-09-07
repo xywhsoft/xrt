@@ -23,10 +23,10 @@ typedef enum xjsonerror {
 | 值 | 语义 |
 |---|---|
 | `XJSON_ERROR_CONFIG` | 配置非法 |
-| `XJSON_ERROR_SYNTAX` | SYNTAX |
+| `XJSON_ERROR_SYNTAX` | 语法非法 |
 | `XJSON_ERROR_LIMIT` | 超限 |
-| `XJSON_ERROR_DUPLICATE` | DUPLICATE |
-| `XJSON_ERROR_NUMBER` | NUMBER |
+| `XJSON_ERROR_DUPLICATE` | 失败 |
+| `XJSON_ERROR_NUMBER` | 失败 |
 | `XJSON_ERROR_STATE` | 状态非法 |
 | `XJSON_ERROR_UNSUPPORTED` | 不支持 |
 | `XJSON_ERROR_OUTPUT` | 输出失败 |
@@ -45,9 +45,9 @@ typedef struct xjsonlocation {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Line` | `size_t` | Line |
-| `Column` | `size_t` | Column |
+| `Offset` | `size_t` | 偏移量 |
+| `Line` | `size_t` | 行号 |
+| `Column` | `size_t` | 列号 |
 
 ### `xjsonreadflag`
 
@@ -116,7 +116,7 @@ typedef struct xjsonreadconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `Duplicate` | `xjsonduplicate` | Duplicate |
 | `BigInteger` | `xjsonbigint` | BigInteger |
 | `MaxDepth` | `uint32` | MaxDepth |
@@ -206,10 +206,10 @@ typedef enum xjsonwriteflag {
 
 | 值 | 语义 |
 |---|---|
-| `XJSON_WRITE_PRETTY` | PRETTY |
-| `XJSON_WRITE_ESCAPE_SLASH` | ESCAPESLASH |
-| `XJSON_WRITE_ESCAPE_HTML` | ESCAPEHTML |
-| `XJSON_WRITE_ESCAPE_NON_ASCII` | ESCAPENONASCII |
+| `XJSON_WRITE_PRETTY` | 写方向 |
+| `XJSON_WRITE_ESCAPE_SLASH` | 写方向 |
+| `XJSON_WRITE_ESCAPE_HTML` | 写方向 |
+| `XJSON_WRITE_ESCAPE_NON_ASCII` | 写方向 |
 
 ### `xjsonnonfinite`
 
@@ -242,7 +242,7 @@ typedef enum xjsonunsupported {
 
 | 值 | 语义 |
 |---|---|
-| `XJSON_UNSUPPORTED_REJECT` | REJECT |
+| `XJSON_UNSUPPORTED_REJECT` | 不支持 |
 | `XJSON_UNSUPPORTED_NULL` | 空值 |
 
 ### `xjsonwriteconfig`
@@ -263,7 +263,7 @@ typedef struct xjsonwriteconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `NonFinite` | `xjsonnonfinite` | NonFinite |
 | `Unsupported` | `xjsonunsupported` | Unsupported |
 | `MaxDepth` | `uint32` | MaxDepth |

@@ -94,8 +94,8 @@ typedef struct xlineview {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Text` | `xstrview` | Text |
-| `End` | `xlineend` | End |
+| `Text` | `xstrview` | 文本视图 |
+| `End` | `xlineend` | 结束 |
 
 ### `xioerror`
 
@@ -121,13 +121,13 @@ typedef enum xioerror {
 |---|---|
 | `XIO_ERROR_READ` | 读方向 |
 | `XIO_ERROR_WRITE` | 写方向 |
-| `XIO_ERROR_SEEK` | SEEK |
-| `XIO_ERROR_TELL` | TELL |
+| `XIO_ERROR_SEEK` | 失败 |
+| `XIO_ERROR_TELL` | 失败 |
 | `XIO_ERROR_SIZE` | 尺寸 |
 | `XIO_ERROR_FLUSH` | 刷新 |
-| `XIO_ERROR_CLOSE` | CLOSE |
-| `XIO_ERROR_EOF` | EOF |
-| `XIO_ERROR_NO_PROGRESS` | NOPROGRESS |
+| `XIO_ERROR_CLOSE` | 失败 |
+| `XIO_ERROR_EOF` | 失败 |
+| `XIO_ERROR_NO_PROGRESS` | 失败 |
 | `XIO_ERROR_LIMIT` | 超限 |
 
 ### `xreaderops`
@@ -149,7 +149,7 @@ typedef struct xreaderops {
 | `Read` | `xreadproc` | Read |
 | `Seek` | `xseekproc` | Seek |
 | `Tell` | `xtellproc` | Tell |
-| `Size` | `xsizeproc` | Size |
+| `Size` | `xsizeproc` | 字节数 |
 | `Close` | `xcloseproc` | Close |
 
 ### `xwriterops`
@@ -172,7 +172,7 @@ typedef struct xwriterops {
 | `Write` | `xwriteproc` | Write |
 | `Seek` | `xseekproc` | Seek |
 | `Tell` | `xtellproc` | Tell |
-| `Size` | `xsizeproc` | Size |
+| `Size` | `xsizeproc` | 字节数 |
 | `Flush` | `xflushproc` | Flush |
 | `Close` | `xcloseproc` | Close |
 

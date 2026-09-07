@@ -37,7 +37,7 @@ typedef union xonce {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xthreadstate`
 

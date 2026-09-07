@@ -16,8 +16,8 @@ typedef enum xpathstyle {
 
 | 值 | 语义 |
 |---|---|
-| `XPATH_NATIVE` | NATIVE |
-| `XPATH_POSIX` | POSIX |
+| `XPATH_NATIVE` | 本机风格 |
+| `XPATH_POSIX` | POSIX 风格 |
 
 ### `xpathroot`
 
@@ -38,11 +38,11 @@ typedef enum xpathroot {
 | 值 | 语义 |
 |---|---|
 | `XPATH_ROOT_NONE` | 无 |
-| `XPATH_ROOT_POSIX` | POSIX |
-| `XPATH_ROOT_WINDOWS` | WINDOWS |
-| `XPATH_ROOT_DRIVE_RELATIVE` | DRIVERELATIVE |
-| `XPATH_ROOT_DRIVE` | DRIVE |
-| `XPATH_ROOT_UNC` | UNC |
+| `XPATH_ROOT_POSIX` | POSIX 根 / |
+| `XPATH_ROOT_WINDOWS` | 设备命名空间根 \\. |
+| `XPATH_ROOT_DRIVE_RELATIVE` | 驱动器相对（如 C:foo） |
+| `XPATH_ROOT_DRIVE` | 驱动器根（如 C:\） |
+| `XPATH_ROOT_UNC` | UNC 根（\\server\share） |
 
 ### `xpathflag`
 
@@ -81,11 +81,11 @@ typedef struct xpathparts {
 |---|---|---|
 | `Root` | `xstrview` | Root |
 | `Parent` | `xstrview` | Parent |
-| `Name` | `xstrview` | Name |
+| `Name` | `xstrview` | 名称 |
 | `Stem` | `xstrview` | Stem |
 | `Ext` | `xstrview` | Ext |
 | `RootKind` | `xpathroot` | RootKind |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xpathcomponentkind`
 
@@ -119,8 +119,8 @@ typedef struct xpathcomponent {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Text` | `xstrview` | Text |
-| `Kind` | `xpathcomponentkind` | Kind |
+| `Text` | `xstrview` | 文本视图 |
+| `Kind` | `xpathcomponentkind` | 错误种类 |
 
 ### `xpathiter`
 
@@ -138,11 +138,11 @@ typedef struct xpathiter {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Path` | `xstrview` | Path |
-| `Position` | `size_t` | Position |
+| `Path` | `xstrview` | 路径 |
+| `Position` | `size_t` | 位置 |
 | `RootSize` | `size_t` | RootSize |
-| `Style` | `xpathstyle` | Style |
-| `State` | `uint32` | State |
+| `Style` | `xpathstyle` | 样式 |
+| `State` | `uint32` | 状态 |
 
 ### `xpatherror`
 
@@ -159,9 +159,9 @@ typedef enum xpatherror {
 
 | 值 | 语义 |
 |---|---|
-| `XPATH_ERROR_FORMAT` | FORMAT |
+| `XPATH_ERROR_FORMAT` | 格式非法 |
 | `XPATH_ERROR_OVERFLOW` | 溢出 |
-| `XPATH_ERROR_ROOT` | ROOT |
+| `XPATH_ERROR_ROOT` | 失败 |
 
 ### `xpathsafesegment`
 
@@ -176,7 +176,7 @@ typedef union xpathsafesegment {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### 常量总表
 

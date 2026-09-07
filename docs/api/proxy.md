@@ -17,7 +17,7 @@ typedef enum xnetproxytype {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_PROXY_SOCKS5` | XNETPROXYSOCKS5 |
+| `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
 
 ### `xnetproxyauth`
 
@@ -36,7 +36,7 @@ typedef enum xnetproxyauth {
 |---|---|
 | `XNET_PROXY_AUTH_AUTO` | 自动 |
 | `XNET_PROXY_AUTH_NONE` | 无 |
-| `XNET_PROXY_AUTH_REQUIRED` | REQUIRED |
+| `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
 
 ### `xnetproxyconfig`
 
@@ -55,9 +55,9 @@ typedef struct xnetproxyconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xnetproxytype` | Type |
-| `Host` | `xstrview` | Host |
-| `Port` | `uint16` | Port |
+| `Type` | `xnetproxytype` | 类型 |
+| `Host` | `xstrview` | 主机名 |
+| `Port` | `uint16` | 端口 |
 | `Auth` | `xnetproxyauth` | Auth |
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
@@ -79,9 +79,9 @@ typedef struct xnetproxyinfo {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Type` | `xnetproxytype` | Type |
-| `Host` | `xstrview` | Host |
-| `Port` | `uint16` | Port |
+| `Type` | `xnetproxytype` | 类型 |
+| `Host` | `xstrview` | 主机名 |
+| `Port` | `uint16` | 端口 |
 | `Auth` | `xnetproxyauth` | Auth |
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
@@ -118,8 +118,8 @@ typedef struct xnetproxyendpoint {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Address` | `xnetaddr` | Address |
-| `Host` | `xstrview` | Host |
+| `Address` | `xnetaddr` | 地址 |
+| `Host` | `xstrview` | 主机名 |
 
 ### `xnetproxyhandshakeconfig`
 
@@ -163,13 +163,13 @@ typedef enum xnetsocks5reply {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_SOCKS5_SUCCEEDED` | SUCCEEDED |
-| `XNET_SOCKS5_GENERAL_FAILURE` | GENERALFAILURE |
-| `XNET_SOCKS5_RULESET_DENIED` | RULESETDENIED |
-| `XNET_SOCKS5_NETWORK_UNREACHABLE` | NETWORKUNREACHABLE |
-| `XNET_SOCKS5_HOST_UNREACHABLE` | HOSTUNREACHABLE |
-| `XNET_SOCKS5_CONNECTION_REFUSED` | CONNECTIONREFUSED |
-| `XNET_SOCKS5_TTL_EXPIRED` | TTLEXPIRED |
+| `XNET_SOCKS5_SUCCEEDED` | 成功 |
+| `XNET_SOCKS5_GENERAL_FAILURE` | 通用失败 |
+| `XNET_SOCKS5_RULESET_DENIED` | 被规则集拒绝 |
+| `XNET_SOCKS5_NETWORK_UNREACHABLE` | 网络不可达 |
+| `XNET_SOCKS5_HOST_UNREACHABLE` | 主机不可达 |
+| `XNET_SOCKS5_CONNECTION_REFUSED` | 连接被拒绝 |
+| `XNET_SOCKS5_TTL_EXPIRED` | TTL 过期 |
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
 
 ### `xnetproxydialstate`
@@ -210,7 +210,7 @@ typedef struct xnetproxydialconfig {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
-| `Timeout` | `uint64` | Timeout |
+| `Timeout` | `uint64` | 超时（微秒） |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 
 ### `xnetproxydialstats`
@@ -226,7 +226,7 @@ typedef struct xnetproxydialstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xnetproxydialstate` | State |
+| `State` | `xnetproxydialstate` | 状态 |
 | `Transport` | `xnetdialstats` | Transport |
 
 ### `xnetproxy`

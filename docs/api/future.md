@@ -39,9 +39,9 @@ typedef struct xfutureresult {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xfuturestate` | State |
-| `Value` | `ptr` | Value |
-| `Error` | `const xerror*` | Error |
+| `State` | `xfuturestate` | 状态 |
+| `Value` | `ptr` | 值 |
+| `Error` | `const xerror*` | 错误输出 |
 
 ### `xfuturewatch`
 
@@ -56,7 +56,7 @@ typedef union xfuturewatch {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xfuturewatchresult`
 
@@ -88,7 +88,7 @@ typedef struct xfuturepick {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Index` | `size_t` | Index |
+| `Index` | `size_t` | 索引 |
 | `Future` | `xfuture*` | Future |
 
 ### `xfutureall`
@@ -104,7 +104,7 @@ typedef struct xfutureall {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Count` | `size_t` | Count |
+| `Count` | `size_t` | 数量 |
 | `Futures` | `xfuture* const*` | Futures |
 
 ### `xfuture`
@@ -195,7 +195,7 @@ typedef union xfuturebridge {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xtlsstreamconfig`
 
@@ -238,8 +238,8 @@ typedef enum xtlsstreamstate {
 |---|---|
 | `XTLS_STREAM_CONNECTING` | 连接中 |
 | `XTLS_STREAM_HANDSHAKE` | 握手阶段 |
-| `XTLS_STREAM_OPEN` | OPEN |
-| `XTLS_STREAM_CLOSING` | CLOSING |
+| `XTLS_STREAM_OPEN` | 开放（握手完成） |
+| `XTLS_STREAM_CLOSING` | 关闭中 |
 | `XTLS_STREAM_CLOSED` | 已关闭 |
 
 ### `xtlsstreamwait`
@@ -259,11 +259,11 @@ typedef enum xtlsstreamwait {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_STREAM_WAIT_OPEN` | OPEN |
+| `XTLS_STREAM_WAIT_OPEN` | 等待开放 |
 | `XTLS_STREAM_WAIT_READ` | 读方向 |
 | `XTLS_STREAM_WAIT_WRITE` | 写方向 |
 | `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
-| `XTLS_STREAM_WAIT_END` | END |
+| `XTLS_STREAM_WAIT_END` | 等待关闭完成 |
 
 ### `xtlsdialstate`
 
@@ -304,8 +304,8 @@ typedef struct xtlsdialconfig {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
-| `Stream` | `xtlsstreamconfig` | Stream |
-| `Timeout` | `uint64` | Timeout |
+| `Stream` | `xtlsstreamconfig` | 流选择 |
+| `Timeout` | `uint64` | 超时（微秒） |
 | `ServerNameFromHost` | `bool` | ServerNameFromHost |
 
 ### `xtlsstreamevents`
@@ -347,8 +347,8 @@ typedef enum xtlslistenerstate {
 
 | 值 | 语义 |
 |---|---|
-| `XTLS_LISTENER_OPEN` | OPEN |
-| `XTLS_LISTENER_CLOSING` | CLOSING |
+| `XTLS_LISTENER_OPEN` | 监听中 |
+| `XTLS_LISTENER_CLOSING` | 关闭中 |
 
 ### `xtlslistenerevents`
 
@@ -387,7 +387,7 @@ typedef struct xtlslistenerconfig {
 |---|---|---|
 | `Listen` | `xnetlistenconfig` | Listen |
 | `Tls` | `xtlsserverconfig` | Tls |
-| `Stream` | `xtlsstreamconfig` | Stream |
+| `Stream` | `xtlsstreamconfig` | 流选择 |
 | `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
 | `HandshakeLimit` | `uint32` | HandshakeLimit |
 
@@ -412,7 +412,7 @@ typedef struct xtlslistenerstats {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `State` | `xtlslistenerstate` | State |
+| `State` | `xtlslistenerstate` | 状态 |
 | `Handshakes` | `uint64` | Handshakes |
 | `Accepted` | `uint64` | Accepted |
 | `Rejected` | `uint64` | Rejected |

@@ -89,34 +89,34 @@ typedef enum xlogerror {
 
 | 值 | 语义 |
 |---|---|
-| `XLOG_ERROR_CALLBACK` | CALLBACK |
+| `XLOG_ERROR_CALLBACK` | 回调失败 |
 | `XLOG_ERROR_TEXT_OUTPUT` | 文本输出失败 |
 | `XLOG_ERROR_JSON_OUTPUT` | JSON输出失败 |
 | `XLOG_ERROR_JSON_CONFIG` | JSON配置非法 |
 | `XLOG_ERROR_JSON_VALUE` | JSON值非法 |
-| `XLOG_ERROR_JSON_DEPTH` | JSONDEPTH |
+| `XLOG_ERROR_JSON_DEPTH` | 深度超限 |
 | `XLOG_ERROR_CONSOLE_CONFIG` | CONSOLE配置非法 |
 | `XLOG_ERROR_CONSOLE_WRITE` | CONSOLE写方向 |
 | `XLOG_ERROR_CONSOLE_FLUSH` | CONSOLE刷新 |
 | `XLOG_ERROR_FILE_CONFIG` | FILE配置非法 |
-| `XLOG_ERROR_FILE_OPEN` | FILEOPEN |
-| `XLOG_ERROR_FILE_FORMAT` | FILEFORMAT |
+| `XLOG_ERROR_FILE_OPEN` | 失败 |
+| `XLOG_ERROR_FILE_FORMAT` | 格式非法 |
 | `XLOG_ERROR_FILE_LIMIT` | FILE超限 |
 | `XLOG_ERROR_FILE_WRITE` | FILE写方向 |
-| `XLOG_ERROR_FILE_SYNC` | FILESYNC |
-| `XLOG_ERROR_FILE_ROTATE` | FILEROTATE |
-| `XLOG_ERROR_FILE_CLOSE` | FILECLOSE |
+| `XLOG_ERROR_FILE_SYNC` | 失败 |
+| `XLOG_ERROR_FILE_ROTATE` | 失败 |
+| `XLOG_ERROR_FILE_CLOSE` | 失败 |
 | `XLOG_ERROR_ASYNC_CONFIG` | ASYNC配置非法 |
-| `XLOG_ERROR_ASYNC_RECORD` | ASYNCRECORD |
-| `XLOG_ERROR_ASYNC_QUEUE` | ASYNCQUEUE |
+| `XLOG_ERROR_ASYNC_RECORD` | 失败 |
+| `XLOG_ERROR_ASYNC_QUEUE` | 失败 |
 | `XLOG_ERROR_ASYNC_CLOSED` | ASYNC已关闭 |
-| `XLOG_ERROR_ASYNC_TARGET` | ASYNCTARGET |
+| `XLOG_ERROR_ASYNC_TARGET` | 失败 |
 | `XLOG_ERROR_ASYNC_FLUSH` | ASYNC刷新 |
 | `XLOG_ERROR_ASYNC_THREAD` | ASYNC线程标识 |
 | `XLOG_ERROR_RING_CONFIG` | RING配置非法 |
-| `XLOG_ERROR_RING_QUEUE` | RINGQUEUE |
+| `XLOG_ERROR_RING_QUEUE` | 失败 |
 | `XLOG_ERROR_RING_CLOSED` | RING已关闭 |
-| `XLOG_ERROR_RING_TARGET` | RINGTARGET |
+| `XLOG_ERROR_RING_TARGET` | 失败 |
 | `XLOG_ERROR_RING_FLUSH` | RING刷新 |
 
 ### `xlogfieldtype`
@@ -167,16 +167,16 @@ typedef struct xlogrecord {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Time` | `xtime` | Time |
-| `Level` | `xloglevel` | Level |
+| `Time` | `xtime` | 时间戳（Unix 微秒） |
+| `Level` | `xloglevel` | 级别 |
 | `Logger` | `xstrview` | Logger |
-| `Message` | `xstrview` | Message |
+| `Message` | `xstrview` | 消息文本 |
 | `Fields` | `const xlogfield*` | Fields |
 | `FieldCount` | `size_t` | FieldCount |
-| `File` | `xstrview` | File |
-| `Function` | `xstrview` | Function |
-| `Line` | `uint32` | Line |
-| `ThreadId` | `uint64` | ThreadId |
+| `File` | `xstrview` | 文件名 |
+| `Function` | `xstrview` | 函数名 |
+| `Line` | `uint32` | 行号 |
+| `ThreadId` | `uint64` | 线程标识 |
 
 ### `xlogstats`
 
@@ -217,12 +217,12 @@ typedef struct xlogsinkconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Level` | `xloglevel` | Level |
+| `Name` | `xstrview` | 名称 |
+| `Level` | `xloglevel` | 级别 |
 | `Write` | `xlogsinkwriteproc` | Write |
 | `Flush` | `xlogsinkflushproc` | Flush |
 | `Drop` | `xlogsinkdropproc` | Drop |
-| `UserData` | `ptr` | UserData |
+| `UserData` | `ptr` | 用户数据 |
 
 ### `xlogtextstyle`
 
@@ -239,7 +239,7 @@ typedef enum xlogtextstyle {
 | 值 | 语义 |
 |---|---|
 | `XLOG_TEXT_FULL` | 已满 |
-| `XLOG_TEXT_SIMPLE` | SIMPLE |
+| `XLOG_TEXT_SIMPLE` | 简单格式 |
 
 ### `xlogtextflag`
 
@@ -281,8 +281,8 @@ typedef struct xlogtextconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
-| `UtcOffset` | `int` | UtcOffset |
+| `Flags` | `uint32` | 标志位 |
+| `UtcOffset` | `int` | UTC 偏移（分钟） |
 
 ### `xlogjsonfieldstyle`
 
@@ -359,7 +359,7 @@ typedef struct xlogjsonconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 | `EscapeFlags` | `uint32` | EscapeFlags |
 | `FieldStyle` | `xlogjsonfieldstyle` | FieldStyle |
 | `NonFinite` | `xlogjsonnonfinite` | NonFinite |
@@ -416,12 +416,12 @@ typedef struct xlogconsoleconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Level` | `xloglevel` | Level |
-| `Target` | `xlogconsoletarget` | Target |
+| `Level` | `xloglevel` | 级别 |
+| `Target` | `xlogconsoletarget` | 目标视图 |
 | `Color` | `xlogconsolecolor` | Color |
 | `ErrorLevel` | `xloglevel` | ErrorLevel |
 | `Flush` | `bool` | Flush |
-| `Text` | `xlogtextconfig` | Text |
+| `Text` | `xlogtextconfig` | 文本视图 |
 
 ### `xlogfilemode`
 
@@ -475,15 +475,15 @@ typedef struct xlogfileoptions {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Path` | `cstr` | Path |
-| `Level` | `xloglevel` | Level |
-| `Mode` | `xlogfilemode` | Mode |
+| `Path` | `cstr` | 路径 |
+| `Level` | `xloglevel` | 级别 |
+| `Mode` | `xlogfilemode` | 模式 |
 | `Sync` | `xlogfilesync` | Sync |
-| `MaxBytes` | `uint64` | MaxBytes |
-| `BackupCount` | `uint32` | BackupCount |
-| `RecordLimit` | `size_t` | RecordLimit |
-| `BufferLimit` | `size_t` | BufferLimit |
-| `SyncInterval` | `uint64` | SyncInterval |
+| `MaxBytes` | `uint64` | 滚动字节阈值 |
+| `BackupCount` | `uint32` | 保留备份数 |
+| `RecordLimit` | `size_t` | 单条上限 |
+| `BufferLimit` | `size_t` | 缓冲保留上限 |
+| `SyncInterval` | `uint64` | 同步间隔 |
 
 ### `xlogfileconfig`
 
@@ -500,10 +500,10 @@ typedef struct xlogfileconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Options` | `xlogfileoptions` | Options |
-| `Format` | `xlogformatproc` | Format |
+| `Options` | `xlogfileoptions` | 选项 |
+| `Format` | `xlogformatproc` | 格式 |
 | `Drop` | `xlogformatdropproc` | Drop |
-| `UserData` | `ptr` | UserData |
+| `UserData` | `ptr` | 用户数据 |
 
 ### `xlogfilestats`
 
@@ -580,14 +580,14 @@ typedef struct xlogasyncconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Level` | `xloglevel` | Level |
+| `Name` | `xstrview` | 名称 |
+| `Level` | `xloglevel` | 级别 |
 | `Full` | `xlogasyncfull` | Full |
 | `Shutdown` | `xlogasyncshutdown` | Shutdown |
-| `Capacity` | `size_t` | Capacity |
-| `RecordLimit` | `size_t` | RecordLimit |
+| `Capacity` | `size_t` | 容量 |
+| `RecordLimit` | `size_t` | 单条上限 |
 | `ByteLimit` | `size_t` | ByteLimit |
-| `StackSize` | `size_t` | StackSize |
+| `StackSize` | `size_t` | 栈大小 |
 
 ### `xlogasyncstats`
 
@@ -649,12 +649,12 @@ typedef struct xlogringconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Name` | `xstrview` | Name |
-| `Level` | `xloglevel` | Level |
-| `Capacity` | `size_t` | Capacity |
-| `RecordLimit` | `size_t` | RecordLimit |
-| `Batch` | `size_t` | Batch |
-| `StackSize` | `size_t` | StackSize |
+| `Name` | `xstrview` | 名称 |
+| `Level` | `xloglevel` | 级别 |
+| `Capacity` | `size_t` | 容量 |
+| `RecordLimit` | `size_t` | 单条上限 |
+| `Batch` | `size_t` | 批量大小 |
+| `StackSize` | `size_t` | 栈大小 |
 | `IdleWait` | `uint64` | IdleWait |
 
 ### `xlogringstats`

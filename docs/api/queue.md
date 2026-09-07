@@ -38,8 +38,8 @@ typedef struct xqueuebatchresult {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Result` | `xqueueresult` | Result |
-| `Count` | `size_t` | Count |
+| `Result` | `xqueueresult` | 结果输出 |
+| `Count` | `size_t` | 数量 |
 
 ### `xqueuecursor32`
 
@@ -54,7 +54,7 @@ typedef struct xqueuecursor32 {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Position` | `xatomic32` | Position |
+| `Position` | `xatomic32` | 位置 |
 
 ### `xqueueslot`
 
@@ -90,13 +90,13 @@ typedef struct xspscqueue {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Items` | `ptr*` | Items |
+| `Items` | `ptr*` | 元素数组 |
 | `Allocation` | `ptr` | Allocation |
-| `Capacity` | `size_t` | Capacity |
+| `Capacity` | `size_t` | 容量 |
 | `Mask` | `size_t` | Mask |
 | `Closed` | `xatomic32` | Closed |
-| `Tail` | `xqueuecursor32` | Tail |
-| `Head` | `xqueuecursor32` | Head |
+| `Tail` | `xqueuecursor32` | 尾指针 |
+| `Head` | `xqueuecursor32` | 头指针 |
 
 ### `xmpscqueue`
 
@@ -118,11 +118,11 @@ typedef struct xmpscqueue {
 |---|---|---|
 | `Slots` | `xqueueslot*` | Slots |
 | `Allocation` | `ptr` | Allocation |
-| `Capacity` | `size_t` | Capacity |
+| `Capacity` | `size_t` | 容量 |
 | `Mask` | `size_t` | Mask |
 | `Closed` | `xatomic32` | Closed |
-| `Tail` | `xqueuecursor32` | Tail |
-| `Head` | `xqueuecursor32` | Head |
+| `Tail` | `xqueuecursor32` | 尾指针 |
+| `Head` | `xqueuecursor32` | 头指针 |
 
 ### `xmpmcqueue`
 
@@ -144,11 +144,11 @@ typedef struct xmpmcqueue {
 |---|---|---|
 | `Slots` | `xqueueslot*` | Slots |
 | `Allocation` | `ptr` | Allocation |
-| `Capacity` | `size_t` | Capacity |
+| `Capacity` | `size_t` | 容量 |
 | `Mask` | `size_t` | Mask |
 | `Closed` | `xatomic32` | Closed |
-| `Tail` | `xqueuecursor32` | Tail |
-| `Head` | `xqueuecursor32` | Head |
+| `Tail` | `xqueuecursor32` | 尾指针 |
+| `Head` | `xqueuecursor32` | 头指针 |
 
 ### `xqueuedrainfn`
 

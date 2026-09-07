@@ -39,9 +39,9 @@ typedef enum xpatternerror {
 | 值 | 语义 |
 |---|---|
 | `XPATTERN_ERROR_CONFIG` | 配置非法 |
-| `XPATTERN_ERROR_PATTERN` | PATTERN |
+| `XPATTERN_ERROR_PATTERN` | 失败 |
 | `XPATTERN_ERROR_LIMIT` | 超限 |
-| `XPATTERN_ERROR_CONFLICT` | CONFLICT |
+| `XPATTERN_ERROR_CONFLICT` | 冲突 |
 
 ### `xpatternconfig`
 
@@ -62,8 +62,8 @@ typedef struct xpatternconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Flags` | `uint32` | Flags |
-| `Separators` | `xstrview` | Separators |
+| `Flags` | `uint32` | 标志位 |
+| `Separators` | `xstrview` | 分隔符集合 |
 | `MaxPatternBytes` | `size_t` | MaxPatternBytes |
 | `MaxPatterns` | `size_t` | MaxPatterns |
 | `MaxCaptures` | `size_t` | MaxCaptures |
@@ -85,10 +85,10 @@ typedef struct xpatternspec {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Pattern` | `xstrview` | Pattern |
-| `Value` | `ptr` | Value |
-| `Priority` | `int32` | Priority |
-| `Flags` | `uint32` | Flags |
+| `Pattern` | `xstrview` | 模式串 |
+| `Value` | `ptr` | 值 |
+| `Priority` | `int32` | 优先级 |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xpatternmatch`
 
@@ -105,9 +105,9 @@ typedef struct xpatternmatch {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Id` | `xpatternid` | Id |
+| `Id` | `xpatternid` | 标识 |
 | `PatternIndex` | `size_t` | PatternIndex |
-| `Value` | `ptr` | Value |
+| `Value` | `ptr` | 值 |
 | `CaptureCount` | `size_t` | CaptureCount |
 
 ### `xpatternid`

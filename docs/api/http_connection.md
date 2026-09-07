@@ -20,7 +20,7 @@ typedef enum xhttpconnectionstatus {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_CONNECTION_ERROR` | 失败 |
-| `XHTTP_CONNECTION_CLOSE` | CLOSE |
+| `XHTTP_CONNECTION_CLOSE` | 协商了 close |
 
 ### `xhttpconnectionflag`
 
@@ -36,8 +36,8 @@ typedef enum xhttpconnectionflag {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_CONNECTION_RESPONSE` | RESPONSE |
-| `XHTTP_CONNECTION_PROXY` | PROXY |
+| `XHTTP_CONNECTION_RESPONSE` | 响应保留连接 |
+| `XHTTP_CONNECTION_PROXY` | 代理保留连接 |
 
 ## 裁剪
 

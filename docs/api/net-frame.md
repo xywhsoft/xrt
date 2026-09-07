@@ -53,7 +53,7 @@ typedef struct xnetlineconfig {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Delimiter` | `xbytesview` | Delimiter |
+| `Delimiter` | `xbytesview` | 分隔符 |
 | `MaxPayload` | `size_t` | MaxPayload |
 | `IncludeDelimiter` | `bool` | IncludeDelimiter |
 
@@ -75,13 +75,13 @@ typedef struct xnetlineframer {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Config` | `xnetlineconfig` | Config |
-| `Input` | `const xnetbuf*` | Input |
+| `Config` | `xnetlineconfig` | 配置 |
+| `Input` | `const xnetbuf*` | 输入视图 |
 | `Cursor` | `xnetblock*` | Cursor |
 | `CursorOffset` | `size_t` | CursorOffset |
 | `Search` | `size_t` | Search |
 | `PreviousSize` | `size_t` | PreviousSize |
-| `Guard` | `uint32` | Guard |
+| `Guard` | `uint32` | 守卫字（防误用） |
 
 ### `xnetframeorder`
 
@@ -120,7 +120,7 @@ typedef struct xnetlengthconfig {
 | `Adjustment` | `int64` | Adjustment |
 | `Strip` | `size_t` | Strip |
 | `MaxFrame` | `size_t` | MaxFrame |
-| `Order` | `xnetframeorder` | Order |
+| `Order` | `xnetframeorder` | 字节序 |
 
 ### `xnetlengthframer`
 
@@ -135,8 +135,8 @@ typedef struct xnetlengthframer {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Config` | `xnetlengthconfig` | Config |
-| `Guard` | `uint32` | Guard |
+| `Config` | `xnetlengthconfig` | 配置 |
+| `Guard` | `uint32` | 守卫字（防误用） |
 
 ## 分层与裁剪
 

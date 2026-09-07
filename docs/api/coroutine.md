@@ -57,8 +57,8 @@ typedef struct xcoroargs {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `StackSize` | `size_t` | StackSize |
-| `Cancel` | `xcancel*` | Cancel |
+| `StackSize` | `size_t` | 栈大小 |
+| `Cancel` | `xcancel*` | 取消令牌 |
 | `Finalize` | `xcorofinalproc` | Finalize |
 | `FinalizeData` | `ptr` | FinalizeData |
 
@@ -81,8 +81,8 @@ typedef struct xcocleanup {
 |---|---|---|
 | `Previous` | `struct xcocleanup*` | Previous |
 | `Owner` | `xcoro*` | Owner |
-| `Proc` | `xcocleanupproc` | Proc |
-| `Data` | `ptr` | Data |
+| `Proc` | `xcocleanupproc` | 过程指针 |
+| `Data` | `ptr` | 数据 |
 | `Active` | `bool` | Active |
 | `Managed` | `bool` | Managed |
 
@@ -99,7 +99,7 @@ typedef union xcoevent {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Alignment` | `uint64` | Alignment |
+| `Alignment` | `uint64` | 对齐（二次幂） |
 
 ### `xcoro`
 

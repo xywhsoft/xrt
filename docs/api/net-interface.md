@@ -19,11 +19,11 @@ typedef enum xnetinterfaceflag {
 
 | 值 | 语义 |
 |---|---|
-| `XNET_INTERFACE_UP` | UP |
+| `XNET_INTERFACE_UP` | 接口在线 |
 | `XNET_INTERFACE_RUNNING` | 运行中 |
-| `XNET_INTERFACE_LOOPBACK` | LOOPBACK |
-| `XNET_INTERFACE_BROADCAST` | BROADCAST |
-| `XNET_INTERFACE_POINT_TO_POINT` | POINTTOPOINT |
+| `XNET_INTERFACE_LOOPBACK` | 回环接口 |
+| `XNET_INTERFACE_BROADCAST` | 广播 |
+| `XNET_INTERFACE_POINT_TO_POINT` | 点对点链路 |
 
 ### `xnetinterfaceaddress`
 
@@ -38,7 +38,7 @@ typedef struct xnetinterfaceaddress {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Address` | `xnetaddr` | Address |
+| `Address` | `xnetaddr` | 地址 |
 | `PrefixLength` | `uint8` | PrefixLength |
 
 ### `xnetinterface`
@@ -63,9 +63,9 @@ typedef struct xnetinterface {
 |---|---|---|
 | `IPv4Index` | `uint32` | IPv4Index |
 | `IPv6Index` | `uint32` | IPv6Index |
-| `Flags` | `uint32` | Flags |
-| `Mtu` | `uint32` | Mtu |
-| `Name` | `xstrview` | Name |
+| `Flags` | `uint32` | 标志位 |
+| `Mtu` | `uint32` | 最大传输单元 |
+| `Name` | `xstrview` | 名称 |
 | `DisplayName` | `xstrview` | DisplayName |
 | `HardwareAddress` | `xbytesview` | HardwareAddress |
 | `Addresses` | `const xnetinterfaceaddress*` | Addresses |
@@ -84,8 +84,8 @@ typedef struct xnetinterfacelist {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Items` | `const xnetinterface*` | Items |
-| `Count` | `size_t` | Count |
+| `Items` | `const xnetinterface*` | 元素数组 |
+| `Count` | `size_t` | 数量 |
 
 ## 分层
 

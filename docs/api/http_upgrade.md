@@ -19,7 +19,7 @@ typedef struct xhttpupgradeitem {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Protocol` | `xstrview` | Protocol |
-| `Version` | `xstrview` | Version |
+| `Version` | `xstrview` | 结构版本 |
 
 ### `xhttpupgradecursor`
 
@@ -34,8 +34,8 @@ typedef struct xhttpupgradecursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpupgradefieldcursor`
 
@@ -52,8 +52,8 @@ typedef struct xhttpupgradefieldcursor {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ## 语法与借用
 

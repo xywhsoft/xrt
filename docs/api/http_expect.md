@@ -20,7 +20,7 @@ typedef enum xhttpexpectflag {
 
 | 值 | 语义 |
 |---|---|
-| `XHTTP_EXPECT_BARE` | BARE |
+| `XHTTP_EXPECT_BARE` | 裸 Expect 头 |
 | `XHTTP_EXPECT_HAS_VALUE` | HAS值非法 |
 | `XHTTP_EXPECT_VALUE_QUOTED` | 值非法QUOTED |
 
@@ -41,10 +41,10 @@ typedef struct xhttpexpectation {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Element` | `xstrview` | Element |
-| `Name` | `xstrview` | Name |
-| `Value` | `xstrview` | Value |
+| `Name` | `xstrview` | 名称 |
+| `Value` | `xstrview` | 值 |
 | `Parameters` | `xstrview` | Parameters |
-| `Flags` | `uint32` | Flags |
+| `Flags` | `uint32` | 标志位 |
 
 ### `xhttpexpectcursor`
 
@@ -59,8 +59,8 @@ typedef struct xhttpexpectcursor {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpexpectfieldcursor`
 
@@ -77,8 +77,8 @@ typedef struct xhttpexpectfieldcursor {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Field` | `size_t` | Field |
-| `Offset` | `size_t` | Offset |
-| `Validated` | `uint8` | Validated |
+| `Offset` | `size_t` | 偏移量 |
+| `Validated` | `uint8` | 是否已校验 |
 
 ### `xhttpexpectresult`
 
@@ -97,7 +97,7 @@ typedef enum xhttpexpectresult {
 |---|---|
 | `XHTTP_EXPECT_ERROR` | 失败 |
 | `XHTTP_EXPECT_NONE` | 无 |
-| `XHTTP_EXPECT_CONTINUE` | CONTINUE |
+| `XHTTP_EXPECT_CONTINUE` | CONTINUE（100 继续） |
 
 ## 元素
 
