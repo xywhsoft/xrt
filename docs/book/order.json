@@ -759,139 +759,153 @@
     "num": 109,
     "slug": "xws-conn",
     "file": "109-xws-conn",
-    "title": "xws（上）：连接与收发",
+    "title": "xws（上）：连接管理与全链巡检",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 110,
-    "slug": "xws-server",
-    "file": "110-xws-server",
-    "title": "xws（下）：服务端路由与组播",
+    "slug": "xws-send",
+    "file": "110-xws-send",
+    "title": "xws（中）：发送路径——writer、引用与压缩",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 111,
-    "slug": "xruntime",
-    "file": "111-xruntime",
-    "title": "xruntime（上）：类型与对象",
+    "slug": "xws-group",
+    "file": "111-xws-group",
+    "title": "xws（下）：连接组与广播",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 112,
-    "slug": "xruntime-typed",
-    "file": "112-xruntime-typed",
-    "title": "xruntime（下）：动态调用与 typed 容器",
+    "slug": "xws-server",
+    "file": "112-xws-server",
+    "title": "xws：服务端路由与会话",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 113,
-    "slug": "xmail-smtp",
-    "file": "113-xmail-smtp",
-    "title": "xmail（上）：SMTP",
+    "slug": "xruntime",
+    "file": "113-xruntime",
+    "title": "xruntime（上）：类型与对象",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 114,
-    "slug": "xmail-imap",
-    "file": "114-xmail-imap",
-    "title": "xmail（下）：IMAP / POP3 与 MIME",
+    "slug": "xruntime-typed",
+    "file": "114-xruntime-typed",
+    "title": "xruntime（下）：动态调用与 typed 容器",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 115,
-    "slug": "xssh-transport",
-    "file": "115-xssh-transport",
-    "title": "xssh（上）：传输与密钥交换",
+    "slug": "xmail-smtp",
+    "file": "115-xmail-smtp",
+    "title": "xmail（上）：SMTP",
     "volume": "卷十一 其他扩展库"
   },
   {
     "num": 116,
+    "slug": "xmail-imap",
+    "file": "116-xmail-imap",
+    "title": "xmail（下）：IMAP / POP3 与 MIME",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 117,
+    "slug": "xssh-transport",
+    "file": "117-xssh-transport",
+    "title": "xssh（上）：传输与密钥交换",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 118,
     "slug": "xssh-auth",
-    "file": "116-xssh-auth",
+    "file": "118-xssh-auth",
     "title": "xssh（下）：认证与通道",
     "volume": "卷十一 其他扩展库 · 卷十一收官"
   },
   {
-    "num": 117,
+    "num": 119,
     "slug": "build",
-    "file": "117-build",
+    "file": "119-build",
     "title": "构建系统全解",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 118,
+    "num": 120,
     "slug": "trim",
-    "file": "118-trim",
+    "file": "120-trim",
     "title": "特性裁剪与体积控制",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 119,
+    "num": 121,
     "slug": "package",
-    "file": "119-package",
+    "file": "121-package",
     "title": "打包、分发与单头",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 120,
+    "num": 122,
     "slug": "testing",
-    "file": "120-testing",
+    "file": "122-testing",
     "title": "测试、故障注入与模糊测试",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 121,
+    "num": 123,
     "slug": "embed",
-    "file": "121-embed",
+    "file": "123-embed",
     "title": "嵌入宿主程序",
     "volume": "卷十二 工程实践"
   },
   {
-    "num": 122,
+    "num": 124,
     "slug": "perf",
-    "file": "122-perf",
+    "file": "124-perf",
     "title": "性能调优与内存调试实战",
     "volume": "卷十二 工程实践 · 卷十二收官"
   },
   {
-    "num": 123,
+    "num": 125,
     "slug": "project-cli",
-    "file": "123-project-cli",
+    "file": "125-project-cli",
     "title": "命令行工具：文本与文件处理",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 124,
+    "num": 126,
     "slug": "project-config",
-    "file": "124-project-config",
+    "file": "126-project-config",
     "title": "JSON 配置中心：value 与模板",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 125,
+    "num": 127,
     "slug": "project-chat",
-    "file": "125-project-chat",
+    "file": "127-project-chat",
     "title": "TCP 聊天室：网络与并发",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 126,
+    "num": 128,
     "slug": "project-downloader",
-    "file": "126-project-downloader",
+    "file": "128-project-downloader",
     "title": "HTTPS 下载器：xhttp 与文件",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 127,
+    "num": 129,
     "slug": "project-ws",
-    "file": "127-project-ws",
+    "file": "129-project-ws",
     "title": "WebSocket 实时推送服务",
     "volume": "卷十三 实战项目"
   },
   {
-    "num": 128,
+    "num": 130,
     "slug": "project-static",
-    "file": "128-project-static",
+    "file": "130-project-static",
     "title": "综合：迷你静态文件服务器",
     "volume": "卷十三 实战项目 · 全书收官"
   }
