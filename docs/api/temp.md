@@ -34,45 +34,593 @@
 
 ## 函数
 
-### `xrtTempInit` / `xrtTempUnit`
+### `xrtTempInit`
 
-初始化和销毁显式 arena。已经初始化的对象必须先调用 `xrtTempUnit`，不得直接重复初始化。`xrtTempUnit` 会使所有地址和未结束 mark 立即失效。
+使用默认或指定配置初始化一个空 arena。
+
+```c
+bool xrtTempInit(xtemparena* pArena, const xtempconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输出 | 非空 | 接收 arena |
+| `pConfig` | 输入 | 允许空 | arena 配置，空 = 默认 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数或配置非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 初始化
+
+```c
+	if ( !xrtTempInit(&tArena, &tConfig) ) {
+```
+
+### `xrtTempUnit`
+
+释放 arena 持有的全部常规块和 spill 块。
+
+```c
+void xrtTempUnit(xtemparena* pArena)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 释放
+
+```c
+		xrtTempUnit(&tArena);
+```
+
+### `xrtTempSecureUnit`
+
+安全擦除 arena 持有的全部用户区，再释放所有内存。
+
+```c
+void xrtTempSecureUnit(xtemparena* pArena)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已擦除并释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 安全释放
+
+```c
+	xrtTempSecureUnit(&tArena);
+```
 
 ### `xrtTempAlloc`
 
-分配临时内存。失败返回 `NULL` 并设置结构化错误。
+从指定 arena 分配一段 16 字节对齐的临时内存。
 
-### `xrtTempDup` / `xrtTempStr`
+```c
+ptr xrtTempAlloc(xtemparena* pArena, size_t iSize)
+```
 
-把二进制数据或字符串视图复制到指定 arena。`xrtTempStr` 总会追加零字符，返回视图长度不包含该字符。零长度二进制和空字符串都返回有效临时地址。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 非空 | 目标 arena |
+| `iSize` | 输入 | — | 请求字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 16 字节对齐临时内存，下次重置前有效 | — |
+| `NULL` | 分配失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_MEMORY` — 新块分配失败
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 分配
+
+```c
+	if ( xrtTempAlloc(&tArena, 64) == NULL ) {
+```
+
+### `xrtTempDup`
+
+把二进制数据复制到指定 arena。
+
+```c
+ptr xrtTempDup(xtemparena* pArena, const void* pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 非空 | 目标 arena |
+| `pData` | 输入 | 非空 | 源数据 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 16 字节对齐临时内存，下次重置前有效 | — |
+| `NULL` | 分配失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_MEMORY` — 新块分配失败
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 复制数据
+
+```c
+	pData = xrtTempDup(&tArena, arrData, sizeof(arrData));
+```
+
+### `xrtTempStr`
+
+把字符串视图复制为指定 arena 中的零结尾字符串。
+
+```c
+str xrtTempStr(xtemparena* pArena, xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 非空 | 目标 arena |
+| `Text` | 输入 | 借用 | 源文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾字符串借用，下次重置前有效 | — |
+| `NULL` | 分配失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_MEMORY` — 新块分配失败
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 复制字符串
+
+```c
+	sInner = xrtTempStr(pArena, XRT_STR_LITERAL("promoted"));
+```
 
 ### `xrtTempReset`
 
-回收全部当前分配、释放 spill 并执行有界保留。存在活动作用域时返回 `false` 和 `XERR_STATE`。
+回收全部临时分配并保留配置允许的常规块。
 
-### `xrtTempSecureReset` / `xrtTempSecureUnit`
+```c
+bool xrtTempReset(xtemparena* pArena)
+```
 
-安全版本先擦除全部常规块和 spill 块的完整用户区，再重置或释放 arena。密码握手、认证令牌等敏感临时数据应使用安全版本；普通解析工作区继续使用非安全版本，避免无意义的整块写零成本。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 非空 | 目标 arena |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已重置 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 存在未结束的作用域
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 重置
+
+```c
+	if ( !xrtTempReset(&tArena) || !xrtTempTrim(&tArena, 0) ) {
+```
+
+### `xrtTempSecureReset`
+
+安全擦除 arena 持有的全部用户区，再执行普通重置。
+
+```c
+bool xrtTempSecureReset(xtemparena* pArena)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 非空 | 目标 arena |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已擦除并重置 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 存在未结束的作用域
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 安全重置
+
+```c
+	if ( !xrtTempSecureReset(&tArena) ) {
+```
 
 ### `xrtTempTrim`
 
-在没有活动分配、spill 和作用域时缩减常规块。参数是本次希望保留的容量，不修改配置中的 `RetainLimit`。
+在 arena 空闲时将常规块缩减到指定保留字节数。
 
-### `xrtTempBegin` / `xrtTempEnd`
+```c
+bool xrtTempTrim(xtemparena* pArena, size_t iRetainBytes)
+```
 
-建立和回退嵌套作用域。乱序结束返回 `false`，原作用域继续有效，调用方可以按正确顺序恢复。
+#### 参数
 
-### `xrtTempEndDup` / `xrtTempEndStr`
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 非空、空闲 | 目标 arena |
+| `iRetainBytes` | 输入 | — | 保留字节数 |
 
-先保存子作用域结果，成功结束 mark，再把结果复制到同一 arena 的父作用域。这样解析器和构建器可以丢弃全部中间临时数据，只保留最终二进制或零结尾字符串。保存结果或结束作用域失败时 mark 仍然有效；父作用域分配失败时 mark 已经结束，函数返回 `NULL`。
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已裁剪 | — |
+| `false` | 忙碌或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — arena 存在活动分配或作用域
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 裁剪
+
+```c
+	if ( !xrtTempReset(&tArena) || !xrtTempTrim(&tArena, 0) ) {
+```
 
 ### `xrtTempGet`
 
-复制 arena 诊断信息，不分配内存。
+获取 arena 当前状态。
 
-### `xrtTempCurrent` / `xrtTemp` / `xrtTempClear`
+```c
+void xrtTempGet(const xtemparena* pArena, xtempinfo* pInfo)
+```
 
-当前执行上下文的便捷 API。常见短生命周期代码只需 `xrtTemp(size)`，在逻辑边界调用 `xrtTempClear()`。
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 非空 | 目标 arena |
+| `pInfo` | 输出 | 非空 | 接收状态快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 快照已写出 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 状态查询
+
+```c
+	xrtTempGet(&tArena, &tInfo);
+```
+
+### `xrtTempBegin`
+
+建立一个必须后进先出结束的临时作用域。
+
+```c
+xtempmark xrtTempBegin(xtemparena* pArena)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pArena` | 输入 | 非空 | 目标 arena |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 作用域标记 | 用于 `xrtTempEnd*` 回退 | — |
+| 零值 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 建立作用域
+
+```c
+	tScope = xrtTempBegin(pArena);
+```
+
+### `xrtTempEnd`
+
+回退作用域内产生的临时分配。
+
+```c
+bool xrtTempEnd(xtempmark* pMark)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMark` | 输入/输出 | 非空、后进先出 | 目标标记 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已回退 | — |
+| `false` | 顺序违反或参数非法 | `XERR_STATE` / `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 违反后进先出顺序
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 结束作用域
+
+```c
+	if ( !xrtTempEnd(&tScope) ) {
+```
+
+### `xrtTempEndDup`
+
+结束作用域并把二进制结果复制到父作用域。
+
+```c
+ptr xrtTempEndDup(xtempmark* pMark, const void* pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMark` | 输入/输出 | 非空、后进先出 | 目标标记 |
+| `pData` | 输入 | 非空 | 源数据 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 16 字节对齐父作用域临时内存，下次重置前有效 | — |
+| `NULL` | 分配失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 违反后进先出顺序
+- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_MEMORY` — 新块分配失败
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 结束并复制数据
+
+```c
+	pData = xrtTempEndDup(&tScope, arrData, sizeof(arrData));
+```
+
+### `xrtTempEndStr`
+
+结束作用域并把字符串结果复制到父作用域。
+
+```c
+str xrtTempEndStr(xtempmark* pMark, xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMark` | 输入/输出 | 非空、后进先出 | 目标标记 |
+| `Text` | 输入 | 借用 | 源文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 父作用域零结尾字符串借用 | — |
+| `NULL` | 复制失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 违反后进先出顺序
+- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_MEMORY` — 新块分配失败
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 结束并复制字符串
+
+```c
+	sPromoted = xrtTempEndStr(&tScope, (xstrview){ sInner, 8 });
+```
+
+## 当前上下文便捷层
+
+### `xrtTempCurrent`
+
+返回当前原生线程或协程绑定的默认 arena。
+
+```c
+xtemparena* xrtTempCurrent(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 默认 arena 借用 | — |
+| `NULL` | 无绑定上下文 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 外部线程首次使用前返回 `NULL` 且不设置错误
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 当前 arena
+
+```c
+	xtemparena* pArena = xrtTempCurrent();   /* 线程默认 arena */
+```
+
+### `xrtTemp`
+
+从当前执行上下文的默认 arena 分配临时内存。
+
+```c
+ptr xrtTemp(size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iSize` | 输入 | — | 请求字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 16 字节对齐临时内存，本上下文下次重置前有效 | — |
+| `NULL` | 分配失败 | 见错误 |
+
+#### 错误
+
+- 无默认 arena 时按需建立
+- `XERR_OVERFLOW` — 尺寸计算溢出
+- `XERR_MEMORY` — 新块分配失败
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 上下文分配
+
+```c
+	sOuter = (char*)xrtTemp(32);
+```
+
+### `xrtTempClear`
+
+重置当前执行上下文的默认 arena。
+
+```c
+bool xrtTempClear(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已重置 | — |
+| `false` | 无绑定上下文或状态非法 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 当前上下文没有默认 arena 或存在未结束作用域
+
+#### 范例
+
+[temp](../../examples/memory/temp/main.c) · 上下文重置
+
+```c
+	if ( !xrtTempClear() ) {
+```
 
 ## 旧版资产决策
 
