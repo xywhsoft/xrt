@@ -829,6 +829,153 @@ bool xrtFileUnlock(xfile File);
 
 文件锁是协调协议，不是线程互斥量。POSIX 使用 `fcntl` 建议锁，同一进程内的线程不会彼此冲突，而且进程关闭指向同一文件的其他描述符也可能释放锁；Windows 锁与句柄关联，并会影响遵守系统锁语义的 IO。跨平台代码应在进程内另用同步原语、显式解锁，并避免在持锁期间关闭该文件的其他句柄。锁不会保护通过其他文件名、映射或不遵守建议锁的访问。
 
+### `xrtFileLock`
+
+锁定整个文件；`bWait` 决定冲突时阻塞或立即失败。
+
+```c
+bool xrtFileLock(xfile File, xfilelock Mode, bool bWait);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `Mode` | 输入 | `XFILE_LOCK_SHARED/EXCLUSIVE` | 锁模式 |
+| `bWait` | 输入 | — | 冲突时是否阻塞等待 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已取得锁 | — |
+| `false` | 冲突（非阻塞）或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_AGAIN` — 非阻塞模式遇冲突（如实现设置）
+
+#### 范例
+
+[file/lock · 全文件锁](../../examples/file/lock/main.c) · 观察
+
+```c
+	if ( !xrtFileLock(File, XFILE_LOCK_EXCLUSIVE, false) ) {
+```
+
+
+### `xrtFileUnlock`
+
+解除整个文件锁。
+
+```c
+bool xrtFileUnlock(xfile File);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 已上锁的文件对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解锁 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/lock · 全文件锁](../../examples/file/lock/main.c) · 观察
+
+```c
+	if ( !xrtFileUnlock(File) || !xrtClose(File) ) {
+```
+
+
+### `xrtFileLockRange`
+
+锁定字节区间；`iSize` 为零表示从偏移到文件末端及后续增长。
+
+```c
+bool xrtFileLockRange(xfile File, xfilelock Mode,
+	uint64 iOffset, uint64 iSize, bool bWait);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `Mode` | 输入 | — | 共享或排他 |
+| `iOffset` | 输入 | — | 区间起点 |
+| `iSize` | 输入 | 零 = 到末端 | 区间长度 |
+| `bWait` | 输入 | — | 冲突阻塞 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 区间锁已取得 | — |
+| `false` | 冲突或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 区间锁](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtFileLockRange(File, XFILE_LOCK_SHARED, 0u, 4u, true) ) {
+```
+
+
+### `xrtFileUnlockRange`
+
+解除完全相同的字节区间锁（参数必须与加锁时逐项一致）。
+
+```c
+bool xrtFileUnlockRange(xfile File,
+	uint64 iOffset, uint64 iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `iOffset` | 输入 | 与加锁一致 | 区间起点 |
+| `iSize` | 输入 | 与加锁一致 | 区间长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解锁 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 区间锁](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtFileUnlockRange(File, 0u, 4u) ) {
+```
+
+
 ## 文件映射
 
 ```c
@@ -854,6 +1001,185 @@ bool xrtFileUnmap(xfilemap Map);
 `xrtFileMap` 在创建时验证范围不越过当前文件末端。`iSize=0` 表示映射到当前末端；偏移恰好等于末端时返回有效空映射，其数据为空、大小为零，仍必须调用 `xrtFileUnmap`。映射创建后可以关闭原文件句柄，但调用方不得在映射存续期间截断或以其他方式缩小底层文件；这样做可能使后续访问产生系统异常。
 
 映射页面不经过 XRT 分配器，返回地址只借用到解除映射。多个线程可访问同一映射，但数据竞争由调用方同步。`xrtFileMapFlush` 只接受共享写映射，大小为零表示刷新到映射末端；它把脏页提交给操作系统，不等价于断电持久化。需要稳定存储时，在刷新后继续对仍打开的文件调用 `xrtFlush`。私有映射不能刷新到文件。
+
+### `xrtFileMap`
+
+映射文件区间；`iSize` 为零表示映射到当前文件末端。
+
+```c
+xfilemap xrtFileMap(xfile File, uint64 iOffset,
+	size_t iSize, uint32 iFlags);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `iOffset` | 输入 | — | 映射起点 |
+| `iSize` | 输入 | 零 = 到末端 | 映射长度 |
+| `iFlags` | 输入 | `XFILE_MAP_READ/WRITE` | 访问模式 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 映射对象 | — |
+| `NULL` | 系统错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/map · 只读映射](../../examples/file/map/main.c) · 观察
+
+```c
+	Map = xrtFileMap(File, 0u, 0u, XFILE_MAP_READ);
+```
+
+
+### `xrtFileMapData`
+
+返回借用的映射数据；空映射返回空指针。
+
+```c
+ptr xrtFileMapData(xfilemap Map);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Map` | 输入 | 非空 | 映射对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 映射首字节（借用，随 Unmap 失效） | — |
+| `NULL` | 空映射或参数非法 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[file/map · 只读映射](../../examples/file/map/main.c) · 观察
+
+```c
+		printf("%.*s\n", (int)xrtFileMapSize(Map),
+			(const char*)xrtFileMapData(Map));
+```
+
+
+### `xrtFileMapSize`
+
+返回调用方可访问的映射字节数。
+
+```c
+size_t xrtFileMapSize(xfilemap Map);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Map` | 输入 | 非空 | 映射对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 可访问字节数 | — |
+| `0` | 空映射或参数非法 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[file/map · 只读映射](../../examples/file/map/main.c) · 观察
+
+```c
+		printf("%.*s\n", (int)xrtFileMapSize(Map),
+```
+
+
+### `xrtFileMapFlush`
+
+把共享写映射的指定区间提交给操作系统。
+
+```c
+bool xrtFileMapFlush(xfilemap Map,
+	size_t iOffset, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Map` | 输入 | 非空 | 共享写映射 |
+| `iOffset` | 输入 | — | 区间起点 |
+| `iSize` | 输入 | 零 = 全部 | 区间长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已提交 | — |
+| `false` | 参数或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 映射提交](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	printf(" map-flush=%d\n", xrtFileMapFlush(Map, 0u, 0u) ? 1 : 0);
+```
+
+
+### `xrtFileUnmap`
+
+解除映射并销毁映射对象。
+
+```c
+bool xrtFileUnmap(xfilemap Map);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Map` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解除并释放 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/map · 收尾](../../examples/file/map/main.c) · 观察
+
+```c
+		if ( xrtFileUnmap(Map) && xrtClose(File) &&
+```
+
 
 ## 元数据
 
@@ -1228,6 +1554,189 @@ bool xrtFileMove(cstr sSource, cstr sTarget, bool bReplace);
 ```
 
 
+### `xrtPathStat`
+
+查询路径元数据；`bFollowLink` 决定是否跟随末级符号链接。
+
+```c
+bool xrtPathStat(cstr sPath, bool bFollowLink, xfileinfo* pInfo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+| `bFollowLink` | 输入 | — | 跟随末级符号链接 |
+| `pInfo` | 输出 | 非空 | 接收元数据快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 不存在或系统错误 | 区分二者靠错误码 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_NOT_FOUND` — 路径不存在
+
+#### 范例
+
+[file/link · 硬链接](../../examples/file/link/main.c) · 观察
+
+```c
+		 !xrtPathStat(sLink, true, &Info) ) {
+```
+
+
+### `xrtPathExists`
+
+判断任意路径是否存在（文件/目录/链接均算存在）。
+
+```c
+bool xrtPathExists(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 存在某种对象 | — |
+| `false` | 不存在或查询失败（区分用 `xrtPathStat`） | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/link_tour · 存在性](../../examples/file/link_tour/main.c) · 观察
+
+```c
+	printf("exists=%d", xrtPathExists(sOrigin) ? 1 : 0);
+```
+
+
+### `xrtPathSetTimes`
+
+设置访问和修改时间；空指针表示保留对应时间，至少设置一项。
+
+```c
+bool xrtPathSetTimes(cstr sPath, bool bFollowLink,
+	const xtime* pAccessed, const xtime* pModified);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+| `bFollowLink` | 输入 | — | 跟随末级链接 |
+| `pAccessed` | 输入 | 可空 | 新访问时间 |
+| `pModified` | 输入 | 可空 | 新修改时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 时间已更新 | — |
+| `false` | 两项全空或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/link_tour · 时间戳](../../examples/file/link_tour/main.c) · 观察
+
+```c
+	printf("times=%d", xrtPathSetTimes(sRenamed, true, &iNow, &iNow) ? 1 : 0);
+```
+
+
+### `xrtPathSetMode`
+
+设置 POSIX 权限模式；Windows 明确返回不支持。
+
+```c
+bool xrtPathSetMode(cstr sPath, bool bFollowLink, uint32 iMode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+| `bFollowLink` | 输入 | — | 跟随末级链接 |
+| `iMode` | 输入 | 八进制位 | POSIX 权限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 模式已设置 | — |
+| `false` | Windows 上必然失败 | `XERR_UNSUPPORTED`（Windows） |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_UNSUPPORTED` — Windows 平台
+
+#### 范例
+
+[file/link_tour · 平台差异](../../examples/file/link_tour/main.c) · 观察
+
+```c
+	if ( xrtPathSetMode(sRenamed, true, 0600u) ) {
+```
+
+
+### `xrtPathSetAttributes`
+
+设置 Windows 原生属性；POSIX 明确返回不支持。
+
+```c
+bool xrtPathSetAttributes(cstr sPath, uint32 iAttributes);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+| `iAttributes` | 输入 | `FILE_ATTRIBUTE_*` | Windows 原生属性 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 属性已设置 | — |
+| `false` | POSIX 上必然失败 | `XERR_UNSUPPORTED`（POSIX） |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_UNSUPPORTED` — POSIX 平台
+
+#### 范例
+
+[file/link_tour · 平台差异](../../examples/file/link_tour/main.c) · 观察
+
+```c
+	} else if ( xrtPathSetAttributes(sRenamed, 0u) ) {
+```
+
+
 ## 基础路径操作
 
 ```c
@@ -1265,6 +1774,81 @@ if ( File != NULL ) {
 	xrtFree(sPath);
 }
 ```
+
+### `xrtFileTemp`
+
+排他创建临时文件并返回拥有路径；目录为空指针时使用系统临时目录。
+
+```c
+xfile xrtFileTemp(cstr sDirectory, cstr sPrefix,
+	cstr sSuffix, str* pPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sDirectory` | 输入 | 可空 | 父目录；空 = 系统临时目录 |
+| `sPrefix` | 输入 | 可空 | 文件名前缀 |
+| `sSuffix` | 输入 | 可空 | 文件名后缀 |
+| `pPath` | 输出 | 非空 | 接收拥有路径（`xrtFree` 释放） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 排他打开的临时文件 | — |
+| `NULL` | 创建失败；`*pPath` 未定义 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_EXISTS` — 唯一名重试耗尽（罕见）
+
+#### 范例
+
+[file/temp · 临时文件](../../examples/file/temp/main.c) · 观察
+
+```c
+	xfile File = xrtFileTemp(NULL, "xrt-example-", ".tmp", &sPath);
+```
+
+
+### `xrtDirTemp`
+
+排他创建临时目录并返回拥有路径；目录为空指针时使用系统临时目录。
+
+```c
+str xrtDirTemp(cstr sDirectory, cstr sPrefix, cstr sSuffix);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sDirectory` | 输入 | 可空 | 父目录；空 = 系统临时目录 |
+| `sPrefix` | 输入 | 可空 | 目录名前缀 |
+| `sSuffix` | 输入 | 可空 | 目录名后缀 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 拥有路径（`xrtFree` 释放） | — |
+| `NULL` | 创建失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_temp · 临时目录](../../examples/file/dir_temp/main.c) · 观察
+
+```c
+	str sPath = xrtDirTemp(NULL, "xrt-example-dir-", NULL);
+```
+
 
 ## 整文件
 
@@ -1727,6 +2311,181 @@ if ( Dir != NULL ) {
 }
 ```
 
+### `xrtDirOpen`
+
+打开目录迭代器；根路径跟随末级链接，零标志提供无额外 stat 的枚举。
+
+```c
+xdir xrtDirOpen(cstr sPath, uint32 iFlags);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 目录路径 |
+| `iFlags` | 输入 | 零或 `XDIR_*` | 枚举选项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 目录迭代器 | — |
+| `NULL` | 打开失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/directory · 枚举](../../examples/file/directory/main.c) · 观察
+
+```c
+	xdir Dir = xrtDirOpen(".", 0u);
+```
+
+
+### `xrtDirNext`
+
+读取下一条目录项；失败时不修改输出。
+
+```c
+xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Dir` | 输入 | 非空 | 迭代器 |
+| `pEntry` | 输出 | 非空 | 接收条目（名称借用到下一次调用） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XDIR_NEXT_ITEM` | 取得一条 | — |
+| `XDIR_NEXT_END` | 枚举完毕（正常结果） | 不设置错误 |
+| `XDIR_NEXT_ERROR` | 系统错误 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/directory · 枚举](../../examples/file/directory/main.c) · 观察
+
+```c
+	while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
+```
+
+
+### `xrtDirClose`
+
+关闭并销毁目录迭代器。
+
+```c
+bool xrtDirClose(xdir Dir);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Dir` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已关闭 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/directory · 枚举](../../examples/file/directory/main.c) · 观察
+
+```c
+	xrtDirClose(Dir);
+```
+
+
+### `xrtDirPath`
+
+返回迭代器借用的目录路径。
+
+```c
+cstr xrtDirPath(xdir Dir);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Dir` | 输入 | 非空 | 迭代器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `cstr` | 借用路径（存活到 Close） | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[file/dir_tour · 枚举辅助](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+		printf("dir=%s", xrtDirPath(Dir));
+```
+
+
+### `xrtDirEntryPath`
+
+把迭代器目录与条目名称拼成拥有路径。
+
+```c
+str xrtDirEntryPath(xdir Dir, const xdirentry* pEntry);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Dir` | 输入 | 非空 | 迭代器 |
+| `pEntry` | 输入 | 非空 | 目录条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 拥有路径（`xrtFree` 释放） | — |
+| `NULL` | 参数或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 枚举辅助](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+			str sFull = xrtDirEntryPath(Dir, &Entry);
+```
+
+
 ## 目录基础操作
 
 ```c
@@ -1748,6 +2507,563 @@ void xrtDirRootsFree(xdirroots* pRoots);
 单级创建要求目标不存在；递归创建允许已经存在的目录，但拒绝中途出现非目录对象。默认模式为 `0777` 并受 POSIX `umask` 影响，已有目录的模式不会被修改。递归创建不是事务：后续组件失败时，已经创建的前缀目录会保留；它也会经过已有的中间链接，处理不可信相对路径应使用目录根能力。`xrtDirRemove` 只删除空目录。`xrtDirEmpty` 成功才修改输出。
 
 `xrtDirRoots` 在 Windows 返回当前可枚举驱动器根，在 POSIX 返回 `/`。成功前不修改输出；调用方应传入未持有旧列表的结构。结构、数组和每个字符串都由调用方通过 `xrtDirRootsFree` 一次释放；释放函数可接受零初始化结构并在完成后清零。
+
+### `xrtDirExists`
+
+判断路径是否存在且为目录。
+
+```c
+bool xrtDirExists(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 存在目录 | — |
+| `false` | 非目录或查询失败 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/tree · 前置清理](../../examples/file/tree/main.c) · 观察
+
+```c
+	if ( xrtDirExists(sSource) ) {
+```
+
+
+### `xrtDirCreate`
+
+使用平台默认模式创建一个目录。
+
+```c
+bool xrtDirCreate(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目标路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已创建 | — |
+| `false` | 已存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_EXISTS` — 已存在
+
+#### 范例
+
+[file/tree · 浅创建](../../examples/file/tree/main.c) · 观察
+
+```c
+	if ( !xrtDirCreate(sSource) ) {
+```
+
+
+### `xrtDirCreateMode`
+
+使用显式 POSIX 模式创建一个目录；Windows 接受但忽略模式。
+
+```c
+bool xrtDirCreateMode(cstr sPath, uint32 iMode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目标路径 |
+| `iMode` | 输入 | 八进制位 | POSIX 权限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已创建 | — |
+| `false` | 已存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_EXISTS`
+
+#### 范例
+
+[file/dir_tour · 创建](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirCreateMode("xrt-dir-tour/single", 0700u) ) {
+```
+
+
+### `xrtDirCreateAll`
+
+使用平台默认模式递归创建全部缺失目录。
+
+```c
+bool xrtDirCreateAll(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 多级路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 全链已存在或已创建 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 递归建链](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirCreateAll(sDeep) ) {
+```
+
+
+### `xrtDirCreateAllMode`
+
+使用显式 POSIX 模式递归创建全部缺失目录；失败可能保留已创建前缀。
+
+```c
+bool xrtDirCreateAllMode(cstr sPath, uint32 iMode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 多级路径 |
+| `iMode` | 输入 | 八进制位 | POSIX 权限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 全链就绪 | — |
+| `false` | 系统错误（已建前缀保留） | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 递归建链](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirCreateAllMode("xrt-dir-tour/mode/a/b", 0700u) ) {
+```
+
+
+### `xrtDirRemove`
+
+删除一个空目录，不递归删除其内容。
+
+```c
+bool xrtDirRemove(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目标目录 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 非空/不存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_STATE` — 目录非空（如实现设置）
+
+#### 范例
+
+[file/dir_temp · 收尾](../../examples/file/dir_temp/main.c) · 观察
+
+```c
+	bResult = xrtDirRemove(sPath);
+```
+
+
+### `xrtDirRemoveAll`
+
+递归删除整棵目录树（含根目录）。
+
+```c
+bool xrtDirRemoveAll(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 树根路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 整树已删除 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/tree · 前置清理](../../examples/file/tree/main.c) · 观察
+
+```c
+		(void)xrtDirRemoveAll(sSource);
+```
+
+
+### `xrtDirEmpty`
+
+查询目录是否为空；失败时不修改输出。
+
+```c
+bool xrtDirEmpty(cstr sPath, bool* pEmpty);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目录路径 |
+| `pEmpty` | 输出 | 非空 | 接收空判定 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 判定已写出 | — |
+| `false` | 不存在或系统错误 | `*pEmpty` 不变 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 观测](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirEmpty("xrt-dir-tour/single", &bEmpty) || !bEmpty ) {
+```
+
+
+### `xrtDirEnsureEmpty`
+
+确保目录存在且为空：不存在则创建，存在则清空内容但保留目录。
+
+```c
+bool xrtDirEnsureEmpty(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目录路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 目录存在且为空 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 观测](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirEnsureEmpty("xrt-dir-tour/fresh") ) {
+```
+
+
+### `xrtDirClean`
+
+删除目录全部内容但保留目录自身。
+
+```c
+bool xrtDirClean(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目录路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 内容已清空 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 清内容留目录](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirClean(sDeep) ) {
+```
+
+
+### `xrtDirMove`
+
+移动目录；`bReplace` 控制目标已存在目录的替换语义。
+
+```c
+bool xrtDirMove(cstr sSource, cstr sTarget, bool bReplace);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sSource` | 输入 | 非空 | 源目录 |
+| `sTarget` | 输入 | 非空 | 目标路径 |
+| `bReplace` | 输入 | — | 替换已存在目标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已移动 | — |
+| `false` | 目标存在且不替换，或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 移动](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirMove("xrt-dir-tour/single", "xrt-dir-tour/renamed", false) ) {
+```
+
+
+### `xrtDirCopy`
+
+递归复制目录树；`bReplace` 控制目标冲突。
+
+```c
+bool xrtDirCopy(cstr sSource, cstr sTarget, bool bReplace);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sSource` | 输入 | 非空 | 源树 |
+| `sTarget` | 输入 | 非空 | 目标路径 |
+| `bReplace` | 输入 | — | 替换已存在对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 整树已复制 | — |
+| `false` | 冲突或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/tree · 树复制](../../examples/file/tree/main.c) · 观察
+
+```c
+		xrtClose(File) && xrtDirCopy(sSource, sTarget, false) ) {
+```
+
+
+### `xrtDirStats`
+
+统计目录内容：文件数/目录数/字节数；`bRecursive` 控制是否深入子目录。
+
+```c
+bool xrtDirStats(cstr sPath, bool bRecursive, xwalkstats* pStats);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目录路径 |
+| `bRecursive` | 输入 | — | 深入子目录 |
+| `pStats` | 输出 | 非空 | 接收统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 统计已写出 | — |
+| `false` | 不存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 观测](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirStats(sDeep, false, &Stats) || (Stats.Files != 1u) ) {
+```
+
+
+### `xrtDirSize`
+
+统计目录总字节数；`bRecursive` 控制是否深入子目录。
+
+```c
+bool xrtDirSize(cstr sPath, bool bRecursive, uint64* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目录路径 |
+| `bRecursive` | 输入 | — | 深入子目录 |
+| `pSize` | 输出 | 非空 | 接收总字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 总量已写出 | — |
+| `false` | 不存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 观测](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirSize(sDeep, true, &iSize) || (iSize != 7u) ) {
+```
+
+
+### `xrtDirRoots`
+
+查询当前系统可枚举的文件系统根目录。
+
+```c
+bool xrtDirRoots(xdirroots* pRoots);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRoots` | 输出 | 非空 | 接收根列表（`Items`/`Count`） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 列表已写出（用后 `DirRootsFree`） | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/dir_tour · 根列表](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	if ( !xrtDirRoots(&Roots) || (Roots.Count < 1u) ) {
+```
+
+
+### `xrtDirRootsFree`
+
+释放系统根目录列表并清零。
+
+```c
+void xrtDirRootsFree(xdirroots* pRoots);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRoots` | 输入 | 允许空 | `DirRoots` 产物 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 列表已释放 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[file/dir_tour · 根列表](../../examples/file/dir_tour/main.c) · 观察
+
+```c
+	xrtDirRootsFree(&Roots);
+```
+
 
 ## 深度优先遍历
 

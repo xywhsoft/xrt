@@ -22,7 +22,7 @@
 | 15 | environment.md | 4 | **完成** | 4/4 全绿（G3 4 片段，2026-09-07）；Lookup 的"不存在=成功+空输出"语义成文 |
 | 16 | error.md | 45 | **完成** | 45/45 全绿（G3 45 片段，2026-09-07）；错误族 26（含 SetErrorFormat）+ Core 并集附录 19；门禁工具补变参支持 |
 | 17 | executor.md | 10 | **完成** | 10/10 全绿（G3 10 片段，2026-09-07）；双门禁一次全绿 |
-| 18 | file.md | 97 | 进行中 [1/3 段] | 第 1 段 IO/打开/定位/整文件/文本 36/97 全绿（G3 36 片段）；余锁/映射/临时/目录 36 + 遍历/树/链接/FIFO/根 25 |
+| 18 | file.md | 97 | 进行中 [2/3 段] | 73/97 全绿（G3 73 片段）；余第 3 段遍历/树/链接/FIFO/根 24 |
 | 19 | file_async.md | 34 | 待办 |  |
 | 20 | future.md | 104 | 待办 |  |
 | 21 | hash.md | 9 | 待办 |  |
@@ -340,3 +340,14 @@
   写的调用形态（SetSize/ReadAllLimit 实参不同），改为真实源行。
   锚点：io_tour 19 + basic 8 + whole 5 + text 2 + report 2。
   G1/G2 余 61 = 第 2/3 段缺口。array 复验无回归。
+- 2026-09-07 file.md 第 2 段（37 节）完成：锁 4（全文件与
+  Range 双形态，UnlockRange"参数须与加锁逐项一致"+Size 零=
+  到末端含后续增长）+ 映射 5（借用 Data/Size、Flush 提交共享写
+  区间）+ 临时 2（FileTemp 排他创建返拥有路径、DirTemp 同构）+
+  路径元数据 5（PathStat 跟随末级链接开关、SetMode/SetAttributes
+  的平台互补 UNSUPPORTED 语义）+ 目录核心 21（枚举三态
+  ITEM/END/ERROR、EntryPath 拼拥有路径、Clean 清内容留目录 vs
+  EnsureEmpty 建或清 vs RemoveAll 含根删、Roots/RootsFree 配对）。
+  一次生成双门禁全绿（37 片段）。锚点：dir_tour 13 + io_tour 3 +
+  lock/map/temp/dir_temp/link_tour/link/tree/directory。G1/G2
+  余 24 = 第 3 段缺口。array 复验无回归。
