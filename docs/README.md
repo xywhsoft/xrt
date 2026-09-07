@@ -39,3 +39,15 @@
 ## API 与参考资料
 
 `api/` 按模块提供 API 参考；公开头文件是函数签名与编译条件的最终依据。集成第三方代码前，请同时阅读[第三方组件](THIRD_PARTY.md)。发布前的兼容平台、验证方式和 io_uring 特殊限制见[发布支持](RELEASE_STATUS.md)。
+
+### 文档质量工具
+
+修改 `api/*.md` 或公共头后，运行以下工具验证（均已接入 CI）：
+
+```bash
+python tools/check_api_reference_detail.py --all   # G1-G5：签名/覆盖/错误/注册/类型
+python tools/extract_doc_examples.py --all          # G3：范例片段可追溯
+python tools/doc_audit.py --all                    # 12 项深度审计（幽灵/表格/行/标题等）
+```
+
+质量规范见 `dev/DOC_SPEC.md`（v1.4）。
