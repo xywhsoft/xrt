@@ -1,5 +1,5 @@
 ---
-num: 117
+num: 120
 slug: xssh-transport
 title: SSH（一）：传输与包层
 volume: 卷十一 其他扩展库
@@ -74,7 +74,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 （输出 transport-core 结构尺寸与默认最大包长的自检结果）
 ```
 
-**刚才发生了什么。** ① `xrtSshTransportCoreInit(&Core, XSSH_ROLE_CLIENT, 0, NULL, 0)` 在**栈上**初始化客户端角色 core——零参数版本取默认上限；输出 `sizeof(Core)` 与 `Codec.MaxPacketSize`——头注释点明设计声明：“不持有网络和缓冲”。**这个 sizeof 输出本身就是文档**：core 是可预测的栈对象，不是堆怪兽。② `TransportCoreClear` 收尾——core 的清理不涉及任何句柄（它从未打开过任何东西）。③ 同步、事件回调、Future、协程四种客户端驱动**同一个** `Core`——驱动形态是外挂的（第 123 章看到全部四种），状态契约只有一份。配套示例族：`packet_codec`（明文/GCM 双模式）、`packet_aes_gcm`（GCM 状态与四入口）、`packet_random`/`transport_tcp_random`（随机源集成）、`transport_rekey`（rekey 预算路径）、`transport_state`（状态机）。
+**刚才发生了什么。** ① `xrtSshTransportCoreInit(&Core, XSSH_ROLE_CLIENT, 0, NULL, 0)` 在**栈上**初始化客户端角色 core——零参数版本取默认上限；输出 `sizeof(Core)` 与 `Codec.MaxPacketSize`——头注释点明设计声明：“不持有网络和缓冲”。**这个 sizeof 输出本身就是文档**：core 是可预测的栈对象，不是堆怪兽。② `TransportCoreClear` 收尾——core 的清理不涉及任何句柄（它从未打开过任何东西）。③ 同步、事件回调、Future、协程四种客户端驱动**同一个** `Core`——驱动形态是外挂的（第 126 章看到全部四种），状态契约只有一份。配套示例族：`packet_codec`（明文/GCM 双模式）、`packet_aes_gcm`（GCM 状态与四入口）、`packet_random`/`transport_tcp_random`（随机源集成）、`transport_rekey`（rekey 预算路径）、`transport_state`（状态机）。
 
 ## 契约
 

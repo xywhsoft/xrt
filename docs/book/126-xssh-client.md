@@ -1,5 +1,5 @@
 ---
-num: 123
+num: 126
 slug: xssh-client
 title: SSH（七）：客户端运行时
 volume: 卷十一 其他扩展库 · 卷十一收官
@@ -33,13 +33,13 @@ SSH 系列收官——前六章的零件在此总装。`ssh_client` 在**调用�
 
 ### 三个交互点
 
-- **主机信任**：默认**拒绝**——core 的 HostKey 返回 DEFER 后，应用经 `HostKey` 事件拿到决定时机，`xrtSshClientHostKeyAccept/Reject` 回话（第 118/119 章的两步信任在客户端的交互形态——事件不是回调里的同步判断，可以查库、问用户、带外核对后异步决定）。
-- **认证**：provider 返回 NEED_MORE 触发 `Authenticate` 事件——凭据就绪（问了用户/取了 agent）后 `xrtSshClientContinue` 继续（第 120 章方法的异步口）。
-- **Packet 逃生口**：`Packet` 回调在底层读事务提交前执行——未知协议扩展、自定义 channel 类型的完整处理能力（第 122 章转发的解析就挂这里）——**客户端不吞未知消息**。
+- **主机信任**：默认**拒绝**——core 的 HostKey 返回 DEFER 后，应用经 `HostKey` 事件拿到决定时机，`xrtSshClientHostKeyAccept/Reject` 回话（第 121/122 章的两步信任在客户端的交互形态——事件不是回调里的同步判断，可以查库、问用户、带外核对后异步决定）。
+- **认证**：provider 返回 NEED_MORE 触发 `Authenticate` 事件——凭据就绪（问了用户/取了 agent）后 `xrtSshClientContinue` 继续（第 123 章方法的异步口）。
+- **Packet 逃生口**：`Packet` 回调在底层读事务提交前执行——未知协议扩展、自定义 channel 类型的完整处理能力（第 125 章转发的解析就挂这里）——**客户端不吞未知消息**。
 
 ### 数据与控制报文路径
 
-`xrtSshClientSend` 是 payload 快速路径：只增加 SSH packet 编码+一次向 TCP 队列的所有权转移（零中转复制）。`xrtSshClientBuild` 为可变控制报文提供从零增长、可复用、硬上限的连续 scratch（自定义报文的构建缓冲）。标准 DATA/stderr 先进 channel I/O staging、提交后触发 `Data` 事件（应用零复制检查或显式读取）。**全局回复**：`GlobalReplies/ReplyReserve` 的动态有界 FIFO 配 Global 事件（token 关联——第 122 章已见）。
+`xrtSshClientSend` 是 payload 快速路径：只增加 SSH packet 编码+一次向 TCP 队列的所有权转移（零中转复制）。`xrtSshClientBuild` 为可变控制报文提供从零增长、可复用、硬上限的连续 scratch（自定义报文的构建缓冲）。标准 DATA/stderr 先进 channel I/O staging、提交后触发 `Data` 事件（应用零复制检查或显式读取）。**全局回复**：`GlobalReplies/ReplyReserve` 的动态有界 FIFO 配 Global 事件（token 关联——第 125 章已见）。
 
 ### 通道与生命周期收尾
 
@@ -59,7 +59,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 （输出初始状态与通道上限的自检结果）
 ```
 
-**刚才发生了什么。** ① `xrtSshClientConfigInit + xrtSshClientInit(&Client, &Config, NULL, NULL)` 栈上客户端——`xrtSshClientState` 初始态与 `Channels.MaxChannels`（默认 1024）打印。② 头注释即设计宣言："由外部 Engine 和 Stream 驱动，不创建隐藏运行时"——第 117 章 transport core"无缓冲"、第 118 章 KEX"无 socket"、这里"无 Engine"——**七层每层都零隐藏**，总装的透明是零件透明的累积。③ `ClientClear` 收尾——未连接的客户端清理零负担。真实装配（事件表进 NetStreamConnect）在 `client_session`/`client_core` 两示例。
+**刚才发生了什么。** ① `xrtSshClientConfigInit + xrtSshClientInit(&Client, &Config, NULL, NULL)` 栈上客户端——`xrtSshClientState` 初始态与 `Channels.MaxChannels`（默认 1024）打印。② 头注释即设计宣言："由外部 Engine 和 Stream 驱动，不创建隐藏运行时"——第 120 章 transport core"无缓冲"、第 121 章 KEX"无 socket"、这里"无 Engine"——**七层每层都零隐藏**，总装的透明是零件透明的累积。③ `ClientClear` 收尾——未连接的客户端清理零负担。真实装配（事件表进 NetStreamConnect）在 `client_session`/`client_core` 两示例。
 
 ### 第二个完整程序：Dial 便利层配置
 
@@ -138,7 +138,7 @@ on_host_key(...) {
 
 症状：万级并发目标下 1024 通道上限悄悄拦截——一半连接建不了新通道；或反向，嵌入式目标没调小预算内存吃紧。
 
-原因：`Channels.MaxChannels` 等默认是通用值（第 121 章集合契约"按负载调，不能依赖无限增长"）——部署参数不是库的私事。
+原因：`Channels.MaxChannels` 等默认是通用值（第 124 章集合契约"按负载调，不能依赖无限增长"）——部署参数不是库的私事。
 
 ```c bad
 xrtSshClientConfigInit(&Config);   /* 全默认上生产 */

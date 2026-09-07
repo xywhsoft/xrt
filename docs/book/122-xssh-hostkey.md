@@ -1,5 +1,5 @@
 ---
-num: 119
+num: 122
 slug: xssh-hostkey
 title: SSH（三）：主机密钥与 known_hosts
 volume: 卷十一 其他扩展库
@@ -10,7 +10,7 @@ api: xssh-ssh_hostkey, xssh-ssh_known_host_db, xssh-ssh_fingerprint
 
 ## 导读
 
-第 118 章的 VERIFY_HOST_KEY 事件把信任判断交给了应用——本章是判断的全部工具。**格式层**（`ssh_hostkey`）：通用公钥/签名的编解码（算法名 + 原始参数视图——新增算法不改公共前缀解析器）与 `ssh-ed25519` 固定格式；**验证层**（`ssh_hostkey_ed25519`）：签名验证的密码实现；**指纹**（`ssh_fingerprint`）：主机密钥的 SHA-256 指纹——"人比对密钥"的形态；**信任库**（`ssh_known_host`/`_db`/`_hash`）：known_hosts 格式的解析/匹配/写入、多信任态（MATCH/NEW/CHANGED/REVOKED/CERT——变更即改密警报）与哈希主机名（隐私形态）。known_hosts 是 SSH 信任模型的核心文件——"第一次记下、以后比对、变了就喊"的 TOFU 完整实现。
+第 121 章的 VERIFY_HOST_KEY 事件把信任判断交给了应用——本章是判断的全部工具。**格式层**（`ssh_hostkey`）：通用公钥/签名的编解码（算法名 + 原始参数视图——新增算法不改公共前缀解析器）与 `ssh-ed25519` 固定格式；**验证层**（`ssh_hostkey_ed25519`）：签名验证的密码实现；**指纹**（`ssh_fingerprint`）：主机密钥的 SHA-256 指纹——"人比对密钥"的形态；**信任库**（`ssh_known_host`/`_db`/`_hash`）：known_hosts 格式的解析/匹配/写入、多信任态（MATCH/NEW/CHANGED/REVOKED/CERT——变更即改密警报）与哈希主机名（隐私形态）。known_hosts 是 SSH 信任模型的核心文件——"第一次记下、以后比对、变了就喊"的 TOFU 完整实现。
 
 ## 引入
 
@@ -43,7 +43,7 @@ api: xssh-ssh_hostkey, xssh-ssh_known_host_db, xssh-ssh_fingerprint
 
 ### 信任决策的组装
 
-把本章工具接到第 118 章事件上：`HostKeyAccept` 前查库——MATCH 放行；NEW 按策略（交互问询/带外核对指纹后记录/配置白名单）；CONFLICT 拒绝并告警。指纹在 NEW/CHANGED 两态都打出来——前者供核对、后者供报告。这个组装在第 123 章客户端运行时里有标准形态。
+把本章工具接到第 121 章事件上：`HostKeyAccept` 前查库——MATCH 放行；NEW 按策略（交互问询/带外核对指纹后记录/配置白名单）；CONFLICT 拒绝并告警。指纹在 NEW/CHANGED 两态都打出来——前者供核对、后者供报告。这个组装在第 126 章客户端运行时里有标准形态。
 
 ## 示例
 
@@ -73,7 +73,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 （输出 trust=MATCH 与记录行号的自检结果）
 ```
 
-**刚才发生了什么。** ① 查询入参：主机名列表（一行可记多个主机）、端口、密钥视图——`Check.Trust` 输出三态、`Check.Entry.LineNumber` 指向命中行（告警/删除的定位信息）。② 本例命中 MATCH（trust=1）+ 行号——放行路径的形态；CONFLICT/UNKNOWN 在测试向量里覆盖（`known_host`/`known_host_hash` 两示例分别验单行匹配与哈希主机名匹配）。③ 多态的调用方分支就是第 118 章事件处理的实体：MATCH→Accept、NEW→策略、CHANGED→Fail+告警（附指纹与行号）。
+**刚才发生了什么。** ① 查询入参：主机名列表（一行可记多个主机）、端口、密钥视图——`Check.Trust` 输出三态、`Check.Entry.LineNumber` 指向命中行（告警/删除的定位信息）。② 本例命中 MATCH（trust=1）+ 行号——放行路径的形态；CONFLICT/UNKNOWN 在测试向量里覆盖（`known_host`/`known_host_hash` 两示例分别验单行匹配与哈希主机名匹配）。③ 多态的调用方分支就是第 121 章事件处理的实体：MATCH→Accept、NEW→策略、CHANGED→Fail+告警（附指纹与行号）。
 
 ### 与 TLS 证书体系的对照（设计观察）
 
@@ -157,7 +157,7 @@ save_hashed_line(Host, Key);   /* |1|salt|hash ssh-ed25519 AAAA... */
 
 ### 进阶：TOFU 交互客户端片段
 
-实现 `verify_host(主机, 密钥, 库)`：查库→分态（MATCH 静默放行/NEW 打指纹问询/CHANGED 告警拒绝）——接第 118 章事件。验收标准：三路径行为正确；指纹输出含算法前缀（SHA256: 形态）。
+实现 `verify_host(主机, 密钥, 库)`：查库→分态（MATCH 静默放行/NEW 打指纹问询/CHANGED 告警拒绝）——接第 121 章事件。验收标准：三路径行为正确；指纹输出含算法前缀（SHA256: 形态）。
 
 ### 挑战：密钥轮换流程
 

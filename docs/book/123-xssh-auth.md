@@ -1,5 +1,5 @@
 ---
-num: 120
+num: 123
 slug: xssh-auth
 title: SSH（四）：认证
 volume: 卷十一 其他扩展库
@@ -10,7 +10,7 @@ api: xssh-ssh_auth_session, xssh-ssh_auth_publickey, xssh-ssh_auth_keyboard
 
 ## 导读
 
-KEX 之后连接是加密的，但你还没证明身份。SSH 认证（RFC 4252）的形态是**方法菜单**：客户端逐个试服务端允许的方法——password（用户名口令）、publickey（私钥签名——免签名 probe 是它的精华）、keyboard-interactive（多轮挑战——OTP/PAM 的载体）、hostbased（主机担保）。xssh 的分层：**方法模块**（password/publickey/keyboard/hostkey 四份契约卡——只管各自 payload 的构建与解析，不存凭据不管轮次）在**公共消息层**（`ssh_auth_message`——USERAUTH_REQUEST/FAILURE/SUCCESS/BANNER 的编解码）之上；**会话编排**（`ssh_auth_session`——service 请求、阶段校验、预算、方向一致性）把它们与 transport core（第 117 章）缝合；**预算层**（`ssh_auth_guard`——纯资源预算，共享于客户端服务端）限尝试数/轮次/字节/时间。未知方法消息（60..79）统一透传——**新认证方法直接组合现有会话**、不改状态机。
+KEX 之后连接是加密的，但你还没证明身份。SSH 认证（RFC 4252）的形态是**方法菜单**：客户端逐个试服务端允许的方法——password（用户名口令）、publickey（私钥签名——免签名 probe 是它的精华）、keyboard-interactive（多轮挑战——OTP/PAM 的载体）、hostbased（主机担保）。xssh 的分层：**方法模块**（password/publickey/keyboard/hostkey 四份契约卡——只管各自 payload 的构建与解析，不存凭据不管轮次）在**公共消息层**（`ssh_auth_message`——USERAUTH_REQUEST/FAILURE/SUCCESS/BANNER 的编解码）之上；**会话编排**（`ssh_auth_session`——service 请求、阶段校验、预算、方向一致性）把它们与 transport core（第 120 章）缝合；**预算层**（`ssh_auth_guard`——纯资源预算，共享于客户端服务端）限尝试数/轮次/字节/时间。未知方法消息（60..79）统一透传——**新认证方法直接组合现有会话**、不改状态机。
 
 ## 引入
 
@@ -61,7 +61,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 （输出 algorithm=ssh-ed25519 与报文尺寸的自检结果）
 ```
 
-**刚才发生了什么。** ① 第 119 章 `hostkey` 示例产的公钥 blob 在这里成为认证材料——**同一份编码贯穿握手（K_S）、存储（known_hosts）、认证（publickey blob）**，xssh 的格式层复用形态。② `xrtSshAuthPublicKeyWrite` 构建免签名 probe——打印的 algorithm 与 bytes 是"这个密钥能不能用"的问询报文。③ 真实序列（probe→PK_OK→SignData→signer→signed request）的每一步都是独立入口——外部 signer 在 SignData 与 signed 之间插入（HSM/agent 的插槽）。配套：`auth_password`（口令报文）、`auth_keyboard`（挑战/响应的迭代接口）、`auth_hostbased`（主机担保形态）、`auth_message`（公共层）、`auth_guard`（预算四线）。
+**刚才发生了什么。** ① 第 122 章 `hostkey` 示例产的公钥 blob 在这里成为认证材料——**同一份编码贯穿握手（K_S）、存储（known_hosts）、认证（publickey blob）**，xssh 的格式层复用形态。② `xrtSshAuthPublicKeyWrite` 构建免签名 probe——打印的 algorithm 与 bytes 是"这个密钥能不能用"的问询报文。③ 真实序列（probe→PK_OK→SignData→signer→signed request）的每一步都是独立入口——外部 signer 在 SignData 与 signed 之间插入（HSM/agent 的插槽）。配套：`auth_password`（口令报文）、`auth_keyboard`（挑战/响应的迭代接口）、`auth_hostbased`（主机担保形态）、`auth_message`（公共层）、`auth_guard`（预算四线）。
 
 ### 第二个完整程序：会话起点与 service 请求
 
@@ -75,7 +75,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 （输出会话结构尺寸、service 请求报文尺寸与初始事件的自检结果）
 ```
 
-**刚才发生了什么。** ① `xrtSshAuthSessionInit(&Session, XSSH_ROLE_CLIENT)` 栈上会话——sizeof 输出（与 117/118 章同款零负担声明）。② `xrtSshServiceRequestWrite` 写 `ssh-userauth` service 请求——**认证的第一条报文**（先声明用哪个 service 再谈方法）；`Writer.Size` 是报文尺寸。③ `xrtSshAuthSessionEvent` 查当前主事件——会话是**事件驱动**的（当前该发什么/等什么），驱动层按事件分派方法模块——第 123 章运行时就是这个分派的完整形态。④ Begin 的前置：**只接受已完成首轮 KEX 的同角色 transport**——分层时序的强制的（没加密谈什么认证）。
+**刚才发生了什么。** ① `xrtSshAuthSessionInit(&Session, XSSH_ROLE_CLIENT)` 栈上会话——sizeof 输出（与 117/118 章同款零负担声明）。② `xrtSshServiceRequestWrite` 写 `ssh-userauth` service 请求——**认证的第一条报文**（先声明用哪个 service 再谈方法）；`Writer.Size` 是报文尺寸。③ `xrtSshAuthSessionEvent` 查当前主事件——会话是**事件驱动**的（当前该发什么/等什么），驱动层按事件分派方法模块——第 126 章运行时就是这个分派的完整形态。④ Begin 的前置：**只接受已完成首轮 KEX 的同角色 transport**——分层时序的强制的（没加密谈什么认证）。
 
 ## 契约
 

@@ -1,5 +1,5 @@
 ---
-num: 121
+num: 124
 slug: xssh-channel
 title: SSH（五）：通道与窗口
 volume: 卷十一 其他扩展库
@@ -10,7 +10,7 @@ api: xssh-ssh_channel_core, xssh-ssh_channel_window, xssh-ssh_channels
 
 ## 导读
 
-认证（第 120 章）之后连接是"你的"了——而 SSH 的强大之处在于一条连接上开**多条通道**（channel）：session（shell/exec/sftp）、direct-tcpip（第 122 章转发的基础）、自定义类型。本章讲数据面三件套：**窗口**（`ssh_channel_window`：RFC 4254 双向流控——远端窗口+max-packet 限发送、本地窗口按消费返还，无分配无网络所有权）；**通道核心**（`ssh_channel_core`：open/confirm/failure、EOF/CLOSE 状态、数据提交与窗口事务——不拥有缓冲不碰 transport，可放数组/哈希按 recipient O(1) 路由）；**通道集合**（`ssh_channels`：动态所有权层——按需创建节点、稳定地址、硬上限，无固定数组零空闲成本）。窗口机制是 SSH 版的"背压"——与第 67 章写预算、第 95 章流控同一家族，但双向且各通道独立。
+认证（第 123 章）之后连接是"你的"了——而 SSH 的强大之处在于一条连接上开**多条通道**（channel）：session（shell/exec/sftp）、direct-tcpip（第 125 章转发的基础）、自定义类型。本章讲数据面三件套：**窗口**（`ssh_channel_window`：RFC 4254 双向流控——远端窗口+max-packet 限发送、本地窗口按消费返还，无分配无网络所有权）；**通道核心**（`ssh_channel_core`：open/confirm/failure、EOF/CLOSE 状态、数据提交与窗口事务——不拥有缓冲不碰 transport，可放数组/哈希按 recipient O(1) 路由）；**通道集合**（`ssh_channels`：动态所有权层——按需创建节点、稳定地址、硬上限，无固定数组零空闲成本）。窗口机制是 SSH 版的"背压"——与第 67 章写预算、第 95 章流控同一家族，但双向且各通道独立。
 
 ## 引入
 

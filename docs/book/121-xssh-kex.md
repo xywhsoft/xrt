@@ -1,5 +1,5 @@
 ---
-num: 118
+num: 121
 slug: xssh-kex
 title: SSH（二）：密钥交换
 volume: 卷十一 其他扩展库
@@ -10,11 +10,11 @@ api: xssh-ssh_kex_session, xssh-ssh_kex_exchange, xssh-ssh_kexinit
 
 ## 导读
 
-传输层（第 117 章）提供了加密的包管道，但密钥从哪来？**KEX（密钥交换）**回答这个问题——它是 SSH 版的"TLS 握手"（第 83 章），但形态更分步。`ssh_kex_session` 把双方 KEXINIT、Curve25519、SHA-256 exchange hash、Ed25519 主机签名验证、A-D 密钥派生与 NEWKEYS 方向切换组合成**确定性状态机**——不创建 socket/Engine/任务/等待对象，不保存 KEXINIT 大缓冲。底层拆成四层独立模块：ECDH 报文（消息号+SSH string 的编解码）、SHA-256 transcript（流式 exchange hash 与 A-F 密钥扩展）、Curve25519 原语（纯数学、无随机依赖）、安全随机密钥对（独立裁剪层）。学完本章你读得懂一次真实 SSH 握手的每条报文。
+传输层（第 120 章）提供了加密的包管道，但密钥从哪来？**KEX（密钥交换）**回答这个问题——它是 SSH 版的"TLS 握手"（第 83 章），但形态更分步。`ssh_kex_session` 把双方 KEXINIT、Curve25519、SHA-256 exchange hash、Ed25519 主机签名验证、A-D 密钥派生与 NEWKEYS 方向切换组合成**确定性状态机**——不创建 socket/Engine/任务/等待对象，不保存 KEXINIT 大缓冲。底层拆成四层独立模块：ECDH 报文（消息号+SSH string 的编解码）、SHA-256 transcript（流式 exchange hash 与 A-F 密钥扩展）、Curve25519 原语（纯数学、无随机依赖）、安全随机密钥对（独立裁剪层）。学完本章你读得懂一次真实 SSH 握手的每条报文。
 
 ## 引入
 
-SSH 握手与 TLS 1.3 的同与异。**同**：ECDHE（x25519 曲线）+ transcript 哈希 + 派生链 +Finished/NEWKEYS 切换——第 83 章的"密钥从 transcript 派生、篡改任何消息全变"思想一致。**异**：SSH 的主机签名验证与密钥信任是**两步**——KEX 会话先做密码学验签（这个签名真的是这个主机密钥签的吗），然后发 `VERIFY_HOST_KEY` 事件让**应用**做信任判断（这个主机密钥是我认识的吗——known_hosts，第 119 章）；TLS 把两步捏在证书验证里。这个分步让 SSH 可以无证书体系运行——信任来自"你第一次连时记下了这个密钥"（TOFU）或预先分发。
+SSH 握手与 TLS 1.3 的同与异。**同**：ECDHE（x25519 曲线）+ transcript 哈希 + 派生链 +Finished/NEWKEYS 切换——第 83 章的"密钥从 transcript 派生、篡改任何消息全变"思想一致。**异**：SSH 的主机签名验证与密钥信任是**两步**——KEX 会话先做密码学验签（这个签名真的是这个主机密钥签的吗），然后发 `VERIFY_HOST_KEY` 事件让**应用**做信任判断（这个主机密钥是我认识的吗——known_hosts，第 122 章）；TLS 把两步捏在证书验证里。这个分步让 SSH 可以无证书体系运行——信任来自"你第一次连时记下了这个密钥"（TOFU）或预先分发。
 
 分步还有第三个受益者：**测试与专用设备**。`xrtSshKexSessionBeginWithPrivate` 显式注入临时私钥——确定性核心可测；随机便利层 `Begin` 独立成模块（只额外引入系统安全随机源）——标准向量测试、专用密钥设备不必拖随机依赖。这是"确定性核心+便利层分离"在 KEX 的贯彻。
 
@@ -44,7 +44,7 @@ SSH 握手与 TLS 1.3 的同与异。**同**：ECDHE（x25519 曲线）+ transcr
 
 ### 事务与方向切换
 
-与 transport core 同款的事务纪律：ECDH_INIT/ECDH_REPLY/NEWKEYS 都先 `Prepare`——transport core 可靠提交包后再 `WriteCommit`（取消则 `WriteAbort`）；接收先 core 认证、再 `ReadPrepare`、按相同顺序提交 core 与 session；`ReadAbort` **终止会话**（已认证输入不可回滚——第 117 章 ReadAbort 关 core 的会话层呼应）。**密钥切换方向独立**：本端 NEWKEYS 提交后 `ActivateWrite`（写向切换）、对端认证后 `ActivateRead`——函数按角色选 C2S/S2C 材料，**core 接管后清除会话中的密钥副本**（最小驻留——第 76 章纪律）。Transcript 四段视图须本轮 KEX 内有效——要脱离网络输入生命周期先用 `KexTranscriptMeasure/Write` 精确复制。
+与 transport core 同款的事务纪律：ECDH_INIT/ECDH_REPLY/NEWKEYS 都先 `Prepare`——transport core 可靠提交包后再 `WriteCommit`（取消则 `WriteAbort`）；接收先 core 认证、再 `ReadPrepare`、按相同顺序提交 core 与 session；`ReadAbort` **终止会话**（已认证输入不可回滚——第 120 章 ReadAbort 关 core 的会话层呼应）。**密钥切换方向独立**：本端 NEWKEYS 提交后 `ActivateWrite`（写向切换）、对端认证后 `ActivateRead`——函数按角色选 C2S/S2C 材料，**core 接管后清除会话中的密钥副本**（最小驻留——第 76 章纪律）。Transcript 四段视图须本轮 KEX 内有效——要脱离网络输入生命周期先用 `KexTranscriptMeasure/Write` 精确复制。
 
 ## 示例
 
@@ -60,7 +60,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 （输出 KEX 会话结构尺寸的自检结果）
 ```
 
-**刚才发生了什么。** ① `xrtSshKexSessionInit(&Session, XSSH_ROLE_CLIENT)` 栈上建客户端会话——与第 117 章 transport core 同款声明：sizeof 输出即"这不是堆怪兽"的文档。② 头注释点明："不创建网络、任务或大块固定缓冲"——KEX 的全部状态（协商结果、transcript 上下文、派生中间量）都在这个栈对象里。③ 真实驱动序列（Begin→两份 KEXINIT→ECDH 往返→主机验证事件→NEWKEYS→双 Activate）由上层客户端组装——第 123 章的运行时把这串状态机接到 socket；本示例确认的是"零件本身可预测"。
+**刚才发生了什么。** ① `xrtSshKexSessionInit(&Session, XSSH_ROLE_CLIENT)` 栈上建客户端会话——与第 120 章 transport core 同款声明：sizeof 输出即"这不是堆怪兽"的文档。② 头注释点明："不创建网络、任务或大块固定缓冲"——KEX 的全部状态（协商结果、transcript 上下文、派生中间量）都在这个栈对象里。③ 真实驱动序列（Begin→两份 KEXINIT→ECDH 往返→主机验证事件→NEWKEYS→双 Activate）由上层客户端组装——第 126 章的运行时把这串状态机接到 socket；本示例确认的是"零件本身可预测"。
 
 ### 第二个完整程序：KEXINIT 的构建
 
@@ -105,7 +105,7 @@ case XSSH_KEX_EVENT_VERIFY_HOST_KEY:
 
 ```c good
 case XSSH_KEX_EVENT_VERIFY_HOST_KEY:
-	if ( known_hosts_check(Host) == TRUST ) {   /* 第 119 章的判断 */
+	if ( known_hosts_check(Host) == TRUST ) {   /* 第 122 章的判断 */
 		xrtSshKexSessionHostKeyAccept(&Session);
 	} else {
 		xrtSshKexSessionFail(&Session, REJECT);
@@ -156,7 +156,7 @@ xrtSecureZero(Private, sizeof(Private));
 
 ### 挑战：rekey 循环
 
-完成首轮后触发 rekey（第 117 章 rekey 预算）：新 KEXINIT→新 ECDH→双 Activate——连续三轮。验收标准：每轮密钥都变化（派生输出对比）；旧密钥副本每轮被清（内存扫描验证）；transcript 每轮独立。
+完成首轮后触发 rekey（第 120 章 rekey 预算）：新 KEXINIT→新 ECDH→双 Activate——连续三轮。验收标准：每轮密钥都变化（派生输出对比）；旧密钥副本每轮被清（内存扫描验证）；transcript 每轮独立。
 
 ## 速查
 

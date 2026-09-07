@@ -38,7 +38,7 @@ easy 层（第 97 章）折叠了什么？本章展开给你看。**请求构建
 
 ### 诊断快照：Info 的全部字段
 
-`xhttpcallresult.Info`（完成回调携带，也可任意线程复制运行中快照）：`State`（排队/执行/**不可变终态**——终态发布后所有字段冻结，迟到的取消改写不了已发布结果）、`Phase`（实际结束阶段保留）、微秒时间戳（`TransportReady`/`RequestSent`/`FirstByte`/`Headers`——单调时钟，未到为零）、字节统计（`RequestWireBytes`/`ResponseWireBytes` **累计整条重定向链**；`ResponseBodyBytes` 是最终交付正文——自动解压时记明文）、`ReusedConnection`（任一跳复用过）、`Secure`（当前/最终跳加密）。这套字段就是"慢在哪一跳"的体检表——第 129 章性能分析会回来用它。
+`xhttpcallresult.Info`（完成回调携带，也可任意线程复制运行中快照）：`State`（排队/执行/**不可变终态**——终态发布后所有字段冻结，迟到的取消改写不了已发布结果）、`Phase`（实际结束阶段保留）、微秒时间戳（`TransportReady`/`RequestSent`/`FirstByte`/`Headers`——单调时钟，未到为零）、字节统计（`RequestWireBytes`/`ResponseWireBytes` **累计整条重定向链**；`ResponseBodyBytes` 是最终交付正文——自动解压时记明文）、`ReusedConnection`（任一跳复用过）、`Secure`（当前/最终跳加密）。这套字段就是"慢在哪一跳"的体检表——第 132 章性能分析会回来用它。
 
 ### 连接池：origin 分片与公平等待
 
