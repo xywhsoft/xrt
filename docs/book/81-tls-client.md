@@ -58,7 +58,7 @@ READY 后的 `xtlsstream` 是一条加密的双向流，API 面与第 66 章 TCP
 
 ### 第一个完整程序：回调式 HTTPS 拨号全链路
 
-下面的程序来自 `examples/tls/dial/main.c`——系统信任库 + 主机名验证 + 托管拨号 + 认证关闭，裸内核层的完整范本（真实业务建议直接用第 94 章的 xhttp）：
+下面的程序来自 `examples/tls/dial/main.c`——系统信任库 + 主机名验证 + 托管拨号 + 认证关闭，裸内核层的完整范本（真实业务建议直接用第 95 章的 xhttp）：
 
 ```embed path="examples/tls/dial/main.c" title="examples/tls/dial/main.c"
 ```
