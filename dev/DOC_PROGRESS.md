@@ -39,7 +39,7 @@
 | 32 | io.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；Reader/LineReader/Writer 三族；全库自动锚点一次生成 |
 | 33 | json.md | 30 | **完成** | 30/30 全绿（G3 30 片段，2026-09-07）；读取/写入器/序列化/文件四族 |
 | 34 | list.md | 28 | **完成** | 28/28 全绿（G3 28 片段，2026-09-07）；侵入式双向链表全接口 |
-| 35 | logger.md | 76 | 待办 |  |
+| 35 | logger.md | 76 | **完成** | 76/76 全绿（G3 76 片段，2026-09-07）；13 功能组全覆盖；错误语义逐条对照源码（Attach 重复=XERR_EXISTS、xlogresult 四值口径、Async/Ring 目标引用与后台错误新引用）；ring_async 范例补注册 |
 | 36 | map.md | 62 | **完成** | 62/62 全绿（G3 62 片段，2026-09-07）；字节键 Map 31 + 整数键 IntMap 31 双形态 |
 | 37 | math.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；math/tour 补注册 |
 | 38 | memory.md | 44 | 待办 |  |
@@ -559,3 +559,14 @@
   八个 80+ 大文件，其中 net-dns/net-resolver 与已完成
   net.md 存在共享头并集（同 error.md 模式可节复用），
   tls/x509/websocket 为全新领域，需按大文件拆段节奏推进。
+- 2026-09-07 logger.md 全文件达成（76/76，G3 76 片段全绿，13 功能组）：
+  签名逐字取自 include/xrt/logger.h（生成器直读头文件，杜绝臆测）；
+  错误语义逐条对照 src/logging 源码——Attach 重复附加 = XERR_EXISTS、
+  Detach 未附加不设错、xlogresult 四值口径（WRITTEN/SKIPPED/DROPPED/
+  ERROR）逐函数成表、Async/Ring 的 pConfig 允许空（源码确认默认配置
+  回退）、LastError 族返回新引用（xrtErrorFree 释放）、File 族类型
+  不匹配返回 NULL/false 且不设错。范例锚点覆盖 13 个目录全链路
+  （core/sink_tour/logger_tour/printf/console/file 族/format 族/
+  async/ring_async）。manifest 补注册 #8：examples/logging/ring_async
+  （Ring 6 函数唯一锚点源，G4 拦截后定点挂载 logger_ring）。
+  完成 API 1515→1591/3664（43.4%），38/79 文件。

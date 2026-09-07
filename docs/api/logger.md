@@ -217,3 +217,2946 @@ Logger、Sink、阈值、统计、附加、移除、提交和 Flush 都可并发
 ## 默认 Logger
 
 `xrtLogSetDefault` 保存引用，`xrtLogDefault` 返回新引用。核心不会自动创建默认 Logger，也不会为默认 Logger 隐式附加 Sink。
+
+
+## 级别、记录与字段
+
+### `xrtLogLevelName`
+
+返回日志级别的稳定英文名称，供格式化和诊断输出使用。
+
+```c
+cstr xrtLogLevelName(xloglevel Level)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Level` | 输入 | — | 待命名的日志级别 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 静态英文名称（`"TRACE"` … `"OFF"`） | — |
+| `""` | 级别非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 级别不在 `XLOG_TRACE` … `XLOG_OFF` 枚举范围内
+
+#### 范例
+
+[core](../../examples/logging/core/main.c) · 级别名称
+
+```c
+		xrtLogLevelName(pRecord->Level),
+```
+
+
+### `xrtLogRecordValidate`
+
+校验记录的级别、全部视图、字段范围和字段类型；所有提交入口内部先执行同一校验。
+
+```c
+bool xrtLogRecordValidate(const xlogrecord* pRecord)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRecord` | 输入 | 非空 | 待校验的记录 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 记录合法，可提交 | — |
+| `false` | 非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 提交前校验
+
+```c
+			xrtLogRecordValidate(&(xlogrecord){ 0 }) ? 1 : 0);
+```
+
+
+### `xrtLogFieldNull`
+
+构造显式 NULL 语义的字段；字段借用名称，不拥有任何数据。
+
+```c
+xlogfield xrtLogFieldNull(xstrview Name)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字段值 | 按值返回的借用字段 | — |
+
+#### 错误
+
+- 无 — 本函数不设置错误
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 空值字段
+
+```c
+		Fields[i++] = xrtLogFieldNull(SV("n"));
+```
+
+
+### `xrtLogFieldBool`
+
+构造布尔字段。
+
+```c
+xlogfield xrtLogFieldBool(xstrview Name, bool bValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名视图 |
+| `bValue` | 输入 | — | 布尔值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字段值 | 按值返回的借用字段 | — |
+
+#### 错误
+
+- 无 — 本函数不设置错误
+
+#### 范例
+
+[json](../../examples/logging/json/main.c) · 布尔字段
+
+```c
+	Fields[1] = xrtLogFieldBool(XRT_STR_LITERAL("cached"), false);
+```
+
+
+### `xrtLogFieldInt`
+
+构造 int64 字段。
+
+```c
+xlogfield xrtLogFieldInt(xstrview Name, int64 iValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名视图 |
+| `iValue` | 输入 | — | 整数值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字段值 | 按值返回的借用字段 | — |
+
+#### 错误
+
+- 无 — 本函数不设置错误
+
+#### 范例
+
+[core](../../examples/logging/core/main.c) · 整数字段
+
+```c
+	Field = xrtLogFieldInt(XRT_STR_LITERAL("request_id"), 42);
+```
+
+
+### `xrtLogFieldUInt`
+
+构造 uint64 字段。
+
+```c
+xlogfield xrtLogFieldUInt(xstrview Name, uint64 iValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名视图 |
+| `iValue` | 输入 | — | 无符号值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字段值 | 按值返回的借用字段 | — |
+
+#### 错误
+
+- 无 — 本函数不设置错误
+
+#### 范例
+
+[file_json](../../examples/logging/file_json/main.c) · 无符号字段
+
+```c
+	Field = xrtLogFieldUInt(XRT_STR_LITERAL("request_id"), 42u);
+```
+
+
+### `xrtLogFieldFloat`
+
+构造 double 字段。
+
+```c
+xlogfield xrtLogFieldFloat(xstrview Name, double fValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名视图 |
+| `fValue` | 输入 | — | 浮点值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字段值 | 按值返回的借用字段 | — |
+
+#### 错误
+
+- 无 — 本函数不设置错误
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 浮点字段
+
+```c
+		Fields[i++] = xrtLogFieldFloat(SV("f"), 1.5);
+```
+
+
+### `xrtLogFieldString`
+
+构造字符串字段；值视图与字段名一样只在提交调用期间有效。
+
+```c
+xlogfield xrtLogFieldString(xstrview Name, xstrview Value)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名视图 |
+| `Value` | 输入 | 借用 | 字符串值视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字段值 | 按值返回的借用字段 | — |
+
+#### 错误
+
+- 无 — 本函数不设置错误
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 字符串字段
+
+```c
+		Fields[i++] = xrtLogFieldString(SV("s"), SV("val"));
+```
+
+
+### `xrtLogFieldTime`
+
+构造 Unix Epoch 微秒时间字段。
+
+```c
+xlogfield xrtLogFieldTime(xstrview Name, xtime iValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名视图 |
+| `iValue` | 输入 | — | Unix Epoch 微秒 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字段值 | 按值返回的借用字段 | — |
+
+#### 错误
+
+- 无 — 本函数不设置错误
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 时间字段
+
+```c
+		Fields[i++] = xrtLogFieldTime(SV("t"), xrtNow());
+```
+
+
+### `xrtLogFieldError`
+
+构造借用结构化错误的字段；异步层复制时会增加错误引用。
+
+```c
+xlogfield xrtLogFieldError(xstrview Name, const xerror* pError)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名视图 |
+| `pError` | 输入 | 借用 | 不可变错误对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 字段值 | 按值返回的借用字段 | — |
+
+#### 错误
+
+- 无 — 本函数不设置错误
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 错误字段
+
+```c
+		Fields[i++] = xrtLogFieldError(SV("e"), NULL);
+```
+
+
+## Logger 生命周期
+
+### `xrtLogCreate`
+
+创建同步 Logger；名称被复制到对象内部，初始没有 Sink。
+
+```c
+xlogger* xrtLogCreate(xstrview Name, xloglevel Level)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 非空视图 | Logger 名称 |
+| `Level` | 输入 | 合法级别 | 初始过滤阈值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Logger（引用 1） | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_OVERFLOW` — 名称长度引起尺寸溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[core](../../examples/logging/core/main.c) · 创建与最小用法
+
+```c
+	pLogger = xrtLogCreate(XRT_STR_LITERAL("example"), XLOG_DEBUG);
+```
+
+
+### `xrtLogRef`
+
+增加 Logger 引用并返回原指针。
+
+```c
+xlogger* xrtLogRef(xlogger* pLogger)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法或引用已失效 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 引用计数已失效
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 共享引用
+
+```c
+		xlogger* pRef = xrtLogRef(pLogger);
+```
+
+
+### `xrtLogFree`
+
+释放 Logger 引用；空指针不执行操作，归零时释放最终 Sink 快照。
+
+```c
+void xrtLogFree(xlogger* pLogger)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[core](../../examples/logging/core/main.c) · 释放
+
+```c
+		xrtLogFree(pLogger);
+```
+
+
+### `xrtLogName`
+
+返回 Logger 生命周期内稳定的借用名称。
+
+```c
+xstrview xrtLogName(const xlogger* pLogger)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空视图 | 借用名称 | — |
+| 空视图 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 名称查询
+
+```c
+			(int)xrtLogName(pDefault).Size, xrtLogName(pDefault).Data);
+```
+
+
+### `xrtLogLevel`
+
+并发读取 Logger 当前过滤阈值。
+
+```c
+xloglevel xrtLogLevel(const xlogger* pLogger)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 当前阈值 | `XLOG_TRACE` … `XLOG_OFF` | — |
+| `XLOG_OFF` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 阈值读取
+
+```c
+		printf(" level=%d", (int)xrtLogLevel(pDefault));
+```
+
+
+### `xrtLogSetLevel`
+
+原子调整 Logger 过滤阈值，立即对后续提交生效。
+
+```c
+bool xrtLogSetLevel(xlogger* pLogger, xloglevel Level)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 新阈值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已更新 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 阈值调整
+
+```c
+	printf("set-level=%d", xrtLogSetLevel(pLogger, XLOG_WARN) ? 1 : 0);
+```
+
+
+### `xrtLogDefault`
+
+返回进程默认 Logger 的新引用；核心不会自动创建默认 Logger。
+
+```c
+xlogger* xrtLogDefault(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 默认 Logger 新引用，用后 `xrtLogFree` | — |
+| `NULL` | 尚未设置默认 | 不设错 |
+
+#### 错误
+
+- 无错误 — 未设置默认 Logger 时返回 `NULL` 且不设置错误
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 进程默认 Logger
+
+```c
+		xlogger* pDefault = xrtLogDefault();
+```
+
+
+### `xrtLogSetDefault`
+
+原子替换进程默认 Logger；保存新引用并释放旧引用，空指针用于清除。
+
+```c
+bool xrtLogSetDefault(xlogger* pLogger)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 允许空 | 新默认；空 = 清除 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已替换或已清除 | — |
+| `false` | 引用失败 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 对目标 Logger 增加引用失败；空指针清除不失败
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 替换默认 Logger
+
+```c
+		xrtLogSetDefault(pLogger) ? "ok" : "fail");
+```
+
+
+## Sink 生命周期与直连
+
+### `xrtLogSinkCreate`
+
+创建可被多个 Logger 和包装 Sink 共享的自定义 Sink；成功后 `UserData` 生命周期交给 Sink。
+
+```c
+xlogsink* xrtLogSinkCreate(const xlogsinkconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空且 `Write` 非空 | 操作表与上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Sink（引用 1） | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 内部结构分配失败
+
+#### 范例
+
+[async](../../examples/logging/async/main.c) · 自定义 Sink
+
+```c
+	pTarget = xrtLogSinkCreate(&TargetConfig);
+```
+
+
+### `xrtLogSinkRef`
+
+增加 Sink 引用并返回原指针。
+
+```c
+xlogsink* xrtLogSinkRef(xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 非空 | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法或引用已失效 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 引用计数已失效
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 共享引用
+
+```c
+	(void)xrtLogSinkRef(pConsole);
+```
+
+
+### `xrtLogSinkFree`
+
+释放 Sink 引用；空指针不执行操作，归零时调用 `Drop` 回调。
+
+```c
+void xrtLogSinkFree(xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[async](../../examples/logging/async/main.c) · 释放
+
+```c
+		xrtLogSinkFree(pTarget);
+```
+
+
+### `xrtLogSinkName`
+
+返回 Sink 生命周期内稳定的借用名称。
+
+```c
+xstrview xrtLogSinkName(const xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 非空 | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空视图 | 借用名称 | — |
+| 空视图 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 名称查询
+
+```c
+		(int)xrtLogSinkName(pConsole).Size, xrtLogSinkName(pConsole).Data);
+```
+
+
+### `xrtLogSinkLevel`
+
+并发读取 Sink 当前过滤阈值。
+
+```c
+xloglevel xrtLogSinkLevel(const xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 非空 | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 当前阈值 | `XLOG_TRACE` … `XLOG_OFF` | — |
+| `XLOG_OFF` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 阈值读取
+
+```c
+	printf(" level=%d", (int)xrtLogSinkLevel(pConsole));
+```
+
+
+### `xrtLogSinkSetLevel`
+
+原子调整 Sink 过滤阈值。
+
+```c
+bool xrtLogSinkSetLevel(xlogsink* pSink, xloglevel Level)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 非空 | 目标 Sink |
+| `Level` | 输入 | 合法级别 | 新阈值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已更新 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 阈值调整
+
+```c
+	(void)xrtLogSinkSetLevel(pConsole, XLOG_WARN);
+```
+
+
+### `xrtLogSinkSubmit`
+
+绕过 Logger 直接向一个 Sink 提交完整记录，供包装器和高级用户组合处理链。
+
+```c
+xlogresult xrtLogSinkSubmit(
+	xlogsink* pSink,
+	const xlogrecord* pRecord
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 非空 | 目标 Sink |
+| `pRecord` | 输入 | 非空且通过校验 | 完整记录 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 本 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被本 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 本 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或本 Sink 回调真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空或记录未通过 `xrtLogRecordValidate`
+- `xrt.log` / `XLOG_ERROR_CALLBACK` — Sink 回调返回错误但未设置具体错误
+- `XERR_INTERNAL` — Sink 回调返回越界的结果值
+
+#### 范例
+
+[async](../../examples/logging/async/main.c) · 直连提交
+
+```c
+	if ( xrtLogSinkSubmit(pAsync, &Record) != XLOG_RESULT_WRITTEN ) {
+```
+
+
+### `xrtLogSinkFlush`
+
+提交 Sink 已经接受的内容；文件 Sink 落盘、异步 Sink 插入栅栏等待。
+
+```c
+bool xrtLogSinkFlush(xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 非空 | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已提交 | — |
+| `false` | 参数非法或 Flush 失败 | `XERR_ARGUMENT` / `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` 域错误 — Flush 回调失败（如 `XLOG_ERROR_ASYNC_FLUSH`、文件同步错误）
+
+#### 范例
+
+[async](../../examples/logging/async/main.c) · 冲刷
+
+```c
+	if ( !xrtLogSinkFlush(pAsync) ) {
+```
+
+
+### `xrtLogSinkStats`
+
+并发读取 Sink 的聚合统计快照。
+
+```c
+bool xrtLogSinkStats(const xlogsink* pSink, xlogstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 非空 | 目标 Sink |
+| `pStats` | 输出 | 非空 | 接收快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 统计快照
+
+```c
+	if ( xrtLogSinkStats(pConsole, &Stats) ) {
+```
+
+
+## 附加与移除
+
+### `xrtLogAttach`
+
+把可共享 Sink 附加到 Logger；双方各增加引用，同一 Sink 可附加到多个 Logger。
+
+```c
+bool xrtLogAttach(xlogger* pLogger, xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入/输出 | 非空 | 目标 Logger |
+| `pSink` | 输入 | 非空 | 要附加的 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已附加 | — |
+| `false` | 失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_EXISTS` — 该 Sink 已经附加到本 Logger
+- `XERR_STATE` — Sink 引用失败
+- `XERR_MEMORY` — 快照扩容分配失败
+
+#### 范例
+
+[core](../../examples/logging/core/main.c) · 挂载 Sink
+
+```c
+		!xrtLogAttach(pLogger, pSink)
+```
+
+
+### `xrtLogDetach`
+
+从 Logger 移除指定 Sink；未附加时返回失败且不设置错误。
+
+```c
+bool xrtLogDetach(xlogger* pLogger, xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入/输出 | 非空 | 目标 Logger |
+| `pSink` | 输入 | 非空 | 要移除的 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已移除并释放对应引用 | — |
+| `false` | 未附加 | 不设错 |
+
+#### 错误
+
+- 不设错误 — 未附加时返回 `false` 且不设置错误；句柄为空设置 `XERR_ARGUMENT`
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 卸载
+
+```c
+	printf("detach-single=%d", xrtLogDetach(pLogger, pConsole) ? 1 : 0);
+```
+
+
+### `xrtLogDetachAll`
+
+移除 Logger 的全部 Sink，并返回实际移除数量。
+
+```c
+size_t xrtLogDetachAll(xlogger* pLogger)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入/输出 | 非空 | 目标 Logger |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际移除数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 全部卸载
+
+```c
+	printf(" detach-all=%zu\n", xrtLogDetachAll(pLogger));
+```
+
+
+### `xrtLogSinkCount`
+
+返回并发快照中的 Sink 数量。
+
+```c
+size_t xrtLogSinkCount(xlogger* pLogger)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 当前附加数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 数量查询
+
+```c
+	printf(" count=%zu", xrtLogSinkCount(pLogger));
+```
+
+
+## 提交与统计
+
+### `xrtLogSubmit`
+
+提交完整记录；记录的 `Logger` 视图始终由目标 Logger 名称覆盖。
+
+```c
+xlogresult xrtLogSubmit(
+	xlogger* pLogger,
+	const xlogrecord* pRecord
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `pRecord` | 输入 | 非空且通过校验 | 完整记录 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空或记录未通过 `xrtLogRecordValidate`
+- `xrt.log` / `XLOG_ERROR_CALLBACK` — Sink 回调返回错误但未设置具体错误
+- `XERR_INTERNAL` — Sink 回调返回越界的结果值
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 完整记录提交
+
+```c
+		xrtLogSubmit(xrtLogDefault(), &Record) == XLOG_RESULT_WRITTEN ? 1 : 0);
+```
+
+
+### `xrtLog`
+
+使用当前时间提交一条无字段文本记录。
+
+```c
+xlogresult xrtLog(
+	xlogger* pLogger,
+	xloglevel Level,
+	xstrview Message
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `Message` | 输入 | 借用 | 消息视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空或记录未通过 `xrtLogRecordValidate`
+- `xrt.log` / `XLOG_ERROR_CALLBACK` — Sink 回调返回错误但未设置具体错误
+- `XERR_INTERNAL` — Sink 回调返回越界的结果值
+
+#### 范例
+
+[console](../../examples/logging/console/main.c) · 文本提交
+
+```c
+	(void)xrtLog(pLogger, XLOG_INFO, XRT_STR_LITERAL("service started"));
+```
+
+
+### `xrtLogFields`
+
+使用当前时间提交带结构化字段的记录。
+
+```c
+xlogresult xrtLogFields(
+	xlogger* pLogger,
+	xloglevel Level,
+	xstrview Message,
+	const xlogfield* pFields,
+	size_t iFieldCount
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `Message` | 输入 | 借用 | 消息视图 |
+| `pFields` | 输入 | 借用数组；计数为 0 时可空 | 字段数组 |
+| `iFieldCount` | 输入 | — | 字段数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空或记录未通过 `xrtLogRecordValidate`
+- `xrt.log` / `XLOG_ERROR_CALLBACK` — Sink 回调返回错误但未设置具体错误
+- `XERR_INTERNAL` — Sink 回调返回越界的结果值
+
+#### 范例
+
+[core](../../examples/logging/core/main.c) · 字段提交
+
+```c
+		xrtLogFields(
+			pLogger,
+			XLOG_INFO,
+			XRT_STR_LITERAL("request complete"),
+			&Field,
+			1u
+		) != XLOG_RESULT_WRITTEN
+```
+
+
+### `xrtLogSource`
+
+使用当前时间提交带完整源码位置和结构化字段的记录。
+
+```c
+xlogresult xrtLogSource(
+	xlogger* pLogger,
+	xloglevel Level,
+	xstrview Message,
+	const xlogfield* pFields,
+	size_t iFieldCount,
+	xstrview File,
+	xstrview Function,
+	uint32 iLine,
+	uint64 iThreadId
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `Message` | 输入 | 借用 | 消息视图 |
+| `pFields` | 输入 | 借用数组；计数为 0 时可空 | 字段数组 |
+| `iFieldCount` | 输入 | — | 字段数量 |
+| `File` | 输入 | 借用；可空视图 | 源文件名 |
+| `Function` | 输入 | 借用；可空视图 | 函数名 |
+| `iLine` | 输入 | — | 行号 |
+| `iThreadId` | 输入 | — | 线程标识，0 = 不记录 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空或记录未通过 `xrtLogRecordValidate`
+- `xrt.log` / `XLOG_ERROR_CALLBACK` — Sink 回调返回错误但未设置具体错误
+- `XERR_INTERNAL` — Sink 回调返回越界的结果值
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 源码元数据提交
+
+```c
+	(void)xrtLogSource(pLogger, XLOG_WARN, SV("direct source"), NULL, 0u,
+		SV("demo.c"), SV("main"), 1u, 0u);
+```
+
+
+### `xrtLogFlush`
+
+提交 Logger 全部 Sink 已经接受的内容。
+
+```c
+bool xrtLogFlush(xlogger* pLogger)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 全部 Sink 冲刷成功 | — |
+| `false` | 任一 Sink 失败 | `XERR_ARGUMENT` / `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` 域错误 — 任一 Sink 的 Flush 失败
+
+#### 范例
+
+[console](../../examples/logging/console/main.c) · 全部冲刷
+
+```c
+	(void)xrtLogFlush(pLogger);
+```
+
+
+### `xrtLogStats`
+
+并发读取 Logger 的聚合统计快照；写到多个 Sink 的一条记录只计一次 Logger 结果。
+
+```c
+bool xrtLogStats(const xlogger* pLogger, xlogstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `pStats` | 输出 | 非空 | 接收快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 统计快照
+
+```c
+		printf("log-stats=%d\n", xrtLogStats(pLogger, &LogStats) ? 1 : 0);
+```
+
+
+## 文本格式化
+
+### `xrtLogTextConfigInit`
+
+按完整、简单或纯消息预设初始化文本配置，调用方仍可逐位调整输出组成。
+
+```c
+bool xrtLogTextConfigInit(
+	xlogtextconfig* pConfig,
+	xlogtextstyle Style
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+| `Style` | 输入 | 合法预设 | `XLOG_TEXT_FULL` / `SIMPLE` / `MESSAGE` |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[format_text_buffer](../../examples/logging/format_text_buffer/main.c) · 配置预设
+
+```c
+	if ( !xrtLogTextConfigInit(&Config, XLOG_TEXT_LEVEL |
+		XLOG_TEXT_MESSAGE) ) {
+```
+
+
+### `xrtLogTextConfigValidate`
+
+校验文本标志组合和固定 UTC 偏移。
+
+```c
+bool xrtLogTextConfigValidate(const xlogtextconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 待校验配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 配置自洽 | — |
+| `false` | 不自洽 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 配置校验
+
+```c
+			xrtLogTextConfigValidate(&TextConfig) ? 1 : 0);
+```
+
+
+### `xrtLogTextWrite`
+
+无中间整行分配地把记录按配置分段写给同步 Writer；Writer 失败时 `pWritten` 返回已提交的精确字节数。
+
+```c
+bool xrtLogTextWrite(
+	const xlogrecord* pRecord,
+	const xlogtextconfig* pConfig,
+	xlogwriteproc pWrite,
+	ptr pUserData,
+	size_t* pWritten
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRecord` | 输入 | 非空且通过校验 | 完整记录 |
+| `pConfig` | 输入 | 非空且通过校验 | 文本配置 |
+| `pWrite` | 输入 | 非空 | 字节 Writer 回调 |
+| `pUserData` | 输入 | 任意值 | Writer 数据 |
+| `pWritten` | 输出 | 允许空 | 接收写出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已完整写出 | — |
+| `false` | 记录、配置非法或 Writer 失败 | `XERR_ARGUMENT` / `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_TEXT_OUTPUT` — Writer 返回失败但未设置具体错误
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 流式写出
+
+```c
+		if ( xrtLogTextWrite(&(xlogrecord){ 0 }, &TextConfig,
+			writeSink, stdout, &iSize) ) {
+```
+
+
+### `xrtLogText`
+
+创建由 `xrtFree` 释放的完整文本记录，并返回不含末尾零字节的长度。
+
+```c
+str xrtLogText(
+	const xlogrecord* pRecord,
+	const xlogtextconfig* pConfig,
+	size_t* pSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRecord` | 输入 | 非空且通过校验 | 完整记录 |
+| `pConfig` | 输入 | 非空且通过校验 | 文本配置 |
+| `pSize` | 输出 | 允许空 | 接收文本长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾文本，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_TEXT_OUTPUT` — Writer 返回失败但未设置具体错误
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[format_text_buffer](../../examples/logging/format_text_buffer/main.c) · 分配整行
+
+```c
+	sText = xrtLogText(&Record, &Config, &iSize);
+```
+
+
+## JSON Lines 格式化
+
+### `xrtLogJsonConfigInit`
+
+初始化完整、紧凑且以换行结束的 JSON Lines 配置。
+
+```c
+bool xrtLogJsonConfigInit(xlogjsonconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[json](../../examples/logging/json/main.c) · 默认配置
+
+```c
+		!xrtLogJsonConfigInit(&Config) ||
+```
+
+
+### `xrtLogJsonConfigValidate`
+
+校验 JSON 标志、转义、字段表示、非有限数策略和错误原因深度。
+
+```c
+bool xrtLogJsonConfigValidate(const xlogjsonconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 待校验配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 配置自洽 | — |
+| `false` | 不自洽 | `xrt.log` / `XLOG_ERROR_JSON_CONFIG` |
+
+#### 错误
+
+- `xrt.log` / `XLOG_ERROR_JSON_CONFIG` — 标志、策略组合或 `MaxErrorDepth` 非法
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 配置校验
+
+```c
+			xrtLogJsonConfigValidate(&JsonConfig) ? 1 : 0);
+```
+
+
+### `xrtLogJsonWrite`
+
+无中间对象和整行分配地把记录按配置分段写给同步 Writer；默认输出顺序 `time`、`level`、`logger`、`message`、`source`、`thread`、`fields`。
+
+```c
+bool xrtLogJsonWrite(
+	const xlogrecord* pRecord,
+	const xlogjsonconfig* pConfig,
+	xlogwriteproc pWrite,
+	ptr pUserData,
+	size_t* pWritten
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRecord` | 输入 | 非空且通过校验 | 完整记录 |
+| `pConfig` | 输入 | 非空且通过校验 | JSON 配置 |
+| `pWrite` | 输入 | 非空 | 字节 Writer 回调 |
+| `pUserData` | 输入 | 任意值 | Writer 数据 |
+| `pWritten` | 输出 | 允许空 | 接收写出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已完整写出 | — |
+| `false` | 记录、配置、UTF-8 非法或 Writer 失败 | `XERR_ARGUMENT` / `xrt.log` / `xrt.json` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_JSON_CONFIG` — 标志、策略组合或错误深度非法
+- `xrt.log` / `XLOG_ERROR_JSON_OUTPUT` — Writer 失败但未设置具体错误
+- `xrt.json` 域错误 — 字符串字段不是合法 UTF-8
+
+#### 范例
+
+[json](../../examples/logging/json/main.c) · 流式写出
+
+```c
+		!xrtLogJsonWrite(
+			&Record,
+			&Config,
+			exampleLogWrite,
+			stdout,
+			NULL
+		)
+```
+
+
+### `xrtLogJson`
+
+创建由 `xrtFree` 释放的零结尾 JSON Lines 记录，并返回不含末尾零字节的长度。
+
+```c
+str xrtLogJson(
+	const xlogrecord* pRecord,
+	const xlogjsonconfig* pConfig,
+	size_t* pSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRecord` | 输入 | 非空且通过校验 | 完整记录 |
+| `pConfig` | 输入 | 非空且通过校验 | JSON 配置 |
+| `pSize` | 输出 | 允许空 | 接收文本长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾 JSON 行，`xrtFree` 释放 | — |
+| `NULL` | 失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_JSON_CONFIG` — 标志、策略组合或错误深度非法
+- `xrt.log` / `XLOG_ERROR_JSON_OUTPUT` — Writer 失败但未设置具体错误
+- `xrt.json` 域错误 — 字符串字段不是合法 UTF-8
+- `XERR_MEMORY` — 缓冲分配失败
+
+#### 范例
+
+[format_json_buffer](../../examples/logging/format_json_buffer/main.c) · 分配整行
+
+```c
+	sJson = xrtLogJson(&Record, &Config, &iSize);
+```
+
+
+## Console Sink
+
+### `xrtLogConsoleConfigInit`
+
+初始化适合交互程序的默认配置：`INFO` 阈值、完整文本、`ERROR` 起写 `stderr`、逐条刷新和自动配色。
+
+```c
+bool xrtLogConsoleConfigInit(xlogconsoleconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 默认配置
+
+```c
+	(void)xrtLogConsoleConfigInit(&ConsoleConfig);
+```
+
+
+### `xrtLogConsole`
+
+创建调用方拥有的线程安全 Console Sink；配置在创建时完整复制。
+
+```c
+xlogsink* xrtLogConsole(const xlogconsoleconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 允许空 | 空 = `xrtLogConsoleConfigInit` 默认值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Console Sink | — |
+| `NULL` | 配置非法或分配失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 内部结构分配失败
+- `xrt.log` / `XLOG_ERROR_CONSOLE_CONFIG` — 配置组合非法
+
+#### 范例
+
+[logger_tour](../../examples/logging/logger_tour/main.c) · 创建 Sink
+
+```c
+		xlogsink* pConsoleSink = xrtLogConsole(&ConsoleConfig);
+```
+
+
+### `xrtLogAddConsole`
+
+创建 Console Sink 并附加到 Logger；成功后由 Logger 独占该引用。
+
+```c
+bool xrtLogAddConsole(
+	xlogger* pLogger,
+	const xlogconsoleconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `pConfig` | 输入 | 允许空 | 空 = 默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已创建并附加 | — |
+| `false` | 创建或附加失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 内部结构分配失败
+- `xrt.log` / `XLOG_ERROR_CONSOLE_CONFIG` — 配置组合非法
+
+#### 范例
+
+[console](../../examples/logging/console/main.c) · 创建并附加
+
+```c
+	if ( (pLogger == NULL) || !xrtLogAddConsole(pLogger, NULL) ) {
+```
+
+
+## File Sink
+
+### `xrtLogFileOptionsInit`
+
+初始化追加模式、`INFO` 阈值、16 MiB 单条上限、64 KiB 缓存保留和手动持久化选项，并复制路径文本。
+
+```c
+bool xrtLogFileOptionsInit(
+	xlogfileoptions* pOptions,
+	cstr sPath
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOptions` | 输出 | 非空 | 接收选项 |
+| `sPath` | 输入 | 非空且非空串 | UTF-8 文件路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化并复制路径 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[file_text](../../examples/logging/file_text/main.c) · 默认选项
+
+```c
+		!xrtLogFileOptionsInit(&Options, "example_logger_text.log") ||
+```
+
+
+### `xrtLogFile`
+
+创建通用文件 Sink；成功后接管格式器 `UserData`，失败时数据仍归调用方。
+
+```c
+xlogsink* xrtLogFile(const xlogfileconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空且 `Format` 非空 | 选项与格式回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 文件 Sink | — |
+| `NULL` | 配置非法或打开失败 | `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
+- `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
+- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[file](../../examples/logging/file/main.c) · 自定义格式器
+
+```c
+	pSink = xrtLogFile(&Config);
+```
+
+
+### `xrtLogFilePath`
+
+返回文件 Sink 生命周期内稳定的借用 UTF-8 路径。
+
+```c
+cstr xrtLogFilePath(const xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 文件 Sink | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾路径借用 | — |
+| `NULL` | 非文件 Sink 或空句柄 | 不设错 |
+
+#### 错误
+
+- 无错误 — 非文件 Sink 或空句柄返回 `NULL` 且不设置错误
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 路径查询
+
+```c
+				cstr sPath = xrtLogFilePath(pTextFileSink);
+```
+
+
+### `xrtLogFileStats`
+
+并发读取文件 Sink 的统计快照：当前大小、累计写入、记录、滚动、reopen 和持久化次数。
+
+```c
+bool xrtLogFileStats(
+	const xlogsink* pSink,
+	xlogfilestats* pStats
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 文件 Sink | 目标 Sink |
+| `pStats` | 输出 | 非空 | 接收统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 统计已写出 | — |
+| `false` | 非文件 Sink 或参数非法 | 仅 `pStats` 为空时 `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pStats` 为空；非文件 Sink 返回 `false` 且不设置错误
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 统计快照
+
+```c
+					(void)xrtLogFileStats(pTextFileSink, &FileStats);
+```
+
+
+### `xrtLogFileRotate`
+
+立即执行滚动流程；零备份配置到达阈值后直接截断当前路径。
+
+```c
+bool xrtLogFileRotate(xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 文件 Sink | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已滚动 | — |
+| `false` | 滚动失败 | `xrt.log` 错误 |
+
+#### 错误
+
+- `xrt.log` / `XLOG_ERROR_FILE_ROTATE` — 滚动失败，底层错误保留在原因链
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 立即滚动
+
+```c
+				(void)xrtLogFileRotate(pTextFileSink);
+```
+
+
+### `xrtLogFileReopen`
+
+重新打开当前路径，供外部 `logrotate` 或路径替换后切换句柄；先开新句柄再关旧句柄。
+
+```c
+bool xrtLogFileReopen(xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 文件 Sink | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已切换到新句柄 | — |
+| `false` | 重开失败 | `xrt.log` 错误 |
+
+#### 错误
+
+- `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 新句柄打开失败，原句柄保持有效
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 重开句柄
+
+```c
+				(void)xrtLogFileReopen(pTextFileSink);
+```
+
+
+## 文件组合层
+
+### `xrtLogTextFile`
+
+使用复制的文本配置创建文件 Sink；空文本配置使用完整格式。
+
+```c
+xlogsink* xrtLogTextFile(
+	const xlogfileoptions* pOptions,
+	const xlogtextconfig* pText
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOptions` | 输入 | 非空 | 文件选项 |
+| `pText` | 输入 | 允许空 | 空 = 完整文本格式 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 文本文件 Sink | — |
+| `NULL` | 创建失败 | 同 `xrtLogFile` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
+- `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
+- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 文本文件 Sink
+
+```c
+			xlogsink* pTextFileSink = xrtLogTextFile(&Options, NULL);
+```
+
+
+### `xrtLogAddTextFile`
+
+创建文本文件 Sink 并附加到 Logger；成功后由 Logger 独占该引用。
+
+```c
+bool xrtLogAddTextFile(
+	xlogger* pLogger,
+	const xlogfileoptions* pOptions,
+	const xlogtextconfig* pText
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `pOptions` | 输入 | 非空 | 文件选项 |
+| `pText` | 输入 | 允许空 | 空 = 完整文本格式 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已创建并附加 | — |
+| `false` | 创建或附加失败 | 同 `xrtLogFile` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
+- `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
+- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[file_text](../../examples/logging/file_text/main.c) · 创建并附加
+
+```c
+		!xrtLogAddTextFile(pLogger, &Options, &Text) ||
+```
+
+
+### `xrtLogJsonFile`
+
+使用复制的 JSON 配置创建文件 Sink；空 JSON 配置使用完整 JSON Lines。
+
+```c
+xlogsink* xrtLogJsonFile(
+	const xlogfileoptions* pOptions,
+	const xlogjsonconfig* pJson
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOptions` | 输入 | 非空 | 文件选项 |
+| `pJson` | 输入 | 允许空 | 空 = 完整 JSON Lines |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | JSON 文件 Sink | — |
+| `NULL` | 创建失败 | 同 `xrtLogFile` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
+- `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
+- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · JSON 文件 Sink
+
+```c
+			xlogsink* pJsonSink = xrtLogJsonFile(&Options, NULL);
+```
+
+
+### `xrtLogAddJsonFile`
+
+创建 JSON 文件 Sink 并附加到 Logger；成功后由 Logger 独占该引用。
+
+```c
+bool xrtLogAddJsonFile(
+	xlogger* pLogger,
+	const xlogfileoptions* pOptions,
+	const xlogjsonconfig* pJson
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `pOptions` | 输入 | 非空 | 文件选项 |
+| `pJson` | 输入 | 允许空 | 空 = 完整 JSON Lines |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已创建并附加 | — |
+| `false` | 创建或附加失败 | 同 `xrtLogFile` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.log` / `XLOG_ERROR_FILE_CONFIG` — 选项组合非法
+- `xrt.log` / `XLOG_ERROR_FILE_OPEN` — 打开失败，`xrt.file` 原因保留在原因链
+- `XERR_OVERFLOW` — 路径长度引起尺寸溢出
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[file_json](../../examples/logging/file_json/main.c) · 创建并附加
+
+```c
+		!xrtLogAddJsonFile(pLogger, &Options, NULL) ||   /* 一行挂载 */
+```
+
+
+## Async Sink
+
+### `xrtLogAsyncConfigInit`
+
+初始化无额外线程栈、`TRACE` 透传、丢弃最新记录和优雅排空的默认配置。
+
+```c
+bool xrtLogAsyncConfigInit(xlogasyncconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[async](../../examples/logging/async/main.c) · 默认配置
+
+```c
+	if ( !xrtLogAsyncConfigInit(&AsyncConfig) ) {
+```
+
+
+### `xrtLogAsync`
+
+创建有界异步包装 Sink 并启动唯一顺序工作线程；目标只增加引用，不接管调用方引用。
+
+```c
+xlogsink* xrtLogAsync(
+	xlogsink* pTarget,
+	const xlogasyncconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入 | 非空 | 被包装的目标 Sink |
+| `pConfig` | 输入 | 允许空 | 空 = 默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 异步包装 Sink | — |
+| `NULL` | 创建或线程启动失败 | `xrt.log` 错误 |
+
+#### 错误
+
+- `xrt.log` / `XLOG_ERROR_ASYNC_CONFIG` — 目标为空或配置非法，kind 为 `XERR_ARGUMENT`
+- `xrt.log` / `XLOG_ERROR_ASYNC_CONFIG` — 状态分配失败（`XERR_MEMORY`）或目标引用失败（`XERR_STATE`）
+- `xrt.log` / `XLOG_ERROR_ASYNC_THREAD` — 工作线程启动失败
+
+#### 范例
+
+[async](../../examples/logging/async/main.c) · 创建包装器
+
+```c
+	pAsync = xrtLogAsync(pTarget, &AsyncConfig);
+```
+
+
+### `xrtLogAddAsync`
+
+创建异步包装并附加到 Logger；成功后 Logger 独占新包装器的引用。
+
+```c
+bool xrtLogAddAsync(
+	xlogger* pLogger,
+	xlogsink* pTarget,
+	const xlogasyncconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `pTarget` | 输入 | 非空 | 被包装的目标 Sink |
+| `pConfig` | 输入 | 允许空 | 空 = 默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已创建并附加 | — |
+| `false` | 创建或附加失败 | 同 `xrtLogAsync` |
+
+#### 错误
+
+- `xrt.log` / `XLOG_ERROR_ASYNC_CONFIG` — 目标为空或配置非法，kind 为 `XERR_ARGUMENT`
+- `xrt.log` / `XLOG_ERROR_ASYNC_CONFIG` — 状态分配失败（`XERR_MEMORY`）或目标引用失败（`XERR_STATE`）
+- `xrt.log` / `XLOG_ERROR_ASYNC_THREAD` — 工作线程启动失败
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 创建并附加
+
+```c
+		if ( !xrtLogAddAsync(pAsyncLogger, pTargetSink, &AsyncConfig) ) {
+```
+
+
+### `xrtLogAsyncTarget`
+
+返回 Async Sink 生命周期内稳定的借用目标；错误类型的 Sink 返回空指针。
+
+```c
+xlogsink* xrtLogAsyncTarget(const xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 异步 Sink | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 目标 Sink 借用 | — |
+| `NULL` | 非异步 Sink 或空句柄 | 不设错 |
+
+#### 错误
+
+- 无错误 — 非异步 Sink 或空句柄返回 `NULL` 且不设置错误
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 目标查询
+
+```c
+				xlogsink* pInner = xrtLogAsyncTarget(pAsyncWrapper);
+```
+
+
+### `xrtLogAsyncStats`
+
+并发读取异步统计：入队、处理、各类丢弃、失败、当前队列和高水位。
+
+```c
+bool xrtLogAsyncStats(
+	const xlogsink* pSink,
+	xlogasyncstats* pStats
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 异步 Sink | 目标 Sink |
+| `pStats` | 输出 | 非空 | 接收统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 统计已写出 | — |
+| `false` | 非异步 Sink 或参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 统计快照
+
+```c
+			(void)xrtLogAsyncStats(NULL, &AsyncStats);
+```
+
+
+### `xrtLogAsyncLastError`
+
+返回后台最近一次目标或 Flush 错误的新引用；用后 `xrtErrorFree` 释放。
+
+```c
+xerror* xrtLogAsyncLastError(const xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | 异步 Sink | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 错误新引用 | — |
+| `NULL` | 尚无错误或非异步 Sink | 不设错 |
+
+#### 错误
+
+- 无错误 — 尚无后台错误时返回 `NULL` 且不设置错误
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 后台错误
+
+```c
+		pLastError = xrtLogAsyncLastError(NULL);
+```
+
+
+## Ring Sink
+
+### `xrtLogRingConfigInit`
+
+初始化无生产者分配、无生产者互斥等待的有界 Ring 默认配置。
+
+```c
+bool xrtLogRingConfigInit(xlogringconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 默认配置
+
+```c
+		(void)xrtLogRingConfigInit(&RingConfig);
+```
+
+
+### `xrtLogRing`
+
+创建高吞吐 Ring 包装 Sink；目标只增加引用，不接管调用方引用。
+
+```c
+xlogsink* xrtLogRing(
+	xlogsink* pTarget,
+	const xlogringconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTarget` | 输入 | 非空 | 被包装的目标 Sink |
+| `pConfig` | 输入 | 允许空 | 空 = 默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Ring 包装 Sink | — |
+| `NULL` | 创建或线程启动失败 | `xrt.log` 错误 |
+
+#### 错误
+
+- `xrt.log` / `XLOG_ERROR_RING_CONFIG` — 目标为空或配置非法，kind 为 `XERR_ARGUMENT`
+- `xrt.log` / `XLOG_ERROR_RING_CONFIG` — 状态分配失败（`XERR_MEMORY`）或目标引用失败（`XERR_STATE`）
+- `xrt.log` / `XLOG_ERROR_RING_THREAD` — 工作线程启动失败
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 创建包装器
+
+```c
+				pWrapper = xrtLogRing(pTarget2, &RingConfig2);
+```
+
+
+### `xrtLogAddRing`
+
+创建 Ring 包装并附加到 Logger；成功后 Logger 独占新包装器引用。
+
+```c
+bool xrtLogAddRing(
+	xlogger* pLogger,
+	xlogsink* pTarget,
+	const xlogringconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `pTarget` | 输入 | 非空 | 被包装的目标 Sink |
+| `pConfig` | 输入 | 允许空 | 空 = 默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已创建并附加 | — |
+| `false` | 创建或附加失败 | 同 `xrtLogRing` |
+
+#### 错误
+
+- `xrt.log` / `XLOG_ERROR_RING_CONFIG` — 目标为空或配置非法，kind 为 `XERR_ARGUMENT`
+- `xrt.log` / `XLOG_ERROR_RING_CONFIG` — 状态分配失败（`XERR_MEMORY`）或目标引用失败（`XERR_STATE`）
+- `xrt.log` / `XLOG_ERROR_RING_THREAD` — 工作线程启动失败
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 创建并附加
+
+```c
+		if ( !xrtLogAddRing(pLogger, pTargetSink, &RingConfig) ) {
+```
+
+
+### `xrtLogRingTarget`
+
+返回 Ring 生命周期内稳定的借用目标；错误类型 Sink 返回空。
+
+```c
+xlogsink* xrtLogRingTarget(const xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | Ring Sink | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 目标 Sink 借用 | — |
+| `NULL` | 非 Ring Sink 或空句柄 | 不设错 |
+
+#### 错误
+
+- 无错误 — 非 Ring Sink 或空句柄返回 `NULL` 且不设置错误
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 目标查询
+
+```c
+					xlogsink* pInner = xrtLogRingTarget(pWrapper);
+```
+
+
+### `xrtLogRingStats`
+
+读取无锁统计快照：容量丢弃、记录超限、递归写入和目标结果；并发字段之间不承诺同一时刻一致。
+
+```c
+bool xrtLogRingStats(
+	const xlogsink* pSink,
+	xlogringstats* pStats
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | Ring Sink | 目标 Sink |
+| `pStats` | 输出 | 非空 | 接收统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 统计已写出 | — |
+| `false` | 非 Ring Sink 或参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 统计快照
+
+```c
+				(void)xrtLogRingStats(NULL, &RingStats);
+```
+
+
+### `xrtLogRingLastError`
+
+返回后台最近一次错误的新引用；用后 `xrtErrorFree` 释放。
+
+```c
+xerror* xrtLogRingLastError(const xlogsink* pSink)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSink` | 输入 | Ring Sink | 目标 Sink |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 错误新引用 | — |
+| `NULL` | 尚无错误或非 Ring Sink | 不设错 |
+
+#### 错误
+
+- 无错误 — 尚无后台错误时返回 `NULL` 且不设置错误
+
+#### 范例
+
+[ring_async](../../examples/logging/ring_async/main.c) · 后台错误
+
+```c
+			pLastError = xrtLogRingLastError(NULL);
+```
+
+
+## printf 提交
+
+### `xrtLogPrintfV`
+
+使用 printf 规则和已有参数列表提交常用日志；复用字符串模块的安全格式化器，拒绝 `%n`。
+
+```c
+xlogresult xrtLogPrintfV(
+	xlogger* pLogger,
+	xloglevel Level,
+	cstr sFormat,
+	va_list Args
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `Args` | 输入 | 已由 `va_start` 初始化 | 变参列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · va_list 提交
+
+```c
+	Result = xrtLogPrintfV(pLogger, XLOG_INFO, sFmt, Args);
+```
+
+
+### `xrtLogPrintf`
+
+使用 printf 规则提交常用日志；已得到消息视图时应改用无分配的 `xrtLog`。
+
+```c
+xlogresult xrtLogPrintf(
+	xlogger* pLogger,
+	xloglevel Level,
+	cstr sFormat,
+	...
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `...` | 输入 | 与格式串匹配 | 变参 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+
+#### 范例
+
+[printf](../../examples/logging/printf/main.c) · 格式化提交
+
+```c
+		Result = xrtLogPrintf(
+			pLogger,
+			XLOG_INFO,
+			"request=%u status=%u",
+			42u,
+			200u
+		);
+```
+
+
+### `xrtLogFieldsPrintfV`
+
+使用 printf 规则和已有参数列表提交带结构化字段的记录。
+
+```c
+xlogresult xrtLogFieldsPrintfV(
+	xlogger* pLogger,
+	xloglevel Level,
+	const xlogfield* pFields,
+	size_t iFieldCount,
+	cstr sFormat,
+	va_list Args
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `pFields` | 输入 | 借用数组；计数为 0 时可空 | 字段数组 |
+| `iFieldCount` | 输入 | — | 字段数量 |
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `Args` | 输入 | 已由 `va_start` 初始化 | 变参列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 字段 + va_list
+
+```c
+	Result = xrtLogFieldsPrintfV(pLogger, XLOG_INFO, NULL, 0u, sFmt, Args);
+```
+
+
+### `xrtLogFieldsPrintf`
+
+使用 printf 规则提交带结构化字段的记录。
+
+```c
+xlogresult xrtLogFieldsPrintf(
+	xlogger* pLogger,
+	xloglevel Level,
+	const xlogfield* pFields,
+	size_t iFieldCount,
+	cstr sFormat,
+	...
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `pFields` | 输入 | 借用数组；计数为 0 时可空 | 字段数组 |
+| `iFieldCount` | 输入 | — | 字段数量 |
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `...` | 输入 | 与格式串匹配 | 变参 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 字段 + 格式化
+
+```c
+		(void)xrtLogFieldsPrintf(pLogger, XLOG_ERROR, Fields, 1u,
+			"count=%d", 1);
+```
+
+
+### `xrtLogSourcePrintfV`
+
+使用 printf 规则和已有参数列表提交带完整源码元数据的记录。
+
+```c
+xlogresult xrtLogSourcePrintfV(
+	xlogger* pLogger,
+	xloglevel Level,
+	const xlogfield* pFields,
+	size_t iFieldCount,
+	xstrview File,
+	xstrview Function,
+	uint32 iLine,
+	uint64 iThreadId,
+	cstr sFormat,
+	va_list Args
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `pFields` | 输入 | 借用数组；计数为 0 时可空 | 字段数组 |
+| `iFieldCount` | 输入 | — | 字段数量 |
+| `File` | 输入 | 借用；可空视图 | 源文件名 |
+| `Function` | 输入 | 借用；可空视图 | 函数名 |
+| `iLine` | 输入 | — | 行号 |
+| `iThreadId` | 输入 | — | 线程标识，0 = 不记录 |
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `Args` | 输入 | 已由 `va_start` 初始化 | 变参列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 完整元数据 + va_list
+
+```c
+	Result = xrtLogSourcePrintfV(pLogger, Level, NULL, 0u, SV("demo.c"), SV("main"), 1u, 0u, sFmt, Args);
+```
+
+
+### `xrtLogSourcePrintf`
+
+使用 printf 规则提交带完整源码元数据的记录。
+
+```c
+xlogresult xrtLogSourcePrintf(
+	xlogger* pLogger,
+	xloglevel Level,
+	const xlogfield* pFields,
+	size_t iFieldCount,
+	xstrview File,
+	xstrview Function,
+	uint32 iLine,
+	uint64 iThreadId,
+	cstr sFormat,
+	...
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLogger` | 输入 | 非空 | 目标 Logger |
+| `Level` | 输入 | 合法级别 | 本条级别 |
+| `pFields` | 输入 | 借用数组；计数为 0 时可空 | 字段数组 |
+| `iFieldCount` | 输入 | — | 字段数量 |
+| `File` | 输入 | 借用；可空视图 | 源文件名 |
+| `Function` | 输入 | 借用；可空视图 | 函数名 |
+| `iLine` | 输入 | — | 行号 |
+| `iThreadId` | 输入 | — | 线程标识，0 = 不记录 |
+| `sFormat` | 输入 | 非空 | printf 格式串 |
+| `...` | 输入 | 与格式串匹配 | 变参 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XLOG_RESULT_WRITTEN` | 至少一个 Sink 完成写入 | — |
+| `XLOG_RESULT_SKIPPED` | 被 Logger 或 Sink 阈值过滤 | 不设错 |
+| `XLOG_RESULT_DROPPED` | 未写入，但至少一个 Sink 按自身策略丢弃 | 不设错 |
+| `XLOG_RESULT_ERROR` | 记录非法或至少一个 Sink 真实错误 | `XERR_ARGUMENT` 或 `xrt.log` 错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.str` 域错误 — 格式串非法（含 `%n`）或与实参不匹配
+
+#### 范例
+
+[sink_tour](../../examples/logging/sink_tour/main.c) · 完整元数据 + 格式化
+
+```c
+	(void)xrtLogSourcePrintf(pLogger, XLOG_WARN, NULL, 0u,
+		SV("demo.c"), SV("main"), 1u, 0u, "src=%s", "printf");
+```
