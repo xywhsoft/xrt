@@ -88,6 +88,49 @@
 
 变长池默认小块分界，值为 1024。
 
+### `xpoolerror`
+
+内存池错误代码在 xrt.pool 域内稳定。
+
+```c
+typedef enum xpoolerror {
+	XPOOL_ERROR_INVALID_POINTER = 1,
+	XPOOL_ERROR_NOT_ALLOCATED,
+	XPOOL_ERROR_PAGE_FULL,
+	XPOOL_ERROR_INVALID_ALIGNMENT,
+	XPOOL_ERROR_INVALID_SIZE,
+	XPOOL_ERROR_INDEX_OUT_OF_RANGE,
+	XPOOL_ERROR_VISIT_ACTIVE,
+	XPOOL_ERROR_INVALID_CAPACITY
+} xpoolerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPOOL_ERROR_INVALID_POINTER` | 无效POINTER |
+| `XPOOL_ERROR_NOT_ALLOCATED` | NOTALLOCATED |
+| `XPOOL_ERROR_PAGE_FULL` | PAGE已满 |
+| `XPOOL_ERROR_INVALID_ALIGNMENT` | 无效ALIGNMENT |
+| `XPOOL_ERROR_INVALID_SIZE` | 无效尺寸 |
+| `XPOOL_ERROR_INDEX_OUT_OF_RANGE` | 索引OUTOF范围越界 |
+| `XPOOL_ERROR_VISIT_ACTIVE` | VISITACTIVE |
+
+### `xmempoolbucket`
+
+```c
+typedef struct xmempoolbucket xmempoolbucket;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xmempoollarge`
+
+```c
+typedef struct xmempoollarge xmempoollarge;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 ## 单页池
 
 ### `xpoolpage`

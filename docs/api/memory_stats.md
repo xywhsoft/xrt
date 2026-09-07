@@ -24,6 +24,14 @@
 
 快照包含运行时开关、尺寸类元数据、公开 API 请求、临时内存请求、逻辑块流量、池化/直通通道、实际 backing 分配器请求，以及每个尺寸类的调用数和请求字节数。数组有效长度由 `ClassCount` 给出。
 
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_MEM_STATS_CLASS_STEP` | `16u` | 全局堆固定使用 16 字节步长和 64 个池化尺寸类。 |
+| `XRT_MEM_STATS_CLASS_CUTOFF` | `1024u` | CUTOFF |
+| `XRT_MEM_STATS_CLASS_COUNT` | `64u` | 数量 |
+
 ## 函数
 
 ### `xrtMemStatsEnable`

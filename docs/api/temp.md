@@ -32,6 +32,22 @@
 
 包含常规块数、spill 数、保留字节、当前/峰值用量、reset 次数和作用域深度。
 
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_TEMP_BLOCK_SIZE_DEFAULT` | `4096u` | 阻塞策略尺寸默认值 |
+| `XRT_TEMP_SPILL_LIMIT_DEFAULT` | `2048u` | SPILL超限默认值 |
+| `XRT_TEMP_RETAIN_LIMIT_DEFAULT` | `65536u` | RETAIN超限默认值 |
+
+### `xtempblock`
+
+```c
+typedef struct xtempblock xtempblock;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 ## 函数
 
 ### `xrtTempInit`

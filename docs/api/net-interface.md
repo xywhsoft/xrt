@@ -1,5 +1,92 @@
 # 网络接口
 
+## 类型与常量
+
+### `xnetinterfaceflag`
+
+接口标志只表达跨平台能够稳定观察的状态和能力。
+
+```c
+typedef enum xnetinterfaceflag {
+	XNET_INTERFACE_UP = 0x0001,
+	XNET_INTERFACE_RUNNING = 0x0002,
+	XNET_INTERFACE_LOOPBACK = 0x0004,
+	XNET_INTERFACE_BROADCAST = 0x0008,
+	XNET_INTERFACE_POINT_TO_POINT = 0x0010,
+	XNET_INTERFACE_MULTICAST = 0x0020
+} xnetinterfaceflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_INTERFACE_UP` | UP |
+| `XNET_INTERFACE_RUNNING` | 运行中 |
+| `XNET_INTERFACE_LOOPBACK` | LOOPBACK |
+| `XNET_INTERFACE_BROADCAST` | BROADCAST |
+| `XNET_INTERFACE_POINT_TO_POINT` | POINTTOPOINT |
+
+### `xnetinterfaceaddress`
+
+接口地址不带传输端口，PrefixLength 为网络前缀位数。
+
+```c
+typedef struct xnetinterfaceaddress {
+	xnetaddr Address;
+	uint8 PrefixLength;
+} xnetinterfaceaddress;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Address` | `xnetaddr` | Address |
+| `PrefixLength` | `uint8` | PrefixLength |
+
+### `xnetinterface`
+
+名称、硬件地址和地址数组均借用所属接口快照。
+
+```c
+typedef struct xnetinterface {
+	uint32 IPv4Index;
+	uint32 IPv6Index;
+	uint32 Flags;
+	uint32 Mtu;
+	xstrview Name;
+	xstrview DisplayName;
+	xbytesview HardwareAddress;
+	const xnetinterfaceaddress* Addresses;
+	size_t AddressCount;
+} xnetinterface;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `IPv4Index` | `uint32` | IPv4Index |
+| `IPv6Index` | `uint32` | IPv6Index |
+| `Flags` | `uint32` | Flags |
+| `Mtu` | `uint32` | Mtu |
+| `Name` | `xstrview` | Name |
+| `DisplayName` | `xstrview` | DisplayName |
+| `HardwareAddress` | `xbytesview` | HardwareAddress |
+| `Addresses` | `const xnetinterfaceaddress*` | Addresses |
+| `AddressCount` | `size_t` | AddressCount |
+
+### `xnetinterfacelist`
+
+接口列表拥有 Items 以及所有条目借用的存储。
+
+```c
+typedef struct xnetinterfacelist {
+	const xnetinterface* Items;
+	size_t Count;
+} xnetinterfacelist;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Items` | `const xnetinterface*` | Items |
+| `Count` | `size_t` | Count |
+
 ## 分层
 
 `XRT_FEATURE_NET_INTERFACE` 只依赖网络地址基础层，公开头文件为

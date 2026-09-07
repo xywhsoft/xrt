@@ -2,6 +2,78 @@
 
 `pem` 为 X.509、PKCS、TLS 和其他文本封装提供统一的 RFC 7468 底层。模块同时公开借用式遍历、精确标签查找、严格 Base64 解码和规范文本编码，协议层无需再私有实现边界扫描或 Base64 包装。
 
+## 类型与常量
+
+### `xpemblock`
+
+PEM 块的标签、正文和完整消费区间都借用原始输入；Raw 包含存在的结束行换行。
+
+```c
+typedef struct xpemblock {
+	xstrview Label;
+	xstrview Body;
+	xstrview Raw;
+} xpemblock;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Label` | `xstrview` | Label |
+| `Body` | `xstrview` | Body |
+| `Raw` | `xstrview` | Raw |
+
+### `xpemcursor`
+
+PEM 游标允许输入前后存在说明文本，并按出现顺序遍历多个块。
+
+```c
+typedef struct xpemcursor {
+	xstrview Text;
+	size_t Offset;
+} xpemcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Text` | `xstrview` | Text |
+| `Offset` | `size_t` | Offset |
+
+### `xpemresult`
+
+PEM 读取结果把正常结束与格式错误分开。
+
+```c
+typedef enum xpemresult {
+	XPEM_ERROR = -1,
+	XPEM_DONE = 0,
+	XPEM_BLOCK = 1
+} xpemresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPEM_ERROR` | 失败 |
+| `XPEM_DONE` | 完成 |
+
+### `xpemerror`
+
+PEM 模块稳定错误码。
+
+```c
+typedef enum xpemerror {
+	XPEM_ERROR_BOUNDARY = 1,
+	XPEM_ERROR_LABEL,
+	XPEM_ERROR_BODY,
+	XPEM_ERROR_NOT_FOUND
+} xpemerror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XPEM_ERROR_BOUNDARY` | BOUNDARY |
+| `XPEM_ERROR_LABEL` | LABEL |
+| `XPEM_ERROR_BODY` | BODY |
+
 ## 裁剪
 
 ```c

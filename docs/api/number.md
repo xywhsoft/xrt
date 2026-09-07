@@ -15,6 +15,74 @@
 #define XRT_FEATURE_NUMBER_FORMAT
 ```
 
+## 类型与常量
+
+### `xnumberparseflag`
+
+数值文本解析标志。 默认严格解析完整文本；空白、进制前缀、数字分隔符和特殊浮点值均需显式开启。
+
+```c
+typedef enum xnumberparseflag {
+	XNUMBER_PARSE_SPACE = UINT32_C(0x00000001),
+	XNUMBER_PARSE_PREFIX = UINT32_C(0x00000002),
+	XNUMBER_PARSE_SEPARATOR = UINT32_C(0x00000004),
+	XNUMBER_PARSE_SPECIAL = UINT32_C(0x00000008)
+} xnumberparseflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNUMBER_PARSE_SPACE` | SPACE |
+| `XNUMBER_PARSE_PREFIX` | 前缀 |
+| `XNUMBER_PARSE_SEPARATOR` | SEPARATOR |
+
+### `xnumbererror`
+
+数值模块稳定错误码。
+
+```c
+typedef enum xnumbererror {
+	XNUMBER_ERROR_CONFIG = 1201,
+	XNUMBER_ERROR_FORMAT = 1202,
+	XNUMBER_ERROR_RANGE = 1203
+} xnumbererror;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNUMBER_ERROR_CONFIG` | 配置非法 |
+| `XNUMBER_ERROR_FORMAT` | FORMAT |
+
+### `xnumberwriteflag`
+
+整数文本输出标志；默认使用小写数字且不添加前缀或正号。
+
+```c
+typedef enum xnumberwriteflag {
+	XNUMBER_UPPER = UINT32_C(0x00000001),
+	XNUMBER_PREFIX = UINT32_C(0x00000002),
+	XNUMBER_PLUS = UINT32_C(0x00000004)
+} xnumberwriteflag;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNUMBER_UPPER` | 大写 |
+| `XNUMBER_PREFIX` | 前缀 |
+
+### `xnumberfloatflag`
+
+浮点文本输出标志。 默认保留整数型 double 的 .0；紧凑模式只保留数值往返所需字符。
+
+```c
+typedef enum xnumberfloatflag {
+	XNUMBER_FLOAT_COMPACT = UINT32_C(0x00000001)
+} xnumberfloatflag;
+```
+
+| 值 | 语义 |
+|---|---|
+
 ## 选择边界
 
 | 需求 | 入口 |

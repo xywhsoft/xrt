@@ -46,6 +46,51 @@
 
 包含当前/峰值活动分配、隔离队列、各操作计数、各错误计数和当前事件数量。快照是同一锁临界区内的一致副本。
 
+### `xmemdebugreportformat`
+
+报告格式与具体输出目标解耦。
+
+```c
+typedef enum xmemdebugreportformat {
+	XMEMDEBUG_REPORT_TEXT = 1,
+	XMEMDEBUG_REPORT_JSON
+} xmemdebugreportformat;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XMEMDEBUG_REPORT_TEXT` | XMEMDEBUGREPORT文本 |
+
+### `xmemdebugvisitor`
+
+事件访问器返回 false 时停止遍历。
+
+```c
+typedef bool (*xmemdebugvisitor)(const xmemdebugevent* pEvent, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xmemdebugallocationvisitor`
+
+活动分配访问器返回 false 时停止遍历。
+
+```c
+typedef bool (*xmemdebugallocationvisitor)(const xmemdebugallocation* pAllocation, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xmemdebugwriteproc`
+
+报告写入器成功消费全部数据时返回 true。
+
+```c
+typedef bool (*xmemdebugwriteproc)(xbytesview Data, ptr pUserData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
 ## 函数
 
 ### `xrtMemDebugEnable`

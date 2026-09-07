@@ -3,6 +3,58 @@
 `<xrt/http_upgrade.h>` 实现 RFC 9110 `Upgrade` 字段的通用协议层，不绑定
 WebSocket、HTTP 客户端、服务器或具体网络传输。
 
+## 类型与常量
+
+### `xhttpupgradeitem`
+
+一个 Upgrade 协议借用原字段值；空 Version 表示线路中没有版本。
+
+```c
+typedef struct xhttpupgradeitem {
+	xstrview Protocol;
+	xstrview Version;
+} xhttpupgradeitem;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Protocol` | `xstrview` | Protocol |
+| `Version` | `xstrview` | Version |
+
+### `xhttpupgradecursor`
+
+单字段游标由初始化函数建立，调用方不得直接修改。
+
+```c
+typedef struct xhttpupgradecursor {
+	size_t Offset;
+	uint8 Validated;
+} xhttpupgradecursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
+### `xhttpupgradefieldcursor`
+
+重复字段游标同时记录当前字段和字段内位置。
+
+```c
+typedef struct xhttpupgradefieldcursor {
+	size_t Field;
+	size_t Offset;
+	uint8 Validated;
+} xhttpupgradefieldcursor;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Field` | `size_t` | Field |
+| `Offset` | `size_t` | Offset |
+| `Validated` | `uint8` | Validated |
+
 ## 语法与借用
 
 一个 `xhttpupgradeitem` 表示 `protocol-name[/protocol-version]`。`Protocol` 与

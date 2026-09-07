@@ -162,6 +162,35 @@ pOld = xrtAtomicPtrExchange(&APtr, (ptr)&s_Target[1],
 	XMEMORY_ACQ_REL);
 ```
 
+### `xmemoryorder`
+
+原子操作的内存顺序与 C11 语义一致。
+
+```c
+typedef enum xmemoryorder {
+	XMEMORY_RELAXED = 0,
+	XMEMORY_ACQUIRE = 1,
+	XMEMORY_RELEASE = 2,
+	XMEMORY_ACQ_REL = 3,
+	XMEMORY_SEQ_CST = 4
+} xmemoryorder;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XMEMORY_RELAXED` | RELAXED |
+| `XMEMORY_ACQUIRE` | ACQUIRE |
+| `XMEMORY_RELEASE` | RELEASE |
+| `XMEMORY_ACQ_REL` | ACQREL |
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XRT_ATOMIC32_INIT` | `(iValue) { (uint32)(iValue) }` | 静态原子对象初始化器只能用于对象定义。 |
+| `XRT_ATOMIC64_INIT` | `(iValue) { (uint64)(iValue) }` | ATOMIC64初始化 |
+| `XRT_ATOMICPTR_INIT` | `(pValue) { (ptr)(pValue) }` | ATOMICPTR初始化 |
+
 ## 内存顺序
 
 ```c
