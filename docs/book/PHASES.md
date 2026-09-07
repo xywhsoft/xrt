@@ -17,7 +17,7 @@
 | P3 | 卷三后半 + 新增：map/set/avl/queue/pool + 容器选型决策章 + 卷导言 | 7 | ✅ 完成 |
 | P4 | 卷四前半：string/number/charset/codec/compress | 6 | ✅ 完成 |
 | P5 | 卷四后半：value/json/xson/template + regex 归位本卷 + JSON+模板组合章 | 7 | ✅ 完成 |
-| P6 | 卷五前半：logger×2/console/io/time/env | 6 | ⬜ |
+| P6 | 卷五前半：logger×2/console/io/time/env | 6 | ✅ 完成 |
 | P7 | 卷五后半：path/file×2/dir/file-async/signal + 调试与诊断组合章 | 7 | ⬜ |
 | P8 | 卷六前半：thread-sync（含 once）/coroutine×3 + 取消体系专章 | 8 | ⬜ |
 | P9 | 卷六后半：channel/future/executor/task×2 + 调度器实战章 | 8 | ⬜ |

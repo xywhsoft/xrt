@@ -12,7 +12,7 @@
 | P3 卷三后半 + 选型章 | ✅ 完成 | 7 | 27,804 |
 | P4 卷四前半 | ✅ 完成 | 6 | 22,441 |
 | P5 卷四后半 | ✅ 完成 | 7 | 30,235 |
-| P6 卷五前半 | 🔄 进行中 | 0 | — |
+| P6 卷五前半 | ✅ 完成 | 6 | 24,273 |
 | P7–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -35,6 +35,13 @@
 | 15 | 15-stack.md | practice | 4,003 | 2 | 1 | 2 | 3 | P2 |
 | 16 | 16-list-slotmap.md | practice | 4,037 | 2 | 1 | 2 | 3 | P2 |
 | 55 | 61-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
+
+## P6 阶段记录
+
+- 卷五前半 6 章（插入卷五导言 ch36，全书第五次重编号 72 文件；导言本身属 P7 批次待写——本阶段 6 章指 logger×2/console/io/time/env）。
+- 门禁拦下：xrtIoLineReader→xlinereader+Next 三态、env 三条路径实为两条（Get/Lookup，
+  GetDefault 不在头文件）、xrtTimeAdd 签名出参序、printf 范例真实输出对齐、
+  SplitAt 参数序修正。
 
 ## P5 阶段记录
 
