@@ -125,3 +125,466 @@ str xrtNetHostNameString(void);
 模块测试只枚举本机系统接口并解析本机接口名称，不发送报文，也不访问外部地址。
 底层示例位于 `examples/network/interface/main.c`，便捷层示例位于
 `examples/network/local_info/main.c`。
+
+## API
+
+### `xrtNetInterfaceIndex`
+把规范名称或显示名称转换为接口索引。`UNSPEC` 优先返回 IPv6 索引，再返回 IPv4 索引；失败返回零。
+
+```c
+uint32 xrtNetInterfaceIndex(cstr sName, xnetfamily Family);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sName` | 输入 | 非空 | 规范名或系统显示名（Windows 为显示名） |
+| `Family` | 输入 | 地址族 | `UNSPEC` 两族都匹配，优先 IPv6 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非 `0` | 接口索引 | — |
+| `0` | 未找到或系统查询失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_NOT_FOUND` + `XNET_ERROR_INTERFACE_INDEX` — 没有该名称的接口
+- `XERR_IO` + `XNET_ERROR_INTERFACE_INDEX` — 系统接口查询失败
+
+#### 范例
+
+[network/interface_tour · 往返](../../examples/network/interface_tour/main.c) · 跨平台回环命名差异
+
+```c
+iIndex = xrtNetInterfaceIndex("loopback4", XNET_FAMILY_IPV4);
+if ( iIndex == 0u ) {
+	iIndex = xrtNetInterfaceIndex(
+		"Loopback Pseudo-Interface 1", XNET_FAMILY_IPV4);
+}
+```
+
+### `xrtNetInterfaceName`
+输出指定接口索引的规范名称并返回所需长度。`UNSPEC` 同时匹配 IPv4 与 IPv6 索引；空输出可查询所需大小。
+
+```c
+size_t xrtNetInterfaceName(
+	uint32 iIndex,
+	xnetfamily Family,
+	char* sName,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iIndex` | 输入 | 非零 | 接口索引 |
+| `Family` | 输入 | 地址族 | 指定匹配哪族索引；`UNSPEC` 两族都试 |
+| `sName` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
+| `0` | 索引未找到 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_NOT_FOUND` + `XNET_ERROR_INTERFACE_NAME` — 没有该索引的接口
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — 缓冲不足：不写入，返回完整所需大小
+
+#### 范例
+
+[network/interface_tour · 往返](../../examples/network/interface_tour/main.c) · 两段式：先查大小再写入
+
+```c
+iNeed = xrtNetInterfaceName(iIndex, XNET_FAMILY_IPV4, NULL,
+	0u);
+if ( (iNeed == 0u) || (iNeed >= sizeof(sName)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetInterfaceName(iIndex, XNET_FAMILY_IPV4, sName,
+	sizeof(sName));
+```
+
+### `xrtNetInterfaces`
+创建当前系统接口、地址和元数据的一致快照。
+
+```c
+bool xrtNetInterfaces(xnetinterfacelist* pList);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输出 | 非空 | 接收拥有型快照；用后 `InterfacesFree` 释放 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 快照已写入（`Items`/`Count` 与每接口地址数组） | — |
+| `false` | 参数非法或系统查询/分配失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pList` 为空
+- `XERR_IO` — 系统接口枚举失败
+- 内存分配失败 — 快照存储分配失败
+
+#### 范例
+
+[network/interface · 枚举](../../examples/network/interface/main.c) · 遍历接口与地址前缀
+
+```c
+if ( !xrtNetInterfaces(&List) ) {
+	return 1;
+}
+for ( i = 0; i < List.Count; i++ ) {
+	const xnetinterface* pInterface = &List.Items[i];
+```
+
+### `xrtNetInterfacesFree`
+释放接口快照拥有的全部存储并清零。
+
+```c
+void xrtNetInterfacesFree(xnetinterfacelist* pList);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pList` | 输入 | 允许空指针 | `Interfaces` 产物；释放后清零可复用 |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| 无 | 空指针是空操作 |
+
+#### 范例
+
+[network/interface · 枚举](../../examples/network/interface/main.c) · 用后释放
+
+```c
+xrtNetInterfacesFree(&List);
+return 0;
+}
+```
+
+### `xrtNetLocalAddress`
+选择一个适合本机诊断的单播地址。这是确定性偏好查询，不代表公网出口、默认路由或服务监听策略。
+
+```c
+bool xrtNetLocalAddress(
+	xnetaddr* pAddress,
+	xnetfamily Family
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddress` | 输出 | 非空 | 接收地址；端口为零 |
+| `Family` | 输入 | `IPV4`/`IPV6`/`UNSPEC` | 期望族；`UNSPEC` 按平台偏好选择 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写入偏好地址 | — |
+| `false` | 参数非法或无可用地址 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — `pAddress` 为空或 `Family` 非法
+- `XERR_NOT_FOUND` + `XNET_ERROR_INTERFACE_ADDRESS` — 没有可用的本机单播地址
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 结构体出参形态
+
+```c
+if ( !xrtNetLocalAddress(&Address, XNET_FAMILY_IPV4) ||
+	(Address.Family != XNET_FAMILY_IPV4) ||
+	(Address.Port != 0u) ) {
+	goto Cleanup;
+}
+```
+
+### `xrtNetLocalAddressText`
+输出首选本机地址文本并返回不含结尾零字节的所需长度。
+
+```c
+size_t xrtNetLocalAddressText(
+	xnetfamily Family,
+	char* sAddress,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Family` | 输入 | 地址族 | 期望族 |
+| `sAddress` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
+| `XRT_NPOS` | 无可用本机地址 | 错误经 `xrtGetError()` 报告（`NOT_FOUND` 族） |
+
+#### 错误
+
+- 同 `xrtNetLocalAddress` — 地址选择失败时透传（`NOT_FOUND` + `INTERFACE_ADDRESS`）
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 两段式文本输出
+
+```c
+iNeed = xrtNetLocalAddressText(XNET_FAMILY_IPV4, NULL, 0u);
+if ( (iNeed == 0u) || (iNeed >= sizeof(sText)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetLocalAddressText(XNET_FAMILY_IPV4, sText,
+	sizeof(sText));
+```
+
+### `xrtNetLocalAddressString`
+分配并返回首选本机地址文本。
+
+```c
+str xrtNetLocalAddressString(xnetfamily Family);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Family` | 输入 | 地址族 | 期望族 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
+| `NULL` | 无可用地址或分配失败 | 不设置线程错误（查询语义） |
+
+#### 错误
+
+- 无 — `NULL` 表示本机无可用地址或分配失败，调用方判空即可
+
+#### 范例
+
+[network/local_info · 一览](../../examples/network/local_info/main.c) · 启动日志三件套之一
+
+```c
+str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
+str sHost = xrtNetHostNameString();
+str sHardware = xrtNetLocalHardwareString();
+```
+
+### `xrtNetLocalHardware`
+输出首选活动接口的原始硬件地址并返回所需字节数。空输出可查询大小；缓冲不足时不写入并报告完整所需大小。
+
+```c
+size_t xrtNetLocalHardware(
+	void* pAddress,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAddress` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 所需字节数（典型 MAC 为 6）；缓冲足够时已写入 | — |
+| `0` | 无可用硬件地址 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_NOT_FOUND` + `XNET_ERROR_INTERFACE_HARDWARE` — 没有可用的本机硬件地址
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — 缓冲不足：不写入，返回完整所需大小
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 原始字节两段式
+
+```c
+iNeed = xrtNetLocalHardware(NULL, 0u);
+if ( (iNeed < 6u) || (iNeed > sizeof(Hardware)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetLocalHardware(Hardware, sizeof(Hardware));
+```
+
+### `xrtNetLocalHardwareText`
+输出首选接口硬件地址的大写紧凑 HEX 文本。
+
+```c
+size_t xrtNetLocalHardwareText(
+	char* sAddress,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sAddress` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 不含结尾零的所需长度（6 字节 MAC 为 12 字符） | — |
+| `0` | 无可用硬件地址 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_NOT_FOUND` — 无可用硬件地址（透传 `LocalHardware`）
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — 缓冲不足：不写入，返回完整所需大小
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 6 字节 MAC → 12 个 HEX 字符
+
+```c
+iNeed = xrtNetLocalHardwareText(NULL, 0u);
+if ( (iNeed < 12u) || (iNeed >= sizeof(sText)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetLocalHardwareText(sText, sizeof(sText));
+```
+
+### `xrtNetLocalHardwareString`
+分配并返回首选接口硬件地址的大写紧凑 HEX 文本。
+
+```c
+str xrtNetLocalHardwareString(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 取首选活动接口 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
+| `NULL` | 无可用硬件地址或分配失败（如纯回环环境） | 不设置线程错误（查询语义） |
+
+#### 错误
+
+- 无 — `NULL` 表示不可用，调用方判空即可
+
+#### 范例
+
+[network/local_info · 一览](../../examples/network/local_info/main.c) · 判空后回退占位文本
+
+```c
+str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
+str sHost = xrtNetHostNameString();
+str sHardware = xrtNetLocalHardwareString();
+```
+
+### `xrtNetHostName`
+输出本机主机名并返回不含结尾零字节的所需长度。
+
+```c
+size_t xrtNetHostName(
+	char* sName,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sName` | 输出 | 可空 | 输出缓冲；空指针表示只查所需大小 |
+| `iCapacity` | 输入 | — | 缓冲容量（含结尾零字节） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `> 0` | 不含结尾零的所需长度；缓冲足够时已写入 | — |
+| `0` | 系统查询失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_IO` — 系统主机名查询失败
+- `XERR_RANGE` + `XNET_ERROR_BUFFER` — 缓冲不足：不写入，返回完整所需大小
+
+#### 范例
+
+[network/interface_tour · 本机信息](../../examples/network/interface_tour/main.c) · 两段式输出
+
+```c
+iNeed = xrtNetHostName(NULL, 0u);
+if ( (iNeed == 0u) || (iNeed >= sizeof(sName)) ) {
+	goto Cleanup;
+}
+iSize = xrtNetHostName(sName, sizeof(sName));
+```
+
+### `xrtNetHostNameString`
+分配并返回本机主机名。
+
+```c
+str xrtNetHostNameString(void);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无 | — | — | 查询系统主机名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | `xrtAlloc` 分配的文本，调用方 `xrtFree` | — |
+| `NULL` | 系统查询或分配失败 | 不设置线程错误（查询语义） |
+
+#### 错误
+
+- 无 — `NULL` 表示不可用，调用方判空即可
+
+#### 范例
+
+[network/local_info · 一览](../../examples/network/local_info/main.c) · 三件套打印后统一释放
+
+```c
+str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
+str sHost = xrtNetHostNameString();
+str sHardware = xrtNetLocalHardwareString();
+```
