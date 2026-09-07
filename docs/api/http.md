@@ -2517,6 +2517,2219 @@ xhttpnext xrtHttpDirectiveFind(
 
 
 
+## TE 传输编码
+
+### `xrtHttpTeCursorInit`
+
+初始化单个 TE 字段值游标。
+
+```c
+void xrtHttpTeCursorInit(xhttptecursor* pCursor);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	xrtHttpTeCursorInit(&TeCursor);
+```
+
+
+### `xrtHttpTeFieldCursorInit`
+
+初始化跨重复 TE 字段游标。
+
+```c
+void xrtHttpTeFieldCursorInit(
+	xhttptefieldcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	xrtHttpTeFieldCursorInit(&TeFieldCursor);
+```
+
+
+### `xrtHttpTeCodingParse`
+
+严格解析一个不含列表分隔逗号的 TE 成员。
+
+```c
+bool xrtHttpTeCodingParse(
+	xstrview Element,
+	xhttptecoding* pCoding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Element` | 输入 | 借用 | 单个成员文本 |
+| `pCoding` | 输出 | 非空 | 接收名称/权重 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	if ( !xrtHttpTeCodingParse(SV("trailers"), &TeCoding) ||
+		(TeCoding.Quality != 1000u) ||
+		!xrtHttpTeCodingParse(SV("gzip;q=0.8"), &TeCoding) ||
+		(TeCoding.Quality != 800u) ) {
+```
+
+
+### `xrtHttpTeValid`
+
+完整验证一个 TE 字段值；HTTP 列表空成员会被忽略。
+
+```c
+bool xrtHttpTeValid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	if ( !xrtHttpTeValid(SV("gzip, deflate")) ||
+		!xrtHttpTeValid(SV("gzip,, ,")) ||
+		xrtHttpTeValid(SV("gzip;;")) ||
+		!xrtHttpTeCount(SV("gzip, deflate, br"), &iCount) ||
+		(iCount != 3u) ) {
+```
+
+
+### `xrtHttpTeCount`
+
+完整验证并统计一个 TE 字段值中的非空成员。
+
+```c
+bool xrtHttpTeCount(
+	xstrview Value,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCount` | 输出 | 非空 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		!xrtHttpTeCount(SV("gzip, deflate, br"), &iCount) ||
+		(iCount != 3u) ) {
+```
+
+
+### `xrtHttpTeNext`
+
+按线路顺序迭代一个完整 TE 字段值。
+
+```c
+xhttpnext xrtHttpTeNext(
+	xstrview Value,
+	xhttptecursor* pCursor,
+	xhttptecoding* pCoding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pCoding` | 输出 | 非空 | 接收成员 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	while ( xrtHttpTeNext(SV("gzip, trailers"), &TeCursor,
+			&TeCoding) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpTeFieldNext`
+
+跨重复 TE 字段行按线路顺序迭代全部成员。
+
+```c
+xhttpnext xrtHttpTeFieldNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttptefieldcursor* pCursor,
+	xhttptecoding* pCoding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pCoding` | 输出 | 非空 | 接收成员 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	while ( xrtHttpTeFieldNext(arrTeFields, 2u, &TeFieldCursor,
+			&TeCoding) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpTeParse`
+
+完整解析全部重复 TE 字段并发布零分配汇总。
+
+```c
+bool xrtHttpTeParse(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpteinfo* pInfo
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pInfo` | 输出 | 非空 | 接收汇总（chunked/编码集等） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 汇总已发布 | — |
+| `false` | 任一字段非法 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/te · 汇总](../../examples/http/te/main.c) · 观察
+
+```c
+	if ( !xrtHttpTeParse(Fields, 2u, &Info) ) {
+```
+
+
+### `xrtHttpTeQuality`
+
+返回指定传输编码的最高有效权重；缺失或不匹配返回零。
+
+```c
+uint16 xrtHttpTeQuality(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Coding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | TE 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `Coding` | 输入 | 借用 | 编码名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `0–1000` | 最高有效权重 | — |
+| `0` | 缺失或不匹配（或参数错误） | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `xrt.http` 域错误 — 字段值非法
+
+#### 范例
+
+[http/te · 权重](../../examples/http/te/main.c) · 观察
+
+```c
+		(unsigned int)xrtHttpTeQuality(
+			Fields, 2u, XRT_STR_LITERAL("gzip")
+		)
+```
+
+
+### `xrtHttpTeAcceptsTrailers`
+
+完整验证并判断客户端是否声明不会丢弃 Trailer。
+
+```c
+xhttpnext xrtHttpTeAcceptsTrailers(
+	const xhttpfield* pFields,
+	size_t iCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM` | 声明 trailers（`TE: trailers`） | — |
+| `XHTTP_NEXT_END` | 未声明 | 不设错 |
+| `XHTTP_NEXT_ERROR` | 字段非法 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · TE](../../examples/http/small_fields/main.c) · 观察
+
+```c
+	if ( xrtHttpTeAcceptsTrailers(arrTeFields, 2u) !=
+		XHTTP_NEXT_ITEM ) {
+```
+
+
+## Expect
+
+### `xrtHttpExpectCursorInit`
+
+初始化单个 Expect 字段值游标。
+
+```c
+void xrtHttpExpectCursorInit(
+	xhttpexpectcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		xrtHttpExpectCursorInit(&ExCursor);
+```
+
+
+### `xrtHttpExpectFieldCursorInit`
+
+初始化跨重复 Expect 字段游标。
+
+```c
+void xrtHttpExpectFieldCursorInit(
+	xhttpexpectfieldcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/expect · 字段游标](../../examples/http/expect/main.c) · 观察
+
+```c
+	xrtHttpExpectFieldCursorInit(&Cursor);
+```
+
+
+### `xrtHttpExpectationParse`
+
+严格解析一个不含列表分隔逗号的 expectation。
+
+```c
+bool xrtHttpExpectationParse(
+	xstrview Element,
+	xhttpexpectation* pExpectation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Element` | 输入 | 借用 | 单个 expectation |
+| `pExpectation` | 输出 | 非空 | 接收名称/参数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpExpectationParse(SV("100-continue"),
+				&Expectation) ||
+			(Expectation.Name.Size != 12u) ||
+			(memcmp(Expectation.Name.Data, "100-continue",
+					12u) != 0) ) {
+```
+
+
+### `xrtHttpExpectValid`
+
+完整验证一个 Expect 字段值；空列表符合 HTTP 列表语法。
+
+```c
+bool xrtHttpExpectValid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpExpectValid(arrExpect[0].Value) ) {
+```
+
+
+### `xrtHttpExpectCount`
+
+完整验证并统计一个 Expect 字段值中的 expectation 数量。
+
+```c
+bool xrtHttpExpectCount(
+	xstrview Value,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCount` | 输出 | 非空 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpExpectCount(arrExpect[0].Value, &iCount) ||
+			(iCount != 2u) ||
+```
+
+
+### `xrtHttpExpectNext`
+
+按线路顺序迭代一个完整 Expect 字段值。
+
+```c
+xhttpnext xrtHttpExpectNext(
+	xstrview Value,
+	xhttpexpectcursor* pCursor,
+	xhttpexpectation* pExpectation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pExpectation` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Expect](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		while ( xrtHttpExpectNext(arrExpect[0].Value, &ExCursor,
+				&Expectation) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpExpectFieldNext`
+
+跨重复 Expect 字段行按线路顺序迭代 expectation。
+
+```c
+xhttpnext xrtHttpExpectFieldNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpexpectfieldcursor* pCursor,
+	xhttpexpectation* pExpectation
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pExpectation` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/expect · 字段游标](../../examples/http/expect/main.c) · 观察
+
+```c
+	while ( xrtHttpExpectFieldNext(
+		Fields, 2u, &Cursor, &Expectation
+	) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpExpectFields`
+
+分类全部重复 Expect 字段并完整验证所有元素。
+
+```c
+xhttpexpectresult xrtHttpExpectFields(
+	const xhttpfield* pFields,
+	size_t iCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_EXPECT_NONE` | 无 Expect 字段 | — |
+| `XHTTP_EXPECT_100_CONTINUE` | 声明 100-continue | — |
+| `XHTTP_EXPECT_UNSUPPORTED` | 合法但服务器不支持的 expectation | — |
+| 参数非法时 | — | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/expect · 分类](../../examples/http/expect/main.c) · 观察
+
+```c
+		xrtHttpExpectFields(Fields, 2u) ==
+			XHTTP_EXPECT_CONTINUE ? "yes" : "no"
+```
+
+
+## Upgrade
+
+### `xrtHttpUpgradeCursorInit`
+
+初始化单个 Upgrade 字段值游标。
+
+```c
+void xrtHttpUpgradeCursorInit(
+	xhttpupgradecursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		xrtHttpUpgradeCursorInit(&UpCursor);
+```
+
+
+### `xrtHttpUpgradeFieldCursorInit`
+
+初始化跨重复 Upgrade 字段游标。
+
+```c
+void xrtHttpUpgradeFieldCursorInit(
+	xhttpupgradefieldcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/upgrade · 字段游标](../../examples/http/upgrade/main.c) · 观察
+
+```c
+	xrtHttpUpgradeFieldCursorInit(&Cursor);
+```
+
+
+### `xrtHttpUpgradeParse`
+
+严格解析一个 protocol-name[/protocol-version] 元素。
+
+```c
+bool xrtHttpUpgradeParse(
+	xstrview Text,
+	xhttpupgradeitem* pUpgrade
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Text` | 输入 | 借用 | 单个协议元素 |
+| `pUpgrade` | 输出 | 非空 | 接收名称/版本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已解析 | — |
+| `false` | 语法错误 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpUpgradeParse(SV("websocket"), &Upgrade) ||
+			(Upgrade.Protocol.Size != 9u) ) {
+```
+
+
+### `xrtHttpUpgradeValid`
+
+完整验证一个 Upgrade 字段值；空列表符合列表语法。
+
+```c
+bool xrtHttpUpgradeValid(xstrview Value);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpUpgradeValid(SV("websocket")) ||
+			xrtHttpUpgradeValid(SV("bad token")) ) {
+```
+
+
+### `xrtHttpUpgradeCount`
+
+完整验证并统计一个 Upgrade 字段值中的协议数量。
+
+```c
+bool xrtHttpUpgradeCount(
+	xstrview Value,
+	size_t* pCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCount` | 输出 | 非空 | 接收计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 语法错误 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpUpgradeCount(SV("websocket, h2c"),
+				&iCount) ||
+			(iCount != 2u) ||
+```
+
+
+### `xrtHttpUpgradeNext`
+
+按线路顺序迭代一个完整 Upgrade 字段值。
+
+```c
+xhttpnext xrtHttpUpgradeNext(
+	xstrview Value,
+	xhttpupgradecursor* pCursor,
+	xhttpupgradeitem* pUpgrade
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pUpgrade` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		while ( xrtHttpUpgradeNext(SV("websocket, h2c"),
+				&UpCursor, &Upgrade) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpUpgradeFieldNext`
+
+跨重复 Upgrade 字段行按线路顺序迭代协议。
+
+```c
+xhttpnext xrtHttpUpgradeFieldNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpupgradefieldcursor* pCursor,
+	xhttpupgradeitem* pUpgrade
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pUpgrade` | 输出 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/upgrade · 字段游标](../../examples/http/upgrade/main.c) · 观察
+
+```c
+	while ( (Next = xrtHttpUpgradeFieldNext(
+		Fields, 2u, &Cursor, &Upgrade
+	)) == XHTTP_NEXT_ITEM ) {
+```
+
+
+### `xrtHttpUpgradeWrite`
+
+规范写出一个或多个 Upgrade 协议；空输出可精确查询长度。
+
+```c
+bool xrtHttpUpgradeWrite(
+	const xhttpupgradeitem* pUpgrades,
+	size_t iCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pUpgrades` | 输入 | 借用数组 | 协议元素数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 容量不足或参数错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/upgrade · 写出](../../examples/http/upgrade/main.c) · 观察
+
+```c
+		!xrtHttpUpgradeWrite(
+			Offered,
+			2u,
+			sOutput,
+			sizeof(sOutput),
+			&iSize
+		) ) {
+```
+
+
+### `xrtHttpUpgradeElementWrite`
+
+规范写出一个 Upgrade 协议元素。
+
+```c
+bool xrtHttpUpgradeElementWrite(
+	const xhttpupgradeitem* pUpgrade,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pUpgrade` | 输入 | 非空 | 协议元素 |
+| `pOutput` | 输出 | 可空 | 输出缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 容量不足或参数错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE`
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			if ( !xrtHttpUpgradeElementWrite(
+					&(xhttpupgradeitem){ SV("h2c"), SV("v2") },
+					Buffer, sizeof(Buffer), &iCount) ||
+				(iCount != 6u) ||
+				(memcmp(Buffer, "h2c/v2", 6u) != 0) ) {
+```
+
+
+### `xrtHttpUpgradeBuild`
+
+构建零结尾 Upgrade 字段值，返回值由 `xrtFree` 释放。
+
+```c
+str xrtHttpUpgradeBuild(
+	const xhttpupgradeitem* pUpgrades,
+	size_t iCount,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pUpgrades` | 输入 | 借用数组 | 协议元素数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾结果 | — |
+| `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/small_fields · Upgrade](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			str sBuilt = xrtHttpUpgradeBuild(arrUp, 2u, &iCount);
+```
+
+
+## Trailer
+
+### `xrtHttpTrailerNameValid`
+
+判断字段名是否可作为通用 HTTP trailer 发送。
+
+```c
+bool xrtHttpTrailerNameValid(xstrview Name);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Name` | 输入 | 借用 | 字段名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 可发送（非禁投递集合） | — |
+| `false` | 禁止作为 trailer | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpTrailerNameValid(SV("X-Checksum")) ||
+			xrtHttpTrailerNameValid(SV("Bad Name")) ) {
+```
+
+
+### `xrtHttpTrailerSectionValid`
+
+完整验证实际 trailer section 的字段名称和值。
+
+```c
+bool xrtHttpTrailerSectionValid(
+	const xhttpfield* pTrailers,
+	size_t iCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTrailers` | 输入 | 借用数组 | 实际 trailer 字段 |
+| `iCount` | 输入 | — | 条目数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 名称与值全部合法 | — |
+| `false` | 存在禁投递名或非法值 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			if ( !xrtHttpTrailerSectionValid(arrSection, 1u) ||
+				xrtHttpTrailerSectionValid(arrBad, 1u) ) {
+```
+
+
+### `xrtHttpTrailerCount`
+
+完整验证重复 Trailer 字段行并统计其中声明的名称。
+
+```c
+bool xrtHttpTrailerCount(
+	const xhttpfield* pFields,
+	size_t iCount,
+	size_t* pNameCount
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 声明字段 |
+| `iCount` | 输入 | — | 条目数 |
+| `pNameCount` | 输出 | 非空 | 接收声明计数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计数已写出 | — |
+| `false` | 声明非法 | 计数不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpTrailerCount(arrTrailer, 2u, &iCount) ||
+			(iCount != 3u) ||
+			!xrtHttpTrailerFind(arrTrailer, 2u,
+				SV("X-Checksum")) ||
+			xrtHttpTrailerFind(arrTrailer, 2u,
+				SV("X-Missing")) ||
+			!xrtHttpTrailerNameValid(SV("X-Checksum")) ||
+			xrtHttpTrailerNameValid(SV("Bad Name")) ) {
+```
+
+
+### `xrtHttpTrailerFind`
+
+查找已声明的 trailer 字段名；返回 ITEM、END 或 ERROR。
+
+```c
+xhttpnext xrtHttpTrailerFind(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xstrview Name
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 声明字段 |
+| `iCount` | 输入 | — | 条目数 |
+| `Name` | 输入 | 借用 | 查找名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 找到/未找到（不设错）/声明非法 | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpTrailerFind(arrTrailer, 2u,
+				SV("X-Checksum")) ||
+			xrtHttpTrailerFind(arrTrailer, 2u,
+```
+
+
+### `xrtHttpTrailerNamesWrite`
+
+从实际 trailer 字段写出规范的 Trailer 声明值；同名按大小写不敏感去重并保留首现顺序。
+
+```c
+bool xrtHttpTrailerNamesWrite(
+	const xhttpfield* pTrailers,
+	size_t iTrailerCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTrailers` | 输入 | 借用数组 | 实际字段 |
+| `iTrailerCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空、不得与描述符重叠 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 容量不足或重叠 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/small_fields · Trailer](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			if ( !xrtHttpTrailerNamesWrite(arrActual, 2u,
+					Buffer, sizeof(Buffer), &iCount) ||
+				(iCount != 19u) ||
+				(memcmp(Buffer, "X-Checksum, X-Total",
+					19u) != 0) ) {
+```
+
+
+### `xrtHttpTrailerNamesBuild`
+
+构建零结尾的 Trailer 声明值，返回值由 `xrtFree` 释放。
+
+```c
+str xrtHttpTrailerNamesBuild(
+	const xhttpfield* pTrailers,
+	size_t iTrailerCount,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTrailers` | 输入 | 借用数组 | 实际字段 |
+| `iTrailerCount` | 输入 | — | 条目数 |
+| `pSize` | 输出 | 可空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 零结尾声明值 | — |
+| `NULL` | 参数错误或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/trailer · 构建](../../examples/http/trailer/main.c) · 观察
+
+```c
+	sNames = xrtHttpTrailerNamesBuild(Trailers, 2u, NULL);
+```
+
+
+## Accept-Encoding 协商
+
+### `xrtHttpAcceptEncodingInit`
+
+初始化为 Header 缺失状态；按 RFC 该状态接受任意内容编码。
+
+```c
+void xrtHttpAcceptEncodingInit(
+	xhttpacceptencoding* pAccept
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输出 | 非空 | 协商状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/encoding · 协商](../../examples/http/encoding/main.c) · 观察
+
+```c
+	xrtHttpAcceptEncodingInit(&Accept);
+```
+
+
+### `xrtHttpAcceptEncodingValid`
+
+判断公开协商状态字段是否自洽；纯查询不修改线程原有错误。
+
+```c
+bool xrtHttpAcceptEncodingValid(
+	const xhttpacceptencoding* pAccept
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输入 | 非空 | 协商状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 自洽 | — |
+| `false` | 不自洽 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http/small_fields · 协商](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			!xrtHttpAcceptEncodingValid(&Accept) ) {
+```
+
+
+### `xrtHttpAcceptEncodingAdd`
+
+失败原子地合并一个 Accept-Encoding 字段值；空值只记录 Header 存在，未知编码语法有效但不进入内置集合。
+
+```c
+bool xrtHttpAcceptEncodingAdd(
+	xhttpacceptencoding* pAccept,
+	xstrview Value
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输入/输出 | 非空 | 协商状态 |
+| `Value` | 输入 | 借用 | 单个字段值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已合并（失败原子） | — |
+| `false` | 语法错误 | 状态不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/encoding · 协商](../../examples/http/encoding/main.c) · 观察
+
+```c
+	if ( !xrtHttpAcceptEncodingAdd(
+		&Accept,
+		XRT_STR_LITERAL(
+			"gzip;q=0.8, deflate;q=0.4, identity;q=0.1"
+		)
+	) ) {
+```
+
+
+### `xrtHttpAcceptEncodingParse`
+
+扫描全部同名字段并构建零分配协商状态；Fields 为空且 Count 为零表示没有任何字段。
+
+```c
+bool xrtHttpAcceptEncodingParse(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpacceptencoding* pAccept
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pAccept` | 输出 | 非空 | 接收协商状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 状态已构建 | — |
+| `false` | 任一字段非法 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · 协商](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpAcceptEncodingParse(arrAe, 1u, &Accept) ||
+			(xrtHttpAcceptEncodingQuality(&Accept,
+				XHTTP_CODING_GZIP) != 900u) ||
+			(xrtHttpAcceptEncodingQuality(&Accept,
+				XHTTP_CODING_IDENTITY) != 1000u) ||
+			!xrtHttpAcceptEncodingValid(&Accept) ) {
+```
+
+
+### `xrtHttpAcceptEncodingQuality`
+
+返回指定内置编码的有效质量；参数错误返回零并设置错误。
+
+```c
+uint16 xrtHttpAcceptEncodingQuality(
+	const xhttpacceptencoding* pAccept,
+	xhttpcoding Coding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输入 | 非空 | 协商状态 |
+| `Coding` | 输入 | — | 内置编码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `0–1000` | 有效质量（缺失按 RFC 缺省 1000） | — |
+| `0` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/small_fields · 协商](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			(xrtHttpAcceptEncodingQuality(&Accept,
+				XHTTP_CODING_GZIP) != 900u) ||
+			(xrtHttpAcceptEncodingQuality(&Accept,
+```
+
+
+### `xrtHttpAcceptEncodingSelect`
+
+从 Available 位掩码中选择最高质量编码；等质量时先选 Preferred，再按 gzip、deflate、identity 顺序。
+
+```c
+xhttpcoding xrtHttpAcceptEncodingSelect(
+	const xhttpacceptencoding* pAccept,
+	uint32 iAvailable,
+	xhttpcoding Preferred
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pAccept` | 输入 | 非空 | 协商状态 |
+| `iAvailable` | 输入 | `XHTTP_CODING_*` 位掩码 | 服务器可用集 |
+| `Preferred` | 输入 | — | 等质量偏好 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 编码值 | 选中的编码 | — |
+| `XHTTP_CODING_NONE` | 无可用匹配 | `XERR_ARGUMENT`（参数错误时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/encoding · 选择](../../examples/http/encoding/main.c) · 观察
+
+```c
+	Coding = xrtHttpAcceptEncodingSelect(
+		&Accept,
+		XHTTP_CODING_IDENTITY |
+			XHTTP_CODING_GZIP |
+			XHTTP_CODING_DEFLATE,
+		XHTTP_CODING_GZIP
+	);
+```
+
+
+## Content-Encoding 响应链
+
+### `xrtHttpContentEncodingCursorInit`
+
+初始化可重复使用的 Content-Encoding 前向游标。
+
+```c
+void xrtHttpContentEncodingCursorInit(
+	xhttpcontentencodingcursor* pCursor
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输出 | 非空 | 调用方存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/small_fields · 响应链](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			xrtHttpContentEncodingCursorInit(&Cursor);
+```
+
+
+### `xrtHttpContentEncodingNext`
+
+按字段出现顺序迭代全部 Content-Encoding 成员；未知扩展仍返回 ITEM 且 Coding 为 NONE。
+
+```c
+xhttpnext xrtHttpContentEncodingNext(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpcontentencodingcursor* pCursor,
+	xhttpcontentencodingitem* pItem
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pCursor` | 输入/输出 | 已初始化 | 游标 |
+| `pItem` | 输出 | 非空 | 接收编码条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态（未知扩展 Coding=NONE） | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/small_fields · 响应链](../../examples/http/small_fields/main.c) · 观察
+
+```c
+			if ( xrtHttpContentEncodingNext(arrCe, 1u,
+					&Cursor, &Item) != XHTTP_NEXT_ITEM ||
+				(Item.Token.Size != 4u) ||
+				(Item.Coding != XHTTP_CODING_GZIP) ) {
+```
+
+
+### `xrtHttpContentEncodingPlan`
+
+无分配构建完整 Content-Encoding 计划；DecoderCount 只统计 gzip/deflate。
+
+```c
+bool xrtHttpContentEncodingPlan(
+	const xhttpfield* pFields,
+	size_t iCount,
+	xhttpcontentencodingplan* pPlan
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pPlan` | 输出 | 非空 | 接收解码器数/连接串大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计划已发布 | — |
+| `false` | 字段非法 | 输出不变 |
+
+#### 错误
+
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/encoding · 响应链](../../examples/http/encoding/main.c) · 观察
+
+```c
+	if ( !xrtHttpContentEncodingPlan(
+		Fields,
+		sizeof(Fields) / sizeof(Fields[0]),
+		&Plan
+	) ) {
+```
+
+
+### `xrtHttpContentEncodingWrite`
+
+按字段出现顺序写出以逗号空格连接的原始值；空输出可查大小，容量不足不写部分结果。
+
+```c
+bool xrtHttpContentEncodingWrite(
+	const xhttpfield* pFields,
+	size_t iCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用数组 | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出（不附加零） | — |
+| `false` | 容量不足 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE`
+
+#### 范例
+
+[http/small_fields · 响应链](../../examples/http/small_fields/main.c) · 观察
+
+```c
+		if ( !xrtHttpContentEncodingWrite(arrCe, 1u, Buffer,
+				sizeof(Buffer), &iCount) ||
+			(iCount != 8u) ||
+			(memcmp(Buffer, "gzip, br", 8u) != 0) ) {
+```
+
+
+### `xrtHttpCodingName`
+
+返回 identity、gzip 或 deflate 的静态小写 token；NONE 返回空视图。
+
+```c
+xstrview xrtHttpCodingName(xhttpcoding Coding);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Coding` | 输入 | — | 编码枚举 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 静态小写 token | — |
+| 空视图 | `XHTTP_CODING_NONE` | 纯查询 |
+
+#### 错误
+
+- 无 — 纯查询
+
+#### 范例
+
+[http/encoding · 编码名](../../examples/http/encoding/main.c) · 观察
+
+```c
+	Name = xrtHttpCodingName(Coding);
+```
+
+
+## 正文解码器
+
+### `xrtHttpDecodeConfigInit`
+
+初始化兼容配置：最多四层、64 KiB gzip Header、明文长度不设上限。
+
+```c
+void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收兼容配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/decode_tour · 配置](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+	xrtHttpDecodeConfigInit(&Compat);
+```
+
+
+### `xrtHttpDecodeConfigInitSafe`
+
+初始化面向不可信对端的安全配置；明文最多 16 MiB，更大正文需显式修改 OutputLimit。
+
+```c
+void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收安全配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无；无限明文须显式设 `XHTTP_DECODE_OUTPUT_UNLIMITED`
+
+#### 范例
+
+[http/decode_tour · 配置](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+	xrtHttpDecodeConfigInitSafe(&Safe);
+```
+
+
+### `xrtHttpDecodeCreate`
+
+根据全部 Header 创建解码器；字段和值只在本次调用期间借用。
+
+```c
+xhttpdecode* xrtHttpDecodeCreate(
+	const xhttpfield* pFields,
+	size_t iCount,
+	const xhttpdecodeconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFields` | 输入 | 借用（仅调用期间） | 字段数组 |
+| `iCount` | 输入 | — | 条目数 |
+| `pConfig` | 输入 | 允许空 | 空 = 兼容配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 解码器（按 Content-Encoding/Content-Length 决定模式） | — |
+| `NULL` | Header 不一致或 OOM | `xrt.http` 域错误 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 编码组合非法或长度矛盾
+- `XERR_MEMORY`
+
+#### 范例
+
+[http/decode · 创建](../../examples/http/decode/main.c) · 观察
+
+```c
+	xhttpdecode* pDecode = xrtHttpDecodeCreate(Fields, 1, NULL);
+```
+
+
+### `xrtHttpDecodeReset`
+
+为下一条消息复位并复用已经分配的 Inflate 窗口。
+
+```c
+bool xrtHttpDecodeReset(
+	xhttpdecode* pDecode,
+	const xhttpfield* pFields,
+	size_t iCount,
+	const xhttpdecodeconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入/输出 | 非空 | 解码器 |
+| `pFields` | 输入 | 借用 | 新消息字段 |
+| `iCount` | 输入 | — | 条目数 |
+| `pConfig` | 输入 | 允许空 | 新配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已复位可处理下一条 | — |
+| `false` | 前一条未完成或 Header 非法 | 状态不变 |
+
+#### 错误
+
+- `XERR_STATE` — 前一条消息未终结
+- `xrt.http` 域错误
+
+#### 范例
+
+[http/decode_tour · 复用](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+	if ( !xrtHttpDecodeReset(pDecode, Fields, 1u, &Compat) ||
+		(xrtHttpDecodeMode(pDecode) != XHTTP_DECODE_IDENTITY) ||
+		!xrtHttpDecodeWrite(pDecode,
+			(xbytesview) { arrGzip, 4u }, true,
+			exampleOutput, (ptr)&Out) ||
+		!xrtHttpDecodeDone(pDecode) ||
+		(Out.iBytes != 4u) ||
+		(xrtHttpDecodeInputSize(pDecode) != 4u) ) {
+```
+
+
+### `xrtHttpDecodeWrite`
+
+同步消费完整输入片段；`bFinal` 表示正文已达协议边界。无编码和原样回退路径直接调用 Output，不复制输入。
+
+```c
+bool xrtHttpDecodeWrite(
+	xhttpdecode* pDecode,
+	xbytesview Input,
+	bool bFinal,
+	xhttpdecodeoutputproc pOutput,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入/输出 | 非空 | 解码器 |
+| `Input` | 输入 | 借用 | 本段线路字节 |
+| `bFinal` | 输入 | — | 末段标记 |
+| `pOutput` | 输入 | 允许空 | 明文回调；空 = 丢弃 |
+| `pData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已消费（终段校验通过） | — |
+| `false` | 数据损坏、超限或回调中止 | 进入失败终态 |
+
+#### 错误
+
+- `xrt.http` 域错误 — 压缩流损坏/截断
+- `XERR_RANGE` — 超 OutputLimit
+- `XERR_CANCELLED` — 回调中止
+
+#### 范例
+
+[http/decode · 解码](../../examples/http/decode/main.c) · 观察
+
+```c
+	bSuccess = xrtHttpDecodeWrite(
+		pDecode,
+		(xbytesview){ Gzip, sizeof(Gzip) },
+		true,
+		printBody,
+		stdout
+	) && xrtHttpDecodeDone(pDecode);
+```
+
+
+### `xrtHttpDecodeMode`
+
+返回当前消息的交付模式。
+
+```c
+xhttpdecodemode xrtHttpDecodeMode(
+	const xhttpdecode* pDecode
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 解码器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_DECODE_*` | 直通/identity/解码模式 | — |
+| 零值 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/decode_tour · 自省](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+	if ( (xrtHttpDecodeMode(pDecode) != XHTTP_DECODE_CONTENT) ||
+		!xrtHttpDecodeWrite(pDecode,
+			(xbytesview) { arrGzip, sizeof(arrGzip) }, true,
+			exampleOutput, (ptr)&Out) ||
+		!xrtHttpDecodeDone(pDecode) ||
+		(Out.iBytes != 26u) ||
+		(memcmp(Out.arrText, "identity-passthrough-check",
+			26u) != 0) ||
+		(xrtHttpDecodeInputSize(pDecode) != 46u) ||
+		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
+```
+
+
+### `xrtHttpDecodeDone`
+
+判断最终正文边界和全部压缩流 trailer 均已验证。
+
+```c
+bool xrtHttpDecodeDone(const xhttpdecode* pDecode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 解码器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 消息完整终结 | — |
+| `false` | 未完成或失败终态 | 纯查询 |
+
+#### 错误
+
+- 无 — 纯查询
+
+#### 范例
+
+[http/decode · 完成](../../examples/http/decode/main.c) · 观察
+
+```c
+	) && xrtHttpDecodeDone(pDecode);
+```
+
+
+### `xrtHttpDecodeInputSize`
+
+返回成功提交给当前消息的线路正文总字节数。
+
+```c
+uint64 xrtHttpDecodeInputSize(const xhttpdecode* pDecode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 解码器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 线路字节数 | — |
+| `0` | 无或参数非法 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/decode_tour · 自省](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+		(xrtHttpDecodeInputSize(pDecode) != 46u) ||
+		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
+```
+
+
+### `xrtHttpDecodeOutputSize`
+
+返回已经被输出回调接受或明确丢弃的正文总字节数。
+
+```c
+uint64 xrtHttpDecodeOutputSize(const xhttpdecode* pDecode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 解码器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 明文字节数（含丢弃） | — |
+| `0` | 无或参数非法 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/decode_tour · 自省](../../examples/http/decode_tour/main.c) · 观察
+
+```c
+		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
+```
+
+
+### `xrtHttpDecodeDestroy`
+
+销毁解码器；空指针是安全的空操作。
+
+```c
+void xrtHttpDecodeDestroy(xhttpdecode* pDecode);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDecode` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 引用与窗口已释放 | — |
+
+#### 错误
+
+- 无 — 销毁不失败
+
+#### 范例
+
+[http/decode · 收尾](../../examples/http/decode/main.c) · 观察
+
+```c
+	xrtHttpDecodeDestroy(pDecode);
+```
+
+
+
 ## 扩展库边界
 
 客户端池、重定向、重试、缓存、认证、Cookie、MIME、Multipart、FormData、SSE、

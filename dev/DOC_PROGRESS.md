@@ -27,7 +27,7 @@
 | 20 | future.md | 104 | **完成** | 104/104 全绿（G3 104 片段，2026-09-07）；三段：核心 44 + 桥/listener/dial 29 + TLS stream 31 |
 | 21 | hash.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；合并节全部拆立 |
 | 22 | html.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；html/variants 补注册 |
-| 23 | http.md | 167 | 进行中 [2/4 段] | 61/167 全绿（G3 60 片段）；余第 3 段 te/expect/upgrade/trailer/encoding/decode 与第 4 段 http1/proxy 106 |
+| 23 | http.md | 167 | 进行中 [3/4 段] | 115/167 全绿（G3 115 片段）；余第 4 段 http1 + net_proxy 52 |
 | 24 | http_connection.md | 5 | 待办 |  |
 | 25 | http_decode.md | 10 | 待办 |  |
 | 26 | http_encoding.md | 12 | 待办 |  |
@@ -448,3 +448,17 @@
   python、shell 三层往返中变形），最终以 chr(34)+chr(92) 构造
   逐字符重建。G3 60 片段全绿；G1/G2 余 106 = 第 3/4 段。
   array 复验无回归。
+- 2026-09-07 http.md 第 3 段（55 节）完成：TE 10（单值/跨字段
+  双游标 + Parse 零分配汇总 + AcceptsTrailers "声明不丢弃"判定）
+  + Expect 8（ExpectFields 三值分类：无/100-continue/合法但
+  不支持）+ Upgrade 10 + Trailer 6（NameValid 禁投递集合 +
+  NamesWrite 大小写不敏感去重保首现）+ Accept-Encoding 协商 6
+  （Init"缺 Header=接受任意"的 RFC 口径、Select 等质量时
+  Preferred→gzip→deflate→identity 决胜序）+ Content-Encoding 4 +
+  CodingName 补失 + Decode 10（ConfigInit 兼容 vs InitSafe
+  16MiB 不可信上限、"无编码路径直通回调不复制"、Reset 复用
+  Inflate 窗口、Done="边界+压缩 trailer 均验证"）。生成器新增
+  callline() 自动从范例源提取平衡括号调用块，55 节锚点零手工。
+  门禁 G1 拦截 TeQuality 臆测签名（实为 pFields/iCount/Coding
+  三参直读字段而非 pInfo 汇总）——重写后 52 余全部为第 4 段。
+  G3 115 片段全绿；array 复验无回归。
