@@ -359,7 +359,7 @@ typedef struct xwsmessageinfo {
 
 ### `xwsmessageerrorinfo`
 
-可选错误详情给出消息内偏移和应该发送给对端的 Close 状态码。
+可选错误详情给出消息内偏移和须回发给对端的 Close 状态码。
 
 ```c
 typedef struct xwsmessageerrorinfo {
