@@ -492,65 +492,6 @@ typedef bool (*xmapvisitor)(xbytesview Key, ptr pValue, ptr pUserData);
 
 `SetDrop` 只能在映射为空时调用，避免已有值的所有权合同在中途改变。
 
-## 值访问
-
-### `xrtIntMapGetOrAdd`
-
-```c
-ptr xrtIntMapGetOrAdd(xintmap* map, int64 key, bool* is_new);
-```
-
-这是值槽式的基础接口：
-
-- 键存在时返回原值槽，`is_new` 为 `false`。
-- 键缺失时创建值槽，值的全部字节清零，`is_new` 为 `true`。
-- 重复键在任何分配前命中，因此不会因后续 OOM 而无法访问已有值。
-
-```c
-sessionstate* state;
-bool is_new;
-
-state = (sessionstate*)xrtIntMapGetOrAdd(&sessions, session_id, &is_new);
-if ( state == NULL ) {
-	return false;
-}
-state->Requests++;
-```
-
-### `xrtIntMapGetOrInit`
-
-```c
-ptr xrtIntMapGetOrInit(
-	xintmap* map,
-	int64 key,
-	xintmapinit init,
-	ptr user_data,
-	bool* is_new
-);
-```
-
-已有键直接返回稳定值槽且不调用 `init`。缺失键在未提交的池槽内写入键并调用
-`init`；只有初始化成功后才插入 AVL 树。分配或初始化失败时，键数量、树根和已有值
-均保持不变。该接口用于需要非平凡生命周期的上层容器，避免把清零字节误当成已初始化值。
-
-### `xrtIntMapSet`
-
-```c
-bool xrtIntMapSet(xintmap* map, int64 key, const void* value);
-```
-
-复制一个完整值到映射。缺失键会插入，已有键会先调用释放器处理旧值再替换。来源
-字节区间不得触及映射结构、池索引或任意池页，防止浅拷贝造成隐蔽的重复所有权和结构泄露。
-来源正好是目标值槽时为无操作成功。
-
-### `xrtIntMapGet` / `xrtIntMapConstGet`
-
-返回可写或只读值槽。键不存在时返回空指针，这是正常查询结果，不设置错误。
-
-### `xrtIntMapHas`
-
-判断键是否存在。当值本身可以表达空指针时，使用该函数区分“缺失”和“已保存空值”。
-
 ## 删除与所有权
 
 | API | 调用释放器 | 返回值字节 |

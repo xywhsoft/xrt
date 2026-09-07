@@ -355,24 +355,6 @@ Core 错误 API 不依赖容器、字符串模块或 printf 运行时。需要�
 
 `XERR_NONE` 只表示没有错误，不能用于创建错误对象。
 
-## 创建与所有权
-
-### `xrtErrorBuild`
-
-从 `xerrordesc` 创建错误。所有字符串都会复制，`Cause` 会增加引用。成功返回一个调用方持有的引用；失败返回 `NULL` 并设置当前错误。
-
-### `xrtErrorCreate`
-
-创建只包含类别、域、代码和消息的常用错误。
-
-### `xrtErrorWrap`
-
-创建带原因链的常用错误。传入的原因是只读借用，返回对象持有它自己的引用。
-
-### `xrtErrorRef` 与 `xrtErrorFree`
-
-`xrtErrorRef` 增加引用并返回可持有指针；`xrtErrorFree` 释放一个持有引用，允许传入 `NULL`。原因链按迭代方式释放，用户可控深度不会消耗等量 C 栈。`xrtGetError`、字段访问函数和查询函数返回的都是借用指针，跨越清错、替换当前错误或相关对象释放时必须先增加引用。
-
 ## 字段与原因链
 
 `xrtErrorKind`、`xrtErrorDomain`、`xrtErrorCode`、`xrtErrorSystemCode`、`xrtErrorOperation`、`xrtErrorMessage`、`xrtErrorData` 和 `xrtErrorCause` 返回不可变字段。空错误指针返回零值或空字符串。

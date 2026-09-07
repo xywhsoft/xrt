@@ -75,40 +75,6 @@ double xrtMathHypot(double fX, double fY);
 
 函数的定义域、舍入、errno 和浮点异常继续遵循平台 C 数学环境。XRT 只固定上述组合语义，不伪造任意精度承诺。
 
-## 显式容差比较
-
-### `xrtMathNear`
-
-```c
-bool xrtMathNear(double fLeft, double fRight,
-	double fAbsoluteTolerance, double fRelativeTolerance);
-```
-
-浮点近似比较同时接受绝对容差与相对容差，规则与 Python `math.isclose` 一致：
-
-```text
-abs(left - right) <= absoluteTolerance
-或
-abs(left - right) <= relativeTolerance * max(abs(left), abs(right))
-```
-
-绝对容差处理零附近，相对容差处理不同数量级的普通值。两个值按浮点规则完全相等时返回 true，因此同号无穷彼此相等；NaN 永远不相近，一个有限值与一个无穷也不相近。
-
-容差必须非负且不能为 NaN。无效容差返回 false 并设置 `XERR_ARGUMENT`，即使被比较的两个值完全相等也不会忽略参数错误。
-
-```c
-bool bMeasured = xrtMathNear(100.0, 100.05, 0.0, 0.001);
-bool bNearZero = xrtMathNear(0.0, 1e-10, 1e-9, 0.0);
-```
-
-### `xrtMathIntNear`
-
-```c
-bool xrtMathIntNear(int64 iLeft, int64 iRight, uint64 iTolerance);
-```
-
-整数比较只使用明确的无符号绝对差容差，不引入模糊“百分比整数”模式。计算覆盖从 `INT64_MIN` 到 `INT64_MAX` 的最大差 `UINT64_MAX`，不会执行有符号溢出。
-
 ## 线程与全局状态
 
 所有数学函数都是无状态函数，可以并发调用。近似比较不再读取 `xCore` 的可变模式和容差，因此库、线程、协程和测试不会互相改变数学判断规则。

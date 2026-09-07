@@ -114,56 +114,6 @@ typedef int32 (*xthreadproc)(ptr pData);
 | `XERR_MEMORY` | 键对象分配失败 |
 | `xrt.thread` 域错误 | 平台 TLS 槽创建失败（保留系统码） |
 
-## 函数
-
-### `xrtThreadKeyCreate`
-
-```c
-xthreadkey* xrtThreadKeyCreate(xthreadkeyproc pDestroy);
-```
-
-创建动态键。`pDestroy` 可以为空。失败返回空指针并设置结构化错误。
-
-### `xrtThreadKeyDestroy`
-
-```c
-bool xrtThreadKeyDestroy(xthreadkey* pKey);
-```
-
-关闭键并析构当前线程仍拥有的值。空指针视为成功。成功后不能再主动访问键；平台 TLS key 和键对象会在最后一个线程槽清理后释放，因此其他线程可以安全完成退出析构。当前线程的平台槽清理失败时返回 `false`，键仍然有效。
-
-### `xrtThreadKeyGet`
-
-```c
-ptr xrtThreadKeyGet(const xthreadkey* pKey);
-```
-
-返回当前线程值的借用指针；未设置时返回空指针。键为空时也返回空指针，但会设置 `XERR_ARGUMENT`。
-
-### `xrtThreadKeySet`
-
-```c
-bool xrtThreadKeySet(xthreadkey* pKey, ptr pValue);
-```
-
-成功时转移新值所有权，并在替换完成后析构旧值。空值用于清除。分配或平台写入失败时返回 `false`，原值和新值的所有权均不改变。
-
-### `xrtThreadKeyTake`
-
-```c
-ptr xrtThreadKeyTake(xthreadkey* pKey);
-```
-
-移除并返回当前线程的值，不执行析构。无值时返回空指针。平台清除失败时保留原值并设置错误。
-
-### `xrtThreadKeysClear`
-
-```c
-bool xrtThreadKeysClear(void);
-```
-
-析构并移除当前原生线程保存的全部动态键值。函数幂等；析构过程重新安装值时最多继续清理四轮，与 POSIX 线程键退出语义一致。四轮后仍有值时返回 `false`、保留剩余值并设置 `XERR_STATE`，避免恶意或错误析构过程造成无限循环。
-
 ## 示例
 
 ```c

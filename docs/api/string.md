@@ -75,28 +75,6 @@ typedef enum xstrerror {
 | `XSTR_ERROR_FORMAT` | XSTR失败FORMAT |
 | `XSTR_ERROR_PATTERN` | 通配模式非法 |
 
-### `xstrsplit`
-
-通用字符串拆分迭代器不分配内存。
-
-```c
-typedef struct xstrsplit {
-	xstrview Text;
-	xstrview Separator;
-	size_t Position;
-	uint32 State;
-	bool Done;
-} xstrsplit;
-```
-
-| 字段 | 类型 | 语义 |
-|---|---|---|
-| `Text` | `xstrview` | 文本视图 |
-| `Separator` | `xstrview` | Separator |
-| `Position` | `size_t` | 位置 |
-| `State` | `uint32` | 状态 |
-| `Done` | `bool` | Done |
-
 ### `xstrlines`
 
 行迭代器同时识别 LF、CRLF 和 CR。
@@ -168,6 +146,28 @@ typedef enum xstrglobflag {
 | 值 | 语义 |
 |---|---|
 | `XSTR_GLOB_CASE_ASCII` | ASCII 大小写不敏感 |
+
+### `xstrsplit`
+
+通用字符串拆分迭代器不分配内存。
+
+```c
+typedef struct xstrsplit {
+	xstrview Text;
+	xstrview Separator;
+	size_t Position;
+	uint32 State;
+	bool Done;
+} xstrsplit;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Text` | `xstrview` | Text |
+| `Separator` | `xstrview` | Separator |
+| `Position` | `size_t` | Position |
+| `State` | `uint32` | State |
+| `Done` | `bool` | Done |
 
 ## 视图函数
 

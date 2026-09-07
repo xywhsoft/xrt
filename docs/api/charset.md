@@ -84,22 +84,6 @@ typedef struct xutfresult {
 
 这里没有含义随平台改变的 “OEM” 编码。Windows 代码页、GBK、Shift-JIS 等传统编码属于可选的平台/外部编解码边界，不能在非 Windows 平台静默等价为 UTF-8。
 
-### `xutf16view`
-
-UTF-16 视图的 Size 表示 16 位码元数。
-
-```c
-typedef struct xutf16view {
-	const uint16* Data;
-	size_t Size;
-} xutf16view;
-```
-
-| 字段 | 类型 | 语义 |
-|---|---|---|
-| `Data` | `const uint16*` | 数据 |
-| `Size` | `size_t` | 字节数 |
-
 ### `xutf32view`
 
 UTF-32 视图的 Size 表示 32 位码元数。
@@ -115,35 +99,6 @@ typedef struct xutf32view {
 |---|---|---|
 | `Data` | `const uint32*` | 数据 |
 | `Size` | `size_t` | 字节数 |
-
-### `xutfstatus`
-
-UTF 原语和转换缓冲区共同使用的状态。
-
-```c
-typedef enum xutfstatus {
-	XUTF_OK = 0,
-	XUTF_MORE,
-	XUTF_INVALID,
-	XUTF_NO_SPACE,
-	XUTF_OVERFLOW
-} xutfstatus;
-```
-
-| 值 | 语义 |
-|---|---|
-| `XUTF_OK` | 成功 |
-| `XUTF_MORE` | 需要更多输入 |
-| `XUTF_INVALID` | 无效 |
-| `XUTF_NO_SPACE` | NOSPACE |
-| `XUTF_OVERFLOW` | 输出容量不足 |
-
-| 字段 | 类型 | 语义 |
-|---|---|---|
-| `Status` | `xutfstatus` | 完成状态 |
-| `Read` | `size_t` | 本次消费字节数 |
-| `Written` | `size_t` | 本次写出单元数 |
-| `Codepoint` | `uint32` | 待处理代理半对的码点 |
 
 ### `xutfresult`
 
@@ -221,6 +176,43 @@ typedef struct xencodingguess {
 | `Encoding` | `xencoding` | Encoding |
 | `BomSize` | `size_t` | BomSize |
 | `Confidence` | `uint8` | Confidence |
+
+### `xutf16view`
+
+UTF-16 视图的 Size 表示 16 位码元数。
+
+```c
+typedef struct xutf16view {
+	const uint16* Data;
+	size_t Size;
+} xutf16view;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `const uint16*` | Data |
+| `Size` | `size_t` | Size |
+
+### `xutfstatus`
+
+UTF 原语和转换缓冲区共同使用的状态。
+
+```c
+typedef enum xutfstatus {
+	XUTF_OK = 0,
+	XUTF_MORE,
+	XUTF_INVALID,
+	XUTF_NO_SPACE,
+	XUTF_OVERFLOW
+} xutfstatus;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XUTF_OK` | 成功 |
+| `XUTF_MORE` | 需要更多输入 |
+| `XUTF_INVALID` | 无效 |
+| `XUTF_NO_SPACE` | NOSPACE |
 
 ## 视图与宽字符串
 
