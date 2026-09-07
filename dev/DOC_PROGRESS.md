@@ -767,4 +767,13 @@
   位置为空、PathMtu 未知为零。manifest 补注册 #13：net_udp
   batch/introspect/multicast 三范例。
   完成 API 2968→3041/3664（83.0%），73/79 文件。
+- 2026-09-07 周期全量复审 #5（73/79 节点）：(a) G1/G2/G4 --all
+  73 文件 ok、6 待办文件（tls/value/websocket/x509/xid/xson）问题数
+  符合预期，零回归；(b) G3 --all 79 文件 3060 片段全绿；(c) 本轮
+  tcp/time/wait/udp 四文件禁用词零命中；(d) 错误码抽检（udp 批量
+  容量 1–256 RANGE、组播 Worker 归属 STATE、tcp 背压 AGAIN）全部
+  与源码一致；(e) 台账-门禁对账：73 完成行 = 73 gate-ok（零差异），
+  API 求和 3041 = 记录值 3041/3664（83.0%）。结论：质量体系正常。
+  剩余 6 文件中 tls(268) 为全任务最大，value(116)/websocket(104)/
+  x509(89) 次之；xid(11)/xson(35) 为小文件。
 
