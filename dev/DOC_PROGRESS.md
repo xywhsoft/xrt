@@ -32,7 +32,7 @@
 | 25 | http_decode.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
 | 26 | http_encoding.md | 12 | **完成** | 12/12 全绿；节复用自 http.md |
 | 27 | http_expect.md | 8 | **完成** | 8/8 全绿；节复用自 http.md |
-| 28 | http_fields.md | 64 | 待办 |  |
+| 28 | http_fields.md | 64 | **完成** | 64/64 全绿（G3 64 片段，2026-09-07）；11 组全部复用自 http.md + http_connection.md 已验证节 |
 | 29 | http_te.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
 | 30 | http_trailer.md | 6 | **完成** | 6/6 全绿；节复用自 http.md |
 | 31 | http_upgrade.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
@@ -487,3 +487,10 @@
   提取（含范例锚点），按各文件分组重组后追加——复用节仍经
   双门禁二次确认。这是多文件共享头并集的第二个成熟模式
   （第一个是 error.md 的 Core 附录）。http.md 复验无回归。
+- 2026-09-07 http_fields.md 完成（64/64，G3 64 片段，双门禁
+  一次全绿）：11 个功能组（方法/令牌/权重/Host/字段/Connection/
+  quoted/参数/指令）全部通过节复用——从 http.md 与
+  http_connection.md 提取已过门禁的 64 节重组，复用节经双门禁
+  二次确认。两个源文件复验无回归。至此 http 全家族（母文件
+  167 + 7 子文件 61 + fields 64）完成，共享头并集的"节复用"
+  模式在 132 个复用节上验证稳定。
