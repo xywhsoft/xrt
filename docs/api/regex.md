@@ -22,7 +22,7 @@ typedef enum xregexflag {
 | `XREGEX_IGNORE_CASE` | IGNORECASE |
 | `XREGEX_MULTILINE` | MULTILINE |
 | `XREGEX_DOT_ALL` | DOT全部 |
-| `XREGEX_UNGREEDY` | （见枚举语义） |
+| `XREGEX_UNGREEDY` | 非贪婪 |
 
 ### `xregexresult`
 
@@ -40,7 +40,7 @@ typedef enum xregexresult {
 |---|---|
 | `XREGEX_ERROR` | 失败 |
 | `XREGEX_NONE` | 无 |
-| `XREGEX_MATCH` | （见枚举语义） |
+| `XREGEX_MATCH` | 命中 |
 
 ### `xregexerror`
 
@@ -64,7 +64,7 @@ typedef enum xregexerror {
 | `XREGEX_ERROR_LIMIT` | 超限 |
 | `XREGEX_ERROR_EXECUTE` | 失败 |
 | `XREGEX_ERROR_REPLACEMENT` | 失败 |
-| `XREGEX_ERROR_CALLBACK` | （见枚举语义） |
+| `XREGEX_ERROR_CALLBACK` | 回调失败 |
 
 ### `xregexconfig`
 
@@ -133,7 +133,7 @@ typedef enum xregexsplitflag {
 | 值 | 语义 |
 |---|---|
 | `XREGEX_SPLIT_CAPTURES` | XREGEX按级别分流CAPTURES |
-| `XREGEX_SPLIT_SKIP_EMPTY` | （见枚举语义） |
+| `XREGEX_SPLIT_SKIP_EMPTY` | 跳过空字段 |
 
 ### `xregexsplitconfig`
 

@@ -46,7 +46,7 @@ typedef enum xprocesserror {
 | `XPROCESS_ERROR_CALLBACK` | 回调失败 |
 | `XPROCESS_ERROR_TERMINAL` | 失败 |
 | `XPROCESS_ERROR_THREAD` | 线程标识 |
-| `XPROCESS_ERROR_LIMIT` | （见枚举语义） |
+| `XPROCESS_ERROR_LIMIT` | 缓冲上限 |
 
 ### `xprocesstarget`
 
@@ -62,7 +62,7 @@ typedef enum xprocesstarget {
 | 值 | 语义 |
 |---|---|
 | `XPROCESS_EXEC` | 直接执行形态 |
-| `XPROCESS_SHELL` | （见枚举语义） |
+| `XPROCESS_SHELL` | 系统 Shell 形态 |
 
 ### `xprocessiomode`
 
@@ -84,7 +84,7 @@ typedef enum xprocessiomode {
 | `XPROCESS_IO_PIPE` | 系统 IO 失败 |
 | `XPROCESS_IO_NULL` | 空值 |
 | `XPROCESS_IO_HANDLE` | 系统 IO 失败 |
-| `XPROCESS_IO_MERGE` | （见枚举语义） |
+| `XPROCESS_IO_MERGE` | 合并 stdin/stdout |
 
 ### `xprocessstream`
 
@@ -102,7 +102,7 @@ typedef enum xprocessstream {
 |---|---|
 | `XPROCESS_STDIN` | 标准输入流 |
 | `XPROCESS_STDOUT` | 标准输出 |
-| `XPROCESS_STDERR` | （见枚举语义） |
+| `XPROCESS_STDERR` | 标准错误流 |
 
 ### `xprocessstate`
 
@@ -118,7 +118,7 @@ typedef enum xprocessstate {
 | 值 | 语义 |
 |---|---|
 | `XPROCESS_RUNNING` | XPROCESS运行中 |
-| `XPROCESS_EXITED` | （见枚举语义） |
+| `XPROCESS_EXITED` | 已退出 |
 
 ### `xprocessexitkind`
 
@@ -138,7 +138,7 @@ typedef enum xprocessexitkind {
 | `XPROCESS_EXIT_NONE` | 无 |
 | `XPROCESS_EXIT_CODE` | 退出码终态 |
 | `XPROCESS_EXIT_SIGNAL` | 信号终态 |
-| `XPROCESS_EXIT_LOST` | （见枚举语义） |
+| `XPROCESS_EXIT_LOST` | 退出码丢失 |
 
 ### `xprocessstop`
 
@@ -160,7 +160,7 @@ typedef enum xprocessstop {
 | `XPROCESS_STOP_INTERRUPT` | 中断（Ctrl+C/SIGINT） |
 | `XPROCESS_STOP_TERMINATE` | 温和终止 |
 | `XPROCESS_STOP_KILL` | 强制结束 |
-| `XPROCESS_STOP_KILL_TREE` | （见枚举语义） |
+| `XPROCESS_STOP_KILL_TREE` | 结束进程树 |
 
 ### `xprocessio`
 
@@ -282,7 +282,7 @@ typedef enum xprocessoverflow {
 |---|---|
 | `XPROCESS_OVERFLOW_ERROR` | 失败 |
 | `XPROCESS_OVERFLOW_KEEP_FIRST` | 溢出 |
-| `XPROCESS_OVERFLOW_KEEP_LAST` | （见枚举语义） |
+| `XPROCESS_OVERFLOW_KEEP_LAST` | 保留上一次 |
 
 ### `xprocessrunoptions`
 

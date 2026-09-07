@@ -28,7 +28,7 @@ typedef enum xcrypto_hash {
 | `XCRYPTO_HASH_SHA384` | SHA-384 |
 | `XCRYPTO_HASH_SHA512` | SHA-512 |
 | `XCRYPTO_HASH_SHA512_256` | SHA-512/256 |
-| `XCRYPTO_HASH_MD5` | （见枚举语义） |
+| `XCRYPTO_HASH_MD5` | MD5 |
 
 ### `xrsapublickey`
 
@@ -260,7 +260,7 @@ typedef enum xed25519_mode {
 |---|---|
 | `XED25519_PURE` | PURE |
 | `XED25519_CONTEXT` | CONTEXT |
-| `XED25519_PREHASH` | （见枚举语义） |
+| `XED25519_PREHASH` | 预哈希输入形态 |
 
 ### `xed25519key`
 

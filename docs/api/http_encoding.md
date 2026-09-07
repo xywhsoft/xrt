@@ -24,7 +24,7 @@ typedef enum xhttpcoding {
 | `XHTTP_CODING_NONE` | 无 |
 | `XHTTP_CODING_IDENTITY` | 无编码 |
 | `XHTTP_CODING_GZIP` | gzip 包装 |
-| `XHTTP_CODING_DEFLATE` | （见枚举语义） |
+| `XHTTP_CODING_DEFLATE` | deflate |
 
 ### `xhttpacceptencodingflag`
 
@@ -48,7 +48,7 @@ typedef enum xhttpacceptencodingflag {
 | `XHTTP_ACCEPT_ENCODING_GZIP` | gzip 包装 |
 | `XHTTP_ACCEPT_ENCODING_DEFLATE` | deflate 包装 |
 | `XHTTP_ACCEPT_ENCODING_IDENTITY` | 允许 identity |
-| `XHTTP_ACCEPT_ENCODING_WILDCARD` | （见枚举语义） |
+| `XHTTP_ACCEPT_ENCODING_WILDCARD` | * 通配 |
 
 ### `xhttpacceptencoding`
 
@@ -92,7 +92,7 @@ typedef enum xhttpcontentencodingflag {
 | `XHTTP_CONTENT_ENCODING_PRESENT` | 响应携带 Content-Encoding |
 | `XHTTP_CONTENT_ENCODING_IDENTITY` | 内容未编码 |
 | `XHTTP_CONTENT_ENCODING_UNKNOWN` | 未知 |
-| `XHTTP_CONTENT_ENCODING_LEGACY` | （见枚举语义） |
+| `XHTTP_CONTENT_ENCODING_LEGACY` | 传统别名（x-gzip） |
 
 ### `xhttpcontentencodingcursor`
 

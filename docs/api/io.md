@@ -63,7 +63,7 @@ typedef enum xlineend {
 |---|---|
 | `XLINE_END_NONE` | 无 |
 | `XLINE_END_LF` | LF |
-| `XLINE_END_CRLF` | （见枚举语义） |
+| `XLINE_END_CRLF` | CRLF 结尾 |
 
 ### `xlinenext`
 
@@ -81,7 +81,7 @@ typedef enum xlinenext {
 |---|---|
 | `XLINE_NEXT_ERROR` | 失败 |
 | `XLINE_NEXT_END` | END |
-| `XLINE_NEXT_LINE` | （见枚举语义） |
+| `XLINE_NEXT_LINE` | 已产出行 |
 
 ### `xlineview`
 
@@ -131,7 +131,7 @@ typedef enum xioerror {
 | `XIO_ERROR_EOF` | 失败 |
 | `XIO_ERROR_NO_PROGRESS` | 失败 |
 | `XIO_ERROR_LIMIT` | 超限 |
-| `XIO_ERROR_CALLBACK` | （见枚举语义） |
+| `XIO_ERROR_CALLBACK` | 回调失败 |
 
 ### `xreaderops`
 

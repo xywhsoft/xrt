@@ -116,7 +116,7 @@ typedef enum xpoolerror {
 | `XPOOL_ERROR_INVALID_SIZE` | 无效尺寸 |
 | `XPOOL_ERROR_INDEX_OUT_OF_RANGE` | 索引OUTOF范围越界 |
 | `XPOOL_ERROR_VISIT_ACTIVE` | 失败 |
-| `XPOOL_ERROR_INVALID_CAPACITY` | （见枚举语义） |
+| `XPOOL_ERROR_INVALID_CAPACITY` | 容量参数非法 |
 
 ### `xmempoolbucket`
 

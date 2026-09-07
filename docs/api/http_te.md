@@ -23,7 +23,7 @@ typedef enum xhttptecodingflag {
 | `XHTTP_TE_CODING_NONE` | 无 |
 | `XHTTP_TE_CODING_TRAILERS` | 支持 trailer |
 | `XHTTP_TE_CODING_HAS_PARAMETERS` | 带参数 |
-| `XHTTP_TE_CODING_HAS_WEIGHT` | （见枚举语义） |
+| `XHTTP_TE_CODING_HAS_WEIGHT` | 带 q 权重 |
 
 ### `xhttptecoding`
 
@@ -101,7 +101,7 @@ typedef enum xhttpteflag {
 | `XHTTP_TE_NONE` | 无 |
 | `XHTTP_TE_PRESENT` | 请求携带 TE |
 | `XHTTP_TE_ACCEPTS_TRAILERS` | 接受 trailer |
-| `XHTTP_TE_HAS_TRANSFER_CODINGS` | （见枚举语义） |
+| `XHTTP_TE_HAS_TRANSFER_CODINGS` | 含传输编码 |
 
 ### `xhttpteinfo`
 

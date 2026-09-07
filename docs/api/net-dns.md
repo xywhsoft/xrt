@@ -20,7 +20,7 @@ typedef enum xnetfamily {
 |---|---|
 | `XNET_FAMILY_UNSPEC` | 不指定（双栈） |
 | `XNET_FAMILY_IPV4` | IPv4 |
-| `XNET_FAMILY_IPV6` | （见枚举语义） |
+| `XNET_FAMILY_IPV6` | IPv6 |
 
 ### `xnetaddr`
 
@@ -235,7 +235,7 @@ typedef enum xneterror {
 | `XNET_ERROR_PROXY_AUTH` | 失败 |
 | `XNET_ERROR_PROXY_CONNECT` | Proxy连接失败 |
 | `XNET_ERROR_PROXY_LIMIT` | PROXY超限 |
-| `XNET_ERROR_PROXY_UNSUPPORTED` | （见枚举语义） |
+| `XNET_ERROR_PROXY_UNSUPPORTED` | 代理协议不支持 |
 
 ### `xnetspan`
 
@@ -381,7 +381,7 @@ typedef enum xnetsockettype {
 | 值 | 语义 |
 |---|---|
 | `XNET_SOCKET_STREAM` | 流式（TCP） |
-| `XNET_SOCKET_DGRAM` | （见枚举语义） |
+| `XNET_SOCKET_DGRAM` | 数据报（UDP） |
 
 ### `xnetdgrammetaflag`
 
@@ -407,7 +407,7 @@ typedef enum xnetdgrammetaflag {
 | `XNET_DGRAM_META_HOP_LIMIT` | HOP超限 |
 | `XNET_DGRAM_META_TRAFFIC_CLASS` | 流量类别 |
 | `XNET_DGRAM_META_SEGMENT_SIZE` | SEGMENT尺寸 |
-| `XNET_DGRAM_META_TRUNCATED` | （见枚举语义） |
+| `XNET_DGRAM_META_TRUNCATED` | 元数据被截断 |
 
 ### `xnetdgrammeta`
 
@@ -454,7 +454,7 @@ typedef enum xnetdgramcontrolflag {
 | `XNET_DGRAM_CONTROL_INTERFACE` | 指定发送接口 |
 | `XNET_DGRAM_CONTROL_HOP_LIMIT` | HOP超限 |
 | `XNET_DGRAM_CONTROL_TRAFFIC_CLASS` | 指定流量类别 |
-| `XNET_DGRAM_CONTROL_SEGMENT_SIZE` | （见枚举语义） |
+| `XNET_DGRAM_CONTROL_SEGMENT_SIZE` | 指定 UDP 分段大小 |
 
 ### `xnetdgramcontrol`
 
@@ -520,7 +520,7 @@ typedef enum xnetpmtumode {
 | `XNET_PMTU_SYSTEM` | 沿用系统设置 |
 | `XNET_PMTU_DISCOVER` | 启用发现 |
 | `XNET_PMTU_FRAGMENT` | 禁用（允许分片） |
-| `XNET_PMTU_PROBE` | （见枚举语义） |
+| `XNET_PMTU_PROBE` | 探测模式 |
 
 ### `xnetdgramerrororigin`
 
@@ -540,7 +540,7 @@ typedef enum xnetdgramerrororigin {
 | `XNET_DGRAM_ERROR_UNKNOWN` | 未知 |
 | `XNET_DGRAM_ERROR_LOCAL` | 失败 |
 | `XNET_DGRAM_ERROR_ICMP` | 失败 |
-| `XNET_DGRAM_ERROR_ICMP6` | （见枚举语义） |
+| `XNET_DGRAM_ERROR_ICMP6` | ICMPv6 错误 |
 
 ### `xnetdgramerrorflag`
 
@@ -562,7 +562,7 @@ typedef enum xnetdgramerrorflag {
 | `XNET_DGRAM_ERROR_OFFENDER` | 失败 |
 | `XNET_DGRAM_ERROR_PATH_MTU` | 失败 |
 | `XNET_DGRAM_ERROR_PAYLOAD_TRUNCATED` | 已截断 |
-| `XNET_DGRAM_ERROR_META_TRUNCATED` | （见枚举语义） |
+| `XNET_DGRAM_ERROR_META_TRUNCATED` | 元数据被截断 |
 
 ### `xnetdgramerror`
 
@@ -670,7 +670,7 @@ typedef enum xnetshutdown {
 |---|---|
 | `XNET_SHUTDOWN_READ` | 读方向 |
 | `XNET_SHUTDOWN_WRITE` | 写方向 |
-| `XNET_SHUTDOWN_BOTH` | （见枚举语义） |
+| `XNET_SHUTDOWN_BOTH` | 双向关断 |
 
 ### `xnetoption`
 
@@ -776,7 +776,7 @@ typedef enum xnetportcap {
 | `XNET_PORT_CAP_READ_PROBE` | 读方向PROBE |
 | `XNET_PORT_CAP_DGRAM_ERROR` | DGRAM失败 |
 | `XNET_PORT_CAP_SEND_FILE` | 发送方向 |
-| `XNET_PORT_CAP_FILE_IO` | （见枚举语义） |
+| `XNET_PORT_CAP_FILE_IO` | 原生文件 I/O |
 
 ### `xnetpoll`
 
@@ -792,7 +792,7 @@ typedef enum xnetpoll {
 | 值 | 语义 |
 |---|---|
 | `XNET_POLL_READ` | XNETPOLL读方向 |
-| `XNET_POLL_WRITE` | （见枚举语义） |
+| `XNET_POLL_WRITE` | 可写 |
 
 ### `xnetporteventtype`
 
@@ -836,7 +836,7 @@ typedef enum xnetporteventtype {
 | `XNET_PORT_EVENT_FILE_READ` | FILE读方向 |
 | `XNET_PORT_EVENT_FILE_WRITE` | FILE写方向 |
 | `XNET_PORT_EVENT_USER` | 用户唤醒 |
-| `XNET_PORT_EVENT_WAKE` | （见枚举语义） |
+| `XNET_PORT_EVENT_WAKE` | 用户唤醒 |
 
 ### `xnetporteventflag`
 
@@ -943,7 +943,7 @@ typedef enum xnetenginestate {
 | `XNET_ENGINE_STARTING` | 启动中 |
 | `XNET_ENGINE_RUNNING` | 运行中 |
 | `XNET_ENGINE_STOPPING` | 停止中 |
-| `XNET_ENGINE_DESTROYING` | （见枚举语义） |
+| `XNET_ENGINE_DESTROYING` | 销毁中 |
 
 ### `xnetpost`
 

@@ -20,7 +20,7 @@ typedef enum xpathstyle {
 |---|---|
 | `XPATH_NATIVE` | 本机风格 |
 | `XPATH_POSIX` | POSIX 风格 |
-| `XPATH_WINDOWS` | （见枚举语义） |
+| `XPATH_WINDOWS` | Windows 风格 |
 
 ### `xpathroot`
 
@@ -46,7 +46,7 @@ typedef enum xpathroot {
 | `XPATH_ROOT_DRIVE_RELATIVE` | 驱动器相对（如 C:foo） |
 | `XPATH_ROOT_DRIVE` | 驱动器根（如 C:\） |
 | `XPATH_ROOT_UNC` | UNC 根（\\server\share） |
-| `XPATH_ROOT_DEVICE` | （见枚举语义） |
+| `XPATH_ROOT_DEVICE` | 设备命名空间根 |
 
 ### `xpathflag`
 
@@ -64,7 +64,7 @@ typedef enum xpathflag {
 |---|---|
 | `XPATH_FLAG_ROOTED` | ROOTED |
 | `XPATH_FLAG_ABSOLUTE` | ABSOLUTE |
-| `XPATH_FLAG_TRAILING_SEPARATOR` | （见枚举语义） |
+| `XPATH_FLAG_TRAILING_SEPARATOR` | 保留尾分隔符 |
 
 ### `xpathparts`
 
@@ -110,7 +110,7 @@ typedef enum xpathcomponentkind {
 | `XPATH_COMPONENT_ROOT` | ROOT |
 | `XPATH_COMPONENT_CURRENT` | CURRENT |
 | `XPATH_COMPONENT_PARENT` | PARENT |
-| `XPATH_COMPONENT_NORMAL` | （见枚举语义） |
+| `XPATH_COMPONENT_NORMAL` | 常规段 |
 
 ### `xpathcomponent`
 
@@ -168,7 +168,7 @@ typedef enum xpatherror {
 | `XPATH_ERROR_FORMAT` | 格式非法 |
 | `XPATH_ERROR_OVERFLOW` | 溢出 |
 | `XPATH_ERROR_ROOT` | 失败 |
-| `XPATH_ERROR_SYSTEM` | （见枚举语义） |
+| `XPATH_ERROR_SYSTEM` | 系统调用失败 |
 
 ### `xpathsafesegment`
 

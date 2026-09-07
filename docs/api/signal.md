@@ -47,7 +47,7 @@ typedef enum xsignal {
 | `XSIGNAL_BREAK` | BREAK |
 | `XSIGNAL_CLOSE` | CLOSE |
 | `XSIGNAL_LOGOFF` | LOGOFF |
-| `XSIGNAL_SHUTDOWN` | （见枚举语义） |
+| `XSIGNAL_SHUTDOWN` | 关闭调度 |
 
 ### `xsignalerror`
 
@@ -67,7 +67,7 @@ typedef enum xsignalerror {
 | `XSIGNAL_ERROR_CODE` | 失败 |
 | `XSIGNAL_ERROR_UNSUPPORTED` | 不支持 |
 | `XSIGNAL_ERROR_SYSTEM` | 失败 |
-| `XSIGNAL_ERROR_STATE` | （见枚举语义） |
+| `XSIGNAL_ERROR_STATE` | 状态非法 |
 
 ### `xsignalevent`
 

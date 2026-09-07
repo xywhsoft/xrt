@@ -35,7 +35,7 @@ typedef enum xnumberparseflag {
 | `XNUMBER_PARSE_SPACE` | SPACE |
 | `XNUMBER_PARSE_PREFIX` | 前缀 |
 | `XNUMBER_PARSE_SEPARATOR` | SEPARATOR |
-| `XNUMBER_PARSE_SPECIAL` | （见枚举语义） |
+| `XNUMBER_PARSE_SPECIAL` | 允许特殊值 |
 
 ### `xnumbererror`
 
@@ -53,7 +53,7 @@ typedef enum xnumbererror {
 |---|---|
 | `XNUMBER_ERROR_CONFIG` | 配置非法 |
 | `XNUMBER_ERROR_FORMAT` | 格式非法 |
-| `XNUMBER_ERROR_RANGE` | （见枚举语义） |
+| `XNUMBER_ERROR_RANGE` | 范围越界 |
 
 ### `xnumberwriteflag`
 
@@ -71,7 +71,7 @@ typedef enum xnumberwriteflag {
 |---|---|
 | `XNUMBER_UPPER` | 大写 |
 | `XNUMBER_PREFIX` | 前缀 |
-| `XNUMBER_PLUS` | （见枚举语义） |
+| `XNUMBER_PLUS` | 非负值输出 + 号 |
 
 ### `xnumberfloatflag`
 

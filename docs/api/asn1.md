@@ -725,7 +725,7 @@ typedef enum xasn1class {
 | `XASN1_UNIVERSAL` | universal 类 |
 | `XASN1_APPLICATION` | application 类 |
 | `XASN1_CONTEXT` | context 类 |
-| `XASN1_PRIVATE` | （见枚举语义） |
+| `XASN1_PRIVATE` | private 类（0xC0+） |
 
 ### `xasn1universal`
 
@@ -883,7 +883,7 @@ typedef enum xasn1error {
 | `XASN1_ERROR_TRAILING` | 失败 |
 | `XASN1_ERROR_ORDER` | 失败 |
 | `XASN1_ERROR_DEPTH` | 深度超限 |
-| `XASN1_ERROR_RANGE` | （见枚举语义） |
+| `XASN1_ERROR_RANGE` | 范围越界 |
 
 ### `xbuffer`
 

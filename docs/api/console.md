@@ -27,7 +27,7 @@ typedef enum xconsolestream {
 | 值 | 语义 |
 |---|---|
 | `XCONSOLE_STDOUT` | XCONSOLE标准输出 |
-| `XCONSOLE_STDERR` | （见枚举语义） |
+| `XCONSOLE_STDERR` | 标准错误流 |
 
 ### `xconsoleerror`
 
@@ -47,7 +47,7 @@ typedef enum xconsoleerror {
 | `XCONSOLE_ERROR_STREAM` | 失败 |
 | `XCONSOLE_ERROR_UTF8` | 失败 |
 | `XCONSOLE_ERROR_WRITE` | 写方向 |
-| `XCONSOLE_ERROR_FLUSH` | （见枚举语义） |
+| `XCONSOLE_ERROR_FLUSH` | 刷新失败 |
 
 ## 选择模块
 

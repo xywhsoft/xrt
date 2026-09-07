@@ -38,7 +38,7 @@ typedef enum xtlsversion {
 | 值 | 语义 |
 |---|---|
 | `XTLS_VERSION_12` | TLS 1.2 |
-| `XTLS_VERSION_13` | （见枚举语义） |
+| `XTLS_VERSION_13` | TLS 1.3 |
 
 ### `xtlscipher`
 
@@ -68,7 +68,7 @@ typedef enum xtlscipher {
 | `XTLS_ECDHE_ECDSA_AES_256_GCM_SHA384` | ECDHE-ECDSA-AES256-GCM-SHA384 |
 | `XTLS_ECDHE_RSA_AES_256_GCM_SHA384` | ECDHE-RSA-AES256-GCM-SHA384 |
 | `XTLS_ECDHE_RSA_CHACHA20_POLY1305_SHA256` | ECDHERSACHACHA20POLY1305SHA256 |
-| `XTLS_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256` | （见枚举语义） |
+| `XTLS_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256` | ECDHE-ECDSA-CHACHA20 |
 
 ### `xtlshash`
 
@@ -84,7 +84,7 @@ typedef enum xtlshash {
 | 值 | 语义 |
 |---|---|
 | `XTLS_HASH_SHA256` | XTLSHASHSHA256 |
-| `XTLS_HASH_SHA384` | （见枚举语义） |
+| `XTLS_HASH_SHA384` | SHA-384 |
 
 ### `xtlsaead`
 
@@ -100,7 +100,7 @@ typedef enum xtlsaead {
 | 值 | 语义 |
 |---|---|
 | `XTLS_AEAD_AES_GCM` | XTLSAEADAESGCM |
-| `XTLS_AEAD_CHACHA20_POLY1305` | （见枚举语义） |
+| `XTLS_AEAD_CHACHA20_POLY1305` | ChaCha20-Poly1305 |
 
 ### `xtlscipherauth`
 
@@ -118,7 +118,7 @@ typedef enum xtlscipherauth {
 |---|---|
 | `XTLS_CIPHER_AUTH_INDEPENDENT` | INDEPENDENT |
 | `XTLS_CIPHER_AUTH_RSA` | RSA |
-| `XTLS_CIPHER_AUTH_ECDSA` | （见枚举语义） |
+| `XTLS_CIPHER_AUTH_ECDSA` | ECDSA 认证套件 |
 
 ### `xtlsrole`
 
@@ -134,7 +134,7 @@ typedef enum xtlsrole {
 | 值 | 语义 |
 |---|---|
 | `XTLS_CLIENT` | XTLS客户端角色 |
-| `XTLS_SERVER` | （见枚举语义） |
+| `XTLS_SERVER` | 服务端角色 |
 
 ### `xtlsstate`
 
@@ -158,7 +158,7 @@ typedef enum xtlsstate {
 | `XTLS_STATE_READY` | 就绪 |
 | `XTLS_STATE_CLOSING` | 关闭中 |
 | `XTLS_STATE_CLOSED` | 已关闭 |
-| `XTLS_STATE_FAILED` | （见枚举语义） |
+| `XTLS_STATE_FAILED` | 已失败 |
 
 ### `xtlsrecordtype`
 
@@ -178,7 +178,7 @@ typedef enum xtlsrecordtype {
 | `XTLS_RECORD_CHANGE_CIPHER_SPEC` | CHANGECIPHERSPEC |
 | `XTLS_RECORD_ALERT` | ALERT |
 | `XTLS_RECORD_HANDSHAKE` | 握手阶段 |
-| `XTLS_RECORD_APPLICATION_DATA` | （见枚举语义） |
+| `XTLS_RECORD_APPLICATION_DATA` | 应用数据记录 |
 
 ### `xtlshandshaketype`
 
@@ -226,7 +226,7 @@ typedef enum xtlshandshaketype {
 | `XTLS_HANDSHAKE_SUPPLEMENTAL_DATA` | SUPPLEMENTAL数据损坏 |
 | `XTLS_HANDSHAKE_KEY_UPDATE` | 握手阶段 |
 | `XTLS_HANDSHAKE_COMPRESSED_CERTIFICATE` | 握手阶段 |
-| `XTLS_HANDSHAKE_MESSAGE_HASH` | （见枚举语义） |
+| `XTLS_HANDSHAKE_MESSAGE_HASH` | 完整握手消息哈希 |
 
 ### `xtlsextensiontype`
 
@@ -296,7 +296,7 @@ typedef enum xtlsextensiontype {
 | `XTLS_EXTENSION_POST_HANDSHAKE_AUTH` | POST握手阶段AUTH |
 | `XTLS_EXTENSION_SIGNATURE_ALGORITHMS_CERT` | SIGNATUREALGORITHMSCERT |
 | `XTLS_EXTENSION_KEY_SHARE` | KEYSHARE |
-| `XTLS_EXTENSION_RENEGOTIATION_INFO` | （见枚举语义） |
+| `XTLS_EXTENSION_RENEGOTIATION_INFO` | 重协商信息 |
 
 ### `xtlsnamedgroup`
 
@@ -328,7 +328,7 @@ typedef enum xtlsnamedgroup {
 | `XTLS_GROUP_FFDHE3072` | FFDHE3072 |
 | `XTLS_GROUP_FFDHE4096` | FFDHE4096 |
 | `XTLS_GROUP_FFDHE6144` | FFDHE6144 |
-| `XTLS_GROUP_FFDHE8192` | （见枚举语义） |
+| `XTLS_GROUP_FFDHE8192` | ffdhe8192 组 |
 
 ### `xtlssignature`
 
@@ -368,7 +368,7 @@ typedef enum xtlssignature {
 | `XTLS_SIGNATURE_ED448` | Ed448 |
 | `XTLS_SIGNATURE_RSA_PSS_PSS_SHA256` | RSA-PSS（PSS 密钥）+ SHA-256 |
 | `XTLS_SIGNATURE_RSA_PSS_PSS_SHA384` | RSA-PSS（PSS）+ SHA-384 |
-| `XTLS_SIGNATURE_RSA_PSS_PSS_SHA512` | （见枚举语义） |
+| `XTLS_SIGNATURE_RSA_PSS_PSS_SHA512` | RSA-PSS（PSS 密钥）+ SHA-512 |
 
 ### `xtlsitemresult`
 
@@ -402,7 +402,7 @@ typedef enum xtlskeyupdate {
 | 值 | 语义 |
 |---|---|
 | `XTLS_KEY_UPDATE_NOT_REQUESTED` | XTLSKEYUPDATENOTREQUESTED |
-| `XTLS_KEY_UPDATE_REQUESTED` | （见枚举语义） |
+| `XTLS_KEY_UPDATE_REQUESTED` | 对端请求更新 |
 
 ### `xtlscertificatetype`
 
@@ -420,7 +420,7 @@ typedef enum xtlscertificatetype {
 |---|---|
 | `XTLS_CERTIFICATE_RSA_SIGN` | RSASIGN |
 | `XTLS_CERTIFICATE_DSS_SIGN` | DSSSIGN |
-| `XTLS_CERTIFICATE_ECDSA_SIGN` | （见枚举语义） |
+| `XTLS_CERTIFICATE_ECDSA_SIGN` | 要求 ECDSA 签名 |
 
 ### `xtlscertificatestatustype`
 
@@ -452,7 +452,7 @@ typedef enum xtlscertificatecompression {
 |---|---|
 | `XTLS_CERTIFICATE_COMPRESSION_ZLIB` | zlib 包装 |
 | `XTLS_CERTIFICATE_COMPRESSION_BROTLI` | BROTLI |
-| `XTLS_CERTIFICATE_COMPRESSION_ZSTD` | （见枚举语义） |
+| `XTLS_CERTIFICATE_COMPRESSION_ZSTD` | zstd 压缩 |
 
 ### `xtlsalertlevel`
 
@@ -468,7 +468,7 @@ typedef enum xtlsalertlevel {
 | 值 | 语义 |
 |---|---|
 | `XTLS_ALERT_WARNING` | Warning |
-| `XTLS_ALERT_FATAL` | （见枚举语义） |
+| `XTLS_ALERT_FATAL` | fatal 级 |
 
 ### `xtlsalert`
 
@@ -534,7 +534,7 @@ typedef enum xtlsalert {
 | `XTLS_ALERT_BAD_CERTIFICATE_STATUS_RESPONSE` | 错误证书StatusResponse |
 | `XTLS_ALERT_UNKNOWN_PSK_IDENTITY` | 未知PSKIDENTITY |
 | `XTLS_ALERT_CERTIFICATE_REQUIRED` | 证书必需项 |
-| `XTLS_ALERT_NO_APPLICATION_PROTOCOL` | （见枚举语义） |
+| `XTLS_ALERT_NO_APPLICATION_PROTOCOL` | 无应用层协议 |
 
 ### `xtlserror`
 
@@ -592,7 +592,7 @@ typedef enum xtlserror {
 | `XTLS_ERROR_RESUME` | 失败 |
 | `XTLS_ERROR_CLOSED` | 已关闭 |
 | `XTLS_ERROR_TRUNCATED` | 已截断 |
-| `XTLS_ERROR_INTERNAL` | （见枚举语义） |
+| `XTLS_ERROR_INTERNAL` | 内部错误 |
 
 ### `xtlsrecord`
 
@@ -660,7 +660,7 @@ typedef enum xtlsgroupkind {
 | 值 | 语义 |
 |---|---|
 | `XTLS_GROUP_KIND_XDH` | XTLSGROUPKINDXDH |
-| `XTLS_GROUP_KIND_ECDH` | （见枚举语义） |
+| `XTLS_GROUP_KIND_ECDH` | 椭圆曲线 DH |
 
 ### `xtlsgroupinfo`
 
@@ -897,7 +897,7 @@ typedef enum xtlspskmode {
 | 值 | 语义 |
 |---|---|
 | `XTLS_PSK_KE` | XTLSPSKKE |
-| `XTLS_PSK_DHE_KE` | （见枚举语义） |
+| `XTLS_PSK_DHE_KE` | psk_dhe_ke 模式 |
 
 ### `xtlspsk`
 
@@ -963,7 +963,7 @@ typedef enum xtlsidentitytype {
 | `XTLS_IDENTITY_ECDSA_P384` | ECDSAP384 |
 | `XTLS_IDENTITY_ECDSA_P521` | ECDSAP521 |
 | `XTLS_IDENTITY_ED25519` | ED25519 |
-| `XTLS_IDENTITY_ED448` | （见枚举语义） |
+| `XTLS_IDENTITY_ED448` | Ed448 身份 |
 
 ### `xtlssignatureinfo`
 
@@ -1001,7 +1001,7 @@ typedef enum xtlskeysharepolicy {
 | 值 | 语义 |
 |---|---|
 | `XTLS_KEY_SHARE_PREFER_GROUP` | XTLSKEYSHAREPREFERGROUP |
-| `XTLS_KEY_SHARE_PREFER_READY` | （见枚举语义） |
+| `XTLS_KEY_SHARE_PREFER_READY` | 优先就绪密钥份额 |
 
 ### `xtlskeyshareselection`
 
@@ -1702,7 +1702,7 @@ typedef enum xtlswait {
 | `XTLS_WAIT_OUTPUT` | 输出失败 |
 | `XTLS_WAIT_APPLICATION` | APPLICATION |
 | `XTLS_WAIT_IDENTITY` | IDENTITY |
-| `XTLS_WAIT_VERIFY` | （见枚举语义） |
+| `XTLS_WAIT_VERIFY` | 等待对端验证 |
 
 ### `xtlssession`
 
@@ -1759,7 +1759,7 @@ typedef enum xtlsstreamstate {
 | `XTLS_STREAM_OPEN` | 开放（握手完成） |
 | `XTLS_STREAM_CLOSING` | 关闭中 |
 | `XTLS_STREAM_CLOSED` | 已关闭 |
-| `XTLS_STREAM_FAILED` | （见枚举语义） |
+| `XTLS_STREAM_FAILED` | 已失败 |
 
 ### `xtlsstreamwait`
 
@@ -1783,7 +1783,7 @@ typedef enum xtlsstreamwait {
 | `XTLS_STREAM_WAIT_WRITE` | 写方向 |
 | `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
 | `XTLS_STREAM_WAIT_END` | 等待关闭完成 |
-| `XTLS_STREAM_WAIT_CLOSE` | （见枚举语义） |
+| `XTLS_STREAM_WAIT_CLOSE` | 等待关闭 |
 
 ### `xtlsdialstate`
 
@@ -2011,7 +2011,7 @@ typedef enum xtlsverifydecision {
 | `XTLS_VERIFY_ERROR` | 失败 |
 | `XTLS_VERIFY_DEFAULT` | 默认值 |
 | `XTLS_VERIFY_ACCEPT` | ACCEPT |
-| `XTLS_VERIFY_REJECT` | （见枚举语义） |
+| `XTLS_VERIFY_REJECT` | 拒绝 |
 
 ### `xtlspeer`
 

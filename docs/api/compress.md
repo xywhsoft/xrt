@@ -48,7 +48,7 @@ Deflate 的 `RAW` 与 `ZLIB` 生成对应标准数据流；`GZIP` 使用 `MTIME=
 | 常量 | 值 | 语义 |
 |---|---|---|
 | `XINFLATE_OUTPUT_UNLIMITED` | `UINT64_MAX` | Inflate 解码输出不设总量上限 |
-| `XINFLATE_GZIP_HEADER_DEFAULT` | `65536` | gzip member 头部字节上限默认值 |
+| `XINFLATE_GZIP_HEADER_DEFAULT` | `UINT32_C(65536)` | gzip member 头部字节上限默认值 |
 | `XINFLATE_WINDOW_MIN` | `8u` | 滑动窗口位数下限 |
 | `XINFLATE_WINDOW_MAX` | `15u` | 滑动窗口位数上限 |
 | `XDEFLATE_OUTPUT_UNLIMITED` | `UINT64_MAX` | Deflate 输出不设总量上限 |

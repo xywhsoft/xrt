@@ -21,7 +21,7 @@ typedef enum xpatternresult {
 |---|---|
 | `XPATTERN_ERROR` | 失败 |
 | `XPATTERN_NONE` | 无 |
-| `XPATTERN_MATCH` | （见枚举语义） |
+| `XPATTERN_MATCH` | 命中 |
 
 ### `xpatternerror`
 
@@ -43,7 +43,7 @@ typedef enum xpatternerror {
 | `XPATTERN_ERROR_PATTERN` | 失败 |
 | `XPATTERN_ERROR_LIMIT` | 超限 |
 | `XPATTERN_ERROR_CONFLICT` | 冲突 |
-| `XPATTERN_ERROR_CAPACITY` | （见枚举语义） |
+| `XPATTERN_ERROR_CAPACITY` | 捕获容量不足 |
 
 ### `xpatternconfig`
 

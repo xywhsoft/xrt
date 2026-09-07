@@ -29,7 +29,7 @@ typedef enum xenverror {
 |---|---|
 | `XENV_ERROR_NAME` | 名称 |
 | `XENV_ERROR_VALUE` | 值非法 |
-| `XENV_ERROR_SYSTEM` | （见枚举语义） |
+| `XENV_ERROR_SYSTEM` | 系统调用失败 |
 
 ## 错误代码
 

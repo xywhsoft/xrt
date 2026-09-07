@@ -73,7 +73,7 @@ typedef enum xstrerror {
 | 值 | 语义 |
 |---|---|
 | `XSTR_ERROR_FORMAT` | XSTR失败FORMAT |
-| `XSTR_ERROR_PATTERN` | （见枚举语义） |
+| `XSTR_ERROR_PATTERN` | 通配模式非法 |
 
 ### `xstrsplit`
 

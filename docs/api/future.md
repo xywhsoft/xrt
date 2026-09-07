@@ -75,7 +75,7 @@ typedef enum xfuturewatchresult {
 |---|---|
 | `XFUTURE_WATCH_ERROR` | 失败 |
 | `XFUTURE_WATCH_READY` | 就绪 |
-| `XFUTURE_WATCH_PENDING` | （见枚举语义） |
+| `XFUTURE_WATCH_PENDING` | 等待事件期间 |
 
 ### `xfuturepick`
 
@@ -243,7 +243,7 @@ typedef enum xtlsstreamstate {
 | `XTLS_STREAM_OPEN` | 开放（握手完成） |
 | `XTLS_STREAM_CLOSING` | 关闭中 |
 | `XTLS_STREAM_CLOSED` | 已关闭 |
-| `XTLS_STREAM_FAILED` | （见枚举语义） |
+| `XTLS_STREAM_FAILED` | 已失败 |
 
 ### `xtlsstreamwait`
 
@@ -267,7 +267,7 @@ typedef enum xtlsstreamwait {
 | `XTLS_STREAM_WAIT_WRITE` | 写方向 |
 | `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
 | `XTLS_STREAM_WAIT_END` | 等待关闭完成 |
-| `XTLS_STREAM_WAIT_CLOSE` | （见枚举语义） |
+| `XTLS_STREAM_WAIT_CLOSE` | 等待关闭 |
 
 ### `xtlsdialstate`
 

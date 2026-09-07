@@ -30,7 +30,7 @@ typedef enum xwsopcode {
 | `XWS_OPCODE_BINARY` | 二进制 |
 | `XWS_OPCODE_CLOSE` | 关闭帧（0x8） |
 | `XWS_OPCODE_PING` | Ping（0x9） |
-| `XWS_OPCODE_PONG` | （见枚举语义） |
+| `XWS_OPCODE_PONG` | Pong（0xA） |
 
 ### `xwsframeflag`
 
@@ -52,7 +52,7 @@ typedef enum xwsframeflag {
 | `XWS_FRAME_MASKED` | 已掩码 |
 | `XWS_FRAME_RSV1` | RSV1（压缩） |
 | `XWS_FRAME_RSV2` | RSV2（保留） |
-| `XWS_FRAME_RSV3` | （见枚举语义） |
+| `XWS_FRAME_RSV3` | RSV3（保留） |
 
 ### `xwsmaskpolicy`
 
@@ -70,7 +70,7 @@ typedef enum xwsmaskpolicy {
 |---|---|
 | `XWS_MASK_ANY` | 任意 |
 | `XWS_MASK_REQUIRED` | 必须掩码（客户端） |
-| `XWS_MASK_FORBIDDEN` | （见枚举语义） |
+| `XWS_MASK_FORBIDDEN` | 禁止掩码（服务端） |
 
 ### `xwsframestatus`
 
@@ -88,7 +88,7 @@ typedef enum xwsframestatus {
 |---|---|
 | `XWS_FRAME_ERROR` | 失败 |
 | `XWS_FRAME_MORE` | 需要更多输入 |
-| `XWS_FRAME_READY` | （见枚举语义） |
+| `XWS_FRAME_READY` | 已解析完整帧 |
 
 ### `xwsframeerror`
 
@@ -118,7 +118,7 @@ typedef enum xwsframeerror {
 | `XWS_FRAME_ERROR_LENGTH` | 失败 |
 | `XWS_FRAME_ERROR_CONTROL` | 失败 |
 | `XWS_FRAME_ERROR_CLOSE` | 失败 |
-| `XWS_FRAME_ERROR_OUTPUT` | （见枚举语义） |
+| `XWS_FRAME_ERROR_OUTPUT` | 输出回调失败 |
 
 ### `xwsframeconfig`
 
@@ -217,7 +217,7 @@ typedef enum xwsclosecode {
 | `XWS_CLOSE_RESTART` | 1012 服务重启 |
 | `XWS_CLOSE_TRY_AGAIN` | TRY暂不可推进 |
 | `XWS_CLOSE_BAD_GATEWAY` | 1014 网关错误 |
-| `XWS_CLOSE_TLS` | （见枚举语义） |
+| `XWS_CLOSE_TLS` | TLS 关闭 |
 
 ### `xwscloseerror`
 
@@ -239,7 +239,7 @@ typedef enum xwscloseerror {
 | `XWS_CLOSE_ERROR_SIZE` | 尺寸 |
 | `XWS_CLOSE_ERROR_CODE` | 失败 |
 | `XWS_CLOSE_ERROR_UTF8` | 失败 |
-| `XWS_CLOSE_ERROR_OUTPUT` | （见枚举语义） |
+| `XWS_CLOSE_ERROR_OUTPUT` | 写出失败 |
 
 ### `xwsclose`
 
@@ -277,7 +277,7 @@ typedef enum xwsmessageflag {
 | `XWS_MESSAGE_END` | 纯消息 |
 | `XWS_MESSAGE_CONTROL` | 纯消息 |
 | `XWS_MESSAGE_EXTENDED` | 纯消息 |
-| `XWS_MESSAGE_COMPRESSED` | （见枚举语义） |
+| `XWS_MESSAGE_COMPRESSED` | 消息已压缩 |
 
 ### `xwsmessageerror`
 
@@ -309,7 +309,7 @@ typedef enum xwsmessageerror {
 | `XWS_MESSAGE_ERROR_PAYLOAD` | 失败 |
 | `XWS_MESSAGE_ERROR_SIZE` | 尺寸 |
 | `XWS_MESSAGE_ERROR_UTF8` | 失败 |
-| `XWS_MESSAGE_ERROR_CLOSE` | （见枚举语义） |
+| `XWS_MESSAGE_ERROR_CLOSE` | 失败即关闭 |
 
 ### `xwsmessageconfig`
 
@@ -462,7 +462,7 @@ typedef enum xwshandshakeerror {
 | `XWS_HANDSHAKE_ERROR_STATUS` | 失败 |
 | `XWS_HANDSHAKE_ERROR_FIELD` | 失败 |
 | `XWS_HANDSHAKE_ERROR_OUTPUT` | 输出失败 |
-| `XWS_HANDSHAKE_ERROR_RANDOM` | （见枚举语义） |
+| `XWS_HANDSHAKE_ERROR_RANDOM` | 随机源失败 |
 
 ### `xwsrole`
 
@@ -478,7 +478,7 @@ typedef enum xwsrole {
 | 值 | 语义 |
 |---|---|
 | `XWS_ROLE_CLIENT` | XWSROLE客户端角色 |
-| `XWS_ROLE_SERVER` | （见枚举语义） |
+| `XWS_ROLE_SERVER` | 服务端角色 |
 
 ### `xwsextension`
 
@@ -516,7 +516,7 @@ typedef enum xwsdeflateflag {
 | `XWS_DEFLATE_CLIENT_NO_CONTEXT` | 客户端角色NOCONTEXT |
 | `XWS_DEFLATE_SERVER_MAX_WINDOW` | 服务端角色上限WINDOW |
 | `XWS_DEFLATE_CLIENT_MAX_WINDOW` | 客户端角色上限WINDOW |
-| `XWS_DEFLATE_CLIENT_MAX_WINDOW_ANY` | （见枚举语义） |
+| `XWS_DEFLATE_CLIENT_MAX_WINDOW_ANY` | 接受任意窗口 |
 
 ### `xwsdeflateerror`
 
@@ -552,7 +552,7 @@ typedef enum xwsdeflateerror {
 | `XWS_DEFLATE_ERROR_STATE` | 状态非法 |
 | `XWS_DEFLATE_ERROR_DATA` | 数据损坏 |
 | `XWS_DEFLATE_ERROR_LIMIT` | 超限 |
-| `XWS_DEFLATE_ERROR_CODEC` | （见枚举语义） |
+| `XWS_DEFLATE_ERROR_CODEC` | 压缩流损坏 |
 
 ### `xwsdeflate`
 
@@ -732,7 +732,7 @@ typedef enum xwsstreamcloseflag {
 | `XWS_STREAM_CLOSE_SENT` | SENT |
 | `XWS_STREAM_CLOSE_RECEIVED` | RECEIVED |
 | `XWS_STREAM_CLOSE_CLEAN` | CLEAN |
-| `XWS_STREAM_CLOSE_REMOTE` | （见枚举语义） |
+| `XWS_STREAM_CLOSE_REMOTE` | 对端发起关闭 |
 
 ### `xwsstreamconfig`
 

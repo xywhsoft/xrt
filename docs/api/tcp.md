@@ -18,7 +18,7 @@ typedef enum xnetproxytype {
 | 值 | 语义 |
 |---|---|
 | `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
-| `XNET_PROXY_HTTP_CONNECT` | （见枚举语义） |
+| `XNET_PROXY_HTTP_CONNECT` | HTTP CONNECT |
 
 ### `xnetproxyauth`
 
@@ -38,7 +38,7 @@ typedef enum xnetproxyauth {
 | `XNET_PROXY_AUTH_AUTO` | 自动 |
 | `XNET_PROXY_AUTH_NONE` | 无 |
 | `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
-| `XNET_PROXY_AUTH_OPTIONAL` | （见枚举语义） |
+| `XNET_PROXY_AUTH_OPTIONAL` | 可选认证 |
 
 ### `xnetproxyconfig`
 
@@ -174,7 +174,7 @@ typedef enum xnetsocks5reply {
 | `XNET_SOCKS5_CONNECTION_REFUSED` | 连接被拒绝 |
 | `XNET_SOCKS5_TTL_EXPIRED` | TTL 过期 |
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
-| `XNET_SOCKS5_ADDRESS_UNSUPPORTED` | （见枚举语义） |
+| `XNET_SOCKS5_ADDRESS_UNSUPPORTED` | 地址类型不支持 |
 
 ### `xnetproxydialstate`
 
@@ -336,7 +336,7 @@ typedef enum xnetacceptdistribution {
 | 值 | 语义 |
 |---|---|
 | `XNET_ACCEPT_ROUND_ROBIN` | XNETACCEPTROUNDROBIN |
-| `XNET_ACCEPT_LOCAL` | （见枚举语义） |
+| `XNET_ACCEPT_LOCAL` | 仅本机地址接受 |
 
 ### `xnetdialstate`
 
@@ -380,7 +380,7 @@ typedef enum xnetstreamwait {
 | `XNET_STREAM_WAIT_READ` | 读方向 |
 | `XNET_STREAM_WAIT_WRITE` | 写方向 |
 | `XNET_STREAM_WAIT_DRAIN` | 排空策略 |
-| `XNET_STREAM_WAIT_CLOSE` | （见枚举语义） |
+| `XNET_STREAM_WAIT_CLOSE` | 等待关闭 |
 
 ### `xnetstreamevents`
 
@@ -435,7 +435,7 @@ typedef enum xnetstreamreadmode {
 |---|---|
 | `XNET_STREAM_READ_ADAPTIVE` | 读方向 |
 | `XNET_STREAM_READ_DIRECT` | 读方向 |
-| `XNET_STREAM_READ_PROBE` | （见枚举语义） |
+| `XNET_STREAM_READ_PROBE` | 读探测 |
 
 ### `xnetstreamconfig`
 
@@ -706,7 +706,7 @@ typedef enum xnetservermode {
 | 值 | 语义 |
 |---|---|
 | `XNET_SERVER_SHARED` | XNET服务端角色SHARED |
-| `XNET_SERVER_REUSE_PORT` | （见枚举语义） |
+| `XNET_SERVER_REUSE_PORT` | 重用端口分担 |
 
 ### `xnetserverevents`
 

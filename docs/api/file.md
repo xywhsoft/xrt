@@ -34,7 +34,7 @@ typedef enum xrooterror {
 | `XROOT_ERROR_STAT` | 失败 |
 | `XROOT_ERROR_CREATE` | 创建 |
 | `XROOT_ERROR_REMOVE` | 失败 |
-| `XROOT_ERROR_LINK` | （见枚举语义） |
+| `XROOT_ERROR_LINK` | 链接解析失败 |
 
 ### `xfileflag`
 
@@ -131,7 +131,7 @@ typedef enum xfiletype {
 | `XFILE_TYPE_FIFO` | FIFO 管道 |
 | `XFILE_TYPE_SOCKET` | 套接字 |
 | `XFILE_TYPE_DEVICE` | 设备文件 |
-| `XFILE_TYPE_OTHER` | （见枚举语义） |
+| `XFILE_TYPE_OTHER` | 其他（设备/管道等） |
 
 ### `xfileinfoflag`
 
@@ -159,7 +159,7 @@ typedef enum xfileinfoflag {
 | `XFILE_INFO_CREATE_TIME` | 创建时间 |
 | `XFILE_INFO_CHANGE_TIME` | CHANGE时间 |
 | `XFILE_INFO_IDENTITY` | 文件标识（设备+inode） |
-| `XFILE_INFO_LINK_COUNT` | （见枚举语义） |
+| `XFILE_INFO_LINK_COUNT` | 硬链接数 |
 
 ### `xfileinfo`
 
@@ -245,7 +245,7 @@ typedef enum xfileerror {
 | `XFILE_ERROR_TEXT` | 文本 |
 | `XFILE_ERROR_LIMIT` | 超限 |
 | `XFILE_ERROR_LOCK` | 失败 |
-| `XFILE_ERROR_MAP` | （见枚举语义） |
+| `XFILE_ERROR_MAP` | 内存映射失败 |
 
 ### `xfilelock`
 
@@ -279,7 +279,7 @@ typedef enum xfilemapflag {
 |---|---|
 | `XFILE_MAP_READ` | 读方向 |
 | `XFILE_MAP_WRITE` | 写方向 |
-| `XFILE_MAP_COPY` | （见枚举语义） |
+| `XFILE_MAP_COPY` | 写时复制映射 |
 
 ### `xdirflag`
 
@@ -297,7 +297,7 @@ typedef enum xdirflag {
 |---|---|
 | `XDIR_STAT` | stat 信息 |
 | `XDIR_FOLLOW_LINKS` | 跟随符号链接 |
-| `XDIR_INCLUDE_DOTS` | （见枚举语义） |
+| `XDIR_INCLUDE_DOTS` | 包含 . 与 .. 项 |
 
 ### `xdirnext`
 
@@ -315,7 +315,7 @@ typedef enum xdirnext {
 |---|---|
 | `XDIR_NEXT_ERROR` | 失败 |
 | `XDIR_NEXT_END` | END |
-| `XDIR_NEXT_ITEM` | （见枚举语义） |
+| `XDIR_NEXT_ITEM` | 已产出条目 |
 
 ### `xdirentryflag`
 
@@ -391,7 +391,7 @@ typedef enum xdirerror {
 | `XDIR_ERROR_REMOVE` | 失败 |
 | `XDIR_ERROR_ROOTS` | 失败 |
 | `XDIR_ERROR_ENTRY` | 失败 |
-| `XDIR_ERROR_TEMP` | （见枚举语义） |
+| `XDIR_ERROR_TEMP` | 临时路径不可用 |
 
 ### `xtreecopyflag`
 
@@ -417,7 +417,7 @@ typedef enum xtreecopyflag {
 | `XTREE_COPY_SKIP_LINKS` | 跳过LINKS |
 | `XTREE_COPY_ONE_FILESYSTEM` | ONEFILESYSTEM |
 | `XTREE_COPY_SKIP_SPECIAL` | 跳过SPECIAL |
-| `XTREE_COPY_METADATA` | （见枚举语义） |
+| `XTREE_COPY_METADATA` | 复制元数据 |
 
 ### `xtreecopyoptions`
 
@@ -457,7 +457,7 @@ typedef enum xtreeerror {
 | `XTREE_ERROR_DESCENDANT` | 失败 |
 | `XTREE_ERROR_LINK_CYCLE` | 失败 |
 | `XTREE_ERROR_SPECIAL` | 失败 |
-| `XTREE_ERROR_ROOT` | （见枚举语义） |
+| `XTREE_ERROR_ROOT` | 根操作非法 |
 
 ### `xlinkerror`
 
@@ -477,7 +477,7 @@ typedef enum xlinkerror {
 | `XLINK_ERROR_CREATE` | 创建 |
 | `XLINK_ERROR_READ` | 读方向 |
 | `XLINK_ERROR_DELETE` | Delete失败 |
-| `XLINK_ERROR_FORMAT` | （见枚举语义） |
+| `XLINK_ERROR_FORMAT` | 链接格式非法 |
 
 ### `xfifoerror`
 
@@ -507,7 +507,7 @@ typedef enum xwalkflag {
 | 值 | 语义 |
 |---|---|
 | `XWALK_FOLLOW_LINKS` | XWALKFOLLOWLINKS |
-| `XWALK_ONE_FILESYSTEM` | （见枚举语义） |
+| `XWALK_ONE_FILESYSTEM` | 单文件系统 |
 
 ### `xwalkevent`
 
@@ -525,7 +525,7 @@ typedef enum xwalkevent {
 |---|---|
 | `XWALK_ENTER` | ENTER |
 | `XWALK_ITEM` | ITEM |
-| `XWALK_LEAVE` | （见枚举语义） |
+| `XWALK_LEAVE` | 离开目录 |
 
 ### `xwalkentryflag`
 
@@ -545,7 +545,7 @@ typedef enum xwalkentryflag {
 | `XWALK_ENTRY_UTF8` | UTF-8 |
 | `XWALK_ENTRY_LINK` | LINK |
 | `XWALK_ENTRY_CYCLE` | CYCLE |
-| `XWALK_ENTRY_CROSS_FILESYSTEM` | （见枚举语义） |
+| `XWALK_ENTRY_CROSS_FILESYSTEM` | 进入新文件系统 |
 
 ### `xwalkcontrol`
 
@@ -673,7 +673,7 @@ typedef enum xwalkerror {
 | `XWALK_ERROR_OPTIONS` | Options失败 |
 | `XWALK_ERROR_CALLBACK` | 回调失败 |
 | `XWALK_ERROR_IDENTITY` | 失败 |
-| `XWALK_ERROR_OVERFLOW` | （见枚举语义） |
+| `XWALK_ERROR_OVERFLOW` | 深度超限 |
 
 ### `xwalkerrorproc`
 

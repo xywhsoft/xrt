@@ -19,7 +19,7 @@ typedef enum xhtmlescapemode {
 | 值 | 语义 |
 |---|---|
 | `XHTML_ESCAPE_TEXT` | XHTMLESCAPE文本 |
-| `XHTML_ESCAPE_ATTRIBUTE` | （见枚举语义） |
+| `XHTML_ESCAPE_ATTRIBUTE` | 属性上下文转义 |
 
 ### `xhtmlerror`
 
@@ -35,7 +35,7 @@ typedef enum xhtmlerror {
 | 值 | 语义 |
 |---|---|
 | `XHTML_ERROR_MODE` | XHTML失败MODE |
-| `XHTML_ERROR_UTF8` | （见枚举语义） |
+| `XHTML_ERROR_UTF8` | 输入不是合法 UTF-8 |
 
 ## 裁剪
 

@@ -198,7 +198,7 @@ typedef enum xerrkind {
 | `XERR_CLOSED` | 已关闭 |
 | `XERR_PROTOCOL` | 协议非法 |
 | `XERR_UNSUPPORTED` | 不支持 |
-| `XERR_INTERNAL` | （见枚举语义） |
+| `XERR_INTERNAL` | 内部不变量破坏 |
 
 ### `xerrordesc`
 

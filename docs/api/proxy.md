@@ -18,7 +18,7 @@ typedef enum xnetproxytype {
 | 值 | 语义 |
 |---|---|
 | `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
-| `XNET_PROXY_HTTP_CONNECT` | （见枚举语义） |
+| `XNET_PROXY_HTTP_CONNECT` | HTTP CONNECT |
 
 ### `xnetproxyauth`
 
@@ -38,7 +38,7 @@ typedef enum xnetproxyauth {
 | `XNET_PROXY_AUTH_AUTO` | 自动 |
 | `XNET_PROXY_AUTH_NONE` | 无 |
 | `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
-| `XNET_PROXY_AUTH_OPTIONAL` | （见枚举语义） |
+| `XNET_PROXY_AUTH_OPTIONAL` | 可选认证 |
 
 ### `xnetproxyconfig`
 
@@ -174,7 +174,7 @@ typedef enum xnetsocks5reply {
 | `XNET_SOCKS5_CONNECTION_REFUSED` | 连接被拒绝 |
 | `XNET_SOCKS5_TTL_EXPIRED` | TTL 过期 |
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
-| `XNET_SOCKS5_ADDRESS_UNSUPPORTED` | （见枚举语义） |
+| `XNET_SOCKS5_ADDRESS_UNSUPPORTED` | 地址类型不支持 |
 
 ### `xnetproxydialstate`
 

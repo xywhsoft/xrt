@@ -54,7 +54,7 @@ typedef enum xpemresult {
 |---|---|
 | `XPEM_ERROR` | 失败 |
 | `XPEM_DONE` | 完成 |
-| `XPEM_BLOCK` | （见枚举语义） |
+| `XPEM_BLOCK` | 已读取一个块 |
 
 ### `xpemerror`
 
@@ -74,7 +74,7 @@ typedef enum xpemerror {
 | `XPEM_ERROR_BOUNDARY` | 失败 |
 | `XPEM_ERROR_LABEL` | 失败 |
 | `XPEM_ERROR_BODY` | 失败 |
-| `XPEM_ERROR_NOT_FOUND` | （见枚举语义） |
+| `XPEM_ERROR_NOT_FOUND` | 无匹配块 |
 
 ## 裁剪
 

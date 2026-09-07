@@ -44,7 +44,7 @@ typedef enum xnetudpwait {
 | `XNET_UDP_WAIT_RECEIVE` | 接收方向 |
 | `XNET_UDP_WAIT_ERROR` | 失败 |
 | `XNET_UDP_WAIT_DRAIN` | 排空策略 |
-| `XNET_UDP_WAIT_CLOSE` | （见枚举语义） |
+| `XNET_UDP_WAIT_CLOSE` | 等待关闭 |
 
 ### `xnetudpoverflow`
 

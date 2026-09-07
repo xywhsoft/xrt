@@ -102,7 +102,7 @@ typedef enum xvaluetype {
 | `XVALUE_INT_MAP` | 有符号整数映射形态 |
 | `XVALUE_SET` | 集合形态 |
 | `XVALUE_OBJECT` | 对象形态 |
-| `XVALUE_UINT` | （见枚举语义） |
+| `XVALUE_UINT` | 无符号整数 |
 
 ### `xvaluehandleops`
 
@@ -142,7 +142,7 @@ typedef enum xvaluekeytype {
 | `XVALUE_KEY_NONE` | 无 |
 | `XVALUE_KEY_INDEX` | 索引 |
 | `XVALUE_KEY_INT` | 有符号整数 |
-| `XVALUE_KEY_STRING` | （见枚举语义） |
+| `XVALUE_KEY_STRING` | 字符串键 |
 
 ### `xvalueiterresult`
 
@@ -160,7 +160,7 @@ typedef enum xvalueiterresult {
 |---|---|
 | `XVALUE_ITER_ERROR` | 失败 |
 | `XVALUE_ITER_END` | END |
-| `XVALUE_ITER_ITEM` | （见枚举语义） |
+| `XVALUE_ITER_ITEM` | 已产出 |
 
 ### `xvaluemergepolicy`
 

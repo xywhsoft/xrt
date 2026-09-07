@@ -37,7 +37,7 @@ typedef enum xhttpmethod {
 | `XHTTP_METHOD_CONNECT` | CONNECT 方法 |
 | `XHTTP_METHOD_OPTIONS` | OPTIONS 方法 |
 | `XHTTP_METHOD_TRACE` | 最详细级别 |
-| `XHTTP_METHOD_PATCH` | （见枚举语义） |
+| `XHTTP_METHOD_PATCH` | PATCH 方法 |
 
 ### `xhttpversion`
 
@@ -53,7 +53,7 @@ typedef enum xhttpversion {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_VERSION_1_0` | HTTP/1.0 |
-| `XHTTP_VERSION_1_1` | （见枚举语义） |
+| `XHTTP_VERSION_1_1` | HTTP/1.1 |
 
 ### `xhttpstatus`
 
@@ -196,7 +196,7 @@ typedef enum xhttpstatus {
 | `XHTTP_STATUS_INSUFFICIENT_STORAGE` | 507 存储不足 |
 | `XHTTP_STATUS_LOOP_DETECTED` | 508 检测到循环 |
 | `XHTTP_STATUS_NOT_EXTENDED` | 510 未扩展 |
-| `XHTTP_STATUS_NETWORK_AUTHENTICATION_REQUIRED` | （见枚举语义） |
+| `XHTTP_STATUS_NETWORK_AUTHENTICATION_REQUIRED` | 511 需网络认证 |
 
 ### `xhttpfield`
 
@@ -230,7 +230,7 @@ typedef enum xhttpnext {
 |---|---|
 | `XHTTP_NEXT_ERROR` | 失败 |
 | `XHTTP_NEXT_END` | 遍历结束 |
-| `XHTTP_NEXT_ITEM` | （见枚举语义） |
+| `XHTTP_NEXT_ITEM` | 已产出一项 |
 
 ### `xhttpfieldtokencursor`
 
@@ -314,7 +314,7 @@ typedef enum xhttptargetform {
 | `XHTTP_TARGET_ORIGIN` | origin-form（最常见） |
 | `XHTTP_TARGET_ABSOLUTE` | absolute-form（代理） |
 | `XHTTP_TARGET_AUTHORITY` | authority-form（CONNECT） |
-| `XHTTP_TARGET_ASTERISK` | （见枚举语义） |
+| `XHTTP_TARGET_ASTERISK` | asterisk-form（OPTIONS *） |
 
 ### `xhttptarget`
 
@@ -362,7 +362,7 @@ typedef enum xhttpparamflags {
 |---|---|
 | `XHTTP_PARAM_NONE` | 无 |
 | `XHTTP_PARAM_HAS_VALUE` | HAS值非法 |
-| `XHTTP_PARAM_QUOTED` | （见枚举语义） |
+| `XHTTP_PARAM_QUOTED` | 带引号 |
 
 ### `xhttpparam`
 
@@ -422,7 +422,7 @@ typedef enum xhttpconnectionstatus {
 |---|---|
 | `XHTTP_CONNECTION_ERROR` | 失败 |
 | `XHTTP_CONNECTION_CLOSE` | 协商了 close |
-| `XHTTP_CONNECTION_PERSIST` | （见枚举语义） |
+| `XHTTP_CONNECTION_PERSIST` | 协商持久连接 |
 
 ### `xhttpconnectionflag`
 
@@ -440,7 +440,7 @@ typedef enum xhttpconnectionflag {
 |---|---|
 | `XHTTP_CONNECTION_RESPONSE` | 响应保留连接 |
 | `XHTTP_CONNECTION_PROXY` | 代理保留连接 |
-| `XHTTP_CONNECTION_ALLOW_HTTP10_KEEP_ALIVE` | （见枚举语义） |
+| `XHTTP_CONNECTION_ALLOW_HTTP10_KEEP_ALIVE` | 允许 HTTP/1.0 保活 |
 
 ### 常量总表
 

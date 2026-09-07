@@ -32,7 +32,7 @@ typedef enum xjsonerror {
 | `XJSON_ERROR_STATE` | 状态非法 |
 | `XJSON_ERROR_UNSUPPORTED` | 不支持 |
 | `XJSON_ERROR_OUTPUT` | 输出失败 |
-| `XJSON_ERROR_IO` | （见枚举语义） |
+| `XJSON_ERROR_IO` | 写出失败 |
 
 ### `xjsonlocation`
 
@@ -66,7 +66,7 @@ typedef enum xjsonreadflag {
 | 值 | 语义 |
 |---|---|
 | `XJSON_READ_COMMENTS` | XJSON读方向COMMENTS |
-| `XJSON_READ_TRAILING_COMMA` | （见枚举语义） |
+| `XJSON_READ_TRAILING_COMMA` | 允许尾随逗号 |
 
 ### `xjsonduplicate`
 
@@ -84,7 +84,7 @@ typedef enum xjsonduplicate {
 |---|---|
 | `XJSON_DUPLICATE_REJECT` | REJECT |
 | `XJSON_DUPLICATE_KEEP` | KEEP |
-| `XJSON_DUPLICATE_REPLACE` | （见枚举语义） |
+| `XJSON_DUPLICATE_REPLACE` | 重名成员后者覆盖 |
 
 ### `xjsonbigint`
 
@@ -100,7 +100,7 @@ typedef enum xjsonbigint {
 | 值 | 语义 |
 |---|---|
 | `XJSON_BIGINT_REJECT` | XJSONBIGINTREJECT |
-| `XJSON_BIGINT_FLOAT` | （见枚举语义） |
+| `XJSON_BIGINT_FLOAT` | 浮点形态（超精度可选） |
 
 ### `xjsonreadconfig`
 
@@ -161,7 +161,7 @@ typedef enum xjsoneventtype {
 | `XJSON_EVENT_ARRAY_END` | 数组形态END |
 | `XJSON_EVENT_OBJECT_BEGIN` | 对象形态BEGIN |
 | `XJSON_EVENT_OBJECT_END` | 对象形态END |
-| `XJSON_EVENT_UINT` | （见枚举语义） |
+| `XJSON_EVENT_UINT` | 无符号整数事件 |
 
 ### `xjsonvisitaction`
 
@@ -179,7 +179,7 @@ typedef enum xjsonvisitaction {
 |---|---|
 | `XJSON_VISIT_NEXT` | NEXT |
 | `XJSON_VISIT_STOP` | STOP |
-| `XJSON_VISIT_FAIL` | （见枚举语义） |
+| `XJSON_VISIT_FAIL` | 回调失败 |
 
 ### `xjsonvisitresult`
 
@@ -197,7 +197,7 @@ typedef enum xjsonvisitresult {
 |---|---|
 | `XJSON_VISIT_ERROR` | 失败 |
 | `XJSON_VISIT_DONE` | 完成 |
-| `XJSON_VISIT_STOPPED` | （见枚举语义） |
+| `XJSON_VISIT_STOPPED` | 回调请求停止 |
 
 ### `xjsonwriteflag`
 
@@ -219,7 +219,7 @@ typedef enum xjsonwriteflag {
 | `XJSON_WRITE_ESCAPE_SLASH` | 写方向 |
 | `XJSON_WRITE_ESCAPE_HTML` | 写方向 |
 | `XJSON_WRITE_ESCAPE_NON_ASCII` | 写方向 |
-| `XJSON_WRITE_CONTAINER_COMPAT` | （见枚举语义） |
+| `XJSON_WRITE_CONTAINER_COMPAT` | 容器兼容模式 |
 
 ### `xjsonnonfinite`
 
@@ -237,7 +237,7 @@ typedef enum xjsonnonfinite {
 |---|---|
 | `XJSON_NONFINITE_REJECT` | REJECT |
 | `XJSON_NONFINITE_NULL` | 空值 |
-| `XJSON_NONFINITE_STRING` | （见枚举语义） |
+| `XJSON_NONFINITE_STRING` | 字符串表示 |
 
 ### `xjsonunsupported`
 

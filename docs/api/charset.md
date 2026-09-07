@@ -136,7 +136,7 @@ typedef enum xutfstatus {
 | `XUTF_MORE` | 需要更多输入 |
 | `XUTF_INVALID` | 无效 |
 | `XUTF_NO_SPACE` | NOSPACE |
-| `XUTF_OVERFLOW` | （见枚举语义） |
+| `XUTF_OVERFLOW` | 输出容量不足 |
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
@@ -202,7 +202,7 @@ typedef enum xutferror {
 | 值 | 语义 |
 |---|---|
 | `XUTF_ERROR_INVALID` | XUTF失败无效 |
-| `XUTF_ERROR_OVERFLOW` | （见枚举语义） |
+| `XUTF_ERROR_OVERFLOW` | 输出容量不足 |
 
 ### `xencodingguess`
 

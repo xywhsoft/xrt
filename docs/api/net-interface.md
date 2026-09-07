@@ -26,7 +26,7 @@ typedef enum xnetinterfaceflag {
 | `XNET_INTERFACE_LOOPBACK` | 回环接口 |
 | `XNET_INTERFACE_BROADCAST` | 广播 |
 | `XNET_INTERFACE_POINT_TO_POINT` | 点对点链路 |
-| `XNET_INTERFACE_MULTICAST` | （见枚举语义） |
+| `XNET_INTERFACE_MULTICAST` | 支持多播 |
 
 ### `xnetinterfaceaddress`
 

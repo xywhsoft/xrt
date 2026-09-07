@@ -36,7 +36,7 @@ typedef enum xtemplateerror {
 | `XTEMPLATE_ERROR_WRITE` | 写方向 |
 | `XTEMPLATE_ERROR_CALLBACK` | 回调失败 |
 | `XTEMPLATE_ERROR_INCLUDE` | 失败 |
-| `XTEMPLATE_ERROR_CYCLE` | （见枚举语义） |
+| `XTEMPLATE_ERROR_CYCLE` | 包含环 |
 
 ### `xtemplatelocation`
 
@@ -92,7 +92,7 @@ typedef enum xtemplatenodetype {
 | `XTEMPLATE_NODE_DEFINE` | 模板定义 |
 | `XTEMPLATE_NODE_INCLUDE` | 包含 |
 | `XTEMPLATE_NODE_RAW` | 裸格式 |
-| `XTEMPLATE_NODE_EXTENSION` | （见枚举语义） |
+| `XTEMPLATE_NODE_EXTENSION` | 扩展调用节点 |
 
 ### `xtemplateoutputtype`
 
@@ -110,7 +110,7 @@ typedef enum xtemplateoutputtype {
 |---|---|
 | `XTEMPLATE_OUTPUT_TEXT` | 文本 |
 | `XTEMPLATE_OUTPUT_NUMBER` | 输出失败 |
-| `XTEMPLATE_OUTPUT_TIME` | （见枚举语义） |
+| `XTEMPLATE_OUTPUT_TIME` | 时间输出 |
 
 ### `xtemplatenodeview`
 
@@ -156,7 +156,7 @@ typedef enum xtemplateextensiontype {
 | `XTEMPLATE_EXTENSION_FUNCTION` | FUNCTION |
 | `XTEMPLATE_EXTENSION_STATEMENT` | STATEMENT |
 | `XTEMPLATE_EXTENSION_BLOCK` | 阻塞策略 |
-| `XTEMPLATE_EXTENSION_RAW_BLOCK` | （见枚举语义） |
+| `XTEMPLATE_EXTENSION_RAW_BLOCK` | 原始块扩展 |
 
 ### `xtemplateextension`
 
@@ -280,7 +280,7 @@ typedef enum xtemplaterenderflag {
 | 值 | 语义 |
 |---|---|
 | `XTEMPLATE_STRICT_UNDEFINED` | XTEMPLATESTRICTUNDEFINED |
-| `XTEMPLATE_ESCAPE_HTML_TEXT` | （见枚举语义） |
+| `XTEMPLATE_ESCAPE_HTML_TEXT` | HTML 文本转义 |
 
 ### `xtemplaterenderconfig`
 

@@ -21,7 +21,7 @@ typedef enum xhttpconnectionstatus {
 |---|---|
 | `XHTTP_CONNECTION_ERROR` | 失败 |
 | `XHTTP_CONNECTION_CLOSE` | 协商了 close |
-| `XHTTP_CONNECTION_PERSIST` | （见枚举语义） |
+| `XHTTP_CONNECTION_PERSIST` | 协商持久连接 |
 
 ### `xhttpconnectionflag`
 
@@ -39,7 +39,7 @@ typedef enum xhttpconnectionflag {
 |---|---|
 | `XHTTP_CONNECTION_RESPONSE` | 响应保留连接 |
 | `XHTTP_CONNECTION_PROXY` | 代理保留连接 |
-| `XHTTP_CONNECTION_ALLOW_HTTP10_KEEP_ALIVE` | （见枚举语义） |
+| `XHTTP_CONNECTION_ALLOW_HTTP10_KEEP_ALIVE` | 允许 HTTP/1.0 保活 |
 
 ## 裁剪
 
