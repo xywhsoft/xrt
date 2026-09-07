@@ -72,7 +72,7 @@
 | 65 | task.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；组 15 + 池 14 + 组池提交 5 + 协程 2 + 网络 6 五组；AGAIN 队满回滚、工作线程自等待/自销毁 STATE 入档；锚点 8 范例 |
 | 66 | tcp.md | 101 | 待办 |  |
 | 67 | temp.md | 17 | **完成** | 17/17 全绿（G3 17 片段，2026-09-07）；arena 14 + 上下文便捷层 3；作用域后进先出 STATE、Trim 忙碌 STATE 入档；锚点 memory/temp |
-| 68 | template.md | 32 | 待办 |  |
+| 68 | template.md | 32 | **完成** | 32/32 全绿（G3 32 片段，2026-09-07）；编译/注册表 13 + 扩展调用 13 + 渲染 6 三组；XTEMPLATE 12 域码；ErrorLocation 定位器；锚点 6 范例；manifest 补注册 tour |
 | 69 | thread-key.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；全部节复用自 once.md（同映射 thread.h），以键为主线重组 |
 | 70 | thread.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；全部节复用自 once.md（同映射 thread.h），按线程视角重组 |
 | 71 | time.md | 58 | 待办 |  |
@@ -738,4 +738,10 @@
   上下文便捷层两组；作用域违反后进先出 = STATE、Trim 在活动分配时 =
   STATE、Secure 族先擦除后操作。
   完成 API 2757→2774/3664（75.7%），68/79 文件。
+- 2026-09-07 template.md 完成（32/32，G3 32 片段全绿）：三组；错误域
+  12 码对照 src/template/——编译 SYNTAX/CONFIG/LIMIT、渲染 TYPE/UNDEFINED/
+  LIMIT/CALLBACK/WRITE、扩展接管 UserData。manifest 补注册 #11：
+  template tour（16 个 API 主锚点）。生成器修复：`*pTarget =` 解引用
+  星号被误判注释行——注释跳过规则改为 /*, //, */, "星号+空格"。
+  完成 API 2774→2806/3664（76.6%），69/79 文件。
 

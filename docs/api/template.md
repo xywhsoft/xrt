@@ -48,6 +48,459 @@
 
 `xrtTemplateCompileFile` 使用默认配置读取并编译文件，`xrtTemplateCompileFileConfig` 使用配置中的 `MaxSourceBytes` 作为读取上限。文件内容按原始字节处理，不删除 BOM，也不做编码转换。读取失败保留 `xrt.file` 错误，编译失败使用 `xrt.template` 错误；临时文件缓冲在编译返回前释放。
 
+### `xrtTemplateConfigInit`
+
+初始化默认括号和有限编译预算。
+
+```c
+void xrtTemplateConfigInit(xtemplateconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[extension](../../examples/template/extension/main.c) · 编译配置
+
+```c
+	xrtTemplateConfigInit(&Config);
+```
+
+### `xrtTemplateCompile`
+
+使用默认配置编译模板源码。
+
+```c
+xtemplate* xrtTemplateCompile(xstrview Source)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Source` | 输入 | 借用 | 模板源码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 不可变模板（引用 1） | — |
+| `NULL` | 编译失败 | `xrt.template` 域错误 |
+
+#### 错误
+
+- `xrt.template` / `XTEMPLATE_ERROR_CONFIG` — 配置字段非法
+- `xrt.template` / `XTEMPLATE_ERROR_SYNTAX` — 源码语法非法，位置可由 `xrtTemplateErrorLocation` 读取
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[compose](../../examples/template/compose/main.c) · 默认编译
+
+```c
+	pTemplate = xrtTemplateCompile(XRT_STR_LITERAL(
+		"Users: {#foreach:users}{#include:'user'}"
+		"{?loop.last::,}{#end}{#include:'suffix'}"
+		"{#define:'user'}{$name}{#end}"
+	));
+```
+
+### `xrtTemplateCompileConfig`
+
+使用显式配置编译模板源码。
+
+```c
+xtemplate* xrtTemplateCompileConfig(xstrview Source, const xtemplateconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Source` | 输入 | 借用 | 模板源码 |
+| `pConfig` | 输入 | 非空 | 编译配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 不可变模板（引用 1） | — |
+| `NULL` | 编译失败 | `xrt.template` 域错误 |
+
+#### 错误
+
+- `xrt.template` / `XTEMPLATE_ERROR_CONFIG` — 配置字段非法
+- `xrt.template` / `XTEMPLATE_ERROR_SYNTAX` — 源码语法非法，位置可由 `xrtTemplateErrorLocation` 读取
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[extension](../../examples/template/extension/main.c) · 显式配置编译
+
+```c
+	pTemplate = xrtTemplateCompileConfig(
+		XRT_STR_LITERAL("{#link:url}{$label}{#end}"),
+		&Config
+	);
+```
+
+### `xrtTemplateCompileFile`
+
+使用默认模板配置读取并编译完整文件。
+
+```c
+xtemplate* xrtTemplateCompileFile(cstr sPath)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | UTF-8 文件路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 不可变模板（引用 1） | — |
+| `NULL` | 读取或编译失败 | `xrt.template` / `xrt.file` 域错误 |
+
+#### 错误
+
+- `xrt.template` / `XTEMPLATE_ERROR_CONFIG` — 配置字段非法
+- `xrt.template` / `XTEMPLATE_ERROR_SYNTAX` — 源码语法非法，位置可由 `xrtTemplateErrorLocation` 读取
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+- `XERR_MEMORY` — 分配失败
+- `xrt.file` 域错误 — 文件读取失败
+
+#### 范例
+
+[file](../../examples/template/file/main.c) · 默认文件编译
+
+```c
+	pTemplate = xrtTemplateCompileFile("examples/template/file/page.tpl");
+```
+
+### `xrtTemplateCompileFileConfig`
+
+在配置源码上限内读取完整文件并编译，文件内容只在调用期间持有。
+
+```c
+xtemplate* xrtTemplateCompileFileConfig(cstr sPath, const xtemplateconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、零结尾 | UTF-8 文件路径 |
+| `pConfig` | 输入 | 非空 | 编译配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 不可变模板（引用 1） | — |
+| `NULL` | 读取或编译失败 | `xrt.template` / `xrt.file` 域错误 |
+
+#### 错误
+
+- `xrt.template` / `XTEMPLATE_ERROR_CONFIG` — 配置字段非法
+- `xrt.template` / `XTEMPLATE_ERROR_SYNTAX` — 源码语法非法，位置可由 `xrtTemplateErrorLocation` 读取
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+- `XERR_MEMORY` — 分配失败
+- `xrt.file` 域错误 — 文件读取失败
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 显式配置文件编译
+
+```c
+	pTemplate = xrtTemplateCompileFileConfig(sFile, &Config);
+```
+
+### `xrtTemplateRef`
+
+增加不可变模板引用并返回原指针。
+
+```c
+xtemplate* xrtTemplateRef(xtemplate* pTemplate)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTemplate` | 输入 | 非空 | 目标模板 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[compose](../../examples/template/compose/main.c) · 共享引用
+
+```c
+		*pTemplate = xrtTemplateRef(pExternal);
+```
+
+### `xrtTemplateRelease`
+
+释放模板引用。
+
+```c
+void xrtTemplateRelease(xtemplate* pTemplate)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTemplate` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[compose](../../examples/template/compose/main.c) · 释放引用
+
+```c
+	xrtTemplateRelease(pExternal);
+```
+
+### `xrtTemplateSource`
+
+返回模板持有的原始源码视图。
+
+```c
+xstrview xrtTemplateSource(const xtemplate* pTemplate)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTemplate` | 输入 | 非空 | 目标模板 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 源码借用 | — |
+| 空视图 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 原始源码
+
+```c
+		(xrtTemplateSource(pTemplate).Size != 14u) ) {
+```
+
+### `xrtTemplateNodeCount`
+
+返回模板中的全部编译节点数量，包括控制块内部节点。
+
+```c
+size_t xrtTemplateNodeCount(const xtemplate* pTemplate)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTemplate` | 输入 | 非空 | 目标模板 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 编译节点数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 节点数量
+
+```c
+	iNodes = xrtTemplateNodeCount(pTemplate);
+```
+
+### `xrtTemplateNode`
+
+返回指定编译节点的只读视图。
+
+```c
+bool xrtTemplateNode(const xtemplate* pTemplate, size_t iIndex, xtemplatenodeview* pNode)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTemplate` | 输入 | 非空 | 目标模板 |
+| `iIndex` | 输入 | < 节点数量 | 节点索引 |
+| `pNode` | 输出 | 非空 | 接收节点视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 视图已写出 | — |
+| `false` | 索引越界 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_RANGE` — 节点索引越界；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 节点视图
+
+```c
+			if ( !xrtTemplateNode(pTemplate, i, &Node) ) {
+```
+
+### `xrtTemplateRegistryCreate`
+
+校验并复制全部扩展定义，成功后注册表接管每项用户数据。
+
+```c
+xtemplateregistry* xrtTemplateRegistryCreate(const xtemplateextension* pExtensions, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pExtensions` | 输入 | 非空数组 | 扩展定义 |
+| `iCount` | 输入 | > 0 | 扩展数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 不可变注册表（引用 1） | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.template` / `XTEMPLATE_ERROR_CONFIG` — 扩展定义非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[extension](../../examples/template/extension/main.c) · 创建注册表
+
+```c
+	xtemplateregistry* pRegistry = xrtTemplateRegistryCreate(&Extension, 1u);
+```
+
+### `xrtTemplateRegistryRef`
+
+增加不可变注册表引用并返回原指针。
+
+```c
+xtemplateregistry* xrtTemplateRegistryRef(const xtemplateregistry* pRegistry)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRegistry` | 输入 | 非空 | 目标注册表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 共享引用
+
+```c
+	pRegistryRef = xrtTemplateRegistryRef(pRegistry);
+```
+
+### `xrtTemplateRegistryRelease`
+
+释放注册表引用及其最终拥有的扩展用户数据。
+
+```c
+void xrtTemplateRegistryRelease(const xtemplateregistry* pRegistry)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRegistry` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[extension](../../examples/template/extension/main.c) · 释放引用
+
+```c
+	xrtTemplateRegistryRelease(pRegistry);
+```
+
 ## 基础语法
 
 默认开始和结束标记是 `{` 与 `}`。重复开始标记输出一个字面开始标记，例如 `{{` 输出 `{`。
@@ -146,6 +599,457 @@ Template 本身不依赖该模块，也不会替调用方猜测输出上下文�
 
 注册表与模板都不可变且可跨线程共享。共享扩展的 `Data` 和 `Call` 必须由扩展实现保证并发只读或自行同步。
 
+### `xrtTemplateCallData`
+
+返回当前扩展调用名称和描述项携带的用户数据。
+
+```c
+ptr xrtTemplateCallData(const xtemplatecall* pCall)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 值 | 扩展描述的 `UserData` 原样返回 | — |
+| `NULL` | 未携带 | 不设错误 |
+
+#### 错误
+
+- 无错误 — 未携带数据返回 `NULL` 且不设置错误
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 调用数据
+
+```c
+	examplectx* pCtx = (examplectx*)xrtTemplateCallData(pCall);
+```
+
+### `xrtTemplateCallName`
+
+返回当前扩展调用的名称视图。
+
+```c
+xstrview xrtTemplateCallName(const xtemplatecall* pCall)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 名称借用（回调期间有效） | — |
+| 空视图 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 调用名称
+
+```c
+	if ( (xrtTemplateCallName(pCall).Size != 5u) ||
+		(memcmp(xrtTemplateCallName(pCall).Data, "shout",
+			5u) != 0) ||
+		(xrtTemplateCallArgumentCount(pCall) != 1u) ) {
+```
+
+### `xrtTemplateCallRaw`
+
+返回原样主体和当前、根、全局作用域的借用视图。
+
+```c
+xstrview xrtTemplateCallRaw(const xtemplatecall* pCall)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 视图 | 原样主体借用 | — |
+| 空视图 | 无主体或参数非法 | 不设错误 |
+
+#### 错误
+
+- 无主体返回空视图且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 原样主体
+
+```c
+	(void)xrtTemplateCallRaw(pCall);
+```
+
+### `xrtTemplateCallCurrent`
+
+返回当前渲染作用域的借用数据值。
+
+```c
+const xvalue* xrtTemplateCallCurrent(const xtemplatecall* pCall)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 当前值借用（回调期间有效） | — |
+| `NULL` | 无当前值 | 不设错误 |
+
+#### 错误
+
+- 无当前值返回 `NULL` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 当前作用域值
+
+```c
+		(xrtTemplateCallCurrent(pCall) == NULL) ) {
+```
+
+### `xrtTemplateCallRoot`
+
+返回根作用域的借用数据值。
+
+```c
+const xvalue* xrtTemplateCallRoot(const xtemplatecall* pCall)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 根值借用（回调期间有效） | — |
+| `NULL` | 无根值 | 不设错误 |
+
+#### 错误
+
+- 无根值返回 `NULL` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 根作用域值
+
+```c
+	pRoot = xrtTemplateCallRoot(pCall);
+```
+
+### `xrtTemplateCallGlobal`
+
+返回全局作用域的借用数据值。
+
+```c
+const xvalue* xrtTemplateCallGlobal(const xtemplatecall* pCall)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 全局值借用（回调期间有效） | — |
+| `NULL` | 无全局值 | 不设错误 |
+
+#### 错误
+
+- 无全局值返回 `NULL` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 全局作用域值
+
+```c
+	pGlobal = xrtTemplateCallGlobal(pCall);
+```
+
+### `xrtTemplateCallArgumentCount`
+
+返回参数数量、指定位置参数或命名参数。
+
+```c
+size_t xrtTemplateCallArgumentCount(const xtemplatecall* pCall)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实参数量 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 参数数量
+
+```c
+		(xrtTemplateCallArgumentCount(pCall) != 1u) ) {
+```
+
+### `xrtTemplateCallArgument`
+
+返回指定位置的实参视图。
+
+```c
+bool xrtTemplateCallArgument(const xtemplatecall* pCall, size_t iIndex, xtemplateargview* pArgument)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+| `iIndex` | 输入 | < 实参数量 | 位置 |
+| `pArgument` | 输出 | 非空 | 接收实参视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 位置越界 | `XERR_RANGE` |
+
+#### 错误
+
+- `XERR_RANGE` — 位置越界；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[extension](../../examples/template/extension/main.c) · 按位取参
+
+```c
+	if ( !xrtTemplateCallArgument(pCall, 0u, &Argument) ||
+		 !xrtTemplateCallEval(pCall, &Argument, &Value) ||
+		 (Value.Type != XVALUE_STRING) ) {
+```
+
+### `xrtTemplateCallFind`
+
+按名称查找实参视图。
+
+```c
+bool xrtTemplateCallFind(const xtemplatecall* pCall, xstrview Name, xtemplateargview* pArgument)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入 | 非空 | 当前调用 |
+| `Name` | 输入 | 借用 | 参数名 |
+| `pArgument` | 输出 | 非空 | 接收实参视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已找到并写出 | — |
+| `false` | 未找到 | 不设错误 |
+
+#### 错误
+
+- 未找到返回 `false` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 按名取参
+
+```c
+		xrtTemplateCallFind(pCall, SV("nope"), &Argument) ||
+```
+
+### `xrtTemplateCallEval`
+
+在当前渲染作用域内求值参数，或通过共享 writer 写出分片。
+
+```c
+bool xrtTemplateCallEval(xtemplatecall* pCall, const xtemplateargview* pArgument, xtemplatevalue* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入/输出 | 非空 | 当前调用 |
+| `pArgument` | 输入 | 非空 | 待求值实参 |
+| `pValue` | 输出 | 非空 | 接收结果值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已求值 | — |
+| `false` | 求值失败 | `xrt.template` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.template` / `XTEMPLATE_ERROR_TYPE` — 表达式类型不匹配
+- `xrt.template` / `XTEMPLATE_ERROR_UNDEFINED` — 引用了未定义的名称
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+
+#### 范例
+
+[extension](../../examples/template/extension/main.c) · 求值参数
+
+```c
+		 !xrtTemplateCallEval(pCall, &Argument, &Value) ||
+```
+
+### `xrtTemplateCallWrite`
+
+在当前渲染作用域内写出文本分片。
+
+```c
+bool xrtTemplateCallWrite(xtemplatecall* pCall, xstrview Text)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入/输出 | 非空 | 当前调用 |
+| `Text` | 输入 | 借用 | 文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 写出失败 | `xrt.template` / `XTEMPLATE_ERROR_WRITE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.template` / `XTEMPLATE_ERROR_WRITE` — 输出预算耗尽或回调失败
+
+#### 范例
+
+[extension](../../examples/template/extension/main.c) · 写出分片
+
+```c
+	return xrtTemplateCallWrite(pCall, XRT_STR_LITERAL("<a href=\"")) &&
+```
+
+### `xrtTemplateCallRender`
+
+渲染解析块主体，或临时替换当前值后渲染主体。
+
+```c
+bool xrtTemplateCallRender(xtemplatecall* pCall)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入/输出 | 非空 | 当前调用 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已渲染 | — |
+| `false` | 渲染失败 | `xrt.template` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.template` / `XTEMPLATE_ERROR_TYPE` — 表达式类型不匹配
+- `xrt.template` / `XTEMPLATE_ERROR_UNDEFINED` — 引用了未定义的名称
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+
+#### 范例
+
+[extension](../../examples/template/extension/main.c) · 渲染主体
+
+```c
+		xrtTemplateCallRender(pCall) &&
+```
+
+### `xrtTemplateCallRenderCurrent`
+
+临时替换当前值后渲染主体。
+
+```c
+bool xrtTemplateCallRenderCurrent(xtemplatecall* pCall, const xvalue* pCurrent)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCall` | 输入/输出 | 非空 | 当前调用 |
+| `pCurrent` | 输入 | 非空 | 替换用的当前值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已渲染 | — |
+| `false` | 渲染失败 | `xrt.template` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.template` / `XTEMPLATE_ERROR_TYPE` — 表达式类型不匹配
+- `xrt.template` / `XTEMPLATE_ERROR_UNDEFINED` — 引用了未定义的名称
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 替换当前值渲染
+
+```c
+	return xrtTemplateCallRenderCurrent(pCall, pCtx->pAlt);
+```
+
 ## 渲染
 
 `xtemplaterenderconfig` 的 `Root`、`Current`、`Global` 建立三个显式作用域；`MaxOutputBytes` 和 `MaxSteps` 限制所有层共享的总输出与执行步数。control 的 `MaxDepth`、`MaxLoopIterations`，compose 的 `Resolve`、`ResolveData`、`MaxIncludeDepth` 只在对应模块启用时出现。
@@ -159,6 +1063,224 @@ Template 本身不依赖该模块，也不会替调用方猜测输出上下文�
 `xrtTemplateRenderTo` 把结果追加到 `xstrbuf`，本次调用具有事务性：任何失败都会撤销本次追加，调用前已有内容保持不变。`xrtTemplateRender` 是常见路径 helper，把同一 `xvalue` 同时作为 Root 和 Current，返回零结尾字符串；调用方使用 `xrtFree` 释放，并可通过 `pSize` 取得包含嵌入零字节的精确长度。
 
 同一 `xtemplate` 可以并发渲染，但每次渲染的配置、writer、输出构建器和数据访问必须独立。传入的 `xvalue` 不会被模板修改；调用方必须保证渲染期间数据有效，并保证共享数据可并发读取。
+
+### `xrtTemplateRenderConfigInit`
+
+初始化默认作用域和有限渲染预算；默认保留通用模板的原样动态输出。
+
+```c
+void xrtTemplateRenderConfigInit(xtemplaterenderconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[compose](../../examples/template/compose/main.c) · 渲染配置
+
+```c
+	xrtTemplateRenderConfigInit(&Render);
+```
+
+### `xrtTemplateRenderHtmlConfigInit`
+
+初始化 HTML 渲染配置（对动态输出执行 HTML 转义）。
+
+```c
+void xrtTemplateRenderHtmlConfigInit(xtemplaterenderconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · HTML 渲染配置
+
+```c
+	xrtTemplateRenderHtmlConfigInit(&HtmlConfig);
+```
+
+### `xrtTemplateWrite`
+
+把渲染分片写入回调；回调已经写出的内容不能回滚。
+
+```c
+bool xrtTemplateWrite(const xtemplate* pTemplate, const xtemplaterenderconfig* pConfig, xtemplatewritefn pWrite, ptr pUserData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTemplate` | 输入 | 非空 | 目标模板 |
+| `pConfig` | 输入 | 非空 | 渲染配置 |
+| `pWrite` | 输入 | 非空 | 字节写入回调 |
+| `pUserData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已完整渲染 | — |
+| `false` | 渲染或写出失败 | `xrt.template` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.template` / `XTEMPLATE_ERROR_TYPE` — 表达式类型不匹配
+- `xrt.template` / `XTEMPLATE_ERROR_UNDEFINED` — 引用了未定义的名称
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+- `xrt.template` / `XTEMPLATE_ERROR_CALLBACK` — 写入回调失败
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 流式渲染
+
+```c
+	if ( !xrtTemplateWrite(pTemplate, &RenderConfig,
+			exampleWriter, &iTotal) ||
+		(iTotal != 10u) ) {  /* "Hello xrt!" 共 10 字节 */
+```
+
+### `xrtTemplateRenderTo`
+
+把渲染结果事务追加到字符串构建器。
+
+```c
+bool xrtTemplateRenderTo(const xtemplate* pTemplate, const xtemplaterenderconfig* pConfig, xstrbuf* pOutput)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTemplate` | 输入 | 非空 | 目标模板 |
+| `pConfig` | 输入 | 非空 | 渲染配置 |
+| `pOutput` | 输出 | 非空 | 字符串构建器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已完整追加 | — |
+| `false` | 渲染失败 | `xrt.template` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.template` / `XTEMPLATE_ERROR_TYPE` — 表达式类型不匹配
+- `xrt.template` / `XTEMPLATE_ERROR_UNDEFINED` — 引用了未定义的名称
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[compose](../../examples/template/compose/main.c) · 渲染至构建器
+
+```c
+	if ( !xrtTemplateRenderTo(pTemplate, &Render, &Output) ) {
+```
+
+### `xrtTemplateRender`
+
+使用当前值作为根和当前作用域，返回由 `xrtFree` 释放的字符串。
+
+```c
+str xrtTemplateRender(const xtemplate* pTemplate, const xvalue* pData, size_t* pSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTemplate` | 输入 | 非空 | 目标模板 |
+| `pData` | 输入 | 允许空 | 根数据值 |
+| `pSize` | 输出 | 允许空 | 接收长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 零结尾渲染结果，`xrtFree` 释放 | — |
+| `NULL` | 渲染失败 | `xrt.template` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.template` / `XTEMPLATE_ERROR_TYPE` — 表达式类型不匹配
+- `xrt.template` / `XTEMPLATE_ERROR_UNDEFINED` — 引用了未定义的名称
+- `xrt.template` / `XTEMPLATE_ERROR_LIMIT` — 超出编译或渲染预算
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[control](../../examples/template/control/main.c) · 分配渲染
+
+```c
+	sOutput = xrtTemplateRender(pTemplate, pRoot, NULL);
+```
+
+### `xrtTemplateErrorLocation`
+
+从模板错误的数据字段读取源码位置。
+
+```c
+bool xrtTemplateErrorLocation(const xerror* pError, xtemplatelocation* pLocation)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pError` | 输入 | 非空、`xrt.template` 域 | 模板错误 |
+| `pLocation` | 输出 | 非空 | 接收源码位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已写出位置 | — |
+| `false` | 错误不含位置 | 不设错误 |
+
+#### 错误
+
+- 无位置数据返回 `false` 且不设置错误；指针为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/template/tour/main.c) · 错误定位
+
+```c
+			!xrtTemplateErrorLocation(pError, &Location) ||
+```
 
 ## 检查
 
