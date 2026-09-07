@@ -82,6 +82,110 @@ if ( File != NULL ) {
 }
 ```
 
+### `xrtFileOptionsInit`
+
+初始化文件打开选项为零值（默认权限与共享策略）。
+
+```c
+void xrtFileOptionsInit(xfileoptions* pOptions);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOptions` | 输出 | 非空 | 接收默认选项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化，不失败 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[file/io_tour · 选项打开](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	(void)xrtFileOptionsInit(&Options);
+```
+
+
+### `xrtFileOpen`
+
+使用完整选项（标志/权限/共享/临时语义）打开文件。
+
+```c
+xfile xrtFileOpen(cstr sPath, const xfileoptions* pOptions);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+| `pOptions` | 输入 | 允许空 | 空 = 仅默认标志 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 打开的文件对象 | — |
+| `NULL` | 打开失败 | 系统错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 选项打开](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	File = xrtFileOpen(sPath, &Options);
+```
+
+
+### `xrtOpen`
+
+使用默认权限和共享策略按标志打开文件的便捷入口。
+
+```c
+xfile xrtOpen(cstr sPath, uint32 iFlags);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+| `iFlags` | 输入 | `XFILE_*` 组合 | 打开标志（READ/WRITE/CREATE/TRUNCATE/APPEND 等） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 打开的文件对象 | — |
+| `NULL` | 打开失败 | 系统错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/basic · 一次创建](../../examples/file/basic/main.c) · 观察
+
+```c
+	xfile File = xrtOpen("xrt-file-example.tmp",
+		XFILE_READ | XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE);
+```
+
+
 ## 二进制 IO
 
 ```c
@@ -117,6 +221,353 @@ if ( !xrtReadFull(File, Header, sizeof(Header), &iRead) ) {
 }
 ```
 
+### `xrtClose`
+
+关闭并销毁文件对象；即使系统关闭失败也不再允许使用该对象。
+
+```c
+bool xrtClose(xfile File);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 允许空 | 打开的文件对象；空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已关闭并释放 | — |
+| `false` | 系统关闭失败（对象仍被销毁） | 系统错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/basic · 收尾](../../examples/file/basic/main.c) · 观察
+
+```c
+	if ( !xrtClose(File) ) {
+		return 1;
+	}
+```
+
+
+### `xrtRead`
+
+单次读取，成功读取零字节表示 EOF。
+
+```c
+bool xrtRead(xfile File, ptr pBuffer, size_t iRequest, size_t* pRead);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `pBuffer` | 输出 | 非空 | 接收缓冲 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pRead` | 输出 | 可空 | 实际读取量（可为 0 = EOF） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已读取（可能短读） | — |
+| `false` | 参数或系统错误 | `*pRead` 语义不定 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 单次读写](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtRead(File, Buffer, sizeof(Buffer), &iDone) || (iDone != 4u) ) {
+```
+
+
+### `xrtWrite`
+
+单次写入，允许成功短写。
+
+```c
+bool xrtWrite(xfile File, const void* pBuffer,
+	size_t iRequest, size_t* pWritten);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `pBuffer` | 输入 | 借用 | 写入数据 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pWritten` | 输出 | 可空 | 实际写入量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写入（可能短写） | — |
+| `false` | 参数或系统错误 | `*pWritten` 语义不定 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 单次读写](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtWrite(File, "abcd", 4u, &iDone) || (iDone != 4u) ) {
+```
+
+
+### `xrtReadFull`
+
+持续读取到填满缓冲；提前 EOF 返回失败并保留实际读取量。
+
+```c
+bool xrtReadFull(xfile File, ptr pBuffer,
+	size_t iRequest, size_t* pRead);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `pBuffer` | 输出 | 非空 | 接收缓冲 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pRead` | 输出 | 可空 | 实际读取量（失败时保留） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 缓冲已填满 | — |
+| `false` | 提前 EOF 或系统错误 | `*pRead` 保留已读量 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/basic · 完整读取](../../examples/file/basic/main.c) · 观察
+
+```c
+		 !xrtReadFull(File, arrText, sizeof(arrText), NULL) ) {
+```
+
+
+### `xrtWriteFull`
+
+持续写入到全部完成；失败时保留实际写入量。
+
+```c
+bool xrtWriteFull(xfile File, const void* pBuffer,
+	size_t iRequest, size_t* pWritten);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `pBuffer` | 输入 | 借用 | 写入数据 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pWritten` | 输出 | 可空 | 实际写入量（失败时保留） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 全部写入完成 | — |
+| `false` | 系统错误 | `*pWritten` 保留已写量 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/basic · 一次创建](../../examples/file/basic/main.c) · 观察
+
+```c
+	if ( !xrtWriteFull(File, sText, sizeof(sText), NULL) ||
+```
+
+
+### `xrtReadAt`
+
+从绝对偏移单次读取，不改变共享文件游标。
+
+```c
+bool xrtReadAt(xfile File, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `iOffset` | 输入 | — | 绝对偏移 |
+| `pBuffer` | 输出 | 非空 | 接收缓冲 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pRead` | 输出 | 可空 | 实际读取量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已读取（可能短读） | — |
+| `false` | 参数或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 定位读写](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtReadAt(File, 0u, Buffer, 4u, &iDone) || (iDone != 4u) ) {
+```
+
+
+### `xrtWriteAt`
+
+向绝对偏移单次写入，不改变共享文件游标。
+
+```c
+bool xrtWriteAt(xfile File, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `iOffset` | 输入 | — | 绝对偏移 |
+| `pBuffer` | 输入 | 借用 | 写入数据 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pWritten` | 输出 | 可空 | 实际写入量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写入（可能短写） | — |
+| `false` | 参数或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 定位读写](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	(void)xrtWriteAt(File, 0u, "AB", 2u, NULL);
+```
+
+
+### `xrtReadAtFull`
+
+从绝对偏移持续读取到填满缓冲；预读文件头不扰动流式游标。
+
+```c
+bool xrtReadAtFull(xfile File, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `iOffset` | 输入 | — | 绝对偏移 |
+| `pBuffer` | 输出 | 非空 | 接收缓冲 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pRead` | 输出 | 可空 | 实际读取量（失败时保留） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 缓冲已填满 | — |
+| `false` | 提前 EOF 或系统错误 | `*pRead` 保留已读量 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/basic · 预读](../../examples/file/basic/main.c) · 观察
+
+```c
+		 !xrtReadAtFull(File, 0, arrText, sizeof(arrText), NULL) ||
+```
+
+
+### `xrtWriteAtFull`
+
+向绝对偏移持续写入到全部完成。
+
+```c
+bool xrtWriteAtFull(xfile File, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `iOffset` | 输入 | — | 绝对偏移 |
+| `pBuffer` | 输入 | 借用 | 写入数据 |
+| `iRequest` | 输入 | — | 请求字节数 |
+| `pWritten` | 输出 | 可空 | 实际写入量（失败时保留） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 全部写入完成 | — |
+| `false` | 系统错误 | `*pWritten` 保留已写量 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 定位读写](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtWriteAtFull(File, 4u, "efgh", 4u, NULL) ) {
+```
+
+
 ## 定位和大小
 
 ```c
@@ -139,6 +590,222 @@ intptr_t xrtFileNative(xfile File);
 定位、文件大小和偏移均为 64 位。`xrtSeek` 的位置输出可为空，失败时不承诺输出；`xrtTell` 要求输出。`xrtFileResize` 修改已经以写权限打开的文件，扩大时产生平台定义的稀疏或零填充区域。追加句柄拒绝调整大小，避免 POSIX 可截断而 Windows 原子追加权限不能截断的跨平台分歧。`xrtFileSetSize` 是常用路径，要求普通文件已经存在，不隐式创建。
 
 `xrtFlush` 把文件数据和系统要求的必要元数据提交到稳定存储。它只覆盖当前文件，不同步父目录项。`xrtFileFlags` 返回对象创建时经过验证的打开标志，供分层适配器在接管前检查读写能力。`xrtFileNative` 返回 Windows `HANDLE` 或 POSIX 文件描述符的整数表示，失败返回 `-1`；原生句柄由 `xfile` 持有，调用方不能自行关闭。
+
+### `xrtSeek`
+
+按 64 位偏移移动共享文件游标。
+
+```c
+bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `iOffset` | 输入 | 可负 | 偏移量 |
+| `Origin` | 输入 | `XSEEK_START/CURRENT/END` | 偏移基准 |
+| `pPosition` | 输出 | 可空 | 接收新游标位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 游标已移动 | — |
+| `false` | 参数或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/basic · 游标](../../examples/file/basic/main.c) · 观察
+
+```c
+		 !xrtSeek(File, 3, XSEEK_START, NULL) ||
+```
+
+
+### `xrtTell`
+
+返回共享文件游标位置。
+
+```c
+bool xrtTell(xfile File, uint64* pPosition);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `pPosition` | 输出 | 非空 | 接收游标位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 位置已写出 | — |
+| `false` | 参数或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/basic · 游标](../../examples/file/basic/main.c) · 观察
+
+```c
+		 !xrtTell(File, &iPosition) || (iPosition != 3u) ||
+```
+
+
+### `xrtFlush`
+
+把文件数据和必要元数据提交到稳定存储。
+
+```c
+bool xrtFlush(xfile File);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已提交稳定存储 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 单次读写](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtFlush(File) ) {
+```
+
+
+### `xrtFileSize`
+
+返回打开对象当前大小。
+
+```c
+bool xrtFileSize(xfile File, uint64* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `pSize` | 输出 | 非空 | 接收字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 大小已写出 | — |
+| `false` | 参数或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 元数据](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtFileSize(File, &iSize) || (iSize != 8u) ) {
+```
+
+
+### `xrtFileResize`
+
+修改打开文件的大小（截断或扩展，扩展区为零填充）。
+
+```c
+bool xrtFileResize(xfile File, uint64 iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `iSize` | 输入 | — | 新大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 大小已修改 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 截断](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtFileResize(File, 4u) || !xrtFileSize(File, &iSize) ||
+```
+
+
+### `xrtFileSetSize`
+
+打开路径并修改普通文件大小，文件必须已经存在。
+
+```c
+bool xrtFileSetSize(cstr sPath, uint64 iSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 已存在的文件路径 |
+| `iSize` | 输入 | — | 新大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 大小已修改 | — |
+| `false` | 路径不存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 截断](../../examples/file/io_tour/main.c) · 观察
+
+```c
+if ( !xrtFileSetSize(sPath, 2u) ) {
+		goto cleanup;
+	}
+```
+
 
 ## 文件锁
 
@@ -247,6 +914,320 @@ bool xrtDirExists(cstr sPath);
 
 `xrtPathSetMode` 只在 POSIX 提供，Windows 返回 `XERR_UNSUPPORTED`。`xrtPathSetAttributes` 只在 Windows 提供，POSIX 返回 `XERR_UNSUPPORTED`。谓词把“查询失败”压缩成 `false`；需要区分不存在、权限失败和类型不符时必须使用 `xrtPathStat`。
 
+### `xrtFileFlags`
+
+返回打开文件经过验证的标志；失败返回 0。
+
+```c
+uint32 xrtFileFlags(xfile File);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XFILE_*` 组合 | 打开时的标志 | — |
+| `0` | 对象非法 | 系统错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 自省](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	iFlags = xrtFileFlags(File);
+```
+
+
+### `xrtFileNative`
+
+返回 HANDLE 或文件描述符的整数表示；失败返回 -1。调用方不得关闭它。
+
+```c
+intptr_t xrtFileNative(xfile File);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 平台原生句柄（借用，随 Close 失效） | — |
+| `-1` | 对象非法 | 系统错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 自省](../../examples/file/io_tour/main.c) · 观察
+
+```c
+		intptr_t Native = xrtFileNative(File);
+```
+
+
+### `xrtFileStat`
+
+查询打开文件的元数据。
+
+```c
+bool xrtFileStat(xfile File, xfileinfo* pInfo);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 文件对象 |
+| `pInfo` | 输出 | 非空 | 接收大小/时间/属性快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 参数或系统错误 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · 元数据](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	if ( !xrtFileStat(File, &Info) || (Info.Size != 8u) ) {
+```
+
+
+### `xrtFileExists`
+
+判断路径是否存在且为普通文件。
+
+```c
+bool xrtFileExists(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 存在普通文件 | — |
+| `false` | 不存在或查询失败（区分二者用 `xrtPathStat`） | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/whole · 清理](../../examples/file/whole/main.c) · 观察
+
+```c
+	if ( xrtFileExists(sSource) && !xrtFileDelete(sSource) ) {
+```
+
+
+### `xrtFileTouch`
+
+创建空文件；已存在文件刷新时间戳。
+
+```c
+bool xrtFileTouch(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已创建或时间戳已刷新 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/io_tour · Touch](../../examples/file/io_tour/main.c) · 观察
+
+```c
+	(void)xrtFileTouch(sPath);
+```
+
+
+### `xrtFileDelete`
+
+删除普通文件或空目录占位的文件路径。
+
+```c
+bool xrtFileDelete(cstr sPath);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已删除 | — |
+| `false` | 不存在或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/basic · 清理](../../examples/file/basic/main.c) · 观察
+
+```c
+	return xrtFileDelete("xrt-file-example.tmp") ? 0 : 1;
+```
+
+
+### `xrtPathRename`
+
+重命名路径；`bReplace` 控制目标已存在时是否替换。
+
+```c
+bool xrtPathRename(cstr sSource, cstr sTarget, bool bReplace);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sSource` | 输入 | 非空、UTF-8 | 源路径 |
+| `sTarget` | 输入 | 非空 | 目标路径 |
+| `bReplace` | 输入 | — | 替换已存在目标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已重命名 | — |
+| `false` | 目标存在且不替换，或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/link_tour · 重命名](../../examples/file/link_tour/main.c) · 观察
+
+```c
+	if ( !xrtPathRename(sOrigin, sRenamed, false) ) {
+```
+
+
+### `xrtFileCopy`
+
+流式复制普通文件；不跟随末级链接，`bReplace` 控制是否替换普通文件目标。
+
+```c
+bool xrtFileCopy(cstr sSource, cstr sTarget, bool bReplace);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sSource` | 输入 | 非空 | 源文件 |
+| `sTarget` | 输入 | 非空 | 目标路径 |
+| `bReplace` | 输入 | — | 替换已存在的普通文件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已复制 | — |
+| `false` | 目标存在且不替换，或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/whole · 复制移动](../../examples/file/whole/main.c) · 观察
+
+```c
+		 !xrtFileCopy(sSource, sCopy, false) ||
+```
+
+
+### `xrtFileMove`
+
+移动普通文件；优先改名，跨卷时复制成功后删除源文件。
+
+```c
+bool xrtFileMove(cstr sSource, cstr sTarget, bool bReplace);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sSource` | 输入 | 非空 | 源文件 |
+| `sTarget` | 输入 | 非空 | 目标路径 |
+| `bReplace` | 输入 | — | 替换已存在的普通文件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已移动 | — |
+| `false` | 目标存在且不替换，或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/whole · 复制移动](../../examples/file/whole/main.c) · 观察
+
+```c
+		 !xrtFileMove(sCopy, sMoved, false) ) {
+```
+
+
 ## 基础路径操作
 
 ```c
@@ -317,6 +1298,189 @@ if ( pData != NULL ) {
 }
 ```
 
+### `xrtFileReadAll`
+
+读取完整文件；结果总有一个额外零字节，空文件也返回可释放缓冲。
+
+```c
+bytes xrtFileReadAll(cstr sPath, size_t* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空、UTF-8 | 路径 |
+| `pSize` | 输出 | 可空 | 接收字节数（不含零哨兵） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 完整内容 + 零哨兵，`xrtFree` 释放 | — |
+| `NULL` | 系统错误或 OOM | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[file/whole · 整读](../../examples/file/whole/main.c) · 观察
+
+```c
+	pData = xrtFileReadAll(sMoved, &iSize);
+	if ( pData == NULL ) {
+		goto cleanup;
+	}
+```
+
+
+### `xrtFileReadAllLimit`
+
+在硬上限内读取完整文件；增长越过上限时失败。
+
+```c
+bytes xrtFileReadAllLimit(cstr sPath,
+	size_t iLimit, size_t* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+| `iLimit` | 输入 | — | 源文件字节硬上限 |
+| `pSize` | 输出 | 可空 | 接收字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 上限内的完整内容 + 零哨兵 | — |
+| `NULL` | 超上限或失败 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_RANGE` — 文件越过上限
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[file/io_tour · 带上限整读](../../examples/file/io_tour/main.c) · 观察
+
+```c
+bytes pAll = xrtFileReadAllLimit(sPath, 16u, &iDone);
+```
+
+
+### `xrtFileWriteAll`
+
+创建或截断文件并完整写入全部字节。
+
+```c
+bool xrtFileWriteAll(cstr sPath, xbytesview Data);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+| `Data` | 输入 | 借用 | 完整内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已完整写入 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/whole · 整写](../../examples/file/whole/main.c) · 观察
+
+```c
+	if ( !xrtFileWriteAll(sSource, XRT_BYTES_LITERAL("first")) ||
+```
+
+
+### `xrtFileAppend`
+
+使用操作系统追加语义完整写入全部字节。
+
+```c
+bool xrtFileAppend(cstr sPath, xbytesview Data);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径（不存在则创建） |
+| `Data` | 输入 | 借用 | 追加内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已追加 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/whole · 追加](../../examples/file/whole/main.c) · 观察
+
+```c
+		 !xrtFileAppend(sSource, XRT_BYTES_LITERAL(" second")) ||
+```
+
+
+### `xrtFileWriteAtomic`
+
+在同目录完整写入排他临时文件，再原子替换目标；读者永远见不到半个文件。
+
+```c
+bool xrtFileWriteAtomic(cstr sPath, xbytesview Data);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目标路径 |
+| `Data` | 输入 | 借用 | 完整内容 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已原子发布 | — |
+| `false` | 系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+
+#### 范例
+
+[file/whole · 原子替换](../../examples/file/whole/main.c) · 观察
+
+```c
+		 !xrtFileWriteAtomic(sSource, XRT_BYTES_LITERAL("published")) ||
+```
+
+
 ## 文本文件
 
 ```c
@@ -337,6 +1501,175 @@ bool xrtFileWriteTextAtomic(cstr sPath, xstrview Text,
 合法 UTF-8 文件直接复用整文件读取所得的拥有缓冲，BOM 在原位移除；写入 UTF-8 且不要求 BOM 时直接使用调用方借用视图。其他编码和非法 UTF-8 的替换策略才进入转码器。`bWriteBom` 控制是否输出对应 BOM。普通写可能留下部分文件，原子版本复用 `xrtFileWriteAtomic`。
 
 流式字符、行和格式化读写不进入 `xfile`。后续缓冲流和文本读取器会在同一二进制原语上提供这些能力，避免文件句柄同时维护隐藏编码、缓冲和游标状态。
+
+### `xrtFileReadText`
+
+读取并转换为 UTF-8；`UNKNOWN` 根据 BOM 和严格检测选择 Unicode 编码。
+
+```c
+str xrtFileReadText(cstr sPath, xencoding Encoding,
+	xutfpolicy Policy, size_t* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+| `Encoding` | 输入 | — | 源编码；`XENCODING_UNKNOWN` 自动探测 |
+| `Policy` | 输入 | — | 严格或替换 |
+| `pSize` | 输出 | 可空 | 接收 UTF-8 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | UTF-8 文本 + 零结尾，`xrtFree` 释放 | — |
+| `NULL` | 编码错误或失败 | 错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `xrt.charset` 域错误 — 非法序列（严格模式）
+- `XERR_MEMORY`
+
+#### 范例
+
+[file/text · 读回](../../examples/file/text/main.c) · 观察
+
+```c
+	sText = xrtFileReadText(sPath, XENCODING_UNKNOWN, XUTF_STRICT, &iSize);
+```
+
+
+### `xrtFileReadTextLimit`
+
+在源文件字节硬上限内读取并转换为 UTF-8。
+
+```c
+str xrtFileReadTextLimit(cstr sPath, xencoding Encoding,
+	xutfpolicy Policy, size_t iLimit, size_t* pSize);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+| `Encoding` | 输入 | — | 源编码 |
+| `Policy` | 输入 | — | 错误策略 |
+| `iLimit` | 输入 | — | 源文件字节硬上限 |
+| `pSize` | 输出 | 可空 | UTF-8 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 上限内的 UTF-8 文本 | — |
+| `NULL` | 超上限或失败 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `XERR_RANGE` — 源文件越过上限
+- `xrt.charset` 域错误 — 严格模式非法序列
+
+#### 范例
+
+[file/report · 限额读回](../../examples/file/report/main.c) · 观察
+
+```c
+	sReadBack = xrtFileReadTextLimit(
+		sFilePath, XENCODING_UTF8, XUTF_STRICT, 4096u, &iReadSize
+	);
+```
+
+
+### `xrtFileWriteText`
+
+把 UTF-8 文本转换为目标编码后完整写入。
+
+```c
+bool xrtFileWriteText(cstr sPath, xstrview Text,
+	xencoding Encoding, xutfpolicy Policy, bool bWriteBom);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 路径 |
+| `Text` | 输入 | 借用、UTF-8 | 文本 |
+| `Encoding` | 输入 | — | 目标编码 |
+| `Policy` | 输入 | — | 错误策略 |
+| `bWriteBom` | 输入 | — | 是否写 BOM |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已转换并写入 | — |
+| `false` | 编码错误或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `xrt.charset` 域错误 — UTF-8 源非法或目标不可表示
+
+#### 范例
+
+[file/text · 按编码写](../../examples/file/text/main.c) · 观察
+
+```c
+	if ( !xrtFileWriteText(sPath, XRT_STR_LITERAL("Hello, XRT"),
+```
+
+
+### `xrtFileWriteTextAtomic`
+
+把 UTF-8 文本转换后原子替换目标。
+
+```c
+bool xrtFileWriteTextAtomic(cstr sPath, xstrview Text,
+	xencoding Encoding, xutfpolicy Policy, bool bWriteBom);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sPath` | 输入 | 非空 | 目标路径 |
+| `Text` | 输入 | 借用、UTF-8 | 文本 |
+| `Encoding` | 输入 | — | 目标编码 |
+| `Policy` | 输入 | — | 错误策略 |
+| `bWriteBom` | 输入 | — | 是否写 BOM |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已原子发布 | — |
+| `false` | 编码错误或系统错误 | — |
+
+#### 错误
+
+- 系统错误（`xrt.io` 域）— 平台调用失败，保留原生错误码
+- `xrt.charset` 域错误
+
+#### 范例
+
+[file/report · 原子发布](../../examples/file/report/main.c) · 观察
+
+```c
+		 !xrtFileWriteTextAtomic(
+			sFilePath,
+			(xstrview){ arrReport, (size_t)iReportSize },
+			XENCODING_UTF8,
+			XUTF_STRICT,
+			false
+		 ) ) {
+```
+
 
 ## 目录枚举
 
