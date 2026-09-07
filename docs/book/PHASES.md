@@ -23,7 +23,7 @@
 | P9 | 卷六后半：channel/future/executor/task×2 + 调度器实战章 | 8 | ✅ 完成（channel/future/executor 已在 P8 提前完成） |
 | P10 | 卷七前半：net-addr/port/buf/dns/tcp×2/udp/proxy + 卷七导言（file/frame 归 P11 net-misc） | 8 | ✅ 完成 |
 | P11 | 卷七后半：tcp-adv/udp/proxy/misc/interface + netbuf 深入章 | 6 | ✅ 完成（tcp-adv/udp/proxy 已在 P10 提前完成；netbuf 深入并入 ch64；本阶段新写 interface+misc 两章，卷七 11 章收官） |
-| P12 | 卷八·密码基础：hash/aead/asym + 密码工程纪律章 + 卷导言 | 5 | ⬜ |
+| P12 | 卷八·密码基础：hash/aead/asym + 密码工程纪律章 + 卷导言 | 5 | ✅ 完成 |
 | P13 | 卷八·证书链：der-pem/x509/x509-verify + 信任链与吊销章 | 4 | ⬜ |
 | P14 | 卷八·TLS 上：tls-client/tls-identity + 握手时序图解章 + 验证策略章 | 4 | ⬜ |
 | P15 | 卷八·TLS 下：tls-server/tls-stream + 会话恢复章 | 3 | ⬜ |

@@ -18,7 +18,7 @@
 | P9 卷六后半 | ✅ 完成 | 2 | 11,210 |
 | P10 卷七前半 | ✅ 完成 | 8 | 31,742 |
 | P11 卷七后半 | ✅ 完成 | 2 | 13,099 |
-| P12 卷八密码基础 | 🔄 进行中 | 0 | — |
+| P12 卷八密码基础 | ✅ 完成 | 5 | 25,122 |
 | P13–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -51,7 +51,31 @@
 | 66 | 66-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
 | 70 | 70-net-interface.md | practice | 6,174 | 3 | 1 | 3 | 3 | P11 |
 | 71 | 71-net-misc.md | practice | 6,925 | 3 | 1 | 3 | 3 | P11 |
+| 72 | 72-vol8-intro.md | intro | 2,147 | 0 | 1 | 0 | 0 | P12 |
+| 73 | 73-crypto-hash.md | practice | 5,963 | 4 | 1 | 3 | 3 | P12 |
+| 74 | 74-crypto-aead.md | practice | 5,509 | 2 | 1 | 3 | 3 | P12 |
+| 75 | 75-crypto-asym.md | practice | 6,228 | 3 | 1 | 3 | 3 | P12 |
+| 76 | 76-crypto-discipline.md | practice | 5,275 | 2 | 2 | 3 | 3 | P12 |
 
+
+
+## P12 阶段记录
+
+- 卷八密码基础 5 章新写：ch72 导言（信任金字塔+两条横切纪律+先读禁令方法论）、
+  ch73 哈希与 HMAC（摘要族/流式三段式/PBKDF2 与 HKDF 双 KDF）、ch74 AEAD
+  （AES-GCM 状态机/ChaCha20-Poly1305 便捷层/nonce 纪律）、ch75 非对称
+  （x25519/x448/P-256/P-384 交换+Ed25519/ECDSA/RSA-PSS 签名）、
+  ch76 密码工程纪律（常量时间/密钥生命周期四段/随机源分界/组合纪律，
+  session 示例=TLS 1.3 骨架缩微版）。
+- 全书第十一次重编号：双插入 vol8-intro（72）与 crypto-discipline（76），
+  43 文件 +2，全书 116 章；卷八 11 章（72-82）骨架就位。
+- 门禁拦下：X25519/X448 裸词（算法名改小写避开符号规则，函数名 xrtX448* 保留）、
+  xrtAesCtrEncrypt（坑3 bad 块编造名改示意伪码）、xrtRand/xrtFastRand 不在符号表
+  （普通随机改用已验证的 xrtFastRandSeed 表述）、XCRYPTO_HASH_* 通配改具体枚举、
+  xxHash 改"SipHash 家族"。
+- 行文章号修正 11 处（testing→108、perf→110、http-headers→85、tls-client→80）。
+- 事故修复：重建 order.json 时 1-9 章 file 字段丢前导零（1-vol1-intro），磁盘文件
+  未受损（renumber 按 slug 定位），补零后重建通过。
 
 ## P11 阶段记录
 
