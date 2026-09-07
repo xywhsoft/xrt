@@ -449,7 +449,8 @@ bool xrtThreadStopRequested(const xthread* pThread)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否收到请求 | 空句柄返回 `false`，不设错 |
+| `true` | 是收到请求 | — |
+| `false` | 不是收到请求 | 空句柄返回 `false`，不设错 |
 
 #### 错误
 
@@ -481,7 +482,8 @@ bool xrtThreadStopping(void)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 当前线程是否收到请求 | 不设错误 |
+| `true` | 收到停止请求 | — |
+| `false` | 未收到停止请求 | 不设错误 |
 
 #### 错误
 

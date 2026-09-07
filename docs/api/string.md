@@ -254,7 +254,8 @@ bool xrtStrEmpty(xstrview Text)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否为空 | — |
+| `true` | 是为空 | — |
+| `false` | 不是为空 | — |
 
 #### 错误
 
@@ -286,7 +287,8 @@ bool xrtStrBlank(xstrview Text)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否全空白 | — |
+| `true` | 是全空白 | — |
+| `false` | 不是全空白 | — |
 
 #### 错误
 
@@ -319,7 +321,8 @@ bool xrtStrEqual(xstrview Left, xstrview Right)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否相等 | — |
+| `true` | 是相等 | — |
+| `false` | 不是相等 | — |
 
 #### 错误
 
@@ -352,7 +355,8 @@ bool xrtStrCaseEqual(xstrview Left, xstrview Right)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否相等 | — |
+| `true` | 是相等 | — |
+| `false` | 不是相等 | — |
 
 #### 错误
 
@@ -659,7 +663,8 @@ bool xrtStrContains(xstrview Text, xstrview Part)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否包含 | — |
+| `true` | 是包含 | — |
+| `false` | 不是包含 | — |
 
 #### 错误
 
@@ -692,7 +697,8 @@ bool xrtStrCaseContains(xstrview Text, xstrview Part)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否包含 | — |
+| `true` | 是包含 | — |
+| `false` | 不是包含 | — |
 
 #### 错误
 
@@ -725,7 +731,8 @@ bool xrtStrContainsAny(xstrview Text, xstrview Set)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否包含 | — |
+| `true` | 是包含 | — |
+| `false` | 不是包含 | — |
 
 #### 错误
 
@@ -824,7 +831,8 @@ bool xrtStrStarts(xstrview Text, xstrview Part)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否前缀 | — |
+| `true` | 是前缀 | — |
+| `false` | 不是前缀 | — |
 
 #### 错误
 
@@ -857,7 +865,8 @@ bool xrtStrEnds(xstrview Text, xstrview Part)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否后缀 | — |
+| `true` | 是后缀 | — |
+| `false` | 不是后缀 | — |
 
 #### 错误
 
@@ -890,7 +899,8 @@ bool xrtStrCaseStarts(xstrview Text, xstrview Part)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否前缀 | — |
+| `true` | 是前缀 | — |
+| `false` | 不是前缀 | — |
 
 #### 错误
 
@@ -923,7 +933,8 @@ bool xrtStrCaseEnds(xstrview Text, xstrview Part)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否后缀 | — |
+| `true` | 是后缀 | — |
+| `false` | 不是后缀 | — |
 
 #### 错误
 
@@ -2090,7 +2101,8 @@ bool xrtStrBufValid(const xstrbuf* pBuffer)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否自洽 | — |
+| `true` | 是自洽 | — |
+| `false` | 不是自洽 | — |
 
 #### 错误
 
@@ -3045,7 +3057,8 @@ bool xrtStrGlob(xstrview Text, xstrview Pattern, uint32 iFlags)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否完整匹配 | 不匹配不设错 |
+| `true` | 是完整匹配 | — |
+| `false` | 不是完整匹配 | 不匹配不设错 |
 
 #### 错误
 

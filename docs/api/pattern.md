@@ -1396,7 +1396,8 @@ bool xrtPatternBuilderDirty(const xpatternbuilder* pBuilder)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否有未编译修改 | — |
+| `true` | 是有未编译修改 | — |
+| `false` | 不是有未编译修改 | — |
 
 #### 错误
 

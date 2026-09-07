@@ -1805,7 +1805,8 @@ bool xrtNetUdpPacketTruncated(const xnetudppacket* pPacket)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否被截断 | — |
+| `true` | 是被截断 | — |
+| `false` | 不是被截断 | — |
 
 #### 错误
 
@@ -2838,7 +2839,8 @@ bool xrtNetUdpConnected(const xnetudp* pUdp)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否连接式 | — |
+| `true` | 是连接式 | — |
+| `false` | 不是连接式 | — |
 
 #### 错误
 

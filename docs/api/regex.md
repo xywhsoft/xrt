@@ -1112,7 +1112,8 @@ bool xrtRegexMatcherMatched(const xregexmatcher* pMatcher)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否持有匹配 | — |
+| `true` | 是持有匹配 | — |
+| `false` | 不是持有匹配 | — |
 
 #### 错误
 
@@ -2293,7 +2294,8 @@ bool xrtRegexSetMatcherMatched(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否命中 | — |
+| `true` | 是命中 | — |
+| `false` | 不是命中 | — |
 
 #### 错误
 

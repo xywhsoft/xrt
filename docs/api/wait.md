@@ -118,7 +118,8 @@ bool xrtDeadlineExpired(xdeadline iDeadline)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否已到达 | — |
+| `true` | 是已到达 | — |
+| `false` | 不是已到达 | — |
 
 #### 错误
 

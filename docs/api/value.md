@@ -984,7 +984,8 @@ bool xrtValueTruthy(const xvalue* pValue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 真值 | — |
+| `true` | 真值 | — |
+| `false` | 非真值 | — |
 
 #### 错误
 
@@ -2506,7 +2507,8 @@ bool xrtValueObjectHas(const xvalue* pObject, xstrview Key)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否存在 | — |
+| `true` | 是存在 | — |
+| `false` | 不是存在 | — |
 
 #### 错误
 
@@ -2910,7 +2912,8 @@ bool xrtValueIntMapHas(const xvalue* pMap, int64 iKey)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否存在 | — |
+| `true` | 是存在 | — |
+| `false` | 不是存在 | — |
 
 #### 错误
 
@@ -3718,7 +3721,8 @@ bool xrtValueSetHas(const xvalue* pSet, const xvalue* pItem)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否存在 | — |
+| `true` | 是存在 | — |
+| `false` | 不是存在 | — |
 
 #### 错误
 
@@ -3856,7 +3860,8 @@ bool xrtValueSetEqual(const xvalue* pLeft, const xvalue* pRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否相同 | — |
+| `true` | 是相同 | — |
+| `false` | 不是相同 | — |
 
 #### 错误
 
@@ -4035,7 +4040,8 @@ bool xrtValueSetIsSubset(const xvalue* pLeft, const xvalue* pRight, bool bProper
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否子集 | — |
+| `true` | 是子集 | — |
+| `false` | 不是子集 | — |
 
 #### 错误
 
@@ -4070,7 +4076,8 @@ bool xrtValueSetIsSuperset(const xvalue* pLeft, const xvalue* pRight, bool bProp
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否超集 | — |
+| `true` | 是超集 | — |
+| `false` | 不是超集 | — |
 
 #### 错误
 
@@ -4104,7 +4111,8 @@ bool xrtValueSetIsDisjoint(const xvalue* pLeft, const xvalue* pRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否无共同元素 | — |
+| `true` | 是无共同元素 | — |
+| `false` | 不是无共同元素 | — |
 
 #### 错误
 
@@ -4230,7 +4238,8 @@ bool xrtValueIs(const xvalue* pValue, xvaluetype Type)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否该类型 | — |
+| `true` | 是该类型 | — |
+| `false` | 不是该类型 | — |
 
 #### 错误
 
@@ -4262,7 +4271,8 @@ bool xrtValueIsNumber(const xvalue* pValue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否数值 | — |
+| `true` | 是数值 | — |
+| `false` | 不是数值 | — |
 
 #### 错误
 
@@ -4294,7 +4304,8 @@ bool xrtValueIsContainer(const xvalue* pValue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否容器 | — |
+| `true` | 是容器 | — |
+| `false` | 不是容器 | — |
 
 #### 错误
 
@@ -4326,7 +4337,8 @@ bool xrtValueIsWeakRef(const xvalue* pValue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否弱引用 | — |
+| `true` | 是弱引用 | — |
+| `false` | 不是弱引用 | — |
 
 #### 错误
 
@@ -4535,7 +4547,8 @@ bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否相等 | — |
+| `true` | 是相等 | — |
+| `false` | 不是相等 | — |
 
 #### 错误
 
@@ -4569,7 +4582,8 @@ bool xrtValueScalarEqual(const xvalue* pLeft, const xvalue* pRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否相等 | — |
+| `true` | 是相等 | — |
+| `false` | 不是相等 | — |
 
 #### 错误
 
@@ -4637,7 +4651,8 @@ bool xrtValueWeakRefExpired(const xvalue* pWeak)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否过期 | — |
+| `true` | 是过期 | — |
+| `false` | 不是过期 | — |
 
 #### 错误
 

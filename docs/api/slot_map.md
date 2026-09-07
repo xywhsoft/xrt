@@ -478,7 +478,8 @@ bool xrtSlotMapContains(const xslotmap* pMap, xslot Slot)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否活动 | 不设错误 |
+| `true` | 是活动 | — |
+| `false` | 不是活动 | 不设错误 |
 
 #### 错误
 

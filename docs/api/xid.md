@@ -423,7 +423,8 @@ bool xrtXidEqual(const xid* pLeft, const xid* pRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否相同 | — |
+| `true` | 是相同 | — |
+| `false` | 不是相同 | — |
 
 #### 错误
 
@@ -455,7 +456,8 @@ bool xrtXidIsZero(const xid* pXid)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否全零 | — |
+| `true` | 是全零 | — |
+| `false` | 不是全零 | — |
 
 #### 错误
 

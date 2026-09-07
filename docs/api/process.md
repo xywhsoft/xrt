@@ -1494,7 +1494,8 @@ bool xrtProcessTerminalSupported(void)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否支持终端 | — |
+| `true` | 是支持终端 | — |
+| `false` | 不是支持终端 | — |
 
 #### 错误
 
@@ -1634,7 +1635,8 @@ bool xrtProcessResultSuccess(const xprocessresult* pResult)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否正常零退出 | — |
+| `true` | 是正常零退出 | — |
+| `false` | 不是正常零退出 | — |
 
 #### 错误
 
@@ -1857,7 +1859,8 @@ bool xrtProcessPipelineSuccess(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否全部零退出 | — |
+| `true` | 是全部零退出 | — |
+| `false` | 不是全部零退出 | — |
 
 #### 错误
 

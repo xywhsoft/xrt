@@ -1538,7 +1538,8 @@ bool xrtWsKeyValid(xstrview Key)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否合法 | — |
+| `true` | 是合法 | — |
+| `false` | 不是合法 | — |
 
 #### 错误
 
@@ -1618,7 +1619,8 @@ bool xrtWsAcceptValid(xstrview Key, xstrview Accept)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否匹配 | — |
+| `true` | 是匹配 | — |
+| `false` | 不是匹配 | — |
 
 #### 错误
 
@@ -1650,7 +1652,8 @@ bool xrtWsCloseCodeValid(uint16 iCode)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否合法 | — |
+| `true` | 是合法 | — |
+| `false` | 不是合法 | — |
 
 #### 错误
 
@@ -1841,7 +1844,8 @@ bool xrtWsProtocolsHas(xstrview Protocols, xstrview Protocol)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否包含 | — |
+| `true` | 是包含 | — |
+| `false` | 不是包含 | — |
 
 #### 错误
 
@@ -1873,7 +1877,8 @@ bool xrtWsProtocolsValid(xstrview Protocols)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否全部合法 | — |
+| `true` | 是全部合法 | — |
+| `false` | 不是全部合法 | — |
 
 #### 错误
 
@@ -2126,7 +2131,8 @@ bool xrtWsUpgradeClientConfigValid(const xwsupgradeclientconfig* pConfig)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否自洽 | — |
+| `true` | 是自洽 | — |
+| `false` | 不是自洽 | — |
 
 #### 错误
 
@@ -2194,7 +2200,8 @@ bool xrtWsUpgradeServerConfigValid(const xwsupgradeserverconfig* pConfig)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否自洽 | — |
+| `true` | 是自洽 | — |
+| `false` | 不是自洽 | — |
 
 #### 错误
 
@@ -2486,7 +2493,8 @@ bool xrtWsDeflateIs(const xwsextension* pExtension)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否 | — |
+| `true` | 是否 | — |
+| `false` | 非是否 | — |
 
 #### 错误
 
@@ -3576,7 +3584,8 @@ bool xrtWsStreamConfigValid(const xwsstreamconfig* pConfig)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否自洽 | — |
+| `true` | 是自洽 | — |
+| `false` | 不是自洽 | — |
 
 #### 错误
 
@@ -4777,7 +4786,8 @@ bool xrtWsStreamPaused(const xwsstream* pStream)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否暂停 | — |
+| `true` | 是暂停 | — |
+| `false` | 不是暂停 | — |
 
 #### 错误
 

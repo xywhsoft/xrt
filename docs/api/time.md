@@ -444,7 +444,8 @@ bool xrtIsLeapYear(int64 iYear)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否闰年 | — |
+| `true` | 是闰年 | — |
+| `false` | 不是闰年 | — |
 
 #### 错误
 
@@ -1422,7 +1423,8 @@ bool xrtTimeIn(xtime iTime, xtime iStart, xtime iEnd)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否在区间内 | — |
+| `true` | 是在区间内 | — |
+| `false` | 不是在区间内 | — |
 
 #### 错误
 
@@ -1456,7 +1458,8 @@ bool xrtTimeNear(xtime iLeft, xtime iRight, uint64 iTolerance)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否近似相等 | — |
+| `true` | 是近似相等 | — |
+| `false` | 不是近似相等 | — |
 
 #### 错误
 
@@ -1491,7 +1494,8 @@ bool xrtTimeOverlap(xtime iStart1, xtime iEnd1, xtime iStart2, xtime iEnd2)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否重叠 | — |
+| `true` | 是重叠 | — |
+| `false` | 不是重叠 | — |
 
 #### 错误
 
@@ -1524,7 +1528,8 @@ bool xrtTimeSameDay(xtime iLeft, xtime iRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否同日 | — |
+| `true` | 是同日 | — |
+| `false` | 不是同日 | — |
 
 #### 错误
 
@@ -1557,7 +1562,8 @@ bool xrtTimeSameMonth(xtime iLeft, xtime iRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否同月 | — |
+| `true` | 是同月 | — |
+| `false` | 不是同月 | — |
 
 #### 错误
 
@@ -1590,7 +1596,8 @@ bool xrtTimeSameYear(xtime iLeft, xtime iRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否同年 | — |
+| `true` | 是同年 | — |
+| `false` | 不是同年 | — |
 
 #### 错误
 

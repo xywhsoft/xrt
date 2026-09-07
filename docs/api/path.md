@@ -451,7 +451,8 @@ bool xrtPathIsAbs(cstr sPath)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否完整绝对 | 空句柄返回 `false` |
+| `true` | 是完整绝对 | — |
+| `false` | 不是完整绝对 | 空句柄返回 `false` |
 
 #### 错误
 
@@ -488,7 +489,8 @@ bool xrtPathIsRoot(cstr sPath)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否为根 | 空句柄返回 `false` |
+| `true` | 是为根 | — |
+| `false` | 不是为根 | 空句柄返回 `false` |
 
 #### 错误
 
@@ -520,7 +522,8 @@ bool xrtPathIsRooted(cstr sPath)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否带根 | 空句柄返回 `false` |
+| `true` | 是带根 | — |
+| `false` | 不是带根 | 空句柄返回 `false` |
 
 #### 错误
 
@@ -553,7 +556,8 @@ bool xrtPathIsLocal(xstrview Path, xpathstyle Style)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否相对且可拼接 | 格式非法时 `false` |
+| `true` | 是相对且可拼接 | — |
+| `false` | 不是相对且可拼接 | 格式非法时 `false` |
 
 #### 错误
 

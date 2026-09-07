@@ -750,7 +750,8 @@ bool xrtSetHas(const xset* pSet, const void* pItem)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否存在 | — |
+| `true` | 是存在 | — |
+| `false` | 不是存在 | — |
 
 #### 错误
 
@@ -1533,7 +1534,8 @@ bool xrtSetIsSubset(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否子集 | — |
+| `true` | 是子集 | — |
+| `false` | 不是子集 | — |
 
 #### 错误
 
@@ -1578,7 +1580,8 @@ bool xrtSetIsSuperset(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否超集 | — |
+| `true` | 是超集 | — |
+| `false` | 不是超集 | — |
 
 #### 错误
 
@@ -1615,7 +1618,8 @@ bool xrtSetIsDisjoint(
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否无共同元素 | — |
+| `true` | 是无共同元素 | — |
+| `false` | 不是无共同元素 | — |
 
 #### 错误
 
@@ -1649,7 +1653,8 @@ bool xrtSetEqual(const xset* pLeft, const xset* pRight)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否相同 | — |
+| `true` | 是相同 | — |
+| `false` | 不是相同 | — |
 
 #### 错误
 

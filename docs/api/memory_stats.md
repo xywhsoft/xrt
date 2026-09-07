@@ -86,7 +86,8 @@ bool xrtMemStatsEnabled(void)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 当前开关状态 | 不设错误 |
+| `true` | 调试已启用 | — |
+| `false` | 调试未启用 | 不设错误 |
 
 #### 错误
 

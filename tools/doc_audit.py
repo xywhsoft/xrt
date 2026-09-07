@@ -310,6 +310,36 @@ def audit_const_values():
 	return bad
 
 
+def audit_bool_rows():
+	import check_api_reference_detail as C
+	dh, _ = C.load_manifest()
+	bad = []
+	for name, text in load_docs():
+		hdrs = dh.get("docs/api/" + name)
+		if not hdrs:
+			continue
+		funcs = {}
+		for h in hdrs:
+			hp = C.ROOT / h
+			if hp.exists():
+				funcs.update(C.extract_header_functions(
+					hp.read_text(encoding="utf-8")))
+		for sec in sections(text):
+			m = re.match(r"### `(xrt\w+)`", sec)
+			if not m or m.group(1) not in funcs:
+				continue
+			if funcs[m.group(1)]["ret"].strip() != "bool":
+				continue
+			rsec = re.search(r"#### 返回值\n\n(.*?)(?=\n#### |\Z)", sec, re.S)
+			if not rsec:
+				continue
+			body = rsec.group(1)
+			if not (re.search(r"^\| `?true`? \|", body, re.M)
+					and re.search(r"^\| `?false`? \|", body, re.M)):
+				bad.append(f"{name}: {m.group(1)} bool 返回缺两行")
+	return bad
+
+
 AUDITS = {
 	"ghost-table": audit_ghost_table,
 	"ghost-prose": audit_ghost_prose,
@@ -322,6 +352,7 @@ AUDITS = {
 	"snippets": audit_snippets,
 	"banned-words": audit_banned_words,
 	"const-values": audit_const_values,
+	"bool-rows": audit_bool_rows,
 }
 
 

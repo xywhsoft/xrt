@@ -676,7 +676,8 @@ bool xrtSPSCQueueIsClosed(const xspscqueue* pQueue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否已关闭 | — |
+| `true` | 是已关闭 | — |
+| `false` | 不是已关闭 | — |
 
 #### 错误
 
@@ -708,7 +709,8 @@ bool xrtSPSCQueueIsDrained(const xspscqueue* pQueue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否关闭且排空 | — |
+| `true` | 是关闭且排空 | — |
+| `false` | 不是关闭且排空 | — |
 
 #### 错误
 
@@ -1243,7 +1245,8 @@ bool xrtMPSCQueueIsClosed(const xmpscqueue* pQueue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否已关闭 | — |
+| `true` | 是已关闭 | — |
+| `false` | 不是已关闭 | — |
 
 #### 错误
 
@@ -1277,7 +1280,8 @@ bool xrtMPSCQueueIsDrained(const xmpscqueue* pQueue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否关闭且排空 | — |
+| `true` | 是关闭且排空 | — |
+| `false` | 不是关闭且排空 | — |
 
 #### 错误
 
@@ -1809,7 +1813,8 @@ bool xrtMPMCQueueIsClosed(const xmpmcqueue* pQueue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否已关闭 | — |
+| `true` | 是已关闭 | — |
+| `false` | 不是已关闭 | — |
 
 #### 错误
 
@@ -1842,7 +1847,8 @@ bool xrtMPMCQueueIsDrained(const xmpmcqueue* pQueue)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否关闭且排空 | — |
+| `true` | 是关闭且排空 | — |
+| `false` | 不是关闭且排空 | — |
 
 #### 错误
 

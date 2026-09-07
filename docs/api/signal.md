@@ -157,7 +157,8 @@ bool xrtSignalSupported(xsignal Code)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否支持 | — |
+| `true` | 是支持 | — |
+| `false` | 不是支持 | — |
 
 #### 错误
 
@@ -556,7 +557,8 @@ bool xrtSignalActive(const xsignalwatch* pWatch)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否仍活跃 | — |
+| `true` | 是仍活跃 | — |
+| `false` | 不是仍活跃 | — |
 
 #### 错误
 
@@ -816,7 +818,8 @@ bool xrtSignalReceived(xsignal Code)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否接收过 | — |
+| `true` | 是接收过 | — |
+| `false` | 不是接收过 | — |
 
 #### 错误
 
@@ -885,7 +888,8 @@ bool xrtSignalHealthy(void)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 后端是否健康 | — |
+| `true` | 后端是否健康 | — |
+| `false` | 非后端是否健康 | — |
 
 #### 错误
 

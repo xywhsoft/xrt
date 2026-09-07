@@ -676,7 +676,8 @@ bool xrtPoolPageOwns(const xpoolpage* pPage, const void* pMemory)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否本页活动槽 | 不设错误 |
+| `true` | 是本页活动槽 | — |
+| `false` | 不是本页活动槽 | 不设错误 |
 
 #### 错误
 
@@ -1290,7 +1291,8 @@ bool xrtPoolOwns(const xpool* pPool, const void* pObject)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否本池活动对象 | 不设错误 |
+| `true` | 是本池活动对象 | — |
+| `false` | 不是本池活动对象 | 不设错误 |
 
 #### 错误
 
@@ -1948,7 +1950,8 @@ bool xrtMemPoolOwns(const xmempool* pPool, const void* pMemory)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否本池活动块 | 不设错误 |
+| `true` | 是本池活动块 | — |
+| `false` | 不是本池活动块 | 不设错误 |
 
 #### 错误
 

@@ -329,7 +329,8 @@ bool xrtRngReady(const xrng* pRng)
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` / `false` | 是否可用 | — |
+| `true` | 是可用 | — |
+| `false` | 不是可用 | — |
 
 #### 错误
 
