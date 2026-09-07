@@ -76,7 +76,7 @@
 | 69 | thread-key.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；全部节复用自 once.md（同映射 thread.h），以键为主线重组 |
 | 70 | thread.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；全部节复用自 once.md（同映射 thread.h），按线程视角重组 |
 | 71 | time.md | 58 | **完成** | 58/58 全绿（G3 58 片段，2026-09-07）；九组入档；字段越界 RANGE、解析族 ARGUMENT、Write 容量原子失败；锚点 10 范例；manifest 补注册 text_parse |
-| 72 | tls.md | 268 | 待办 |  |
+| 72 | tls.md | 268 | **完成** | 268/268 全绿（G3 268 片段，2026-09-07）；八头并集 20 组；签名/形参名/头文件契约注释自动提取（blurb=注释原文）；xtlsresult 四值逐函数成表；身份范例补四形态构造器（openssl 新材料实测）；manifest 补注册 handshake_extra |
 | 73 | udp.md | 73 | **完成** | 73/73 全绿（G3 73 片段，2026-09-07）；打开 6 + 接收 7 + 错误包 5 + Future/批量/包 17 + 发送 13 + 组播 5 + 关闭查询 20 七组；批量容量 1–256 RANGE、Worker 归属 STATE 全表；manifest 补注册三范例 |
 | 74 | value.md | 116 | **完成** | 116/116 全绿（G3 116 片段，2026-09-07）；标量 20 + 句柄 3 + 生命周期 9 + Array 20 + Object 13 + IntMap 11 + 迭代 8 + Set 16 + 类型身份 13 + 弱引用 3 十组；引用/移交/消费三形态全表；XERR_TYPE/VALUE/EXISTS 特有口径；锚点 13 范例 |
 | 75 | wait.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；Deadline 三函数；NEVER 语义（Expired 永假、Remaining UINT64_MAX）；锚点 concurrency/deadline |
@@ -801,4 +801,11 @@
   permessage-deflate 约定 = PROTOCOL、文本帧 UTF-8 严格校验、流层
   Send 族 AGAIN/STATE 口径与 tcp 一致、Tcp/Tls 借用与引用双形态。
   完成 API 3292→3396/3664（92.7%），78/79 文件。仅余 tls.md(268)。
+- 2026-09-07 tls.md 全文件达成（268/268，G3 268 片段全绿）——79/79 全部完成！八头并集（tls.h 140 + stream 52 + session 29 + client 10
+  + server 9 + identity 13 + resume 7 + verify 8）按 20 组入档。生成器
+  升级：签名、形参名、头文件紧邻契约注释、返回枚举值全部程序化提取，
+  词典覆盖 240+ 形参说明，零"目标参数"兜底。范例工程：identity 无参
+  自检四种密钥形态（openssl 新生成 RSA/P-384/Ed25519 材料，build.py
+  实测 identity=1/3/4/6 全通过）；handshake_extra 补注册（#14）。
+  完成 API 3396→3664/3664（100.0%），79/79 文件。
 

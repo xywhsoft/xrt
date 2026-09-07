@@ -96,6 +96,155 @@ if ( (Info != NULL) && (Info->Version == XTLS_VERSION_13) ) {
 
 `xtlserror` 进一步区分版本、记录类型、记录长度、Alert、状态、密码、证书、校验和恢复阶段。调用方不需要解析错误字符串。
 
+### `xrtTlsRecordEncode`
+
+把一条记录编码到调用方缓冲；输入与输出允许重叠。
+
+```c
+bool xrtTlsRecordEncode(xtlsrecordtype Type, uint16 iLegacyVersion, xbytesview Payload, ptr pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Type` | 输入 | — | 类型标识 |
+| `iLegacyVersion` | 输入 | — | 旧版版本号 |
+| `Payload` | 输入 | — | 载荷 |
+| `pOutput` | 输入 | — | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[record](../../examples/tls/record/main.c) · record
+
+```c
+	if ( !xrtTlsRecordEncode(
+		XTLS_RECORD_APPLICATION_DATA,
+		UINT16_C(0x0303),
+		XRT_BYTES_LITERAL("example"),
+		Buffer,
+		sizeof(Buffer)
+	) ) {
+```
+
+### `xrtTlsRecordName`
+
+返回记录内容类型的稳定英文名称，未知值返回 unknown。
+
+```c
+cstr xrtTlsRecordName(xtlsrecordtype Type)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Type` | 输入 | — | 类型标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 静态名称；未知为 `"UNKNOWN"` | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[record](../../examples/tls/record/main.c) · record
+
+```c
+		xrtTlsRecordName(Record.Type),
+```
+
+### `xrtTlsRecordParse`
+
+解析输入开头的一条完整记录。输入不足返回 XTLS_AGAIN，Required 返回继续解析所需的总字节数； 只有返回 XTLS_OK 时才写入 Record。
+
+```c
+xtlsresult xrtTlsRecordParse(xbytesview Input, xtlsrecord* pRecord, size_t* pRequired)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Input` | 输入 | — | 输入数据 |
+| `pRecord` | 输入 | 非空 | 记录描述 |
+| `pRequired` | 输入 | 非空 | 接收必需类型 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[record](../../examples/tls/record/main.c) · record
+
+```c
+	if ( xrtTlsRecordParse(
+		(xbytesview) { Buffer, 12 }, &Record, NULL
+	) != XTLS_OK ) {
+```
+
+### `xrtTlsRecordSize`
+
+返回给定负载所需的完整记录长度，负载越界时返回零并设置错误。
+
+```c
+size_t xrtTlsRecordSize(size_t iPayloadSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iPayloadSize` | 输入 | — | 载荷长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · record
+
+```c
+	if ( (xrtTlsRecordSize(100u) != 105u) ) {
+```
+
 ## 记录解析
 
 ```c
@@ -131,6 +280,359 @@ bool OK = xrtTlsRecordEncode(
 编码器允许输入与输出重叠，适合在已有明文前原地腾出记录头。容量不足时输出保持不变。`xrtTlsRecordSize()` 可提前计算总长度。
 
 记录编码器是协议工具，不会绕过后续会话层的加密、序列号和状态检查；应用数据应优先通过 TLS 会话写入。
+
+### `xrtTlsHandshakeEncode`
+
+把握手类型和正文编码到调用方缓冲，允许输入输出重叠。
+
+```c
+bool xrtTlsHandshakeEncode(xtlshandshaketype Type, xbytesview Body, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Type` | 输入 | — | 类型标识 |
+| `Body` | 输入 | — | 消息体 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+	if ( !xrtTlsHandshakeEncode(XTLS_HANDSHAKE_CLIENT_HELLO,
+			(xbytesview) { arrBody, 4u }, arrOut, 8u) ) {
+```
+
+### `xrtTlsHandshakeName`
+
+返回握手类型的稳定英文名称，未知线路值返回 unknown_handshake。
+
+```c
+cstr xrtTlsHandshakeName(xtlshandshaketype Type)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Type` | 输入 | — | 类型标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 静态名称；未知为 `"UNKNOWN"` | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+		(strcmp(xrtTlsHandshakeName((xtlshandshaketype)9999u),
+			"unknown_handshake") != 0) ||
+```
+
+### `xrtTlsHandshakeParse`
+
+分片感知地解析输入开头的一条握手消息，仅成功时发布借用视图。
+
+```c
+xtlsresult xrtTlsHandshakeParse(xbytesview Input, xtlshandshake* pHandshake, size_t* pRequired)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Input` | 输入 | — | 输入数据 |
+| `pHandshake` | 输入 | 非空 | 握手消息描述 |
+| `pRequired` | 输入 | 非空 | 接收必需类型 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+		if ( (xrtTlsHandshakeParse(
+				(xbytesview) { arrOut, 3u },
+				&Handshake, &iRequired) != XTLS_AGAIN) ||
+			(iRequired != 4u) ) {
+```
+
+### `xrtTlsHandshakeReaderConfigInit`
+
+填充安全的默认握手 reader 配置。
+
+```c
+void xrtTlsHandshakeReaderConfigInit(xtlshandshakereaderconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+	xrtTlsHandshakeReaderConfigInit(&ReaderConfig);
+```
+
+### `xrtTlsHandshakeReaderInit`
+
+初始化 reader；Config 为空时使用默认上限与保留容量。
+
+```c
+bool xrtTlsHandshakeReaderInit(xtlshandshakereader* pReader, const xtlshandshakereaderconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入/输出 | 非空 | 握手读取器 |
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+	if ( !xrtTlsHandshakeReaderInit(&Reader, &ReaderConfig) ) {
+```
+
+### `xrtTlsHandshakeReaderRead`
+
+读取至多一条握手消息并返回本次消费的输入字节数。完整单片消息直接借用 Input；跨分片消息借用 Reader，直到下次 Read、Reset 或 Unit。
+
+```c
+xtlsresult xrtTlsHandshakeReaderRead(xtlshandshakereader* pReader, xbytesview Input, size_t* pConsumed, xtlshandshake* pMessage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入/输出 | 非空 | 握手读取器 |
+| `Input` | 输入 | — | 输入数据 |
+| `pConsumed` | 输入 | 非空 | 接收消费字节数 |
+| `pMessage` | 输入 | 非空 | 握手消息 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+	if ( (xrtTlsHandshakeReaderRead(&Reader,
+			(xbytesview) { arrHandshake, 1u },
+			&iConsumed, &ReaderMsg) != XTLS_AGAIN) ||
+		(iConsumed != 1u) ||
+		(xrtTlsHandshakeReaderRequired(&Reader) != 4u) ) {
+```
+
+### `xrtTlsHandshakeReaderRequired`
+
+返回完成当前消息所需的完整编码长度；只有部分头时返回 4。
+
+```c
+size_t xrtTlsHandshakeReaderRequired(const xtlshandshakereader* pReader)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入/输出 | 非空 | 握手读取器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+		(xrtTlsHandshakeReaderRequired(&Reader) != 4u) ) {
+```
+
+### `xrtTlsHandshakeReaderReset`
+
+丢弃当前消息，保留不超过配置阈值的缓冲。
+
+```c
+bool xrtTlsHandshakeReaderReset(xtlshandshakereader* pReader)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入/输出 | 非空 | 握手读取器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+	if ( !xrtTlsHandshakeReaderReset(&Reader) ) {
+```
+
+### `xrtTlsHandshakeReaderUnit`
+
+释放 reader 持有的重组缓冲并清零结构。
+
+```c
+void xrtTlsHandshakeReaderUnit(xtlshandshakereader* pReader)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pReader` | 输入/输出 | 非空 | 握手读取器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+	xrtTlsHandshakeReaderUnit(&Reader);
+```
+
+### `xrtTlsHandshakeSize`
+
+返回给定正文所需的完整握手消息长度，越界时返回零。
+
+```c
+size_t xrtTlsHandshakeSize(size_t iBodySize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iBodySize` | 输入 | — | 消息体长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · handshake
+
+```c
+	if ( (xrtTlsHandshakeSize(4u) != 8u) ||
+		(xrtTlsHandshakeSize(SIZE_MAX) != 0u) ) {
+```
 
 ## 握手与扩展 Framing
 
@@ -176,6 +678,534 @@ xtlsresult Result = xrtTlsHandshakeReaderRead(
 
 `xrtTlsHandshakeReaderRequired()` 返回当前完整消息长度；只有部分头或空闲时返回 4。正常分片返回 `XTLS_AGAIN` 且不设置错误，容量不足、配置错误和超限消息通过结构化 TLS 错误表达。
 
+### `xrtTlsClientHelloEncode`
+
+失败原子地编码 ClientHello 正文；输入字段不得与输出区域重叠。
+
+```c
+bool xrtTlsClientHelloEncode(const xtlsclienthello* pHello, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHello` | 输入 | 非空 | Hello 消息 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · extension tour
+
+```c
+	if ( !xrtTlsClientHelloEncode(&ClientHello, arrHelloBuf,
+			iSize) ||
+		!xrtTlsClientHelloParse(
+			(xbytesview) { arrHelloBuf, iSize }, &Parsed) ||
+		(Parsed.LegacyVersion != 0x0303u) ||
+		(Parsed.Random.Size != 32u) ||
+		(Parsed.SessionId.Size != 4u) ||
+		(Parsed.Extensions.Size == 0u) ) {
+```
+
+### `xrtTlsClientHelloParse`
+
+严格解析一条 ClientHello 正文并发布零拷贝字段视图。
+
+```c
+bool xrtTlsClientHelloParse(xbytesview Body, xtlsclienthello* pHello)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pHello` | 输入 | 非空 | Hello 消息 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · extension tour
+
+```c
+		!xrtTlsClientHelloParse(
+			(xbytesview) { arrHelloBuf, iSize }, &Parsed) ||
+```
+
+### `xrtTlsClientHelloSize`
+
+返回编码 ClientHello 正文所需的精确长度。
+
+```c
+size_t xrtTlsClientHelloSize(const xtlsclienthello* pHello)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHello` | 输入 | 非空 | Hello 消息 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · extension tour
+
+```c
+	iSize = xrtTlsClientHelloSize(&ClientHello);
+```
+
+### `xrtTlsExtensionEncode`
+
+把扩展类型和负载编码到调用方缓冲，允许输入输出重叠。
+
+```c
+bool xrtTlsExtensionEncode(xtlsextensiontype Type, xbytesview Data, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Type` | 输入 | — | 类型标识 |
+| `Data` | 输入 | — | 数据 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · extension tour
+
+```c
+			!xrtTlsExtensionEncode(
+				XTLS_EXTENSION_SUPPORTED_GROUPS,
+				(xbytesview) { arrData, 3u }, arrOut,
+				7u) ||
+```
+
+### `xrtTlsExtensionName`
+
+返回扩展类型的稳定英文名称，未知线路值返回 unknown_extension。
+
+```c
+cstr xrtTlsExtensionName(xtlsextensiontype Type)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Type` | 输入 | — | 类型标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 静态名称；未知为 `"UNKNOWN"` | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · extension tour
+
+```c
+		(strcmp(xrtTlsExtensionName(
+			XTLS_EXTENSION_SUPPORTED_GROUPS),
+			"supported_groups") != 0) ) {
+```
+
+### `xrtTlsExtensionParse`
+
+分片感知地解析输入开头的一个扩展，仅成功时发布借用视图。
+
+```c
+xtlsresult xrtTlsExtensionParse(xbytesview Input, xtlsextension* pExtension, size_t* pRequired)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Input` | 输入 | — | 输入数据 |
+| `pExtension` | 输入 | 非空 | 扩展描述 |
+| `pRequired` | 输入 | 非空 | 接收必需类型 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · extension tour
+
+```c
+			(xrtTlsExtensionParse(
+				(xbytesview) { arrOut, 2u },
+				&Extension, &iRequired) != XTLS_AGAIN) ||
+```
+
+### `xrtTlsExtensionSize`
+
+返回给定负载所需的完整扩展长度，越界时返回零。
+
+```c
+size_t xrtTlsExtensionSize(size_t iDataSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iDataSize` | 输入 | — | 数据长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · extension tour
+
+```c
+		if ( (xrtTlsExtensionSize(3u) != 7u) ||
+			!xrtTlsExtensionEncode(
+				XTLS_EXTENSION_SUPPORTED_GROUPS,
+				(xbytesview) { arrData, 3u }, arrOut,
+				7u) ||
+			(xrtTlsExtensionParse(
+				(xbytesview) { arrOut, 2u },
+				&Extension, &iRequired) != XTLS_AGAIN) ||
+			(iRequired != 4u) ||
+			(xrtTlsExtensionParse(
+				(xbytesview) { arrOut, 5u },
+				&Extension, &iRequired) != XTLS_AGAIN) ||
+```
+
+### `xrtTlsExtensionsFind`
+
+完整验证后查找唯一扩展，未找到返回 XTLS_ITEM_DONE。
+
+```c
+xtlsitemresult xrtTlsExtensionsFind(xbytesview Extensions, xtlsextensiontype Type, xtlsextension* pExtension)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Extensions` | 输入 | — | 扩展列表 |
+| `Type` | 输入 | — | 类型标识 |
+| `pExtension` | 输入 | 非空 | 扩展描述 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · extension tour
+
+```c
+		(xrtTlsExtensionsFind((xbytesview) { arrExtBlock, 31u },
+			XTLS_EXTENSION_SUPPORTED_GROUPS,
+			&Extension) != XTLS_ITEM_VALUE) ||
+```
+
+### `xrtTlsExtensionsInit`
+
+初始化借用完整扩展向量的游标，不预先扫描输入。
+
+```c
+bool xrtTlsExtensionsInit(xtlsextensioncursor* pCursor, xbytesview Extensions)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+| `Extensions` | 输入 | — | 扩展列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · extension tour
+
+```c
+	if ( !xrtTlsExtensionsInit(&ExtCursor,
+			(xbytesview) { arrExtBlock, 31u }) ) {
+```
+
+### `xrtTlsExtensionsRead`
+
+读取下一扩展并拒绝任何重复类型；失败时游标与输出保持不变。
+
+```c
+xtlsitemresult xrtTlsExtensionsRead(xtlsextensioncursor* pCursor, xtlsextension* pExtension)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+| `pExtension` | 输入 | 非空 | 扩展描述 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · extension tour
+
+```c
+	while ( xrtTlsExtensionsRead(&ExtCursor, &Extension) ==
+		XTLS_ITEM_VALUE ) {
+```
+
+### `xrtTlsExtensionsValidate`
+
+完整验证扩展向量的 framing 与类型唯一性。
+
+```c
+bool xrtTlsExtensionsValidate(xbytesview Extensions)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Extensions` | 输入 | — | 扩展列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · extension tour
+
+```c
+	if ( !xrtTlsExtensionsValidate(
+			(xbytesview) { arrExtBlock, 31u }) ||
+		(xrtTlsExtensionsFind((xbytesview) { arrExtBlock, 31u },
+			XTLS_EXTENSION_SUPPORTED_GROUPS,
+			&Extension) != XTLS_ITEM_VALUE) ||
+		(Extension.Data.Size != 8u) ) {
+```
+
+### `xrtTlsServerHelloEncode`
+
+失败原子地编码 ServerHello 正文；输入字段不得与输出区域重叠。
+
+```c
+bool xrtTlsServerHelloEncode(const xtlsserverhello* pHello, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHello` | 输入 | 非空 | Hello 消息 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · extension tour
+
+```c
+	if ( !xrtTlsServerHelloEncode(&ServerHello, arrHelloBuf,
+			iSize) ||
+		!xrtTlsServerHelloParse(
+			(xbytesview) { arrHelloBuf, iSize },
+			&ServerParsed) ||
+		(ServerParsed.CipherSuite != 0x1301u) ||
+		(ServerParsed.Retry) ||
+		(ServerParsed.Extensions.Size == 0u) ) {
+```
+
+### `xrtTlsServerHelloParse`
+
+严格解析一条 ServerHello 或 HelloRetryRequest 正文。
+
+```c
+bool xrtTlsServerHelloParse(xbytesview Body, xtlsserverhello* pHello)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pHello` | 输入 | 非空 | Hello 消息 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · extension tour
+
+```c
+		!xrtTlsServerHelloParse(
+			(xbytesview) { arrHelloBuf, iSize },
+			&ServerParsed) ||
+```
+
+### `xrtTlsServerHelloSize`
+
+返回编码 ServerHello 或 HelloRetryRequest 正文所需的精确长度。
+
+```c
+size_t xrtTlsServerHelloSize(const xtlsserverhello* pHello)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHello` | 输入 | 非空 | Hello 消息 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · extension tour
+
+```c
+	iSize = xrtTlsServerHelloSize(&ServerHello);
+```
+
 ## Hello 与核心扩展
 
 `tls_hello` 在 framing 之上提供三层能力：
@@ -215,6 +1245,1557 @@ if ( xrtTlsExtensionsFind(
 
 扩展唯一性检测不分配 8K 类型位图。游标只保存 32 字节桶状态；发生桶碰撞时最多回看同桶的 16 位类型，因此正常路径为线性扫描，最坏回看次数也受 16 位类型空间约束。
 
+### `xrtTls12CertificateRequestEncode`
+
+失败原子地编码 TLS 1.2 CertificateRequest 正文。
+
+```c
+bool xrtTls12CertificateRequestEncode(const xtls12certificaterequest* pRequest, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRequest` | 输入 | 非空 | 证书请求 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTls12CertificateRequestEncode(&Req12,
+				arrOut, iSize) ||
+```
+
+### `xrtTls12CertificateRequestParse`
+
+严格解析 TLS 1.2 CertificateRequest 正文。
+
+```c
+bool xrtTls12CertificateRequestParse(xbytesview Body, xtls12certificaterequest* pRequest)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pRequest` | 输入 | 非空 | 证书请求 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTls12CertificateRequestParse(
+				(xbytesview) { arrOut, iSize },
+				&Req12Parsed) ||
+```
+
+### `xrtTls12CertificateRequestSize`
+
+返回编码 TLS 1.2 CertificateRequest 正文所需长度。
+
+```c
+size_t xrtTls12CertificateRequestSize(const xtls12certificaterequest* pRequest)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pRequest` | 输入 | 非空 | 证书请求 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		iSize = xrtTls12CertificateRequestSize(&Req12);
+```
+
+### `xrtTls12ClientKeyExchangeEncode`
+
+编码 TLS 1.2 ECDHE ClientKeyExchange，允许公钥与输出重叠。
+
+```c
+bool xrtTls12ClientKeyExchangeEncode(xbytesview PublicKey, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `PublicKey` | 输入 | — | 公钥字节 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTls12ClientKeyExchangeEncode(
+				(xbytesview) { arrKey, 4u }, arrOut,
+				5u) ||
+```
+
+### `xrtTls12ClientKeyExchangeParse`
+
+严格解析 TLS 1.2 ECDHE ClientKeyExchange 公钥。
+
+```c
+bool xrtTls12ClientKeyExchangeParse(xbytesview Body, xbytesview* pPublicKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pPublicKey` | 输入 | 非空 | 公钥描述 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTls12ClientKeyExchangeParse(
+				(xbytesview) { arrOut, 5u },
+				&PublicKey) ||
+```
+
+### `xrtTls12ClientKeyExchangeSize`
+
+返回编码 TLS 1.2 ECDHE ClientKeyExchange 正文所需长度。
+
+```c
+size_t xrtTls12ClientKeyExchangeSize(xbytesview PublicKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `PublicKey` | 输入 | — | 公钥字节 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		if ( (xrtTls12ClientKeyExchangeSize(
+				(xbytesview) { arrKey, 4u }) != 5u) ||
+			!xrtTls12ClientKeyExchangeEncode(
+				(xbytesview) { arrKey, 4u }, arrOut,
+				5u) ||
+			!xrtTls12ClientKeyExchangeParse(
+				(xbytesview) { arrOut, 5u },
+				&PublicKey) ||
+			(PublicKey.Size != 4u) ) {
+```
+
+### `xrtTls12ServerKeyExchangeEncode`
+
+失败原子地编码 TLS 1.2 ECDHE ServerKeyExchange 正文。
+
+```c
+bool xrtTls12ServerKeyExchangeEncode(uint16 iGroup, xbytesview PublicKey, const xtlscertificateverify* pVerify, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iGroup` | 输入 | — | 命名组标识 |
+| `PublicKey` | 输入 | — | 公钥字节 |
+| `pVerify` | 输入 | 非空 | 验证数据 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[auth_messages](../../examples/tls/auth_messages/main.c) · negotiate
+
+```c
+	if ( (iBodySize == 0) || !xrtTls12ServerKeyExchangeEncode(
+		XTLS_GROUP_X25519,
+		(xbytesview) { PublicKey, sizeof(PublicKey) }, &Verify,
+		Body, sizeof(Body)
+	) || !xrtTls12ServerKeyExchangeParse(
+		(xbytesview) { Body, iBodySize }, &Exchange
+	) ) {
+```
+
+### `xrtTls12ServerKeyExchangeParse`
+
+严格解析 TLS 1.2 ECDHE ServerKeyExchange 正文。
+
+```c
+bool xrtTls12ServerKeyExchangeParse(xbytesview Body, xtls12serverkeyexchange* pExchange)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pExchange` | 输入 | 非空 | 密钥交换参数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[auth_messages](../../examples/tls/auth_messages/main.c) · negotiate
+
+```c
+	) || !xrtTls12ServerKeyExchangeParse(
+```
+
+### `xrtTls12ServerKeyExchangeSize`
+
+返回编码 TLS 1.2 ECDHE ServerKeyExchange 正文所需长度。
+
+```c
+size_t xrtTls12ServerKeyExchangeSize(uint16 iGroup, xbytesview PublicKey, const xtlscertificateverify* pVerify)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iGroup` | 输入 | — | 命名组标识 |
+| `PublicKey` | 输入 | — | 公钥字节 |
+| `pVerify` | 输入 | 非空 | 验证数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[auth_messages](../../examples/tls/auth_messages/main.c) · negotiate
+
+```c
+	iBodySize = xrtTls12ServerKeyExchangeSize(
+		XTLS_GROUP_X25519,
+		(xbytesview) { PublicKey, sizeof(PublicKey) }, &Verify
+	);
+```
+
+### `xrtTls12ServerKeyExchangeVerify`
+
+验证 TLS 1.2 ECDHE ServerKeyExchange；签名覆盖双方随机数和原始参数。
+
+```c
+bool xrtTls12ServerKeyExchangeVerify(xtlssignature Scheme, xbytesview ClientRandom, xbytesview ServerRandom, xbytesview Parameters, xbytesview Signature, const xx509pubkey* pPublicKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Scheme` | 输入 | — | 签名方案 |
+| `ClientRandom` | 输入 | — | 客户端随机数 |
+| `ServerRandom` | 输入 | — | 服务端随机数 |
+| `Parameters` | 输入 | — | 参数 |
+| `Signature` | 输入 | — | 签名值 |
+| `pPublicKey` | 输入 | 非空 | 公钥描述 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · negotiate
+
+```c
+			!xrtTls12ServerKeyExchangeVerify(
+				XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256,
+				(xbytesview) { arrClientRandom, 32u },
+				(xbytesview) { arrServerRandom, 32u },
+				(xbytesview) { arrParams, 8u },
+				(xbytesview) { arrDer, iDerSize },
+				&LeafKey) ) {
+```
+
+### `xrtTls13CertificateRequestEncode`
+
+失败原子地编码 TLS 1.3 CertificateRequest 正文。
+
+```c
+bool xrtTls13CertificateRequestEncode(xbytesview RequestContext, xbytesview Extensions, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `RequestContext` | 输入 | — | 请求上下文 |
+| `Extensions` | 输入 | — | 扩展列表 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTls13CertificateRequestEncode(
+				(xbytesview) { arrCtx, 1u },
+				(xbytesview) { arr13Ext, 10u }, arrOut,
+				14u) ||
+```
+
+### `xrtTls13CertificateRequestParse`
+
+严格解析 TLS 1.3 CertificateRequest 正文和认证扩展。
+
+```c
+bool xrtTls13CertificateRequestParse(xbytesview Body, xtls13certificaterequest* pRequest)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pRequest` | 输入 | 非空 | 证书请求 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTls13CertificateRequestParse(
+				(xbytesview) { arrOut, 14u },
+				&Req13Parsed) ||
+```
+
+### `xrtTls13CertificateRequestSize`
+
+返回编码 TLS 1.3 CertificateRequest 正文所需长度。
+
+```c
+size_t xrtTls13CertificateRequestSize(xbytesview RequestContext, xbytesview Extensions)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `RequestContext` | 输入 | — | 请求上下文 |
+| `Extensions` | 输入 | — | 扩展列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		iSize = xrtTls13CertificateRequestSize(
+			(xbytesview) { arrCtx, 1u },
+			(xbytesview) { arr13Ext, 10u });
+```
+
+### `xrtTlsAuthorities`
+
+严格解析带 16 位总长的证书颁发者名称向量并初始化游标。
+
+```c
+bool xrtTlsAuthorities(xbytesview Data, xtlsauthoritycursor* pCursor)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		if ( !xrtTlsAuthorities(
+				(xbytesview) { arrGood, 13u },
+				&AuthCursor) ) {
+```
+
+### `xrtTlsAuthoritiesEncode`
+
+失败原子地编码带 16 位总长的证书颁发者名称向量。
+
+```c
+bool xrtTlsAuthoritiesEncode(const xbytesview* pNames, size_t iCount, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pNames` | 输入 | 非空 | 名称数组 |
+| `iCount` | 输入 | — | 数量 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTlsAuthoritiesEncode(arrTwo, 2u,
+				arrOut, 13u) ||
+```
+
+### `xrtTlsAuthoritiesRead`
+
+读取下一项非空 DER DistinguishedName。
+
+```c
+xtlsitemresult xrtTlsAuthoritiesRead(xtlsauthoritycursor* pCursor, xbytesview* pName)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+| `pName` | 输入 | 非空 | 接收名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		while ( xrtTlsAuthoritiesRead(&AuthCursor,
+				&Name) == XTLS_ITEM_VALUE ) {
+```
+
+### `xrtTlsAuthoritiesSize`
+
+返回编码证书颁发者名称向量所需长度。
+
+```c
+size_t xrtTlsAuthoritiesSize(const xbytesview* pNames, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pNames` | 输入 | 非空 | 名称数组 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		if ( (xrtTlsAuthoritiesSize(arrTwo, 2u) != 13u) ||
+			!xrtTlsAuthoritiesEncode(arrTwo, 2u,
+				arrOut, 13u) ||
+			!xrtTlsAuthorities(
+				(xbytesview) { arrOut, 13u }, &AuthCursor) ) {
+```
+
+### `xrtTlsCertificatesRead`
+
+读取下一证书条目；结束、值和错误使用三态结果区分。
+
+```c
+xtlsitemresult xrtTlsCertificatesRead(xtlscertificatecursor* pCursor, xtlscertificateentry* pEntry)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+| `pEntry` | 输入 | 非空 | 接收条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[messages](../../examples/tls/messages/main.c) · negotiate
+
+```c
+	while ( (Result = xrtTlsCertificatesRead(
+		&Cursor, &Entry
+	)) == XTLS_ITEM_VALUE ) {
+```
+
+### `xrtTlsCompressedCertificateEncode`
+
+编码 CompressedCertificate，允许压缩数据与输出重叠。
+
+```c
+bool xrtTlsCompressedCertificateEncode(const xtlscompressedcertificate* pCertificate, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCertificate` | 输入 | 非空 | 证书视图 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		!xrtTlsCompressedCertificateEncode(&Compressed,
+			arrOut, 9u) ||
+```
+
+### `xrtTlsCompressedCertificateParse`
+
+严格解析 TLS 1.3 CompressedCertificate 正文。
+
+```c
+bool xrtTlsCompressedCertificateParse(xbytesview Body, xtlscompressedcertificate* pCertificate)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pCertificate` | 输入 | 非空 | 证书视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		!xrtTlsCompressedCertificateParse(
+			(xbytesview) { arrOut, 9u },
+			&CompressedParsed) ||
+```
+
+### `xrtTlsCompressedCertificateSize`
+
+返回编码 CompressedCertificate 正文所需长度。
+
+```c
+size_t xrtTlsCompressedCertificateSize(const xtlscompressedcertificate* pCertificate)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCertificate` | 输入 | 非空 | 证书视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+	iSize = xrtTlsCompressedCertificateSize(&Compressed);
+```
+
+### `xrtTlsEncryptedExtensionsEncode`
+
+失败原子地编码 EncryptedExtensions 正文。
+
+```c
+bool xrtTlsEncryptedExtensionsEncode(xbytesview Extensions, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Extensions` | 输入 | — | 扩展列表 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTlsEncryptedExtensionsEncode(
+				(xbytesview) { NULL, 0u }, arrOut, 2u) ||
+```
+
+### `xrtTlsEncryptedExtensionsParse`
+
+严格解析 TLS 1.3 EncryptedExtensions 正文。
+
+```c
+bool xrtTlsEncryptedExtensionsParse(xbytesview Body, xbytesview* pExtensions)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pExtensions` | 输入 | 非空 | 扩展数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+			!xrtTlsEncryptedExtensionsParse(
+				(xbytesview) { arrOut, 2u }, &Extensions) ||
+```
+
+### `xrtTlsEncryptedExtensionsSize`
+
+返回编码 EncryptedExtensions 正文所需长度。
+
+```c
+size_t xrtTlsEncryptedExtensionsSize(xbytesview Extensions)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Extensions` | 输入 | — | 扩展列表 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		if ( (xrtTlsEncryptedExtensionsSize(
+				(xbytesview) { NULL, 0u }) != 2u) ||
+			!xrtTlsEncryptedExtensionsEncode(
+				(xbytesview) { NULL, 0u }, arrOut, 2u) ||
+			!xrtTlsEncryptedExtensionsParse(
+				(xbytesview) { arrOut, 2u }, &Extensions) ||
+			(Extensions.Size != 0u) ||
+			(xrtTlsEncryptedExtensionsSize(
+				(xbytesview) { arrAck, 4u }) != 6u) ||
+			!xrtTlsEncryptedExtensionsEncode(
+				(xbytesview) { arrAck, 4u }, arrOut, 6u) ||
+			!xrtTlsEncryptedExtensionsParse(
+```
+
+### `xrtTlsFinishedEncode`
+
+编码非空 Finished 验证数据正文。
+
+```c
+bool xrtTlsFinishedEncode(xbytesview VerifyData, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `VerifyData` | 输入 | — | 验证数据 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsFinishedEncode((xbytesview) { arrBody, 12u },
+			arrOut, 12u) ||
+		!xrtTlsFinishedParse((xbytesview) { arrOut, 12u },
+			12u, &VerifyData) ||
+		(VerifyData.Size != 12u) ) {
+```
+
+### `xrtTlsFinishedParse`
+
+按调用方给出的协商长度严格解析 Finished 验证数据。
+
+```c
+bool xrtTlsFinishedParse(xbytesview Body, size_t iExpectedSize, xbytesview* pVerifyData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `iExpectedSize` | 输入 | — | 期望长度 |
+| `pVerifyData` | 输入 | 非空 | 验证数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · negotiate
+
+```c
+		!xrtTlsFinishedParse((xbytesview) { arrOut, 12u },
+			12u, &VerifyData) ||
+```
+
+### `xrtTlsWriterClientKeyShares`
+
+追加 ClientHello key_share 扩展，允许写出空列表以请求 Retry。
+
+```c
+bool xrtTlsWriterClientKeyShares(xtlswriter* pWriter, const xtlskeyshare* pShares, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `pShares` | 输入 | 非空 | 份额数组 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterClientKeyShares(&Writer, &Share, 1u) ) {
+```
+
+### `xrtTlsWriterClientPsks`
+
+追加 ClientHello PSK identities 与等量 binders，调用方保证它是末项。
+
+```c
+bool xrtTlsWriterClientPsks(xtlswriter* pWriter, const xtlspsk* pPsks, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `pPsks` | 输入 | 非空 | PSK 数组 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+		if ( !xrtTlsWriterClientPsks(&Writer, Psks, 1u) ) {
+```
+
+### `xrtTlsWriterClientVersions`
+
+追加 ClientHello supported_versions 扩展。
+
+```c
+bool xrtTlsWriterClientVersions(xtlswriter* pWriter, const uint16* pVersions, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `pVersions` | 输入 | 非空 | 版本数组 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterClientVersions(&Writer, arrGroups, 2u) ) {
+```
+
+### `xrtTlsWriterData`
+
+返回 writer 已完成区域的借用视图。
+
+```c
+xbytesview xrtTlsWriterData(const xtlswriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	Written = xrtTlsWriterData(&Writer);
+```
+
+### `xrtTlsWriterExtension`
+
+失败原子地追加一个原始扩展，负载允许与 writer 缓冲重叠。
+
+```c
+bool xrtTlsWriterExtension(xtlswriter* pWriter, xtlsextensiontype Type, xbytesview Data)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `Type` | 输入 | — | 类型标识 |
+| `Data` | 输入 | — | 数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+		if ( !xrtTlsWriterExtension(&Writer,
+				XTLS_EXTENSION_STATUS_REQUEST,
+				(xbytesview) { arrStatus, 1u }) ) {
+```
+
+### `xrtTlsWriterHostName`
+
+追加只包含一个 host_name 的 SNI 扩展。
+
+```c
+bool xrtTlsWriterHostName(xtlswriter* pWriter, xbytesview Host)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `Host` | 输入 | — | 主机名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterHostName(&Writer,
+			(xbytesview) { (cbytes)"api", 3u }) ) {
+```
+
+### `xrtTlsWriterIds`
+
+追加带 16 位长度前缀的标识列表扩展，适用于组和签名方案。
+
+```c
+bool xrtTlsWriterIds(xtlswriter* pWriter, xtlsextensiontype Type, const uint16* pValues, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `Type` | 输入 | — | 类型标识 |
+| `pValues` | 输入 | 非空 | 值数组 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterIds(&Writer,
+			XTLS_EXTENSION_SUPPORTED_GROUPS, arrGroups, 2u) ) {
+```
+
+### `xrtTlsWriterInit`
+
+初始化一个空的调用方缓冲 writer。
+
+```c
+bool xrtTlsWriterInit(xtlswriter* pWriter, void* pData, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `pData` | 输入 | — | 用户数据 |
+| `iCapacity` | 输入 | — | 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterInit(&Writer, arrExtBuf, sizeof(arrExtBuf)) ) {
+```
+
+### `xrtTlsWriterProtocols`
+
+追加完整 ALPN 协议列表；协议名称按输入顺序保留。
+
+```c
+bool xrtTlsWriterProtocols(xtlswriter* pWriter, const xbytesview* pProtocols, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `pProtocols` | 输入 | 非空 | 协议数组 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterProtocols(&Writer, arrProtocols, 2u) ) {
+```
+
+### `xrtTlsWriterPskModes`
+
+追加非空且不重复的 PSK 密钥交换模式列表。
+
+```c
+bool xrtTlsWriterPskModes(xtlswriter* pWriter, const uint8* pModes, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `pModes` | 输入 | 非空 | PSK 模式数组 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+		if ( !xrtTlsWriterPskModes(&Writer, arrModes, 1u) ) {
+```
+
+### `xrtTlsWriterReset`
+
+清空 writer 的逻辑内容，不擦除调用方缓冲。
+
+```c
+bool xrtTlsWriterReset(xtlswriter* pWriter)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterReset(&Writer) ) {
+```
+
+### `xrtTlsWriterRetryCookie`
+
+追加 HelloRetryRequest 或 ClientHello 使用的非空 cookie 扩展。
+
+```c
+bool xrtTlsWriterRetryCookie(xtlswriter* pWriter, xbytesview Cookie)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `Cookie` | 输入 | — | Cookie 数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+		!xrtTlsWriterRetryCookie(&Writer,
+			(xbytesview) { arrKey1, 4u }) ) {
+```
+
+### `xrtTlsWriterRetryGroup`
+
+追加 HelloRetryRequest 选择组形式的 key_share 扩展。
+
+```c
+bool xrtTlsWriterRetryGroup(xtlswriter* pWriter, uint16 iGroup)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `iGroup` | 输入 | — | 命名组标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterRetryGroup(&Writer, 0x001Du) ||
+		!xrtTlsWriterRetryCookie(&Writer,
+			(xbytesview) { arrKey1, 4u }) ) {
+```
+
+### `xrtTlsWriterServerKeyShare`
+
+追加普通 ServerHello 的单个 key_share 扩展。
+
+```c
+bool xrtTlsWriterServerKeyShare(xtlswriter* pWriter, const xtlskeyshare* pShare)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `pShare` | 输入 | 非空 | 密钥份额 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterServerKeyShare(&Writer, &Share) ) {
+```
+
+### `xrtTlsWriterServerPsk`
+
+追加 ServerHello 选择的单一 PSK identity 索引。
+
+```c
+bool xrtTlsWriterServerPsk(xtlswriter* pWriter, uint16 iSelected)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `iSelected` | 输入 | — | 接收选中项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+		if ( !xrtTlsWriterServerPsk(&Writer, 0u) ) {
+```
+
+### `xrtTlsWriterServerVersion`
+
+追加 ServerHello 选择单一版本的 supported_versions 扩展。
+
+```c
+bool xrtTlsWriterServerVersion(xtlswriter* pWriter, uint16 iVersion)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pWriter` | 输入/输出 | 非空 | Hello 写出器 |
+| `iVersion` | 输入 | — | TLS 版本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[writer_tour](../../examples/tls/writer_tour/main.c) · negotiate
+
+```c
+	if ( !xrtTlsWriterServerVersion(&Writer, 0x0304u) ) {
+```
+
 ## 无状态协商
 
 `tls_negotiate` 只选择协议参数，不生成随机数、密钥或签名，也不修改会话状态。所有偏好数组都由调用方提供并按本地顺序解释，因此服务端、客户端、硬件能力探测和应用策略可以共享同一套选择器，不受库内硬编码优先级限制。
@@ -252,6 +2833,1117 @@ API 分层如下：
 
 `xtlsidentitytype` 只描述握手签名公钥类别，不等同于后续持有证书链、私钥和策略的身份对象。这一层故意不判断密码后端是否编入、RSA-PSS 密钥参数和模数长度、证书链是否满足对端 `signature_algorithms_cert`、组公钥是否在曲线上，也不决定 PSK、SNI 或 ALPN。会话配置根据实际启用的密码后端和密钥能力构造偏好数组，身份选择发生在 SNI 之后，密钥交换层再验证组专用公钥并计算共享秘密；自定义组或签名仍可使用通用标识 API 和原始扩展视图实现。
 
+### `xrtTlsCipherCompatible`
+
+判断密码套件能否用于指定版本和握手身份。
+
+```c
+bool xrtTlsCipherCompatible(xtlsversion Version, xtlscipher Cipher, xtlsidentitytype Identity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | TLS 版本 |
+| `Cipher` | 输入 | — | 密码套件 |
+| `Identity` | 输入 | — | 身份标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+	if ( !xrtTlsCipherCompatible(XTLS_VERSION_13,
+			XTLS_AES_128_GCM_SHA256,
+			XTLS_IDENTITY_ECDSA_P256) ||
+		!xrtTlsCipherCompatible((xtlsversion)0x0303u,
+			XTLS_ECDHE_RSA_AES_128_GCM_SHA256,
+			XTLS_IDENTITY_RSA) ||
+		xrtTlsCipherCompatible((xtlsversion)0x0303u,
+			XTLS_ECDHE_RSA_AES_128_GCM_SHA256,
+			XTLS_IDENTITY_ECDSA_P256) ||
+		xrtTlsCipherCompatible(XTLS_VERSION_13,
+			XTLS_ECDHE_RSA_AES_128_GCM_SHA256,
+			XTLS_IDENTITY_RSA) ) {
+```
+
+### `xrtTlsCipherInfo`
+
+返回只读密码套件元数据，未知套件返回空指针且不设置错误。
+
+```c
+const xtlscipherinfo* xrtTlsCipherInfo(xtlscipher Cipher)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Cipher` | 输入 | 非空 | 密码套件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[cipher_backends](../../examples/tls/cipher_backends/main.c) · policy
+
+```c
+		const xtlscipherinfo* pInfo = xrtTlsCipherInfo(
+			Ciphers[i]
+		);
+```
+
+### `xrtTlsCipherName`
+
+返回密码套件的稳定英文名称，未知值返回 unknown。
+
+```c
+cstr xrtTlsCipherName(xtlscipher Cipher)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Cipher` | 输入 | — | 密码套件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 静态名称；未知为 `"UNKNOWN"` | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[cipher_backends](../../examples/tls/cipher_backends/main.c) · policy
+
+```c
+			xrtTlsCipherName(Ciphers[i]),
+```
+
+### `xrtTlsCipherSelect`
+
+按本地偏好选择版本、身份和对端都接受的密码套件。
+
+```c
+xtlsitemresult xrtTlsCipherSelect(xtlsversion Version, const xtlsids* pOffered, xtlsidentitytype Identity, const xtlscipher* pPreferred, size_t iPreferredCount, xtlscipher* pSelected)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | TLS 版本 |
+| `pOffered` | 输入 | 非空 | 对端提供数组 |
+| `Identity` | 输入 | — | 身份标识 |
+| `pPreferred` | 输入 | 非空 | 偏好数组 |
+| `iPreferredCount` | 输入 | — | 偏好数量 |
+| `pSelected` | 输入 | 非空 | 接收选中结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[negotiate](../../examples/tls/negotiate/main.c) · policy
+
+```c
+	if ( xrtTlsCipherSelect(
+		Version, &OfferedCiphers, XTLS_IDENTITY_RSA,
+		Ciphers, sizeof(Ciphers) / sizeof(Ciphers[0]), &Cipher
+	) != XTLS_ITEM_VALUE ) {
+```
+
+### `xrtTlsGroupAvailable`
+
+判断命名组的密码后端是否已编译进当前 XRT。
+
+```c
+bool xrtTlsGroupAvailable(uint16 iGroup)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iGroup` | 输入 | — | 命名组标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[key_exchange](../../examples/tls/key_exchange/main.c) · policy
+
+```c
+		if ( xrtTlsGroupAvailable(Groups[i]) ) {
+```
+
+### `xrtTlsGroupInfo`
+
+返回协议已知组的只读元数据；未知或未实现组返回空指针且不设置错误。
+
+```c
+const xtlsgroupinfo* xrtTlsGroupInfo(uint16 iGroup)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iGroup` | 输入 | 非空 | 命名组标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[key_exchange](../../examples/tls/key_exchange/main.c) · policy
+
+```c
+			return xrtTlsGroupInfo(Groups[i]);
+```
+
+### `xrtTlsGroups`
+
+严格解析 supported_groups 扩展数据。
+
+```c
+bool xrtTlsGroups(xbytesview Data, xtlsids* pGroups)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pGroups` | 输入 | 非空 | 命名组数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		!xrtTlsGroups(Extension.Data, &Ids) ||
+```
+
+### `xrtTlsHostName`
+
+查找 SNI host_name；没有该名称类型时返回 XTLS_ITEM_DONE。
+
+```c
+xtlsitemresult xrtTlsHostName(xbytesview Data, xbytesview* pHost)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pHost` | 输入 | 非空 | 接收主机名 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		(xrtTlsHostName((xbytesview) { arrSni, 8u },
+			&Host) != XTLS_ITEM_VALUE) ||
+```
+
+### `xrtTlsIdsContain`
+
+判断 16 位标识列表是否包含给定线路值。
+
+```c
+bool xrtTlsIdsContain(const xtlsids* pIds, uint16 iValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIds` | 输入 | 非空 | 标识数组 |
+| `iValue` | 输入 | — | 数值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		!xrtTlsIdsContain(&Ids, 0x0017u) ||
+```
+
+### `xrtTlsIdsCount`
+
+返回 16 位标识列表的元素数量。
+
+```c
+size_t xrtTlsIdsCount(const xtlsids* pIds)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIds` | 输入 | 非空 | 标识数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+	if ( (xrtTlsIdsCount(&Ids) != 3u) ||
+		!xrtTlsIdsGet(&Ids, 2u, &iValue) ||
+		(iValue != 0x0304u) ||
+		xrtTlsIdsGet(&Ids, 3u, &iValue) ||
+		!xrtTlsIdsContain(&Ids, 0x0017u) ||
+		xrtTlsIdsContain(&Ids, 0x00FFu) ) {
+```
+
+### `xrtTlsIdsGet`
+
+按索引读取 16 位标识；越界时不修改输出。
+
+```c
+bool xrtTlsIdsGet(const xtlsids* pIds, size_t iIndex, uint16* pValue)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIds` | 输入 | 非空 | 标识数组 |
+| `iIndex` | 输入 | — | 索引 |
+| `pValue` | 输入 | 非空 | 值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		!xrtTlsIdsGet(&Ids, 2u, &iValue) ||
+```
+
+### `xrtTlsIdsSelect`
+
+按本地偏好顺序选择 16 位标识交集，未知线路值保持可扩展。
+
+```c
+xtlsitemresult xrtTlsIdsSelect(const xtlsids* pOffered, const uint16* pPreferred, size_t iPreferredCount, uint16* pSelected)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOffered` | 输入 | 非空 | 对端提供数组 |
+| `pPreferred` | 输入 | 非空 | 偏好数组 |
+| `iPreferredCount` | 输入 | — | 偏好数量 |
+| `pSelected` | 输入 | 非空 | 接收选中结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		if ( (xrtTlsIdsSelect(&Ids, arrPreferred, 2u,
+				&iPicked) != XTLS_ITEM_VALUE) ||
+			(iPicked != 0x0017u) ) {
+```
+
+### `xrtTlsLimitsInit`
+
+初始化适合通用客户端和服务端的有界队列与驱动预算。
+
+```c
+void xrtTlsLimitsInit(xtlslimits* pLimits)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLimits` | 输入 | 非空 | 资源上限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+	xrtTlsLimitsInit(&Limits);
+```
+
+### `xrtTlsLimitsValid`
+
+验证队列至少能接收一个最大记录，并限制单条握手消息。
+
+```c
+bool xrtTlsLimitsValid(const xtlslimits* pLimits)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLimits` | 输入 | 非空 | 资源上限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯校验，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+	if ( !xrtTlsLimitsValid(&Limits) ) {
+```
+
+### `xrtTlsPolicyInit`
+
+初始化覆盖 TLS 1.3/1.2 的通用安全偏好；所有数组都可由调用方替换。
+
+```c
+void xrtTlsPolicyInit(xtlspolicy* pPolicy)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPolicy` | 输入 | 非空 | TLS 策略 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[context](../../examples/tls/context/main.c) · policy
+
+```c
+	xrtTlsPolicyInit(&Policy);
+```
+
+### `xrtTlsPolicyValid`
+
+验证偏好指针、唯一性、已知线路值和跨字段可用性。
+
+```c
+bool xrtTlsPolicyValid(const xtlspolicy* pPolicy)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPolicy` | 输入 | 非空 | TLS 策略 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯校验，不设置错误
+
+#### 范例
+
+[policy](../../examples/tls/policy/main.c) · policy
+
+```c
+	if ( !xrtTlsPolicyValid(&Policy) ) {
+```
+
+### `xrtTlsProtocolFind`
+
+在完整 ALPN 列表中查找一个不透明协议名称。
+
+```c
+xtlsitemresult xrtTlsProtocolFind(xbytesview Data, xbytesview Protocol)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `Protocol` | 输入 | — | 协议 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		(xrtTlsProtocolFind((xbytesview) { arrAlpn, 15u },
+			(xbytesview) { (cbytes)"h2", 2u }) !=
+			XTLS_ITEM_VALUE) ) {
+```
+
+### `xrtTlsProtocolSelect`
+
+按 Preferred 的顺序选择双方 ALPN 列表的第一个交集。
+
+```c
+xtlsitemresult xrtTlsProtocolSelect(xbytesview Offered, xbytesview Preferred, xbytesview* pProtocol)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Offered` | 输入 | — | 提供值 |
+| `Preferred` | 输入 | — | 偏好值 |
+| `pProtocol` | 输入 | 非空 | 接收选中协议 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+			if ( (xrtTlsProtocolSelect(
+					(xbytesview) { arrAlpn, 15u },
+					(xbytesview) { arrFull, 8u },
+					&Protocol) != XTLS_ITEM_VALUE) ||
+				(Protocol.Size != 2u) ||
+				(memcmp(Protocol.Data, "h2", 2u) != 0) ) {
+```
+
+### `xrtTlsProtocolSelected`
+
+严格读取服务端必须唯一选择的 ALPN 协议。
+
+```c
+bool xrtTlsProtocolSelected(xbytesview Data, xbytesview* pProtocol)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pProtocol` | 输入 | 非空 | 接收选中协议 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		if ( !xrtTlsProtocolSelected(
+				(xbytesview) { arrOne, 4u },
+				&Protocol) ||
+			(Protocol.Size != 1u) ) {
+```
+
+### `xrtTlsProtocols`
+
+严格解析 ALPN ProtocolNameList 并把游标重置到首项。
+
+```c
+bool xrtTlsProtocols(xbytesview Data, xtlsprotocolcursor* pCursor)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+	if ( !xrtTlsProtocols((xbytesview) { arrAlpn, 15u },
+			&AlpnCursor) ) {
+```
+
+### `xrtTlsProtocolsRead`
+
+读取下一项非空 ALPN 协议名称。
+
+```c
+xtlsitemresult xrtTlsProtocolsRead(xtlsprotocolcursor* pCursor, xbytesview* pProtocol)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+| `pProtocol` | 输入 | 非空 | 接收选中协议 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+	while ( xrtTlsProtocolsRead(&AlpnCursor, &Protocol) ==
+		XTLS_ITEM_VALUE ) {
+```
+
+### `xrtTlsPskModes`
+
+严格解析非空且不重复的 PSK 密钥交换模式列表。
+
+```c
+bool xrtTlsPskModes(xbytesview Data, xbytesview* pModes)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pModes` | 输入 | 非空 | PSK 模式数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		if ( !xrtTlsPskModes((xbytesview) { arrModes, 2u },
+				&Protocol) ||
+			(Protocol.Size != 1u) ||
+			(Protocol.Data[0] != 1u) ) {
+```
+
+### `xrtTlsPsksRead`
+
+同步读取下一项 identity、混淆年龄和 binder。
+
+```c
+xtlsitemresult xrtTlsPsksRead(xtlspskcursor* pCursor, xtlspsk* pPsk)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+| `pPsk` | 输入 | 非空 | PSK |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		if ( (xrtTlsPsksRead(&PskCursor, &Psk) !=
+				XTLS_ITEM_VALUE) ||
+			(Psk.Identity.Size != 7u) ||
+			(Psk.Binder.Size != 32u) ||
+			(Psk.Binder.Size != 32u) ||
+			(xrtTlsPsksRead(&PskCursor, &Psk) !=
+				XTLS_ITEM_DONE) ) {
+```
+
+### `xrtTlsRetryCookie`
+
+严格解析 HelloRetryRequest cookie 的 16 位非空字节向量。
+
+```c
+bool xrtTlsRetryCookie(xbytesview Data, xbytesview* pCookie)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pCookie` | 输入 | 非空 | Cookie |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+			!xrtTlsRetryCookie((xbytesview) { arrRetry + 2,
+				3u }, &Protocol) ||
+```
+
+### `xrtTlsRetryGroup`
+
+严格解析 HelloRetryRequest 中仅含命名组的 key_share。
+
+```c
+bool xrtTlsRetryGroup(xbytesview Data, uint16* pGroup)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pGroup` | 输入 | 非空 | 接收命名组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		if ( !xrtTlsRetryGroup((xbytesview) { arrRetry, 2u },
+				&iGroup) ||
+			(iGroup != 0x001Du) ||
+			!xrtTlsRetryCookie((xbytesview) { arrRetry + 2,
+				3u }, &Protocol) ||
+			(Protocol.Size != 1u) ) {
+```
+
+### `xrtTlsSignatureCompatible`
+
+判断签名方案能否用于指定版本和握手身份。
+
+```c
+bool xrtTlsSignatureCompatible(xtlsversion Version, xtlssignature Signature, xtlsidentitytype Identity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | TLS 版本 |
+| `Signature` | 输入 | — | 签名值 |
+| `Identity` | 输入 | — | 身份标识 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		!xrtTlsSignatureCompatible(XTLS_VERSION_13,
+			XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256,
+			XTLS_IDENTITY_RSA) ) {
+```
+
+### `xrtTlsSignatureInfo`
+
+返回签名方案的只读元数据；未知线路值返回 NULL 且不设置错误。
+
+```c
+const xtlssignatureinfo* xrtTlsSignatureInfo(xtlssignature Signature)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Signature` | 输入 | 非空 | 签名值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+	pSigInfo = xrtTlsSignatureInfo(XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256);
+```
+
+### `xrtTlsSignatureSelect`
+
+按本地偏好选择版本、身份和对端都接受的握手签名方案。
+
+```c
+xtlsitemresult xrtTlsSignatureSelect(xtlsversion Version, const xtlsids* pOffered, xtlsidentitytype Identity, const xtlssignature* pPreferred, size_t iPreferredCount, xtlssignature* pSelected)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | TLS 版本 |
+| `pOffered` | 输入 | 非空 | 对端提供数组 |
+| `Identity` | 输入 | — | 身份标识 |
+| `pPreferred` | 输入 | 非空 | 偏好数组 |
+| `iPreferredCount` | 输入 | — | 偏好数量 |
+| `pSelected` | 输入 | 非空 | 接收选中结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		if ( (xrtTlsSignatureSelect(XTLS_VERSION_13, &Ids,
+				XTLS_IDENTITY_RSA, arrPref, 2u,
+				&Picked) != XTLS_ITEM_VALUE) ||
+			(Picked !=
+				XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256) ) {
+```
+
+### `xrtTlsSignatures`
+
+严格解析 signature_algorithms 类扩展数据。
+
+```c
+bool xrtTlsSignatures(xbytesview Data, xtlsids* pSignatures)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pSignatures` | 输入 | 非空 | 签名方案数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · policy
+
+```c
+		if ( !xrtTlsSignatures((xbytesview) { arrSigData, 6u },
+				&Ids) ||
+			(xrtTlsIdsCount(&Ids) != 2u) ) {
+```
+
+### `xrtTlsVersionName`
+
+返回协议版本的稳定英文名称，未知值返回 unknown。
+
+```c
+cstr xrtTlsVersionName(uint16 iVersion)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iVersion` | 输入 | — | TLS 版本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 静态名称；未知为 `"UNKNOWN"` | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[negotiate](../../examples/tls/negotiate/main.c) · policy
+
+```c
+		xrtTlsVersionName(Version), xrtTlsCipherName(Cipher)
+```
+
+### `xrtTlsVersionSelect`
+
+按本地版本偏好选择 supported_versions 中的第一个交集。
+
+```c
+xtlsitemresult xrtTlsVersionSelect(const xtlsids* pOffered, const xtlsversion* pPreferred, size_t iPreferredCount, xtlsversion* pSelected)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOffered` | 输入 | 非空 | 对端提供数组 |
+| `pPreferred` | 输入 | 非空 | 偏好数组 |
+| `iPreferredCount` | 输入 | — | 偏好数量 |
+| `pSelected` | 输入 | 非空 | 接收选中结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[negotiate](../../examples/tls/negotiate/main.c) · policy
+
+```c
+	if ( xrtTlsVersionSelect(
+		&OfferedVersions, Versions, 2, &Version
+	) != XTLS_ITEM_VALUE ) {
+```
+
 ## TLS 策略
 
 `tls_policy` 把原先散落在客户端、服务端和身份分支中的硬编码优先级收敛成一份借用式配置。默认初始化不分配内存，数组指向进程期只读常量；调用方可以逐项替换为生命周期覆盖上下文创建过程的自有数组：
@@ -279,6 +3971,206 @@ if ( !xrtTlsPolicyValid(&Policy) ) {
 策略校验不修改输入且不分配内存。版本和套件必须非空；所有列表都必须保持指针/数量一致、元素唯一且属于内建会话能力。每个套件必须对应一个启用版本，每个启用版本也必须至少保留一个套件。组和签名列表可以为空，为恢复会话、PSK 或后续外部认证路径保留扩展空间；非空签名必须能用于至少一个启用版本，因此 TLS 1.2 专用 PKCS#1 方案不会混入纯 TLS 1.3 策略。
 
 策略只描述协议偏好，不承诺当前裁剪构建已经包含对应密码执行后端。后续客户端或服务端会话创建会结合 `xrtTlsGroupAvailable()`、记录 AEAD、身份私钥和验证后端生成实际执行路径；原始策略快照保持不变，便于同一配置服务不同机器和硬件能力。
+
+### `xrtTlsContextConfigInit`
+
+初始化使用默认策略和默认限制的上下文配置。
+
+```c
+void xrtTlsContextConfigInit(xtlscontextconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[context](../../examples/tls/context/main.c) · context
+
+```c
+	xrtTlsContextConfigInit(&Config);
+```
+
+### `xrtTlsContextCreate`
+
+创建可跨线程共享的只读 TLS 配置快照。
+
+```c
+xtlscontext* xrtTlsContextCreate(const xtlscontextconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[context](../../examples/tls/context/main.c) · context
+
+```c
+	pContext = xrtTlsContextCreate(&Config);
+```
+
+### `xrtTlsContextLimits`
+
+返回生命周期不超过上下文的只读限制快照。
+
+```c
+const xtlslimits* xrtTlsContextLimits(const xtlscontext* pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pContext` | 输入/输出 | 非空 | 共享上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[context](../../examples/tls/context/main.c) · context
+
+```c
+		xrtTlsContextLimits(pContext)->PlainLimit
+```
+
+### `xrtTlsContextPolicy`
+
+返回生命周期不超过上下文的只读策略快照。
+
+```c
+const xtlspolicy* xrtTlsContextPolicy(const xtlscontext* pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pContext` | 输入/输出 | 非空 | 共享上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[context](../../examples/tls/context/main.c) · context
+
+```c
+		xrtTlsContextPolicy(pContext)->VersionCount,
+```
+
+### `xrtTlsContextRelease`
+
+释放一个上下文引用，空指针无操作。
+
+```c
+void xrtTlsContextRelease(xtlscontext* pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pContext` | 输入/输出 | 非空 | 共享上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[context](../../examples/tls/context/main.c) · context
+
+```c
+	xrtTlsContextRelease(pContext);
+```
+
+### `xrtTlsContextRetain`
+
+增加上下文引用；会话必须为其借用的上下文持有一个引用。
+
+```c
+xtlscontext* xrtTlsContextRetain(const xtlscontext* pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pContext` | 输入/输出 | 非空 | 共享上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · context
+
+```c
+		((pRetained = xrtTlsContextRetain(pContext)) ==
+			NULL) ) {
+```
 
 ## 共享上下文
 
@@ -308,6 +4200,282 @@ xrtTlsContextRelease(Context);
 `xrtTlsListenerConfigInit` 默认限制 128 条并发握手和 1024 条已完成待领取连接。握手预算在创建 TLS 会话之前执行，调用方仍可显式设置 `HandshakeLimit` 和 `AcceptQueueLimit`。本次只收紧现有默认值，没有新增资源 profile 或改变缓冲的惰性分配策略。
 
 上下文当前保存协议策略，不把 Worker 专属 `xnetbufpool` 放入共享对象，也不把“协议已知”误当成“当前构建后端可执行”。客户端或服务端会话创建时再将上下文策略与已编入的组、AEAD、身份和验证能力求交集；无法得到完整执行路径时创建失败，而不会静默改写调用方优先级。
+
+### `xrtTlsKeyShareDerive`
+
+从精确长度的私钥和对端公钥派生共享秘密；输出容量可大于元数据要求。
+
+```c
+bool xrtTlsKeyShareDerive(uint16 iGroup, xbytesview Private, xbytesview PeerPublic, void* pShared, size_t iSharedCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iGroup` | 输入 | — | 命名组标识 |
+| `Private` | 输入 | — | 私钥份额 |
+| `PeerPublic` | 输入 | — | 对端公钥份额 |
+| `pShared` | 输入 | 非空 | 接收共享秘密 |
+| `iSharedCapacity` | 输入 | — | 共享容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[key_exchange](../../examples/tls/key_exchange/main.c) · key exchange
+
+```c
+	) || !xrtTlsKeyShareDerive(
+```
+
+### `xrtTlsKeyShareFind`
+
+从完整客户端 key_share 扩展负载查找指定组的借用公钥。
+
+```c
+xtlsitemresult xrtTlsKeyShareFind(xbytesview KeyShares, uint16 iGroup, xtlskeyshare* pShare)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `KeyShares` | 输入 | — | 密钥份额数组 |
+| `iGroup` | 输入 | — | 命名组标识 |
+| `pShare` | 输入 | 非空 | 密钥份额 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · key exchange
+
+```c
+		if ( xrtTlsKeyShareFind(
+				(xbytesview) { arrKsEmpty, 2u },
+				0x001Du, &Share) != XTLS_ITEM_DONE ) {
+```
+
+### `xrtTlsKeyShareGenerate`
+
+为命名组生成临时私钥与线路公钥；输出容量可大于元数据要求。
+
+```c
+bool xrtTlsKeyShareGenerate(uint16 iGroup, void* pPrivate, size_t iPrivateCapacity, void* pPublic, size_t iPublicCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iGroup` | 输入 | — | 命名组标识 |
+| `pPrivate` | 输入 | 非空 | 私钥缓冲 |
+| `iPrivateCapacity` | 输入 | — | 私钥容量 |
+| `pPublic` | 输入 | 非空 | 公钥缓冲 |
+| `iPublicCapacity` | 输入 | — | 公钥容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[key_exchange](../../examples/tls/key_exchange/main.c) · key exchange
+
+```c
+	if ( !xrtTlsKeyShareGenerate(
+		pInfo->Group,
+		ClientPrivate, sizeof(ClientPrivate),
+		ClientPublic, sizeof(ClientPublic)
+	) || !xrtTlsKeyShareGenerate(
+		pInfo->Group,
+		ServerPrivate, sizeof(ServerPrivate),
+		ServerPublic, sizeof(ServerPublic)
+	) || !xrtTlsKeyShareDerive(
+		pInfo->Group,
+		(xbytesview) { ClientPrivate, pInfo->PrivateSize },
+		(xbytesview) { ServerPublic, pInfo->PublicSize },
+```
+
+### `xrtTlsKeyShareSelect`
+
+选择可直接使用或需要 HelloRetryRequest 的共同密钥共享组。
+
+```c
+xtlsitemresult xrtTlsKeyShareSelect(const xtlsids* pGroups, xbytesview KeyShares, const uint16* pPreferred, size_t iPreferredCount, xtlskeysharepolicy Policy, xtlskeyshareselection* pSelection)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pGroups` | 输入 | 非空 | 命名组数组 |
+| `KeyShares` | 输入 | — | 密钥份额数组 |
+| `pPreferred` | 输入 | 非空 | 偏好数组 |
+| `iPreferredCount` | 输入 | — | 偏好数量 |
+| `Policy` | 输入 | — | 策略 |
+| `pSelection` | 输入 | 非空 | 接收选择结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · key exchange
+
+```c
+			if ( xrtTlsKeyShareSelect(&Ids,
+					(xbytesview) { arrKsEmpty, 2u },
+					arrPreferred, 2u,
+					XTLS_KEY_SHARE_PREFER_READY,
+					&Selection) == XTLS_ITEM_ERROR ) {
+```
+
+### `xrtTlsKeySharesRead`
+
+读取下一项非空且命名组唯一的客户端密钥共享。
+
+```c
+xtlsitemresult xrtTlsKeySharesRead(xtlskeysharecursor* pCursor, xtlskeyshare* pShare)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+| `pShare` | 输入 | 非空 | 密钥份额 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · key exchange
+
+```c
+			(xrtTlsKeySharesRead(&KsCursor, &Share) !=
+				XTLS_ITEM_DONE) ) {
+```
+
+### `xrtTlsKeyUpdateEncode`
+
+编码 TLS 1.3 单字节 KeyUpdate 请求。
+
+```c
+bool xrtTlsKeyUpdateEncode(xtlskeyupdate Request, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Request` | 输入 | — | 请求 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · key exchange
+
+```c
+	if ( !xrtTlsKeyUpdateEncode(XTLS_KEY_UPDATE_REQUESTED,
+			arrOut, 1u) ||
+		!xrtTlsKeyUpdateParse((xbytesview) { arrOut, 1u },
+			&KeyUpdate) ||
+		(KeyUpdate != XTLS_KEY_UPDATE_REQUESTED) ) {
+```
+
+### `xrtTlsKeyUpdateParse`
+
+严格解析 TLS 1.3 单字节 KeyUpdate 请求。
+
+```c
+bool xrtTlsKeyUpdateParse(xbytesview Body, xtlskeyupdate* pRequest)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pRequest` | 输入 | 非空 | 证书请求 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · key exchange
+
+```c
+		!xrtTlsKeyUpdateParse((xbytesview) { arrOut, 1u },
+			&KeyUpdate) ||
+```
 
 ## 命名组与密钥交换
 
@@ -366,6 +4534,369 @@ xrtTlsWriterClientVersions(&Writer, Versions, 2);
 
 大 ClientHello 只受调用方容量和 TLS 线路上限约束。回归包含超过旧版 1024 字节栈缓冲的 255 项 ALPN 列表，并由严格解析器完成 round-trip 验证。
 
+### `xrtTlsCertificateEncode`
+
+失败原子地编码完整 Certificate 正文。
+
+```c
+bool xrtTlsCertificateEncode(xtlsversion Version, xbytesview RequestContext, const xtlscertificateentry* pEntries, size_t iCount, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | TLS 版本 |
+| `RequestContext` | 输入 | — | 请求上下文 |
+| `pEntries` | 输入 | 非空 | 接收条目 |
+| `iCount` | 输入 | — | 数量 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[messages](../../examples/tls/messages/main.c) · message tour
+
+```c
+	if ( (iBodySize == 0) || !xrtTlsCertificateEncode(
+		XTLS_VERSION_13, (xbytesview) { NULL, 0 }, Chain, 2u,
+		Body, sizeof(Body)
+	) || !xrtTlsCertificateParse(
+		XTLS_VERSION_13, (xbytesview) { Body, iBodySize }, &Message
+	) || !xrtTlsCertificateEntries(&Message, &Cursor) ) {
+```
+
+### `xrtTlsCertificateEntries`
+
+从已验证的 Certificate 消息初始化零拷贝证书游标。
+
+```c
+bool xrtTlsCertificateEntries(const xtlscertificatemessage* pMessage, xtlscertificatecursor* pCursor)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMessage` | 输入 | 非空 | 握手消息 |
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[messages](../../examples/tls/messages/main.c) · message tour
+
+```c
+	) || !xrtTlsCertificateEntries(&Message, &Cursor) ) {
+```
+
+### `xrtTlsCertificateParse`
+
+严格解析 TLS 1.2 或 TLS 1.3 Certificate 正文并验证全部条目。
+
+```c
+bool xrtTlsCertificateParse(xtlsversion Version, xbytesview Body, xtlscertificatemessage* pMessage)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | TLS 版本 |
+| `Body` | 输入 | — | 消息体 |
+| `pMessage` | 输入 | 非空 | 握手消息 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[messages](../../examples/tls/messages/main.c) · message tour
+
+```c
+	) || !xrtTlsCertificateParse(
+```
+
+### `xrtTlsCertificateSize`
+
+返回编码 Certificate 正文所需长度，非法输入返回零。
+
+```c
+size_t xrtTlsCertificateSize(xtlsversion Version, xbytesview RequestContext, const xtlscertificateentry* pEntries, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | TLS 版本 |
+| `RequestContext` | 输入 | — | 请求上下文 |
+| `pEntries` | 输入 | 非空 | 接收条目 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[messages](../../examples/tls/messages/main.c) · message tour
+
+```c
+	iBodySize = xrtTlsCertificateSize(
+		XTLS_VERSION_13, (xbytesview) { NULL, 0 }, Chain, 2u
+	);
+```
+
+### `xrtTlsCertificateStatusEncode`
+
+编码 OCSP CertificateStatus，允许响应与输出重叠。
+
+```c
+bool xrtTlsCertificateStatusEncode(const xtlscertificatestatusmessage* pStatus, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStatus` | 输入 | 非空 | 证书状态 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · message tour
+
+```c
+		!xrtTlsCertificateStatusEncode(&Status, arrOut, 8u) ||
+```
+
+### `xrtTlsCertificateStatusParse`
+
+严格解析 OCSP CertificateStatus 正文。
+
+```c
+bool xrtTlsCertificateStatusParse(xbytesview Body, xtlscertificatestatusmessage* pStatus)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pStatus` | 输入 | 非空 | 证书状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · message tour
+
+```c
+		!xrtTlsCertificateStatusParse(
+			(xbytesview) { arrOut, 8u }, &StatusParsed) ||
+```
+
+### `xrtTlsCertificateStatusSize`
+
+返回编码 OCSP CertificateStatus 正文所需长度。
+
+```c
+size_t xrtTlsCertificateStatusSize(const xtlscertificatestatusmessage* pStatus)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStatus` | 输入 | 非空 | 证书状态 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · message tour
+
+```c
+	iSize = xrtTlsCertificateStatusSize(&Status);
+```
+
+### `xrtTlsCertificateVerifyEncode`
+
+失败原子地编码 CertificateVerify 正文。
+
+```c
+bool xrtTlsCertificateVerifyEncode(const xtlscertificateverify* pVerify, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pVerify` | 输入 | 非空 | 验证数据 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · message tour
+
+```c
+		!xrtTlsCertificateVerifyEncode(&Verify, arrOut, 8u) ||
+```
+
+### `xrtTlsCertificateVerifyParse`
+
+严格解析 CertificateVerify 的方案与非空签名。
+
+```c
+bool xrtTlsCertificateVerifyParse(xbytesview Body, xtlscertificateverify* pVerify)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Body` | 输入 | — | 消息体 |
+| `pVerify` | 输入 | 非空 | 验证数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · message tour
+
+```c
+		!xrtTlsCertificateVerifyParse(
+			(xbytesview) { arrOut, 8u }, &VerifyParsed) ||
+```
+
+### `xrtTlsCertificateVerifySize`
+
+返回编码 CertificateVerify 正文所需长度。
+
+```c
+size_t xrtTlsCertificateVerifySize(const xtlscertificateverify* pVerify)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pVerify` | 输入 | 非空 | 验证数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · message tour
+
+```c
+	iSize = xrtTlsCertificateVerifySize(&Verify);
+```
+
 ## 握手语义消息
 
 `tls_messages` 把握手 framing 与会话状态机之间反复出现的字段切分收敛为一层公共协议 API。它不解析 X.509、不执行签名，也不决定当前状态是否允许某种消息；它只保证正文符合 TLS 1.2 或 TLS 1.3 的精确线路结构。
@@ -405,6 +4936,234 @@ while ( xrtTlsCertificatesRead(&Cursor, &Entry) == XTLS_ITEM_VALUE ) {
 
 未知扩展继续保留，协议状态机再验证它是否曾由对端提供、能否出现在当前消息和是否受本地策略允许。这样协议工具既不会提前封死未来扩展，也不会把重复类型、畸形长度或已知字段的局部错误拖到密码阶段。
 
+### `xrtTlsAlertEncode`
+
+编码一个两字节 Alert 负载。
+
+```c
+bool xrtTlsAlertEncode(xtlsalertlevel Level, xtlsalert Alert, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Level` | 输入 | — | 级别 |
+| `Alert` | 输入 | — | 告警 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · record
+
+```c
+	if ( !xrtTlsAlertEncode(XTLS_ALERT_WARNING,
+			XTLS_ALERT_CLOSE_NOTIFY, arrOut, 2u) ||
+		!xrtTlsAlertParse((xbytesview) { arrOut, 2u },
+			&AlertLevel, &Alert) ||
+		(AlertLevel != XTLS_ALERT_WARNING) ||
+		(Alert != XTLS_ALERT_CLOSE_NOTIFY) ) {
+```
+
+### `xrtTlsAlertName`
+
+返回 Alert 的稳定英文名称，未知值返回 unknown_alert。
+
+```c
+cstr xrtTlsAlertName(xtlsalert Alert)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Alert` | 输入 | — | 告警 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 静态名称；未知为 `"UNKNOWN"` | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · record
+
+```c
+	if ( (strcmp(xrtTlsAlertName(XTLS_ALERT_CLOSE_NOTIFY),
+			"close_notify") != 0) ||
+		(strcmp(xrtTlsHandshakeName((xtlshandshaketype)9999u),
+			"unknown_handshake") != 0) ||
+		(strcmp(xrtTlsHandshakeName(
+			XTLS_HANDSHAKE_CLIENT_HELLO),
+			"client_hello") != 0) ||
+		(strcmp(xrtTlsExtensionName(
+			XTLS_EXTENSION_SUPPORTED_GROUPS),
+			"supported_groups") != 0) ) {
+```
+
+### `xrtTlsAlertParse`
+
+解析恰好一个两字节 Alert 负载。
+
+```c
+bool xrtTlsAlertParse(xbytesview Payload, xtlsalertlevel* pLevel, xtlsalert* pAlert)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Payload` | 输入 | — | 载荷 |
+| `pLevel` | 输入 | 非空 | 接收告警级别 |
+| `pAlert` | 输入 | 非空 | 接收告警 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · record
+
+```c
+		!xrtTlsAlertParse((xbytesview) { arrOut, 2u },
+			&AlertLevel, &Alert) ||
+```
+
+### `xrtTlsSessionTicketEncode`
+
+失败原子地编码版本对应的 NewSessionTicket 正文。
+
+```c
+bool xrtTlsSessionTicketEncode(const xtlssessionticket* pTicket, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTicket` | 输入 | 非空 | 会话票据 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · record
+
+```c
+		!xrtTlsSessionTicketEncode(&Ticket, arrOut, iSize) ||
+```
+
+### `xrtTlsSessionTicketParse`
+
+严格解析版本对应的 NewSessionTicket 正文。
+
+```c
+bool xrtTlsSessionTicketParse(xtlsversion Version, xbytesview Body, xtlssessionticket* pTicket)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | TLS 版本 |
+| `Body` | 输入 | — | 消息体 |
+| `pTicket` | 输入 | 非空 | 会话票据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · record
+
+```c
+		!xrtTlsSessionTicketParse(XTLS_VERSION_13,
+			(xbytesview) { arrOut, iSize },
+			&TicketParsed) ||
+```
+
+### `xrtTlsSessionTicketSize`
+
+返回编码 NewSessionTicket 正文所需长度。
+
+```c
+size_t xrtTlsSessionTicketSize(const xtlssessionticket* pTicket)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTicket` | 输入 | 非空 | 会话票据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · record
+
+```c
+	iSize = xrtTlsSessionTicketSize(&Ticket);
+```
+
 ## 语义消息编码
 
 `tls_messages_write` 为上述消息提供精确 `Size()` 与失败原子的 `Encode()`：
@@ -432,6 +5191,131 @@ if ( (BodySize == 0) || !xrtTlsCertificateEncode(
 - `Size()` 同时充当可编码性验证，不会静默丢弃 TLS 1.2 不存在的请求上下文、条目扩展、nonce 或 `age_add`。
 
 语义编码只产生握手正文。调用方可以继续交给 `xrtTlsHandshakeEncode()` 生成四字节握手头；会话层则会在同一路径中追加 transcript 并交给记录保护层。原始扩展向量始终是逃生口，高级扩展 writer 只是可选构建器。
+
+### `xrtTls13CertificateVerifyContentEncode`
+
+编码 TLS 1.3 CertificateVerify 待签内容，供身份签名与独立验证复用。
+
+```c
+bool xrtTls13CertificateVerifyContentEncode(xtlsrole Signer, xbytesview TranscriptHash, void* pOutput, size_t iOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Signer` | 输入 | — | 签名方 |
+| `TranscriptHash` | 输入 | — | 脚本哈希 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iOutputSize` | 输入 | — | 接收输出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+- `XERR_RANGE` — 容量不足，不写半个结果
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · message tour
+
+```c
+		if ( !xrtTls13CertificateVerifyContentEncode(XTLS_SERVER,
+				(xbytesview) { arrHash, 32u }, arrContent,
+				sizeof(arrContent)) ||
+			!xrtSha256(arrContent, 130u, arrDigest) ||
+			!xrtEcdsaP256Sign(XCRYPTO_HASH_SHA256, arrDigest,
+				EXAMPLE_P256_SCALAR, arrRaw) ||
+			!xrtEcdsaDerEncode(arrRaw, 32u, arrDer,
+				sizeof(arrDer), &iDerSize) ||
+			!xrtTls13CertificateVerifySignature(XTLS_SERVER,
+				XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256,
+				(xbytesview) { arrHash, 32u },
+				(xbytesview) { arrDer, iDerSize },
+```
+
+### `xrtTls13CertificateVerifyContentSize`
+
+返回 TLS 1.3 CertificateVerify 待签内容的精确长度。
+
+```c
+size_t xrtTls13CertificateVerifyContentSize(xtlsrole Signer, size_t iTranscriptHashSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Signer` | 输入 | — | 签名方 |
+| `iTranscriptHashSize` | 输入 | — | 脚本哈希长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · message tour
+
+```c
+		size_t iCvc = xrtTls13CertificateVerifyContentSize(
+			XTLS_SERVER, 32u);
+```
+
+### `xrtTls13CertificateVerifySignature`
+
+验证 TLS 1.3 对端 CertificateVerify；信任回调不能绕过此步骤。
+
+```c
+bool xrtTls13CertificateVerifySignature(xtlsrole Signer, xtlssignature Scheme, xbytesview TranscriptHash, xbytesview Signature, const xx509pubkey* pPublicKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Signer` | 输入 | — | 签名方 |
+| `Scheme` | 输入 | — | 签名方案 |
+| `TranscriptHash` | 输入 | — | 脚本哈希 |
+| `Signature` | 输入 | — | 签名值 |
+| `pPublicKey` | 输入 | 非空 | 公钥描述 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · message tour
+
+```c
+			!xrtTls13CertificateVerifySignature(XTLS_SERVER,
+				XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256,
+				(xbytesview) { arrHash, 32u },
+				(xbytesview) { arrDer, iDerSize },
+				&LeafKey) ) {
+```
 
 ## 认证消息
 
@@ -570,6 +5454,1030 @@ TLS 1.3 Expand-Label 输出同时受 16 位线路长度和 HKDF 的 255 个摘�
 - `tests/single/test_single_tls_session.c`
 - `tests/single/test_single_tls_session_record.c`
 
+### `xrtTlsSessionCipher`
+
+返回协商后的密码套件；握手尚未选定套件时返回零且不设置错误。
+
+```c
+xtlscipher xrtTlsSessionCipher(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		(xrtTlsSessionCipher(pClient) == 0u) ||
+```
+
+### `xrtTlsSessionClose`
+
+排队一次 close_notify，并等待密文排空和对端认证关闭。
+
+```c
+xtlsresult xrtTlsSessionClose(xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（顺序、已关闭、非所属线程）
+- `XERR_PROTOCOL` — close_notify 写出失败
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+	if ( xrtTlsSessionClose(pClient) != XTLS_OK ) {
+```
+
+### `xrtTlsSessionContext`
+
+借用会话持有的只读上下文；返回值不得超过会话生命周期使用。
+
+```c
+const xtlscontext* xrtTlsSessionContext(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		(xrtTlsSessionContext(pClient) == NULL) ||
+```
+
+### `xrtTlsSessionDestroy`
+
+销毁会话、释放队列并归还上下文引用；空指针无操作。
+
+```c
+void xrtTlsSessionDestroy(xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[client_resume](../../examples/tls/client_resume/main.c) · session tour
+
+```c
+	xrtTlsSessionDestroy(pSession);
+```
+
+### `xrtTlsSessionEof`
+
+通知底层传输已到 EOF；缺少 close_notify 时报告截断错误。
+
+```c
+xtlsresult xrtTlsSessionEof(xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		if ( (xrtTlsSessionEof(pServer) != XTLS_OK) ||
+			!xrtTlsSessionPeerAlert(pServer, &Level, &Alert) ||
+			(Level != XTLS_ALERT_WARNING) ||
+			(Alert != XTLS_ALERT_CLOSE_NOTIFY) ) {
+```
+
+### `xrtTlsSessionFeed`
+
+复制一段收到的 TLS 密文；达到输入硬上限时返回 XTLS_AGAIN。
+
+```c
+xtlsresult xrtTlsSessionFeed(xtlssession* pSession, const void* pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pData` | 输入 | — | 用户数据 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（顺序、已关闭、非所属线程）
+- `XERR_PROTOCOL` — 记录或握手解密失败（详见会话错误）
+
+#### 范例
+
+[server](../../examples/tls/server/main.c) · session tour
+
+```c
+			(Span.Size == 0) || (xrtTlsSessionFeed(
+				pTarget, Span.Data, Span.Size
+			) != XTLS_OK) || !xrtTlsSessionSendConsume(
+				pSource, Span.Size
+			) ) {
+```
+
+### `xrtTlsSessionFeedBorrow`
+
+借用一段收到的密文，调用方须保持其存活到会话消费或销毁。
+
+```c
+xtlsresult xrtTlsSessionFeedBorrow(xtlssession* pSession, const void* pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pData` | 输入 | — | 用户数据 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · session tour
+
+```c
+		Result = xrtTlsSessionFeedBorrow(pTarget, Span.Data,
+			Span.Size);
+```
+
+### `xrtTlsSessionFeedBuffer`
+
+零复制接管一条密文缓冲链；AGAIN 或失败时源缓冲保持不变。
+
+```c
+xtlsresult xrtTlsSessionFeedBuffer(xtlssession* pSession, xnetbuf* pBuffer)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pBuffer` | 输入 | 非空 | 缓冲 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+				Result = xrtTlsSessionFeedBuffer(pTarget,
+					&Chain);
+```
+
+### `xrtTlsSessionFeedRef`
+
+接管带释放过程的密文引用；失败时不会调用释放过程。
+
+```c
+xtlsresult xrtTlsSessionFeedRef(xtlssession* pSession, const void* pData, size_t iSize, xnetreleaseproc pRelease, ptr pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pData` | 输入 | — | 用户数据 |
+| `iSize` | 输入 | — | 字节数 |
+| `pRelease` | 输入 | — | 释放回调 |
+| `pContext` | 输入/输出 | — | 共享上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+				Result = xrtTlsSessionFeedRef(pTarget,
+					Spans[0].Data, Spans[0].Size,
+					exampleRelease, (ptr)pReleased);
+```
+
+### `xrtTlsSessionFeedSize`
+
+返回尚未由协议状态机消费的密文字节数。
+
+```c
+size_t xrtTlsSessionFeedSize(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		(xrtTlsSessionFeedSize(pClient) != 0u) ) {
+```
+
+### `xrtTlsSessionFeedTake`
+
+接管一段由 xrtMalloc 家族分配的密文；失败时所有权仍归调用方。
+
+```c
+xtlsresult xrtTlsSessionFeedTake(xtlssession* pSession, ptr pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pData` | 输入 | — | 用户数据 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+				Result = xrtTlsSessionFeedTake(pTarget,
+					pCopy, Spans[0].Size);
+```
+
+### `xrtTlsSessionPeerAlert`
+
+查询最后收到的对端 Alert；尚未收到时返回 false 且不设置错误。
+
+```c
+bool xrtTlsSessionPeerAlert(const xtlssession* pSession, xtlsalertlevel* pLevel, xtlsalert* pAlert)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pLevel` | 输入 | 非空 | 接收告警级别 |
+| `pAlert` | 输入 | 非空 | 接收告警 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+			!xrtTlsSessionPeerAlert(pServer, &Level, &Alert) ||
+```
+
+### `xrtTlsSessionPlainConsume`
+
+精确消费应用已经处理的明文字节，禁止静默过量消费。
+
+```c
+bool xrtTlsSessionPlainConsume(xtlssession* pSession, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+				!xrtTlsSessionPlainConsume(pClient, 5u) ||
+```
+
+### `xrtTlsSessionPlainFront`
+
+借用明文读取队列的第一个连续 Span；空队列返回空 Span。
+
+```c
+bool xrtTlsSessionPlainFront(const xtlssession* pSession, xnetspan* pSpan)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pSpan` | 输入 | 非空 | 接收分片 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+			!xrtTlsSessionPlainFront(pClient, &Spans[0]) ||
+```
+
+### `xrtTlsSessionPlainSize`
+
+返回等待应用读取的明文字节数。
+
+```c
+size_t xrtTlsSessionPlainSize(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		(xrtTlsSessionPlainSize(pServer) != 4u) ||
+```
+
+### `xrtTlsSessionPlainSpanCount`
+
+返回明文读取队列当前非空 Span 数。
+
+```c
+size_t xrtTlsSessionPlainSpanCount(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		iCount = xrtTlsSessionPlainSpanCount(pClient);
+```
+
+### `xrtTlsSessionPlainSpans`
+
+借用最多给定数量的明文 Span，适合无复制协议解析。
+
+```c
+size_t xrtTlsSessionPlainSpans(const xtlssession* pSession, xnetspan* pSpans, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pSpans` | 输入 | 非空 | 分片数组 |
+| `iCapacity` | 输入 | — | 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+			(xrtTlsSessionPlainSpans(pClient, Spans, 4u) !=
+				iCount) ) {
+```
+
+### `xrtTlsSessionProtocol`
+
+借用协商后的 ALPN 协议；尚未选择协议时返回 false 且不设置错误。
+
+```c
+bool xrtTlsSessionProtocol(const xtlssession* pSession, xbytesview* pProtocol)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pProtocol` | 输入 | 非空 | 接收选中协议 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[server](../../examples/tls/server/main.c) · session tour
+
+```c
+		!xrtTlsSessionProtocol(pServer, &Protocol) ) {
+```
+
+### `xrtTlsSessionRead`
+
+复制并消费明文；无数据返回 AGAIN，认证关闭后返回 CLOSED。
+
+```c
+xtlsresult xrtTlsSessionRead(xtlssession* pSession, void* pOutput, size_t iCapacity, size_t* pRead)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pRead` | 输入 | 非空 | 接收读取游标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[server](../../examples/tls/server/main.c) · session tour
+
+```c
+	return (xrtTlsSessionRead(
+		pTarget, Output, sizeof(Output), &iRead
+	) == XTLS_OK) && (iRead == iSize) &&
+```
+
+### `xrtTlsSessionRole`
+
+返回会话的客户端或服务端角色；失败返回零并设置错误。
+
+```c
+xtlsrole xrtTlsSessionRole(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · session tour
+
+```c
+	return (xrtTlsSessionRole(pSession) == XTLS_SERVER) ?
+```
+
+### `xrtTlsSessionSendConsume`
+
+精确消费已经由底层传输发送的密文字节，禁止静默过量消费。
+
+```c
+bool xrtTlsSessionSendConsume(xtlssession* pSession, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · session tour
+
+```c
+		if ( !xrtTlsSessionSendConsume(pSource, Span.Size) ) {
+```
+
+### `xrtTlsSessionSendFront`
+
+借用密文发送队列的第一个连续 Span；空队列返回空 Span。
+
+```c
+bool xrtTlsSessionSendFront(const xtlssession* pSession, xnetspan* pSpan)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pSpan` | 输入 | 非空 | 接收分片 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · session tour
+
+```c
+		if ( !xrtTlsSessionSendFront(pSource, &Span) ||
+			(Span.Size == 0u) ) {
+```
+
+### `xrtTlsSessionSendSize`
+
+返回等待底层传输发送的密文字节数。
+
+```c
+size_t xrtTlsSessionSendSize(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[client_resume](../../examples/tls/client_resume/main.c) · session tour
+
+```c
+		xrtTlsSessionSendSize(pSession),
+```
+
+### `xrtTlsSessionSendSpanCount`
+
+返回密文发送队列当前非空 Span 数。
+
+```c
+size_t xrtTlsSessionSendSpanCount(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		if ( (xrtTlsSessionSendSpanCount(pClient) != 0u) ) {
+```
+
+### `xrtTlsSessionSendSpans`
+
+借用最多给定数量的密文发送 Span，供 scatter/gather 发送。
+
+```c
+size_t xrtTlsSessionSendSpans(const xtlssession* pSession, xnetspan* pSpans, size_t iCapacity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pSpans` | 输入 | 非空 | 分片数组 |
+| `iCapacity` | 输入 | — | 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		if ( (xrtTlsSessionSendSpans(pSource, Spans, 8u) == 0u) ||
+			(Spans[0].Size == 0u) ) {
+```
+
+### `xrtTlsSessionState`
+
+返回公开生命周期状态；空会话返回 FAILED 并设置错误。
+
+```c
+xtlsstate xrtTlsSessionState(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · session tour
+
+```c
+		if ( (xrtTlsSessionState(pClient) == XTLS_STATE_READY) &&
+			(xrtTlsSessionState(pServer) == XTLS_STATE_READY) ) {
+```
+
+### `xrtTlsSessionVersion`
+
+返回协商后的协议版本；握手尚未选定版本时返回零且不设置错误。
+
+```c
+xtlsversion xrtTlsSessionVersion(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		(xrtTlsSessionVersion(pClient) != XTLS_VERSION_13) ||
+```
+
+### `xrtTlsSessionWait`
+
+返回当前等待原因位；没有等待原因时返回 XTLS_WAIT_NONE。
+
+```c
+uint32 xrtTlsSessionWait(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 数值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[session_tour](../../examples/tls/session_tour/main.c) · session tour
+
+```c
+		(xrtTlsSessionWait(pClient) == 0u) ||
+```
+
+### `xrtTlsSessionWrite`
+
+把明文按记录边界加入有界发送队列；允许成功短写。
+
+```c
+xtlsresult xrtTlsSessionWrite(xtlssession* pSession, const void* pData, size_t iSize, size_t* pWritten)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pData` | 输入 | — | 用户数据 |
+| `iSize` | 输入 | — | 字节数 |
+| `pWritten` | 输入 | 非空 | 接收写出数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（顺序、已关闭、非所属线程）
+- `XERR_RANGE` — 发送缓冲已满
+
+#### 范例
+
+[server](../../examples/tls/server/main.c) · session tour
+
+```c
+	if ( (iSize > sizeof(Output)) || (xrtTlsSessionWrite(
+		pSource, sText, iSize, &iWritten
+	) != XTLS_OK) || (iWritten != iSize) ||
+		!exampleTlsMove(pSource, pTarget) ) {
+```
+
 ## 公共会话底座
 
 `tls_session` 位于纯协议层与客户端/服务端状态机之间，公共声明单独放在 `<xrt/tls_session.h>`。这个头文件明确组合 `<xrt/tls.h>` 与 `<xrt/net.h>`，而纯协议头 `<xrt/tls.h>` 不反向依赖网络。会话本身不调用 socket；后续客户端、服务端和 TCP 适配器共享同一对象与队列，不再维护第二套 TLS 实现。
@@ -595,6 +6503,242 @@ TLS 1.3 Expand-Label 输出同时受 16 位线路长度和 HKDF 的 255 个摘�
 `xrtTlsSessionProtocol()` 借用返回状态机已经严格确认的 ALPN 选择，视图有效到会话销毁。尚未协商或对端没有选择 ALPN 时返回 `false`，不设置错误，也不修改输出；空会话或空输出参数才是 `XTLS_ERROR_ARGUMENT`。应用可以在会话进入 `READY` 后查询，协议适配器也可以在内部握手阶段据此选择 HTTP/1.1、HTTP/2 或自定义上层协议。
 
 `xtlswait` 是等待原因位集合：`INPUT`、`OUTPUT`、`APPLICATION`、`IDENTITY` 和 `VERIFY` 可以组合。公开状态只包含 `NEW`、`HANDSHAKE`、`READY`、`CLOSING`、`CLOSED` 与 `FAILED`，内部握手步骤不进入 ABI。`XTLS_AGAIN` 和 `XTLS_CLOSED` 是正常控制结果，不创建、清除或覆盖 `xerror`。
+
+### `xrtTlsResumeConfigInit`
+
+初始化 TLS 1.3 恢复配置，并把签发时间设为当前墙钟时间。
+
+```c
+void xrtTlsResumeConfigInit(xtlsresumeconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[client_resume](../../examples/tls/client_resume/main.c) · resume tour
+
+```c
+	xrtTlsResumeConfigInit(&ResumeConfig);
+```
+
+### `xrtTlsResumeCreate`
+
+创建单次精确分配、深拷贝且可跨线程共享的恢复对象。
+
+```c
+xtlsresume* xrtTlsResumeCreate(const xtlsresumeconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[client_resume](../../examples/tls/client_resume/main.c) · resume tour
+
+```c
+	pResume = xrtTlsResumeCreate(&ResumeConfig);
+```
+
+### `xrtTlsResumeInfo`
+
+发布恢复对象的只读信息快照；输出视图不得超过对象引用生命周期。
+
+```c
+bool xrtTlsResumeInfo(const xtlsresume* pResume, xtlsresumeinfo* pInfo)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResume` | 输入/输出 | 非空 | 会话恢复对象 |
+| `pInfo` | 输入 | 非空 | 接收信息 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[resume](../../examples/tls/resume/main.c) · resume tour
+
+```c
+	if ( (pResume == NULL) || !xrtTlsResumeInfo(pResume, &Info) ) {
+```
+
+### `xrtTlsResumeRelease`
+
+释放恢复对象，并在最后一个引用结束时清除票据、PSK 与全部元数据。
+
+```c
+void xrtTlsResumeRelease(xtlsresume* pResume)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResume` | 输入/输出 | 非空 | 会话恢复对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[client_resume](../../examples/tls/client_resume/main.c) · resume tour
+
+```c
+	xrtTlsResumeRelease(pResume);
+```
+
+### `xrtTlsResumeRetain`
+
+增加恢复对象引用；对象内容在全部引用之间保持只读。
+
+```c
+xtlsresume* xrtTlsResumeRetain(const xtlsresume* pResume)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResume` | 输入/输出 | 非空 | 会话恢复对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[resume_tour](../../examples/tls/resume_tour/main.c) · resume tour
+
+```c
+		((pRetained = xrtTlsResumeRetain(pResume)) == NULL) ||
+```
+
+### `xrtTlsResumeTicketAge`
+
+计算 TLS 1.3 ClientHello 使用的混淆票据年龄，过期时不修改输出。
+
+```c
+bool xrtTlsResumeTicketAge(const xtlsresume* pResume, xtime iNow, uint32* pAge)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResume` | 输入/输出 | 非空 | 会话恢复对象 |
+| `iNow` | 输入 | — | 当前时刻 |
+| `pAge` | 输入 | 非空 | 票据年龄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[resume_tour](../../examples/tls/resume_tour/main.c) · resume tour
+
+```c
+		!xrtTlsResumeTicketAge(pResume, xrtNow(), &iAge) ) {
+```
+
+### `xrtTlsResumeValidAt`
+
+判断给定墙钟时刻是否位于票据的半开有效区间内。
+
+```c
+bool xrtTlsResumeValidAt(const xtlsresume* pResume, xtime iNow)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResume` | 输入/输出 | 非空 | 会话恢复对象 |
+| `iNow` | 输入 | — | 当前时刻 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[resume_tour](../../examples/tls/resume_tour/main.c) · resume tour
+
+```c
+		!xrtTlsResumeValidAt(pResume, xrtNow()) ||
+```
 
 ## TLS 会话恢复对象
 
@@ -641,6 +6785,506 @@ xrtTlsResumeRelease(Resume);
 省略 `ServerName` 和 ALPN 列表时，客户端从恢复对象精确继承两者。显式 SNI 必须完全匹配票据绑定；显式 ALPN 列表必须包含票据协议，票据未绑定 ALPN 时则不能为恢复连接额外提供协议。过期、尚未生效、套件被当前策略禁用或路由域不匹配的对象都在会话分配前拒绝。
 
 
+
+### `xrtTlsClientCertificate`
+
+借用一张已解析对端证书，视图稳定到客户端会话销毁。
+
+```c
+const xx509cert* xrtTlsClientCertificate(const xtlssession* pSession, size_t iIndex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `iIndex` | 输入 | — | 索引 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · context
+
+```c
+			((pPeerCert = xrtTlsClientCertificate(pClient, 0u)) ==
+				NULL) ||
+```
+
+### `xrtTlsClientCertificateCount`
+
+返回完整握手中已经深复制并验证的对端证书数量。
+
+```c
+size_t xrtTlsClientCertificateCount(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · context
+
+```c
+		if ( (xrtTlsClientCertificateCount(pClient) != 2u) ||
+			((pPeerCert = xrtTlsClientCertificate(pClient, 0u)) ==
+				NULL) ||
+			!xrtX509Parse(exampleLeafDer,
+				sizeof(exampleLeafDer), &Leaf) ||
+			(pPeerCert->Raw.Size != Leaf.Raw.Size) ||
+			!xrtTlsServerName(pServer, &ServerName) ||
+			(ServerName.Size != 9u) ||
+			(memcmp(ServerName.Data, "localhost", 9u) != 0) ) {
+```
+
+### `xrtTlsClientConfigInit`
+
+初始化使用默认共享策略、无 SNI 和无 ALPN 的客户端配置。
+
+```c
+void xrtTlsClientConfigInit(xtlsclientconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[client_resume](../../examples/tls/client_resume/main.c) · context
+
+```c
+	xrtTlsClientConfigInit(&ClientConfig);
+```
+
+### `xrtTlsClientCreate`
+
+创建客户端会话；默认要求 Verifier，无验证器时必须启用 ResumeOnly。
+
+```c
+xtlssession* xrtTlsClientCreate(const xtlsclientconfig* pConfig, xnetbufpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+| `pPool` | 输入 | 非空 | 任务池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[client_resume](../../examples/tls/client_resume/main.c) · context
+
+```c
+	pSession = xrtTlsClientCreate(&ClientConfig, NULL);
+```
+
+### `xrtTlsClientDrive`
+
+在公平性预算内消费已喂入记录并推进客户端握手状态。
+
+```c
+xtlsresult xrtTlsClientDrive(xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（顺序、已关闭、非所属线程）
+- `XERR_PROTOCOL` — 握手失败（错误经会话报告）
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · context
+
+```c
+		xrtTlsClientDrive(pSession);
+```
+
+### `xrtTlsClientKeyShares`
+
+严格解析 ClientHello key_share 列表并把游标重置到首项。
+
+```c
+bool xrtTlsClientKeyShares(xbytesview Data, xtlskeysharecursor* pCursor)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · context
+
+```c
+		if ( !xrtTlsClientKeyShares(
+				(xbytesview) { arrKsEmpty, 2u },
+				&KsCursor) ||
+			(xrtTlsKeySharesRead(&KsCursor, &Share) !=
+				XTLS_ITEM_DONE) ) {
+```
+
+### `xrtTlsClientKeyUpdate`
+
+用当前 TLS 1.3 写 epoch 排队 KeyUpdate；TLS 1.2 会话返回不支持。
+
+```c
+xtlsresult xrtTlsClientKeyUpdate(xtlssession* pSession, xtlskeyupdate Request)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `Request` | 输入 | — | 请求 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · context
+
+```c
+		(xrtTlsClientKeyUpdate(pClient,
+			XTLS_KEY_UPDATE_REQUESTED) != XTLS_OK) ||
+```
+
+### `xrtTlsClientPsks`
+
+严格解析 ClientHello PSK 列表并重置同步游标。
+
+```c
+bool xrtTlsClientPsks(xbytesview Data, xtlspskcursor* pCursor)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · context
+
+```c
+		if ( !xrtTlsClientPsks((xbytesview) { arrPsk, 50u },
+				&PskCursor) ) {
+```
+
+### `xrtTlsClientResumeCount`
+
+返回等待调用方接管的恢复对象数量。
+
+```c
+size_t xrtTlsClientResumeCount(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[resume_tour](../../examples/tls/resume_tour/main.c) · context
+
+```c
+		(xrtTlsClientResumeCount(pClient) == 0u); i++ ) {
+```
+
+### `xrtTlsClientResumeDropped`
+
+返回因队列关闭、容量淘汰或可选缓存 OOM 而未保留的有效票据总数。
+
+```c
+uint64 xrtTlsClientResumeDropped(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 数值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[resume_tour](../../examples/tls/resume_tour/main.c) · context
+
+```c
+			(xrtTlsClientResumeDropped(pClient2) !=
+				xrtTlsClientResumeDropped(pClient2)) ) {
+```
+
+### `xrtTlsClientResumed`
+
+返回服务端是否接受了本次创建时提供的恢复对象。
+
+```c
+bool xrtTlsClientResumed(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[client_resume](../../examples/tls/client_resume/main.c) · context
+
+```c
+		xrtTlsClientResumed(pSession) ? "yes" : "not yet"
+```
+
+### `xrtTlsClientTakeResume`
+
+从队首取出一张恢复票据并把唯一会话引用转移给调用方。
+
+```c
+xtlsresume* xrtTlsClientTakeResume(xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[resume_tour](../../examples/tls/resume_tour/main.c) · context
+
+```c
+		((pResume = xrtTlsClientTakeResume(pClient)) == NULL) ||
+```
+
+### `xrtTlsClientVersionSelect`
+
+从 ClientHello 选择版本，并在扩展缺失时只允许 TLS 1.2。
+
+```c
+xtlsitemresult xrtTlsClientVersionSelect(const xtlsclienthello* pHello, const xtlsversion* pPreferred, size_t iPreferredCount, xtlsversion* pSelected)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHello` | 输入 | 非空 | Hello 消息 |
+| `pPreferred` | 输入 | 非空 | 偏好数组 |
+| `iPreferredCount` | 输入 | — | 偏好数量 |
+| `pSelected` | 输入 | 非空 | 接收选中结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · context
+
+```c
+		if ( (xrtTlsClientVersionSelect(&Hello, arrPref, 2u,
+				&Selected) != XTLS_ITEM_VALUE) ||
+			(Selected != XTLS_VERSION_13) ) {
+```
+
+### `xrtTlsClientVersions`
+
+严格解析 ClientHello supported_versions 扩展数据。
+
+```c
+bool xrtTlsClientVersions(xbytesview Data, xtlsids* pVersions)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pVersions` | 输入 | 非空 | 版本数组 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · context
+
+```c
+		if ( !xrtTlsClientVersions(
+				(xbytesview) { arrCv, 5u },
+				&Ids) ||
+			(xrtTlsIdsCount(&Ids) != 2u) ) {
+```
 
 ## TLS 客户端
 
@@ -703,6 +7347,525 @@ xtlsresult Result = xrtTlsClientKeyUpdate(
 
 
 
+### `xrtTlsServerConfigInit`
+
+初始化默认上下文、无身份、无 ALPN 和无动态选择器的服务端配置。
+
+```c
+void xrtTlsServerConfigInit(xtlsserverconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · listener tour
+
+```c
+	xrtTlsServerConfigInit(&ServerConfig);
+```
+
+### `xrtTlsServerCookie`
+
+返回选择器为本次握手保存的不透明宿主 Cookie；未设置时返回零。
+
+```c
+bool xrtTlsServerCookie(const xtlssession* pSession, uint64* pCookie)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pCookie` | 输入 | 非空 | Cookie |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · listener tour
+
+```c
+		(void)xrtTlsServerCookie(pServer, &Cookie);
+```
+
+### `xrtTlsServerCreate`
+
+创建等待 ClientHello 的服务端会话；必须提供静态身份或选择器。
+
+```c
+xtlssession* xrtTlsServerCreate(const xtlsserverconfig* pConfig, xnetbufpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+| `pPool` | 输入 | 非空 | 任务池 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · listener tour
+
+```c
+	pServer = xrtTlsServerCreate(&ServerConfig, NULL);
+```
+
+### `xrtTlsServerDrive`
+
+在公平性预算内消费输入并推进服务端握手和后握手状态。
+
+```c
+xtlsresult xrtTlsServerDrive(xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（顺序、已关闭、非所属线程）
+- `XERR_PROTOCOL` — 握手失败（错误经会话报告）
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · listener tour
+
+```c
+		xrtTlsServerDrive(pSession) :
+```
+
+### `xrtTlsServerKeyShare`
+
+严格解析普通 ServerHello 中唯一的 key_share。
+
+```c
+bool xrtTlsServerKeyShare(xbytesview Data, xtlskeyshare* pShare)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pShare` | 输入 | 非空 | 密钥份额 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · listener tour
+
+```c
+		if ( !xrtTlsServerKeyShare(
+				(xbytesview) { arrKs, 8u }, &Share) ||
+			(Share.Group != 0x001Du) ||
+			(Share.Key.Size != 4u) ) {
+```
+
+### `xrtTlsServerKeyUpdate`
+
+用当前 TLS 1.3 写 epoch 排队 KeyUpdate；TLS 1.2 会话返回不支持。
+
+```c
+xtlsresult xrtTlsServerKeyUpdate(xtlssession* pSession, xtlskeyupdate Request)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `Request` | 输入 | — | 请求 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · listener tour
+
+```c
+	if ( (xrtTlsServerKeyUpdate(pServer,
+			XTLS_KEY_UPDATE_NOT_REQUESTED) != XTLS_OK) ||
+		!exampleMove(pServer, pClient) ||
+		(xrtTlsClientKeyUpdate(pClient,
+			XTLS_KEY_UPDATE_REQUESTED) != XTLS_OK) ||
+		!exampleMove(pClient, pServer) ) {
+```
+
+### `xrtTlsServerName`
+
+借用服务端从 ClientHello 深复制的 SNI；尚未收到名称时返回 false。
+
+```c
+bool xrtTlsServerName(const xtlssession* pSession, xbytesview* pServerName)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pServerName` | 输入 | 非空 | 服务器名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · listener tour
+
+```c
+			!xrtTlsServerName(pServer, &ServerName) ||
+```
+
+### `xrtTlsServerNames`
+
+严格解析 SNI 名称列表并把游标重置到首项。
+
+```c
+bool xrtTlsServerNames(xbytesview Data, xtlsservernamecursor* pCursor)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · listener tour
+
+```c
+	if ( !xrtTlsServerNames((xbytesview) { arrSni, 8u },
+			&SniCursor) ||
+		(xrtTlsServerNamesRead(&SniCursor, &ServerName) !=
+			XTLS_ITEM_VALUE) ||
+		(ServerName.Type != 0u) ||
+		(ServerName.Name.Size != 3u) ||
+		(memcmp(ServerName.Name.Data, "api", 3u) != 0) ||
+		(xrtTlsServerNamesRead(&SniCursor, &ServerName) !=
+			XTLS_ITEM_DONE) ||
+		(xrtTlsHostName((xbytesview) { arrSni, 8u },
+			&Host) != XTLS_ITEM_VALUE) ||
+		(Host.Size != 3u) ) {
+```
+
+### `xrtTlsServerNamesRead`
+
+读取下一 SNI 名称；失败时游标与输出保持不变。
+
+```c
+xtlsitemresult xrtTlsServerNamesRead(xtlsservernamecursor* pCursor, xtlsservername* pName)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCursor` | 输入/输出 | 非空 | 游标 |
+| `pName` | 输入 | 非空 | 接收名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[extension_tour](../../examples/tls/extension_tour/main.c) · listener tour
+
+```c
+		(xrtTlsServerNamesRead(&SniCursor, &ServerName) !=
+			XTLS_ITEM_VALUE) ||
+```
+
+### `xrtTlsServerPsk`
+
+严格解析 ServerHello 选择的 PSK identity 索引。
+
+```c
+bool xrtTlsServerPsk(xbytesview Data, uint16* pSelected)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pSelected` | 输入 | 非空 | 接收选中结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · listener tour
+
+```c
+		if ( !xrtTlsServerPsk((xbytesview) { arrPsk, 2u },
+				&iVersion) ) {
+```
+
+### `xrtTlsServerResumed`
+
+返回本次连接是否接受了客户端提供的 TLS 1.3 会话票据。
+
+```c
+bool xrtTlsServerResumed(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · listener tour
+
+```c
+		if ( (Cookie != 0u) || xrtTlsServerResumed(pServer) ) {
+```
+
+### `xrtTlsServerTicket`
+
+用调用方票据签发 TLS 1.3 NewSessionTicket；TLS 1.2 会话返回不支持。
+
+```c
+xtlsresult xrtTlsServerTicket(xtlssession* pSession, xbytesview Ticket, uint32 iLifetime, xtlsresume** ppResume)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `Ticket` | 输入 | — | 会话票据 |
+| `iLifetime` | 输入 | — | 生命周期秒数 |
+| `ppResume` | 输入 | 非空 | 接收恢复对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[resume_tour](../../examples/tls/resume_tour/main.c) · listener tour
+
+```c
+		if ( (xrtTlsServerTicket(pServer,
+				(xbytesview) { arrTicket, 16u }, 600u,
+				&pSecond) != XTLS_OK) ||
+			(pSecond == NULL) ||
+			!xrtTlsResumeValidAt(pSecond, xrtNow()) ) {
+```
+
+### `xrtTlsServerTicketNew`
+
+使用默认随机票据和有效期完成一次 TLS 1.3 签发。
+
+```c
+xtlsresult xrtTlsServerTicketNew(xtlssession* pSession, xtlsresume** ppResume)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `ppResume` | 输入 | 非空 | 接收恢复对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[resume_tour](../../examples/tls/resume_tour/main.c) · listener tour
+
+```c
+	if ( (xrtTlsServerTicketNew(pServer, &pCustom) != XTLS_OK) ||
+		((g_pServerResume = pCustom) == NULL) ||
+		!exampleMove(pServer, pClient) ) {
+```
+
+### `xrtTlsServerVersion`
+
+严格解析 ServerHello selected_version 扩展数据。
+
+```c
+bool xrtTlsServerVersion(xbytesview Data, uint16* pVersion)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | — | 数据 |
+| `pVersion` | 输入 | 非空 | 接收版本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[message_tour](../../examples/tls/message_tour/main.c) · listener tour
+
+```c
+		if ( !xrtTlsServerVersion((xbytesview) { arrTwo, 2u },
+				&iVersion) ||
+			(iVersion != 0x0304u) ) {
+```
+
 ## TLS 服务端
 
 `<xrt/tls_server.h>` 提供独立服务端入口，不把服务端身份、SNI 路由或票据缓存塞进客户端配置，也不直接持有 socket。`xtlsserverconfig` 在创建期间借用共享上下文和静态身份；成功后会话持有引用并深复制 ALPN 列表。至少必须提供静态 `Identity` 或同步 `Select`，从而保证未知 SNI 或恢复回退仍有明确认证路径。
@@ -741,6 +7904,215 @@ READY 服务端使用 `xrtTlsServerTicket()` 把调用方给出的非空不透�
 
 服务端门禁覆盖随机小分片 TLS 1.2/1.3 证书握手、SNI/ALPN 动态选择、双向应用数据、认证关闭、TLS 1.3 主动和被动 KeyUpdate、明文与受保护 fatal Alert、票据签发、第二连接 PSK+DHE 恢复、未知或过期票据回退、SNI/ALPN/年龄绑定、坏 binder、畸形 PSK 扩展、发送背压、定向 OOM 和单头文件。完整示例位于 `examples/tls/server/main.c`，测试位于 `tests/tls/test_tls_server*.c` 与 `tests/single/test_single_tls_server.c`。已支持单次 HRR 和 TLS 1.3 应用写入自动换钥。当前没有客户端证书认证、0-RTT、TLS 1.2 会话恢复、重新协商或异步身份选择；TCP 组合入口由后文独立的 `tls_stream` 裁剪单元提供。
 
+### `xrtTlsPeerVerify`
+
+使用显式时间、证书和借用信任库执行默认路径与身份验证。
+
+```c
+bool xrtTlsPeerVerify(const xtlspeer* pPeer, const xx509store* pStore, xtlsverifypolicyproc pPolicy, ptr pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPeer` | 输入 | 非空 | 对端 |
+| `pStore` | 输入 | 非空 | 信任库 |
+| `pPolicy` | 输入 | — | TLS 策略 |
+| `pContext` | 输入/输出 | — | 共享上下文 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL` — 证书链验证失败（原因保留在验证器结果中）
+- `XERR_UNSUPPORTED` — 算法、版本或能力不受支持
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · verify
+
+```c
+		xrtTlsPeerVerify(pPeer, g_pPeerStore, NULL, NULL) ) {
+```
+
+### `xrtTlsVerifierConfigInit`
+
+初始化尚未绑定信任库、回调或自定义时钟的验证器配置。
+
+```c
+void xrtTlsVerifierConfigInit(xtlsverifierconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · verify
+
+```c
+	xrtTlsVerifierConfigInit(&VerifierConfig);
+```
+
+### `xrtTlsVerifierCreate`
+
+创建可跨线程共享的验证器；成功后接管自定义上下文。
+
+```c
+xtlsverifier* xrtTlsVerifierCreate(const xtlsverifierconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · verify
+
+```c
+	pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+```
+
+### `xrtTlsVerifierRelease`
+
+释放验证器引用；空指针无操作。
+
+```c
+void xrtTlsVerifierRelease(xtlsverifier* pVerifier)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pVerifier` | 输入/输出 | 非空 | 对端验证器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · verify
+
+```c
+	xrtTlsVerifierRelease(pVerifier);
+```
+
+### `xrtTlsVerifierRetain`
+
+增加不可变验证器引用。
+
+```c
+xtlsverifier* xrtTlsVerifierRetain(const xtlsverifier* pVerifier)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pVerifier` | 输入/输出 | 非空 | 对端验证器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · verify
+
+```c
+		xtlsverifier* pRetainedVerifier = xrtTlsVerifierRetain(
+			pVerifier);
+```
+
+### `xrtTlsVerifierVerify`
+
+执行自定义或默认信任决策；证书和名称只在调用期间借用。
+
+```c
+bool xrtTlsVerifierVerify(const xtlsverifier* pVerifier, xtlsrole Role, xstrview Name, const xx509cert* pCertificates, size_t iCertificateCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pVerifier` | 输入/输出 | 非空 | 对端验证器 |
+| `Role` | 输入 | — | 角色 |
+| `Name` | 输入 | — | 名称 |
+| `pCertificates` | 输入 | 非空 | 证书视图数组 |
+| `iCertificateCount` | 输入 | — | 证书数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL` — 证书链验证失败
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · verify
+
+```c
+			!xrtTlsVerifierVerify(pVerifier, XTLS_SERVER,
+				XRT_STR_LITERAL("localhost"), &Leaf, 1u) ) {
+```
+
 ## TLS 对端验证
 
 `<xrt/tls_verify.h>` 把信任决策从客户端状态机和 X.509 原语之间独立出来。`xrtTlsVerifierCreate()` 深复制可选 `xx509store`，因此创建后可以释放或修改来源 store；验证器本体不可变、引用计数共享，并要求自定义回调可以并发执行。没有回调时必须提供至少一个 trust anchor，空 store 会在创建期失败。
@@ -774,6 +8146,466 @@ xrtTlsVerifierRelease(Verifier);
 `xrtTls13CertificateVerifySignature()` 是公开的协议验签原语。它构造标准的 64 个空格、角色上下文、零分隔符和 transcript hash，严格区分 `rsae` / `pss` 密钥、P-256 / P-384 方案和 Ed25519，并拒绝 TLS 1.3 禁止的 PKCS#1 方案。它不执行证书路径验证，调用方若直接使用原语必须先完成信任决策。
 
 完整示例位于 `examples/tls/verify/main.c`；基础契约、默认真实 RSA 路径、CRL 路径策略、OOM、客户端端到端航班、TinyCC x86 和单头门禁分别位于 `tests/tls/test_tls_verify*.c`、`tests/tls/test_tls_client_server_hello.c` 与 `tests/single/test_single_tls_verify.c`。`tests/tls/test_tls_verify_policy_rsa.c` 同时展示无 CRL、空 CRL、吊销和过期 CRL 的完整组合方式。
+
+### `xrtTlsIdentityCanSign`
+
+判断身份后端是否支持指定 TLS 版本和签名方案。
+
+```c
+bool xrtTlsIdentityCanSign(const xtlsidentity* pIdentity, xtlsversion Version, xtlssignature Signature)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIdentity` | 输入/输出 | 非空 | 身份对象 |
+| `Version` | 输入 | — | TLS 版本 |
+| `Signature` | 输入 | — | 签名值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · identity
+
+```c
+		!xrtTlsIdentityCanSign(pIdentity, XTLS_VERSION_13,
+			XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256) ||
+```
+
+### `xrtTlsIdentityCertificate`
+
+借用指定位置的完整 DER 证书；视图随身份最后一个引用失效。
+
+```c
+bool xrtTlsIdentityCertificate(const xtlsidentity* pIdentity, size_t iIndex, xbytesview* pCertificate)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIdentity` | 输入/输出 | 非空 | 身份对象 |
+| `iIndex` | 输入 | — | 索引 |
+| `pCertificate` | 输入 | 非空 | 证书视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · identity
+
+```c
+		!xrtTlsIdentityCertificate(pIdentity, 0u, &Stored) ||
+```
+
+### `xrtTlsIdentityCertificateCount`
+
+返回按 TLS 发送顺序保存的证书数量，第一张证书是叶证书。
+
+```c
+size_t xrtTlsIdentityCertificateCount(const xtlsidentity* pIdentity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIdentity` | 输入/输出 | 非空 | 身份对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · identity
+
+```c
+		(xrtTlsIdentityCertificateCount(pIdentity) != 2u) ||
+```
+
+### `xrtTlsIdentityCreate`
+
+创建深复制证书链、接管外部签名上下文的自定义共享身份。
+
+```c
+xtlsidentity* xrtTlsIdentityCreate(const xtlsidentityconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · identity
+
+```c
+	pIdentity = xrtTlsIdentityCreate(&IdentityConfig);
+```
+
+### `xrtTlsIdentityEd25519`
+
+从 32 字节种子、DER OCTET 或未加密 PKCS#8 私钥创建 Ed25519 身份。
+
+```c
+xtlsidentity* xrtTlsIdentityEd25519(const xbytesview* pCertificates, size_t iCertificateCount, xbytesview PrivateKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCertificates` | 输入 | 非空 | 证书视图数组 |
+| `iCertificateCount` | 输入 | — | 证书数量 |
+| `PrivateKey` | 输入 | — | 私钥 DER |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[identity](../../examples/tls/identity/main.c) · identity
+
+```c
+			pIdentity = xrtTlsIdentityEd25519(arrCertificates, 1u, PrivateKey);
+```
+
+### `xrtTlsIdentityP256`
+
+从原始标量、SEC1 或未加密 PKCS#8 私钥创建 P-256 身份。
+
+```c
+xtlsidentity* xrtTlsIdentityP256(const xbytesview* pCertificates, size_t iCertificateCount, xbytesview PrivateKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCertificates` | 输入 | 非空 | 证书视图数组 |
+| `iCertificateCount` | 输入 | — | 证书数量 |
+| `PrivateKey` | 输入 | — | 私钥 DER |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[identity](../../examples/tls/identity/main.c) · identity
+
+```c
+			pIdentity = xrtTlsIdentityP256(arrCertificates, 1u, PrivateKey);
+```
+
+### `xrtTlsIdentityP384`
+
+从原始标量、SEC1 或未加密 PKCS#8 私钥创建 P-384 身份。
+
+```c
+xtlsidentity* xrtTlsIdentityP384(const xbytesview* pCertificates, size_t iCertificateCount, xbytesview PrivateKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCertificates` | 输入 | 非空 | 证书视图数组 |
+| `iCertificateCount` | 输入 | — | 证书数量 |
+| `PrivateKey` | 输入 | — | 私钥 DER |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[identity](../../examples/tls/identity/main.c) · identity
+
+```c
+			pIdentity = xrtTlsIdentityP384(arrCertificates, 1u, PrivateKey);
+```
+
+### `xrtTlsIdentityPublicKey`
+
+借用已经严格解析并与身份类型匹配的叶证书公钥。
+
+```c
+bool xrtTlsIdentityPublicKey(const xtlsidentity* pIdentity, xx509pubkey* pPublicKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIdentity` | 输入/输出 | 非空 | 身份对象 |
+| `pPublicKey` | 输入 | 非空 | 公钥描述 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · identity
+
+```c
+		!xrtTlsIdentityPublicKey(pIdentity, &LeafKey) ||
+```
+
+### `xrtTlsIdentityRelease`
+
+释放身份，并在最后一个引用结束时释放签名器和清除内部存储。
+
+```c
+void xrtTlsIdentityRelease(xtlsidentity* pIdentity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIdentity` | 输入/输出 | 非空 | 身份对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · identity
+
+```c
+	xrtTlsIdentityRelease(pRetained);
+```
+
+### `xrtTlsIdentityRetain`
+
+增加共享身份引用；身份本体和证书视图均保持只读。
+
+```c
+xtlsidentity* xrtTlsIdentityRetain(const xtlsidentity* pIdentity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIdentity` | 输入/输出 | 非空 | 身份对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[handshake_extra](../../examples/tls/handshake_extra/main.c) · identity
+
+```c
+		((pRetained = xrtTlsIdentityRetain(pIdentity)) == NULL) ||
+```
+
+### `xrtTlsIdentityRsa`
+
+从 PKCS#1 或未加密 PKCS#8 DER 私钥创建 RSA 身份。构造过程核对叶证书公钥、完整指数和 CRT 五参数，不借用私钥输入。
+
+```c
+xtlsidentity* xrtTlsIdentityRsa(const xbytesview* pCertificates, size_t iCertificateCount, xbytesview PrivateKey)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCertificates` | 输入 | 非空 | 证书视图数组 |
+| `iCertificateCount` | 输入 | — | 证书数量 |
+| `PrivateKey` | 输入 | — | 私钥 DER |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[identity](../../examples/tls/identity/main.c) · identity
+
+```c
+			pIdentity = xrtTlsIdentityRsa(arrCertificates, 1u, PrivateKey);
+```
+
+### `xrtTlsIdentitySign`
+
+签署完整 TLS 待签内容；空输出查询精确长度，容量不足时不调用签名器。外部签名器失败会保留为 TLS 身份错误的原因链。
+
+```c
+bool xrtTlsIdentitySign(const xtlsidentity* pIdentity, xtlsversion Version, xtlssignature Signature, xbytesview Message, void* pOutput, size_t iCapacity, size_t* pSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIdentity` | 输入/输出 | 非空 | 身份对象 |
+| `Version` | 输入 | — | TLS 版本 |
+| `Signature` | 输入 | — | 签名值 |
+| `Message` | 输入 | — | 消息 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输入 | 非空 | 接收写出字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 算法、版本或能力不受支持
+- `XERR_PROTOCOL` — 签名计算失败
+
+#### 范例
+
+[identity](../../examples/tls/identity/main.c) · identity
+
+```c
+	if ( (Signature == 0) || !xrtTlsIdentitySign(
+		pIdentity, XTLS_VERSION_13, Signature,
+		(xbytesview) { Message, sizeof(Message) - 1u },
+		NULL, 0, &iSignatureSize
+	) ) {
+```
+
+### `xrtTlsIdentityType`
+
+返回叶证书对应的握手签名密钥类型。
+
+```c
+xtlsidentitytype xrtTlsIdentityType(const xtlsidentity* pIdentity)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pIdentity` | 输入/输出 | 非空 | 身份对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[identity](../../examples/tls/identity/main.c) · identity
+
+```c
+	switch ( xrtTlsIdentityType(pIdentity) ) {
+```
 
 ## TLS 身份
 
@@ -817,6 +8649,1881 @@ if ( !xrtTlsIdentitySign(
 - `XRT_FEATURE_TLS_IDENTITY_ED25519`：Ed25519 身份。
 
 完整示例位于 `examples/tls/identity/main.c`；模块化、负向、OOM、组合和单头门禁位于 `tests/tls/test_tls_identity*.c` 与 `tests/single/test_single_tls_identity*.c`。
+
+### `xrtTlsDial`
+
+解析主机、竞争 TCP 地址并完成 TLS 握手；成功 Stream 引用转移给完成回调。
+
+```c
+xtlsdial* xrtTlsDial(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, uint16 iPort, const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig, const xtlsstreamevents* pStreamEvents, ptr pStreamData, xtlsdialproc pDone, ptr pDoneData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pResolver` | 输入 | 非空 | 名称解析器 |
+| `sHost` | 输入 | — | 主机名 |
+| `iPort` | 输入 | — | 端口 |
+| `pTls` | 输入 | 非空 | TLS 对象 |
+| `pConfig` | 输入 | — | 配置 |
+| `pStreamEvents` | 输入 | 非空 | 流事件表 |
+| `pStreamData` | 输入 | — | 流用户数据 |
+| `pDone` | 输入 | — | 完成回调 |
+| `pDoneData` | 输入 | — | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_UNSUPPORTED` — 算法、版本或能力不受支持
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+	pDial = xrtTlsDial(
+		pEngine,
+		pResolver,
+		sHost,
+		(uint16)iPort,
+		&TlsConfig,
+		&DialConfig,
+		&Events,
+		&Example,
+		exampleTlsDialDone,
+		&Example
+	);
+```
+
+### `xrtTlsDialAsync`
+
+以 Future 接收完成握手的 TLS Stream；Open 先于成功终态发布。Future 持有一个 Stream 引用，取消请求协作终止 DNS、TCP 或 TLS 当前阶段。
+
+```c
+xfuture* xrtTlsDialAsync(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, uint16 iPort, const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig, const xtlsstreamevents* pStreamEvents, ptr pStreamData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pResolver` | 输入 | 非空 | 名称解析器 |
+| `sHost` | 输入 | — | 主机名 |
+| `iPort` | 输入 | — | 端口 |
+| `pTls` | 输入 | 非空 | TLS 对象 |
+| `pConfig` | 输入 | — | 配置 |
+| `pStreamEvents` | 输入 | 非空 | 流事件表 |
+| `pStreamData` | 输入 | — | 流用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[dial_future](../../examples/tls/dial_future/main.c) · stream tour
+
+```c
+	pFuture = xrtTlsDialAsync(
+		pEngine,
+		pResolver,
+		sHost,
+		(uint16)iPort,
+		&TlsConfig,
+		&DialConfig,
+		NULL,
+		NULL
+	);
+```
+
+### `xrtTlsDialCancel`
+
+原子受理取消；返回真保证最终结果不会再变为成功。
+
+```c
+bool xrtTlsDialCancel(xtlsdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 托管拨号对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+			bool bCancelled = xrtTlsDialCancel(pMidair);
+```
+
+### `xrtTlsDialConfigInit`
+
+初始化 TCP 拨号、TLS Stream 和总超时策略。
+
+```c
+void xrtTlsDialConfigInit(xtlsdialconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+	xrtTlsDialConfigInit(&DialConfig);
+```
+
+### `xrtTlsDialDestroy`
+
+释放 TLS Dial 引用；空指针视为空操作。
+
+```c
+void xrtTlsDialDestroy(xtlsdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 托管拨号对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+	xrtTlsDialDestroy(pDial);
+```
+
+### `xrtTlsDialError`
+
+失败或取消后借用完整错误原因链。
+
+```c
+const xerror* xrtTlsDialError(const xtlsdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 托管拨号对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+		xrtTlsDialError(pDial) == NULL ? "(none)" : "err");
+```
+
+### `xrtTlsDialRef`
+
+增加 TLS Dial 引用并返回原指针。
+
+```c
+xtlsdial* xrtTlsDialRef(xtlsdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 托管拨号对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+		(xrtTlsDialRef(pDial) != pDial) ) {
+```
+
+### `xrtTlsDialState`
+
+返回当前拨号阶段或不可变终态。
+
+```c
+xtlsdialstate xrtTlsDialState(const xtlsdial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 托管拨号对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	pSlot->DialState = xrtTlsDialState(pDial);
+```
+
+### `xrtTlsDialTransportStats`
+
+取得底层 TCP Dial 统计；TLS 握手阶段仍保留获胜地址信息。
+
+```c
+bool xrtTlsDialTransportStats(const xtlsdial* pDial, xnetdialstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 托管拨号对象 |
+| `pStats` | 输入 | 非空 | 接收统计快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	if ( !xrtTlsDialTransportStats(pDial, &TransportStats) ||
+		(TransportStats.AttemptsStarted < 1u) ) {
+```
+
+### `xrtTlsListenerAccept`
+
+pull 模式下非阻塞取得一个已完成握手的 Stream；空队列返回空指针。
+
+```c
+xtlsstream* xrtTlsListenerAccept(xtlslistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+		pServerA = xrtTlsListenerAccept(pListener);
+```
+
+### `xrtTlsListenerAcceptAsync`
+
+pull 模式下异步接受一个已完成握手的 Stream；Future 持有结果引用。
+
+```c
+xfuture* xrtTlsListenerAcceptAsync(xtlslistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	pAcceptFuture = xrtTlsListenerAcceptAsync(pListener);
+```
+
+### `xrtTlsListenerAcceptWait`
+
+阻塞接受一个已完成握手的 Stream；禁止从该 Engine 的 Worker 调用。
+
+```c
+xtlsstream* xrtTlsListenerAcceptWait(xtlslistener* pListener, xdeadline iDeadline, xcancel* pCancel)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+| `iDeadline` | 输入 | — | 单调截止时间 |
+| `pCancel` | 输入 | — | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	pServerC = xrtTlsListenerAcceptWait(pListener,
+		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+```
+
+### `xrtTlsListenerClose`
+
+原子停止接入并丢弃尚未交付的连接；已交付连接保持独立生命周期。
+
+```c
+bool xrtTlsListenerClose(xtlslistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+		(void)xrtTlsListenerClose(pListener);
+```
+
+### `xrtTlsListenerConfigInit`
+
+初始化单 IPv4 动态端口、有界握手与有界完成队列。
+
+```c
+void xrtTlsListenerConfigInit(xtlslistenerconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	xrtTlsListenerConfigInit(&ListenerConfig);
+```
+
+### `xrtTlsListenerData`
+
+返回创建时保存的用户数据快照。
+
+```c
+ptr xrtTlsListenerData(const xtlslistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+		(xrtTlsListenerData(pListener) != &EngineConfig) ) {
+```
+
+### `xrtTlsListenerDestroy`
+
+释放 Listener 引用；不会隐式关闭仍在监听的对象。
+
+```c
+void xrtTlsListenerDestroy(xtlslistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	xrtTlsListenerDestroy(pListenerRef);
+```
+
+### `xrtTlsListenerLocal`
+
+复制监听 Socket 的实际本地地址，支持动态端口。
+
+```c
+bool xrtTlsListenerLocal(xtlslistener* pListener, xnetaddr* pAddress)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+| `pAddress` | 输入 | 非空 | 接收地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+		!xrtTlsListenerLocal(pListener, &Address) ||
+```
+
+### `xrtTlsListenerRef`
+
+增加 Listener 引用并返回原指针。
+
+```c
+xtlslistener* xrtTlsListenerRef(xtlslistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	pListenerRef = xrtTlsListenerRef(pListener);
+```
+
+### `xrtTlsListenerStart`
+
+同步完成 TCP 绑定并开始异步接入；配置数组只在调用期间借用。Listener 会保留 Context、Identity，并深复制 ALPN 协议列表。SelectContext 与 ResumeContext 由调用方持有，必须存活到 Listener 关闭回调结束。
+
+```c
+xtlslistener* xrtTlsListenerStart(xnetengine* pEngine, const xtlslistenerconfig* pConfig, const xtlslistenerevents* pEvents, const xtlsstreamevents* pStreamEvents, ptr pData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pConfig` | 输入 | — | 配置 |
+| `pEvents` | 输入 | — | 事件表 |
+| `pStreamEvents` | 输入 | 非空 | 流事件表 |
+| `pData` | 输入 | — | 用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	pListener = xrtTlsListenerStart(pEngine, &ListenerConfig, NULL,
+		NULL, &EngineConfig);
+```
+
+### `xrtTlsListenerState`
+
+返回 Listener 当前生命周期状态。
+
+```c
+xtlslistenerstate xrtTlsListenerState(const xtlslistener* pListener)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+		(xrtTlsListenerState(pListener) != XTLS_LISTENER_OPEN) ||
+```
+
+### `xrtTlsListenerStats`
+
+复制 Listener 的并发统计快照。
+
+```c
+bool xrtTlsListenerStats(const xtlslistener* pListener, xtlslistenerstats* pStats)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | TLS 监听器 |
+| `pStats` | 输入 | 非空 | 接收统计快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	if ( !xrtTlsListenerStats(pListener, &ListenerStats) ||
+		(ListenerStats.Accepted < 3u) ||
+		(ListenerStats.Handshakes < 3u) ) {
+```
+
+### `xrtTlsStreamAbort`
+
+从任意线程立即放弃 TLS 与 TCP 会话。失败收尾尚未完成时仍会中止 TCP，但不会覆盖已经保存的首个根因。
+
+```c
+bool xrtTlsStreamAbort(xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+			(void)xrtTlsStreamAbort(pStream);
+```
+
+### `xrtTlsStreamAccept`
+
+在 TCP Accept 回调内接管 Stream；返回值应直接作为该回调结果。
+
+```c
+bool xrtTlsStreamAccept(xnetstream* pTransport, const xtlsserverconfig* pTls, const xtlsstreamconfig* pConfig, const xtlsstreamevents* pEvents, ptr pData, xtlsstream** ppStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTransport` | 输入 | 非空 | 传输 TCP 流 |
+| `pTls` | 输入 | 非空 | TLS 对象 |
+| `pConfig` | 输入 | — | 配置 |
+| `pEvents` | 输入 | — | 事件表 |
+| `pData` | 输入 | — | 用户数据 |
+| `ppStream` | 输入 | 非空 | 接收流对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（顺序、已关闭、非所属线程）
+- `XERR_PROTOCOL` — 接受的字节不是有效 TLS 记录
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[stream](../../examples/tls/stream/main.c) · stream tour
+
+```c
+	bAccepted = xrtTlsStreamAccept(
+		pTransport,
+		&pExample->ServerConfig,
+		&pExample->StreamConfig,
+		&pExample->StreamEvents,
+		pExample,
+		&pStream
+	);
+```
+
+### `xrtTlsStreamAsyncBytes`
+
+返回尚未由所属 Worker 终结的异步发送负载字节数。
+
+```c
+size_t xrtTlsStreamAsyncBytes(const xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	(void)xrtTlsStreamAsyncBytes(pStream);
+```
+
+### `xrtTlsStreamAsyncCount`
+
+返回异步发送、接收和条件等待的合计操作数。
+
+```c
+uint32 xrtTlsStreamAsyncCount(const xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 数值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	(void)xrtTlsStreamAsyncCount(pStream);
+```
+
+### `xrtTlsStreamAttach`
+
+在已公开的 TCP Stream 所属 Worker 上接管 Transport 和 Session。Transport 必须仍可双向收发，调用方必须停止直接操作其 IO。成功时接管两者的调用方引用；失败时所有权、Session 分配归属和 Transport 事件均保持不变，输出清空。
+
+```c
+bool xrtTlsStreamAttach(xnetstream* pTransport, xtlssession* pSession, const xtlsstreamconfig* pConfig, const xtlsstreamevents* pEvents, ptr pData, xtlsstream** ppStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTransport` | 输入 | 非空 | 传输 TCP 流 |
+| `pSession` | 输入/输出 | 非空 | TLS 会话 |
+| `pConfig` | 输入 | — | 配置 |
+| `pEvents` | 输入 | — | 事件表 |
+| `pData` | 输入 | — | 用户数据 |
+| `ppStream` | 输入 | 非空 | 接收流对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+		pTask->bOk = xrtTlsStreamAttach(pTask->pTcp,
+			pTask->pSession, pTask->pStream, pTask->pEvents,
+			pTask->pData, &pTask->pTls);
+```
+
+### `xrtTlsStreamAvailable`
+
+返回当前待应用消费明文字节数的并发快照。
+
+```c
+size_t xrtTlsStreamAvailable(const xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+	while ( xrtTlsStreamAvailable(pStream) != 0 ) {
+```
+
+### `xrtTlsStreamBuffer`
+
+在所属 Worker 上借用明文块链，借用期不超过本次回调。默认在当前明文消费前暂停底层读取；增量协议解析器可显式请求 ReadMore。
+
+```c
+const xnetbuf* xrtTlsStreamBuffer(xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+		const xnetbuf* pPlain = xrtTlsStreamBuffer(pStream);
+```
+
+### `xrtTlsStreamClient`
+
+在已连接 TCP Stream 上创建 TLS 客户端。适用于代理隧道、STARTTLS 和自定义拨号；成功时接管 Transport 引用。
+
+```c
+bool xrtTlsStreamClient(xnetstream* pTransport, const xtlsclientconfig* pTls, const xtlsstreamconfig* pConfig, const xtlsstreamevents* pEvents, ptr pData, xtlsstream** ppStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTransport` | 输入 | 非空 | 传输 TCP 流 |
+| `pTls` | 输入 | 非空 | TLS 对象 |
+| `pConfig` | 输入 | — | 配置 |
+| `pEvents` | 输入 | — | 事件表 |
+| `pData` | 输入 | — | 用户数据 |
+| `ppStream` | 输入 | 非空 | 接收流对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+		pTask->bOk = xrtTlsStreamClient(pTask->pTcp,
+			pTask->pClient, pTask->pStream, pTask->pEvents,
+			pTask->pData, &pTask->pTls);
+```
+
+### `xrtTlsStreamClose`
+
+从任意线程请求 close_notify、等待对端认证关闭并排空 TCP。调用前已接纳的异步发送会先按 FIFO 完成；调用后的新发送不再接纳。
+
+```c
+bool xrtTlsStreamClose(xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+		if ( !xrtTlsStreamClose(pStream) ) {
+```
+
+### `xrtTlsStreamConfigInit`
+
+初始化握手与认证关闭超时。
+
+```c
+void xrtTlsStreamConfigInit(xtlsstreamconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | — | 配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[stream](../../examples/tls/stream/main.c) · stream tour
+
+```c
+	xrtTlsStreamConfigInit(&Example.StreamConfig);
+```
+
+### `xrtTlsStreamConnect`
+
+创建 TLS 客户端并异步连接数字 TCP 地址。
+
+```c
+xtlsstream* xrtTlsStreamConnect(xnetengine* pEngine, const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pTransport, const xtlsclientconfig* pTls, const xtlsstreamconfig* pConfig, const xtlsstreamevents* pEvents, ptr pData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pRemote` | 输入 | 非空 | 远端地址 |
+| `iAffinity` | 输入 | — | 亲和 Worker 标识 |
+| `pTransport` | 输入 | 非空 | 传输 TCP 流 |
+| `pTls` | 输入 | 非空 | TLS 对象 |
+| `pConfig` | 输入 | — | 配置 |
+| `pEvents` | 输入 | — | 事件表 |
+| `pData` | 输入 | — | 用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（顺序、已关闭、非所属线程）
+- `xrt.net` 域错误 — TCP 连接提交失败
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+	pClientB = xrtTlsStreamConnect(pEngine, &Address, 0, NULL,
+		&ClientConfigB, NULL, &ClientEvents, &ClientB);
+```
+
+### `xrtTlsStreamConsume`
+
+在所属 Worker 上安全消费精确数量的明文。
+
+```c
+bool xrtTlsStreamConsume(xtlsstream* pStream, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+		if ( !xrtTlsStreamConsume(pStream, Span.Size) ) {
+```
+
+### `xrtTlsStreamData`
+
+返回线程安全的用户数据指针快照，不延长目标生命周期。
+
+```c
+ptr xrtTlsStreamData(const xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 值 | 当前取值 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	pClient->bDataOk = xrtTlsStreamData(pStream) == pClient;
+```
+
+### `xrtTlsStreamDestroy`
+
+释放 TLS Stream 引用；关闭必须另行请求。
+
+```c
+void xrtTlsStreamDestroy(xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | — | — |
+
+#### 错误
+
+- 无 — 释放或重置不失败（Reset 系列见参数约束）
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+	xrtTlsStreamDestroy(Example.Stream);
+```
+
+### `xrtTlsStreamError`
+
+终态失败时借用保存的 TLS 或传输根因。
+
+```c
+const xerror* xrtTlsStreamError(const xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+		xrtTlsStreamError(pClientA) == NULL ? "(none)" : "err");
+```
+
+### `xrtTlsStreamPending`
+
+返回 TLS 密文暂存与底层 TCP 队列的总待发字节并发快照。
+
+```c
+size_t xrtTlsStreamPending(const xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 数量或字节数 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	while ( xrtTlsStreamPending(pClientB) != 0u ) {
+```
+
+### `xrtTlsStreamPullup`
+
+在所属 Worker 上把精确明文前缀按需连续化并返回借用视图。不消费明文；视图在下一次明文缓冲修改或消费前有效，零长度和越界请求失败。
+
+```c
+bool xrtTlsStreamPullup(xtlsstream* pStream, size_t iSize, xnetspan* pSpan)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `iSize` | 输入 | — | 字节数 |
+| `pSpan` | 输入 | 非空 | 接收分片 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+		if ( !xrtTlsStreamPullup(pStream, 3u, &Span) ||
+			(Span.Size < 3u) ) {
+```
+
+### `xrtTlsStreamRead`
+
+在所属 Worker 上复制并安全消费明文。
+
+```c
+xtlsresult xrtTlsStreamRead(xtlsstream* pStream, void* pOutput, size_t iCapacity, size_t* pRead)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `pOutput` | 输入 | 非空 | 输出缓冲 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pRead` | 输入 | 非空 | 接收读取游标 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 状态非法（顺序、已关闭、非所属线程）
+- `XERR_PROTOCOL` — 记录解密失败
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	(void)xrtTlsStreamRead(pStream, pClient->ReadOut, 4u,
+		&pClient->iRead);
+```
+
+### `xrtTlsStreamReadMore`
+
+在 Read 回调保留现有明文时，请求继续解密并在明文增长后再次发布 Read。累积量受 Context PlainLimit 硬约束，并必须为一条最大明文 record 留出空间。普通消费者无需调用，重复请求是幂等的；请求待完成时不能替换事件接收者。
+
+```c
+bool xrtTlsStreamReadMore(xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+		pClient->bReadMore = xrtTlsStreamReadMore(pStream);
+```
+
+### `xrtTlsStreamRecvAsync`
+
+在拉取模式下复制并消费当前可用明文。零上限表示读取全部当前明文；成功值是由 Future 持有的 xnetbytes。
+
+```c
+xfuture* xrtTlsStreamRecvAsync(xtlsstream* pStream, size_t iMaxBytes)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `iMaxBytes` | 输入 | — | 最多字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[stream_future](../../examples/tls/stream_future/main.c) · stream tour
+
+```c
+	xfuture* pFuture = xrtTlsStreamRecvAsync(
+		pStream,
+		64u * 1024u
+	);
+```
+
+### `xrtTlsStreamRef`
+
+增加 TLS Stream 引用并返回原指针；引用耗尽时返回空并设置状态错误。
+
+```c
+xtlsstream* xrtTlsStreamRef(xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[dial_future](../../examples/tls/dial_future/main.c) · stream tour
+
+```c
+	pStream = xrtTlsStreamRef(
+		(xtlsstream*)xrtFutureValue(pFuture)
+	);
+```
+
+### `xrtTlsStreamSend`
+
+在所属 Worker 上把明文编码为记录；允许成功短写。
+
+```c
+xtlsresult xrtTlsStreamSend(xtlsstream* pStream, const void* pData, size_t iSize, size_t* pWritten)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `pData` | 输入 | — | 用户数据 |
+| `iSize` | 输入 | — | 字节数 |
+| `pWritten` | 输入 | 非空 | 接收写出数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_RANGE` — 发送预算已满
+- `XERR_STATE` — 握手未完成或已关闭
+- `XERR_PROTOCOL` — 记录保护失败
+
+#### 范例
+
+[dial](../../examples/tls/dial/main.c) · stream tour
+
+```c
+		xtlsresult Result = xrtTlsStreamSend(
+			pStream,
+			pExample->Request + pExample->Sent,
+			pExample->RequestSize - pExample->Sent,
+			&iWritten
+		);
+```
+
+### `xrtTlsStreamSendAsync`
+
+从任意线程复制并按 FIFO 提交一段完整明文。Future 在全部明文被 TLS 会话受理时完成；排空必须另行等待 DRAIN。取消只在首个字节受理前有效，已开始的发送保持完整和有序。Close 线性化前已接纳的发送保证先完成，之后的发送以 STATE 拒绝。
+
+```c
+xfuture* xrtTlsStreamSendAsync(xtlsstream* pStream, const void* pData, size_t iSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `pData` | 输入 | — | 用户数据 |
+| `iSize` | 输入 | — | 字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[stream_future](../../examples/tls/stream_future/main.c) · stream tour
+
+```c
+	if ( !exampleTlsFutureResolved(xrtTlsStreamSendAsync(
+		pStream,
+		pData,
+		iSize
+	)) ) {
+```
+
+### `xrtTlsStreamSendBound`
+
+在所属 Worker 上返回一次明文发送产生的精确密文线路字节数。结果包含记录头、显式 nonce、内层类型和认证标签，失败不修改 pBound。pBound 不得与 Stream 或其 Session 对象存储重叠。
+
+```c
+bool xrtTlsStreamSendBound(xtlsstream* pStream, size_t iPlainSize, size_t* pBound)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `iPlainSize` | 输入 | — | 明文长度 |
+| `pBound` | 输入 | 非空 | 接收输出上界 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	(void)xrtTlsStreamSendBound(pStream, 64u, &pClient->iBound);
+```
+
+### `xrtTlsStreamSendVec`
+
+在所属 Worker 上依次编码明文片段；返回跨片段的连续受理前缀。
+
+```c
+xtlsresult xrtTlsStreamSendVec(xtlsstream* pStream, const xnetspan* pSpans, size_t iCount, size_t* pWritten)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `pSpans` | 输入 | 非空 | 分片数组 |
+| `iCount` | 输入 | — | 数量 |
+| `pWritten` | 输入 | 非空 | 接收写出数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XTLS_OK` | 成功 | — |
+| `XTLS_AGAIN` | 暂不可推进 | 不设错误 |
+| `XTLS_CLOSED` | 已关闭 | 不设错误 |
+| `XTLS_ERROR` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	(void)xrtTlsStreamSendVec(pStream, Vec, 2, &iWritten);
+```
+
+### `xrtTlsStreamSendVecAsync`
+
+从任意线程复制片段并按 FIFO 提交为一段连续明文。全部片段在返回前完成校验和复制，失败不会发布部分操作。
+
+```c
+xfuture* xrtTlsStreamSendVecAsync(xtlsstream* pStream, const xnetspan* pSpans, size_t iCount)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `pSpans` | 输入 | 非空 | 分片数组 |
+| `iCount` | 输入 | — | 数量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	pSendFuture = xrtTlsStreamSendVecAsync(pClientB, AsyncVec, 2);
+```
+
+### `xrtTlsStreamSession`
+
+在所属 Worker 上借用协议会话，供 ALPN、票据等高级查询。
+
+```c
+xtlssession* xrtTlsStreamSession(xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	pClient->bSessionOk = xrtTlsStreamSession(pStream) != NULL;
+```
+
+### `xrtTlsStreamSetEvents`
+
+在所属 Worker 上替换已打开 TLS Stream 的事件与用户数据。不会自动重放当前明文缓冲，协议升级层必须显式处理已有后缀。
+
+```c
+bool xrtTlsStreamSetEvents(xtlsstream* pStream, const xtlsstreamevents* pEvents, ptr pData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `pEvents` | 输入 | — | 事件表 |
+| `pData` | 输入 | — | 用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 成功 | — |
+| `false` | 失败 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_PROTOCOL`（TLS 语义） — DER 或消息结构非法
+
+#### 范例
+
+[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+
+```c
+	pTask->bOk = xrtTlsStreamSetEvents(pTask->pStream,
+		pTask->pEvents, NULL);
+```
+
+### `xrtTlsStreamState`
+
+返回组合 Stream 状态的并发快照。
+
+```c
+xtlsstreamstate xrtTlsStreamState(const xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 枚举值 | 当前取值 | — |
+
+#### 错误
+
+- 无 — 纯查询，不设置错误
+
+#### 范例
+
+[dial_future](../../examples/tls/dial_future/main.c) · stream tour
+
+```c
+	while ( (xrtTlsStreamState(pStream) != XTLS_STREAM_CLOSED) &&
+		(xrtTlsStreamState(pStream) != XTLS_STREAM_FAILED) ) {
+```
+
+### `xrtTlsStreamTransport`
+
+借用底层 TCP Stream，调用方不得改变其 IO 状态机。
+
+```c
+xnetstream* xrtTlsStreamTransport(const xtlsstream* pStream)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[listener_tour](../../examples/tls/listener_tour/main.c) · stream tour
+
+```c
+		xrtNetStreamWorker(xrtTlsStreamTransport(pServerA)),
+```
+
+### `xrtTlsStreamWaitAsync`
+
+建立 OPEN、READ、WRITE、DRAIN、END 或 CLOSE 条件 Future。WRITE 要求发送 FIFO 清空且当前至少可受理明文；DRAIN 还要求 TLS 与 TCP 两级发送队列归零。END 在已认证明文全部交付后完成。取消只移除本次等待。
+
+```c
+xfuture* xrtTlsStreamWaitAsync(xtlsstream* pStream, xtlsstreamwait Wait)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入/输出 | 非空 | TLS 组合流 |
+| `Wait` | 输入 | 非空 | 等待条件 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 对象或借用 | — |
+| `NULL` | 失败或不适用 | 见错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[stream_future](../../examples/tls/stream_future/main.c) · stream tour
+
+```c
+	return exampleTlsFutureResolved(xrtTlsStreamWaitAsync(
+		pStream,
+		XTLS_STREAM_WAIT_DRAIN
+	));
+```
 
 ## TLS-over-TCP 组合流
 
