@@ -31,7 +31,7 @@
 | P17 | 卷九·WebSocket：ws-frame/ws-stream/http-upgrade + 双向通信组合章 | 4 | ✅ 完成（卷九 9 章收官） |
 | P18 | 卷十·xhttp 客户端：easy/runtime/redirect/cache/url+query 重组 | 6 | ✅ 完成 |
 | P19 | 卷十·xhttp 服务端与高级：server/middleware + SSE/流式上传/连接池深潜/重试策略新章 | 6 | ✅ 完成（连接池深潜/重试已在 P18 ch98/99 提前完成；替换为 auth/sse/stream 三新章；卷十 12 章收官） |
-| P20 | 卷十一·xws：连接管理/组播广播/引用发送/压缩/服务端路由/运行时 | 6 | ⬜ |
+| P20 | 卷十一·xws：连接管理/组播广播/引用发送/压缩/服务端路由/运行时 | 6 | ✅ 完成（实际 4 章：引用发送与压缩并入发送路径章、运行时并入连接管理章——xws 契约收敛期素材密度所限，质量优先） |
 | P21 | 卷十一·xssh：传输与包层/kex/hostkey/认证/通道/端口转发/客户端运行时 | 7 | ⬜ |
 | P22 | 卷十一·xmail：SMTP/IMAP/POP3/MIME/组合收发 | 5 | ⬜ |
 | P23 | 卷十一·xruntime：类型系统/对象图/动态调用/typed 容器 | 4 | ⬜ |

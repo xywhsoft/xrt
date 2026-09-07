@@ -26,7 +26,7 @@
 | P17 卷九WebSocket | ✅ 完成 | 4 | 18,724 |
 | P18 卷十xhttp客户端 | ✅ 完成 | 6 | 28,006 |
 | P19 卷十xhttp服务端 | ✅ 完成 | 6 | 28,133 |
-| P20 卷十一xws | 🔄 进行中 | 0 | — |
+| P20 卷十一xws | ✅ 完成 | 4 | 16,994 |
 | P21–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -96,6 +96,10 @@
 | 106 | 106-xhttp-sse.md | practice | 4,960 | 2 | 1 | 3 | 3 | P19 |
 | 107 | 107-xhttp-stream.md | practice | 4,809 | 2 | 1 | 3 | 3 | P19 |
 | 108 | 108-xhttp-advanced.md | practice | 4,117 | 2 | 2 | 3 | 3 | P19 |
+| 109 | 109-xws-conn.md | practice | 4,002 | 2 | 1 | 3 | 3 | P20 |
+| 110 | 110-xws-send.md | practice | 4,179 | 2 | 1 | 3 | 3 | P20 |
+| 111 | 111-xws-group.md | practice | 4,049 | 2 | 1 | 3 | 3 | P20 |
+| 112 | 112-xws-server.md | practice | 4,764 | 2 | 1 | 3 | 3 | P20 |
 
 
 
@@ -104,6 +108,29 @@
 
 
 
+
+## P20 阶段记录
+
+- 卷十一 xws 4 章：ch109 连接管理（xwsconn 接管边界/事件与视图纪律/
+  pause-resume 流控/Future 桥/关闭协议/connection_tour 七行全链巡检）、
+  ch110 发送路径（新增章：writer 生命周期/压缩 writer 同构/三态所有权矩阵/
+  块帧解耦）、ch111 连接组与广播（新增章：唯一成员/容量与封闭/锁外快照/
+  异步操作对象/慢连接策略）、ch112 服务端路由与会话（Origin 三档/Authorize/
+  自动响应五类/分阶段底层四入口/Open 借用与 Release 语义）。
+- 范围调整（PHASES 注明）：P20 定义 6 章——"引用发送"与"压缩"并入 ch110
+  发送路径章、"运行时"并入 ch109 连接管理章（xws 契约收敛期：HTTP 适配/
+  路由等高级对象已退出核心进 archive，素材密度自然支撑 4 章高质量）。
+- 全书第十九次重编号：双插入 xws-send(110)/xws-group(111)，126 文件 +2，
+  全书 130 章；卷十一 109-118 十章骨架（xws 4 + xruntime 2 + xmail 2 +
+  xssh 2）。
+- 事故与修复：order.json 重建脚本编号偏移算错（+3 应为 +2）且叠写产生
+  238 项重复——git checkout 恢复后一次性正确重写；教训：结构脚本必须先
+  assert 再落盘、失败后先恢复基线再重试。
+- 门禁拦下：ref 页前缀 xws- 非 xhttp-（websocket_connection 等页在
+  ref-xws-websocket_runtime）、XRT_NET_AGAIN 是契约文档描述词非符号
+  （改"AGAIN 结果"行文）、xrtWsConnTextFuture 不存在（Future 族真名在
+  websocket_http_future：ConnectAsync 一族）。
+- 行文章号修正 7 处（testing→122、perf→124）。
 
 ## P19 阶段记录
 
