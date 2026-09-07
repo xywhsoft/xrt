@@ -13,7 +13,7 @@
 | P4 卷四前半 | ✅ 完成 | 6 | 22,441 |
 | P5 卷四后半 | ✅ 完成 | 7 | 30,235 |
 | P6 卷五前半 | ✅ 完成 | 6 | 24,273 |
-| P7 卷五后半 | 🔄 进行中 | 0 | — |
+| P7 卷五后半 | ✅ 完成 | 8 | 34,240 |
 | P8–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -36,6 +36,18 @@
 | 15 | 15-stack.md | practice | 4,003 | 2 | 1 | 2 | 3 | P2 |
 | 16 | 16-list-slotmap.md | practice | 4,037 | 2 | 1 | 2 | 3 | P2 |
 | 55 | 62-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
+
+## P7 阶段记录
+
+- 卷五后半 8 章（P6 预留的导言位 ch36 本章写就；signal 从卷六归位卷五 ch48；
+  新增调试组合章 ch49 收官）。全书第六次重编号（61 文件），卷五 14 章成型。
+- 门禁拦下：IsSafe→IsSafeEntry(视图+bDirectory)、xrtPathJoin varargs→两段 cstr、
+  锁两档(Lock/LockRange)签名修正、xrtTempFile→xrtFileTemp、异步模型全面重写
+  （回调制→任务池+Future 真实形态：AsyncFileOpen/ReadAt/WriteAt）、
+  xrtSignalWatch→On/Once 族、VisitLive 返回值、xmemstats 无 CurrentBytes
+  （改用 MallocBytes-FreeBytes）。
+- 组合章型第二次落地（ch49，6,098 字/4 坑）：体检与尸检同构、观测经济学、
+  诊断剧本、反模式警示（观测不能替代设计）。
 
 ## P6 阶段记录
 
