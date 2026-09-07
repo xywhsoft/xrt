@@ -54,7 +54,7 @@
 | 47 | number.md | 15 | **完成** | 15/15 全绿（G3 15 片段，2026-09-07）；xrt.number 域 CONFIG/FORMAT/RANGE 三码入档；容量原子失败 XERR_RANGE （查询仍返回长度）；锚点 integer/float/format/variants |
 | 48 | once.md | 22 | **完成** | 22/22 全绿（G3 22 片段，2026-09-07）；thread.h 全集：Once 1 + 原生线程 15 + 线程局部键 6；Wait 自等待 STATE、Once 同线程重入 STATE 入档；锚点 once/thread/thread_tour |
 | 49 | path.md | 32 | **完成** | 32/32 全绿（G3 32 片段，2026-09-07）；xrt.path 域 FORMAT/OVERFLOW/ROOT/SYSTEM 四码入档；safe 族纯谓词不设错；manifest 补注册 tour/system/safe 三范例 |
-| 50 | pattern.md | 37 | 待办 |  |
+| 50 | pattern.md | 37 | **完成** | 37/37 全绿（G3 37 片段，2026-09-07）；xrt.pattern 域 CONFIG/PATTERN/LIMIT/CONFLICT/CAPACITY 五码入档；ErrorOffset/ErrorPattern 机器数据定位器；锚点 pattern/pattern_tour |
 | 51 | pem.md | 7 | 待办 |  |
 | 52 | pool.md | 58 | 待办 |  |
 | 53 | process.md | 37 | 待办 |  |
@@ -636,4 +636,10 @@
   Home 缺失 = NOT_FOUND；SafeSegment/IsSafeEntry 为纯谓词（false 不设错）。
   manifest 补注册 #9：path tour/system/safe 三范例。
   完成 API 2056→2088/3664（57.0%），49/79 文件。
+- 2026-09-07 pattern.md 完成（37/37，G3 37 片段全绿）：一次性提取 5 +
+  批量编译与匹配 19 + Builder 13 三组；错误码对照 src/text/pattern_*.c——
+  容量不足 = CAPACITY·RANGE（pCaptureCount 写所需数量、无部分捕获）、
+  语法错 = PATTERN·VALUE（含字节偏移机器数据）、不可区分同优先级 =
+  CONFLICT·EXISTS、预算 = LIMIT·RANGE；BuilderRemove/Set 陈旧 ID 不设错。
+  完成 API 2088→2125/3664（58.0%），50/79 文件。
 
