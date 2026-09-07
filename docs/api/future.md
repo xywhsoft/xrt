@@ -1060,6 +1060,121 @@ xwaitresult xrtFutureWait(xfuture* pFuture);
 ```
 
 
+
+### `xrtFutureWaitFor`
+
+在相对微秒数内等待终态。
+
+```c
+xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFuture` | 输入 | 非空 | 目标 Future |
+| `iTimeout` | 输入 | 微秒 | 相对时限 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` | 已终态 | — |
+| `XWAIT_TIMEOUT` | 到期仍待定（不设错） | — |
+| `XWAIT_ERROR` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[concurrency/future_tour · 延续核对](../../examples/concurrency/future_tour/main.c) · 观察
+
+```c
+				(xrtFutureWaitFor(pCatch,
+					EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+```
+
+
+### `xrtFutureWaitUntil`
+
+等待到指定单调时钟截止时间。
+
+```c
+xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFuture` | 输入 | 非空 | 目标 Future |
+| `iDeadline` | 输入 | 单调时钟 | 绝对截止 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_ERROR` | 同 `WaitFor` 口径 | — |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[concurrency/future_tour · 等待族](../../examples/concurrency/future_tour/main.c) · 观察
+
+```c
+		(xrtFutureWaitUntil(pFut1,
+			xrtDeadlineAfter(100000u)) != XWAIT_TIMEOUT) ) {
+```
+
+
+### `xrtFutureWaitUntilCancel`
+
+等待首个线性化事件；取消先取得等待锁后不会被迟到终态覆盖。
+
+```c
+xwaitresult xrtFutureWaitUntilCancel(
+	xfuture* pFuture,
+	xdeadline iDeadline,
+	xcancel* pCancel
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pFuture` | 输入 | 非空 | 目标 Future |
+| `iDeadline` | 输入 | 单调时钟 | 绝对截止 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XWAIT_OK` / `XWAIT_TIMEOUT` | 终态/到期 | — |
+| `XWAIT_CANCELLED` | 令牌触发（优先于迟到终态） | 不设错 |
+| `XWAIT_ERROR` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[concurrency/future_tour · 等待族](../../examples/concurrency/future_tour/main.c) · 观察
+
+```c
+		(xrtFutureWaitUntilCancel(pFut1,
+			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+			pCancel) != XWAIT_CANCELLED) ) {
+```
+
 ### `xrtFutureAwait`
 
 在当前调度协程中挂起等待终态，不阻塞调度线程。
@@ -1760,6 +1875,1114 @@ xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
 ```c
 	pRace = xrtFutureRace(arrFuture, 2);
 ```
+
+
+## Future 桥
+
+桥解决"异步操作先返回 Future、结果稍后才到"的装配竞态：`Ready` 之前的终态写入被挂起，`Ready`/`Fail` 决定放行或回收。
+
+### `xrtFutureBridgeInit`
+
+使用一个已有 Promise 初始化桥；Promise 的所有权仍由调用方持有。桥解决"异步操作先返回 Future、结果稍后才到"的装配竞态。
+
+```c
+bool xrtFutureBridgeInit(
+	xfuturebridge* pBridge,
+	xpromise* pPromise
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBridge` | 输出 | 非空、32 字节固定存储 | 可嵌入异步操作上下文 |
+| `pPromise` | 输入 | 非空、借用 | 调用方持有的 Promise |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 桥已就绪 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[concurrency/bridge_tour · Init](../../examples/concurrency/bridge_tour/main.c) · 观察
+
+```c
+		!xrtFutureBridgeInit(&Bridge2, pPromise2) ||
+```
+
+
+### `xrtFutureBridgeCreate`
+
+创建 Future/Promise 对并初始化桥；返回的 Future 由调用方持有。
+
+```c
+xfuture* xrtFutureBridgeCreate(
+	xfuturebridge* pBridge,
+	xcancel* pParent
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBridge` | 输出 | 非空 | 桥存储 |
+| `pParent` | 输入 | 允许空 | 父取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 消费端 Future | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[concurrency/bridge_tour · Create](../../examples/concurrency/bridge_tour/main.c) · 观察
+
+```c
+	pFuture = xrtFutureBridgeCreate(&Bridge, NULL);
+```
+
+
+### `xrtFutureBridgePromise`
+
+返回桥借用的 Promise；调用方负责按原有所有权契约销毁它。
+
+```c
+xpromise* xrtFutureBridgePromise(
+	const xfuturebridge* pBridge
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBridge` | 输入 | 非空 | 桥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 借用的 Promise（不增引用） | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[concurrency/bridge_tour · Create](../../examples/concurrency/bridge_tour/main.c) · 观察
+
+```c
+		((pBorrowed = xrtFutureBridgePromise(&Bridge)) == NULL) ) {
+```
+
+
+### `xrtFutureBridgeWatch`
+
+把 Future 的协作取消转发给底层异步操作。
+
+```c
+bool xrtFutureBridgeWatch(
+	xfuturebridge* pBridge,
+	xcancelproc pCancelProc,
+	ptr pCancelData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBridge` | 输入/输出 | 非空 | 桥 |
+| `pCancelProc` | 输入 | 非空 | 取消回调 |
+| `pCancelData` | 输入 | 任意值 | 原样传给回调 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 监听已建立 | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 未初始化或已注销
+
+#### 范例
+
+[concurrency/bridge_tour · Watch](../../examples/concurrency/bridge_tour/main.c) · 观察
+
+```c
+	if ( !xrtFutureBridgeWatch(&Bridge, exampleCancel,
+			(ptr)&bCancelled) ||
+```
+
+
+### `xrtFutureBridgeReady`
+
+发布装配成功，允许底层完成回调向 Promise 写入终态。
+
+```c
+bool xrtFutureBridgeReady(xfuturebridge* pBridge);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBridge` | 输入/输出 | 非空 | 桥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | Ready 之前的挂起终态写入被放行 | — |
+| `false` | 状态非法（已发布） | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 已发布过 Ready/Fail
+
+#### 范例
+
+[concurrency/bridge_tour · Watch](../../examples/concurrency/bridge_tour/main.c) · 观察
+
+```c
+		!xrtFutureBridgeReady(&Bridge) ||
+```
+
+
+### `xrtFutureBridgeFail`
+
+发布装配失败，要求底层完成回调只回收结果。
+
+```c
+bool xrtFutureBridgeFail(xfuturebridge* pBridge);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBridge` | 输入/输出 | 非空 | 桥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 后续终态写入将被拒收 | — |
+| `false` | 状态非法（已发布） | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 已发布过 Ready/Fail
+- 注：Promise 归调用方所有，直接向 Promise 写终态仍合法
+
+#### 范例
+
+[concurrency/bridge_tour · Fail](../../examples/concurrency/bridge_tour/main.c) · 观察
+
+```c
+		!xrtFutureBridgeFail(&Bridge2) ||
+		xrtFutureBridgeWait(&Bridge2) ) {
+```
+
+
+### `xrtFutureBridgeWait`
+
+等待极短的装配窗口，并返回底层结果能否写入 Promise。
+
+```c
+bool xrtFutureBridgeWait(const xfuturebridge* pBridge);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBridge` | 输入 | 非空 | 桥 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已 Ready：结果可写入 Promise | — |
+| `false` | 已 Fail：只回收结果（不设错，是查询结果） | — |
+
+#### 错误
+
+- 无 — 返回值即答案
+
+#### 范例
+
+[concurrency/bridge_tour · Watch](../../examples/concurrency/bridge_tour/main.c) · 观察
+
+```c
+		!xrtFutureBridgeWait(&Bridge) ||
+```
+
+
+### `xrtFutureBridgeUnwatch`
+
+注销取消监听，并与正在执行的取消回调汇合。
+
+```c
+void xrtFutureBridgeUnwatch(xfuturebridge* pBridge);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBridge` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 返回后取消回调不再触发 | — |
+
+#### 错误
+
+- 无 — 注销不失败
+
+#### 范例
+
+[concurrency/bridge_tour · 收尾](../../examples/concurrency/bridge_tour/main.c) · 观察
+
+```c
+	xrtFutureBridgeUnwatch(&Bridge);
+```
+
+
+
+## TLS 监听器
+
+监听器把 TCP 绑定与异步接入组合为单入口；Accept 三形态覆盖 pull（非阻塞/Future/阻塞）消费模型。
+
+### `xrtTlsListenerConfigInit`
+
+初始化单 IPv4 动态端口、有界握手与有界完成队列的默认配置。
+
+```c
+void xrtTlsListenerConfigInit(xtlslistenerconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tls/listener_tour · 监听器](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	xrtTlsListenerConfigInit(&ListenerConfig);
+```
+
+
+### `xrtTlsListenerStart`
+
+同步完成 TCP 绑定并开始异步接入。Context/Identity 被 Listener 保留；ALPN 列表深复制；SelectContext 与 ResumeContext 由调用方持有到关闭回调结束。
+
+```c
+xtlslistener* xrtTlsListenerStart(
+	xnetengine* pEngine,
+	const xtlslistenerconfig* pConfig,
+	const xtlslistenerevents* pEvents,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空、运行中 | 网络引擎 |
+| `pConfig` | 输入 | 非空 | 监听配置 |
+| `pEvents` | 输入 | 允许空 | 监听器事件回调 |
+| `pStreamEvents` | 输入 | 允许空 | 每连接流事件 |
+| `pData` | 输入 | 任意值 | 用户数据（`ListenerData` 取回） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 监听器（`OPEN` 状态） | — |
+| `NULL` | 绑定或启动失败 | `xrt.tls` 域错误经 `xrtGetError()` 报告 |
+
+#### 错误
+
+- `xrt.tls` 域错误 — TCP 绑定失败（cause 链保留底层）
+- `XERR_ARGUMENT` — 参数非法
+
+#### 范例
+
+[tls/listener_tour · 监听器](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	pListener = xrtTlsListenerStart(pEngine, &ListenerConfig, NULL,
+		NULL, &EngineConfig);
+```
+
+
+### `xrtTlsListenerRef`
+
+增加 Listener 引用并返回原指针。
+
+```c
+xtlslistener* xrtTlsListenerRef(xtlslistener* pListener);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/listener_tour · 引用](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	pListenerRef = xrtTlsListenerRef(pListener);
+```
+
+
+### `xrtTlsListenerDestroy`
+
+释放 Listener 引用；不会隐式关闭仍在监听的对象。
+
+```c
+void xrtTlsListenerDestroy(xtlslistener* pListener);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败；仍监听时需先 `Close`
+
+#### 范例
+
+[tls/listener_tour · 收尾](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	xrtTlsListenerDestroy(pListenerRef);
+	xrtTlsListenerDestroy(pListener);
+```
+
+
+### `xrtTlsListenerAccept`
+
+pull 模式下非阻塞取得一个已完成握手的 Stream；空队列返回空指针。
+
+```c
+xtlsstream* xrtTlsListenerAccept(xtlslistener* pListener);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 已完成握手的 Stream（引用转移给调用方） | — |
+| `NULL` | 队列空（正常结果）或失败 | 空队列不设错 |
+
+#### 错误
+
+- 无 — 空队列是正常结果
+
+#### 范例
+
+[tls/listener_tour · Accept 三态](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+		pServerA = xrtTlsListenerAccept(pListener);
+```
+
+
+### `xrtTlsListenerAcceptAsync`
+
+pull 模式下异步接受一个已完成握手的 Stream；Future 持有结果引用。
+
+```c
+xfuture* xrtTlsListenerAcceptAsync(xtlslistener* pListener);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Future；成功值为 Stream 引用 | — |
+| `NULL` | 提交失败 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误
+
+#### 范例
+
+[tls/listener_tour · Accept 三态](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	pAcceptFuture = xrtTlsListenerAcceptAsync(pListener);
+```
+
+
+### `xrtTlsListenerAcceptWait`
+
+阻塞接受一个已完成握手的 Stream；禁止从该 Engine 的 Worker 调用。
+
+```c
+xtlsstream* xrtTlsListenerAcceptWait(
+	xtlslistener* pListener,
+	xdeadline iDeadline,
+	xcancel* pCancel
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 监听器 |
+| `iDeadline` | 输入 | 单调时钟 | 截止时间 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 已完成握手的 Stream | — |
+| `NULL` | 到期/取消/失败 | 到期与取消不设错 |
+
+#### 错误
+
+- `XERR_STATE` — 从所属 Engine Worker 调用（自等待死锁）
+- 无 — 到期/取消返回空是等待结果
+
+#### 范例
+
+[tls/listener_tour · Accept 三态](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	pServerC = xrtTlsListenerAcceptWait(pListener,
+		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+```
+
+
+### `xrtTlsListenerClose`
+
+原子停止接入并丢弃尚未交付的连接；已交付连接保持独立生命周期。
+
+```c
+bool xrtTlsListenerClose(xtlslistener* pListener);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 监听器；幂等 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已停止接入 | — |
+| `false` | 参数非法或已关闭 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 已 CLOSED（幂等失败口径）
+
+#### 范例
+
+[tls/listener_tour · 收尾](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+		(void)xrtTlsListenerClose(pListener);
+		while ( xrtTlsListenerState(pListener) !=
+			XTLS_LISTENER_CLOSED ) {
+```
+
+
+### `xrtTlsListenerState`
+
+返回 Listener 当前生命周期状态。
+
+```c
+xtlslistenerstate xrtTlsListenerState(
+	const xtlslistener* pListener
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 允许空 | 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XTLS_LISTENER_OPEN/CLOSED/...` | 状态枚举 | — |
+| 零值 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/listener_tour · 监听器](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+		(xrtTlsListenerState(pListener) != XTLS_LISTENER_OPEN) ||
+```
+
+
+### `xrtTlsListenerLocal`
+
+复制监听 Socket 的实际本地地址，支持动态端口。
+
+```c
+bool xrtTlsListenerLocal(
+	xtlslistener* pListener,
+	xnetaddr* pAddress
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 监听器 |
+| `pAddress` | 输出 | 非空 | 接收本地地址 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 地址已写出 | — |
+| `false` | 参数或系统错误 | `XERR_ARGUMENT` / 系统错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- 系统错误（`xrt.tls` 域）
+
+#### 范例
+
+[tls/listener_tour · 监听器](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+		!xrtTlsListenerLocal(pListener, &Address) ||
+```
+
+
+### `xrtTlsListenerData`
+
+返回创建时保存的用户数据快照。
+
+```c
+ptr xrtTlsListenerData(const xtlslistener* pListener);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 允许空 | 监听器 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 任意值 | 创建时传入的 `pData` | — |
+| `NULL` | 未设置或参数非法 | — |
+
+#### 错误
+
+- 无 — 数据查询
+
+#### 范例
+
+[tls/listener_tour · 监听器](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+		(xrtTlsListenerData(pListener) != &EngineConfig) ) {
+```
+
+
+### `xrtTlsListenerStats`
+
+复制 Listener 的并发统计快照。
+
+```c
+bool xrtTlsListenerStats(
+	const xtlslistener* pListener,
+	xtlslistenerstats* pStats
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pListener` | 输入 | 非空 | 监听器 |
+| `pStats` | 输出 | 非空 | 接收 Accepted/Handshakes 等统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 快照已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/listener_tour · 统计](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	if ( !xrtTlsListenerStats(pListener, &ListenerStats) ||
+		(ListenerStats.Accepted < 3u) ||
+```
+
+
+
+## TLS 拨号
+
+拨号把 DNS 解析、TCP 竞争连接与 TLS 握手组合为一次异步操作，提供回调式与 Future 式两个入口。
+
+### `xrtTlsDialConfigInit`
+
+初始化 TCP 拨号、TLS Stream 和总超时策略的默认配置。
+
+```c
+void xrtTlsDialConfigInit(xtlsdialconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[tls/dial · 配置](../../examples/tls/dial/main.c) · 观察
+
+```c
+	xrtTlsDialConfigInit(&DialConfig);
+```
+
+
+### `xrtTlsDial`
+
+解析主机、竞争 TCP 地址并完成 TLS 握手；成功 Stream 引用转移给完成回调。
+
+```c
+xtlsdial* xrtTlsDial(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xtlsdialproc pDone,
+	ptr pDoneData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络引擎 |
+| `pResolver` | 输入 | 非空 | DNS 解析器 |
+| `sHost` | 输入 | 非空 | 主机名 |
+| `iPort` | 输入 | — | 端口 |
+| `pTls` | 输入 | 非空 | 客户端 TLS 配置 |
+| `pConfig` | 输入 | 允许空 | 拨号配置（超时等） |
+| `pStreamEvents` | 输入 | 允许空 | 流事件 |
+| `pStreamData` | 输入 | 任意值 | 流用户数据 |
+| `pDone` | 输入 | 非空 | 完成回调 |
+| `pDoneData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Dial 对象（终态后 Destroy 释放） | — |
+| `NULL` | 提交失败 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误 — 提交失败
+
+#### 范例
+
+[tls/dial · 回调式](../../examples/tls/dial/main.c) · 观察
+
+```c
+	pDial = xrtTlsDial(
+		pEngine,
+		pResolver,
+		sHost,
+		(uint16)iPort,
+		&TlsConfig,
+		&DialConfig,
+```
+
+
+### `xrtTlsDialAsync`
+
+以 Future 接收完成握手的 TLS Stream；`Open` 先于成功终态发布。Future 持有一个 Stream 引用，取消请求协作终止当前阶段。
+
+```c
+xfuture* xrtTlsDialAsync(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络引擎 |
+| `pResolver` | 输入 | 非空 | 解析器 |
+| `sHost` | 输入 | 非空 | 主机名 |
+| `iPort` | 输入 | — | 端口 |
+| `pTls` | 输入 | 非空 | TLS 配置 |
+| `pConfig` | 输入 | 允许空 | 拨号配置 |
+| `pStreamEvents` | 输入 | 允许空 | 流事件 |
+| `pStreamData` | 输入 | 任意值 | 流用户数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Future；成功值为 Stream 引用，失败值为 `xrt.tls` 错误链 | — |
+| `NULL` | 提交失败 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误 — Future 失败值或提交失败
+
+#### 范例
+
+[tls/dial_future · Future 化](../../examples/tls/dial_future/main.c) · 观察
+
+```c
+	pFuture = xrtTlsDialAsync(
+		pEngine,
+		pResolver,
+		sHost,
+		(uint16)iPort,
+		&TlsConfig,
+		&DialConfig,
+		NULL,
+		NULL
+	);
+```
+
+
+### `xrtTlsDialRef`
+
+增加 TLS Dial 引用并返回原指针。
+
+```c
+xtlsdial* xrtTlsDialRef(xtlsdial* pDial);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | Dial 对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/listener_tour · 拨号自省](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+		(xrtTlsDialRef(pDial) != pDial) ) {
+```
+
+
+### `xrtTlsDialDestroy`
+
+释放 TLS Dial 引用；空指针视为空操作。
+
+```c
+void xrtTlsDialDestroy(xtlsdial* pDial);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[tls/dial · 收尾](../../examples/tls/dial/main.c) · 观察
+
+```c
+	xrtTlsDialDestroy(pDial);
+```
+
+
+### `xrtTlsDialCancel`
+
+原子受理取消；返回真保证最终结果不会再变为成功。
+
+```c
+bool xrtTlsDialCancel(xtlsdial* pDial);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | Dial 对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 取消已受理；最终结果必为 CANCELLED/FAILED | — |
+| `false` | 已终态（成功无法撤回）或参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/listener_tour · 在途取消](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+			bool bCancelled = xrtTlsDialCancel(pMidair);
+```
+
+
+### `xrtTlsDialState`
+
+返回当前拨号阶段或不可变终态。
+
+```c
+xtlsdialstate xrtTlsDialState(const xtlsdial* pDial);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | Dial 对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 阶段/终态枚举 | 解析/连接/握手或终态 | — |
+| 零值 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/listener_tour · 拨号自省](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	pSlot->DialState = xrtTlsDialState(pDial);
+```
+
+
+### `xrtTlsDialError`
+
+失败或取消后借用完整错误原因链。
+
+```c
+const xerror* xrtTlsDialError(const xtlsdial* pDial);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | Dial 对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 错误借用（含 DNS/TCP/TLS 分层 cause 链） | — |
+| `NULL` | 未失败或参数非法 | 纯查询 |
+
+#### 错误
+
+- 无 — 非失败状态返回空是查询结果
+
+#### 范例
+
+[tls/listener_tour · 拨号自省](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+		xrtTlsDialError(pDial) == NULL ? "(none)" : "err");
+```
+
+
+### `xrtTlsDialTransportStats`
+
+取得底层 TCP Dial 统计；TLS 握手阶段仍保留获胜地址信息。
+
+```c
+bool xrtTlsDialTransportStats(
+	const xtlsdial* pDial,
+	xnetdialstats* pStats
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | Dial 对象 |
+| `pStats` | 输出 | 非空 | 接收拨号统计 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 统计已写出 | — |
+| `false` | 参数非法或尚未开始 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tls/listener_tour · 拨号自省](../../examples/tls/listener_tour/main.c) · 观察
+
+```c
+	if ( !xrtTlsDialTransportStats(pDial, &TransportStats) ||
+```
+
 
 
 ## 示例

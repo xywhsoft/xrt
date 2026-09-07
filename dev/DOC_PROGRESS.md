@@ -24,7 +24,7 @@
 | 17 | executor.md | 10 | **完成** | 10/10 全绿（G3 10 片段，2026-09-07）；双门禁一次全绿 |
 | 18 | file.md | 97 | **完成** | 97/97 全绿（G3 97 片段，2026-09-07）；三段：IO/文本 36 + 锁/映射/目录 37 + 遍历/链接/根 24 |
 | 19 | file_async.md | 34 | **完成** | 34/34 全绿（G3 34 片段，2026-09-07）；七组：文件对象 4 + 定位读写 5 + 大小 3 + 整文件 5 + 管理 3 + 目录 6 + 目录树 8 |
-| 20 | future.md | 104 | 进行中 [1/3 段] | 第 1 段核心 44/104 全绿（G3 41 片段）；余 bridge 8 + TLS listener/dial 21 + TLS stream 31 |
+| 20 | future.md | 104 | 进行中 [2/3 段] | 73/104 全绿（G3 73 片段）；余第 3 段 TLS stream 31 |
 | 21 | hash.md | 9 | 待办 |  |
 | 22 | html.md | 3 | 待办 |  |
 | 23 | http.md | 167 | 待办 |  |
@@ -387,3 +387,15 @@
   注册范例（future_tour 25 + combine 8 + worker/report/
   resolver_future/tcp_server_sync 等真实场景）。G1/G2 余 63 =
   第 2/3 段缺口。array 抽查无回归。
+- 2026-09-07 future.md 第 2 段（29 节）完成：Future 桥 8
+  （装配竞态模型——Ready 放行/Fail 回收、Wait 返回"能否写
+  Promise"、Unwatch 与取消回调汇合）+ TLS Listener 12（Start
+  保留 Context/Identity + ALPN 深复制的所有权边界；Accept 三态
+  pull：非阻塞/Future/阻塞，阻塞版禁 Worker 调用；Close 丢弃
+  未交付连接但已交付独立存活）+ TLS Dial 9（回调式 Dial 与
+  Future 式 DialAsync 双入口；Cancel "返回真保证不再变成功"；
+  Error 借用含 DNS/TCP/TLS 分层 cause 链）。另修复第 1 段遗留：
+  WaitFor/WaitUntil/WaitUntilCancel 三节被早前 Await 补插时的
+  边界 bug 吞失（missing-section 报出后重建）。锚点：bridge_tour
+  8 + listener_tour 17 + dial/dial_future。G3 73 片段全绿；
+  G1/G2 余 31 = 第 3 段缺口。array 复验无回归。
