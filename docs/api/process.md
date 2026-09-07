@@ -155,6 +155,1338 @@ API 失败时使用 `xrtGetError()` 读取 `xrt.process` 域错误。错误包�
 
 
 
+### `xrtProcessConfigInit`
+
+初始化直接执行配置，并启用继承环境与独立进程组。
+
+```c
+bool xrtProcessConfigInit(xprocessconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[stream](../../examples/process/stream/main.c) · 直接执行配置
+
+```c
+	if ( !xrtProcessConfigInit(&Config) ) {
+```
+
+### `xrtProcessShellConfigInit`
+
+初始化系统 Shell 配置；`Command` 只借用到 Spawn 返回。
+
+```c
+bool xrtProcessShellConfigInit(
+	xprocessconfig* pConfig,
+	cstr sCommand
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+| `sCommand` | 输入 | 非空、零结尾 | Shell 命令行 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[file](../../examples/process/file/main.c) · Shell 配置
+
+```c
+		if ( !xrtProcessShellConfigInit(&Config, "echo redirected output") ) {
+```
+
+### `xrtProcessSpawn`
+
+启动子进程；失败不返回半初始化对象，详情写入当前结构化错误。
+
+```c
+xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空且通过校验 | 进程配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 进程对象（引用 1） | — |
+| `NULL` | 启动失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` 域错误 — 启动失败：`ARGUMENT`（参数）、`CONFIG`（`XERR_VALUE`，配置组合）、`COMMAND`（程序路径）、`ENVIRONMENT`（`XERR_VALUE`，环境块）、`PIPE`（管道创建）、`SPAWN`（平台创建）
+
+#### 范例
+
+[stream](../../examples/process/stream/main.c) · 启动进程
+
+```c
+	pProcess = xrtProcessSpawn(&Config);
+```
+
+### `xrtProcessRef`
+
+增加进程对象引用并返回原指针。
+
+```c
+xprocess* xrtProcessRef(xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 共享引用
+
+```c
+	pRef = xrtProcessRef(pProcess);
+```
+
+### `xrtProcessDestroy`
+
+释放进程对象引用；最后一个调用方引用可在进程运行时释放，此时关闭父端标准流并由内部等待者回收子进程，不隐式杀死子进程。
+
+```c
+void xrtProcessDestroy(xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[stream](../../examples/process/stream/main.c) · 释放引用
+
+```c
+		xrtProcessDestroy(pProcess);
+```
+
+### `xrtProcessState`
+
+返回进程状态快照。
+
+```c
+xprocessstate xrtProcessState(const xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XPROCESS_RUNNING` | 尚未退出 | — |
+| `XPROCESS_EXITED` | 已退出 | — |
+
+#### 错误
+
+- 无 — 快照读取不设置错误；空句柄返回 `XPROCESS_RUNNING`
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 状态快照
+
+```c
+		(xrtProcessState(pProcess) != XPROCESS_RUNNING) ||
+```
+
+### `xrtProcessId`
+
+返回平台进程标识，失败返回零。
+
+```c
+uint64 xrtProcessId(const xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非零 | 平台进程标识 | — |
+| `0` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 进程标识
+
+```c
+		(xrtProcessId(pProcess) == 0u) ||
+```
+
+### `xrtProcessNative`
+
+返回借用的原生进程句柄；POSIX 返回 pid，Windows 返回 HANDLE。
+
+```c
+intptr_t xrtProcessNative(const xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 句柄 | 原生进程句柄借用 | — |
+| `-1` 等异常值 | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 原生句柄
+
+```c
+		(xrtProcessNative(pProcess) == 0) ||
+```
+
+### `xrtProcessStreamNative`
+
+返回借用的父端标准流句柄；未配置 PIPE 或已关闭时返回 -1。
+
+```c
+intptr_t xrtProcessStreamNative(
+	const xprocess* pProcess,
+	xprocessstream Stream
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+| `Stream` | 输入 | — | 标准流选择 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 句柄 | 原生流句柄借用 | — |
+| `-1` | 未配置 PIPE 或已关闭 | 不设错 |
+
+#### 错误
+
+- 无句柄时返回 `-1` 且不设置错误；空句柄 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 标准流原生句柄
+
+```c
+		(xrtProcessStreamNative(pProcess,
+			XPROCESS_STDOUT) == 0) ) {
+```
+
+### `xrtProcessStatus`
+
+复制退出状态；进程尚未退出时返回 `false` 并设置状态错误。
+
+```c
+bool xrtProcessStatus(
+	const xprocess* pProcess,
+	xprocessstatus* pStatus
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+| `pStatus` | 输出 | 非空 | 接收状态快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 状态已复制 | — |
+| `false` | 尚未退出 | `XERR_STATE` |
+
+#### 错误
+
+- `XERR_STATE` — 进程尚未退出；句柄或输出为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 退出状态
+
+```c
+		!xrtProcessStatus(pProcess, &Status) ||
+```
+
+### `xrtProcessError`
+
+返回进程后台等待失败的新错误引用，没有后台错误时返回空；用后 `xrtErrorFree` 释放。
+
+```c
+xerror* xrtProcessError(const xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 错误新引用 | — |
+| `NULL` | 无后台错误 | 不设错 |
+
+#### 错误
+
+- 无错误 — 尚无后台失败时返回 `NULL` 且不设置错误
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 后台错误
+
+```c
+		(xrtProcessError(pProcess) != NULL) ) {
+```
+
+### `xrtProcessRead`
+
+从 stdout 或 stderr 管道同步读取；零表示 EOF，负数表示错误。同一标准流同一时刻只允许一个读取者。
+
+```c
+int64 xrtProcessRead(
+	xprocess* pProcess,
+	xprocessstream Stream,
+	void* pData,
+	size_t iSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+| `Stream` | 输入 | STDOUT/ERR | 读取管道 |
+| `pData` | 输出 | 非空 | 接收缓冲 |
+| `iSize` | 输入 | > 0 | 缓冲容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `> 0` | 实际读取字节数 | — |
+| `0` | EOF | — |
+| `< 0` | 失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` / `XPROCESS_ERROR_READ` — 读取失败（含句柄或流配置非法 `XERR_ARGUMENT`）
+
+#### 范例
+
+[stream](../../examples/process/stream/main.c) · 同步读取
+
+```c
+	while ( (iRead = xrtProcessRead(
+		pProcess,
+		XPROCESS_STDOUT,
+		pOutput,
+		sizeof(pOutput)
+	)) > 0 ) {
+```
+
+### `xrtProcessWrite`
+
+向 stdin 管道同步写入，返回实际写入字节数，负数表示错误。函数可能部分写入；同一时刻只允许一个写入者。
+
+```c
+int64 xrtProcessWrite(
+	xprocess* pProcess,
+	const void* pData,
+	size_t iSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+| `pData` | 输入 | 非空 | 待写入数据 |
+| `iSize` | 输入 | > 0 | 写入字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 实际写入字节数（可部分写入） | — |
+| `< 0` | 失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` / `XPROCESS_ERROR_WRITE` — 写入失败（含参数非法 `XERR_ARGUMENT`）
+
+#### 范例
+
+[stream](../../examples/process/stream/main.c) · 同步写入
+
+```c
+	if ( xrtProcessWrite(pProcess, sInput, sizeof(sInput) - 1u) <= 0 ) {
+```
+
+### `xrtProcessClose`
+
+关闭父进程持有的指定管道端；重复关闭成功。
+
+```c
+bool xrtProcessClose(
+	xprocess* pProcess,
+	xprocessstream Stream
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+| `Stream` | 输入 | — | 要关闭的流 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已关闭（或本就关闭） | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.process` / `XPROCESS_ERROR_CLOSE` — 平台关闭失败
+
+#### 范例
+
+[stream](../../examples/process/stream/main.c) · 关闭管道端
+
+```c
+	(void)xrtProcessClose(pProcess, XPROCESS_STDIN);
+```
+
+### `xrtProcessWait`
+
+等待进程退出。
+
+```c
+xwaitresult xrtProcessWait(xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XWAIT_OK` | 进程已退出，状态可读 | — |
+| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
+| `XWAIT_ERROR` | 参数或等待失败 | `XERR_ARGUMENT` / `xrt.process` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.process` / `XPROCESS_ERROR_WAIT` — 平台等待失败
+
+#### 范例
+
+[file](../../examples/process/file/main.c) · 无限等待
+
+```c
+	if ( xrtProcessWait(pProcess) != XWAIT_OK ) {
+```
+
+### `xrtProcessWaitFor`
+
+在相对微秒数内等待进程退出。
+
+```c
+xwaitresult xrtProcessWaitFor(
+	xprocess* pProcess,
+	uint64 iTimeout
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+| `iTimeout` | 输入 | — | 相对等待微秒数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XWAIT_OK` | 进程已退出，状态可读 | — |
+| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
+| `XWAIT_ERROR` | 参数或等待失败 | `XERR_ARGUMENT` / `xrt.process` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.process` / `XPROCESS_ERROR_WAIT` — 平台等待失败
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 限时等待
+
+```c
+	if ( xrtProcessWaitFor(pProcess, 100000u) != XWAIT_TIMEOUT ) {
+```
+
+### `xrtProcessWaitUntil`
+
+等待进程退出到指定单调时钟截止时间。
+
+```c
+xwaitresult xrtProcessWaitUntil(
+	xprocess* pProcess,
+	xdeadline iDeadline
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+| `iDeadline` | 输入 | — | 截止时间 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XWAIT_OK` | 进程已退出，状态可读 | — |
+| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
+| `XWAIT_ERROR` | 参数或等待失败 | `XERR_ARGUMENT` / `xrt.process` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.process` / `XPROCESS_ERROR_WAIT` — 平台等待失败
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 限期等待
+
+```c
+		(xrtProcessWaitUntil(pProcess,
+			xrtDeadlineAfter(UINT64_C(2000000))) !=
+			XWAIT_OK) ) {
+```
+
+### `xrtProcessWaitUntilCancel`
+
+等待进程、Deadline 或取消令牌中的首个事件。
+
+```c
+xwaitresult xrtProcessWaitUntilCancel(
+	xprocess* pProcess,
+	xdeadline iDeadline,
+	xcancel* pCancel
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+| `iDeadline` | 输入 | — | 截止时间 |
+| `pCancel` | 输入 | 允许空 | 取消令牌 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XWAIT_OK` | 进程已退出，状态可读 | — |
+| `XWAIT_TIMEOUT` | 期限先到达 | 不设错误 |
+| `XWAIT_ERROR` | 参数或等待失败 | `XERR_ARGUMENT` / `xrt.process` 域错误 |
+| `XWAIT_CANCELLED` | 取消令牌触发 | 不设错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 句柄为空
+- `xrt.process` / `XPROCESS_ERROR_WAIT` — 平台等待失败
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 可取消等待
+
+```c
+		(xrtProcessWaitUntilCancel(pProcess,
+			xrtDeadlineAfter(UINT64_C(3000000)),
+			pCancel) != XWAIT_CANCELLED) ) {
+```
+
+### `xrtProcessInterrupt`
+
+请求控制台中断或 POSIX SIGINT，不等待进程退出。
+
+```c
+bool xrtProcessInterrupt(xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 请求已发出 | — |
+| `false` | 失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` / `XPROCESS_ERROR_SIGNAL` — 平台信号发送失败；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 请求中断
+
+```c
+	if ( !xrtProcessInterrupt(pProcess) ) {
+```
+
+### `xrtProcessTerminate`
+
+请求温和终止并关闭 stdin，不等待进程退出。
+
+```c
+bool xrtProcessTerminate(xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 请求已发出 | — |
+| `false` | 失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` / `XPROCESS_ERROR_SIGNAL` — 平台终止失败；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 温和终止
+
+```c
+	if ( !xrtProcessTerminate(pProcess) ||
+		!xrtProcessKill(pProcess) ||
+		(xrtProcessWaitUntil(pProcess,
+			xrtDeadlineAfter(UINT64_C(2000000))) !=
+			XWAIT_OK) ) {
+```
+
+### `xrtProcessKill`
+
+强制结束根进程，不等待进程退出。
+
+```c
+bool xrtProcessKill(xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 请求已发出 | — |
+| `false` | 失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` / `XPROCESS_ERROR_SIGNAL` — 平台结束失败；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 强制结束
+
+```c
+		!xrtProcessKill(pProcess) ||
+```
+
+### `xrtProcessKillTree`
+
+强制结束创建时进程组中的完整进程树，不等待进程退出。
+
+```c
+bool xrtProcessKillTree(xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 请求已发出 | — |
+| `false` | 失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` / `XPROCESS_ERROR_SIGNAL` — 平台结束失败；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 结束进程树
+
+```c
+			xrtProcessKillTree(pVictim) &&
+```
+
+### `xrtProcessOpen`
+
+请求系统使用默认关联程序打开 UTF-8 文件路径或 URI；返回 `true` 只表示系统接受请求，不表示目标应用已经完成展示。
+
+```c
+bool xrtProcessOpen(cstr sTarget)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sTarget` | 输入 | 非空、零结尾 | 文件路径或 URI |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 系统已接受请求 | — |
+| `false` | 失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` / `XPROCESS_ERROR_OPEN` — 系统打开请求失败；参数非法 `XERR_ARGUMENT`
+
+#### 范例
+
+[open](../../examples/process/open/main.c) · 默认程序打开
+
+```c
+	if ( !xrtProcessOpen(argv[1]) ) {
+```
+
+### `xrtProcessFile`
+
+从借用的 XRT 文件构造 HANDLE 标准流配置。
+
+```c
+xprocessio xrtProcessFile(xfile File)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `File` | 输入 | 非空 | 打开的文件句柄 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| IO 配置 | 可赋给 `xprocessconfig` 的流配置 | — |
+| 无效配置 | 文件为空 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[file](../../examples/process/file/main.c) · 文件标准流
+
+```c
+	Config.Stdout = xrtProcessFile(File);
+```
+
+### `xrtProcessTerminalSupported`
+
+判断当前系统是否具备 ConPTY 或 POSIX PTY 支持。
+
+```c
+bool xrtProcessTerminalSupported(void)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| 无参数 | — | — | — |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否支持终端 | — |
+
+#### 错误
+
+- 无 — 纯能力查询，不设置错误
+
+#### 范例
+
+[terminal](../../examples/process/terminal/main.c) · 终端能力
+
+```c
+	if ( !xrtProcessTerminalSupported() ) {
+```
+
+### `xrtProcessResize`
+
+调整 Terminal 进程窗口并通知子进程。
+
+```c
+bool xrtProcessResize(
+	xprocess* pProcess,
+	uint32 iColumns,
+	uint32 iRows
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空、Terminal 进程 | 目标进程 |
+| `iColumns` | 输入 | > 0 | 列数 |
+| `iRows` | 输入 | > 0 | 行数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已调整并通知 | — |
+| `false` | 失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` / `XPROCESS_ERROR_TERMINAL` — 非终端进程或平台调整失败；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 调整终端窗口
+
+```c
+				(void)xrtProcessResize(pTerm, 120u, 30u);
+```
+
+### `xrtProcessRunOptionsInit`
+
+初始化有界捕获、无限等待和 250 ms 分级停止宽限。
+
+```c
+bool xrtProcessRunOptionsInit(xprocessrunoptions* pOptions)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOptions` | 输出 | 非空 | 接收选项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 运行选项
+
+```c
+	if ( !xrtProcessRunOptionsInit(&RunOptions) ||
+		!xrtProcessRun(&Config, &RunOptions, &Result) ||
+		!xrtProcessResultSuccess(&Result) ||
+		(Result.StdoutSize < 4u) ||  /* "ping\r\n" 至少 4 */
+		(Result.Stdout == NULL) ) {
+```
+
+### `xrtProcessResultUnit`
+
+释放结果持有的输出并恢复为空结果。
+
+```c
+void xrtProcessResultUnit(xprocessresult* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResult` | 输入/输出 | 非空 | 目标结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已释放并清空 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[capture](../../examples/process/capture/main.c) · 释放结果
+
+```c
+	xrtProcessResultUnit(&Result);
+```
+
+### `xrtProcessResultSuccess`
+
+判断进程是否在未超时、未取消条件下以退出码零正常结束。
+
+```c
+bool xrtProcessResultSuccess(const xprocessresult* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResult` | 输入 | 非空 | 目标结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否正常零退出 | — |
+
+#### 错误
+
+- 无 — 纯判断，不设置错误
+
+#### 范例
+
+[capture](../../examples/process/capture/main.c) · 成功判断
+
+```c
+	bOk = xrtProcessResultSuccess(&Result);
+```
+
+### `xrtProcessRun`
+
+启动、并发排空 stdout/stderr、写入输入、等待并收口结果；返回 `false` 只表示基础设施失败，非零退出码仍返回 `true`。
+
+```c
+bool xrtProcessRun(
+	const xprocessconfig* pConfig,
+	const xprocessrunoptions* pOptions,
+	xprocessresult* pResult
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空且通过校验 | 进程配置 |
+| `pOptions` | 输入 | 允许空 | 空 = 默认选项 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已收口结果（含非零退出码） | — |
+| `false` | 基础设施失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` 域错误 — 启动失败：`ARGUMENT`（参数）、`CONFIG`（`XERR_VALUE`，配置组合）、`COMMAND`（程序路径）、`ENVIRONMENT`（`XERR_VALUE`，环境块）、`PIPE`（管道创建）、`SPAWN`（平台创建）
+- `xrt.process` / `XPROCESS_ERROR_WAIT`、`READ`、`WRITE` — 收口或排空失败
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 一次性运行
+
+```c
+		!xrtProcessRun(&Config, &RunOptions, &Result) ||
+```
+
+### `xrtProcessCapture`
+
+直接执行程序并使用默认有界捕获策略。
+
+```c
+bool xrtProcessCapture(
+	cstr sProgram,
+	const cstr* pArgs,
+	size_t iArgCount,
+	xprocessresult* pResult
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sProgram` | 输入 | 非空、零结尾 | 程序路径 |
+| `pArgs` | 输入 | 允许空 | 参数数组 |
+| `iArgCount` | 输入 | — | 参数数量 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已收口结果（含非零退出码） | — |
+| `false` | 基础设施失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` 域错误 — 启动失败：`ARGUMENT`（参数）、`CONFIG`（`XERR_VALUE`，配置组合）、`COMMAND`（程序路径）、`ENVIRONMENT`（`XERR_VALUE`，环境块）、`PIPE`（管道创建）、`SPAWN`（平台创建）
+- `xrt.process` / `XPROCESS_ERROR_WAIT`、`READ` — 收口失败
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · 直接执行捕获
+
+```c
+	if ( !xrtProcessCapture("cmd", arrArgs, 1u, &Result) ||
+		!xrtProcessResultSuccess(&Result) ||
+		(Result.StderrSize != 0u) ) {
+```
+
+### `xrtProcessShell`
+
+通过系统 Shell 执行命令并使用默认有界捕获策略。
+
+```c
+bool xrtProcessShell(
+	cstr sCommand,
+	xprocessresult* pResult
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `sCommand` | 输入 | 非空、零结尾 | Shell 命令行 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已收口结果（含非零退出码） | — |
+| `false` | 基础设施失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` 域错误 — 启动失败：`ARGUMENT`（参数）、`CONFIG`（`XERR_VALUE`，配置组合）、`COMMAND`（程序路径）、`ENVIRONMENT`（`XERR_VALUE`，环境块）、`PIPE`（管道创建）、`SPAWN`（平台创建）
+- `xrt.process` / `XPROCESS_ERROR_WAIT`、`READ` — 收口失败
+
+#### 范例
+
+[capture](../../examples/process/capture/main.c) · Shell 捕获
+
+```c
+		bOk = xrtProcessShell("echo captured output", &Result);
+```
+
+### `xrtProcessPipelineOptionsInit`
+
+初始化 Pipeline 的有界捕获、无限等待和 250 ms 停止宽限。
+
+```c
+bool xrtProcessPipelineOptionsInit(
+	xprocesspipelineoptions* pOptions
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pOptions` | 输出 | 非空 | 接收选项 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已初始化 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[tour](../../examples/process/tour/main.c) · Pipeline 选项
+
+```c
+	if ( !xrtProcessPipelineOptionsInit(&PipeOptions) ) {
+```
+
+### `xrtProcessPipelineResultUnit`
+
+释放 Pipeline 结果持有的状态数组和输出。
+
+```c
+void xrtProcessPipelineResultUnit(xprocesspipelineresult* pResult)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResult` | 输入/输出 | 非空 | 目标结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已释放并清空 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[pipeline](../../examples/process/pipeline/main.c) · 释放 Pipeline 结果
+
+```c
+	xrtProcessPipelineResultUnit(&Result);
+```
+
+### `xrtProcessPipelineSuccess`
+
+判断全部阶段是否都以退出码零正常结束。
+
+```c
+bool xrtProcessPipelineSuccess(
+	const xprocesspipelineresult* pResult
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pResult` | 输入 | 非空 | 目标结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` / `false` | 是否全部零退出 | — |
+
+#### 错误
+
+- 无 — 纯判断，不设置错误
+
+#### 范例
+
+[pipeline](../../examples/process/pipeline/main.c) · Pipeline 成功判断
+
+```c
+	bOk = xrtProcessPipelineSuccess(&Result);
+```
+
+### `xrtProcessPipeline`
+
+并发启动真实 OS 管道连接的全部阶段并按一个 Deadline 收口。
+
+```c
+bool xrtProcessPipeline(
+	const xprocessconfig* pStages,
+	size_t iStageCount,
+	const xprocesspipelineoptions* pOptions,
+	xprocesspipelineresult* pResult
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStages` | 输入 | 非空数组 | 各阶段配置 |
+| `iStageCount` | 输入 | > 1 | 阶段数量 |
+| `pOptions` | 输入 | 允许空 | 空 = 默认选项 |
+| `pResult` | 输出 | 非空 | 接收结果 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 已收口结果（含非零退出码） | — |
+| `false` | 基础设施失败 | `xrt.process` 域错误 |
+
+#### 错误
+
+- `xrt.process` 域错误 — 启动失败：`ARGUMENT`（参数）、`CONFIG`（`XERR_VALUE`，配置组合）、`COMMAND`（程序路径）、`ENVIRONMENT`（`XERR_VALUE`，环境块）、`PIPE`（管道创建）、`SPAWN`（平台创建）
+- `xrt.process` / `XPROCESS_ERROR_PIPE` — 阶段间管道连接失败
+- `xrt.process` / `XPROCESS_ERROR_WAIT`、`READ` — 收口失败
+
+#### 范例
+
+[pipeline](../../examples/process/pipeline/main.c) · 执行 Pipeline
+
+```c
+	bOk = xrtProcessPipeline(Stages, 2u, NULL, &Result);
+```
+
+### `xrtProcessWaitAsync`
+
+返回以 Future 形式等待进程退出的对象；成功值是由 Future 自身拥有的只读 `xprocessstatus` 快照。
+
+```c
+xfuture* xrtProcessWaitAsync(xprocess* pProcess)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProcess` | 输入 | 非空 | 目标进程 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Future，失败时完成并携带错误 | — |
+| `NULL` | 创建失败 | `XERR_ARGUMENT` / `XERR_MEMORY` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_MEMORY` — Future 分配失败
+
+#### 范例
+
+[future](../../examples/process/future/main.c) · Future 等待
+
+```c
+	pFuture = xrtProcessWaitAsync(pProcess);
+```
+
 ## 公共类型索引
 
 | 类型 | 用途 |

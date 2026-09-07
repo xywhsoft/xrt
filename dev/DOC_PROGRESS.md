@@ -57,7 +57,7 @@
 | 50 | pattern.md | 37 | **完成** | 37/37 全绿（G3 37 片段，2026-09-07）；xrt.pattern 域 CONFIG/PATTERN/LIMIT/CONFLICT/CAPACITY 五码入档；ErrorOffset/ErrorPattern 机器数据定位器；锚点 pattern/pattern_tour |
 | 51 | pem.md | 7 | **完成** | 7/7 全绿（G3 7 片段，2026-09-07）；xrt.pem 域 LABEL/BOUNDARY/BODY/NOT_FOUND 四码入档；xpemresult 三值逐值成表；锚点 pem/pem_tour（后者挂 asn1_der） |
 | 52 | pool.md | 58 | **完成** | 58/58 全绿（G3 58 片段，2026-09-07）；单页 20 + 固定池 20 + 变长池 18 三族；旧合并式小节（`X` / `Y` 双名）拆分；AGAIN 页满、RANGE 乘法溢出入档；锚点 pool_page/pool/memory_pool |
-| 53 | process.md | 37 | 待办 |  |
+| 53 | process.md | 37 | **完成** | 37/37 全绿（G3 37 片段，2026-09-07）；xrt.process 域 14 码（ARGUMENT..TERMINAL）入档；Read/Write int64 三态口径；Run 族 false=仅基础设施失败；manifest 补注册 tour |
 | 54 | proxy.md | 23 | 待办 |  |
 | 55 | queue.md | 46 | 待办 |  |
 | 56 | random.md | 39 | 待办 |  |
@@ -652,4 +652,11 @@
   FreeAt/Get 空闲越界不设错、Owns/Size 纯查询不设错。原有合并式
   `X` / `Y` 双名小节全部拆为单函数节（G2 拦截合并式残留）。
   完成 API 2132→2190/3664（59.8%），52/79 文件。
+- 2026-09-07 process.md 完成（37/37，G3 37 片段全绿）：核心 11 +
+  标准流与控制 11 + 打开/文件/终端 4 + 一次性运行/Pipeline/Future 11；
+  错误域 14 码对照 src/process/process.c——Spawn 失败不留半初始化对象、
+  Status 未退出 = STATE、Run/Pipeline 的 false 只表基础设施失败（非零
+  退出码仍 true）、Error 返回新引用。manifest 补注册 #10：process tour
+  （26 个 API 的主锚点）。
+  完成 API 2190→2227/3664（60.8%），53/79 文件。
 
