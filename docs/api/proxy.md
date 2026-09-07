@@ -34,6 +34,178 @@ pProxy = xrtNetProxyCreate(&Config);
 
 `xrtNetProxyRetain` 和 `xrtNetProxyRelease` 管理共享引用。最后一个引用释放前会清零整个对象分配，避免凭据留在堆内存中。
 
+### `xrtNetProxyConfigInit`
+
+初始化 SOCKS5、自动认证且没有固定容量字段的代理配置。
+
+```c
+void xrtNetProxyConfigInit(xnetproxyconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 默认配置
+
+```c
+	xrtNetProxyConfigInit(&ProxyConfig);
+```
+
+### `xrtNetProxyCreate`
+
+深拷贝代理端点和凭据，创建可跨线程共享的不可变对象。
+
+```c
+xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空且通过校验 | 代理配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 代理对象（引用 1） | — |
+| `NULL` | 创建失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `xrt.net` / `XNET_ERROR_PROXY_CONFIG`（`XERR_ARGUMENT` / `XERR_VALUE`） — 配置字段非法或组合不支持
+- `xrt.net` / `XNET_ERROR_PROXY_CREATE` — 对象或内部缓冲分配失败（`XERR_MEMORY` 等）
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 创建代理对象
+
+```c
+	pProxy = xrtNetProxyCreate(&ProxyConfig);
+```
+
+### `xrtNetProxyRetain`
+
+增加代理对象引用并返回原指针。
+
+```c
+xnetproxy* xrtNetProxyRetain(const xnetproxy* pProxy)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 非空 | 目标代理 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 共享引用
+
+```c
+		((pRetained = xrtNetProxyRetain(pProxy)) != pProxy) ) {
+```
+
+### `xrtNetProxyRelease`
+
+释放代理对象引用；最后一个引用会清零整块配置存储。
+
+```c
+void xrtNetProxyRelease(xnetproxy* pProxy)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 释放引用
+
+```c
+	xrtNetProxyRelease(pRetained);
+```
+
+### `xrtNetProxyInfo`
+
+复制代理对象的只读信息视图。
+
+```c
+bool xrtNetProxyInfo(
+	const xnetproxy* pProxy,
+	xnetproxyinfo* pInfo
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 非空 | 目标代理 |
+| `pInfo` | 输出 | 非空 | 接收信息快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已复制 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 信息视图
+
+```c
+	if ( !xrtNetProxyInfo(pProxy, &Info) ||
+		(Info.Type != XNET_PROXY_SOCKS5) ||
+		(Info.Host.Size != 12u) ||
+		(memcmp(Info.Host.Data, "socks5.local", 12u) != 0) ||
+		(Info.Port != 1080u) ) {
+```
+
 ## 增量握手
 
 `xnetproxyhandshake` 由一个传输执行上下文独占驱动。创建时会深拷贝目标主机、增加代理引用并立即生成首个协议报文。
@@ -59,6 +231,375 @@ pHandshake = xrtNetProxyHandshakeCreate(&Config);
 `xrtNetProxyHandshakeOutput` 只借用握手对象当前输出的首段。没有待发送数据或参数无效时，它返回 `false`，并把非空的输出参数规范化为 `{ NULL, 0 }`，调用方不会误用上一次查询留下的借用指针。
 
 握手输出可能包含用户名和密码。确认发送的输出前缀会在释放或返回缓冲池前清零；销毁握手也会清零尚未发送的输出。
+
+### `xrtNetProxyHandshakeConfigInit`
+
+初始化握手配置；64 KiB 上限主要约束后续 HTTP CONNECT Header。
+
+```c
+void xrtNetProxyHandshakeConfigInit(
+	xnetproxyhandshakeconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 握手配置
+
+```c
+	xrtNetProxyHandshakeConfigInit(&HsConfig);
+```
+
+### `xrtNetProxyHandshakeCreate`
+
+创建握手并立即生成首个协议报文；目标主机会被深拷贝。
+
+```c
+xnetproxyhandshake* xrtNetProxyHandshakeCreate(
+	const xnetproxyhandshakeconfig* pConfig
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空且通过校验 | 握手配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 握手对象，首个报文已就绪 | — |
+| `NULL` | 创建失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `xrt.net` / `XNET_ERROR_PROXY_CONFIG`（`XERR_ARGUMENT` / `XERR_VALUE`） — 配置字段非法或组合不支持
+- `xrt.net` / `XNET_ERROR_PROXY_CREATE` — 对象或内部缓冲分配失败（`XERR_MEMORY` 等）
+- `xrt.net` / `XNET_ERROR_PROXY_LIMIT`（`XERR_RANGE`） — 超出协议上限
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 创建握手
+
+```c
+	pHandshake = xrtNetProxyHandshakeCreate(&HsConfig);
+```
+
+### `xrtNetProxyHandshakeDestroy`
+
+销毁握手，并清零尚未发送的认证报文和内部目标信息。
+
+```c
+void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已销毁 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 销毁握手
+
+```c
+	xrtNetProxyHandshakeDestroy(pHandshake);
+```
+
+### `xrtNetProxyHandshakeState`
+
+返回当前握手状态；空指针返回 `ERROR`。
+
+```c
+xnetproxyhandshakestate xrtNetProxyHandshakeState(
+	const xnetproxyhandshake* pHandshake
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 目标握手 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_PROXY_HANDSHAKE_WRITE` | 有输出待发送 | — |
+| `XNET_PROXY_HANDSHAKE_READ` | 等待代理回复 | — |
+| `XNET_PROXY_HANDSHAKE_READY` | 隧道已建立 | — |
+| `XNET_PROXY_HANDSHAKE_ERROR` | 失败（含空句柄） | 见 `HandshakeError` |
+
+#### 错误
+
+- 无 — 状态查询不设置错误；空句柄返回 `ERROR`
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 握手状态
+
+```c
+		(xrtNetProxyHandshakeState(pHandshake) !=
+			XNET_PROXY_HANDSHAKE_WRITE) ||
+```
+
+### `xrtNetProxyHandshakeStep`
+
+处理输入链中的完整协议前缀；只消费代理回复，成功后的应用数据保持原位。`WRITE` 状态必须先发送并确认全部输出，`READ` 状态才会继续解析输入。
+
+```c
+xnetproxyhandshakestate xrtNetProxyHandshakeStep(
+	xnetproxyhandshake* pHandshake,
+	xnetbuf* pInput
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入/输出 | 非空 | 目标握手 |
+| `pInput` | 输入/输出 | 非空 | 输入链 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 新状态 | `WRITE` / `READ` / `READY` / `ERROR` | `ERROR` 时见 `HandshakeError` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` / `XNET_ERROR_PROXY_PROTOCOL` — 协议状态非法、回复不完整或回复码表示失败
+- `xrt.net` / `XNET_ERROR_PROXY_LIMIT`（`XERR_RANGE`） — 超出协议上限
+
+#### 范例
+
+[proxy_socks5](../../examples/network/proxy_socks5/main.c) · 推进握手
+
+```c
+		(xrtNetProxyHandshakeStep(pHandshake, &Input) !=
+		 XNET_PROXY_HANDSHAKE_WRITE) ||
+```
+
+### `xrtNetProxyHandshakeOutput`
+
+借用当前待发送的首段连续输出；失败时把非空输出规范化为空 Span。
+
+```c
+bool xrtNetProxyHandshakeOutput(
+	const xnetproxyhandshake* pHandshake,
+	xnetspan* pOutput
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 目标握手 |
+| `pOutput` | 输出 | 非空 | 接收输出 Span |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | Span 已写出（可为空） | — |
+| `false` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非 `WRITE` 状态请求输出
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 待发送输出
+
+```c
+		!xrtNetProxyHandshakeOutput(pHandshake, &Output) ||
+```
+
+### `xrtNetProxyHandshakeSent`
+
+确认已经发送的输出前缀；支持 Socket 部分写入。
+
+```c
+size_t xrtNetProxyHandshakeSent(
+	xnetproxyhandshake* pHandshake,
+	size_t iSize
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入/输出 | 非空、`WRITE` 状态 | 目标握手 |
+| `iSize` | 输入 | <= 待发送量 | 本次已发送字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `>= 0` | 剩余待发送字节数，0 = 全部确认 | — |
+| `0` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `XERR_STATE` — 非 `WRITE` 状态或确认量超出待发送量
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 确认发送
+
+```c
+	(void)xrtNetProxyHandshakeSent(pHandshake, Output.Size);
+```
+
+### `xrtNetProxyHandshakeBound`
+
+`READY` 后复制可用的绑定端点；HTTP CONNECT 没有该信息并返回 `NOT_FOUND`。
+
+```c
+bool xrtNetProxyHandshakeBound(
+	const xnetproxyhandshake* pHandshake,
+	xnetproxyendpoint* pEndpoint
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空、已 READY | 目标握手 |
+| `pEndpoint` | 输出 | 非空 | 接收端点 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 端点已复制 | — |
+| `false` | 无绑定信息或状态非法 | `XERR_NOT_FOUND` 等 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空
+- `XERR_STATE` — 尚未 READY
+- `XERR_NOT_FOUND`（`xrt.net` / `PROXY_PROTOCOL`） — HTTP CONNECT 无绑定端点
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 绑定端点
+
+```c
+	if ( xrtNetProxyHandshakeBound(pHandshake, &Endpoint) ||
+		xrtNetProxyHandshakeCode(pHandshake, &iCode) ||
+		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
+```
+
+### `xrtNetProxyHandshakeError`
+
+返回协议失败时捕获的不可变错误；对象所有权仍属于握手。
+
+```c
+const xerror* xrtNetProxyHandshakeError(
+	const xnetproxyhandshake* pHandshake
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 目标握手 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 错误借用（存活到销毁或下一次 Step） | — |
+| `NULL` | 尚无错误 | 不设错 |
+
+#### 错误
+
+- 无错误 — 非 `ERROR` 状态返回 `NULL` 且不设置错误
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 握手错误
+
+```c
+		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
+```
+
+### `xrtNetProxyHandshakeCode`
+
+复制 SOCKS5 线路回复码或 HTTP 状态码；尚未收到回复时返回 `false`。
+
+```c
+bool xrtNetProxyHandshakeCode(
+	const xnetproxyhandshake* pHandshake,
+	uint32* pCode
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 目标握手 |
+| `pCode` | 输出 | 非空 | 接收回复码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 回复码已复制 | — |
+| `false` | 尚未收到回复 | 不设错 |
+
+#### 错误
+
+- 尚未收到回复返回 `false` 且不设置错误；句柄或输出为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 线路回复码
+
+```c
+		xrtNetProxyHandshakeCode(pHandshake, &iCode) ||
+```
 
 ## SOCKS5 契约
 
@@ -146,6 +687,311 @@ pDial = xrtNetProxyDial(
 托管路径同时支持已经编译进依赖闭包的 SOCKS5 CONNECT 和 HTTP CONNECT。只编译其中一个协议时，另一个类型会明确返回 `XERR_UNSUPPORTED`；`XRT_FEATURE_NET_PROXY_DIAL` 本身不强制携带任何具体代理协议，保持裁剪边界清晰。
 
 托管代理层不识别端口后端。select、IOCP 与 io_uring 共用同一份 SOCKS5、HTTP CONNECT、并发取消、OOM 回收和单头拨号断言；后端测试入口只选择 `xnetportkind`。新增端口实现时，应先通过 TCP Dial 契约，再直接复用这些组合测试，不能在代理状态机中增加平台分支。
+
+### `xrtNetProxyDialConfigInit`
+
+初始化 TCP 拨号、64 KiB 协议上限和 30 秒全过程超时。
+
+```c
+void xrtNetProxyDialConfigInit(xnetproxydialconfig* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 已初始化 | — |
+
+#### 错误
+
+- 无 — 初始化不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 拨号配置
+
+```c
+	xrtNetProxyDialConfigInit(&DialConfig);
+```
+
+### `xrtNetProxyDial`
+
+连接代理端点并完成目标 CONNECT；成功 Stream 引用转移给完成回调。非 Worker 提交者可能与完成回调并发，不能依赖返回值已经完成赋值。
+
+```c
+xnetproxydial* xrtNetProxyDial(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sTargetHost,
+	uint16 iTargetPort,
+	const xnetproxydialconfig* pConfig,
+	const xnetstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xnetproxydialproc pDone,
+	ptr pDoneData
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pResolver` | 输入 | 允许空 | 名称解析器 |
+| `pProxy` | 输入 | 非空 | 代理对象 |
+| `sTargetHost` | 输入 | 非空、零结尾 | 目标主机 |
+| `iTargetPort` | 输入 | — | 目标端口 |
+| `pConfig` | 输入 | 允许空 | 空 = 默认配置 |
+| `pStreamEvents` | 输入 | 允许空 | Stream 事件表 |
+| `pStreamData` | 输入 | 任意值 | Stream 数据 |
+| `pDone` | 输入 | 非空 | 完成回调 |
+| `pDoneData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 拨号对象（引用 1） | — |
+| `NULL` | 提交失败 | `xrt.net` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+- `xrt.net` / `XNET_ERROR_PROXY_CONFIG`（`XERR_ARGUMENT` / `XERR_VALUE`） — 配置字段非法或组合不支持
+- `xrt.net` / `XNET_ERROR_PROXY_CREATE` — 对象或内部缓冲分配失败（`XERR_MEMORY` 等）
+- `xrt.net` / `XNET_ERROR_PROXY_CONNECT` — 连接提交失败
+- `xrt.net` / `XNET_ERROR_PROXY_UNSUPPORTED`（`XERR_UNSUPPORTED`） — 配置的协议或地址族不支持
+
+#### 范例
+
+[proxy_dial](../../examples/network/proxy_dial/main.c) · 发起拨号
+
+```c
+	pDial = xrtNetProxyDial(
+		pEngine,
+		pResolver,
+		pProxy,
+		argv[3],
+		iTargetPort,
+		&DialConfig,
+		&StreamEvents,
+		&Example,
+		exampleProxyDialDone,
+		&Example
+	);
+```
+
+### `xrtNetProxyDialRef`
+
+增加 Proxy Dial 引用并返回原指针。
+
+```c
+xnetproxydial* xrtNetProxyDialRef(xnetproxydial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 共享引用
+
+```c
+	pDialRef = xrtNetProxyDialRef(pDial);
+```
+
+### `xrtNetProxyDialDestroy`
+
+释放 Proxy Dial 引用；空指针视为空操作。
+
+```c
+void xrtNetProxyDialDestroy(xnetproxydial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 释放引用
+
+```c
+	xrtNetProxyDialDestroy(pDialRef);
+```
+
+### `xrtNetProxyDialCancel`
+
+协作取消名称解析、TCP 连接或代理握手；首个取消请求获胜，已终态对象返回 `false` 且不设错。
+
+```c
+bool xrtNetProxyDialCancel(xnetproxydial* pDial)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 取消请求已被受理 | — |
+| `false` | 已连接、已失败、已取消或并发取消已被受理 | 不设错误 |
+
+#### 错误
+
+- 已终态或并发取消已被受理返回 `false` 且不设置错误；句柄为空 `XERR_ARGUMENT`
+
+#### 范例
+
+[proxy_dial](../../examples/network/proxy_dial/main.c) · 协作取消
+
+```c
+		(void)xrtNetProxyDialCancel(pDial);
+```
+
+### `xrtNetProxyDialState`
+
+返回当前拨号阶段或不可变终态。
+
+```c
+xnetproxydialstate xrtNetProxyDialState(
+	const xnetproxydial* pDial
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `XNET_PROXY_DIAL_RESOLVING` / `CONNECTING` / `HANDSHAKE` | 进行中阶段 | — |
+| `XNET_PROXY_DIAL_CONNECTED` / `FAILED` / `CANCELLED` | 不可变终态 | — |
+
+#### 错误
+
+- 无 — 原子状态查询不设置错误；空句柄返回 `RESOLVING`
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 拨号状态
+
+```c
+		xnetproxydialstate State = xrtNetProxyDialState(pDial);
+```
+
+### `xrtNetProxyDialError`
+
+失败或取消后借用完整错误原因链。
+
+```c
+const xerror* xrtNetProxyDialError(
+	const xnetproxydial* pDial
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 错误借用（存活到对象销毁） | — |
+| `NULL` | 进行中或已连接 | 不设错 |
+
+#### 错误
+
+- 无错误 — 无失败时返回 `NULL` 且不设置错误
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 拨号错误
+
+```c
+			(xrtNetProxyDialError(pDial) == NULL) ||
+```
+
+### `xrtNetProxyDialStats`
+
+复制代理阶段和底层 TCP 地址竞速统计。
+
+```c
+bool xrtNetProxyDialStats(
+	const xnetproxydial* pDial,
+	xnetproxydialstats* pStats
+)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | 目标拨号 |
+| `pStats` | 输出 | 非空 | 接收统计快照 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 快照已复制 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或参数非法
+
+#### 范例
+
+[proxy_tour](../../examples/network/proxy_tour/main.c) · 拨号统计
+
+```c
+			!xrtNetProxyDialStats(pDial, &DialStats) ||
+```
 
 ## 所有权
 

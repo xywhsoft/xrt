@@ -58,7 +58,7 @@
 | 51 | pem.md | 7 | **完成** | 7/7 全绿（G3 7 片段，2026-09-07）；xrt.pem 域 LABEL/BOUNDARY/BODY/NOT_FOUND 四码入档；xpemresult 三值逐值成表；锚点 pem/pem_tour（后者挂 asn1_der） |
 | 52 | pool.md | 58 | **完成** | 58/58 全绿（G3 58 片段，2026-09-07）；单页 20 + 固定池 20 + 变长池 18 三族；旧合并式小节（`X` / `Y` 双名）拆分；AGAIN 页满、RANGE 乘法溢出入档；锚点 pool_page/pool/memory_pool |
 | 53 | process.md | 37 | **完成** | 37/37 全绿（G3 37 片段，2026-09-07）；xrt.process 域 14 码（ARGUMENT..TERMINAL）入档；Read/Write int64 三态口径；Run 族 false=仅基础设施失败；manifest 补注册 tour |
-| 54 | proxy.md | 23 | 待办 |  |
+| 54 | proxy.md | 23 | **完成** | 23/23 全绿（G3 23 片段，2026-09-07）；对象 5 + 握手 10 + 拨号 8 三组；六域码（CONFIG/CREATE/LIMIT/PROTOCOL/CONNECT/UNSUPPORTED）；两状态机逐值成表；锚点 tour/socks5/dial |
 | 55 | queue.md | 46 | 待办 |  |
 | 56 | random.md | 39 | 待办 |  |
 | 57 | regex.md | 54 | 待办 |  |
@@ -659,4 +659,9 @@
   退出码仍 true）、Error 返回新引用。manifest 补注册 #10：process tour
   （26 个 API 的主锚点）。
   完成 API 2190→2227/3664（60.8%），53/79 文件。
+- 2026-09-07 proxy.md 完成（23/23，G3 23 片段全绿）：错误码对照
+  src/network/proxy.c、proxy_dial.c——Sent 确认量超出待发 = STATE、
+  Bound 的 HTTP CONNECT = NOT_FOUND、DialCancel 终态或并发已受理
+  不设错、Dial 11 参口径（Stream 引用转移给完成回调）。
+  完成 API 2227→2250/3664（61.4%），54/79 文件。
 
