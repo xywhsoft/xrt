@@ -38,7 +38,7 @@
 | 31 | http_upgrade.md | 10 | **完成** | 10/10 全绿；节复用自 http.md |
 | 32 | io.md | 42 | **完成** | 42/42 全绿（G3 42 片段，2026-09-07）；Reader/LineReader/Writer 三族；全库自动锚点一次生成 |
 | 33 | json.md | 30 | **完成** | 30/30 全绿（G3 30 片段，2026-09-07）；读取/写入器/序列化/文件四族 |
-| 34 | list.md | 28 | 待办 |  |
+| 34 | list.md | 28 | **完成** | 28/28 全绿（G3 28 片段，2026-09-07）；侵入式双向链表全接口 |
 | 35 | logger.md | 76 | 待办 |  |
 | 36 | map.md | 62 | 待办 |  |
 | 37 | math.md | 20 | 待办 |  |
@@ -514,3 +514,12 @@
   4（Stringify/Pretty、Write 回调、QuoteWrite 流式字符串
   token）+ 文件 4（ReadFile 含输入上限、WriteFile 原子替换）。
   callline 自动锚点 30/30。io.md 复验无回归。
+- 2026-09-07 list.md 完成（28/28，G3 28 片段，双门禁一次
+  全绿）：生命周期 2 + 查询 8 + 导航 5 + 编辑 9 + 迭代 4。
+  契约入档："插入只接受已 NodeInit 且未连接的节点"（双状态
+  校验失败 XERR_STATE 且链表不变）；Remove/Pop 族"节点恢复
+  独立状态可再插入、不释放内存"；Move 族不改变计数；Clear
+  分离全部节点保留空链表；Validate 的全不变量断言；IterNext
+  "自然耗尽不设错 vs 外部结构修改 XERR_STATE"；IterRemove
+  "移除最近发布节点且迭代器保持有效"。callline 自动锚点
+  28/28。json.md 复验无回归。
