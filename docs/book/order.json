@@ -1,793 +1,800 @@
 [
- {
-  "num": 1,
-  "slug": "vol1-intro",
-  "file": "01-vol1-intro",
-  "title": "卷一 起步与核心：导言",
-  "volume": "卷一 起步与核心"
- },
- {
-  "num": 2,
-  "slug": "intro",
-  "file": "02-intro",
-  "title": "认识 XRT 与开发环境",
-  "volume": "卷一 起步与核心"
- },
- {
-  "num": 3,
-  "slug": "first",
-  "file": "03-first",
-  "title": "第一个程序：类型、视图与版本",
-  "volume": "卷一 起步与核心"
- },
- {
-  "num": 4,
-  "slug": "error",
-  "file": "04-error",
-  "title": "错误模型：xerror 全解",
-  "volume": "卷一 起步与核心"
- },
- {
-  "num": 5,
-  "slug": "memory",
-  "file": "05-memory",
-  "title": "内存基础：全局堆、对齐与分配器",
-  "volume": "卷一 起步与核心"
- },
- {
-  "num": 6,
-  "slug": "memory-debug",
-  "file": "06-memory-debug",
-  "title": "内存调试与统计：故障注入与泄漏检测",
-  "volume": "卷一 起步与核心"
- },
- {
-  "num": 7,
-  "slug": "temp",
-  "file": "07-temp",
-  "title": "临时内存：arena 与作用域",
-  "volume": "卷一 起步与核心"
- },
- {
-  "num": 8,
-  "slug": "core-trim",
-  "file": "08-core-trim",
-  "title": "版本、ABI 与模块裁剪",
-  "volume": "卷一 起步与核心"
- },
- {
-  "num": 9,
-  "slug": "atomic",
-  "file": "09-atomic",
-  "title": "原子操作、自旋锁与等待",
-  "volume": "卷一 起步与核心 · 卷一收官"
- },
- {
-  "num": 10,
-  "slug": "math",
-  "file": "10-math",
-  "title": "数学工具箱：xrtMath 全家",
-  "volume": "卷二 数学、随机与标识"
- },
- {
-  "num": 11,
-  "slug": "random",
-  "file": "11-random",
-  "title": "随机数与随机文本",
-  "volume": "卷二 数学、随机与标识"
- },
- {
-  "num": 12,
-  "slug": "hash-xid",
-  "file": "12-hash-xid",
-  "title": "哈希与 XID 时间有序 ID",
-  "volume": "卷二 数学、随机与标识 · 卷二收官"
- },
- {
-  "num": 13,
-  "slug": "vol3-intro",
-  "file": "13-vol3-intro",
-  "title": "卷三 容器与数据结构：导言",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 14,
-  "slug": "array",
-  "file": "14-array",
-  "title": "动态数组 xarray",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 15,
-  "slug": "buffer",
-  "file": "15-buffer",
-  "title": "动态缓冲区 buffer",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 16,
-  "slug": "stack",
-  "file": "16-stack",
-  "title": "栈族：stack / fixed / block 与指针变体",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 17,
-  "slug": "list-slotmap",
-  "file": "17-list-slotmap",
-  "title": "双向链表与 slot_map",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 18,
-  "slug": "map",
-  "file": "18-map",
-  "title": "映射表：xmap 与 int_map",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 19,
-  "slug": "set",
-  "file": "19-set",
-  "title": "集合 xset 与集合代数",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 20,
-  "slug": "avl",
-  "file": "20-avl",
-  "title": "AVL 树：侵入式与拥有式",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 21,
-  "slug": "queue",
-  "file": "21-queue",
-  "title": "队列与无锁队列三件套",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 22,
-  "slug": "pool",
-  "file": "22-pool",
-  "title": "对象池 pool",
-  "volume": "卷三 容器与数据结构"
- },
- {
-  "num": 23,
-  "slug": "container-choice",
-  "file": "23-container-choice",
-  "title": "容器选型：从需求到容器的决策路径",
-  "volume": "卷三 容器与数据结构 · 卷三收官"
- },
- {
-  "num": 24,
-  "slug": "vol4-intro",
-  "file": "24-vol4-intro",
-  "title": "卷四 文本与结构化数据：导言",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 25,
-  "slug": "string",
-  "file": "25-string",
-  "title": "字符串操作全集",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 26,
-  "slug": "number",
-  "file": "26-number",
-  "title": "数字解析与格式化",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 27,
-  "slug": "charset",
-  "file": "27-charset",
-  "title": "字符集与 Unicode",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 28,
-  "slug": "codec",
-  "file": "28-codec",
-  "title": "编解码三件套：Base64 / Hex / Percent",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 29,
-  "slug": "compress",
-  "file": "29-compress",
-  "title": "压缩：Deflate 与 gzip",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 30,
-  "slug": "regex",
-  "file": "30-regex",
-  "title": "正则引擎 regex",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 31,
-  "slug": "value",
-  "file": "31-value",
-  "title": "xvalue 动态值系统",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 32,
-  "slug": "json",
-  "file": "32-json",
-  "title": "JSON 读写",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 33,
-  "slug": "xson",
-  "file": "33-xson",
-  "title": "XSON 扩展序列化",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 34,
-  "slug": "template",
-  "file": "34-template",
-  "title": "模板引擎",
-  "volume": "卷四 文本与结构化数据"
- },
- {
-  "num": 35,
-  "slug": "text-pipeline",
-  "file": "35-text-pipeline",
-  "title": "文本管线组合：JSON 配置 → 模板渲染 → 协议输出",
-  "volume": "卷四 文本与结构化数据 · 卷四收官"
- },
- {
-  "num": 36,
-  "slug": "vol5-intro",
-  "file": "36-vol5-intro",
-  "title": "卷五 系统服务：导言",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 37,
-  "slug": "logger-core",
-  "file": "37-logger-core",
-  "title": "日志（上）：记录、级别与结构化字段",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 38,
-  "slug": "logger-sink",
-  "file": "38-logger-sink",
-  "title": "日志（下）：五类 Sink、轮转与异步",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 39,
-  "slug": "console",
-  "file": "39-console",
-  "title": "控制台与终端检测",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 40,
-  "slug": "io",
-  "file": "40-io",
-  "title": "通用 IO 流抽象",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 41,
-  "slug": "time",
-  "file": "41-time",
-  "title": "时间与时区",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 42,
-  "slug": "env",
-  "file": "42-env",
-  "title": "环境变量与系统信息",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 43,
-  "slug": "path",
-  "file": "43-path",
-  "title": "路径处理",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 44,
-  "slug": "file",
-  "file": "44-file",
-  "title": "文件（上）：打开、读写与游标",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 45,
-  "slug": "file-adv",
-  "file": "45-file-adv",
-  "title": "文件（中）：映射、锁与原子写",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 46,
-  "slug": "dir",
-  "file": "46-dir",
-  "title": "文件（下）：目录、遍历与沙箱 root",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 47,
-  "slug": "file-async",
-  "file": "47-file-async",
-  "title": "异步文件 IO",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 48,
-  "slug": "signal",
-  "file": "48-signal",
-  "title": "跨平台信号",
-  "volume": "卷五 系统服务"
- },
- {
-  "num": 49,
-  "slug": "debug-pipeline",
-  "file": "49-debug-pipeline",
-  "title": "调试与诊断组合：日志、统计与故障注入",
-  "volume": "卷五 系统服务 · 卷五收官"
- },
- {
-  "num": 50,
-  "slug": "vol6-intro",
-  "file": "50-vol6-intro",
-  "title": "卷六 进程与并发：导言",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 51,
-  "slug": "process",
-  "file": "51-process",
-  "title": "子进程管理",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 52,
-  "slug": "thread-sync",
-  "file": "52-thread-sync",
-  "title": "线程与同步原语",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 53,
-  "slug": "cancel-system",
-  "file": "53-cancel-system",
-  "title": "取消体系：令牌、传播与终态",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 54,
-  "slug": "coroutine",
-  "file": "54-coroutine",
-  "title": "协程（上）：创建、切换与清理栈",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 55,
-  "slug": "coroutine-sched",
-  "file": "55-coroutine-sched",
-  "title": "协程（中）：调度器与定时器",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 56,
-  "slug": "channel",
-  "file": "56-channel",
-  "title": "Channel 与 Select",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 57,
-  "slug": "future",
-  "file": "57-future",
-  "title": "Future / Promise 与组合子",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 58,
-  "slug": "executor",
-  "file": "58-executor",
-  "title": "执行器与任务",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 59,
-  "slug": "task-cancel",
-  "file": "59-task-cancel",
-  "title": "取消与结构化并发",
-  "volume": "卷六 进程与并发"
- },
- {
-  "num": 60,
-  "slug": "sched-practice",
-  "file": "60-sched-practice",
-  "title": "调度器实战：协程、通道与任务的联合作战",
-  "volume": "卷六 进程与并发 · 卷六收官"
- },
- {
-  "num": 61,
-  "slug": "vol7-intro",
-  "file": "61-vol7-intro",
-  "title": "卷七 网络：导言",
-  "volume": "卷七 网络"
- },
- {
-  "num": 62,
-  "slug": "net-addr",
-  "file": "62-net-addr",
-  "title": "网络引擎与地址模型",
-  "volume": "卷七 网络"
- },
- {
-  "num": 63,
-  "slug": "net-port",
-  "file": "63-net-port",
-  "title": "事件端口与五后端",
-  "volume": "卷七 网络"
- },
- {
-  "num": 64,
-  "slug": "net-buf",
-  "file": "64-net-buf",
-  "title": "缓冲与缓冲池",
-  "volume": "卷七 网络"
- },
- {
-  "num": 65,
-  "slug": "net-dns",
-  "file": "65-net-dns",
-  "title": "DNS 解析器",
-  "volume": "卷七 网络"
- },
- {
-  "num": 66,
-  "slug": "net-tcp",
-  "file": "66-net-tcp",
-  "title": "TCP 流（上）：连接与读写",
-  "volume": "卷七 网络"
- },
- {
-  "num": 67,
-  "slug": "net-tcp-adv",
-  "file": "67-net-tcp-adv",
-  "title": "TCP（下）：背压、引用与服务端",
-  "volume": "卷七 网络"
- },
- {
-  "num": 68,
-  "slug": "net-udp",
-  "file": "68-net-udp",
-  "title": "UDP 数据报",
-  "volume": "卷七 网络"
- },
- {
-  "num": 69,
-  "slug": "net-proxy",
-  "file": "69-net-proxy",
-  "title": "代理：SOCKS5 与 HTTP CONNECT",
-  "volume": "卷七 网络"
- },
- {
-  "num": 70,
-  "slug": "net-misc",
-  "file": "70-net-misc",
-  "title": "分帧、端口文件与网卡",
-  "volume": "卷七 网络 · 卷七收官"
- },
- {
-  "num": 71,
-  "slug": "crypto-hash",
-  "file": "71-crypto-hash",
-  "title": "密码学（上）：哈希与 HMAC",
-  "volume": "卷八 安全"
- },
- {
-  "num": 72,
-  "slug": "crypto-aead",
-  "file": "72-crypto-aead",
-  "title": "密码学（中）：AEAD 加密",
-  "volume": "卷八 安全"
- },
- {
-  "num": 73,
-  "slug": "crypto-asym",
-  "file": "73-crypto-asym",
-  "title": "密码学（下）：RSA 与 ECDSA 与 Ed25519 与 X25519",
-  "volume": "卷八 安全"
- },
- {
-  "num": 74,
-  "slug": "der-pem",
-  "file": "74-der-pem",
-  "title": "DER 与 PEM",
-  "volume": "卷八 安全"
- },
- {
-  "num": 75,
-  "slug": "x509",
-  "file": "75-x509",
-  "title": "X.509 证书解析",
-  "volume": "卷八 安全"
- },
- {
-  "num": 76,
-  "slug": "x509-verify",
-  "file": "76-x509-verify",
-  "title": "X.509 路径验证与 CRL",
-  "volume": "卷八 安全"
- },
- {
-  "num": 77,
-  "slug": "tls-client",
-  "file": "77-tls-client",
-  "title": "TLS（上）：客户端握手",
-  "volume": "卷八 安全"
- },
- {
-  "num": 78,
-  "slug": "tls-server",
-  "file": "78-tls-server",
-  "title": "TLS（中）：服务端",
-  "volume": "卷八 安全"
- },
- {
-  "num": 79,
-  "slug": "tls-stream",
-  "file": "79-tls-stream",
-  "title": "TLS（下）：流与恢复",
-  "volume": "卷八 安全 · 卷八收官"
- },
- {
-  "num": 80,
-  "slug": "http",
-  "file": "80-http",
-  "title": "HTTP 语义原语",
-  "volume": "卷九 Web 协议核心"
- },
- {
-  "num": 81,
-  "slug": "http1",
-  "file": "81-http1",
-  "title": "HTTP/1.x 解析与封包",
-  "volume": "卷九 Web 协议核心"
- },
- {
-  "num": 82,
-  "slug": "http-headers",
-  "file": "82-http-headers",
-  "title": "HTTP 语义头族",
-  "volume": "卷九 Web 协议核心"
- },
- {
-  "num": 83,
-  "slug": "http-decode",
-  "file": "83-http-decode",
-  "title": "内容解码与编码协商",
-  "volume": "卷九 Web 协议核心"
- },
- {
-  "num": 84,
-  "slug": "ws-frame",
-  "file": "84-ws-frame",
-  "title": "WebSocket 帧协议",
-  "volume": "卷九 Web 协议核心"
- },
- {
-  "num": 85,
-  "slug": "ws-stream",
-  "file": "85-ws-stream",
-  "title": "WebSocket 流与升级",
-  "volume": "卷九 Web 协议核心 · 卷九收官"
- },
- {
-  "num": 86,
-  "slug": "xhttp-easy",
-  "file": "86-xhttp-easy",
-  "title": "xhttp 入门与 easy 客户端",
-  "volume": "卷十 扩展库：xhttp"
- },
- {
-  "num": 87,
-  "slug": "xhttp-runtime",
-  "file": "87-xhttp-runtime",
-  "title": "客户端运行时与连接池",
-  "volume": "卷十 扩展库：xhttp"
- },
- {
-  "num": 88,
-  "slug": "xhttp-redirect",
-  "file": "88-xhttp-redirect",
-  "title": "重定向、重试与断点续传",
-  "volume": "卷十 扩展库：xhttp"
- },
- {
-  "num": 89,
-  "slug": "xhttp-cache",
-  "file": "89-xhttp-cache",
-  "title": "客户端缓存与 Cookie",
-  "volume": "卷十 扩展库：xhttp"
- },
- {
-  "num": 90,
-  "slug": "xhttp-url",
-  "file": "90-xhttp-url",
-  "title": "URL、Query 与表单",
-  "volume": "卷十 扩展库：xhttp"
- },
- {
-  "num": 91,
-  "slug": "xhttp-server",
-  "file": "91-xhttp-server",
-  "title": "服务端（上）：启动、连接与路由",
-  "volume": "卷十 扩展库：xhttp"
- },
- {
-  "num": 92,
-  "slug": "xhttp-middleware",
-  "file": "92-xhttp-middleware",
-  "title": "服务端（中）：中间件与静态文件",
-  "volume": "卷十 扩展库：xhttp"
- },
- {
-  "num": 93,
-  "slug": "xhttp-advanced",
-  "file": "93-xhttp-advanced",
-  "title": "服务端（下）：SSE、multipart 与认证",
-  "volume": "卷十 扩展库：xhttp · 卷十收官"
- },
- {
-  "num": 94,
-  "slug": "xws-conn",
-  "file": "94-xws-conn",
-  "title": "xws（上）：连接与收发",
-  "volume": "卷十一 其他扩展库"
- },
- {
-  "num": 95,
-  "slug": "xws-server",
-  "file": "95-xws-server",
-  "title": "xws（下）：服务端路由与组播",
-  "volume": "卷十一 其他扩展库"
- },
- {
-  "num": 96,
-  "slug": "xruntime",
-  "file": "96-xruntime",
-  "title": "xruntime（上）：类型与对象",
-  "volume": "卷十一 其他扩展库"
- },
- {
-  "num": 97,
-  "slug": "xruntime-typed",
-  "file": "97-xruntime-typed",
-  "title": "xruntime（下）：动态调用与 typed 容器",
-  "volume": "卷十一 其他扩展库"
- },
- {
-  "num": 98,
-  "slug": "xmail-smtp",
-  "file": "98-xmail-smtp",
-  "title": "xmail（上）：SMTP",
-  "volume": "卷十一 其他扩展库"
- },
- {
-  "num": 99,
-  "slug": "xmail-imap",
-  "file": "99-xmail-imap",
-  "title": "xmail（下）：IMAP / POP3 与 MIME",
-  "volume": "卷十一 其他扩展库"
- },
- {
-  "num": 100,
-  "slug": "xssh-transport",
-  "file": "100-xssh-transport",
-  "title": "xssh（上）：传输与密钥交换",
-  "volume": "卷十一 其他扩展库"
- },
- {
-  "num": 101,
-  "slug": "xssh-auth",
-  "file": "101-xssh-auth",
-  "title": "xssh（下）：认证与通道",
-  "volume": "卷十一 其他扩展库 · 卷十一收官"
- },
- {
-  "num": 102,
-  "slug": "build",
-  "file": "102-build",
-  "title": "构建系统全解",
-  "volume": "卷十二 工程实践"
- },
- {
-  "num": 103,
-  "slug": "trim",
-  "file": "103-trim",
-  "title": "特性裁剪与体积控制",
-  "volume": "卷十二 工程实践"
- },
- {
-  "num": 104,
-  "slug": "package",
-  "file": "104-package",
-  "title": "打包、分发与单头",
-  "volume": "卷十二 工程实践"
- },
- {
-  "num": 105,
-  "slug": "testing",
-  "file": "105-testing",
-  "title": "测试、故障注入与模糊测试",
-  "volume": "卷十二 工程实践"
- },
- {
-  "num": 106,
-  "slug": "embed",
-  "file": "106-embed",
-  "title": "嵌入宿主程序",
-  "volume": "卷十二 工程实践"
- },
- {
-  "num": 107,
-  "slug": "perf",
-  "file": "107-perf",
-  "title": "性能调优与内存调试实战",
-  "volume": "卷十二 工程实践 · 卷十二收官"
- },
- {
-  "num": 108,
-  "slug": "project-cli",
-  "file": "108-project-cli",
-  "title": "命令行工具：文本与文件处理",
-  "volume": "卷十三 实战项目"
- },
- {
-  "num": 109,
-  "slug": "project-config",
-  "file": "109-project-config",
-  "title": "JSON 配置中心：value 与模板",
-  "volume": "卷十三 实战项目"
- },
- {
-  "num": 110,
-  "slug": "project-chat",
-  "file": "110-project-chat",
-  "title": "TCP 聊天室：网络与并发",
-  "volume": "卷十三 实战项目"
- },
- {
-  "num": 111,
-  "slug": "project-downloader",
-  "file": "111-project-downloader",
-  "title": "HTTPS 下载器：xhttp 与文件",
-  "volume": "卷十三 实战项目"
- },
- {
-  "num": 112,
-  "slug": "project-ws",
-  "file": "112-project-ws",
-  "title": "WebSocket 实时推送服务",
-  "volume": "卷十三 实战项目"
- },
- {
-  "num": 113,
-  "slug": "project-static",
-  "file": "113-project-static",
-  "title": "综合：迷你静态文件服务器",
-  "volume": "卷十三 实战项目 · 全书收官"
- }
+  {
+    "num": 1,
+    "slug": "vol1-intro",
+    "file": "01-vol1-intro",
+    "title": "卷一 起步与核心：导言",
+    "volume": "卷一 起步与核心"
+  },
+  {
+    "num": 2,
+    "slug": "intro",
+    "file": "02-intro",
+    "title": "认识 XRT 与开发环境",
+    "volume": "卷一 起步与核心"
+  },
+  {
+    "num": 3,
+    "slug": "first",
+    "file": "03-first",
+    "title": "第一个程序：类型、视图与版本",
+    "volume": "卷一 起步与核心"
+  },
+  {
+    "num": 4,
+    "slug": "error",
+    "file": "04-error",
+    "title": "错误模型：xerror 全解",
+    "volume": "卷一 起步与核心"
+  },
+  {
+    "num": 5,
+    "slug": "memory",
+    "file": "05-memory",
+    "title": "内存基础：全局堆、对齐与分配器",
+    "volume": "卷一 起步与核心"
+  },
+  {
+    "num": 6,
+    "slug": "memory-debug",
+    "file": "06-memory-debug",
+    "title": "内存调试与统计：故障注入与泄漏检测",
+    "volume": "卷一 起步与核心"
+  },
+  {
+    "num": 7,
+    "slug": "temp",
+    "file": "07-temp",
+    "title": "临时内存：arena 与作用域",
+    "volume": "卷一 起步与核心"
+  },
+  {
+    "num": 8,
+    "slug": "core-trim",
+    "file": "08-core-trim",
+    "title": "版本、ABI 与模块裁剪",
+    "volume": "卷一 起步与核心"
+  },
+  {
+    "num": 9,
+    "slug": "atomic",
+    "file": "09-atomic",
+    "title": "原子操作、自旋锁与等待",
+    "volume": "卷一 起步与核心 · 卷一收官"
+  },
+  {
+    "num": 10,
+    "slug": "math",
+    "file": "10-math",
+    "title": "数学工具箱：xrtMath 全家",
+    "volume": "卷二 数学、随机与标识"
+  },
+  {
+    "num": 11,
+    "slug": "random",
+    "file": "11-random",
+    "title": "随机数与随机文本",
+    "volume": "卷二 数学、随机与标识"
+  },
+  {
+    "num": 12,
+    "slug": "hash-xid",
+    "file": "12-hash-xid",
+    "title": "哈希与 XID 时间有序 ID",
+    "volume": "卷二 数学、随机与标识 · 卷二收官"
+  },
+  {
+    "num": 13,
+    "slug": "vol3-intro",
+    "file": "13-vol3-intro",
+    "title": "卷三 容器与数据结构：导言",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 14,
+    "slug": "array",
+    "file": "14-array",
+    "title": "动态数组 xarray",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 15,
+    "slug": "buffer",
+    "file": "15-buffer",
+    "title": "动态缓冲区 buffer",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 16,
+    "slug": "stack",
+    "file": "16-stack",
+    "title": "栈族：stack / fixed / block 与指针变体",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 17,
+    "slug": "list-slotmap",
+    "file": "17-list-slotmap",
+    "title": "双向链表与 slot_map",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 18,
+    "slug": "map",
+    "file": "18-map",
+    "title": "映射表：xmap 与 int_map",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 19,
+    "slug": "set",
+    "file": "19-set",
+    "title": "集合 xset 与集合代数",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 20,
+    "slug": "avl",
+    "file": "20-avl",
+    "title": "AVL 树：侵入式与拥有式",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 21,
+    "slug": "queue",
+    "file": "21-queue",
+    "title": "队列与无锁队列三件套",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 22,
+    "slug": "pool",
+    "file": "22-pool",
+    "title": "对象池 pool",
+    "volume": "卷三 容器与数据结构"
+  },
+  {
+    "num": 23,
+    "slug": "container-choice",
+    "file": "23-container-choice",
+    "title": "容器选型：从需求到容器的决策路径",
+    "volume": "卷三 容器与数据结构 · 卷三收官"
+  },
+  {
+    "num": 24,
+    "slug": "vol4-intro",
+    "file": "24-vol4-intro",
+    "title": "卷四 文本与结构化数据：导言",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 25,
+    "slug": "string",
+    "file": "25-string",
+    "title": "字符串操作全集",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 26,
+    "slug": "number",
+    "file": "26-number",
+    "title": "数字解析与格式化",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 27,
+    "slug": "charset",
+    "file": "27-charset",
+    "title": "字符集与 Unicode",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 28,
+    "slug": "codec",
+    "file": "28-codec",
+    "title": "编解码三件套：Base64 / Hex / Percent",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 29,
+    "slug": "compress",
+    "file": "29-compress",
+    "title": "压缩：Deflate 与 gzip",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 30,
+    "slug": "regex",
+    "file": "30-regex",
+    "title": "正则引擎 regex",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 31,
+    "slug": "value",
+    "file": "31-value",
+    "title": "xvalue 动态值系统",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 32,
+    "slug": "json",
+    "file": "32-json",
+    "title": "JSON 读写",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 33,
+    "slug": "xson",
+    "file": "33-xson",
+    "title": "XSON 扩展序列化",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 34,
+    "slug": "template",
+    "file": "34-template",
+    "title": "模板引擎",
+    "volume": "卷四 文本与结构化数据"
+  },
+  {
+    "num": 35,
+    "slug": "text-pipeline",
+    "file": "35-text-pipeline",
+    "title": "文本管线组合：JSON 配置 → 模板渲染 → 协议输出",
+    "volume": "卷四 文本与结构化数据 · 卷四收官"
+  },
+  {
+    "num": 36,
+    "slug": "vol5-intro",
+    "file": "36-vol5-intro",
+    "title": "卷五 系统服务：导言",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 37,
+    "slug": "logger-core",
+    "file": "37-logger-core",
+    "title": "日志（上）：记录、级别与结构化字段",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 38,
+    "slug": "logger-sink",
+    "file": "38-logger-sink",
+    "title": "日志（下）：五类 Sink、轮转与异步",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 39,
+    "slug": "console",
+    "file": "39-console",
+    "title": "控制台与终端检测",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 40,
+    "slug": "io",
+    "file": "40-io",
+    "title": "通用 IO 流抽象",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 41,
+    "slug": "time",
+    "file": "41-time",
+    "title": "时间与时区",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 42,
+    "slug": "env",
+    "file": "42-env",
+    "title": "环境变量与系统信息",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 43,
+    "slug": "path",
+    "file": "43-path",
+    "title": "路径处理",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 44,
+    "slug": "file",
+    "file": "44-file",
+    "title": "文件（上）：打开、读写与游标",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 45,
+    "slug": "file-adv",
+    "file": "45-file-adv",
+    "title": "文件（中）：映射、锁与原子写",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 46,
+    "slug": "dir",
+    "file": "46-dir",
+    "title": "文件（下）：目录、遍历与沙箱 root",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 47,
+    "slug": "file-async",
+    "file": "47-file-async",
+    "title": "异步文件 IO",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 48,
+    "slug": "signal",
+    "file": "48-signal",
+    "title": "跨平台信号",
+    "volume": "卷五 系统服务"
+  },
+  {
+    "num": 49,
+    "slug": "debug-pipeline",
+    "file": "49-debug-pipeline",
+    "title": "调试与诊断组合：日志、统计与故障注入",
+    "volume": "卷五 系统服务 · 卷五收官"
+  },
+  {
+    "num": 50,
+    "slug": "vol6-intro",
+    "file": "50-vol6-intro",
+    "title": "卷六 进程与并发：导言",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 51,
+    "slug": "process",
+    "file": "51-process",
+    "title": "子进程管理",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 52,
+    "slug": "thread-sync",
+    "file": "52-thread-sync",
+    "title": "线程与同步原语",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 53,
+    "slug": "cancel-system",
+    "file": "53-cancel-system",
+    "title": "取消体系：令牌、传播与终态",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 54,
+    "slug": "coroutine",
+    "file": "54-coroutine",
+    "title": "协程（上）：创建、切换与清理栈",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 55,
+    "slug": "coroutine-sched",
+    "file": "55-coroutine-sched",
+    "title": "协程（中）：调度器与定时器",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 56,
+    "slug": "channel",
+    "file": "56-channel",
+    "title": "Channel 与 Select",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 57,
+    "slug": "future",
+    "file": "57-future",
+    "title": "Future / Promise 与组合子",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 58,
+    "slug": "executor",
+    "file": "58-executor",
+    "title": "执行器与任务",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 59,
+    "slug": "task-cancel",
+    "file": "59-task-cancel",
+    "title": "取消与结构化并发",
+    "volume": "卷六 进程与并发"
+  },
+  {
+    "num": 60,
+    "slug": "sched-practice",
+    "file": "60-sched-practice",
+    "title": "调度器实战：协程、通道与任务的联合作战",
+    "volume": "卷六 进程与并发 · 卷六收官"
+  },
+  {
+    "num": 61,
+    "slug": "vol7-intro",
+    "file": "61-vol7-intro",
+    "title": "卷七 网络：导言",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 62,
+    "slug": "net-addr",
+    "file": "62-net-addr",
+    "title": "网络引擎与地址模型",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 63,
+    "slug": "net-port",
+    "file": "63-net-port",
+    "title": "事件端口与五后端",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 64,
+    "slug": "net-buf",
+    "file": "64-net-buf",
+    "title": "缓冲与缓冲池",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 65,
+    "slug": "net-dns",
+    "file": "65-net-dns",
+    "title": "DNS 解析器",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 66,
+    "slug": "net-tcp",
+    "file": "66-net-tcp",
+    "title": "TCP 流（上）：连接与读写",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 67,
+    "slug": "net-tcp-adv",
+    "file": "67-net-tcp-adv",
+    "title": "TCP（下）：背压、引用与服务端",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 68,
+    "slug": "net-udp",
+    "file": "68-net-udp",
+    "title": "UDP 数据报",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 69,
+    "slug": "net-proxy",
+    "file": "69-net-proxy",
+    "title": "代理：SOCKS5 与 HTTP CONNECT",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 70,
+    "slug": "net-interface",
+    "file": "70-net-interface",
+    "title": "网卡接口与本机信息",
+    "volume": "卷七 网络"
+  },
+  {
+    "num": 71,
+    "slug": "net-misc",
+    "file": "71-net-misc",
+    "title": "分帧、端口文件与网卡",
+    "volume": "卷七 网络 · 卷七收官"
+  },
+  {
+    "num": 72,
+    "slug": "crypto-hash",
+    "file": "72-crypto-hash",
+    "title": "密码学（上）：哈希与 HMAC",
+    "volume": "卷八 安全"
+  },
+  {
+    "num": 73,
+    "slug": "crypto-aead",
+    "file": "73-crypto-aead",
+    "title": "密码学（中）：AEAD 加密",
+    "volume": "卷八 安全"
+  },
+  {
+    "num": 74,
+    "slug": "crypto-asym",
+    "file": "74-crypto-asym",
+    "title": "密码学（下）：RSA 与 ECDSA 与 Ed25519 与 X25519",
+    "volume": "卷八 安全"
+  },
+  {
+    "num": 75,
+    "slug": "der-pem",
+    "file": "75-der-pem",
+    "title": "DER 与 PEM",
+    "volume": "卷八 安全"
+  },
+  {
+    "num": 76,
+    "slug": "x509",
+    "file": "76-x509",
+    "title": "X.509 证书解析",
+    "volume": "卷八 安全"
+  },
+  {
+    "num": 77,
+    "slug": "x509-verify",
+    "file": "77-x509-verify",
+    "title": "X.509 路径验证与 CRL",
+    "volume": "卷八 安全"
+  },
+  {
+    "num": 78,
+    "slug": "tls-client",
+    "file": "78-tls-client",
+    "title": "TLS（上）：客户端握手",
+    "volume": "卷八 安全"
+  },
+  {
+    "num": 79,
+    "slug": "tls-server",
+    "file": "79-tls-server",
+    "title": "TLS（中）：服务端",
+    "volume": "卷八 安全"
+  },
+  {
+    "num": 80,
+    "slug": "tls-stream",
+    "file": "80-tls-stream",
+    "title": "TLS（下）：流与恢复",
+    "volume": "卷八 安全 · 卷八收官"
+  },
+  {
+    "num": 81,
+    "slug": "http",
+    "file": "81-http",
+    "title": "HTTP 语义原语",
+    "volume": "卷九 Web 协议核心"
+  },
+  {
+    "num": 82,
+    "slug": "http1",
+    "file": "82-http1",
+    "title": "HTTP/1.x 解析与封包",
+    "volume": "卷九 Web 协议核心"
+  },
+  {
+    "num": 83,
+    "slug": "http-headers",
+    "file": "83-http-headers",
+    "title": "HTTP 语义头族",
+    "volume": "卷九 Web 协议核心"
+  },
+  {
+    "num": 84,
+    "slug": "http-decode",
+    "file": "84-http-decode",
+    "title": "内容解码与编码协商",
+    "volume": "卷九 Web 协议核心"
+  },
+  {
+    "num": 85,
+    "slug": "ws-frame",
+    "file": "85-ws-frame",
+    "title": "WebSocket 帧协议",
+    "volume": "卷九 Web 协议核心"
+  },
+  {
+    "num": 86,
+    "slug": "ws-stream",
+    "file": "86-ws-stream",
+    "title": "WebSocket 流与升级",
+    "volume": "卷九 Web 协议核心 · 卷九收官"
+  },
+  {
+    "num": 87,
+    "slug": "xhttp-easy",
+    "file": "87-xhttp-easy",
+    "title": "xhttp 入门与 easy 客户端",
+    "volume": "卷十 扩展库：xhttp"
+  },
+  {
+    "num": 88,
+    "slug": "xhttp-runtime",
+    "file": "88-xhttp-runtime",
+    "title": "客户端运行时与连接池",
+    "volume": "卷十 扩展库：xhttp"
+  },
+  {
+    "num": 89,
+    "slug": "xhttp-redirect",
+    "file": "89-xhttp-redirect",
+    "title": "重定向、重试与断点续传",
+    "volume": "卷十 扩展库：xhttp"
+  },
+  {
+    "num": 90,
+    "slug": "xhttp-cache",
+    "file": "90-xhttp-cache",
+    "title": "客户端缓存与 Cookie",
+    "volume": "卷十 扩展库：xhttp"
+  },
+  {
+    "num": 91,
+    "slug": "xhttp-url",
+    "file": "91-xhttp-url",
+    "title": "URL、Query 与表单",
+    "volume": "卷十 扩展库：xhttp"
+  },
+  {
+    "num": 92,
+    "slug": "xhttp-server",
+    "file": "92-xhttp-server",
+    "title": "服务端（上）：启动、连接与路由",
+    "volume": "卷十 扩展库：xhttp"
+  },
+  {
+    "num": 93,
+    "slug": "xhttp-middleware",
+    "file": "93-xhttp-middleware",
+    "title": "服务端（中）：中间件与静态文件",
+    "volume": "卷十 扩展库：xhttp"
+  },
+  {
+    "num": 94,
+    "slug": "xhttp-advanced",
+    "file": "94-xhttp-advanced",
+    "title": "服务端（下）：SSE、multipart 与认证",
+    "volume": "卷十 扩展库：xhttp · 卷十收官"
+  },
+  {
+    "num": 95,
+    "slug": "xws-conn",
+    "file": "95-xws-conn",
+    "title": "xws（上）：连接与收发",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 96,
+    "slug": "xws-server",
+    "file": "96-xws-server",
+    "title": "xws（下）：服务端路由与组播",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 97,
+    "slug": "xruntime",
+    "file": "97-xruntime",
+    "title": "xruntime（上）：类型与对象",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 98,
+    "slug": "xruntime-typed",
+    "file": "98-xruntime-typed",
+    "title": "xruntime（下）：动态调用与 typed 容器",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 99,
+    "slug": "xmail-smtp",
+    "file": "99-xmail-smtp",
+    "title": "xmail（上）：SMTP",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 100,
+    "slug": "xmail-imap",
+    "file": "100-xmail-imap",
+    "title": "xmail（下）：IMAP / POP3 与 MIME",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 101,
+    "slug": "xssh-transport",
+    "file": "101-xssh-transport",
+    "title": "xssh（上）：传输与密钥交换",
+    "volume": "卷十一 其他扩展库"
+  },
+  {
+    "num": 102,
+    "slug": "xssh-auth",
+    "file": "102-xssh-auth",
+    "title": "xssh（下）：认证与通道",
+    "volume": "卷十一 其他扩展库 · 卷十一收官"
+  },
+  {
+    "num": 103,
+    "slug": "build",
+    "file": "103-build",
+    "title": "构建系统全解",
+    "volume": "卷十二 工程实践"
+  },
+  {
+    "num": 104,
+    "slug": "trim",
+    "file": "104-trim",
+    "title": "特性裁剪与体积控制",
+    "volume": "卷十二 工程实践"
+  },
+  {
+    "num": 105,
+    "slug": "package",
+    "file": "105-package",
+    "title": "打包、分发与单头",
+    "volume": "卷十二 工程实践"
+  },
+  {
+    "num": 106,
+    "slug": "testing",
+    "file": "106-testing",
+    "title": "测试、故障注入与模糊测试",
+    "volume": "卷十二 工程实践"
+  },
+  {
+    "num": 107,
+    "slug": "embed",
+    "file": "107-embed",
+    "title": "嵌入宿主程序",
+    "volume": "卷十二 工程实践"
+  },
+  {
+    "num": 108,
+    "slug": "perf",
+    "file": "108-perf",
+    "title": "性能调优与内存调试实战",
+    "volume": "卷十二 工程实践 · 卷十二收官"
+  },
+  {
+    "num": 109,
+    "slug": "project-cli",
+    "file": "109-project-cli",
+    "title": "命令行工具：文本与文件处理",
+    "volume": "卷十三 实战项目"
+  },
+  {
+    "num": 110,
+    "slug": "project-config",
+    "file": "110-project-config",
+    "title": "JSON 配置中心：value 与模板",
+    "volume": "卷十三 实战项目"
+  },
+  {
+    "num": 111,
+    "slug": "project-chat",
+    "file": "111-project-chat",
+    "title": "TCP 聊天室：网络与并发",
+    "volume": "卷十三 实战项目"
+  },
+  {
+    "num": 112,
+    "slug": "project-downloader",
+    "file": "112-project-downloader",
+    "title": "HTTPS 下载器：xhttp 与文件",
+    "volume": "卷十三 实战项目"
+  },
+  {
+    "num": 113,
+    "slug": "project-ws",
+    "file": "113-project-ws",
+    "title": "WebSocket 实时推送服务",
+    "volume": "卷十三 实战项目"
+  },
+  {
+    "num": 114,
+    "slug": "project-static",
+    "file": "114-project-static",
+    "title": "综合：迷你静态文件服务器",
+    "volume": "卷十三 实战项目 · 全书收官"
+  }
 ]
