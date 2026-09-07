@@ -80,6 +80,7 @@ def sections(text):
 
 
 def audit_ghost_table():
+	"""表格单元中的幽灵标识符（对照公共头全集）"""
 	ids = truth_ids()
 	bad = []
 	for name, text in load_docs():
@@ -92,6 +93,7 @@ def audit_ghost_table():
 
 
 def audit_ghost_prose():
+	"""散文/错误清单中的幽灵标识符（豁免历史段）"""
 	ids = truth_ids()
 	bad = []
 	for name, text in load_docs():
@@ -111,6 +113,7 @@ def audit_ghost_prose():
 
 
 def audit_ghost_code():
+	"""非范例代码块中的幽灵标识符（G3 覆盖范围之外）"""
 	ids = truth_ids()
 	bad = []
 	for name, text in load_docs():
@@ -134,6 +137,7 @@ def audit_ghost_code():
 
 
 def audit_ghost_type():
+	"""字段表「类型」列的幽灵类型（含函数指针识别）"""
 	tds = truth_typedefs()
 	bad = []
 	for name, text in load_docs():
@@ -156,6 +160,7 @@ def audit_ghost_type():
 
 
 def audit_tables():
+	"""表格结构：列断裂 / 空表 / 分隔行列数"""
 	bad = []
 	for name, text in load_docs():
 		lines = text.split("\n")
@@ -193,6 +198,7 @@ def audit_tables():
 
 
 def audit_enum_values():
+	"""枚举节逐值完备（签名块值 vs 值表行）"""
 	bad = []
 	for name, text in load_docs():
 		for sec in sections(text):
@@ -211,6 +217,7 @@ def audit_enum_values():
 
 
 def audit_struct_fields():
+	"""结构节字段完备（签名块字段 vs 字段表行）"""
 	bad = []
 	for name, text in load_docs():
 		for sec in sections(text):
@@ -232,6 +239,7 @@ def audit_struct_fields():
 
 
 def audit_headings():
+	"""标题健康：重复 ### 节 / 层级跳级"""
 	from collections import Counter
 	bad = []
 	for name, text in load_docs():
@@ -252,6 +260,7 @@ def audit_headings():
 
 
 def audit_snippets():
+	"""函数节范例片段 ≤12 行"""
 	bad = []
 	for name, text in load_docs():
 		for sec in sections(text):
@@ -266,6 +275,7 @@ def audit_snippets():
 
 
 def audit_banned_words():
+	"""禁用词（大概/可能/应该/之类的/等等，豁免事实陈述）"""
 	# 「之类的」在「不保证 X 之类的 Y」引述句中是准确行为声明，
 	# 豁免「不保证」前缀行；其余命中按节报。
 	bad = []
@@ -282,6 +292,7 @@ def audit_banned_words():
 
 
 def audit_const_values():
+	"""常量总表值列与头文件 #define 逐行一致"""
 	bad = []
 	hdr_text = ""
 	for h in TRUTH_HEADERS:
@@ -311,6 +322,7 @@ def audit_const_values():
 
 
 def audit_bool_rows():
+	"""bool 返回 true/false 各一行（§2.2）"""
 	import check_api_reference_detail as C
 	dh, _ = C.load_manifest()
 	bad = []
