@@ -61,7 +61,7 @@
 | 54 | proxy.md | 23 | **完成** | 23/23 全绿（G3 23 片段，2026-09-07）；对象 5 + 握手 10 + 拨号 8 三组；六域码（CONFIG/CREATE/LIMIT/PROTOCOL/CONNECT/UNSUPPORTED）；两状态机逐值成表；锚点 tour/socks5/dial |
 | 55 | queue.md | 46 | **完成** | 46/46 全绿（G3 46 片段，2026-09-07）；SPSC/MPSC/MPMC 三族 ×15 + Capacity；xqueueresult 四值与批量部分完成口径；CLOSED 弹出=关闭且排空；锚点 queue_tour + containers 三范例 |
 | 56 | random.md | 39 | **完成** | 39/39 全绿（G3 39 片段，2026-09-07）；安全 4 + 显式 14 + 线程默认 12 + Fast 别名 9 四组；非密码学安全警示逐节标注；Secure 失败清零输出；锚点 6 范例 |
-| 57 | regex.md | 54 | 待办 |  |
+| 57 | regex.md | 54 | **完成** | 54/54 全绿（G3 54 片段，2026-09-07）；编译/转义 15 + matcher 10 + 便捷 4 + 替换 4 + 拆分 5 + 集合 16 六组；xrt.regex 六域码；xregexresult 三值；锚点 5 范例 |
 | 58 | set.md | 34 | 待办 |  |
 | 59 | signal.md | 20 | 待办 |  |
 | 60 | slot_map.md | 16 | 待办 |  |
@@ -675,4 +675,9 @@
   非密码学族逐节保留"不得用于密钥/nonce/token"警示；FastRand 为显式
   别名族（旧 xrtRand* 兼容）。
   完成 API 2296→2335/3664（63.7%），56/79 文件。
+- 2026-09-07 regex.md 完成（54/54，G3 54 片段全绿）：六组；错误域
+  CONFIG/PATTERN/LIMIT/EXECUTE/REPLACEMENT/CALLBACK 对照 src/text/regex_*.c；
+  ReplaceFuncTo 失败撤销本次追加、MatcherNext 空匹配按 UTF-8 标量推进、
+  Split 单块整体释放。修正生成器组插入顺序（先插者靠前，倒序排列）。
+  完成 API 2335→2389/3664（65.2%），57/79 文件。
 
