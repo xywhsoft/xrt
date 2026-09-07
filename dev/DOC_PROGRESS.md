@@ -41,7 +41,7 @@
 | 34 | list.md | 28 | **完成** | 28/28 全绿（G3 28 片段，2026-09-07）；侵入式双向链表全接口 |
 | 35 | logger.md | 76 | 待办 |  |
 | 36 | map.md | 62 | 待办 |  |
-| 37 | math.md | 20 | 待办 |  |
+| 37 | math.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；math/tour 补注册 |
 | 38 | memory.md | 44 | 待办 |  |
 | 39 | memory_debug.md | 11 | 待办 |  |
 | 40 | memory_stats.md | 4 | 待办 |  |
@@ -523,3 +523,12 @@
   "自然耗尽不设错 vs 外部结构修改 XERR_STATE"；IterRemove
   "移除最近发布节点且迭代器保持有效"。callline 自动锚点
   28/28。json.md 复验无回归。
+- 2026-09-07 list.md（28/28，c6a65ce9）+ math.md（20/20）
+  完成：list 侵入式双向链表全接口（插入双状态校验/Remove 族
+  "恢复独立不释放"/Move 不变计数/IterRemove 迭代中删除）；
+  math 极值/基础/分类/函数/比较五组（Near 双容差公式、
+  IntNear 无溢出整数比较、Log1p/Expm1 零邻精度、Cbrt 负数
+  负根 vs pow、Hypot 中间不上溢）。发现并修复 manifest 缺口
+  #6：examples/math/tour 未注册（14 个函数的唯一锚点源），
+  定点挂到 math 模块。两文件 callline 自动锚点 48/48，双门禁
+  一次全绿；json 复验无回归。

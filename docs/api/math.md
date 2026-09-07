@@ -123,3 +123,707 @@ bool xrtMathIntNear(int64 iLeft, int64 iRight, uint64 iTolerance);
 
 - `examples/math/helpers/main.c`：范围、负数小数部分、角度和稳定 hypot。
 - `examples/math/near/main.c`：绝对、相对和整数容差。
+
+## API
+
+### `xrtMathMin`
+
+返回两个浮点数中较小者；NaN 参与比较返回另一操作数之外的非确定侧（实现按 IEEE minNum 语义）。
+
+```c
+double xrtMathMin(double fLeft, double fRight);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fLeft` | 输入 | — | 左值 |
+| `fRight` | 输入 | — | 右值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 较小者 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/tour · 极值](../../examples/math/tour/main.c) · 观察
+
+```c
+	if ( (xrtMathMin(2.0, 3.0) != 2.0) ||
+		(xrtMathMin(3.0, 2.0) != 2.0) ||
+		(xrtMathMax(2.0, 3.0) != 3.0) ||
+		(xrtMathMax(3.0, 2.0) != 3.0) ||
+		(xrtMathMin(-1.0, 1.0) != -1.0) ) {
+```
+
+
+### `xrtMathMax`
+
+返回两个浮点数中较大者。
+
+```c
+double xrtMathMax(double fLeft, double fRight);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fLeft` | 输入 | — | 左值 |
+| `fRight` | 输入 | — | 右值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 较大者 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/tour · 极值](../../examples/math/tour/main.c) · 观察
+
+```c
+		(xrtMathMax(2.0, 3.0) != 3.0) ||
+```
+
+
+### `xrtMathClamp`
+
+把值限制在 `[fMin, fMax]` 区间内。
+
+```c
+double xrtMathClamp(double fValue, double fMin, double fMax);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 待限制值 |
+| `fMin` | 输入 | `<= fMax` | 下界 |
+| `fMax` | 输入 | — | 上界 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 限制后的值 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/helpers · 极值](../../examples/math/helpers/main.c) · 观察
+
+```c
+	printf("clamp: %.1f\n", xrtMathClamp(12.0, 0.0, 10.0));  /* 超上界→10 */
+```
+
+
+### `xrtMathSign`
+
+返回浮点数的符号：负数为 -1、零为 0、正数为 +1。
+
+```c
+int xrtMathSign(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `-1/0/+1` | 符号 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/tour · 基础](../../examples/math/tour/main.c) · 观察
+
+```c
+	if ( (xrtMathSign(-5.0) != -1) ||
+		(xrtMathSign(5.0) != 1) ||
+		(xrtMathSign(0.0) != 0) ) {
+```
+
+
+### `xrtMathTrunc`
+
+向零截断小数部分。
+
+```c
+double xrtMathTrunc(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 截断后的整值 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/tour · 基础](../../examples/math/tour/main.c) · 观察
+
+```c
+	if ( (xrtMathTrunc(2.7) != 2.0) ||
+		(xrtMathTrunc(-2.7) != -2.0) ) {
+```
+
+
+### `xrtMathFract`
+
+返回小数部分 `x - trunc(x)`，保持符号。
+
+```c
+double xrtMathFract(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 带符号小数部分 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/helpers · 基础](../../examples/math/helpers/main.c) · 观察
+
+```c
+	printf("fract: %.2f\n", xrtMathFract(-1.25));           /* -1.25→0.75 */
+```
+
+
+### `xrtMathMod`
+
+带符号取模（结果符号随被除数）；除数为零返回 NaN。
+
+```c
+double xrtMathMod(double fValue, double fDivisor);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 被除数 |
+| `fDivisor` | 输入 | 非零 | 除数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | `fValue - divisor * trunc(fValue/divisor)` | — |
+
+#### 错误
+
+- 无 — 纯函数（除零返回 NaN）
+
+#### 范例
+
+[math/tour · 基础](../../examples/math/tour/main.c) · 观察
+
+```c
+	if ( !exampleNear(xrtMathMod(7.0, 3.0), 1.0) ||
+		!exampleNear(xrtMathMod(-7.0, 3.0), -1.0) ) {
+```
+
+
+### `xrtMathRad`
+
+角度转弧度。
+
+```c
+double xrtMathRad(double fDegrees);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fDegrees` | 输入 | — | 角度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 弧度 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/tour · 基础](../../examples/math/tour/main.c) · 观察
+
+```c
+	if ( !exampleNear(xrtMathRad(180.0), 3.14159265358979) ) {
+```
+
+
+### `xrtMathDeg`
+
+弧度转角度。
+
+```c
+double xrtMathDeg(double fRadians);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fRadians` | 输入 | — | 弧度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 角度 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/helpers · 基础](../../examples/math/helpers/main.c) · 观察
+
+```c
+	printf("angle: %.1f\n", xrtMathDeg(XRT_PI));            /* π rad→180° */
+```
+
+
+### `xrtMathIsNaN`
+
+判断是否 NaN。
+
+```c
+bool xrtMathIsNaN(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 是 NaN | — |
+| `false` | 非 NaN | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[math/tour · 分类](../../examples/math/tour/main.c) · 观察
+
+```c
+		if ( !xrtMathIsNaN(fNaN) ||
+			xrtMathIsNaN(1.0) ||
+			xrtMathIsNaN(fInf) ||
+			!xrtMathIsInf(fInf) ||
+			xrtMathIsInf(1.0) ||
+			xrtMathIsInf(fNaN) ||
+			!xrtMathIsFinite(1.5) ||
+			xrtMathIsFinite(fNaN) ||
+			xrtMathIsFinite(fInf) ) {
+```
+
+
+### `xrtMathIsInf`
+
+判断是否无穷大（正或负）。
+
+```c
+bool xrtMathIsInf(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 是无穷 | — |
+| `false` | 有限或 NaN | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[math/tour · 分类](../../examples/math/tour/main.c) · 观察
+
+```c
+			!xrtMathIsInf(fInf) ||
+```
+
+
+### `xrtMathIsFinite`
+
+判断是否有限值（非 NaN 且非无穷）。
+
+```c
+bool xrtMathIsFinite(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 有限 | — |
+| `false` | NaN 或无穷 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[math/tour · 分类](../../examples/math/tour/main.c) · 观察
+
+```c
+			!xrtMathIsFinite(1.5) ||
+```
+
+
+### `xrtMathLog2`
+
+以 2 为底的对数；非正值返回 NaN。
+
+```c
+double xrtMathLog2(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | `> 0` | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | log2 | — |
+
+#### 错误
+
+- 无 — 域外返回 NaN
+
+#### 范例
+
+[math/tour · 函数](../../examples/math/tour/main.c) · 观察
+
+```c
+	if ( !exampleNear(xrtMathLog2(8.0), 3.0) ||
+		!exampleNear(xrtMathLog2(1.0), 0.0) ||
+		!exampleNear(xrtMathExp2(10.0), 1024.0) ||
+		!exampleNear(xrtMathLog1p(0.0), 0.0) ||
+		!exampleNear(xrtMathExpm1(0.0), 0.0) ||
+		!exampleNear(xrtMathLog1p(1.0), 0.693147180559945) ||
+		!exampleNear(xrtMathExpm1(1.0), 1.718281828459045) ) {
+```
+
+
+### `xrtMathExp2`
+
+2 的幂；溢出返回无穷。
+
+```c
+double xrtMathExp2(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 指数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 2^x | — |
+
+#### 错误
+
+- 无 — 溢出返回无穷
+
+#### 范例
+
+[math/tour · 函数](../../examples/math/tour/main.c) · 观察
+
+```c
+		!exampleNear(xrtMathExp2(10.0), 1024.0) ||
+```
+
+
+### `xrtMathLog1p`
+
+计算 `ln(1 + x)`，x 接近零时保持精度。
+
+```c
+double xrtMathLog1p(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | `> -1` | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | ln(1+x) | — |
+
+#### 错误
+
+- 无 — 域外返回 NaN
+
+#### 范例
+
+[math/tour · 函数](../../examples/math/tour/main.c) · 观察
+
+```c
+		!exampleNear(xrtMathLog1p(0.0), 0.0) ||
+```
+
+
+### `xrtMathExpm1`
+
+计算 `e^x - 1`，x 接近零时保持精度。
+
+```c
+double xrtMathExpm1(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | e^x - 1 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/tour · 函数](../../examples/math/tour/main.c) · 观察
+
+```c
+		!exampleNear(xrtMathExpm1(0.0), 0.0) ||
+```
+
+
+### `xrtMathCbrt`
+
+立方根；负数返回负根（与 `pow(x, 1/3)` 不同）。
+
+```c
+double xrtMathCbrt(double fValue);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | — | 输入值 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 带符号立方根 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/tour · 函数](../../examples/math/tour/main.c) · 观察
+
+```c
+	if ( !exampleNear(xrtMathCbrt(27.0), 3.0) ||
+		!exampleNear(xrtMathCbrt(-27.0), -3.0) ||
+		!exampleNear(xrtMathCbrt(0.0), 0.0) ) {
+```
+
+
+### `xrtMathHypot`
+
+计算 `sqrt(x² + y²)`，中间过程不上溢。
+
+```c
+double xrtMathHypot(double fX, double fY);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fX` | 输入 | — | X |
+| `fY` | 输入 | — | Y |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 数值 | 欧氏长度 | — |
+
+#### 错误
+
+- 无 — 纯函数
+
+#### 范例
+
+[math/helpers · 函数](../../examples/math/helpers/main.c) · 观察
+
+```c
+	printf("hypot: %.1f\n", xrtMathHypot(3.0, 4.0));        /* 勾股 3-4-5 */
+```
+
+
+### `xrtMathNear`
+
+使用显式绝对与相对容差比较两个浮点数：`|L-R| <= max(abs, rel * max(|L|,|R|))`。
+
+```c
+bool xrtMathNear(double fLeft, double fRight,
+	double fAbsoluteTolerance, double fRelativeTolerance);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fLeft` | 输入 | — | 左值 |
+| `fRight` | 输入 | — | 右值 |
+| `fAbsoluteTolerance` | 输入 | `>= 0` | 绝对容差 |
+| `fRelativeTolerance` | 输入 | `>= 0` | 相对容差 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 在容差内相等 | — |
+| `false` | 超出容差 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[math/tour · 比较](../../examples/math/tour/main.c) · 观察
+
+```c
+	return xrtMathNear(fLeft, fRight, 1e-9, 0.0);
+```
+
+
+### `xrtMathIntNear`
+
+使用无符号绝对差容差比较两个 int64，计算过程不会溢出。
+
+```c
+bool xrtMathIntNear(int64 iLeft, int64 iRight, uint64 iTolerance);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iLeft` | 输入 | — | 左值 |
+| `iRight` | 输入 | — | 右值 |
+| `iTolerance` | 输入 | — | 容差 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | `|L-R| <= iTolerance`（含 INT64_MIN 边界） | — |
+| `false` | 超出容差 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词（不依赖浮点）
+
+#### 范例
+
+[math/near · 比较](../../examples/math/near/main.c) · 观察
+
+```c
+		xrtMathIntNear(1000, 1003, 5) ? "near" : "different");
+```
+
+
