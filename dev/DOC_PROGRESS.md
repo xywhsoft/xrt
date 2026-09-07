@@ -65,7 +65,7 @@
 | 58 | set.md | 34 | **完成** | 34/34 全绿（G3 34 片段，2026-09-07）；七组按既有散文结构入节；GetOrAdd 原子插入 + pNew 出参；集合运算族兼容性 STATE；锚点 set/owned/set_tour |
 | 59 | signal.md | 20 | **完成** | 20/20 全绿（G3 20 片段，2026-09-07）；代码/订阅/句柄/原生处理/计数关闭五组；Owned 数据失败不转移、Shutdown 回调线程自关闭 STATE 入档；锚点 signal/signal_tour |
 | 60 | slot_map.md | 16 | **完成** | 16/16 全绿（G3 16 片段，2026-09-07）；诊断/生命周期/基本/迭代四组；旧合并式双名小节拆分；陈旧句柄一律不设错；锚点 slot_map/slot_map_tour |
-| 61 | spin.md | 7 | 待办 |  |
+| 61 | spin.md | 7 | **完成** | 7/7 全绿（G3 7 片段，2026-09-07）；Unit/Destroy 持有中失败、TryLock 忙碌不设错；锚点 spin |
 | 62 | stack.md | 74 | 待办 |  |
 | 63 | string.md | 83 | 待办 |  |
 | 64 | sync.md | 48 | 待办 |  |
@@ -694,4 +694,8 @@
   槽位耗尽 = OVERFLOW、Get/Set/Remove 陈旧句柄不设错（失效是正常结果）、
   Remove 输出与槽表存储重叠 = ARGUMENT。旧合并式双名小节全部拆分。
   完成 API 2443→2459/3664（67.1%），60/79 文件。
+- 2026-09-07 spin.md 完成（7/7，G3 7 片段全绿）：生命周期 + 进出
+  临界区两组；错误对照 src/concurrency/spin.c——持有中 Unit/Destroy =
+  STATE、TryLock 忙碌不设错。
+  完成 API 2459→2466/3664（67.3%），61/79 文件。
 
