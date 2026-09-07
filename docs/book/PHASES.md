@@ -21,7 +21,7 @@
 | P7 | 卷五后半：path/file×2/dir/file-async/signal + 调试与诊断组合章 | 7 | ✅ 完成 |
 | P8 | 卷六前半：thread-sync（含 once）/coroutine×3 + 取消体系专章 | 8 | ✅ 完成 |
 | P9 | 卷六后半：channel/future/executor/task×2 + 调度器实战章 | 8 | ✅ 完成（channel/future/executor 已在 P8 提前完成） |
-| P10 | 卷七前半：net-addr/port/buf/dns/file/frame + 事件模型与 C10K 思路章 | 7 | ⬜ |
+| P10 | 卷七前半：net-addr/port/buf/dns/tcp×2/udp/proxy + 卷七导言（file/frame 归 P11 net-misc） | 8 | ✅ 完成 |
 | P11 | 卷七后半：tcp-adv/udp/proxy/misc/interface + netbuf 深入章 | 6 | ⬜ |
 | P12 | 卷八·密码基础：hash/aead/asym + 密码工程纪律章 + 卷导言 | 5 | ⬜ |
 | P13 | 卷八·证书链：der-pem/x509/x509-verify + 信任链与吊销章 | 4 | ⬜ |

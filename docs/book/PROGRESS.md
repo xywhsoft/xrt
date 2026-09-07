@@ -16,7 +16,7 @@
 | P7 卷五后半 | ✅ 完成 | 8 | 34,240 |
 | P8 卷六前半 | ✅ 完成 | 8 | 32,911 |
 | P9 卷六后半 | ✅ 完成 | 2 | 11,210 |
-| P10 卷七前半 | 🔄 进行中 | 0 | — |
+| P10 卷七前半 | ✅ 完成 | 8 | 31,742 |
 | P11–P27 | ⬜ 未开始 | — | — |
 
 ## 章节明细
@@ -38,7 +38,31 @@
 | 14 | 14-buffer.md | practice | 4,035 | 2 | 1 | 2 | 3 | P2 |
 | 15 | 15-stack.md | practice | 4,003 | 2 | 1 | 2 | 3 | P2 |
 | 16 | 16-list-slotmap.md | practice | 4,037 | 2 | 1 | 2 | 3 | P2 |
-| 55 | 66-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
+| 61 | 61-vol7-intro.md | intro | 2,227 | 0 | 1 | 0 | 0 | P10 |
+| 62 | 62-net-addr.md | practice | 4,658 | 2 | 1 | 2 | 3 | P10 |
+| 63 | 63-net-port.md | practice | 4,192 | 2 | 1 | 2 | 3 | P10 |
+| 64 | 64-net-buf.md | practice | 4,251 | 2 | 1 | 2 | 3 | P10 |
+| 65 | 65-net-dns.md | practice | 4,099 | 2 | 1 | 2 | 3 | P10 |
+| 67 | 67-net-tcp-adv.md | practice | 4,117 | 2 | 1 | 2 | 3 | P10 |
+| 68 | 68-net-udp.md | practice | 4,156 | 2 | 1 | 2 | 3 | P10 |
+| 69 | 69-net-proxy.md | practice | 4,042 | 2 | 1 | 2 | 3 | P10 |
+| 66 | 66-net-tcp.md | practice | 4,078 | 2 | 2 | 3 | 3 | P0 |
+
+## P10 阶段记录
+
+- 卷七前半 8 章新写：ch61 导言（骨架工业化映射主线+两条横切纪律）、ch62 地址模型、
+  ch63 事件端口与五后端、ch64 缓冲链、ch65 DNS、ch67 TCP 进阶（发送五档+写预算）、
+  ch68 UDP（双形态+批量）、ch69 代理（SOCKS5/HTTP CONNECT+托管拨号）。
+  ch66 TCP 金标准重编号迁移（旧 65 → 66），内容未改。
+- 全书第九次重编号：插入卷七导言 ch61（ch61 之后全部 +1）。
+- 范围调整：net-file/net-frame 并入 ch70 net-misc（分帧、端口文件与网卡），归 P11。
+- 门禁拦下：xsockaddr_storage 不存在（改 Native[64] 数组 + iSize 出参）、
+  xnetportcapabilities 非结构体（Capabilities 返回 uint32 位标志）、
+  xnetbufspan 真名 xnetspan 且 Spans 为填调用方数组模式、
+  term 输出多次对齐示例头注释（resolver_future/tcp_stream_tour/udp_batch 真实行）。
+- 站点同步：index.html 全站编号偏移修正（插入 ch61 后 112 条目 +1）+ 卷范围对齐
+  order.json + 卷七 61-69 置 done；start.html 章号可见文字与 href 一致化；
+  全站 book 链接扫描 0 断链。
 
 ## P9 阶段记录
 
