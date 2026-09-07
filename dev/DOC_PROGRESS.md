@@ -27,7 +27,7 @@
 | 20 | future.md | 104 | **完成** | 104/104 全绿（G3 104 片段，2026-09-07）；三段：核心 44 + 桥/listener/dial 29 + TLS stream 31 |
 | 21 | hash.md | 9 | **完成** | 9/9 全绿（G3 9 片段，2026-09-07）；合并节全部拆立 |
 | 22 | html.md | 3 | **完成** | 3/3 全绿（G3 3 片段，2026-09-07）；html/variants 补注册 |
-| 23 | http.md | 167 | 进行中 [3/4 段] | 115/167 全绿（G3 115 片段）；余第 4 段 http1 + net_proxy 52 |
+| 23 | http.md | 167 | **完成** | 167/167 全绿（G3 167 片段，2026-09-07）；四段：核心 28 + field/param 33 + te/decode 55 + http1/proxy 52 |
 | 24 | http_connection.md | 5 | 待办 |  |
 | 25 | http_decode.md | 10 | 待办 |  |
 | 26 | http_encoding.md | 12 | 待办 |  |
@@ -462,3 +462,19 @@
   门禁 G1 拦截 TeQuality 臆测签名（实为 pFields/iCount/Coding
   三参直读字段而非 pInfo 汇总）——重写后 52 余全部为第 4 段。
   G3 115 片段全绿；array 复验无回归。
+- 2026-09-07 http.md 第 4 段（52 节）完成，全文件达成
+  （167/167，G3 167 片段）：HTTP/1 起始行/Header 9（解析
+  三态 OK/MORE/ERROR、Write 双形态"空输出查长度+容量不足不写
+  半个报文"）、Body 分帧 11（RFC 9112 分帧优先级 Plan、
+  BodyRead 状态机 DATA/FIELDS/DONE/ERROR、ChunkLineWrite
+  "只写 size 行正文零复制"、TrailersParse trailer 区）、
+  完整消息 5（bEnd 下截断 MORE 升级为错误、BodyView 零复制
+  vs BodyCopy 去分帧）、缓冲链/TLS 解析 4（不消费输入、
+  Head.Bytes 原子接管、Upgrade 余量保留）、代理对象 5、
+  握手状态机 10（WRITE 先发完才 READ、Sent 支持部分写入、
+  Bound 对 HTTP CONNECT 返回 NOT_FOUND、Destroy 清零敏感
+  状态）、拨号 8。生成器切片越界被门禁连环抓出（Handshake
+  10 节切成 9、Dial 8 节丢 Stats；G1 再拦 DialStats 臆测
+  pStats 类型实为 xnetproxydialstats*）；callline 锚点对
+  缺失文件自动全库搜索补齐（http1_body/websocket 等）。
+  七文件复验无回归。

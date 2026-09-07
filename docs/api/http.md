@@ -4730,6 +4730,2150 @@ void xrtHttpDecodeDestroy(xhttpdecode* pDecode);
 
 
 
+## HTTP/1 起始行与 Header
+
+### `xrtHttp1TargetValid`
+
+验证非空 request-target 不含空白、控制字符或 fragment。
+
+```c
+bool xrtHttp1TargetValid(xstrview Target);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Target` | 输入 | 借用 | 目标文本 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 合法 | — |
+| `false` | 非法 | 纯谓词 |
+
+#### 错误
+
+- 无 — 纯谓词
+
+#### 范例
+
+[http1/head_tour · 目标](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+		xrtHttp1TargetValid(XRT_STR_LITERAL("/a b")) ||
+```
+
+
+### `xrtHttp1LimitsInit`
+
+初始化适合公网输入的限额：8 KiB 起始行、64 KiB Header、100 字段。
+
+```c
+void xrtHttp1LimitsInit(xhttp1limits* pLimits);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLimits` | 输出 | 非空、可未对齐 | 接收限额（解析前复制） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http1/head_tour · 限额](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+	xrtHttp1LimitsInit(&Limits);
+```
+
+
+### `xrtHttp1HeadInit`
+
+初始化借用调用方字段数组的空 Head。
+
+```c
+void xrtHttp1HeadInit(
+	xhttp1head* pHead,
+	xhttpfield* pFields,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHead` | 输出 | 非空 | 接收 Head |
+| `pFields` | 输入 | 借用存储 | 字段描述符数组 |
+| `iCapacity` | 输入 | — | 数组容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http1/head_tour · 初始化](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+	xrtHttp1HeadInit(&Head, Fields, 8);
+```
+
+
+### `xrtHttp1RequestParse`
+
+严格增量解析 HTTP/1.0 或 HTTP/1.1 请求 Header。
+
+```c
+xhttp1status xrtHttp1RequestParse(
+	xbytesview Input,
+	xhttp1head* pHead,
+	const xhttp1limits* pLimits,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Input` | 输入 | 借用 | 当前累积字节 |
+| `pHead` | 输入/输出 | 已初始化 | Head（成功后 `Bytes` 为消费量） |
+| `pLimits` | 输入 | 允许空 | 空 = `LimitsInit` 默认 |
+| `pError` | 输出 | 可空 | 接收错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK` | Header 完整解析 | — |
+| `XHTTP1_MORE` | 需要更多输入（不设错） | — |
+| `XHTTP1_ERROR` | 协议错误 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误 — 起始行/Header 语法或超限
+
+#### 范例
+
+[http/http1 · 请求解析](../../examples/http/http1/main.c) · 观察
+
+```c
+	if ( xrtHttp1RequestParse(
+		Input, &Head, NULL, NULL
+	) != XHTTP1_READY ) {
+```
+
+
+### `xrtHttp1ResponseParse`
+
+严格增量解析 HTTP/1.0 或 HTTP/1.1 响应 Header。
+
+```c
+xhttp1status xrtHttp1ResponseParse(
+	xbytesview Input,
+	xhttp1head* pHead,
+	const xhttp1limits* pLimits,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Input` | 输入 | 借用 | 当前累积字节 |
+| `pHead` | 输入/输出 | 已初始化 | Head |
+| `pLimits` | 输入 | 允许空 | 限额 |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK/MORE/ERROR` | 同请求解析三态 | — |
+
+#### 错误
+
+- `xrt.http1` 域错误
+
+#### 范例
+
+[http1_body](../../examples/http/http1_body/main.c) · 观察
+
+```c
+	if ( xrtHttp1ResponseParse(
+		(xbytesview){ Message, sizeof(Message) - 1u },
+		&Head, NULL, NULL
+	) != XHTTP1_READY ) {
+```
+
+
+### `xrtHttp1TransferCodingNext`
+
+严格迭代一个 Transfer-Encoding 字段值，`Offset` 初始为零。
+
+```c
+xhttpnext xrtHttp1TransferCodingNext(
+	xstrview Value,
+	size_t* pOffset,
+	xhttp1transfercoding* pCoding
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Value` | 输入 | 借用 | 字段值 |
+| `pOffset` | 输入/输出 | 初始零 | 游标 |
+| `pCoding` | 输出 | 非空 | 接收编码条目 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP_NEXT_ITEM/END/ERROR` | 三态 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误
+
+#### 范例
+
+[head_tour](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+	if ( ((Next = xrtHttp1TransferCodingNext(
+			pField->Value, &iOffset, &Coding)) != XHTTP_NEXT_ITEM) ||
+		(Coding.Name.Size != 4u) ||
+		(memcmp(Coding.Name.Data, "gzip", 4u) != 0) ||
+		(xrtHttp1TransferCodingNext(pField->Value, &iOffset,
+			&Coding) != XHTTP_NEXT_ITEM) ||
+		(Coding.Name.Size != 7u) ||
+		(memcmp(Coding.Name.Data, "chunked", 7u) != 0) ||
+		(xrtHttp1TransferCodingNext(pField->Value, &iOffset,
+			&Coding) != XHTTP_NEXT_END) ) {
+```
+
+
+### `xrtHttp1Field`
+
+返回第一个同名 Header，未找到返回空指针。
+
+```c
+const xhttpfield* xrtHttp1Field(
+	const xhttp1head* pHead,
+	xstrview Name
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHead` | 输入 | 非空 | 已解析 Head |
+| `Name` | 输入 | 借用 | 查找名称 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 借用字段地址 | — |
+| `NULL` | 未找到 | 不设错 |
+
+#### 错误
+
+- 无 — 未找到是查询结果
+
+#### 范例
+
+[http1/head_tour · 字段](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+		((pField = xrtHttp1Field(&Head,
+			XRT_STR_LITERAL("host"))) == NULL) ||
+```
+
+
+### `xrtHttp1RequestWrite`
+
+校验并写入完整请求 Header；不自动添加 Host 等策略字段。空输出查长度；容量不足不写半个报文。
+
+```c
+bool xrtHttp1RequestWrite(
+	xstrview Method,
+	xstrview Target,
+	xhttpversion Version,
+	const xhttpfield* pFields,
+	size_t iFieldCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Method` | 输入 | 借用 | 方法 |
+| `Target` | 输入 | 借用 | 目标 |
+| `Version` | 输入 | — | HTTP 版本 |
+| `pFields` | 输入 | 借用数组 | 字段 |
+| `iFieldCount` | 输入 | — | 字段数 |
+| `pOutput` | 输出 | 可空、不得与输入重叠 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 完整报文已写出 | — |
+| `false` | 校验失败或容量不足 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `xrt.http1` 域错误 — 方法/目标非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[upgrade](../../examples/websocket/upgrade/main.c) · 观察
+
+```c
+		) || !xrtHttp1RequestWrite(
+```
+
+
+### `xrtHttp1ResponseWrite`
+
+校验并写入完整响应 Header；不自动添加 Content-Length 或连接策略。`Reason` 允许为空。
+
+```c
+bool xrtHttp1ResponseWrite(
+	xhttpversion Version,
+	uint16 iStatus,
+	xstrview Reason,
+	const xhttpfield* pFields,
+	size_t iFieldCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Version` | 输入 | — | HTTP 版本 |
+| `iStatus` | 输入 | 100–999 | 状态码 |
+| `Reason` | 输入 | 可空 | 原因短语 |
+| `pFields` | 输入 | 借用数组 | 字段 |
+| `iFieldCount` | 输入 | — | 字段数 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 完整报文已写出 | — |
+| `false` | 校验失败或容量不足 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 状态越界或容量不足
+
+#### 范例
+
+[http/http1 · 写出](../../examples/http/http1/main.c) · 观察
+
+```c
+	if ( !xrtHttp1ResponseWrite(
+		XHTTP_VERSION_1_1, 200, XRT_STR_LITERAL("OK"),
+		ResponseFields, 2, Response, sizeof(Response), &iSize
+	) ) {
+```
+
+
+## HTTP/1 正文分帧
+
+### `xrtHttp1BodyLimitsInit`
+
+初始化无正文预设上限的流式 Body 限额；上层可按路由收紧。
+
+```c
+void xrtHttp1BodyLimitsInit(xhttp1bodylimits* pLimits);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLimits` | 输出 | 非空、可未对齐 | 接收限额（Init 时复制） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/http1_body · 限额](../../examples/http/http1_body/main.c) · 观察
+
+```c
+	xrtHttp1BodyLimitsInit(&Limits);
+```
+
+
+### `xrtHttp1RequestBodyPlan`
+
+按 RFC 9112 请求分帧优先级生成 Body Plan。
+
+```c
+bool xrtHttp1RequestBodyPlan(
+	const xhttp1head* pHead,
+	xhttp1bodyplan* pPlan
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHead` | 输入 | 非空、已完整解析 | 请求 Head |
+| `pPlan` | 输出 | 非空 | 接收分帧计划 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计划已生成 | — |
+| `false` | 分帧字段矛盾（如 TE+CL 并存） | 输出不变 |
+
+#### 错误
+
+- `xrt.http1` 域错误 — Transfer-Encoding/Content-Length 冲突
+
+#### 范例
+
+[http1/head_tour · 分帧](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+	if ( !xrtHttp1RequestBodyPlan(&Head, &Plan) ||
+		(Plan.Mode != XHTTP1_BODY_CHUNKED) ) {
+```
+
+
+### `xrtHttp1ResponseBodyPlan`
+
+按请求方法与响应状态生成 Body Plan；HEAD 和 CONNECT 必须传入原请求方法。
+
+```c
+bool xrtHttp1ResponseBodyPlan(
+	const xhttp1head* pHead,
+	xstrview RequestMethod,
+	xhttp1bodyplan* pPlan
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHead` | 输入 | 非空、已完整解析 | 响应 Head |
+| `RequestMethod` | 输入 | 借用 | 原请求方法 |
+| `pPlan` | 输出 | 非空 | 接收分帧计划 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 计划已生成 | — |
+| `false` | 分帧字段矛盾 | 输出不变 |
+
+#### 错误
+
+- `xrt.http1` 域错误
+
+#### 范例
+
+[http/http1_body · 响应分帧](../../examples/http/http1_body/main.c) · 观察
+
+```c
+	if ( !xrtHttp1ResponseBodyPlan(
+		&Head, XRT_STR_LITERAL("GET"), &Plan
+	) ) {
+```
+
+
+### `xrtHttp1BodyInit`
+
+初始化无分配 Body Reader；trailer 描述符可为空并在 FIELDS 后重新绑定。
+
+```c
+bool xrtHttp1BodyInit(
+	xhttp1body* pBody,
+	const xhttp1bodyplan* pPlan,
+	xhttpfield* pTrailers,
+	size_t iTrailerCapacity,
+	const xhttp1bodylimits* pLimits
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBody` | 输出 | 非空 | 接收 Reader |
+| `pPlan` | 输入 | 已生成 | 分帧计划 |
+| `pTrailers` | 输入 | 可空 | trailer 描述符存储 |
+| `iTrailerCapacity` | 输入 | — | trailer 容量 |
+| `pLimits` | 输入 | 允许空 | 空 = `BodyLimitsInit` |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | Reader 已就绪 | — |
+| `false` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[http/http1_body · Reader](../../examples/http/http1_body/main.c) · 观察
+
+```c
+	if ( !xrtHttp1BodyInit(
+		&Body, &Plan, Trailers, 4, &Limits
+	) ) {
+```
+
+
+### `xrtHttp1BodyTrailers`
+
+在 FIELDS 状态后替换 trailer 描述符存储，不重置正文解码进度。
+
+```c
+bool xrtHttp1BodyTrailers(
+	xhttp1body* pBody,
+	xhttpfield* pTrailers,
+	size_t iCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBody` | 输入/输出 | 非空 | Reader |
+| `pTrailers` | 输入 | 非空 | 新存储 |
+| `iCapacity` | 输入 | — | 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已重绑 | — |
+| `false` | 状态非 FIELDS 或参数错误 | 进度不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_STATE` — 当前状态不可重绑
+
+#### 范例
+
+[http1/head_tour · trailer](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+			!xrtHttp1BodyTrailers(&Body, Trailers, 4u) ) {
+```
+
+
+### `xrtHttp1TrailersParse`
+
+严格解析从第一行开始并由空行结束的 trailer 区；所有字段均借用 Input。
+
+```c
+xhttp1status xrtHttp1TrailersParse(
+	xbytesview Input,
+	xhttpfield* pFields,
+	size_t iCapacity,
+	const xhttp1bodylimits* pLimits,
+	size_t* pBytes,
+	size_t* pCount,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Input` | 输入 | 借用 | trailer 区字节 |
+| `pFields` | 输出 | 借用存储 | 接收字段 |
+| `iCapacity` | 输入 | — | 字段容量 |
+| `pLimits` | 输入 | 允许空 | 限额 |
+| `pBytes` | 输出 | 可空 | 消费字节数 |
+| `pCount` | 输出 | 可空 | 字段数 |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误 — 字段名非法或超限
+
+#### 范例
+
+[http1/head_tour · trailer](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+		if ( (xrtHttp1TrailersParse(
+				(xbytesview) { (const uint8*)sTrailer,
+					sizeof(sTrailer) - 1u },
+				Trailers, 4u, &BodyLimits, &iBytes, &iCount,
+				&Error) != XHTTP1_READY) ||
+			(iCount != 1u) ||
+			(Trailers[0].Value.Size != 1u) ) {
+```
+
+
+### `xrtHttp1ChunkLineWrite`
+
+写入十六进制 chunk-size 行；只写 size 行，正文可向量发送零复制。
+
+```c
+bool xrtHttp1ChunkLineWrite(
+	uint64 iSize,
+	xstrview Extensions,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iSize` | 输入 | — | chunk 数据长度 |
+| `Extensions` | 输入 | 空或以分号起始 | 扩展后缀 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已写出 | — |
+| `false` | 容量不足或扩展非法 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http1/head_tour · 分块](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+	if ( !xrtHttp1ChunkLineWrite(5u, XRT_STR_LITERAL(""), arrLine,
+			sizeof(arrLine), &iSize) ||
+		(iSize != 3u) ||
+		(memcmp(arrLine, "5\r\n", 3u) != 0) ||
+		!xrtHttp1ChunkLineWrite(5u, XRT_STR_LITERAL(";x"),
+			arrLine, sizeof(arrLine), &iSize) ||
+		(iSize != 5u) ||
+		(memcmp(arrLine, "5;x\r\n", 5u) != 0) ) {
+```
+
+
+### `xrtHttp1ChunkWrite`
+
+把一段非空正文封装为完整 chunk；空正文是成功空操作，不结束消息。
+
+```c
+bool xrtHttp1ChunkWrite(
+	xbytesview Data,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Data` | 输入 | 借用 | 非空正文段 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 完整 chunk 已写出 | — |
+| `false` | 空正文配非空操作以外错误 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足
+
+#### 范例
+
+[http/http1_body · 分块](../../examples/http/http1_body/main.c) · 观察
+
+```c
+	if ( !xrtHttp1ChunkWrite(
+		(xbytesview){ (cbytes)"hello", 5 },
+		Output, sizeof(Output), &iChunk
+	) || !xrtHttp1ChunkEndWrite(
+		Trailers, 1, Output + iChunk,
+		sizeof(Output) - iChunk, &iEnd
+	) ) {
+```
+
+
+### `xrtHttp1ChunkEndWrite`
+
+写入 last-chunk、可选 trailer 和最终空行；调用方须确认字段定义明确允许 trailer。
+
+```c
+bool xrtHttp1ChunkEndWrite(
+	const xhttpfield* pTrailers,
+	size_t iTrailerCount,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pTrailers` | 输入 | 允许空 | trailer 字段 |
+| `iTrailerCount` | 输入 | — | 条目数 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 结束序列已写出 | — |
+| `false` | 容量不足 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE`
+
+#### 范例
+
+[http/http1_body · 分块](../../examples/http/http1_body/main.c) · 观察
+
+```c
+	) || !xrtHttp1ChunkEndWrite(
+```
+
+
+### `xrtHttp1BodyRead`
+
+推进正文状态机；`Consumed` 是本次可移除的线缆字节，`Data` 仅 DATA 状态有效。定长/分块正文过早结束返回协议错误。
+
+```c
+xhttp1bodystatus xrtHttp1BodyRead(
+	xhttp1body* pBody,
+	xbytesview Input,
+	bool bEnd,
+	size_t* pConsumed,
+	xbytesview* pData,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBody` | 输入/输出 | 已初始化 | Reader |
+| `Input` | 输入 | 借用 | 当前线缆字节 |
+| `bEnd` | 输入 | — | 可靠传输已结束 |
+| `pConsumed` | 输出 | 可空 | 本次消费量 |
+| `pData` | 输出 | 可空 | 接收明文段（借用输入） |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_BODY_DATA` | 一段明文已发布 | — |
+| `XHTTP1_BODY_FIELDS` | 进入 trailer 解析 | — |
+| `XHTTP1_BODY_DONE` | 正文与 trailer 完整消费 | — |
+| `XHTTP1_BODY_ERROR` | 协议错误或过早结束 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误 — 截断、超限或非法 chunk
+
+#### 范例
+
+[http/http1_body · 状态机](../../examples/http/http1_body/main.c) · 观察
+
+```c
+		xhttp1bodystatus Status = xrtHttp1BodyRead(
+			&Body,
+			(xbytesview){ Message + iOffset, sizeof(Message) - 1u - iOffset },
+			false, &iConsumed, &Data, NULL
+		);
+```
+
+
+### `xrtHttp1BodyDone`
+
+判断 Reader 是否已经完整消费 HTTP 正文与 trailer。
+
+```c
+bool xrtHttp1BodyDone(const xhttp1body* pBody);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBody` | 输入 | 允许空 | Reader |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已完整消费 | — |
+| `false` | 未完成、失败或参数非法 | 纯查询 |
+
+#### 错误
+
+- 无 — 纯查询
+
+#### 范例
+
+[http/http1_body · 完成](../../examples/http/http1_body/main.c) · 观察
+
+```c
+	while ( !xrtHttp1BodyDone(&Body) ) {
+```
+
+
+## HTTP/1 完整消息
+
+### `xrtHttp1MessageInit`
+
+初始化借用调用方 Header 与 trailer 描述符数组的空完整消息。
+
+```c
+void xrtHttp1MessageInit(
+	xhttp1message* pMessage,
+	xhttpfield* pFields,
+	size_t iFieldCapacity,
+	xhttpfield* pTrailers,
+	size_t iTrailerCapacity
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMessage` | 输出 | 非空 | 接收消息 |
+| `pFields` | 输入 | 借用存储 | Header 数组 |
+| `iFieldCapacity` | 输入 | — | Header 容量 |
+| `pTrailers` | 输入 | 借用存储 | trailer 数组 |
+| `iTrailerCapacity` | 输入 | — | trailer 容量 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[http/http1_message · 初始化](../../examples/http/http1_message/main.c) · 观察
+
+```c
+	xrtHttp1MessageInit(&Message, Fields, 8, Trailers, 4);
+```
+
+
+### `xrtHttp1RequestMessageParse`
+
+扫描第一条完整请求；`bEnd` 表示可靠 EOF，拒绝被截断的 Header 或正文。
+
+```c
+xhttp1status xrtHttp1RequestMessageParse(
+	xbytesview Input,
+	bool bEnd,
+	xhttp1message* pMessage,
+	const xhttp1limits* pHeadLimits,
+	const xhttp1bodylimits* pBodyLimits,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Input` | 输入 | 借用 | 消息字节 |
+| `bEnd` | 输入 | — | 输入即全部字节 |
+| `pMessage` | 输出 | 已初始化 | 接收完整消息 |
+| `pHeadLimits` | 输入 | 允许空 | Head 限额 |
+| `pBodyLimits` | 输入 | 允许空 | Body 限额 |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK/MORE/ERROR` | 完整/需更多/错误 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误 — 截断（bEnd 下 MORE 升级为错误）或协议错误
+
+#### 范例
+
+[http1/head_tour · 完整解析](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+	if ( (xrtHttp1RequestMessageParse(
+			(xbytesview) { (const uint8*)sFixed,
+				sizeof(sFixed) - 1u },
+			true, &Message, &Limits, &BodyLimits,
+			&Error) != XHTTP1_READY) ||
+		((View = xrtHttp1MessageBodyView(&Message)).Size != 2u) ||
+		(memcmp(View.Data, "ok", 2u) != 0) ) {
+```
+
+
+### `xrtHttp1ResponseMessageParse`
+
+扫描第一条完整响应；`RequestMethod` 用于 HEAD、CONNECT 和普通响应分帧。
+
+```c
+xhttp1status xrtHttp1ResponseMessageParse(
+	xbytesview Input,
+	bool bEnd,
+	xstrview RequestMethod,
+	xhttp1message* pMessage,
+	const xhttp1limits* pHeadLimits,
+	const xhttp1bodylimits* pBodyLimits,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `Input` | 输入 | 借用 | 消息字节 |
+| `bEnd` | 输入 | — | 输入即全部字节 |
+| `RequestMethod` | 输入 | 借用 | 原请求方法 |
+| `pMessage` | 输出 | 已初始化 | 接收完整消息 |
+| `pHeadLimits` | 输入 | 允许空 | Head 限额 |
+| `pBodyLimits` | 输入 | 允许空 | Body 限额 |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误
+
+#### 范例
+
+[http/http1_message · 完整解析](../../examples/http/http1_message/main.c) · 观察
+
+```c
+	if ( xrtHttp1ResponseMessageParse(
+		(xbytesview){ Wire, sizeof(Wire) - 1u }, false,
+		XRT_STR_LITERAL("GET"),
+		&Message, NULL, NULL, NULL
+	) != XHTTP1_READY ) {
+```
+
+
+### `xrtHttp1MessageBodyView`
+
+返回无需移除 chunked 分帧时的借用正文；chunked 或空正文返回空视图。
+
+```c
+xbytesview xrtHttp1MessageBodyView(const xhttp1message* pMessage);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMessage` | 输入 | 非空 | 完整消息 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 借用正文视图 | — |
+| 空视图 | chunked/空正文（应改用 BodyCopy） | 纯查询 |
+
+#### 错误
+
+- 无 — 纯查询
+
+#### 范例
+
+[http1/head_tour · 正文](../../examples/http1/head_tour/main.c) · 观察
+
+```c
+		((View = xrtHttp1MessageBodyView(&Message)).Size != 2u) ||
+```
+
+
+### `xrtHttp1MessageBodyCopy`
+
+把正文复制到连续输出并移除 chunked 分帧；空输出可精确查询所需长度。
+
+```c
+bool xrtHttp1MessageBodyCopy(
+	const xhttp1message* pMessage,
+	void* pOutput,
+	size_t iCapacity,
+	size_t* pSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMessage` | 输入 | 非空 | 完整消息 |
+| `pOutput` | 输出 | 可空 | 空+零容量 = 查长度 |
+| `iCapacity` | 输入 | — | 容量 |
+| `pSize` | 输出 | 可空 | 长度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 已复制（含去分帧） | — |
+| `false` | 容量不足或超限 | 输出不变 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+- `XERR_RANGE` — 容量不足或正文超限
+
+#### 范例
+
+[http/http1_message · 正文](../../examples/http/http1_message/main.c) · 观察
+
+```c
+	if ( !xrtHttp1MessageBodyCopy(
+		&Message, Body, sizeof(Body), &iSize
+	) ) {
+```
+
+
+## HTTP/1 缓冲链与 TLS 解析
+
+### `xrtHttp1RequestParseBuffer`
+
+从网络缓冲链严格解析请求 Header；不消费输入，Head 视图借用 Buffer，完成后按 Head.Bytes 消费。
+
+```c
+xhttp1status xrtHttp1RequestParseBuffer(
+	xnetbuf* pBuffer,
+	xhttp1head* pHead,
+	const xhttp1limits* pLimits,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 缓冲链（跨块时按需合并前缀） |
+| `pHead` | 输入/输出 | 已初始化 | Head |
+| `pLimits` | 输入 | 允许空 | 限额 |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误
+
+#### 范例
+
+[http1/parse_buffer · 缓冲链](../../examples/http1/parse_buffer/main.c) · 观察
+
+```c
+		if ( xrtHttp1RequestParseBuffer(&ReqBuf, &Head, NULL, NULL) ==
+			XHTTP1_READY ) {
+```
+
+
+### `xrtHttp1ResponseParseBuffer`
+
+从网络缓冲链严格解析响应 Header；Upgrade 后的任何余量保持在 Buffer 中。
+
+```c
+xhttp1status xrtHttp1ResponseParseBuffer(
+	xnetbuf* pBuffer,
+	xhttp1head* pHead,
+	const xhttp1limits* pLimits,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pBuffer` | 输入/输出 | 非空 | 缓冲链 |
+| `pHead` | 输入/输出 | 已初始化 | Head |
+| `pLimits` | 输入 | 允许空 | 限额 |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误
+
+#### 范例
+
+[http1/parse_buffer · 缓冲链](../../examples/http1/parse_buffer/main.c) · 观察
+
+```c
+		if ( xrtHttp1ResponseParseBuffer(&RspBuf, &Head, NULL, NULL) ==
+			XHTTP1_READY ) {
+```
+
+
+### `xrtHttp1RequestParseTls`
+
+从当前 TLS 明文块链严格解析请求 Header，只连续化实际 Header 前缀；不消费明文，可用 Head.Bytes 原子接管。
+
+```c
+xhttp1status xrtHttp1RequestParseTls(
+	xtlsstream* pStream,
+	xhttp1head* pHead,
+	const xhttp1limits* pLimits,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空、Worker 上下文 | TLS Stream |
+| `pHead` | 输入/输出 | 已初始化 | Head |
+| `pLimits` | 输入 | 允许空 | 限额 |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误
+
+#### 范例
+
+[tls/stream_tour · TLS 解析](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	if ( (xrtHttp1RequestParseTls(pStream, &Head, &Limits,
+			&Error) != XHTTP1_READY) ||
+		(Head.Method.Size != 3u) ||
+		(memcmp(Head.Method.Data, "GET", 3u) != 0) ||
+		(Head.Target.Size != 2u) ||
+		(memcmp(Head.Target.Data, "/x", 2u) != 0) ||
+		(xrtTlsStreamSend(pStream, arrResponse,
+			sizeof(arrResponse) - 1u,
+			&iWritten) != XTLS_OK) ||
+		(iWritten != sizeof(arrResponse) - 1u) ) {
+```
+
+
+### `xrtHttp1ResponseParseTls`
+
+从当前 TLS 明文块链严格解析响应 Header，完整保留 Upgrade 后明文余量。
+
+```c
+xhttp1status xrtHttp1ResponseParseTls(
+	xtlsstream* pStream,
+	xhttp1head* pHead,
+	const xhttp1limits* pLimits,
+	xhttp1errorinfo* pError
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空、Worker 上下文 | TLS Stream |
+| `pHead` | 输入/输出 | 已初始化 | Head |
+| `pLimits` | 输入 | 允许空 | 限额 |
+| `pError` | 输出 | 可空 | 错误位置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `XHTTP1_OK/MORE/ERROR` | 三态 | `xrt.http1` 域错误 |
+
+#### 错误
+
+- `xrt.http1` 域错误
+
+#### 范例
+
+[tls/stream_tour · TLS 解析](../../examples/tls/stream_tour/main.c) · 观察
+
+```c
+	if ( (xrtHttp1ResponseParseTls(pStream, &Head, &Limits,
+			&Error) == XHTTP1_READY) &&
+		(Head.Status == 200u) &&
+		(Head.ContentLength == 2u) ) {
+```
+
+
+## 代理对象
+
+### `xrtNetProxyConfigInit`
+
+初始化 SOCKS5、自动认证且没有固定容量字段的代理配置。
+
+```c
+void xrtNetProxyConfigInit(xnetproxyconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[network/proxy_tour · 配置](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+	xrtNetProxyConfigInit(&ProxyConfig);
+```
+
+
+### `xrtNetProxyCreate`
+
+深拷贝代理端点和凭据，创建可跨线程共享的不可变对象。
+
+```c
+xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 代理配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 不可变代理对象（引用计数） | — |
+| `NULL` | 配置非法或 OOM | `xrt.proxy` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 配置非法
+- `XERR_MEMORY`
+
+#### 范例
+
+[network/proxy_tour · 创建](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+	pProxy = xrtNetProxyCreate(&ProxyConfig);
+```
+
+
+### `xrtNetProxyRetain`
+
+增加代理对象引用并返回原指针。
+
+```c
+xnetproxy* xrtNetProxyRetain(const xnetproxy* pProxy);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 非空 | 代理对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_tour · 引用](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+		((pRetained = xrtNetProxyRetain(pProxy)) != pProxy) ) {
+```
+
+
+### `xrtNetProxyRelease`
+
+释放代理对象引用；最后一个引用会清零整块配置存储。
+
+```c
+void xrtNetProxyRelease(xnetproxy* pProxy);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[network/proxy_tour · 收尾](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+	xrtNetProxyRelease(pRetained);
+```
+
+
+### `xrtNetProxyInfo`
+
+复制代理对象的只读信息视图。
+
+```c
+bool xrtNetProxyInfo(
+	const xnetproxy* pProxy,
+	xnetproxyinfo* pInfo
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pProxy` | 输入 | 非空 | 代理对象 |
+| `pInfo` | 输出 | 非空 | 接收只读视图 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 视图已写出 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_tour · 自省](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+	if ( !xrtNetProxyInfo(pProxy, &Info) ||
+		(Info.Type != XNET_PROXY_SOCKS5) ||
+		(Info.Host.Size != 12u) ||
+		(memcmp(Info.Host.Data, "socks5.local", 12u) != 0) ||
+		(Info.Port != 1080u) ) {
+```
+
+
+## 代理握手状态机
+
+### `xrtNetProxyHandshakeConfigInit`
+
+初始化握手配置；64 KiB 上限主要约束后续 HTTP CONNECT Header。
+
+```c
+void xrtNetProxyHandshakeConfigInit(
+	xnetproxyhandshakeconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[network/proxy_socks5 · 配置](../../examples/network/proxy_socks5/main.c) · 观察
+
+```c
+	xrtNetProxyHandshakeConfigInit(&HandshakeConfig);
+```
+
+
+### `xrtNetProxyHandshakeCreate`
+
+创建握手并立即生成首个协议报文；目标主机会被深拷贝。
+
+```c
+xnetproxyhandshake* xrtNetProxyHandshakeCreate(
+	const xnetproxyhandshakeconfig* pConfig
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 握手配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 握手对象（首报文待发送） | — |
+| `NULL` | 配置非法或 OOM | `xrt.proxy` 域错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` / `XERR_MEMORY`
+
+#### 范例
+
+[network/proxy_socks5 · 创建](../../examples/network/proxy_socks5/main.c) · 观察
+
+```c
+	pHandshake = xrtNetProxyHandshakeCreate(&HandshakeConfig);
+```
+
+
+### `xrtNetProxyHandshakeDestroy`
+
+销毁握手，并清零尚未发送的认证报文和内部目标信息。
+
+```c
+void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 全部敏感状态已清零并释放 | — |
+
+#### 错误
+
+- 无 — 销毁不失败
+
+#### 范例
+
+[network/proxy_socks5 · 收尾](../../examples/network/proxy_socks5/main.c) · 观察
+
+```c
+		xrtNetProxyHandshakeDestroy(pHandshake);
+```
+
+
+### `xrtNetProxyHandshakeState`
+
+返回当前握手状态；空指针返回 ERROR。
+
+```c
+xnetproxyhandshakestate xrtNetProxyHandshakeState(
+	const xnetproxyhandshake* pHandshake
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 允许空 | 握手对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `WRITE/READ/READY/ERROR` | 状态枚举 | 零值 = 参数非法 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_tour · 状态机](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+		(xrtNetProxyHandshakeState(pHandshake) !=
+			XNET_PROXY_HANDSHAKE_WRITE) ||
+```
+
+
+### `xrtNetProxyHandshakeStep`
+
+处理输入链中的完整协议前缀；只消费代理回复，成功后的应用数据保持原位。WRITE 必须先发送完全部输出。
+
+```c
+xnetproxyhandshakestate xrtNetProxyHandshakeStep(
+	xnetproxyhandshake* pHandshake,
+	xnetbuf* pInput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入/输出 | 非空 | 握手对象 |
+| `pInput` | 输入/输出 | 非空 | 输入缓冲链 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `WRITE/READ/READY/ERROR` | 处理后的状态 | `xrt.proxy` 域错误 |
+
+#### 错误
+
+- `xrt.proxy` 域错误 — 协议回复非法
+
+#### 范例
+
+[network/proxy_socks5 · 状态机](../../examples/network/proxy_socks5/main.c) · 观察
+
+```c
+		(xrtNetProxyHandshakeStep(pHandshake, &Input) !=
+		 XNET_PROXY_HANDSHAKE_WRITE) ||
+```
+
+
+### `xrtNetProxyHandshakeOutput`
+
+借用当前待发送的首段连续输出；失败时把非空输出规范化为空 Span。
+
+```c
+bool xrtNetProxyHandshakeOutput(
+	const xnetproxyhandshake* pHandshake,
+	xnetspan* pOutput
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 握手对象 |
+| `pOutput` | 输出 | 非空 | 接收借用 Span |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | Span 已发布（可为空 = 无待发送） | — |
+| `false` | 参数错误 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_socks5 · 输出](../../examples/network/proxy_socks5/main.c) · 观察
+
+```c
+	if ( !xrtNetProxyHandshakeOutput(pHandshake, &Output) ) {
+```
+
+
+### `xrtNetProxyHandshakeSent`
+
+确认已经发送的输出前缀；支持 Socket 部分写入。
+
+```c
+size_t xrtNetProxyHandshakeSent(
+	xnetproxyhandshake* pHandshake,
+	size_t iSize
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入/输出 | 非空 | 握手对象 |
+| `iSize` | 输入 | — | 已发送字节数 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `>= 0` | 剩余待发送字节数 | — |
+| `0` | 全部已确认或参数错误 | `XERR_ARGUMENT`（非法时） |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_socks5 · 发送确认](../../examples/network/proxy_socks5/main.c) · 观察
+
+```c
+	(void)xrtNetProxyHandshakeSent(pHandshake, Output.Size);
+```
+
+
+### `xrtNetProxyHandshakeBound`
+
+READY 后复制可用的绑定端点；HTTP CONNECT 没有该信息并返回 NOT_FOUND。
+
+```c
+bool xrtNetProxyHandshakeBound(
+	const xnetproxyhandshake* pHandshake,
+	xnetproxyendpoint* pEndpoint
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 握手对象 |
+| `pEndpoint` | 输出 | 非空 | 接收绑定端点 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 端点已复制 | — |
+| `false` | 未 READY 或无端点信息 | `XERR_NOT_FOUND`（HTTP CONNECT） |
+
+#### 错误
+
+- `XERR_NOT_FOUND` — HTTP CONNECT 不提供绑定端点
+
+#### 范例
+
+[network/proxy_tour · 端点](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+	if ( xrtNetProxyHandshakeBound(pHandshake, &Endpoint) ||
+		xrtNetProxyHandshakeCode(pHandshake, &iCode) ||
+		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
+```
+
+
+### `xrtNetProxyHandshakeError`
+
+返回协议失败时捕获的不可变错误；对象所有权仍属于握手。
+
+```c
+const xerror* xrtNetProxyHandshakeError(
+	const xnetproxyhandshake* pHandshake
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 允许空 | 握手对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 错误借用 | — |
+| `NULL` | 无失败或参数非法 | 纯查询 |
+
+#### 错误
+
+- 无 — 非失败状态返回空是查询结果
+
+#### 范例
+
+[network/proxy_tour · 失败](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
+```
+
+
+### `xrtNetProxyHandshakeCode`
+
+复制 SOCKS5 线路回复码或 HTTP 状态码；尚未收到回复时返回 false。
+
+```c
+bool xrtNetProxyHandshakeCode(
+	const xnetproxyhandshake* pHandshake,
+	uint32* pCode
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pHandshake` | 输入 | 非空 | 握手对象 |
+| `pCode` | 输出 | 非空 | 接收回复码 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 回复码已复制 | — |
+| `false` | 尚未收到回复或失败 | `XERR_STATE`（未收到时） |
+
+#### 错误
+
+- `XERR_STATE` — 尚未到达可读回复的阶段
+
+#### 范例
+
+[network/proxy_tour · 回复码](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+		xrtNetProxyHandshakeCode(pHandshake, &iCode) ||
+```
+
+
+## 代理拨号
+
+### `xrtNetProxyDialConfigInit`
+
+初始化 TCP 拨号、64 KiB 协议上限和 30 秒全过程超时。
+
+```c
+void xrtNetProxyDialConfigInit(xnetproxydialconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输出 | 非空 | 接收默认配置 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 纯初始化 | — |
+
+#### 错误
+
+- 无
+
+#### 范例
+
+[network/proxy_dial · 配置](../../examples/network/proxy_dial/main.c) · 观察
+
+```c
+	xrtNetProxyDialConfigInit(&DialConfig);
+```
+
+
+### `xrtNetProxyDial`
+
+连接代理端点并完成目标 CONNECT；成功 Stream 引用转移给完成回调。
+
+```c
+xnetproxydial* xrtNetProxyDial(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sTargetHost,
+	uint16 iTargetPort,
+	const xnetproxydialconfig* pConfig,
+	const xnetstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xnetproxydialproc pDone,
+	ptr pDoneData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络引擎 |
+| `pResolver` | 输入 | 非空 | 解析器 |
+| `pProxy` | 输入 | 非空 | 代理对象 |
+| `sTargetHost` | 输入 | 非空 | 目标主机 |
+| `iTargetPort` | 输入 | — | 目标端口 |
+| `pConfig` | 输入 | 允许空 | 拨号配置 |
+| `pStreamEvents` | 输入 | 允许空 | 流事件 |
+| `pStreamData` | 输入 | 任意值 | 流用户数据 |
+| `pDone` | 输入 | 非空 | 完成回调 |
+| `pDoneData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | Dial 对象（终态后 Destroy） | — |
+| `NULL` | 提交失败 | `xrt.proxy` 域错误 |
+
+#### 错误
+
+- `xrt.proxy` 域错误 — 提交失败；非 Worker 提交者可能与完成回调并发
+
+#### 范例
+
+[network/proxy_dial · 拨号](../../examples/network/proxy_dial/main.c) · 观察
+
+```c
+	pDial = xrtNetProxyDial(
+		pEngine,
+		pResolver,
+		pProxy,
+		argv[3],
+		iTargetPort,
+		&DialConfig,
+		&StreamEvents,
+		&Example,
+		exampleProxyDialDone,
+		&Example
+	);
+```
+
+
+### `xrtNetProxyDialRef`
+
+增加 Proxy Dial 引用并返回原指针。
+
+```c
+xnetproxydial* xrtNetProxyDialRef(xnetproxydial* pDial);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | Dial 对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 原指针，引用 +1 | — |
+| `NULL` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_tour · 引用](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+	pDialRef = xrtNetProxyDialRef(pDial);
+```
+
+
+### `xrtNetProxyDialDestroy`
+
+释放 Proxy Dial 引用；空指针视为空操作。
+
+```c
+void xrtNetProxyDialDestroy(xnetproxydial* pDial);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | 空 = 空操作 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 无 | 引用 -1 | — |
+
+#### 错误
+
+- 无 — 释放不失败
+
+#### 范例
+
+[network/proxy_dial · 收尾](../../examples/network/proxy_dial/main.c) · 观察
+
+```c
+	xrtNetProxyDialDestroy(pDial);
+```
+
+
+### `xrtNetProxyDialCancel`
+
+协作取消名称解析、TCP 连接或代理握手。
+
+```c
+bool xrtNetProxyDialCancel(xnetproxydial* pDial);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | Dial 对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 取消已受理 | — |
+| `false` | 已终态或参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_dial · 取消](../../examples/network/proxy_dial/main.c) · 观察
+
+```c
+		(void)xrtNetProxyDialCancel(pDial);
+```
+
+
+### `xrtNetProxyDialState`
+
+返回当前拨号阶段或不可变终态。
+
+```c
+xnetproxydialstate xrtNetProxyDialState(
+	const xnetproxydial* pDial
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | Dial 对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 阶段/终态枚举 | 解析/连接/握手或终态 | 零值 = 参数非法 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_tour · 状态](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+		xnetproxydialstate State = xrtNetProxyDialState(pDial);
+```
+
+
+### `xrtNetProxyDialError`
+
+失败或取消后借用完整错误原因链。
+
+```c
+const xerror* xrtNetProxyDialError(
+	const xnetproxydial* pDial
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 允许空 | Dial 对象 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| 非空 | 错误借用（含分层 cause 链） | — |
+| `NULL` | 未失败或参数非法 | 纯查询 |
+
+#### 错误
+
+- 无 — 非失败状态返回空是查询结果
+
+#### 范例
+
+[network/proxy_tour · 失败](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+			(xrtNetProxyDialError(pDial) == NULL) ||
+```
+
+
+### `xrtNetProxyDialStats`
+
+复制拨号统计快照（尝试次数等）。
+
+```c
+bool xrtNetProxyDialStats(
+	const xnetproxydial* pDial,
+	xnetproxydialstats* pStats
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pDial` | 输入 | 非空 | Dial 对象 |
+| `pStats` | 输出 | 非空 | 接收拨号统计（尝试次数等） |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|---|
+| `true` | 统计已复制 | — |
+| `false` | 参数非法 | `XERR_ARGUMENT` |
+
+#### 错误
+
+- `XERR_ARGUMENT` — 指针为空或视图非法
+
+#### 范例
+
+[network/proxy_tour · 统计](../../examples/network/proxy_tour/main.c) · 观察
+
+```c
+			!xrtNetProxyDialStats(pDial, &DialStats) ||
+```
+
+
+
 ## 扩展库边界
 
 客户端池、重定向、重试、缓存、认证、Cookie、MIME、Multipart、FormData、SSE、
