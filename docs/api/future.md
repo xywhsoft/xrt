@@ -2,6 +2,485 @@
 
 `future` 提供与网络无关的一次性异步结果。`xfuture` 是可共享的只读消费端，`xpromise` 是可引用的生产端；两者由一次分配共同创建，Future 的终态一旦写入便不可改变。
 
+## 类型与常量
+
+### `xfuturestate`
+
+Future 终态明确区分成功、失败、协作取消和生产端关闭。
+
+```c
+typedef enum xfuturestate {
+	XFUTURE_PENDING = 0,
+	XFUTURE_RESOLVED = 1,
+	XFUTURE_FAILED = 2,
+	XFUTURE_CANCELLED = 3,
+	XFUTURE_CLOSED = 4
+} xfuturestate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFUTURE_PENDING` | 等待中 |
+| `XFUTURE_RESOLVED` | RESOLVED |
+| `XFUTURE_FAILED` | 已失败 |
+| `XFUTURE_CANCELLED` | 已取消 |
+
+### `xfutureresult`
+
+Future 结果只借用值和错误，其生命周期由 Future 引用保护。
+
+```c
+typedef struct xfutureresult {
+	xfuturestate State;
+	ptr Value;
+	const xerror* Error;
+} xfutureresult;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `State` | `xfuturestate` | State |
+| `Value` | `ptr` | Value |
+| `Error` | `const xerror*` | Error |
+
+### `xfuturewatch`
+
+Watch 的内部链表和并发状态保持不透明。
+
+```c
+typedef union xfuturewatch {
+	uint64 Alignment;
+	uint8 Storage[XRT_FUTURE_WATCH_STORAGE_SIZE];
+} xfuturewatch;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xfuturewatchresult`
+
+注册结果区分错误、Future 已完成和成功进入等待链。
+
+```c
+typedef enum xfuturewatchresult {
+	XFUTURE_WATCH_ERROR = -1,
+	XFUTURE_WATCH_READY = 0,
+	XFUTURE_WATCH_PENDING = 1
+} xfuturewatchresult;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XFUTURE_WATCH_ERROR` | 失败 |
+| `XFUTURE_WATCH_READY` | 就绪 |
+
+### `xfuturepick`
+
+Any 与 Race 的结果借用胜出源 Future；组合 Future 负责保留该引用。
+
+```c
+typedef struct xfuturepick {
+	size_t Index;
+	xfuture* Future;
+} xfuturepick;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Index` | `size_t` | Index |
+| `Future` | `xfuture*` | Future |
+
+### `xfutureall`
+
+All 的结果按输入顺序借用全部源 Future；组合 Future 负责保留这些引用。
+
+```c
+typedef struct xfutureall {
+	size_t Count;
+	xfuture* const* Futures;
+} xfutureall;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Count` | `size_t` | Count |
+| `Futures` | `xfuture* const*` | Futures |
+
+### `xfuture`
+
+Future 是只读共享结果，Promise 是唯一终态写入端。
+
+```c
+typedef struct xfuture xfuture;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xpromise`
+
+Promise 对象（不透明）：解析端单写、Future 端多读的一次性同步原语，随 future_bridge 启用。
+
+
+```c
+typedef struct xpromise xpromise;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xfuturewatchproc`
+
+Watch 回调在线程安全的 Future 完成路径中执行，不得重入同一个 Watch。
+
+```c
+typedef void (*xfuturewatchproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xfuturewatchreleaseproc`
+
+Watch 释放过程在线性化完成通知或成功摘除后执行一次。
+
+```c
+typedef void (*xfuturewatchreleaseproc)(ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xfuturefreeproc`
+
+成功值析构过程接收创建者提供的值和上下文。
+
+```c
+typedef void (*xfuturefreeproc)(ptr pValue, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xfuturecontinueproc`
+
+延续过程借用源结果和输出 Promise；保留 Promise 时必须先增加引用。
+
+```c
+typedef void (*xfuturecontinueproc)(
+	const xfutureresult* pInput,
+	xpromise* pOutput,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xfuturefinallyproc`
+
+Finally 过程只观察源结果，输出 Future 自动安全透传源终态。
+
+```c
+typedef void (*xfuturefinallyproc)(const xfutureresult* pInput, ptr pData);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### `xfuturebridge`
+
+Future 桥的内部状态保持不透明，可直接嵌入异步操作上下文。
+
+```c
+typedef union xfuturebridge {
+	uint64 Alignment;
+	uint8 Storage[XRT_FUTURE_BRIDGE_STORAGE_SIZE];
+} xfuturebridge;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Alignment` | `uint64` | Alignment |
+
+### `xtlsstreamconfig`
+
+两个超时都使用微秒；零值显式关闭对应计时器。 AsyncBytesLimit 和 AsyncCountLimit 是未完成操作的独立硬边界， AsyncBatch 限制一次 Worker 轮转完成的操作数。
+
+```c
+typedef struct xtlsstreamconfig {
+	uint64 HandshakeTimeout;
+	uint64 CloseTimeout;
+	size_t AsyncBytesLimit;
+	uint32 AsyncCountLimit;
+	uint32 AsyncBatch;
+} xtlsstreamconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `HandshakeTimeout` | `uint64` | HandshakeTimeout |
+| `CloseTimeout` | `uint64` | CloseTimeout |
+| `AsyncBytesLimit` | `size_t` | AsyncBytesLimit |
+| `AsyncCountLimit` | `uint32` | AsyncCountLimit |
+| `AsyncBatch` | `uint32` | AsyncBatch |
+
+### `xtlsstreamstate`
+
+FAILED 保存 TLS 或传输根因；CLOSED 只表示完成认证关闭。
+
+```c
+typedef enum xtlsstreamstate {
+	XTLS_STREAM_CONNECTING = 0,
+	XTLS_STREAM_HANDSHAKE,
+	XTLS_STREAM_OPEN,
+	XTLS_STREAM_CLOSING,
+	XTLS_STREAM_CLOSED,
+	XTLS_STREAM_FAILED
+} xtlsstreamstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_STREAM_CONNECTING` | 连接中 |
+| `XTLS_STREAM_HANDSHAKE` | 握手阶段 |
+| `XTLS_STREAM_OPEN` | OPEN |
+| `XTLS_STREAM_CLOSING` | CLOSING |
+| `XTLS_STREAM_CLOSED` | 已关闭 |
+
+### `xtlsstreamwait`
+
+条件 Future 是水平条件；END 表示收到认证 close_notify， CLOSE 表示底层传输和 TLS 组合对象进入最终终态。
+
+```c
+typedef enum xtlsstreamwait {
+	XTLS_STREAM_WAIT_OPEN = 0,
+	XTLS_STREAM_WAIT_READ,
+	XTLS_STREAM_WAIT_WRITE,
+	XTLS_STREAM_WAIT_DRAIN,
+	XTLS_STREAM_WAIT_END,
+	XTLS_STREAM_WAIT_CLOSE
+} xtlsstreamwait;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_STREAM_WAIT_OPEN` | OPEN |
+| `XTLS_STREAM_WAIT_READ` | 读方向 |
+| `XTLS_STREAM_WAIT_WRITE` | 写方向 |
+| `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
+| `XTLS_STREAM_WAIT_END` | END |
+
+### `xtlsdialstate`
+
+Dial 状态区分名称解析、TCP 连接和 TLS 握手三个可取消阶段。
+
+```c
+typedef enum xtlsdialstate {
+	XTLS_DIAL_RESOLVING = 0,
+	XTLS_DIAL_CONNECTING,
+	XTLS_DIAL_HANDSHAKE,
+	XTLS_DIAL_CONNECTED,
+	XTLS_DIAL_FAILED,
+	XTLS_DIAL_CANCELLED
+} xtlsdialstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_DIAL_RESOLVING` | 解析中 |
+| `XTLS_DIAL_CONNECTING` | 连接中 |
+| `XTLS_DIAL_HANDSHAKE` | 握手阶段 |
+| `XTLS_DIAL_CONNECTED` | 已连接 |
+| `XTLS_DIAL_FAILED` | 已失败 |
+
+### `xtlsdialconfig`
+
+Timeout 覆盖 DNS、TCP 和 TLS 全过程；零值只保留各阶段超时。
+
+```c
+typedef struct xtlsdialconfig {
+	xnetdialconfig Transport;
+	xtlsstreamconfig Stream;
+	uint64 Timeout;
+	bool ServerNameFromHost;
+} xtlsdialconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Transport` | `xnetdialconfig` | Transport |
+| `Stream` | `xtlsstreamconfig` | Stream |
+| `Timeout` | `uint64` | Timeout |
+| `ServerNameFromHost` | `bool` | ServerNameFromHost |
+
+### `xtlsstreamevents`
+
+全部回调都在底层 TCP Stream 所属 Worker 上串行执行。
+
+```c
+typedef struct xtlsstreamevents {
+	void (*Open)(xtlsstream* pStream, ptr pData);
+	void (*Read)(xtlsstream* pStream,
+		const xnetbuf* pBuffer, ptr pData);
+	void (*End)(xtlsstream* pStream, ptr pData);
+	void (*Writable)(xtlsstream* pStream, ptr pData);
+	void (*Drain)(xtlsstream* pStream, ptr pData);
+	void (*Close)(xtlsstream* pStream, xnetresult Result,
+		const xerror* pError, ptr pData);
+	/*
+		客户端恢复队列新增票据时发布边沿；未启用恢复实现时不会调用。
+		回调使用 xrtTlsClientTakeResume 接管一张或全部票据。
+	*/
+	void (*Ticket)(xtlsstream* pStream, ptr pData);
+} xtlsstreamevents;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+
+### `xtlslistenerstate`
+
+Listener 只发布已经完成 TLS 握手的 Stream，关闭监听不会隐式关闭已发布连接。
+
+```c
+typedef enum xtlslistenerstate {
+	XTLS_LISTENER_OPEN = 0,
+	XTLS_LISTENER_CLOSING,
+	XTLS_LISTENER_CLOSED
+} xtlslistenerstate;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XTLS_LISTENER_OPEN` | OPEN |
+| `XTLS_LISTENER_CLOSING` | CLOSING |
+
+### `xtlslistenerevents`
+
+Accept 在目标 Stream 的 Worker 上执行，返回 true 后接管一个 Stream 引用。 Error 只报告监听层错误；单连接握手失败通过 HandshakeError 独立报告。
+
+```c
+typedef struct xtlslistenerevents {
+	bool (*Accept)(xtlslistener* pListener,
+		xtlsstream* pStream, ptr pData);
+	void (*HandshakeError)(xtlslistener* pListener,
+		const xerror* pError, ptr pData);
+	void (*Error)(xtlslistener* pListener,
+		const xerror* pError, ptr pData);
+	void (*Close)(xtlslistener* pListener, ptr pData);
+} xtlslistenerevents;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+
+### `xtlslistenerconfig`
+
+Listen 负责 TCP 接入，Tls 和 Stream 负责每条连接的 TLS 会话与组合层限制。 AcceptQueueLimit 只限制完成握手但尚未被 pull/Future 消费的连接； HandshakeLimit 在分配 TLS 会话前硬性限制并发握手数。 初始化默认完成队列 1024 条、并发握手 128 条，均可显式调整。
+
+```c
+typedef struct xtlslistenerconfig {
+	xnetlistenconfig Listen;
+	xtlsserverconfig Tls;
+	xtlsstreamconfig Stream;
+	uint32 AcceptQueueLimit;
+	uint32 HandshakeLimit;
+} xtlslistenerconfig;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Listen` | `xnetlistenconfig` | Listen |
+| `Tls` | `xtlsserverconfig` | Tls |
+| `Stream` | `xtlsstreamconfig` | Stream |
+| `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
+| `HandshakeLimit` | `uint32` | HandshakeLimit |
+
+### `xtlslistenerstats`
+
+统计值均为并发快照，累计计数在关闭后仍可读取。
+
+```c
+typedef struct xtlslistenerstats {
+	xtlslistenerstate State;
+	uint64 Handshakes;
+	uint64 Accepted;
+	uint64 Rejected;
+	uint64 HandshakeErrors;
+	uint32 ActiveHandshakes;
+	uint32 PeakHandshakes;
+	uint32 QueuedAccepts;
+	uint32 PeakQueuedAccepts;
+	uint32 AcceptWaiters;
+} xtlslistenerstats;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `State` | `xtlslistenerstate` | State |
+| `Handshakes` | `uint64` | Handshakes |
+| `Accepted` | `uint64` | Accepted |
+| `Rejected` | `uint64` | Rejected |
+| `HandshakeErrors` | `uint64` | HandshakeErrors |
+| `ActiveHandshakes` | `uint32` | ActiveHandshakes |
+| `PeakHandshakes` | `uint32` | PeakHandshakes |
+| `QueuedAccepts` | `uint32` | QueuedAccepts |
+| `PeakQueuedAccepts` | `uint32` | PeakQueuedAccepts |
+| `AcceptWaiters` | `uint32` | AcceptWaiters |
+
+### `xtlsstream`
+
+公开句柄声明不随 TLS Stream 实现裁剪变化。
+
+```c
+typedef struct xtlsstream xtlsstream;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlslistener`
+
+TLS 监听器（不透明）：在 TCP 监听器上完成 TLS 接受，产出 TLS 组合流。
+
+
+```c
+typedef struct xtlslistener xtlslistener;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsdial`
+
+托管 TLS 拨号对象（不透明）：串联 TCP 拨号与 TLS 握手，完成时经回调移交 TLS 流。
+
+
+```c
+typedef struct xtlsdial xtlsdial;
+```
+
+不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
+### `xtlsdialproc`
+
+成功回调接管 TLS Stream 引用；失败时 Stream 为空且 Error 只在回调期间借用。
+
+```c
+typedef void (*xtlsdialproc)(
+	xtlsdial* pDial,
+	xnetresult Result,
+	xtlsstream* pStream,
+	const xerror* pError,
+	ptr pData
+);
+```
+
+回调类型；参数与返回语义见签名及各使用方 API 节。
+
+### 常量总表
+
+| 常量 | 值 | 语义 |
+|---|---|---|
+| `XTLS_STREAM_HANDSHAKE_TIMEOUT_DEFAULT` | `UINT64_C(10000000)` | 握手阶段超时默认值 |
+| `XTLS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `UINT64_C(5000000)` | CLOSE超时默认值 |
+| `XTLS_STREAM_ASYNC_BYTES_DEFAULT` | `((size_t)1048576u)` | ASYNCBYTES默认值 |
+| `XTLS_STREAM_ASYNC_COUNT_DEFAULT` | `UINT32_C(1024)` | ASYNC数量默认值 |
+| `XTLS_STREAM_ASYNC_BATCH_DEFAULT` | `UINT32_C(64)` | ASYNCBATCH默认值 |
+
 ## 裁剪与分层
 
 | 层 | 裁剪宏 | 依赖 | 能力 |
