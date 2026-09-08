@@ -23,7 +23,7 @@
 | I14 | 卷四 ru | ✅ 完成 | 12 | 29,365 |
 | I15 | 卷五 en | ✅ 完成 | 14 | 34,579 |
 | I16 | 卷五 ru | ✅ 完成 | 14 | 34,579 |
-| I17 | 卷六 en | 🔄 进行中 | 11 | — |
+| I17 | 卷六 en | ✅ 完成 | 11 | 27,397 |
 | I18 | 卷六 ru | ⬜ | 11 | — |
 | I19 | 卷九 en | ⬜ | 9 | — |
 | I20 | 卷九 ru | ⬜ | 9 | — |
@@ -104,6 +104,9 @@
 | 55 | en | 55-coroutine-sched.md | 0.75 | 28/30 | I17 |
 | 56 | en | 56-channel.md | 0.74 | 28/31 | I17 |
 | 57 | en | 57-future.md | 0.87 | 23/24 | I17 |
+| 58 | en | 58-executor.md | 0.74 | 25/25 | I17 |
+| 59 | en | 59-task-cancel.md | 0.76 | 21/22 | I17 |
+| 60 | en | 60-sched-practice.md | 0.70 | 31/32 | I17 |
 
 ## 术语表增量记录
 
@@ -120,15 +123,22 @@
 
 ## I17 阶段记录
 
-（阶段进行中——批 A 完成：ch50-53 en 全绿（卷六导言/进程/线程同步/取消体系），
-构建已刷新 wwwroot/en。
-批 B 完成：ch54-57 en 全绿（协程/调度器/Channel/Future）。
-**续作点：下一批为批 C：ch58-60 en**（executor/task-cancel/sched-practice）+ 收尾：
-report --lang en + 链接校验 + en 目录页卷六组 + PROGRESS 终态。
-插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
-卷六高频 G8 术语：synchronous/asynchronous/cancellation/race condition/
-coroutine/scheduler/channel/deadlock/atomic operation——全部已在表，
-注意名词全词命中（如 synchronous 不以 "sync" 命中）。）
+✅ 完成（2026-09-08）。三批推进，11 章全绿：
+
+- 批 A（commit 4e0e970a）：ch50-53（卷六导言/进程/线程同步/取消体系）；
+  批 B（commit 88aef75e）：ch54-57（协程上下/Channel/Future）；批 C：ch58-60。
+- ch60 组合章 service_core.c 完整程序走字节拼接定式（18 条注释逐条英译），
+  term 块含 shell || 备用命令行原样；拼接脚本 Write 文件执行。
+- 收尾：check en 全绿（79/143 章覆盖，卷一/二/四/五/六/七/八完整——en 侧仅余
+  卷三 7 章与卷九至卷十三）；三语言链接校验 16,713 条 0 断链；
+  en 目录页插入卷六组（50-60 全直链），状态行更新 79/143；词数比 0.70~0.87。
+- 术语增量：无新条目（并发核心术语 coroutine/scheduler/channel/executor/
+  cancellation 均已在表；fragment/workload/callback 等泛词按名词全词命中）。
+- 高频 G2 陷阱（本卷实录）：行内中文参数签名（xrtCancelChild(父)、
+  xrtChannelRecvCancel(通道, ..., 令牌)、xrtTaskGroupChild(父, 配置)）必须
+  字面保留 + 括注英文——写成英文参数双向 FAIL；zh 无反引号的中文占位符
+  （{用户名} 类）译文中用英文占位符平文，不得加反引号。
+- 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 
 ## I16 阶段记录
 
