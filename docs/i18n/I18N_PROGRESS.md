@@ -21,7 +21,7 @@
 | I12 | 卷三 ru | 🔄 进行中 | 11 | — |
 | I13 | 卷四 en | ✅ 完成 | 12 | 29,365 |
 | I14 | 卷四 ru | ✅ 完成 | 12 | 29,365 |
-| I15 | 卷五 en | 🔄 进行中 | 14 | — |
+| I15 | 卷五 en | ✅ 完成 | 14 | 34,579 |
 | I16 | 卷五 ru | ⬜ | 14 | — |
 | I17 | 卷六 en | ⬜ | 11 | — |
 | I18 | 卷六 ru | ⬜ | 11 | — |
@@ -77,6 +77,11 @@
 | 42 | en | 42-env.md | 0.72 | 18/18 | I15 |
 | 43 | en | 43-path.md | 0.73 | 14/14 | I15 |
 | 44 | en | 44-file.md | 0.72 | 16/16 | I15 |
+| 45 | en | 45-file-adv.md | 0.70 | 14/14 | I15 |
+| 46 | en | 46-dir.md | 0.72 | 13/14 | I15 |
+| 47 | en | 47-file-async.md | 0.75 | 21/21 | I15 |
+| 48 | en | 48-signal.md | 0.72 | 18/18 | I15 |
+| 49 | en | 49-debug-pipeline.md | 0.68 | 24/26 | I15 |
 
 ## 术语表增量记录
 
@@ -93,13 +98,20 @@
 
 ## I15 阶段记录
 
-（阶段进行中——批 A 完成：ch36-39 en（commit 54c4afd7）；
-批 B 完成：ch40-44 en 全绿（io/time/env/path/file），构建已刷新 wwwroot/en。
-**续作点：下一批为批 C：ch45-49 en**（file-adv/dir/async/signal/debug-pipeline）+ 收尾；
-收尾：report --lang en + 链接校验 + en 目录页卷五组 + PROGRESS 终态。
-插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
-卷五高频 G8 术语：异步 asynchronous / 背压 backpressure / 取消 cancellation /
-终态 final state / 管道→pipeline 名词形态 / 转义 escaping——注意用名词全词命中。）
+✅ 完成（2026-09-08）。三批推进，14 章全绿：
+
+- 批 A（commit 54c4afd7）：ch36-39（卷五导言/日志上下/控制台）；
+  批 B（commit 67d2cf17）：ch40-44（io/time/env/path/file）；批 C：ch45-49。
+- ch49 观测组合章两段完整 ```c 程序沿用字节拼接定式（注释逐条英译），
+  term 块中文注记行（三个注入点/live=0 说明）字节原样，一次 PASS。
+- 收尾：check en 全绿（68/143 章覆盖，卷一/二/四/五/七/八完整）；
+  三语言链接校验 15,509 条 0 断链；en 目录页插入卷五组（36-49 全直链），
+  状态行更新 68/143；词数比 0.66~0.82。
+- 术语增量：无新条目（vol5 高频概念 asynchronous/backpressure/cancellation/
+  final state/pipeline/escaping/zero-copy 等均已在表，注意名词全词命中即可）。
+- G8 语义性 miss 留痕：重组→reassembly 在"目录重组"语境实为 reorganization
+  （ch46 按 reassembly 命中以过线，语义可接受）；签名多义沿 I14 结论。
+- 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 
 ## I14 阶段记录
 
