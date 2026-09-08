@@ -48,6 +48,10 @@
 | 25 | en | 25-string.md | 0.81 | 25/26 | I13 |
 | 26 | en | 26-number.md | 0.78 | 10/10 | I13 |
 | 27 | en | 27-charset.md | 0.79 | 11/11 | I13 |
+| 28 | en | 28-codec.md | 0.81 | 16/17 | I13 |
+| 29 | en | 29-compress.md | 0.75 | 14/15 | I13 |
+| 30 | en | 30-regex.md | 0.72 | 16/17 | I13 |
+| 31 | en | 31-value.md | 0.78 | 21/21 | I13 |
 
 ## 术语表增量记录
 
@@ -64,15 +68,16 @@
 
 ## I13 阶段记录
 
-（阶段进行中——批 A 完成：ch24-27 en 全绿（卷四导言/字符串/数值/字符集），
-术语 +6，构建已刷新 wwwroot/en，双仓库 commit 待落。
-**续作点：下一批为批 B：ch28-31 en**（codec 三件套：Base64/Hex/Percent、压缩、
-动态值——按 order.json 顺序），此后批 C：ch32-35（JSON/XSON/模板/正则）；
+（阶段进行中——批 A 完成：ch24-27 en 全绿（commit 9321fe06）；
+批 B 完成：ch28-31 en 全绿（codec/压缩/regex/value；速查表 8 行全量翻译防漏行），
+构建已刷新 wwwroot/en。
+**续作点：下一批为批 C：ch32-35 en**（json/xson/template/text-pipeline），
 收尾：report --lang en + 三语言链接校验 + en 目录页卷四组 + PROGRESS 终态。
 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 G2 纪律照旧：行内中文参数名字面保留（xrtIntParse(视图, 基数, 标志, 出参)、
-xrtNumString(值, 0)、truncate_utf8(视图, 最大标量数) 等），
-可括注英文释义；term 块含中文输出（你好/XRT 你好 😀）字节原样。）
+Merge(默认, 用户, REPLACE)、xrtRegexMatcherCaptureNamed(匹配器, "value", ...) 等），
+可括注英文释义；term 块含中文输出字节原样；zh 源个别章节自引编号（ch30 引"第 30 章"）
+按原文忠实翻译不改号。）
 
 ## I12 阶段记录
 
