@@ -21,7 +21,7 @@
 | I2 | 门面页 en：index/start/guide/benchmarks/reliability/api/book 目录 | 7 页 | ✅ 完成（三批全绿，en 站点门面正式可用） |
 | I3 | 卷一 en：ch01–ch08 | 8 | ✅ 完成（三批全绿，目录页同步） |
 | I4 | 卷一 ru：ch01–ch08 | 8 | ✅ 完成（三批全绿，ru 目录页上线） |
-| I5 | 卷七 en：ch61–ch71 | 11 | ⬜ |
+| I5 | 卷七 en：ch61–ch71 | 11 | ✅ 完成（四批全绿，目录页同步 19/143） |
 | I6 | 卷七 ru：ch61–ch71 | 11 | ⬜ |
 | I7 | 卷八 en：ch72–ch87 | 16 | ⬜ |
 | I8 | 卷八 ru：ch72–ch87 | 16 | ⬜ |
