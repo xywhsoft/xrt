@@ -100,6 +100,10 @@
 | 51 | en | 51-process.md | 0.79 | 21/22 | I17 |
 | 52 | en | 52-thread-sync.md | 0.77 | 27/28 | I17 |
 | 53 | en | 53-cancel-system.md | 0.73 | 18/20 | I17 |
+| 54 | en | 54-coroutine.md | 0.75 | 23/25 | I17 |
+| 55 | en | 55-coroutine-sched.md | 0.75 | 28/30 | I17 |
+| 56 | en | 56-channel.md | 0.74 | 28/31 | I17 |
+| 57 | en | 57-future.md | 0.87 | 23/24 | I17 |
 
 ## 术语表增量记录
 
@@ -118,8 +122,8 @@
 
 （阶段进行中——批 A 完成：ch50-53 en 全绿（卷六导言/进程/线程同步/取消体系），
 构建已刷新 wwwroot/en。
-**续作点：下一批为批 B：ch54-57 en**（协程/调度器/Channel/Future），
-此后批 C：ch58-60（executor/task-cancel/sched-practice）+ 收尾：
+批 B 完成：ch54-57 en 全绿（协程/调度器/Channel/Future）。
+**续作点：下一批为批 C：ch58-60 en**（executor/task-cancel/sched-practice）+ 收尾：
 report --lang en + 链接校验 + en 目录页卷六组 + PROGRESS 终态。
 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 卷六高频 G8 术语：synchronous/asynchronous/cancellation/race condition/
