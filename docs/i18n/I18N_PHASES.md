@@ -55,7 +55,7 @@
 
 ## 阶段提示词模板
 
-每阶段由用户发送固定格式提示词开启，模板如下（{N} 为阶段号）：
+每阶段由用户发送固定格式提示词开启，模板如下（{N} 为阶段号，从 I1 开始依次推进）：
 
 ```
 执行 XRT 官网多语言阶段 I{N}。
@@ -65,15 +65,20 @@
 [前置（禁止跳过，逐个重读）：
  1. docs/i18n/I18N_SPEC.md 全文——红线 G1-G8、批次纪律、收尾检查；
  2. docs/i18n/I18N_PHASES.md 中 I{N} 的阶段定义——范围与验收以该行为准；
- 3. 金标准章 docs/book/en/03-first.md 与 docs/book/ru/03-first.md——译文体例范本（I1 产出）；
- 4. docs/i18n/I18N_PROGRESS.md——标记 I{N} 开始，检查遗留的"待同步"章节；
- 5. 本批每章开译前通读 zh 原文全文（docs/book/NN-slug.md），禁止凭记忆翻译]
+ 3. 金标准章 docs/book/en/03-first.md 与 docs/book/ru/03-first.md——译文体例范本
+    （I1 产出；执行 I1 时金标准尚不存在，以 SPEC 第 3 节语言风格为准）；
+ 4. docs/i18n/I18N_PROGRESS.md——标记 I{N} 开始，检查遗留的"待同步"章节优先补译；
+ 5. 每章开译前通读 zh 原文全文（docs/book/NN-slug.md），禁止凭记忆翻译]
+[持续工作指令：本阶段内自主循环推进——批翻译（3-5 章）→ check 全绿 → 双仓库 commit → 下一批，
+不中途停下询问，直至 I{N} 定义内容全部完成；上下文被压缩后，依据 PROGRESS.md 与文件重读恢复状态继续；
+仅在遇到必须由我决策的事项（规范冲突、红线疑似误报需裁决、站点结构性改动）时才停下说明]
 [执行纪律（细则以 SPEC 第 6 节为准）：新术语先登记 tools/i18n/glossary.json 再使用；
-每批 3-5 章：翻译 → python tools/check_i18n.py check en（或 ru）→ 修复所有 FAIL →
-全绿后运行生成器刷新 wwwroot/en|ru 并双仓库 commit（D:/GIT/xrt 源 + D:/GIT/home/host/xrt 产物）→ 下一批；
+每批：翻译 → python tools/check_i18n.py check en（或 ru）→ 修复所有 FAIL →
+全绿后运行生成器刷新 wwwroot/en|ru 并双仓库 commit（D:/GIT/xrt 源 + D:/GIT/home/host/xrt 产物）；
 check 报 FAIL 的章不算完成；禁止调低 check_i18n.py 红线来"通过"；禁止跳章，按 order.json 顺序推进]
 [阶段收尾（清单以 SPEC 第 8 节为准）：python tools/check_i18n.py report --lang <lang> 贴出度量表；
 en/ru 站内链接校验 0 断链；更新 I18N_PROGRESS.md；双仓库 commit 并输出阶段总结
 （完成章数、批次、术语增量、遗留项）]
-[范围：只做 I{N} 定义的内容；时间不够宁可少完成一批，不可降低质量标准]
+[范围：只做 I{N} 定义的内容；单次会话时间不够时，宁可少完成一批并在 PROGRESS 记录续作点，
+不可降低质量标准]
 ```
