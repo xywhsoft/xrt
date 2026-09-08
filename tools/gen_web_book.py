@@ -433,32 +433,195 @@ def render_blocks(items, order, known_types, repo, sub=False):
 # 页面模板
 # ---------------------------------------------------------------------------
 
-NAV_HTML = ('<nav class="nav" aria-label="主导航"><div class="nav-inner">'
-            '<a href="../index.html" class="nav-logo" aria-label="XRT 首页"><img src="../res/logo.png" alt="XRT" width="96" height="32"><em>v2.0</em></a>'
-            '<button type="button" class="nav-toggle" aria-controls="site-nav" aria-expanded="false" aria-label="打开菜单"><span></span></button>'
-            '<ul class="nav-links" id="site-nav"><li><a href="../index.html#arch">产品架构</a></li>'
-            '<li><a href="../reliability.html">工程品质</a></li><li><a href="../benchmarks.html">性能设计</a></li>'
-            '<li><a href="../start.html">快速开始</a></li>'
-            '<li><details class="nav-dropdown"><summary>开发文档</summary><div><a href="../book/index.html">程序设计教程</a><a href="../api.html">API 参考与搜索</a></div></details></li>'
-            '<li><details class="nav-dropdown"><summary>源码仓库</summary><div><a href="https://github.com/xywhsoft/xrt" target="_blank" rel="noopener">GitHub ↗</a><a href="https://gitee.com/xywhsoft/xrt" target="_blank" rel="noopener">Gitee ↗</a></div></details></li>'
-            '</ul></div></nav>')
+SITE = "https://xrt.xywhsoft.com"
+LANG_NAMES = {"zh": "简体中文", "en": "English", "ru": "Русский"}
+LANG_ATTR = {"zh": "zh-CN", "en": "en", "ru": "ru"}
 
-FOOTER_HTML = ('<footer class="footer">\n  <div class="footer-inner">\n    <div>\n'
-               '      <div class="f-brand"><img src="../res/logo.png" alt="XRT" width="72" height="24"></div>\n'
-               '      <p class="f-desc">力求卓越的互联网 + AI 时代跨平台 C 基础设施库——一整套成体系的基础设施库。</p>\n    </div>\n'
-               '    <div>\n      <h3>站点</h3>\n      <ul>\n        <li><a href="../index.html">首页</a></li>\n        <li><a href="index.html">书籍</a></li>\n        <li><a href="../api.html">API 概览</a></li>\n      </ul>\n    </div>\n'
-               '    <div>\n      <h3>资源</h3>\n      <ul>\n        <li><a href="https://gitee.com/xywhsoft/xrt" target="_blank" rel="noopener">Gitee 仓库</a></li>\n'
-               '        <li><a href="https://gitee.com/xywhsoft/xrt/issues" target="_blank" rel="noopener">问题反馈</a></li>\n'
-               '        <li><a href="../api.html#reference">API 参考入口</a></li>\n      </ul>\n    </div>\n  </div>\n'
-               '  <div class="footer-bottom">\n    XRT &copy; <span data-year>2026</span> xLeaves (xywhsoft) &middot; MIT License &middot; <a href="https://gitee.com/xywhsoft/xrt" target="_blank" rel="noopener">Gitee</a>\n  </div>\n</footer>')
+# UI 字符串字典：zh 为基线，en/ru 覆盖
+I18N = {
+    "zh": {
+        "site_title": "《XRT 程序设计》",
+        "title_fmt": "第 {num} 章 {title} - 《XRT 程序设计》",
+        "desc_fmt": "XRT 程序设计教程第 {num} 章{lead}",
+        "skip": "跳到主要内容",
+        "nav_arch": "产品架构", "nav_quality": "工程品质", "nav_perf": "性能设计",
+        "nav_start": "快速开始", "nav_docs": "开发文档", "nav_repos": "源码仓库",
+        "nav_toc": "程序设计教程", "nav_api": "API 参考与搜索",
+        "nav_home": "XRT 首页", "nav_menu": "打开菜单", "nav_lang": "语言",
+        "ch_progress": "第 {num} 章 / 共 {total} 章",
+        "h1_fmt": "第 {num} 章 {title}",
+        "intro": "本章导读", "this_ch": "本章", "consolidate": "巩固",
+        "prev": "上一章", "next": "下一章", "prev_fmt": "第 {num} 章 {title}", "next_fmt": "第 {num} 章 {title}",
+        "api_title": "📖 本章涉及的 API 参考手册：", "api_hint": "点击查看完整签名、参数约束、返回值与错误说明",
+        "api_count": "{name}（{cnt} 个条目）",
+        "footer_desc": "力求卓越的互联网 + AI 时代跨平台 C 基础设施库——一整套成体系的基础设施库。",
+        "f_site": "站点", "f_res": "资源", "f_home": "首页", "f_book": "书籍",
+        "f_api": "API 概览", "f_repo": "Gitee 仓库", "f_issue": "问题反馈",
+        "f_apientry": "API 参考入口",
+        "summary": "小结",
+    },
+    "en": {
+        "site_title": "XRT Programming",
+        "title_fmt": "Chapter {num} {title} - XRT Programming",
+        "desc_fmt": "XRT Programming tutorial, chapter {num}{lead}",
+        "skip": "Skip to main content",
+        "nav_arch": "Architecture", "nav_quality": "Engineering", "nav_perf": "Performance",
+        "nav_start": "Quick Start", "nav_docs": "Docs", "nav_repos": "Repositories",
+        "nav_toc": "Programming Tutorial", "nav_api": "API Reference & Search",
+        "nav_home": "XRT home", "nav_menu": "Open menu", "nav_lang": "Language",
+        "ch_progress": "Chapter {num} of {total}",
+        "h1_fmt": "Chapter {num} {title}",
+        "intro": "Chapter Orientation", "this_ch": "On this page", "consolidate": "Practice",
+        "prev": "Previous", "next": "Next", "prev_fmt": "Ch. {num} {title}", "next_fmt": "Ch. {num} {title}",
+        "api_title": "📖 API references in this chapter:",
+        "api_hint": "Click for full signatures, parameter constraints, return values and error notes",
+        "api_count": "{name} ({cnt} entries)",
+        "footer_desc": "A cross-platform C infrastructure library striving for excellence in the Internet + AI era.",
+        "f_site": "Site", "f_res": "Resources", "f_home": "Home", "f_book": "Book",
+        "f_api": "API overview", "f_repo": "Gitee repository", "f_issue": "Issues",
+        "f_apientry": "API reference",
+        "summary": "Summary",
+    },
+    "ru": {
+        "site_title": "Программирование на XRT",
+        "title_fmt": "Глава {num} {title} — Программирование на XRT",
+        "desc_fmt": "Учебник по программированию XRT, глава {num}{lead}",
+        "skip": "Перейти к основному содержанию",
+        "nav_arch": "Архитектура", "nav_quality": "Качество", "nav_perf": "Производительность",
+        "nav_start": "Быстрый старт", "nav_docs": "Документация", "nav_repos": "Репозитории",
+        "nav_toc": "Учебник по программированию", "nav_api": "Справочник API и поиск",
+        "nav_home": "Главная XRT", "nav_menu": "Открыть меню", "nav_lang": "Язык",
+        "ch_progress": "Глава {num} из {total}",
+        "h1_fmt": "Глава {num} {title}",
+        "intro": "Ориентация главы", "this_ch": "На этой странице", "consolidate": "Практика",
+        "prev": "Предыдущая", "next": "Следующая", "prev_fmt": "Гл. {num} {title}", "next_fmt": "Гл. {num} {title}",
+        "api_title": "📖 Справочники API в этой главе:",
+        "api_hint": "Полные сигнатуры, ограничения параметров, возвращаемые значения и ошибки",
+        "api_count": "{name} ({cnt} записей)",
+        "footer_desc": "Кроссплатформенная библиотека инфраструктуры C для эры интернета и ИИ.",
+        "f_site": "Сайт", "f_res": "Ресурсы", "f_home": "Главная", "f_book": "Книга",
+        "f_api": "Обзор API", "f_repo": "Репозиторий Gitee", "f_issue": "Вопросы",
+        "f_apientry": "Справочник API",
+        "summary": "Итоги",
+    },
+}
 
 
-def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters):
+def translated_nums(repo, lang):
+    """返回某语言已翻译的章号集合（依据 docs/book/<lang>/NN-*.md 存在）。"""
+    nums = set()
+    for f in glob.glob(os.path.join(repo, "docs", "book", lang, "*.md")):
+        m = re.match(r"(\d+)-", os.path.basename(f))
+        if m:
+            nums.add(int(m.group(1)))
+    return nums
+
+
+def lang_switch_html(lang, entry=None, translated=None):
+    """语言下拉。entry 为章节条目时按章生成三链接；否则跳各语言首页。
+    目标语言章节已译则直链同语言页；未译则回退 zh 页并带 ?lang 触发提示条。"""
+    translated = translated or {}
+    items = []
+    for lg in ("zh", "en", "ru"):
+        name = LANG_NAMES[lg]
+        if lg == lang:
+            items.append('<span class="lang-cur">%s</span>' % name)
+        elif entry is None:
+            href = {"zh": "../../index.html", "en": "../../en/index.html",
+                    "ru": "../../ru/index.html"}[lg]
+            items.append('<a href="%s">%s</a>' % (href, name))
+        elif lg == "zh":
+            items.append('<a href="../../book/ch%s.html">%s</a>' % (entry["file"], name))
+        elif entry["num"] in translated.get(lg, set()):
+            items.append('<a href="ch%s.html">%s</a>' % (entry["file"], name))
+        else:
+            items.append('<a href="../../book/ch%s.html?lang=%s">%s</a>'
+                         % (entry["file"], lg, name))
+    return ('<li><details class="nav-dropdown nav-lang"><summary>%s</summary>'
+            '<div class="nav-lang-menu">%s</div></details></li>'
+            % (I18N[lang]["nav_lang"], "".join(items)))
+
+
+def nav_html(lang, entry=None, translated=None):
+    t = I18N[lang]
+    if lang == "zh":
+        logo = "../res/logo.png"
+        home = "../index.html"
+        rel, bench, start = "../reliability.html", "../benchmarks.html", "../start.html"
+        book_idx, api = "index.html", "../api.html"
+        q = ""
+    else:
+        logo = "../../res/logo.png"
+        # 根级页面未译（I2 门面阶段处理）：回退 zh + ?lang 提示条
+        q = "?lang=%s" % lang
+        home = "../../index.html%s" % q
+        rel, bench, start = ("../../reliability.html%s" % q, "../../benchmarks.html%s" % q,
+                             "../../start.html%s" % q)
+        book_idx, api = "../../book/index.html%s" % q, "../../api.html%s" % q
+    return ('<nav class="nav" aria-label="%s"><div class="nav-inner">'
+            '<a href="%s" class="nav-logo" aria-label="%s"><img src="%s" alt="XRT" width="96" height="32"><em>v2.0</em></a>'
+            '<button type="button" class="nav-toggle" aria-controls="site-nav" aria-expanded="false" aria-label="%s"><span></span></button>'
+            '<ul class="nav-links" id="site-nav"><li><a href="%s#arch">%s</a></li>'
+            '<li><a href="%s">%s</a></li><li><a href="%s">%s</a></li>'
+            '<li><a href="%s">%s</a></li>'
+            '<li><details class="nav-dropdown"><summary>%s</summary><div><a href="%s">%s</a><a href="%s">%s</a></div></details></li>'
+            '<li><details class="nav-dropdown"><summary>%s</summary><div><a href="https://github.com/xywhsoft/xrt" target="_blank" rel="noopener">GitHub ↗</a><a href="https://gitee.com/xywhsoft/xrt" target="_blank" rel="noopener">Gitee ↗</a></div></details></li>'
+            '%s'
+            '</ul></div></nav>'
+            % (t["skip"], home, t["nav_home"], logo, t["nav_menu"],
+               home, t["nav_arch"], rel, t["nav_quality"], bench, t["nav_perf"],
+               start, t["nav_start"],
+               t["nav_docs"], book_idx, t["nav_toc"], api, t["nav_api"],
+               t["nav_repos"],
+               lang_switch_html(lang, entry)))
+
+
+def footer_html(lang):
+    t = I18N[lang]
+    if lang == "zh":
+        home, book_idx, api = "../index.html", "index.html", "../api.html"
+    else:
+        home = "../../index.html?lang=%s" % lang
+        book_idx = "../../book/index.html?lang=%s" % lang
+        api = "../../api.html?lang=%s" % lang
+    return ('<footer class="footer">\n  <div class="footer-inner">\n    <div>\n'
+            '      <div class="f-brand"><img src="%s" alt="XRT" width="72" height="24"></div>\n'
+            '      <p class="f-desc">%s</p>\n    </div>\n'
+            '    <div>\n      <h3>%s</h3>\n      <ul>\n        <li><a href="%s">%s</a></li>\n'
+            '        <li><a href="%s">%s</a></li>\n        <li><a href="%s">%s</a></li>\n      </ul>\n    </div>\n'
+            '    <div>\n      <h3>%s</h3>\n      <ul>\n        <li><a href="https://gitee.com/xywhsoft/xrt" target="_blank" rel="noopener">%s</a></li>\n'
+            '        <li><a href="https://gitee.com/xywhsoft/xrt/issues" target="_blank" rel="noopener">%s</a></li>\n'
+            '        <li><a href="%s#reference">%s</a></li>\n      </ul>\n    </div>\n  </div>\n'
+            '  <div class="footer-bottom">\n    XRT &copy; <span data-year>2026</span> xLeaves (xywhsoft) &middot; MIT License &middot; <a href="https://gitee.com/xywhsoft/xrt" target="_blank" rel="noopener">Gitee</a>\n  </div>\n</footer>'
+            % ("../res/logo.png" if lang == "zh" else "../../res/logo.png",
+               t["footer_desc"],
+               t["f_site"], home, t["f_home"], book_idx, t["f_book"], api, t["f_api"],
+               t["f_res"], t["f_repo"], t["f_issue"], api, t["f_apientry"]))
+
+
+# 兼容旧引用（zh 缺省）
+NAV_HTML = nav_html("zh")
+FOOTER_HTML = footer_html("zh")
+
+
+def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
+               lang="zh", translated=None):
     fm = ch.fm
     num = int(fm["num"])
+    t = I18N[lang]
+    translated = translated or {}
     items = list(order)
     idx = next(i for i, it in enumerate(items) if it["num"] == num)
-    prev_it, next_it = (items[idx - 1] if idx > 0 else None), (items[idx + 1] if idx + 1 < len(items) else None)
+    prev_it = items[idx - 1] if idx > 0 else None
+    next_it = items[idx + 1] if idx + 1 < len(items) else None
+
+    def nav_href(it):
+        """章节内导航：目标章在本语言已译直链；未译回退 zh + ?lang 提示条。"""
+        if it is None:
+            return None
+        if it["num"] in translated.get(lang, set()):
+            return "ch%s.html" % it["file"]
+        return "../../book/ch%s.html?lang=%s" % (it["file"], lang)
 
     # 侧栏 + 正文
     side_cur, side_fix = [], []
@@ -470,9 +633,9 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters):
         if blocks is None:
             continue
         if key == "导读":
-            body.append('<section class="book-sec" id="intro"><h3>本章导读</h3>%s</section>'
-                        % render_blocks(blocks, order, known_types, repo))
-            side_cur.append('<li><a href="#intro">导读</a></li>')
+            body.append('<section class="book-sec" id="intro"><h3>%s</h3>%s</section>'
+                        % (t["intro"], render_blocks(blocks, order, known_types, repo)))
+            side_cur.append('<li><a href="#intro">%s</a></li>' % t["intro"])
             continue
         if key in NUMBERED:
             sec_no += 1
@@ -516,52 +679,67 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters):
     api_links = []
     for name in [x.strip() for x in fm["api"].split(",") if x.strip()]:
         cnt = api_counts.get(name)
-        label = "%s（%s 个条目）" % (name, str(cnt) if cnt is not None else "?")
+        label = t["api_count"].format(name=name, cnt=(str(cnt) if cnt is not None else "?"))
         api_links.append('<a href="ref-%s.html" style="display:inline-block;margin:2px 6px;padding:3px 12px;'
                          'border-radius:6px;background:rgba(91,157,255,.1);color:#5b9dff;'
                          'text-decoration:none;font-size:13px;">%s</a>' % (e(name), e(label)))
     api_box = ('<div style="margin:28px 0;padding:16px 20px;border:1px solid rgba(91,157,255,.15);'
                'border-radius:10px;background:rgba(91,157,255,.04);">'
                '<p style="margin:0 0 10px;font-size:14px;color:var(--soft);">'
-               '<strong>📖 本章涉及的 API 参考手册：</strong>%s</p>'
+               '<strong>%s</strong>%s</p>'
                '<p style="margin:10px 0 0;font-size:12px;color:var(--muted);">'
-               '点击查看完整签名、参数约束、返回值与错误说明</p></div>' % "".join(api_links))
+               '%s</p></div>' % (t["api_title"], "".join(api_links), t["api_hint"]))
 
-    prev_html = ('<a href="ch%s.html" class="prev"><span class="pn-dir">上一章</span>'
-                 '<span class="pn-title">第 %d 章 %s</span></a>' % (prev_it["file"], prev_it["num"], e(prev_it["title"]))
+    prev_html = ('<a href="%s" class="prev"><span class="pn-dir">%s</span>'
+                 '<span class="pn-title">%s</span></a>' % (nav_href(prev_it), t["prev"], e(t["prev_fmt"].format(num=prev_it["num"], title=prev_it["title"])))
                  if prev_it else "<span></span>")
-    next_html = ('<a href="ch%s.html" class="next"><span class="pn-dir">下一章</span>'
-                 '<span class="pn-title">第 %d 章 %s</span></a>' % (next_it["file"], next_it["num"], e(next_it["title"]))
+    next_html = ('<a href="%s" class="next"><span class="pn-dir">%s</span>'
+                 '<span class="pn-title">%s</span></a>' % (nav_href(next_it), t["next"], e(t["next_fmt"].format(num=next_it["num"], title=next_it["title"])))
                  if next_it else "<span></span>")
 
-    side = ('<aside class="book-side"><h4>本章</h4><ul>%s</ul>'
-            '<h4>巩固</h4><ul>%s</ul></aside>'
-            % ("".join(side_cur), "".join(side_fix) or "<li><a href=\"#summary\">小结</a></li>"))
+    side = ('<aside class="book-side"><h4>%s</h4><ul>%s</ul>'
+            '<h4>%s</h4><ul>%s</ul></aside>'
+            % (t["this_ch"], "".join(side_cur), t["consolidate"],
+               "".join(side_fix) or "<li><a href=\"#summary\">%s</a></li>" % t["summary"]))
+
+    up = ".." if lang == "zh" else "../.."
+    canonical = "%s/%sbook/ch%s.html" % (SITE, (lang + "/") if lang != "zh" else "", entry["file"])
+    alts = ['<link rel="alternate" hreflang="%s" href="%s/book/ch%s.html">' % (LANG_ATTR["zh"], SITE, entry["file"])]
+    for lg in ("en", "ru"):
+        if num in translated.get(lg, set()):
+            alts.append('<link rel="alternate" hreflang="%s" href="%s/%s/book/ch%s.html">' % (LANG_ATTR[lg], SITE, lg, entry["file"]))
+    alts.append('<link rel="alternate" hreflang="x-default" href="%s/book/ch%s.html">' % (SITE, entry["file"]))
+    alternates = (chr(10) + "  ").join(alts)
+    pagetitle = t["title_fmt"].format(num=num, title=e(fm["title"]))
+    desc = t["desc_fmt"].format(num=num, lead=e(fm["lead"]))
+    progress = t["ch_progress"].format(num=num, total=total_chapters)
+    h1 = t["h1_fmt"].format(num=num, title=e(fm["title"]))
 
     tpl = """<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{htmlang}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 {num} 章 {title} - 《XRT 程序设计》</title>
-  <meta name="description" content="XRT 程序设计教程第 {num} 章{lead}">
-  <link rel="canonical" href="https://xrt.xywhsoft.com/book/ch{file}.html">
+  <title>{pagetitle}</title>
+  <meta name="description" content="{desc}">
+  <link rel="canonical" href="{canonical}">
+  {alternates}
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b9dff'/%3E%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="../style.css?v=6bdafbdced">
+  <link rel="stylesheet" href="{up}/style.css?v=6bdafbdced">
   <link rel="stylesheet" href="book.css?v=730594b9cc">
-  <link rel="stylesheet" href="../refinement.css?v=ad12773fdb">
+  <link rel="stylesheet" href="{up}/refinement.css?v=ad12773fdb">
 </head>
 <body>
-<a class="skip-link" href="#main">跳到主要内容</a>
+<a class="skip-link" href="#main">{skiplink}</a>
 <div class="bg-scene" aria-hidden="true"></div>
 {nav}
 <header class="page-header">
   <div class="inner">
     <div class="ch-meta">
-      <span class="ch-progress">第 {num} 章 / 共 {total} 章</span>
+      <span class="ch-progress">{progress}</span>
       <span class="ch-vol">{volume}</span>
     </div>
-    <h1>第 {num} 章 {title}</h1>
+    <h1>{h1}</h1>
     <p class="ch-lead">{lead}</p>
   </div>
 </header>
@@ -574,24 +752,33 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters):
   </div>
 </div>
 {footer}
-<script src="../script.js?v=31cac74985" defer></script>
+<script src="{up}/script.js?v=31cac74985" defer></script>
 </body>
 </html>
 """
     return (tpl
+            .replace("{htmlang}", LANG_ATTR[lang])
+            .replace("{pagetitle}", pagetitle)
+            .replace("{desc}", desc)
+            .replace("{canonical}", canonical)
+            .replace("{alternates}", alternates)
+            .replace("{up}", up)
+            .replace("{skiplink}", t["skip"])
             .replace("{num}", str(num))
             .replace("{file}", entry["file"])
             .replace("{title}", e(fm["title"]))
             .replace("{lead}", e(fm["lead"]))
             .replace("{volume}", e(fm["volume"]))
             .replace("{total}", str(total_chapters))
-            .replace("{nav}", NAV_HTML)
+            .replace("{progress}", progress)
+            .replace("{h1}", h1)
+            .replace("{nav}", nav_html(lang, entry, translated))
             .replace("{side}", side)
             .replace("{body}", "\n".join(body))
             .replace("{prev}", prev_html)
             .replace("{next}", next_html)
             .replace("{apibox}", api_box)
-            .replace("{footer}", FOOTER_HTML))
+            .replace("{footer}", footer_html(lang)))
 
 
 # ---------------------------------------------------------------------------
@@ -729,10 +916,14 @@ def cmd_sync_index(args):
 def cmd_build(args):
     repo = args.repo
     www = args.wwwroot
+    lang = getattr(args, "lang", "zh") or "zh"
     order = load_order(repo)
+    translated = {"en": translated_nums(repo, "en"), "ru": translated_nums(repo, "ru")}
+    src_dir = os.path.join(repo, "docs", "book") if lang == "zh" else os.path.join(repo, "docs", "book", lang)
+    out_dir = os.path.join(www, "book") if lang == "zh" else os.path.join(www, lang, "book")
     # md 源覆盖 order 条目
     sources = {}
-    for f in sorted(glob.glob(os.path.join(repo, "docs", "book", "*.md"))):
+    for f in sorted(glob.glob(os.path.join(src_dir, "*.md"))):
         base = os.path.basename(f)[:-3]
         m = re.match(r"(\d+)-(.+)", base)
         if not m or base == "BOOK_SPEC":
@@ -767,10 +958,32 @@ def cmd_build(args):
         entry = next(it for it in order if it["num"] == num)
         entry = dict(entry)
         entry["file"] = "%d-%s" % (num, fm["slug"]) if num >= 100 else "%02d-%s" % (num, fm["slug"])
-        page = build_page(ch, entry, order, known_types, repo, api_counts, total)
-        out = os.path.join(www, "book", "ch%s.html" % entry["file"])
+        page = build_page(ch, entry, order, known_types, repo, api_counts, total,
+                          lang=lang, translated=translated)
+        out = os.path.join(out_dir, "ch%s.html" % entry["file"])
         io.open(out, "w", encoding="utf-8", newline="\n").write(page)
         print("生成 ch%s.html" % entry["file"])
+
+    if lang != "zh":
+        # 资源镜像：en/ru 站点引用 {up}/style.css 等同级资源
+        lang_root = os.path.join(www, lang)
+        book_dir = os.path.join(lang_root, "book")
+        if not os.path.isdir(book_dir):
+            os.makedirs(book_dir)
+        for name, dest in [("style.css", "style.css"), ("refinement.css", "refinement.css"),
+                           ("script.js", "script.js"),
+                           (os.path.join("book", "book.css"), os.path.join("book", "book.css"))]:
+            srcf = os.path.join(www, name)
+            dstf = os.path.join(lang_root, dest)
+            if os.path.exists(srcf) and not os.path.exists(dstf):
+                io.open(dstf, "w", encoding="utf-8", newline="").write(
+                    io.open(srcf, encoding="utf-8", newline="").read())
+        res_src = os.path.join(www, "res")
+        res_dst = os.path.join(lang_root, "res")
+        if os.path.isdir(res_src) and not os.path.isdir(res_dst):
+            import shutil
+            shutil.copytree(res_src, res_dst)
+        return
 
     # CSS 追加（幂等）
     css_path = os.path.join(www, "book", "book.css")
@@ -906,6 +1119,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init-order")
     b = sub.add_parser("build")
+    b.add_argument("--lang", default="zh", choices=["zh", "en", "ru"])
     b.add_argument("--only")
     s = sub.add_parser("sync-index")
     s.add_argument("--wip", help="逗号分隔的重写中 slug 列表")
