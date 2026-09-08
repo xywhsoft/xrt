@@ -24,7 +24,7 @@
 | I15 | 卷五 en | ✅ 完成 | 14 | 34,579 |
 | I16 | 卷五 ru | ✅ 完成 | 14 | 34,579 |
 | I17 | 卷六 en | ✅ 完成 | 11 | 27,397 |
-| I18 | 卷六 ru | ⬜ | 11 | — |
+| I18 | 卷六 ru | 🔄 进行中 | 11 | — |
 | I19 | 卷九 en | ⬜ | 9 | — |
 | I20 | 卷九 ru | ⬜ | 9 | — |
 | I21 | 卷十 en | ⬜ | 12 | — |
@@ -107,6 +107,10 @@
 | 58 | en | 58-executor.md | 0.74 | 25/25 | I17 |
 | 59 | en | 59-task-cancel.md | 0.76 | 21/22 | I17 |
 | 60 | en | 60-sched-practice.md | 0.70 | 31/32 | I17 |
+| 50 | ru | 50-vol6-intro.md | 0.61 | 22/25 | I18 |
+| 51 | ru | 51-process.md | 0.70 | 21/22 | I18 |
+| 52 | ru | 52-thread-sync.md | 0.70 | 27/28 | I18 |
+| 53 | ru | 53-cancel-system.md | 0.67 | 20/20 | I18 |
 
 ## 术语表增量记录
 
@@ -120,6 +124,17 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+
+## I18 阶段记录
+
+（阶段进行中——批 A 完成：ch50-53 ru 全绿（卷六导言/进程/线程同步/取消体系），
+构建已刷新 wwwroot/ru。
+**续作点：下一批为批 B：ch54-57 ru**（协程上下/Channel/Future），
+此后批 C：ch58-60（executor/task-cancel/sched-practice）+ 收尾：
+report --lang ru + 链接校验 + ru 目录页卷六组 + PROGRESS 终态。
+插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
+ru 体例同 I16；成稿后扫 [а-яё][a-z] 混写与 CJK 草稿残迹（本批已修中枢/三方/服务/
+取值/或/形态/锁/分段等 10 处）；行内中文参数名字面保留 + 括注俄文。）
 
 ## I17 阶段记录
 
