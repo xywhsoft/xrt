@@ -27,7 +27,7 @@
 | I18 | 卷六 ru | ✅ 完成 | 11 | 27,397 |
 | I19 | 卷九 en | ✅ 完成 | 9 | 19,244 |
 | I20 | 卷九 ru | ✅ 完成 | 9 | 19,244 |
-| I21 | 卷十 en | ⬜ | 12 | — |
+| I21 | 卷十 en | 🔄 进行中 | 12 | — |
 | I22 | 卷十 ru | ⬜ | 12 | — |
 | I23 | 卷十一 en（上） | ⬜ | 10 | — |
 | I24 | 卷十一 en（下） | ⬜ | 10 | — |
@@ -136,6 +136,10 @@
 | 94 | ru | 94-ws-frame.md | 0.71 | 16/16 | I20 |
 | 95 | ru | 95-ws-stream.md | 0.75 | 27/30 | I20 |
 | 96 | ru | 96-ws-composition.md | 0.73 | 22/24 | I20 |
+| 97 | en | 97-xhttp-easy.md | 0.80 | 24/26 | I21 |
+| 98 | en | 98-xhttp-runtime.md | 0.74 | 26/26 | I21 |
+| 99 | en | 99-xhttp-redirect.md | 0.75 | 15/16 | I21 |
+| 100 | en | 100-xhttp-cache.md | 0.74 | 15/16 | I21 |
 
 ## 术语表增量记录
 
@@ -149,6 +153,16 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+
+## I21 阶段记录
+
+（阶段进行中——批 A 完成：ch97-100 en 全绿（easy/运行时/自动行为/缓存），
+构建已刷新 wwwroot/en。
+**续作点：下一批为批 B：ch101-104 en**（url/query/server/middleware），
+此后批 C：ch105-108（auth/sse/stream/advanced）+ 收尾：
+report --lang en + 链接校验 + en 目录页卷十组 + PROGRESS 终态。
+插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
+卷十 G8 高频：degradation/encoding/frame/fragment 名词全词。）
 
 ## I20 阶段记录
 
