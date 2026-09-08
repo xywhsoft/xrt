@@ -25,7 +25,7 @@
 | I16 | 卷五 ru | ✅ 完成 | 14 | 34,579 |
 | I17 | 卷六 en | ✅ 完成 | 11 | 27,397 |
 | I18 | 卷六 ru | ✅ 完成 | 11 | 27,397 |
-| I19 | 卷九 en | ⬜ | 9 | — |
+| I19 | 卷九 en | 🔄 进行中 | 9 | — |
 | I20 | 卷九 ru | ⬜ | 9 | — |
 | I21 | 卷十 en | ⬜ | 12 | — |
 | I22 | 卷十 ru | ⬜ | 12 | — |
@@ -118,6 +118,10 @@
 | 58 | ru | 58-executor.md | 0.68 | 24/25 | I18 |
 | 59 | ru | 59-task-cancel.md | 0.67 | 22/22 | I18 |
 | 60 | ru | 60-sched-practice.md | 0.64 | 30/32 | I18 |
+| 88 | en | 88-http.md | 0.77 | 19/20 | I19 |
+| 89 | en | 89-http1.md | 0.76 | 23/25 | I19 |
+| 90 | en | 90-http-framing.md | 0.83 | 15/16 | I19 |
+| 91 | en | 91-http-headers.md | 0.81 | 19/21 | I19 |
 
 ## 术语表增量记录
 
@@ -131,6 +135,17 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+
+## I19 阶段记录
+
+（阶段进行中——批 A 完成：ch88-91 en 全绿（HTTP 地基/HTTP1 消息/正文分帧/头字段族），
+构建已刷新 wwwroot/en。
+**续作点：下一批为批 B：ch92-94 en**（http-decode/http-upgrade/ws-frame），
+此后批 C：ch95-96（ws-stream/ws-composition）+ 收尾：
+report --lang en + 链接校验 + en 目录页卷九组 + PROGRESS 终态。
+插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
+卷九 G2 高危：diagram state 块含中文行（XHTTP1_BODY_* 状态机）字节原样保留；
+行内中文参数（xrtHttpFieldParse(文本, &字段) 等）字面+括注英文。）
 
 ## I18 阶段记录
 
