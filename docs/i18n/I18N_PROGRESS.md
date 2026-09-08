@@ -23,7 +23,7 @@
 | I14 | 卷四 ru | ✅ 完成 | 12 | 29,365 |
 | I15 | 卷五 en | ✅ 完成 | 14 | 34,579 |
 | I16 | 卷五 ru | ✅ 完成 | 14 | 34,579 |
-| I17 | 卷六 en | ⬜ | 11 | — |
+| I17 | 卷六 en | 🔄 进行中 | 11 | — |
 | I18 | 卷六 ru | ⬜ | 11 | — |
 | I19 | 卷九 en | ⬜ | 9 | — |
 | I20 | 卷九 ru | ⬜ | 9 | — |
@@ -96,6 +96,10 @@
 | 47 | ru | 47-file-async.md | 0.68 | 20/21 | I16 |
 | 48 | ru | 48-signal.md | 0.66 | 17/18 | I16 |
 | 49 | ru | 49-debug-pipeline.md | 0.61 | 24/26 | I16 |
+| 50 | en | 50-vol6-intro.md | 0.71 | 25/25 | I17 |
+| 51 | en | 51-process.md | 0.79 | 21/22 | I17 |
+| 52 | en | 52-thread-sync.md | 0.77 | 27/28 | I17 |
+| 53 | en | 53-cancel-system.md | 0.73 | 18/20 | I17 |
 
 ## 术语表增量记录
 
@@ -109,6 +113,18 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+
+## I17 阶段记录
+
+（阶段进行中——批 A 完成：ch50-53 en 全绿（卷六导言/进程/线程同步/取消体系），
+构建已刷新 wwwroot/en。
+**续作点：下一批为批 B：ch54-57 en**（协程/调度器/Channel/Future），
+此后批 C：ch58-60（executor/task-cancel/sched-practice）+ 收尾：
+report --lang en + 链接校验 + en 目录页卷六组 + PROGRESS 终态。
+插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
+卷六高频 G8 术语：synchronous/asynchronous/cancellation/race condition/
+coroutine/scheduler/channel/deadlock/atomic operation——全部已在表，
+注意名词全词命中（如 synchronous 不以 "sync" 命中）。）
 
 ## I16 阶段记录
 
