@@ -122,6 +122,9 @@
 | 89 | en | 89-http1.md | 0.76 | 23/25 | I19 |
 | 90 | en | 90-http-framing.md | 0.83 | 15/16 | I19 |
 | 91 | en | 91-http-headers.md | 0.81 | 19/21 | I19 |
+| 92 | en | 92-http-decode.md | 0.79 | 20/20 | I19 |
+| 93 | en | 93-http-upgrade.md | 0.79 | 18/19 | I19 |
+| 94 | en | 94-ws-frame.md | 0.81 | 15/16 | I19 |
 
 ## 术语表增量记录
 
@@ -140,8 +143,8 @@
 
 （阶段进行中——批 A 完成：ch88-91 en 全绿（HTTP 地基/HTTP1 消息/正文分帧/头字段族），
 构建已刷新 wwwroot/en。
-**续作点：下一批为批 B：ch92-94 en**（http-decode/http-upgrade/ws-frame），
-此后批 C：ch95-96（ws-stream/ws-composition）+ 收尾：
+批 B 完成：ch92-94 en 全绿（解码/升级/WS 帧）。
+**续作点：下一批为批 C：ch95-96 en**（ws-stream/ws-composition）+ 收尾：
 report --lang en + 链接校验 + en 目录页卷九组 + PROGRESS 终态。
 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 卷九 G2 高危：diagram state 块含中文行（XHTTP1_BODY_* 状态机）字节原样保留；
