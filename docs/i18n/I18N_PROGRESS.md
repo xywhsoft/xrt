@@ -130,6 +130,9 @@
 | 88 | ru | 88-http.md | 0.67 | 19/20 | I20 |
 | 89 | ru | 89-http1.md | 0.68 | 24/25 | I20 |
 | 90 | ru | 90-http-framing.md | 0.74 | 16/16 | I20 |
+| 91 | ru | 91-http-headers.md | 0.71 | 20/21 | I20 |
+| 92 | ru | 92-http-decode.md | 0.70 | 19/20 | I20 |
+| 93 | ru | 93-http-upgrade.md | 0.69 | 19/19 | I20 |
 
 ## 术语表增量记录
 
@@ -148,8 +151,8 @@
 
 （阶段进行中——批 A 完成：ch88-90 ru 全绿（HTTP 地基/HTTP1 消息/正文分帧），
 构建已刷新 wwwroot/ru。
-**续作点：下一批为批 B：ch91-93 ru**（headers/decode/upgrade），
-此后批 C：ch94-96（ws-frame/ws-stream/ws-composition）+ 收尾。
+批 B 完成：ch91-93 ru 全绿（头字段族/解码/升级）。
+**续作点：下一批为批 C：ch94-96 ru**（ws-frame/ws-stream/ws-composition）+ 收尾。
 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 ru 体例同 I16/I18：成稿后 Write 脚本清 CJK 草稿残迹；行内中文参数字面+括注俄文；
 diagram state 中文行原样。）
