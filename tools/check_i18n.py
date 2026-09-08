@@ -201,13 +201,16 @@ def check_pair(lang, fname, skip=()):
             errs.append("G7 frontmatter %s 不一致（%r vs %r）" % (k, zh_fm.get(k), tr_fm.get(k)))
     if gate("G7") and (CJK_RE.search(tr_fm.get("title", "")) or CJK_RE.search(tr_fm.get("lead", ""))):
         errs.append("G7 title/lead 未翻译")
-    # G8 术语命中（WARN）
+    # G8 术语命中（WARN）；ru 为屈折语，词形变化集中在词尾——取译法前 8 字符前缀匹配
     hit, total = 0, 0
     low = tr_prose.lower()
     for t in terms:
         if t["zh"] in zh_prose and t.get(lang):
             total += 1
-            if t[lang].lower() in low:
+            probe = t[lang].lower()
+            if lang == "ru" and len(probe) > 5:
+                probe = probe.split()[0][:5]
+            if probe in low:
                 hit += 1
     if total and hit / float(total) < GLOSSARY_HIT_WARN:
         warns.append("G8 术语命中 %d/%d（<%.0f%%，连续两批将升级 FAIL）" % (hit, total, GLOSSARY_HIT_WARN * 100))

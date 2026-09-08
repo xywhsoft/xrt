@@ -546,10 +546,16 @@ def lang_switch_html(lang, entry=None, translated=None):
         elif lg == "zh":
             items.append('<a href="../../book/ch%s.html">%s</a>' % (entry["file"], name))
         elif entry["num"] in translated.get(lg, set()):
-            items.append('<a href="ch%s.html">%s</a>' % (entry["file"], name))
+            if lang == "zh":
+                items.append('<a href="../%s/book/ch%s.html">%s</a>' % (lg, entry["file"], name))
+            else:
+                items.append('<a href="ch%s.html">%s</a>' % (entry["file"], name))
         else:
-            items.append('<a href="../../book/ch%s.html?lang=%s">%s</a>'
-                         % (entry["file"], lg, name))
+            if lang == "zh":
+                items.append('<a href="ch%s.html?lang=%s">%s</a>' % (entry["file"], lg, name))
+            else:
+                items.append('<a href="../../book/ch%s.html?lang=%s">%s</a>'
+                             % (entry["file"], lg, name))
     return ('<li><details class="nav-dropdown nav-lang"><summary>%s</summary>'
             '<div class="nav-lang-menu">%s</div></details></li>'
             % (I18N[lang]["nav_lang"], "".join(items)))
@@ -632,7 +638,7 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
         """章节内导航：目标章在本语言已译直链；未译回退 zh + ?lang 提示条。"""
         if it is None:
             return None
-        if it["num"] in translated.get(lang, set()):
+        if lang == "zh" or it["num"] in translated.get(lang, set()):
             return "ch%s.html" % it["file"]
         return "../../book/ch%s.html?lang=%s" % (it["file"], lang)
 
@@ -696,9 +702,10 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
     for name in [x.strip() for x in fm["api"].split(",") if x.strip()]:
         cnt = api_counts.get(name)
         label = t["api_count"].format(name=name, cnt=(str(cnt) if cnt is not None else "?"))
-        api_links.append('<a href="ref-%s.html" style="display:inline-block;margin:2px 6px;padding:3px 12px;'
+        ref_pre = "" if lang == "zh" else "../../book/"
+        api_links.append('<a href="%sref-%s.html" style="display:inline-block;margin:2px 6px;padding:3px 12px;'
                          'border-radius:6px;background:rgba(91,157,255,.1);color:#5b9dff;'
-                         'text-decoration:none;font-size:13px;">%s</a>' % (e(name), e(label)))
+                         'text-decoration:none;font-size:13px;">%s</a>' % (ref_pre, e(name), e(label)))
     api_box = ('<div style="margin:28px 0;padding:16px 20px;border:1px solid rgba(91,157,255,.15);'
                'border-radius:10px;background:rgba(91,157,255,.04);">'
                '<p style="margin:0 0 10px;font-size:14px;color:var(--soft);">'

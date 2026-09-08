@@ -17,7 +17,7 @@
 | 阶段 | 范围 | 章数 | 状态 |
 | --- | --- | --- | --- |
 | I0 | 工程基建：SPEC/PHASES/PROGRESS + 术语表初版 + check_i18n 门禁 + 自测 | — | ✅ 完成 |
-| I1 | 站点基建：生成器 --lang、en/ru 目录骨架、导航语言下拉、未翻译回退与提示条、hreflang/sitemap 骨架、金标准章（ch03+ch66 的 en/ru 双语范本） | 2×2 | ⬜ |
+| I1 | 站点基建：生成器 --lang、en/ru 目录骨架、导航语言下拉、未翻译回退与提示条、hreflang/sitemap 骨架、金标准章（ch03+ch66 的 en/ru 双语范本） | 2×2 | ✅ 完成（站点三语骨架上线，金标准 4 份全绿） |
 | I2 | 门面页 en：index/start/guide/benchmarks/reliability/api/book 目录 | 7 页 | ⬜ |
 | I3 | 卷一 en：ch01–ch08 | 8 | ⬜ |
 | I4 | 卷一 ru：ch01–ch08 | 8 | ⬜ |
