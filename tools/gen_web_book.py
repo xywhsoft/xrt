@@ -775,7 +775,7 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
   </div>
 </div>
 {footer}
-<script src="{up}/script.js?v=i18n001" defer></script>
+<script src="{up}/script.js?v=i18n004" defer></script>
 </body>
 </html>
 """
@@ -998,7 +998,9 @@ def cmd_build(args):
                            (os.path.join("book", "book.css"), os.path.join("book", "book.css"))]:
             srcf = os.path.join(www, name)
             dstf = os.path.join(lang_root, dest)
-            if os.path.exists(srcf) and not os.path.exists(dstf):
+            if os.path.exists(srcf) and (
+                    not os.path.exists(dstf)
+                    or os.path.getmtime(srcf) > os.path.getmtime(dstf)):
                 io.open(dstf, "w", encoding="utf-8", newline="").write(
                     io.open(srcf, encoding="utf-8", newline="").read())
         res_src = os.path.join(www, "res")
