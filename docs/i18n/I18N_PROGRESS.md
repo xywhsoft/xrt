@@ -111,6 +111,10 @@
 | 51 | ru | 51-process.md | 0.70 | 21/22 | I18 |
 | 52 | ru | 52-thread-sync.md | 0.70 | 27/28 | I18 |
 | 53 | ru | 53-cancel-system.md | 0.67 | 20/20 | I18 |
+| 54 | ru | 54-coroutine.md | 0.66 | 23/25 | I18 |
+| 55 | ru | 55-coroutine-sched.md | 0.67 | 26/30 | I18 |
+| 56 | ru | 56-channel.md | 0.68 | 28/31 | I18 |
+| 57 | ru | 57-future.md | 0.77 | 22/24 | I18 |
 
 ## 术语表增量记录
 
@@ -129,8 +133,8 @@
 
 （阶段进行中——批 A 完成：ch50-53 ru 全绿（卷六导言/进程/线程同步/取消体系），
 构建已刷新 wwwroot/ru。
-**续作点：下一批为批 B：ch54-57 ru**（协程上下/Channel/Future），
-此后批 C：ch58-60（executor/task-cancel/sched-practice）+ 收尾：
+批 B 完成：ch54-57 ru 全绿（协程上下/Channel/Future）。
+**续作点：下一批为批 C：ch58-60 ru**（executor/task-cancel/sched-practice）+ 收尾：
 report --lang ru + 链接校验 + ru 目录页卷六组 + PROGRESS 终态。
 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 ru 体例同 I16；成稿后扫 [а-яё][a-z] 混写与 CJK 草稿残迹（本批已修中枢/三方/服务/
