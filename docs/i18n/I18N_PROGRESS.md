@@ -21,7 +21,7 @@
 | I12 | 卷三 ru | 🔄 进行中 | 11 | — |
 | I13 | 卷四 en | ✅ 完成 | 12 | 29,365 |
 | I14 | 卷四 ru | ✅ 完成 | 12 | 29,365 |
-| I15 | 卷五 en | ⬜ | 14 | — |
+| I15 | 卷五 en | 🔄 进行中 | 14 | — |
 | I16 | 卷五 ru | ⬜ | 14 | — |
 | I17 | 卷六 en | ⬜ | 11 | — |
 | I18 | 卷六 ru | ⬜ | 11 | — |
@@ -68,6 +68,10 @@
 | 33 | ru | 33-xson.md | 0.72 | 20/21 | I14 |
 | 34 | ru | 34-template.md | 0.75 | 15/15 | I14 |
 | 35 | ru | 35-text-pipeline.md | 0.71 | 16/17 | I14 |
+| 36 | en | 36-vol5-intro.md | 0.67 | 18/18 | I15 |
+| 37 | en | 37-logger-core.md | 0.82 | 18/20 | I15 |
+| 38 | en | 38-logger-sink.md | 0.80 | 16/17 | I15 |
+| 39 | en | 39-console.md | 0.77 | 12/14 | I15 |
 
 ## 术语表增量记录
 
@@ -81,6 +85,17 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+
+## I15 阶段记录
+
+（阶段进行中——批 A 完成：ch36-39 en 全绿（卷五导言/日志上/日志下/控制台），
+构建已刷新 wwwroot/en。
+**续作点：下一批为批 B：ch40-44 en**（io/time/env/path/file），
+此后批 C：ch45-49（file-adv/dir/async/signal/debug-pipeline）；
+收尾：report --lang en + 链接校验 + en 目录页卷五组 + PROGRESS 终态。
+插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
+卷五高频 G8 术语：异步 asynchronous / 背压 backpressure / 取消 cancellation /
+终态 final state / 管道→pipeline 名词形态 / 转义 escaping——注意用名词全词命中。）
 
 ## I14 阶段记录
 
