@@ -86,6 +86,11 @@
 | 37 | ru | 37-logger-core.md | 0.73 | 18/20 | I16 |
 | 38 | ru | 38-logger-sink.md | 0.71 | 17/17 | I16 |
 | 39 | ru | 39-console.md | 0.70 | 13/14 | I16 |
+| 40 | ru | 40-io.md | 0.68 | 20/20 | I16 |
+| 41 | ru | 41-time.md | 0.68 | 12/13 | I16 |
+| 42 | ru | 42-env.md | 0.65 | 18/18 | I16 |
+| 43 | ru | 43-path.md | 0.70 | 13/14 | I16 |
+| 44 | ru | 44-file.md | 0.67 | 15/16 | I16 |
 
 ## 术语表增量记录
 
@@ -104,8 +109,8 @@
 
 （阶段进行中——批 A 完成：ch36-39 ru 全绿（卷五导言/日志上下/控制台），
 构建已刷新 wwwroot/ru。
-**续作点：下一批为批 B：ch40-44 ru**（io/time/env/path/file），
-此后批 C：ch45-49（file-adv/dir/async/signal/debug-pipeline）+ 收尾：
+批 B 完成：ch40-44 ru 全绿（io/time/env/path/file）。
+**续作点：下一批为批 C：ch45-49 ru** + 收尾：
 report --lang ru + 链接校验 + ru 目录页卷五组 + PROGRESS 终态。
 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 ru 体例与 I14 相同：**Что только что произошло.** (1)…、### Ловушка N:、три хозяина；
