@@ -472,7 +472,7 @@ def highlight_sig(sig):
 # ---------------------------------------------------------------------------
 
 NAV_HTML = ('<nav class="nav" aria-label="主导航"><div class="nav-inner">'
-            '<a href="../index.html" class="nav-logo" aria-label="XRT 首页"><span class="logo-mark">X</span>XRT<em>v2.0</em></a>'
+            '<a href="../index.html" class="nav-logo" aria-label="XRT 首页"><img src="../res/logo.png" alt="XRT" width="96" height="32"><em>v2.0</em></a>'
             '<button type="button" class="nav-toggle" aria-controls="site-nav" aria-expanded="false" aria-label="打开菜单"><span></span></button>'
             '<ul class="nav-links" id="site-nav"><li><a href="../index.html#arch">产品架构</a></li>'
             '<li><a href="../reliability.html">工程品质</a></li><li><a href="../benchmarks.html">性能设计</a></li>'
@@ -482,7 +482,7 @@ NAV_HTML = ('<nav class="nav" aria-label="主导航"><div class="nav-inner">'
             '</ul></div></nav>')
 
 FOOTER_HTML = ('<footer class="footer">\n  <div class="footer-inner">\n    <div>\n'
-               '      <div class="f-brand"><span class="logo-mark">X</span>XRT</div>\n'
+               '      <div class="f-brand"><img src="../res/logo.png" alt="XRT" width="72" height="24"></div>\n'
                '      <p class="f-desc">力求卓越的互联网 + AI 时代跨平台 C 基础设施库——一整套成体系的基础设施库。</p>\n    </div>\n'
                '    <div>\n      <h3>站点</h3>\n      <ul>\n        <li><a href="../index.html">首页</a></li>\n        <li><a href="index.html">书籍</a></li>\n        <li><a href="../api.html">API 概览</a></li>\n      </ul>\n    </div>\n'
                '    <div>\n      <h3>资源</h3>\n      <ul>\n        <li><a href="https://gitee.com/xywhsoft/xrt" target="_blank" rel="noopener">Gitee 仓库</a></li>\n'
