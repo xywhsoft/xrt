@@ -27,7 +27,7 @@
 | I18 | 卷六 ru | ✅ 完成 | 11 | 27,397 |
 | I19 | 卷九 en | ✅ 完成 | 9 | 19,244 |
 | I20 | 卷九 ru | ✅ 完成 | 9 | 19,244 |
-| I21 | 卷十 en | 🔄 进行中 | 12 | — |
+| I21 | 卷十 en | ✅ 完成 | 12 | — |
 | I22 | 卷十 ru | ⬜ | 12 | — |
 | I23 | 卷十一 en（上） | ⬜ | 10 | — |
 | I24 | 卷十一 en（下） | ⬜ | 10 | — |
@@ -144,6 +144,10 @@
 | 102 | en | 102-xhttp-query.md | 0.82 | 15/15 | I21 |
 | 103 | en | 103-xhttp-server.md | 0.76 | 29/30 | I21 |
 | 104 | en | 104-xhttp-middleware.md | 0.74 | 21/23 | I21 |
+| 105 | en | 105-xhttp-auth.md | 0.84 | 20/21 | I21 |
+| 106 | en | 106-xhttp-sse.md | 0.86 | 23/23 | I21 |
+| 107 | en | 107-xhttp-stream.md | 0.79 | 26/26 | I21 |
+| 108 | en | 108-xhttp-advanced.md | 0.77 | 15/16 | I21 |
 
 ## 术语表增量记录
 
@@ -160,13 +164,23 @@
 
 ## I21 阶段记录
 
-（阶段进行中——批 A 完成：ch97-100 en 全绿（easy/运行时/自动行为/缓存），
-构建已刷新 wwwroot/en。
-批 B 完成：ch101-104 en 全绿（URL/查询/服务端/中间件）。
-**续作点：下一批为批 C：ch105-108 en**（auth/sse/stream/advanced）+ 收尾：
-report --lang en + 链接校验 + en 目录页卷十组 + PROGRESS 终态。
-插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
-卷十 G8 高频：degradation/encoding/frame/fragment 名词全词。）
+✅ 完成（2026-09-08）。三批推进，12 章全绿：
+
+- 批 A（commit 43de8af1 / wwwroot 1774ca66）：ch97-100 en
+  （easy/运行时/自动行为/缓存）；批 B（c56adc71 / 3ce13e21）：ch101-104
+  （URL/查询/服务端/中间件）；批 C（2910d3e0 / dae1a58b）：ch105-108
+  （认证/SSE/流式正文/服务端收官）。
+- 收尾：check en 全绿（100/143 章覆盖，卷一/二/四/五/六/七/八/九/十完整）；
+  三语言链接校验 11,867 条 0 断链；en 目录页插入卷十组（97-108 全直链），
+  状态行更新 88→100/143，回退组范围改"Volumes 3, 11–13"；词数比 0.74~0.86。
+- 术语增量：无新条目（卷十沿用既有条目）。
+- 陷阱实录：ch105 首查即绿；ch106/107 各一次 G8 WARN——lifecycle/cancellation/
+  routing/encoding 与 borrowing/reference counting/decryption/ciphertext/encoding
+  名词全词补齐后通过（ch107 "密文"系 zh"加密文件"跨词子串命中，en 以
+  turning ciphertext back into the original 对应）；ch106 行内码
+  `data: ready\n\n` 反斜杠字面整体保留。
+- 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、
+  I8 批 B（ch76-79 ru）。
 
 ## I20 阶段记录
 
