@@ -140,6 +140,10 @@
 | 98 | en | 98-xhttp-runtime.md | 0.74 | 26/26 | I21 |
 | 99 | en | 99-xhttp-redirect.md | 0.75 | 15/16 | I21 |
 | 100 | en | 100-xhttp-cache.md | 0.74 | 15/16 | I21 |
+| 101 | en | 101-xhttp-url.md | 0.82 | 12/13 | I21 |
+| 102 | en | 102-xhttp-query.md | 0.82 | 15/15 | I21 |
+| 103 | en | 103-xhttp-server.md | 0.76 | 29/30 | I21 |
+| 104 | en | 104-xhttp-middleware.md | 0.74 | 21/23 | I21 |
 
 ## 术语表增量记录
 
@@ -158,8 +162,8 @@
 
 （阶段进行中——批 A 完成：ch97-100 en 全绿（easy/运行时/自动行为/缓存），
 构建已刷新 wwwroot/en。
-**续作点：下一批为批 B：ch101-104 en**（url/query/server/middleware），
-此后批 C：ch105-108（auth/sse/stream/advanced）+ 收尾：
+批 B 完成：ch101-104 en 全绿（URL/查询/服务端/中间件）。
+**续作点：下一批为批 C：ch105-108 en**（auth/sse/stream/advanced）+ 收尾：
 report --lang en + 链接校验 + en 目录页卷十组 + PROGRESS 终态。
 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 卷十 G8 高频：degradation/encoding/frame/fragment 名词全词。）
