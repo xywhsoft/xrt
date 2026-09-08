@@ -72,6 +72,11 @@
 | 37 | en | 37-logger-core.md | 0.82 | 18/20 | I15 |
 | 38 | en | 38-logger-sink.md | 0.80 | 16/17 | I15 |
 | 39 | en | 39-console.md | 0.77 | 12/14 | I15 |
+| 40 | en | 40-io.md | 0.77 | 18/20 | I15 |
+| 41 | en | 41-time.md | 0.73 | 13/13 | I15 |
+| 42 | en | 42-env.md | 0.72 | 18/18 | I15 |
+| 43 | en | 43-path.md | 0.73 | 14/14 | I15 |
+| 44 | en | 44-file.md | 0.72 | 16/16 | I15 |
 
 ## 术语表增量记录
 
@@ -88,10 +93,9 @@
 
 ## I15 阶段记录
 
-（阶段进行中——批 A 完成：ch36-39 en 全绿（卷五导言/日志上/日志下/控制台），
-构建已刷新 wwwroot/en。
-**续作点：下一批为批 B：ch40-44 en**（io/time/env/path/file），
-此后批 C：ch45-49（file-adv/dir/async/signal/debug-pipeline）；
+（阶段进行中——批 A 完成：ch36-39 en（commit 54c4afd7）；
+批 B 完成：ch40-44 en 全绿（io/time/env/path/file），构建已刷新 wwwroot/en。
+**续作点：下一批为批 C：ch45-49 en**（file-adv/dir/async/signal/debug-pipeline）+ 收尾；
 收尾：report --lang en + 链接校验 + en 目录页卷五组 + PROGRESS 终态。
 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、I8 批 B（ch76-79 ru）。
 卷五高频 G8 术语：异步 asynchronous / 背压 backpressure / 取消 cancellation /
