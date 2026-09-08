@@ -56,23 +56,51 @@ def split_fm(text):
     return fm, body
 
 
+STRICT_INFO = re.compile(r"^```\s*(c|term|embed)\b|^```$")
+C_INFO = re.compile(r"^```\s*c\b")
+
+
+def strip_comments(text):
+    """Strip C comments for G1 comparison of executable content."""
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    text = re.sub(r"//\[^\n]*", " ", text)
+    return text
+
+
 def split_blocks(body):
-    """返回 (fenced 块内容列表, 去除 fenced 后的行列表)。"""
+    """Return (strict fences, plain lines, diagram fences).
+
+    Strict fences carry executable content: c-family (comments stripped,
+    translated comments allowed) plus term/embed/bare fences (byte-exact).
+    Diagram fences (narrative figures) are excluded from G1 per SPEC.
+    """
     lines = body.splitlines()
-    fences, plain, buf, infence = [], [], [], False
+    strict, plain, diagrams, buf, infence, kind = [], [], [], [], False, ""
     for ln in lines:
         if FENCE_RE.match(ln):
             if infence:
-                fences.append("\n".join(buf))
+                block = chr(10).join(buf)
+                if kind == "c":
+                    strict.append(strip_comments(block))
+                elif kind == "diagram":
+                    diagrams.append(block)
+                else:
+                    strict.append(block)
                 buf = []
+            else:
+                if C_INFO.match(ln):
+                    kind = "c"
+                elif ln.strip() == "```" or STRICT_INFO.match(ln):
+                    kind = "literal"
+                else:
+                    kind = "diagram"
             infence = not infence
             continue
         if infence:
             buf.append(ln)
         else:
             plain.append(ln)
-    return fences, plain
-
+    return strict, plain, diagrams
 
 def strip_inline(text):
     return INLINE_RE.sub(" ", text)
@@ -126,8 +154,8 @@ def check_pair(lang, fname, skip=()):
     tr_text = io.open(tr_path, encoding="utf-8").read()
     zh_fm, zh_body = split_fm(zh_text)
     tr_fm, tr_body = split_fm(tr_text)
-    zh_f, zh_plain = split_blocks(zh_body)
-    tr_f, tr_plain = split_blocks(tr_body)
+    zh_f, zh_plain, zh_dg = split_blocks(zh_body)
+    tr_f, tr_plain, tr_dg = split_blocks(tr_body)
     zh_prose = strip_inline("\n".join(zh_plain))
     tr_prose = strip_inline("\n".join(tr_plain))
     errs, warns = [], []

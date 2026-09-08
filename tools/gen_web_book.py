@@ -23,6 +23,15 @@ GITEE_BLOB = "https://gitee.com/xywhsoft/xrt/blob/master/"
 CANON_SECTIONS = ["导读", "引入", "概念", "示例", "契约", "避坑", "练习", "速查"]
 NUMBERED = {"引入", "概念", "示例", "契约"}
 SECTION_TITLES = {"导读": "本章导读", "避坑": "常见错误", "练习": "编程练习", "速查": "本章小结"}
+# en/ru 译文的 h2 节名 -> 内部中文节 key（I18N_SPEC 第 5 节结构对应）
+SECTION_ALIAS = {
+    "en": {"Orientation": "导读", "Introduction": "引入", "Concepts": "概念",
+           "Examples": "示例", "Contracts": "契约", "Pitfalls": "避坑",
+           "Exercises": "练习", "Cheat Sheet": "速查"},
+    "ru": {"Ориентация": "导读", "Введение": "引入", "Понятия": "概念",
+           "Примеры": "示例", "Контракты": "契约", "Ловушки": "避坑",
+           "Упражнения": "练习", "Шпаргалка": "速查"},
+}
 
 C_KEYWORDS = {
     "if", "else", "for", "while", "do", "switch", "case", "default", "break",
@@ -135,6 +144,10 @@ class Chapter(object):
                 if lvl == 2:
                     cur_sub = None
                     key = text
+                    for alias_map in SECTION_ALIAS.values():
+                        if key in alias_map:
+                            key = alias_map[key]
+                            break
                     if key not in CANON_SECTIONS:
                         # 非规范节： tolerated in front matter area? 拒绝
                         raise ValueError("%s: 非法 h2 节 %r（规范八节之外）" % (self.path, key))
@@ -450,7 +463,7 @@ I18N = {
         "nav_home": "XRT 首页", "nav_menu": "打开菜单", "nav_lang": "语言",
         "ch_progress": "第 {num} 章 / 共 {total} 章",
         "h1_fmt": "第 {num} 章 {title}",
-        "intro": "本章导读", "this_ch": "本章", "consolidate": "巩固",
+        "intro": "本章导读", "mistakes": "常见错误", "exercises_t": "编程练习", "this_ch": "本章", "consolidate": "巩固",
         "prev": "上一章", "next": "下一章", "prev_fmt": "第 {num} 章 {title}", "next_fmt": "第 {num} 章 {title}",
         "api_title": "📖 本章涉及的 API 参考手册：", "api_hint": "点击查看完整签名、参数约束、返回值与错误说明",
         "api_count": "{name}（{cnt} 个条目）",
@@ -471,7 +484,7 @@ I18N = {
         "nav_home": "XRT home", "nav_menu": "Open menu", "nav_lang": "Language",
         "ch_progress": "Chapter {num} of {total}",
         "h1_fmt": "Chapter {num} {title}",
-        "intro": "Chapter Orientation", "this_ch": "On this page", "consolidate": "Practice",
+        "intro": "Chapter Orientation", "mistakes": "Common Mistakes", "exercises_t": "Programming Exercises", "this_ch": "On this page", "consolidate": "Practice",
         "prev": "Previous", "next": "Next", "prev_fmt": "Ch. {num} {title}", "next_fmt": "Ch. {num} {title}",
         "api_title": "📖 API references in this chapter:",
         "api_hint": "Click for full signatures, parameter constraints, return values and error notes",
@@ -493,7 +506,7 @@ I18N = {
         "nav_home": "Главная XRT", "nav_menu": "Открыть меню", "nav_lang": "Язык",
         "ch_progress": "Глава {num} из {total}",
         "h1_fmt": "Глава {num} {title}",
-        "intro": "Ориентация главы", "this_ch": "На этой странице", "consolidate": "Практика",
+        "intro": "Ориентация главы", "mistakes": "Типичные ошибки", "exercises_t": "Практические задания", "this_ch": "На этой странице", "consolidate": "Практика",
         "prev": "Предыдущая", "next": "Следующая", "prev_fmt": "Гл. {num} {title}", "next_fmt": "Гл. {num} {title}",
         "api_title": "📖 Справочники API в этой главе:",
         "api_hint": "Полные сигнатуры, ограничения параметров, возвращаемые значения и ошибки",
@@ -644,7 +657,10 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
                         % (sid, num, sec_no, key, render_blocks(blocks, order, known_types, repo)))
             side_cur.append('<li><a href="#%s">%d.%d %s</a></li>' % (sid, num, sec_no, key))
             continue
-        title = SECTION_TITLES.get(key, key)
+        title = (t["intro"] if key == "导读" else
+                 t["mistakes"] if key == "避坑" else
+                 t["exercises_t"] if key == "练习" else
+                 t["summary"] if key == "速查" else key)
         aid = anchor.get(key, key)
         if key == "避坑":
             inner = []
@@ -725,7 +741,7 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
   <link rel="canonical" href="{canonical}">
   {alternates}
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b9dff'/%3E%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="{up}/style.css?v=6bdafbdced">
+  <link rel="stylesheet" href="{up}/style.css?v=i18n001">
   <link rel="stylesheet" href="book.css?v=730594b9cc">
   <link rel="stylesheet" href="{up}/refinement.css?v=ad12773fdb">
 </head>
@@ -752,7 +768,7 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
   </div>
 </div>
 {footer}
-<script src="{up}/script.js?v=31cac74985" defer></script>
+<script src="{up}/script.js?v=i18n001" defer></script>
 </body>
 </html>
 """
