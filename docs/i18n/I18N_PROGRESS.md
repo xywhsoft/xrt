@@ -33,7 +33,7 @@
 | I24 | 卷十一 en（下） | ✅ 完成 | 10 | 25,914 |
 | I25 | 卷十一 ru | ✅ 完成 | 20 | 52,756 |
 | I26 | 卷十二 en+ru | ✅ 完成 | 8×2 | 24,318 |
-| I27 | 卷十三 en+ru + 门面 ru | 🔄 进行中 | 8×2 | — |
+| I27 | 卷十三 en+ru + 门面 ru | ✅ 完成 | 7×2 + 门面 6 页（ch141 阻塞待裁决） | 32,685 |
 | I28 | 全站收尾 | ⬜ | — | — |
 
 ## 章节翻译明细
@@ -209,6 +209,20 @@
 | 134 | ru | 134-embed.md | 0.67 | 21/21 | I26 |
 | 135 | ru | 135-perf-analysis.md | 0.71 | 14/14 | I26 |
 | 136 | ru | 136-perf.md | 0.69 | 19/19 | I26 |
+| 137 | en | 137-project-cli.md | 0.75 | 25/25 | I27 |
+| 138 | en | 138-project-config-design.md | 0.70 | 29/30 | I27 |
+| 139 | en | 139-project-config.md | 0.72 | 29/29 | I27 |
+| 140 | en | 140-project-chat-design.md | 0.76 | 29/29 | I27 |
+| 142 | en | 142-project-downloader.md | 0.77 | 31/32 | I27 |
+| 143 | en | 143-project-ws.md | 0.73 | 45/48 | I27 |
+| 144 | en | 144-project-static.md | 0.75 | 33/33 | I27 |
+| 137 | ru | 137-project-cli.md | 0.67 | 25/25 | I27 |
+| 138 | ru | 138-project-config-design.md | 0.67 | 30/30 | I27 |
+| 139 | ru | 139-project-config.md | 0.68 | 29/29 | I27 |
+| 140 | ru | 140-project-chat-design.md | 0.72 | 28/29 | I27 |
+| 142 | ru | 142-project-downloader.md | 0.70 | 30/32 | I27 |
+| 143 | ru | 143-project-ws.md | 0.70 | 45/48 | I27 |
+| 144 | ru | 144-project-static.md | 0.70 | 31/33 | I27 |
 | 122 | en | 122-xssh-transport.md | 0.85 | 26/28 | I24 |
 | 123 | en | 123-xssh-kex.md | 0.82 | 21/23 | I24 |
 | 124 | en | 124-xssh-hostkey.md | 0.79 | 19/19 | I24 |
@@ -229,6 +243,45 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+
+## I27 阶段记录
+
+- 卷十三 8 章双译完成 15/16：en 批 A-C（ch137-139/140+142/143-144）、ru 批 D-F
+  （同序），每批 check 全绿后 build + 双仓库 commit。项目章平均 300+ 行、含大
+  型代码走查（ch137 logstat 数组、ch142 If-Range 状态机、ch144 webserv 主函数），
+  组装脚本模式（zh 围栏程序化抽取回填 + cmap 注释翻译 + 手写正文）贯穿全卷。
+- **ch141 阻塞（待用户裁决，en+ru 双语均受阻）**：zh 源 docs/book/141-project-chat.md
+  含 153 个反引号（奇数；其余 7 章均偶数），一个未配对反引号使 G2 行内码 token
+  配对漂移，产生 27 个"中文散文片段 token"（如 ——code 是枚举（BADJSON/NOOP/...）），
+  译文无法在"字面复现 27 个散文 token"与"自然译文"间两全。处置：en 草稿存档
+  tools/i18n/_ch141_en_draft.md，批 B 起 en/ru 均不含 ch141；站点目录页以
+  "待译"行标注。**两选项呈报**：①修 zh 源补一个反引号使成偶数（最可能位置：
+  "概览"节 "'{"op":"err","code":N,"why":"..."}'——code 是枚举（BADJSON/NOOP/
+  NICK_TAKEN/ROOM_FULL/NOT_IN_ROOM/...）、why 给人" 的枚举括注前半缺开引号），
+  属中文源修订（i18n 工作不回改中文源的纪律需用户批准一次例外）；②裁决
+  "27 个散文 token 逐字复现"为该章特例（译文可读性受损）。裁决前 G2 对 ch141
+  恒 FAIL，不计入阶段完成度。
+- 事故与修复：①批 B 撤稿的 ch141 en 页面被 `git add -A` 误收进 web 仓 9dfd6087
+  ——发现后 2f39c8f7 删除（教训：撤稿章节的产物页要显式核对 web 仓状态再提交）；
+  ②ch137 ru 组装脚本把 term 围栏写成裸 ```，G1 因"只比内容不比 kind"仍 PASS——
+  生成器 term-block 渲染丢失，已修复并复查前卷无同类问题；③cmap 内联注释值
+  多带一个前导空格导致代码对齐漂移 G1 FAIL（ch143），修复定式：注释替换值
+  永不带前导空格；④en/start.html 章节分派链接基于 I2 时点已译集，未随后续
+  阶段刷新（ch97/142/103/52-59 已译仍指 ../book/?lang=en 回退）——属站点
+  陈旧非断链，登记 I28 处理；ru/start.html 按当前 ru 已译集正确分派（ch81
+  未译走回退）。
+- 门面页 ru 六页（index/start/guide/benchmarks/reliability/api）：翻译自 en
+  门面页；api 96 卡片描述+11 分组标题+命名约定节全量俄译（脚本 _asm_apiru.py
+  生成）；script.js apiT 增加 ru 词条（三副本同步）；补 ru/favicon.svg；ru
+  章节分派按 ru 已译集（ch81 → ../book/?lang=ru 回退）。ru/book/index.html
+  导航与页脚改指 ru 门面页（原 ../../xx.html?lang=ru 中文回退）。
+- 双语目录页：en/ru book/index 插入卷十三组（7 章 done + ch141 plan 行），
+  状态行更新 en 135/143、ru 122/143；en 占位组范围标签修正。
+- 验收：check en / check ru 全绿（135/143、122/143 章）；三语言全站链接校验
+  708 页 0 断链；ru 门面 CJK 残留仅品牌白名单。
+- 遗留：ch141 双语待裁决；api 搜索结果描述仍中文（共用 zh 索引，I28）；
+  script.js 内容变更未 bump 指纹（缓存陈旧风险，I28 统一处理）；生成器章节页
+  nav 指向 zh 门面回退（I28）；en/start.html 分派链接陈旧（I28）。
 
 ## I26 阶段记录
 
