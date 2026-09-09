@@ -844,6 +844,9 @@ I8 已确认该纪律在 ru 侧同样适用（ch73/74/75 各 4-6 处修复实录
   验证：临时 wwwroot 全量再生与部署页**字节等价**（5 样本 ref 页 0 diff、
   search-index 哈希一致、api.html 相同）——ref 页再生成路径恢复安全。
 
+- 三份续作启动提示词已整理存档：docs/i18n/I18N_RESUME_PROMPTS.md
+  （I11 收尾 en ch21-23 / I12 续作 ru ch16-23 / I8 续作 ru ch76-87；
+  各带完整门禁、防漂移重建链与工程定式；建议顺序 I11 → I12 → I8）。
 ## 遗留项
 
 - ch09-atomic 无中文 md 源，en/ru 均跳过（与中文站一致，不补）。
