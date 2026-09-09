@@ -29,7 +29,7 @@
 | I20 | 卷九 ru | ✅ 完成 | 9 | 19,244 |
 | I21 | 卷十 en | ✅ 完成 | 12 | — |
 | I22 | 卷十 ru | ✅ 完成 | 12 | 29,244 |
-| I23 | 卷十一 en（上） | 🔄 进行中 | 10 | — |
+| I23 | 卷十一 en（上） | ✅ 完成 | 10 | 26,842 |
 | I24 | 卷十一 en（下） | ⬜ | 10 | — |
 | I25 | 卷十一 ru | ⬜ | 20 | — |
 | I26 | 卷十二 en+ru | ⬜ | 8×2 | — |
@@ -160,6 +160,16 @@
 | 106 | ru | 106-xhttp-sse.md | 0.73 | 22/23 | I22 |
 | 107 | ru | 107-xhttp-stream.md | 0.71 | 24/26 | I22 |
 | 108 | ru | 108-xhttp-advanced.md | 0.69 | 16/16 | I22 |
+| 109 | en | 109-xws-conn.md | 0.78 | 33/33 | I23 |
+| 110 | en | 110-xws-send.md | 0.84 | 27/29 | I23 |
+| 111 | en | 111-xws-group.md | 0.77 | 30/30 | I23 |
+| 112 | en | 112-xws-server.md | 0.82 | 18/19 | I23 |
+| 113 | en | 113-xruntime.md | 0.76 | 16/16 | I23 |
+| 114 | en | 114-xruntime-object.md | 0.76 | 22/24 | I23 |
+| 115 | en | 115-xruntime-call.md | 0.78 | 19/19 | I23 |
+| 116 | en | 116-xruntime-typed.md | 0.75 | 19/20 | I23 |
+| 117 | en | 117-xmail-mail.md | 0.78 | 19/21 | I23 |
+| 118 | en | 118-xmail-smtp.md | 0.84 | 21/23 | I23 |
 
 ## 术语表增量记录
 
@@ -173,6 +183,29 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+
+## I23 阶段记录
+
+✅ 完成（2026-09-08）。三批推进，10 章全绿：
+
+- 批 A（commit 053d4269 / wwwroot 712f31c2）：ch109-112 en
+  （xws 连接/发送/分组/路由）；批 B（5dd0a217 / dda9124a）：ch113-116
+  （xruntime 类型/对象/调用/typed 容器）；批 C（cb5a1f30 / 81933592）：
+  ch117-118（邮件消息与 MIME/SMTP）。
+- 收尾：check en 全绿（110/143 章覆盖）；三语言链接校验 12,347 条 0 断链；
+  en 目录页插入卷十一组（109-118 直链 + 119-128 Pending 回退行，卷组
+  范围 109–128），状态行更新 100→110/143，回退组范围改"Volumes 12–13"；
+  词数比 0.75~0.84。
+- 术语增量：无新条目（xws/xruntime/xmail 沿用既有条目；G8 修复词：
+  lifecycle/cancellation/asynchronous/workload、borrowing/reference
+  counting/callback、load testing/final state/race condition/dangling）。
+- 陷阱实录：ch117 G2 一次——zh "（Init→Next→ITEM/END）"为平文括号，
+  en 误加反引号成 token，去掉后通过；G8 "负载→workload" 在无负载语境
+  章节的合法落点（mixed workload of five built-in types / 1000-message
+  workload）为惯用解法；ch114 原始 ```c 代码块（nodeTrace 示例）无注释，
+  整块字面复制。
+- 插序续作点不动：I11 批 B（ch17-20 en）、I12 批 B（ch16-19 ru）、
+  I8 批 B（ch76-79 ru）。
 
 ## I22 阶段记录
 
