@@ -479,6 +479,7 @@ NAV_HTML = ('<nav class="nav" aria-label="主导航"><div class="nav-inner">'
             '<li><a href="../start.html">快速开始</a></li>'
             '<li><details class="nav-dropdown"><summary>开发文档</summary><div><a href="../book/index.html">程序设计教程</a><a href="../api.html">API 参考与搜索</a></div></details></li>'
             '<li><details class="nav-dropdown"><summary>源码仓库</summary><div><a href="https://github.com/xywhsoft/xrt" target="_blank" rel="noopener">GitHub ↗</a><a href="https://gitee.com/xywhsoft/xrt" target="_blank" rel="noopener">Gitee ↗</a></div></details></li>'
+            '<li><details class="nav-dropdown nav-lang"><summary>语言</summary><div class="nav-lang-menu"><span class="lang-cur">简体中文</span><a href="../en/index.html">English</a><a href="../ru/index.html">Русский</a></div></details></li>'
             '</ul></div></nav>')
 
 FOOTER_HTML = ('<footer class="footer">\n  <div class="footer-inner">\n    <div>\n'
@@ -656,7 +657,7 @@ def render_page(page, title, desc, groups, counts, pages, undoc_const, contract_
   <meta name="twitter:description" content="{meta_desc}">
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b9dff'/%3E%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="../style.css?v=6bdafbdced">
+  <link rel="stylesheet" href="../style.css?v=i18n001">
   <link rel="stylesheet" href="book.css?v=730594b9cc">
   <link rel="stylesheet" href="../refinement.css?v=ad12773fdb">
 </head>
@@ -692,7 +693,7 @@ def render_page(page, title, desc, groups, counts, pages, undoc_const, contract_
 
 {footer}
 
-<script src="../script.js?v=31cac74985" defer></script>
+<script src="../script.js?v=i18n005" defer></script>
 </body>
 </html>
 """
