@@ -5,7 +5,7 @@ title: TLS 身份：证书、私钥与签名
 volume: 卷八 安全
 type: practice
 lead: 把"一张证书链 + 一把私钥"打包成不可变共享对象——握手期 CertificateVerify 的签名引擎与它的硬件扩展口。
-api: tls, crypto
+api: tls, tls_identity, crypto
 ---
 
 ## 导读

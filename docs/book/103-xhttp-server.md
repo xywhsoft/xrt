@@ -10,7 +10,7 @@ api: xhttp-http_server, xhttp-http_server_router, net
 
 ## 导读
 
-客户端六章（97–102）之后，视角翻转：现在你是服务端。`xrtHttpServerStart` 一步把 Engine、聚合 TCP Server、Stream 与无 I/O 协议状态机组装成明文 HTTP/1 服务——不通过函数表隐藏依赖（裁剪诚实）。本章讲三件事：**配置面**——五段超时（Header/Body/Request/Idle/Write——每段独立保护一个阶段，零值关闭）；**事件链**——`Open → Headers → Body → Request → Error/Close`，其中 `Headers` 在读正文前做策略决策（缓冲/流式/丢弃/拒绝/直接响应），`Body` 只收流式片段且回调 false 即 500；**响应三路**——`Reply`（固定字节的直答路径，零临时容器）、`ReplyBody`（正文来源版）、`Respond`（动态字段与 trailer 的完整构建器）。路由与中间件是第 104 章，SSE/流式在第 106/107 章。
+客户端六章（97–102）之后，视角翻转：现在你是服务端。`xrtHttpServerStart` 一步把 Engine、聚合 TCP Server、Stream 与无 I/O 协议状态机组装成明文 HTTP/1 服务——不通过函数表隐藏依赖（裁剪诚实）。本章讲三件事：**配置面**——五段超时（Header/Body/Request/Idle/Write——每段独立保护一个阶段，零值关闭）；**事件链**——`Open → Headers → Body → Request → Error/Close`，其中 `Headers` 在读正文前做策略决策（缓冲/流式/丢弃/拒绝/直接响应），`Body` 只收流式片段且回调 false 即 500；**响应三路**——`Reply`（固定字节的直答路径，零临时容器）、`ReplyBody`（正文来源版）、`Respond`（动态字段与 trailer 的完整构建器）。路由与中间件是第 104 章，SSE/流式在第 106/107 章。协议状态机解析请求头的底层入口正是第 89 章解析器的网络绑定（http1_net——缓冲链直接进解析，无手工拼接）。
 
 ## 引入
 

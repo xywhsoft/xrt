@@ -5,7 +5,7 @@ title: 会话恢复：票据、PSK 与对象契约
 volume: 卷八 安全 · 卷八收官
 type: practice
 lead: 恢复对象把"再来一次握手"打包成不可变值——票据签发、客户端接管、下一连接的 PSK+DHE 闭环，卷八的收官一章。
-api: tls, tls_resume, crypto
+api: tls, tls_resume, tls_session, crypto
 ---
 
 ## 导读

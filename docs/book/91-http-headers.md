@@ -5,7 +5,7 @@ title: 头字段族：参数、连接与协商
 volume: 卷九 Web 协议核心
 type: practice
 lead: 分号参数与 quoted-string、Connection/Upgrade 能力、Expect 与 trailer——专字段层的完整处理面。
-api: http, http_te, http_connection
+api: http, http_te, http_connection, http_expect, http_trailer
 ---
 
 ## 导读

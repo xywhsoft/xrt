@@ -5,7 +5,7 @@ title: HTTP 升级：从请求到 101
 volume: 卷九 Web 协议核心
 type: practice
 lead: Upgrade 提议的解析与应答、WebSocket 握手请求构造、Accept 键计算与子协议协商——协议切换的完整入口。
-api: http_upgrade, websocket, http
+api: http_upgrade, websocket_upgrade, websocket, http
 ---
 
 ## 导读

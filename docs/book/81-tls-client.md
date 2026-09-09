@@ -5,7 +5,7 @@ title: TLS 客户端：拨号、握手与应用流
 volume: 卷八 安全
 type: practice
 lead: DNS→TCP→TLS 一次托管拨号、回调与 Future 两种消费形态、READY 后的收发与关闭——客户端的全部生命周期。
-api: tls, tls_verify, net
+api: tls, tls_verify, tls_client, net
 ---
 
 ## 导读

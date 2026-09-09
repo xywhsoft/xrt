@@ -4,8 +4,8 @@ slug: http1
 title: HTTP/1 消息：解析与封包
 volume: 卷九 Web 协议核心
 type: practice
-lead: 请求/响应头的一次解析、状态行封包与查找遍历——绑定调用方数组的零逐请求分配核心路径。
-api: http1, http
+lead: 请求/响应头的一次解析、状态行封包与查找遍历——绑定调用方数组的零逐请求分配核心路径；解析器与网络/TLS 流的绑定薄层收尾补齐。
+api: http1, http, http1_net, http1_tls
 ---
 
 ## 导读
@@ -31,6 +31,10 @@ api: http1, http
 ```
 
 请求与响应共用 Head 结构（角色由调用入口决定：`RequestParse`/`ResponseParse`）。`ResponseParse` 带方法参数——因为响应语义依赖请求方法（HEAD 的响应没有正文；这个上下文在第 90 章的 Plan 里变成硬规则）。
+
+### 解析器的传输绑定（http1_net / http1_tls）
+
+`RequestParse`/`ResponseParse` 的输入是**连续内存**——测试向量与完整缓冲的形态。真实收包路径拿到的是引擎的**缓冲链**（头可能被切在两块里，第 64 章），TLS 连接拿到的是**跨记录的明文流**（第 86 章）。绑定层把解析器接到这两种真实来源上：`xrtHttp1RequestParseBuffer`/`xrtHttp1ResponseParseBuffer` 消费 `xnetbuf`（Head 的视图借用 Buffer，跨块时才按需分配连续前缀——"函数不消费输入，调用方处理完成后消费 Head.Bytes"）；`xrtHttp1RequestParseTls`/`xrtHttp1ResponseParseTls` 直接吃 `xtlsstream`（不消费明文，跨记录只合并 Header，不分配连接级固定缓冲）。四个函数只有两个，不对——每个绑定两个，但签名与三态语义和内存版完全一致：**绑定层薄是因为解析器从设计起就把"字节从哪来"留给了入参**——上限防御（limits）、三态返回、零分配纪律原样有效。第 103 章的 xhttp 服务端与第 107 章的流式服务，底层走的就是这两个绑定。
 
 ### 查找与遍历
 
@@ -85,6 +89,21 @@ http1: body trailers rebind + trailer parse ok
 ```
 
 **刚才发生了什么。** ① 第 1 行验证上限模型：target 长度在限内通过、超限拒绝——防御参数的正负两侧。② 第 2 行是查找组合拳：按名找字段 + transfer-coding 的 token 迭代（第 88 章 TokenNext 在 Head 上的应用）。③ 第 3 行给第 90 章打样：请求正文的 Plan（定长/chunked 判定）在头解析后立即可得。④ 第 4 行验证 chunk size 行生成（`5\r\n`——可带扩展）。⑤ 第 5 行是 Message 层：一次解析"头+正文"，正文借用视图 `ok`——小消息的最省路径。⑥ 第 6 行验证 trailer 数组重绑与 trailer 块解析——第 90 章预告。六行合起来是本章+下一章的 API 面。
+
+### 完整程序：ParseBuffer——缓冲链上的请求/响应解析
+
+来自仓库范例 `examples/http1/parse_buffer/main.c`：
+
+```embed path="examples/http1/parse_buffer/main.c" title="examples/http1/parse_buffer/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/http1/parse_buffer/main.c -lws2_32 -liphlpapi
+request: GET /x
+response: 200
+```
+
+**刚才发生了什么。** ① 请求字节**刻意分两块追加**进缓冲链——头跨块的最小化模拟，ParseBuffer 证明链上解析无需调用方拼接。② 解析结果与内存版同构：`Head.Method`/`Target` 借用视图直接打印。③ 响应侧同走 `ResponseParseBuffer`——请求/响应两个入口、一套 Head。④ `ParseTls` 版本无独立示例：它与 Buffer 版只差"流来源"这个参数（`xtlsstream` 替代 `xnetbuf`），契约行里说清即可，不硬造示例。
 
 ## 契约
 
@@ -193,3 +212,4 @@ send(Body, 11);         /* 正文恰好 11：定界完整 */
 | 方法上下文 | 响应解析带请求方法；HEAD/204 无正文规则由 Body Plan 执行 |
 | Message 层 | 头+正文一次到位（小消息）；Body 层流式（第 90 章） |
 | 零分配 | 解析/封包路径无堆分配；Head/数组/缓冲全由调用方出 |
+| 传输绑定 | ParseBuffer 吃缓冲链 / ParseTls 吃 TLS 流——签名与三态同内存版；跨块/跨记录才合并 |

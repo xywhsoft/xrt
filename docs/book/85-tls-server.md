@@ -5,7 +5,7 @@ title: TLS 服务端：会话层协议机
 volume: 卷八 安全
 type: practice
 lead: 传输无关的裸协议机：Feed 密文、Drive 推进、Send 队列取航班——SNI 动态选身份与票据签发的完整服务端。
-api: tls, tls_verify, crypto
+api: tls, tls_verify, tls_server, crypto
 ---
 
 ## 导读
