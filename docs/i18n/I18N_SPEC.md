@@ -59,8 +59,12 @@ G1–G5、G7 为硬门禁（FAIL 即阻断）；G6 阈值为护栏；G8 以命�
 ## 5. frontmatter 与内链处理
 
 - frontmatter 各字段翻译规则：`title`/`lead` 翻译；`num`/`slug`/`volume`(结构值)/`type`/`api` 保留。
-- 行内 ref 链接 `ref-xxx.html` 目标不改（en/ru 站点共用中文 ref 页面，
-  待 ref 页多语言化阶段再单独处理——见 PHASES 收尾阶段）。
+- 行内 ref 链接 `ref-xxx.html` 目标不改（en/ru 站点共用中文 ref 页面）。
+  **I28 裁决（决策 A：保留中文 ref 共用）**：docs/api 语料 56.6 万汉字，
+  规模等同重译整本书；ref 页为代码契约的机械映射，符号与签名语言中立，
+  契约注释的第一事实源是头文件英文注释（ref 页提供源码直达链接）。
+  en/ru 侧的补偿：指向 ref 页的链接携带 `?lang=en|ru` 触发回退提示条
+  （"此页面尚未翻译，显示中文原文"）。若未来决策反转，需单列阶段计划。
 - 章间交叉引用文字（"见第 66 章"）译为 "see Chapter 66" / "см. главу 66"，章号以 order.json 为准。
 - 外链 URL 原样保留。
 

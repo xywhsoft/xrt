@@ -49,6 +49,11 @@ jobs:
       - name: Verify book chapter gates (docs/book)
         run: python tools/check_book.py check
 
+      - name: Verify i18n translation gates (docs/book en/ru)
+        run: |
+          python tools/check_i18n.py selftest
+          python tools/check_i18n.py check en ru
+
       - name: Verify WebSocket API documentation
         run: >-
           python tools/check_api_docs.py

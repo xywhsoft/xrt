@@ -571,12 +571,11 @@ def nav_html(lang, entry=None, translated=None):
         q = ""
     else:
         logo = "../../res/logo.png"
-        # 根级页面未译（I2 门面阶段处理）：回退 zh + ?lang 提示条
-        q = "?lang=%s" % lang
-        home = "../../index.html%s" % q
-        rel, bench, start = ("../../reliability.html%s" % q, "../../benchmarks.html%s" % q,
-                             "../../start.html%s" % q)
-        book_idx, api = "../../book/index.html%s" % q, "../../api.html%s" % q
+        # 门面页 en（I2）/ru（I27）已上线：直链同语言门面；ref 页仍共用 zh（I28 决策 A）
+        home = "../../%s/index.html" % lang
+        rel, bench, start = ("../../%s/reliability.html" % lang, "../../%s/benchmarks.html" % lang,
+                             "../../%s/start.html" % lang)
+        book_idx, api = "index.html", "../../%s/api.html" % lang
     return ('<nav class="nav" aria-label="%s"><div class="nav-inner">'
             '<a href="%s" class="nav-logo" aria-label="%s"><img src="%s" alt="XRT" width="96" height="32"><em>v2.0</em></a>'
             '<button type="button" class="nav-toggle" aria-controls="site-nav" aria-expanded="false" aria-label="%s"><span></span></button>'
@@ -600,9 +599,8 @@ def footer_html(lang):
     if lang == "zh":
         home, book_idx, api = "../index.html", "index.html", "../api.html"
     else:
-        home = "../../index.html?lang=%s" % lang
-        book_idx = "../../book/index.html?lang=%s" % lang
-        api = "../../api.html?lang=%s" % lang
+        home = "../../%s/index.html" % lang
+        book_idx, api = "index.html", "../../%s/api.html" % lang
     return ('<footer class="footer">\n  <div class="footer-inner">\n    <div>\n'
             '      <div class="f-brand"><img src="%s" alt="XRT" width="72" height="24"></div>\n'
             '      <p class="f-desc">%s</p>\n    </div>\n'
@@ -702,10 +700,13 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
     for name in [x.strip() for x in fm["api"].split(",") if x.strip()]:
         cnt = api_counts.get(name)
         label = t["api_count"].format(name=name, cnt=(str(cnt) if cnt is not None else "?"))
-        ref_pre = "" if lang == "zh" else "../../book/"
-        api_links.append('<a href="%sref-%s.html" style="display:inline-block;margin:2px 6px;padding:3px 12px;'
+        if lang == "zh":
+            ref_pre, ref_q = "", ""
+        else:
+            ref_pre, ref_q = "../../book/", "?lang=%s" % lang
+        api_links.append('<a href="%sref-%s.html%s" style="display:inline-block;margin:2px 6px;padding:3px 12px;'
                          'border-radius:6px;background:rgba(91,157,255,.1);color:#5b9dff;'
-                         'text-decoration:none;font-size:13px;">%s</a>' % (ref_pre, e(name), e(label)))
+                         'text-decoration:none;font-size:13px;">%s</a>' % (ref_pre, e(name), ref_q, e(label)))
     api_box = ('<div style="margin:28px 0;padding:16px 20px;border:1px solid rgba(91,157,255,.15);'
                'border-radius:10px;background:rgba(91,157,255,.04);">'
                '<p style="margin:0 0 10px;font-size:14px;color:var(--soft);">'
@@ -775,7 +776,7 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
   </div>
 </div>
 {footer}
-<script src="{up}/script.js?v=i18n004" defer></script>
+<script src="{up}/script.js?v=i18n005" defer></script>
 </body>
 </html>
 """

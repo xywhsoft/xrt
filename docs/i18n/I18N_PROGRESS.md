@@ -34,7 +34,7 @@
 | I25 | 卷十一 ru | ✅ 完成 | 20 | 52,756 |
 | I26 | 卷十二 en+ru | ✅ 完成 | 8×2 | 24,318 |
 | I27 | 卷十三 en+ru + 门面 ru | ✅ 完成 | 7×2 + 门面 6 页（ch141 阻塞待裁决） | 32,685 |
-| I28 | 全站收尾 | ⬜ | — | — |
+| I28 | 全站收尾 | ✅ 完成 | — | — |
 
 ## 章节翻译明细
 
@@ -243,6 +243,44 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+
+## I28 阶段记录
+
+- **ref 页多语言化评估（决策 A：保留中文 ref 共用）**：docs/api 85 个 md、
+  56.6 万汉字——规模等同重译整本书（25 个正文阶段的体量），且 ref 页是代码
+  契约的机械映射：符号/签名语言中立，契约注释第一事实源为头文件英文注释，
+  ref 页自带 Gitee/GitHub 源码直达。补偿措施已执行：en/ru 侧全部 ref 链接
+  （生成器章节页 api 链接 + en/ru 门面 8 页 222 处）携带 ?lang=en|ru 触发
+  既有回退提示条；决策留痕 SPEC 第 5 节。api 搜索共用 zh 索引（描述中文）
+  随此决策一并接受。
+- 生成器修正（gen_web_book.py）：en/ru 章节页 nav/footer 由"zh 门面 + ?lang
+  回退"改为直链同语言门面（I2/I27 后双门面齐全，原注释"根级页面未译"已过时）；
+  book_idx 直链同目录 index.html。
+- en/start.html 陈旧分派修复：14 处 ../book/chXX?lang=en 回退链接改为
+  book/ 同语言直链（ch97/142/67/81/103/52-59 早已译出）。
+- 指纹纪律补账：script.js 内容变更（I27 ru 搜索词条）未 bump 的欠账本次
+  清偿——i18n004 → i18n005，生成器常量 + 全站 304 个 HTML 同步。
+- sitemap.xml 重建（tools/i18n/gen_sitemap.py，可复用）：旧 sitemap 为重写前
+  旧章号方案（391 URL 含已死链接、无 hreflang）；新 sitemap 704 URL
+  （zh 144 + en 135 + ru 122 章节 + 门面 18 + ref 285），章节与门面按实际
+  已译语言 xhtml:link 互指（1632 alternate），ref 页 zh-only，重定向页
+  （ch82-xregex，meta-refresh 判定）排除。首版误伤 ch99（标题含"重定向"的
+  正文章）——改用 meta-refresh 标记判定。
+- hreflang 校验：页面级 1630 条 alternate 0 断目标；章节页 hreflang 集 vs
+  sitemap alternate 集一致（仅 2 处已解释差异：ch09 旧产物页无页面级标记、
+  ch82 重定向页不入 sitemap）；门面页 18 页补 hreflang 四互指
+  （guide 为 noindex 重定向页，刻意不加）。
+- 漂移总报告：en 135/143（词数比 0.64–0.89，均值 0.765，术语命中 95.5%）、
+  ru 122/143（0.60–0.80，均值 0.689，95.3%）；zh 源晚于译文提交的章节
+  **0 章**（git log 逐章比对）；check en/ru 全绿 + selftest 全绿。
+- CI 接线（ci.yml metadata 作业新增步骤）：check_i18n selftest + check en ru
+  ——此后 zh 源修订若造成代码漂移（G1）或结构漂移（G4）将在 CI 拦截，
+  SPEC 第 6.5 条同步协议获得机器执行。
+- 三语言全站链接校验：708 页 0 断链。
+- 观察项（zh 站内容，非 i18n 范畴）：ch09-atomic.html 为重写前旧编号产物页
+  （meta 描述自称"第 6 章"），zh 目录页仍链接它且 order.json 含 09 条目，
+  但 docs/book 无 09 md——该页不在 en/ru 翻译范围（与 SPEC 记载一致），
+  是否重写或重定向由中文内容工作决定。
 
 ## I27 阶段记录
 
