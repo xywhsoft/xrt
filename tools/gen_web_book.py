@@ -591,7 +591,7 @@ def nav_html(lang, entry=None, translated=None):
                start, t["nav_start"],
                t["nav_docs"], book_idx, t["nav_toc"], api, t["nav_api"],
                t["nav_repos"],
-               lang_switch_html(lang, entry)))
+               lang_switch_html(lang, entry, translated)))
 
 
 def footer_html(lang):

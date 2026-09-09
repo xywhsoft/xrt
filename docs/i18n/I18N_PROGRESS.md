@@ -14,7 +14,7 @@
 | I5 | 卷七 en | ✅ 完成 | 11 | 52,900 |
 | I6 | 卷七 ru | ✅ 完成 | 11 | 51,200 |
 | I7 | 卷八 en | ✅ 完成 | 16 | 78,600 |
-| I8 | 卷八 ru | 🔄 进行中 | 16 | — |
+| I8 | 卷八 ru | ✅ 完成（批 A 72-75、批 B 76-79、批 C 80-83、批 D 84-87；ru 144/144 全量达成，多语言工程无翻译遗留） | 16 | 44,582（围栏剥离口径） |
 | I9 | 卷二 en | ✅ 完成 | 3 | 12,100 |
 | I10 | 卷二 ru | ✅ 完成 | 3 | 11,600 |
 | I11 | 卷三 en | ✅ 完成（批 A 13-16、批 B 17-20、批 C 21-23；en 144/144 全量） | 11 | 约 24,000 |
@@ -244,6 +244,22 @@
 | 126 | en | 126-xssh-channel.md | 0.83 | 22/22 | I24 |
 | 127 | en | 127-xssh-forward.md | 0.87 | 19/19 | I24 |
 | 128 | en | 128-xssh-client.md | 0.85 | 26/27 | I24 |
+| 72 | ru | 72-vol8-intro.md | 0.61 | 18/20 | I8 批A |
+| 73 | ru | 73-crypto-hash.md | 0.66 | 19/21 | I8 批A |
+| 74 | ru | 74-crypto-aead.md | 0.64 | 20/22 | I8 批A |
+| 75 | ru | 75-crypto-asym.md | 0.67 | 19/19 | I8 批A |
+| 76 | ru | 76-crypto-discipline.md | 0.62 | 24/25 | I8 批B |
+| 77 | ru | 77-der-pem.md | 0.67 | 20/22 | I8 批B |
+| 78 | ru | 78-x509.md | 0.70 | 21/21 | I8 批B |
+| 79 | ru | 79-x509-verify.md | 0.67 | 18/18 | I8 批B |
+| 80 | ru | 80-cert-chain.md | 0.67 | 22/23 | I8 批C |
+| 81 | ru | 81-tls-client.md | 0.70 | 25/26 | I8 批C |
+| 82 | ru | 82-tls-identity.md | 0.66 | 25/26 | I8 批C |
+| 83 | ru | 83-tls-handshake.md | 0.70 | 26/27 | I8 批C |
+| 84 | ru | 84-tls-policy.md | 0.67 | 20/22 | I8 批D |
+| 85 | ru | 85-tls-server.md | 0.69 | 31/31 | I8 批D |
+| 86 | ru | 86-tls-stream.md | 0.72 | 28/28 | I8 批D |
+| 87 | ru | 87-tls-resume.md | 0.71 | 21/23 | I8 批D |
 
 ## 术语表增量记录
 
@@ -257,6 +273,36 @@
   悬空 dangling/висячий、出参 out-param/выходной параметр、
   二进制安全 binary-safe/двоично-безопасный；en 侧与既有章节用法核对
   （zero allocation/owning/dangling/out-param 均为 ch13-16 已用形态，无回改）。
+- I8：无新增条目（密码学/TLS/证书术语沿用 I7 已入表词形，全程命中达标）。
+
+## I8 阶段记录
+
+- **范围**：卷八 ru ch72–87 共 16 章续作收官（本会话完成批 B 76-79、批 C 80-83、
+  批 D 84-87；批 A 72-75 前序会话已完成）。完成即 **ru 144/144 全量**——
+  中/英/俄三语言教学全量对齐，多语言工程无翻译遗留。
+- **批次与提交**：批 B 源仓 05df1163 / web 仓 ed3f22a2；批 C e707a959 / 80524ab6；
+  批 D 315d40ce / 5bbdd08e；收尾 b4e4c0f5。
+- 全程组装脚本模式（_asm{NN}r.py，批后即删）；G1-G8 全绿，G8 仅 ch86 一次
+  WARN（24/28）——泄漏/视图/零拷贝/回调四词改写补足后 28/28。
+- **token 字面复现要点**（本卷密码学/TLS 签名密集）：`verify_pinned(证书 DER,
+  主机名, 钉扎公钥 SPKI)`、`xrtPemFind(文本, 长度, 标签, 块)`、`xrtX509PublicKey(&cert,
+  &公钥视图)`、`CertificateVerify(证书, 签发者证书)`、`xrtX509PathBuild(目标,
+  &候选源, &配置, 输出路径, 容量, &结果)`、`xrtTlsServerTicket(会话, 不透明ticket,
+  寿命, &恢复对象)`、`ClientConfig.Resume = 对象`、ch86 大 token
+  `Available → Buffer → Front 取 Span → Send(部分受理 iWritten) → Consume(iWritten)
+  → AGAIN 即返回` 均按 zh 字面复现 + 括注。
+- **结构镜像**：ch82 zh 源含整段重复（Retain/Release 生命周期段两遍），ru 镜像
+  重复段落保持 G2 计数；ch86 坑1 good 块代码级中文标识符 `if ( 下游满了 )` 按
+  G1 字面保留（非注释、不可译）。
+- **防漂移链全过**：zh 晚于译文 0（16/16）；三语言全量重建 + sync-index +
+  sitemap 735 URL；全站链接 37,665 条 0 断、hreflang 1,800 条 0 断；ru 目录
+  三方对账（done 行 144 / 磁盘 144 / 状态行 all 144）；ch76-87 反引号奇偶 0。
+- **收尾顺带修复两处站点缺陷**：①门面页 hreflang 缺斜杠（`xrt.xywhsoft.comen/`
+  → `/en/`，zh/en/ru 根页与目录页共 18 页）；②生成器 nav_html 未转发
+  translated——三语言章节页语言下拉此前恒为 ?lang 回退，修复后已译章直链
+  同语言页（tools/gen_web_book.py:594）。
+- ru 目录页卷八组 76-87 转正（12 个 done 行）、标题去"(в переводе)"、
+  状态行改"переведены все 144 главы из 144"。
 
 ## I29 阶段记录
 
