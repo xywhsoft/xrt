@@ -1,0 +1,5 @@
+#include "xllm_base/xllm_base.c"
+#include "xllm_runtime/xllm_runtime.c"
+#include "xllm_request/xllm_request.c"
+#include "xllm_response/xllm_response.c"
+#include "xllm_adapter/xllm_adapter.c"

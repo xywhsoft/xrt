@@ -1,0 +1,25 @@
+向量 检索 帮助 长期 记忆 找到 相关 片段
+本地 记忆 系统 使用 向量 索引 召回 相关 知识
+文本 切分 先 做 结构 边界 再 做 语义 断点
+知识 库 入库 需要 chunk 切分 向量 化 和 索引
+检索 增强 生成 依赖 相关 片段 而 不是 整篇 原文
+开发者 偏好 任务 状态 和 事实 应当 长期 保存
+代码 库 索引 会 记录 文件 摘要 符号 和 依赖 关系
+会话 历史 需要 摘要 压缩 以及 长期 记忆 写回
+语义 召回 通常 结合 向量 搜索 和 词法 匹配
+本地 客户端 需要 轻量 模型 和 稳定 CPU 推理
+local memory uses vector search for related notes
+semantic retrieval looks up relevant notes from a local knowledge base
+document chunking groups nearby sentences into coherent sections
+retrieval works better with semantic and lexical signals together
+the editor indexes source files symbols imports and references
+source graph stores symbols dependencies and file relationships
+session compaction keeps recent context concise and useful
+memory extraction stores durable facts preferences and tasks
+database migrations update tables indexes and columns
+log analysis checks errors warnings retries and timeouts
+python scripts generate assets for a lightweight local demo
+travel plans compare flights hotels maps and weather
+mountain hiking requires water food maps and warm clothing
+cooking pasta uses tomato garlic olive oil and salt
+baking bread needs flour water yeast and fermentation time

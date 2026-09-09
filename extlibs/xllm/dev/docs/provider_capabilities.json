@@ -1,0 +1,412 @@
+{
+  "schema_version": 1,
+  "scope": "xllm adapter capability matrix",
+  "generated_from": [
+    "tests/smoke/run_smoke_matrix.ps1",
+    "OLD_DESIGN_CLOSEOUT.md"
+  ],
+  "legend": {
+    "yes": "implemented and covered by local smoke/probe entry",
+    "partial": "implemented with documented caveats or best-effort behavior",
+    "unsupported": "intentionally rejected locally with a stable error baseline",
+    "provider-sensitive": "xllm path exists, but observed behavior depends on endpoint/model/gateway limits",
+    "not-baselined": "no stable xllm baseline yet"
+  },
+  "providers": [
+    {
+      "adapter": "openai_compat",
+      "display_name": "OpenAI-compatible",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "yes",
+        "tool_call": "yes",
+        "tool_result": "yes",
+        "image_url": "yes",
+        "image_inline_bytes": "yes",
+        "image_file_id": "yes",
+        "file_url": "yes",
+        "file_inline_bytes": "yes",
+        "file_file_id": "yes",
+        "json_schema": "yes"
+      },
+      "notes": [
+        "Real behavior depends on the selected OpenAI-compatible endpoint and model."
+      ],
+      "probe_cases": [
+        "probe_openai_alias_envs",
+        "probe_openai_tool_alias_envs",
+        "probe_openai_tool_result_alias_envs",
+        "probe_openai_multimodal_alias_envs",
+        "probe_openai_file_file_id",
+        "probe_openai_file_inline_bytes",
+        "probe_openai_file_url",
+        "probe_openai_image_file_id"
+      ],
+      "unsupported_baselines": []
+    },
+    {
+      "adapter": "azure_openai",
+      "inherits_adapter": "openai_compat",
+      "display_name": "Azure OpenAI",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "yes",
+        "tool_call": "yes",
+        "tool_result": "yes",
+        "image_url": "yes",
+        "image_inline_bytes": "provider-sensitive",
+        "image_file_id": "yes",
+        "file_url": "yes",
+        "file_inline_bytes": "yes",
+        "file_file_id": "yes",
+        "json_schema": "yes"
+      },
+      "notes": [
+        "Large inline image bodies may be endpoint/gateway sensitive; prefer image_url for real multimodal probes."
+      ],
+      "probe_cases": [
+        "probe_azure_openai_alias_envs",
+        "probe_azure_openai_tool_alias_envs",
+        "probe_azure_openai_tool_result_alias_envs",
+        "probe_azure_openai_multimodal_alias_envs",
+        "probe_azure_openai_image_inline_bytes",
+        "probe_azure_openai_file_url",
+        "probe_azure_openai_file_inline_bytes",
+        "probe_azure_openai_file_file_id",
+        "probe_azure_openai_image_file_id"
+      ],
+      "unsupported_baselines": []
+    },
+    {
+      "adapter": "anthropic_native",
+      "display_name": "Anthropic native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "yes",
+        "tool_call": "yes",
+        "tool_result": "yes",
+        "image_url": "yes",
+        "image_inline_bytes": "yes",
+        "image_file_id": "yes",
+        "file_url": "partial",
+        "file_inline_bytes": "partial",
+        "file_file_id": "yes",
+        "json_schema": "partial"
+      },
+      "notes": [
+        "Strict json_schema is an unsupported baseline unless best-effort structured output is explicitly accepted.",
+        "Document/file support is primarily PDF-focused."
+      ],
+      "probe_cases": [
+        "probe_anthropic_alias_envs",
+        "probe_anthropic_multimodal_alias_envs",
+        "probe_anthropic_tool_alias_envs",
+        "probe_anthropic_tool_result_alias_envs",
+        "probe_anthropic_image_file_id",
+        "probe_anthropic_document_file_id"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_anthropic_json_schema_unsupported",
+          "error": "unsupported_capability",
+          "contract": "strict json_schema output is not claimed"
+        }
+      ]
+    },
+    {
+      "adapter": "ollama_native",
+      "display_name": "Ollama native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "yes",
+        "tool_call": "yes",
+        "tool_result": "not-baselined",
+        "image_url": "yes",
+        "image_inline_bytes": "yes",
+        "image_file_id": "unsupported",
+        "file_url": "unsupported",
+        "file_inline_bytes": "unsupported",
+        "file_file_id": "unsupported",
+        "json_schema": "partial"
+      },
+      "notes": [
+        "tool_choice=required is intentionally rejected locally.",
+        "File inputs and image file_id are unsupported on the native chat path.",
+        "json_schema is not recorded as an unsupported baseline because the adapter currently lets compatible requests proceed."
+      ],
+      "probe_cases": [
+        "probe_ollama_alias_envs",
+        "probe_ollama_tool_alias_envs",
+        "probe_ollama_multimodal_alias_envs"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_ollama_tool_choice_required_unsupported",
+          "error": "unsupported_capability",
+          "contract": "tool_choice=required is rejected"
+        },
+        {
+          "case": "probe_ollama_file_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "file input is rejected"
+        },
+        {
+          "case": "probe_ollama_image_file_id_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "image file_id input is rejected"
+        }
+      ]
+    },
+    {
+      "adapter": "glm_native",
+      "display_name": "GLM native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "not-baselined",
+        "tool_call": "yes",
+        "tool_result": "not-baselined",
+        "image_url": "yes",
+        "image_inline_bytes": "provider-sensitive",
+        "image_file_id": "unsupported",
+        "file_url": "unsupported",
+        "file_inline_bytes": "unsupported",
+        "file_file_id": "unsupported",
+        "json_schema": "not-baselined"
+      },
+      "notes": [
+        "Real large inline image behavior has shown endpoint sensitivity; prefer image_url for probes."
+      ],
+      "probe_cases": [
+        "probe_glm_tool_alias_envs",
+        "probe_glm_multimodal_alias_envs"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_glm_file_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "file input is rejected"
+        },
+        {
+          "case": "probe_glm_image_file_id_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "image file_id input is rejected"
+        }
+      ]
+    },
+    {
+      "adapter": "minimax_native",
+      "display_name": "MiniMax native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "not-baselined",
+        "tool_call": "yes",
+        "tool_result": "not-baselined",
+        "image_url": "yes",
+        "image_inline_bytes": "provider-sensitive",
+        "image_file_id": "unsupported",
+        "file_url": "unsupported",
+        "file_inline_bytes": "unsupported",
+        "file_file_id": "unsupported",
+        "json_schema": "not-baselined"
+      },
+      "notes": [
+        "File inputs and image file_id are unsupported baselines."
+      ],
+      "probe_cases": [
+        "probe_minimax_tool_alias_envs",
+        "probe_minimax_multimodal_alias_envs"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_minimax_file_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "file input is rejected"
+        },
+        {
+          "case": "probe_minimax_image_file_id_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "image file_id input is rejected"
+        }
+      ]
+    },
+    {
+      "adapter": "kimi_native",
+      "display_name": "Kimi native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "not-baselined",
+        "tool_call": "yes",
+        "tool_result": "not-baselined",
+        "image_url": "yes",
+        "image_inline_bytes": "provider-sensitive",
+        "image_file_id": "yes",
+        "file_url": "unsupported",
+        "file_inline_bytes": "unsupported",
+        "file_file_id": "unsupported",
+        "json_schema": "not-baselined"
+      },
+      "notes": [
+        "Real large inline image behavior has shown endpoint sensitivity; prefer image_url for probes."
+      ],
+      "probe_cases": [
+        "probe_kimi_tool_alias_envs",
+        "probe_kimi_multimodal_alias_envs",
+        "probe_kimi_image_file_id_alias_envs"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_kimi_file_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "file input is rejected"
+        }
+      ]
+    },
+    {
+      "adapter": "qwen_native",
+      "display_name": "Qwen native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "not-baselined",
+        "tool_call": "yes",
+        "tool_result": "yes",
+        "image_url": "yes",
+        "image_inline_bytes": "provider-sensitive",
+        "image_file_id": "unsupported",
+        "file_url": "unsupported",
+        "file_inline_bytes": "unsupported",
+        "file_file_id": "unsupported",
+        "json_schema": "not-baselined"
+      },
+      "notes": [
+        "Thinking/reasoning mode cannot force a specific named tool."
+      ],
+      "probe_cases": [
+        "probe_qwen_tool_alias_envs",
+        "probe_qwen_tool_result_alias_envs",
+        "probe_qwen_multimodal_alias_envs"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_qwen_named_tool_with_thinking_unsupported",
+          "error": "unsupported_capability",
+          "contract": "named tool forcing with thinking is rejected"
+        },
+        {
+          "case": "probe_qwen_file_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "file input is rejected"
+        },
+        {
+          "case": "probe_qwen_image_file_id_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "image file_id input is rejected"
+        }
+      ]
+    },
+    {
+      "adapter": "doubao_native",
+      "display_name": "Doubao native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "not-baselined",
+        "tool_call": "yes",
+        "tool_result": "yes",
+        "image_url": "yes",
+        "image_inline_bytes": "provider-sensitive",
+        "image_file_id": "unsupported",
+        "file_url": "unsupported",
+        "file_inline_bytes": "unsupported",
+        "file_file_id": "unsupported",
+        "json_schema": "not-baselined"
+      },
+      "notes": [
+        "File inputs and image file_id are unsupported baselines."
+      ],
+      "probe_cases": [
+        "probe_doubao_tool_alias_envs",
+        "probe_doubao_tool_result_alias_envs",
+        "probe_doubao_multimodal_alias_envs"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_doubao_file_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "file input is rejected"
+        },
+        {
+          "case": "probe_doubao_image_file_id_alias_envs_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "image file_id input is rejected"
+        }
+      ]
+    },
+    {
+      "adapter": "gemini_native",
+      "display_name": "Gemini native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "not-baselined",
+        "tool_call": "yes",
+        "tool_result": "partial",
+        "image_url": "yes",
+        "image_inline_bytes": "yes",
+        "image_file_id": "yes",
+        "file_url": "yes",
+        "file_inline_bytes": "yes",
+        "file_file_id": "yes",
+        "json_schema": "yes"
+      },
+      "notes": [
+        "Tool result currently supports text/json parts only."
+      ],
+      "probe_cases": [
+        "probe_gemini_tool_alias_envs",
+        "probe_gemini_multimodal_alias_envs",
+        "probe_gemini_file_alias_envs",
+        "probe_gemini_image_file_id_alias_envs"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_gemini_tool_result_image_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "tool result image/file parts are rejected"
+        }
+      ]
+    },
+    {
+      "adapter": "vertex_gemini_native",
+      "display_name": "Vertex Gemini native",
+      "capabilities": {
+        "text_chat": "yes",
+        "stream": "not-baselined",
+        "tool_call": "yes",
+        "tool_result": "partial",
+        "image_url": "yes",
+        "image_inline_bytes": "yes",
+        "image_file_id": "yes",
+        "file_url": "yes",
+        "file_inline_bytes": "yes",
+        "file_file_id": "yes",
+        "json_schema": "yes"
+      },
+      "notes": [
+        "Tool result currently supports text/json parts only."
+      ],
+      "probe_cases": [
+        "probe_vertex_gemini_alias_envs",
+        "probe_vertex_gemini_tool_alias_envs",
+        "probe_vertex_gemini_tool_result_alias_envs",
+        "probe_vertex_gemini_multimodal_alias_envs",
+        "probe_vertex_gemini_file_alias_envs",
+        "probe_vertex_gemini_image_file_id_alias_envs"
+      ],
+      "unsupported_baselines": [
+        {
+          "case": "probe_vertex_gemini_tool_result_image_unsupported",
+          "error": "unsupported_input_type",
+          "contract": "tool result image/file parts are rejected"
+        }
+      ]
+    }
+  ]
+}

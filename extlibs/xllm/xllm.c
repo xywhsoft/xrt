@@ -1,0 +1,6 @@
+#include "src/xllm_core.c"
+#include "src/xllm_profile.c"
+#include "src/xllm_json.c"
+#include "src/xllm_parse.c"
+#include "src/xllm_transport.c"
+#include "src/xllm_client.c"

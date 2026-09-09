@@ -1,0 +1,123 @@
+#define GLM_API_KEY getenv("GLM_API_KEY")
+#define GLM_BASE_URL "https://open.bigmodel.cn/api/paas/v4"
+#define GLM_MODEL    "glm-5-turbo"
+
+#include "xllm-session.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <windows.h>
+
+static void print_thinking_outputs(const xllm_response *pResponse)
+{
+    size_t i;
+
+    if ( !pResponse ) {
+        return;
+    }
+    for ( i = 0u; i < pResponse->iOutputCount; ++i ) {
+        const xllm_output_item *pOutput = &pResponse->pOutputs[i];
+        if ( pOutput->eKind == XLLM_OUTPUT_THINKING ) {
+            printf("[thinking] %s\n", pOutput->as.tThinking.sText ? pOutput->as.tThinking.sText : "");
+        }
+    }
+}
+
+int main(void)
+{
+    xllm_runtime *pRuntime = NULL;
+    xllm *pLlm = NULL;
+    xllm_response *pResponse = NULL;
+    xllm_profile tProfile;
+    xllm_turn tTurn;
+    xllm_call_options tCallOpts;
+    xllm_error tError;
+    int iStatus;
+
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+    xrtInit();
+
+    printf("=== GLM Native Reasoning Example ===\n\n");
+
+    xllm_error_init(&tError);
+    xllm_profile_init(&tProfile);
+    xllm_turn_init(&tTurn);
+    xllm_call_options_init(&tCallOpts);
+
+    if ( xllm_runtime_create(NULL, &pRuntime) != XRT_NET_OK || !pRuntime ) {
+        fprintf(stderr, "failed to create runtime\n");
+        return 1;
+    }
+    if ( xllm_register_glm_native_adapter(pRuntime) != XRT_NET_OK ) {
+        fprintf(stderr, "failed to register glm native adapter\n");
+        xllm_runtime_destroy(pRuntime);
+        return 2;
+    }
+
+    tProfile.sId = "glm-native";
+    tProfile.sProvider = "zhipu";
+    tProfile.sAdapter = XLLM_ADAPTER_GLM_NATIVE;
+    tProfile.sBaseUrl = GLM_BASE_URL;
+    tProfile.tAuth.eKind = XLLM_AUTH_BEARER;
+    tProfile.tAuth.sSecret = GLM_API_KEY;
+    tProfile.tModels.tText.sModelId = GLM_MODEL;
+    tProfile.tModels.tText.tCaps.uFlags =
+        XLLM_CAP_TEXT_IN |
+        XLLM_CAP_TEXT_OUT |
+        XLLM_CAP_STREAM |
+        XLLM_CAP_THINKING_FULL_OUT |
+        XLLM_CAP_REASONING_CONTROL;
+
+    if ( xllm_register_profile(pRuntime, &tProfile) != XRT_NET_OK ) {
+        fprintf(stderr, "failed to register profile\n");
+        xllm_runtime_destroy(pRuntime);
+        return 3;
+    }
+
+    pLlm = xllm_create(pRuntime, NULL);
+    if ( !pLlm || xllm_bind_profile(pLlm, "glm-native") != XRT_NET_OK ) {
+        fprintf(stderr, "failed to create llm or bind profile\n");
+        xllm_turn_reset(&tTurn);
+        xllm_runtime_destroy(pRuntime);
+        return 4;
+    }
+
+    xllm_set_system_prompt(pLlm, "You are a concise assistant.");
+    xllm_turn_add_user_text(&tTurn, "Think briefly and then answer: what is xllm?");
+    tTurn.tReasoning.tEnabled.bSet = true;
+    tTurn.tReasoning.tEnabled.bValue = true;
+    tTurn.tReasoning.eLevel = XLLM_REASONING_HIGH;
+    tTurn.tReasoning.tExposeThinking.bSet = true;
+    tTurn.tReasoning.tExposeThinking.bValue = true;
+
+    tCallOpts.eStreamMode = XLLM_STREAM_OFF;
+    tCallOpts.uTimeoutMs = 120000u;
+
+    iStatus = xllm_send_ex(pLlm, &tTurn, &tCallOpts, &pResponse, &tError);
+    if ( iStatus != XRT_NET_OK || !pResponse ) {
+        fprintf(stderr, "request failed (status=%d, code=%d, msg=%s, http=%d)\n",
+                iStatus,
+                (int)tError.eCode,
+                tError.sMessage ? tError.sMessage : "(null)",
+                (int)tError.iHttpStatus);
+        xllm_destroy(pLlm);
+        xllm_error_free(&tError);
+        xllm_turn_reset(&tTurn);
+        xllm_runtime_destroy(pRuntime);
+        return 5;
+    }
+
+    print_thinking_outputs(pResponse);
+    printf("[assistant] %s\n", xllm_response_get_text(pResponse));
+    if ( pResponse->sModel ) {
+        printf("response model: %s\n", pResponse->sModel);
+    }
+
+    xllm_response_free(pResponse);
+    xllm_destroy(pLlm);
+    xllm_error_free(&tError);
+    xllm_turn_reset(&tTurn);
+    xllm_runtime_destroy(pRuntime);
+    return 0;
+}

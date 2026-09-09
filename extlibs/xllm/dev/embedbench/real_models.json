@@ -1,0 +1,142 @@
+{
+  "models": [
+    {
+      "id": "distiluse-base-multilingual-v2-merged-onnx",
+      "label": "onnx-community/distiluse-base-multilingual-v2-merged-onnx",
+      "repo_id": "onnx-community/distiluse-base-multilingual-v2-merged-onnx",
+      "model_file": "combined_tokenizer_embedded_model.onnx",
+      "input_mode": "merged_text",
+      "max_input_chars": 384,
+      "pooling": "merged_offset_mean",
+      "normalize": true,
+      "requires_extensions": true,
+      "task_prefixes": {
+        "retrieval_query": "",
+        "retrieval_document": "",
+        "sts_a": "",
+        "sts_b": ""
+      }
+    },
+    {
+      "id": "bge-small-en-v1.5",
+      "label": "Qdrant/bge-small-en-v1.5-onnx-Q",
+      "repo_id": "Qdrant/bge-small-en-v1.5-onnx-Q",
+      "model_file": "model_optimized.onnx",
+      "max_length": 512,
+      "pooling": "cls",
+      "normalize": true,
+      "task_prefixes": {
+        "retrieval_query": "Represent this sentence for searching relevant passages: ",
+        "retrieval_document": "",
+        "sts_a": "",
+        "sts_b": ""
+      }
+    },
+    {
+      "id": "all-MiniLM-L6-v2",
+      "label": "Qdrant/all-MiniLM-L6-v2-onnx",
+      "repo_id": "Qdrant/all-MiniLM-L6-v2-onnx",
+      "model_file": "model.onnx",
+      "max_length": 256,
+      "pooling": "mean",
+      "normalize": true,
+      "task_prefixes": {
+        "retrieval_query": "",
+        "retrieval_document": "",
+        "sts_a": "",
+        "sts_b": ""
+      }
+    },
+    {
+      "id": "all-MiniLM-L12-v2",
+      "label": "LightEmbed/all-MiniLM-L12-v2-onnx",
+      "repo_id": "LightEmbed/all-MiniLM-L12-v2-onnx",
+      "model_file": "model.onnx",
+      "max_length": 256,
+      "pooling": "mean",
+      "output_name": "sentence_embedding",
+      "normalize": true,
+      "task_prefixes": {
+        "retrieval_query": "",
+        "retrieval_document": "",
+        "sts_a": "",
+        "sts_b": ""
+      }
+    },
+    {
+      "id": "bge-small-zh-v1.5",
+      "label": "Qdrant/bge-small-zh-v1.5",
+      "repo_id": "Qdrant/bge-small-zh-v1.5",
+      "model_file": "model_optimized.onnx",
+      "max_length": 512,
+      "pooling": "cls",
+      "normalize": true,
+      "task_prefixes": {
+        "retrieval_query": "为这个句子生成表示以用于检索相关文章：",
+        "retrieval_document": "",
+        "sts_a": "",
+        "sts_b": ""
+      }
+    },
+    {
+      "id": "multilingual-e5-small",
+      "label": "WiseIntelligence/multilingual-e5-small-Optimum-ONNX-Quantized-AVX2",
+      "repo_id": "WiseIntelligence/multilingual-e5-small-Optimum-ONNX-Quantized-AVX2",
+      "model_file": "model.onnx",
+      "max_length": 512,
+      "pooling": "mean",
+      "normalize": true,
+      "task_prefixes": {
+        "retrieval_query": "query: ",
+        "retrieval_document": "passage: ",
+        "sts_a": "query: ",
+        "sts_b": "query: "
+      }
+    },
+    {
+      "id": "multi-qa-MiniLM-L6-cos-v1",
+      "label": "rawsh/multi-qa-MiniLM-distill-onnx-L6-cos-v1",
+      "repo_id": "rawsh/multi-qa-MiniLM-distill-onnx-L6-cos-v1",
+      "model_file": "onnx/model_quantized.onnx",
+      "max_length": 512,
+      "pooling": "mean",
+      "normalize": true,
+      "task_prefixes": {
+        "retrieval_query": "",
+        "retrieval_document": "",
+        "sts_a": "",
+        "sts_b": ""
+      }
+    },
+    {
+      "id": "paraphrase-MiniLM-L3-v2",
+      "label": "EmbeddedLLM/paraphrase-MiniLM-L3-v2-onnx-o3-cpu",
+      "repo_id": "EmbeddedLLM/paraphrase-MiniLM-L3-v2-onnx-o3-cpu",
+      "model_file": "model.onnx",
+      "max_length": 128,
+      "pooling": "mean",
+      "normalize": true,
+      "task_prefixes": {
+        "retrieval_query": "",
+        "retrieval_document": "",
+        "sts_a": "",
+        "sts_b": ""
+      }
+    },
+    {
+      "id": "paraphrase-multilingual-MiniLM-L12-v2",
+      "label": "Qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q",
+      "repo_id": "Qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q",
+      "model_file": "model_optimized.onnx",
+      "max_length": 128,
+      "pooling": "mean",
+      "normalize": true,
+      "task_prefixes": {
+        "retrieval_query": "",
+        "retrieval_document": "",
+        "sts_a": "",
+        "sts_b": ""
+      }
+    }
+  ]
+}

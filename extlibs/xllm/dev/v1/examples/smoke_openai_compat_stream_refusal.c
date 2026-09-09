@@ -1,0 +1,363 @@
+#include "xllm-session.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#define closesocket close
+#define SOCKET int
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR (-1)
+#endif
+
+typedef struct {
+    SOCKET hListen;
+    uint16 uPort;
+    int iAuthedRequestCount;
+    int iStreamRequestCount;
+} demo_server_state;
+
+typedef struct {
+    int iRefusalEventCount;
+    int iEndCount;
+} demo_event_state;
+
+typedef struct {
+    int iRequestTraceCount;
+    int iStreamFinalizeCount;
+    int iRefusedResponseTraceCount;
+} demo_trace_state;
+
+static bool demo_send_all(SOCKET hSocket, const char *sData, size_t iLen)
+{
+    size_t iSent = 0u;
+
+    while ( iSent < iLen ) {
+        int iNow = send(hSocket, sData + iSent, (int)(iLen - iSent), 0);
+        if ( iNow <= 0 ) {
+            return false;
+        }
+        iSent += (size_t)iNow;
+    }
+
+    return true;
+}
+
+static bool demo_send_chunk(SOCKET hSocket, const char *sBody)
+{
+    char sHeader[64];
+    int iHeaderLen;
+    size_t iBodyLen = sBody ? strlen(sBody) : 0u;
+
+    iHeaderLen = snprintf(sHeader, sizeof(sHeader), "%x\r\n", (unsigned)iBodyLen);
+    if ( iHeaderLen <= 0 ) {
+        return false;
+    }
+
+    if ( !demo_send_all(hSocket, sHeader, (size_t)iHeaderLen) ) {
+        return false;
+    }
+    if ( iBodyLen > 0u && !demo_send_all(hSocket, sBody, iBodyLen) ) {
+        return false;
+    }
+    return demo_send_all(hSocket, "\r\n", 2u);
+}
+
+static uint32 demo_server_thread(ptr pParam)
+{
+    demo_server_state *pState = (demo_server_state *)pParam;
+    SOCKET hClient = INVALID_SOCKET;
+    char aBuffer[4096];
+    const char *sHeader =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/event-stream\r\n"
+        "Cache-Control: no-cache\r\n"
+        "Connection: close\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "x-request-id: req_openai_stream_refusal_1\r\n"
+        "\r\n";
+    const char *sEvent1 =
+        "data: {\"id\":\"chatcmpl-stream-refusal\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-refusal-mock\","
+        "\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"refusal\":\"I can't \"},\"finish_reason\":null}]}\n\n";
+    const char *sEvent2 =
+        "data: {\"id\":\"chatcmpl-stream-refusal\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-refusal-mock\","
+        "\"choices\":[{\"index\":0,\"delta\":{\"refusal\":\"help.\"},\"finish_reason\":null}]}\n\n";
+    const char *sEvent3 =
+        "data: {\"id\":\"chatcmpl-stream-refusal\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-refusal-mock\","
+        "\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n";
+    const char *sDone = "data: [DONE]\n\n";
+    int iRecv;
+
+    if ( !pState || pState->hListen == INVALID_SOCKET ) {
+        return 1u;
+    }
+
+    hClient = accept(pState->hListen, NULL, NULL);
+    if ( hClient == INVALID_SOCKET ) {
+        closesocket(pState->hListen);
+        pState->hListen = INVALID_SOCKET;
+        return 2u;
+    }
+
+    iRecv = recv(hClient, aBuffer, (int)(sizeof(aBuffer) - 1u), 0);
+    if ( iRecv > 0 ) {
+        aBuffer[iRecv] = '\0';
+        if ( strstr(aBuffer, "Authorization: Bearer test-key") != NULL ) {
+            ++pState->iAuthedRequestCount;
+        }
+        if ( strstr(aBuffer, "\"stream\":true") != NULL ) {
+            ++pState->iStreamRequestCount;
+        }
+    }
+
+    if ( !demo_send_all(hClient, sHeader, strlen(sHeader)) ) {
+        closesocket(hClient);
+        closesocket(pState->hListen);
+        pState->hListen = INVALID_SOCKET;
+        return 3u;
+    }
+
+    if ( !demo_send_chunk(hClient, sEvent1) ) return 4u;
+    xrtSleep(20);
+    if ( !demo_send_chunk(hClient, sEvent2) ) return 5u;
+    xrtSleep(20);
+    if ( !demo_send_chunk(hClient, sEvent3) ) return 6u;
+    xrtSleep(20);
+    if ( !demo_send_chunk(hClient, sDone) ) return 7u;
+    if ( !demo_send_all(hClient, "0\r\n\r\n", 5u) ) return 8u;
+
+    closesocket(hClient);
+    closesocket(pState->hListen);
+    pState->hListen = INVALID_SOCKET;
+    return 0u;
+}
+
+static bool demo_on_event(const xllm_event *pEvent, void *pUserData)
+{
+    demo_event_state *pState = (demo_event_state *)pUserData;
+
+    if ( !pState || !pEvent ) {
+        return true;
+    }
+
+    if ( pEvent->eType == XLLM_EVENT_REFUSAL ) {
+        ++pState->iRefusalEventCount;
+    } else if ( pEvent->eType == XLLM_EVENT_END ) {
+        ++pState->iEndCount;
+    }
+
+    return true;
+}
+
+static void demo_trace_callback(void *pCtx, xllm_trace_kind eKind, const xvalue *pPayload)
+{
+    demo_trace_state *pState = (demo_trace_state *)pCtx;
+    const char *sPhase;
+    const char *sResponseStatus;
+
+    if ( !pState || !pPayload || !*pPayload ) {
+        return;
+    }
+
+    sPhase = (const char *)xvoTableGetText(*pPayload, (str)"phase", 0u);
+    if ( eKind == XLLM_TRACE_REQUEST && sPhase && strcmp(sPhase, "request") == 0 ) {
+        ++pState->iRequestTraceCount;
+    } else if ( eKind == XLLM_TRACE_STREAM && sPhase && strcmp(sPhase, "finalize") == 0 ) {
+        ++pState->iStreamFinalizeCount;
+    } else if ( eKind == XLLM_TRACE_RESPONSE && sPhase && strcmp(sPhase, "response") == 0 ) {
+        sResponseStatus = (const char *)xvoTableGetText(*pPayload, (str)"response_status", 0u);
+        if ( sResponseStatus && strcmp(sResponseStatus, "refused") == 0 ) {
+            ++pState->iRefusedResponseTraceCount;
+        }
+    }
+}
+
+int main(void)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    WSADATA tWsaData;
+#endif
+    demo_server_state tServer;
+    demo_event_state tEvents;
+    demo_trace_state tTrace;
+    struct sockaddr_in tAddr;
+    socklen_t iAddrLen = sizeof(tAddr);
+    xthread hServerThread = NULL;
+    xllm_runtime *pRuntime = NULL;
+    xllm *pLlm = NULL;
+    xllm_response *pResponse = NULL;
+    xllm_profile tProfile;
+    xllm_create_options tCreate;
+    xllm_turn tTurn;
+    xllm_call_options tCall;
+    char sBaseUrl[128];
+    const xllm_output_item *pOutput;
+    int iStatus = 0;
+
+#if defined(_WIN32) || defined(_WIN64)
+    if ( WSAStartup(MAKEWORD(2, 2), &tWsaData) != 0 ) {
+        fprintf(stderr, "winsock startup failed\n");
+        return 1;
+    }
+#endif
+
+    memset(&tServer, 0, sizeof(tServer));
+    memset(&tEvents, 0, sizeof(tEvents));
+    memset(&tTrace, 0, sizeof(tTrace));
+    memset(&tAddr, 0, sizeof(tAddr));
+    memset(&tCreate, 0, sizeof(tCreate));
+    memset(&tCall, 0, sizeof(tCall));
+
+    tServer.hListen = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if ( tServer.hListen == INVALID_SOCKET ) {
+        fprintf(stderr, "create listen socket failed\n");
+        return 2;
+    }
+
+    tAddr.sin_family = AF_INET;
+    tAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    tAddr.sin_port = htons(0);
+    if ( bind(tServer.hListen, (struct sockaddr *)&tAddr, sizeof(tAddr)) == SOCKET_ERROR ) {
+        fprintf(stderr, "bind listen socket failed\n");
+        return 3;
+    }
+    if ( listen(tServer.hListen, 1) == SOCKET_ERROR ) {
+        fprintf(stderr, "listen failed\n");
+        return 4;
+    }
+    if ( getsockname(tServer.hListen, (struct sockaddr *)&tAddr, &iAddrLen) == SOCKET_ERROR ) {
+        fprintf(stderr, "getsockname failed\n");
+        return 5;
+    }
+    tServer.uPort = ntohs(tAddr.sin_port);
+
+    hServerThread = xrtThreadCreate((ptr)demo_server_thread, &tServer, 0);
+    if ( !hServerThread ) {
+        fprintf(stderr, "create server thread failed\n");
+        return 6;
+    }
+
+    if ( xllm_runtime_create(NULL, &pRuntime) != XRT_NET_OK || !pRuntime ) {
+        fprintf(stderr, "create runtime failed\n");
+        return 7;
+    }
+    if ( xllm_runtime_set_trace_callback(pRuntime, demo_trace_callback, &tTrace) != XRT_NET_OK ) {
+        fprintf(stderr, "set trace callback failed\n");
+        iStatus = 8;
+        goto cleanup;
+    }
+    if ( xllm_register_openai_compat_adapter(pRuntime) != XRT_NET_OK ) {
+        fprintf(stderr, "register built-in adapter failed\n");
+        iStatus = 9;
+        goto cleanup;
+    }
+
+    (void)snprintf(sBaseUrl, sizeof(sBaseUrl), "http://127.0.0.1:%u/v1", (unsigned)tServer.uPort);
+    xllm_profile_init(&tProfile);
+    tProfile.sId = "openai-stream-refusal";
+    tProfile.sProvider = "openai";
+    tProfile.sAdapter = XLLM_ADAPTER_OPENAI_COMPAT;
+    tProfile.sBaseUrl = sBaseUrl;
+    tProfile.tAuth.eKind = XLLM_AUTH_BEARER;
+    tProfile.tAuth.sSecret = "test-key";
+    tProfile.tModels.tText.sModelId = "gpt-refusal-mock";
+    tProfile.tModels.tText.tCaps.uFlags |= XLLM_CAP_STREAM;
+    if ( xllm_register_profile(pRuntime, &tProfile) != XRT_NET_OK ) {
+        fprintf(stderr, "register profile failed\n");
+        iStatus = 10;
+        goto cleanup;
+    }
+
+    tCreate.sInitialProfileId = "openai-stream-refusal";
+    pLlm = xllm_create(pRuntime, &tCreate);
+    if ( !pLlm ) {
+        fprintf(stderr, "create xllm failed\n");
+        iStatus = 11;
+        goto cleanup;
+    }
+
+    xllm_turn_init(&tTurn);
+    if ( xllm_turn_add_user_text(&tTurn, "unsafe stream request") != XRT_NET_OK ) {
+        fprintf(stderr, "add user text failed\n");
+        iStatus = 12;
+        goto cleanup;
+    }
+
+    xllm_call_options_init(&tCall);
+    tCall.eStreamMode = XLLM_STREAM_REQUIRE;
+    tCall.pfnOnEvent = demo_on_event;
+    tCall.pUserData = &tEvents;
+
+    if ( xllm_send(pLlm, &tTurn, &tCall, &pResponse) != XRT_NET_OK || !pResponse ) {
+        fprintf(stderr, "xllm_send failed\n");
+        iStatus = 13;
+        goto cleanup;
+    }
+
+    if ( pResponse->eStatus != XLLM_STATUS_REFUSED ) {
+        fprintf(stderr, "unexpected response status\n");
+        iStatus = 14;
+        goto cleanup;
+    }
+    if ( !pResponse->tRefusal.sText || strcmp(pResponse->tRefusal.sText, "I can't help.") != 0 ) {
+        fprintf(stderr, "unexpected refusal text\n");
+        iStatus = 15;
+        goto cleanup;
+    }
+    if ( !xllm_response_get_text(pResponse) || strcmp(xllm_response_get_text(pResponse), "I can't help.") != 0 ) {
+        fprintf(stderr, "unexpected visible text\n");
+        iStatus = 16;
+        goto cleanup;
+    }
+    if ( pResponse->iOutputCount != 1u ) {
+        fprintf(stderr, "unexpected output count\n");
+        iStatus = 17;
+        goto cleanup;
+    }
+    pOutput = xllm_response_get_output(pResponse, 0u);
+    if ( !pOutput || pOutput->eKind != XLLM_OUTPUT_REFUSAL || !pOutput->as.tRefusal.sText ||
+         strcmp(pOutput->as.tRefusal.sText, "I can't help.") != 0 ) {
+        fprintf(stderr, "unexpected refusal output\n");
+        iStatus = 18;
+        goto cleanup;
+    }
+    if ( tEvents.iRefusalEventCount != 2 || tEvents.iEndCount != 1 ) {
+        fprintf(stderr, "unexpected event counts refusal=%d end=%d\n", tEvents.iRefusalEventCount, tEvents.iEndCount);
+        iStatus = 19;
+        goto cleanup;
+    }
+    if ( tServer.iAuthedRequestCount != 1 || tServer.iStreamRequestCount != 1 ) {
+        fprintf(stderr, "unexpected request counts auth=%d stream=%d\n", tServer.iAuthedRequestCount, tServer.iStreamRequestCount);
+        iStatus = 20;
+        goto cleanup;
+    }
+    if ( tTrace.iRequestTraceCount < 1 || tTrace.iStreamFinalizeCount < 1 || tTrace.iRefusedResponseTraceCount < 1 ) {
+        fprintf(stderr, "unexpected trace counts request=%d finalize=%d refused=%d\n",
+            tTrace.iRequestTraceCount,
+            tTrace.iStreamFinalizeCount,
+            tTrace.iRefusedResponseTraceCount);
+        iStatus = 21;
+        goto cleanup;
+    }
+
+cleanup:
+    xllm_response_free(pResponse);
+    xllm_turn_reset(&tTurn);
+    xllm_destroy(pLlm);
+    xllm_runtime_destroy(pRuntime);
+    if ( hServerThread ) {
+        xrtThreadWait(hServerThread);
+        xrtThreadDestroy(hServerThread);
+    }
+#if defined(_WIN32) || defined(_WIN64)
+    WSACleanup();
+#endif
+    return iStatus;
+}

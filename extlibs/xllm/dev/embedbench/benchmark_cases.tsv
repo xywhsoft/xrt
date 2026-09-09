@@ -1,0 +1,7 @@
+name	group	left	right
+zh_related	related	向量 检索 帮助 长期 记忆 找到 相关 片段	本地 记忆 系统 使用 向量 索引 召回 相关 知识
+zh_unrelated	unrelated	向量 检索 帮助 长期 记忆 找到 相关 片段	烘焙 面包 需要 面粉 酵母 和 发酵 时间
+en_related	related	local memory uses vector search for related notes	semantic retrieval looks up relevant notes from a local knowledge base
+en_unrelated	unrelated	local memory uses vector search for related notes	pasta with tomato garlic olive oil tastes bright
+code_related	related	code index tracks files symbols imports and references	source graph stores symbols dependencies and file relationships
+code_unrelated	unrelated	code index tracks files symbols imports and references	travel plans compare flights hotels maps and weather

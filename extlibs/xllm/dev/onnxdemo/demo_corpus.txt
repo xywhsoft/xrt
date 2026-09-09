@@ -1,0 +1,25 @@
+向量检索帮助记忆系统找到相关片段
+本地记忆库使用向量索引和关键词检索
+会话历史需要摘要压缩以及长期记忆写回
+文档切分先做结构边界再做语义断点
+语义召回通常结合向量搜索和词法匹配
+知识库入库需要chunk切分向量化和索引
+开发者偏好任务状态和事实应当长期保存
+代码库索引会记录文件摘要符号和依赖关系
+文本向量可以帮助找回相关说明和历史笔记
+检索增强生成需要相关片段而不是整篇原文
+embedding model turns text into dense vectors
+vector search retrieves related notes from a local knowledge base
+document chunking groups nearby sentences into coherent sections
+retrieval works better with semantic and lexical signals together
+the editor indexes source files symbols and dependency metadata
+memory extraction stores durable facts preferences and tasks
+session compaction keeps recent context concise and useful
+database migrations update tables indexes and columns
+log analysis checks errors warnings retries and timeouts
+python scripts can generate assets for a lightweight local demo
+cooking pasta uses tomato garlic olive oil and salt
+baking bread needs flour water yeast and fermentation time
+travel planning compares flights hotels maps and weather
+mountain hiking requires water food maps and warm clothing
+coffee roasting changes aroma acidity body and sweetness

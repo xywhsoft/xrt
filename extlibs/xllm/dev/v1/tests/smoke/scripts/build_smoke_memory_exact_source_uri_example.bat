@@ -1,0 +1,18 @@
+@echo off
+setlocal
+set XLLM_REPO_ROOT=%~dp0..\..\..
+for %%I in ("%XLLM_REPO_ROOT%") do set XLLM_REPO_ROOT=%%~fI
+cd /d "%XLLM_REPO_ROOT%"
+if not exist build mkdir build
+
+gcc -std=c11 -Wall -Wextra -I. -Ilib -Ilib\sqlite -DXRT_IMPLEMENTATION -DXLLM_IMPLEMENTATION -DXLLM_MEMORY_SCHEME_MODE=XLLM_MEMORY_SCHEME_MODE_BUILTIN_SPARSE ^
+    examples\smoke_memory_exact_source_uri.c ^
+    lib\sqlite\sqlite3.c ^
+    -o build\smoke_memory_exact_source_uri.exe ^
+    -lws2_32 -liphlpapi -lshell32 -lcrypt32
+if not "%errorlevel%"=="0" exit /b %errorlevel%
+
+build\smoke_memory_exact_source_uri.exe
+if not "%errorlevel%"=="0" exit /b %errorlevel%
+
+echo smoke_memory_exact_source_uri ok

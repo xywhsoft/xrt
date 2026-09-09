@@ -1,0 +1,14 @@
+/release/
+build/
+tmp_*.diff
+tmp_*.patch
+tmp_*.txt
+*.obj
+*.o
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+*.ilk
+

@@ -1,0 +1,105 @@
+{
+  "datasets": [
+    {
+      "id": "lcqmc",
+      "label": "mteb/LCQMC",
+      "task_type": "sts",
+      "repo_id": "mteb/LCQMC",
+      "config": "default",
+      "split": "test",
+      "text_a_field": "sentence1",
+      "text_b_field": "sentence2",
+      "score_field": "score",
+      "default_limit": 1000
+    },
+    {
+      "id": "stsbenchmark-sts",
+      "label": "mteb/stsbenchmark-sts",
+      "task_type": "sts",
+      "repo_id": "mteb/stsbenchmark-sts",
+      "config": "default",
+      "split": "test",
+      "text_a_field": "sentence1",
+      "text_b_field": "sentence2",
+      "score_field": "score",
+      "default_limit": 1000
+    },
+    {
+      "id": "t2-retrieval",
+      "label": "mteb/T2Retrieval",
+      "task_type": "retrieval",
+      "repo_id": "mteb/T2Retrieval",
+      "queries_config": "queries",
+      "queries_split": "dev",
+      "query_id_field": "_id",
+      "query_text_fields": [
+        "text"
+      ],
+      "corpus_config": "corpus",
+      "corpus_split": "dev",
+      "corpus_id_field": "_id",
+      "corpus_text_fields": [
+        "title",
+        "text"
+      ],
+      "qrels_split": "dev",
+      "qrels_query_id_field": "query-id",
+      "qrels_corpus_id_field": "corpus-id",
+      "qrels_score_field": "score",
+      "default_query_limit": 300,
+      "default_corpus_limit": 5000
+    },
+    {
+      "id": "stackoverflowqa",
+      "label": "mteb/StackOverflowQA",
+      "task_type": "retrieval",
+      "repo_id": "mteb/StackOverflowQA",
+      "queries_config": "queries",
+      "queries_split": "test",
+      "query_id_field": "_id",
+      "query_text_fields": [
+        "text"
+      ],
+      "corpus_config": "corpus",
+      "corpus_split": "test",
+      "corpus_id_field": "_id",
+      "corpus_text_fields": [
+        "title",
+        "text"
+      ],
+      "qrels_config": "qrels",
+      "qrels_split": "test",
+      "qrels_query_id_field": "query-id",
+      "qrels_corpus_id_field": "corpus-id",
+      "qrels_score_field": "score",
+      "default_query_limit": 250,
+      "default_corpus_limit": 4000
+    },
+    {
+      "id": "humaneval-retrieval",
+      "label": "mteb/HumanEvalRetrieval",
+      "task_type": "retrieval",
+      "repo_id": "mteb/HumanEvalRetrieval",
+      "queries_config": "queries",
+      "queries_split": "test",
+      "query_id_field": "id",
+      "query_text_fields": [
+        "text"
+      ],
+      "corpus_config": "corpus",
+      "corpus_split": "test",
+      "corpus_id_field": "id",
+      "corpus_text_fields": [
+        "title",
+        "text"
+      ],
+      "qrels_config": "qrels",
+      "qrels_split": "test",
+      "qrels_query_id_field": "query-id",
+      "qrels_corpus_id_field": "corpus-id",
+      "qrels_score_field": "score",
+      "default_query_limit": 158,
+      "default_corpus_limit": 158
+    }
+  ]
+}

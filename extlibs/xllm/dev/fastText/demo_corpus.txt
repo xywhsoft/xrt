@@ -1,0 +1,54 @@
+向量 检索 文本 切分 语义 索引 记忆 知识库
+向量 索引 语义 检索 chunk 记忆 检索
+文本 切分 语义 分块 向量 检索 knowledge
+语义 检索 向量 召回 记忆 知识 文本
+knowledge base vector retrieval text chunk memory search
+semantic retrieval vector index chunk memory knowledge
+text chunk embedding vector search memory knowledge
+memory retrieval semantic index vector chunk context
+向量 数据库 召回 排序 语义 查询 索引
+语义 查询 向量 数据库 检索 召回 排序
+index recall retrieval vector database ranking query
+vector database retrieval ranking query search recall
+聊天 会话 上下文 摘要 历史 记忆 工具
+多轮 会话 历史 摘要 上下文 保留 工具 状态
+session context summary history memory tool state
+conversation history context summary tool memory session
+代码 编译 调试 测试 工程 构建 库
+编译 构建 调试 测试 代码 工程 示例
+code compile debug test build library example
+build compile code debug test project example
+数据库 事务 存储 查询 表 索引 磁盘
+数据 表 查询 索引 存储 数据库 事务
+database storage query index table transaction disk
+table query storage database index transaction disk
+宠物 猫 狗 家庭 陪伴 玩耍 快乐
+小猫 小狗 宠物 家庭 陪伴 朋友 温暖
+cat dog pet family companion playful home
+kitten puppy pet family companion warm home
+咖啡 早餐 厨房 杯子 烘焙 牛奶 早晨
+面包 咖啡 早餐 厨房 杯子 烤箱 香味
+coffee breakfast kitchen mug bakery milk morning
+bread coffee breakfast kitchen mug oven bakery
+天气 晴天 雨天 温度 风 云 出行
+旅行 天气 预报 温度 风 景点 出行
+weather sunny rainy temperature wind cloud travel
+travel weather forecast temperature wind trip journey
+手机 屏幕 电池 充电 应用 拍照 系统
+笔记本 屏幕 键盘 电池 系统 应用 办公
+phone screen battery charge app camera system
+laptop screen keyboard battery system app office
+音乐 吉他 钢琴 节奏 旋律 演出 练习
+歌曲 节奏 旋律 吉他 鼓 演奏 练习
+music guitar piano rhythm melody performance practice
+song rhythm melody guitar drum performance practice
+向量 检索 需要 文本 切分 和 索引
+文本 chunk 之后 再 做 向量 检索
+memory 系统 需要 向量 索引 和 召回
+knowledge 系统 需要 chunk embedding retrieval
+宠物 家庭 快乐 温暖 陪伴 猫 狗
+早餐 咖啡 厨房 烘焙 杯子 面包
+database index query storage transaction disk
+vector search chunk memory knowledge context
+session summary history context tool memory
+code build debug test compile library
