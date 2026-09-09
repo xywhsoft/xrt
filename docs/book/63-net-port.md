@@ -46,7 +46,7 @@ XRT 端口的答案：**统一接口 + 能力声明**——接口覆盖两种形
 
 ### 事件类型与等待
 
-端口的等待返回**事件**（结构体携带类型+关联数据）：READABLE/WRITABLE（readiness）、CONNECT 完成/ACCEPT 到来/读写结果（completion 各操作）、USER（Post）、WAKE（Wake）、ERROR（平台错误如 ICMP 不可达——RecvError 按平台能力门控）。等待形态：阻塞等（下一事件）、带超时等（引擎泵的节拍——第 60 章 PollFor 的底层）。事件消费循环就是引擎 Worker 的主循环骨架。
+端口的等待返回**事件**（结构体携带类型+关联数据）：READABLE/WRITABLE（readiness）、CONNECT 完成/ACCEPT 到来/读写结果（completion 各操作）、USER（Post）、WAKE（Wake）、ERROR（平台错误如 ICMP 不可达——RecvError 按平台能力门控）。等待形态：阻塞等（下一事件）、带超时等（引擎泵的节拍——第 60 章 PollFor 的底层）。事件消费循环就是引擎 Worker 的主循环骨架——要把小件任务直接排到这个循环上执行，第 60 章的网络任务组（task_net）就是那座桥。
 
 ### 端口与 Stream 的关系
 

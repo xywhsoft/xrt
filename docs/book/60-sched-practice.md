@@ -5,7 +5,7 @@ title: 调度器实战：协程、通道与任务的联合作战
 volume: 卷六 进程与并发 · 卷六收官
 type: composition
 lead: 把卷六全部工具装配成一个服务骨架——事件循环、连接协程、计算外挂与结构化停机。
-api: coroutine, channel, future, task, cancel
+api: coroutine, channel, future, task, cancel, task_net
 ---
 
 ## 导读
@@ -168,6 +168,29 @@ parent completed = 1, cancelled = 1
 
 这个骨架与卷七网络引擎的映射关系值得在收官章写明。**调度器泵 → 事件端口**（第 63 章五后端：IOCP/epoll/kqueue/io_uring/select——泵的 PollFor 对应端口的等待接口）；**连接协程 → 引擎 Stream 的事件回调**（第 65 章金标准章的 Accept/Read/Close 回调表——卷七用回调而非协程直接表达，但调度器可包装回调为协程）；**任务池外挂 → 网络引擎的 Worker 池**（同构——计算不堵 IO 线程）；**消息总线 → 引擎内部的统计/管理通道**；**服务组 → 引擎的停机序列**（第 65 章"Close 回调可能仍在 Worker 上收尾，Engine 销毁会等待"——任务组 Wait 的引擎版）。映射不是等价——卷七在骨架之上加协议层（TCP 状态机、TLS、HTTP）与生产化细节（背压水位、引用计数缓冲）——但**骨架的五项检查清单原样适用于网络引擎**。读卷七时带着本章的骨架图，每章问"这层装在骨架的哪个位置"。
 
+### 网络任务组（task_net）：卷六到卷七的桥
+
+骨架与网络引擎之间有一座现成的桥：**任务体系到网络 Engine 的可选桥接**（`XRT_FEATURE_TASK_NET`——方向单向，网络不反向侵入 Future/Task 核心）。`xrtTaskNet` 把任务提交到指定亲和 Worker：过程签名 `xtasknetproc` 在普通任务参数之前**借用** `xnetworker`——直接访问 Worker 缓冲池与 Engine 上下文，取消、任务值、结构化错误、临时 arena 的合同与普通任务完全相同；`After/Until` 两个变体把"延迟/截止"交给 Engine 的 Timer（第 9 章 deadline 数学的引擎版）。组形态 `xrtTaskGroupNetUntil` 先预留任务组活动槽位再提交——**组已关闭或达到上限时任务根本不启动**，组取消传播到 Future 并等 Timer 真实取消完成。两条硬约束：**网络任务跑在事件循环线程——不得阻塞或长计算**（重活提交 `xtaskpool`，这正是骨架"泵零阻塞"纪律的模块化表达）；Engine 停止时立即任务在排空阶段仍会执行、延迟任务以 `XERR_CLOSED` 结构化失败——终态发布之前，Timer、取消监听、数据析构全部完成（消费者不会看到还在被 Worker 使用的上下文）。
+
+来自仓库范例 `examples/network/task/main.c`——立即/延迟/截止/组四种提交一巡：
+
+```embed path="examples/network/task/main.c" title="examples/network/task/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/network/task/main.c -lws2_32 -liphlpapi
+worker=0
+value=42
+worker=0
+after: value=42
+worker=0
+until: value=42
+worker=0
+group-until: done
+```
+
+**刚才发生了什么。** ① `xrtTaskNet` 提交立即任务——`xrtFutureWaitFor` 用第 9 章的 deadline 语义等待，值经 `xrtFutureValue` 借用读取（第 57 章纪律）。② `After`/`Until` 演示 Timer 提交——两者只差"相对微秒"还是"绝对截止"的入参，输出证明任务确实在到期后执行。③ `GroupNetUntil` 把延迟任务原子纳入任务组——组取消与上限保护的语义由组的预留槽位保证。④ 四段全部打印 `worker=0`——亲和提交落同一个 Worker，正是"IO 线程上的小活"的形态。
+
 ### 全卷总回顾：卷六资产清单
 
 卷六收官，资产清点。**原语层**：线程四步生命周期、四件套（互斥/条件/配额/读写锁）、死锁四条件与锁序预防（第 52 章）。**协作层**：取消令牌三件套与传播树（53）、协程四态三终态与清理栈（54）、调度器三件与泵族三形态（55）、Channel 容量/关闭三方/Select/取消集成（56）、Future 四态/延续/组合子/等待族（57）、执行器双形态/停机协议/批量（58）。**结构化层**：任务组五件/终态口径/父子作用域/Done Future（59）。**心智模型**：取消贯穿主线、三层装配线、共享vs消息、等待成本阶梯、粒度三级、结构化并发源流。加上本章的装配能力——这份清单就是"能读懂任何现代并发库、能设计自己并发架构"的底座。卷七开始，这些工具全部进入实战。
@@ -268,3 +291,4 @@ xrtTaskPoolDestroy(gPool);
 | 收尾逆序 | 泵→总线→池——依赖逆序、每层自己的协议 |
 | 检查清单 | 泵零阻塞 / 等待可取消 / 终态三分 / 生命周期对齐 / 观测贯穿 |
 | 骨架去向 | 剥协议装 TCP/TLS/HTTP = 卷七网络引擎 |
+| 网络任务 | task_net 单向桥：亲和 Worker + Timer；事件循环禁阻塞重活；组预留槽位 |

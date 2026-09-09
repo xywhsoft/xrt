@@ -1,24 +1,3 @@
-#include <stdio.h>
-#include <xrt.h>
-
-
-
-/* 在 Engine Worker 上生成一个轻量结果。 */
-static xtaskoutcome buildValue(
-	xnetworker* pWorker,
-	xcancel* pCancel,
-	ptr pData,
-	xtaskvalue* pResult
-)
-{
-	(void)pCancel;
-	printf("worker=%u\n", xrtNetWorkerIndex(pWorker));
-	pResult->Value = pData;
-	return XTASK_SUCCESS;
-}
-
-
-
 /*
  * 范例：network/task —— 网络任务：Worker 上执行并取结果
  * ----------------------------------------------------------------
@@ -41,6 +20,28 @@ static xtaskoutcome buildValue(
  *   worker=0
  *   group-until: done
  */
+
+#include <stdio.h>
+#include <xrt.h>
+
+
+
+/* 在 Engine Worker 上生成一个轻量结果。 */
+static xtaskoutcome buildValue(
+	xnetworker* pWorker,
+	xcancel* pCancel,
+	ptr pData,
+	xtaskvalue* pResult
+)
+{
+	(void)pCancel;
+	printf("worker=%u\n", xrtNetWorkerIndex(pWorker));
+	pResult->Value = pData;
+	return XTASK_SUCCESS;
+}
+
+
+
 
 
 /* 演示立即网络任务与统一 Future 等待。 */

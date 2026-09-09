@@ -22,7 +22,7 @@ XRT 的 TCP 层把这些坑内建成了对象契约：流有明确的状态机�
 
 ### 三个对象，一台发动机
 
-- **`xnetengine`**：网络引擎。管理平台事件后端（IOCP / epoll / kqueue / io_uring）与一组 Worker 线程，所有 Listener 和 Stream 都挂在某个 Engine 上工作。配置里 `Workers` 指定线程数。Worker 数量的经验值：工具程序与单元测试 1～2 个即可——Engine 的线程只做事件分发与回调，不承载业务计算；服务端的容量规划（Worker 数、队列深度、背压水位）是第 67 章的主题。多个 Engine 可以共存，但本章与后续章节的惯例是一个进程一个 Engine。
+- **`xnetengine`**：网络引擎。管理平台事件后端（IOCP / epoll / kqueue / io_uring）与一组 Worker 线程，所有 Listener 和 Stream 都挂在某个 Engine 上工作。配置里 `Workers` 指定线程数。Worker 数量的经验值：工具程序与单元测试 1～2 个即可——Engine 的线程只做事件分发与回调，不承载业务计算（要把小件任务直接排上 Worker 循环，用第 60 章的网络任务组 task_net）；服务端的容量规划（Worker 数、队列深度、背压水位）是第 67 章的主题。多个 Engine 可以共存，但本章与后续章节的惯例是一个进程一个 Engine。
 - **`xnetlistener`**：监听器。绑定地址（端口填 0 表示让系统分配），接受接入连接。
 - **`xnetstream`**：流。一条 TCP 连接的读写面，客户端与服务端各自持有一条。
 

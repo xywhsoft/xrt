@@ -4,8 +4,8 @@ slug: future
 title: Future / Promise 与组合子
 volume: 卷六 进程与并发
 type: practice
-lead: 写端读端分离的一次性异步结果——完成/失败/取消三态、then 式延续、组合子与等待族。
-api: future, cancel
+lead: 写端读端分离的一次性异步结果——完成/失败/取消三态、then 式延续、组合子与等待族；收尾引入 future_bridge 装配桥。
+api: future, cancel, future_bridge
 ---
 
 ## 导读
@@ -54,6 +54,12 @@ Watch 的纪律与全库回调一致：轻活（第 37/47 章）——重处理�
 
 Promise 侧 CancelToken、Future 侧 CancelToken 都可取（`xrtPromiseCancelToken`/`xrtFutureCancelToken`）——取消树穿过整对；`xrtFutureCancel` 是直达按钮。联动形态：父令牌（第 53 章树）→ 创建时的 pParentCancel 参数——父取消则 Future 终局 Cancelled（不需要手动转发）；读端 Cancel 反向通知写端（操作方在 CancelToken 的 Watch 里中止工作——第 53 章检查点纪律）。
 
+### 桥接：把异步完成接回 Future（future_bridge）
+
+异步库的经典竞态：**操作入口要立刻返回一个 Future，而结果要稍后才到**——中间这段"装配窗口"里，底层完成回调可能先到、Future 的终态却还不能写（调用方可能还没拿到 Promise 的引用、取消监听还没挂上）。`xfuturebridge` 就是这段窗口的闸门：`xrtFutureBridgeCreate` 创建 Future/Promise 对并初始化桥（或 `xrtFutureBridgeInit` 桥接调用方自己持有的 Promise——**桥借用不持有**）；`xrtFutureBridgeWatch` 把 Future 的协作取消转发给底层操作；装配完成时二选一发布——`xrtFutureBridgeReady` 放行（此后完成回调可以写 Promise 终态）、`xrtFutureBridgeFail` 失败（回调只回收结果不写入）；底层线程用 `xrtFutureBridgeWait` 等这个发布决定，`xrtFutureBridgeUnwatch` 注销取消监听并与正在执行的取消回调汇合。桥本身是 32 字节固定存储——直接嵌进异步操作的上下文结构，零额外分配。
+
+它的价值在"顺序自由"：装配方与完成方谁先到都不出错——Ready 之前的终态写入被挂起，Ready/Fail 决定放行或回收。第 58 章执行器、第 60 章调度骨架、第 98 章网络库的异步入口，底层都是这座桥——读它们的实现时认出这八个函数，竞态处理就不再神秘。
+
 ## 示例
 
 ### 完整程序：一次异步交付
@@ -84,6 +90,22 @@ result: 105
 
 **刚才发生了什么。** ① 延续回调 `addFive(源结果, 输出Promise, 数据)`——读源 Future 的值、加五、经输出 Promise 发布：**输入与输出都是异步的**，变换本身也是异步链上的一环。② 链尾等待得到 `result: 105`（100→+5）——主线没有嵌套、没有中间等待，一条直线等最终值。③ 失败传播：源若 Rejected，延续按约定不发布（或转发错误）——错误沿链到尾（写延续时显式处理源失败——坑区有实例）。④ future_combine 范例是组合子版：多个源中 `winner[1]`（索引 1 的 22）先到——先完成者胜、索引与值齐得。
 
+### 完整程序：bridge——装配窗口的三步演示
+
+来自仓库范例 `examples/concurrency/bridge_tour/main.c`：
+
+```embed path="examples/concurrency/bridge_tour/main.c" title="examples/concurrency/bridge_tour/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/concurrency/bridge_tour/main.c -lws2_32 -liphlpapi
+bridge: create + promise borrow ok
+bridge: watch + ready -> resolve -> future value ok
+bridge: init on own promise + fail -> wait false ok
+```
+
+**刚才发生了什么。** ① `Create` 一步拿到 Future 与桥，`xrtFutureBridgePromise` 借出写端——所有权仍在调用方，销毁责任不变。② Watch（挂取消转发）→ Ready（放行）→ Promise 写终态 → Future 读到值——**顺序刻意摆成"装配先完成"**；真实异步里这三步可能以任何顺序交错，桥都吃得下。③ 第二座桥演示失败路径：Init 桥接自己的 Promise、发布 Fail——此后 `Wait` 返回假，完成回调只回收不写入。取消回调（`exampleCancel`）在 Unwatch 汇合前被转发的事实也一并演示。
+
 ## 契约
 
 - **一次性**：终局恰好一次、不可改；重复发布被拒。
@@ -92,6 +114,7 @@ result: 105
 - **延续纪律**：显式处理源三态（失败转发或降级——不吞不崩）；输出必发布（否则下游悬挂）。
 - **引用配平**：两端各自 Ref/Destroy；存进结构的引用由结构管（第 5 章所有权纪律）。
 - **取消联动**：创建挂父令牌则自动联动；两端 CancelToken 各自可取；操作方在令牌 Watch 里中止工作。
+- **桥契约**：Ready 前终态写入挂起、Fail 后只回收；桥借用 Promise 不持有；Unwatch 与取消回调汇合后桥才可弃置。
 
 ## 避坑
 
@@ -164,3 +187,4 @@ Promise 分别 Resolve 值 / Reject 失败 / Cancel 取消 / Close 收尾四种�
 | 等待族 | Wait/For/Until 限时 + Watch 无分配回调 + 协程 await（第 55 章） |
 | 取消联动 | 创建挂父令牌自动联动；两端各可取 CancelToken |
 | 借用纪律 | Value/Error 是借用——立即用或拷贝持有，Destroy 前用完 |
+| 装配桥 | Ready 放行/Fail 回收；Watch 转发取消；32 字节可嵌入上下文 |
