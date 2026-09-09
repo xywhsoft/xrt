@@ -56,12 +56,11 @@ struct chmsg {
 };
 ```
 
-**容器选型**：成员表 `成员表 map（按名查找——who/join 的热路径，第 18 章）；房间表全局一个 map（同族）。**环的实现**：数组+头指针（`Ring[RingHead]` 最老）——覆盖时头指针前移；补齐从游标到环尾按序重放。**这三个结构是 chatd 的全部状态**——没有任何隐藏副本（连接上的 SetData 挂用户指针——第 66 章上下文机制）。
+**容器选型**：成员表 `成员表 map`（按名查找——who/join 的热路径，第 18 章）；房间表全局一个 map（同族）。**环的实现**：数组+头指针（`Ring[RingHead]` 最老）——覆盖时头指针前移；补齐从游标到环尾按序重放。**这三个结构是 chatd 的全部状态**——没有任何隐藏副本（连接上的 SetData 挂用户指针——第 66 章上下文机制）。
 
 ### 协议层的帧生成侧
 
-收帧之外还有回帧（下行九型）——生成的形态：JSON Writer（第 32 章）逐帧产一行。**帧模板函数**（每型一个小函数——broadcast/dm/err/ok 共用骨架）：填 op、填载荷字段、（广播族）填 seq、Writer Finish 产合法 JSON——**原子性由 Writer 保证**（半帧不出门）。**发送路径**：帧文本→`xrtNetStreamSend`（行缓冲+`
-`）——与收帧的行定界对称（**同一协议的两端用同一对原语**）。**错误帧的统一口径**：`{"op":"err","code":N,"why":"..."}`——code 是枚举（BADJSON/NOOP/NICK_TAKEN/ROOM_FULL/NOT_IN_ROOM/...）、why 给人——**机器判 code、人读 why**（第 4 章错误模型的帧版）。
+收帧之外还有回帧（下行九型）——生成的形态：JSON Writer（第 32 章）逐帧产一行。**帧模板函数**（每型一个小函数——broadcast/dm/err/ok 共用骨架）：填 op、填载荷字段、（广播族）填 seq、Writer Finish 产合法 JSON——**原子性由 Writer 保证**（半帧不出门）。**发送路径**：帧文本→`xrtNetStreamSend`（行缓冲+`\n`）——与收帧的行定界对称（**同一协议的两端用同一对原语**）。**错误帧的统一口径**：`{"op":"err","code":N,"why":"..."}`——code 是枚举（BADJSON/NOOP/NICK_TAKEN/ROOM_FULL/NOT_IN_ROOM/...）、why 给人——**机器判 code、人读 why**（第 4 章错误模型的帧版）。
 
 ### 协议层：收帧与分派
 

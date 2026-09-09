@@ -56,11 +56,11 @@ struct chmsg {
 };
 ```
 
-**Container selection**: the member table a member map (lookup by name — the hot path of who/join, Chapter 18); the room table one global map (the same family). **The ring's implementation**: an array + head pointer (Ring[RingHead] is the oldest) — on overwrite the head advances; catch-up replays in order from cursor to ring tail. **These three structs are chatd's entire state** — no hidden copies anywhere (SetData on the connection hangs the user pointer — Chapter 66's context mechanism).
+**Container selection**: the member table `成员表 map` (lookup by name — the hot path of who/join, Chapter 18); the room table one global map (the same family). **The ring's implementation**: an array + head pointer (`Ring[RingHead]` is the oldest) — on overwrite the head advances; catch-up replays in order from cursor to ring tail. **These three structs are chatd's entire state** — no hidden copies anywhere (SetData on the connection hangs the user pointer — Chapter 66's context mechanism).
 
 ### The protocol layer's frame-generation side
 
-Beyond receiving frames there is sending them (nine downlink types) — the generation form: the JSON Writer (Chapter 32) producing one line per frame. **Frame template functions** (one small function per type — broadcast/dm/err/ok share a skeleton): fill op, fill payload fields, (broadcast family) fill seq, Writer Finish produces legal JSON — **atomicity guaranteed by the Writer** (no half frame leaves the door). **The send path**: frame text → `xrtNetStreamSend` (line-buffered + newline) — symmetric with the receive side's line delimiting (**both ends of one protocol use the same pair of primitives**). **The error frame's unified format**: {"op":"err","code":N,"why":"..."} — code is an enum (BADJSON/NOOP/NICK_TAKEN/ROOM_FULL/NOT_IN_ROOM/...) and why is for humans — **machines judge by code, humans read why** (Chapter 4's error model, frame edition).
+Beyond receiving frames there is sending them (nine downlink types) — the generation form: the JSON Writer (Chapter 32) producing one line per frame. **Frame template functions** (one small function per type — broadcast/dm/err/ok share a skeleton): fill op, fill payload fields, (broadcast family) fill seq, Writer Finish produces legal JSON — **atomicity guaranteed by the Writer** (no half frame leaves the door). **The send path**: frame text → `xrtNetStreamSend` (line-buffered + `\n`) — symmetric with the receive side's line delimiting (**both ends of one protocol use the same pair of primitives**). **The error frame's unified format**: `{"op":"err","code":N,"why":"..."}` — code is an enum (BADJSON/NOOP/NICK_TAKEN/ROOM_FULL/NOT_IN_ROOM/...) and why is for humans — **machines judge by code, humans read why** (Chapter 4's error model, frame edition).
 
 ### The protocol layer: frame receive and dispatch
 
@@ -118,7 +118,7 @@ static void chat_do_say(chuser* U, xvalue* Msg)
 }
 ```
 
-**Broadcast's ordering guarantee**: frames carry Seq — members' cursors advance on receipt; **the catch-up path** (reconnect): hello carries cursor → within the room, replay from cursor+1 to the ring tail → after everything is resent, reply ok; a cursor older than the ring head → too_far (the client refreshes wholesale). **Ring wraparound's** sequence continuity: overwriting the oldest frame never stops NextSeq from being monotone — the catch-up window = the ring capacity (drops within 1024 frames are recoverable — the design capacity assumption cashed).
+**Broadcast's ordering guarantee**: frames carry `Seq` — members' cursors advance on receipt; **the catch-up path** (reconnect): `hello` carries `cursor` → within the room, replay from `cursor+1` to the ring tail → after everything is resent, reply `ok`; a cursor older than the ring head → `too_far` (the client refreshes wholesale). **Ring wraparound's** sequence continuity: overwriting the oldest frame never stops `NextSeq` from being monotone — the catch-up window = the ring capacity (drops within 1024 frames are recoverable — the design capacity assumption cashed).
 
 ### Three transition details of the state machine
 
@@ -126,11 +126,11 @@ The three transitions most easily fumbled when implementing the state machine: *
 
 ### The session state machine and final states
 
-Handshake (nickname legal and unique → register the user; conflict → err + close): **join/leave's order sensitivity** (Chapter 140 pitfall 3, implemented): remove the member first → send the person you_left (the last frame) → the room broadcasts member_left. **Connection drop** (the TCP-layer Close event): the user enters the offline state (Stream=NULL, cursor kept) — **not destroyed** (the resource of reconnect catch-up); only the offline timeout (configurable) truly cleans up. **Server kick** (slow member — Decision 6): sends persistently AGAIN over a threshold → kick frame → Close — the no-gap semantics forbids the "skip" grade (the key difference from pushd — the implementation face of Chapter 140's division table).
+Handshake (nickname legal and unique → register the user; conflict → `err` + close): **join/leave's order sensitivity** (Chapter 140 pitfall 3, implemented): remove the member first → send the person `you_left` (the last frame) → the room broadcasts `member_left`. **Connection drop** (the TCP-layer Close event): the user enters the offline state (`Stream=NULL`, cursor kept) — **not destroyed** (the resource of reconnect catch-up); only the offline timeout (configurable) truly cleans up. **Server kick** (slow member — Decision 6): sends persistently AGAIN over a threshold → kick frame → Close — the no-gap semantics forbids the "skip" grade (the key difference from pushd — the implementation face of Chapter 140's division table).
 
 ### The stress test's execution details
 
-The 100-double × 10-room stress run's concrete shape on the implementation side: **doubles driven in-process** (Chapter 58's executor with 100 tasks — each double a state-machine loop: random actions (speak 70% / listen 20% / dm 10%) + frame intervals (a Poisson distribution simulating human rhythm — Chapter 11's randomness) + the auditor (verify Seq==Cursor+1 on receipt)); **the server in the same process or a subprocess** (local loopback — real network, controllable); **the injector** (designated doubles drop/slow at designated frame numbers — fault injection invisible to the server); **the verdict** (after 10 minutes: all audits zero violations + catch-up joins correctly + the slow-kick count matches the injections + stats zero leaks). **This topology's credibility argument**: the loopback-TCP-versus-real-network difference (latency/loss) does not affect **correctness verification** (the sequence audit is a logical property, not a timing property) — performance conclusions need real networks (that is post-deployment — Chapter 135's baseline comparison). **Correctness stress in CI, performance stress in the environment** — the two measurement classes find their separate homes.
+The 100-double × 10-room stress run's concrete shape on the implementation side: **doubles driven in-process** (Chapter 58's executor with 100 tasks — each double a state-machine loop: random actions (speak 70% / listen 20% / dm 10%) + frame intervals (a Poisson distribution simulating human rhythm — Chapter 11's randomness) + the auditor (verify `Seq == Cursor+1` on receipt)); **the server in the same process or a subprocess** (local loopback — real network, controllable); **the injector** (designated doubles drop/slow at designated frame numbers — fault injection invisible to the server); **the verdict** (after 10 minutes: all audits zero violations + catch-up joins correctly + the slow-kick count matches the injections + stats zero leaks). **This topology's credibility argument**: the loopback-TCP-versus-real-network difference (latency/loss) does not affect **correctness verification** (the sequence audit is a logical property, not a timing property) — performance conclusions need real networks (that is post-deployment — Chapter 135's baseline comparison). **Correctness stress in CI, performance stress in the environment** — the two measurement classes find their separate homes.
 
 ### Retrospective: the implementation chapter's complete state
 
@@ -148,33 +148,33 @@ The eight acceptance criteria one by one: **(1) six UCs, positive and negative**
 
 ### First complete program: the receive engine's atom
 
-The program below is from examples/io/line — the teaching atom of chatd's frame-receive engine (the line-delimiting layer):
+The program below is from `examples/io/line` — the teaching atom of chatd's frame-receive engine (the line-delimiting layer):
 
 ```embed path="examples/io/line/main.c" title="examples/io/line/main.c"
+```
 
-```
-```
+```term
 $ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/io/line/main.c -lws2_32 -liphlpapi
 1: INFO server started
 2: WARN queue is busy
 3: ERROR request failed
 ```
 
-**What just happened.** (1) The two steps ReaderFromMemory→LineReaderTake and the Next three states — chatd's chat_on_data body (swap the Reader for the connection's receive buffer — Chapter 66's Stream data event is the Reader's network form). (2) View borrowing (each line used as it arrives) — released after dispatch, never cached — Chapter 140's "frames never overnight" discipline. (3) This atom recurs across three projects (137/139/141) — **foundation atoms reused is layered design's direct yield**.
+**What just happened.** (1) The two steps `ReaderFromMemory→LineReaderTake` and the `Next` three states — chatd's `chat_on_data` body (swap the Reader for the connection's receive buffer — Chapter 66's Stream data event is the Reader's network form). (2) View borrowing (each line used as it arrives) — released after dispatch, never cached — Chapter 140's "frames never overnight" discipline. (3) This atom recurs across three projects (137/139/141) — **foundation atoms reused is layered design's direct yield**.
 
 ### Second complete program: broadcast frame generation
 
-The second program is from examples/logging/file_json — the reference for JSON frame generation (one JSON object per line as the output form):
+The second program is from `examples/logging/file_json` — the reference for JSON frame generation (one JSON object per line as the output form):
 
 ```embed path="examples/logging/file_json/main.c" title="examples/logging/file_json/main.c"
+```
 
-```
-```
+```term
 $ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/logging/file_json/main.c -lws2_32 -liphlpapi
 wrote example_logger_json.log
 ```
 
-**What just happened.** (1) The JSON-Lines output form (one complete object per line) is **isomorphic** with chatd's downlink frames — broadcast/dm/err, one JSON line per frame. (2) Logging's fields mechanism (structured fields riding the record) corresponds to chat frames' payload fields — **the same serialization need in different systems** (logs are frames for machines; chat is frames for clients). (3) chatd's frame generation uses Chapter 32's Writer to produce JSON directly ({"op":"broadcast","seq":N,...}) — this sample is its logging-side cousin.
+**What just happened.** (1) The JSON-Lines output form (one complete object per line) is **isomorphic** with chatd's downlink frames — broadcast/dm/err, one JSON line per frame. (2) Logging's fields mechanism (structured fields riding the record) corresponds to chat frames' payload fields — **the same serialization need in different systems** (logs are frames for machines; chat is frames for clients). (3) chatd's frame generation uses Chapter 32's Writer to produce JSON directly (`{"op":"broadcast","seq":N,...}`) — this sample is its logging-side cousin.
 
 ### The revision record against the design chapter
 
@@ -218,11 +218,11 @@ static void chat_do_resume(chuser* U, chroom* R, uint64 Cursor)
 }
 ```
 
-**Walkthrough points.** (1) (NextSeq - Cursor) > 1024's **overflow safety**: NextSeq only grows, Cursor ≤ NextSeq always holds (a cursor only ever points at frames seen) — the difference is non-negative. (2) The snapshot array sits **beyond the stack limit** (1024 × 300 bytes ≈ 300 KB — heap-allocated or replayed in batches) — the teaching form sketches only the logic; a real implementation replays in batches (64 frames per batch to avoid stack/memory spikes). (3) The cursor advances **after** the replay — another drop mid-catch-up restarts catch-up from the top next time (idempotent — catch-up has no side effects). (4) ring_at(R, s) fetches a frame by sequence number (random ring access — circular index arithmetic).
+**Walkthrough points.** (1) `(NextSeq - Cursor) > 1024`'s **overflow safety**: NextSeq only grows, Cursor ≤ NextSeq always holds (a cursor only ever points at frames seen) — the difference is non-negative. (2) The snapshot array sits **beyond the stack limit** (1024 × 300 bytes ≈ 300 KB — heap-allocated or replayed in batches) — the teaching form sketches only the logic; a real implementation replays in batches (64 frames per batch to avoid stack/memory spikes). (3) The cursor advances **after** the replay — another drop mid-catch-up restarts catch-up from the top next time (idempotent — catch-up has no side effects). (4) `ring_at(R, s)` fetches a frame by sequence number (random ring access — circular index arithmetic).
 
 ### The test-asset checklist
 
-chatd's four-quadrant tests (the delivery definition isomorphic with Chapter 139's): **positive** (test_chat.c — each of the six UCs' positives + one per each of the frame dictionary's sixteen types); **race** (test_chat_threads.c — concurrent-speech ordering audit (multi-threaded 1000 frames, then room-wide sequence chains monotone) + catch-up interleaving (speech continuing through a disconnect/reconnect) + ghost-frame checks (zero frames after leave)); **negative** (nickname conflict / full room / bad JSON / unknown op / missing fields — each returns err with the connection kept); **OOM** (test_chat_oom.c — entity operations point by point: on failure, room/user state unchanged). **The double library** (test_chat_client.c — virtual-user driver + built-in sequence auditor) shares protocol code with the system under test — no second implementation. All hung on the manifest's tests field — build.py --suite chatd on both tracks.
+chatd's four-quadrant tests (the delivery definition isomorphic with Chapter 139's): **positive** (test_chat.c — each of the six UCs' positives + one per each of the frame dictionary's sixteen types); **race** (test_chat_threads.c — concurrent-speech ordering audit (multi-threaded 1000 frames, then room-wide sequence chains monotone) + catch-up interleaving (speech continuing through a disconnect/reconnect) + ghost-frame checks (zero frames after leave)); **negative** (nickname conflict / full room / bad JSON / unknown op / missing fields — each returns err with the connection kept); **OOM** (test_chat_oom.c — entity operations point by point: on failure, room/user state unchanged). **The double library** (test_chat_client.c — virtual-user driver + built-in sequence auditor) shares protocol code with the system under test — no second implementation. All hung on the manifest's tests field — `build.py --suite chatd` on both tracks.
 
 ## Contracts
 
@@ -230,7 +230,7 @@ chatd's four-quadrant tests (the delivery definition isomorphic with Chapter 139
 - **Containers**: member table and room table as maps (lookup by name) — Chapter 18.
 - **The receive engine**: line delimiting (three-state loop) + JSON (ObjectGet fetches op) — the lenient/strict boundary per Chapter 140.
 - **Dispatch shape**: string routing by op — isomorphic with pushd (pattern reuse).
-- **Number-taking**: ++NextSeq inside the lock, single-point ordering; frames carry Seq; member cursors advance on receipt.
+- **Number-taking**: `++NextSeq` inside the lock, single-point ordering; frames carry Seq; member cursors advance on receipt.
 - **Catch-up**: hello with cursor → snapshot inside the lock, replay outside; older than the ring head → too_far wholesale refresh.
 - **Ring semantics**: 1024 frames/room; overwrites the oldest but numbers stay monotone; the catch-up window = the ring capacity (drops beyond the window are too_far).
 - **join/leave order**: remove first → you_left to the person → room broadcast — zero ghost frames.
@@ -329,7 +329,7 @@ static void chat_broadcast(chroom* R, const chmsg* M)
 }
 ```
 
-**Walkthrough points.** (1) The member snapshot is two-phase (count then fetch — a miniature of Chapter 111's pattern: snapshot the room's member table under lock). (2) **OOM's backstop semantics**: the frame is already in the ring (do_say stores before broadcasting) — a send-side failure loses no data (reconnect catch-up replays from the ring) — **the ring is broadcast's persistence layer**. (3) The send failure's mark_slow: the slow count accumulates to the threshold and triggers the kick (Decision 6 quantified). (4) The broadcast holds no room lock (pitfall 1's positive form).
+**Walkthrough points.** (1) The member snapshot is two-phase (count then fetch — a miniature of Chapter 111's pattern: snapshot the room's member table under lock). (2) **OOM's backstop semantics**: the frame is already in the ring (do_say stores before broadcasting) — a send-side failure loses no data (reconnect catch-up replays from the ring) — **the ring is broadcast's persistence layer**. (3) The send failure's `mark_slow`: the slow count accumulates to the threshold and triggers the kick (Decision 6 quantified). (4) The broadcast holds no room lock (pitfall 1's positive form).
 
 ## Exercises
 
