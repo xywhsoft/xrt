@@ -5,7 +5,7 @@ title: HTTP Upgrade: From Request to 101
 volume: 卷九 Web 协议核心
 type: practice
 lead: Parsing and answering Upgrade offers, building the WebSocket handshake request, Accept-key computation and subprotocol negotiation — the complete entrance to protocol switching.
-api: http_upgrade, websocket, http
+api: http_upgrade, websocket_upgrade, websocket, http
 ---
 
 ## Orientation

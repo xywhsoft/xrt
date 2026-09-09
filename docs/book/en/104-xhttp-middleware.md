@@ -50,7 +50,7 @@ Unified logging and error-handling middleware must be able to see 404/405 and au
 
 ### Unified dispatch path
 
-Fixed Routers and the Host Mux (a multiplexer branching on the Host header — one service, many domains) share **one dispatch path** — the middleware table and route table freeze together into read-only shared form. Lock-free dispatch on the hot path (the same performance philosophy as Chapter 98's pool sharding).
+Fixed Routers and the Host Mux (a multiplexer branching on the Host header — one service, many domains) share **one dispatch path** — the middleware table and route table freeze together into read-only shared form. Lock-free dispatch on the hot path (the same performance philosophy as Chapter 98's pool sharding). The route pattern's `{name}` segment-capture syntax (`http_route.h`) shares its idea with the `{name}` capture of Chapter 30's cousin pattern — freeze is precisely where "compile once, look up only on the hot path" lands in the routing layer.
 
 ## Examples
 

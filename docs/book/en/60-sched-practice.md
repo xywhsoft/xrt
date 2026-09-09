@@ -5,7 +5,7 @@ title: The Scheduler in Practice: Coroutines, Channels, and Tasks in Joint Actio
 volume: 卷六 进程与并发 · 卷六收官
 type: composition
 lead: Assembling all of Volume 6's tools into one service skeleton — event loop, connection coroutines, compute offload, and structured shutdown.
-api: coroutine, channel, future, task, cancel
+api: coroutine, channel, future, task, cancel, task_net
 ---
 
 ## Orientation
@@ -168,6 +168,29 @@ Chapter 35 set four link checks for data pipelines, Chapter 49 the observability
 
 The mapping from this skeleton to Volume 7's network engine deserves stating in the closing chapter.**Scheduler pump → event port** (Chapter 63's five backends: IOCP/epoll/kqueue/io_uring/select — the pump's PollFor corresponds to the port's waiting interface);**connection coroutine → the engine Stream's event callbacks** (Chapter 65's gold-standard Accept/Read/Close callback tables — Volume 7 expresses these as callbacks rather than coroutines directly, but the scheduler can wrap callbacks as coroutines);**task-pool offload → the network engine's Worker pool** (isomorphic — compute never jams the IO threads);**message bus → the engine's internal statistics/management channels**;**service group → the engine's shutdown sequence** (Chapter 65's "Close callbacks may still be finishing on Workers; Engine destruction waits" — task-group Wait, engine edition). The mapping is no equivalence — Volume 7 adds protocol layers (TCP state machine, TLS, HTTP) and production details (backpressure watermarks, reference-counted buffers) above the skeleton — but **the skeleton's five-item checklist applies verbatim to the network engine**. Read Volume 7 with this chapter's skeleton diagram, asking each chapter "where on the skeleton does this layer mount".
 
+### Network task groups (task_net): the Volume 6 to Volume 7 bridge
+
+A ready-made bridge stands between the skeleton and the network engine: **an optional bridge from the task system onto the network Engine** (`XRT_FEATURE_TASK_NET` — one-directional; the network never leaks back into the Future/Task core). `xrtTaskNet` submits a task onto a designated affinity Worker: the `xtasknetproc` signature **borrows** an `xnetworker` ahead of the ordinary task arguments — direct access to the Worker buffer pool and Engine context, with cancellation, task values, structured errors, the temporary arena, and data ownership contracts all identical to ordinary tasks; the `After/Until` variants hand "delayed / deadline" timing to the Engine's timer (Chapter 9's deadline mathematics, engine edition). The group form `xrtTaskGroupNetUntil` reserves a task-group activity slot **before** submitting — **when the group is closed or at its cap the task never starts**; group cancellation propagates to the Future and waits for the timer's real cancellation to complete. Two hard rules: **network tasks run on the event-loop thread — no blocking or long computation** (heavy work goes to `xtaskpool`, exactly the skeleton's "pump never blocks" discipline modularized); when the Engine stops, immediate tasks still execute during the drain phase while delayed tasks fail with the structured error `XERR_CLOSED` — before the terminal state publishes, the timer, the cancel listener, and data destruction all complete (a consumer never sees a context still in Worker use).
+
+From the repository example `examples/network/task/main.c` — immediate/delayed/deadline/group, four submission kinds in one tour:
+
+```embed path="examples/network/task/main.c" title="examples/network/task/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/network/task/main.c -lws2_32 -liphlpapi
+worker=0
+value=42
+worker=0
+after: value=42
+worker=0
+until: value=42
+worker=0
+group-until: done
+```
+
+**What just happened.** (1) `xrtTaskNet` submits an immediate task — `xrtFutureWaitFor` waits with Chapter 9's deadline semantics, and the value is read through the `xrtFutureValue` borrow (Chapter 57's discipline). (2) `After`/`Until` demonstrate timer submission — the two differ only in taking "relative microseconds" versus "an absolute deadline", and the output proves the task indeed ran after expiry. (3) `GroupNetUntil` atomically admits a delayed task into a task group — group cancellation and cap protection are guaranteed by the reserved slot. (4) All four segments print `worker=0` — affinity submission lands on the same Worker, precisely the shape of "small work on the IO thread".
+
 ### The volume's retrospective: Volume 6's asset list
 
 Volume 6 closes; the inventory.**Primitives layer**: the thread four-step lifecycle, the four-piece set (mutex/condition/quota/read-write lock), deadlock's four conditions and lock-order prevention (Chapter 52).**Cooperation layer**: the cancellation token trio and propagation tree (53), coroutine four states, three final states and the cleanup stack (54), the scheduler's core three and the pump family's three shapes (55), Channel capacity/close-three-party/Select/cancellation integration (56), Future four states/continuations/combinators/wait family (57), executor twin shapes/shutdown protocol/batch (58).**Structured layer**: the task group's core five/final-state tally/parent-child scopes/Done Future (59).**Mental models**: the cancellation main line, the three-layer assembly line, shared-versus-message, the waiting cost ladder, three granularities, structured concurrency's lineage. Plus this chapter's assembly skill — this list is the foundation of "can read any modern concurrency library, can design your own concurrency architecture". From Volume 7 on, these tools all enter combat.
@@ -268,3 +291,4 @@ Assemble the full service skeleton: signal-triggered shutdown + a rate-limiter c
 | Teardown in reverse | pump -> bus -> pool - reverse dependency, each layer its own protocol |
 | Checklist | pump zero blocking / waits cancellable / three-way final states / lifecycle alignment / observation throughout |
 | Skeleton's destiny | strip protocols, load TCP/TLS/HTTP = Volume 7's network engine |
+| Network tasks | the task_net one-way bridge: affinity Worker + timer; no blocking heavy work on the event loop; group slot reservation |

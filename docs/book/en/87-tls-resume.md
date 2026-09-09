@@ -5,7 +5,7 @@ title: Session Resumption: Tickets, PSK, and the Object Contract
 volume: 卷八 安全 · 卷八收官
 type: practice
 lead: The resumption object packages "one more handshake" into an immutable value — ticket issuance, client takeover, and the next connection's PSK+DHE loop; Volume 8's closing chapter.
-api: tls, tls_resume, crypto
+api: tls, tls_resume, tls_session, crypto
 ---
 
 ## Orientation

@@ -94,9 +94,9 @@ protected section
 
 Teaching primitives demands teaching "when not to use them" — three signs that business code is touching primitives directly.**Sign one: you're using a Mutex to protect "task handoff"** — two threads passing data by hand-assembling lock + condition variable is exactly Channel territory (Chapter 56): queue + wakeup + backpressure in one step.**Sign two: you're assembling an "asynchronous result" from thread + Wait** — creating a thread just to compute a value and Wait for it is Future/task-pool territory (Chapters 57/58): submit, get a Future, pooled thread reuse.**Sign three: you're using a Semaphore for "concurrency control"** — rate limiting runs on a semaphore, but a task pool's queue depth is natively the concurrency cap (with backpressure besides). The shared criterion behind the signs: **primitives solve "how to synchronize"; the upper layers solve "how to cooperate"** — writing cooperation logic while holding primitives means you are reinventing the upper layer. Legitimate direct uses of primitives: protecting pure data structures (caches, counters), performance-critical paths (where lock overhead is visible), boundary glue with external thread libraries.
 
-### The division with Chapter 21's queues and Chapter 10's atomics
+### The division with Chapter 21's queues and Chapter 9's atomics
 
-The three-layer toolbox for concurrent data access is easily confused; one comparison settles it.**Atomic operations** (Chapter 10): single-variable reads and writes — counters, flags, pointers; lock-free but single-variable only.**Mutex/the four-piece set** (this chapter): maintaining multi-variable invariants — constraints like "two fields must change together" are beyond atomics; locks take them.**Lock-free queues** (Chapter 21): SPSC/MPSC/MPMC pointer passing — lock-free inside the queue, you add no lock. Selection is decided by "the shape of the sharing": single variable → atomics; invariants → locks; passing pointers → queues. The classic layer-mixing errors are wrapping a Mutex around a queue (the queue is already thread-safe) or locking a counter (atomics are cheaper) — layer awareness is isomorphic with Chapter 23's container selection.
+The three-layer toolbox for concurrent data access is easily confused; one comparison settles it.**Atomic operations** (Chapter 9): single-variable reads and writes — counters, flags, pointers; lock-free but single-variable only.**Mutex/the four-piece set** (this chapter): maintaining multi-variable invariants — constraints like "two fields must change together" are beyond atomics; locks take them.**Lock-free queues** (Chapter 21): SPSC/MPSC/MPMC pointer passing — lock-free inside the queue, you add no lock. Selection is decided by "the shape of the sharing": single variable → atomics; invariants → locks; passing pointers → queues. The classic layer-mixing errors are wrapping a Mutex around a queue (the queue is already thread-safe) or locking a counter (atomics are cheaper) — layer awareness is isomorphic with Chapter 23's container selection.
 
 ### A testing view: deterministic testing for concurrency
 
@@ -152,7 +152,7 @@ xrtMutexUnlock(&A);
 
 ### Basic: proving the counter race
 
-Two threads each incrementing a lock-free counter one million times versus a Mutex-protected version — compare results (the lock-free version differs every run and lands below two million); then add an atomic-operations version (Chapter 10) for a three-way comparison.
+Two threads each incrementing a lock-free counter one million times versus a Mutex-protected version — compare results (the lock-free version differs every run and lands below two million); then add an atomic-operations version (Chapter 9) for a three-way comparison.
 
 ### Advanced: producer-consumer
 

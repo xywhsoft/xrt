@@ -4,8 +4,8 @@ slug: future
 title: Future / Promise and Combinators
 volume: 卷六 进程与并发
 type: practice
-lead: The one-shot asynchronous result with split write/read ends — the resolved/failed/cancelled states, then-style continuations, combinators, and the wait family.
-api: future, cancel
+The one-shot asynchronous result with split write/read ends — the resolved/failed/cancelled states, then-style continuations, combinators, and the wait family; closing with the future_bridge assembly bridge.
+api: future, cancel, future_bridge
 ---
 
 ## Orientation
@@ -54,6 +54,12 @@ Watch's discipline matches the library-wide callback rule: light work (Chapters 
 
 Both the Promise side and the Future side expose a CancelToken (`xrtPromiseCancelToken`/`xrtFutureCancelToken`) — the cancellation tree passes through the pair; `xrtFutureCancel` is the direct button. The linkage shape: a parent token (Chapter 53's tree) → the pParentCancel parameter at creation — a parent cancellation ends the Future Cancelled (no manual forwarding needed); the read end's Cancel notifies the write end in reverse (the operator aborts work in the CancelToken's Watch — Chapter 53's checkpoint discipline).
 
+### Bridging: wiring async completion back into a Future (future_bridge)
+
+A classic race of asynchronous libraries: **the entry point must return a Future immediately, while the result arrives later** — in that "assembly window", the underlying completion callback may arrive before the Future's terminal state may be written (the caller may not yet hold the Promise reference; the cancel listener may not be attached). `xfuturebridge` is the gate for exactly that window: `xrtFutureBridgeCreate` creates the Future/Promise pair and initializes the bridge (or `xrtFutureBridgeInit` bridges a Promise the caller already owns — **the bridge borrows, never owns**); `xrtFutureBridgeWatch` forwards the Future's cooperative cancellation to the underlying operation; when assembly completes, publish one of two ways — `xrtFutureBridgeReady` opens the gate (the terminal state settles) (completion callbacks may now write the Promise's terminal state), `xrtFutureBridgeFail` declares a degradation to failure (callbacks only reclaim the result, writing nothing); the worker thread uses `xrtFutureBridgeWait` to wait for that decision, and `xrtFutureBridgeUnwatch` unregisters the cancel listener and joins any cancel callback still executing. The bridge itself is 32 bytes of fixed storage — embed it directly in the async operation's context struct, zero extra allocation.
+
+Its value is **order freedom**: whichever of assembler and completer arrives first, no race condition arises — terminal writes before Ready are suspended; Ready/Fail decides release or reclaim. Chapter 58's executor, Chapter 60's scheduling skeleton, and Chapter 98's network async entries all stand on this bridge underneath — recognize these eight functions when reading their implementations and the race handling stops being mysterious.
+
 ## Examples
 
 ### Complete program: one asynchronous delivery
@@ -84,6 +90,22 @@ result: 105
 
 **What just happened.** (1) The continuation callback `addFive(源结果, 输出Promise, 数据)` (source result, output Promise, data) — reads the source Future's value, adds five, publishes through the output Promise: **input and output are both asynchronous**, and the transformation itself is a link in the async chain. (2) Waiting at the chain's tail yields `result: 105` (100→+5) — the main line has no nesting, no intermediate waits, one straight line to the final value. (3) Failure propagation: if the source were Rejected, the continuation by convention does not publish (or forwards the error) — the error runs down the chain to the tail (when writing continuations, handle source failure explicitly — the pitfalls hold an example). (4) The future_combine sample is the combinator edition: among several sources, `winner[1]` (22 at index 1) arrives first — first-finisher wins, index and value both in hand.
 
+### Complete program: bridge — a three-step tour of the assembly window
+
+From the repository example `examples/concurrency/bridge_tour/main.c`:
+
+```embed path="examples/concurrency/bridge_tour/main.c" title="examples/concurrency/bridge_tour/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/concurrency/bridge_tour/main.c -lws2_32 -liphlpapi
+bridge: create + promise borrow ok
+bridge: watch + ready -> resolve -> future value ok
+bridge: init on own promise + fail -> wait false ok
+```
+
+**What just happened.** (1) `Create` yields the Future and bridge in one step; `xrtFutureBridgePromise` lends the write end — ownership stays with the caller, destruction duty unchanged. (2) Watch (attach cancel forwarding) → Ready (open the gate) → Promise writes the terminal state → the Future reads the value — **the order deliberately stages "assembly first"**; in real async these three steps may interleave any way, and the bridge absorbs all of it. (3) A second bridge demonstrates the failure path: Init onto its own Promise, publish Fail — thereafter `Wait` returns false and completion callbacks only reclaim, never write. The cancel callback (`exampleCancel`) also demonstrates the fact of forwarding before Unwatch joins it.
+
 ## Contracts
 
 - **One-shot**: the endgame exactly once, immutable; repeated publishing refused.
@@ -92,6 +114,7 @@ result: 105
 - **Continuation discipline**: handle the source's three states explicitly (forward failure or degrade — never swallow, never crash); the output must publish (else the downstream hangs).
 - **Reference balancing**: both ends Ref/Destroy each; references stored into structures are managed by the structure (Chapter 5's ownership discipline).
 - **Cancellation linkage**: attaching a parent token at creation links automatically; both ends expose CancelToken; the operator aborts work in the token's Watch.
+- **Bridge contract**: terminal writes suspend before Ready, only reclaim after Fail; the bridge borrows the Promise without owning it; Unwatch joins the cancel callback before the bridge may be discarded.
 
 ## Pitfalls
 
@@ -164,3 +187,4 @@ Three "replica" Futures (each mocking a different delay) + a First combinator �
 | Wait family | Wait/For/Until timed + Watch zero-allocation callback + coroutine await (Chapter 55) |
 | Cancellation linkage | attach a parent token at creation for auto-linkage; both ends expose CancelToken |
 | Borrowing discipline | Value/Error are borrows - use immediately or copy and hold, used up before Destroy |
+| Assembly bridge | Ready releases / Fail reclaims; Watch forwards cancellation; 32 bytes, embeddable in a context |

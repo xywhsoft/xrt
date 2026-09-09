@@ -5,7 +5,7 @@ title: TLS Identity: Certificates, Private Keys, and Signatures
 volume: 卷八 安全
 type: practice
 lead: Packaging "one certificate chain + one private key" into an immutable shared object — the signing engine for the handshake's CertificateVerify and its hardware extension port.
-api: tls, crypto
+api: tls, tls_identity, crypto
 ---
 
 ## Orientation

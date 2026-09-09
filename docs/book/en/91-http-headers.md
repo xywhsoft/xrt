@@ -5,7 +5,7 @@ title: The Header Field Families: Parameters, Connection, and Negotiation
 volume: 卷九 Web 协议核心
 type: practice
 lead: Semicolon parameters and quoted-strings, Connection/Upgrade capability, Expect and trailers — the per-family layer's complete handling surface.
-api: http, http_te, http_connection
+api: http, http_te, http_connection, http_expect, http_trailer
 ---
 
 ## Orientation

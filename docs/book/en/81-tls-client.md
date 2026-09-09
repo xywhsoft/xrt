@@ -5,7 +5,7 @@ title: The TLS Client: Dialing, Handshake, and the Application Stream
 volume: 卷八 安全
 type: practice
 lead: DNS→TCP→TLS in one hosted dial, callback and Future consumption forms, send/receive and close after READY — the client's complete lifecycle.
-api: tls, tls_verify, net
+api: tls, tls_verify, tls_client, net
 ---
 
 ## Orientation

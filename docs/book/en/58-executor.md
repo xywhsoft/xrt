@@ -63,7 +63,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/concurrency/
 completed: 1000
 ```
 
-**What just happened.** (1) `xrtExecutorCreate(NULL)` — NULL takes the default configuration (thread count and queue depth per platform; pass a config to customize — depth is backpressure). (2) 1000 forget tasks submitted — each atomically increments a counter (Chapter 10's atomics — the counter is the tasks' only sharing; the join statistics complete lock-free). (3) `Wait` for all — `completed: 1000` proves all 1000 tasks executed on pool threads, none lost. (4) Note **no thread was opened for any task** — the pool reused fixed threads; submission cost is a microsecond-scale enqueue. This 62-line loop is the executor's minimal complete usage.
+**What just happened.** (1) `xrtExecutorCreate(NULL)` — NULL takes the default configuration (thread count and queue depth per platform; pass a config to customize — depth is backpressure). (2) 1000 forget tasks submitted — each atomically increments a counter (Chapter 9's atomics — the counter is the tasks' only sharing; the join statistics complete lock-free). (3) `Wait` for all — `completed: 1000` proves all 1000 tasks executed on pool threads, none lost. (4) Note **no thread was opened for any task** — the pool reused fixed threads; submission cost is a microsecond-scale enqueue. This 62-line loop is the executor's minimal complete usage.
 
 ### Complete program: batch and shutdown
 

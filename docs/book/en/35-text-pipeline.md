@@ -5,7 +5,7 @@ title: Text Pipeline Composition: JSON Config → Template Rendering → Protoco
 volume: 卷四 文本与结构化数据 · 卷四收官
 type: composition
 lead: Stringing all six chapters' tools into one real pipeline — extraction, parsing, merging, rendering, encoding, compression, each in its place.
-api: json, template, value, regex, codec, compress
+api: json, template, value, regex, codec, compress, html
 ---
 
 ## Orientation
@@ -38,6 +38,18 @@ The first task of pipeline design is not choosing functions but **defining the c
 ### At which layer errors report
 
 Any station on the chain can fail; the attribution principle for reporting: **report at the layer that owns the context**. JSON parse failure — the log layer knows which line of which file (Chapter 32's line/column location plus source annotation); regex extraction failure — the extraction layer knows the pattern and the original text (a value that can't be extracted returns "missing" rather than an error — "field missing" is a data state, not an error); merge conflict — the config layer knows the key name and both sources; template render path miss — the render layer decides per configuration between error and empty string. The whole chain's errors finally report up through Chapter 4's cause chain: `报告生成失败 → 来源 B 提取失败 → 第 3 行缺 version 字段` (report generation failed → source B extraction failed → line 3 missing the version field) — each layer contributes its own link.
+
+### One station at the pipeline's end: HTML entity escaping (html)
+
+When the rendered output heads for an HTML page or a mail body, one last station remains at the chain's tail: turning `<`, `&`, and quotes into entities — **every dynamic text entering an HTML context must pass this station**; skipping it is an injection vulnerability. The html module is small and restrained, three functions in one line: `xrtHtmlEscapeSize` strictly validates UTF-8 and returns the exact escaped byte count (pass one of the two-pass approach); `xrtHtmlEscapeWrite` writes into the caller's buffer (capacity must include the trailing zero); `xrtHtmlEscape` directly produces a zero-terminated string freed with `xrtFree`. The one parameter you must get right is **context**: `XHTML_ESCAPE_TEXT` for element content, `XHTML_ESCAPE_ATTRIBUTE` for attribute values **enclosed in quotes** — the two contexts escape different character sets, and picking the wrong one is the classic cross-site-scripting variant. It depends on the UNICODE capability (Chapter 27's terrain) and strictly validates UTF-8 before escaping — malformed input is stopped here rather than carried into the product. The ordering discipline matches compression: **render → escape → compress**; escaping always lives at the encoding station and never leaks into templates.
+
+```c
+/* The last station on the output side: escape dynamic text before it enters HTML (context picks the charset) */
+size_t iSize = 0;
+if ( !xrtHtmlEscapeSize(UserBio, XHTML_ESCAPE_TEXT, &iSize) ) { return fail(); }
+str sSafe = xrtHtmlEscape(UserBio, XHTML_ESCAPE_TEXT, NULL);
+/* sSafe goes into the template product; xrtFree when done — an owning string (Chapter 25) */
+```
 
 ### How performance and boundaries distribute along the chain
 
@@ -249,6 +261,7 @@ Give this pipeline a reference scale to build engineering intuition: the daily-r
 - **Boundary philosophy**: tight outside, loose inside — every external entrance gets the gates (three gates/length/decompression caps), internal stations trusted.
 - **Performance order**: rendering first (compile once), then parsing (streaming), micro-optimization last.
 - **Resource balancing**: every station manages its own resources (matchers, value trees, products); failure paths are isomorphic.
+- **HTML escape context**: TEXT for element content / ATTRIBUTE for quoted attribute values — the wrong context under-escapes; escape after rendering, before compression.
 
 ### Evolution path: from literal translation to pipeline
 
@@ -354,3 +367,4 @@ Ten chapters done; Volume 4's asset list: strings (view pipeline/builder), numbe
 | Station checks | value trees in/out / resources self-managed / failures isomorphic / unit-testable — four checks passed, then a screw |
 | Orchestration principles | order declarative / one-way data flow / early-exit and partial-success decided explicitly |
 | Render-output separation | as many output processing modes as there are, that many output stations; compression after rendering |
+| HTML escaping | dynamic text entering HTML must be escaped; TEXT/ATTRIBUTE contexts; strict UTF-8 validation first |

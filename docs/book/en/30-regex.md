@@ -4,13 +4,13 @@ slug: regex
 title: The Regex Engine
 volume: 卷四 文本与结构化数据
 type: practice
-lead: A non-backtracking engine with worst-case linear time, immutable compiled objects with exclusive matchers, named captures and replacement.
-api: regex
+A non-backtracking engine with worst-case linear time, immutable compiled objects with exclusive matchers, named captures and replacement — closing with its restricted cousin pattern for routing-shaped matching.
+api: regex, pattern
 ---
 
 ## Orientation
 
-`xregex` is XRT's regex engine; three engineering decisions define its character: a **non-backtracking engine** — matching time is linear in input length, catastrophic backtracking (ReDoS) is structurally impossible, and untrusted text can be matched safely; **compile/match separation** — `xrtRegexCompile` produces an immutable reference-counted object (compile once, share everywhere), while `xregexmatcher` is an execution cache exclusive to each traversal (repeated scans of the same text do zero re-allocation); and **named captures** — `(?<name>...)` read by group name, replacing fragile numeric indices. This chapter makes the usage and payoff of the three decisions clear; the regex syntax itself is covered as a standard-subset cheat sheet.
+`xregex` is XRT's regex engine; three engineering decisions define its character: a **non-backtracking engine** — matching time is linear in input length, catastrophic backtracking (ReDoS) is structurally impossible, and untrusted text can be matched safely; **compile/match separation** — `xrtRegexCompile` produces an immutable reference-counted object (compile once, share everywhere), while `xregexmatcher` is an execution cache exclusive to each traversal (repeated scans of the same text do zero re-allocation); and **named captures** — `(?<name>...)` read by group name, replacing fragile numeric indices. This chapter makes the usage and payoff of the three decisions clear; the regex syntax itself is covered as a standard-subset cheat sheet. The chapter closes by bringing in its **restricted cousin** — `xpattern`: when the matching shape is a `{name}`-capture structure like routes or configuration keys and one text must dispatch against dozens of patterns, it is faster and simpler than regex.
 
 ## Introduction
 
@@ -39,6 +39,12 @@ A backtracking engine, on failure, tries every path — some patterns make the p
 ### Named captures and replacement
 
 `(?<name>[A-Za-z_]+)=(?<value>\d+)` defines two named groups; `xrtRegexMatcherCaptureNamed(匹配器, "value", ...)` (matcher, "value", ...) reads out the text view and range by name. Replacement `xrtRegexReplace(编译对象, 文本, 替换, ...)` (compiled object, text, replacement, ...) supports `$1`/`$2` numeric references (named groups carry implicit numbers too); `xrtRegexEscape` escapes arbitrary text into a "match literally" form — the mandatory step before splicing user input into a pattern. `xrtRegexFullTest` decides "whole-string exact match", complementing Find's "find a substring" semantics.
+
+### When regex is too heavy: structured pattern matching (pattern)
+
+Regex answers "**one text against one pattern**"; pattern answers "**one text against a set of patterns**" — the standard shape of routing tables, configuration keys, and command dispatch. Its syntax has exactly three elements: literal fields match bytes exactly; `{name}` captures one non-empty field (never crossing a separator — `/` by default; `xpatternconfig.Separators` configures the byte set); `{*name}` may only sit at the end, capturing the remainder and allowing empty. `{{` and `}}` escape literal braces. No metalanguage, no quantifiers or alternation — three immediate consequences: **non-backtracking holds by construction** (nothing to explode); **no escaping traps** (user input is always the text being matched, never a pattern ingredient — pitfall 2 structurally disappears here); **matching is anchored to the full input** (no path normalization, URL decoding, or case folding — those are Chapter 101/104 jobs; layering is the point).
+
+The outcome uses the three-state `xpatternresult`: `XPATTERN_ERROR` / `XPATTERN_NONE` / `XPATTERN_MATCH` — **a miss is not an error** (the same philosophy as Chapter 9's `xwaitresult`: control flow separated from errors). The multi-pattern lifecycle mirrors regex: `xrtPatternBuilderCreate` registers dozens of patterns incrementally, `xrtPatternBuilderCompile` compiles them once into a single deterministic program (immutable, long-lived; the builder is freed right after); on a hit, `Match.Value` directly returns the business identity given at registration (say `"user"`) and `Match.Index` the pattern number — **the dispatch key is built in**, no capture-group semantics to re-parse. One-shot cases can use `xrtPatternExtract` for whole-string extraction without compiling. Four budget ceilings (pattern bytes / pattern count / captures / compiled bytes) block untrusted patterns from ballooning memory; overflow errors carry the in-pattern byte offset (`xrtPatternErrorOffset`). The division in one line: **need "shape description plus quantifiers and alternation" — regex; need "field splitting plus multi-pattern dispatch" — pattern** — Chapter 104's routing table and Chapter 137's log classification both stand on this side.
 
 ### Syntax-subset cheat sheet
 
@@ -84,6 +90,20 @@ width: 128 height: 72
 
 **What just happened.** (1) The same named-group pattern, this time through `xrtRegexReplace` — `$1` and `$2` reference the capture groups (named groups carry the implicit numbers 1, 2). (2) The replacement product is an owning string (freed with `xrtFree`). (3) This sample doesn't use `Escape`, but note it here: **before user input is spliced into a pattern, `xrtRegexEscape` is mandatory** — the parentheses in a user input like `a(b` are syntax characters; unescaped, they form an illegal pattern or a wrong match (Pitfall 2's protagonist).
 
+### Complete program: pattern — routing-style {name} capture
+
+From the repository example `examples/text/pattern/main.c` — one route pattern; a hit is a dispatch:
+
+```embed path="examples/text/pattern/main.c" title="examples/text/pattern/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/text/pattern/main.c -lws2_32 -liphlpapi
+kind=user group=admin id=42
+```
+
+**What just happened.** (1) The `xpatternspec` quadruple: template, business identity (`"user"` — the dispatch key of the hit), budget flags; a real routing table registers dozens before one compile. (2) Builder incremental registration → `Compile` yields an immutable object → **the builder can be freed immediately** — the same lifecycle discipline as the regex compiled object. (3) `xrtPatternMatch` writes captures into the caller's array in template declaration order (`group` first, `id` second); captures are **views borrowing the input text** (Chapter 3's discipline). (4) One output line yields all three dispatch essentials: `Match.Value` (which route class), two captured segments (the parameters) — the entire input of an HTTP route handler is in that line.
+
 ## Contracts
 
 - **Linear guarantee**: non-backtracking engine; worst-case matching time is linear in input length — no catastrophic-backtracking patterns exist.
@@ -92,6 +112,7 @@ width: 128 height: 72
 - **Escaping discipline**: dynamic content must pass `xrtRegexEscape` before entering a pattern.
 - **Semantic distinction**: `Find` finds substrings, `FullTest` decides whole strings — choose by need; don't simulate with `^...$`.
 - **Syntax subset**: the mainstream common subset; backreferences and lookahead unsupported — documented explicitly, not silently.
+- **pattern boundary**: full-string anchored; captures borrow the input text; errors live in the `xrt.pattern` domain with `xrtPatternErrorOffset` giving the in-pattern byte offset; a miss is NONE, not an error.
 
 ### From examples to engineering: three hosts of regex
 
@@ -189,3 +210,4 @@ Implement `highlight(文本, 查询词)` (text, query term): the query is escape
 | Three hosts | validation (anchor + whitelist) / extraction (named captures, full scan) / replacement (capture-reference reassembly) |
 | Tool division | literal search uses StrFind / simple globs use StrGlob / shape descriptions go to regex |
 | Pattern discipline | name patterns + boundary case sets + performance sampling — patterns are code too |
+| The pattern cousin | `{name}` capture + literal segments; Builder compiles many patterns once; three states without error; Match.Value is the dispatch key |

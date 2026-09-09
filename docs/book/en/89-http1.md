@@ -4,8 +4,8 @@ slug: http1
 title: HTTP/1 Messages: Parsing and Packing
 volume: 卷九 Web 协议核心
 type: practice
-lead: One-shot parsing of request/response heads, status-line packing with lookup and traversal — the zero-per-request-allocation core path built on caller-bound arrays.
-api: http1, http
+One-shot parsing of request/response heads, status-line packing with lookup and traversal — the zero-per-request-allocation core path built on caller-bound arrays; closing with the thin transport bindings of the parser onto net and TLS streams.
+api: http1, http, http1_net, http1_tls
 ---
 
 ## Orientation
@@ -31,6 +31,10 @@ The second design decision is the **three-state return**: `XHTTP1_READY` (a comp
 ```
 
 Requests and responses share the Head structure (the role is decided by the call entrance: `RequestParse`/`ResponseParse`). `ResponseParse` takes a method parameter — because response semantics depend on the request method (a HEAD response has no body; this context becomes a hard rule in Chapter 90's Plan).
+
+### The parser's transport bindings (http1_net / http1_tls)
+
+The input of `RequestParse`/`ResponseParse` is **contiguous memory** — the shape of test vectors and whole buffers. A real receive path hands the engine's **buffer chain** instead (the head may be split across two blocks, Chapter 64), and a TLS connection hands a **plaintext stream spanning records** (Chapter 86). The binding layer plugs the parser into these two real sources: `xrtHttp1RequestParseBuffer`/`xrtHttp1ResponseParseBuffer` consume an `xnetbuf` (the Head's views borrow the buffer; only on a straddling head is a contiguous prefix allocated on demand — "the function does not consume the input; the caller consumes Head.Bytes after processing"); `xrtHttp1RequestParseTls`/`xrtHttp1ResponseParseTls` eat an `xtlsstream` directly (no plaintext consumed; on record straddling only the Header is merged — no connection-level fixed buffer). Each binding has two functions, but the signature and three-state semantics are identical to the in-memory versions: **the binding layer is thin because the parser left "where bytes come from" to its parameters by design** — limits defense, three-state returns, and the zero-allocation discipline all carry over. Chapter 103's xhttp server and Chapter 107's streaming service run on exactly these two bindings underneath.
 
 ### Lookup and traversal
 
@@ -85,6 +89,21 @@ http1: body trailers rebind + trailer parse ok
 ```
 
 **What just happened.** (1) Line 1 verifies the limits model: target length within the limit passes, over the limit refuses — both sides of the defense parameter. (2) Line 2 is the lookup combination: find a field by name + transfer-coding token iteration (Chapter 88's TokenNext applied to a Head). (3) Line 3 previews Chapter 90: the request body's Plan (fixed-length/chunked verdict) is available immediately after head parsing. (4) Line 4 verifies chunk size line generation (`5\r\n` — extensions allowed). (5) Line 5 is the Message layer: one parse of "head + body", the body a borrowed view `ok` — the thriftiest path for small messages. (6) Line 6 verifies trailer array rebinding and trailer block parsing — a Chapter 90 preview. Six lines together: this chapter's plus the next's API surface.
+
+### Complete program: ParseBuffer — request/response parsing on a buffer chain
+
+From the repository example `examples/http1/parse_buffer/main.c`:
+
+```embed path="examples/http1/parse_buffer/main.c" title="examples/http1/parse_buffer/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/http1/parse_buffer/main.c -lws2_32 -liphlpapi
+request: GET /x
+response: 200
+```
+
+**What just happened.** (1) The request bytes are **deliberately appended in two blocks** — a minimal simulation of a straddling head; ParseBuffer proves chain parsing needs no caller-side stitching. (2) The result is isomorphic to the in-memory version: `Head.Method`/`Target` borrow views, printed directly. (3) The response side goes through `ResponseParseBuffer` — request/response entrances, one Head. (4) The `ParseTls` variant has no separate example: it differs from the Buffer version only in "where the stream comes from" (an `xtlsstream` replacing an `xnetbuf`); the contract line says it, and no example is invented.
 
 ## Contracts
 
@@ -193,3 +212,4 @@ One buffer holds two complete requests glued together (HTTP/1.1 pipelining): par
 | Method context | response parsing carries the request method; the HEAD/204 no-body rule is executed by the Body Plan |
 | Message layer | head + body in one pass (small messages); the Body layer streams (Chapter 90) |
 | Zero allocation | no heap allocation on the parse/pack paths; Head/array/buffers all from the caller |
+| Transport bindings | ParseBuffer eats a buffer chain / ParseTls eats a TLS stream — signatures and three states match the in-memory version; merging only across blocks/records |

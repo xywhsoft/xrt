@@ -55,7 +55,7 @@ The `http_body_file` family wraps Chapter 71's completion-port file IO into a bo
 
 - **Upload** (client): a file body + Chapter 98's builder `SetBody` — the client memory of a 2 GB upload is roughly one read block; the server receives via Chapter 103's streaming Body callbacks.
 - **Download** (client): Chapter 98's `ResponseBodyLimit` manages the budget, streaming consumption (Body callbacks or the Reader) — memory decoupled from download size; Chapter 92's decoders chain onto the consumption path.
-- **Generated responses** (server): a producer-stream body + `Respond` — a database cursor yields step by step; once the budget caps out, AGAIN makes the producer wait for the consuming side.
+- **Generated responses** (server): a producer-stream body + `Respond` — a database cursor yields step by step; once the budget caps out, AGAIN makes the producer wait for the consuming side. Running all of this over a TLS service (Chapter 85), request-head parsing goes through Chapter 89's parser TLS binding (http1_tls) — no connection-level buffer across records; the streaming discipline runs end to end.
 
 ## Examples
 

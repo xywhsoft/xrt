@@ -46,7 +46,7 @@ The most notable difference between the shapes is **buffer ownership**: under re
 
 ### Event types and waiting
 
-The port's waits return **events** (structs carrying a type + associated data): READABLE/WRITABLE (readiness), CONNECT completed / ACCEPT arrived / read-write results (per completion operation), USER (Post), WAKE (Wake), ERROR (platform errors like ICMP unreachable — RecvError gated by platform capability). Waiting forms: blocking wait (next event) and timeout wait (the engine pump's cadence — the underlayer of Chapter 60's PollFor). The event-consumption loop is exactly the skeleton of the engine Worker's main loop.
+The port's waits return **events** (structs carrying a type + associated data): READABLE/WRITABLE (readiness), CONNECT completed / ACCEPT arrived / read-write results (per completion operation), USER (Post), WAKE (Wake), ERROR (platform errors like ICMP unreachable — RecvError gated by platform capability). Waiting forms: blocking wait (next event) and timeout wait (the engine pump's cadence — the underlayer of Chapter 60's PollFor). The event-consumption loop is exactly the skeleton of the engine Worker's main loop — and to schedule small tasks directly onto this loop, Chapter 60's network task groups (task_net) are that bridge.
 
 ### The port and the Stream
 

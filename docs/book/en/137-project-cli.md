@@ -31,7 +31,7 @@ Make it a proper small tool, **logstat**: `logstat <日志路径> [--level ERROR
 | Report assembly | the `xstrbuf` builder (Chapter 25) | multi-segment O(n); alternative repeated Concat: O(n²) — Chapter 25's lesson applies directly |
 | Writing to disk | temp directory + text write (Chapters 44/46) | never assume the working directory writable; colon-free timestamp (a forbidden Windows character) — two engineering details of the `file/report` sample |
 
-**The selection methodology**: at every row ask "what shape is the data" (streaming or whole, fixed set or dynamic keys, kept or not) — the shape decides the container: Chapter 23's selection decision applied project-wide for the first time.
+**The selection methodology**: at every row ask "what shape is the data" (streaming or whole, fixed set or dynamic keys, kept or not) — the shape decides the container: Chapter 23's selection decision applied project-wide for the first time. If the upgrade target is "dispatching inputs by path/key prefix to dozens of handlers", Chapter 30's cousin pattern with its compile-many-patterns-once design is built for exactly that shape..
 
 ### The pipeline architecture: five streaming stages
 

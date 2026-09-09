@@ -22,7 +22,7 @@ XRT's TCP layer builds these traps into object contracts: streams have an explic
 
 ### Three objects, one engine
 
-- **`xnetengine`**: the network engine. It manages the platform event backend (IOCP / epoll / kqueue / io_uring) and a pool of Worker threads; every Listener and Stream is attached to some Engine to work. In the config, `Workers` sets the thread count. Rules of thumb for Worker counts: utilities and unit tests need just 1–2 — an Engine's threads only do event dispatch and callbacks, never business computation; server-side capacity planning (Worker counts, queue depth, backpressure watermarks) is the subject of Chapter 67. Multiple Engines can coexist, but the convention in this and later chapters is one Engine per process.
+- **`xnetengine`**: the network engine. It manages the platform event backend (IOCP / epoll / kqueue / io_uring) and a pool of Worker threads; every Listener and Stream is attached to some Engine to work. In the config, `Workers` sets the thread count. Rules of thumb for Worker counts: utilities and unit tests need just 1–2 — an Engine's threads only do event dispatch and callbacks, never business computation (to schedule small tasks directly onto the Worker loop, use Chapter 60's network task groups task_net); server-side capacity planning (Worker counts, queue depth, backpressure watermarks) is the subject of Chapter 67. Multiple Engines can coexist, but the convention in this and later chapters is one Engine per process.
 - **`xnetlistener`**: the listener. Binds an address (port 0 lets the system assign one) and accepts incoming connections.
 - **`xnetstream`**: the stream. The read/write face of one TCP connection; the client and the server each hold one.
 

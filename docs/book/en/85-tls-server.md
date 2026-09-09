@@ -5,7 +5,7 @@ title: The TLS Server: The Session-Layer Protocol Machine
 volume: 卷八 安全
 type: practice
 lead: A transport-agnostic bare protocol machine: Feed ciphertext in, Drive to advance, take flights from the Send queue — SNI dynamic identity selection and ticket issuance, the complete server side.
-api: tls, tls_verify, crypto
+api: tls, tls_verify, tls_server, crypto
 ---
 
 ## Orientation
