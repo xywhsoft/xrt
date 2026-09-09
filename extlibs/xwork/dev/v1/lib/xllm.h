@@ -1,0 +1,27759 @@
+/*
+ * xllm single-header distribution
+ *
+ * Note:
+ * - This file intentionally does not embed xrt.
+ * - Distribute xllm together with xrt.h / xrt runtime sources.
+ */
+
+
+/* ===== begin: D:/git/xllm/xllm.h ===== */
+
+#ifndef XLLM_H
+#define XLLM_H
+
+#if defined(__has_include)
+#  if __has_include("xrt.h")
+#    include "xrt.h"
+#  elif __has_include("lib/xrt.h")
+#    include "lib/xrt.h"
+#  else
+#    error "xllm requires xrt.h to be available in the include path"
+#  endif
+#else
+#  include "lib/xrt.h"
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef XLLM_API
+#ifdef XXAPI
+#define XLLM_API XXAPI
+#else
+#define XLLM_API
+#endif
+#endif
+
+#define XLLM_VERSION_MAJOR 0
+#define XLLM_VERSION_MINOR 1
+#define XLLM_VERSION_PATCH 0
+
+#define XLLM_ADAPTER_OPENAI_COMPAT "openai_compat"
+#define XLLM_ADAPTER_GLM_NATIVE "glm_native"
+#define XLLM_ADAPTER_MINIMAX_NATIVE "minimax_native"
+#define XLLM_ADAPTER_KIMI_NATIVE "kimi_native"
+#define XLLM_ADAPTER_GEMINI_NATIVE "gemini_native"
+#define XLLM_ADAPTER_VERTEX_GEMINI_NATIVE "vertex_gemini_native"
+#define XLLM_ADAPTER_QWEN_NATIVE "qwen_native"
+#define XLLM_ADAPTER_DOUBAO_NATIVE "doubao_native"
+#define XLLM_ADAPTER_ANTHROPIC_NATIVE "anthropic_native"
+#define XLLM_ADAPTER_OLLAMA_NATIVE "ollama_native"
+
+typedef struct xllm_runtime xllm_runtime;
+typedef struct xllm_cancel_token xllm_cancel_token;
+
+typedef struct {
+    bool bSet;
+    bool bValue;
+} xllm_opt_bool;
+
+typedef struct {
+    bool bSet;
+    int32 iValue;
+} xllm_opt_i32;
+
+typedef struct {
+    bool bSet;
+    uint32 iValue;
+} xllm_opt_u32;
+
+typedef struct {
+    bool bSet;
+    uint64 uValue;
+} xllm_opt_u64;
+
+typedef struct {
+    bool bSet;
+    double fValue;
+} xllm_opt_f64;
+
+typedef enum {
+    XLLM_LOG_ERROR = 1,
+    XLLM_LOG_WARN,
+    XLLM_LOG_INFO,
+    XLLM_LOG_DEBUG,
+    XLLM_LOG_TRACE
+} xllm_log_level;
+
+typedef enum {
+    XLLM_LOG_EVENT_UNKNOWN = 0,
+    XLLM_LOG_EVENT_RUNTIME_CREATE,
+    XLLM_LOG_EVENT_RUNTIME_DESTROY,
+    XLLM_LOG_EVENT_PROVIDER_REQUEST_START,
+    XLLM_LOG_EVENT_PROVIDER_RESPONSE_COMPLETE,
+    XLLM_LOG_EVENT_PROVIDER_RESPONSE_FAILED,
+    XLLM_LOG_EVENT_PROVIDER_RETRY_SCHEDULED,
+    XLLM_LOG_EVENT_STREAM_EVENT,
+    XLLM_LOG_EVENT_SESSION_COMPACT_TRIGGERED,
+    XLLM_LOG_EVENT_SESSION_COMPACT_RESULT,
+    XLLM_LOG_EVENT_TOOL_LOOP_ROUND,
+    XLLM_LOG_EVENT_TOOL_LOOP_EXECUTE,
+    XLLM_LOG_EVENT_TOOL_LOOP_STOP,
+    XLLM_LOG_EVENT_MEMORY_INGEST,
+    XLLM_LOG_EVENT_MEMORY_SEARCH,
+    XLLM_LOG_EVENT_MEMORY_HEALTH_CHECK,
+    XLLM_LOG_EVENT_WORKSPACE_SYNC,
+    XLLM_LOG_EVENT_WATCHER_EVENT
+} xllm_log_event;
+
+typedef enum {
+    XLLM_TRACE_EVENT = 1,
+    XLLM_TRACE_REQUEST,
+    XLLM_TRACE_RESPONSE,
+    XLLM_TRACE_STREAM,
+    XLLM_TRACE_COMPACT,
+    XLLM_TRACE_TOOL_LOOP
+} xllm_trace_kind;
+
+typedef enum {
+    XLLM_DEBUG_NONE = 0,
+    XLLM_DEBUG_HEADERS = 1,
+    XLLM_DEBUG_BODY = 2,
+    XLLM_DEBUG_WIRE = 3
+} xllm_debug_mode;
+
+typedef enum {
+    XLLM_REDACT_DEFAULT = 0,
+    XLLM_REDACT_OFF,
+    XLLM_REDACT_STRICT
+} xllm_redact_mode;
+
+typedef void *(*xllm_malloc_fn)(void *pCtx, size_t iSize);
+typedef void *(*xllm_realloc_fn)(void *pCtx, void *pPtr, size_t iSize);
+typedef void (*xllm_free_fn)(void *pCtx, void *pPtr);
+
+typedef struct {
+    xllm_malloc_fn pfnMalloc;
+    xllm_realloc_fn pfnRealloc;
+    xllm_free_fn pfnFree;
+    void *pCtx;
+} xllm_allocator;
+
+typedef void (*xllm_log_callback)(
+    void *pCtx,
+    xllm_log_level eLevel,
+    const char *sComponent,
+    const char *sMessage
+);
+
+typedef void (*xllm_trace_callback)(
+    void *pCtx,
+    xllm_trace_kind eKind,
+    const xvalue *pPayload
+);
+
+typedef struct {
+    const char *sName;
+    const char *sValue;
+} xllm_header;
+
+typedef enum {
+    XLLM_AUTH_NONE = 0,
+    XLLM_AUTH_BEARER,
+    XLLM_AUTH_API_KEY_HEADER
+} xllm_auth_kind;
+
+typedef struct {
+    xllm_auth_kind eKind;
+    const char *sSecret;
+    const char *sHeaderName;
+    const char *sScheme;
+} xllm_auth;
+
+typedef enum {
+    XLLM_PROXY_UNSPECIFIED = 0,
+    XLLM_PROXY_NONE,
+    XLLM_PROXY_SOCKS5,
+    XLLM_PROXY_HTTP_CONNECT
+} xllm_proxy_kind;
+
+typedef struct {
+    xllm_opt_u32 tConnectTimeoutMs;
+    xllm_opt_u32 tReadTimeoutMs;
+    xllm_opt_bool tVerifyPeer;
+    xllm_proxy_kind eProxyKind;
+    const char *sProxyHost;
+    xllm_opt_u32 tProxyPort;
+    const char *sProxyUser;
+    const char *sProxyPass;
+    const char *sCaBundlePath;
+    const char *sClientCertPath;
+    const char *sClientKeyPath;
+    xvalue tVendorExtra;
+} xllm_transport_options;
+
+typedef struct {
+    const char *sOpenAIOrganizationId;
+    const char *sOpenAIProjectId;
+    const char *sAnthropicApiVersion;
+    const char **psAnthropicBetaHeaders;
+    size_t iAnthropicBetaHeaderCount;
+    xvalue tVendorExtra;
+} xllm_provider_options;
+
+typedef enum {
+    XLLM_CAP_MODE_AUTO = 0,
+    XLLM_CAP_MODE_MERGE,
+    XLLM_CAP_MODE_EXACT
+} xllm_cap_mode;
+
+typedef enum {
+    XLLM_PARAM_RULE_UNSPECIFIED = 0,
+    XLLM_PARAM_RULE_UNSUPPORTED,
+    XLLM_PARAM_RULE_FIXED,
+    XLLM_PARAM_RULE_RANGE,
+    XLLM_PARAM_RULE_PASSTHROUGH
+} xllm_param_rule_kind;
+
+typedef struct {
+    xllm_param_rule_kind eKind;
+    double fFixed;
+    double fMin;
+    double fMax;
+} xllm_float_rule;
+
+typedef struct {
+    xllm_param_rule_kind eKind;
+    uint32 uFixed;
+    uint32 uMin;
+    uint32 uMax;
+} xllm_u32_rule;
+
+typedef enum {
+    XLLM_WINDOW_UNSPECIFIED = 0,
+    XLLM_WINDOW_SHARED_CONTEXT,
+    XLLM_WINDOW_SPLIT_INPUT_OUTPUT
+} xllm_window_mode;
+
+typedef uint64 xllm_capability_flags;
+
+#define XLLM_CAP_TEXT_IN              (1ull << 0)
+#define XLLM_CAP_IMAGE_IN             (1ull << 1)
+#define XLLM_CAP_FILE_IN              (1ull << 2)
+#define XLLM_CAP_AUDIO_IN             (1ull << 3)
+#define XLLM_CAP_VIDEO_IN             (1ull << 4)
+#define XLLM_CAP_TOOL_RESULT_IN       (1ull << 5)
+#define XLLM_CAP_TEXT_OUT             (1ull << 6)
+#define XLLM_CAP_IMAGE_OUT            (1ull << 7)
+#define XLLM_CAP_FILE_OUT             (1ull << 8)
+#define XLLM_CAP_AUDIO_OUT            (1ull << 9)
+#define XLLM_CAP_VIDEO_OUT            (1ull << 10)
+#define XLLM_CAP_JSON_OUT             (1ull << 11)
+#define XLLM_CAP_TOOL_CALL_OUT        (1ull << 12)
+#define XLLM_CAP_THINKING_SUMMARY_OUT (1ull << 13)
+#define XLLM_CAP_THINKING_FULL_OUT    (1ull << 14)
+#define XLLM_CAP_STREAM               (1ull << 15)
+#define XLLM_CAP_REASONING_CONTROL    (1ull << 16)
+#define XLLM_CAP_PARALLEL_TOOL_CALL   (1ull << 17)
+#define XLLM_CAP_CITATION_OUT         (1ull << 18)
+
+typedef struct {
+    xllm_capability_flags uFlags;
+    const char **psSupportedMimeTypes;
+    size_t iSupportedMimeTypeCount;
+    xllm_window_mode eWindowMode;
+    uint32 uMaxContextTokens;
+    uint32 uMaxInputTokens;
+    uint32 uMaxOutputTokens;
+    uint32 uRecommendedOutputReserve;
+    uint32 uMaxPartsPerMessage;
+    uint32 uMaxImages;
+    uint32 uMaxFiles;
+    uint64 uMaxPartBytes;
+    const char *sTokenizerId;
+    xllm_float_rule tTemperatureRule;
+    xllm_float_rule tTopPRule;
+    xllm_u32_rule tMaxOutputTokensRule;
+    xvalue tVendorExtra;
+} xllm_model_caps;
+
+typedef struct {
+    const char *sModelId;
+    const char *sAliasOf;
+    xllm_cap_mode eCapMode;
+    xllm_model_caps tCaps;
+    xvalue tVendorExtra;
+} xllm_model_binding;
+
+typedef struct {
+    xllm_model_binding tText;
+    xllm_model_binding tMultimodal;
+} xllm_profile_models;
+
+typedef enum {
+    XLLM_REASONING_DEFAULT = 0,
+    XLLM_REASONING_OFF,
+    XLLM_REASONING_LOW,
+    XLLM_REASONING_MEDIUM,
+    XLLM_REASONING_HIGH
+} xllm_reasoning_level;
+
+typedef struct {
+    xllm_opt_bool tEnabled;
+    xllm_reasoning_level eLevel;
+    xllm_opt_u32 tBudgetTokens;
+    xllm_opt_bool tExposeThinking;
+    xvalue tVendorExtra;
+} xllm_reasoning_options;
+
+typedef enum {
+    XLLM_RESPONSE_TEXT = 0,
+    XLLM_RESPONSE_JSON,
+    XLLM_RESPONSE_JSON_SCHEMA
+} xllm_response_format_kind;
+
+typedef struct {
+    xllm_response_format_kind eKind;
+    const char *sSchemaName;
+    xvalue tJsonSchema;
+    xvalue tVendorExtra;
+} xllm_response_format;
+
+typedef struct {
+    xllm_opt_f64 tTemperature;
+    xllm_opt_f64 tTopP;
+    xllm_opt_u32 tMaxOutputTokens;
+    xllm_opt_u32 tSeed;
+    const char **psStop;
+    size_t iStopCount;
+} xllm_generation_params;
+
+typedef struct {
+    xllm_generation_params tGeneration;
+    xllm_reasoning_options tReasoning;
+    xllm_response_format tResponseFormat;
+    xvalue tVendorExtra;
+} xllm_profile_defaults;
+
+typedef struct {
+    const char *sId;
+    const char *sName;
+    const char *sProvider;
+    const char *sAdapter;
+    const char *sBaseUrl;
+    xllm_auth tAuth;
+    xllm_header *pDefaultHeaders;
+    size_t iDefaultHeaderCount;
+    xllm_provider_options tProviderOptions;
+    xllm_transport_options tTransport;
+    xllm_profile_models tModels;
+    xllm_profile_defaults tDefaults;
+    xvalue tVendorExtra;
+} xllm_profile;
+
+typedef enum {
+    XLLM_SLOT_AUTO = 0,
+    XLLM_SLOT_TEXT,
+    XLLM_SLOT_MULTIMODAL
+} xllm_slot;
+
+typedef enum {
+    XLLM_ROLE_SYSTEM = 1,
+    XLLM_ROLE_USER,
+    XLLM_ROLE_ASSISTANT,
+    XLLM_ROLE_TOOL
+} xllm_role;
+
+typedef enum {
+    XLLM_PART_TEXT = 1,
+    XLLM_PART_IMAGE,
+    XLLM_PART_FILE,
+    XLLM_PART_AUDIO,
+    XLLM_PART_VIDEO,
+    XLLM_PART_JSON
+} xllm_part_kind;
+
+typedef enum {
+    XLLM_SOURCE_INLINE_TEXT = 1,
+    XLLM_SOURCE_INLINE_BYTES,
+    XLLM_SOURCE_URL,
+    XLLM_SOURCE_PROVIDER_FILE_ID
+} xllm_source_kind;
+
+typedef struct {
+    xllm_source_kind eKind;
+    const char *sMimeType;
+    const char *sName;
+    union {
+        const char *sText;
+        struct {
+            const void *pData;
+            size_t iSize;
+        } tBytes;
+        const char *sUrl;
+        const char *sFileId;
+    } as;
+} xllm_data_source;
+
+typedef struct {
+    xllm_part_kind eKind;
+    union {
+        xllm_data_source tSource;
+        xvalue tJsonValue;
+    } as;
+    xvalue tVendorExtra;
+} xllm_content_part;
+
+typedef struct {
+    const char *sCallId;
+    const char *sToolId;
+    const char *sToolName;
+    const char *sArgumentsJson;
+    xvalue tContinuation;
+    xvalue tVendorExtra;
+} xllm_tool_call;
+
+typedef struct {
+    xllm_role eRole;
+    const char *sToolCallId;
+    const char *sToolName;
+    xllm_content_part *pParts;
+    size_t iPartCount;
+    xllm_tool_call *pToolCalls;
+    size_t iToolCallCount;
+    xvalue tVendorExtra;
+} xllm_message;
+
+typedef enum {
+    XLLM_CONTEXT_SYSTEM = 1,
+    XLLM_CONTEXT_SESSION_SUMMARY,
+    XLLM_CONTEXT_HISTORY,
+    XLLM_CONTEXT_MEMORY,
+    XLLM_CONTEXT_KNOWLEDGE,
+    XLLM_CONTEXT_USER,
+    XLLM_CONTEXT_TOOL_RESULT
+} xllm_context_block_kind;
+
+typedef struct {
+    xllm_context_block_kind eKind;
+    int32 iPriority;
+    bool bPinned;
+    xllm_message *pMessages;
+    size_t iMessageCount;
+    xvalue tVendorExtra;
+} xllm_context_block;
+
+typedef enum {
+    XLLM_TOOL_CLIENT = 0,
+    XLLM_TOOL_PROVIDER
+} xllm_tool_kind;
+
+typedef struct {
+    const char *sToolId;
+    const char *sWireName;
+    const char *sDescription;
+    xllm_tool_kind eKind;
+    xvalue tInputSchema;
+    xvalue tVendorExtra;
+} xllm_tool_def;
+
+typedef enum {
+    XLLM_TOOL_CHOICE_AUTO = 0,
+    XLLM_TOOL_CHOICE_NONE,
+    XLLM_TOOL_CHOICE_REQUIRED,
+    XLLM_TOOL_CHOICE_NAMED
+} xllm_tool_choice_mode;
+
+typedef struct {
+    xllm_tool_choice_mode eMode;
+    const char *sToolName;
+    bool bAllowParallel;
+} xllm_tool_policy;
+
+typedef enum {
+    XLLM_SYSTEM_INHERIT = 0,
+    XLLM_SYSTEM_REPLACE,
+    XLLM_SYSTEM_APPEND
+} xllm_system_mode;
+
+typedef struct {
+    const char *sProfileId;
+    xllm_slot eSlot;
+    xllm_message *pMessages;
+    size_t iMessageCount;
+    xllm_context_block *pContextBlocks;
+    size_t iContextBlockCount;
+    xllm_tool_def *pTools;
+    size_t iToolCount;
+    xllm_tool_policy tToolPolicy;
+    xllm_generation_params tGeneration;
+    xllm_response_format tResponseFormat;
+    xllm_reasoning_options tReasoning;
+    xvalue tVendorExtra;
+} xllm_request;
+
+typedef struct {
+    xllm_slot eSlot;
+    const char *sSystemPrompt;
+    xllm_system_mode eSystemMode;
+    xllm_message *pMessages;
+    size_t iMessageCount;
+    xllm_context_block *pContextBlocks;
+    size_t iContextBlockCount;
+    xllm_tool_def *pTools;
+    size_t iToolCount;
+    xllm_tool_policy tToolPolicy;
+    xllm_generation_params tGeneration;
+    xllm_response_format tResponseFormat;
+    xllm_reasoning_options tReasoning;
+    xvalue tVendorExtra;
+} xllm_turn;
+
+typedef xllm_turn xllm_turn_request;
+
+typedef enum {
+    XLLM_STREAM_AUTO = 0,
+    XLLM_STREAM_OFF,
+    XLLM_STREAM_PREFER,
+    XLLM_STREAM_REQUIRE
+} xllm_stream_mode;
+
+typedef enum {
+    XLLM_ARTIFACT_REFERENCE_ONLY = 0,
+    XLLM_ARTIFACT_INLINE_SMALL,
+    XLLM_ARTIFACT_STREAM_TO_SINK
+} xllm_artifact_policy;
+
+typedef enum {
+    XLLM_LOCAL_FILE_AUTO = 0,
+    XLLM_LOCAL_FILE_INLINE_FIRST,
+    XLLM_LOCAL_FILE_UPLOAD_REUSE_FIRST
+} xllm_local_file_policy;
+
+typedef struct {
+    const char *sArtifactId;
+    const char *sMimeType;
+    const char *sName;
+    uint64 uExpectedSize;
+    uint32 uOutputIndex;
+    xvalue tVendorExtra;
+} xllm_artifact_info;
+
+typedef bool (*xllm_artifact_begin_fn)(void *pCtx, const xllm_artifact_info *pInfo);
+typedef bool (*xllm_artifact_write_fn)(void *pCtx, const char *sArtifactId, const void *pData, size_t iSize);
+typedef bool (*xllm_artifact_end_fn)(void *pCtx, const char *sArtifactId, bool bCompleted);
+
+typedef struct {
+    void *pCtx;
+    xllm_artifact_begin_fn pfnBegin;
+    xllm_artifact_write_fn pfnWrite;
+    xllm_artifact_end_fn pfnEnd;
+} xllm_artifact_sink;
+
+typedef enum {
+    XLLM_ERROR_NONE = 0,
+    XLLM_ERROR_AUTH,
+    XLLM_ERROR_QUOTA,
+    XLLM_ERROR_RATE_LIMIT,
+    XLLM_ERROR_TIMEOUT,
+    XLLM_ERROR_NETWORK,
+    XLLM_ERROR_CANCELLED,
+    XLLM_ERROR_INVALID_REQUEST,
+    XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+    XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+    XLLM_ERROR_UNSUPPORTED_MIME_TYPE,
+    XLLM_ERROR_INPUT_TOO_LARGE,
+    XLLM_ERROR_TOO_MANY_INPUT_PARTS,
+    XLLM_ERROR_MISSING_MULTIMODAL_MODEL,
+    XLLM_ERROR_MODEL_NOT_FOUND,
+    XLLM_ERROR_UPSTREAM_4XX,
+    XLLM_ERROR_UPSTREAM_5XX,
+    XLLM_ERROR_PARSE,
+    XLLM_ERROR_INTERNAL,
+    XLLM_ERROR_SESSION_CONTEXT_OVERFLOW,
+    XLLM_ERROR_SESSION_COMPACT_FAILED,
+    XLLM_ERROR_SESSION_SUMMARY_FAILED,
+    XLLM_ERROR_SESSION_REQUIRES_MODEL_LIMITS
+} xllm_error_code;
+
+typedef struct {
+    xllm_error_code eCode;
+    int32 iStatus;
+    int32 iHttpStatus;
+    const char *sMessage;
+    const char *sProviderCode;
+    const char *sProviderMessage;
+    const char *sRequestId;
+    int32 iMessageIndex;
+    int32 iPartIndex;
+    xllm_capability_flags uRequiredCapability;
+    const char *sSelectedModel;
+    const char *sMimeType;
+    xvalue tVendorExtra;
+} xllm_error;
+
+typedef enum {
+    XLLM_OUTPUT_MESSAGE = 1,
+    XLLM_OUTPUT_THINKING,
+    XLLM_OUTPUT_TOOL_CALL,
+    XLLM_OUTPUT_REFUSAL
+} xllm_output_kind;
+
+typedef struct {
+    xllm_content_part *pParts;
+    size_t iPartCount;
+} xllm_output_message;
+
+typedef struct {
+    bool bVisible;
+    const char *sFormat;
+    const char *sText;
+    xvalue tVendorExtra;
+} xllm_output_thinking;
+
+typedef struct {
+    const char *sCallId;
+    const char *sToolId;
+    const char *sToolName;
+    const char *sArgumentsJson;
+    xvalue tContinuation;
+    xvalue tVendorExtra;
+} xllm_output_tool_call;
+
+typedef struct {
+    const char *sText;
+    const char *sCategory;
+    xvalue tVendorExtra;
+} xllm_output_refusal;
+
+typedef struct {
+    xllm_output_kind eKind;
+    union {
+        xllm_output_message tMessage;
+        xllm_output_thinking tThinking;
+        xllm_output_tool_call tToolCall;
+        xllm_output_refusal tRefusal;
+    } as;
+} xllm_output_item;
+
+typedef struct {
+    uint32 uInputTokens;
+    uint32 uOutputTokens;
+    uint32 uReasoningTokens;
+    uint32 uCachedInputTokens;
+    xvalue tVendorExtra;
+} xllm_usage;
+
+typedef enum {
+    XLLM_STATUS_COMPLETED = 0,
+    XLLM_STATUS_INCOMPLETE,
+    XLLM_STATUS_TOOL_CALL_REQUIRED,
+    XLLM_STATUS_REFUSED,
+    XLLM_STATUS_CONTENT_FILTERED,
+    XLLM_STATUS_CANCELLED,
+    XLLM_STATUS_ERRORED
+} xllm_response_status;
+
+typedef struct {
+    const char *sText;
+    const char *sCategory;
+    xvalue tVendorExtra;
+} xllm_refusal_info;
+
+typedef struct {
+    const char *sBlockReason;
+    xvalue tRatings;
+    xvalue tVendorExtra;
+} xllm_safety_info;
+
+typedef struct {
+    xllm_generation_params tGeneration;
+    xllm_reasoning_options tReasoning;
+    xllm_response_format tResponseFormat;
+    xllm_stream_mode eStreamMode;
+    xvalue tVendorExtra;
+} xllm_effective_params;
+
+typedef struct {
+    const char *sId;
+    const char *sProvider;
+    const char *sProfileId;
+    const char *sModel;
+    xllm_response_status eStatus;
+    const char *sFinishReason;
+    xllm_output_item *pOutputs;
+    size_t iOutputCount;
+    const char *sVisibleText;
+    xllm_usage tUsage;
+    xllm_refusal_info tRefusal;
+    xllm_safety_info tSafety;
+    xllm_effective_params tEffectiveParams;
+    bool bHasError;
+    xllm_error tError;
+    xvalue tRaw;
+    xvalue tVendorExtra;
+} xllm_response;
+
+typedef enum {
+    XLLM_EVENT_START = 1,
+    XLLM_EVENT_OUTPUT_BEGIN,
+    XLLM_EVENT_TEXT_DELTA,
+    XLLM_EVENT_THINKING_DELTA,
+    XLLM_EVENT_TOOL_CALL_DELTA,
+    XLLM_EVENT_TOOL_CALL_READY,
+    XLLM_EVENT_ARTIFACT_BEGIN,
+    XLLM_EVENT_ARTIFACT_CHUNK,
+    XLLM_EVENT_ARTIFACT_READY,
+    XLLM_EVENT_REFUSAL,
+    XLLM_EVENT_USAGE,
+    XLLM_EVENT_OUTPUT_END,
+    XLLM_EVENT_ERROR,
+    XLLM_EVENT_END
+} xllm_event_type;
+
+typedef struct {
+    xllm_event_type eType;
+    bool bSynthetic;
+    uint32 uOutputIndex;
+    union {
+        struct {
+            const char *sResponseId;
+            const char *sModel;
+        } tStart;
+        struct {
+            xllm_output_kind eKind;
+        } tOutputBegin;
+        struct {
+            const char *sText;
+        } tTextDelta;
+        struct {
+            const char *sText;
+            const char *sFormat;
+        } tThinkingDelta;
+        struct {
+            const char *sCallId;
+            const char *sToolId;
+            const char *sToolName;
+            const char *sArgumentsDelta;
+        } tToolCallDelta;
+        struct {
+            xllm_output_tool_call tToolCall;
+        } tToolCallReady;
+        struct {
+            xllm_artifact_info tInfo;
+        } tArtifactBegin;
+        struct {
+            const char *sArtifactId;
+            const void *pData;
+            size_t iSize;
+        } tArtifactChunk;
+        struct {
+            xllm_artifact_info tInfo;
+        } tArtifactReady;
+        struct {
+            xllm_output_refusal tRefusal;
+        } tRefusal;
+        struct {
+            xllm_usage tUsage;
+        } tUsage;
+        struct {
+            xllm_error tError;
+        } tError;
+    } as;
+} xllm_event;
+
+typedef bool (*xllm_event_callback)(const xllm_event *pEvent, void *pUserData);
+
+typedef struct {
+    xllm_stream_mode eStreamMode;
+    uint32 uTimeoutMs;
+    xllm_cancel_token *pCancelToken;
+    xllm_event_callback pfnOnEvent;
+    void *pUserData;
+    xllm_artifact_policy eArtifactPolicy;
+    xllm_artifact_sink *pArtifactSink;
+    uint32 uMaxRetries;
+    uint32 uRetryBackoffBaseMs;
+    uint32 uRetryBackoffMaxMs;
+    double fRetryJitter;
+    bool bBestEffortStructuredOutput;
+    xllm_local_file_policy eLocalFilePolicy;
+    xvalue tVendorExtra;
+} xllm_call_options;
+
+typedef struct {
+    const char *sToolId;
+    const char *sWireName;
+    const char *sCallId;
+    const char *sArgumentsJson;
+    xvalue tContinuation;
+    xvalue tVendorExtra;
+} xllm_tool_exec_request;
+
+typedef struct {
+    xllm_content_part *pParts;
+    size_t iPartCount;
+    xvalue tVendorExtra;
+} xllm_tool_exec_result;
+
+typedef int32 (*xllm_tool_execute_fn)(
+    void *pCtx,
+    const xllm_tool_exec_request *pRequest,
+    xllm_tool_exec_result *pResult,
+    xllm_error *pError
+);
+
+typedef xfuture *(*xllm_tool_execute_async_fn)(
+    void *pCtx,
+    const xllm_tool_exec_request *pRequest
+);
+
+typedef struct {
+    void *pCtx;
+    xllm_tool_execute_fn pfnExecute;
+} xllm_tool_executor;
+
+typedef struct {
+    void *pCtx;
+    xllm_tool_execute_async_fn pfnExecute;
+} xllm_tool_executor_async;
+
+typedef struct {
+    const char *sInitialProfileId;
+    const char *sSystemPrompt;
+    xllm_call_options tDefaultCallOptions;
+    xvalue tVendorExtra;
+} xllm_create_options;
+
+typedef enum {
+    XLLM_COMPACT_TRUNCATE = 0,
+    XLLM_COMPACT_SUMMARIZE,
+    XLLM_COMPACT_CUSTOM
+} xllm_compact_strategy;
+
+typedef enum {
+    XLLM_COMPACT_TO_FIT_CURRENT_MODEL = 0,
+    XLLM_COMPACT_TO_TARGET_INPUT_TOKENS,
+    XLLM_COMPACT_SUMMARIZE_OLDER_THAN_TURN,
+    XLLM_COMPACT_TRUNCATE_ONLY
+} xllm_compact_mode;
+
+typedef struct {
+    const char *sProfileId;
+    const char *sSystemPrompt;
+    bool bEnableAutoCompact;
+    double fCompactTriggerRatio;
+    uint32 uCompactTriggerTurns;
+    uint32 uReserveOutputTokens;
+    uint32 uKeepRecentTurns;
+    bool bKeepActiveToolChain;
+    xllm_compact_strategy eCompactStrategy;
+    const char *sSummarizerProfileId;
+    xvalue tVendorExtra;
+} xllm_session_options;
+
+typedef struct {
+    xllm_compact_mode eMode;
+    xllm_compact_strategy eStrategy;
+    uint32 uTargetInputTokens;
+    uint32 uOlderThanTurn;
+    xvalue tVendorExtra;
+} xllm_compact_options;
+
+typedef struct {
+    bool bCompacted;
+    bool bSummarized;
+    uint32 uInputTokensBefore;
+    uint32 uInputTokensAfter;
+    xvalue tVendorExtra;
+} xllm_compact_result;
+
+typedef struct {
+    uint32 uInputTokens;
+    uint32 uEstimatedOutputReserve;
+    bool bEstimated;
+    xvalue tVendorExtra;
+} xllm_token_count_result;
+
+typedef struct {
+    xllm_allocator tAllocator;
+    xllm_log_callback pfnLog;
+    void *pLogCtx;
+    xllm_trace_callback pfnTrace;
+    void *pTraceCtx;
+    xllm_debug_mode eDebugMode;
+    xllm_redact_mode eRedactMode;
+    xllm_transport_options tTransportDefaults;
+    xvalue tVendorExtra;
+} xllm_runtime_options;
+
+typedef int32 (*xllm_adapter_count_tokens_fn)(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    xllm_token_count_result *pResult,
+    xllm_error *pError
+);
+
+typedef int32 (*xllm_adapter_chat_fn)(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+);
+
+typedef struct {
+    const char *sName;
+    void *pCtx;
+    xllm_adapter_count_tokens_fn pfnCountTokens;
+    xllm_adapter_chat_fn pfnChat;
+    xvalue tVendorExtra;
+} xllm_adapter;
+
+XLLM_API const char *xllm_version(void);
+
+XLLM_API void xllm_runtime_options_init(xllm_runtime_options *pOptions);
+XLLM_API void xllm_profile_init(xllm_profile *pProfile);
+XLLM_API void xllm_request_init(xllm_request *pRequest);
+XLLM_API void xllm_request_reset(xllm_request *pRequest);
+XLLM_API void xllm_call_options_init(xllm_call_options *pOptions);
+XLLM_API void xllm_error_init(xllm_error *pError);
+
+XLLM_API int xllm_runtime_create(const xllm_runtime_options *pOptions, xllm_runtime **ppRuntime);
+XLLM_API void xllm_runtime_destroy(xllm_runtime *pRuntime);
+
+XLLM_API const char *xllm_log_level_name(xllm_log_level eLevel);
+XLLM_API const char *xllm_log_event_name(xllm_log_event eEvent);
+XLLM_API const char *xllm_trace_kind_name(xllm_trace_kind eKind);
+
+XLLM_API int xllm_runtime_set_log_callback(
+    xllm_runtime *pRuntime,
+    xllm_log_callback pfnLog,
+    void *pLogCtx
+);
+
+XLLM_API int xllm_runtime_set_trace_callback(
+    xllm_runtime *pRuntime,
+    xllm_trace_callback pfnTrace,
+    void *pTraceCtx
+);
+
+XLLM_API int xllm_runtime_set_debug_mode(
+    xllm_runtime *pRuntime,
+    xllm_debug_mode eMode,
+    xllm_redact_mode eRedactMode
+);
+
+XLLM_API int xllm_register_adapter(xllm_runtime *pRuntime, const xllm_adapter *pAdapter);
+XLLM_API int xllm_register_openai_compat_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_glm_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_minimax_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_kimi_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_gemini_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_vertex_gemini_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_qwen_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_doubao_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_anthropic_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_ollama_native_adapter(xllm_runtime *pRuntime);
+XLLM_API int xllm_register_profile(xllm_runtime *pRuntime, const xllm_profile *pProfile);
+
+XLLM_API int xllm_validate_request(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_error *pError
+);
+
+XLLM_API int xllm_count_tokens(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    xllm_token_count_result *pResult,
+    xllm_error *pError
+);
+
+XLLM_API int xllm_chat(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse
+);
+
+XLLM_API int xllm_chat_ex(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+);
+
+XLLM_API xfuture *xllm_chat_async_thread(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions
+);
+
+XLLM_API xfuture *xllm_chat_async_engine(
+    xllm_runtime *pRuntime,
+    xnetengine *pEngine,
+    uint32 uAffinityKey,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions
+);
+
+XLLM_API xfuture *xllm_chat_async_co(
+    xllm_runtime *pRuntime,
+    xcosched *pSched,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    size_t iStackSize
+);
+
+XLLM_API int xllm_cancel_token_create(xllm_cancel_token **ppToken);
+XLLM_API void xllm_cancel_token_destroy(xllm_cancel_token *pToken);
+XLLM_API void xllm_cancel_token_cancel(xllm_cancel_token *pToken, const char *sReason);
+XLLM_API bool xllm_cancel_token_is_cancelled(const xllm_cancel_token *pToken);
+
+XLLM_API const char *xllm_response_get_text(const xllm_response *pResponse);
+XLLM_API size_t xllm_response_get_output_count(const xllm_response *pResponse);
+XLLM_API const xllm_output_item *xllm_response_get_output(const xllm_response *pResponse, size_t iIndex);
+XLLM_API size_t xllm_response_get_tool_call_count(const xllm_response *pResponse);
+XLLM_API const xllm_output_tool_call *xllm_response_get_tool_call(const xllm_response *pResponse, size_t iIndex);
+XLLM_API const xvalue *xllm_response_get_json(const xllm_response *pResponse, size_t iOutputIndex, size_t iPartIndex);
+XLLM_API const xvalue *xllm_response_get_first_json(const xllm_response *pResponse, size_t *piOutputIndex, size_t *piPartIndex);
+
+XLLM_API void xllm_tool_exec_result_free(xllm_tool_exec_result *pResult);
+XLLM_API void xllm_response_free(xllm_response *pResponse);
+XLLM_API void xllm_error_reset(xllm_error *pError);
+XLLM_API void xllm_error_free(xllm_error *pError);
+
+#ifdef __cplusplus
+}
+#endif
+
+#if defined(XLLM_IMPLEMENTATION)
+
+/* ===== begin: D:/git/xllm/src/xllm_core_all.c ===== */
+
+
+/* ===== begin: D:/git/xllm/src/xllm_base/xllm_base.c ===== */
+
+
+/* ===== begin: D:/git/xllm/src/xllm_base/xllm_base.h ===== */
+
+#ifndef XLLM_BASE_INTERNAL_H
+#define XLLM_BASE_INTERNAL_H
+
+/*
+ * 基础子库：
+ * - 公共版本信息
+ * - 轻量生命周期工具
+ * - 共享小工具与默认值
+ */
+
+#endif
+
+/* ===== end: D:/git/xllm/src/xllm_base/xllm_base.h ===== */
+
+#ifndef XLLM_ARRAY_COUNT
+#define XLLM_ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
+
+struct xllm_runtime {
+    xllm_runtime_options tOptions;
+    xnetengine *pNetEngine;
+    xllm_adapter *pAdapters;
+    size_t iAdapterCount;
+    size_t iAdapterCapacity;
+    xllm_profile *pProfiles;
+    size_t iProfileCount;
+    size_t iProfileCapacity;
+};
+
+struct xllm {
+    xllm_runtime *pRuntime;
+    char *sProfileId;
+    char *sSystemPrompt;
+    xllm_call_options tDefaultCallOptions;
+    bool bHasToolExecutor;
+    xllm_tool_executor tToolExecutor;
+    bool bHasToolExecutorAsync;
+    xllm_tool_executor_async tToolExecutorAsync;
+};
+
+struct xllm_session {
+    xllm_runtime *pRuntime;
+    xmutex pMutex;
+    char *sProfileId;
+    char *sSystemPrompt;
+    char *sSessionSummary;
+    xllm_message *pHistory;
+    size_t iHistoryCount;
+    size_t iHistoryCapacity;
+    uint32 uCommittedTurns;
+    uint32 uSummaryTurns;
+    xllm_session_options tOptions;
+    bool bHasToolExecutor;
+    xllm_tool_executor tToolExecutor;
+    bool bHasToolExecutorAsync;
+    xllm_tool_executor_async tToolExecutorAsync;
+};
+
+struct xllm_cancel_token {
+    xmutex pMutex;
+    bool bCancelled;
+    char *sReason;
+};
+
+struct xllm_session_state {
+    char *sProfileId;
+    char *sSystemPrompt;
+    char *sSessionSummary;
+    char *sSummarizerProfileId;
+    xllm_message *pHistory;
+    size_t iHistoryCount;
+    uint32 uCommittedTurns;
+    uint32 uSummaryTurns;
+    bool bEnableAutoCompact;
+    double fCompactTriggerRatio;
+    uint32 uCompactTriggerTurns;
+    uint32 uReserveOutputTokens;
+    uint32 uKeepRecentTurns;
+    bool bKeepActiveToolChain;
+    xllm_compact_strategy eCompactStrategy;
+    xvalue tVendorExtra;
+};
+
+typedef struct {
+    xllm_runtime *pRuntime;
+    xllm_request tRequest;
+    xllm_call_options tOptions;
+    bool bHasOptions;
+} xllm_async_chat_task;
+
+static char *xllm__dup_cstr(const char *sText)
+{
+    size_t iSize;
+    char *sCopy;
+
+    if ( !sText ) {
+        return NULL;
+    }
+
+    iSize = strlen(sText);
+    sCopy = (char *)xrtCalloc(iSize + 1, sizeof(char));
+    if ( !sCopy ) {
+        return NULL;
+    }
+
+    memcpy(sCopy, sText, iSize);
+    sCopy[iSize] = '\0';
+    return sCopy;
+}
+
+static void xllm__free_cstr(char **psText)
+{
+    if ( psText && *psText ) {
+        xrtFree(*psText);
+        *psText = NULL;
+    }
+}
+
+static void xllm__xvalue_addref(xvalue tValue)
+{
+    if ( tValue ) {
+        xvoAddRef(tValue);
+    }
+}
+
+static void xllm__xvalue_release(xvalue *ptValue)
+{
+    if ( ptValue && *ptValue ) {
+        xvoUnref(*ptValue);
+        *ptValue = NULL;
+    }
+}
+
+static void xllm__error_set(xllm_error *pError, xllm_error_code eCode, const char *sMessage)
+{
+    if ( !pError ) {
+        return;
+    }
+
+    xllm_error_reset(pError);
+    pError->eCode = eCode;
+    pError->iStatus = (int32)eCode;
+    pError->sMessage = xllm__dup_cstr(sMessage ? sMessage : "xllm error");
+}
+
+static int xllm__append_buffer(void **ppBuffer, size_t iItemSize, size_t *piCount, size_t *piCapacity, const void *pItem)
+{
+    void *pNewBuffer;
+    size_t iNewCapacity;
+    size_t iOffset;
+
+    if ( !ppBuffer || !piCount || !piCapacity || !pItem || iItemSize == 0 ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( *piCount >= *piCapacity ) {
+        iNewCapacity = (*piCapacity == 0) ? 4 : ((*piCapacity < 8) ? (*piCapacity * 2) : (*piCapacity + (*piCapacity / 2)));
+        pNewBuffer = xrtRealloc(*ppBuffer, iNewCapacity * iItemSize);
+        if ( !pNewBuffer ) {
+            return XRT_NET_ERROR;
+        }
+        *ppBuffer = pNewBuffer;
+        *piCapacity = iNewCapacity;
+    }
+
+    iOffset = (*piCount) * iItemSize;
+    memcpy(((uint8 *)*ppBuffer) + iOffset, pItem, iItemSize);
+    ++(*piCount);
+    return XRT_NET_OK;
+}
+
+static void xllm__content_part_free(xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+        case XLLM_PART_IMAGE:
+        case XLLM_PART_FILE:
+        case XLLM_PART_AUDIO:
+        case XLLM_PART_VIDEO:
+            xllm__free_cstr((char **)&pPart->as.tSource.sMimeType);
+            xllm__free_cstr((char **)&pPart->as.tSource.sName);
+            switch ( pPart->as.tSource.eKind ) {
+                case XLLM_SOURCE_INLINE_TEXT:
+                    xllm__free_cstr((char **)&pPart->as.tSource.as.sText);
+                    break;
+                case XLLM_SOURCE_INLINE_BYTES:
+                    if ( pPart->as.tSource.as.tBytes.pData ) {
+                        xrtFree((void *)pPart->as.tSource.as.tBytes.pData);
+                    }
+                    pPart->as.tSource.as.tBytes.pData = NULL;
+                    pPart->as.tSource.as.tBytes.iSize = 0;
+                    break;
+                case XLLM_SOURCE_URL:
+                    xllm__free_cstr((char **)&pPart->as.tSource.as.sUrl);
+                    break;
+                case XLLM_SOURCE_PROVIDER_FILE_ID:
+                    xllm__free_cstr((char **)&pPart->as.tSource.as.sFileId);
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case XLLM_PART_JSON:
+            xllm__xvalue_release(&pPart->as.tJsonValue);
+            break;
+        default:
+            break;
+    }
+
+    xllm__xvalue_release(&pPart->tVendorExtra);
+    memset(pPart, 0, sizeof(*pPart));
+}
+
+static int xllm__content_part_clone(xllm_content_part *pOut, const xllm_content_part *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->eKind = pIn->eKind;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+
+    if ( pIn->eKind == XLLM_PART_JSON ) {
+        pOut->as.tJsonValue = pIn->as.tJsonValue;
+        xllm__xvalue_addref(pOut->as.tJsonValue);
+        return XRT_NET_OK;
+    }
+
+    pOut->as.tSource.eKind = pIn->as.tSource.eKind;
+    pOut->as.tSource.sMimeType = xllm__dup_cstr(pIn->as.tSource.sMimeType);
+    pOut->as.tSource.sName = xllm__dup_cstr(pIn->as.tSource.sName);
+
+    switch ( pIn->as.tSource.eKind ) {
+        case XLLM_SOURCE_INLINE_TEXT:
+            pOut->as.tSource.as.sText = xllm__dup_cstr(pIn->as.tSource.as.sText);
+            break;
+        case XLLM_SOURCE_INLINE_BYTES:
+            if ( pIn->as.tSource.as.tBytes.pData && pIn->as.tSource.as.tBytes.iSize > 0 ) {
+                void *pData = xrtCalloc(1, pIn->as.tSource.as.tBytes.iSize);
+                if ( !pData ) {
+                    xllm__content_part_free(pOut);
+                    return XRT_NET_ERROR;
+                }
+                memcpy(pData, pIn->as.tSource.as.tBytes.pData, pIn->as.tSource.as.tBytes.iSize);
+                pOut->as.tSource.as.tBytes.pData = pData;
+                pOut->as.tSource.as.tBytes.iSize = pIn->as.tSource.as.tBytes.iSize;
+            }
+            break;
+        case XLLM_SOURCE_URL:
+            pOut->as.tSource.as.sUrl = xllm__dup_cstr(pIn->as.tSource.as.sUrl);
+            break;
+        case XLLM_SOURCE_PROVIDER_FILE_ID:
+            pOut->as.tSource.as.sFileId = xllm__dup_cstr(pIn->as.tSource.as.sFileId);
+            break;
+        default:
+            break;
+    }
+
+    return XRT_NET_OK;
+}
+
+static void xllm__tool_call_free(xllm_tool_call *pCall)
+{
+    if ( !pCall ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pCall->sCallId);
+    xllm__free_cstr((char **)&pCall->sToolId);
+    xllm__free_cstr((char **)&pCall->sToolName);
+    xllm__free_cstr((char **)&pCall->sArgumentsJson);
+    xllm__xvalue_release(&pCall->tContinuation);
+    xllm__xvalue_release(&pCall->tVendorExtra);
+    memset(pCall, 0, sizeof(*pCall));
+}
+
+static int xllm__tool_call_clone(xllm_tool_call *pOut, const xllm_tool_call *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->sCallId = xllm__dup_cstr(pIn->sCallId);
+    pOut->sToolId = xllm__dup_cstr(pIn->sToolId);
+    pOut->sToolName = xllm__dup_cstr(pIn->sToolName);
+    pOut->sArgumentsJson = xllm__dup_cstr(pIn->sArgumentsJson);
+    pOut->tContinuation = pIn->tContinuation;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tContinuation);
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    return XRT_NET_OK;
+}
+
+static void xllm__message_free(xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pMessage->sToolCallId);
+    xllm__free_cstr((char **)&pMessage->sToolName);
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        xllm__content_part_free(&pMessage->pParts[i]);
+    }
+    if ( pMessage->pParts ) {
+        xrtFree(pMessage->pParts);
+    }
+
+    for ( i = 0; i < pMessage->iToolCallCount; ++i ) {
+        xllm__tool_call_free(&pMessage->pToolCalls[i]);
+    }
+    if ( pMessage->pToolCalls ) {
+        xrtFree(pMessage->pToolCalls);
+    }
+
+    xllm__xvalue_release(&pMessage->tVendorExtra);
+    memset(pMessage, 0, sizeof(*pMessage));
+}
+
+static int xllm__message_clone(xllm_message *pOut, const xllm_message *pIn)
+{
+    size_t i;
+
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->eRole = pIn->eRole;
+    pOut->sToolCallId = xllm__dup_cstr(pIn->sToolCallId);
+    pOut->sToolName = xllm__dup_cstr(pIn->sToolName);
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+
+    if ( pIn->iPartCount > 0 ) {
+        pOut->pParts = (xllm_content_part *)xrtCalloc(pIn->iPartCount, sizeof(xllm_content_part));
+        if ( !pOut->pParts ) {
+            xllm__message_free(pOut);
+            return XRT_NET_ERROR;
+        }
+        pOut->iPartCount = pIn->iPartCount;
+        for ( i = 0; i < pIn->iPartCount; ++i ) {
+            if ( xllm__content_part_clone(&pOut->pParts[i], &pIn->pParts[i]) != XRT_NET_OK ) {
+                xllm__message_free(pOut);
+                return XRT_NET_ERROR;
+            }
+        }
+    }
+
+    if ( pIn->iToolCallCount > 0 ) {
+        pOut->pToolCalls = (xllm_tool_call *)xrtCalloc(pIn->iToolCallCount, sizeof(xllm_tool_call));
+        if ( !pOut->pToolCalls ) {
+            xllm__message_free(pOut);
+            return XRT_NET_ERROR;
+        }
+        pOut->iToolCallCount = pIn->iToolCallCount;
+        for ( i = 0; i < pIn->iToolCallCount; ++i ) {
+            if ( xllm__tool_call_clone(&pOut->pToolCalls[i], &pIn->pToolCalls[i]) != XRT_NET_OK ) {
+                xllm__message_free(pOut);
+                return XRT_NET_ERROR;
+            }
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static void xllm__message_array_free(xllm_message *pMessages, size_t iMessageCount)
+{
+    size_t i;
+
+    if ( !pMessages ) {
+        return;
+    }
+
+    for ( i = 0; i < iMessageCount; ++i ) {
+        xllm__message_free(&pMessages[i]);
+    }
+    xrtFree(pMessages);
+}
+
+static int xllm__message_array_clone(xllm_message **ppOut, size_t *piOutCount, const xllm_message *pIn, size_t iInCount)
+{
+    xllm_message *pMessages;
+    size_t i;
+
+    if ( !ppOut || !piOutCount ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppOut = NULL;
+    *piOutCount = 0;
+
+    if ( !pIn || iInCount == 0 ) {
+        return XRT_NET_OK;
+    }
+
+    pMessages = (xllm_message *)xrtCalloc(iInCount, sizeof(xllm_message));
+    if ( !pMessages ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < iInCount; ++i ) {
+        if ( xllm__message_clone(&pMessages[i], &pIn[i]) != XRT_NET_OK ) {
+            xllm__message_array_free(pMessages, iInCount);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    *ppOut = pMessages;
+    *piOutCount = iInCount;
+    return XRT_NET_OK;
+}
+
+static void xllm__context_block_free(xllm_context_block *pBlock)
+{
+    if ( !pBlock ) {
+        return;
+    }
+
+    xllm__message_array_free(pBlock->pMessages, pBlock->iMessageCount);
+    xllm__xvalue_release(&pBlock->tVendorExtra);
+    memset(pBlock, 0, sizeof(*pBlock));
+}
+
+static int xllm__context_block_clone(xllm_context_block *pOut, const xllm_context_block *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->eKind = pIn->eKind;
+    pOut->iPriority = pIn->iPriority;
+    pOut->bPinned = pIn->bPinned;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+
+    if ( xllm__message_array_clone(&pOut->pMessages, &pOut->iMessageCount, pIn->pMessages, pIn->iMessageCount) != XRT_NET_OK ) {
+        xllm__context_block_free(pOut);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static void xllm__context_block_array_free(xllm_context_block *pBlocks, size_t iBlockCount)
+{
+    size_t i;
+
+    if ( !pBlocks ) {
+        return;
+    }
+
+    for ( i = 0; i < iBlockCount; ++i ) {
+        xllm__context_block_free(&pBlocks[i]);
+    }
+    xrtFree(pBlocks);
+}
+
+static int xllm__context_block_array_clone(xllm_context_block **ppOut, size_t *piOutCount, const xllm_context_block *pIn, size_t iInCount)
+{
+    xllm_context_block *pBlocks;
+    size_t i;
+
+    if ( !ppOut || !piOutCount ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppOut = NULL;
+    *piOutCount = 0;
+
+    if ( !pIn || iInCount == 0 ) {
+        return XRT_NET_OK;
+    }
+
+    pBlocks = (xllm_context_block *)xrtCalloc(iInCount, sizeof(xllm_context_block));
+    if ( !pBlocks ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < iInCount; ++i ) {
+        if ( xllm__context_block_clone(&pBlocks[i], &pIn[i]) != XRT_NET_OK ) {
+            xllm__context_block_array_free(pBlocks, iInCount);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    *ppOut = pBlocks;
+    *piOutCount = iInCount;
+    return XRT_NET_OK;
+}
+
+static void xllm__tool_def_free(xllm_tool_def *pTool)
+{
+    if ( !pTool ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pTool->sToolId);
+    xllm__free_cstr((char **)&pTool->sWireName);
+    xllm__free_cstr((char **)&pTool->sDescription);
+    xllm__xvalue_release(&pTool->tInputSchema);
+    xllm__xvalue_release(&pTool->tVendorExtra);
+    memset(pTool, 0, sizeof(*pTool));
+}
+
+static int xllm__tool_def_clone(xllm_tool_def *pOut, const xllm_tool_def *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->sToolId = xllm__dup_cstr(pIn->sToolId);
+    pOut->sWireName = xllm__dup_cstr(pIn->sWireName);
+    pOut->sDescription = xllm__dup_cstr(pIn->sDescription);
+    pOut->eKind = pIn->eKind;
+    pOut->tInputSchema = pIn->tInputSchema;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tInputSchema);
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    return XRT_NET_OK;
+}
+
+static void xllm__tool_def_array_free(xllm_tool_def *pTools, size_t iToolCount)
+{
+    size_t i;
+
+    if ( !pTools ) {
+        return;
+    }
+
+    for ( i = 0; i < iToolCount; ++i ) {
+        xllm__tool_def_free(&pTools[i]);
+    }
+    xrtFree(pTools);
+}
+
+static int xllm__tool_def_array_clone(xllm_tool_def **ppOut, size_t *piOutCount, const xllm_tool_def *pIn, size_t iInCount)
+{
+    xllm_tool_def *pTools;
+    size_t i;
+
+    if ( !ppOut || !piOutCount ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppOut = NULL;
+    *piOutCount = 0;
+
+    if ( !pIn || iInCount == 0 ) {
+        return XRT_NET_OK;
+    }
+
+    pTools = (xllm_tool_def *)xrtCalloc(iInCount, sizeof(xllm_tool_def));
+    if ( !pTools ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < iInCount; ++i ) {
+        if ( xllm__tool_def_clone(&pTools[i], &pIn[i]) != XRT_NET_OK ) {
+            xllm__tool_def_array_free(pTools, iInCount);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    *ppOut = pTools;
+    *piOutCount = iInCount;
+    return XRT_NET_OK;
+}
+
+static void xllm__generation_params_reset(xllm_generation_params *pParams)
+{
+    if ( !pParams ) {
+        return;
+    }
+    if ( pParams->psStop ) {
+        size_t i;
+        for ( i = 0; i < pParams->iStopCount; ++i ) {
+            xllm__free_cstr((char **)&pParams->psStop[i]);
+        }
+        xrtFree((void *)pParams->psStop);
+    }
+    memset(pParams, 0, sizeof(*pParams));
+}
+
+static int xllm__generation_params_clone(xllm_generation_params *pOut, const xllm_generation_params *pIn)
+{
+    size_t i;
+
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    *pOut = *pIn;
+
+    if ( pIn->iStopCount > 0 ) {
+        char **psStop = (char **)xrtCalloc(pIn->iStopCount, sizeof(char *));
+        if ( !psStop ) {
+            memset(pOut, 0, sizeof(*pOut));
+            return XRT_NET_ERROR;
+        }
+        for ( i = 0; i < pIn->iStopCount; ++i ) {
+            psStop[i] = xllm__dup_cstr(pIn->psStop[i]);
+        }
+        pOut->psStop = (const char **)psStop;
+    }
+
+    return XRT_NET_OK;
+}
+
+static void xllm__reasoning_options_reset(xllm_reasoning_options *pReasoning)
+{
+    if ( !pReasoning ) {
+        return;
+    }
+    xllm__xvalue_release(&pReasoning->tVendorExtra);
+    memset(pReasoning, 0, sizeof(*pReasoning));
+}
+
+static int xllm__reasoning_options_clone(xllm_reasoning_options *pOut, const xllm_reasoning_options *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+    *pOut = *pIn;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    return XRT_NET_OK;
+}
+
+static void xllm__response_format_reset(xllm_response_format *pFormat)
+{
+    if ( !pFormat ) {
+        return;
+    }
+    xllm__free_cstr((char **)&pFormat->sSchemaName);
+    xllm__xvalue_release(&pFormat->tJsonSchema);
+    xllm__xvalue_release(&pFormat->tVendorExtra);
+    memset(pFormat, 0, sizeof(*pFormat));
+}
+
+static int xllm__response_format_clone(xllm_response_format *pOut, const xllm_response_format *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->eKind = pIn->eKind;
+    pOut->sSchemaName = xllm__dup_cstr(pIn->sSchemaName);
+    pOut->tJsonSchema = pIn->tJsonSchema;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tJsonSchema);
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    return XRT_NET_OK;
+}
+
+static void xllm__effective_params_reset(xllm_effective_params *pParams)
+{
+    if ( !pParams ) {
+        return;
+    }
+
+    xllm__generation_params_reset(&pParams->tGeneration);
+    xllm__reasoning_options_reset(&pParams->tReasoning);
+    xllm__response_format_reset(&pParams->tResponseFormat);
+    xllm__xvalue_release(&pParams->tVendorExtra);
+    memset(pParams, 0, sizeof(*pParams));
+}
+
+static void xllm__request_release(xllm_request *pRequest)
+{
+    if ( !pRequest ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pRequest->sProfileId);
+    xllm__message_array_free(pRequest->pMessages, pRequest->iMessageCount);
+    xllm__context_block_array_free(pRequest->pContextBlocks, pRequest->iContextBlockCount);
+    xllm__tool_def_array_free(pRequest->pTools, pRequest->iToolCount);
+    xllm__generation_params_reset(&pRequest->tGeneration);
+    xllm__response_format_reset(&pRequest->tResponseFormat);
+    xllm__reasoning_options_reset(&pRequest->tReasoning);
+    xllm__xvalue_release(&pRequest->tVendorExtra);
+    memset(pRequest, 0, sizeof(*pRequest));
+}
+
+static int xllm__request_clone(xllm_request *pOut, const xllm_request *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->sProfileId = xllm__dup_cstr(pIn->sProfileId);
+    pOut->eSlot = pIn->eSlot;
+    pOut->tToolPolicy = pIn->tToolPolicy;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+
+    if ( xllm__message_array_clone(&pOut->pMessages, &pOut->iMessageCount, pIn->pMessages, pIn->iMessageCount) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__context_block_array_clone(&pOut->pContextBlocks, &pOut->iContextBlockCount, pIn->pContextBlocks, pIn->iContextBlockCount) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__tool_def_array_clone(&pOut->pTools, &pOut->iToolCount, pIn->pTools, pIn->iToolCount) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__generation_params_clone(&pOut->tGeneration, &pIn->tGeneration) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__response_format_clone(&pOut->tResponseFormat, &pIn->tResponseFormat) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__reasoning_options_clone(&pOut->tReasoning, &pIn->tReasoning) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static void xllm__turn_release(xllm_turn *pTurn)
+{
+    if ( !pTurn ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pTurn->sSystemPrompt);
+    xllm__message_array_free(pTurn->pMessages, pTurn->iMessageCount);
+    xllm__context_block_array_free(pTurn->pContextBlocks, pTurn->iContextBlockCount);
+    xllm__tool_def_array_free(pTurn->pTools, pTurn->iToolCount);
+    xllm__generation_params_reset(&pTurn->tGeneration);
+    xllm__response_format_reset(&pTurn->tResponseFormat);
+    xllm__reasoning_options_reset(&pTurn->tReasoning);
+    xllm__xvalue_release(&pTurn->tVendorExtra);
+    memset(pTurn, 0, sizeof(*pTurn));
+}
+
+#if defined(XLLM__WITH_SESSION)
+static int xllm__turn_clone(xllm_turn *pOut, const xllm_turn *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->eSlot = pIn->eSlot;
+    pOut->eSystemMode = pIn->eSystemMode;
+    pOut->sSystemPrompt = xllm__dup_cstr(pIn->sSystemPrompt);
+    pOut->tToolPolicy = pIn->tToolPolicy;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+
+    if ( xllm__message_array_clone(&pOut->pMessages, &pOut->iMessageCount, pIn->pMessages, pIn->iMessageCount) != XRT_NET_OK ) {
+        xllm__turn_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__context_block_array_clone(&pOut->pContextBlocks, &pOut->iContextBlockCount, pIn->pContextBlocks, pIn->iContextBlockCount) != XRT_NET_OK ) {
+        xllm__turn_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__tool_def_array_clone(&pOut->pTools, &pOut->iToolCount, pIn->pTools, pIn->iToolCount) != XRT_NET_OK ) {
+        xllm__turn_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__generation_params_clone(&pOut->tGeneration, &pIn->tGeneration) != XRT_NET_OK ) {
+        xllm__turn_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__response_format_clone(&pOut->tResponseFormat, &pIn->tResponseFormat) != XRT_NET_OK ) {
+        xllm__turn_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__reasoning_options_clone(&pOut->tReasoning, &pIn->tReasoning) != XRT_NET_OK ) {
+        xllm__turn_release(pOut);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_turn_clone(xllm_turn *pOut, const xllm_turn *pIn)
+{
+    return xllm__turn_clone(pOut, pIn);
+}
+#endif
+
+static void xllm__tool_exec_result_release(xllm_tool_exec_result *pResult)
+{
+    if ( !pResult ) {
+        return;
+    }
+
+    if ( pResult->pParts ) {
+        size_t i;
+        for ( i = 0; i < pResult->iPartCount; ++i ) {
+            xllm__content_part_free(&pResult->pParts[i]);
+        }
+        xrtFree(pResult->pParts);
+    }
+    xllm__xvalue_release(&pResult->tVendorExtra);
+    memset(pResult, 0, sizeof(*pResult));
+}
+
+static const xllm_profile *xllm__runtime_find_profile(const xllm_runtime *pRuntime, const char *sProfileId)
+{
+    size_t i;
+
+    if ( !pRuntime || !sProfileId ) {
+        return NULL;
+    }
+
+    for ( i = 0; i < pRuntime->iProfileCount; ++i ) {
+        if ( pRuntime->pProfiles[i].sId && strcmp(pRuntime->pProfiles[i].sId, sProfileId) == 0 ) {
+            return &pRuntime->pProfiles[i];
+        }
+    }
+
+    return NULL;
+}
+
+static const xllm_adapter *xllm__runtime_find_adapter(const xllm_runtime *pRuntime, const char *sAdapterName)
+{
+    size_t i;
+
+    if ( !pRuntime || !sAdapterName ) {
+        return NULL;
+    }
+
+    for ( i = 0; i < pRuntime->iAdapterCount; ++i ) {
+        if ( pRuntime->pAdapters[i].sName && strcmp(pRuntime->pAdapters[i].sName, sAdapterName) == 0 ) {
+            return &pRuntime->pAdapters[i];
+        }
+    }
+
+    return NULL;
+}
+
+#if defined(XLLM__WITH_SESSION)
+static int xllm__build_request_from_turn(
+    xllm_request *pOut,
+    const char *sProfileId,
+    const char *sDefaultSystemPrompt,
+    const xllm_turn *pTurn
+)
+{
+    xllm_message *pMessages;
+    size_t iPrefixCount;
+    size_t iTotalCount;
+    size_t iWrite;
+
+    if ( !pOut || !sProfileId || !pTurn ) {
+        return XRT_NET_ERROR;
+    }
+
+    xllm_request_init(pOut);
+    pOut->sProfileId = xllm__dup_cstr(sProfileId);
+    pOut->eSlot = pTurn->eSlot;
+    pOut->tToolPolicy = pTurn->tToolPolicy;
+    pOut->tVendorExtra = pTurn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+
+    if ( xllm__context_block_array_clone(&pOut->pContextBlocks, &pOut->iContextBlockCount, pTurn->pContextBlocks, pTurn->iContextBlockCount) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__tool_def_array_clone(&pOut->pTools, &pOut->iToolCount, pTurn->pTools, pTurn->iToolCount) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__generation_params_clone(&pOut->tGeneration, &pTurn->tGeneration) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__response_format_clone(&pOut->tResponseFormat, &pTurn->tResponseFormat) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__reasoning_options_clone(&pOut->tReasoning, &pTurn->tReasoning) != XRT_NET_OK ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+
+    iPrefixCount = 0;
+    if ( sDefaultSystemPrompt && sDefaultSystemPrompt[0] &&
+         (pTurn->eSystemMode == XLLM_SYSTEM_INHERIT || pTurn->eSystemMode == XLLM_SYSTEM_APPEND) ) {
+        ++iPrefixCount;
+    }
+    if ( pTurn->sSystemPrompt && pTurn->sSystemPrompt[0] &&
+         pTurn->eSystemMode != XLLM_SYSTEM_INHERIT ) {
+        ++iPrefixCount;
+    }
+
+    iTotalCount = iPrefixCount + pTurn->iMessageCount;
+    if ( iTotalCount == 0 ) {
+        return XRT_NET_OK;
+    }
+
+    pMessages = (xllm_message *)xrtCalloc(iTotalCount, sizeof(xllm_message));
+    if ( !pMessages ) {
+        xllm__request_release(pOut);
+        return XRT_NET_ERROR;
+    }
+
+    pOut->pMessages = pMessages;
+    pOut->iMessageCount = iTotalCount;
+    iWrite = 0;
+
+    if ( sDefaultSystemPrompt && sDefaultSystemPrompt[0] &&
+         (pTurn->eSystemMode == XLLM_SYSTEM_INHERIT || pTurn->eSystemMode == XLLM_SYSTEM_APPEND) ) {
+        pMessages[iWrite].eRole = XLLM_ROLE_SYSTEM;
+        pMessages[iWrite].pParts = (xllm_content_part *)xrtCalloc(1, sizeof(xllm_content_part));
+        if ( !pMessages[iWrite].pParts ) {
+            xllm__request_release(pOut);
+            return XRT_NET_ERROR;
+        }
+        pMessages[iWrite].iPartCount = 1;
+        pMessages[iWrite].pParts[0].eKind = XLLM_PART_TEXT;
+        pMessages[iWrite].pParts[0].as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+        pMessages[iWrite].pParts[0].as.tSource.as.sText = xllm__dup_cstr(sDefaultSystemPrompt);
+        ++iWrite;
+    }
+
+    if ( pTurn->sSystemPrompt && pTurn->sSystemPrompt[0] &&
+         pTurn->eSystemMode != XLLM_SYSTEM_INHERIT ) {
+        pMessages[iWrite].eRole = XLLM_ROLE_SYSTEM;
+        pMessages[iWrite].pParts = (xllm_content_part *)xrtCalloc(1, sizeof(xllm_content_part));
+        if ( !pMessages[iWrite].pParts ) {
+            xllm__request_release(pOut);
+            return XRT_NET_ERROR;
+        }
+        pMessages[iWrite].iPartCount = 1;
+        pMessages[iWrite].pParts[0].eKind = XLLM_PART_TEXT;
+        pMessages[iWrite].pParts[0].as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+        pMessages[iWrite].pParts[0].as.tSource.as.sText = xllm__dup_cstr(pTurn->sSystemPrompt);
+        ++iWrite;
+    }
+
+    while ( iWrite < iTotalCount ) {
+        size_t iSourceIndex = iWrite - iPrefixCount;
+        if ( xllm__message_clone(&pMessages[iWrite], &pTurn->pMessages[iSourceIndex]) != XRT_NET_OK ) {
+            xllm__request_release(pOut);
+            return XRT_NET_ERROR;
+        }
+        ++iWrite;
+    }
+
+    return XRT_NET_OK;
+}
+#endif
+
+static int xllm__async_future_result_error(xfuture_result *pOut, int32 iStatus, const char *sError)
+{
+    if ( !pOut ) {
+        return iStatus;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->iStatus = iStatus;
+    pOut->sError = (str)xllm__dup_cstr(sError ? sError : "xllm async error");
+    pOut->iFlags = XFUTURE_RESULT_F_OWN_ERROR;
+    return iStatus;
+}
+
+XLLM_API const char *xllm_version(void)
+{
+    return "0.1.0";
+}
+
+XLLM_API void xllm_runtime_options_init(xllm_runtime_options *pOptions)
+{
+    if ( !pOptions ) {
+        return;
+    }
+    memset(pOptions, 0, sizeof(*pOptions));
+    pOptions->eDebugMode = XLLM_DEBUG_NONE;
+    pOptions->eRedactMode = XLLM_REDACT_DEFAULT;
+}
+
+XLLM_API void xllm_profile_init(xllm_profile *pProfile)
+{
+    if ( !pProfile ) {
+        return;
+    }
+    memset(pProfile, 0, sizeof(*pProfile));
+    pProfile->tAuth.eKind = XLLM_AUTH_NONE;
+    pProfile->tModels.tText.eCapMode = XLLM_CAP_MODE_AUTO;
+    pProfile->tModels.tMultimodal.eCapMode = XLLM_CAP_MODE_AUTO;
+}
+
+XLLM_API void xllm_request_init(xllm_request *pRequest)
+{
+    if ( !pRequest ) {
+        return;
+    }
+    memset(pRequest, 0, sizeof(*pRequest));
+    pRequest->eSlot = XLLM_SLOT_AUTO;
+    pRequest->tToolPolicy.eMode = XLLM_TOOL_CHOICE_AUTO;
+    pRequest->tResponseFormat.eKind = XLLM_RESPONSE_TEXT;
+    pRequest->tReasoning.eLevel = XLLM_REASONING_DEFAULT;
+}
+
+XLLM_API void xllm_request_reset(xllm_request *pRequest)
+{
+    xllm__request_release(pRequest);
+    xllm_request_init(pRequest);
+}
+
+XLLM_API void xllm_turn_init(xllm_turn *pTurn)
+{
+    if ( !pTurn ) {
+        return;
+    }
+    memset(pTurn, 0, sizeof(*pTurn));
+    pTurn->eSlot = XLLM_SLOT_AUTO;
+    pTurn->eSystemMode = XLLM_SYSTEM_INHERIT;
+    pTurn->tToolPolicy.eMode = XLLM_TOOL_CHOICE_AUTO;
+    pTurn->tResponseFormat.eKind = XLLM_RESPONSE_TEXT;
+    pTurn->tReasoning.eLevel = XLLM_REASONING_DEFAULT;
+}
+
+XLLM_API void xllm_turn_reset(xllm_turn *pTurn)
+{
+    xllm__turn_release(pTurn);
+    xllm_turn_init(pTurn);
+}
+
+XLLM_API void xllm_call_options_init(xllm_call_options *pOptions)
+{
+    if ( !pOptions ) {
+        return;
+    }
+    memset(pOptions, 0, sizeof(*pOptions));
+    pOptions->eStreamMode = XLLM_STREAM_AUTO;
+    pOptions->eArtifactPolicy = XLLM_ARTIFACT_INLINE_SMALL;
+    pOptions->eLocalFilePolicy = XLLM_LOCAL_FILE_AUTO;
+}
+
+XLLM_API void xllm_session_options_init(xllm_session_options *pOptions)
+{
+    if ( !pOptions ) {
+        return;
+    }
+    memset(pOptions, 0, sizeof(*pOptions));
+    pOptions->bEnableAutoCompact = true;
+    pOptions->fCompactTriggerRatio = 0.85;
+    pOptions->uCompactTriggerTurns = 16;
+    pOptions->uKeepRecentTurns = 8;
+    pOptions->bKeepActiveToolChain = true;
+    pOptions->eCompactStrategy = XLLM_COMPACT_SUMMARIZE;
+}
+
+XLLM_API void xllm_compact_options_init(xllm_compact_options *pOptions)
+{
+    if ( !pOptions ) {
+        return;
+    }
+    memset(pOptions, 0, sizeof(*pOptions));
+    pOptions->eMode = XLLM_COMPACT_TO_FIT_CURRENT_MODEL;
+    pOptions->eStrategy = XLLM_COMPACT_SUMMARIZE;
+}
+
+XLLM_API void xllm_error_init(xllm_error *pError)
+{
+    if ( !pError ) {
+        return;
+    }
+    memset(pError, 0, sizeof(*pError));
+    pError->eCode = XLLM_ERROR_NONE;
+}
+
+XLLM_API void xllm_error_reset(xllm_error *pError)
+{
+    if ( !pError ) {
+        return;
+    }
+    xllm__free_cstr((char **)&pError->sMessage);
+    xllm__free_cstr((char **)&pError->sProviderCode);
+    xllm__free_cstr((char **)&pError->sProviderMessage);
+    xllm__free_cstr((char **)&pError->sRequestId);
+    xllm__free_cstr((char **)&pError->sSelectedModel);
+    xllm__free_cstr((char **)&pError->sMimeType);
+    xllm__xvalue_release(&pError->tVendorExtra);
+    memset(pError, 0, sizeof(*pError));
+    pError->eCode = XLLM_ERROR_NONE;
+}
+
+XLLM_API void xllm_error_free(xllm_error *pError)
+{
+    xllm_error_reset(pError);
+}
+
+XLLM_API void xllm_tool_exec_result_free(xllm_tool_exec_result *pResult)
+{
+    xllm__tool_exec_result_release(pResult);
+}
+
+XLLM_API int xllm_cancel_token_create(xllm_cancel_token **ppToken)
+{
+    xllm_cancel_token *pToken;
+
+    if ( !ppToken ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppToken = NULL;
+    pToken = (xllm_cancel_token *)xrtCalloc(1, sizeof(*pToken));
+    if ( !pToken ) {
+        return XRT_NET_ERROR;
+    }
+
+    pToken->pMutex = xrtMutexCreate();
+    if ( !pToken->pMutex ) {
+        xrtFree(pToken);
+        return XRT_NET_ERROR;
+    }
+
+    *ppToken = pToken;
+    return XRT_NET_OK;
+}
+
+XLLM_API void xllm_cancel_token_destroy(xllm_cancel_token *pToken)
+{
+    if ( !pToken ) {
+        return;
+    }
+
+    xllm__free_cstr(&pToken->sReason);
+    if ( pToken->pMutex ) {
+        xrtMutexDestroy(pToken->pMutex);
+    }
+    xrtFree(pToken);
+}
+
+XLLM_API void xllm_cancel_token_cancel(xllm_cancel_token *pToken, const char *sReason)
+{
+    char *sCopy = NULL;
+
+    if ( !pToken ) {
+        return;
+    }
+
+    if ( sReason ) {
+        sCopy = xllm__dup_cstr(sReason);
+    }
+
+    if ( pToken->pMutex ) {
+        xrtMutexLock(pToken->pMutex);
+    }
+    pToken->bCancelled = true;
+    xllm__free_cstr(&pToken->sReason);
+    pToken->sReason = sCopy;
+    if ( pToken->pMutex ) {
+        xrtMutexUnlock(pToken->pMutex);
+    }
+}
+
+XLLM_API bool xllm_cancel_token_is_cancelled(const xllm_cancel_token *pToken)
+{
+    bool bCancelled;
+
+    if ( !pToken ) {
+        return false;
+    }
+
+    if ( pToken->pMutex ) {
+        xrtMutexLock(pToken->pMutex);
+    }
+    bCancelled = pToken->bCancelled;
+    if ( pToken->pMutex ) {
+        xrtMutexUnlock(pToken->pMutex);
+    }
+
+    return bCancelled;
+}
+
+/* ===== end: D:/git/xllm/src/xllm_base/xllm_base.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_runtime/xllm_runtime.c ===== */
+
+
+/* ===== begin: D:/git/xllm/src/xllm_runtime/xllm_runtime.h ===== */
+
+#ifndef XLLM_RUNTIME_INTERNAL_H
+#define XLLM_RUNTIME_INTERNAL_H
+
+/*
+ * runtime 子库：
+ * - runtime 对象
+ * - profile 注册
+ * - adapter 注册
+ * - hooks 管理
+ */
+
+#endif
+
+/* ===== end: D:/git/xllm/src/xllm_runtime/xllm_runtime.h ===== */
+
+static void *xllm__default_malloc(void *pCtx, size_t iSize)
+{
+    (void)pCtx;
+    return xrtCalloc(1, iSize);
+}
+
+static void *xllm__default_realloc(void *pCtx, void *pPtr, size_t iSize)
+{
+    (void)pCtx;
+    return xrtRealloc(pPtr, iSize);
+}
+
+static void xllm__default_free(void *pCtx, void *pPtr)
+{
+    (void)pCtx;
+    xrtFree(pPtr);
+}
+
+static void xllm__transport_options_reset(xllm_transport_options *pOptions);
+
+static int xllm__string_array_clone(const char ***ppsOut, size_t *piOutCount, const char **psIn, size_t iInCount)
+{
+    char **psCopy;
+    size_t i;
+
+    if ( !ppsOut || !piOutCount ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppsOut = NULL;
+    *piOutCount = 0;
+    if ( !psIn || iInCount == 0 ) {
+        return XRT_NET_OK;
+    }
+
+    psCopy = (char **)xrtCalloc(iInCount, sizeof(char *));
+    if ( !psCopy ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < iInCount; ++i ) {
+        psCopy[i] = xllm__dup_cstr(psIn[i]);
+        if ( psIn[i] && !psCopy[i] ) {
+            size_t j;
+            for ( j = 0; j < i; ++j ) {
+                xllm__free_cstr(&psCopy[j]);
+            }
+            xrtFree(psCopy);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    *ppsOut = (const char **)psCopy;
+    *piOutCount = iInCount;
+    return XRT_NET_OK;
+}
+
+static void xllm__string_array_free(const char ***ppsArray, size_t *piCount)
+{
+    size_t i;
+    char **psArray;
+
+    if ( !ppsArray || !*ppsArray ) {
+        if ( piCount ) {
+            *piCount = 0;
+        }
+        return;
+    }
+
+    psArray = (char **)*ppsArray;
+    if ( piCount ) {
+        for ( i = 0; i < *piCount; ++i ) {
+            xllm__free_cstr(&psArray[i]);
+        }
+        *piCount = 0;
+    }
+    xrtFree(psArray);
+    *ppsArray = NULL;
+}
+
+static int xllm__header_array_clone(xllm_header **ppOut, size_t *piOutCount, const xllm_header *pIn, size_t iInCount)
+{
+    xllm_header *pHeaders;
+    size_t i;
+
+    if ( !ppOut || !piOutCount ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppOut = NULL;
+    *piOutCount = 0;
+    if ( !pIn || iInCount == 0 ) {
+        return XRT_NET_OK;
+    }
+
+    pHeaders = (xllm_header *)xrtCalloc(iInCount, sizeof(xllm_header));
+    if ( !pHeaders ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < iInCount; ++i ) {
+        pHeaders[i].sName = xllm__dup_cstr(pIn[i].sName);
+        pHeaders[i].sValue = xllm__dup_cstr(pIn[i].sValue);
+        if ( (pIn[i].sName && !pHeaders[i].sName) || (pIn[i].sValue && !pHeaders[i].sValue) ) {
+            size_t j;
+            for ( j = 0; j <= i; ++j ) {
+                xllm__free_cstr((char **)&pHeaders[j].sName);
+                xllm__free_cstr((char **)&pHeaders[j].sValue);
+            }
+            xrtFree(pHeaders);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    *ppOut = pHeaders;
+    *piOutCount = iInCount;
+    return XRT_NET_OK;
+}
+
+static void xllm__header_array_free(xllm_header **ppHeaders, size_t *piCount)
+{
+    size_t i;
+
+    if ( !ppHeaders || !*ppHeaders ) {
+        if ( piCount ) {
+            *piCount = 0;
+        }
+        return;
+    }
+
+    if ( piCount ) {
+        for ( i = 0; i < *piCount; ++i ) {
+            xllm__free_cstr((char **)&(*ppHeaders)[i].sName);
+            xllm__free_cstr((char **)&(*ppHeaders)[i].sValue);
+        }
+        *piCount = 0;
+    }
+    xrtFree(*ppHeaders);
+    *ppHeaders = NULL;
+}
+
+static int xllm__transport_options_clone(xllm_transport_options *pOut, const xllm_transport_options *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    *pOut = *pIn;
+    pOut->sProxyHost = xllm__dup_cstr(pIn->sProxyHost);
+    pOut->sProxyUser = xllm__dup_cstr(pIn->sProxyUser);
+    pOut->sProxyPass = xllm__dup_cstr(pIn->sProxyPass);
+    pOut->sCaBundlePath = xllm__dup_cstr(pIn->sCaBundlePath);
+    pOut->sClientCertPath = xllm__dup_cstr(pIn->sClientCertPath);
+    pOut->sClientKeyPath = xllm__dup_cstr(pIn->sClientKeyPath);
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    if ( (pIn->sProxyHost && !pOut->sProxyHost) ||
+         (pIn->sProxyUser && !pOut->sProxyUser) ||
+         (pIn->sProxyPass && !pOut->sProxyPass) ||
+         (pIn->sCaBundlePath && !pOut->sCaBundlePath) ||
+         (pIn->sClientCertPath && !pOut->sClientCertPath) ||
+         (pIn->sClientKeyPath && !pOut->sClientKeyPath) ) {
+        xllm__transport_options_reset(pOut);
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__transport_options_reset(xllm_transport_options *pOptions)
+{
+    if ( !pOptions ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pOptions->sProxyHost);
+    xllm__free_cstr((char **)&pOptions->sProxyUser);
+    xllm__free_cstr((char **)&pOptions->sProxyPass);
+    xllm__free_cstr((char **)&pOptions->sCaBundlePath);
+    xllm__free_cstr((char **)&pOptions->sClientCertPath);
+    xllm__free_cstr((char **)&pOptions->sClientKeyPath);
+    xllm__xvalue_release(&pOptions->tVendorExtra);
+    memset(pOptions, 0, sizeof(*pOptions));
+}
+
+static int xllm__provider_options_clone(xllm_provider_options *pOut, const xllm_provider_options *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->sOpenAIOrganizationId = xllm__dup_cstr(pIn->sOpenAIOrganizationId);
+    pOut->sOpenAIProjectId = xllm__dup_cstr(pIn->sOpenAIProjectId);
+    pOut->sAnthropicApiVersion = xllm__dup_cstr(pIn->sAnthropicApiVersion);
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    if ( xllm__string_array_clone(&pOut->psAnthropicBetaHeaders, &pOut->iAnthropicBetaHeaderCount, pIn->psAnthropicBetaHeaders, pIn->iAnthropicBetaHeaderCount) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__provider_options_reset(xllm_provider_options *pOptions)
+{
+    if ( !pOptions ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pOptions->sOpenAIOrganizationId);
+    xllm__free_cstr((char **)&pOptions->sOpenAIProjectId);
+    xllm__free_cstr((char **)&pOptions->sAnthropicApiVersion);
+    xllm__string_array_free(&pOptions->psAnthropicBetaHeaders, &pOptions->iAnthropicBetaHeaderCount);
+    xllm__xvalue_release(&pOptions->tVendorExtra);
+    memset(pOptions, 0, sizeof(*pOptions));
+}
+
+static int xllm__model_caps_clone(xllm_model_caps *pOut, const xllm_model_caps *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    *pOut = *pIn;
+    pOut->sTokenizerId = xllm__dup_cstr(pIn->sTokenizerId);
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    if ( xllm__string_array_clone(&pOut->psSupportedMimeTypes, &pOut->iSupportedMimeTypeCount, pIn->psSupportedMimeTypes, pIn->iSupportedMimeTypeCount) != XRT_NET_OK ) {
+        xllm__xvalue_release(&pOut->tVendorExtra);
+        xllm__free_cstr((char **)&pOut->sTokenizerId);
+        memset(pOut, 0, sizeof(*pOut));
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__model_caps_reset(xllm_model_caps *pCaps)
+{
+    if ( !pCaps ) {
+        return;
+    }
+
+    xllm__string_array_free(&pCaps->psSupportedMimeTypes, &pCaps->iSupportedMimeTypeCount);
+    xllm__free_cstr((char **)&pCaps->sTokenizerId);
+    xllm__xvalue_release(&pCaps->tVendorExtra);
+    memset(pCaps, 0, sizeof(*pCaps));
+}
+
+static int xllm__model_binding_clone(xllm_model_binding *pOut, const xllm_model_binding *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->sModelId = xllm__dup_cstr(pIn->sModelId);
+    pOut->sAliasOf = xllm__dup_cstr(pIn->sAliasOf);
+    pOut->eCapMode = pIn->eCapMode;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    if ( xllm__model_caps_clone(&pOut->tCaps, &pIn->tCaps) != XRT_NET_OK ) {
+        xllm__free_cstr((char **)&pOut->sModelId);
+        xllm__free_cstr((char **)&pOut->sAliasOf);
+        xllm__xvalue_release(&pOut->tVendorExtra);
+        memset(pOut, 0, sizeof(*pOut));
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__model_binding_reset(xllm_model_binding *pBinding)
+{
+    if ( !pBinding ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pBinding->sModelId);
+    xllm__free_cstr((char **)&pBinding->sAliasOf);
+    xllm__model_caps_reset(&pBinding->tCaps);
+    xllm__xvalue_release(&pBinding->tVendorExtra);
+    memset(pBinding, 0, sizeof(*pBinding));
+}
+
+static int xllm__profile_defaults_clone(xllm_profile_defaults *pOut, const xllm_profile_defaults *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    if ( xllm__generation_params_clone(&pOut->tGeneration, &pIn->tGeneration) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__reasoning_options_clone(&pOut->tReasoning, &pIn->tReasoning) != XRT_NET_OK ) {
+        xllm__generation_params_reset(&pOut->tGeneration);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__response_format_clone(&pOut->tResponseFormat, &pIn->tResponseFormat) != XRT_NET_OK ) {
+        xllm__generation_params_reset(&pOut->tGeneration);
+        xllm__reasoning_options_reset(&pOut->tReasoning);
+        return XRT_NET_ERROR;
+    }
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    return XRT_NET_OK;
+}
+
+static void xllm__profile_defaults_reset(xllm_profile_defaults *pDefaults)
+{
+    if ( !pDefaults ) {
+        return;
+    }
+
+    xllm__generation_params_reset(&pDefaults->tGeneration);
+    xllm__reasoning_options_reset(&pDefaults->tReasoning);
+    xllm__response_format_reset(&pDefaults->tResponseFormat);
+    xllm__xvalue_release(&pDefaults->tVendorExtra);
+    memset(pDefaults, 0, sizeof(*pDefaults));
+}
+
+static int xllm__profile_clone(xllm_profile *pOut, const xllm_profile *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->sId = xllm__dup_cstr(pIn->sId);
+    pOut->sName = xllm__dup_cstr(pIn->sName);
+    pOut->sProvider = xllm__dup_cstr(pIn->sProvider);
+    pOut->sAdapter = xllm__dup_cstr(pIn->sAdapter);
+    pOut->sBaseUrl = xllm__dup_cstr(pIn->sBaseUrl);
+    pOut->tAuth.eKind = pIn->tAuth.eKind;
+    pOut->tAuth.sSecret = xllm__dup_cstr(pIn->tAuth.sSecret);
+    pOut->tAuth.sHeaderName = xllm__dup_cstr(pIn->tAuth.sHeaderName);
+    pOut->tAuth.sScheme = xllm__dup_cstr(pIn->tAuth.sScheme);
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+
+    if ( xllm__header_array_clone(&pOut->pDefaultHeaders, &pOut->iDefaultHeaderCount, pIn->pDefaultHeaders, pIn->iDefaultHeaderCount) != XRT_NET_OK ||
+         xllm__provider_options_clone(&pOut->tProviderOptions, &pIn->tProviderOptions) != XRT_NET_OK ||
+         xllm__transport_options_clone(&pOut->tTransport, &pIn->tTransport) != XRT_NET_OK ||
+         xllm__model_binding_clone(&pOut->tModels.tText, &pIn->tModels.tText) != XRT_NET_OK ||
+         xllm__model_binding_clone(&pOut->tModels.tMultimodal, &pIn->tModels.tMultimodal) != XRT_NET_OK ||
+         xllm__profile_defaults_clone(&pOut->tDefaults, &pIn->tDefaults) != XRT_NET_OK ) {
+        xllm__header_array_free(&pOut->pDefaultHeaders, &pOut->iDefaultHeaderCount);
+        xllm__provider_options_reset(&pOut->tProviderOptions);
+        xllm__transport_options_reset(&pOut->tTransport);
+        xllm__model_binding_reset(&pOut->tModels.tText);
+        xllm__model_binding_reset(&pOut->tModels.tMultimodal);
+        xllm__profile_defaults_reset(&pOut->tDefaults);
+        xllm__free_cstr((char **)&pOut->sId);
+        xllm__free_cstr((char **)&pOut->sName);
+        xllm__free_cstr((char **)&pOut->sProvider);
+        xllm__free_cstr((char **)&pOut->sAdapter);
+        xllm__free_cstr((char **)&pOut->sBaseUrl);
+        xllm__free_cstr((char **)&pOut->tAuth.sSecret);
+        xllm__free_cstr((char **)&pOut->tAuth.sHeaderName);
+        xllm__free_cstr((char **)&pOut->tAuth.sScheme);
+        xllm__xvalue_release(&pOut->tVendorExtra);
+        memset(pOut, 0, sizeof(*pOut));
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static void xllm__profile_release(xllm_profile *pProfile)
+{
+    if ( !pProfile ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pProfile->sId);
+    xllm__free_cstr((char **)&pProfile->sName);
+    xllm__free_cstr((char **)&pProfile->sProvider);
+    xllm__free_cstr((char **)&pProfile->sAdapter);
+    xllm__free_cstr((char **)&pProfile->sBaseUrl);
+    xllm__free_cstr((char **)&pProfile->tAuth.sSecret);
+    xllm__free_cstr((char **)&pProfile->tAuth.sHeaderName);
+    xllm__free_cstr((char **)&pProfile->tAuth.sScheme);
+    xllm__header_array_free(&pProfile->pDefaultHeaders, &pProfile->iDefaultHeaderCount);
+    xllm__provider_options_reset(&pProfile->tProviderOptions);
+    xllm__transport_options_reset(&pProfile->tTransport);
+    xllm__model_binding_reset(&pProfile->tModels.tText);
+    xllm__model_binding_reset(&pProfile->tModels.tMultimodal);
+    xllm__profile_defaults_reset(&pProfile->tDefaults);
+    xllm__xvalue_release(&pProfile->tVendorExtra);
+    memset(pProfile, 0, sizeof(*pProfile));
+}
+
+static int xllm__adapter_clone(xllm_adapter *pOut, const xllm_adapter *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    pOut->sName = xllm__dup_cstr(pIn->sName);
+    pOut->pCtx = pIn->pCtx;
+    pOut->pfnCountTokens = pIn->pfnCountTokens;
+    pOut->pfnChat = pIn->pfnChat;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    if ( pIn->sName && !pOut->sName ) {
+        xllm__xvalue_release(&pOut->tVendorExtra);
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__adapter_release(xllm_adapter *pAdapter)
+{
+    if ( !pAdapter ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pAdapter->sName);
+    xllm__xvalue_release(&pAdapter->tVendorExtra);
+    memset(pAdapter, 0, sizeof(*pAdapter));
+}
+
+static int xllm__call_options_clone(xllm_call_options *pOut, const xllm_call_options *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    *pOut = *pIn;
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    return XRT_NET_OK;
+}
+
+static void xllm__call_options_reset(xllm_call_options *pOptions)
+{
+    if ( !pOptions ) {
+        return;
+    }
+
+    xllm__xvalue_release(&pOptions->tVendorExtra);
+    memset(pOptions, 0, sizeof(*pOptions));
+}
+
+static int xllm__runtime_options_clone(xllm_runtime_options *pOut, const xllm_runtime_options *pIn)
+{
+    if ( !pOut || !pIn ) {
+        return XRT_NET_ERROR;
+    }
+
+    xllm_runtime_options_init(pOut);
+    *pOut = *pIn;
+    if ( xllm__transport_options_clone(&pOut->tTransportDefaults, &pIn->tTransportDefaults) != XRT_NET_OK ) {
+        memset(pOut, 0, sizeof(*pOut));
+        return XRT_NET_ERROR;
+    }
+    pOut->tVendorExtra = pIn->tVendorExtra;
+    xllm__xvalue_addref(pOut->tVendorExtra);
+    if ( !pOut->tAllocator.pfnMalloc ) {
+        pOut->tAllocator.pfnMalloc = xllm__default_malloc;
+    }
+    if ( !pOut->tAllocator.pfnRealloc ) {
+        pOut->tAllocator.pfnRealloc = xllm__default_realloc;
+    }
+    if ( !pOut->tAllocator.pfnFree ) {
+        pOut->tAllocator.pfnFree = xllm__default_free;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__runtime_options_reset(xllm_runtime_options *pOptions)
+{
+    if ( !pOptions ) {
+        return;
+    }
+
+    xllm__transport_options_reset(&pOptions->tTransportDefaults);
+    xllm__xvalue_release(&pOptions->tVendorExtra);
+    memset(pOptions, 0, sizeof(*pOptions));
+}
+
+static xfuture *xllm__make_error_future(int32 iStatus, const char *sError)
+{
+    xfuture *pFuture;
+    xpromise *pPromise;
+
+    pFuture = xFutureCreate();
+    if ( !pFuture ) {
+        return NULL;
+    }
+
+    pPromise = xPromiseCreate(pFuture);
+    if ( !pPromise ) {
+        xFutureRelease(pFuture);
+        return NULL;
+    }
+
+    (void)xPromiseReject(pPromise, iStatus, (str)(sError ? sError : "xllm async error"));
+    xPromiseDestroy(pPromise);
+    return pFuture;
+}
+
+static xllm_async_chat_task *xllm__async_chat_task_create(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions
+)
+{
+    xllm_async_chat_task *pTask;
+
+    if ( !pRuntime || !pRequest ) {
+        return NULL;
+    }
+
+    pTask = (xllm_async_chat_task *)xrtCalloc(1, sizeof(*pTask));
+    if ( !pTask ) {
+        return NULL;
+    }
+
+    pTask->pRuntime = pRuntime;
+    if ( xllm__request_clone(&pTask->tRequest, pRequest) != XRT_NET_OK ) {
+        xrtFree(pTask);
+        return NULL;
+    }
+
+    if ( pOptions ) {
+        if ( xllm__call_options_clone(&pTask->tOptions, pOptions) != XRT_NET_OK ) {
+            xllm__request_release(&pTask->tRequest);
+            xrtFree(pTask);
+            return NULL;
+        }
+        pTask->bHasOptions = true;
+    }
+
+    return pTask;
+}
+
+static void xllm__async_chat_task_destroy(xllm_async_chat_task *pTask)
+{
+    if ( !pTask ) {
+        return;
+    }
+
+    xllm__request_release(&pTask->tRequest);
+    if ( pTask->bHasOptions ) {
+        xllm__call_options_reset(&pTask->tOptions);
+    }
+    xrtFree(pTask);
+}
+
+static int32 xllm__async_chat_task_run(xllm_async_chat_task *pTask, xfuture_result *pOut)
+{
+    xllm_response *pResponse = NULL;
+    int32 iStatus;
+
+    if ( !pTask ) {
+        return xllm__async_future_result_error(pOut, XRT_NET_ERROR, "xllm async task is null");
+    }
+
+    iStatus = xllm_chat(
+        pTask->pRuntime,
+        &pTask->tRequest,
+        pTask->bHasOptions ? &pTask->tOptions : NULL,
+        &pResponse
+    );
+
+    if ( iStatus == XRT_NET_OK ) {
+        memset(pOut, 0, sizeof(*pOut));
+        pOut->iStatus = XRT_NET_OK;
+        pOut->pValue = pResponse;
+    } else {
+        if ( pResponse ) {
+            xllm_response_free(pResponse);
+        }
+        (void)xllm__async_future_result_error(pOut, iStatus, "xllm async chat failed");
+    }
+
+    xllm__async_chat_task_destroy(pTask);
+    return pOut ? pOut->iStatus : iStatus;
+}
+
+static int32 xllm__async_chat_task_thread_fn(ptr pArg, xfuture_result *pOut)
+{
+    return xllm__async_chat_task_run((xllm_async_chat_task *)pArg, pOut);
+}
+
+static int32 xllm__async_chat_task_engine_fn(xnetworker *pWorker, ptr pArg, xfuture_result *pOut)
+{
+    (void)pWorker;
+    return xllm__async_chat_task_run((xllm_async_chat_task *)pArg, pOut);
+}
+
+static int32 xllm__async_chat_task_co_fn(ptr pArg, xfuture_result *pOut)
+{
+    return xllm__async_chat_task_run((xllm_async_chat_task *)pArg, pOut);
+}
+
+XLLM_API int xllm_runtime_create(const xllm_runtime_options *pOptions, xllm_runtime **ppRuntime)
+{
+    xllm_runtime *pRuntime;
+    xnetengineconfig tNetEngineConfig;
+
+    if ( !ppRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppRuntime = NULL;
+    pRuntime = (xllm_runtime *)xrtCalloc(1, sizeof(*pRuntime));
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pOptions ) {
+        if ( xllm__runtime_options_clone(&pRuntime->tOptions, pOptions) != XRT_NET_OK ) {
+            xrtFree(pRuntime);
+            return XRT_NET_ERROR;
+        }
+    } else {
+        xllm_runtime_options_init(&pRuntime->tOptions);
+        pRuntime->tOptions.tAllocator.pfnMalloc = xllm__default_malloc;
+        pRuntime->tOptions.tAllocator.pfnRealloc = xllm__default_realloc;
+        pRuntime->tOptions.tAllocator.pfnFree = xllm__default_free;
+    }
+
+    xrtNetEngineConfigInit(&tNetEngineConfig);
+    tNetEngineConfig.iWorkerCount = 1u;
+    pRuntime->pNetEngine = xrtNetEngineCreate(&tNetEngineConfig);
+    if ( pRuntime->pNetEngine ) {
+        if ( xrtNetEngineStart(pRuntime->pNetEngine) != XRT_NET_OK ) {
+            xrtNetEngineDestroy(pRuntime->pNetEngine);
+            pRuntime->pNetEngine = NULL;
+        }
+    }
+
+    *ppRuntime = pRuntime;
+    return XRT_NET_OK;
+}
+
+XLLM_API void xllm_runtime_destroy(xllm_runtime *pRuntime)
+{
+    size_t i;
+
+    if ( !pRuntime ) {
+        return;
+    }
+
+    for ( i = 0; i < pRuntime->iAdapterCount; ++i ) {
+        xllm__adapter_release(&pRuntime->pAdapters[i]);
+    }
+    for ( i = 0; i < pRuntime->iProfileCount; ++i ) {
+        xllm__profile_release(&pRuntime->pProfiles[i]);
+    }
+
+    if ( pRuntime->pAdapters ) {
+        xrtFree(pRuntime->pAdapters);
+    }
+    if ( pRuntime->pProfiles ) {
+        xrtFree(pRuntime->pProfiles);
+    }
+    if ( pRuntime->pNetEngine ) {
+        xrtNetEngineDestroy(pRuntime->pNetEngine);
+        pRuntime->pNetEngine = NULL;
+    }
+    xllm__runtime_options_reset(&pRuntime->tOptions);
+    xrtFree(pRuntime);
+}
+
+XLLM_API const char *xllm_log_level_name(xllm_log_level eLevel)
+{
+    switch ( eLevel ) {
+        case XLLM_LOG_ERROR:
+            return "error";
+        case XLLM_LOG_WARN:
+            return "warn";
+        case XLLM_LOG_INFO:
+            return "info";
+        case XLLM_LOG_DEBUG:
+            return "debug";
+        case XLLM_LOG_TRACE:
+            return "trace";
+        default:
+            return "unknown";
+    }
+}
+
+XLLM_API const char *xllm_log_event_name(xllm_log_event eEvent)
+{
+    switch ( eEvent ) {
+        case XLLM_LOG_EVENT_RUNTIME_CREATE:
+            return "runtime.create";
+        case XLLM_LOG_EVENT_RUNTIME_DESTROY:
+            return "runtime.destroy";
+        case XLLM_LOG_EVENT_PROVIDER_REQUEST_START:
+            return "provider.request_start";
+        case XLLM_LOG_EVENT_PROVIDER_RESPONSE_COMPLETE:
+            return "provider.response_complete";
+        case XLLM_LOG_EVENT_PROVIDER_RESPONSE_FAILED:
+            return "provider.response_failed";
+        case XLLM_LOG_EVENT_PROVIDER_RETRY_SCHEDULED:
+            return "provider.retry_scheduled";
+        case XLLM_LOG_EVENT_STREAM_EVENT:
+            return "stream.event";
+        case XLLM_LOG_EVENT_SESSION_COMPACT_TRIGGERED:
+            return "session.compact_triggered";
+        case XLLM_LOG_EVENT_SESSION_COMPACT_RESULT:
+            return "session.compact_result";
+        case XLLM_LOG_EVENT_TOOL_LOOP_ROUND:
+            return "tool_loop.round";
+        case XLLM_LOG_EVENT_TOOL_LOOP_EXECUTE:
+            return "tool_loop.execute";
+        case XLLM_LOG_EVENT_TOOL_LOOP_STOP:
+            return "tool_loop.stop";
+        case XLLM_LOG_EVENT_MEMORY_INGEST:
+            return "memory.ingest";
+        case XLLM_LOG_EVENT_MEMORY_SEARCH:
+            return "memory.search";
+        case XLLM_LOG_EVENT_MEMORY_HEALTH_CHECK:
+            return "memory.health_check";
+        case XLLM_LOG_EVENT_WORKSPACE_SYNC:
+            return "workspace.sync";
+        case XLLM_LOG_EVENT_WATCHER_EVENT:
+            return "watcher.event";
+        case XLLM_LOG_EVENT_UNKNOWN:
+        default:
+            return "unknown";
+    }
+}
+
+XLLM_API const char *xllm_trace_kind_name(xllm_trace_kind eKind)
+{
+    switch ( eKind ) {
+        case XLLM_TRACE_EVENT:
+            return "event";
+        case XLLM_TRACE_REQUEST:
+            return "request";
+        case XLLM_TRACE_RESPONSE:
+            return "response";
+        case XLLM_TRACE_STREAM:
+            return "stream";
+        case XLLM_TRACE_COMPACT:
+            return "compact";
+        case XLLM_TRACE_TOOL_LOOP:
+            return "tool_loop";
+        default:
+            return "unknown";
+    }
+}
+
+XLLM_API int xllm_runtime_set_log_callback(
+    xllm_runtime *pRuntime,
+    xllm_log_callback pfnLog,
+    void *pLogCtx
+)
+{
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    pRuntime->tOptions.pfnLog = pfnLog;
+    pRuntime->tOptions.pLogCtx = pLogCtx;
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_runtime_set_trace_callback(
+    xllm_runtime *pRuntime,
+    xllm_trace_callback pfnTrace,
+    void *pTraceCtx
+)
+{
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    pRuntime->tOptions.pfnTrace = pfnTrace;
+    pRuntime->tOptions.pTraceCtx = pTraceCtx;
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_runtime_set_debug_mode(
+    xllm_runtime *pRuntime,
+    xllm_debug_mode eMode,
+    xllm_redact_mode eRedactMode
+)
+{
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    pRuntime->tOptions.eDebugMode = eMode;
+    pRuntime->tOptions.eRedactMode = eRedactMode;
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_register_adapter(xllm_runtime *pRuntime, const xllm_adapter *pAdapter)
+{
+    xllm_adapter tCopy;
+
+    if ( !pRuntime || !pAdapter || !pAdapter->sName ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__runtime_find_adapter(pRuntime, pAdapter->sName) ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__adapter_clone(&tCopy, pAdapter) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__append_buffer((void **)&pRuntime->pAdapters, sizeof(tCopy), &pRuntime->iAdapterCount, &pRuntime->iAdapterCapacity, &tCopy) != XRT_NET_OK ) {
+        xllm__adapter_release(&tCopy);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_register_profile(xllm_runtime *pRuntime, const xllm_profile *pProfile)
+{
+    xllm_profile tCopy;
+
+    if ( !pRuntime || !pProfile || !pProfile->sId || !pProfile->sAdapter ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__runtime_find_profile(pRuntime, pProfile->sId) ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__profile_clone(&tCopy, pProfile) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__append_buffer((void **)&pRuntime->pProfiles, sizeof(tCopy), &pRuntime->iProfileCount, &pRuntime->iProfileCapacity, &tCopy) != XRT_NET_OK ) {
+        xllm__profile_release(&tCopy);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_chat_ex(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    const xllm_profile *pProfile;
+    const xllm_adapter *pAdapter;
+    xllm_error tLocalError;
+    xllm_error *pWorkError = pError ? pError : &tLocalError;
+    int32 iStatus;
+
+    xllm_error_init(&tLocalError);
+    xllm_error_reset(pWorkError);
+
+    if ( !pRuntime || !pRequest || !ppResponse ) {
+        xllm__error_set(pWorkError, XLLM_ERROR_INVALID_REQUEST, "chat arguments are invalid");
+        iStatus = XRT_NET_ERROR;
+        goto cleanup;
+    }
+
+    *ppResponse = NULL;
+    iStatus = xllm_validate_request(pRuntime, pRequest, pOptions, pWorkError);
+    if ( iStatus != XRT_NET_OK ) {
+        goto cleanup;
+    }
+
+    if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+        xllm__error_set(pWorkError, XLLM_ERROR_CANCELLED, "chat cancelled before dispatch");
+        iStatus = XRT_NET_CANCELLED;
+        goto cleanup;
+    }
+
+    pProfile = xllm__runtime_find_profile(pRuntime, pRequest->sProfileId);
+    pAdapter = pProfile ? xllm__runtime_find_adapter(pRuntime, pProfile->sAdapter) : NULL;
+    if ( !pProfile || !pAdapter || !pAdapter->pfnChat ) {
+        xllm__error_set(pWorkError, XLLM_ERROR_INTERNAL, "profile adapter is not available");
+        iStatus = XRT_NET_ERROR;
+        goto cleanup;
+    }
+
+    iStatus = pAdapter->pfnChat(
+        pAdapter->pCtx,
+        pProfile,
+        pRequest,
+        pOptions,
+        ppResponse,
+        pWorkError
+    );
+    if ( iStatus != XRT_NET_OK && pWorkError->eCode == XLLM_ERROR_NONE ) {
+        xllm__error_set(pWorkError, XLLM_ERROR_INTERNAL, "adapter chat request failed");
+    }
+
+cleanup:
+    xllm_error_free(&tLocalError);
+    return iStatus;
+}
+
+XLLM_API int xllm_chat(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse
+)
+{
+    xllm_error tError;
+    int32 iStatus;
+
+    xllm_error_init(&tError);
+    iStatus = xllm_chat_ex(pRuntime, pRequest, pOptions, ppResponse, &tError);
+    xllm_error_free(&tError);
+    return iStatus;
+}
+
+XLLM_API xfuture *xllm_chat_async_thread(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions
+)
+{
+    xllm_async_chat_task *pTask;
+
+    pTask = xllm__async_chat_task_create(pRuntime, pRequest, pOptions);
+    if ( !pTask ) {
+        return xllm__make_error_future(XRT_NET_ERROR, "xllm async task create failed");
+    }
+
+    return xTaskRunThread(xllm__async_chat_task_thread_fn, pTask, 0);
+}
+
+XLLM_API xfuture *xllm_chat_async_engine(
+    xllm_runtime *pRuntime,
+    xnetengine *pEngine,
+    uint32 uAffinityKey,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions
+)
+{
+    xllm_async_chat_task *pTask;
+
+    if ( !pEngine ) {
+        return xllm__make_error_future(XRT_NET_ERROR, "xllm engine is null");
+    }
+
+    pTask = xllm__async_chat_task_create(pRuntime, pRequest, pOptions);
+    if ( !pTask ) {
+        return xllm__make_error_future(XRT_NET_ERROR, "xllm async task create failed");
+    }
+
+    return xTaskRunEngine(pEngine, uAffinityKey, xllm__async_chat_task_engine_fn, pTask);
+}
+
+XLLM_API xfuture *xllm_chat_async_co(
+    xllm_runtime *pRuntime,
+    xcosched *pSched,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    size_t iStackSize
+)
+{
+    xllm_async_chat_task *pTask;
+
+    if ( !pSched ) {
+        return xllm__make_error_future(XRT_NET_ERROR, "xllm coroutine scheduler is null");
+    }
+
+    pTask = xllm__async_chat_task_create(pRuntime, pRequest, pOptions);
+    if ( !pTask ) {
+        return xllm__make_error_future(XRT_NET_ERROR, "xllm async task create failed");
+    }
+
+#if !defined(XRT_NO_COROUTINE)
+    return xTaskRunCo(pSched, xllm__async_chat_task_co_fn, pTask, iStackSize);
+#else
+    xllm__async_chat_task_destroy(pTask);
+    return xllm__make_error_future(XRT_NET_ERROR, "xrt coroutine support is disabled");
+#endif
+}
+
+/* ===== end: D:/git/xllm/src/xllm_runtime/xllm_runtime.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_request/xllm_request.c ===== */
+
+
+/* ===== begin: D:/git/xllm/src/xllm_request/xllm_request.h ===== */
+
+#ifndef XLLM_REQUEST_INTERNAL_H
+#define XLLM_REQUEST_INTERNAL_H
+
+/*
+ * request 子库：
+ * - turn -> request 归一化
+ * - 参数归一化
+ * - 请求校验
+ * - token 预算与输入计划
+ */
+
+#endif
+
+/* ===== end: D:/git/xllm/src/xllm_request/xllm_request.h ===== */
+
+#include <stdio.h>
+
+static bool xllm__part_requires_multimodal_kind(xllm_part_kind eKind)
+{
+    return eKind == XLLM_PART_IMAGE ||
+           eKind == XLLM_PART_FILE ||
+           eKind == XLLM_PART_AUDIO ||
+           eKind == XLLM_PART_VIDEO;
+}
+
+static bool xllm__message_requires_multimodal(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        if ( xllm__part_requires_multimodal_kind(pMessage->pParts[i].eKind) ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool xllm__request_requires_multimodal(const xllm_request *pRequest)
+{
+    size_t i;
+
+    if ( !pRequest ) {
+        return false;
+    }
+
+    for ( i = 0; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__message_requires_multimodal(&pRequest->pMessages[i]) ) {
+            return true;
+        }
+    }
+
+    for ( i = 0; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__message_requires_multimodal(&pRequest->pContextBlocks[i].pMessages[j]) ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static const xllm_model_binding *xllm__select_request_binding(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    bool bNeedsMultimodal,
+    const char **psSelectedModel
+);
+
+static void xllm__generation_params_clear_stops(xllm_generation_params *pParams)
+{
+    size_t i;
+
+    if ( !pParams || !pParams->psStop ) {
+        return;
+    }
+
+    for ( i = 0; i < pParams->iStopCount; ++i ) {
+        xllm__free_cstr((char **)&pParams->psStop[i]);
+    }
+
+    xrtFree((void *)pParams->psStop);
+    pParams->psStop = NULL;
+    pParams->iStopCount = 0u;
+}
+
+static int xllm__generation_params_copy_stops(
+    xllm_generation_params *pParams,
+    const char **psStop,
+    size_t iStopCount
+)
+{
+    const char **psNewStops;
+    size_t i;
+
+    if ( !pParams ) {
+        return XRT_NET_ERROR;
+    }
+
+    xllm__generation_params_clear_stops(pParams);
+    if ( !psStop || iStopCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    psNewStops = (const char **)xrtCalloc(iStopCount, sizeof(char *));
+    if ( !psNewStops ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < iStopCount; ++i ) {
+        psNewStops[i] = xllm__dup_cstr(psStop[i]);
+        if ( !psNewStops[i] ) {
+            size_t j;
+            for ( j = 0; j < i; ++j ) {
+                xllm__free_cstr((char **)&psNewStops[j]);
+            }
+            xrtFree((void *)psNewStops);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    pParams->psStop = psNewStops;
+    pParams->iStopCount = iStopCount;
+    return XRT_NET_OK;
+}
+
+static int xllm__merge_generation_params(
+    xllm_generation_params *pOut,
+    const xllm_generation_params *pDefaults,
+    const xllm_generation_params *pOverride
+)
+{
+    if ( !pOut || !pDefaults || !pOverride ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    if ( xllm__generation_params_clone(pOut, pDefaults) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pOverride->tTemperature.bSet ) {
+        pOut->tTemperature = pOverride->tTemperature;
+    }
+    if ( pOverride->tTopP.bSet ) {
+        pOut->tTopP = pOverride->tTopP;
+    }
+    if ( pOverride->tMaxOutputTokens.bSet ) {
+        pOut->tMaxOutputTokens = pOverride->tMaxOutputTokens;
+    }
+    if ( pOverride->tSeed.bSet ) {
+        pOut->tSeed = pOverride->tSeed;
+    }
+    if ( pOverride->iStopCount > 0u &&
+         xllm__generation_params_copy_stops(pOut, pOverride->psStop, pOverride->iStopCount) != XRT_NET_OK ) {
+        xllm__generation_params_reset(pOut);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__merge_reasoning_options(
+    xllm_reasoning_options *pOut,
+    const xllm_reasoning_options *pDefaults,
+    const xllm_reasoning_options *pOverride
+)
+{
+    if ( !pOut || !pDefaults || !pOverride ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    if ( xllm__reasoning_options_clone(pOut, pDefaults) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pOverride->tEnabled.bSet ) {
+        pOut->tEnabled = pOverride->tEnabled;
+    }
+    if ( pOverride->eLevel != XLLM_REASONING_DEFAULT ) {
+        pOut->eLevel = pOverride->eLevel;
+    }
+    if ( pOverride->tBudgetTokens.bSet ) {
+        pOut->tBudgetTokens = pOverride->tBudgetTokens;
+    }
+    if ( pOverride->tExposeThinking.bSet ) {
+        pOut->tExposeThinking = pOverride->tExposeThinking;
+    }
+    if ( pOverride->tVendorExtra ) {
+        xllm__xvalue_release(&pOut->tVendorExtra);
+        pOut->tVendorExtra = pOverride->tVendorExtra;
+        xllm__xvalue_addref(pOut->tVendorExtra);
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__merge_response_format(
+    xllm_response_format *pOut,
+    const xllm_response_format *pDefaults,
+    const xllm_response_format *pOverride
+)
+{
+    bool bHasOverride;
+
+    if ( !pOut || !pDefaults || !pOverride ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    if ( xllm__response_format_clone(pOut, pDefaults) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    bHasOverride = (pOverride->eKind != XLLM_RESPONSE_TEXT) ||
+                   (pOverride->sSchemaName != NULL) ||
+                   (pOverride->tJsonSchema != NULL) ||
+                   (pOverride->tVendorExtra != NULL);
+    if ( !bHasOverride ) {
+        return XRT_NET_OK;
+    }
+
+    xllm__response_format_reset(pOut);
+    if ( xllm__response_format_clone(pOut, pOverride) != XRT_NET_OK ) {
+        xllm__response_format_reset(pOut);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static void xllm__apply_f64_rule(xllm_opt_f64 *pValue, const xllm_float_rule *pRule)
+{
+    if ( !pValue || !pRule ) {
+        return;
+    }
+
+    switch ( pRule->eKind ) {
+        case XLLM_PARAM_RULE_UNSUPPORTED:
+            memset(pValue, 0, sizeof(*pValue));
+            break;
+        case XLLM_PARAM_RULE_FIXED:
+            pValue->bSet = true;
+            pValue->fValue = pRule->fFixed;
+            break;
+        case XLLM_PARAM_RULE_RANGE:
+            if ( pValue->bSet ) {
+                if ( pValue->fValue < pRule->fMin ) {
+                    pValue->fValue = pRule->fMin;
+                }
+                if ( pValue->fValue > pRule->fMax ) {
+                    pValue->fValue = pRule->fMax;
+                }
+            }
+            break;
+        case XLLM_PARAM_RULE_PASSTHROUGH:
+        case XLLM_PARAM_RULE_UNSPECIFIED:
+        default:
+            break;
+    }
+}
+
+static void xllm__apply_u32_rule(xllm_opt_u32 *pValue, const xllm_u32_rule *pRule)
+{
+    if ( !pValue || !pRule ) {
+        return;
+    }
+
+    switch ( pRule->eKind ) {
+        case XLLM_PARAM_RULE_UNSUPPORTED:
+            memset(pValue, 0, sizeof(*pValue));
+            break;
+        case XLLM_PARAM_RULE_FIXED:
+            pValue->bSet = true;
+            pValue->iValue = pRule->uFixed;
+            break;
+        case XLLM_PARAM_RULE_RANGE:
+            if ( pValue->bSet ) {
+                if ( pValue->iValue < pRule->uMin ) {
+                    pValue->iValue = pRule->uMin;
+                }
+                if ( pValue->iValue > pRule->uMax ) {
+                    pValue->iValue = pRule->uMax;
+                }
+            }
+            break;
+        case XLLM_PARAM_RULE_PASSTHROUGH:
+        case XLLM_PARAM_RULE_UNSPECIFIED:
+        default:
+            break;
+    }
+}
+
+static void xllm__apply_generation_param_rules(
+    xllm_generation_params *pGeneration,
+    const xllm_model_binding *pBinding
+)
+{
+    if ( !pGeneration || !pBinding ) {
+        return;
+    }
+
+    xllm__apply_f64_rule(&pGeneration->tTemperature, &pBinding->tCaps.tTemperatureRule);
+    xllm__apply_f64_rule(&pGeneration->tTopP, &pBinding->tCaps.tTopPRule);
+    xllm__apply_u32_rule(&pGeneration->tMaxOutputTokens, &pBinding->tCaps.tMaxOutputTokensRule);
+}
+
+static int xllm__resolve_effective_params(
+    xllm_effective_params *pOut,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    xllm_stream_mode eStreamMode
+)
+{
+    const xllm_model_binding *pBinding;
+    bool bNeedsMultimodal;
+
+    if ( !pOut || !pProfile || !pRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pOut, 0, sizeof(*pOut));
+    if ( xllm__merge_generation_params(&pOut->tGeneration, &pProfile->tDefaults.tGeneration, &pRequest->tGeneration) != XRT_NET_OK ) {
+        xllm__effective_params_reset(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__merge_reasoning_options(&pOut->tReasoning, &pProfile->tDefaults.tReasoning, &pRequest->tReasoning) != XRT_NET_OK ) {
+        xllm__effective_params_reset(pOut);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__merge_response_format(&pOut->tResponseFormat, &pProfile->tDefaults.tResponseFormat, &pRequest->tResponseFormat) != XRT_NET_OK ) {
+        xllm__effective_params_reset(pOut);
+        return XRT_NET_ERROR;
+    }
+
+    bNeedsMultimodal = xllm__request_requires_multimodal(pRequest);
+    pBinding = xllm__select_request_binding(pProfile, pRequest, bNeedsMultimodal, NULL);
+    xllm__apply_generation_param_rules(&pOut->tGeneration, pBinding);
+    pOut->eStreamMode = eStreamMode;
+    return XRT_NET_OK;
+}
+
+static bool xllm__binding_has_known_caps(const xllm_model_binding *pBinding)
+{
+    const xllm_model_caps *pCaps;
+
+    if ( !pBinding ) {
+        return false;
+    }
+
+    if ( pBinding->eCapMode == XLLM_CAP_MODE_EXACT ) {
+        return true;
+    }
+
+    pCaps = &pBinding->tCaps;
+    return pCaps->uFlags != 0u ||
+           pCaps->iSupportedMimeTypeCount != 0u ||
+           pCaps->uMaxPartsPerMessage != 0u ||
+           pCaps->uMaxImages != 0u ||
+           pCaps->uMaxFiles != 0u ||
+           pCaps->uMaxPartBytes != 0u ||
+           pCaps->tTemperatureRule.eKind != XLLM_PARAM_RULE_UNSPECIFIED ||
+           pCaps->tTopPRule.eKind != XLLM_PARAM_RULE_UNSPECIFIED ||
+           pCaps->tMaxOutputTokensRule.eKind != XLLM_PARAM_RULE_UNSPECIFIED;
+}
+
+static bool xllm__binding_supports_flag(const xllm_model_binding *pBinding, xllm_capability_flags uFlag)
+{
+    if ( !pBinding || !uFlag ) {
+        return true;
+    }
+
+    if ( !xllm__binding_has_known_caps(pBinding) ) {
+        return true;
+    }
+
+    return (pBinding->tCaps.uFlags & uFlag) != 0u;
+}
+
+static bool xllm__binding_supports_any_flag(const xllm_model_binding *pBinding, xllm_capability_flags uFlags)
+{
+    if ( !pBinding || !uFlags ) {
+        return true;
+    }
+
+    if ( !xllm__binding_has_known_caps(pBinding) ) {
+        return true;
+    }
+
+    return (pBinding->tCaps.uFlags & uFlags) != 0u;
+}
+
+static const xllm_model_binding *xllm__select_request_binding(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    bool bNeedsMultimodal,
+    const char **psSelectedModel
+)
+{
+    const xllm_model_binding *pBinding = NULL;
+
+    if ( psSelectedModel ) {
+        *psSelectedModel = NULL;
+    }
+
+    if ( !pProfile || !pRequest ) {
+        return NULL;
+    }
+
+    switch ( pRequest->eSlot ) {
+        case XLLM_SLOT_MULTIMODAL:
+            pBinding = &pProfile->tModels.tMultimodal;
+            break;
+        case XLLM_SLOT_TEXT:
+            pBinding = pProfile->tModels.tText.sModelId ? &pProfile->tModels.tText : &pProfile->tModels.tMultimodal;
+            break;
+        case XLLM_SLOT_AUTO:
+        default:
+            if ( bNeedsMultimodal ) {
+                pBinding = &pProfile->tModels.tMultimodal;
+            } else {
+                pBinding = pProfile->tModels.tText.sModelId ? &pProfile->tModels.tText : &pProfile->tModels.tMultimodal;
+            }
+            break;
+    }
+
+    if ( psSelectedModel && pBinding ) {
+        *psSelectedModel = pBinding->sModelId;
+    }
+
+    return pBinding;
+}
+
+static void xllm__validation_error_detail(
+    xllm_error *pError,
+    xllm_error_code eCode,
+    const char *sMessage,
+    const char *sSelectedModel,
+    int32 iMessageIndex,
+    int32 iPartIndex,
+    xllm_capability_flags uRequiredCapability,
+    const char *sMimeType
+)
+{
+    xllm__error_set(pError, eCode, sMessage);
+    if ( !pError ) {
+        return;
+    }
+
+    pError->iMessageIndex = iMessageIndex;
+    pError->iPartIndex = iPartIndex;
+    pError->uRequiredCapability = uRequiredCapability;
+    if ( sSelectedModel ) {
+        pError->sSelectedModel = xllm__dup_cstr(sSelectedModel);
+    }
+    if ( sMimeType ) {
+        pError->sMimeType = xllm__dup_cstr(sMimeType);
+    }
+}
+
+static bool xllm__mime_matches_pattern(const char *sMimeType, const char *sPattern)
+{
+    const char *sMimeSlash;
+    const char *sPatternSlash;
+    size_t iMimeTypeLen;
+    size_t iPatternTypeLen;
+
+    if ( !sMimeType || !sPattern ) {
+        return false;
+    }
+
+    if ( strcmp(sMimeType, sPattern) == 0 ) {
+        return true;
+    }
+
+    sMimeSlash = strchr(sMimeType, '/');
+    sPatternSlash = strchr(sPattern, '/');
+    if ( !sMimeSlash || !sPatternSlash ) {
+        return false;
+    }
+
+    iMimeTypeLen = (size_t)(sMimeSlash - sMimeType);
+    iPatternTypeLen = (size_t)(sPatternSlash - sPattern);
+    if ( iPatternTypeLen == 1u &&
+         sPattern[0] == '*' &&
+         strcmp(sPatternSlash + 1, "*") == 0 ) {
+        return true;
+    }
+
+    if ( strcmp(sPatternSlash + 1, "*") == 0 &&
+         iMimeTypeLen == iPatternTypeLen &&
+         strncmp(sMimeType, sPattern, iMimeTypeLen) == 0 ) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool xllm__mime_is_supported(const xllm_model_binding *pBinding, const char *sMimeType)
+{
+    size_t i;
+
+    if ( !pBinding || !sMimeType || !sMimeType[0] ) {
+        return true;
+    }
+
+    if ( pBinding->tCaps.iSupportedMimeTypeCount == 0u ) {
+        return true;
+    }
+
+    for ( i = 0; i < pBinding->tCaps.iSupportedMimeTypeCount; ++i ) {
+        const char *sPattern = pBinding->tCaps.psSupportedMimeTypes[i];
+        if ( sPattern && xllm__mime_matches_pattern(sMimeType, sPattern) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool xllm__tool_policy_matches_name(const xllm_request *pRequest, const char *sToolName)
+{
+    size_t i;
+
+    if ( !pRequest || !sToolName || !sToolName[0] ) {
+        return false;
+    }
+
+    for ( i = 0; i < pRequest->iToolCount; ++i ) {
+        const xllm_tool_def *pTool = &pRequest->pTools[i];
+        if ( (pTool->sWireName && strcmp(pTool->sWireName, sToolName) == 0) ||
+             (pTool->sToolId && strcmp(pTool->sToolId, sToolName) == 0) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool xllm__reasoning_requested(const xllm_reasoning_options *pReasoning)
+{
+    if ( !pReasoning ) {
+        return false;
+    }
+
+    return (pReasoning->tEnabled.bSet && pReasoning->tEnabled.bValue) ||
+           pReasoning->eLevel != XLLM_REASONING_DEFAULT ||
+           pReasoning->tBudgetTokens.bSet;
+}
+
+static uint64 xllm__part_payload_size(const xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return 0u;
+    }
+
+    if ( pPart->eKind == XLLM_PART_JSON ) {
+        return 0u;
+    }
+
+    switch ( pPart->as.tSource.eKind ) {
+        case XLLM_SOURCE_INLINE_TEXT:
+            return pPart->as.tSource.as.sText ? (uint64)strlen(pPart->as.tSource.as.sText) : 0u;
+        case XLLM_SOURCE_INLINE_BYTES:
+            return (uint64)pPart->as.tSource.as.tBytes.iSize;
+        case XLLM_SOURCE_URL:
+            return pPart->as.tSource.as.sUrl ? (uint64)strlen(pPart->as.tSource.as.sUrl) : 0u;
+        case XLLM_SOURCE_PROVIDER_FILE_ID:
+            return pPart->as.tSource.as.sFileId ? (uint64)strlen(pPart->as.tSource.as.sFileId) : 0u;
+        default:
+            return 0u;
+    }
+}
+
+static bool xllm__part_source_is_valid(const xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return false;
+    }
+
+    if ( pPart->eKind == XLLM_PART_JSON ) {
+        return true;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+            return pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT &&
+                   pPart->as.tSource.as.sText != NULL;
+        case XLLM_PART_IMAGE:
+        case XLLM_PART_FILE:
+        case XLLM_PART_AUDIO:
+        case XLLM_PART_VIDEO:
+            switch ( pPart->as.tSource.eKind ) {
+                case XLLM_SOURCE_INLINE_BYTES:
+                    return pPart->as.tSource.as.tBytes.pData != NULL &&
+                           pPart->as.tSource.as.tBytes.iSize > 0u;
+                case XLLM_SOURCE_URL:
+                    return pPart->as.tSource.as.sUrl != NULL;
+                case XLLM_SOURCE_PROVIDER_FILE_ID:
+                    return pPart->as.tSource.as.sFileId != NULL;
+                default:
+                    return false;
+            }
+        default:
+            return false;
+    }
+}
+
+static int xllm__validate_message_against_binding(
+    const xllm_message *pMessage,
+    int32 iMessageIndex,
+    const xllm_model_binding *pBinding,
+    const char *sSelectedModel,
+    uint32 *puImageCount,
+    uint32 *puFileCount,
+    xllm_error *pError
+)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pBinding && pBinding->tCaps.uMaxPartsPerMessage != 0u &&
+         pMessage->iPartCount > pBinding->tCaps.uMaxPartsPerMessage ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_TOO_MANY_INPUT_PARTS,
+            "message exceeds model max parts per message",
+            sSelectedModel,
+            iMessageIndex,
+            -1,
+            0u,
+            NULL
+        );
+        return XRT_NET_ERROR;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL && !pMessage->sToolCallId ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_INVALID_REQUEST,
+            "tool message is missing tool_call_id",
+            sSelectedModel,
+            iMessageIndex,
+            -1,
+            0u,
+            NULL
+        );
+        return XRT_NET_ERROR;
+    }
+
+    if ( pMessage->iToolCallCount != 0u && pMessage->eRole != XLLM_ROLE_ASSISTANT ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_INVALID_REQUEST,
+            "tool calls are only allowed on assistant messages",
+            sSelectedModel,
+            iMessageIndex,
+            -1,
+            0u,
+            NULL
+        );
+        return XRT_NET_ERROR;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL &&
+         !xllm__binding_supports_flag(pBinding, XLLM_CAP_TOOL_RESULT_IN) ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "selected model does not support tool result input",
+            sSelectedModel,
+            iMessageIndex,
+            -1,
+            XLLM_CAP_TOOL_RESULT_IN,
+            NULL
+        );
+        return XRT_NET_ERROR;
+    }
+
+    if ( pMessage->iToolCallCount != 0u &&
+         !xllm__binding_supports_flag(pBinding, XLLM_CAP_TOOL_CALL_OUT) ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "selected model does not support tool call messages",
+            sSelectedModel,
+            iMessageIndex,
+            -1,
+            XLLM_CAP_TOOL_CALL_OUT,
+            NULL
+        );
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        const xllm_content_part *pPart = &pMessage->pParts[i];
+        xllm_capability_flags uRequiredCapability = 0u;
+        uint64 uPayloadSize;
+
+        if ( !xllm__part_source_is_valid(pPart) ) {
+            xllm__validation_error_detail(
+                pError,
+                XLLM_ERROR_INVALID_REQUEST,
+                "content part source is invalid",
+                sSelectedModel,
+                iMessageIndex,
+                (int32)i,
+                0u,
+                pPart->eKind == XLLM_PART_JSON ? NULL : pPart->as.tSource.sMimeType
+            );
+            return XRT_NET_ERROR;
+        }
+
+        switch ( pPart->eKind ) {
+            case XLLM_PART_IMAGE:
+                uRequiredCapability = XLLM_CAP_IMAGE_IN;
+                if ( puImageCount ) {
+                    ++(*puImageCount);
+                }
+                break;
+            case XLLM_PART_FILE:
+                uRequiredCapability = XLLM_CAP_FILE_IN;
+                if ( puFileCount ) {
+                    ++(*puFileCount);
+                }
+                break;
+            case XLLM_PART_AUDIO:
+                uRequiredCapability = XLLM_CAP_AUDIO_IN;
+                break;
+            case XLLM_PART_VIDEO:
+                uRequiredCapability = XLLM_CAP_VIDEO_IN;
+                break;
+            case XLLM_PART_TEXT:
+            case XLLM_PART_JSON:
+            default:
+                break;
+        }
+
+        if ( uRequiredCapability != 0u &&
+             !xllm__binding_supports_flag(pBinding, uRequiredCapability) ) {
+            xllm__validation_error_detail(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                "selected model does not support this input type",
+                sSelectedModel,
+                iMessageIndex,
+                (int32)i,
+                uRequiredCapability,
+                pPart->as.tSource.sMimeType
+            );
+            return XRT_NET_ERROR;
+        }
+
+        if ( pPart->eKind != XLLM_PART_TEXT &&
+             pPart->eKind != XLLM_PART_JSON &&
+             !xllm__mime_is_supported(pBinding, pPart->as.tSource.sMimeType) ) {
+            xllm__validation_error_detail(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_MIME_TYPE,
+                "mime type is not supported by the selected model",
+                sSelectedModel,
+                iMessageIndex,
+                (int32)i,
+                uRequiredCapability,
+                pPart->as.tSource.sMimeType
+            );
+            return XRT_NET_ERROR;
+        }
+
+        uPayloadSize = xllm__part_payload_size(pPart);
+        if ( pBinding && pBinding->tCaps.uMaxPartBytes != 0u &&
+             uPayloadSize > pBinding->tCaps.uMaxPartBytes ) {
+            xllm__validation_error_detail(
+                pError,
+                XLLM_ERROR_INPUT_TOO_LARGE,
+                "content part exceeds model size limit",
+                sSelectedModel,
+                iMessageIndex,
+                (int32)i,
+                uRequiredCapability,
+                pPart->eKind == XLLM_PART_JSON ? NULL : pPart->as.tSource.sMimeType
+            );
+            return XRT_NET_ERROR;
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static uint32 xllm__estimate_text_tokens(const char *sText)
+{
+    size_t iLen;
+
+    if ( !sText || !sText[0] ) {
+        return 0;
+    }
+
+    iLen = strlen(sText);
+    return (uint32)((iLen + 3u) / 4u);
+}
+
+static uint32 xllm__estimate_part_tokens(const xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return 0;
+    }
+
+    if ( pPart->eKind == XLLM_PART_JSON ) {
+        return 32;
+    }
+
+    switch ( pPart->as.tSource.eKind ) {
+        case XLLM_SOURCE_INLINE_TEXT:
+            return xllm__estimate_text_tokens(pPart->as.tSource.as.sText);
+        case XLLM_SOURCE_INLINE_BYTES:
+            return (uint32)((pPart->as.tSource.as.tBytes.iSize + 255u) / 256u);
+        case XLLM_SOURCE_URL:
+            return 32 + xllm__estimate_text_tokens(pPart->as.tSource.as.sUrl);
+        case XLLM_SOURCE_PROVIDER_FILE_ID:
+            return 16 + xllm__estimate_text_tokens(pPart->as.tSource.as.sFileId);
+        default:
+            return 0;
+    }
+}
+
+static uint32 xllm__estimate_message_tokens(const xllm_message *pMessage)
+{
+    uint32 uTokens = 4;
+    size_t i;
+
+    if ( !pMessage ) {
+        return 0;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        uTokens += xllm__estimate_part_tokens(&pMessage->pParts[i]);
+    }
+
+    for ( i = 0; i < pMessage->iToolCallCount; ++i ) {
+        uTokens += 16;
+        uTokens += xllm__estimate_text_tokens(pMessage->pToolCalls[i].sToolId);
+        uTokens += xllm__estimate_text_tokens(pMessage->pToolCalls[i].sToolName);
+        uTokens += xllm__estimate_text_tokens(pMessage->pToolCalls[i].sArgumentsJson);
+    }
+
+    return uTokens;
+}
+
+static int xllm__read_file_bytes(const char *sPath, void **ppData, size_t *piSize)
+{
+    FILE *pFile;
+    long iFileSize;
+    void *pData;
+
+    if ( !sPath || !ppData || !piSize ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppData = NULL;
+    *piSize = 0;
+
+    pFile = fopen(sPath, "rb");
+    if ( !pFile ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( fseek(pFile, 0, SEEK_END) != 0 ) {
+        fclose(pFile);
+        return XRT_NET_ERROR;
+    }
+
+    iFileSize = ftell(pFile);
+    if ( iFileSize < 0 ) {
+        fclose(pFile);
+        return XRT_NET_ERROR;
+    }
+
+    if ( fseek(pFile, 0, SEEK_SET) != 0 ) {
+        fclose(pFile);
+        return XRT_NET_ERROR;
+    }
+
+    pData = xrtCalloc(1, (size_t)iFileSize);
+    if ( iFileSize > 0 && !pData ) {
+        fclose(pFile);
+        return XRT_NET_ERROR;
+    }
+
+    if ( iFileSize > 0 && fread(pData, 1, (size_t)iFileSize, pFile) != (size_t)iFileSize ) {
+        xrtFree(pData);
+        fclose(pFile);
+        return XRT_NET_ERROR;
+    }
+
+    fclose(pFile);
+    *ppData = pData;
+    *piSize = (size_t)iFileSize;
+    return XRT_NET_OK;
+}
+
+static const char *xllm__path_basename(const char *sPath)
+{
+    const char *sSlash;
+    const char *sBackslash;
+    const char *sBase;
+
+    if ( !sPath ) {
+        return NULL;
+    }
+
+    sSlash = strrchr(sPath, '/');
+    sBackslash = strrchr(sPath, '\\');
+    sBase = sSlash;
+    if ( !sBase || (sBackslash && sBackslash > sBase) ) {
+        sBase = sBackslash;
+    }
+
+    return sBase ? (sBase + 1) : sPath;
+}
+
+static int xllm__turn_add_part_as_user_message(xllm_turn *pTurn, xllm_content_part *pPart)
+{
+    xllm_message tMessage;
+    xllm_message *pMessages;
+    xllm_message *pLastMessage;
+
+    if ( !pTurn || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pTurn->iMessageCount > 0u ) {
+        pLastMessage = &pTurn->pMessages[pTurn->iMessageCount - 1u];
+        if ( pLastMessage->eRole == XLLM_ROLE_USER &&
+             pLastMessage->sToolCallId == NULL &&
+             pLastMessage->iToolCallCount == 0u ) {
+            xllm_content_part *pParts = (xllm_content_part *)xrtRealloc(
+                pLastMessage->pParts,
+                (pLastMessage->iPartCount + 1u) * sizeof(xllm_content_part)
+            );
+
+            if ( !pParts ) {
+                return XRT_NET_ERROR;
+            }
+
+            pLastMessage->pParts = pParts;
+            pLastMessage->pParts[pLastMessage->iPartCount] = *pPart;
+            ++pLastMessage->iPartCount;
+            memset(pPart, 0, sizeof(*pPart));
+            return XRT_NET_OK;
+        }
+    }
+
+    memset(&tMessage, 0, sizeof(tMessage));
+    tMessage.eRole = XLLM_ROLE_USER;
+    tMessage.pParts = (xllm_content_part *)xrtCalloc(1, sizeof(xllm_content_part));
+    if ( !tMessage.pParts ) {
+        return XRT_NET_ERROR;
+    }
+
+    tMessage.iPartCount = 1;
+    tMessage.pParts[0] = *pPart;
+    memset(pPart, 0, sizeof(*pPart));
+
+    pMessages = (xllm_message *)xrtRealloc(pTurn->pMessages, (pTurn->iMessageCount + 1) * sizeof(xllm_message));
+    if ( !pMessages ) {
+        xllm__message_free(&tMessage);
+        return XRT_NET_ERROR;
+    }
+
+    pTurn->pMessages = pMessages;
+    pTurn->pMessages[pTurn->iMessageCount] = tMessage;
+    ++pTurn->iMessageCount;
+
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_validate_request(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_error *pError
+)
+{
+    const xllm_profile *pProfile;
+    const xllm_adapter *pAdapter;
+    const xllm_model_binding *pBinding;
+    const char *sSelectedModel = NULL;
+    bool bNeedsMultimodal;
+    uint32 uImageCount = 0u;
+    uint32 uFileCount = 0u;
+    xllm_effective_params tEffectiveParams;
+    size_t i;
+
+    if ( pError ) {
+        xllm_error_reset(pError);
+    }
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+
+    if ( !pRuntime || !pRequest || !pRequest->sProfileId ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "request or profile_id is missing");
+        return XRT_NET_ERROR;
+    }
+
+    pProfile = xllm__runtime_find_profile(pRuntime, pRequest->sProfileId);
+    if ( !pProfile ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "profile not found");
+        return XRT_NET_ERROR;
+    }
+
+    pAdapter = xllm__runtime_find_adapter(pRuntime, pProfile->sAdapter);
+    if ( !pAdapter ) {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "adapter not found");
+        return XRT_NET_ERROR;
+    }
+
+    if ( pRequest->iMessageCount == 0 && pRequest->iContextBlockCount == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "request has no messages or context blocks");
+        return XRT_NET_ERROR;
+    }
+
+    bNeedsMultimodal = xllm__request_requires_multimodal(pRequest);
+    if ( pRequest->eSlot == XLLM_SLOT_TEXT && bNeedsMultimodal ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "text slot cannot accept multimodal input");
+        return XRT_NET_ERROR;
+    }
+
+    if ( bNeedsMultimodal ) {
+        if ( !pProfile->tModels.tMultimodal.sModelId || !pProfile->tModels.tMultimodal.sModelId[0] ) {
+            xllm__error_set(pError, XLLM_ERROR_MISSING_MULTIMODAL_MODEL, "multimodal input requires a multimodal model binding");
+            return XRT_NET_ERROR;
+        }
+    } else if ( !pProfile->tModels.tText.sModelId && !pProfile->tModels.tMultimodal.sModelId ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "profile has no available model binding");
+        return XRT_NET_ERROR;
+    }
+
+    if ( pRequest->eSlot == XLLM_SLOT_MULTIMODAL &&
+         (!pProfile->tModels.tMultimodal.sModelId || !pProfile->tModels.tMultimodal.sModelId[0]) ) {
+        xllm__error_set(pError, XLLM_ERROR_MISSING_MULTIMODAL_MODEL, "multimodal slot requires a multimodal model binding");
+        return XRT_NET_ERROR;
+    }
+
+    pBinding = xllm__select_request_binding(pProfile, pRequest, bNeedsMultimodal, &sSelectedModel);
+    if ( !pBinding || !sSelectedModel || !sSelectedModel[0] ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_MODEL_NOT_FOUND,
+            "request could not resolve a target model",
+            sSelectedModel,
+            -1,
+            -1,
+            0u,
+            NULL
+        );
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__resolve_effective_params(
+        &tEffectiveParams,
+        pProfile,
+        pRequest,
+        pOptions ? pOptions->eStreamMode : XLLM_STREAM_AUTO
+    ) != XRT_NET_OK ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_INTERNAL,
+            "failed to resolve effective request parameters",
+            sSelectedModel,
+            -1,
+            -1,
+            0u,
+            NULL
+        );
+        return XRT_NET_ERROR;
+    }
+
+    if ( pRequest->iToolCount != 0u &&
+         !xllm__binding_supports_flag(pBinding, XLLM_CAP_TOOL_CALL_OUT) ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "selected model does not support tool calling",
+            sSelectedModel,
+            -1,
+            -1,
+            XLLM_CAP_TOOL_CALL_OUT,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    if ( pRequest->tToolPolicy.eMode == XLLM_TOOL_CHOICE_REQUIRED && pRequest->iToolCount == 0u ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_INVALID_REQUEST,
+            "tool_choice=required requires at least one tool",
+            sSelectedModel,
+            -1,
+            -1,
+            0u,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    if ( pRequest->tToolPolicy.eMode == XLLM_TOOL_CHOICE_NAMED ) {
+        if ( pRequest->iToolCount == 0u || !xllm__tool_policy_matches_name(pRequest, pRequest->tToolPolicy.sToolName) ) {
+            xllm__validation_error_detail(
+                pError,
+                XLLM_ERROR_INVALID_REQUEST,
+                "named tool choice does not match any registered tool",
+                sSelectedModel,
+                -1,
+                -1,
+                0u,
+                NULL
+            );
+            xllm__effective_params_reset(&tEffectiveParams);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( pRequest->tToolPolicy.bAllowParallel && pRequest->iToolCount != 0u &&
+         !xllm__binding_supports_flag(pBinding, XLLM_CAP_PARALLEL_TOOL_CALL) ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "selected model does not support parallel tool calling",
+            sSelectedModel,
+            -1,
+            -1,
+            XLLM_CAP_PARALLEL_TOOL_CALL,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE &&
+         !xllm__binding_supports_flag(pBinding, XLLM_CAP_STREAM) ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "selected model does not support streaming",
+            sSelectedModel,
+            -1,
+            -1,
+            XLLM_CAP_STREAM,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    if ( tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         !(pOptions && pOptions->bBestEffortStructuredOutput) &&
+         !xllm__binding_supports_flag(pBinding, XLLM_CAP_JSON_OUT) ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "selected model does not support structured output",
+            sSelectedModel,
+            -1,
+            -1,
+            XLLM_CAP_JSON_OUT,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__reasoning_requested(&tEffectiveParams.tReasoning) &&
+         !xllm__binding_supports_flag(pBinding, XLLM_CAP_REASONING_CONTROL) ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "selected model does not support reasoning controls",
+            sSelectedModel,
+            -1,
+            -1,
+            XLLM_CAP_REASONING_CONTROL,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    if ( tEffectiveParams.tReasoning.tExposeThinking.bSet &&
+         tEffectiveParams.tReasoning.tExposeThinking.bValue &&
+         !xllm__binding_supports_any_flag(pBinding, XLLM_CAP_THINKING_SUMMARY_OUT | XLLM_CAP_THINKING_FULL_OUT) ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "selected model does not expose thinking output",
+            sSelectedModel,
+            -1,
+            -1,
+            XLLM_CAP_THINKING_SUMMARY_OUT | XLLM_CAP_THINKING_FULL_OUT,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__validate_message_against_binding(
+            &pRequest->pMessages[i],
+            (int32)i,
+            pBinding,
+            sSelectedModel,
+            &uImageCount,
+            &uFileCount,
+            pError
+        ) != XRT_NET_OK ) {
+            xllm__effective_params_reset(&tEffectiveParams);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    for ( i = 0; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__validate_message_against_binding(
+                &pRequest->pContextBlocks[i].pMessages[j],
+                (int32)j,
+                pBinding,
+                sSelectedModel,
+                &uImageCount,
+                &uFileCount,
+                pError
+            ) != XRT_NET_OK ) {
+                xllm__effective_params_reset(&tEffectiveParams);
+                return XRT_NET_ERROR;
+            }
+        }
+    }
+
+    if ( pBinding && pBinding->tCaps.uMaxImages != 0u && uImageCount > pBinding->tCaps.uMaxImages ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_TOO_MANY_INPUT_PARTS,
+            "image input count exceeds model limit",
+            sSelectedModel,
+            -1,
+            -1,
+            XLLM_CAP_IMAGE_IN,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    if ( pBinding && pBinding->tCaps.uMaxFiles != 0u && uFileCount > pBinding->tCaps.uMaxFiles ) {
+        xllm__validation_error_detail(
+            pError,
+            XLLM_ERROR_TOO_MANY_INPUT_PARTS,
+            "file input count exceeds model limit",
+            sSelectedModel,
+            -1,
+            -1,
+            XLLM_CAP_FILE_IN,
+            NULL
+        );
+        xllm__effective_params_reset(&tEffectiveParams);
+        return XRT_NET_ERROR;
+    }
+
+    xllm__effective_params_reset(&tEffectiveParams);
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_count_tokens(
+    xllm_runtime *pRuntime,
+    const xllm_request *pRequest,
+    xllm_token_count_result *pResult,
+    xllm_error *pError
+)
+{
+    const xllm_profile *pProfile;
+    const xllm_adapter *pAdapter;
+    uint32 uTotalTokens = 0;
+    size_t i;
+
+    if ( pError ) {
+        xllm_error_reset(pError);
+    }
+
+    if ( !pRuntime || !pRequest || !pResult ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "token count arguments are invalid");
+        return XRT_NET_ERROR;
+    }
+
+    memset(pResult, 0, sizeof(*pResult));
+    pProfile = xllm__runtime_find_profile(pRuntime, pRequest->sProfileId);
+    pAdapter = pProfile ? xllm__runtime_find_adapter(pRuntime, pProfile->sAdapter) : NULL;
+    if ( pAdapter && pAdapter->pfnCountTokens ) {
+        return pAdapter->pfnCountTokens(pAdapter->pCtx, pProfile, pRequest, pResult, pError);
+    }
+
+    for ( i = 0; i < pRequest->iMessageCount; ++i ) {
+        uTotalTokens += xllm__estimate_message_tokens(&pRequest->pMessages[i]);
+    }
+
+    for ( i = 0; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            uTotalTokens += xllm__estimate_message_tokens(&pRequest->pContextBlocks[i].pMessages[j]);
+        }
+    }
+
+    for ( i = 0; i < pRequest->iToolCount; ++i ) {
+        uTotalTokens += 16;
+        uTotalTokens += xllm__estimate_text_tokens(pRequest->pTools[i].sToolId);
+        uTotalTokens += xllm__estimate_text_tokens(pRequest->pTools[i].sWireName);
+        uTotalTokens += xllm__estimate_text_tokens(pRequest->pTools[i].sDescription);
+    }
+
+    pResult->uInputTokens = uTotalTokens;
+    pResult->bEstimated = true;
+    if ( pProfile ) {
+        const xllm_model_binding *pBinding;
+        bool bNeedsMultimodal = xllm__request_requires_multimodal(pRequest);
+        pBinding = bNeedsMultimodal ? &pProfile->tModels.tMultimodal : &pProfile->tModels.tText;
+        pResult->uEstimatedOutputReserve = pBinding->tCaps.uRecommendedOutputReserve;
+    }
+    if ( pResult->uEstimatedOutputReserve == 0 ) {
+        pResult->uEstimatedOutputReserve = 1024;
+    }
+
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_turn_set_system_prompt(xllm_turn *pTurn, const char *sText)
+{
+    char *sCopy = NULL;
+
+    if ( !pTurn ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( sText ) {
+        sCopy = xllm__dup_cstr(sText);
+        if ( !sCopy ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    xllm__free_cstr((char **)&pTurn->sSystemPrompt);
+    pTurn->sSystemPrompt = sCopy;
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_turn_set_system_mode(xllm_turn *pTurn, xllm_system_mode eMode)
+{
+    if ( !pTurn ) {
+        return XRT_NET_ERROR;
+    }
+
+    pTurn->eSystemMode = eMode;
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_turn_set_tool_choice(
+    xllm_turn *pTurn,
+    xllm_tool_choice_mode eMode,
+    const char *sToolName,
+    bool bAllowParallel
+)
+{
+    char *sToolNameCopy = NULL;
+
+    if ( !pTurn ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( eMode == XLLM_TOOL_CHOICE_NAMED ) {
+        if ( !sToolName || !sToolName[0] ) {
+            return XRT_NET_ERROR;
+        }
+        sToolNameCopy = xllm__dup_cstr(sToolName);
+        if ( !sToolNameCopy ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    xllm__free_cstr((char **)&pTurn->tToolPolicy.sToolName);
+    pTurn->tToolPolicy.sToolName = sToolNameCopy;
+    pTurn->tToolPolicy.eMode = eMode;
+    pTurn->tToolPolicy.bAllowParallel = bAllowParallel;
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_turn_set_stop_sequences(xllm_turn *pTurn, const char **psStop, size_t iStopCount)
+{
+    if ( !pTurn ) {
+        return XRT_NET_ERROR;
+    }
+
+    return xllm__generation_params_copy_stops(&pTurn->tGeneration, psStop, iStopCount);
+}
+
+XLLM_API int xllm_turn_set_json_schema_response(
+    xllm_turn *pTurn,
+    const char *sSchemaName,
+    xvalue tJsonSchema,
+    xvalue tVendorExtra
+)
+{
+    char *sSchemaNameCopy = NULL;
+
+    if ( !pTurn || !tJsonSchema ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( sSchemaName ) {
+        sSchemaNameCopy = xllm__dup_cstr(sSchemaName);
+        if ( !sSchemaNameCopy ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    xllm__response_format_reset(&pTurn->tResponseFormat);
+    pTurn->tResponseFormat.eKind = XLLM_RESPONSE_JSON_SCHEMA;
+    pTurn->tResponseFormat.sSchemaName = sSchemaNameCopy;
+    pTurn->tResponseFormat.tJsonSchema = tJsonSchema;
+    pTurn->tResponseFormat.tVendorExtra = tVendorExtra;
+    xllm__xvalue_addref(pTurn->tResponseFormat.tJsonSchema);
+    xllm__xvalue_addref(pTurn->tResponseFormat.tVendorExtra);
+    return XRT_NET_OK;
+}
+
+XLLM_API int xllm_turn_add_user_text(xllm_turn *pTurn, const char *sText)
+{
+    xllm_content_part tPart;
+
+    if ( !pTurn || !sText ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPart, 0, sizeof(tPart));
+    tPart.eKind = XLLM_PART_TEXT;
+    tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+    tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+    tPart.as.tSource.as.sText = xllm__dup_cstr(sText);
+    if ( !tPart.as.tSource.as.sText ) {
+        xllm__content_part_free(&tPart);
+        return XRT_NET_ERROR;
+    }
+
+    return xllm__turn_add_part_as_user_message(pTurn, &tPart);
+}
+
+XLLM_API int xllm_turn_add_image_url(xllm_turn *pTurn, const char *sUrl, const char *sMimeType)
+{
+    xllm_content_part tPart;
+
+    if ( !pTurn || !sUrl ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPart, 0, sizeof(tPart));
+    tPart.eKind = XLLM_PART_IMAGE;
+    tPart.as.tSource.eKind = XLLM_SOURCE_URL;
+    tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType ? sMimeType : "application/octet-stream");
+    tPart.as.tSource.as.sUrl = xllm__dup_cstr(sUrl);
+    if ( !tPart.as.tSource.as.sUrl ) {
+        xllm__content_part_free(&tPart);
+        return XRT_NET_ERROR;
+    }
+
+    return xllm__turn_add_part_as_user_message(pTurn, &tPart);
+}
+
+XLLM_API int xllm_turn_add_image_file(xllm_turn *pTurn, const char *sPath, const char *sMimeType)
+{
+    xllm_content_part tPart;
+    void *pData;
+    size_t iSize;
+    int32 iStatus;
+
+    if ( !pTurn || !sPath ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPart, 0, sizeof(tPart));
+    pData = NULL;
+    iSize = 0;
+    iStatus = xllm__read_file_bytes(sPath, &pData, &iSize);
+    if ( iStatus != XRT_NET_OK ) {
+        return iStatus;
+    }
+
+    tPart.eKind = XLLM_PART_IMAGE;
+    tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_BYTES;
+    tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType ? sMimeType : "application/octet-stream");
+    tPart.as.tSource.sName = xllm__dup_cstr(xllm__path_basename(sPath));
+    tPart.as.tSource.as.tBytes.pData = pData;
+    tPart.as.tSource.as.tBytes.iSize = iSize;
+    return xllm__turn_add_part_as_user_message(pTurn, &tPart);
+}
+
+XLLM_API int xllm_turn_add_image_file_id(xllm_turn *pTurn, const char *sFileId, const char *sMimeType)
+{
+    xllm_content_part tPart;
+
+    if ( !pTurn || !sFileId ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPart, 0, sizeof(tPart));
+    tPart.eKind = XLLM_PART_IMAGE;
+    tPart.as.tSource.eKind = XLLM_SOURCE_PROVIDER_FILE_ID;
+    tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType ? sMimeType : "application/octet-stream");
+    tPart.as.tSource.as.sFileId = xllm__dup_cstr(sFileId);
+    if ( !tPart.as.tSource.as.sFileId ) {
+        xllm__content_part_free(&tPart);
+        return XRT_NET_ERROR;
+    }
+
+    return xllm__turn_add_part_as_user_message(pTurn, &tPart);
+}
+
+XLLM_API int xllm_turn_add_file_url(xllm_turn *pTurn, const char *sUrl, const char *sMimeType)
+{
+    xllm_content_part tPart;
+
+    if ( !pTurn || !sUrl ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPart, 0, sizeof(tPart));
+    tPart.eKind = XLLM_PART_FILE;
+    tPart.as.tSource.eKind = XLLM_SOURCE_URL;
+    tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType ? sMimeType : "application/octet-stream");
+    tPart.as.tSource.as.sUrl = xllm__dup_cstr(sUrl);
+    if ( !tPart.as.tSource.as.sUrl ) {
+        xllm__content_part_free(&tPart);
+        return XRT_NET_ERROR;
+    }
+
+    return xllm__turn_add_part_as_user_message(pTurn, &tPart);
+}
+
+XLLM_API int xllm_turn_add_file(xllm_turn *pTurn, const char *sPath, const char *sMimeType)
+{
+    xllm_content_part tPart;
+    void *pData;
+    size_t iSize;
+    int32 iStatus;
+
+    if ( !pTurn || !sPath ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPart, 0, sizeof(tPart));
+    pData = NULL;
+    iSize = 0;
+    iStatus = xllm__read_file_bytes(sPath, &pData, &iSize);
+    if ( iStatus != XRT_NET_OK ) {
+        return iStatus;
+    }
+
+    tPart.eKind = XLLM_PART_FILE;
+    tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_BYTES;
+    tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType ? sMimeType : "application/octet-stream");
+    tPart.as.tSource.sName = xllm__dup_cstr(xllm__path_basename(sPath));
+    tPart.as.tSource.as.tBytes.pData = pData;
+    tPart.as.tSource.as.tBytes.iSize = iSize;
+    return xllm__turn_add_part_as_user_message(pTurn, &tPart);
+}
+
+XLLM_API int xllm_turn_add_file_file_id(xllm_turn *pTurn, const char *sFileId, const char *sMimeType)
+{
+    xllm_content_part tPart;
+
+    if ( !pTurn || !sFileId ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPart, 0, sizeof(tPart));
+    tPart.eKind = XLLM_PART_FILE;
+    tPart.as.tSource.eKind = XLLM_SOURCE_PROVIDER_FILE_ID;
+    tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType ? sMimeType : "application/octet-stream");
+    tPart.as.tSource.as.sFileId = xllm__dup_cstr(sFileId);
+    if ( !tPart.as.tSource.as.sFileId ) {
+        xllm__content_part_free(&tPart);
+        return XRT_NET_ERROR;
+    }
+
+    return xllm__turn_add_part_as_user_message(pTurn, &tPart);
+}
+
+XLLM_API int xllm_turn_add_tool(xllm_turn *pTurn, const xllm_tool_def *pTool)
+{
+    xllm_tool_def tCopy;
+    xllm_tool_def *pTools;
+
+    if ( !pTurn || !pTool ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__tool_def_clone(&tCopy, pTool) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    pTools = (xllm_tool_def *)xrtRealloc(pTurn->pTools, (pTurn->iToolCount + 1) * sizeof(xllm_tool_def));
+    if ( !pTools ) {
+        xllm__tool_def_free(&tCopy);
+        return XRT_NET_ERROR;
+    }
+
+    pTurn->pTools = pTools;
+    pTurn->pTools[pTurn->iToolCount] = tCopy;
+    ++pTurn->iToolCount;
+
+    return XRT_NET_OK;
+}
+
+/* ===== end: D:/git/xllm/src/xllm_request/xllm_request.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_response/xllm_response.c ===== */
+
+
+/* ===== begin: D:/git/xllm/src/xllm_response/xllm_response.h ===== */
+
+#ifndef XLLM_RESPONSE_INTERNAL_H
+#define XLLM_RESPONSE_INTERNAL_H
+
+/*
+ * response 子库：
+ * - 标准事件累积器
+ * - 统一响应对象组装
+ * - helper API
+ */
+
+#endif
+
+/* ===== end: D:/git/xllm/src/xllm_response/xllm_response.h ===== */
+
+static void xllm__output_item_free(xllm_output_item *pOutput)
+{
+    size_t i;
+
+    if ( !pOutput ) {
+        return;
+    }
+
+    switch ( pOutput->eKind ) {
+        case XLLM_OUTPUT_MESSAGE:
+            if ( pOutput->as.tMessage.pParts ) {
+                for ( i = 0; i < pOutput->as.tMessage.iPartCount; ++i ) {
+                    xllm__content_part_free(&pOutput->as.tMessage.pParts[i]);
+                }
+                xrtFree(pOutput->as.tMessage.pParts);
+            }
+            break;
+        case XLLM_OUTPUT_THINKING:
+            xllm__free_cstr((char **)&pOutput->as.tThinking.sFormat);
+            xllm__free_cstr((char **)&pOutput->as.tThinking.sText);
+            xllm__xvalue_release(&pOutput->as.tThinking.tVendorExtra);
+            break;
+        case XLLM_OUTPUT_TOOL_CALL:
+            xllm__free_cstr((char **)&pOutput->as.tToolCall.sCallId);
+            xllm__free_cstr((char **)&pOutput->as.tToolCall.sToolId);
+            xllm__free_cstr((char **)&pOutput->as.tToolCall.sToolName);
+            xllm__free_cstr((char **)&pOutput->as.tToolCall.sArgumentsJson);
+            xllm__xvalue_release(&pOutput->as.tToolCall.tContinuation);
+            xllm__xvalue_release(&pOutput->as.tToolCall.tVendorExtra);
+            break;
+        case XLLM_OUTPUT_REFUSAL:
+            xllm__free_cstr((char **)&pOutput->as.tRefusal.sText);
+            xllm__free_cstr((char **)&pOutput->as.tRefusal.sCategory);
+            xllm__xvalue_release(&pOutput->as.tRefusal.tVendorExtra);
+            break;
+        default:
+            break;
+    }
+
+    memset(pOutput, 0, sizeof(*pOutput));
+}
+
+XLLM_API const char *xllm_response_get_text(const xllm_response *pResponse)
+{
+    size_t i;
+
+    if ( !pResponse ) {
+        return NULL;
+    }
+
+    if ( pResponse->sVisibleText ) {
+        return pResponse->sVisibleText;
+    }
+
+    if ( pResponse->tRefusal.sText ) {
+        return pResponse->tRefusal.sText;
+    }
+
+    for ( i = 0; i < pResponse->iOutputCount; ++i ) {
+        const xllm_output_item *pOutput = &pResponse->pOutputs[i];
+        if ( pOutput->eKind == XLLM_OUTPUT_REFUSAL && pOutput->as.tRefusal.sText ) {
+            return pOutput->as.tRefusal.sText;
+        }
+        if ( pOutput->eKind == XLLM_OUTPUT_MESSAGE && pOutput->as.tMessage.iPartCount > 0 ) {
+            size_t j;
+            for ( j = 0; j < pOutput->as.tMessage.iPartCount; ++j ) {
+                const xllm_content_part *pPart = &pOutput->as.tMessage.pParts[j];
+                if ( pPart->eKind == XLLM_PART_TEXT && pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT ) {
+                    return pPart->as.tSource.as.sText;
+                }
+            }
+        }
+    }
+
+    return NULL;
+}
+
+XLLM_API size_t xllm_response_get_output_count(const xllm_response *pResponse)
+{
+    return pResponse ? pResponse->iOutputCount : 0;
+}
+
+XLLM_API const xllm_output_item *xllm_response_get_output(const xllm_response *pResponse, size_t iIndex)
+{
+    if ( !pResponse || iIndex >= pResponse->iOutputCount ) {
+        return NULL;
+    }
+    return &pResponse->pOutputs[iIndex];
+}
+
+XLLM_API size_t xllm_response_get_tool_call_count(const xllm_response *pResponse)
+{
+    size_t i;
+    size_t iCount = 0;
+
+    if ( !pResponse ) {
+        return 0;
+    }
+
+    for ( i = 0; i < pResponse->iOutputCount; ++i ) {
+        if ( pResponse->pOutputs[i].eKind == XLLM_OUTPUT_TOOL_CALL ) {
+            ++iCount;
+        }
+    }
+
+    return iCount;
+}
+
+XLLM_API const xllm_output_tool_call *xllm_response_get_tool_call(const xllm_response *pResponse, size_t iIndex)
+{
+    size_t i;
+    size_t iSeen = 0;
+
+    if ( !pResponse ) {
+        return NULL;
+    }
+
+    for ( i = 0; i < pResponse->iOutputCount; ++i ) {
+        if ( pResponse->pOutputs[i].eKind == XLLM_OUTPUT_TOOL_CALL ) {
+            if ( iSeen == iIndex ) {
+                return &pResponse->pOutputs[i].as.tToolCall;
+            }
+            ++iSeen;
+        }
+    }
+
+    return NULL;
+}
+
+XLLM_API const xvalue *xllm_response_get_json(const xllm_response *pResponse, size_t iOutputIndex, size_t iPartIndex)
+{
+    const xllm_output_item *pOutput;
+
+    if ( !pResponse || iOutputIndex >= pResponse->iOutputCount ) {
+        return NULL;
+    }
+
+    pOutput = &pResponse->pOutputs[iOutputIndex];
+    if ( pOutput->eKind != XLLM_OUTPUT_MESSAGE || iPartIndex >= pOutput->as.tMessage.iPartCount ) {
+        return NULL;
+    }
+
+    if ( pOutput->as.tMessage.pParts[iPartIndex].eKind != XLLM_PART_JSON ) {
+        return NULL;
+    }
+
+    return &pOutput->as.tMessage.pParts[iPartIndex].as.tJsonValue;
+}
+
+XLLM_API const xvalue *xllm_response_get_first_json(const xllm_response *pResponse, size_t *piOutputIndex, size_t *piPartIndex)
+{
+    size_t iOutput;
+
+    if ( piOutputIndex ) {
+        *piOutputIndex = (size_t)-1;
+    }
+    if ( piPartIndex ) {
+        *piPartIndex = (size_t)-1;
+    }
+    if ( !pResponse ) {
+        return NULL;
+    }
+
+    for ( iOutput = 0u; iOutput < pResponse->iOutputCount; ++iOutput ) {
+        const xllm_output_item *pOutput = &pResponse->pOutputs[iOutput];
+        size_t iPart;
+
+        if ( pOutput->eKind != XLLM_OUTPUT_MESSAGE ) {
+            continue;
+        }
+        for ( iPart = 0u; iPart < pOutput->as.tMessage.iPartCount; ++iPart ) {
+            if ( pOutput->as.tMessage.pParts[iPart].eKind == XLLM_PART_JSON ) {
+                if ( piOutputIndex ) {
+                    *piOutputIndex = iOutput;
+                }
+                if ( piPartIndex ) {
+                    *piPartIndex = iPart;
+                }
+                return &pOutput->as.tMessage.pParts[iPart].as.tJsonValue;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+XLLM_API void xllm_response_free(xllm_response *pResponse)
+{
+    size_t i;
+
+    if ( !pResponse ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pResponse->sId);
+    xllm__free_cstr((char **)&pResponse->sProvider);
+    xllm__free_cstr((char **)&pResponse->sProfileId);
+    xllm__free_cstr((char **)&pResponse->sModel);
+    xllm__free_cstr((char **)&pResponse->sFinishReason);
+    xllm__free_cstr((char **)&pResponse->sVisibleText);
+
+    if ( pResponse->pOutputs ) {
+        for ( i = 0; i < pResponse->iOutputCount; ++i ) {
+            xllm__output_item_free(&pResponse->pOutputs[i]);
+        }
+        xrtFree(pResponse->pOutputs);
+    }
+
+    xllm__xvalue_release(&pResponse->tUsage.tVendorExtra);
+    xllm__free_cstr((char **)&pResponse->tRefusal.sText);
+    xllm__free_cstr((char **)&pResponse->tRefusal.sCategory);
+    xllm__xvalue_release(&pResponse->tRefusal.tVendorExtra);
+    xllm__free_cstr((char **)&pResponse->tSafety.sBlockReason);
+    xllm__xvalue_release(&pResponse->tSafety.tRatings);
+    xllm__xvalue_release(&pResponse->tSafety.tVendorExtra);
+    xllm__effective_params_reset(&pResponse->tEffectiveParams);
+    xllm_error_reset(&pResponse->tError);
+    xllm__xvalue_release(&pResponse->tRaw);
+    xllm__xvalue_release(&pResponse->tVendorExtra);
+    xrtFree(pResponse);
+}
+
+/* ===== end: D:/git/xllm/src/xllm_response/xllm_response.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter.c ===== */
+
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_openai.c ===== */
+
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter.h ===== */
+
+#ifndef XLLM_ADAPTER_INTERNAL_H
+#define XLLM_ADAPTER_INTERNAL_H
+
+/*
+ * adapter 子库：
+ * - 上游协议映射
+ * - 流式事件归一化
+ * - provider 错误映射
+ */
+
+#endif
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter.h ===== */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
+
+typedef struct {
+    char *pData;
+    size_t iLen;
+    size_t iCap;
+} xllm__json_builder;
+
+typedef struct {
+    xllm_runtime *pRuntime;
+    xllm_response *pResponse;
+    const xllm_profile *pProfile;
+    const xllm_request *pRequest;
+    const xllm_call_options *pOptions;
+    xllm_error *pError;
+    const char *sSelectedModel;
+    size_t iOutputCapacity;
+    size_t iParsedBytes;
+    size_t iMessageOutputIndex;
+    size_t iMessagePartCapacity;
+    size_t iThinkingOutputIndex;
+    size_t iRefusalOutputIndex;
+    size_t *pToolOutputIndices;
+    size_t iToolOutputIndexCount;
+    size_t iToolOutputIndexCapacity;
+    uint32 uPayloadCount;
+    uint32 uTextDeltaCount;
+    uint32 uThinkingDeltaCount;
+    uint32 uToolDeltaCount;
+    uint32 uUsageCount;
+    uint32 uRefusalCount;
+    bool bStartEmitted;
+    bool bMessageOutputClosed;
+    bool bCancelled;
+    bool bDone;
+} xllm__openai_stream_context;
+
+typedef struct {
+    xmutex pMutex;
+    xcond pCond;
+    xnetstream *pStream;
+    xnetengine *pEngine;
+    xllm__json_builder tIncoming;
+    char *pRequestBytes;
+    size_t iRequestLen;
+    int iSysErr;
+    xnet_result iCloseReason;
+    bool bClosed;
+} xllm__openai_live_transport;
+
+typedef enum {
+    XLLM__HTTP_BODY_MODE_UNSET = 0,
+    XLLM__HTTP_BODY_MODE_CONTENT_LENGTH,
+    XLLM__HTTP_BODY_MODE_CHUNKED,
+    XLLM__HTTP_BODY_MODE_UNTIL_CLOSE
+} xllm__http_body_mode;
+
+typedef enum {
+    XLLM__HTTP_CHUNK_STATE_SIZE = 0,
+    XLLM__HTTP_CHUNK_STATE_DATA,
+    XLLM__HTTP_CHUNK_STATE_DATA_CRLF,
+    XLLM__HTTP_CHUNK_STATE_TRAILERS,
+    XLLM__HTTP_CHUNK_STATE_DONE
+} xllm__http_chunk_state;
+
+typedef struct {
+    xllm__json_builder tWire;
+    xllm__json_builder tBody;
+    size_t iParseOffset;
+    size_t iHeaderBytes;
+    size_t iChunkBytesRemaining;
+    uint32 uStatusCode;
+    int64_t iContentLength;
+    xllm__http_body_mode eBodyMode;
+    xllm__http_chunk_state eChunkState;
+    bool bHeadersParsed;
+    bool bBodyComplete;
+    bool bTreatAsSse;
+    char sContentType[128];
+    char sRequestId[128];
+} xllm__openai_live_decoder;
+
+static bool xllm__json_builder_reserve(xllm__json_builder *pBuilder, size_t iExtra);
+static bool xllm__json_builder_append_bytes(xllm__json_builder *pBuilder, const void *pData, size_t iLen);
+static bool xllm__json_builder_append_cstr(xllm__json_builder *pBuilder, const char *sText);
+static char *xllm__json_builder_detach(xllm__json_builder *pBuilder);
+static void xllm__json_builder_reset(xllm__json_builder *pBuilder);
+static int xllm__openai_fill_effective_params(
+    xllm_effective_params *pOut,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    xllm_stream_mode eStreamMode
+);
+static int xllm__openai_stream_process_buffer(
+    xllm__openai_stream_context *pCtx,
+    const char *sBuffer,
+    size_t iLen
+);
+
+static void xllm__openai_trace_table_set_text(xvalue tPayload, const char *sKey, const char *sValue)
+{
+    if ( tPayload && sKey && sValue ) {
+        xvoTableSetText(tPayload, (str)sKey, 0u, (str)sValue, 0u, FALSE);
+    }
+}
+
+static void xllm__openai_trace_table_set_bool(xvalue tPayload, const char *sKey, bool bValue)
+{
+    if ( tPayload && sKey ) {
+        xvoTableSetBool(tPayload, (str)sKey, 0u, bValue);
+    }
+}
+
+static void xllm__openai_trace_table_set_u32(xvalue tPayload, const char *sKey, uint32 uValue)
+{
+    if ( tPayload && sKey ) {
+        xvoTableSetInt(tPayload, (str)sKey, 0u, (int64)uValue);
+    }
+}
+
+static void xllm__openai_trace_table_set_i32(xvalue tPayload, const char *sKey, int32 iValue)
+{
+    if ( tPayload && sKey ) {
+        xvoTableSetInt(tPayload, (str)sKey, 0u, (int64)iValue);
+    }
+}
+
+static void xllm__openai_trace_emit(xllm_runtime *pRuntime, xllm_trace_kind eKind, xvalue tPayload)
+{
+    if ( pRuntime && pRuntime->tOptions.pfnTrace && tPayload ) {
+        pRuntime->tOptions.pfnTrace(
+            pRuntime->tOptions.pTraceCtx,
+            eKind,
+            &tPayload
+        );
+    }
+    xllm__xvalue_release(&tPayload);
+}
+
+static void xllm__openai_logf(
+    xllm_runtime *pRuntime,
+    xllm_log_level eLevel,
+    const char *sComponent,
+    const char *sFormat,
+    ...
+)
+{
+    char sBuffer[512];
+    va_list tArgs;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnLog || !sComponent || !sFormat ) {
+        return;
+    }
+
+    va_start(tArgs, sFormat);
+    (void)vsnprintf(sBuffer, sizeof(sBuffer), sFormat, tArgs);
+    va_end(tArgs);
+    sBuffer[sizeof(sBuffer) - 1u] = '\0';
+
+    pRuntime->tOptions.pfnLog(
+        pRuntime->tOptions.pLogCtx,
+        eLevel,
+        sComponent,
+        sBuffer
+    );
+}
+
+static const char *xllm__openai_family_adapter_name(const xllm_profile *pProfile)
+{
+    if ( pProfile && pProfile->sAdapter ) {
+        if ( strcmp(pProfile->sAdapter, XLLM_ADAPTER_GLM_NATIVE) == 0 ) {
+            return XLLM_ADAPTER_GLM_NATIVE;
+        }
+        if ( strcmp(pProfile->sAdapter, XLLM_ADAPTER_MINIMAX_NATIVE) == 0 ) {
+            return XLLM_ADAPTER_MINIMAX_NATIVE;
+        }
+        if ( strcmp(pProfile->sAdapter, XLLM_ADAPTER_KIMI_NATIVE) == 0 ) {
+            return XLLM_ADAPTER_KIMI_NATIVE;
+        }
+        if ( strcmp(pProfile->sAdapter, XLLM_ADAPTER_QWEN_NATIVE) == 0 ) {
+            return XLLM_ADAPTER_QWEN_NATIVE;
+        }
+        if ( strcmp(pProfile->sAdapter, XLLM_ADAPTER_DOUBAO_NATIVE) == 0 ) {
+            return XLLM_ADAPTER_DOUBAO_NATIVE;
+        }
+    }
+    return XLLM_ADAPTER_OPENAI_COMPAT;
+}
+
+static const char *xllm__openai_family_component_name(const xllm_profile *pProfile)
+{
+    const char *sAdapter = xllm__openai_family_adapter_name(pProfile);
+
+    if ( strcmp(sAdapter, XLLM_ADAPTER_GLM_NATIVE) == 0 ) {
+        return "xllm.glm_native";
+    }
+    if ( strcmp(sAdapter, XLLM_ADAPTER_MINIMAX_NATIVE) == 0 ) {
+        return "xllm.minimax_native";
+    }
+    if ( strcmp(sAdapter, XLLM_ADAPTER_KIMI_NATIVE) == 0 ) {
+        return "xllm.kimi_native";
+    }
+    if ( strcmp(sAdapter, XLLM_ADAPTER_QWEN_NATIVE) == 0 ) {
+        return "xllm.qwen_native";
+    }
+    if ( strcmp(sAdapter, XLLM_ADAPTER_DOUBAO_NATIVE) == 0 ) {
+        return "xllm.doubao_native";
+    }
+    return "xllm.openai_compat";
+}
+
+static bool xllm__openai_family_uses_reasoning_content(const xllm_profile *pProfile)
+{
+    const char *sAdapter = xllm__openai_family_adapter_name(pProfile);
+
+    return (
+        strcmp(sAdapter, XLLM_ADAPTER_GLM_NATIVE) == 0 ||
+        strcmp(sAdapter, XLLM_ADAPTER_MINIMAX_NATIVE) == 0 ||
+        strcmp(sAdapter, XLLM_ADAPTER_KIMI_NATIVE) == 0 ||
+        strcmp(sAdapter, XLLM_ADAPTER_DOUBAO_NATIVE) == 0
+    );
+}
+
+static bool xllm__openai_reasoning_vendor_is_reasoning_content(xvalue tVendorExtra)
+{
+    const char *sField;
+
+    if ( !tVendorExtra || xvoType(tVendorExtra) != XVO_DT_TABLE ) {
+        return false;
+    }
+
+    sField = (const char *)xvoTableGetText(tVendorExtra, (str)"openai_reasoning_field", 0u);
+    return (sField && strcmp(sField, "reasoning_content") == 0);
+}
+
+static xvalue xllm__openai_create_reasoning_vendor_extra(const xllm_profile *pProfile)
+{
+    xvalue tTable = xvoCreateTable();
+    const char *sAdapter = xllm__openai_family_adapter_name(pProfile);
+
+    if ( !tTable ) {
+        return NULL;
+    }
+
+    if ( !xvoTableSetText(tTable, (str)"openai_reasoning_field", 0u, (str)"reasoning_content", 0u, FALSE) ) {
+        xvoUnref(tTable);
+        return NULL;
+    }
+    if ( sAdapter && sAdapter[0] ) {
+        if ( !xvoTableSetText(tTable, (str)"openai_family_adapter", 0u, (str)sAdapter, 0u, FALSE) ) {
+            xvoUnref(tTable);
+            return NULL;
+        }
+    }
+
+    return tTable;
+}
+
+static int xllm__openai_set_reasoning_vendor_extra(xllm_output_thinking *pThinking, const xllm_profile *pProfile)
+{
+    xvalue tVendorExtra;
+
+    if ( !pThinking || !xllm__openai_family_uses_reasoning_content(pProfile) ) {
+        return XRT_NET_OK;
+    }
+    if ( xllm__openai_reasoning_vendor_is_reasoning_content(pThinking->tVendorExtra) ) {
+        return XRT_NET_OK;
+    }
+
+    tVendorExtra = xllm__openai_create_reasoning_vendor_extra(pProfile);
+    if ( !tVendorExtra ) {
+        return XRT_NET_ERROR;
+    }
+
+    xllm__xvalue_release(&pThinking->tVendorExtra);
+    pThinking->tVendorExtra = tVendorExtra;
+    return XRT_NET_OK;
+}
+
+static const char *xllm__openai_message_reasoning_content(const xllm_message *pMessage)
+{
+    const char *sReasoningText;
+
+    if ( !pMessage || !xllm__openai_reasoning_vendor_is_reasoning_content(pMessage->tVendorExtra) ) {
+        return NULL;
+    }
+
+    sReasoningText = (const char *)xvoTableGetText(pMessage->tVendorExtra, (str)"reasoning_content", 0u);
+    return (sReasoningText && sReasoningText[0]) ? sReasoningText : NULL;
+}
+
+static const char *xllm__openai_response_status_name(xllm_response_status eStatus)
+{
+    switch ( eStatus ) {
+        case XLLM_STATUS_COMPLETED:
+            return "completed";
+        case XLLM_STATUS_INCOMPLETE:
+            return "incomplete";
+        case XLLM_STATUS_TOOL_CALL_REQUIRED:
+            return "tool_call_required";
+        case XLLM_STATUS_REFUSED:
+            return "refused";
+        case XLLM_STATUS_CONTENT_FILTERED:
+            return "content_filtered";
+        case XLLM_STATUS_CANCELLED:
+            return "cancelled";
+        case XLLM_STATUS_ERRORED:
+            return "errored";
+        default:
+            return "unknown";
+    }
+}
+
+static const char *xllm__openai_error_code_name(xllm_error_code eCode)
+{
+    switch ( eCode ) {
+        case XLLM_ERROR_NONE:
+            return "none";
+        case XLLM_ERROR_AUTH:
+            return "auth";
+        case XLLM_ERROR_QUOTA:
+            return "quota";
+        case XLLM_ERROR_RATE_LIMIT:
+            return "rate_limit";
+        case XLLM_ERROR_TIMEOUT:
+            return "timeout";
+        case XLLM_ERROR_NETWORK:
+            return "network";
+        case XLLM_ERROR_CANCELLED:
+            return "cancelled";
+        case XLLM_ERROR_INVALID_REQUEST:
+            return "invalid_request";
+        case XLLM_ERROR_UNSUPPORTED_CAPABILITY:
+            return "unsupported_capability";
+        case XLLM_ERROR_UNSUPPORTED_INPUT_TYPE:
+            return "unsupported_input_type";
+        case XLLM_ERROR_UNSUPPORTED_MIME_TYPE:
+            return "unsupported_mime_type";
+        case XLLM_ERROR_INPUT_TOO_LARGE:
+            return "input_too_large";
+        case XLLM_ERROR_TOO_MANY_INPUT_PARTS:
+            return "too_many_input_parts";
+        case XLLM_ERROR_MISSING_MULTIMODAL_MODEL:
+            return "missing_multimodal_model";
+        case XLLM_ERROR_MODEL_NOT_FOUND:
+            return "model_not_found";
+        case XLLM_ERROR_UPSTREAM_4XX:
+            return "upstream_4xx";
+        case XLLM_ERROR_UPSTREAM_5XX:
+            return "upstream_5xx";
+        case XLLM_ERROR_PARSE:
+            return "parse";
+        case XLLM_ERROR_INTERNAL:
+            return "internal";
+        case XLLM_ERROR_SESSION_CONTEXT_OVERFLOW:
+            return "session_context_overflow";
+        case XLLM_ERROR_SESSION_COMPACT_FAILED:
+            return "session_compact_failed";
+        case XLLM_ERROR_SESSION_SUMMARY_FAILED:
+            return "session_summary_failed";
+        case XLLM_ERROR_SESSION_REQUIRES_MODEL_LIMITS:
+            return "session_requires_model_limits";
+        default:
+            return "unknown";
+    }
+}
+
+static void xllm__openai_trace_request(
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const char *sModel,
+    bool bStreaming,
+    bool bLive,
+    uint32 uAttempt,
+    size_t iBodyBytes
+)
+{
+    xvalue tPayload;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnTrace ) {
+        return;
+    }
+
+    tPayload = xvoCreateTable();
+    if ( !tPayload ) {
+        return;
+    }
+
+    xllm__openai_trace_table_set_text(tPayload, "phase", "request");
+    xllm__openai_trace_table_set_text(tPayload, "adapter", xllm__openai_family_adapter_name(pProfile));
+    if ( pProfile && pProfile->sId ) {
+        xllm__openai_trace_table_set_text(tPayload, "profile_id", pProfile->sId);
+    }
+    if ( sModel ) {
+        xllm__openai_trace_table_set_text(tPayload, "model", sModel);
+    }
+    xllm__openai_trace_table_set_bool(tPayload, "streaming", bStreaming);
+    xllm__openai_trace_table_set_bool(tPayload, "live", bLive);
+    if ( pRequest ) {
+        xllm__openai_trace_table_set_u32(tPayload, "message_count", (uint32)pRequest->iMessageCount);
+        xllm__openai_trace_table_set_u32(tPayload, "context_block_count", (uint32)pRequest->iContextBlockCount);
+        xllm__openai_trace_table_set_u32(tPayload, "tool_count", (uint32)pRequest->iToolCount);
+    }
+    xllm__openai_trace_table_set_u32(tPayload, "body_bytes", (uint32)iBodyBytes);
+    xllm__openai_trace_table_set_u32(tPayload, "attempt", uAttempt);
+    xllm__openai_trace_emit(pRuntime, XLLM_TRACE_REQUEST, tPayload);
+}
+
+static void xllm__openai_trace_response(
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_response *pResponse,
+    const char *sModel,
+    const xhttpresponse *pHttpResponse,
+    const char *sRequestId,
+    const xllm_error *pError,
+    int32 iTransportStatus,
+    uint32 uAttempt,
+    bool bRetryable,
+    bool bStreaming,
+    bool bLive
+)
+{
+    xvalue tPayload;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnTrace ) {
+        return;
+    }
+
+    tPayload = xvoCreateTable();
+    if ( !tPayload ) {
+        return;
+    }
+
+    xllm__openai_trace_table_set_text(tPayload, "phase", "response");
+    xllm__openai_trace_table_set_text(tPayload, "adapter", xllm__openai_family_adapter_name(pProfile));
+    xllm__openai_trace_table_set_bool(tPayload, "streaming", bStreaming);
+    xllm__openai_trace_table_set_bool(tPayload, "live", bLive);
+    xllm__openai_trace_table_set_i32(tPayload, "transport_status", iTransportStatus);
+    xllm__openai_trace_table_set_u32(tPayload, "attempt", uAttempt);
+    xllm__openai_trace_table_set_bool(tPayload, "retryable", bRetryable);
+    if ( pHttpResponse ) {
+        xllm__openai_trace_table_set_u32(tPayload, "http_status", pHttpResponse->iStatusCode);
+    } else if ( pError && pError->iHttpStatus > 0 ) {
+        xllm__openai_trace_table_set_i32(tPayload, "http_status", pError->iHttpStatus);
+    }
+    if ( sRequestId ) {
+        xllm__openai_trace_table_set_text(tPayload, "request_id", sRequestId);
+    } else if ( pError && pError->sRequestId ) {
+        xllm__openai_trace_table_set_text(tPayload, "request_id", pError->sRequestId);
+    }
+    if ( pResponse ) {
+        xllm__openai_trace_table_set_bool(tPayload, "success", true);
+        xllm__openai_trace_table_set_text(tPayload, "response_status", xllm__openai_response_status_name(pResponse->eStatus));
+        xllm__openai_trace_table_set_u32(tPayload, "output_count", (uint32)pResponse->iOutputCount);
+        xllm__openai_trace_table_set_u32(tPayload, "input_tokens", pResponse->tUsage.uInputTokens);
+        xllm__openai_trace_table_set_u32(tPayload, "output_tokens", pResponse->tUsage.uOutputTokens);
+        if ( pResponse->sModel ) {
+            xllm__openai_trace_table_set_text(tPayload, "model", pResponse->sModel);
+        } else if ( sModel ) {
+            xllm__openai_trace_table_set_text(tPayload, "model", sModel);
+        }
+        if ( pResponse->sFinishReason ) {
+            xllm__openai_trace_table_set_text(tPayload, "finish_reason", pResponse->sFinishReason);
+        }
+    } else {
+        xllm__openai_trace_table_set_bool(tPayload, "success", false);
+        xllm__openai_trace_table_set_text(tPayload, "response_status", "errored");
+        if ( sModel ) {
+            xllm__openai_trace_table_set_text(tPayload, "model", sModel);
+        } else if ( pError && pError->sSelectedModel ) {
+            xllm__openai_trace_table_set_text(tPayload, "model", pError->sSelectedModel);
+        }
+    }
+    if ( pError && pError->eCode != XLLM_ERROR_NONE ) {
+        xllm__openai_trace_table_set_text(tPayload, "error_code", xllm__openai_error_code_name(pError->eCode));
+        if ( pError->sMessage ) {
+            xllm__openai_trace_table_set_text(tPayload, "error_message", pError->sMessage);
+        }
+        if ( pError->sProviderCode ) {
+            xllm__openai_trace_table_set_text(tPayload, "provider_code", pError->sProviderCode);
+        }
+        if ( pError->sProviderMessage ) {
+            xllm__openai_trace_table_set_text(tPayload, "provider_message", pError->sProviderMessage);
+        }
+    }
+    xllm__openai_trace_emit(pRuntime, XLLM_TRACE_RESPONSE, tPayload);
+}
+
+static void xllm__openai_trace_stream(
+    xllm_runtime *pRuntime,
+    const xllm__openai_stream_context *pCtx,
+    const char *sPhase,
+    size_t iPayloadBytes
+)
+{
+    xvalue tPayload;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnTrace || !pCtx || !sPhase ) {
+        return;
+    }
+
+    tPayload = xvoCreateTable();
+    if ( !tPayload ) {
+        return;
+    }
+
+    xllm__openai_trace_table_set_text(tPayload, "phase", sPhase);
+    xllm__openai_trace_table_set_text(tPayload, "adapter", xllm__openai_family_adapter_name(pCtx->pProfile));
+    xllm__openai_trace_table_set_bool(tPayload, "streaming", true);
+    xllm__openai_trace_table_set_u32(tPayload, "payload_bytes", (uint32)iPayloadBytes);
+    xllm__openai_trace_table_set_u32(tPayload, "payload_count", pCtx->uPayloadCount);
+    xllm__openai_trace_table_set_u32(tPayload, "text_delta_count", pCtx->uTextDeltaCount);
+    xllm__openai_trace_table_set_u32(tPayload, "tool_delta_count", pCtx->uToolDeltaCount);
+    xllm__openai_trace_table_set_u32(tPayload, "usage_count", pCtx->uUsageCount);
+    xllm__openai_trace_table_set_u32(tPayload, "refusal_count", pCtx->uRefusalCount);
+    xllm__openai_trace_table_set_bool(tPayload, "done", pCtx->bDone);
+    xllm__openai_trace_table_set_bool(tPayload, "cancelled", pCtx->bCancelled);
+    if ( pCtx->sSelectedModel ) {
+        xllm__openai_trace_table_set_text(tPayload, "model", pCtx->sSelectedModel);
+    }
+    if ( pCtx->pResponse && pCtx->pResponse->sFinishReason ) {
+        xllm__openai_trace_table_set_text(tPayload, "finish_reason", pCtx->pResponse->sFinishReason);
+    }
+    xllm__openai_trace_emit(pRuntime, XLLM_TRACE_STREAM, tPayload);
+}
+
+static bool xllm__openai_error_is_retryable(xllm_error_code eCode)
+{
+    switch ( eCode ) {
+        case XLLM_ERROR_TIMEOUT:
+        case XLLM_ERROR_NETWORK:
+        case XLLM_ERROR_RATE_LIMIT:
+        case XLLM_ERROR_UPSTREAM_5XX:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static uint32 xllm__openai_retry_delay_ms(const xllm_call_options *pOptions, uint32 uRetryIndex)
+{
+    uint32 uBaseMs = 200u;
+    uint32 uMaxMs = 2000u;
+    double fJitter = 0.0;
+    uint64 uDelay;
+
+    if ( pOptions ) {
+        if ( pOptions->uRetryBackoffBaseMs > 0u ) {
+            uBaseMs = pOptions->uRetryBackoffBaseMs;
+        }
+        if ( pOptions->uRetryBackoffMaxMs > 0u ) {
+            uMaxMs = pOptions->uRetryBackoffMaxMs;
+        }
+        if ( pOptions->fRetryJitter > 0.0 ) {
+            fJitter = pOptions->fRetryJitter;
+        }
+    }
+
+    if ( uBaseMs == 0u ) {
+        uBaseMs = 1u;
+    }
+    if ( uMaxMs > 0u && uBaseMs > uMaxMs ) {
+        uBaseMs = uMaxMs;
+    }
+
+    uDelay = (uint64)uBaseMs;
+    if ( uRetryIndex > 1u ) {
+        uint32 uShift = uRetryIndex - 1u;
+        if ( uShift > 20u ) {
+            uShift = 20u;
+        }
+        uDelay <<= uShift;
+    }
+    if ( uMaxMs > 0u && uDelay > (uint64)uMaxMs ) {
+        uDelay = (uint64)uMaxMs;
+    }
+
+    if ( fJitter > 0.0 && uDelay > 0u ) {
+        double fRandom = (double)(rand() & 0x7fff) / 32767.0;
+        double fFactor = 1.0 - fJitter + (2.0 * fJitter * fRandom);
+        if ( fFactor < 0.0 ) {
+            fFactor = 0.0;
+        }
+        uDelay = (uint64)((double)uDelay * fFactor);
+        if ( uDelay == 0u ) {
+            uDelay = 1u;
+        }
+    }
+
+    return (uint32)uDelay;
+}
+
+static void xllm__openai_retry_sleep(uint32 uDelayMs)
+{
+    if ( uDelayMs > 0u ) {
+        xrtSleep(uDelayMs);
+    }
+}
+
+static void xllm__openai_stream_reset_attempt_state(xllm__openai_stream_context *pCtx)
+{
+    if ( !pCtx ) {
+        return;
+    }
+
+    if ( pCtx->pResponse ) {
+        xllm_response_free(pCtx->pResponse);
+        pCtx->pResponse = NULL;
+    }
+    if ( pCtx->pToolOutputIndices ) {
+        xrtFree(pCtx->pToolOutputIndices);
+        pCtx->pToolOutputIndices = NULL;
+    }
+    pCtx->iToolOutputIndexCount = 0u;
+    pCtx->iToolOutputIndexCapacity = 0u;
+    pCtx->iOutputCapacity = 0u;
+    pCtx->iParsedBytes = 0u;
+    pCtx->iMessageOutputIndex = (size_t)-1;
+    pCtx->iThinkingOutputIndex = (size_t)-1;
+    pCtx->iRefusalOutputIndex = (size_t)-1;
+    pCtx->uPayloadCount = 0u;
+    pCtx->uTextDeltaCount = 0u;
+    pCtx->uThinkingDeltaCount = 0u;
+    pCtx->uToolDeltaCount = 0u;
+    pCtx->uUsageCount = 0u;
+    pCtx->uRefusalCount = 0u;
+    pCtx->bStartEmitted = false;
+    pCtx->bMessageOutputClosed = false;
+    pCtx->bCancelled = false;
+    pCtx->bDone = false;
+}
+
+static bool xllm__openai_request_uses_multimodal(const xllm_request *pRequest)
+{
+    size_t i;
+
+    if ( !pRequest ) {
+        return false;
+    }
+
+    for ( i = 0; i < pRequest->iMessageCount; ++i ) {
+        size_t j;
+        for ( j = 0; j < pRequest->pMessages[i].iPartCount; ++j ) {
+            switch ( pRequest->pMessages[i].pParts[j].eKind ) {
+                case XLLM_PART_IMAGE:
+                case XLLM_PART_FILE:
+                case XLLM_PART_AUDIO:
+                case XLLM_PART_VIDEO:
+                    return true;
+                default:
+                    break;
+            }
+        }
+    }
+
+    for ( i = 0; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            size_t k;
+            for ( k = 0; k < pRequest->pContextBlocks[i].pMessages[j].iPartCount; ++k ) {
+                switch ( pRequest->pContextBlocks[i].pMessages[j].pParts[k].eKind ) {
+                    case XLLM_PART_IMAGE:
+                    case XLLM_PART_FILE:
+                    case XLLM_PART_AUDIO:
+                    case XLLM_PART_VIDEO:
+                        return true;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+static const char *xllm__openai_role_name(xllm_role eRole)
+{
+    switch ( eRole ) {
+        case XLLM_ROLE_SYSTEM:
+            return "system";
+        case XLLM_ROLE_USER:
+            return "user";
+        case XLLM_ROLE_ASSISTANT:
+            return "assistant";
+        case XLLM_ROLE_TOOL:
+            return "tool";
+        default:
+            return "user";
+    }
+}
+
+static char xllm__ascii_lower(char ch)
+{
+    if ( ch >= 'A' && ch <= 'Z' ) {
+        return (char)(ch - 'A' + 'a');
+    }
+    return ch;
+}
+
+static bool xllm__text_contains_ci(const char *sText, const char *sNeedle)
+{
+    size_t i;
+    size_t iNeedleLen;
+
+    if ( !sText || !sNeedle || !sNeedle[0] ) {
+        return false;
+    }
+
+    iNeedleLen = strlen(sNeedle);
+    for ( i = 0; sText[i]; ++i ) {
+        size_t j = 0u;
+        while ( j < iNeedleLen && sText[i + j] &&
+                xllm__ascii_lower(sText[i + j]) == xllm__ascii_lower(sNeedle[j]) ) {
+            ++j;
+        }
+        if ( j == iNeedleLen ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool xllm__buffer_starts_with_sse_data(const char *sBuffer, size_t iLen)
+{
+    size_t i = 0u;
+
+    if ( !sBuffer ) {
+        return false;
+    }
+
+    while ( i < iLen ) {
+        char ch = sBuffer[i];
+        if ( ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' ) {
+            ++i;
+            continue;
+        }
+        if ( i + 5u <= iLen && memcmp(sBuffer + i, "data:", 5u) == 0 ) {
+            return true;
+        }
+        break;
+    }
+
+    return false;
+}
+
+static bool xllm__header_name_eq_ci(const char *sLeft, const char *sRight)
+{
+    size_t i = 0u;
+
+    if ( !sLeft || !sRight ) {
+        return false;
+    }
+
+    while ( sLeft[i] && sRight[i] ) {
+        if ( xllm__ascii_lower(sLeft[i]) != xllm__ascii_lower(sRight[i]) ) {
+            return false;
+        }
+        ++i;
+    }
+
+    return sLeft[i] == '\0' && sRight[i] == '\0';
+}
+
+static bool xllm__http_request_has_header(const xhttprequest *pRequest, const char *sName)
+{
+    uint32 i;
+
+    if ( !pRequest || !sName ) {
+        return false;
+    }
+
+    for ( i = 0; i < pRequest->iHeaderCount; ++i ) {
+        if ( xllm__header_name_eq_ci(pRequest->arrHeaders[i].sName, sName) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool xllm__http_make_host_header(const xhttprequest *pRequest, char *sOut, size_t iOutCap)
+{
+    bool bDefaultPort;
+    int iLen;
+
+    if ( !pRequest || !sOut || iOutCap == 0u || !pRequest->tURL.sHost[0] ) {
+        return false;
+    }
+
+    bDefaultPort = (pRequest->tURL.bHttps && pRequest->tURL.iPort == 443u) ||
+                   (!pRequest->tURL.bHttps && pRequest->tURL.iPort == 80u);
+
+    if ( bDefaultPort || pRequest->tURL.iPort == 0u ) {
+        iLen = snprintf(sOut, iOutCap, "%s", pRequest->tURL.sHost);
+    } else {
+        iLen = snprintf(sOut, iOutCap, "%s:%u", pRequest->tURL.sHost, (unsigned)pRequest->tURL.iPort);
+    }
+
+    return iLen > 0 && (size_t)iLen < iOutCap;
+}
+
+static bool xllm__openai_build_http_request_bytes(const xhttprequest *pRequest, char **ppOut, size_t *pOutLen)
+{
+    xllm__json_builder tBuilder;
+    char sLine[512];
+    char sHostHeader[384];
+    bool bChunked;
+    uint32 i;
+    int iLen;
+
+    if ( !pRequest || !ppOut || !pOutLen || !pRequest->tURL.sHost[0] || !pRequest->sMethod[0] ) {
+        return false;
+    }
+
+    *ppOut = NULL;
+    *pOutLen = 0u;
+    memset(&tBuilder, 0, sizeof(tBuilder));
+    bChunked = false;
+    for ( i = 0; i < pRequest->iHeaderCount; ++i ) {
+        if ( xllm__header_name_eq_ci(pRequest->arrHeaders[i].sName, "Transfer-Encoding") &&
+             xllm__text_contains_ci(pRequest->arrHeaders[i].sValue, "chunked") ) {
+            bChunked = true;
+            break;
+        }
+    }
+
+    iLen = snprintf(
+        sLine,
+        sizeof(sLine),
+        "%s %s HTTP/1.1\r\n",
+        pRequest->sMethod,
+        pRequest->tURL.sPath[0] ? pRequest->tURL.sPath : "/"
+    );
+    if ( iLen <= 0 || !xllm__json_builder_append_bytes(&tBuilder, sLine, (size_t)iLen) ) {
+        goto fail;
+    }
+
+    if ( !xllm__http_request_has_header(pRequest, "Host") ) {
+        if ( !xllm__http_make_host_header(pRequest, sHostHeader, sizeof(sHostHeader)) ) {
+            goto fail;
+        }
+        iLen = snprintf(sLine, sizeof(sLine), "Host: %s\r\n", sHostHeader);
+        if ( iLen <= 0 || !xllm__json_builder_append_bytes(&tBuilder, sLine, (size_t)iLen) ) {
+            goto fail;
+        }
+    }
+
+    if ( !xllm__http_request_has_header(pRequest, "Connection") ) {
+        if ( !xllm__json_builder_append_cstr(&tBuilder, "Connection: close\r\n") ) {
+            goto fail;
+        }
+    }
+
+    if ( !bChunked &&
+         pRequest->iBodyLen > 0u &&
+         !xllm__http_request_has_header(pRequest, "Content-Length") ) {
+        iLen = snprintf(sLine, sizeof(sLine), "Content-Length: %llu\r\n", (unsigned long long)pRequest->iBodyLen);
+        if ( iLen <= 0 || !xllm__json_builder_append_bytes(&tBuilder, sLine, (size_t)iLen) ) {
+            goto fail;
+        }
+    }
+
+    for ( i = 0; i < pRequest->iHeaderCount; ++i ) {
+        if ( bChunked && xllm__header_name_eq_ci(pRequest->arrHeaders[i].sName, "Content-Length") ) {
+            continue;
+        }
+        iLen = snprintf(
+            sLine,
+            sizeof(sLine),
+            "%s: %s\r\n",
+            pRequest->arrHeaders[i].sName,
+            pRequest->arrHeaders[i].sValue
+        );
+        if ( iLen <= 0 || !xllm__json_builder_append_bytes(&tBuilder, sLine, (size_t)iLen) ) {
+            goto fail;
+        }
+    }
+
+    if ( !xllm__json_builder_append_cstr(&tBuilder, "\r\n") ) {
+        goto fail;
+    }
+
+    if ( bChunked ) {
+        iLen = snprintf(sLine, sizeof(sLine), "%llX\r\n", (unsigned long long)pRequest->iBodyLen);
+        if ( iLen <= 0 || !xllm__json_builder_append_bytes(&tBuilder, sLine, (size_t)iLen) ) {
+            goto fail;
+        }
+        if ( pRequest->pBody && pRequest->iBodyLen > 0u &&
+             !xllm__json_builder_append_bytes(&tBuilder, pRequest->pBody, pRequest->iBodyLen) ) {
+            goto fail;
+        }
+        if ( !xllm__json_builder_append_cstr(&tBuilder, "\r\n0\r\n\r\n") ) {
+            goto fail;
+        }
+    } else if ( pRequest->pBody && pRequest->iBodyLen > 0u ) {
+        if ( !xllm__json_builder_append_bytes(&tBuilder, pRequest->pBody, pRequest->iBodyLen) ) {
+            goto fail;
+        }
+    }
+
+    *pOutLen = tBuilder.iLen;
+    *ppOut = xllm__json_builder_detach(&tBuilder);
+    if ( !*ppOut ) {
+        goto fail;
+    }
+    return true;
+
+fail:
+    xllm__json_builder_reset(&tBuilder);
+    return false;
+}
+
+static void xllm__openai_live_transport_signal(xllm__openai_live_transport *pTransport)
+{
+    if ( pTransport && pTransport->pCond ) {
+        xrtCondSignal(pTransport->pCond);
+    }
+}
+
+static void xllm__openai_live_transport_fail(xllm__openai_live_transport *pTransport, int iSysErr)
+{
+    if ( !pTransport ) {
+        return;
+    }
+
+    if ( pTransport->pMutex ) {
+        xrtMutexLock(pTransport->pMutex);
+    }
+    if ( pTransport->iSysErr == 0 ) {
+        pTransport->iSysErr = iSysErr ? iSysErr : -1;
+    }
+    xllm__openai_live_transport_signal(pTransport);
+    if ( pTransport->pMutex ) {
+        xrtMutexUnlock(pTransport->pMutex);
+    }
+}
+
+static void xllm__openai_live_on_open(ptr pOwner, xnetstream *pStream)
+{
+    xllm__openai_live_transport *pTransport = (xllm__openai_live_transport *)pOwner;
+
+    if ( !pTransport || !pStream ) {
+        return;
+    }
+
+    if ( xrtNetStreamSend(pStream, pTransport->pRequestBytes, pTransport->iRequestLen) != XRT_NET_OK ) {
+        xllm__openai_live_transport_fail(pTransport, -1);
+        xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+        return;
+    }
+
+    if ( pTransport->pMutex ) {
+        xrtMutexLock(pTransport->pMutex);
+    }
+    xllm__openai_live_transport_signal(pTransport);
+    if ( pTransport->pMutex ) {
+        xrtMutexUnlock(pTransport->pMutex);
+    }
+}
+
+static void xllm__openai_live_on_recv(ptr pOwner, xnetstream *pStream, xnetchain *pChain)
+{
+    xllm__openai_live_transport *pTransport = (xllm__openai_live_transport *)pOwner;
+    size_t iBytes;
+
+    (void)pStream;
+
+    if ( !pTransport || !pChain ) {
+        return;
+    }
+
+    iBytes = xrtNetChainBytes(pChain);
+    if ( iBytes == 0u ) {
+        return;
+    }
+
+    if ( pTransport->pMutex ) {
+        xrtMutexLock(pTransport->pMutex);
+    }
+    if ( !xllm__json_builder_reserve(&pTransport->tIncoming, iBytes) ) {
+        if ( pTransport->iSysErr == 0 ) {
+            pTransport->iSysErr = -1;
+        }
+        xllm__openai_live_transport_signal(pTransport);
+        if ( pTransport->pMutex ) {
+            xrtMutexUnlock(pTransport->pMutex);
+        }
+        xrtNetChainConsume(pChain, iBytes);
+        xrtNetStreamClose(pTransport->pStream, XNET_CLOSE_F_ABORT);
+        return;
+    }
+
+    if ( xrtNetChainPeek(pChain, pTransport->tIncoming.pData + pTransport->tIncoming.iLen, iBytes) != iBytes ) {
+        if ( pTransport->iSysErr == 0 ) {
+            pTransport->iSysErr = -1;
+        }
+        xllm__openai_live_transport_signal(pTransport);
+        if ( pTransport->pMutex ) {
+            xrtMutexUnlock(pTransport->pMutex);
+        }
+        xrtNetChainConsume(pChain, iBytes);
+        xrtNetStreamClose(pTransport->pStream, XNET_CLOSE_F_ABORT);
+        return;
+    }
+
+    pTransport->tIncoming.iLen += iBytes;
+    pTransport->tIncoming.pData[pTransport->tIncoming.iLen] = '\0';
+    xrtNetChainConsume(pChain, iBytes);
+    xllm__openai_live_transport_signal(pTransport);
+    if ( pTransport->pMutex ) {
+        xrtMutexUnlock(pTransport->pMutex);
+    }
+}
+
+static void xllm__openai_live_on_close(ptr pOwner, xnetstream *pStream, xnet_result iReason)
+{
+    xllm__openai_live_transport *pTransport = (xllm__openai_live_transport *)pOwner;
+
+    (void)pStream;
+
+    if ( !pTransport ) {
+        return;
+    }
+
+    if ( pTransport->pMutex ) {
+        xrtMutexLock(pTransport->pMutex);
+    }
+    pTransport->bClosed = true;
+    pTransport->iCloseReason = iReason;
+    xllm__openai_live_transport_signal(pTransport);
+    if ( pTransport->pMutex ) {
+        xrtMutexUnlock(pTransport->pMutex);
+    }
+}
+
+static void xllm__openai_live_on_error(ptr pOwner, xnetstream *pStream, int iSysErr)
+{
+    xllm__openai_live_transport *pTransport = (xllm__openai_live_transport *)pOwner;
+
+    (void)pStream;
+    xllm__openai_live_transport_fail(pTransport, iSysErr);
+}
+
+static const xnetstreamevents *xllm__openai_live_stream_events(void)
+{
+    static const xnetstreamevents tEvents = {
+        xllm__openai_live_on_open,
+        xllm__openai_live_on_recv,
+        NULL,
+        xllm__openai_live_on_close,
+        xllm__openai_live_on_error,
+        NULL,
+        NULL
+    };
+
+    return &tEvents;
+}
+
+static void xllm__openai_live_transport_init(xllm__openai_live_transport *pTransport)
+{
+    if ( !pTransport ) {
+        return;
+    }
+
+    memset(pTransport, 0, sizeof(*pTransport));
+}
+
+static void xllm__openai_live_transport_reset(xllm__openai_live_transport *pTransport)
+{
+    if ( !pTransport ) {
+        return;
+    }
+
+    if ( pTransport->pStream ) {
+        xrtNetStreamDestroy(pTransport->pStream);
+    }
+    if ( pTransport->pCond ) {
+        xrtCondDestroy(pTransport->pCond);
+    }
+    if ( pTransport->pMutex ) {
+        xrtMutexDestroy(pTransport->pMutex);
+    }
+    if ( pTransport->pRequestBytes ) {
+        xrtFree(pTransport->pRequestBytes);
+    }
+    xllm__json_builder_reset(&pTransport->tIncoming);
+    memset(pTransport, 0, sizeof(*pTransport));
+}
+
+static void xllm__openai_live_transport_close_and_wait(
+    xllm__openai_live_transport *pTransport,
+    xnet_result iReason,
+    uint32 uWaitMs
+)
+{
+    uint32 uRemainMs;
+
+    if ( !pTransport || !pTransport->pStream ) {
+        return;
+    }
+
+    xrtNetStreamClose(pTransport->pStream, iReason);
+    if ( !pTransport->pMutex || !pTransport->pCond || pTransport->bClosed ) {
+        return;
+    }
+
+    uRemainMs = uWaitMs ? uWaitMs : 100u;
+    xrtMutexLock(pTransport->pMutex);
+    while ( !pTransport->bClosed && uRemainMs > 0u ) {
+        uint32 uStepMs = uRemainMs > 10u ? 10u : uRemainMs;
+        (void)xrtCondWaitTimeout(pTransport->pCond, pTransport->pMutex, uStepMs);
+        if ( uRemainMs > uStepMs ) {
+            uRemainMs -= uStepMs;
+        } else {
+            uRemainMs = 0u;
+        }
+    }
+    xrtMutexUnlock(pTransport->pMutex);
+}
+
+static bool xllm__openai_live_transport_take_incoming(
+    xllm__openai_live_transport *pTransport,
+    char **ppChunk,
+    size_t *pChunkLen,
+    bool *pbClosed,
+    xnet_result *pCloseReason,
+    int *piSysErr
+)
+{
+    bool bHasData = false;
+    size_t iChunkLen = 0u;
+
+    if ( ppChunk ) {
+        *ppChunk = NULL;
+    }
+    if ( pChunkLen ) {
+        *pChunkLen = 0u;
+    }
+    if ( pbClosed ) {
+        *pbClosed = false;
+    }
+    if ( pCloseReason ) {
+        *pCloseReason = XRT_NET_OK;
+    }
+    if ( piSysErr ) {
+        *piSysErr = 0;
+    }
+
+    if ( !pTransport || !pTransport->pMutex ) {
+        return false;
+    }
+
+    xrtMutexLock(pTransport->pMutex);
+    if ( pTransport->tIncoming.iLen > 0u && ppChunk && pChunkLen ) {
+        iChunkLen = pTransport->tIncoming.iLen;
+        *ppChunk = xllm__json_builder_detach(&pTransport->tIncoming);
+        *pChunkLen = iChunkLen;
+        bHasData = (*ppChunk != NULL && iChunkLen > 0u);
+    }
+    if ( pbClosed ) {
+        *pbClosed = pTransport->bClosed;
+    }
+    if ( pCloseReason ) {
+        *pCloseReason = pTransport->iCloseReason;
+    }
+    if ( piSysErr ) {
+        *piSysErr = pTransport->iSysErr;
+    }
+    xrtMutexUnlock(pTransport->pMutex);
+    return bHasData;
+}
+
+static void xllm__openai_live_decoder_init(xllm__openai_live_decoder *pDecoder)
+{
+    if ( !pDecoder ) {
+        return;
+    }
+
+    memset(pDecoder, 0, sizeof(*pDecoder));
+    pDecoder->iContentLength = -1;
+    pDecoder->eBodyMode = XLLM__HTTP_BODY_MODE_UNSET;
+    pDecoder->eChunkState = XLLM__HTTP_CHUNK_STATE_SIZE;
+}
+
+static void xllm__openai_live_decoder_reset(xllm__openai_live_decoder *pDecoder)
+{
+    if ( !pDecoder ) {
+        return;
+    }
+
+    xllm__json_builder_reset(&pDecoder->tWire);
+    xllm__json_builder_reset(&pDecoder->tBody);
+    memset(pDecoder, 0, sizeof(*pDecoder));
+}
+
+static bool xllm__http_find_header_delimiter(const char *sBuffer, size_t iLen, size_t *piEnd, size_t *piDelimLen)
+{
+    size_t i;
+
+    if ( piEnd ) {
+        *piEnd = 0u;
+    }
+    if ( piDelimLen ) {
+        *piDelimLen = 0u;
+    }
+    if ( !sBuffer ) {
+        return false;
+    }
+
+    for ( i = 0u; i + 1u < iLen; ++i ) {
+        if ( sBuffer[i] == '\n' && sBuffer[i + 1u] == '\n' ) {
+            if ( piEnd ) {
+                *piEnd = i;
+            }
+            if ( piDelimLen ) {
+                *piDelimLen = 2u;
+            }
+            return true;
+        }
+        if ( i + 3u < iLen &&
+             sBuffer[i] == '\r' &&
+             sBuffer[i + 1u] == '\n' &&
+             sBuffer[i + 2u] == '\r' &&
+             sBuffer[i + 3u] == '\n' ) {
+            if ( piEnd ) {
+                *piEnd = i;
+            }
+            if ( piDelimLen ) {
+                *piDelimLen = 4u;
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void xllm__copy_trimmed_text(char *sOut, size_t iOutCap, const char *sText, size_t iLen)
+{
+    size_t iStart = 0u;
+
+    if ( !sOut || iOutCap == 0u ) {
+        return;
+    }
+
+    while ( iStart < iLen && (sText[iStart] == ' ' || sText[iStart] == '\t') ) {
+        ++iStart;
+    }
+    while ( iLen > iStart && (sText[iLen - 1u] == ' ' || sText[iLen - 1u] == '\t' || sText[iLen - 1u] == '\r') ) {
+        --iLen;
+    }
+
+    if ( iLen <= iStart ) {
+        sOut[0] = '\0';
+        return;
+    }
+    if ( iLen - iStart >= iOutCap ) {
+        iLen = iStart + iOutCap - 1u;
+    }
+    memcpy(sOut, sText + iStart, iLen - iStart);
+    sOut[iLen - iStart] = '\0';
+}
+
+static int xllm__parse_http_status_code(const char *sLine)
+{
+    const char *sSpace;
+
+    if ( !sLine ) {
+        return 0;
+    }
+
+    sSpace = strchr(sLine, ' ');
+    if ( !sSpace ) {
+        return 0;
+    }
+
+    return atoi(sSpace + 1);
+}
+
+static int xllm__parse_hex_size(const char *sText, size_t iLen, size_t *piOut)
+{
+    size_t i;
+    size_t iValue = 0u;
+    bool bSawDigit = false;
+
+    if ( piOut ) {
+        *piOut = 0u;
+    }
+    if ( !sText || !piOut ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < iLen; ++i ) {
+        unsigned char ch = (unsigned char)sText[i];
+        unsigned char uHex;
+
+        if ( ch == ';' || ch == ' ' || ch == '\t' || ch == '\r' ) {
+            break;
+        }
+
+        if ( ch >= '0' && ch <= '9' ) {
+            uHex = (unsigned char)(ch - '0');
+        } else {
+            ch = (unsigned char)xllm__ascii_lower((char)ch);
+            if ( ch < 'a' || ch > 'f' ) {
+                return XRT_NET_ERROR;
+            }
+            uHex = (unsigned char)(10u + (ch - 'a'));
+        }
+
+        bSawDigit = true;
+        if ( iValue > (((size_t)-1) >> 4u) ) {
+            return XRT_NET_ERROR;
+        }
+        iValue = (iValue << 4u) | (size_t)uHex;
+    }
+
+    if ( !bSawDigit ) {
+        return XRT_NET_ERROR;
+    }
+
+    *piOut = iValue;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_live_try_parse_headers(xllm__openai_live_decoder *pDecoder, bool bStreamClosed)
+{
+    size_t iHeaderEnd = 0u;
+    size_t iDelimiterLen = 0u;
+    char *sHeaders = NULL;
+    char *sCursor;
+    char *sLine;
+
+    if ( !pDecoder || pDecoder->bHeadersParsed ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !xllm__http_find_header_delimiter(pDecoder->tWire.pData, pDecoder->tWire.iLen, &iHeaderEnd, &iDelimiterLen) ) {
+        return bStreamClosed ? XRT_NET_ERROR : XRT_NET_AGAIN;
+    }
+
+    sHeaders = (char *)xrtCalloc(iHeaderEnd + 1u, sizeof(char));
+    if ( !sHeaders ) {
+        return XRT_NET_ERROR;
+    }
+
+    memcpy(sHeaders, pDecoder->tWire.pData, iHeaderEnd);
+    sCursor = sHeaders;
+    sLine = sCursor;
+    while ( sCursor && *sCursor ) {
+        char *sNext = strchr(sCursor, '\n');
+        size_t iLineLen;
+
+        if ( sNext ) {
+            *sNext = '\0';
+        }
+        iLineLen = strlen(sCursor);
+        if ( iLineLen > 0u && sCursor[iLineLen - 1u] == '\r' ) {
+            sCursor[iLineLen - 1u] = '\0';
+        }
+
+        if ( sCursor == sLine ) {
+            pDecoder->uStatusCode = (uint32)xllm__parse_http_status_code(sCursor);
+        } else if ( sCursor[0] ) {
+            char *sColon = strchr(sCursor, ':');
+            if ( sColon ) {
+                char sName[64];
+                char sValue[256];
+
+                *sColon = '\0';
+                xllm__copy_trimmed_text(sName, sizeof(sName), sCursor, strlen(sCursor));
+                xllm__copy_trimmed_text(sValue, sizeof(sValue), sColon + 1, strlen(sColon + 1));
+
+                if ( xllm__header_name_eq_ci(sName, "Content-Type") ) {
+                    xllm__copy_trimmed_text(
+                        pDecoder->sContentType,
+                        sizeof(pDecoder->sContentType),
+                        sValue,
+                        strlen(sValue)
+                    );
+                } else if ( xllm__header_name_eq_ci(sName, "Content-Length") ) {
+                    pDecoder->iContentLength = (int64_t)strtoll(sValue, NULL, 10);
+                } else if ( xllm__header_name_eq_ci(sName, "Transfer-Encoding") &&
+                            xllm__text_contains_ci(sValue, "chunked") ) {
+                    pDecoder->eBodyMode = XLLM__HTTP_BODY_MODE_CHUNKED;
+                } else if ( xllm__header_name_eq_ci(sName, "x-request-id") ||
+                            xllm__header_name_eq_ci(sName, "request-id") ) {
+                    xllm__copy_trimmed_text(
+                        pDecoder->sRequestId,
+                        sizeof(pDecoder->sRequestId),
+                        sValue,
+                        strlen(sValue)
+                    );
+                }
+            }
+        }
+
+        if ( !sNext ) {
+            break;
+        }
+        sCursor = sNext + 1;
+    }
+
+    if ( pDecoder->uStatusCode == 0u ) {
+        xrtFree(sHeaders);
+        return XRT_NET_ERROR;
+    }
+
+    if ( pDecoder->eBodyMode == XLLM__HTTP_BODY_MODE_UNSET ) {
+        if ( pDecoder->iContentLength >= 0 ) {
+            pDecoder->eBodyMode = XLLM__HTTP_BODY_MODE_CONTENT_LENGTH;
+        } else {
+            pDecoder->eBodyMode = XLLM__HTTP_BODY_MODE_UNTIL_CLOSE;
+        }
+    }
+
+    pDecoder->bHeadersParsed = true;
+    pDecoder->iHeaderBytes = iHeaderEnd + iDelimiterLen;
+    pDecoder->iParseOffset = pDecoder->iHeaderBytes;
+    pDecoder->bTreatAsSse = xllm__text_contains_ci(pDecoder->sContentType, "text/event-stream");
+    xrtFree(sHeaders);
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_live_append_body(
+    xllm__openai_live_decoder *pDecoder,
+    xllm__openai_stream_context *pStream,
+    const char *sData,
+    size_t iLen
+)
+{
+    if ( !pDecoder || !pStream || !sData || iLen == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !xllm__json_builder_append_bytes(&pDecoder->tBody, sData, iLen) ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !pDecoder->bTreatAsSse ) {
+        pDecoder->bTreatAsSse = xllm__buffer_starts_with_sse_data(pDecoder->tBody.pData, pDecoder->tBody.iLen);
+    }
+
+    if ( pDecoder->bTreatAsSse ) {
+        return xllm__openai_stream_process_buffer(pStream, pDecoder->tBody.pData, pDecoder->tBody.iLen);
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_live_process_body(
+    xllm__openai_live_decoder *pDecoder,
+    xllm__openai_stream_context *pStream,
+    bool bStreamClosed
+)
+{
+    if ( !pDecoder || !pDecoder->bHeadersParsed ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pDecoder->eBodyMode == XLLM__HTTP_BODY_MODE_CONTENT_LENGTH ) {
+        size_t iRemain;
+        size_t iAvailable;
+        size_t iCopy;
+
+        if ( pDecoder->iContentLength < 0 ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( pDecoder->tBody.iLen >= (size_t)pDecoder->iContentLength ) {
+            pDecoder->bBodyComplete = true;
+            return XRT_NET_OK;
+        }
+
+        iAvailable = pDecoder->tWire.iLen - pDecoder->iParseOffset;
+        iRemain = (size_t)pDecoder->iContentLength - pDecoder->tBody.iLen;
+        iCopy = (iAvailable < iRemain) ? iAvailable : iRemain;
+        if ( iCopy > 0u ) {
+            if ( xllm__openai_live_append_body(pDecoder, pStream, pDecoder->tWire.pData + pDecoder->iParseOffset, iCopy) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            pDecoder->iParseOffset += iCopy;
+        }
+        if ( pDecoder->tBody.iLen >= (size_t)pDecoder->iContentLength ) {
+            pDecoder->bBodyComplete = true;
+        } else if ( bStreamClosed ) {
+            return XRT_NET_ERROR;
+        }
+        return XRT_NET_OK;
+    }
+
+    if ( pDecoder->eBodyMode == XLLM__HTTP_BODY_MODE_UNTIL_CLOSE ) {
+        size_t iAvailable = pDecoder->tWire.iLen - pDecoder->iParseOffset;
+        if ( iAvailable > 0u ) {
+            if ( xllm__openai_live_append_body(pDecoder, pStream, pDecoder->tWire.pData + pDecoder->iParseOffset, iAvailable) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            pDecoder->iParseOffset += iAvailable;
+        }
+        pDecoder->bBodyComplete = bStreamClosed;
+        return XRT_NET_OK;
+    }
+
+    if ( pDecoder->eBodyMode == XLLM__HTTP_BODY_MODE_CHUNKED ) {
+        while ( pDecoder->iParseOffset < pDecoder->tWire.iLen && !pDecoder->bBodyComplete ) {
+            size_t iAvailable = pDecoder->tWire.iLen - pDecoder->iParseOffset;
+
+            switch ( pDecoder->eChunkState ) {
+                case XLLM__HTTP_CHUNK_STATE_SIZE: {
+                    const char *sLineStart = pDecoder->tWire.pData + pDecoder->iParseOffset;
+                    const char *sLineEnd = memchr(sLineStart, '\n', iAvailable);
+                    size_t iChunkSize;
+                    size_t iLineLen;
+
+                    if ( !sLineEnd ) {
+                        return bStreamClosed ? XRT_NET_ERROR : XRT_NET_OK;
+                    }
+
+                    iLineLen = (size_t)(sLineEnd - sLineStart);
+                    if ( iLineLen > 0u && sLineStart[iLineLen - 1u] == '\r' ) {
+                        --iLineLen;
+                    }
+                    if ( xllm__parse_hex_size(sLineStart, iLineLen, &iChunkSize) != XRT_NET_OK ) {
+                        return XRT_NET_ERROR;
+                    }
+
+                    pDecoder->iParseOffset = (size_t)(sLineEnd - pDecoder->tWire.pData) + 1u;
+                    pDecoder->iChunkBytesRemaining = iChunkSize;
+                    pDecoder->eChunkState = (iChunkSize == 0u)
+                        ? XLLM__HTTP_CHUNK_STATE_TRAILERS
+                        : XLLM__HTTP_CHUNK_STATE_DATA;
+                    break;
+                }
+
+                case XLLM__HTTP_CHUNK_STATE_DATA:
+                    if ( iAvailable < pDecoder->iChunkBytesRemaining ) {
+                        return bStreamClosed ? XRT_NET_ERROR : XRT_NET_OK;
+                    }
+                    if ( xllm__openai_live_append_body(
+                             pDecoder,
+                             pStream,
+                             pDecoder->tWire.pData + pDecoder->iParseOffset,
+                             pDecoder->iChunkBytesRemaining
+                         ) != XRT_NET_OK ) {
+                        return XRT_NET_ERROR;
+                    }
+                    pDecoder->iParseOffset += pDecoder->iChunkBytesRemaining;
+                    pDecoder->iChunkBytesRemaining = 0u;
+                    pDecoder->eChunkState = XLLM__HTTP_CHUNK_STATE_DATA_CRLF;
+                    break;
+
+                case XLLM__HTTP_CHUNK_STATE_DATA_CRLF:
+                    if ( iAvailable == 0u ) {
+                        return bStreamClosed ? XRT_NET_ERROR : XRT_NET_OK;
+                    }
+                    if ( pDecoder->tWire.pData[pDecoder->iParseOffset] == '\r' ) {
+                        if ( iAvailable < 2u || pDecoder->tWire.pData[pDecoder->iParseOffset + 1u] != '\n' ) {
+                            return bStreamClosed ? XRT_NET_ERROR : XRT_NET_OK;
+                        }
+                        pDecoder->iParseOffset += 2u;
+                    } else if ( pDecoder->tWire.pData[pDecoder->iParseOffset] == '\n' ) {
+                        pDecoder->iParseOffset += 1u;
+                    } else {
+                        return XRT_NET_ERROR;
+                    }
+                    pDecoder->eChunkState = XLLM__HTTP_CHUNK_STATE_SIZE;
+                    break;
+
+                case XLLM__HTTP_CHUNK_STATE_TRAILERS: {
+                    const char *sLineStart = pDecoder->tWire.pData + pDecoder->iParseOffset;
+                    const char *sLineEnd = memchr(sLineStart, '\n', iAvailable);
+                    size_t iLineLen;
+
+                    if ( !sLineEnd ) {
+                        return bStreamClosed ? XRT_NET_ERROR : XRT_NET_OK;
+                    }
+
+                    iLineLen = (size_t)(sLineEnd - sLineStart);
+                    if ( iLineLen > 0u && sLineStart[iLineLen - 1u] == '\r' ) {
+                        --iLineLen;
+                    }
+
+                    pDecoder->iParseOffset = (size_t)(sLineEnd - pDecoder->tWire.pData) + 1u;
+                    if ( iLineLen == 0u ) {
+                        pDecoder->eChunkState = XLLM__HTTP_CHUNK_STATE_DONE;
+                        pDecoder->bBodyComplete = true;
+                    }
+                    break;
+                }
+
+                case XLLM__HTTP_CHUNK_STATE_DONE:
+                    pDecoder->bBodyComplete = true;
+                    break;
+            }
+        }
+
+        return XRT_NET_OK;
+    }
+
+    return XRT_NET_ERROR;
+}
+
+static bool xllm__json_builder_reserve(xllm__json_builder *pBuilder, size_t iExtra)
+{
+    char *pNew;
+    size_t iNeed;
+    size_t iCap;
+
+    if ( !pBuilder ) {
+        return false;
+    }
+
+    iNeed = pBuilder->iLen + iExtra + 1u;
+    if ( iNeed <= pBuilder->iCap ) {
+        return true;
+    }
+
+    iCap = pBuilder->iCap ? pBuilder->iCap : 256u;
+    while ( iCap < iNeed ) {
+        if ( iCap > ((size_t)-1) / 2u ) {
+            iCap = iNeed;
+            break;
+        }
+        iCap *= 2u;
+    }
+
+    pNew = (char *)xrtRealloc(pBuilder->pData, iCap);
+    if ( !pNew ) {
+        return false;
+    }
+
+    pBuilder->pData = pNew;
+    pBuilder->iCap = iCap;
+    return true;
+}
+
+static bool xllm__json_builder_append_bytes(xllm__json_builder *pBuilder, const void *pData, size_t iLen)
+{
+    if ( !pBuilder || (!pData && iLen > 0) ) {
+        return false;
+    }
+
+    if ( iLen == 0 ) {
+        return true;
+    }
+
+    if ( !xllm__json_builder_reserve(pBuilder, iLen) ) {
+        return false;
+    }
+
+    memcpy(pBuilder->pData + pBuilder->iLen, pData, iLen);
+    pBuilder->iLen += iLen;
+    pBuilder->pData[pBuilder->iLen] = '\0';
+    return true;
+}
+
+static bool xllm__json_builder_append_cstr(xllm__json_builder *pBuilder, const char *sText)
+{
+    if ( !sText ) {
+        return true;
+    }
+    return xllm__json_builder_append_bytes(pBuilder, sText, strlen(sText));
+}
+
+static bool xllm__json_builder_append_char(xllm__json_builder *pBuilder, char ch)
+{
+    return xllm__json_builder_append_bytes(pBuilder, &ch, 1u);
+}
+
+static bool xllm__json_builder_append_u32(xllm__json_builder *pBuilder, uint32 uValue)
+{
+    char sBuf[32];
+    int iLen = snprintf(sBuf, sizeof(sBuf), "%u", (unsigned)uValue);
+    if ( iLen < 0 ) {
+        return false;
+    }
+    return xllm__json_builder_append_bytes(pBuilder, sBuf, (size_t)iLen);
+}
+
+static bool xllm__json_builder_append_f64(xllm__json_builder *pBuilder, double fValue)
+{
+    char sBuf[64];
+    int iLen = snprintf(sBuf, sizeof(sBuf), "%.17g", fValue);
+    if ( iLen < 0 ) {
+        return false;
+    }
+    return xllm__json_builder_append_bytes(pBuilder, sBuf, (size_t)iLen);
+}
+
+static bool xllm__json_builder_append_escaped(xllm__json_builder *pBuilder, const char *sText)
+{
+    size_t i;
+
+    if ( !xllm__json_builder_append_char(pBuilder, '"') ) {
+        return false;
+    }
+
+    if ( sText ) {
+        for ( i = 0; sText[i] != '\0'; ++i ) {
+            unsigned char ch = (unsigned char)sText[i];
+            switch ( ch ) {
+                case '"':
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "\\\"") ) return false;
+                    break;
+                case '\\':
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "\\\\") ) return false;
+                    break;
+                case '\b':
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "\\b") ) return false;
+                    break;
+                case '\f':
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "\\f") ) return false;
+                    break;
+                case '\n':
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "\\n") ) return false;
+                    break;
+                case '\r':
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "\\r") ) return false;
+                    break;
+                case '\t':
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "\\t") ) return false;
+                    break;
+                default:
+                    if ( ch < 0x20u ) {
+                        char sBuf[7];
+                        (void)snprintf(sBuf, sizeof(sBuf), "\\u%04x", (unsigned)ch);
+                        if ( !xllm__json_builder_append_cstr(pBuilder, sBuf) ) return false;
+                    } else {
+                        if ( !xllm__json_builder_append_char(pBuilder, (char)ch) ) return false;
+                    }
+                    break;
+            }
+        }
+    }
+
+    return xllm__json_builder_append_char(pBuilder, '"');
+}
+
+static char *xllm__json_builder_detach(xllm__json_builder *pBuilder)
+{
+    char *pData;
+
+    if ( !pBuilder ) {
+        return NULL;
+    }
+
+    if ( !pBuilder->pData ) {
+        pData = (char *)xrtCalloc(1, sizeof(char));
+        return pData;
+    }
+
+    pData = pBuilder->pData;
+    pBuilder->pData = NULL;
+    pBuilder->iLen = 0;
+    pBuilder->iCap = 0;
+    return pData;
+}
+
+static void xllm__json_builder_reset(xllm__json_builder *pBuilder)
+{
+    if ( !pBuilder ) {
+        return;
+    }
+
+    if ( pBuilder->pData ) {
+        xrtFree(pBuilder->pData);
+    }
+
+    pBuilder->pData = NULL;
+    pBuilder->iLen = 0;
+    pBuilder->iCap = 0;
+}
+
+static xvalue xllm__json_table_get(xvalue pValue, const char *sKey)
+{
+    if ( !pValue || !sKey || xvoType(pValue) != XVO_DT_TABLE ) {
+        return NULL;
+    }
+    return xvoTableGetValue(pValue, (str)sKey, (uint32)strlen(sKey));
+}
+
+static const char *xllm__json_table_get_text(xvalue pValue, const char *sKey)
+{
+    xvalue pField = xllm__json_table_get(pValue, sKey);
+    if ( !pField || xvoType(pField) != XVO_DT_TEXT ) {
+        return NULL;
+    }
+    return (const char *)xvoGetText(pField);
+}
+
+static bool xllm__json_table_get_bool(xvalue pValue, const char *sKey, bool *pbOut)
+{
+    xvalue pField = xllm__json_table_get(pValue, sKey);
+    if ( !pField || xvoType(pField) != XVO_DT_BOOL ) {
+        return false;
+    }
+    if ( pbOut ) {
+        *pbOut = xvoGetBool(pField);
+    }
+    return true;
+}
+
+static uint32 xllm__json_table_get_u32(xvalue pValue, const char *sKey)
+{
+    xvalue pField = xllm__json_table_get(pValue, sKey);
+    if ( !pField ) {
+        return 0;
+    }
+
+    if ( xvoType(pField) == XVO_DT_INT ) {
+        return (uint32)xvoGetInt(pField);
+    }
+    if ( xvoType(pField) == XVO_DT_FLOAT ) {
+        double fValue = xvoGetFloat(pField);
+        if ( fValue <= 0.0 ) {
+            return 0u;
+        }
+        if ( fValue >= 4294967295.0 ) {
+            return 4294967295u;
+        }
+        return (uint32)fValue;
+    }
+
+    return 0;
+}
+
+static bool xllm__json_text_is_valid_json(const char *sText)
+{
+    const char *sTrim;
+    size_t iLen;
+    xvalue tParsed;
+
+    if ( !sText ) {
+        return false;
+    }
+
+    sTrim = sText;
+    while ( *sTrim == ' ' || *sTrim == '\t' || *sTrim == '\r' || *sTrim == '\n' ) {
+        ++sTrim;
+    }
+
+    iLen = strlen(sTrim);
+    while ( iLen > 0u ) {
+        char ch = sTrim[iLen - 1u];
+        if ( ch != ' ' && ch != '\t' && ch != '\r' && ch != '\n' ) {
+            break;
+        }
+        --iLen;
+    }
+
+    tParsed = xrtParseJSON((str)sTrim, iLen);
+    if ( !tParsed ) {
+        return false;
+    }
+
+    if ( xvoType(tParsed) != XVO_DT_NULL ) {
+        xvoUnref(tParsed);
+        return true;
+    }
+
+    if ( iLen == 4u && memcmp(sTrim, "null", 4u) == 0 ) {
+        xvoUnref(tParsed);
+        return true;
+    }
+
+    xvoUnref(tParsed);
+    return false;
+}
+
+static char *xllm__dup_range_trimmed(const char *sText, size_t iLen)
+{
+    size_t iStart = 0u;
+    size_t iEnd = iLen;
+    char *sOut;
+
+    if ( !sText ) {
+        return NULL;
+    }
+
+    while ( iStart < iEnd ) {
+        char ch = sText[iStart];
+        if ( ch != ' ' && ch != '\t' && ch != '\r' && ch != '\n' ) {
+            break;
+        }
+        ++iStart;
+    }
+
+    while ( iEnd > iStart ) {
+        char ch = sText[iEnd - 1u];
+        if ( ch != ' ' && ch != '\t' && ch != '\r' && ch != '\n' ) {
+            break;
+        }
+        --iEnd;
+    }
+
+    sOut = (char *)xrtCalloc(iEnd - iStart + 1u, sizeof(char));
+    if ( !sOut ) {
+        return NULL;
+    }
+
+    if ( iEnd > iStart ) {
+        memcpy(sOut, sText + iStart, iEnd - iStart);
+    }
+    return sOut;
+}
+
+static xvalue xllm__parse_json_range(const char *sText, size_t iLen, char **psNormalized)
+{
+    char *sCandidate;
+    xvalue tParsed;
+    char chStart;
+
+    if ( psNormalized ) {
+        *psNormalized = NULL;
+    }
+
+    sCandidate = xllm__dup_range_trimmed(sText, iLen);
+    if ( !sCandidate || !sCandidate[0] ) {
+        if ( sCandidate ) {
+            xrtFree(sCandidate);
+        }
+        return NULL;
+    }
+
+    chStart = sCandidate[0];
+    if ( chStart != '{' &&
+         chStart != '[' &&
+         chStart != '"' &&
+         chStart != '-' &&
+         chStart != 't' &&
+         chStart != 'f' &&
+         chStart != 'n' &&
+         (chStart < '0' || chStart > '9') ) {
+        xrtFree(sCandidate);
+        return NULL;
+    }
+
+    tParsed = xrtParseJSON((str)sCandidate, strlen(sCandidate));
+    if ( !tParsed ) {
+        xrtFree(sCandidate);
+        return NULL;
+    }
+
+    if ( xvoType(tParsed) == XVO_DT_NULL && strcmp(sCandidate, "null") != 0 ) {
+        xvoUnref(tParsed);
+        xrtFree(sCandidate);
+        return NULL;
+    }
+
+    if ( psNormalized ) {
+        *psNormalized = sCandidate;
+    } else {
+        xrtFree(sCandidate);
+    }
+    return tParsed;
+}
+
+static xvalue xllm__extract_best_effort_json(const char *sText, char **psNormalized)
+{
+    const char *sFence;
+    size_t i;
+
+    if ( psNormalized ) {
+        *psNormalized = NULL;
+    }
+
+    if ( !sText ) {
+        return NULL;
+    }
+
+    {
+        xvalue tWhole = xllm__parse_json_range(sText, strlen(sText), psNormalized);
+        if ( tWhole ) {
+            return tWhole;
+        }
+    }
+
+    sFence = strstr(sText, "```");
+    while ( sFence ) {
+        const char *sFenceBody = sFence + 3u;
+        const char *sLineEnd = strchr(sFenceBody, '\n');
+        const char *sContentStart;
+        const char *sFenceEnd;
+
+        if ( !sLineEnd ) {
+            break;
+        }
+
+        sContentStart = sLineEnd + 1;
+        sFenceEnd = strstr(sContentStart, "```");
+        if ( sFenceEnd && sFenceEnd > sContentStart ) {
+            xvalue tFenced = xllm__parse_json_range(sContentStart, (size_t)(sFenceEnd - sContentStart), psNormalized);
+            if ( tFenced ) {
+                return tFenced;
+            }
+            sFence = strstr(sFenceEnd + 3u, "```");
+        } else {
+            break;
+        }
+    }
+
+    for ( i = 0; sText[i]; ++i ) {
+        if ( sText[i] == '{' || sText[i] == '[' ) {
+            char chOpen = sText[i];
+            char chClose = (chOpen == '{') ? '}' : ']';
+            bool bInString = false;
+            bool bEscaped = false;
+            int iDepth = 0;
+            size_t j;
+
+            for ( j = i; sText[j]; ++j ) {
+                char ch = sText[j];
+
+                if ( bInString ) {
+                    if ( bEscaped ) {
+                        bEscaped = false;
+                    } else if ( ch == '\\' ) {
+                        bEscaped = true;
+                    } else if ( ch == '"' ) {
+                        bInString = false;
+                    }
+                    continue;
+                }
+
+                if ( ch == '"' ) {
+                    bInString = true;
+                    continue;
+                }
+
+                if ( ch == chOpen ) {
+                    ++iDepth;
+                } else if ( ch == chClose ) {
+                    --iDepth;
+                    if ( iDepth == 0 ) {
+                        xvalue tCandidate = xllm__parse_json_range(sText + i, j - i + 1u, psNormalized);
+                        if ( tCandidate ) {
+                            return tCandidate;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return NULL;
+}
+
+static int xllm__openai_message_to_text(const xllm_message *pMessage, char **psText, xllm_error *pError)
+{
+    xllm__json_builder tBuilder;
+    size_t i;
+    bool bHasContent = false;
+
+    if ( !psText ) {
+        return XRT_NET_ERROR;
+    }
+
+    *psText = NULL;
+    memset(&tBuilder, 0, sizeof(tBuilder));
+
+    if ( !pMessage || pMessage->iPartCount == 0 ) {
+        *psText = xllm__dup_cstr("");
+        return *psText ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        const xllm_content_part *pPart = &pMessage->pParts[i];
+
+        if ( bHasContent && !xllm__json_builder_append_char(&tBuilder, '\n') ) {
+            xllm__json_builder_reset(&tBuilder);
+            return XRT_NET_ERROR;
+        }
+
+        switch ( pPart->eKind ) {
+            case XLLM_PART_TEXT:
+                if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                    xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "openai-compatible adapter currently only supports inline text content");
+                    xllm__json_builder_reset(&tBuilder);
+                    return XRT_NET_ERROR;
+                }
+                if ( !xllm__json_builder_append_cstr(&tBuilder, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") ) {
+                    xllm__json_builder_reset(&tBuilder);
+                    return XRT_NET_ERROR;
+                }
+                bHasContent = true;
+                break;
+            case XLLM_PART_JSON: {
+                char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, 0, NULL);
+                if ( !sJson ) {
+                    xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify json part");
+                    xllm__json_builder_reset(&tBuilder);
+                    return XRT_NET_ERROR;
+                }
+                if ( !xllm__json_builder_append_cstr(&tBuilder, sJson) ) {
+                    xrtFree(sJson);
+                    xllm__json_builder_reset(&tBuilder);
+                    return XRT_NET_ERROR;
+                }
+                xrtFree(sJson);
+                bHasContent = true;
+                break;
+            }
+            default:
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                    "openai-compatible adapter text-only content currently supports only text and json parts"
+                );
+                xllm__json_builder_reset(&tBuilder);
+                return XRT_NET_ERROR;
+        }
+    }
+
+    if ( !bHasContent ) {
+        *psText = xllm__dup_cstr("");
+        xllm__json_builder_reset(&tBuilder);
+        return *psText ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+
+    *psText = xllm__json_builder_detach(&tBuilder);
+    if ( !*psText ) {
+        xllm__json_builder_reset(&tBuilder);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static bool xllm__openai_message_requires_content_array(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        switch ( pMessage->pParts[i].eKind ) {
+            case XLLM_PART_IMAGE:
+            case XLLM_PART_FILE:
+                return true;
+            default:
+                break;
+        }
+    }
+
+    return false;
+}
+
+static int xllm__openai_append_image_part(
+    xllm__json_builder *pBuilder,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    const char *sMimeType;
+
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "application/octet-stream";
+
+    switch ( pPart->as.tSource.eKind ) {
+        case XLLM_SOURCE_URL:
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") ||
+                 !xllm__json_builder_append_escaped(
+                    pBuilder,
+                    pPart->as.tSource.as.sUrl ? pPart->as.tSource.as.sUrl : ""
+                 ) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                return XRT_NET_ERROR;
+            }
+            return XRT_NET_OK;
+        case XLLM_SOURCE_INLINE_BYTES: {
+            char *sBase64 = NULL;
+
+            if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "image bytes input is empty");
+                return XRT_NET_ERROR;
+            }
+
+            sBase64 = (char *)xrtBase64Encode(
+                (ptr)pPart->as.tSource.as.tBytes.pData,
+                pPart->as.tSource.as.tBytes.iSize,
+                NULL
+            );
+            if ( !sBase64 ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode image bytes");
+                return XRT_NET_ERROR;
+            }
+
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") ||
+                 !xllm__json_builder_append_char(pBuilder, '"') ||
+                 !xllm__json_builder_append_cstr(pBuilder, "data:") ||
+                 !xllm__json_builder_append_cstr(pBuilder, sMimeType) ||
+                 !xllm__json_builder_append_cstr(pBuilder, ";base64,") ||
+                 !xllm__json_builder_append_cstr(pBuilder, sBase64) ||
+                 !xllm__json_builder_append_char(pBuilder, '"') ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                xrtFree(sBase64);
+                return XRT_NET_ERROR;
+            }
+
+            xrtFree(sBase64);
+            return XRT_NET_OK;
+        }
+        case XLLM_SOURCE_PROVIDER_FILE_ID:
+            if ( !pPart->as.tSource.as.sFileId || !pPart->as.tSource.as.sFileId[0] ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INVALID_REQUEST,
+                    "openai-compatible image file_id input is empty"
+                );
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"file\",\"file\":{\"file_id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sFileId) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                return XRT_NET_ERROR;
+            }
+            return XRT_NET_OK;
+        case XLLM_SOURCE_INLINE_TEXT:
+        default:
+            xllm__error_set(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                "openai-compatible adapter image input only supports url, provider file_id, or inline bytes"
+            );
+            return XRT_NET_ERROR;
+    }
+}
+
+static int xllm__openai_apply_transport(
+    xhttprequest *pHttpRequest,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    xllm_error *pError
+);
+
+static int xllm__openai_append_file_part(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    const char *sMimeType;
+    const char *sName;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tHttpRequest, 0, sizeof(tHttpRequest));
+    sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "application/octet-stream";
+    sName = pPart->as.tSource.sName ? pPart->as.tSource.sName : "upload.bin";
+
+    switch ( pPart->as.tSource.eKind ) {
+        case XLLM_SOURCE_PROVIDER_FILE_ID:
+            if ( !pPart->as.tSource.as.sFileId || !pPart->as.tSource.as.sFileId[0] ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INVALID_REQUEST,
+                    "openai-compatible file file_id input is empty"
+                );
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"file\",\"file\":{\"file_id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sFileId) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                return XRT_NET_ERROR;
+            }
+            return XRT_NET_OK;
+        case XLLM_SOURCE_INLINE_BYTES: {
+            char *sBase64 = NULL;
+
+            if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "file bytes input is empty");
+                return XRT_NET_ERROR;
+            }
+
+            sBase64 = (char *)xrtBase64Encode(
+                (ptr)pPart->as.tSource.as.tBytes.pData,
+                pPart->as.tSource.as.tBytes.iSize,
+                NULL
+            );
+            if ( !sBase64 ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode file bytes");
+                return XRT_NET_ERROR;
+            }
+
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"file\",\"file\":{\"filename\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sName) ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"mime_type\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sMimeType) ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"file_data\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sBase64) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                xrtFree(sBase64);
+                return XRT_NET_ERROR;
+            }
+
+            xrtFree(sBase64);
+            return XRT_NET_OK;
+        }
+        case XLLM_SOURCE_URL: {
+            char *sBase64 = NULL;
+
+            if ( !pPart->as.tSource.as.sUrl || !pPart->as.tSource.as.sUrl[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "openai-compatible file url input is empty");
+                return XRT_NET_ERROR;
+            }
+
+            xrtHttpRequestInit(&tHttpRequest);
+            if ( !xrtHttpRequestSetURL(&tHttpRequest, pPart->as.tSource.as.sUrl) ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "failed to set openai-compatible file url request");
+                xrtHttpRequestUnit(&tHttpRequest);
+                return XRT_NET_ERROR;
+            }
+            if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) {
+                xrtHttpRequestUnit(&tHttpRequest);
+                return XRT_NET_ERROR;
+            }
+
+            pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+            xrtHttpRequestUnit(&tHttpRequest);
+            if ( !pHttpResponse ) {
+                if ( iNetStatus == XRT_NET_TIMEOUT ) {
+                    xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "openai-compatible file url download timed out");
+                } else {
+                    xllm__error_set(pError, XLLM_ERROR_NETWORK, "openai-compatible file url download failed");
+                }
+                return XRT_NET_ERROR;
+            }
+            if ( pHttpResponse->iStatusCode >= 400u ) {
+                if ( pHttpResponse->iStatusCode >= 500u ) {
+                    xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, "openai-compatible file url download returned 5xx");
+                } else {
+                    xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, "openai-compatible file url download returned 4xx");
+                }
+                pError->iHttpStatus = (int)pHttpResponse->iStatusCode;
+                xrtHttpResponseDestroy(pHttpResponse);
+                return XRT_NET_ERROR;
+            }
+            if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+                xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible file url download returned empty body");
+                xrtHttpResponseDestroy(pHttpResponse);
+                return XRT_NET_ERROR;
+            }
+
+            sBase64 = (char *)xrtBase64Encode((ptr)pHttpResponse->pBody, pHttpResponse->iBodyLen, NULL);
+            xrtHttpResponseDestroy(pHttpResponse);
+            pHttpResponse = NULL;
+            if ( !sBase64 ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode downloaded file bytes");
+                return XRT_NET_ERROR;
+            }
+
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"file\",\"file\":{\"filename\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sName) ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"mime_type\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sMimeType) ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"file_data\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sBase64) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                xrtFree(sBase64);
+                return XRT_NET_ERROR;
+            }
+
+            xrtFree(sBase64);
+            return XRT_NET_OK;
+        }
+        case XLLM_SOURCE_INLINE_TEXT:
+        default:
+            xllm__error_set(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                "openai-compatible file input only supports provider file_id, url, or inline bytes"
+            );
+            return XRT_NET_ERROR;
+    }
+}
+
+static int xllm__openai_append_message_content_array(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+
+    if ( !pBuilder || !pMessage ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pMessage->eRole != XLLM_ROLE_USER &&
+         pMessage->eRole != XLLM_ROLE_ASSISTANT &&
+         pMessage->eRole != XLLM_ROLE_TOOL ) {
+        xllm__error_set(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "openai-compatible adapter multimodal content currently only supports user, assistant, and tool messages"
+        );
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, '[') ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        const xllm_content_part *pPart = &pMessage->pParts[i];
+
+        if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+
+        switch ( pPart->eKind ) {
+            case XLLM_PART_TEXT:
+                if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                    xllm__error_set(
+                        pError,
+                        XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                        "openai-compatible adapter currently only supports inline text content"
+                    );
+                    return XRT_NET_ERROR;
+                }
+                if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") ||
+                     !xllm__json_builder_append_escaped(
+                        pBuilder,
+                        pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : ""
+                     ) ||
+                     !xllm__json_builder_append_char(pBuilder, '}') ) {
+                    return XRT_NET_ERROR;
+                }
+                break;
+            case XLLM_PART_JSON: {
+                char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, 0, NULL);
+
+                if ( !sJson ) {
+                    xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify json part");
+                    return XRT_NET_ERROR;
+                }
+
+                if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") ||
+                     !xllm__json_builder_append_escaped(pBuilder, sJson) ||
+                     !xllm__json_builder_append_char(pBuilder, '}') ) {
+                    xrtFree(sJson);
+                    return XRT_NET_ERROR;
+                }
+
+                xrtFree(sJson);
+                break;
+            }
+            case XLLM_PART_IMAGE:
+                if ( xllm__openai_append_image_part(pBuilder, pPart, pError) != XRT_NET_OK ) {
+                    return XRT_NET_ERROR;
+                }
+                break;
+            case XLLM_PART_FILE:
+                if ( xllm__openai_append_file_part(pBuilder, pRuntime, pProfile, pOptions, pPart, pError) != XRT_NET_OK ) {
+                    return XRT_NET_ERROR;
+                }
+                break;
+            default:
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                    "openai-compatible adapter multimodal input currently supports only text, json, image, and file parts"
+                );
+                return XRT_NET_ERROR;
+        }
+
+        bNeedComma = true;
+    }
+
+    return xllm__json_builder_append_char(pBuilder, ']') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__openai_append_message_tool_calls(xllm__json_builder *pBuilder, const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pBuilder || !pMessage ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_calls\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pMessage->iToolCallCount; ++i ) {
+        const xllm_tool_call *pCall = &pMessage->pToolCalls[i];
+        const char *sToolName = pCall->sToolName ? pCall->sToolName : pCall->sToolId;
+
+        if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"id\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_escaped(pBuilder, pCall->sCallId ? pCall->sCallId : "") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"type\":\"function\",\"function\":{\"name\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_escaped(pBuilder, sToolName ? sToolName : "") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"arguments\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_escaped(pBuilder, pCall->sArgumentsJson ? pCall->sArgumentsJson : "{}") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_cstr(pBuilder, "}}") ) return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_append_message(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    const char *sRole;
+    const char *sReasoningContent;
+    char *sContent = NULL;
+    int iStatus;
+    bool bUseContentArray;
+
+    if ( !pBuilder || !pMessage ) {
+        return XRT_NET_ERROR;
+    }
+
+    sRole = xllm__openai_role_name(pMessage->eRole);
+    sReasoningContent = (
+        pMessage->eRole == XLLM_ROLE_ASSISTANT &&
+        xllm__openai_family_uses_reasoning_content(pProfile)
+    ) ? xllm__openai_message_reasoning_content(pMessage) : NULL;
+    bUseContentArray = xllm__openai_message_requires_content_array(pMessage);
+    if ( !bUseContentArray ) {
+        iStatus = xllm__openai_message_to_text(pMessage, &sContent, pError);
+        if ( iStatus != XRT_NET_OK ) {
+            return iStatus;
+        }
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"role\":") ) goto fail;
+    if ( !xllm__json_builder_append_escaped(pBuilder, sRole) ) goto fail;
+    if ( sReasoningContent ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"reasoning_content\":") ) goto fail;
+        if ( !xllm__json_builder_append_escaped(pBuilder, sReasoningContent) ) goto fail;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_call_id\":") ) goto fail;
+        if ( !xllm__json_builder_append_escaped(pBuilder, pMessage->sToolCallId ? pMessage->sToolCallId : "") ) goto fail;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u ) {
+        if ( xllm__openai_append_message_tool_calls(pBuilder, pMessage) != XRT_NET_OK ) goto fail;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u && (!bUseContentArray && (!sContent || sContent[0] == '\0')) ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":null}") ) goto fail;
+    } else if ( bUseContentArray ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ) goto fail;
+        if ( xllm__openai_append_message_content_array(pBuilder, pRuntime, pProfile, pOptions, pMessage, pError) != XRT_NET_OK ) goto fail;
+        if ( !xllm__json_builder_append_char(pBuilder, '}') ) goto fail;
+    } else {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ) goto fail;
+        if ( !xllm__json_builder_append_escaped(pBuilder, sContent ? sContent : "") ) goto fail;
+        if ( !xllm__json_builder_append_char(pBuilder, '}') ) goto fail;
+    }
+
+    xllm__free_cstr(&sContent);
+    return XRT_NET_OK;
+
+fail:
+    xllm__free_cstr(&sContent);
+    return XRT_NET_ERROR;
+}
+
+static int xllm__openai_append_context_messages(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_error *pError
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+
+    if ( !pBuilder || !pRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "\"messages\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                return XRT_NET_ERROR;
+            }
+            if ( xllm__openai_append_message(
+                     pBuilder,
+                     pRuntime,
+                     pProfile,
+                     pOptions,
+                     &pRequest->pContextBlocks[i].pMessages[j],
+                     pError) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            bNeedComma = true;
+        }
+    }
+
+    for ( i = 0; i < pRequest->iMessageCount; ++i ) {
+        if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__openai_append_message(
+                 pBuilder,
+                 pRuntime,
+                 pProfile,
+                 pOptions,
+                 &pRequest->pMessages[i],
+                 pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        bNeedComma = true;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_append_tools(xllm__json_builder *pBuilder, const xllm_request *pRequest)
+{
+    size_t i;
+
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tools\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pRequest->iToolCount; ++i ) {
+        const xllm_tool_def *pTool = &pRequest->pTools[i];
+        const char *sWireName = pTool->sWireName ? pTool->sWireName : pTool->sToolId;
+        char *sSchema = NULL;
+        char *sProviderToolJson = NULL;
+
+        if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( pTool->eKind == XLLM_TOOL_PROVIDER ) {
+            if ( !pTool->tVendorExtra || xvoType(pTool->tVendorExtra) != XVO_DT_TABLE ) {
+                return XRT_NET_ERROR;
+            }
+
+            sProviderToolJson = (char *)xrtStringifyJSON(pTool->tVendorExtra, 0, NULL);
+            if ( !sProviderToolJson ) {
+                return XRT_NET_ERROR;
+            }
+
+            if ( !xllm__json_builder_append_cstr(pBuilder, sProviderToolJson) ) {
+                xrtFree(sProviderToolJson);
+                return XRT_NET_ERROR;
+            }
+
+            xrtFree(sProviderToolJson);
+            continue;
+        }
+
+        if ( pTool->tInputSchema && xvoType(pTool->tInputSchema) != XVO_DT_NULL ) {
+            sSchema = (char *)xrtStringifyJSON(pTool->tInputSchema, 0, NULL);
+        }
+        if ( !sSchema ) {
+            sSchema = xllm__dup_cstr("{}");
+        }
+        if ( !sSchema ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"function\",\"function\":{\"name\":") ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_escaped(pBuilder, sWireName ? sWireName : "") ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        if ( pTool->sDescription ) {
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"description\":") ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_escaped(pBuilder, pTool->sDescription) ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"parameters\":") ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, sSchema) ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+
+        xrtFree(sSchema);
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_append_tool_policy(xllm__json_builder *pBuilder, const xllm_request *pRequest)
+{
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    switch ( pRequest->tToolPolicy.eMode ) {
+        case XLLM_TOOL_CHOICE_NONE:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"none\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_REQUIRED:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"required\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_NAMED:
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":") ) return XRT_NET_ERROR;
+            if ( !xllm__json_builder_append_escaped(pBuilder, pRequest->tToolPolicy.sToolName ? pRequest->tToolPolicy.sToolName : "") ) return XRT_NET_ERROR;
+            if ( !xllm__json_builder_append_cstr(pBuilder, "}}") ) return XRT_NET_ERROR;
+            return XRT_NET_OK;
+        case XLLM_TOOL_CHOICE_AUTO:
+        default:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"auto\"") ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+}
+
+static int xllm__openai_append_stop(xllm__json_builder *pBuilder, const xllm_generation_params *pGeneration)
+{
+    size_t i;
+
+    if ( !pBuilder || !pGeneration || pGeneration->iStopCount == 0u || !pGeneration->psStop ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pGeneration->iStopCount == 1u ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"stop\":") ) return XRT_NET_ERROR;
+        return xllm__json_builder_append_escaped(pBuilder, pGeneration->psStop[0] ? pGeneration->psStop[0] : "") ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"stop\":[") ) return XRT_NET_ERROR;
+    for ( i = 0; i < pGeneration->iStopCount; ++i ) {
+        if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_escaped(pBuilder, pGeneration->psStop[i] ? pGeneration->psStop[i] : "") ) return XRT_NET_ERROR;
+    }
+    return xllm__json_builder_append_char(pBuilder, ']') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__openai_append_response_format(xllm__json_builder *pBuilder, const xllm_response_format *pFormat)
+{
+    char *sSchema = NULL;
+    bool bStrict = false;
+    bool bHasStrict = false;
+
+    if ( !pBuilder || !pFormat ) {
+        return XRT_NET_OK;
+    }
+
+    switch ( pFormat->eKind ) {
+        case XLLM_RESPONSE_JSON:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"response_format\":{\"type\":\"json_object\"}") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_RESPONSE_JSON_SCHEMA:
+            if ( pFormat->tJsonSchema && xvoType(pFormat->tJsonSchema) != XVO_DT_NULL ) {
+                sSchema = (char *)xrtStringifyJSON(pFormat->tJsonSchema, 0, NULL);
+            }
+            if ( pFormat->tVendorExtra && xvoType(pFormat->tVendorExtra) == XVO_DT_TABLE ) {
+                bHasStrict = xllm__json_table_get_bool(pFormat->tVendorExtra, "strict", &bStrict);
+            }
+            if ( !sSchema ) {
+                sSchema = xllm__dup_cstr("{}");
+            }
+            if ( !sSchema ) {
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":") ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_escaped(pBuilder, pFormat->sSchemaName ? pFormat->sSchemaName : "xllm_schema") ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"schema\":") ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, sSchema) ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            if ( bHasStrict ) {
+                if ( !xllm__json_builder_append_cstr(pBuilder, bStrict ? ",\"strict\":true" : ",\"strict\":false") ) {
+                    xrtFree(sSchema);
+                    return XRT_NET_ERROR;
+                }
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            xrtFree(sSchema);
+            return XRT_NET_OK;
+        case XLLM_RESPONSE_TEXT:
+        default:
+            return XRT_NET_OK;
+    }
+}
+
+static bool xllm__openai_should_send_native_response_format(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_response_format *pFormat,
+    const xllm_call_options *pOptions
+)
+{
+    const xllm_model_binding *pBinding;
+    bool bNeedsMultimodal;
+
+    if ( !pRequest || !pFormat || pFormat->eKind == XLLM_RESPONSE_TEXT ) {
+        return false;
+    }
+
+    if ( !pOptions || !pOptions->bBestEffortStructuredOutput ) {
+        return true;
+    }
+
+    if ( !pProfile ) {
+        return false;
+    }
+
+    bNeedsMultimodal = xllm__openai_request_uses_multimodal(pRequest);
+    pBinding = xllm__select_request_binding(pProfile, pRequest, bNeedsMultimodal, NULL);
+    return xllm__binding_supports_flag(pBinding, XLLM_CAP_JSON_OUT);
+}
+
+static int xllm__openai_parse_structured_output(
+    const xllm_response_format *pFormat,
+    const xllm_call_options *pOptions,
+    const char *sText,
+    xvalue *ptJsonValue,
+    char **psNormalizedText,
+    xllm_error *pError
+)
+{
+    const char *sTrimmed = sText;
+
+    if ( ptJsonValue ) {
+        *ptJsonValue = NULL;
+    }
+    if ( psNormalizedText ) {
+        *psNormalizedText = NULL;
+    }
+
+    if ( !pFormat || pFormat->eKind == XLLM_RESPONSE_TEXT || !sText || !sText[0] ) {
+        return XRT_NET_OK;
+    }
+
+    while ( *sTrimmed == ' ' || *sTrimmed == '\t' || *sTrimmed == '\r' || *sTrimmed == '\n' ) {
+        ++sTrimmed;
+    }
+
+    if ( (*sTrimmed == '{' ||
+          *sTrimmed == '[' ||
+          *sTrimmed == '"' ||
+          *sTrimmed == '-' ||
+          *sTrimmed == 't' ||
+          *sTrimmed == 'f' ||
+          *sTrimmed == 'n' ||
+          (*sTrimmed >= '0' && *sTrimmed <= '9')) &&
+         xllm__json_text_is_valid_json(sText) ) {
+        xvalue tJsonValue = xrtParseJSON((str)sText, strlen(sText));
+        if ( !tJsonValue ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "structured output response json parse failed");
+            return XRT_NET_ERROR;
+        }
+        if ( psNormalizedText ) {
+            *psNormalizedText = xllm__dup_cstr(sText);
+            if ( !*psNormalizedText ) {
+                xvoUnref(tJsonValue);
+                return XRT_NET_ERROR;
+            }
+        }
+        if ( ptJsonValue ) {
+            *ptJsonValue = tJsonValue;
+        } else {
+            xvoUnref(tJsonValue);
+        }
+        return XRT_NET_OK;
+    }
+
+    if ( pOptions && pOptions->bBestEffortStructuredOutput ) {
+        xvalue tJsonValue = xllm__extract_best_effort_json(sText, psNormalizedText);
+        if ( tJsonValue ) {
+            if ( ptJsonValue ) {
+                *ptJsonValue = tJsonValue;
+            } else {
+                xvoUnref(tJsonValue);
+            }
+            return XRT_NET_OK;
+        }
+    }
+
+    xllm__error_set(pError, XLLM_ERROR_PARSE, "structured output response is not valid json");
+    return XRT_NET_ERROR;
+}
+
+static const char *xllm__openai_reasoning_effort_name(const xllm_reasoning_options *pReasoning)
+{
+    const char *sVendorEffort;
+
+    if ( !pReasoning ) {
+        return NULL;
+    }
+
+    if ( pReasoning->tVendorExtra && xvoType(pReasoning->tVendorExtra) == XVO_DT_TABLE ) {
+        sVendorEffort = xllm__json_table_get_text(pReasoning->tVendorExtra, "reasoning_effort");
+        if ( sVendorEffort && sVendorEffort[0] ) {
+            return sVendorEffort;
+        }
+        sVendorEffort = xllm__json_table_get_text(pReasoning->tVendorExtra, "effort");
+        if ( sVendorEffort && sVendorEffort[0] ) {
+            return sVendorEffort;
+        }
+    }
+
+    if ( (pReasoning->tEnabled.bSet && !pReasoning->tEnabled.bValue) ||
+         pReasoning->eLevel == XLLM_REASONING_OFF ) {
+        return "none";
+    }
+
+    switch ( pReasoning->eLevel ) {
+        case XLLM_REASONING_LOW:
+            return "low";
+        case XLLM_REASONING_MEDIUM:
+            return "medium";
+        case XLLM_REASONING_HIGH:
+            return "high";
+        default:
+            return NULL;
+    }
+}
+
+static const char *xllm__openai_select_model(const xllm_profile *pProfile, const xllm_request *pRequest, bool *pbMultimodal)
+{
+    bool bMultimodal = false;
+
+    if ( pbMultimodal ) {
+        *pbMultimodal = false;
+    }
+
+    if ( !pProfile || !pRequest ) {
+        return NULL;
+    }
+
+    if ( pRequest->eSlot == XLLM_SLOT_MULTIMODAL ) {
+        bMultimodal = true;
+    } else if ( pRequest->eSlot == XLLM_SLOT_AUTO ) {
+        bMultimodal = xllm__openai_request_uses_multimodal(pRequest);
+    }
+
+    if ( pbMultimodal ) {
+        *pbMultimodal = bMultimodal;
+    }
+
+    if ( bMultimodal ) {
+        return pProfile->tModels.tMultimodal.sModelId;
+    }
+
+    return pProfile->tModels.tText.sModelId ? pProfile->tModels.tText.sModelId : pProfile->tModels.tMultimodal.sModelId;
+}
+
+static char *xllm__openai_build_url(const char *sBaseUrl)
+{
+    static const char sPath[] = "chat/completions";
+    size_t iLen;
+    bool bNeedsSlash;
+    char *sUrl;
+
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        return NULL;
+    }
+
+    if ( strstr(sBaseUrl, "/chat/completions") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+
+    iLen = strlen(sBaseUrl);
+    bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+    sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + sizeof(sPath), sizeof(char));
+    if ( !sUrl ) {
+        return NULL;
+    }
+
+    memcpy(sUrl, sBaseUrl, iLen);
+    if ( bNeedsSlash ) {
+        sUrl[iLen++] = '/';
+    }
+    memcpy(sUrl + iLen, sPath, sizeof(sPath));
+    return sUrl;
+}
+
+static int xllm__openai_fill_request_headers(xhttprequest *pHttpRequest, const xllm_profile *pProfile)
+{
+    size_t i;
+
+    if ( !pHttpRequest || !pProfile ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xrtHttpRequestSetHeader(pHttpRequest, "Accept", "application/json") ) {
+        return XRT_NET_ERROR;
+    }
+    if ( !xrtHttpRequestSetHeader(pHttpRequest, "User-Agent", "xllm/0.1.0") ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pProfile->tAuth.eKind ) {
+        case XLLM_AUTH_BEARER: {
+            const char *sScheme = pProfile->tAuth.sScheme ? pProfile->tAuth.sScheme : "Bearer";
+            size_t iSchemeLen = strlen(sScheme);
+            size_t iSecretLen = pProfile->tAuth.sSecret ? strlen(pProfile->tAuth.sSecret) : 0u;
+            char *sValue = (char *)xrtCalloc(iSchemeLen + iSecretLen + 2u, sizeof(char));
+            if ( !sValue ) {
+                return XRT_NET_ERROR;
+            }
+            memcpy(sValue, sScheme, iSchemeLen);
+            sValue[iSchemeLen] = ' ';
+            if ( pProfile->tAuth.sSecret ) {
+                memcpy(sValue + iSchemeLen + 1u, pProfile->tAuth.sSecret, iSecretLen);
+            }
+            if ( !xrtHttpRequestSetHeader(pHttpRequest, "Authorization", sValue) ) {
+                xrtFree(sValue);
+                return XRT_NET_ERROR;
+            }
+            xrtFree(sValue);
+            break;
+        }
+        case XLLM_AUTH_API_KEY_HEADER:
+            if ( pProfile->tAuth.sHeaderName && pProfile->tAuth.sSecret ) {
+                if ( !xrtHttpRequestSetHeader(pHttpRequest, pProfile->tAuth.sHeaderName, pProfile->tAuth.sSecret) ) {
+                    return XRT_NET_ERROR;
+                }
+            }
+            break;
+        case XLLM_AUTH_NONE:
+        default:
+            break;
+    }
+
+    if ( pProfile->tProviderOptions.sOpenAIOrganizationId ) {
+        if ( !xrtHttpRequestSetHeader(pHttpRequest, "OpenAI-Organization", pProfile->tProviderOptions.sOpenAIOrganizationId) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pProfile->tProviderOptions.sOpenAIProjectId ) {
+        if ( !xrtHttpRequestSetHeader(pHttpRequest, "OpenAI-Project", pProfile->tProviderOptions.sOpenAIProjectId) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    for ( i = 0; i < pProfile->iDefaultHeaderCount; ++i ) {
+        if ( pProfile->pDefaultHeaders[i].sName && pProfile->pDefaultHeaders[i].sValue ) {
+            if ( !xrtHttpRequestSetHeader(pHttpRequest, pProfile->pDefaultHeaders[i].sName, pProfile->pDefaultHeaders[i].sValue) ) {
+                return XRT_NET_ERROR;
+            }
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static uint32 xllm__openai_resolve_connect_timeout_ms(const xllm_runtime *pRuntime, const xllm_profile *pProfile)
+{
+    uint32 uTimeoutMs = 0u;
+
+    if ( pRuntime && pRuntime->tOptions.tTransportDefaults.tConnectTimeoutMs.bSet ) {
+        uTimeoutMs = pRuntime->tOptions.tTransportDefaults.tConnectTimeoutMs.iValue;
+    }
+    if ( pProfile && pProfile->tTransport.tConnectTimeoutMs.bSet ) {
+        uTimeoutMs = pProfile->tTransport.tConnectTimeoutMs.iValue;
+    }
+
+    return uTimeoutMs;
+}
+
+static uint32 xllm__openai_resolve_read_timeout_ms(const xllm_runtime *pRuntime, const xllm_profile *pProfile)
+{
+    uint32 uTimeoutMs = 0u;
+
+    if ( pRuntime && pRuntime->tOptions.tTransportDefaults.tReadTimeoutMs.bSet ) {
+        uTimeoutMs = pRuntime->tOptions.tTransportDefaults.tReadTimeoutMs.iValue;
+    }
+    if ( pProfile && pProfile->tTransport.tReadTimeoutMs.bSet ) {
+        uTimeoutMs = pProfile->tTransport.tReadTimeoutMs.iValue;
+    }
+
+    return uTimeoutMs;
+}
+
+static xllm_proxy_kind xllm__transport_resolve_proxy_kind(const xllm_runtime *pRuntime, const xllm_profile *pProfile)
+{
+    xllm_proxy_kind eKind = XLLM_PROXY_UNSPECIFIED;
+
+    if ( pRuntime && pRuntime->tOptions.tTransportDefaults.eProxyKind != XLLM_PROXY_UNSPECIFIED ) {
+        eKind = pRuntime->tOptions.tTransportDefaults.eProxyKind;
+    }
+    if ( pProfile && pProfile->tTransport.eProxyKind != XLLM_PROXY_UNSPECIFIED ) {
+        eKind = pProfile->tTransport.eProxyKind;
+    }
+
+    return eKind;
+}
+
+static int xllm__transport_create_proxy(
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    xnetproxy **ppProxy,
+    xllm_error *pError
+)
+{
+    xllm_proxy_kind eKind;
+    const char *sHost = NULL;
+    const char *sUser = NULL;
+    const char *sPass = NULL;
+    uint32 uPort = 0u;
+    xnetproxyconfig tProxyConfig;
+
+    if ( !ppProxy ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppProxy = NULL;
+    eKind = xllm__transport_resolve_proxy_kind(pRuntime, pProfile);
+    if ( eKind == XLLM_PROXY_UNSPECIFIED || eKind == XLLM_PROXY_NONE ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pRuntime ) {
+        if ( pRuntime->tOptions.tTransportDefaults.sProxyHost && pRuntime->tOptions.tTransportDefaults.sProxyHost[0] ) {
+            sHost = pRuntime->tOptions.tTransportDefaults.sProxyHost;
+        }
+        if ( pRuntime->tOptions.tTransportDefaults.tProxyPort.bSet ) {
+            uPort = pRuntime->tOptions.tTransportDefaults.tProxyPort.iValue;
+        }
+        if ( pRuntime->tOptions.tTransportDefaults.sProxyUser && pRuntime->tOptions.tTransportDefaults.sProxyUser[0] ) {
+            sUser = pRuntime->tOptions.tTransportDefaults.sProxyUser;
+        }
+        if ( pRuntime->tOptions.tTransportDefaults.sProxyPass && pRuntime->tOptions.tTransportDefaults.sProxyPass[0] ) {
+            sPass = pRuntime->tOptions.tTransportDefaults.sProxyPass;
+        }
+    }
+    if ( pProfile ) {
+        if ( pProfile->tTransport.sProxyHost && pProfile->tTransport.sProxyHost[0] ) {
+            sHost = pProfile->tTransport.sProxyHost;
+        }
+        if ( pProfile->tTransport.tProxyPort.bSet ) {
+            uPort = pProfile->tTransport.tProxyPort.iValue;
+        }
+        if ( pProfile->tTransport.sProxyUser && pProfile->tTransport.sProxyUser[0] ) {
+            sUser = pProfile->tTransport.sProxyUser;
+        }
+        if ( pProfile->tTransport.sProxyPass && pProfile->tTransport.sProxyPass[0] ) {
+            sPass = pProfile->tTransport.sProxyPass;
+        }
+    }
+
+    if ( !sHost || !sHost[0] || uPort == 0u || uPort > 65535u ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "proxy transport requires a valid host and port");
+        return XRT_NET_ERROR;
+    }
+
+    xrtNetProxyConfigInit(&tProxyConfig);
+    switch ( eKind ) {
+        case XLLM_PROXY_SOCKS5:
+            tProxyConfig.iType = XNET_PROXY_SOCKS5;
+            break;
+        case XLLM_PROXY_HTTP_CONNECT:
+            tProxyConfig.iType = XNET_PROXY_HTTP_CONNECT;
+            break;
+        default:
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "unsupported proxy kind");
+            return XRT_NET_ERROR;
+    }
+
+    if ( snprintf(tProxyConfig.sHost, sizeof(tProxyConfig.sHost), "%s", sHost) >= (int)sizeof(tProxyConfig.sHost) ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "proxy host is too long");
+        return XRT_NET_ERROR;
+    }
+    tProxyConfig.iPort = (uint16)uPort;
+    if ( sUser && sUser[0] &&
+         snprintf(tProxyConfig.sUser, sizeof(tProxyConfig.sUser), "%s", sUser) >= (int)sizeof(tProxyConfig.sUser) ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "proxy username is too long");
+        return XRT_NET_ERROR;
+    }
+    if ( sPass && sPass[0] &&
+         snprintf(tProxyConfig.sPass, sizeof(tProxyConfig.sPass), "%s", sPass) >= (int)sizeof(tProxyConfig.sPass) ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "proxy password is too long");
+        return XRT_NET_ERROR;
+    }
+
+    *ppProxy = xrtNetProxyCreate(&tProxyConfig);
+    if ( !*ppProxy ) {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to create transport proxy");
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static uint32 xllm__openai_resolve_request_timeout_ms(const xllm_call_options *pOptions)
+{
+    if ( pOptions && pOptions->uTimeoutMs > 0u ) {
+        return pOptions->uTimeoutMs;
+    }
+    return 0u;
+}
+
+static uint32 xllm__openai_resolve_live_connect_timeout_ms(uint32 uConnectTimeoutMs, const xhttprequest *pHttpRequest)
+{
+    if ( uConnectTimeoutMs > 0u ) {
+        return uConnectTimeoutMs;
+    }
+    if ( pHttpRequest && pHttpRequest->iTimeoutMs > 0u ) {
+        return pHttpRequest->iTimeoutMs;
+    }
+    if ( pHttpRequest && pHttpRequest->iIdleTimeoutMs > 0u ) {
+        return pHttpRequest->iIdleTimeoutMs;
+    }
+    return 30000u;
+}
+
+static int xllm__openai_apply_transport(
+    xhttprequest *pHttpRequest,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    xllm_error *pError
+)
+{
+    uint32 uReadTimeoutMs;
+    uint32 uRequestTimeoutMs;
+    bool bVerifyPeer = true;
+    xnetproxy *pProxy = NULL;
+
+    if ( !pHttpRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    uReadTimeoutMs = xllm__openai_resolve_read_timeout_ms(pRuntime, pProfile);
+    uRequestTimeoutMs = xllm__openai_resolve_request_timeout_ms(pOptions);
+
+    if ( pRuntime && pRuntime->tOptions.tTransportDefaults.tVerifyPeer.bSet ) {
+        bVerifyPeer = pRuntime->tOptions.tTransportDefaults.tVerifyPeer.bValue;
+    }
+    if ( pProfile && pProfile->tTransport.tVerifyPeer.bSet ) {
+        bVerifyPeer = pProfile->tTransport.tVerifyPeer.bValue;
+    }
+
+    if ( uRequestTimeoutMs > 0u ) {
+        xrtHttpRequestSetTimeout(pHttpRequest, uRequestTimeoutMs);
+    }
+    if ( uReadTimeoutMs > 0u ) {
+        xrtHttpRequestSetIdleTimeout(pHttpRequest, uReadTimeoutMs);
+    }
+    xrtHttpRequestSetVerifyPeer(pHttpRequest, bVerifyPeer);
+
+    if ( xllm__transport_create_proxy(pRuntime, pProfile, &pProxy, pError) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( pHttpRequest->pProxy ) {
+        xrtNetProxyRelease(pHttpRequest->pProxy);
+        pHttpRequest->pProxy = NULL;
+    }
+    pHttpRequest->pProxy = pProxy;
+    return XRT_NET_OK;
+}
+
+
+static void xllm__openai_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot, const char *sRequestId)
+{
+    xvalue tErrorObj;
+    const char *sMessage = "upstream request failed";
+
+    if ( !pError ) {
+        return;
+    }
+
+    if ( pHttpResponse ) {
+        if ( pHttpResponse->iStatusCode == 400u ) {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, sMessage);
+        } else if ( pHttpResponse->iStatusCode == 401u || pHttpResponse->iStatusCode == 403u ) {
+            xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+        } else if ( pHttpResponse->iStatusCode == 404u ) {
+            xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+        } else if ( pHttpResponse->iStatusCode == 429u ) {
+            xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+        } else if ( pHttpResponse->iStatusCode >= 500u ) {
+            xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+        } else if ( pHttpResponse->iStatusCode >= 400u ) {
+            xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, sMessage);
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+        }
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+    }
+
+    if ( sRequestId ) {
+        pError->sRequestId = xllm__dup_cstr(sRequestId);
+    }
+
+    tErrorObj = xllm__json_table_get(tRoot, "error");
+    if ( tErrorObj && xvoType(tErrorObj) == XVO_DT_TABLE ) {
+        const char *sProviderMessage = xllm__json_table_get_text(tErrorObj, "message");
+        const char *sProviderCode = xllm__json_table_get_text(tErrorObj, "code");
+        if ( sProviderMessage ) {
+            xllm__free_cstr((char **)&pError->sMessage);
+            pError->sMessage = xllm__dup_cstr(sProviderMessage);
+            pError->sProviderMessage = xllm__dup_cstr(sProviderMessage);
+        }
+        if ( sProviderCode ) {
+            pError->sProviderCode = xllm__dup_cstr(sProviderCode);
+        }
+    }
+}
+
+
+static size_t xllm__openai_base64_decoded_size(const char *sBase64)
+{
+    size_t iLen;
+    size_t iOut;
+
+    if ( !sBase64 ) {
+        return 0u;
+    }
+
+    iLen = strlen(sBase64);
+    if ( iLen == 0u ) {
+        return 0u;
+    }
+
+    iOut = (iLen / 4u) * 3u;
+    if ( iLen > 0u && sBase64[iLen - 1u] == '=' ) {
+        --iOut;
+    }
+    if ( iLen > 1u && sBase64[iLen - 2u] == '=' ) {
+        --iOut;
+    }
+    return iOut;
+}
+
+static const char *xllm__openai_content_object_text(xvalue tObject, const char *sPrimaryKey, const char *sFallbackKey)
+{
+    const char *sValue = NULL;
+
+    if ( tObject && xvoType(tObject) == XVO_DT_TABLE ) {
+        if ( sPrimaryKey ) {
+            sValue = xllm__json_table_get_text(tObject, sPrimaryKey);
+        }
+        if ( !sValue && sFallbackKey ) {
+            sValue = xllm__json_table_get_text(tObject, sFallbackKey);
+        }
+    }
+
+    return sValue;
+}
+
+static int xllm__openai_message_add_part(
+    xllm_content_part **ppParts,
+    size_t *piPartCount,
+    size_t *piPartCapacity,
+    xllm_content_part *pPart
+)
+{
+    if ( !ppParts || !piPartCount || !piPartCapacity || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__append_buffer(
+            (void **)ppParts,
+            sizeof(*pPart),
+            piPartCount,
+            piPartCapacity,
+            pPart
+         ) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(pPart, 0, sizeof(*pPart));
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_parse_message_content(
+    xvalue tContent,
+    xllm_content_part **ppParts,
+    size_t *piPartCount,
+    char **psVisibleText,
+    char **psRefusalText,
+    xllm_error *pError
+)
+{
+    xllm__json_builder tVisibleText;
+    xllm_content_part *pParts = NULL;
+    size_t iPartCount = 0u;
+    size_t iPartCapacity = 0u;
+
+    if ( ppParts ) {
+        *ppParts = NULL;
+    }
+    if ( piPartCount ) {
+        *piPartCount = 0u;
+    }
+    if ( psVisibleText ) {
+        *psVisibleText = NULL;
+    }
+    if ( psRefusalText ) {
+        *psRefusalText = NULL;
+    }
+
+    if ( !tContent ) {
+        return XRT_NET_OK;
+    }
+
+    memset(&tVisibleText, 0, sizeof(tVisibleText));
+
+    if ( xvoType(tContent) == XVO_DT_TEXT ) {
+        xllm_content_part tPart;
+        const char *sText = (const char *)xvoGetText(tContent);
+
+        memset(&tPart, 0, sizeof(tPart));
+        tPart.eKind = XLLM_PART_TEXT;
+        tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+        tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+        tPart.as.tSource.as.sText = xllm__dup_cstr(sText ? sText : "");
+        if ( !tPart.as.tSource.sMimeType || !tPart.as.tSource.as.sText ) {
+            xllm__content_part_free(&tPart);
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__openai_message_add_part(&pParts, &iPartCount, &iPartCapacity, &tPart) != XRT_NET_OK ) {
+            xllm__content_part_free(&tPart);
+            goto fail;
+        }
+        if ( sText && sText[0] && !xllm__json_builder_append_cstr(&tVisibleText, sText) ) {
+            goto fail;
+        }
+    } else if ( xvoType(tContent) == XVO_DT_ARRAY ) {
+        size_t i;
+
+        for ( i = 0; i < (size_t)xvoArrayItemCount(tContent); ++i ) {
+            xvalue tItem = xvoArrayGetValue(tContent, (uint32)i);
+            const char *sType;
+
+            if ( !tItem || xvoType(tItem) != XVO_DT_TABLE ) {
+                continue;
+            }
+
+            sType = xllm__json_table_get_text(tItem, "type");
+            if ( sType && (strcmp(sType, "text") == 0 || strcmp(sType, "output_text") == 0) ) {
+                const char *sText = xllm__json_table_get_text(tItem, "text");
+                xllm_content_part tPart;
+
+                if ( !sText ) {
+                    continue;
+                }
+
+                memset(&tPart, 0, sizeof(tPart));
+                tPart.eKind = XLLM_PART_TEXT;
+                tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+                tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+                tPart.as.tSource.as.sText = xllm__dup_cstr(sText);
+                if ( !tPart.as.tSource.sMimeType || !tPart.as.tSource.as.sText ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+                if ( xllm__openai_message_add_part(&pParts, &iPartCount, &iPartCapacity, &tPart) != XRT_NET_OK ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+                if ( tVisibleText.iLen > 0u && !xllm__json_builder_append_char(&tVisibleText, '\n') ) {
+                    goto fail;
+                }
+                if ( !xllm__json_builder_append_cstr(&tVisibleText, sText) ) {
+                    goto fail;
+                }
+            } else if ( sType && strcmp(sType, "refusal") == 0 ) {
+                const char *sRefusal = xllm__json_table_get_text(tItem, "refusal");
+                if ( !sRefusal ) {
+                    sRefusal = xllm__json_table_get_text(tItem, "text");
+                }
+                if ( sRefusal && psRefusalText && !*psRefusalText ) {
+                    *psRefusalText = xllm__dup_cstr(sRefusal);
+                    if ( !*psRefusalText ) {
+                        goto fail;
+                    }
+                }
+            } else if ( sType && strcmp(sType, "image_url") == 0 ) {
+                xvalue tImage = xllm__json_table_get(tItem, "image_url");
+                const char *sUrl = xllm__openai_content_object_text(tImage, "url", NULL);
+                const char *sMimeType = xllm__openai_content_object_text(tImage, "mime_type", NULL);
+                const char *sName = xllm__openai_content_object_text(tImage, "filename", "name");
+                xllm_content_part tPart;
+
+                if ( !sUrl || !sUrl[0] ) {
+                    continue;
+                }
+
+                memset(&tPart, 0, sizeof(tPart));
+                tPart.eKind = XLLM_PART_IMAGE;
+                tPart.as.tSource.eKind = XLLM_SOURCE_URL;
+                tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType);
+                tPart.as.tSource.sName = xllm__dup_cstr(sName);
+                tPart.as.tSource.as.sUrl = xllm__dup_cstr(sUrl);
+                if ( !tPart.as.tSource.as.sUrl ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+                if ( xllm__openai_message_add_part(&pParts, &iPartCount, &iPartCapacity, &tPart) != XRT_NET_OK ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+            } else if ( sType && strcmp(sType, "file") == 0 ) {
+                xvalue tFile = xllm__json_table_get(tItem, "file");
+                const char *sFileId = xllm__openai_content_object_text(tFile, "file_id", NULL);
+                const char *sUrl = xllm__openai_content_object_text(tFile, "url", NULL);
+                const char *sFileData = xllm__openai_content_object_text(tFile, "file_data", NULL);
+                const char *sMimeType = xllm__openai_content_object_text(tFile, "mime_type", NULL);
+                const char *sName = xllm__openai_content_object_text(tFile, "filename", "name");
+                xllm_content_part tPart;
+
+                if ( !tFile || xvoType(tFile) != XVO_DT_TABLE ) {
+                    tFile = tItem;
+                    sFileId = xllm__openai_content_object_text(tFile, "file_id", NULL);
+                    sUrl = xllm__openai_content_object_text(tFile, "url", NULL);
+                    sFileData = xllm__openai_content_object_text(tFile, "file_data", NULL);
+                    sMimeType = xllm__openai_content_object_text(tFile, "mime_type", NULL);
+                    sName = xllm__openai_content_object_text(tFile, "filename", "name");
+                }
+
+                memset(&tPart, 0, sizeof(tPart));
+                tPart.eKind = XLLM_PART_FILE;
+                tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType);
+                tPart.as.tSource.sName = xllm__dup_cstr(sName);
+
+                if ( sFileId && sFileId[0] ) {
+                    tPart.as.tSource.eKind = XLLM_SOURCE_PROVIDER_FILE_ID;
+                    tPart.as.tSource.as.sFileId = xllm__dup_cstr(sFileId);
+                    if ( !tPart.as.tSource.as.sFileId ) {
+                        xllm__content_part_free(&tPart);
+                        goto fail;
+                    }
+                } else if ( sUrl && sUrl[0] ) {
+                    tPart.as.tSource.eKind = XLLM_SOURCE_URL;
+                    tPart.as.tSource.as.sUrl = xllm__dup_cstr(sUrl);
+                    if ( !tPart.as.tSource.as.sUrl ) {
+                        xllm__content_part_free(&tPart);
+                        goto fail;
+                    }
+                } else if ( sFileData && sFileData[0] ) {
+                    size_t iDecodedSize = xllm__openai_base64_decoded_size(sFileData);
+                    void *pDecoded = xrtBase64Decode((str)sFileData, strlen(sFileData), NULL);
+
+                    if ( !pDecoded ) {
+                        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to decode openai-compatible file output");
+                        xllm__content_part_free(&tPart);
+                        goto fail;
+                    }
+
+                    tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_BYTES;
+                    tPart.as.tSource.as.tBytes.pData = pDecoded;
+                    tPart.as.tSource.as.tBytes.iSize = iDecodedSize;
+                } else {
+                    xllm__content_part_free(&tPart);
+                    continue;
+                }
+
+                if ( xllm__openai_message_add_part(&pParts, &iPartCount, &iPartCapacity, &tPart) != XRT_NET_OK ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+            }
+        }
+    }
+
+    if ( psVisibleText && tVisibleText.iLen > 0u ) {
+        *psVisibleText = xllm__json_builder_detach(&tVisibleText);
+        if ( tVisibleText.iLen > 0u && !*psVisibleText ) {
+            goto fail;
+        }
+    }
+    xllm__json_builder_reset(&tVisibleText);
+
+    if ( ppParts ) {
+        *ppParts = pParts;
+        pParts = NULL;
+    }
+    if ( piPartCount ) {
+        *piPartCount = iPartCount;
+    }
+    return XRT_NET_OK;
+
+fail:
+    if ( pParts ) {
+        size_t i;
+        for ( i = 0; i < iPartCount; ++i ) {
+            xllm__content_part_free(&pParts[i]);
+        }
+        xrtFree(pParts);
+    }
+    if ( psVisibleText && *psVisibleText ) {
+        xllm__free_cstr(psVisibleText);
+    }
+    if ( psRefusalText && *psRefusalText ) {
+        xllm__free_cstr(psRefusalText);
+    }
+    xllm__json_builder_reset(&tVisibleText);
+    return XRT_NET_ERROR;
+}
+
+static int xllm__openai_apply_terminal_status(
+    xllm_response *pResponse,
+    bool bDone,
+    bool bCancelled
+)
+{
+    if ( !pResponse ) {
+        return XRT_NET_OK;
+    }
+
+    if ( bCancelled ) {
+        pResponse->eStatus = XLLM_STATUS_CANCELLED;
+        return XRT_NET_OK;
+    }
+
+    if ( pResponse->tRefusal.sText && pResponse->tRefusal.sText[0] ) {
+        pResponse->eStatus = XLLM_STATUS_REFUSED;
+        return XRT_NET_OK;
+    }
+
+    if ( pResponse->sFinishReason ) {
+        if ( strcmp(pResponse->sFinishReason, "content_filter") == 0 ) {
+            pResponse->eStatus = XLLM_STATUS_CONTENT_FILTERED;
+            if ( !pResponse->tSafety.sBlockReason || !pResponse->tSafety.sBlockReason[0] ) {
+                pResponse->tSafety.sBlockReason = xllm__dup_cstr("content_filter");
+                if ( !pResponse->tSafety.sBlockReason ) {
+                    return XRT_NET_ERROR;
+                }
+            }
+            return XRT_NET_OK;
+        }
+        if ( strcmp(pResponse->sFinishReason, "tool_calls") == 0 ) {
+            pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+            return XRT_NET_OK;
+        }
+        if ( strcmp(pResponse->sFinishReason, "length") == 0 ||
+             strcmp(pResponse->sFinishReason, "max_tokens") == 0 ) {
+            pResponse->eStatus = XLLM_STATUS_INCOMPLETE;
+            return XRT_NET_OK;
+        }
+    }
+
+    pResponse->eStatus = bDone ? XLLM_STATUS_COMPLETED : XLLM_STATUS_INCOMPLETE;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_build_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xvalue tRoot,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_response *pResponse;
+    xvalue tChoices;
+    xvalue tChoice;
+    xvalue tMessage;
+    xvalue tToolCalls;
+    xvalue tUsage;
+    const char *sFinishReason;
+    const char *sReasoningText;
+    char *sVisibleText = NULL;
+    char *sRefusalText = NULL;
+    char *sNormalizedJson = NULL;
+    xllm_content_part *pMessageParts = NULL;
+    size_t iMessagePartCount = 0u;
+    size_t iToolCallCount = 0u;
+    bool bJsonOutput = false;
+    size_t iOutputCount = 0u;
+    size_t iOutputIndex = 0u;
+    xvalue tJsonValue = NULL;
+    const char *sModel;
+    xllm_effective_params tEffectiveParams;
+
+    if ( !pProfile || !pRequest || !ppResponse || !tRoot || xvoType(tRoot) != XVO_DT_TABLE ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid openai-compatible response");
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            XLLM_STREAM_OFF
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    tChoices = xllm__json_table_get(tRoot, "choices");
+    if ( !tChoices || xvoType(tChoices) != XVO_DT_ARRAY || xvoArrayItemCount(tChoices) == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible response missing choices");
+        return XRT_NET_ERROR;
+    }
+
+    tChoice = xvoArrayGetValue(tChoices, 0u);
+    if ( !tChoice || xvoType(tChoice) != XVO_DT_TABLE ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible choice payload is invalid");
+        return XRT_NET_ERROR;
+    }
+
+    tMessage = xllm__json_table_get(tChoice, "message");
+    if ( !tMessage || xvoType(tMessage) != XVO_DT_TABLE ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible response missing message");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_parse_message_content(
+            xllm__json_table_get(tMessage, "content"),
+            &pMessageParts,
+            &iMessagePartCount,
+            &sVisibleText,
+            &sRefusalText,
+            pError
+         ) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible content");
+        goto fail;
+    }
+
+    if ( !sRefusalText ) {
+        const char *sMessageRefusal = xllm__json_table_get_text(tMessage, "refusal");
+        if ( sMessageRefusal ) {
+            sRefusalText = xllm__dup_cstr(sMessageRefusal);
+        }
+    }
+    sReasoningText = xllm__json_table_get_text(tMessage, "reasoning_content");
+
+    if ( tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT && sVisibleText && sVisibleText[0] ) {
+        if ( xllm__openai_parse_structured_output(
+                &tEffectiveParams.tResponseFormat,
+                pOptions,
+                sVisibleText,
+                &tJsonValue,
+                &sNormalizedJson,
+                pError
+             ) != XRT_NET_OK ) {
+            goto fail;
+        }
+        bJsonOutput = (tJsonValue != NULL);
+        if ( bJsonOutput && sNormalizedJson ) {
+            xllm__free_cstr(&sVisibleText);
+            sVisibleText = sNormalizedJson;
+            sNormalizedJson = NULL;
+        }
+    }
+
+    tToolCalls = xllm__json_table_get(tMessage, "tool_calls");
+    if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+        iToolCallCount = (size_t)xvoArrayItemCount(tToolCalls);
+    }
+
+    if ( iMessagePartCount > 0u ) {
+        ++iOutputCount;
+    }
+    if ( sReasoningText && sReasoningText[0] ) {
+        ++iOutputCount;
+    }
+    iOutputCount += iToolCallCount;
+    if ( sRefusalText && sRefusalText[0] ) {
+        ++iOutputCount;
+    }
+
+    pResponse = (xllm_response *)xrtCalloc(1, sizeof(*pResponse));
+    if ( !pResponse ) {
+        goto fail;
+    }
+
+    pResponse->sId = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "id"));
+    pResponse->sProvider = xllm__dup_cstr(pProfile->sProvider ? pProfile->sProvider : "openai_compat");
+    pResponse->sProfileId = xllm__dup_cstr(pProfile->sId);
+    sModel = xllm__json_table_get_text(tRoot, "model");
+    pResponse->sModel = xllm__dup_cstr(sModel ? sModel : xllm__openai_select_model(pProfile, pRequest, NULL));
+    sFinishReason = xllm__json_table_get_text(tChoice, "finish_reason");
+    pResponse->sFinishReason = xllm__dup_cstr(sFinishReason ? sFinishReason : "stop");
+    pResponse->sVisibleText = xllm__dup_cstr((sRefusalText && sRefusalText[0]) ? sRefusalText : sVisibleText);
+
+    if ( iOutputCount > 0u ) {
+        pResponse->pOutputs = (xllm_output_item *)xrtCalloc(iOutputCount, sizeof(xllm_output_item));
+        if ( !pResponse->pOutputs ) {
+            xllm_response_free(pResponse);
+            pResponse = NULL;
+            goto fail;
+        }
+        pResponse->iOutputCount = iOutputCount;
+    }
+
+    if ( sReasoningText && sReasoningText[0] ) {
+        xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+
+        pOutput->eKind = XLLM_OUTPUT_THINKING;
+        pOutput->as.tThinking.bVisible = true;
+        pOutput->as.tThinking.sFormat = xllm__dup_cstr("full");
+        pOutput->as.tThinking.sText = xllm__dup_cstr(sReasoningText);
+        if ( !pOutput->as.tThinking.sFormat || !pOutput->as.tThinking.sText ) {
+            goto fail;
+        }
+        if ( xllm__openai_set_reasoning_vendor_extra(&pOutput->as.tThinking, pProfile) != XRT_NET_OK ) {
+            goto fail;
+        }
+    }
+
+    if ( iMessagePartCount > 0u ) {
+        xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+        pOutput->eKind = XLLM_OUTPUT_MESSAGE;
+        pOutput->as.tMessage.iPartCount = iMessagePartCount;
+        pOutput->as.tMessage.pParts = pMessageParts;
+        pMessageParts = NULL;
+
+        if ( bJsonOutput && tJsonValue ) {
+            size_t iFirstText = (size_t)-1;
+            size_t iRead;
+            size_t iWrite = 0u;
+
+            for ( iRead = 0u; iRead < pOutput->as.tMessage.iPartCount; ++iRead ) {
+                if ( iFirstText == (size_t)-1 &&
+                     pOutput->as.tMessage.pParts[iRead].eKind == XLLM_PART_TEXT &&
+                     pOutput->as.tMessage.pParts[iRead].as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT ) {
+                    iFirstText = iRead;
+                    break;
+                }
+            }
+
+            if ( iFirstText != (size_t)-1 ) {
+                xllm__content_part_free(&pOutput->as.tMessage.pParts[iFirstText]);
+                pOutput->as.tMessage.pParts[iFirstText].eKind = XLLM_PART_JSON;
+                pOutput->as.tMessage.pParts[iFirstText].as.tJsonValue = tJsonValue;
+                tJsonValue = NULL;
+
+                for ( iRead = 0u; iRead < pOutput->as.tMessage.iPartCount; ++iRead ) {
+                    if ( iRead == iFirstText ) {
+                        if ( iWrite != iRead ) {
+                            pOutput->as.tMessage.pParts[iWrite] = pOutput->as.tMessage.pParts[iRead];
+                            memset(&pOutput->as.tMessage.pParts[iRead], 0, sizeof(xllm_content_part));
+                        }
+                        ++iWrite;
+                        continue;
+                    }
+
+                    if ( pOutput->as.tMessage.pParts[iRead].eKind == XLLM_PART_TEXT &&
+                         pOutput->as.tMessage.pParts[iRead].as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT ) {
+                        xllm__content_part_free(&pOutput->as.tMessage.pParts[iRead]);
+                        continue;
+                    }
+
+                    if ( iWrite != iRead ) {
+                        pOutput->as.tMessage.pParts[iWrite] = pOutput->as.tMessage.pParts[iRead];
+                        memset(&pOutput->as.tMessage.pParts[iRead], 0, sizeof(xllm_content_part));
+                    }
+                    ++iWrite;
+                }
+
+                pOutput->as.tMessage.iPartCount = iWrite;
+            }
+        }
+    }
+
+    if ( iToolCallCount > 0u ) {
+        size_t i;
+        for ( i = 0; i < iToolCallCount; ++i ) {
+            xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)i);
+            xvalue tFunction = xllm__json_table_get(tToolCall, "function");
+            const char *sCallId = xllm__json_table_get_text(tToolCall, "id");
+            const char *sToolName = xllm__json_table_get_text(tFunction, "name");
+            const char *sArguments = xllm__json_table_get_text(tFunction, "arguments");
+            xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+
+            pOutput->eKind = XLLM_OUTPUT_TOOL_CALL;
+            pOutput->as.tToolCall.sCallId = xllm__dup_cstr(sCallId);
+            pOutput->as.tToolCall.sToolId = xllm__dup_cstr(sToolName);
+            pOutput->as.tToolCall.sToolName = xllm__dup_cstr(sToolName);
+            pOutput->as.tToolCall.sArgumentsJson = xllm__dup_cstr(sArguments ? sArguments : "{}");
+        }
+    }
+
+    if ( sRefusalText && sRefusalText[0] ) {
+        xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+        pOutput->eKind = XLLM_OUTPUT_REFUSAL;
+        pOutput->as.tRefusal.sText = xllm__dup_cstr(sRefusalText);
+        pResponse->tRefusal.sText = xllm__dup_cstr(sRefusalText);
+    }
+
+    if ( xllm__openai_apply_terminal_status(pResponse, true, false) != XRT_NET_OK ) {
+        xllm_response_free(pResponse);
+        pResponse = NULL;
+        goto fail;
+    }
+
+    tUsage = xllm__json_table_get(tRoot, "usage");
+    if ( tUsage && xvoType(tUsage) == XVO_DT_TABLE ) {
+        xvalue tPromptDetails = xllm__json_table_get(tUsage, "prompt_tokens_details");
+        xvalue tCompletionDetails = xllm__json_table_get(tUsage, "completion_tokens_details");
+        pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "prompt_tokens");
+        pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "completion_tokens");
+        if ( tPromptDetails && xvoType(tPromptDetails) == XVO_DT_TABLE ) {
+            pResponse->tUsage.uCachedInputTokens = xllm__json_table_get_u32(tPromptDetails, "cached_tokens");
+        }
+        if ( tCompletionDetails && xvoType(tCompletionDetails) == XVO_DT_TABLE ) {
+            pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tCompletionDetails, "reasoning_tokens");
+        }
+    }
+
+    pResponse->tEffectiveParams = tEffectiveParams;
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    pResponse->tRaw = tRoot;
+
+    *ppResponse = pResponse;
+    xllm__free_cstr(&sVisibleText);
+    xllm__free_cstr(&sRefusalText);
+    xllm__free_cstr(&sNormalizedJson);
+    if ( pMessageParts ) {
+        size_t i;
+        for ( i = 0u; i < iMessagePartCount; ++i ) {
+            xllm__content_part_free(&pMessageParts[i]);
+        }
+        xrtFree(pMessageParts);
+    }
+    if ( tJsonValue ) {
+        xvoUnref(tJsonValue);
+    }
+    return XRT_NET_OK;
+
+fail:
+    xllm__free_cstr(&sVisibleText);
+    xllm__free_cstr(&sRefusalText);
+    xllm__free_cstr(&sNormalizedJson);
+    if ( pMessageParts ) {
+        size_t i;
+        for ( i = 0u; i < iMessagePartCount; ++i ) {
+            xllm__content_part_free(&pMessageParts[i]);
+        }
+        xrtFree(pMessageParts);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    if ( tJsonValue ) {
+        xvoUnref(tJsonValue);
+    }
+    return XRT_NET_ERROR;
+}
+
+static int xllm__append_owned_text(char **psTarget, const char *sDelta)
+{
+    size_t iOldLen;
+    size_t iDeltaLen;
+    char *sNew;
+
+    if ( !psTarget || !sDelta || !sDelta[0] ) {
+        return XRT_NET_OK;
+    }
+
+    iOldLen = (*psTarget) ? strlen(*psTarget) : 0u;
+    iDeltaLen = strlen(sDelta);
+    sNew = (char *)xrtRealloc(*psTarget, iOldLen + iDeltaLen + 1u);
+    if ( !sNew ) {
+        return XRT_NET_ERROR;
+    }
+
+    memcpy(sNew + iOldLen, sDelta, iDeltaLen + 1u);
+    *psTarget = sNew;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_fill_effective_params(
+    xllm_effective_params *pOut,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    xllm_stream_mode eStreamMode
+)
+{
+    return xllm__resolve_effective_params(pOut, pProfile, pRequest, eStreamMode);
+}
+
+static int xllm__openai_stream_dispatch(xllm__openai_stream_context *pCtx, xllm_event *pEvent)
+{
+    if ( !pCtx ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pCtx->pOptions && pCtx->pOptions->pCancelToken &&
+         xllm_cancel_token_is_cancelled(pCtx->pOptions->pCancelToken) ) {
+        pCtx->bCancelled = true;
+        return XRT_NET_CANCELLED;
+    }
+
+    if ( !pCtx->pOptions || !pCtx->pOptions->pfnOnEvent ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !pCtx->pOptions->pfnOnEvent(pEvent, pCtx->pOptions->pUserData) ) {
+        pCtx->bCancelled = true;
+        return XRT_NET_CANCELLED;
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_ensure_response(xllm__openai_stream_context *pCtx)
+{
+    xllm_response *pResponse;
+
+    if ( !pCtx ) {
+        return XRT_NET_ERROR;
+    }
+    if ( pCtx->pResponse ) {
+        return XRT_NET_OK;
+    }
+
+    pResponse = (xllm_response *)xrtCalloc(1, sizeof(*pResponse));
+    if ( !pResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    pResponse->sProvider = xllm__dup_cstr(
+        (pCtx->pProfile && pCtx->pProfile->sProvider) ? pCtx->pProfile->sProvider : "openai_compat"
+    );
+    pResponse->sProfileId = xllm__dup_cstr(pCtx->pProfile ? pCtx->pProfile->sId : NULL);
+    pResponse->sModel = xllm__dup_cstr(pCtx->sSelectedModel);
+    pResponse->eStatus = XLLM_STATUS_INCOMPLETE;
+    if ( xllm__openai_fill_effective_params(
+            &pResponse->tEffectiveParams,
+            pCtx->pProfile,
+            pCtx->pRequest,
+            (pCtx->pOptions ? pCtx->pOptions->eStreamMode : XLLM_STREAM_PREFER)
+         ) != XRT_NET_OK ) {
+        xllm_response_free(pResponse);
+        return XRT_NET_ERROR;
+    }
+
+    pCtx->pResponse = pResponse;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_emit_start(xllm__openai_stream_context *pCtx)
+{
+    xllm_event tEvent;
+
+    if ( !pCtx || pCtx->bStartEmitted ) {
+        return XRT_NET_OK;
+    }
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_START;
+    tEvent.as.tStart.sResponseId = pCtx->pResponse ? pCtx->pResponse->sId : NULL;
+    tEvent.as.tStart.sModel = (pCtx->pResponse && pCtx->pResponse->sModel) ? pCtx->pResponse->sModel : pCtx->sSelectedModel;
+    if ( xllm__openai_stream_dispatch(pCtx, &tEvent) != XRT_NET_OK ) {
+        return XRT_NET_CANCELLED;
+    }
+
+    pCtx->bStartEmitted = true;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_append_output(
+    xllm__openai_stream_context *pCtx,
+    xllm_output_kind eKind,
+    size_t *piIndex
+)
+{
+    xllm_output_item tOutput;
+
+    if ( !pCtx || !piIndex ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_ensure_response(pCtx) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tOutput, 0, sizeof(tOutput));
+    tOutput.eKind = eKind;
+    if ( xllm__append_buffer(
+            (void **)&pCtx->pResponse->pOutputs,
+            sizeof(tOutput),
+            &pCtx->pResponse->iOutputCount,
+            &pCtx->iOutputCapacity,
+            &tOutput
+         ) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    *piIndex = pCtx->pResponse->iOutputCount - 1u;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_emit_output_begin(
+    xllm__openai_stream_context *pCtx,
+    size_t iOutputIndex,
+    xllm_output_kind eKind
+)
+{
+    xllm_event tEvent;
+
+    if ( xllm__openai_stream_emit_start(pCtx) != XRT_NET_OK ) {
+        return XRT_NET_CANCELLED;
+    }
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_OUTPUT_BEGIN;
+    tEvent.uOutputIndex = (uint32)iOutputIndex;
+    tEvent.as.tOutputBegin.eKind = eKind;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__openai_stream_emit_output_end(xllm__openai_stream_context *pCtx, size_t iOutputIndex)
+{
+    xllm_event tEvent;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_OUTPUT_END;
+    tEvent.uOutputIndex = (uint32)iOutputIndex;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__openai_stream_ensure_message_output(
+    xllm__openai_stream_context *pCtx,
+    xllm_output_item **ppOutput
+)
+{
+    xllm_output_item *pOutput;
+
+    if ( !pCtx || !ppOutput ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pCtx->iMessageOutputIndex != (size_t)-1 ) {
+        *ppOutput = &pCtx->pResponse->pOutputs[pCtx->iMessageOutputIndex];
+        return XRT_NET_OK;
+    }
+
+    if ( xllm__openai_stream_append_output(pCtx, XLLM_OUTPUT_MESSAGE, &pCtx->iMessageOutputIndex) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    pOutput = &pCtx->pResponse->pOutputs[pCtx->iMessageOutputIndex];
+    if ( xllm__openai_stream_emit_output_begin(pCtx, pCtx->iMessageOutputIndex, XLLM_OUTPUT_MESSAGE) != XRT_NET_OK ) {
+        return XRT_NET_CANCELLED;
+    }
+
+    *ppOutput = pOutput;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_ensure_message_text_part(
+    xllm__openai_stream_context *pCtx,
+    xllm_output_item **ppOutput,
+    size_t *piPartIndex
+)
+{
+    xllm_output_item *pOutput;
+    size_t i;
+    xllm_content_part tPart;
+
+    if ( !pCtx || !ppOutput || !piPartIndex ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_ensure_message_output(pCtx, &pOutput) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < pOutput->as.tMessage.iPartCount; ++i ) {
+        xllm_content_part *pPart = &pOutput->as.tMessage.pParts[i];
+        if ( pPart->eKind == XLLM_PART_TEXT &&
+             pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT ) {
+            *ppOutput = pOutput;
+            *piPartIndex = i;
+            return XRT_NET_OK;
+        }
+    }
+
+    memset(&tPart, 0, sizeof(tPart));
+    tPart.eKind = XLLM_PART_TEXT;
+    tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+    tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+    tPart.as.tSource.as.sText = xllm__dup_cstr("");
+    if ( !tPart.as.tSource.sMimeType || !tPart.as.tSource.as.sText ) {
+        xllm__content_part_free(&tPart);
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_message_add_part(
+            &pOutput->as.tMessage.pParts,
+            &pOutput->as.tMessage.iPartCount,
+            &pCtx->iMessagePartCapacity,
+            &tPart
+         ) != XRT_NET_OK ) {
+        xllm__content_part_free(&tPart);
+        return XRT_NET_ERROR;
+    }
+
+    *ppOutput = pOutput;
+    *piPartIndex = pOutput->as.tMessage.iPartCount - 1u;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_emit_artifact_part(
+    xllm__openai_stream_context *pCtx,
+    size_t iOutputIndex,
+    size_t iPartIndex,
+    const xllm_content_part *pPart
+)
+{
+    xllm_artifact_info tInfo;
+    xllm_event tEvent;
+    char sArtifactId[64];
+    bool bSinkStarted = false;
+
+    if ( !pCtx || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pPart->eKind != XLLM_PART_IMAGE &&
+         pPart->eKind != XLLM_PART_FILE &&
+         pPart->eKind != XLLM_PART_AUDIO &&
+         pPart->eKind != XLLM_PART_VIDEO ) {
+        return XRT_NET_OK;
+    }
+
+    memset(&tInfo, 0, sizeof(tInfo));
+    (void)snprintf(
+        sArtifactId,
+        sizeof(sArtifactId),
+        "output_%u_part_%u",
+        (unsigned)iOutputIndex,
+        (unsigned)iPartIndex
+    );
+    tInfo.sArtifactId = sArtifactId;
+    tInfo.sMimeType = pPart->as.tSource.sMimeType;
+    tInfo.sName = pPart->as.tSource.sName;
+    tInfo.uExpectedSize = (pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES)
+                              ? (uint64)pPart->as.tSource.as.tBytes.iSize
+                              : 0u;
+    tInfo.uOutputIndex = (uint32)iOutputIndex;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_ARTIFACT_BEGIN;
+    tEvent.uOutputIndex = (uint32)iOutputIndex;
+    tEvent.as.tArtifactBegin.tInfo = tInfo;
+    if ( xllm__openai_stream_dispatch(pCtx, &tEvent) != XRT_NET_OK ) {
+        return XRT_NET_CANCELLED;
+    }
+
+    if ( pCtx->pOptions && pCtx->pOptions->pArtifactSink && pCtx->pOptions->pArtifactSink->pfnBegin ) {
+        bSinkStarted = pCtx->pOptions->pArtifactSink->pfnBegin(
+            pCtx->pOptions->pArtifactSink->pCtx,
+            &tInfo
+        );
+        if ( !bSinkStarted ) {
+            return XRT_NET_CANCELLED;
+        }
+    }
+
+    if ( pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES &&
+         pPart->as.tSource.as.tBytes.pData &&
+         pPart->as.tSource.as.tBytes.iSize > 0u ) {
+        memset(&tEvent, 0, sizeof(tEvent));
+        tEvent.eType = XLLM_EVENT_ARTIFACT_CHUNK;
+        tEvent.uOutputIndex = (uint32)iOutputIndex;
+        tEvent.as.tArtifactChunk.sArtifactId = sArtifactId;
+        tEvent.as.tArtifactChunk.pData = pPart->as.tSource.as.tBytes.pData;
+        tEvent.as.tArtifactChunk.iSize = pPart->as.tSource.as.tBytes.iSize;
+        if ( xllm__openai_stream_dispatch(pCtx, &tEvent) != XRT_NET_OK ) {
+            if ( pCtx->pOptions && pCtx->pOptions->pArtifactSink && pCtx->pOptions->pArtifactSink->pfnEnd && bSinkStarted ) {
+                pCtx->pOptions->pArtifactSink->pfnEnd(
+                    pCtx->pOptions->pArtifactSink->pCtx,
+                    sArtifactId,
+                    false
+                );
+            }
+            return XRT_NET_CANCELLED;
+        }
+
+        if ( pCtx->pOptions && pCtx->pOptions->pArtifactSink && pCtx->pOptions->pArtifactSink->pfnWrite ) {
+            if ( !pCtx->pOptions->pArtifactSink->pfnWrite(
+                    pCtx->pOptions->pArtifactSink->pCtx,
+                    sArtifactId,
+                    pPart->as.tSource.as.tBytes.pData,
+                    pPart->as.tSource.as.tBytes.iSize
+                 ) ) {
+                if ( pCtx->pOptions->pArtifactSink->pfnEnd && bSinkStarted ) {
+                    pCtx->pOptions->pArtifactSink->pfnEnd(
+                        pCtx->pOptions->pArtifactSink->pCtx,
+                        sArtifactId,
+                        false
+                    );
+                }
+                return XRT_NET_CANCELLED;
+            }
+        }
+    }
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_ARTIFACT_READY;
+    tEvent.uOutputIndex = (uint32)iOutputIndex;
+    tEvent.as.tArtifactReady.tInfo = tInfo;
+    if ( xllm__openai_stream_dispatch(pCtx, &tEvent) != XRT_NET_OK ) {
+        if ( pCtx->pOptions && pCtx->pOptions->pArtifactSink && pCtx->pOptions->pArtifactSink->pfnEnd && bSinkStarted ) {
+            pCtx->pOptions->pArtifactSink->pfnEnd(
+                pCtx->pOptions->pArtifactSink->pCtx,
+                sArtifactId,
+                false
+            );
+        }
+        return XRT_NET_CANCELLED;
+    }
+
+    if ( pCtx->pOptions && pCtx->pOptions->pArtifactSink && pCtx->pOptions->pArtifactSink->pfnEnd && bSinkStarted ) {
+        if ( !pCtx->pOptions->pArtifactSink->pfnEnd(
+                pCtx->pOptions->pArtifactSink->pCtx,
+                sArtifactId,
+                true
+             ) ) {
+            return XRT_NET_CANCELLED;
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_append_message_part(
+    xllm__openai_stream_context *pCtx,
+    xllm_content_part *pPart
+)
+{
+    xllm_output_item *pOutput;
+    size_t iPartIndex;
+
+    if ( !pCtx || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_ensure_message_output(pCtx, &pOutput) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__openai_message_add_part(
+            &pOutput->as.tMessage.pParts,
+            &pOutput->as.tMessage.iPartCount,
+            &pCtx->iMessagePartCapacity,
+            pPart
+         ) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    iPartIndex = pOutput->as.tMessage.iPartCount - 1u;
+    return xllm__openai_stream_emit_artifact_part(
+        pCtx,
+        pCtx->iMessageOutputIndex,
+        iPartIndex,
+        &pOutput->as.tMessage.pParts[iPartIndex]
+    );
+}
+
+static int xllm__openai_stream_append_text(xllm__openai_stream_context *pCtx, const char *sDelta)
+{
+    xllm_output_item *pOutput;
+    xllm_event tEvent;
+    size_t iPartIndex;
+
+    if ( !pCtx || !sDelta || !sDelta[0] ) {
+        return XRT_NET_OK;
+    }
+
+    if ( xllm__openai_stream_ensure_message_text_part(pCtx, &pOutput, &iPartIndex) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__append_owned_text((char **)&pOutput->as.tMessage.pParts[iPartIndex].as.tSource.as.sText, sDelta) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    ++pCtx->uTextDeltaCount;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_TEXT_DELTA;
+    tEvent.uOutputIndex = (uint32)pCtx->iMessageOutputIndex;
+    tEvent.as.tTextDelta.sText = sDelta;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__openai_stream_ensure_thinking_output(
+    xllm__openai_stream_context *pCtx,
+    xllm_output_item **ppOutput
+)
+{
+    xllm_output_item *pOutput;
+
+    if ( !pCtx || !ppOutput ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pCtx->iThinkingOutputIndex != (size_t)-1 ) {
+        *ppOutput = &pCtx->pResponse->pOutputs[pCtx->iThinkingOutputIndex];
+        return XRT_NET_OK;
+    }
+
+    if ( xllm__openai_stream_append_output(pCtx, XLLM_OUTPUT_THINKING, &pCtx->iThinkingOutputIndex) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    pOutput = &pCtx->pResponse->pOutputs[pCtx->iThinkingOutputIndex];
+    pOutput->as.tThinking.bVisible = true;
+    pOutput->as.tThinking.sFormat = xllm__dup_cstr("full");
+    pOutput->as.tThinking.sText = xllm__dup_cstr("");
+    if ( !pOutput->as.tThinking.sFormat || !pOutput->as.tThinking.sText ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_emit_output_begin(pCtx, pCtx->iThinkingOutputIndex, XLLM_OUTPUT_THINKING) != XRT_NET_OK ) {
+        return XRT_NET_CANCELLED;
+    }
+
+    *ppOutput = pOutput;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_append_thinking(xllm__openai_stream_context *pCtx, const char *sDelta)
+{
+    xllm_output_item *pOutput;
+    xllm_event tEvent;
+
+    if ( !pCtx || !sDelta || !sDelta[0] ) {
+        return XRT_NET_OK;
+    }
+
+    if ( xllm__openai_stream_ensure_thinking_output(pCtx, &pOutput) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__append_owned_text((char **)&pOutput->as.tThinking.sText, sDelta) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    ++pCtx->uThinkingDeltaCount;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_THINKING_DELTA;
+    tEvent.uOutputIndex = (uint32)pCtx->iThinkingOutputIndex;
+    tEvent.as.tThinkingDelta.sText = sDelta;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__openai_stream_append_reasoning_content(
+    xllm__openai_stream_context *pCtx,
+    const char *sDelta
+)
+{
+    xllm_output_item *pOutput;
+
+    if ( !pCtx || !sDelta || !sDelta[0] ) {
+        return XRT_NET_OK;
+    }
+
+    if ( xllm__openai_stream_ensure_thinking_output(pCtx, &pOutput) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__openai_set_reasoning_vendor_extra(&pOutput->as.tThinking, pCtx->pProfile) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    return xllm__openai_stream_append_thinking(pCtx, sDelta);
+}
+
+static int xllm__openai_stream_ensure_refusal_output(
+    xllm__openai_stream_context *pCtx,
+    xllm_output_item **ppOutput
+)
+{
+    xllm_output_item *pOutput;
+
+    if ( !pCtx || !ppOutput ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pCtx->iRefusalOutputIndex != (size_t)-1 ) {
+        *ppOutput = &pCtx->pResponse->pOutputs[pCtx->iRefusalOutputIndex];
+        return XRT_NET_OK;
+    }
+
+    if ( xllm__openai_stream_append_output(pCtx, XLLM_OUTPUT_REFUSAL, &pCtx->iRefusalOutputIndex) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    pOutput = &pCtx->pResponse->pOutputs[pCtx->iRefusalOutputIndex];
+    pOutput->as.tRefusal.sText = xllm__dup_cstr("");
+    pCtx->pResponse->tRefusal.sText = xllm__dup_cstr("");
+    if ( !pOutput->as.tRefusal.sText || !pCtx->pResponse->tRefusal.sText ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_emit_output_begin(pCtx, pCtx->iRefusalOutputIndex, XLLM_OUTPUT_REFUSAL) != XRT_NET_OK ) {
+        return XRT_NET_CANCELLED;
+    }
+
+    *ppOutput = pOutput;
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_append_refusal(xllm__openai_stream_context *pCtx, const char *sText)
+{
+    xllm_output_item *pOutput;
+    xllm_event tEvent;
+
+    if ( !pCtx || !sText || !sText[0] ) {
+        return XRT_NET_OK;
+    }
+
+    if ( xllm__openai_stream_ensure_refusal_output(pCtx, &pOutput) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__append_owned_text((char **)&pOutput->as.tRefusal.sText, sText) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__append_owned_text((char **)&pCtx->pResponse->tRefusal.sText, sText) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    ++pCtx->uRefusalCount;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_REFUSAL;
+    tEvent.uOutputIndex = (uint32)pCtx->iRefusalOutputIndex;
+    tEvent.as.tRefusal.tRefusal = pOutput->as.tRefusal;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__openai_stream_ensure_tool_output_slot(
+    xllm__openai_stream_context *pCtx,
+    size_t iToolIndex,
+    xllm_output_item **ppOutput,
+    size_t *piOutputIndex
+)
+{
+    xllm_output_item *pOutput;
+    size_t *pNew;
+    size_t i;
+
+    if ( !pCtx || !ppOutput || !piOutputIndex ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( iToolIndex >= pCtx->iToolOutputIndexCount ) {
+        size_t iNewCount = iToolIndex + 1u;
+        if ( iNewCount > pCtx->iToolOutputIndexCapacity ) {
+            size_t iNewCap = pCtx->iToolOutputIndexCapacity ? pCtx->iToolOutputIndexCapacity : 4u;
+            while ( iNewCap < iNewCount ) {
+                iNewCap *= 2u;
+            }
+            pNew = (size_t *)xrtRealloc(pCtx->pToolOutputIndices, iNewCap * sizeof(size_t));
+            if ( !pNew ) {
+                return XRT_NET_ERROR;
+            }
+            pCtx->pToolOutputIndices = pNew;
+            pCtx->iToolOutputIndexCapacity = iNewCap;
+        }
+
+        for ( i = pCtx->iToolOutputIndexCount; i < iNewCount; ++i ) {
+            pCtx->pToolOutputIndices[i] = (size_t)-1;
+        }
+        pCtx->iToolOutputIndexCount = iNewCount;
+    }
+
+    if ( pCtx->pToolOutputIndices[iToolIndex] == (size_t)-1 ) {
+        size_t iOutputIndex;
+        if ( xllm__openai_stream_append_output(pCtx, XLLM_OUTPUT_TOOL_CALL, &iOutputIndex) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        pCtx->pToolOutputIndices[iToolIndex] = iOutputIndex;
+        pOutput = &pCtx->pResponse->pOutputs[iOutputIndex];
+        pOutput->as.tToolCall.sArgumentsJson = xllm__dup_cstr("");
+        if ( !pOutput->as.tToolCall.sArgumentsJson ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( xllm__openai_stream_emit_output_begin(pCtx, iOutputIndex, XLLM_OUTPUT_TOOL_CALL) != XRT_NET_OK ) {
+            return XRT_NET_CANCELLED;
+        }
+    }
+
+    *piOutputIndex = pCtx->pToolOutputIndices[iToolIndex];
+    *ppOutput = &pCtx->pResponse->pOutputs[*piOutputIndex];
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_append_tool_delta(
+    xllm__openai_stream_context *pCtx,
+    size_t iToolIndex,
+    const char *sCallId,
+    const char *sToolNameDelta,
+    const char *sArgumentsDelta
+)
+{
+    xllm_output_item *pOutput;
+    xllm_event tEvent;
+    size_t iOutputIndex;
+
+    if ( !pCtx ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_ensure_tool_output_slot(pCtx, iToolIndex, &pOutput, &iOutputIndex) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( sCallId && sCallId[0] && !pOutput->as.tToolCall.sCallId ) {
+        pOutput->as.tToolCall.sCallId = xllm__dup_cstr(sCallId);
+        if ( !pOutput->as.tToolCall.sCallId ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( sToolNameDelta && sToolNameDelta[0] ) {
+        if ( xllm__append_owned_text((char **)&pOutput->as.tToolCall.sToolName, sToolNameDelta) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__append_owned_text((char **)&pOutput->as.tToolCall.sToolId, sToolNameDelta) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( sArgumentsDelta && sArgumentsDelta[0] ) {
+        if ( xllm__append_owned_text((char **)&pOutput->as.tToolCall.sArgumentsJson, sArgumentsDelta) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    ++pCtx->uToolDeltaCount;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_TOOL_CALL_DELTA;
+    tEvent.uOutputIndex = (uint32)iOutputIndex;
+    tEvent.as.tToolCallDelta.sCallId = sCallId ? sCallId : pOutput->as.tToolCall.sCallId;
+    tEvent.as.tToolCallDelta.sToolId = sToolNameDelta ? sToolNameDelta : NULL;
+    tEvent.as.tToolCallDelta.sToolName = sToolNameDelta ? sToolNameDelta : NULL;
+    tEvent.as.tToolCallDelta.sArgumentsDelta = sArgumentsDelta;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__openai_stream_apply_usage(xllm__openai_stream_context *pCtx, xvalue tUsage)
+{
+    xllm_event tEvent;
+    xvalue tPromptDetails;
+    xvalue tCompletionDetails;
+
+    if ( !pCtx || !pCtx->pResponse || !tUsage || xvoType(tUsage) != XVO_DT_TABLE ) {
+        return XRT_NET_OK;
+    }
+
+    pCtx->pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "prompt_tokens");
+    pCtx->pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "completion_tokens");
+    tPromptDetails = xllm__json_table_get(tUsage, "prompt_tokens_details");
+    tCompletionDetails = xllm__json_table_get(tUsage, "completion_tokens_details");
+    if ( tPromptDetails && xvoType(tPromptDetails) == XVO_DT_TABLE ) {
+        pCtx->pResponse->tUsage.uCachedInputTokens = xllm__json_table_get_u32(tPromptDetails, "cached_tokens");
+    }
+    if ( tCompletionDetails && xvoType(tCompletionDetails) == XVO_DT_TABLE ) {
+        pCtx->pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tCompletionDetails, "reasoning_tokens");
+    }
+    ++pCtx->uUsageCount;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_USAGE;
+    tEvent.as.tUsage.tUsage = pCtx->pResponse->tUsage;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__openai_stream_process_payload(
+    xllm__openai_stream_context *pCtx,
+    const char *sPayload,
+    size_t iPayloadLen
+)
+{
+    xvalue tRoot = NULL;
+    xvalue tChoices;
+    size_t i;
+
+    if ( !pCtx || !sPayload ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( iPayloadLen == 6u && memcmp(sPayload, "[DONE]", 6u) == 0 ) {
+        pCtx->bDone = true;
+        ++pCtx->uPayloadCount;
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "done", iPayloadLen);
+        return XRT_NET_OK;
+    }
+
+    tRoot = xrtParseJSON((str)sPayload, iPayloadLen);
+    if ( !tRoot || xvoType(tRoot) != XVO_DT_TABLE ) {
+        xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible stream event");
+        if ( tRoot ) {
+            xvoUnref(tRoot);
+        }
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_ensure_response(pCtx) != XRT_NET_OK ) {
+        xvoUnref(tRoot);
+        return XRT_NET_ERROR;
+    }
+
+    if ( !pCtx->pResponse->sId ) {
+        const char *sId = xllm__json_table_get_text(tRoot, "id");
+        if ( sId ) {
+            pCtx->pResponse->sId = xllm__dup_cstr(sId);
+        }
+    }
+    if ( !pCtx->pResponse->sModel ) {
+        const char *sModel = xllm__json_table_get_text(tRoot, "model");
+        pCtx->pResponse->sModel = xllm__dup_cstr(sModel ? sModel : pCtx->sSelectedModel);
+    }
+
+    if ( xllm__openai_stream_emit_start(pCtx) != XRT_NET_OK ) {
+        xvoUnref(tRoot);
+        return XRT_NET_CANCELLED;
+    }
+    ++pCtx->uPayloadCount;
+    if ( xllm__openai_stream_apply_usage(pCtx, xllm__json_table_get(tRoot, "usage")) != XRT_NET_OK ) {
+        xvoUnref(tRoot);
+        return XRT_NET_CANCELLED;
+    }
+
+    tChoices = xllm__json_table_get(tRoot, "choices");
+    if ( tChoices && xvoType(tChoices) == XVO_DT_ARRAY ) {
+        for ( i = 0; i < (size_t)xvoArrayItemCount(tChoices); ++i ) {
+            xvalue tChoice = xvoArrayGetValue(tChoices, (uint32)i);
+            xvalue tDelta;
+            const char *sFinishReason;
+
+            if ( !tChoice || xvoType(tChoice) != XVO_DT_TABLE ) {
+                continue;
+            }
+
+            sFinishReason = xllm__json_table_get_text(tChoice, "finish_reason");
+            if ( sFinishReason && sFinishReason[0] ) {
+                xllm__free_cstr((char **)&pCtx->pResponse->sFinishReason);
+                pCtx->pResponse->sFinishReason = xllm__dup_cstr(sFinishReason);
+                pCtx->bDone = true;
+            }
+
+            tDelta = xllm__json_table_get(tChoice, "delta");
+            if ( tDelta && xvoType(tDelta) == XVO_DT_TABLE ) {
+                xllm_content_part *pMessageParts = NULL;
+                size_t iMessagePartCount = 0u;
+                char *sRefusal = NULL;
+                char *sVisibleText = NULL;
+                xvalue tToolCalls;
+                size_t j;
+
+                if ( xllm__openai_parse_message_content(
+                        xllm__json_table_get(tDelta, "content"),
+                        &pMessageParts,
+                        &iMessagePartCount,
+                        &sVisibleText,
+                        &sRefusal,
+                        pCtx->pError
+                     ) != XRT_NET_OK ) {
+                    xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible stream delta");
+                    xllm__free_cstr(&sVisibleText);
+                    xllm__free_cstr(&sRefusal);
+                    xvoUnref(tRoot);
+                    return XRT_NET_ERROR;
+                }
+
+                if ( !sRefusal ) {
+                    const char *sDeltaRefusal = xllm__json_table_get_text(tDelta, "refusal");
+                    if ( sDeltaRefusal ) {
+                        sRefusal = xllm__dup_cstr(sDeltaRefusal);
+                    }
+                }
+                {
+                    const char *sReasoningContent = xllm__json_table_get_text(tDelta, "reasoning_content");
+
+                    if ( sReasoningContent &&
+                         xllm__openai_stream_append_reasoning_content(pCtx, sReasoningContent) != XRT_NET_OK ) {
+                        xllm__free_cstr(&sVisibleText);
+                        xllm__free_cstr(&sRefusal);
+                        if ( pMessageParts ) {
+                            for ( j = 0u; j < iMessagePartCount; ++j ) {
+                                xllm__content_part_free(&pMessageParts[j]);
+                            }
+                            xrtFree(pMessageParts);
+                        }
+                        xvoUnref(tRoot);
+                        return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                    }
+                }
+
+                if ( sVisibleText && xllm__openai_stream_append_text(pCtx, sVisibleText) != XRT_NET_OK ) {
+                    xllm__free_cstr(&sVisibleText);
+                    xllm__free_cstr(&sRefusal);
+                    if ( pMessageParts ) {
+                        for ( j = 0u; j < iMessagePartCount; ++j ) {
+                            xllm__content_part_free(&pMessageParts[j]);
+                        }
+                        xrtFree(pMessageParts);
+                    }
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+                if ( sRefusal && xllm__openai_stream_append_refusal(pCtx, sRefusal) != XRT_NET_OK ) {
+                    xllm__free_cstr(&sVisibleText);
+                    xllm__free_cstr(&sRefusal);
+                    if ( pMessageParts ) {
+                        for ( j = 0u; j < iMessagePartCount; ++j ) {
+                            xllm__content_part_free(&pMessageParts[j]);
+                        }
+                        xrtFree(pMessageParts);
+                    }
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+
+                xllm__free_cstr(&sVisibleText);
+                xllm__free_cstr(&sRefusal);
+
+                for ( j = 0u; j < iMessagePartCount; ++j ) {
+                    if ( pMessageParts[j].eKind == XLLM_PART_TEXT ) {
+                        continue;
+                    }
+                    if ( xllm__openai_stream_append_message_part(pCtx, &pMessageParts[j]) != XRT_NET_OK ) {
+                        size_t k;
+                        if ( pMessageParts ) {
+                            for ( k = 0u; k < iMessagePartCount; ++k ) {
+                                xllm__content_part_free(&pMessageParts[k]);
+                            }
+                            xrtFree(pMessageParts);
+                        }
+                        xvoUnref(tRoot);
+                        return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                    }
+                }
+                if ( pMessageParts ) {
+                    for ( j = 0u; j < iMessagePartCount; ++j ) {
+                        xllm__content_part_free(&pMessageParts[j]);
+                    }
+                    xrtFree(pMessageParts);
+                }
+
+                tToolCalls = xllm__json_table_get(tDelta, "tool_calls");
+                if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+                    for ( j = 0; j < (size_t)xvoArrayItemCount(tToolCalls); ++j ) {
+                        xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)j);
+                        xvalue tFunction;
+                        xvalue tIndexValue;
+                        size_t iToolIndex = j;
+                        const char *sCallId;
+                        const char *sToolName = NULL;
+                        const char *sArguments = NULL;
+
+                        if ( !tToolCall || xvoType(tToolCall) != XVO_DT_TABLE ) {
+                            continue;
+                        }
+
+                        tIndexValue = xllm__json_table_get(tToolCall, "index");
+                        if ( tIndexValue && xvoType(tIndexValue) == XVO_DT_INT ) {
+                            iToolIndex = (size_t)xvoGetInt(tIndexValue);
+                        }
+
+                        sCallId = xllm__json_table_get_text(tToolCall, "id");
+                        tFunction = xllm__json_table_get(tToolCall, "function");
+                        if ( tFunction && xvoType(tFunction) == XVO_DT_TABLE ) {
+                            sToolName = xllm__json_table_get_text(tFunction, "name");
+                            sArguments = xllm__json_table_get_text(tFunction, "arguments");
+                        }
+
+                        if ( xllm__openai_stream_append_tool_delta(
+                                pCtx,
+                                iToolIndex,
+                                sCallId,
+                                sToolName,
+                                sArguments
+                             ) != XRT_NET_OK ) {
+                            xvoUnref(tRoot);
+                            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "payload", iPayloadLen);
+    xvoUnref(tRoot);
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_stream_process_event_block(
+    xllm__openai_stream_context *pCtx,
+    const char *sEvent,
+    size_t iEventLen
+)
+{
+    xllm__json_builder tPayload;
+    size_t iOffset = 0u;
+    bool bSawData = false;
+    int iStatus;
+
+    if ( !pCtx || !sEvent ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPayload, 0, sizeof(tPayload));
+    while ( iOffset < iEventLen ) {
+        size_t iLineStart = iOffset;
+        size_t iLineLen;
+        const char *sLine;
+
+        while ( iOffset < iEventLen && sEvent[iOffset] != '\n' ) {
+            ++iOffset;
+        }
+        iLineLen = iOffset - iLineStart;
+        if ( iOffset < iEventLen && sEvent[iOffset] == '\n' ) {
+            ++iOffset;
+        }
+        if ( iLineLen > 0u && sEvent[iLineStart + iLineLen - 1u] == '\r' ) {
+            --iLineLen;
+        }
+        sLine = sEvent + iLineStart;
+
+        if ( iLineLen == 0u || sLine[0] == ':' ) {
+            continue;
+        }
+        if ( iLineLen >= 5u && memcmp(sLine, "data:", 5u) == 0 ) {
+            const char *sData = sLine + 5u;
+            size_t iDataLen = iLineLen - 5u;
+            while ( iDataLen > 0u && (*sData == ' ' || *sData == '\t') ) {
+                ++sData;
+                --iDataLen;
+            }
+            if ( bSawData && !xllm__json_builder_append_char(&tPayload, '\n') ) {
+                xllm__json_builder_reset(&tPayload);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_bytes(&tPayload, sData, iDataLen) ) {
+                xllm__json_builder_reset(&tPayload);
+                return XRT_NET_ERROR;
+            }
+            bSawData = true;
+        }
+    }
+
+    if ( !bSawData || !tPayload.pData ) {
+        xllm__json_builder_reset(&tPayload);
+        return XRT_NET_OK;
+    }
+
+    iStatus = xllm__openai_stream_process_payload(pCtx, tPayload.pData, tPayload.iLen);
+    if ( iStatus == XRT_NET_OK ) {
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "event_block", tPayload.iLen);
+    }
+    xllm__json_builder_reset(&tPayload);
+    return iStatus;
+}
+
+static int xllm__openai_stream_process_buffer(
+    xllm__openai_stream_context *pCtx,
+    const char *sBuffer,
+    size_t iLen
+)
+{
+    size_t iCursor;
+
+    if ( !pCtx || !sBuffer ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( iLen <= pCtx->iParsedBytes ) {
+        return XRT_NET_OK;
+    }
+
+    iCursor = pCtx->iParsedBytes;
+    while ( iCursor < iLen ) {
+        size_t i;
+        size_t iEventEnd = (size_t)-1;
+        size_t iDelimiterLen = 0u;
+
+        for ( i = iCursor; i + 1u < iLen; ++i ) {
+            if ( sBuffer[i] == '\n' && sBuffer[i + 1u] == '\n' ) {
+                iEventEnd = i;
+                iDelimiterLen = 2u;
+                break;
+            }
+            if ( i + 3u < iLen &&
+                 sBuffer[i] == '\r' &&
+                 sBuffer[i + 1u] == '\n' &&
+                 sBuffer[i + 2u] == '\r' &&
+                 sBuffer[i + 3u] == '\n' ) {
+                iEventEnd = i;
+                iDelimiterLen = 4u;
+                break;
+            }
+        }
+
+        if ( iEventEnd == (size_t)-1 ) {
+            break;
+        }
+
+        if ( xllm__openai_stream_process_event_block(pCtx, sBuffer + iCursor, iEventEnd - iCursor) != XRT_NET_OK ) {
+            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+        }
+        iCursor = iEventEnd + iDelimiterLen;
+        pCtx->iParsedBytes = iCursor;
+    }
+
+    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_OK;
+}
+
+static int xllm__openai_stream_finalize_response(xllm__openai_stream_context *pCtx)
+{
+    size_t i;
+
+    if ( !pCtx || !pCtx->pResponse ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pCtx->iMessageOutputIndex != (size_t)-1 ) {
+        xllm_output_item *pOutput = &pCtx->pResponse->pOutputs[pCtx->iMessageOutputIndex];
+        xllm_content_part *pJsonTargetPart = NULL;
+        xllm__json_builder tVisibleText;
+        const char *sText = NULL;
+        char *sNormalizedJson = NULL;
+        size_t i;
+
+        memset(&tVisibleText, 0, sizeof(tVisibleText));
+        for ( i = 0u; i < pOutput->as.tMessage.iPartCount; ++i ) {
+            xllm_content_part *pPart = &pOutput->as.tMessage.pParts[i];
+            if ( pPart->eKind == XLLM_PART_TEXT &&
+                 pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT ) {
+                const char *sPartText = pPart->as.tSource.as.sText;
+                if ( !pJsonTargetPart ) {
+                    pJsonTargetPart = pPart;
+                }
+                if ( sPartText && sPartText[0] ) {
+                    if ( tVisibleText.iLen > 0u && !xllm__json_builder_append_char(&tVisibleText, '\n') ) {
+                        xllm__json_builder_reset(&tVisibleText);
+                        return XRT_NET_ERROR;
+                    }
+                    if ( !xllm__json_builder_append_cstr(&tVisibleText, sPartText) ) {
+                        xllm__json_builder_reset(&tVisibleText);
+                        return XRT_NET_ERROR;
+                    }
+                }
+            }
+        }
+        sText = tVisibleText.pData;
+
+        xllm__free_cstr((char **)&pCtx->pResponse->sVisibleText);
+        pCtx->pResponse->sVisibleText = xllm__json_builder_detach(&tVisibleText);
+
+        if ( pCtx->pResponse->tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+             pJsonTargetPart &&
+             sText && sText[0] ) {
+            xvalue tJsonValue = NULL;
+            if ( xllm__openai_parse_structured_output(
+                    &pCtx->pResponse->tEffectiveParams.tResponseFormat,
+                    pCtx->pOptions,
+                    sText,
+                    &tJsonValue,
+                    &sNormalizedJson,
+                    pCtx->pError
+                 ) != XRT_NET_OK ) {
+                xllm__free_cstr(&sNormalizedJson);
+                return XRT_NET_ERROR;
+            }
+            if ( tJsonValue ) {
+                xllm__content_part_free(pJsonTargetPart);
+                memset(pJsonTargetPart, 0, sizeof(*pJsonTargetPart));
+                pJsonTargetPart->eKind = XLLM_PART_JSON;
+                pJsonTargetPart->as.tJsonValue = tJsonValue;
+                if ( sNormalizedJson ) {
+                    xllm__free_cstr((char **)&pCtx->pResponse->sVisibleText);
+                    pCtx->pResponse->sVisibleText = sNormalizedJson;
+                    sNormalizedJson = NULL;
+                }
+            }
+        }
+        xllm__free_cstr(&sNormalizedJson);
+    }
+
+    if ( !pCtx->pResponse->sFinishReason ) {
+        pCtx->pResponse->sFinishReason = xllm__dup_cstr(
+            pCtx->bCancelled ? "cancelled" : (pCtx->bDone ? "stop" : "incomplete")
+        );
+    }
+
+    if ( pCtx->bCancelled ) {
+        pCtx->pResponse->eStatus = XLLM_STATUS_CANCELLED;
+    } else if ( pCtx->pResponse->tRefusal.sText && pCtx->pResponse->tRefusal.sText[0] ) {
+        xllm__free_cstr((char **)&pCtx->pResponse->sVisibleText);
+        pCtx->pResponse->sVisibleText = xllm__dup_cstr(pCtx->pResponse->tRefusal.sText);
+        if ( !pCtx->pResponse->sVisibleText ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( xllm__openai_apply_terminal_status(pCtx->pResponse, pCtx->bDone, pCtx->bCancelled) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pCtx->pOptions && pCtx->pOptions->pfnOnEvent ) {
+        for ( i = 0; i < pCtx->pResponse->iOutputCount; ++i ) {
+            xllm_output_item *pOutput = &pCtx->pResponse->pOutputs[i];
+
+            if ( pOutput->eKind == XLLM_OUTPUT_TOOL_CALL ) {
+                xllm_event tToolReady;
+                if ( !pOutput->as.tToolCall.sArgumentsJson || !pOutput->as.tToolCall.sArgumentsJson[0] ) {
+                    xllm__free_cstr((char **)&pOutput->as.tToolCall.sArgumentsJson);
+                    pOutput->as.tToolCall.sArgumentsJson = xllm__dup_cstr("{}");
+                }
+                memset(&tToolReady, 0, sizeof(tToolReady));
+                tToolReady.eType = XLLM_EVENT_TOOL_CALL_READY;
+                tToolReady.uOutputIndex = (uint32)i;
+                tToolReady.as.tToolCallReady.tToolCall = pOutput->as.tToolCall;
+                if ( xllm__openai_stream_dispatch(pCtx, &tToolReady) != XRT_NET_OK ) {
+                    return XRT_NET_CANCELLED;
+                }
+            }
+
+            if ( xllm__openai_stream_emit_output_end(pCtx, i) != XRT_NET_OK ) {
+                return XRT_NET_CANCELLED;
+            }
+        }
+
+        {
+            xllm_event tEnd;
+            memset(&tEnd, 0, sizeof(tEnd));
+            tEnd.eType = XLLM_EVENT_END;
+            if ( xllm__openai_stream_dispatch(pCtx, &tEnd) != XRT_NET_OK ) {
+                return XRT_NET_CANCELLED;
+            }
+        }
+    }
+
+    xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "finalize", 0u);
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_build_chat_body(
+    xllm__json_builder *pBody,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    const xllm_call_options *pOptions,
+    const char *sModel,
+    bool bStream,
+    xllm_error *pError
+)
+{
+    if ( !pBody || !pRequest || !pEffectiveParams || !sModel ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '{') ) return XRT_NET_ERROR;
+    if ( !xllm__json_builder_append_cstr(pBody, "\"model\":") ) return XRT_NET_ERROR;
+    if ( !xllm__json_builder_append_escaped(pBody, sModel) ) return XRT_NET_ERROR;
+    if ( !xllm__json_builder_append_cstr(pBody, bStream ? ",\"stream\":true," : ",\"stream\":false,") ) return XRT_NET_ERROR;
+    if ( xllm__openai_append_context_messages(pBody, pRuntime, pProfile, pRequest, pOptions, pError) != XRT_NET_OK ) return XRT_NET_ERROR;
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"temperature\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTemperature.fValue) ) return XRT_NET_ERROR;
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"top_p\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTopP.fValue) ) return XRT_NET_ERROR;
+    }
+    if ( pEffectiveParams->tGeneration.tMaxOutputTokens.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"max_tokens\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tMaxOutputTokens.iValue) ) return XRT_NET_ERROR;
+    }
+    if ( pEffectiveParams->tGeneration.tSeed.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"seed\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tSeed.iValue) ) return XRT_NET_ERROR;
+    }
+    {
+        const char *sReasoningEffort = xllm__openai_reasoning_effort_name(&pEffectiveParams->tReasoning);
+        if ( sReasoningEffort && sReasoningEffort[0] ) {
+            if ( !xllm__json_builder_append_cstr(pBody, ",\"reasoning_effort\":") ) return XRT_NET_ERROR;
+            if ( !xllm__json_builder_append_escaped(pBody, sReasoningEffort) ) return XRT_NET_ERROR;
+        }
+    }
+    if ( xllm__openai_append_stop(pBody, &pEffectiveParams->tGeneration) != XRT_NET_OK ) return XRT_NET_ERROR;
+    if ( pRequest->iToolCount > 0u ) {
+        if ( xllm__openai_append_tools(pBody, pRequest) != XRT_NET_OK ) return XRT_NET_ERROR;
+        if ( xllm__openai_append_tool_policy(pBody, pRequest) != XRT_NET_OK ) return XRT_NET_ERROR;
+    }
+    if ( xllm__openai_should_send_native_response_format(
+            pProfile,
+            pRequest,
+            &pEffectiveParams->tResponseFormat,
+            pOptions
+         ) ) {
+        if ( xllm__openai_append_response_format(pBody, &pEffectiveParams->tResponseFormat) != XRT_NET_OK ) return XRT_NET_ERROR;
+    }
+    if ( bStream ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stream_options\":{\"include_usage\":true}") ) return XRT_NET_ERROR;
+    }
+    if ( !xllm__json_builder_append_char(pBody, '}') ) return XRT_NET_ERROR;
+
+    return XRT_NET_OK;
+}
+
+static int xllm__openai_emit_synthetic_events(const xllm_response *pResponse, const xllm_call_options *pOptions)
+{
+    xllm_event tEvent;
+    size_t i;
+
+    if ( !pResponse || !pOptions ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pOptions->pfnOnEvent ) {
+        memset(&tEvent, 0, sizeof(tEvent));
+        tEvent.eType = XLLM_EVENT_START;
+        tEvent.bSynthetic = true;
+        tEvent.as.tStart.sResponseId = pResponse->sId;
+        tEvent.as.tStart.sModel = pResponse->sModel;
+        if ( !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+            return XRT_NET_CANCELLED;
+        }
+    }
+
+    for ( i = 0; i < pResponse->iOutputCount; ++i ) {
+        const xllm_output_item *pOutput = &pResponse->pOutputs[i];
+
+        if ( pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+            return XRT_NET_CANCELLED;
+        }
+
+        if ( pOptions->pfnOnEvent ) {
+            memset(&tEvent, 0, sizeof(tEvent));
+            tEvent.eType = XLLM_EVENT_OUTPUT_BEGIN;
+            tEvent.bSynthetic = true;
+            tEvent.uOutputIndex = (uint32)i;
+            tEvent.as.tOutputBegin.eKind = pOutput->eKind;
+            if ( !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+                return XRT_NET_CANCELLED;
+            }
+        }
+
+        switch ( pOutput->eKind ) {
+            case XLLM_OUTPUT_MESSAGE:
+                if ( pOutput->as.tMessage.iPartCount > 0u ) {
+                    size_t j;
+                    for ( j = 0; j < pOutput->as.tMessage.iPartCount; ++j ) {
+                        const xllm_content_part *pPart = &pOutput->as.tMessage.pParts[j];
+                        if ( pPart->eKind == XLLM_PART_TEXT &&
+                             pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT ) {
+                            memset(&tEvent, 0, sizeof(tEvent));
+                            tEvent.eType = XLLM_EVENT_TEXT_DELTA;
+                            tEvent.bSynthetic = true;
+                            tEvent.uOutputIndex = (uint32)i;
+                            tEvent.as.tTextDelta.sText = pPart->as.tSource.as.sText;
+                            if ( pOptions->pfnOnEvent &&
+                                 !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+                                return XRT_NET_CANCELLED;
+                            }
+                        } else if ( pPart->eKind == XLLM_PART_IMAGE ||
+                                    pPart->eKind == XLLM_PART_FILE ||
+                                    pPart->eKind == XLLM_PART_AUDIO ||
+                                    pPart->eKind == XLLM_PART_VIDEO ) {
+                            char sArtifactId[64];
+                            xllm_artifact_info tInfo;
+                            bool bSinkStarted = false;
+
+                            memset(&tInfo, 0, sizeof(tInfo));
+                            (void)snprintf(
+                                sArtifactId,
+                                sizeof(sArtifactId),
+                                "output_%u_part_%u",
+                                (unsigned)i,
+                                (unsigned)j
+                            );
+                            tInfo.sArtifactId = sArtifactId;
+                            tInfo.sMimeType = pPart->as.tSource.sMimeType;
+                            tInfo.sName = pPart->as.tSource.sName;
+                            tInfo.uExpectedSize = (pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES)
+                                                      ? (uint64)pPart->as.tSource.as.tBytes.iSize
+                                                      : 0u;
+                            tInfo.uOutputIndex = (uint32)i;
+
+                            memset(&tEvent, 0, sizeof(tEvent));
+                            tEvent.eType = XLLM_EVENT_ARTIFACT_BEGIN;
+                            tEvent.bSynthetic = true;
+                            tEvent.uOutputIndex = (uint32)i;
+                            tEvent.as.tArtifactBegin.tInfo = tInfo;
+                            if ( !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+                                return XRT_NET_CANCELLED;
+                            }
+
+                            if ( pOptions->pArtifactSink && pOptions->pArtifactSink->pfnBegin ) {
+                                bSinkStarted = pOptions->pArtifactSink->pfnBegin(
+                                    pOptions->pArtifactSink->pCtx,
+                                    &tInfo
+                                );
+                                if ( !bSinkStarted ) {
+                                    return XRT_NET_CANCELLED;
+                                }
+                            }
+
+                            if ( pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES &&
+                                 pPart->as.tSource.as.tBytes.pData &&
+                                 pPart->as.tSource.as.tBytes.iSize > 0u ) {
+                                memset(&tEvent, 0, sizeof(tEvent));
+                                tEvent.eType = XLLM_EVENT_ARTIFACT_CHUNK;
+                                tEvent.bSynthetic = true;
+                                tEvent.uOutputIndex = (uint32)i;
+                                tEvent.as.tArtifactChunk.sArtifactId = sArtifactId;
+                                tEvent.as.tArtifactChunk.pData = pPart->as.tSource.as.tBytes.pData;
+                                tEvent.as.tArtifactChunk.iSize = pPart->as.tSource.as.tBytes.iSize;
+                                if ( pOptions->pfnOnEvent &&
+                                     !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+                                    return XRT_NET_CANCELLED;
+                                }
+
+                                if ( pOptions->pArtifactSink && pOptions->pArtifactSink->pfnWrite ) {
+                                    if ( !pOptions->pArtifactSink->pfnWrite(
+                                            pOptions->pArtifactSink->pCtx,
+                                            sArtifactId,
+                                            pPart->as.tSource.as.tBytes.pData,
+                                            pPart->as.tSource.as.tBytes.iSize
+                                         ) ) {
+                                        if ( pOptions->pArtifactSink->pfnEnd && bSinkStarted ) {
+                                            pOptions->pArtifactSink->pfnEnd(
+                                                pOptions->pArtifactSink->pCtx,
+                                                sArtifactId,
+                                                false
+                                            );
+                                        }
+                                        return XRT_NET_CANCELLED;
+                                    }
+                                }
+                            }
+
+                            memset(&tEvent, 0, sizeof(tEvent));
+                            tEvent.eType = XLLM_EVENT_ARTIFACT_READY;
+                            tEvent.bSynthetic = true;
+                            tEvent.uOutputIndex = (uint32)i;
+                            tEvent.as.tArtifactReady.tInfo = tInfo;
+                            if ( pOptions->pfnOnEvent &&
+                                 !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+                                if ( pOptions->pArtifactSink && pOptions->pArtifactSink->pfnEnd && bSinkStarted ) {
+                                    pOptions->pArtifactSink->pfnEnd(
+                                        pOptions->pArtifactSink->pCtx,
+                                        sArtifactId,
+                                        false
+                                    );
+                                }
+                                return XRT_NET_CANCELLED;
+                            }
+
+                            if ( pOptions->pArtifactSink && pOptions->pArtifactSink->pfnEnd && bSinkStarted ) {
+                                if ( !pOptions->pArtifactSink->pfnEnd(
+                                        pOptions->pArtifactSink->pCtx,
+                                        sArtifactId,
+                                        true
+                                     ) ) {
+                                    return XRT_NET_CANCELLED;
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+            case XLLM_OUTPUT_TOOL_CALL:
+                memset(&tEvent, 0, sizeof(tEvent));
+                tEvent.eType = XLLM_EVENT_TOOL_CALL_READY;
+                tEvent.bSynthetic = true;
+                tEvent.uOutputIndex = (uint32)i;
+                tEvent.as.tToolCallReady.tToolCall = pOutput->as.tToolCall;
+                if ( pOptions->pfnOnEvent &&
+                     !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+                    return XRT_NET_CANCELLED;
+                }
+                break;
+            case XLLM_OUTPUT_REFUSAL:
+                memset(&tEvent, 0, sizeof(tEvent));
+                tEvent.eType = XLLM_EVENT_REFUSAL;
+                tEvent.bSynthetic = true;
+                tEvent.uOutputIndex = (uint32)i;
+                tEvent.as.tRefusal.tRefusal = pOutput->as.tRefusal;
+                if ( pOptions->pfnOnEvent &&
+                     !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+                    return XRT_NET_CANCELLED;
+                }
+                break;
+            default:
+                break;
+        }
+
+        if ( pOptions->pfnOnEvent ) {
+            memset(&tEvent, 0, sizeof(tEvent));
+            tEvent.eType = XLLM_EVENT_OUTPUT_END;
+            tEvent.bSynthetic = true;
+            tEvent.uOutputIndex = (uint32)i;
+            if ( !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+                return XRT_NET_CANCELLED;
+            }
+        }
+    }
+
+    if ( pOptions->pfnOnEvent ) {
+        memset(&tEvent, 0, sizeof(tEvent));
+        tEvent.eType = XLLM_EVENT_USAGE;
+        tEvent.bSynthetic = true;
+        tEvent.as.tUsage.tUsage = pResponse->tUsage;
+        if ( !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+            return XRT_NET_CANCELLED;
+        }
+    }
+
+    if ( pOptions->pfnOnEvent ) {
+        memset(&tEvent, 0, sizeof(tEvent));
+        tEvent.eType = XLLM_EVENT_END;
+        tEvent.bSynthetic = true;
+        if ( !pOptions->pfnOnEvent(&tEvent, pOptions->pUserData) ) {
+            return XRT_NET_CANCELLED;
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static int32 xllm__openai_compat_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    const char *sContentType = NULL;
+    bool bMultimodal = false;
+    bool bTreatAsSse = false;
+    bool bParsedSse = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    xvalue tRoot = NULL;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppResponse = NULL;
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, &bMultimodal);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for openai-compatible request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_PREFER
+         ) != XRT_NET_OK ) goto fail;
+
+            if ( xllm__openai_build_chat_body(
+                    &tBody,
+                    pRuntime,
+                    pProfile,
+                    pRequest,
+                    &tEffectiveParams,
+                    pOptions,
+            sModel,
+            true,
+            pError
+         ) != XRT_NET_OK ) goto fail;
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) goto fail;
+
+    sUrl = xllm__openai_build_url(pProfile->sBaseUrl);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "openai-compatible profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=true live=false attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        true,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "openai-compatible stream request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "openai-compatible stream request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( !sRequestId ) {
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "request-id");
+    }
+
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__openai_fill_error_from_http(pError, pHttpResponse, tRoot, sRequestId);
+        goto fail;
+    }
+
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible stream response body is empty");
+        goto fail;
+    }
+
+    sContentType = xrtHttpResponseHeader(pHttpResponse, "content-type");
+    bTreatAsSse = xllm__buffer_starts_with_sse_data(pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !bTreatAsSse && sContentType ) {
+        bTreatAsSse = xllm__text_contains_ci(sContentType, "text/event-stream");
+    }
+
+    if ( bTreatAsSse ) {
+        if ( xllm__openai_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+        if ( tStream.iParsedBytes < pHttpResponse->iBodyLen ) {
+            size_t iRemain = pHttpResponse->iBodyLen - tStream.iParsedBytes;
+            if ( xllm__openai_stream_process_event_block(&tStream, pHttpResponse->pBody + tStream.iParsedBytes, iRemain) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = pHttpResponse->iBodyLen;
+        }
+
+        bParsedSse = tStream.iParsedBytes > 0u || tStream.bDone || tStream.pResponse != NULL;
+    }
+
+    if ( bParsedSse ) {
+        if ( xllm__openai_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__openai_family_component_name(pProfile),
+            "response complete: model=%s streaming=true live=false attempt=%u status=%s outputs=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            *ppResponse,
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            pHttpResponse,
+            sRequestId,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            true,
+            false
+        );
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "openai-compatible upstream did not return an SSE stream");
+        goto fail;
+    }
+
+    tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible streaming fallback response");
+        goto fail;
+    }
+    if ( xllm__openai_build_response(pProfile, pRequest, pOptions, tRoot, &pResponse, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    tRoot = NULL;
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        if ( pError && pError->eCode == XLLM_ERROR_NONE ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+        }
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response fallback complete: model=%s streaming=true live=false attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        true,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=true live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                true,
+                false
+            );
+            if ( tStream.pResponse ) {
+                xllm_response_free(tStream.pResponse);
+                tStream.pResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            xllm__openai_stream_reset_attempt_state(&tStream);
+            if ( tRoot ) {
+                xvoUnref(tRoot);
+                tRoot = NULL;
+            }
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            sRequestId = NULL;
+            sContentType = NULL;
+            bTreatAsSse = false;
+            bParsedSse = false;
+            iNetStatus = XRT_NET_ERROR;
+            iStatus = XRT_NET_ERROR;
+            if ( pError ) {
+                xllm_error_reset(pError);
+            }
+            if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+                if ( pError ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+                }
+                iStatus = XRT_NET_CANCELLED;
+            } else {
+                xllm__openai_retry_sleep(uDelayMs);
+                goto retry_execute;
+            }
+        }
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=true live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)uAttempt,
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            uAttempt,
+            bRetryable,
+            true,
+            false
+        );
+    }
+    if ( tStream.pResponse ) {
+        xllm_response_free(tStream.pResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( tStream.pToolOutputIndices ) {
+        xrtFree(tStream.pToolOutputIndices);
+    }
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__openai_compat_chat_stream_live(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm__openai_live_transport tTransport;
+    xllm__openai_live_decoder tDecoder;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse tSyntheticHttpResponse;
+    xtlsconfig tTlsConfig;
+    xnetconnectconfig tConnectConfig;
+    xllm_response *pResponse = NULL;
+    xnetengine *pEngine = NULL;
+    char *sChunk = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    bool bMultimodal = false;
+    bool bOwnEngine = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xvalue tRoot = NULL;
+    double fDeadlineSec = 0.0;
+    double fIdleDeadlineSec = 0.0;
+    size_t iChunkLen = 0u;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uConnectTimeoutMs = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppResponse = NULL;
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    memset(&tSyntheticHttpResponse, 0, sizeof(tSyntheticHttpResponse));
+    memset(&tTlsConfig, 0, sizeof(tTlsConfig));
+    xllm__openai_live_transport_init(&tTransport);
+    xllm__openai_live_decoder_init(&tDecoder);
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, &bMultimodal);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for openai-compatible request");
+        goto fail;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_PREFER
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+        if ( xllm__openai_build_chat_body(
+                &tBody,
+                pRuntime,
+                pProfile,
+                pRequest,
+                &tEffectiveParams,
+                pOptions,
+            sModel,
+            true,
+            pError
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        goto fail;
+    }
+
+    sUrl = xllm__openai_build_url(pProfile->sBaseUrl);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "openai-compatible profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) {
+        goto fail;
+    }
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) {
+        goto fail;
+    }
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) {
+        goto fail;
+    }
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) {
+        goto fail;
+    }
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+    pEngine = pRuntime ? pRuntime->pNetEngine : NULL;
+    if ( !pEngine ) {
+        xnetengineconfig tEngineConfig;
+        xrtNetEngineConfigInit(&tEngineConfig);
+        tEngineConfig.iWorkerCount = 1u;
+        pEngine = xrtNetEngineCreate(&tEngineConfig);
+        if ( !pEngine || xrtNetEngineStart(pEngine) != XRT_NET_OK ) {
+            if ( pEngine ) {
+                xrtNetEngineDestroy(pEngine);
+            }
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "openai-compatible realtime stream engine init failed");
+            goto fail;
+        }
+        bOwnEngine = true;
+    }
+
+    xrtNetConnectConfigInit(&tConnectConfig);
+    tConnectConfig.sHost = tHttpRequest.tURL.sHost;
+    tConnectConfig.iPort = tHttpRequest.tURL.iPort;
+    uConnectTimeoutMs = xllm__openai_resolve_connect_timeout_ms(pRuntime, pProfile);
+    tConnectConfig.iConnectTimeoutMs = xllm__openai_resolve_live_connect_timeout_ms(uConnectTimeoutMs, &tHttpRequest);
+    tConnectConfig.iRecvLimit = 1024u * 1024u;
+    tConnectConfig.pProxy = tHttpRequest.pProxy;
+    if ( tHttpRequest.tURL.bHttps ) {
+        tTlsConfig.sHostName = tHttpRequest.tURL.sHost;
+        tTlsConfig.bVerifyPeer = tHttpRequest.bVerifyPeer;
+        tConnectConfig.pTlsConfig = &tTlsConfig;
+    }
+
+retry_execute:
+    ++uAttempt;
+    iStatus = XRT_NET_ERROR;
+    bRetryable = false;
+    fDeadlineSec = 0.0;
+    fIdleDeadlineSec = 0.0;
+    memset(&tSyntheticHttpResponse, 0, sizeof(tSyntheticHttpResponse));
+
+    if ( !xllm__openai_build_http_request_bytes(&tHttpRequest, &tTransport.pRequestBytes, &tTransport.iRequestLen) ) {
+        goto fail;
+    }
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=true live=true attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        true,
+        true,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    tTransport.pEngine = pEngine;
+    tTransport.pMutex = xrtMutexCreate();
+    tTransport.pCond = xrtCondCreate();
+    if ( !tTransport.pMutex || !tTransport.pCond ) {
+        goto fail;
+    }
+
+    tTransport.pStream = xrtNetStreamCreate(pEngine, xllm__openai_live_stream_events(), &tTransport);
+    if ( !tTransport.pStream ) {
+        goto fail;
+    }
+
+    if ( tHttpRequest.iTimeoutMs > 0u ) {
+        fDeadlineSec = xrtTimer() + ((double)tHttpRequest.iTimeoutMs / 1000.0);
+    }
+    if ( tHttpRequest.iIdleTimeoutMs > 0u ) {
+        fIdleDeadlineSec = xrtTimer() + ((double)tHttpRequest.iIdleTimeoutMs / 1000.0);
+    }
+
+    if ( xrtNetStreamConnect(tTransport.pStream, &tConnectConfig) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_NETWORK, "openai-compatible realtime stream connect failed");
+        goto fail;
+    }
+
+    for ( ;; ) {
+        bool bClosed = false;
+        xnet_result iCloseReason = XRT_NET_OK;
+        int iSysErr = 0;
+        int iParseStatus;
+
+        if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+            iStatus = XRT_NET_CANCELLED;
+            goto fail;
+        }
+
+        if ( (fDeadlineSec > 0.0 && xrtTimer() >= fDeadlineSec) ||
+             (fIdleDeadlineSec > 0.0 && xrtTimer() >= fIdleDeadlineSec) ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "openai-compatible realtime stream timed out");
+            iStatus = XRT_NET_TIMEOUT;
+            goto fail;
+        }
+
+        if ( xllm__openai_live_transport_take_incoming(&tTransport, &sChunk, &iChunkLen, &bClosed, &iCloseReason, &iSysErr) ) {
+            if ( !xllm__json_builder_append_bytes(&tDecoder.tWire, sChunk, iChunkLen) ) {
+                xrtFree(sChunk);
+                goto fail;
+            }
+            xrtFree(sChunk);
+            sChunk = NULL;
+            iChunkLen = 0u;
+            if ( tHttpRequest.iIdleTimeoutMs > 0u ) {
+                fIdleDeadlineSec = xrtTimer() + ((double)tHttpRequest.iIdleTimeoutMs / 1000.0);
+            }
+
+            iParseStatus = xllm__openai_live_try_parse_headers(&tDecoder, bClosed);
+            if ( iParseStatus == XRT_NET_ERROR ) {
+                xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible stream headers");
+                goto fail;
+            }
+            if ( iParseStatus == XRT_NET_OK ) {
+                iParseStatus = xllm__openai_live_process_body(&tDecoder, &tStream, bClosed);
+                if ( iParseStatus != XRT_NET_OK ) {
+                    if ( tStream.bCancelled ) {
+                        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+                        iStatus = XRT_NET_CANCELLED;
+                    } else {
+                        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible stream body");
+                    }
+                    goto fail;
+                }
+            }
+        } else if ( iSysErr != 0 ) {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "openai-compatible realtime stream failed");
+            goto fail;
+        } else if ( bClosed ) {
+            iParseStatus = xllm__openai_live_try_parse_headers(&tDecoder, true);
+            if ( iParseStatus == XRT_NET_ERROR ) {
+                xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible stream headers");
+                goto fail;
+            }
+            if ( iParseStatus == XRT_NET_OK ) {
+                iParseStatus = xllm__openai_live_process_body(&tDecoder, &tStream, true);
+                if ( iParseStatus != XRT_NET_OK ) {
+                    if ( tStream.bCancelled ) {
+                        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+                        iStatus = XRT_NET_CANCELLED;
+                    } else {
+                        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible stream body");
+                    }
+                    goto fail;
+                }
+            }
+
+            if ( !tDecoder.bBodyComplete ) {
+                if ( iCloseReason == XRT_NET_CLOSED || iCloseReason == XRT_NET_OK ) {
+                    break;
+                }
+                xllm__error_set(pError, XLLM_ERROR_NETWORK, "openai-compatible realtime stream closed unexpectedly");
+                goto fail;
+            }
+        }
+
+        if ( tDecoder.bBodyComplete ) {
+            break;
+        }
+
+        if ( tTransport.pMutex && tTransport.pCond ) {
+            uint32 uWaitMs = 100u;
+
+            if ( fDeadlineSec > 0.0 || fIdleDeadlineSec > 0.0 ) {
+                double fRemainSec = -1.0;
+                if ( fDeadlineSec > 0.0 ) {
+                    fRemainSec = fDeadlineSec - xrtTimer();
+                }
+                if ( fIdleDeadlineSec > 0.0 ) {
+                    double fIdleRemainSec = fIdleDeadlineSec - xrtTimer();
+                    if ( fRemainSec < 0.0 || fIdleRemainSec < fRemainSec ) {
+                        fRemainSec = fIdleRemainSec;
+                    }
+                }
+                if ( fRemainSec <= 0.0 ) {
+                    xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "openai-compatible realtime stream timed out");
+                    iStatus = XRT_NET_TIMEOUT;
+                    goto fail;
+                }
+                uWaitMs = (uint32)(fRemainSec * 1000.0);
+                if ( uWaitMs == 0u ) {
+                    uWaitMs = 1u;
+                } else if ( uWaitMs > 100u ) {
+                    uWaitMs = 100u;
+                }
+            }
+
+            xrtMutexLock(tTransport.pMutex);
+            if ( tTransport.tIncoming.iLen == 0u && !tTransport.bClosed && tTransport.iSysErr == 0 ) {
+                if ( fDeadlineSec > 0.0 || fIdleDeadlineSec > 0.0 ) {
+                    (void)xrtCondWaitTimeout(tTransport.pCond, tTransport.pMutex, uWaitMs);
+                } else {
+                    xrtCondWait(tTransport.pCond, tTransport.pMutex);
+                }
+            }
+            xrtMutexUnlock(tTransport.pMutex);
+        }
+    }
+
+    tSyntheticHttpResponse.iStatusCode = tDecoder.uStatusCode;
+    if ( tDecoder.uStatusCode >= 400u ) {
+        tRoot = (tDecoder.tBody.pData && tDecoder.tBody.iLen > 0u)
+            ? xrtParseJSON((str)tDecoder.tBody.pData, tDecoder.tBody.iLen)
+            : NULL;
+        xllm__openai_fill_error_from_http(
+            pError,
+            &tSyntheticHttpResponse,
+            tRoot,
+            tDecoder.sRequestId[0] ? tDecoder.sRequestId : NULL
+        );
+        goto fail;
+    }
+
+    if ( !tDecoder.bTreatAsSse && tDecoder.tBody.pData && tDecoder.tBody.iLen > 0u ) {
+        tDecoder.bTreatAsSse = xllm__buffer_starts_with_sse_data(tDecoder.tBody.pData, tDecoder.tBody.iLen);
+    }
+
+    if ( tDecoder.bTreatAsSse ) {
+        if ( tStream.iParsedBytes < tDecoder.tBody.iLen ) {
+            size_t iRemain = tDecoder.tBody.iLen - tStream.iParsedBytes;
+            if ( xllm__openai_stream_process_event_block(&tStream, tDecoder.tBody.pData + tStream.iParsedBytes, iRemain) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = tDecoder.tBody.iLen;
+        }
+
+        if ( xllm__openai_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__openai_family_component_name(pProfile),
+            "response complete: model=%s streaming=true live=true attempt=%u status=%s outputs=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            *ppResponse,
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            &tSyntheticHttpResponse,
+            tDecoder.sRequestId[0] ? tDecoder.sRequestId : NULL,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            true,
+            true
+        );
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "openai-compatible upstream did not return an SSE stream");
+        goto fail;
+    }
+
+    if ( !tDecoder.tBody.pData || tDecoder.tBody.iLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible realtime stream response body is empty");
+        goto fail;
+    }
+
+    tRoot = xrtParseJSON((str)tDecoder.tBody.pData, tDecoder.tBody.iLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible streaming fallback response");
+        goto fail;
+    }
+    if ( xllm__openai_build_response(pProfile, pRequest, pOptions, tRoot, &pResponse, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    tRoot = NULL;
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        if ( pError && pError->eCode == XLLM_ERROR_NONE ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+        }
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response fallback complete: model=%s streaming=true live=true attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        &tSyntheticHttpResponse,
+        tDecoder.sRequestId[0] ? tDecoder.sRequestId : NULL,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        true,
+        true
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = tDecoder.uStatusCode > 0u ? XRT_NET_OK : (int32)iStatus;
+        int32 iHttpStatus = tSyntheticHttpResponse.iStatusCode > 0u
+            ? (int32)tSyntheticHttpResponse.iStatusCode
+            : (pError ? pError->iHttpStatus : 0);
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=true live=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                (tSyntheticHttpResponse.iStatusCode > 0u) ? &tSyntheticHttpResponse : NULL,
+                tDecoder.sRequestId[0] ? tDecoder.sRequestId : NULL,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                true,
+                true
+            );
+            if ( sChunk ) {
+                xrtFree(sChunk);
+                sChunk = NULL;
+            }
+            iChunkLen = 0u;
+            xllm__openai_live_transport_close_and_wait(&tTransport, XNET_CLOSE_F_ABORT, 100u);
+            xllm__openai_live_decoder_reset(&tDecoder);
+            xllm__openai_live_decoder_init(&tDecoder);
+            xllm__openai_live_transport_reset(&tTransport);
+            xllm__openai_live_transport_init(&tTransport);
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            xllm__openai_stream_reset_attempt_state(&tStream);
+            if ( tRoot ) {
+                xvoUnref(tRoot);
+                tRoot = NULL;
+            }
+            memset(&tSyntheticHttpResponse, 0, sizeof(tSyntheticHttpResponse));
+            xllm_error_reset(pError);
+            if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible stream cancelled");
+                iStatus = XRT_NET_CANCELLED;
+            } else {
+                xllm__openai_retry_sleep(uDelayMs);
+                goto retry_execute;
+            }
+        }
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=true live=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)uAttempt,
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            (tSyntheticHttpResponse.iStatusCode > 0u) ? &tSyntheticHttpResponse : NULL,
+            tDecoder.sRequestId[0] ? tDecoder.sRequestId : NULL,
+            pError,
+            iTraceTransportStatus,
+            uAttempt,
+            bRetryable,
+            true,
+            true
+        );
+    }
+    if ( sChunk ) {
+        xrtFree(sChunk);
+    }
+    xllm__openai_live_transport_close_and_wait(&tTransport, XNET_CLOSE_F_ABORT, 100u);
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    xllm__openai_stream_reset_attempt_state(&tStream);
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    xllm__openai_live_decoder_reset(&tDecoder);
+    xllm__openai_live_transport_reset(&tTransport);
+    if ( bOwnEngine && pEngine ) {
+        xrtNetEngineDestroy(pEngine);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__openai_compat_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    bool bMultimodal = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xvalue tRoot = NULL;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppResponse = NULL;
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+
+    if ( pOptions &&
+         (pOptions->eStreamMode == XLLM_STREAM_PREFER || pOptions->eStreamMode == XLLM_STREAM_REQUIRE) ) {
+        if ( pOptions->pfnOnEvent ) {
+            return xllm__openai_compat_chat_stream_live(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+        }
+        return xllm__openai_compat_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, &bMultimodal);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for openai-compatible request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            XLLM_STREAM_OFF
+         ) != XRT_NET_OK ) goto fail;
+
+        if ( xllm__openai_build_chat_body(
+                &tBody,
+                pRuntime,
+                pProfile,
+                pRequest,
+                &tEffectiveParams,
+                pOptions,
+            sModel,
+            false,
+            pError
+         ) != XRT_NET_OK ) goto fail;
+
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) goto fail;
+
+    sUrl = xllm__openai_build_url(pProfile->sBaseUrl);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "openai-compatible profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=false live=false attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        false,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "openai-compatible request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "openai-compatible request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( !sRequestId ) {
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "request-id");
+    }
+
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__openai_fill_error_from_http(pError, pHttpResponse, tRoot, sRequestId);
+        goto fail;
+    }
+
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "openai-compatible response body is empty");
+        goto fail;
+    }
+
+    tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse openai-compatible response json");
+        goto fail;
+    }
+    if ( xllm__openai_build_response(pProfile, pRequest, pOptions, tRoot, &pResponse, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    tRoot = NULL;
+
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response complete: model=%s streaming=false live=false attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        false,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=false live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                false,
+                false
+            );
+            if ( tRoot ) {
+                xvoUnref(tRoot);
+                tRoot = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            sRequestId = NULL;
+            iNetStatus = XRT_NET_ERROR;
+            iStatus = XRT_NET_ERROR;
+            if ( pError ) {
+                xllm_error_reset(pError);
+            }
+            if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+                if ( pError ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "openai-compatible request cancelled");
+                }
+                iStatus = XRT_NET_CANCELLED;
+            } else {
+                xllm__openai_retry_sleep(uDelayMs);
+                goto retry_execute;
+            }
+        }
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=false live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)uAttempt,
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            uAttempt,
+            bRetryable,
+            false,
+            false
+        );
+    }
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+XLLM_API int xllm_register_openai_compat_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_OPENAI_COMPAT;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__openai_compat_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_openai.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_glm.c ===== */
+
+/* duplicate include skipped: D:/git/xllm/src/xllm_adapter/xllm_adapter.h */
+
+#include <string.h>
+
+static const char *xllm__glm_provider_name(const xllm_profile *pProfile)
+{
+    if ( pProfile && pProfile->sProvider && pProfile->sProvider[0] ) {
+        return pProfile->sProvider;
+    }
+    return "glm";
+}
+
+static char *xllm__glm_build_url(const xllm_profile *pProfile)
+{
+    const char *sBaseUrl = NULL;
+    static const char sDefaultUrl[] = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+
+    if ( pProfile ) {
+        sBaseUrl = pProfile->sBaseUrl;
+    }
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        return xllm__dup_cstr(sDefaultUrl);
+    }
+    if ( strstr(sBaseUrl, "/chat/completions") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+    if ( strstr(sBaseUrl, "/api/paas/v4") != NULL ) {
+        size_t iLen = strlen(sBaseUrl);
+        bool bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+        char *sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + strlen("chat/completions") + 1u, sizeof(char));
+
+        if ( !sUrl ) {
+            return NULL;
+        }
+        (void)snprintf(
+            sUrl,
+            iLen + (bNeedsSlash ? 1u : 0u) + strlen("chat/completions") + 1u,
+            "%s%s%s",
+            sBaseUrl,
+            bNeedsSlash ? "/" : "",
+            "chat/completions"
+        );
+        return sUrl;
+    }
+    return xllm__dup_cstr(sDefaultUrl);
+}
+
+static bool xllm__glm_part_is_native_supported(const xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return false;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+        case XLLM_PART_JSON:
+            return true;
+        case XLLM_PART_IMAGE:
+            return (
+                pPart->as.tSource.eKind == XLLM_SOURCE_URL ||
+                pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES
+            );
+        default:
+            return false;
+    }
+}
+
+static bool xllm__glm_message_requires_content_array(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( pMessage->pParts[i].eKind == XLLM_PART_IMAGE ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool xllm__glm_message_has_unsupported_parts(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( !xllm__glm_part_is_native_supported(&pMessage->pParts[i]) ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int xllm__glm_append_content_part(
+    xllm__json_builder *pBuilder,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+            if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "glm native text part must be inline text");
+                return XRT_NET_ERROR;
+            }
+            return (
+                xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") &&
+                xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") &&
+                xllm__json_builder_append_char(pBuilder, '}')
+            ) ? XRT_NET_OK : XRT_NET_ERROR;
+
+        case XLLM_PART_JSON: {
+            char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, FALSE, NULL);
+            bool bOk;
+
+            if ( !sJson ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify glm json part");
+                return XRT_NET_ERROR;
+            }
+            bOk = (
+                xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") &&
+                xllm__json_builder_append_escaped(pBuilder, sJson) &&
+                xllm__json_builder_append_char(pBuilder, '}')
+            );
+            xrtFree(sJson);
+            return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+        }
+
+        case XLLM_PART_IMAGE:
+            switch ( pPart->as.tSource.eKind ) {
+                case XLLM_SOURCE_URL:
+                    return (
+                        xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") &&
+                        xllm__json_builder_append_escaped(
+                            pBuilder,
+                            pPart->as.tSource.as.sUrl ? pPart->as.tSource.as.sUrl : ""
+                        ) &&
+                        xllm__json_builder_append_cstr(pBuilder, "}}")
+                    ) ? XRT_NET_OK : XRT_NET_ERROR;
+
+                case XLLM_SOURCE_INLINE_BYTES: {
+                    const char *sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "image/png";
+                    char *sBase64 = NULL;
+                    bool bOk;
+
+                    if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "glm native image bytes input is empty");
+                        return XRT_NET_ERROR;
+                    }
+
+                    sBase64 = (char *)xrtBase64Encode(
+                        (ptr)pPart->as.tSource.as.tBytes.pData,
+                        pPart->as.tSource.as.tBytes.iSize,
+                        NULL
+                    );
+                    if ( !sBase64 ) {
+                        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode glm image bytes");
+                        return XRT_NET_ERROR;
+                    }
+
+                    bOk = (
+                        xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") &&
+                        xllm__json_builder_append_char(pBuilder, '"') &&
+                        xllm__json_builder_append_cstr(pBuilder, "data:") &&
+                        xllm__json_builder_append_cstr(pBuilder, sMimeType) &&
+                        xllm__json_builder_append_cstr(pBuilder, ";base64,") &&
+                        xllm__json_builder_append_cstr(pBuilder, sBase64) &&
+                        xllm__json_builder_append_char(pBuilder, '"') &&
+                        xllm__json_builder_append_cstr(pBuilder, "}}")
+                    );
+                    xrtFree(sBase64);
+                    return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+                }
+
+                default:
+                    xllm__error_set(
+                        pError,
+                        XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                        "glm native image input only supports url or inline bytes"
+                    );
+                    return XRT_NET_ERROR;
+            }
+
+        default:
+            xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "glm native adapter unsupported content part");
+            return XRT_NET_ERROR;
+    }
+}
+
+static int xllm__glm_append_message(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    bool *pbNeedComma,
+    xllm_error *pError
+)
+{
+    const char *sRole;
+    char *sContent = NULL;
+    int iStatus = XRT_NET_ERROR;
+    bool bUseContentArray = false;
+    bool bNeedsContent = true;
+    size_t i;
+
+    if ( !pBuilder || !pMessage || !pbNeedComma ) {
+        return XRT_NET_ERROR;
+    }
+
+    sRole = xllm__openai_role_name(pMessage->eRole);
+    if ( !sRole ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "glm native adapter encountered unknown role");
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__glm_message_has_unsupported_parts(pMessage) ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "glm native adapter only supports text/json/image inputs");
+        return XRT_NET_ERROR;
+    }
+    bUseContentArray = xllm__glm_message_requires_content_array(pMessage);
+    if ( !bUseContentArray &&
+         xllm__openai_message_to_text(pMessage, &sContent, pError) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( *pbNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+        goto done;
+    }
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"role\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sRole) ) {
+        goto done;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL && pMessage->sToolCallId && pMessage->sToolCallId[0] ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_call_id\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, pMessage->sToolCallId) ) {
+            goto done;
+        }
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_calls\":[") ) {
+            goto done;
+        }
+        for ( i = 0u; i < pMessage->iToolCallCount; ++i ) {
+            const xllm_tool_call *pCall = &pMessage->pToolCalls[i];
+            const char *sToolName = pCall->sToolName ? pCall->sToolName : pCall->sToolId;
+
+            if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                goto done;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sCallId ? pCall->sCallId : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"type\":\"function\",\"function\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sToolName ? sToolName : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"arguments\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sArgumentsJson ? pCall->sArgumentsJson : "{}") ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                goto done;
+            }
+        }
+        if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+            goto done;
+        }
+        if ( !sContent || !sContent[0] ) {
+            bNeedsContent = false;
+        }
+    }
+
+    if ( bNeedsContent ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ) {
+            goto done;
+        }
+        if ( bUseContentArray ) {
+            bool bNeedPartComma = false;
+
+            if ( !xllm__json_builder_append_char(pBuilder, '[') ) {
+                goto done;
+            }
+            for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+                if ( bNeedPartComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                    goto done;
+                }
+                if ( xllm__glm_append_content_part(pBuilder, &pMessage->pParts[i], pError) != XRT_NET_OK ) {
+                    goto done;
+                }
+                bNeedPartComma = true;
+            }
+            if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+                goto done;
+            }
+        } else {
+            if ( !xllm__json_builder_append_escaped(pBuilder, sContent ? sContent : "") ) {
+                goto done;
+            }
+        }
+    }
+    if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+        goto done;
+    }
+
+    *pbNeedComma = true;
+    iStatus = XRT_NET_OK;
+
+done:
+    xllm__free_cstr(&sContent);
+    return iStatus;
+}
+
+static int xllm__glm_append_messages(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError,
+    uint32 *puMessageCount
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+    uint32 uMessageCount = 0u;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBuilder || !pRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "\"messages\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0u; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__glm_append_message(pBuilder, &pRequest->pContextBlocks[i].pMessages[j], &bNeedComma, pError) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            ++uMessageCount;
+        }
+    }
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__glm_append_message(pBuilder, &pRequest->pMessages[i], &bNeedComma, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        ++uMessageCount;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( puMessageCount ) {
+        *puMessageCount = uMessageCount;
+    }
+    return XRT_NET_OK;
+}
+
+static int xllm__glm_build_body(
+    xllm__json_builder *pBody,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    const xllm_call_options *pOptions,
+    const char *sModel,
+    uint32 *puMessageCount,
+    xllm_error *pError
+)
+{
+    bool bEnableThinking = false;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBody || !pRequest || !pEffectiveParams || !sModel || !sModel[0] ) {
+        return XRT_NET_ERROR;
+    }
+    (void)pOptions;
+
+    if ( !xllm__json_builder_append_char(pBody, '{') ||
+         !xllm__json_builder_append_cstr(pBody, "\"model\":") ||
+         !xllm__json_builder_append_escaped(pBody, sModel) ||
+         !xllm__json_builder_append_char(pBody, ',') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__glm_append_messages(pBody, pRequest, pError, puMessageCount) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"temperature\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTemperature.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"top_p\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTopP.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tMaxOutputTokens.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"max_tokens\":") ||
+             !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tMaxOutputTokens.iValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.iStopCount > 0u && pEffectiveParams->tGeneration.psStop ) {
+        if ( xllm__openai_append_stop(pBody, &pEffectiveParams->tGeneration) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"response_format\":{\"type\":\"json_object\"}") ) {
+            return XRT_NET_ERROR;
+        }
+    } else if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON_SCHEMA ) {
+        if ( xllm__openai_append_response_format(pBody, &pEffectiveParams->tResponseFormat) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( pEffectiveParams->tReasoning.tEnabled.bSet ) {
+        bEnableThinking = pEffectiveParams->tReasoning.tEnabled.bValue;
+    } else if ( pEffectiveParams->tReasoning.eLevel != XLLM_REASONING_DEFAULT &&
+                pEffectiveParams->tReasoning.eLevel != XLLM_REASONING_OFF ) {
+        bEnableThinking = true;
+    }
+    if ( bEnableThinking ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"thinking\":{\"type\":\"enabled\"}") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pRequest->iToolCount > 0u ) {
+        if ( xllm__openai_append_tools(pBody, pRequest) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__openai_append_tool_policy(pBody, pRequest) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stream\":true") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '}') ) {
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__glm_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot)
+{
+    const char *sCode = NULL;
+    const char *sMessage = NULL;
+    const char *sRequestId = NULL;
+    xvalue tError;
+
+    if ( !pError ) {
+        return;
+    }
+
+    tError = xllm__json_table_get(tRoot, "error");
+    if ( tError && xvoType(tError) == XVO_DT_TABLE ) {
+        sCode = xllm__json_table_get_text(tError, "code");
+        sMessage = xllm__json_table_get_text(tError, "message");
+    }
+    if ( !sCode || !sCode[0] ) {
+        sCode = xllm__json_table_get_text(tRoot, "code");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = xllm__json_table_get_text(tRoot, "message");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = "glm native request failed";
+    }
+
+    if ( pHttpResponse && (pHttpResponse->iStatusCode == 401u || pHttpResponse->iStatusCode == 403u) ) {
+        xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 404u ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 429u ) {
+        xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 500u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 400u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, sMessage);
+    } else {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+    }
+
+    if ( pHttpResponse ) {
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    }
+    if ( sCode && sCode[0] ) {
+        pError->sProviderCode = xllm__dup_cstr(sCode);
+    }
+    if ( sMessage && sMessage[0] ) {
+        pError->sProviderMessage = xllm__dup_cstr(sMessage);
+    }
+    if ( sRequestId && sRequestId[0] ) {
+        pError->sRequestId = xllm__dup_cstr(sRequestId);
+    }
+}
+
+static xllm_response_status xllm__glm_status_from_finish_reason(const char *sFinishReason)
+{
+    if ( !sFinishReason || !sFinishReason[0] ) {
+        return XLLM_STATUS_COMPLETED;
+    }
+    if ( strcmp(sFinishReason, "length") == 0 ||
+         strcmp(sFinishReason, "max_tokens") == 0 ||
+         strcmp(sFinishReason, "model_context_window_exceeded") == 0 ) {
+        return XLLM_STATUS_INCOMPLETE;
+    }
+    if ( strcmp(sFinishReason, "tool_calls") == 0 ) {
+        return XLLM_STATUS_TOOL_CALL_REQUIRED;
+    }
+    if ( strcmp(sFinishReason, "sensitive") == 0 || strcmp(sFinishReason, "content_filter") == 0 ) {
+        return XLLM_STATUS_CONTENT_FILTERED;
+    }
+    return XLLM_STATUS_COMPLETED;
+}
+
+static int xllm__glm_parse_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_effective_params *pEffectiveParams,
+    const char *sSelectedModel,
+    const char *sBody,
+    size_t iBodyLen,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xvalue tRoot = NULL;
+    xvalue tChoices;
+    xvalue tChoice;
+    xvalue tMessage;
+    xvalue tToolCalls;
+    xvalue tUsage;
+    xvalue tJsonValue = NULL;
+    char *sNormalizedJson = NULL;
+    const char *sText = NULL;
+    const char *sReasoningText = NULL;
+    const char *sFinishReason = NULL;
+    xllm_response *pResponse = NULL;
+    size_t i;
+    size_t iOutputCap = 0u;
+    size_t iMessagePartCap = 0u;
+    size_t iMessageOutputIndex = (size_t)-1;
+
+    if ( !ppResponse || !pEffectiveParams ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    tRoot = xrtParseJSON((str)sBody, iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid glm native response");
+        return XRT_NET_ERROR;
+    }
+
+    tChoices = xllm__json_table_get(tRoot, "choices");
+    tChoice = (tChoices && xvoType(tChoices) == XVO_DT_ARRAY && xvoArrayItemCount(tChoices) > 0u)
+        ? xvoArrayGetValue(tChoices, 0u)
+        : NULL;
+    tMessage = xllm__json_table_get(tChoice, "message");
+    tToolCalls = xllm__json_table_get(tMessage, "tool_calls");
+    sText = xllm__json_table_get_text(tMessage, "content");
+    sReasoningText = xllm__json_table_get_text(tMessage, "reasoning_content");
+    sFinishReason = xllm__json_table_get_text(tChoice, "finish_reason");
+
+    pResponse = (xllm_response *)xrtCalloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) {
+        xllm__xvalue_release(&tRoot);
+        return XRT_NET_ERROR;
+    }
+
+    pResponse->sId = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "id"));
+    pResponse->sProvider = xllm__dup_cstr(xllm__glm_provider_name(pProfile));
+    pResponse->sProfileId = xllm__dup_cstr(pProfile ? pProfile->sId : NULL);
+    pResponse->sModel = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "model"));
+    if ( !pResponse->sModel ) {
+        pResponse->sModel = xllm__dup_cstr(sSelectedModel);
+    }
+    pResponse->sFinishReason = xllm__dup_cstr(sFinishReason ? sFinishReason : "stop");
+    pResponse->eStatus = xllm__glm_status_from_finish_reason(sFinishReason);
+    pResponse->tEffectiveParams = *pEffectiveParams;
+    memset(pEffectiveParams, 0, sizeof(*pEffectiveParams));
+
+    if ( sReasoningText && sReasoningText[0] ) {
+        xllm_output_item tThinkingOutput;
+
+        memset(&tThinkingOutput, 0, sizeof(tThinkingOutput));
+        tThinkingOutput.eKind = XLLM_OUTPUT_THINKING;
+        tThinkingOutput.as.tThinking.bVisible = true;
+        tThinkingOutput.as.tThinking.sFormat = xllm__dup_cstr("full");
+        tThinkingOutput.as.tThinking.sText = xllm__dup_cstr(sReasoningText);
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tThinkingOutput) != XRT_NET_OK ) {
+            xllm__output_item_free(&tThinkingOutput);
+            goto fail;
+        }
+    }
+
+    if ( sText && sText[0] ) {
+        xllm_output_item tMessageOutput;
+        xllm_content_part tPart;
+
+        memset(&tMessageOutput, 0, sizeof(tMessageOutput));
+        tMessageOutput.eKind = XLLM_OUTPUT_MESSAGE;
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tMessageOutput) != XRT_NET_OK ) {
+            goto fail;
+        }
+        iMessageOutputIndex = pResponse->iOutputCount - 1u;
+
+        memset(&tPart, 0, sizeof(tPart));
+        tPart.eKind = XLLM_PART_TEXT;
+        tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+        tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+        tPart.as.tSource.as.sText = xllm__dup_cstr(sText);
+        if ( xllm__append_buffer(
+                 (void **)&pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts,
+                 sizeof(xllm_content_part),
+                 &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.iPartCount,
+                 &iMessagePartCap,
+                 &tPart) != XRT_NET_OK ) {
+            xllm__content_part_free(&tPart);
+            goto fail;
+        }
+
+        pResponse->sVisibleText = xllm__dup_cstr(sText);
+    } else {
+        pResponse->sVisibleText = xllm__dup_cstr("");
+    }
+
+    if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+        for ( i = 0u; i < xvoArrayItemCount(tToolCalls); ++i ) {
+            xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)i);
+            xvalue tFunction = xllm__json_table_get(tToolCall, "function");
+            xllm_output_item tToolOutput;
+            char *sArgsJson = NULL;
+            const char *sToolName = xllm__json_table_get_text(tFunction, "name");
+            const char *sCallId = xllm__json_table_get_text(tToolCall, "id");
+
+            memset(&tToolOutput, 0, sizeof(tToolOutput));
+            tToolOutput.eKind = XLLM_OUTPUT_TOOL_CALL;
+            tToolOutput.as.tToolCall.sCallId = xllm__dup_cstr(sCallId ? sCallId : "glm_call");
+            tToolOutput.as.tToolCall.sToolId = xllm__dup_cstr(sToolName ? sToolName : "");
+            tToolOutput.as.tToolCall.sToolName = xllm__dup_cstr(sToolName ? sToolName : "");
+
+            if ( tFunction ) {
+                xvalue tArgs = xllm__json_table_get(tFunction, "arguments");
+                if ( tArgs ) {
+                    sArgsJson = (char *)xrtStringifyJSON(tArgs, FALSE, NULL);
+                }
+            }
+            tToolOutput.as.tToolCall.sArgumentsJson = sArgsJson ? sArgsJson : xllm__dup_cstr("{}");
+
+            if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tToolOutput) != XRT_NET_OK ) {
+                xllm__output_item_free(&tToolOutput);
+                goto fail;
+            }
+            pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+        }
+    }
+
+    if ( pRequest &&
+         pResponse->sVisibleText &&
+         pResponse->sVisibleText[0] &&
+         pResponse->tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         iMessageOutputIndex != (size_t)-1 ) {
+        if ( xllm__openai_parse_structured_output(
+                 &pResponse->tEffectiveParams.tResponseFormat,
+                 pOptions,
+                 pResponse->sVisibleText,
+                 &tJsonValue,
+                 &sNormalizedJson,
+                 pError) != XRT_NET_OK ) {
+            goto fail;
+        }
+        if ( tJsonValue ) {
+            xllm_content_part *pPart = &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts[0u];
+
+            xllm__content_part_free(pPart);
+            memset(pPart, 0, sizeof(*pPart));
+            pPart->eKind = XLLM_PART_JSON;
+            pPart->as.tJsonValue = tJsonValue;
+            tJsonValue = NULL;
+            xllm__free_cstr((char **)&pResponse->sVisibleText);
+            pResponse->sVisibleText = sNormalizedJson ? sNormalizedJson : xllm__dup_cstr("");
+            sNormalizedJson = NULL;
+        }
+    }
+
+    tUsage = xllm__json_table_get(tRoot, "usage");
+    if ( tUsage && xvoType(tUsage) == XVO_DT_TABLE ) {
+        pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "prompt_tokens");
+        pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "completion_tokens");
+        pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tUsage, "reasoning_tokens");
+    }
+
+    if ( xllm__openai_apply_terminal_status(pResponse, true, false) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    pResponse->tRaw = tRoot;
+    *ppResponse = pResponse;
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    return XRT_NET_OK;
+
+fail:
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    xllm_response_free(pResponse);
+    xllm__xvalue_release(&tRoot);
+    return XRT_NET_ERROR;
+}
+
+static int32 xllm__glm_native_chat_direct(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    bool bStreaming = false;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int iStatus = XRT_NET_ERROR;
+    bool bRetryable = false;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    bStreaming = (pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF);
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for glm native request");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_OFF
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__glm_build_body(&tBody, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sUrl = xllm__glm_build_url(pProfile);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "glm native profile missing base url");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=%s attempt=%u/%u body_bytes=%u",
+        sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        bStreaming,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "glm native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "glm native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "glm native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__glm_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "glm native response body is empty");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__glm_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "glm native synthetic event stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response complete: model=%s streaming=%s attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        bStreaming,
+        false,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                bStreaming ? "true" : "false",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                bStreaming,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            bStreaming ? "true" : "false",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            bStreaming,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__glm_native_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    const char *sContentType = NULL;
+    bool bTreatAsSse = false;
+    bool bParsedSse = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    xvalue tRoot = NULL;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for glm native request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_PREFER
+         ) != XRT_NET_OK ) goto fail;
+    if ( xllm__glm_build_body(&tBody, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        goto fail;
+    }
+    sUrl = xllm__glm_build_url(pProfile);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "glm native profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=true attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        true,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "glm native stream request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "glm native stream request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "glm native stream request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__glm_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "glm native stream response body is empty");
+        goto fail;
+    }
+
+    sContentType = xrtHttpResponseHeader(pHttpResponse, "content-type");
+    bTreatAsSse = xllm__buffer_starts_with_sse_data(pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !bTreatAsSse && sContentType ) {
+        bTreatAsSse = xllm__text_contains_ci(sContentType, "text/event-stream");
+    }
+
+    if ( bTreatAsSse ) {
+        if ( xllm__openai_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "glm native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+        if ( tStream.iParsedBytes < pHttpResponse->iBodyLen ) {
+            size_t iRemain = pHttpResponse->iBodyLen - tStream.iParsedBytes;
+            if ( xllm__openai_stream_process_event_block(&tStream, pHttpResponse->pBody + tStream.iParsedBytes, iRemain) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "glm native stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = pHttpResponse->iBodyLen;
+        }
+
+        bParsedSse = tStream.iParsedBytes > 0u || tStream.bDone || tStream.pResponse != NULL;
+    }
+
+    if ( bParsedSse ) {
+        if ( xllm__openai_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "glm native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "glm native stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__openai_family_component_name(pProfile),
+            "response complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount,
+            (unsigned)uMessageCount
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            *ppResponse,
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            pHttpResponse,
+            sRequestId,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            true,
+            false
+        );
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "glm native upstream did not return an SSE stream");
+        goto fail;
+    }
+
+    if ( xllm__glm_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "glm native stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response fallback complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        true,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                true,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( tStream.pResponse ) {
+                xllm_response_free(tStream.pResponse);
+                tStream.pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            memset(&tStream, 0, sizeof(tStream));
+            tStream.pProfile = pProfile;
+            tStream.pRequest = pRequest;
+            tStream.pOptions = pOptions;
+            tStream.pError = pError;
+            tStream.pRuntime = pRuntime;
+            tStream.iMessageOutputIndex = (size_t)-1;
+            tStream.iThinkingOutputIndex = (size_t)-1;
+            tStream.iRefusalOutputIndex = (size_t)-1;
+            tStream.sSelectedModel = sModel;
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            true,
+            false
+        );
+    }
+
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( tStream.pResponse ) {
+        xllm_response_free(tStream.pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__glm_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        return xllm__glm_native_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+    return xllm__glm_native_chat_direct(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+}
+
+XLLM_API int xllm_register_glm_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_GLM_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__glm_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_glm.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_minimax.c ===== */
+
+/* duplicate include skipped: D:/git/xllm/src/xllm_adapter/xllm_adapter.h */
+
+#include <string.h>
+
+static const char *xllm__minimax_provider_name(const xllm_profile *pProfile)
+{
+    if ( pProfile && pProfile->sProvider && pProfile->sProvider[0] ) {
+        return pProfile->sProvider;
+    }
+    return "minimax";
+}
+
+static char *xllm__minimax_build_url(const xllm_profile *pProfile)
+{
+    const char *sBaseUrl = NULL;
+    static const char sDefaultUrl[] = "https://api.minimaxi.com/v1/text/chatcompletion_v2";
+    const char *sSuffix = NULL;
+    size_t iLen;
+    bool bNeedsSlash;
+    char *sUrl;
+
+    if ( pProfile ) {
+        sBaseUrl = pProfile->sBaseUrl;
+    }
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        return xllm__dup_cstr(sDefaultUrl);
+    }
+    if ( strstr(sBaseUrl, "/chatcompletion_v2") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+    sSuffix = (strstr(sBaseUrl, "/text") != NULL) ? "chatcompletion_v2" : "text/chatcompletion_v2";
+    iLen = strlen(sBaseUrl);
+    bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+    sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + strlen(sSuffix) + 1u, sizeof(char));
+
+    if ( !sUrl ) {
+        return NULL;
+    }
+    (void)snprintf(
+        sUrl,
+        iLen + (bNeedsSlash ? 1u : 0u) + strlen(sSuffix) + 1u,
+        "%s%s%s",
+        sBaseUrl,
+        bNeedsSlash ? "/" : "",
+        sSuffix
+    );
+    return sUrl;
+}
+
+static bool xllm__minimax_part_is_native_supported(const xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return false;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+        case XLLM_PART_JSON:
+            return true;
+        case XLLM_PART_IMAGE:
+            return (
+                pPart->as.tSource.eKind == XLLM_SOURCE_URL ||
+                pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES
+            );
+        default:
+            return false;
+    }
+}
+
+static bool xllm__minimax_message_requires_content_array(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( pMessage->pParts[i].eKind == XLLM_PART_IMAGE ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool xllm__minimax_message_has_unsupported_parts(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( !xllm__minimax_part_is_native_supported(&pMessage->pParts[i]) ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int xllm__minimax_append_content_part(
+    xllm__json_builder *pBuilder,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+            if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "minimax native text part must be inline text");
+                return XRT_NET_ERROR;
+            }
+            return (
+                xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") &&
+                xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") &&
+                xllm__json_builder_append_char(pBuilder, '}')
+            ) ? XRT_NET_OK : XRT_NET_ERROR;
+
+        case XLLM_PART_JSON: {
+            char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, FALSE, NULL);
+            bool bOk;
+
+            if ( !sJson ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify minimax json part");
+                return XRT_NET_ERROR;
+            }
+            bOk = (
+                xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") &&
+                xllm__json_builder_append_escaped(pBuilder, sJson) &&
+                xllm__json_builder_append_char(pBuilder, '}')
+            );
+            xrtFree(sJson);
+            return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+        }
+
+        case XLLM_PART_IMAGE:
+            switch ( pPart->as.tSource.eKind ) {
+                case XLLM_SOURCE_URL:
+                    return (
+                        xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") &&
+                        xllm__json_builder_append_escaped(
+                            pBuilder,
+                            pPart->as.tSource.as.sUrl ? pPart->as.tSource.as.sUrl : ""
+                        ) &&
+                        xllm__json_builder_append_cstr(pBuilder, "}}")
+                    ) ? XRT_NET_OK : XRT_NET_ERROR;
+
+                case XLLM_SOURCE_INLINE_BYTES: {
+                    const char *sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "image/png";
+                    char *sBase64 = NULL;
+                    bool bOk;
+
+                    if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "minimax native image bytes input is empty");
+                        return XRT_NET_ERROR;
+                    }
+
+                    sBase64 = (char *)xrtBase64Encode(
+                        (ptr)pPart->as.tSource.as.tBytes.pData,
+                        pPart->as.tSource.as.tBytes.iSize,
+                        NULL
+                    );
+                    if ( !sBase64 ) {
+                        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode minimax image bytes");
+                        return XRT_NET_ERROR;
+                    }
+
+                    bOk = (
+                        xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") &&
+                        xllm__json_builder_append_char(pBuilder, '"') &&
+                        xllm__json_builder_append_cstr(pBuilder, "data:") &&
+                        xllm__json_builder_append_cstr(pBuilder, sMimeType) &&
+                        xllm__json_builder_append_cstr(pBuilder, ";base64,") &&
+                        xllm__json_builder_append_cstr(pBuilder, sBase64) &&
+                        xllm__json_builder_append_char(pBuilder, '"') &&
+                        xllm__json_builder_append_cstr(pBuilder, "}}")
+                    );
+                    xrtFree(sBase64);
+                    return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+                }
+
+                default:
+                    xllm__error_set(
+                        pError,
+                        XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                        "minimax native image input only supports url or inline bytes"
+                    );
+                    return XRT_NET_ERROR;
+            }
+
+        default:
+            xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "minimax native adapter unsupported content part");
+            return XRT_NET_ERROR;
+    }
+}
+
+static int xllm__minimax_append_message(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    bool *pbNeedComma,
+    xllm_error *pError
+)
+{
+    const char *sRole;
+    char *sContent = NULL;
+    int iStatus = XRT_NET_ERROR;
+    bool bNeedsContent = true;
+    bool bUseContentArray = false;
+    size_t i;
+
+    if ( !pBuilder || !pMessage || !pbNeedComma ) {
+        return XRT_NET_ERROR;
+    }
+
+    sRole = xllm__openai_role_name(pMessage->eRole);
+    if ( !sRole ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "minimax native adapter encountered unknown role");
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__minimax_message_has_unsupported_parts(pMessage) ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "minimax native adapter only supports text/json/image inputs");
+        return XRT_NET_ERROR;
+    }
+    bUseContentArray = xllm__minimax_message_requires_content_array(pMessage);
+    if ( !bUseContentArray &&
+         xllm__openai_message_to_text(pMessage, &sContent, pError) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( *pbNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+        goto done;
+    }
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"role\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sRole) ) {
+        goto done;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL && pMessage->sToolCallId && pMessage->sToolCallId[0] ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_call_id\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, pMessage->sToolCallId) ) {
+            goto done;
+        }
+    }
+
+    if ( pMessage->eRole != XLLM_ROLE_TOOL ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"name\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, sRole) ) {
+            goto done;
+        }
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_calls\":[") ) {
+            goto done;
+        }
+        for ( i = 0u; i < pMessage->iToolCallCount; ++i ) {
+            const xllm_tool_call *pCall = &pMessage->pToolCalls[i];
+            const char *sToolName = pCall->sToolName ? pCall->sToolName : pCall->sToolId;
+
+            if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                goto done;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sCallId ? pCall->sCallId : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"type\":\"function\",\"function\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sToolName ? sToolName : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"arguments\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sArgumentsJson ? pCall->sArgumentsJson : "{}") ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                goto done;
+            }
+        }
+        if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+            goto done;
+        }
+        if ( !sContent || !sContent[0] ) {
+            bNeedsContent = false;
+        }
+    }
+
+    if ( bNeedsContent ) {
+        if ( bUseContentArray ) {
+            bool bNeedPartComma = false;
+
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ||
+                 !xllm__json_builder_append_char(pBuilder, '[') ) {
+                goto done;
+            }
+            for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+                if ( bNeedPartComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                    goto done;
+                }
+                if ( xllm__minimax_append_content_part(pBuilder, &pMessage->pParts[i], pError) != XRT_NET_OK ) {
+                    goto done;
+                }
+                bNeedPartComma = true;
+            }
+            if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+                goto done;
+            }
+        } else if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ||
+                    !xllm__json_builder_append_escaped(pBuilder, sContent ? sContent : "") ) {
+            goto done;
+        }
+    }
+    if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+        goto done;
+    }
+
+    *pbNeedComma = true;
+    iStatus = XRT_NET_OK;
+
+done:
+    xllm__free_cstr(&sContent);
+    return iStatus;
+}
+
+static int xllm__minimax_append_messages(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError,
+    uint32 *puMessageCount
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+    uint32 uMessageCount = 0u;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBuilder || !pRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "\"messages\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0u; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__minimax_append_message(pBuilder, &pRequest->pContextBlocks[i].pMessages[j], &bNeedComma, pError) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            ++uMessageCount;
+        }
+    }
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__minimax_append_message(pBuilder, &pRequest->pMessages[i], &bNeedComma, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        ++uMessageCount;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( puMessageCount ) {
+        *puMessageCount = uMessageCount;
+    }
+    return XRT_NET_OK;
+}
+
+static int xllm__minimax_append_tools(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest
+)
+{
+    return xllm__openai_append_tools(pBuilder, pRequest);
+}
+
+static int xllm__minimax_append_tool_policy(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    switch ( pRequest->tToolPolicy.eMode ) {
+        case XLLM_TOOL_CHOICE_NONE:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"none\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_AUTO:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"auto\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_REQUIRED:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"required\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_NAMED:
+            if ( !pRequest->tToolPolicy.sToolName || !pRequest->tToolPolicy.sToolName[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "minimax native named tool_choice missing tool name");
+                return XRT_NET_ERROR;
+            }
+            return (
+                xllm__json_builder_append_cstr(
+                    pBuilder,
+                    ",\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":"
+                ) &&
+                xllm__json_builder_append_escaped(pBuilder, pRequest->tToolPolicy.sToolName) &&
+                xllm__json_builder_append_cstr(pBuilder, "}}")
+            ) ? XRT_NET_OK : XRT_NET_ERROR;
+        default:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"auto\"") ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+}
+
+static int xllm__minimax_build_body(
+    xllm__json_builder *pBody,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    const xllm_call_options *pOptions,
+    const char *sModel,
+    uint32 *puMessageCount,
+    xllm_error *pError
+)
+{
+    (void)pOptions;
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBody || !pRequest || !pEffectiveParams || !sModel || !sModel[0] ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '{') ||
+         !xllm__json_builder_append_cstr(pBody, "\"model\":") ||
+         !xllm__json_builder_append_escaped(pBody, sModel) ||
+         !xllm__json_builder_append_char(pBody, ',') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__minimax_append_messages(pBody, pRequest, pError, puMessageCount) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"temperature\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTemperature.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"top_p\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTopP.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tMaxOutputTokens.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"max_completion_tokens\":") ||
+             !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tMaxOutputTokens.iValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.iStopCount > 0u && pEffectiveParams->tGeneration.psStop ) {
+        if ( xllm__openai_append_stop(pBody, &pEffectiveParams->tGeneration) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"response_format\":{\"type\":\"json_object\"}") ) {
+            return XRT_NET_ERROR;
+        }
+    } else if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON_SCHEMA ) {
+        if ( xllm__openai_append_response_format(pBody, &pEffectiveParams->tResponseFormat) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( (pEffectiveParams->tReasoning.tEnabled.bSet && pEffectiveParams->tReasoning.tEnabled.bValue) ||
+         (pEffectiveParams->tReasoning.tExposeThinking.bSet && pEffectiveParams->tReasoning.tExposeThinking.bValue) ||
+         (pEffectiveParams->tReasoning.eLevel != XLLM_REASONING_DEFAULT &&
+          pEffectiveParams->tReasoning.eLevel != XLLM_REASONING_OFF) ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"reasoning_split\":true") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pRequest->iToolCount > 0u ) {
+        if ( xllm__minimax_append_tools(pBody, pRequest) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__minimax_append_tool_policy(pBody, pRequest, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stream\":true") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '}') ) {
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__minimax_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot)
+{
+    const char *sCode = NULL;
+    const char *sMessage = NULL;
+    const char *sRequestId = NULL;
+    xvalue tBaseResp;
+
+    if ( !pError ) {
+        return;
+    }
+
+    tBaseResp = xllm__json_table_get(tRoot, "base_resp");
+    if ( tBaseResp && xvoType(tBaseResp) == XVO_DT_TABLE ) {
+        sCode = xllm__json_table_get_text(tBaseResp, "status_code");
+        sMessage = xllm__json_table_get_text(tBaseResp, "status_msg");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sCode = xllm__json_table_get_text(tRoot, "code");
+        sMessage = xllm__json_table_get_text(tRoot, "message");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = "minimax native request failed";
+    }
+
+    if ( pHttpResponse && (pHttpResponse->iStatusCode == 401u || pHttpResponse->iStatusCode == 403u) ) {
+        xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 404u ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 429u ) {
+        xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 500u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 400u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, sMessage);
+    } else {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+    }
+
+    if ( pHttpResponse ) {
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    }
+    if ( sCode && sCode[0] ) {
+        pError->sProviderCode = xllm__dup_cstr(sCode);
+    }
+    if ( sMessage && sMessage[0] ) {
+        pError->sProviderMessage = xllm__dup_cstr(sMessage);
+    }
+    if ( sRequestId && sRequestId[0] ) {
+        pError->sRequestId = xllm__dup_cstr(sRequestId);
+    }
+}
+
+static xllm_response_status xllm__minimax_status_from_finish_reason(const char *sFinishReason)
+{
+    if ( !sFinishReason || !sFinishReason[0] ) {
+        return XLLM_STATUS_COMPLETED;
+    }
+    if ( strcmp(sFinishReason, "length") == 0 || strcmp(sFinishReason, "max_tokens") == 0 ) {
+        return XLLM_STATUS_INCOMPLETE;
+    }
+    if ( strcmp(sFinishReason, "tool_calls") == 0 ) {
+        return XLLM_STATUS_TOOL_CALL_REQUIRED;
+    }
+    if ( strcmp(sFinishReason, "sensitive") == 0 || strcmp(sFinishReason, "content_filter") == 0 ) {
+        return XLLM_STATUS_CONTENT_FILTERED;
+    }
+    return XLLM_STATUS_COMPLETED;
+}
+
+static int xllm__minimax_parse_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_effective_params *pEffectiveParams,
+    const char *sSelectedModel,
+    const char *sBody,
+    size_t iBodyLen,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xvalue tRoot = NULL;
+    xvalue tChoices;
+    xvalue tChoice;
+    xvalue tMessage;
+    xvalue tToolCalls;
+    xvalue tUsage;
+    xvalue tCompletionTokenDetails;
+    xvalue tReasoningDetails;
+    xvalue tJsonValue = NULL;
+    char *sNormalizedJson = NULL;
+    const char *sText = NULL;
+    const char *sReasoningText = NULL;
+    const char *sFinishReason = NULL;
+    xllm_response *pResponse = NULL;
+    size_t i;
+    size_t iOutputCap = 0u;
+    size_t iMessagePartCap = 0u;
+    size_t iMessageOutputIndex = (size_t)-1;
+
+    if ( !ppResponse || !pEffectiveParams ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    tRoot = xrtParseJSON((str)sBody, iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid minimax native response");
+        return XRT_NET_ERROR;
+    }
+
+    tChoices = xllm__json_table_get(tRoot, "choices");
+    tChoice = (tChoices && xvoType(tChoices) == XVO_DT_ARRAY && xvoArrayItemCount(tChoices) > 0u)
+        ? xvoArrayGetValue(tChoices, 0u)
+        : NULL;
+    tMessage = xllm__json_table_get(tChoice, "message");
+    tToolCalls = xllm__json_table_get(tMessage, "tool_calls");
+    tReasoningDetails = xllm__json_table_get(tMessage, "reasoning_details");
+    sText = xllm__json_table_get_text(tMessage, "content");
+    if ( !sText || !sText[0] ) {
+        sText = xllm__json_table_get_text(tMessage, "text");
+    }
+    sReasoningText = xllm__json_table_get_text(tMessage, "reasoning_content");
+    if ( (!sReasoningText || !sReasoningText[0]) &&
+         tReasoningDetails &&
+         xvoType(tReasoningDetails) == XVO_DT_ARRAY &&
+         xvoArrayItemCount(tReasoningDetails) > 0u ) {
+        xvalue tReasoningItem = xvoArrayGetValue(tReasoningDetails, 0u);
+        sReasoningText = xllm__json_table_get_text(tReasoningItem, "text");
+        if ( (!sReasoningText || !sReasoningText[0]) && xvoType(tReasoningItem) == XVO_DT_TEXT ) {
+            sReasoningText = (const char *)xvoGetText(tReasoningItem);
+        }
+    }
+    sFinishReason = xllm__json_table_get_text(tChoice, "finish_reason");
+
+    pResponse = (xllm_response *)xrtCalloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) {
+        xllm__xvalue_release(&tRoot);
+        return XRT_NET_ERROR;
+    }
+
+    pResponse->sId = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "id"));
+    pResponse->sProvider = xllm__dup_cstr(xllm__minimax_provider_name(pProfile));
+    pResponse->sProfileId = xllm__dup_cstr(pProfile ? pProfile->sId : NULL);
+    pResponse->sModel = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "model"));
+    if ( !pResponse->sModel ) {
+        pResponse->sModel = xllm__dup_cstr(sSelectedModel);
+    }
+    pResponse->sFinishReason = xllm__dup_cstr(sFinishReason ? sFinishReason : "stop");
+    pResponse->eStatus = xllm__minimax_status_from_finish_reason(sFinishReason);
+    pResponse->tEffectiveParams = *pEffectiveParams;
+    memset(pEffectiveParams, 0, sizeof(*pEffectiveParams));
+
+    if ( sReasoningText && sReasoningText[0] ) {
+        xllm_output_item tThinkingOutput;
+
+        memset(&tThinkingOutput, 0, sizeof(tThinkingOutput));
+        tThinkingOutput.eKind = XLLM_OUTPUT_THINKING;
+        tThinkingOutput.as.tThinking.bVisible = true;
+        tThinkingOutput.as.tThinking.sFormat = xllm__dup_cstr("full");
+        tThinkingOutput.as.tThinking.sText = xllm__dup_cstr(sReasoningText);
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tThinkingOutput) != XRT_NET_OK ) {
+            xllm__output_item_free(&tThinkingOutput);
+            goto fail;
+        }
+    }
+
+    if ( sText && sText[0] ) {
+        xllm_output_item tMessageOutput;
+        xllm_content_part tPart;
+
+        memset(&tMessageOutput, 0, sizeof(tMessageOutput));
+        tMessageOutput.eKind = XLLM_OUTPUT_MESSAGE;
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tMessageOutput) != XRT_NET_OK ) {
+            goto fail;
+        }
+        iMessageOutputIndex = pResponse->iOutputCount - 1u;
+
+        memset(&tPart, 0, sizeof(tPart));
+        tPart.eKind = XLLM_PART_TEXT;
+        tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+        tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+        tPart.as.tSource.as.sText = xllm__dup_cstr(sText);
+        if ( xllm__append_buffer(
+                 (void **)&pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts,
+                 sizeof(xllm_content_part),
+                 &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.iPartCount,
+                 &iMessagePartCap,
+                 &tPart) != XRT_NET_OK ) {
+            xllm__content_part_free(&tPart);
+            goto fail;
+        }
+
+        pResponse->sVisibleText = xllm__dup_cstr(sText);
+    } else {
+        pResponse->sVisibleText = xllm__dup_cstr("");
+    }
+
+    if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+        for ( i = 0u; i < xvoArrayItemCount(tToolCalls); ++i ) {
+            xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)i);
+            xvalue tFunction = xllm__json_table_get(tToolCall, "function");
+            xllm_output_item tToolOutput;
+            char *sArgsJson = NULL;
+            const char *sToolName = xllm__json_table_get_text(tFunction, "name");
+            const char *sCallId = xllm__json_table_get_text(tToolCall, "id");
+
+            memset(&tToolOutput, 0, sizeof(tToolOutput));
+            tToolOutput.eKind = XLLM_OUTPUT_TOOL_CALL;
+            tToolOutput.as.tToolCall.sCallId = xllm__dup_cstr(sCallId ? sCallId : "minimax_call");
+            tToolOutput.as.tToolCall.sToolId = xllm__dup_cstr(sToolName ? sToolName : "");
+            tToolOutput.as.tToolCall.sToolName = xllm__dup_cstr(sToolName ? sToolName : "");
+
+            if ( tFunction ) {
+                xvalue tArgs = xllm__json_table_get(tFunction, "arguments");
+                const char *sArgsText = xllm__json_table_get_text(tFunction, "arguments");
+                if ( sArgsText && sArgsText[0] ) {
+                    sArgsJson = xllm__dup_cstr(sArgsText);
+                } else if ( tArgs ) {
+                    sArgsJson = (char *)xrtStringifyJSON(tArgs, FALSE, NULL);
+                }
+            }
+            tToolOutput.as.tToolCall.sArgumentsJson = sArgsJson ? sArgsJson : xllm__dup_cstr("{}");
+
+            if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tToolOutput) != XRT_NET_OK ) {
+                xllm__output_item_free(&tToolOutput);
+                goto fail;
+            }
+            pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+        }
+    }
+
+    if ( pRequest &&
+         pResponse->sVisibleText &&
+         pResponse->sVisibleText[0] &&
+         pResponse->tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         iMessageOutputIndex != (size_t)-1 ) {
+        int iStructuredStatus = xllm__openai_parse_structured_output(
+            &pResponse->tEffectiveParams.tResponseFormat,
+            pOptions,
+            pResponse->sVisibleText,
+            &tJsonValue,
+            &sNormalizedJson,
+            pError
+        );
+
+        if ( iStructuredStatus != XRT_NET_OK &&
+             (!pOptions || !pOptions->bBestEffortStructuredOutput) ) {
+            xllm_call_options tFallbackOptions;
+
+            xllm_call_options_init(&tFallbackOptions);
+            if ( pOptions ) {
+                tFallbackOptions = *pOptions;
+            }
+            tFallbackOptions.bBestEffortStructuredOutput = true;
+            xllm_error_free(pError);
+            xllm_error_init(pError);
+            xllm__free_cstr(&sNormalizedJson);
+            xllm__xvalue_release(&tJsonValue);
+
+            iStructuredStatus = xllm__openai_parse_structured_output(
+                &pResponse->tEffectiveParams.tResponseFormat,
+                &tFallbackOptions,
+                pResponse->sVisibleText,
+                &tJsonValue,
+                &sNormalizedJson,
+                pError
+            );
+        }
+        if ( iStructuredStatus != XRT_NET_OK ) {
+            goto fail;
+        }
+        if ( tJsonValue ) {
+            xllm_content_part *pPart = &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts[0u];
+
+            xllm__content_part_free(pPart);
+            memset(pPart, 0, sizeof(*pPart));
+            pPart->eKind = XLLM_PART_JSON;
+            pPart->as.tJsonValue = tJsonValue;
+            tJsonValue = NULL;
+            xllm__free_cstr((char **)&pResponse->sVisibleText);
+            pResponse->sVisibleText = sNormalizedJson ? sNormalizedJson : xllm__dup_cstr("");
+            sNormalizedJson = NULL;
+        }
+    }
+
+    tUsage = xllm__json_table_get(tRoot, "usage");
+    if ( tUsage && xvoType(tUsage) == XVO_DT_TABLE ) {
+        pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "total_prompt_tokens");
+        if ( pResponse->tUsage.uInputTokens == 0u ) {
+            pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "prompt_tokens");
+        }
+        pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "total_completion_tokens");
+        if ( pResponse->tUsage.uOutputTokens == 0u ) {
+            pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "completion_tokens");
+        }
+        pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tUsage, "reasoning_tokens");
+        if ( pResponse->tUsage.uReasoningTokens == 0u ) {
+            tCompletionTokenDetails = xllm__json_table_get(tUsage, "completion_tokens_details");
+            if ( tCompletionTokenDetails && xvoType(tCompletionTokenDetails) == XVO_DT_TABLE ) {
+                pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tCompletionTokenDetails, "reasoning_tokens");
+            }
+        }
+    }
+
+    if ( xllm__openai_apply_terminal_status(pResponse, true, false) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    pResponse->tRaw = tRoot;
+    *ppResponse = pResponse;
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    return XRT_NET_OK;
+
+fail:
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    xllm_response_free(pResponse);
+    xllm__xvalue_release(&tRoot);
+    return XRT_NET_ERROR;
+}
+
+static int32 xllm__minimax_native_chat_direct(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    bool bStreaming = false;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int iStatus = XRT_NET_ERROR;
+    bool bRetryable = false;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    bStreaming = (pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF);
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for minimax native request");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_OFF
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__minimax_build_body(&tBody, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sUrl = xllm__minimax_build_url(pProfile);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "minimax native profile missing base url");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=%s attempt=%u/%u body_bytes=%u",
+        sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        bStreaming,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "minimax native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "minimax native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "minimax native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__minimax_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "minimax native response body is empty");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__minimax_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "minimax native synthetic event stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response complete: model=%s streaming=%s attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        bStreaming,
+        false,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                bStreaming ? "true" : "false",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                bStreaming,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            bStreaming ? "true" : "false",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            bStreaming,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__minimax_native_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    const char *sContentType = NULL;
+    bool bTreatAsSse = false;
+    bool bParsedSse = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for minimax native request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_PREFER
+         ) != XRT_NET_OK ) goto fail;
+    if ( xllm__minimax_build_body(&tBody, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        goto fail;
+    }
+    sUrl = xllm__minimax_build_url(pProfile);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "minimax native profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=true attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        true,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "minimax native stream request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "minimax native stream request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "minimax native stream request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__minimax_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "minimax native stream response body is empty");
+        goto fail;
+    }
+
+    sContentType = xrtHttpResponseHeader(pHttpResponse, "content-type");
+    bTreatAsSse = xllm__buffer_starts_with_sse_data(pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !bTreatAsSse && sContentType ) {
+        bTreatAsSse = xllm__text_contains_ci(sContentType, "text/event-stream");
+    }
+
+    if ( bTreatAsSse ) {
+        if ( xllm__openai_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "minimax native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+        if ( tStream.iParsedBytes < pHttpResponse->iBodyLen ) {
+            size_t iRemain = pHttpResponse->iBodyLen - tStream.iParsedBytes;
+            if ( xllm__openai_stream_process_event_block(&tStream, pHttpResponse->pBody + tStream.iParsedBytes, iRemain) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "minimax native stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = pHttpResponse->iBodyLen;
+        }
+
+        bParsedSse = tStream.iParsedBytes > 0u || tStream.bDone || tStream.pResponse != NULL;
+    }
+
+    if ( bParsedSse ) {
+        if ( xllm__openai_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "minimax native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "minimax native stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__openai_family_component_name(pProfile),
+            "response complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount,
+            (unsigned)uMessageCount
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            *ppResponse,
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            pHttpResponse,
+            sRequestId,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            true,
+            false
+        );
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "minimax native upstream did not return an SSE stream");
+        goto fail;
+    }
+
+    if ( xllm__minimax_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "minimax native stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response fallback complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        true,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                true,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( tStream.pResponse ) {
+                xllm_response_free(tStream.pResponse);
+                tStream.pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            memset(&tStream, 0, sizeof(tStream));
+            tStream.pProfile = pProfile;
+            tStream.pRequest = pRequest;
+            tStream.pOptions = pOptions;
+            tStream.pError = pError;
+            tStream.pRuntime = pRuntime;
+            tStream.iMessageOutputIndex = (size_t)-1;
+            tStream.iThinkingOutputIndex = (size_t)-1;
+            tStream.iRefusalOutputIndex = (size_t)-1;
+            tStream.sSelectedModel = sModel;
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            true,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( tStream.pResponse ) {
+        xllm_response_free(tStream.pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__minimax_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        return xllm__minimax_native_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+    return xllm__minimax_native_chat_direct(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+}
+
+XLLM_API int xllm_register_minimax_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_MINIMAX_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__minimax_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_minimax.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_kimi.c ===== */
+
+/* duplicate include skipped: D:/git/xllm/src/xllm_adapter/xllm_adapter.h */
+
+#include <string.h>
+
+static const char *xllm__kimi_provider_name(const xllm_profile *pProfile)
+{
+    if ( pProfile && pProfile->sProvider && pProfile->sProvider[0] ) {
+        return pProfile->sProvider;
+    }
+    return "moonshot";
+}
+
+static char *xllm__kimi_build_url(const xllm_profile *pProfile)
+{
+    const char *sBaseUrl = NULL;
+    static const char sDefaultUrl[] = "https://api.moonshot.cn/v1/chat/completions";
+
+    if ( pProfile ) {
+        sBaseUrl = pProfile->sBaseUrl;
+    }
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        return xllm__dup_cstr(sDefaultUrl);
+    }
+    if ( strstr(sBaseUrl, "/chat/completions") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+    if ( strstr(sBaseUrl, "/v1") != NULL ) {
+        size_t iLen = strlen(sBaseUrl);
+        bool bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+        char *sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + strlen("chat/completions") + 1u, sizeof(char));
+
+        if ( !sUrl ) {
+            return NULL;
+        }
+        (void)snprintf(
+            sUrl,
+            iLen + (bNeedsSlash ? 1u : 0u) + strlen("chat/completions") + 1u,
+            "%s%s%s",
+            sBaseUrl,
+            bNeedsSlash ? "/" : "",
+            "chat/completions"
+        );
+        return sUrl;
+    }
+    return xllm__dup_cstr(sDefaultUrl);
+}
+
+static bool xllm__kimi_part_is_native_supported(const xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return false;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+        case XLLM_PART_JSON:
+            return true;
+        case XLLM_PART_IMAGE:
+            return (
+                pPart->as.tSource.eKind == XLLM_SOURCE_URL ||
+                pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES ||
+                pPart->as.tSource.eKind == XLLM_SOURCE_PROVIDER_FILE_ID
+            );
+        default:
+            return false;
+    }
+}
+
+static bool xllm__kimi_message_requires_content_array(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( pMessage->pParts[i].eKind == XLLM_PART_IMAGE ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool xllm__kimi_message_has_unsupported_parts(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( !xllm__kimi_part_is_native_supported(&pMessage->pParts[i]) ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool xllm__kimi_url_has_prefix(const char *sUrl, const char *sPrefix)
+{
+    size_t iLen;
+
+    if ( !sUrl || !sPrefix ) {
+        return false;
+    }
+    iLen = strlen(sPrefix);
+    return strncmp(sUrl, sPrefix, iLen) == 0;
+}
+
+static char *xllm__kimi_download_url_to_data_uri(
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    const char *sUrl;
+    const char *sMimeType;
+    char *sBase64 = NULL;
+    xllm__json_builder tBuilder;
+    char *sDataUri = NULL;
+
+    memset(&tHttpRequest, 0, sizeof(tHttpRequest));
+    memset(&tBuilder, 0, sizeof(tBuilder));
+    sUrl = pPart->as.tSource.as.sUrl;
+    sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "image/png";
+
+    if ( !sUrl || !sUrl[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "kimi native image url input is empty");
+        return NULL;
+    }
+
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "failed to set kimi image url request");
+        xrtHttpRequestUnit(&tHttpRequest);
+        return NULL;
+    }
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) {
+        xrtHttpRequestUnit(&tHttpRequest);
+        return NULL;
+    }
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    xrtHttpRequestUnit(&tHttpRequest);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "kimi native image url download timed out");
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "kimi native image url download failed");
+        }
+        return NULL;
+    }
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        if ( pHttpResponse->iStatusCode >= 500u ) {
+            xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, "kimi native image url download returned 5xx");
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, "kimi native image url download returned 4xx");
+        }
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+        xrtHttpResponseDestroy(pHttpResponse);
+        return NULL;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "kimi native image url download returned empty body");
+        xrtHttpResponseDestroy(pHttpResponse);
+        return NULL;
+    }
+
+    sBase64 = (char *)xrtBase64Encode((ptr)pHttpResponse->pBody, pHttpResponse->iBodyLen, NULL);
+    xrtHttpResponseDestroy(pHttpResponse);
+    if ( !sBase64 ) {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode kimi downloaded image bytes");
+        return NULL;
+    }
+
+    if ( !xllm__json_builder_append_cstr(&tBuilder, "data:") ||
+         !xllm__json_builder_append_cstr(&tBuilder, sMimeType) ||
+         !xllm__json_builder_append_cstr(&tBuilder, ";base64,") ||
+         !xllm__json_builder_append_cstr(&tBuilder, sBase64) ) {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to build kimi image data uri");
+        xrtFree(sBase64);
+        xllm__json_builder_reset(&tBuilder);
+        return NULL;
+    }
+
+    xrtFree(sBase64);
+    sDataUri = xllm__json_builder_detach(&tBuilder);
+    if ( !sDataUri ) {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to detach kimi image data uri");
+        xllm__json_builder_reset(&tBuilder);
+        return NULL;
+    }
+
+    return sDataUri;
+}
+
+static int xllm__kimi_append_content_part(
+    xllm__json_builder *pBuilder,
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+            if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "kimi native text part must be inline text");
+                return XRT_NET_ERROR;
+            }
+            return (
+                xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") &&
+                xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") &&
+                xllm__json_builder_append_char(pBuilder, '}')
+            ) ? XRT_NET_OK : XRT_NET_ERROR;
+
+        case XLLM_PART_JSON: {
+            char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, FALSE, NULL);
+            bool bOk;
+
+            if ( !sJson ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify kimi json part");
+                return XRT_NET_ERROR;
+            }
+            bOk = (
+                xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") &&
+                xllm__json_builder_append_escaped(pBuilder, sJson) &&
+                xllm__json_builder_append_char(pBuilder, '}')
+            );
+            xrtFree(sJson);
+            return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+        }
+
+        case XLLM_PART_IMAGE:
+            switch ( pPart->as.tSource.eKind ) {
+                case XLLM_SOURCE_INLINE_BYTES: {
+                    const char *sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "image/png";
+                    char *sBase64 = NULL;
+                    bool bOk;
+
+                    if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "kimi native image bytes input is empty");
+                        return XRT_NET_ERROR;
+                    }
+
+                    sBase64 = (char *)xrtBase64Encode(
+                        (ptr)pPart->as.tSource.as.tBytes.pData,
+                        pPart->as.tSource.as.tBytes.iSize,
+                        NULL
+                    );
+                    if ( !sBase64 ) {
+                        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode kimi image bytes");
+                        return XRT_NET_ERROR;
+                    }
+
+                    bOk = (
+                        xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") &&
+                        xllm__json_builder_append_char(pBuilder, '"') &&
+                        xllm__json_builder_append_cstr(pBuilder, "data:") &&
+                        xllm__json_builder_append_cstr(pBuilder, sMimeType) &&
+                        xllm__json_builder_append_cstr(pBuilder, ";base64,") &&
+                        xllm__json_builder_append_cstr(pBuilder, sBase64) &&
+                        xllm__json_builder_append_char(pBuilder, '"') &&
+                        xllm__json_builder_append_cstr(pBuilder, "}}")
+                    );
+                    xrtFree(sBase64);
+                    return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+                }
+
+                case XLLM_SOURCE_PROVIDER_FILE_ID: {
+                    const char *sFileId = pPart->as.tSource.as.sFileId ? pPart->as.tSource.as.sFileId : "";
+                    bool bHasPrefix = xllm__kimi_url_has_prefix(sFileId, "ms://");
+
+                    if ( !sFileId[0] ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "kimi native image file id input is empty");
+                        return XRT_NET_ERROR;
+                    }
+                    return (
+                        xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") &&
+                        (bHasPrefix ?
+                            xllm__json_builder_append_escaped(pBuilder, sFileId) :
+                            (xllm__json_builder_append_char(pBuilder, '"') &&
+                             xllm__json_builder_append_cstr(pBuilder, "ms://") &&
+                             xllm__json_builder_append_cstr(pBuilder, sFileId) &&
+                             xllm__json_builder_append_char(pBuilder, '"'))) &&
+                        xllm__json_builder_append_cstr(pBuilder, "}}")
+                    ) ? XRT_NET_OK : XRT_NET_ERROR;
+                }
+
+                case XLLM_SOURCE_URL: {
+                    const char *sUrl = pPart->as.tSource.as.sUrl ? pPart->as.tSource.as.sUrl : "";
+
+                    if ( !sUrl[0] ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "kimi native image url input is empty");
+                        return XRT_NET_ERROR;
+                    }
+                    if ( xllm__kimi_url_has_prefix(sUrl, "data:") || xllm__kimi_url_has_prefix(sUrl, "ms://") ) {
+                        return (
+                            xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") &&
+                            xllm__json_builder_append_escaped(pBuilder, sUrl) &&
+                            xllm__json_builder_append_cstr(pBuilder, "}}")
+                        ) ? XRT_NET_OK : XRT_NET_ERROR;
+                    } else {
+                        char *sDataUri = xllm__kimi_download_url_to_data_uri(pRuntime, pProfile, pOptions, pPart, pError);
+                        bool bOk;
+
+                        if ( !sDataUri ) {
+                            return XRT_NET_ERROR;
+                        }
+                        bOk = (
+                            xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image_url\",\"image_url\":{\"url\":") &&
+                            xllm__json_builder_append_escaped(pBuilder, sDataUri) &&
+                            xllm__json_builder_append_cstr(pBuilder, "}}")
+                        );
+                        xrtFree(sDataUri);
+                        return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+                    }
+                }
+
+                default:
+                    xllm__error_set(
+                        pError,
+                        XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                        "kimi native image input only supports inline bytes, file id, or url"
+                    );
+                    return XRT_NET_ERROR;
+            }
+
+        default:
+            xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "kimi native adapter unsupported content part");
+            return XRT_NET_ERROR;
+    }
+}
+
+static int xllm__kimi_append_message(
+    xllm__json_builder *pBuilder,
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_message *pMessage,
+    bool *pbNeedComma,
+    xllm_error *pError
+)
+{
+    const char *sRole;
+    const char *sReasoningContent;
+    char *sContent = NULL;
+    int iStatus = XRT_NET_ERROR;
+    bool bNeedsContent = true;
+    bool bUseContentArray = false;
+    size_t i;
+
+    if ( !pBuilder || !pMessage || !pbNeedComma ) {
+        return XRT_NET_ERROR;
+    }
+
+    sRole = xllm__openai_role_name(pMessage->eRole);
+    if ( !sRole ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "kimi native adapter encountered unknown role");
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__kimi_message_has_unsupported_parts(pMessage) ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "kimi native adapter only supports text/json/image inputs");
+        return XRT_NET_ERROR;
+    }
+    bUseContentArray = xllm__kimi_message_requires_content_array(pMessage);
+    if ( !bUseContentArray &&
+         xllm__openai_message_to_text(pMessage, &sContent, pError) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( *pbNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+        goto done;
+    }
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"role\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sRole) ) {
+        goto done;
+    }
+
+    sReasoningContent = xllm__openai_message_reasoning_content(pMessage);
+    if ( (sReasoningContent && sReasoningContent[0]) ||
+         (pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u) ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"reasoning_content\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, sReasoningContent ? sReasoningContent : "") ) {
+            goto done;
+        }
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL && pMessage->sToolCallId && pMessage->sToolCallId[0] ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_call_id\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, pMessage->sToolCallId) ) {
+            goto done;
+        }
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_calls\":[") ) {
+            goto done;
+        }
+        for ( i = 0u; i < pMessage->iToolCallCount; ++i ) {
+            const xllm_tool_call *pCall = &pMessage->pToolCalls[i];
+            const char *sToolName = pCall->sToolName ? pCall->sToolName : pCall->sToolId;
+
+            if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                goto done;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sCallId ? pCall->sCallId : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"type\":\"function\",\"function\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sToolName ? sToolName : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"arguments\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sArgumentsJson ? pCall->sArgumentsJson : "{}") ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                goto done;
+            }
+        }
+        if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+            goto done;
+        }
+        if ( !sContent || !sContent[0] ) {
+            bNeedsContent = false;
+        }
+    }
+
+    if ( bNeedsContent ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ) {
+            goto done;
+        }
+        if ( bUseContentArray ) {
+            bool bNeedPartComma = false;
+
+            if ( !xllm__json_builder_append_char(pBuilder, '[') ) {
+                goto done;
+            }
+            for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+                if ( bNeedPartComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                    goto done;
+                }
+                if ( xllm__kimi_append_content_part(
+                        pBuilder,
+                        pRuntime,
+                        pProfile,
+                        pOptions,
+                        &pMessage->pParts[i],
+                        pError
+                    ) != XRT_NET_OK ) {
+                    goto done;
+                }
+                bNeedPartComma = true;
+            }
+            if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+                goto done;
+            }
+        } else {
+            if ( !xllm__json_builder_append_escaped(pBuilder, sContent ? sContent : "") ) {
+                goto done;
+            }
+        }
+    }
+    if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+        goto done;
+    }
+
+    *pbNeedComma = true;
+    iStatus = XRT_NET_OK;
+
+done:
+    xllm__free_cstr(&sContent);
+    return iStatus;
+}
+
+static int xllm__kimi_append_messages(
+    xllm__json_builder *pBuilder,
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_error *pError,
+    uint32 *puMessageCount
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+    uint32 uMessageCount = 0u;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBuilder || !pRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "\"messages\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0u; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__kimi_append_message(
+                    pBuilder,
+                    pRuntime,
+                    pProfile,
+                    pOptions,
+                    &pRequest->pContextBlocks[i].pMessages[j],
+                    &bNeedComma,
+                    pError
+                ) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            ++uMessageCount;
+        }
+    }
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__kimi_append_message(
+                pBuilder,
+                pRuntime,
+                pProfile,
+                pOptions,
+                &pRequest->pMessages[i],
+                &bNeedComma,
+                pError
+            ) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        ++uMessageCount;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( puMessageCount ) {
+        *puMessageCount = uMessageCount;
+    }
+    return XRT_NET_OK;
+}
+
+static int xllm__kimi_append_tools(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest
+)
+{
+    return xllm__openai_append_tools(pBuilder, pRequest);
+}
+
+static int xllm__kimi_append_tool_policy(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    switch ( pRequest->tToolPolicy.eMode ) {
+        case XLLM_TOOL_CHOICE_NONE:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"none\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_AUTO:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"auto\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_REQUIRED:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"required\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_NAMED:
+            if ( !pRequest->tToolPolicy.sToolName || !pRequest->tToolPolicy.sToolName[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "kimi native named tool_choice missing tool name");
+                return XRT_NET_ERROR;
+            }
+            return (
+                xllm__json_builder_append_cstr(
+                    pBuilder,
+                    ",\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":"
+                ) &&
+                xllm__json_builder_append_escaped(pBuilder, pRequest->tToolPolicy.sToolName) &&
+                xllm__json_builder_append_cstr(pBuilder, "}}")
+            ) ? XRT_NET_OK : XRT_NET_ERROR;
+        default:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"auto\"") ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+}
+
+static int xllm__kimi_build_body(
+    xllm__json_builder *pBody,
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    const xllm_call_options *pOptions,
+    const char *sModel,
+    uint32 *puMessageCount,
+    xllm_error *pError
+)
+{
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBody || !pRequest || !pEffectiveParams || !sModel || !sModel[0] ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '{') ||
+         !xllm__json_builder_append_cstr(pBody, "\"model\":") ||
+         !xllm__json_builder_append_escaped(pBody, sModel) ||
+         !xllm__json_builder_append_char(pBody, ',') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__kimi_append_messages(pBody, pRuntime, pProfile, pRequest, pOptions, pError, puMessageCount) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"temperature\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTemperature.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"top_p\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTopP.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tMaxOutputTokens.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"max_tokens\":") ||
+             !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tMaxOutputTokens.iValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.iStopCount > 0u && pEffectiveParams->tGeneration.psStop ) {
+        if ( xllm__openai_append_stop(pBody, &pEffectiveParams->tGeneration) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"response_format\":{\"type\":\"json_object\"}") ) {
+            return XRT_NET_ERROR;
+        }
+    } else if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON_SCHEMA ) {
+        if ( xllm__openai_append_response_format(pBody, &pEffectiveParams->tResponseFormat) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pRequest->iToolCount > 0u ) {
+        if ( xllm__kimi_append_tools(pBody, pRequest) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__kimi_append_tool_policy(pBody, pRequest, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stream\":true") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '}') ) {
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__kimi_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot)
+{
+    const char *sCode = NULL;
+    const char *sMessage = NULL;
+    const char *sRequestId = NULL;
+    xvalue tError;
+
+    if ( !pError ) {
+        return;
+    }
+
+    tError = xllm__json_table_get(tRoot, "error");
+    if ( tError && xvoType(tError) == XVO_DT_TABLE ) {
+        sCode = xllm__json_table_get_text(tError, "code");
+        sMessage = xllm__json_table_get_text(tError, "message");
+    }
+    if ( !sCode || !sCode[0] ) {
+        sCode = xllm__json_table_get_text(tRoot, "code");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = xllm__json_table_get_text(tRoot, "message");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = "kimi native request failed";
+    }
+
+    if ( pHttpResponse && (pHttpResponse->iStatusCode == 401u || pHttpResponse->iStatusCode == 403u) ) {
+        xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 404u ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 429u ) {
+        xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 500u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 400u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, sMessage);
+    } else {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+    }
+
+    if ( pHttpResponse ) {
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    }
+    if ( sCode && sCode[0] ) {
+        pError->sProviderCode = xllm__dup_cstr(sCode);
+    }
+    if ( sMessage && sMessage[0] ) {
+        pError->sProviderMessage = xllm__dup_cstr(sMessage);
+    }
+    if ( sRequestId && sRequestId[0] ) {
+        pError->sRequestId = xllm__dup_cstr(sRequestId);
+    }
+}
+
+static xllm_response_status xllm__kimi_status_from_finish_reason(const char *sFinishReason)
+{
+    if ( !sFinishReason || !sFinishReason[0] ) {
+        return XLLM_STATUS_COMPLETED;
+    }
+    if ( strcmp(sFinishReason, "length") == 0 ||
+         strcmp(sFinishReason, "max_tokens") == 0 ||
+         strcmp(sFinishReason, "model_context_window_exceeded") == 0 ) {
+        return XLLM_STATUS_INCOMPLETE;
+    }
+    if ( strcmp(sFinishReason, "tool_calls") == 0 ) {
+        return XLLM_STATUS_TOOL_CALL_REQUIRED;
+    }
+    if ( strcmp(sFinishReason, "content_filter") == 0 ) {
+        return XLLM_STATUS_CONTENT_FILTERED;
+    }
+    return XLLM_STATUS_COMPLETED;
+}
+
+static int xllm__kimi_parse_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_effective_params *pEffectiveParams,
+    const char *sSelectedModel,
+    const char *sBody,
+    size_t iBodyLen,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xvalue tRoot = NULL;
+    xvalue tChoices;
+    xvalue tChoice;
+    xvalue tMessage;
+    xvalue tToolCalls;
+    xvalue tUsage;
+    xvalue tJsonValue = NULL;
+    char *sNormalizedJson = NULL;
+    const char *sText = NULL;
+    const char *sReasoningText = NULL;
+    const char *sFinishReason = NULL;
+    xllm_response *pResponse = NULL;
+    size_t i;
+    size_t iOutputCap = 0u;
+    size_t iMessagePartCap = 0u;
+    size_t iMessageOutputIndex = (size_t)-1;
+
+    if ( !ppResponse || !pEffectiveParams ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    tRoot = xrtParseJSON((str)sBody, iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid kimi native response");
+        return XRT_NET_ERROR;
+    }
+
+    tChoices = xllm__json_table_get(tRoot, "choices");
+    tChoice = (tChoices && xvoType(tChoices) == XVO_DT_ARRAY && xvoArrayItemCount(tChoices) > 0u)
+        ? xvoArrayGetValue(tChoices, 0u)
+        : NULL;
+    tMessage = xllm__json_table_get(tChoice, "message");
+    tToolCalls = xllm__json_table_get(tMessage, "tool_calls");
+    sText = xllm__json_table_get_text(tMessage, "content");
+    sReasoningText = xllm__json_table_get_text(tMessage, "reasoning_content");
+    sFinishReason = xllm__json_table_get_text(tChoice, "finish_reason");
+
+    pResponse = (xllm_response *)xrtCalloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) {
+        xllm__xvalue_release(&tRoot);
+        return XRT_NET_ERROR;
+    }
+
+    pResponse->sId = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "id"));
+    pResponse->sProvider = xllm__dup_cstr(xllm__kimi_provider_name(pProfile));
+    pResponse->sProfileId = xllm__dup_cstr(pProfile ? pProfile->sId : NULL);
+    pResponse->sModel = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "model"));
+    if ( !pResponse->sModel ) {
+        pResponse->sModel = xllm__dup_cstr(sSelectedModel);
+    }
+    pResponse->sFinishReason = xllm__dup_cstr(sFinishReason ? sFinishReason : "stop");
+    pResponse->eStatus = xllm__kimi_status_from_finish_reason(sFinishReason);
+    pResponse->tEffectiveParams = *pEffectiveParams;
+    memset(pEffectiveParams, 0, sizeof(*pEffectiveParams));
+
+    if ( sReasoningText && sReasoningText[0] ) {
+        xllm_output_item tThinkingOutput;
+
+        memset(&tThinkingOutput, 0, sizeof(tThinkingOutput));
+        tThinkingOutput.eKind = XLLM_OUTPUT_THINKING;
+        tThinkingOutput.as.tThinking.bVisible = true;
+        tThinkingOutput.as.tThinking.sFormat = xllm__dup_cstr("full");
+        tThinkingOutput.as.tThinking.sText = xllm__dup_cstr(sReasoningText);
+        if ( xllm__openai_set_reasoning_vendor_extra(&tThinkingOutput.as.tThinking, pProfile) != XRT_NET_OK ) {
+            xllm__output_item_free(&tThinkingOutput);
+            goto fail;
+        }
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tThinkingOutput) != XRT_NET_OK ) {
+            xllm__output_item_free(&tThinkingOutput);
+            goto fail;
+        }
+    }
+
+    if ( sText && sText[0] ) {
+        xllm_output_item tMessageOutput;
+        xllm_content_part tPart;
+
+        memset(&tMessageOutput, 0, sizeof(tMessageOutput));
+        tMessageOutput.eKind = XLLM_OUTPUT_MESSAGE;
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tMessageOutput) != XRT_NET_OK ) {
+            goto fail;
+        }
+        iMessageOutputIndex = pResponse->iOutputCount - 1u;
+
+        memset(&tPart, 0, sizeof(tPart));
+        tPart.eKind = XLLM_PART_TEXT;
+        tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+        tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+        tPart.as.tSource.as.sText = xllm__dup_cstr(sText);
+        if ( xllm__append_buffer(
+                 (void **)&pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts,
+                 sizeof(xllm_content_part),
+                 &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.iPartCount,
+                 &iMessagePartCap,
+                 &tPart) != XRT_NET_OK ) {
+            xllm__content_part_free(&tPart);
+            goto fail;
+        }
+
+        pResponse->sVisibleText = xllm__dup_cstr(sText);
+    } else {
+        pResponse->sVisibleText = xllm__dup_cstr("");
+    }
+
+    if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+        for ( i = 0u; i < xvoArrayItemCount(tToolCalls); ++i ) {
+            xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)i);
+            xvalue tFunction = xllm__json_table_get(tToolCall, "function");
+            xllm_output_item tToolOutput;
+            char *sArgsJson = NULL;
+            const char *sToolName = xllm__json_table_get_text(tFunction, "name");
+            const char *sCallId = xllm__json_table_get_text(tToolCall, "id");
+
+            memset(&tToolOutput, 0, sizeof(tToolOutput));
+            tToolOutput.eKind = XLLM_OUTPUT_TOOL_CALL;
+            tToolOutput.as.tToolCall.sCallId = xllm__dup_cstr(sCallId ? sCallId : "kimi_call");
+            tToolOutput.as.tToolCall.sToolId = xllm__dup_cstr(sToolName ? sToolName : "");
+            tToolOutput.as.tToolCall.sToolName = xllm__dup_cstr(sToolName ? sToolName : "");
+
+            if ( tFunction ) {
+                xvalue tArgs = xllm__json_table_get(tFunction, "arguments");
+                if ( tArgs ) {
+                    sArgsJson = (char *)xrtStringifyJSON(tArgs, FALSE, NULL);
+                }
+            }
+            tToolOutput.as.tToolCall.sArgumentsJson = sArgsJson ? sArgsJson : xllm__dup_cstr("{}");
+
+            if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tToolOutput) != XRT_NET_OK ) {
+                xllm__output_item_free(&tToolOutput);
+                goto fail;
+            }
+            pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+        }
+    }
+
+    if ( pRequest &&
+         pResponse->sVisibleText &&
+         pResponse->sVisibleText[0] &&
+         pResponse->tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         iMessageOutputIndex != (size_t)-1 ) {
+        if ( xllm__openai_parse_structured_output(
+                 &pResponse->tEffectiveParams.tResponseFormat,
+                 pOptions,
+                 pResponse->sVisibleText,
+                 &tJsonValue,
+                 &sNormalizedJson,
+                 pError) != XRT_NET_OK ) {
+            goto fail;
+        }
+        if ( tJsonValue ) {
+            xllm_content_part *pPart = &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts[0u];
+
+            xllm__content_part_free(pPart);
+            memset(pPart, 0, sizeof(*pPart));
+            pPart->eKind = XLLM_PART_JSON;
+            pPart->as.tJsonValue = tJsonValue;
+            tJsonValue = NULL;
+            xllm__free_cstr((char **)&pResponse->sVisibleText);
+            pResponse->sVisibleText = sNormalizedJson ? sNormalizedJson : xllm__dup_cstr("");
+            sNormalizedJson = NULL;
+        }
+    }
+
+    tUsage = xllm__json_table_get(tRoot, "usage");
+    if ( tUsage && xvoType(tUsage) == XVO_DT_TABLE ) {
+        pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "prompt_tokens");
+        pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "completion_tokens");
+        pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tUsage, "reasoning_tokens");
+    }
+
+    if ( xllm__openai_apply_terminal_status(pResponse, true, false) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    pResponse->tRaw = tRoot;
+    *ppResponse = pResponse;
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    return XRT_NET_OK;
+
+fail:
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    xllm_response_free(pResponse);
+    xllm__xvalue_release(&tRoot);
+    return XRT_NET_ERROR;
+}
+
+static int32 xllm__kimi_native_chat_direct(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    bool bStreaming = false;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int iStatus = XRT_NET_ERROR;
+    bool bRetryable = false;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    bStreaming = (pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF);
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for kimi native request");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_OFF
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__kimi_build_body(&tBody, pRuntime, pProfile, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sUrl = xllm__kimi_build_url(pProfile);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "kimi native profile missing base url");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=%s attempt=%u/%u body_bytes=%u",
+        sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        bStreaming,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "kimi native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "kimi native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "kimi native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__kimi_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "kimi native response body is empty");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__kimi_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "kimi native synthetic event stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response complete: model=%s streaming=%s attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        bStreaming,
+        false,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                bStreaming ? "true" : "false",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                bStreaming,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            bStreaming ? "true" : "false",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            bStreaming,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__kimi_native_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    const char *sContentType = NULL;
+    bool bTreatAsSse = false;
+    bool bParsedSse = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for kimi native request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_PREFER
+         ) != XRT_NET_OK ) goto fail;
+    if ( xllm__kimi_build_body(&tBody, pRuntime, pProfile, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        goto fail;
+    }
+    sUrl = xllm__kimi_build_url(pProfile);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "kimi native profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=true attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        true,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "kimi native stream request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "kimi native stream request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "kimi native stream request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__kimi_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "kimi native stream response body is empty");
+        goto fail;
+    }
+
+    sContentType = xrtHttpResponseHeader(pHttpResponse, "content-type");
+    bTreatAsSse = xllm__buffer_starts_with_sse_data(pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !bTreatAsSse && sContentType ) {
+        bTreatAsSse = xllm__text_contains_ci(sContentType, "text/event-stream");
+    }
+
+    if ( bTreatAsSse ) {
+        if ( xllm__openai_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "kimi native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+        if ( tStream.iParsedBytes < pHttpResponse->iBodyLen ) {
+            size_t iRemain = pHttpResponse->iBodyLen - tStream.iParsedBytes;
+            if ( xllm__openai_stream_process_event_block(&tStream, pHttpResponse->pBody + tStream.iParsedBytes, iRemain) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "kimi native stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = pHttpResponse->iBodyLen;
+        }
+
+        bParsedSse = tStream.iParsedBytes > 0u || tStream.bDone || tStream.pResponse != NULL;
+    }
+
+    if ( bParsedSse ) {
+        if ( xllm__openai_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "kimi native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "kimi native stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__openai_family_component_name(pProfile),
+            "response complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount,
+            (unsigned)uMessageCount
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            *ppResponse,
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            pHttpResponse,
+            sRequestId,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            true,
+            false
+        );
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "kimi native upstream did not return an SSE stream");
+        goto fail;
+    }
+
+    if ( xllm__kimi_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "kimi native stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response fallback complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        true,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                true,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( tStream.pResponse ) {
+                xllm_response_free(tStream.pResponse);
+                tStream.pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            memset(&tStream, 0, sizeof(tStream));
+            tStream.pProfile = pProfile;
+            tStream.pRequest = pRequest;
+            tStream.pOptions = pOptions;
+            tStream.pError = pError;
+            tStream.pRuntime = pRuntime;
+            tStream.iMessageOutputIndex = (size_t)-1;
+            tStream.iThinkingOutputIndex = (size_t)-1;
+            tStream.iRefusalOutputIndex = (size_t)-1;
+            tStream.sSelectedModel = sModel;
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            true,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( tStream.pResponse ) {
+        xllm_response_free(tStream.pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__kimi_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        return xllm__kimi_native_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+    return xllm__kimi_native_chat_direct(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+}
+
+XLLM_API int xllm_register_kimi_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_KIMI_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__kimi_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_kimi.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_gemini.c ===== */
+
+/* duplicate include skipped: D:/git/xllm/src/xllm_adapter/xllm_adapter.h */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#define xllm__popen _popen
+#define xllm__pclose _pclose
+#else
+#include <unistd.h>
+#define xllm__popen popen
+#define xllm__pclose pclose
+#endif
+
+static const char *xllm__gemini_component_name(const xllm_profile *pProfile)
+{
+    if ( pProfile && pProfile->sAdapter &&
+         strcmp(pProfile->sAdapter, XLLM_ADAPTER_VERTEX_GEMINI_NATIVE) == 0 ) {
+        return "xllm.vertex_gemini_native";
+    }
+    return "xllm.gemini_native";
+}
+
+static const char *xllm__gemini_provider_name(const xllm_profile *pProfile)
+{
+    if ( pProfile && pProfile->sProvider && pProfile->sProvider[0] ) {
+        return pProfile->sProvider;
+    }
+    if ( pProfile && pProfile->sAdapter &&
+         strcmp(pProfile->sAdapter, XLLM_ADAPTER_VERTEX_GEMINI_NATIVE) == 0 ) {
+        return "google_vertex";
+    }
+    return "google";
+}
+
+static xllm_response_status xllm__gemini_status_from_finish_reason(const char *sFinishReason);
+
+static const char *xllm__gemini_reasoning_vendor_text(const xllm_reasoning_options *pReasoning, const char *sKey)
+{
+    if ( !pReasoning || !sKey || !pReasoning->tVendorExtra || xvoType(pReasoning->tVendorExtra) != XVO_DT_TABLE ) {
+        return NULL;
+    }
+    return xllm__json_table_get_text(pReasoning->tVendorExtra, sKey);
+}
+
+static uint32 xllm__gemini_reasoning_budget_for_level(const xllm_reasoning_options *pReasoning)
+{
+    const char *sBudget = NULL;
+    uint32 uBudget = 0u;
+
+    if ( !pReasoning ) {
+        return 0u;
+    }
+
+    sBudget = xllm__gemini_reasoning_vendor_text(pReasoning, "thinking_budget");
+    if ( !sBudget ) {
+        sBudget = xllm__gemini_reasoning_vendor_text(pReasoning, "thinkingBudget");
+    }
+    if ( sBudget && sBudget[0] ) {
+        uBudget = (uint32)strtoul(sBudget, NULL, 10);
+        return uBudget;
+    }
+
+    switch ( pReasoning->eLevel ) {
+        case XLLM_REASONING_OFF:
+            return 0u;
+        case XLLM_REASONING_LOW:
+            return 1024u;
+        case XLLM_REASONING_MEDIUM:
+            return 4096u;
+        case XLLM_REASONING_HIGH:
+            return 8192u;
+        case XLLM_REASONING_DEFAULT:
+        default:
+            break;
+    }
+
+    if ( pReasoning->tEnabled.bSet && pReasoning->tEnabled.bValue ) {
+        return 4096u;
+    }
+    return 0u;
+}
+
+static xvalue xllm__gemini_create_thinking_vendor_extra(const char *sSignature)
+{
+    xvalue tTable = xvoCreateTable();
+
+    if ( !tTable ) {
+        return NULL;
+    }
+
+    xvoTableSetText(tTable, (str)"gemini_part_kind", 0u, (str)"thought", 0u, FALSE);
+    if ( sSignature && sSignature[0] ) {
+        xvoTableSetText(tTable, (str)"thoughtSignature", 0u, (str)sSignature, 0u, FALSE);
+    }
+
+    return tTable;
+}
+
+static int xllm__gemini_set_thinking_vendor_extra(xllm_output_thinking *pThinking, const char *sSignature)
+{
+    xvalue tVendorExtra;
+
+    if ( !pThinking ) {
+        return XRT_NET_ERROR;
+    }
+
+    tVendorExtra = xllm__gemini_create_thinking_vendor_extra(sSignature);
+    if ( !tVendorExtra ) {
+        return XRT_NET_ERROR;
+    }
+
+    xllm__xvalue_release(&pThinking->tVendorExtra);
+    pThinking->tVendorExtra = tVendorExtra;
+    return XRT_NET_OK;
+}
+
+static void xllm__gemini_logf(
+    xllm_runtime *pRuntime,
+    xllm_log_level eLevel,
+    const char *sComponent,
+    const char *sFormat,
+    ...
+)
+{
+    char sBuffer[512];
+    va_list tArgs;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnLog || !sComponent || !sFormat ) {
+        return;
+    }
+
+    va_start(tArgs, sFormat);
+    (void)vsnprintf(sBuffer, sizeof(sBuffer), sFormat, tArgs);
+    va_end(tArgs);
+    sBuffer[sizeof(sBuffer) - 1u] = '\0';
+
+    pRuntime->tOptions.pfnLog(
+        pRuntime->tOptions.pLogCtx,
+        eLevel,
+        sComponent,
+        sBuffer
+    );
+}
+
+static const char *xllm__gemini_vendor_text(const xllm_profile *pProfile, const char *sKey)
+{
+    const char *sValue = NULL;
+
+    if ( !pProfile || !sKey ) {
+        return NULL;
+    }
+
+    sValue = xllm__json_table_get_text(pProfile->tProviderOptions.tVendorExtra, sKey);
+    if ( sValue && sValue[0] ) {
+        return sValue;
+    }
+    sValue = xllm__json_table_get_text(pProfile->tVendorExtra, sKey);
+    if ( sValue && sValue[0] ) {
+        return sValue;
+    }
+    return NULL;
+}
+
+static char *xllm__gemini_build_url(const xllm_profile *pProfile, const char *sModel, bool bStreaming)
+{
+    const char *sBaseUrl;
+    size_t iLen;
+    bool bNeedsSlash;
+    const char *sSuffix = bStreaming ? ":streamGenerateContent?alt=sse" : ":generateContent";
+    char *sUrl;
+    int iWritten;
+
+    if ( !pProfile || !sModel || !sModel[0] ) {
+        return NULL;
+    }
+
+    sBaseUrl = pProfile->sBaseUrl;
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        if ( pProfile->sAdapter && strcmp(pProfile->sAdapter, XLLM_ADAPTER_VERTEX_GEMINI_NATIVE) == 0 ) {
+            return NULL;
+        }
+        sBaseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
+    }
+
+    if ( strstr(sBaseUrl, bStreaming ? ":streamGenerateContent" : ":generateContent") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+
+    if ( bStreaming && strstr(sBaseUrl, ":generateContent") != NULL ) {
+        const char *sExisting = ":generateContent";
+        const char *sFound = strstr(sBaseUrl, sExisting);
+        size_t iPrefixLen = (size_t)(sFound - sBaseUrl);
+        size_t iSuffixLen = strlen(":streamGenerateContent?alt=sse");
+
+        sUrl = (char *)xrtCalloc(iPrefixLen + iSuffixLen + 1u, sizeof(char));
+        if ( !sUrl ) {
+            return NULL;
+        }
+        memcpy(sUrl, sBaseUrl, iPrefixLen);
+        memcpy(sUrl + iPrefixLen, ":streamGenerateContent?alt=sse", iSuffixLen);
+        sUrl[iPrefixLen + iSuffixLen] = '\0';
+        return sUrl;
+    }
+
+    iLen = strlen(sBaseUrl);
+    bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+    sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + strlen(sModel) + strlen(sSuffix) + 1u, sizeof(char));
+    if ( !sUrl ) {
+        return NULL;
+    }
+
+    iWritten = snprintf(
+        sUrl,
+        iLen + (bNeedsSlash ? 1u : 0u) + strlen(sModel) + strlen(sSuffix) + 1u,
+        "%s%s%s%s",
+        sBaseUrl,
+        bNeedsSlash ? "/" : "",
+        sModel,
+        sSuffix
+    );
+    if ( iWritten <= 0 ) {
+        xrtFree(sUrl);
+        return NULL;
+    }
+
+    return sUrl;
+}
+
+static int xllm__gemini_stream_apply_usage(xllm__openai_stream_context *pCtx, xvalue tUsage)
+{
+    xllm_event tEvent;
+
+    if ( !pCtx || !pCtx->pResponse || !tUsage || xvoType(tUsage) != XVO_DT_TABLE ) {
+        return XRT_NET_OK;
+    }
+
+    pCtx->pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "promptTokenCount");
+    pCtx->pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "candidatesTokenCount");
+    pCtx->pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tUsage, "thoughtsTokenCount");
+    pCtx->pResponse->tUsage.uCachedInputTokens = xllm__json_table_get_u32(tUsage, "cachedContentTokenCount");
+    ++pCtx->uUsageCount;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_USAGE;
+    tEvent.as.tUsage.tUsage = pCtx->pResponse->tUsage;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__gemini_stream_process_root(
+    xllm__openai_stream_context *pCtx,
+    xvalue tRoot,
+    size_t iPayloadLen
+)
+{
+    xvalue tCandidates;
+    xvalue tCandidate;
+    xvalue tContent;
+    xvalue tParts;
+    xvalue tUsage;
+    const char *sResponseId;
+    const char *sModelVersion;
+    const char *sFinishReason;
+    size_t i;
+
+    if ( !pCtx || !tRoot || xvoType(tRoot) != XVO_DT_TABLE ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_ensure_response(pCtx) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    sResponseId = xllm__json_table_get_text(tRoot, "responseId");
+    if ( sResponseId && sResponseId[0] && !pCtx->pResponse->sId ) {
+        pCtx->pResponse->sId = xllm__dup_cstr(sResponseId);
+        if ( !pCtx->pResponse->sId ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    sModelVersion = xllm__json_table_get_text(tRoot, "modelVersion");
+    if ( sModelVersion && sModelVersion[0] ) {
+        xllm__free_cstr((char **)&pCtx->pResponse->sModel);
+        pCtx->pResponse->sModel = xllm__dup_cstr(sModelVersion);
+        if ( !pCtx->pResponse->sModel ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( xllm__openai_stream_emit_start(pCtx) != XRT_NET_OK ) {
+        return XRT_NET_CANCELLED;
+    }
+
+    tUsage = xllm__json_table_get(tRoot, "usageMetadata");
+    if ( xllm__gemini_stream_apply_usage(pCtx, tUsage) != XRT_NET_OK ) {
+        return XRT_NET_CANCELLED;
+    }
+
+    tCandidates = xllm__json_table_get(tRoot, "candidates");
+    if ( !tCandidates || xvoType(tCandidates) != XVO_DT_ARRAY || xvoArrayItemCount(tCandidates) == 0u ) {
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "payload", iPayloadLen);
+        return XRT_NET_OK;
+    }
+
+    tCandidate = xvoArrayGetValue(tCandidates, 0u);
+    if ( !tCandidate || xvoType(tCandidate) != XVO_DT_TABLE ) {
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "payload", iPayloadLen);
+        return XRT_NET_OK;
+    }
+
+    sFinishReason = xllm__json_table_get_text(tCandidate, "finishReason");
+    if ( sFinishReason && sFinishReason[0] ) {
+        xllm_response_status eStatus = xllm__gemini_status_from_finish_reason(sFinishReason);
+
+        xllm__free_cstr((char **)&pCtx->pResponse->sFinishReason);
+        pCtx->pResponse->sFinishReason = xllm__dup_cstr(sFinishReason);
+        if ( !pCtx->pResponse->sFinishReason ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( eStatus == XLLM_STATUS_CONTENT_FILTERED ) {
+            xllm__free_cstr((char **)&pCtx->pResponse->tSafety.sBlockReason);
+            pCtx->pResponse->tSafety.sBlockReason = xllm__dup_cstr(sFinishReason);
+            if ( !pCtx->pResponse->tSafety.sBlockReason ) {
+                return XRT_NET_ERROR;
+            }
+        }
+
+        if ( !(eStatus == XLLM_STATUS_COMPLETED && pCtx->iToolOutputIndexCount > 0u) ) {
+            pCtx->pResponse->eStatus = eStatus;
+        }
+
+        if ( strcmp(sFinishReason, "STOP") == 0 ||
+             strcmp(sFinishReason, "MAX_TOKENS") == 0 ||
+             strcmp(sFinishReason, "SAFETY") == 0 ||
+             strcmp(sFinishReason, "PROHIBITED_CONTENT") == 0 ||
+             strcmp(sFinishReason, "SPII") == 0 ||
+             strcmp(sFinishReason, "RECITATION") == 0 ||
+             strcmp(sFinishReason, "BLOCKLIST") == 0 ) {
+            pCtx->bDone = true;
+        }
+    }
+
+    tContent = xllm__json_table_get(tCandidate, "content");
+    tParts = xllm__json_table_get(tContent, "parts");
+    if ( !tParts || xvoType(tParts) != XVO_DT_ARRAY ) {
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "payload", iPayloadLen);
+        return XRT_NET_OK;
+    }
+
+    for ( i = 0u; i < xvoArrayItemCount(tParts); ++i ) {
+        xvalue tPartObj = xvoArrayGetValue(tParts, (uint32)i);
+        xvalue tFunctionCall = xllm__json_table_get(tPartObj, "functionCall");
+        const char *sText = xllm__json_table_get_text(tPartObj, "text");
+        const char *sThoughtSignature = xllm__json_table_get_text(tPartObj, "thoughtSignature");
+        bool bThought = false;
+
+        (void)xllm__json_table_get_bool(tPartObj, "thought", &bThought);
+
+        if ( tFunctionCall && xvoType(tFunctionCall) == XVO_DT_TABLE ) {
+            const char *sName = xllm__json_table_get_text(tFunctionCall, "name");
+            xvalue tArgs = xllm__json_table_get(tFunctionCall, "args");
+            char *sArgumentsJson = tArgs ? (char *)xrtStringifyJSON(tArgs, FALSE, NULL) : xllm__dup_cstr("{}");
+            char sCallId[32];
+            size_t iToolIndex = pCtx->iToolOutputIndexCount;
+
+            snprintf(sCallId, sizeof(sCallId), "gemini_call_%u", (unsigned)iToolIndex);
+            if ( !sArgumentsJson ) {
+                return XRT_NET_ERROR;
+            }
+            if ( xllm__openai_stream_append_tool_delta(
+                     pCtx,
+                     iToolIndex,
+                     sCallId,
+                     sName ? sName : "",
+                     sArgumentsJson
+                 ) != XRT_NET_OK ) {
+                xrtFree(sArgumentsJson);
+                return XRT_NET_CANCELLED;
+            }
+            xrtFree(sArgumentsJson);
+            pCtx->pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+            continue;
+        }
+
+        if ( !sText || !sText[0] ) {
+            continue;
+        }
+
+        if ( bThought ) {
+            xllm_output_item *pThinkingOutput = NULL;
+
+            if ( xllm__openai_stream_append_thinking(pCtx, sText) != XRT_NET_OK ) {
+                return XRT_NET_CANCELLED;
+            }
+            if ( pCtx->iThinkingOutputIndex != (size_t)-1 ) {
+                pThinkingOutput = &pCtx->pResponse->pOutputs[pCtx->iThinkingOutputIndex];
+                if ( xllm__gemini_set_thinking_vendor_extra(&pThinkingOutput->as.tThinking, sThoughtSignature) != XRT_NET_OK ) {
+                    return XRT_NET_ERROR;
+                }
+            }
+            continue;
+        }
+
+        if ( xllm__openai_stream_append_text(pCtx, sText) != XRT_NET_OK ) {
+            return XRT_NET_CANCELLED;
+        }
+    }
+
+    xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "payload", iPayloadLen);
+    return XRT_NET_OK;
+}
+
+static int xllm__gemini_stream_process_payload(
+    xllm__openai_stream_context *pCtx,
+    const char *sPayload,
+    size_t iPayloadLen
+)
+{
+    xvalue tRoot;
+    int iStatus;
+
+    if ( !pCtx || !sPayload || iPayloadLen == 0u ) {
+        return XRT_NET_ERROR;
+    }
+
+    tRoot = xrtParseJSON((str)sPayload, iPayloadLen);
+    if ( !tRoot ) {
+        xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "failed to parse gemini stream event");
+        return XRT_NET_ERROR;
+    }
+
+    ++pCtx->uPayloadCount;
+    iStatus = xllm__gemini_stream_process_root(pCtx, tRoot, iPayloadLen);
+    xvoUnref(tRoot);
+    return iStatus;
+}
+
+static int xllm__gemini_stream_process_event_block(
+    xllm__openai_stream_context *pCtx,
+    const char *sEvent,
+    size_t iEventLen
+)
+{
+    xllm__json_builder tPayload;
+    size_t iOffset = 0u;
+    bool bSawData = false;
+    int iStatus;
+
+    if ( !pCtx || !sEvent ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPayload, 0, sizeof(tPayload));
+    while ( iOffset < iEventLen ) {
+        size_t iLineStart = iOffset;
+        size_t iLineLen;
+        const char *sLine;
+
+        while ( iOffset < iEventLen && sEvent[iOffset] != '\n' ) {
+            ++iOffset;
+        }
+        iLineLen = iOffset - iLineStart;
+        if ( iOffset < iEventLen && sEvent[iOffset] == '\n' ) {
+            ++iOffset;
+        }
+        if ( iLineLen > 0u && sEvent[iLineStart + iLineLen - 1u] == '\r' ) {
+            --iLineLen;
+        }
+        sLine = sEvent + iLineStart;
+
+        if ( iLineLen == 0u || sLine[0] == ':' ) {
+            continue;
+        }
+        if ( iLineLen >= 5u && memcmp(sLine, "data:", 5u) == 0 ) {
+            const char *sData = sLine + 5u;
+            size_t iDataLen = iLineLen - 5u;
+
+            while ( iDataLen > 0u && (*sData == ' ' || *sData == '\t') ) {
+                ++sData;
+                --iDataLen;
+            }
+            if ( bSawData && !xllm__json_builder_append_char(&tPayload, '\n') ) {
+                xllm__json_builder_reset(&tPayload);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_bytes(&tPayload, sData, iDataLen) ) {
+                xllm__json_builder_reset(&tPayload);
+                return XRT_NET_ERROR;
+            }
+            bSawData = true;
+        }
+    }
+
+    if ( !bSawData || !tPayload.pData ) {
+        xllm__json_builder_reset(&tPayload);
+        return XRT_NET_OK;
+    }
+
+    iStatus = xllm__gemini_stream_process_payload(pCtx, tPayload.pData, tPayload.iLen);
+    if ( iStatus == XRT_NET_OK ) {
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "event_block", tPayload.iLen);
+    }
+    xllm__json_builder_reset(&tPayload);
+    return iStatus;
+}
+
+static int xllm__gemini_stream_process_buffer(
+    xllm__openai_stream_context *pCtx,
+    const char *sBuffer,
+    size_t iLen
+)
+{
+    size_t iCursor;
+
+    if ( !pCtx || !sBuffer ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( iLen <= pCtx->iParsedBytes ) {
+        return XRT_NET_OK;
+    }
+
+    iCursor = pCtx->iParsedBytes;
+    while ( iCursor < iLen ) {
+        size_t i;
+        size_t iEventEnd = (size_t)-1;
+        size_t iDelimiterLen = 0u;
+
+        for ( i = iCursor; i + 1u < iLen; ++i ) {
+            if ( sBuffer[i] == '\n' && sBuffer[i + 1u] == '\n' ) {
+                iEventEnd = i;
+                iDelimiterLen = 2u;
+                break;
+            }
+            if ( i + 3u < iLen &&
+                 sBuffer[i] == '\r' &&
+                 sBuffer[i + 1u] == '\n' &&
+                 sBuffer[i + 2u] == '\r' &&
+                 sBuffer[i + 3u] == '\n' ) {
+                iEventEnd = i;
+                iDelimiterLen = 4u;
+                break;
+            }
+        }
+
+        if ( iEventEnd == (size_t)-1 ) {
+            break;
+        }
+
+        if ( xllm__gemini_stream_process_event_block(pCtx, sBuffer + iCursor, iEventEnd - iCursor) != XRT_NET_OK ) {
+            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+        }
+        iCursor = iEventEnd + iDelimiterLen;
+        pCtx->iParsedBytes = iCursor;
+    }
+
+    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_OK;
+}
+
+static char *xllm__vertex_fetch_access_token(const xllm_profile *pProfile)
+{
+    const char *sEnvPath;
+    const char *sCredentialsPath;
+    const char *sCredentialsJson;
+    FILE *pPipe;
+    char sBuffer[4096];
+    char *sToken;
+    char sCommand[8192];
+    char *sTempCredentialsPath = NULL;
+
+    sCredentialsJson = xllm__gemini_vendor_text(pProfile, "vertex_credentials_json");
+
+    /* Allow callers to pass raw service account JSON content in either
+       vertex_credentials_json or vertex_credentials_path. We materialize it
+       to a temporary file so the existing ADC/gcloud flow can consume it. */
+    if ( sCredentialsJson && sCredentialsJson[0] && sCredentialsJson[0] == '{' ) {
+#ifdef _WIN32
+        char aTempDir[MAX_PATH];
+        char aTempFile[MAX_PATH];
+        DWORD uDirLen;
+        FILE *pFile;
+
+        uDirLen = GetTempPathA((DWORD)sizeof(aTempDir), aTempDir);
+        if ( uDirLen == 0u || uDirLen >= sizeof(aTempDir) ) {
+            return NULL;
+        }
+        if ( GetTempFileNameA(aTempDir, "xgv", 0u, aTempFile) == 0u ) {
+            return NULL;
+        }
+        pFile = fopen(aTempFile, "wb");
+        if ( !pFile ) {
+            DeleteFileA(aTempFile);
+            return NULL;
+        }
+        if ( fwrite(sCredentialsJson, 1u, strlen(sCredentialsJson), pFile) != strlen(sCredentialsJson) ) {
+            fclose(pFile);
+            DeleteFileA(aTempFile);
+            return NULL;
+        }
+        fclose(pFile);
+        sTempCredentialsPath = xllm__dup_cstr(aTempFile);
+        if ( !sTempCredentialsPath ) {
+            DeleteFileA(aTempFile);
+            return NULL;
+        }
+#else
+        char aTemplate[] = "/tmp/xllm_vertex_XXXXXX";
+        int iFd;
+        FILE *pFile;
+
+        iFd = mkstemp(aTemplate);
+        if ( iFd < 0 ) {
+            return NULL;
+        }
+        pFile = fdopen(iFd, "wb");
+        if ( !pFile ) {
+            close(iFd);
+            unlink(aTemplate);
+            return NULL;
+        }
+        if ( fwrite(sCredentialsJson, 1u, strlen(sCredentialsJson), pFile) != strlen(sCredentialsJson) ) {
+            fclose(pFile);
+            unlink(aTemplate);
+            return NULL;
+        }
+        fclose(pFile);
+        sTempCredentialsPath = xllm__dup_cstr(aTemplate);
+        if ( !sTempCredentialsPath ) {
+            unlink(aTemplate);
+            return NULL;
+        }
+#endif
+    }
+
+    sCredentialsPath = xllm__gemini_vendor_text(pProfile, "vertex_credentials_path");
+    sEnvPath = getenv("GOOGLE_APPLICATION_CREDENTIALS");
+
+    if ( !sCredentialsPath || !sCredentialsPath[0] ) {
+        sCredentialsPath = sTempCredentialsPath;
+    }
+    if ( sCredentialsPath && sCredentialsPath[0] == '{' ) {
+        /* Backward-compatible escape hatch: if vertex_credentials_path itself
+           contains raw JSON, treat it like inline credentials content. */
+        sCredentialsJson = sCredentialsPath;
+#ifdef _WIN32
+        {
+            char aTempDir[MAX_PATH];
+            char aTempFile[MAX_PATH];
+            DWORD uDirLen;
+            FILE *pFile;
+
+            uDirLen = GetTempPathA((DWORD)sizeof(aTempDir), aTempDir);
+            if ( uDirLen == 0u || uDirLen >= sizeof(aTempDir) ) {
+                return NULL;
+            }
+            if ( GetTempFileNameA(aTempDir, "xgv", 0u, aTempFile) == 0u ) {
+                return NULL;
+            }
+            pFile = fopen(aTempFile, "wb");
+            if ( !pFile ) {
+                DeleteFileA(aTempFile);
+                return NULL;
+            }
+            if ( fwrite(sCredentialsJson, 1u, strlen(sCredentialsJson), pFile) != strlen(sCredentialsJson) ) {
+                fclose(pFile);
+                DeleteFileA(aTempFile);
+                return NULL;
+            }
+            fclose(pFile);
+            xllm__free_cstr(&sTempCredentialsPath);
+            sTempCredentialsPath = xllm__dup_cstr(aTempFile);
+            if ( !sTempCredentialsPath ) {
+                DeleteFileA(aTempFile);
+                return NULL;
+            }
+            sCredentialsPath = sTempCredentialsPath;
+        }
+#else
+        {
+            char aTemplate[] = "/tmp/xllm_vertex_XXXXXX";
+            int iFd;
+            FILE *pFile;
+
+            iFd = mkstemp(aTemplate);
+            if ( iFd < 0 ) {
+                return NULL;
+            }
+            pFile = fdopen(iFd, "wb");
+            if ( !pFile ) {
+                close(iFd);
+                unlink(aTemplate);
+                return NULL;
+            }
+            if ( fwrite(sCredentialsJson, 1u, strlen(sCredentialsJson), pFile) != strlen(sCredentialsJson) ) {
+                fclose(pFile);
+                unlink(aTemplate);
+                return NULL;
+            }
+            fclose(pFile);
+            xllm__free_cstr(&sTempCredentialsPath);
+            sTempCredentialsPath = xllm__dup_cstr(aTemplate);
+            if ( !sTempCredentialsPath ) {
+                unlink(aTemplate);
+                return NULL;
+            }
+            sCredentialsPath = sTempCredentialsPath;
+        }
+#endif
+    }
+
+    if ( !sCredentialsPath || !sCredentialsPath[0] ) {
+        sCredentialsPath = sEnvPath;
+    }
+    if ( !sCredentialsPath || !sCredentialsPath[0] ) {
+        return NULL;
+    }
+
+#ifdef _WIN32
+    _snprintf(
+        sCommand,
+        sizeof(sCommand),
+        "cmd /d /c \"set \\\"GOOGLE_APPLICATION_CREDENTIALS=%s\\\" && gcloud auth application-default print-access-token\"",
+        sCredentialsPath
+    );
+#else
+    snprintf(
+        sCommand,
+        sizeof(sCommand),
+        "GOOGLE_APPLICATION_CREDENTIALS='%s' gcloud auth application-default print-access-token",
+        sCredentialsPath
+    );
+#endif
+
+    pPipe = xllm__popen(sCommand, "r");
+    if ( !pPipe ) {
+        if ( sTempCredentialsPath ) {
+#ifdef _WIN32
+            DeleteFileA(sTempCredentialsPath);
+#else
+            unlink(sTempCredentialsPath);
+#endif
+            xllm__free_cstr(&sTempCredentialsPath);
+        }
+        return NULL;
+    }
+    if ( !fgets(sBuffer, (int)sizeof(sBuffer), pPipe) ) {
+        xllm__pclose(pPipe);
+        if ( sTempCredentialsPath ) {
+#ifdef _WIN32
+            DeleteFileA(sTempCredentialsPath);
+#else
+            unlink(sTempCredentialsPath);
+#endif
+            xllm__free_cstr(&sTempCredentialsPath);
+        }
+        return NULL;
+    }
+    xllm__pclose(pPipe);
+    if ( sTempCredentialsPath ) {
+#ifdef _WIN32
+        DeleteFileA(sTempCredentialsPath);
+#else
+        unlink(sTempCredentialsPath);
+#endif
+        xllm__free_cstr(&sTempCredentialsPath);
+    }
+
+    sToken = xllm__dup_cstr(sBuffer);
+    if ( !sToken ) {
+        return NULL;
+    }
+
+    while ( sToken[0] ) {
+        size_t iLen = strlen(sToken);
+        if ( iLen == 0u ) {
+            break;
+        }
+        if ( sToken[iLen - 1u] == '\r' || sToken[iLen - 1u] == '\n' ||
+             sToken[iLen - 1u] == ' ' || sToken[iLen - 1u] == '\t' ) {
+            sToken[iLen - 1u] = '\0';
+            continue;
+        }
+        break;
+    }
+
+    if ( !sToken[0] ) {
+        xrtFree(sToken);
+        return NULL;
+    }
+
+    return sToken;
+}
+
+static bool xllm__gemini_append_data_part(
+    xllm__json_builder *pBuilder,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    const char *sMimeType;
+    char *sBase64 = NULL;
+    const char *sUri;
+
+    if ( !pBuilder || !pPart ) {
+        return false;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+            return xllm__json_builder_append_cstr(pBuilder, "{\"text\":") &&
+                   xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") &&
+                   xllm__json_builder_append_char(pBuilder, '}');
+
+        case XLLM_PART_JSON: {
+            char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, FALSE, NULL);
+            bool bOK;
+
+            if ( !sJson ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify gemini json part");
+                return false;
+            }
+            bOK = xllm__json_builder_append_cstr(pBuilder, "{\"text\":") &&
+                  xllm__json_builder_append_escaped(pBuilder, sJson) &&
+                  xllm__json_builder_append_char(pBuilder, '}');
+            xrtFree(sJson);
+            return bOK;
+        }
+
+        case XLLM_PART_IMAGE:
+        case XLLM_PART_FILE:
+        case XLLM_PART_AUDIO:
+        case XLLM_PART_VIDEO:
+            sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "application/octet-stream";
+            switch ( pPart->as.tSource.eKind ) {
+                case XLLM_SOURCE_INLINE_BYTES:
+                    if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "gemini adapter input bytes are empty");
+                        return false;
+                    }
+                    sBase64 = (char *)xrtBase64Encode(
+                        (ptr)pPart->as.tSource.as.tBytes.pData,
+                        pPart->as.tSource.as.tBytes.iSize,
+                        NULL
+                    );
+                    if ( !sBase64 ) {
+                        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode gemini input bytes");
+                        return false;
+                    }
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"inlineData\":{\"mimeType\":") ||
+                         !xllm__json_builder_append_escaped(pBuilder, sMimeType) ||
+                         !xllm__json_builder_append_cstr(pBuilder, ",\"data\":") ||
+                         !xllm__json_builder_append_escaped(pBuilder, sBase64) ||
+                         !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                        xrtFree(sBase64);
+                        return false;
+                    }
+                    xrtFree(sBase64);
+                    return true;
+
+                case XLLM_SOURCE_URL:
+                    sUri = pPart->as.tSource.as.sUrl;
+                    if ( !sUri || !sUri[0] ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "gemini adapter url input is empty");
+                        return false;
+                    }
+                    return xllm__json_builder_append_cstr(pBuilder, "{\"fileData\":{\"mimeType\":") &&
+                           xllm__json_builder_append_escaped(pBuilder, sMimeType) &&
+                           xllm__json_builder_append_cstr(pBuilder, ",\"fileUri\":") &&
+                           xllm__json_builder_append_escaped(pBuilder, sUri) &&
+                           xllm__json_builder_append_cstr(pBuilder, "}}");
+
+                case XLLM_SOURCE_PROVIDER_FILE_ID:
+                    sUri = pPart->as.tSource.as.sFileId;
+                    if ( !sUri || !sUri[0] ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "gemini adapter provider file id is empty");
+                        return false;
+                    }
+                    return xllm__json_builder_append_cstr(pBuilder, "{\"fileData\":{\"mimeType\":") &&
+                           xllm__json_builder_append_escaped(pBuilder, sMimeType) &&
+                           xllm__json_builder_append_cstr(pBuilder, ",\"fileUri\":") &&
+                           xllm__json_builder_append_escaped(pBuilder, sUri) &&
+                           xllm__json_builder_append_cstr(pBuilder, "}}");
+
+                default:
+                    xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "gemini adapter only supports text/json/url/file-uri/inline-bytes content");
+                    return false;
+            }
+
+        default:
+            xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "gemini adapter unsupported content part");
+            return false;
+    }
+}
+
+static bool xllm__gemini_append_parts_array(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+
+    if ( !pBuilder || !pMessage ) {
+        return false;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, '[') ) {
+        return false;
+    }
+
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return false;
+        }
+        if ( !xllm__gemini_append_data_part(pBuilder, &pMessage->pParts[i], pError) ) {
+            return false;
+        }
+        bNeedComma = true;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT ) {
+        for ( i = 0u; i < pMessage->iToolCallCount; ++i ) {
+            char *sArgsJson;
+
+            if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                return false;
+            }
+            sArgsJson = xllm__dup_cstr(
+                pMessage->pToolCalls[i].sArgumentsJson ? pMessage->pToolCalls[i].sArgumentsJson : "{}"
+            );
+            if ( !sArgsJson ) {
+                return false;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"functionCall\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pMessage->pToolCalls[i].sToolName ? pMessage->pToolCalls[i].sToolName : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"args\":") ||
+                 !xllm__json_builder_append_cstr(pBuilder, sArgsJson) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                xrtFree(sArgsJson);
+                return false;
+            }
+            xrtFree(sArgsJson);
+            bNeedComma = true;
+        }
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return false;
+    }
+    return true;
+}
+
+static bool xllm__gemini_append_function_response_part(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    char *sResponseJson = NULL;
+    char *sText = NULL;
+    size_t i;
+    xvalue tResponse = NULL;
+    bool bOK = false;
+
+    if ( !pBuilder || !pMessage ) {
+        return false;
+    }
+    if ( !pMessage->sToolName || !pMessage->sToolName[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "gemini tool result message missing tool name");
+        return false;
+    }
+
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        const xllm_content_part *pPart = &pMessage->pParts[i];
+        if ( pPart->eKind == XLLM_PART_JSON ) {
+            if ( tResponse ) {
+                xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "gemini tool result currently supports at most one json part");
+                goto done;
+            }
+            tResponse = xvoCopy(pPart->as.tJsonValue);
+        } else if ( pPart->eKind == XLLM_PART_TEXT ) {
+            const char *sPartText = pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "";
+            size_t iOldLen = sText ? strlen(sText) : 0u;
+            size_t iPartLen = strlen(sPartText);
+            char *sNew = (char *)xrtRealloc(sText, iOldLen + (iOldLen ? 1u : 0u) + iPartLen + 1u);
+            if ( !sNew ) {
+                goto done;
+            }
+            sText = sNew;
+            if ( iOldLen ) {
+                sText[iOldLen++] = '\n';
+            }
+            memcpy(sText + iOldLen, sPartText, iPartLen);
+            sText[iOldLen + iPartLen] = '\0';
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "gemini tool result currently supports only text/json parts");
+            goto done;
+        }
+    }
+
+    if ( !tResponse ) {
+        tResponse = xvoCreateTable();
+        if ( !tResponse ) {
+            goto done;
+        }
+        if ( !xvoTableSetText(tResponse, (str)"text", 4u, (str)(sText ? sText : ""), 0u, FALSE) ) {
+            goto done;
+        }
+    }
+
+    sResponseJson = (char *)xrtStringifyJSON(tResponse, FALSE, NULL);
+    if ( !sResponseJson ) {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify gemini tool response");
+        goto done;
+    }
+
+    bOK = xllm__json_builder_append_cstr(pBuilder, "[{\"functionResponse\":{\"name\":") &&
+          xllm__json_builder_append_escaped(pBuilder, pMessage->sToolName) &&
+          xllm__json_builder_append_cstr(pBuilder, ",\"response\":") &&
+          xllm__json_builder_append_cstr(pBuilder, sResponseJson) &&
+          xllm__json_builder_append_cstr(pBuilder, "}}]");
+
+done:
+    if ( sText ) {
+        xrtFree(sText);
+    }
+    if ( sResponseJson ) {
+        xrtFree(sResponseJson);
+    }
+    xllm__xvalue_release(&tResponse);
+    return bOK;
+}
+
+static bool xllm__gemini_append_message_object(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    const char *sRole;
+
+    if ( !pBuilder || !pMessage ) {
+        return false;
+    }
+    if ( pMessage->eRole == XLLM_ROLE_SYSTEM ) {
+        return true;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL ) {
+        return xllm__json_builder_append_cstr(pBuilder, "{\"role\":\"user\",\"parts\":") &&
+               xllm__gemini_append_function_response_part(pBuilder, pMessage, pError) &&
+               xllm__json_builder_append_char(pBuilder, '}');
+    }
+
+    sRole = (pMessage->eRole == XLLM_ROLE_ASSISTANT) ? "model" : "user";
+    return xllm__json_builder_append_cstr(pBuilder, "{\"role\":") &&
+           xllm__json_builder_append_escaped(pBuilder, sRole) &&
+           xllm__json_builder_append_cstr(pBuilder, ",\"parts\":") &&
+           xllm__gemini_append_parts_array(pBuilder, pMessage, pError) &&
+           xllm__json_builder_append_char(pBuilder, '}');
+}
+
+static bool xllm__gemini_collect_system_instruction(
+    const xllm_request *pRequest,
+    char **psOut
+)
+{
+    xllm__json_builder tBuilder;
+    size_t i;
+    bool bHasText = false;
+
+    if ( psOut ) {
+        *psOut = NULL;
+    }
+    if ( !psOut || !pRequest ) {
+        return false;
+    }
+
+    memset(&tBuilder, 0, sizeof(tBuilder));
+
+    for ( i = 0u; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0u; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            const xllm_message *pMsg = &pRequest->pContextBlocks[i].pMessages[j];
+            size_t k;
+            if ( pMsg->eRole != XLLM_ROLE_SYSTEM ) {
+                continue;
+            }
+            for ( k = 0u; k < pMsg->iPartCount; ++k ) {
+                const xllm_content_part *pPart = &pMsg->pParts[k];
+                const char *sText;
+                if ( pPart->eKind != XLLM_PART_TEXT || pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                    continue;
+                }
+                sText = pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "";
+                if ( bHasText && !xllm__json_builder_append_char(&tBuilder, '\n') ) {
+                    goto fail;
+                }
+                if ( !xllm__json_builder_append_cstr(&tBuilder, sText) ) {
+                    goto fail;
+                }
+                bHasText = true;
+            }
+        }
+    }
+
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        const xllm_message *pMsg = &pRequest->pMessages[i];
+        size_t k;
+        if ( pMsg->eRole != XLLM_ROLE_SYSTEM ) {
+            continue;
+        }
+        for ( k = 0u; k < pMsg->iPartCount; ++k ) {
+            const xllm_content_part *pPart = &pMsg->pParts[k];
+            const char *sText;
+            if ( pPart->eKind != XLLM_PART_TEXT || pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                continue;
+            }
+            sText = pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "";
+            if ( bHasText && !xllm__json_builder_append_char(&tBuilder, '\n') ) {
+                goto fail;
+            }
+            if ( !xllm__json_builder_append_cstr(&tBuilder, sText) ) {
+                goto fail;
+            }
+            bHasText = true;
+        }
+    }
+
+    if ( !bHasText ) {
+        xllm__json_builder_reset(&tBuilder);
+        return true;
+    }
+
+    *psOut = xllm__json_builder_detach(&tBuilder);
+    return *psOut != NULL;
+
+fail:
+    xllm__json_builder_reset(&tBuilder);
+    return false;
+}
+
+static bool xllm__gemini_append_contents(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError,
+    uint32 *puMessageCount
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+    uint32 uMessageCount = 0u;
+
+    if ( !pBuilder || !pRequest ) {
+        return false;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "\"contents\":[") ) {
+        return false;
+    }
+
+    for ( i = 0u; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0u; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            const xllm_message *pMessage = &pRequest->pContextBlocks[i].pMessages[j];
+            if ( pMessage->eRole == XLLM_ROLE_SYSTEM ) {
+                continue;
+            }
+            if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                return false;
+            }
+            if ( !xllm__gemini_append_message_object(pBuilder, pMessage, pError) ) {
+                return false;
+            }
+            bNeedComma = true;
+            ++uMessageCount;
+        }
+    }
+
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        const xllm_message *pMessage = &pRequest->pMessages[i];
+        if ( pMessage->eRole == XLLM_ROLE_SYSTEM ) {
+            continue;
+        }
+        if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return false;
+        }
+        if ( !xllm__gemini_append_message_object(pBuilder, pMessage, pError) ) {
+            return false;
+        }
+        bNeedComma = true;
+        ++uMessageCount;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return false;
+    }
+    if ( puMessageCount ) {
+        *puMessageCount = uMessageCount;
+    }
+    return true;
+}
+
+static bool xllm__gemini_append_tools(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError
+)
+{
+    size_t i;
+
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return true;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tools\":[{\"functionDeclarations\":[") ) {
+        return false;
+    }
+    for ( i = 0u; i < pRequest->iToolCount; ++i ) {
+        const xllm_tool_def *pTool = &pRequest->pTools[i];
+        const char *sWireName = (pTool->sWireName && pTool->sWireName[0]) ? pTool->sWireName : pTool->sToolId;
+        char *sSchema;
+
+        if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return false;
+        }
+        if ( !sWireName || !sWireName[0] ) {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "gemini tool definition missing wire_name");
+            return false;
+        }
+
+        sSchema = pTool->tInputSchema ? (char *)xrtStringifyJSON(pTool->tInputSchema, FALSE, NULL) : xllm__dup_cstr("{}");
+        if ( !sSchema ) {
+            xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify gemini tool schema");
+            return false;
+        }
+
+        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"name\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, sWireName) ) {
+            xrtFree(sSchema);
+            return false;
+        }
+        if ( pTool->sDescription && pTool->sDescription[0] ) {
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"description\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pTool->sDescription) ) {
+                xrtFree(sSchema);
+                return false;
+            }
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"parameters\":") ||
+             !xllm__json_builder_append_cstr(pBuilder, sSchema) ||
+             !xllm__json_builder_append_char(pBuilder, '}') ) {
+            xrtFree(sSchema);
+            return false;
+        }
+        xrtFree(sSchema);
+    }
+    if ( !xllm__json_builder_append_cstr(pBuilder, "]}]") ) {
+        return false;
+    }
+
+    switch ( pRequest->tToolPolicy.eMode ) {
+        case XLLM_TOOL_CHOICE_NONE:
+            return xllm__json_builder_append_cstr(
+                pBuilder,
+                ",\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"NONE\"}}"
+            );
+        case XLLM_TOOL_CHOICE_REQUIRED:
+            return xllm__json_builder_append_cstr(
+                pBuilder,
+                ",\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"ANY\"}}"
+            );
+        case XLLM_TOOL_CHOICE_NAMED:
+            if ( !pRequest->tToolPolicy.sToolName || !pRequest->tToolPolicy.sToolName[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "gemini named tool choice missing tool name");
+                return false;
+            }
+            return xllm__json_builder_append_cstr(pBuilder, ",\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"ANY\",\"allowedFunctionNames\":[") &&
+                   xllm__json_builder_append_escaped(pBuilder, pRequest->tToolPolicy.sToolName) &&
+                   xllm__json_builder_append_cstr(pBuilder, "]}}");
+        case XLLM_TOOL_CHOICE_AUTO:
+        default:
+            return xllm__json_builder_append_cstr(
+                pBuilder,
+                ",\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"AUTO\"}}"
+            );
+    }
+}
+
+static bool xllm__gemini_append_generation_config(
+    xllm__json_builder *pBuilder,
+    const xllm_effective_params *pEffectiveParams,
+    xllm_error *pError
+)
+{
+    bool bHasField = false;
+    size_t i;
+    char *sSchema = NULL;
+    bool bReasoningEnabled = false;
+    bool bIncludeThoughts = false;
+    uint32 uThinkingBudget = 0u;
+
+    if ( !pBuilder || !pEffectiveParams ) {
+        return false;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"generationConfig\":{") ) {
+        return false;
+    }
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( bHasField && !xllm__json_builder_append_char(pBuilder, ',') ) return false;
+        if ( !xllm__json_builder_append_cstr(pBuilder, "\"temperature\":") ||
+             !xllm__json_builder_append_f64(pBuilder, pEffectiveParams->tGeneration.tTemperature.fValue) ) {
+            return false;
+        }
+        bHasField = true;
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( bHasField && !xllm__json_builder_append_char(pBuilder, ',') ) return false;
+        if ( !xllm__json_builder_append_cstr(pBuilder, "\"topP\":") ||
+             !xllm__json_builder_append_f64(pBuilder, pEffectiveParams->tGeneration.tTopP.fValue) ) {
+            return false;
+        }
+        bHasField = true;
+    }
+    if ( pEffectiveParams->tGeneration.tMaxOutputTokens.bSet ) {
+        if ( bHasField && !xllm__json_builder_append_char(pBuilder, ',') ) return false;
+        if ( !xllm__json_builder_append_cstr(pBuilder, "\"maxOutputTokens\":") ||
+             !xllm__json_builder_append_u32(pBuilder, pEffectiveParams->tGeneration.tMaxOutputTokens.iValue) ) {
+            return false;
+        }
+        bHasField = true;
+    }
+    if ( pEffectiveParams->tGeneration.iStopCount > 0u ) {
+        if ( bHasField && !xllm__json_builder_append_char(pBuilder, ',') ) return false;
+        if ( !xllm__json_builder_append_cstr(pBuilder, "\"stopSequences\":[") ) {
+            return false;
+        }
+        for ( i = 0u; i < pEffectiveParams->tGeneration.iStopCount; ++i ) {
+            if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) return false;
+            if ( !xllm__json_builder_append_escaped(pBuilder, pEffectiveParams->tGeneration.psStop[i] ? pEffectiveParams->tGeneration.psStop[i] : "") ) {
+                return false;
+            }
+        }
+        if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+            return false;
+        }
+        bHasField = true;
+    }
+    if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON ||
+         pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON_SCHEMA ) {
+        if ( bHasField && !xllm__json_builder_append_char(pBuilder, ',') ) return false;
+        if ( !xllm__json_builder_append_cstr(pBuilder, "\"responseMimeType\":\"application/json\"") ) {
+            return false;
+        }
+        bHasField = true;
+
+        if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON_SCHEMA ) {
+            sSchema = pEffectiveParams->tResponseFormat.tJsonSchema ?
+                (char *)xrtStringifyJSON(pEffectiveParams->tResponseFormat.tJsonSchema, FALSE, NULL) :
+                xllm__dup_cstr("{}");
+            if ( !sSchema ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify gemini response schema");
+                return false;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"responseSchema\":") ||
+                 !xllm__json_builder_append_cstr(pBuilder, sSchema) ) {
+                xrtFree(sSchema);
+                return false;
+            }
+            xrtFree(sSchema);
+        }
+    }
+
+    bReasoningEnabled =
+        (pEffectiveParams->tReasoning.tEnabled.bSet && pEffectiveParams->tReasoning.tEnabled.bValue) ||
+        (pEffectiveParams->tReasoning.eLevel != XLLM_REASONING_DEFAULT &&
+         pEffectiveParams->tReasoning.eLevel != XLLM_REASONING_OFF);
+    bIncludeThoughts =
+        pEffectiveParams->tReasoning.tExposeThinking.bSet &&
+        pEffectiveParams->tReasoning.tExposeThinking.bValue;
+    uThinkingBudget = xllm__gemini_reasoning_budget_for_level(&pEffectiveParams->tReasoning);
+
+    if ( bReasoningEnabled || bIncludeThoughts || pEffectiveParams->tReasoning.eLevel == XLLM_REASONING_OFF ) {
+        if ( bHasField && !xllm__json_builder_append_char(pBuilder, ',') ) return false;
+        if ( !xllm__json_builder_append_cstr(pBuilder, "\"thinkingConfig\":{") ) {
+            return false;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, "\"thinkingBudget\":") ||
+             !xllm__json_builder_append_u32(pBuilder, uThinkingBudget) ) {
+            return false;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"includeThoughts\":") ||
+             !xllm__json_builder_append_cstr(pBuilder, bIncludeThoughts ? "true" : "false") ||
+             !xllm__json_builder_append_char(pBuilder, '}') ) {
+            return false;
+        }
+        bHasField = true;
+    }
+
+    return xllm__json_builder_append_char(pBuilder, '}');
+}
+
+static int xllm__gemini_build_body(
+    xllm__json_builder *pBody,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    uint32 *puMessageCount,
+    xllm_error *pError
+)
+{
+    char *sSystem = NULL;
+    bool bOK = false;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBody || !pRequest || !pEffectiveParams ) {
+        return XRT_NET_ERROR;
+    }
+    if ( !xllm__json_builder_append_char(pBody, '{') ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__gemini_collect_system_instruction(pRequest, &sSystem) ) {
+        return XRT_NET_ERROR;
+    }
+    if ( sSystem && sSystem[0] ) {
+        if ( !xllm__json_builder_append_cstr(pBody, "\"systemInstruction\":{\"parts\":[{\"text\":") ||
+             !xllm__json_builder_append_escaped(pBody, sSystem) ||
+             !xllm__json_builder_append_cstr(pBody, "}]},") ) {
+            goto done;
+        }
+    }
+
+    if ( !xllm__gemini_append_contents(pBody, pRequest, pError, puMessageCount) ) {
+        goto done;
+    }
+    if ( !xllm__gemini_append_tools(pBody, pRequest, pError) ) {
+        goto done;
+    }
+    if ( !xllm__gemini_append_generation_config(pBody, pEffectiveParams, pError) ) {
+        goto done;
+    }
+    if ( !xllm__json_builder_append_char(pBody, '}') ) {
+        goto done;
+    }
+
+    bOK = true;
+
+done:
+    if ( sSystem ) {
+        xrtFree(sSystem);
+    }
+    return bOK ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static xllm_response_status xllm__gemini_status_from_finish_reason(const char *sFinishReason)
+{
+    if ( !sFinishReason || !sFinishReason[0] || strcmp(sFinishReason, "STOP") == 0 ) {
+        return XLLM_STATUS_COMPLETED;
+    }
+    if ( strcmp(sFinishReason, "MAX_TOKENS") == 0 ) {
+        return XLLM_STATUS_INCOMPLETE;
+    }
+    if ( strcmp(sFinishReason, "SAFETY") == 0 ||
+         strcmp(sFinishReason, "PROHIBITED_CONTENT") == 0 ||
+         strcmp(sFinishReason, "SPII") == 0 ||
+         strcmp(sFinishReason, "RECITATION") == 0 ||
+         strcmp(sFinishReason, "BLOCKLIST") == 0 ) {
+        return XLLM_STATUS_CONTENT_FILTERED;
+    }
+    return XLLM_STATUS_COMPLETED;
+}
+
+static void xllm__gemini_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot)
+{
+    xvalue tError;
+    const char *sStatus = NULL;
+    const char *sMessage = NULL;
+    const char *sRequestId = NULL;
+
+    if ( !pError ) {
+        return;
+    }
+
+    tError = xllm__json_table_get(tRoot, "error");
+    if ( tError ) {
+        sStatus = xllm__json_table_get_text(tError, "status");
+        sMessage = xllm__json_table_get_text(tError, "message");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = "gemini request failed";
+    }
+
+    if ( sStatus && strcmp(sStatus, "INVALID_ARGUMENT") == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, sMessage);
+    } else if ( sStatus && strcmp(sStatus, "UNAUTHENTICATED") == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+    } else if ( sStatus && strcmp(sStatus, "NOT_FOUND") == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+    } else if ( sStatus && strcmp(sStatus, "RESOURCE_EXHAUSTED") == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+    } else if ( sStatus && strcmp(sStatus, "DEADLINE_EXCEEDED") == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_TIMEOUT, sMessage);
+    } else if ( sStatus && (strcmp(sStatus, "UNAVAILABLE") == 0 || strcmp(sStatus, "INTERNAL") == 0) ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 500u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 400u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, sMessage);
+    } else {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+    }
+
+    if ( pHttpResponse ) {
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-goog-request-id");
+        if ( !sRequestId || !sRequestId[0] ) {
+            sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+        }
+        if ( sRequestId && sRequestId[0] ) {
+            pError->sRequestId = xllm__dup_cstr(sRequestId);
+        }
+    }
+    if ( sStatus && sStatus[0] ) {
+        pError->sProviderCode = xllm__dup_cstr(sStatus);
+    }
+    if ( sMessage && sMessage[0] ) {
+        pError->sProviderMessage = xllm__dup_cstr(sMessage);
+    }
+}
+
+static int xllm__gemini_parse_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_effective_params *pEffectiveParams,
+    const char *sSelectedModel,
+    const char *sBody,
+    size_t iBodyLen,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xvalue tRoot = NULL;
+    xvalue tCandidates;
+    xvalue tCandidate;
+    xvalue tContent;
+    xvalue tParts;
+    xvalue tUsage;
+    xllm_response *pResponse = NULL;
+    size_t i;
+    size_t iOutputCap = 0u;
+    size_t iMessagePartCap = 0u;
+    size_t iMessageOutputIndex = (size_t)-1;
+    xllm__json_builder tVisible;
+    char *sNormalizedJson = NULL;
+    xvalue tJsonValue = NULL;
+    const char *sFinishReason;
+
+    if ( !ppResponse || !pEffectiveParams ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    tRoot = xrtParseJSON((str)sBody, iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid gemini response");
+        return XRT_NET_ERROR;
+    }
+
+    pResponse = (xllm_response *)xrtCalloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) {
+        xllm__xvalue_release(&tRoot);
+        return XRT_NET_ERROR;
+    }
+    memset(&tVisible, 0, sizeof(tVisible));
+
+    pResponse->sProvider = xllm__dup_cstr(xllm__gemini_provider_name(pProfile));
+    pResponse->sProfileId = xllm__dup_cstr(pProfile ? pProfile->sId : NULL);
+    pResponse->sModel = xllm__dup_cstr(sSelectedModel);
+    pResponse->tEffectiveParams = *pEffectiveParams;
+    memset(pEffectiveParams, 0, sizeof(*pEffectiveParams));
+
+    tUsage = xllm__json_table_get(tRoot, "usageMetadata");
+    if ( tUsage ) {
+        pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "promptTokenCount");
+        pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "candidatesTokenCount");
+        pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tUsage, "thoughtsTokenCount");
+        pResponse->tUsage.uCachedInputTokens = xllm__json_table_get_u32(tUsage, "cachedContentTokenCount");
+    }
+
+    tCandidates = xllm__json_table_get(tRoot, "candidates");
+    if ( !tCandidates || xvoType(tCandidates) != XVO_DT_ARRAY || xvoArrayItemCount(tCandidates) == 0u ) {
+        pResponse->eStatus = XLLM_STATUS_ERRORED;
+        pResponse->sFinishReason = xllm__dup_cstr("error");
+        pResponse->sVisibleText = xllm__dup_cstr("");
+        pResponse->tRaw = tRoot;
+        *ppResponse = pResponse;
+        return XRT_NET_OK;
+    }
+
+    tCandidate = xvoArrayGetValue(tCandidates, 0u);
+    sFinishReason = xllm__json_table_get_text(tCandidate, "finishReason");
+    pResponse->eStatus = xllm__gemini_status_from_finish_reason(sFinishReason);
+    pResponse->sFinishReason = xllm__dup_cstr(sFinishReason ? sFinishReason : "STOP");
+    tContent = xllm__json_table_get(tCandidate, "content");
+    tParts = xllm__json_table_get(tContent, "parts");
+
+    if ( tParts && xvoType(tParts) == XVO_DT_ARRAY ) {
+        for ( i = 0u; i < xvoArrayItemCount(tParts); ++i ) {
+            xvalue tPartObj = xvoArrayGetValue(tParts, (uint32)i);
+            const char *sText = xllm__json_table_get_text(tPartObj, "text");
+            xvalue tFunctionCall = xllm__json_table_get(tPartObj, "functionCall");
+            const char *sThoughtSignature = xllm__json_table_get_text(tPartObj, "thoughtSignature");
+            bool bThought = false;
+
+            (void)xllm__json_table_get_bool(tPartObj, "thought", &bThought);
+
+            if ( tFunctionCall && xvoType(tFunctionCall) == XVO_DT_TABLE ) {
+                const char *sName = xllm__json_table_get_text(tFunctionCall, "name");
+                xvalue tArgs = xllm__json_table_get(tFunctionCall, "args");
+                xllm_output_item tToolOutput;
+
+                memset(&tToolOutput, 0, sizeof(tToolOutput));
+                tToolOutput.eKind = XLLM_OUTPUT_TOOL_CALL;
+                tToolOutput.as.tToolCall.sCallId = xllm__dup_cstr("gemini_call_0");
+                tToolOutput.as.tToolCall.sToolId = xllm__dup_cstr(sName ? sName : "");
+                tToolOutput.as.tToolCall.sToolName = xllm__dup_cstr(sName ? sName : "");
+                tToolOutput.as.tToolCall.sArgumentsJson = tArgs ? (char *)xrtStringifyJSON(tArgs, FALSE, NULL) : xllm__dup_cstr("{}");
+                if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tToolOutput) != XRT_NET_OK ) {
+                    xllm_response_free(pResponse);
+                    xllm__xvalue_release(&tRoot);
+                    return XRT_NET_ERROR;
+                }
+                pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+                continue;
+            }
+
+            if ( !sText ) {
+                continue;
+            }
+
+            if ( bThought ) {
+                xllm_output_item tThinkingOutput;
+
+                memset(&tThinkingOutput, 0, sizeof(tThinkingOutput));
+                tThinkingOutput.eKind = XLLM_OUTPUT_THINKING;
+                tThinkingOutput.as.tThinking.bVisible = true;
+                tThinkingOutput.as.tThinking.sFormat = xllm__dup_cstr("full");
+                tThinkingOutput.as.tThinking.sText = xllm__dup_cstr(sText);
+                if ( xllm__gemini_set_thinking_vendor_extra(&tThinkingOutput.as.tThinking, sThoughtSignature) != XRT_NET_OK ) {
+                    xllm__output_item_free(&tThinkingOutput);
+                    xllm_response_free(pResponse);
+                    xllm__xvalue_release(&tRoot);
+                    return XRT_NET_ERROR;
+                }
+                if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tThinkingOutput) != XRT_NET_OK ) {
+                    xllm__output_item_free(&tThinkingOutput);
+                    xllm_response_free(pResponse);
+                    xllm__xvalue_release(&tRoot);
+                    return XRT_NET_ERROR;
+                }
+                continue;
+            }
+
+            if ( iMessageOutputIndex == (size_t)-1 ) {
+                xllm_output_item tMessageOutput;
+                memset(&tMessageOutput, 0, sizeof(tMessageOutput));
+                tMessageOutput.eKind = XLLM_OUTPUT_MESSAGE;
+                if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tMessageOutput) != XRT_NET_OK ) {
+                    xllm_response_free(pResponse);
+                    xllm__xvalue_release(&tRoot);
+                    return XRT_NET_ERROR;
+                }
+                iMessageOutputIndex = pResponse->iOutputCount - 1u;
+            }
+
+            {
+                xllm_content_part tMsgPart;
+                memset(&tMsgPart, 0, sizeof(tMsgPart));
+                tMsgPart.eKind = XLLM_PART_TEXT;
+                tMsgPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+                tMsgPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+                tMsgPart.as.tSource.as.sText = xllm__dup_cstr(sText);
+                if ( xllm__append_buffer(
+                         (void **)&pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts,
+                         sizeof(xllm_content_part),
+                         &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.iPartCount,
+                         &iMessagePartCap,
+                         &tMsgPart) != XRT_NET_OK ) {
+                    xllm__content_part_free(&tMsgPart);
+                    xllm_response_free(pResponse);
+                    xllm__xvalue_release(&tRoot);
+                    return XRT_NET_ERROR;
+                }
+            }
+
+            if ( tVisible.iLen > 0u && !xllm__json_builder_append_char(&tVisible, '\n') ) {
+                xllm_response_free(pResponse);
+                xllm__xvalue_release(&tRoot);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(&tVisible, sText) ) {
+                xllm_response_free(pResponse);
+                xllm__xvalue_release(&tRoot);
+                return XRT_NET_ERROR;
+            }
+        }
+    }
+
+    pResponse->sVisibleText = xllm__json_builder_detach(&tVisible);
+    if ( !pResponse->sVisibleText ) {
+        pResponse->sVisibleText = xllm__dup_cstr("");
+    }
+
+    if ( pRequest && pEffectiveParams->tResponseFormat.eKind != XLLM_RESPONSE_TEXT && iMessageOutputIndex != (size_t)-1 ) {
+        if ( xllm__openai_parse_structured_output(
+                 &pEffectiveParams->tResponseFormat,
+                 pOptions,
+                 pResponse->sVisibleText,
+                 &tJsonValue,
+                 &sNormalizedJson,
+                 pError) != XRT_NET_OK ) {
+            xllm_response_free(pResponse);
+            xllm__xvalue_release(&tRoot);
+            return XRT_NET_ERROR;
+        }
+        if ( tJsonValue ) {
+            xllm_content_part *pPart = &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts[0u];
+            xllm__content_part_free(pPart);
+            memset(pPart, 0, sizeof(*pPart));
+            pPart->eKind = XLLM_PART_JSON;
+            pPart->as.tJsonValue = tJsonValue;
+            tJsonValue = NULL;
+            xllm__free_cstr((char **)&pResponse->sVisibleText);
+            pResponse->sVisibleText = sNormalizedJson ? sNormalizedJson : xllm__dup_cstr("");
+            sNormalizedJson = NULL;
+        }
+    }
+
+    if ( pResponse->eStatus == XLLM_STATUS_CONTENT_FILTERED ) {
+        pResponse->tSafety.sBlockReason = xllm__dup_cstr(sFinishReason ? sFinishReason : "SAFETY");
+    }
+
+    pResponse->sId = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "responseId"));
+    pResponse->tRaw = tRoot;
+    *ppResponse = pResponse;
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    return XRT_NET_OK;
+}
+
+static int xllm__gemini_fill_request_headers(
+    xhttprequest *pHttpRequest,
+    const xllm_profile *pProfile,
+    xllm_error *pError
+)
+{
+    xllm_profile tShadowProfile;
+    char *sAccessToken = NULL;
+
+    if ( !pHttpRequest || !pProfile ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tShadowProfile, 0, sizeof(tShadowProfile));
+    tShadowProfile = *pProfile;
+
+    if ( pProfile->sAdapter &&
+         strcmp(pProfile->sAdapter, XLLM_ADAPTER_VERTEX_GEMINI_NATIVE) == 0 &&
+         pProfile->tAuth.eKind == XLLM_AUTH_NONE ) {
+        sAccessToken = xllm__vertex_fetch_access_token(pProfile);
+        if ( !sAccessToken || !sAccessToken[0] ) {
+            xllm__error_set(
+                pError,
+                XLLM_ERROR_AUTH,
+                "vertex gemini auth requires api key or GOOGLE_APPLICATION_CREDENTIALS/vertex_credentials_path"
+            );
+            return XRT_NET_ERROR;
+        }
+        tShadowProfile.tAuth.eKind = XLLM_AUTH_BEARER;
+        tShadowProfile.tAuth.sScheme = "Bearer";
+        tShadowProfile.tAuth.sSecret = sAccessToken;
+        tShadowProfile.tAuth.sHeaderName = NULL;
+    } else if ( tShadowProfile.tAuth.eKind == XLLM_AUTH_API_KEY_HEADER &&
+                (!tShadowProfile.tAuth.sHeaderName || !tShadowProfile.tAuth.sHeaderName[0]) ) {
+        tShadowProfile.tAuth.sHeaderName = "x-goog-api-key";
+    }
+
+    if ( xllm__openai_fill_request_headers(pHttpRequest, &tShadowProfile) != XRT_NET_OK ) {
+        xllm__free_cstr(&sAccessToken);
+        return XRT_NET_ERROR;
+    }
+
+    xllm__free_cstr(&sAccessToken);
+    return XRT_NET_OK;
+}
+
+static int32 xllm__gemini_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    const char *sContentType = NULL;
+    bool bTreatAsSse = false;
+    bool bParsedStream = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    xvalue tRoot = NULL;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppResponse = NULL;
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for gemini request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_PREFER
+         ) != XRT_NET_OK ) goto fail;
+
+    if ( xllm__gemini_build_body(&tBody, pRequest, &tEffectiveParams, NULL, pError) != XRT_NET_OK ) goto fail;
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) goto fail;
+
+    sUrl = xllm__gemini_build_url(pProfile, sModel, true);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "gemini profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__gemini_fill_request_headers(&tHttpRequest, pProfile, pError) != XRT_NET_OK ) goto fail;
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__gemini_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__gemini_component_name(pProfile),
+        "request start: model=%s streaming=true attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        true,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "gemini stream request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini stream request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "gemini stream request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-goog-request-id");
+    if ( !sRequestId || !sRequestId[0] ) {
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    }
+
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__gemini_fill_error_from_http(pError, pHttpResponse, tRoot);
+        goto fail;
+    }
+
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "gemini stream response body is empty");
+        goto fail;
+    }
+
+    sContentType = xrtHttpResponseHeader(pHttpResponse, "content-type");
+    bTreatAsSse = xllm__buffer_starts_with_sse_data(pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !bTreatAsSse && sContentType ) {
+        bTreatAsSse = xllm__text_contains_ci(sContentType, "text/event-stream");
+    }
+
+    if ( bTreatAsSse ) {
+        if ( xllm__gemini_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+        if ( tStream.iParsedBytes < pHttpResponse->iBodyLen ) {
+            size_t iRemain = pHttpResponse->iBodyLen - tStream.iParsedBytes;
+            if ( xllm__gemini_stream_process_event_block(&tStream, pHttpResponse->pBody + tStream.iParsedBytes, iRemain) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = pHttpResponse->iBodyLen;
+        }
+        bParsedStream = tStream.iParsedBytes > 0u || tStream.bDone || tStream.pResponse != NULL;
+    } else {
+        tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        if ( tRoot && xvoType(tRoot) == XVO_DT_ARRAY ) {
+            size_t i;
+
+            for ( i = 0u; i < xvoGetSize(tRoot); ++i ) {
+                xvalue tItem = xvoArrayGetValue(tRoot, (uint32)i);
+                if ( xllm__gemini_stream_process_root(&tStream, tItem, 0u) != XRT_NET_OK ) {
+                    if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini stream cancelled");
+                    }
+                    iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                    goto fail;
+                }
+            }
+            bParsedStream = xvoGetSize(tRoot) > 0u;
+        } else if ( tRoot && xvoType(tRoot) == XVO_DT_TABLE ) {
+            if ( xllm__gemini_stream_process_root(&tStream, tRoot, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            bParsedStream = true;
+        }
+    }
+
+    if ( bParsedStream ) {
+        if ( xllm__openai_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "gemini stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__gemini_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__gemini_component_name(pProfile),
+            "response complete: model=%s streaming=true attempt=%u status=%s outputs=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            *ppResponse,
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            pHttpResponse,
+            sRequestId,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            true,
+            false
+        );
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "gemini upstream did not return a stream response");
+        goto fail;
+    }
+
+    if ( !tRoot ) {
+        tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    }
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse gemini streaming fallback response");
+        goto fail;
+    }
+    if ( xllm__gemini_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+    xllm__xvalue_release(&tRoot);
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        if ( pError && pError->eCode == XLLM_ERROR_NONE ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini stream cancelled");
+        }
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__gemini_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__gemini_component_name(pProfile),
+        "response fallback complete: model=%s streaming=true attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        true,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+
+            xllm__gemini_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__gemini_component_name(pProfile),
+                "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->sMessage) ? pError->sMessage : "",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                true,
+                false
+            );
+
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( tRoot ) {
+                xvoUnref(tRoot);
+                tRoot = NULL;
+            }
+            if ( tStream.pResponse ) {
+                xllm_response_free(tStream.pResponse);
+                tStream.pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            memset(&tStream, 0, sizeof(tStream));
+            tStream.pProfile = pProfile;
+            tStream.pRequest = pRequest;
+            tStream.pOptions = pOptions;
+            tStream.pError = pError;
+            tStream.pRuntime = pRuntime;
+            tStream.iMessageOutputIndex = (size_t)-1;
+            tStream.iThinkingOutputIndex = (size_t)-1;
+            tStream.iRefusalOutputIndex = (size_t)-1;
+            tStream.sSelectedModel = sModel;
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__gemini_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__gemini_component_name(pProfile),
+            "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->sMessage) ? pError->sMessage : "",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            true,
+            false
+        );
+    }
+
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( tStream.pResponse ) {
+        xllm_response_free(tStream.pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__gemini_chat_common(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int iStatus = XRT_NET_ERROR;
+    bool bRetryable = false;
+    bool bStreaming = false;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    bStreaming = (pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for gemini request");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_OFF
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__gemini_build_body(&tBody, pRequest, &tEffectiveParams, NULL, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    sUrl = xllm__gemini_build_url(pProfile, sModel, false);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "gemini profile missing base url");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__gemini_fill_request_headers(&tHttpRequest, pProfile, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+retry_execute:
+    ++uAttempt;
+    xllm__gemini_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__gemini_component_name(pProfile),
+        "request start: model=%s streaming=%s attempt=%u/%u body_bytes=%u",
+        sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        bStreaming,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "gemini request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "gemini request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-goog-request-id");
+    if ( !sRequestId || !sRequestId[0] ) {
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    }
+
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tRoot = NULL;
+
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__gemini_fill_error_from_http(pError, pHttpResponse, tRoot);
+        xllm__xvalue_release(&tRoot);
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "gemini response body is empty");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__gemini_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "gemini synthetic event stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__gemini_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__gemini_component_name(pProfile),
+        "response complete: model=%s streaming=%s attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+            sRequestId,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            bStreaming,
+            false
+        );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+
+            xllm__gemini_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__gemini_component_name(pProfile),
+                "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                bStreaming ? "true" : "false",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->sMessage) ? pError->sMessage : "",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                bStreaming,
+                false
+            );
+
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__gemini_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__gemini_component_name(pProfile),
+            "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            bStreaming ? "true" : "false",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->sMessage) ? pError->sMessage : "",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            bStreaming,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__gemini_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        return xllm__gemini_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+    return xllm__gemini_chat_common(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+}
+
+static int32 xllm__vertex_gemini_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        return xllm__gemini_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+    return xllm__gemini_chat_common(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+}
+
+XLLM_API int xllm_register_gemini_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_GEMINI_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__gemini_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+XLLM_API int xllm_register_vertex_gemini_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_VERTEX_GEMINI_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__vertex_gemini_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_gemini.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_qwen.c ===== */
+
+/* duplicate include skipped: D:/git/xllm/src/xllm_adapter/xllm_adapter.h */
+
+#include <string.h>
+
+static const char *xllm__qwen_provider_name(const xllm_profile *pProfile)
+{
+    if ( pProfile && pProfile->sProvider && pProfile->sProvider[0] ) {
+        return pProfile->sProvider;
+    }
+    return "qwen";
+}
+
+static bool xllm__qwen_part_is_native_supported(const xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return false;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+        case XLLM_PART_JSON:
+            return true;
+        case XLLM_PART_IMAGE:
+            return (
+                pPart->as.tSource.eKind == XLLM_SOURCE_URL ||
+                pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES
+            );
+        default:
+            return false;
+    }
+}
+
+static bool xllm__qwen_message_has_unsupported_parts(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( !xllm__qwen_part_is_native_supported(&pMessage->pParts[i]) ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool xllm__qwen_message_requires_content_array(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( pMessage->pParts[i].eKind == XLLM_PART_IMAGE ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool xllm__qwen_request_uses_multimodal(const xllm_request *pRequest)
+{
+    size_t i;
+
+    if ( !pRequest ) {
+        return false;
+    }
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__qwen_message_requires_content_array(&pRequest->pMessages[i]) ) {
+            return true;
+        }
+    }
+    for ( i = 0u; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0u; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__qwen_message_requires_content_array(&pRequest->pContextBlocks[i].pMessages[j]) ) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void xllm__qwen_free_parts(xllm_content_part **ppParts, size_t *piPartCount)
+{
+    size_t i;
+
+    if ( !ppParts || !*ppParts ) {
+        if ( piPartCount ) {
+            *piPartCount = 0u;
+        }
+        return;
+    }
+    if ( piPartCount ) {
+        for ( i = 0u; i < *piPartCount; ++i ) {
+            xllm__content_part_free(&(*ppParts)[i]);
+        }
+        *piPartCount = 0u;
+    }
+    xrtFree(*ppParts);
+    *ppParts = NULL;
+}
+
+static int xllm__qwen_append_content_part(
+    xllm__json_builder *pBuilder,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+            if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "qwen native text part must be inline text");
+                return XRT_NET_ERROR;
+            }
+            return (
+                xllm__json_builder_append_cstr(pBuilder, "{\"text\":") &&
+                xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") &&
+                xllm__json_builder_append_char(pBuilder, '}')
+            ) ? XRT_NET_OK : XRT_NET_ERROR;
+
+        case XLLM_PART_JSON: {
+            char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, FALSE, NULL);
+            bool bOk;
+
+            if ( !sJson ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify qwen json part");
+                return XRT_NET_ERROR;
+            }
+            bOk = (
+                xllm__json_builder_append_cstr(pBuilder, "{\"text\":") &&
+                xllm__json_builder_append_escaped(pBuilder, sJson) &&
+                xllm__json_builder_append_char(pBuilder, '}')
+            );
+            xrtFree(sJson);
+            return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+        }
+
+        case XLLM_PART_IMAGE:
+            switch ( pPart->as.tSource.eKind ) {
+                case XLLM_SOURCE_URL:
+                    return (
+                        xllm__json_builder_append_cstr(pBuilder, "{\"image\":") &&
+                        xllm__json_builder_append_escaped(
+                            pBuilder,
+                            pPart->as.tSource.as.sUrl ? pPart->as.tSource.as.sUrl : ""
+                        ) &&
+                        xllm__json_builder_append_char(pBuilder, '}')
+                    ) ? XRT_NET_OK : XRT_NET_ERROR;
+
+                case XLLM_SOURCE_INLINE_BYTES: {
+                    const char *sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "image/png";
+                    char *sBase64 = NULL;
+                    bool bOk;
+
+                    if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+                        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "qwen native image bytes input is empty");
+                        return XRT_NET_ERROR;
+                    }
+
+                    sBase64 = (char *)xrtBase64Encode(
+                        (ptr)pPart->as.tSource.as.tBytes.pData,
+                        pPart->as.tSource.as.tBytes.iSize,
+                        NULL
+                    );
+                    if ( !sBase64 ) {
+                        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode qwen image bytes");
+                        return XRT_NET_ERROR;
+                    }
+
+                    bOk = (
+                        xllm__json_builder_append_cstr(pBuilder, "{\"image\":") &&
+                        xllm__json_builder_append_char(pBuilder, '"') &&
+                        xllm__json_builder_append_cstr(pBuilder, "data:") &&
+                        xllm__json_builder_append_cstr(pBuilder, sMimeType) &&
+                        xllm__json_builder_append_cstr(pBuilder, ";base64,") &&
+                        xllm__json_builder_append_cstr(pBuilder, sBase64) &&
+                        xllm__json_builder_append_char(pBuilder, '"') &&
+                        xllm__json_builder_append_char(pBuilder, '}')
+                    );
+                    xrtFree(sBase64);
+                    return bOk ? XRT_NET_OK : XRT_NET_ERROR;
+                }
+
+                default:
+                    xllm__error_set(
+                        pError,
+                        XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                        "qwen native image input only supports url or inline bytes"
+                    );
+                    return XRT_NET_ERROR;
+            }
+
+        default:
+            xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "qwen native adapter unsupported content part");
+            return XRT_NET_ERROR;
+    }
+}
+
+static char *xllm__qwen_build_url(const xllm_profile *pProfile, const xllm_request *pRequest)
+{
+    const char *sBaseUrl = NULL;
+    static const char sDefaultUrl[] = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
+    static const char sDefaultMultimodalUrl[] = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+    bool bUseMultimodal = xllm__qwen_request_uses_multimodal(pRequest);
+
+    if ( pProfile ) {
+        sBaseUrl = pProfile->sBaseUrl;
+    }
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        sBaseUrl = bUseMultimodal ? sDefaultMultimodalUrl : sDefaultUrl;
+    }
+    if ( bUseMultimodal && strstr(sBaseUrl, "/services/aigc/text-generation/") != NULL ) {
+        size_t iPrefixLen = (size_t)(strstr(sBaseUrl, "/services/aigc/text-generation/") - sBaseUrl);
+        const char *sSuffix = strstr(sBaseUrl, "/services/aigc/text-generation/") + strlen("/services/aigc/text-generation/");
+        size_t iSuffixLen = strlen(sSuffix);
+        static const char sReplacement[] = "/services/aigc/multimodal-generation/";
+        char *sUrl = (char *)xrtCalloc(iPrefixLen + strlen(sReplacement) + iSuffixLen + 1u, sizeof(char));
+
+        if ( !sUrl ) {
+            return NULL;
+        }
+        memcpy(sUrl, sBaseUrl, iPrefixLen);
+        memcpy(sUrl + iPrefixLen, sReplacement, strlen(sReplacement));
+        memcpy(sUrl + iPrefixLen + strlen(sReplacement), sSuffix, iSuffixLen);
+        sUrl[iPrefixLen + strlen(sReplacement) + iSuffixLen] = '\0';
+        return sUrl;
+    }
+    if ( strstr(sBaseUrl, "/generation") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+    if ( strstr(sBaseUrl, "/services/aigc/text-generation") != NULL ||
+         strstr(sBaseUrl, "/services/aigc/multimodal-generation") != NULL ) {
+        size_t iLen = strlen(sBaseUrl);
+        bool bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+        char *sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + strlen("generation") + 1u, sizeof(char));
+        if ( !sUrl ) {
+            return NULL;
+        }
+        (void)snprintf(
+            sUrl,
+            iLen + (bNeedsSlash ? 1u : 0u) + strlen("generation") + 1u,
+            "%s%s%s",
+            sBaseUrl,
+            bNeedsSlash ? "/" : "",
+            "generation"
+        );
+        return sUrl;
+    }
+    return xllm__dup_cstr(bUseMultimodal ? sDefaultMultimodalUrl : sDefaultUrl);
+}
+
+static int xllm__qwen_append_message(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    bool *pbNeedComma,
+    xllm_error *pError
+)
+{
+    const char *sRole;
+    char *sContent = NULL;
+    int iStatus = XRT_NET_ERROR;
+    bool bNeedsContent = true;
+    bool bUseContentArray = false;
+    size_t i;
+
+    if ( !pBuilder || !pMessage || !pbNeedComma ) {
+        return XRT_NET_ERROR;
+    }
+
+    sRole = xllm__openai_role_name(pMessage->eRole);
+    if ( !sRole ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "qwen native adapter encountered unknown role");
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__qwen_message_has_unsupported_parts(pMessage) ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "qwen native adapter only supports text/json/image inputs");
+        return XRT_NET_ERROR;
+    }
+    bUseContentArray = xllm__qwen_message_requires_content_array(pMessage);
+    if ( !bUseContentArray &&
+         xllm__openai_message_to_text(pMessage, &sContent, pError) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( *pbNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+        goto done;
+    }
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"role\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sRole) ) {
+        goto done;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL && pMessage->sToolCallId && pMessage->sToolCallId[0] ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_call_id\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, pMessage->sToolCallId) ) {
+            goto done;
+        }
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_calls\":[") ) {
+            goto done;
+        }
+
+        for ( i = 0u; i < pMessage->iToolCallCount; ++i ) {
+            const xllm_tool_call *pCall = &pMessage->pToolCalls[i];
+            const char *sToolName = pCall->sToolName ? pCall->sToolName : pCall->sToolId;
+
+            if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                goto done;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sCallId ? pCall->sCallId : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"type\":\"function\",\"function\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sToolName ? sToolName : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"arguments\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sArgumentsJson ? pCall->sArgumentsJson : "{}") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"index\":") ||
+                 !xllm__json_builder_append_u32(pBuilder, (uint32)i) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                goto done;
+            }
+        }
+
+        if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+            goto done;
+        }
+
+        if ( !sContent || !sContent[0] ) {
+            bNeedsContent = false;
+        }
+    }
+
+    if ( bNeedsContent ) {
+        if ( bUseContentArray ) {
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":[") ) {
+                goto done;
+            }
+            for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+                if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                    goto done;
+                }
+                if ( xllm__qwen_append_content_part(pBuilder, &pMessage->pParts[i], pError) != XRT_NET_OK ) {
+                    goto done;
+                }
+            }
+            if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+                goto done;
+            }
+        } else
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, sContent ? sContent : "") ) {
+            goto done;
+        }
+    }
+    if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+        goto done;
+    }
+
+    *pbNeedComma = true;
+    iStatus = XRT_NET_OK;
+
+done:
+    xllm__free_cstr(&sContent);
+    return iStatus;
+}
+
+static int xllm__qwen_parse_message_content(
+    xvalue tContent,
+    xllm_content_part **ppParts,
+    size_t *piPartCount,
+    char **psVisibleText,
+    xllm_error *pError
+)
+{
+    xllm__json_builder tVisibleText;
+    xllm_content_part *pParts = NULL;
+    size_t iPartCount = 0u;
+    size_t iPartCapacity = 0u;
+
+    if ( ppParts ) {
+        *ppParts = NULL;
+    }
+    if ( piPartCount ) {
+        *piPartCount = 0u;
+    }
+    if ( psVisibleText ) {
+        *psVisibleText = NULL;
+    }
+    if ( !tContent ) {
+        return XRT_NET_OK;
+    }
+    if ( xvoType(tContent) != XVO_DT_ARRAY ) {
+        return xllm__openai_parse_message_content(tContent, ppParts, piPartCount, psVisibleText, NULL, pError);
+    }
+
+    memset(&tVisibleText, 0, sizeof(tVisibleText));
+    {
+        size_t i;
+
+        for ( i = 0u; i < (size_t)xvoArrayItemCount(tContent); ++i ) {
+            xvalue tItem = xvoArrayGetValue(tContent, (uint32)i);
+            const char *sText;
+            const char *sImage;
+
+            if ( !tItem || xvoType(tItem) != XVO_DT_TABLE ) {
+                continue;
+            }
+            if ( xllm__json_table_get_text(tItem, "type") ) {
+                xllm__json_builder_reset(&tVisibleText);
+                xllm__qwen_free_parts(&pParts, &iPartCount);
+                return xllm__openai_parse_message_content(tContent, ppParts, piPartCount, psVisibleText, NULL, pError);
+            }
+
+            sText = xllm__json_table_get_text(tItem, "text");
+            sImage = xllm__json_table_get_text(tItem, "image");
+            if ( sText && sText[0] ) {
+                xllm_content_part tPart;
+
+                memset(&tPart, 0, sizeof(tPart));
+                tPart.eKind = XLLM_PART_TEXT;
+                tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+                tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+                tPart.as.tSource.as.sText = xllm__dup_cstr(sText);
+                if ( !tPart.as.tSource.sMimeType || !tPart.as.tSource.as.sText ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+                if ( xllm__openai_message_add_part(&pParts, &iPartCount, &iPartCapacity, &tPart) != XRT_NET_OK ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+                if ( tVisibleText.iLen > 0u && !xllm__json_builder_append_char(&tVisibleText, '\n') ) {
+                    goto fail;
+                }
+                if ( !xllm__json_builder_append_cstr(&tVisibleText, sText) ) {
+                    goto fail;
+                }
+            } else if ( sImage && sImage[0] ) {
+                xllm_content_part tPart;
+
+                memset(&tPart, 0, sizeof(tPart));
+                tPart.eKind = XLLM_PART_IMAGE;
+                tPart.as.tSource.eKind = XLLM_SOURCE_URL;
+                tPart.as.tSource.as.sUrl = xllm__dup_cstr(sImage);
+                if ( !tPart.as.tSource.as.sUrl ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+                if ( xllm__openai_message_add_part(&pParts, &iPartCount, &iPartCapacity, &tPart) != XRT_NET_OK ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+            }
+        }
+    }
+
+    if ( psVisibleText ) {
+        *psVisibleText = xllm__json_builder_detach(&tVisibleText);
+        if ( !*psVisibleText ) {
+            *psVisibleText = xllm__dup_cstr("");
+        }
+        if ( !*psVisibleText ) {
+            goto fail;
+        }
+    } else {
+        xllm__json_builder_reset(&tVisibleText);
+    }
+
+    if ( ppParts ) {
+        *ppParts = pParts;
+    } else {
+        xllm__qwen_free_parts(&pParts, &iPartCount);
+    }
+    if ( piPartCount ) {
+        *piPartCount = iPartCount;
+    }
+    return XRT_NET_OK;
+
+fail:
+    xllm__json_builder_reset(&tVisibleText);
+    xllm__qwen_free_parts(&pParts, &iPartCount);
+    return XRT_NET_ERROR;
+}
+
+static int xllm__qwen_append_messages(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError,
+    uint32 *puMessageCount
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+    uint32 uMessageCount = 0u;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBuilder || !pRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "\"input\":{\"messages\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0u; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__qwen_append_message(pBuilder, &pRequest->pContextBlocks[i].pMessages[j], &bNeedComma, pError) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            ++uMessageCount;
+        }
+    }
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__qwen_append_message(pBuilder, &pRequest->pMessages[i], &bNeedComma, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        ++uMessageCount;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "]}") ) {
+        return XRT_NET_ERROR;
+    }
+    if ( puMessageCount ) {
+        *puMessageCount = uMessageCount;
+    }
+    return XRT_NET_OK;
+}
+
+static int xllm__qwen_append_tools(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError
+)
+{
+    size_t i;
+
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tools\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < pRequest->iToolCount; ++i ) {
+        const xllm_tool_def *pTool = &pRequest->pTools[i];
+        const char *sWireName = pTool->sWireName ? pTool->sWireName : pTool->sToolId;
+        char *sSchema = NULL;
+        char *sProviderToolJson = NULL;
+
+        if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( pTool->eKind == XLLM_TOOL_PROVIDER ) {
+            if ( !pTool->tVendorExtra || xvoType(pTool->tVendorExtra) != XVO_DT_TABLE ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "qwen native provider tool requires vendor_extra table");
+                return XRT_NET_ERROR;
+            }
+            sProviderToolJson = (char *)xrtStringifyJSON(pTool->tVendorExtra, FALSE, NULL);
+            if ( !sProviderToolJson ) {
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, sProviderToolJson) ) {
+                xrtFree(sProviderToolJson);
+                return XRT_NET_ERROR;
+            }
+            xrtFree(sProviderToolJson);
+            continue;
+        }
+
+        if ( pTool->tInputSchema && xvoType(pTool->tInputSchema) != XVO_DT_NULL ) {
+            sSchema = (char *)xrtStringifyJSON(pTool->tInputSchema, FALSE, NULL);
+        }
+        if ( !sSchema ) {
+            sSchema = xllm__dup_cstr("{}");
+        }
+        if ( !sSchema ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"function\",\"function\":{\"name\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, sWireName ? sWireName : "") ||
+             !xllm__json_builder_append_cstr(pBuilder, ",\"description\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, pTool->sDescription ? pTool->sDescription : "") ||
+             !xllm__json_builder_append_cstr(pBuilder, ",\"parameters\":") ||
+             !xllm__json_builder_append_cstr(pBuilder, sSchema) ||
+             !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        xrtFree(sSchema);
+    }
+
+    return xllm__json_builder_append_char(pBuilder, ']') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__qwen_append_tool_policy(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pRequest->tToolPolicy.eMode == XLLM_TOOL_CHOICE_NAMED &&
+         pEffectiveParams &&
+         pEffectiveParams->tReasoning.tEnabled.bSet &&
+         pEffectiveParams->tReasoning.tEnabled.bValue ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "qwen native thinking mode does not support forcing a specific tool");
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pRequest->tToolPolicy.eMode ) {
+        case XLLM_TOOL_CHOICE_NONE:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"none\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_REQUIRED:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"required\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_TOOL_CHOICE_NAMED:
+            if ( !pRequest->tToolPolicy.sToolName || !pRequest->tToolPolicy.sToolName[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "qwen native named tool_choice missing tool name");
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pRequest->tToolPolicy.sToolName) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                return XRT_NET_ERROR;
+            }
+            return XRT_NET_OK;
+        case XLLM_TOOL_CHOICE_AUTO:
+        default:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":\"auto\"") ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+}
+
+static int xllm__qwen_build_body(
+    xllm__json_builder *pBody,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    const xllm_call_options *pOptions,
+    const char *sModel,
+    uint32 *puMessageCount,
+    xllm_error *pError
+)
+{
+    size_t i;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBody || !pRequest || !pEffectiveParams || !sModel || !sModel[0] ) {
+        return XRT_NET_ERROR;
+    }
+    if ( !xllm__json_builder_append_char(pBody, '{') ||
+         !xllm__json_builder_append_cstr(pBody, "\"model\":") ||
+         !xllm__json_builder_append_escaped(pBody, sModel) ||
+         !xllm__json_builder_append_char(pBody, ',') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__qwen_append_messages(pBody, pRequest, pError, puMessageCount) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( !xllm__json_builder_append_cstr(pBody, ",\"parameters\":{\"result_format\":\"message\"") ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pEffectiveParams->tReasoning.tEnabled.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"enable_thinking\":") ||
+             !xllm__json_builder_append_cstr(pBody, pEffectiveParams->tReasoning.tEnabled.bValue ? "true" : "false") ) {
+            return XRT_NET_ERROR;
+        }
+    } else if ( pEffectiveParams->tReasoning.eLevel != XLLM_REASONING_DEFAULT ) {
+        bool bEnableThinking = (pEffectiveParams->tReasoning.eLevel != XLLM_REASONING_OFF);
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"enable_thinking\":") ||
+             !xllm__json_builder_append_cstr(pBody, bEnableThinking ? "true" : "false") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tReasoning.tBudgetTokens.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"thinking_budget\":") ||
+             !xllm__json_builder_append_u32(pBody, pEffectiveParams->tReasoning.tBudgetTokens.iValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"temperature\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTemperature.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"top_p\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTopP.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tMaxOutputTokens.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"max_tokens\":") ||
+             !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tMaxOutputTokens.iValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.iStopCount > 0u && pEffectiveParams->tGeneration.psStop ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stop\":[") ) {
+            return XRT_NET_ERROR;
+        }
+        for ( i = 0u; i < pEffectiveParams->tGeneration.iStopCount; ++i ) {
+            if ( i > 0u && !xllm__json_builder_append_char(pBody, ',') ) {
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_escaped(pBody, pEffectiveParams->tGeneration.psStop[i] ? pEffectiveParams->tGeneration.psStop[i] : "") ) {
+                return XRT_NET_ERROR;
+            }
+        }
+        if ( !xllm__json_builder_append_char(pBody, ']') ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"response_format\":{\"type\":\"json_object\"}") ) {
+            return XRT_NET_ERROR;
+        }
+    } else if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON_SCHEMA ) {
+        char *sSchemaBody = NULL;
+        char *sSchema = NULL;
+        const char *sSchemaName = pEffectiveParams->tResponseFormat.sSchemaName ? pEffectiveParams->tResponseFormat.sSchemaName : "qwen_schema";
+        const char *sStrict = "true";
+
+        if ( pEffectiveParams->tResponseFormat.tJsonSchema &&
+             xvoType(pEffectiveParams->tResponseFormat.tJsonSchema) != XVO_DT_NULL ) {
+            sSchemaBody = (char *)xrtStringifyJSON(pEffectiveParams->tResponseFormat.tJsonSchema, FALSE, NULL);
+        }
+        if ( !sSchemaBody ) {
+            sSchemaBody = xllm__dup_cstr("{}");
+        }
+        if ( !sSchemaBody ) {
+            return XRT_NET_ERROR;
+        }
+
+        {
+            xllm__json_builder tSchemaBuilder;
+
+            memset(&tSchemaBuilder, 0, sizeof(tSchemaBuilder));
+            if ( !xllm__json_builder_append_cstr(&tSchemaBuilder, "{\"type\":\"json_schema\",\"json_schema\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(&tSchemaBuilder, sSchemaName) ||
+                 !xllm__json_builder_append_cstr(&tSchemaBuilder, ",\"schema\":") ||
+                 !xllm__json_builder_append_cstr(&tSchemaBuilder, sSchemaBody) ||
+                 !xllm__json_builder_append_cstr(&tSchemaBuilder, ",\"strict\":") ||
+                 !xllm__json_builder_append_cstr(&tSchemaBuilder, sStrict) ||
+                 !xllm__json_builder_append_cstr(&tSchemaBuilder, "}}") ) {
+                xllm__json_builder_reset(&tSchemaBuilder);
+                xrtFree(sSchemaBody);
+                return XRT_NET_ERROR;
+            }
+            sSchema = xllm__json_builder_detach(&tSchemaBuilder);
+            xllm__json_builder_reset(&tSchemaBuilder);
+        }
+        xrtFree(sSchemaBody);
+
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"response_format\":") ||
+             !xllm__json_builder_append_cstr(pBody, sSchema) ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        xrtFree(sSchema);
+    } else if ( pEffectiveParams->tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+                (!pOptions || !pOptions->bBestEffortStructuredOutput) ) {
+        xllm__error_set(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+            "qwen native adapter only supports structured output in native json/json_schema mode or best-effort mode"
+        );
+        return XRT_NET_ERROR;
+    }
+
+    if ( pRequest->iToolCount > 0u ) {
+        if ( xllm__qwen_append_tools(pBody, pRequest, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__qwen_append_tool_policy(pBody, pRequest, pEffectiveParams, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pBody, pRequest->tToolPolicy.bAllowParallel ? ",\"parallel_tool_calls\":true" : ",\"parallel_tool_calls\":false") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stream\":true") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBody, "}}") ) {
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__qwen_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot)
+{
+    const char *sCode = NULL;
+    const char *sMessage = NULL;
+    const char *sRequestId = NULL;
+
+    if ( !pError ) {
+        return;
+    }
+
+    if ( tRoot && xvoType(tRoot) == XVO_DT_TABLE ) {
+        sCode = xllm__json_table_get_text(tRoot, "code");
+        sMessage = xllm__json_table_get_text(tRoot, "message");
+        sRequestId = xllm__json_table_get_text(tRoot, "request_id");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = "qwen native request failed";
+    }
+
+    if ( pHttpResponse && (pHttpResponse->iStatusCode == 401u || pHttpResponse->iStatusCode == 403u) ) {
+        xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 404u ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 429u ) {
+        xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 500u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 400u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, sMessage);
+    } else {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+    }
+
+    if ( pHttpResponse ) {
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+        if ( !sRequestId || !sRequestId[0] ) {
+            sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+        }
+    }
+    if ( sCode && sCode[0] ) {
+        pError->sProviderCode = xllm__dup_cstr(sCode);
+    }
+    if ( sMessage && sMessage[0] ) {
+        pError->sProviderMessage = xllm__dup_cstr(sMessage);
+    }
+    if ( sRequestId && sRequestId[0] ) {
+        pError->sRequestId = xllm__dup_cstr(sRequestId);
+    }
+}
+
+static xllm_response_status xllm__qwen_status_from_finish_reason(const char *sFinishReason)
+{
+    if ( !sFinishReason || !sFinishReason[0] ) {
+        return XLLM_STATUS_COMPLETED;
+    }
+    if ( strcmp(sFinishReason, "length") == 0 || strcmp(sFinishReason, "max_tokens") == 0 ) {
+        return XLLM_STATUS_INCOMPLETE;
+    }
+    if ( strcmp(sFinishReason, "tool_calls") == 0 ) {
+        return XLLM_STATUS_TOOL_CALL_REQUIRED;
+    }
+    return XLLM_STATUS_COMPLETED;
+}
+
+static int xllm__qwen_parse_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_effective_params *pEffectiveParams,
+    const char *sSelectedModel,
+    const char *sBody,
+    size_t iBodyLen,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xvalue tRoot = NULL;
+    xvalue tOutput;
+    xvalue tChoices;
+    xvalue tChoice;
+    xvalue tMessage;
+    xvalue tToolCalls;
+    xvalue tContent;
+    xvalue tUsage;
+    const char *sReasoningText = NULL;
+    const char *sFinishReason = NULL;
+    xllm_response *pResponse = NULL;
+    xvalue tJsonValue = NULL;
+    char *sNormalizedJson = NULL;
+    xllm_content_part *pMessageParts = NULL;
+    size_t iMessagePartCount = 0u;
+    char *sVisibleText = NULL;
+    size_t i;
+    size_t iOutputCap = 0u;
+    size_t iMessageOutputIndex = (size_t)-1;
+
+    if ( !ppResponse || !pEffectiveParams ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    tRoot = xrtParseJSON((str)sBody, iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid qwen response");
+        return XRT_NET_ERROR;
+    }
+
+    tOutput = xllm__json_table_get(tRoot, "output");
+    tChoices = xllm__json_table_get(tOutput, "choices");
+    tChoice = (tChoices && xvoType(tChoices) == XVO_DT_ARRAY && xvoArrayItemCount(tChoices) > 0u)
+        ? xvoArrayGetValue(tChoices, 0u)
+        : NULL;
+    tMessage = xllm__json_table_get(tChoice, "message");
+    tContent = xllm__json_table_get(tMessage, "content");
+    tToolCalls = xllm__json_table_get(tMessage, "tool_calls");
+    sReasoningText = xllm__json_table_get_text(tMessage, "reasoning_content");
+    sFinishReason = xllm__json_table_get_text(tChoice, "finish_reason");
+
+    if ( xllm__qwen_parse_message_content(
+            tContent,
+            &pMessageParts,
+            &iMessagePartCount,
+            &sVisibleText,
+            pError
+         ) != XRT_NET_OK ) {
+        goto fail_root;
+    }
+
+    pResponse = (xllm_response *)xrtCalloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) {
+        goto fail_root;
+    }
+
+    pResponse->sId = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "request_id"));
+    pResponse->sProvider = xllm__dup_cstr(xllm__qwen_provider_name(pProfile));
+    pResponse->sProfileId = xllm__dup_cstr(pProfile ? pProfile->sId : NULL);
+    pResponse->sModel = xllm__dup_cstr(sSelectedModel);
+    pResponse->sFinishReason = xllm__dup_cstr(sFinishReason ? sFinishReason : "stop");
+    pResponse->eStatus = xllm__qwen_status_from_finish_reason(sFinishReason);
+    pResponse->tEffectiveParams = *pEffectiveParams;
+    memset(pEffectiveParams, 0, sizeof(*pEffectiveParams));
+
+    if ( sReasoningText && sReasoningText[0] ) {
+        xllm_output_item tThinkingOutput;
+
+        memset(&tThinkingOutput, 0, sizeof(tThinkingOutput));
+        tThinkingOutput.eKind = XLLM_OUTPUT_THINKING;
+        tThinkingOutput.as.tThinking.bVisible = true;
+        tThinkingOutput.as.tThinking.sFormat = xllm__dup_cstr("full");
+        tThinkingOutput.as.tThinking.sText = xllm__dup_cstr(sReasoningText);
+
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tThinkingOutput) != XRT_NET_OK ) {
+            xllm__output_item_free(&tThinkingOutput);
+            goto fail;
+        }
+    }
+
+    if ( iMessagePartCount > 0u ) {
+        xllm_output_item tMessageOutput;
+
+        memset(&tMessageOutput, 0, sizeof(tMessageOutput));
+        tMessageOutput.eKind = XLLM_OUTPUT_MESSAGE;
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tMessageOutput) != XRT_NET_OK ) {
+            goto fail;
+        }
+        iMessageOutputIndex = pResponse->iOutputCount - 1u;
+        pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts = pMessageParts;
+        pResponse->pOutputs[iMessageOutputIndex].as.tMessage.iPartCount = iMessagePartCount;
+        pMessageParts = NULL;
+        iMessagePartCount = 0u;
+
+        pResponse->sVisibleText = sVisibleText ? sVisibleText : xllm__dup_cstr("");
+        sVisibleText = NULL;
+    } else {
+        pResponse->sVisibleText = xllm__dup_cstr("");
+    }
+
+    if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+        for ( i = 0u; i < xvoArrayItemCount(tToolCalls); ++i ) {
+            xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)i);
+            xvalue tFunction = xllm__json_table_get(tToolCall, "function");
+            xllm_output_item tToolOutput;
+            char *sArgsJson = NULL;
+            const char *sToolName = xllm__json_table_get_text(tFunction, "name");
+            const char *sCallId = xllm__json_table_get_text(tToolCall, "id");
+
+            memset(&tToolOutput, 0, sizeof(tToolOutput));
+            tToolOutput.eKind = XLLM_OUTPUT_TOOL_CALL;
+            tToolOutput.as.tToolCall.sCallId = xllm__dup_cstr(sCallId ? sCallId : "qwen_call");
+            tToolOutput.as.tToolCall.sToolId = xllm__dup_cstr(sToolName ? sToolName : "");
+            tToolOutput.as.tToolCall.sToolName = xllm__dup_cstr(sToolName ? sToolName : "");
+
+            if ( tFunction ) {
+                xvalue tArgs = xllm__json_table_get(tFunction, "arguments");
+                const char *sArgsText = xllm__json_table_get_text(tFunction, "arguments");
+                if ( sArgsText && sArgsText[0] ) {
+                    sArgsJson = xllm__dup_cstr(sArgsText);
+                } else if ( tArgs ) {
+                    sArgsJson = (char *)xrtStringifyJSON(tArgs, FALSE, NULL);
+                }
+            }
+            tToolOutput.as.tToolCall.sArgumentsJson = sArgsJson ? sArgsJson : xllm__dup_cstr("{}");
+
+            if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tToolOutput) != XRT_NET_OK ) {
+                xllm__output_item_free(&tToolOutput);
+                goto fail;
+            }
+            pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+        }
+    }
+
+    if ( pRequest &&
+         pResponse->sVisibleText &&
+         pResponse->sVisibleText[0] &&
+         pResponse->tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         iMessageOutputIndex != (size_t)-1 ) {
+        if ( xllm__openai_parse_structured_output(
+                 &pResponse->tEffectiveParams.tResponseFormat,
+                 pOptions,
+                 pResponse->sVisibleText,
+                 &tJsonValue,
+                 &sNormalizedJson,
+                 pError) != XRT_NET_OK ) {
+            goto fail;
+        }
+        if ( tJsonValue ) {
+            xllm_content_part *pPart = &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts[0u];
+            xllm__content_part_free(pPart);
+            memset(pPart, 0, sizeof(*pPart));
+            pPart->eKind = XLLM_PART_JSON;
+            pPart->as.tJsonValue = tJsonValue;
+            tJsonValue = NULL;
+            xllm__free_cstr((char **)&pResponse->sVisibleText);
+            pResponse->sVisibleText = sNormalizedJson ? sNormalizedJson : xllm__dup_cstr("");
+            sNormalizedJson = NULL;
+        }
+    }
+
+    tUsage = xllm__json_table_get(tRoot, "usage");
+    if ( tUsage && xvoType(tUsage) == XVO_DT_TABLE ) {
+        pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "input_tokens");
+        pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "output_tokens");
+        pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tUsage, "reasoning_tokens");
+    }
+
+    if ( xllm__openai_apply_terminal_status(pResponse, true, false) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    pResponse->tRaw = tRoot;
+    *ppResponse = pResponse;
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    return XRT_NET_OK;
+
+fail:
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    xllm_response_free(pResponse);
+fail_root:
+    xllm__free_cstr(&sVisibleText);
+    xllm__qwen_free_parts(&pMessageParts, &iMessagePartCount);
+    xllm__xvalue_release(&tRoot);
+    return XRT_NET_ERROR;
+}
+
+static int32 xllm__qwen_native_chat_direct(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int iStatus = XRT_NET_ERROR;
+    bool bRetryable = false;
+    bool bStreaming = false;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    bStreaming = (pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for qwen request");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_OFF
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__qwen_build_body(&tBody, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sUrl = xllm__qwen_build_url(pProfile, pRequest);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "qwen native profile missing base url");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=%s attempt=%u/%u body_bytes=%u",
+        sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        bStreaming,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "qwen native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "qwen native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "qwen native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__qwen_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "qwen native response body is empty");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__qwen_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "qwen native synthetic event stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response complete: model=%s streaming=%s attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        bStreaming,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                bStreaming ? "true" : "false",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                bStreaming,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            bStreaming ? "true" : "false",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            bStreaming,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__qwen_native_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    const char *sContentType = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int iStatus = XRT_NET_ERROR;
+    bool bRetryable = false;
+    bool bTreatAsSse = false;
+    bool bParsedSse = false;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for qwen request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_PREFER
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( xllm__qwen_build_body(&tBody, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        goto fail;
+    }
+    sUrl = xllm__qwen_build_url(pProfile, pRequest);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "qwen native profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=true attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        true,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "qwen native stream request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "qwen native stream request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "qwen native stream request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__qwen_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "qwen native stream response body is empty");
+        goto fail;
+    }
+
+    sContentType = xrtHttpResponseHeader(pHttpResponse, "content-type");
+    bTreatAsSse = xllm__buffer_starts_with_sse_data(pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !bTreatAsSse && sContentType ) {
+        bTreatAsSse = xllm__text_contains_ci(sContentType, "text/event-stream");
+    }
+
+    if ( bTreatAsSse ) {
+        if ( xllm__openai_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "qwen native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+        if ( tStream.iParsedBytes < pHttpResponse->iBodyLen ) {
+            size_t iRemain = pHttpResponse->iBodyLen - tStream.iParsedBytes;
+            if ( xllm__openai_stream_process_event_block(&tStream, pHttpResponse->pBody + tStream.iParsedBytes, iRemain) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "qwen native stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = pHttpResponse->iBodyLen;
+        }
+        bParsedSse = tStream.iParsedBytes > 0u || tStream.bDone || tStream.pResponse != NULL;
+    }
+
+    if ( bParsedSse ) {
+        if ( xllm__openai_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "qwen native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "qwen native stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__openai_family_component_name(pProfile),
+            "response complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount,
+            (unsigned)uMessageCount
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            *ppResponse,
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            pHttpResponse,
+            sRequestId,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            true,
+            false
+        );
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "qwen native upstream did not return an SSE stream");
+        goto fail;
+    }
+
+    if ( xllm__qwen_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "qwen native stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response fallback complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        true,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                true,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( tStream.pResponse ) {
+                xllm_response_free(tStream.pResponse);
+                tStream.pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            memset(&tStream, 0, sizeof(tStream));
+            tStream.pProfile = pProfile;
+            tStream.pRequest = pRequest;
+            tStream.pOptions = pOptions;
+            tStream.pError = pError;
+            tStream.pRuntime = pRuntime;
+            tStream.iMessageOutputIndex = (size_t)-1;
+            tStream.iThinkingOutputIndex = (size_t)-1;
+            tStream.iRefusalOutputIndex = (size_t)-1;
+            tStream.sSelectedModel = sModel;
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            true,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( tStream.pResponse ) {
+        xllm_response_free(tStream.pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__qwen_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        return xllm__qwen_native_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+    return xllm__qwen_native_chat_direct(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+}
+
+XLLM_API int xllm_register_qwen_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_QWEN_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__qwen_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_qwen.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_doubao.c ===== */
+
+/* duplicate include skipped: D:/git/xllm/src/xllm_adapter/xllm_adapter.h */
+
+#include <string.h>
+
+static const char *xllm__doubao_provider_name(const xllm_profile *pProfile)
+{
+    if ( pProfile && pProfile->sProvider && pProfile->sProvider[0] ) {
+        return pProfile->sProvider;
+    }
+    return "volcengine";
+}
+
+static char *xllm__doubao_build_url(const xllm_profile *pProfile)
+{
+    const char *sBaseUrl = NULL;
+    static const char sDefaultUrl[] = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
+
+    if ( pProfile ) {
+        sBaseUrl = pProfile->sBaseUrl;
+    }
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        return xllm__dup_cstr(sDefaultUrl);
+    }
+    if ( strstr(sBaseUrl, "/chat/completions") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+    if ( strstr(sBaseUrl, "/api/v3") != NULL ) {
+        size_t iLen = strlen(sBaseUrl);
+        bool bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+        char *sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + strlen("chat/completions") + 1u, sizeof(char));
+
+        if ( !sUrl ) {
+            return NULL;
+        }
+        (void)snprintf(
+            sUrl,
+            iLen + (bNeedsSlash ? 1u : 0u) + strlen("chat/completions") + 1u,
+            "%s%s%s",
+            sBaseUrl,
+            bNeedsSlash ? "/" : "",
+            "chat/completions"
+        );
+        return sUrl;
+    }
+    return xllm__dup_cstr(sDefaultUrl);
+}
+
+static bool xllm__doubao_part_is_native_supported(const xllm_content_part *pPart)
+{
+    if ( !pPart ) {
+        return false;
+    }
+
+    switch ( pPart->eKind ) {
+        case XLLM_PART_TEXT:
+        case XLLM_PART_JSON:
+            return true;
+        case XLLM_PART_IMAGE:
+            return (
+                pPart->as.tSource.eKind == XLLM_SOURCE_URL ||
+                pPart->as.tSource.eKind == XLLM_SOURCE_INLINE_BYTES
+            );
+        default:
+            return false;
+    }
+}
+
+static bool xllm__doubao_message_requires_content_array(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( pMessage->pParts[i].eKind == XLLM_PART_IMAGE ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool xllm__doubao_message_has_unsupported_parts(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage ) {
+        return false;
+    }
+    for ( i = 0u; i < pMessage->iPartCount; ++i ) {
+        if ( !xllm__doubao_part_is_native_supported(&pMessage->pParts[i]) ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void xllm__doubao_free_parts(xllm_content_part **ppParts, size_t *piPartCount)
+{
+    size_t i;
+
+    if ( !ppParts || !*ppParts ) {
+        if ( piPartCount ) {
+            *piPartCount = 0u;
+        }
+        return;
+    }
+    if ( piPartCount ) {
+        for ( i = 0u; i < *piPartCount; ++i ) {
+            xllm__content_part_free(&(*ppParts)[i]);
+        }
+        *piPartCount = 0u;
+    }
+    xrtFree(*ppParts);
+    *ppParts = NULL;
+}
+
+static const char *xllm__doubao_thinking_type(const xllm_reasoning_options *pReasoning)
+{
+    if ( !pReasoning ) {
+        return NULL;
+    }
+
+    if ( pReasoning->tEnabled.bSet ) {
+        return pReasoning->tEnabled.bValue ? "enabled" : "disabled";
+    }
+    if ( pReasoning->eLevel == XLLM_REASONING_OFF ) {
+        return "disabled";
+    }
+    if ( pReasoning->eLevel != XLLM_REASONING_DEFAULT ) {
+        return "enabled";
+    }
+    if ( pReasoning->tExposeThinking.bSet && pReasoning->tExposeThinking.bValue ) {
+        return "enabled";
+    }
+
+    return NULL;
+}
+
+static int xllm__doubao_append_message(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_message *pMessage,
+    bool *pbNeedComma,
+    xllm_error *pError
+)
+{
+    const char *sRole;
+    char *sContent = NULL;
+    int iStatus = XRT_NET_ERROR;
+    bool bNeedsContent = true;
+    bool bUseContentArray = false;
+    size_t i;
+
+    if ( !pBuilder || !pMessage || !pbNeedComma ) {
+        return XRT_NET_ERROR;
+    }
+
+    sRole = xllm__openai_role_name(pMessage->eRole);
+    if ( !sRole ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "doubao native adapter encountered unknown role");
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__doubao_message_has_unsupported_parts(pMessage) ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "doubao native adapter only supports text/json/image inputs");
+        return XRT_NET_ERROR;
+    }
+    bUseContentArray = xllm__doubao_message_requires_content_array(pMessage);
+    if ( !bUseContentArray &&
+         xllm__openai_message_to_text(pMessage, &sContent, pError) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( *pbNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+        goto done;
+    }
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"role\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sRole) ) {
+        goto done;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL && pMessage->sToolCallId && pMessage->sToolCallId[0] ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_call_id\":") ||
+             !xllm__json_builder_append_escaped(pBuilder, pMessage->sToolCallId) ) {
+            goto done;
+        }
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_calls\":[") ) {
+            goto done;
+        }
+        for ( i = 0u; i < pMessage->iToolCallCount; ++i ) {
+            const xllm_tool_call *pCall = &pMessage->pToolCalls[i];
+            const char *sToolName = pCall->sToolName ? pCall->sToolName : pCall->sToolId;
+
+            if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                goto done;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sCallId ? pCall->sCallId : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"type\":\"function\",\"function\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sToolName ? sToolName : "") ||
+                 !xllm__json_builder_append_cstr(pBuilder, ",\"arguments\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pCall->sArgumentsJson ? pCall->sArgumentsJson : "{}") ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                goto done;
+            }
+        }
+        if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+            goto done;
+        }
+        if ( !sContent || !sContent[0] ) {
+            bNeedsContent = false;
+        }
+    }
+
+    if ( bNeedsContent ) {
+        if ( bUseContentArray ) {
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ||
+                 xllm__openai_append_message_content_array(
+                     pBuilder,
+                     pRuntime,
+                     pProfile,
+                     pOptions,
+                     pMessage,
+                     pError
+                 ) != XRT_NET_OK ) {
+                goto done;
+            }
+        } else if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ||
+                    !xllm__json_builder_append_escaped(pBuilder, sContent ? sContent : "") ) {
+            goto done;
+        }
+    }
+    if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+        goto done;
+    }
+
+    *pbNeedComma = true;
+    iStatus = XRT_NET_OK;
+
+done:
+    xllm__free_cstr(&sContent);
+    return iStatus;
+}
+
+static int xllm__doubao_append_messages(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_error *pError,
+    uint32 *puMessageCount
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+    uint32 uMessageCount = 0u;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBuilder || !pRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "\"messages\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0u; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__doubao_append_message(
+                    pBuilder,
+                    pRuntime,
+                    pProfile,
+                    pOptions,
+                    &pRequest->pContextBlocks[i].pMessages[j],
+                    &bNeedComma,
+                    pError
+                 ) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            ++uMessageCount;
+        }
+    }
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__doubao_append_message(
+                pBuilder,
+                pRuntime,
+                pProfile,
+                pOptions,
+                &pRequest->pMessages[i],
+                &bNeedComma,
+                pError
+             ) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        ++uMessageCount;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( puMessageCount ) {
+        *puMessageCount = uMessageCount;
+    }
+    return XRT_NET_OK;
+}
+
+static int xllm__doubao_append_tools(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest
+)
+{
+    return xllm__openai_append_tools(pBuilder, pRequest);
+}
+
+static int xllm__doubao_append_tool_policy(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest
+)
+{
+    return xllm__openai_append_tool_policy(pBuilder, pRequest);
+}
+
+static int xllm__doubao_build_body(
+    xllm__json_builder *pBody,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    const xllm_call_options *pOptions,
+    const char *sModel,
+    uint32 *puMessageCount,
+    xllm_error *pError
+)
+{
+    const char *sThinkingType = NULL;
+    const char *sReasoningEffort = NULL;
+
+    if ( puMessageCount ) {
+        *puMessageCount = 0u;
+    }
+    if ( !pBody || !pRequest || !pEffectiveParams || !sModel || !sModel[0] ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '{') ||
+         !xllm__json_builder_append_cstr(pBody, "\"model\":") ||
+         !xllm__json_builder_append_escaped(pBody, sModel) ||
+         !xllm__json_builder_append_char(pBody, ',') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__doubao_append_messages(pBody, pRuntime, pProfile, pRequest, pOptions, pError, puMessageCount) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"temperature\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTemperature.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"top_p\":") ||
+             !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTopP.fValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.tMaxOutputTokens.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"max_tokens\":") ||
+             !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tMaxOutputTokens.iValue) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tGeneration.iStopCount > 0u && pEffectiveParams->tGeneration.psStop ) {
+        if ( xllm__openai_append_stop(pBody, &pEffectiveParams->tGeneration) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    sThinkingType = xllm__doubao_thinking_type(&pEffectiveParams->tReasoning);
+    if ( sThinkingType && sThinkingType[0] ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"thinking\":{\"type\":") ||
+             !xllm__json_builder_append_escaped(pBody, sThinkingType) ||
+             !xllm__json_builder_append_char(pBody, '}') ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    sReasoningEffort = xllm__openai_reasoning_effort_name(&pEffectiveParams->tReasoning);
+    if ( sReasoningEffort &&
+         sReasoningEffort[0] &&
+         strcmp(sReasoningEffort, "none") != 0 ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"reasoning_effort\":") ||
+             !xllm__json_builder_append_escaped(pBody, sReasoningEffort) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"response_format\":{\"type\":\"json_object\"}") ) {
+            return XRT_NET_ERROR;
+        }
+    } else if ( pEffectiveParams->tResponseFormat.eKind == XLLM_RESPONSE_JSON_SCHEMA ) {
+        if ( xllm__openai_append_response_format(pBody, &pEffectiveParams->tResponseFormat) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pRequest->iToolCount > 0u ) {
+        if ( xllm__doubao_append_tools(pBody, pRequest) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__doubao_append_tool_policy(pBody, pRequest) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stream\":true") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '}') ) {
+        return XRT_NET_ERROR;
+    }
+    return XRT_NET_OK;
+}
+
+static void xllm__doubao_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot)
+{
+    const char *sCode = NULL;
+    const char *sMessage = NULL;
+    const char *sRequestId = NULL;
+    xvalue tError;
+
+    if ( !pError ) {
+        return;
+    }
+
+    tError = xllm__json_table_get(tRoot, "error");
+    if ( tError && xvoType(tError) == XVO_DT_TABLE ) {
+        sCode = xllm__json_table_get_text(tError, "code");
+        sMessage = xllm__json_table_get_text(tError, "message");
+    }
+    if ( !sCode || !sCode[0] ) {
+        sCode = xllm__json_table_get_text(tRoot, "code");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = xllm__json_table_get_text(tRoot, "message");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = "doubao native request failed";
+    }
+
+    if ( pHttpResponse && (pHttpResponse->iStatusCode == 401u || pHttpResponse->iStatusCode == 403u) ) {
+        xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 404u ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode == 429u ) {
+        xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 500u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+    } else if ( pHttpResponse && pHttpResponse->iStatusCode >= 400u ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, sMessage);
+    } else {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+    }
+
+    if ( pHttpResponse ) {
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    }
+    if ( sCode && sCode[0] ) {
+        pError->sProviderCode = xllm__dup_cstr(sCode);
+    }
+    if ( sMessage && sMessage[0] ) {
+        pError->sProviderMessage = xllm__dup_cstr(sMessage);
+    }
+    if ( sRequestId && sRequestId[0] ) {
+        pError->sRequestId = xllm__dup_cstr(sRequestId);
+    }
+}
+
+static xllm_response_status xllm__doubao_status_from_finish_reason(const char *sFinishReason)
+{
+    if ( !sFinishReason || !sFinishReason[0] ) {
+        return XLLM_STATUS_COMPLETED;
+    }
+    if ( strcmp(sFinishReason, "length") == 0 ||
+         strcmp(sFinishReason, "max_tokens") == 0 ||
+         strcmp(sFinishReason, "model_context_window_exceeded") == 0 ) {
+        return XLLM_STATUS_INCOMPLETE;
+    }
+    if ( strcmp(sFinishReason, "tool_calls") == 0 ) {
+        return XLLM_STATUS_TOOL_CALL_REQUIRED;
+    }
+    if ( strcmp(sFinishReason, "content_filter") == 0 ) {
+        return XLLM_STATUS_CONTENT_FILTERED;
+    }
+    return XLLM_STATUS_COMPLETED;
+}
+
+static int xllm__doubao_parse_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_effective_params *pEffectiveParams,
+    const char *sSelectedModel,
+    const char *sBody,
+    size_t iBodyLen,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xvalue tRoot = NULL;
+    xvalue tChoices;
+    xvalue tChoice;
+    xvalue tMessage;
+    xvalue tToolCalls;
+    xvalue tContent;
+    xvalue tUsage;
+    xvalue tJsonValue = NULL;
+    char *sNormalizedJson = NULL;
+    xllm_content_part *pMessageParts = NULL;
+    size_t iMessagePartCount = 0u;
+    char *sVisibleText = NULL;
+    const char *sReasoningText = NULL;
+    const char *sFinishReason = NULL;
+    xllm_response *pResponse = NULL;
+    size_t i;
+    size_t iOutputCap = 0u;
+    size_t iMessageOutputIndex = (size_t)-1;
+
+    if ( !ppResponse || !pEffectiveParams ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    tRoot = xrtParseJSON((str)sBody, iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid doubao native response");
+        return XRT_NET_ERROR;
+    }
+
+    tChoices = xllm__json_table_get(tRoot, "choices");
+    tChoice = (tChoices && xvoType(tChoices) == XVO_DT_ARRAY && xvoArrayItemCount(tChoices) > 0u)
+        ? xvoArrayGetValue(tChoices, 0u)
+        : NULL;
+    tMessage = xllm__json_table_get(tChoice, "message");
+    tContent = xllm__json_table_get(tMessage, "content");
+    tToolCalls = xllm__json_table_get(tMessage, "tool_calls");
+    sReasoningText = xllm__json_table_get_text(tMessage, "reasoning_content");
+    sFinishReason = xllm__json_table_get_text(tChoice, "finish_reason");
+
+    if ( xllm__openai_parse_message_content(
+            tContent,
+            &pMessageParts,
+            &iMessagePartCount,
+            &sVisibleText,
+            NULL,
+            pError
+         ) != XRT_NET_OK ) {
+        goto fail_root;
+    }
+
+    pResponse = (xllm_response *)xrtCalloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) {
+        goto fail_root;
+    }
+
+    pResponse->sId = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "id"));
+    pResponse->sProvider = xllm__dup_cstr(xllm__doubao_provider_name(pProfile));
+    pResponse->sProfileId = xllm__dup_cstr(pProfile ? pProfile->sId : NULL);
+    pResponse->sModel = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "model"));
+    if ( !pResponse->sModel ) {
+        pResponse->sModel = xllm__dup_cstr(sSelectedModel);
+    }
+    pResponse->sFinishReason = xllm__dup_cstr(sFinishReason ? sFinishReason : "stop");
+    pResponse->eStatus = xllm__doubao_status_from_finish_reason(sFinishReason);
+    pResponse->tEffectiveParams = *pEffectiveParams;
+    memset(pEffectiveParams, 0, sizeof(*pEffectiveParams));
+
+    if ( sReasoningText && sReasoningText[0] ) {
+        xllm_output_item tThinkingOutput;
+
+        memset(&tThinkingOutput, 0, sizeof(tThinkingOutput));
+        tThinkingOutput.eKind = XLLM_OUTPUT_THINKING;
+        tThinkingOutput.as.tThinking.bVisible = true;
+        tThinkingOutput.as.tThinking.sFormat = xllm__dup_cstr("full");
+        tThinkingOutput.as.tThinking.sText = xllm__dup_cstr(sReasoningText);
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tThinkingOutput) != XRT_NET_OK ) {
+            xllm__output_item_free(&tThinkingOutput);
+            goto fail;
+        }
+    }
+
+    if ( iMessagePartCount > 0u ) {
+        xllm_output_item tMessageOutput;
+
+        memset(&tMessageOutput, 0, sizeof(tMessageOutput));
+        tMessageOutput.eKind = XLLM_OUTPUT_MESSAGE;
+        if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tMessageOutput) != XRT_NET_OK ) {
+            goto fail;
+        }
+        iMessageOutputIndex = pResponse->iOutputCount - 1u;
+        pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts = pMessageParts;
+        pResponse->pOutputs[iMessageOutputIndex].as.tMessage.iPartCount = iMessagePartCount;
+        pMessageParts = NULL;
+        iMessagePartCount = 0u;
+
+        pResponse->sVisibleText = sVisibleText ? sVisibleText : xllm__dup_cstr("");
+        sVisibleText = NULL;
+    } else {
+        pResponse->sVisibleText = xllm__dup_cstr("");
+    }
+
+    if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+        for ( i = 0u; i < xvoArrayItemCount(tToolCalls); ++i ) {
+            xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)i);
+            xvalue tFunction = xllm__json_table_get(tToolCall, "function");
+            xllm_output_item tToolOutput;
+            char *sArgsJson = NULL;
+            const char *sToolName = xllm__json_table_get_text(tFunction, "name");
+            const char *sCallId = xllm__json_table_get_text(tToolCall, "id");
+
+            memset(&tToolOutput, 0, sizeof(tToolOutput));
+            tToolOutput.eKind = XLLM_OUTPUT_TOOL_CALL;
+            tToolOutput.as.tToolCall.sCallId = xllm__dup_cstr(sCallId ? sCallId : "doubao_call");
+            tToolOutput.as.tToolCall.sToolId = xllm__dup_cstr(sToolName ? sToolName : "");
+            tToolOutput.as.tToolCall.sToolName = xllm__dup_cstr(sToolName ? sToolName : "");
+
+            if ( tFunction ) {
+                xvalue tArgs = xllm__json_table_get(tFunction, "arguments");
+                if ( tArgs ) {
+                    sArgsJson = (char *)xrtStringifyJSON(tArgs, FALSE, NULL);
+                }
+            }
+            tToolOutput.as.tToolCall.sArgumentsJson = sArgsJson ? sArgsJson : xllm__dup_cstr("{}");
+
+            if ( xllm__append_buffer((void **)&pResponse->pOutputs, sizeof(xllm_output_item), &pResponse->iOutputCount, &iOutputCap, &tToolOutput) != XRT_NET_OK ) {
+                xllm__output_item_free(&tToolOutput);
+                goto fail;
+            }
+            pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+        }
+    }
+
+    if ( pRequest &&
+         pResponse->sVisibleText &&
+         pResponse->sVisibleText[0] &&
+         pResponse->tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         iMessageOutputIndex != (size_t)-1 ) {
+        if ( xllm__openai_parse_structured_output(
+                 &pResponse->tEffectiveParams.tResponseFormat,
+                 pOptions,
+                 pResponse->sVisibleText,
+                 &tJsonValue,
+                 &sNormalizedJson,
+                 pError) != XRT_NET_OK ) {
+            goto fail;
+        }
+        if ( tJsonValue ) {
+            xllm_content_part *pPart = &pResponse->pOutputs[iMessageOutputIndex].as.tMessage.pParts[0u];
+
+            xllm__content_part_free(pPart);
+            memset(pPart, 0, sizeof(*pPart));
+            pPart->eKind = XLLM_PART_JSON;
+            pPart->as.tJsonValue = tJsonValue;
+            tJsonValue = NULL;
+            xllm__free_cstr((char **)&pResponse->sVisibleText);
+            pResponse->sVisibleText = sNormalizedJson ? sNormalizedJson : xllm__dup_cstr("");
+            sNormalizedJson = NULL;
+        }
+    }
+
+    tUsage = xllm__json_table_get(tRoot, "usage");
+    if ( tUsage && xvoType(tUsage) == XVO_DT_TABLE ) {
+        pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "prompt_tokens");
+        pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "completion_tokens");
+        pResponse->tUsage.uReasoningTokens = xllm__json_table_get_u32(tUsage, "reasoning_tokens");
+    }
+
+    if ( xllm__openai_apply_terminal_status(pResponse, true, false) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    pResponse->tRaw = tRoot;
+    *ppResponse = pResponse;
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    return XRT_NET_OK;
+
+fail:
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__xvalue_release(&tJsonValue);
+    xllm_response_free(pResponse);
+fail_root:
+    xllm__free_cstr(&sVisibleText);
+    xllm__doubao_free_parts(&pMessageParts, &iMessagePartCount);
+    xllm__xvalue_release(&tRoot);
+    return XRT_NET_ERROR;
+}
+
+static int32 xllm__doubao_native_chat_direct(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int iStatus = XRT_NET_ERROR;
+    bool bRetryable = false;
+    bool bStreaming = false;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    bStreaming = (pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for doubao native request");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_OFF
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__doubao_build_body(&tBody, pRuntime, pProfile, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    sUrl = xllm__doubao_build_url(pProfile);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "doubao native profile missing base url");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=%s attempt=%u/%u body_bytes=%u",
+        sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        bStreaming,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "doubao native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "doubao native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "doubao native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__doubao_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "doubao native response body is empty");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__doubao_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "doubao native synthetic event stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response complete: model=%s streaming=%s attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        bStreaming ? "true" : "false",
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        bStreaming,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                bStreaming ? "true" : "false",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                bStreaming,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=%s attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            bStreaming ? "true" : "false",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            bStreaming,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__doubao_native_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    const char *sContentType = NULL;
+    bool bTreatAsSse = false;
+    bool bParsedSse = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    uint32 uMessageCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+    *ppResponse = NULL;
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, NULL);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for doubao native request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(
+            &tEffectiveParams,
+            pProfile,
+            pRequest,
+            pOptions ? pOptions->eStreamMode : XLLM_STREAM_PREFER
+         ) != XRT_NET_OK ) goto fail;
+    if ( xllm__doubao_build_body(&tBody, pRuntime, pProfile, pRequest, &tEffectiveParams, pOptions, sModel, &uMessageCount, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        goto fail;
+    }
+    sUrl = xllm__doubao_build_url(pProfile);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "doubao native profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__openai_family_component_name(pProfile),
+        "request start: model=%s streaming=true attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__openai_trace_request(
+        pRuntime,
+        pProfile,
+        pRequest,
+        sModel,
+        true,
+        false,
+        uAttempt,
+        strlen(sBody)
+    );
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "doubao native stream request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "doubao native stream request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "doubao native stream request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        xvalue tErrorRoot = NULL;
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tErrorRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__doubao_fill_error_from_http(pError, pHttpResponse, tErrorRoot);
+        xllm__xvalue_release(&tErrorRoot);
+        goto fail;
+    }
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "doubao native stream response body is empty");
+        goto fail;
+    }
+
+    sContentType = xrtHttpResponseHeader(pHttpResponse, "content-type");
+    bTreatAsSse = xllm__buffer_starts_with_sse_data(pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !bTreatAsSse && sContentType ) {
+        bTreatAsSse = xllm__text_contains_ci(sContentType, "text/event-stream");
+    }
+
+    if ( bTreatAsSse ) {
+        if ( xllm__openai_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "doubao native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+        if ( tStream.iParsedBytes < pHttpResponse->iBodyLen ) {
+            size_t iRemain = pHttpResponse->iBodyLen - tStream.iParsedBytes;
+            if ( xllm__openai_stream_process_event_block(&tStream, pHttpResponse->pBody + tStream.iParsedBytes, iRemain) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "doubao native stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = pHttpResponse->iBodyLen;
+        }
+
+        bParsedSse = tStream.iParsedBytes > 0u || tStream.bDone || tStream.pResponse != NULL;
+    }
+
+    if ( bParsedSse ) {
+        if ( xllm__openai_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "doubao native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "doubao native stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__openai_family_component_name(pProfile),
+            "response complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount,
+            (unsigned)uMessageCount
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            *ppResponse,
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            pHttpResponse,
+            sRequestId,
+            NULL,
+            XRT_NET_OK,
+            uAttempt,
+            false,
+            true,
+            false
+        );
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "doubao native upstream did not return an SSE stream");
+        goto fail;
+    }
+
+    if ( xllm__doubao_parse_response(
+            pProfile,
+            pRequest,
+            pOptions,
+            &tEffectiveParams,
+            sModel,
+            (const char *)pHttpResponse->pBody,
+            pHttpResponse->iBodyLen,
+            &pResponse,
+            pError
+         ) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_CANCELLED, "doubao native stream cancelled");
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__openai_family_component_name(pProfile),
+        "response fallback complete: model=%s streaming=true attempt=%u status=%s outputs=%u messages=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount,
+        (unsigned)uMessageCount
+    );
+    xllm__openai_trace_response(
+        pRuntime,
+        pProfile,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        true,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__openai_family_component_name(pProfile),
+                "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__openai_trace_response(
+                pRuntime,
+                pProfile,
+                NULL,
+                sModel,
+                pHttpResponse,
+                sRequestId,
+                pError,
+                iTraceTransportStatus,
+                uAttempt,
+                true,
+                true,
+                false
+            );
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( tStream.pResponse ) {
+                xllm_response_free(tStream.pResponse);
+                tStream.pResponse = NULL;
+            }
+            xllm_error_free(pError);
+            if ( pError ) {
+                xllm_error_init(pError);
+            }
+            memset(&tStream, 0, sizeof(tStream));
+            tStream.pProfile = pProfile;
+            tStream.pRequest = pRequest;
+            tStream.pOptions = pOptions;
+            tStream.pError = pError;
+            tStream.pRuntime = pRuntime;
+            tStream.iMessageOutputIndex = (size_t)-1;
+            tStream.iThinkingOutputIndex = (size_t)-1;
+            tStream.iRefusalOutputIndex = (size_t)-1;
+            tStream.sSelectedModel = sModel;
+            xllm__openai_retry_sleep(uDelayMs);
+            goto retry_execute;
+        }
+
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__openai_family_component_name(pProfile),
+            "response failed: model=%s streaming=true attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)(uAttempt ? uAttempt : 1u),
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__openai_trace_response(
+            pRuntime,
+            pProfile,
+            NULL,
+            sModel,
+            pHttpResponse,
+            sRequestId,
+            pError,
+            iTraceTransportStatus,
+            (uAttempt ? uAttempt : 1u),
+            bRetryable,
+            true,
+            false
+        );
+    }
+
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( tStream.pResponse ) {
+        xllm_response_free(tStream.pResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__doubao_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    if ( pOptions && pOptions->eStreamMode != XLLM_STREAM_OFF ) {
+        return xllm__doubao_native_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+    return xllm__doubao_native_chat_direct(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+}
+
+XLLM_API int xllm_register_doubao_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_DOUBAO_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__doubao_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_doubao.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_anthropic.c ===== */
+
+static const char *xllm__anthropic_component_name(void)
+{
+    return "xllm.anthropic_native";
+}
+
+static void xllm__anthropic_trace_request(
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const char *sModel,
+    bool bStreaming,
+    bool bLive,
+    uint32 uAttempt,
+    size_t iBodyBytes
+)
+{
+    xvalue tPayload;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnTrace ) {
+        return;
+    }
+
+    tPayload = xvoCreateTable();
+    if ( !tPayload ) {
+        return;
+    }
+
+    xllm__openai_trace_table_set_text(tPayload, "phase", "request");
+    xllm__openai_trace_table_set_text(tPayload, "adapter", XLLM_ADAPTER_ANTHROPIC_NATIVE);
+    if ( pProfile && pProfile->sId ) {
+        xllm__openai_trace_table_set_text(tPayload, "profile_id", pProfile->sId);
+    }
+    if ( sModel ) {
+        xllm__openai_trace_table_set_text(tPayload, "model", sModel);
+    }
+    xllm__openai_trace_table_set_bool(tPayload, "streaming", bStreaming);
+    xllm__openai_trace_table_set_bool(tPayload, "live", bLive);
+    if ( pRequest ) {
+        xllm__openai_trace_table_set_u32(tPayload, "message_count", (uint32)pRequest->iMessageCount);
+        xllm__openai_trace_table_set_u32(tPayload, "context_block_count", (uint32)pRequest->iContextBlockCount);
+        xllm__openai_trace_table_set_u32(tPayload, "tool_count", (uint32)pRequest->iToolCount);
+    }
+    xllm__openai_trace_table_set_u32(tPayload, "body_bytes", (uint32)iBodyBytes);
+    xllm__openai_trace_table_set_u32(tPayload, "attempt", uAttempt);
+    xllm__openai_trace_emit(pRuntime, XLLM_TRACE_REQUEST, tPayload);
+}
+
+static void xllm__anthropic_trace_response(
+    xllm_runtime *pRuntime,
+    const xllm_response *pResponse,
+    const char *sModel,
+    const xhttpresponse *pHttpResponse,
+    const char *sRequestId,
+    const xllm_error *pError,
+    int32 iTransportStatus,
+    uint32 uAttempt,
+    bool bRetryable,
+    bool bStreaming,
+    bool bLive
+)
+{
+    xvalue tPayload;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnTrace ) {
+        return;
+    }
+
+    tPayload = xvoCreateTable();
+    if ( !tPayload ) {
+        return;
+    }
+
+    xllm__openai_trace_table_set_text(tPayload, "phase", "response");
+    xllm__openai_trace_table_set_text(tPayload, "adapter", XLLM_ADAPTER_ANTHROPIC_NATIVE);
+    xllm__openai_trace_table_set_bool(tPayload, "streaming", bStreaming);
+    xllm__openai_trace_table_set_bool(tPayload, "live", bLive);
+    xllm__openai_trace_table_set_i32(tPayload, "transport_status", iTransportStatus);
+    xllm__openai_trace_table_set_u32(tPayload, "attempt", uAttempt);
+    xllm__openai_trace_table_set_bool(tPayload, "retryable", bRetryable);
+    if ( pHttpResponse ) {
+        xllm__openai_trace_table_set_u32(tPayload, "http_status", pHttpResponse->iStatusCode);
+    } else if ( pError && pError->iHttpStatus > 0 ) {
+        xllm__openai_trace_table_set_i32(tPayload, "http_status", pError->iHttpStatus);
+    }
+    if ( sRequestId ) {
+        xllm__openai_trace_table_set_text(tPayload, "request_id", sRequestId);
+    } else if ( pError && pError->sRequestId ) {
+        xllm__openai_trace_table_set_text(tPayload, "request_id", pError->sRequestId);
+    }
+    if ( pResponse ) {
+        xllm__openai_trace_table_set_bool(tPayload, "success", true);
+        xllm__openai_trace_table_set_text(tPayload, "response_status", xllm__openai_response_status_name(pResponse->eStatus));
+        xllm__openai_trace_table_set_u32(tPayload, "output_count", (uint32)pResponse->iOutputCount);
+        xllm__openai_trace_table_set_u32(tPayload, "input_tokens", pResponse->tUsage.uInputTokens);
+        xllm__openai_trace_table_set_u32(tPayload, "output_tokens", pResponse->tUsage.uOutputTokens);
+        if ( pResponse->sModel ) {
+            xllm__openai_trace_table_set_text(tPayload, "model", pResponse->sModel);
+        } else if ( sModel ) {
+            xllm__openai_trace_table_set_text(tPayload, "model", sModel);
+        }
+        if ( pResponse->sFinishReason ) {
+            xllm__openai_trace_table_set_text(tPayload, "finish_reason", pResponse->sFinishReason);
+        }
+    } else {
+        xllm__openai_trace_table_set_bool(tPayload, "success", false);
+        xllm__openai_trace_table_set_text(tPayload, "response_status", "errored");
+        if ( sModel ) {
+            xllm__openai_trace_table_set_text(tPayload, "model", sModel);
+        }
+    }
+    if ( pError && pError->eCode != XLLM_ERROR_NONE ) {
+        xllm__openai_trace_table_set_text(tPayload, "error_code", xllm__openai_error_code_name(pError->eCode));
+        if ( pError->sMessage ) {
+            xllm__openai_trace_table_set_text(tPayload, "error_message", pError->sMessage);
+        }
+        if ( pError->sProviderCode ) {
+            xllm__openai_trace_table_set_text(tPayload, "provider_code", pError->sProviderCode);
+        }
+        if ( pError->sProviderMessage ) {
+            xllm__openai_trace_table_set_text(tPayload, "provider_message", pError->sProviderMessage);
+        }
+    }
+    xllm__openai_trace_emit(pRuntime, XLLM_TRACE_RESPONSE, tPayload);
+}
+
+static bool xllm__anthropic_reasoning_requested(const xllm_reasoning_options *pReasoning)
+{
+    if ( !pReasoning ) {
+        return false;
+    }
+    if ( pReasoning->tEnabled.bSet ) {
+        return pReasoning->tEnabled.bValue;
+    }
+    if ( pReasoning->eLevel != XLLM_REASONING_DEFAULT ) {
+        return true;
+    }
+    if ( pReasoning->tBudgetTokens.bSet ) {
+        return true;
+    }
+    if ( pReasoning->tExposeThinking.bSet && pReasoning->tExposeThinking.bValue ) {
+        return true;
+    }
+    return (pReasoning->tVendorExtra && xvoType(pReasoning->tVendorExtra) != XVO_DT_NULL);
+}
+
+static const char *xllm__anthropic_reasoning_vendor_text(const xllm_reasoning_options *pReasoning, const char *sKey)
+{
+    if ( !pReasoning || !sKey || !pReasoning->tVendorExtra || xvoType(pReasoning->tVendorExtra) != XVO_DT_TABLE ) {
+        return NULL;
+    }
+
+    return xllm__json_table_get_text(pReasoning->tVendorExtra, sKey);
+}
+
+static const char *xllm__anthropic_reasoning_display_name(const xllm_reasoning_options *pReasoning)
+{
+    const char *sDisplay;
+
+    sDisplay = xllm__anthropic_reasoning_vendor_text(pReasoning, "display");
+    if ( sDisplay && sDisplay[0] ) {
+        return sDisplay;
+    }
+    if ( !pReasoning || !pReasoning->tExposeThinking.bSet ) {
+        return NULL;
+    }
+
+    return pReasoning->tExposeThinking.bValue ? "summarized" : "omitted";
+}
+
+static const char *xllm__anthropic_reasoning_effort_name(const xllm_reasoning_options *pReasoning)
+{
+    const char *sEffort;
+
+    sEffort = xllm__anthropic_reasoning_vendor_text(pReasoning, "effort");
+    if ( sEffort && sEffort[0] ) {
+        return sEffort;
+    }
+
+    sEffort = xllm__anthropic_reasoning_vendor_text(pReasoning, "reasoning_effort");
+    if ( sEffort && sEffort[0] ) {
+        return sEffort;
+    }
+
+    if ( !pReasoning ) {
+        return NULL;
+    }
+
+    switch ( pReasoning->eLevel ) {
+        case XLLM_REASONING_LOW:
+            return "low";
+        case XLLM_REASONING_MEDIUM:
+            return "medium";
+        case XLLM_REASONING_HIGH:
+            return "high";
+        default:
+            break;
+    }
+
+    return "medium";
+}
+
+static uint32 xllm__anthropic_reasoning_budget(const xllm_reasoning_options *pReasoning, uint32 uMaxTokens)
+{
+    uint32 uBudget = 2048u;
+
+    if ( pReasoning ) {
+        if ( pReasoning->tBudgetTokens.bSet && pReasoning->tBudgetTokens.iValue > 0u ) {
+            uBudget = pReasoning->tBudgetTokens.iValue;
+        } else {
+            switch ( pReasoning->eLevel ) {
+                case XLLM_REASONING_LOW:
+                    uBudget = 1024u;
+                    break;
+                case XLLM_REASONING_MEDIUM:
+                    uBudget = 4096u;
+                    break;
+                case XLLM_REASONING_HIGH:
+                    uBudget = 8192u;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    if ( uMaxTokens > 1u && uBudget >= uMaxTokens ) {
+        uBudget = uMaxTokens - 1u;
+    }
+    if ( uBudget == 0u ) {
+        uBudget = 1u;
+    }
+
+    return uBudget;
+}
+
+static int xllm__anthropic_append_reasoning(
+    xllm__json_builder *pBody,
+    const xllm_reasoning_options *pReasoning,
+    uint32 uMaxTokens
+)
+{
+    const char *sType;
+    const char *sDisplay;
+    const char *sEffort;
+
+    if ( !pBody || !pReasoning || !xllm__anthropic_reasoning_requested(pReasoning) ) {
+        return XRT_NET_OK;
+    }
+
+    sType = xllm__anthropic_reasoning_vendor_text(pReasoning, "type");
+    if ( !sType || !sType[0] ) {
+        sType = "enabled";
+    }
+    sDisplay = xllm__anthropic_reasoning_display_name(pReasoning);
+
+    if ( !xllm__json_builder_append_cstr(pBody, ",\"thinking\":{\"type\":") ) return XRT_NET_ERROR;
+    if ( !xllm__json_builder_append_escaped(pBody, sType) ) return XRT_NET_ERROR;
+
+    if ( strcmp(sType, "adaptive") == 0 ) {
+        sEffort = xllm__anthropic_reasoning_effort_name(pReasoning);
+        if ( sEffort && sEffort[0] ) {
+            if ( !xllm__json_builder_append_cstr(pBody, ",\"effort\":") ) return XRT_NET_ERROR;
+            if ( !xllm__json_builder_append_escaped(pBody, sEffort) ) return XRT_NET_ERROR;
+        }
+    } else if ( strcmp(sType, "disabled") != 0 ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"budget_tokens\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_u32(pBody, xllm__anthropic_reasoning_budget(pReasoning, uMaxTokens)) ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( sDisplay && sDisplay[0] ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"display\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_escaped(pBody, sDisplay) ) return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '}') ) return XRT_NET_ERROR;
+    return XRT_NET_OK;
+}
+
+static bool xllm__anthropic_vendor_is_thinking_block(xvalue tVendorExtra)
+{
+    const char *sBlockType;
+
+    if ( !tVendorExtra || xvoType(tVendorExtra) != XVO_DT_TABLE ) {
+        return false;
+    }
+
+    sBlockType = xllm__json_table_get_text(tVendorExtra, "anthropic_block_type");
+    return (sBlockType && strcmp(sBlockType, "thinking") == 0);
+}
+
+static const char *xllm__anthropic_vendor_signature(xvalue tVendorExtra)
+{
+    if ( !xllm__anthropic_vendor_is_thinking_block(tVendorExtra) ) {
+        return NULL;
+    }
+
+    return xllm__json_table_get_text(tVendorExtra, "signature");
+}
+
+static xvalue xllm__anthropic_create_thinking_vendor_extra(const char *sSignature)
+{
+    xvalue tTable = xvoCreateTable();
+
+    if ( !tTable ) {
+        return NULL;
+    }
+
+    xvoTableSetText(tTable, (str)"anthropic_block_type", 0u, (str)"thinking", 0u, FALSE);
+    if ( sSignature && sSignature[0] ) {
+        xvoTableSetText(tTable, (str)"signature", 0u, (str)sSignature, 0u, FALSE);
+    }
+
+    return tTable;
+}
+
+static int xllm__anthropic_set_thinking_vendor_extra(xllm_output_thinking *pThinking, const char *sSignature)
+{
+    xvalue tVendorExtra;
+
+    if ( !pThinking ) {
+        return XRT_NET_ERROR;
+    }
+
+    tVendorExtra = xllm__anthropic_create_thinking_vendor_extra(sSignature);
+    if ( !tVendorExtra ) {
+        return XRT_NET_ERROR;
+    }
+
+    xllm__xvalue_release(&pThinking->tVendorExtra);
+    pThinking->tVendorExtra = tVendorExtra;
+    return XRT_NET_OK;
+}
+
+static char *xllm__anthropic_find_thinking_signature(xvalue tContent)
+{
+    size_t i;
+
+    if ( !tContent || xvoType(tContent) != XVO_DT_ARRAY ) {
+        return NULL;
+    }
+
+    for ( i = 0; i < (size_t)xvoArrayItemCount(tContent); ++i ) {
+        xvalue tItem = xvoArrayGetValue(tContent, (uint32)i);
+        const char *sType;
+        const char *sSignature;
+
+        if ( !tItem || xvoType(tItem) != XVO_DT_TABLE ) {
+            continue;
+        }
+
+        sType = xllm__json_table_get_text(tItem, "type");
+        if ( !sType || strcmp(sType, "thinking") != 0 ) {
+            continue;
+        }
+
+        sSignature = xllm__json_table_get_text(tItem, "signature");
+        if ( sSignature && sSignature[0] ) {
+            return xllm__dup_cstr(sSignature);
+        }
+    }
+
+    return NULL;
+}
+
+static bool xllm__anthropic_message_has_thinking_parts(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage || pMessage->eRole != XLLM_ROLE_ASSISTANT || !pMessage->pParts ) {
+        return false;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        if ( xllm__anthropic_vendor_is_thinking_block(pMessage->pParts[i].tVendorExtra) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool xllm__anthropic_message_has_image_parts(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage || !pMessage->pParts ) {
+        return false;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        if ( pMessage->pParts[i].eKind == XLLM_PART_IMAGE ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool xllm__anthropic_message_has_file_parts(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage || !pMessage->pParts ) {
+        return false;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        if ( pMessage->pParts[i].eKind == XLLM_PART_FILE ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int xllm__anthropic_message_to_text(const xllm_message *pMessage, char **psText, xllm_error *pError)
+{
+    xllm__json_builder tBuilder;
+    size_t i;
+    bool bHasContent = false;
+
+    if ( !psText ) {
+        return XRT_NET_ERROR;
+    }
+
+    *psText = NULL;
+    memset(&tBuilder, 0, sizeof(tBuilder));
+
+    if ( !pMessage || pMessage->iPartCount == 0u ) {
+        *psText = xllm__dup_cstr("");
+        return *psText ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        const xllm_content_part *pPart = &pMessage->pParts[i];
+
+        if ( bHasContent && !xllm__json_builder_append_char(&tBuilder, '\n') ) {
+            xllm__json_builder_reset(&tBuilder);
+            return XRT_NET_ERROR;
+        }
+
+        switch ( pPart->eKind ) {
+            case XLLM_PART_TEXT:
+                if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                    xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "anthropic-native adapter currently only supports inline text content");
+                    xllm__json_builder_reset(&tBuilder);
+                    return XRT_NET_ERROR;
+                }
+                if ( !xllm__json_builder_append_cstr(&tBuilder, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") ) {
+                    xllm__json_builder_reset(&tBuilder);
+                    return XRT_NET_ERROR;
+                }
+                bHasContent = true;
+                break;
+            case XLLM_PART_JSON: {
+                char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, 0, NULL);
+                if ( !sJson ) {
+                    xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify anthropic-native json part");
+                    xllm__json_builder_reset(&tBuilder);
+                    return XRT_NET_ERROR;
+                }
+                if ( !xllm__json_builder_append_cstr(&tBuilder, sJson) ) {
+                    xrtFree(sJson);
+                    xllm__json_builder_reset(&tBuilder);
+                    return XRT_NET_ERROR;
+                }
+                xrtFree(sJson);
+                bHasContent = true;
+                break;
+            }
+            default:
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                    "anthropic-native text-only content currently supports only text and json parts"
+                );
+                xllm__json_builder_reset(&tBuilder);
+                return XRT_NET_ERROR;
+        }
+    }
+
+    *psText = xllm__json_builder_detach(&tBuilder);
+    if ( !*psText ) {
+        xllm__json_builder_reset(&tBuilder);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static bool xllm__anthropic_message_requires_array_content(const xllm_message *pMessage)
+{
+    if ( !pMessage ) {
+        return false;
+    }
+
+    return
+        ((pMessage->eRole == XLLM_ROLE_USER || pMessage->eRole == XLLM_ROLE_ASSISTANT) &&
+         (xllm__anthropic_message_has_image_parts(pMessage) ||
+          xllm__anthropic_message_has_file_parts(pMessage))) ||
+        pMessage->eRole == XLLM_ROLE_TOOL ||
+        (pMessage->eRole == XLLM_ROLE_ASSISTANT &&
+         (pMessage->iToolCallCount > 0u || xllm__anthropic_message_has_thinking_parts(pMessage)));
+}
+
+static bool xllm__anthropic_tool_result_requires_block_array(const xllm_message *pMessage)
+{
+    size_t i;
+
+    if ( !pMessage || !pMessage->pParts || pMessage->iPartCount == 0u ) {
+        return false;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        switch ( pMessage->pParts[i].eKind ) {
+            case XLLM_PART_TEXT:
+            case XLLM_PART_JSON:
+                break;
+            case XLLM_PART_IMAGE:
+            case XLLM_PART_FILE:
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    return false;
+}
+
+static int xllm__anthropic_append_image_block(
+    xllm__json_builder *pBuilder,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    const char *sMimeType;
+    char *sBase64 = NULL;
+
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pPart->as.tSource.eKind ) {
+        case XLLM_SOURCE_INLINE_BYTES:
+            break;
+        case XLLM_SOURCE_URL:
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image\",\"source\":{\"type\":\"url\",\"url\":") ||
+                 !xllm__json_builder_append_escaped(
+                    pBuilder,
+                    pPart->as.tSource.as.sUrl ? pPart->as.tSource.as.sUrl : ""
+                 ) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                return XRT_NET_ERROR;
+            }
+            return XRT_NET_OK;
+        case XLLM_SOURCE_PROVIDER_FILE_ID:
+            if ( !pPart->as.tSource.as.sFileId || pPart->as.tSource.as.sFileId[0] == '\0' ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INVALID_REQUEST,
+                    "anthropic-native image file_id input is empty"
+                );
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image\",\"source\":{\"type\":\"file\",\"file_id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sFileId) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                return XRT_NET_ERROR;
+            }
+            return XRT_NET_OK;
+        case XLLM_SOURCE_INLINE_TEXT:
+        default:
+            xllm__error_set(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                "anthropic-native image input only supports url, provider file_id, or inline bytes"
+            );
+            return XRT_NET_ERROR;
+    }
+
+    if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native image bytes input is empty");
+        return XRT_NET_ERROR;
+    }
+
+    sBase64 = (char *)xrtBase64Encode(
+        (ptr)pPart->as.tSource.as.tBytes.pData,
+        pPart->as.tSource.as.tBytes.iSize,
+        NULL
+    );
+    if ( !sBase64 ) {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode anthropic-native image bytes");
+        return XRT_NET_ERROR;
+    }
+
+    sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "application/octet-stream";
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sMimeType) ||
+         !xllm__json_builder_append_cstr(pBuilder, ",\"data\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sBase64) ||
+         !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+        xrtFree(sBase64);
+        return XRT_NET_ERROR;
+    }
+
+    xrtFree(sBase64);
+    return XRT_NET_OK;
+}
+
+static int xllm__anthropic_append_file_block(
+    xllm__json_builder *pBuilder,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    const char *sMimeType;
+    char *sBase64 = NULL;
+
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pPart->as.tSource.eKind ) {
+        case XLLM_SOURCE_PROVIDER_FILE_ID:
+            if ( !pPart->as.tSource.as.sFileId || pPart->as.tSource.as.sFileId[0] == '\0' ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INVALID_REQUEST,
+                    "anthropic-native document file_id input is empty"
+                );
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"document\",\"source\":{\"type\":\"file\",\"file_id\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sFileId) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                return XRT_NET_ERROR;
+            }
+            return XRT_NET_OK;
+        case XLLM_SOURCE_INLINE_BYTES:
+            break;
+        case XLLM_SOURCE_URL:
+            sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : NULL;
+            if ( sMimeType && sMimeType[0] && strcmp(sMimeType, "application/pdf") != 0 ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                    "anthropic-native document url input currently only supports application/pdf"
+                );
+                return XRT_NET_ERROR;
+            }
+            if ( !pPart->as.tSource.as.sUrl || pPart->as.tSource.as.sUrl[0] == '\0' ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INVALID_REQUEST,
+                    "anthropic-native document url input is empty"
+                );
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"document\",\"source\":{\"type\":\"url\",\"url\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sUrl) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                return XRT_NET_ERROR;
+            }
+            return XRT_NET_OK;
+        case XLLM_SOURCE_INLINE_TEXT:
+        default:
+            xllm__error_set(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                "anthropic-native document input only supports url, provider file_id, or inline bytes"
+            );
+            return XRT_NET_ERROR;
+    }
+
+    if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native document bytes input is empty");
+        return XRT_NET_ERROR;
+    }
+
+    sMimeType = pPart->as.tSource.sMimeType ? pPart->as.tSource.sMimeType : "application/octet-stream";
+    if ( strcmp(sMimeType, "application/pdf") != 0 ) {
+        xllm__error_set(
+            pError,
+            XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+            "anthropic-native inline document input currently only supports application/pdf"
+        );
+        return XRT_NET_ERROR;
+    }
+
+    sBase64 = (char *)xrtBase64Encode(
+        (ptr)pPart->as.tSource.as.tBytes.pData,
+        pPart->as.tSource.as.tBytes.iSize,
+        NULL
+    );
+    if ( !sBase64 ) {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode anthropic-native document bytes");
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"document\",\"source\":{\"type\":\"base64\",\"media_type\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sMimeType) ||
+         !xllm__json_builder_append_cstr(pBuilder, ",\"data\":") ||
+         !xllm__json_builder_append_escaped(pBuilder, sBase64) ||
+         !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+        xrtFree(sBase64);
+        return XRT_NET_ERROR;
+    }
+
+    xrtFree(sBase64);
+    return XRT_NET_OK;
+}
+
+static int xllm__anthropic_append_tool_result_content_array(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    size_t i;
+
+    if ( !pBuilder || !pMessage ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, '[') ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        const xllm_content_part *pPart = &pMessage->pParts[i];
+        char *sJson = NULL;
+
+        if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+
+        switch ( pPart->eKind ) {
+            case XLLM_PART_TEXT:
+                if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                    xllm__error_set(
+                        pError,
+                        XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                        "anthropic-native tool result text content must be inline text"
+                    );
+                    return XRT_NET_ERROR;
+                }
+                if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") ||
+                     !xllm__json_builder_append_escaped(
+                        pBuilder,
+                        pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : ""
+                     ) ||
+                     !xllm__json_builder_append_char(pBuilder, '}') ) {
+                    return XRT_NET_ERROR;
+                }
+                break;
+            case XLLM_PART_JSON:
+                sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, 0, NULL);
+                if ( !sJson ) {
+                    xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify anthropic-native tool result json part");
+                    return XRT_NET_ERROR;
+                }
+                if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") ||
+                     !xllm__json_builder_append_escaped(pBuilder, sJson) ||
+                     !xllm__json_builder_append_char(pBuilder, '}') ) {
+                    xrtFree(sJson);
+                    return XRT_NET_ERROR;
+                }
+                xrtFree(sJson);
+                break;
+            case XLLM_PART_IMAGE:
+                if ( xllm__anthropic_append_image_block(pBuilder, pPart, pError) != XRT_NET_OK ) {
+                    return XRT_NET_ERROR;
+                }
+                break;
+            case XLLM_PART_FILE:
+                if ( xllm__anthropic_append_file_block(pBuilder, pPart, pError) != XRT_NET_OK ) {
+                    return XRT_NET_ERROR;
+                }
+                break;
+            default:
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                    "anthropic-native tool result currently only supports text, json, image, and file parts"
+                );
+                return XRT_NET_ERROR;
+        }
+    }
+
+    return xllm__json_builder_append_char(pBuilder, ']') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__anthropic_append_message_blocks(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    size_t i;
+    bool bHasBlock = false;
+    char *sToolText = NULL;
+
+    if ( !pBuilder || !pMessage ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, '[') ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL ) {
+        if ( !pMessage->sToolCallId || !pMessage->sToolCallId[0] ) {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native tool result message missing tool_call_id");
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"tool_result\",\"tool_use_id\":") ) {
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_escaped(pBuilder, pMessage->sToolCallId) ) {
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__anthropic_tool_result_requires_block_array(pMessage) ) {
+            if ( xllm__anthropic_append_tool_result_content_array(pBuilder, pMessage, pError) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+        } else {
+            if ( xllm__anthropic_message_to_text(pMessage, &sToolText, pError) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_escaped(pBuilder, sToolText ? sToolText : "") ) {
+                xllm__free_cstr(&sToolText);
+                return XRT_NET_ERROR;
+            }
+        }
+        if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+            xllm__free_cstr(&sToolText);
+            return XRT_NET_ERROR;
+        }
+        xllm__free_cstr(&sToolText);
+        bHasBlock = true;
+    } else {
+        for ( i = 0; i < pMessage->iPartCount; ++i ) {
+            const xllm_content_part *pPart = &pMessage->pParts[i];
+            const char *sSignature;
+            char *sJson = NULL;
+
+            if ( bHasBlock && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                return XRT_NET_ERROR;
+            }
+
+            switch ( pPart->eKind ) {
+                case XLLM_PART_TEXT:
+                    if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                        if ( xllm__anthropic_vendor_is_thinking_block(pPart->tVendorExtra) ) {
+                            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native thinking continuation block must be inline text");
+                        } else {
+                            xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "anthropic-native adapter currently only supports inline text content");
+                        }
+                        return XRT_NET_ERROR;
+                    }
+                    if ( xllm__anthropic_vendor_is_thinking_block(pPart->tVendorExtra) ) {
+                        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"thinking\",\"thinking\":") ) {
+                            return XRT_NET_ERROR;
+                        }
+                        if ( !xllm__json_builder_append_escaped(pBuilder, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") ) {
+                            return XRT_NET_ERROR;
+                        }
+                        sSignature = xllm__anthropic_vendor_signature(pPart->tVendorExtra);
+                        if ( sSignature && sSignature[0] ) {
+                            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"signature\":") ) {
+                                return XRT_NET_ERROR;
+                            }
+                            if ( !xllm__json_builder_append_escaped(pBuilder, sSignature) ) {
+                                return XRT_NET_ERROR;
+                            }
+                        }
+                        if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+                            return XRT_NET_ERROR;
+                        }
+                    } else {
+                        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") ||
+                             !xllm__json_builder_append_escaped(
+                                pBuilder,
+                                pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : ""
+                             ) ||
+                             !xllm__json_builder_append_char(pBuilder, '}') ) {
+                            return XRT_NET_ERROR;
+                        }
+                    }
+                    break;
+                case XLLM_PART_JSON:
+                    sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, 0, NULL);
+                    if ( !sJson ) {
+                        xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify anthropic-native json part");
+                        return XRT_NET_ERROR;
+                    }
+                    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"text\",\"text\":") ||
+                         !xllm__json_builder_append_escaped(pBuilder, sJson) ||
+                         !xllm__json_builder_append_char(pBuilder, '}') ) {
+                        xrtFree(sJson);
+                        return XRT_NET_ERROR;
+                    }
+                    xrtFree(sJson);
+                    break;
+                case XLLM_PART_IMAGE:
+                    if ( pMessage->eRole != XLLM_ROLE_USER &&
+                         pMessage->eRole != XLLM_ROLE_ASSISTANT ) {
+                        xllm__error_set(
+                            pError,
+                            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                            "anthropic-native multimodal input currently only supports user and assistant image messages"
+                        );
+                        return XRT_NET_ERROR;
+                    }
+                    if ( xllm__anthropic_append_image_block(pBuilder, pPart, pError) != XRT_NET_OK ) {
+                        return XRT_NET_ERROR;
+                    }
+                    break;
+                case XLLM_PART_FILE:
+                    if ( pMessage->eRole != XLLM_ROLE_USER &&
+                         pMessage->eRole != XLLM_ROLE_ASSISTANT ) {
+                        xllm__error_set(
+                            pError,
+                            XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                            "anthropic-native multimodal input currently only supports user and assistant document messages"
+                        );
+                        return XRT_NET_ERROR;
+                    }
+                    if ( xllm__anthropic_append_file_block(pBuilder, pPart, pError) != XRT_NET_OK ) {
+                        return XRT_NET_ERROR;
+                    }
+                    break;
+                default:
+                    xllm__error_set(
+                        pError,
+                        XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                        "anthropic-native multimodal input currently only supports text, json, image, and file parts"
+                    );
+                    return XRT_NET_ERROR;
+            }
+
+            bHasBlock = true;
+        }
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u ) {
+        for ( i = 0; i < pMessage->iToolCallCount; ++i ) {
+            const xllm_tool_call *pCall = &pMessage->pToolCalls[i];
+            const char *sToolName = pCall->sToolName ? pCall->sToolName : pCall->sToolId;
+            xvalue tInput = NULL;
+            char *sNormalized = NULL;
+
+            if ( !sToolName || !sToolName[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native assistant tool call missing tool name");
+                return XRT_NET_ERROR;
+            }
+            if ( pCall->sArgumentsJson && pCall->sArgumentsJson[0] ) {
+                tInput = xllm__parse_json_range(pCall->sArgumentsJson, strlen(pCall->sArgumentsJson), &sNormalized);
+                if ( !tInput ) {
+                    xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native assistant tool call arguments_json is not valid json");
+                    return XRT_NET_ERROR;
+                }
+            }
+
+            if ( bHasBlock && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                if ( tInput ) {
+                    xvoUnref(tInput);
+                }
+                xrtFree(sNormalized);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"tool_use\",\"id\":") ) {
+                if ( tInput ) {
+                    xvoUnref(tInput);
+                }
+                xrtFree(sNormalized);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_escaped(pBuilder, pCall->sCallId ? pCall->sCallId : "") ) {
+                if ( tInput ) {
+                    xvoUnref(tInput);
+                }
+                xrtFree(sNormalized);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"name\":") ) {
+                if ( tInput ) {
+                    xvoUnref(tInput);
+                }
+                xrtFree(sNormalized);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_escaped(pBuilder, sToolName) ) {
+                if ( tInput ) {
+                    xvoUnref(tInput);
+                }
+                xrtFree(sNormalized);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"input\":") ) {
+                if ( tInput ) {
+                    xvoUnref(tInput);
+                }
+                xrtFree(sNormalized);
+                return XRT_NET_ERROR;
+            }
+            if ( sNormalized ) {
+                if ( !xllm__json_builder_append_cstr(pBuilder, sNormalized) ) {
+                    if ( tInput ) {
+                        xvoUnref(tInput);
+                    }
+                    xrtFree(sNormalized);
+                    return XRT_NET_ERROR;
+                }
+            } else if ( !xllm__json_builder_append_cstr(pBuilder, "{}") ) {
+                if ( tInput ) {
+                    xvoUnref(tInput);
+                }
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+                if ( tInput ) {
+                    xvoUnref(tInput);
+                }
+                xrtFree(sNormalized);
+                return XRT_NET_ERROR;
+            }
+
+            if ( tInput ) {
+                xvoUnref(tInput);
+            }
+            xrtFree(sNormalized);
+            bHasBlock = true;
+        }
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, ']') ) {
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__anthropic_append_tools(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError
+)
+{
+    size_t i;
+
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tools\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pRequest->iToolCount; ++i ) {
+        const xllm_tool_def *pTool = &pRequest->pTools[i];
+        const char *sWireName = pTool->sWireName ? pTool->sWireName : pTool->sToolId;
+        char *sSchema = NULL;
+        char *sProviderToolJson = NULL;
+
+        if ( pTool->eKind == XLLM_TOOL_PROVIDER ) {
+            if ( !pTool->tVendorExtra || xvoType(pTool->tVendorExtra) != XVO_DT_TABLE ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INVALID_REQUEST,
+                    "anthropic-native provider tool requires vendor_extra object"
+                );
+                return XRT_NET_ERROR;
+            }
+            sProviderToolJson = (char *)xrtStringifyJSON(pTool->tVendorExtra, 0, NULL);
+            if ( !sProviderToolJson ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INTERNAL,
+                    "failed to stringify anthropic-native provider tool"
+                );
+                return XRT_NET_ERROR;
+            }
+            if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                xrtFree(sProviderToolJson);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, sProviderToolJson) ) {
+                xrtFree(sProviderToolJson);
+                return XRT_NET_ERROR;
+            }
+            xrtFree(sProviderToolJson);
+            continue;
+        }
+
+        if ( !sWireName || !sWireName[0] ) {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native tool definition missing wire_name");
+            return XRT_NET_ERROR;
+        }
+        if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( pTool->tInputSchema && xvoType(pTool->tInputSchema) != XVO_DT_NULL ) {
+            sSchema = (char *)xrtStringifyJSON(pTool->tInputSchema, 0, NULL);
+        }
+        if ( !sSchema ) {
+            sSchema = xllm__dup_cstr("{}");
+        }
+        if ( !sSchema ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"name\":") ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_escaped(pBuilder, sWireName) ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        if ( pTool->sDescription && pTool->sDescription[0] ) {
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"description\":") ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_escaped(pBuilder, pTool->sDescription) ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"input_schema\":") ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, sSchema) ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_char(pBuilder, '}') ) {
+            xrtFree(sSchema);
+            return XRT_NET_ERROR;
+        }
+
+        xrtFree(sSchema);
+    }
+
+    return xllm__json_builder_append_char(pBuilder, ']') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__anthropic_append_tool_policy(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    const xllm_reasoning_options *pReasoning,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pReasoning && xllm__anthropic_reasoning_requested(pReasoning) ) {
+        if ( pRequest->tToolPolicy.eMode == XLLM_TOOL_CHOICE_REQUIRED ||
+             pRequest->tToolPolicy.eMode == XLLM_TOOL_CHOICE_NAMED ) {
+            xllm__error_set(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                "anthropic-native reasoning cannot be used with forced tool_choice"
+            );
+            return XRT_NET_ERROR;
+        }
+    }
+
+    switch ( pRequest->tToolPolicy.eMode ) {
+        case XLLM_TOOL_CHOICE_NONE:
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":{\"type\":\"none\"") ) return XRT_NET_ERROR;
+            break;
+        case XLLM_TOOL_CHOICE_REQUIRED:
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":{\"type\":\"any\"") ) return XRT_NET_ERROR;
+            break;
+        case XLLM_TOOL_CHOICE_NAMED:
+            if ( !pRequest->tToolPolicy.sToolName || !pRequest->tToolPolicy.sToolName[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native named tool_choice missing tool name");
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":{\"type\":\"tool\",\"name\":") ) return XRT_NET_ERROR;
+            if ( !xllm__json_builder_append_escaped(pBuilder, pRequest->tToolPolicy.sToolName) ) return XRT_NET_ERROR;
+            break;
+        case XLLM_TOOL_CHOICE_AUTO:
+        default:
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_choice\":{\"type\":\"auto\"") ) return XRT_NET_ERROR;
+            break;
+    }
+
+    if ( !pRequest->tToolPolicy.bAllowParallel ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"disable_parallel_tool_use\":true") ) {
+            return XRT_NET_ERROR;
+        }
+    }
+
+    return xllm__json_builder_append_char(pBuilder, '}') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static char *xllm__anthropic_build_url(const char *sBaseUrl)
+{
+    static const char sPath[] = "messages";
+    size_t iLen;
+    bool bNeedsSlash;
+    char *sUrl;
+
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        return NULL;
+    }
+
+    if ( strstr(sBaseUrl, "/messages") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+
+    iLen = strlen(sBaseUrl);
+    bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+    sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + sizeof(sPath), sizeof(char));
+    if ( !sUrl ) {
+        return NULL;
+    }
+
+    memcpy(sUrl, sBaseUrl, iLen);
+    if ( bNeedsSlash ) {
+        sUrl[iLen++] = '/';
+    }
+    memcpy(sUrl + iLen, sPath, sizeof(sPath));
+    return sUrl;
+}
+
+static int xllm__anthropic_fill_request_headers(xhttprequest *pHttpRequest, const xllm_profile *pProfile)
+{
+    size_t i;
+    const char *sVersion;
+
+    if ( !pHttpRequest || !pProfile ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xrtHttpRequestSetHeader(pHttpRequest, "Accept", "application/json") ) {
+        return XRT_NET_ERROR;
+    }
+    if ( !xrtHttpRequestSetHeader(pHttpRequest, "User-Agent", "xllm/0.1.0") ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pProfile->tAuth.eKind ) {
+        case XLLM_AUTH_API_KEY_HEADER: {
+            const char *sHeaderName = pProfile->tAuth.sHeaderName ? pProfile->tAuth.sHeaderName : "x-api-key";
+            if ( pProfile->tAuth.sSecret ) {
+                if ( !xrtHttpRequestSetHeader(pHttpRequest, sHeaderName, pProfile->tAuth.sSecret) ) {
+                    return XRT_NET_ERROR;
+                }
+            }
+            break;
+        }
+        case XLLM_AUTH_BEARER: {
+            const char *sScheme = pProfile->tAuth.sScheme ? pProfile->tAuth.sScheme : "Bearer";
+            size_t iSchemeLen = strlen(sScheme);
+            size_t iSecretLen = pProfile->tAuth.sSecret ? strlen(pProfile->tAuth.sSecret) : 0u;
+            char *sValue = (char *)xrtCalloc(iSchemeLen + iSecretLen + 2u, sizeof(char));
+            if ( !sValue ) {
+                return XRT_NET_ERROR;
+            }
+            memcpy(sValue, sScheme, iSchemeLen);
+            sValue[iSchemeLen] = ' ';
+            if ( pProfile->tAuth.sSecret ) {
+                memcpy(sValue + iSchemeLen + 1u, pProfile->tAuth.sSecret, iSecretLen);
+            }
+            if ( !xrtHttpRequestSetHeader(pHttpRequest, "Authorization", sValue) ) {
+                xrtFree(sValue);
+                return XRT_NET_ERROR;
+            }
+            xrtFree(sValue);
+            break;
+        }
+        case XLLM_AUTH_NONE:
+        default:
+            break;
+    }
+
+    sVersion = pProfile->tProviderOptions.sAnthropicApiVersion;
+    if ( !sVersion || !sVersion[0] ) {
+        sVersion = "2023-06-01";
+    }
+    if ( !xrtHttpRequestSetHeader(pHttpRequest, "anthropic-version", sVersion) ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pProfile->tProviderOptions.iAnthropicBetaHeaderCount > 0u &&
+         pProfile->tProviderOptions.psAnthropicBetaHeaders ) {
+        size_t iTotalLen = 0u;
+        char *sJoined;
+        size_t iWrite = 0u;
+
+        for ( i = 0; i < pProfile->tProviderOptions.iAnthropicBetaHeaderCount; ++i ) {
+            const char *sValue = pProfile->tProviderOptions.psAnthropicBetaHeaders[i];
+            if ( sValue && sValue[0] ) {
+                iTotalLen += strlen(sValue) + 1u;
+            }
+        }
+
+        if ( iTotalLen > 0u ) {
+            sJoined = (char *)xrtCalloc(iTotalLen + 1u, sizeof(char));
+            if ( !sJoined ) {
+                return XRT_NET_ERROR;
+            }
+            for ( i = 0; i < pProfile->tProviderOptions.iAnthropicBetaHeaderCount; ++i ) {
+                const char *sValue = pProfile->tProviderOptions.psAnthropicBetaHeaders[i];
+                size_t iValueLen;
+                if ( !sValue || !sValue[0] ) {
+                    continue;
+                }
+                iValueLen = strlen(sValue);
+                if ( iWrite > 0u ) {
+                    sJoined[iWrite++] = ',';
+                }
+                memcpy(sJoined + iWrite, sValue, iValueLen);
+                iWrite += iValueLen;
+            }
+            if ( !xrtHttpRequestSetHeader(pHttpRequest, "anthropic-beta", sJoined) ) {
+                xrtFree(sJoined);
+                return XRT_NET_ERROR;
+            }
+            xrtFree(sJoined);
+        }
+    }
+
+    for ( i = 0; i < pProfile->iDefaultHeaderCount; ++i ) {
+        if ( pProfile->pDefaultHeaders[i].sName && pProfile->pDefaultHeaders[i].sValue ) {
+            if ( !xrtHttpRequestSetHeader(pHttpRequest, pProfile->pDefaultHeaders[i].sName, pProfile->pDefaultHeaders[i].sValue) ) {
+                return XRT_NET_ERROR;
+            }
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__anthropic_append_message_or_system(
+    xllm__json_builder *pSystem,
+    bool *pbHasSystem,
+    xllm__json_builder *pMessages,
+    bool *pbHasMessage,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    char *sContent = NULL;
+    int iStatus = XRT_NET_OK;
+    const char *sRole;
+    bool bArrayContent;
+
+    if ( !pSystem || !pbHasSystem || !pMessages || !pbHasMessage || !pMessage ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_SYSTEM ) {
+        iStatus = xllm__anthropic_message_to_text(pMessage, &sContent, pError);
+        if ( iStatus != XRT_NET_OK ) {
+            return iStatus;
+        }
+        if ( *pbHasSystem && !xllm__json_builder_append_cstr(pSystem, "\n\n") ) {
+            xllm__free_cstr(&sContent);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pSystem, sContent ? sContent : "") ) {
+            xllm__free_cstr(&sContent);
+            return XRT_NET_ERROR;
+        }
+        *pbHasSystem = true;
+        xllm__free_cstr(&sContent);
+        return XRT_NET_OK;
+    }
+
+    bArrayContent = xllm__anthropic_message_requires_array_content(pMessage);
+
+    if ( pMessage->eRole == XLLM_ROLE_USER || pMessage->eRole == XLLM_ROLE_TOOL ) {
+        sRole = "user";
+    } else if ( pMessage->eRole == XLLM_ROLE_ASSISTANT ) {
+        sRole = "assistant";
+    } else {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "anthropic-native adapter only supports system, user, assistant, and tool messages");
+        return XRT_NET_ERROR;
+    }
+
+    if ( *pbHasMessage && !xllm__json_builder_append_char(pMessages, ',') ) {
+        return XRT_NET_ERROR;
+    }
+    if ( !xllm__json_builder_append_cstr(pMessages, "{\"role\":") ) {
+        return XRT_NET_ERROR;
+    }
+    if ( !xllm__json_builder_append_escaped(pMessages, sRole) ) {
+        return XRT_NET_ERROR;
+    }
+    if ( !xllm__json_builder_append_cstr(pMessages, ",\"content\":") ) {
+        return XRT_NET_ERROR;
+    }
+    if ( bArrayContent ) {
+        if ( xllm__anthropic_append_message_blocks(pMessages, pMessage, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+    } else {
+        iStatus = xllm__anthropic_message_to_text(pMessage, &sContent, pError);
+        if ( iStatus != XRT_NET_OK ) {
+            return iStatus;
+        }
+        if ( !xllm__json_builder_append_escaped(pMessages, sContent ? sContent : "") ) {
+            xllm__free_cstr(&sContent);
+            return XRT_NET_ERROR;
+        }
+    }
+    if ( !xllm__json_builder_append_char(pMessages, '}') ) {
+        xllm__free_cstr(&sContent);
+        return XRT_NET_ERROR;
+    }
+
+    *pbHasMessage = true;
+    xllm__free_cstr(&sContent);
+    return XRT_NET_OK;
+}
+
+static uint32 xllm__anthropic_default_max_tokens(const xllm_profile *pProfile, const xllm_request *pRequest)
+{
+    const xllm_model_binding *pBinding;
+    bool bNeedsMultimodal;
+
+    if ( !pProfile || !pRequest ) {
+        return 1024u;
+    }
+
+    bNeedsMultimodal = xllm__openai_request_uses_multimodal(pRequest);
+    pBinding = xllm__select_request_binding(pProfile, pRequest, bNeedsMultimodal, NULL);
+    if ( pBinding ) {
+        if ( pBinding->tCaps.uRecommendedOutputReserve > 0u ) {
+            return pBinding->tCaps.uRecommendedOutputReserve;
+        }
+        if ( pBinding->tCaps.uMaxOutputTokens > 0u ) {
+            return pBinding->tCaps.uMaxOutputTokens;
+        }
+        if ( pBinding->tCaps.tMaxOutputTokensRule.eKind == XLLM_PARAM_RULE_FIXED &&
+             pBinding->tCaps.tMaxOutputTokensRule.uFixed > 0u ) {
+            return pBinding->tCaps.tMaxOutputTokensRule.uFixed;
+        }
+    }
+
+    return 1024u;
+}
+
+static int xllm__anthropic_build_chat_body(
+    xllm__json_builder *pBody,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    const xllm_call_options *pOptions,
+    const char *sModel,
+    bool bStream,
+    xllm_error *pError
+)
+{
+    xllm__json_builder tSystem;
+    xllm__json_builder tMessages;
+    bool bHasSystem = false;
+    bool bHasMessage = false;
+    size_t i;
+    uint32 uMaxTokens;
+
+    if ( !pBody || !pProfile || !pRequest || !pEffectiveParams || !sModel ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pEffectiveParams->tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         (!pOptions || !pOptions->bBestEffortStructuredOutput) ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "anthropic-native adapter currently supports structured output only in best-effort mode");
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tSystem, 0, sizeof(tSystem));
+    memset(&tMessages, 0, sizeof(tMessages));
+
+    for ( i = 0; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( xllm__anthropic_append_message_or_system(
+                    &tSystem,
+                    &bHasSystem,
+                    &tMessages,
+                    &bHasMessage,
+                    &pRequest->pContextBlocks[i].pMessages[j],
+                    pError
+                 ) != XRT_NET_OK ) {
+                xllm__json_builder_reset(&tSystem);
+                xllm__json_builder_reset(&tMessages);
+                return XRT_NET_ERROR;
+            }
+        }
+    }
+
+    for ( i = 0; i < pRequest->iMessageCount; ++i ) {
+        if ( xllm__anthropic_append_message_or_system(
+                &tSystem,
+                &bHasSystem,
+                &tMessages,
+                &bHasMessage,
+                &pRequest->pMessages[i],
+                pError
+             ) != XRT_NET_OK ) {
+            xllm__json_builder_reset(&tSystem);
+            xllm__json_builder_reset(&tMessages);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( !bHasMessage ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native request has no user/assistant messages");
+        xllm__json_builder_reset(&tSystem);
+        xllm__json_builder_reset(&tMessages);
+        return XRT_NET_ERROR;
+    }
+
+    uMaxTokens = pEffectiveParams->tGeneration.tMaxOutputTokens.bSet
+        ? pEffectiveParams->tGeneration.tMaxOutputTokens.iValue
+        : xllm__anthropic_default_max_tokens(pProfile, pRequest);
+
+    if ( !xllm__json_builder_append_char(pBody, '{') ) goto fail;
+    if ( !xllm__json_builder_append_cstr(pBody, "\"model\":") ) goto fail;
+    if ( !xllm__json_builder_append_escaped(pBody, sModel) ) goto fail;
+    if ( !xllm__json_builder_append_cstr(pBody, ",\"max_tokens\":") ) goto fail;
+    if ( !xllm__json_builder_append_u32(pBody, uMaxTokens) ) goto fail;
+
+    if ( bHasSystem ) {
+        char *sSystem = xllm__json_builder_detach(&tSystem);
+        if ( !sSystem ) goto fail;
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"system\":") ) {
+            xrtFree(sSystem);
+            goto fail;
+        }
+        if ( !xllm__json_builder_append_escaped(pBody, sSystem) ) {
+            xrtFree(sSystem);
+            goto fail;
+        }
+        xrtFree(sSystem);
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBody, ",\"messages\":[") ) goto fail;
+    if ( tMessages.iLen > 0u && !xllm__json_builder_append_bytes(pBody, tMessages.pData, tMessages.iLen) ) goto fail;
+    if ( !xllm__json_builder_append_char(pBody, ']') ) goto fail;
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"temperature\":") ) goto fail;
+        if ( !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTemperature.fValue) ) goto fail;
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"top_p\":") ) goto fail;
+        if ( !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTopP.fValue) ) goto fail;
+    }
+    if ( pEffectiveParams->tGeneration.iStopCount > 0u && pEffectiveParams->tGeneration.psStop ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stop_sequences\":[") ) goto fail;
+        for ( i = 0; i < pEffectiveParams->tGeneration.iStopCount; ++i ) {
+            if ( i > 0u && !xllm__json_builder_append_char(pBody, ',') ) goto fail;
+            if ( !xllm__json_builder_append_escaped(
+                    pBody,
+                    pEffectiveParams->tGeneration.psStop[i] ? pEffectiveParams->tGeneration.psStop[i] : ""
+                 ) ) goto fail;
+        }
+        if ( !xllm__json_builder_append_char(pBody, ']') ) goto fail;
+    }
+    if ( xllm__anthropic_append_reasoning(pBody, &pEffectiveParams->tReasoning, uMaxTokens) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( pRequest->iToolCount > 0u ) {
+        if ( xllm__anthropic_append_tools(pBody, pRequest, pError) != XRT_NET_OK ) goto fail;
+        if ( xllm__anthropic_append_tool_policy(pBody, pRequest, &pEffectiveParams->tReasoning, pError) != XRT_NET_OK ) goto fail;
+    }
+    if ( bStream ) {
+        if ( !xllm__json_builder_append_cstr(pBody, ",\"stream\":true") ) goto fail;
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '}') ) goto fail;
+
+    xllm__json_builder_reset(&tSystem);
+    xllm__json_builder_reset(&tMessages);
+    return XRT_NET_OK;
+
+fail:
+    xllm__json_builder_reset(&tSystem);
+    xllm__json_builder_reset(&tMessages);
+    return XRT_NET_ERROR;
+}
+
+static void xllm__anthropic_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot, const char *sRequestId)
+{
+    xvalue tErrorObj;
+    const char *sMessage = "upstream request failed";
+
+    if ( !pError ) {
+        return;
+    }
+
+    if ( pHttpResponse ) {
+        if ( pHttpResponse->iStatusCode == 400u ) {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, sMessage);
+        } else if ( pHttpResponse->iStatusCode == 401u || pHttpResponse->iStatusCode == 403u ) {
+            xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+        } else if ( pHttpResponse->iStatusCode == 404u ) {
+            xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+        } else if ( pHttpResponse->iStatusCode == 429u ) {
+            xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+        } else if ( pHttpResponse->iStatusCode >= 500u || pHttpResponse->iStatusCode == 529u ) {
+            xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+        } else if ( pHttpResponse->iStatusCode >= 400u ) {
+            xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, sMessage);
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+        }
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+    }
+
+    if ( sRequestId ) {
+        pError->sRequestId = xllm__dup_cstr(sRequestId);
+    }
+
+    tErrorObj = xllm__json_table_get(tRoot, "error");
+    if ( tErrorObj && xvoType(tErrorObj) == XVO_DT_TABLE ) {
+        const char *sProviderMessage = xllm__json_table_get_text(tErrorObj, "message");
+        const char *sProviderCode = xllm__json_table_get_text(tErrorObj, "type");
+        if ( sProviderMessage ) {
+            xllm__free_cstr((char **)&pError->sMessage);
+            pError->sMessage = xllm__dup_cstr(sProviderMessage);
+            pError->sProviderMessage = xllm__dup_cstr(sProviderMessage);
+        }
+        if ( sProviderCode ) {
+            pError->sProviderCode = xllm__dup_cstr(sProviderCode);
+        }
+    }
+}
+
+static int xllm__anthropic_parse_content(
+    xvalue tContent,
+    xllm_content_part **ppParts,
+    size_t *piPartCount,
+    char **psVisibleText,
+    char **psThinking,
+    size_t *piToolUseCount,
+    xllm_error *pError
+)
+{
+    xllm__json_builder tVisibleText;
+    xllm__json_builder tThinking;
+    xllm_content_part *pParts = NULL;
+    size_t iPartCount = 0u;
+    size_t iPartCapacity = 0u;
+    size_t i;
+
+    if ( ppParts ) {
+        *ppParts = NULL;
+    }
+    if ( piPartCount ) {
+        *piPartCount = 0u;
+    }
+    if ( psVisibleText ) {
+        *psVisibleText = NULL;
+    }
+    if ( psThinking ) {
+        *psThinking = NULL;
+    }
+    if ( piToolUseCount ) {
+        *piToolUseCount = 0u;
+    }
+    if ( !tContent || xvoType(tContent) != XVO_DT_ARRAY ) {
+        return XRT_NET_OK;
+    }
+
+    memset(&tVisibleText, 0, sizeof(tVisibleText));
+    memset(&tThinking, 0, sizeof(tThinking));
+
+    for ( i = 0; i < (size_t)xvoArrayItemCount(tContent); ++i ) {
+        xvalue tItem = xvoArrayGetValue(tContent, (uint32)i);
+        const char *sType;
+
+        if ( !tItem || xvoType(tItem) != XVO_DT_TABLE ) {
+            continue;
+        }
+
+        sType = xllm__json_table_get_text(tItem, "type");
+        if ( sType && strcmp(sType, "text") == 0 ) {
+            const char *sText = xllm__json_table_get_text(tItem, "text");
+            xllm_content_part tPart;
+
+            if ( !sText ) {
+                continue;
+            }
+
+            memset(&tPart, 0, sizeof(tPart));
+            tPart.eKind = XLLM_PART_TEXT;
+            tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+            tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+            tPart.as.tSource.as.sText = xllm__dup_cstr(sText);
+            if ( !tPart.as.tSource.sMimeType || !tPart.as.tSource.as.sText ) {
+                xllm__content_part_free(&tPart);
+                goto fail;
+            }
+            if ( xllm__openai_message_add_part(&pParts, &iPartCount, &iPartCapacity, &tPart) != XRT_NET_OK ) {
+                xllm__content_part_free(&tPart);
+                goto fail;
+            }
+            if ( tVisibleText.iLen > 0u && !xllm__json_builder_append_char(&tVisibleText, '\n') ) {
+                goto fail;
+            }
+            if ( !xllm__json_builder_append_cstr(&tVisibleText, sText) ) {
+                goto fail;
+            }
+        } else if ( sType && strcmp(sType, "thinking") == 0 ) {
+            const char *sThinking = xllm__json_table_get_text(tItem, "thinking");
+            if ( !sThinking ) {
+                sThinking = xllm__json_table_get_text(tItem, "text");
+            }
+            if ( sThinking && sThinking[0] ) {
+                if ( tThinking.iLen > 0u && !xllm__json_builder_append_char(&tThinking, '\n') ) goto fail;
+                if ( !xllm__json_builder_append_cstr(&tThinking, sThinking) ) goto fail;
+            }
+        } else if ( sType && strcmp(sType, "tool_use") == 0 ) {
+            if ( piToolUseCount ) {
+                ++(*piToolUseCount);
+            }
+        } else if ( sType && (strcmp(sType, "image") == 0 || strcmp(sType, "document") == 0) ) {
+            xvalue tSource = xllm__json_table_get(tItem, "source");
+            const char *sSourceType = xllm__json_table_get_text(tSource, "type");
+            const char *sMimeType = xllm__json_table_get_text(tSource, "media_type");
+            const char *sName = xllm__json_table_get_text(tItem, "name");
+            xllm_content_part tPart;
+
+            memset(&tPart, 0, sizeof(tPart));
+            tPart.eKind = (strcmp(sType, "image") == 0) ? XLLM_PART_IMAGE : XLLM_PART_FILE;
+            tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType);
+            tPart.as.tSource.sName = xllm__dup_cstr(sName);
+
+            if ( sSourceType && strcmp(sSourceType, "url") == 0 ) {
+                const char *sUrl = xllm__json_table_get_text(tSource, "url");
+                if ( !sUrl || !sUrl[0] ) {
+                    xllm__content_part_free(&tPart);
+                    continue;
+                }
+                tPart.as.tSource.eKind = XLLM_SOURCE_URL;
+                tPart.as.tSource.as.sUrl = xllm__dup_cstr(sUrl);
+                if ( !tPart.as.tSource.as.sUrl ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+            } else if ( sSourceType && strcmp(sSourceType, "file") == 0 ) {
+                const char *sFileId = xllm__json_table_get_text(tSource, "file_id");
+                if ( !sFileId || !sFileId[0] ) {
+                    xllm__content_part_free(&tPart);
+                    continue;
+                }
+                tPart.as.tSource.eKind = XLLM_SOURCE_PROVIDER_FILE_ID;
+                tPart.as.tSource.as.sFileId = xllm__dup_cstr(sFileId);
+                if ( !tPart.as.tSource.as.sFileId ) {
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+            } else if ( sSourceType && strcmp(sSourceType, "base64") == 0 ) {
+                const char *sData = xllm__json_table_get_text(tSource, "data");
+                size_t iDecodedSize;
+                void *pDecoded;
+
+                if ( !sData || !sData[0] ) {
+                    xllm__content_part_free(&tPart);
+                    continue;
+                }
+
+                iDecodedSize = xllm__openai_base64_decoded_size(sData);
+                pDecoded = xrtBase64Decode((str)sData, strlen(sData), NULL);
+                if ( !pDecoded ) {
+                    xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to decode anthropic-native artifact block");
+                    xllm__content_part_free(&tPart);
+                    goto fail;
+                }
+
+                tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_BYTES;
+                tPart.as.tSource.as.tBytes.pData = pDecoded;
+                tPart.as.tSource.as.tBytes.iSize = iDecodedSize;
+            } else {
+                xllm__content_part_free(&tPart);
+                continue;
+            }
+
+            if ( xllm__openai_message_add_part(&pParts, &iPartCount, &iPartCapacity, &tPart) != XRT_NET_OK ) {
+                xllm__content_part_free(&tPart);
+                goto fail;
+            }
+        }
+    }
+
+    if ( psVisibleText && tVisibleText.iLen > 0u ) {
+        *psVisibleText = xllm__json_builder_detach(&tVisibleText);
+        if ( tVisibleText.iLen > 0u && !*psVisibleText ) goto fail;
+    }
+    if ( psThinking && tThinking.iLen > 0u ) {
+        *psThinking = xllm__json_builder_detach(&tThinking);
+        if ( tThinking.iLen > 0u && !*psThinking ) goto fail;
+    }
+
+    xllm__json_builder_reset(&tVisibleText);
+    xllm__json_builder_reset(&tThinking);
+
+    if ( ppParts ) {
+        *ppParts = pParts;
+        pParts = NULL;
+    }
+    if ( piPartCount ) {
+        *piPartCount = iPartCount;
+    }
+
+    return XRT_NET_OK;
+
+fail:
+    if ( pParts ) {
+        size_t j;
+        for ( j = 0u; j < iPartCount; ++j ) {
+            xllm__content_part_free(&pParts[j]);
+        }
+        xrtFree(pParts);
+    }
+    if ( psVisibleText && *psVisibleText ) {
+        xrtFree(*psVisibleText);
+        *psVisibleText = NULL;
+    }
+    if ( psThinking && *psThinking ) {
+        xrtFree(*psThinking);
+        *psThinking = NULL;
+    }
+    xllm__json_builder_reset(&tVisibleText);
+    xllm__json_builder_reset(&tThinking);
+    return XRT_NET_ERROR;
+}
+
+static int xllm__anthropic_build_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xvalue tRoot,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_response *pResponse = NULL;
+    xllm_effective_params tEffectiveParams;
+    xvalue tContent;
+    xvalue tUsage;
+    const char *sStopReason;
+    const char *sModel;
+    xllm_content_part *pMessageParts = NULL;
+    size_t iMessagePartCount = 0u;
+    char *sVisibleText = NULL;
+    char *sThinkingText = NULL;
+    char *sThinkingSignature = NULL;
+    char *sNormalizedJson = NULL;
+    char *sRefusalText = NULL;
+    xvalue tJsonValue = NULL;
+    bool bJsonOutput = false;
+    size_t iToolUseCount = 0u;
+    size_t iOutputCount = 0u;
+    size_t iOutputIndex = 0u;
+    size_t i;
+
+    if ( !pProfile || !pRequest || !ppResponse || !tRoot || xvoType(tRoot) != XVO_DT_TABLE ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid anthropic-native response");
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    if ( xllm__openai_fill_effective_params(&tEffectiveParams, pProfile, pRequest, XLLM_STREAM_OFF) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    tContent = xllm__json_table_get(tRoot, "content");
+    if ( xllm__anthropic_parse_content(
+            tContent,
+            &pMessageParts,
+            &iMessagePartCount,
+            &sVisibleText,
+            &sThinkingText,
+            &iToolUseCount,
+            pError
+         ) != XRT_NET_OK ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse anthropic-native content");
+        goto fail;
+    }
+    sThinkingSignature = xllm__anthropic_find_thinking_signature(tContent);
+
+    sStopReason = xllm__json_table_get_text(tRoot, "stop_reason");
+    if ( !sStopReason || !sStopReason[0] ) {
+        sStopReason = "end_turn";
+    }
+
+    if ( strcmp(sStopReason, "refusal") == 0 && sVisibleText && sVisibleText[0] ) {
+        sRefusalText = xllm__dup_cstr(sVisibleText);
+        if ( !sRefusalText ) {
+            goto fail;
+        }
+    }
+
+    if ( !sRefusalText &&
+         tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         sVisibleText &&
+         sVisibleText[0] ) {
+        if ( xllm__openai_parse_structured_output(
+                &tEffectiveParams.tResponseFormat,
+                pOptions,
+                sVisibleText,
+                &tJsonValue,
+                &sNormalizedJson,
+                pError
+             ) != XRT_NET_OK ) {
+            goto fail;
+        }
+        bJsonOutput = (tJsonValue != NULL);
+        if ( bJsonOutput && sNormalizedJson ) {
+            xllm__free_cstr(&sVisibleText);
+            sVisibleText = sNormalizedJson;
+            sNormalizedJson = NULL;
+        }
+    }
+
+    if ( sThinkingText && sThinkingText[0] ) {
+        ++iOutputCount;
+    }
+    if ( sRefusalText && sRefusalText[0] ) {
+        ++iOutputCount;
+    } else if ( iMessagePartCount > 0u ) {
+        ++iOutputCount;
+    }
+    iOutputCount += iToolUseCount;
+
+    pResponse = (xllm_response *)xrtCalloc(1, sizeof(*pResponse));
+    if ( !pResponse ) {
+        goto fail;
+    }
+
+    pResponse->sId = xllm__dup_cstr(xllm__json_table_get_text(tRoot, "id"));
+    pResponse->sProvider = xllm__dup_cstr(pProfile->sProvider ? pProfile->sProvider : "anthropic");
+    pResponse->sProfileId = xllm__dup_cstr(pProfile->sId);
+    sModel = xllm__json_table_get_text(tRoot, "model");
+    pResponse->sModel = xllm__dup_cstr(sModel ? sModel : xllm__openai_select_model(pProfile, pRequest, NULL));
+    pResponse->sFinishReason = xllm__dup_cstr(sStopReason);
+    pResponse->sVisibleText = xllm__dup_cstr(sRefusalText ? sRefusalText : sVisibleText);
+
+    if ( iOutputCount > 0u ) {
+        pResponse->pOutputs = (xllm_output_item *)xrtCalloc(iOutputCount, sizeof(xllm_output_item));
+        if ( !pResponse->pOutputs ) {
+            goto fail;
+        }
+        pResponse->iOutputCount = iOutputCount;
+    }
+
+    if ( sThinkingText && sThinkingText[0] ) {
+        xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+        pOutput->eKind = XLLM_OUTPUT_THINKING;
+        pOutput->as.tThinking.bVisible = true;
+        pOutput->as.tThinking.sFormat = xllm__dup_cstr("full");
+        pOutput->as.tThinking.sText = xllm__dup_cstr(sThinkingText);
+        if ( xllm__anthropic_set_thinking_vendor_extra(&pOutput->as.tThinking, sThinkingSignature) != XRT_NET_OK ) {
+            goto fail;
+        }
+    }
+
+    if ( sRefusalText && sRefusalText[0] ) {
+        xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+        pOutput->eKind = XLLM_OUTPUT_REFUSAL;
+        pOutput->as.tRefusal.sText = xllm__dup_cstr(sRefusalText);
+        pResponse->tRefusal.sText = xllm__dup_cstr(sRefusalText);
+        pResponse->eStatus = XLLM_STATUS_REFUSED;
+    } else if ( iMessagePartCount > 0u ) {
+        xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+        pOutput->eKind = XLLM_OUTPUT_MESSAGE;
+        pOutput->as.tMessage.iPartCount = iMessagePartCount;
+        pOutput->as.tMessage.pParts = pMessageParts;
+        pMessageParts = NULL;
+        iMessagePartCount = 0u;
+
+        if ( bJsonOutput && tJsonValue ) {
+            size_t iFirstText = (size_t)-1;
+            size_t iRead;
+            size_t iWrite = 0u;
+
+            for ( iRead = 0u; iRead < pOutput->as.tMessage.iPartCount; ++iRead ) {
+                if ( iFirstText == (size_t)-1 &&
+                     pOutput->as.tMessage.pParts[iRead].eKind == XLLM_PART_TEXT &&
+                     pOutput->as.tMessage.pParts[iRead].as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT ) {
+                    iFirstText = iRead;
+                    break;
+                }
+            }
+
+            if ( iFirstText != (size_t)-1 ) {
+                xllm__content_part_free(&pOutput->as.tMessage.pParts[iFirstText]);
+                pOutput->as.tMessage.pParts[iFirstText].eKind = XLLM_PART_JSON;
+                pOutput->as.tMessage.pParts[iFirstText].as.tJsonValue = tJsonValue;
+                tJsonValue = NULL;
+
+                for ( iRead = 0u; iRead < pOutput->as.tMessage.iPartCount; ++iRead ) {
+                    if ( iRead == iFirstText ) {
+                        if ( iWrite != iRead ) {
+                            pOutput->as.tMessage.pParts[iWrite] = pOutput->as.tMessage.pParts[iRead];
+                            memset(&pOutput->as.tMessage.pParts[iRead], 0, sizeof(xllm_content_part));
+                        }
+                        ++iWrite;
+                        continue;
+                    }
+
+                    if ( pOutput->as.tMessage.pParts[iRead].eKind == XLLM_PART_TEXT &&
+                         pOutput->as.tMessage.pParts[iRead].as.tSource.eKind == XLLM_SOURCE_INLINE_TEXT ) {
+                        xllm__content_part_free(&pOutput->as.tMessage.pParts[iRead]);
+                        continue;
+                    }
+
+                    if ( iWrite != iRead ) {
+                        pOutput->as.tMessage.pParts[iWrite] = pOutput->as.tMessage.pParts[iRead];
+                        memset(&pOutput->as.tMessage.pParts[iRead], 0, sizeof(xllm_content_part));
+                    }
+                    ++iWrite;
+                }
+
+                pOutput->as.tMessage.iPartCount = iWrite;
+            }
+        }
+    }
+
+    if ( iToolUseCount > 0u ) {
+        for ( i = 0; i < (size_t)xvoArrayItemCount(tContent); ++i ) {
+            xvalue tItem = xvoArrayGetValue(tContent, (uint32)i);
+            const char *sType;
+            if ( !tItem || xvoType(tItem) != XVO_DT_TABLE ) {
+                continue;
+            }
+            sType = xllm__json_table_get_text(tItem, "type");
+            if ( !sType || strcmp(sType, "tool_use") != 0 ) {
+                continue;
+            }
+
+            {
+                xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+                const char *sCallId = xllm__json_table_get_text(tItem, "id");
+                const char *sToolName = xllm__json_table_get_text(tItem, "name");
+                xvalue tInput = xllm__json_table_get(tItem, "input");
+                char *sArguments = NULL;
+
+                if ( tInput && xvoType(tInput) != XVO_DT_NULL ) {
+                    sArguments = (char *)xrtStringifyJSON(tInput, 0, NULL);
+                }
+                if ( !sArguments ) {
+                    sArguments = xllm__dup_cstr("{}");
+                }
+                if ( !sArguments ) {
+                    goto fail;
+                }
+
+                pOutput->eKind = XLLM_OUTPUT_TOOL_CALL;
+                pOutput->as.tToolCall.sCallId = xllm__dup_cstr(sCallId);
+                pOutput->as.tToolCall.sToolId = xllm__dup_cstr(sToolName);
+                pOutput->as.tToolCall.sToolName = xllm__dup_cstr(sToolName);
+                pOutput->as.tToolCall.sArgumentsJson = sArguments;
+            }
+        }
+    }
+
+    if ( strcmp(sStopReason, "tool_use") == 0 || iToolUseCount > 0u ) {
+        pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+    } else if ( pResponse->eStatus != XLLM_STATUS_REFUSED ) {
+        if ( strcmp(sStopReason, "max_tokens") == 0 ||
+             strcmp(sStopReason, "model_context_window_exceeded") == 0 ||
+             strcmp(sStopReason, "pause_turn") == 0 ) {
+            pResponse->eStatus = XLLM_STATUS_INCOMPLETE;
+        } else {
+            pResponse->eStatus = XLLM_STATUS_COMPLETED;
+        }
+    }
+
+    tUsage = xllm__json_table_get(tRoot, "usage");
+    if ( tUsage && xvoType(tUsage) == XVO_DT_TABLE ) {
+        pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tUsage, "input_tokens");
+        pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tUsage, "output_tokens");
+        pResponse->tUsage.uCachedInputTokens = xllm__json_table_get_u32(tUsage, "cache_read_input_tokens");
+    }
+
+    pResponse->tEffectiveParams = tEffectiveParams;
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    pResponse->tRaw = tRoot;
+
+    *ppResponse = pResponse;
+    xllm__free_cstr(&sVisibleText);
+    xllm__free_cstr(&sThinkingText);
+    xllm__free_cstr(&sThinkingSignature);
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__free_cstr(&sRefusalText);
+    if ( tJsonValue ) {
+        xvoUnref(tJsonValue);
+    }
+    return XRT_NET_OK;
+
+fail:
+    if ( pMessageParts ) {
+        size_t j;
+        for ( j = 0u; j < iMessagePartCount; ++j ) {
+            xllm__content_part_free(&pMessageParts[j]);
+        }
+        xrtFree(pMessageParts);
+    }
+    xllm__free_cstr(&sVisibleText);
+    xllm__free_cstr(&sThinkingText);
+    xllm__free_cstr(&sThinkingSignature);
+    xllm__free_cstr(&sNormalizedJson);
+    xllm__free_cstr(&sRefusalText);
+    xllm__effective_params_reset(&tEffectiveParams);
+    if ( tJsonValue ) {
+        xvoUnref(tJsonValue);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    return XRT_NET_ERROR;
+}
+
+static void xllm__anthropic_fill_error_from_event(xllm_error *pError, xvalue tRoot, const char *sRequestId)
+{
+    xvalue tErrorObj;
+    const char *sType = NULL;
+    const char *sMessage = "anthropic-native stream error";
+
+    if ( !pError ) {
+        return;
+    }
+
+    tErrorObj = xllm__json_table_get(tRoot, "error");
+    if ( tErrorObj && xvoType(tErrorObj) == XVO_DT_TABLE ) {
+        const char *sProviderType = xllm__json_table_get_text(tErrorObj, "type");
+        const char *sProviderMessage = xllm__json_table_get_text(tErrorObj, "message");
+        if ( sProviderType && sProviderType[0] ) {
+            sType = sProviderType;
+        }
+        if ( sProviderMessage && sProviderMessage[0] ) {
+            sMessage = sProviderMessage;
+        }
+    }
+
+    if ( sType && strcmp(sType, "invalid_request_error") == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, sMessage);
+    } else if ( sType && (strcmp(sType, "authentication_error") == 0 || strcmp(sType, "permission_error") == 0) ) {
+        xllm__error_set(pError, XLLM_ERROR_AUTH, sMessage);
+    } else if ( sType && strcmp(sType, "not_found_error") == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, sMessage);
+    } else if ( sType && strcmp(sType, "rate_limit_error") == 0 ) {
+        xllm__error_set(pError, XLLM_ERROR_RATE_LIMIT, sMessage);
+    } else if ( sType && (strcmp(sType, "overloaded_error") == 0 || strcmp(sType, "api_error") == 0) ) {
+        xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, sMessage);
+    } else {
+        xllm__error_set(pError, XLLM_ERROR_INTERNAL, sMessage);
+    }
+
+    if ( sRequestId && sRequestId[0] ) {
+        pError->sRequestId = xllm__dup_cstr(sRequestId);
+    }
+    if ( sType && sType[0] ) {
+        pError->sProviderCode = xllm__dup_cstr(sType);
+    }
+    if ( sMessage && sMessage[0] ) {
+        pError->sProviderMessage = xllm__dup_cstr(sMessage);
+    }
+}
+
+static void xllm__anthropic_stream_set_finish_reason(xllm__openai_stream_context *pCtx, const char *sStopReason)
+{
+    if ( !pCtx || !pCtx->pResponse || !sStopReason || !sStopReason[0] ) {
+        return;
+    }
+
+    xllm__free_cstr((char **)&pCtx->pResponse->sFinishReason);
+    pCtx->pResponse->sFinishReason = xllm__dup_cstr(sStopReason);
+}
+
+static int xllm__anthropic_stream_apply_usage(xllm__openai_stream_context *pCtx, xvalue tUsage)
+{
+    xllm_event tEvent;
+    xvalue tValue;
+
+    if ( !pCtx || !pCtx->pResponse || !tUsage || xvoType(tUsage) != XVO_DT_TABLE ) {
+        return XRT_NET_OK;
+    }
+
+    tValue = xllm__json_table_get(tUsage, "input_tokens");
+    if ( tValue && xvoType(tValue) == XVO_DT_INT ) {
+        pCtx->pResponse->tUsage.uInputTokens = (uint32)xvoGetInt(tValue);
+    }
+    tValue = xllm__json_table_get(tUsage, "output_tokens");
+    if ( tValue && xvoType(tValue) == XVO_DT_INT ) {
+        pCtx->pResponse->tUsage.uOutputTokens = (uint32)xvoGetInt(tValue);
+    }
+    tValue = xllm__json_table_get(tUsage, "cache_read_input_tokens");
+    if ( tValue && xvoType(tValue) == XVO_DT_INT ) {
+        pCtx->pResponse->tUsage.uCachedInputTokens = (uint32)xvoGetInt(tValue);
+    }
+    ++pCtx->uUsageCount;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_USAGE;
+    tEvent.as.tUsage.tUsage = pCtx->pResponse->tUsage;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__anthropic_stream_attach_signature(xllm__openai_stream_context *pCtx, const char *sSignature)
+{
+    xllm_output_item *pOutput = NULL;
+
+    if ( !pCtx || !sSignature || !sSignature[0] ) {
+        return XRT_NET_OK;
+    }
+
+    if ( xllm__openai_stream_ensure_thinking_output(pCtx, &pOutput) != XRT_NET_OK ) {
+        return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+    }
+    if ( !pOutput || pOutput->eKind != XLLM_OUTPUT_THINKING ) {
+        return XRT_NET_ERROR;
+    }
+
+    return xllm__anthropic_set_thinking_vendor_extra(&pOutput->as.tThinking, sSignature);
+}
+
+static int xllm__anthropic_stream_process_payload(
+    xllm__openai_stream_context *pCtx,
+    const char *sPayload,
+    size_t iPayloadLen,
+    const char *sRequestId
+)
+{
+    xvalue tRoot = NULL;
+    const char *sType;
+
+    if ( !pCtx || !sPayload ) {
+        return XRT_NET_ERROR;
+    }
+
+    tRoot = xrtParseJSON((str)sPayload, iPayloadLen);
+    if ( !tRoot || xvoType(tRoot) != XVO_DT_TABLE ) {
+        xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "failed to parse anthropic-native stream event");
+        if ( tRoot ) {
+            xvoUnref(tRoot);
+        }
+        return XRT_NET_ERROR;
+    }
+
+    sType = xllm__json_table_get_text(tRoot, "type");
+    if ( !sType || !sType[0] ) {
+        xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "anthropic-native stream event missing type");
+        xvoUnref(tRoot);
+        return XRT_NET_ERROR;
+    }
+
+    if ( strcmp(sType, "message_stop") == 0 ) {
+        pCtx->bDone = true;
+        ++pCtx->uPayloadCount;
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "done", iPayloadLen);
+        xvoUnref(tRoot);
+        return XRT_NET_OK;
+    }
+
+    if ( strcmp(sType, "ping") == 0 || strcmp(sType, "content_block_stop") == 0 ) {
+        ++pCtx->uPayloadCount;
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "payload", iPayloadLen);
+        xvoUnref(tRoot);
+        return XRT_NET_OK;
+    }
+
+    if ( strcmp(sType, "error") == 0 ) {
+        xllm__anthropic_fill_error_from_event(pCtx->pError, tRoot, sRequestId);
+        xvoUnref(tRoot);
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_ensure_response(pCtx) != XRT_NET_OK ) {
+        xvoUnref(tRoot);
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__openai_stream_emit_start(pCtx) != XRT_NET_OK ) {
+        xvoUnref(tRoot);
+        return XRT_NET_CANCELLED;
+    }
+
+    if ( strcmp(sType, "message_start") == 0 ) {
+        xvalue tMessage = xllm__json_table_get(tRoot, "message");
+        if ( tMessage && xvoType(tMessage) == XVO_DT_TABLE ) {
+            const char *sId = xllm__json_table_get_text(tMessage, "id");
+            const char *sModel = xllm__json_table_get_text(tMessage, "model");
+            if ( !pCtx->pResponse->sId && sId ) {
+                pCtx->pResponse->sId = xllm__dup_cstr(sId);
+            }
+            if ( !pCtx->pResponse->sModel ) {
+                pCtx->pResponse->sModel = xllm__dup_cstr(sModel ? sModel : pCtx->sSelectedModel);
+            }
+            xllm__anthropic_stream_set_finish_reason(pCtx, xllm__json_table_get_text(tMessage, "stop_reason"));
+            if ( xllm__anthropic_stream_apply_usage(pCtx, xllm__json_table_get(tMessage, "usage")) != XRT_NET_OK ) {
+                xvoUnref(tRoot);
+                return XRT_NET_CANCELLED;
+            }
+        }
+    } else if ( strcmp(sType, "content_block_start") == 0 ) {
+        xvalue tBlock = xllm__json_table_get(tRoot, "content_block");
+        xvalue tIndexValue = xllm__json_table_get(tRoot, "index");
+        size_t iToolIndex = 0u;
+
+        if ( tIndexValue && xvoType(tIndexValue) == XVO_DT_INT ) {
+            iToolIndex = (size_t)xvoGetInt(tIndexValue);
+        }
+        if ( tBlock && xvoType(tBlock) == XVO_DT_TABLE ) {
+            const char *sBlockType = xllm__json_table_get_text(tBlock, "type");
+            if ( sBlockType && strcmp(sBlockType, "text") == 0 ) {
+                const char *sText = xllm__json_table_get_text(tBlock, "text");
+                if ( sText && xllm__openai_stream_append_text(pCtx, sText) != XRT_NET_OK ) {
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+            } else if ( sBlockType && strcmp(sBlockType, "thinking") == 0 ) {
+                const char *sThinking = xllm__json_table_get_text(tBlock, "thinking");
+                const char *sSignature = xllm__json_table_get_text(tBlock, "signature");
+                if ( !sThinking ) {
+                    sThinking = xllm__json_table_get_text(tBlock, "text");
+                }
+                if ( sThinking && xllm__openai_stream_append_thinking(pCtx, sThinking) != XRT_NET_OK ) {
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+                if ( sSignature && xllm__anthropic_stream_attach_signature(pCtx, sSignature) != XRT_NET_OK ) {
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+            } else if ( sBlockType && strcmp(sBlockType, "tool_use") == 0 ) {
+                const char *sCallId = xllm__json_table_get_text(tBlock, "id");
+                const char *sToolName = xllm__json_table_get_text(tBlock, "name");
+                xvalue tInput = xllm__json_table_get(tBlock, "input");
+                char *sArguments = NULL;
+
+                if ( tInput && xvoType(tInput) != XVO_DT_NULL ) {
+                    sArguments = (char *)xrtStringifyJSON(tInput, 0, NULL);
+                }
+                if ( !sArguments ) {
+                    sArguments = xllm__dup_cstr("");
+                }
+                if ( !sArguments ) {
+                    xvoUnref(tRoot);
+                    return XRT_NET_ERROR;
+                }
+                if ( xllm__openai_stream_append_tool_delta(pCtx, iToolIndex, sCallId, sToolName, sArguments) != XRT_NET_OK ) {
+                    xrtFree(sArguments);
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+                xrtFree(sArguments);
+            } else if ( sBlockType && (strcmp(sBlockType, "image") == 0 || strcmp(sBlockType, "document") == 0) ) {
+                xvalue tSource = xllm__json_table_get(tBlock, "source");
+                const char *sSourceType = xllm__json_table_get_text(tSource, "type");
+                const char *sMimeType = xllm__json_table_get_text(tSource, "media_type");
+                const char *sName = xllm__json_table_get_text(tBlock, "name");
+                bool bHavePart = false;
+                xllm_content_part tPart;
+
+                memset(&tPart, 0, sizeof(tPart));
+                tPart.eKind = (strcmp(sBlockType, "image") == 0) ? XLLM_PART_IMAGE : XLLM_PART_FILE;
+                tPart.as.tSource.sMimeType = xllm__dup_cstr(sMimeType);
+                tPart.as.tSource.sName = xllm__dup_cstr(sName);
+
+                if ( sSourceType && strcmp(sSourceType, "url") == 0 ) {
+                    const char *sUrl = xllm__json_table_get_text(tSource, "url");
+                    if ( !sUrl || !sUrl[0] ) {
+                        xllm__content_part_free(&tPart);
+                    } else {
+                        tPart.as.tSource.eKind = XLLM_SOURCE_URL;
+                        tPart.as.tSource.as.sUrl = xllm__dup_cstr(sUrl);
+                        if ( !tPart.as.tSource.as.sUrl ) {
+                            xllm__content_part_free(&tPart);
+                            xvoUnref(tRoot);
+                            return XRT_NET_ERROR;
+                        }
+                        bHavePart = true;
+                    }
+                } else if ( sSourceType && strcmp(sSourceType, "file") == 0 ) {
+                    const char *sFileId = xllm__json_table_get_text(tSource, "file_id");
+                    if ( !sFileId || !sFileId[0] ) {
+                        xllm__content_part_free(&tPart);
+                    } else {
+                        tPart.as.tSource.eKind = XLLM_SOURCE_PROVIDER_FILE_ID;
+                        tPart.as.tSource.as.sFileId = xllm__dup_cstr(sFileId);
+                        if ( !tPart.as.tSource.as.sFileId ) {
+                            xllm__content_part_free(&tPart);
+                            xvoUnref(tRoot);
+                            return XRT_NET_ERROR;
+                        }
+                        bHavePart = true;
+                    }
+                } else if ( sSourceType && strcmp(sSourceType, "base64") == 0 ) {
+                    const char *sData = xllm__json_table_get_text(tSource, "data");
+                    size_t iDecodedSize;
+                    void *pDecoded;
+
+                    if ( !sData || !sData[0] ) {
+                        xllm__content_part_free(&tPart);
+                    } else {
+                        iDecodedSize = xllm__openai_base64_decoded_size(sData);
+                        pDecoded = xrtBase64Decode((str)sData, strlen(sData), NULL);
+                        if ( !pDecoded ) {
+                            xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "failed to decode anthropic-native streamed artifact block");
+                            xllm__content_part_free(&tPart);
+                            xvoUnref(tRoot);
+                            return XRT_NET_ERROR;
+                        }
+
+                        tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_BYTES;
+                        tPart.as.tSource.as.tBytes.pData = pDecoded;
+                        tPart.as.tSource.as.tBytes.iSize = iDecodedSize;
+                        bHavePart = true;
+                    }
+                } else {
+                    xllm__content_part_free(&tPart);
+                }
+
+                if ( bHavePart ) {
+                    if ( xllm__openai_stream_append_message_part(pCtx, &tPart) != XRT_NET_OK ) {
+                        xllm__content_part_free(&tPart);
+                        xvoUnref(tRoot);
+                        return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                    }
+                }
+            }
+        }
+    } else if ( strcmp(sType, "content_block_delta") == 0 ) {
+        xvalue tDelta = xllm__json_table_get(tRoot, "delta");
+        xvalue tIndexValue = xllm__json_table_get(tRoot, "index");
+        size_t iToolIndex = 0u;
+
+        if ( tIndexValue && xvoType(tIndexValue) == XVO_DT_INT ) {
+            iToolIndex = (size_t)xvoGetInt(tIndexValue);
+        }
+        if ( tDelta && xvoType(tDelta) == XVO_DT_TABLE ) {
+            const char *sDeltaType = xllm__json_table_get_text(tDelta, "type");
+            if ( sDeltaType && strcmp(sDeltaType, "text_delta") == 0 ) {
+                const char *sText = xllm__json_table_get_text(tDelta, "text");
+                if ( sText && xllm__openai_stream_append_text(pCtx, sText) != XRT_NET_OK ) {
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+            } else if ( sDeltaType && strcmp(sDeltaType, "thinking_delta") == 0 ) {
+                const char *sThinking = xllm__json_table_get_text(tDelta, "thinking");
+                if ( !sThinking ) {
+                    sThinking = xllm__json_table_get_text(tDelta, "text");
+                }
+                if ( sThinking && xllm__openai_stream_append_thinking(pCtx, sThinking) != XRT_NET_OK ) {
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+            } else if ( sDeltaType && strcmp(sDeltaType, "signature_delta") == 0 ) {
+                const char *sSignature = xllm__json_table_get_text(tDelta, "signature");
+                if ( sSignature && xllm__anthropic_stream_attach_signature(pCtx, sSignature) != XRT_NET_OK ) {
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+            } else if ( sDeltaType && strcmp(sDeltaType, "input_json_delta") == 0 ) {
+                const char *sPartialJson = xllm__json_table_get_text(tDelta, "partial_json");
+                if ( sPartialJson && xllm__openai_stream_append_tool_delta(pCtx, iToolIndex, NULL, NULL, sPartialJson) != XRT_NET_OK ) {
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+            }
+        }
+    } else if ( strcmp(sType, "message_delta") == 0 ) {
+        xvalue tDelta = xllm__json_table_get(tRoot, "delta");
+        if ( tDelta && xvoType(tDelta) == XVO_DT_TABLE ) {
+            xllm__anthropic_stream_set_finish_reason(pCtx, xllm__json_table_get_text(tDelta, "stop_reason"));
+        }
+        if ( xllm__anthropic_stream_apply_usage(pCtx, xllm__json_table_get(tRoot, "usage")) != XRT_NET_OK ) {
+            xvoUnref(tRoot);
+            return XRT_NET_CANCELLED;
+        }
+    }
+
+    ++pCtx->uPayloadCount;
+    xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "payload", iPayloadLen);
+    xvoUnref(tRoot);
+    return XRT_NET_OK;
+}
+
+static int xllm__anthropic_stream_process_event_block(
+    xllm__openai_stream_context *pCtx,
+    const char *sEvent,
+    size_t iEventLen,
+    const char *sRequestId
+)
+{
+    xllm__json_builder tPayload;
+    size_t iOffset = 0u;
+    bool bSawData = false;
+    int iStatus;
+
+    if ( !pCtx || !sEvent ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tPayload, 0, sizeof(tPayload));
+    while ( iOffset < iEventLen ) {
+        size_t iLineStart = iOffset;
+        size_t iLineLen;
+        const char *sLine;
+
+        while ( iOffset < iEventLen && sEvent[iOffset] != '\n' ) {
+            ++iOffset;
+        }
+        iLineLen = iOffset - iLineStart;
+        if ( iOffset < iEventLen && sEvent[iOffset] == '\n' ) {
+            ++iOffset;
+        }
+        if ( iLineLen > 0u && sEvent[iLineStart + iLineLen - 1u] == '\r' ) {
+            --iLineLen;
+        }
+        sLine = sEvent + iLineStart;
+
+        if ( iLineLen == 0u || sLine[0] == ':' ) {
+            continue;
+        }
+        if ( iLineLen >= 5u && memcmp(sLine, "data:", 5u) == 0 ) {
+            const char *sData = sLine + 5u;
+            size_t iDataLen = iLineLen - 5u;
+            while ( iDataLen > 0u && (*sData == ' ' || *sData == '\t') ) {
+                ++sData;
+                --iDataLen;
+            }
+            if ( bSawData && !xllm__json_builder_append_char(&tPayload, '\n') ) {
+                xllm__json_builder_reset(&tPayload);
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_bytes(&tPayload, sData, iDataLen) ) {
+                xllm__json_builder_reset(&tPayload);
+                return XRT_NET_ERROR;
+            }
+            bSawData = true;
+        }
+    }
+
+    if ( !bSawData || !tPayload.pData ) {
+        xllm__json_builder_reset(&tPayload);
+        return XRT_NET_OK;
+    }
+
+    iStatus = xllm__anthropic_stream_process_payload(pCtx, tPayload.pData, tPayload.iLen, sRequestId);
+    if ( iStatus == XRT_NET_OK ) {
+        xllm__openai_trace_stream(pCtx->pRuntime, pCtx, "event_block", tPayload.iLen);
+    }
+    xllm__json_builder_reset(&tPayload);
+    return iStatus;
+}
+
+static int xllm__anthropic_stream_process_buffer(
+    xllm__openai_stream_context *pCtx,
+    const char *sBuffer,
+    size_t iLen,
+    const char *sRequestId
+)
+{
+    size_t iCursor;
+
+    if ( !pCtx || !sBuffer ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( iLen <= pCtx->iParsedBytes ) {
+        return XRT_NET_OK;
+    }
+
+    iCursor = pCtx->iParsedBytes;
+    while ( iCursor < iLen ) {
+        size_t i;
+        size_t iEventEnd = (size_t)-1;
+        size_t iDelimiterLen = 0u;
+
+        for ( i = iCursor; i + 1u < iLen; ++i ) {
+            if ( sBuffer[i] == '\n' && sBuffer[i + 1u] == '\n' ) {
+                iEventEnd = i;
+                iDelimiterLen = 2u;
+                break;
+            }
+            if ( i + 3u < iLen &&
+                 sBuffer[i] == '\r' &&
+                 sBuffer[i + 1u] == '\n' &&
+                 sBuffer[i + 2u] == '\r' &&
+                 sBuffer[i + 3u] == '\n' ) {
+                iEventEnd = i;
+                iDelimiterLen = 4u;
+                break;
+            }
+        }
+
+        if ( iEventEnd == (size_t)-1 ) {
+            break;
+        }
+
+        if ( xllm__anthropic_stream_process_event_block(pCtx, sBuffer + iCursor, iEventEnd - iCursor, sRequestId) != XRT_NET_OK ) {
+            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+        }
+        iCursor = iEventEnd + iDelimiterLen;
+        pCtx->iParsedBytes = iCursor;
+    }
+
+    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_OK;
+}
+
+static int xllm__anthropic_stream_finalize_response(xllm__openai_stream_context *pCtx)
+{
+    int iStatus = xllm__openai_stream_finalize_response(pCtx);
+
+    if ( iStatus != XRT_NET_OK || !pCtx || !pCtx->pResponse ) {
+        return iStatus;
+    }
+
+    if ( pCtx->pResponse->sFinishReason ) {
+        if ( strcmp(pCtx->pResponse->sFinishReason, "tool_use") == 0 ) {
+            pCtx->pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+        } else if ( strcmp(pCtx->pResponse->sFinishReason, "max_tokens") == 0 ||
+                    strcmp(pCtx->pResponse->sFinishReason, "model_context_window_exceeded") == 0 ||
+                    strcmp(pCtx->pResponse->sFinishReason, "pause_turn") == 0 ) {
+            pCtx->pResponse->eStatus = XLLM_STATUS_INCOMPLETE;
+        } else if ( strcmp(pCtx->pResponse->sFinishReason, "refusal") == 0 ) {
+            xllm_output_item *pRefusalOutput = NULL;
+            char *sRefusalText = NULL;
+
+            pCtx->pResponse->eStatus = XLLM_STATUS_REFUSED;
+            if ( (!pCtx->pResponse->tRefusal.sText || !pCtx->pResponse->tRefusal.sText[0]) &&
+                 pCtx->pResponse->sVisibleText && pCtx->pResponse->sVisibleText[0] ) {
+                pCtx->pResponse->tRefusal.sText = xllm__dup_cstr(pCtx->pResponse->sVisibleText);
+            }
+
+            if ( pCtx->pResponse->tRefusal.sText && pCtx->pResponse->tRefusal.sText[0] ) {
+                sRefusalText = xllm__dup_cstr(pCtx->pResponse->tRefusal.sText);
+            } else if ( pCtx->pResponse->sVisibleText && pCtx->pResponse->sVisibleText[0] ) {
+                sRefusalText = xllm__dup_cstr(pCtx->pResponse->sVisibleText);
+            }
+
+            if ( sRefusalText && sRefusalText[0] && pCtx->iRefusalOutputIndex == (size_t)-1 ) {
+                if ( pCtx->iMessageOutputIndex != (size_t)-1 &&
+                     pCtx->iMessageOutputIndex < pCtx->pResponse->iOutputCount ) {
+                    pRefusalOutput = &pCtx->pResponse->pOutputs[pCtx->iMessageOutputIndex];
+                    if ( pRefusalOutput->eKind == XLLM_OUTPUT_MESSAGE ) {
+                        size_t i;
+
+                        if ( pRefusalOutput->as.tMessage.pParts ) {
+                            for ( i = 0; i < pRefusalOutput->as.tMessage.iPartCount; ++i ) {
+                                xllm__content_part_free(&pRefusalOutput->as.tMessage.pParts[i]);
+                            }
+                            xrtFree(pRefusalOutput->as.tMessage.pParts);
+                        }
+                        memset(pRefusalOutput, 0, sizeof(*pRefusalOutput));
+                        pRefusalOutput->eKind = XLLM_OUTPUT_REFUSAL;
+                        pRefusalOutput->as.tRefusal.sText = xllm__dup_cstr(sRefusalText);
+                        if ( !pRefusalOutput->as.tRefusal.sText ) {
+                            xllm__free_cstr(&sRefusalText);
+                            return XRT_NET_ERROR;
+                        }
+                        pCtx->iRefusalOutputIndex = pCtx->iMessageOutputIndex;
+                        pCtx->iMessageOutputIndex = (size_t)-1;
+                    }
+                }
+
+                if ( pCtx->iRefusalOutputIndex == (size_t)-1 ) {
+                    size_t iNewIndex = (size_t)-1;
+
+                    if ( xllm__openai_stream_append_output(pCtx, XLLM_OUTPUT_REFUSAL, &iNewIndex) != XRT_NET_OK ) {
+                        xllm__free_cstr(&sRefusalText);
+                        return XRT_NET_ERROR;
+                    }
+                    pRefusalOutput = &pCtx->pResponse->pOutputs[iNewIndex];
+                    pRefusalOutput->as.tRefusal.sText = xllm__dup_cstr(sRefusalText);
+                    if ( !pRefusalOutput->as.tRefusal.sText ) {
+                        xllm__free_cstr(&sRefusalText);
+                        return XRT_NET_ERROR;
+                    }
+                    pCtx->iRefusalOutputIndex = iNewIndex;
+                }
+            }
+
+            xllm__free_cstr(&sRefusalText);
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static int32 xllm__anthropic_native_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    const char *sContentType = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    bool bMultimodal = false;
+    bool bTreatAsSse = false;
+    bool bParsedSse = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xvalue tRoot = NULL;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppResponse = NULL;
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.pRuntime = pRuntime;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, &bMultimodal);
+    tStream.sSelectedModel = sModel;
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for anthropic-native request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(&tEffectiveParams, pProfile, pRequest, XLLM_STREAM_PREFER) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( xllm__anthropic_build_chat_body(&tBody, pProfile, pRequest, &tEffectiveParams, pOptions, sModel, true, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) goto fail;
+
+    sUrl = xllm__anthropic_build_url(pProfile->sBaseUrl);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__anthropic_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( !xrtHttpRequestSetHeader(&tHttpRequest, "Accept", "text/event-stream") ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__anthropic_component_name(),
+        "request start: model=%s streaming=true live=false attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__anthropic_trace_request(pRuntime, pProfile, pRequest, sModel, true, false, uAttempt, strlen(sBody));
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "anthropic-native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "anthropic-native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "anthropic-native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "request-id");
+    if ( !sRequestId ) {
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    }
+
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__anthropic_fill_error_from_http(pError, pHttpResponse, tRoot, sRequestId);
+        goto fail;
+    }
+
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "anthropic-native streaming response body is empty");
+        goto fail;
+    }
+
+    sContentType = xrtHttpResponseHeader(pHttpResponse, "content-type");
+    bTreatAsSse = xllm__buffer_starts_with_sse_data(pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !bTreatAsSse && sContentType ) {
+        bTreatAsSse = xllm__text_contains_ci(sContentType, "text/event-stream");
+    }
+
+    if ( bTreatAsSse ) {
+        if ( xllm__anthropic_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen, sRequestId) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "anthropic-native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+        if ( tStream.iParsedBytes < pHttpResponse->iBodyLen ) {
+            size_t iRemain = pHttpResponse->iBodyLen - tStream.iParsedBytes;
+            if ( xllm__anthropic_stream_process_event_block(&tStream, pHttpResponse->pBody + tStream.iParsedBytes, iRemain, sRequestId) != XRT_NET_OK ) {
+                if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "anthropic-native stream cancelled");
+                }
+                iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                goto fail;
+            }
+            tStream.iParsedBytes = pHttpResponse->iBodyLen;
+        }
+        bParsedSse = tStream.iParsedBytes > 0u || tStream.bDone || tStream.pResponse != NULL;
+    }
+
+    if ( bParsedSse ) {
+        if ( xllm__anthropic_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+            if ( pError && pError->eCode == XLLM_ERROR_NONE && tStream.bCancelled ) {
+                xllm__error_set(pError, XLLM_ERROR_CANCELLED, "anthropic-native stream cancelled");
+            }
+            iStatus = tStream.bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+            goto fail;
+        }
+
+        pResponse = tStream.pResponse;
+        tStream.pResponse = NULL;
+        if ( !pResponse ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "anthropic-native stream did not produce a response");
+            goto fail;
+        }
+
+        *ppResponse = pResponse;
+        pResponse = NULL;
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_INFO,
+            xllm__anthropic_component_name(),
+            "response complete: model=%s streaming=true live=false attempt=%u status=%s outputs=%u",
+            (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+            (unsigned)uAttempt,
+            xllm__openai_response_status_name((*ppResponse)->eStatus),
+            (unsigned)(*ppResponse)->iOutputCount
+        );
+        xllm__anthropic_trace_response(pRuntime, *ppResponse, (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel, pHttpResponse, sRequestId, NULL, XRT_NET_OK, uAttempt, false, true, false);
+        iStatus = XRT_NET_OK;
+        goto fail;
+    }
+
+    if ( pOptions && pOptions->eStreamMode == XLLM_STREAM_REQUIRE ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "anthropic-native upstream did not return an SSE stream");
+        goto fail;
+    }
+
+    tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse anthropic-native streaming fallback response");
+        goto fail;
+    }
+    if ( xllm__anthropic_build_response(pProfile, pRequest, pOptions, tRoot, &pResponse, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    tRoot = NULL;
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        if ( pError && pError->eCode == XLLM_ERROR_NONE ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "anthropic-native stream cancelled");
+        }
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__anthropic_component_name(),
+        "response fallback complete: model=%s streaming=true live=false attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__anthropic_trace_response(pRuntime, *ppResponse, (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel, pHttpResponse, sRequestId, NULL, XRT_NET_OK, uAttempt, false, true, false);
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__anthropic_component_name(),
+                "response failed: model=%s streaming=true live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__anthropic_trace_response(pRuntime, NULL, sModel, pHttpResponse, sRequestId, pError, iTraceTransportStatus, uAttempt, true, true, false);
+            if ( tRoot ) {
+                xvoUnref(tRoot);
+                tRoot = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            sRequestId = NULL;
+            sContentType = NULL;
+            bTreatAsSse = false;
+            bParsedSse = false;
+            iNetStatus = XRT_NET_ERROR;
+            iStatus = XRT_NET_ERROR;
+            xllm__openai_stream_reset_attempt_state(&tStream);
+            if ( pError ) {
+                xllm_error_reset(pError);
+            }
+            if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+                if ( pError ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "anthropic-native request cancelled");
+                }
+                iStatus = XRT_NET_CANCELLED;
+            } else {
+                xllm__openai_retry_sleep(uDelayMs);
+                goto retry_execute;
+            }
+        }
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__anthropic_component_name(),
+            "response failed: model=%s streaming=true live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)uAttempt,
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__anthropic_trace_response(pRuntime, NULL, sModel, pHttpResponse, sRequestId, pError, iTraceTransportStatus, uAttempt, bRetryable, true, false);
+    }
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__openai_stream_reset_attempt_state(&tStream);
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__anthropic_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    const char *sRequestId = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    bool bMultimodal = false;
+    bool bRetryable = false;
+    int iStatus = XRT_NET_ERROR;
+    xvalue tRoot = NULL;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+
+    if ( !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pOptions && (pOptions->eStreamMode == XLLM_STREAM_PREFER || pOptions->eStreamMode == XLLM_STREAM_REQUIRE) ) {
+        return xllm__anthropic_native_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+
+    *ppResponse = NULL;
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, &bMultimodal);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for anthropic-native request");
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_fill_effective_params(&tEffectiveParams, pProfile, pRequest, XLLM_STREAM_OFF) != XRT_NET_OK ) {
+        goto fail;
+    }
+    if ( xllm__anthropic_build_chat_body(&tBody, pProfile, pRequest, &tEffectiveParams, pOptions, sModel, false, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) goto fail;
+
+    sUrl = xllm__anthropic_build_url(pProfile->sBaseUrl);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "anthropic-native profile missing base url");
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__anthropic_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__anthropic_component_name(),
+        "request start: model=%s streaming=false live=false attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__anthropic_trace_request(pRuntime, pProfile, pRequest, sModel, false, false, uAttempt, strlen(sBody));
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "anthropic-native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "anthropic-native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "anthropic-native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    sRequestId = xrtHttpResponseHeader(pHttpResponse, "request-id");
+    if ( !sRequestId ) {
+        sRequestId = xrtHttpResponseHeader(pHttpResponse, "x-request-id");
+    }
+
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__anthropic_fill_error_from_http(pError, pHttpResponse, tRoot, sRequestId);
+        goto fail;
+    }
+
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "anthropic-native response body is empty");
+        goto fail;
+    }
+
+    tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse anthropic-native response json");
+        goto fail;
+    }
+    if ( xllm__anthropic_build_response(pProfile, pRequest, pOptions, tRoot, &pResponse, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+    tRoot = NULL;
+
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__anthropic_component_name(),
+        "response complete: model=%s streaming=false live=false attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__anthropic_trace_response(
+        pRuntime,
+        *ppResponse,
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        pHttpResponse,
+        sRequestId,
+        NULL,
+        XRT_NET_OK,
+        uAttempt,
+        false,
+        false,
+        false
+    );
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : (int32)iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__anthropic_component_name(),
+                "response failed: model=%s streaming=false live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__anthropic_trace_response(pRuntime, NULL, sModel, pHttpResponse, sRequestId, pError, iTraceTransportStatus, uAttempt, true, false, false);
+            if ( tRoot ) {
+                xvoUnref(tRoot);
+                tRoot = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            sRequestId = NULL;
+            iNetStatus = XRT_NET_ERROR;
+            iStatus = XRT_NET_ERROR;
+            if ( pError ) {
+                xllm_error_reset(pError);
+            }
+            if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+                if ( pError ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "anthropic-native request cancelled");
+                }
+                iStatus = XRT_NET_CANCELLED;
+            } else {
+                xllm__openai_retry_sleep(uDelayMs);
+                goto retry_execute;
+            }
+        }
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__anthropic_component_name(),
+            "response failed: model=%s streaming=false live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)uAttempt,
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__anthropic_trace_response(pRuntime, NULL, sModel, pHttpResponse, sRequestId, pError, iTraceTransportStatus, uAttempt, bRetryable, false, false);
+    }
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+XLLM_API int xllm_register_anthropic_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_ANTHROPIC_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__anthropic_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_anthropic.c ===== */
+
+/* ===== begin: D:/git/xllm/src/xllm_adapter/xllm_adapter_ollama.c ===== */
+
+static const char *xllm__ollama_component_name(void)
+{
+    return "xllm.ollama_native";
+}
+
+static void xllm__ollama_trace_request(
+    xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const char *sModel,
+    bool bStreaming,
+    uint32 uAttempt,
+    size_t iBodyBytes
+)
+{
+    xvalue tPayload;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnTrace ) {
+        return;
+    }
+
+    tPayload = xvoCreateTable();
+    if ( !tPayload ) {
+        return;
+    }
+
+    xllm__openai_trace_table_set_text(tPayload, "phase", "request");
+    xllm__openai_trace_table_set_text(tPayload, "adapter", XLLM_ADAPTER_OLLAMA_NATIVE);
+    xllm__openai_trace_table_set_text(tPayload, "provider", pProfile && pProfile->sProvider ? pProfile->sProvider : "ollama");
+    xllm__openai_trace_table_set_text(tPayload, "profile_id", pProfile ? pProfile->sId : NULL);
+    xllm__openai_trace_table_set_text(tPayload, "model", sModel);
+    xllm__openai_trace_table_set_bool(tPayload, "streaming", bStreaming);
+    xllm__openai_trace_table_set_bool(tPayload, "live", false);
+    xllm__openai_trace_table_set_u32(tPayload, "attempt", uAttempt);
+    xllm__openai_trace_table_set_u32(tPayload, "body_bytes", (uint32)iBodyBytes);
+    xllm__openai_trace_table_set_u32(tPayload, "message_count", (uint32)(pRequest ? pRequest->iMessageCount : 0u));
+    xllm__openai_trace_emit(pRuntime, XLLM_TRACE_REQUEST, tPayload);
+}
+
+static void xllm__ollama_trace_response(
+    xllm_runtime *pRuntime,
+    const xllm_response *pResponse,
+    const char *sModel,
+    const xhttpresponse *pHttpResponse,
+    const xllm_error *pError,
+    int32 iTransportStatus,
+    uint32 uAttempt,
+    bool bRetryable,
+    bool bStreaming
+)
+{
+    xvalue tPayload;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnTrace ) {
+        return;
+    }
+
+    tPayload = xvoCreateTable();
+    if ( !tPayload ) {
+        return;
+    }
+
+    xllm__openai_trace_table_set_text(tPayload, "phase", "response");
+    xllm__openai_trace_table_set_text(tPayload, "adapter", XLLM_ADAPTER_OLLAMA_NATIVE);
+    xllm__openai_trace_table_set_text(
+        tPayload,
+        "provider",
+        pResponse && pResponse->sProvider ? pResponse->sProvider : "ollama"
+    );
+    xllm__openai_trace_table_set_text(
+        tPayload,
+        "profile_id",
+        pResponse ? pResponse->sProfileId : NULL
+    );
+    xllm__openai_trace_table_set_text(
+        tPayload,
+        "model",
+        pResponse && pResponse->sModel ? pResponse->sModel : sModel
+    );
+    xllm__openai_trace_table_set_bool(tPayload, "streaming", bStreaming);
+    xllm__openai_trace_table_set_bool(tPayload, "live", false);
+    xllm__openai_trace_table_set_bool(tPayload, "success", pResponse != NULL);
+    xllm__openai_trace_table_set_u32(tPayload, "attempt", uAttempt);
+    xllm__openai_trace_table_set_i32(tPayload, "transport_status", iTransportStatus);
+    xllm__openai_trace_table_set_bool(tPayload, "retryable", bRetryable);
+    if ( pHttpResponse ) {
+        xllm__openai_trace_table_set_u32(tPayload, "http_status", pHttpResponse->iStatusCode);
+    }
+    if ( pResponse ) {
+        xllm__openai_trace_table_set_text(
+            tPayload,
+            "response_status",
+            xllm__openai_response_status_name(pResponse->eStatus)
+        );
+        xllm__openai_trace_table_set_text(tPayload, "finish_reason", pResponse->sFinishReason);
+        xllm__openai_trace_table_set_u32(tPayload, "output_count", (uint32)pResponse->iOutputCount);
+    } else if ( pError ) {
+        xllm__openai_trace_table_set_text(
+            tPayload,
+            "error_code",
+            xllm__openai_error_code_name(pError->eCode)
+        );
+        xllm__openai_trace_table_set_text(tPayload, "error_message", pError->sMessage);
+        xllm__openai_trace_table_set_text(tPayload, "request_id", pError->sRequestId);
+    }
+
+    xllm__openai_trace_emit(pRuntime, XLLM_TRACE_RESPONSE, tPayload);
+}
+
+static void xllm__ollama_trace_stream(
+    xllm_runtime *pRuntime,
+    const xllm__openai_stream_context *pCtx,
+    const char *sPhase,
+    size_t iPayloadBytes
+)
+{
+    xvalue tPayload;
+
+    if ( !pRuntime || !pRuntime->tOptions.pfnTrace || !pCtx || !sPhase ) {
+        return;
+    }
+
+    tPayload = xvoCreateTable();
+    if ( !tPayload ) {
+        return;
+    }
+
+    xllm__openai_trace_table_set_text(tPayload, "phase", sPhase);
+    xllm__openai_trace_table_set_text(tPayload, "adapter", XLLM_ADAPTER_OLLAMA_NATIVE);
+    xllm__openai_trace_table_set_bool(tPayload, "streaming", true);
+    xllm__openai_trace_table_set_u32(tPayload, "payload_bytes", (uint32)iPayloadBytes);
+    xllm__openai_trace_table_set_u32(tPayload, "payload_count", pCtx->uPayloadCount);
+    xllm__openai_trace_table_set_u32(tPayload, "text_delta_count", pCtx->uTextDeltaCount);
+    xllm__openai_trace_table_set_u32(tPayload, "thinking_delta_count", pCtx->uThinkingDeltaCount);
+    xllm__openai_trace_table_set_u32(tPayload, "tool_delta_count", pCtx->uToolDeltaCount);
+    xllm__openai_trace_table_set_u32(tPayload, "usage_count", pCtx->uUsageCount);
+    xllm__openai_trace_table_set_u32(tPayload, "refusal_count", pCtx->uRefusalCount);
+    xllm__openai_trace_table_set_bool(tPayload, "done", pCtx->bDone);
+    xllm__openai_trace_table_set_bool(tPayload, "cancelled", pCtx->bCancelled);
+    if ( pCtx->sSelectedModel ) {
+        xllm__openai_trace_table_set_text(tPayload, "model", pCtx->sSelectedModel);
+    }
+    if ( pCtx->pResponse && pCtx->pResponse->sFinishReason ) {
+        xllm__openai_trace_table_set_text(tPayload, "finish_reason", pCtx->pResponse->sFinishReason);
+    }
+    xllm__openai_trace_emit(pRuntime, XLLM_TRACE_STREAM, tPayload);
+}
+
+static char *xllm__ollama_build_url(const char *sBaseUrl)
+{
+    static const char sPath[] = "api/chat";
+    size_t iLen;
+    bool bNeedsSlash;
+    char *sUrl;
+
+    if ( !sBaseUrl || !sBaseUrl[0] ) {
+        return NULL;
+    }
+
+    if ( strstr(sBaseUrl, "/api/chat") != NULL ) {
+        return xllm__dup_cstr(sBaseUrl);
+    }
+
+    iLen = strlen(sBaseUrl);
+    bNeedsSlash = (iLen > 0u && sBaseUrl[iLen - 1u] != '/');
+    sUrl = (char *)xrtCalloc(iLen + (bNeedsSlash ? 1u : 0u) + sizeof(sPath), sizeof(char));
+    if ( !sUrl ) {
+        return NULL;
+    }
+
+    memcpy(sUrl, sBaseUrl, iLen);
+    if ( bNeedsSlash ) {
+        sUrl[iLen++] = '/';
+    }
+    memcpy(sUrl + iLen, sPath, sizeof(sPath));
+    return sUrl;
+}
+
+static int xllm__ollama_append_options(
+    xllm__json_builder *pBody,
+    const xllm_effective_params *pEffectiveParams
+)
+{
+    bool bHasOption = false;
+    size_t i;
+
+    if ( !pBody || !pEffectiveParams ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !pEffectiveParams->tGeneration.tTemperature.bSet &&
+         !pEffectiveParams->tGeneration.tTopP.bSet &&
+         !pEffectiveParams->tGeneration.tMaxOutputTokens.bSet &&
+         !pEffectiveParams->tGeneration.tSeed.bSet &&
+         pEffectiveParams->tGeneration.iStopCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBody, ",\"options\":{") ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( pEffectiveParams->tGeneration.tTemperature.bSet ) {
+        if ( bHasOption && !xllm__json_builder_append_char(pBody, ',') ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_cstr(pBody, "\"temperature\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTemperature.fValue) ) return XRT_NET_ERROR;
+        bHasOption = true;
+    }
+    if ( pEffectiveParams->tGeneration.tTopP.bSet ) {
+        if ( bHasOption && !xllm__json_builder_append_char(pBody, ',') ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_cstr(pBody, "\"top_p\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_f64(pBody, pEffectiveParams->tGeneration.tTopP.fValue) ) return XRT_NET_ERROR;
+        bHasOption = true;
+    }
+    if ( pEffectiveParams->tGeneration.tMaxOutputTokens.bSet ) {
+        if ( bHasOption && !xllm__json_builder_append_char(pBody, ',') ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_cstr(pBody, "\"num_predict\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tMaxOutputTokens.iValue) ) return XRT_NET_ERROR;
+        bHasOption = true;
+    }
+    if ( pEffectiveParams->tGeneration.tSeed.bSet ) {
+        if ( bHasOption && !xllm__json_builder_append_char(pBody, ',') ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_cstr(pBody, "\"seed\":") ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_u32(pBody, pEffectiveParams->tGeneration.tSeed.iValue) ) return XRT_NET_ERROR;
+        bHasOption = true;
+    }
+    if ( pEffectiveParams->tGeneration.iStopCount > 0u && pEffectiveParams->tGeneration.psStop ) {
+        if ( bHasOption && !xllm__json_builder_append_char(pBody, ',') ) return XRT_NET_ERROR;
+        if ( !xllm__json_builder_append_cstr(pBody, "\"stop\":[") ) return XRT_NET_ERROR;
+        for ( i = 0; i < pEffectiveParams->tGeneration.iStopCount; ++i ) {
+            if ( i > 0u && !xllm__json_builder_append_char(pBody, ',') ) return XRT_NET_ERROR;
+            if ( !xllm__json_builder_append_escaped(
+                    pBody,
+                    pEffectiveParams->tGeneration.psStop[i] ? pEffectiveParams->tGeneration.psStop[i] : ""
+                 ) ) {
+                return XRT_NET_ERROR;
+            }
+        }
+        if ( !xllm__json_builder_append_char(pBody, ']') ) return XRT_NET_ERROR;
+    }
+
+    return xllm__json_builder_append_char(pBody, '}') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__ollama_append_message_tool_calls(
+    xllm__json_builder *pBuilder,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    size_t i;
+
+    if ( !pBuilder || !pMessage || pMessage->iToolCallCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_calls\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pMessage->iToolCallCount; ++i ) {
+        const xllm_tool_call *pCall = &pMessage->pToolCalls[i];
+        const char *sToolName = pCall->sToolName ? pCall->sToolName : pCall->sToolId;
+        xvalue tArguments = NULL;
+        char *sNormalized = NULL;
+
+        if ( !sToolName || !sToolName[0] ) {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native assistant tool call missing tool name");
+            return XRT_NET_ERROR;
+        }
+        if ( i > 0u && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( pCall->sArgumentsJson && pCall->sArgumentsJson[0] ) {
+            tArguments = xllm__parse_json_range(pCall->sArgumentsJson, strlen(pCall->sArgumentsJson), &sNormalized);
+            if ( !tArguments ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native assistant tool call arguments_json is not valid json");
+                return XRT_NET_ERROR;
+            }
+        }
+
+        if ( !xllm__json_builder_append_cstr(pBuilder, "{\"function\":{\"name\":") ) {
+            if ( tArguments ) {
+                xvoUnref(tArguments);
+            }
+            xrtFree(sNormalized);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_escaped(pBuilder, sToolName) ) {
+            if ( tArguments ) {
+                xvoUnref(tArguments);
+            }
+            xrtFree(sNormalized);
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"arguments\":") ) {
+            if ( tArguments ) {
+                xvoUnref(tArguments);
+            }
+            xrtFree(sNormalized);
+            return XRT_NET_ERROR;
+        }
+        if ( sNormalized ) {
+            if ( !xllm__json_builder_append_cstr(pBuilder, sNormalized) ) {
+                if ( tArguments ) {
+                    xvoUnref(tArguments);
+                }
+                xrtFree(sNormalized);
+                return XRT_NET_ERROR;
+            }
+        } else if ( !xllm__json_builder_append_cstr(pBuilder, "{}") ) {
+            if ( tArguments ) {
+                xvoUnref(tArguments);
+            }
+            return XRT_NET_ERROR;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+            if ( tArguments ) {
+                xvoUnref(tArguments);
+            }
+            xrtFree(sNormalized);
+            return XRT_NET_ERROR;
+        }
+
+        if ( tArguments ) {
+            xvoUnref(tArguments);
+        }
+        xrtFree(sNormalized);
+    }
+
+    return xllm__json_builder_append_char(pBuilder, ']') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__ollama_append_image_input(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    char *sBase64 = NULL;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+
+    memset(&tHttpRequest, 0, sizeof(tHttpRequest));
+
+    if ( !pBuilder || !pPart ) {
+        return XRT_NET_ERROR;
+    }
+
+    switch ( pPart->as.tSource.eKind ) {
+        case XLLM_SOURCE_INLINE_BYTES:
+            break;
+        case XLLM_SOURCE_URL:
+            if ( !pPart->as.tSource.as.sUrl || !pPart->as.tSource.as.sUrl[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native image url input is empty");
+                return XRT_NET_ERROR;
+            }
+            xrtHttpRequestInit(&tHttpRequest);
+            if ( !xrtHttpRequestSetURL(&tHttpRequest, pPart->as.tSource.as.sUrl) ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "failed to set ollama-native image url request");
+                xrtHttpRequestUnit(&tHttpRequest);
+                return XRT_NET_ERROR;
+            }
+            if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) {
+                xrtHttpRequestUnit(&tHttpRequest);
+                return XRT_NET_ERROR;
+            }
+            pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+            xrtHttpRequestUnit(&tHttpRequest);
+            if ( !pHttpResponse ) {
+                if ( iNetStatus == XRT_NET_TIMEOUT ) {
+                    xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "ollama-native image url download timed out");
+                } else {
+                    xllm__error_set(pError, XLLM_ERROR_NETWORK, "ollama-native image url download failed");
+                }
+                return XRT_NET_ERROR;
+            }
+            if ( pHttpResponse->iStatusCode >= 400u ) {
+                if ( pHttpResponse->iStatusCode >= 500u ) {
+                    xllm__error_set(pError, XLLM_ERROR_UPSTREAM_5XX, "ollama-native image url download returned 5xx");
+                } else {
+                    xllm__error_set(pError, XLLM_ERROR_UPSTREAM_4XX, "ollama-native image url download returned 4xx");
+                }
+                pError->iHttpStatus = (int)pHttpResponse->iStatusCode;
+                xrtHttpResponseDestroy(pHttpResponse);
+                return XRT_NET_ERROR;
+            }
+            if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+                xllm__error_set(pError, XLLM_ERROR_PARSE, "ollama-native image url download returned empty body");
+                xrtHttpResponseDestroy(pHttpResponse);
+                return XRT_NET_ERROR;
+            }
+            sBase64 = (char *)xrtBase64Encode((ptr)pHttpResponse->pBody, pHttpResponse->iBodyLen, NULL);
+            xrtHttpResponseDestroy(pHttpResponse);
+            pHttpResponse = NULL;
+            if ( !sBase64 ) {
+                xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode downloaded ollama-native image bytes");
+                return XRT_NET_ERROR;
+            }
+            break;
+        case XLLM_SOURCE_PROVIDER_FILE_ID:
+            xllm__error_set(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                "ollama-native image provider file_id input is not supported by the REST chat API; use inline bytes"
+            );
+            return XRT_NET_ERROR;
+        case XLLM_SOURCE_INLINE_TEXT:
+        default:
+            xllm__error_set(
+                pError,
+                XLLM_ERROR_UNSUPPORTED_INPUT_TYPE,
+                "ollama-native image input only supports inline bytes"
+            );
+            return XRT_NET_ERROR;
+    }
+
+    if ( !sBase64 ) {
+        if ( !pPart->as.tSource.as.tBytes.pData || pPart->as.tSource.as.tBytes.iSize == 0u ) {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native image bytes input is empty");
+            return XRT_NET_ERROR;
+        }
+        sBase64 = (char *)xrtBase64Encode(
+            (ptr)pPart->as.tSource.as.tBytes.pData,
+            pPart->as.tSource.as.tBytes.iSize,
+            NULL
+        );
+        if ( !sBase64 ) {
+            xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to base64 encode ollama-native image bytes");
+            return XRT_NET_ERROR;
+        }
+    }
+
+    if ( !xllm__json_builder_append_escaped(pBuilder, sBase64) ) {
+        xrtFree(sBase64);
+        return XRT_NET_ERROR;
+    }
+
+    xrtFree(sBase64);
+    return XRT_NET_OK;
+}
+
+static int xllm__ollama_append_message(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_call_options *pOptions,
+    const xllm_message *pMessage,
+    xllm_error *pError
+)
+{
+    const char *sRole;
+    xllm__json_builder tContent;
+    xllm__json_builder tImages;
+    bool bHasContent = false;
+    bool bHasImages = false;
+    size_t i;
+
+    if ( !pBuilder || !pMessage ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tContent, 0, sizeof(tContent));
+    memset(&tImages, 0, sizeof(tImages));
+    sRole = xllm__openai_role_name(pMessage->eRole);
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "{\"role\":") ) goto fail;
+    if ( !xllm__json_builder_append_escaped(pBuilder, sRole) ) goto fail;
+
+    if ( pMessage->eRole == XLLM_ROLE_TOOL ) {
+        if ( !pMessage->sToolName || !pMessage->sToolName[0] ) {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native tool result message missing tool_name");
+            goto fail;
+        }
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tool_name\":") ) goto fail;
+        if ( !xllm__json_builder_append_escaped(pBuilder, pMessage->sToolName) ) goto fail;
+    }
+
+    if ( pMessage->eRole == XLLM_ROLE_ASSISTANT && pMessage->iToolCallCount > 0u ) {
+        if ( xllm__ollama_append_message_tool_calls(pBuilder, pMessage, pError) != XRT_NET_OK ) {
+            goto fail;
+        }
+    }
+
+    for ( i = 0; i < pMessage->iPartCount; ++i ) {
+        const xllm_content_part *pPart = &pMessage->pParts[i];
+
+        switch ( pPart->eKind ) {
+            case XLLM_PART_TEXT:
+                if ( pPart->as.tSource.eKind != XLLM_SOURCE_INLINE_TEXT ) {
+                    xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_INPUT_TYPE, "ollama-native adapter currently only supports inline text content");
+                    goto fail;
+                }
+                if ( bHasContent && !xllm__json_builder_append_char(&tContent, '\n') ) goto fail;
+                if ( !xllm__json_builder_append_cstr(&tContent, pPart->as.tSource.as.sText ? pPart->as.tSource.as.sText : "") ) goto fail;
+                bHasContent = true;
+                break;
+            case XLLM_PART_JSON: {
+                char *sJson = (char *)xrtStringifyJSON(pPart->as.tJsonValue, 0, NULL);
+                if ( !sJson ) {
+                    xllm__error_set(pError, XLLM_ERROR_INTERNAL, "failed to stringify ollama-native json part");
+                    goto fail;
+                }
+                if ( bHasContent && !xllm__json_builder_append_char(&tContent, '\n') ) {
+                    xrtFree(sJson);
+                    goto fail;
+                }
+                if ( !xllm__json_builder_append_cstr(&tContent, sJson) ) {
+                    xrtFree(sJson);
+                    goto fail;
+                }
+                xrtFree(sJson);
+                bHasContent = true;
+                break;
+            }
+            case XLLM_PART_IMAGE:
+                if ( pMessage->eRole != XLLM_ROLE_USER &&
+                     pMessage->eRole != XLLM_ROLE_ASSISTANT ) {
+                    xllm__error_set(
+                        pError,
+                        XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                        "ollama-native multimodal input currently only supports user or assistant image messages"
+                    );
+                    goto fail;
+                }
+                if ( !bHasImages ) {
+                    if ( !xllm__json_builder_append_char(&tImages, '[') ) goto fail;
+                } else if ( !xllm__json_builder_append_char(&tImages, ',') ) {
+                    goto fail;
+                }
+                if ( xllm__ollama_append_image_input(&tImages, pRuntime, pProfile, pOptions, pPart, pError) != XRT_NET_OK ) goto fail;
+                bHasImages = true;
+                break;
+            default:
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_UNSUPPORTED_CAPABILITY,
+                    "ollama-native multimodal input currently only supports text, json, and image parts"
+                );
+                goto fail;
+        }
+    }
+
+    if ( bHasContent || bHasImages ) {
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"content\":") ) goto fail;
+        if ( bHasContent ) {
+            if ( !xllm__json_builder_append_escaped(pBuilder, tContent.pData ? tContent.pData : "") ) goto fail;
+        } else if ( !xllm__json_builder_append_escaped(pBuilder, "") ) {
+            goto fail;
+        }
+    }
+
+    if ( bHasImages ) {
+        if ( !xllm__json_builder_append_char(&tImages, ']') ) goto fail;
+        if ( !xllm__json_builder_append_cstr(pBuilder, ",\"images\":") ) goto fail;
+        if ( !xllm__json_builder_append_cstr(pBuilder, tImages.pData ? tImages.pData : "[]") ) goto fail;
+    }
+
+    if ( !xllm__json_builder_append_char(pBuilder, '}') ) goto fail;
+
+    xllm__json_builder_reset(&tContent);
+    xllm__json_builder_reset(&tImages);
+    return XRT_NET_OK;
+
+fail:
+    xllm__json_builder_reset(&tContent);
+    xllm__json_builder_reset(&tImages);
+    return XRT_NET_ERROR;
+}
+
+static int xllm__ollama_append_context_messages(
+    xllm__json_builder *pBuilder,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_error *pError
+)
+{
+    size_t i;
+    bool bNeedComma = false;
+
+    if ( !pBuilder || !pRequest ) {
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, "\"messages\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pRequest->iContextBlockCount; ++i ) {
+        size_t j;
+        for ( j = 0; j < pRequest->pContextBlocks[i].iMessageCount; ++j ) {
+            if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+                return XRT_NET_ERROR;
+            }
+            if ( xllm__ollama_append_message(
+                     pBuilder,
+                     pRuntime,
+                     pProfile,
+                     pOptions,
+                     &pRequest->pContextBlocks[i].pMessages[j],
+                     pError) != XRT_NET_OK ) {
+                return XRT_NET_ERROR;
+            }
+            bNeedComma = true;
+        }
+    }
+
+    for ( i = 0; i < pRequest->iMessageCount; ++i ) {
+        if ( bNeedComma && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__ollama_append_message(pBuilder, pRuntime, pProfile, pOptions, &pRequest->pMessages[i], pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        bNeedComma = true;
+    }
+
+    return xllm__json_builder_append_char(pBuilder, ']') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__ollama_append_tools(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError
+)
+{
+    size_t i;
+    bool bHasTool = false;
+
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pRequest->tToolPolicy.eMode == XLLM_TOOL_CHOICE_NONE ) {
+        return XRT_NET_OK;
+    }
+
+    if ( !xllm__json_builder_append_cstr(pBuilder, ",\"tools\":[") ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0; i < pRequest->iToolCount; ++i ) {
+        const xllm_tool_def *pTool = &pRequest->pTools[i];
+
+        if ( bHasTool && !xllm__json_builder_append_char(pBuilder, ',') ) {
+            return XRT_NET_ERROR;
+        }
+
+        if ( pTool->eKind == XLLM_TOOL_PROVIDER ) {
+            char *sProviderToolJson = NULL;
+
+            if ( !pTool->tVendorExtra || xvoType(pTool->tVendorExtra) != XVO_DT_TABLE ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INVALID_REQUEST,
+                    "ollama-native provider tool requires vendor_extra object"
+                );
+                return XRT_NET_ERROR;
+            }
+
+            sProviderToolJson = (char *)xrtStringifyJSON(pTool->tVendorExtra, 0, NULL);
+            if ( !sProviderToolJson ) {
+                xllm__error_set(
+                    pError,
+                    XLLM_ERROR_INTERNAL,
+                    "failed to stringify ollama-native provider tool"
+                );
+                return XRT_NET_ERROR;
+            }
+
+            if ( !xllm__json_builder_append_cstr(pBuilder, sProviderToolJson) ) {
+                xrtFree(sProviderToolJson);
+                return XRT_NET_ERROR;
+            }
+            xrtFree(sProviderToolJson);
+            bHasTool = true;
+            continue;
+        }
+
+        {
+            const char *sWireName = pTool->sWireName ? pTool->sWireName : pTool->sToolId;
+            char *sSchema = NULL;
+
+            if ( !sWireName || !sWireName[0] ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native tool definition missing wire_name");
+                return XRT_NET_ERROR;
+            }
+
+            if ( pTool->tInputSchema && xvoType(pTool->tInputSchema) != XVO_DT_NULL ) {
+                sSchema = (char *)xrtStringifyJSON(pTool->tInputSchema, 0, NULL);
+            }
+            if ( !sSchema ) {
+                sSchema = xllm__dup_cstr("{}");
+            }
+            if ( !sSchema ) {
+                return XRT_NET_ERROR;
+            }
+
+            if ( !xllm__json_builder_append_cstr(pBuilder, "{\"type\":\"function\",\"function\":{\"name\":") ||
+                 !xllm__json_builder_append_escaped(pBuilder, sWireName) ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            if ( pTool->sDescription ) {
+                if ( !xllm__json_builder_append_cstr(pBuilder, ",\"description\":") ||
+                     !xllm__json_builder_append_escaped(pBuilder, pTool->sDescription) ) {
+                    xrtFree(sSchema);
+                    return XRT_NET_ERROR;
+                }
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"parameters\":") ||
+                 !xllm__json_builder_append_cstr(pBuilder, sSchema) ||
+                 !xllm__json_builder_append_cstr(pBuilder, "}}") ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+
+            xrtFree(sSchema);
+            bHasTool = true;
+        }
+    }
+
+    return xllm__json_builder_append_char(pBuilder, ']') ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__ollama_append_tool_policy(
+    xllm__json_builder *pBuilder,
+    const xllm_request *pRequest,
+    xllm_error *pError
+)
+{
+    if ( !pBuilder || !pRequest || pRequest->iToolCount == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    switch ( pRequest->tToolPolicy.eMode ) {
+        case XLLM_TOOL_CHOICE_AUTO:
+        case XLLM_TOOL_CHOICE_NONE:
+            return XRT_NET_OK;
+        case XLLM_TOOL_CHOICE_REQUIRED:
+        case XLLM_TOOL_CHOICE_NAMED:
+        default:
+            xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "ollama-native adapter currently supports only tool_choice=auto or none");
+            return XRT_NET_ERROR;
+    }
+}
+
+static int xllm__ollama_append_response_format(
+    xllm__json_builder *pBuilder,
+    const xllm_response_format *pFormat,
+    xllm_error *pError
+)
+{
+    char *sSchema = NULL;
+
+    if ( !pBuilder || !pFormat ) {
+        return XRT_NET_OK;
+    }
+
+    switch ( pFormat->eKind ) {
+        case XLLM_RESPONSE_JSON:
+            return xllm__json_builder_append_cstr(pBuilder, ",\"format\":\"json\"") ? XRT_NET_OK : XRT_NET_ERROR;
+        case XLLM_RESPONSE_JSON_SCHEMA:
+            if ( pFormat->tJsonSchema && xvoType(pFormat->tJsonSchema) != XVO_DT_NULL ) {
+                sSchema = (char *)xrtStringifyJSON(pFormat->tJsonSchema, 0, NULL);
+            }
+            if ( !sSchema ) {
+                xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native json schema response requires a schema");
+                return XRT_NET_ERROR;
+            }
+            if ( !xllm__json_builder_append_cstr(pBuilder, ",\"format\":") ||
+                 !xllm__json_builder_append_cstr(pBuilder, sSchema) ) {
+                xrtFree(sSchema);
+                return XRT_NET_ERROR;
+            }
+            xrtFree(sSchema);
+            return XRT_NET_OK;
+        case XLLM_RESPONSE_TEXT:
+        default:
+            return XRT_NET_OK;
+    }
+}
+
+static int xllm__ollama_append_reasoning(
+    xllm__json_builder *pBuilder,
+    const xllm_reasoning_options *pReasoning,
+    xllm_error *pError
+)
+{
+    bool bThink = false;
+
+    (void)pError;
+
+    if ( !pBuilder || !pReasoning ) {
+        return XRT_NET_OK;
+    }
+
+    if ( pReasoning->tEnabled.bSet && !pReasoning->tEnabled.bValue ) {
+        return xllm__json_builder_append_cstr(pBuilder, ",\"think\":false") ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+    if ( pReasoning->eLevel == XLLM_REASONING_OFF ) {
+        return xllm__json_builder_append_cstr(pBuilder, ",\"think\":false") ? XRT_NET_OK : XRT_NET_ERROR;
+    }
+
+    bThink =
+        (pReasoning->tEnabled.bSet && pReasoning->tEnabled.bValue) ||
+        pReasoning->eLevel != XLLM_REASONING_DEFAULT ||
+        pReasoning->tBudgetTokens.bSet ||
+        (pReasoning->tExposeThinking.bSet && pReasoning->tExposeThinking.bValue);
+
+    if ( !bThink ) {
+        return XRT_NET_OK;
+    }
+
+    return xllm__json_builder_append_cstr(pBuilder, ",\"think\":true") ? XRT_NET_OK : XRT_NET_ERROR;
+}
+
+static int xllm__ollama_build_chat_body(
+    xllm__json_builder *pBody,
+    const xllm_runtime *pRuntime,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_effective_params *pEffectiveParams,
+    const xllm_call_options *pOptions,
+    const char *sModel,
+    bool bStream,
+    xllm_error *pError
+)
+{
+    bool bSendNativeResponseFormat = false;
+
+    if ( !pBody || !pRequest || !pEffectiveParams || !sModel ) {
+        return XRT_NET_ERROR;
+    }
+
+    bSendNativeResponseFormat = xllm__openai_should_send_native_response_format(
+        pProfile,
+        pRequest,
+        &pEffectiveParams->tResponseFormat,
+        pOptions
+    );
+
+    if ( pEffectiveParams->tResponseFormat.eKind != XLLM_RESPONSE_TEXT &&
+         !bSendNativeResponseFormat &&
+         !(pOptions && pOptions->bBestEffortStructuredOutput) ) {
+        xllm__error_set(pError, XLLM_ERROR_UNSUPPORTED_CAPABILITY, "ollama-native adapter currently supports structured output only in best-effort mode");
+        return XRT_NET_ERROR;
+    }
+
+    if ( !xllm__json_builder_append_char(pBody, '{') ) return XRT_NET_ERROR;
+    if ( !xllm__json_builder_append_cstr(pBody, "\"model\":") ) return XRT_NET_ERROR;
+    if ( !xllm__json_builder_append_escaped(pBody, sModel) ) return XRT_NET_ERROR;
+    if ( !xllm__json_builder_append_cstr(pBody, bStream ? ",\"stream\":true," : ",\"stream\":false,") ) return XRT_NET_ERROR;
+    if ( xllm__ollama_append_context_messages(pBody, pRuntime, pProfile, pRequest, pOptions, pError) != XRT_NET_OK ) return XRT_NET_ERROR;
+    if ( xllm__ollama_append_tools(pBody, pRequest, pError) != XRT_NET_OK ) return XRT_NET_ERROR;
+    if ( xllm__ollama_append_tool_policy(pBody, pRequest, pError) != XRT_NET_OK ) return XRT_NET_ERROR;
+    if ( bSendNativeResponseFormat &&
+         xllm__ollama_append_response_format(pBody, &pEffectiveParams->tResponseFormat, pError) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+    if ( xllm__ollama_append_reasoning(pBody, &pEffectiveParams->tReasoning, pError) != XRT_NET_OK ) return XRT_NET_ERROR;
+    if ( xllm__ollama_append_options(pBody, pEffectiveParams) != XRT_NET_OK ) return XRT_NET_ERROR;
+    if ( !xllm__json_builder_append_char(pBody, '}') ) return XRT_NET_ERROR;
+    return XRT_NET_OK;
+}
+
+static void xllm__ollama_fill_error_from_http(xllm_error *pError, const xhttpresponse *pHttpResponse, xvalue tRoot)
+{
+    const char *sMessage = NULL;
+    xllm_error_code eCode = XLLM_ERROR_UPSTREAM_4XX;
+
+    if ( !pError ) {
+        return;
+    }
+
+    if ( tRoot && xvoType(tRoot) == XVO_DT_TABLE ) {
+        sMessage = xllm__json_table_get_text(tRoot, "error");
+    }
+    if ( !sMessage || !sMessage[0] ) {
+        sMessage = "ollama-native request failed";
+    }
+
+    if ( pHttpResponse ) {
+        pError->iHttpStatus = (int32)pHttpResponse->iStatusCode;
+        if ( pHttpResponse->iStatusCode == 400u ) {
+            eCode = XLLM_ERROR_INVALID_REQUEST;
+        } else if ( pHttpResponse->iStatusCode == 401u || pHttpResponse->iStatusCode == 403u ) {
+            eCode = XLLM_ERROR_AUTH;
+        } else if ( pHttpResponse->iStatusCode == 404u ) {
+            eCode = XLLM_ERROR_MODEL_NOT_FOUND;
+        } else if ( pHttpResponse->iStatusCode == 408u ) {
+            eCode = XLLM_ERROR_TIMEOUT;
+        } else if ( pHttpResponse->iStatusCode == 429u ) {
+            eCode = XLLM_ERROR_RATE_LIMIT;
+        } else if ( pHttpResponse->iStatusCode >= 500u ) {
+            eCode = XLLM_ERROR_UPSTREAM_5XX;
+        }
+    }
+
+    xllm__error_set(pError, eCode, sMessage);
+    if ( sMessage && sMessage[0] ) {
+        pError->sProviderMessage = xllm__dup_cstr(sMessage);
+    }
+}
+
+static int xllm__ollama_apply_terminal_status(
+    xllm_response *pResponse,
+    bool bDone,
+    bool bCancelled
+)
+{
+    if ( !pResponse ) {
+        return XRT_NET_OK;
+    }
+
+    if ( bCancelled ) {
+        pResponse->eStatus = XLLM_STATUS_CANCELLED;
+        return XRT_NET_OK;
+    }
+
+    if ( pResponse->tRefusal.sText && pResponse->tRefusal.sText[0] ) {
+        pResponse->eStatus = XLLM_STATUS_REFUSED;
+        return XRT_NET_OK;
+    }
+
+    if ( pResponse->sFinishReason ) {
+        if ( strcmp(pResponse->sFinishReason, "tool_calls") == 0 ||
+             strcmp(pResponse->sFinishReason, "tool_call") == 0 ||
+             strcmp(pResponse->sFinishReason, "tool_use") == 0 ) {
+            pResponse->eStatus = XLLM_STATUS_TOOL_CALL_REQUIRED;
+            return XRT_NET_OK;
+        }
+        if ( strcmp(pResponse->sFinishReason, "length") == 0 ||
+             strcmp(pResponse->sFinishReason, "max_tokens") == 0 ||
+             strcmp(pResponse->sFinishReason, "model_context_window_exceeded") == 0 ||
+             strcmp(pResponse->sFinishReason, "pause_turn") == 0 ) {
+            pResponse->eStatus = XLLM_STATUS_INCOMPLETE;
+            return XRT_NET_OK;
+        }
+        if ( strcmp(pResponse->sFinishReason, "content_filter") == 0 ) {
+            pResponse->eStatus = XLLM_STATUS_CONTENT_FILTERED;
+            if ( !pResponse->tSafety.sBlockReason || !pResponse->tSafety.sBlockReason[0] ) {
+                pResponse->tSafety.sBlockReason = xllm__dup_cstr("content_filter");
+                if ( !pResponse->tSafety.sBlockReason ) {
+                    return XRT_NET_ERROR;
+                }
+            }
+            return XRT_NET_OK;
+        }
+        if ( strcmp(pResponse->sFinishReason, "refusal") == 0 ) {
+            pResponse->eStatus = XLLM_STATUS_REFUSED;
+            return XRT_NET_OK;
+        }
+    }
+
+    pResponse->eStatus = bDone ? XLLM_STATUS_COMPLETED : XLLM_STATUS_INCOMPLETE;
+    return XRT_NET_OK;
+}
+
+static int xllm__ollama_build_image_part(
+    const char *sBase64,
+    size_t iImageIndex,
+    xllm_content_part *pPart,
+    xllm_error *pError
+)
+{
+    char sName[64];
+    size_t iDecodedSize;
+    void *pDecoded;
+
+    if ( !sBase64 || !sBase64[0] || !pPart ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "ollama-native image output is empty");
+        return XRT_NET_ERROR;
+    }
+
+    memset(pPart, 0, sizeof(*pPart));
+    iDecodedSize = xllm__openai_base64_decoded_size(sBase64);
+    pDecoded = xrtBase64Decode((str)sBase64, strlen(sBase64), NULL);
+    if ( !pDecoded ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to decode ollama-native image output");
+        return XRT_NET_ERROR;
+    }
+
+    (void)snprintf(sName, sizeof(sName), "ollama-image-%u.bin", (unsigned)iImageIndex);
+    pPart->eKind = XLLM_PART_IMAGE;
+    pPart->as.tSource.eKind = XLLM_SOURCE_INLINE_BYTES;
+    pPart->as.tSource.sMimeType = xllm__dup_cstr("image/*");
+    pPart->as.tSource.sName = xllm__dup_cstr(sName);
+    pPart->as.tSource.as.tBytes.pData = pDecoded;
+    pPart->as.tSource.as.tBytes.iSize = iDecodedSize;
+    if ( !pPart->as.tSource.sMimeType || !pPart->as.tSource.sName ) {
+        xllm__content_part_free(pPart);
+        return XRT_NET_ERROR;
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__ollama_append_output_images(
+    xvalue tImages,
+    xllm_content_part **ppParts,
+    size_t *piPartCount,
+    size_t *piPartCapacity,
+    xllm_error *pError
+)
+{
+    size_t i;
+
+    if ( !tImages || xvoType(tImages) != XVO_DT_ARRAY ) {
+        return XRT_NET_OK;
+    }
+    if ( !ppParts || !piPartCount || !piPartCapacity ) {
+        return XRT_NET_ERROR;
+    }
+
+    for ( i = 0u; i < (size_t)xvoArrayItemCount(tImages); ++i ) {
+        xvalue tImage = xvoArrayGetValue(tImages, (uint32)i);
+        const char *sBase64 = NULL;
+        xllm_content_part tPart;
+
+        if ( !tImage || xvoType(tImage) != XVO_DT_TEXT ) {
+            xllm__error_set(pError, XLLM_ERROR_PARSE, "ollama-native image output item is not a base64 string");
+            return XRT_NET_ERROR;
+        }
+
+        sBase64 = (const char *)xvoGetText(tImage);
+        if ( !sBase64 || !sBase64[0] ) {
+            continue;
+        }
+
+        if ( xllm__ollama_build_image_part(sBase64, i, &tPart, pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__openai_message_add_part(ppParts, piPartCount, piPartCapacity, &tPart) != XRT_NET_OK ) {
+            xllm__content_part_free(&tPart);
+            return XRT_NET_ERROR;
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__ollama_stream_append_images(
+    xllm__openai_stream_context *pCtx,
+    xvalue tImages
+)
+{
+    size_t i;
+
+    if ( !pCtx || !tImages || xvoType(tImages) != XVO_DT_ARRAY ) {
+        return XRT_NET_OK;
+    }
+
+    for ( i = 0u; i < (size_t)xvoArrayItemCount(tImages); ++i ) {
+        xvalue tImage = xvoArrayGetValue(tImages, (uint32)i);
+        const char *sBase64 = NULL;
+        xllm_content_part tPart;
+
+        if ( !tImage || xvoType(tImage) != XVO_DT_TEXT ) {
+            xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "ollama-native streamed image output item is not a base64 string");
+            return XRT_NET_ERROR;
+        }
+
+        sBase64 = (const char *)xvoGetText(tImage);
+        if ( !sBase64 || !sBase64[0] ) {
+            continue;
+        }
+
+        if ( xllm__ollama_build_image_part(sBase64, i, &tPart, pCtx->pError) != XRT_NET_OK ) {
+            return XRT_NET_ERROR;
+        }
+        if ( xllm__openai_stream_append_message_part(pCtx, &tPart) != XRT_NET_OK ) {
+            xllm__content_part_free(&tPart);
+            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+        }
+    }
+
+    return XRT_NET_OK;
+}
+
+static int xllm__ollama_build_response(
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xvalue tRoot,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_response *pResponse = NULL;
+    xllm_effective_params tEffectiveParams;
+    xvalue tMessage;
+    xvalue tImages;
+    xvalue tToolCalls;
+    xllm_content_part *pMessageParts = NULL;
+    const char *sText;
+    const char *sThinking;
+    const char *sModel;
+    const char *sDoneReason;
+    char *sNormalizedJson = NULL;
+    xvalue tJsonValue = NULL;
+    bool bJsonOutput = false;
+    bool bDone = true;
+    size_t iMessagePartCount = 0u;
+    size_t iMessagePartCapacity = 0u;
+    size_t iImageCount = 0u;
+    size_t iToolCallCount = 0u;
+    size_t iOutputCount = 0u;
+
+    if ( !pProfile || !pRequest || !ppResponse || !tRoot || xvoType(tRoot) != XVO_DT_TABLE ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "invalid ollama-native response");
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    if ( xllm__openai_fill_effective_params(&tEffectiveParams, pProfile, pRequest, XLLM_STREAM_OFF) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    tMessage = xllm__json_table_get(tRoot, "message");
+    if ( !tMessage || xvoType(tMessage) != XVO_DT_TABLE ) {
+        xllm__effective_params_reset(&tEffectiveParams);
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "ollama-native response missing message");
+        return XRT_NET_ERROR;
+    }
+
+    sText = xllm__json_table_get_text(tMessage, "content");
+    sThinking = xllm__json_table_get_text(tMessage, "thinking");
+    tImages = xllm__json_table_get(tMessage, "images");
+    if ( tImages && xvoType(tImages) == XVO_DT_ARRAY ) {
+        iImageCount = (size_t)xvoArrayItemCount(tImages);
+    }
+    tToolCalls = xllm__json_table_get(tMessage, "tool_calls");
+    if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+        iToolCallCount = (size_t)xvoArrayItemCount(tToolCalls);
+    }
+    sDoneReason = xllm__json_table_get_text(tRoot, "done_reason");
+    if ( iToolCallCount > 0u ) {
+        sDoneReason = "tool_calls";
+    } else if ( !sDoneReason || !sDoneReason[0] ) {
+        sDoneReason = "stop";
+    }
+    (void)xllm__json_table_get_bool(tRoot, "done", &bDone);
+
+    if ( tEffectiveParams.tResponseFormat.eKind != XLLM_RESPONSE_TEXT && sText && sText[0] ) {
+        if ( xllm__openai_parse_structured_output(
+                &tEffectiveParams.tResponseFormat,
+                pOptions,
+                sText,
+                &tJsonValue,
+                &sNormalizedJson,
+                pError
+             ) != XRT_NET_OK ) {
+            xllm__effective_params_reset(&tEffectiveParams);
+            return XRT_NET_ERROR;
+        }
+        bJsonOutput = (tJsonValue != NULL);
+    }
+
+    if ( sText && sText[0] ) {
+        xllm_content_part tPart;
+
+        memset(&tPart, 0, sizeof(tPart));
+        if ( bJsonOutput && tJsonValue ) {
+            tPart.eKind = XLLM_PART_JSON;
+            tPart.as.tJsonValue = tJsonValue;
+            tJsonValue = NULL;
+        } else {
+            tPart.eKind = XLLM_PART_TEXT;
+            tPart.as.tSource.eKind = XLLM_SOURCE_INLINE_TEXT;
+            tPart.as.tSource.sMimeType = xllm__dup_cstr("text/plain");
+            tPart.as.tSource.as.sText = xllm__dup_cstr(sNormalizedJson ? sNormalizedJson : sText);
+            if ( !tPart.as.tSource.sMimeType || !tPart.as.tSource.as.sText ) {
+                xllm__content_part_free(&tPart);
+                goto fail;
+            }
+        }
+
+        if ( xllm__openai_message_add_part(&pMessageParts, &iMessagePartCount, &iMessagePartCapacity, &tPart) != XRT_NET_OK ) {
+            xllm__content_part_free(&tPart);
+            goto fail;
+        }
+    }
+
+    if ( iImageCount > 0u &&
+         xllm__ollama_append_output_images(tImages, &pMessageParts, &iMessagePartCount, &iMessagePartCapacity, pError) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    pResponse = (xllm_response *)xrtCalloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) {
+        xllm__effective_params_reset(&tEffectiveParams);
+        xllm__free_cstr(&sNormalizedJson);
+        if ( tJsonValue ) {
+            xvoUnref(tJsonValue);
+        }
+        return XRT_NET_ERROR;
+    }
+
+    pResponse->sProvider = xllm__dup_cstr(pProfile->sProvider ? pProfile->sProvider : "ollama");
+    pResponse->sProfileId = xllm__dup_cstr(pProfile->sId);
+    sModel = xllm__json_table_get_text(tRoot, "model");
+    pResponse->sModel = xllm__dup_cstr(sModel ? sModel : xllm__openai_select_model(pProfile, pRequest, NULL));
+    pResponse->sFinishReason = xllm__dup_cstr(sDoneReason);
+    pResponse->tUsage.uInputTokens = xllm__json_table_get_u32(tRoot, "prompt_eval_count");
+    pResponse->tUsage.uOutputTokens = xllm__json_table_get_u32(tRoot, "eval_count");
+    pResponse->tEffectiveParams = tEffectiveParams;
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+
+    if ( sThinking && sThinking[0] ) {
+        ++iOutputCount;
+    }
+    if ( iMessagePartCount > 0u ) {
+        ++iOutputCount;
+    }
+    iOutputCount += iToolCallCount;
+
+    if ( sText && sText[0] ) {
+        pResponse->sVisibleText = xllm__dup_cstr(sNormalizedJson ? sNormalizedJson : sText);
+    }
+
+    if ( iOutputCount > 0u ) {
+        size_t iOutputIndex = 0u;
+
+        pResponse->pOutputs = (xllm_output_item *)xrtCalloc(iOutputCount, sizeof(xllm_output_item));
+        if ( !pResponse->pOutputs ) {
+            goto fail;
+        }
+
+        pResponse->iOutputCount = iOutputCount;
+        if ( sThinking && sThinking[0] ) {
+            pResponse->pOutputs[iOutputIndex].eKind = XLLM_OUTPUT_THINKING;
+            pResponse->pOutputs[iOutputIndex].as.tThinking.bVisible = true;
+            pResponse->pOutputs[iOutputIndex].as.tThinking.sFormat = xllm__dup_cstr("full");
+            pResponse->pOutputs[iOutputIndex].as.tThinking.sText = xllm__dup_cstr(sThinking);
+            if ( !pResponse->pOutputs[iOutputIndex].as.tThinking.sFormat ||
+                 !pResponse->pOutputs[iOutputIndex].as.tThinking.sText ) {
+                goto fail;
+            }
+            ++iOutputIndex;
+        }
+
+        if ( iMessagePartCount > 0u ) {
+            pResponse->pOutputs[iOutputIndex].eKind = XLLM_OUTPUT_MESSAGE;
+            pResponse->pOutputs[iOutputIndex].as.tMessage.pParts = pMessageParts;
+            pResponse->pOutputs[iOutputIndex].as.tMessage.iPartCount = iMessagePartCount;
+            pMessageParts = NULL;
+            iMessagePartCount = 0u;
+            iMessagePartCapacity = 0u;
+            ++iOutputIndex;
+        }
+
+        if ( iToolCallCount > 0u ) {
+            size_t i;
+            for ( i = 0; i < iToolCallCount; ++i ) {
+                xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)i);
+                xvalue tFunction = xllm__json_table_get(tToolCall, "function");
+                const char *sToolName = xllm__json_table_get_text(tFunction, "name");
+                xvalue tArguments = xllm__json_table_get(tFunction, "arguments");
+                char *sArguments = NULL;
+                xllm_output_item *pOutput = &pResponse->pOutputs[iOutputIndex++];
+
+                if ( tArguments && xvoType(tArguments) != XVO_DT_NULL ) {
+                    if ( xvoType(tArguments) == XVO_DT_TEXT ) {
+                        sArguments = xllm__dup_cstr((const char *)xvoGetText(tArguments));
+                    } else {
+                        sArguments = (char *)xrtStringifyJSON(tArguments, 0, NULL);
+                    }
+                }
+                if ( !sArguments ) {
+                    sArguments = xllm__dup_cstr("{}");
+                }
+                if ( !sArguments ) {
+                    goto fail;
+                }
+
+                pOutput->eKind = XLLM_OUTPUT_TOOL_CALL;
+                pOutput->as.tToolCall.sCallId = xllm__dup_cstr(sToolName ? sToolName : "");
+                pOutput->as.tToolCall.sToolId = xllm__dup_cstr(sToolName);
+                pOutput->as.tToolCall.sToolName = xllm__dup_cstr(sToolName);
+                pOutput->as.tToolCall.sArgumentsJson = sArguments;
+            }
+        }
+    }
+
+    if ( xllm__ollama_apply_terminal_status(pResponse, bDone, false) != XRT_NET_OK ) {
+        goto fail;
+    }
+
+    xllm__free_cstr(&sNormalizedJson);
+    if ( tJsonValue ) {
+        xvoUnref(tJsonValue);
+    }
+    *ppResponse = pResponse;
+    return XRT_NET_OK;
+
+fail:
+    if ( pMessageParts ) {
+        size_t i;
+        for ( i = 0u; i < iMessagePartCount; ++i ) {
+            xllm__content_part_free(&pMessageParts[i]);
+        }
+        xrtFree(pMessageParts);
+    }
+    xllm__free_cstr(&sNormalizedJson);
+    if ( tJsonValue ) {
+        xvoUnref(tJsonValue);
+    }
+    xllm_response_free(pResponse);
+    return XRT_NET_ERROR;
+}
+
+static int xllm__ollama_stream_apply_usage(xllm__openai_stream_context *pCtx, xvalue tRoot)
+{
+    xllm_event tEvent;
+    uint32 uPrompt;
+    uint32 uEval;
+
+    if ( !pCtx || !pCtx->pResponse || !tRoot || xvoType(tRoot) != XVO_DT_TABLE ) {
+        return XRT_NET_OK;
+    }
+
+    uPrompt = xllm__json_table_get_u32(tRoot, "prompt_eval_count");
+    uEval = xllm__json_table_get_u32(tRoot, "eval_count");
+    if ( uPrompt == 0u && uEval == 0u ) {
+        return XRT_NET_OK;
+    }
+
+    pCtx->pResponse->tUsage.uInputTokens = uPrompt;
+    pCtx->pResponse->tUsage.uOutputTokens = uEval;
+    ++pCtx->uUsageCount;
+
+    memset(&tEvent, 0, sizeof(tEvent));
+    tEvent.eType = XLLM_EVENT_USAGE;
+    tEvent.as.tUsage.tUsage = pCtx->pResponse->tUsage;
+    return xllm__openai_stream_dispatch(pCtx, &tEvent);
+}
+
+static int xllm__ollama_stream_process_payload(
+    xllm__openai_stream_context *pCtx,
+    const char *sPayload,
+    size_t iPayloadLen
+)
+{
+    xvalue tRoot = NULL;
+    xvalue tMessage;
+    xvalue tImages;
+    xvalue tToolCalls;
+    char *sPayloadCopy = NULL;
+    const char *sModel;
+    const char *sContent;
+    const char *sThinking;
+    const char *sDoneReason;
+    bool bDone = false;
+
+    if ( !pCtx || !sPayload ) {
+        return XRT_NET_ERROR;
+    }
+
+    sPayloadCopy = (char *)xrtCalloc(iPayloadLen + 1u, sizeof(char));
+    if ( !sPayloadCopy ) {
+        return XRT_NET_ERROR;
+    }
+    memcpy(sPayloadCopy, sPayload, iPayloadLen);
+
+    tRoot = xrtParseJSON((str)sPayloadCopy, iPayloadLen);
+    if ( !tRoot || xvoType(tRoot) != XVO_DT_TABLE ) {
+        xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "failed to parse ollama-native stream payload");
+        xrtFree(sPayloadCopy);
+        if ( tRoot ) {
+            xvoUnref(tRoot);
+        }
+        return XRT_NET_ERROR;
+    }
+
+    if ( xllm__openai_stream_ensure_response(pCtx) != XRT_NET_OK ) {
+        xrtFree(sPayloadCopy);
+        xvoUnref(tRoot);
+        return XRT_NET_ERROR;
+    }
+    sModel = xllm__json_table_get_text(tRoot, "model");
+    if ( !pCtx->pResponse->sModel && sModel ) {
+        pCtx->pResponse->sModel = xllm__dup_cstr(sModel);
+    }
+    if ( xllm__openai_stream_emit_start(pCtx) != XRT_NET_OK ) {
+        xrtFree(sPayloadCopy);
+        xvoUnref(tRoot);
+        return XRT_NET_CANCELLED;
+    }
+
+    tMessage = xllm__json_table_get(tRoot, "message");
+    if ( tMessage && xvoType(tMessage) == XVO_DT_TABLE ) {
+        sThinking = xllm__json_table_get_text(tMessage, "thinking");
+        if ( sThinking && xllm__openai_stream_append_thinking(pCtx, sThinking) != XRT_NET_OK ) {
+            xrtFree(sPayloadCopy);
+            xvoUnref(tRoot);
+            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+        }
+        sContent = xllm__json_table_get_text(tMessage, "content");
+        if ( sContent && xllm__openai_stream_append_text(pCtx, sContent) != XRT_NET_OK ) {
+            xrtFree(sPayloadCopy);
+            xvoUnref(tRoot);
+            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+        }
+
+        tImages = xllm__json_table_get(tMessage, "images");
+        if ( tImages && xllm__ollama_stream_append_images(pCtx, tImages) != XRT_NET_OK ) {
+            xrtFree(sPayloadCopy);
+            xvoUnref(tRoot);
+            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+        }
+
+        tToolCalls = xllm__json_table_get(tMessage, "tool_calls");
+        if ( tToolCalls && xvoType(tToolCalls) == XVO_DT_ARRAY ) {
+            size_t i;
+            for ( i = 0u; i < (size_t)xvoArrayItemCount(tToolCalls); ++i ) {
+                xvalue tToolCall = xvoArrayGetValue(tToolCalls, (uint32)i);
+                xvalue tFunction = xllm__json_table_get(tToolCall, "function");
+                xvalue tArguments = xllm__json_table_get(tFunction, "arguments");
+                const char *sToolName = xllm__json_table_get_text(tFunction, "name");
+                const char *sCallId = xllm__json_table_get_text(tToolCall, "id");
+                char *sArguments = NULL;
+
+                if ( tArguments && xvoType(tArguments) != XVO_DT_NULL ) {
+                    if ( xvoType(tArguments) == XVO_DT_TEXT ) {
+                        sArguments = xllm__dup_cstr((const char *)xvoGetText(tArguments));
+                    } else {
+                        sArguments = (char *)xrtStringifyJSON(tArguments, 0, NULL);
+                    }
+                }
+                if ( !sArguments ) {
+                    sArguments = xllm__dup_cstr("{}");
+                }
+                if ( !sArguments ) {
+                    xrtFree(sPayloadCopy);
+                    xvoUnref(tRoot);
+                    return XRT_NET_ERROR;
+                }
+                if ( xllm__openai_stream_append_tool_delta(
+                        pCtx,
+                        i,
+                        (sCallId && sCallId[0]) ? sCallId : sToolName,
+                        sToolName,
+                        sArguments
+                     ) != XRT_NET_OK ) {
+                    xllm__free_cstr(&sArguments);
+                    xrtFree(sPayloadCopy);
+                    xvoUnref(tRoot);
+                    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+                }
+                xllm__free_cstr(&sArguments);
+            }
+        }
+    }
+
+    if ( xllm__ollama_stream_apply_usage(pCtx, tRoot) != XRT_NET_OK ) {
+        xrtFree(sPayloadCopy);
+        xvoUnref(tRoot);
+        return XRT_NET_CANCELLED;
+    }
+
+    (void)xllm__json_table_get_bool(tRoot, "done", &bDone);
+    if ( bDone ) {
+        pCtx->bDone = true;
+        sDoneReason = xllm__json_table_get_text(tRoot, "done_reason");
+        if ( pCtx->uToolDeltaCount > 0u ) {
+            sDoneReason = "tool_calls";
+        } else if ( !sDoneReason || !sDoneReason[0] ) {
+            sDoneReason = "stop";
+        }
+        xllm__free_cstr((char **)&pCtx->pResponse->sFinishReason);
+        pCtx->pResponse->sFinishReason = xllm__dup_cstr(sDoneReason);
+    }
+
+    ++pCtx->uPayloadCount;
+    xllm__ollama_trace_stream(pCtx->pRuntime, pCtx, bDone ? "done" : "payload", iPayloadLen);
+    xrtFree(sPayloadCopy);
+    xvoUnref(tRoot);
+    return XRT_NET_OK;
+}
+
+static int xllm__ollama_stream_process_buffer(
+    xllm__openai_stream_context *pCtx,
+    const char *sBuffer,
+    size_t iLen
+)
+{
+    size_t iCursor = 0u;
+
+    if ( !pCtx || !sBuffer ) {
+        return XRT_NET_ERROR;
+    }
+
+    while ( iCursor < iLen ) {
+        size_t iObjectStart;
+        size_t iObjectLen;
+        size_t iDepth = 0u;
+        bool bInString = false;
+        bool bEscape = false;
+
+        while ( iCursor < iLen ) {
+            char ch = sBuffer[iCursor];
+            if ( ch != ' ' && ch != '\t' && ch != '\r' && ch != '\n' ) {
+                break;
+            }
+            ++iCursor;
+        }
+        if ( iCursor >= iLen ) {
+            continue;
+        }
+
+        iObjectStart = iCursor;
+        if ( sBuffer[iCursor] != '{' ) {
+            xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "ollama-native stream payload is not a json object");
+            return XRT_NET_ERROR;
+        }
+
+        while ( iCursor < iLen ) {
+            char ch = sBuffer[iCursor++];
+
+            if ( bInString ) {
+                if ( bEscape ) {
+                    bEscape = false;
+                    continue;
+                }
+                if ( ch == '\\' ) {
+                    bEscape = true;
+                    continue;
+                }
+                if ( ch == '"' ) {
+                    bInString = false;
+                }
+                continue;
+            }
+
+            if ( ch == '"' ) {
+                bInString = true;
+                continue;
+            }
+            if ( ch == '{' ) {
+                ++iDepth;
+                continue;
+            }
+            if ( ch == '}' ) {
+                if ( iDepth == 0u ) {
+                    xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "ollama-native stream payload has invalid object depth");
+                    return XRT_NET_ERROR;
+                }
+                --iDepth;
+                if ( iDepth == 0u ) {
+                    break;
+                }
+            }
+        }
+
+        if ( iDepth != 0u || bInString ) {
+            xllm__error_set(pCtx->pError, XLLM_ERROR_PARSE, "ollama-native stream payload is incomplete");
+            return XRT_NET_ERROR;
+        }
+
+        iObjectLen = iCursor - iObjectStart;
+        if ( iObjectLen == 0u ) {
+            continue;
+        }
+
+        if ( xllm__ollama_stream_process_payload(pCtx, sBuffer + iObjectStart, iObjectLen) != XRT_NET_OK ) {
+            return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_ERROR;
+        }
+        pCtx->iParsedBytes = iCursor;
+    }
+
+    return pCtx->bCancelled ? XRT_NET_CANCELLED : XRT_NET_OK;
+}
+
+static int xllm__ollama_stream_finalize_response(xllm__openai_stream_context *pCtx)
+{
+    int iStatus = xllm__openai_stream_finalize_response(pCtx);
+
+    if ( iStatus != XRT_NET_OK || !pCtx || !pCtx->pResponse ) {
+        return iStatus;
+    }
+
+    if ( xllm__ollama_apply_terminal_status(pCtx->pResponse, pCtx->bDone, pCtx->bCancelled) != XRT_NET_OK ) {
+        return XRT_NET_ERROR;
+    }
+
+    xllm__ollama_trace_stream(pCtx->pRuntime, pCtx, "finalize", 0u);
+    return XRT_NET_OK;
+}
+
+static int32 xllm__ollama_native_chat_stream_buffered(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm__openai_stream_context tStream;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    xvalue tRoot = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int32 iStatus = XRT_NET_ERROR;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts = 1u;
+    bool bRetryable = false;
+    bool bMultimodal = false;
+
+    if ( !pRuntime || !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    *ppResponse = NULL;
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tStream, 0, sizeof(tStream));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    tStream.pRuntime = pRuntime;
+    tStream.pProfile = pProfile;
+    tStream.pRequest = pRequest;
+    tStream.pOptions = pOptions;
+    tStream.pError = pError;
+    tStream.iMessageOutputIndex = (size_t)-1;
+    tStream.iThinkingOutputIndex = (size_t)-1;
+    tStream.iRefusalOutputIndex = (size_t)-1;
+
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, &bMultimodal);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for ollama-native request");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    tStream.sSelectedModel = sModel;
+
+    if ( xllm__openai_fill_effective_params(&tEffectiveParams, pProfile, pRequest, XLLM_STREAM_PREFER) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__ollama_build_chat_body(&tBody, pRuntime, pProfile, pRequest, &tEffectiveParams, pOptions, sModel, true, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    sUrl = xllm__ollama_build_url(pProfile->sBaseUrl);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native profile missing base url");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__ollama_component_name(),
+        "request start: model=%s streaming=true live=false attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__ollama_trace_request(pRuntime, pProfile, pRequest, sModel, true, uAttempt, strlen(sBody));
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "ollama-native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "ollama-native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "ollama-native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__ollama_fill_error_from_http(pError, pHttpResponse, tRoot);
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "ollama-native streaming response body is empty");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__ollama_stream_process_buffer(&tStream, pHttpResponse->pBody, pHttpResponse->iBodyLen) != XRT_NET_OK ) {
+        if ( tStream.bCancelled && pError && pError->eCode == XLLM_ERROR_NONE ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "ollama-native stream cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    if ( tStream.pResponse == NULL ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "ollama-native stream did not produce a response");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( xllm__ollama_stream_finalize_response(&tStream) != XRT_NET_OK ) {
+        if ( tStream.bCancelled && pError && pError->eCode == XLLM_ERROR_NONE ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "ollama-native stream cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    *ppResponse = tStream.pResponse;
+    tStream.pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__ollama_component_name(),
+        "response complete: model=%s streaming=true live=false attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__ollama_trace_response(pRuntime, *ppResponse, sModel, pHttpResponse, NULL, XRT_NET_OK, uAttempt, false, true);
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+        bRetryable =
+            xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE) &&
+            !tStream.bStartEmitted &&
+            !tStream.bDone &&
+            tStream.uPayloadCount == 0u &&
+            tStream.pResponse == NULL;
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__ollama_component_name(),
+                "response failed: model=%s streaming=true live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__ollama_trace_response(pRuntime, NULL, sModel, pHttpResponse, pError, iTraceTransportStatus, uAttempt, true, true);
+            if ( tRoot ) {
+                xvoUnref(tRoot);
+                tRoot = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            iNetStatus = XRT_NET_ERROR;
+            iStatus = XRT_NET_ERROR;
+            xllm__openai_stream_reset_attempt_state(&tStream);
+            if ( pError ) {
+                xllm_error_reset(pError);
+            }
+            if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+                if ( pError ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "ollama-native request cancelled");
+                }
+                iStatus = XRT_NET_CANCELLED;
+            } else {
+                xllm__openai_retry_sleep(uDelayMs);
+                goto retry_execute;
+            }
+        }
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__ollama_component_name(),
+            "response failed: model=%s streaming=true live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)uAttempt,
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__ollama_trace_response(pRuntime, NULL, sModel, pHttpResponse, pError, iTraceTransportStatus, uAttempt, bRetryable, true);
+    }
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__openai_stream_reset_attempt_state(&tStream);
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+static int32 xllm__ollama_native_chat(
+    void *pCtx,
+    const xllm_profile *pProfile,
+    const xllm_request *pRequest,
+    const xllm_call_options *pOptions,
+    xllm_response **ppResponse,
+    xllm_error *pError
+)
+{
+    xllm_runtime *pRuntime = (xllm_runtime *)pCtx;
+    xllm__json_builder tBody;
+    xllm_effective_params tEffectiveParams;
+    xhttprequest tHttpRequest;
+    xhttpresponse *pHttpResponse = NULL;
+    xllm_response *pResponse = NULL;
+    xvalue tRoot = NULL;
+    char *sBody = NULL;
+    char *sUrl = NULL;
+    const char *sModel;
+    xnet_result iNetStatus = XRT_NET_ERROR;
+    int32 iStatus = XRT_NET_ERROR;
+    uint32 uAttempt = 0u;
+    uint32 uMaxAttempts;
+    bool bRetryable = false;
+    bool bMultimodal = false;
+
+    if ( !pRuntime || !pProfile || !pRequest || !ppResponse ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tBody, 0, sizeof(tBody));
+    memset(&tEffectiveParams, 0, sizeof(tEffectiveParams));
+    xrtHttpRequestInit(&tHttpRequest);
+
+    if ( pOptions &&
+         (pOptions->eStreamMode == XLLM_STREAM_REQUIRE ||
+          pOptions->eStreamMode == XLLM_STREAM_PREFER) ) {
+        return xllm__ollama_native_chat_stream_buffered(pCtx, pProfile, pRequest, pOptions, ppResponse, pError);
+    }
+
+    sModel = xllm__openai_select_model(pProfile, pRequest, &bMultimodal);
+    if ( !sModel || !sModel[0] ) {
+        xllm__error_set(pError, XLLM_ERROR_MODEL_NOT_FOUND, "no model bound for ollama-native request");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__openai_fill_effective_params(&tEffectiveParams, pProfile, pRequest, XLLM_STREAM_OFF) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__ollama_build_chat_body(&tBody, pRuntime, pProfile, pRequest, &tEffectiveParams, pOptions, sModel, false, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    sBody = xllm__json_builder_detach(&tBody);
+    if ( !sBody ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    sUrl = xllm__ollama_build_url(pProfile->sBaseUrl);
+    if ( !sUrl ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_REQUEST, "ollama-native profile missing base url");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !xrtHttpRequestSetMethod(&tHttpRequest, "POST") ) goto fail;
+    if ( !xrtHttpRequestSetURL(&tHttpRequest, sUrl) ) goto fail;
+    if ( !xrtHttpRequestSetBodyCopy(&tHttpRequest, sBody, strlen(sBody), "application/json") ) goto fail;
+    if ( xllm__openai_fill_request_headers(&tHttpRequest, pProfile) != XRT_NET_OK ) goto fail;
+    if ( xllm__openai_apply_transport(&tHttpRequest, pRuntime, pProfile, pOptions, pError) != XRT_NET_OK ) goto fail;
+
+    uMaxAttempts = 1u;
+    if ( pOptions && pOptions->uMaxRetries > 0u ) {
+        uMaxAttempts += pOptions->uMaxRetries;
+    }
+
+retry_execute:
+    ++uAttempt;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_DEBUG,
+        xllm__ollama_component_name(),
+        "request start: model=%s streaming=false live=false attempt=%u/%u body_bytes=%u",
+        sModel,
+        (unsigned)uAttempt,
+        (unsigned)uMaxAttempts,
+        (unsigned)strlen(sBody)
+    );
+    xllm__ollama_trace_request(pRuntime, pProfile, pRequest, sModel, false, uAttempt, strlen(sBody));
+
+    pHttpResponse = xrtHttpExecuteSync(NULL, &tHttpRequest, &iNetStatus);
+    if ( !pHttpResponse ) {
+        if ( iNetStatus == XRT_NET_TIMEOUT ) {
+            xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "ollama-native request timed out");
+            iStatus = XRT_NET_TIMEOUT;
+        } else if ( iNetStatus == XRT_NET_CANCELLED ) {
+            xllm__error_set(pError, XLLM_ERROR_CANCELLED, "ollama-native request cancelled");
+            iStatus = XRT_NET_CANCELLED;
+        } else {
+            xllm__error_set(pError, XLLM_ERROR_NETWORK, "ollama-native request failed");
+            iStatus = XRT_NET_ERROR;
+        }
+        goto fail;
+    }
+
+    if ( pHttpResponse->iStatusCode >= 400u ) {
+        if ( pHttpResponse->pBody && pHttpResponse->iBodyLen > 0u ) {
+            tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+        }
+        xllm__ollama_fill_error_from_http(pError, pHttpResponse, tRoot);
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    if ( !pHttpResponse->pBody || pHttpResponse->iBodyLen == 0u ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "ollama-native response body is empty");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+
+    tRoot = xrtParseJSON((str)pHttpResponse->pBody, pHttpResponse->iBodyLen);
+    if ( !tRoot ) {
+        xllm__error_set(pError, XLLM_ERROR_PARSE, "failed to parse ollama-native response json");
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    if ( xllm__ollama_build_response(pProfile, pRequest, pOptions, tRoot, &pResponse, pError) != XRT_NET_OK ) {
+        iStatus = XRT_NET_ERROR;
+        goto fail;
+    }
+    tRoot = NULL;
+
+    if ( xllm__openai_emit_synthetic_events(pResponse, pOptions) != XRT_NET_OK ) {
+        iStatus = XRT_NET_CANCELLED;
+        goto fail;
+    }
+
+    *ppResponse = pResponse;
+    pResponse = NULL;
+    xllm__openai_logf(
+        pRuntime,
+        XLLM_LOG_INFO,
+        xllm__ollama_component_name(),
+        "response complete: model=%s streaming=false live=false attempt=%u status=%s outputs=%u",
+        (*ppResponse)->sModel ? (*ppResponse)->sModel : sModel,
+        (unsigned)uAttempt,
+        xllm__openai_response_status_name((*ppResponse)->eStatus),
+        (unsigned)(*ppResponse)->iOutputCount
+    );
+    xllm__ollama_trace_response(pRuntime, *ppResponse, sModel, pHttpResponse, NULL, XRT_NET_OK, uAttempt, false, false);
+    iStatus = XRT_NET_OK;
+
+fail:
+    if ( iStatus != XRT_NET_OK ) {
+        int32 iTraceTransportStatus = pHttpResponse ? XRT_NET_OK : (iNetStatus != XRT_NET_OK ? (int32)iNetStatus : iStatus);
+        int32 iHttpStatus = pHttpResponse ? (int32)pHttpResponse->iStatusCode : (pError ? pError->iHttpStatus : 0);
+        bRetryable = xllm__openai_error_is_retryable(pError ? pError->eCode : XLLM_ERROR_NONE);
+        if ( bRetryable && uAttempt < uMaxAttempts ) {
+            uint32 uDelayMs = xllm__openai_retry_delay_ms(pOptions, uAttempt);
+            xllm__openai_logf(
+                pRuntime,
+                XLLM_LOG_WARN,
+                xllm__ollama_component_name(),
+                "response failed: model=%s streaming=false live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=true retry_in_ms=%u",
+                sModel ? sModel : "",
+                (unsigned)uAttempt,
+                (unsigned)uMaxAttempts,
+                (int)iTraceTransportStatus,
+                (int)iHttpStatus,
+                (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+                (unsigned)uDelayMs
+            );
+            xllm__ollama_trace_response(pRuntime, NULL, sModel, pHttpResponse, pError, iTraceTransportStatus, uAttempt, true, false);
+            if ( tRoot ) {
+                xvoUnref(tRoot);
+                tRoot = NULL;
+            }
+            if ( pResponse ) {
+                xllm_response_free(pResponse);
+                pResponse = NULL;
+            }
+            if ( pHttpResponse ) {
+                xrtHttpResponseDestroy(pHttpResponse);
+                pHttpResponse = NULL;
+            }
+            iNetStatus = XRT_NET_ERROR;
+            iStatus = XRT_NET_ERROR;
+            if ( pError ) {
+                xllm_error_reset(pError);
+            }
+            if ( pOptions && pOptions->pCancelToken && xllm_cancel_token_is_cancelled(pOptions->pCancelToken) ) {
+                if ( pError ) {
+                    xllm__error_set(pError, XLLM_ERROR_CANCELLED, "ollama-native request cancelled");
+                }
+                iStatus = XRT_NET_CANCELLED;
+            } else {
+                xllm__openai_retry_sleep(uDelayMs);
+                goto retry_execute;
+            }
+        }
+        xllm__openai_logf(
+            pRuntime,
+            XLLM_LOG_WARN,
+            xllm__ollama_component_name(),
+            "response failed: model=%s streaming=false live=false attempt=%u/%u transport_status=%d http_status=%d error=%s retryable=%s",
+            sModel ? sModel : "",
+            (unsigned)uAttempt,
+            (unsigned)uMaxAttempts,
+            (int)iTraceTransportStatus,
+            (int)iHttpStatus,
+            (pError && pError->eCode != XLLM_ERROR_NONE) ? xllm__openai_error_code_name(pError->eCode) : "unknown",
+            bRetryable ? "true" : "false"
+        );
+        xllm__ollama_trace_response(pRuntime, NULL, sModel, pHttpResponse, pError, iTraceTransportStatus, uAttempt, bRetryable, false);
+    }
+    if ( tRoot ) {
+        xvoUnref(tRoot);
+    }
+    if ( pResponse ) {
+        xllm_response_free(pResponse);
+    }
+    if ( pHttpResponse ) {
+        xrtHttpResponseDestroy(pHttpResponse);
+    }
+    if ( sBody ) {
+        xrtFree(sBody);
+    }
+    if ( sUrl ) {
+        xrtFree(sUrl);
+    }
+    xllm__effective_params_reset(&tEffectiveParams);
+    xllm__json_builder_reset(&tBody);
+    xrtHttpRequestUnit(&tHttpRequest);
+    return iStatus;
+}
+
+XLLM_API int xllm_register_ollama_native_adapter(xllm_runtime *pRuntime)
+{
+    xllm_adapter tAdapter;
+
+    if ( !pRuntime ) {
+        return XRT_NET_ERROR;
+    }
+
+    memset(&tAdapter, 0, sizeof(tAdapter));
+    tAdapter.sName = XLLM_ADAPTER_OLLAMA_NATIVE;
+    tAdapter.pCtx = pRuntime;
+    tAdapter.pfnChat = xllm__ollama_native_chat;
+    return xllm_register_adapter(pRuntime, &tAdapter);
+}
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter_ollama.c ===== */
+
+/* ===== end: D:/git/xllm/src/xllm_adapter/xllm_adapter.c ===== */
+
+/* ===== end: D:/git/xllm/src/xllm_core_all.c ===== */
+#endif
+
+#endif
+
+/* ===== end: D:/git/xllm/xllm.h ===== */

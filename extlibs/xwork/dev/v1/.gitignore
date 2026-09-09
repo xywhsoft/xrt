@@ -1,0 +1,17 @@
+*.log
+*.snapshot
+*.meta
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+tests/persistence_store_*/
+tests/replay_store_*/
+tests/memory_policy_workspace/
+tests/local_host_*_smoke.txt
+examples/.xwork_claw_store/
+examples/.xwork_multi_agent_claw_store/
+examples/.xwork_remote_worker_store/

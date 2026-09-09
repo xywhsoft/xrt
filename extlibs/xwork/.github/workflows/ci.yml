@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout sibling repositories
+        run: |
+          git clone --depth 1 https://gitee.com/xywhsoft/xrt.git ../xrt
+          git clone --depth 1 https://gitee.com/xywhsoft/xllm.git ../xllm
+      - name: Build and test
+        run: sh build.sh
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Checkout sibling repositories
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://gitee.com/xywhsoft/xrt.git ..\xrt
+          git clone --depth 1 https://gitee.com/xywhsoft/xllm.git ..\xllm
+      - name: Build and test
+        shell: cmd
+        run: build.bat

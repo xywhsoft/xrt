@@ -1,0 +1,8 @@
+/build/
+/release/
+*.o
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.log
