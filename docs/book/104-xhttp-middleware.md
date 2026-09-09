@@ -50,7 +50,7 @@ api: xhttp-http_server_middleware, xhttp-http_server_static, xhttp-http_server_r
 
 ### 分派路径的统一
 
-固定 Router 与 Host Mux（按 Host 头分流的复用器——一台服务多域名）使用**同一条分派路径**——中间件表与路由表一起冻结只读共享。热路径无锁分派（第 98 章连接池分片的同款性能哲学）。
+固定 Router 与 Host Mux（按 Host 头分流的复用器——一台服务多域名）使用**同一条分派路径**——中间件表与路由表一起冻结只读共享。热路径无锁分派（第 98 章连接池分片的同款性能哲学）。路由模式的 `{name}` 段捕获语法（`http_route.h`）与第 30 章表亲 pattern 的 `{name}` 捕获同源——冻结即"一次编译、热路径只查表"的那条纪律在路由层的落点。
 
 ## 示例
 
