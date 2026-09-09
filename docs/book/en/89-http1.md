@@ -4,7 +4,7 @@ slug: http1
 title: HTTP/1 Messages: Parsing and Packing
 volume: 卷九 Web 协议核心
 type: practice
-One-shot parsing of request/response heads, status-line packing with lookup and traversal — the zero-per-request-allocation core path built on caller-bound arrays; closing with the thin transport bindings of the parser onto net and TLS streams.
+lead: One-shot parsing of request/response heads, status-line packing with lookup and traversal — the zero-per-request-allocation core path built on caller-bound arrays; closing with the thin transport bindings of the parser onto net and TLS streams.
 api: http1, http, http1_net, http1_tls
 ---
 

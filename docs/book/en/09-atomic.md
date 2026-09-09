@@ -121,7 +121,7 @@ expired: yes
 
 **What just happened.** (1) `xrtDeadlineAfter(50000)` builds an absolute cutoff 50 ms out; `Remaining` immediately reads back about 50000 microseconds (monotonic-clock microsecond scale). (2) `xrtSleepUntil` (Chapter 41's time module) sleeps to the cutoff, after which `Expired` returns true — the three functions act out the closed loop of construct-wait-decide. (3) Note that `SleepUntil` eats the same deadline mathematics: timeout parameters across the library's waiting APIs convert through here — constructed once, passed everywhere.
 
-## Contract
+## Contracts
 
 - **Atomicity boundary**: an atomic operation guarantees a single variable, single step, no interleaving; two atomic operations together carry **no** whole-transaction atomicity — cross-variable invariants belong to locks (Chapter 52), ownership transfer to queues (Chapter 21).
 - **Fetch semantics**: always return the pre-operation old value; derive the new value yourself — no reflexive "go back and Load".

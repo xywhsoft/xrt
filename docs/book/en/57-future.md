@@ -4,7 +4,7 @@ slug: future
 title: Future / Promise and Combinators
 volume: 卷六 进程与并发
 type: practice
-The one-shot asynchronous result with split write/read ends — the resolved/failed/cancelled states, then-style continuations, combinators, and the wait family; closing with the future_bridge assembly bridge.
+lead: The one-shot asynchronous result with split write/read ends — the resolved/failed/cancelled states, then-style continuations, combinators, and the wait family; closing with the future_bridge assembly bridge.
 api: future, cancel, future_bridge
 ---
 

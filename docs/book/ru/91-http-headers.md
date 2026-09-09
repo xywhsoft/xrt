@@ -5,7 +5,7 @@ title: Семейства полей заголовков: параметры, C
 volume: 卷九 Web 协议核心
 type: practice
 lead: Параметры через точку с запятой и quoted-string, возможности Connection/Upgrade, Expect и trailer — полная поверхность обработки специализированного слоя полей.
-api: http, http_te, http_connection
+api: http, http_te, http_connection, http_expect, http_trailer
 ---
 
 ## Ориентация

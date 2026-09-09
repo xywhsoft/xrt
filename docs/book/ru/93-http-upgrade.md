@@ -5,7 +5,7 @@ title: HTTP-обновление: от запроса к 101
 volume: 卷九 Web 协议核心
 type: practice
 lead: Разбор и ответ на предложения Upgrade, построение запроса рукопожатия WebSocket, вычисление ключа Accept и согласование подпротоколов — полный вход переключения протокола.
-api: http_upgrade, websocket, http
+api: http_upgrade, websocket_upgrade, websocket, http
 ---
 
 ## Ориентация

@@ -568,6 +568,22 @@
 - 修复 renumber_book.py 的 md 匹配缺陷（后缀 glob → 精确旧文件名），避免 core-trim 被误改名。
 - 批次：ch18-20（映射/集合/AVL）、ch21-22（队列/池）、ch13+ch23（导言/选型收官）。
 
+## P27 教学缺口补充（含三语言同步）
+
+- 缺口来源：以 config/modules.json 的 90 个公共头对照全书 api 认领与符号级检索，
+  发现 7 个零覆盖模块（pattern/spin/html/future_bridge/task_net/http1_net/http1_tls）
+  与整章缺失的 ch09（order.json 有条目、卷一导言已预告、ch08/138/139 三处悬空引用）。
+- 批 A：补写 docs/book/09-atomic.md（7,208 字、4 程序、3 坑对照；examples 四个现成
+  范例全部嵌入并实跑核对输出）——zh 站旧编号产物页被正式构建覆盖，144/144 PASS。
+- 批 B-D：pattern 并入 ch30、html 并入 ch35、future_bridge 并入 ch57、task_net 并入
+  ch60、http1_net/http1_tls 并入 ch89（概念+示例+契约+速查全套）；ch63/66/103/104/
+  107/137 六处回指；api 认领补齐至 90/90 头；ch52/58 迁移期"第 10 章原子"错引 4 处修正。
+- 事故与修复：①examples/network/task 注释块排在函数体后，超出 check 预期输出
+  提取的 40 行窗口——注释移到文件顶部（纯注释移动，示例编译实跑验证）；②"XSS"
+  裸词撞常量正则——改中文术语"跨站脚本注入"。
+- 方案文件：docs/book/SUPPLEMENT_PLAN.md（执行完毕，验收四项全过：符号覆盖 7/7、
+  悬空引用清零、90/90 认领、check_book 全绿）。
+
 ## P2 阶段记录
 
 - 批次 1（卷二）：ch10 数学 / ch11 随机 / ch12 哈希与 XID；顺带修复仓库示例

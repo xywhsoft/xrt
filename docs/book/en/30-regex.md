@@ -4,7 +4,7 @@ slug: regex
 title: The Regex Engine
 volume: 卷四 文本与结构化数据
 type: practice
-A non-backtracking engine with worst-case linear time, immutable compiled objects with exclusive matchers, named captures and replacement — closing with its restricted cousin pattern for routing-shaped matching.
+lead: A non-backtracking engine with worst-case linear time, immutable compiled objects with exclusive matchers, named captures and replacement — closing with its restricted cousin pattern for routing-shaped matching.
 api: regex, pattern
 ---
 
