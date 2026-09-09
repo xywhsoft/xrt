@@ -524,8 +524,10 @@ def build_trim_info(trim_lines, pages):
     return info
 
 
-def render_contract_card(doc, pages):
-    parts = ['<section class="api-ref-contract" id="module-contract">']
+def render_contract_card(doc, pages, idx=0):
+    # 一页可含多张契约卡（多文档归一页）：id 必须唯一，否则 DOM 重复 id
+    cid = "module-contract" if idx == 0 else "module-contract-%d" % (idx + 1)
+    parts = ['<section class="api-ref-contract" id="%s">' % cid]
     parts.append("<h3>模块契约<span class=\"contract-doc\">%s</span></h3>" % e(doc.title))
     has_content = False
     grid = []
@@ -886,7 +888,7 @@ def main():
         for page in target_pages:
             display, card_desc = card_meta.get(page, (page, "%s 模块 API 参考。" % page))
             desc = card_desc if card_desc else "%s 模块 API 参考。" % page
-            cards = [render_contract_card(d, pages) for d in page_contracts[page]]
+            cards = [render_contract_card(d, pages, i) for i, d in enumerate(page_contracts[page])]
             cards = [c for c in cards if c]
             html_txt = render_page(page, display, desc, page_groups[page],
                                    page_counts[page], pages, page_undoc_const[page], cards)

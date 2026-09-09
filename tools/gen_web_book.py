@@ -289,6 +289,15 @@ INLINE_LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 def inline_md(s, order):
     s = e(s)
 
+    # 代码段先摘除暂存：防止代码内的 **（如 void** args）被粗体规则吞掉
+    stash = []
+
+    def stash_code(m):
+        stash.append('<code>%s</code>' % m.group(1))
+        return '\x00%d\x00' % (len(stash) - 1)
+
+    s = INLINE_CODE.sub(stash_code, s)
+
     def link(m):
         text, url = m.group(1), m.group(2)
         if url.endswith(".md"):
@@ -299,11 +308,12 @@ def inline_md(s, order):
                 text = "第 %d 章 %s" % (entry["num"], text)
             else:
                 url = GITEE_BLOB + "docs/book/" + url
-        return '<a href="%s">%s</a>' % (e(url), INLINE_CODE.sub(r"<code>\1</code>", text))
+        return '<a href="%s">%s</a>' % (e(url), text)
 
     s = INLINE_LINK.sub(link, s)
-    s = INLINE_CODE.sub(r"<code>\1</code>", s)
     s = INLINE_BOLD.sub(r"<strong>\1</strong>", s)
+    for i, code in enumerate(stash):
+        s = s.replace('\x00%d\x00' % i, code)
     return s
 
 
@@ -480,7 +490,7 @@ I18N = {
         "skip": "Skip to main content",
         "nav_arch": "Architecture", "nav_quality": "Engineering", "nav_perf": "Performance",
         "nav_start": "Quick Start", "nav_docs": "Docs", "nav_repos": "Repositories",
-        "nav_toc": "Programming Tutorial", "nav_api": "API Reference & Search",
+        "nav_toc": "Programming Tutorial", "nav_api": "API Reference &amp; Search",
         "nav_home": "XRT home", "nav_menu": "Open menu", "nav_lang": "Language",
         "ch_progress": "Chapter {num} of {total}",
         "h1_fmt": "Chapter {num} {title}",
