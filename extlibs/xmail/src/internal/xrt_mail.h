@@ -65,68 +65,8 @@
 	#include <xrt/mail_wire.h>
 #endif
 
-#if defined(XMAIL_FEATURE_SMTP)
-	#include <xrt/smtp.h>
-#endif
-
-#if defined(XMAIL_FEATURE_POP3)
-	#include <xrt/pop3.h>
-#endif
-
-#if defined(XMAIL_FEATURE_POP3_CLIENT)
-	#include <xrt/pop3_client.h>
-#endif
-
-#if defined(XMAIL_FEATURE_POP3_AUTH)
-	#include <xrt/pop3_auth.h>
-#endif
-
-#if defined(XMAIL_FEATURE_POP3_MESSAGE)
-	#include <xrt/pop3_message.h>
-#endif
-
-#if defined(XMAIL_FEATURE_IMAP)
-	#include <xrt/imap.h>
-#endif
-
-#if defined(XMAIL_FEATURE_IMAP_DATA)
-	#include <xrt/imap_data.h>
-#endif
-
-#if defined(XMAIL_FEATURE_IMAP_BODY)
-	#include <xrt/imap_body.h>
-#endif
-
-#if defined(XMAIL_FEATURE_IMAP_CLIENT)
-	#include <xrt/imap_client.h>
-#endif
-
-#if defined(XMAIL_FEATURE_IMAP_AUTH)
-	#include <xrt/imap_auth.h>
-#endif
-
-#if defined(XMAIL_FEATURE_IMAP_COMMAND)
-	#include <xrt/imap_command.h>
-#endif
-
-#if defined(XMAIL_FEATURE_IMAP_MESSAGE)
-	#include <xrt/imap_message.h>
-#endif
-
 #if defined(XMAIL_FEATURE_MAIL_NET)
 	#include <xrt/mail_net.h>
-#endif
-
-#if defined(XMAIL_FEATURE_SMTP_CLIENT)
-	#include <xrt/smtp_client.h>
-#endif
-
-#if defined(XMAIL_FEATURE_SMTP_AUTH)
-	#include <xrt/smtp_auth.h>
-#endif
-
-#if defined(XMAIL_FEATURE_SMTP_SUBMIT)
-	#include <xrt/smtp_submit.h>
 #endif
 
 #include <string.h>

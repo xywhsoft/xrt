@@ -7,239 +7,53 @@
 #ifndef XMAIL_FEATURE_MAIL
 #define XMAIL_FEATURE_MAIL
 #endif
-#ifndef XMAIL_MODULE_SMTP_CLIENT_TLS
-#define XMAIL_MODULE_SMTP_CLIENT_TLS
+#ifndef XMAIL_MODULE_MAIL_CHARSET
+#define XMAIL_MODULE_MAIL_CHARSET
 #endif
-#ifndef XMAIL_MODULE_SMTP_SUBMIT
-#define XMAIL_MODULE_SMTP_SUBMIT
+#ifndef XMAIL_MODULE_MAIL_CODEC
+#define XMAIL_MODULE_MAIL_CODEC
 #endif
-#ifndef XMAIL_MODULE_SMTP_AUTH
-#define XMAIL_MODULE_SMTP_AUTH
+#ifndef XMAIL_MODULE_MAIL_WORD
+#define XMAIL_MODULE_MAIL_WORD
 #endif
-#ifndef XMAIL_MODULE_POP3_CLIENT_TLS
-#define XMAIL_MODULE_POP3_CLIENT_TLS
+#ifndef XMAIL_MODULE_MAIL_ADDRESS
+#define XMAIL_MODULE_MAIL_ADDRESS
 #endif
-#ifndef XMAIL_MODULE_POP3_AUTH
-#define XMAIL_MODULE_POP3_AUTH
+#ifndef XMAIL_MODULE_MAIL_DATE
+#define XMAIL_MODULE_MAIL_DATE
 #endif
-#ifndef XMAIL_MODULE_POP3_MESSAGE
-#define XMAIL_MODULE_POP3_MESSAGE
+#ifndef XMAIL_MODULE_MAIL_ID
+#define XMAIL_MODULE_MAIL_ID
 #endif
-#ifndef XMAIL_MODULE_IMAP_CLIENT_TLS
-#define XMAIL_MODULE_IMAP_CLIENT_TLS
+#ifndef XMAIL_MODULE_MAIL_PARAM
+#define XMAIL_MODULE_MAIL_PARAM
 #endif
-#ifndef XMAIL_MODULE_IMAP_AUTH
-#define XMAIL_MODULE_IMAP_AUTH
+#ifndef XMAIL_MODULE_MAIL_MULTIPART
+#define XMAIL_MODULE_MAIL_MULTIPART
 #endif
-#ifndef XMAIL_MODULE_IMAP_BODY
-#define XMAIL_MODULE_IMAP_BODY
-#endif
-#ifndef XMAIL_MODULE_IMAP_MESSAGE
-#define XMAIL_MODULE_IMAP_MESSAGE
-#endif
-#ifndef XMAIL_MODULE_IMAP_APPEND
-#define XMAIL_MODULE_IMAP_APPEND
-#endif
-#ifndef XMAIL_MODULE_IMAP_COMPRESS
-#define XMAIL_MODULE_IMAP_COMPRESS
-#endif
-#endif
-
-/* imap_compress 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_COMPRESS)
-#ifndef XMAIL_FEATURE_IMAP_COMPRESS
-#define XMAIL_FEATURE_IMAP_COMPRESS
-#endif
-#ifndef XMAIL_MODULE_IMAP_CLIENT
-#define XMAIL_MODULE_IMAP_CLIENT
-#endif
-#ifndef XMAIL_MODULE_MAIL_NET_DEFLATE
-#define XMAIL_MODULE_MAIL_NET_DEFLATE
-#endif
-#endif
-
-/* imap_append 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_APPEND)
-#ifndef XMAIL_FEATURE_IMAP_APPEND
-#define XMAIL_FEATURE_IMAP_APPEND
-#endif
-#ifndef XMAIL_MODULE_IMAP_CLIENT
-#define XMAIL_MODULE_IMAP_CLIENT
-#endif
-#endif
-
-/* imap_message 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_MESSAGE)
-#ifndef XMAIL_FEATURE_IMAP_MESSAGE
-#define XMAIL_FEATURE_IMAP_MESSAGE
-#endif
-#ifndef XMAIL_MODULE_IMAP_COMMAND
-#define XMAIL_MODULE_IMAP_COMMAND
-#endif
-#ifndef XMAIL_MODULE_IMAP_DATA
-#define XMAIL_MODULE_IMAP_DATA
+#ifndef XMAIL_MODULE_MAIL_MESSAGE
+#define XMAIL_MODULE_MAIL_MESSAGE
 #endif
 #ifndef XMAIL_MODULE_MAIL_TREE
 #define XMAIL_MODULE_MAIL_TREE
 #endif
-#ifndef XRT_MODULE_BUFFER
-#define XRT_MODULE_BUFFER
-#endif
-#endif
-
-/* imap_command 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_COMMAND)
-#ifndef XMAIL_FEATURE_IMAP_COMMAND
-#define XMAIL_FEATURE_IMAP_COMMAND
-#endif
-#ifndef XMAIL_MODULE_IMAP_CLIENT
-#define XMAIL_MODULE_IMAP_CLIENT
-#endif
-#endif
-
-/* imap_auth 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_AUTH)
-#ifndef XMAIL_FEATURE_IMAP_AUTH
-#define XMAIL_FEATURE_IMAP_AUTH
-#endif
-#ifndef XMAIL_MODULE_IMAP_CLIENT
-#define XMAIL_MODULE_IMAP_CLIENT
-#endif
-#ifndef XRT_MODULE_CODEC_BASE64
-#define XRT_MODULE_CODEC_BASE64
-#endif
-#endif
-
-/* imap_client_tls 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_CLIENT_TLS)
-#ifndef XMAIL_FEATURE_IMAP_CLIENT_TLS
-#define XMAIL_FEATURE_IMAP_CLIENT_TLS
-#endif
-#ifndef XMAIL_MODULE_IMAP_CLIENT
-#define XMAIL_MODULE_IMAP_CLIENT
-#endif
-#ifndef XMAIL_MODULE_MAIL_NET_TLS
-#define XMAIL_MODULE_MAIL_NET_TLS
-#endif
-#endif
-
-/* imap_client 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_CLIENT)
-#ifndef XMAIL_FEATURE_IMAP_CLIENT
-#define XMAIL_FEATURE_IMAP_CLIENT
-#endif
-#ifndef XMAIL_MODULE_IMAP
-#define XMAIL_MODULE_IMAP
-#endif
-#ifndef XMAIL_MODULE_MAIL_NET
-#define XMAIL_MODULE_MAIL_NET
-#endif
-#endif
-
-/* pop3_message 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_POP3_MESSAGE)
-#ifndef XMAIL_FEATURE_POP3_MESSAGE
-#define XMAIL_FEATURE_POP3_MESSAGE
-#endif
-#ifndef XMAIL_MODULE_POP3_CLIENT
-#define XMAIL_MODULE_POP3_CLIENT
-#endif
-#ifndef XMAIL_MODULE_MAIL_TREE
-#define XMAIL_MODULE_MAIL_TREE
-#endif
-#ifndef XRT_MODULE_BUFFER
-#define XRT_MODULE_BUFFER
-#endif
-#endif
-
-/* pop3_auth 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_POP3_AUTH)
-#ifndef XMAIL_FEATURE_POP3_AUTH
-#define XMAIL_FEATURE_POP3_AUTH
-#endif
-#ifndef XMAIL_MODULE_POP3_CLIENT
-#define XMAIL_MODULE_POP3_CLIENT
-#endif
-#ifndef XRT_MODULE_CODEC_BASE64
-#define XRT_MODULE_CODEC_BASE64
-#endif
-#endif
-
-/* pop3_client_tls 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_POP3_CLIENT_TLS)
-#ifndef XMAIL_FEATURE_POP3_CLIENT_TLS
-#define XMAIL_FEATURE_POP3_CLIENT_TLS
-#endif
-#ifndef XMAIL_MODULE_POP3_CLIENT
-#define XMAIL_MODULE_POP3_CLIENT
-#endif
-#ifndef XMAIL_MODULE_MAIL_NET_TLS
-#define XMAIL_MODULE_MAIL_NET_TLS
-#endif
-#endif
-
-/* pop3_client 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_POP3_CLIENT)
-#ifndef XMAIL_FEATURE_POP3_CLIENT
-#define XMAIL_FEATURE_POP3_CLIENT
-#endif
-#ifndef XMAIL_MODULE_POP3
-#define XMAIL_MODULE_POP3
-#endif
-#ifndef XMAIL_MODULE_MAIL_NET
-#define XMAIL_MODULE_MAIL_NET
-#endif
-#endif
-
-/* smtp_auth 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_SMTP_AUTH)
-#ifndef XMAIL_FEATURE_SMTP_AUTH
-#define XMAIL_FEATURE_SMTP_AUTH
-#endif
-#ifndef XMAIL_MODULE_SMTP_CLIENT
-#define XMAIL_MODULE_SMTP_CLIENT
-#endif
-#ifndef XRT_MODULE_CODEC_BASE64
-#define XRT_MODULE_CODEC_BASE64
-#endif
-#endif
-
-/* smtp_submit 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_SMTP_SUBMIT)
-#ifndef XMAIL_FEATURE_SMTP_SUBMIT
-#define XMAIL_FEATURE_SMTP_SUBMIT
-#endif
-#ifndef XMAIL_MODULE_SMTP_CLIENT
-#define XMAIL_MODULE_SMTP_CLIENT
+#ifndef XMAIL_MODULE_MAIL_BUILD
+#define XMAIL_MODULE_MAIL_BUILD
 #endif
 #ifndef XMAIL_MODULE_MAIL_COMPOSE
 #define XMAIL_MODULE_MAIL_COMPOSE
 #endif
+#ifndef XMAIL_MODULE_MAIL_WIRE
+#define XMAIL_MODULE_MAIL_WIRE
 #endif
-
-/* smtp_client_tls 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_SMTP_CLIENT_TLS)
-#ifndef XMAIL_FEATURE_SMTP_CLIENT_TLS
-#define XMAIL_FEATURE_SMTP_CLIENT_TLS
-#endif
-#ifndef XMAIL_MODULE_SMTP_CLIENT
-#define XMAIL_MODULE_SMTP_CLIENT
+#ifndef XMAIL_MODULE_MAIL_NET
+#define XMAIL_MODULE_MAIL_NET
 #endif
 #ifndef XMAIL_MODULE_MAIL_NET_TLS
 #define XMAIL_MODULE_MAIL_NET_TLS
 #endif
-#endif
-
-/* smtp_client 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_SMTP_CLIENT)
-#ifndef XMAIL_FEATURE_SMTP_CLIENT
-#define XMAIL_FEATURE_SMTP_CLIENT
-#endif
-#ifndef XMAIL_MODULE_SMTP
-#define XMAIL_MODULE_SMTP
-#endif
-#ifndef XMAIL_MODULE_MAIL_NET
-#define XMAIL_MODULE_MAIL_NET
+#ifndef XMAIL_MODULE_MAIL_NET_DEFLATE
+#define XMAIL_MODULE_MAIL_NET_DEFLATE
 #endif
 #endif
 
@@ -307,55 +121,8 @@
 #ifndef XRT_MODULE_NET_TCP_DIAL_SYNC
 #define XRT_MODULE_NET_TCP_DIAL_SYNC
 #endif
-#endif
-
-/* imap_body 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_BODY)
-#ifndef XMAIL_FEATURE_IMAP_BODY
-#define XMAIL_FEATURE_IMAP_BODY
-#endif
-#ifndef XMAIL_MODULE_IMAP_DATA
-#define XMAIL_MODULE_IMAP_DATA
-#endif
-#endif
-
-/* imap_data 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP_DATA)
-#ifndef XMAIL_FEATURE_IMAP_DATA
-#define XMAIL_FEATURE_IMAP_DATA
-#endif
-#ifndef XMAIL_MODULE_IMAP
-#define XMAIL_MODULE_IMAP
-#endif
-#endif
-
-/* imap 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_IMAP)
-#ifndef XMAIL_FEATURE_IMAP
-#define XMAIL_FEATURE_IMAP
-#endif
-#ifndef XMAIL_MODULE_MAIL_WIRE
-#define XMAIL_MODULE_MAIL_WIRE
-#endif
-#endif
-
-/* pop3 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_POP3)
-#ifndef XMAIL_FEATURE_POP3
-#define XMAIL_FEATURE_POP3
-#endif
-#ifndef XMAIL_MODULE_MAIL_WIRE
-#define XMAIL_MODULE_MAIL_WIRE
-#endif
-#endif
-
-/* smtp 及其直接依赖。 */
-#if defined(XMAIL_MODULE_ALL) || defined(XMAIL_MODULE_SMTP)
-#ifndef XMAIL_FEATURE_SMTP
-#define XMAIL_FEATURE_SMTP
-#endif
-#ifndef XMAIL_MODULE_MAIL_WIRE
-#define XMAIL_MODULE_MAIL_WIRE
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
 #endif
 #endif
 

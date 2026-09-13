@@ -1,0 +1,24 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xsmtp/config/modules.json",
+	"profiles": [
+		{
+			"name": "smtp_protocol",
+			"system": "smtp_protocol",
+			"suite": "smtp",
+			"description": "SMTP 协议纯解析与写出"
+		},
+		{
+			"name": "xsmtp",
+			"system": "smtp_protocol",
+			"suite": "xsmtp",
+			"description": "xsmtp 当前完整扩展闭包"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

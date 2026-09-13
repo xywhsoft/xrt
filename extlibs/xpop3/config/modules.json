@@ -1,0 +1,370 @@
+{
+	"schema": 1,
+	"product": "xpop3",
+	"dependency_manifests": [
+		"extlibs/xmail/config/modules.json"
+	],
+	"module_prefix": "XPOP3_MODULE_",
+	"single_header": "extlibs/xpop3/single/xpop3.h",
+	"declaration_header": "extlibs/xpop3/single/xpop3_decl.h",
+	"implementation_macro": "XPOP3_IMPLEMENTATION",
+	"implementation_once_macro": "XPOP3_IMPLEMENTATION_ONCE",
+	"single_guard": "XPOP3_SINGLE_HEADER_H",
+	"single_marker": "XPOP3_SINGLE_HEADER",
+	"declaration_guard": "XPOP3_DECLARATIONS_H",
+	"declaration_marker": "XPOP3_DECLARATIONS",
+	"package_consumer": "extlibs/xpop3/tests/package/test_consumer.c",
+	"product_root": "extlibs/xpop3",
+	"performance_config": "extlibs/xpop3/config/performance_profiles.json",
+	"size_config": "extlibs/xpop3/config/size_profiles.json",
+	"scope": {
+		"product": "xpop3",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "pop3_protocol",
+				"state": "retained",
+				"source_roots": [
+					"pop3"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xpop3 公共符号参考",
+		"function_prefix": "xrtPop3",
+		"constant_prefix": "XPOP3_",
+		"type_prefix": "xpop3",
+		"guide": "../../README.md",
+		"output": "extlibs/xpop3/docs/api/reference.md"
+	},
+	"features_guard": "XPOP3_FEATURES_H",
+	"features_header": "extlibs/xpop3/include/xpop3/features.h",
+	"include_dirs": [
+		"extlibs/xpop3/include"
+	],
+	"header_roots": [
+		"extlibs/xpop3/include",
+		"extlibs/xpop3/src/internal"
+	],
+	"modules": [
+		{
+			"name": "pop3",
+			"state": "implemented",
+			"feature": "XPOP3_FEATURE_POP3",
+			"depends": [
+				"mail_wire"
+			],
+			"public_headers": [
+				"extlibs/xpop3/include/xrt/pop3.h"
+			],
+			"internal_headers": [
+				"extlibs/xpop3/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xpop3/src/pop3/pop3.c"
+			],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3.c"
+			],
+			"single_tests": [
+				"extlibs/xpop3/tests/single/test_single_pop3.c"
+			],
+			"examples": [
+				"extlibs/xpop3/examples/protocol/main.c"
+			],
+			"docs": [
+				"extlibs/xpop3/docs/api/pop3.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
+			],
+			"benchmarks": [
+				"extlibs/xpop3/bench/bench_pop3_protocol.c"
+			]
+		},
+		{
+			"name": "pop3_client",
+			"state": "implemented",
+			"feature": "XPOP3_FEATURE_POP3_CLIENT",
+			"depends": [
+				"pop3",
+				"mail_net"
+			],
+			"public_headers": [
+				"extlibs/xpop3/include/xrt/pop3_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xpop3/src/internal/xrt_mail.h",
+				"extlibs/xpop3/src/internal/xrt_mail_net.h",
+				"extlibs/xpop3/src/internal/xrt_pop3_client.h"
+			],
+			"sources": [
+				"extlibs/xpop3/src/pop3/pop3_client.c"
+			],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3_client.c"
+			],
+			"single_tests": [
+				"extlibs/xpop3/tests/single/test_single_pop3_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xpop3/docs/api/pop3_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
+			]
+		},
+		{
+			"name": "pop3_client_tls",
+			"state": "implemented",
+			"feature": "XPOP3_FEATURE_POP3_CLIENT_TLS",
+			"depends": [
+				"pop3_client",
+				"mail_net_tls"
+			],
+			"public_headers": [
+				"extlibs/xpop3/include/xrt/pop3_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xpop3/src/internal/xrt_mail.h",
+				"extlibs/xpop3/src/internal/xrt_mail_net.h"
+			],
+			"sources": [],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3_client_tls.c"
+			],
+			"single_tests": [
+				"extlibs/xpop3/tests/single/test_single_pop3_client_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xpop3/docs/api/pop3_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
+			]
+		},
+		{
+			"name": "pop3_auth",
+			"state": "implemented",
+			"feature": "XPOP3_FEATURE_POP3_AUTH",
+			"depends": [
+				"pop3_client",
+				"codec_base64"
+			],
+			"public_headers": [
+				"extlibs/xpop3/include/xrt/pop3_auth.h"
+			],
+			"internal_headers": [
+				"extlibs/xpop3/src/internal/xrt_mail.h",
+				"extlibs/xpop3/src/internal/xrt_mail_auth.h",
+				"extlibs/xpop3/src/internal/xrt_mail_net.h",
+				"extlibs/xpop3/src/internal/xrt_pop3_client.h"
+			],
+			"sources": [
+				"extlibs/xpop3/src/pop3/pop3_auth.c"
+			],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3_auth.c",
+				"extlibs/xpop3/tests/test_pop3_sasl.c"
+			],
+			"single_tests": [
+				"extlibs/xpop3/tests/single/test_single_pop3_auth.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xpop3/docs/api/pop3_client.md",
+				"extlibs/xpop3/docs/api/pop3_auth.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h"
+			]
+		},
+		{
+			"name": "pop3_client_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_auth",
+				"pop3_client_tls"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xpop3/examples/client/main.c"
+			],
+			"docs": [
+				"extlibs/xpop3/docs/api/pop3_client.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "pop3_message",
+			"state": "implemented",
+			"feature": "XPOP3_FEATURE_POP3_MESSAGE",
+			"depends": [
+				"pop3_client",
+				"mail_tree",
+				"buffer"
+			],
+			"public_headers": [
+				"extlibs/xpop3/include/xrt/pop3_message.h"
+			],
+			"internal_headers": [
+				"extlibs/xpop3/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xpop3/src/pop3/pop3_message.c"
+			],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3_message.c"
+			],
+			"single_tests": [
+				"extlibs/xpop3/tests/single/test_single_pop3_message.c"
+			],
+			"examples": [
+				"extlibs/xpop3/examples/message/main.c"
+			],
+			"docs": [
+				"extlibs/xpop3/docs/api/pop3_message.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xpop3/xpop3.h",
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "pop3_message_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_message",
+				"pop3_auth"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3_message_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xpop3/docs/api/pop3_message.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "pop3_client_tls_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_auth",
+				"pop3_client_tls",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3_client_stls_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "pop3_protocol_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xpop3/tests/test_xpop3_protocol_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "xpop3",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3",
+				"pop3_client",
+				"pop3_client_tls",
+				"pop3_auth",
+				"pop3_client_example",
+				"pop3_message",
+				"pop3_message_runtime_tests",
+				"pop3_client_tls_runtime_tests"
+			],
+			"public_headers": [
+				"extlibs/xpop3/include/xpop3/features.h",
+				"extlibs/xpop3/include/xpop3.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3.c",
+				"extlibs/xpop3/tests/test_pop3_client.c",
+				"extlibs/xpop3/tests/test_pop3_client_tls.c",
+				"extlibs/xpop3/tests/test_pop3_auth.c",
+				"extlibs/xpop3/tests/test_pop3_sasl.c",
+				"extlibs/xpop3/tests/test_pop3_message.c",
+				"extlibs/xpop3/tests/test_pop3_message_runtime.c",
+				"extlibs/xpop3/tests/test_pop3_client_stls_runtime.c",
+				"extlibs/xpop3/tests/test_xpop3_protocol_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xpop3/tests/single/test_single_xpop3.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xpop3/README.md",
+				"extlibs/xpop3/docs/api/reference.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "xpop3_tests",
+			"state": "implemented",
+			"feature": null,
+			"collect_dependency_assets": [
+				"tests",
+				"single_tests"
+			],
+			"depends": [
+				"pop3_client_example",
+				"pop3_message_runtime_tests",
+				"pop3_client_tls_runtime_tests",
+				"pop3_protocol_oom_tests",
+				"xpop3"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xpop3/README.md"
+			],
+			"legacy": []
+		}
+	]
+}

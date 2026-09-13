@@ -133,6 +133,9 @@ jobs:
           - xhttp
           - xws
           - xmail
+          - xsmtp
+          - xpop3
+          - ximap
           - xssh
     steps:
       - name: Checkout
@@ -172,6 +175,15 @@ jobs:
           - product: xmail
             test_suite: xmail_tests
             package_suite: xmail
+          - product: xsmtp
+            test_suite: xsmtp_tests
+            package_suite: xsmtp
+          - product: xpop3
+            test_suite: xpop3_tests
+            package_suite: xpop3
+          - product: ximap
+            test_suite: ximap_tests
+            package_suite: ximap
           - product: xssh
             test_suite: xssh
             package_suite: xssh

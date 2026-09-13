@@ -1,0 +1,342 @@
+{
+	"schema": 1,
+	"product": "xsmtp",
+	"dependency_manifests": [
+		"extlibs/xmail/config/modules.json"
+	],
+	"module_prefix": "XSMTP_MODULE_",
+	"single_header": "extlibs/xsmtp/single/xsmtp.h",
+	"declaration_header": "extlibs/xsmtp/single/xsmtp_decl.h",
+	"implementation_macro": "XSMTP_IMPLEMENTATION",
+	"implementation_once_macro": "XSMTP_IMPLEMENTATION_ONCE",
+	"single_guard": "XSMTP_SINGLE_HEADER_H",
+	"single_marker": "XSMTP_SINGLE_HEADER",
+	"declaration_guard": "XSMTP_DECLARATIONS_H",
+	"declaration_marker": "XSMTP_DECLARATIONS",
+	"package_consumer": "extlibs/xsmtp/tests/package/test_consumer.c",
+	"product_root": "extlibs/xsmtp",
+	"performance_config": "extlibs/xsmtp/config/performance_profiles.json",
+	"size_config": "extlibs/xsmtp/config/size_profiles.json",
+	"scope": {
+		"product": "xsmtp",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "smtp_protocol",
+				"state": "retained",
+				"source_roots": [
+					"smtp"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xsmtp 公共符号参考",
+		"function_prefix": "xrtSmtp",
+		"constant_prefix": "XSMTP_",
+		"type_prefix": "xsmtp",
+		"guide": "../../README.md",
+		"output": "extlibs/xsmtp/docs/api/reference.md"
+	},
+	"features_guard": "XSMTP_FEATURES_H",
+	"features_header": "extlibs/xsmtp/include/xsmtp/features.h",
+	"include_dirs": [
+		"extlibs/xsmtp/include"
+	],
+	"header_roots": [
+		"extlibs/xsmtp/include",
+		"extlibs/xsmtp/src/internal"
+	],
+	"modules": [
+		{
+			"name": "smtp",
+			"state": "implemented",
+			"feature": "XSMTP_FEATURE_SMTP",
+			"depends": [
+				"mail_wire"
+			],
+			"public_headers": [
+				"extlibs/xsmtp/include/xrt/smtp.h"
+			],
+			"internal_headers": [
+				"extlibs/xsmtp/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xsmtp/src/smtp/smtp.c"
+			],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp.c"
+			],
+			"single_tests": [
+				"extlibs/xsmtp/tests/single/test_single_smtp.c"
+			],
+			"examples": [
+				"extlibs/xsmtp/examples/protocol/main.c"
+			],
+			"docs": [
+				"extlibs/xsmtp/docs/api/smtp.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
+			],
+			"benchmarks": [
+				"extlibs/xsmtp/bench/bench_smtp_protocol.c"
+			]
+		},
+		{
+			"name": "smtp_client",
+			"state": "implemented",
+			"feature": "XSMTP_FEATURE_SMTP_CLIENT",
+			"depends": [
+				"smtp",
+				"mail_net"
+			],
+			"public_headers": [
+				"extlibs/xsmtp/include/xrt/smtp_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xsmtp/src/internal/xrt_mail.h",
+				"extlibs/xsmtp/src/internal/xrt_mail_net.h",
+				"extlibs/xsmtp/src/internal/xrt_smtp_client.h"
+			],
+			"sources": [
+				"extlibs/xsmtp/src/smtp/smtp_client.c"
+			],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp_client.c"
+			],
+			"single_tests": [
+				"extlibs/xsmtp/tests/single/test_single_smtp_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xsmtp/docs/api/smtp_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
+			]
+		},
+		{
+			"name": "smtp_client_tls",
+			"state": "implemented",
+			"feature": "XSMTP_FEATURE_SMTP_CLIENT_TLS",
+			"depends": [
+				"smtp_client",
+				"mail_net_tls"
+			],
+			"public_headers": [
+				"extlibs/xsmtp/include/xrt/smtp_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xsmtp/src/internal/xrt_mail.h",
+				"extlibs/xsmtp/src/internal/xrt_mail_net.h"
+			],
+			"sources": [],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp_client_tls.c"
+			],
+			"single_tests": [
+				"extlibs/xsmtp/tests/single/test_single_smtp_client_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xsmtp/docs/api/smtp_client.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
+			]
+		},
+		{
+			"name": "smtp_submit",
+			"state": "implemented",
+			"feature": "XSMTP_FEATURE_SMTP_SUBMIT",
+			"depends": [
+				"smtp_client",
+				"mail_compose"
+			],
+			"public_headers": [
+				"extlibs/xsmtp/include/xrt/smtp_submit.h"
+			],
+			"internal_headers": [
+				"extlibs/xsmtp/src/internal/xrt_mail.h"
+			],
+			"sources": [
+				"extlibs/xsmtp/src/smtp/smtp_submit.c"
+			],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp_submit.c"
+			],
+			"single_tests": [
+				"extlibs/xsmtp/tests/single/test_single_smtp_submit.c"
+			],
+			"examples": [
+				"extlibs/xsmtp/examples/submit/main.c"
+			],
+			"docs": [
+				"extlibs/xsmtp/docs/api/smtp_submit.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h",
+				"dev/archive/mail_legacy_20260816/xmail_mime/xmail_mime.h"
+			]
+		},
+		{
+			"name": "smtp_auth",
+			"state": "implemented",
+			"feature": "XSMTP_FEATURE_SMTP_AUTH",
+			"depends": [
+				"smtp_client",
+				"codec_base64"
+			],
+			"public_headers": [
+				"extlibs/xsmtp/include/xrt/smtp_auth.h"
+			],
+			"internal_headers": [
+				"extlibs/xsmtp/src/internal/xrt_mail.h",
+				"extlibs/xsmtp/src/internal/xrt_mail_auth.h",
+				"extlibs/xsmtp/src/internal/xrt_smtp_client.h"
+			],
+			"sources": [
+				"extlibs/xsmtp/src/smtp/smtp_auth.c"
+			],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp_auth.c"
+			],
+			"single_tests": [
+				"extlibs/xsmtp/tests/single/test_single_smtp_auth.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xsmtp/docs/api/smtp_auth.md"
+			],
+			"legacy": [
+				"dev/archive/mail_legacy_20260816/xsmtp/xsmtp.h"
+			]
+		},
+		{
+			"name": "smtp_client_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_auth",
+				"smtp_client_tls"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xsmtp/examples/client/main.c"
+			],
+			"docs": [
+				"extlibs/xsmtp/docs/api/smtp_client.md",
+				"extlibs/xsmtp/docs/api/smtp_auth.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "smtp_client_tls_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_client_tls",
+				"smtp_auth",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp_client_starttls_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "smtp_protocol_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xsmtp/tests/test_xsmtp_protocol_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "xsmtp",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp",
+				"smtp_client",
+				"smtp_client_tls",
+				"smtp_submit",
+				"smtp_auth",
+				"smtp_client_example",
+				"smtp_client_tls_runtime_tests"
+			],
+			"public_headers": [
+				"extlibs/xsmtp/include/xsmtp/features.h",
+				"extlibs/xsmtp/include/xsmtp.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp.c",
+				"extlibs/xsmtp/tests/test_smtp_client.c",
+				"extlibs/xsmtp/tests/test_smtp_client_tls.c",
+				"extlibs/xsmtp/tests/test_smtp_submit.c",
+				"extlibs/xsmtp/tests/test_smtp_auth.c",
+				"extlibs/xsmtp/tests/test_smtp_client_starttls_runtime.c",
+				"extlibs/xsmtp/tests/test_xsmtp_protocol_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xsmtp/tests/single/test_single_xsmtp.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xsmtp/README.md",
+				"extlibs/xsmtp/docs/api/reference.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "xsmtp_tests",
+			"state": "implemented",
+			"feature": null,
+			"collect_dependency_assets": [
+				"tests",
+				"single_tests"
+			],
+			"depends": [
+				"smtp_client_example",
+				"smtp_client_tls_runtime_tests",
+				"smtp_protocol_oom_tests",
+				"xsmtp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xsmtp/README.md"
+			],
+			"legacy": []
+		}
+	]
+}

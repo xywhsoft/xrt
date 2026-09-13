@@ -1,0 +1,46 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xpop3/config/modules.json",
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": [
+			"-O2"
+		],
+		"ldflags": [],
+		"max_relative_mad": 0.2,
+		"max_relative_central_range": 0.3,
+		"regression": {
+			"higher": 0.1,
+			"lower": 0.2
+		}
+	},
+	"profiles": [
+		{
+			"name": "pop3_protocol",
+			"system": "pop3_protocol",
+			"description": "POP3 协议零分配热路径",
+			"benchmarks": [
+				{
+					"name": "pop3_protocol",
+					"suite": "pop3",
+					"source": "extlibs/xpop3/bench/bench_pop3_protocol.c",
+					"args": [
+						"200000"
+					],
+					"smoke_args": [
+						"100"
+					],
+					"metrics": {
+						"pop3_ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		}
+	]
+}

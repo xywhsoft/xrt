@@ -22,10 +22,14 @@ int main(void)
 		!defined(XMAIL_FEATURE_MAIL_MULTIPART) || \
 		!defined(XMAIL_FEATURE_MAIL_MESSAGE) || \
 		!defined(XMAIL_FEATURE_MAIL_WIRE) || \
-		!defined(XMAIL_FEATURE_SMTP) || \
-		!defined(XMAIL_FEATURE_POP3) || \
-		!defined(XMAIL_FEATURE_IMAP)
+		!defined(XMAIL_FEATURE_MAIL_NET) || \
+		!defined(XMAIL_FEATURE_MAIL_NET_TLS) || \
+		!defined(XMAIL_FEATURE_MAIL_NET_DEFLATE)
 		#error "XMAIL_MODULE_XMAIL dependency closure is incomplete"
+	#endif
+	#if defined(XMAIL_FEATURE_SMTP) || defined(XMAIL_FEATURE_POP3) || \
+		defined(XMAIL_FEATURE_IMAP)
+		#error "XMAIL_MODULE_XMAIL must not retain protocol closures"
 	#endif
 
 	return xrtMailQpWrite(

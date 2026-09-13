@@ -1,0 +1,24 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xpop3/config/modules.json",
+	"profiles": [
+		{
+			"name": "pop3_protocol",
+			"system": "pop3_protocol",
+			"suite": "pop3",
+			"description": "POP3 协议纯解析与写出"
+		},
+		{
+			"name": "xpop3",
+			"system": "pop3_protocol",
+			"suite": "xpop3",
+			"description": "xpop3 当前完整扩展闭包"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

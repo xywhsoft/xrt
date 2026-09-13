@@ -7,8 +7,7 @@
 
 
 
-#if defined(XMAIL_FEATURE_SMTP_AUTH) || defined(XMAIL_FEATURE_POP3_AUTH) || \
-	defined(XMAIL_FEATURE_IMAP_AUTH)
+#if defined(XMAIL_FEATURE_MAIL_NET)
 
 bool __xrtMailAuthFieldValid(xstrview Text, bool bRejectSoh);
 

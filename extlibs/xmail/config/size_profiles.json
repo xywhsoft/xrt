@@ -63,36 +63,6 @@
 			"description": "增量 CRLF 行与 dot transparency 闭包"
 		},
 		{
-			"name": "smtp_protocol",
-			"system": "mail_transport",
-			"suite": "smtp",
-			"description": "SMTP 响应、能力与命令原语闭包"
-		},
-		{
-			"name": "pop3_protocol",
-			"system": "mail_transport",
-			"suite": "pop3",
-			"description": "POP3 响应、能力与命令原语闭包"
-		},
-		{
-			"name": "imap_protocol",
-			"system": "mail_transport",
-			"suite": "imap",
-			"description": "IMAP 响应、literal 与命令原语闭包"
-		},
-		{
-			"name": "imap_body",
-			"system": "mail_transport",
-			"suite": "imap_body",
-			"description": "零分配 BODYSTRUCTURE 语义解析闭包"
-		},
-		{
-			"name": "mail_protocols",
-			"system": "mail_transport",
-			"suite": "smtp,pop3,imap",
-			"description": "三种邮件协议共享线路与解析原语组合"
-		},
-		{
 			"name": "mail_net",
 			"system": "mail_transport",
 			"suite": "mail_net",
@@ -103,96 +73,6 @@
 			"system": "mail_transport",
 			"suite": "mail_net_tls",
 			"description": "经过验证的 TLS 邮件传输闭包"
-		},
-		{
-			"name": "smtp_client",
-			"system": "mail_transport",
-			"suite": "smtp_client",
-			"description": "不带认证和 TLS 的 SMTP 会话、流式 DATA 与零拷贝 BDAT 闭包"
-		},
-		{
-			"name": "smtp_client_tls",
-			"system": "mail_transport",
-			"suite": "smtp_client_tls",
-			"description": "带隐式 TLS 和 STARTTLS 的 SMTP 会话闭包"
-		},
-		{
-			"name": "smtp_submit",
-			"system": "mail_transport",
-			"suite": "smtp_submit",
-			"description": "SMTP envelope 与 MIME Compose 零整报文副本提交闭包"
-		},
-		{
-			"name": "smtp_auth",
-			"system": "mail_transport",
-			"suite": "smtp_auth",
-			"description": "不强制携带 TLS 的 SMTP PLAIN、LOGIN 与 XOAUTH2 认证闭包"
-		},
-		{
-			"name": "pop3_client",
-			"system": "mail_transport",
-			"suite": "pop3_client",
-			"description": "明文 POP3 状态机和流式多行响应闭包"
-		},
-		{
-			"name": "pop3_client_tls",
-			"system": "mail_transport",
-			"suite": "pop3_client_tls",
-			"description": "带隐式 TLS 和 STLS 的 POP3 会话闭包"
-		},
-		{
-			"name": "pop3_auth",
-			"system": "mail_transport",
-			"suite": "pop3_auth",
-			"description": "POP3 USER/PASS 与 SASL 认证闭包"
-		},
-		{
-			"name": "pop3_message",
-			"system": "mail_transport",
-			"suite": "pop3_message",
-			"description": "POP3 流式消息、owned 字节和 MIME 树桥接闭包"
-		},
-		{
-			"name": "imap_client",
-			"system": "mail_transport",
-			"suite": "imap_client",
-			"description": "明文 IMAP 状态机、流水线命令和流式 literal 闭包"
-		},
-		{
-			"name": "imap_client_tls",
-			"system": "mail_transport",
-			"suite": "imap_client_tls",
-			"description": "带隐式 TLS 和 STARTTLS 的 IMAP 会话闭包"
-		},
-		{
-			"name": "imap_auth",
-			"system": "mail_transport",
-			"suite": "imap_auth",
-			"description": "IMAP LOGIN、PLAIN、XOAUTH2 与 OAUTHBEARER 认证闭包"
-		},
-		{
-			"name": "imap_command",
-			"system": "mail_transport",
-			"suite": "imap_command",
-			"description": "IMAP 邮箱、消息操作和 IDLE 常用命令闭包"
-		},
-		{
-			"name": "imap_message",
-			"system": "mail_transport",
-			"suite": "imap_message",
-			"description": "IMAP BODY 流、owned 字节和 MIME 树桥接闭包"
-		},
-		{
-			"name": "imap_append",
-			"system": "mail_transport",
-			"suite": "imap_append",
-			"description": "IMAP APPENDLIMIT、LITERAL- 与流式 APPEND 闭包"
-		},
-		{
-			"name": "imap_compress",
-			"system": "mail_transport",
-			"suite": "imap_compress",
-			"description": "IMAP raw-DEFLATE 持续压缩传输闭包"
 		}
 	],
 	"default_growth": {

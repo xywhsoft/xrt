@@ -2,8 +2,7 @@
 
 
 
-#if defined(XMAIL_FEATURE_SMTP_AUTH) || defined(XMAIL_FEATURE_POP3_AUTH) || \
-	defined(XMAIL_FEATURE_IMAP_AUTH)
+#if defined(XMAIL_FEATURE_MAIL_NET)
 
 /* 验证认证字段的地址和机制专属分隔符。 */
 bool __xrtMailAuthFieldValid(xstrview Text, bool bRejectSoh)
