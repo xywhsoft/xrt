@@ -2,6 +2,79 @@
 
 `future` 提供与网络无关的一次性异步结果。`xfuture` 是可共享的只读消费端，`xpromise` 是可引用的生产端；两者由一次分配共同创建，Future 的终态一旦写入便不可改变。
 
+## 物理拥有图
+
+### 协作冻结与完整状态转换
+
+Future/Promise 的强引用、生产端双计数、最后销毁、终态发布、转发和 Watch
+装配/摘除/通知已经接入 `xrtOwnershipMutationBegin/ScopeEnd`。准入先于
+Future 的内部锁，覆盖状态保留、取消通知、发布、迭代通知队列和 Release
+尾部；`FutureValue` 在锁内增加失败错误引用时也有外层准入。繁忙 freeze
+不会排队升级，已有回调可继续嵌套普通操作；错误或重复发布仍保留原行为。
+
+Any/All/Race 及 continuation 在各自唯一的共同工厂入口保护装配、立即完成
+回调和回滚。后续通知由受保护的 Future/Cancel 分发路径执行，不能只包住
+一个引用计数或一次字段赋值。内部 waiter Add/Detach/Remove 也独立参与，
+以覆盖协程等不经过公开 Watch 的调用者。
+
+原生 FutureWait 和协程 Await 的等待/park 本体不持有长期 mutation：等待
+需要的真实 Future 强引用依然存在并计作根，只有拥有边的装配/移除受保护。
+一个仍 Pending 的原生等待不会因此阻止整个 XRT 域取得 freeze。并发注销时，
+通知方和注销方分别保有 scope；通知方覆盖其原有 Release 尾部，因此整体
+不能在半完成状态冻结。这不改变 Remove 的原返回时点：Calling 清零后的
+Release 仍由通知方完成，不能据此认为 Remove 新增了等待 Release 的保证。
+
+这不提供模块环收集、候选接管或代码驻留。调用方自定义 Trace/Data、任务/
+传输控制块及生成的存储仍需完整参与合同；旧不透明 waiter 不变成可检查叶。
+持有 freeze 时禁止启动任意用户回调、阻塞等待或 park，不能因同线程允许
+嵌套而忽略这些限制。专项 `--suite future_scope_tests` 每个程序验证 100 个
+冻结转换、130 个在途回调/工厂/析构窗口、20 个并发注销和 10 个真实 Pending
+原生等待；检查图和 allocator 平衡，不把这些专项当完整全图收集验收。
+
+### 一次受理的聚合映射
+
+`xrtFutureAllMapOwnedTraced`、`xrtFutureAnyMapOwnedTraced` 和
+`xrtFutureRaceMapOwnedTraced` 把结果转换纳入原生聚合器的一次启动事务。
+源引用、Promise、取消监听和上下文均在激活源监听之前准备完毕；返回 NULL
+不接管用户上下文、不调用映射/析构/Trace，也不取消输入。受理之后即使映射
+分配结果失败，也返回具有失败终态的 Future，而不是伪装成未启动。
+
+映射回调借用 `xfutureall`/`xfuturepick` 和输出 Promise，只执行同步的短转换。
+回调必须在返回前完成或转发输出；未完成的输出会关闭，不能保留描述对象或
+延后使用该 Promise。上下文在映射或取消后、最后一个源回调释放其引用时析构。
+Trace 描述 `Destroy(data, destroyData)` 真正释放的槽；独占上下文折入组节点，
+共享 RC 上下文单独入图。组内重复源槽不能去重，未结束操作的独立引用仍是根。
+
+旧 Any/All/Race 保留原有协调结果与取消语义。映射接口不提供并发全图安全点，
+也不替用户保持映射回调/Trace/Drop 所在代码驻留。
+可复现检查：`tools/check_future_map_ownership.ps1 -Directory out/new-evidence`。
+
+### Future/Promise 视图
+
+`xrtFutureOwnership` 和 `xrtPromiseOwnership` 返回同一物理控制块的借用视图。
+每次 FutureRef/PromiseRef 都计入该节点的真实强引用；不能另造 Promise 节点，
+也不能仅凭消费端没有引用就回收仍有生产者的 Future。
+
+`xrtPromiseResolveOwnedTraced(promise, value, destroy, data, trace)` 在终态发布
+时一并发布析构和 `xfutureownershiptrace`。trace 必须描述 destroy 实际释放的
+value/data 的所有拥有槽；独占盒子折入边，共享 RC 盒子单独入图。成功转移
+所有权；无效参数或重复完成不接管任何资源，也不执行 destroy/trace。旧
+ResolveOwned 的拥有语义不变，但没有完整适配器时图检查明确失败。
+
+视图同时包含转发源 Future、取消令牌父链和错误 cause 链。为此新增
+`xrtCancelOwnership`（强父边，不含借用 watch 链）及 `xrtErrorOwnership`
+（cause 强边；静态永生错误返回空视图）。直接 Resolve 的结果是借用，不
+伪造强边。带未知注册 waiter 的 Future 拒绝检查；pending 且没有 waiter
+可检查，生产者引用仍按实际计数作为根。
+
+这些接口不建立并发安全点、不收集环、不保活生成代码。调用者须保证全图
+静止、没有正在执行的通知/释放，并让全部 Trace/Destroy 代码从检查到最终
+提交保持驻留。完成通知后的 frame/Watch 拥有关系仍需专门适配。
+
+回归入口：`tools/check_future_ownership.ps1`，模块化/单头、GCC/TinyCC 独立
+验证 Promise 别名、转发、结果与上下文重复边、错误/取消父链、内部环、
+分配失败原子性及逐轮内存收支。它不是语言模块自动退役的验收证明。
+
 ## 类型与常量
 
 ### `xfuturestate`
@@ -4710,6 +4783,28 @@ xfuture* xrtTlsStreamSendVecAsync(
 
 
 
+## Watch 与聚合器的物理拥有图
+
+`xrtFutureWatchInitTraced(watch, notify, release, data, trace)` 在初始化时固定
+`release(data)` 所释放的强拥有槽；release 和 trace 必须非空。唯一拥有的上下文
+折叠到源 Future 的边，共享引用计数上下文必须作为独立物理节点报告。初始化不
+分配、不消费、不执行回调；只有 WatchAdd 返回 PENDING 才转移注册释放权。
+READY / ERROR 时仍由调用方释放数据。公开 Watch 继续为 64 字节，不改变旧 Init。
+
+Future Inspect 遍历已描述的挂接 Watch；任一未知 waiter 仍拒绝整个检查，不能
+假装其数据是叶子。注册、通知、释放、图检查与之后提交之间仍需要调用方保证
+整个图静止和所有回调代码驻留；本接口不建立安全点，不自动使语言 frame 可检查。
+
+Any / All / Race 的共享上下文现在按实际 RC 身份入图：每个 Source 槽各一条边，
+重复输入保留重复边；Pick 和 All 仅借用这些槽，不产生第二组虚假拥有边。挂起时
+每个注册 waiter 持有一个 group 引用；创建者返回后仍在运行的组合操作保留一个
+独立 operation root，直到它转移到终态结果或由取消路径释放。终态结果通过原子
+traced publication 持有 group，其取消监听通过 xrtCancelWatchOwnership 入图。
+未知源载荷/源 waiter 继续导致拒绝；图检查本身不执行通知、取消、析构或收集。
+
+验证入口 `tools/check_future_waiter_ownership.ps1` 分别覆盖 Watch 的 PENDING /
+READY / detach 所有权、重复输入、取消/空集合、原生别名及分配失败原子性。
+
 ## 示例
 
 ```c
@@ -4771,3 +4866,83 @@ Engine 活动对象。成功 Future 明确拥有的 Stream、Packet、响应或�
 `examples/concurrency/future_coroutine/main.c` 与
 `examples/tls/stream_future/main.c`、`examples/tls/dial_future/main.c`。
 其中 `future_combine` 同时演示 Any、All、Race、胜出源索引和 Race 的协作取消语义。
+
+### 显式协作的 Watch 通知
+
+`xrtFutureWatchInitPhased(watch, notify, release, data, trace)` 保持 64 字节
+Watch 存储及 `InitTraced` 的受理、READY/PENDING/ERROR、释放规则，但显式
+声明两个常驻回调具备独立的拥有图协调协议。Future 在短 mutation 中发布
+终态和摘取监听，随后退出 mutation 执行这种回调；回调必须自行保护代码
+生命周期、序列化并发计数/边变更，并对私有、执行中、退休中的数据拒绝检查。
+等待或调用用户代码不得占住这类回调自身的 mutation。READY 路径仍由注册方
+负责调用 Notify/Release，注册方也必须遵守相同协议。
+
+可追踪不等于可协作冻结，不能仅凭存在 Trace 函数选择该接口。默认 Watch、
+内部 waiter、组合/延续工厂及结果析构继续保守地在 mutation 中执行；既有
+不透明数据不会因此被当作可检查叶。Future Watch Remove 的等待本身不再
+占住 mutation。此接口不承诺整个 transport 图、原生对象或模块环已经可回收。
+
+## 显式结果生命周期与物理控制块接管
+
+`xrtPromiseResolveOwnedPolicyV1` 在发布时绑定不可变的
+`xfuturepayloadownershipv1 { size, Drop, Trace }`。该策略与代码必须比所有结果
+活得更久，context 固定为空；失败不消费结果。它与旧的
+`xrtPromiseResolveOwnedTraced` 不同：提供追踪函数并不自动获得生命周期认证。
+
+回收器在同一次全图 freeze 中、调用 Count/Trace **之前**，用
+`xrtFutureOwnershipAdapterV1` 及明确的策略身份白名单接纳物理控制块。
+Future 与 Promise 是同一个节点，生产端引用不能凭估计扣除。未认证的拥有
+载荷、正在完成的控制块、所有已注册 waiter，以及有取消观察者的令牌均拒绝。
+转发 Owner、错误 Cause、取消 Parent 和载荷内的拥有边仍需逐一独立接纳。
+
+Claim 可在提交前恢复；Clear 仅在最终重验的同一个 freeze 中隔离结果。
+无观察者的 pending 控制块此时进入 CLOSED 并请求其自身取消，不通知用户代码。
+真实结果、Owner、Error、Cancel 引用延迟到 freeze 外的 Finish 释放；重复 Finish
+不重复消费。已 Clear 的控制块拒绝新增 Future/Promise 引用和结果读取。
+普通终末释放仅对显式策略退出自身 mutation 后执行 Drop；旧回调保持保守隔离。
+这不是对 pending task、Watch、原生回调或任意模块卸载的普遍授权。
+
+### Pending 结果拥有真实生产者
+
+`xrtPromiseProducerBindTakeV1` 给新建、私有、pending 的端点对绑定一个实际
+拥有的生产者引用。要求 Future/Promise 总引用为 2、生产端引用为 1、没有
+waiter 或已有绑定；成功仅消费一个预先取得的引用，失败完全不消费，也不调用
+Count、Trace 或 Drop。绑定本身不分配内存；描述符和操作表必须不可变且常驻。
+
+Future 的 Trace 报告这条真实边；不能只画边而不增加生产者的物理引用。
+唯一终态发布在锁内摘取该引用，随后退出自己的锁和 mutation 执行 Drop，
+并在通知输出 waiter 之前完成机械释放。Drop 产生的诊断不覆盖完成调用原有
+错误；重复完成和重复 Finish 不重复释放。注册、活动调用或执行器仍须持有
+独立的真实引用，保证 Drop 后的回调/释放尾部安全。丢弃消费端观察者不会
+取消已受理工作，不得因此跳过语言回调或 finally。
+
+`xrtFutureOwnershipAdapterV2` 增加单独的 producer 策略身份白名单，仍在
+Count/Trace 前准入；V1 拒绝所有带 producer 的 pending 控制块。V2 只认证
+这个控制块，不自动认证生产者节点，也仍拒绝注册 waiter。Clear 保留实际
+producer 槽，Finish 才在 freeze 外释放；这不意味着含 Watch/frame 的完整图
+已经可收集。必须另行完成关闭/通知与语义析构的顺序合同。
+
+`future_ownership_adapter_tests` 保留原有测试，并新增 modular/single producer
+合同测试：每个执行含 1300 次不消费的拒绝、100 次 OOM 下无分配绑定、500 次
+终态先于通知的释放、100 个真实循环及 700 次跨线程锁/freeze 探针；检查
+Claim/Restore/Clear/重复 Finish、错误身份和逐事务分配平衡。
+
+### 已认证 Watch 的语义准备
+
+`xrtFutureWatchInitOwnershipV1` 使用不可变的 `xfuturewatchownershipv1` 描述
+Notify、Release 和实际 Data 拥有节点的 Ops；仍保持 64 字节 Watch 存储以及
+READY/PENDING/ERROR 的原始接管规则。初始化不消费引用，PENDING 注册才承诺
+原有引用；Release 返回这同一个实际引用，不能仅提供一条虚构 Trace 边。
+
+`xrtFutureOwnershipAdapterV3` 在 Count/Trace 前匹配精确 Watch 策略身份，并
+同时返回必须使用的 preparation 描述符。V1/V2 仍拒绝注册的 Watch。V3 不替代
+每个子节点的独立认证，pending 和终态返回相同的生命周期及准备描述符身份。
+
+有已认证 Watch、没有 producer 的无根 pending 源，通过普通 PromiseClose
+完成 CLOSED 通知。带 producer 的中间结果返回 BUSY，等待源的 catch/finally
+正常运行，不能提前关闭中间输出来跳过回调或改变顺序。描述符本身不提供完整
+收集器；封闭的 producer 依赖环仍需要明确的关停协议，不能用 Clear 代替通知。
+
+原 producer 测试另外覆盖每执行 100 个实际 pending Watch 循环，检查准入前
+拒绝、先通知后 Release、稳定描述符、跨线程 freeze、可恢复 Claim、重复 Finish
+与逐事务零存活增量。

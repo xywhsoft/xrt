@@ -3,6 +3,18 @@
 `runtime_object` 在 `runtime_type` 的生命周期描述之上提供引用计数堆对象和弱引用。
 它面向宿主对象、C 扩展对象及 native-backed 实例，不提供对象负载内部的锁或字段系统。该模块属于 `xruntime` 扩展。
 
+## 完整拥有图适配
+
+`xrtObjectOwnership` 返回对象实际强引用节点。
+`xrtObjectOwnershipTraceBind` 在对象独占、尚未发布时绑定 native 负载的完整
+强拥有边追踪。追踪可以报告 Value 外壳、其他 runtime object、callable 或
+宿主定义节点，不能再把 Value 中间层折叠为对象边。旧 InstanceOps.Trace
+只面向 object-only 图，因此不会被默认为完整图适配器；未绑定的负载明确失败。
+
+`xrtValueRuntimeObject` / `Take` 自动提供外壳到对象的一条实际强引用边。
+Weak 不是强拥有边。接口不改变 `xrtObjectRef` / `xrtValueRetain` 语义，
+不保活代码、不调用 Drop；完整检查与后续决策必须由宿主处于同一安全点。
+
 ## 启用与依赖
 
 启用 `XRUNTIME_FEATURE_RUNTIME_OBJECT` 会依赖 `XRUNTIME_FEATURE_RUNTIME_TYPE`。公共头文件为：

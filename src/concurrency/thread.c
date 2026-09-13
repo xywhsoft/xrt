@@ -59,6 +59,7 @@ static void __xrtThreadSetSystemError(cstr sOperation, int iCode, cstr sMessage)
 
 static DWORD __xrtThreadTlsIndex = TLS_OUT_OF_INDEXES;
 static volatile LONG __xrtThreadTlsState;
+static xrt_local_slot __xrtThreadSlot;
 
 
 
@@ -68,7 +69,8 @@ static bool __xrtThreadTlsEnsure(void)
 	LONG iState = InterlockedCompareExchange(&__xrtThreadTlsState, 1, 0);
 
 	if ( iState == 0 ) {
-		__xrtThreadTlsIndex = TlsAlloc();
+		__xrtThreadTlsIndex = __xrtLocalSlotAlloc(&__xrtThreadSlot,
+			NULL, XRT_LOCAL_BORROWED, false);
 		InterlockedExchange(
 			&__xrtThreadTlsState,
 			__xrtThreadTlsIndex != TLS_OUT_OF_INDEXES ? 2 : 3

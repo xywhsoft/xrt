@@ -114,7 +114,7 @@ static void __xrtFutureContinueRelease(ptr pData)
 
 
 /* 统一创建四类延续，保证并发完成、立即完成和失败回滚使用同一条路径。 */
-static xfuture* __xrtFutureContinueCreate(
+static xfuture* __xrtOwnershipBody_FutureContinueCreate(
 	xfuture* pSource,
 	xfuturecontinueproc pProc,
 	xfuturefinallyproc pFinally,
@@ -196,6 +196,20 @@ static xfuture* __xrtFutureContinueCreate(
 		__xrtFutureContinueRelease(pContinue);
 	}
 	return pOutput;
+}
+
+static xfuture* __xrtFutureContinueCreate(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	xfuturefinallyproc pFinally,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData,
+	bool bCancelSource,
+	xrt_future_continue_mode Mode
+)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xfuture*, NULL, __xrtOwnershipBody_FutureContinueCreate(pSource, pProc, pFinally, pData, pDestroy, pDestroyData, bCancelSource, Mode));
 }
 
 

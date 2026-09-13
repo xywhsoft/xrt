@@ -154,6 +154,9 @@ XRT_API xvalue* xrtValueCallable(xrtcallable* pCallable);
 
 /* 把 callable 引用移交给 Value Handle，成功时清空来源槽。 */
 XRT_API xvalue* xrtValueCallableTake(xrtcallable** pCallable);
+/* Recognizes only this resident callable Handle bridge. Its callable child
+ * still requires separately authorized environment ownership. */
+XRT_API const xrtownershipadapterv1* xrtValueCallableOwnershipAdapterV1(xrtownershipref Reference);
 
 
 
@@ -209,6 +212,10 @@ XRT_API xvalue* xrtValueFuture(xfuture* pFuture);
 
 /* 把 Future 引用移交给 Value Handle，成功时清空来源槽。 */
 XRT_API xvalue* xrtValueFutureTake(xfuture** pFuture);
+
+/* Only this resident Value Handle family is admitted; its Future control
+ * block and payload require independent resolver authorization. */
+XRT_API const xrtownershipadapterv1* xrtValueFutureOwnershipAdapterV1(xrtownershipref Reference);
 
 
 

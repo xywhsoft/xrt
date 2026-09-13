@@ -37,6 +37,13 @@ typedef struct xrtweak {
 
 XRT_EXTERN_C_BEGIN
 
+/* Full physical ownership trace for native payloads, as distinct from the
+ * older object-only Trace that may flatten Value shells/backing. Bind once
+ * before publication while uniquely owned. An unbound payload is opaque to
+ * the full graph inspector and fails closed. No lifetime pin is acquired. */
+XRT_API xrtownershipref xrtObjectOwnership(const xrtobject* pObject);
+XRT_API bool xrtObjectOwnershipTraceBind(xrtobject* pObject, xrtownershiptrace pTrace);
+
 
 
 /* 返回对象强引用槽使用的进程期稳定值操作表。 */

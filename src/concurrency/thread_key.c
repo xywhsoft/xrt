@@ -78,6 +78,7 @@ static void __xrtThreadKeySetSystemError(cstr sOperation, int iCode, cstr sMessa
 
 static DWORD __xrtThreadKeyStateIndex = TLS_OUT_OF_INDEXES;
 static volatile LONG __xrtThreadKeyStateInit;
+static xrt_local_slot __xrtThreadKeyStateSlot;
 
 
 
@@ -87,7 +88,8 @@ static bool __xrtThreadKeyStateEnsure(void)
 	LONG iState = InterlockedCompareExchange(&__xrtThreadKeyStateInit, 1, 0);
 
 	if ( iState == 0 ) {
-		__xrtThreadKeyStateIndex = TlsAlloc();
+		__xrtThreadKeyStateIndex = __xrtLocalSlotAlloc(&__xrtThreadKeyStateSlot,
+			NULL, XRT_LOCAL_BORROWED, false);
 		InterlockedExchange(
 			&__xrtThreadKeyStateInit,
 			__xrtThreadKeyStateIndex != TLS_OUT_OF_INDEXES ? 2 : 3

@@ -69,6 +69,7 @@ static xrt_heap_state __xrtHeap;
 static DWORD __xrtHeapCacheTls = FLS_OUT_OF_INDEXES;
 static DWORD __xrtHeapCacheGuardTls = FLS_OUT_OF_INDEXES;
 static volatile LONG __xrtHeapCacheTlsState = 0;
+static xrt_local_slot __xrtHeapCacheSlot, __xrtHeapCacheGuardSlot;
 #else
 static pthread_key_t __xrtHeapCacheTls;
 static pthread_key_t __xrtHeapCacheGuardTls;
@@ -410,15 +411,17 @@ static bool __xrtHeapCacheTlsEnsure(void)
 	LONG iState = InterlockedCompareExchange(&__xrtHeapCacheTlsState, 1, 0);
 
 	if ( iState == 0 ) {
-		__xrtHeapCacheTls = FlsAlloc(__xrtHeapCacheDestroy);
-		__xrtHeapCacheGuardTls = FlsAlloc(NULL);
+		__xrtHeapCacheTls = __xrtLocalSlotAlloc(&__xrtHeapCacheSlot,
+			__xrtHeapCacheDestroy, XRT_LOCAL_HEAP, true);
+		__xrtHeapCacheGuardTls = __xrtLocalSlotAlloc(&__xrtHeapCacheGuardSlot,
+			NULL, XRT_LOCAL_BORROWED, true);
 		if ( (__xrtHeapCacheTls == FLS_OUT_OF_INDEXES) ||
 			 (__xrtHeapCacheGuardTls == FLS_OUT_OF_INDEXES) ) {
 			if ( __xrtHeapCacheTls != FLS_OUT_OF_INDEXES ) {
-				(void)FlsFree(__xrtHeapCacheTls);
+				(void)__xrtLocalSlotFree(&__xrtHeapCacheSlot);
 			}
 			if ( __xrtHeapCacheGuardTls != FLS_OUT_OF_INDEXES ) {
-				(void)FlsFree(__xrtHeapCacheGuardTls);
+				(void)__xrtLocalSlotFree(&__xrtHeapCacheGuardSlot);
 			}
 			__xrtHeapCacheTls = FLS_OUT_OF_INDEXES;
 			__xrtHeapCacheGuardTls = FLS_OUT_OF_INDEXES;

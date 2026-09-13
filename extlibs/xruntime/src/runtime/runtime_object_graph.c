@@ -730,6 +730,71 @@ cleanup:
 
 
 
+/* Complete ownership uses the same validated/atomic candidate claim and
+ * destruction pipeline, with physical reachability replacing flattened
+ * object edge subtraction. Legacy collectors retain their explicit ABI. */
+static bool __xrtObjectGraphOwnershipBoundary(xrtownershipref Reference, ptr pContext)
+{
+	/* Objects outside this collection domain are not candidates. Keep them
+	 * as roots so a weak lock in another domain cannot expose a half-finalized
+	 * cycle. Canonical Ops identify native objects, never payload guessing. */
+	return Reference.Ops == xrtObjectOwnership(NULL).Ops &&
+		((const xrtobject*)Reference.Data)->Graph != (xrtobjectgraph*)pContext;
+}
+
+XRT_API bool xrtObjectGraphCollectOwned(
+	xrtobjectgraph* pGraph, xrtobjectgraphownedresult* pResult)
+{
+	xrtobjectgraphownedresult Result = {0};
+	xrtobjectgraphtrace Trace = {0};
+	xrtownershipref* pAnchors = NULL;
+	bool* pReachable = NULL;
+	bool bSnapshot = false, bSuccess = false;
+	xerror* pPrevious;
+	size_t iCount;
+	if (pGraph == NULL) {
+		__xrtObjectGraphError(XERR_ARGUMENT, XOBJECT_GRAPH_ERROR_ARGUMENT,
+			"collect-owned", "the object graph is null"); return false;
+	}
+	pPrevious = __xrtErrorSwapOwned(NULL);
+	iCount = xrtObjectGraphCount(pGraph);
+	Result.TrackedCount = iCount;
+	if (iCount == 0) { bSuccess = true; goto cleanup; }
+	if (iCount > SIZE_MAX / sizeof(*Trace.Nodes) ||
+		iCount > SIZE_MAX / sizeof(*pAnchors) || iCount > SIZE_MAX / sizeof(*pReachable)) {
+		__xrtObjectGraphError(XERR_RANGE, XOBJECT_GRAPH_ERROR_STATE,
+			"collect-owned", "the physical graph snapshot size overflows"); goto cleanup;
+	}
+	Trace.Nodes = (xrtobjectgraphnode*)xrtCalloc(iCount, sizeof(*Trace.Nodes));
+	pAnchors = (xrtownershipref*)xrtMalloc(iCount * sizeof(*pAnchors));
+	pReachable = (bool*)xrtMalloc(iCount * sizeof(*pReachable));
+	if (Trace.Nodes == NULL || pAnchors == NULL || pReachable == NULL) goto cleanup;
+	if (!__xrtObjectGraphSnapshot(pGraph, Trace.Nodes, iCount)) goto cleanup;
+	bSnapshot = true; Trace.NodeCount = iCount;
+	for (size_t i = 0; i < iCount; ++i) pAnchors[i] = xrtObjectOwnership(Trace.Nodes[i].Object);
+	/* The snapshot REALLY retains one strong reference per tracked object.
+	 * Discount only those pins, not the caller's native references or aliases. */
+	if (!xrtOwnershipInspectReachable(pAnchors, iCount, pAnchors, iCount,
+		pReachable, &Result.Ownership, __xrtObjectGraphOwnershipBoundary, pGraph)) goto cleanup;
+	for (size_t i = 0; i < iCount; ++i) Trace.Nodes[i].Reachable = pReachable[i];
+	if (!__xrtObjectGraphValidateCandidates(pGraph, &Trace) ||
+		!__xrtObjectGraphClaimCandidates(&Trace)) goto cleanup;
+	Result.CollectedCount = __xrtObjectGraphFinalizeCandidates(pGraph, &Trace);
+	bSuccess = true;
+cleanup:
+	if (bSnapshot) __xrtObjectGraphReleaseSnapshot(Trace.Nodes, iCount);
+	xrtFree(pReachable); xrtFree(pAnchors); xrtFree(Trace.Nodes);
+	if (bSuccess) {
+		if (pResult != NULL) *pResult = Result;
+		xrtErrorFree(__xrtErrorSwapOwned(pPrevious));
+	} else {
+		xrtErrorFree(pPrevious);
+		if (xrtGetError() == NULL) __xrtObjectGraphError(XERR_STATE, XOBJECT_GRAPH_ERROR_STATE,
+			"collect-owned", "the physical ownership collection failed");
+	}
+	return bSuccess;
+}
+
 /* 使用引用计数自动根识别执行常规收集。 */
 XRT_API bool xrtObjectGraphCollect(
 	xrtobjectgraph* pGraph,

@@ -14,6 +14,7 @@ struct xrtobject {
 	const xrttype* Type;
 	size_t Size;
 	size_t PayloadOffset;
+	xrtownershiptrace OwnershipTrace;
 #if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
 	volatile int32 State;
 	struct xrtobjectgraph* Graph;

@@ -25,6 +25,14 @@ void __xrtXsonError(
 /* 验证读取配置已初始化且所有保留字段为零。 */
 bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig);
 
+/* 逐行适配器共享 DOM/验证路径；验证成功返回可释放的 null 单例。 */
+xvalue* __xrtXsonReadBudget(
+	xstrview Text,
+	const xxsonreadconfig* pConfig,
+	xtextvaluebudget* pBudget,
+	bool bValidate
+);
+
 #endif
 
 

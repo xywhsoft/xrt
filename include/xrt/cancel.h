@@ -54,6 +54,17 @@ XRT_API xcancel* xrtCancelRef(xcancel* pCancel);
 /* 释放取消令牌引用；空指针视为空操作。 */
 XRT_API void xrtCancelDestroy(xcancel* pCancel);
 
+/* Borrowed physical ownership view; the retained parent is one owning edge.
+ * Watch-list links borrow registration storage and are not strong references.
+ * Caller provides whole-graph quiescence and code residency. */
+XRT_API xrtownershipref xrtCancelOwnership(const xcancel* pCancel);
+
+/* Explicit native adapter, queried under whole-graph freeze. Registered
+ * observers are refused before Trace, not treated as empty owning slots.
+ * The immutable parent tail remains owned through Finish and final Drop;
+ * each parent must independently be admitted. No CancelWatch certification. */
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference);
+
 
 
 /* 请求取消；仅首次请求返回 true 并触发监听。 */
@@ -77,6 +88,14 @@ XRT_API xcancelwatch* xrtCancelWatch(
 
 /* 查询监听是否已命中取消。 */
 XRT_API bool xrtCancelTriggered(const xcancelwatch* pWatch);
+
+
+
+/* Borrowed physical view: Unwatch owns this registration; it retains its
+ * Cancel (and thereby its parents). Proc/Data and linked cancellation nodes
+ * are borrowed, not additional owning slots. Active/destroying callbacks
+ * reject inspection. Whole-graph quiescence and code residency are required. */
+XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch);
 
 
 

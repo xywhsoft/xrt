@@ -589,6 +589,7 @@ XRT_API void xrtTempGet(const xtemparena* pArena, xtempinfo* pInfo)
 
 static DWORD __xrtTempTlsIndex = FLS_OUT_OF_INDEXES;
 static volatile LONG __xrtTempTlsState;
+static xrt_local_slot __xrtTempSlot;
 
 
 
@@ -611,7 +612,8 @@ static bool __xrtTempTlsEnsure(void)
 	LONG iState = InterlockedCompareExchange(&__xrtTempTlsState, 1, 0);
 
 	if ( iState == 0 ) {
-		__xrtTempTlsIndex = FlsAlloc(__xrtTempTlsDestroy);
+		__xrtTempTlsIndex = __xrtLocalSlotAlloc(&__xrtTempSlot,
+			__xrtTempTlsDestroy, XRT_LOCAL_PAYLOAD, true);
 		InterlockedExchange(&__xrtTempTlsState,
 			__xrtTempTlsIndex != FLS_OUT_OF_INDEXES ? 2 : 3);
 		return __xrtTempTlsIndex != FLS_OUT_OF_INDEXES;

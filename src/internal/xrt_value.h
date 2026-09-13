@@ -7,10 +7,20 @@
 
 #if defined(XRT_FEATURE_VALUE)
 
+/* Public ownership-mutating entries delegate to a private body so every
+ * early return balances the outer transition. Nested calls use the same
+ * domain, but mutations remain concurrent with each other: this is not a
+ * replacement for the caller's normal same-container synchronization. */
+#define XRT_VALUE_MUTATION_RETURN(Type, Call) \
+	XRT_OWNERSHIP_MUTATION_RETURN(Type, (Type)0, Call)
+#define XRT_VALUE_MUTATION_RETURN_VOID(Call) XRT_OWNERSHIP_MUTATION_RETURN_VOID(Call)
+
 #define XRT_VALUE_FLAG_STATIC		0x0001u
 #define XRT_VALUE_FLAG_OWNED_DATA	0x0002u
 #define XRT_VALUE_FLAG_BUSY			0x0004u
 #define XRT_VALUE_FLAG_FINALIZING	0x0008u
+#define XRT_VALUE_FLAG_OWNERSHIP_CLEARED 0x0010u
+#define XRT_VALUE_FLAG_PHASED_DROP 0x0020u
 
 
 
@@ -31,6 +41,12 @@ struct xvalue {
 	xvalueidentityhash IdentityHash;
 	xvalueidentityequal IdentityEqual;
 	ptr IdentityUserData;
+	/* Resident or code-pinned adapter; Clone carries the policy, not a stale
+	 * handle address. The adapter reads the cloned handle from its own shell. */
+	xvalueownershiptrace OwnershipTrace;
+	/* Written only under exclusive ownership freeze; weak promotion reads it
+	 * inside mutation admission. Never copied to a new Value shell. */
+	const void* OwnershipClaim;
 	union {
 		bool Bool;
 		int64 Int;
@@ -91,13 +107,20 @@ void __xrtValueCallbackUnprotect(
 
 #if defined(XRT_FEATURE_VALUE_CONTAINER)
 
-/* 释放一个值外壳持有的容器 backing。 */
-void __xrtValueContainerRelease(xvalue* pValue);
+xrtownershipref __xrtValueBackingOwnership(const xvalue* pValue);
+const xrtownershipadapterv1* __xrtValueBackingOwnershipAdapterV1(xrtownershipref Reference);
+bool __xrtValueObjectClaimReceiver(xvalue* pValue, const void* pToken);
+void __xrtValueObjectRestoreReceiver(xvalue* pValue, const void* pToken);
+bool __xrtValueObjectOwnershipPolicyMatches(const xvalue* pValue, const xvalueobjectownershipv1* pPolicy);
+const xrtownershipadapterv1* __xrtValueObjectOwnershipAdapterV1(
+	xrtownershipref Reference, const xvalueobjectownershipv1* pPolicy);
 
+/* New deep-clone backing inherits immutable capabilities, never a finalizer. */
+bool __xrtValueObjectLifetimeCopy(xvalue* pTarget, const xvalue* pSource);
 
-
-/* 在最后一个 Object backing owner 释放字段前执行一次已绑定 finalizer。 */
-void __xrtValueObjectFinalize(xvalue* pValue);
+/* Release with the caller's own mutation active on entry/return. A NULL
+ * scope is only for a nonterminal Clear under exclusive graph freeze. */
+void __xrtValueContainerRelease(xvalue* pValue, xrtownershipscope* pMutation);
 
 
 

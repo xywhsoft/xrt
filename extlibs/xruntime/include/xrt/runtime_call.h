@@ -86,9 +86,32 @@ typedef bool (*xrtcallproc)(
 /* 环境释放器在最后一个 callable 引用释放时执行一次。 */
 typedef void (*xrtcalldrop)(ptr pEnvironment);
 
+/* Explicit immutable resident environment family. Trace covers every strong
+ * payload/code edge; Drop runs only after the active invocation's full return
+ * tail. The producer certifies all environment transitions are coordinated.
+ * A collector must authorize this exact descriptor, not an arbitrary tracer.
+ * Signature/Entry and this descriptor are resident or kept alive by the
+ * environment until Drop returns; none are read after retired-environment
+ * Finish. A native creator that only binds Trace does NOT get this contract. */
+typedef struct xrtcallableownershipv1 {
+	size_t size;
+	xrtownershiptrace Trace;
+	xrtcalldrop Drop;
+} xrtcallableownershipv1;
+
 
 
 XRT_EXTERN_C_BEGIN
+
+/* Quiescent physical ownership view; no reference is acquired. A nonempty
+ * environment is opaque until its producer binds a complete strong-edge
+ * trace before publication. The callback and signature must remain resident;
+ * this metadata does not by itself acquire a code lease. */
+XRT_API xrtownershipref xrtCallableOwnership(const xrtcallable* pCallable);
+XRT_API bool xrtCallableOwnershipTraceBind(xrtcallable* pCallable, xrtownershiptrace pTrace);
+XRT_API bool xrtCallableOwnershipBindV1(xrtcallable* pCallable, const xrtcallableownershipv1* pPolicy);
+XRT_API const xrtownershipadapterv1* xrtCallableOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtcallableownershipv1* pExpectedPolicy);
 
 
 

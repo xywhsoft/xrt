@@ -944,6 +944,26 @@ xfuture* xrtTaskSubmit(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtask
 		NULL);
 ```
 
+### `xrtTaskSubmitTraced`
+
+在立即提交时提供不可变的 `xfutureownershiptrace`，成功拥有型结果的值、析构、
+析构上下文及 Trace 作为一个终态原子发布。Trace 在作业入队前固定，不能通过
+先提交、后改结果描述的方式接入。它必须描述 `xtaskvalue.Destroy` 释放的全部
+强拥有槽，包含重复的 Value/DestroyData 引用。Trace 不在任务提交或完成时调用。
+
+```c
+xfuture* xrtTaskSubmitTraced(xtaskpool* pool, xtaskproc proc, ptr data,
+    const xtaskargs* args, xfutureownershiptrace resultTrace);
+```
+
+`resultTrace` 必须非空；提交失败不消费任务数据。失败/取消的任务按原合同释放
+未发布结果；借用成功值不产生拥有边。现有提交函数和 `xtaskargs` / `xtaskvalue`
+布局完全不变，旧 owned 结果没有完整适配器时继续拒绝拥有图检查。
+
+此接口只描述结果，不描述运行中的任务帧。Trace/析构代码仍须驻留到结果销毁；
+图检查要求调用方保证全图静止。Future 就绪不代表最后一个 worker 已返回，不能
+据此许可模块卸载。示例验收先销毁任务池并 join 工作线程，再检查结果图。
+
 ### `xrtTaskSubmitWait`
 
 等待任务池出现队列槽位后提交；任务池工作线程不得阻塞等待所属池。
@@ -2068,3 +2088,14 @@ xrtTaskPoolDestroy(pPool);
 ```
 
 完整示例位于 `examples/concurrency/task_group/main.c`、`examples/concurrency/task_group_scope/main.c`、`examples/concurrency/task_pool/main.c`、`examples/concurrency/task_coroutine/main.c`、`examples/network/task/main.c` 和 `examples/network/task_group/main.c`。`task_group_scope` 明确演示父级取消、子组传播和叶生产端确认终态之间的边界。
+
+## 任务结果的显式生命周期策略
+
+`xrtTaskSubmitOwnedPolicyV1(pool, proc, data, args, policy)` 在原生任务受理前
+选择与 Future 共用的不可变结果策略，不改变 `xtaskargs`／`xtaskvalue` 布局。
+成功返回的拥有结果必须使用该策略的实际 Drop 地址和空 DestroyData；三字段
+全空的 void 结果也合法。错误组合在任务数据释放及结果发布之前转为 FAILED，
+使用原来的实际释放函数回滚一次，不会把错误载荷认证后交给消费者。
+
+原有 `xrtTaskSubmitTraced` 的追踪接口保持兼容，但不自动变成回收认证。
+新接口认证的是完成后的结果，不是任务帧、执行中的原生作业或等待回调。

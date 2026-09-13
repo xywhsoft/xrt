@@ -35,7 +35,8 @@ bool __xrtTextValueErrorLocation(
 
 
 
-#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XSON_FILE)
+#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XSON_FILE) || \
+	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XSONL_FILE)
 
 /* 限额读取完整协议文件，并按调用方错误域包装 I/O 原因链。 */
 bytes __xrtTextValueFileReadAll(
@@ -165,6 +166,14 @@ typedef enum xtextvaluevisitresult {
 
 
 
+/* 可选的跨记录剩余预算；消耗发生在分配 DOM 或解码缓冲之前。 */
+typedef struct xtextvaluebudget {
+	size_t Values;
+	size_t DecodedBytes;
+} xtextvaluebudget;
+
+
+
 /* 解析器只持有语法和资源预算，不持有 DOM 策略。 */
 typedef struct xtextvaluereadconfig {
 	xtextvaluedialect Dialect;
@@ -175,6 +184,7 @@ typedef struct xtextvaluereadconfig {
 	size_t MaxStringBytes;
 	size_t MaxValues;
 	size_t MaxContainerItems;
+	xtextvaluebudget* Budget;
 } xtextvaluereadconfig;
 
 

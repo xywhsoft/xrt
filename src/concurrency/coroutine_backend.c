@@ -77,6 +77,7 @@ static void __xrtCoSetSystemError(cstr sOperation, int iCode, cstr sMessage)
 
 static DWORD __xrtCoTlsIndex = TLS_OUT_OF_INDEXES;
 static volatile LONG __xrtCoTlsState;
+static xrt_local_slot __xrtCoSlot;
 static DWORD __xrtCoTlsError = ERROR_NOT_ENOUGH_MEMORY;
 
 
@@ -87,7 +88,8 @@ static bool __xrtCoTlsEnsure(void)
 	LONG iState = InterlockedCompareExchange(&__xrtCoTlsState, 1, 0);
 
 	if ( iState == 0 ) {
-		__xrtCoTlsIndex = TlsAlloc();
+		__xrtCoTlsIndex = __xrtLocalSlotAlloc(&__xrtCoSlot,
+			NULL, XRT_LOCAL_BORROWED, false);
 		if ( __xrtCoTlsIndex == TLS_OUT_OF_INDEXES ) {
 			__xrtCoTlsError = GetLastError();
 		}

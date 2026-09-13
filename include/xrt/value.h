@@ -69,6 +69,14 @@ typedef enum xvaluetype {
 /* 动态值结构保持不透明，所有权通过 Retain、Release 和 Take 系列表达。 */
 typedef struct xvalue xvalue;
 
+/* Physical shell/backing identities for quiescent ownership inspection.
+ * Returning a reference does not retain the value. A shell owns one backing
+ * reference; the backing (not every alias shell) owns each element slot.
+ * Plain scalars are leaves. Opaque handles fail closed unless their producer
+ * binds a complete strong-edge adapter before publishing the value. */
+typedef bool (*xvalueownershiptrace)(const xvalue* pValue,
+	xrtownershipvisitor pVisit, ptr pContext);
+
 
 
 
@@ -131,10 +139,74 @@ typedef struct xvaluehandleops {
 	backing owner is released.
 */
 typedef void (*xvalueobjectfinalizer)(xvalue* pObject, ptr pUserData);
+typedef void (*xvalueobjectfinalizerrelease)(ptr pUserData);
+
+/* Explicit resident lifecycle family, not inferred from a non-NULL tracer.
+ * Bind only on an unpublished, prepared object. The producer certifies that
+ * these exact callbacks and all context mutations participate in this domain,
+ * and that the traced lifetime keeps callback/type code resident. A collector
+ * must independently authorize this exact immutable descriptor identity.
+ * Finalization borrows a REAL plan-held shell, disarms the physical backing's
+ * duty before user code, and preserves that decision across abort. Field/code
+ * owners survive until every semantic finalizer and revalidation have ended.
+ * FinalizeChecked is the same duty as the terminal void Finalize, but returns
+ * its explicit outcome: false remains failure even without a diagnostic.
+ * The adapter invokes only FinalizeChecked; terminal RC release invokes only
+ * Finalize. Both must preserve the producer's language failure semantics. */
+typedef struct xvalueobjectownershipv1 {
+	size_t size;
+	xvalueobjectfinalizer Finalize;
+	xrtownershiptrace FinalizerTrace;
+	xvalueobjectfinalizerrelease FinalizerRelease;
+	xrtownershiptrace LifetimeTrace;
+	xvalueobjectfinalizerrelease LifetimeRelease;
+	bool (*FinalizeChecked)(xvalue* pObject, ptr pUserData);
+} xvalueobjectownershipv1;
 
 
 
 XRT_EXTERN_C_BEGIN
+
+XRT_API xrtownershipref xrtValueOwnership(const xvalue* pValue);
+/* Under the caller's exclusive ownership freeze, recognize this XRT instance's
+ * ordinary Value shells/container backings, without invoking foreign callbacks.
+ * Returns a resident adapter or NULL (unknown/custom/unstable is refusal).
+ * Custom handle/identity/finalizer/lifetime policies and borrowed blob payloads
+ * are NOT certified here. Their code and hidden owning state need an explicit
+ * additional protocol; having a Trace callback is not certification.
+ * Claim temporarily makes WeakRefLock return null without declaring expiry;
+ * abort Restore permits promotion again. Clear commits that quarantine.
+ * Containers are cleared by physical backing, never by COW shell mutation.
+ * Caller must pin/admit the ENTIRE transitive graph before any Clear, even
+ * when only one of its nodes uses this adapter. Methods obey core's V1 rules. */
+XRT_API const xrtownershipadapterv1* xrtValueOwnershipAdapterV1(xrtownershipref Reference);
+XRT_API bool xrtValueObjectOwnershipBindV1(xvalue* pObject, const xvalueobjectownershipv1* pPolicy);
+/* Authorize the immutable, context-free identity callbacks while the matching
+ * class lifetime keeps their code. Ordinary IdentityBind alone is NOT enough
+ * for collector admission. COW/deep copies carry this backing certificate. */
+XRT_API bool xrtValueObjectIdentityBindV1(xvalue* pObject, xvalueidentityhash pHash,
+	xvalueidentityequal pEqual, const xvalueobjectownershipv1* pExpectedPolicy);
+XRT_API const xrtownershipadapterv1* xrtValueObjectOwnershipAdapterV1(
+	xrtownershipref Reference, const xvalueobjectownershipv1* pExpectedPolicy);
+/* Authorize a known resident Handle bridge, before any policy callback. The
+ * expected immutable Ops/Trace must cover the complete coordinated payload;
+ * identity hooks and non-NULL UserData are independently refused. This does
+ * not authorize the child: the collector still admits its whole graph.
+ * Clear quarantines; Finish detaches and drops the actual payload outside
+ * Freeze/mutation. Unknown native policy must not be passed as "expected". */
+XRT_API const xrtownershipadapterv1* xrtValueHandleOwnershipAdapterV1(
+	xrtownershipref Reference, const xvaluehandleops* pExpectedOps,
+	xvalueownershiptrace pExpectedTrace);
+XRT_API bool xrtValueHandleOwnershipBind(xvalue* pValue, xvalueownershiptrace pTrace);
+/* A handle adapter covers both its payload and handle UserData. Non-NULL
+ * semantic IdentityUserData remains opaque and is rejected independently. */
+/* Explicitly opt a privately owned handle into phased terminal Drop. Its
+ * immutable Ops/Trace and code lifetime must self-coordinate payload changes
+ * and activity: Drop runs after this shell reaches zero, outside this entry's
+ * mutation scope. An enclosing caller scope is never suspended. Clone carries
+ * the same contract. Trace-only Bind stays conservative; neither form grants
+ * graph collection admission or certifies an unknown native payload. */
+XRT_API bool xrtValueHandleOwnershipBindPhased(xvalue* pValue, xvalueownershiptrace pTrace);
 
 
 
@@ -410,6 +482,9 @@ typedef struct xvaluekey {
 /* 迭代器持有 backing 快照；活动迭代器必须先 End 才能再次 Begin。 */
 typedef struct xvalueiter {
 	ptr Backing;
+	/* Finalizer-backed identity objects additionally retain the actual source
+	 * shell. Ordinary COW snapshots still retain only Backing. Internal state. */
+	xvalue* FinalizerOwner;
 	xvaluetype Type;
 	int Direction;
 	size_t Index;
@@ -471,7 +546,77 @@ XRT_API bool xrtValueObjectFinalizerBind(
 	ptr pUserData
 );
 
+/* Consuming publication: success returns the same owned object; failure
+ * releases exactly the input owner and returns NULL. The proposed callback
+ * and borrowed context are never installed on failure. Any existing finalizer
+ * may run during rollback. Preserve the binding error (or preexisting primary
+ * error) across those callbacks. This does not pin callback code, allocate,
+ * undo earlier publication by the caller, or consume the borrowed context. */
+XRT_API xvalue* xrtValueObjectFinalizerBindTake(
+	xvalue* pObject, xvalueobjectfinalizer pFinalizer, ptr pUserData);
 
+
+
+/* Describe the actual strong slots owned by the already-bound finalizer
+ * context. Bind once, before publication, with a unique shell AND backing.
+ * The callback receives FinalizerUserData, not a fabricated Value shell.
+ * A NULL context needs no adapter. This is metadata, not a code lifetime pin. */
+XRT_API bool xrtValueObjectFinalizerOwnershipBind(
+	xvalue* pObject, xrtownershiptrace pTrace);
+
+/* Atomically bind a finalizer and transfer its context to a unique shell AND
+ * backing. No allocation. On failure the object is unchanged and the caller
+ * still owns context; no callback runs. A non-NULL context requires Trace.
+ * Release runs once, AFTER finalization and ALL backing field destruction.
+ * Callbacks are copied, not their descriptor storage. Release must itself be
+ * resident if it releases the last code lease; XRT never pins callback code.
+ * A NULL context is permitted and Release is still called exactly once. */
+XRT_API bool xrtValueObjectFinalizerBindOwned(xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease);
+
+/* Prepare an owned lifecycle BEFORE publishing a new reference-identity
+ * object. The same unique-shell/backing and context-transfer rules as BindOwned
+ * apply. Context/Trace are owned immediately and Release still follows all
+ * fields, but Finalizer is disarmed until Commit. Releasing an uncommitted
+ * object (possibly through its last native alias/cursor) only drops fields and
+ * context. Clone/cursors keep the same duty; no COW split duplicates it.
+ * Both operations allocate nothing. This is NOT a concurrent mutation API or
+ * a graph collection safepoint; callers serialize lifecycle/field mutations.
+ * Concurrent Retain/Release of independently owned aliases remains valid. */
+XRT_API bool xrtValueObjectFinalizerPrepareOwned(xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease);
+/* Commit exactly once after successful construction. Borrows one live object
+ * owner and permits shared shells/backings/cursors created after preparation.
+ * Failure leaves the pending/committed duty and all owners unchanged; nothing
+ * is consumed or invoked. Unprepared, repeated or finalizing commits fail. */
+XRT_API bool xrtValueObjectFinalizerCommit(xvalue* pObject);
+
+/* Transfer an immutable, shareable lifetime context to a unique Object shell
+ * AND backing. This is independent of finalizer identity: shallow Clone keeps
+ * the backing, while COW/deep-clone backings retain one shared lifetime node.
+ * Its Count is the number of owning backings and Trace describes context's
+ * actual edges exactly once. No fields or finalization duties are duplicated.
+ * Release runs once after the last such backing's fields/finalizer context.
+ * A non-NULL context requires Trace; Release is mandatory even for NULL data.
+ * Callbacks must stay callable (Release must be resident if dropping code).
+ * Allocation/uniqueness failure leaves object/context unchanged, with no
+ * callback. A second binding refuses. Context mutation and graph inspection
+ * still require external synchronization; this does not add a safepoint. */
+XRT_API bool xrtValueObjectLifetimeBindOwned(xvalue* pObject, ptr pUserData,
+    xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease);
+
+/* Prepare construction without a user finalizer. The unique object remains
+ * an ordinary COW value; a split copies pending state into the new backing.
+ * This state owns no context: use LifetimeBindOwned for copyable capabilities.
+ * Commit accepts this preparation or FinalizerPrepareOwned, exactly once and
+ * without allocation, including after native aliases/cursors were published.
+ * Failed construction without a finalizer only releases fields and lifetime.
+ * FinalizerCommit remains strict: it requires an actual owned finalizer duty.
+ * All preparation/commit/field mutations are externally serialized. */
+XRT_API bool xrtValueObjectConstructionPrepare(xvalue* pObject);
+XRT_API bool xrtValueObjectConstructionCommit(xvalue* pObject);
 
 /* 返回任一基础容器的元素数。 */
 XRT_API size_t xrtValueCount(const xvalue* pValue);
@@ -764,6 +909,15 @@ XRT_API void xrtValueIterEnd(xvalueiter* pIterator);
 
 /* 结束并释放拥有式迭代器；允许传入空指针。 */
 XRT_API void xrtValueIterDestroy(xvalueiter* pIterator);
+
+/* Borrowed physical ownership view of one uniquely owned iterator. Its one
+ * strong slot is the retained backing snapshot, NOT the source Value shell,
+ * current element or borrowed key. Stack and heap iterators have one owner;
+ * an active iterator must not be copied into another owning slot. NULL has an
+ * empty view; a zero-initialized/ended iterator is a unique empty node. The
+ * caller guarantees lifetime and whole-graph quiescence through inspection;
+ * concurrent advance/end/destroy and concurrent mutation are not supported. */
+XRT_API xrtownershipref xrtValueIterOwnership(const xvalueiter* pIterator);
 
 
 

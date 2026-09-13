@@ -105,8 +105,16 @@ bool xllmModelProfileValidateRequest(const xllm_model_profile* pProfile,
     if ( pRequest->sReasoningEffort && pRequest->sReasoningEffort[0] ) uRequired |= XLLM_CAP_REASONING_CONTROL;
     for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
         const xllm_message* pMessage = &pRequest->pMessages[i];
+        size_t j;
         if ( pMessage->eRole == XLLM_ROLE_TOOL ) uRequired |= XLLM_CAP_TOOL_RESULT_IN;
         if ( pMessage->iToolCallCount != 0u ) uRequired |= XLLM_CAP_TOOL_CALL_OUT;
+        for ( j = 0u; j < pMessage->iPartCount; ++j ) {
+            if ( pMessage->pParts[j].eKind == XLLM_PART_IMAGE ||
+                 pMessage->pParts[j].eKind == XLLM_PART_AUDIO ||
+                 pMessage->pParts[j].eKind == XLLM_PART_FILE ) {
+                uRequired |= XLLM_CAP_IMAGE_IN;
+            }
+        }
     }
     if ( !xllmModelProfileSupports(pProfile, uRequired) ) {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "request requires capabilities not declared by the model profile");

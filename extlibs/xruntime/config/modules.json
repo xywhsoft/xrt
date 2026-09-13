@@ -75,6 +75,7 @@
 		"extlibs/xruntime/src/internal"
 	],
 	"modules": [
+		{"name": "runtime_ownership_tests", "state": "implemented", "feature": null, "depends": ["runtime_value_object", "runtime_value_callable", "runtime_value_weak", "runtime_object_graph", "value_graph", "memory_debug"], "public_headers": [], "internal_headers": [], "sources": [], "tests": ["extlibs/xruntime/tests/test_runtime_ownership.c"], "single_tests": ["extlibs/xruntime/tests/single/test_single_runtime_ownership.c"], "examples": [], "docs": ["extlibs/xruntime/docs/api/runtime_call.md", "extlibs/xruntime/docs/api/runtime_object.md", "extlibs/xruntime/docs/api/runtime_object_graph.md"]},
 		{
 			"name": "runtime_type",
 			"state": "implemented",

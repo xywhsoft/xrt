@@ -53,7 +53,7 @@ static bool __xrtJsonWriteSink(xbytesview Data, ptr pUserData)
 
 
 /* 验证 JSON 写出配置及全部保留字段。 */
-static bool __xrtJsonWriteConfigValid(const xjsonwriteconfig* pConfig)
+bool __xrtJsonWriteConfigValid(const xjsonwriteconfig* pConfig)
 {
 	uint32 iKnownFlags =
 		XJSON_WRITE_PRETTY |

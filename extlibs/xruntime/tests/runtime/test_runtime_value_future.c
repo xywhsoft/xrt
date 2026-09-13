@@ -70,6 +70,17 @@ int main(void)
 		(xrtFutureValue(xrtValueGetFuture(pValue)) == &iAnswer),
 		"runtime Future Value did not preserve consumer lifetime"
 	);
+	{
+		xrtownershipref roots[3] = {xrtValueOwnership(pValue), xrtValueOwnership(pSecond), xrtPromiseOwnership(pPromise)};
+		xrtownershipresult graph = {0}; bool reachable = true;
+		testRequire(xrtOwnershipInspectReachable(roots, 1, roots, 3, &reachable, &graph, NULL, NULL), "Future Value graph adapter");
+		testRequire(graph.NodeCount == 4 && graph.EdgeCount == 6 && graph.ExternalRootCount == 0 && !reachable,
+			"two Value wrappers share one Future and cancellation node");
+		testRequire(xrtValueRetain(pValue) == pValue, "native Value alias");
+		testRequire(xrtOwnershipInspectReachable(roots, 1, roots, 3, &reachable, &graph, NULL, NULL) && reachable && graph.ExternalRootCount == 1,
+			"native Value alias remains an external graph root");
+		xrtValueRelease(pValue);
+	}
 	xrtValueRelease(pSecond);
 	xrtValueRelease(pValue);
 	xrtPromiseDestroy(pPromise);
@@ -85,6 +96,12 @@ int main(void)
 		(xrtFutureValue(xrtValueGetFuture(pTakenValue)) == &iTakeAnswer),
 		"taken runtime Future Value result mismatch"
 	);
+	{
+		xrtownershipref roots[2] = {xrtValueOwnership(pTakenValue), xrtPromiseOwnership(pTakePromise)};
+		xrtownershipresult graph = {0}; bool reachable = true;
+		testRequire(xrtOwnershipInspectReachable(roots, 1, roots, 2, &reachable, &graph, NULL, NULL) &&
+			graph.NodeCount == 3 && graph.EdgeCount == 4 && !reachable, "Future Take graph owns exactly one consumer reference");
+	}
 	xrtValueRelease(pTakenValue);
 	xrtPromiseDestroy(pTakePromise);
 

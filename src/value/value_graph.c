@@ -369,6 +369,10 @@ static xvalue* __xrtValueCloneHandle(
 		return NULL;
 	}
 	pTarget = xrtValueHandleTake(&pClone, pOps, pUserData);
+	if (pTarget != NULL) {
+		pTarget->OwnershipTrace = pSource->OwnershipTrace;
+		pTarget->Flags |= pSource->Flags & XRT_VALUE_FLAG_PHASED_DROP;
+	}
 	if ( pTarget == NULL ) {
 		__xrtValueCloneDropHandle(
 			pContext,
@@ -540,6 +544,9 @@ static xvalue* __xrtValueDeepClone(
 	if ( pTarget == NULL ) {
 		return NULL;
 	}
+	if (!__xrtValueObjectLifetimeCopy(pTarget, pSource)) {
+		xrtValueRelease(pTarget); return NULL;
+	}
 	pTarget->TypeId = pSource->TypeId;
 	pTarget->IdentityHash = pSource->IdentityHash;
 	pTarget->IdentityEqual = pSource->IdentityEqual;
@@ -570,7 +577,7 @@ static xvalue* __xrtValueDeepClone(
 
 
 /* 深度复制完整无环值图，并保留重复子值的共享身份。 */
-XRT_API xvalue* xrtValueDeepClone(const xvalue* pValue)
+static xvalue* __xrtOwnershipBody_ValueDeepClone(const xvalue* pValue)
 {
 	xvalueclonecontext Context;
 	xvalue* pResult;
@@ -587,6 +594,11 @@ XRT_API xvalue* xrtValueDeepClone(const xvalue* pValue)
 	pResult = __xrtValueDeepClone(&Context, pValue, 0);
 	__xrtValueCloneUnit(&Context);
 	return pResult;
+}
+
+XRT_API xvalue* xrtValueDeepClone(const xvalue* pValue)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueDeepClone(pValue));
 }
 
 
@@ -1019,7 +1031,7 @@ static bool __xrtValueEqual(
 
 
 /* 按数值和容器内容递归判断结构相等。 */
-XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
+static bool __xrtOwnershipBody_ValueEqual(const xvalue* pLeft, const xvalue* pRight)
 {
 	xvalueequalcontext Context;
 	bool bEqual;
@@ -1037,6 +1049,11 @@ XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
 	bEqual = __xrtValueEqual(&Context, pLeft, pRight, 0);
 	__xrtValueEqualUnit(&Context);
 	return bEqual;
+}
+
+XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueEqual(pLeft, pRight));
 }
 
 #endif

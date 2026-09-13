@@ -8,6 +8,100 @@
 
 #include <errno.h>
 
+#if defined(_WIN32) || defined(_WIN64)
+static SRWLOCK __xrtLocalSlotLock = SRWLOCK_INIT;
+static xrt_local_slot* __xrtLocalSlots;
+/* 0 active, 1 retiring, 2 retired, 3 failed terminal retirement. */
+static unsigned __xrtLocalSlotPhase;
+
+DWORD __xrtLocalSlotAlloc(xrt_local_slot* pSlot,
+	VOID (WINAPI *pDestroy)(PVOID), unsigned iOrder, bool bFiber)
+{
+	DWORD iIndex;
+	AcquireSRWLockExclusive(&__xrtLocalSlotLock);
+	if ( __xrtLocalSlotPhase != 0 ) {
+		ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+		SetLastError(ERROR_INVALID_PARAMETER);
+		return TLS_OUT_OF_INDEXES;
+	}
+	iIndex = bFiber ? FlsAlloc(pDestroy) : TlsAlloc();
+	if ( iIndex != TLS_OUT_OF_INDEXES ) {
+		pSlot->Index = iIndex;
+		pSlot->Order = iOrder;
+		pSlot->Fiber = bFiber;
+		pSlot->Next = __xrtLocalSlots;
+		__xrtLocalSlots = pSlot;
+	}
+	ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+	return iIndex;
+}
+
+/* Called by a failed lazy initializer, before any value is published. */
+bool __xrtLocalSlotFree(xrt_local_slot* pSlot)
+{
+	xrt_local_slot** ppSlot;
+	bool bFreed;
+	AcquireSRWLockExclusive(&__xrtLocalSlotLock);
+	ppSlot = &__xrtLocalSlots;
+	while ( *ppSlot != NULL && *ppSlot != pSlot ) ppSlot = &(*ppSlot)->Next;
+	if ( *ppSlot == NULL ) {
+		ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+		return false;
+	}
+	/* Initializer rollback has no callback payload and cannot re-enter XRT. */
+	bFreed = (pSlot->Fiber ? FlsFree(pSlot->Index) : TlsFree(pSlot->Index)) != 0;
+	if ( bFreed ) *ppSlot = pSlot->Next;
+	ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+	return bFreed;
+}
+#endif
+
+XRT_API bool xrtRuntimeRetireThreadStorage(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		unsigned iOrder;
+		AcquireSRWLockExclusive(&__xrtLocalSlotLock);
+		if ( __xrtLocalSlotPhase == 1 || __xrtLocalSlotPhase == 2 ) {
+			bool bDone = __xrtLocalSlotPhase == 2;
+			ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+			return bDone;
+		}
+		__xrtLocalSlotPhase = 1;
+		ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+		for ( iOrder = XRT_LOCAL_PAYLOAD; iOrder <= XRT_LOCAL_BORROWED; ++iOrder ) {
+			for ( ;; ) {
+				xrt_local_slot** ppSlot;
+				xrt_local_slot* pSlot;
+				bool bFreed;
+				AcquireSRWLockExclusive(&__xrtLocalSlotLock);
+				ppSlot = &__xrtLocalSlots;
+				while ( *ppSlot != NULL && (*ppSlot)->Order != iOrder ) ppSlot = &(*ppSlot)->Next;
+				pSlot = *ppSlot;
+				ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+				if ( pSlot == NULL ) break;
+				/* FlsFree invokes every nonempty fiber's destructor synchronously.
+				 * Never hold our lock across it; nested retirement must fail rather
+				 * than deadlock. Existing lower-level slots remain usable by drops. */
+				bFreed = (pSlot->Fiber ? FlsFree(pSlot->Index) : TlsFree(pSlot->Index)) != 0;
+				AcquireSRWLockExclusive(&__xrtLocalSlotLock);
+				if ( !bFreed ) {
+					__xrtLocalSlotPhase = 3;
+					ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+					return false;
+				}
+				*ppSlot = pSlot->Next;
+				ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+			}
+		}
+		AcquireSRWLockExclusive(&__xrtLocalSlotLock);
+		__xrtLocalSlotPhase = 2;
+		ReleaseSRWLockExclusive(&__xrtLocalSlotLock);
+		return true;
+	#else
+		return false;
+	#endif
+}
+
 #if !defined(_WIN32) && !defined(_WIN64)
 	#include <unistd.h>
 #endif
@@ -178,7 +272,7 @@ XRT_API void xrtResourceLimitsInit(xrtresourcelimits* pLimits)
 
 
 /* 原子增加有效引用计数，失败时返回 -1。 */
-XRT_API int32 xrtRefRetain(volatile int32* pCount)
+static int32 __xrtRefRetainUnfenced(volatile int32* pCount)
 {
 	int32 iOld;
 	int32 iNext;
@@ -215,7 +309,7 @@ XRT_API int32 xrtRefRetain(volatile int32* pCount)
 
 
 /* 原子减少有效引用计数，失败时返回 -1。 */
-XRT_API int32 xrtRefRelease(volatile int32* pCount)
+static int32 __xrtRefReleaseUnfenced(volatile int32* pCount)
 {
 	int32 iOld;
 	int32 iNext;
@@ -247,4 +341,30 @@ XRT_API int32 xrtRefRelease(volatile int32* pCount)
 			iOld = __xrtAtomicRefLoad(pCount);
 		}
 	#endif
+}
+
+/* The existing CAS/count semantics are unchanged. This short participation
+ * makes native strong retain/release and Value weak promotion linearize on
+ * the same side of an admitted ownership freeze. Enclosing edge mutations
+ * still need an outer scope; a single RC update is not a graph transaction. */
+XRT_API int32 xrtRefRetain(volatile int32* pCount)
+{
+	xrtownershipscope Scope = {0};
+	int32 iResult;
+	if (pCount == NULL) return -1;
+	if (!xrtOwnershipMutationBegin(&Scope)) return -1;
+	iResult = __xrtRefRetainUnfenced(pCount);
+	if (!xrtOwnershipScopeEnd(&Scope)) abort();
+	return iResult;
+}
+
+XRT_API int32 xrtRefRelease(volatile int32* pCount)
+{
+	xrtownershipscope Scope = {0};
+	int32 iResult;
+	if (pCount == NULL) return -1;
+	if (!xrtOwnershipMutationBegin(&Scope)) return -1;
+	iResult = __xrtRefReleaseUnfenced(pCount);
+	if (!xrtOwnershipScopeEnd(&Scope)) abort();
+	return iResult;
 }

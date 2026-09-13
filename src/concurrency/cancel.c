@@ -1,4 +1,4 @@
-#include "../internal/xrt_internal.h"
+#include "../internal/xrt_cancel.h"
 
 
 
@@ -25,6 +25,57 @@ struct xcancel {
 
 
 
+static bool __xrtCancelOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xcancel* pCancel = (const xcancel*)pData;
+	int32 iCount;
+	if (pCancel == NULL || pCount == NULL) return false;
+	iCount = __xrtAtomicRefLoad(&pCancel->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+
+static bool __xrtCancelOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xcancel* pCancel = (const xcancel*)pData;
+	if (pCancel == NULL || pVisit == NULL) return false;
+	return pCancel->Parent == NULL || pVisit(xrtCancelOwnership(pCancel->Parent), pContext);
+}
+
+static const xrtownershipops __xrtCancelOwnershipOps = {
+	__xrtCancelOwnershipCount, __xrtCancelOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtCancelOwnership(const xcancel* pCancel)
+{
+	xrtownershipref Result = {pCancel, pCancel != NULL ? &__xrtCancelOwnershipOps : NULL};
+	return Result;
+}
+
+static bool __xrtCancelAdapterHold(const void* pData)
+{ return xrtCancelRef((xcancel*)pData) != NULL; }
+static void __xrtCancelAdapterDrop(const void* pData)
+{ xrtCancelDestroy((xcancel*)pData); }
+static bool __xrtCancelAdapterClaim(const void* pData, const void* pToken)
+{ return pData != NULL && pToken != NULL && ((const xcancel*)pData)->WatchHead == NULL; }
+static void __xrtCancelAdapterKeep(const void* pData, const void* pToken)
+{ (void)pData; (void)pToken; }
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter),
+		__xrtCancelAdapterHold, __xrtCancelAdapterDrop, __xrtCancelAdapterClaim,
+		__xrtCancelAdapterKeep, NULL, __xrtCancelAdapterKeep, NULL};
+	const xcancel* pCancel;
+	if (Reference.Ops != &__xrtCancelOwnershipOps || Reference.Data == NULL) return NULL;
+	pCancel = (const xcancel*)Reference.Data;
+	return pCancel->WatchHead == NULL && __xrtAtomicRefLoad(&pCancel->RefCount) > 0 ? &Adapter : NULL;
+}
+void __xrtCancelOwnershipCloseUnobserved(xcancel* pCancel)
+{
+	if (pCancel == NULL || pCancel->WatchHead != NULL) abort();
+	(void)__xrtAtomicRefCompareExchange(&pCancel->Requested, 1, 0);
+}
+
 /* 监听对象集中保存回调状态和全部父链节点，避免逐节点分配。 */
 struct xcancelwatch {
 	volatile int32 RefCount;
@@ -48,6 +99,35 @@ struct xcancelwatch {
 	#endif
 	xcancelnode Nodes[1];
 };
+
+
+
+static bool __xrtCancelWatchOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xcancelwatch* pWatch = (const xcancelwatch*)pData;
+	int32 iCount;
+	if (pWatch == NULL || pCount == NULL || pWatch->CallbackActive || pWatch->Destroying) return false;
+	iCount = __xrtAtomicRefLoad(&pWatch->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+
+static bool __xrtCancelWatchOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xcancelwatch* pWatch = (const xcancelwatch*)pData;
+	if (pWatch == NULL || pVisit == NULL || pWatch->CallbackActive || pWatch->Destroying) return false;
+	return pVisit(xrtCancelOwnership(pWatch->Cancel), pContext);
+}
+
+static const xrtownershipops __xrtCancelWatchOwnershipOps = {
+	__xrtCancelWatchOwnershipCount, __xrtCancelWatchOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch)
+{
+	xrtownershipref Result = {pWatch, pWatch != NULL ? &__xrtCancelWatchOwnershipOps : NULL};
+	return Result;
+}
 
 
 
@@ -150,7 +230,7 @@ static void __xrtCancelWatchNotify(xcancelwatch* pWatch)
 
 
 /* 创建一个独立的取消令牌。 */
-XRT_API xcancel* xrtCancelCreate(void)
+static xcancel* __xrtOwnershipBody_CancelCreate(void)
 {
 	xcancel* pCancel = (xcancel*)xrtMalloc(sizeof(xcancel));
 
@@ -166,10 +246,15 @@ XRT_API xcancel* xrtCancelCreate(void)
 	return pCancel;
 }
 
+XRT_API xcancel* xrtCancelCreate(void)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelCreate());
+}
+
 
 
 /* 创建一个继承不可变父链的子取消令牌。 */
-XRT_API xcancel* xrtCancelChild(xcancel* pParent)
+static xcancel* __xrtOwnershipBody_CancelChild(xcancel* pParent)
 {
 	xcancel* pCancel = xrtCancelCreate();
 
@@ -186,10 +271,15 @@ XRT_API xcancel* xrtCancelChild(xcancel* pParent)
 	return pCancel;
 }
 
+XRT_API xcancel* xrtCancelChild(xcancel* pParent)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelChild(pParent));
+}
+
 
 
 /* 增加取消令牌引用。 */
-XRT_API xcancel* xrtCancelRef(xcancel* pCancel)
+static xcancel* __xrtOwnershipBody_CancelRef(xcancel* pCancel)
 {
 	if ( (pCancel == NULL) || (xrtRefRetain(&pCancel->RefCount) < 0) ) {
 		__xrtErrorSetInvalidArgument();
@@ -198,10 +288,15 @@ XRT_API xcancel* xrtCancelRef(xcancel* pCancel)
 	return pCancel;
 }
 
+XRT_API xcancel* xrtCancelRef(xcancel* pCancel)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelRef(pCancel));
+}
+
 
 
 /* 释放取消令牌引用，并顺着唯一父引用迭代回收。 */
-XRT_API void xrtCancelDestroy(xcancel* pCancel)
+static void __xrtOwnershipBody_CancelDestroy(xcancel* pCancel)
 {
 	while ( (pCancel != NULL) && (xrtRefRelease(&pCancel->RefCount) == 0) ) {
 		xcancel* pParent = pCancel->Parent;
@@ -212,10 +307,15 @@ XRT_API void xrtCancelDestroy(xcancel* pCancel)
 	}
 }
 
+XRT_API void xrtCancelDestroy(xcancel* pCancel)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN_VOID(__xrtOwnershipBody_CancelDestroy(pCancel));
+}
+
 
 
 /* 首次请求取消并在令牌锁外通知全部监听。 */
-XRT_API bool xrtCancelRequest(xcancel* pCancel)
+static bool __xrtOwnershipBody_CancelRequest(xcancel* pCancel)
 {
 	xcancelnode* pList;
 	xcancelnode* pNode;
@@ -248,6 +348,11 @@ XRT_API bool xrtCancelRequest(xcancel* pCancel)
 	return true;
 }
 
+XRT_API bool xrtCancelRequest(xcancel* pCancel)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_CancelRequest(pCancel));
+}
+
 
 
 /* 查询令牌及其不可变父链是否已取消。 */
@@ -265,7 +370,7 @@ XRT_API bool xrtCancelRequested(const xcancel* pCancel)
 
 
 /* 为令牌及其全部祖先一次性装配监听节点。 */
-XRT_API xcancelwatch* xrtCancelWatch(
+static xcancelwatch* __xrtOwnershipBody_CancelWatch(
 	xcancel* pCancel,
 	xcancelproc pProc,
 	ptr pData
@@ -355,6 +460,15 @@ XRT_API xcancelwatch* xrtCancelWatch(
 	return pWatch;
 }
 
+XRT_API xcancelwatch* xrtCancelWatch(
+	xcancel* pCancel,
+	xcancelproc pProc,
+	ptr pData
+)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancelwatch*, NULL, __xrtOwnershipBody_CancelWatch(pCancel, pProc, pData));
+}
+
 
 
 /* 查询监听是否已经命中取消。 */
@@ -393,7 +507,7 @@ static void __xrtCancelUnlinkNode(xcancelnode* pNode)
 
 
 /* 注销监听，并针对回调自身注销采用返回后延迟回收。 */
-XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
+static void __xrtOwnershipBody_CancelUnwatch(xcancelwatch* pWatch)
 {
 	bool bSelf;
 
@@ -435,6 +549,11 @@ XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
 	(void)xrtMutexUnlock(&pWatch->Lock);
 	__xrtCancelWatchRelease(pWatch);
 	__xrtCancelWatchRelease(pWatch);
+}
+
+XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN_VOID(__xrtOwnershipBody_CancelUnwatch(pWatch));
 }
 
 #endif

@@ -83,6 +83,7 @@ typedef struct xrt_memdebug_fail_state {
 
 static DWORD __xrtMemDebugFailFls = FLS_OUT_OF_INDEXES;
 static volatile LONG __xrtMemDebugFailFlsState;
+static xrt_local_slot __xrtMemDebugFailSlot;
 
 
 
@@ -104,8 +105,9 @@ static bool __xrtMemDebugFailFlsEnsure(void)
 	);
 
 	if ( iState == 0 ) {
-		__xrtMemDebugFailFls = FlsAlloc(
-			__xrtMemDebugFailLocalFree
+		__xrtMemDebugFailFls = __xrtLocalSlotAlloc(
+			&__xrtMemDebugFailSlot, __xrtMemDebugFailLocalFree,
+			XRT_LOCAL_PAYLOAD, true
 		);
 		(void)InterlockedExchange(
 			&__xrtMemDebugFailFlsState,

@@ -407,6 +407,8 @@ static xfuture* __xrtTaskPoolSubmit(
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
+	xfutureownershiptrace pResultTrace,
+	const xfuturepayloadownershipv1* pResultPolicy,
 	bool bWait,
 	xdeadline iDeadline,
 	xcancel* pWaitCancel
@@ -431,6 +433,8 @@ static xfuture* __xrtTaskPoolSubmit(
 	if ( pJob == NULL ) {
 		return NULL;
 	}
+	pJob->ResultTrace = pResultTrace;
+	pJob->ResultPolicy = pResultPolicy;
 	if ( bWait && (pArgs != NULL) && (pArgs->Cancel != NULL) ) {
 		pTaskWatch = xrtCancelWatch(
 			pJob->Cancel,
@@ -582,10 +586,40 @@ XRT_API xfuture* xrtTaskSubmit(
 		pProc,
 		pData,
 		pArgs,
+		NULL,
+		NULL,
 		false,
 		XRT_DEADLINE_NEVER,
 		NULL
 	);
+}
+
+
+
+XRT_API xfuture* xrtTaskSubmitTraced(
+	xtaskpool* pPool,
+	xtaskproc pProc,
+	ptr pData,
+	const xtaskargs* pArgs,
+	xfutureownershiptrace pResultTrace
+)
+{
+	if ( pResultTrace == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	return __xrtTaskPoolSubmit(pPool, pProc, pData, pArgs,
+		pResultTrace, NULL, false, XRT_DEADLINE_NEVER, NULL);
+}
+
+XRT_API xfuture* xrtTaskSubmitOwnedPolicyV1(xtaskpool* pPool, xtaskproc pProc,
+	ptr pData, const xtaskargs* pArgs, const xfuturepayloadownershipv1* pPolicy)
+{
+	if (pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Drop == NULL || pPolicy->Trace == NULL) {
+		__xrtErrorSetInvalidArgument(); return NULL;
+	}
+	return __xrtTaskPoolSubmit(pPool, pProc, pData, pArgs,
+		pPolicy->Trace, pPolicy, false, XRT_DEADLINE_NEVER, NULL);
 }
 
 
@@ -667,6 +701,8 @@ XRT_API xfuture* xrtTaskSubmitUntilCancel(
 		pProc,
 		pData,
 		pArgs,
+		NULL,
+		NULL,
 		true,
 		iDeadline,
 		pCancel

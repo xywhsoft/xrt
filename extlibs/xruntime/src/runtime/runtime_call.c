@@ -11,7 +11,120 @@ struct xrtcallable {
 	xrtcallproc Entry;
 	ptr Environment;
 	xrtcalldrop DropEnvironment;
+	xrtownershiptrace TraceEnvironment;
+	const xrtcallableownershipv1* OwnershipPolicy;
+	const void* OwnershipClaim;
+	ptr RetiredEnvironment;
+	volatile int32 ActiveReferences; /* 1 plus active calls; not an owning edge. */
+	bool OwnershipCleared;
 };
+
+static bool __xrtCallableOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xrtcallable* pCallable = (const xrtcallable*)pData;
+	int32 iCount = __xrtAtomicRefLoad(&pCallable->RefCount);
+	if (iCount <= 0 || pCallable->OwnershipCleared || __xrtAtomicRefLoad(&pCallable->ActiveReferences) != 1) return false;
+	*pCount = (size_t)iCount; return true;
+}
+
+static bool __xrtCallableOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xrtcallable* pCallable = (const xrtcallable*)pData;
+	size_t iCount;
+	if (!__xrtCallableOwnershipCount(pData, &iCount)) return false;
+	if (pCallable->Environment == NULL) return true;
+	if (pCallable->TraceEnvironment == NULL) { __xrtErrorSetUnsupported(); return false; }
+	return pCallable->TraceEnvironment(pCallable->Environment, pVisit, pContext);
+}
+
+static const xrtownershipops __xrtCallableOwnershipOps = {
+	__xrtCallableOwnershipCount, __xrtCallableOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtCallableOwnership(const xrtcallable* pCallable)
+{
+	return (xrtownershipref){pCallable, &__xrtCallableOwnershipOps};
+}
+
+static bool __xrtOwnershipBody_CallableOwnershipTraceBind(xrtcallable* pCallable, xrtownershiptrace pTrace)
+{
+	if (pCallable == NULL || pTrace == NULL || pCallable->TraceEnvironment != NULL ||
+		__xrtAtomicRefLoad(&pCallable->RefCount) != 1 || pCallable->OwnershipCleared ||
+		pCallable->OwnershipPolicy != NULL || __xrtAtomicRefLoad(&pCallable->ActiveReferences) != 1) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pCallable->TraceEnvironment = pTrace;
+	return true;
+}
+XRT_API bool xrtCallableOwnershipTraceBind(xrtcallable* pCallable, xrtownershiptrace pTrace)
+{ XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_CallableOwnershipTraceBind(pCallable, pTrace)); }
+static bool __xrtOwnershipBody_CallableOwnershipBindV1(xrtcallable* pCallable, const xrtcallableownershipv1* pPolicy)
+{
+	if (pCallable == NULL || pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) ||
+		pPolicy->Trace == NULL || pPolicy->Drop == NULL || pCallable->DropEnvironment != pPolicy->Drop ||
+		pCallable->TraceEnvironment != NULL || pCallable->OwnershipPolicy != NULL ||
+		pCallable->OwnershipCleared || pCallable->OwnershipClaim != NULL ||
+		__xrtAtomicRefLoad(&pCallable->RefCount) != 1 || __xrtAtomicRefLoad(&pCallable->ActiveReferences) != 1) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pCallable->TraceEnvironment = pPolicy->Trace; pCallable->OwnershipPolicy = pPolicy;
+	return true;
+}
+XRT_API bool xrtCallableOwnershipBindV1(xrtcallable* pCallable, const xrtcallableownershipv1* pPolicy)
+{ XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_CallableOwnershipBindV1(pCallable, pPolicy)); }
+static bool __xrtCallableAdapterHold(const void* pData)
+{ return xrtCallableRef((xrtcallable*)pData) != NULL; }
+static void __xrtCallableAdapterDrop(const void* pData)
+{ xrtCallableUnref((xrtcallable*)pData); }
+static bool __xrtCallableAdapterClaim(const void* pData, const void* pToken)
+{
+	xrtcallable* pCallable = (xrtcallable*)pData;
+	if (pToken == NULL || pCallable->OwnershipCleared ||
+		(pCallable->OwnershipClaim != NULL && pCallable->OwnershipClaim != pToken)) return false;
+	pCallable->OwnershipClaim = pToken; return true;
+}
+static void __xrtCallableAdapterRestore(const void* pData, const void* pToken)
+{
+	xrtcallable* pCallable = (xrtcallable*)pData;
+	if (pCallable->OwnershipClaim != pToken || pCallable->OwnershipCleared) abort();
+	pCallable->OwnershipClaim = NULL;
+}
+static void __xrtCallableAdapterClear(const void* pData, const void* pToken)
+{
+	xrtcallable* pCallable = (xrtcallable*)pData;
+	if (pCallable->OwnershipClaim != pToken || pCallable->OwnershipCleared ||
+		__xrtAtomicRefLoad(&pCallable->ActiveReferences) != 1) abort();
+	pCallable->RetiredEnvironment = pCallable->Environment; pCallable->Environment = NULL;
+	pCallable->Entry = NULL; pCallable->Signature = NULL; pCallable->OwnershipCleared = true;
+}
+static bool __xrtCallableAdapterFinish(const void* pData, const void* pToken)
+{
+	xrtcallable* pCallable = (xrtcallable*)pData;
+	xrtownershipscope Mutation = {0}; ptr pEnvironment; xrtcalldrop pDrop;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pCallable->OwnershipClaim != pToken || !pCallable->OwnershipCleared) abort();
+	pEnvironment = pCallable->RetiredEnvironment; pDrop = pCallable->DropEnvironment;
+	pCallable->RetiredEnvironment = NULL; pCallable->DropEnvironment = NULL;
+	pCallable->TraceEnvironment = NULL; pCallable->OwnershipPolicy = NULL;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (pDrop != NULL) pDrop(pEnvironment);
+	return true;
+}
+XRT_API const xrtownershipadapterv1* xrtCallableOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtcallableownershipv1* pExpectedPolicy)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter),
+		__xrtCallableAdapterHold, __xrtCallableAdapterDrop, __xrtCallableAdapterClaim,
+		__xrtCallableAdapterRestore, NULL, __xrtCallableAdapterClear, __xrtCallableAdapterFinish};
+	const xrtcallable* pCallable;
+	if (Reference.Data == NULL || Reference.Ops != &__xrtCallableOwnershipOps ||
+		pExpectedPolicy == NULL || pExpectedPolicy->size != sizeof(*pExpectedPolicy)) return NULL;
+	pCallable = (const xrtcallable*)Reference.Data;
+	if (pCallable->OwnershipPolicy != pExpectedPolicy || pCallable->OwnershipCleared ||
+		pCallable->TraceEnvironment != pExpectedPolicy->Trace || pCallable->DropEnvironment != pExpectedPolicy->Drop ||
+		__xrtAtomicRefLoad(&pCallable->RefCount) <= 0 || __xrtAtomicRefLoad(&pCallable->ActiveReferences) != 1) return NULL;
+	return &Adapter;
+}
 
 
 
@@ -821,35 +934,39 @@ XRT_API xrtcallable* xrtCallableCreate(
 			"create", "the callable signature is invalid");
 		return NULL;
 	}
-	pCallable = (xrtcallable*)xrtMalloc(sizeof(xrtcallable));
+	pCallable = (xrtcallable*)xrtCalloc(1, sizeof(xrtcallable));
 	if ( pCallable == NULL ) {
 		return NULL;
 	}
 	pCallable->RefCount = 1;
+	pCallable->ActiveReferences = 1;
 	pCallable->Signature = pSignature;
 	pCallable->Entry = pEntry;
 	pCallable->Environment = pEnvironment;
 	pCallable->DropEnvironment = pDropEnvironment;
+	pCallable->TraceEnvironment = NULL;
 	return pCallable;
 }
 
 
 
 /* 增加一个已经存活 callable 的引用。 */
-XRT_API xrtcallable* xrtCallableRef(xrtcallable* pCallable)
+static xrtcallable* __xrtOwnershipBody_CallableRef(xrtcallable* pCallable)
 {
 	if ( pCallable == NULL ) {
 		__xrtCallError(XERR_ARGUMENT, XCALL_ERROR_REFERENCE,
 			"ref", "the callable is null");
 		return NULL;
 	}
-	if ( xrtRefRetain(&pCallable->RefCount) < 0 ) {
+	if ( pCallable->OwnershipCleared || xrtRefRetain(&pCallable->RefCount) < 0 ) {
 		__xrtCallError(XERR_STATE, XCALL_ERROR_REFERENCE,
 			"ref", "the callable reference cannot be retained");
 		return NULL;
 	}
 	return pCallable;
 }
+XRT_API xrtcallable* xrtCallableRef(xrtcallable* pCallable)
+{ XRT_OWNERSHIP_MUTATION_RETURN(xrtcallable*, NULL, __xrtOwnershipBody_CallableRef(pCallable)); }
 
 
 
@@ -857,22 +974,29 @@ XRT_API xrtcallable* xrtCallableRef(xrtcallable* pCallable)
 XRT_API void xrtCallableUnref(xrtcallable* pCallable)
 {
 	int32 iReferences;
+	xrtownershipscope Mutation = {0}; ptr pEnvironment; xrtcalldrop pDrop;
 
 	if ( pCallable == NULL ) {
 		return;
 	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	iReferences = xrtRefRelease(&pCallable->RefCount);
 	if ( iReferences < 0 ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		__xrtCallError(XERR_STATE, XCALL_ERROR_REFERENCE,
 			"unref", "the callable reference cannot be released");
 		return;
 	}
 	if ( iReferences != 0 ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		return;
 	}
-	if ( pCallable->DropEnvironment != NULL ) {
-		pCallable->DropEnvironment(pCallable->Environment);
-	}
+	if (__xrtAtomicRefLoad(&pCallable->ActiveReferences) != 1) abort();
+	pDrop = pCallable->DropEnvironment;
+	pEnvironment = pCallable->OwnershipCleared ? pCallable->RetiredEnvironment : pCallable->Environment;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* No descriptor reads after the environment's actual code owner returns. */
+	if (pDrop != NULL) pDrop(pEnvironment);
 	xrtFree(pCallable);
 }
 
@@ -1059,7 +1183,7 @@ XRT_API uint64 xrtCallableSignatureId(const xrtcallable* pCallable)
 
 
 /* 验证调用并以失败原子方式提交入口结果。 */
-XRT_API bool xrtCallableInvoke(
+static bool __xrtCallableInvokeBody(
 	const xrtcallable* pCallable,
 	const xrtcallframe* pFrame,
 	xrtcallresult* pResult
@@ -1149,6 +1273,27 @@ XRT_API bool xrtCallableInvoke(
 	}
 	__xrtCallRestoreError(pPreviousError);
 	return true;
+}
+
+XRT_API bool xrtCallableInvoke(const xrtcallable* pCallable, const xrtcallframe* pFrame, xrtcallresult* pResult)
+{
+	xrtownershipscope Mutation = {0}; xrtcallable* pHeld; bool bResult; xerror* pOutcome;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	pHeld = xrtCallableRef((xrtcallable*)pCallable);
+	if (pHeld == NULL) { if (!xrtOwnershipScopeEnd(&Mutation)) abort(); return false; }
+	if (xrtRefRetain(&pHeld->ActiveReferences) < 0) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		xrtCallableUnref(pHeld); return false;
+	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* Real strong invocation owner protects signature, result validation and
+	 * rollback after Entry has returned. User code does not inherit Mutation. */
+	bResult = __xrtCallableInvokeBody(pHeld, pFrame, pResult); pOutcome = xrtTakeError();
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (xrtRefRelease(&pHeld->ActiveReferences) < 1) abort();
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	xrtCallableUnref(pHeld); xrtClearError(); xrtSetErrorTake(pOutcome);
+	return bResult;
 }
 
 #endif

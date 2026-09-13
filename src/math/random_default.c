@@ -44,6 +44,7 @@ static void __xrtRandAutoSeed(xrng* pRng)
 
 static DWORD __xrtRandFls = FLS_OUT_OF_INDEXES;
 static volatile LONG __xrtRandFlsState = 0;
+static xrt_local_slot __xrtRandSlot;
 
 
 
@@ -61,7 +62,8 @@ static bool __xrtRandFlsEnsure(void)
 	LONG iState = InterlockedCompareExchange(&__xrtRandFlsState, 1, 0);
 
 	if ( iState == 0 ) {
-		__xrtRandFls = FlsAlloc(__xrtRandLocalFree);
+		__xrtRandFls = __xrtLocalSlotAlloc(&__xrtRandSlot,
+			__xrtRandLocalFree, XRT_LOCAL_PAYLOAD, true);
 		InterlockedExchange(&__xrtRandFlsState,
 			__xrtRandFls == FLS_OUT_OF_INDEXES ? 3 : 2);
 		return __xrtRandFls != FLS_OUT_OF_INDEXES;

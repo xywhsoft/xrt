@@ -22,6 +22,20 @@ value_graph -> value_container
 
 ## 核心契约
 
+对象终结职责由最后一次 backing 原子释放唯一取得，而非各外壳释放前的引用数快照。
+带终结器的身份对象被公开迭代器引用时，迭代器同时拥有 backing 和真实来源外壳；
+`End` 先清空游标状态、释放 backing 槽，再释放外壳槽，保证最后一次终结获得真实
+receiver。普通无终结器 COW 容器仍只拥有 backing，不改变源外壳的弱引用寿命。
+拥有图按这两个实际槽分别计边，内部检查用的临时视图不得冒充拥有外壳。
+
+`xrtValueObjectFinalizerBindOwned(object, finalize, context, trace, release)` 在唯一外壳和
+backing 上原子接管上下文，不分配；失败不更改对象、不消费上下文、不调用任何回调。
+非空上下文要求显式 Trace。Finalize 先借用对象和字段，全部 backing 字段释放后才
+调用 Release 一次。Finalize 内可枚举字段；其新建游标若继续持有 backing，字段及
+上下文释放也随之延后，但不会重新运行 Finalize。运行中的终结拒绝图检查。
+Release 若释放最后一份代码租约，Release 本身须常驻；XRT 不会自动保活任意回调代码。
+旧 `FinalizerBind` 的回调仍自行管理其上下文，不转成新接口的拥有式接管合同。
+
 - `xvalue` 是不透明结构，调用方不得依赖内部布局。
 - `NULL` 表示失败或缺失，语言 null 使用 `xrtValueNull()` 单例表示。
 - null 和 bool 是不可变单例；其他值使用原子外壳引用计数。
@@ -2752,6 +2766,19 @@ bool xrtValueObjectMerge(xvalue* pTarget, const xvalue* pSource, xvaluemergepoli
 		 ) ||
 ```
 
+### `xrtValueObjectFinalizerBindTake`
+
+消耗一个对象拥有引用，成功绑定后返回同一引用，失败则释放输入并返回 NULL。
+失败不安装新回调，也不接管借用上下文；回滚可能执行对象原有的终结器和字段
+Drop，原始绑定错误（或调用前已经存在的主错误）不会被这些清理覆盖。
+接口不创建额外的上下文分配，也不提供回调代码保活或并发发布安全点。
+共享 backing 上的绑定仍按原合同拒绝；不能借此撤销调用方此前已经发布的别名。
+
+```c
+xvalue* xrtValueObjectFinalizerBindTake(xvalue* object,
+    xvalueobjectfinalizer finalize, ptr context);
+```
+
 ### `xrtValueObjectFinalizerBind`
 
 为对象绑定最终释放拥有的值时执行的终化器。
@@ -4724,3 +4751,117 @@ xvalue* xrtValueWeakRefLock(const xvalue* pWeak)
 - `examples/value/collections/main.c`：Object 覆盖合并、Set 合并与完整关系判断。
 - `examples/value/collections/batch/main.c`：Array 扩展/连接和 IntMap 冲突策略。
 - `examples/value/graph/main.c`：DAG 身份保留深克隆、结构相等和修改隔离。
+
+### 迭代器物理拥有视图
+
+`xrtValueIterOwnership` 为栈上或堆上迭代器提供只读物理视图。迭代器有一个
+唯一的 End/Destroy 拥有者；它只拥有创建时保留的 backing 快照，不拥有源
+Value 壳、当前借用元素或键。原生 Retain 和 COW Clone 的语义不变，源容器
+修改或释放后，迭代器仍访问原快照。活动迭代器不可复制为第二个拥有者。
+
+空指针返回空视图；零初始化或已 End 的迭代器是没有子边的唯一节点。
+检查不会推进游标，也不调用析构；失败不修改检查结果或引用图。调用方必须
+保证全图静止及代码和数据驻留。本视图不是并发收集、安全点或模块卸载许可。
+`value_iterator_ownership_tests` 覆盖四种容器、正逆序、栈/堆游标、共享元素、
+COW/原生别名、释放源之后的遍历及检查分配失败。
+
+### 两阶段对象生命周期
+
+`xrtValueObjectFinalizerPrepareOwned` 必须在唯一外壳和 backing 上、发布引用
+之前调用。它立即接管上下文及其真实拥有边，保留字段全部释放之后的 Release
+尾部，但暂不激活用户 Finalizer。`xrtValueObjectFinalizerCommit` 在构造成功
+后激活一次；构造期间创建的 Retain、Clone 或原生游标不妨碍这次提交。
+提交借用一个活对象，不分配、不调用回调、不消费输入；重复、未准备或正在
+终结的对象提交失败且不改变原状态。
+
+若构造失败，原生别名可以延长已初始化字段和上下文的生命，但不会使完整
+用户析构被执行。最后一个别名释放后仍按字段、上下文顺序结束所有权。
+已提交对象继续遵守原终结合同，包括 Finalizer 内创建的游标延迟字段和
+上下文释放。Prepare/Commit 不是并发字段修改或图收集接口；修改须由调用方
+串行化，持有独立拥有引用的并发 Retain/Release 不受影响。
+
+准备后对象具有引用身份；原有禁止复制终结责任的 COW 分裂规则不变。
+因此游标持有 backing 时，要求分裂 backing 的字段修改仍按原合同拒绝，
+不能把“允许共享后的生命周期提交”解释为“允许修改不可变快照”。
+
+## 可复制的 backing 生命周期能力
+
+`xrtValueObjectLifetimeBindOwned` 把不可变上下文交给独立的共享生命周期节点，
+不创建终结职责。绑定要求唯一外壳/backing；分配或校验失败不修改对象、不运行
+回调、不消费上下文。成功后 backing 拥有该节点，节点拥有上下文及 Trace 描述
+的真实强边；非空上下文必须提供 Trace，Release 始终必需。
+
+浅 Clone 共享 backing；COW 分裂、DeepClone 的新 Object backing 各增加一次
+生命周期节点引用。节点计数对应实际 backing 边，不把每个别名外壳误算成一个
+上下文 owner。Release 仅在最后一个关联 backing 的字段及 finalizer context
+全部释放后执行。代码租约适合放在这个节点，普通可复制对象不需要伪造空析构。
+回调地址必须保持有效；Release 若可能释放最后代码引用，本身须为常驻函数。
+
+`xrtValueObjectConstructionPrepare` 标记没有用户析构的普通构造事务；不会使
+对象变为禁止 COW 分裂的引用身份。其 pending 状态随普通 backing 分裂/复制
+传播，`xrtValueObjectConstructionCommit` 无分配地提交一次，也可提交通过
+FinalizerPrepareOwned 准备的实际析构。原 FinalizerCommit 仍只接受真正的
+owned finalizer；有用户终结职责的共享 backing 仍不能分裂或复制该职责。
+DeepClone 继承生命周期能力但不复制终结职责，语言的 clone 策略须由上层定义。
+
+空 Object 合并也从目标准备 backing，保留目标生命周期和构造状态，不借来源
+backing 的快速路径替换它们。源数据字段仍按正常合并策略复制/共享。
+这不是环收集器或原生并发图安全点；字段/构造状态修改及 ownership inspection
+继续遵守既有同步要求，独立 backing 对同一生命周期节点的引用释放是原子的。
+
+## 普通 Value 的物理接管适配器
+
+`xrtValueOwnershipAdapterV1` 在调用方已持有 ownership freeze 时识别本 XRT
+实例的普通 Value 外壳和四类容器 backing。它不调用未知 Count、Trace 或用户
+策略，也不读取外部 descriptor 的尾部。自定义 handle、identity、finalizer、
+lifetime、构造中对象，以及借用 blob 内存仍返回 NULL；包括上下文为 NULL
+但代码来自外部的析构器。弱引用 Handle 是已知内建策略，不提供强拥有边。
+
+适配器遵循 core 中 V1 的完整图保有与两阶段接管合同。普通强引用仍按原语义
+保有；Claim 暂时使 WeakRefLock 返回 null，但 WeakRefExpired 仍反映实际强
+生命周期。撤销 Restore 后可以重新提升。Clear 提交隔离并按物理 backing
+断开元素强边，不经 COW EnsureUnique、不分配，所有目标须仍由事务实际保有。
+有外部别名可达的 backing 不得 Clear。Drop 在 freeze 外归还事务引用。
+
+该接口不自动寻找环，也不会把未建模的类析构/原生 callable 默认为空清理。
+专项 `ownership_adapter_tests` 保留了普通终态析构，验证实际 COW 共享、重复边、
+弱准入恢复、无分配清理及在回调之前拒绝自定义策略。
+
+## 显式认证的类与原生 Handle 生命周期
+
+`xrtValueObjectOwnershipBindV1` 仅接受尚未发布的 prepared 对象，绑定不可变的
+`xvalueobjectownershipv1` 策略身份；收集器必须用同一授权策略调用
+`xrtValueObjectOwnershipAdapterV1`。非空 Trace 并不意味着允许接管。
+`xrtValueObjectIdentityBindV1` 把同一代码生命周期覆盖的 hash/equal 纳入认证；
+普通 identity 绑定不会隐式获得这种权限。COW 副本继承实际 lifetime 拥有边。
+
+非终态 Finalize 借用事务实际保有的 receiver，先物理撤销析构职责，再在 freeze
+之外调用 `FinalizeChecked`；返回 false 即失败，即使没有错误对象。终态 RC
+路径仍使用 void `Finalize`，两者必须表达同一语言职责，绝不会各调用一次。
+撤销事务不恢复已执行职责；字段与 context/lifetime 在重验证和全部语义析构后
+才机械释放。真正的事务 backing Hold 有独立记账，不伪造强计数，也不把它误当
+COW 别名；第二个真实外壳/游标仍遵守原有共享与借用 receiver 限制。
+
+`xrtValueHandleOwnershipAdapterV1` 只识别明确授权的 resident Ops/Trace 对，
+Clear 隔离实际 payload，Finish 在 freeze 之外运行一次机械 Drop。它不认证
+payload 指向的 callable 或任意用户对象；每个传递子节点仍须独立准入。
+
+普通末次释放同样区分物理修改和语义析构：已认证的类先在短 mutation 内归零并
+隔离节点，然后在该 scope 外调用真实 receiver 的 Finalize；字段、context、
+copyable lifetime 的拥有引用仍保持到各自实际释放边界。原生游标结束先脱离
+自己的 backing/receiver 槽，再运行子释放。未知 legacy finalizer/lifetime 不
+获得这一认证；外部调用方自己持有的 mutation 不会被库自动暂停。
+
+`xrtValueHandleOwnershipBindPhased` 是独立的显式末次 Drop 合同，要求不可变的
+Ops/Trace 和真实代码生命周期自行协调载荷变化与活动。它与 trace-only 的
+`xrtValueHandleOwnershipBind` 都不自动授权图收集；后者保留保守的 Drop scope。
+DeepClone 继承同一 Drop 合同。xruntime 已知 callable/Future Value 包装层使用
+phased 绑定，任意 Object/Weak/native 包装策略不会因有 Trace 而自动升级。
+
+普通 String/Bytes 有两种物理拥有形式：`xrtValueString/Bytes` 把副本内联保存在
+同一个 Value 分配中，Take 入口则拥有单独分配。`OWNED_DATA` 只表示后者，不能
+据此拒绝前者。普通适配器识别本实例的内联地址或明确的独立拥有标志，仍不接纳
+未知外部借用字节。`ownership_adapter_tests` 保留原分母，新增 200 个容器图、
+1200 个内联/空/Take 的物理字符串和字节值，以及 Clone 后的 2400 个实际拥有槽，
+覆盖清理与恢复、精确重复边计数、无分配事务及内存平衡。不可变标量的 Clone
+保有原节点，不创建第二个物理节点。

@@ -303,6 +303,33 @@ XRT_API xfuture* xrtTaskSubmit(
 
 
 
+/* Submit with an immutable ownership adapter for successful owned results.
+ * pResultTrace is required and describes exactly the Value/DestroyData slots
+ * released by xtaskvalue.Destroy. It is installed before the job is visible
+ * to workers and published atomically with the result. Borrowed results and
+ * failed/cancelled tasks have no result adapter. Submission failure consumes
+ * no task data. This additive API does not change xtaskargs/xtaskvalue ABI.
+ * The adapter/destructor must remain resident for the result lifetime; this
+ * does not describe pending jobs or establish graph quiescence/code pinning. */
+XRT_API xfuture* xrtTaskSubmitTraced(
+	xtaskpool* pPool,
+	xtaskproc pProc,
+	ptr pData,
+	const xtaskargs* pArgs,
+	xfutureownershiptrace pResultTrace
+);
+
+/* Select a certified result lifecycle BEFORE native admission. A successful
+ * owned result must return exactly this resident Drop and NULL context; a
+ * mismatch becomes FAILED while task data/code is still alive. A void result
+ * (all three fields NULL) is allowed. The immutable policy outlives every
+ * accepted result. Failure to submit consumes no task data. This certifies
+ * only the result, never pending jobs, waiters or arbitrary task callbacks. */
+XRT_API xfuture* xrtTaskSubmitOwnedPolicyV1(xtaskpool* pPool, xtaskproc pProc,
+	ptr pData, const xtaskargs* pArgs, const xfuturepayloadownershipv1* pPolicy);
+
+
+
 /* 等待任务池出现队列槽位后提交；任务池工作线程不得阻塞等待所属池。 */
 XRT_API xfuture* xrtTaskSubmitWait(
 	xtaskpool* pPool,

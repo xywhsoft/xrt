@@ -517,7 +517,7 @@ XRT_API xvalue* xrtValueString(xstrview Text)
 
 
 /* 接管 XRT 分配的字符串并保证末尾零。 */
-XRT_API xvalue* xrtValueStringTake(str* pText, size_t iSize)
+static xvalue* __xrtOwnershipBody_ValueStringTake(str* pText, size_t iSize)
 {
 	xvalue* pValue;
 	str sOwned;
@@ -550,6 +550,11 @@ XRT_API xvalue* xrtValueStringTake(str* pText, size_t iSize)
 	return pValue;
 }
 
+XRT_API xvalue* xrtValueStringTake(str* pText, size_t iSize)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueStringTake(pText, iSize));
+}
+
 
 
 /* 复制任意字节并创建二进制值。 */
@@ -561,7 +566,7 @@ XRT_API xvalue* xrtValueBytes(xbytesview Data)
 
 
 /* 接管 XRT 分配的二进制块。 */
-XRT_API xvalue* xrtValueBytesTake(bytes* pData, size_t iSize)
+static xvalue* __xrtOwnershipBody_ValueBytesTake(bytes* pData, size_t iSize)
 {
 	xvalue* pValue;
 	size_t iOwnedSize;
@@ -583,6 +588,11 @@ XRT_API xvalue* xrtValueBytesTake(bytes* pData, size_t iSize)
 	pValue->Data.Blob.Size = iSize;
 	*pData = NULL;
 	return pValue;
+}
+
+XRT_API xvalue* xrtValueBytesTake(bytes* pData, size_t iSize)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueBytesTake(pData, iSize));
 }
 
 
@@ -614,7 +624,7 @@ XRT_API xvalue* xrtValuePointer(ptr pPointer)
 
 
 /* 接管一个带显式生命周期的句柄。 */
-XRT_API xvalue* xrtValueHandleTake(
+static xvalue* __xrtOwnershipBody_ValueHandleTake(
 	ptr* pHandle,
 	const xvaluehandleops* pOps,
 	ptr pUserData
@@ -644,10 +654,216 @@ XRT_API xvalue* xrtValueHandleTake(
 	return pValue;
 }
 
+XRT_API xvalue* xrtValueHandleTake(
+	ptr* pHandle,
+	const xvaluehandleops* pOps,
+	ptr pUserData
+)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueHandleTake(pHandle, pOps, pUserData));
+}
+
 
 
 /* 增加值外壳引用并返回原指针。 */
-XRT_API xvalue* xrtValueRetain(const xvalue* pValue)
+static bool __xrtValueOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xvalue* pValue = (const xvalue*)pData;
+	int32 iCount = __xrtAtomicRefLoad(&pValue->RefCount);
+	if (iCount <= 0 || (pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0) return false;
+	*pCount = (pValue->Flags & XRT_VALUE_FLAG_STATIC) ? SIZE_MAX : (size_t)iCount;
+	return true;
+}
+
+static bool __xrtValueOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xvalue* pValue = (const xvalue*)pData;
+	if (__xrtAtomicRefLoad(&pValue->RefCount) <= 0 ||
+		(pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0) return false;
+	/* Identity policy context has no declared strong-edge contract. A handle
+	 * payload adapter does not implicitly describe this separate context. */
+	if (pValue->IdentityUserData != NULL) { __xrtErrorSetUnsupported(); return false; }
+	#if defined(XRT_FEATURE_VALUE_CONTAINER)
+		if (__xrtValueContainerType((xvaluetype)pValue->Type))
+			return pVisit(__xrtValueBackingOwnership(pValue), pContext);
+	#endif
+	if (pValue->Type == XVALUE_HANDLE &&
+		(pValue->Data.Handle.Data != NULL || pValue->Data.Handle.UserData != NULL)) {
+		if (pValue->Data.Handle.Ops == &__xrtValueWeakHandleOps) return true;
+		if (pValue->OwnershipTrace == NULL) { __xrtErrorSetUnsupported(); return false; }
+		return pValue->OwnershipTrace(pValue, pVisit, pContext);
+	}
+	return true;
+}
+
+static const xrtownershipops __xrtValueOwnershipOps = {
+	__xrtValueOwnershipCount, __xrtValueOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtValueOwnership(const xvalue* pValue)
+{
+	return (xrtownershipref){pValue, &__xrtValueOwnershipOps};
+}
+
+static bool __xrtValueAdapterHold(const void* pData)
+{
+	return xrtValueRetain((const xvalue*)pData) != NULL;
+}
+static void __xrtValueAdapterDrop(const void* pData)
+{
+	xrtValueRelease((xvalue*)pData);
+}
+static bool __xrtValueAdapterClaim(const void* pData, const void* pToken)
+{
+	xvalue* pValue = (xvalue*)pData;
+	if (pToken == NULL || (pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0 ||
+		(pValue->OwnershipClaim != NULL && pValue->OwnershipClaim != pToken)) return false;
+	#if defined(XRT_FEATURE_VALUE_CONTAINER)
+		if (!__xrtValueObjectClaimReceiver(pValue, pToken)) return false;
+	#endif
+	pValue->OwnershipClaim = pToken; return true;
+}
+static void __xrtValueAdapterRestore(const void* pData, const void* pToken)
+{
+	xvalue* pValue = (xvalue*)pData;
+	if (pToken == NULL || pValue->OwnershipClaim != pToken || (pValue->Flags & XRT_VALUE_FLAG_OWNERSHIP_CLEARED) != 0) abort();
+	#if defined(XRT_FEATURE_VALUE_CONTAINER)
+		__xrtValueObjectRestoreReceiver(pValue, pToken);
+	#endif
+	pValue->OwnershipClaim = NULL;
+}
+static void __xrtValueAdapterClear(const void* pData, const void* pToken)
+{
+	xvalue* pValue = (xvalue*)pData;
+	if (pToken == NULL || pValue->OwnershipClaim != pToken || (pValue->Flags & XRT_VALUE_FLAG_OWNERSHIP_CLEARED) != 0) abort();
+	#if defined(XRT_FEATURE_VALUE_CONTAINER)
+		/* The real backing is independently held by the transaction, so this
+		 * cannot be its final release, even when that backing is itself rooted. */
+		if (__xrtValueContainerType((xvaluetype)pValue->Type)) __xrtValueContainerRelease(pValue, NULL);
+	#endif
+	pValue->Flags |= XRT_VALUE_FLAG_OWNERSHIP_CLEARED;
+}
+static const xrtownershipadapterv1 __xrtValueAdapterV1 = {
+	sizeof(xrtownershipadapterv1), __xrtValueAdapterHold, __xrtValueAdapterDrop,
+	__xrtValueAdapterClaim, __xrtValueAdapterRestore, NULL, __xrtValueAdapterClear, NULL
+};
+
+XRT_API const xrtownershipadapterv1* xrtValueOwnershipAdapterV1(xrtownershipref Reference)
+{
+	const xvalue* pValue;
+	if (Reference.Data == NULL) return NULL;
+	if (Reference.Ops != &__xrtValueOwnershipOps) {
+		#if defined(XRT_FEATURE_VALUE_CONTAINER)
+			return __xrtValueBackingOwnershipAdapterV1(Reference);
+		#else
+			return NULL;
+		#endif
+	}
+	pValue = (const xvalue*)Reference.Data;
+	/* Inspect only this implementation's layout, never a foreign Ops tail or
+	 * callback. Identity and handle policies carry separate opaque lifetimes. */
+	if (__xrtAtomicRefLoad(&pValue->RefCount) <= 0 ||
+		(pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0 ||
+		pValue->IdentityHash != NULL || pValue->IdentityEqual != NULL || pValue->IdentityUserData != NULL ||
+		pValue->OwnershipTrace != NULL) return NULL;
+	if (pValue->Type == XVALUE_HANDLE && (pValue->Data.Handle.Ops != &__xrtValueWeakHandleOps ||
+		pValue->Data.Handle.UserData != NULL)) return NULL;
+	if ((pValue->Type == XVALUE_STRING || pValue->Type == XVALUE_BYTES) &&
+		pValue->Data.Blob.Data != NULL && (pValue->Flags & XRT_VALUE_FLAG_OWNED_DATA) == 0 &&
+		pValue->Data.Blob.Data != (cbytes)(pValue + 1)) return NULL;
+	/* __xrtValueBlob copies bytes into this same allocation. OWNED_DATA marks
+	 * only a separately taken allocation; it is not a prerequisite for owning
+	 * inline data. Unrecognized external byte storage remains refused. */
+	return &__xrtValueAdapterV1;
+}
+
+#if defined(XRT_FEATURE_VALUE_CONTAINER)
+XRT_API const xrtownershipadapterv1* xrtValueObjectOwnershipAdapterV1(
+	xrtownershipref Reference, const xvalueobjectownershipv1* pExpectedPolicy)
+{
+	if (Reference.Data == NULL || pExpectedPolicy == NULL) return NULL;
+	if (Reference.Ops == &__xrtValueOwnershipOps)
+	{
+		const xvalue* pValue = (const xvalue*)Reference.Data;
+		if (__xrtAtomicRefLoad(&pValue->RefCount) <= 0 || pValue->OwnershipTrace != NULL ||
+			(pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0) return NULL;
+		return __xrtValueObjectOwnershipPolicyMatches(pValue, pExpectedPolicy) ? &__xrtValueAdapterV1 : NULL;
+	}
+	return __xrtValueObjectOwnershipAdapterV1(Reference, pExpectedPolicy);
+}
+#endif
+
+static void __xrtValueHandleAdapterClear(const void* pData, const void* pToken)
+{
+	xvalue* pValue = (xvalue*)pData;
+	if (pToken == NULL || pValue->OwnershipClaim != pToken ||
+		(pValue->Flags & XRT_VALUE_FLAG_OWNERSHIP_CLEARED) != 0) abort();
+	/* Retired owning slot: the real reference remains until Finish. */
+	pValue->Flags |= XRT_VALUE_FLAG_OWNERSHIP_CLEARED;
+}
+static bool __xrtValueHandleAdapterFinish(const void* pData, const void* pToken)
+{
+	xvalue* pValue = (xvalue*)pData;
+	xrtownershipscope Mutation = {0};
+	ptr pHandle; const xvaluehandleops* pOps;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pValue->OwnershipClaim != pToken || (pValue->Flags & XRT_VALUE_FLAG_OWNERSHIP_CLEARED) == 0) abort();
+	pHandle = pValue->Data.Handle.Data; pOps = pValue->Data.Handle.Ops;
+	pValue->Data.Handle.Data = NULL; pValue->Data.Handle.Ops = NULL;
+	pValue->OwnershipTrace = NULL;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (pOps != NULL) pOps->Drop(pHandle, NULL);
+	return true;
+}
+XRT_API const xrtownershipadapterv1* xrtValueHandleOwnershipAdapterV1(
+	xrtownershipref Reference, const xvaluehandleops* pExpectedOps, xvalueownershiptrace pExpectedTrace)
+{
+	static const xrtownershipadapterv1 Adapter = {
+		sizeof(Adapter), __xrtValueAdapterHold, __xrtValueAdapterDrop,
+		__xrtValueAdapterClaim, __xrtValueAdapterRestore, NULL,
+		__xrtValueHandleAdapterClear, __xrtValueHandleAdapterFinish
+	};
+	const xvalue* pValue;
+	if (Reference.Ops != &__xrtValueOwnershipOps || Reference.Data == NULL ||
+		pExpectedOps == NULL || pExpectedTrace == NULL) return NULL;
+	pValue = (const xvalue*)Reference.Data;
+	if (pValue->Type != XVALUE_HANDLE || pValue->Data.Handle.Ops != pExpectedOps ||
+		pValue->OwnershipTrace != pExpectedTrace || pValue->Data.Handle.UserData != NULL ||
+		pValue->IdentityHash != NULL || pValue->IdentityEqual != NULL || pValue->IdentityUserData != NULL ||
+		__xrtAtomicRefLoad(&pValue->RefCount) <= 0 ||
+		(pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0) return NULL;
+	return &Adapter;
+}
+
+static bool __xrtOwnershipBody_ValueHandleOwnershipBind(xvalue* pValue, xvalueownershiptrace pTrace)
+{
+	if (pValue == NULL || pValue->Type != XVALUE_HANDLE || pTrace == NULL ||
+		pValue->OwnershipTrace != NULL || __xrtAtomicRefLoad(&pValue->RefCount) != 1 ||
+		(pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pValue->OwnershipTrace = pTrace;
+	return true;
+}
+
+XRT_API bool xrtValueHandleOwnershipBind(xvalue* pValue, xvalueownershiptrace pTrace)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueHandleOwnershipBind(pValue, pTrace));
+}
+
+static bool __xrtOwnershipBody_ValueHandleOwnershipBindPhased(xvalue* pValue, xvalueownershiptrace pTrace)
+{
+	if (!__xrtOwnershipBody_ValueHandleOwnershipBind(pValue, pTrace)) return false;
+	pValue->Flags |= XRT_VALUE_FLAG_PHASED_DROP;
+	return true;
+}
+XRT_API bool xrtValueHandleOwnershipBindPhased(xvalue* pValue, xvalueownershiptrace pTrace)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueHandleOwnershipBindPhased(pValue, pTrace));
+}
+
+/* 增加值外壳引用并返回原指针。 */
+static xvalue* __xrtOwnershipBody_ValueRetain(const xvalue* pValue)
 {
 	if ( !__xrtValueCanRead(pValue) ) {
 		return NULL;
@@ -666,17 +882,22 @@ XRT_API xvalue* xrtValueRetain(const xvalue* pValue)
 	return (xvalue*)pValue;
 }
 
+XRT_API xvalue* xrtValueRetain(const xvalue* pValue)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueRetain(pValue));
+}
+
 
 
 /* 释放值外壳引用和最后一个拥有资源。 */
-XRT_API void xrtValueRelease(xvalue* pValue)
+static void __xrtOwnershipBody_ValueRelease(xvalue* pValue, xrtownershipscope* pMutation)
 {
 	int32 iReferences;
 
 	if ( (pValue == NULL) || ((pValue->Flags & XRT_VALUE_FLAG_STATIC) != 0) ) {
 		return;
 	}
-	if ( (pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
+	if ( (pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0 ) {
 		__xrtErrorSetInvalidState();
 		return;
 	}
@@ -688,11 +909,6 @@ XRT_API void xrtValueRelease(xvalue* pValue)
 	if ( iReferences != 0 ) {
 		return;
 	}
-	#if defined(XRT_FEATURE_VALUE_CONTAINER)
-		if ( pValue->Type == XVALUE_OBJECT ) {
-			__xrtValueObjectFinalize(pValue);
-		}
-	#endif
 	pValue->Flags |= XRT_VALUE_FLAG_BUSY;
 	if ( ((pValue->Type == XVALUE_STRING) || (pValue->Type == XVALUE_BYTES)) &&
 		 ((pValue->Flags & XRT_VALUE_FLAG_OWNED_DATA) != 0) ) {
@@ -701,23 +917,36 @@ XRT_API void xrtValueRelease(xvalue* pValue)
 		(pValue->Type == XVALUE_HANDLE) &&
 		(pValue->Data.Handle.Data != NULL)
 	) {
+		bool bPhased = (pValue->Flags & XRT_VALUE_FLAG_PHASED_DROP) != 0;
+		/* The zero-count, BUSY shell still owns its weak self-reference. Its
+		 * payload is private until Drop returns; no synthetic root is needed. */
+		if (bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
 		pValue->Data.Handle.Ops->Drop(
 			pValue->Data.Handle.Data,
 			pValue->Data.Handle.UserData
 		);
+		if (bPhased && !xrtOwnershipMutationBegin(pMutation)) abort();
 	#if defined(XRT_FEATURE_VALUE_CONTAINER)
 	} else if ( __xrtValueContainerType((xvaluetype)pValue->Type) ) {
-		__xrtValueContainerRelease(pValue);
+		__xrtValueContainerRelease(pValue, pMutation);
 	#endif
 	}
 	/* 资源结束后释放外壳自持的弱引用；现存弱引用继续保持地址有效。 */
 	__xrtValueWeakRelease(pValue);
 }
 
+XRT_API void xrtValueRelease(xvalue* pValue)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	__xrtOwnershipBody_ValueRelease(pValue, &Mutation);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+}
+
 
 
 /* 标量增加引用，容器创建共享 backing 的独立 COW 外壳。 */
-XRT_API xvalue* xrtValueClone(const xvalue* pValue)
+static xvalue* __xrtOwnershipBody_ValueClone(const xvalue* pValue)
 {
 	if ( !__xrtValueCanRead(pValue) ) {
 		return NULL;
@@ -734,10 +963,15 @@ XRT_API xvalue* xrtValueClone(const xvalue* pValue)
 	return xrtValueRetain(pValue);
 }
 
+XRT_API xvalue* xrtValueClone(const xvalue* pValue)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueClone(pValue));
+}
+
 
 
 /* 为动态 Value 创建一个弱引用 Handle。 */
-XRT_API xvalue* xrtValueWeakRef(const xvalue* pTarget)
+static xvalue* __xrtOwnershipBody_ValueWeakRef(const xvalue* pTarget)
 {
 	ptr pHandle;
 	xvalue* pWeak;
@@ -763,6 +997,11 @@ XRT_API xvalue* xrtValueWeakRef(const xvalue* pTarget)
 	return pWeak;
 }
 
+XRT_API xvalue* xrtValueWeakRef(const xvalue* pTarget)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueWeakRef(pTarget));
+}
+
 
 
 /* 判断值是否使用 Value weak-ref Handle 策略。 */
@@ -771,7 +1010,7 @@ XRT_API bool xrtValueIsWeakRef(const xvalue* pValue)
 	if ( pValue == NULL ) {
 		return false;
 	}
-	if ( (pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
+	if ( (pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0 ) {
 		__xrtErrorSetInvalidState();
 		return false;
 	}
@@ -803,7 +1042,7 @@ XRT_API bool xrtValueWeakRefExpired(const xvalue* pWeak)
 
 
 /* 原子提升弱引用；强引用计数为零时不允许复活。 */
-XRT_API xvalue* xrtValueWeakRefLock(const xvalue* pWeak)
+static xvalue* __xrtOwnershipBody_ValueWeakRefLock(const xvalue* pWeak)
 {
 	xvalue* pTarget;
 
@@ -817,11 +1056,16 @@ XRT_API xvalue* xrtValueWeakRefLock(const xvalue* pWeak)
 		return NULL;
 	}
 	pTarget = (xvalue*)pWeak->Data.Handle.Data;
-	if ( (pTarget == NULL) ||
+	if ( (pTarget == NULL) || pTarget->OwnershipClaim != NULL ||
 		 (xrtRefRetain(&pTarget->RefCount) < 0) ) {
 		return xrtValueNull();
 	}
 	return pTarget;
+}
+
+XRT_API xvalue* xrtValueWeakRefLock(const xvalue* pWeak)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueWeakRefLock(pWeak));
 }
 
 
@@ -857,7 +1101,7 @@ XRT_API uint64 xrtValueTypeId(const xvalue* pValue)
 
 
 /* 一次性绑定非零语义类型身份，禁止共享值被重新解释。 */
-XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId)
+static bool __xrtOwnershipBody_ValueTypeIdBind(xvalue* pValue, uint64 iTypeId)
 {
 	if ( (pValue == NULL) || (iTypeId == 0) ) {
 		__xrtErrorSetInvalidArgument();
@@ -875,10 +1119,15 @@ XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId)
 	return true;
 }
 
+XRT_API bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueTypeIdBind(pValue, iTypeId));
+}
+
 
 
 /* 只允许未发布且唯一拥有的外壳替换语义类型身份。 */
-XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
+static bool __xrtOwnershipBody_ValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
 {
 	if ( (pValue == NULL) || (iTypeId == 0) ) {
 		__xrtErrorSetInvalidArgument();
@@ -903,11 +1152,16 @@ XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
 	return true;
 }
 
+XRT_API bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueTypeIdRebind(pValue, iTypeId));
+}
+
 
 
 
 /* 为带 TypeId 的容器一次性绑定完整值身份策略。 */
-XRT_API bool xrtValueIdentityBind(
+static bool __xrtOwnershipBody_ValueIdentityBind(
 	xvalue* pValue,
 	xvalueidentityhash pHash,
 	xvalueidentityequal pEqual,
@@ -943,6 +1197,16 @@ XRT_API bool xrtValueIdentityBind(
 	pValue->IdentityEqual = pEqual;
 	pValue->IdentityUserData = pUserData;
 	return true;
+}
+
+XRT_API bool xrtValueIdentityBind(
+	xvalue* pValue,
+	xvalueidentityhash pHash,
+	xvalueidentityequal pEqual,
+	ptr pUserData
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueIdentityBind(pValue, pHash, pEqual, pUserData));
 }
 
 
@@ -1264,7 +1528,7 @@ XRT_API bool xrtValueGetHandle(
 
 
 /* 取走句柄资源；共享该值外壳的观察者随后都看到空句柄。 */
-XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle)
+static bool __xrtOwnershipBody_ValueTakeHandle(xvalue* pValue, ptr* pHandle)
 {
 	if (
 		!__xrtValueCanRead(pValue) ||
@@ -1279,6 +1543,11 @@ XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle)
 	*pHandle = pValue->Data.Handle.Data;
 	pValue->Data.Handle.Data = NULL;
 	return true;
+}
+
+XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueTakeHandle(pValue, pHandle));
 }
 
 
@@ -1460,7 +1729,7 @@ bool __xrtValueEqualKnown(const xvalue* pLeft, const xvalue* pRight)
 
 
 /* 为可哈希标量计算稳定哈希。 */
-XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash)
+static bool __xrtOwnershipBody_ValueHash(const xvalue* pValue, uint64* pHash)
 {
 	const xvalue* tValues[1];
 
@@ -1489,10 +1758,15 @@ XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash)
 	return true;
 }
 
+XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueHash(pValue, pHash));
+}
+
 
 
 /* 按数值与标量内容判断两个值相等。 */
-XRT_API bool xrtValueScalarEqual(
+static bool __xrtOwnershipBody_ValueScalarEqual(
 	const xvalue* pLeft,
 	const xvalue* pRight
 )
@@ -1537,6 +1811,11 @@ XRT_API bool xrtValueScalarEqual(
 		return bEqual;
 	}
 	return __xrtValueEqualKnown(pLeft, pRight);
+}
+
+XRT_API bool xrtValueScalarEqual(const xvalue* pLeft, const xvalue* pRight)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueScalarEqual(pLeft, pRight));
 }
 
 #endif

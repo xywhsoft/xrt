@@ -515,6 +515,51 @@ XRT_API size_t xrtObjectRefCount(const xrtobject* pObject)
 
 
 
+static bool __xrtObjectOwnershipCount(const void* pData, size_t* pCount)
+{
+	#if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
+		if (__xrtAtomicRefLoad(&((const xrtobject*)pData)->State) != XRT_OBJECT_STATE_ACTIVE) return false;
+	#endif
+	*pCount = xrtObjectRefCount((const xrtobject*)pData);
+	return *pCount != 0;
+}
+
+static bool __xrtObjectOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xrtobject* pObject = (const xrtobject*)pData;
+	#if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
+		if (__xrtAtomicRefLoad(&pObject->State) != XRT_OBJECT_STATE_ACTIVE) return false;
+	#endif
+	const void* pPayload = xrtObjectConstData(pObject);
+	if (pPayload == NULL) return false;
+	if (pObject->OwnershipTrace == NULL) { __xrtErrorSetUnsupported(); return false; }
+	return pObject->OwnershipTrace(pPayload, pVisit, pContext);
+}
+
+static const xrtownershipops __xrtObjectOwnershipOps = {
+	__xrtObjectOwnershipCount, __xrtObjectOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtObjectOwnership(const xrtobject* pObject)
+{
+	return (xrtownershipref){pObject, &__xrtObjectOwnershipOps};
+}
+
+XRT_API bool xrtObjectOwnershipTraceBind(xrtobject* pObject, xrtownershiptrace pTrace)
+{
+	#if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
+		if (pObject != NULL && __xrtAtomicRefLoad(&pObject->State) != XRT_OBJECT_STATE_ACTIVE) {
+			__xrtErrorSetInvalidState(); return false;
+		}
+	#endif
+	if (pObject == NULL || pTrace == NULL || pObject->OwnershipTrace != NULL ||
+		xrtObjectRefCount(pObject) != 1 || xrtObjectConstData(pObject) == NULL) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pObject->OwnershipTrace = pTrace;
+	return true;
+}
+
 /* 判断调用方持有的对象是否只有一个瞬时强引用。 */
 XRT_API bool xrtObjectUnique(const xrtobject* pObject)
 {

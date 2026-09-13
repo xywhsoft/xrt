@@ -205,6 +205,13 @@ static const xvaluehandleops __xrtRuntimeValueObjectOps = {
 
 
 
+static bool __xrtRuntimeValueObjectOwnership(const xvalue* pValue,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	xrtobject* pObject = xrtValueGetRuntimeObject(pValue);
+	return pObject != NULL && pVisit(xrtObjectOwnership(pObject), pContext);
+}
+
 /* 增加对象引用并包装成 Value Handle。 */
 XRT_API xvalue* xrtValueRuntimeObject(xrtobject* pObject)
 {
@@ -229,6 +236,9 @@ XRT_API xvalue* xrtValueRuntimeObject(xrtobject* pObject)
 	if ( pValue == NULL ) {
 		xrtObjectUnref(pReference);
 	}
+	if (pValue != NULL && !xrtValueHandleOwnershipBind(pValue, __xrtRuntimeValueObjectOwnership)) {
+		xrtValueRelease(pValue); return NULL;
+	}
 	return pValue;
 }
 
@@ -250,6 +260,9 @@ XRT_API xvalue* xrtValueRuntimeObjectTake(xrtobject** pObject)
 		&pHandle, &__xrtRuntimeValueObjectOps, NULL);
 	if ( pValue != NULL ) {
 		*pObject = NULL;
+		if (!xrtValueHandleOwnershipBind(pValue, __xrtRuntimeValueObjectOwnership)) {
+			xrtValueRelease(pValue); return NULL;
+		}
 	}
 	return pValue;
 }
@@ -328,6 +341,19 @@ static const xvaluehandleops __xrtRuntimeValueCallableOps = {
 	__xrtRuntimeValueIdentityEqual
 };
 
+static bool __xrtRuntimeValueCallableOwnership(const xvalue* pValue,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	ptr pCallable; const xvaluehandleops* pOps; ptr pUserData;
+	if (!xrtValueGetHandle(pValue, &pCallable, &pOps, &pUserData) ||
+		pOps != &__xrtRuntimeValueCallableOps || pUserData != NULL) return false;
+	return pCallable == NULL || pVisit(xrtCallableOwnership((const xrtcallable*)pCallable), pContext);
+}
+XRT_API const xrtownershipadapterv1* xrtValueCallableOwnershipAdapterV1(xrtownershipref Reference)
+{
+	return xrtValueHandleOwnershipAdapterV1(Reference, &__xrtRuntimeValueCallableOps, __xrtRuntimeValueCallableOwnership);
+}
+
 
 
 /* 增加 callable 引用并包装成 Value Handle。 */
@@ -354,6 +380,9 @@ XRT_API xvalue* xrtValueCallable(xrtcallable* pCallable)
 	if ( pValue == NULL ) {
 		xrtCallableUnref(pReference);
 	}
+	if (pValue != NULL && !xrtValueHandleOwnershipBindPhased(pValue, __xrtRuntimeValueCallableOwnership)) {
+		xrtValueRelease(pValue); return NULL;
+	}
 	return pValue;
 }
 
@@ -375,6 +404,9 @@ XRT_API xvalue* xrtValueCallableTake(xrtcallable** pCallable)
 		&pHandle, &__xrtRuntimeValueCallableOps, NULL);
 	if ( pValue != NULL ) {
 		*pCallable = NULL;
+		if (!xrtValueHandleOwnershipBindPhased(pValue, __xrtRuntimeValueCallableOwnership)) {
+			xrtValueRelease(pValue); return NULL;
+		}
 	}
 	return pValue;
 }
@@ -553,6 +585,20 @@ static const xvaluehandleops __xrtRuntimeValueFutureOps = {
 	__xrtRuntimeValueIdentityEqual
 };
 
+static bool __xrtRuntimeValueFutureOwnership(const xvalue* pValue,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	ptr pFuture; const xvaluehandleops* pOps; ptr pUserData;
+	if (!xrtValueGetHandle(pValue, &pFuture, &pOps, &pUserData) ||
+		pOps != &__xrtRuntimeValueFutureOps || pUserData != NULL) return false;
+	return pFuture == NULL || pVisit(xrtFutureOwnership((const xfuture*)pFuture), pContext);
+}
+
+XRT_API const xrtownershipadapterv1* xrtValueFutureOwnershipAdapterV1(xrtownershipref Reference)
+{
+	return xrtValueHandleOwnershipAdapterV1(Reference, &__xrtRuntimeValueFutureOps, __xrtRuntimeValueFutureOwnership);
+}
+
 
 
 /* 增加 Future 引用并包装成 Value Handle。 */
@@ -579,6 +625,9 @@ XRT_API xvalue* xrtValueFuture(xfuture* pFuture)
 	if ( pValue == NULL ) {
 		xrtFutureDestroy(pReference);
 	}
+	if (pValue != NULL && !xrtValueHandleOwnershipBindPhased(pValue, __xrtRuntimeValueFutureOwnership)) {
+		xrtValueRelease(pValue); return NULL;
+	}
 	return pValue;
 }
 
@@ -600,6 +649,9 @@ XRT_API xvalue* xrtValueFutureTake(xfuture** pFuture)
 		&pHandle, &__xrtRuntimeValueFutureOps, NULL);
 	if ( pValue != NULL ) {
 		*pFuture = NULL;
+		if (!xrtValueHandleOwnershipBindPhased(pValue, __xrtRuntimeValueFutureOwnership)) {
+			xrtValueRelease(pValue); return NULL;
+		}
 	}
 	return pValue;
 }
@@ -637,6 +689,14 @@ XRT_API xfuture* xrtValueGetFuture(const xvalue* pValue)
 
 
 #if defined(XRUNTIME_FEATURE_RUNTIME_VALUE_WEAK)
+
+/* The weak control block keeps an address, never a strong payload owner. */
+static bool __xrtRuntimeValueWeakOwnership(const xvalue* pValue,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	(void)pValue; (void)pVisit; (void)pContext;
+	return true;
+}
 
 /* 深克隆弱引用 Handle 时复制控制块引用，不增加对象强引用。 */
 static bool __xrtRuntimeValueWeakClone(
@@ -705,6 +765,9 @@ XRT_API xvalue* xrtValueWeak(const xrtweak* pWeak)
 		&pHandle, &__xrtRuntimeValueWeakOps, NULL);
 	if ( pValue != NULL ) {
 		Copy.Control = NULL;
+		if (!xrtValueHandleOwnershipBind(pValue, __xrtRuntimeValueWeakOwnership)) {
+			xrtValueRelease(pValue); pValue = NULL;
+		}
 	}
 	xrtWeakUnit(&Copy);
 	return pValue;
@@ -728,6 +791,9 @@ XRT_API xvalue* xrtValueWeakTake(xrtweak* pWeak)
 		&pHandle, &__xrtRuntimeValueWeakOps, NULL);
 	if ( pValue != NULL ) {
 		pWeak->Control = NULL;
+		if (!xrtValueHandleOwnershipBind(pValue, __xrtRuntimeValueWeakOwnership)) {
+			xrtValueRelease(pValue); pValue = NULL;
+		}
 	}
 	return pValue;
 }

@@ -19,6 +19,16 @@ XRT 使用模块清单驱动测试、裁剪、单头生成和库产物，避免�
 
 ## 局部验证
 
+Windows 内部线程存储退役及 DLL 卸载回归：
+
+```powershell
+pwsh -NoProfile -File tools/check_runtime_thread_storage_retirement.ps1 -Tcc <tcc.exe>
+```
+
+该门分别用 GCC 和 TinyCC 构建私有单头 DLL，覆盖 FLS/TLS 释放失败后的重试、
+重入/并发拒绝、依赖顺序与幂等，并在真实卸载后检查仍存活线程/Fiber 的析构和
+`MEM_FREE`。不重建 `release/`；JSON 及构建/运行日志写入 `out/runtime_thread_storage_retirement/`。
+
 `tools/build.py` 编译并运行指定根模块的模块化测试、示例和单头测试：
 
 ```text

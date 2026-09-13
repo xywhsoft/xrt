@@ -1,2 +1,2 @@
-#define XREGEX_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
 #include "xllm-xrt.h"

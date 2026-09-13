@@ -45,6 +45,16 @@ typedef struct xrtobjectgraphresult {
 	size_t CollectedCount;
 } xrtobjectgraphresult;
 
+/* The physical snapshot includes Value shells, shared backing, callable
+ * environments and native payloads; TrackedCount/CollectedCount count only
+ * members of this graph. Ownership.EdgeCount includes temporary snapshot
+ * reference slots, which are internal, never external roots. */
+typedef struct xrtobjectgraphownedresult {
+	xrtownershipresult Ownership;
+	size_t TrackedCount;
+	size_t CollectedCount;
+} xrtobjectgraphownedresult;
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -97,6 +107,24 @@ XRT_API bool xrtObjectGraphCollectRoots(
 	ptr pContext,
 	xrtobjectgraphresult* pResult
 );
+
+/* Collect native object cycles using COMPLETE PHYSICAL ownership, not the
+ * legacy object-only InstanceOps.Trace. Every visited native payload and
+ * opaque handle/context must have its complete adapter bound; absent or
+ * inconsistent metadata rejects the whole operation without finalization.
+ * Actual external strong references (including native Value Retain and COW
+ * aliases) are automatic roots. No host reference is silently discounted.
+ * Native objects outside this graph are conservative roots: this collector
+ * never partially finalizes another domain's weakly observable cycle.
+ * Caller guarantees the ENTIRE transitive graph is quiescent and all Type,
+ * Trace and Drop code/data remain resident until this call has returned.
+ * Snapshot pins protect all candidate payload allocations through all Drops.
+ * Validation and claim finish before the first Drop; failure before commit
+ * preserves graph membership, payloads, counts and output. Drop obeys the
+ * existing non-failing object destruction contract. This does not establish
+ * a safepoint, acquire module code pins, or retire language module globals. */
+XRT_API bool xrtObjectGraphCollectOwned(
+	xrtobjectgraph* pGraph, xrtobjectgraphownedresult* pResult);
 
 
 

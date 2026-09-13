@@ -2,6 +2,20 @@
 
 `runtime_call` 是 XRT 类型描述和动态值之上的轻量调用层。它承接旧版 callable 的签名、环境、统一入口和多返回值能力，但不公开 callable 内部布局，也不混入无法通用安全调用的原始 C ABI。
 
+## 完整拥有图适配
+
+`xrtCallableOwnership` 返回 callable 物理引用节点；
+`xrtCallableOwnershipTraceBind` 在 producer 独占、尚未发布 callable 时绑定
+其环境的强拥有边追踪。环境非空而未绑定时，完整拥有图检查失败，不能推测为空。
+`xrtValueCallable` / `Take` 自动提供外壳到 callable 的那一条实际拥有边；
+DeepClone 得到的新外壳仍指向同一个 callable 节点，环境边只展开一次。
+
+Trace 只报告真实强引用槽，不能释放、修改或把借用当拥有。回调代码和环境
+必须由调用方保持驻留；该接口本身不是代码租约，也不会自动退役模块。
+参见核心 `xrtOwnershipInspect` 的静止安全点合同。
+
+验证：`tools/build.py --manifest extlibs/xruntime/config/modules.json --suite runtime_ownership_tests`。
+
 ## 裁剪与依赖
 
 启用宏：`XRUNTIME_FEATURE_RUNTIME_CALL`
@@ -116,3 +130,15 @@ xrtCallResultUnit(&Result);
 - 稀疏结果和隐式 null 填充改为连续结果契约。
 - 入口失败直接污染目标结果改为失败原子提交。
 - 普通命名参数未参与签名身份及唯一性检查的问题已经修复。
+
+## Callable 的显式拥有图接管
+
+`xrtCallableOwnershipBindV1` 绑定 resident 的不可变 Trace/Drop 策略身份；仅调用
+旧 TraceBind 不足以认证。收集器用 `xrtCallableOwnershipAdapterV1` 明确授权
+同一个策略，并在任何 Count/Trace 之前拒绝正在调用的 callable。每次 Invoke
+持有真实强引用，活动计数不伪装为另一个拥有者；活动覆盖签名、参数、结果提交
+与失败回滚，整个用户调用不持有长时间 mutation/freeze。
+
+接管 Clear 隔离入口、签名及实际环境，Finish 在 freeze 外执行一次 resident
+环境 Drop；环境的传递拥有者仍要独立认证。`xrtValueCallableOwnershipAdapterV1`
+只识别 Value 到 callable 的已知 Handle 桥，不据此放行任意 callable 的上下文。

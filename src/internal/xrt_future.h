@@ -2,6 +2,7 @@
 #define XRT_INTERNAL_FUTURE_H
 
 #include "xrt_internal.h"
+#include "xrt_cancel.h"
 
 
 
@@ -17,6 +18,16 @@ typedef struct xrt_future_waiter {
 	bool Linked;
 	bool Calling;
 	bool NotifyRelease;
+	/* Explicit opt-in: the resident callbacks coordinate their own graph
+	 * transitions and activity/refusal states. A trace alone does not prove it. */
+	bool Phased;
+	bool Certified;
+	/* Exact ownership released by Release(Data); NULL keeps old opaque nodes
+	 * fail-closed. Fits the existing 64-byte public Watch storage on x64. */
+	union {
+		xrtownershiptrace OwnershipTrace;
+		const xfuturewatchownershipv1* OwnershipPolicy;
+	};
 } xrt_future_waiter;
 
 
@@ -49,7 +60,10 @@ static inline xrt_future_watch_impl* __xrtFutureWatchImpl(
 
 
 
-/* Future 尚未完成时挂入等待节点，已完成时返回 false 且不设置错误。 */
+/* Future 尚未完成时挂入等待节点，已完成时返回 false 且不设置错误。
+ * Add/Detach/Remove 自己在 Future 锁外进入拥有转换 scope；Remove 的等待不占
+ * mutation。默认回调仍以完整 scope 保守隔离；只有显式 Phased 注册的
+ * 协作回调在 scope 外分发，并负责自身的计数、边转换和在途拒绝。 */
 bool __xrtFutureWaiterAdd(xfuture* pFuture, xrt_future_waiter* pWaiter);
 
 

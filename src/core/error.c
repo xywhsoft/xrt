@@ -30,6 +30,60 @@ struct xerror {
 
 
 
+static bool __xrtErrorOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xerror* pError = (const xerror*)pData;
+	int32 iCount;
+	if (pError == NULL || pCount == NULL) return false;
+	iCount = __xrtAtomicRefLoad(&pError->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+
+static bool __xrtErrorOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xerror* pError = (const xerror*)pData;
+	if (pError == NULL || pVisit == NULL) return false;
+	return pError->Cause == NULL || pVisit(xrtErrorOwnership(pError->Cause), pContext);
+}
+
+static const xrtownershipops __xrtErrorOwnershipOps = {
+	__xrtErrorOwnershipCount, __xrtErrorOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtErrorOwnership(const xerror* pError)
+{
+	xrtownershipref Result = {NULL, NULL};
+	if (pError != NULL && !(pError->Flags & XRT_ERROR_STATIC)) {
+		Result.Data = pError; Result.Ops = &__xrtErrorOwnershipOps;
+	}
+	return Result;
+}
+
+/* Errors are immutable native DAG tails: only the real atomic strong count
+ * changes after publication, and Cause points only to another owned error.
+ * They cannot point back into a collected Value/module or run user code.
+ * Clear therefore keeps the actual Cause edge until last Drop, like any
+ * immutable retired tail. Concurrent plans may safely pin the same error;
+ * no destructive claim, weak lock, custom callback or generated code exists. */
+static bool __xrtErrorAdapterHold(const void* pData)
+{ return xrtErrorRef((const xerror*)pData) != NULL; }
+static void __xrtErrorAdapterDrop(const void* pData)
+{ xrtErrorFree((xerror*)pData); }
+static bool __xrtErrorAdapterClaim(const void* pData, const void* pToken)
+{ return pData != NULL && pToken != NULL; }
+static void __xrtErrorAdapterKeep(const void* pData, const void* pToken)
+{ (void)pData; (void)pToken; }
+XRT_API const xrtownershipadapterv1* xrtErrorOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter),
+		__xrtErrorAdapterHold, __xrtErrorAdapterDrop, __xrtErrorAdapterClaim,
+		__xrtErrorAdapterKeep, NULL, __xrtErrorAdapterKeep, NULL};
+	if (Reference.Ops != &__xrtErrorOwnershipOps || Reference.Data == NULL) return NULL;
+	const xerror* pError = (const xerror*)Reference.Data;
+	return !(pError->Flags & XRT_ERROR_STATIC) && __xrtAtomicRefLoad(&pError->RefCount) > 0 ? &Adapter : NULL;
+}
+
 /* 核心错误使用静态对象，保证分配失败时仍能报告。 */
 static xerror __xrtOutOfMemoryError = {
 	INT32_MAX, XRT_ERROR_STATIC, XERR_MEMORY, 1, 0,
@@ -135,6 +189,7 @@ static DWORD __xrtErrorTlsError = FLS_OUT_OF_INDEXES;
 static DWORD __xrtErrorTlsContext = TLS_OUT_OF_INDEXES;
 static DWORD __xrtErrorTlsHandler = FLS_OUT_OF_INDEXES;
 static volatile LONG __xrtErrorTlsState = 0;
+static xrt_local_slot __xrtErrorSlot, __xrtErrorContextSlot, __xrtErrorHandlerSlot;
 
 
 
@@ -152,20 +207,23 @@ static bool __xrtErrorTlsEnsure(void)
 	LONG iState = InterlockedCompareExchange(&__xrtErrorTlsState, 1, 0);
 
 	if ( iState == 0 ) {
-		__xrtErrorTlsError = FlsAlloc(__xrtErrorTlsDestroy);
-		__xrtErrorTlsContext = TlsAlloc();
-		__xrtErrorTlsHandler = FlsAlloc(NULL);
+		__xrtErrorTlsError = __xrtLocalSlotAlloc(&__xrtErrorSlot,
+			__xrtErrorTlsDestroy, XRT_LOCAL_ERROR, true);
+		__xrtErrorTlsContext = __xrtLocalSlotAlloc(&__xrtErrorContextSlot,
+			NULL, XRT_LOCAL_BORROWED, false);
+		__xrtErrorTlsHandler = __xrtLocalSlotAlloc(&__xrtErrorHandlerSlot,
+			NULL, XRT_LOCAL_BORROWED, true);
 		if ( (__xrtErrorTlsError == FLS_OUT_OF_INDEXES) ||
 			 (__xrtErrorTlsContext == TLS_OUT_OF_INDEXES) ||
 			 (__xrtErrorTlsHandler == FLS_OUT_OF_INDEXES) ) {
 			if ( __xrtErrorTlsError != FLS_OUT_OF_INDEXES ) {
-				(void)FlsFree(__xrtErrorTlsError);
+				(void)__xrtLocalSlotFree(&__xrtErrorSlot);
 			}
 			if ( __xrtErrorTlsContext != TLS_OUT_OF_INDEXES ) {
-				(void)TlsFree(__xrtErrorTlsContext);
+				(void)__xrtLocalSlotFree(&__xrtErrorContextSlot);
 			}
 			if ( __xrtErrorTlsHandler != FLS_OUT_OF_INDEXES ) {
-				(void)FlsFree(__xrtErrorTlsHandler);
+				(void)__xrtLocalSlotFree(&__xrtErrorHandlerSlot);
 			}
 			__xrtErrorTlsError = FLS_OUT_OF_INDEXES;
 			__xrtErrorTlsContext = TLS_OUT_OF_INDEXES;

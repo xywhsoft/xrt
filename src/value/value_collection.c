@@ -144,7 +144,7 @@ static bool __xrtValueArrayAppendAll(
 
 
 /* 失败原子地把来源数组全部追加到目标数组，允许来源与目标相同。 */
-XRT_API bool xrtValueArrayExtend(
+static bool __xrtOwnershipBody_ValueArrayExtend(
 	xvalue* pTarget,
 	const xvalue* pSource
 )
@@ -185,10 +185,18 @@ XRT_API bool xrtValueArrayExtend(
 	return __xrtValueCollectionCommit(pTarget, pPrepared);
 }
 
+XRT_API bool xrtValueArrayExtend(
+	xvalue* pTarget,
+	const xvalue* pSource
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArrayExtend(pTarget, pSource));
+}
+
 
 
 /* 创建按左右顺序连接的新数组。 */
-XRT_API xvalue* xrtValueArrayConcat(
+static xvalue* __xrtOwnershipBody_ValueArrayConcat(
 	const xvalue* pLeft,
 	const xvalue* pRight
 )
@@ -213,6 +221,14 @@ XRT_API xvalue* xrtValueArrayConcat(
 		return NULL;
 	}
 	return pResult;
+}
+
+XRT_API xvalue* xrtValueArrayConcat(
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueArrayConcat(pLeft, pRight));
 }
 
 
@@ -343,7 +359,10 @@ static bool __xrtValueMapMerge(
 		return true;
 	}
 	iTargetCount = xrtValueCount(pTarget);
-	if ( iTargetCount == 0 ) {
+	/* An Object carries destination lifetime/construction metadata even when
+	 * it has no fields. Clone the destination below; importing source backing
+	 * would replace the destination's code capability and finalization state. */
+	if ( iTargetCount == 0 && Type != XVALUE_OBJECT ) {
 		pPrepared = xrtValueClone(pSource);
 		return pPrepared != NULL
 			? __xrtValueCollectionCommit(pTarget, pPrepared)
@@ -382,7 +401,7 @@ static bool __xrtValueMapMerge(
 
 
 /* 按冲突策略失败原子地合并两个整数键映射。 */
-XRT_API bool xrtValueIntMapMerge(
+static bool __xrtOwnershipBody_ValueIntMapMerge(
 	xvalue* pTarget,
 	const xvalue* pSource,
 	xvaluemergepolicy Policy
@@ -396,10 +415,19 @@ XRT_API bool xrtValueIntMapMerge(
 	);
 }
 
+XRT_API bool xrtValueIntMapMerge(
+	xvalue* pTarget,
+	const xvalue* pSource,
+	xvaluemergepolicy Policy
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueIntMapMerge(pTarget, pSource, Policy));
+}
+
 
 
 /* 按冲突策略失败原子地合并两个对象，并保留目标已有键位置。 */
-XRT_API bool xrtValueObjectMerge(
+static bool __xrtOwnershipBody_ValueObjectMerge(
 	xvalue* pTarget,
 	const xvalue* pSource,
 	xvaluemergepolicy Policy
@@ -413,10 +441,19 @@ XRT_API bool xrtValueObjectMerge(
 	);
 }
 
+XRT_API bool xrtValueObjectMerge(
+	xvalue* pTarget,
+	const xvalue* pSource,
+	xvaluemergepolicy Policy
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectMerge(pTarget, pSource, Policy));
+}
+
 
 
 /* 失败原子地把来源集合中的缺失元素追加到目标集合。 */
-XRT_API bool xrtValueSetMerge(
+static bool __xrtOwnershipBody_ValueSetMerge(
 	xvalue* pTarget,
 	const xvalue* pSource
 )
@@ -465,6 +502,14 @@ XRT_API bool xrtValueSetMerge(
 		return false;
 	}
 	return __xrtValueCollectionCommit(pTarget, pPrepared);
+}
+
+XRT_API bool xrtValueSetMerge(
+	xvalue* pTarget,
+	const xvalue* pSource
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetMerge(pTarget, pSource));
 }
 
 
@@ -532,7 +577,7 @@ static xvalue* __xrtValueSetBinary(
 
 
 /* 创建两个集合的并集，结果先保持左集合顺序。 */
-XRT_API xvalue* xrtValueSetUnion(
+static xvalue* __xrtOwnershipBody_ValueSetUnion(
 	const xvalue* pLeft,
 	const xvalue* pRight
 )
@@ -540,10 +585,18 @@ XRT_API xvalue* xrtValueSetUnion(
 	return __xrtValueSetBinary(pLeft, pRight, XVALUE_SET_UNION);
 }
 
+XRT_API xvalue* xrtValueSetUnion(
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueSetUnion(pLeft, pRight));
+}
+
 
 
 /* 创建两个集合的交集，结果保持左集合顺序。 */
-XRT_API xvalue* xrtValueSetIntersection(
+static xvalue* __xrtOwnershipBody_ValueSetIntersection(
 	const xvalue* pLeft,
 	const xvalue* pRight
 )
@@ -555,10 +608,18 @@ XRT_API xvalue* xrtValueSetIntersection(
 	);
 }
 
+XRT_API xvalue* xrtValueSetIntersection(
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueSetIntersection(pLeft, pRight));
+}
+
 
 
 /* 创建左集合相对右集合的差集。 */
-XRT_API xvalue* xrtValueSetDifference(
+static xvalue* __xrtOwnershipBody_ValueSetDifference(
 	const xvalue* pLeft,
 	const xvalue* pRight
 )
@@ -566,10 +627,18 @@ XRT_API xvalue* xrtValueSetDifference(
 	return __xrtValueSetBinary(pLeft, pRight, XVALUE_SET_DIFFERENCE);
 }
 
+XRT_API xvalue* xrtValueSetDifference(
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueSetDifference(pLeft, pRight));
+}
+
 
 
 /* 创建两个集合的对称差集。 */
-XRT_API xvalue* xrtValueSetSymmetricDifference(
+static xvalue* __xrtOwnershipBody_ValueSetSymmetricDifference(
 	const xvalue* pLeft,
 	const xvalue* pRight
 )
@@ -579,6 +648,14 @@ XRT_API xvalue* xrtValueSetSymmetricDifference(
 		pRight,
 		XVALUE_SET_SYMMETRIC_DIFFERENCE
 	);
+}
+
+XRT_API xvalue* xrtValueSetSymmetricDifference(
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueSetSymmetricDifference(pLeft, pRight));
 }
 
 
@@ -620,7 +697,7 @@ static bool __xrtValueSetRelation(
 
 
 /* 判断左集合是否为右集合的子集，可选择严格子集。 */
-XRT_API bool xrtValueSetIsSubset(
+static bool __xrtOwnershipBody_ValueSetIsSubset(
 	const xvalue* pLeft,
 	const xvalue* pRight,
 	bool bProper
@@ -634,10 +711,19 @@ XRT_API bool xrtValueSetIsSubset(
 	);
 }
 
+XRT_API bool xrtValueSetIsSubset(
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	bool bProper
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetIsSubset(pLeft, pRight, bProper));
+}
+
 
 
 /* 判断左集合是否为右集合的超集，可选择严格超集。 */
-XRT_API bool xrtValueSetIsSuperset(
+static bool __xrtOwnershipBody_ValueSetIsSuperset(
 	const xvalue* pLeft,
 	const xvalue* pRight,
 	bool bProper
@@ -651,10 +737,19 @@ XRT_API bool xrtValueSetIsSuperset(
 	);
 }
 
+XRT_API bool xrtValueSetIsSuperset(
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	bool bProper
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetIsSuperset(pLeft, pRight, bProper));
+}
+
 
 
 /* 判断两个集合是否没有任何共同元素。 */
-XRT_API bool xrtValueSetIsDisjoint(
+static bool __xrtOwnershipBody_ValueSetIsDisjoint(
 	const xvalue* pLeft,
 	const xvalue* pRight
 )
@@ -667,10 +762,18 @@ XRT_API bool xrtValueSetIsDisjoint(
 	);
 }
 
+XRT_API bool xrtValueSetIsDisjoint(
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetIsDisjoint(pLeft, pRight));
+}
+
 
 
 /* 判断两个集合是否拥有相同的标量元素。 */
-XRT_API bool xrtValueSetEqual(
+static bool __xrtOwnershipBody_ValueSetEqual(
 	const xvalue* pLeft,
 	const xvalue* pRight
 )
@@ -681,6 +784,14 @@ XRT_API bool xrtValueSetEqual(
 		XVALUE_SET_EQUAL,
 		false
 	);
+}
+
+XRT_API bool xrtValueSetEqual(
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetEqual(pLeft, pRight));
 }
 
 #endif

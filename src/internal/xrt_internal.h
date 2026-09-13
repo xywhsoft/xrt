@@ -123,6 +123,48 @@
 
 #include <xrt.h>
 
+/* A private body preserves its existing early-return/error contract while one
+ * outer scope covers the COMPLETE edge/count transition, before any object
+ * lock and through callback/rollback tails. The failure value is explicit:
+ * enum zero can mean READY/success, not an admission error. Waiting/parking
+ * APIs must instead scope only their graph mutations, never the whole wait. */
+#define XRT_OWNERSHIP_MUTATION_RETURN(Type, Failure, Call) do { \
+	xrtownershipscope Scope = {0}; \
+	Type Result; \
+	if (!xrtOwnershipMutationBegin(&Scope)) return (Failure); \
+	Result = (Call); \
+	if (!xrtOwnershipScopeEnd(&Scope)) abort(); \
+	return Result; \
+} while (0)
+#define XRT_OWNERSHIP_MUTATION_RETURN_VOID(Call) do { \
+	xrtownershipscope Scope = {0}; \
+	if (!xrtOwnershipMutationBegin(&Scope)) return; \
+	Call; \
+	if (!xrtOwnershipScopeEnd(&Scope)) abort(); \
+	return; \
+} while (0)
+
+#if defined(_WIN32) || defined(_WIN64)
+/* Static, allocation-free registrations owned by each lazy initializer.
+ * Payloads retire before errors, then the heap cache, then borrowed/guard
+ * slots. This dependency order is independent of first-use order. */
+typedef struct xrt_local_slot {
+	struct xrt_local_slot* Next;
+	DWORD Index;
+	unsigned Order;
+	bool Fiber;
+} xrt_local_slot;
+enum {
+	XRT_LOCAL_PAYLOAD = 0,
+	XRT_LOCAL_ERROR = 1,
+	XRT_LOCAL_HEAP = 2,
+	XRT_LOCAL_BORROWED = 3
+};
+DWORD __xrtLocalSlotAlloc(xrt_local_slot* pSlot,
+	VOID (WINAPI *pDestroy)(PVOID), unsigned iOrder, bool bFiber);
+bool __xrtLocalSlotFree(xrt_local_slot* pSlot);
+#endif
+
 
 
 /* 编译器线程局部存储用于非 TinyCC 构建。 */

@@ -59,6 +59,19 @@ UDP、同步、Future、DNS、代理和 TLS 也分别形成闭包。
 必须先判断它能否独立测试、独立裁剪和独立说明所有权；满足这些条件就应建立自己的
 模块，而不是继续扩大已有总宏。
 
+### JSONL 与 XSONL
+
+逐行记录格式分别通过 `XRT_MODULE_JSONL`、`XRT_MODULE_XSONL` 选择完整能力。
+只读取内存文本时选择 `XRT_MODULE_JSONL_READ` 或 `XRT_MODULE_XSONL_READ`；
+只写出时选择对应的 `_WRITE`。读取与写出可以独立裁剪，均不隐式引入文件模块。
+`_FILE` 同时启用读取、写出和整文件 I/O；`_CORE` 只提供格式错误与定位契约。
+
+单条记录复用 JSON/XSON 的同向编解码模块，不要求启用其完整根模块。
+新增格式不改变现有 `XRT_MODULE_JSON`、`XRT_MODULE_XSON` 的依赖闭包。
+空白行策略是运行时读取配置，不额外建立编译开关：默认忽略，可设置
+`XJSONL_READ_REJECT_EMPTY_LINES` 或 `XXSONL_READ_REJECT_EMPTY_LINES` 拒绝。
+完整接口见 [JSONL](api/jsonl.md) 与 [XSONL](api/xsonl.md)。
+
 ## 两层宏
 
 - `XRT_MODULE_*` 是公开的根模块选择层，面向应用和其他 C 宿主。

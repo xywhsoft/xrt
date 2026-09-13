@@ -1229,7 +1229,8 @@ static bool __xrtTextValueParserValue(
 	xtextvalueevent Event;
 	uint8 iByte;
 
-	if ( pParser->Values >= pParser->Config.MaxValues ) {
+	if ( (pParser->Values >= pParser->Config.MaxValues) ||
+		 ((pParser->Config.Budget != NULL) && (pParser->Config.Budget->Values == 0)) ) {
 		__xrtTextValueParserError(
 			pParser,
 			XERR_RANGE,
@@ -1248,6 +1249,9 @@ static bool __xrtTextValueParserValue(
 		return false;
 	}
 	pParser->Values++;
+	if ( pParser->Config.Budget != NULL ) {
+		pParser->Config.Budget->Values--;
+	}
 	memset(&Event, 0, sizeof(Event));
 	Event.Location = __xrtTextValueParserLocation(pParser);
 	Event.Depth = iDepth;

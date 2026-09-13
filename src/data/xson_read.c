@@ -17,6 +17,8 @@ typedef struct xsondomframe {
 /* DOM 构建器保存重复策略、自定义解码器和复用的二进制缓冲。 */
 typedef struct xsondombuilder {
 	xxsonreadconfig Config;
+	xtextvaluebudget* Budget;
+	bool Validate;
 	xvalue* Root;
 	xsondomframe Frames[XRT_VALUE_DEPTH_MAX];
 	xbuffer Bytes;
@@ -114,6 +116,7 @@ static bool __xrtXsonTagEqual(
 static bool __xrtXsonDecodeBytes(
 	const xtextvalueevent* pSource,
 	const xxsonreadconfig* pConfig,
+	xtextvaluebudget* pBudget,
 	xbuffer* pBuffer,
 	xbytesview* pBytes
 )
@@ -137,7 +140,8 @@ static bool __xrtXsonDecodeBytes(
 		);
 		return false;
 	}
-	if ( iSize > pConfig->MaxDecodedBytes ) {
+	if ( (iSize > pConfig->MaxDecodedBytes) ||
+		 ((pBudget != NULL) && (iSize > pBudget->DecodedBytes)) ) {
 		__xrtXsonEventError(
 			pSource,
 			XERR_RANGE,
@@ -145,6 +149,9 @@ static bool __xrtXsonDecodeBytes(
 			"decoded bytes exceed configured limit"
 		);
 		return false;
+	}
+	if ( pBudget != NULL ) {
+		pBudget->DecodedBytes -= iSize;
 	}
 	if ( !xrtBufferResize(pBuffer, iSize) ) {
 		return false;
@@ -179,6 +186,7 @@ static bool __xrtXsonDecodeBytes(
 static bool __xrtXsonMakeEvent(
 	const xtextvalueevent* pSource,
 	const xxsonreadconfig* pConfig,
+	xtextvaluebudget* pBudget,
 	xbuffer* pBytes,
 	xxsonevent* pEvent
 )
@@ -235,6 +243,7 @@ static bool __xrtXsonMakeEvent(
 		if ( !__xrtXsonDecodeBytes(
 			pSource,
 			pConfig,
+			pBudget,
 			pBytes,
 			&pEvent->Value.Bytes
 		) ) {
@@ -570,10 +579,14 @@ static xtextvaluevisitaction __xrtXsonDomVisit(
 	if ( !__xrtXsonMakeEvent(
 		pSource,
 		&pBuilder->Config,
+		pBuilder->Budget,
 		&pBuilder->Bytes,
 		&Event
 	) ) {
 		return XTEXT_VALUE_VISIT_FAIL;
+	}
+	if ( pBuilder->Validate ) {
+		return XTEXT_VALUE_VISIT_NEXT;
 	}
 	bBegin =
 		(Event.Type == XXSON_EVENT_ARRAY_BEGIN) ||
@@ -667,6 +680,7 @@ static xtextvaluevisitaction __xrtXsonVisitAdapter(
 	if ( !__xrtXsonMakeEvent(
 		pSource,
 		pAdapter->Config,
+		NULL,
 		&pAdapter->Bytes,
 		&Event
 	) ) {
@@ -712,9 +726,11 @@ XRT_API void xrtXsonReadConfigInit(xxsonreadconfig* pConfig)
 
 
 /* 使用高级配置解析完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonRead(
+xvalue* __xrtXsonReadBudget(
 	xstrview Text,
-	const xxsonreadconfig* pConfig
+	const xxsonreadconfig* pConfig,
+	xtextvaluebudget* pBudget,
+	bool bValidate
 )
 {
 	xsondombuilder Builder;
@@ -726,10 +742,13 @@ XRT_API xvalue* xrtXsonRead(
 	}
 	memset(&Builder, 0, sizeof(Builder));
 	Builder.Config = *pConfig;
+	Builder.Budget = pBudget;
+	Builder.Validate = bValidate;
 	if ( !xrtBufferInit(&Builder.Bytes) ) {
 		return NULL;
 	}
 	TextConfig = __xrtXsonReadTextConfig(pConfig);
+	TextConfig.Budget = pBudget;
 	Result = __xrtTextValueRead(
 		Text,
 		&TextConfig,
@@ -740,11 +759,21 @@ XRT_API xvalue* xrtXsonRead(
 		true
 	);
 	if ( Result != XTEXT_VALUE_VISIT_DONE ) {
+		xerror* pError = xrtTakeError();
 		__xrtXsonDomCleanup(&Builder);
+		xrtSetErrorTake(pError);
 		return NULL;
 	}
 	xrtBufferUnit(&Builder.Bytes);
-	return Builder.Root;
+	return bValidate ? xrtValueNull() : Builder.Root;
+}
+
+
+
+/* 使用高级配置解析完整 XSON 文本。 */
+XRT_API xvalue* xrtXsonRead(xstrview Text, const xxsonreadconfig* pConfig)
+{
+	return __xrtXsonReadBudget(Text, pConfig, NULL, false);
 }
 
 

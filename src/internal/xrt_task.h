@@ -16,6 +16,8 @@ typedef struct xrt_task_job {
 	ptr Data;
 	xfuturefreeproc Destroy;
 	ptr DestroyData;
+	xfutureownershiptrace ResultTrace;
+	const xfuturepayloadownershipv1* ResultPolicy;
 	xfuture* Future;
 	xpromise* Promise;
 	xcancel* Cancel;

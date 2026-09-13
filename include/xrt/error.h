@@ -97,6 +97,15 @@ XRT_API xerror* xrtErrorRef(const xerror* pError);
 /* 释放错误对象引用。 */
 XRT_API void xrtErrorFree(xerror* pError);
 
+/* Borrowed physical ownership view. Immutable cause is one owning edge;
+ * inline diagnostic text is not a separate reference-counted node. Static
+ * immortal errors and NULL have an empty view. See xrtOwnershipInspect. */
+XRT_API xrtownershipref xrtErrorOwnership(const xerror* pError);
+/* Exact resident immutable Error/Cause DAG, with real pins and no user code.
+ * Clear keeps immutable cause owners until last Drop. Static errors are empty
+ * references. Caller still needs whole-domain Freeze and child admission. */
+XRT_API const xrtownershipadapterv1* xrtErrorOwnershipAdapterV1(xrtownershipref Reference);
+
 
 
 /* 返回错误的通用类别。 */

@@ -40,7 +40,62 @@ struct xrt_future_combine {
 	xrt_future_combine_item* Items;
 	xfuturepick Pick;
 	xfutureall All;
+	xfutureallmapproc AllMap;
+	xfuturepickmapproc PickMap;
+	ptr MapData;
+	xfuturefreeproc MapDestroy;
+	ptr MapDestroyData;
+	xfutureownershiptrace MapTrace;
+	bool MapAccepted;
 };
+
+
+
+/* A shared group is one physical RC node. Each source slot is a real retain,
+ * including duplicates. Pick/All borrow those slots rather than owning a
+ * second set. The pending operation's base reference remains an external
+ * operation root until it transfers into the terminal result or cancellation. */
+static bool __xrtFutureCombineOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xrt_future_combine* pGroup = (const xrt_future_combine*)pData;
+	int32 iCount;
+	if (pGroup == NULL || pCount == NULL) return false;
+	iCount = __xrtAtomicRefLoad(&pGroup->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+static bool __xrtFutureCombineOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xrt_future_combine* pGroup = (const xrt_future_combine*)pData;
+	if (pGroup == NULL || pVisit == NULL) return false;
+	if (pGroup->Promise != NULL && !pVisit(xrtPromiseOwnership(pGroup->Promise), pContext)) return false;
+	if (pGroup->Watch != NULL && !pVisit(xrtCancelWatchOwnership(pGroup->Watch), pContext)) return false;
+	for (size_t i = 0; i < pGroup->Count; ++i)
+		if (!pVisit(xrtFutureOwnership(pGroup->Sources[i]), pContext)) return false;
+	if (pGroup->MapAccepted && !pGroup->MapTrace(
+		pGroup->MapData, pGroup->MapDestroyData, pVisit, pContext)) return false;
+	return true;
+}
+static const xrtownershipops __xrtFutureCombineOwnershipOps = {
+	__xrtFutureCombineOwnershipCount, __xrtFutureCombineOwnershipTrace
+};
+static bool __xrtFutureCombineTraceGroup(const xrt_future_combine* pGroup, xrtownershipvisitor pVisit, ptr pContext)
+{
+	xrtownershipref Ref = {pGroup, pGroup != NULL ? &__xrtFutureCombineOwnershipOps : NULL};
+	return pGroup != NULL && pVisit != NULL && pVisit(Ref, pContext);
+}
+static bool __xrtFutureCombineTraceWaiter(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xrt_future_combine_item* pItem = (const xrt_future_combine_item*)pData;
+	return pItem != NULL && __xrtFutureCombineTraceGroup(pItem->Group, pVisit, pContext);
+}
+static bool __xrtFutureCombineTraceResult(const void* pValue, const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xrt_future_combine* pGroup = (const xrt_future_combine*)pData;
+	if (pGroup == NULL || !pGroup->Completed ||
+		pValue != (pGroup->Mode == XRT_FUTURE_COMBINE_ALL ? (const void*)&pGroup->All : (const void*)&pGroup->Pick)) return false;
+	return __xrtFutureCombineTraceGroup(pGroup, pVisit, pContext);
+}
 
 
 
@@ -55,6 +110,8 @@ static void __xrtFutureCombineRef(xrt_future_combine* pGroup)
 /* 回收已没有结果、创建者和监听持有者的组合上下文。 */
 static void __xrtFutureCombineFree(xrt_future_combine* pGroup)
 {
+	if (pGroup->MapAccepted)
+		pGroup->MapDestroy(pGroup->MapData, pGroup->MapDestroyData);
 	for ( size_t i = 0; i < pGroup->Count; i++ ) {
 		xrtFutureDestroy(pGroup->Sources[i]);
 	}
@@ -138,6 +195,26 @@ static void __xrtFutureCombineDestroyValue(ptr pValue, ptr pData)
 
 
 
+/* The operation reference either transfers to the raw result or is released
+ * after synchronous mapping. The creator/current waiter keeps the group alive
+ * until this function and any following Race cancellation have returned. */
+static void __xrtFutureCombineComplete(xrt_future_combine* pGroup,
+	xpromise* pPromise, ptr pResult)
+{
+	if (pGroup->MapAccepted) {
+		if (pGroup->AllMap != NULL)
+			pGroup->AllMap(&pGroup->All, pPromise, pGroup->MapData);
+		else
+			pGroup->PickMap(&pGroup->Pick, pPromise, pGroup->MapData);
+		if (!xrtPromiseDone(pPromise)) (void)xrtPromiseClose(pPromise);
+		__xrtFutureCombineDestroyValue(NULL, pGroup);
+	} else if (!xrtPromiseResolveOwnedTraced(pPromise, pResult,
+		__xrtFutureCombineDestroyValue, pGroup, __xrtFutureCombineTraceResult)) {
+		__xrtFutureCombineDestroyValue(NULL, pGroup);
+	}
+	xrtPromiseDestroy(pPromise);
+}
+
 /* 输出 Future 被请求取消时，结束组合监听并把请求传播给全部源。 */
 static void __xrtFutureCombineCancelled(ptr pData)
 {
@@ -204,15 +281,7 @@ static void __xrtFutureCombineSourceDone(ptr pData)
 	}
 
 	__xrtFutureCombineDetach(pGroup, pItem);
-	if ( !xrtPromiseResolveOwned(
-		pPromise,
-		pResult,
-		__xrtFutureCombineDestroyValue,
-		pGroup
-	) ) {
-		__xrtFutureCombineRelease(pGroup);
-	}
-	xrtPromiseDestroy(pPromise);
+	__xrtFutureCombineComplete(pGroup, pPromise, pResult);
 	if ( bRace ) {
 		__xrtFutureCombineCancelSources(pGroup, pItem->Index);
 	}
@@ -245,6 +314,10 @@ static void __xrtFutureCombineAttach(
 	if ( !__xrtFutureWaiterAdd(pGroup->Sources[iIndex], &pItem->Waiter) ) {
 		__xrtFutureCombineSourceDone(pItem);
 		__xrtFutureCombineRelease(pGroup);
+	} else if (__xrtFutureCombineDone(pGroup)) {
+		/* Completion can win between the creator's done check and insertion.
+		 * Do not leave a late waiter attached to an otherwise finished group. */
+		(void)__xrtFutureWaiterDetach(pGroup->Sources[iIndex], &pItem->Waiter);
 	}
 }
 
@@ -272,10 +345,13 @@ static void __xrtFutureCombineCreateFailed(
 
 
 /* 创建并装配一种 Future 组合器。 */
-static xfuture* __xrtFutureCombineCreate(
+static xfuture* __xrtOwnershipBody_FutureCombineCreate(
 	xfuture* const* pFutures,
 	size_t iCount,
-	xrt_future_combine_mode Mode
+	xrt_future_combine_mode Mode,
+	xfutureallmapproc pAllMap, xfuturepickmapproc pPickMap,
+	ptr pData, xfuturefreeproc pDestroy, ptr pDestroyData,
+	xfutureownershiptrace pTrace
 )
 {
 	xrt_future_combine* pGroup;
@@ -314,6 +390,12 @@ static xfuture* __xrtFutureCombineCreate(
 		(xrt_future_combine_item*)(pGroup->Sources + iCount);
 	pGroup->All.Count = iCount;
 	pGroup->All.Futures = pGroup->Sources;
+	pGroup->AllMap = pAllMap;
+	pGroup->PickMap = pPickMap;
+	pGroup->MapData = pData;
+	pGroup->MapDestroy = pDestroy;
+	pGroup->MapDestroyData = pDestroyData;
+	pGroup->MapTrace = pTrace;
 	if ( !xrtMutexInit(&pGroup->Lock) ) {
 		xrtFree(pGroup);
 		return NULL;
@@ -331,6 +413,7 @@ static xfuture* __xrtFutureCombineCreate(
 		pGroup->Items[i].Waiter.Proc = __xrtFutureCombineSourceDone;
 		pGroup->Items[i].Waiter.Release = __xrtFutureCombineWaiterRelease;
 		pGroup->Items[i].Waiter.Data = &pGroup->Items[i];
+		pGroup->Items[i].Waiter.OwnershipTrace = __xrtFutureCombineTraceWaiter;
 	}
 
 	pGroup->Promise = xrtPromiseCreate(&pFuture, NULL);
@@ -340,18 +423,11 @@ static xfuture* __xrtFutureCombineCreate(
 		return NULL;
 	}
 	if ( iCount == 0 ) {
-		pGroup->Completed = true;
-		if ( !xrtPromiseResolveOwned(
-			pGroup->Promise,
-			&pGroup->All,
-			__xrtFutureCombineDestroyValue,
-			pGroup
-		) ) {
-			__xrtFutureCombineCreateFailed(pGroup, pFuture);
-			return NULL;
-		}
-		xrtPromiseDestroy(pGroup->Promise);
+		xpromise* pPromise = pGroup->Promise;
 		pGroup->Promise = NULL;
+		pGroup->MapAccepted = pAllMap != NULL;
+		pGroup->Completed = true;
+		__xrtFutureCombineComplete(pGroup, pPromise, &pGroup->All);
 		__xrtFutureCombineRelease(pGroup);
 		return pFuture;
 	}
@@ -368,6 +444,8 @@ static xfuture* __xrtFutureCombineCreate(
 		return NULL;
 	}
 
+	/* No fallible transport preparation remains beyond this commit point. */
+	pGroup->MapAccepted = pAllMap != NULL || pPickMap != NULL;
 	if ( Mode == XRT_FUTURE_COMBINE_ALL ) {
 		for ( size_t i = 0; i < iCount; i++ ) {
 			__xrtFutureCombineAttach(pGroup, i);
@@ -392,6 +470,18 @@ static xfuture* __xrtFutureCombineCreate(
 	return pFuture;
 }
 
+static xfuture* __xrtFutureCombineCreate(
+	xfuture* const* pFutures,
+	size_t iCount,
+	xrt_future_combine_mode Mode,
+	xfutureallmapproc pAllMap, xfuturepickmapproc pPickMap,
+	ptr pData, xfuturefreeproc pDestroy, ptr pDestroyData,
+	xfutureownershiptrace pTrace
+)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xfuture*, NULL, __xrtOwnershipBody_FutureCombineCreate(pFutures, iCount, Mode, pAllMap, pPickMap, pData, pDestroy, pDestroyData, pTrace));
+}
+
 
 
 /* 创建第一个源终态选择器。 */
@@ -400,7 +490,7 @@ XRT_API xfuture* xrtFutureAny(xfuture* const* pFutures, size_t iCount)
 	return __xrtFutureCombineCreate(
 		pFutures,
 		iCount,
-		XRT_FUTURE_COMBINE_ANY
+		XRT_FUTURE_COMBINE_ANY, NULL, NULL, NULL, NULL, NULL, NULL
 	);
 }
 
@@ -412,7 +502,7 @@ XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount)
 	return __xrtFutureCombineCreate(
 		pFutures,
 		iCount,
-		XRT_FUTURE_COMBINE_ALL
+		XRT_FUTURE_COMBINE_ALL, NULL, NULL, NULL, NULL, NULL, NULL
 	);
 }
 
@@ -424,8 +514,39 @@ XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount)
 	return __xrtFutureCombineCreate(
 		pFutures,
 		iCount,
-		XRT_FUTURE_COMBINE_RACE
+		XRT_FUTURE_COMBINE_RACE, NULL, NULL, NULL, NULL, NULL, NULL
 	);
+}
+
+XRT_API xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfutureallmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace)
+{
+	if (pMap == NULL || pDestroy == NULL || pTrace == NULL) {
+		__xrtErrorSetInvalidArgument(); return NULL;
+	}
+	return __xrtFutureCombineCreate(pFutures, iCount, XRT_FUTURE_COMBINE_ALL,
+		pMap, NULL, pData, pDestroy, pDestroyData, pTrace);
+}
+XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace)
+{
+	if (pMap == NULL || pDestroy == NULL || pTrace == NULL) {
+		__xrtErrorSetInvalidArgument(); return NULL;
+	}
+	return __xrtFutureCombineCreate(pFutures, iCount, XRT_FUTURE_COMBINE_ANY,
+		NULL, pMap, pData, pDestroy, pDestroyData, pTrace);
+}
+XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace)
+{
+	if (pMap == NULL || pDestroy == NULL || pTrace == NULL) {
+		__xrtErrorSetInvalidArgument(); return NULL;
+	}
+	return __xrtFutureCombineCreate(pFutures, iCount, XRT_FUTURE_COMBINE_RACE,
+		NULL, pMap, pData, pDestroy, pDestroyData, pTrace);
 }
 
 #endif

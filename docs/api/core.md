@@ -10,7 +10,70 @@
 聚合入口 `<xrt.h>` 会自动包含核心、[内存](memory.md)和[错误](error.md)
 三个头文件。
 
+## Windows 动态嵌入的最终线程存储退役
+
+`bool xrtRuntimeRetireThreadStorage(void)` 退役**当前 XRT 实例**注册的内部
+FLS/TLS 槽，包括堆缓存、默认错误、默认临时 arena、TinyCC 随机/故障注入状态、
+Future 通知与线程/协程借用槽。清理顺序是 payload → error → heap → borrowed，
+不依赖惰性初始化的先后。它不会禁用正常运行期间的线程缓存。
+
+宿主必须先关闭所有调用/回调入口，等待 XRT 工作结束，释放外部持有对象、任务、
+动态线程键等资源，并在各自线程清理动态键、解绑执行上下文。宿主线程和 Fiber
+可以保持存活，但不得再进入该实例，也不得与退役并发退出或销毁 Fiber。
+之后，在代码和分配器仍驻留时、`DllMain` 和加载器锁之外调用此接口，成功返回后
+才可卸载代码。FLS 槽释放会同步析构所有 Fiber 的非空值；先保留错误和堆的依赖，
+最后移除保护槽。不会在持有注册表锁时执行这些析构。
+
+这是终态操作，不是 reset：成功后重复调用返回 true；失败可能已经完成部分清理，
+只能保持代码驻留并重试，不能恢复业务或调用 XRT 错误接口。新槽注册被关闭，
+重入/并发退役返回 false。本接口自身不分配内存、不访问错误 TLS。
+非 Windows 平台当前返回 false 且不改变状态；不宣称支持 POSIX 共享库退役。
+
+此接口只消除内部线程存储的代码引用，不收集对象图、不判定外部引用是否已经释放，
+不清空中央堆 span 或其他模块级资源。对象和代码租约的正确性仍由宿主负责。
+
 ## 类型与常量
+
+### 完整拥有关系检查（不是垃圾收集或代码保活）
+
+`xrtOwnershipInspect(anchors, anchorCount, internalSlots, slotCount, result)`
+在调用方提供的静止安全点检查真实强引用图。每个 `xrtownershipref` 是物理身份
+`Data` 和稳定的 `Ops`；`Count` 读实际强引用数，`Trace` 枚举每个实际拥有槽。
+重复指向同一节点的两个槽仍是两条边，但一个共享节点只展开一次。
+
+`anchors` 只提供待观察节点和图发现入口，不算拥有引用；`internalSlots`
+代表即将退役的外层所有者（如模块全局变量）实际持有的每个强引用槽。不可把
+所有 anchor 都当作内部引用扣除，否则会吞掉宿主真正拥有的引用。
+
+检查将物理入边数从强引用数中扣除，余数大于零的节点是外部根；从这些根向下
+传播可达性。`ReachableAnchorCount` 为外部可达的唯一 anchor 数量。
+静态标量是无出边的常驻叶子，不会反向保活其父节点。
+
+Value 通过 `xrtValueOwnership` 暴露**外壳 → backing → 元素外壳**。
+Value 别名保留同一外壳的实际引用；COW 别名保留共享 backing 的实际引用；
+多个父节点共享一个 backing 时，不会重复计算 backing 持有的子边。
+Handle 的 producer 必须用 `xrtValueHandleOwnershipBind` 提供完整边适配器；
+克隆传播适配器，但由新外壳读取自己的 handle，不能缓存旧 handle 地址。
+Value 弱引用和 runtime-object 弱引用不是强拥有边。未知 handle（含其
+UserData）明确检查失败。非空 finalizer context 由
+`xrtValueObjectFinalizerOwnershipBind` 独立描述；它归属于 backing，不是每个
+共享外壳各有一份。非空 IdentityUserData 目前没有完整图适配合同，检查会拒绝，
+不能猜测它不持有资源。
+
+`xrtOwnershipInspectReachable` 还按输入顺序写出每个 anchor 的可达性位，
+重复身份得到相同结果，NULL anchor 为 false。失败时位数组和统计均不修改。
+可选的只读 root policy 只能增加保守根，不能消除实际外部根、伪造引用计数
+或跳过出边；用于保护本次收集域之外仍可被弱引用观察的对象。
+
+返回 false 时不写结果、不改变图、不调用析构；覆盖分配失败、错误边计数、
+同一身份的冲突 descriptor、Trace/Count 失败。忽略 visitor 的失败也不能
+把检查改成成功。实现使用迭代遍历和身份哈希表，没有递归深度截断。
+
+此 API **不建立安全点、不阻止并发修改、不持有代码租约、不清环、不调用 Drop**。
+调用方必须先保证图和描述符驻留、整个图停止变更，再持有这个保证直到后续
+生命周期决策提交。仅检查结果为零不能直接当作可并发卸载代码的授权。
+
+验证入口：`tools/build.py --suite ownership_graph_tests`；分别覆盖模块化和单头。
 
 ### `xseek`
 
@@ -1840,6 +1903,61 @@ xrtSetErrorKind(XERR_TIMEOUT);  /* 触发全局 Handler 一次 */
 
 ## 生命周期
 
+### 拥有关系的并发准入
+
+`xrtOwnershipMutationBegin`、`xrtOwnershipFreezeTryBegin` 和
+`xrtOwnershipScopeEnd` 为同一份已链接 XRT 提供一个共同冻结的协作域。scope 在
+调用栈上零初始化，不分配堆或 TLS；不能复制、移动、跨原生线程结束，也不是
+对象强引用或代码租约。多个 mutation 可同时存在，嵌套调用也可继续进入。
+freeze 只尝试独占准入：存在任一未结束 mutation 时立即返回 false，保留
+scope 和既有错误，不排队等待、不把当前 reader 升级为 writer。
+
+取得 freeze 后，其他线程的参与操作等待 ScopeEnd；持有线程可嵌套平衡的
+mutation，用于只读 Trace 的临时游标或已知的原子提交步骤。父 freeze 不能
+早于其子 scope 结束。成功进入/退出保持既有错误；非法参数、重复进入、复制
+scope、跨线程或重复退出被拒绝。scope 必须从参与对象自己的锁之外进入，覆盖
+整个状态转换，不能先持有对象锁再等待 freeze，否则会形成锁序反转。
+
+当前自动参与的生产路径：
+
+- `xrtRefRetain/Release` 的实际原子计数更新；原 CAS、死亡引用和溢出语义不变。
+- Value 的强/弱保有、复制、拥有式接管、类型/identity/生命周期绑定、最后释放。
+- Value 容器的字段写入、COW、清空/取出、容量调整、游标生命周期和集合合并；
+  DeepClone/Equal 及直接 Hash/ScalarEqual 回调也在其完整外层转换内。私有 body 配合统一返回
+  包装，所有提前返回都归还准入，不只锁住一条 RC 指令。
+- Future/Promise 的生产端双计数、引用/销毁、终态发布、转发及 Watch 状态转换；
+  Cancel 父链创建/销毁和监听装配/请求/注销；Any/All/Race 和 continuation
+  从共同工厂入口覆盖完整装配、立即回调和失败回滚。通知/Release/析构尚未
+  返回时仍不能冻结。阻塞 FutureWait 和协程 park 不持有跨等待的 scope，
+  它们实际保有的 Future 引用仍按外部根计算，内部 waiter 变更单独受保护。
+
+这些 mutation 之间仍是并发关系，并不让同一容器的任意读写自动线程安全。
+调用者原有的同对象同步责任不变，宿主也无需把普通 Value Retain 改成 root
+登记 API。每个运行时实例只有一个域，跨 XRT 实例不能互相冻结。普通准入按
+原生线程 ID 分散到 64 个独立缓存行的分片，线程散列碰撞仍保持正确性；只有
+freeze 才访问协调锁并尝试一次性锁定全部分片，任一分片繁忙就归还已经取得
+的锁。冻结指针在任一分片锁下读取、全部分片锁下发布或撤销，未增加线程登记
+或 TLS 初始化。该方案消除了单一热计数器，但尚不是高争用性能验收结论。
+
+**尚不能据此卸载语言模块。** 用户回调拥有的数据、task/transport、native
+object/callable 状态、生成的 cell/frame/global 写入、其他直接原子计数和跨
+模块入口仍须接通。旧 opaque waiter 仍拒绝图检查，不能因为分发有 scope 就
+把缺失的拥有边视为空边。
+冻结期间的 Trace、分配器及错误通知也必须满足不会等待被阻塞参与者的合同；
+任意用户回调、线程 join、fiber 挂起不能放在 freeze 内。收集器需要在所有
+节点能力都得到证明之后建立稳定快照并原子接管，在退出 freeze 后执行用户
+析构，最后才决定是否可以卸载代码。mutation 接口本身不提供候选节点 claim/commit，
+不替代 `xrtOwnershipInspect` 对完整图静止与代码驻留的要求。
+
+专项入口为 `--suite ownership_scope_tests`，同时保留原有 ref/ref-threads
+测试。它覆盖真实原生弱提升、容器 COW/合并/取出与 freeze 的竞争，以及字段
+析构或直接 identity 哈希尚未返回时拒绝检查准入；没有把这些专项解释成模块
+环收集已经接通。
+
+分片专项额外启动 65 个同时存活的原生 mutation（必然包含分片碰撞），逐个
+退出并检查最后一个 reader 之前都不能冻结；四个并发收集线程各自取得至少
+30 次独占窗口，确认互斥和失败准入回滚，不将尝试次数算作成功次数。
+
 XRT 2.0 的核心按需初始化内部进程资产，不再要求每个程序配对调用
 `xrtInit()` / `xrtUnit()`。有状态模块都由自己的创建和销毁函数管理对象，
 进程级分配器和共享缓存保持到进程结束。
@@ -1847,6 +1965,43 @@ XRT 2.0 的核心按需初始化内部进程资产，不再要求每个程序配
 旧版公开可变 `xCore` 把应用路径、错误回调、分配器、近似比较策略、线程状态
 和内存池混入一个结构，导致模块边界与裁剪失效。新版将这些能力归入各自模块，
 不保留第二套全局兼容入口。
+
+## 结构快照与显式接管协议
+
+`xrtOwnershipSnapshotCreate/NodeCount/Node/Destroy` 复用 Inspect 的同一物理图算法。
+每个节点保存真实强计数、内部入边计数和可达性；不保有节点。准入回调先于该
+节点的 Count/Trace，可在调用未知代码之前拒绝整个图。节点顺序是首次发现
+顺序：先输入 anchor，再 internal slot，最后展开出边。重复物理身份只出现一次。
+失败不修改输出；读取节点不重新扫描、不分配，销毁只释放快照记账。
+调用方必须独立保持完整图静止及节点、回调代码有效，直到建立真正的保有引用。
+
+`xrtownershipadapterv1` 是独立的生命周期协议，不扩展旧二函数 `xrtownershipops`
+的内存布局。解析器须证明完整 mutation 参与与上下文能力，不能仅凭 Trace 存在
+就认证。Hold/Drop 对应实际引用；Claim/Restore 以独占 token 隔离弱/raw 新准入，
+允许已有合法强拥有者在 Finalize 后产生可检测的复活。Finalize 在 freeze 外运行，
+其物理“已执行”状态跨撤销保留。重新判断根、检查新析构职责与 Clear 必须在同一
+freeze 内完成；Clear 不能分配、失败、等待或运行用户代码。Finish 在 freeze 外
+处理已准备的机械释放尾部，不得开始新的用户语义析构或发布已接管的 receiver。
+
+XRT 提供普通 Value/backing、明确授权的对象/Handle 生命周期适配器，见 Value
+文档；完整事务协调由上层实现。`xrtErrorOwnershipAdapterV1` 另外识别本实例的
+不可变 Error/Cause DAG：文本内联拥有，Cause 只指向更早的错误，不存在回指语言
+模块的边或用户回调。其 Clear 不修改不可变数据，真实 Cause 边保留到最后一次
+Drop；外部错误别名因此不会反向保活模块。这不是 XRT 自动 GC，也不证明任意
+原生上下文或语言模块可以回收。
+
+## 析构前语义准备
+
+`xrtownershippreparationv1` 与生命周期表是两个独立、不可变的描述符；`Adapter`
+必须精确指向同一生命周期表，不能扩展旧表或把未知描述符降级为空准备职责。
+`Ready` 在 freeze 内只读检查，`Prepare` 在 freeze/mutation 外运行，可正常通知
+已受理的回调。READY 后必须重建完整物理图，再决定下一项准备或析构；通知可能
+增加新节点或外部引用，不能继续使用通知前的可达性。每一次对象 Finalize 后也须
+重新检查，防止析构新建资源后提前析构其捕获对象。
+
+BUSY 不允许本次准备调用产生语义回调或改变拥有边，可非阻塞地尝试其他依赖。
+FAILED 是显式失败，即使没有诊断对象也不能当作成功。上层应区分快照/准入失败
+和语义调用失败；已经发生的通知和物理析构职责不能因撤销、分配失败或重试而重放。
 
 ## 旧版资产决策
 

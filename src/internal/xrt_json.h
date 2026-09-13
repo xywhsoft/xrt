@@ -25,6 +25,18 @@ void __xrtJsonError(
 /* 验证读取配置已初始化且字段值完整有效。 */
 bool __xrtJsonReadConfigValid(const xjsonreadconfig* pConfig);
 
+/* 逐行适配器共享 DOM/验证路径；验证成功返回可释放的 null 单例。 */
+xvalue* __xrtJsonReadBudget(
+	xstrview Text,
+	const xjsonreadconfig* pConfig,
+	xtextvaluebudget* pBudget,
+	bool bValidate
+);
+
+#endif
+
+#if defined(XRT_FEATURE_JSON_WRITE)
+bool __xrtJsonWriteConfigValid(const xjsonwriteconfig* pConfig);
 #endif
 
 #endif

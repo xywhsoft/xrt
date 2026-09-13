@@ -91,6 +91,48 @@ typedef enum xfuturewatchresult {
 /* 成功值析构过程接收创建者提供的值和上下文。 */
 typedef void (*xfuturefreeproc)(ptr pValue, ptr pData);
 
+/* Describe exactly the owning slots released by an owned result's destructor,
+ * including its context. Unique boxes are folded into this Future's edges;
+ * shared reference-counted boxes must be reported as physical nodes. */
+typedef bool (*xfutureownershiptrace)(const void* pValue, const void* pData,
+	xrtownershipvisitor pVisit, ptr pContext);
+
+/* Explicit lifecycle certification, separate from an inspection-only trace.
+ * Immutable policy/code outlives the Future. Drop consumes a unique result
+ * box and exactly the owning slots described by Trace; context is NULL.
+ * Drop coordinates its own graph transitions, runs no new semantic finalizer
+ * after child finalization, and may execute outside XRT's mutation scope.
+ * Trace is allocation/callback-free apart from the supplied visitor. */
+typedef struct xfuturepayloadownershipv1 {
+	size_t size;
+	xfuturefreeproc Drop;
+	xfutureownershiptrace Trace;
+} xfuturepayloadownershipv1;
+
+/* One ACTUAL producer reference owned by a pending result, separate from
+ * PromiseRefs and from the terminal payload. The immutable resident Drop
+ * releases that reference outside this Future's lock/mutation; it coordinates
+ * its own transitions and code lifetime. It must not cancel accepted work or
+ * substitute for its semantic callback/finally. Completion preserves its own
+ * diagnostic across this mechanical release. The physical child is still
+ * independently admitted by the collector, never certified by this policy. */
+typedef struct xfutureproducerownershipv1 {
+	size_t size;
+	void (*Drop)(const void* pProducer);
+} xfutureproducerownershipv1;
+
+/* A registered Watch owns exactly ONE Data node reference, returned by Release.
+ * Immutable resident callbacks coordinate their own activity and code lifetime;
+ * Ops describes that same physical node, not a synthetic watch leaf. The core
+ * traces this actual slot, but a collector independently admits Data and all
+ * of its captures. Legacy traced/phased watches are not silently certified. */
+typedef struct xfuturewatchownershipv1 {
+	size_t size;
+	xfuturewatchproc Notify;
+	xfuturewatchreleaseproc Release;
+	const xrtownershipops* Ops;
+} xfuturewatchownershipv1;
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -99,6 +141,18 @@ XRT_EXTERN_C_BEGIN
 
 /* 创建一对 Future/Promise；父取消令牌为空时使用独立取消源。 */
 XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
+
+/* Bind once to a private, pending, newly created Future/Promise pair (one
+ * reference per endpoint, no waiters). No allocation or user callback.
+ * Success consumes ONE existing Producer reference; failure consumes nothing.
+ * The result traces that real edge until terminal publication detaches it;
+ * completion releases it exactly once outside lock/mutation before notifying
+ * the result's waiters. Merely dropping a Future observer does not cancel work.
+ * The caller keeps an independent activation/registration reference until
+ * its own callback and release tails finish. An enclosing caller-owned scope
+ * is never suspended. A trace-only or unknown policy is not collection proof. */
+XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy);
 
 
 
@@ -119,6 +173,65 @@ XRT_API xfuture* xrtFutureRef(xfuture* pFuture);
 
 /* 释放 Future 消费端引用；空指针视为空操作。 */
 XRT_API void xrtFutureDestroy(xfuture* pFuture);
+
+/* Borrowed views of the SAME physical control block: every FutureRef and
+ * PromiseRef owns one reference. Do not invent a second Promise node.
+ * Trace includes cancellation parents, error causes, forwarded source and
+ * explicitly described owned payload/context. Unknown owned payloads and
+ * registered waiters fail closed unless their complete adapters are supplied.
+ * Pending with no waiters is inspectable; producer references remain roots.
+ * Whole-graph quiescence through any later commit and callback code residency
+ * remain the caller's responsibility; this API does not establish either. */
+XRT_API xrtownershipref xrtFutureOwnership(const xfuture* pFuture);
+XRT_API xrtownershipref xrtPromiseOwnership(const xpromise* pPromise);
+
+/* Publish an explicitly certified owned result atomically. Failure does not
+ * consume the box. This does not authorize collection by itself: a resolver
+ * must recognize the exact policy identity and independently admit children. */
+XRT_API bool xrtPromiseResolveOwnedPolicyV1(xpromise* pPromise, ptr pValue,
+	const xfuturepayloadownershipv1* pPolicy);
+
+/* Query under whole-graph freeze before Count/Trace. Pending, forwarded and
+ * terminal control blocks share one physical adapter. Completing operations,
+ * all registered waiters, unrecognized owned policies and observed cancel
+ * tokens are refused without invoking any payload/waiter trace. An empty
+ * allowlist admits only results without an owned payload. Pending retirement
+ * preserves last-producer CLOSED/cancellation semantics at Clear, without
+ * notification. Finish releases actual retired slots outside freeze. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount);
+/* Add an explicit producer-policy allowlist. V1 continues to refuse any live
+ * producer edge. Neither entry admits registered waiters or an unknown child;
+ * identity is matched before reading a policy or invoking any child callback. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount);
+/* V3 additionally admits exact Watch policies and returns mandatory semantic
+ * preparation alongside the SAME lifecycle adapter. Before object Finalize,
+ * prepare producerless pending sources through normal CLOSED notification,
+ * then rebuild the whole graph. Produced results defer to their real producer;
+ * never close an intermediate result before its source's catch/finally runs.
+ * Closed dependency cycles may require a further explicit shutdown protocol;
+ * BUSY does not authorize clearing a live Watch or skipping accepted work.
+ * Output is unchanged on refusal. Use both descriptors, never V1-only planning. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
+	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+/* Preserve 64-byte Watch storage and READY/PENDING/ERROR ownership rules.
+ * Initialization alone does not consume Data; registration commits the same
+ * caller-owned reference that Release returns. READY is still caller-driven. */
+XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv1* pPolicy);
+
+/* Atomically publish value, destructor, context and non-NULL ownership trace.
+ * Success transfers the same ownership as ResolveOwned. Failure (including
+ * duplicate completion) transfers nothing and never calls Destroy/Trace.
+ * The immutable trace and destructor remain resident for the result lifetime;
+ * trace follows the read-only xrtOwnershipInspect callback contract. */
+XRT_API bool xrtPromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
+	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
 
 
 
@@ -169,6 +282,33 @@ XRT_API bool xrtFutureWatchInit(
 	xfuturewatchreleaseproc pRelease,
 	ptr pData
 );
+
+
+
+/* Initialize with an immutable description of the strong slots released by
+ * pRelease(pData). Both callbacks are required. Unique context storage is
+ * folded into the Future's edges; shared state is a physical node. Init is
+ * allocation-free and consumes nothing; only WatchAdd(PENDING) transfers the
+ * registration/release right. READY and ERROR keep it with the caller.
+ * Storage size and old Init semantics are unchanged. A linked adapter may be
+ * inspected only at a whole-graph quiescent point with callback code resident;
+ * this does not establish a safepoint or permit concurrent frame inspection. */
+XRT_API bool xrtFutureWatchInitTraced(xfuturewatch* pWatch,
+    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+    xrtownershiptrace pTrace);
+
+/* Explicit cooperative callback admission, not inferred from a Trace callback.
+ * Like InitTraced, but Notify/Release run outside the Future mutation domain.
+ * The resident callbacks must coordinate every count/edge/storage transition,
+ * reject inspection of active/private data, and independently pin their code.
+ * Detached notification/release callers retain their real ownership until the
+ * callback returns. No mutation scope may span a wait or arbitrary callback.
+ * Unphased Watch, internal waiters and payload finalizers keep conservative
+ * mutation scopes. Storage size, READY/PENDING/ERROR and release rules match
+ * InitTraced; READY still leaves Notify/Release to the registering caller. */
+XRT_API bool xrtFutureWatchInitPhased(xfuturewatch* pWatch,
+    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+    xrtownershiptrace pTrace);
 
 
 
@@ -300,6 +440,34 @@ XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
 
 /* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。 */
 XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
+
+/* Synchronous result mapping is part of the aggregate's activation, not a
+ * separately allocated continuation attached after the sources start.
+ * Inputs and output Promise are borrowed for the call. The mapper must
+ * complete/forward the output before returning; an uncompleted output closes.
+ * It must not retain the input descriptors or defer work on this Promise. */
+typedef void (*xfutureallmapproc)(const xfutureall* pInput, xpromise* pOutput, ptr pData);
+typedef void (*xfuturepickmapproc)(const xfuturepick* pInput, xpromise* pOutput, ptr pData);
+
+/* All preparation succeeds before source notification/cancellation is possible.
+ * NULL return does not consume data, invoke map/destroy/trace, or cancel inputs.
+ * Non-NULL accepts data even if synchronous mapping fails: that failure is the
+ * returned Future's outcome. Destroy(data, destroyData) runs exactly once after
+ * mapping or cancellation and after the last source callback returns.
+ * Trace(data, destroyData) describes the exact strong slots Destroy releases;
+ * callbacks/code and borrowed pointers are not fictitious owning edges.
+ * Destroy and Trace are required, including for an empty context. The caller
+ * still supplies whole-graph quiescence and callback/code residency.
+ * Any/All/Race retain their existing selection/order/cancellation contracts. */
+XRT_API xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfutureallmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
+XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
+XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
 
 
 

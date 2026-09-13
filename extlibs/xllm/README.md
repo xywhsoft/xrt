@@ -4,21 +4,23 @@
 
 它不执行工具、不维护会话、不压缩上下文，也不运行 Agent 循环。这些职责分别属于 `xwork` 与 `xllm-session`。
 
-## 当前能力
+## 当前能力（v3）
 
-- OpenAI-compatible 与 GLM 请求方言
-- 流式 HTTP/SSE，支持任意网络分片
+- 三方言一套 API：Chat Completions（含 GLM 子方言）、OpenAI Responses、Anthropic Messages
+- 多模态内容部件：文本 / 图像（字节或 URL）/ 音频 / 文件 / provider 原生块
+- 响应为有序内容块（文本/思考/工具调用按到达顺序交错）+ 便利字段
+- 流式 HTTP/SSE，支持任意网络分片；`event:` 类型化事件（Anthropic）与 typed events（Responses）
 - provider 边界严格校验 JSON，拒绝宽松解析器可接受的畸形 SSE/非流式响应
-- 文本与推理内容增量事件
-- 多个工具调用交错返回及 arguments 增量拼接
-- GLM `tool_stream` 与保留式思考（完整重放 `reasoning_content`）
-- assistant/tool 历史消息及 `tool_call_id` 关联
-- 并行工具调用、named/auto/required/none tool choice
-- 输入、输出、缓存和推理 token usage
-- 非 SSE JSON 响应回退
-- HTTP、认证、限流、超时、取消、协议和解析错误归一化
-- 基于 XRT 核心 TCP/TLS 与 HTTP/1 wire API 的独立 keep-alive 连接
-- 请求级传输阶段、系统错误、连接复用、耗时和字节统计
+- 文本与推理内容增量事件；Anthropic thinking 签名捕获与原生回放
+- 多个工具调用交错返回及 arguments 增量拼接；工具结果关联回放
+- 采样面：temperature / top_p / stop / JSON 模式 / 推理力度与预算 / 非流式开关
+- 逐请求逃生舱：额外传输头 + 原始 JSON 体浅合并
+- 归一化终止原因（含 refusal 安全拒答浮出）；usage 含缓存读写与推理 token
+- 速度与链路统计：首 token 时间、输出 tokens/s、字节数、尝试数、连接复用
+- 模型画像能力位治理（新一代模型参数名与 developer 角色按画像启用）
+- HTTP、认证、限流、超时、取消、协议和解析错误归一化；方言级重试分类（Anthropic overloaded）
+- 空闲连接池（默认 4、上限 8）；零每调用线程——传输是引擎 worker 上的 watch 链状态机，Start 立即提交、`xllmCallFuture` 可直接集成宿主事件循环；截止有引擎定时器看门狗、取消经 token 贯通每个 IO 步；流式回调在引擎 worker 上触发（须线程安全、勿阻塞）
+- 可替换分配器（测试用故障注入，按分配序号穷举 OOM）
 - 借用式 `xcancel` 与绝对单调 deadline，贯通取消和可中断重试退避
 - 仅在尚未交付模型事件时执行的有界瞬态重试，并支持 `Retry-After`
 
@@ -49,12 +51,14 @@
 
 ## 模块边界
 
+`xllm` 是纯核心调用层。上下文治理与长期记忆已拆分为独立扩展库（兄弟目录）：
+
 ```text
 xcode CLI
-    -> xwork          Agent 循环、工具执行、审批、循环保护
-        -> xllm-session  上下文账本、预算、裁剪、持久化、压缩
-        -> xllm-memory   显式长期记录、来源、检索、审计回执
-        -> xllm          一次模型调用、SSE、provider 适配
+    -> xwork             Agent 循环、工具执行、审批、循环保护（../xwork）
+        -> xllm-session  上下文账本、预算、裁剪、持久化、压缩（../xllm-session）
+        -> xllm-memory   显式长期记录、来源、检索、审计回执（../xllm-memory）
+        -> xllm          本库：一次模型调用、SSE、三方言 provider 适配
             -> xrt       核心 HTTP/1.1 wire、TLS、future、网络运行时
 ```
 

@@ -1,0 +1,36 @@
+#ifndef XLLM_MEMORY_XRT_H
+#define XLLM_MEMORY_XRT_H
+
+/* XRT roots used by this library. Tests build the xllm core unity from
+ * source too, so the implementation TU must cover the core surface
+ * (net/TLS/HTTP/threads) plus this library's own file/path/JSON needs. */
+#define XRT_MODULE_JSON_READ
+#define XRT_MODULE_FILE_WHOLE
+#define XRT_MODULE_DIR
+#define XRT_MODULE_PATH
+#define XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_NET_TCP_DIAL_SYNC
+#define XRT_MODULE_NET_TCP_DIAL_FUTURE
+#define XRT_MODULE_NET_TCP_FUTURE
+#define XRT_MODULE_TLS_STREAM_DIAL_FUTURE
+#define XRT_MODULE_TLS_STREAM_FUTURE
+#define XRT_MODULE_TLS_STREAM_LISTENER
+#define XRT_MODULE_TLS_STREAM_LISTENER_SYNC
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TLS_VERIFY
+#define XRT_MODULE_X509_STORE_SYSTEM
+#define XRT_MODULE_HTTP1_BODY
+#define XRT_MODULE_THREAD
+#define XRT_MODULE_MUTEX
+#define XRT_MODULE_CANCEL
+#define XRT_MODULE_TIME
+
+#include <xrt.h>
+
+#endif

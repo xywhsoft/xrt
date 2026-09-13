@@ -17,7 +17,38 @@
 该功能关闭时，`xrtobject` 不包含图指针、链表指针或收集状态，也不会链接收集器代码。
 功能打开时，每个对象最多属于一个图；图只借用对象，不增加常驻强引用。
 
-## 类型追踪
+## 完整物理拥有图收集
+
+对于穿过 Value、共享 COW backing、callable 或 native context 的拥有关系，
+使用 `xrtObjectGraphCollectOwned`。此入口不使用旧的 object-only
+`InstanceOps.Trace`，而要求每个 native payload 通过
+`xrtObjectOwnershipTraceBind` 提供完整物理边。Value 外壳、backing 和
+callable 的控制块分别只追踪一次，保留实际拥有槽的多重边。
+
+宿主的 `xrtValueRetain`、共享 backing 的 `xrtValueClone`、抽离元素的
+Retain，以及独立 handle 外壳中的 native Ref，都能成为实际外部根。
+只扣除收集器自己确实持有的每对象一个快照引用，不扣除任何宿主拥有者。
+别名仍存活时不会终结对象；释放最后外部拥有者之后，可回收内部 native 环。
+
+本域以外的 native 对象作为保守根。不能仅因它当前处于无外部强引用的环中，
+就终结它在本域的同伴，否则另一个域的弱引用提升可能暴露半终结的环。
+将这样的环全部纳入同一收集域后才能一起回收。
+
+完成全图快照、验证与候选 claim 之前，不运行任何 Drop。分配失败、缺失的
+opaque adapter、无效状态、冲突身份或追踪失败都保持成员、负载与输出不变。
+成功后复用已有的候选摘除、统一终结和快照释放流程，不另造一套 GC 析构规则。
+`xrtobjectgraphownedresult.Ownership` 统计完整物理快照（包括内部快照 pin 边），
+`TrackedCount` / `CollectedCount` 只统计本对象图成员。
+
+调用方仍必须提供**整个传递图的静止安全点**，并使类型描述符及 Trace/Drop 代码
+驻留直到函数返回。本 API 不会自动持有或卸载 xlang 模块，也不处理模块全局变量
+的清理顺序。验证：`tools/build.py --manifest extlibs/xruntime/config/modules.json
+--suite runtime_ownership_tests`（模块化及单头；GCC/TCC）。
+
+## 旧 object-only 类型追踪
+
+下述旧入口只适用于它的直接对象边合同。不能把 Value 路径扁平化以后仍认为
+它能自动看见未登记的 Value/COW 宿主别名；此类关系应迁移到上述完整入口。
 
 可参与收集的类型通过 `xrtinstanceops.Trace` 精确枚举负载直接拥有的强对象引用：
 

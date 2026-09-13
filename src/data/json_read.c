@@ -467,9 +467,11 @@ XRT_API void xrtJsonReadConfigInit(xjsonreadconfig* pConfig)
 
 
 /* 使用高级配置解析完整 JSON 文本。 */
-XRT_API xvalue* xrtJsonRead(
+xvalue* __xrtJsonReadBudget(
 	xstrview Text,
-	const xjsonreadconfig* pConfig
+	const xjsonreadconfig* pConfig,
+	xtextvaluebudget* pBudget,
+	bool bValidate
 )
 {
 	xjsondombuilder Builder;
@@ -482,20 +484,31 @@ XRT_API xvalue* xrtJsonRead(
 	memset(&Builder, 0, sizeof(Builder));
 	Builder.Config = *pConfig;
 	TextConfig = __xrtJsonReadTextConfig(pConfig);
+	TextConfig.Budget = pBudget;
 	Result = __xrtTextValueRead(
 		Text,
 		&TextConfig,
-		__xrtJsonDomVisit,
+		bValidate ? NULL : __xrtJsonDomVisit,
 		&Builder,
 		__xrtJsonReadError,
 		NULL,
-		true
+		!bValidate
 	);
 	if ( Result != XTEXT_VALUE_VISIT_DONE ) {
+		xerror* pError = xrtTakeError();
 		__xrtJsonDomCleanup(&Builder);
+		xrtSetErrorTake(pError);
 		return NULL;
 	}
-	return Builder.Root;
+	return bValidate ? xrtValueNull() : Builder.Root;
+}
+
+
+
+/* 使用高级配置解析完整 JSON 文本。 */
+XRT_API xvalue* xrtJsonRead(xstrview Text, const xjsonreadconfig* pConfig)
+{
+	return __xrtJsonReadBudget(Text, pConfig, NULL, false);
 }
 
 

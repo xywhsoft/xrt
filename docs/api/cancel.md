@@ -2,6 +2,12 @@
 
 `cancel` 模块提供与网络、任务或协程无关的通用取消状态。令牌可以组成不可变父子链；监听任一子令牌时，父链上的首次取消也会同步触发该监听。
 
+创建/父链保有、引用/销毁、Watch 装配、Request 和 Unwatch 的完整拥有转换
+参与 XRT 协作冻结，先取得 mutation 准入再取内部锁。同步取消回调、回调内
+延迟注销和最后内部引用释放都在该外层转换内，其他线程不能在其半途中取得
+freeze。Requested/Triggered 仍是原子的状态观察。这不使回调借用的任意
+Data 自动具备可追踪的拥有合同，也不授权在 freeze 内调用取消回调或等待它。
+
 ## 模块契约：错误
 
 取消令牌 API 的失败经 `xrtGetError()` 报告：
@@ -373,6 +379,13 @@ xrtCancelDestroy(pOperation);
 xrtCancelDestroy(pRequest);
 ```
 
+## 取消监听的拥有图
+
+`xrtCancelWatchOwnership(watch)` 返回由 Unwatch 释放的实际监听节点视图，追踪它
+保留的 Cancel，并通过 Cancel 视图追踪父链。监听链中的注册节点、Proc / Data
+都是借用，不能伪造为额外强引用。回调执行中或监听正在销毁时拒绝图检查。
+调用方必须保证整个传递图静止、回调代码驻留；这不是线程停止或模块卸载接口。
+
 ## 示例
 
 ```c
@@ -390,3 +403,11 @@ xrtCancelDestroy(pGroup);
 ```
 
 完整示例位于 `examples/concurrency/cancel/main.c`。
+
+## 回收器接纳边界
+
+`xrtCancelOwnershipAdapterV1` 仅在调用者已冻结全图且该令牌没有注册观察者时
+返回常驻物理适配器。Parent 是真实拥有边、分别接纳；其不可变尾链保持到最终
+Drop，不通过估计引用数或提前释放父对象来消环。该接口不认证 CancelWatch。
+Future 回收中的无观察者生产端关闭仅修改当前令牌的取消状态，既不取消父令牌，
+也不在 freeze 中调用回调或等待原生锁。

@@ -5,11 +5,18 @@
 
 #if defined(XRT_FEATURE_VALUE_CONTAINER)
 
+#define XRT_VALUE_BACKING_FINALIZING 0x0001u
+#define XRT_VALUE_BACKING_OWNERSHIP_CLEARED 0x0002u
+
 /* 所有容器 backing 共用原子引用头。 */
 struct xvaluebacking {
 	volatile int32 RefCount;
 	uint16 Type;
 	uint16 Flags;
+	const void* OwnershipClaim;
+	/* Each count denotes an ACTUAL adapter Hold, not an estimated root. COW
+	 * ignores these observational holds, never real shells or native cursors. */
+	size_t OwnershipHolds;
 };
 
 
@@ -39,12 +46,140 @@ typedef struct xvaluesetbacking {
 
 
 /* 对象 backing 直接复用保持插入顺序的二进制键 Map。 */
+typedef struct xvalueobjectlifetime {
+	volatile int32 RefCount;
+	ptr UserData;
+	xrtownershiptrace Trace;
+	xvalueobjectfinalizerrelease Release;
+	const xvalueobjectownershipv1* OwnershipPolicy;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+} xvalueobjectlifetime;
+
 typedef struct xvalueobjectbacking {
 	xvaluebacking Base;
 	xmap Items;
 	xvalueobjectfinalizer Finalizer;
 	ptr FinalizerUserData;
+	xrtownershiptrace FinalizerTrace;
+	xvalueobjectfinalizerrelease FinalizerRelease;
+	bool FinalizerBound;
+	bool FinalizerPrepared;
+	xvalueobjectlifetime* Lifetime;
+	const xvalueobjectownershipv1* OwnershipPolicy;
+	xvalue* OwnershipReceiver; /* Borrowed only from a real plan-held shell. */
+	const void* ReceiverClaim;
+	xvalueidentityhash OwnedIdentityHash;
+	xvalueidentityequal OwnedIdentityEqual;
 } xvalueobjectbacking;
+
+static bool __xrtValueObjectPolicyValid(const xvalueobjectownershipv1*);
+static bool __xrtValueObjectPolicyCallbacks(const xvalueobjectbacking*, const xvalueobjectownershipv1*);
+
+static bool __xrtValueLifetimeOwnershipCount(const void* pData, size_t* pCount)
+{
+	int32 iCount = __xrtAtomicRefLoad(&((const xvalueobjectlifetime*)pData)->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+static bool __xrtValueLifetimeOwnershipTrace(const void* pData,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xvalueobjectlifetime* pLifetime = (const xvalueobjectlifetime*)pData;
+	return pLifetime->UserData == NULL || pLifetime->Trace(pLifetime->UserData, pVisit, pContext);
+}
+static const xrtownershipops __xrtValueLifetimeOwnershipOps = {
+	__xrtValueLifetimeOwnershipCount, __xrtValueLifetimeOwnershipTrace
+};
+static void __xrtValueLifetimeRelease(xvalueobjectlifetime* pLifetime)
+{
+	xrtownershipscope Mutation = {0};
+	if (pLifetime == NULL) return;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (xrtRefRelease(&pLifetime->RefCount) == 0) {
+		ptr pContext = pLifetime->UserData;
+		xvalueobjectfinalizerrelease pRelease = pLifetime->Release;
+		const xvalueobjectownershipv1* pPolicy = pLifetime->OwnershipPolicy;
+		bool bPhased = __xrtValueObjectPolicyValid(pPolicy) &&
+			pLifetime->Trace == pPolicy->LifetimeTrace && pRelease == pPolicy->LifetimeRelease;
+		xrtFree(pLifetime);
+		if (bPhased && !xrtOwnershipScopeEnd(&Mutation)) abort();
+		pRelease(pContext);
+		if (bPhased) return;
+	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+}
+static bool __xrtValueObjectBackingLifetimeCopy(xvalueobjectbacking* pTarget,
+	const xvalueobjectbacking* pSource)
+{
+	if (pTarget->Lifetime != NULL) { __xrtErrorSetInvalidState(); return false; }
+	if (pSource->Lifetime != NULL && xrtRefRetain(&pSource->Lifetime->RefCount) < 0) return false;
+	pTarget->Lifetime = pSource->Lifetime;
+	pTarget->OwnershipPolicy = pSource->OwnershipPolicy;
+	pTarget->OwnedIdentityHash = pSource->OwnedIdentityHash;
+	pTarget->OwnedIdentityEqual = pSource->OwnedIdentityEqual;
+	/* Only ordinary construction state is copyable. A finalization duty is
+	 * reference identity, deliberately never cloned into a new backing. */
+	pTarget->FinalizerPrepared = !pSource->FinalizerBound && pSource->FinalizerPrepared;
+	return true;
+}
+
+static bool __xrtValueIterStartInternal(const xvalue*, xvalueiter*, int, bool);
+
+static bool __xrtValueBackingOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xvaluebacking* pBacking = (const xvaluebacking*)pData;
+	int32 iCount = __xrtAtomicRefLoad(&pBacking->RefCount);
+	if (iCount <= 0 || (pBacking->Flags & (XRT_VALUE_BACKING_FINALIZING | XRT_VALUE_BACKING_OWNERSHIP_CLEARED)) != 0) return false;
+	*pCount = (size_t)iCount;
+	return true;
+}
+
+static bool __xrtValueBackingOwnershipTrace(const void* pData,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xvaluebacking* pBacking = (const xvaluebacking*)pData;
+	xvalue View = {0};
+	xvalueiter Iterator;
+	xvalue* pItem;
+	bool bOk = true;
+	xvalueiterresult Step;
+	size_t iReferences;
+	if (!__xrtValueBackingOwnershipCount(pData, &iReferences)) return false;
+	/* A custom finalizer's non-NULL context is an opaque ownership boundary.
+	 * Do not silently treat an unmodelled native payload as having no edges. */
+	if (pBacking->Type == XVALUE_OBJECT) {
+		const xvalueobjectbacking* pObject = (const xvalueobjectbacking*)pBacking;
+		if (pObject->Lifetime != NULL && !pVisit((xrtownershipref){
+			pObject->Lifetime, &__xrtValueLifetimeOwnershipOps}, pContext)) return false;
+		if (pObject->FinalizerUserData != NULL) {
+			if (pObject->FinalizerTrace == NULL) { __xrtErrorSetUnsupported(); return false; }
+			if (!pObject->FinalizerTrace(pObject->FinalizerUserData, pVisit, pContext)) return false;
+		}
+	}
+	/* The cursor borrows a synthetic shell and temporarily retains backing.
+	 * OwnershipInspect samples counts only after ALL cursors have ended. */
+	View.RefCount = 1; View.WeakCount = 1;
+	View.Type = pBacking->Type; View.Data.Backing = (xvaluebacking*)pBacking;
+	/* This stack view is NOT a real owning shell. The enclosing inspection
+	 * already borrows stable backing storage; never retain a synthetic shell. */
+	if (!__xrtValueIterStartInternal(&View, &Iterator, 1, false)) return false;
+	while ((Step = xrtValueIterAdvance(&Iterator, NULL, &pItem)) == XVALUE_ITER_ITEM) {
+		if (!pVisit(xrtValueOwnership(pItem), pContext)) { bOk = false; break; }
+	}
+	if (Step == XVALUE_ITER_ERROR) bOk = false;
+	xrtValueIterEnd(&Iterator);
+	return bOk;
+}
+
+static const xrtownershipops __xrtValueBackingOwnershipOps = {
+	__xrtValueBackingOwnershipCount, __xrtValueBackingOwnershipTrace
+};
+
+xrtownershipref __xrtValueBackingOwnership(const xvalue* pValue)
+{
+	return (xrtownershipref){pValue->Data.Backing, &__xrtValueBackingOwnershipOps};
+}
 
 
 
@@ -292,9 +427,11 @@ static bool __xrtValueBackingRetain(xvaluebacking* pBacking)
 
 
 /* 销毁最后一个 backing 及其持有的全部值。 */
-static void __xrtValueBackingRelease(xvaluebacking* pBacking)
+static void __xrtValueBackingReleaseView(xvaluebacking* pBacking, xvalue* pView,
+	xrtownershipscope* pMutation)
 {
 	int32 iReferences;
+	bool bPhased = true;
 
 	if ( pBacking == NULL ) {
 		return;
@@ -307,6 +444,58 @@ static void __xrtValueBackingRelease(xvaluebacking* pBacking)
 	if ( iReferences != 0 ) {
 		return;
 	}
+	/* Clear under exclusive freeze always has a real backing Hold. Only an
+	 * ordinary terminal release may reach zero and phase its OWN scope. */
+	if (pMutation == NULL) abort();
+	if ( pBacking->Type == XVALUE_OBJECT ) {
+		xvalueobjectbacking* pObject = (xvalueobjectbacking*)pBacking;
+		const xvalueobjectownershipv1* pPolicy = pObject->OwnershipPolicy;
+		bPhased = (pObject->Lifetime == NULL && pObject->Finalizer == NULL &&
+			pObject->FinalizerRelease == NULL && pObject->FinalizerTrace == NULL &&
+			pObject->FinalizerUserData == NULL) ||
+			(pObject->Lifetime != NULL && __xrtValueObjectPolicyValid(pPolicy) &&
+			 pObject->Lifetime->OwnershipPolicy == pPolicy && __xrtValueObjectPolicyCallbacks(pObject, pPolicy));
+		/* Failed/abandoned construction never acquires a user finalization
+		 * duty. Its context and field owners still end in the normal tail. */
+		if (pObject->FinalizerPrepared) {
+			pObject->Finalizer = NULL;
+			pObject->FinalizerPrepared = false;
+		}
+		if ( pObject->Finalizer != NULL ) {
+			xvalueobjectfinalizer pFinalizer = pObject->Finalizer;
+			/* Only the atomic last release claims finalization. Public cursors
+			 * on such backings keep a real shell until their own End, so this
+			 * path never fabricates receiver identity or reads a dead shell. */
+			if ( pView == NULL ) { __xrtErrorSetInvalidState(); return; }
+			pObject->Finalizer = NULL;
+			/* A private release guard permits the documented field mutations.
+			 * The shell itself cannot be retained/cloned/released in Finalize.
+			 * A cursor made inside Finalize may keep the finalized backing;
+			 * its final End then releases fields and the owned context. */
+			pBacking->RefCount = 1;
+			pBacking->Flags |= XRT_VALUE_BACKING_FINALIZING;
+			pView->Flags &= (uint16)~XRT_VALUE_FLAG_BUSY;
+			pView->Flags |= XRT_VALUE_FLAG_FINALIZING;
+			if (bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
+			pFinalizer(pView, pObject->FinalizerUserData);
+			if (bPhased && !xrtOwnershipMutationBegin(pMutation)) abort();
+			pView->Flags &= (uint16)~XRT_VALUE_FLAG_FINALIZING;
+			pView->Flags |= XRT_VALUE_FLAG_BUSY;
+			if ( pObject->FinalizerRelease == NULL ) {
+				/* Legacy finalizers dispose their own borrowed context. */
+				pObject->FinalizerUserData = NULL;
+				pObject->FinalizerTrace = NULL;
+			}
+			pBacking->Flags &= (uint16)~XRT_VALUE_BACKING_FINALIZING;
+			if ( xrtRefRelease(&pBacking->RefCount) != 0 ) return;
+
+		}
+	}
+	/* Zero-count private backings cannot be admitted by Count/Trace. Their
+	 * still-owned child references are real external roots while recursive
+	 * releases run, even if a child finalizer inspects/collects another graph.
+	 * Opaque legacy finalizers/lifetimes keep their conservative boundary. */
+	if (bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
 	if ( pBacking->Type == XVALUE_ARRAY ) {
 		xvaluearraybacking* pArray = (xvaluearraybacking*)pBacking;
 
@@ -319,10 +508,305 @@ static void __xrtValueBackingRelease(xvaluebacking* pBacking)
 	} else if ( pBacking->Type == XVALUE_SET ) {
 		xrtSetUnit(&((xvaluesetbacking*)pBacking)->Items);
 	} else if ( pBacking->Type == XVALUE_OBJECT ) {
-		xrtMapUnit(&((xvalueobjectbacking*)pBacking)->Items);
+		xvalueobjectbacking* pObject = (xvalueobjectbacking*)pBacking;
+		xvalueobjectfinalizerrelease pRelease = pObject->FinalizerRelease;
+		ptr pContext = pObject->FinalizerUserData;
+		xrtMapUnit(&pObject->Items);
+		pObject->FinalizerRelease = NULL;
+		pObject->FinalizerUserData = NULL;
+		pObject->FinalizerTrace = NULL;
+		if ( pRelease != NULL ) pRelease(pContext);
+		/* Code/type capabilities outlive every field and finalizer-context
+		 * callback, including the tails of callbacks that release children. */
+		__xrtValueLifetimeRelease(pObject->Lifetime);
 	}
 	xrtFree(pBacking);
+	if (bPhased && !xrtOwnershipMutationBegin(pMutation)) abort();
 }
+
+static void __xrtValueBackingRelease(xvaluebacking* pBacking)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	__xrtValueBackingReleaseView(pBacking, NULL, &Mutation);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+}
+
+static bool __xrtValueBackingAdapterHold(const void* pData)
+{
+	xvaluebacking* pBacking = (xvaluebacking*)pData;
+	if (pBacking->OwnershipHolds == SIZE_MAX || !__xrtValueBackingRetain(pBacking)) return false;
+	++pBacking->OwnershipHolds; return true;
+}
+static void __xrtValueBackingAdapterDrop(const void* pData)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (((xvaluebacking*)pData)->OwnershipHolds == 0) abort();
+	--((xvaluebacking*)pData)->OwnershipHolds;
+	__xrtValueBackingReleaseView((xvaluebacking*)pData, NULL, &Mutation);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+}
+static bool __xrtValueBackingAdapterClaim(const void* pData, const void* pToken)
+{
+	xvaluebacking* pBacking = (xvaluebacking*)pData;
+	if (pToken == NULL || (pBacking->Flags & XRT_VALUE_BACKING_OWNERSHIP_CLEARED) != 0 ||
+		(pBacking->OwnershipClaim != NULL && pBacking->OwnershipClaim != pToken)) return false;
+	pBacking->OwnershipClaim = pToken; return true;
+}
+static void __xrtValueBackingAdapterRestore(const void* pData, const void* pToken)
+{
+	xvaluebacking* pBacking = (xvaluebacking*)pData;
+	if (pToken == NULL || pBacking->OwnershipClaim != pToken || (pBacking->Flags & XRT_VALUE_BACKING_OWNERSHIP_CLEARED) != 0) abort();
+	pBacking->OwnershipClaim = NULL;
+}
+static void __xrtValueBackingAdapterClear(const void* pData, const void* pToken)
+{
+	xvaluebacking* pBacking = (xvaluebacking*)pData;
+	if (pToken == NULL || pBacking->OwnershipClaim != pToken || (pBacking->Flags & XRT_VALUE_BACKING_OWNERSHIP_CLEARED) != 0) abort();
+	/* No EnsureUnique: the transaction reasons about this physical backing,
+	 * not a COW shell. Every element has an independent real plan hold. */
+	if (pBacking->Type == XVALUE_ARRAY) {
+		xvaluearraybacking* pArray = (xvaluearraybacking*)pBacking;
+		for (size_t i = 0; i < pArray->Items.Count; ++i)
+			xrtValueRelease((xvalue*)xrtPtrArrayGet(&pArray->Items, i));
+		xrtPtrArrayClear(&pArray->Items);
+	} else if (pBacking->Type == XVALUE_INT_MAP) {
+		xrtIntMapClear(&((xvalueintmapbacking*)pBacking)->Items);
+	} else if (pBacking->Type == XVALUE_SET) {
+		xrtSetClear(&((xvaluesetbacking*)pBacking)->Items);
+	} else if (pBacking->Type == XVALUE_OBJECT) {
+		xrtMapClear(&((xvalueobjectbacking*)pBacking)->Items);
+	} else abort();
+	pBacking->Flags |= XRT_VALUE_BACKING_OWNERSHIP_CLEARED;
+}
+static const xrtownershipadapterv1 __xrtValueBackingAdapterV1 = {
+	sizeof(xrtownershipadapterv1), __xrtValueBackingAdapterHold, __xrtValueBackingAdapterDrop,
+	__xrtValueBackingAdapterClaim, __xrtValueBackingAdapterRestore, NULL, __xrtValueBackingAdapterClear, NULL
+};
+const xrtownershipadapterv1* __xrtValueBackingOwnershipAdapterV1(xrtownershipref Reference)
+{
+	const xvaluebacking* pBacking;
+	if (Reference.Ops != &__xrtValueBackingOwnershipOps) return NULL;
+	pBacking = (const xvaluebacking*)Reference.Data;
+	if (__xrtAtomicRefLoad(&pBacking->RefCount) <= 0 ||
+		(pBacking->Flags & (XRT_VALUE_BACKING_FINALIZING | XRT_VALUE_BACKING_OWNERSHIP_CLEARED)) != 0) return NULL;
+	if (pBacking->Type == XVALUE_OBJECT) {
+		const xvalueobjectbacking* pObject = (const xvalueobjectbacking*)pBacking;
+		if (pObject->Lifetime != NULL || pObject->Finalizer != NULL || pObject->FinalizerUserData != NULL ||
+			pObject->FinalizerTrace != NULL || pObject->FinalizerRelease != NULL || pObject->FinalizerBound ||
+			pObject->FinalizerPrepared) return NULL;
+	}
+	return &__xrtValueBackingAdapterV1;
+}
+
+bool __xrtValueObjectClaimReceiver(xvalue* pValue, const void* pToken)
+{
+	xvalueobjectbacking* pObject;
+	if (pValue->Type != XVALUE_OBJECT || pValue->Data.Backing == NULL) return true;
+	pObject = (xvalueobjectbacking*)pValue->Data.Backing;
+	if (pObject->OwnershipPolicy == NULL) return true;
+	if (pObject->ReceiverClaim != NULL && pObject->ReceiverClaim != pToken) return false;
+	if (pObject->OwnershipReceiver == NULL) {
+		pObject->OwnershipReceiver = pValue; pObject->ReceiverClaim = pToken;
+	}
+	return true;
+}
+void __xrtValueObjectRestoreReceiver(xvalue* pValue, const void* pToken)
+{
+	xvalueobjectbacking* pObject;
+	if (pValue->Type != XVALUE_OBJECT || pValue->Data.Backing == NULL) return;
+	pObject = (xvalueobjectbacking*)pValue->Data.Backing;
+	if (pObject->OwnershipReceiver == pValue && pObject->ReceiverClaim == pToken) {
+		pObject->OwnershipReceiver = NULL; pObject->ReceiverClaim = NULL;
+	}
+}
+static bool __xrtValueObjectAdapterFinalize(const void* pData, const void* pToken)
+{
+	xvalueobjectbacking* pObject = (xvalueobjectbacking*)pData;
+	xvalue* pReceiver; xvalueobjectfinalizer pFinalize; ptr pContext;
+	xerror* pPrior; xerror* pFailure; bool bOk;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pObject->Base.OwnershipClaim != pToken || pObject->FinalizerPrepared ||
+		(pObject->Base.Flags & (XRT_VALUE_BACKING_FINALIZING | XRT_VALUE_BACKING_OWNERSHIP_CLEARED)) != 0) abort();
+	pFinalize = pObject->Finalizer;
+	if (pFinalize == NULL) { if (!xrtOwnershipScopeEnd(&Mutation)) abort(); return true; }
+	pReceiver = pObject->OwnershipReceiver;
+	/* Never fabricate a stack receiver or resurrect a zero-count shell. If an
+	 * earlier refresh restored our borrowed receiver, abort and build afresh. */
+	if (pReceiver == NULL || pObject->ReceiverClaim != pToken ||
+		pReceiver->OwnershipClaim != pToken || pReceiver->Data.Backing != &pObject->Base ||
+		__xrtAtomicRefLoad(&pReceiver->RefCount) <= 0 ||
+		(pReceiver->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pContext = pObject->FinalizerUserData;
+	pObject->Finalizer = NULL; /* The physical duty survives abort as disarmed. */
+	pObject->Base.Flags |= XRT_VALUE_BACKING_FINALIZING;
+	pReceiver->Flags |= XRT_VALUE_FLAG_FINALIZING;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	pPrior = xrtTakeError();
+	bOk = pObject->OwnershipPolicy->FinalizeChecked(pReceiver, pContext);
+	pFailure = xrtTakeError();
+	bOk = bOk && pFailure == NULL;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	pReceiver->Flags &= (uint16)~XRT_VALUE_FLAG_FINALIZING;
+	pObject->Base.Flags &= (uint16)~XRT_VALUE_BACKING_FINALIZING;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (pPrior != NULL) { xrtSetErrorTake(pPrior); xrtErrorFree(pFailure); }
+	else xrtSetErrorTake(pFailure);
+	return bOk;
+}
+static bool __xrtValueObjectAdapterFinish(const void* pData, const void* pToken)
+{
+	xvalueobjectbacking* pObject = (xvalueobjectbacking*)pData;
+	xrtownershipscope Mutation = {0};
+	xvalueobjectlifetime* pLifetime; xvalueobjectfinalizerrelease pRelease; ptr pContext;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pObject->Base.OwnershipClaim != pToken || (pObject->Base.Flags & XRT_VALUE_BACKING_OWNERSHIP_CLEARED) == 0 || pObject->Finalizer != NULL) abort();
+	pRelease = pObject->FinalizerRelease; pContext = pObject->FinalizerUserData;
+	pLifetime = pObject->Lifetime;
+	pObject->FinalizerRelease = NULL; pObject->FinalizerUserData = NULL; pObject->FinalizerTrace = NULL;
+	pObject->OwnershipReceiver = NULL; pObject->ReceiverClaim = NULL; pObject->Lifetime = NULL;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* The lifetime keeps code until the context's complete return tail. */
+	if (pRelease != NULL) pRelease(pContext);
+	__xrtValueLifetimeRelease(pLifetime);
+	return true;
+}
+static bool __xrtValueLifetimeAdapterHold(const void* pData)
+{ return xrtRefRetain(&((xvalueobjectlifetime*)pData)->RefCount) > 0; }
+static void __xrtValueLifetimeAdapterDrop(const void* pData)
+{
+	xvalueobjectlifetime* pLifetime = (xvalueobjectlifetime*)pData;
+	xrtownershipscope Mutation = {0}; int32 iReferences;
+	ptr pContext = NULL; xvalueobjectfinalizerrelease pRelease = NULL;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	iReferences = xrtRefRelease(&pLifetime->RefCount); if (iReferences < 0) abort();
+	if (iReferences == 0) { pContext = pLifetime->UserData; pRelease = pLifetime->Release; }
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (iReferences == 0) { xrtFree(pLifetime); pRelease(pContext); }
+}
+static bool __xrtValueLifetimeAdapterClaim(const void* pData, const void* pToken)
+{
+	xvalueobjectlifetime* pLifetime = (xvalueobjectlifetime*)pData;
+	if (pToken == NULL || pLifetime->OwnershipCleared ||
+		(pLifetime->OwnershipClaim != NULL && pLifetime->OwnershipClaim != pToken)) return false;
+	pLifetime->OwnershipClaim = pToken; return true;
+}
+static void __xrtValueLifetimeAdapterRestore(const void* pData, const void* pToken)
+{
+	xvalueobjectlifetime* pLifetime = (xvalueobjectlifetime*)pData;
+	if (pLifetime->OwnershipClaim != pToken || pLifetime->OwnershipCleared) abort();
+	pLifetime->OwnershipClaim = NULL;
+}
+static void __xrtValueLifetimeAdapterClear(const void* pData, const void* pToken)
+{
+	xvalueobjectlifetime* pLifetime = (xvalueobjectlifetime*)pData;
+	if (pLifetime->OwnershipClaim != pToken || pLifetime->OwnershipCleared) abort();
+	/* Keep the actual code edge until every backing/context tail has returned. */
+	pLifetime->OwnershipCleared = true;
+}
+static bool __xrtValueObjectPolicyValid(const xvalueobjectownershipv1* pPolicy)
+{
+	return pPolicy != NULL && pPolicy->size == sizeof(*pPolicy) && pPolicy->Finalize != NULL &&
+		pPolicy->FinalizeChecked != NULL &&
+		pPolicy->FinalizerTrace != NULL && pPolicy->FinalizerRelease != NULL &&
+		pPolicy->LifetimeTrace != NULL && pPolicy->LifetimeRelease != NULL;
+}
+static bool __xrtValueObjectPolicyCallbacks(const xvalueobjectbacking* pObject, const xvalueobjectownershipv1* pPolicy)
+{
+	return pObject->Lifetime != NULL && pObject->Lifetime->Trace == pPolicy->LifetimeTrace &&
+		pObject->Lifetime->Release == pPolicy->LifetimeRelease &&
+		(pObject->FinalizerBound
+		 ? (pObject->Finalizer == NULL || pObject->Finalizer == pPolicy->Finalize) &&
+		   pObject->FinalizerTrace == pPolicy->FinalizerTrace && pObject->FinalizerRelease == pPolicy->FinalizerRelease
+		 : pObject->Finalizer == NULL && pObject->FinalizerUserData == NULL &&
+		   pObject->FinalizerTrace == NULL && pObject->FinalizerRelease == NULL);
+}
+const xrtownershipadapterv1* __xrtValueObjectOwnershipAdapterV1(xrtownershipref Reference, const xvalueobjectownershipv1* pPolicy)
+{
+	static const xrtownershipadapterv1 Object = {sizeof(Object),
+		__xrtValueBackingAdapterHold, __xrtValueBackingAdapterDrop, __xrtValueBackingAdapterClaim,
+		__xrtValueBackingAdapterRestore, __xrtValueObjectAdapterFinalize, __xrtValueBackingAdapterClear, __xrtValueObjectAdapterFinish};
+	static const xrtownershipadapterv1 Lifetime = {sizeof(Lifetime),
+		__xrtValueLifetimeAdapterHold, __xrtValueLifetimeAdapterDrop, __xrtValueLifetimeAdapterClaim,
+		__xrtValueLifetimeAdapterRestore, NULL, __xrtValueLifetimeAdapterClear, NULL};
+	if (Reference.Data == NULL || !__xrtValueObjectPolicyValid(pPolicy)) return NULL;
+	if (Reference.Ops == &__xrtValueLifetimeOwnershipOps) {
+		const xvalueobjectlifetime* pLifetime = (const xvalueobjectlifetime*)Reference.Data;
+		return pLifetime->OwnershipPolicy == pPolicy && !pLifetime->OwnershipCleared &&
+			pLifetime->Trace == pPolicy->LifetimeTrace && pLifetime->Release == pPolicy->LifetimeRelease &&
+			__xrtAtomicRefLoad(&pLifetime->RefCount) > 0 ? &Lifetime : NULL;
+	}
+	if (Reference.Ops == &__xrtValueBackingOwnershipOps) {
+		const xvalueobjectbacking* pObject = (const xvalueobjectbacking*)Reference.Data;
+		if (pObject->Base.Type != XVALUE_OBJECT || __xrtAtomicRefLoad(&pObject->Base.RefCount) <= 0 ||
+			(pObject->Base.Flags & (XRT_VALUE_BACKING_FINALIZING | XRT_VALUE_BACKING_OWNERSHIP_CLEARED)) != 0 ||
+			pObject->OwnershipPolicy != pPolicy || pObject->FinalizerPrepared ||
+			!__xrtValueObjectPolicyCallbacks(pObject, pPolicy) || pObject->Lifetime->OwnershipPolicy != pPolicy) return NULL;
+		return &Object;
+	}
+	return NULL;
+}
+bool __xrtValueObjectOwnershipPolicyMatches(const xvalue* pValue, const xvalueobjectownershipv1* pPolicy)
+{
+	const xvalueobjectbacking* pObject;
+	if (pValue->Type != XVALUE_OBJECT ||
+		__xrtValueObjectOwnershipAdapterV1(__xrtValueBackingOwnership(pValue), pPolicy) == NULL) return false;
+	pObject = (const xvalueobjectbacking*)pValue->Data.Backing;
+	return pValue->IdentityUserData == NULL && pValue->IdentityHash == pObject->OwnedIdentityHash &&
+		pValue->IdentityEqual == pObject->OwnedIdentityEqual;
+}
+static bool __xrtOwnershipBody_ValueObjectOwnershipBindV1(xvalue* pValue, const xvalueobjectownershipv1* pPolicy)
+{
+	xvalueobjectbacking* pObject;
+	if (pValue == NULL || !__xrtValueObjectPolicyValid(pPolicy) || pValue->Type != XVALUE_OBJECT ||
+		__xrtAtomicRefLoad(&pValue->RefCount) != 1 || pValue->OwnershipClaim != NULL ||
+		(pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pObject = (xvalueobjectbacking*)pValue->Data.Backing;
+	if (pObject == NULL || __xrtAtomicRefLoad(&pObject->Base.RefCount) != 1 ||
+		pObject->Base.OwnershipClaim != NULL || pObject->OwnershipPolicy != NULL ||
+		!pObject->FinalizerPrepared || !__xrtValueObjectPolicyCallbacks(pObject, pPolicy) ||
+		__xrtAtomicRefLoad(&pObject->Lifetime->RefCount) != 1 || pObject->Lifetime->OwnershipPolicy != NULL) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pObject->OwnershipPolicy = pPolicy; pObject->Lifetime->OwnershipPolicy = pPolicy;
+	return true;
+}
+XRT_API bool xrtValueObjectOwnershipBindV1(xvalue* pObject, const xvalueobjectownershipv1* pPolicy)
+{ XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectOwnershipBindV1(pObject, pPolicy)); }
+
+static bool __xrtOwnershipBody_ValueObjectIdentityBindV1(xvalue* pValue,
+	xvalueidentityhash pHash, xvalueidentityequal pEqual, const xvalueobjectownershipv1* pPolicy)
+{
+	xvalueobjectbacking* pObject;
+	if (pValue == NULL || pValue->Type != XVALUE_OBJECT || !__xrtValueObjectPolicyValid(pPolicy) ||
+		pHash == NULL || pEqual == NULL ||
+		(pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pObject = (xvalueobjectbacking*)pValue->Data.Backing;
+	if (pObject == NULL || pObject->OwnershipPolicy != pPolicy ||
+		!__xrtValueObjectPolicyCallbacks(pObject, pPolicy) ||
+		(pObject->OwnedIdentityHash != NULL && (pObject->OwnedIdentityHash != pHash || pObject->OwnedIdentityEqual != pEqual))) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	if (pObject->OwnedIdentityHash == pHash && pObject->OwnedIdentityEqual == pEqual &&
+		pValue->IdentityHash == pHash && pValue->IdentityEqual == pEqual && pValue->IdentityUserData == NULL) return true;
+	if (pValue->OwnershipClaim != NULL || pObject->Base.OwnershipClaim != NULL ||
+		(pValue->Flags & XRT_VALUE_FLAG_FINALIZING) != 0) { __xrtErrorSetInvalidState(); return false; }
+	if (!xrtValueIdentityBind(pValue, pHash, pEqual, NULL)) return false;
+	pObject->OwnedIdentityHash = pHash; pObject->OwnedIdentityEqual = pEqual;
+	return true;
+}
+XRT_API bool xrtValueObjectIdentityBindV1(xvalue* pValue, xvalueidentityhash pHash,
+	xvalueidentityequal pEqual, const xvalueobjectownershipv1* pPolicy)
+{ XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectIdentityBindV1(pValue, pHash, pEqual, pPolicy)); }
 
 
 
@@ -471,7 +955,8 @@ static bool __xrtValueObjectBackingCopy(
 	xbytesview Key = {0};
 	ptr pSlot;
 
-	if ( !__xrtMapSetDropReverse(
+	if ( !__xrtValueObjectBackingLifetimeCopy(pTarget, pSource) ||
+		 !__xrtMapSetDropReverse(
 			&pTarget->Items,
 			__xrtMapDropsReverse(&pSource->Items)
 		 ) ||
@@ -556,13 +1041,13 @@ static bool __xrtValueEnsureUnique(xvalue* pValue)
 	if ( pOld == NULL ) {
 		return false;
 	}
-	if ( __xrtAtomicRefLoad(&pOld->RefCount) == 1 ) {
+	if ( (size_t)__xrtAtomicRefLoad(&pOld->RefCount) == pOld->OwnershipHolds + 1u ) {
 		return true;
 	}
 	/* A finalizer denotes one reference-identity object.  Sharing its backing is
 	 * allowed, but splitting it would duplicate a single destruction duty. */
 	if ( pOld->Type == XVALUE_OBJECT &&
-		 ((xvalueobjectbacking*)pOld)->Finalizer != NULL ) {
+		 ((xvalueobjectbacking*)pOld)->FinalizerBound ) {
 		__xrtErrorSetInvalidState();
 		return false;
 	}
@@ -971,40 +1456,10 @@ static xvalue* __xrtValueEditSlot(xvalue** pSlot)
 
 
 /* 释放一个值外壳持有的容器 backing。 */
-void __xrtValueContainerRelease(xvalue* pValue)
+void __xrtValueContainerRelease(xvalue* pValue, xrtownershipscope* pMutation)
 {
-	__xrtValueBackingRelease(pValue->Data.Backing);
+	__xrtValueBackingReleaseView(pValue->Data.Backing, pValue, pMutation);
 	pValue->Data.Backing = NULL;
-}
-
-
-
-/* Execute a backing-owned Object finalizer while the last shell remains a
- * readable borrowed view and before reverse-order field release begins. */
-void __xrtValueObjectFinalize(xvalue* pValue)
-{
-	xvalueobjectbacking* pBacking;
-	xvalueobjectfinalizer pFinalizer;
-	ptr pUserData;
-
-	if ( (pValue == NULL) || (pValue->Type != XVALUE_OBJECT) ||
-		 ((pValue->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) ) {
-		return;
-	}
-	pBacking = (xvalueobjectbacking*)pValue->Data.Backing;
-	if ( (pBacking == NULL) || (pBacking->Base.Type != XVALUE_OBJECT) ||
-		 (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1) ||
-		 (pBacking->Finalizer == NULL) ) {
-		return;
-	}
-	pFinalizer = pBacking->Finalizer;
-	pUserData = pBacking->FinalizerUserData;
-	/* Clear first so callback re-entry cannot schedule the same duty twice. */
-	pBacking->Finalizer = NULL;
-	pBacking->FinalizerUserData = NULL;
-	pValue->Flags |= XRT_VALUE_FLAG_FINALIZING;
-	pFinalizer(pValue, pUserData);
-	pValue->Flags &= (uint16)~XRT_VALUE_FLAG_FINALIZING;
 }
 
 
@@ -1131,6 +1586,11 @@ bool __xrtValueContainerCommit(xvalue* pTarget, xvalue* pPrepared)
 	if ( Result == XVALUE_CONTAINS_ERROR ) {
 		return false;
 	}
+	/* Field mutation is allowed during finalization, replacing the actual
+	 * borrowed receiver's entire backing is not. */
+	if (((pTarget->Flags | pPrepared->Flags) & XRT_VALUE_FLAG_FINALIZING) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
 	if ( pTarget->Type == XVALUE_OBJECT ) {
 		bool bTargetReverse = __xrtMapDropsReverse(
 			&((xvalueobjectbacking*)pTargetBacking)->Items
@@ -1186,39 +1646,59 @@ xvalue* __xrtValueSetAdopt(xset* pItems)
 
 
 /* 创建空的稠密动态值数组。 */
-XRT_API xvalue* xrtValueArray(void)
+static xvalue* __xrtOwnershipBody_ValueArray(void)
 {
 	return __xrtValueContainerCreate(XVALUE_ARRAY);
+}
+
+XRT_API xvalue* xrtValueArray(void)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueArray());
 }
 
 
 
 /* 创建空的 int64 键稀疏映射。 */
-XRT_API xvalue* xrtValueIntMap(void)
+static xvalue* __xrtOwnershipBody_ValueIntMap(void)
 {
 	return __xrtValueContainerCreate(XVALUE_INT_MAP);
+}
+
+XRT_API xvalue* xrtValueIntMap(void)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueIntMap());
 }
 
 
 
 /* 创建空的可哈希动态值集合。 */
-XRT_API xvalue* xrtValueSet(void)
+static xvalue* __xrtOwnershipBody_ValueSet(void)
 {
 	return __xrtValueContainerCreate(XVALUE_SET);
+}
+
+XRT_API xvalue* xrtValueSet(void)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueSet());
 }
 
 
 
 /* 创建保持首次插入顺序的字符串键对象。 */
-XRT_API xvalue* xrtValueObject(void)
+static xvalue* __xrtOwnershipBody_ValueObject(void)
 {
 	return __xrtValueContainerCreate(XVALUE_OBJECT);
+}
+
+XRT_API xvalue* xrtValueObject(void)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueObject());
 }
 
 
 
 /* 创建遍历顺序稳定、拥有值按栈顺序析构的对象。 */
-XRT_API xvalue* xrtValueObjectLifo(void)
+static xvalue* __xrtOwnershipBody_ValueObjectLifo(void)
 {
 	xvalue* pValue = __xrtValueContainerCreate(XVALUE_OBJECT);
 	xvaluebacking* pBacking;
@@ -1238,10 +1718,15 @@ XRT_API xvalue* xrtValueObjectLifo(void)
 	return pValue;
 }
 
+XRT_API xvalue* xrtValueObjectLifo(void)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueObjectLifo());
+}
+
 
 
 /* Bind one finalization duty to a unique Object backing. */
-XRT_API bool xrtValueObjectFinalizerBind(
+static bool __xrtOwnershipBody_ValueObjectFinalizerBind(
 	xvalue* pObject,
 	xvalueobjectfinalizer pFinalizer,
 	ptr pUserData
@@ -1266,16 +1751,219 @@ XRT_API bool xrtValueObjectFinalizerBind(
 		return false;
 	}
 	if ( (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1) ||
-		 (pBacking->Finalizer != NULL) ) {
+		 (pBacking->FinalizerBound || pBacking->FinalizerPrepared) ) {
 		__xrtErrorSetInvalidState();
 		return false;
 	}
 	pBacking->Finalizer = pFinalizer;
 	pBacking->FinalizerUserData = pUserData;
+	pBacking->FinalizerBound = true;
 	return true;
 }
 
+XRT_API bool xrtValueObjectFinalizerBind(
+	xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer,
+	ptr pUserData
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectFinalizerBind(pObject, pFinalizer, pUserData));
+}
 
+
+
+static xvalue* __xrtOwnershipBody_ValueObjectFinalizerBindTake(
+	xvalue* pObject, xvalueobjectfinalizer pFinalizer, ptr pUserData)
+{
+	xerror* pPrior = xrtTakeError();
+	xerror* pFailure;
+	if (xrtValueObjectFinalizerBind(pObject, pFinalizer, pUserData)) {
+		if (pPrior != NULL) { xrtClearError(); xrtSetErrorTake(pPrior); }
+		return pObject;
+	}
+	pFailure = xrtTakeError();
+	xrtValueRelease(pObject);
+	xrtClearError();
+	if (pPrior != NULL) { xrtErrorFree(pFailure); pFailure = pPrior; }
+	xrtSetErrorTake(pFailure);
+	return NULL;
+}
+
+XRT_API xvalue* xrtValueObjectFinalizerBindTake(
+	xvalue* pObject, xvalueobjectfinalizer pFinalizer, ptr pUserData)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueObjectFinalizerBindTake(pObject, pFinalizer, pUserData));
+}
+
+static bool __xrtOwnershipBody_ValueObjectFinalizerOwnershipBind(xvalue* pObject, xrtownershiptrace pTrace)
+{
+	xvalueobjectbacking* pBacking;
+	if (pObject == NULL || pTrace == NULL ||
+		__xrtAtomicRefLoad(&pObject->RefCount) != 1 ||
+		(pObject->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pBacking = (xvalueobjectbacking*)__xrtValueBacking(pObject, XVALUE_OBJECT);
+	if (pBacking == NULL) return false;
+	if (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1 ||
+		pBacking->Finalizer == NULL || pBacking->FinalizerTrace != NULL) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pBacking->FinalizerTrace = pTrace;
+	return true;
+}
+
+XRT_API bool xrtValueObjectFinalizerOwnershipBind(xvalue* pObject, xrtownershiptrace pTrace)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectFinalizerOwnershipBind(pObject, pTrace));
+}
+
+static bool __xrtValueObjectFinalizerBindOwned(xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease, bool bPrepared)
+{
+	xvalueobjectbacking* pBacking;
+	if (pObject == NULL || pFinalizer == NULL || pRelease == NULL ||
+		(pUserData != NULL && pTrace == NULL)) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (__xrtAtomicRefLoad(&pObject->RefCount) != 1 ||
+		(pObject->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pBacking = (xvalueobjectbacking*)__xrtValueBacking(pObject, XVALUE_OBJECT);
+	if (pBacking == NULL) return false;
+	if (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1 || pBacking->FinalizerBound || pBacking->FinalizerPrepared) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pBacking->Finalizer = pFinalizer;
+	pBacking->FinalizerUserData = pUserData;
+	pBacking->FinalizerTrace = pTrace;
+	pBacking->FinalizerRelease = pRelease;
+	pBacking->FinalizerBound = true;
+	pBacking->FinalizerPrepared = bPrepared;
+	return true;
+}
+
+static bool __xrtOwnershipBody_ValueObjectFinalizerBindOwned(xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease)
+{
+	return __xrtValueObjectFinalizerBindOwned(pObject, pFinalizer, pUserData, pTrace, pRelease, false);
+}
+
+XRT_API bool xrtValueObjectFinalizerBindOwned(xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectFinalizerBindOwned(pObject, pFinalizer, pUserData, pTrace, pRelease));
+}
+
+static bool __xrtOwnershipBody_ValueObjectFinalizerPrepareOwned(xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease)
+{
+	return __xrtValueObjectFinalizerBindOwned(pObject, pFinalizer, pUserData, pTrace, pRelease, true);
+}
+
+XRT_API bool xrtValueObjectFinalizerPrepareOwned(xvalue* pObject,
+	xvalueobjectfinalizer pFinalizer, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectFinalizerPrepareOwned(pObject, pFinalizer, pUserData, pTrace, pRelease));
+}
+
+static bool __xrtValueObjectConstructionCommit(xvalue* pObject, bool bRequireFinalizer)
+{
+	xvalueobjectbacking* pBacking;
+	if (pObject == NULL) { __xrtErrorSetInvalidArgument(); return false; }
+	if ((pObject->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pBacking = (xvalueobjectbacking*)__xrtValueBacking(pObject, XVALUE_OBJECT);
+	if (pBacking == NULL) return false;
+	if (!pBacking->FinalizerPrepared || (bRequireFinalizer && !pBacking->FinalizerBound) ||
+		(pBacking->FinalizerBound && (pBacking->Finalizer == NULL || pBacking->FinalizerRelease == NULL))) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	/* Caller retains a live shell throughout this serialized transition, so
+	 * concurrent releases of other owners cannot reach backing finalization. */
+	pBacking->FinalizerPrepared = false;
+	return true;
+}
+
+static bool __xrtOwnershipBody_ValueObjectConstructionPrepare(xvalue* pObject)
+{
+	xvalueobjectbacking* pBacking;
+	if (pObject == NULL) { __xrtErrorSetInvalidArgument(); return false; }
+	if (__xrtAtomicRefLoad(&pObject->RefCount) != 1 ||
+		(pObject->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pBacking = (xvalueobjectbacking*)__xrtValueBacking(pObject, XVALUE_OBJECT);
+	if (pBacking == NULL) return false;
+	if (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1 || pBacking->FinalizerBound || pBacking->FinalizerPrepared) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pBacking->FinalizerPrepared = true; return true;
+}
+
+XRT_API bool xrtValueObjectFinalizerCommit(xvalue* pObject)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtValueObjectConstructionCommit(pObject, true));
+}
+
+XRT_API bool xrtValueObjectConstructionCommit(xvalue* pObject)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtValueObjectConstructionCommit(pObject, false));
+}
+
+XRT_API bool xrtValueObjectConstructionPrepare(xvalue* pObject)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectConstructionPrepare(pObject));
+}
+
+static bool __xrtOwnershipBody_ValueObjectLifetimeBindOwned(xvalue* pObject, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease)
+{
+	xvalueobjectbacking* pBacking;
+	xvalueobjectlifetime* pLifetime;
+	if (pObject == NULL || pRelease == NULL || (pUserData != NULL && pTrace == NULL)) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (__xrtAtomicRefLoad(&pObject->RefCount) != 1 ||
+		(pObject->Flags & (XRT_VALUE_FLAG_BUSY | XRT_VALUE_FLAG_FINALIZING)) != 0) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pBacking = (xvalueobjectbacking*)__xrtValueBacking(pObject, XVALUE_OBJECT);
+	if (pBacking == NULL) return false;
+	if (__xrtAtomicRefLoad(&pBacking->Base.RefCount) != 1 || pBacking->Lifetime != NULL) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pLifetime = (xvalueobjectlifetime*)xrtCalloc(1, sizeof(*pLifetime));
+	if (pLifetime == NULL) return false;
+	pLifetime->RefCount = 1; pLifetime->UserData = pUserData;
+	pLifetime->Trace = pTrace; pLifetime->Release = pRelease;
+	pBacking->Lifetime = pLifetime;
+	return true;
+}
+
+XRT_API bool xrtValueObjectLifetimeBindOwned(xvalue* pObject, ptr pUserData,
+	xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectLifetimeBindOwned(pObject, pUserData, pTrace, pRelease));
+}
+
+bool __xrtValueObjectLifetimeCopy(xvalue* pTarget, const xvalue* pSource)
+{
+	xvalueobjectbacking* pTargetBacking;
+	const xvalueobjectbacking* pSourceBacking;
+	if (pSource->Type != XVALUE_OBJECT) return true;
+	pTargetBacking = (xvalueobjectbacking*)__xrtValueBacking(pTarget, XVALUE_OBJECT);
+	pSourceBacking = (const xvalueobjectbacking*)__xrtValueBacking(pSource, XVALUE_OBJECT);
+	return pTargetBacking != NULL && pSourceBacking != NULL &&
+		__xrtValueObjectBackingLifetimeCopy(pTargetBacking, pSourceBacking);
+}
 
 /* 返回任一基础容器的元素数。 */
 XRT_API size_t xrtValueCount(const xvalue* pValue)
@@ -1331,7 +2019,7 @@ XRT_API size_t xrtValueCapacity(const xvalue* pValue)
 
 
 /* 保证容器至少可容纳指定数量的元素。 */
-XRT_API bool xrtValueReserve(xvalue* pValue, size_t iCapacity)
+static bool __xrtOwnershipBody_ValueReserve(xvalue* pValue, size_t iCapacity)
 {
 	xvaluetype Type;
 	xvaluebacking* pBacking;
@@ -1387,10 +2075,15 @@ XRT_API bool xrtValueReserve(xvalue* pValue, size_t iCapacity)
 	);
 }
 
+XRT_API bool xrtValueReserve(xvalue* pValue, size_t iCapacity)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueReserve(pValue, iCapacity));
+}
+
 
 
 /* 释放容器多余容量，保留现有元素。 */
-XRT_API bool xrtValueTrim(xvalue* pValue)
+static bool __xrtOwnershipBody_ValueTrim(xvalue* pValue)
 {
 	xvaluebacking* pBacking;
 
@@ -1411,10 +2104,15 @@ XRT_API bool xrtValueTrim(xvalue* pValue)
 	return xrtMapTrim(&((xvalueobjectbacking*)pBacking)->Items);
 }
 
+XRT_API bool xrtValueTrim(xvalue* pValue)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueTrim(pValue));
+}
+
 
 
 /* 释放动态 IntMap 的空闲节点池页。 */
-XRT_API size_t xrtValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty)
+static size_t __xrtOwnershipBody_ValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty)
 {
 	xvalueintmapbacking* pBacking;
 
@@ -1433,10 +2131,15 @@ XRT_API size_t xrtValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty)
 	return xrtIntMapTrim(&pBacking->Items, iRetainEmpty);
 }
 
+XRT_API size_t xrtValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty)
+{
+	XRT_VALUE_MUTATION_RETURN(size_t, __xrtOwnershipBody_ValueIntMapTrim(pMap, iRetainEmpty));
+}
+
 
 
 /* 清空容器并释放其中持有的全部值引用。 */
-XRT_API bool xrtValueClear(xvalue* pValue)
+static bool __xrtOwnershipBody_ValueClear(xvalue* pValue)
 {
 	xvaluebacking* pBacking;
 
@@ -1476,6 +2179,11 @@ XRT_API bool xrtValueClear(xvalue* pValue)
 	}
 	pValue->Flags &= ~XRT_VALUE_FLAG_BUSY;
 	return true;
+}
+
+XRT_API bool xrtValueClear(xvalue* pValue)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueClear(pValue));
 }
 
 
@@ -1586,7 +2294,7 @@ XRT_API xvalue* xrtValueArrayAt(const xvalue* pArray, int64 iIndex)
 
 
 /* 返回已经沿 COW 路径分离的可变数组子容器。 */
-XRT_API xvalue* xrtValueArrayEdit(xvalue* pArray, size_t iIndex)
+static xvalue* __xrtOwnershipBody_ValueArrayEdit(xvalue* pArray, size_t iIndex)
 {
 	xvaluearraybacking* pBacking = (xvaluearraybacking*)__xrtValueBacking(
 		pArray,
@@ -1614,10 +2322,15 @@ XRT_API xvalue* xrtValueArrayEdit(xvalue* pArray, size_t iIndex)
 	return __xrtValueEditSlot(&pItems[iIndex]);
 }
 
+XRT_API xvalue* xrtValueArrayEdit(xvalue* pArray, size_t iIndex)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueArrayEdit(pArray, iIndex));
+}
+
 
 
 /* 增加引用后向数组末尾加入值。 */
-XRT_API bool xrtValueArrayAppend(xvalue* pArray, const xvalue* pItem)
+static bool __xrtOwnershipBody_ValueArrayAppend(xvalue* pArray, const xvalue* pItem)
 {
 	xvaluearraybacking* pBacking;
 	xvalue* pStored;
@@ -1637,10 +2350,15 @@ XRT_API bool xrtValueArrayAppend(xvalue* pArray, const xvalue* pItem)
 	return true;
 }
 
+XRT_API bool xrtValueArrayAppend(xvalue* pArray, const xvalue* pItem)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArrayAppend(pArray, pItem));
+}
+
 
 
 /* 成功时把来源引用移交给数组。 */
-XRT_API bool xrtValueArrayAppendTake(xvalue* pArray, xvalue** pItem)
+static bool __xrtOwnershipBody_ValueArrayAppendTake(xvalue* pArray, xvalue** pItem)
 {
 	xvaluearraybacking* pBacking;
 
@@ -1658,10 +2376,15 @@ XRT_API bool xrtValueArrayAppendTake(xvalue* pArray, xvalue** pItem)
 	return true;
 }
 
+XRT_API bool xrtValueArrayAppendTake(xvalue* pArray, xvalue** pItem)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArrayAppendTake(pArray, pItem));
+}
+
 
 
 /* 无论成功失败都消费临时值。 */
-XRT_API bool xrtValueArrayAppendNew(xvalue* pArray, xvalue* pItem)
+static bool __xrtOwnershipBody_ValueArrayAppendNew(xvalue* pArray, xvalue* pItem)
 {
 	bool bResult = (pItem != NULL) && xrtValueArrayAppendTake(pArray, &pItem);
 
@@ -1669,10 +2392,15 @@ XRT_API bool xrtValueArrayAppendNew(xvalue* pArray, xvalue* pItem)
 	return bResult;
 }
 
+XRT_API bool xrtValueArrayAppendNew(xvalue* pArray, xvalue* pItem)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArrayAppendNew(pArray, pItem));
+}
+
 
 
 /* 增加引用后在指定位置插入值。 */
-XRT_API bool xrtValueArrayInsert(
+static bool __xrtOwnershipBody_ValueArrayInsert(
 	xvalue* pArray,
 	size_t iIndex,
 	const xvalue* pItem
@@ -1706,10 +2434,19 @@ XRT_API bool xrtValueArrayInsert(
 	return true;
 }
 
+XRT_API bool xrtValueArrayInsert(
+	xvalue* pArray,
+	size_t iIndex,
+	const xvalue* pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArrayInsert(pArray, iIndex, pItem));
+}
+
 
 
 /* 成功时把来源引用移交到指定插入位置。 */
-XRT_API bool xrtValueArrayInsertTake(
+static bool __xrtOwnershipBody_ValueArrayInsertTake(
 	xvalue* pArray,
 	size_t iIndex,
 	xvalue** pItem
@@ -1739,10 +2476,19 @@ XRT_API bool xrtValueArrayInsertTake(
 	return true;
 }
 
+XRT_API bool xrtValueArrayInsertTake(
+	xvalue* pArray,
+	size_t iIndex,
+	xvalue** pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArrayInsertTake(pArray, iIndex, pItem));
+}
+
 
 
 /* 无论成功失败都消费临时值并在指定位置插入。 */
-XRT_API bool xrtValueArrayInsertNew(
+static bool __xrtOwnershipBody_ValueArrayInsertNew(
 	xvalue* pArray,
 	size_t iIndex,
 	xvalue* pItem
@@ -1753,6 +2499,15 @@ XRT_API bool xrtValueArrayInsertNew(
 
 	xrtValueRelease(pItem);
 	return bResult;
+}
+
+XRT_API bool xrtValueArrayInsertNew(
+	xvalue* pArray,
+	size_t iIndex,
+	xvalue* pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArrayInsertNew(pArray, iIndex, pItem));
 }
 
 
@@ -1799,7 +2554,7 @@ static bool __xrtValueArraySetOwned(
 
 
 /* 增加引用后替换指定位置的旧值。 */
-XRT_API bool xrtValueArraySet(
+static bool __xrtOwnershipBody_ValueArraySet(
 	xvalue* pArray,
 	size_t iIndex,
 	const xvalue* pItem
@@ -1829,10 +2584,19 @@ XRT_API bool xrtValueArraySet(
 	return true;
 }
 
+XRT_API bool xrtValueArraySet(
+	xvalue* pArray,
+	size_t iIndex,
+	const xvalue* pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArraySet(pArray, iIndex, pItem));
+}
+
 
 
 /* 成功时把来源引用移交到指定位置。 */
-XRT_API bool xrtValueArraySetTake(
+static bool __xrtOwnershipBody_ValueArraySetTake(
 	xvalue* pArray,
 	size_t iIndex,
 	xvalue** pItem
@@ -1858,10 +2622,19 @@ XRT_API bool xrtValueArraySetTake(
 	return true;
 }
 
+XRT_API bool xrtValueArraySetTake(
+	xvalue* pArray,
+	size_t iIndex,
+	xvalue** pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArraySetTake(pArray, iIndex, pItem));
+}
+
 
 
 /* 无论成功失败都消费临时值并替换指定位置。 */
-XRT_API bool xrtValueArraySetNew(
+static bool __xrtOwnershipBody_ValueArraySetNew(
 	xvalue* pArray,
 	size_t iIndex,
 	xvalue* pItem
@@ -1874,10 +2647,19 @@ XRT_API bool xrtValueArraySetNew(
 	return bResult;
 }
 
+XRT_API bool xrtValueArraySetNew(
+	xvalue* pArray,
+	size_t iIndex,
+	xvalue* pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArraySetNew(pArray, iIndex, pItem));
+}
+
 
 
 /* 删除数组区间并释放其中的值。 */
-XRT_API bool xrtValueArrayRemove(
+static bool __xrtOwnershipBody_ValueArrayRemove(
 	xvalue* pArray,
 	size_t iIndex,
 	size_t iCount
@@ -1915,10 +2697,19 @@ XRT_API bool xrtValueArrayRemove(
 	return true;
 }
 
+XRT_API bool xrtValueArrayRemove(
+	xvalue* pArray,
+	size_t iIndex,
+	size_t iCount
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArrayRemove(pArray, iIndex, iCount));
+}
+
 
 
 /* 从数组移交指定值。 */
-XRT_API xvalue* xrtValueArrayTake(xvalue* pArray, size_t iIndex)
+static xvalue* __xrtOwnershipBody_ValueArrayTake(xvalue* pArray, size_t iIndex)
 {
 	xvaluearraybacking* pBacking = (xvaluearraybacking*)__xrtValueBacking(
 		pArray,
@@ -1944,10 +2735,15 @@ XRT_API xvalue* xrtValueArrayTake(xvalue* pArray, size_t iIndex)
 	return pItem;
 }
 
+XRT_API xvalue* xrtValueArrayTake(xvalue* pArray, size_t iIndex)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueArrayTake(pArray, iIndex));
+}
+
 
 
 /* 从数组末尾移交一个值。 */
-XRT_API xvalue* xrtValueArrayPop(xvalue* pArray)
+static xvalue* __xrtOwnershipBody_ValueArrayPop(xvalue* pArray)
 {
 	xvaluearraybacking* pBacking = (xvaluearraybacking*)__xrtValueBacking(
 		pArray,
@@ -1972,10 +2768,15 @@ XRT_API xvalue* xrtValueArrayPop(xvalue* pArray)
 	return pItem;
 }
 
+XRT_API xvalue* xrtValueArrayPop(xvalue* pArray)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueArrayPop(pArray));
+}
+
 
 
 /* 交换两个数组元素。 */
-XRT_API bool xrtValueArraySwap(
+static bool __xrtOwnershipBody_ValueArraySwap(
 	xvalue* pArray,
 	size_t iLeft,
 	size_t iRight
@@ -2007,6 +2808,15 @@ XRT_API bool xrtValueArraySwap(
 	);
 }
 
+XRT_API bool xrtValueArraySwap(
+	xvalue* pArray,
+	size_t iLeft,
+	size_t iRight
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueArraySwap(pArray, iLeft, iRight));
+}
+
 
 
 /* 返回稀疏整数键借用的值。 */
@@ -2028,7 +2838,7 @@ XRT_API xvalue* xrtValueIntMapGet(const xvalue* pMap, int64 iKey)
 
 
 /* 返回已经沿 COW 路径分离的可变 IntMap 子容器。 */
-XRT_API xvalue* xrtValueIntMapEdit(xvalue* pMap, int64 iKey)
+static xvalue* __xrtOwnershipBody_ValueIntMapEdit(xvalue* pMap, int64 iKey)
 {
 	xvalueintmapbacking* pBacking = (xvalueintmapbacking*)__xrtValueBacking(
 		pMap,
@@ -2056,6 +2866,11 @@ XRT_API xvalue* xrtValueIntMapEdit(xvalue* pMap, int64 iKey)
 	pBacking = (xvalueintmapbacking*)pMap->Data.Backing;
 	pSlot = (xvalue**)xrtIntMapGet(&pBacking->Items, iKey);
 	return __xrtValueEditSlot(pSlot);
+}
+
+XRT_API xvalue* xrtValueIntMapEdit(xvalue* pMap, int64 iKey)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueIntMapEdit(pMap, iKey));
 }
 
 
@@ -2101,7 +2916,7 @@ static bool __xrtValueIntMapSetOwned(
 
 
 /* 增加引用后设置整数键值。 */
-XRT_API bool xrtValueIntMapSet(
+static bool __xrtOwnershipBody_ValueIntMapSet(
 	xvalue* pMap,
 	int64 iKey,
 	const xvalue* pItem
@@ -2119,10 +2934,19 @@ XRT_API bool xrtValueIntMapSet(
 	return true;
 }
 
+XRT_API bool xrtValueIntMapSet(
+	xvalue* pMap,
+	int64 iKey,
+	const xvalue* pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueIntMapSet(pMap, iKey, pItem));
+}
+
 
 
 /* 成功时把来源引用移交到整数键。 */
-XRT_API bool xrtValueIntMapSetTake(
+static bool __xrtOwnershipBody_ValueIntMapSetTake(
 	xvalue* pMap,
 	int64 iKey,
 	xvalue** pItem
@@ -2138,10 +2962,19 @@ XRT_API bool xrtValueIntMapSetTake(
 	return true;
 }
 
+XRT_API bool xrtValueIntMapSetTake(
+	xvalue* pMap,
+	int64 iKey,
+	xvalue** pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueIntMapSetTake(pMap, iKey, pItem));
+}
+
 
 
 /* 无论成功失败都消费临时值并设置整数键。 */
-XRT_API bool xrtValueIntMapSetNew(
+static bool __xrtOwnershipBody_ValueIntMapSetNew(
 	xvalue* pMap,
 	int64 iKey,
 	xvalue* pItem
@@ -2152,6 +2985,15 @@ XRT_API bool xrtValueIntMapSetNew(
 
 	xrtValueRelease(pItem);
 	return bResult;
+}
+
+XRT_API bool xrtValueIntMapSetNew(
+	xvalue* pMap,
+	int64 iKey,
+	xvalue* pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueIntMapSetNew(pMap, iKey, pItem));
 }
 
 
@@ -2170,7 +3012,7 @@ XRT_API bool xrtValueIntMapHas(const xvalue* pMap, int64 iKey)
 
 
 /* 删除整数键并释放对应值。 */
-XRT_API bool xrtValueIntMapRemove(xvalue* pMap, int64 iKey)
+static bool __xrtOwnershipBody_ValueIntMapRemove(xvalue* pMap, int64 iKey)
 {
 	xvalueintmapbacking* pBacking = (xvalueintmapbacking*)__xrtValueBacking(
 		pMap,
@@ -2198,10 +3040,15 @@ XRT_API bool xrtValueIntMapRemove(xvalue* pMap, int64 iKey)
 	return true;
 }
 
+XRT_API bool xrtValueIntMapRemove(xvalue* pMap, int64 iKey)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueIntMapRemove(pMap, iKey));
+}
+
 
 
 /* 移交整数键对应值。 */
-XRT_API xvalue* xrtValueIntMapTake(xvalue* pMap, int64 iKey)
+static xvalue* __xrtOwnershipBody_ValueIntMapTake(xvalue* pMap, int64 iKey)
 {
 	xvalueintmapbacking* pBacking = (xvalueintmapbacking*)__xrtValueBacking(
 		pMap,
@@ -2226,6 +3073,11 @@ XRT_API xvalue* xrtValueIntMapTake(xvalue* pMap, int64 iKey)
 		return NULL;
 	}
 	return pItem;
+}
+
+XRT_API xvalue* xrtValueIntMapTake(xvalue* pMap, int64 iKey)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueIntMapTake(pMap, iKey));
 }
 
 
@@ -2293,7 +3145,7 @@ XRT_API xvalue* xrtValueObjectAt(
 
 
 /* 返回已经沿 COW 路径分离的可变 Object 子容器。 */
-XRT_API xvalue* xrtValueObjectEdit(xvalue* pObject, xstrview Key)
+static xvalue* __xrtOwnershipBody_ValueObjectEdit(xvalue* pObject, xstrview Key)
 {
 	xvalueobjectbacking* pBacking = (xvalueobjectbacking*)__xrtValueBacking(
 		pObject,
@@ -2324,6 +3176,11 @@ XRT_API xvalue* xrtValueObjectEdit(xvalue* pObject, xstrview Key)
 		__xrtValueObjectKey(Key)
 	);
 	return __xrtValueEditSlot(pSlot);
+}
+
+XRT_API xvalue* xrtValueObjectEdit(xvalue* pObject, xstrview Key)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueObjectEdit(pObject, Key));
 }
 
 
@@ -2373,7 +3230,7 @@ static bool __xrtValueObjectSetOwned(
 
 
 /* 增加引用后设置对象键值。 */
-XRT_API bool xrtValueObjectSet(
+static bool __xrtOwnershipBody_ValueObjectSet(
 	xvalue* pObject,
 	xstrview Key,
 	const xvalue* pItem
@@ -2391,10 +3248,19 @@ XRT_API bool xrtValueObjectSet(
 	return true;
 }
 
+XRT_API bool xrtValueObjectSet(
+	xvalue* pObject,
+	xstrview Key,
+	const xvalue* pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectSet(pObject, Key, pItem));
+}
+
 
 
 /* 成功时把来源引用移交到对象键。 */
-XRT_API bool xrtValueObjectSetTake(
+static bool __xrtOwnershipBody_ValueObjectSetTake(
 	xvalue* pObject,
 	xstrview Key,
 	xvalue** pItem
@@ -2410,10 +3276,19 @@ XRT_API bool xrtValueObjectSetTake(
 	return true;
 }
 
+XRT_API bool xrtValueObjectSetTake(
+	xvalue* pObject,
+	xstrview Key,
+	xvalue** pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectSetTake(pObject, Key, pItem));
+}
+
 
 
 /* 无论成功失败都消费临时值并设置对象键。 */
-XRT_API bool xrtValueObjectSetNew(
+static bool __xrtOwnershipBody_ValueObjectSetNew(
 	xvalue* pObject,
 	xstrview Key,
 	xvalue* pItem
@@ -2424,6 +3299,15 @@ XRT_API bool xrtValueObjectSetNew(
 
 	xrtValueRelease(pItem);
 	return bResult;
+}
+
+XRT_API bool xrtValueObjectSetNew(
+	xvalue* pObject,
+	xstrview Key,
+	xvalue* pItem
+)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectSetNew(pObject, Key, pItem));
 }
 
 
@@ -2443,7 +3327,7 @@ XRT_API bool xrtValueObjectHas(const xvalue* pObject, xstrview Key)
 
 
 /* 删除对象键并释放对应值。 */
-XRT_API bool xrtValueObjectRemove(xvalue* pObject, xstrview Key)
+static bool __xrtOwnershipBody_ValueObjectRemove(xvalue* pObject, xstrview Key)
 {
 	xvalueobjectbacking* pBacking = (xvalueobjectbacking*)__xrtValueBacking(
 		pObject,
@@ -2471,10 +3355,15 @@ XRT_API bool xrtValueObjectRemove(xvalue* pObject, xstrview Key)
 	return true;
 }
 
+XRT_API bool xrtValueObjectRemove(xvalue* pObject, xstrview Key)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectRemove(pObject, Key));
+}
+
 
 
 /* 移交对象键对应值。 */
-XRT_API xvalue* xrtValueObjectTake(xvalue* pObject, xstrview Key)
+static xvalue* __xrtOwnershipBody_ValueObjectTake(xvalue* pObject, xstrview Key)
 {
 	xvalueobjectbacking* pBacking = (xvalueobjectbacking*)__xrtValueBacking(
 		pObject,
@@ -2501,10 +3390,15 @@ XRT_API xvalue* xrtValueObjectTake(xvalue* pObject, xstrview Key)
 	return pItem;
 }
 
+XRT_API xvalue* xrtValueObjectTake(xvalue* pObject, xstrview Key)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueObjectTake(pObject, Key));
+}
+
 
 
 /* 增加引用后把可哈希标量加入集合。 */
-XRT_API bool xrtValueSetAdd(xvalue* pSet, const xvalue* pItem)
+static bool __xrtOwnershipBody_ValueSetAdd(xvalue* pSet, const xvalue* pItem)
 {
 	xvaluesetbacking* pBacking = (xvaluesetbacking*)__xrtValueBacking(
 		pSet,
@@ -2532,10 +3426,15 @@ XRT_API bool xrtValueSetAdd(xvalue* pSet, const xvalue* pItem)
 	return bResult;
 }
 
+XRT_API bool xrtValueSetAdd(xvalue* pSet, const xvalue* pItem)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetAdd(pSet, pItem));
+}
+
 
 
 /* 成功时消费来源引用；重复元素同样视为成功。 */
-XRT_API bool xrtValueSetAddTake(xvalue* pSet, xvalue** pItem)
+static bool __xrtOwnershipBody_ValueSetAddTake(xvalue* pSet, xvalue** pItem)
 {
 	if ( !__xrtValueContainerTakeSlotValid(pSet, pItem) ) {
 		return false;
@@ -2548,15 +3447,25 @@ XRT_API bool xrtValueSetAddTake(xvalue* pSet, xvalue** pItem)
 	return true;
 }
 
+XRT_API bool xrtValueSetAddTake(xvalue* pSet, xvalue** pItem)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetAddTake(pSet, pItem));
+}
+
 
 
 /* 无论成功失败都消费临时值并尝试加入集合。 */
-XRT_API bool xrtValueSetAddNew(xvalue* pSet, xvalue* pItem)
+static bool __xrtOwnershipBody_ValueSetAddNew(xvalue* pSet, xvalue* pItem)
 {
 	bool bResult = (pItem != NULL) && xrtValueSetAddTake(pSet, &pItem);
 
 	xrtValueRelease(pItem);
 	return bResult;
+}
+
+XRT_API bool xrtValueSetAddNew(xvalue* pSet, xvalue* pItem)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetAddNew(pSet, pItem));
 }
 
 
@@ -2583,7 +3492,7 @@ XRT_API bool xrtValueSetHas(const xvalue* pSet, const xvalue* pItem)
 
 
 /* 删除等价值并释放集合持有的引用。 */
-XRT_API bool xrtValueSetRemove(xvalue* pSet, const xvalue* pItem)
+static bool __xrtOwnershipBody_ValueSetRemove(xvalue* pSet, const xvalue* pItem)
 {
 	xvaluesetbacking* pBacking = (xvaluesetbacking*)__xrtValueBacking(
 		pSet,
@@ -2613,10 +3522,15 @@ XRT_API bool xrtValueSetRemove(xvalue* pSet, const xvalue* pItem)
 	return bResult;
 }
 
+XRT_API bool xrtValueSetRemove(xvalue* pSet, const xvalue* pItem)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetRemove(pSet, pItem));
+}
+
 
 
 /* 移交集合中的规范值。 */
-XRT_API xvalue* xrtValueSetTake(xvalue* pSet, const xvalue* pItem)
+static xvalue* __xrtOwnershipBody_ValueSetTake(xvalue* pSet, const xvalue* pItem)
 {
 	xvaluesetbacking* pBacking = (xvaluesetbacking*)__xrtValueBacking(
 		pSet,
@@ -2651,13 +3565,19 @@ XRT_API xvalue* xrtValueSetTake(xvalue* pSet, const xvalue* pItem)
 	return pStored;
 }
 
+XRT_API xvalue* xrtValueSetTake(xvalue* pSet, const xvalue* pItem)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueSetTake(pSet, pItem));
+}
+
 
 
 /* 启动一个方向明确的 backing 快照迭代器。 */
-static bool __xrtValueIterStart(
+static bool __xrtValueIterStartInternal(
 	const xvalue* pValue,
 	xvalueiter* pIterator,
-	int iDirection
+	int iDirection,
+	bool bKeepFinalizerShell
 )
 {
 	xvaluebacking* pBacking;
@@ -2691,6 +3611,15 @@ static bool __xrtValueIterStart(
 	pIterator->Backing = pBacking;
 	pIterator->Type = (xvaluetype)pBacking->Type;
 	pIterator->Direction = iDirection;
+	if (bKeepFinalizerShell && pBacking->Type == XVALUE_OBJECT &&
+		((xvalueobjectbacking*)pBacking)->Finalizer != NULL) {
+		pIterator->FinalizerOwner = xrtValueRetain(pValue);
+		if (pIterator->FinalizerOwner == NULL) {
+			__xrtValueBackingRelease(pBacking);
+			memset(pIterator, 0, sizeof(*pIterator));
+			return false;
+		}
+	}
 	if ( pBacking->Type == XVALUE_ARRAY ) {
 		pIterator->Index = iDirection > 0
 			? 0
@@ -2728,6 +3657,7 @@ static bool __xrtValueIterStart(
 	}
 	if ( !bReady ) {
 		__xrtValueBackingRelease(pBacking);
+		xrtValueRelease(pIterator->FinalizerOwner);
 		memset(pIterator, 0, sizeof(xvalueiter));
 		return false;
 	}
@@ -2737,23 +3667,39 @@ static bool __xrtValueIterStart(
 
 
 /* 启动按容器稳定顺序的快照迭代。 */
+static bool __xrtOwnershipBody_ValueIterBegin(
+	const xvalue* pValue,
+	xvalueiter* pIterator
+)
+{
+	return __xrtValueIterStartInternal(pValue, pIterator, 1, true);
+}
+
 XRT_API bool xrtValueIterBegin(
 	const xvalue* pValue,
 	xvalueiter* pIterator
 )
 {
-	return __xrtValueIterStart(pValue, pIterator, 1);
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueIterBegin(pValue, pIterator));
 }
 
 
 
 /* 启动按容器稳定逆序的快照迭代。 */
+static bool __xrtOwnershipBody_ValueIterRBegin(
+	const xvalue* pValue,
+	xvalueiter* pIterator
+)
+{
+	return __xrtValueIterStartInternal(pValue, pIterator, -1, true);
+}
+
 XRT_API bool xrtValueIterRBegin(
 	const xvalue* pValue,
 	xvalueiter* pIterator
 )
 {
-	return __xrtValueIterStart(pValue, pIterator, -1);
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueIterRBegin(pValue, pIterator));
 }
 
 
@@ -2784,17 +3730,27 @@ static xvalueiter* __xrtValueIterCreate(
 
 
 /* 创建按稳定正序推进的拥有式快照迭代器。 */
-XRT_API xvalueiter* xrtValueIterCreate(const xvalue* pValue)
+static xvalueiter* __xrtOwnershipBody_ValueIterCreate(const xvalue* pValue)
 {
 	return __xrtValueIterCreate(pValue, 1);
+}
+
+XRT_API xvalueiter* xrtValueIterCreate(const xvalue* pValue)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalueiter*, __xrtOwnershipBody_ValueIterCreate(pValue));
 }
 
 
 
 /* 创建按稳定逆序推进的拥有式快照迭代器。 */
-XRT_API xvalueiter* xrtValueIterRCreate(const xvalue* pValue)
+static xvalueiter* __xrtOwnershipBody_ValueIterRCreate(const xvalue* pValue)
 {
 	return __xrtValueIterCreate(pValue, -1);
+}
+
+XRT_API xvalueiter* xrtValueIterRCreate(const xvalue* pValue)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalueiter*, __xrtOwnershipBody_ValueIterRCreate(pValue));
 }
 
 
@@ -2947,9 +3903,13 @@ XRT_API xvalueiterresult xrtValueIterAdvance(
 /* 结束迭代并释放 backing 快照。 */
 XRT_API void xrtValueIterEnd(xvalueiter* pIterator)
 {
+	xvaluebacking* pBacking;
+	xvalue* pOwner;
+	xrtownershipscope Mutation = {0};
 	if ( (pIterator == NULL) || (pIterator->Backing == NULL) ) {
 		return;
 	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	if ( pIterator->Type == XVALUE_INT_MAP ) {
 		xrtIntMapIterEnd(&pIterator->State.IntMap);
 	} else if ( pIterator->Type == XVALUE_SET ) {
@@ -2957,8 +3917,14 @@ XRT_API void xrtValueIterEnd(xvalueiter* pIterator)
 	} else if ( pIterator->Type == XVALUE_OBJECT ) {
 		xrtMapIterEnd(&pIterator->State.Map);
 	}
-	__xrtValueBackingRelease((xvaluebacking*)pIterator->Backing);
+	pBacking = (xvaluebacking*)pIterator->Backing;
+	pOwner = pIterator->FinalizerOwner;
+	/* Re-entry observes an ended cursor before either release can call user
+	 * code. The backing slot must go first; the shell owns the final duty. */
 	memset(pIterator, 0, sizeof(xvalueiter));
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	__xrtValueBackingRelease(pBacking);
+	xrtValueRelease(pOwner);
 }
 
 
@@ -2971,6 +3937,40 @@ XRT_API void xrtValueIterDestroy(xvalueiter* pIterator)
 	}
 	xrtValueIterEnd(pIterator);
 	xrtFree(pIterator);
+}
+
+static bool __xrtValueIterOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xvalueiter* pIterator = (const xvalueiter*)pData;
+	if (pIterator == NULL || pCount == NULL) return false;
+	if (pIterator->Backing == NULL) {
+		if (pIterator->Type != 0 || pIterator->Direction != 0 || pIterator->Index != 0 || pIterator->FinalizerOwner != NULL) return false;
+	} else if ((pIterator->Direction != 1 && pIterator->Direction != -1) ||
+		!__xrtValueContainerType(pIterator->Type) ||
+		((const xvaluebacking*)pIterator->Backing)->Type != (uint16)pIterator->Type ||
+		__xrtAtomicRefLoad(&((const xvaluebacking*)pIterator->Backing)->RefCount) <= 0) return false;
+	if (pIterator->FinalizerOwner != NULL && (pIterator->Type != XVALUE_OBJECT ||
+		pIterator->FinalizerOwner->Data.Backing != pIterator->Backing ||
+		__xrtAtomicRefLoad(&pIterator->FinalizerOwner->RefCount) <= 0)) return false;
+	/* Unique End/Destroy ownership; borrowed cursor aliases acquire no refs. */
+	*pCount = 1;
+	return true;
+}
+static bool __xrtValueIterOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xvalueiter* pIterator = (const xvalueiter*)pData;
+	size_t iCount;
+	if (pVisit == NULL || !__xrtValueIterOwnershipCount(pData, &iCount)) return false;
+	if (pIterator->Backing != NULL && !pVisit(
+		(xrtownershipref){pIterator->Backing, &__xrtValueBackingOwnershipOps}, pContext)) return false;
+	return pIterator->FinalizerOwner == NULL || pVisit(xrtValueOwnership(pIterator->FinalizerOwner), pContext);
+}
+static const xrtownershipops __xrtValueIterOwnershipOps = {
+	__xrtValueIterOwnershipCount, __xrtValueIterOwnershipTrace
+};
+XRT_API xrtownershipref xrtValueIterOwnership(const xvalueiter* pIterator)
+{
+	return (xrtownershipref){pIterator, pIterator != NULL ? &__xrtValueIterOwnershipOps : NULL};
 }
 
 #endif

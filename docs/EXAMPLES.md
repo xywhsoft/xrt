@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `410` 个可运行示例。
+当前共登记 `413` 个可运行示例。
 
 ## asn1 (5)
 
@@ -165,14 +165,16 @@
 - [crypto/x25519](../examples/crypto/x25519/main.c) - `crypto_x25519_keypair`
 - [crypto/x448](../examples/crypto/x448/main.c) - `crypto_x448_keypair`
 
-## data (6)
+## data (8)
 
 - [data/buffer_base64](../examples/data/buffer_base64/main.c) - `buffer_base64`
 - [data/buffer_hex](../examples/data/buffer_hex/main.c) - `buffer_hex`
 - [data/json](../examples/data/json/main.c) - `json`
 - [data/json_tour](../examples/data/json_tour/main.c) - `json`
+- [data/jsonl](../examples/data/jsonl/main.c) - `jsonl`
 - [data/xson](../examples/data/xson/main.c) - `xson`
 - [data/xson_tour](../examples/data/xson_tour/main.c) - `xson_core`
+- [data/xsonl](../examples/data/xsonl/main.c) - `xsonl`
 
 ## environment (1)
 
@@ -522,3 +524,7 @@
 - [x509/store_system](../examples/x509/store_system/main.c) - `x509_store_system`
 - [x509/store_tour](../examples/x509/store_tour/main.c) - `x509_store`
 - [x509/verify](../examples/x509/verify/main.c) - `x509_verify_rsa`
+
+## xllm (1)
+
+- [xllm/complete_stats](../examples/xllm/complete_stats/main.c) - `xllm_examples`

@@ -89,6 +89,8 @@
 #include <xrt/value.h>
 #include <xrt/json.h>
 #include <xrt/xson.h>
+#include <xrt/jsonl.h>
+#include <xrt/xsonl.h>
 #include <xrt/template.h>
 #include <xrt/xid.h>
 #include <xrt/logger.h>

@@ -28,6 +28,7 @@
 - [运行时架构](ARCHITECTURE.md)
 - [HTTP 运行时](design/http-runtime.md)
 - [JSON 与 XSON](design/json-xson.md)
+- [JSONL](api/jsonl.md) 与 [XSONL](api/xsonl.md)：逐行记录与 Array 转换。
 - [日志](design/logger.md)
 - [进程](design/process.md)
 - [Pattern](design/pattern.md)

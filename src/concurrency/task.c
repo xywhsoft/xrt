@@ -29,7 +29,12 @@ static void __xrtTaskComplete(
 
 	if ( Outcome == XTASK_SUCCESS ) {
 		if ( pValue->Destroy != NULL ) {
-			bCompleted = xrtPromiseResolveOwned(
+			bCompleted = pJob->ResultPolicy != NULL ? xrtPromiseResolveOwnedPolicyV1(
+				pJob->Promise, pValue->Value, pJob->ResultPolicy
+			) : pJob->ResultTrace != NULL ? xrtPromiseResolveOwnedTraced(
+				pJob->Promise, pValue->Value, pValue->Destroy,
+				pValue->DestroyData, pJob->ResultTrace
+			) : xrtPromiseResolveOwned(
 				pJob->Promise,
 				pValue->Value,
 				pValue->Destroy,
@@ -101,6 +106,14 @@ static void __xrtTaskFinish(
 		Outcome = XTASK_FAILED;
 	}
 
+	/* Validate the closed result contract before retiring task data/code, not
+	 * after publishing an incorrectly certified box to another thread. */
+	if (Outcome == XTASK_SUCCESS && pJob->ResultPolicy != NULL &&
+		(tValue.Destroy != NULL || tValue.Value != NULL || tValue.DestroyData != NULL) &&
+		(tValue.Destroy != pJob->ResultPolicy->Drop || tValue.DestroyData != NULL)) {
+		Outcome = XTASK_FAILED;
+		__xrtErrorSetInvalidState();
+	}
 	/* 失败错误在离开任务上下文前取走，Promise 会保存自己的引用。 */
 	if ( Outcome == XTASK_FAILED ) {
 		if ( xrtGetError() == NULL ) {
