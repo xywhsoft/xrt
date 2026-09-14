@@ -5,6 +5,7 @@
  * source too, so the implementation TU must cover the core surface
  * (net/TLS/HTTP/threads) plus this library's own file/path/JSON needs. */
 #define XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSONL_READ
 #define XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_DIR
 #define XRT_MODULE_PATH

@@ -85,7 +85,7 @@ UTF-16 LE bytes with BOM: 14
 
 ### Streaming decode and incremental validation
 
-Chunked data (network streams, large files) cannot wait for "all bytes assembled, then validate" — a multi-byte character may fall exactly on the boundary between two chunks. The `xutf8state` streaming decoder exists for this: `xrtUtf8StateInit` opens, `xrtUtf8StateFeed` feeds chunk by chunk (the `bFinal` flag marks the last chunk), `xrtUtf8StateError` reads the error position — an incomplete character straddling a chunk boundary is remembered by the state machine and never misjudged as illegal. This is where "strict validation" and "streaming processing" converge; Chapter 34's line reader and Volume 7's protocol streams both use this shape. Validating a large file's encoding legality the right way is exactly this: feed streaming, check the state after the last chunk, zero whole-file buffering throughout.
+Chunked data (network streams, large files) cannot wait for "all bytes assembled, then validate" — a multi-byte character may fall exactly on the boundary between two chunks. The `xutf8state` streaming decoder exists for this: `xrtUtf8StateInit` opens, `xrtUtf8StateFeed` feeds chunk by chunk (the `bFinal` flag marks the last chunk), `xrtUtf8StateError` reads the error position — an incomplete character straddling a chunk boundary is remembered by the state machine and never misjudged as illegal. This is where "strict validation" and "streaming processing" converge; Chapter 35's line reader and Volume 7's protocol streams both use this shape. Validating a large file's encoding legality the right way is exactly this: feed streaming, check the state after the last chunk, zero whole-file buffering throughout.
 
 ### Combining characters and user-perceived characters
 

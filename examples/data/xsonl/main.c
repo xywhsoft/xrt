@@ -1,4 +1,16 @@
-/* XSONL：Array 往返、空行策略、全局错误位置及原子文件读写。 */
+/*
+ * 范例：data/xsonl —— XSON Lines：全类型逐行往返、空行策略、全局错误位置及原子文件读写
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtXsonlParse / xrtXsonlStringify   Array 与 XSONL 文本互转（扩展类型原样）
+ *   xrtXsonlRead / xrtXsonlValid        按配置读取与逐行语法校验
+ *   xrtXsonlWrite / xrtXsonlWriteFile   回调分块写出与原子文件替换
+ *   xrtXsonlErrorLocation               错误的全局行号与记录下标
+ * 模块宏：XRT_MODULE_XSONL（READ+WRITE+FILE）
+ * 预期输出：
+ *   XSONL: 3 records, 20 bytes
+ *   empty line: line=2 record=1
+ */
 #include <stdio.h>
 #include <xrt.h>
 

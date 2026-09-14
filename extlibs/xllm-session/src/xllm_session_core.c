@@ -163,9 +163,16 @@ void xllmSessionConfigInit(xllm_session_config* pConfig)
     pConfig->uToolPruneBytes = 64u * 1024u;
     pConfig->uSummaryMaxTokens = 32768u;
     pConfig->uSummaryMinTokens = 64u;
-    pConfig->uCompactionRequiredSections = XLLM_COMPACTION_SECTION_ALL;
+    pConfig->uCompactionRequiredSections = 0u; /* 0 = all sections of the active style */
     pConfig->fPruneTrigger = 0.75;
     pConfig->fCompactTrigger = 0.95;
+    /* v3 defaults; Create clamps keep-recent and the summary cap to the
+     * window so small-window sessions stay structurally compactable (D6). */
+    pConfig->uKeepRecentTokens = 20000u;
+    pConfig->uSummaryMaxBytes = 32768u;
+    pConfig->uToolResultCapBytes = 2000u;
+    pConfig->uJournalMaxBytes = 64u * 1024u * 1024u;
+    pConfig->sSummaryStyle = NULL; /* "coding" (Pi) */
 }
 
 xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* pError)
@@ -198,10 +205,43 @@ xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* 
     if ( tConfig.uSummaryMaxTokens == 0u ) { tConfig.uSummaryMaxTokens = 32768u; }
     if ( tConfig.uSummaryMinTokens == 0u ) { tConfig.uSummaryMinTokens = 64u; }
     if ( tConfig.uSummaryMinTokens > tConfig.uSummaryMaxTokens ||
-         (tConfig.uCompactionRequiredSections & ~XLLM_COMPACTION_SECTION_ALL) != 0u ) {
+         (tConfig.uCompactionRequiredSections & ~(XLLM_COMPACTION_SECTION_ALL | XLLM_COMPACTION_SECTION_PI_ALL)) != 0u ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid compaction quality policy");
         return NULL;
     }
+    /* v3 derived caps: keep-recent and the summary budget shrink to the
+     * window quarter; explicit D6 violation of the static feasibility
+     * check (keep-recent + reserves + summary > window) rejects creation. */
+    if ( tConfig.uKeepRecentTokens == 0u ) {
+        tConfig.uKeepRecentTokens = (uint32_t)(tConfig.uContextWindowTokens / 4u);
+        if ( tConfig.uKeepRecentTokens > 20000u ) { tConfig.uKeepRecentTokens = 20000u; }
+    }
+    if ( tConfig.uSummaryMaxBytes == 0u ) { tConfig.uSummaryMaxBytes = 32768u; }
+    {
+        uint64_t uWindowQuarter = tConfig.uContextWindowTokens / 4u;
+        uint64_t uSummaryTokenCap = ((uint64_t)tConfig.uSummaryMaxBytes + 3u) / 4u;
+        if ( (uint64_t)tConfig.uKeepRecentTokens > uWindowQuarter ) {
+            tConfig.uKeepRecentTokens = (uint32_t)uWindowQuarter;
+        }
+        if ( uSummaryTokenCap > uWindowQuarter ) {
+            tConfig.uSummaryMaxBytes = (uint32_t)(uWindowQuarter * 4u);
+        }
+        if ( (uint64_t)tConfig.uKeepRecentTokens +
+             (uint64_t)tConfig.uOutputReserveTokens + tConfig.uSafetyReserveTokens +
+             ((uint64_t)tConfig.uSummaryMaxBytes + 3u) / 4u >= tConfig.uContextWindowTokens ) {
+            xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                "keep-recent plus reserves plus the summary budget do not fit the context window");
+            return NULL;
+        }
+    }
+    if ( tConfig.sSummaryStyle && tConfig.sSummaryStyle[0] &&
+         strcmp(tConfig.sSummaryStyle, "coding") != 0 && strcmp(tConfig.sSummaryStyle, "general") != 0 &&
+         strcmp(tConfig.sSummaryStyle, "durable") != 0 ) {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+            "summary style must be coding, general, or durable");
+        return NULL;
+    }
+    if ( tConfig.uJournalMaxBytes == 0u ) { tConfig.uJournalMaxBytes = 64u * 1024u * 1024u; }
     pSession = (xllm_session*)calloc(1u, sizeof(*pSession));
     if ( !pSession ) {
         xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to allocate session");
@@ -209,6 +249,9 @@ xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* 
     }
     pSession->tConfig = tConfig;
     pSession->uNextSequence = 1u;
+    pSession->uFillExact = 0u;
+    pSession->bFillExactValid = false;
+    pSession->bFillSeen = false;
     return pSession;
 }
 
@@ -242,6 +285,21 @@ xllm_session* xllmSessionFork(const xllm_session* pSession, xllm_error* pError)
     pFork->uCompactedThrough = pSession->uCompactedThrough;
     pFork->uCompactionCount = pSession->uCompactionCount;
     pFork->uJournalSequence = pSession->uJournalSequence;
+    /* v3 inherited state: strategy/hooks/client are borrowed pointers; the
+     * exact fill invalidates on fork (design §4.2) until the next real call. */
+    pFork->pOps = pSession->pOps;
+    pFork->pHooks = pSession->pHooks;
+    pFork->pClient = pSession->pClient;
+    pFork->pTestCall = pSession->pTestCall;
+    pFork->pTestCallData = pSession->pTestCallData;
+    pFork->uSummaryGeneration = pSession->uSummaryGeneration;
+    pFork->uSummaryPromptAtBirth = pSession->uSummaryPromptAtBirth;
+    pFork->uSummaryOutputAtBirth = pSession->uSummaryOutputAtBirth;
+    pFork->uTailFloor = pSession->uTailFloor;
+    pFork->bFillSeen = pSession->bFillSeen;
+    pFork->bFillExactValid = false;
+    pFork->uLastUserSequence = pSession->uLastUserSequence;
+    xllm_session__event(pFork, XLLM_SESSION_EVENT_SESSION_FORKED, 0u, 0u, NULL);
     return pFork;
 oom:
     xllmSessionDestroy(pFork);
@@ -257,6 +315,7 @@ void xllmSessionDestroy(xllm_session* pSession)
     free(pSession->pEntries);
     free(pSession->sSummary);
     free(pSession->sJournalPath);
+    free(pSession->sStyleStorage);
     free(pSession);
 }
 
@@ -271,9 +330,15 @@ uint64_t xllmSessionBeginTurn(xllm_session* pSession)
 {
     uint64_t uTurn;
     if ( !pSession || pSession->uCurrentTurn == UINT64_MAX ) { return 0u; }
+    if ( pSession->bInHook ) { return 0u; }
     uTurn = pSession->uCurrentTurn + 1u;
     if ( !xllm_session__journal_append_turn(pSession, uTurn) ) { return 0u; }
+    if ( pSession->uCurrentTurn != 0u ) {
+        xllm_session__event(pSession, XLLM_SESSION_EVENT_TURN_END,
+            pSession->uCurrentTurn, 0u, NULL);
+    }
     pSession->uCurrentTurn = uTurn;
+    xllm_session__event(pSession, XLLM_SESSION_EVENT_TURN_BEGIN, uTurn, 0u, NULL);
     return uTurn;
 }
 
@@ -282,12 +347,26 @@ uint64_t xllmSessionCurrentTurn(const xllm_session* pSession)
     return pSession ? pSession->uCurrentTurn : 0u;
 }
 
+/* L3 preflight (design §7.1): a single message that can never fit is
+ * rejected at accounting time, before it can ride into any render. */
+static bool xllm_session__cap_ok(const xllm_session* pSession, xllm_role eRole, const char* sContent)
+{
+    uint32_t uCap = eRole == XLLM_ROLE_USER
+        ? pSession->tConfig.uUserMessageCapBytes
+        : pSession->tConfig.uToolResultCapBytes;
+    return uCap == 0u || !sContent || strlen(sContent) <= (size_t)uCap;
+}
+
 bool xllmSessionAddMessage(xllm_session* pSession, uint64_t uTurn, const xllm_message* pMessage, uint32_t uFlags)
 {
     xllm_session_entry* pNew;
     xllm_session_entry* pEntry;
     size_t iCap;
     if ( !pSession || !pMessage || uTurn > pSession->uCurrentTurn || pSession->uNextSequence == UINT64_MAX ) { return false; }
+    if ( pSession->bInHook ) { return false; }
+    if ( !xllm_session__cap_ok(pSession, pMessage->eRole, pMessage->sContent) ) {
+        return false;
+    }
     if ( pSession->iEntryCount == pSession->iEntryCap ) {
         iCap = pSession->iEntryCap ? pSession->iEntryCap * 2u : 32u;
         pNew = (xllm_session_entry*)realloc(pSession->pEntries, sizeof(*pNew) * iCap);
@@ -310,6 +389,7 @@ bool xllmSessionAddMessage(xllm_session* pSession, uint64_t uTurn, const xllm_me
     }
     ++pSession->uNextSequence;
     ++pSession->iEntryCount;
+    xllm_session__event(pSession, XLLM_SESSION_EVENT_ENTRY_ADDED, pEntry->uSequence, uTurn, NULL);
     return true;
 }
 
@@ -339,6 +419,10 @@ bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, con
         if ( !xllmMessageAddToolCall(&tMessage, pCall->sId, pCall->sName, pCall->sArgumentsJson) ) goto done;
     }
     bOk = xllmSessionAddMessage(pSession, uTurn, &tMessage, 0u);
+    if ( bOk ) {
+        /* The exact-feedback loop: the response usage refreshes governance. */
+        xllm_session__record_usage(pSession, &pResponse->tUsage);
+    }
 done:
     xllmMessageUnit(&tMessage);
     return bOk;
@@ -376,7 +460,8 @@ bool xllmSessionGetTail(const xllm_session* pSession, xllm_session_tail* pTail)
 bool xllm_session__entry_is_active(const xllm_session* pSession, const xllm_session_entry* pEntry)
 {
     if ( !pSession || !pEntry ) { return false; }
-    return (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u || pEntry->uSequence > pSession->uCompactedThrough;
+    if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u ) { return true; }
+    return pEntry->uSequence > pSession->uCompactedThrough && pEntry->uSequence > pSession->uTailFloor;
 }
 
 bool xllm_session__should_prune_tool(const xllm_session* pSession, const xllm_session_entry* pEntry)
@@ -509,103 +594,46 @@ bool xllmSessionGetStats(const xllm_session* pSession, xllm_session_stats* pStat
             ? (uint32_t)uAvailable : pSession->tConfig.uMaxOutputTokens;
     }
     pStats->uPendingToolCalls = xllm_session__pending_tool_calls(pSession);
-    if ( uRendered > uInputBudget ) { pStats->ePressure = XLLM_SESSION_PRESSURE_OVERFLOW; }
-    else if ( uRendered >= pStats->uCompactThresholdTokens ) { pStats->ePressure = XLLM_SESSION_PRESSURE_COMPACT; }
-    else if ( bPrune ) { pStats->ePressure = XLLM_SESSION_PRESSURE_PRUNE; }
-    else { pStats->ePressure = XLLM_SESSION_PRESSURE_NONE; }
+    /* Decision model (design §4): with usage feedback the ladder is exact
+     * (fill + bounded increment vs thresholds); a session that has never
+     * seen any feedback keeps the v2 offline estimate ladder so client-less
+     * ledger workflows still function. Estimation never re-enters a live
+     * session's decisions once feedback has arrived. */
+    if ( pSession->bFillSeen && pSession->bFillExactValid ) {
+        pStats->ePressure = xllm_session__pressure_exact(pSession);
+    } else if ( pSession->bFillSeen ) {
+        pStats->ePressure = XLLM_SESSION_PRESSURE_NONE; /* restored: unknown until the next real call */
+    } else if ( uRendered > uInputBudget ) {
+        pStats->ePressure = XLLM_SESSION_PRESSURE_OVERFLOW;
+    } else if ( uRendered >= pStats->uCompactThresholdTokens ) {
+        pStats->ePressure = XLLM_SESSION_PRESSURE_COMPACT;
+    } else if ( bPrune ) {
+        pStats->ePressure = XLLM_SESSION_PRESSURE_PRUNE;
+    } else {
+        pStats->ePressure = XLLM_SESSION_PRESSURE_NONE;
+    }
+    /* v3 observation fields */
+    pStats->uFillExact = pSession->bFillExactValid ? pSession->uFillExact : UINT64_MAX;
+    pStats->bFillExactValid = pSession->bFillExactValid;
+    pStats->uIncrementMax = pSession->bFillExactValid ? pSession->uIncrementMax : 0u;
+    pStats->uCachedInputTokens = pSession->uCachedInputTokens;
+    pStats->uSummaryTokensExact = pSession->uSummaryOutputAtBirth;
+    pStats->uSummaryGeneration = pSession->uSummaryGeneration;
+    pStats->uAutoCompactStreak = pSession->uAutoCompactStreak;
     return true;
 }
 
-static char* xllm_session__pruned_content(const xllm_session* pSession, const xllm_session_entry* pEntry)
+bool xllmSessionGetSummary(const xllm_session* pSession, xllm_session_summary* pSummary)
 {
-    static const char sMarker[] = "\n\n[... older tool output pruned from active context; full output remains in the persisted session ledger ...]\n\n";
-    const char* sContent = pEntry->tMessage.sContent ? pEntry->tMessage.sContent : "";
-    size_t iLen = strlen(sContent);
-    size_t iKeep = pSession->tConfig.uToolPruneBytes;
-    size_t iHead;
-    size_t iTail;
-    char* sOut;
-    if ( iLen <= iKeep ) { return xllm_session__strdup(sContent); }
-    iHead = (iKeep * 3u) / 4u;
-    iTail = iKeep - iHead;
-    while ( iHead && ((unsigned char)sContent[iHead] & 0xC0u) == 0x80u ) { --iHead; }
-    while ( iTail < iLen && ((unsigned char)sContent[iLen - iTail] & 0xC0u) == 0x80u ) { ++iTail; }
-    sOut = (char*)malloc(iHead + sizeof(sMarker) - 1u + iTail + 1u);
-    if ( !sOut ) { return NULL; }
-    memcpy(sOut, sContent, iHead);
-    memcpy(sOut + iHead, sMarker, sizeof(sMarker) - 1u);
-    memcpy(sOut + iHead + sizeof(sMarker) - 1u, sContent + iLen - iTail, iTail);
-    sOut[iHead + sizeof(sMarker) - 1u + iTail] = '\0';
-    return sOut;
-}
-
-bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError)
-{
-    xllm_session_stats tStats;
-    size_t i;
-    bool bPrune;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pSession || !pRequest || !xllmSessionGetStats(pSession, &tStats) ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session and initialized request are required");
-        return false;
-    }
-    if ( tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW ) {
-        xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "active context exceeds the model input budget and must be compacted");
-        return false;
-    }
-    if ( pRequest->uMaxOutputTokens == 0u || pRequest->uMaxOutputTokens > tStats.uNextMaxOutputTokens ) {
-        pRequest->uMaxOutputTokens = tStats.uNextMaxOutputTokens;
-    }
-    if ( pRequest->uMaxOutputTokens == 0u ) {
-        xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "active context leaves no room for model output");
-        return false;
-    }
-    bPrune = tStats.uRawActiveTokens >= tStats.uPruneThresholdTokens;
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) == 0u ) continue;
-        if ( !xllmRequestAddMessage(pRequest, &pEntry->tMessage) ) goto oom;
-    }
-    if ( pSession->sSummary && pSession->sSummary[0] ) {
-        xllm_session_buf tSummary = {0};
-        xllm_message tMessage;
-        bool bOk;
-
-/* The summary is a synthetic continuation turn, not a second system
-         * message. Keeping it as user content also gives providers a valid
-         * user bridge when the retained suffix begins with assistant/tool
-         * messages from an in-progress agent loop. */
-        xllmMessageInit(&tMessage, XLLM_ROLE_USER);
-        bOk = xllm_session__buf_cstr(&tSummary, "Compacted session state. Treat this as authoritative continuity for history through sequence ") &&
-            xllm_session__buf_u64(&tSummary, pSession->uCompactedThrough) &&
-            xllm_session__buf_cstr(&tSummary, ":\n\n") && xllm_session__buf_cstr(&tSummary, pSession->sSummary) &&
-            xllmMessageSetContent(&tMessage, tSummary.pData) && xllmRequestAddMessage(pRequest, &tMessage);
-        xllmMessageUnit(&tMessage);
-        xllm_session__buf_unit(&tSummary);
-        if ( !bOk ) goto oom;
-    }
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u || pEntry->uSequence <= pSession->uCompactedThrough ) continue;
-        if ( bPrune && xllm_session__should_prune_tool(pSession, pEntry) ) {
-            xllm_message tMessage;
-            char* sPruned = xllm_session__pruned_content(pSession, pEntry);
-            bool bOk;
-            if ( !sPruned ) goto oom;
-            if ( !xllm_session__message_clone(&tMessage, &pEntry->tMessage) ) { free(sPruned); goto oom; }
-            bOk = xllmMessageSetContent(&tMessage, sPruned) && xllmRequestAddMessage(pRequest, &tMessage);
-            free(sPruned);
-            xllmMessageUnit(&tMessage);
-            if ( !bOk ) goto oom;
-        } else if ( !xllmRequestAddMessage(pRequest, &pEntry->tMessage) ) {
-            goto oom;
-        }
-    }
+    if ( !pSession || !pSummary ) { return false; }
+    pSummary->sText = pSession->sSummary;
+    pSummary->uThroughSequence = pSession->uCompactedThrough;
+    pSummary->uGeneration = pSession->uSummaryGeneration;
+    pSummary->uPromptTokensAtBirth = pSession->uSummaryPromptAtBirth;
+    pSummary->uOutputTokensAtBirth = pSession->uSummaryOutputAtBirth;
     return true;
-oom:
-    xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
-    return false;
 }
+
 
 uint64_t xllm_session__input_budget(const xllm_session* pSession)
 {
@@ -616,278 +644,3 @@ uint64_t xllm_session__input_budget(const xllm_session* pSession)
         ? pSession->tConfig.uContextWindowTokens - uReserved : 0u;
 }
 
-static bool xllm_session__turn_is_safe(const xllm_session* pSession, uint64_t uTurn)
-{
-    size_t i;
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        size_t j;
-        if ( pEntry->uTurn != uTurn || pEntry->tMessage.eRole != XLLM_ROLE_ASSISTANT ) continue;
-        for ( j = 0u; j < pEntry->tMessage.iToolCallCount; ++j ) {
-            if ( !xllm_session__tool_resolved(pSession, i, pEntry->tMessage.pToolCalls[j].sId) ) return false;
-        }
-    }
-    return true;
-}
-
-static uint64_t xllm_session__compaction_candidate(const xllm_session* pSession)
-{
-    uint64_t uMaxTurn;
-    uint64_t uCandidate = pSession ? pSession->uCompactedThrough : 0u;
-    uint64_t uLastTurn = 0u;
-    size_t i;
-    if ( !pSession || pSession->uCurrentTurn <= pSession->tConfig.uRecentTurnsToKeep ) return uCandidate;
-    uMaxTurn = pSession->uCurrentTurn - pSession->tConfig.uRecentTurnsToKeep;
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( pEntry->uSequence <= pSession->uCompactedThrough || pEntry->uTurn == 0u || pEntry->uTurn > uMaxTurn ) continue;
-        if ( pEntry->uTurn != uLastTurn ) {
-            if ( !xllm_session__turn_is_safe(pSession, pEntry->uTurn) ) break;
-            uLastTurn = pEntry->uTurn;
-        }
-        if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) == 0u && pEntry->uSequence > uCandidate ) {
-            uCandidate = pEntry->uSequence;
-        }
-    }
-    return uCandidate;
-}
-
-static const char* xllm_session__role_name(xllm_role eRole)
-{
-    switch ( eRole ) {
-        case XLLM_ROLE_SYSTEM: return "system";
-        case XLLM_ROLE_USER: return "user";
-        case XLLM_ROLE_ASSISTANT: return "assistant";
-        case XLLM_ROLE_TOOL: return "tool";
-        default: return "unknown";
-    }
-}
-
-static bool xllm_session__append_compaction_entry(
-    xllm_session_buf* pPrompt,
-    const xllm_session* pSession,
-    const xllm_session_entry* pEntry
-)
-{
-    const char* sContent = pEntry->tMessage.sContent ? pEntry->tMessage.sContent : "";
-    char* sPruned = NULL;
-    size_t i;
-    if ( xllm_session__should_prune_tool(pSession, pEntry) ) {
-        sPruned = xllm_session__pruned_content(pSession, pEntry);
-        if ( !sPruned ) return false;
-        sContent = sPruned;
-    }
-    if ( !xllm_session__buf_cstr(pPrompt, "\n<message sequence=\"") ||
-         !xllm_session__buf_u64(pPrompt, pEntry->uSequence) ||
-         !xllm_session__buf_cstr(pPrompt, "\" turn=\"") ||
-         !xllm_session__buf_u64(pPrompt, pEntry->uTurn) ||
-         !xllm_session__buf_cstr(pPrompt, "\" role=\"") ||
-         !xllm_session__buf_cstr(pPrompt, xllm_session__role_name(pEntry->tMessage.eRole)) ||
-         !xllm_session__buf_cstr(pPrompt, "\">\n") ||
-         !xllm_session__buf_cstr(pPrompt, sContent) ) goto fail;
-    if ( pEntry->tMessage.sReasoningContent && pEntry->tMessage.sReasoningContent[0] ) {
-        if ( !xllm_session__buf_cstr(pPrompt, "\n<reasoning>\n") ||
-             !xllm_session__buf_cstr(pPrompt, pEntry->tMessage.sReasoningContent) ||
-             !xllm_session__buf_cstr(pPrompt, "\n</reasoning>") ) goto fail;
-    }
-    if ( pEntry->tMessage.sToolCallId ) {
-        if ( !xllm_session__buf_cstr(pPrompt, "\n<tool_call_id>") ||
-             !xllm_session__buf_cstr(pPrompt, pEntry->tMessage.sToolCallId) ||
-             !xllm_session__buf_cstr(pPrompt, "</tool_call_id>") ) goto fail;
-    }
-    for ( i = 0u; i < pEntry->tMessage.iToolCallCount; ++i ) {
-        const xllm_tool_call* pCall = &pEntry->tMessage.pToolCalls[i];
-        if ( !xllm_session__buf_cstr(pPrompt, "\n<tool_call id=\"") ||
-             !xllm_session__buf_cstr(pPrompt, pCall->sId) ||
-             !xllm_session__buf_cstr(pPrompt, "\" name=\"") ||
-             !xllm_session__buf_cstr(pPrompt, pCall->sName) ||
-             !xllm_session__buf_cstr(pPrompt, "\">\n") ||
-             !xllm_session__buf_cstr(pPrompt, pCall->sArgumentsJson) ||
-             !xllm_session__buf_cstr(pPrompt, "\n</tool_call>") ) goto fail;
-    }
-    if ( !xllm_session__buf_cstr(pPrompt, "\n</message>\n") ) goto fail;
-    free(sPruned);
-    return true;
-fail:
-    free(sPruned);
-    return false;
-}
-
-xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForce, xllm_error* pError)
-{
-    static const char sInstruction[] =
-        "You are compacting the durable state of a long-running code-agent session.\n"
-        "Produce a dense, factual continuation summary. Preserve the objective, constraints, architecture decisions, files changed, commands and test evidence, unresolved failures, active hypotheses, exact next steps, and every identifier or path needed to continue. Preserve tool-call outcomes, not conversational filler. Do not claim unfinished work is complete.\n\n"
-        "Use these headings: Objective; Constraints; Architecture and decisions; Completed work; Current repository state; Verification evidence; Open issues and risks; Exact next actions.\n\n";
-    xllm_session_stats tStats;
-    xllm_session_buf tPrompt = {0};
-    xllm_compaction* pCompaction = NULL;
-    uint64_t uCandidate;
-    size_t i;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pSession || !xllmSessionGetStats(pSession, &tStats) ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
-        return NULL;
-    }
-    if ( !bForce && tStats.ePressure < XLLM_SESSION_PRESSURE_COMPACT ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "compaction threshold has not been reached");
-        return NULL;
-    }
-    uCandidate = xllm_session__compaction_candidate(pSession);
-    if ( uCandidate <= pSession->uCompactedThrough ) {
-        xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "no completed prefix is safe to compact yet");
-        return NULL;
-    }
-    if ( !xllm_session__buf_cstr(&tPrompt, sInstruction) ) goto oom;
-    if ( pSession->sSummary && pSession->sSummary[0] ) {
-        if ( !xllm_session__buf_cstr(&tPrompt, "<previous_summary>\n") ||
-             !xllm_session__buf_cstr(&tPrompt, pSession->sSummary) ||
-             !xllm_session__buf_cstr(&tPrompt, "\n</previous_summary>\n\n") ) goto oom;
-    }
-    if ( !xllm_session__buf_cstr(&tPrompt, "<conversation_prefix>\n") ) goto oom;
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( pEntry->uSequence <= pSession->uCompactedThrough || pEntry->uSequence > uCandidate ||
-             (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u ) continue;
-        if ( !xllm_session__append_compaction_entry(&tPrompt, pSession, pEntry) ) goto oom;
-    }
-    if ( !xllm_session__buf_cstr(&tPrompt, "</conversation_prefix>\n") ) goto oom;
-    pCompaction = (xllm_compaction*)calloc(1u, sizeof(*pCompaction));
-    if ( !pCompaction ) goto oom;
-    pCompaction->pSession = pSession;
-    pCompaction->uBaseCompactedThrough = pSession->uCompactedThrough;
-    pCompaction->uThroughSequence = uCandidate;
-    pCompaction->sPrompt = xllm_session__buf_detach(&tPrompt);
-    if ( !pCompaction->sPrompt ) goto oom;
-    pCompaction->uEstimatedTokens = xllmEstimateTextTokens(pCompaction->sPrompt);
-    return pCompaction;
-oom:
-    xllm_session__buf_unit(&tPrompt);
-    xllmCompactionDestroy(pCompaction);
-    xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build compaction transaction");
-    return NULL;
-}
-
-const char* xllmCompactionPrompt(const xllm_compaction* pCompaction)
-{
-    return pCompaction ? pCompaction->sPrompt : NULL;
-}
-
-uint64_t xllmCompactionThroughSequence(const xllm_compaction* pCompaction)
-{
-    return pCompaction ? pCompaction->uThroughSequence : 0u;
-}
-
-uint64_t xllmCompactionEstimatedTokens(const xllm_compaction* pCompaction)
-{
-    return pCompaction ? pCompaction->uEstimatedTokens : 0u;
-}
-
-static bool xllm_session__heading_at_line(const char* sText, const char* sHeading)
-{
-    const char* p = sText;
-    size_t iHeading = strlen(sHeading);
-    while ( p && *p ) {
-        const char* q = p;
-        size_t i;
-        while ( *q == ' ' || *q == '\t' || *q == '#' || *q == '*' ) ++q;
-        for ( i = 0u; i < iHeading; ++i ) {
-            if ( !q[i] || tolower((unsigned char)q[i]) != tolower((unsigned char)sHeading[i]) ) break;
-        }
-        if ( i == iHeading ) {
-            q += iHeading;
-            while ( *q == ' ' || *q == '\t' ) ++q;
-            if ( *q == ':' || *q == ';' || *q == '\r' || *q == '\n' || *q == '\0' ) return true;
-        }
-        p = strchr(p, '\n');
-        if ( p ) ++p;
-    }
-    return false;
-}
-
-bool xllmCompactionEvaluateSummary(const xllm_compaction* pCompaction, const char* sSummary,
-    xllm_compaction_quality* pQuality, xllm_error* pError)
-{
-    static const struct { uint32_t uFlag; const char* sHeading; } aSections[] = {
-        { XLLM_COMPACTION_SECTION_OBJECTIVE, "Objective" },
-        { XLLM_COMPACTION_SECTION_CONSTRAINTS, "Constraints" },
-        { XLLM_COMPACTION_SECTION_ARCHITECTURE, "Architecture and decisions" },
-        { XLLM_COMPACTION_SECTION_COMPLETED, "Completed work" },
-        { XLLM_COMPACTION_SECTION_REPOSITORY_STATE, "Current repository state" },
-        { XLLM_COMPACTION_SECTION_VERIFICATION, "Verification evidence" },
-        { XLLM_COMPACTION_SECTION_OPEN_ISSUES, "Open issues and risks" },
-        { XLLM_COMPACTION_SECTION_NEXT_ACTIONS, "Exact next actions" }
-    };
-    xllm_compaction_quality tQuality;
-    const xllm_session_config* pConfig;
-    size_t i;
-    if ( pError ) xllmErrorInit(pError);
-    if ( !pCompaction || !pCompaction->pSession || !pQuality || !sSummary ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "compaction, summary, and quality report are required");
-        return false;
-    }
-    memset(&tQuality, 0, sizeof(tQuality));
-    pConfig = &pCompaction->pSession->tConfig;
-    tQuality.uRequiredSections = pConfig->uCompactionRequiredSections;
-    tQuality.uMinimumSummaryTokens = pConfig->uSummaryMinTokens;
-    if ( pCompaction->uEstimatedTokens >= 16384u && tQuality.uMinimumSummaryTokens < 256u ) {
-        tQuality.uMinimumSummaryTokens = 256u;
-    } else if ( pCompaction->uEstimatedTokens >= 4096u && tQuality.uMinimumSummaryTokens < 128u ) {
-        tQuality.uMinimumSummaryTokens = 128u;
-    }
-    tQuality.uMaximumSummaryTokens = pConfig->uSummaryMaxTokens;
-    tQuality.uSourceTokens = pCompaction->uEstimatedTokens;
-    tQuality.uSummaryTokens = xllmEstimateTextTokens(sSummary);
-    for ( i = 0u; i < sizeof(aSections) / sizeof(aSections[0]); ++i ) {
-        if ( xllm_session__heading_at_line(sSummary, aSections[i].sHeading) ) {
-            tQuality.uPresentSections |= aSections[i].uFlag;
-        }
-    }
-    tQuality.uMissingSections = tQuality.uRequiredSections & ~tQuality.uPresentSections;
-    tQuality.bAccepted = sSummary[0] != '\0' && tQuality.uMissingSections == 0u &&
-        tQuality.uSummaryTokens >= tQuality.uMinimumSummaryTokens &&
-        tQuality.uSummaryTokens <= tQuality.uMaximumSummaryTokens;
-    *pQuality = tQuality;
-    return true;
-}
-
-bool xllmSessionCommitCompaction(xllm_session* pSession, xllm_compaction* pCompaction, const char* sSummary, xllm_error* pError)
-{
-    char* sCopy;
-    xllm_compaction_quality tQuality;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pSession || !pCompaction || pCompaction->pSession != pSession || pCompaction->bCommitted ||
-         !sSummary || !sSummary[0] || pSession->uCompactedThrough != pCompaction->uBaseCompactedThrough ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid or stale compaction transaction");
-        return false;
-    }
-    if ( !xllmCompactionEvaluateSummary(pCompaction, sSummary, &tQuality, pError) ) return false;
-    if ( !tQuality.bAccepted ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "compaction summary failed the configured quality policy");
-        return false;
-    }
-    sCopy = xllm_session__strdup(sSummary);
-    if ( !sCopy ) {
-        xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to store compaction summary");
-        return false;
-    }
-    if ( !xllm_session__journal_append_compaction(pSession, pCompaction->uThroughSequence,
-            pSession->uCompactionCount + 1u, sSummary) ) {
-        free(sCopy);
-        xllm_session__error(pError, XLLM_ERROR_NETWORK, "failed to append compaction to the session journal");
-        return false;
-    }
-    free(pSession->sSummary);
-    pSession->sSummary = sCopy;
-    pSession->uCompactedThrough = pCompaction->uThroughSequence;
-    ++pSession->uCompactionCount;
-    pCompaction->bCommitted = true;
-    return true;
-}
-
-void xllmCompactionDestroy(xllm_compaction* pCompaction)
-{
-    if ( !pCompaction ) { return; }
-    free(pCompaction->sPrompt);
-    free(pCompaction);
-}

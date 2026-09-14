@@ -83,7 +83,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/containers/queue_spsc/main.
 
 ### Capacity meets backpressure for the first time
 
-Queue capacity (the slot-array length) is not "bigger is better" — it is the first valve of **backpressure**: when the queue is full, PushBatch partially succeeds, and the producer sensing it cannot push should slow down or buffer — exactly a miniature of Chapter 67's network backpressure. Both extremes of capacity planning have costs: too small, and burst traffic fills it instantly, with producers spinning and retrying; too large, and resident memory climbs, and a consumer failure leaves a bigger backlog and a longer recovery. A practical starting point: capacity at 2 to 4 times what the consumer processes in one scheduling cycle, then calibrate with Chapter 6's stats and live queue-water-level measurements. The queue's Count is a public field — the producer's nearly-full check costs nothing.
+Queue capacity (the slot-array length) is not "bigger is better" — it is the first valve of **backpressure**: when the queue is full, PushBatch partially succeeds, and the producer sensing it cannot push should slow down or buffer — exactly a miniature of Chapter 68's network backpressure. Both extremes of capacity planning have costs: too small, and burst traffic fills it instantly, with producers spinning and retrying; too large, and resident memory climbs, and a consumer failure leaves a bigger backlog and a longer recovery. A practical starting point: capacity at 2 to 4 times what the consumer processes in one scheduling cycle, then calibrate with Chapter 6's stats and live queue-water-level measurements. The queue's Count is a public field — the producer's nearly-full check costs nothing.
 
 ### The discipline boundary of lock-free
 
@@ -136,7 +136,7 @@ xrtMPMCQueueClose(&Queue);
 
 ```c good
 for ( i = 0; i < WorkerCount; ++i ) {
-	xrtThreadWait(Workers[i], NULL);   /* first wait for all producers to finish (Chapter 55's thread API) */
+	xrtThreadWait(Workers[i], NULL);   /* first wait for all producers to finish (Chapter 56's thread API) */
 }
 xrtMPMCQueueClose(&Queue);            /* then close */
 DrainAndShutdown(&Queue);             /* consumers drain, then terminate naturally */

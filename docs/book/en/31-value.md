@@ -10,7 +10,7 @@ api: value
 
 ## Orientation
 
-From this chapter we enter structured data. `xvalue` is XRT's dynamic type system: one opaque pointer can hold null/bool/int/float/string/bytes/time/array/object/set/map — everything JSON can express, plus XSON's extended types (Chapter 32) living here directly. Three designs decide the usage experience: **exact reads** (GetInt accepts only int; a type mismatch fails — the first gate against type confusion), a **reference-counted lifecycle** (the full flowering of Chapter 3's primitives), and **immutable sharing** (a value tree can be referenced from many places without copying). It is the parse product of Chapters 31/32/34 and the data source of templates — the foundation of this volume's second half.
+From this chapter we enter structured data. `xvalue` is XRT's dynamic type system: one opaque pointer can hold null/bool/int/float/string/bytes/time/array/object/set/map — everything JSON can express, plus XSON's extended types (Chapter 32) living here directly. Three designs decide the usage experience: **exact reads** (GetInt accepts only int; a type mismatch fails — the first gate against type confusion), a **reference-counted lifecycle** (the full flowering of Chapter 3's primitives), and **immutable sharing** (a value tree can be referenced from many places without copying). It is the parse product of Chapters 31/32/35 and the data source of templates — the foundation of this volume's second half.
 
 ## Introduction
 
@@ -81,7 +81,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/value/collections/main.c -l
 options=1 permissions=2
 ```
 
-**What just happened.** (1) Object merge `Merge(默认, 用户, REPLACE)` (defaults, user, REPLACE): the user config's timeout 5 overrides the default 30 — after merging, count is still 1; overriding adds no key. (2) Set union takes two roads: `Union` produces a new set and `Merge` merges in place, the products tested equal with `SetEqual` — different roads, same destination. (3) `IsDisjoint` decides two sets are disjoint — permission checking's "any intersection?" answered in one step. (4) These two operations together are the configuration-layer skeleton of "default config + user override + permission merge"; Chapter 37's templates and the value trees read out by Chapter 31's JSON use them directly.
+**What just happened.** (1) Object merge `Merge(默认, 用户, REPLACE)` (defaults, user, REPLACE): the user config's timeout 5 overrides the default 30 — after merging, count is still 1; overriding adds no key. (2) Set union takes two roads: `Union` produces a new set and `Merge` merges in place, the products tested equal with `SetEqual` — different roads, same destination. (3) `IsDisjoint` decides two sets are disjoint — permission checking's "any intersection?" answered in one step. (4) These two operations together are the configuration-layer skeleton of "default config + user override + permission merge"; Chapter 38's templates and the value trees read out by Chapter 31's JSON use them directly.
 
 ## Contracts
 

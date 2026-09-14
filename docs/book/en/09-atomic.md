@@ -12,13 +12,13 @@ api: atomic, spin, wait
 
 Volume 1 closes with this chapter. The previous eight chapters built the foundation of the single-threaded world: types and views (Chapter 3), the error model (Chapter 4), memory management (Chapters 5–6), temporary arenas (Chapter 7), versions and trimming (Chapter 8). This chapter adds the last piece: **what keeps things sane when multiple execution flows touch the same data at the lowest level**. It climbs three steps: **atomic operations** (`xatomic32/64/ptr` — interleaving-free load, store, and read-modify-write on a single variable); **spinlocks** (`xspinlock` — protecting critical sections a few instructions long); **waiting primitives** (`xdeadline` and `xwaitresult` — the mathematics of timeouts and a unified vocabulary for wait outcomes).
 
-This is a classic foundation chapter. Chapter 8 mentioned that the atomic-operations header is one of the first consumers of compile-time feature dispatch — the same header walks an internal implementation on platforms without atomic instructions and an inline path where they exist, thanks to the feature closure right here. Looking forward, Chapter 52's thread synchronization (synchronous coordination), Chapter 53's cancellation system, and the config center's "atomically swap the global pointer" (Chapters 138–139) all stand on this chapter's primitives; this chapter teaches only the **primitive layer** — single-machine, single-variable, tangible small pieces, leaving systematic concurrency design to Volume 6. After reading it you should be able to answer three questions: when you **don't need a lock** (a single variable suffices); when a lock **shouldn't be heavy either** (the orders-of-magnitude account of spin versus mutex); and why "wait for something until timeout" must use an **absolute deadline** rather than a relative timeout reset every round.
+This is a classic foundation chapter. Chapter 8 mentioned that the atomic-operations header is one of the first consumers of compile-time feature dispatch — the same header walks an internal implementation on platforms without atomic instructions and an inline path where they exist, thanks to the feature closure right here. Looking forward, Chapter 53's thread synchronization (synchronous coordination), Chapter 54's cancellation system, and the config center's "atomically swap the global pointer" (Chapters 139–140) all stand on this chapter's primitives; this chapter teaches only the **primitive layer** — single-machine, single-variable, tangible small pieces, leaving systematic concurrency design to Volume 6. After reading it you should be able to answer three questions: when you **don't need a lock** (a single variable suffices); when a lock **shouldn't be heavy either** (the orders-of-magnitude account of spin versus mutex); and why "wait for something until timeout" must use an **absolute deadline** rather than a relative timeout reset every round.
 
 ## Introduction
 
 Three real incidents lead the way. **First: the counter loses updates.** A statistics service accumulates request counts with `count++`; eight threads each add one million times, the total settles around 7.2 million and differs on every run. `count++` is a read–modify–write of three steps; two threads' three steps can interleave — both read 41, each adds one, both write back 42 — one update vanishes without a sound. A mutex fixes it, but paying the sleep-wakeup price for an integer increment is a sledgehammer on a nut. **Second: the flag lies.** A producer thread fills a structure, then sets a flag variable to announce "data ready"; the consumer occasionally sees the flag true yet reads half-new data. Writes without ordering constraints carry no cross-variable promises — visibility of the flag does not imply visibility of the data. This is not probabilistic mysticism; it is the memory model. **Third: the retry loop's total time runs away.** Code that says "wait 100 ms per retry, give up after ten seconds" actually ran twenty-eight seconds — every round waited a fresh 100 ms, the waiting budget was reset a dozen times. What the system needs is not "how long each round waits" but "**until when**".
 
-The three problems map to three tools: atomic read-modify-write makes `count++` one step; memory ordering makes publish-acquire a dependable pairing; deadline mathematics turns the timeout from a relative value into an absolute point in time. Together they are fewer than thirty functions, yet they are the common foundation of everything in this book from the queues (Chapter 21) to cancellation tokens (Chapter 53).
+The three problems map to three tools: atomic read-modify-write makes `count++` one step; memory ordering makes publish-acquire a dependable pairing; deadline mathematics turns the timeout from a relative value into an absolute point in time. Together they are fewer than thirty functions, yet they are the common foundation of everything in this book from the queues (Chapter 21) to cancellation tokens (Chapter 54).
 
 ## Concepts
 
@@ -26,7 +26,7 @@ The three problems map to three tools: atomic read-modify-write makes `count++` 
 
 The atomic module offers three widths: `xatomic32`, `xatomic64`, `xatomicptr` — 32/64-bit integers and one pointer width. Every width shares the same family shape: runtime `Init` (static objects use macros like `XRT_ATOMIC32_INIT(0u)` so the starting state is identical on all platforms), `Load`, `Store`, `Exchange`, `FetchAdd/FetchSub/FetchAnd/FetchOr/FetchXor`, and `CompareExchange`. The "Fetch" prefix uniformly means **return the old value**: `xrtAtomic64FetchAdd(&Counter, 1u, ...)` returns the value before the add while the counter is already updated — want the new value? Add one to the old; do not go back for another Load (one extra atomic op and one extra timing assumption).
 
-A useful rule of thumb: **the shape of the sharing decides the tool**. Just a counter, a flag, a "who does this currently point to" pointer — a single variable; atomics suffice, lock-free and cheap. "Two fields must change together" — an invariant atomics cannot express (two atomic ops can still be interrupted between them); that is lock territory (Chapter 52). Passing pointer ownership between threads is queue territory (Chapter 21). The classic symptoms of using the wrong layer: wrapping a mutex around a queue (the queue is already thread-safe), taking a lock for a counter (atomics are an order of magnitude cheaper).
+A useful rule of thumb: **the shape of the sharing decides the tool**. Just a counter, a flag, a "who does this currently point to" pointer — a single variable; atomics suffice, lock-free and cheap. "Two fields must change together" — an invariant atomics cannot express (two atomic ops can still be interrupted between them); that is lock territory (Chapter 53). Passing pointer ownership between threads is queue territory (Chapter 21). The classic symptoms of using the wrong layer: wrapping a mutex around a queue (the queue is already thread-safe), taking a lock for a counter (atomics are an order of magnitude cheaper).
 
 ### Compare-and-exchange: the expected-value rewrite contract
 
@@ -38,7 +38,7 @@ The classic use of CAS is "modify one field of a struct without locking the whol
 
 Every atomic operation takes an `xmemoryorder` parameter: `XMEMORY_RELAXED` (only this operation is atomic; no cross-variable ordering — enough for pure counting); `XMEMORY_ACQUIRE` (the reading side — later accesses may not reorder before it; used to "acquire" published data); `XMEMORY_RELEASE` (the writing side — earlier accesses may not reorder after it; used to "publish" completed writes); `XMEMORY_ACQ_REL` (both, for read-modify-write — the CAS default posture); `XMEMORY_SEQ_CST` (total sequential consistency — the most intuitive and the most expensive). The validity matrix is simple: Load accepts only RELAXED/ACQUIRE/SEQ_CST, Store only RELAXED/RELEASE/SEQ_CST; violations set `XERR_ARGUMENT`.
 
-The engineering rule is a single line: **until proven otherwise, use SEQ_CST**. The trap of memory ordering is that being wrong still mostly runs — reorderings and visibility only surface on particular CPUs and compiler optimization levels; a green test does not mean correct. The right workflow: write it correctly with SEQ_CST first; after profiling (Chapter 135's method) identifies a hot counter or publish point, degrade — a deliberate degradation — **with evidence** to RELAXED or an ACQUIRE/RELEASE pairing, and write in a comment why it is safe. The platform promise is one-directional: platforms that only offer full fences implement with stronger ordering — the public contract is never weakened; you may rely on the documented floor.
+The engineering rule is a single line: **until proven otherwise, use SEQ_CST**. The trap of memory ordering is that being wrong still mostly runs — reorderings and visibility only surface on particular CPUs and compiler optimization levels; a green test does not mean correct. The right workflow: write it correctly with SEQ_CST first; after profiling (Chapter 136's method) identifies a hot counter or publish point, degrade — a deliberate degradation — **with evidence** to RELAXED or an ACQUIRE/RELEASE pairing, and write in a comment why it is safe. The platform promise is one-directional: platforms that only offer full fences implement with stronger ordering — the public contract is never weakened; you may rely on the documented floor.
 
 Publish-acquire is the most-used pairing: producer-side `Store(标志, 1, RELEASE)` (flag) (data fully ready before the announcement), consumer-side `Load(标志, ACQUIRE)` (flag) (data read after seeing the flag is necessarily the announced version). If either side uses RELAXED, the promise evaporates — the star of pitfall 1 below.
 
@@ -50,20 +50,20 @@ Three helpers complete the family: `xrtAtomicThreadFence(序)` (order) is a stan
 
 `xspinlock` is built on atomic CAS and is the **lightest lock in the library**: if it cannot be acquired, it busy-waits (spins) instead of sleeping. Its applicability is an orders-of-magnitude account: for a critical section a few instructions long, spinning costs one failed CAS plus a few Pause instructions; a mutex potentially costs a syscall and a thread switch — usually an order of magnitude more. Conversely, once the critical section contains IO, allocation, or more than a few dozen instructions, spinning goes from cheap to CPU-burning — the spinning thread not only does no work, it steals cores from the lock holder. So the criterion is **critical-section length**, not "spinlock sounds fancy".
 
-The three lifecycle shapes are isomorphic to Chapter 52's four-piece set: stack `xrtSpinInit/xrtSpinUnit`, static `XRT_SPIN_INIT`, heap `xrtSpinCreate/xrtSpinDestroy`; `xrtSpinTryLock` is the non-blocking variant (returns false while held). One hard contract: **destroying a still-held lock fails and sets `XERR_STATE`** — not cleanup advice, an enforced leak check.
+The three lifecycle shapes are isomorphic to Chapter 53's four-piece set: stack `xrtSpinInit/xrtSpinUnit`, static `XRT_SPIN_INIT`, heap `xrtSpinCreate/xrtSpinDestroy`; `xrtSpinTryLock` is the non-blocking variant (returns false while held). One hard contract: **destroying a still-held lock fails and sets `XERR_STATE`** — not cleanup advice, an enforced leak check.
 
 ```diagram flow
 - Single-variable sharing (counter / flag / pointer) -> atomics: lock-free, single-step interleave-safe
 - Multi-variable invariants (fields must change together) -> locks: spin (a few instructions) or mutex (longer)
 - Passing pointer ownership between threads -> queues (Chapter 21): already lock-free inside, no outer lock
-- Waiting with a budget -> xdeadline absolute cutoff + xwaitresult unified outcome (systematized in Chapters 52-53)
+- Waiting with a budget -> xdeadline absolute cutoff + xwaitresult unified outcome (systematized in Chapters 53-54)
 ```
 
 ### Waiting primitives: deadline mathematics and the five-state result
 
-The wait module has three functions and one enum, yet it is the unified exit for the whole library's timeout semantics. `xdeadline` is an absolute point in time as `uint64` (monotonic-clock microseconds, Chapter 41): `xrtDeadlineAfter(相对微秒)` (relative microseconds) builds the cutoff from now (overflow returns `XRT_DEADLINE_NEVER`, i.e. never times out); `xrtDeadlineExpired` says whether it has arrived; `xrtDeadlineRemaining` returns the microseconds left. It solves the third incident: **constructed once, passed everywhere, never reset** — a retry loop waits with `Remaining` each round, and the total budget is exactly that first number.
+The wait module has three functions and one enum, yet it is the unified exit for the whole library's timeout semantics. `xdeadline` is an absolute point in time as `uint64` (monotonic-clock microseconds, Chapter 42): `xrtDeadlineAfter(相对微秒)` (relative microseconds) builds the cutoff from now (overflow returns `XRT_DEADLINE_NEVER`, i.e. never times out); `xrtDeadlineExpired` says whether it has arrived; `xrtDeadlineRemaining` returns the microseconds left. It solves the third incident: **constructed once, passed everywhere, never reset** — a retry loop waits with `Remaining` each round, and the total budget is exactly that first number.
 
-`xwaitresult` splits "the outcome of waiting" into five mutually exclusive values: `XWAIT_ERROR` (genuine failure), `XWAIT_OK` (success), `XWAIT_TIMEOUT` (time is up), `XWAIT_CANCELLED` (cancelled — Chapter 53's tokens end here), `XWAIT_CLOSED` (the awaited object closed). The intent: **separate normal control flow from errors** — timeout and cancellation are expected branches the caller handles, not "exceptions" stuffed into the error chain. From Chapter 52's `xrtThreadWait` to the network stack's connection waits, this enum is what comes back — learn the semantics here; the systematized waiting and cancellation unfold in Volume 6.
+`xwaitresult` splits "the outcome of waiting" into five mutually exclusive values: `XWAIT_ERROR` (genuine failure), `XWAIT_OK` (success), `XWAIT_TIMEOUT` (time is up), `XWAIT_CANCELLED` (cancelled — Chapter 54's tokens end here), `XWAIT_CLOSED` (the awaited object closed). The intent: **separate normal control flow from errors** — timeout and cancellation are expected branches the caller handles, not "exceptions" stuffed into the error chain. From Chapter 53's `xrtThreadWait` to the network stack's connection waits, this enum is what comes back — learn the semantics here; the systematized waiting and cancellation unfold in Volume 6.
 
 ## Examples
 
@@ -106,7 +106,7 @@ counter=1
 heap try=0/1 destroy ok
 ```
 
-**What just happened.** (1) The stack form walks `Init → Lock → 临界区（一条自增）→ Unlock → Unit` (critical section: one increment) — the critical section is exactly one instruction long, the legal range for spinning. (2) The heap form completes `Create/TryLock/Destroy`: `TryLock` must fail while held, must succeed once free — both states verified. (3) The lock protects a demonstrative single variable — in real code the answer for a bare counter is atomics, not a lock; the example locks the demonstration of the lifecycle itself. Chapter 53 will time spinlocks inside the three-way "spin vs mutex vs lock-free queue" comparison.
+**What just happened.** (1) The stack form walks `Init → Lock → 临界区（一条自增）→ Unlock → Unit` (critical section: one increment) — the critical section is exactly one instruction long, the legal range for spinning. (2) The heap form completes `Create/TryLock/Destroy`: `TryLock` must fail while held, must succeed once free — both states verified. (3) The lock protects a demonstrative single variable — in real code the answer for a bare counter is atomics, not a lock; the example locks the demonstration of the lifecycle itself. Chapter 54 will time spinlocks inside the three-way "spin vs mutex vs lock-free queue" comparison.
 
 ### Complete program 4: deadline remaining and expiry
 
@@ -119,16 +119,16 @@ remaining: 50000 us
 expired: yes
 ```
 
-**What just happened.** (1) `xrtDeadlineAfter(50000)` builds an absolute cutoff 50 ms out; `Remaining` immediately reads back about 50000 microseconds (monotonic-clock microsecond scale). (2) `xrtSleepUntil` (Chapter 41's time module) sleeps to the cutoff, after which `Expired` returns true — the three functions act out the closed loop of construct-wait-decide. (3) Note that `SleepUntil` eats the same deadline mathematics: timeout parameters across the library's waiting APIs convert through here — constructed once, passed everywhere.
+**What just happened.** (1) `xrtDeadlineAfter(50000)` builds an absolute cutoff 50 ms out; `Remaining` immediately reads back about 50000 microseconds (monotonic-clock microsecond scale). (2) `xrtSleepUntil` (Chapter 42's time module) sleeps to the cutoff, after which `Expired` returns true — the three functions act out the closed loop of construct-wait-decide. (3) Note that `SleepUntil` eats the same deadline mathematics: timeout parameters across the library's waiting APIs convert through here — constructed once, passed everywhere.
 
 ## Contracts
 
-- **Atomicity boundary**: an atomic operation guarantees a single variable, single step, no interleaving; two atomic operations together carry **no** whole-transaction atomicity — cross-variable invariants belong to locks (Chapter 52), ownership transfer to queues (Chapter 21).
+- **Atomicity boundary**: an atomic operation guarantees a single variable, single step, no interleaving; two atomic operations together carry **no** whole-transaction atomicity — cross-variable invariants belong to locks (Chapter 53), ownership transfer to queues (Chapter 21).
 - **Fetch semantics**: always return the pre-operation old value; derive the new value yourself — no reflexive "go back and Load".
 - **Compare-and-exchange (CAS) rewrite**: success leaves `*pExpected` untouched; failure writes the actually observed value into `*pExpected` — the retry loop corrects from it, no re-read needed.
 - **Memory-order validity**: Load ∈ {RELAXED, ACQUIRE, SEQ_CST}; Store ∈ {RELAXED, RELEASE, SEQ_CST}; a CAS failure order contains no RELEASE and is not stronger than the success order. Illegal combinations set `XERR_ARGUMENT`; the object is unchanged.
 - **Ordering floor promise**: implementations may only be stronger than the documented ordering, never weaker — write against the documentation, not against a specific platform.
-- **Default rule**: SEQ_CST until proven relaxable; downgrades require profiling evidence (Chapter 135) and a written justification.
+- **Default rule**: SEQ_CST until proven relaxable; downgrades require profiling evidence (Chapter 136) and a written justification.
 - **Spinlock lifecycle**: stack Init/Unit, static `XRT_SPIN_INIT`, heap Create/Destroy; **destroying a still-held lock fails with `XERR_STATE`**; TryLock is non-blocking and returns false while held.
 - **deadline is a pure value**: no ownership, passed by value; `After` overflow returns `XRT_DEADLINE_NEVER`; `NEVER` never expires and `Remaining` returns `UINT64_MAX`.
 - **xwaitresult, five exclusive states**: ERROR/OK/TIMEOUT/CANCELLED/CLOSED; timeout and cancellation are control flow, not errors — they do not enter the error chain.
@@ -169,7 +169,7 @@ xrtSpinUnlock(&Lock);
 xrtSpinLock(&Lock);
 iCount++;                   /* a few instructions: the legal range for spinning */
 xrtSpinUnlock(&Lock);
-/* long work goes to a mutex (Chapter 52) — sleeping waits don't burn CPU; or compute first, then enter a short critical section to commit */
+/* long work goes to a mutex (Chapter 53) — sleeping waits don't burn CPU; or compute first, then enter a short critical section to commit */
 ```
 
 ### Pitfall 3: a relative timeout inside the retry loop
@@ -206,7 +206,7 @@ A struct holds `Done` and `Value`; use `xrtAtomic32CompareExchange` to implement
 
 ### Challenge: spin vs mutex, a three-way timing
 
-The same counting task in three implementations: atomic, spinlock, and mutex (Chapter 52's API); time each and compare. Then lengthen the critical section (add some computation) and re-measure; observe where the spinlock's advantage reverses. Acceptance: a quantified crossover point of "spin wins within a few instructions, mutex wins beyond"; the conclusion cross-checks with Chapter 52's division-of-labor section.
+The same counting task in three implementations: atomic, spinlock, and mutex (Chapter 53's API); time each and compare. Then lengthen the critical section (add some computation) and re-measure; observe where the spinlock's advantage reverses. Acceptance: a quantified crossover point of "spin wins within a few instructions, mutex wins beyond"; the conclusion cross-checks with Chapter 53's division-of-labor section.
 
 ## Cheat Sheet
 

@@ -48,7 +48,7 @@ The list's O(1) insert/delete has a precondition: **you already hold that node**
 
 ### Traversal and the complexity portrait
 
-List traversal walks node by node from head to tail (`First`/`Next`); insertion and deletion are O(1); but there is **no random index access** — finding a node by index is O(n). slot_map is the opposite: the handle is the index, access is O(1), but traversal must skip empty slots. Each one's strength is the other's weakness; combining them (slot_map stores the objects + list maintains the order) is the classic resource-manager architecture — Chapter 66's network connection table is exactly this combination scaled up: O(1) handle location, O(1) event-order maintenance, clear lifecycle ownership.
+List traversal walks node by node from head to tail (`First`/`Next`); insertion and deletion are O(1); but there is **no random index access** — finding a node by index is O(n). slot_map is the opposite: the handle is the index, access is O(1), but traversal must skip empty slots. Each one's strength is the other's weakness; combining them (slot_map stores the objects + list maintains the order) is the classic resource-manager architecture — Chapter 67's network connection table is exactly this combination scaled up: O(1) handle location, O(1) event-order maintenance, clear lifecycle ownership.
 
 ## Examples
 
@@ -83,7 +83,7 @@ old=4294967297 replacement=8589934593 same-index=yes stale-valid=no
 
 ### A quick sketch of the combined architecture
 
-The two containers' individual weaknesses (the list can't find, slot_map has no order) cancel each other in the combination — worth pinning the canonical shape with a sketch: connection arrives → `slot_map` insert yields a handle while the node `PushFront`s onto the active chain; event fires → the handle locates the object in O(1), and after processing `MoveFront` promotes the timing; connection closes → unlink first, then `Remove`, the handle goes stale with it (the generation already recorded); the outside operates on an old handle → the container layer refuses, cross-talk cannot happen. Four steps cover a resource manager's daily life; Chapter 66's network connection table scales this up into a concurrent engine, but the skeleton is exactly these lines, no more, no less.
+The two containers' individual weaknesses (the list can't find, slot_map has no order) cancel each other in the combination — worth pinning the canonical shape with a sketch: connection arrives → `slot_map` insert yields a handle while the node `PushFront`s onto the active chain; event fires → the handle locates the object in O(1), and after processing `MoveFront` promotes the timing; connection closes → unlink first, then `Remove`, the handle goes stale with it (the generation already recorded); the outside operates on an old handle → the container layer refuses, cross-talk cannot happen. Four steps cover a resource manager's daily life; Chapter 67's network connection table scales this up into a concurrent engine, but the skeleton is exactly these lines, no more, no less.
 
 ## Contracts
 
@@ -153,6 +153,6 @@ Implement a connection table with slot_map: `open` inserts and returns a handle,
 | LRU | head is newest; `MoveFront` promotes in O(1); eviction takes the tail |
 | Generation handle | `代际<<32 / 下标`; slot reuse bumps the generation; old handles fail automatically |
 | Sentinel | `XRT_SLOT_INVALID`; `Contains`/`Get` double-validate |
-| Combined architecture | slot_map locates O(1) + list orders O(1) — the resource-manager standard (Chapter 66's connection table) |
+| Combined architecture | slot_map locates O(1) + list orders O(1) — the resource-manager standard (Chapter 67's connection table) |
 | Threads | not thread-safe; cross-thread needs external synchronization |
 | Reverse-lookup formula | `XRT_CONTAINER_OF` computes the field offset at compile time, node back to host at zero cost; as many node fields as you embed, that many groupings the object can belong to |

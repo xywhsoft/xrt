@@ -1,3 +1,7 @@
+/* The xllm unity's own bridge consumes <xrt.h> first; the session journal
+ * additionally needs the JSONL module, so extend the module set before
+ * that inclusion takes effect. */
+#define XRT_MODULE_JSONL_READ
 #include "../../xllm/xllm.c"
 #include "../xllm-session.c"
 
@@ -62,6 +66,33 @@ static bool request_has_text(const xllm_request* pRequest, const char* sNeedle)
     return false;
 }
 
+static xllm_response* test_make_response(const char* sContent, uint64_t uIn, uint64_t uOut)
+{
+    xllm_response* pResponse = (xllm_response*)calloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) { return NULL; }
+    pResponse->sContent = xllm_session__strdup(sContent);
+    pResponse->tUsage.uInputTokens = uIn;
+    pResponse->tUsage.uOutputTokens = uOut;
+    pResponse->tUsage.uTotalTokens = uIn + uOut;
+    pResponse->eFinish = XLLM_FINISH_STOP;
+    if ( !pResponse->sContent ) { xllmResponseDestroy(pResponse); return NULL; }
+    return pResponse;
+}
+
+static const char* test_pi_summary(const char* sGoal)
+{
+    static char sBuffer[1024];
+    (void)snprintf(sBuffer, sizeof(sBuffer),
+        "## Goal\n%s\n"
+        "## Constraints & Preferences\nPreserve the pinned contract and exact tool pairing.\n"
+        "## Progress\nPrior turns and tool outcomes were captured.\n"
+        "## Key Decisions\nUse the durable session checkpoint as the history bridge.\n"
+        "## Next Steps\nContinue from the retained messages.\n"
+        "## Critical Context\nThe retained suffix stays verbatim; read-files: none; modified-files: none.\n",
+        sGoal);
+    return sBuffer;
+}
+
 static void test_compaction_user_bridge(void)
 {
     xllm_session_config tConfig;
@@ -80,6 +111,7 @@ static void test_compaction_user_bridge(void)
     tConfig.uOutputReserveTokens = 1000u;
     tConfig.uSafetyReserveTokens = 500u;
     tConfig.uRecentTurnsToKeep = 1u;
+    tConfig.uKeepRecentTokens = 16u; /* tiny tail so turn 1 is compactable */
     pSession = xllmSessionCreate(&tConfig, &tError);
     SESSION_CHECK(pSession != NULL, "compaction bridge session creates");
     if ( !pSession ) return;
@@ -104,19 +136,14 @@ static void test_compaction_user_bridge(void)
 
     pCompaction = xllmSessionPrepareCompaction(pSession, true, &tError);
     SESSION_CHECK(pCompaction != NULL, "bridge compaction prepares across the original user turn");
+    SESSION_CHECK(pCompaction && strstr(xllmCompactionPrompt(pCompaction), "[User]: Implement the requested project.") != NULL,
+        "Pi serialization tags the candidate");
     SESSION_CHECK(pCompaction && xllmCompactionEvaluateSummary(pCompaction,
-        "Objective: too little continuity.", &tQuality, &tError) &&
+        "## Goal\ntoo little continuity.", &tQuality, &tError) &&
         !tQuality.bAccepted && tQuality.uMissingSections != 0u,
         "quality report rejects an incomplete compaction summary");
     SESSION_CHECK(pCompaction && xllmSessionCommitCompaction(pSession, pCompaction,
-        "Objective: implement the requested project and preserve tool continuity.\n"
-        "Constraints: retain the pinned coding-agent contract and exact tool pairing.\n"
-        "Architecture and decisions: use the durable session checkpoint as the history bridge.\n"
-        "Completed work: the original user objective and prior tool outcome were captured.\n"
-        "Current repository state: the retained write call remains in the verbatim suffix.\n"
-        "Verification evidence: the safe prefix excludes the retained assistant/tool turn.\n"
-        "Open issues and risks: subsequent work must not lose the retained tool correlation.\n"
-        "Exact next actions: continue from the retained tool result and verify the project.", &tError),
+        test_pi_summary("Implement the requested project and preserve tool continuity."), &tError),
         "bridge compaction commits a continuation summary");
     xllmCompactionDestroy(pCompaction);
 
@@ -157,6 +184,8 @@ static void test_default_profile(void)
         "bounded 3 percent safety reserve profile");
     SESSION_CHECK(pSession && xllmSessionGetConfig(pSession, &tEffective) && tEffective.uOutputReserveTokens == 32768u, "dynamic output reserve is distinct from output ceiling");
     SESSION_CHECK(pSession && xllmSessionGetStats(pSession, &tStats) && tStats.uInputBudgetTokens == 164032u && tStats.uNextMaxOutputTokens == 131072u, "effective input budget preserves full output on sparse context");
+    SESSION_CHECK(pSession && xllmSessionGetConfig(pSession, &tEffective) && tEffective.uKeepRecentTokens == 20000u,
+        "default keep-recent is the Pi 20k budget");
     sLarge = make_large_output(300000u, 7u);
     uTurn = pSession ? xllmSessionBeginTurn(pSession) : 0u;
     SESSION_CHECK(sLarge && uTurn && xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, sLarge, 0u), "large active input added for dynamic output test");
@@ -170,15 +199,13 @@ static void test_default_profile(void)
 static void test_budget_compaction_persistence(void)
 {
     static const char sStatePath[] = "build/session_state_test.json";
-    static const char sSummary[] =
-        "Objective: continue the code-agent implementation.\n"
-        "Constraints: preserve the pinned contract, exact paths, and completed tool outcomes.\n"
-        "Architecture and decisions: compact only a safe completed prefix and retain recent turns verbatim.\n"
-        "Completed work: rounds 1-4 inspected modules and preserved tool outcomes.\n"
-        "Current repository state: recent rounds 5-6 remain verbatim and are ready to continue.\n"
-        "Verification evidence: every compacted round has a paired successful tool result.\n"
-        "Open issues and risks: no unresolved failures; avoid dropping retained tool-call structure.\n"
-        "Exact next actions: continue from the retained messages.";
+    const char* sSummary =
+        "## Goal\nContinue the code-agent implementation.\n"
+        "## Constraints & Preferences\nPreserve the pinned contract, exact paths, and completed tool outcomes.\n"
+        "## Progress\nRounds 1-4 inspected modules and preserved tool outcomes.\n"
+        "## Key Decisions\nCompact only a safe completed prefix and retain recent turns verbatim.\n"
+        "## Next Steps\nContinue from the retained messages (rounds 5-6).\n"
+        "## Critical Context\nRecent rounds 5-6 remain verbatim; read-files: module_1.c; modified-files: none.";
     xllm_session_config tConfig;
     xllm_session* pSession;
     xllm_session* pLoaded = NULL;
@@ -212,7 +239,7 @@ static void test_budget_compaction_persistence(void)
     }
     SESSION_CHECK(xllmSessionGetStats(pSession, &tBefore), "session pressure stats available");
     SESSION_CHECK(tBefore.uPendingToolCalls == 0u, "completed tool rounds have no pending calls");
-    SESSION_CHECK(tBefore.ePressure == XLLM_SESSION_PRESSURE_PRUNE || tBefore.ePressure == XLLM_SESSION_PRESSURE_COMPACT, "large history activates pressure policy");
+    SESSION_CHECK(tBefore.ePressure == XLLM_SESSION_PRESSURE_PRUNE || tBefore.ePressure == XLLM_SESSION_PRESSURE_COMPACT, "large history activates offline pressure policy");
     SESSION_CHECK(tBefore.uRenderedActiveTokens < tBefore.uRawActiveTokens, "old large tool outputs are soft-pruned");
 
     xllmRequestInit(&tRequest);
@@ -224,7 +251,8 @@ static void test_budget_compaction_persistence(void)
 
     pCompaction = xllmSessionPrepareCompaction(pSession, true, &tError);
     SESSION_CHECK(pCompaction != NULL, "forced compaction transaction prepares");
-    SESSION_CHECK(pCompaction && strstr(xllmCompactionPrompt(pCompaction), "Objective; Constraints") != NULL, "compaction prompt encodes durable summary contract");
+    SESSION_CHECK(pCompaction && strstr(xllmCompactionPrompt(pCompaction), "## Goal") != NULL, "compaction prompt encodes the Pi summary contract");
+    SESSION_CHECK(pCompaction && strstr(xllmCompactionPrompt(pCompaction), "[Tool result call_1") != NULL, "candidate serialization tags tool results");
     SESSION_CHECK(pCompaction && xllmCompactionEstimatedTokens(pCompaction) > 0u, "compaction prompt token estimate available");
     uThrough = xllmCompactionThroughSequence(pCompaction);
     SESSION_CHECK(uThrough > 0u, "compaction selects a completed prefix");
@@ -246,6 +274,7 @@ static void test_budget_compaction_persistence(void)
     pLoaded = xllmSessionLoad(sStatePath, &tError);
     SESSION_CHECK(pLoaded != NULL, "session snapshot loads");
     SESSION_CHECK(pLoaded && xllmSessionGetStats(pLoaded, &tLoaded) && tLoaded.uCompactionCount == 1u && tLoaded.uCompactedThroughSequence == uThrough, "loaded session preserves compaction checkpoint");
+    SESSION_CHECK(pLoaded && xllmSessionGetStats(pLoaded, &tLoaded) && !tLoaded.bFillExactValid, "restored session reports unknown fill until the next call");
     if ( pLoaded ) {
         xllm_session* pFork = xllmSessionFork(pLoaded, &tError);
         SESSION_CHECK(pFork != NULL, "loaded compacted session forks");
@@ -268,7 +297,7 @@ static void test_budget_compaction_persistence(void)
             SESSION_CHECK(xllmSessionBuildRequest(pFork, &tRequest, &tError) &&
                 request_has_text(&tRequest, "Explore an isolated branch") &&
                 !request_has_text(&tRequest, "Continue on parent branch") &&
-                request_has_text(&tRequest, "Completed work: rounds 1-4"),
+                request_has_text(&tRequest, "Rounds 1-4 inspected modules"),
                 "fork request retains summary and isolates parent state");
             xllmRequestUnit(&tRequest);
         }
@@ -277,26 +306,45 @@ static void test_budget_compaction_persistence(void)
         SESSION_CHECK(xllmSessionAddText(pLoaded, uTurn, XLLM_ROLE_USER, "Continue after process restart.", 0u), "loaded session accepts a continuation turn");
         xllmRequestInit(&tRequest);
         SESSION_CHECK(xllmSessionBuildRequest(pLoaded, &tRequest, &tError), "loaded session renders continuation request");
-        SESSION_CHECK(request_has_text(&tRequest, "Completed work: rounds 1-4") && request_has_text(&tRequest, "Continue after process restart"), "summary continuity survives restart");
+        SESSION_CHECK(request_has_text(&tRequest, "Rounds 1-4 inspected modules") && request_has_text(&tRequest, "Continue after process restart"), "summary continuity survives restart");
         xllmRequestUnit(&tRequest);
         {
+            /* Standalone fixture: the invariant under test is that an
+             * unresolved tool-call turn never becomes a candidate. */
+            xllm_session* pPending;
             xllm_tool_call tPendingCall;
             xllm_response tPendingResponse;
             xllm_compaction* pPendingCompaction;
-            uint64_t uPendingTurn = xllmSessionBeginTurn(pLoaded);
-            memset(&tPendingCall, 0, sizeof(tPendingCall));
-            tPendingCall.sId = "pending_call";
-            tPendingCall.sName = "write_file";
-            tPendingCall.sArgumentsJson = "{\"path\":\"pending.c\"}";
-            memset(&tPendingResponse, 0, sizeof(tPendingResponse));
-            tPendingResponse.sContent = "";
-            tPendingResponse.pToolCalls = &tPendingCall;
-            tPendingResponse.iToolCallCount = 1u;
-            SESSION_CHECK(xllmSessionAddAssistantResponse(pLoaded, uPendingTurn, &tPendingResponse), "pending assistant tool call added");
-            SESSION_CHECK(xllmSessionGetStats(pLoaded, &tLoaded) && tLoaded.uPendingToolCalls == 1u, "pending tool call tracked");
-            pPendingCompaction = xllmSessionPrepareCompaction(pLoaded, true, &tError);
-            SESSION_CHECK(pPendingCompaction != NULL && strstr(xllmCompactionPrompt(pPendingCompaction), "pending_call") == NULL, "compaction excludes unresolved tool-call turn");
-            xllmCompactionDestroy(pPendingCompaction);
+            uint64_t uPendingTurn;
+            tConfig.uKeepRecentTokens = 16u;
+            pPending = xllmSessionCreate(&tConfig, &tError);
+            tConfig.uKeepRecentTokens = 0u;
+            SESSION_CHECK(pPending != NULL, "pending fixture session creates");
+            if ( pPending ) {
+                (void)xllmSessionAddText(pPending, 0u, XLLM_ROLE_SYSTEM, "pinned contract.", XLLM_SESSION_ENTRY_PINNED);
+                uPendingTurn = xllmSessionBeginTurn(pPending);
+                SESSION_CHECK(xllmSessionAddText(pPending, uPendingTurn, XLLM_ROLE_USER, "Start the objective.", 0u) &&
+                    xllmSessionAddText(pPending, uPendingTurn, XLLM_ROLE_ASSISTANT, "objective captured", 0u),
+                    "completed turn precedes the pending turn");
+                memset(&tPendingCall, 0, sizeof(tPendingCall));
+                tPendingCall.sId = "pending_call";
+                tPendingCall.sName = "write_file";
+                tPendingCall.sArgumentsJson = "{\"path\":\"pending.c\"}";
+                memset(&tPendingResponse, 0, sizeof(tPendingResponse));
+                tPendingResponse.sContent = "";
+                tPendingResponse.pToolCalls = &tPendingCall;
+                tPendingResponse.iToolCallCount = 1u;
+                uPendingTurn = xllmSessionBeginTurn(pPending);
+                SESSION_CHECK(xllmSessionAddAssistantResponse(pPending, uPendingTurn, &tPendingResponse), "pending assistant tool call added");
+                SESSION_CHECK(xllmSessionGetStats(pPending, &tLoaded) && tLoaded.uPendingToolCalls == 1u, "pending tool call tracked");
+                pPendingCompaction = xllmSessionPrepareCompaction(pPending, true, &tError);
+                SESSION_CHECK(pPendingCompaction != NULL &&
+                    strstr(xllmCompactionPrompt(pPendingCompaction), "pending_call") == NULL &&
+                    strstr(xllmCompactionPrompt(pPendingCompaction), "[User]: Start the objective.") != NULL,
+                    "compaction excludes unresolved tool-call turn");
+                xllmCompactionDestroy(pPendingCompaction);
+                xllmSessionDestroy(pPending);
+            }
         }
     }
     for ( i = 0u; i < 6u; ++i ) { free(psOutputs[i]); }
@@ -309,15 +357,13 @@ static void test_journal_checkpoint_recovery(void)
 {
     static const char sSnapshotPath[] = "build/session_recovery_test.json";
     static const char sJournalPath[] = "build/session_recovery_test.ndjson";
-    static const char sSummary[] =
-        "Objective: preserve a crash-safe coding session.\n"
-        "Constraints: journal acknowledged mutations before exposing them to callers.\n"
-        "Architecture and decisions: recover from the snapshot plus a valid journal prefix.\n"
-        "Completed work: the initial journaled turns were recovered.\n"
-        "Current repository state: the latest branch remains verbatim.\n"
-        "Verification evidence: journal sequence and recovered turns were checked.\n"
-        "Open issues and risks: ignore a torn tail but reject complete corrupt records.\n"
-        "Exact next actions: continue from the recovered checkpoint.";
+    const char* sSummary =
+        "## Goal\nPreserve a crash-safe coding session.\n"
+        "## Constraints & Preferences\nJournal acknowledged mutations before exposing them to callers.\n"
+        "## Progress\nThe initial journaled turns were recovered.\n"
+        "## Key Decisions\nRecover from the snapshot plus a valid journal prefix.\n"
+        "## Next Steps\nContinue from the recovered checkpoint.\n"
+        "## Critical Context\nThe latest branch remains verbatim; torn tails are ignored, corrupt records rejected.";
     xllm_session_config tConfig;
     xllm_session* pSession = NULL;
     xllm_session* pRecovered = NULL;
@@ -341,6 +387,7 @@ static void test_journal_checkpoint_recovery(void)
     tConfig.uSafetyReserveTokens = 500u;
     tConfig.uRecentTurnsToKeep = 1u;
     tConfig.uSummaryMaxTokens = 1000u;
+    tConfig.uKeepRecentTokens = 16u;
     pSession = xllmSessionCreate(&tConfig, &tError);
     SESSION_CHECK(pSession != NULL, "journal recovery session creates");
     SESSION_CHECK(pSession && xllmSessionEnableJournal(pSession, sJournalPath, &tError),
@@ -392,8 +439,10 @@ static void test_journal_checkpoint_recovery(void)
 
     iCompleteSize = (size_t)test_path_size(sJournalPath);
     SESSION_CHECK(xrtFileAppend(sJournalPath,
+        (xbytesview){ (const uint8*)"\"} torn", 8u }) > 0 || true, "test simulates a torn final journal record");
+    SESSION_CHECK(xrtFileAppend(sJournalPath,
         (xbytesview){ (const uint8*)"{\"partial\":", 11u }),
-        "test simulates a torn final journal record");
+        "torn tail bytes appended");
     pStale = xllmSessionRecover(sSnapshotPath, sJournalPath, NULL, &tError);
     SESSION_CHECK(pStale != NULL, "snapshot plus journal recovery ignores torn tail");
     SESSION_CHECK(test_path_size(sJournalPath) == (uint64_t)iCompleteSize,
@@ -480,13 +529,431 @@ done:
     (void)xrtFileDelete((str)sSnapshotPath);
 }
 
+/* ------------------------------------------------------------------ */
+/* v3: exact-feedback governance                                        */
+/* ------------------------------------------------------------------ */
+
+static void test_exact_governance(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_session* pFork = NULL;
+    xllm_session_stats tStats;
+    xllm_usage tUsage;
+    xllm_error tError;
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = 8000u;
+    tConfig.uMaxOutputTokens = 1000u;
+    tConfig.uOutputReserveTokens = 1000u;
+    tConfig.uSafetyReserveTokens = 500u;
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL, "governance session creates");
+    if ( !pSession ) { return; }
+    SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && !tStats.bFillExactValid &&
+        tStats.uFillExact == UINT64_MAX && tStats.ePressure == XLLM_SESSION_PRESSURE_NONE,
+        "fresh session reports unknown fill and no pressure");
+    memset(&tUsage, 0, sizeof(tUsage));
+    tUsage.uInputTokens = 100u;
+    tUsage.uOutputTokens = 50u;
+    tUsage.uCachedInputTokens = 60u;
+    SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage), "usage feedback accepted");
+    SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && tStats.bFillExactValid &&
+        tStats.uFillExact == 150u && tStats.uCachedInputTokens == 60u &&
+        tStats.uIncrementMax >= 256u && tStats.ePressure == XLLM_SESSION_PRESSURE_NONE,
+        "exact fill recorded with a bounded increment envelope");
+    /* budget = 8000 - 1000 - 500 = 6500; soft = 0.95 * 6500 = 6175 */
+    tUsage.uInputTokens = 6000u;
+    tUsage.uOutputTokens = 10u;
+    SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
+        xllmSessionGetStats(pSession, &tStats) &&
+        tStats.ePressure == XLLM_SESSION_PRESSURE_COMPACT,
+        "soft threshold crosses into compact pressure");
+    tUsage.uInputTokens = 6400u;
+    tUsage.uOutputTokens = 100u;
+    SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
+        xllmSessionGetStats(pSession, &tStats) &&
+        tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW,
+        "fill plus increment beyond the input budget is overflow");
+    tUsage.uInputTokens = 100u;
+    tUsage.uOutputTokens = 50u;
+    SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage), "usage back to sparse");
+    pFork = xllmSessionFork(pSession, &tError);
+    SESSION_CHECK(pFork && xllmSessionGetStats(pFork, &tStats) && !tStats.bFillExactValid,
+        "fork invalidates the exact fill");
+    xllmSessionDestroy(pFork);
+    xllmSessionDestroy(pSession);
+}
+
+/* ------------------------------------------------------------------ */
+/* v3: ops table and render/event hooks                                 */
+/* ------------------------------------------------------------------ */
+
+typedef struct {
+    xllm_session_event_type aEvents[64];
+    size_t iEvents;
+    bool bReenter;
+} test_event_sink;
+
+static void test_on_event(xllm_session* pSession, const xllm_session_event* pEvent, void* pUserData)
+{
+    test_event_sink* pSink = (test_event_sink*)pUserData;
+    (void)pSession;
+    if ( pSink->iEvents < 64u ) { pSink->aEvents[pSink->iEvents++] = pEvent->eType; }
+}
+
+static bool test_has_event(const test_event_sink* pSink, xllm_session_event_type eType)
+{
+    size_t i;
+    for ( i = 0u; i < pSink->iEvents; ++i ) {
+        if ( pSink->aEvents[i] == eType ) { return true; }
+    }
+    return false;
+}
+
+static xllm_render_action test_skip_users(xllm_session* pSession, uint64_t uSequence,
+    uint64_t uTurn, uint32_t uFlags, xllm_message* pWork, void* pUserData)
+{
+    (void)pSession; (void)uSequence; (void)uTurn; (void)pWork; (void)pUserData;
+    return (uFlags & XLLM_SESSION_ENTRY_PINNED) == 0u && pWork->eRole == XLLM_ROLE_USER
+        ? XLLM_RENDER_SKIP : XLLM_RENDER_KEEP;
+}
+
+static xllm_render_action test_skip_assistant(xllm_session* pSession, uint64_t uSequence,
+    uint64_t uTurn, uint32_t uFlags, xllm_message* pWork, void* pUserData)
+{
+    (void)pSession; (void)uSequence; (void)uTurn; (void)uFlags; (void)pUserData;
+    return pWork->eRole == XLLM_ROLE_ASSISTANT && pWork->iToolCallCount > 0u
+        ? XLLM_RENDER_SKIP : XLLM_RENDER_KEEP;
+}
+
+static bool test_summary_as_system(xllm_session* pSession, const xllm_session_summary* pSummary,
+    xllm_message* pWork, void* pUserData)
+{
+    (void)pSession; (void)pSummary; (void)pUserData;
+    if ( pWork->eRole != XLLM_ROLE_USER ) { return true; }
+    pWork->eRole = XLLM_ROLE_SYSTEM;
+    return xllmMessageSetContent(pWork, "[summary]");
+}
+
+static bool test_append_marker(xllm_session* pSession, xllm_request* pRequest, void* pUserData)
+{
+    (void)pSession; (void)pUserData;
+    return xllmRequestAddTextMessage(pRequest, XLLM_ROLE_USER, "ephemeral tail context");
+}
+
+static bool test_serialize_wrapped(xllm_session* pSession, uint64_t uFrom, uint64_t uTo,
+    char** psText, void* pUserData)
+{
+    char* sBase;
+    xllm_session_buf tBuf = {0};
+    bool bOk;
+    (void)pUserData;
+    sBase = xllm_session__serialize_candidates(pSession, uFrom, uTo);
+    if ( !sBase ) { return false; }
+    bOk = xllm_session__buf_cstr(&tBuf, "[[[\n") &&
+        xllm_session__buf_cstr(&tBuf, sBase) &&
+        xllm_session__buf_cstr(&tBuf, "]]]\n");
+    free(sBase);
+    *psText = bOk ? xllm_session__buf_detach(&tBuf) : NULL;
+    xllm_session__buf_unit(&tBuf);
+    return *psText != NULL;
+}
+
+static void test_ops_and_hooks(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_compaction* pA;
+    xllm_compaction* pB;
+    xllm_request tRequest;
+    xllm_error tError;
+    xllm_compaction_ops tOps;
+    xllm_session_hooks tHooks;
+    test_event_sink tSink = {0};
+    xllm_tool_call tCall;
+    xllm_response tResponse;
+    uint64_t uTurn;
+
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = 8000u;
+    tConfig.uMaxOutputTokens = 1000u;
+    tConfig.uOutputReserveTokens = 1000u;
+    tConfig.uSafetyReserveTokens = 500u;
+    tConfig.uKeepRecentTokens = 16u;
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL, "hooks session creates");
+    if ( !pSession ) { return; }
+    uTurn = xllmSessionBeginTurn(pSession);
+    (void)xllmSessionAddText(pSession, uTurn, XLLM_ROLE_SYSTEM, "pinned", XLLM_SESSION_ENTRY_PINNED);
+    uTurn = xllmSessionBeginTurn(pSession);
+    (void)xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, "old user drop me", 0u);
+    uTurn = xllmSessionBeginTurn(pSession);
+    memset(&tCall, 0, sizeof(tCall));
+    tCall.sId = "pair_call";
+    tCall.sName = "tool_x";
+    tCall.sArgumentsJson = "{}";
+    memset(&tResponse, 0, sizeof(tResponse));
+    tResponse.sContent = "";
+    tResponse.pToolCalls = &tCall;
+    tResponse.iToolCallCount = 1u;
+    (void)xllmSessionAddAssistantResponse(pSession, uTurn, &tResponse);
+    (void)xllmSessionAddToolResult(pSession, uTurn, "pair_call", "pair result");
+
+    /* default-equivalence: NULL ops and the default table produce identical prompts */
+    pA = xllmSessionPrepareCompaction(pSession, true, &tError);
+    SESSION_CHECK(xllmSessionSetCompactionOps(pSession, xllmSessionDefaultCompactionOps()),
+        "default ops table installs");
+    pB = xllmSessionPrepareCompaction(pSession, true, &tError);
+    SESSION_CHECK(pA && pB && strcmp(xllmCompactionPrompt(pA), xllmCompactionPrompt(pB)) == 0,
+        "NULL ops and the default table render byte-identical prompts");
+    xllmCompactionDestroy(pA);
+    xllmCompactionDestroy(pB);
+
+    /* stage-level override: only serialization changes */
+    memset(&tOps, 0, sizeof(tOps));
+    tOps.pSerialize = test_serialize_wrapped;
+    SESSION_CHECK(xllmSessionSetCompactionOps(pSession, &tOps), "custom ops installs");
+    pA = xllmSessionPrepareCompaction(pSession, true, &tError);
+    SESSION_CHECK(pA && strstr(xllmCompactionPrompt(pA), "[[[\n[User]:") != NULL,
+        "custom serialize stage replaces only that stage");
+    xllmCompactionDestroy(pA);
+    SESSION_CHECK(xllmSessionSetCompactionOps(pSession, NULL), "ops reset to default");
+
+    /* render hooks: SKIP a plain user entry, then verify pairing protection */
+    memset(&tHooks, 0, sizeof(tHooks));
+    tHooks.pRenderMessage = test_skip_users;
+    SESSION_CHECK(xllmSessionSetHooks(pSession, &tHooks), "render hooks install");
+    xllmRequestInit(&tRequest);
+    SESSION_CHECK(xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+        !request_has_text(&tRequest, "old user drop me") &&
+        request_has_text(&tRequest, "pair result"),
+        "SKIP removes a user entry from the render");
+    xllmRequestUnit(&tRequest);
+    tHooks.pRenderMessage = test_skip_assistant;
+    xllmRequestInit(&tRequest);
+    SESSION_CHECK(!xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+        tError.eCode == XLLM_ERROR_PROTOCOL,
+        "SKIP breaking a tool pair fails the render");
+    xllmRequestUnit(&tRequest);
+    xrtClearError();
+
+    /* summary hook: switch the bridge to a system message; completion hook appends */
+    pA = xllmSessionPrepareCompaction(pSession, true, &tError);
+    SESSION_CHECK(pA && xllmSessionCommitCompaction(pSession, pA, test_pi_summary("hook coverage"), &tError),
+        "compaction for the summary hook commits");
+    xllmCompactionDestroy(pA);
+    pA = NULL;
+    tHooks.pRenderMessage = NULL;
+    tHooks.pRenderSummary = test_summary_as_system;
+    tHooks.pRenderComplete = test_append_marker;
+    xllmRequestInit(&tRequest);
+    SESSION_CHECK(xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+        tRequest.iMessageCount >= 2u &&
+        tRequest.pMessages[1].eRole == XLLM_ROLE_SYSTEM &&
+        strcmp(tRequest.pMessages[1].sContent, "[summary]") == 0 &&
+        request_has_text(&tRequest, "ephemeral tail context"),
+        "summary and completion hooks reshape the request");
+    xllmRequestUnit(&tRequest);
+
+    /* event stream: mutations emit the documented lifecycle */
+    tHooks.pRenderSummary = NULL;
+    tHooks.pRenderComplete = NULL;
+    tHooks.pOnEvent = test_on_event;
+    tHooks.pUserData = &tSink;
+    uTurn = xllmSessionBeginTurn(pSession);
+    (void)xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, "event probe", 0u);
+    SESSION_CHECK(test_has_event(&tSink, XLLM_SESSION_EVENT_TURN_BEGIN) &&
+        test_has_event(&tSink, XLLM_SESSION_EVENT_ENTRY_ADDED) &&
+        test_has_event(&tSink, XLLM_SESSION_EVENT_JOURNAL_RECORD) == false &&
+        tSink.iEvents >= 2u,
+        "turn and entry events fire without a journal");
+    SESSION_CHECK(xllmSessionSetHooks(pSession, NULL), "hooks removed");
+    xllmSessionDestroy(pSession);
+}
+
+/* ------------------------------------------------------------------ */
+/* v3: overflow ladder and the compaction loop guard                    */
+/* ------------------------------------------------------------------ */
+
+static void test_ladder_and_guard(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_session_stats tStats;
+    xllm_request tRequest;
+    xllm_error tError;
+    uint64_t uTurn;
+    unsigned i;
+
+    /* L2 truncation: several medium turns, a window that cannot compact
+     * (single-shot summaries unavailable without a client) must truncate. */
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = 1000u;
+    tConfig.uMaxOutputTokens = 100u;
+    tConfig.uOutputReserveTokens = 100u;
+    tConfig.uSafetyReserveTokens = 50u;
+    tConfig.fPruneTrigger = 0.10;
+    tConfig.fCompactTrigger = 0.20;
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL, "ladder session creates");
+    if ( pSession ) {
+        for ( i = 0u; i < 6u; ++i ) {
+            char sText[600];
+            memset(sText, 'x', sizeof(sText) - 1u);
+            sText[sizeof(sText) - 1u] = '\0';
+            uTurn = xllmSessionBeginTurn(pSession);
+            (void)xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, sText, 0u);
+            (void)xllmSessionAddText(pSession, uTurn, XLLM_ROLE_ASSISTANT, "done", 0u);
+        }
+        SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) &&
+            tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW,
+            "offline estimate ladder reports overflow");
+        SESSION_CHECK(xllmSessionOverflowLadder(pSession, &tError),
+            "overflow ladder truncates the tail");
+        SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) &&
+            tStats.uSummaryGeneration == 1u && tStats.ePressure != XLLM_SESSION_PRESSURE_OVERFLOW,
+            "L2 truncation advances the generation and relieves overflow");
+        xllmRequestInit(&tRequest);
+        SESSION_CHECK(xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+            request_has_text(&tRequest, "truncated by overflow recovery") &&
+            tRequest.iMessageCount <= 4u,
+            "rendered tail carries the truncation marker and the newest turns");
+        xllmRequestUnit(&tRequest);
+        xllmSessionDestroy(pSession);
+    }
+    xrtClearError();
+
+    /* Loop guard: compactions without an intervening user entry stop after
+     * two consecutive rounds. */
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = 8000u;
+    tConfig.uMaxOutputTokens = 1000u;
+    tConfig.uOutputReserveTokens = 1000u;
+    tConfig.uSafetyReserveTokens = 500u;
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL, "guard session creates");
+    if ( pSession ) {
+        xllm_usage tUsage;
+        memset(&tUsage, 0, sizeof(tUsage));
+        tUsage.uInputTokens = 6100u;
+        tUsage.uOutputTokens = 100u;
+        uTurn = xllmSessionBeginTurn(pSession);
+        (void)xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, "guard turn", 0u);
+        SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
+            xllmSessionGetStats(pSession, &tStats) &&
+            tStats.ePressure >= XLLM_SESSION_PRESSURE_COMPACT,
+            "guard fixture raises pressure through exact feedback");
+        pSession->uAutoCompactStreak = 2u; /* simulate two prior auto rounds */
+        SESSION_CHECK(!xllmSessionMaybeCompact(pSession, NULL, &tError) &&
+            tError.eCode == XLLM_ERROR_LIMIT,
+            "loop guard refuses the third consecutive auto compaction");
+        xrtClearError();
+        xllmSessionDestroy(pSession);
+    }
+    (void)i;
+}
+
+/* ------------------------------------------------------------------ */
+/* v3: easy layer (bound/test sessions, auto compaction)                */
+/* ------------------------------------------------------------------ */
+
+typedef struct {
+    const char* sContent;      /* reply for normal calls */
+    uint64_t uIn, uOut;
+    unsigned iCalls;
+} test_script;
+
+static xllm_result test_script_call(void* pUserData, const xllm_request* pRequest,
+    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
+{
+    test_script* pScript = (test_script*)pUserData;
+    size_t i;
+    bool bSummaryCall = false;
+    (void)pCallbacks;
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        if ( pRequest->pMessages[i].sContent &&
+             strstr(pRequest->pMessages[i].sContent, "<conversation>") ) { bSummaryCall = true; }
+    }
+    ++pScript->iCalls;
+    if ( pError ) { xllmErrorInit(pError); }
+    *ppResponse = test_make_response(
+        bSummaryCall ? test_pi_summary("scripted auto compaction") : pScript->sContent,
+        pScript->uIn, pScript->uOut);
+    return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
+}
+
+static void test_easy_send(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_session_stats tStats;
+    xllm_response* pResponse = NULL;
+    xllm_error tError;
+    test_script tScript = { "model reply", 5000u, 500u, 0u };
+    bool bCompact = false;
+    uint64_t uTurn;
+
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = 8000u;
+    tConfig.uMaxOutputTokens = 1000u;
+    tConfig.uOutputReserveTokens = 1000u;
+    tConfig.uSafetyReserveTokens = 500u;
+    tConfig.uKeepRecentTokens = 16u;
+    pSession = xllmSessionCreateForTest(&tConfig, test_script_call, &tScript, &tError);
+    SESSION_CHECK(pSession != NULL, "test-bound session creates");
+    if ( !pSession ) { return; }
+
+    /* First turn: normal reply, usage recorded, no compaction due. */
+    SESSION_CHECK(xllmSessionSend(pSession, "hello", NULL, &pResponse, &tError) == XLLM_RESULT_OK &&
+        pResponse && strcmp(pResponse->sContent, "model reply") == 0,
+        "Send returns the scripted reply");
+    xllmResponseDestroy(pResponse);
+    pResponse = NULL;
+    SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && tStats.bFillExactValid &&
+        tStats.uFillExact == 5500u && tStats.uCurrentTurn == 1u && tStats.uEntryCount == 2u,
+        "Send records the turn and the exact usage");
+    SESSION_CHECK(xllmSessionMaybeCompact(pSession, &bCompact, &tError) && !bCompact,
+        "below threshold: no compaction due (5500 + inc < 6175)");
+
+    /* Second turn: usage crosses overflow; the next MaybeCompact runs the
+     * full ops pipeline through the scripted meta call. */
+    tScript.uIn = 6100u;
+    tScript.uOut = 100u;
+    uTurn = xllmSessionBeginTurn(pSession);
+    (void)xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, "second turn", 0u);
+    pResponse = test_make_response("ack", 6100u, 100u);
+    (void)xllmSessionAddAssistantResponse(pSession, uTurn, pResponse);
+    xllmResponseDestroy(pResponse);
+    SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) &&
+        tStats.ePressure >= XLLM_SESSION_PRESSURE_COMPACT,
+        "scripted usage raises the pressure");
+    SESSION_CHECK(xllmSessionMaybeCompact(pSession, &bCompact, &tError) && bCompact,
+        "auto compaction runs through the scripted meta call");
+    SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && tStats.uCompactionCount == 1u &&
+        tStats.uSummaryGeneration == 1u && tStats.uSummaryTokensExact == 100u,
+        "compaction commits with exact summary accounting");
+    {
+        xllm_request tRequest;
+        xllmRequestInit(&tRequest);
+        SESSION_CHECK(xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+            request_has_text(&tRequest, "scripted auto compaction"),
+            "rendered request carries the rolled summary");
+        xllmRequestUnit(&tRequest);
+    }
+    xllmSessionDestroy(pSession);
+}
+
 int main(void)
 {
-    printf("xllm-session v2 tests\n");
+    printf("xllm-session v3 tests\n");
     test_default_profile();
     test_compaction_user_bridge();
     test_budget_compaction_persistence();
     test_journal_checkpoint_recovery();
-    printf("xllm-session v2: %s (%d failures)\n", g_iSessionFailures ? "FAIL" : "PASS", g_iSessionFailures);
+    test_exact_governance();
+    test_ops_and_hooks();
+    test_ladder_and_guard();
+    test_easy_send();
+    printf("xllm-session v3: %s (%d failures)\n", g_iSessionFailures ? "FAIL" : "PASS", g_iSessionFailures);
     return g_iSessionFailures ? 1 : 0;
 }

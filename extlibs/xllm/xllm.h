@@ -50,7 +50,10 @@ typedef enum xllm_error_code {
     XLLM_ERROR_MODEL_NOT_FOUND,
     XLLM_ERROR_UPSTREAM,
     XLLM_ERROR_PROTOCOL,
-    XLLM_ERROR_PARSE
+    XLLM_ERROR_PARSE,
+    /* Session-layer additions (appended: existing values stay stable). */
+    XLLM_ERROR_LIMIT,   /* a single message exceeds the configured byte cap */
+    XLLM_ERROR_HOOK     /* a host-supplied session hook failed or re-entered */
 } xllm_error_code;
 
 typedef struct xllm_diagnostics {

@@ -29972,6 +29972,36 @@ typedef struct xtaskargs {
 	ptr DestroyData;
 } xtaskargs;
 
+/* Immutable, resident contract for the ONE Data reference transferred on
+ * acceptance. Proc borrows Data; Drop(Data,NULL) consumes that reference once
+ * outside ownership mutation/freeze. Ops describes the actual same physical
+ * Data node, not a wrapper or estimated reference count. All callbacks and the
+ * descriptor outlive the job, including collector pins after execution ends.
+ * This is separate from xtaskargs and successful result ownership. */
+typedef struct xtaskdataownershipv1 {
+	size_t size;
+	xtaskproc Proc;
+	xfuturefreeproc Drop;
+	const xrtownershipops* Ops;
+} xtaskdataownershipv1;
+
+XRT_EXTERN_C_BEGIN
+
+/* Every pending native task Future owns its actual Job, including legacy jobs.
+ * This policy identifies that physical edge, not certification of opaque Data. */
+XRT_API const xfutureproducerownershipv1* xrtTaskProducerPolicyV1Get(void);
+
+/* Query under the caller's exclusive ownership freeze. Match an explicitly
+ * accepted Data policy identity BEFORE inspecting callbacks or traversing Data.
+ * Legacy jobs and active execution refuse admission. Preparation waits for the
+ * executor's real completion/release; it never cancels, steals or skips work.
+ * ppPreparation is written only on success. No callbacks are invoked here. */
+XRT_API const xrtownershipadapterv1* xrtTaskOwnershipAdapterV1(xrtownershipref Reference,
+	const xtaskdataownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+
+XRT_EXTERN_C_END
+
 #endif
 
 
@@ -30206,6 +30236,15 @@ XRT_API xfuture* xrtTaskSubmitTraced(
  * only the result, never pending jobs, waiters or arbitrary task callbacks. */
 XRT_API xfuture* xrtTaskSubmitOwnedPolicyV1(xtaskpool* pPool, xtaskproc pProc,
 	ptr pData, const xtaskargs* pArgs, const xfuturepayloadownershipv1* pPolicy);
+
+/* Immediate submit with separate certified Data and successful-result policies.
+ * Data must name one existing owned reference; no extra Data retain is hidden.
+ * The returned Future actually owns its Job, while the accepted executor owns
+ * another Job reference. Rejection consumes no Data and leaves no producer
+ * cycle. Both policies are required; void results remain valid. The executor
+ * drops Data before publishing the result, preserving existing task semantics. */
+XRT_API xfuture* xrtTaskSubmitOwnedJobV1(xtaskpool* pPool, ptr pData, xcancel* pCancel,
+	const xtaskdataownershipv1* pDataPolicy, const xfuturepayloadownershipv1* pResultPolicy);
 
 
 

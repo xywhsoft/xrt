@@ -1,4 +1,16 @@
-/* JSONL：Array 往返、空行策略、全局错误位置及原子文件读写。 */
+/*
+ * 范例：data/jsonl —— JSON Lines：逐行解析、空行策略、全局错误位置及原子文件读写
+ * ----------------------------------------------------------------
+ * 演示 API：
+ *   xrtJsonlParse / xrtJsonlStringify   Array 与 JSONL 文本互转
+ *   xrtJsonlRead / xrtJsonlValid        按配置读取与逐行语法校验
+ *   xrtJsonlWrite / xrtJsonlWriteFile   回调分块写出与原子文件替换
+ *   xrtJsonlErrorLocation               错误的全局行号与记录下标
+ * 模块宏：XRT_MODULE_JSONL（READ+WRITE+FILE）
+ * 预期输出：
+ *   JSONL: 3 records, 20 bytes
+ *   empty line: line=2 record=1
+ */
 #include <stdio.h>
 #include <xrt.h>
 

@@ -2099,3 +2099,32 @@ xrtTaskPoolDestroy(pPool);
 
 原有 `xrtTaskSubmitTraced` 的追踪接口保持兼容，但不自动变成回收认证。
 新接口认证的是完成后的结果，不是任务帧、执行中的原生作业或等待回调。
+
+## 原生 Job 的实际拥有关系与准备协议
+
+`xrtTaskSubmitOwnedJobV1(pool, data, cancel, dataPolicy, resultPolicy)` 同时选择
+不可变 `xtaskdataownershipv1` 和结果策略。数据策略明确 Proc、Drop 与实际 Data
+拥有节点的 Ops；受理只接管调用方现有的一次 Data 引用，不额外保留。拒绝时
+不运行 Proc、Drop 或 Data 的 Count/Trace，调用方仍负责原数据。描述符和所有
+回调必须存活到 Job 的最后一个引用释放，包括检查器持有的引用。
+
+所有任务的 pending Future 现在实际拥有一个原生 Job 引用，执行器另有一个
+真实引用。Job 拥有 Promise、取消令牌和受理的数据；借用 Future 指针及队列
+链接不重复计为拥有边。普通终态发布释放 Future 的 Job 引用，执行器则在工作、
+数据释放、通知和自身清理返回后释放其引用。排队任务仍有执行器外部根，不能
+通过修正计数或忽略执行器引用把它当成无根垃圾。
+
+`xrtTaskProducerPolicyV1Get()` 只标识这条真实的 producer 边，不认证未知 Data。
+`xrtTaskOwnershipAdapterV1` 在独占 freeze 下先匹配调用方允许的数据策略身份，
+再检查实际 Proc/Drop/数据布局；旧 Submit、未知策略以及执行或释放中的 Job
+仍拒绝生命周期准入，不会先调用其不可信的 Data Count/Trace。
+
+返回的强制 preparation 不取消任务、不摘队列，也不跳过已受理工作。排队或
+尚未归还执行器职责的 Job 返回 BUSY；只有正常执行、数据释放、结果发布和
+执行器清理完成后才可 READY/Clear。所有用户 Proc/Drop 和普通 Future 通知都
+在 ownership mutation/freeze 外执行，Clear/Finish 不重放这些语义职责。
+
+`tests/concurrency/test_task_job_ownership.c` 及其单头入口覆盖真实四节点/六边
+图、执行器/producer/检查器引用、成功/失败/取消/错误载荷、拒绝不消费数据、
+分配失败、执行中的前置拒绝和 BUSY/READY。此协议不等于未知任务数据已认证，
+也不定义封闭 producer 依赖环的关停策略。

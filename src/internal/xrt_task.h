@@ -18,6 +18,14 @@ typedef struct xrt_task_job {
 	ptr DestroyData;
 	xfutureownershiptrace ResultTrace;
 	const xfuturepayloadownershipv1* ResultPolicy;
+	const xtaskdataownershipv1* DataPolicy;
+	volatile int32 RefCount;
+	const void* OwnershipClaim;
+	bool Accepted;
+	bool Active;
+	bool Finished;
+	bool Destroyed;
+	bool OwnershipCleared;
 	xfuture* Future;
 	xpromise* Promise;
 	xcancel* Cancel;
@@ -33,6 +41,12 @@ xrt_task_job* __xrtTaskCreate(
 	const xtaskargs* pArgs,
 	xfuture** ppFuture
 );
+
+/* The producer edge is installed before any Future or worker can see the Job.
+ * A Data policy does not transfer Data until the executor accepts the job. */
+xrt_task_job* __xrtTaskCreateOwned(xtaskproc pProc, ptr pData, const xtaskargs* pArgs,
+	const xtaskdataownershipv1* pDataPolicy, xfuture** ppFuture);
+void __xrtTaskAccept(xrt_task_job* pJob);
 
 
 

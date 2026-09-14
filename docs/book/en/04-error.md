@@ -76,7 +76,7 @@ The touchstone for "should I wrap": if the new layer can **add decision informat
 
 ### Division of labor between errors and logging
 
-Error objects "carry failure structurally"; logging "leaves a trail of execution" — do not substitute one for the other. A common anti-pattern is printing the error message at every layer — the same event appears three times in the log, and troubleshooting loses the structure. A better division: errors pass quietly along the call chain and get handled at **decision points** (retry, degrade, final failure exit); logging records only at decision points and key boundaries, carrying the full kind and cause chain. Chapter 37's Logger can write `xerror`'s structured fields into log records; for now, remember the division of labor.
+Error objects "carry failure structurally"; logging "leaves a trail of execution" — do not substitute one for the other. A common anti-pattern is printing the error message at every layer — the same event appears three times in the log, and troubleshooting loses the structure. A better division: errors pass quietly along the call chain and get handled at **decision points** (retry, degrade, final failure exit); logging records only at decision points and key boundaries, carrying the full kind and cause chain. Chapter 38's Logger can write `xerror`'s structured fields into log records; for now, remember the division of labor.
 
 ### The thread error slot: the current error
 

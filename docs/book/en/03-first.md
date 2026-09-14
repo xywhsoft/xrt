@@ -36,10 +36,10 @@ XRT unifies type spelling with a set of short aliases, all defined in core.h:
 | `ptr` | `void*` | Generic pointer; the user-data parameter of callbacks is always this |
 | `str` / `cstr` | `char*` / `const char*` | Zero-terminated strings; `str` usually means "you own it, `xrtFree` when done" |
 | `bytes` / `cbytes` | `unsigned char*` and const version | Pointers to binary data |
-| `xtime` | `int64` | Unix Epoch microseconds, absolute time (expanded in Chapter 40) |
+| `xtime` | `int64` | Unix Epoch microseconds, absolute time (expanded in Chapter 41) |
 | `xseek` | enum | `XSEEK_START` / `XSEEK_CURRENT` / `XSEEK_END`, the seek origin shared by files and generic IO |
 
-Two details that experienced C hands tend to miss. First, `ptr` rather than a literal `void*` appears in every callback signature — the user-data parameter is uniformly this type, round-tripped with explicit casts. Second, `xtime` uses **microseconds** — not seconds or milliseconds — and is an absolute timestamp: this aligns with syscall precision and avoids the chaos of multiplying and dividing by 1000 everywhere. The time system (clocks, time zones, sleeping) is expanded in Chapter 40; for this chapter it is enough to remember "see `xtime`, think microseconds".
+Two details that experienced C hands tend to miss. First, `ptr` rather than a literal `void*` appears in every callback signature — the user-data parameter is uniformly this type, round-tripped with explicit casts. Second, `xtime` uses **microseconds** — not seconds or milliseconds — and is an absolute timestamp: this aligns with syscall precision and avoids the chaos of multiplying and dividing by 1000 everywhere. The time system (clocks, time zones, sleeping) is expanded in Chapter 41; for this chapter it is enough to remember "see `xtime`, think microseconds".
 
 Two accompanying "non-existences": there is no "tri-state boolean" — truth is plain C `bool`; and there is no string type hierarchy — text is either a zero-terminated `str` or a length-carrying view (coming up next).
 

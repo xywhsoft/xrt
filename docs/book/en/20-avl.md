@@ -93,7 +93,7 @@ range id=30 timeout=3000
 
 ### From examples to engineering: the three-tier index structure
 
-A real resource manager is usually a "three-tier index structure": at the bottom, object storage (a pool or slot_map, managing life, death, and stable addresses); in the middle, the location index (`xmap` or `xintmap`, key to handle); on top, the ordered view (intrusive `xavl`, for audit exports and range queries). Each tier does its own job — storage guarantees stable addresses, location carries the hot path, the view carries order — and intrusive AVL exists precisely because the storage tier guarantees the object addresses never move. This three-tier structure appears in full form in Chapter 66's network connection table; when you get there, come back and compare: this chapter's two examples trained the minimal usage of the middle and top tiers respectively.
+A real resource manager is usually a "three-tier index structure": at the bottom, object storage (a pool or slot_map, managing life, death, and stable addresses); in the middle, the location index (`xmap` or `xintmap`, key to handle); on top, the ordered view (intrusive `xavl`, for audit exports and range queries). Each tier does its own job — storage guarantees stable addresses, location carries the hot path, the view carries order — and intrusive AVL exists precisely because the storage tier guarantees the object addresses never move. This three-tier structure appears in full form in Chapter 67's network connection table; when you get there, come back and compare: this chapter's two examples trained the minimal usage of the middle and top tiers respectively.
 
 ## Contracts
 

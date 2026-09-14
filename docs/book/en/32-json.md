@@ -46,7 +46,7 @@ xrtJsonWriterEnd(W);             /* close object */
 str s = xrtJsonWriterFinish(W);  /* validate pairing completeness and take the result */
 ```
 
-Open/close pairing is validated by `Finish` — a missing End surfaces right there instead of producing mangled JSON. The Writer can output to memory (Take an owning string) or write directly to a sink (isomorphic with Chapter 34's Logger sink system) — the latter lets serialization connect straight to files/networks.
+Open/close pairing is validated by `Finish` — a missing End surfaces right there instead of producing mangled JSON. The Writer can output to memory (Take an owning string) or write directly to a sink (isomorphic with Chapter 35's Logger sink system) — the latter lets serialization connect straight to files/networks.
 
 ### Path-selection rules
 
@@ -103,7 +103,7 @@ json: sink-writer [[1,true,null,2.5,"v"]] ok
 json: error-location line=1 ok
 ```
 
-**What just happened.** (1) File paths: Parse and Stringify interface with files directly — the file shapes of config loading and export. (2) Streaming write: the Writer writes element by element, counting 23 elements and 9 quotes — empirical proof of "output while generating". (3) Sink write: the Writer's output connects straight to the target (buffer/file) — serialization composed with IO, no intermediate string. The four postures cover every meeting point of JSON with the file system (Chapter 44).
+**What just happened.** (1) File paths: Parse and Stringify interface with files directly — the file shapes of config loading and export. (2) Streaming write: the Writer writes element by element, counting 23 elements and 9 quotes — empirical proof of "output while generating". (3) Sink write: the Writer's output connects straight to the target (buffer/file) — serialization composed with IO, no intermediate string. The four postures cover every meeting point of JSON with the file system (Chapter 45).
 
 ## Contracts
 

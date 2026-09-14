@@ -143,7 +143,7 @@ xrtValueGetString(pUpdated, &When);   /* the type is Time - the exact read fails
 ```c good
 xtime When;
 xrtValueGetTime(pUpdated, &When);     /* GetTime reads the microsecond integer */
-/* for display formatting: format it yourself (Chapter 41's time module) */
+/* for display formatting: format it yourself (Chapter 42's time module) */
 ```
 
 ## Exercises

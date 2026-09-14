@@ -86,11 +86,26 @@ def main():
         if os.path.exists(ru_pg):
             urls.append((lang_url("ru", "book/" + f), ru_pg, pairs))
 
-    # ref 页：zh-only（决策 A）
+    # ref 页：zh 恒在；已有 en/ru 译本的 ref 页按已译语言互指（决策 A 的增量扩展）
     ref_pages = sorted(f for f in os.listdir(os.path.join(www, "book"))
                        if re.match(r"ref-.*\.html$", f))
     for f in ref_pages:
-        urls.append((lang_url("", "book/" + f), os.path.join(www, "book", f), []))
+        en_pg = os.path.join(www, "en", "book", f)
+        ru_pg = os.path.join(www, "ru", "book", f)
+        if not (os.path.exists(en_pg) or os.path.exists(ru_pg)):
+            urls.append((lang_url("", "book/" + f), os.path.join(www, "book", f), []))
+            continue
+        pairs = [("zh-CN", lang_url("", "book/" + f))]
+        if os.path.exists(en_pg):
+            pairs.append(("en", lang_url("en", "book/" + f)))
+        if os.path.exists(ru_pg):
+            pairs.append(("ru", lang_url("ru", "book/" + f)))
+        pairs.append(("x-default", lang_url("", "book/" + f)))
+        urls.append((lang_url("", "book/" + f), os.path.join(www, "book", f), pairs))
+        if os.path.exists(en_pg):
+            urls.append((lang_url("en", "book/" + f), en_pg, pairs))
+        if os.path.exists(ru_pg):
+            urls.append((lang_url("ru", "book/" + f), ru_pg, pairs))
 
     out = ['<?xml version="1.0" encoding="UTF-8"?>',
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"',

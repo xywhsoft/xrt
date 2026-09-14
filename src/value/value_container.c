@@ -3973,4 +3973,146 @@ XRT_API xrtownershipref xrtValueIterOwnership(const xvalueiter* pIterator)
 	return (xrtownershipref){pIterator, pIterator != NULL ? &__xrtValueIterOwnershipOps : NULL};
 }
 
+/* The managed heap identity owns the inline snapshot's actual backing/shell
+ * slots. Legacy xvalueiter remains stack-compatible and uniquely owned. No
+ * address registry, borrowed-key edge or inferred collector reference exists. */
+struct xvaluecursor {
+	volatile int32 RefCount;
+	xvalueiter Iterator;
+	xvalueiter Retired;
+	const void* OwnershipClaim;
+	bool Active;
+	bool Cleared;
+};
+static xvaluecursor* __xrtValueCursorCreate(const xvalue* pValue, int iDirection)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)xrtMalloc(sizeof(*pCursor));
+	if (pCursor == NULL) return NULL;
+	memset(pCursor, 0, sizeof(*pCursor)); pCursor->RefCount = 1;
+	if (!(iDirection > 0 ? xrtValueIterBegin(pValue, &pCursor->Iterator)
+		: xrtValueIterRBegin(pValue, &pCursor->Iterator))) {
+		xrtFree(pCursor); return NULL;
+	}
+	return pCursor;
+}
+XRT_API xvaluecursor* xrtValueCursorCreate(const xvalue* pValue)
+{
+	return __xrtValueCursorCreate(pValue, 1);
+}
+XRT_API xvaluecursor* xrtValueCursorRCreate(const xvalue* pValue)
+{
+	return __xrtValueCursorCreate(pValue, -1);
+}
+XRT_API xvaluecursor* xrtValueCursorRetain(xvaluecursor* pCursor)
+{
+	xrtownershipscope Mutation = {0};
+	xvaluecursor* pResult = NULL;
+	if (pCursor == NULL) return NULL;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pCursor->Cleared || __xrtAtomicRefLoad(&pCursor->RefCount) <= 0) __xrtErrorSetInvalidState();
+	else if (xrtRefRetain(&pCursor->RefCount) > 0) pResult = pCursor;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return pResult;
+}
+XRT_API void xrtValueCursorRelease(xvaluecursor* pCursor)
+{
+	xrtownershipscope Mutation = {0}; xvalueiter Retired; int32 iCount;
+	if (pCursor == NULL) return;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	iCount = xrtRefRelease(&pCursor->RefCount);
+	if (iCount < 0) abort();
+	if (iCount != 0) { if (!xrtOwnershipScopeEnd(&Mutation)) abort(); return; }
+	if (pCursor->Active || pCursor->Retired.Backing != NULL) abort();
+	Retired = pCursor->Iterator;
+	memset(&pCursor->Iterator, 0, sizeof(pCursor->Iterator)); pCursor->Cleared = true;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* End detaches backing before shell release can enter a user finalizer. */
+	xrtValueIterEnd(&Retired); xrtFree(pCursor);
+}
+XRT_API xvalueiterresult xrtValueCursorAdvance(xvaluecursor* pCursor,
+	xvaluekey* pKey, xvalue** ppValue)
+{
+	xrtownershipscope Mutation = {0}; xvalueiterresult Result;
+	if (pCursor == NULL || ppValue == NULL) { __xrtErrorSetInvalidArgument(); return XVALUE_ITER_ERROR; }
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pCursor->Active || pCursor->Cleared || __xrtAtomicRefLoad(&pCursor->RefCount) <= 0) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtErrorSetInvalidState(); return XVALUE_ITER_ERROR;
+	}
+	pCursor->Active = true;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	Result = xrtValueIterAdvance(&pCursor->Iterator, pKey, ppValue);
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	pCursor->Active = false;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return Result;
+}
+static bool __xrtValueCursorOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xvaluecursor* pCursor = (const xvaluecursor*)pData; int32 iCount; size_t iUnique;
+	if (pCursor == NULL || pCount == NULL || pCursor->Active || pCursor->Cleared) return false;
+	iCount = __xrtAtomicRefLoad(&pCursor->RefCount);
+	if (iCount <= 0 || !__xrtValueIterOwnershipCount(&pCursor->Iterator, &iUnique) || pCursor->Iterator.Backing == NULL) return false;
+	*pCount = (size_t)iCount; return true;
+}
+static bool __xrtValueCursorOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xvaluecursor* pCursor = (const xvaluecursor*)pData; size_t iCount;
+	if (!__xrtValueCursorOwnershipCount(pData, &iCount) || pVisit == NULL) return false;
+	/* Delegate the inline state's actual slots, not its unique-owner Count. */
+	return __xrtValueIterOwnershipTrace(&pCursor->Iterator, pVisit, pContext);
+}
+static const xrtownershipops __xrtValueCursorOwnershipOps = {
+	__xrtValueCursorOwnershipCount, __xrtValueCursorOwnershipTrace
+};
+XRT_API xrtownershipref xrtValueCursorOwnership(const xvaluecursor* pCursor)
+{
+	return (xrtownershipref){pCursor, pCursor != NULL ? &__xrtValueCursorOwnershipOps : NULL};
+}
+static bool __xrtValueCursorHold(const void* pData)
+{
+	size_t iCount;
+	return __xrtValueCursorOwnershipCount(pData, &iCount) && iCount < INT32_MAX &&
+		xrtRefRetain(&((xvaluecursor*)pData)->RefCount) > 0;
+}
+static void __xrtValueCursorDrop(const void* pData)
+{
+	xrtValueCursorRelease((xvaluecursor*)pData);
+}
+static bool __xrtValueCursorClaim(const void* pData, const void* pToken)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)pData;
+	if (pToken == NULL || pCursor->Active || pCursor->Cleared ||
+		(pCursor->OwnershipClaim != NULL && pCursor->OwnershipClaim != pToken)) return false;
+	pCursor->OwnershipClaim = pToken; return true;
+}
+static void __xrtValueCursorRestore(const void* pData, const void* pToken)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)pData;
+	if (pToken == NULL || pCursor->OwnershipClaim != pToken || pCursor->Cleared) abort();
+	pCursor->OwnershipClaim = NULL;
+}
+static void __xrtValueCursorClear(const void* pData, const void* pToken)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)pData;
+	if (pToken == NULL || pCursor->OwnershipClaim != pToken || pCursor->Cleared || pCursor->Active) abort();
+	pCursor->Retired = pCursor->Iterator;
+	memset(&pCursor->Iterator, 0, sizeof(pCursor->Iterator)); pCursor->Cleared = true;
+}
+static bool __xrtValueCursorFinish(const void* pData, const void* pToken)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)pData;
+	if (pToken == NULL || pCursor->OwnershipClaim != pToken || !pCursor->Cleared) abort();
+	xrtValueIterEnd(&pCursor->Retired); return true;
+}
+XRT_API const xrtownershipadapterv1* xrtValueCursorOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtValueCursorHold,
+		__xrtValueCursorDrop, __xrtValueCursorClaim, __xrtValueCursorRestore,
+		NULL, __xrtValueCursorClear, __xrtValueCursorFinish};
+	size_t iCount;
+	return Reference.Ops == &__xrtValueCursorOwnershipOps &&
+		__xrtValueCursorOwnershipCount(Reference.Data, &iCount) ? &Adapter : NULL;
+}
+
 #endif

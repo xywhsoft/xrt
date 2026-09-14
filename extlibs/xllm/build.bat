@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-if not defined XRT_DIR set "XRT_DIR=..\xrt"
+if not defined XRT_DIR set "XRT_DIR=..\.."
 set "XRT_INCLUDE=%XRT_DIR%\single"
 
 if not exist build mkdir build || exit /b 1

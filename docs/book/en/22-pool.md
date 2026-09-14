@@ -79,7 +79,7 @@ The pool is not the allocator's replacement; it is the wholesale layer above it.
 
 ### Object construction versus slot custody
 
-The pool manages only slot take-and-put-back, never object construction or destruction — the slot content you get is undefined (except the Calloc variant, zero-initialized). The standard pairing: `Alloc` takes a slot, business initialization constructs the object; destruct the object, `Free` returns the slot. Batch scenes needing destructor callbacks use `Visit` to walk live objects and finish them one by one, then Reset/Trim for bulk reclamation — traversal-finish, bulk-reclaim, page management: these three steps are the complete closed loop of pooled-object lifecycle management, and Chapter 66's connection table will use its full form.
+The pool manages only slot take-and-put-back, never object construction or destruction — the slot content you get is undefined (except the Calloc variant, zero-initialized). The standard pairing: `Alloc` takes a slot, business initialization constructs the object; destruct the object, `Free` returns the slot. Batch scenes needing destructor callbacks use `Visit` to walk live objects and finish them one by one, then Reset/Trim for bulk reclamation — traversal-finish, bulk-reclaim, page management: these three steps are the complete closed loop of pooled-object lifecycle management, and Chapter 67's connection table will use its full form.
 
 ## Contracts
 

@@ -600,3 +600,21 @@
   practice 型 4000 字红线从素材包（tools/gen_web_book.py material
   atomic）重写即可，不影响其余 143 章。
 - ch82-xregex 旧重定向页仍指向 ch85-regex，属 P5 卷四 regex 归位时处理。
+
+## P28 阶段记录（2026-09-14）
+
+- 新增 ch34《JSONL 与 XSONL：逐行数据》（practice，4,758 字/2 程序/1 图示/2 坑 2 对照/
+  练习三级；api 认领 jsonl,xsonl），插位卷四 xson 之后——**全书第五次重编号**，144→145 章。
+- 重编号执行：order.json 插条目顺延；renumber_book.py 扩展两能力——en/ru 译文源同步
+  重命名+num 同步、散文编号引用三语言扫描改号（第 N 章/第 N-M 章/第 N/M 章/（N-M 章）/
+  Chapter(s) N/глава N，端点>=34 一律 +1；zh/en/ru 共 379 文件）。
+- 人工判读修正：裸区间 6 处（104/109/122/140/142/145 章）、"一百四十四个章节"×3、
+  ch138 的 JSON Lines 指引改指新章 34。
+- 顺带修存量错引：ch33 四处与卷四导言一处（value=31/json=32 的 P27 时代遗留-1 错位）、
+  en/ru 卷四导言同源错位（30→31）。
+- 示例程序 examples/data/{jsonl,xsonl}/main.c 补齐"预期输出"头注约定（term 门禁对齐）。
+- check_book 145/145 全绿；check_i18n 全绿（新增 G8 告警与存量各章同水位）；
+  check_site 748 页 33,544 链接通过（21 个 #summary 存量锚点告警不变）。
+- 官网同步：三语言全量重建、en/ru 目录页条目/卷范围重建、孤儿页清理 222、
+  en/ru 顶层页旧编号链接修复、sitemap 744 URL。
+- 遗留：ch82-xregex 重定向页已指向 ch30-regex（遗留项记录过期，本批核实）。

@@ -36,6 +36,27 @@ struct xllm_session {
     uint64_t uJournalSequence;
     char* sSummary;
     char* sJournalPath;
+    char* sStyleStorage;           /* owned copy of the loaded summary style */
+    /* --- v3 governance (exact feedback loop) --- */
+    uint32_t uSummaryGeneration;       /* +1 per compaction or L2 truncation */
+    uint64_t uSummaryPromptAtBirth;    /* meta-call usage, exact */
+    uint64_t uSummaryOutputAtBirth;
+    bool bFillSeen;                    /* any usage feedback ever received */
+    bool bFillExactValid;              /* current fill_exact usable */
+    uint64_t uFillExact;               /* last prompt+output tokens */
+    uint64_t uCachedInputTokens;
+    uint64_t uIncrementMax;            /* worst-case next-turn growth envelope */
+    uint32_t uAutoCompactStreak;
+    uint64_t uLastUserSequence;        /* newest user entry at the last auto compaction */
+    uint64_t uTailFloor;               /* L2: entries <= floor leave the rendered tail */
+    xllm_session_pressure eLastPressure;
+    /* --- v3 strategy and hooks (borrowed) --- */
+    const xllm_compaction_ops* pOps;
+    const xllm_session_hooks* pHooks;
+    xllm_client* pClient;
+    xllm_test_call_proc pTestCall;     /* test seam, preferred over pClient */
+    void* pTestCallData;
+    bool bInHook;                      /* re-entrancy guard for ops/hooks */
 };
 
 struct xllm_compaction {
@@ -43,6 +64,8 @@ struct xllm_compaction {
     uint64_t uBaseCompactedThrough;
     uint64_t uThroughSequence;
     uint64_t uEstimatedTokens;
+    uint64_t uUsagePromptTokens;       /* meta-call usage recorded by the host */
+    uint64_t uUsageOutputTokens;
     char* sPrompt;
     bool bCommitted;
 };
@@ -64,12 +87,43 @@ uint32_t xllm_session__pending_tool_calls(const xllm_session* pSession);
 bool xllm_session__journal_append_turn(xllm_session* pSession, uint64_t uTurn);
 bool xllm_session__journal_append_entry(xllm_session* pSession, const xllm_session_entry* pEntry);
 bool xllm_session__journal_append_compaction(xllm_session* pSession, uint64_t uThroughSequence,
-    uint64_t uCompactionCount, const char* sSummary);
+    uint32_t uGeneration, uint64_t uPromptTokens, uint64_t uOutputTokens, const char* sSummary);
+bool xllm_session__journal_append_truncate(xllm_session* pSession, uint64_t uFrom, uint64_t uTo);
 bool xllm_session__write_entry(xllm_session_buf* pJson, const xllm_session_entry* pEntry);
 xvalue* xllm_session__json_get(xvalue* pObject, const char* sKey);
 const char* xllm_session__json_text(xvalue* pObject, const char* sKey);
 uint64_t xllm_session__json_u64(xvalue* pObject, const char* sKey, uint64_t uDefault);
 double xllm_session__json_double(xvalue* pObject, const char* sKey, double fDefault);
 bool xllm_session__load_message(xllm_message* pMessage, xvalue* pEntry);
+
+/* governance (govern.c) */
+void xllm_session__record_usage(xllm_session* pSession, const xllm_usage* pUsage);
+void xllm_session__invalidate_fill(xllm_session* pSession);
+xllm_session_pressure xllm_session__pressure_exact(const xllm_session* pSession);
+void xllm_session__event(xllm_session* pSession, xllm_session_event_type eType,
+    uint64_t uSeqFrom, uint64_t uSeqTo, const char* sText);
+void xllm_session__pressure_event(xllm_session* pSession);
+bool xllm_session__hook_enter(xllm_session* pSession, xllm_error* pError, const char* sStage);
+void xllm_session__hook_leave(xllm_session* pSession);
+
+/* compaction pipeline (compact.c) */
+typedef struct { uint32_t uFlag; const char* sHeading; } xllm_session_section;
+typedef struct { const char* sId; const char* sInstruction;
+    const xllm_session_section* pSections; size_t iSectionCount; } xllm_session_style;
+const xllm_session_style* xllm_session__style(const xllm_session* pSession);
+bool xllm_session__summary_text_ok(const xllm_session* pSession, const char* sSummary);
+uint64_t xllm_session__tail_cut(const xllm_session* pSession, uint64_t uKeepTokens,
+    uint64_t uFloor /* exclusive lower bound */);
+char* xllm_session__serialize_candidates(const xllm_session* pSession, uint64_t uFrom, uint64_t uTo);
+bool xllm_session__turn_is_safe(const xllm_session* pSession, uint64_t uTurn);
+bool xllm_session__plan_pair_safe(const xllm_session* pSession, uint64_t uThrough);
+bool xllm_session__auto_compact(xllm_session* pSession, xllm_error* pError);
+
+/* render (render.c) */
+char* xllm_session__pruned_content(const xllm_session* pSession, const xllm_session_entry* pEntry);
+
+/* easy layer (easy.c) */
+bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
+    char** psSummary, xllm_usage* pUsage, xllm_error* pError);
 
 #endif

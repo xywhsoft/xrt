@@ -1,0 +1,294 @@
+---
+num: 61
+slug: sched-practice
+title: 调度器实战：协程、通道与任务的联合作战
+volume: 卷六 进程与并发 · 卷六收官
+type: composition
+lead: 把卷六全部工具装配成一个服务骨架——事件循环、连接协程、计算外挂与结构化停机。
+api: coroutine, channel, future, task, cancel, task_net
+---
+
+## 导读
+
+卷六收官章（组合章型）把全卷工具装配成一个**可运行的服务骨架**：调度器泵做事件循环（第 56 章）、每连接一协程做直线处理（第 55/56 章）、Channel 做内部消息总线（第 57 章）、计算/CPU 段外挂任务池（第 59 章）、Future/延续衔接两界（第 58 章）、任务组做结构化生命周期与优雅停机（第 60 章 + 第 54 章取消树 + 第 49 章信号触发）。组合章的论点：**并发工具的价值不在单个使用，在于装配成一个"能跑起来、能观测、能停下来"的完整程序**——本章的骨架就是卷七网络引擎的预演。
+
+## 引入
+
+一个 mini HTTP 服务的完整需求清单：接受连接（IO 事件驱动）；每连接直线逻辑（读请求→处理→写响应）；部分请求要重计算（不能堵事件循环）；内部组件协作（限流器、统计聚合器）；优雅停机（信号触发→停止接入→排空在途→限时强退）。每一项需求都对应卷六的一个工具——但工具各自用时都对不上完整需求：只有调度器没有任务池则计算堵泵；只有任务池没有组则停机无汇合；只有组没有取消树则停机不可传播。
+
+装配是唯一路径。本章沿着数据流走一遍完整骨架——每个环节标注用了哪章的什么、为什么这样选。这个骨架剥掉协议细节就是卷七的网络引擎（第 64 章起），届时你会看到同样的骨架装上 TCP/TLS/HTTP 后的工业化形态。
+
+## 概念
+
+### 骨架全景图
+
+```diagram flow
+- 事件循环：调度器 PollFor 泵（第 56 章）——线程主循环
+- 接入：接受协程（挂监听事件）→ 新连接 → 连接协程 xrtCoGo（第 55/56 章）
+- 连接协程：读→处理→写直线逻辑；重计算段 Post 任务池（第 59 章）+ Park 等结果（第 56 章）
+- 池任务：CPU 计算跑完 → Future 发布（第 58 章）→ Wake 唤醒连接协程
+- 内部总线：统计/限流消息进 Channel（第 57 章）→ 聚合协程消费
+- 生命周期：服务组（第 60 章）持有全部连接子组；信号（第 49 章）→ 根令牌（第 54 章）→ 全树取消
+- 停机：组 Cancel → 各协程让出点感知 → 清理栈收尾 → 组 Wait 限时 → Destroy
+```
+
+### 装配的三个关键决策
+
+**决策一：泵线程与池的分工边界**。事件循环线程（调度器）跑一切**等待型**逻辑（连接、协议、协调）；任务池跑一切**计算型**段（重计算、阻塞 IO）。边界判据：这段代码**会让出还是占住**——让出型（等数据、等事件）归调度器、占住型（算、阻塞调用）归池。混了会怎样：计算堵泵（坑 1，第 56 章）、或等待占池（池并发浪费）。**决策二：消息 vs 共享**。连接协程之间**零共享**（各自栈独立）；跨协程的数据流（统计上报）经 Channel——"内部紧凑外部清晰"（第 57 章 CSP 分工）的落地。统计聚合器是唯一有状态的协程（拥有计数器），一切更新走消息。**决策三：停机的层次**。信号→根令牌→调度器 Close（第 56 章）+ 服务组 Cancel（第 60 章）双通道——调度器停泵、组收尾，两者配合而非冗余（Close 管"不再驱动新工作"、Cancel 管"在途全部收尾"）。
+
+### 数据流走读
+
+以一个带重计算的请求为例走完全程：① 接受协程收到新连接（监听事件 Wake 它）→ `xrtCoGo` 连接协程；② 连接协程读请求（IO 事件等待时 Park 让出）；③ 处理段发现要重计算 → `xrtTaskSubmit` 进池（带子组 Future）→ 连接协程 Park 等结果；④ 池线程计算完成 → Promise Resolve → `xrtCoWake` 连接协程；⑤ 连接协程恢复、组装响应、写回（写事件）；⑥ 统计消息 TrySend 进 Channel（满则丢——统计可丢的降级语义）→ 聚合协程消费。全程：**泵线程零阻塞、池线程零等待、消息零锁**——三个"零"是装配正确性的可检验指标。
+
+### 停机走读
+
+停机序列（第 49 章信号的完整下半场）：① 信号回调置停止标志（轻活——第 49 章纪律）；② 主循环看到标志：监听器关闭（停止接入）→ 根令牌 Request（第 54 章）→ 服务组 Cancel + 调度器 Close；③ 各连接协程在 Park/Yield 点感知取消 → 清理栈逆序执行（第 55 章）→ 终态 Cancelled；④ 池的在途任务在检查点退出（第 59 章坑 1 的 good 形态）；⑤ 组 WaitFor（限时 5 秒——第 49 章约定）→ 全部终态则优雅退出；超时则记录未收尾数、Destroy 走人。⑥ 统计终报表（组的 stats——第 60 章观测合流）进日志。
+
+### 装配检查清单
+
+写自己的并发骨架时过五项检查：**泵内零阻塞**（调度器线程上没有任何阻塞调用——扫一遍所有协程代码）；**等待全可取消**（每个 Park/Wait/Recv 都配了令牌——停机时没有死等）；**终态三分**（成功/失败/取消的统计与上报分开——第 60 章坑 2）；**生命周期对齐**（每类资源的作用域边界清晰：连接子组=连接、服务组=服务、池=引擎——销毁顺序与依赖反向）；**观测贯穿**（队列深度、组 Active、取消计数、泵周期——第 50 章管线在并发的哨位全开）。五项全绿，骨架才能从"能跑"到"能上线"。
+
+## 示例
+
+### 完整程序：骨架核心环（事件循环+协程+池）
+
+装配的最小可运行核——泵、连接协程、计算外挂、消息总线各就其位：
+
+```c
+/* service_core.c —— 卷六骨架核心环：调度器 + 协程 + 池 + 通道 */
+#define XRT_MODULE_ALL
+#define XRT_IMPLEMENTATION
+#include <xrt.h>
+#include <stdio.h>
+
+static xcosched* gSched;
+static xtaskpool* gPool;
+static xchannel* gStats;
+static xatomic32 gDone;
+
+static void aggregate(ptr pData)          /* 统计聚合协程体 */
+{
+	ptr Item;
+	while ( xrtChannelRecv(gStats, &Item) == XWAIT_OK ) {
+		(void)xrtAtomic32FetchAdd((xatomic32*)pData, 1, XMEMORY_RELAXED);
+	}
+}
+
+static int computeHeavy(int Input)        /* 模拟重计算（池上跑） */
+{
+	int Sum = 0;
+	for ( int i = 0; i < Input * 100; ++i ) {
+		Sum += i % 7;
+	}
+	return Sum;
+}
+
+static ptr workerTask(ptr pData)          /* 池任务：算完发布 */
+{
+	int Input = (int)(uintptr_t)pData;
+	int Result = computeHeavy(Input);
+	return (ptr)(uintptr_t)Result;
+}
+
+static ptr connection(ptr pData)          /* 连接协程：直线逻辑 */
+{
+	int Input = (int)(uintptr_t)pData;
+	xfuture* Job = xrtTaskSubmit(gPool, workerTask,
+		(ptr)(uintptr_t)Input, NULL);      /* 外挂池（第 59 章） */
+	if ( Job == NULL ) {
+		return NULL;
+	}
+	if ( xrtFutureWait(Job) != XWAIT_OK ) {  /* 泵内不阻塞——此处演示用直等 */
+		xrtFutureDestroy(Job);
+		return NULL;
+	}
+	int Value = (int)(uintptr_t)xrtFutureValue(Job);  /* 借用读（第 58 章） */
+	xrtFutureDestroy(Job);
+	(void)xrtChannelTrySend(gStats, (ptr)(uintptr_t)Value);  /* 总线上报（第 57 章） */
+	return (ptr)(uintptr_t)Value;
+}
+
+int main(void)
+{
+	xatomic32 Count;
+	xcoro* Agg;
+	xtaskpoolconfig PoolCfg = { 2, 32, 0 };
+
+	xrtAtomic32Init(&Count, 0);
+	xrtAtomic32Init(&gDone, 0);
+	gSched = xrtCoSchedCreate();               /* 事件循环（第 56 章） */
+	gPool = xrtTaskPoolCreate(&PoolCfg);       /* 计算外挂（第 59 章） */
+	gStats = xrtChannelCreate(64);             /* 消息总线（第 57 章） */
+	if ( (gSched == NULL) || (gPool == NULL) || (gStats == NULL) ) {
+		return 1;
+	}
+	Agg = xrtCoGo(gSched, aggregate, &Count);  /* 聚合协程 */
+	for ( int i = 1; i <= 3; ++i ) {
+		(void)xrtCoGo(gSched, connection, (ptr)(uintptr_t)i);
+	}
+	(void)xrtCoSchedRun(gSched);              /* 泵跑到全部协程结束 */
+	xrtChannelClose(gStats);                   /* 排空（第 57 章三方规则） */
+	(void)xrtCoSchedRun(gSched);               /* 聚合协程消费存量 */
+	xrtCoSchedDestroy(gSched);
+	(void)xrtTaskPoolClose(gPool);             /* 池停机协议（第 59 章） */
+	xrtTaskPoolWait(gPool);
+	xrtTaskPoolDestroy(gPool);
+	printf("aggregated=%d\n", (int)xrtAtomic32Load(&Count, XMEMORY_ACQUIRE));
+	return 0;
+}
+```
+
+```term
+$ gcc -O2 -DXRT_MODULE_ALL -DXRT_IMPLEMENTATION -I single service_core.c -lws2_32 -liphlpapi
+$ ./a.exe
+aggregated=3
+```
+
+**这段代码的站位。** 全卷工具同框：`xrtCoSchedCreate` 泵做主线、三个连接协程 `xrtCoGo` 并发直线逻辑、重计算 `xrtTaskSubmit` 外挂池、`xrtChannelCreate` 建的通道做统计总线、聚合协程消费。**三阶段收尾**按依赖逆序：泵 Run 到空 → 通道 Close 排空 → 再 Run（聚合消费存量）→ 池 Close+Wait——每一层的停机协议（第 56/57/59 章）按正确顺序衔接。`aggregated=3` 是三个连接消息全部到达总线再全部消费的证言。注意连接协程里的 `xrtFutureWait` 在真实骨架中应为 Park 等 Wake（泵内不阻塞——本例为演示简洁直等；第 56 章坑 1 的标注在此适用）。
+
+### 完整程序：结构化停机
+
+来自 `examples/concurrency/task_group_scope/main.c`（第 60 章）+ 第 54 章 cancel 范例的组合运用——骨架的停机环：
+
+```embed path="examples/concurrency/task_group_scope/main.c" title="examples/concurrency/task_group_scope/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/concurrency/task_group_scope/main.c -lws2_32 -lipharp 2>/dev/null || gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/concurrency/task_group_scope/main.c -lws2_32 -liphlpapi
+parent completed = 1, cancelled = 1
+```
+
+**这段代码的站位。** 停机环的实证骨架：父组 Cancel（服务组大按钮）→ 子组与叶全树收请求 → 叶各自确认终态（一个完成、一个取消——生产端自主）→ 父组 Wait 拿混合统计。把它替换进骨架的停机序列第③~⑤步，加上信号触发（第 49 章）与限时守候（WaitFor）——完整的优雅停机闭环。**两个示例合起来覆盖骨架的全部环节**：示例一装配运行时（泵/协程/池/总线），示例二装配停机时（组/取消树/终态统计）——一跑一停，骨架完整。
+
+### 环节设计的三个新检查项（卷四四项的并发版）
+
+第 36 章给数据管线定了四个环节检查项、第 50 章给了观测版——并发骨架有它的三个增补。**检查一：数据归属单一**。每个并发实体（协程/任务）拥有自己的数据、跨实体只传消息或 Future——统计聚合器是唯一拥有计数器的协程（一切更新走通道）——如果两个协程都能写同一个变量，装配已错。**检查二：错误路径同样结构化**。任务失败后骨架的行为写了吗——连接子组把失败 Future 也挂进组（stats 可见）、失败响应走同一通道（消费者按终态分类处置）；"成功跑通了、失败路径没想过"在并发里是停机事故的种子。**检查三：嵌套可分解**。骨架的每一层（泵层/总线层/池层/组层）可以单独测试——第 50 章管线思想在装配层的应用：每层的输入输出明确（消息/任务/终态），层间用第 36 章的环节函数形态组织——能单独测的层才敢组合。
+
+### 从骨架到网络引擎：卷七预告
+
+这个骨架与卷七网络引擎的映射关系值得在收官章写明。**调度器泵 → 事件端口**（第 64 章五后端：IOCP/epoll/kqueue/io_uring/select——泵的 PollFor 对应端口的等待接口）；**连接协程 → 引擎 Stream 的事件回调**（第 66 章金标准章的 Accept/Read/Close 回调表——卷七用回调而非协程直接表达，但调度器可包装回调为协程）；**任务池外挂 → 网络引擎的 Worker 池**（同构——计算不堵 IO 线程）；**消息总线 → 引擎内部的统计/管理通道**；**服务组 → 引擎的停机序列**（第 66 章"Close 回调可能仍在 Worker 上收尾，Engine 销毁会等待"——任务组 Wait 的引擎版）。映射不是等价——卷七在骨架之上加协议层（TCP 状态机、TLS、HTTP）与生产化细节（背压水位、引用计数缓冲）——但**骨架的五项检查清单原样适用于网络引擎**。读卷七时带着本章的骨架图，每章问"这层装在骨架的哪个位置"。
+
+### 网络任务组（task_net）：卷六到卷七的桥
+
+骨架与网络引擎之间有一座现成的桥：**任务体系到网络 Engine 的可选桥接**（`XRT_FEATURE_TASK_NET`——方向单向，网络不反向侵入 Future/Task 核心）。`xrtTaskNet` 把任务提交到指定亲和 Worker：过程签名 `xtasknetproc` 在普通任务参数之前**借用** `xnetworker`——直接访问 Worker 缓冲池与 Engine 上下文，取消、任务值、结构化错误、临时 arena 的合同与普通任务完全相同；`After/Until` 两个变体把"延迟/截止"交给 Engine 的 Timer（第 9 章 deadline 数学的引擎版）。组形态 `xrtTaskGroupNetUntil` 先预留任务组活动槽位再提交——**组已关闭或达到上限时任务根本不启动**，组取消传播到 Future 并等 Timer 真实取消完成。两条硬约束：**网络任务跑在事件循环线程——不得阻塞或长计算**（重活提交 `xtaskpool`，这正是骨架"泵零阻塞"纪律的模块化表达）；Engine 停止时立即任务在排空阶段仍会执行、延迟任务以 `XERR_CLOSED` 结构化失败——终态发布之前，Timer、取消监听、数据析构全部完成（消费者不会看到还在被 Worker 使用的上下文）。
+
+来自仓库范例 `examples/network/task/main.c`——立即/延迟/截止/组四种提交一巡：
+
+```embed path="examples/network/task/main.c" title="examples/network/task/main.c"
+```
+
+```term
+$ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/network/task/main.c -lws2_32 -liphlpapi
+worker=0
+value=42
+worker=0
+after: value=42
+worker=0
+until: value=42
+worker=0
+group-until: done
+```
+
+**刚才发生了什么。** ① `xrtTaskNet` 提交立即任务——`xrtFutureWaitFor` 用第 9 章的 deadline 语义等待，值经 `xrtFutureValue` 借用读取（第 58 章纪律）。② `After`/`Until` 演示 Timer 提交——两者只差"相对微秒"还是"绝对截止"的入参，输出证明任务确实在到期后执行。③ `GroupNetUntil` 把延迟任务原子纳入任务组——组取消与上限保护的语义由组的预留槽位保证。④ 四段全部打印 `worker=0`——亲和提交落同一个 Worker，正是"IO 线程上的小活"的形态。
+
+### 全卷总回顾：卷六资产清单
+
+卷六收官，资产清点。**原语层**：线程四步生命周期、四件套（互斥/条件/配额/读写锁）、死锁四条件与锁序预防（第 53 章）。**协作层**：取消令牌三件套与传播树（53）、协程四态三终态与清理栈（54）、调度器三件与泵族三形态（55）、Channel 容量/关闭三方/Select/取消集成（56）、Future 四态/延续/组合子/等待族（57）、执行器双形态/停机协议/批量（58）。**结构化层**：任务组五件/终态口径/父子作用域/Done Future（59）。**心智模型**：取消贯穿主线、三层装配线、共享vs消息、等待成本阶梯、粒度三级、结构化并发源流。加上本章的装配能力——这份清单就是"能读懂任何现代并发库、能设计自己并发架构"的底座。卷七开始，这些工具全部进入实战。
+
+## 契约
+
+- **三零指标**：泵线程零阻塞、池线程零等待、消息路径零锁——装配正确性的可检验指标。
+- **分工判据**：让出型归调度器、占住型归池——边界用"会不会让出"判断。
+- **停机双通道**：调度器 Close（停驱动）+ 组 Cancel（收尾在途）——配合而非冗余；顺序与限时守候成对。
+- **收尾逆序**：泵→总线→池（依赖逆序）；每层用自己的停机协议（第 56/57/59 章）。
+- **生命周期对齐**：连接子组=连接、服务组=服务——作用域边界即资源边界。
+- **观测五项**：队列深度、组 Active、取消计数、泵周期、终态三分——上线门槛。
+
+### 演进路径：骨架的三级迭代
+
+骨架不是一次设计到位的，三级迭代各有投入产出。**第一级（能跑）**：泵+协程+池三件最小环——本章示例一就是这个级别；验证三零指标、跑通数据流。**第二级（能停）**：加信号、取消树、服务组、限时守候——第 60 章示例二补充的停机环；验证五项检查的后三项（等待可取消/终态三分/生命周期对齐）。**第三级（能观测）**：接第 50 章管线——队列深度、组 Active、泵周期进结构化日志；加上故障注入（第 6 章）验证失败路径。多数项目停在一级半——"能跑但不能优雅停"是并发系统最常见的技术债；二级是上线门槛；三级是运维门槛。三级各一周左右——骨架的投入在第一次凌晨告警时全部回收。
+
+### 性能观：骨架的三个调优点
+
+骨架的性能瓶颈有三个可预测的位置。**泵周期**（PollFor 时限）：太长则事件响应延迟、太短则空转烧 CPU——起点 10ms、按事件延迟需求调（交互类 1ms、批处理类 50ms）；空转率是调优的反馈指标（挑战练习的验收项）。**池深度**（第 59 章经济学）：CPU 型=核数、IO 型=并发预算——骨架的重计算段占比决定；测量任务耗时分布后按第 59 章公式。**通道容量**（第 57 章三个数字）：统计总线上报用 TrySend 满即丢（容量 64 的削峰）——可丢消息的降级语义写在设计里；请求通道则按背压传导需求选小值。三个点的共同原则：**先用默认值跑、接观测、按数据调**——第 137 章性能分析的并发篇会带着工具回来。
+
+### 一个最后的提醒：骨架是活文档
+
+骨架代码（含五项检查清单与装配决策的注释）应该作为团队的**活文档**维护：新成员读骨架入门（比读十章书快——再回来补理论）、新服务从骨架复制起步（装配决策已经过验证）、架构变更先改骨架（跑通三零指标再动业务代码）。骨架腐化的信号：检查清单五项有项长期红、装配决策的注释与代码脱节、没人能说清某层的停机协议——任一信号出现就是重构窗口。**并发系统的可维护性不在代码量，在结构清晰度**——骨架就是那个结构的物理载体。带着它进卷七。
+
+## 避坑
+
+### 坑 1：装配顺序错——先跑协程后建泵
+
+症状：协程投递失败或崩溃——依赖的调度器/池/通道还没建好（或已销毁）就有人用。
+
+原因：骨架的组件有依赖序（泵先于协程、总线先于生产者）——初始化逆序于依赖、销毁正序于依赖。
+
+```c bad
+(void)xrtCoGo(gSched, worker, NULL);    /* 先投协程 */
+gSched = xrtCoSchedCreate();             /* 后建泵——投递目标无效 */
+```
+
+```c good
+gSched = xrtCoSchedCreate();             /* 先建泵（依赖底座） */
+gPool = xrtTaskPoolCreate(&PoolCfg);     /* 再建外挂 */
+gStats = xrtChannelCreate(64);           /* 再建总线 */
+(void)xrtCoGo(gSched, worker, NULL);     /* 最后投工作——依赖齐备 */
+```
+
+### 坑 2：停机漏一层——池关了总线没排空
+
+症状：停机后统计少了一截——消息还挂在通道里没人消费；或池任务还在写已关闭的通道（错误风暴）。
+
+原因：三层停机（泵/总线/池）只走了两层——每层有自己的协议，漏层就是漏收尾。
+
+```c bad
+xrtCoSchedClose(gSched);
+(void)xrtCoSchedRun(gSched);   /* 泵排空 */
+xrtTaskPoolDestroy(gPool);      /* 直接毁池——总线里的统计消息永久滞留 */
+```
+
+```c good
+xrtCoSchedClose(gSched);
+(void)xrtCoSchedRun(gSched);   /* 泵排空（生产者停止） */
+xrtChannelClose(gStats);
+(void)xrtCoSchedRun(gSched);   /* 总线排空（消费者收尾） */
+(void)xrtTaskPoolClose(gPool);
+xrtTaskPoolWait(gPool);        /* 池排空——三层全收 */
+xrtTaskPoolDestroy(gPool);
+```
+
+### 调试走读：骨架的三个高频故障
+
+骨架级故障（非单工具 bug）的三个高频形态与定位路径。**故障一：响应延迟周期性尖峰**——某个连接的重计算直接在泵上跑了（第 56 章坑 1 的骨架版）：定位看泵周期曲线（尖峰对齐某类请求）→ 扫该类协程代码找阻塞调用 → 移池外挂。**故障二：停机偶发挂起**——某层漏收尾或某等待不可取消：定位看组 Active 曲线（停机后不归零的项）→ 检查该类任务的等待形态（RecvCancel 带了吗、池任务有检查点吗）→ 补上可取消等待。**故障三：统计数字对不上**——消息丢失（TrySend 满丢是设计、但丢在了没设计的地方）或消费者没排空（停机漏层）：定位对比三层统计（发送/接收/聚合）的差异方向 → 按差异方向找丢失点。三个故障的定位全程依赖观测（第 50 章管线）——**没有观测的骨架，故障定位回到猜谜时代**。
+
+### 与第 36 章的呼应：两条管线的对照
+
+本章与第 36 章是全书两条组合章管线，对照收束。**数据管线**（第 36 章）：文本进→值树加工→文本出——同步、单线程、环节函数串联。**服务管线**（本章）：事件进→协程处理→消息流转→终态汇合——异步、多线程、骨架组件装配。共同的骨架思想：环节/组件各有单一职责、进出契约明确、可单独测试；不同的是**时间维度**——数据管线的环节顺序执行，服务管线的组件并发运行，因此后者多出取消、汇合、观测三个数据管线不需要的维度。两条管线在卷七合流——网络引擎既是数据管线（协议解析）又是服务管线（连接管理）——带着两章的检查清单读卷七，每章都能定位到管线上的位置。
+
+## 练习
+
+### 基础：三件套复现
+
+复现骨架核心环（示例一减半：泵+两协程+通道）——输出统计证言；再故意把池 Destroy 提前观察错误（理解依赖序）。
+
+### 进阶：可取消的连接
+
+给连接协程加取消令牌（第 54 章）：收到取消后清理栈收尾、终态 Cancelled；主程序 Cancel 全部连接后 WaitFor 限时汇合——验证"等待全可取消"检查项。
+
+### 挑战：完整骨架
+
+组装完整服务骨架：信号触发停机 + 限流协程（Channel 收请求、令牌桶限速）+ 三连接并发（各含计算外挂）+ 服务组三层统计。验收标准：五项检查清单逐项过（输出检查表）；停机全程 <5 秒；统计三层对账一致；第 6 章零泄漏。这个骨架保存好——卷七网络章会在此基础上装协议。
+
+## 速查
+
+| 知识点 | 速查 |
+| --- | --- |
+| 装配全景 | 泵事件循环 + 连接协程直线 + 计算外挂池 + 消息总线 + 组生命周期 |
+| 三零指标 | 泵零阻塞 / 池零等待 / 消息零锁——装配正确性的检验尺 |
+| 分工判据 | 让出型归调度器、占住型归池——"会不会让出"一票定 |
+| 停机双通道 | 调度器 Close 停驱动 + 组 Cancel 收在途——配合成完整停机 |
+| 收尾逆序 | 泵→总线→池——依赖逆序、每层自己的协议 |
+| 检查清单 | 泵零阻塞 / 等待可取消 / 终态三分 / 生命周期对齐 / 观测贯穿 |
+| 骨架去向 | 剥协议装 TCP/TLS/HTTP = 卷七网络引擎 |
+| 网络任务 | task_net 单向桥：亲和 Worker + Timer；事件循环禁阻塞重活；组预留槽位 |

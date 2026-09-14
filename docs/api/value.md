@@ -4865,3 +4865,20 @@ phased 绑定，任意 Object/Weak/native 包装策略不会因有 Trace 而自�
 1200 个内联/空/Take 的物理字符串和字节值，以及 Clone 后的 2400 个实际拥有槽，
 覆盖清理与恢复、精确重复边计数、无分配事务及内存平衡。不可变标量的 Clone
 保有原节点，不创建第二个物理节点。
+
+### 托管快照游标
+
+`xrtValueCursorCreate/RCreate` 返回不透明的 `xvaluecursor`，以
+`xrtValueCursorRetain/Release` 管理真实引用；它与可放在栈上的独占
+`xvalueiter` 是不同的物理合同，旧布局及 Begin/End/Create/Destroy 不变。
+游标内联保存迭代状态，实际拥有 backing 快照；带析构的 identity 对象另外
+保有原对象 shell。普通 COW 源不被保有，当前 item/key 均为借用。
+
+`xrtValueCursorAdvance` 保留三态返回与调用前错误隔离，调用者在整个操作期间
+保有引用并串行推进。计数/追踪和 `xrtValueCursorOwnershipAdapterV1` 在推进
+及其错误处理尾部拒绝图准入；引用变化参与 mutation domain。
+`xrtValueCursorOwnership` 报告实际引用和内联拥有槽，没有额外的虚构迭代节点。
+适配器 Hold/Drop 是实际引用，Claim/Restore 精确匹配 token，Clear 只移动
+拥有槽，Finish 在 freeze 之外结束快照并释放子引用，可重复而不重复释放。
+所有传递子节点仍需独立准入，尤其是析构对象的 shell/backing/lifetime；
+获得游标适配器本身不等于拥有完整循环回收或模块卸载权限。

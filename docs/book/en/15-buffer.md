@@ -47,11 +47,11 @@ Fixed-point `Write` solves another protocol pain: **fixed layouts** — it makes
 
 `xbuffer`'s internal storage may be segmented — consecutive Appends do not necessarily live in one block of memory. The external contract is always "you get a contiguous block when taking": `Take` coalesces before handoff. The design trade-off is clear: **the accumulation phase chases allocation efficiency** (new segments hang on directly, no old data moved), **the take phase alone pays for contiguity** (one coalesce). If every Append maintained global contiguity, every arriving segment would move everything — a disaster in receive scenarios. Conversely, if after every Append you read the whole content, segmentation loses its point — that means you actually need "one buffer per message" rather than "one buffer accumulating many messages".
 
-The relation to Chapter 66's `xnetbuf` is settled here: `xnetbuf` is the network layer's receive buffer (references, returns, pooling — Volume 7 goes deep), `xbuffer` a general byte accumulator. The common protocol pipeline is `xnetbuf` receives segments → copy or reference into `xbuffer` to complete → `Take` out a contiguous block for the parser. Different duties, cooperative, not interchangeable.
+The relation to Chapter 67's `xnetbuf` is settled here: `xnetbuf` is the network layer's receive buffer (references, returns, pooling — Volume 7 goes deep), `xbuffer` a general byte accumulator. The common protocol pipeline is `xnetbuf` receives segments → copy or reference into `xbuffer` to complete → `Take` out a contiguous block for the parser. Different duties, cooperative, not interchangeable.
 
 ### Take's ownership semantics
 
-`Take` returns an **owning** contiguous block (`bytes` pointer + length out-param); the buffer's logical state zeroes and stays reusable; the returned block is freed with `xrtFree`. Note what "coalesce" means: with segmented internal storage, `Take` coalesces once before handing out the contiguous block; this guarantees you always receive contiguous memory — decoders never handle segmentation. This and Chapter 66's network-stream "receive buffer direct handoff" are the same design idea at different layers.
+`Take` returns an **owning** contiguous block (`bytes` pointer + length out-param); the buffer's logical state zeroes and stays reusable; the returned block is freed with `xrtFree`. Note what "coalesce" means: with segmented internal storage, `Take` coalesces once before handing out the contiguous block; this guarantees you always receive contiguous memory — decoders never handle segmentation. This and Chapter 67's network-stream "receive buffer direct handoff" are the same design idea at different layers.
 
 ## Examples
 
@@ -87,7 +87,7 @@ buffer: take set-take=6 create-take=3 from=2
 
 ### Putting the three actions into a real rhythm
 
-Alone, Append/Write/Take are three functions; inside protocol processing's rhythm they are three beats of one loop. Take "each message = 4-byte length header + body": on any arriving segment, first `Append` into the buffer; use `Size` against "the header's declared length already assembled" to judge a message's completeness; when complete, `Take` it for the parser and the buffer zeroes for the next. In the three-beat loop the buffer is the sole state carrier — no message list, no per-message allocation, no double copying. In Chapter 66 you will see this loop running at a million-per-second cadence inside network-engine callbacks, shaped exactly like the toy version here.
+Alone, Append/Write/Take are three functions; inside protocol processing's rhythm they are three beats of one loop. Take "each message = 4-byte length header + body": on any arriving segment, first `Append` into the buffer; use `Size` against "the header's declared length already assembled" to judge a message's completeness; when complete, `Take` it for the parser and the buffer zeroes for the next. In the three-beat loop the buffer is the sole state carrier — no message list, no per-message allocation, no double copying. In Chapter 67 you will see this loop running at a million-per-second cadence inside network-engine callbacks, shaped exactly like the toy version here.
 
 ## Contracts
 

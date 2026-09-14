@@ -504,6 +504,11 @@ typedef enum xvalueiterresult {
 	XVALUE_ITER_ITEM = 1
 } xvalueiterresult;
 
+/* Opaque, reference-owned snapshot cursor. Unlike the stack-compatible
+ * xvalueiter, its storage and physical references can be pinned independently
+ * by an ownership plan. The inline iteration state is not a second owner. */
+typedef struct xvaluecursor xvaluecursor;
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -918,6 +923,24 @@ XRT_API void xrtValueIterDestroy(xvalueiter* pIterator);
  * caller guarantees lifetime and whole-graph quiescence through inspection;
  * concurrent advance/end/destroy and concurrent mutation are not supported. */
 XRT_API xrtownershipref xrtValueIterOwnership(const xvalueiter* pIterator);
+
+/* Managed snapshot cursors retain backing and, for finalizer-backed identity
+ * objects, the actual source shell. An ordinary COW source is not retained.
+ * Existing stack/unique-heap iterator ABI and lifecycle remain unchanged. */
+XRT_API xvaluecursor* xrtValueCursorCreate(const xvalue* pValue);
+XRT_API xvaluecursor* xrtValueCursorRCreate(const xvalue* pValue);
+XRT_API xvaluecursor* xrtValueCursorRetain(xvaluecursor* pCursor);
+XRT_API void xrtValueCursorRelease(xvaluecursor* pCursor);
+/* Caller owns a reference through the call and serializes advances. Item and
+ * key outputs borrow the snapshot, valid until next advance or last release.
+ * Count/Trace/admission refuse an in-flight advance, including its error tail. */
+XRT_API xvalueiterresult xrtValueCursorAdvance(xvaluecursor* pCursor,
+	xvaluekey* pKey, xvalue** ppValue);
+XRT_API xrtownershipref xrtValueCursorOwnership(const xvaluecursor* pCursor);
+/* Exact Ops identity is checked before data. Hold/Drop are actual references;
+ * Clear detaches only, Finish releases outside freeze. Children, including a
+ * finalizer-backed shell, still require independent lifecycle admission. */
+XRT_API const xrtownershipadapterv1* xrtValueCursorOwnershipAdapterV1(xrtownershipref Reference);
 
 
 

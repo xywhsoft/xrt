@@ -10,7 +10,7 @@ api: string, codec
 
 ## Orientation
 
-Volume 4 answers "how does a program process arbitrary non-code data". It comes in two halves: the first (Chapters 25–29) is **text and byte infrastructure** — string views and builders, strict number parsing and formatting, charsets and Unicode, the codec trio, compression; the second (from Chapter 30) is **structured data** — dynamic values, JSON, XSON, templates, and regex. The first half is the second's foundation: parsers tokenize with the string family, convert with the numeric family, handle multilingual text with the charset family, and defend against bombs with resource limits — every chapter gets named and reclaimed in the second half.
+Volume 4 answers "how does a program process arbitrary non-code data". It comes in two halves: the first (Chapters 25–29) is **text and byte infrastructure** — string views and builders, strict number parsing and formatting, charsets and Unicode, the codec trio, compression; the second (from Chapter 31) is **structured data** — dynamic values, JSON, XSON, line-delimited formats (JSONL/XSONL), templates, and regex. The first half is the second's foundation: parsers tokenize with the string family, convert with the numeric family, handle multilingual text with the charset family, and defend against bombs with resource limits — every chapter gets named and reclaimed in the second half.
 
 ### One through-line: strictness at boundaries
 
@@ -36,7 +36,7 @@ Reading in order is this volume's best path — the triple jump's order is the c
 - Charsets (27): UTF-8 mainline / all-direction transcoding / per-scalar operations
 - Codecs (28): Base64 / Hex / Percent three bridges; capacity always computable by pen
 - Compression (29): one-shot and streaming postures / deterministic artifacts / overhead ledger and decompression caps
-- Second half (from 30): dynamic values / JSON / XSON / templates / regex — all standing on the first five chapters
+- Second half (from 31): dynamic values / JSON / XSON / JSONL and XSONL (line-delimited records) / templates / regex — all standing on the first five chapters
 ```
 
 ### An intuition table of expansion and cost
