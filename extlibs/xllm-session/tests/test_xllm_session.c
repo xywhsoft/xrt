@@ -1005,6 +1005,8 @@ typedef struct {
     uint64_t uIn, uOut;
     unsigned iCalls;
 } test_script;
+static char g_sMetaRoutingKey[64];
+static size_t g_iMetaHeaderCount;
 
 static xllm_result test_script_call(void* pUserData, const xllm_request* pRequest,
     const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
@@ -1018,6 +1020,13 @@ static xllm_result test_script_call(void* pUserData, const xllm_request* pReques
              strstr(pRequest->pMessages[i].sContent, "<conversation>") ) { bSummaryCall = true; }
     }
     ++pScript->iCalls;
+    if ( bSummaryCall && pRequest->iExtraHeaderCount ) {
+        g_iMetaHeaderCount = pRequest->iExtraHeaderCount;
+        if ( pRequest->pExtraHeaders[0].sValue ) {
+            (void)snprintf(g_sMetaRoutingKey, sizeof(g_sMetaRoutingKey), "%s",
+                pRequest->pExtraHeaders[0].sValue);
+        }
+    }
     if ( pError ) { xllmErrorInit(pError); }
     *ppResponse = test_make_response(
         bSummaryCall ? test_pi_summary("scripted auto compaction") : pScript->sContent,
@@ -1075,6 +1084,10 @@ static void test_easy_send(void)
     SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && tStats.uCompactionCount == 1u &&
         tStats.uSummaryGeneration == 1u && tStats.uSummaryTokensExact == 100u,
         "compaction commits with exact summary accounting");
+    SESSION_CHECK(g_iMetaHeaderCount == 1u && strlen(g_sMetaRoutingKey) == 36u &&
+        g_sMetaRoutingKey[8] == '-' && g_sMetaRoutingKey[13] == '-' &&
+        g_sMetaRoutingKey[18] == '-' && g_sMetaRoutingKey[23] == '-',
+        "meta call carries a fresh UUID routing key header");
     {
         xllm_request tRequest;
         xllmRequestInit(&tRequest);

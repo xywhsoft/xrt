@@ -221,7 +221,10 @@ prompt = 摘要指令模板（general / coding / 自定义）
 
 - 重复压缩从上一代 `uThroughSequence` 起算：上轮尾窗在下轮成为新候选，主摘要滚动；
 - 元调用 usage 写入摘要对象（§3）与 compact journal 事件（D9）；
-- 流式回调透传 NULL（摘要一次性整取）；元调用**不计入会话占用缓存**。
+- 流式回调透传 NULL（摘要一次性整取）；元调用**不计入会话占用缓存**；
+- 元调用每次携带新 UUID 路由键（头 `xllm-routing-key`，one-off 命名空间隔离）；
+  `store:false` 由 xllm 公共 wire 路径自动携带——缓存/路由口径见上游
+  `extlibs/xllm/docs/CACHE-POLICY.md`（GAP-CACHE-HINT v2）。
 
 ### 6.5 摘要格式与质量门（对应 ops.pEvaluate）
 

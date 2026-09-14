@@ -786,6 +786,59 @@ cleanup:
     test_server_stop(&tServerCtx);
 }
 
+
+/* ------------------------------------------------------------------ */
+/* GAP-CACHE-HINT v2: store:false on the shared wire path (completions */
+/* and Responses); Anthropic has no such field; extraBody override.     */
+/* ------------------------------------------------------------------ */
+
+static void test_wire_store_flags(void)
+{
+    static const char* sUrl = "http://127.0.0.1:9/v1";
+    xllm_client_config tConfig;
+    xllm_request tRequest;
+    xllm_error tError;
+    char* sJson;
+    const xllm_provider aeProviders[3] = {
+        XLLM_PROVIDER_OPENAI_COMPAT, XLLM_PROVIDER_OPENAI_RESPONSES, XLLM_PROVIDER_ANTHROPIC
+    };
+    size_t i;
+    for ( i = 0u; i < 3u; ++i ) {
+        xllm_client* pClient;
+        xllmClientConfigInit(&tConfig);
+        tConfig.sBaseUrl = sUrl;
+        tConfig.sApiKey = "test-key";
+        tConfig.sModel = "wire-model";
+        tConfig.eProvider = aeProviders[i];
+        pClient = xllmClientCreate(&tConfig, &tError);
+        CHECK(pClient != NULL, "wire store client created");
+        if ( !pClient ) { continue; }
+        xllmRequestInit(&tRequest);
+        tRequest.bStream = false;
+        (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        if ( aeProviders[i] == XLLM_PROVIDER_ANTHROPIC ) {
+            CHECK(sJson != NULL && strstr(sJson, "\"store\"") == NULL,
+                "anthropic body never carries a store field");
+        } else {
+            CHECK(sJson != NULL && strstr(sJson, "\"store\":false") != NULL,
+                "openai-compat and Responses bodies carry store:false");
+        }
+        xllmFree(sJson);
+        /* caller override wins and must not duplicate the key */
+        (void)xllmRequestSetExtraBody(&tRequest, "{\"store\":true,\"x\":1}");
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        CHECK(sJson != NULL &&
+            strstr(sJson, "\"store\":true") != NULL &&
+            strstr(sJson, "\"store\":false") == NULL &&
+            strstr(sJson, "\"x\":1") != NULL,
+            "extraBody store key overrides the wire default without duplication");
+        xllmFree(sJson);
+        xllmRequestUnit(&tRequest);
+        xllmClientDestroy(pClient);
+    }
+}
+
 static long g_iFailAt = -1;
 static size_t g_iTestAllocs;
 static bool g_bSawOomError;
@@ -1592,6 +1645,7 @@ int main(void)
     test_async_engine();
     test_oom_injection();
     test_audit_hardening();
+    test_wire_store_flags();
     test_tls_transport();
     test_tls_private_ca();
     test_fragmented_parser();

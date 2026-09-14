@@ -24,6 +24,7 @@ bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
 {
     xllm_request tRequest;
     xllm_response* pResponse = NULL;
+    xllm_header tHeader;
     xllm_result eResult;
     bool bOk = false;
     if ( pError ) { xllmErrorInit(pError); }
@@ -36,10 +37,27 @@ bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
     xllmRequestInit(&tRequest);
     tRequest.bStream = false;
     tRequest.uMaxOutputTokens = pSession->tConfig.uSummaryMaxTokens;
-    /* One-off summarization prompts must not pollute the prompt cache
-     * (pi behavior): opt out where the dialect supports it; servers that
-     * ignore the field are unaffected. */
-    (void)xllmRequestSetExtraBody(&tRequest, "{\"store\":false}");
+    /* One-off routing namespace (pi's fresh routing session id): each meta
+     * call carries a fresh UUID so routing-style backends keep it out of
+     * the conversation's affinity slot. store:false rides the shared wire
+     * path since GAP-CACHE-HINT v2; no per-call body work here. */
+    {
+        unsigned char aSeed[16];
+        if ( xrtSecureRandom(aSeed, sizeof(aSeed)) ) {
+            char sKey[40];
+            aSeed[6] = (unsigned char)((aSeed[6] & 0x0fu) | 0x40u); /* v4 */
+            aSeed[8] = (unsigned char)((aSeed[8] & 0x3fu) | 0x80u); /* variant */
+            (void)snprintf(sKey, sizeof(sKey),
+                "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+                aSeed[0], aSeed[1], aSeed[2], aSeed[3], aSeed[4], aSeed[5],
+                aSeed[6], aSeed[7], aSeed[8], aSeed[9], aSeed[10], aSeed[11],
+                aSeed[12], aSeed[13], aSeed[14], aSeed[15]);
+            tHeader.sName = "xllm-routing-key";
+            tHeader.sValue = sKey;
+            tRequest.pExtraHeaders = &tHeader;
+            tRequest.iExtraHeaderCount = 1u;
+        }
+    }
     if ( !xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, sPrompt) ) {
         xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build the summary request");
         goto done;

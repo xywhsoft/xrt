@@ -341,6 +341,13 @@ static char* xllm__completions_build_request(xllm_client* pClient, const xllm_re
         if ( !xllm__append_message(&tBody, &pRequest->pMessages[i], &tFlags, pError) ) goto fail;
     }
     if ( !xllm__buf_append_char(&tBody, ']') ) goto oom;
+    /* Wire alignment (pi behavior): never persist this exchange server-side.
+     * store governs data retention, not prompt caching. A caller-provided
+     * extraBody "store" key wins to avoid duplicate keys in the merge. */
+    if ( !pRequest->sExtraBodyJson ||
+         strstr(pRequest->sExtraBodyJson, "\"store\"") == NULL ) {
+        if ( !xllm__buf_append_cstr(&tBody, ",\"store\":false") ) goto oom;
+    }
 
     uMaxTokens = pRequest->uMaxOutputTokens ? pRequest->uMaxOutputTokens : pClient->uMaxOutputTokens;
     sMaxTokensField = tFlags.bMaxCompletionTokens ? ",\"max_completion_tokens\":" : ",\"max_tokens\":";

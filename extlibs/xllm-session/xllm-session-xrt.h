@@ -30,6 +30,7 @@
 #define XRT_MODULE_THREAD
 #define XRT_MODULE_MUTEX
 #define XRT_MODULE_CANCEL
+#define XRT_MODULE_RANDOM_SECURE
 #define XRT_MODULE_TIME
 
 #include <xrt.h>

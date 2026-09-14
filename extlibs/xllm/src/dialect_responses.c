@@ -191,6 +191,12 @@ static char* xllm__responses_build_request(xllm_client* pClient, const xllm_requ
     if ( tSystem.iLen &&
          ( !xllm__buf_append_cstr(&tBody, ",\"instructions\":") ||
            !xllm__json_string(&tBody, tSystem.pData ? tSystem.pData : "") ) ) goto oom;
+    /* Wire alignment (pi behavior): never persist this exchange server-side;
+     * a caller-provided extraBody "store" key wins (see completions). */
+    if ( !pRequest->sExtraBodyJson ||
+         strstr(pRequest->sExtraBodyJson, "\"store\"") == NULL ) {
+        if ( !xllm__buf_append_cstr(&tBody, ",\"store\":false") ) goto oom;
+    }
     uMaxTokens = pRequest->uMaxOutputTokens ? pRequest->uMaxOutputTokens : pClient->uMaxOutputTokens;
     if ( uMaxTokens ) {
         (void)snprintf(sValue, sizeof(sValue), "%u", (unsigned)uMaxTokens);
