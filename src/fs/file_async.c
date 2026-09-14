@@ -72,8 +72,10 @@ static void __xrtAsyncFileFinalize(ptr pData)
 	xrtErrorFree(pError);
 	xrtPromiseDestroy(pFile->ClosePromise);
 	xrtFutureDestroy(pFile->CloseFuture);
+	xtaskpool* pPool = pFile->Pool;
 	(void)xrtMutexUnit(&pFile->Lock);
 	xrtFree(pFile);
+	__xrtTaskPoolReleaseResource(pPool);
 }
 
 
@@ -571,6 +573,15 @@ static xasyncfile* __xrtAsyncFileCreate(
 		xrtFree(pFile);
 		return NULL;
 	}
+	if (!__xrtTaskPoolAcquireResource(pPool)) {
+		xerror* pError = xrtTakeError();
+		xrtPromiseDestroy(pFile->ClosePromise);
+		xrtFutureDestroy(pFile->CloseFuture);
+		(void)xrtMutexUnit(&pFile->Lock);
+		xrtFree(pFile);
+		xrtSetErrorTake(pError);
+		return NULL;
+	}
 	pFile->Pool = pPool;
 	pFile->References = 1;
 	pFile->Flags = iFlags;
@@ -587,8 +598,10 @@ static void __xrtAsyncFileCreateFree(xasyncfile* pFile)
 	}
 	xrtPromiseDestroy(pFile->ClosePromise);
 	xrtFutureDestroy(pFile->CloseFuture);
+	xtaskpool* pPool = pFile->Pool;
 	(void)xrtMutexUnit(&pFile->Lock);
 	xrtFree(pFile);
+	__xrtTaskPoolReleaseResource(pPool);
 }
 
 

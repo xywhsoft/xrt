@@ -325,6 +325,8 @@ XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig);
  * reference; successful Destroy consumes it once. Collector Hold/Release pins
  * keep the terminal shell alive after joined worker resources are retired.
  * Native entries, executing workers and opaque finalizers refuse inspection.
+ * Accepted opaque resources hold real pool references until their finalizers
+ * return; these remain external roots, even when the pool is otherwise idle.
  * Parked worker/control storage is uniquely contained until join, not a fake
  * RC node or a guessed subtraction from a live reference count. */
 XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool);

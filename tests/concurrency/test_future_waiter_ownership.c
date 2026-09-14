@@ -96,8 +96,9 @@ static void combine_round(unsigned mode)
     testRequire(output != NULL, "aggregate");
     slots[0] = xrtFutureOwnership(a); slots[1] = xrtFutureOwnership(b);
     slots[2] = xrtPromiseOwnership(pa); slots[3] = xrtPromiseOwnership(pb); slots[4] = xrtFutureOwnership(output);
-    /* Exactly one pending operation base reference, not an omitted slot. */
-    inspect(a, slots, 5, 8, 17, 1, true);
+    /* Actual output producer and cancellation Data own the Group. No hidden
+     * operation root; duplicate source registrations remain separate edges. */
+    inspect(a, slots, 5, 8, 19, 0, false);
     if (mode == 3) {
         testRequire(xrtFutureCancel(output), "cancel aggregate");
         testRequire(xrtFutureState(output) == XFUTURE_CANCELLED, "aggregate terminal cancellation");
@@ -118,9 +119,11 @@ static void combine_round(unsigned mode)
     xrtPromiseDestroy(pa); xrtPromiseDestroy(pb); xrtFutureDestroy(a); xrtFutureDestroy(b);
     if (mode == 3) inspect(output, &slots[4], 1, 2, 2, 0, false);
     else {
-        inspect(output, &slots[4], 1, 10, 12, 0, false);
+        /* A terminal result still owns the Group and every source, but its
+         * completed cancellation observer is genuinely removed. */
+        inspect(output, &slots[4], 1, 9, 10, 0, false);
         testRequire(xrtFutureRef(output) == output, "native aggregate alias");
-        inspect(output, &slots[4], 1, 10, 12, 1, true); xrtFutureDestroy(output);
+        inspect(output, &slots[4], 1, 9, 10, 1, true); xrtFutureDestroy(output);
     }
     xrtFutureDestroy(output);
 }

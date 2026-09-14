@@ -57,11 +57,17 @@ static bool __xrtFutureOwnershipTrace(const void* pData, xrtownershipvisitor pVi
 	 * uses the caller's quiescent point, exactly like Value/callable views. */
 	for (const xrt_future_waiter* pWaiter = pFuture->Waiters; pWaiter != NULL; pWaiter = pWaiter->Next) {
 		if (!pWaiter->Linked || pWaiter->Calling) return false;
-		if (pWaiter->Certified) {
+		if (pWaiter->Certified == 1) {
 			const xfuturewatchownershipv1* pPolicy = pWaiter->OwnershipPolicy;
 			if (pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Ops == NULL ||
 				!pVisit((xrtownershipref){pWaiter->Data, pPolicy->Ops}, pContext)) return false;
-		} else if (pWaiter->OwnershipTrace == NULL ||
+		} else if (pWaiter->Certified == 2) {
+			const xfuturewatchownershipv2* pPolicy = pWaiter->ProjectedOwnershipPolicy;
+			xrtownershipref Owner;
+			if (pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Reference == NULL) return false;
+			Owner = pPolicy->Reference(pWaiter->Data);
+			if (Owner.Data == NULL || Owner.Ops == NULL || !pVisit(Owner, pContext)) return false;
+		} else if (pWaiter->Certified != 0 || pWaiter->OwnershipTrace == NULL ||
 			!pWaiter->OwnershipTrace(pWaiter->Data, pVisit, pContext)) return false;
 		pLast = pWaiter;
 	}
@@ -206,27 +212,45 @@ static const xrtownershippreparationv1 __xrtFuturePreparation = {sizeof(__xrtFut
 static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Reference,
 	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
 	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
-	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount)
+	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
+	const xfutureownershipadmissionv1* pAdmission)
 {
 	const xfuture* pFuture;
 	if (Reference.Ops != &__xrtFutureOwnershipOps || Reference.Data == NULL ||
 		(iPolicyCount != 0 && pPolicies == NULL) ||
 		(iProducerPolicyCount != 0 && pProducerPolicies == NULL) ||
-		(iWatchPolicyCount != 0 && pWatchPolicies == NULL)) return NULL;
+		(iWatchPolicyCount != 0 && pWatchPolicies == NULL) || (pAdmission &&
+		(pAdmission->size != sizeof(*pAdmission) ||
+		(pAdmission->ProjectedWatchPolicyCount && !pAdmission->ProjectedWatchPolicies) ||
+		(pAdmission->CancelWatchPolicyCount && !pAdmission->CancelWatchPolicies)))) return NULL;
 	pFuture = (const xfuture*)Reference.Data;
-	if (pFuture->Completing || pFuture->OwnershipCleared || __xrtAtomicRefLoad(&pFuture->RefCount) <= 0 ||
-		xrtCancelOwnershipAdapterV1(xrtCancelOwnership(pFuture->Cancel)) == NULL) return NULL;
+	if (pFuture->Completing || pFuture->OwnershipCleared || __xrtAtomicRefLoad(&pFuture->RefCount) <= 0) return NULL;
+	if (pAdmission) {
+		const xrtownershippreparationv1* pPreparation = NULL;
+		if (!xrtCancelOwnershipAdapterV2(xrtCancelOwnership(pFuture->Cancel), pAdmission->CancelWatchPolicies,
+			pAdmission->CancelWatchPolicyCount, &pPreparation)) return NULL;
+	} else if (!xrtCancelOwnershipAdapterV1(xrtCancelOwnership(pFuture->Cancel))) return NULL;
 	const xrt_future_waiter* pLast = NULL;
 	for (const xrt_future_waiter* pWaiter = pFuture->Waiters; pWaiter != NULL; pWaiter = pWaiter->Next) {
 		bool bKnown = false;
 		if (!pWaiter->Certified || !pWaiter->Phased || !pWaiter->Linked || pWaiter->Calling || pWaiter->Data == NULL) return NULL;
-		for (size_t i = 0; i < iWatchPolicyCount; ++i)
-			if (pWatchPolicies[i] != NULL && pWaiter->OwnershipPolicy == pWatchPolicies[i]) { bKnown = true; break; }
-		if (!bKnown) return NULL; /* No descriptor dereference or child trace yet. */
-		const xfuturewatchownershipv1* pPolicy = pWaiter->OwnershipPolicy;
-		if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Notify != pWaiter->Proc ||
-			pPolicy->Release != pWaiter->Release || pPolicy->Ops == NULL ||
-			pPolicy->Ops->Count == NULL || pPolicy->Ops->Trace == NULL) return NULL;
+		if (pWaiter->Certified == 1) {
+			for (size_t i = 0; i < iWatchPolicyCount; ++i)
+				if (pWatchPolicies[i] != NULL && pWaiter->OwnershipPolicy == pWatchPolicies[i]) { bKnown = true; break; }
+			if (!bKnown) return NULL;
+			const xfuturewatchownershipv1* pPolicy = pWaiter->OwnershipPolicy;
+			if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Notify != pWaiter->Proc ||
+				pPolicy->Release != pWaiter->Release || pPolicy->Ops == NULL ||
+				pPolicy->Ops->Count == NULL || pPolicy->Ops->Trace == NULL) return NULL;
+		} else if (pWaiter->Certified == 2 && pAdmission) {
+			for (size_t i = 0; i < pAdmission->ProjectedWatchPolicyCount; ++i)
+				if (pAdmission->ProjectedWatchPolicies[i] != NULL &&
+					pWaiter->ProjectedOwnershipPolicy == pAdmission->ProjectedWatchPolicies[i]) { bKnown = true; break; }
+			if (!bKnown) return NULL; /* Never project an unknown policy. */
+			const xfuturewatchownershipv2* pPolicy = pWaiter->ProjectedOwnershipPolicy;
+			if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Notify != pWaiter->Proc ||
+				pPolicy->Release != pWaiter->Release || pPolicy->Reference == NULL) return NULL;
+		} else return NULL;
 		pLast = pWaiter;
 	}
 	if (pLast != pFuture->WaitersTail) return NULL;
@@ -252,7 +276,7 @@ static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Refe
 XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
 	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
 	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount)
-{ return __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount, pProducerPolicies, iProducerPolicyCount, NULL, 0); }
+{ return __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount, pProducerPolicies, iProducerPolicyCount, NULL, 0, NULL); }
 XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
 	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
 	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
@@ -262,8 +286,19 @@ XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref
 	const xrtownershipadapterv1* pAdapter;
 	if (ppPreparation == NULL) return NULL;
 	pAdapter = __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount,
-		pProducerPolicies, iProducerPolicyCount, pWatchPolicies, iWatchPolicyCount);
+		pProducerPolicies, iProducerPolicyCount, pWatchPolicies, iWatchPolicyCount, NULL);
 	if (pAdapter != NULL) *ppPreparation = &__xrtFuturePreparation;
+	return pAdapter;
+}
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV4(xrtownershipref Reference,
+	const xfutureownershipadmissionv1* pAdmission, const xrtownershippreparationv1** ppPreparation)
+{
+	const xrtownershipadapterv1* pAdapter;
+	if (!pAdmission || pAdmission->size != sizeof(*pAdmission) || !ppPreparation) return NULL;
+	pAdapter = __xrtFutureAdapterQuery(Reference, pAdmission->PayloadPolicies, pAdmission->PayloadPolicyCount,
+		pAdmission->ProducerPolicies, pAdmission->ProducerPolicyCount,
+		pAdmission->WatchPolicies, pAdmission->WatchPolicyCount, pAdmission);
+	if (pAdapter) *ppPreparation = &__xrtFuturePreparation;
 	return pAdapter;
 }
 XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference,
@@ -967,6 +1002,23 @@ XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
 	return bOk;
 }
 
+XRT_API bool xrtFutureWatchInitOwnershipV2(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv2* pPolicy)
+{
+	xrtownershipscope Mutation = {0};
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) ||
+		!pPolicy->Notify || !pPolicy->Release || !pPolicy->Reference) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	bool bOk = __xrtOwnershipBody_FutureWatchInit(pWatch, pPolicy->Notify, pPolicy->Release, pData);
+	if (bOk) {
+		xrt_future_waiter* pWaiter = &__xrtFutureWatchImpl(pWatch)->Waiter;
+		pWaiter->Phased = true; pWaiter->Certified = 2; pWaiter->ProjectedOwnershipPolicy = pPolicy;
+	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return bOk;
+}
 
 
 /* 把 Watch 挂入仍为 Pending 的 Future。 */
@@ -1345,25 +1397,28 @@ XRT_API const xerror* xrtFutureError(const xfuture* pFuture)
 
 
 /* 请求 Future 的生产过程协作取消。 */
-static bool __xrtOwnershipBody_FutureCancel(xfuture* pFuture)
+XRT_API bool xrtFutureCancel(xfuture* pFuture)
 {
-	bool bPending;
+	xrtownershipscope Mutation = {0}; xcancel* pCancel; bool bRequested;
 
 	if ( pFuture == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
 	if ( !xrtMutexLock(&pFuture->Lock) ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		return false;
 	}
-	bPending = pFuture->State == XFUTURE_PENDING;
+	/* The real local Cancel reference protects callback/release tails after
+	 * leaving the Future transition. Certified observers must not inherit an
+	 * API-owned scope; a caller-owned outer scope remains untouched. */
+	pCancel = pFuture->State == XFUTURE_PENDING && !pFuture->OwnershipCleared ?
+		xrtCancelRef(pFuture->Cancel) : NULL;
 	(void)xrtMutexUnlock(&pFuture->Lock);
-	return bPending && xrtCancelRequest(pFuture->Cancel);
-}
-
-XRT_API bool xrtFutureCancel(xfuture* pFuture)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_FutureCancel(pFuture));
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	bRequested = pCancel != NULL && xrtCancelRequest(pCancel);
+	xrtCancelDestroy(pCancel); return bRequested;
 }
 
 

@@ -81,6 +81,12 @@ void __xrtTaskDestroy(xrt_task_job* pJob, bool bDestroyData);
 
 #if defined(XRT_FEATURE_TASK_POOL)
 
+/* One real pool reference for an accepted native resource whose finalizer may
+ * be posted later. The resource is not graph-admitted: its credit remains an
+ * external pool root until physical resource cleanup returns. */
+bool __xrtTaskPoolAcquireResource(xtaskpool* pPool);
+void __xrtTaskPoolReleaseResource(xtaskpool* pPool);
+
 /* 资源回收节点嵌入资源对象，投递过程不分配内存，也不占用普通任务队列。 */
 typedef void (*xrt_task_finalizer_proc)(ptr pData);
 

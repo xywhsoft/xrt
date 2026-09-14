@@ -30,6 +30,20 @@ typedef struct xcancelwatch xcancelwatch;
 /* 取消回调由命中的取消请求线程或迟注册线程同步执行。 */
 typedef void (*xcancelproc)(ptr pData);
 
+/* Certified resident observer. A successful registration consumes ONE real
+ * Data reference described by Ops. Notify borrows it; Drop returns it once
+ * after Unwatch and every dispatch/plan pin have finished. Both callbacks
+ * coordinate their own graph transitions and code lifetime. They run outside
+ * this API's mutation scope, never by suspending a caller-owned outer scope.
+ * Policy identity is immutable and outlives the registration. A trace alone
+ * is not certification, nor permission to cancel or skip accepted work. */
+typedef struct xcancelwatchownershipv1 {
+	size_t size;
+	xcancelproc Notify;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xcancelwatchownershipv1;
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -83,6 +97,27 @@ XRT_API xcancelwatch* xrtCancelWatch(
 	xcancelproc pProc,
 	ptr pData
 );
+
+/* Failure consumes nothing. Success may notify synchronously if an ancestor
+ * is already cancelled, but retains Data until registration release. Legacy
+ * Watch remains borrowed/opaque and keeps its conservative callback scope. */
+XRT_API xcancelwatch* xrtCancelWatchOwnedV1(xcancel* pCancel, ptr pData,
+	const xcancelwatchownershipv1* pPolicy);
+
+/* Whole-graph freeze queries, matching policy identity before dereferencing
+ * it or tracing Data. Both lifecycle AND semantic preparation are required.
+ * Token list nodes borrow Watch storage: V2 does not invent token->Watch RC
+ * edges. Watch owns its Cancel and its certified Data reference independently.
+ * Active dispatch, publication/unlink, legacy/unknown observers are refused.
+ * Prepare only waits for the owner's actual Unwatch; it never requests
+ * cancellation or silently removes an accepted callback. Output preparation
+ * remains unchanged on refusal. Data/parents must be independently admitted. */
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV2(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV1(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
 
 
 

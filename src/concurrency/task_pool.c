@@ -46,6 +46,7 @@ struct xtaskpool {
 	xrt_task_finalizer* FinalizerTail;
 	size_t References;
 	size_t Entries;
+	size_t Resources;
 	const void* OwnershipClaim;
 	bool Initialized;
 	bool OwnerHeld;
@@ -86,7 +87,7 @@ static void __xrtTaskPoolDropLocked(xtaskpool* pPool, xrtownershipscope* pScope)
 {
 	if (!pPool->References) abort();
 	bool bLast = --pPool->References == 0;
-	if (bLast && (!pPool->Retired || pPool->OwnerHeld || pPool->Entries || pPool->Workers)) abort();
+	if (bLast && (!pPool->Retired || pPool->OwnerHeld || pPool->Entries || pPool->Resources || pPool->Workers)) abort();
 	if (!xrtMutexUnlock(&pPool->OwnershipLock)) abort();
 	if (bLast) {
 		if (!xrtCondUnit(&pPool->Space) || !xrtCondUnit(&pPool->Idle) || !xrtCondUnit(&pPool->Work) ||
@@ -105,6 +106,28 @@ static void __xrtTaskPoolLeave(xtaskpool* pPool)
 	xrtownershipscope Mutation = {0}; __xrtTaskPoolOwnershipBegin(pPool, &Mutation);
 	if (!pPool->Entries) abort();
 	--pPool->Entries; __xrtTaskPoolDropLocked(pPool, &Mutation);
+}
+bool __xrtTaskPoolAcquireResource(xtaskpool* pPool)
+{
+	xrtownershipscope Mutation = {0}; bool bHeld = false;
+	if (!pPool) { __xrtErrorSetInvalidArgument(); return false; }
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (pPool->Initialized && pPool->References && pPool->References < SIZE_MAX && pPool->Resources < SIZE_MAX &&
+		!pPool->Retired && !pPool->Retiring && !pPool->Joining && !pPool->OwnershipCleared) {
+		/* Destroy may be draining an already accepted task that still creates
+		 * and closes a native resource. Preserve that original work; its real
+		 * resource credit prevents join until cleanup actually finishes. */
+		++pPool->References; ++pPool->Resources; bHeld = true;
+	}
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	if (!bHeld) __xrtErrorSetInvalidState();
+	return bHeld;
+}
+void __xrtTaskPoolReleaseResource(xtaskpool* pPool)
+{
+	xrtownershipscope Mutation = {0}; __xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (!pPool->Resources) abort();
+	--pPool->Resources; __xrtTaskPoolDropLocked(pPool, &Mutation);
 }
 static void __xrtTaskPoolWorkerBegin(xtaskpool* pPool, xrtownershipscope* pScope)
 {
@@ -1137,7 +1160,7 @@ static bool __xrtTaskPoolRetire(xtaskpool* pPool, size_t iEntries)
 	xrtownershipscope Mutation = {0};
 	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
 	if (pPool->Retired) { __xrtTaskPoolOwnershipEnd(pPool, &Mutation); return true; }
-	if (!pPool->Joined || pPool->Joining || pPool->Retiring || pPool->Entries != iEntries) {
+	if (!pPool->Joined || pPool->Joining || pPool->Retiring || pPool->Resources || pPool->Entries != iEntries) {
 		__xrtTaskPoolOwnershipEnd(pPool, &Mutation); return false;
 	}
 	pPool->Retiring = true;
@@ -1172,7 +1195,7 @@ XRT_API bool xrtTaskPoolDestroy(xtaskpool* pPool)
 		bReady = __xrtTaskPoolCloseBody(pPool) &&
 			__xrtTaskPoolWaitUntilCancelBody(pPool, XRT_DEADLINE_NEVER, NULL) == XWAIT_OK;
 		__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
-		bReady = bReady && pPool->Entries == 1;
+		bReady = bReady && pPool->Entries == 1 && !pPool->Resources;
 		if (bReady) pPool->Joining = true;
 		__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
 		if (bReady) {
@@ -1249,7 +1272,7 @@ static bool __xrtTaskPoolHold(const void* pData)
 static bool __xrtTaskPoolClaim(const void* pData, const void* pToken)
 {
 	xtaskpool* pPool = (xtaskpool*)pData;
-	if (!pToken || pPool->OwnershipCleared || (pPool->OwnershipClaim && pPool->OwnershipClaim != pToken)) return false;
+	if (!pToken || pPool->Resources || pPool->OwnershipCleared || (pPool->OwnershipClaim && pPool->OwnershipClaim != pToken)) return false;
 	pPool->OwnershipClaim = pToken; return true;
 }
 static void __xrtTaskPoolRestore(const void* pData, const void* pToken)
@@ -1262,7 +1285,7 @@ static bool __xrtTaskPoolPreparationReady(const void* pData)
 {
 	const xtaskpool* pPool = pData;
 	return pPool->Closed && pPool->Joined && !pPool->Joining && !pPool->Destroying &&
-		!pPool->Retiring && !pPool->Entries && __xrtTaskPoolIdleLocked(pPool);
+		!pPool->Retiring && !pPool->Entries && !pPool->Resources && __xrtTaskPoolIdleLocked(pPool);
 }
 static xrtownershipprepareresult __xrtTaskPoolPrepare(const void* pData, const void* pToken)
 {
@@ -1270,7 +1293,7 @@ static xrtownershipprepareresult __xrtTaskPoolPrepare(const void* pData, const v
 	if (!xrtOwnershipFreezeTryBegin(&Freeze)) return XRT_OWNERSHIP_PREPARE_BUSY;
 	if (!pToken || pPool->OwnershipClaim != pToken || pPool->OwnershipCleared) abort();
 	bool bReady = __xrtTaskPoolPreparationReady(pData);
-	bool bJoin = !pPool->Entries && !pPool->Joining && !pPool->Destroying && !pPool->Retiring;
+	bool bJoin = !pPool->Entries && !pPool->Resources && !pPool->Joining && !pPool->Destroying && !pPool->Retiring;
 	if (!bReady && bJoin) {
 		/* No native body can hold Lock while waiting for mutation: Entries is
 		 * zero. Worker wakeups release Lock before requesting mutation. */

@@ -12,10 +12,10 @@ Future 的内部锁，覆盖状态保留、取消通知、发布、迭代通知�
 尾部；`FutureValue` 在锁内增加失败错误引用时也有外层准入。繁忙 freeze
 不会排队升级，已有回调可继续嵌套普通操作；错误或重复发布仍保留原行为。
 
-Any/All/Race 及 continuation 在各自唯一的共同工厂入口保护装配、立即完成
-回调和回滚。后续通知由受保护的 Future/Cancel 分发路径执行，不能只包住
-一个引用计数或一次字段赋值。内部 waiter Add/Detach/Remove 也独立参与，
-以覆盖协程等不经过公开 Watch 的调用者。
+Any/All/Race 的唯一工厂以 Publishing/Active 状态和短 mutation 保护装配、
+完成及回滚；明确认证的原生通知与映射回调在 API 自身 scope 外执行，私有或
+在途组拒绝检查。旧映射回调及 continuation 工厂仍保持原有保守隔离。内部
+waiter Add/Detach/Remove 也独立参与，覆盖不经过公开 Watch 的调用者。
 
 原生 FutureWait 和协程 Await 的等待/park 本体不持有长期 mutation：等待
 需要的真实 Future 强引用依然存在并计作根，只有拥有边的装配/移除受保护。
@@ -43,7 +43,8 @@ Release 仍由通知方完成，不能据此认为 Remove 新增了等待 Releas
 回调必须在返回前完成或转发输出；未完成的输出会关闭，不能保留描述对象或
 延后使用该 Promise。上下文在映射或取消后、最后一个源回调释放其引用时析构。
 Trace 描述 `Destroy(data, destroyData)` 真正释放的槽；独占上下文折入组节点，
-共享 RC 上下文单独入图。组内重复源槽不能去重，未结束操作的独立引用仍是根。
+共享 RC 上下文单独入图。组内重复源槽不能去重；未结束组由输出 producer 和
+实际注册拥有，不再遗留创建者的独立 operation base reference。
 
 旧 Any/All/Race 保留原有协调结果与取消语义。映射接口不提供并发全图安全点，
 也不替用户保持映射回调/Trace/Drop 所在代码驻留。
@@ -4797,9 +4798,10 @@ Future Inspect 遍历已描述的挂接 Watch；任一未知 waiter 仍拒绝整
 
 Any / All / Race 的共享上下文现在按实际 RC 身份入图：每个 Source 槽各一条边，
 重复输入保留重复边；Pick 和 All 仅借用这些槽，不产生第二组虚假拥有边。挂起时
-每个注册 waiter 持有一个 group 引用；创建者返回后仍在运行的组合操作保留一个
-独立 operation root，直到它转移到终态结果或由取消路径释放。终态结果通过原子
-traced publication 持有 group，其取消监听通过 xrtCancelWatchOwnership 入图。
+每个注册 waiter 持有一个 group 引用；输出另以真实 producer 引用拥有 group，
+group 又拥有 Promise。拥有型取消监听保有一个实际 group 引用，令牌链表仍只
+借用监听。终态原生结果通过策略化原子发布保有 group；终态时取消监听实际注销，
+不再留到原生结果销毁。未认证映射上下文仍不被自动准入为可收集节点。
 未知源载荷/源 waiter 继续导致拒绝；图检查本身不执行通知、取消、析构或收集。
 
 验证入口 `tools/check_future_waiter_ownership.ps1` 分别覆盖 Watch 的 PENDING /
@@ -4878,7 +4880,7 @@ Watch 存储及 `InitTraced` 的受理、READY/PENDING/ERROR、释放规则，�
 负责调用 Notify/Release，注册方也必须遵守相同协议。
 
 可追踪不等于可协作冻结，不能仅凭存在 Trace 函数选择该接口。默认 Watch、
-内部 waiter、组合/延续工厂及结果析构继续保守地在 mutation 中执行；既有
+内部 waiter、旧式映射回调、延续工厂及未认证结果析构继续保守地在 mutation 中执行；既有
 不透明数据不会因此被当作可检查叶。Future Watch Remove 的等待本身不再
 占住 mutation。此接口不承诺整个 transport 图、原生对象或模块环已经可回收。
 
@@ -4946,3 +4948,64 @@ READY/PENDING/ERROR 的原始接管规则。初始化不消费引用，PENDING �
 原 producer 测试另外覆盖每执行 100 个实际 pending Watch 循环，检查准入前
 拒绝、先通知后 Release、稳定描述符、跨线程 freeze、可恢复 Claim、重复 Finish
 与逐事务零存活增量。
+
+## 多输入组合器的显式拥有与等待合同
+
+### 回调槽位与物理拥有者
+
+`xfuturewatchownershipv2` 在 Notify/Release 之外提供纯只读的 Reference 投影。
+`xrtFutureWatchInitOwnershipV2` 仍使用 64 字节 Watch，保持 ERROR/READY 不接管、
+PENDING 接管一次的规则。Data 可以是实际拥有者内嵌的槽位；Reference 必须返回
+Release 真正归还的那一个物理 RC 节点，不能把不同槽位地址伪装成多个同计数节点。
+投影不能分配、加锁、增减引用或调用语义回调；初始化和策略准入不执行投影。
+
+`xfutureownershipadmissionv1` 是封闭策略集合，包含 payload、producer、直接
+Watch、投影 Watch 和拥有型 CancelWatch 五组策略身份。`xrtFutureOwnershipAdapterV4`
+先匹配身份再读取策略，拒绝时不改 preparation 输出。它仍返回同一个 Future
+生命周期/准备描述符，且不替代对子节点的独立准入。V1/V2/V3 原拒绝边界不变。
+`xfutureproducerownershipv1` 的 Drop 只归还一个真实生产者引用，不自行取消工作。
+
+### 一次受理的拥有型映射
+
+`xfuturecombineownershipv1` 明确一个实际 Data 引用及其 Ops、Drop、AllMap 和
+PickMap。`xfutureallmapproc` 借用完整顺序的 All 输入；`xfuturepickmapproc` 借用
+实际胜出槽位的 Pick。`xrtFutureAllMapOwnedPolicyV1`、`xrtFutureAnyMapOwnedPolicyV1`
+和 `xrtFutureRaceMapOwnedPolicyV1` 沿用同一个原生组合器，不增加第二套引擎。
+
+所有可失败准备均在接管 Data 和激活源回调之前完成。NULL 返回不消费 Data、
+不调用映射/Drop/Trace，也不取消源。成功后回调必须同步完成或转发输出，否则
+输出正常关闭。映射与 Drop 在 API 自身 mutation 外运行，但不暂停调用者已有的
+外层 scope。Data、策略与映射代码的真实拥有和驻留仍由集成方保证；Trace 本身
+不是认证。真实 plan pin 会延长组及 Data 生命周期，不能提前释放以满足测试次数。
+
+原生策略入口分别为 `xrtFutureCombineProducerPolicyV1Get`、
+`xrtFutureCombineWatchPolicyV2Get`、`xrtFutureCombineCancelPolicyV1Get`、
+`xrtFutureCombineAllPayloadPolicyV1Get` 和 `xrtFutureCombinePickPayloadPolicyV1Get`。
+它们描述实际输出、源注册、取消 Data 和原生结果拥有边。每个源槽均保留真实
+Future 引用，包括重复输入；组和内嵌槽仍为一次分配，不新增逐输入 RC 对象。
+
+`xrtFutureCombineOwnershipAdapterV1` 对原生组和已知精确映射策略返回生命周期及
+准备描述符。旧 traced mapper、未知策略、发布/执行/清理中的组拒绝；拒绝输出
+不变。Claim/Restore 使用同一 token。未完成组的 Prepare 只返回 BUSY，不主动
+取消、移除输入监听或跳过已受理映射。正常完成/取消、全部回调尾部结束并真实
+注销取消监听后才 Ready；整个图最终重验后 Clear，freeze 外 Finish 清空实际
+Data/Source 槽并归还引用。支持不同 Finish 顺序和重复 Finish。
+
+### 真实必需输入，不是回收许可
+
+`xfuturewaitrulev1` 区分 `XFUTURE_WAIT_ALL_TERMINAL` 与
+`XFUTURE_WAIT_ANY_TERMINAL`；`xfuturecombinewaitv1` 给出同一实际输出 Promise、
+完整有序 Sources、Count、Rule 和 Race 专属的 CancelRemaining。
+`xrtFutureCombineWaitV1` 只在完整物理图已经被冻结并以同一 token 声明不可达时
+提供借用视图。ALL 的已结束槽仍保留，不能把部分完成改写为 ANY；ANY/RACE 必须
+能证明尚未有胜出结果。发布、活动通知、取消派发或不同 claim 都拒绝且输出不变。
+
+该描述不挑选一个 child 代替多输入规则，不沿任意 capture 猜等待关系，也不
+提供死锁证明或取消权限。语言集成仍须实现 all/any 等待求解、映射代码拥有及
+生成模块卸载验证，不能把这里的原生合同测试当成整个语言的联合验收。
+
+原生回归模块 `future_combine_ownership_tests` 包含模块化和单头三个程序家族：
+物理拥有图/准备/终态环、投影 Watch 接管/准入、并发映射/Drop/完成取消竞争。
+既有 `future_combine`、`future_map_ownership_tests`、`future_waiter_ownership_tests`
+和 `future_scope_tests` 继续运行，图结构断言按新增的真实 producer/CancelWatch
+拥有边及真实终态注销更新，原有行为和失败回滚用例不删除。

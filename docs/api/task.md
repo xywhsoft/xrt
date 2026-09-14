@@ -2128,3 +2128,40 @@ xrtTaskPoolDestroy(pPool);
 图、执行器/producer/检查器引用、成功/失败/取消/错误载荷、拒绝不消费数据、
 分配失败、执行中的前置拒绝和 BUSY/READY。此协议不等于未知任务数据已认证，
 也不定义封闭 producer 依赖环的关停策略。
+
+## 原生任务池的拥有图与 join 边界
+
+`xrtTaskPoolOwnership` 返回真实任务池的借用视图；Create 的一个 owner 引用、
+原生 API 调用期间的引用，以及 adapter Hold 的引用都进入实际计数。Destroy
+只消费一次 owner；检查器的引用可以让已 join 的终态外壳继续存活。外壳中的
+锁和条件变量直到最后一次实际 Drop 才释放，不把“工作线程已退出”误当作
+所有调用者都不再访问池。
+
+`xrtTaskPoolOwnershipAdapterV1` 要求调用方独占 freeze。全部 worker 必须已经
+休眠或退出，原生调用、执行中的 Job、摘除后的取消链、清理尾部以及未建模
+的 finalizer 都拒绝检查。worker/control 是池唯一拥有、join 前不可释放的
+内部资源，并非独立 RC 节点；休眠不猜减引用，运行中的原生栈也不冒充无根。
+Trace 对每个排队 Job 报告一次实际 executor 引用，不重复报告 Tail/Next。
+Job 的 Data policy 仍需检查器独立白名单准入；池被认证不等于所有任务被认证。
+异步文件从创建到原生关闭及对象清理返回实际持有一个池引用，创建失败也准确
+归还。尚未认证的文件不是池的可清理子节点，这个实际引用始终形成外部根；
+即使池空闲也不能 Claim/Prepare 为可卸载。不能仅检查 finalizer 队列而漏掉
+尚未开始关闭、将来才会投递 finalizer 的资源。
+
+仅在不可达图已被授权 Claim 后，Prepare 才关闭新准入，保留已受理任务的原有
+执行、成功/失败/取消和数据清理。它不主动取消、摘取或跳过任务。排空包含
+Job 物理释放及 finalizer 尾部；随后通知 worker 退出，在所有锁和 ownership
+scope 外用零超时 join 检查真正的线程终态。BUSY 不能当作完成。Clear 要求
+READY，Finish 只回收已 join 的 worker 资源并可重复调用；原始 owner 仍须由
+调用方 Destroy 归还。
+
+已有公开 API 的并发销毁限制不变：调用方必须先停止其他并发访问。额外的
+原生 entry 保活保证在 Submit 的同步取消清理中重入 Destroy 时，拒绝发生在
+关闭或释放池之前，避免外层 Submit 继续访问已释放的统计字段。内部资源的
+finalizer 仍须满足原有 accepted-resource lifetime，不允许向已 join 的池投递。
+
+`test_task_pool_ownership.c` 的模块化和单头入口覆盖精确队列图、外部根、策略
+拒绝、运行/清理中 freeze、真实 join、终态外壳、finalizer、分配失败及准确的
+内存数量/字节平衡。`test_task_pool_native_entry.c` 只使用原有公开 API，可直接
+对修正前的池实现复现重入销毁问题。这是原生拥有契约，不宣称语言模块 task
+pool 接线或 task/callback/native 混合依赖环已经完成。

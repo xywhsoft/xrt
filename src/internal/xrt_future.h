@@ -21,12 +21,13 @@ typedef struct xrt_future_waiter {
 	/* Explicit opt-in: the resident callbacks coordinate their own graph
 	 * transitions and activity/refusal states. A trace alone does not prove it. */
 	bool Phased;
-	bool Certified;
+	uint8 Certified; /* 0=opaque/traced, 1=direct Data owner, 2=projected owner. */
 	/* Exact ownership released by Release(Data); NULL keeps old opaque nodes
 	 * fail-closed. Fits the existing 64-byte public Watch storage on x64. */
 	union {
 		xrtownershiptrace OwnershipTrace;
 		const xfuturewatchownershipv1* OwnershipPolicy;
+		const xfuturewatchownershipv2* ProjectedOwnershipPolicy;
 	};
 } xrt_future_waiter;
 

@@ -2,11 +2,47 @@
 
 `cancel` 模块提供与网络、任务或协程无关的通用取消状态。令牌可以组成不可变父子链；监听任一子令牌时，父链上的首次取消也会同步触发该监听。
 
-创建/父链保有、引用/销毁、Watch 装配、Request 和 Unwatch 的完整拥有转换
-参与 XRT 协作冻结，先取得 mutation 准入再取内部锁。同步取消回调、回调内
-延迟注销和最后内部引用释放都在该外层转换内，其他线程不能在其半途中取得
-freeze。Requested/Triggered 仍是原子的状态观察。这不使回调借用的任意
-Data 自动具备可追踪的拥有合同，也不授权在 freeze 内调用取消回调或等待它。
+创建/父链保有、引用/销毁、Watch 装配、Request 和 Unwatch 的拥有转换参与
+XRT 协作冻结，先取得 mutation 准入再取内部锁。普通借用型回调仍保持完整
+mutation 隔离；显式拥有型回调及其引用释放在 API 自己的 scope 外执行。
+Request 为每个派发持有真实 Watch 引用，并独立保活令牌；在途派发、调用、
+装配和注销转换不提供可采集状态。Unwatch 等待另一线程时不持有本 API 的
+mutation scope，不暂停调用者已有的外层 scope。Requested/Triggered 仍是
+原子状态观察。任何形式都不授权在 freeze 内调用取消回调或等待它。
+
+## 显式拥有型监听与退役合同
+
+`xcancelwatchownershipv1` 是常驻、不可变的策略，包含精确 `size`、`Notify`、
+`Drop` 和实际 Data 节点的 `Ops`。`xrtCancelWatchOwnedV1(cancel, data, policy)`
+成功时接管一个已有的真实 Data 引用；失败不接管、不通知、不调用 Drop。
+祖先已取消时可在注册返回前同步 Notify，但这不提前归还 Data。Notify 借用
+该引用，必须自行协调可变状态与代码存活；最终 Drop 在注销和所有派发/计划
+pin 归还后只执行一次。Drop 归还所描述的实际引用，不能绕过 Data 自己需要的
+语义准备或在子节点 finalization 后新增语义清理。旧 `xrtCancelWatch` 仍只
+借用 Data，不能因为存在 Trace 或相同回调签名而被自动认证。
+
+`xrtCancelWatchOwnershipAdapterV1` 和 `xrtCancelOwnershipAdapterV2` 必须在
+调用者建立的整图 freeze 内查询，显式接收允许的策略身份集合，并同时取得
+lifecycle 与 `xrtownershippreparationv1`。匹配身份前不解引用策略，不调用
+Data 的 Trace；拒绝时 preparation 输出不变。旧 token V1 继续拒绝所有仍有
+监听的令牌。新的准入也独立拒绝在途 Request、派发、运行、装配、注销中的
+对象及未知/借用监听，Data 及其子节点仍须由收集器独立准入。
+
+`xrtCancelOwnership` 与 `xrtCancelWatchOwnership` 返回上述真实节点的借用视图。
+拥有关系是 Watch 的一个 Cancel 引用、一个 Data 引用，以及 Cancel 保留的
+父引用。令牌链表只借用 Watch 的注册存储，不能伪造 token 到 Watch 的拥有边。
+派发及 API entry 的临时引用按实际引用计数形成外部根；它们不是可忽略的噪声。
+一个只从 token 出发、没有触及 Watch 实际拥有者的图不能据此证明 Watch 不可达。
+
+Prepare 不请求取消，也不摘除尚有语义效果的监听。它返回 BUSY，直到生产者
+自身按真实完成/取消协议执行 Unwatch，且通知和注销尾部结束。之后才能在
+同一 claim 下 Clear，并在 freeze 外 Finish 归还真实 Cancel、父及 Data 槽。
+Restore 保留原监听语义；两个 Finish 顺序均由真实 plan pin 保活，重复 Finish
+不重复释放。单独取得 lifecycle、单独追踪图或 BUSY 都不构成卸载权限。
+
+Future 的 `xrtFutureCancel` 同样先取得真实 Cancel 临时引用，再在自身转换
+scope 外请求取消；请求不伪造 Future 终态。正常 Promise close/cancel/最后
+生产端离开沿既有通知路径执行。调用者已经持有的外层 scope 始终不被暂停。
 
 ## 模块契约：错误
 

@@ -81,7 +81,9 @@ static void functional_round(unsigned mode, bool cancel, bool leave_pending)
     testRequire(output && counts.calls == 0 && counts.drops == 0, "pending accepted context");
     slots[0] = xrtFutureOwnership(a); slots[1] = xrtFutureOwnership(b);
     slots[2] = xrtPromiseOwnership(pa); slots[3] = xrtPromiseOwnership(pb); slots[4] = xrtFutureOwnership(output);
-    graph_check(slots, 1, slots, 5, 9, 19, 1); /* pending operation is a real root */
+    /* Output producer and owned CancelWatch each report their actual Group
+     * reference. No external operation-base reference remains. */
+    graph_check(slots, 1, slots, 5, 9, 21, 0);
     if (cancel) {
         testRequire(xrtFutureCancel(output), "cancel mapped output");
         testRequire(xrtFutureState(output) == XFUTURE_CANCELLED && counts.calls == 0 && counts.drops == 1, "cancel suppresses mapper and frees once");

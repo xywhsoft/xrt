@@ -133,6 +133,36 @@ typedef struct xfuturewatchownershipv1 {
 	const xrtownershipops* Ops;
 } xfuturewatchownershipv1;
 
+/* The callback address may point inside the physical owner (for example an
+ * aggregate input slot). Reference projects that address to the ONE actual
+ * reference returned by Release; it neither acquires a reference nor traces
+ * captures. The projection is immutable, resident, allocation/lock/callback
+ * free and remains valid through the Release tail. It must not invent an
+ * alias RC node. Admission matches policy identity before invoking it. */
+typedef struct xfuturewatchownershipv2 {
+	size_t size;
+	xfuturewatchproc Notify;
+	xfuturewatchreleaseproc Release;
+	xrtownershipref (*Reference)(const void* pData);
+} xfuturewatchownershipv2;
+
+/* Closed policy sets for one collector domain. This is admission, not a
+ * registry granting unknown Data/code lifecycle authority. Children remain
+ * independently admitted. V1-V3 retain their original refusal boundaries. */
+typedef struct xfutureownershipadmissionv1 {
+	size_t size;
+	const xfuturepayloadownershipv1* const* PayloadPolicies;
+	size_t PayloadPolicyCount;
+	const xfutureproducerownershipv1* const* ProducerPolicies;
+	size_t ProducerPolicyCount;
+	const xfuturewatchownershipv1* const* WatchPolicies;
+	size_t WatchPolicyCount;
+	const xfuturewatchownershipv2* const* ProjectedWatchPolicies;
+	size_t ProjectedWatchPolicyCount;
+	const xcancelwatchownershipv1* const* CancelWatchPolicies;
+	size_t CancelWatchPolicyCount;
+} xfutureownershipadmissionv1;
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -224,6 +254,13 @@ XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref
  * caller-owned reference that Release returns. READY is still caller-driven. */
 XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
 	const xfuturewatchownershipv1* pPolicy);
+/* Same 64-byte storage and ERROR/READY/PENDING transfer rules as V1. No
+ * projection is invoked by initialization or adapter admission. */
+XRT_API bool xrtFutureWatchInitOwnershipV2(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv2* pPolicy);
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV4(xrtownershipref Reference,
+	const xfutureownershipadmissionv1* pAdmission,
+	const xrtownershippreparationv1** ppPreparation);
 
 /* Atomically publish value, destructor, context and non-NULL ownership trace.
  * Success transfers the same ownership as ResolveOwned. Failure (including
@@ -468,6 +505,59 @@ XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCo
 XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
     xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
     ptr pDestroyData, xfutureownershiptrace pTrace);
+
+/* A certified mapper owns one independently admitted physical Data reference.
+ * AllMap/PickMap borrow it and must synchronously finish the output. Drop
+ * returns that reference, never substitutes for Data's semantic preparation.
+ * Policy and callbacks are immutable/resident, and callbacks coordinate their
+ * own graph transitions and code lifetime outside API-owned scopes. */
+typedef struct xfuturecombineownershipv1 {
+	size_t size;
+	xfutureallmapproc AllMap;
+	xfuturepickmapproc PickMap;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xfuturecombineownershipv1;
+XRT_API xfuture* xrtFutureAllMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+XRT_API xfuture* xrtFutureAnyMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+XRT_API xfuture* xrtFutureRaceMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+
+/* These exact resident policies describe real producer, source-registration,
+ * cancellation and raw-result references. Their presence does not admit the
+ * group or its Data: the collector independently resolves every node. */
+XRT_API const xfutureproducerownershipv1* xrtFutureCombineProducerPolicyV1Get(void);
+XRT_API const xfuturewatchownershipv2* xrtFutureCombineWatchPolicyV2Get(void);
+XRT_API const xcancelwatchownershipv1* xrtFutureCombineCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtFutureCombineAllPayloadPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtFutureCombinePickPayloadPolicyV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtFutureCombineOwnershipAdapterV1(xrtownershipref Reference,
+	const xfuturecombineownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+
+typedef enum xfuturewaitrulev1 {
+	XFUTURE_WAIT_ALL_TERMINAL = 1,
+	XFUTURE_WAIT_ANY_TERMINAL = 2
+} xfuturewaitrulev1;
+typedef struct xfuturecombinewaitv1 {
+	size_t size;
+	xpromise* Output;
+	xfuture* const* Sources;
+	size_t Count;
+	xfuturewaitrulev1 Rule;
+	bool CancelRemaining;
+} xfuturecombinewaitv1;
+/* Borrowed semantic input slots, not arbitrary capture edges. The complete
+ * physical graph must be frozen and claimed unreachable by the same token.
+ * Only a stable pending group with real pending registrations is described;
+ * all completed slots are retained in order, including duplicates. ALL needs
+ * every input terminal; ANY/RACE need one, with Race alone cancelling losers.
+ * Output stays unchanged on refusal. This read-only fact is not cancellation
+ * authority, a deadlock proof, or permission to skip normal callbacks. */
+XRT_API bool xrtFutureCombineWaitV1(xrtownershipref Reference, const void* pToken,
+	xfuturecombinewaitv1* pWait);
 
 
 
