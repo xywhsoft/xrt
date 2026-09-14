@@ -162,10 +162,12 @@ static uint64_t xllm_session__pair_fix(const xllm_session* pSession, uint64_t uT
 /* ------------------------------------------------------------------ */
 /* Default stage 2: Pi cut point (keep-recent walk at message boundaries) */
 /*                                                                      */
-/* Deviation from Pi, recorded here: an oversized single turn stays in   */
-/* the tail (no split-turn prefix summary); the L2 ladder handles turns  */
-/* that cannot fit. Lexical estimates are used ONLY for this structural  */
-/* walk (design §5), never for the trigger decision.                     */
+/* Split turns follow Pi: when the retained-window-start turn alone      */
+/* exceeds the keep-recent budget, its prefix is summarized separately   */
+/* (assistant-boundary cut, pair-complete) and the suffix stays in the   */
+/* tail. Lexical estimates are used ONLY for this structural walk        */
+/* (design §5), never for the trigger decision. The L2 ladder remains   */
+/* the structural fallback when summarization is unavailable.            */
 /* ------------------------------------------------------------------ */
 
 uint64_t xllm_session__tail_cut(const xllm_session* pSession, uint64_t uKeepTokens, uint64_t uFloor)
@@ -205,6 +207,52 @@ uint64_t xllm_session__tail_cut(const xllm_session* pSession, uint64_t uKeepToke
     return xllm_session__pair_fix(pSession, uThrough, uFloor);
 }
 
+/* Split-turn prefix cut: when the oldest active turn alone exceeds the
+ * keep-recent budget, return the sequence its prefix may cover up to
+ * (assistant boundary, pair-complete); 0 when no split applies. */
+static uint64_t xllm_session__split_prefix(const xllm_session* pSession, uint64_t uFloor)
+{
+    size_t iFirst = pSession->iEntryCount;
+    uint64_t uTurn = 0u;
+    uint64_t uTurnTokens = 0u;
+    uint64_t uKeep = pSession->tConfig.uKeepRecentTokens;
+    uint64_t uSuffixTokens = 0u;
+    size_t iSuffixStart;
+    size_t i;
+    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
+        const xllm_session_entry* pEntry = &pSession->pEntries[i];
+        if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u || pEntry->uSequence <= uFloor ) { continue; }
+        iFirst = i;
+        uTurn = pEntry->uTurn;
+        break;
+    }
+    if ( iFirst >= pSession->iEntryCount ) { return 0u; }
+    for ( i = iFirst; i < pSession->iEntryCount; ++i ) {
+        const xllm_session_entry* pEntry = &pSession->pEntries[i];
+        if ( pEntry->uTurn != uTurn || (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u ) { break; }
+        uTurnTokens += pEntry->uEstimatedTokens;
+    }
+    if ( uTurnTokens <= uKeep || uKeep == 0u ) { return 0u; }
+    /* walk the suffix backward from the turn end until it reaches budget */
+    for ( i = pSession->iEntryCount; i > iFirst; --i ) {
+        const xllm_session_entry* pEntry = &pSession->pEntries[i - 1u];
+        if ( pEntry->uTurn != uTurn || (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u ) { continue; }
+        uSuffixTokens += pEntry->uEstimatedTokens;
+        if ( uSuffixTokens >= uKeep ) { break; }
+    }
+    iSuffixStart = i - 1u; /* [i-1] crossed the budget and is retained */
+    if ( iSuffixStart <= iFirst + 1u ) { return 0u; } /* prefix would be empty */
+    /* Pi rule: the prefix ends on an assistant entry, never between a tool
+     * call and its result (pair-completeness checked per candidate). */
+    for ( i = iSuffixStart - 1u; i > iFirst; --i ) {
+        const xllm_session_entry* pEntry = &pSession->pEntries[i];
+        if ( pEntry->tMessage.eRole != XLLM_ROLE_ASSISTANT ) { continue; }
+        if ( !xllm_session__plan_pair_safe(pSession, pEntry->uSequence) ) { continue; }
+        return pEntry->uSequence;
+    }
+    return 0u;
+}
+
 static bool xllm_session__default_plan(xllm_session* pSession, uint64_t uPrevThrough,
     xllm_compaction_plan* pPlan, void* pUserData)
 {
@@ -212,9 +260,15 @@ static bool xllm_session__default_plan(xllm_session* pSession, uint64_t uPrevThr
         ? pSession->uCompactedThrough : pSession->uTailFloor;
     uint64_t uThrough = xllm_session__tail_cut(pSession, pSession->tConfig.uKeepRecentTokens, uFloor);
     (void)pUserData;
-    if ( uThrough <= uPrevThrough ) { return false; }
-    pPlan->uThroughSequence = uThrough;
-    return true;
+    pPlan->uPrefixThroughSequence = 0u;
+    if ( uThrough > uPrevThrough ) {
+        pPlan->uThroughSequence = uThrough;
+        return true;
+    }
+    /* no complete-turn candidates: a split-turn prefix may still apply */
+    pPlan->uThroughSequence = uPrevThrough;
+    pPlan->uPrefixThroughSequence = xllm_session__split_prefix(pSession, uFloor);
+    return pPlan->uPrefixThroughSequence > uPrevThrough;
 }
 
 /* ------------------------------------------------------------------ */
@@ -551,17 +605,75 @@ xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForc
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "compaction threshold has not been reached");
         return NULL;
     }
-    if ( !xllm_session__ops_plan(pSession, pSession->uCompactedThrough, &tPlan, pError) ||
-         tPlan.uThroughSequence <= pSession->uCompactedThrough ) {
+    if ( !xllm_session__ops_plan(pSession, pSession->uCompactedThrough, &tPlan, pError) ) {
+        xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "no completed prefix is safe to compact yet");
+        return NULL;
+    }
+    if ( tPlan.uPrefixThroughSequence != 0u ) {
+        if ( tPlan.uPrefixThroughSequence <= pSession->uCompactedThrough ||
+             tPlan.uPrefixThroughSequence <= tPlan.uThroughSequence ) {
+            xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "invalid split-turn prefix range");
+            return NULL;
+        }
+    } else if ( tPlan.uThroughSequence <= pSession->uCompactedThrough ) {
         xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "no completed prefix is safe to compact yet");
         return NULL;
     }
     xllm_session__event(pSession, XLLM_SESSION_EVENT_COMPACT_PLAN, pSession->uCompactedThrough,
-        tPlan.uThroughSequence, NULL);
-    if ( !xllm_session__ops_serialize(pSession, pSession->uCompactedThrough,
-            tPlan.uThroughSequence, &sCandidates, pError) ) {
+        tPlan.uPrefixThroughSequence != 0u ? tPlan.uPrefixThroughSequence : tPlan.uThroughSequence, NULL);
+    if ( tPlan.uThroughSequence > pSession->uCompactedThrough &&
+         !xllm_session__ops_serialize(pSession, pSession->uCompactedThrough,
+             tPlan.uThroughSequence, &sCandidates, pError) ) {
         xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to serialize compaction candidates");
         return NULL;
+    }
+    if ( tPlan.uPrefixThroughSequence != 0u ) {
+        /* Split turn: serialize the prefix range and frame it with the Pi
+         * turn-context template; pBuildPrompt keeps its single-text contract. */
+        char* sPrefix = NULL;
+        const char* sOriginal = "";
+        xllm_session_buf tFramed = {0};
+        size_t i;
+        for ( i = 0u; i < pSession->iEntryCount; ++i ) {
+            const xllm_session_entry* pEntry = &pSession->pEntries[i];
+            if ( pEntry->uSequence > tPlan.uThroughSequence &&
+                 pEntry->uSequence <= tPlan.uPrefixThroughSequence &&
+                 pEntry->tMessage.eRole == XLLM_ROLE_USER && pEntry->tMessage.sContent ) {
+                sOriginal = pEntry->tMessage.sContent;
+                break;
+            }
+        }
+        if ( !xllm_session__ops_serialize(pSession, tPlan.uThroughSequence,
+                 tPlan.uPrefixThroughSequence, &sPrefix, pError) ) {
+            free(sCandidates);
+            xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to serialize the split-turn prefix");
+            return NULL;
+        }
+        if ( !xllm_session__buf_cstr(&tFramed, sCandidates ? sCandidates : "") ) goto split_oom;
+        if ( !xllm_session__buf_cstr(&tFramed,
+                "\n**Turn Context (split turn):**\n"
+                "This is the PREFIX of a turn that was too large to keep. "
+                "The SUFFIX (recent work) is retained.\n\n"
+                "## Original Request\n") ||
+             !xllm_session__buf_cstr(&tFramed, sOriginal) ||
+             !xllm_session__buf_cstr(&tFramed, "\n\n## Early Progress\n") ||
+             !xllm_session__buf_cstr(&tFramed, sPrefix) ||
+             !xllm_session__buf_cstr(&tFramed,
+                 "\n\n## Context for Suffix\n"
+                 "The suffix of this turn is retained verbatim in the recent "
+                 "window; continue from it.\n") ) goto split_oom;
+        free(sPrefix);
+        free(sCandidates);
+        sCandidates = xllm_session__buf_detach(&tFramed);
+        if ( !sCandidates ) goto split_oom;
+        goto split_done;
+split_oom:
+        free(sPrefix);
+        free(sCandidates);
+        xllm_session__buf_unit(&tFramed);
+        xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to frame the split-turn candidates");
+        return NULL;
+split_done:;
     }
     if ( !xllm_session__ops_build_prompt(pSession, pSession->sSummary, sCandidates,
             &sPrompt, pError) ) {
@@ -573,13 +685,14 @@ xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForc
     pCompaction = (xllm_compaction*)calloc(1u, sizeof(*pCompaction));
     if ( !pCompaction ) {
         free(sPrompt);
-        xllm_session__hook_leave(pSession);
         xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build compaction transaction");
         return NULL;
     }
     pCompaction->pSession = pSession;
     pCompaction->uBaseCompactedThrough = pSession->uCompactedThrough;
-    pCompaction->uThroughSequence = tPlan.uThroughSequence;
+    /* the committed boundary covers the split-turn prefix when present */
+    pCompaction->uThroughSequence = tPlan.uPrefixThroughSequence != 0u
+        ? tPlan.uPrefixThroughSequence : tPlan.uThroughSequence;
     pCompaction->sPrompt = sPrompt;
     pCompaction->uEstimatedTokens = xllmEstimateTextTokens(sPrompt);
     xllm_session__event(pSession, XLLM_SESSION_EVENT_COMPACT_PROMPT, 0u,

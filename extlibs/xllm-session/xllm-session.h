@@ -149,8 +149,12 @@ typedef enum xllm_compact_decision {
 } xllm_compact_decision;
 
 typedef struct xllm_compaction_plan {
-    uint64_t uThroughSequence;      /* candidates = (previous through, this value]; pair-complete */
-    uint32_t uReserved[4];
+    uint64_t uThroughSequence;      /* complete-turn candidates = (previous through, this value] */
+    uint64_t uPrefixThroughSequence; /* split-turn prefix upper bound; 0 = no split (default).
+                                      * Set when the retained-window-start turn alone exceeds the
+                                      * keep-recent budget: entries (uThroughSequence, this value]
+                                      * are that turn's prefix, summarized separately. */
+    uint32_t uReserved[3];
 } xllm_compaction_plan;
 
 struct xllm_session_stats;

@@ -57,11 +57,11 @@ The base client is plaintext on 110; `pop3_client_tls` adds two forms: implicit 
 
 The program below is from `examples/pop3/protocol` — an offline loop of replies and commands:
 
-```embed path="extlibs/xmail/examples/pop3/protocol/main.c" title="extlibs/xmail/examples/pop3/protocol/main.c"
+```embed path="extlibs/xpop3/examples/protocol/main.c" title="extlibs/xpop3/examples/protocol/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/pop3/protocol/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xpop3/examples/protocol/main.c -lws2_32 -liphlpapi
 （输出 POP3 响应解析与命令构建的自检结果）
 ```
 
@@ -71,11 +71,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extli
 
 The second program is from `examples/pop3/client` — the full flow of the synchronous client:
 
-```embed path="extlibs/xmail/examples/pop3/client/main.c" title="extlibs/xmail/examples/pop3/client/main.c"
+```embed path="extlibs/xpop3/examples/client/main.c" title="extlibs/xpop3/examples/client/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/pop3/client/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xpop3/examples/client/main.c -lws2_32 -liphlpapi
 （对配置的 POP3 服务器完成收取会话后正常退出）
 ```
 

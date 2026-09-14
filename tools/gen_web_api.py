@@ -29,7 +29,7 @@ import re
 import sys
 
 GITEE_BLOB = "https://gitee.com/xywhsoft/xrt/blob/master/"
-EXT_PREFIXES = ("xhttp", "xws", "xruntime", "xmail", "xssh")
+EXT_PREFIXES = ("xhttp", "xws", "xruntime", "xmail", "xsmtp", "xpop3", "ximap", "xssh")
 
 # 视为“无主题分组”的标题：其下的符号不显示组标题
 GENERIC_HEADINGS = {

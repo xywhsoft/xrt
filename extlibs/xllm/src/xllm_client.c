@@ -249,6 +249,8 @@ xllm_client* xllmClientCreate(const xllm_client_config* pConfig, xllm_error* pEr
         pClient->uMaxIdleConnections = XLLM_MAX_IDLE_CONNECTIONS;
     }
     pClient->bVerifyPeer = pConfig->bVerifyPeer;
+    pClient->sCaPem = xllm__strdup(pConfig->sCaPem ? pConfig->sCaPem : "");
+    pClient->pX509Store = pConfig->pX509Store;
     pClient->eProvider = pProfile ? pProfile->eProvider : pConfig->eProvider;
     if ( pProfile ) {
         pClient->sProfileId = xllm__strdup(pProfile->sId);
@@ -258,7 +260,8 @@ xllm_client* xllmClientCreate(const xllm_client_config* pConfig, xllm_error* pEr
         pClient->bHasModelProfile = true;
     }
     if ( !pClient->sBaseUrl || !pClient->sApiKey || !pClient->sModel ||
-         !pClient->sReasoningEffort || !pClient->sUserAgent || (pProfile && !pClient->sProfileId) ) goto oom;
+         !pClient->sReasoningEffort || !pClient->sUserAgent || !pClient->sCaPem ||
+         (pProfile && !pClient->sProfileId) ) goto oom;
     if ( !xllm__transport_client_init(pClient, pError) ) {
         xllmClientDestroy(pClient);
         return NULL;
@@ -286,6 +289,7 @@ void xllmClientDestroy(xllm_client* pClient)
     xllm__free(pClient->sReasoningEffort);
     xllm__free(pClient->sUserAgent);
     xllm__free(pClient->sProfileId);
+    xllm__free(pClient->sCaPem);
     xllm__free(pClient->sHost);
     xllm__free(pClient->sTarget);
     xllm__free(pClient->sHostHeader);

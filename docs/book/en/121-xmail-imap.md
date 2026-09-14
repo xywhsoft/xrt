@@ -50,11 +50,11 @@ The usual injection defense is present: `CommandWrite` rejects malformed atoms/c
 
 The program below is from `examples/imap/protocol` — an offline loop of replies and commands:
 
-```embed path="extlibs/xmail/examples/imap/protocol/main.c" title="extlibs/xmail/examples/imap/protocol/main.c"
+```embed path="extlibs/ximap/examples/protocol/main.c" title="extlibs/ximap/examples/protocol/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/imap/protocol/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/ximap/examples/protocol/main.c -lws2_32 -liphlpapi
 （输出 IMAP 响应/literal/命令原语的离线自检结果）
 ```
 
@@ -64,11 +64,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extli
 
 The second program is from `examples/imap/client` — a real session with COMPRESS negotiation:
 
-```embed path="extlibs/xmail/examples/imap/client/main.c" title="extlibs/xmail/examples/imap/client/main.c"
+```embed path="extlibs/ximap/examples/client/main.c" title="extlibs/ximap/examples/client/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/imap/client/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/ximap/examples/client/main.c -lws2_32 -liphlpapi
 （对配置的 IMAP 服务器完成会话与压缩协商后正常退出）
 ```
 

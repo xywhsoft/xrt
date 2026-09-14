@@ -93,6 +93,8 @@ struct xllm_client {
     uint32_t uRetryBaseDelayMs;
     uint32_t uRetryMaxDelayMs;
     bool bVerifyPeer;
+    char* sCaPem;              /* owned copy; private CA chain */
+    xx509store* pX509Store;    /* borrowed custom trust store */
     xllm_provider eProvider;
     xllm_model_profile tModelProfile;
     char* sProfileId;

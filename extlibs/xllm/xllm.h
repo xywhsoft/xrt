@@ -30,6 +30,7 @@ typedef struct xllm_request xllm_request;
 /* Borrowed XRT runtime handles; only meaningful when building against XRT. */
 typedef struct xnetengine xnetengine;
 typedef struct xfuture xfuture;
+typedef struct xx509store xx509store;
 
 typedef enum xllm_result {
     XLLM_RESULT_OK = 0,
@@ -476,6 +477,10 @@ typedef struct xllm_client_config {
      * client creates and owns a private engine. Must outlive the client. */
     xnetengine* pNetEngine;
     bool bVerifyPeer;
+    /* Private-CA trust: PEM text (may carry a chain) or a borrowed store.
+     * Either one implies verification; pX509Store wins over sCaPem. */
+    const char* sCaPem;
+    xx509store* pX509Store;
     xllm_provider eProvider;
     /* Optional borrowed profile. When present, model/provider/limits are
      * validated and the client retains an owned snapshot. */

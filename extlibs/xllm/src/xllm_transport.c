@@ -239,6 +239,32 @@ oom:
     return false;
 }
 
+/* IP-literal endpoints must not receive a (protocol-illegal) IP SNI:
+ * per the XRT TLS contract only VerifyName carries the identity then. */
+static bool xllm__host_is_ip_literal(const char* sHost)
+{
+    const char* p;
+    unsigned uGroups = 1u;
+    unsigned uValue = 0u;
+    unsigned uDigits = 0u;
+    if ( !sHost || !sHost[0] ) { return false; }
+    if ( strchr(sHost, ':') ) { return true; } /* bare IPv6 (brackets stripped) */
+    for ( p = sHost; *p; ++p ) {
+        if ( *p >= '0' && *p <= '9' ) {
+            uValue = uValue * 10u + (unsigned)(*p - '0');
+            if ( ++uDigits > 3u ) { return false; }
+        } else if ( *p == '.' ) {
+            if ( uDigits == 0u || uValue > 255u ) { return false; }
+            uValue = 0u;
+            uDigits = 0u;
+            ++uGroups;
+        } else {
+            return false;
+        }
+    }
+    return uGroups == 4u && uDigits != 0u && uValue <= 255u;
+}
+
 static xtlsverifydecision xllm__tls_accept(const xtlspeer* pPeer, ptr pData)
 {
     (void)pPeer;
@@ -264,7 +290,23 @@ bool xllm__transport_client_init(xllm_client* pClient, xllm_error* pError)
         xtlsverifierconfig tVerify;
         xx509store* pStore = NULL;
         xrtTlsVerifierConfigInit(&tVerify);
-        if ( pClient->bVerifyPeer ) {
+        if ( pClient->pX509Store ) {
+            /* borrowed store wins; the verifier clones the anchors */
+            tVerify.Store = pClient->pX509Store;
+        } else if ( pClient->sCaPem && pClient->sCaPem[0] ) {
+            size_t iAdded = 0u;
+            pStore = xrtX509StoreCreate();
+            if ( !pStore ||
+                 !xrtX509StoreAddPem(pStore, pClient->sCaPem,
+                     strlen(pClient->sCaPem), &iAdded) || iAdded == 0u ) {
+                xrtX509StoreFree(pStore);
+                xllm__error_set(pError, XLLM_ERROR_NETWORK,
+                    "failed to load the configured CA PEM trust store");
+                xllm__transport_client_unit(pClient);
+                return false;
+            }
+            tVerify.Store = pStore;
+        } else if ( pClient->bVerifyPeer ) {
             pStore = xrtX509StoreSystem();
             if ( !pStore ) goto network_error;
             tVerify.Store = pStore;
@@ -272,7 +314,9 @@ bool xllm__transport_client_init(xllm_client* pClient, xllm_error* pError)
             tVerify.Verify = xllm__tls_accept;
         }
         pClient->pVerifier = xrtTlsVerifierCreate(&tVerify);
-        xrtX509StoreFree(pStore);
+        /* pStore is owned on the PEM and system paths (System() builds a
+         * fresh store per call); the verifier cloned what it needs. */
+        if ( pStore ) { xrtX509StoreFree(pStore); }
         if ( !pClient->pVerifier ) goto network_error;
     }
     return true;
@@ -860,8 +904,13 @@ void xllm__transport_begin(xllm_call* pCall)
         xtlsdialconfig tDial;
         xfuture* pFuture;
         xrtTlsClientConfigInit(&tTls);
-        tTls.ServerName = xllm__sv(pClient->sHost);
-        tTls.VerifyName = xllm__sv(pClient->sHost);
+        if ( xllm__host_is_ip_literal(pClient->sHost) ) {
+            tTls.ServerName = xllm__sv(NULL);
+            tTls.VerifyName = xllm__sv(pClient->sHost);
+        } else {
+            tTls.ServerName = xllm__sv(pClient->sHost);
+            tTls.VerifyName = xllm__sv(pClient->sHost);
+        }
         tTls.Verifier = pClient->pVerifier;
         xrtTlsDialConfigInit(&tDial);
         if ( pCall->uDeadline != XRT_DEADLINE_NEVER ) {

@@ -529,6 +529,149 @@ done:
     (void)xrtFileDelete((str)sSnapshotPath);
 }
 
+static bool test_split_plan_override(xllm_session*, uint64_t, xllm_compaction_plan*, void*);
+
+
+/* ------------------------------------------------------------------ */
+/* v3: split-turn compaction (GAP-SPLIT-TURN)                          */
+/* ------------------------------------------------------------------ */
+
+static void test_split_turn(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_compaction* pCompaction = NULL;
+    xllm_session_stats tStats;
+    xllm_request tRequest;
+    xllm_error tError;
+    char* sFatEarly = make_large_output(4000u, 1u);
+    char* sFatLate = make_large_output(4000u, 2u);
+    uint64_t uTurn;
+    uint64_t uPrefixThrough = 0u;
+
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = 4000u;
+    tConfig.uMaxOutputTokens = 512u;
+    tConfig.uOutputReserveTokens = 200u;
+    tConfig.uSafetyReserveTokens = 200u;
+    tConfig.uKeepRecentTokens = 800u;
+    tConfig.uToolPruneBytes = 1024u * 1024u; /* keep the fixture verbatim */
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL, "split-turn session creates");
+    if ( !pSession || !sFatEarly || !sFatLate ) { free(sFatEarly); free(sFatLate); return; }
+
+    (void)xllmSessionAddText(pSession, 0u, XLLM_ROLE_SYSTEM, "pinned contract.", XLLM_SESSION_ENTRY_PINNED);
+    uTurn = xllmSessionBeginTurn(pSession);
+    SESSION_CHECK(xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, "compile the module now", 0u) &&
+        xllmSessionAddText(pSession, uTurn, XLLM_ROLE_ASSISTANT, sFatEarly, 0u),
+        "split fixture: original request and early fat work");
+    {
+        xllm_tool_call tCall;
+        xllm_response tResponse;
+        memset(&tCall, 0, sizeof(tCall));
+        tCall.sId = "split_c1";
+        tCall.sName = "run_build";
+        tCall.sArgumentsJson = "{\"target\":\"module\"}";
+        memset(&tResponse, 0, sizeof(tResponse));
+        tResponse.sContent = "";
+        tResponse.pToolCalls = &tCall;
+        tResponse.iToolCallCount = 1u;
+        SESSION_CHECK(xllmSessionAddAssistantResponse(pSession, uTurn, &tResponse) &&
+            xllmSessionAddToolResult(pSession, uTurn, "split_c1", "build ok"),
+            "split fixture: complete tool pair inside the fat turn");
+    }
+    SESSION_CHECK(xllmSessionAddText(pSession, uTurn, XLLM_ROLE_ASSISTANT, sFatLate, 0u),
+        "split fixture: late fat work stays in the suffix");
+    uTurn = xllmSessionBeginTurn(pSession);
+    SESSION_CHECK(xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, "summarize the build", 0u) &&
+        xllmSessionAddText(pSession, uTurn, XLLM_ROLE_ASSISTANT, "the build succeeded", 0u),
+        "split fixture: small recent turn");
+
+    pCompaction = xllmSessionPrepareCompaction(pSession, true, &tError);
+    SESSION_CHECK(pCompaction != NULL, "split-turn compaction prepares");
+    if ( pCompaction ) {
+        const char* sPrompt = xllmCompactionPrompt(pCompaction);
+        uPrefixThrough = xllmCompactionThroughSequence(pCompaction);
+        SESSION_CHECK(sPrompt != NULL &&
+            strstr(sPrompt, "PREFIX of a turn that was too large to keep") != NULL &&
+            strstr(sPrompt, "## Original Request") != NULL &&
+            strstr(sPrompt, "compile the module now") != NULL &&
+            strstr(sPrompt, "## Early Progress") != NULL &&
+            strstr(sPrompt, "## Context for Suffix") != NULL,
+            "split prompt carries the Pi turn-context template and the request");
+        SESSION_CHECK(strstr(sPrompt, sFatLate) == NULL,
+            "suffix fat content stays out of the candidates");
+        SESSION_CHECK(uPrefixThrough > 0u, "committed boundary covers the prefix");
+        SESSION_CHECK(xllmSessionCommitCompaction(pSession, pCompaction,
+            "## Goal\ncompile the module\n"
+            "## Constraints & Preferences\npinned contract\n"
+            "## Progress\nearly work summarized; build ok\n"
+            "## Key Decisions\nsplit the oversized turn\n"
+            "## Next Steps\ncontinue from the late work\n"
+            "## Critical Context\ntool pair preserved; read-files: none", &tError),
+            "split-turn compaction commits");
+        xllmCompactionDestroy(pCompaction);
+        pCompaction = NULL;
+    }
+    SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) &&
+        tStats.uCompactionCount == 1u && tStats.uCompactedThroughSequence == uPrefixThrough,
+        "split compaction advances through the prefix (not a truncate)");
+    xllmRequestInit(&tRequest);
+    SESSION_CHECK(xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+        request_has_text(&tRequest, "Compacted session state") &&
+        request_has_text(&tRequest, sFatLate) &&
+        strstr(tRequest.pMessages[2].sContent ? "" : "", "x") == NULL &&
+        tRequest.pMessages[2].eRole == XLLM_ROLE_ASSISTANT,
+        "rendered suffix keeps the pair and starts at an assistant entry");
+    SESSION_CHECK(xllmSessionPendingToolCallCount(pSession) == 0u,
+        "split cut never breaks the tool pair");
+    for ( size_t i = 0u; i < tRequest.iMessageCount; ++i ) {
+        SESSION_CHECK(!(tRequest.pMessages[i].sContent &&
+            strstr(tRequest.pMessages[i].sContent, "truncated by overflow")),
+            "no L2 truncation marker: the summary path won");
+        if ( tRequest.pMessages[i].sContent &&
+             strstr(tRequest.pMessages[i].sContent, "truncated by overflow") ) { break; }
+    }
+    xllmRequestUnit(&tRequest);
+
+    /* custom ops can replace the planning behavior (split plans included) */
+    {
+        xllm_compaction_ops tOps;
+        memset(&tOps, 0, sizeof(tOps));
+        tOps.pPlan = test_split_plan_override;
+        SESSION_CHECK(xllmSessionSetCompactionOps(pSession, &tOps), "custom split ops installs");
+        pCompaction = xllmSessionPrepareCompaction(pSession, true, &tError);
+        SESSION_CHECK(pCompaction != NULL &&
+            strstr(xllmCompactionPrompt(pCompaction), "Turn Context (split turn):") != NULL,
+            "driver honors a custom split plan");
+        xllmCompactionDestroy(pCompaction);
+        (void)xllmSessionSetCompactionOps(pSession, NULL);
+    }
+    free(sFatEarly);
+    free(sFatLate);
+    xllmSessionDestroy(pSession);
+}
+
+static bool test_split_plan_override(xllm_session* pSession, uint64_t uPrevThrough,
+    xllm_compaction_plan* pPlan, void* pUserData)
+{
+    size_t i;
+    (void)pUserData;
+    pPlan->uThroughSequence = uPrevThrough;
+    pPlan->uPrefixThroughSequence = 0u;
+    /* force a fresh split over whatever active prefix exists */
+    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
+        const xllm_session_entry* pEntry = &pSession->pEntries[i];
+        if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u ) { continue; }
+        if ( pEntry->uSequence <= uPrevThrough ) { continue; }
+        if ( pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT &&
+             pEntry->uSequence > pPlan->uPrefixThroughSequence ) {
+            pPlan->uPrefixThroughSequence = pEntry->uSequence;
+        }
+    }
+    return pPlan->uPrefixThroughSequence > uPrevThrough;
+}
+
 /* ------------------------------------------------------------------ */
 /* v3: exact-feedback governance                                        */
 /* ------------------------------------------------------------------ */
@@ -950,6 +1093,7 @@ int main(void)
     test_compaction_user_bridge();
     test_budget_compaction_persistence();
     test_journal_checkpoint_recovery();
+    test_split_turn();
     test_exact_governance();
     test_ops_and_hooks();
     test_ladder_and_guard();

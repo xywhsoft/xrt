@@ -57,11 +57,11 @@ RETR/TOP 的 `Begin/Next`：每行去 dot transparency、**不分配整封邮件
 
 下面的程序来自 `examples/pop3/protocol`——离线的响应与命令闭环：
 
-```embed path="extlibs/xmail/examples/pop3/protocol/main.c" title="extlibs/xmail/examples/pop3/protocol/main.c"
+```embed path="extlibs/xpop3/examples/protocol/main.c" title="extlibs/xpop3/examples/protocol/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/pop3/protocol/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xpop3/examples/protocol/main.c -lws2_32 -liphlpapi
 （输出 POP3 响应解析与命令构建的自检结果）
 ```
 
@@ -71,11 +71,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extli
 
 第二个程序来自 `examples/pop3/client`——同步客户端的完整流程：
 
-```embed path="extlibs/xmail/examples/pop3/client/main.c" title="extlibs/xmail/examples/pop3/client/main.c"
+```embed path="extlibs/xpop3/examples/client/main.c" title="extlibs/xpop3/examples/client/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/pop3/client/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xpop3/examples/client/main.c -lws2_32 -liphlpapi
 （对配置的 POP3 服务器完成收取会话后正常退出）
 ```
 

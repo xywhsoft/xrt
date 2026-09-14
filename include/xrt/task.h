@@ -321,6 +321,25 @@ XRT_EXTERN_C_BEGIN
 /* 创建有界工作线程池；配置为空或字段为零时使用对应默认值。 */
 XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig);
 
+/* A borrowed view of the real pool owner slot. Create contributes one actual
+ * reference; successful Destroy consumes it once. Collector Hold/Release pins
+ * keep the terminal shell alive after joined worker resources are retired.
+ * Native entries, executing workers and opaque finalizers refuse inspection.
+ * Parked worker/control storage is uniquely contained until join, not a fake
+ * RC node or a guessed subtraction from a live reference count. */
+XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool);
+
+/* Query under the caller's exclusive ownership freeze. Trace reports each
+ * accepted queued Job reference exactly once; each Job still needs independent
+ * admission through xrtTaskOwnershipAdapterV1 with explicit Data policies.
+ * Prepare is called only for an authorized unreachable claim, outside freeze:
+ * close new admission, let accepted work/cleanup finish, then nonblocking join.
+ * It never cancels, steals or skips work. Active native stacks remain roots.
+ * Clear requires completed joins; Finish retires worker resources, not the
+ * caller's owner reference. ppPreparation changes only on success. */
+XRT_API const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(
+    xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+
 
 
 /* 提交任务并返回其 Future；失败时任务数据所有权仍属于调用方。 */

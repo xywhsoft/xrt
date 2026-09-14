@@ -47,6 +47,8 @@ xrt_task_job* __xrtTaskCreate(
 xrt_task_job* __xrtTaskCreateOwned(xtaskproc pProc, ptr pData, const xtaskargs* pArgs,
 	const xtaskdataownershipv1* pDataPolicy, xfuture** ppFuture);
 void __xrtTaskAccept(xrt_task_job* pJob);
+/* The executor's existing physical Job reference, not a new wrapper/hold. */
+xrtownershipref __xrtTaskOwnership(const xrt_task_job* pJob);
 
 
 

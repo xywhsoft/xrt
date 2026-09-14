@@ -7,6 +7,8 @@
 typedef struct xrt_task_worker {
 	struct xtaskpool* Pool;
 	xthread* Thread;
+	bool Parked;
+	bool Exited;
 } xrt_task_worker;
 
 
@@ -14,6 +16,7 @@ typedef struct xrt_task_worker {
 /* 任务池用一把锁统一保护队列、运行链、统计和生命周期状态。 */
 struct xtaskpool {
 	xmutex Lock;
+	xmutex OwnershipLock;
 	xcond Work;
 	xcond Idle;
 	xcond Space;
@@ -41,7 +44,76 @@ struct xtaskpool {
 	xrt_task_job* RunningHead;
 	xrt_task_finalizer* FinalizerHead;
 	xrt_task_finalizer* FinalizerTail;
+	size_t References;
+	size_t Entries;
+	const void* OwnershipClaim;
+	bool Initialized;
+	bool OwnerHeld;
+	bool Destroying;
+	bool Joining;
+	bool Joined;
+	bool Retiring;
+	bool Retired;
+	bool OwnershipCleared;
 };
+
+/* OwnershipLock never encloses a queue lock, a wait, or a user callback. Native
+ * bodies keep an actual reference/entry while their old queue-lock protocol is
+ * in use. Count refuses that whole interval, including detached cancellation
+ * lists, cancel-watch removal and user cleanup tails. */
+static void __xrtTaskPoolOwnershipBegin(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!xrtOwnershipMutationBegin(pScope) || !xrtMutexLock(&pPool->OwnershipLock)) abort();
+}
+static void __xrtTaskPoolOwnershipEnd(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!xrtMutexUnlock(&pPool->OwnershipLock) || !xrtOwnershipScopeEnd(pScope)) abort();
+}
+static bool __xrtTaskPoolEnter(xtaskpool* pPool, bool bTerminal)
+{
+	xrtownershipscope Mutation = {0}; bool bEntered = false;
+	if (pPool == NULL) { __xrtErrorSetInvalidArgument(); return false; }
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (pPool->References && pPool->References < SIZE_MAX && pPool->Entries < SIZE_MAX &&
+		!pPool->Retiring && !pPool->Joining && (!pPool->Retired || bTerminal)) {
+		++pPool->References; ++pPool->Entries; bEntered = true;
+	}
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	if (!bEntered) __xrtErrorSetInvalidState();
+	return bEntered;
+}
+static void __xrtTaskPoolDropLocked(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!pPool->References) abort();
+	bool bLast = --pPool->References == 0;
+	if (bLast && (!pPool->Retired || pPool->OwnerHeld || pPool->Entries || pPool->Workers)) abort();
+	if (!xrtMutexUnlock(&pPool->OwnershipLock)) abort();
+	if (bLast) {
+		if (!xrtCondUnit(&pPool->Space) || !xrtCondUnit(&pPool->Idle) || !xrtCondUnit(&pPool->Work) ||
+			!xrtMutexUnit(&pPool->Lock) || !xrtMutexUnit(&pPool->OwnershipLock)) abort();
+		xrtFree(pPool);
+	}
+	if (!xrtOwnershipScopeEnd(pScope)) abort();
+}
+static void __xrtTaskPoolRelease(const void* pData)
+{
+	xtaskpool* pPool = (xtaskpool*)pData; xrtownershipscope Mutation = {0};
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation); __xrtTaskPoolDropLocked(pPool, &Mutation);
+}
+static void __xrtTaskPoolLeave(xtaskpool* pPool)
+{
+	xrtownershipscope Mutation = {0}; __xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (!pPool->Entries) abort();
+	--pPool->Entries; __xrtTaskPoolDropLocked(pPool, &Mutation);
+}
+static void __xrtTaskPoolWorkerBegin(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!xrtOwnershipMutationBegin(pScope) || !xrtMutexLock(&pPool->Lock)) abort();
+}
+static void __xrtTaskPoolWorkerEnd(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!xrtMutexUnlock(&pPool->Lock) || !xrtOwnershipScopeEnd(pScope)) abort();
+}
 
 
 
@@ -169,6 +241,7 @@ static void __xrtTaskPoolFinishCancelled(
 		pList = pJob->Next;
 		pJob->Next = NULL;
 		__xrtTaskCancel(pJob);
+		__xrtTaskDestroy(pJob, true);
 		(void)xrtMutexLock(&pPool->Lock);
 		pPool->Queued--;
 		__xrtTaskPoolRecordLocked(pPool, XFUTURE_CANCELLED);
@@ -176,7 +249,6 @@ static void __xrtTaskPoolFinishCancelled(
 			(void)xrtCondBroadcast(&pPool->Idle);
 		}
 		(void)xrtMutexUnlock(&pPool->Lock);
-		__xrtTaskDestroy(pJob, true);
 	}
 }
 
@@ -192,14 +264,23 @@ static int32 __xrtTaskPoolWorker(ptr pData)
 		xrt_task_job* pJob;
 		xrt_task_finalizer* pFinalizer;
 		xfuturestate State;
+		xrtownershipscope Mutation = {0};
 
-		(void)xrtMutexLock(&pPool->Lock);
+		__xrtTaskPoolWorkerBegin(pPool, &Mutation);
 		while (
 			(pPool->Head == NULL) &&
 			(pPool->FinalizerHead == NULL) &&
 			!pPool->Shutdown
 		) {
+			/* Publish the real worker state before sleeping. CondWait may return
+			 * with the queue lock held while a collector owns freeze: release
+			 * that lock BEFORE reacquiring mutation to avoid lock inversion. */
+			pWorker->Parked = true;
+			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 			(void)xrtCondWait(&pPool->Work, &pPool->Lock);
+			(void)xrtMutexUnlock(&pPool->Lock);
+			__xrtTaskPoolWorkerBegin(pPool, &Mutation);
+			pWorker->Parked = false;
 		}
 
 		/*
@@ -214,20 +295,21 @@ static int32 __xrtTaskPoolWorker(ptr pData)
 			}
 			pPool->FinalizerQueued--;
 			pPool->FinalizerRunning++;
-			(void)xrtMutexUnlock(&pPool->Lock);
+			__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 
 			pFinalizer->Proc(pFinalizer->Data);
 
-			(void)xrtMutexLock(&pPool->Lock);
+			__xrtTaskPoolWorkerBegin(pPool, &Mutation);
 			pPool->FinalizerRunning--;
 			if ( __xrtTaskPoolIdleLocked(pPool) ) {
 				(void)xrtCondBroadcast(&pPool->Idle);
 			}
-			(void)xrtMutexUnlock(&pPool->Lock);
+			__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 			continue;
 		}
 		if ( pPool->Head == NULL ) {
-			(void)xrtMutexUnlock(&pPool->Lock);
+			pWorker->Exited = true;
+			__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 			break;
 		}
 		pJob = pPool->Head;
@@ -246,21 +328,25 @@ static int32 __xrtTaskPoolWorker(ptr pData)
 		pPool->Queued--;
 		pPool->Running++;
 		(void)xrtCondSignal(&pPool->Space);
-		(void)xrtMutexUnlock(&pPool->Lock);
+		__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 
 		/* Future 取消只请求协作；在真正执行前再次检查即可跳过过程。 */
 		__xrtTaskRun(pJob);
 		State = __xrtTaskState(pJob);
 
-		(void)xrtMutexLock(&pPool->Lock);
+		__xrtTaskPoolWorkerBegin(pPool, &Mutation);
 		__xrtTaskPoolRunningRemoveLocked(pPool, pJob);
+		__xrtTaskPoolWorkerEnd(pPool, &Mutation);
+		/* The worker's physical Job reference and cleanup tail remain active
+		 * until Destroy returns. Wait/retirement must not observe false idle. */
+		__xrtTaskDestroy(pJob, true);
+		__xrtTaskPoolWorkerBegin(pPool, &Mutation);
 		pPool->Running--;
 		__xrtTaskPoolRecordLocked(pPool, State);
 		if ( __xrtTaskPoolIdleLocked(pPool) ) {
 			(void)xrtCondBroadcast(&pPool->Idle);
 		}
-		(void)xrtMutexUnlock(&pPool->Lock);
-		__xrtTaskDestroy(pJob, true);
+		__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 	}
 	return 0;
 }
@@ -283,6 +369,7 @@ static void __xrtTaskPoolCreateCleanup(xtaskpool* pPool)
 	(void)xrtCondUnit(&pPool->Idle);
 	(void)xrtCondUnit(&pPool->Work);
 	(void)xrtMutexUnit(&pPool->Lock);
+	(void)xrtMutexUnit(&pPool->OwnershipLock);
 	xrtFree(pPool->Workers);
 	xrtFree(pPool);
 }
@@ -320,24 +407,34 @@ XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig)
 		return NULL;
 	}
 	pPool->ThreadCount = tConfig.Threads;
+	pPool->References = 1;
+	pPool->OwnerHeld = true;
 	pPool->QueueLimit = tConfig.QueueLimit;
 	pPool->StackSize = tConfig.StackSize;
 	if ( !xrtMutexInit(&pPool->Lock) ) {
 		xrtFree(pPool);
 		return NULL;
 	}
+	if ( !xrtMutexInit(&pPool->OwnershipLock) ) {
+		(void)xrtMutexUnit(&pPool->Lock);
+		xrtFree(pPool);
+		return NULL;
+	}
 	if ( !xrtCondInit(&pPool->Work) ) {
+		(void)xrtMutexUnit(&pPool->OwnershipLock);
 		(void)xrtMutexUnit(&pPool->Lock);
 		xrtFree(pPool);
 		return NULL;
 	}
 	if ( !xrtCondInit(&pPool->Idle) ) {
+		(void)xrtMutexUnit(&pPool->OwnershipLock);
 		(void)xrtCondUnit(&pPool->Work);
 		(void)xrtMutexUnit(&pPool->Lock);
 		xrtFree(pPool);
 		return NULL;
 	}
 	if ( !xrtCondInit(&pPool->Space) ) {
+		(void)xrtMutexUnit(&pPool->OwnershipLock);
 		(void)xrtCondUnit(&pPool->Idle);
 		(void)xrtCondUnit(&pPool->Work);
 		(void)xrtMutexUnit(&pPool->Lock);
@@ -349,6 +446,7 @@ XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig)
 		sizeof(xrt_task_worker)
 	);
 	if ( pPool->Workers == NULL ) {
+		(void)xrtMutexUnit(&pPool->OwnershipLock);
 		(void)xrtCondUnit(&pPool->Space);
 		(void)xrtCondUnit(&pPool->Idle);
 		(void)xrtCondUnit(&pPool->Work);
@@ -384,6 +482,10 @@ XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig)
 			return NULL;
 		}
 	}
+	xrtownershipscope Mutation = {0};
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	pPool->Initialized = true;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
 	return pPool;
 }
 
@@ -402,7 +504,7 @@ typedef enum xrt_task_submit_stop {
 
 
 /* 按立即或可等待模式提交，并且只在受理成功后取得任务数据所有权。 */
-static xfuture* __xrtTaskPoolSubmit(
+static xfuture* __xrtTaskPoolSubmitBody(
 	xtaskpool* pPool,
 	xtaskproc pProc,
 	ptr pData,
@@ -563,14 +665,25 @@ static xfuture* __xrtTaskPoolSubmit(
 
 	/* 已经取消的父上下文仍返回一个有效且立即完成的任务 Future。 */
 	__xrtTaskCancel(pJob);
+	__xrtTaskDestroy(pJob, true);
 	(void)xrtMutexLock(&pPool->Lock);
 	__xrtTaskPoolRecordLocked(pPool, XFUTURE_CANCELLED);
 	if ( __xrtTaskPoolIdleLocked(pPool) ) {
 		(void)xrtCondBroadcast(&pPool->Idle);
 	}
 	(void)xrtMutexUnlock(&pPool->Lock);
-	__xrtTaskDestroy(pJob, true);
 	return pFuture;
+}
+
+static xfuture* __xrtTaskPoolSubmit(xtaskpool* pPool, xtaskproc pProc, ptr pData,
+	const xtaskargs* pArgs, xfutureownershiptrace pResultTrace,
+	const xfuturepayloadownershipv1* pResultPolicy, const xtaskdataownershipv1* pDataPolicy,
+	bool bWait, xdeadline iDeadline, xcancel* pWaitCancel)
+{
+	if (!__xrtTaskPoolEnter(pPool, false)) return NULL;
+	xfuture* pFuture = __xrtTaskPoolSubmitBody(pPool, pProc, pData, pArgs,
+		pResultTrace, pResultPolicy, pDataPolicy, bWait, iDeadline, pWaitCancel);
+	__xrtTaskPoolLeave(pPool); return pFuture;
 }
 
 
@@ -734,7 +847,7 @@ XRT_API xfuture* xrtTaskSubmitUntilCancel(
 	投递一个无分配资源回收过程。
 	该内部通道不受普通队列上限和 Closed 状态影响，但调用方必须保证池仍存活。
 */
-void __xrtTaskPoolFinalize(
+static void __xrtTaskPoolFinalizeBody(
 	xtaskpool* pPool,
 	xrt_task_finalizer* pFinalizer,
 	xrt_task_finalizer_proc pProc,
@@ -772,7 +885,7 @@ void __xrtTaskPoolFinalize(
 
 
 /* 停止接收普通任务；工作线程保留到 Destroy，以便回收已受理资源。 */
-XRT_API bool xrtTaskPoolClose(xtaskpool* pPool)
+static bool __xrtTaskPoolCloseBody(xtaskpool* pPool)
 {
 	if ( pPool == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -786,6 +899,27 @@ XRT_API bool xrtTaskPoolClose(xtaskpool* pPool)
 	}
 	(void)xrtMutexUnlock(&pPool->Lock);
 	return true;
+}
+
+void __xrtTaskPoolFinalize(xtaskpool* pPool, xrt_task_finalizer* pFinalizer,
+	xrt_task_finalizer_proc pProc, ptr pData)
+{
+	if (!pPool || !pFinalizer || !pProc) {
+		__xrtTaskPoolFinalizeBody(pPool, pFinalizer, pProc, pData); return;
+	}
+	/* Internal submitters already own accepted resource-lifetime credit. A
+	 * joined/retired pool is a violated caller lifetime, not permission to run
+	 * its resource destructor on an arbitrary thread. */
+	if (!__xrtTaskPoolEnter(pPool, false)) abort();
+	__xrtTaskPoolFinalizeBody(pPool, pFinalizer, pProc, pData);
+	__xrtTaskPoolLeave(pPool);
+}
+
+XRT_API bool xrtTaskPoolClose(xtaskpool* pPool)
+{
+	if (!__xrtTaskPoolEnter(pPool, false)) return false;
+	bool bClosed = __xrtTaskPoolCloseBody(pPool);
+	__xrtTaskPoolLeave(pPool); return bClosed;
 }
 
 
@@ -811,7 +945,7 @@ static xcancel* __xrtTaskPoolNextRunningCancel(xtaskpool* pPool)
 
 
 /* 取消排队任务，并在池锁外逐个通知运行任务。 */
-XRT_API bool xrtTaskPoolCancel(xtaskpool* pPool)
+static bool __xrtTaskPoolCancelBody(xtaskpool* pPool)
 {
 	xrt_task_job* pList;
 
@@ -843,6 +977,13 @@ XRT_API bool xrtTaskPoolCancel(xtaskpool* pPool)
 		xrtCancelDestroy(pCancel);
 	}
 	return true;
+}
+
+XRT_API bool xrtTaskPoolCancel(xtaskpool* pPool)
+{
+	if (!__xrtTaskPoolEnter(pPool, false)) return false;
+	bool bCancelled = __xrtTaskPoolCancelBody(pPool);
+	__xrtTaskPoolLeave(pPool); return bCancelled;
 }
 
 
@@ -880,7 +1021,7 @@ XRT_API xwaitresult xrtTaskPoolWaitUntil(xtaskpool* pPool, xdeadline iDeadline)
 
 
 /* 等待排空、截止时间或调用方取消；已经排空时完成优先。 */
-XRT_API xwaitresult xrtTaskPoolWaitUntilCancel(
+static xwaitresult __xrtTaskPoolWaitUntilCancelBody(
 	xtaskpool* pPool,
 	xdeadline iDeadline,
 	xcancel* pCancel
@@ -947,10 +1088,17 @@ XRT_API xwaitresult xrtTaskPoolWaitUntilCancel(
 	return Result;
 }
 
+XRT_API xwaitresult xrtTaskPoolWaitUntilCancel(xtaskpool* pPool, xdeadline iDeadline, xcancel* pCancel)
+{
+	if (!__xrtTaskPoolEnter(pPool, false)) return XWAIT_ERROR;
+	xwaitresult Result = __xrtTaskPoolWaitUntilCancelBody(pPool, iDeadline, pCancel);
+	__xrtTaskPoolLeave(pPool); return Result;
+}
+
 
 
 /* 复制任务池统计快照。 */
-XRT_API bool xrtTaskPoolGet(const xtaskpool* pPool, xtaskpoolstats* pStats)
+static bool __xrtTaskPoolGetBody(const xtaskpool* pPool, xtaskpoolstats* pStats)
 {
 	if ( (pPool == NULL) || (pStats == NULL) ) {
 		__xrtErrorSetInvalidArgument();
@@ -973,48 +1121,204 @@ XRT_API bool xrtTaskPoolGet(const xtaskpool* pPool, xtaskpoolstats* pStats)
 	return true;
 }
 
+XRT_API bool xrtTaskPoolGet(const xtaskpool* pPool, xtaskpoolstats* pStats)
+{
+	if (!__xrtTaskPoolEnter((xtaskpool*)pPool, false)) return false;
+	bool bGot = __xrtTaskPoolGetBody(pPool, pStats);
+	__xrtTaskPoolLeave((xtaskpool*)pPool); return bGot;
+}
 
 
-/* 关闭、排空、终止工作线程并释放任务池。 */
+
+/* Joined control/thread allocations are uniquely contained resources. Keep
+ * the locks/conditions with the shell until the last actual reference drops. */
+static bool __xrtTaskPoolRetire(xtaskpool* pPool, size_t iEntries)
+{
+	xrtownershipscope Mutation = {0};
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (pPool->Retired) { __xrtTaskPoolOwnershipEnd(pPool, &Mutation); return true; }
+	if (!pPool->Joined || pPool->Joining || pPool->Retiring || pPool->Entries != iEntries) {
+		__xrtTaskPoolOwnershipEnd(pPool, &Mutation); return false;
+	}
+	pPool->Retiring = true;
+	xrt_task_worker* pWorkers = pPool->Workers; uint32 iCount = pPool->StartedThreads;
+	pPool->Workers = NULL; pPool->StartedThreads = 0;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	for (uint32 i = 0; i < iCount; ++i) {
+		if (!pWorkers[i].Exited || pWorkers[i].Parked) abort();
+		xrtThreadDestroy(pWorkers[i].Thread);
+	}
+	xrtFree(pWorkers);
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	pPool->Retired = true; pPool->Retiring = false;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation); return true;
+}
+
+/* Close and drain with every accepted cleanup tail still accounted for. The
+ * caller must stop other concurrent access (the existing public contract).
+ * A reentrant Destroy refuses before closing or freeing an outer entry's pool. */
 XRT_API bool xrtTaskPoolDestroy(xtaskpool* pPool)
 {
-	if ( pPool == NULL ) {
-		return true;
-	}
-	if ( __xrtTaskPoolIsWorker(pPool) ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	if ( !xrtTaskPoolClose(pPool) ) {
-		return false;
-	}
-
-	/*
-		Shutdown 只控制空闲线程退出。
-		已经运行的任务仍可在析构阶段投递嵌入式 finalizer。
-	*/
-	(void)xrtMutexLock(&pPool->Lock);
-	pPool->Shutdown = true;
-	(void)xrtCondBroadcast(&pPool->Work);
-	(void)xrtMutexUnlock(&pPool->Lock);
-	if ( xrtTaskPoolWait(pPool) != XWAIT_OK ) {
-		return false;
-	}
-	for ( uint32 i = 0; i < pPool->StartedThreads; i++ ) {
-		if ( xrtThreadWait(pPool->Workers[i].Thread) != XWAIT_OK ) {
-			return false;
+	if (!pPool) return true;
+	if (!__xrtTaskPoolEnter(pPool, true)) return false;
+	xrtownershipscope Mutation = {0}; __xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	bool bReady = pPool->Entries == 1 && !pPool->Destroying && !pPool->Joining && !pPool->Retiring &&
+		(!pPool->OwnershipClaim || pPool->OwnershipCleared) && !__xrtTaskPoolIsWorker(pPool);
+	bool bRetired = pPool->Retired;
+	if (bReady) pPool->Destroying = true;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	if (!bReady) { __xrtTaskPoolLeave(pPool); __xrtErrorSetInvalidState(); return false; }
+	if (!bRetired) {
+		bReady = __xrtTaskPoolCloseBody(pPool) &&
+			__xrtTaskPoolWaitUntilCancelBody(pPool, XRT_DEADLINE_NEVER, NULL) == XWAIT_OK;
+		__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+		bReady = bReady && pPool->Entries == 1;
+		if (bReady) pPool->Joining = true;
+		__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+		if (bReady) {
+			__xrtTaskPoolWorkerBegin(pPool, &Mutation);
+			pPool->Shutdown = true; (void)xrtCondBroadcast(&pPool->Work);
+			__xrtTaskPoolWorkerEnd(pPool, &Mutation);
+			for (uint32 i = 0; i < pPool->StartedThreads; ++i)
+				if (xrtThreadWait(pPool->Workers[i].Thread) != XWAIT_OK) bReady = false;
+			__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+			pPool->Joining = false; pPool->Joined = bReady;
+			__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+			if (bReady) bReady = __xrtTaskPoolRetire(pPool, 1);
 		}
 	}
-	for ( uint32 i = 0; i < pPool->StartedThreads; i++ ) {
-		xrtThreadDestroy(pPool->Workers[i].Thread);
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	bool bOwner = bReady && pPool->OwnerHeld;
+	if (bOwner) pPool->OwnerHeld = false;
+	pPool->Destroying = false;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	if (bOwner) __xrtTaskPoolRelease(pPool);
+	__xrtTaskPoolLeave(pPool); return bReady;
+}
+
+static bool __xrtTaskPoolOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xtaskpool* pPool = pData;
+	if (!pPool || !pCount || !pPool->Initialized || !pPool->References || pPool->Entries ||
+		pPool->Joining || pPool->Destroying || pPool->Retiring || pPool->OwnershipCleared) return false;
+	if (pPool->Running || pPool->RunningHead || pPool->FinalizerQueued || pPool->FinalizerRunning ||
+		pPool->FinalizerHead || pPool->FinalizerTail || pPool->Queued != pPool->QueueDepth) return false;
+	if (pPool->Retired) {
+		if (!pPool->Joined || !pPool->Closed || pPool->Workers || pPool->StartedThreads) return false;
+	} else {
+		if (!pPool->Workers || pPool->StartedThreads != pPool->ThreadCount) return false;
+		for (uint32 i = 0; i < pPool->StartedThreads; ++i) {
+			const xrt_task_worker* pWorker = &pPool->Workers[i];
+			if (pWorker->Pool != pPool || !pWorker->Thread ||
+				(pWorker->Exited ? pWorker->Parked : (!pWorker->Parked || pPool->Joined))) return false;
+		}
 	}
-	(void)xrtCondUnit(&pPool->Space);
-	(void)xrtCondUnit(&pPool->Idle);
-	(void)xrtCondUnit(&pPool->Work);
-	(void)xrtMutexUnit(&pPool->Lock);
-	xrtFree(pPool->Workers);
-	xrtFree(pPool);
+	size_t iJobs = 0; const xrt_task_job* pTail = NULL;
+	for (const xrt_task_job* pJob = pPool->Head; pJob; pJob = pJob->Next) {
+		if (iJobs++ == pPool->Queued || !pJob->Accepted || pJob->Active || pJob->Destroyed ||
+			pJob->RunningPrevious || pJob->RunningNext) return false;
+		pTail = pJob;
+	}
+	if (iJobs != pPool->Queued || pTail != pPool->Tail) return false;
+	*pCount = pPool->References; return true;
+}
+static bool __xrtTaskPoolOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xtaskpool* pPool = pData; size_t iCount;
+	if (!pVisit || !__xrtTaskPoolOwnershipCount(pData, &iCount)) return false;
+	/* One actual accepted executor reference per queued Job. Tail/Next are
+	 * non-owning links; do not report duplicates or invent worker RC nodes. */
+	for (const xrt_task_job* pJob = pPool->Head; pJob; pJob = pJob->Next)
+		if (!pVisit(__xrtTaskOwnership(pJob), pContext)) return false;
 	return true;
+}
+static const xrtownershipops __xrtTaskPoolOwnershipOps = {
+	__xrtTaskPoolOwnershipCount, __xrtTaskPoolOwnershipTrace
+};
+XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool)
+{ return (xrtownershipref){pPool, pPool ? &__xrtTaskPoolOwnershipOps : NULL}; }
+static bool __xrtTaskPoolHold(const void* pData)
+{
+	xtaskpool* pPool = (xtaskpool*)pData; xrtownershipscope Mutation = {0}; bool bHeld = false;
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (pPool->References && pPool->References < SIZE_MAX && !pPool->OwnershipCleared) {
+		++pPool->References; bHeld = true;
+	}
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation); return bHeld;
+}
+static bool __xrtTaskPoolClaim(const void* pData, const void* pToken)
+{
+	xtaskpool* pPool = (xtaskpool*)pData;
+	if (!pToken || pPool->OwnershipCleared || (pPool->OwnershipClaim && pPool->OwnershipClaim != pToken)) return false;
+	pPool->OwnershipClaim = pToken; return true;
+}
+static void __xrtTaskPoolRestore(const void* pData, const void* pToken)
+{
+	xtaskpool* pPool = (xtaskpool*)pData;
+	if (!pToken || pPool->OwnershipClaim != pToken || pPool->OwnershipCleared) abort();
+	pPool->OwnershipClaim = NULL;
+}
+static bool __xrtTaskPoolPreparationReady(const void* pData)
+{
+	const xtaskpool* pPool = pData;
+	return pPool->Closed && pPool->Joined && !pPool->Joining && !pPool->Destroying &&
+		!pPool->Retiring && !pPool->Entries && __xrtTaskPoolIdleLocked(pPool);
+}
+static xrtownershipprepareresult __xrtTaskPoolPrepare(const void* pData, const void* pToken)
+{
+	xtaskpool* pPool = (xtaskpool*)pData; xrtownershipscope Freeze = {0}, Mutation = {0};
+	if (!xrtOwnershipFreezeTryBegin(&Freeze)) return XRT_OWNERSHIP_PREPARE_BUSY;
+	if (!pToken || pPool->OwnershipClaim != pToken || pPool->OwnershipCleared) abort();
+	bool bReady = __xrtTaskPoolPreparationReady(pData);
+	bool bJoin = !pPool->Entries && !pPool->Joining && !pPool->Destroying && !pPool->Retiring;
+	if (!bReady && bJoin) {
+		/* No native body can hold Lock while waiting for mutation: Entries is
+		 * zero. Worker wakeups release Lock before requesting mutation. */
+		(void)xrtMutexLock(&pPool->Lock);
+		pPool->Closed = true; (void)xrtCondBroadcast(&pPool->Space);
+		bJoin = __xrtTaskPoolIdleLocked(pPool);
+		if (bJoin) { pPool->Shutdown = true; (void)xrtCondBroadcast(&pPool->Work); }
+		for (uint32 i = 0; i < pPool->StartedThreads; ++i)
+			if (!pPool->Workers[i].Exited || pPool->Workers[i].Parked) bJoin = false;
+		if (bJoin) pPool->Joining = true;
+		(void)xrtMutexUnlock(&pPool->Lock);
+	}
+	if (!xrtOwnershipScopeEnd(&Freeze)) abort();
+	if (bReady) return XRT_OWNERSHIP_PREPARE_READY;
+	if (!bJoin) return XRT_OWNERSHIP_PREPARE_BUSY;
+	bool bJoined = true, bFailed = false;
+	for (uint32 i = 0; i < pPool->StartedThreads; ++i) {
+		xwaitresult Result = xrtThreadWaitFor(pPool->Workers[i].Thread, 0);
+		if (Result != XWAIT_OK) { bJoined = false; if (Result != XWAIT_TIMEOUT) bFailed = true; }
+	}
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	pPool->Joining = false; pPool->Joined = bJoined;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	return bFailed ? XRT_OWNERSHIP_PREPARE_FAILED : bJoined ? XRT_OWNERSHIP_PREPARE_READY : XRT_OWNERSHIP_PREPARE_BUSY;
+}
+static void __xrtTaskPoolClear(const void* pData, const void* pToken)
+{
+	xtaskpool* pPool = (xtaskpool*)pData;
+	if (!pToken || pPool->OwnershipClaim != pToken || pPool->OwnershipCleared || !__xrtTaskPoolPreparationReady(pData)) abort();
+	pPool->OwnershipCleared = true;
+}
+static bool __xrtTaskPoolFinish(const void* pData, const void* pToken)
+{
+	xtaskpool* pPool = (xtaskpool*)pData;
+	if (!pToken || pPool->OwnershipClaim != pToken || !pPool->OwnershipCleared) abort();
+	return __xrtTaskPoolRetire(pPool, 0);
+}
+XRT_API const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtTaskPoolHold, __xrtTaskPoolRelease,
+		__xrtTaskPoolClaim, __xrtTaskPoolRestore, NULL, __xrtTaskPoolClear, __xrtTaskPoolFinish};
+	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter,
+		__xrtTaskPoolPreparationReady, __xrtTaskPoolPrepare};
+	size_t iCount;
+	if (!ppPreparation || Reference.Ops != &__xrtTaskPoolOwnershipOps ||
+		!__xrtTaskPoolOwnershipCount(Reference.Data, &iCount)) return NULL;
+	*ppPreparation = &Preparation; return &Adapter;
 }
 
 #endif

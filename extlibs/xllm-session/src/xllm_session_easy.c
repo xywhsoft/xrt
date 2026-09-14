@@ -36,6 +36,10 @@ bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
     xllmRequestInit(&tRequest);
     tRequest.bStream = false;
     tRequest.uMaxOutputTokens = pSession->tConfig.uSummaryMaxTokens;
+    /* One-off summarization prompts must not pollute the prompt cache
+     * (pi behavior): opt out where the dialect supports it; servers that
+     * ignore the field are unaffected. */
+    (void)xllmRequestSetExtraBody(&tRequest, "{\"store\":false}");
     if ( !xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, sPrompt) ) {
         xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build the summary request");
         goto done;

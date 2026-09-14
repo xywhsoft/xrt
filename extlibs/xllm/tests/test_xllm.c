@@ -853,6 +853,7 @@ static void test_oom_injection(void)
 }
 
 #include "fixtures/xllm_tls_identity.h"
+#include "fixtures/xllm_tls_ca_identity.h"
 
 typedef struct test_tls_server_ctx {
     xnetengine* pEngine;
@@ -1007,6 +1008,160 @@ cleanup:
     xrtCancelDestroy(tServer.pCancel);
     xrtTlsContextRelease(pContext);
     xrtTlsIdentityRelease(pIdentity);
+}
+
+
+/* ------------------------------------------------------------------ */
+/* GAP-TLS: private-CA trust (PEM store, borrowed store, wrong-CA      */
+/* rejection) plus the IP-literal no-SNI VerifyName dial path.         */
+/* ------------------------------------------------------------------ */
+
+static void test_tls_private_ca(void)
+{
+    test_tls_server_ctx tServer = {0};
+    xtlscontext* pContext = NULL;
+    xtlsidentity* pIdentity = NULL;
+    xnetaddr tLocal;
+    xnetengineconfig tEngineConfig;
+    xtlspolicy tPolicy;
+    xtlscontextconfig tTlsConfig;
+    xtlslistenerconfig tListenConfig;
+    xbytesview tCert = { xllm_ca_srv_cert_der, sizeof(xllm_ca_srv_cert_der) };
+    xbytesview tKey = { xllm_ca_srv_key_der, sizeof(xllm_ca_srv_key_der) };
+    char sUrl[256];
+    pIdentity = xrtTlsIdentityRsa(&tCert, 1u, tKey);
+    CHECK(pIdentity != NULL, "private-CA loopback identity loads");
+    xrtTlsPolicyInit(&tPolicy);
+    xrtTlsContextConfigInit(&tTlsConfig);
+    tTlsConfig.Policy = &tPolicy;
+    pContext = xrtTlsContextCreate(&tTlsConfig);
+    tServer.pCancel = xrtCancelCreate();
+    xrtNetEngineConfigInit(&tEngineConfig);
+    tServer.pEngine = xrtNetEngineCreate(&tEngineConfig);
+    CHECK(tServer.pCancel && tServer.pEngine && xrtNetEngineStart(tServer.pEngine),
+        "private-CA loopback engine started");
+    xrtTlsListenerConfigInit(&tListenConfig);
+    CHECK(xrtNetAddrParse(&tListenConfig.Listen.Address, "127.0.0.1", 0u),
+        "private-CA loopback address parsed");
+    tListenConfig.Tls.Context = pContext;
+    tListenConfig.Tls.Identity = pIdentity;
+    tServer.pListener = xrtTlsListenerStart(tServer.pEngine, &tListenConfig, NULL, NULL, NULL);
+    CHECK(tServer.pListener != NULL && xrtTlsListenerLocal(tServer.pListener, &tLocal),
+        "private-CA loopback listener started");
+    if ( !tServer.pListener ) goto cleanup;
+    tServer.uPort = tLocal.Port;
+    tServer.pThread = xrtThreadCreate(test_tls_server_thread, &tServer, 0u);
+    CHECK(tServer.pThread != NULL, "private-CA server thread started");
+    (void)snprintf(sUrl, sizeof(sUrl), "https://127.0.0.1:%u/v1", (unsigned)tServer.uPort);
+
+    {   /* sCaPem: full chain verification over an IP-literal host (no SNI). */
+        xllm_client_config tConfig;
+        xllm_client* pClient = NULL;
+        xllm_request tRequest;
+        xllm_response* pResponse = NULL;
+        xllm_error tError;
+        xllmClientConfigInit(&tConfig);
+        tConfig.sBaseUrl = sUrl;
+        tConfig.sApiKey = "test-key";
+        tConfig.sModel = "tls-model";
+        tConfig.eProvider = XLLM_PROVIDER_OPENAI_COMPAT;
+        tConfig.uMaxOutputTokens = 64u;
+        tConfig.uTimeoutMs = 15000u;
+        tConfig.sCaPem = xllm_ca_pem;
+        pClient = xllmClientCreate(&tConfig, &tError);
+        CHECK(pClient != NULL, "private-CA client created");
+        if ( pClient ) {
+            xllmRequestInit(&tRequest);
+            tRequest.bStream = false;
+            (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+            CHECK(xllmClientComplete(pClient, &tRequest, NULL, &pResponse, &tError) == XLLM_RESULT_OK &&
+                pResponse && pResponse->sContent && strcmp(pResponse->sContent, "secure hello") == 0,
+                "CA PEM store verifies the chain and matches the IP SAN");
+            if ( !pResponse ) {
+                printf("    ca pem error: %s | phase=%s err=%s\n",
+                    tError.sMessage, tError.tDiagnostics.sTransportPhase,
+                    tError.tDiagnostics.sTransportError);
+            }
+            xllmResponseDestroy(pResponse);
+            pResponse = NULL;
+            xllmRequestUnit(&tRequest);
+            xllmClientDestroy(pClient);
+        }
+    }
+    {   /* wrong CA: the handshake must fail verification, no silent fallback */
+        xllm_client_config tConfig;
+        xllm_client* pClient = NULL;
+        xllm_request tRequest;
+        xllm_response* pResponse = NULL;
+        xllm_error tError;
+        xllmClientConfigInit(&tConfig);
+        tConfig.sBaseUrl = sUrl;
+        tConfig.sApiKey = "test-key";
+        tConfig.sModel = "tls-model";
+        tConfig.eProvider = XLLM_PROVIDER_OPENAI_COMPAT;
+        tConfig.uMaxOutputTokens = 64u;
+        tConfig.uTimeoutMs = 8000u;
+        tConfig.uMaxAttempts = 1u;
+        tConfig.sCaPem = xllm_wrong_ca_pem;
+        pClient = xllmClientCreate(&tConfig, &tError);
+        CHECK(pClient != NULL, "wrong-CA client created");
+        if ( pClient ) {
+            xllm_result eResult;
+            xllmRequestInit(&tRequest);
+            tRequest.bStream = false;
+            (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+            eResult = xllmClientComplete(pClient, &tRequest, NULL, &pResponse, &tError);
+            CHECK(eResult != XLLM_RESULT_OK && pResponse == NULL,
+                "wrong CA fails verification instead of silently degrading");
+            if ( eResult == XLLM_RESULT_OK ) { xllmResponseDestroy(pResponse); }
+            xllmRequestUnit(&tRequest);
+            xllmClientDestroy(pClient);
+        }
+    }
+    {   /* borrowed pX509Store outranks sCaPem */
+        xllm_client_config tConfig;
+        xllm_client* pClient = NULL;
+        xllm_request tRequest;
+        xllm_response* pResponse = NULL;
+        xllm_error tError;
+        xx509store* pStore = xrtX509StoreCreate();
+        size_t iAdded = 0u;
+        bool bLoaded = pStore && xrtX509StoreAddPem(pStore, xllm_ca_pem,
+            strlen(xllm_ca_pem), &iAdded) && iAdded == 1u;
+        CHECK(bLoaded, "test-side borrowed store loads the CA PEM");
+        xllmClientConfigInit(&tConfig);
+        tConfig.sBaseUrl = sUrl;
+        tConfig.sApiKey = "test-key";
+        tConfig.sModel = "tls-model";
+        tConfig.eProvider = XLLM_PROVIDER_OPENAI_COMPAT;
+        tConfig.uMaxOutputTokens = 64u;
+        tConfig.uTimeoutMs = 15000u;
+        tConfig.sCaPem = xllm_wrong_ca_pem; /* must lose against the store */
+        tConfig.pX509Store = pStore;
+        pClient = bLoaded ? xllmClientCreate(&tConfig, &tError) : NULL;
+        CHECK(pClient != NULL, "borrowed-store client created");
+        if ( pClient ) {
+            xllmRequestInit(&tRequest);
+            tRequest.bStream = false;
+            (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+            CHECK(xllmClientComplete(pClient, &tRequest, NULL, &pResponse, &tError) == XLLM_RESULT_OK &&
+                pResponse && pResponse->sContent && strcmp(pResponse->sContent, "secure hello") == 0,
+                "borrowed store outranks the (wrong) CA PEM field");
+            xllmResponseDestroy(pResponse);
+            xllmRequestUnit(&tRequest);
+            xllmClientDestroy(pClient);
+        }
+        xrtX509StoreFree(pStore);
+    }
+
+cleanup:
+    if ( tServer.pCancel ) { xrtCancelRequest(tServer.pCancel); }
+    if ( tServer.pThread ) { (void)xrtThreadWait(tServer.pThread); xrtThreadDestroy(tServer.pThread); }
+    if ( tServer.pListener ) { xrtTlsListenerDestroy(tServer.pListener); }
+    if ( tServer.pEngine ) { xrtNetEngineStop(tServer.pEngine); xrtNetEngineDestroy(tServer.pEngine); }
+    if ( tServer.pCancel ) { xrtCancelDestroy(tServer.pCancel); }
+    if ( pIdentity ) { xrtTlsIdentityRelease(pIdentity); }
+    if ( pContext ) { xrtTlsContextRelease(pContext); }
 }
 
 static void test_async_engine(void)
@@ -1438,6 +1593,7 @@ int main(void)
     test_oom_injection();
     test_audit_hardening();
     test_tls_transport();
+    test_tls_private_ca();
     test_fragmented_parser();
     test_malformed_parser();
     test_transport();

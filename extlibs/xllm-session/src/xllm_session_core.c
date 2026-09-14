@@ -351,9 +351,12 @@ uint64_t xllmSessionCurrentTurn(const xllm_session* pSession)
  * rejected at accounting time, before it can ride into any render. */
 static bool xllm_session__cap_ok(const xllm_session* pSession, xllm_role eRole, const char* sContent)
 {
-    uint32_t uCap = eRole == XLLM_ROLE_USER
-        ? pSession->tConfig.uUserMessageCapBytes
-        : pSession->tConfig.uToolResultCapBytes;
+    uint32_t uCap = 0u; /* assistant/system content is not cap-checked */
+    if ( eRole == XLLM_ROLE_USER ) {
+        uCap = pSession->tConfig.uUserMessageCapBytes;
+    } else if ( eRole == XLLM_ROLE_TOOL ) {
+        uCap = pSession->tConfig.uToolResultCapBytes;
+    }
     return uCap == 0u || !sContent || strlen(sContent) <= (size_t)uCap;
 }
 

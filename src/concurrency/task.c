@@ -32,6 +32,8 @@ static bool __xrtTaskOwnershipTrace(const void* pData, xrtownershipvisitor pVisi
 		(pJob->Data == NULL || pVisit((xrtownershipref){pJob->Data, pJob->DataPolicy->Ops}, pContext));
 }
 static const xrtownershipops __xrtTaskOwnershipOps = {__xrtTaskOwnershipCount, __xrtTaskOwnershipTrace};
+xrtownershipref __xrtTaskOwnership(const xrt_task_job* pJob)
+{ return (xrtownershipref){pJob, pJob != NULL ? &__xrtTaskOwnershipOps : NULL}; }
 static bool __xrtTaskHold(const void* pData)
 {
 	xrt_task_job* pJob = (xrt_task_job*)pData; xrtownershipscope Mutation = {0}; bool bHeld;

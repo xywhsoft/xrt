@@ -52,11 +52,11 @@ SMTP 是 1982 年的对话协议：客户端发命令（`EHLO`/`MAIL FROM`/`RCPT
 
 下面的程序来自 `examples/smtp/protocol`——协议原语的离线闭环：
 
-```embed path="extlibs/xmail/examples/smtp/protocol/main.c" title="extlibs/xmail/examples/smtp/protocol/main.c"
+```embed path="extlibs/xsmtp/examples/protocol/main.c" title="extlibs/xsmtp/examples/protocol/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/smtp/protocol/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/protocol/main.c -lws2_32 -liphlpapi
 （输出能力合并与 EHLO 命令构建的自检结果）
 ```
 
@@ -66,11 +66,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extli
 
 第二个程序来自 `examples/smtp/client`——真实会话的同步闭环：
 
-```embed path="extlibs/xmail/examples/smtp/client/main.c" title="extlibs/xmail/examples/smtp/client/main.c"
+```embed path="extlibs/xsmtp/examples/client/main.c" title="extlibs/xsmtp/examples/client/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/smtp/client/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/client/main.c -lws2_32 -liphlpapi
 （对配置的 SMTP 服务器完成发送会话后正常退出）
 ```
 

@@ -80,11 +80,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extli
 
 第二个程序来自 `examples/smtp/submit`——最高层的发送：
 
-```embed path="extlibs/xmail/examples/smtp/submit/main.c" title="extlibs/xmail/examples/smtp/submit/main.c"
+```embed path="extlibs/xsmtp/examples/submit/main.c" title="extlibs/xsmtp/examples/submit/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/smtp/submit/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/submit/main.c -lws2_32 -liphlpapi
 （对配置的服务器完成一次提交后正常退出）
 ```
 
