@@ -62,7 +62,7 @@ int main(void)
 	printf("[live] kid=%s\n", Client.sKid);
 
 	Domains[0] = XRT_STR_LITERAL("test.xxrpa.com");
-	if(!xacmeClientIssue(&Client, Domains, 1u, &Ali, &Grant))
+	if(!xacmeClientIssue(&Client, Domains, 1u, &Ali, &Grant, false))
 	{
 		const xerror* pE = xrtGetError();
 		const xerror* pC = pE;

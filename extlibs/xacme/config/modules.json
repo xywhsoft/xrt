@@ -331,11 +331,33 @@
    "legacy": []
   },
   {
+   "name": "acme_dns_response_fuzz_tests",
+   "state": "implemented",
+   "feature": null,
+   "depends": [
+    "acme_dns"
+   ],
+   "public_headers": [],
+   "internal_headers": [],
+   "sources": [],
+   "fuzz_sources": [
+    "extlibs/xacme/fuzz/acme_dns_response.c"
+   ],
+   "tests": [
+    "extlibs/xacme/tests/acme/test_dnstxt_fuzz.c"
+   ],
+   "single_tests": [],
+   "examples": [],
+   "docs": [],
+   "legacy": []
+  },
+  {
    "name": "xacme_tests",
    "state": "implemented",
    "feature": null,
    "depends": [
-    "xacme"
+    "xacme",
+    "memory_debug"
    ],
    "public_headers": [],
    "internal_headers": [],
@@ -344,6 +366,7 @@
     "extlibs/xacme/tests/acme/test_core_config.c",
     "extlibs/xacme/tests/acme/test_client.c",
     "extlibs/xacme/tests/acme/test_csr.c",
+    "extlibs/xacme/tests/acme/test_csr_oom.c",
     "extlibs/xacme/tests/acme/test_dns_provider.c",
     "extlibs/xacme/tests/acme/test_dnsali.c",
     "extlibs/xacme/tests/acme/test_dnsaws.c",
@@ -351,13 +374,16 @@
     "extlibs/xacme/tests/acme/test_dnshuawei.c",
     "extlibs/xacme/tests/acme/test_dnstencent.c",
     "extlibs/xacme/tests/acme/test_dnstxt.c",
+    "extlibs/xacme/tests/acme/test_dnstxt_fuzz.c",
     "extlibs/xacme/tests/acme/test_flow.c",
     "extlibs/xacme/tests/acme/test_flow_live.c",
     "extlibs/xacme/tests/acme/test_http.c",
     "extlibs/xacme/tests/acme/test_jose.c",
+    "extlibs/xacme/tests/acme/test_jose_oom.c",
     "extlibs/xacme/tests/acme/test_obtain.c",
     "extlibs/xacme/tests/acme/test_registry.c",
     "extlibs/xacme/tests/acme/test_store.c",
+    "extlibs/xacme/tests/acme/test_store_oom.c",
     "extlibs/xacme/tests/acme/test_tlsdbg.c",
     "extlibs/xacme/tests/package/test_consumer.c"
    ],

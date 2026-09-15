@@ -42788,6 +42788,13 @@ XRT_EXTERN_C_END
 
 struct xnetengine;
 
+/*
+	线程安全契约：客户端与 provider 实例为单线程归属对象——同一
+	实例的任意两个调用不得并发；跨线程使用需宿主外部串行化。
+	不同实例（各自 Create 的客户端/provider）之间无共享状态，
+	可并行使用。全部 API 为同步阻塞调用。
+*/
+
 #if defined(XACME_FEATURE_ACME_FLOW)
 
 /*
@@ -42845,6 +42852,20 @@ XRT_API bool xrtAcmeClientIssue(
 );
 
 /*
+	Issue 的备用链变体：bPreferAlternate 时若证书响应的 Link 头带
+	rel="alternate"（RFC 8555 §7.4.2），改用备用链下载；备用链获取
+	失败自动回退主链，不视为错误。
+*/
+XRT_API bool xrtAcmeClientIssueEx(
+	struct xacmeclient* pClient,
+	const xstrview* pDomains,
+	size_t iDomainCount,
+	const xacmednsprovider* pDns,
+	bool bPreferAlternate,
+	xacmeissuegrant* pOut
+);
+
+/*
 	吊销证书（RFC 8555 §7.6，账户钥签名）：sCertPem 为单张证书
 	（取首个 PEM 块）；iReason 0-9（RFC 5280 CRLReason），<0 省略。
 	已被吊销视为幂等成功。要求 directory 提供 revokeCert 端点。
@@ -42853,6 +42874,17 @@ XRT_API bool xrtAcmeClientRevoke(
 	struct xacmeclient* pClient,
 	cstr sCertPem,
 	int iReason
+);
+
+/*
+	账户密钥滚动（RFC 8555 §7.3.5）：用 sNewKeyPem（PKCS#8/SEC1）
+	替换当前账户密钥，账户 kid 不变。要求 directory 提供 keyChange
+	端点；成功后客户端即刻使用新钥，宿主应经 xrtAcmeClientAccountPem
+	重新持久化。
+*/
+XRT_API bool xrtAcmeClientRollover(
+	struct xacmeclient* pClient,
+	cstr sNewKeyPem
 );
 
 #endif
@@ -61929,6 +61961,20 @@ bool xacmeDnsTxtQuery(
 	size_t* pOutCount
 );
 
+/*
+	解析完整 DNS 响应报文为 TXT 记录集合（不可信网络输入的唯一
+	消化口，fuzz 目标）。QR 位缺失/结构损坏 → false；RCODE 非零
+	→ true 且零记录。每条记录严格小于 XACME_TXT_RECORD_MAX。
+*/
+bool xacmeTxtParseResponse(
+	const uint8* pData,
+	size_t iSize,
+	uint16 uExpectId,
+	char (*sOutRecords)[XACME_TXT_RECORD_MAX],
+	size_t iCapacity,
+	size_t* pOutCount
+);
+
 /* 轮询直到期望 TXT 值在解析器可见；超时返回 false。 */
 bool xacmeDnsTxtWait(
 	xacmedns* pDns,
@@ -61993,6 +62039,7 @@ typedef struct xacmeclient {
 	char sNewAccount[512];
 	char sNewOrder[512];
 	char sRevokeCert[512];
+	char sKeyChange[512];
 	char sNonce[512];
 	/* 传播确认 resolver（IP 字面量）与预算；空组走默认组。 */
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
@@ -62027,15 +62074,28 @@ str xacmeClientAccountPem(const xacmeclient* pClient);
 
 /*
 	一次 dns-01 签发：域名可含通配符（*. 前缀）；产物含证书链与
-	配对私钥（均 xrtFree）。失败返回 false 并设置线程错误；
-	provider 的 Add 在挑战触发前调用、Remove 在结束后尽力调用。
+	配对私钥（均 xrtFree）。bAlt 时若证书响应带 rel="alternate"
+	备用链则优先采用（失败回退主链）。失败返回 false 并设置线程
+	错误；provider 的 Add 在挑战触发前调用、Remove 在结束后尽力
+	调用。
 */
 bool xacmeClientIssue(
 	xacmeclient* pClient,
 	const xstrview* pDomains,
 	size_t iDomainCount,
 	const struct xacmednsprovider* pDns,
-	xacmeissuegrant* pOut
+	xacmeissuegrant* pOut,
+	bool bPreferAlternate
+);
+
+/*
+	账户密钥滚动（RFC 8555 §7.3.5）：用 sNewKeyPem（PKCS#8/SEC1）
+	替换当前账户密钥，kid 不变。要求 directory 提供 keyChange 端点；
+	成功后客户端内存密钥同步替换（持久化由宿主经 AccountPem 重存）。
+*/
+bool xacmeClientRollover(
+	xacmeclient* pClient,
+	cstr sNewKeyPem
 );
 
 /*
@@ -320612,9 +320672,14 @@ static bool xacmeHttpExchangeOnce(
 			}
 			if(iGot == 0)
 			{
+				/* 连接在收到任何响应字节前关闭 = 传输层故障
+				   （可重试）；已收到部分头才算协议截断。 */
 				xacmeHttpError(
-					XERR_PROTOCOL, XACME_HTTP_ERROR_PROTOCOL,
-					"acme http response head truncated");
+					(Received.Size == 0u) ? XERR_IO : XERR_PROTOCOL,
+					XACME_HTTP_ERROR_PROTOCOL,
+					(Received.Size == 0u) ?
+						"acme http connection closed before response" :
+						"acme http response head truncated");
 				goto Done;
 			}
 			if(!xrtBufferAppend(&Received, (xbytesview){ Chunk, iUsed }))
@@ -321900,8 +321965,115 @@ static bool xacmeTxtReadU16(
 	{
 		return false;
 	}
-	*pOut = (uint16)(((uint16)p[*pAt] << 8u) | p[*pAt + 1u]);
+	*pOut = (uint16)(((uint16)p[*pAt] << 8u) | p[*pAt + 1]);
 	*pAt += 2u;
+	return true;
+}
+
+/*
+	解析完整 DNS 响应报文为 TXT 记录集合（不可信网络输入的唯一
+	消化口，fuzz 目标）。QR 位缺失/结构损坏 → false；RCODE 非零
+	（NXDOMAIN 等）→ true 且零记录。记录值拼接 character-string，
+	每条以零结尾且严格小于 XACME_TXT_RECORD_MAX。
+*/
+bool xacmeTxtParseResponse(
+	const uint8* p, size_t iSize, uint16 uExpectId,
+	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity,
+	size_t* pOutCount)
+{
+	size_t iAt;
+	uint16 iQuestions;
+	uint16 iAnswers;
+	uint16 iFlags;
+
+	*pOutCount = 0u;
+	if((p == NULL) || (iSize < 12u) || (sOutRecords == NULL) ||
+		(pOutCount == NULL) || (iCapacity == 0u))
+	{
+		return false;
+	}
+	if((p[0] != (uint8)(uExpectId >> 8u)) ||
+		(p[1] != (uint8)uExpectId))
+	{
+		return false;
+	}
+	iFlags = (uint16)(((uint16)p[2] << 8u) | p[3]);
+	if((iFlags & 0x8000u) == 0u)
+	{
+		return false;
+	}
+	if((iFlags & 0x000Fu) != 0u)
+	{
+		return true; /* NXDOMAIN 等：无记录，成功返回零。 */
+	}
+	iAt = 4u;
+	if(!xacmeTxtReadU16(p, iSize, &iAt, &iQuestions) ||
+		!xacmeTxtReadU16(p, iSize, &iAt, &iAnswers))
+	{
+		return false;
+	}
+	iAt = 12u;
+	for(; iQuestions > 0u; iQuestions--)
+	{
+		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
+		if((iSkip == 0u) || ((iAt + iSkip + 4u) > iSize))
+		{
+			return false;
+		}
+		iAt += iSkip + 4u;
+	}
+	for(; iAnswers > 0u; iAnswers--)
+	{
+		uint16 iType;
+		uint16 iClass;
+		uint16 iRdLength;
+		size_t iRdAt;
+		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
+		if(iSkip == 0u)
+		{
+			return false;
+		}
+		iAt += iSkip;
+		if(!xacmeTxtReadU16(p, iSize, &iAt, &iType) ||
+			!xacmeTxtReadU16(p, iSize, &iAt, &iClass) ||
+			(iAt + 4u > iSize))
+		{
+			return false;
+		}
+		iAt += 4u; /* TTL */
+		if(!xacmeTxtReadU16(p, iSize, &iAt, &iRdLength) ||
+			((iAt + iRdLength) > iSize))
+		{
+			return false;
+		}
+		iRdAt = iAt;
+		iAt += iRdLength;
+		if((iType != 0x0010u) || (iClass != 0x0001u) ||
+			(*pOutCount >= iCapacity))
+		{
+			continue;
+		}
+		/* TXT rdata = 若干 character-string，拼接为一条记录值。 */
+		{
+			size_t iUsed = 0u;
+			char* sRecord = sOutRecords[*pOutCount];
+			while(iRdAt < iAt)
+			{
+				uint8 iStrLen = p[iRdAt];
+				iRdAt += 1u;
+				if((iStrLen == 0u) || ((iRdAt + iStrLen) > iAt) ||
+					((iUsed + iStrLen) >= XACME_TXT_RECORD_MAX))
+				{
+					return false;
+				}
+				memcpy(sRecord + iUsed, p + iRdAt, iStrLen);
+				iUsed += iStrLen;
+				iRdAt += iStrLen;
+			}
+			sRecord[iUsed] = '\0';
+			(*pOutCount)++;
+		}
+	}
 	return true;
 }
 
@@ -321915,12 +322087,8 @@ bool xacmeDnsTxtQuery(
 	xnetudp* pUdp = NULL;
 	xnetudppacket* pPacket = NULL;
 	uint16 iId;
-	const uint8* p = NULL;
-	size_t iSize = 0u;
-	size_t iAt;
-	uint16 iQuestions;
-	uint16 iAnswers;
-	uint16 iFlags;
+	const uint8* p;
+	size_t iSize;
 	bool bOk = false;
 
 	if((pDns == NULL) || (sResolver == NULL) || (sFqdn == NULL) ||
@@ -322022,85 +322190,14 @@ bool xacmeDnsTxtQuery(
 
 	p = xrtNetUdpPacketData(pPacket);
 	iSize = xrtNetUdpPacketSize(pPacket);
-	iAt = 12u;
-	iFlags = (uint16)(((uint16)p[2] << 8u) | p[3]);
-	if((iFlags & 0x8000u) == 0u)
+	if(!xacmeTxtParseResponse(p, iSize, iId, sOutRecords, iCapacity,
+			pOutCount))
 	{
-		goto Protocol;
-	}
-	if((iFlags & 0x000Fu) != 0u)
-	{
-		/* NXDOMAIN 等：无记录，成功返回零。 */
-		bOk = true;
+		if(xrtGetError() == NULL)
+		{
+			goto Protocol;
+		}
 		goto Done;
-	}
-	iAt = 4u;
-	if(!xacmeTxtReadU16(p, iSize, &iAt, &iQuestions) ||
-		!xacmeTxtReadU16(p, iSize, &iAt, &iAnswers))
-	{
-		goto Protocol;
-	}
-	iAt = 12u;
-	for(; iQuestions > 0u; iQuestions--)
-	{
-		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
-		if((iSkip == 0u) || ((iAt + iSkip + 4u) > iSize))
-		{
-			goto Protocol;
-		}
-		iAt += iSkip + 4u;
-	}
-	for(; iAnswers > 0u; iAnswers--)
-	{
-		uint16 iType;
-		uint16 iClass;
-		uint16 iRdLength;
-		size_t iRdAt;
-		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
-		if(iSkip == 0u)
-		{
-			goto Protocol;
-		}
-		iAt += iSkip;
-		if(!xacmeTxtReadU16(p, iSize, &iAt, &iType) ||
-			!xacmeTxtReadU16(p, iSize, &iAt, &iClass) ||
-			(iAt + 4u > iSize))
-		{
-			goto Protocol;
-		}
-		iAt += 4u; /* TTL */
-		if(!xacmeTxtReadU16(p, iSize, &iAt, &iRdLength) ||
-			((iAt + iRdLength) > iSize))
-		{
-			goto Protocol;
-		}
-		iRdAt = iAt;
-		iAt += iRdLength;
-		if((iType != 0x0010u) || (iClass != 0x0001u) ||
-			(*pOutCount >= iCapacity))
-		{
-			continue;
-		}
-		/* TXT rdata = 若干 character-string，拼接为一条记录值。 */
-		{
-			size_t iUsed = 0u;
-			char* sRecord = sOutRecords[*pOutCount];
-			while(iRdAt < iAt)
-			{
-				uint8 iStrLen = p[iRdAt];
-				iRdAt += 1u;
-				if((iStrLen == 0u) || ((iRdAt + iStrLen) > iAt) ||
-					((iUsed + iStrLen) >= XACME_TXT_RECORD_MAX))
-				{
-					goto Protocol;
-				}
-				memcpy(sRecord + iUsed, p + iRdAt, iStrLen);
-				iUsed += iStrLen;
-				iRdAt += iStrLen;
-			}
-			sRecord[iUsed] = '\0';
-			(*pOutCount)++;
-		}
 	}
 	bOk = true;
 
@@ -322876,9 +322973,15 @@ str xrtAcmeStoreLoadCert(cstr sRoot, cstr sPrimaryDomain)
 	pBytes = xrtFileReadAll(sPath, &iSize);
 	if(pBytes == NULL)
 	{
-		xacmeStoreError(
-			XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
-			"acme store cert not found");
+		/* 只有文件确实缺失才归类 NOT_FOUND；
+		   读取/分配失败保留底层根因（IO/MEMORY），
+		   续签判定不得把读故障吞成"缺证书"。 */
+		if(!xrtFileExists(sPath))
+		{
+			xacmeStoreError(
+				XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
+				"acme store cert not found");
+		}
 		return NULL;
 	}
 	sPem = (str)xrtMalloc(iSize + 1u);
@@ -323087,6 +323190,11 @@ bool xrtAcmeStoreNeedRenew(
 	sChain = xrtAcmeStoreLoadCert(sRoot, sPrimaryDomain);
 	if(sChain == NULL)
 	{
+		if(xrtErrorKind(xrtGetError()) != XERR_NOT_FOUND)
+		{
+			/* 读故障不是"缺证书"：如实失败，避免误触重签。 */
+			return false;
+		}
 		return true; /* 缺证书即需要签发。 */
 	}
 	if(!xrtPemInit(&Pem, sChain, strlen(sChain)) ||
@@ -323229,6 +323337,52 @@ static bool xacmeJsonValueText(
 	pOut->sData[Text.Size] = '\0';
 	pOut->iSize = Text.Size;
 	return true;
+}
+
+/* 从 Link 头提取 rel="alternate" 的 URL（RFC 8288 朴素形态）。 */
+static bool xacmeFlowLinkAlternate(cstr sLink, char* sOut, size_t iCap)
+{
+	const char* p = sLink;
+	if((sLink == NULL) || (iCap == 0u))
+	{
+		return false;
+	}
+	while((p = strchr(p, '<')) != NULL)
+	{
+		const char* pEnd = strchr(p, '>');
+		const char* pRel;
+		const char* pSeg;
+		if(pEnd == NULL)
+		{
+			return false;
+		}
+		pSeg = pEnd;
+		for(;;)
+		{
+			const char* pComma = strchr(pSeg, ',');
+			pRel = strstr(pSeg, "rel=");
+			if((pRel != NULL) &&
+				((pComma == NULL) || (pRel < pComma)) &&
+				(strncmp(pRel + 4u, "\"alternate\"", 11u) == 0))
+			{
+				size_t iLen = (size_t)(pEnd - p - 1u);
+				if((iLen == 0u) || (iLen >= iCap))
+				{
+					return false;
+				}
+				memcpy(sOut, p + 1u, iLen);
+				sOut[iLen] = '\0';
+				return true;
+			}
+			if(pComma == NULL)
+			{
+				break;
+			}
+			pSeg = pComma + 1u;
+		}
+		p = pEnd;
+	}
+	return false;
 }
 
 /* ---------------- nonce 与 POST ---------------- */
@@ -323746,14 +323900,20 @@ bool xacmeClientInit(
 			"acme client directory url too long");
 		goto Done;
 	}
-	/* revokeCert 可选：没有它的 CA 不支持吊销路径。 */
+	/* revokeCert/keyChange 可选：缺失时对应路径显式报错。 */
 	{
-		xacmeflowurl RevokeCert;
-		if(xacmeJsonValueText(pRoot, "revokeCert", &RevokeCert))
+		xacmeflowurl Optional;
+		if(xacmeJsonValueText(pRoot, "revokeCert", &Optional))
 		{
 			(void)xacmeFlowCopyText(
 				pClient->sRevokeCert, sizeof(pClient->sRevokeCert),
-				RevokeCert.sData);
+				Optional.sData);
+		}
+		if(xacmeJsonValueText(pRoot, "keyChange", &Optional))
+		{
+			(void)xacmeFlowCopyText(
+				pClient->sKeyChange, sizeof(pClient->sKeyChange),
+				Optional.sData);
 		}
 	}
 
@@ -323918,7 +324078,8 @@ str xacmeClientAccountPem(const xacmeclient* pClient)
 
 bool xacmeClientIssue(
 	xacmeclient* pClient, const xstrview* pDomains, size_t iDomainCount,
-	const struct xacmednsprovider* pDns, xacmeissuegrant* pOut)
+	const struct xacmednsprovider* pDns, xacmeissuegrant* pOut,
+	bool bAlt)
 {
 	xbuffer Payload;
 	xacmehttpresponse R;
@@ -324419,6 +324580,27 @@ bool xacmeClientIssue(
 	}
 	pOut->sFullchainPem = R.sBody;
 	R.sBody = NULL;
+	/* 备用链：Link 头携带 rel="alternate" 的第二下载地址。 */
+	if(bAlt && (R.sLink != NULL))
+	{
+		char sAlternate[512];
+		if(xacmeFlowLinkAlternate(R.sLink, sAlternate,
+				sizeof(sAlternate)))
+		{
+			xacmehttpresponse Alt;
+			if(xacmeFlowPostAsGet(pClient, sAlternate, &Alt) &&
+				(Alt.iStatus == 200u) && (Alt.sBody != NULL) &&
+				(Alt.iBodySize != 0u))
+			{
+				xrtFree(pOut->sFullchainPem);
+				pOut->sFullchainPem = Alt.sBody;
+				Alt.sBody = NULL;
+			}
+			/* 备用链失败不阻断：主链始终有效。 */
+			xacmeHttpResponseUnit(&Alt);
+			xrtClearError();
+		}
+	}
 	xacmeHttpResponseUnit(&R);
 	bResult = true;
 
@@ -324473,7 +324655,9 @@ bool xacmeClientIssueStored(
 	{
 		return xrtAcmeStoreLoadGrant(sStoreRoot, sPrimary, pOut);
 	}
-	if(!xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut))
+	if(!xacmeClientIssue(
+			pClient, pDomains, iDomainCount, pDns,
+			pOut, false))
 	{
 		return false;
 	}
@@ -324583,6 +324767,141 @@ bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
 }
 #endif
 
+#if defined(XACME_FEATURE_ACME_FLOW)
+bool xacmeClientRollover(xacmeclient* pClient, cstr sNewKeyPem)
+{
+	xacmees256key NewKey;
+	str sOldJwk = NULL;
+	str sPayload = NULL;
+	str sInner = NULL;
+	str sOuter = NULL;
+	bool bOk = false;
+
+	if((pClient == NULL) || (sNewKeyPem == NULL) ||
+		(sNewKeyPem[0] == '\0'))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme rollover requires client and new key pem");
+		return false;
+	}
+	if(pClient->sKeyChange[0] == '\0')
+	{
+		xacmeFlowError(
+			XERR_UNSUPPORTED, XACME_FLOW_ERROR_PROTOCOL,
+			"acme rollover requires directory keyChange endpoint");
+		return false;
+	}
+	if(!xacmeKeyPemRead(sNewKeyPem, strlen(sNewKeyPem), &NewKey))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+			"acme rollover new key pem invalid");
+		return false;
+	}
+	sOldJwk = xacmeJwkEcJson(&pClient->AccountKey);
+	if(sOldJwk == NULL)
+	{
+		goto Done;
+	}
+	/* 内层 JWS：旧钥签名，载荷 {account, oldKey}。 */
+	{
+		xbuffer Payload;
+		xacmejwsheader Inner;
+		xrtBufferInit(&Payload);
+		if(!xrtBufferAppend(
+				&Payload, XRT_BYTES_LITERAL("{\"account\":")) ||
+			!xacmeJsonQuoteAppend(
+				&Payload,
+				(xstrview){ pClient->sKid, strlen(pClient->sKid) }) ||
+			!xrtBufferAppend(
+				&Payload, XRT_BYTES_LITERAL(",\"oldKey\":")) ||
+			!xrtBufferAppend(
+				&Payload,
+				(xbytesview){
+					(const uint8*)sOldJwk, strlen(sOldJwk) }) ||
+			!xrtBufferAppendByte(&Payload, (uint8)'}'))
+		{
+			xrtBufferUnit(&Payload);
+			goto Done;
+		}
+		Inner.Nonce.Data = NULL;
+		Inner.Nonce.Size = 0u;
+		Inner.Url = (xstrview){
+			pClient->sKeyChange, strlen(pClient->sKeyChange) };
+		Inner.Kid = (xstrview){ pClient->sKid, strlen(pClient->sKid) };
+		sInner = xacmeJwsEs256(
+			&pClient->AccountKey, &Inner,
+			(xstrview){ (cstr)Payload.Data, Payload.Size });
+		xrtBufferUnit(&Payload);
+	}
+	if(sInner == NULL)
+	{
+		goto Done;
+	}
+	/* 外层 JWS：新钥签名（保护头嵌新 JWK + nonce），载荷 = 内层
+	   JWS；keyChange 不经 xacmeFlowPost（那会再包一层签名）。 */
+	if(!xacmeFlowNewNonce(pClient))
+	{
+		goto Done;
+	}
+	{
+		xacmejwsheader Outer;
+		Outer.Nonce = (xstrview){
+			pClient->sNonce, strlen(pClient->sNonce) };
+		Outer.Url = (xstrview){
+			pClient->sKeyChange, strlen(pClient->sKeyChange) };
+		Outer.Kid.Data = NULL;
+		Outer.Kid.Size = 0u; /* 空 kid → 嵌入新 JWK。 */
+		sOuter = xacmeJwsEs256(
+			&NewKey, &Outer, (xstrview){ sInner, strlen(sInner) });
+	}
+	if(sOuter == NULL)
+	{
+		goto Done;
+	}
+	pClient->sNonce[0] = '\0';
+	{
+		xacmehttpresponse R;
+		if(!xacmeHttpExchange(
+				&pClient->Http, "POST", pClient->sKeyChange,
+				"application/jose+json",
+				(xstrview){ sOuter, strlen(sOuter) }, &R))
+		{
+			goto Done;
+		}
+		xacmeFlowTakeNonce(pClient, &R);
+		if(R.iStatus != 200u)
+		{
+			char sDetail[220];
+			snprintf(sDetail, sizeof(sDetail),
+				"acme rollover status=%u body=%.150s",
+				(unsigned)R.iStatus,
+				(R.sBody != NULL) ? R.sBody : "");
+			xacmeHttpResponseUnit(&R);
+			xacmeFlowError(
+				XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT, sDetail);
+			goto Done;
+		}
+		xacmeHttpResponseUnit(&R);
+	}
+	/* 生效：旧钥擦除，客户端切到新钥（kid 不变）。 */
+	xrtSecureZero(&pClient->AccountKey, sizeof(pClient->AccountKey));
+	pClient->AccountKey = NewKey;
+	memset(&NewKey, 0, sizeof(NewKey));
+	bOk = true;
+
+Done:
+	/* 失败时擦除新钥副本。 */
+	xrtSecureZero(&NewKey, sizeof(NewKey));
+	xrtFree(sOldJwk);
+	xrtFree(sPayload);
+	xrtFree(sInner);
+	xrtFree(sOuter);
+	return bOk;
+}
+#endif
+
 /* ---------------- 公开客户端 API（xrt/acme_client.h） ---------------- */
 
 #if defined(XACME_FEATURE_ACME_FLOW)
@@ -324682,7 +325001,23 @@ bool xrtAcmeClientIssue(
 	size_t iDomainCount, const xacmednsprovider* pDns,
 	xacmeissuegrant* pOut)
 {
-	return xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut);
+	return xrtAcmeClientIssueEx(
+		pClient, pDomains, iDomainCount, pDns, false, pOut);
+}
+
+bool xrtAcmeClientIssueEx(
+	struct xacmeclient* pClient, const xstrview* pDomains,
+	size_t iDomainCount, const xacmednsprovider* pDns,
+	bool bPreferAlternate, xacmeissuegrant* pOut)
+{
+	return xacmeClientIssue(
+		pClient, pDomains, iDomainCount, pDns, pOut, bPreferAlternate);
+}
+
+bool xrtAcmeClientRollover(
+	struct xacmeclient* pClient, cstr sNewKeyPem)
+{
+	return xacmeClientRollover(pClient, sNewKeyPem);
 }
 
 bool xrtAcmeClientRevoke(
@@ -325654,18 +325989,38 @@ static bool xacmeAwsZoneId(
 	}
 	if((iStatus >= 200u) && (iStatus < 300u) && (sBody != NULL))
 	{
-		char sName[300];
-		if(xacmeAwsXmlText(sBody, "Name", sName, sizeof(sName)) &&
-			(strcmp(sName, sZoneName) == 0) &&
-			xacmeAwsXmlText(sBody, "Id", sOutId, iIdCap))
+		/* 标签配对限定在首个 <HostedZone> 块内，避免后续
+		   块/分页残留的同名标签串扰。 */
+		const char* pBlock = strstr(sBody, "<HostedZone>");
+		const char* pBlockEnd = (pBlock != NULL) ?
+			strstr(pBlock, "</HostedZone>") : NULL;
+		char sScoped[1024];
+		cstr sScope = sBody;
+		if((pBlock != NULL) && (pBlockEnd != NULL))
 		{
-			/* Id 形如 /hostedzone/Z1234；API 调用用裸 Z id。 */
-			const char* pSlash = strrchr(sOutId, '/');
-			if(pSlash != NULL)
+			size_t iLen = (size_t)(pBlockEnd - pBlock);
+			if(iLen >= sizeof(sScoped))
 			{
-				memmove(sOutId, pSlash + 1, strlen(pSlash + 1) + 1u);
+				iLen = sizeof(sScoped) - 1u;
 			}
-			bOk = true;
+			memcpy(sScoped, pBlock, iLen);
+			sScoped[iLen] = 0;
+			sScope = sScoped;
+		}
+		{
+			char sName[300];
+			if(xacmeAwsXmlText(sScope, "Name", sName, sizeof(sName)) &&
+				(strcmp(sName, sZoneName) == 0) &&
+				xacmeAwsXmlText(sScope, "Id", sOutId, iIdCap))
+			{
+				/* Id 形如 /hostedzone/Z1234；API 调用用裸 Z id。 */
+				const char* pSlash = strrchr(sOutId, '/');
+				if(pSlash != NULL)
+				{
+					memmove(sOutId, pSlash + 1, strlen(pSlash + 1) + 1u);
+				}
+				bOk = true;
+			}
 		}
 	}
 	xrtFree(sBody);

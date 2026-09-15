@@ -208,9 +208,15 @@ str xrtAcmeStoreLoadCert(cstr sRoot, cstr sPrimaryDomain)
 	pBytes = xrtFileReadAll(sPath, &iSize);
 	if(pBytes == NULL)
 	{
-		xacmeStoreError(
-			XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
-			"acme store cert not found");
+		/* 只有文件确实缺失才归类 NOT_FOUND；
+		   读取/分配失败保留底层根因（IO/MEMORY），
+		   续签判定不得把读故障吞成"缺证书"。 */
+		if(!xrtFileExists(sPath))
+		{
+			xacmeStoreError(
+				XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
+				"acme store cert not found");
+		}
 		return NULL;
 	}
 	sPem = (str)xrtMalloc(iSize + 1u);
@@ -419,6 +425,11 @@ bool xrtAcmeStoreNeedRenew(
 	sChain = xrtAcmeStoreLoadCert(sRoot, sPrimaryDomain);
 	if(sChain == NULL)
 	{
+		if(xrtErrorKind(xrtGetError()) != XERR_NOT_FOUND)
+		{
+			/* 读故障不是"缺证书"：如实失败，避免误触重签。 */
+			return false;
+		}
 		return true; /* 缺证书即需要签发。 */
 	}
 	if(!xrtPemInit(&Pem, sChain, strlen(sChain)) ||

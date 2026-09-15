@@ -455,6 +455,23 @@ jobs:
           --cflag=-fsanitize=thread
           --cflag=-fno-omit-frame-pointer
 
+      - name: Run xacme extension sanitizer gate
+        if: matrix.runner == 'ubuntu-latest'
+        env:
+          ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --manifest extlibs/xacme/config/modules.json
+          --suite xacme_tests
+          --no-single
+          --rebuild
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=address,undefined
+          --cflag=-fno-omit-frame-pointer
+
       - name: Compile Linux io_uring network and TLS gates
         # GitHub 托管 runner 通过 seccomp 禁用 io_uring（EPERM），
         # 此步骤仅保留 uring 目标的编译与链接证据；

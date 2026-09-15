@@ -712,9 +712,14 @@ static bool xacmeHttpExchangeOnce(
 			}
 			if(iGot == 0)
 			{
+				/* 连接在收到任何响应字节前关闭 = 传输层故障
+				   （可重试）；已收到部分头才算协议截断。 */
 				xacmeHttpError(
-					XERR_PROTOCOL, XACME_HTTP_ERROR_PROTOCOL,
-					"acme http response head truncated");
+					(Received.Size == 0u) ? XERR_IO : XERR_PROTOCOL,
+					XACME_HTTP_ERROR_PROTOCOL,
+					(Received.Size == 0u) ?
+						"acme http connection closed before response" :
+						"acme http response head truncated");
 				goto Done;
 			}
 			if(!xrtBufferAppend(&Received, (xbytesview){ Chunk, iUsed }))

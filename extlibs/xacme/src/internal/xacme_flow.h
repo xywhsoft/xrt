@@ -47,6 +47,7 @@ typedef struct xacmeclient {
 	char sNewAccount[512];
 	char sNewOrder[512];
 	char sRevokeCert[512];
+	char sKeyChange[512];
 	char sNonce[512];
 	/* 传播确认 resolver（IP 字面量）与预算；空组走默认组。 */
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
@@ -81,15 +82,28 @@ str xacmeClientAccountPem(const xacmeclient* pClient);
 
 /*
 	一次 dns-01 签发：域名可含通配符（*. 前缀）；产物含证书链与
-	配对私钥（均 xrtFree）。失败返回 false 并设置线程错误；
-	provider 的 Add 在挑战触发前调用、Remove 在结束后尽力调用。
+	配对私钥（均 xrtFree）。bAlt 时若证书响应带 rel="alternate"
+	备用链则优先采用（失败回退主链）。失败返回 false 并设置线程
+	错误；provider 的 Add 在挑战触发前调用、Remove 在结束后尽力
+	调用。
 */
 bool xacmeClientIssue(
 	xacmeclient* pClient,
 	const xstrview* pDomains,
 	size_t iDomainCount,
 	const struct xacmednsprovider* pDns,
-	xacmeissuegrant* pOut
+	xacmeissuegrant* pOut,
+	bool bPreferAlternate
+);
+
+/*
+	账户密钥滚动（RFC 8555 §7.3.5）：用 sNewKeyPem（PKCS#8/SEC1）
+	替换当前账户密钥，kid 不变。要求 directory 提供 keyChange 端点；
+	成功后客户端内存密钥同步替换（持久化由宿主经 AccountPem 重存）。
+*/
+bool xacmeClientRollover(
+	xacmeclient* pClient,
+	cstr sNewKeyPem
 );
 
 /*

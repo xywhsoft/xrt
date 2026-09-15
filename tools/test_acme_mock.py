@@ -88,6 +88,13 @@ def run_flow_case(test: unittest.TestCase, extra_server: list[str],
 			"test_flow failed:\n" + result.stdout + result.stderr)
 		test.assertIn("[PASS]", result.stdout)
 
+		stats = fetch_stats(server)
+		test.assertGreaterEqual(
+			stats["rollovers"], 1, "keyChange rollover not exercised")
+		if extra_env.get("XACME_PREFER_ALT") == "1":
+			test.assertGreater(
+				stats["alt_served"], 0, "alternate chain never served")
+
 		# 独立核验：Issue 产物配对。
 		verify_grant_pairing(
 			(workdir / "out/pebble_issued.pem").read_text(encoding="utf-8"),
@@ -119,11 +126,29 @@ def run_flow_case(test: unittest.TestCase, extra_server: list[str],
 		server.stop()
 
 
+def fetch_stats(server: MockServer) -> dict:
+	"""拉取 mock 服务端统计（容忍注入期掐断，重试直至成功）。"""
+	import ssl
+	import time
+	import urllib.request
+	context = ssl.create_default_context()
+	context.check_hostname = False
+	context.verify_mode = ssl.CERT_NONE
+	url = "https://127.0.0.1:%d/stats" % server.info["acme"]
+	for _ in range(30):
+		try:
+			with urllib.request.urlopen(url, context=context, timeout=5) as r:
+				return json.loads(r.read().decode())
+		except Exception:
+			time.sleep(0.5)
+	raise AssertionError("stats endpoint unreachable")
+
+
 @unittest.skipUnless(TEST_FLOW.is_file(), "test_flow not built")
 class AcmeMockFlowTests(unittest.TestCase):
 
 	def test_issue_revoke_stored_flow(self):
-		run_flow_case(self, [], {})
+		run_flow_case(self, [], {"XACME_PREFER_ALT": "1"})
 
 	def test_strict_eab_and_contact(self):
 		run_flow_case(
@@ -135,6 +160,35 @@ class AcmeMockFlowTests(unittest.TestCase):
 				"XACME_CONTACT_EMAIL": "ops@xxrpa.com",
 			},
 		)
+
+	def test_transport_flakiness_retries(self):
+		"""25% 请求被掐断时全程仍须成功——重试韧性被真实证明。"""
+		workdir = Path(tempfile.mkdtemp(prefix="xacme-mock-"))
+		os.makedirs(workdir / "out", exist_ok=True)
+		server = MockServer(workdir, ["--flakiness", "0.25"])
+		try:
+			env = dict(os.environ)
+			env.update({
+				"XACME_PEBBLE_URL": server.info["directory"],
+				"XACME_PEBBLE_CA": server.info["ca_pem"],
+				"XACME_CHALL_URL": "http://127.0.0.1:%d" % server.info["chall"],
+				"XACME_PROPAGATE_RESOLVER": "127.0.0.1:%d" % server.info["dns"],
+				"XACME_TEST_ROOT": str(workdir / "out"),
+			})
+			result = subprocess.run(
+				[str(TEST_FLOW)], env=env, capture_output=True, text=True,
+				encoding="utf-8", errors="replace", timeout=300, cwd=str(ROOT))
+			self.assertEqual(
+				result.returncode, 0,
+				"test_flow failed under flakiness:\n" +
+				result.stdout + result.stderr)
+			stats = fetch_stats(server)
+			self.assertGreater(
+				stats["flaky_hits"], 0,
+				"flakiness never fired; retry path not exercised")
+			print("[flaky] dropped requests survived:", stats["flaky_hits"])
+		finally:
+			server.stop()
 
 
 if __name__ == "__main__":

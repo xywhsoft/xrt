@@ -25,6 +25,7 @@ import datetime
 import hashlib
 import json
 import os
+import random
 import secrets
 import ssl
 import threading
@@ -97,6 +98,10 @@ class State:
 		self.eab_kid = eab_kid
 		self.eab_mac = eab_mac
 		self.require_contact = require_contact
+		self.flakiness = 0.0
+		self.flaky_hits = 0
+		self.alt_served = 0
+		self.rollovers = 0
 		self.serial = 0
 		self.ca_cert = None
 		self.ca_key = None
@@ -190,14 +195,37 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 
 	# ---------- 路由 ----------
 
+	def _flaky_drop(self) -> bool:
+		fl = self.state.flakiness
+		if (fl > 0.0) and (random.random() < fl):
+			with self.state.lock:
+				self.state.flaky_hits += 1
+			self.close_connection = True
+			return True
+		return False
+
 	def do_GET(self):
+		if self._flaky_drop():
+			return
 		if self.path == "/dir":
 			self._respond_json({
 				"newNonce": self.base + "/nonce",
 				"newAccount": self.base + "/acct",
 				"newOrder": self.base + "/order",
 				"revokeCert": self.base + "/revoke",
+				"keyChange": self.base + "/keychange",
 			})
+			return
+		if self.path == "/stats":
+			with self.state.lock:
+				self._respond_json({
+					"flaky_hits": self.state.flaky_hits,
+					"accounts": len(self.state.accounts),
+					"orders": len(self.state.orders),
+					"revoked": len(self.state.revoked),
+					"alt_served": self.state.alt_served,
+					"rollovers": self.state.rollovers,
+				})
 			return
 		if self.path == "/nonce":
 			nonce = new_nonce()
@@ -211,6 +239,8 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 		acme_error(self, 404, "malformed", "unknown GET " + self.path)
 
 	def do_POST(self):
+		if self._flaky_drop():
+			return
 		try:
 			self._dispatch()
 		except AcmeAbort as abort:
@@ -227,6 +257,8 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 			return self._new_account(body)
 		if path == "/revoke":
 			return self._revoke(body)
+		if path == "/keychange":
+			return self._key_change(body)
 		protected, payload_text, account = self._jws_context(body)
 		if path == "/order":
 			return self._new_order(payload_text, account)
@@ -240,6 +272,8 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 			return self._get_order(path)
 		if path.startswith("/cert-"):
 			return self._download_cert(path, account)
+		if path.startswith("/certalt-"):
+			return self._download_cert_alt(path, account)
 		raise AcmeAbort(404, "malformed", "unknown POST " + path)
 
 	# ---------- 账户 ----------
@@ -394,6 +428,64 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 	def _finalize(self, path, payload_text):
 		raise AcmeAbort(500, "serverInternal", "not installed")
 
+	def _key_change(self, body):
+		"""RFC 8555 §7.3.5：外层新钥 JWS（嵌新 JWK），内层旧钥签名。"""
+		st = self.state
+		try:
+			obj = json.loads(body)
+			outer = json.loads(b64u_decode(obj["protected"]))
+			inner_obj = json.loads(b64u_decode(obj["payload"]))
+			inner = json.loads(b64u_decode(inner_obj["protected"]))
+			inner_payload = json.loads(
+				b64u_decode(inner_obj["payload"]))
+		except Exception:
+			raise AcmeAbort(400, "malformed", "keyChange decode failed")
+		if outer.get("alg") != "ES256" or "jwk" not in outer:
+			raise AcmeAbort(400, "malformed", "outer must embed new JWK")
+		if outer.get("url") != self.base + "/keychange":
+			raise AcmeAbort(400, "malformed", "outer url mismatch")
+		with st.lock:
+			nonce_ok = outer.get("nonce") in st.nonces
+			if nonce_ok:
+				st.nonces.discard(outer.get("nonce"))
+		if not nonce_ok:
+			raise AcmeAbort(400, "badNonce", "outer nonce invalid")
+		new_jwk = outer["jwk"]
+		# 外层签名用新 JWK 验证。
+		try:
+			jwk_public_key(new_jwk).verify(
+				raw_to_der_sig(b64u_decode(obj["signature"])),
+				(obj["protected"] + "." + obj["payload"]).encode(),
+				ec.ECDSA(hashes.SHA256()),
+			)
+		except Exception:
+			raise AcmeAbort(400, "malformed", "outer signature invalid")
+		# 内层：旧账户钥签名，kid 归属，oldKey 与现钥一致。
+		with st.lock:
+			account = st.accounts.get(inner.get("kid", ""))
+		if account is None:
+			raise AcmeAbort(400, "accountDoesNotExist", "inner kid")
+		if inner.get("url") != self.base + "/keychange":
+			raise AcmeAbort(400, "malformed", "inner url mismatch")
+		try:
+			jwk_public_key(account["jwk"]).verify(
+				raw_to_der_sig(b64u_decode(inner_obj["signature"])),
+				(inner_obj["protected"] + "." +
+					inner_obj["payload"]).encode(),
+				ec.ECDSA(hashes.SHA256()),
+			)
+		except Exception:
+			raise AcmeAbort(400, "malformed", "inner signature invalid")
+		if inner_payload.get("account") != inner.get("kid"):
+			raise AcmeAbort(400, "malformed", "account mismatch")
+		if inner_payload.get("oldKey") != account["jwk"]:
+			raise AcmeAbort(400, "malformed", "oldKey mismatch")
+		with st.lock:
+			account["jwk"] = new_jwk
+			account["thumb"] = jwk_thumbprint(new_jwk)
+			st.rollovers += 1
+		self._respond_json({})
+
 	# ---------- 证书 ----------
 
 	def _revoke(self, body):
@@ -415,6 +507,26 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 			chain = self.state.certificates.get(self.base + path)
 		if chain is None:
 			raise AcmeAbort(404, "malformed", "no certificate")
+		nonce = new_nonce()
+		with self.state.lock:
+			self.state.nonces.add(nonce)
+		alt_url = self.base + path.replace("/cert-", "/certalt-")
+		self.send_response(200)
+		self.send_header("Content-Type", "application/pem-certificate-chain")
+		self.send_header("Replay-Nonce", nonce)
+		self.send_header(
+			"Link", '<%s>; rel="alternate"' % alt_url)
+		self.send_header("Content-Length", str(len(chain.encode())))
+		self.end_headers()
+		self.wfile.write(chain.encode())
+
+	def _download_cert_alt(self, path, account):
+		with self.state.lock:
+			chain = self.state.certificates.get(
+				self.base + path.replace("/certalt-", "/cert-"))
+			if chain is None:
+				raise AcmeAbort(404, "malformed", "no alt certificate")
+			self.state.alt_served += 1
 		nonce = new_nonce()
 		with self.state.lock:
 			self.state.nonces.add(nonce)
@@ -573,6 +685,7 @@ def main() -> int:
 	parser.add_argument("--chall", type=int, default=0)
 	parser.add_argument("--dns", type=int, default=0)
 	parser.add_argument("--eab", default="")
+	parser.add_argument("--flakiness", type=float, default=0.0)
 	parser.add_argument("--require-contact", action="store_true")
 	args = parser.parse_args()
 
@@ -582,6 +695,7 @@ def main() -> int:
 		eab_kid, mac_text = args.eab.split(":", 1)
 		eab_mac = b64u_decode(mac_text)
 	state = State(eab_kid, eab_mac, args.require_contact)
+	state.flakiness = max(0.0, min(0.9, args.flakiness))
 	state.ca_key, state.ca_cert, ca_path = generate_ca(args.workdir)
 
 	acme_server = http.server.ThreadingHTTPServer((HOST, args.acme), AcmeHandler)

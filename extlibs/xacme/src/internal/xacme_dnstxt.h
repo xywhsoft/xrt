@@ -50,6 +50,20 @@ bool xacmeDnsTxtQuery(
 	size_t* pOutCount
 );
 
+/*
+	解析完整 DNS 响应报文为 TXT 记录集合（不可信网络输入的唯一
+	消化口，fuzz 目标）。QR 位缺失/结构损坏 → false；RCODE 非零
+	→ true 且零记录。每条记录严格小于 XACME_TXT_RECORD_MAX。
+*/
+bool xacmeTxtParseResponse(
+	const uint8* pData,
+	size_t iSize,
+	uint16 uExpectId,
+	char (*sOutRecords)[XACME_TXT_RECORD_MAX],
+	size_t iCapacity,
+	size_t* pOutCount
+);
+
 /* 轮询直到期望 TXT 值在解析器可见；超时返回 false。 */
 bool xacmeDnsTxtWait(
 	xacmedns* pDns,

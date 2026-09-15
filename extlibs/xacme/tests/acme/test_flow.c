@@ -1,9 +1,12 @@
 #include "../test.h"
 
 #include "../../src/internal/xacme_http.h"
+#include "../../src/internal/xacme_csr.h"
+#include "../../src/internal/xacme_jose.h"
 #include <xrt/acme_client.h>
 #include <xrt/acme_obtain.h>
 #include <xrt/acme_store.h>
+#include <xrt/memory.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -232,8 +235,9 @@ int main(void)
 		Provider.Propagate = NULL;
 
 		Domains[0] = XRT_STR_LITERAL("test.xxrpa.com");
-		if(!xrtAcmeClientIssue(
-				Client, Domains, 1u, &Provider, &Grant))
+		if(!xrtAcmeClientIssueEx(
+				Client, Domains, 1u, &Provider,
+				(getenv("XACME_PREFER_ALT") != NULL), &Grant))
 		{
 			const xerror* pError = xrtGetError();
 			const xerror* pCause = pError;
@@ -366,6 +370,22 @@ int main(void)
 					!bRenewed && (G3.sKeyPem != NULL),
 				"acme flow obtain skip failed");
 			xrtAcmeGrantUnit(&G3);
+		}
+
+		/* 账户密钥滚动（§7.3.5）：换新钥后 kid 不变。 */
+		{
+			xacmees256key Fresh;
+			str sNewPem = NULL;
+			if(xacmeEs256Generate(&Fresh))
+			{
+				sNewPem = xacmeKeyPemWrite(&Fresh);
+			}
+			xrtSecureZero(&Fresh, sizeof(Fresh));
+			testRequire(
+				(sNewPem != NULL) &&
+					xrtAcmeClientRollover(Client, sNewPem),
+				"acme flow rollover failed");
+			xrtFree(sNewPem);
 		}
 
 		xrtAcmeClientDestroy(Client);

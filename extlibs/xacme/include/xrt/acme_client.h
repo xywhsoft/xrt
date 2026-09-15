@@ -21,6 +21,13 @@
 
 struct xnetengine;
 
+/*
+	线程安全契约：客户端与 provider 实例为单线程归属对象——同一
+	实例的任意两个调用不得并发；跨线程使用需宿主外部串行化。
+	不同实例（各自 Create 的客户端/provider）之间无共享状态，
+	可并行使用。全部 API 为同步阻塞调用。
+*/
+
 #if defined(XACME_FEATURE_ACME_FLOW)
 
 /*
@@ -78,6 +85,20 @@ XRT_API bool xrtAcmeClientIssue(
 );
 
 /*
+	Issue 的备用链变体：bPreferAlternate 时若证书响应的 Link 头带
+	rel="alternate"（RFC 8555 §7.4.2），改用备用链下载；备用链获取
+	失败自动回退主链，不视为错误。
+*/
+XRT_API bool xrtAcmeClientIssueEx(
+	struct xacmeclient* pClient,
+	const xstrview* pDomains,
+	size_t iDomainCount,
+	const xacmednsprovider* pDns,
+	bool bPreferAlternate,
+	xacmeissuegrant* pOut
+);
+
+/*
 	吊销证书（RFC 8555 §7.6，账户钥签名）：sCertPem 为单张证书
 	（取首个 PEM 块）；iReason 0-9（RFC 5280 CRLReason），<0 省略。
 	已被吊销视为幂等成功。要求 directory 提供 revokeCert 端点。
@@ -86,6 +107,17 @@ XRT_API bool xrtAcmeClientRevoke(
 	struct xacmeclient* pClient,
 	cstr sCertPem,
 	int iReason
+);
+
+/*
+	账户密钥滚动（RFC 8555 §7.3.5）：用 sNewKeyPem（PKCS#8/SEC1）
+	替换当前账户密钥，账户 kid 不变。要求 directory 提供 keyChange
+	端点；成功后客户端即刻使用新钥，宿主应经 xrtAcmeClientAccountPem
+	重新持久化。
+*/
+XRT_API bool xrtAcmeClientRollover(
+	struct xacmeclient* pClient,
+	cstr sNewKeyPem
 );
 
 #endif

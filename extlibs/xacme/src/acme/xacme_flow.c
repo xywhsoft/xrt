@@ -100,6 +100,52 @@ static bool xacmeJsonValueText(
 	return true;
 }
 
+/* 从 Link 头提取 rel="alternate" 的 URL（RFC 8288 朴素形态）。 */
+static bool xacmeFlowLinkAlternate(cstr sLink, char* sOut, size_t iCap)
+{
+	const char* p = sLink;
+	if((sLink == NULL) || (iCap == 0u))
+	{
+		return false;
+	}
+	while((p = strchr(p, '<')) != NULL)
+	{
+		const char* pEnd = strchr(p, '>');
+		const char* pRel;
+		const char* pSeg;
+		if(pEnd == NULL)
+		{
+			return false;
+		}
+		pSeg = pEnd;
+		for(;;)
+		{
+			const char* pComma = strchr(pSeg, ',');
+			pRel = strstr(pSeg, "rel=");
+			if((pRel != NULL) &&
+				((pComma == NULL) || (pRel < pComma)) &&
+				(strncmp(pRel + 4u, "\"alternate\"", 11u) == 0))
+			{
+				size_t iLen = (size_t)(pEnd - p - 1u);
+				if((iLen == 0u) || (iLen >= iCap))
+				{
+					return false;
+				}
+				memcpy(sOut, p + 1u, iLen);
+				sOut[iLen] = '\0';
+				return true;
+			}
+			if(pComma == NULL)
+			{
+				break;
+			}
+			pSeg = pComma + 1u;
+		}
+		p = pEnd;
+	}
+	return false;
+}
+
 /* ---------------- nonce 与 POST ---------------- */
 
 static void xacmeFlowTakeNonce(xacmeclient* pClient, xacmehttpresponse* pR)
@@ -615,14 +661,20 @@ bool xacmeClientInit(
 			"acme client directory url too long");
 		goto Done;
 	}
-	/* revokeCert 可选：没有它的 CA 不支持吊销路径。 */
+	/* revokeCert/keyChange 可选：缺失时对应路径显式报错。 */
 	{
-		xacmeflowurl RevokeCert;
-		if(xacmeJsonValueText(pRoot, "revokeCert", &RevokeCert))
+		xacmeflowurl Optional;
+		if(xacmeJsonValueText(pRoot, "revokeCert", &Optional))
 		{
 			(void)xacmeFlowCopyText(
 				pClient->sRevokeCert, sizeof(pClient->sRevokeCert),
-				RevokeCert.sData);
+				Optional.sData);
+		}
+		if(xacmeJsonValueText(pRoot, "keyChange", &Optional))
+		{
+			(void)xacmeFlowCopyText(
+				pClient->sKeyChange, sizeof(pClient->sKeyChange),
+				Optional.sData);
 		}
 	}
 
@@ -787,7 +839,8 @@ str xacmeClientAccountPem(const xacmeclient* pClient)
 
 bool xacmeClientIssue(
 	xacmeclient* pClient, const xstrview* pDomains, size_t iDomainCount,
-	const struct xacmednsprovider* pDns, xacmeissuegrant* pOut)
+	const struct xacmednsprovider* pDns, xacmeissuegrant* pOut,
+	bool bAlt)
 {
 	xbuffer Payload;
 	xacmehttpresponse R;
@@ -1288,6 +1341,27 @@ bool xacmeClientIssue(
 	}
 	pOut->sFullchainPem = R.sBody;
 	R.sBody = NULL;
+	/* 备用链：Link 头携带 rel="alternate" 的第二下载地址。 */
+	if(bAlt && (R.sLink != NULL))
+	{
+		char sAlternate[512];
+		if(xacmeFlowLinkAlternate(R.sLink, sAlternate,
+				sizeof(sAlternate)))
+		{
+			xacmehttpresponse Alt;
+			if(xacmeFlowPostAsGet(pClient, sAlternate, &Alt) &&
+				(Alt.iStatus == 200u) && (Alt.sBody != NULL) &&
+				(Alt.iBodySize != 0u))
+			{
+				xrtFree(pOut->sFullchainPem);
+				pOut->sFullchainPem = Alt.sBody;
+				Alt.sBody = NULL;
+			}
+			/* 备用链失败不阻断：主链始终有效。 */
+			xacmeHttpResponseUnit(&Alt);
+			xrtClearError();
+		}
+	}
 	xacmeHttpResponseUnit(&R);
 	bResult = true;
 
@@ -1342,7 +1416,9 @@ bool xacmeClientIssueStored(
 	{
 		return xrtAcmeStoreLoadGrant(sStoreRoot, sPrimary, pOut);
 	}
-	if(!xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut))
+	if(!xacmeClientIssue(
+			pClient, pDomains, iDomainCount, pDns,
+			pOut, false))
 	{
 		return false;
 	}
@@ -1452,6 +1528,141 @@ bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
 }
 #endif
 
+#if defined(XACME_FEATURE_ACME_FLOW)
+bool xacmeClientRollover(xacmeclient* pClient, cstr sNewKeyPem)
+{
+	xacmees256key NewKey;
+	str sOldJwk = NULL;
+	str sPayload = NULL;
+	str sInner = NULL;
+	str sOuter = NULL;
+	bool bOk = false;
+
+	if((pClient == NULL) || (sNewKeyPem == NULL) ||
+		(sNewKeyPem[0] == '\0'))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme rollover requires client and new key pem");
+		return false;
+	}
+	if(pClient->sKeyChange[0] == '\0')
+	{
+		xacmeFlowError(
+			XERR_UNSUPPORTED, XACME_FLOW_ERROR_PROTOCOL,
+			"acme rollover requires directory keyChange endpoint");
+		return false;
+	}
+	if(!xacmeKeyPemRead(sNewKeyPem, strlen(sNewKeyPem), &NewKey))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+			"acme rollover new key pem invalid");
+		return false;
+	}
+	sOldJwk = xacmeJwkEcJson(&pClient->AccountKey);
+	if(sOldJwk == NULL)
+	{
+		goto Done;
+	}
+	/* 内层 JWS：旧钥签名，载荷 {account, oldKey}。 */
+	{
+		xbuffer Payload;
+		xacmejwsheader Inner;
+		xrtBufferInit(&Payload);
+		if(!xrtBufferAppend(
+				&Payload, XRT_BYTES_LITERAL("{\"account\":")) ||
+			!xacmeJsonQuoteAppend(
+				&Payload,
+				(xstrview){ pClient->sKid, strlen(pClient->sKid) }) ||
+			!xrtBufferAppend(
+				&Payload, XRT_BYTES_LITERAL(",\"oldKey\":")) ||
+			!xrtBufferAppend(
+				&Payload,
+				(xbytesview){
+					(const uint8*)sOldJwk, strlen(sOldJwk) }) ||
+			!xrtBufferAppendByte(&Payload, (uint8)'}'))
+		{
+			xrtBufferUnit(&Payload);
+			goto Done;
+		}
+		Inner.Nonce.Data = NULL;
+		Inner.Nonce.Size = 0u;
+		Inner.Url = (xstrview){
+			pClient->sKeyChange, strlen(pClient->sKeyChange) };
+		Inner.Kid = (xstrview){ pClient->sKid, strlen(pClient->sKid) };
+		sInner = xacmeJwsEs256(
+			&pClient->AccountKey, &Inner,
+			(xstrview){ (cstr)Payload.Data, Payload.Size });
+		xrtBufferUnit(&Payload);
+	}
+	if(sInner == NULL)
+	{
+		goto Done;
+	}
+	/* 外层 JWS：新钥签名（保护头嵌新 JWK + nonce），载荷 = 内层
+	   JWS；keyChange 不经 xacmeFlowPost（那会再包一层签名）。 */
+	if(!xacmeFlowNewNonce(pClient))
+	{
+		goto Done;
+	}
+	{
+		xacmejwsheader Outer;
+		Outer.Nonce = (xstrview){
+			pClient->sNonce, strlen(pClient->sNonce) };
+		Outer.Url = (xstrview){
+			pClient->sKeyChange, strlen(pClient->sKeyChange) };
+		Outer.Kid.Data = NULL;
+		Outer.Kid.Size = 0u; /* 空 kid → 嵌入新 JWK。 */
+		sOuter = xacmeJwsEs256(
+			&NewKey, &Outer, (xstrview){ sInner, strlen(sInner) });
+	}
+	if(sOuter == NULL)
+	{
+		goto Done;
+	}
+	pClient->sNonce[0] = '\0';
+	{
+		xacmehttpresponse R;
+		if(!xacmeHttpExchange(
+				&pClient->Http, "POST", pClient->sKeyChange,
+				"application/jose+json",
+				(xstrview){ sOuter, strlen(sOuter) }, &R))
+		{
+			goto Done;
+		}
+		xacmeFlowTakeNonce(pClient, &R);
+		if(R.iStatus != 200u)
+		{
+			char sDetail[220];
+			snprintf(sDetail, sizeof(sDetail),
+				"acme rollover status=%u body=%.150s",
+				(unsigned)R.iStatus,
+				(R.sBody != NULL) ? R.sBody : "");
+			xacmeHttpResponseUnit(&R);
+			xacmeFlowError(
+				XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT, sDetail);
+			goto Done;
+		}
+		xacmeHttpResponseUnit(&R);
+	}
+	/* 生效：旧钥擦除，客户端切到新钥（kid 不变）。 */
+	xrtSecureZero(&pClient->AccountKey, sizeof(pClient->AccountKey));
+	pClient->AccountKey = NewKey;
+	memset(&NewKey, 0, sizeof(NewKey));
+	bOk = true;
+
+Done:
+	/* 失败时擦除新钥副本。 */
+	xrtSecureZero(&NewKey, sizeof(NewKey));
+	xrtFree(sOldJwk);
+	xrtFree(sPayload);
+	xrtFree(sInner);
+	xrtFree(sOuter);
+	return bOk;
+}
+#endif
+
 /* ---------------- 公开客户端 API（xrt/acme_client.h） ---------------- */
 
 #if defined(XACME_FEATURE_ACME_FLOW)
@@ -1551,7 +1762,23 @@ bool xrtAcmeClientIssue(
 	size_t iDomainCount, const xacmednsprovider* pDns,
 	xacmeissuegrant* pOut)
 {
-	return xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut);
+	return xrtAcmeClientIssueEx(
+		pClient, pDomains, iDomainCount, pDns, false, pOut);
+}
+
+bool xrtAcmeClientIssueEx(
+	struct xacmeclient* pClient, const xstrview* pDomains,
+	size_t iDomainCount, const xacmednsprovider* pDns,
+	bool bPreferAlternate, xacmeissuegrant* pOut)
+{
+	return xacmeClientIssue(
+		pClient, pDomains, iDomainCount, pDns, pOut, bPreferAlternate);
+}
+
+bool xrtAcmeClientRollover(
+	struct xacmeclient* pClient, cstr sNewKeyPem)
+{
+	return xacmeClientRollover(pClient, sNewKeyPem);
 }
 
 bool xrtAcmeClientRevoke(

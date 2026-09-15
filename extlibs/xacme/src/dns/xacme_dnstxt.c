@@ -130,8 +130,115 @@ static bool xacmeTxtReadU16(
 	{
 		return false;
 	}
-	*pOut = (uint16)(((uint16)p[*pAt] << 8u) | p[*pAt + 1u]);
+	*pOut = (uint16)(((uint16)p[*pAt] << 8u) | p[*pAt + 1]);
 	*pAt += 2u;
+	return true;
+}
+
+/*
+	解析完整 DNS 响应报文为 TXT 记录集合（不可信网络输入的唯一
+	消化口，fuzz 目标）。QR 位缺失/结构损坏 → false；RCODE 非零
+	（NXDOMAIN 等）→ true 且零记录。记录值拼接 character-string，
+	每条以零结尾且严格小于 XACME_TXT_RECORD_MAX。
+*/
+bool xacmeTxtParseResponse(
+	const uint8* p, size_t iSize, uint16 uExpectId,
+	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity,
+	size_t* pOutCount)
+{
+	size_t iAt;
+	uint16 iQuestions;
+	uint16 iAnswers;
+	uint16 iFlags;
+
+	*pOutCount = 0u;
+	if((p == NULL) || (iSize < 12u) || (sOutRecords == NULL) ||
+		(pOutCount == NULL) || (iCapacity == 0u))
+	{
+		return false;
+	}
+	if((p[0] != (uint8)(uExpectId >> 8u)) ||
+		(p[1] != (uint8)uExpectId))
+	{
+		return false;
+	}
+	iFlags = (uint16)(((uint16)p[2] << 8u) | p[3]);
+	if((iFlags & 0x8000u) == 0u)
+	{
+		return false;
+	}
+	if((iFlags & 0x000Fu) != 0u)
+	{
+		return true; /* NXDOMAIN 等：无记录，成功返回零。 */
+	}
+	iAt = 4u;
+	if(!xacmeTxtReadU16(p, iSize, &iAt, &iQuestions) ||
+		!xacmeTxtReadU16(p, iSize, &iAt, &iAnswers))
+	{
+		return false;
+	}
+	iAt = 12u;
+	for(; iQuestions > 0u; iQuestions--)
+	{
+		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
+		if((iSkip == 0u) || ((iAt + iSkip + 4u) > iSize))
+		{
+			return false;
+		}
+		iAt += iSkip + 4u;
+	}
+	for(; iAnswers > 0u; iAnswers--)
+	{
+		uint16 iType;
+		uint16 iClass;
+		uint16 iRdLength;
+		size_t iRdAt;
+		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
+		if(iSkip == 0u)
+		{
+			return false;
+		}
+		iAt += iSkip;
+		if(!xacmeTxtReadU16(p, iSize, &iAt, &iType) ||
+			!xacmeTxtReadU16(p, iSize, &iAt, &iClass) ||
+			(iAt + 4u > iSize))
+		{
+			return false;
+		}
+		iAt += 4u; /* TTL */
+		if(!xacmeTxtReadU16(p, iSize, &iAt, &iRdLength) ||
+			((iAt + iRdLength) > iSize))
+		{
+			return false;
+		}
+		iRdAt = iAt;
+		iAt += iRdLength;
+		if((iType != 0x0010u) || (iClass != 0x0001u) ||
+			(*pOutCount >= iCapacity))
+		{
+			continue;
+		}
+		/* TXT rdata = 若干 character-string，拼接为一条记录值。 */
+		{
+			size_t iUsed = 0u;
+			char* sRecord = sOutRecords[*pOutCount];
+			while(iRdAt < iAt)
+			{
+				uint8 iStrLen = p[iRdAt];
+				iRdAt += 1u;
+				if((iStrLen == 0u) || ((iRdAt + iStrLen) > iAt) ||
+					((iUsed + iStrLen) >= XACME_TXT_RECORD_MAX))
+				{
+					return false;
+				}
+				memcpy(sRecord + iUsed, p + iRdAt, iStrLen);
+				iUsed += iStrLen;
+				iRdAt += iStrLen;
+			}
+			sRecord[iUsed] = '\0';
+			(*pOutCount)++;
+		}
+	}
 	return true;
 }
 
@@ -145,12 +252,8 @@ bool xacmeDnsTxtQuery(
 	xnetudp* pUdp = NULL;
 	xnetudppacket* pPacket = NULL;
 	uint16 iId;
-	const uint8* p = NULL;
-	size_t iSize = 0u;
-	size_t iAt;
-	uint16 iQuestions;
-	uint16 iAnswers;
-	uint16 iFlags;
+	const uint8* p;
+	size_t iSize;
 	bool bOk = false;
 
 	if((pDns == NULL) || (sResolver == NULL) || (sFqdn == NULL) ||
@@ -252,85 +355,14 @@ bool xacmeDnsTxtQuery(
 
 	p = xrtNetUdpPacketData(pPacket);
 	iSize = xrtNetUdpPacketSize(pPacket);
-	iAt = 12u;
-	iFlags = (uint16)(((uint16)p[2] << 8u) | p[3]);
-	if((iFlags & 0x8000u) == 0u)
+	if(!xacmeTxtParseResponse(p, iSize, iId, sOutRecords, iCapacity,
+			pOutCount))
 	{
-		goto Protocol;
-	}
-	if((iFlags & 0x000Fu) != 0u)
-	{
-		/* NXDOMAIN 等：无记录，成功返回零。 */
-		bOk = true;
+		if(xrtGetError() == NULL)
+		{
+			goto Protocol;
+		}
 		goto Done;
-	}
-	iAt = 4u;
-	if(!xacmeTxtReadU16(p, iSize, &iAt, &iQuestions) ||
-		!xacmeTxtReadU16(p, iSize, &iAt, &iAnswers))
-	{
-		goto Protocol;
-	}
-	iAt = 12u;
-	for(; iQuestions > 0u; iQuestions--)
-	{
-		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
-		if((iSkip == 0u) || ((iAt + iSkip + 4u) > iSize))
-		{
-			goto Protocol;
-		}
-		iAt += iSkip + 4u;
-	}
-	for(; iAnswers > 0u; iAnswers--)
-	{
-		uint16 iType;
-		uint16 iClass;
-		uint16 iRdLength;
-		size_t iRdAt;
-		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
-		if(iSkip == 0u)
-		{
-			goto Protocol;
-		}
-		iAt += iSkip;
-		if(!xacmeTxtReadU16(p, iSize, &iAt, &iType) ||
-			!xacmeTxtReadU16(p, iSize, &iAt, &iClass) ||
-			(iAt + 4u > iSize))
-		{
-			goto Protocol;
-		}
-		iAt += 4u; /* TTL */
-		if(!xacmeTxtReadU16(p, iSize, &iAt, &iRdLength) ||
-			((iAt + iRdLength) > iSize))
-		{
-			goto Protocol;
-		}
-		iRdAt = iAt;
-		iAt += iRdLength;
-		if((iType != 0x0010u) || (iClass != 0x0001u) ||
-			(*pOutCount >= iCapacity))
-		{
-			continue;
-		}
-		/* TXT rdata = 若干 character-string，拼接为一条记录值。 */
-		{
-			size_t iUsed = 0u;
-			char* sRecord = sOutRecords[*pOutCount];
-			while(iRdAt < iAt)
-			{
-				uint8 iStrLen = p[iRdAt];
-				iRdAt += 1u;
-				if((iStrLen == 0u) || ((iRdAt + iStrLen) > iAt) ||
-					((iUsed + iStrLen) >= XACME_TXT_RECORD_MAX))
-				{
-					goto Protocol;
-				}
-				memcpy(sRecord + iUsed, p + iRdAt, iStrLen);
-				iUsed += iStrLen;
-				iRdAt += iStrLen;
-			}
-			sRecord[iUsed] = '\0';
-			(*pOutCount)++;
-		}
 	}
 	bOk = true;
 

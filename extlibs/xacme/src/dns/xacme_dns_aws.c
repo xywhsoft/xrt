@@ -190,18 +190,38 @@ static bool xacmeAwsZoneId(
 	}
 	if((iStatus >= 200u) && (iStatus < 300u) && (sBody != NULL))
 	{
-		char sName[300];
-		if(xacmeAwsXmlText(sBody, "Name", sName, sizeof(sName)) &&
-			(strcmp(sName, sZoneName) == 0) &&
-			xacmeAwsXmlText(sBody, "Id", sOutId, iIdCap))
+		/* 标签配对限定在首个 <HostedZone> 块内，避免后续
+		   块/分页残留的同名标签串扰。 */
+		const char* pBlock = strstr(sBody, "<HostedZone>");
+		const char* pBlockEnd = (pBlock != NULL) ?
+			strstr(pBlock, "</HostedZone>") : NULL;
+		char sScoped[1024];
+		cstr sScope = sBody;
+		if((pBlock != NULL) && (pBlockEnd != NULL))
 		{
-			/* Id 形如 /hostedzone/Z1234；API 调用用裸 Z id。 */
-			const char* pSlash = strrchr(sOutId, '/');
-			if(pSlash != NULL)
+			size_t iLen = (size_t)(pBlockEnd - pBlock);
+			if(iLen >= sizeof(sScoped))
 			{
-				memmove(sOutId, pSlash + 1, strlen(pSlash + 1) + 1u);
+				iLen = sizeof(sScoped) - 1u;
 			}
-			bOk = true;
+			memcpy(sScoped, pBlock, iLen);
+			sScoped[iLen] = 0;
+			sScope = sScoped;
+		}
+		{
+			char sName[300];
+			if(xacmeAwsXmlText(sScope, "Name", sName, sizeof(sName)) &&
+				(strcmp(sName, sZoneName) == 0) &&
+				xacmeAwsXmlText(sScope, "Id", sOutId, iIdCap))
+			{
+				/* Id 形如 /hostedzone/Z1234；API 调用用裸 Z id。 */
+				const char* pSlash = strrchr(sOutId, '/');
+				if(pSlash != NULL)
+				{
+					memmove(sOutId, pSlash + 1, strlen(pSlash + 1) + 1u);
+				}
+				bOk = true;
+			}
 		}
 	}
 	xrtFree(sBody);

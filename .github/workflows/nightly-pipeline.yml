@@ -82,6 +82,20 @@ jobs:
           --cflag=-fno-omit-frame-pointer
           --cflag=-fno-builtin-memcpy
 
+      - name: Run xacme extension under ASan and UBSan
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --manifest extlibs/xacme/config/modules.json
+          --suite xacme_tests
+          --no-single
+          --rebuild
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=address,undefined
+          --cflag=-fno-omit-frame-pointer
+          --cflag=-fno-builtin-memcpy
+
   sanitizer-tsan:
     name: Full suite TSan
     runs-on: ubuntu-latest
@@ -104,6 +118,18 @@ jobs:
           --suite all
           --exclude-test *uring*
           --exclude-single-test *uring*
+          --no-single
+          --rebuild
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=thread
+          --cflag=-fno-omit-frame-pointer
+      - name: Run xacme extension under TSan
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --manifest extlibs/xacme/config/modules.json
+          --suite xacme_tests
           --no-single
           --rebuild
           --cflag=-O1
