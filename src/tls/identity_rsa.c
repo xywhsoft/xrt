@@ -387,12 +387,12 @@ static bool __xrtTlsIdentityRsaRestrictionAllows(
 /* 通过完整 CRT 私钥运算验证因子、指数、系数和公开参数。 */
 static bool __xrtTlsIdentityRsaValidate(const xrsaprivatekey* pKey)
 {
-	uint8 Input[XRT_RSA_MODULUS_MAX_SIZE] = { 0 };
-	uint8 Output[XRT_RSA_MODULUS_MAX_SIZE] = { 0 };
+	uint8 Input[XRT_RSA_MAX_MODULUS_SIZE] = { 0 };
+	uint8 Output[XRT_RSA_MAX_MODULUS_SIZE] = { 0 };
 	bool bResult;
 
 	if ( (pKey->Public.ModulusSize < XRT_RSA_MODULUS_MIN_SIZE) ||
-		(pKey->Public.ModulusSize > XRT_RSA_MODULUS_MAX_SIZE) ) {
+		(pKey->Public.ModulusSize > XRT_RSA_MAX_MODULUS_SIZE) ) {
 		return __xrtTlsIdentityError(
 			XERR_RANGE, "create-tls-rsa-identity",
 			"RSA identity modulus size is outside supported limits"
@@ -497,7 +497,7 @@ static bool __xrtTlsIdentityRsaSign(
 	const __xrttlsidentityrsa* pRsa =
 		(const __xrttlsidentityrsa*)__xrtTlsIdentityExtra(pIdentity);
 	uint8 Hash[64] = { 0 };
-	uint8 Signed[XRT_RSA_MODULUS_MAX_SIZE] = { 0 };
+	uint8 Signed[XRT_RSA_MAX_MODULUS_SIZE] = { 0 };
 	xcryptohash Algorithm = XCRYPTO_HASH_SHA256;
 	size_t iSize = pRsa->Key.Public.ModulusSize;
 	bool bPss;

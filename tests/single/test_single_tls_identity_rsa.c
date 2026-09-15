@@ -10,7 +10,7 @@ int main(void)
 {
 	static const uint8 Message[] = { 1, 2, 3 };
 	uint8 PrivateDer[2048];
-	uint8 Signature[XRT_RSA_MODULUS_MAX_SIZE];
+	uint8 Signature[XRT_RSA_MAX_MODULUS_SIZE];
 	size_t iPrivateSize = 0;
 	size_t iSignatureSize = 0;
 	xbytesview Chain = {

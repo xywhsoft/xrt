@@ -352,7 +352,7 @@ typedef xhmacsha512 xhmacsha384;
 | `XRT_SHA384_SIZE` | `48u` | SHA384尺寸 |
 | `XRT_SHA512_SIZE` | `64u` | SHA512尺寸 |
 | `XRT_RSA_MODULUS_MIN_SIZE` | `128u` | RSAMODULUS下限尺寸 |
-| `XRT_RSA_MODULUS_MAX_SIZE` | `1024u` | RSAMODULUS上限尺寸 |
+| `XRT_RSA_MAX_MODULUS_SIZE` | `1024u` | RSAMODULUS上限尺寸 |
 | `XRT_AES_BLOCK_SIZE` | `16u` | AES阻塞策略尺寸 |
 | `XRT_AES128_KEY_SIZE` | `16u` | AES128KEY尺寸 |
 | `XRT_AES192_KEY_SIZE` | `24u` | AES192KEY尺寸 |
@@ -5524,7 +5524,7 @@ RSA 按原始公钥运算、PSS 验签和 PKCS#1 v1.5 验签拆成三个独立�
 
 ```c
 #define XRT_RSA_MODULUS_MIN_SIZE 128u
-#define XRT_RSA_MODULUS_MAX_SIZE 1024u
+#define XRT_RSA_MAX_MODULUS_SIZE 1024u
 
 typedef struct xrsa_public_key {
 	const void* Modulus;

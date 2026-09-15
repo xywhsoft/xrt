@@ -140,7 +140,7 @@ static void testTlsIdentityRsaSign(xtlsidentity* pIdentity)
 	xx509pubkey PublicKey;
 	xrsapublickey Rsa;
 	uint8 Hash[32];
-	uint8 Signature[XRT_RSA_MODULUS_MAX_SIZE];
+	uint8 Signature[XRT_RSA_MAX_MODULUS_SIZE];
 	size_t iSize = 0;
 
 	testRequire(xrtTlsIdentityPublicKey(pIdentity, &PublicKey),
@@ -249,7 +249,7 @@ static void testTlsIdentityRsaPss(void)
 	uint8 PrivateDer[2048];
 	uint8 Pkcs8[2304];
 	uint8 Certificate[2048];
-	uint8 Signature[XRT_RSA_MODULUS_MAX_SIZE];
+	uint8 Signature[XRT_RSA_MAX_MODULUS_SIZE];
 	uint8 Hash[32];
 	size_t iPrivateSize = 0;
 	size_t iPkcs8Size = 0;
