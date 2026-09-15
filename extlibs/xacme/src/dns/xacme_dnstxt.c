@@ -3,6 +3,7 @@
 #if defined(XACME_FEATURE_ACME_DNS)
 
 #include <xrt/buffer.h>
+#include <xrt/math.h>
 #include <xrt/net.h>
 #include <xrt/random.h>
 #include <xrt/time.h>
@@ -267,7 +268,19 @@ bool xacmeDnsTxtQuery(
 	*pOutCount = 0u;
 
 	xrtBufferInit(&Query);
-	iId = (uint16)(xrtRand32() & 0xFFFFu);
+	/* 探测仅咨询性（失败不阻断），但事务 ID 仍用密码学随机，
+	   降低在路径攻击者伪造应答提前放行传播门的概率。 */
+	{
+		uint8 uSecure[2];
+		if(!xrtSecureRandom(uSecure, sizeof(uSecure)))
+		{
+			xacmeTxtError(
+				XERR_INTERNAL, XACME_TXT_ERROR_NETWORK,
+				"acme dns txt secure random failed");
+			goto Done;
+		}
+		iId = (uint16)(((uint16)uSecure[0] << 8u) | uSecure[1]);
+	}
 	{
 		uint8 Head[12] = {
 			(uint8)(iId >> 8u), (uint8)iId,

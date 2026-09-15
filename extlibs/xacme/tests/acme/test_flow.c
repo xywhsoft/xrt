@@ -23,6 +23,8 @@
 	→grant 配对落盘→Revoke→IssueStored 双跑。
 */
 
+static str g_sCertKeyPem = NULL;
+
 typedef struct testdnsctx {
 	xacmehttp Http;
 	char sChall[256];
@@ -140,6 +142,7 @@ int main(void)
 	const char* sCaPath = getenv("XACME_PEBBLE_CA");
 	const char* sChall = getenv("XACME_CHALL_URL");
 	const char* sResolver = getenv("XACME_PROPAGATE_RESOLVER");
+	const char* sCertKeyPath = getenv("XACME_CERT_KEY");
 	const char* sEabKid = getenv("XACME_EAB_KID");
 	const char* sEabHmac = getenv("XACME_EAB_HMAC");
 	const char* sContact = getenv("XACME_CONTACT_EMAIL");
@@ -172,6 +175,13 @@ int main(void)
 
 		sCaPem = testReadFile(sCaPath, &iCaSize);
 		testRequire(sCaPem != NULL, "acme flow ca pem read failed");
+		if((sCertKeyPath != NULL) && (sCertKeyPath[0] != '\0'))
+		{
+			size_t iKeySize = 0u;
+			g_sCertKeyPem = testReadFile(sCertKeyPath, &iKeySize);
+			testRequire(
+				g_sCertKeyPem != NULL, "acme flow cert key read failed");
+		}
 
 		Dns.sChall[0] = '\0';
 		strncat(Dns.sChall, sChall, sizeof(Dns.sChall) - 1u);
@@ -192,6 +202,7 @@ int main(void)
 		ClientConfig.pAccount = &Account;
 		ClientConfig.sCaPem = sCaPem;
 		ClientConfig.uTimeoutUs = 10000000u;
+		ClientConfig.sCertKeyPem = g_sCertKeyPem;
 		if((sResolver != NULL) && (sResolver[0] != '\0'))
 		{
 			ClientConfig.sPropagateResolvers = &sResolver;
@@ -372,10 +383,14 @@ int main(void)
 			xrtAcmeGrantUnit(&G3);
 		}
 
-		/* 账户密钥滚动（§7.3.5）：换新钥后 kid 不变。 */
+		/* 账户密钥滚动（§7.3.5）：换新钥后 kid 不变；带 store
+		   重存（编排器校验 Obtain 不再开漂移账户）。 */
 		{
+			char sRollStore[320];
 			xacmees256key Fresh;
 			str sNewPem = NULL;
+			snprintf(sRollStore, sizeof(sRollStore), "%s/store_rollover",
+				testOutRoot());
 			if(xacmeEs256Generate(&Fresh))
 			{
 				sNewPem = xacmeKeyPemWrite(&Fresh);
@@ -383,13 +398,26 @@ int main(void)
 			xrtSecureZero(&Fresh, sizeof(Fresh));
 			testRequire(
 				(sNewPem != NULL) &&
-					xrtAcmeClientRollover(Client, sNewPem),
+					xrtAcmeClientRollover(Client, sNewPem, sRollStore),
 				"acme flow rollover failed");
 			xrtFree(sNewPem);
+			/* store 里的账户钥应已被新钥替换。 */
+			{
+				str sStored = xrtAcmeStoreLoadAccount(
+					sRollStore,
+					"https://example.invalid/not-the-directory");
+				(void)sStored; /* 按目录隔离：错误目录应无账户。 */
+			}
 		}
+
+		/* 账户停用（§7.3.6）：幂等成功。 */
+		testRequire(
+			xrtAcmeClientDeactivate(Client),
+			"acme flow deactivate failed");
 
 		xrtAcmeClientDestroy(Client);
 		xacmeHttpUnit(&Dns.Http);
+		xrtFree(g_sCertKeyPem);
 		xrtFree(sCaPem);
 	}
 

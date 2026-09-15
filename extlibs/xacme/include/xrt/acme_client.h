@@ -44,6 +44,19 @@ typedef struct xacmeclientconfig {
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
+	/*
+		单次签发的总预算（微秒；0 = 不限时）：覆盖订单/挑战/
+		finalize/证书下载的全部轮询与退避，超限以 XERR_TIMEOUT
+		失败。防病态 CA 把签发挂成小时级。
+	*/
+	uint64 uIssueTimeoutUs;
+	/*
+		宿主提供的证书私钥 PEM（可选；EC P-256 或 RSA-2048+）：
+		设置后每次签发复用同一证书密钥（含 RSA 证书场景）；
+		为空则每次签发生成一次性 ES256。库不内置 RSA 密钥生成，
+		RSA 密钥由宿主用 openssl 等工具预先生成。
+	*/
+	cstr sCertKeyPem;
 } xacmeclientconfig;
 
 #endif
@@ -117,8 +130,15 @@ XRT_API bool xrtAcmeClientRevoke(
 */
 XRT_API bool xrtAcmeClientRollover(
 	struct xacmeclient* pClient,
-	cstr sNewKeyPem
+	cstr sNewKeyPem,
+	cstr sStoreRoot
 );
+
+/*
+	账户停用（RFC 8555 §7.3.6）：停用后该账户及其订单永久不可用；
+	幂等（已停用视为成功）。
+*/
+XRT_API bool xrtAcmeClientDeactivate(struct xacmeclient* pClient);
 
 #endif
 

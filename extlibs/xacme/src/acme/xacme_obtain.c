@@ -77,6 +77,8 @@ bool xrtAcmeObtain(
 	ClientConfig.iPropagateResolverCount =
 		pConfig->iPropagateResolverCount;
 	ClientConfig.uPropagateTimeoutMs = pConfig->uPropagateTimeoutMs;
+	ClientConfig.uIssueTimeoutUs = pConfig->uIssueTimeoutUs;
+	ClientConfig.sCertKeyPem = pConfig->sCertKeyPem;
 
 	pClient = xrtAcmeClientCreate(&ClientConfig);
 	if(pClient == NULL)

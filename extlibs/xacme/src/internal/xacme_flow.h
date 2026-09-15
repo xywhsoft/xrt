@@ -41,6 +41,8 @@ typedef enum xacmeflowerror {
 typedef struct xacmeclient {
 	xacmehttp Http;
 	xacmees256key AccountKey;
+	/* 宿主提供的证书密钥（EC/RSA）；为空则每次签发生成 ES256。 */
+	xacmecertkey* pCertKey;
 	char sDirectoryUrl[512];
 	char sKid[512];
 	char sNewNonce[512];
@@ -53,6 +55,11 @@ typedef struct xacmeclient {
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
+	/* 单次签发的总预算（微秒；0 = 不限时）。Issue 入口打点，
+	   轮询/传播/退避逐段检查剩余时间。 */
+	uint64 uIssueTimeoutUs;
+	uint64 IssueDeadline;
+	bool bIssueDeadline;
 } xacmeclient;
 
 #endif
@@ -98,13 +105,21 @@ bool xacmeClientIssue(
 
 /*
 	账户密钥滚动（RFC 8555 §7.3.5）：用 sNewKeyPem（PKCS#8/SEC1）
-	替换当前账户密钥，kid 不变。要求 directory 提供 keyChange 端点；
-	成功后客户端内存密钥同步替换（持久化由宿主经 AccountPem 重存）。
+	替换当前账户密钥，kid 不变。要求 directory 提供 keyChange 端点。
+	sStoreRoot 非空时成功后自动把新账户钥重存进该 store（按
+	sDirectoryUrl 隔离），消除滚动后 Obtain 读旧钥开新账户的漂移。
 */
 bool xacmeClientRollover(
 	xacmeclient* pClient,
-	cstr sNewKeyPem
+	cstr sNewKeyPem,
+	cstr sStoreRoot
 );
+
+/*
+	账户停用（RFC 8555 §7.3.6）：向账户 URL 提交 deactivated。
+	停用后该账户及其订单永久不可用；幂等（已停用视为成功）。
+*/
+bool xacmeClientDeactivate(xacmeclient* pClient);
 
 /*
 	一站式续签（组合 store）：

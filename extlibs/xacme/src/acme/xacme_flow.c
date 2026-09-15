@@ -146,6 +146,13 @@ static bool xacmeFlowLinkAlternate(cstr sLink, char* sOut, size_t iCap)
 	return false;
 }
 
+/* Issue 总预算：超限返回 true（已到截止）。 */
+static bool xacmeFlowDeadlineHit(const xacmeclient* pClient)
+{
+	return pClient->bIssueDeadline &&
+		(xrtClock() >= (uint64)pClient->IssueDeadline);
+}
+
 /* ---------------- nonce 与 POST ---------------- */
 
 static void xacmeFlowTakeNonce(xacmeclient* pClient, xacmehttpresponse* pR)
@@ -278,6 +285,13 @@ static str xacmeFlowWaitStatus(
 		xacmeflowurl Status;
 		str sStatus = NULL;
 		bool bTerminal = false;
+		if(xacmeFlowDeadlineHit(pClient))
+		{
+			xacmeFlowError(
+				XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
+				"acme flow issue budget exhausted");
+			return NULL;
+		}
 		if(!xacmeFlowPostAsGet(pClient, sUrl, &R))
 		{
 			return NULL;
@@ -323,6 +337,14 @@ static str xacmeFlowWaitStatus(
 			xacmeHttpResponseUnit(&R);
 			if(!bAgain)
 			{
+				if(xacmeFlowDeadlineHit(pClient))
+				{
+					xacmeFlowError(
+						XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
+						"acme flow issue budget exhausted");
+					xacmeHttpResponseUnit(&R);
+					return NULL;
+				}
 				if(getenv("XACME_DEBUG"))
 				{
 					printf("[dbg] poll resp status=%u body=%.160s\n",
@@ -491,6 +513,11 @@ static void xacmeFlowWaitPropagate(
 	}
 	uDeadline = xrtClock() +
 		(uint64)pClient->uPropagateTimeoutMs * UINT64_C(1000);
+	if(pClient->bIssueDeadline &&
+		((uint64)pClient->IssueDeadline < uDeadline))
+	{
+		uDeadline = pClient->IssueDeadline;
+	}
 	while(xrtClock() < uDeadline)
 	{
 		if(xacmeFlowTxtVisible(&Probe, pClient, sFqdn, sTxt))
@@ -864,6 +891,9 @@ bool xacmeClientIssue(
 		return false;
 	}
 	memset(pOut, 0, sizeof(*pOut));
+	/* 总预算打点：uIssueTimeoutUs 非零时本次 Issue 全程受限。 */
+	pClient->bIssueDeadline = (pClient->uIssueTimeoutUs != 0u);
+	pClient->IssueDeadline = xrtClock() + pClient->uIssueTimeoutUs;
 
 	/* 1. 新订单；identifier 用去 *.\ 后的基础域并去重（通配符与
 	   裸域共用一次授权；通配符语义由 CSR 的 SAN 表达）。 */
@@ -1217,7 +1247,8 @@ bool xacmeClientIssue(
 		xacmecsrconfig Csr;
 		xbuffer CsrDer;
 		str sCsrB64;
-		xacmees256key CertKey;
+		xacmecertkey StackKey;
+		xacmecertkey* pUseKey = pClient->pCertKey;
 		static const xbase64config B64Url = {
 			NULL, XBASE64_URL | XBASE64_NO_PADDING };
 		bool bCsrOk;
@@ -1225,17 +1256,31 @@ bool xacmeClientIssue(
 		Csr.Domains = pDomains;
 		Csr.DomainCount = iDomainCount;
 		xrtBufferInit(&CsrDer);
-		/* 证书密钥独立于账户密钥（CA 普遍拒绝复用账户钥）。 */
-		bCsrOk = xacmeEs256Generate(&CertKey) &&
-			xacmeCsrEc(&CertKey, &Csr, &CsrDer);
+		if(pUseKey == NULL)
+		{
+			/* 无宿主密钥：生成一次性 ES256（证书密钥独立于账户
+			   密钥，CA 普遍拒绝复用账户钥）。 */
+			memset(&StackKey, 0, sizeof(StackKey));
+			StackKey.Kind = XACME_CERT_KEY_ES256;
+			bCsrOk = xacmeEs256Generate(&StackKey.Ec);
+			pUseKey = &StackKey;
+		}
+		else
+		{
+			bCsrOk = true;
+		}
+		if(bCsrOk)
+		{
+			bCsrOk = xacmeCsrBuild(pUseKey, &Csr, &CsrDer);
+		}
 		if(bCsrOk)
 		{
 			/* 私钥随产物导出（没有它证书不可用）。 */
-			pOut->sKeyPem = xacmeKeyPemWrite(&CertKey);
+			pOut->sKeyPem = xacmeCertKeyPemWrite(pUseKey);
 			bCsrOk = (pOut->sKeyPem != NULL);
 		}
 		/* 栈上密钥副本立即擦除。 */
-		xrtSecureZero(&CertKey, sizeof(CertKey));
+		xacmeCertKeyUnit(&StackKey);
 		sCsrB64 = bCsrOk ? xrtBase64EncodeNew(
 			CsrDer.Data, CsrDer.Size, &B64Url) : NULL;
 		xrtBufferUnit(&CsrDer);
@@ -1529,7 +1574,8 @@ bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
 #endif
 
 #if defined(XACME_FEATURE_ACME_FLOW)
-bool xacmeClientRollover(xacmeclient* pClient, cstr sNewKeyPem)
+bool xacmeClientRollover(
+	xacmeclient* pClient, cstr sNewKeyPem, cstr sStoreRoot)
 {
 	xacmees256key NewKey;
 	str sOldJwk = NULL;
@@ -1601,55 +1647,93 @@ bool xacmeClientRollover(xacmeclient* pClient, cstr sNewKeyPem)
 		goto Done;
 	}
 	/* 外层 JWS：新钥签名（保护头嵌新 JWK + nonce），载荷 = 内层
-	   JWS；keyChange 不经 xacmeFlowPost（那会再包一层签名）。 */
-	if(!xacmeFlowNewNonce(pClient))
+	   JWS；构建移入下方 badNonce 重试循环（每次换 nonce 重建）。 */
+	/* 裸 POST 带 badNonce 重试：外层 JWS 嵌死 nonce，服务端已消费
+	   而响应丢失时需换 nonce 重建 token 重发（对齐 FlowPost 语义）。 */
 	{
-		goto Done;
-	}
-	{
-		xacmejwsheader Outer;
-		Outer.Nonce = (xstrview){
-			pClient->sNonce, strlen(pClient->sNonce) };
-		Outer.Url = (xstrview){
-			pClient->sKeyChange, strlen(pClient->sKeyChange) };
-		Outer.Kid.Data = NULL;
-		Outer.Kid.Size = 0u; /* 空 kid → 嵌入新 JWK。 */
-		sOuter = xacmeJwsEs256(
-			&NewKey, &Outer, (xstrview){ sInner, strlen(sInner) });
-	}
-	if(sOuter == NULL)
-	{
-		goto Done;
-	}
-	pClient->sNonce[0] = '\0';
-	{
-		xacmehttpresponse R;
-		if(!xacmeHttpExchange(
-				&pClient->Http, "POST", pClient->sKeyChange,
-				"application/jose+json",
-				(xstrview){ sOuter, strlen(sOuter) }, &R))
+		uint32 uNonceRetry;
+		bool bPosted = false;
+		for(uNonceRetry = 0u; uNonceRetry < 3u; uNonceRetry++)
 		{
-			goto Done;
-		}
-		xacmeFlowTakeNonce(pClient, &R);
-		if(R.iStatus != 200u)
-		{
-			char sDetail[220];
-			snprintf(sDetail, sizeof(sDetail),
-				"acme rollover status=%u body=%.150s",
-				(unsigned)R.iStatus,
-				(R.sBody != NULL) ? R.sBody : "");
+			xacmehttpresponse R;
+			xacmejwsheader Outer;
+			if(!xacmeFlowNewNonce(pClient))
+			{
+				goto Done;
+			}
+			Outer.Nonce = (xstrview){
+				pClient->sNonce, strlen(pClient->sNonce) };
+			Outer.Url = (xstrview){
+				pClient->sKeyChange, strlen(pClient->sKeyChange) };
+			Outer.Kid.Data = NULL;
+			Outer.Kid.Size = 0u; /* 嵌新 JWK。 */
+			xrtFree(sOuter);
+			sOuter = xacmeJwsEs256(
+				&NewKey, &Outer, (xstrview){ sInner, strlen(sInner) });
+			if(sOuter == NULL)
+			{
+				goto Done;
+			}
+			pClient->sNonce[0] = 0;
+			if(!xacmeHttpExchange(
+					&pClient->Http, "POST", pClient->sKeyChange,
+					"application/jose+json",
+					(xstrview){ sOuter, strlen(sOuter) }, &R))
+			{
+				goto Done;
+			}
+			xacmeFlowTakeNonce(pClient, &R);
+			if((R.iStatus == 400u) && (R.sBody != NULL) &&
+				(strstr(R.sBody, "badNonce") != NULL))
+			{
+				xacmeHttpResponseUnit(&R);
+				continue;
+			}
+			if(R.iStatus != 200u)
+			{
+				char sDetail[220];
+				snprintf(sDetail, sizeof(sDetail),
+					"acme rollover status=%u body=%.150s",
+					(unsigned)R.iStatus,
+					(R.sBody != NULL) ? R.sBody : "");
+				xacmeHttpResponseUnit(&R);
+				xacmeFlowError(
+					XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT, sDetail);
+				goto Done;
+			}
 			xacmeHttpResponseUnit(&R);
+			bPosted = true;
+			break;
+		}
+		if(!bPosted)
+		{
 			xacmeFlowError(
-				XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT, sDetail);
+				XERR_PROTOCOL, XACME_FLOW_ERROR_NONCE,
+				"acme rollover nonce retries exhausted");
 			goto Done;
 		}
-		xacmeHttpResponseUnit(&R);
 	}
 	/* 生效：旧钥擦除，客户端切到新钥（kid 不变）。 */
 	xrtSecureZero(&pClient->AccountKey, sizeof(pClient->AccountKey));
 	pClient->AccountKey = NewKey;
 	memset(&NewKey, 0, sizeof(NewKey));
+	/* store 重存：消除滚动后 Obtain 读旧钥开新账户的漂移。
+	   失败不作废滚动（内存已生效），报告由错误链承载。 */
+	if((sStoreRoot != NULL) && (sStoreRoot[0] != 0))
+	{
+#if defined(XACME_FEATURE_ACME_STORE)
+		str sNewAccountPem = xacmeKeyPemWrite(&pClient->AccountKey);
+		bool bSaved = (sNewAccountPem != NULL) && xrtAcmeStoreSaveAccount(
+			sStoreRoot, pClient->sDirectoryUrl, sNewAccountPem);
+		xrtFree(sNewAccountPem);
+		if(!bSaved)
+		{
+			xacmeFlowError(
+				XERR_IO, XACME_FLOW_ERROR_STORE,
+				"acme rollover store resave failed");
+		}
+#endif
+	}
 	bOk = true;
 
 Done:
@@ -1660,6 +1744,50 @@ Done:
 	xrtFree(sInner);
 	xrtFree(sOuter);
 	return bOk;
+}
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+bool xacmeClientDeactivate(xacmeclient* pClient)
+{
+	xacmehttpresponse R;
+	if(pClient == NULL)
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme deactivate requires client");
+		return false;
+	}
+	if(pClient->sKid[0] == 0)
+	{
+		xacmeFlowError(
+			XERR_STATE, XACME_FLOW_ERROR_ACCOUNT,
+			"acme deactivate requires active account");
+		return false;
+	}
+	if(!xacmeFlowPost(
+			pClient, pClient->sKid,
+			XRT_STR_LITERAL("{\"status\":\"deactivated\"}"), true, &R,
+			0u))
+	{
+		return false;
+	}
+	/* 200 = 已停用或刚停用；幂等成功。 */
+	if(R.iStatus == 200u)
+	{
+		xacmeHttpResponseUnit(&R);
+		return true;
+	}
+	{
+		char sDetail[220];
+		snprintf(sDetail, sizeof(sDetail),
+			"acme deactivate status=%u body=%.150s", (unsigned)R.iStatus,
+			(R.sBody != NULL) ? R.sBody : "");
+		xacmeHttpResponseUnit(&R);
+		xacmeFlowError(
+			XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT, sDetail);
+	}
+	return false;
 }
 #endif
 
@@ -1720,6 +1848,24 @@ struct xacmeclient* xrtAcmeClientCreate(
 		xrtFree(pClient);
 		return NULL;
 	}
+	if((pConfig->sCertKeyPem != NULL) && (pConfig->sCertKeyPem[0] != 0))
+	{
+		pClient->pCertKey = (xacmecertkey*)xrtMalloc(
+			sizeof(*pClient->pCertKey));
+		if((pClient->pCertKey == NULL) ||
+			!xacmeCertKeyReadPem(
+				pConfig->sCertKeyPem, strlen(pConfig->sCertKeyPem),
+				pClient->pCertKey))
+		{
+			xacmeFlowError(
+				XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+				"acme client cert key pem invalid");
+			xrtFree(pClient->pCertKey);
+			xacmeClientUnit(pClient);
+			xrtFree(pClient);
+			return NULL;
+		}
+	}
 	for(i = 0; i < iResolverCount; i++)
 	{
 		if((sResolvers[i] == NULL) ||
@@ -1739,6 +1885,7 @@ struct xacmeclient* xrtAcmeClientCreate(
 	}
 	pClient->uPropagateTimeoutMs = (pConfig->uPropagateTimeoutMs != 0u) ?
 		pConfig->uPropagateTimeoutMs : XACME_FLOW_PROPAGATE_TIMEOUT_MS;
+	pClient->uIssueTimeoutUs = pConfig->uIssueTimeoutUs;
 	return pClient;
 }
 
@@ -1747,6 +1894,11 @@ void xrtAcmeClientDestroy(struct xacmeclient* pClient)
 	if(pClient == NULL)
 	{
 		return;
+	}
+	if(pClient->pCertKey != NULL)
+	{
+		xacmeCertKeyUnit(pClient->pCertKey);
+		xrtFree(pClient->pCertKey);
 	}
 	xacmeClientUnit(pClient);
 	xrtFree(pClient);
@@ -1776,9 +1928,14 @@ bool xrtAcmeClientIssueEx(
 }
 
 bool xrtAcmeClientRollover(
-	struct xacmeclient* pClient, cstr sNewKeyPem)
+	struct xacmeclient* pClient, cstr sNewKeyPem, cstr sStoreRoot)
 {
-	return xacmeClientRollover(pClient, sNewKeyPem);
+	return xacmeClientRollover(pClient, sNewKeyPem, sStoreRoot);
+}
+
+bool xrtAcmeClientDeactivate(struct xacmeclient* pClient)
+{
+	return xacmeClientDeactivate(pClient);
 }
 
 bool xrtAcmeClientRevoke(

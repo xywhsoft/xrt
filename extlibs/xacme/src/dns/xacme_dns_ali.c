@@ -276,6 +276,103 @@ static bool xacmeAliFindZone(
 	}
 }
 
+/*
+	Add 前预清理：删除该 RR 下同值旧记录。传输级重试可能在服务端
+	留下重复 TXT（响应丢失后重放）；先查后删使 Add 幂等，
+	Remove 的按 RecordId 清理不再有孤儿残留。
+*/
+static void xacmeAliPreClean(
+	xacmednsalicontext* pCtx, cstr sZone, cstr sRr, cstr sTxtText)
+{
+	char sQuery[320];
+	uint16 iStatus = 0u;
+	str sBody = NULL;
+	xvalue* pRoot = NULL;
+	xvalue* pRecords;
+	char sRecordId[64];
+	char sDelete[160];
+
+	snprintf(sQuery, sizeof(sQuery),
+		"DomainName=%s&RRKeyWord=%s", sZone, sRr);
+	if(!xacmeAliCall(
+			pCtx, "DescribeDomainRecords", sQuery, &iStatus, &sBody))
+	{
+		xrtClearError();
+		return;
+	}
+	if(sBody != NULL)
+	{
+		pRoot = xrtJsonParse((xstrview){ sBody, strlen(sBody) });
+	}
+	if((pRoot != NULL) &&
+		((pRecords = xrtValueObjectGet(
+			pRoot, XRT_STR_LITERAL("DomainRecords"))) != NULL))
+	{
+		xvalue* pList = xrtValueObjectGet(
+			pRecords, XRT_STR_LITERAL("Record"));
+		size_t i;
+		for(i = 0; (pList != NULL) &&
+			xrtValueIs(pList, XVALUE_ARRAY) &&
+			(i < xrtValueCount(pList)); i++)
+		{
+			xvalue* pItem = xrtValueArrayGet(pList, i);
+			xvalue* pField;
+			xstrview Text;
+			char sValue[256];
+			bool bMatch = false;
+			if((pItem == NULL) || !xrtValueIs(pItem, XVALUE_OBJECT))
+			{
+				continue;
+			}
+			pField = xrtValueObjectGet(
+				pItem, XRT_STR_LITERAL("Type"));
+			if((pField == NULL) ||
+				!xrtValueGetString(pField, &Text) ||
+				(Text.Size != 3u) ||
+				(memcmp(Text.Data, "TXT", 3u) != 0))
+			{
+				continue;
+			}
+			pField = xrtValueObjectGet(
+				pItem, XRT_STR_LITERAL("Value"));
+			if((pField != NULL) && xrtValueGetString(pField, &Text) &&
+				(Text.Size < sizeof(sValue)))
+			{
+				memcpy(sValue, Text.Data, Text.Size);
+				sValue[Text.Size] = 0;
+				bMatch = (strcmp(sValue, sTxtText) == 0);
+			}
+			if(!bMatch)
+			{
+				continue;
+			}
+			pField = xrtValueObjectGet(
+				pItem, XRT_STR_LITERAL("RecordId"));
+			if((pField == NULL) ||
+				!xrtValueGetString(pField, &Text) ||
+				(Text.Size >= sizeof(sRecordId)))
+			{
+				continue;
+			}
+			memcpy(sRecordId, Text.Data, Text.Size);
+			sRecordId[Text.Size] = 0;
+			snprintf(sDelete, sizeof(sDelete), "RecordId=%s",
+				sRecordId);
+			{
+				uint16 iDelStatus = 0u;
+				str sDelResp = NULL;
+				(void)xacmeAliCall(
+					pCtx, "DeleteDomainRecord", sDelete, &iDelStatus,
+					&sDelResp);
+				xrtFree(sDelResp);
+			}
+		}
+	}
+	xrtValueRelease(pRoot);
+	xrtFree(sBody);
+	xrtClearError(); /* 预清理是尽力而为，不污染主路径。 */
+}
+
 static bool xacmeAliAdd(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
@@ -285,6 +382,7 @@ static bool xacmeAliAdd(
 	char sRr[200];
 	char sZone[256];
 	char sBody[700];
+	char sTxtText[208];
 	uint16 iStatus = 0u;
 	str sResp = NULL;
 	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
@@ -303,7 +401,6 @@ static bool xacmeAliAdd(
 		return false;
 	}
 	{
-		char sTxtText[208];
 		const char* sZone;
 		size_t iZoneLen;
 		size_t iFqdnLen = strlen(sFqdnText);
@@ -335,6 +432,7 @@ static bool xacmeAliAdd(
 			"DomainName=%s&RR=%s&Type=TXT&Value=%s",
 			sZone, sRr, sTxtText);
 	}
+	xacmeAliPreClean(pCtx, sZone, sRr, sTxtText);
 	if(!xacmeAliCall(
 		pCtx, "AddDomainRecord", sBody, &iStatus, &sResp))
 	{

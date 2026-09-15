@@ -377,6 +377,9 @@
 #ifndef XRT_MODULE_CRYPTO_ECDSA_P256_SIGN_DER
 #define XRT_MODULE_CRYPTO_ECDSA_P256_SIGN_DER
 #endif
+#ifndef XRT_MODULE_CRYPTO_RSA_PKCS1_SIGN
+#define XRT_MODULE_CRYPTO_RSA_PKCS1_SIGN
+#endif
 #ifndef XACME_MODULE_ACME_JOSE
 #define XACME_MODULE_ACME_JOSE
 #endif
@@ -42346,7 +42349,11 @@ XRT_EXTERN_C_END
 	!defined(XRT_FEATURE_PEM) || \
 	!defined(XRT_FEATURE_CODEC_BASE64) || \
 	!defined(XRT_FEATURE_CRYPTO_P256) || \
-	!defined(XRT_FEATURE_CRYPTO_ECDSA_P256_SIGN_DER)
+	!defined(XRT_FEATURE_CRYPTO_ECDSA_P256_SIGN_DER) || \
+	!defined(XRT_FEATURE_CRYPTO_RSA) || \
+	!defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE) || \
+	!defined(XRT_FEATURE_CRYPTO_RSA_PKCS1) || \
+	!defined(XRT_FEATURE_CRYPTO_RSA_PKCS1_SIGN)
 	#error "XACME_FEATURE_ACME_CSR requires JOSE, DER, PEM and P-256 DER signing"
 #endif
 
@@ -42811,6 +42818,19 @@ typedef struct xacmeclientconfig {
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
+	/*
+		单次签发的总预算（微秒；0 = 不限时）：覆盖订单/挑战/
+		finalize/证书下载的全部轮询与退避，超限以 XERR_TIMEOUT
+		失败。防病态 CA 把签发挂成小时级。
+	*/
+	uint64 uIssueTimeoutUs;
+	/*
+		宿主提供的证书私钥 PEM（可选；EC P-256 或 RSA-2048+）：
+		设置后每次签发复用同一证书密钥（含 RSA 证书场景）；
+		为空则每次签发生成一次性 ES256。库不内置 RSA 密钥生成，
+		RSA 密钥由宿主用 openssl 等工具预先生成。
+	*/
+	cstr sCertKeyPem;
 } xacmeclientconfig;
 
 #endif
@@ -42884,8 +42904,15 @@ XRT_API bool xrtAcmeClientRevoke(
 */
 XRT_API bool xrtAcmeClientRollover(
 	struct xacmeclient* pClient,
-	cstr sNewKeyPem
+	cstr sNewKeyPem,
+	cstr sStoreRoot
 );
+
+/*
+	账户停用（RFC 8555 §7.3.6）：停用后该账户及其订单永久不可用；
+	幂等（已停用视为成功）。
+*/
+XRT_API bool xrtAcmeClientDeactivate(struct xacmeclient* pClient);
 
 #endif
 
@@ -43200,6 +43227,10 @@ typedef struct xacmeobtainconfig {
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
+	/* 单次签发总预算（微秒；0 = 不限时），透传给客户端。 */
+	uint64 uIssueTimeoutUs;
+	/* 宿主提供的证书私钥 PEM（可选，EC/RSA），透传给客户端。 */
+	cstr sCertKeyPem;
 	cstr sStoreRoot;
 	int iRenewalDays;
 } xacmeobtainconfig;
@@ -61879,6 +61910,42 @@ typedef struct xacmecsrconfig {
 	size_t DomainCount;
 } xacmecsrconfig;
 
+/* 证书密钥算法：ES256 内部生成，或宿主提供的 RSA（PKCS#8/PKCS#1）。 */
+typedef enum xacmecertkeykind {
+	XACME_CERT_KEY_ES256 = 0,
+	XACME_CERT_KEY_RSA
+} xacmecertkeykind;
+
+/*
+	RSA 私钥的定长持有形态（大端正整数字节，无符号前导零已剥）。
+	CRT 五参数齐备时签名走 CRT 快路径，否则要求完整私有指数。
+*/
+typedef struct xacmersakey {
+	uint8 Modulus[1024];
+	size_t ModulusSize;
+	uint8 Exponent[16];
+	size_t ExponentSize;
+	uint8 PrivateExponent[1024];
+	size_t PrivateExponentSize;
+	uint8 Prime1[520];
+	size_t Prime1Size;
+	uint8 Prime2[520];
+	size_t Prime2Size;
+	uint8 Exponent1[520];
+	size_t Exponent1Size;
+	uint8 Exponent2[520];
+	size_t Exponent2Size;
+	uint8 Coefficient[520];
+	size_t CoefficientSize;
+} xacmersakey;
+
+/* 证书密钥统一外壳；不用的分支内容未定义。 */
+typedef struct xacmecertkey {
+	xacmecertkeykind Kind;
+	xacmees256key Ec;
+	xacmersakey Rsa;
+} xacmecertkey;
+
 #endif
 
 XRT_EXTERN_C_BEGIN
@@ -61897,6 +61964,26 @@ str xacmeKeyPemWrite(const xacmees256key* pKey);
 
 /* 解析 PKCS#8 或 SEC1 EC 私钥 PEM；公钥缺失时从私钥派生。 */
 bool xacmeKeyPemRead(cstr sPem, size_t iSize, xacmees256key* pKey);
+
+/*
+	解析证书密钥 PEM（自动识别）：EC（PKCS#8/SEC1）或 RSA
+	（PKCS#8 "PRIVATE KEY" / PKCS#1 "RSA PRIVATE KEY"）。
+	输出敏感，宿主用 xacmeCertKeyUnit 擦除。
+*/
+bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey);
+
+/* 序列化为未加密 PKCS#8 PEM（EC 或 RSA）；xrtFree 释放。 */
+str xacmeCertKeyPemWrite(const xacmecertkey* pKey);
+
+/* 擦除并清零（含 EC/RSA 两分支全量）。 */
+void xacmeCertKeyUnit(xacmecertkey* pKey);
+
+/* 按密钥算法生成 PKCS#10 CSR（DER）追加到 pOut。 */
+bool xacmeCsrBuild(
+	const xacmecertkey* pKey,
+	const xacmecsrconfig* pConfig,
+	xbuffer* pOut
+);
 
 #endif
 
@@ -62033,6 +62120,8 @@ typedef enum xacmeflowerror {
 typedef struct xacmeclient {
 	xacmehttp Http;
 	xacmees256key AccountKey;
+	/* 宿主提供的证书密钥（EC/RSA）；为空则每次签发生成 ES256。 */
+	xacmecertkey* pCertKey;
 	char sDirectoryUrl[512];
 	char sKid[512];
 	char sNewNonce[512];
@@ -62045,6 +62134,11 @@ typedef struct xacmeclient {
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
+	/* 单次签发的总预算（微秒；0 = 不限时）。Issue 入口打点，
+	   轮询/传播/退避逐段检查剩余时间。 */
+	uint64 uIssueTimeoutUs;
+	uint64 IssueDeadline;
+	bool bIssueDeadline;
 } xacmeclient;
 
 #endif
@@ -62090,13 +62184,21 @@ bool xacmeClientIssue(
 
 /*
 	账户密钥滚动（RFC 8555 §7.3.5）：用 sNewKeyPem（PKCS#8/SEC1）
-	替换当前账户密钥，kid 不变。要求 directory 提供 keyChange 端点；
-	成功后客户端内存密钥同步替换（持久化由宿主经 AccountPem 重存）。
+	替换当前账户密钥，kid 不变。要求 directory 提供 keyChange 端点。
+	sStoreRoot 非空时成功后自动把新账户钥重存进该 store（按
+	sDirectoryUrl 隔离），消除滚动后 Obtain 读旧钥开新账户的漂移。
 */
 bool xacmeClientRollover(
 	xacmeclient* pClient,
-	cstr sNewKeyPem
+	cstr sNewKeyPem,
+	cstr sStoreRoot
 );
+
+/*
+	账户停用（RFC 8555 §7.3.6）：向账户 URL 提交 deactivated。
+	停用后该账户及其订单永久不可用；幂等（已停用视为成功）。
+*/
+bool xacmeClientDeactivate(xacmeclient* pClient);
 
 /*
 	一站式续签（组合 store）：
@@ -321526,6 +321628,557 @@ bool xacmeCsrEc(
 	return bOk;
 }
 
+/* ---------- 证书密钥抽象（ES256 / RSA） ---------- */
+
+/* 大端无符号整数 → DER INTEGER（剥前导零，高位置位补 0x00）。 */
+static bool xacmeDerAppendBigUint(
+	xbuffer* pOut, const uint8* pData, size_t iSize)
+{
+	xbuffer Content;
+	bool bOk = true;
+	while((iSize > 1u) && (pData[0] == 0u))
+	{
+		pData++;
+		iSize--;
+	}
+	xrtBufferInit(&Content);
+	if(iSize == 0u)
+	{
+		bOk = xrtBufferAppendByte(&Content, 0u);
+	}
+	else
+	{
+		if((pData[0] & 0x80u) != 0u)
+		{
+			bOk = xrtBufferAppendByte(&Content, 0u);
+		}
+		if(bOk)
+		{
+			bOk = xrtBufferAppend(
+				&Content, (xbytesview){ pData, iSize });
+		}
+	}
+	if(bOk)
+	{
+		bOk = xrtDerAppend(
+			pOut, XASN1_UNIVERSAL, XASN1_INTEGER, false,
+			xrtBufferView(&Content));
+	}
+	xrtBufferUnit(&Content);
+	return bOk;
+}
+
+/* DER INTEGER（正数）剥符号前导零后拷入定长缓冲。 */
+static bool xacmeDerIntToBytes(
+	const xdervalue* pValue, uint8* pOut, size_t iCap, size_t* pOutSize)
+{
+	const uint8* pData = pValue->Value.Data;
+	size_t iSize = pValue->Value.Size;
+	if((pData == NULL) || (iSize == 0u))
+	{
+		return false;
+	}
+	if((pData[0] & 0x80u) != 0u)
+	{
+		return false; /* 负数：密钥分量不可能。 */
+	}
+	while((iSize > 1u) && (pData[0] == 0u))
+	{
+		pData++;
+		iSize--;
+	}
+	if(iSize > iCap)
+	{
+		return false;
+	}
+	memcpy(pOut, pData, iSize);
+	*pOutSize = iSize;
+	return true;
+}
+
+/* PKCS#1（RSAPrivateKey）：n/e/d 必填，CRT 五参可选成组。 */
+static bool xacmeRsaParsePkcs1(xdercursor* pCursor, xacmersakey* pKey)
+{
+	xdervalue Value;
+	uint8 Version[8];
+	size_t iVersionSize = 0u;
+	struct
+	{
+		uint8* pData;
+		size_t* pSize;
+		size_t iCap;
+		bool bGot;
+	} Tails[5];
+	size_t i;
+	Tails[0].pData = pKey->Prime1;
+	Tails[0].pSize = &pKey->Prime1Size;
+	Tails[0].iCap = sizeof(pKey->Prime1);
+	Tails[0].bGot = false;
+	Tails[1].pData = pKey->Prime2;
+	Tails[1].pSize = &pKey->Prime2Size;
+	Tails[1].iCap = sizeof(pKey->Prime2);
+	Tails[1].bGot = false;
+	Tails[2].pData = pKey->Exponent1;
+	Tails[2].pSize = &pKey->Exponent1Size;
+	Tails[2].iCap = sizeof(pKey->Exponent1);
+	Tails[2].bGot = false;
+	Tails[3].pData = pKey->Exponent2;
+	Tails[3].pSize = &pKey->Exponent2Size;
+	Tails[3].iCap = sizeof(pKey->Exponent2);
+	Tails[3].bGot = false;
+	Tails[4].pData = pKey->Coefficient;
+	Tails[4].pSize = &pKey->CoefficientSize;
+	Tails[4].iCap = sizeof(pKey->Coefficient);
+	Tails[4].bGot = false;
+	if(!xrtDerExpect(
+			pCursor, XASN1_UNIVERSAL, XASN1_INTEGER, false, &Value) ||
+		!xacmeDerIntToBytes(
+			&Value, Version, sizeof(Version), &iVersionSize) ||
+		!xrtDerExpect(
+			pCursor, XASN1_UNIVERSAL, XASN1_INTEGER, false, &Value) ||
+		!xacmeDerIntToBytes(
+			&Value, pKey->Modulus, sizeof(pKey->Modulus),
+			&pKey->ModulusSize) ||
+		!xrtDerExpect(
+			pCursor, XASN1_UNIVERSAL, XASN1_INTEGER, false, &Value) ||
+		!xacmeDerIntToBytes(
+			&Value, pKey->Exponent, sizeof(pKey->Exponent),
+			&pKey->ExponentSize) ||
+		!xrtDerExpect(
+			pCursor, XASN1_UNIVERSAL, XASN1_INTEGER, false, &Value) ||
+		!xacmeDerIntToBytes(
+			&Value, pKey->PrivateExponent, sizeof(pKey->PrivateExponent),
+			&pKey->PrivateExponentSize))
+	{
+		return false;
+	}
+	for(i = 0; i < 5u; i++)
+	{
+		if(xrtDerRead(pCursor, &Value) != XDER_VALUE)
+		{
+			break;
+		}
+		if(!xrtDerIs(
+				&Value, XASN1_UNIVERSAL, XASN1_INTEGER, false))
+		{
+			break; /* 允许尾部出现其他可选元素。 */
+		}
+		if(!xacmeDerIntToBytes(
+				&Value, Tails[i].pData, Tails[i].iCap, Tails[i].pSize))
+		{
+			return false;
+		}
+		Tails[i].bGot = true;
+	}
+	for(i = 0; i < 5u; i++)
+	{
+		if(!Tails[i].bGot)
+		{
+			*Tails[i].pSize = 0u;
+		}
+	}
+	return (pKey->ModulusSize != 0u) && (pKey->ExponentSize != 0u) &&
+		(pKey->PrivateExponentSize != 0u);
+}
+
+/* RSA PKCS#1 写出（CRT 完整时带五参数）。 */
+static bool xacmeRsaWritePkcs1(const xacmersakey* pKey, xbuffer* pOut)
+{
+	xbuffer Body;
+	bool bOk;
+	xrtBufferInit(&Body);
+	bOk = xrtDerAppendUInt64(&Body, 0u) &&
+		xacmeDerAppendBigUint(
+			&Body, pKey->Modulus, pKey->ModulusSize) &&
+		xacmeDerAppendBigUint(
+			&Body, pKey->Exponent, pKey->ExponentSize) &&
+		xacmeDerAppendBigUint(
+			&Body, pKey->PrivateExponent, pKey->PrivateExponentSize);
+	if(bOk && (pKey->Prime1Size != 0u) && (pKey->Prime2Size != 0u) &&
+		(pKey->Exponent1Size != 0u) && (pKey->Exponent2Size != 0u) &&
+		(pKey->CoefficientSize != 0u))
+	{
+		bOk = xacmeDerAppendBigUint(
+				&Body, pKey->Prime1, pKey->Prime1Size) &&
+			xacmeDerAppendBigUint(
+				&Body, pKey->Prime2, pKey->Prime2Size) &&
+			xacmeDerAppendBigUint(
+				&Body, pKey->Exponent1, pKey->Exponent1Size) &&
+			xacmeDerAppendBigUint(
+				&Body, pKey->Exponent2, pKey->Exponent2Size) &&
+			xacmeDerAppendBigUint(
+				&Body, pKey->Coefficient, pKey->CoefficientSize);
+	}
+	if(bOk)
+	{
+		bOk = xrtDerAppend(
+			pOut, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+			xrtBufferView(&Body));
+	}
+	xrtBufferUnit(&Body);
+	return bOk;
+}
+
+/* rsaEncryption AlgIdentifier（NULL 参数）。 */
+static bool xacmeRsaAlgId(xbuffer* pOut)
+{
+	xbuffer Raw;
+	bool bOk;
+	xrtBufferInit(&Raw);
+	bOk = xrtDerAppendOid(&Raw, XRT_STR_LITERAL("1.2.840.113549.1.1.1")) &&
+		xrtDerAppendNull(&Raw) &&
+		xrtDerAppend(
+			pOut, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+			xrtBufferView(&Raw));
+	xrtBufferUnit(&Raw);
+	return bOk;
+}
+
+/* RSA SPKI：SEQ{ rsaEncryption, BIT STRING{ SEQ{ n, e } } }。 */
+static bool xacmeCsrSpkiRsa(xbuffer* pOut, const xacmersakey* pKey)
+{
+	xbuffer Alg;
+	xbuffer NeRaw;
+	xbuffer Ne;
+	xbuffer Spki;
+	bool bOk;
+	xrtBufferInit(&Alg);
+	xrtBufferInit(&NeRaw);
+	xrtBufferInit(&Ne);
+	xrtBufferInit(&Spki);
+	bOk = xacmeRsaAlgId(&Alg) &&
+		xacmeDerAppendBigUint(
+			&NeRaw, pKey->Modulus, pKey->ModulusSize) &&
+		xacmeDerAppendBigUint(
+			&NeRaw, pKey->Exponent, pKey->ExponentSize) &&
+		xrtDerAppend(
+			&Ne, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+			xrtBufferView(&NeRaw)) &&
+		xrtBufferAppend(&Spki, xrtBufferView(&Alg)) &&
+		xrtDerAppendBitString(
+			&Spki, xrtBufferView(&Ne), 0u) &&
+		xrtDerAppend(
+			pOut, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+			xrtBufferView(&Spki));
+	xrtBufferUnit(&Alg);
+	xrtBufferUnit(&NeRaw);
+	xrtBufferUnit(&Ne);
+	xrtBufferUnit(&Spki);
+	return bOk;
+}
+
+/* RSA 私钥视图（借用 xacmersakey 定长缓冲）。 */
+static void xacmeRsaView(
+	const xacmersakey* pKey, xrsaprivatekey* pView)
+{
+	memset(pView, 0, sizeof(*pView));
+	pView->Public.Modulus = pKey->Modulus;
+	pView->Public.ModulusSize = pKey->ModulusSize;
+	pView->Public.Exponent = pKey->Exponent;
+	pView->Public.ExponentSize = pKey->ExponentSize;
+	pView->PrivateExponent = pKey->PrivateExponent;
+	pView->PrivateExponentSize = pKey->PrivateExponentSize;
+	if((pKey->Prime1Size != 0u) && (pKey->Prime2Size != 0u) &&
+		(pKey->Exponent1Size != 0u) && (pKey->Exponent2Size != 0u) &&
+		(pKey->CoefficientSize != 0u))
+	{
+		pView->Prime1 = pKey->Prime1;
+		pView->Prime1Size = pKey->Prime1Size;
+		pView->Prime2 = pKey->Prime2;
+		pView->Prime2Size = pKey->Prime2Size;
+		pView->Exponent1 = pKey->Exponent1;
+		pView->Exponent1Size = pKey->Exponent1Size;
+		pView->Exponent2 = pKey->Exponent2;
+		pView->Exponent2Size = pKey->Exponent2Size;
+		pView->Coefficient = pKey->Coefficient;
+		pView->CoefficientSize = pKey->CoefficientSize;
+	}
+}
+
+void xacmeCertKeyUnit(xacmecertkey* pKey)
+{
+	if(pKey == NULL)
+	{
+		return;
+	}
+	xrtSecureZero(pKey, sizeof(*pKey));
+	pKey->Kind = XACME_CERT_KEY_ES256;
+}
+
+bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey)
+{
+	xpemblock Block;
+	bool bHavePkcs8;
+	bool bHavePkcs1Rsa;
+
+	if((sPem == NULL) || (iSize == 0u) || (pKey == NULL))
+	{
+		xrtSetErrorInfo(
+			XERR_ARGUMENT, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+			"acme cert key read requires pem and key");
+		return false;
+	}
+	xacmeCertKeyUnit(pKey);
+	bHavePkcs8 = xrtPemFind(sPem, iSize, "PRIVATE KEY", &Block);
+	bHavePkcs1Rsa = xrtPemFind(sPem, iSize, "RSA PRIVATE KEY", &Block);
+
+	/* EC：PKCS#8（非 RSA）或 SEC1。 */
+	if(bHavePkcs8 || xrtPemFind(sPem, iSize, "EC PRIVATE KEY", &Block))
+	{
+		xrtClearError();
+		if(xacmeKeyPemRead(sPem, iSize, &pKey->Ec))
+		{
+			pKey->Kind = XACME_CERT_KEY_ES256;
+			return true;
+		}
+		xrtClearError();
+	}
+
+	if(bHavePkcs1Rsa)
+	{
+		size_t iDerSize = 0u;
+		bytes pDer = xrtPemDecodeNew(&Block, &iDerSize);
+		xdercursor Cursor;
+		xdervalue Value;
+		bool bOk;
+		if(pDer == NULL)
+		{
+			return false;
+		}
+		bOk = xrtDerInit(&Cursor, pDer, iDerSize) &&
+			xrtDerExpect(
+				&Cursor, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value) &&
+			xrtDerEnter(&Value, &Cursor) &&
+			xacmeRsaParsePkcs1(&Cursor, &pKey->Rsa);
+		xrtFree(pDer);
+		if(bOk)
+		{
+			pKey->Kind = XACME_CERT_KEY_RSA;
+			return true;
+		}
+		xacmeCertKeyUnit(pKey);
+		xrtSetErrorInfo(
+			XERR_ARGUMENT, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+			"acme cert key rsa pkcs1 invalid");
+		return false;
+	}
+
+	if(bHavePkcs8)
+	{
+		size_t iDerSize = 0u;
+		bytes pDer = xrtPemDecodeNew(&Block, &iDerSize);
+		xdercursor Cursor;
+		xdervalue Value;
+		xdervalue Algorithm;
+		xdercursor AlgCursor;
+		xdervalue Oid;
+		xdercursor Inner;
+		xdervalue InnerSeq;
+		bool bIsRsa = false;
+		bool bOk;
+		if(pDer == NULL)
+		{
+			return false;
+		}
+		bOk = xrtDerInit(&Cursor, pDer, iDerSize) &&
+			xrtDerExpect(
+				&Cursor, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value) &&
+			xrtDerEnter(&Value, &Cursor) &&
+			xrtDerExpect(
+				&Cursor, XASN1_UNIVERSAL, XASN1_INTEGER, false, &Value) &&
+			xrtDerExpect(
+				&Cursor, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+				&Algorithm) &&
+			xrtDerEnter(&Algorithm, &AlgCursor) &&
+			(xrtDerRead(&AlgCursor, &Oid) == XDER_VALUE) &&
+			xrtDerIs(&Oid, XASN1_UNIVERSAL, XASN1_OBJECT_IDENTIFIER, false);
+		if(bOk)
+		{
+			/* rsaEncryption OID 的 DER 内容固定 9 字节。 */
+			static const uint8 uRsaOid[9] = {
+				0x2a, 0x86, 0x48, 0x86, 0xf7,
+				0x0d, 0x01, 0x01, 0x01 };
+			bIsRsa = (Oid.Value.Size == sizeof(uRsaOid)) &&
+				(memcmp(Oid.Value.Data, uRsaOid, sizeof(uRsaOid)) == 0);
+		}
+		if(bOk && bIsRsa &&
+			xrtDerExpect(
+				&Cursor, XASN1_UNIVERSAL, XASN1_OCTET_STRING, false,
+				&Value))
+		{
+			bOk = xrtDerInit(
+					&Inner, Value.Value.Data, Value.Value.Size) &&
+				xrtDerExpect(
+					&Inner, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+					&InnerSeq) &&
+				xrtDerEnter(&InnerSeq, &Inner) &&
+				xacmeRsaParsePkcs1(&Inner, &pKey->Rsa);
+			xrtFree(pDer);
+			if(bOk)
+			{
+				pKey->Kind = XACME_CERT_KEY_RSA;
+				return true;
+			}
+			xacmeCertKeyUnit(pKey);
+			xrtSetErrorInfo(
+				XERR_ARGUMENT, "xrt.acme.csr",
+				XACME_CSR_ERROR_ARGUMENT,
+				"acme cert key rsa pkcs8 invalid");
+			return false;
+		}
+		xrtFree(pDer);
+	}
+
+	xacmeCertKeyUnit(pKey);
+	xrtSetErrorInfo(
+		XERR_NOT_FOUND, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+		"acme cert key pem unrecognized");
+	return false;
+}
+
+str xacmeCertKeyPemWrite(const xacmecertkey* pKey)
+{
+	if((pKey == NULL) ||
+		((pKey->Kind == XACME_CERT_KEY_ES256) &&
+			(pKey->Ec.Public[0] != 0x04u)) ||
+		((pKey->Kind == XACME_CERT_KEY_RSA) &&
+			((pKey->Rsa.ModulusSize == 0u) ||
+				(pKey->Rsa.PrivateExponentSize == 0u))))
+	{
+		xrtSetErrorInfo(
+			XERR_ARGUMENT, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+			"acme cert key write requires valid key");
+		return NULL;
+	}
+	if(pKey->Kind == XACME_CERT_KEY_ES256)
+	{
+		return xacmeKeyPemWrite(&pKey->Ec);
+	}
+	{
+		xbuffer Alg;
+		xbuffer Pkcs1;
+		xbuffer Body;
+		xbuffer Pkcs8;
+		str sPem = NULL;
+		bool bOk;
+		xrtBufferInit(&Alg);
+		xrtBufferInit(&Pkcs1);
+		xrtBufferInit(&Body);
+		xrtBufferInit(&Pkcs8);
+		bOk = xacmeRsaAlgId(&Alg) &&
+			xacmeRsaWritePkcs1(&pKey->Rsa, &Pkcs1) &&
+			xrtDerAppendUInt64(&Body, 0u) &&
+			xrtBufferAppend(&Body, xrtBufferView(&Alg)) &&
+			xrtDerAppend(
+				&Body, XASN1_UNIVERSAL, XASN1_OCTET_STRING, false,
+				xrtBufferView(&Pkcs1)) &&
+			xrtDerAppend(
+				&Pkcs8, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+				xrtBufferView(&Body));
+		if(bOk && (Pkcs8.Data != NULL))
+		{
+			sPem = xrtPemEncodeNew(
+				"PRIVATE KEY", Pkcs8.Data, Pkcs8.Size);
+		}
+		xrtBufferUnit(&Alg);
+		xrtBufferUnit(&Pkcs1);
+		xrtBufferUnit(&Body);
+		xrtBufferUnit(&Pkcs8);
+		return sPem;
+	}
+}
+
+/* 通用 PKCS#10 组装：骨架共享，SPKI/签名算法/签名按密钥算法分派。 */
+bool xacmeCsrBuild(
+	const xacmecertkey* pKey, const xacmecsrconfig* pConfig, xbuffer* pOut)
+{
+	xbuffer Cri;
+	xbuffer CriTlv;
+	xbuffer SigAlgRaw;
+	xbuffer SigAlg;
+	xbuffer Outer;
+	uint8 Digest[XRT_SHA256_SIZE];
+	uint8 Signature[XRT_RSA_MAX_MODULUS_SIZE];
+	size_t iSignatureSize = 0u;
+	bool bOk;
+
+	if((pKey == NULL) || (pConfig == NULL) || (pOut == NULL) ||
+		(pConfig->CommonName.Data == NULL) ||
+		(pConfig->CommonName.Size == 0u))
+	{
+		xrtSetErrorInfo(
+			XERR_ARGUMENT, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+			"acme csr build requires key, config and output");
+		return false;
+	}
+	xrtBufferInit(&Cri);
+	xrtBufferInit(&CriTlv);
+	xrtBufferInit(&SigAlgRaw);
+	xrtBufferInit(&SigAlg);
+	xrtBufferInit(&Outer);
+	bOk = xrtDerAppendUInt64(&Cri, 0u) &&
+		xacmeCsrSubject(&Cri, pConfig->CommonName) &&
+		((pKey->Kind == XACME_CERT_KEY_ES256) ?
+			xacmeCsrSpki(&Cri, &pKey->Ec) :
+			xacmeCsrSpkiRsa(&Cri, &pKey->Rsa)) &&
+		xacmeCsrAttributes(&Cri, pConfig) &&
+		xrtDerAppend(
+			&CriTlv, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+			xrtBufferView(&Cri)) &&
+		xrtSha256(CriTlv.Data, xrtBufferView(&CriTlv).Size, Digest);
+	if(bOk && (pKey->Kind == XACME_CERT_KEY_ES256))
+	{
+		bOk = xrtEcdsaP256SignDer(
+			XCRYPTO_HASH_SHA256, Digest, pKey->Ec.Private, Signature,
+			sizeof(Signature), &iSignatureSize);
+	}
+	else if(bOk)
+	{
+		xrsaprivatekey View;
+		xacmeRsaView(&pKey->Rsa, &View);
+		iSignatureSize = pKey->Rsa.ModulusSize;
+		bOk = (iSignatureSize <= sizeof(Signature)) &&
+			xrtRsaPkcs1Sign(
+				&View, XCRYPTO_HASH_SHA256, Digest, Signature);
+	}
+	if(bOk)
+	{
+		bOk = xrtDerAppendOid(
+				&SigAlgRaw,
+				(pKey->Kind == XACME_CERT_KEY_ES256) ?
+					XRT_STR_LITERAL("1.2.840.10045.4.3.2") :
+					XRT_STR_LITERAL("1.2.840.113549.1.1.11"));
+		if(bOk && (pKey->Kind == XACME_CERT_KEY_RSA))
+		{
+			bOk = xrtDerAppendNull(&SigAlgRaw);
+		}
+		bOk = bOk &&
+			xrtDerAppend(
+				&SigAlg, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+				xrtBufferView(&SigAlgRaw)) &&
+			xrtBufferAppend(&Outer, xrtBufferView(&CriTlv)) &&
+			xrtBufferAppend(&Outer, xrtBufferView(&SigAlg)) &&
+			xrtDerAppendBitString(
+				&Outer, (xbytesview){ Signature, iSignatureSize }, 0u) &&
+			xrtDerAppend(
+				pOut, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
+				xrtBufferView(&Outer));
+	}
+	xrtBufferUnit(&Cri);
+	xrtBufferUnit(&CriTlv);
+	xrtBufferUnit(&SigAlgRaw);
+	xrtBufferUnit(&SigAlg);
+	xrtBufferUnit(&Outer);
+	if(!bOk)
+	{
+		xrtSetErrorInfo(
+			XERR_INTERNAL, "xrt.acme.csr", XACME_CSR_ERROR_INTERNAL,
+			"acme csr build assembly failed");
+	}
+	return bOk;
+}
+
+/* ---------- 私钥 PEM 序列化 ---------- */
 /* ---------- 私钥 PEM 序列化 ---------- */
 
 /* SEC1：SEQ{ INT 1, OCTET d, [0]{曲线 OID}, [1]{BIT STRING pub} } */
@@ -322102,7 +322755,19 @@ bool xacmeDnsTxtQuery(
 	*pOutCount = 0u;
 
 	xrtBufferInit(&Query);
-	iId = (uint16)(xrtRand32() & 0xFFFFu);
+	/* 探测仅咨询性（失败不阻断），但事务 ID 仍用密码学随机，
+	   降低在路径攻击者伪造应答提前放行传播门的概率。 */
+	{
+		uint8 uSecure[2];
+		if(!xrtSecureRandom(uSecure, sizeof(uSecure)))
+		{
+			xacmeTxtError(
+				XERR_INTERNAL, XACME_TXT_ERROR_NETWORK,
+				"acme dns txt secure random failed");
+			goto Done;
+		}
+		iId = (uint16)(((uint16)uSecure[0] << 8u) | uSecure[1]);
+	}
 	{
 		uint8 Head[12] = {
 			(uint8)(iId >> 8u), (uint8)iId,
@@ -322537,6 +323202,103 @@ static bool xacmeAliFindZone(
 	}
 }
 
+/*
+	Add 前预清理：删除该 RR 下同值旧记录。传输级重试可能在服务端
+	留下重复 TXT（响应丢失后重放）；先查后删使 Add 幂等，
+	Remove 的按 RecordId 清理不再有孤儿残留。
+*/
+static void xacmeAliPreClean(
+	xacmednsalicontext* pCtx, cstr sZone, cstr sRr, cstr sTxtText)
+{
+	char sQuery[320];
+	uint16 iStatus = 0u;
+	str sBody = NULL;
+	xvalue* pRoot = NULL;
+	xvalue* pRecords;
+	char sRecordId[64];
+	char sDelete[160];
+
+	snprintf(sQuery, sizeof(sQuery),
+		"DomainName=%s&RRKeyWord=%s", sZone, sRr);
+	if(!xacmeAliCall(
+			pCtx, "DescribeDomainRecords", sQuery, &iStatus, &sBody))
+	{
+		xrtClearError();
+		return;
+	}
+	if(sBody != NULL)
+	{
+		pRoot = xrtJsonParse((xstrview){ sBody, strlen(sBody) });
+	}
+	if((pRoot != NULL) &&
+		((pRecords = xrtValueObjectGet(
+			pRoot, XRT_STR_LITERAL("DomainRecords"))) != NULL))
+	{
+		xvalue* pList = xrtValueObjectGet(
+			pRecords, XRT_STR_LITERAL("Record"));
+		size_t i;
+		for(i = 0; (pList != NULL) &&
+			xrtValueIs(pList, XVALUE_ARRAY) &&
+			(i < xrtValueCount(pList)); i++)
+		{
+			xvalue* pItem = xrtValueArrayGet(pList, i);
+			xvalue* pField;
+			xstrview Text;
+			char sValue[256];
+			bool bMatch = false;
+			if((pItem == NULL) || !xrtValueIs(pItem, XVALUE_OBJECT))
+			{
+				continue;
+			}
+			pField = xrtValueObjectGet(
+				pItem, XRT_STR_LITERAL("Type"));
+			if((pField == NULL) ||
+				!xrtValueGetString(pField, &Text) ||
+				(Text.Size != 3u) ||
+				(memcmp(Text.Data, "TXT", 3u) != 0))
+			{
+				continue;
+			}
+			pField = xrtValueObjectGet(
+				pItem, XRT_STR_LITERAL("Value"));
+			if((pField != NULL) && xrtValueGetString(pField, &Text) &&
+				(Text.Size < sizeof(sValue)))
+			{
+				memcpy(sValue, Text.Data, Text.Size);
+				sValue[Text.Size] = 0;
+				bMatch = (strcmp(sValue, sTxtText) == 0);
+			}
+			if(!bMatch)
+			{
+				continue;
+			}
+			pField = xrtValueObjectGet(
+				pItem, XRT_STR_LITERAL("RecordId"));
+			if((pField == NULL) ||
+				!xrtValueGetString(pField, &Text) ||
+				(Text.Size >= sizeof(sRecordId)))
+			{
+				continue;
+			}
+			memcpy(sRecordId, Text.Data, Text.Size);
+			sRecordId[Text.Size] = 0;
+			snprintf(sDelete, sizeof(sDelete), "RecordId=%s",
+				sRecordId);
+			{
+				uint16 iDelStatus = 0u;
+				str sDelResp = NULL;
+				(void)xacmeAliCall(
+					pCtx, "DeleteDomainRecord", sDelete, &iDelStatus,
+					&sDelResp);
+				xrtFree(sDelResp);
+			}
+		}
+	}
+	xrtValueRelease(pRoot);
+	xrtFree(sBody);
+	xrtClearError(); /* 预清理是尽力而为，不污染主路径。 */
+}
+
 static bool xacmeAliAdd(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
@@ -322546,6 +323308,7 @@ static bool xacmeAliAdd(
 	char sRr[200];
 	char sZone[256];
 	char sBody[700];
+	char sTxtText[208];
 	uint16 iStatus = 0u;
 	str sResp = NULL;
 	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
@@ -322564,7 +323327,6 @@ static bool xacmeAliAdd(
 		return false;
 	}
 	{
-		char sTxtText[208];
 		const char* sZone;
 		size_t iZoneLen;
 		size_t iFqdnLen = strlen(sFqdnText);
@@ -322596,6 +323358,7 @@ static bool xacmeAliAdd(
 			"DomainName=%s&RR=%s&Type=TXT&Value=%s",
 			sZone, sRr, sTxtText);
 	}
+	xacmeAliPreClean(pCtx, sZone, sRr, sTxtText);
 	if(!xacmeAliCall(
 		pCtx, "AddDomainRecord", sBody, &iStatus, &sResp))
 	{
@@ -323385,6 +324148,13 @@ static bool xacmeFlowLinkAlternate(cstr sLink, char* sOut, size_t iCap)
 	return false;
 }
 
+/* Issue 总预算：超限返回 true（已到截止）。 */
+static bool xacmeFlowDeadlineHit(const xacmeclient* pClient)
+{
+	return pClient->bIssueDeadline &&
+		(xrtClock() >= (uint64)pClient->IssueDeadline);
+}
+
 /* ---------------- nonce 与 POST ---------------- */
 
 static void xacmeFlowTakeNonce(xacmeclient* pClient, xacmehttpresponse* pR)
@@ -323517,6 +324287,13 @@ static str xacmeFlowWaitStatus(
 		xacmeflowurl Status;
 		str sStatus = NULL;
 		bool bTerminal = false;
+		if(xacmeFlowDeadlineHit(pClient))
+		{
+			xacmeFlowError(
+				XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
+				"acme flow issue budget exhausted");
+			return NULL;
+		}
 		if(!xacmeFlowPostAsGet(pClient, sUrl, &R))
 		{
 			return NULL;
@@ -323562,6 +324339,14 @@ static str xacmeFlowWaitStatus(
 			xacmeHttpResponseUnit(&R);
 			if(!bAgain)
 			{
+				if(xacmeFlowDeadlineHit(pClient))
+				{
+					xacmeFlowError(
+						XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
+						"acme flow issue budget exhausted");
+					xacmeHttpResponseUnit(&R);
+					return NULL;
+				}
 				if(getenv("XACME_DEBUG"))
 				{
 					printf("[dbg] poll resp status=%u body=%.160s\n",
@@ -323730,6 +324515,11 @@ static void xacmeFlowWaitPropagate(
 	}
 	uDeadline = xrtClock() +
 		(uint64)pClient->uPropagateTimeoutMs * UINT64_C(1000);
+	if(pClient->bIssueDeadline &&
+		((uint64)pClient->IssueDeadline < uDeadline))
+	{
+		uDeadline = pClient->IssueDeadline;
+	}
 	while(xrtClock() < uDeadline)
 	{
 		if(xacmeFlowTxtVisible(&Probe, pClient, sFqdn, sTxt))
@@ -324103,6 +324893,9 @@ bool xacmeClientIssue(
 		return false;
 	}
 	memset(pOut, 0, sizeof(*pOut));
+	/* 总预算打点：uIssueTimeoutUs 非零时本次 Issue 全程受限。 */
+	pClient->bIssueDeadline = (pClient->uIssueTimeoutUs != 0u);
+	pClient->IssueDeadline = xrtClock() + pClient->uIssueTimeoutUs;
 
 	/* 1. 新订单；identifier 用去 *.\ 后的基础域并去重（通配符与
 	   裸域共用一次授权；通配符语义由 CSR 的 SAN 表达）。 */
@@ -324456,7 +325249,8 @@ bool xacmeClientIssue(
 		xacmecsrconfig Csr;
 		xbuffer CsrDer;
 		str sCsrB64;
-		xacmees256key CertKey;
+		xacmecertkey StackKey;
+		xacmecertkey* pUseKey = pClient->pCertKey;
 		static const xbase64config B64Url = {
 			NULL, XBASE64_URL | XBASE64_NO_PADDING };
 		bool bCsrOk;
@@ -324464,17 +325258,31 @@ bool xacmeClientIssue(
 		Csr.Domains = pDomains;
 		Csr.DomainCount = iDomainCount;
 		xrtBufferInit(&CsrDer);
-		/* 证书密钥独立于账户密钥（CA 普遍拒绝复用账户钥）。 */
-		bCsrOk = xacmeEs256Generate(&CertKey) &&
-			xacmeCsrEc(&CertKey, &Csr, &CsrDer);
+		if(pUseKey == NULL)
+		{
+			/* 无宿主密钥：生成一次性 ES256（证书密钥独立于账户
+			   密钥，CA 普遍拒绝复用账户钥）。 */
+			memset(&StackKey, 0, sizeof(StackKey));
+			StackKey.Kind = XACME_CERT_KEY_ES256;
+			bCsrOk = xacmeEs256Generate(&StackKey.Ec);
+			pUseKey = &StackKey;
+		}
+		else
+		{
+			bCsrOk = true;
+		}
+		if(bCsrOk)
+		{
+			bCsrOk = xacmeCsrBuild(pUseKey, &Csr, &CsrDer);
+		}
 		if(bCsrOk)
 		{
 			/* 私钥随产物导出（没有它证书不可用）。 */
-			pOut->sKeyPem = xacmeKeyPemWrite(&CertKey);
+			pOut->sKeyPem = xacmeCertKeyPemWrite(pUseKey);
 			bCsrOk = (pOut->sKeyPem != NULL);
 		}
 		/* 栈上密钥副本立即擦除。 */
-		xrtSecureZero(&CertKey, sizeof(CertKey));
+		xacmeCertKeyUnit(&StackKey);
 		sCsrB64 = bCsrOk ? xrtBase64EncodeNew(
 			CsrDer.Data, CsrDer.Size, &B64Url) : NULL;
 		xrtBufferUnit(&CsrDer);
@@ -324768,7 +325576,8 @@ bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
 #endif
 
 #if defined(XACME_FEATURE_ACME_FLOW)
-bool xacmeClientRollover(xacmeclient* pClient, cstr sNewKeyPem)
+bool xacmeClientRollover(
+	xacmeclient* pClient, cstr sNewKeyPem, cstr sStoreRoot)
 {
 	xacmees256key NewKey;
 	str sOldJwk = NULL;
@@ -324840,55 +325649,93 @@ bool xacmeClientRollover(xacmeclient* pClient, cstr sNewKeyPem)
 		goto Done;
 	}
 	/* 外层 JWS：新钥签名（保护头嵌新 JWK + nonce），载荷 = 内层
-	   JWS；keyChange 不经 xacmeFlowPost（那会再包一层签名）。 */
-	if(!xacmeFlowNewNonce(pClient))
+	   JWS；构建移入下方 badNonce 重试循环（每次换 nonce 重建）。 */
+	/* 裸 POST 带 badNonce 重试：外层 JWS 嵌死 nonce，服务端已消费
+	   而响应丢失时需换 nonce 重建 token 重发（对齐 FlowPost 语义）。 */
 	{
-		goto Done;
-	}
-	{
-		xacmejwsheader Outer;
-		Outer.Nonce = (xstrview){
-			pClient->sNonce, strlen(pClient->sNonce) };
-		Outer.Url = (xstrview){
-			pClient->sKeyChange, strlen(pClient->sKeyChange) };
-		Outer.Kid.Data = NULL;
-		Outer.Kid.Size = 0u; /* 空 kid → 嵌入新 JWK。 */
-		sOuter = xacmeJwsEs256(
-			&NewKey, &Outer, (xstrview){ sInner, strlen(sInner) });
-	}
-	if(sOuter == NULL)
-	{
-		goto Done;
-	}
-	pClient->sNonce[0] = '\0';
-	{
-		xacmehttpresponse R;
-		if(!xacmeHttpExchange(
-				&pClient->Http, "POST", pClient->sKeyChange,
-				"application/jose+json",
-				(xstrview){ sOuter, strlen(sOuter) }, &R))
+		uint32 uNonceRetry;
+		bool bPosted = false;
+		for(uNonceRetry = 0u; uNonceRetry < 3u; uNonceRetry++)
 		{
-			goto Done;
-		}
-		xacmeFlowTakeNonce(pClient, &R);
-		if(R.iStatus != 200u)
-		{
-			char sDetail[220];
-			snprintf(sDetail, sizeof(sDetail),
-				"acme rollover status=%u body=%.150s",
-				(unsigned)R.iStatus,
-				(R.sBody != NULL) ? R.sBody : "");
+			xacmehttpresponse R;
+			xacmejwsheader Outer;
+			if(!xacmeFlowNewNonce(pClient))
+			{
+				goto Done;
+			}
+			Outer.Nonce = (xstrview){
+				pClient->sNonce, strlen(pClient->sNonce) };
+			Outer.Url = (xstrview){
+				pClient->sKeyChange, strlen(pClient->sKeyChange) };
+			Outer.Kid.Data = NULL;
+			Outer.Kid.Size = 0u; /* 嵌新 JWK。 */
+			xrtFree(sOuter);
+			sOuter = xacmeJwsEs256(
+				&NewKey, &Outer, (xstrview){ sInner, strlen(sInner) });
+			if(sOuter == NULL)
+			{
+				goto Done;
+			}
+			pClient->sNonce[0] = 0;
+			if(!xacmeHttpExchange(
+					&pClient->Http, "POST", pClient->sKeyChange,
+					"application/jose+json",
+					(xstrview){ sOuter, strlen(sOuter) }, &R))
+			{
+				goto Done;
+			}
+			xacmeFlowTakeNonce(pClient, &R);
+			if((R.iStatus == 400u) && (R.sBody != NULL) &&
+				(strstr(R.sBody, "badNonce") != NULL))
+			{
+				xacmeHttpResponseUnit(&R);
+				continue;
+			}
+			if(R.iStatus != 200u)
+			{
+				char sDetail[220];
+				snprintf(sDetail, sizeof(sDetail),
+					"acme rollover status=%u body=%.150s",
+					(unsigned)R.iStatus,
+					(R.sBody != NULL) ? R.sBody : "");
+				xacmeHttpResponseUnit(&R);
+				xacmeFlowError(
+					XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT, sDetail);
+				goto Done;
+			}
 			xacmeHttpResponseUnit(&R);
+			bPosted = true;
+			break;
+		}
+		if(!bPosted)
+		{
 			xacmeFlowError(
-				XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT, sDetail);
+				XERR_PROTOCOL, XACME_FLOW_ERROR_NONCE,
+				"acme rollover nonce retries exhausted");
 			goto Done;
 		}
-		xacmeHttpResponseUnit(&R);
 	}
 	/* 生效：旧钥擦除，客户端切到新钥（kid 不变）。 */
 	xrtSecureZero(&pClient->AccountKey, sizeof(pClient->AccountKey));
 	pClient->AccountKey = NewKey;
 	memset(&NewKey, 0, sizeof(NewKey));
+	/* store 重存：消除滚动后 Obtain 读旧钥开新账户的漂移。
+	   失败不作废滚动（内存已生效），报告由错误链承载。 */
+	if((sStoreRoot != NULL) && (sStoreRoot[0] != 0))
+	{
+#if defined(XACME_FEATURE_ACME_STORE)
+		str sNewAccountPem = xacmeKeyPemWrite(&pClient->AccountKey);
+		bool bSaved = (sNewAccountPem != NULL) && xrtAcmeStoreSaveAccount(
+			sStoreRoot, pClient->sDirectoryUrl, sNewAccountPem);
+		xrtFree(sNewAccountPem);
+		if(!bSaved)
+		{
+			xacmeFlowError(
+				XERR_IO, XACME_FLOW_ERROR_STORE,
+				"acme rollover store resave failed");
+		}
+#endif
+	}
 	bOk = true;
 
 Done:
@@ -324899,6 +325746,50 @@ Done:
 	xrtFree(sInner);
 	xrtFree(sOuter);
 	return bOk;
+}
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+bool xacmeClientDeactivate(xacmeclient* pClient)
+{
+	xacmehttpresponse R;
+	if(pClient == NULL)
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme deactivate requires client");
+		return false;
+	}
+	if(pClient->sKid[0] == 0)
+	{
+		xacmeFlowError(
+			XERR_STATE, XACME_FLOW_ERROR_ACCOUNT,
+			"acme deactivate requires active account");
+		return false;
+	}
+	if(!xacmeFlowPost(
+			pClient, pClient->sKid,
+			XRT_STR_LITERAL("{\"status\":\"deactivated\"}"), true, &R,
+			0u))
+	{
+		return false;
+	}
+	/* 200 = 已停用或刚停用；幂等成功。 */
+	if(R.iStatus == 200u)
+	{
+		xacmeHttpResponseUnit(&R);
+		return true;
+	}
+	{
+		char sDetail[220];
+		snprintf(sDetail, sizeof(sDetail),
+			"acme deactivate status=%u body=%.150s", (unsigned)R.iStatus,
+			(R.sBody != NULL) ? R.sBody : "");
+		xacmeHttpResponseUnit(&R);
+		xacmeFlowError(
+			XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT, sDetail);
+	}
+	return false;
 }
 #endif
 
@@ -324959,6 +325850,24 @@ struct xacmeclient* xrtAcmeClientCreate(
 		xrtFree(pClient);
 		return NULL;
 	}
+	if((pConfig->sCertKeyPem != NULL) && (pConfig->sCertKeyPem[0] != 0))
+	{
+		pClient->pCertKey = (xacmecertkey*)xrtMalloc(
+			sizeof(*pClient->pCertKey));
+		if((pClient->pCertKey == NULL) ||
+			!xacmeCertKeyReadPem(
+				pConfig->sCertKeyPem, strlen(pConfig->sCertKeyPem),
+				pClient->pCertKey))
+		{
+			xacmeFlowError(
+				XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+				"acme client cert key pem invalid");
+			xrtFree(pClient->pCertKey);
+			xacmeClientUnit(pClient);
+			xrtFree(pClient);
+			return NULL;
+		}
+	}
 	for(i = 0; i < iResolverCount; i++)
 	{
 		if((sResolvers[i] == NULL) ||
@@ -324978,6 +325887,7 @@ struct xacmeclient* xrtAcmeClientCreate(
 	}
 	pClient->uPropagateTimeoutMs = (pConfig->uPropagateTimeoutMs != 0u) ?
 		pConfig->uPropagateTimeoutMs : XACME_FLOW_PROPAGATE_TIMEOUT_MS;
+	pClient->uIssueTimeoutUs = pConfig->uIssueTimeoutUs;
 	return pClient;
 }
 
@@ -324986,6 +325896,11 @@ void xrtAcmeClientDestroy(struct xacmeclient* pClient)
 	if(pClient == NULL)
 	{
 		return;
+	}
+	if(pClient->pCertKey != NULL)
+	{
+		xacmeCertKeyUnit(pClient->pCertKey);
+		xrtFree(pClient->pCertKey);
 	}
 	xacmeClientUnit(pClient);
 	xrtFree(pClient);
@@ -325015,9 +325930,14 @@ bool xrtAcmeClientIssueEx(
 }
 
 bool xrtAcmeClientRollover(
-	struct xacmeclient* pClient, cstr sNewKeyPem)
+	struct xacmeclient* pClient, cstr sNewKeyPem, cstr sStoreRoot)
 {
-	return xacmeClientRollover(pClient, sNewKeyPem);
+	return xacmeClientRollover(pClient, sNewKeyPem, sStoreRoot);
+}
+
+bool xrtAcmeClientDeactivate(struct xacmeclient* pClient)
+{
+	return xacmeClientDeactivate(pClient);
 }
 
 bool xrtAcmeClientRevoke(
@@ -326690,6 +327610,8 @@ bool xrtAcmeObtain(
 	ClientConfig.iPropagateResolverCount =
 		pConfig->iPropagateResolverCount;
 	ClientConfig.uPropagateTimeoutMs = pConfig->uPropagateTimeoutMs;
+	ClientConfig.uIssueTimeoutUs = pConfig->uIssueTimeoutUs;
+	ClientConfig.sCertKeyPem = pConfig->sCertKeyPem;
 
 	pClient = xrtAcmeClientCreate(&ClientConfig);
 	if(pClient == NULL)

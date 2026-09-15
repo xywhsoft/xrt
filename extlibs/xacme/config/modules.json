@@ -271,6 +271,7 @@
     "codec_base64",
     "crypto_p256",
     "crypto_ecdsa_p256_sign_der",
+    "crypto_rsa_pkcs1_sign",
     "acme_jose"
    ],
    "public_headers": [],

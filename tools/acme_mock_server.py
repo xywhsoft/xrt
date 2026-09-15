@@ -102,9 +102,12 @@ class State:
 		self.flaky_hits = 0
 		self.alt_served = 0
 		self.rollovers = 0
+		self.deactivated = 0
 		self.serial = 0
 		self.ca_cert = None
 		self.ca_key = None
+		self.alt_cert = None
+		self.alt_key = None
 
 
 def acme_error(handler, status: int, typ: str, detail: str) -> None:
@@ -225,6 +228,7 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 					"revoked": len(self.state.revoked),
 					"alt_served": self.state.alt_served,
 					"rollovers": self.state.rollovers,
+					"deactivated": self.state.deactivated,
 				})
 			return
 		if self.path == "/nonce":
@@ -259,6 +263,8 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 			return self._revoke(body)
 		if path == "/keychange":
 			return self._key_change(body)
+		if path.startswith("/acct/"):
+			return self._account_post(path, body)
 		protected, payload_text, account = self._jws_context(body)
 		if path == "/order":
 			return self._new_order(payload_text, account)
@@ -428,6 +434,44 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 	def _finalize(self, path, payload_text):
 		raise AcmeAbort(500, "serverInternal", "not installed")
 
+	def _account_post(self, path, body):
+		"""POST-as-GET / 停用（payload 含 status=deactivated）。"""
+		st = self.state
+		with st.lock:
+			account = st.accounts.get(self.base + path)
+		if account is None:
+			raise AcmeAbort(400, "accountDoesNotExist", path)
+		try:
+			obj = json.loads(body)
+			protected = json.loads(b64u_decode(obj["protected"]))
+			payload_text = b64u_decode(obj["payload"]).decode(
+				"utf-8", "replace")
+		except Exception:
+			raise AcmeAbort(400, "malformed", "account post decode failed")
+		with st.lock:
+			nonce_ok = protected.get("nonce") in st.nonces
+			if nonce_ok:
+				st.nonces.discard(protected.get("nonce"))
+		if not nonce_ok:
+			raise AcmeAbort(400, "badNonce", "account post nonce invalid")
+		if protected.get("kid") != self.base + path:
+			raise AcmeAbort(400, "malformed", "account post kid mismatch")
+		try:
+			jwk_public_key(account["jwk"]).verify(
+				raw_to_der_sig(b64u_decode(obj["signature"])),
+				(obj["protected"] + "." + obj["payload"]).encode(),
+				ec.ECDSA(hashes.SHA256()),
+			)
+		except Exception:
+			raise AcmeAbort(400, "malformed", "account post sig invalid")
+		if "\"deactivated\"" in payload_text:
+			with st.lock:
+				account["status"] = "deactivated"
+				st.deactivated += 1
+			self._respond_json({"status": "deactivated"})
+			return
+		self._respond_json({"status": account.get("status", "valid")})
+
 	def _key_change(self, body):
 		"""RFC 8555 §7.3.5：外层新钥 JWS（嵌新 JWK），内层旧钥签名。"""
 		st = self.state
@@ -522,8 +566,7 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 
 	def _download_cert_alt(self, path, account):
 		with self.state.lock:
-			chain = self.state.certificates.get(
-				self.base + path.replace("/certalt-", "/cert-"))
+			chain = self.state.certificates.get(self.base + path)
 			if chain is None:
 				raise AcmeAbort(404, "malformed", "no alt certificate")
 			self.state.alt_served += 1
@@ -622,20 +665,22 @@ class DnsHandler(socketserver.BaseRequestHandler):
 		sock.sendto(header + data[12:qend] + answer, self.client_address)
 
 
-def generate_ca(workdir: str):
+def generate_ca(workdir: str, common_name: str = "xacme mock CA",
+		days: int = 3650):
 	key = ec.generate_private_key(ec.SECP256R1())
 	name = x509.Name([
-		x509.NameAttribute(NameOID.COMMON_NAME, "xacme mock CA")])
+		x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
 	now = datetime.datetime.now(datetime.timezone.utc)
 	cert = (x509.CertificateBuilder()
 		.subject_name(name).issuer_name(name)
 		.public_key(key.public_key()).serial_number(x509.random_serial_number())
 		.not_valid_before(now - datetime.timedelta(days=1))
-		.not_valid_after(now + datetime.timedelta(days=3650))
+		.not_valid_after(now + datetime.timedelta(days=days))
 		.add_extension(x509.BasicConstraints(ca=True, path_length=0), True)
 		.sign(key, hashes.SHA256()))
-	key_path = os.path.join(workdir, "ca-key.pem")
-	cert_path = os.path.join(workdir, "ca.pem")
+	suffix = "alt" if "ALT" in common_name else "ca"
+	key_path = os.path.join(workdir, f"{suffix}-key.pem")
+	cert_path = os.path.join(workdir, f"{suffix}.pem")
 	with open(key_path, "wb") as f:
 		f.write(key.private_bytes(
 			serialization.Encoding.PEM,
@@ -697,6 +742,8 @@ def main() -> int:
 	state = State(eab_kid, eab_mac, args.require_contact)
 	state.flakiness = max(0.0, min(0.9, args.flakiness))
 	state.ca_key, state.ca_cert, ca_path = generate_ca(args.workdir)
+	state.alt_key, state.alt_cert, _ = generate_ca(
+		args.workdir, "xacme mock ALT CA")
 
 	acme_server = http.server.ThreadingHTTPServer((HOST, args.acme), AcmeHandler)
 	acme_port = acme_server.server_address[1]
@@ -751,6 +798,25 @@ def main() -> int:
 			cert_url = base + "/cert-%d" % serial
 			chain = (leaf.public_bytes(serialization.Encoding.PEM) +
 				st.ca_cert.public_bytes(serialization.Encoding.PEM)).decode()
+			# 备用链：同一 CSR 由 ALT CA 独立签发（真不同链）。
+			now2 = datetime.datetime.now(datetime.timezone.utc)
+			alt_leaf = (x509.CertificateBuilder()
+				.subject_name(x509.Name([x509.NameAttribute(
+					NameOID.COMMON_NAME, sans[0])]))
+				.issuer_name(st.alt_cert.subject)
+				.public_key(csr.public_key())
+				.serial_number(x509.random_serial_number())
+				.not_valid_before(now2 - datetime.timedelta(days=1))
+				.not_valid_after(now2 + datetime.timedelta(days=90))
+				.add_extension(
+					x509.SubjectAlternativeName(
+						[x509.DNSName(d) for d in sans]), False)
+				.sign(st.alt_key, hashes.SHA256()))
+			alt_url = base + "/certalt-%d" % serial
+			st.certificates[alt_url] = (
+				alt_leaf.public_bytes(serialization.Encoding.PEM) +
+				st.alt_cert.public_bytes(serialization.Encoding.PEM)
+			).decode()
 			st.certificates[cert_url] = chain
 			order["status"] = "valid"
 			order["certificate"] = cert_url
