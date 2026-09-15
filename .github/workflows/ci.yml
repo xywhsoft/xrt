@@ -231,6 +231,12 @@ jobs:
           --suite ${{ matrix.package_suite }}
           --trim-only
 
+      - name: Run xacme mock CA end-to-end verification
+        if: matrix.product == 'xacme'
+        run: |
+          python -m pip install --disable-pip-version-check cryptography
+          python -m unittest tools.test_acme_mock -v
+
       - name: Verify extension packages
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind static --verify

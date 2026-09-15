@@ -11,9 +11,27 @@
 #include <stdio.h>
 #include <string.h>
 
+#if !defined(_WIN32)
+	#include <sys/stat.h>
+#endif
+
 static void xacmeStoreError(xerrkind Kind, xacmestoreerror Code, cstr s)
 {
 	xrtSetErrorInfo(Kind, "xrt.acme.store", (int32)Code, s);
+}
+
+/*
+	私钥文件收紧为仅属主可读写（POSIX 0600；Windows 无对应位，跳过）。
+	chmod 失败不阻断保存——返回值供诊断，但缺省权限已由 umask 保证
+	不宽于 0666，此处是收紧而非放开。
+*/
+static void xacmeStoreKeyMode(cstr sPath)
+{
+#if !defined(_WIN32)
+	(void)chmod(sPath, 0600);
+#else
+	(void)sPath;
+#endif
 }
 
 /* directory URL → 16 字符十六进制目录名。 */
@@ -36,8 +54,23 @@ static bool xacmeStoreCaDir(
 
 static bool xacmeStoreWriteAtomicText(cstr sPath, cstr sText)
 {
-	return xrtFileWriteAtomic(
-		sPath, (xbytesview){ (const uint8*)sText, strlen(sText) });
+	if(!xrtFileWriteAtomic(
+			sPath, (xbytesview){ (const uint8*)sText, strlen(sText) }))
+	{
+		return false;
+	}
+	return true;
+}
+
+/* 私钥 PEM 原子写 + 权限收紧。 */
+static bool xacmeStoreWriteAtomicKey(cstr sPath, cstr sText)
+{
+	if(!xacmeStoreWriteAtomicText(sPath, sText))
+	{
+		return false;
+	}
+	xacmeStoreKeyMode(sPath);
+	return true;
 }
 
 bool xrtAcmeStoreSaveAccount(
@@ -65,7 +98,7 @@ bool xrtAcmeStoreSaveAccount(
 		return false;
 	}
 	snprintf(sPath, sizeof(sPath), "%s/accounts/%s/account.pem", sRoot, sCa);
-	if(!xacmeStoreWriteAtomicText(sPath, sAccountPem))
+	if(!xacmeStoreWriteAtomicKey(sPath, sAccountPem))
 	{
 		xacmeStoreError(
 			XERR_IO, XACME_STORE_ERROR_IO,
@@ -246,7 +279,7 @@ bool xrtAcmeStoreSaveGrant(
 	}
 	snprintf(
 		sPath, sizeof(sPath), "%s/certs/%s/key.pem", sRoot, sPrimaryDomain);
-	if(!xacmeStoreWriteAtomicText(sPath, pGrant->sKeyPem))
+	if(!xacmeStoreWriteAtomicKey(sPath, pGrant->sKeyPem))
 	{
 		xacmeStoreError(
 			XERR_IO, XACME_STORE_ERROR_IO,

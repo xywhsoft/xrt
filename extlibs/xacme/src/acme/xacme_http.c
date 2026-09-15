@@ -7,6 +7,7 @@
 #include <xrt/net.h>
 #include <xrt/tcp.h>
 #include <xrt/thread.h>
+#include <xrt/time.h>
 #include <xrt/tls_client.h>
 #include <xrt/tls_stream.h>
 #include <xrt/tls_verify.h>
@@ -18,6 +19,57 @@
 
 #define XACME_HTTP_FIELD_MAX 32u
 #define XACME_HTTP_IO_CHUNK 16384u
+
+/*
+	传输级重试：IO/超时类失败最多 3 次尝试（500ms/1s 退避）。
+	只重试"未收到响应"的失败（连接/发送/接收/超时）；
+	HTTP 层语义（状态码、badNonce）由上层处理，不受影响。
+	POST 重放对 ACME 各端点幂等或无害（重复订单/已存在账户/幂等删除）；
+	provider 的加记录重放至多留下可被 Remove 清理的同值 TXT。
+	全部尝试失败时保留首个根因。
+*/
+#define XACME_HTTP_RETRY_MAX 3u
+
+static bool xacmeHttpErrorRetryable(void)
+{
+	xerrkind Kind = xrtErrorKind(xrtGetError());
+	return (Kind == XERR_IO) || (Kind == XERR_TIMEOUT);
+}
+
+static bool xacmeHttpExchangeOnce(
+	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
+	xstrview sBody, const xacmehttpheader* pExtraHeaders,
+	size_t iExtraCount, xacmehttpresponse* pResponse);
+
+static bool xacmeHttpExchangeRetry(
+	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
+	xstrview sBody, const xacmehttpheader* pExtraHeaders,
+	size_t iExtraCount, xacmehttpresponse* pResponse)
+{
+	uint32 uAttempt;
+	for(uAttempt = 1u; uAttempt <= XACME_HTTP_RETRY_MAX; uAttempt++)
+	{
+		xerror* pFirst = NULL;
+		bool bOk = xacmeHttpExchangeOnce(
+			pHttp, sMethod, sUrl, sContentType, sBody, pExtraHeaders,
+			iExtraCount, pResponse);
+		if(bOk || (uAttempt == XACME_HTTP_RETRY_MAX) ||
+			!xacmeHttpErrorRetryable())
+		{
+			return bOk;
+		}
+		/* 保留首个根因：后续尝试失败会覆盖线程错误。 */
+		pFirst = xrtErrorRef(xrtGetError());
+		if(getenv("XACME_DEBUG"))
+		{
+			printf("[http-retry] attempt=%u url=%.80s\n",
+				(unsigned)uAttempt, sUrl);
+		}
+		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
+		xrtSetErrorTake(pFirst);
+	}
+	return false;
+}
 
 static void xacmeHttpError(
 	xerrkind Kind, xacmehttperror Code, cstr sMessage)
@@ -413,6 +465,16 @@ bool xacmeHttpExchange(
 }
 
 bool xacmeHttpExchangeV(
+	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
+	xstrview sBody, const xacmehttpheader* pExtraHeaders,
+	size_t iExtraCount, xacmehttpresponse* pResponse)
+{
+	return xacmeHttpExchangeRetry(
+		pHttp, sMethod, sUrl, sContentType, sBody, pExtraHeaders,
+		iExtraCount, pResponse);
+}
+
+static bool xacmeHttpExchangeOnce(
 	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
 	xstrview sBody, const xacmehttpheader* pExtraHeaders,
 	size_t iExtraCount, xacmehttpresponse* pResponse)

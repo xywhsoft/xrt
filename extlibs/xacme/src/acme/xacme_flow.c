@@ -301,7 +301,92 @@ static str xacmeFlowWaitStatus(
 	return NULL;
 }
 
+/* ---------------- DNS 铺设与清理（带重试） ---------------- */
+
+/*
+	provider Add/Remove 各最多 3 次尝试（1s/2s 退避）。
+	重放语义安全：同值 TXT 重复铺设对 dns-01 无害；
+	Remove 幂等（记录不存在视为成功）。失败保留首个根因。
+*/
+static bool xacmeFlowDnsAdd(
+	const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
+{
+	uint32 uAttempt;
+	for(uAttempt = 1u; uAttempt <= 3u; uAttempt++)
+	{
+		xerror* pFirst;
+		if(pDns->Add((xacmednsprovider*)pDns,
+				(xstrview){ sFqdn, strlen(sFqdn) },
+				(xstrview){ sTxt, strlen(sTxt) }))
+		{
+			return true;
+		}
+		pFirst = xrtErrorRef(xrtGetError());
+		if(uAttempt < 3u)
+		{
+			if(getenv("XACME_DEBUG"))
+			{
+				printf("[dns-retry] add attempt=%u fqdn=%s\n",
+					(unsigned)uAttempt, sFqdn);
+			}
+			xrtSleep(1000u * uAttempt);
+		}
+		xrtSetErrorTake(pFirst);
+	}
+	return false;
+}
+
+static void xacmeFlowDnsRemove(
+	const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
+{
+	uint32 uAttempt;
+	for(uAttempt = 1u; uAttempt <= 3u; uAttempt++)
+	{
+		if(pDns->Remove((xacmednsprovider*)pDns,
+				(xstrview){ sFqdn, strlen(sFqdn) },
+				(xstrview){ sTxt, strlen(sTxt) }))
+		{
+			return;
+		}
+		if(uAttempt < 3u)
+		{
+			xrtSleep(1000u * uAttempt);
+		}
+		xrtClearError(); /* 清理是尽力而为，不污染主错误。 */
+	}
+}
+
 /* ---------------- 传播确认 ---------------- */
+
+/*
+	解析 resolver 字符串："host"、"host:port" 或 "[v6]:port"。
+	无端口段或段非法时回退 53；输出去掉括号的 host 到定长缓冲。
+*/
+static uint16 xacmeFlowResolverPort(
+	cstr sResolver, char* sOutHost, size_t iHostCap)
+{
+	const char* sColon = strrchr(sResolver, ':');
+	size_t iHostLen;
+	if((sColon != NULL) && (sColon != sResolver))
+	{
+		long v = atol(sColon + 1);
+		iHostLen = (size_t)(sColon - sResolver);
+		if((sResolver[0] == '[') && (iHostLen > 1u) &&
+			(sResolver[iHostLen - 1u] == ']'))
+		{
+			sResolver++;
+			iHostLen -= 2u;
+		}
+		if((v > 0) && (v <= 65535) && (iHostLen < iHostCap))
+		{
+			memcpy(sOutHost, sResolver, iHostLen);
+			sOutHost[iHostLen] = '\0';
+			return (uint16)v;
+		}
+	}
+	snprintf(sOutHost, iHostCap, "%s", sResolver);
+	return 53u;
+}
 
 /* 任一配置 resolver 已返回期望 TXT 值即视为可见。 */
 static bool xacmeFlowTxtVisible(
@@ -312,11 +397,13 @@ static bool xacmeFlowTxtVisible(
 	for(i = 0; i < pClient->iPropagateResolverCount; i++)
 	{
 		char sRecords[4][XACME_TXT_RECORD_MAX];
+		char sHost[64];
+		uint16 iPort = xacmeFlowResolverPort(
+			pClient->sPropagateResolvers[i], sHost, sizeof(sHost));
 		size_t iCount = 0u;
 		size_t j;
 		if(!xacmeDnsTxtQuery(
-				pDns, pClient->sPropagateResolvers[i], 53u, sFqdn,
-				sRecords, 4u, &iCount))
+				pDns, sHost, iPort, sFqdn, sRecords, 4u, &iCount))
 		{
 			continue; /* 单个 resolver 不可达不算失败。 */
 		}
@@ -981,9 +1068,7 @@ bool xacmeClientIssue(
 							}
 						}
 						if((sFqdn == NULL) ||
-							!pDns->Add((xacmednsprovider*)pDns,
-								(xstrview){ sFqdn, strlen(sFqdn) },
-								(xstrview){ sTxt, strlen(sTxt) }))
+							!xacmeFlowDnsAdd(pDns, sFqdn, sTxt))
 						{
 							if(getenv("XACME_DEBUG")) printf("[dbg] dns add failed fqdn=%s err=%d\n", sFqdn ? sFqdn : "null", (int)xrtErrorKind(xrtGetError()));
 							xrtFree(sFqdn);
@@ -1005,9 +1090,7 @@ bool xacmeClientIssue(
 								(strcmp(sStatus, "valid") == 0);
 						}
 						/* TXT 记录使命完成，删除。 */
-						(void)pDns->Remove((xacmednsprovider*)pDns,
-							(xstrview){ sFqdn, strlen(sFqdn) },
-							(xstrview){ sTxt, strlen(sTxt) });
+						xacmeFlowDnsRemove(pDns, sFqdn, sTxt);
 						xrtFree(sFqdn);
 						xrtFree(sTxt);
 						if(!bValidNow)

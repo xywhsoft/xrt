@@ -1,18 +1,23 @@
 #include "../test.h"
 
-#include "../../src/internal/xacme_flow.h"
+#include "../../src/internal/xacme_http.h"
+#include <xrt/acme_client.h>
+#include <xrt/acme_obtain.h>
+#include <xrt/acme_store.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 /*
-	Pebble 集成（环境门控）：
-	  XACME_PEBBLE_URL = https://localhost:14000/dir
-	  XACME_PEBBLE_CA  = pebble TLS 证书 PEM 路径
+	本地/远端 ACME 集成（环境门控）：
+	  XACME_PEBBLE_URL = https://localhost:14000/dir（Pebble 或等价模拟 CA）
+	  XACME_PEBBLE_CA  = CA TLS 证书 PEM 路径
 	  XACME_CHALL_URL  = http://127.0.0.1:8055（challtestsrv 管理 API）
+	  XACME_PROPAGATE_RESOLVER = host[:port]（本地 DNS TXT 视角；缺省公共组）
 	未设置时跳过。DNS provider 走 challtestsrv 的 set-txt/clear-txt，
-	完整链路：directory→账户→订单→dns-01→finalize→证书链。
+	完整链路：directory→账户→订单→dns-01→传播确认→finalize→证书链
+	→grant 配对落盘→Revoke→IssueStored 双跑。
 */
 
 typedef struct testdnsctx {
@@ -131,6 +136,10 @@ int main(void)
 	const char* sUrl = getenv("XACME_PEBBLE_URL");
 	const char* sCaPath = getenv("XACME_PEBBLE_CA");
 	const char* sChall = getenv("XACME_CHALL_URL");
+	const char* sResolver = getenv("XACME_PROPAGATE_RESOLVER");
+	const char* sEabKid = getenv("XACME_EAB_KID");
+	const char* sEabHmac = getenv("XACME_EAB_HMAC");
+	const char* sContact = getenv("XACME_CONTACT_EMAIL");
 
 	if((sUrl == NULL) || (sUrl[0] == '\0'))
 	{
@@ -147,8 +156,9 @@ int main(void)
 	{
 		str sCaPem;
 		size_t iCaSize = 0u;
-		xacmeclient Client;
+		struct xacmeclient* Client;
 		xacmeaccountconfig Account;
+		xacmeclientconfig ClientConfig;
 		testdnsctx Dns;
 		xacmednsprovider Provider;
 		xstrview Domains[2];
@@ -166,9 +176,27 @@ int main(void)
 			xacmeHttpInit(&Dns.Http, NULL, NULL, 10000000u),
 			"acme flow chall http init failed");
 
+		/* 公开客户端主线：账户配置 + 传播 resolver 经客户端配置。 */
 		xrtAcmeAccountConfigInit(&Account);
 		Account.sDirectoryUrl = sUrl;
-		if(!xacmeClientInit(&Client, NULL, sCaPem, &Account, 0u))
+		if((sEabKid != NULL) && (sEabKid[0] != '\0'))
+		{
+			Account.Eab.sKid = sEabKid;
+			Account.Eab.sHmac = sEabHmac;
+		}
+		Account.sContactEmail = sContact;
+		xrtAcmeClientConfigInit(&ClientConfig);
+		ClientConfig.pAccount = &Account;
+		ClientConfig.sCaPem = sCaPem;
+		ClientConfig.uTimeoutUs = 10000000u;
+		if((sResolver != NULL) && (sResolver[0] != '\0'))
+		{
+			ClientConfig.sPropagateResolvers = &sResolver;
+			ClientConfig.iPropagateResolverCount = 1u;
+			ClientConfig.uPropagateTimeoutMs = 30000u;
+		}
+		Client = xrtAcmeClientCreate(&ClientConfig);
+		if(Client == NULL)
 		{
 			const xerror* pError = xrtGetError();
 			const xerror* pCause = pError;
@@ -184,12 +212,12 @@ int main(void)
 						xrtErrorMessage(pCause) : "?");
 				pCause = xrtErrorCause(pCause);
 			}
+			xacmeHttpUnit(&Dns.Http);
 			testRequire(false, "acme flow client init failed");
 		}
-		printf("[pebble] kid=%s\n", Client.sKid);
 
-		/* 账户密钥可导出（后续 store 里程碑的持久化入口）。 */
-		sAccountPem = xacmeClientAccountPem(&Client);
+		/* 账户密钥可导出（持久化复用入口）。 */
+		sAccountPem = xrtAcmeClientAccountPem(Client);
 		testRequire(
 			(sAccountPem != NULL) &&
 				(strstr(sAccountPem, "BEGIN PRIVATE KEY") != NULL),
@@ -204,7 +232,8 @@ int main(void)
 		Provider.Propagate = NULL;
 
 		Domains[0] = XRT_STR_LITERAL("test.xxrpa.com");
-		if(!xacmeClientIssue(&Client, Domains, 1u, &Provider, &Grant))
+		if(!xrtAcmeClientIssue(
+				Client, Domains, 1u, &Provider, &Grant))
 		{
 			const xerror* pError = xrtGetError();
 			const xerror* pCause = pError;
@@ -248,9 +277,10 @@ int main(void)
 		printf("[pebble] chain certs=%zu bytes=%zu\n",
 			iCerts, strlen(Grant.sFullchainPem));
 
+		/* 产物落盘：Python 编排器做链+私钥配对与有效期核验。 */
 		{
-			char sDump[320];
 			FILE* f;
+			char sDump[340];
 			snprintf(sDump, sizeof(sDump), "%s/pebble_issued.pem",
 				testOutRoot());
 			f = fopen(sDump, "wb");
@@ -260,7 +290,20 @@ int main(void)
 					strlen(Grant.sFullchainPem), f);
 				fclose(f);
 			}
+			snprintf(sDump, sizeof(sDump), "%s/pebble_issued.key.pem",
+				testOutRoot());
+			f = fopen(sDump, "wb");
+			if(f != NULL)
+			{
+				fwrite(Grant.sKeyPem, 1u, strlen(Grant.sKeyPem), f);
+				fclose(f);
+			}
 		}
+
+		/* Revoke：吊销链首叶证书（reason=1），幂等成功。 */
+		testRequire(
+			xrtAcmeClientRevoke(Client, Grant.sFullchainPem, 1),
+			"acme flow revoke failed");
 		xrtAcmeGrantUnit(&Grant);
 
 		/* IssueStored 双跑：第一跑签发落盘，第二跑阈值内直接跳过。 */
@@ -271,8 +314,8 @@ int main(void)
 			xacmeissuegrant G2;
 			snprintf(sStore, sizeof(sStore), "%s/store_pebble", testOutRoot());
 			testRequire(
-				xacmeClientIssueStored(
-					&Client, Domains, 1u, &Provider, sStore, 30, &G1,
+				xrtAcmeClientIssueStored(
+					Client, Domains, 1u, &Provider, sStore, 30, &G1,
 					&bRenewed) &&
 					bRenewed,
 				"acme flow stored first issue failed");
@@ -281,8 +324,8 @@ int main(void)
 				"acme flow stored first grant incomplete");
 			xrtAcmeGrantUnit(&G1);
 			testRequire(
-				xacmeClientIssueStored(
-					&Client, Domains, 1u, &Provider, sStore, 30, &G2,
+				xrtAcmeClientIssueStored(
+					Client, Domains, 1u, &Provider, sStore, 30, &G2,
 					&bRenewed) &&
 					!bRenewed &&
 					(strstr(G2.sFullchainPem, "BEGIN CERTIFICATE") != NULL) &&
@@ -291,7 +334,41 @@ int main(void)
 			xrtAcmeGrantUnit(&G2);
 		}
 
-		xacmeClientUnit(&Client);
+		/* 一站式 Obtain 双跑：独立 store 根，账户应持久化并复用。 */
+		{
+			char sStore[320];
+			xacmeobtainconfig Obtain;
+			xacmeissuegrant G3;
+			bool bRenewed = false;
+			snprintf(sStore, sizeof(sStore), "%s/store_obtain",
+				testOutRoot());
+			xrtAcmeObtainConfigInit(&Obtain);
+			Obtain.pAccount = &Account;
+			Obtain.sCaPem = sCaPem;
+			Obtain.sStoreRoot = sStore;
+			Obtain.uTimeoutUs = 10000000u;
+			if((sResolver != NULL) && (sResolver[0] != '\0'))
+			{
+				Obtain.sPropagateResolvers = &sResolver;
+				Obtain.iPropagateResolverCount = 1u;
+				Obtain.uPropagateTimeoutMs = 30000u;
+			}
+			testRequire(
+				xrtAcmeObtain(
+					&Obtain, Domains, 1u, &Provider, &G3, &bRenewed) &&
+					bRenewed && (G3.sKeyPem != NULL) &&
+					(G3.sFullchainPem != NULL),
+				"acme flow obtain first failed");
+			xrtAcmeGrantUnit(&G3);
+			testRequire(
+				xrtAcmeObtain(
+					&Obtain, Domains, 1u, &Provider, &G3, &bRenewed) &&
+					!bRenewed && (G3.sKeyPem != NULL),
+				"acme flow obtain skip failed");
+			xrtAcmeGrantUnit(&G3);
+		}
+
+		xrtAcmeClientDestroy(Client);
 		xacmeHttpUnit(&Dns.Http);
 		xrtFree(sCaPem);
 	}

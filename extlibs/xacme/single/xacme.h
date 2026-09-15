@@ -21187,7 +21187,7 @@ XRT_API size_t xrtCryptoHashSize(xcryptohash Hash);
 #if defined(XRT_FEATURE_CRYPTO_RSA)
 
 #define XRT_RSA_MODULUS_MIN_SIZE 128u
-#define XRT_RSA_MODULUS_MAX_SIZE 1024u
+#define XRT_RSA_MAX_MODULUS_SIZE 1024u
 
 /* RSA 公钥是对调用方持有的定宽大端模数和指数的只读视图。 */
 typedef struct xrsa_public_key {
@@ -184225,12 +184225,12 @@ static bool __xrtTlsIdentityRsaRestrictionAllows(
 /* 通过完整 CRT 私钥运算验证因子、指数、系数和公开参数。 */
 static bool __xrtTlsIdentityRsaValidate(const xrsaprivatekey* pKey)
 {
-	uint8 Input[XRT_RSA_MODULUS_MAX_SIZE] = { 0 };
-	uint8 Output[XRT_RSA_MODULUS_MAX_SIZE] = { 0 };
+	uint8 Input[XRT_RSA_MAX_MODULUS_SIZE] = { 0 };
+	uint8 Output[XRT_RSA_MAX_MODULUS_SIZE] = { 0 };
 	bool bResult;
 
 	if ( (pKey->Public.ModulusSize < XRT_RSA_MODULUS_MIN_SIZE) ||
-		(pKey->Public.ModulusSize > XRT_RSA_MODULUS_MAX_SIZE) ) {
+		(pKey->Public.ModulusSize > XRT_RSA_MAX_MODULUS_SIZE) ) {
 		return __xrtTlsIdentityError(
 			XERR_RANGE, "create-tls-rsa-identity",
 			"RSA identity modulus size is outside supported limits"
@@ -184335,7 +184335,7 @@ static bool __xrtTlsIdentityRsaSign(
 	const __xrttlsidentityrsa* pRsa =
 		(const __xrttlsidentityrsa*)__xrtTlsIdentityExtra(pIdentity);
 	uint8 Hash[64] = { 0 };
-	uint8 Signed[XRT_RSA_MODULUS_MAX_SIZE] = { 0 };
+	uint8 Signed[XRT_RSA_MAX_MODULUS_SIZE] = { 0 };
 	xcryptohash Algorithm = XCRYPTO_HASH_SHA256;
 	size_t iSize = pRsa->Key.Public.ModulusSize;
 	bool bPss;
@@ -319920,6 +319920,57 @@ XRT_API xregexresult xrtRegexSetTest(
 #define XACME_HTTP_FIELD_MAX 32u
 #define XACME_HTTP_IO_CHUNK 16384u
 
+/*
+	传输级重试：IO/超时类失败最多 3 次尝试（500ms/1s 退避）。
+	只重试"未收到响应"的失败（连接/发送/接收/超时）；
+	HTTP 层语义（状态码、badNonce）由上层处理，不受影响。
+	POST 重放对 ACME 各端点幂等或无害（重复订单/已存在账户/幂等删除）；
+	provider 的加记录重放至多留下可被 Remove 清理的同值 TXT。
+	全部尝试失败时保留首个根因。
+*/
+#define XACME_HTTP_RETRY_MAX 3u
+
+static bool xacmeHttpErrorRetryable(void)
+{
+	xerrkind Kind = xrtErrorKind(xrtGetError());
+	return (Kind == XERR_IO) || (Kind == XERR_TIMEOUT);
+}
+
+static bool xacmeHttpExchangeOnce(
+	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
+	xstrview sBody, const xacmehttpheader* pExtraHeaders,
+	size_t iExtraCount, xacmehttpresponse* pResponse);
+
+static bool xacmeHttpExchangeRetry(
+	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
+	xstrview sBody, const xacmehttpheader* pExtraHeaders,
+	size_t iExtraCount, xacmehttpresponse* pResponse)
+{
+	uint32 uAttempt;
+	for(uAttempt = 1u; uAttempt <= XACME_HTTP_RETRY_MAX; uAttempt++)
+	{
+		xerror* pFirst = NULL;
+		bool bOk = xacmeHttpExchangeOnce(
+			pHttp, sMethod, sUrl, sContentType, sBody, pExtraHeaders,
+			iExtraCount, pResponse);
+		if(bOk || (uAttempt == XACME_HTTP_RETRY_MAX) ||
+			!xacmeHttpErrorRetryable())
+		{
+			return bOk;
+		}
+		/* 保留首个根因：后续尝试失败会覆盖线程错误。 */
+		pFirst = xrtErrorRef(xrtGetError());
+		if(getenv("XACME_DEBUG"))
+		{
+			printf("[http-retry] attempt=%u url=%.80s\n",
+				(unsigned)uAttempt, sUrl);
+		}
+		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
+		xrtSetErrorTake(pFirst);
+	}
+	return false;
+}
+
 static void xacmeHttpError(
 	xerrkind Kind, xacmehttperror Code, cstr sMessage)
 {
@@ -320314,6 +320365,16 @@ bool xacmeHttpExchange(
 }
 
 bool xacmeHttpExchangeV(
+	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
+	xstrview sBody, const xacmehttpheader* pExtraHeaders,
+	size_t iExtraCount, xacmehttpresponse* pResponse)
+{
+	return xacmeHttpExchangeRetry(
+		pHttp, sMethod, sUrl, sContentType, sBody, pExtraHeaders,
+		iExtraCount, pResponse);
+}
+
+static bool xacmeHttpExchangeOnce(
 	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
 	xstrview sBody, const xacmehttpheader* pExtraHeaders,
 	size_t iExtraCount, xacmehttpresponse* pResponse)
@@ -322618,9 +322679,27 @@ void xrtAcmeGrantUnit(xacmeissuegrant* pGrant)
 #include <stdio.h>
 #include <string.h>
 
+#if !defined(_WIN32)
+	#include <sys/stat.h>
+#endif
+
 static void xacmeStoreError(xerrkind Kind, xacmestoreerror Code, cstr s)
 {
 	xrtSetErrorInfo(Kind, "xrt.acme.store", (int32)Code, s);
+}
+
+/*
+	私钥文件收紧为仅属主可读写（POSIX 0600；Windows 无对应位，跳过）。
+	chmod 失败不阻断保存——返回值供诊断，但缺省权限已由 umask 保证
+	不宽于 0666，此处是收紧而非放开。
+*/
+static void xacmeStoreKeyMode(cstr sPath)
+{
+#if !defined(_WIN32)
+	(void)chmod(sPath, 0600);
+#else
+	(void)sPath;
+#endif
 }
 
 /* directory URL → 16 字符十六进制目录名。 */
@@ -322643,8 +322722,23 @@ static bool xacmeStoreCaDir(
 
 static bool xacmeStoreWriteAtomicText(cstr sPath, cstr sText)
 {
-	return xrtFileWriteAtomic(
-		sPath, (xbytesview){ (const uint8*)sText, strlen(sText) });
+	if(!xrtFileWriteAtomic(
+			sPath, (xbytesview){ (const uint8*)sText, strlen(sText) }))
+	{
+		return false;
+	}
+	return true;
+}
+
+/* 私钥 PEM 原子写 + 权限收紧。 */
+static bool xacmeStoreWriteAtomicKey(cstr sPath, cstr sText)
+{
+	if(!xacmeStoreWriteAtomicText(sPath, sText))
+	{
+		return false;
+	}
+	xacmeStoreKeyMode(sPath);
+	return true;
 }
 
 bool xrtAcmeStoreSaveAccount(
@@ -322672,7 +322766,7 @@ bool xrtAcmeStoreSaveAccount(
 		return false;
 	}
 	snprintf(sPath, sizeof(sPath), "%s/accounts/%s/account.pem", sRoot, sCa);
-	if(!xacmeStoreWriteAtomicText(sPath, sAccountPem))
+	if(!xacmeStoreWriteAtomicKey(sPath, sAccountPem))
 	{
 		xacmeStoreError(
 			XERR_IO, XACME_STORE_ERROR_IO,
@@ -322853,7 +322947,7 @@ bool xrtAcmeStoreSaveGrant(
 	}
 	snprintf(
 		sPath, sizeof(sPath), "%s/certs/%s/key.pem", sRoot, sPrimaryDomain);
-	if(!xacmeStoreWriteAtomicText(sPath, pGrant->sKeyPem))
+	if(!xacmeStoreWriteAtomicKey(sPath, pGrant->sKeyPem))
 	{
 		xacmeStoreError(
 			XERR_IO, XACME_STORE_ERROR_IO,
@@ -323338,7 +323432,92 @@ static str xacmeFlowWaitStatus(
 	return NULL;
 }
 
+/* ---------------- DNS 铺设与清理（带重试） ---------------- */
+
+/*
+	provider Add/Remove 各最多 3 次尝试（1s/2s 退避）。
+	重放语义安全：同值 TXT 重复铺设对 dns-01 无害；
+	Remove 幂等（记录不存在视为成功）。失败保留首个根因。
+*/
+static bool xacmeFlowDnsAdd(
+	const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
+{
+	uint32 uAttempt;
+	for(uAttempt = 1u; uAttempt <= 3u; uAttempt++)
+	{
+		xerror* pFirst;
+		if(pDns->Add((xacmednsprovider*)pDns,
+				(xstrview){ sFqdn, strlen(sFqdn) },
+				(xstrview){ sTxt, strlen(sTxt) }))
+		{
+			return true;
+		}
+		pFirst = xrtErrorRef(xrtGetError());
+		if(uAttempt < 3u)
+		{
+			if(getenv("XACME_DEBUG"))
+			{
+				printf("[dns-retry] add attempt=%u fqdn=%s\n",
+					(unsigned)uAttempt, sFqdn);
+			}
+			xrtSleep(1000u * uAttempt);
+		}
+		xrtSetErrorTake(pFirst);
+	}
+	return false;
+}
+
+static void xacmeFlowDnsRemove(
+	const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
+{
+	uint32 uAttempt;
+	for(uAttempt = 1u; uAttempt <= 3u; uAttempt++)
+	{
+		if(pDns->Remove((xacmednsprovider*)pDns,
+				(xstrview){ sFqdn, strlen(sFqdn) },
+				(xstrview){ sTxt, strlen(sTxt) }))
+		{
+			return;
+		}
+		if(uAttempt < 3u)
+		{
+			xrtSleep(1000u * uAttempt);
+		}
+		xrtClearError(); /* 清理是尽力而为，不污染主错误。 */
+	}
+}
+
 /* ---------------- 传播确认 ---------------- */
+
+/*
+	解析 resolver 字符串："host"、"host:port" 或 "[v6]:port"。
+	无端口段或段非法时回退 53；输出去掉括号的 host 到定长缓冲。
+*/
+static uint16 xacmeFlowResolverPort(
+	cstr sResolver, char* sOutHost, size_t iHostCap)
+{
+	const char* sColon = strrchr(sResolver, ':');
+	size_t iHostLen;
+	if((sColon != NULL) && (sColon != sResolver))
+	{
+		long v = atol(sColon + 1);
+		iHostLen = (size_t)(sColon - sResolver);
+		if((sResolver[0] == '[') && (iHostLen > 1u) &&
+			(sResolver[iHostLen - 1u] == ']'))
+		{
+			sResolver++;
+			iHostLen -= 2u;
+		}
+		if((v > 0) && (v <= 65535) && (iHostLen < iHostCap))
+		{
+			memcpy(sOutHost, sResolver, iHostLen);
+			sOutHost[iHostLen] = '\0';
+			return (uint16)v;
+		}
+	}
+	snprintf(sOutHost, iHostCap, "%s", sResolver);
+	return 53u;
+}
 
 /* 任一配置 resolver 已返回期望 TXT 值即视为可见。 */
 static bool xacmeFlowTxtVisible(
@@ -323349,11 +323528,13 @@ static bool xacmeFlowTxtVisible(
 	for(i = 0; i < pClient->iPropagateResolverCount; i++)
 	{
 		char sRecords[4][XACME_TXT_RECORD_MAX];
+		char sHost[64];
+		uint16 iPort = xacmeFlowResolverPort(
+			pClient->sPropagateResolvers[i], sHost, sizeof(sHost));
 		size_t iCount = 0u;
 		size_t j;
 		if(!xacmeDnsTxtQuery(
-				pDns, pClient->sPropagateResolvers[i], 53u, sFqdn,
-				sRecords, 4u, &iCount))
+				pDns, sHost, iPort, sFqdn, sRecords, 4u, &iCount))
 		{
 			continue; /* 单个 resolver 不可达不算失败。 */
 		}
@@ -324018,9 +324199,7 @@ bool xacmeClientIssue(
 							}
 						}
 						if((sFqdn == NULL) ||
-							!pDns->Add((xacmednsprovider*)pDns,
-								(xstrview){ sFqdn, strlen(sFqdn) },
-								(xstrview){ sTxt, strlen(sTxt) }))
+							!xacmeFlowDnsAdd(pDns, sFqdn, sTxt))
 						{
 							if(getenv("XACME_DEBUG")) printf("[dbg] dns add failed fqdn=%s err=%d\n", sFqdn ? sFqdn : "null", (int)xrtErrorKind(xrtGetError()));
 							xrtFree(sFqdn);
@@ -324042,9 +324221,7 @@ bool xacmeClientIssue(
 								(strcmp(sStatus, "valid") == 0);
 						}
 						/* TXT 记录使命完成，删除。 */
-						(void)pDns->Remove((xacmednsprovider*)pDns,
-							(xstrview){ sFqdn, strlen(sFqdn) },
-							(xstrview){ sTxt, strlen(sTxt) });
+						xacmeFlowDnsRemove(pDns, sFqdn, sTxt);
 						xrtFree(sFqdn);
 						xrtFree(sTxt);
 						if(!bValidNow)
