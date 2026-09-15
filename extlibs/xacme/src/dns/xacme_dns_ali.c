@@ -13,11 +13,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define XACME_ALI_VERSION "2015-01-09"
 #define XACME_ALI_RECORD_MAX 8u
+#define XACME_ALI_ZONE_MAX 4u
 
 typedef struct xacmednsalicontext {
 	xacmehttp Http;
@@ -26,8 +26,9 @@ typedef struct xacmednsalicontext {
 	char sSecret[160];
 	char sEndpoint[160];
 	char sVerifyResolver[64];
-	/* 缓存的 zone（首次 Add 时试探得到）。 */
-	char sZone[256];
+	/* 已确认的 zone（首次 Add 时试探得到；多域名跨 zone 各自缓存）。 */
+	char sZones[XACME_ALI_ZONE_MAX][256];
+	size_t iZoneCount;
 	/* 本 provider 生命周期内添加的 RecordId。 */
 	char sRecordIds[XACME_ALI_RECORD_MAX][64];
 	size_t iRecordCount;
@@ -202,6 +203,28 @@ static void xacmeAliSaveRecordId(xacmednsalicontext* pCtx, cstr sBody)
 	}
 }
 
+/*
+	在已缓存 zone 中找 fqdn 的后缀匹配项；未命中返回 NULL。
+	跨 zone 多域名（如 example.com 与 example.org）各自缓存。
+*/
+static const char* xacmeAliZoneMatch(
+	xacmednsalicontext* pCtx, cstr sFqdn)
+{
+	size_t i;
+	size_t iLen = strlen(sFqdn);
+	for(i = 0; i < pCtx->iZoneCount; i++)
+	{
+		size_t iZoneLen = strlen(pCtx->sZones[i]);
+		if((iLen > iZoneLen + 1u) &&
+			(sFqdn[iLen - iZoneLen - 1u] == '.') &&
+			(strcmp(sFqdn + iLen - iZoneLen, pCtx->sZones[i]) == 0))
+		{
+			return pCtx->sZones[i];
+		}
+	}
+	return NULL;
+}
+
 /* 试探 zone：候选 DomainName 上 DescribeDomainRecords 成功即定。 */
 static bool xacmeAliFindZone(
 	xacmednsalicontext* pCtx, cstr sRr, cstr sZoneStart)
@@ -210,9 +233,12 @@ static bool xacmeAliFindZone(
 	uint16 iStatus = 0u;
 	str sBody = NULL;
 	char sBodyText[320];
-	if(pCtx->sZone[0] != '\0')
 	{
-		return true;
+		const char* sCached = xacmeAliZoneMatch(pCtx, sZoneStart);
+		if(sCached != NULL)
+		{
+			return true;
+		}
 	}
 	strcpy(sZone, sZoneStart);
 	for(;;)
@@ -234,7 +260,12 @@ static bool xacmeAliFindZone(
 		sBody = NULL;
 		if((iStatus >= 200u) && (iStatus < 300u))
 		{
-			snprintf(pCtx->sZone, sizeof(pCtx->sZone), "%s", sZone);
+			if(pCtx->iZoneCount < XACME_ALI_ZONE_MAX)
+			{
+				snprintf(pCtx->sZones[pCtx->iZoneCount],
+					sizeof(pCtx->sZones[pCtx->iZoneCount]), "%s", sZone);
+				pCtx->iZoneCount++;
+			}
 			return true;
 		}
 		{
@@ -276,13 +307,19 @@ static bool xacmeAliAdd(
 	}
 	{
 		char sTxtText[208];
-		/* RR = FQDN 去掉 ".zone" 后缀的完整前缀（zone 试探可能
-		   剥掉多段，不能只用最左段）。 */
-		size_t iZoneLen = strlen(pCtx->sZone);
+		const char* sZone;
+		size_t iZoneLen;
 		size_t iFqdnLen = strlen(sFqdnText);
 		size_t iRrLen;
+		/* RR = FQDN 去掉 ".zone" 后缀的完整前缀（zone 试探可能
+		   剥掉多段，不能只用最左段）。 */
+		sZone = xacmeAliZoneMatch(pCtx, sFqdnText);
+		if(sZone == NULL)
+		{
+			return false;
+		}
+		iZoneLen = strlen(sZone);
 		if((iFqdnLen <= iZoneLen + 1u) ||
-			(strcmp(sFqdnText + iFqdnLen - iZoneLen, pCtx->sZone) != 0) ||
 			(sFqdnText[iFqdnLen - iZoneLen - 1u] != '.'))
 		{
 			return false;
@@ -299,7 +336,7 @@ static bool xacmeAliAdd(
 		snprintf(
 			sBody, sizeof(sBody),
 			"DomainName=%s&RR=%s&Type=TXT&Value=%s",
-			pCtx->sZone, sRr, sTxtText);
+			sZone, sRr, sTxtText);
 	}
 	if(!xacmeAliCall(
 		pCtx, "AddDomainRecord", sBody, &iStatus, &sResp))

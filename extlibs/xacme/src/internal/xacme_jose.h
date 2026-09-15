@@ -60,6 +60,20 @@ str xacmeJwsEs256(
 	xstrview sPayload
 );
 
+/*
+	RFC 8555 §7.3.4 External Account Binding 的内层 JWS：
+	保护头 {"alg":"HS256","kid":<sKid>,"url":<sUrl>}，payload 为账户
+	JWK JSON（借用视图），签名为 HMAC-SHA256(MAC) 裸 32 字节。
+	输出扁平 JSON 序列化（xrtFree 释放），直接嵌入 newAccount 载荷。
+*/
+str xacmeJwsEabHs256(
+	cstr sKid,
+	cstr sUrl,
+	xstrview sJwkJson,
+	const uint8* pMac,
+	size_t iMacSize
+);
+
 #endif
 
 XRT_EXTERN_C_END

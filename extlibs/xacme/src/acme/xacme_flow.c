@@ -10,7 +10,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define XACME_FLOW_POLL_MAX 180u
@@ -300,9 +299,65 @@ static str xacmeFlowWaitStatus(
 
 /* ---------------- 初始化与签发 ---------------- */
 
+/*
+	重新拉取授权对象，提取挑战 error.detail（约 160 字符）进 sOut。
+	失败时留空串——诊断增强，不改变失败语义。
+*/
+static void xacmeFlowChallengeDetail(
+	xacmeclient* pClient, cstr sAuthzUrl, char* sOut, size_t iCapacity)
+{
+	xacmehttpresponse R;
+	xvalue* pRoot;
+	xvalue* pChallenges;
+	size_t j;
+
+	sOut[0] = '\0';
+	if(!xacmeFlowPostAsGet(pClient, sAuthzUrl, &R))
+	{
+		return;
+	}
+	pRoot = (R.sBody != NULL) ?
+		xrtJsonParse((xstrview){ R.sBody, R.iBodySize }) : NULL;
+	xacmeHttpResponseUnit(&R);
+	if((pRoot == NULL) || !xrtValueIs(pRoot, XVALUE_OBJECT))
+	{
+		return;
+	}
+	pChallenges = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("challenges"));
+	for(j = 0; (pChallenges != NULL) &&
+		xrtValueIs(pChallenges, XVALUE_ARRAY) &&
+		(j < xrtValueCount(pChallenges)); j++)
+	{
+		xvalue* pChallenge = xrtValueArrayGet(pChallenges, j);
+		xvalue* pError;
+		xvalue* pDetail;
+		xstrview Text;
+		if((pChallenge == NULL) || !xrtValueIs(pChallenge, XVALUE_OBJECT))
+		{
+			continue;
+		}
+		pError = xrtValueObjectGet(pChallenge, XRT_STR_LITERAL("error"));
+		if((pError == NULL) || !xrtValueIs(pError, XVALUE_OBJECT))
+		{
+			continue;
+		}
+		pDetail = xrtValueObjectGet(pError, XRT_STR_LITERAL("detail"));
+		if((pDetail != NULL) && xrtValueGetString(pDetail, &Text) &&
+			(Text.Size > 0u))
+		{
+			size_t iCopy = (Text.Size < (iCapacity - 1u)) ?
+				Text.Size : (iCapacity - 1u);
+			memcpy(sOut, Text.Data, iCopy);
+			sOut[iCopy] = '\0';
+			break;
+		}
+	}
+	xrtValueRelease(pRoot);
+}
+
 bool xacmeClientInit(
 	xacmeclient* pClient, struct xnetengine* pBorrowedEngine,
-	cstr sCaPem, cstr sDirectoryUrl, cstr sAccountKeyPem)
+	cstr sCaPem, const xacmeaccountconfig* pAccount)
 {
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
@@ -312,23 +367,35 @@ bool xacmeClientInit(
 	xbuffer Payload;
 	bool bOk = false;
 
-	if((pClient == NULL) || (sDirectoryUrl == NULL) ||
-		(sDirectoryUrl[0] == '\0'))
+	if((pClient == NULL) || (pAccount == NULL) ||
+		(pAccount->sDirectoryUrl == NULL) ||
+		(pAccount->sDirectoryUrl[0] == '\0'))
 	{
 		xacmeFlowError(
 			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
-			"acme client init requires client and directory url");
+			"acme client init requires client and account config");
 		return false;
 	}
 	memset(pClient, 0, sizeof(*pClient));
+	if(!xacmeFlowCopyText(
+			pClient->sDirectoryUrl, sizeof(pClient->sDirectoryUrl),
+			pAccount->sDirectoryUrl))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme client directory url too long");
+		return false;
+	}
 	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, 0u))
 	{
 		goto Done;
 	}
-	if((sAccountKeyPem != NULL) && (sAccountKeyPem[0] != '\0'))
+	if((pAccount->sAccountKeyPem != NULL) &&
+		(pAccount->sAccountKeyPem[0] != '\0'))
 	{
 		if(!xacmeKeyPemRead(
-			sAccountKeyPem, strlen(sAccountKeyPem), &pClient->AccountKey))
+			pAccount->sAccountKeyPem, strlen(pAccount->sAccountKeyPem),
+			&pClient->AccountKey))
 		{
 			xacmeFlowError(
 				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
@@ -343,7 +410,7 @@ bool xacmeClientInit(
 
 	/* directory */
 	if(!xacmeHttpExchange(
-		&pClient->Http, "GET", sDirectoryUrl, NULL,
+		&pClient->Http, "GET", pAccount->sDirectoryUrl, NULL,
 		(xstrview){ NULL, 0u }, &R))
 	{
 		xacmeFlowError(
@@ -385,10 +452,88 @@ bool xacmeClientInit(
 		goto Done;
 	}
 
-	/* 注册或复用账户：201=新建，200=已存在。 */
+	/* 注册或复用账户：201=新建，200=已存在。载荷按需携带
+	   contact 与 externalAccountBinding（RFC 8555 §7.3/§7.3.4）。 */
 	xrtBufferInit(&Payload);
 	if(!xrtBufferAppend(
-		&Payload, XRT_BYTES_LITERAL("{\"termsOfServiceAgreed\":true}")))
+		&Payload, XRT_BYTES_LITERAL("{\"termsOfServiceAgreed\":true")))
+	{
+		xrtBufferUnit(&Payload);
+		goto Done;
+	}
+	if((pAccount->sContactEmail != NULL) &&
+		(pAccount->sContactEmail[0] != '\0'))
+	{
+		char sMailto[320];
+		snprintf(sMailto, sizeof(sMailto), "mailto:%s",
+			pAccount->sContactEmail);
+		if(!xrtBufferAppend(&Payload, XRT_BYTES_LITERAL(",\"contact\":[")) ||
+			!xacmeJsonQuoteAppend(
+				&Payload, (xstrview){ sMailto, strlen(sMailto) }) ||
+			!xrtBufferAppendByte(&Payload, (uint8)']'))
+		{
+			xrtBufferUnit(&Payload);
+			goto Done;
+		}
+	}
+	if((pAccount->Eab.sKid != NULL) && (pAccount->Eab.sKid[0] != '\0'))
+	{
+		/* base64url 文本 MAC key（兼容带/不带填充）。 */
+		static const xbase64config B64UrlPad = {
+			NULL, XBASE64_URL | XBASE64_OPTIONAL_PADDING
+		};
+		uint8 Mac[64];
+		size_t iMacSize = 0u;
+		str sJwk = NULL;
+		str sEab = NULL;
+		if((pAccount->Eab.sHmac == NULL) || (pAccount->Eab.sHmac[0] == '\0'))
+		{
+			xrtBufferUnit(&Payload);
+			xacmeFlowError(
+				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+				"acme client eab kid without hmac");
+			goto Done;
+		}
+		if(!xrtBase64Decode(
+				pAccount->Eab.sHmac, strlen(pAccount->Eab.sHmac), Mac,
+				sizeof(Mac), &iMacSize, &B64UrlPad) ||
+			(iMacSize == 0u))
+		{
+			xrtBufferUnit(&Payload);
+			xacmeFlowError(
+				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+				"acme client eab hmac invalid base64url");
+			goto Done;
+		}
+		sJwk = xacmeJwkEcJson(&pClient->AccountKey);
+		if(sJwk != NULL)
+		{
+			sEab = xacmeJwsEabHs256(
+				pAccount->Eab.sKid, pClient->sNewAccount,
+				(xstrview){ sJwk, strlen(sJwk) }, Mac, iMacSize);
+		}
+		xrtFree(sJwk);
+		if(sEab == NULL)
+		{
+			xrtBufferUnit(&Payload);
+			xacmeFlowError(
+				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+				"acme client eab binding build failed");
+			goto Done;
+		}
+		if(!xrtBufferAppend(
+				&Payload, XRT_BYTES_LITERAL(",\"externalAccountBinding\":")) ||
+			!xrtBufferAppend(
+				&Payload,
+				(xbytesview){ (const uint8*)sEab, strlen(sEab) }))
+		{
+			xrtFree(sEab);
+			xrtBufferUnit(&Payload);
+			goto Done;
+		}
+		xrtFree(sEab);
+	}
+	if(!xrtBufferAppendByte(&Payload, (uint8)'}'))
 	{
 		xrtBufferUnit(&Payload);
 		goto Done;
@@ -625,7 +770,7 @@ str xacmeClientIssue(
 				goto Done;
 			}
 			memcpy(Authz.sData, UrlText.Data, UrlText.Size);
-		(Authz.sData)[UrlText.Size] = '\0';
+			Authz.sData[UrlText.Size] = '\0';
 			Authz.iSize = UrlText.Size;
 			if(!xacmeFlowPostAsGet(pClient, Authz.sData, &A))
 			{
@@ -642,7 +787,7 @@ str xacmeClientIssue(
 			{
 				char sDetail[220];
 				snprintf(sDetail, sizeof(sDetail),
-					"acme authz fetch status=%u body=%.1500s",
+					"acme authz fetch status=%u body=%.150s",
 					(unsigned)A.iStatus,
 					(A.sBody != NULL) ? A.sBody : "");
 				xacmeHttpResponseUnit(&A);
@@ -766,7 +911,6 @@ str xacmeClientIssue(
 								pClient, Authz.sData, NULL);
 							bValidNow = (sStatus != NULL) &&
 								(strcmp(sStatus, "valid") == 0);
-							xrtFree(sStatus);
 						}
 						/* TXT 记录使命完成，删除。 */
 						(void)pDns->Remove((xacmednsprovider*)pDns,
@@ -776,31 +920,36 @@ str xacmeClientIssue(
 						xrtFree(sTxt);
 						if(!bValidNow)
 						{
+							char sChallengeError[200];
+							char sDetail[320];
 							const xerror* pE = xrtGetError();
+							/* 取挑战 error.detail 作诊断；失败留空。 */
+							xacmeFlowChallengeDetail(
+								pClient, Authz.sData, sChallengeError,
+								sizeof(sChallengeError));
 							if(getenv("XACME_DEBUG"))
 							{
-								xacmehttpresponse Dbg;
-								if(xacmeFlowPostAsGet(
-									pClient, Authz.sData, &Dbg) &&
-									(Dbg.sBody != NULL))
-								{
-									printf("[dbg] authz body: %.1400s\n",
-										Dbg.sBody);
-								}
-								xacmeHttpResponseUnit(&Dbg);
-								printf(
-									"[dbg] authz not valid: status=%s err=%d %s\n",
+								printf("[dbg] authz not valid: "
+									"status=%s err=%d %s challenge=%.160s\n",
 									(sStatus != NULL) ? sStatus : "null",
 									(int)xrtErrorKind(pE),
-									xrtErrorMessage(pE) ?
-										xrtErrorMessage(pE) : "-");
+									(xrtErrorMessage(pE) != NULL) ?
+										xrtErrorMessage(pE) : "-",
+									sChallengeError);
 							}
+							snprintf(sDetail, sizeof(sDetail),
+								"acme issue authorization status=%.32s "
+								"challenge=%.180s",
+								(sStatus != NULL) ? sStatus : "null",
+								sChallengeError);
+							xrtFree(sStatus);
 							xrtValueRelease(pAuthRoot);
 							xacmeFlowError(
 								XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
-								"acme issue authorization not valid");
+								sDetail);
 							goto Done;
 						}
+						xrtFree(sStatus);
 						bChallengeOk = true;
 						break;
 					}
@@ -1008,7 +1157,8 @@ str xacmeClientIssueStored(
 	{
 		return NULL;
 	}
-	if(!xrtAcmeStoreSaveCert(sStoreRoot, sPrimary, sChain, NULL))
+	if(!xrtAcmeStoreSaveCert(
+			sStoreRoot, sPrimary, sChain, pClient->sDirectoryUrl))
 	{
 		/* 落盘失败不作废已签证书；报告错误由调用方权衡。 */
 		xacmeFlowError(

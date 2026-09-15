@@ -1,175 +1,317 @@
-/*
-	xacme 模块选择器（当前手工维护；三态语义是 xacme 特有，
-	generate_extension_features.py 尚不支持默认全含与排除宏）。
-
-	三种选择方式（宏必须在包含任何 xacme 头之前定义）：
-
-	1. 默认：不定义任何 XACME_MODULE_* —— 全部内建 DNS provider 编入。
-	2. 排除：定义 XACME_NO_DNS_<厂> 从默认全量中剔除个别 provider。
-	3. 白名单：点名任意 XACME_MODULE_DNS_<厂> —— 自动退出默认全量，
-	   只编入点名的 provider（外加常驻的接口层与核心）。
-
-	单头与模块化两条路径统一到 XACME_FEATURE_*：
-	构建器按 manifest 闭包直接 -D 各 XACME_FEATURE_*；
-	本文件只在缺省时由 MODULE/默认全量推导补齐 FEATURE 与依赖级联。
-*/
+/* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XACME_FEATURES_H
 #define XACME_FEATURES_H
 
-
-
-/* ------------------------------------------------------------------ */
-/* 1. 白名单信号：点名（或构建器传入）任何一个可选 provider。 */
-/* ------------------------------------------------------------------ */
-#if defined(XACME_MODULE_DNS_ALI) || defined(XACME_MODULE_DNS_CF) || \
-	defined(XACME_MODULE_DNS_TENCENT) || defined(XACME_MODULE_DNS_AWS) || \
-	defined(XACME_MODULE_DNS_HUAWEI) || defined(XACME_FEATURE_DNS_ALI) || \
-	defined(XACME_FEATURE_DNS_CF) || defined(XACME_FEATURE_DNS_TENCENT) || \
-	defined(XACME_FEATURE_DNS_AWS) || defined(XACME_FEATURE_DNS_HUAWEI)
-#define XACME_DNS_WHITELIST
-#endif
-
-
-
-/* ------------------------------------------------------------------ */
-/* 2. 非白名单即默认全量。 */
-/* ------------------------------------------------------------------ */
-#if !defined(XACME_DNS_WHITELIST) && !defined(XACME_MODULE_ALL)
-#define XACME_MODULE_ALL
-#endif
-
-
-
-/* ------------------------------------------------------------------ */
-/* 3. 冲突检查。 */
-/* ------------------------------------------------------------------ */
-#if defined(XACME_DNS_WHITELIST) && \
-	(defined(XACME_NO_DNS_ALI) || defined(XACME_NO_DNS_CF) || \
-	 defined(XACME_NO_DNS_TENCENT) || defined(XACME_NO_DNS_AWS) || \
-	 defined(XACME_NO_DNS_HUAWEI))
-#error \
-	"白名单模式下不能再用 XACME_NO_DNS_*，不点名即是排除"
-#endif
-
-#if defined(XACME_MODULE_DNS_ALI) && defined(XACME_NO_DNS_ALI) || \
-	defined(XACME_MODULE_DNS_CF) && defined(XACME_NO_DNS_CF) || \
-	defined(XACME_MODULE_DNS_TENCENT) && defined(XACME_NO_DNS_TENCENT) || \
-	defined(XACME_MODULE_DNS_AWS) && defined(XACME_NO_DNS_AWS) || \
-	defined(XACME_MODULE_DNS_HUAWEI) && defined(XACME_NO_DNS_HUAWEI)
-#error "同一个 provider 既点名又排除"
-#endif
-
-
-
-/* ------------------------------------------------------------------ */
-/* 4. provider 特性：默认全量剔除式，或白名单点名式。 */
-/* ------------------------------------------------------------------ */
-#if (defined(XACME_MODULE_ALL) && !defined(XACME_NO_DNS_ALI)) || \
-	defined(XACME_MODULE_DNS_ALI)
-#ifndef XACME_FEATURE_DNS_ALI
-#define XACME_FEATURE_DNS_ALI
-#endif
-#endif
-
-#if (defined(XACME_MODULE_ALL) && !defined(XACME_NO_DNS_CF)) || \
-	defined(XACME_MODULE_DNS_CF)
-#ifndef XACME_FEATURE_DNS_CF
-#define XACME_FEATURE_DNS_CF
-#endif
-#endif
-
-#if (defined(XACME_MODULE_ALL) && !defined(XACME_NO_DNS_TENCENT)) || \
-	defined(XACME_MODULE_DNS_TENCENT)
-#ifndef XACME_FEATURE_DNS_TENCENT
-#define XACME_FEATURE_DNS_TENCENT
-#endif
-#endif
-
-#if (defined(XACME_MODULE_ALL) && !defined(XACME_NO_DNS_AWS)) || \
-	defined(XACME_MODULE_DNS_AWS)
-#ifndef XACME_FEATURE_DNS_AWS
-#define XACME_FEATURE_DNS_AWS
-#endif
-#endif
-
-#if (defined(XACME_MODULE_ALL) && !defined(XACME_NO_DNS_HUAWEI)) || \
-	defined(XACME_MODULE_DNS_HUAWEI)
-#ifndef XACME_FEATURE_DNS_HUAWEI
-#define XACME_FEATURE_DNS_HUAWEI
-#endif
-#endif
-
-
-
-/* ------------------------------------------------------------------ */
-/* 5. 特性依赖级联：provider 与核心都要求接口层。 */
-/* ------------------------------------------------------------------ */
-#if defined(XACME_MODULE_ACME_DNS) && !defined(XACME_FEATURE_ACME_DNS)
-#define XACME_FEATURE_ACME_DNS
-#endif
-
-#if defined(XACME_MODULE_ACME_CORE)
-#ifndef XACME_FEATURE_ACME_CORE
-#define XACME_FEATURE_ACME_CORE
-#endif
-#ifndef XACME_FEATURE_ACME_DNS
-#define XACME_FEATURE_ACME_DNS
-#endif
-#endif
-
-#if defined(XACME_MODULE_ACME_STORE)
-#ifndef XACME_FEATURE_ACME_STORE
-#define XACME_FEATURE_ACME_STORE
-#endif
-#endif
-
-#if defined(XACME_MODULE_DNS_TXT)
-#ifndef XACME_FEATURE_DNS_TXT
-#define XACME_FEATURE_DNS_TXT
-#endif
-#endif
-
-#if defined(XACME_MODULE_ACME_FLOW)
+/* acme_flow 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_FLOW)
 #ifndef XACME_FEATURE_ACME_FLOW
 #define XACME_FEATURE_ACME_FLOW
 #endif
-#ifndef XACME_FEATURE_ACME_HTTP
-#define XACME_FEATURE_ACME_HTTP
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
 #endif
-#ifndef XACME_FEATURE_ACME_CSR
-#define XACME_FEATURE_ACME_CSR
+#ifndef XACME_MODULE_ACME_JOSE
+#define XACME_MODULE_ACME_JOSE
 #endif
-#ifndef XACME_FEATURE_ACME_JOSE
-#define XACME_FEATURE_ACME_JOSE
+#ifndef XACME_MODULE_ACME_CSR
+#define XACME_MODULE_ACME_CSR
 #endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XACME_MODULE_DNS_ALI
+#define XACME_MODULE_DNS_ALI
+#endif
+#ifndef XACME_MODULE_ACME_CORE
+#define XACME_MODULE_ACME_CORE
+#endif
+#ifndef XACME_MODULE_ACME_STORE
+#define XACME_MODULE_ACME_STORE
+#endif
+#endif
+
+/* acme_store 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_STORE)
+#ifndef XACME_FEATURE_ACME_STORE
+#define XACME_FEATURE_ACME_STORE
+#endif
+#ifndef XRT_MODULE_FILE
+#define XRT_MODULE_FILE
+#endif
+#ifndef XRT_MODULE_FILE_WHOLE
+#define XRT_MODULE_FILE_WHOLE
+#endif
+#ifndef XRT_MODULE_X509_PARSE
+#define XRT_MODULE_X509_PARSE
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_PEM
+#define XRT_MODULE_PEM
+#endif
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#endif
+
+/* acme_core 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_CORE)
+#ifndef XACME_FEATURE_ACME_CORE
+#define XACME_FEATURE_ACME_CORE
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#endif
+
+/* dns_ali 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_ALI)
+#ifndef XACME_FEATURE_DNS_ALI
+#define XACME_FEATURE_DNS_ALI
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XACME_MODULE_DNS_TXT
+#define XACME_MODULE_DNS_TXT
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_txt 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_TXT)
+#ifndef XACME_FEATURE_DNS_TXT
+#define XACME_FEATURE_DNS_TXT
+#endif
+#ifndef XRT_MODULE_NET_ENGINE
+#define XRT_MODULE_NET_ENGINE
+#endif
+#ifndef XRT_MODULE_NET_UDP
+#define XRT_MODULE_NET_UDP
+#endif
+#ifndef XRT_MODULE_NET_UDP_SYNC
+#define XRT_MODULE_NET_UDP_SYNC
+#endif
+#ifndef XRT_MODULE_RANDOM
+#define XRT_MODULE_RANDOM
+#endif
+#ifndef XRT_MODULE_RANDOM_DEFAULT
+#define XRT_MODULE_RANDOM_DEFAULT
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_ARRAY
+#define XRT_MODULE_ARRAY
+#endif
+#endif
+
+/* acme_dns 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_DNS)
 #ifndef XACME_FEATURE_ACME_DNS
 #define XACME_FEATURE_ACME_DNS
 #endif
 #endif
 
-#if defined(XACME_MODULE_ACME_HTTP)
-#ifndef XACME_FEATURE_ACME_HTTP
-#define XACME_FEATURE_ACME_HTTP
-#endif
-#endif
-
-#if defined(XACME_MODULE_ACME_CSR)
+/* acme_csr 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_CSR)
 #ifndef XACME_FEATURE_ACME_CSR
 #define XACME_FEATURE_ACME_CSR
 #endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_ASN1_DER
+#define XRT_MODULE_ASN1_DER
+#endif
+#ifndef XRT_MODULE_PEM
+#define XRT_MODULE_PEM
+#endif
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
+#endif
+#ifndef XRT_MODULE_CRYPTO_P256
+#define XRT_MODULE_CRYPTO_P256
+#endif
+#ifndef XRT_MODULE_CRYPTO_ECDSA_P256_SIGN_DER
+#define XRT_MODULE_CRYPTO_ECDSA_P256_SIGN_DER
+#endif
+#ifndef XACME_MODULE_ACME_JOSE
+#define XACME_MODULE_ACME_JOSE
+#endif
+#endif
+
+/* acme_jose 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_JOSE)
 #ifndef XACME_FEATURE_ACME_JOSE
 #define XACME_FEATURE_ACME_JOSE
 #endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_P256_KEYPAIR
+#define XRT_MODULE_CRYPTO_P256_KEYPAIR
+#endif
+#ifndef XRT_MODULE_CRYPTO_ECDSA_P256_SIGN
+#define XRT_MODULE_CRYPTO_ECDSA_P256_SIGN
+#endif
 #endif
 
-#if defined(XACME_FEATURE_DNS_ALI) || defined(XACME_FEATURE_DNS_CF) || \
-	defined(XACME_FEATURE_DNS_TENCENT) || defined(XACME_FEATURE_DNS_AWS) || \
-	defined(XACME_FEATURE_DNS_HUAWEI)
-#ifndef XACME_FEATURE_ACME_DNS
-#define XACME_FEATURE_ACME_DNS
+/* acme_http 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_HTTP)
+#ifndef XACME_FEATURE_ACME_HTTP
+#define XACME_FEATURE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_HTTP
+#define XRT_MODULE_HTTP
+#endif
+#ifndef XRT_MODULE_HTTP1_HEAD
+#define XRT_MODULE_HTTP1_HEAD
+#endif
+#ifndef XRT_MODULE_HTTP1_BODY
+#define XRT_MODULE_HTTP1_BODY
+#endif
+#ifndef XRT_MODULE_HTTP1_NET
+#define XRT_MODULE_HTTP1_NET
+#endif
+#ifndef XRT_MODULE_NET_ENGINE
+#define XRT_MODULE_NET_ENGINE
+#endif
+#ifndef XRT_MODULE_NET_RESOLVER
+#define XRT_MODULE_NET_RESOLVER
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_DIAL
+#define XRT_MODULE_TLS_STREAM_DIAL
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_DIAL_FUTURE
+#define XRT_MODULE_TLS_STREAM_DIAL_FUTURE
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT
+#define XRT_MODULE_TLS_CLIENT
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#endif
+#ifndef XRT_MODULE_TLS_VERIFY
+#define XRT_MODULE_TLS_VERIFY
+#endif
+#ifndef XRT_MODULE_X509_STORE
+#define XRT_MODULE_X509_STORE
+#endif
+#ifndef XRT_MODULE_X509_STORE_SYSTEM
+#define XRT_MODULE_X509_STORE_SYSTEM
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
+#ifndef XRT_MODULE_FUTURE_BRIDGE
+#define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#ifndef XRT_MODULE_CANCEL
+#define XRT_MODULE_CANCEL
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#ifndef XRT_MODULE_NET_TCP_FUTURE
+#define XRT_MODULE_NET_TCP_FUTURE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_FUTURE
+#define XRT_MODULE_TLS_STREAM_FUTURE
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL_FUTURE
+#define XRT_MODULE_NET_TCP_DIAL_FUTURE
+#endif
+#ifndef XRT_MODULE_TLS_NEGOTIATE
+#define XRT_MODULE_TLS_NEGOTIATE
+#endif
+#ifndef XRT_MODULE_TLS_POLICY
+#define XRT_MODULE_TLS_POLICY
+#endif
+#ifndef XRT_MODULE_TLS_CONTEXT
+#define XRT_MODULE_TLS_CONTEXT
+#endif
+#ifndef XRT_MODULE_TLS_RECORD
+#define XRT_MODULE_TLS_RECORD
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
 #endif
 #endif
 
-
-
-#endif
+#endif /* XACME_FEATURES_H */

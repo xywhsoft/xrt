@@ -294,33 +294,34 @@ static int xacmeStreamRecv(
 	xacmestream* pStream, uint8* pBuffer, size_t iCapacity,
 	size_t* pRead, uint64 uUs)
 {
-	xfuture* pFuture;
-	xnetbytes* pBytes;
+	for(;;)
+	{
+		xfuture* pFuture;
+		xnetbytes* pBytes;
 
-	if(pStream->pTls != NULL)
-	{
-		pFuture = xrtTlsStreamRecvAsync(pStream->pTls, iCapacity);
-	}
-	else
-	{
-		pFuture = xrtNetStreamRecvAsync(pStream->pTcp, iCapacity);
-	}
-	if(pFuture == NULL)
-	{
-		return -1;
-	}
-	if(xrtFutureWaitFor(pFuture, uUs) != XWAIT_OK)
-	{
-		xrtFutureDestroy(pFuture);
-		return -1;
-	}
-	pBytes = (xnetbytes*)xrtFutureValue(pFuture);
-	if((pBytes == NULL) || (xrtNetBytesView(pBytes).Size == 0u))
-	{
-		xrtFutureDestroy(pFuture);
-		/* 0 字节不等于 EOF：仅在流确已离开 OPEN 态时判定结束。 */
+		if(pStream->pTls != NULL)
+		{
+			pFuture = xrtTlsStreamRecvAsync(pStream->pTls, iCapacity);
+		}
+		else
+		{
+			pFuture = xrtNetStreamRecvAsync(pStream->pTcp, iCapacity);
+		}
+		if(pFuture == NULL)
+		{
+			return -1;
+		}
+		if(xrtFutureWaitFor(pFuture, uUs) != XWAIT_OK)
+		{
+			xrtFutureDestroy(pFuture);
+			return -1;
+		}
+		pBytes = (xnetbytes*)xrtFutureValue(pFuture);
+		if((pBytes == NULL) || (xrtNetBytesView(pBytes).Size == 0u))
 		{
 			bool bEnd;
+			xrtFutureDestroy(pFuture);
+			/* 0 字节不等于 EOF：仅在流确已离开 OPEN 态时判定结束。 */
 			if(pStream->pTls != NULL)
 			{
 				xtlsstreamstate eState = xrtTlsStreamState(pStream->pTls);
@@ -330,8 +331,9 @@ static int xacmeStreamRecv(
 			}
 			else
 			{
+				xfuture* pClose;
 				bEnd = false; /* 明文流状态另查，暂按等待 CLOSE 判定。 */
-				xfuture* pClose = xrtNetStreamWaitAsync(
+				pClose = xrtNetStreamWaitAsync(
 					pStream->pTcp, XNET_STREAM_WAIT_READ);
 				if((pClose != NULL) && xacmeFutureWait(pClose, uUs))
 				{
@@ -345,19 +347,19 @@ static int xacmeStreamRecv(
 			}
 			/* 短暂让步后再试一轮（数据尚在路上）。 */
 			xrtSleep(5u);
-			return xacmeStreamRecv(
-				pStream, pBuffer, iCapacity, pRead, uUs);
+			continue;
 		}
-	}
-	if(xrtNetBytesView(pBytes).Size > iCapacity)
-	{
+		if(xrtNetBytesView(pBytes).Size > iCapacity)
+		{
+			xrtFutureDestroy(pFuture);
+			return -1;
+		}
+		memcpy(pBuffer, xrtNetBytesView(pBytes).Data,
+			xrtNetBytesView(pBytes).Size);
+		*pRead = xrtNetBytesView(pBytes).Size;
 		xrtFutureDestroy(pFuture);
-		return -1;
+		return 1;
 	}
-	memcpy(pBuffer, xrtNetBytesView(pBytes).Data, xrtNetBytesView(pBytes).Size);
-	*pRead = xrtNetBytesView(pBytes).Size;
-	xrtFutureDestroy(pFuture);
-	return 1;
 }
 
 static void xacmeStreamClose(xacmestream* pStream)

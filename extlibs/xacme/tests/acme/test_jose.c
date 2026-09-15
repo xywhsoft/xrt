@@ -31,6 +31,14 @@ static const char* __testJws =
 	"ImRucyIsInZhbHVlIjoidGVzdC54eHJwYS5jb20ifV19\",\"signature\":\"NVj6a91M"
 	"7F11tIkAqffZvIOHZXU4-0xW9UFNwt3TaP9ro58U2bb4G0CWO2QfBydyS_vMFq2YpQSRVZpA"
 	"AXY3FQ\"}";
+/* EAB 内层 JWS（kid=eab-kid-0192，MAC=0011..EEFF×2）：python 固化。 */
+static const char* __testEabJws =
+	"{\"protected\":\"eyJhbGciOiJIUzI1NiIsImtpZCI6ImVhYi1raWQtMDE5MiIsInVyb"
+	"CI6Imh0dHBzOi8vZXhhbXBsZS5jb20vYWNtZS9uZXctYWNjb3VudCJ9\",\"payload\":"
+	"\"eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6IllQN1V1aVZhblRISllldDB4alZ0"
+	"YU1CSnVKSTdZZnBzNW1saUxtRHluN1kiLCJ5IjoiZVFQLUVBaTR2Sm1rR3VucFZpaThaUEx4"
+	"c2d3dGZwOVJkNlBDbE5SR0lwayJ9\",\"signature\":"
+	"\"aOaN9_LQpkpQPnef_1XdA1e2V4tshegGLN7441JqI-8\"}";
 
 /*
 	RFC 6979 A.2.5：消息 "sample" 的确定性 r||s。
@@ -171,6 +179,32 @@ int main(void)
 		testRequire(s != NULL, "acme jose jws assembly failed");
 		testRequire(strcmp(s, __testJws) == 0, "acme jose jws mismatch");
 		xrtFree(s);
+	}
+
+	/* EAB 内层 JWS：HS256 + RFC 6979 测试 JWK，期望值由 python
+	   hmac/hashlib/base64 独立计算后固化。 */
+	{
+		uint8 Mac[32];
+		str s;
+		testHexToBytes(
+			"00112233445566778899AABBCCDDEEFF"
+			"00112233445566778899AABBCCDDEEFF",
+			Mac, sizeof(Mac));
+		s = xacmeJwsEabHs256(
+			"eab-kid-0192", "https://example.com/acme/new-account",
+			(xstrview){ __testJwk, strlen(__testJwk) }, Mac, sizeof(Mac));
+		testRequire(s != NULL, "acme jose eab assembly failed");
+		testRequire(strcmp(s, __testEabJws) == 0, "acme jose eab mismatch");
+		xrtFree(s);
+		/* 参数错误语义。 */
+		xrtClearError();
+		testRequire(
+			(xacmeJwsEabHs256(
+				NULL, "https://example.com/", XRT_STR_LITERAL("{}"),
+				Mac, sizeof(Mac)) == NULL) &&
+				(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
+			"acme jose eab null argument mismatch"
+		);
 	}
 
 	/* 参数错误语义。 */

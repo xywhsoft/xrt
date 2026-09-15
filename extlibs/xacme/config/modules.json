@@ -44,7 +44,8 @@
     "acme_core",
     "acme_store"
    ],
-   "internal_headers": [
+   "public_headers": [],
+      "internal_headers": [
     "extlibs/xacme/src/internal/xacme_flow.h"
    ],
    "sources": [
@@ -101,7 +102,8 @@
     "tls_key_exchange_p256",
     "tls_key_exchange_p384"
    ],
-   "internal_headers": [
+   "public_headers": [],
+      "internal_headers": [
     "extlibs/xacme/src/internal/xacme_http.h"
    ],
    "sources": [
@@ -123,14 +125,17 @@
    "depends": [
     "core"
    ],
+   "internal_headers": [],
    "public_headers": [
     "extlibs/xacme/include/xrt/acme_dns.h"
    ],
    "sources": [
-    "extlibs/xacme/src/acme/xacme_dns.c"
+    "extlibs/xacme/src/acme/xacme_dns.c",
+    "extlibs/xacme/src/acme/xacme_registry.c"
    ],
    "tests": [
-    "extlibs/xacme/tests/acme/test_dns_provider.c"
+    "extlibs/xacme/tests/acme/test_dns_provider.c",
+    "extlibs/xacme/tests/acme/test_registry.c"
    ],
    "single_tests": [],
    "examples": [],
@@ -145,6 +150,7 @@
     "core",
     "acme_dns"
    ],
+   "internal_headers": [],
    "public_headers": [
     "extlibs/xacme/include/xrt/acme.h"
    ],
@@ -175,6 +181,7 @@
     "time",
     "buffer"
    ],
+   "internal_headers": [],
    "public_headers": [
     "extlibs/xacme/include/xrt/acme_dns_ali.h"
    ],
@@ -198,10 +205,12 @@
     "buffer",
     "codec_base64",
     "crypto_sha256",
+    "crypto_hmac_sha256",
     "crypto_p256_keypair",
     "crypto_ecdsa_p256_sign"
    ],
-   "internal_headers": [
+   "public_headers": [],
+      "internal_headers": [
     "extlibs/xacme/src/internal/xacme_jose.h"
    ],
    "sources": [
@@ -229,7 +238,8 @@
     "crypto_ecdsa_p256_sign_der",
     "acme_jose"
    ],
-   "internal_headers": [
+   "public_headers": [],
+      "internal_headers": [
     "extlibs/xacme/src/internal/xacme_csr.h"
    ],
    "sources": [
@@ -257,15 +267,44 @@
     "dns_txt",
     "acme_store"
    ],
+   "internal_headers": [],
    "public_headers": [
     "extlibs/xacme/include/xacme.h",
     "extlibs/xacme/include/xacme/features.h"
    ],
-   "sources": [
-    "extlibs/xacme/src/xacme.c"
+   "sources": [],
+   "tests": [],
+   "single_tests": [],
+   "examples": [],
+   "docs": [
+    "extlibs/xacme/README.md"
    ],
+   "legacy": []
+  },
+  {
+   "name": "xacme_tests",
+   "state": "implemented",
+   "feature": null,
+   "depends": [
+    "xacme"
+   ],
+   "public_headers": [],
+   "internal_headers": [],
+   "sources": [],
    "tests": [
-    "extlibs/xacme/tests/acme/test_registry.c"
+    "extlibs/xacme/tests/acme/test_core_config.c",
+    "extlibs/xacme/tests/acme/test_csr.c",
+    "extlibs/xacme/tests/acme/test_dns_provider.c",
+    "extlibs/xacme/tests/acme/test_dnsali.c",
+    "extlibs/xacme/tests/acme/test_dnstxt.c",
+    "extlibs/xacme/tests/acme/test_flow.c",
+    "extlibs/xacme/tests/acme/test_flow_live.c",
+    "extlibs/xacme/tests/acme/test_http.c",
+    "extlibs/xacme/tests/acme/test_jose.c",
+    "extlibs/xacme/tests/acme/test_registry.c",
+    "extlibs/xacme/tests/acme/test_store.c",
+    "extlibs/xacme/tests/acme/test_tlsdbg.c",
+    "extlibs/xacme/tests/package/test_consumer.c"
    ],
    "single_tests": [],
    "examples": [],
@@ -287,6 +326,7 @@
     "buffer",
     "array"
    ],
+   "public_headers": [],
    "internal_headers": [
     "extlibs/xacme/src/internal/xacme_dnstxt.h"
    ],
@@ -317,6 +357,7 @@
     "buffer",
     "dir"
    ],
+   "internal_headers": [],
    "public_headers": [
     "extlibs/xacme/include/xrt/acme_store.h"
    ],

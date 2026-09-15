@@ -148,6 +148,7 @@ int main(void)
 		str sCaPem;
 		size_t iCaSize = 0u;
 		xacmeclient Client;
+		xacmeaccountconfig Account;
 		testdnsctx Dns;
 		xacmednsprovider Provider;
 		xstrview Domains[2];
@@ -165,7 +166,9 @@ int main(void)
 			xacmeHttpInit(&Dns.Http, NULL, NULL, 10000000u),
 			"acme flow chall http init failed");
 
-		if(!xacmeClientInit(&Client, NULL, sCaPem, sUrl, NULL))
+		xrtAcmeAccountConfigInit(&Account);
+		Account.sDirectoryUrl = sUrl;
+		if(!xacmeClientInit(&Client, NULL, sCaPem, &Account))
 		{
 			const xerror* pError = xrtGetError();
 			const xerror* pCause = pError;
@@ -238,37 +241,41 @@ int main(void)
 		printf("[pebble] chain certs=%zu bytes=%zu\n",
 			iCerts, strlen(sChain));
 
+	{
+		char sDump[320];
+		FILE* f;
+		snprintf(sDump, sizeof(sDump), "%s/pebble_issued.pem",
+			testOutRoot());
+		f = fopen(sDump, "wb");
+		if(f != NULL)
 		{
-			FILE* f = fopen("D:/git/xacme-local/pebble_issued.pem", "wb");
-			if(f != NULL)
-			{
-				fwrite(sChain, 1u, strlen(sChain), f);
-				fclose(f);
-			}
+			fwrite(sChain, 1u, strlen(sChain), f);
+			fclose(f);
 		}
-		xrtFree(sChain);
+	}
+	xrtFree(sChain);
 
-		/* IssueStored 双跑：第一跑签发落盘，第二跑阈值内直接跳过。 */
-		{
-			bool bRenewed = false;
-			str s1;
-			str s2;
-			s1 = xacmeClientIssueStored(
-				&Client, Domains, 1u, &Provider,
-				"D:/git/xacme-local/store_pebble", 30, &bRenewed);
-			testRequire(
-				(s1 != NULL) && bRenewed,
-				"acme flow stored first issue failed");
-			xrtFree(s1);
-			s2 = xacmeClientIssueStored(
-				&Client, Domains, 1u, &Provider,
-				"D:/git/xacme-local/store_pebble", 30, &bRenewed);
-			testRequire(
-				(s2 != NULL) && !bRenewed &&
-					(strstr(s2, "BEGIN CERTIFICATE") != NULL),
-				"acme flow stored skip failed");
-			xrtFree(s2);
-		}
+	/* IssueStored 双跑：第一跑签发落盘，第二跑阈值内直接跳过。 */
+	{
+		char sStore[320];
+		bool bRenewed = false;
+		str s1;
+		str s2;
+		snprintf(sStore, sizeof(sStore), "%s/store_pebble", testOutRoot());
+		s1 = xacmeClientIssueStored(
+			&Client, Domains, 1u, &Provider, sStore, 30, &bRenewed);
+		testRequire(
+			(s1 != NULL) && bRenewed,
+			"acme flow stored first issue failed");
+		xrtFree(s1);
+		s2 = xacmeClientIssueStored(
+			&Client, Domains, 1u, &Provider, sStore, 30, &bRenewed);
+		testRequire(
+			(s2 != NULL) && !bRenewed &&
+				(strstr(s2, "BEGIN CERTIFICATE") != NULL),
+			"acme flow stored skip failed");
+		xrtFree(s2);
+	}
 
 		xacmeClientUnit(&Client);
 		xacmeHttpUnit(&Dns.Http);

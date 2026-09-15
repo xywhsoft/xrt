@@ -14,7 +14,7 @@
 	"缺文件→需要续"路径。
 */
 
-#define STORE_ROOT "D:/git/xacme-local/store_test"
+#define STORE_ROOT testOutRoot()
 
 int main(void)
 {

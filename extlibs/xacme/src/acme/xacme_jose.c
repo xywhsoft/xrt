@@ -15,6 +15,44 @@ static const xbase64config __xacmeB64Url = {
 	XBASE64_URL | XBASE64_NO_PADDING
 };
 
+/*
+	扁平 JWS 组装（RFC 7515 §7.2.2）：三段 base64url 文本。
+	返回含末尾零的 xrtMalloc 文本；失败返回 NULL。
+*/
+static str xacmeJwsFlatAssemble(
+	cstr sHeaderB64, cstr sPayloadB64, cstr sSignatureB64)
+{
+	xbuffer Flat;
+	str sResult = NULL;
+	bool bOk;
+	xrtBufferInit(&Flat);
+	bOk = xrtBufferAppend(
+			&Flat, XRT_BYTES_LITERAL("{\"protected\":\"")) &&
+		xrtBufferAppend(
+			&Flat,
+			(xbytesview){ (const uint8*)sHeaderB64, strlen(sHeaderB64) }) &&
+		xrtBufferAppend(&Flat, XRT_BYTES_LITERAL("\",\"payload\":\"")) &&
+		xrtBufferAppend(
+			&Flat,
+			(xbytesview){ (const uint8*)sPayloadB64, strlen(sPayloadB64) }) &&
+		xrtBufferAppend(&Flat, XRT_BYTES_LITERAL("\",\"signature\":\"")) &&
+		xrtBufferAppend(
+			&Flat,
+			(xbytesview){ (const uint8*)sSignatureB64, strlen(sSignatureB64) }) &&
+		xrtBufferAppend(&Flat, XRT_BYTES_LITERAL("\"}")) &&
+		xrtBufferAppendByte(&Flat, 0u);
+	if(bOk && (Flat.Data != NULL))
+	{
+		sResult = (str)xrtMalloc(Flat.Size);
+		if(sResult != NULL)
+		{
+			memcpy(sResult, Flat.Data, Flat.Size);
+		}
+	}
+	xrtBufferUnit(&Flat);
+	return sResult;
+}
+
 /* 把借用文本按 JSON 字符串 token（含两侧引号）转义追加；控制字符用 \u。 */
 static bool xacmeJsonQuoteAppend(xbuffer* pBuffer, xstrview sText)
 {
@@ -208,7 +246,6 @@ str xacmeJwsEs256(
 	str sSignatureB64;
 	uint8 Digest[XRT_SHA256_SIZE];
 	uint8 Signature[XRT_ECDSA_P256_SIGNATURE_SIZE];
-	size_t iSize = 0;
 	bool bOk;
 
 	if(pKey == NULL || pHeader == NULL || pHeader->Url.Data == NULL ||
@@ -304,38 +341,7 @@ str xacmeJwsEs256(
 	}
 
 	/* ACME 使用 JWS 扁平 JSON 序列化（RFC 8555 §6.2）。 */
-	{
-		xbuffer Flat;
-		bool bFlat;
-		xrtBufferInit(&Flat);
-		bFlat = xrtBufferAppend(&Flat, XRT_BYTES_LITERAL("{\"protected\":\""))
-			&& xrtBufferAppend(
-				&Flat,
-				(xbytesview){
-					(const uint8*)sHeaderB64, strlen(sHeaderB64) })
-			&& xrtBufferAppend(&Flat, XRT_BYTES_LITERAL("\",\"payload\":\""))
-			&& xrtBufferAppend(
-				&Flat,
-				(xbytesview){
-					(const uint8*)sPayloadB64, strlen(sPayloadB64) })
-			&& xrtBufferAppend(&Flat, XRT_BYTES_LITERAL("\",\"signature\":\""))
-			&& xrtBufferAppend(
-				&Flat,
-				(xbytesview){
-					(const uint8*)sSignatureB64, strlen(sSignatureB64) })
-			&& xrtBufferAppend(&Flat, XRT_BYTES_LITERAL("\"}"))
-			&& xrtBufferAppendByte(&Flat, 0u);
-		if(bFlat && (Flat.Data != NULL))
-		{
-			iSize = Flat.Size - 1u;
-			sResult = (str)xrtMalloc(iSize + 1u);
-			if(sResult != NULL)
-			{
-				memcpy(sResult, Flat.Data, iSize + 1u);
-			}
-		}
-		xrtBufferUnit(&Flat);
-	}
+	sResult = xacmeJwsFlatAssemble(sHeaderB64, sPayloadB64, sSignatureB64);
 
 Done:
 	xrtFree(sHeaderB64);
@@ -350,6 +356,93 @@ Done:
 			"xrt.acme.jose",
 			XACME_JOSE_ERROR_INTERNAL,
 			"acme jose jws assembly failed"
+		);
+	}
+	return sResult;
+}
+
+str xacmeJwsEabHs256(
+	cstr sKid, cstr sUrl, xstrview sJwkJson,
+	const uint8* pMac, size_t iMacSize)
+{
+	xbuffer Header;
+	xbuffer SigningInput;
+	str sResult = NULL;
+	str sHeaderB64 = NULL;
+	str sPayloadB64 = NULL;
+	str sSignatureB64 = NULL;
+	uint8 Mac[XRT_SHA256_SIZE];
+	bool bOk;
+
+	if((sKid == NULL) || (sKid[0] == '\0') || (sUrl == NULL) ||
+		(sUrl[0] == '\0') || (sJwkJson.Data == NULL) ||
+		(sJwkJson.Size == 0u) || (pMac == NULL) || (iMacSize == 0u))
+	{
+		xrtSetErrorInfo(
+			XERR_ARGUMENT,
+			"xrt.acme.jose",
+			XACME_JOSE_ERROR_ARGUMENT,
+			"acme jose eab requires kid, url, jwk and mac key"
+		);
+		return NULL;
+	}
+
+	xrtBufferInit(&Header);
+	xrtBufferInit(&SigningInput);
+	bOk = xrtBufferAppend(
+			&Header, XRT_BYTES_LITERAL("{\"alg\":\"HS256\",\"kid\":")) &&
+		xacmeJsonQuoteAppend(
+			&Header, (xstrview){ sKid, strlen(sKid) }) &&
+		xrtBufferAppend(&Header, XRT_BYTES_LITERAL(",\"url\":")) &&
+		xacmeJsonQuoteAppend(
+			&Header, (xstrview){ sUrl, strlen(sUrl) }) &&
+		xrtBufferAppend(&Header, XRT_BYTES_LITERAL("}"));
+	if(bOk)
+	{
+		sHeaderB64 = xrtBase64EncodeNew(
+			(cstr)Header.Data, xrtBufferView(&Header).Size, &__xacmeB64Url);
+		sPayloadB64 = xrtBase64EncodeNew(
+			sJwkJson.Data, sJwkJson.Size, &__xacmeB64Url);
+	}
+	if((sHeaderB64 == NULL) || (sPayloadB64 == NULL))
+	{
+		goto Done;
+	}
+	/* 签名输入是 ASCII 的 header.payload 拼接（与 ES256 相同）。 */
+	bOk = xrtBufferAppend(
+			&SigningInput,
+			(xbytesview){ (const uint8*)sHeaderB64, strlen(sHeaderB64) }) &&
+		xrtBufferAppendByte(&SigningInput, (uint8)'.') &&
+		xrtBufferAppend(
+			&SigningInput,
+			(xbytesview){ (const uint8*)sPayloadB64, strlen(sPayloadB64) }) &&
+		xrtHmacSha256(
+			pMac, iMacSize, SigningInput.Data,
+			xrtBufferView(&SigningInput).Size, Mac);
+	if(!bOk)
+	{
+		goto Done;
+	}
+	sSignatureB64 = xrtBase64EncodeNew(Mac, sizeof(Mac), &__xacmeB64Url);
+	if(sSignatureB64 == NULL)
+	{
+		goto Done;
+	}
+	sResult = xacmeJwsFlatAssemble(sHeaderB64, sPayloadB64, sSignatureB64);
+
+Done:
+	xrtFree(sHeaderB64);
+	xrtFree(sPayloadB64);
+	xrtFree(sSignatureB64);
+	xrtBufferUnit(&Header);
+	xrtBufferUnit(&SigningInput);
+	if(sResult == NULL)
+	{
+		xrtSetErrorInfo(
+			XERR_MEMORY,
+			"xrt.acme.jose",
+			XACME_JOSE_ERROR_INTERNAL,
+			"acme jose eab assembly failed"
 		);
 	}
 	return sResult;

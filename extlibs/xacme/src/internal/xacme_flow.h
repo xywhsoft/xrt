@@ -7,6 +7,7 @@
 #include "xacme_csr.h"
 #include "xacme_http.h"
 
+#include <xrt/acme.h>
 #include <xrt/acme_store.h>
 #include "xacme_jose.h"
 
@@ -35,6 +36,7 @@ typedef enum xacmeflowerror {
 typedef struct xacmeclient {
 	xacmehttp Http;
 	xacmees256key AccountKey;
+	char sDirectoryUrl[512];
 	char sKid[512];
 	char sNewNonce[512];
 	char sNewAccount[512];
@@ -50,14 +52,15 @@ XRT_EXTERN_C_BEGIN
 
 /*
 	初始化：建传输（pBorrowedHttp 为空则自建）、解析 directory、
-	注册或复用账户（kid 来自 Location 头）。失败设置线程错误。
+	注册或复用账户（kid 来自 Location 头）。pAccount 携带 directory、
+	账户密钥、EAB 与联系方式（借用视图，宿主保证存活至返回）。
+	失败设置线程错误。
 */
 bool xacmeClientInit(
 	xacmeclient* pClient,
 	struct xnetengine* pBorrowedEngine,
 	cstr sCaPem,
-	cstr sDirectoryUrl,
-	cstr sAccountKeyPem
+	const xacmeaccountconfig* pAccount
 );
 
 void xacmeClientUnit(xacmeclient* pClient);

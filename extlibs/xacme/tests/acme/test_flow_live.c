@@ -22,9 +22,9 @@ int main(void)
 	xacmednaliconfig AliConfig;
 	xacmednsprovider Ali;
 	xacmeclient Client;
+	xacmeaccountconfig Account;
 	xstrview Domains[1];
 	str sChain;
-	FILE* f;
 
 	if((sLive == NULL) || (sLive[0] == '\0') || (sKey == NULL) ||
 		(sKey[0] == '\0') || (sSecret == NULL) || (sSecret[0] == '\0'))
@@ -42,8 +42,9 @@ int main(void)
 		"acme live ali construct failed"
 	);
 
-	if(!xacmeClientInit(
-		&Client, NULL, NULL, XACME_DIRECTORY_LE_STAGING, NULL))
+	xrtAcmeAccountConfigInit(&Account);
+	Account.sDirectoryUrl = XACME_DIRECTORY_LE_STAGING;
+	if(!xacmeClientInit(&Client, NULL, NULL, &Account))
 	{
 		const xerror* pE = xrtGetError();
 		const xerror* pC = pE;
@@ -91,11 +92,17 @@ int main(void)
 		strstr(sChain, "-----BEGIN CERTIFICATE-----") != NULL,
 		"acme live chain missing certificate"
 	);
-	f = fopen("D:/git/xacme-local/le_staging_issued.pem", "wb");
-	if(f != NULL)
 	{
-		fwrite(sChain, 1u, strlen(sChain), f);
-		fclose(f);
+		char sDump[320];
+		FILE* f;
+		snprintf(sDump, sizeof(sDump), "%s/le_staging_issued.pem",
+			testOutRoot());
+		f = fopen(sDump, "wb");
+		if(f != NULL)
+		{
+			fwrite(sChain, 1u, strlen(sChain), f);
+			fclose(f);
+		}
 	}
 	printf("[live] chain bytes=%zu saved\n", strlen(sChain));
 	xrtFree(sChain);
