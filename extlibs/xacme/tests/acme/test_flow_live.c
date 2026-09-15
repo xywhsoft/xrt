@@ -24,7 +24,7 @@ int main(void)
 	xacmeclient Client;
 	xacmeaccountconfig Account;
 	xstrview Domains[1];
-	str sChain;
+	xacmeissuegrant Grant;
 
 	if((sLive == NULL) || (sLive[0] == '\0') || (sKey == NULL) ||
 		(sKey[0] == '\0') || (sSecret == NULL) || (sSecret[0] == '\0'))
@@ -44,7 +44,7 @@ int main(void)
 
 	xrtAcmeAccountConfigInit(&Account);
 	Account.sDirectoryUrl = XACME_DIRECTORY_LE_STAGING;
-	if(!xacmeClientInit(&Client, NULL, NULL, &Account))
+	if(!xacmeClientInit(&Client, NULL, NULL, &Account, 0u))
 	{
 		const xerror* pE = xrtGetError();
 		const xerror* pC = pE;
@@ -63,8 +63,7 @@ int main(void)
 	printf("[live] kid=%s\n", Client.sKid);
 
 	Domains[0] = XRT_STR_LITERAL("test.xxrpa.com");
-	sChain = xacmeClientIssue(&Client, Domains, 1u, &Ali);
-	if(sChain == NULL)
+	if(!xacmeClientIssue(&Client, Domains, 1u, &Ali, &Grant))
 	{
 		const xerror* pE = xrtGetError();
 		const xerror* pC = pE;
@@ -89,8 +88,15 @@ int main(void)
 	}
 
 	testRequire(
-		strstr(sChain, "-----BEGIN CERTIFICATE-----") != NULL,
+		(Grant.sFullchainPem != NULL) &&
+			(strstr(Grant.sFullchainPem, "-----BEGIN CERTIFICATE-----") !=
+				NULL),
 		"acme live chain missing certificate"
+	);
+	testRequire(
+		(Grant.sKeyPem != NULL) &&
+			(strstr(Grant.sKeyPem, "BEGIN PRIVATE KEY") != NULL),
+		"acme live grant missing private key"
 	);
 	{
 		char sDump[320];
@@ -100,12 +106,13 @@ int main(void)
 		f = fopen(sDump, "wb");
 		if(f != NULL)
 		{
-			fwrite(sChain, 1u, strlen(sChain), f);
+			fwrite(Grant.sFullchainPem, 1u,
+				strlen(Grant.sFullchainPem), f);
 			fclose(f);
 		}
 	}
-	printf("[live] chain bytes=%zu saved\n", strlen(sChain));
-	xrtFree(sChain);
+	printf("[live] chain bytes=%zu saved\n", strlen(Grant.sFullchainPem));
+	xrtAcmeGrantUnit(&Grant);
 
 	xacmeClientUnit(&Client);
 	xrtAcmeDnsAliProviderUnit(&Ali);

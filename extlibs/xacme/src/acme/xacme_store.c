@@ -225,6 +225,141 @@ str xrtAcmeStoreLoadCertCa(cstr sRoot, cstr sPrimaryDomain)
 	return sCa;
 }
 
+bool xrtAcmeStoreSaveGrant(
+	cstr sRoot, cstr sPrimaryDomain, const xacmeissuegrant* pGrant,
+	cstr sDirectoryUrl)
+{
+	char sPath[1024];
+	if((sRoot == NULL) || (sPrimaryDomain == NULL) || (pGrant == NULL) ||
+		(pGrant->sFullchainPem == NULL) || (pGrant->sKeyPem == NULL))
+	{
+		xacmeStoreError(
+			XERR_ARGUMENT, XACME_STORE_ERROR_ARGUMENT,
+			"acme store save grant requires root, domain, chain and key");
+		return false;
+	}
+	/* 链与 meta 先落（含建目录），再写 key.pem。 */
+	if(!xrtAcmeStoreSaveCert(
+			sRoot, sPrimaryDomain, pGrant->sFullchainPem, sDirectoryUrl))
+	{
+		return false;
+	}
+	snprintf(
+		sPath, sizeof(sPath), "%s/certs/%s/key.pem", sRoot, sPrimaryDomain);
+	if(!xacmeStoreWriteAtomicText(sPath, pGrant->sKeyPem))
+	{
+		xacmeStoreError(
+			XERR_IO, XACME_STORE_ERROR_IO,
+			"acme store write key failed");
+		return false;
+	}
+	return true;
+}
+
+bool xrtAcmeStoreLoadGrant(
+	cstr sRoot, cstr sPrimaryDomain, xacmeissuegrant* pOut)
+{
+	char sPath[1024];
+	size_t iSize = 0u;
+	bytes pBytes;
+	if((sRoot == NULL) || (sPrimaryDomain == NULL) || (pOut == NULL))
+	{
+		xacmeStoreError(
+			XERR_ARGUMENT, XACME_STORE_ERROR_ARGUMENT,
+			"acme store load grant requires root, domain and output");
+		return false;
+	}
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->sFullchainPem = xrtAcmeStoreLoadCert(sRoot, sPrimaryDomain);
+	if(pOut->sFullchainPem == NULL)
+	{
+		return false;
+	}
+	snprintf(
+		sPath, sizeof(sPath), "%s/certs/%s/key.pem", sRoot, sPrimaryDomain);
+	pBytes = xrtFileReadAll(sPath, &iSize);
+	if(pBytes == NULL)
+	{
+		xacmeStoreError(
+			XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
+			"acme store key not found");
+		xrtAcmeGrantUnit(pOut);
+		return false;
+	}
+	pOut->sKeyPem = (str)xrtMalloc(iSize + 1u);
+	if(pOut->sKeyPem == NULL)
+	{
+		xrtFree(pBytes);
+		xrtAcmeGrantUnit(pOut);
+		return false;
+	}
+	memcpy(pOut->sKeyPem, pBytes, iSize);
+	pOut->sKeyPem[iSize] = '\0';
+	xrtFree(pBytes);
+	return true;
+}
+
+bool xrtAcmeStoreListDomains(
+	cstr sRoot, char (*sOutDomains)[256],
+	size_t iCapacity, size_t* pOutCount)
+{
+	char sPath[1024];
+	xdir Dir;
+	if((sRoot == NULL) || (sOutDomains == NULL) || (pOutCount == NULL) ||
+		(iCapacity == 0u))
+	{
+		xacmeStoreError(
+			XERR_ARGUMENT, XACME_STORE_ERROR_ARGUMENT,
+			"acme store list requires root, output and capacity");
+		return false;
+	}
+	*pOutCount = 0u;
+	snprintf(sPath, sizeof(sPath), "%s/certs", sRoot);
+	Dir = xrtDirOpen(sPath, 0u);
+	if(!Dir)
+	{
+		/* 目录不存在视为空清单（首次运行前）。 */
+		xacmeStoreError(
+			XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
+			"acme store certs dir not found");
+		return false;
+	}
+	for(;;)
+	{
+		xdirentry Entry;
+		xdirnext eNext = xrtDirNext(Dir, &Entry);
+		if(eNext == XDIR_NEXT_END)
+		{
+			break;
+		}
+		if(eNext != XDIR_NEXT_ITEM)
+		{
+			xrtDirClose(Dir);
+			xacmeStoreError(
+				XERR_IO, XACME_STORE_ERROR_IO,
+				"acme store list iterate failed");
+			return false;
+		}
+		if((Entry.Name.Size == 0u) || (Entry.Name.Size >= 256u))
+		{
+			continue;
+		}
+		if(*pOutCount >= iCapacity)
+		{
+			xrtDirClose(Dir);
+			xacmeStoreError(
+				XERR_RANGE, XACME_STORE_ERROR_ARGUMENT,
+				"acme store list capacity exhausted");
+			return false;
+		}
+		memcpy(sOutDomains[*pOutCount], Entry.Name.Data, Entry.Name.Size);
+		sOutDomains[*pOutCount][Entry.Name.Size] = '\0';
+		(*pOutCount)++;
+	}
+	xrtDirClose(Dir);
+	return true;
+}
+
 bool xrtAcmeStoreNeedRenew(
 	cstr sRoot, cstr sPrimaryDomain, int iRenewalDays, bool* pbNeed)
 {

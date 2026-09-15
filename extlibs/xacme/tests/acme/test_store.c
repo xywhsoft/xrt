@@ -60,6 +60,74 @@ int main(void)
 		"acme store missing cert should renew"
 	);
 
+	/* 签发产物整体存取（key.pem + fullchain.pem）。 */
+	{
+		xacmeissuegrant Grant;
+		xacmeissuegrant Loaded;
+		Grant.sFullchainPem = (str)sPem; /* 借用内容，Save 只读 */
+		Grant.sKeyPem = (str)xrtMalloc(strlen(sPem) + 1u);
+		testRequire(Grant.sKeyPem != NULL, "acme store grant key alloc failed");
+		memcpy(Grant.sKeyPem, sPem, strlen(sPem) + 1u);
+		testRequire(
+			xrtAcmeStoreSaveGrant(
+				STORE_ROOT, "grant.example.com", &Grant,
+				"https://acme-staging-v02.api.letsencrypt.org/directory"),
+			"acme store save grant failed"
+		);
+		xrtFree(Grant.sKeyPem);
+		Grant.sKeyPem = NULL;
+		Grant.sFullchainPem = NULL;
+		testRequire(
+			xrtAcmeStoreLoadGrant(STORE_ROOT, "grant.example.com", &Loaded) &&
+				(Loaded.sFullchainPem != NULL) &&
+				(Loaded.sKeyPem != NULL) &&
+				(strcmp(Loaded.sFullchainPem, sPem) == 0) &&
+				(strcmp(Loaded.sKeyPem, sPem) == 0),
+			"acme store grant roundtrip mismatch"
+		);
+		xrtAcmeGrantUnit(&Loaded);
+		/* key 缺失 → NOT_FOUND（删 key.pem 后链仍在）。 */
+		{
+			char sPath[400];
+			snprintf(sPath, sizeof(sPath), "%s/certs/%s/key.pem",
+				STORE_ROOT, "grant.example.com");
+			testRequire(remove(sPath) == 0, "acme store key remove failed");
+			xrtClearError();
+			testRequire(
+				!xrtAcmeStoreLoadGrant(
+					STORE_ROOT, "grant.example.com", &Loaded) &&
+					(xrtErrorKind(xrtGetError()) == XERR_NOT_FOUND),
+				"acme store grant missing key mismatch"
+			);
+		}
+	}
+
+	/* 域名枚举：grant.example.com 已登记。 */
+	{
+		char sDomains[8][256];
+		size_t iCount = 0u;
+		size_t i;
+		bool bHas = false;
+		testRequire(
+			xrtAcmeStoreListDomains(STORE_ROOT, sDomains, 8u, &iCount),
+			"acme store list failed"
+		);
+		for(i = 0; i < iCount; i++)
+		{
+			if(strcmp(sDomains[i], "grant.example.com") == 0)
+			{
+				bHas = true;
+			}
+		}
+		testRequire(bHas, "acme store list missing grant domain");
+		xrtClearError();
+		testRequire(
+			!xrtAcmeStoreListDomains(STORE_ROOT, sDomains, 1u, &iCount) ||
+				(iCount <= 1u),
+			"acme store list capacity mismatch"
+		);
+	}
+
 	/* 错误语义。 */
 	xrtClearError();
 	testRequire(

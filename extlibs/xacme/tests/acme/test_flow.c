@@ -152,7 +152,7 @@ int main(void)
 		testdnsctx Dns;
 		xacmednsprovider Provider;
 		xstrview Domains[2];
-		str sChain;
+		xacmeissuegrant Grant;
 		size_t iCerts;
 		size_t i;
 		str sAccountPem;
@@ -168,7 +168,7 @@ int main(void)
 
 		xrtAcmeAccountConfigInit(&Account);
 		Account.sDirectoryUrl = sUrl;
-		if(!xacmeClientInit(&Client, NULL, sCaPem, &Account))
+		if(!xacmeClientInit(&Client, NULL, sCaPem, &Account, 0u))
 		{
 			const xerror* pError = xrtGetError();
 			const xerror* pCause = pError;
@@ -204,8 +204,7 @@ int main(void)
 		Provider.Propagate = NULL;
 
 		Domains[0] = XRT_STR_LITERAL("test.xxrpa.com");
-		sChain = xacmeClientIssue(&Client, Domains, 1u, &Provider);
-		if(sChain == NULL)
+		if(!xacmeClientIssue(&Client, Domains, 1u, &Provider, &Grant))
 		{
 			const xerror* pError = xrtGetError();
 			const xerror* pCause = pError;
@@ -227,55 +226,70 @@ int main(void)
 		}
 
 		testRequire(
-			strstr(sChain, "-----BEGIN CERTIFICATE-----") != NULL,
+			(Grant.sFullchainPem != NULL) &&
+				(strstr(Grant.sFullchainPem,
+					"-----BEGIN CERTIFICATE-----") != NULL),
 			"acme flow chain missing certificate");
+		/* 私钥必须随链一起交付（没有它证书不可用）。 */
+		testRequire(
+			(Grant.sKeyPem != NULL) &&
+				(strstr(Grant.sKeyPem, "BEGIN PRIVATE KEY") != NULL),
+			"acme flow grant missing private key");
 		iCerts = 0u;
-		for(i = 0; sChain[i] != '\0'; i++)
+		for(i = 0; Grant.sFullchainPem[i] != '\0'; i++)
 		{
-			if(strncmp(sChain + i, "BEGIN CERTIFICATE", 17u) == 0)
+			if(strncmp(
+					Grant.sFullchainPem + i, "BEGIN CERTIFICATE", 17u) == 0)
 			{
 				iCerts++;
 			}
 		}
 		testRequire(iCerts >= 2u, "acme flow chain not a chain");
 		printf("[pebble] chain certs=%zu bytes=%zu\n",
-			iCerts, strlen(sChain));
+			iCerts, strlen(Grant.sFullchainPem));
 
-	{
-		char sDump[320];
-		FILE* f;
-		snprintf(sDump, sizeof(sDump), "%s/pebble_issued.pem",
-			testOutRoot());
-		f = fopen(sDump, "wb");
-		if(f != NULL)
 		{
-			fwrite(sChain, 1u, strlen(sChain), f);
-			fclose(f);
+			char sDump[320];
+			FILE* f;
+			snprintf(sDump, sizeof(sDump), "%s/pebble_issued.pem",
+				testOutRoot());
+			f = fopen(sDump, "wb");
+			if(f != NULL)
+			{
+				fwrite(Grant.sFullchainPem, 1u,
+					strlen(Grant.sFullchainPem), f);
+				fclose(f);
+			}
 		}
-	}
-	xrtFree(sChain);
+		xrtAcmeGrantUnit(&Grant);
 
-	/* IssueStored 双跑：第一跑签发落盘，第二跑阈值内直接跳过。 */
-	{
-		char sStore[320];
-		bool bRenewed = false;
-		str s1;
-		str s2;
-		snprintf(sStore, sizeof(sStore), "%s/store_pebble", testOutRoot());
-		s1 = xacmeClientIssueStored(
-			&Client, Domains, 1u, &Provider, sStore, 30, &bRenewed);
-		testRequire(
-			(s1 != NULL) && bRenewed,
-			"acme flow stored first issue failed");
-		xrtFree(s1);
-		s2 = xacmeClientIssueStored(
-			&Client, Domains, 1u, &Provider, sStore, 30, &bRenewed);
-		testRequire(
-			(s2 != NULL) && !bRenewed &&
-				(strstr(s2, "BEGIN CERTIFICATE") != NULL),
-			"acme flow stored skip failed");
-		xrtFree(s2);
-	}
+		/* IssueStored 双跑：第一跑签发落盘，第二跑阈值内直接跳过。 */
+		{
+			char sStore[320];
+			bool bRenewed = false;
+			xacmeissuegrant G1;
+			xacmeissuegrant G2;
+			snprintf(sStore, sizeof(sStore), "%s/store_pebble", testOutRoot());
+			testRequire(
+				xacmeClientIssueStored(
+					&Client, Domains, 1u, &Provider, sStore, 30, &G1,
+					&bRenewed) &&
+					bRenewed,
+				"acme flow stored first issue failed");
+			testRequire(
+				(G1.sKeyPem != NULL) && (G1.sFullchainPem != NULL),
+				"acme flow stored first grant incomplete");
+			xrtAcmeGrantUnit(&G1);
+			testRequire(
+				xacmeClientIssueStored(
+					&Client, Domains, 1u, &Provider, sStore, 30, &G2,
+					&bRenewed) &&
+					!bRenewed &&
+					(strstr(G2.sFullchainPem, "BEGIN CERTIFICATE") != NULL) &&
+					(G2.sKeyPem != NULL),
+				"acme flow stored skip failed");
+			xrtAcmeGrantUnit(&G2);
+		}
 
 		xacmeClientUnit(&Client);
 		xacmeHttpUnit(&Dns.Http);

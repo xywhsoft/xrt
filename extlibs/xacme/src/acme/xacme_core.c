@@ -1,4 +1,7 @@
 #include <xrt/acme.h>
+#include <xrt/memory.h>
+
+#include <string.h>
 
 #if defined(XACME_FEATURE_ACME_CORE)
 
@@ -19,6 +22,17 @@ void xrtAcmeAccountConfigInit(xacmeaccountconfig* pConfig)
 	pConfig->Eab.sKid = NULL;
 	pConfig->Eab.sHmac = NULL;
 	pConfig->sContactEmail = NULL;
+}
+
+void xrtAcmeGrantUnit(xacmeissuegrant* pGrant)
+{
+	if(pGrant == NULL)
+	{
+		return;
+	}
+	xrtFree(pGrant->sFullchainPem);
+	xrtFree(pGrant->sKeyPem);
+	memset(pGrant, 0, sizeof(*pGrant));
 }
 
 #endif

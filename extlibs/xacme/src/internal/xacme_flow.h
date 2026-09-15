@@ -8,10 +8,15 @@
 #include "xacme_http.h"
 
 #include <xrt/acme.h>
+#include <xrt/acme_client.h>
 #include <xrt/acme_store.h>
 #include "xacme_jose.h"
 
 struct xacmednsprovider;
+
+/* 传播确认内置默认 resolver 组（任一可见即通过）。 */
+#define XACME_FLOW_RESOLVER_MAX 4u
+#define XACME_FLOW_PROPAGATE_TIMEOUT_MS 120000u
 
 #if defined(XACME_FEATURE_ACME_FLOW)
 
@@ -42,6 +47,10 @@ typedef struct xacmeclient {
 	char sNewAccount[512];
 	char sNewOrder[512];
 	char sNonce[512];
+	/* 传播确认 resolver（IP 字面量）与预算；空组走默认组。 */
+	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
+	size_t iPropagateResolverCount;
+	uint32 uPropagateTimeoutMs;
 } xacmeclient;
 
 #endif
@@ -51,16 +60,17 @@ XRT_EXTERN_C_BEGIN
 #if defined(XACME_FEATURE_ACME_FLOW)
 
 /*
-	初始化：建传输（pBorrowedHttp 为空则自建）、解析 directory、
+	初始化：建传输（pBorrowedEngine 为空则自建）、解析 directory、
 	注册或复用账户（kid 来自 Location 头）。pAccount 携带 directory、
 	账户密钥、EAB 与联系方式（借用视图，宿主保证存活至返回）。
-	失败设置线程错误。
+	uTimeoutUs 为 0 时取传输默认（30 秒）。失败设置线程错误。
 */
 bool xacmeClientInit(
 	xacmeclient* pClient,
 	struct xnetengine* pBorrowedEngine,
 	cstr sCaPem,
-	const xacmeaccountconfig* pAccount
+	const xacmeaccountconfig* pAccount,
+	uint64 uTimeoutUs
 );
 
 void xacmeClientUnit(xacmeclient* pClient);
@@ -69,30 +79,32 @@ void xacmeClientUnit(xacmeclient* pClient);
 str xacmeClientAccountPem(const xacmeclient* pClient);
 
 /*
-	一次 dns-01 签发：域名可含通配符（*. 前缀）；返回证书链 PEM
-	（xrtFree 释放）。失败返回 NULL 并设置线程错误；provider 的
-	Add 在挑战触发前调用、Remove 在结束后尽力调用。
+	一次 dns-01 签发：域名可含通配符（*. 前缀）；产物含证书链与
+	配对私钥（均 xrtFree）。失败返回 false 并设置线程错误；
+	provider 的 Add 在挑战触发前调用、Remove 在结束后尽力调用。
 */
-str xacmeClientIssue(
+bool xacmeClientIssue(
 	xacmeclient* pClient,
 	const xstrview* pDomains,
 	size_t iDomainCount,
-	const struct xacmednsprovider* pDns
+	const struct xacmednsprovider* pDns,
+	xacmeissuegrant* pOut
 );
 
 /*
 	一站式续签（组合 store）：
 	本地证书剩余寿命不少于 iRenewalDays 天时 *pbRenewed=false 并
-	直接返回现有链；否则签发、落盘（fullchain + CA 溯源）并返回
-	新链。pDomains[0] 同时是 store 的主域名键。
+	直接返回现有链与私钥；否则签发、落盘（key.pem + fullchain.pem
+	+ CA 溯源）并返回新产物。pDomains[0] 同时是 store 的主域名键。
 */
-str xacmeClientIssueStored(
+bool xacmeClientIssueStored(
 	xacmeclient* pClient,
 	const xstrview* pDomains,
 	size_t iDomainCount,
 	const struct xacmednsprovider* pDns,
 	cstr sStoreRoot,
 	int iRenewalDays,
+	xacmeissuegrant* pOut,
 	bool* pbRenewed
 );
 

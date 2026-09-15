@@ -5,6 +5,7 @@
 #include <xrt/acme_dns.h>
 #include <xrt/codec.h>
 #include <xrt/json.h>
+#include <xrt/memory.h>
 #include <xrt/time.h>
 #include <xrt/value.h>
 
@@ -357,7 +358,7 @@ static void xacmeFlowChallengeDetail(
 
 bool xacmeClientInit(
 	xacmeclient* pClient, struct xnetengine* pBorrowedEngine,
-	cstr sCaPem, const xacmeaccountconfig* pAccount)
+	cstr sCaPem, const xacmeaccountconfig* pAccount, uint64 uTimeoutUs)
 {
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
@@ -386,7 +387,7 @@ bool xacmeClientInit(
 			"acme client directory url too long");
 		return false;
 	}
-	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, 0u))
+	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, uTimeoutUs))
 	{
 		goto Done;
 	}
@@ -611,14 +612,14 @@ str xacmeClientAccountPem(const xacmeclient* pClient)
 	return xacmeKeyPemWrite(&pClient->AccountKey);
 }
 
-str xacmeClientIssue(
+bool xacmeClientIssue(
 	xacmeclient* pClient, const xstrview* pDomains, size_t iDomainCount,
-	const struct xacmednsprovider* pDns)
+	const struct xacmednsprovider* pDns, xacmeissuegrant* pOut)
 {
 	xbuffer Payload;
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
-	str sResult = NULL;
+	bool bResult = false;
 	xacmeflowurl Finalize;
 	xacmeflowurl OrderUrl;
 	Finalize.sData[0] = 0;
@@ -628,13 +629,15 @@ str xacmeClientIssue(
 
 	if((pClient == NULL) || (pDomains == NULL) || (iDomainCount == 0u) ||
 		(pDns == NULL) || (pDns->Add == NULL) || (pDns->Remove == NULL) ||
+		(pOut == NULL) ||
 		!xrtAcmeDnsProviderValidate(pDns))
 	{
 		xacmeFlowError(
 			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
-			"acme issue requires client, domains and dns provider");
-		return NULL;
+			"acme issue requires client, domains, dns provider and output");
+		return false;
 	}
+	memset(pOut, 0, sizeof(*pOut));
 
 	/* 1. 新订单；identifier 用去 *.\ 后的基础域并去重（通配符与
 	   裸域共用一次授权；通配符语义由 CSR 的 SAN 表达）。 */
@@ -1000,6 +1003,14 @@ str xacmeClientIssue(
 		/* 证书密钥独立于账户密钥（CA 普遍拒绝复用账户钥）。 */
 		bCsrOk = xacmeEs256Generate(&CertKey) &&
 			xacmeCsrEc(&CertKey, &Csr, &CsrDer);
+		if(bCsrOk)
+		{
+			/* 私钥随产物导出（没有它证书不可用）。 */
+			pOut->sKeyPem = xacmeKeyPemWrite(&CertKey);
+			bCsrOk = (pOut->sKeyPem != NULL);
+		}
+		/* 栈上密钥副本立即擦除。 */
+		xrtSecureZero(&CertKey, sizeof(CertKey));
 		sCsrB64 = bCsrOk ? xrtBase64EncodeNew(
 			CsrDer.Data, CsrDer.Size, &B64Url) : NULL;
 		xrtBufferUnit(&CsrDer);
@@ -1103,10 +1114,10 @@ str xacmeClientIssue(
 			"acme issue certificate response invalid");
 		goto Done;
 	}
-	sResult = R.sBody;
+	pOut->sFullchainPem = R.sBody;
 	R.sBody = NULL;
 	xacmeHttpResponseUnit(&R);
-	bOk = true;
+	bResult = true;
 
 Done:
 	if(pRoot != NULL)
@@ -1114,28 +1125,35 @@ Done:
 		xrtValueRelease(pRoot);
 	}
 	xrtBufferUnit(&Payload);
-	return sResult;
+	if(!bResult)
+	{
+		xrtFree(pOut->sFullchainPem);
+		xrtFree(pOut->sKeyPem);
+		memset(pOut, 0, sizeof(*pOut));
+	}
+	return bResult;
 }
 
 #endif
 
 #if defined(XACME_FEATURE_ACME_STORE)
-str xacmeClientIssueStored(
+bool xacmeClientIssueStored(
 	xacmeclient* pClient, const xstrview* pDomains, size_t iDomainCount,
 	const struct xacmednsprovider* pDns, cstr sStoreRoot,
-	int iRenewalDays, bool* pbRenewed)
+	int iRenewalDays, xacmeissuegrant* pOut, bool* pbRenewed)
 {
 	bool bNeed = true;
-	str sChain;
 	char sPrimary[256];
 	if((pClient == NULL) || (pDomains == NULL) || (iDomainCount == 0u) ||
-		(pbRenewed == NULL) || (pDomains[0].Size >= sizeof(sPrimary)))
+		(pbRenewed == NULL) || (pOut == NULL) ||
+		(pDomains[0].Size == 0u) || (pDomains[0].Size >= sizeof(sPrimary)))
 	{
 		xacmeFlowError(
 			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
 			"acme issue stored requires client, domains and outputs");
-		return NULL;
+		return false;
 	}
+	memset(pOut, 0, sizeof(*pOut));
 	*pbRenewed = false;
 	memcpy(sPrimary, pDomains[0].Data, pDomains[0].Size);
 	sPrimary[pDomains[0].Size] = 0;
@@ -1146,27 +1164,144 @@ str xacmeClientIssueStored(
 	if(!xrtAcmeStoreNeedRenew(
 			sStoreRoot, sPrimary, iRenewalDays, &bNeed))
 	{
-		return NULL;
+		return false;
 	}
 	if(!bNeed)
 	{
-		return xrtAcmeStoreLoadCert(sStoreRoot, sPrimary);
+		return xrtAcmeStoreLoadGrant(sStoreRoot, sPrimary, pOut);
 	}
-	sChain = xacmeClientIssue(pClient, pDomains, iDomainCount, pDns);
-	if(sChain == NULL)
+	if(!xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut))
 	{
-		return NULL;
+		return false;
 	}
-	if(!xrtAcmeStoreSaveCert(
-			sStoreRoot, sPrimary, sChain, pClient->sDirectoryUrl))
+	if(!xrtAcmeStoreSaveGrant(
+			sStoreRoot, sPrimary, pOut, pClient->sDirectoryUrl))
 	{
 		/* 落盘失败不作废已签证书；报告错误由调用方权衡。 */
 		xacmeFlowError(
 			XERR_IO, XACME_FLOW_ERROR_STORE, "acme issue stored save failed");
-		xrtFree(sChain);
-		return NULL;
+		xrtAcmeGrantUnit(pOut);
+		return false;
 	}
 	*pbRenewed = true;
-	return sChain;
+	return true;
 }
+#endif
+
+/* ---------------- 公开客户端 API（xrt/acme_client.h） ---------------- */
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+
+void xrtAcmeClientConfigInit(xacmeclientconfig* pConfig)
+{
+	if(pConfig == NULL)
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme client config init requires config");
+		return;
+	}
+	memset(pConfig, 0, sizeof(*pConfig));
+}
+
+struct xacmeclient* xrtAcmeClientCreate(
+	const xacmeclientconfig* pConfig)
+{
+	static const char* sDefaults[XACME_FLOW_RESOLVER_MAX] = {
+		"223.5.5.5", "119.29.29.29", "8.8.8.8", NULL
+	};
+	const cstr* sResolvers = NULL;
+	size_t iResolverCount = 0u;
+	xacmeclient* pClient;
+	size_t i;
+
+	if((pConfig == NULL) || (pConfig->pAccount == NULL))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme client create requires config with account");
+		return NULL;
+	}
+	if((pConfig->sPropagateResolvers != NULL) &&
+		(pConfig->iPropagateResolverCount != 0u))
+	{
+		sResolvers = pConfig->sPropagateResolvers;
+		iResolverCount = pConfig->iPropagateResolverCount;
+	}
+	else
+	{
+		sResolvers = sDefaults;
+		iResolverCount = 3u;
+	}
+	pClient = (xacmeclient*)xrtMalloc(sizeof(*pClient));
+	if(pClient == NULL)
+	{
+		return NULL;
+	}
+	if(!xacmeClientInit(
+			pClient, pConfig->pBorrowedEngine, pConfig->sCaPem,
+			pConfig->pAccount, pConfig->uTimeoutUs))
+	{
+		xrtFree(pClient);
+		return NULL;
+	}
+	for(i = 0; i < iResolverCount; i++)
+	{
+		if((sResolvers[i] == NULL) ||
+			(strlen(sResolvers[i]) >=
+				sizeof(pClient->sPropagateResolvers[0])))
+		{
+			continue;
+		}
+		strcpy(pClient->sPropagateResolvers[
+			pClient->iPropagateResolverCount], sResolvers[i]);
+		pClient->iPropagateResolverCount++;
+		if(pClient->iPropagateResolverCount >=
+			XACME_FLOW_RESOLVER_MAX)
+		{
+			break;
+		}
+	}
+	pClient->uPropagateTimeoutMs = (pConfig->uPropagateTimeoutMs != 0u) ?
+		pConfig->uPropagateTimeoutMs : XACME_FLOW_PROPAGATE_TIMEOUT_MS;
+	return pClient;
+}
+
+void xrtAcmeClientDestroy(struct xacmeclient* pClient)
+{
+	if(pClient == NULL)
+	{
+		return;
+	}
+	xacmeClientUnit(pClient);
+	xrtFree(pClient);
+}
+
+str xrtAcmeClientAccountPem(const struct xacmeclient* pClient)
+{
+	return xacmeClientAccountPem(pClient);
+}
+
+bool xrtAcmeClientIssue(
+	struct xacmeclient* pClient, const xstrview* pDomains,
+	size_t iDomainCount, const xacmednsprovider* pDns,
+	xacmeissuegrant* pOut)
+{
+	return xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut);
+}
+
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW) && defined(XACME_FEATURE_ACME_STORE)
+
+bool xrtAcmeClientIssueStored(
+	struct xacmeclient* pClient, const xstrview* pDomains,
+	size_t iDomainCount, const xacmednsprovider* pDns, cstr sStoreRoot,
+	int iRenewalDays, xacmeissuegrant* pOut, bool* pbRenewed)
+{
+	return xacmeClientIssueStored(
+		pClient, pDomains, iDomainCount, pDns, sStoreRoot, iRenewalDays,
+		pOut, pbRenewed);
+}
+
 #endif

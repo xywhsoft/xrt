@@ -70,6 +70,18 @@ typedef struct xacmeaccountconfig {
 	cstr sContactEmail;
 } xacmeaccountconfig;
 
+/*
+	签发产物：证书链 + 配对私钥，两段文本均由 xrtFree 释放。
+	私钥为 PKCS#8 PEM（ES256），与链中叶证书配对；没有它证书不可用。
+*/
+typedef struct xacmeissuegrant {
+	str sFullchainPem;
+	str sKeyPem;
+} xacmeissuegrant;
+
+/* 释放一段签发产物（成员非空即释放并清零）。 */
+XRT_API void xrtAcmeGrantUnit(xacmeissuegrant* pGrant);
+
 #endif
 
 
@@ -82,6 +94,15 @@ XRT_EXTERN_C_BEGIN
 
 /* 全零初始化；指针字段为空表示未设置。 */
 XRT_API void xrtAcmeAccountConfigInit(xacmeaccountconfig* pConfig);
+
+#endif
+
+
+
+#if defined(XACME_FEATURE_ACME_CORE)
+
+/* 释放一段签发产物（成员非空即释放并清零）；入参可为空。 */
+XRT_API void xrtAcmeGrantUnit(xacmeissuegrant* pGrant);
 
 #endif
 

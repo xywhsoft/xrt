@@ -44,16 +44,19 @@
     "acme_core",
     "acme_store"
    ],
-   "public_headers": [],
-      "internal_headers": [
+   "internal_headers": [
     "extlibs/xacme/src/internal/xacme_flow.h"
+   ],
+   "public_headers": [
+    "extlibs/xacme/include/xrt/acme_client.h"
    ],
    "sources": [
     "extlibs/xacme/src/acme/xacme_flow.c"
    ],
    "tests": [
     "extlibs/xacme/tests/acme/test_flow.c",
-    "extlibs/xacme/tests/acme/test_flow_live.c"
+    "extlibs/xacme/tests/acme/test_flow_live.c",
+    "extlibs/xacme/tests/acme/test_client.c"
    ],
    "single_tests": [],
    "examples": [],
@@ -293,6 +296,7 @@
    "sources": [],
    "tests": [
     "extlibs/xacme/tests/acme/test_core_config.c",
+    "extlibs/xacme/tests/acme/test_client.c",
     "extlibs/xacme/tests/acme/test_csr.c",
     "extlibs/xacme/tests/acme/test_dns_provider.c",
     "extlibs/xacme/tests/acme/test_dnsali.c",
@@ -347,6 +351,7 @@
    "feature": "XACME_FEATURE_ACME_STORE",
    "depends": [
     "core",
+    "acme_core",
     "file",
     "file_whole",
     "x509_parse",
