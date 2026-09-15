@@ -9,6 +9,8 @@
 #include <xrt/time.h>
 #include <xrt/value.h>
 
+#include "../internal/xacme_dnstxt.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -296,6 +298,79 @@ static str xacmeFlowWaitStatus(
 		XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
 		"acme flow status poll exhausted");
 	return NULL;
+}
+
+/* ---------------- 传播确认 ---------------- */
+
+/* 任一配置 resolver 已返回期望 TXT 值即视为可见。 */
+static bool xacmeFlowTxtVisible(
+	xacmedns* pDns, const xacmeclient* pClient,
+	cstr sFqdn, cstr sExpected)
+{
+	size_t i;
+	for(i = 0; i < pClient->iPropagateResolverCount; i++)
+	{
+		char sRecords[4][XACME_TXT_RECORD_MAX];
+		size_t iCount = 0u;
+		size_t j;
+		if(!xacmeDnsTxtQuery(
+				pDns, pClient->sPropagateResolvers[i], 53u, sFqdn,
+				sRecords, 4u, &iCount))
+		{
+			continue; /* 单个 resolver 不可达不算失败。 */
+		}
+		for(j = 0; j < iCount; j++)
+		{
+			if(strcmp(sRecords[j], sExpected) == 0)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+/*
+	挑战触发前的传播确认门（尽力而为）：
+	- provider 带 XACME_DNS_CAP_PROPAGATE 时委托 provider 自证；
+	- 否则对公共 resolver 组轮询 TXT（任一可见即通过）；
+	- 超时不阻断签发——CA 只查权威侧，公共递归滞后不必然失败，
+	  仅在 XACME_DEBUG 下输出提示。
+*/
+static void xacmeFlowWaitPropagate(
+	xacmeclient* pClient, const xacmednsprovider* pDns,
+	cstr sFqdn, cstr sTxt)
+{
+	xacmedns Probe;
+	uint64 uDeadline;
+	if(((pDns->iCaps & XACME_DNS_CAP_PROPAGATE) != 0u) &&
+		(pDns->Propagate != NULL))
+	{
+		(void)pDns->Propagate((xacmednsprovider*)pDns,
+			(xstrview){ sFqdn, strlen(sFqdn) },
+			(xstrview){ sTxt, strlen(sTxt) });
+		return;
+	}
+	if(!xacmeDnsInit(&Probe, pClient->Http.pEngine))
+	{
+		return;
+	}
+	uDeadline = xrtClock() +
+		(uint64)pClient->uPropagateTimeoutMs * UINT64_C(1000);
+	while(xrtClock() < uDeadline)
+	{
+		if(xacmeFlowTxtVisible(&Probe, pClient, sFqdn, sTxt))
+		{
+			xacmeDnsUnit(&Probe);
+			return;
+		}
+		xrtSleep(2000u);
+	}
+	xacmeDnsUnit(&Probe);
+	if(getenv("XACME_DEBUG"))
+	{
+		printf("[dbg] propagate confirm timeout fqdn=%s\n", sFqdn);
+	}
 }
 
 /* ---------------- 初始化与签发 ---------------- */
@@ -904,6 +979,9 @@ bool xacmeClientIssue(
 							xrtFree(sTxt);
 							continue;
 						}
+						/* 传播确认通过后再触发挑战。 */
+						xacmeFlowWaitPropagate(
+							pClient, pDns, sFqdn, sTxt);
 						/* 触发挑战并轮询授权至 valid。 */
 						if(xacmeFlowPost(
 							pClient, ChallengeUrl.sData,

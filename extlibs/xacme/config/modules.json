@@ -41,6 +41,7 @@
     "acme_dns",
     "json",
     "dns_ali",
+    "dns_txt",
     "acme_core",
     "acme_store"
    ],
@@ -176,7 +177,6 @@
     "core",
     "acme_dns",
     "acme_http",
-    "dns_txt",
     "json",
     "codec_base64",
     "crypto_sha256",

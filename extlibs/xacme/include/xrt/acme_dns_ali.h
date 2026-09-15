@@ -17,14 +17,13 @@
 /*
 	阿里云 DNS（alidns）provider，走 V3 签名（ACS3-HMAC-SHA256）。
 	Endpoint 默认 alidns.aliyuncs.com；凭据与 Endpoint 均为借用视图，
-	宿主保证存活至 Remove 完成。
+	宿主保证存活至 Remove 完成。传播确认由签发流程层统一负责
+	（provider 只做 Add/Remove）。
 */
 typedef struct xacmednaliconfig {
 	cstr sAccessKeyId;
 	cstr sAccessKeySecret;
 	cstr sEndpoint;
-	/* TXT 传播确认用的解析器；空则不自动确认。 */
-	cstr sVerifyResolver;
 } xacmednaliconfig;
 
 #endif

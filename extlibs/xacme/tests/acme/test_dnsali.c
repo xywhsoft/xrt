@@ -34,13 +34,12 @@ int main(void)
 	xrtAcmeDnsAliConfigInit(&Config);
 	Config.sAccessKeyId = sKey;
 	Config.sAccessKeySecret = sSecret;
-	Config.sVerifyResolver = "223.5.5.1";
 	testRequire(
 		xrtAcmeDnsAli(&Config, &Provider),
 		"acme dns_ali construct failed"
 	);
 
-	/* Add（内部已含公共 resolver 传播确认，60s 上限）。 */
+	/* Add（纯 API 铺设；传播确认由流程层负责）。 */
 	if(!Provider.Add(&Provider, (xstrview){ sFqdn, strlen(sFqdn) },
 		(xstrview){ sValue, strlen(sValue) }))
 	{
@@ -59,6 +58,20 @@ int main(void)
 		}
 		xrtAcmeDnsAliProviderUnit(&Provider);
 		testRequire(false, "acme dns_ali add failed");
+	}
+
+	/* 库内 TXT 探测器确认公共 resolver 可见（60s 上限）。 */
+	{
+		xacmedns Probe;
+		testRequire(
+			xacmeDnsInit(&Probe, NULL),
+			"acme dns_ali probe init failed"
+		);
+		testRequire(
+			xacmeDnsTxtWait(&Probe, "223.5.5.5", 53u, sFqdn, sValue, 60000u),
+			"acme dns_ali txt not visible"
+		);
+		xacmeDnsUnit(&Probe);
 	}
 	printf("[ali] TXT added and visible via resolver\n");
 

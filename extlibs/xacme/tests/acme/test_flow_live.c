@@ -36,7 +36,6 @@ int main(void)
 	xrtAcmeDnsAliConfigInit(&AliConfig);
 	AliConfig.sAccessKeyId = sKey;
 	AliConfig.sAccessKeySecret = sSecret;
-	AliConfig.sVerifyResolver = "223.5.5.1";
 	testRequire(
 		xrtAcmeDnsAli(&AliConfig, &Ali),
 		"acme live ali construct failed"

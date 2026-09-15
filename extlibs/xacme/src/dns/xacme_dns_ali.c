@@ -2,7 +2,6 @@
 
 #if defined(XACME_FEATURE_DNS_ALI)
 
-#include "../../src/internal/xacme_dnstxt.h"
 #include "../../src/internal/xacme_http.h"
 
 #include <xrt/codec.h>
@@ -21,11 +20,9 @@
 
 typedef struct xacmednsalicontext {
 	xacmehttp Http;
-	xacmedns Verify;
 	char sKeyId[160];
 	char sSecret[160];
 	char sEndpoint[160];
-	char sVerifyResolver[64];
 	/* 已确认的 zone（首次 Add 时试探得到；多域名跨 zone 各自缓存）。 */
 	char sZones[XACME_ALI_ZONE_MAX][256];
 	size_t iZoneCount;
@@ -355,17 +352,6 @@ static bool xacmeAliAdd(
 	}
 	xacmeAliSaveRecordId(pCtx, sResp);
 	xrtFree(sResp);
-	/* 可选传播确认（公共 resolver 视角）。 */
-	if(pCtx->sVerifyResolver[0] != '\0')
-	{
-			xrtSleep(20000u); /* 权威集群同步窗口 */
-		char sTxtText[208];
-		memcpy(sTxtText, sTxt.Data, sTxt.Size);
-		sTxtText[sTxt.Size] = '\0';
-		(void)xacmeDnsTxtWait(
-			&pCtx->Verify, pCtx->sVerifyResolver, 53u, sFqdnText,
-			sTxtText, 60000u);
-	}
 	return true;
 }
 
@@ -411,7 +397,6 @@ void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig)
 	pConfig->sAccessKeyId = NULL;
 	pConfig->sAccessKeySecret = NULL;
 	pConfig->sEndpoint = NULL;
-	pConfig->sVerifyResolver = NULL;
 }
 
 bool xrtAcmeDnsAli(
@@ -442,17 +427,9 @@ bool xrtAcmeDnsAli(
 	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
 		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
 			"alidns.aliyuncs.com");
-	if((pConfig->sVerifyResolver != NULL) &&
-		(pConfig->sVerifyResolver[0] != '\0'))
-	{
-		snprintf(pCtx->sVerifyResolver, sizeof(pCtx->sVerifyResolver),
-			"%s", pConfig->sVerifyResolver);
-	}
-	if(!xacmeHttpInit(&pCtx->Http, NULL, NULL, 0u) ||
-		!xacmeDnsInit(&pCtx->Verify, NULL))
+	if(!xacmeHttpInit(&pCtx->Http, NULL, NULL, 0u))
 	{
 		xacmeHttpUnit(&pCtx->Http);
-		xacmeDnsUnit(&pCtx->Verify);
 		xrtFree(pCtx);
 		return false;
 	}
@@ -472,7 +449,6 @@ void xrtAcmeDnsAliProviderUnit(xacmednsprovider* pProvider)
 		xacmednsalicontext* pCtx =
 			(xacmednsalicontext*)pProvider->pContext;
 		xacmeHttpUnit(&pCtx->Http);
-		xacmeDnsUnit(&pCtx->Verify);
 		xrtFree(pCtx);
 		pProvider->pContext = NULL;
 	}
