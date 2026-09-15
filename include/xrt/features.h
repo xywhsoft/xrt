@@ -1038,29 +1038,6 @@
 #endif
 #endif
 
-/* file_async 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC)
-#ifndef XRT_FEATURE_FILE_ASYNC
-#define XRT_FEATURE_FILE_ASYNC
-#endif
-#ifndef XRT_MODULE_FILE
-#define XRT_MODULE_FILE
-#endif
-#ifndef XRT_MODULE_FILE_ASYNC_COMMON
-#define XRT_MODULE_FILE_ASYNC_COMMON
-#endif
-#endif
-
-/* file_async_common 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC_COMMON)
-#ifndef XRT_FEATURE_FILE_ASYNC_COMMON
-#define XRT_FEATURE_FILE_ASYNC_COMMON
-#endif
-#ifndef XRT_MODULE_TASK_POOL
-#define XRT_MODULE_TASK_POOL
-#endif
-#endif
-
 /* file_map 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_MAP)
 #ifndef XRT_FEATURE_FILE_MAP
@@ -2677,6 +2654,29 @@
 #endif
 #endif
 
+/* file_async 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC)
+#ifndef XRT_FEATURE_FILE_ASYNC
+#define XRT_FEATURE_FILE_ASYNC
+#endif
+#ifndef XRT_MODULE_FILE
+#define XRT_MODULE_FILE
+#endif
+#ifndef XRT_MODULE_FILE_ASYNC_COMMON
+#define XRT_MODULE_FILE_ASYNC_COMMON
+#endif
+#endif
+
+/* file_async_common 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC_COMMON)
+#ifndef XRT_FEATURE_FILE_ASYNC_COMMON
+#define XRT_FEATURE_FILE_ASYNC_COMMON
+#endif
+#ifndef XRT_MODULE_TASK_POOL
+#define XRT_MODULE_TASK_POOL
+#endif
+#endif
+
 /* value_collection 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_COLLECTION)
 #ifndef XRT_FEATURE_VALUE_COLLECTION
@@ -2694,34 +2694,6 @@
 #endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
-#endif
-#endif
-
-/* future_combine 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE_COMBINE)
-#ifndef XRT_FEATURE_FUTURE_COMBINE
-#define XRT_FEATURE_FUTURE_COMBINE
-#endif
-#ifndef XRT_MODULE_FUTURE
-#define XRT_MODULE_FUTURE
-#endif
-#endif
-
-/* value_graph 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_GRAPH)
-#ifndef XRT_FEATURE_VALUE_GRAPH
-#define XRT_FEATURE_VALUE_GRAPH
-#endif
-#ifndef XRT_MODULE_VALUE_CONTAINER
-#define XRT_MODULE_VALUE_CONTAINER
-#endif
-#endif
-
-/* memory_debug 及其直接依赖。 */
-#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
-	defined(XRT_MODULE_MEMORY_DEBUG)
-#ifndef XRT_FEATURE_MEMORY_DEBUG
-#define XRT_FEATURE_MEMORY_DEBUG
 #endif
 #endif
 
@@ -4064,29 +4036,6 @@
 #endif
 #endif
 
-/* future 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE)
-#ifndef XRT_FEATURE_FUTURE
-#define XRT_FEATURE_FUTURE
-#endif
-#ifndef XRT_MODULE_CANCEL
-#define XRT_MODULE_CANCEL
-#endif
-#endif
-
-/* cancel 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CANCEL)
-#ifndef XRT_FEATURE_CANCEL
-#define XRT_FEATURE_CANCEL
-#endif
-#ifndef XRT_MODULE_MUTEX
-#define XRT_MODULE_MUTEX
-#endif
-#ifndef XRT_MODULE_COND
-#define XRT_MODULE_COND
-#endif
-#endif
-
 /* net_tcp_dial 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_DIAL)
 #ifndef XRT_FEATURE_NET_TCP_DIAL
@@ -4119,19 +4068,6 @@
 #endif
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
-#endif
-#endif
-
-/* cond 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_COND)
-#ifndef XRT_FEATURE_COND
-#define XRT_FEATURE_COND
-#endif
-#ifndef XRT_MODULE_MUTEX
-#define XRT_MODULE_MUTEX
-#endif
-#ifndef XRT_MODULE_WAIT
-#define XRT_MODULE_WAIT
 #endif
 #endif
 
@@ -4318,40 +4254,6 @@
 #endif
 #endif
 
-/* mutex 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MUTEX)
-#ifndef XRT_FEATURE_MUTEX
-#define XRT_FEATURE_MUTEX
-#endif
-#ifndef XRT_MODULE_SYNC
-#define XRT_MODULE_SYNC
-#endif
-#endif
-
-/* sync 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_SYNC)
-#ifndef XRT_FEATURE_SYNC
-#define XRT_FEATURE_SYNC
-#endif
-#endif
-
-/* wait 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WAIT)
-#ifndef XRT_FEATURE_WAIT
-#define XRT_FEATURE_WAIT
-#endif
-#ifndef XRT_MODULE_TIME
-#define XRT_MODULE_TIME
-#endif
-#endif
-
-/* atomic 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ATOMIC)
-#ifndef XRT_FEATURE_ATOMIC
-#define XRT_FEATURE_ATOMIC
-#endif
-#endif
-
 /* net_socket 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_SOCKET)
 #ifndef XRT_FEATURE_NET_SOCKET
@@ -4429,13 +4331,6 @@
 #endif
 #endif
 
-/* time 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TIME)
-#ifndef XRT_FEATURE_TIME
-#define XRT_FEATURE_TIME
-#endif
-#endif
-
 /* path_system 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PATH_SYSTEM)
 #ifndef XRT_FEATURE_PATH_SYSTEM
@@ -4485,6 +4380,69 @@
 #endif
 #ifndef XRT_MODULE_UNICODE
 #define XRT_MODULE_UNICODE
+#endif
+#ifndef XRT_MODULE_VALUE_CONTAINER
+#define XRT_MODULE_VALUE_CONTAINER
+#endif
+#endif
+
+/* unicode 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_UNICODE)
+#ifndef XRT_FEATURE_UNICODE
+#define XRT_FEATURE_UNICODE
+#endif
+#endif
+
+/* number_float 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_FLOAT)
+#ifndef XRT_FEATURE_NUMBER_FLOAT
+#define XRT_FEATURE_NUMBER_FLOAT
+#endif
+#endif
+
+/* number_integer 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_INTEGER)
+#ifndef XRT_FEATURE_NUMBER_INTEGER
+#define XRT_FEATURE_NUMBER_INTEGER
+#endif
+#endif
+
+/* buffer 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_BUFFER)
+#ifndef XRT_FEATURE_BUFFER
+#define XRT_FEATURE_BUFFER
+#endif
+#ifndef XRT_MODULE_ARRAY
+#define XRT_MODULE_ARRAY
+#endif
+#endif
+
+/* json_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_JSON_CORE)
+#ifndef XRT_FEATURE_JSON_CORE
+#define XRT_FEATURE_JSON_CORE
+#endif
+#endif
+
+/* atomic 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ATOMIC)
+#ifndef XRT_FEATURE_ATOMIC
+#define XRT_FEATURE_ATOMIC
+#endif
+#endif
+
+/* memory_debug 及其直接依赖。 */
+#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
+	defined(XRT_MODULE_MEMORY_DEBUG)
+#ifndef XRT_FEATURE_MEMORY_DEBUG
+#define XRT_FEATURE_MEMORY_DEBUG
+#endif
+#endif
+
+/* value_graph 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_GRAPH)
+#ifndef XRT_FEATURE_VALUE_GRAPH
+#define XRT_FEATURE_VALUE_GRAPH
 #endif
 #ifndef XRT_MODULE_VALUE_CONTAINER
 #define XRT_MODULE_VALUE_CONTAINER
@@ -4590,6 +4548,13 @@
 #endif
 #endif
 
+/* array 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ARRAY)
+#ifndef XRT_FEATURE_ARRAY
+#define XRT_FEATURE_ARRAY
+#endif
+#endif
+
 /* value 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE)
 #ifndef XRT_FEATURE_VALUE
@@ -4607,48 +4572,83 @@
 #endif
 #endif
 
-/* unicode 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_UNICODE)
-#ifndef XRT_FEATURE_UNICODE
-#define XRT_FEATURE_UNICODE
+/* future_combine 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE_COMBINE)
+#ifndef XRT_FEATURE_FUTURE_COMBINE
+#define XRT_FEATURE_FUTURE_COMBINE
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
 #endif
 #endif
 
-/* number_float 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_FLOAT)
-#ifndef XRT_FEATURE_NUMBER_FLOAT
-#define XRT_FEATURE_NUMBER_FLOAT
+/* future 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE)
+#ifndef XRT_FEATURE_FUTURE
+#define XRT_FEATURE_FUTURE
+#endif
+#ifndef XRT_MODULE_CANCEL
+#define XRT_MODULE_CANCEL
 #endif
 #endif
 
-/* number_integer 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_INTEGER)
-#ifndef XRT_FEATURE_NUMBER_INTEGER
-#define XRT_FEATURE_NUMBER_INTEGER
+/* cancel 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CANCEL)
+#ifndef XRT_FEATURE_CANCEL
+#define XRT_FEATURE_CANCEL
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
 #endif
 #endif
 
-/* buffer 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_BUFFER)
-#ifndef XRT_FEATURE_BUFFER
-#define XRT_FEATURE_BUFFER
+/* cond 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_COND)
+#ifndef XRT_FEATURE_COND
+#define XRT_FEATURE_COND
 #endif
-#ifndef XRT_MODULE_ARRAY
-#define XRT_MODULE_ARRAY
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
 #endif
-#endif
-
-/* array 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ARRAY)
-#ifndef XRT_FEATURE_ARRAY
-#define XRT_FEATURE_ARRAY
+#ifndef XRT_MODULE_WAIT
+#define XRT_MODULE_WAIT
 #endif
 #endif
 
-/* json_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_JSON_CORE)
-#ifndef XRT_FEATURE_JSON_CORE
-#define XRT_FEATURE_JSON_CORE
+/* wait 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WAIT)
+#ifndef XRT_FEATURE_WAIT
+#define XRT_FEATURE_WAIT
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
+
+/* time 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TIME)
+#ifndef XRT_FEATURE_TIME
+#define XRT_FEATURE_TIME
+#endif
+#endif
+
+/* mutex 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MUTEX)
+#ifndef XRT_FEATURE_MUTEX
+#define XRT_FEATURE_MUTEX
+#endif
+#ifndef XRT_MODULE_SYNC
+#define XRT_MODULE_SYNC
+#endif
+#endif
+
+/* sync 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_SYNC)
+#ifndef XRT_FEATURE_SYNC
+#define XRT_FEATURE_SYNC
 #endif
 #endif
 

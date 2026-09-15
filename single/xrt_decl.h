@@ -3344,29 +3344,6 @@
 #endif
 #endif
 
-/* file_async 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC)
-#ifndef XRT_FEATURE_FILE_ASYNC
-#define XRT_FEATURE_FILE_ASYNC
-#endif
-#ifndef XRT_MODULE_FILE
-#define XRT_MODULE_FILE
-#endif
-#ifndef XRT_MODULE_FILE_ASYNC_COMMON
-#define XRT_MODULE_FILE_ASYNC_COMMON
-#endif
-#endif
-
-/* file_async_common 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC_COMMON)
-#ifndef XRT_FEATURE_FILE_ASYNC_COMMON
-#define XRT_FEATURE_FILE_ASYNC_COMMON
-#endif
-#ifndef XRT_MODULE_TASK_POOL
-#define XRT_MODULE_TASK_POOL
-#endif
-#endif
-
 /* file_map 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_MAP)
 #ifndef XRT_FEATURE_FILE_MAP
@@ -4983,6 +4960,29 @@
 #endif
 #endif
 
+/* file_async 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC)
+#ifndef XRT_FEATURE_FILE_ASYNC
+#define XRT_FEATURE_FILE_ASYNC
+#endif
+#ifndef XRT_MODULE_FILE
+#define XRT_MODULE_FILE
+#endif
+#ifndef XRT_MODULE_FILE_ASYNC_COMMON
+#define XRT_MODULE_FILE_ASYNC_COMMON
+#endif
+#endif
+
+/* file_async_common 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC_COMMON)
+#ifndef XRT_FEATURE_FILE_ASYNC_COMMON
+#define XRT_FEATURE_FILE_ASYNC_COMMON
+#endif
+#ifndef XRT_MODULE_TASK_POOL
+#define XRT_MODULE_TASK_POOL
+#endif
+#endif
+
 /* value_collection 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_COLLECTION)
 #ifndef XRT_FEATURE_VALUE_COLLECTION
@@ -5000,34 +5000,6 @@
 #endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
-#endif
-#endif
-
-/* future_combine 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE_COMBINE)
-#ifndef XRT_FEATURE_FUTURE_COMBINE
-#define XRT_FEATURE_FUTURE_COMBINE
-#endif
-#ifndef XRT_MODULE_FUTURE
-#define XRT_MODULE_FUTURE
-#endif
-#endif
-
-/* value_graph 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_GRAPH)
-#ifndef XRT_FEATURE_VALUE_GRAPH
-#define XRT_FEATURE_VALUE_GRAPH
-#endif
-#ifndef XRT_MODULE_VALUE_CONTAINER
-#define XRT_MODULE_VALUE_CONTAINER
-#endif
-#endif
-
-/* memory_debug 及其直接依赖。 */
-#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
-	defined(XRT_MODULE_MEMORY_DEBUG)
-#ifndef XRT_FEATURE_MEMORY_DEBUG
-#define XRT_FEATURE_MEMORY_DEBUG
 #endif
 #endif
 
@@ -6370,29 +6342,6 @@
 #endif
 #endif
 
-/* future 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE)
-#ifndef XRT_FEATURE_FUTURE
-#define XRT_FEATURE_FUTURE
-#endif
-#ifndef XRT_MODULE_CANCEL
-#define XRT_MODULE_CANCEL
-#endif
-#endif
-
-/* cancel 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CANCEL)
-#ifndef XRT_FEATURE_CANCEL
-#define XRT_FEATURE_CANCEL
-#endif
-#ifndef XRT_MODULE_MUTEX
-#define XRT_MODULE_MUTEX
-#endif
-#ifndef XRT_MODULE_COND
-#define XRT_MODULE_COND
-#endif
-#endif
-
 /* net_tcp_dial 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_DIAL)
 #ifndef XRT_FEATURE_NET_TCP_DIAL
@@ -6425,19 +6374,6 @@
 #endif
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
-#endif
-#endif
-
-/* cond 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_COND)
-#ifndef XRT_FEATURE_COND
-#define XRT_FEATURE_COND
-#endif
-#ifndef XRT_MODULE_MUTEX
-#define XRT_MODULE_MUTEX
-#endif
-#ifndef XRT_MODULE_WAIT
-#define XRT_MODULE_WAIT
 #endif
 #endif
 
@@ -6624,40 +6560,6 @@
 #endif
 #endif
 
-/* mutex 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MUTEX)
-#ifndef XRT_FEATURE_MUTEX
-#define XRT_FEATURE_MUTEX
-#endif
-#ifndef XRT_MODULE_SYNC
-#define XRT_MODULE_SYNC
-#endif
-#endif
-
-/* sync 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_SYNC)
-#ifndef XRT_FEATURE_SYNC
-#define XRT_FEATURE_SYNC
-#endif
-#endif
-
-/* wait 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WAIT)
-#ifndef XRT_FEATURE_WAIT
-#define XRT_FEATURE_WAIT
-#endif
-#ifndef XRT_MODULE_TIME
-#define XRT_MODULE_TIME
-#endif
-#endif
-
-/* atomic 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ATOMIC)
-#ifndef XRT_FEATURE_ATOMIC
-#define XRT_FEATURE_ATOMIC
-#endif
-#endif
-
 /* net_socket 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_SOCKET)
 #ifndef XRT_FEATURE_NET_SOCKET
@@ -6735,13 +6637,6 @@
 #endif
 #endif
 
-/* time 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TIME)
-#ifndef XRT_FEATURE_TIME
-#define XRT_FEATURE_TIME
-#endif
-#endif
-
 /* path_system 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PATH_SYSTEM)
 #ifndef XRT_FEATURE_PATH_SYSTEM
@@ -6791,6 +6686,69 @@
 #endif
 #ifndef XRT_MODULE_UNICODE
 #define XRT_MODULE_UNICODE
+#endif
+#ifndef XRT_MODULE_VALUE_CONTAINER
+#define XRT_MODULE_VALUE_CONTAINER
+#endif
+#endif
+
+/* unicode 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_UNICODE)
+#ifndef XRT_FEATURE_UNICODE
+#define XRT_FEATURE_UNICODE
+#endif
+#endif
+
+/* number_float 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_FLOAT)
+#ifndef XRT_FEATURE_NUMBER_FLOAT
+#define XRT_FEATURE_NUMBER_FLOAT
+#endif
+#endif
+
+/* number_integer 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_INTEGER)
+#ifndef XRT_FEATURE_NUMBER_INTEGER
+#define XRT_FEATURE_NUMBER_INTEGER
+#endif
+#endif
+
+/* buffer 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_BUFFER)
+#ifndef XRT_FEATURE_BUFFER
+#define XRT_FEATURE_BUFFER
+#endif
+#ifndef XRT_MODULE_ARRAY
+#define XRT_MODULE_ARRAY
+#endif
+#endif
+
+/* json_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_JSON_CORE)
+#ifndef XRT_FEATURE_JSON_CORE
+#define XRT_FEATURE_JSON_CORE
+#endif
+#endif
+
+/* atomic 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ATOMIC)
+#ifndef XRT_FEATURE_ATOMIC
+#define XRT_FEATURE_ATOMIC
+#endif
+#endif
+
+/* memory_debug 及其直接依赖。 */
+#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
+	defined(XRT_MODULE_MEMORY_DEBUG)
+#ifndef XRT_FEATURE_MEMORY_DEBUG
+#define XRT_FEATURE_MEMORY_DEBUG
+#endif
+#endif
+
+/* value_graph 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_GRAPH)
+#ifndef XRT_FEATURE_VALUE_GRAPH
+#define XRT_FEATURE_VALUE_GRAPH
 #endif
 #ifndef XRT_MODULE_VALUE_CONTAINER
 #define XRT_MODULE_VALUE_CONTAINER
@@ -6896,6 +6854,13 @@
 #endif
 #endif
 
+/* array 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ARRAY)
+#ifndef XRT_FEATURE_ARRAY
+#define XRT_FEATURE_ARRAY
+#endif
+#endif
+
 /* value 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE)
 #ifndef XRT_FEATURE_VALUE
@@ -6913,48 +6878,83 @@
 #endif
 #endif
 
-/* unicode 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_UNICODE)
-#ifndef XRT_FEATURE_UNICODE
-#define XRT_FEATURE_UNICODE
+/* future_combine 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE_COMBINE)
+#ifndef XRT_FEATURE_FUTURE_COMBINE
+#define XRT_FEATURE_FUTURE_COMBINE
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
 #endif
 #endif
 
-/* number_float 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_FLOAT)
-#ifndef XRT_FEATURE_NUMBER_FLOAT
-#define XRT_FEATURE_NUMBER_FLOAT
+/* future 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE)
+#ifndef XRT_FEATURE_FUTURE
+#define XRT_FEATURE_FUTURE
+#endif
+#ifndef XRT_MODULE_CANCEL
+#define XRT_MODULE_CANCEL
 #endif
 #endif
 
-/* number_integer 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_INTEGER)
-#ifndef XRT_FEATURE_NUMBER_INTEGER
-#define XRT_FEATURE_NUMBER_INTEGER
+/* cancel 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CANCEL)
+#ifndef XRT_FEATURE_CANCEL
+#define XRT_FEATURE_CANCEL
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
 #endif
 #endif
 
-/* buffer 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_BUFFER)
-#ifndef XRT_FEATURE_BUFFER
-#define XRT_FEATURE_BUFFER
+/* cond 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_COND)
+#ifndef XRT_FEATURE_COND
+#define XRT_FEATURE_COND
 #endif
-#ifndef XRT_MODULE_ARRAY
-#define XRT_MODULE_ARRAY
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
 #endif
-#endif
-
-/* array 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ARRAY)
-#ifndef XRT_FEATURE_ARRAY
-#define XRT_FEATURE_ARRAY
+#ifndef XRT_MODULE_WAIT
+#define XRT_MODULE_WAIT
 #endif
 #endif
 
-/* json_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_JSON_CORE)
-#ifndef XRT_FEATURE_JSON_CORE
-#define XRT_FEATURE_JSON_CORE
+/* wait 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WAIT)
+#ifndef XRT_FEATURE_WAIT
+#define XRT_FEATURE_WAIT
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
+
+/* time 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TIME)
+#ifndef XRT_FEATURE_TIME
+#define XRT_FEATURE_TIME
+#endif
+#endif
+
+/* mutex 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MUTEX)
+#ifndef XRT_FEATURE_MUTEX
+#define XRT_FEATURE_MUTEX
+#endif
+#ifndef XRT_MODULE_SYNC
+#define XRT_MODULE_SYNC
+#endif
+#endif
+
+/* sync 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_SYNC)
+#ifndef XRT_FEATURE_SYNC
+#define XRT_FEATURE_SYNC
 #endif
 #endif
 
@@ -7753,6 +7753,1724 @@ XRT_EXTERN_C_END
 	#define xrtRealloc(pMemory, iSize) xrtReallocAt((pMemory), (iSize), __FILE__, (uint32)__LINE__)
 	#define xrtFree(pMemory) xrtFreeAt((pMemory), __FILE__, (uint32)__LINE__)
 	#define xrtMemDup(pData, iSize) xrtMemDupAt((pData), (iSize), __FILE__, (uint32)__LINE__)
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/wait.h */
+/* ========================================================================== */
+
+#ifndef XRT_WAIT_H
+#define XRT_WAIT_H
+
+
+
+
+#if defined(XRT_FEATURE_WAIT) && !defined(XRT_FEATURE_TIME)
+	#error "XRT_FEATURE_WAIT requires XRT_FEATURE_TIME"
+#endif
+
+
+
+#if defined(XRT_FEATURE_WAIT)
+
+/* 截止时间使用 xrtClock 的单调微秒刻度。 */
+typedef uint64 xdeadline;
+
+
+
+/* 永不超时的截止时间。 */
+#define XRT_DEADLINE_NEVER UINT64_MAX
+
+
+
+/* 等待结果把正常控制流与真正错误分开表达。 */
+typedef enum xwaitresult {
+	XWAIT_ERROR = -1,
+	XWAIT_OK = 0,
+	XWAIT_TIMEOUT = 1,
+	XWAIT_CANCELLED = 2,
+	XWAIT_CLOSED = 3
+} xwaitresult;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 从当前单调时钟和相对微秒数构造截止时间，溢出时返回 NEVER。 */
+XRT_API xdeadline xrtDeadlineAfter(uint64 iTimeout);
+
+
+
+/* 判断截止时间是否已经到达；NEVER 永远不会到达。 */
+XRT_API bool xrtDeadlineExpired(xdeadline iDeadline);
+
+
+
+/* 返回截止时间前剩余微秒数；已到达返回零，NEVER 返回 UINT64_MAX。 */
+XRT_API uint64 xrtDeadlineRemaining(xdeadline iDeadline);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/sync.h */
+/* ========================================================================== */
+
+#ifndef XRT_SYNC_H
+#define XRT_SYNC_H
+
+
+
+
+#if \
+	(defined(XRT_FEATURE_MUTEX) || defined(XRT_FEATURE_COND) || \
+	 defined(XRT_FEATURE_SEM) || defined(XRT_FEATURE_RWLOCK) || \
+	 defined(XRT_FEATURE_EVENT)) && \
+	!defined(XRT_FEATURE_SYNC)
+	#error "XRT synchronization features require XRT_FEATURE_SYNC"
+#endif
+
+#if defined(XRT_FEATURE_COND) && !defined(XRT_FEATURE_MUTEX)
+	#error "XRT_FEATURE_COND requires XRT_FEATURE_MUTEX"
+#endif
+
+#if \
+	(defined(XRT_FEATURE_COND) || defined(XRT_FEATURE_SEM) || \
+	 defined(XRT_FEATURE_EVENT)) && \
+	!defined(XRT_FEATURE_WAIT)
+	#error "timed synchronization features require XRT_FEATURE_WAIT"
+#endif
+
+
+
+#if defined(_WIN32) || defined(_WIN64)
+	#define XRT_MUTEX_STORAGE_SIZE 24u
+	#define XRT_COND_STORAGE_SIZE 16u
+	#define XRT_SEM_STORAGE_SIZE 24u
+	#define XRT_RWLOCK_STORAGE_SIZE 96u
+	#define XRT_EVENT_STORAGE_SIZE 24u
+#else
+	#define XRT_MUTEX_STORAGE_SIZE 96u
+	#define XRT_COND_STORAGE_SIZE 80u
+	#define XRT_SEM_STORAGE_SIZE 176u
+	#define XRT_RWLOCK_STORAGE_SIZE 256u
+	#define XRT_EVENT_STORAGE_SIZE 176u
+#endif
+
+
+
+#if defined(XRT_FEATURE_MUTEX)
+/* Mutex 使用固定对齐存储，允许嵌入用户结构且不暴露平台头。 */
+typedef union xmutex {
+	uint64 Alignment;
+	uint8 Storage[XRT_MUTEX_STORAGE_SIZE];
+} xmutex;
+#endif
+
+
+
+#if defined(XRT_FEATURE_COND)
+/* 条件变量必须和 XRT mutex 配合使用。 */
+typedef union xcond {
+	uint64 Alignment;
+	uint8 Storage[XRT_COND_STORAGE_SIZE];
+} xcond;
+#endif
+
+
+
+#if defined(XRT_FEATURE_SEM)
+/* 信号量的计数范围在所有平台统一为 [0, INT32_MAX]。 */
+typedef union xsem {
+	uint64 Alignment;
+	uint8 Storage[XRT_SEM_STORAGE_SIZE];
+} xsem;
+#endif
+
+
+
+#if defined(XRT_FEATURE_RWLOCK)
+/* 读写锁采用写者优先策略并支持升级和降级。 */
+typedef union xrwlock {
+	uint64 Alignment;
+	uint8 Storage[XRT_RWLOCK_STORAGE_SIZE];
+} xrwlock;
+#endif
+
+
+
+#if defined(XRT_FEATURE_EVENT)
+/* 事件保存显式信号状态，可选择自动或手动复位。 */
+typedef union xevent {
+	uint64 Alignment;
+	uint8 Storage[XRT_EVENT_STORAGE_SIZE];
+} xevent;
+#endif
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+#if defined(XRT_FEATURE_MUTEX)
+/* 初始化调用方存储中的非递归互斥锁。 */
+XRT_API bool xrtMutexInit(xmutex* pMutex);
+
+
+
+/* 释放互斥锁平台资源；仍被持有时失败且保持对象有效。 */
+XRT_API bool xrtMutexUnit(xmutex* pMutex);
+
+
+
+/* 创建一个非递归互斥锁。 */
+XRT_API xmutex* xrtMutexCreate(void);
+
+
+
+/* 释放 Create 返回的互斥锁；仍被持有时失败且不释放对象。 */
+XRT_API bool xrtMutexDestroy(xmutex* pMutex);
+
+
+
+/* 阻塞到获得互斥锁；同线程递归加锁返回错误。 */
+XRT_API bool xrtMutexLock(xmutex* pMutex);
+
+
+
+/* 尝试获得互斥锁；锁正忙时返回 false 且不设置错误。 */
+XRT_API bool xrtMutexTryLock(xmutex* pMutex);
+
+
+
+/* 释放当前线程持有的互斥锁。 */
+XRT_API bool xrtMutexUnlock(xmutex* pMutex);
+#endif
+
+
+
+#if defined(XRT_FEATURE_COND)
+/* 初始化调用方存储中的条件变量。 */
+XRT_API bool xrtCondInit(xcond* pCond);
+
+
+
+/* 释放条件变量平台资源。 */
+XRT_API bool xrtCondUnit(xcond* pCond);
+
+
+
+/* 创建条件变量。 */
+XRT_API xcond* xrtCondCreate(void);
+
+
+
+/* 释放 Create 返回的条件变量。 */
+XRT_API bool xrtCondDestroy(xcond* pCond);
+
+
+
+/* 当前线程持有 mutex 时原子释放并等待；允许虚假唤醒，必须在谓词循环中调用。 */
+XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex);
+
+
+
+/* 在相对微秒数内等待；允许虚假唤醒，超时和成功后都重新持有 mutex。 */
+XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout);
+
+
+
+/* 等待到单调时钟截止时间；允许虚假唤醒，应循环检查受 mutex 保护的谓词。 */
+XRT_API xwaitresult xrtCondWaitUntil(
+	xcond* pCond,
+	xmutex* pMutex,
+	xdeadline iDeadline
+);
+
+
+
+/* 唤醒一个等待者；通知本身不保存状态。 */
+XRT_API bool xrtCondSignal(xcond* pCond);
+
+
+
+/* 唤醒全部当前等待者；通知本身不保存状态。 */
+XRT_API bool xrtCondBroadcast(xcond* pCond);
+#endif
+
+
+
+#if defined(XRT_FEATURE_SEM)
+/* 初始化计数信号量。 */
+XRT_API bool xrtSemInit(xsem* pSem, uint32 iInitial, uint32 iMaximum);
+
+
+
+/* 释放信号量平台资源。 */
+XRT_API bool xrtSemUnit(xsem* pSem);
+
+
+
+/* 创建计数信号量。 */
+XRT_API xsem* xrtSemCreate(uint32 iInitial, uint32 iMaximum);
+
+
+
+/* 释放 Create 返回的信号量。 */
+XRT_API bool xrtSemDestroy(xsem* pSem);
+
+
+
+/* 等待并消费一个信号。 */
+XRT_API xwaitresult xrtSemWait(xsem* pSem);
+
+
+
+/* 非阻塞地尝试消费一个信号。 */
+XRT_API xwaitresult xrtSemTryWait(xsem* pSem);
+
+
+
+/* 在相对微秒数内等待并消费一个信号。 */
+XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout);
+
+
+
+/* 等待并消费一个信号到指定单调时钟截止时间。 */
+XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline);
+
+
+
+/* 发布一个信号；达到上限时失败且计数不变。 */
+XRT_API bool xrtSemPost(xsem* pSem);
+
+
+
+/* 原子发布多个信号；超过上限时失败且不部分发布。 */
+XRT_API bool xrtSemPostMany(xsem* pSem, uint32 iCount);
+#endif
+
+
+
+#if defined(XRT_FEATURE_RWLOCK)
+/* 初始化写者优先的读写锁。 */
+XRT_API bool xrtRWLockInit(xrwlock* pLock);
+
+
+
+/* 释放读写锁平台资源；仍被持有或等待时失败。 */
+XRT_API bool xrtRWLockUnit(xrwlock* pLock);
+
+
+
+/* 创建写者优先的读写锁。 */
+XRT_API xrwlock* xrtRWLockCreate(void);
+
+
+
+/* 释放 Create 返回的读写锁。 */
+XRT_API bool xrtRWLockDestroy(xrwlock* pLock);
+
+
+
+/* 获得非递归共享读锁；读锁所有权由调用方保证。 */
+XRT_API bool xrtRWLockRead(xrwlock* pLock);
+
+
+
+/* 尝试获得共享读锁；写者存在或等待时返回 false。 */
+XRT_API bool xrtRWLockTryRead(xrwlock* pLock);
+
+
+
+/* 释放当前线程持有的一个读锁。 */
+XRT_API bool xrtRWLockReadUnlock(xrwlock* pLock);
+
+
+
+/* 获得独占写锁。 */
+XRT_API bool xrtRWLockWrite(xrwlock* pLock);
+
+
+
+/* 尝试获得独占写锁。 */
+XRT_API bool xrtRWLockTryWrite(xrwlock* pLock);
+
+
+
+/* 释放当前线程持有的写锁。 */
+XRT_API bool xrtRWLockWriteUnlock(xrwlock* pLock);
+
+
+
+/* 原子地把当前线程的写锁降级为一个读锁。 */
+XRT_API bool xrtRWLockDowngrade(xrwlock* pLock);
+
+
+
+/* 当前线程只持有一个读锁时，释放它并排队获得写锁。 */
+XRT_API bool xrtRWLockUpgrade(xrwlock* pLock);
+#endif
+
+
+
+#if defined(XRT_FEATURE_EVENT)
+/* 初始化自动或手动复位事件。 */
+XRT_API bool xrtEventInit(xevent* pEvent, bool bManualReset, bool bSignaled);
+
+
+
+/* 释放事件平台资源。 */
+XRT_API bool xrtEventUnit(xevent* pEvent);
+
+
+
+/* 创建自动或手动复位事件。 */
+XRT_API xevent* xrtEventCreate(bool bManualReset, bool bSignaled);
+
+
+
+/* 释放 Create 返回的事件。 */
+XRT_API bool xrtEventDestroy(xevent* pEvent);
+
+
+
+/* 等待事件进入信号态。 */
+XRT_API xwaitresult xrtEventWait(xevent* pEvent);
+
+
+
+/* 非阻塞地检查并消费自动复位事件。 */
+XRT_API xwaitresult xrtEventTryWait(xevent* pEvent);
+
+
+
+/* 在相对微秒数内等待事件。 */
+XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, uint64 iTimeout);
+
+
+
+/* 等待事件到指定单调时钟截止时间。 */
+XRT_API xwaitresult xrtEventWaitUntil(xevent* pEvent, xdeadline iDeadline);
+
+
+
+/* 设置事件；手动复位唤醒全部等待者，自动复位唤醒一个等待者。 */
+XRT_API bool xrtEventSet(xevent* pEvent);
+
+
+
+/* 清除事件信号态。 */
+XRT_API bool xrtEventReset(xevent* pEvent);
+#endif
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/time.h */
+/* ========================================================================== */
+
+#ifndef XRT_TIME_H
+#define XRT_TIME_H
+
+
+
+
+#if (defined(XRT_FEATURE_TIME_LOCAL) || defined(XRT_FEATURE_TIME_TEXT)) && !defined(XRT_FEATURE_TIME)
+	#error "XRT local time and time text features require XRT_FEATURE_TIME"
+#endif
+
+
+
+/* xtime 和固定时长统一使用微秒，避免浮点计时和隐式单位换算。 */
+#define XRT_TIME_MICROSECOND	INT64_C(1)
+#define XRT_TIME_MILLISECOND	INT64_C(1000)
+#define XRT_TIME_SECOND		INT64_C(1000000)
+#define XRT_TIME_MINUTE		INT64_C(60000000)
+#define XRT_TIME_HOUR		INT64_C(3600000000)
+#define XRT_TIME_DAY			INT64_C(86400000000)
+#define XRT_TIME_WEEK		INT64_C(604800000000)
+
+
+
+/* 星期值固定从星期日零开始，便于和 C/POSIX 及 HTTP-date 对接。 */
+typedef enum xtimeweekday {
+	XTIME_SUNDAY = 0,
+	XTIME_MONDAY,
+	XTIME_TUESDAY,
+	XTIME_WEDNESDAY,
+	XTIME_THURSDAY,
+	XTIME_FRIDAY,
+	XTIME_SATURDAY
+} xtimeweekday;
+
+
+
+/* 日期计算单位；月、季度和年使用日历语义，其余单位使用固定时长。 */
+typedef enum xtimeunit {
+	XTIME_UNIT_MICROSECOND = 0,
+	XTIME_UNIT_MILLISECOND,
+	XTIME_UNIT_SECOND,
+	XTIME_UNIT_MINUTE,
+	XTIME_UNIT_HOUR,
+	XTIME_UNIT_DAY,
+	XTIME_UNIT_WEEK,
+	XTIME_UNIT_MONTH,
+	XTIME_UNIT_QUARTER,
+	XTIME_UNIT_YEAR
+} xtimeunit;
+
+
+
+/* 本地时间在夏令时回拨区间出现两个候选值时的选择规则。 */
+typedef enum xtimefold {
+	XTIME_FOLD_REJECT = 0,
+	XTIME_FOLD_EARLIER,
+	XTIME_FOLD_LATER
+} xtimefold;
+
+
+
+/* 时间模块稳定错误代码。 */
+typedef enum xtimeerror {
+	XTIME_ERROR_RANGE = 1,
+	XTIME_ERROR_OVERFLOW,
+	XTIME_ERROR_FORMAT,
+	XTIME_ERROR_PARSE,
+	XTIME_ERROR_LOCAL_GAP,
+	XTIME_ERROR_LOCAL_FOLD,
+	XTIME_ERROR_LOCAL_UNSUPPORTED
+} xtimeerror;
+
+
+
+/* 分解后的 Gregorian 日期时间；Offset 为 UTC 以东秒数。 */
+typedef struct xdatetime {
+	int64 Year;
+	int Month;
+	int Day;
+	int Hour;
+	int Minute;
+	int Second;
+	int Microsecond;
+	int Offset;
+	int Weekday;
+	int YearDay;
+	int IsDST;
+} xdatetime;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+#if defined(XRT_FEATURE_TIME)
+
+/* 返回单调递增时钟的微秒计数，只能用于测量间隔和截止时间。 */
+XRT_API uint64 xrtClock(void);
+
+
+
+/* 返回单调时钟的浮点秒数，供短小的性能测量代码使用。 */
+XRT_API double xrtTimer(void);
+
+
+
+/* 返回当前 Unix Epoch 微秒。 */
+XRT_API xtime xrtNow(void);
+
+
+
+/* 至少睡眠指定毫秒；零表示让出当前执行时间片。 */
+XRT_API void xrtSleep(uint32 iMilliseconds);
+
+
+
+/* 至少睡眠指定微秒。 */
+XRT_API void xrtSleepUs(uint64 iMicroseconds);
+
+
+
+/* 睡眠到单调时钟截止点；截止点已到时立即返回。 */
+XRT_API void xrtSleepUntil(uint64 iDeadline);
+
+
+
+/* 判断 Gregorian 年份是否为闰年，支持负年份和零年。 */
+XRT_API bool xrtIsLeapYear(int64 iYear);
+
+
+
+/* 返回指定月份的天数；月份无效时返回零并设置参数错误。 */
+XRT_API int xrtDaysInMonth(int64 iYear, int iMonth);
+
+
+
+/* 返回指定年份的天数。 */
+XRT_API int xrtDaysInYear(int64 iYear);
+
+
+
+/* 构造 UTC 零点日期。 */
+XRT_API bool xrtDate(int64 iYear, int iMonth, int iDay, xtime* pTime);
+
+
+
+/* 构造 UTC 日期时间。 */
+XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
+	int iHour, int iMinute, int iSecond, int iMicrosecond, xtime* pTime);
+
+
+
+/* 按结构中的显式 UTC 偏移构造绝对时间。 */
+XRT_API bool xrtTimeMake(const xdatetime* pDateTime, xtime* pTime);
+
+
+
+/* 把绝对时间按 UTC 分解为日期时间。 */
+XRT_API bool xrtTimeSplit(xtime iTime, xdatetime* pDateTime);
+
+
+
+/* 把绝对时间按固定 UTC 偏移分解，偏移范围为 -23:59:59 到 +23:59:59。 */
+XRT_API bool xrtTimeSplitAt(xtime iTime, int iOffset, xdatetime* pDateTime);
+
+
+
+/* 从 Unix 秒安全构造 xtime。 */
+XRT_API bool xrtTimeFromUnix(int64 iSeconds, xtime* pTime);
+
+
+
+/* 从 Unix 毫秒安全构造 xtime。 */
+XRT_API bool xrtTimeFromUnixMs(int64 iMilliseconds, xtime* pTime);
+
+
+
+/* 返回向负无穷取整的 Unix 秒。 */
+XRT_API int64 xrtTimeUnix(xtime iTime);
+
+
+
+/* 返回向负无穷取整的 Unix 毫秒。 */
+XRT_API int64 xrtTimeUnixMs(xtime iTime);
+
+
+
+/* 提取 UTC 年份。 */
+XRT_API int64 xrtYear(xtime iTime);
+
+
+
+/* 提取 UTC 月份。 */
+XRT_API int xrtMonth(xtime iTime);
+
+
+
+/* 提取 UTC 月内日期。 */
+XRT_API int xrtDay(xtime iTime);
+
+
+
+/* 提取 UTC 小时。 */
+XRT_API int xrtHour(xtime iTime);
+
+
+
+/* 提取 UTC 分钟。 */
+XRT_API int xrtMinute(xtime iTime);
+
+
+
+/* 提取 UTC 秒。 */
+XRT_API int xrtSecond(xtime iTime);
+
+
+
+/* 提取秒内微秒。 */
+XRT_API int xrtMicrosecond(xtime iTime);
+
+
+
+/* 提取星期，范围为 XTIME_SUNDAY 到 XTIME_SATURDAY。 */
+XRT_API int xrtWeekday(xtime iTime);
+
+
+
+/* 提取年内日期，范围为 1 到 366。 */
+XRT_API int xrtDayOfYear(xtime iTime);
+
+
+
+/* 提取季度，范围为 1 到 4。 */
+XRT_API int xrtQuarter(xtime iTime);
+
+
+
+/* 返回 UTC 当日零点。 */
+XRT_API xtime xrtDatePart(xtime iTime);
+
+
+
+/* 返回 UTC 当日已经经过的微秒，范围为 [0, XRT_TIME_DAY)。 */
+XRT_API xtime xrtTimePart(xtime iTime);
+
+
+
+/* 使用显式微秒容差比较两个时间，计算覆盖完整 int64 域。 */
+XRT_API bool xrtTimeNear(xtime iLeft, xtime iRight, uint64 iTolerance);
+
+
+
+/* 判断两个 UTC 时间是否位于同一个 Gregorian 日期。 */
+XRT_API bool xrtTimeSameDay(xtime iLeft, xtime iRight);
+
+
+
+/* 判断两个 UTC 时间是否位于同一个 Gregorian 月份。 */
+XRT_API bool xrtTimeSameMonth(xtime iLeft, xtime iRight);
+
+
+
+/* 判断两个 UTC 时间是否位于同一个 Gregorian 年份。 */
+XRT_API bool xrtTimeSameYear(xtime iLeft, xtime iRight);
+
+
+
+/* 判断时间是否位于闭区间；反向区间返回 false。 */
+XRT_API bool xrtTimeIn(xtime iTime, xtime iStart, xtime iEnd);
+
+
+
+/* 判断两个闭区间是否重叠；任一反向区间返回 false。 */
+XRT_API bool xrtTimeOverlap(xtime iStart1, xtime iEnd1,
+	xtime iStart2, xtime iEnd2);
+
+
+
+/* 增加固定时长或 Gregorian 日历单位，月末会钳制到目标月最后一天。 */
+XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResult);
+
+
+
+/* 计算从起点到终点经过的完整单位数量。 */
+XRT_API bool xrtTimeDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult);
+
+
+
+/* 返回包含给定时间的半开月份区间 [start, end)。 */
+XRT_API bool xrtMonthRange(xtime iTime, xtime* pStart, xtime* pEnd);
+
+
+
+/* 返回包含给定时间的半开年份区间 [start, end)。 */
+XRT_API bool xrtYearRange(xtime iTime, xtime* pStart, xtime* pEnd);
+
+
+
+/* 返回包含给定时间的半开星期区间 [start, end)。 */
+XRT_API bool xrtWeekRange(xtime iTime, int iFirstWeekday, xtime* pStart, xtime* pEnd);
+
+
+
+/* 返回 ISO 8601 周年、周数和星期值，其中星期一为 1，星期日为 7。 */
+XRT_API bool xrtISOWeek(xtime iTime, int64* pWeekYear, int* pWeek, int* pWeekday);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_TIME_LOCAL)
+
+/* 使用操作系统当前时区规则分解绝对时间。 */
+XRT_API bool xrtTimeLocal(xtime iTime, xdatetime* pDateTime);
+
+
+
+/* 使用操作系统时区规则构造本地时间，并显式处理 DST 重复区间。 */
+XRT_API bool xrtTimeFromLocal(const xdatetime* pDateTime, xtimefold Fold, xtime* pTime);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_TIME_TEXT)
+
+/* 按 % 占位符写入并返回所需字节数；%-m 等数字占位符取消填充，输出缓冲不得与 Format 重叠。 */
+XRT_API size_t xrtDateTimeWrite(char* sBuffer, size_t iCapacity,
+	const xdatetime* pDateTime, xstrview Format);
+
+
+
+/* 按 % 占位符创建时间文本；%p 输出大写午别，%P 输出小写午别，返回值由 xrtFree 释放。 */
+XRT_API str xrtDateTimeFormat(const xdatetime* pDateTime, xstrview Format);
+
+
+
+/* 严格解析完整格式；%-m 等字段接受一到两位数字，格式非法与文本不匹配使用不同错误码。 */
+XRT_API bool xrtDateTimeParse(xstrview Text, xstrview Format, xdatetime* pDateTime);
+
+
+
+/* 按固定 UTC 偏移和上述占位符写入；输出缓冲不得与 Format 重叠。 */
+XRT_API size_t xrtTimeWrite(char* sBuffer, size_t iCapacity,
+	xtime iTime, int iOffset, xstrview Format);
+
+
+
+/* 按固定 UTC 偏移和上述占位符创建时间文本，返回值由 xrtFree 释放。 */
+XRT_API str xrtTimeFormat(xtime iTime, int iOffset, xstrview Format);
+
+
+
+/* 严格按上述完整格式解析绝对时间。 */
+XRT_API bool xrtTimeParse(xstrview Text, xstrview Format, xtime* pTime);
+
+
+
+/* 写入 RFC 3339 文本；零偏移使用 Z，微秒末尾的零会被删除。 */
+XRT_API size_t xrtTimeWriteRFC3339(char* sBuffer, size_t iCapacity,
+	xtime iTime, int iOffset);
+
+
+
+/* 创建 RFC 3339 文本，返回值由 xrtFree 释放。 */
+XRT_API str xrtTimeRFC3339(xtime iTime, int iOffset);
+
+
+
+/* 严格解析 RFC 3339；超过微秒精度的尾数会向零截断。 */
+XRT_API bool xrtTimeParseRFC3339(xstrview Text, xtime* pTime);
+
+
+
+/* 写入 HTTP IMF-fixdate，时间始终转换为 GMT 并丢弃秒以下部分。 */
+XRT_API size_t xrtTimeWriteHTTPDate(char* sBuffer, size_t iCapacity, xtime iTime);
+
+
+
+/* 创建 HTTP IMF-fixdate，返回值由 xrtFree 释放。 */
+XRT_API str xrtTimeHTTPDate(xtime iTime);
+
+
+
+/* 解析 IMF-fixdate、RFC 850 和 ANSI C asctime 三种 HTTP 日期格式。 */
+XRT_API bool xrtTimeParseHTTPDate(xstrview Text, xtime* pTime);
+
+
+
+/* 尝试解析三种 HTTP 日期格式；失败不修改输出和线程错误。 */
+XRT_API bool xrtTimeTryParseHTTPDate(xstrview Text, xtime* pTime);
+
+
+
+/* 解析 RFC 3339、HTTP-date 和常见数字日期时间。 */
+XRT_API bool xrtTimeParseAny(xstrview Text, xtime* pTime);
+
+#endif
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/cancel.h */
+/* ========================================================================== */
+
+#ifndef XRT_CANCEL_H
+#define XRT_CANCEL_H
+
+
+
+
+#if defined(XRT_FEATURE_CANCEL) && !defined(XRT_FEATURE_MUTEX)
+	#error "XRT_FEATURE_CANCEL requires XRT_FEATURE_MUTEX"
+#endif
+
+#if defined(XRT_FEATURE_CANCEL) && !defined(XRT_FEATURE_COND)
+	#error "XRT_FEATURE_CANCEL requires XRT_FEATURE_COND"
+#endif
+
+
+
+#if defined(XRT_FEATURE_CANCEL)
+/* 取消令牌保存一次性取消状态，并可通过不可变父链继承取消。 */
+typedef struct xcancel xcancel;
+
+
+
+/* 取消监听保存一次回调注册及其并发生命周期。 */
+typedef struct xcancelwatch xcancelwatch;
+
+
+
+/* 取消回调由命中的取消请求线程或迟注册线程同步执行。 */
+typedef void (*xcancelproc)(ptr pData);
+
+/* Certified resident observer. A successful registration consumes ONE real
+ * Data reference described by Ops. Notify borrows it; Drop returns it once
+ * after Unwatch and every dispatch/plan pin have finished. Both callbacks
+ * coordinate their own graph transitions and code lifetime. They run outside
+ * this API's mutation scope, never by suspending a caller-owned outer scope.
+ * Policy identity is immutable and outlives the registration. A trace alone
+ * is not certification, nor permission to cancel or skip accepted work. */
+typedef struct xcancelwatchownershipv1 {
+	size_t size;
+	xcancelproc Notify;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xcancelwatchownershipv1;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 创建一个独立的取消令牌。 */
+XRT_API xcancel* xrtCancelCreate(void);
+
+
+
+/* 创建一个继承父令牌取消状态的子令牌；父令牌可为空。 */
+XRT_API xcancel* xrtCancelChild(xcancel* pParent);
+
+
+
+/* 增加取消令牌引用并返回原指针。 */
+XRT_API xcancel* xrtCancelRef(xcancel* pCancel);
+
+
+
+/* 释放取消令牌引用；空指针视为空操作。 */
+XRT_API void xrtCancelDestroy(xcancel* pCancel);
+
+/* Borrowed physical ownership view; the retained parent is one owning edge.
+ * Watch-list links borrow registration storage and are not strong references.
+ * Caller provides whole-graph quiescence and code residency. */
+XRT_API xrtownershipref xrtCancelOwnership(const xcancel* pCancel);
+
+/* Explicit native adapter, queried under whole-graph freeze. Registered
+ * observers are refused before Trace, not treated as empty owning slots.
+ * The immutable parent tail remains owned through Finish and final Drop;
+ * each parent must independently be admitted. No CancelWatch certification. */
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference);
+
+
+
+/* 请求取消；仅首次请求返回 true 并触发监听。 */
+XRT_API bool xrtCancelRequest(xcancel* pCancel);
+
+
+
+/* 查询令牌或任一祖先是否已请求取消；空指针表示未取消。 */
+XRT_API bool xrtCancelRequested(const xcancel* pCancel);
+
+
+
+/* 监听令牌及其不可变父链；回调至多同步执行一次。 */
+XRT_API xcancelwatch* xrtCancelWatch(
+	xcancel* pCancel,
+	xcancelproc pProc,
+	ptr pData
+);
+
+/* Failure consumes nothing. Success may notify synchronously if an ancestor
+ * is already cancelled, but retains Data until registration release. Legacy
+ * Watch remains borrowed/opaque and keeps its conservative callback scope. */
+XRT_API xcancelwatch* xrtCancelWatchOwnedV1(xcancel* pCancel, ptr pData,
+	const xcancelwatchownershipv1* pPolicy);
+
+/* Whole-graph freeze queries, matching policy identity before dereferencing
+ * it or tracing Data. Both lifecycle AND semantic preparation are required.
+ * Token list nodes borrow Watch storage: V2 does not invent token->Watch RC
+ * edges. Watch owns its Cancel and its certified Data reference independently.
+ * Active dispatch, publication/unlink, legacy/unknown observers are refused.
+ * Prepare only waits for the owner's actual Unwatch; it never requests
+ * cancellation or silently removes an accepted callback. Output preparation
+ * remains unchanged on refusal. Data/parents must be independently admitted. */
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV2(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV1(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+
+
+
+/* 查询监听是否已命中取消。 */
+XRT_API bool xrtCancelTriggered(const xcancelwatch* pWatch);
+
+
+
+/* Borrowed physical view: Unwatch owns this registration; it retains its
+ * Cancel (and thereby its parents). Proc/Data and linked cancellation nodes
+ * are borrowed, not additional owning slots. Active/destroying callbacks
+ * reject inspection. Whole-graph quiescence and code residency are required. */
+XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch);
+
+
+
+/* 注销并释放监听；从其他线程调用时等待正在执行的回调返回。 */
+XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch);
+
+
+
+XRT_EXTERN_C_END
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/future.h */
+/* ========================================================================== */
+
+#ifndef XRT_FUTURE_H
+#define XRT_FUTURE_H
+
+
+
+
+#if defined(XRT_FEATURE_FUTURE) && !defined(XRT_FEATURE_CANCEL)
+	#error "XRT_FEATURE_FUTURE requires XRT_FEATURE_CANCEL"
+#endif
+
+#if defined(XRT_FEATURE_FUTURE_COROUTINE) && !defined(XRT_FEATURE_FUTURE)
+	#error "XRT_FEATURE_FUTURE_COROUTINE requires XRT_FEATURE_FUTURE"
+#endif
+
+#if defined(XRT_FEATURE_FUTURE_COROUTINE) && !defined(XRT_FEATURE_COROUTINE_SCHEDULER)
+	#error "XRT_FEATURE_FUTURE_COROUTINE requires XRT_FEATURE_COROUTINE_SCHEDULER"
+#endif
+
+#if defined(XRT_FEATURE_FUTURE_COMBINE) && !defined(XRT_FEATURE_FUTURE)
+	#error "XRT_FEATURE_FUTURE_COMBINE requires XRT_FEATURE_FUTURE"
+#endif
+
+#if defined(XRT_FEATURE_FUTURE_CONTINUE) && !defined(XRT_FEATURE_FUTURE)
+	#error "XRT_FEATURE_FUTURE_CONTINUE requires XRT_FEATURE_FUTURE"
+#endif
+
+
+
+#if defined(XRT_FEATURE_FUTURE)
+
+/* Future 是只读共享结果，Promise 是唯一终态写入端。 */
+typedef struct xfuture xfuture;
+typedef struct xpromise xpromise;
+
+
+
+/* Future 终态明确区分成功、失败、协作取消和生产端关闭。 */
+typedef enum xfuturestate {
+	XFUTURE_PENDING = 0,
+	XFUTURE_RESOLVED = 1,
+	XFUTURE_FAILED = 2,
+	XFUTURE_CANCELLED = 3,
+	XFUTURE_CLOSED = 4
+} xfuturestate;
+
+
+
+/* Future 结果只借用值和错误，其生命周期由 Future 引用保护。 */
+typedef struct xfutureresult {
+	xfuturestate State;
+	ptr Value;
+	const xerror* Error;
+} xfutureresult;
+
+
+
+/* Future Watch 使用调用方存储提供无分配终态通知。 */
+#define XRT_FUTURE_WATCH_STORAGE_SIZE 64u
+
+
+
+/* Watch 回调在线程安全的 Future 完成路径中执行，不得重入同一个 Watch。 */
+typedef void (*xfuturewatchproc)(ptr pData);
+
+
+
+/* Watch 释放过程在线性化完成通知或成功摘除后执行一次。 */
+typedef void (*xfuturewatchreleaseproc)(ptr pData);
+
+
+
+/* Watch 的内部链表和并发状态保持不透明。 */
+typedef union xfuturewatch {
+	uint64 Alignment;
+	uint8 Storage[XRT_FUTURE_WATCH_STORAGE_SIZE];
+} xfuturewatch;
+
+
+
+/* 注册结果区分错误、Future 已完成和成功进入等待链。 */
+typedef enum xfuturewatchresult {
+	XFUTURE_WATCH_ERROR = -1,
+	XFUTURE_WATCH_READY = 0,
+	XFUTURE_WATCH_PENDING = 1
+} xfuturewatchresult;
+
+
+
+/* 成功值析构过程接收创建者提供的值和上下文。 */
+typedef void (*xfuturefreeproc)(ptr pValue, ptr pData);
+
+/* Describe exactly the owning slots released by an owned result's destructor,
+ * including its context. Unique boxes are folded into this Future's edges;
+ * shared reference-counted boxes must be reported as physical nodes. */
+typedef bool (*xfutureownershiptrace)(const void* pValue, const void* pData,
+	xrtownershipvisitor pVisit, ptr pContext);
+
+/* Explicit lifecycle certification, separate from an inspection-only trace.
+ * Immutable policy/code outlives the Future. Drop consumes a unique result
+ * box and exactly the owning slots described by Trace; context is NULL.
+ * Drop coordinates its own graph transitions, runs no new semantic finalizer
+ * after child finalization, and may execute outside XRT's mutation scope.
+ * Trace is allocation/callback-free apart from the supplied visitor. */
+typedef struct xfuturepayloadownershipv1 {
+	size_t size;
+	xfuturefreeproc Drop;
+	xfutureownershiptrace Trace;
+} xfuturepayloadownershipv1;
+
+/* One ACTUAL producer reference owned by a pending result, separate from
+ * PromiseRefs and from the terminal payload. The immutable resident Drop
+ * releases that reference outside this Future's lock/mutation; it coordinates
+ * its own transitions and code lifetime. It must not cancel accepted work or
+ * substitute for its semantic callback/finally. Completion preserves its own
+ * diagnostic across this mechanical release. The physical child is still
+ * independently admitted by the collector, never certified by this policy. */
+typedef struct xfutureproducerownershipv1 {
+	size_t size;
+	void (*Drop)(const void* pProducer);
+} xfutureproducerownershipv1;
+
+/* A registered Watch owns exactly ONE Data node reference, returned by Release.
+ * Immutable resident callbacks coordinate their own activity and code lifetime;
+ * Ops describes that same physical node, not a synthetic watch leaf. The core
+ * traces this actual slot, but a collector independently admits Data and all
+ * of its captures. Legacy traced/phased watches are not silently certified. */
+typedef struct xfuturewatchownershipv1 {
+	size_t size;
+	xfuturewatchproc Notify;
+	xfuturewatchreleaseproc Release;
+	const xrtownershipops* Ops;
+} xfuturewatchownershipv1;
+
+/* The callback address may point inside the physical owner (for example an
+ * aggregate input slot). Reference projects that address to the ONE actual
+ * reference returned by Release; it neither acquires a reference nor traces
+ * captures. The projection is immutable, resident, allocation/lock/callback
+ * free and remains valid through the Release tail. It must not invent an
+ * alias RC node. Admission matches policy identity before invoking it. */
+typedef struct xfuturewatchownershipv2 {
+	size_t size;
+	xfuturewatchproc Notify;
+	xfuturewatchreleaseproc Release;
+	xrtownershipref (*Reference)(const void* pData);
+} xfuturewatchownershipv2;
+
+/* Closed policy sets for one collector domain. This is admission, not a
+ * registry granting unknown Data/code lifecycle authority. Children remain
+ * independently admitted. V1-V3 retain their original refusal boundaries. */
+typedef struct xfutureownershipadmissionv1 {
+	size_t size;
+	const xfuturepayloadownershipv1* const* PayloadPolicies;
+	size_t PayloadPolicyCount;
+	const xfutureproducerownershipv1* const* ProducerPolicies;
+	size_t ProducerPolicyCount;
+	const xfuturewatchownershipv1* const* WatchPolicies;
+	size_t WatchPolicyCount;
+	const xfuturewatchownershipv2* const* ProjectedWatchPolicies;
+	size_t ProjectedWatchPolicyCount;
+	const xcancelwatchownershipv1* const* CancelWatchPolicies;
+	size_t CancelWatchPolicyCount;
+} xfutureownershipadmissionv1;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 创建一对 Future/Promise；父取消令牌为空时使用独立取消源。 */
+XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
+
+/* Bind once to a private, pending, newly created Future/Promise pair (one
+ * reference per endpoint, no waiters). No allocation or user callback.
+ * Success consumes ONE existing Producer reference; failure consumes nothing.
+ * The result traces that real edge until terminal publication detaches it;
+ * completion releases it exactly once outside lock/mutation before notifying
+ * the result's waiters. Merely dropping a Future observer does not cancel work.
+ * The caller keeps an independent activation/registration reference until
+ * its own callback and release tails finish. An enclosing caller-owned scope
+ * is never suspended. A trace-only or unknown policy is not collection proof. */
+XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy);
+
+
+
+/* 增加 Promise 生产端引用并返回原指针。 */
+XRT_API xpromise* xrtPromiseRef(xpromise* pPromise);
+
+
+
+/* 释放生产端引用；最后一个未完成生产端会关闭 Future 并请求取消。 */
+XRT_API void xrtPromiseDestroy(xpromise* pPromise);
+
+
+
+/* 增加 Future 消费端引用并返回原指针。 */
+XRT_API xfuture* xrtFutureRef(xfuture* pFuture);
+
+
+
+/* 释放 Future 消费端引用；空指针视为空操作。 */
+XRT_API void xrtFutureDestroy(xfuture* pFuture);
+
+/* Borrowed views of the SAME physical control block: every FutureRef and
+ * PromiseRef owns one reference. Do not invent a second Promise node.
+ * Trace includes cancellation parents, error causes, forwarded source and
+ * explicitly described owned payload/context. Unknown owned payloads and
+ * registered waiters fail closed unless their complete adapters are supplied.
+ * Pending with no waiters is inspectable; producer references remain roots.
+ * Whole-graph quiescence through any later commit and callback code residency
+ * remain the caller's responsibility; this API does not establish either. */
+XRT_API xrtownershipref xrtFutureOwnership(const xfuture* pFuture);
+XRT_API xrtownershipref xrtPromiseOwnership(const xpromise* pPromise);
+
+/* Publish an explicitly certified owned result atomically. Failure does not
+ * consume the box. This does not authorize collection by itself: a resolver
+ * must recognize the exact policy identity and independently admit children. */
+XRT_API bool xrtPromiseResolveOwnedPolicyV1(xpromise* pPromise, ptr pValue,
+	const xfuturepayloadownershipv1* pPolicy);
+
+/* Query under whole-graph freeze before Count/Trace. Pending, forwarded and
+ * terminal control blocks share one physical adapter. Completing operations,
+ * all registered waiters, unrecognized owned policies and observed cancel
+ * tokens are refused without invoking any payload/waiter trace. An empty
+ * allowlist admits only results without an owned payload. Pending retirement
+ * preserves last-producer CLOSED/cancellation semantics at Clear, without
+ * notification. Finish releases actual retired slots outside freeze. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount);
+/* Add an explicit producer-policy allowlist. V1 continues to refuse any live
+ * producer edge. Neither entry admits registered waiters or an unknown child;
+ * identity is matched before reading a policy or invoking any child callback. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount);
+/* V3 additionally admits exact Watch policies and returns mandatory semantic
+ * preparation alongside the SAME lifecycle adapter. Before object Finalize,
+ * prepare producerless pending sources through normal CLOSED notification,
+ * then rebuild the whole graph. Produced results defer to their real producer;
+ * never close an intermediate result before its source's catch/finally runs.
+ * Closed dependency cycles may require a further explicit shutdown protocol;
+ * BUSY does not authorize clearing a live Watch or skipping accepted work.
+ * Output is unchanged on refusal. Use both descriptors, never V1-only planning. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
+	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+/* Preserve 64-byte Watch storage and READY/PENDING/ERROR ownership rules.
+ * Initialization alone does not consume Data; registration commits the same
+ * caller-owned reference that Release returns. READY is still caller-driven. */
+XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv1* pPolicy);
+/* Same 64-byte storage and ERROR/READY/PENDING transfer rules as V1. No
+ * projection is invoked by initialization or adapter admission. */
+XRT_API bool xrtFutureWatchInitOwnershipV2(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv2* pPolicy);
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV4(xrtownershipref Reference,
+	const xfutureownershipadmissionv1* pAdmission,
+	const xrtownershippreparationv1** ppPreparation);
+
+/* Atomically publish value, destructor, context and non-NULL ownership trace.
+ * Success transfers the same ownership as ResolveOwned. Failure (including
+ * duplicate completion) transfers nothing and never calls Destroy/Trace.
+ * The immutable trace and destructor remain resident for the result lifetime;
+ * trace follows the read-only xrtOwnershipInspect callback contract. */
+XRT_API bool xrtPromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
+	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
+
+
+
+/* 返回 Future 状态快照；参数无效时返回 CLOSED 并设置错误。 */
+XRT_API xfuturestate xrtFutureState(const xfuture* pFuture);
+
+
+
+/* 判断 Future 是否已经进入任一不可变终态。 */
+XRT_API bool xrtFutureDone(const xfuture* pFuture);
+
+
+
+/* 复制借用结果；尚未完成时返回 false 并设置 AGAIN。 */
+XRT_API bool xrtFutureResult(const xfuture* pFuture, xfutureresult* pResult);
+
+
+
+/* 返回成功值；非成功终态会把对应错误设置到当前执行上下文。 */
+XRT_API ptr xrtFutureValue(const xfuture* pFuture);
+
+
+
+/* 返回失败终态借用的结构化错误，其他状态返回空指针。 */
+XRT_API const xerror* xrtFutureError(const xfuture* pFuture);
+
+
+
+/* 请求生产过程协作取消；请求本身不伪造 Future 终态。 */
+XRT_API bool xrtFutureCancel(xfuture* pFuture);
+
+
+
+/* 返回增加引用后的取消令牌，调用方使用完毕后必须释放。 */
+XRT_API xcancel* xrtFutureCancelToken(const xfuture* pFuture);
+
+
+
+/* 返回增加引用后的生产端取消令牌。 */
+XRT_API xcancel* xrtPromiseCancelToken(const xpromise* pPromise);
+
+
+
+/* 初始化一个尚未注册的无分配 Future Watch。 */
+XRT_API bool xrtFutureWatchInit(
+	xfuturewatch* pWatch,
+	xfuturewatchproc pNotify,
+	xfuturewatchreleaseproc pRelease,
+	ptr pData
+);
+
+
+
+/* Initialize with an immutable description of the strong slots released by
+ * pRelease(pData). Both callbacks are required. Unique context storage is
+ * folded into the Future's edges; shared state is a physical node. Init is
+ * allocation-free and consumes nothing; only WatchAdd(PENDING) transfers the
+ * registration/release right. READY and ERROR keep it with the caller.
+ * Storage size and old Init semantics are unchanged. A linked adapter may be
+ * inspected only at a whole-graph quiescent point with callback code resident;
+ * this does not establish a safepoint or permit concurrent frame inspection. */
+XRT_API bool xrtFutureWatchInitTraced(xfuturewatch* pWatch,
+    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+    xrtownershiptrace pTrace);
+
+/* Explicit cooperative callback admission, not inferred from a Trace callback.
+ * Like InitTraced, but Notify/Release run outside the Future mutation domain.
+ * The resident callbacks must coordinate every count/edge/storage transition,
+ * reject inspection of active/private data, and independently pin their code.
+ * Detached notification/release callers retain their real ownership until the
+ * callback returns. No mutation scope may span a wait or arbitrary callback.
+ * Unphased Watch, internal waiters and payload finalizers keep conservative
+ * mutation scopes. Storage size, READY/PENDING/ERROR and release rules match
+ * InitTraced; READY still leaves Notify/Release to the registering caller. */
+XRT_API bool xrtFutureWatchInitPhased(xfuturewatch* pWatch,
+    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+    xrtownershiptrace pTrace);
+
+
+
+/* Future 未完成时注册 Watch；READY 时 Watch 未被接管且不执行 Release。 */
+XRT_API xfuturewatchresult xrtFutureWatchAdd(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+);
+
+
+
+/* 尝试摘除尚未开始通知的 Watch；成功时同步执行 Release。 */
+XRT_API bool xrtFutureWatchDetach(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+);
+
+
+
+/* 摘除 Watch 并等待已经开始的通知结束；禁止从自身通知中调用。 */
+XRT_API void xrtFutureWatchRemove(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+);
+
+
+
+/* 等待 Future 进入任一终态。 */
+XRT_API xwaitresult xrtFutureWait(xfuture* pFuture);
+
+
+
+/* 在相对微秒数内等待 Future 进入任一终态。 */
+XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
+
+
+
+/* 等待 Future 到指定单调时钟截止时间。 */
+XRT_API xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
+
+
+
+/* 等待首个线性化事件；取消先取得等待锁后不会被迟到终态覆盖。 */
+XRT_API xwaitresult xrtFutureWaitUntilCancel(
+	xfuture* pFuture,
+	xdeadline iDeadline,
+	xcancel* pCancel
+);
+
+
+
+/* 以借用方式完成成功结果，值的生命周期由调用方保证。 */
+XRT_API bool xrtPromiseResolve(xpromise* pPromise, ptr pValue);
+
+
+
+/* 转移成功值所有权；完成失败时所有权仍归调用方。 */
+XRT_API bool xrtPromiseResolveOwned(
+	xpromise* pPromise,
+	ptr pValue,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/* 以增加引用方式完成失败结果。 */
+XRT_API bool xrtPromiseReject(xpromise* pPromise, const xerror* pError);
+
+
+
+/* 把已进入终态的源 Future 结果安全透传到 Promise。 */
+XRT_API bool xrtPromiseForward(xpromise* pPromise, xfuture* pSource);
+
+
+
+/* 完成取消终态；令牌请求通知结束后才向等待者发布取消终态。 */
+XRT_API bool xrtPromiseCancel(xpromise* pPromise);
+
+
+
+/* 请求生产过程停止，并在令牌通知结束后发布关闭终态。 */
+XRT_API bool xrtPromiseClose(xpromise* pPromise);
+
+
+
+/* 判断 Promise 对应的 Future 是否已经完成。 */
+XRT_API bool xrtPromiseDone(const xpromise* pPromise);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FUTURE_COMBINE)
+
+/* Any 与 Race 的结果借用胜出源 Future；组合 Future 负责保留该引用。 */
+typedef struct xfuturepick {
+	size_t Index;
+	xfuture* Future;
+} xfuturepick;
+
+
+
+/* All 的结果按输入顺序借用全部源 Future；组合 Future 负责保留这些引用。 */
+typedef struct xfutureall {
+	size_t Count;
+	xfuture* const* Futures;
+} xfutureall;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 在任一源进入终态后，以 xfuturepick 成功完成；不改变其余源。 */
+XRT_API xfuture* xrtFutureAny(xfuture* const* pFutures, size_t iCount);
+
+
+
+/* 在全部源进入终态后，以保序的 xfutureall 成功完成；空集合立即完成。 */
+XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
+
+
+
+/* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。 */
+XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
+
+/* Synchronous result mapping is part of the aggregate's activation, not a
+ * separately allocated continuation attached after the sources start.
+ * Inputs and output Promise are borrowed for the call. The mapper must
+ * complete/forward the output before returning; an uncompleted output closes.
+ * It must not retain the input descriptors or defer work on this Promise. */
+typedef void (*xfutureallmapproc)(const xfutureall* pInput, xpromise* pOutput, ptr pData);
+typedef void (*xfuturepickmapproc)(const xfuturepick* pInput, xpromise* pOutput, ptr pData);
+
+/* All preparation succeeds before source notification/cancellation is possible.
+ * NULL return does not consume data, invoke map/destroy/trace, or cancel inputs.
+ * Non-NULL accepts data even if synchronous mapping fails: that failure is the
+ * returned Future's outcome. Destroy(data, destroyData) runs exactly once after
+ * mapping or cancellation and after the last source callback returns.
+ * Trace(data, destroyData) describes the exact strong slots Destroy releases;
+ * callbacks/code and borrowed pointers are not fictitious owning edges.
+ * Destroy and Trace are required, including for an empty context. The caller
+ * still supplies whole-graph quiescence and callback/code residency.
+ * Any/All/Race retain their existing selection/order/cancellation contracts. */
+XRT_API xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfutureallmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
+XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
+XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
+
+/* A certified mapper owns one independently admitted physical Data reference.
+ * AllMap/PickMap borrow it and must synchronously finish the output. Drop
+ * returns that reference, never substitutes for Data's semantic preparation.
+ * Policy and callbacks are immutable/resident, and callbacks coordinate their
+ * own graph transitions and code lifetime outside API-owned scopes. */
+typedef struct xfuturecombineownershipv1 {
+	size_t size;
+	xfutureallmapproc AllMap;
+	xfuturepickmapproc PickMap;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xfuturecombineownershipv1;
+XRT_API xfuture* xrtFutureAllMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+XRT_API xfuture* xrtFutureAnyMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+XRT_API xfuture* xrtFutureRaceMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+
+/* These exact resident policies describe real producer, source-registration,
+ * cancellation and raw-result references. Their presence does not admit the
+ * group or its Data: the collector independently resolves every node. */
+XRT_API const xfutureproducerownershipv1* xrtFutureCombineProducerPolicyV1Get(void);
+XRT_API const xfuturewatchownershipv2* xrtFutureCombineWatchPolicyV2Get(void);
+XRT_API const xcancelwatchownershipv1* xrtFutureCombineCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtFutureCombineAllPayloadPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtFutureCombinePickPayloadPolicyV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtFutureCombineOwnershipAdapterV1(xrtownershipref Reference,
+	const xfuturecombineownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+
+typedef enum xfuturewaitrulev1 {
+	XFUTURE_WAIT_ALL_TERMINAL = 1,
+	XFUTURE_WAIT_ANY_TERMINAL = 2
+} xfuturewaitrulev1;
+typedef struct xfuturecombinewaitv1 {
+	size_t size;
+	xpromise* Output;
+	xfuture* const* Sources;
+	size_t Count;
+	xfuturewaitrulev1 Rule;
+	bool CancelRemaining;
+} xfuturecombinewaitv1;
+/* Borrowed semantic input slots, not arbitrary capture edges. The complete
+ * physical graph must be frozen and claimed unreachable by the same token.
+ * Only a stable pending group with real pending registrations is described;
+ * all completed slots are retained in order, including duplicates. ALL needs
+ * every input terminal; ANY/RACE need one, with Race alone cancelling losers.
+ * Output stays unchanged on refusal. This read-only fact is not cancellation
+ * authority, a deadlock proof, or permission to skip normal callbacks. */
+XRT_API bool xrtFutureCombineWaitV1(xrtownershipref Reference, const void* pToken,
+	xfuturecombinewaitv1* pWait);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FUTURE_CONTINUE)
+
+/* 延续过程借用源结果和输出 Promise；保留 Promise 时必须先增加引用。 */
+typedef void (*xfuturecontinueproc)(
+	const xfutureresult* pInput,
+	xpromise* pOutput,
+	ptr pData
+);
+
+
+
+/* Finally 过程只观察源结果，输出 Future 自动安全透传源终态。 */
+typedef void (*xfuturefinallyproc)(const xfutureresult* pInput, ptr pData);
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 对源的任意终态执行延续过程；过程负责完成或保留输出 Promise。 */
+XRT_API xfuture* xrtFutureContinue(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData
+);
+
+
+
+/* 执行任意终态延续，并在执行、跳过或取消后释放受理的数据。 */
+XRT_API xfuture* xrtFutureContinueOwned(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/*
+	对独占源的任意终态执行延续；取消输出时同时请求取消源。
+	该入口只适用于调用方拥有完整生产链、不与其他消费者共享源的组合层。
+*/
+XRT_API xfuture* xrtFutureContinueOwnedCancelSource(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/* 仅在源成功时执行延续；其他终态自动透传。 */
+XRT_API xfuture* xrtFutureThen(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData
+);
+
+
+
+/* 仅在源成功时执行延续，并负责释放受理的数据。 */
+XRT_API xfuture* xrtFutureThenOwned(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/*
+	仅在独占源成功时执行延续；取消输出时同时请求取消源。
+	源的失败、取消和关闭仍按 Then 契约自动透传。
+*/
+XRT_API xfuture* xrtFutureThenOwnedCancelSource(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/* 仅在源失败时执行延续；成功、取消和关闭终态自动透传。 */
+XRT_API xfuture* xrtFutureCatch(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData
+);
+
+
+
+/* 仅在源失败时执行延续，并负责释放受理的数据。 */
+XRT_API xfuture* xrtFutureCatchOwned(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/* 观察源的任意终态，再把原结果安全透传到输出 Future。 */
+XRT_API xfuture* xrtFutureFinally(
+	xfuture* pSource,
+	xfuturefinallyproc pProc,
+	ptr pData
+);
+
+
+
+/* 观察源的任意终态、透传结果，并负责释放受理的数据。 */
+XRT_API xfuture* xrtFutureFinallyOwned(
+	xfuture* pSource,
+	xfuturefinallyproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FUTURE_COROUTINE)
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 挂起当前调度协程，直到 Future 进入终态或协程被取消。 */
+XRT_API xwaitresult xrtFutureAwait(xfuture* pFuture);
+
+
+
+/* 在相对微秒数内挂起当前调度协程等待 Future。 */
+XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
+
+
+
+/* 挂起当前调度协程等待 Future 到指定截止时间。 */
+XRT_API xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline);
+
+
+
+XRT_EXTERN_C_END
+
 #endif
 
 #endif
@@ -10339,6 +12057,11 @@ typedef enum xvalueiterresult {
 	XVALUE_ITER_ITEM = 1
 } xvalueiterresult;
 
+/* Opaque, reference-owned snapshot cursor. Unlike the stack-compatible
+ * xvalueiter, its storage and physical references can be pinned independently
+ * by an ownership plan. The inline iteration state is not a second owner. */
+typedef struct xvaluecursor xvaluecursor;
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -10754,6 +12477,24 @@ XRT_API void xrtValueIterDestroy(xvalueiter* pIterator);
  * concurrent advance/end/destroy and concurrent mutation are not supported. */
 XRT_API xrtownershipref xrtValueIterOwnership(const xvalueiter* pIterator);
 
+/* Managed snapshot cursors retain backing and, for finalizer-backed identity
+ * objects, the actual source shell. An ordinary COW source is not retained.
+ * Existing stack/unique-heap iterator ABI and lifecycle remain unchanged. */
+XRT_API xvaluecursor* xrtValueCursorCreate(const xvalue* pValue);
+XRT_API xvaluecursor* xrtValueCursorRCreate(const xvalue* pValue);
+XRT_API xvaluecursor* xrtValueCursorRetain(xvaluecursor* pCursor);
+XRT_API void xrtValueCursorRelease(xvaluecursor* pCursor);
+/* Caller owns a reference through the call and serializes advances. Item and
+ * key outputs borrow the snapshot, valid until next advance or last release.
+ * Count/Trace/admission refuse an in-flight advance, including its error tail. */
+XRT_API xvalueiterresult xrtValueCursorAdvance(xvaluecursor* pCursor,
+	xvaluekey* pKey, xvalue** ppValue);
+XRT_API xrtownershipref xrtValueCursorOwnership(const xvaluecursor* pCursor);
+/* Exact Ops identity is checked before data. Hold/Drop are actual references;
+ * Clear detaches only, Finish releases outside freeze. Children, including a
+ * finalizer-backed shell, still require independent lifecycle admission. */
+XRT_API const xrtownershipadapterv1* xrtValueCursorOwnershipAdapterV1(xrtownershipref Reference);
+
 
 
 XRT_EXTERN_C_END
@@ -10910,6 +12651,437 @@ XRT_API xvalue* xrtValueDeepClone(const xvalue* pValue);
 	两个不同 Handle 只有在同一策略域提供 Equal 时才可比较。
 */
 XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/memory_debug.h */
+/* ========================================================================== */
+
+#ifndef XRT_MEMORY_DEBUG_H
+#define XRT_MEMORY_DEBUG_H
+
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT) && !defined(XRT_FEATURE_MEMORY_DEBUG)
+	#error "XRT_FEATURE_MEMORY_DEBUG_REPORT requires XRT_FEATURE_MEMORY_DEBUG"
+#endif
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG)
+
+/* 调试器固定保留最近 512 条事件。 */
+#define XRT_MEMDEBUG_EVENT_LIMIT 512u
+
+
+
+/* 内存调试事件类型。 */
+typedef enum xmemdebugeventkind {
+	XMEMDEBUG_ALLOC = 1,
+	XMEMDEBUG_FREE,
+	XMEMDEBUG_REALLOC,
+	XMEMDEBUG_DOUBLE_FREE,
+	XMEMDEBUG_INVALID_FREE,
+	XMEMDEBUG_OVERFLOW,
+	XMEMDEBUG_UNDERFLOW,
+	XMEMDEBUG_USE_AFTER_FREE,
+	XMEMDEBUG_TEMP_ALLOC,
+	XMEMDEBUG_TEMP_REWIND,
+	XMEMDEBUG_TEMP_RESET
+} xmemdebugeventkind;
+
+
+
+/* 内存调试事件是只包含借用信息的值对象。 */
+typedef struct xmemdebugevent {
+	xmemdebugeventkind Kind;
+	uint64 Sequence;
+	ptr Address;
+	size_t Size;
+	cstr File;
+	uint32 Line;
+} xmemdebugevent;
+
+
+
+/* 内存调试快照用于测试、诊断和外部报告。 */
+typedef struct xmemdebugsnapshot {
+	bool Enabled;
+	size_t LiveCount;
+	size_t LiveBytes;
+	size_t PeakCount;
+	size_t PeakBytes;
+	size_t QuarantineCount;
+	size_t QuarantineBytes;
+	uint64 AllocCount;
+	uint64 FreeCount;
+	uint64 ReallocCount;
+	uint64 DoubleFreeCount;
+	uint64 InvalidFreeCount;
+	uint64 OverflowCount;
+	uint64 UnderflowCount;
+	uint64 UseAfterFreeCount;
+	size_t TempCurrentBytes;
+	size_t TempPeakBytes;
+	uint64 TempResetCount;
+	size_t EventCount;
+} xmemdebugsnapshot;
+
+
+
+/* 事件访问器返回 false 时停止遍历。 */
+typedef bool (*xmemdebugvisitor)(const xmemdebugevent* pEvent, ptr pUserData);
+
+
+
+/* 活动分配记录借用分配点字符串，不转移内存所有权。 */
+typedef struct xmemdebugallocation {
+	ptr Address;
+	size_t Size;
+	cstr File;
+	uint32 Line;
+} xmemdebugallocation;
+
+
+
+/* 活动分配访问器返回 false 时停止遍历。 */
+typedef bool (*xmemdebugallocationvisitor)(const xmemdebugallocation* pAllocation, ptr pUserData);
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
+/* 报告格式与具体输出目标解耦。 */
+typedef enum xmemdebugreportformat {
+	XMEMDEBUG_REPORT_TEXT = 1,
+	XMEMDEBUG_REPORT_JSON
+} xmemdebugreportformat;
+
+
+
+/* 报告写入器成功消费全部数据时返回 true。 */
+typedef bool (*xmemdebugwriteproc)(xbytesview Data, ptr pUserData);
+#endif
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 返回稳定的事件名称，未知事件返回 unknown。 */
+XRT_API cstr xrtMemDebugEventName(xmemdebugeventkind Kind);
+
+
+
+/* 在没有活动分配时开启或关闭运行时内存调试记录。 */
+XRT_API bool xrtMemDebugEnable(bool bEnable);
+
+
+
+/* 返回运行时内存调试是否开启。 */
+XRT_API bool xrtMemDebugEnabled(void);
+
+
+
+/* 当前线程允许指定次数成功分配后，让下一次逻辑分配失败一次。 */
+XRT_API bool xrtMemDebugFailAfter(uint64 iSuccessfulAllocations);
+
+
+
+/* 清除当前线程尚未触发的分配故障。 */
+XRT_API void xrtMemDebugFailClear(void);
+
+
+
+/* 返回当前线程最近配置的分配故障是否已经触发。 */
+XRT_API bool xrtMemDebugFailTriggered(void);
+
+
+
+/* 在没有活动分配时清空统计、事件和隔离队列。 */
+XRT_API bool xrtMemDebugReset(void);
+
+
+
+/* 获取一致的内存调试统计快照。 */
+XRT_API void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot);
+
+
+
+/* 按时间顺序访问当前保留的调试事件。 */
+XRT_API size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData);
+
+
+
+/* 访问内部锁线性化点捕获的完整活动分配快照。 */
+XRT_API size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData);
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
+/* 把当前调试快照流式写为文本或 JSON。 */
+XRT_API bool xrtMemDebugReport(
+	xmemdebugreportformat Format,
+	xmemdebugwriteproc pWriter,
+	ptr pUserData
+);
+#endif
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/atomic.h */
+/* ========================================================================== */
+
+#ifndef XRT_ATOMIC_H
+#define XRT_ATOMIC_H
+
+
+
+
+#if defined(XRT_FEATURE_ATOMIC)
+
+/* 原子操作的内存顺序与 C11 语义一致。 */
+typedef enum xmemoryorder {
+	XMEMORY_RELAXED = 0,
+	XMEMORY_ACQUIRE = 1,
+	XMEMORY_RELEASE = 2,
+	XMEMORY_ACQ_REL = 3,
+	XMEMORY_SEQ_CST = 4
+} xmemoryorder;
+
+
+
+#if defined(_MSC_VER) || \
+	(defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64)))
+	#define XRT_ATOMIC_ALIGN(iAlignment) __declspec(align(iAlignment))
+#elif defined(__GNUC__) || defined(__clang__)
+	#define XRT_ATOMIC_ALIGN(iAlignment) __attribute__((aligned(iAlignment)))
+#else
+	#define XRT_ATOMIC_ALIGN(iAlignment)
+#endif
+
+#if UINTPTR_MAX == UINT64_MAX
+	#define XRT_ATOMIC_PTR_ALIGNMENT 8
+#else
+	#define XRT_ATOMIC_PTR_ALIGNMENT 4
+#endif
+
+
+
+/* 32 位原子整数只允许通过 Atomic API 并发访问 Value。 */
+typedef struct XRT_ATOMIC_ALIGN(4) xatomic32 {
+	volatile uint32 Value;
+} xatomic32;
+
+
+
+/* 64 位原子整数显式保证 8 字节对齐。 */
+typedef struct XRT_ATOMIC_ALIGN(8) xatomic64 {
+	volatile uint64 Value;
+} xatomic64;
+
+
+
+/* 原子指针只保存指针值，不拥有指针目标。 */
+typedef struct XRT_ATOMIC_ALIGN(XRT_ATOMIC_PTR_ALIGNMENT) xatomicptr {
+	ptr volatile Value;
+} xatomicptr;
+
+
+
+#undef XRT_ATOMIC_ALIGN
+#undef XRT_ATOMIC_PTR_ALIGNMENT
+
+
+
+/* 静态原子对象初始化器只能用于对象定义。 */
+#define XRT_ATOMIC32_INIT(iValue) { (uint32)(iValue) }
+#define XRT_ATOMIC64_INIT(iValue) { (uint64)(iValue) }
+#define XRT_ATOMICPTR_INIT(pValue) { (ptr)(pValue) }
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 判断自然对齐的指定宽度是否由当前目标无锁实现。 */
+XRT_API bool xrtAtomicIsLockFree(size_t iSize);
+
+
+
+/* 在对象发布给其他线程前初始化 32 位原子值。 */
+XRT_API void xrtAtomic32Init(xatomic32* pAtomic, uint32 iValue);
+
+
+
+/* 按指定内存顺序读取 32 位原子值。 */
+XRT_API uint32 xrtAtomic32Load(const xatomic32* pAtomic, xmemoryorder iOrder);
+
+
+
+/* 按指定内存顺序写入 32 位原子值。 */
+XRT_API void xrtAtomic32Store(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子交换 32 位值并返回旧值。 */
+XRT_API uint32 xrtAtomic32Exchange(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 强比较交换 32 位值，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomic32CompareExchange(
+	xatomic32* pAtomic,
+	uint32* pExpected,
+	uint32 iDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+);
+
+
+
+/* 原子加 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchAdd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子减 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchSub(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位与 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchAnd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位或 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchOr(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位异或 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchXor(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 在对象发布给其他线程前初始化 64 位原子值。 */
+XRT_API void xrtAtomic64Init(xatomic64* pAtomic, uint64 iValue);
+
+
+
+/* 按指定内存顺序读取 64 位原子值。 */
+XRT_API uint64 xrtAtomic64Load(const xatomic64* pAtomic, xmemoryorder iOrder);
+
+
+
+/* 按指定内存顺序写入 64 位原子值。 */
+XRT_API void xrtAtomic64Store(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子交换 64 位值并返回旧值。 */
+XRT_API uint64 xrtAtomic64Exchange(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 强比较交换 64 位值，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomic64CompareExchange(
+	xatomic64* pAtomic,
+	uint64* pExpected,
+	uint64 iDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+);
+
+
+
+/* 原子加 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchAdd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子减 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchSub(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位与 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchAnd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位或 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchOr(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位异或 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchXor(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 在对象发布给其他线程前初始化原子指针。 */
+XRT_API void xrtAtomicPtrInit(xatomicptr* pAtomic, ptr pValue);
+
+
+
+/* 按指定内存顺序读取原子指针。 */
+XRT_API ptr xrtAtomicPtrLoad(const xatomicptr* pAtomic, xmemoryorder iOrder);
+
+
+
+/* 按指定内存顺序写入原子指针。 */
+XRT_API void xrtAtomicPtrStore(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
+
+
+
+/* 原子交换指针并返回旧值。 */
+XRT_API ptr xrtAtomicPtrExchange(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
+
+
+
+/* 强比较交换指针，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomicPtrCompareExchange(
+	xatomicptr* pAtomic,
+	ptr* pExpected,
+	ptr pDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+);
+
+
+
+/* 建立线程间内存栅栏。 */
+XRT_API void xrtAtomicThreadFence(xmemoryorder iOrder);
+
+
+
+/* 建立当前线程与信号处理器之间的编译器栅栏。 */
+XRT_API void xrtAtomicSignalFence(xmemoryorder iOrder);
+
+
+
+/* 向处理器提示当前线程处于短自旋等待。 */
+XRT_API void xrtAtomicPause(void);
 
 
 
@@ -13707,417 +15879,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/time.h */
-/* ========================================================================== */
-
-#ifndef XRT_TIME_H
-#define XRT_TIME_H
-
-
-
-
-#if (defined(XRT_FEATURE_TIME_LOCAL) || defined(XRT_FEATURE_TIME_TEXT)) && !defined(XRT_FEATURE_TIME)
-	#error "XRT local time and time text features require XRT_FEATURE_TIME"
-#endif
-
-
-
-/* xtime 和固定时长统一使用微秒，避免浮点计时和隐式单位换算。 */
-#define XRT_TIME_MICROSECOND	INT64_C(1)
-#define XRT_TIME_MILLISECOND	INT64_C(1000)
-#define XRT_TIME_SECOND		INT64_C(1000000)
-#define XRT_TIME_MINUTE		INT64_C(60000000)
-#define XRT_TIME_HOUR		INT64_C(3600000000)
-#define XRT_TIME_DAY			INT64_C(86400000000)
-#define XRT_TIME_WEEK		INT64_C(604800000000)
-
-
-
-/* 星期值固定从星期日零开始，便于和 C/POSIX 及 HTTP-date 对接。 */
-typedef enum xtimeweekday {
-	XTIME_SUNDAY = 0,
-	XTIME_MONDAY,
-	XTIME_TUESDAY,
-	XTIME_WEDNESDAY,
-	XTIME_THURSDAY,
-	XTIME_FRIDAY,
-	XTIME_SATURDAY
-} xtimeweekday;
-
-
-
-/* 日期计算单位；月、季度和年使用日历语义，其余单位使用固定时长。 */
-typedef enum xtimeunit {
-	XTIME_UNIT_MICROSECOND = 0,
-	XTIME_UNIT_MILLISECOND,
-	XTIME_UNIT_SECOND,
-	XTIME_UNIT_MINUTE,
-	XTIME_UNIT_HOUR,
-	XTIME_UNIT_DAY,
-	XTIME_UNIT_WEEK,
-	XTIME_UNIT_MONTH,
-	XTIME_UNIT_QUARTER,
-	XTIME_UNIT_YEAR
-} xtimeunit;
-
-
-
-/* 本地时间在夏令时回拨区间出现两个候选值时的选择规则。 */
-typedef enum xtimefold {
-	XTIME_FOLD_REJECT = 0,
-	XTIME_FOLD_EARLIER,
-	XTIME_FOLD_LATER
-} xtimefold;
-
-
-
-/* 时间模块稳定错误代码。 */
-typedef enum xtimeerror {
-	XTIME_ERROR_RANGE = 1,
-	XTIME_ERROR_OVERFLOW,
-	XTIME_ERROR_FORMAT,
-	XTIME_ERROR_PARSE,
-	XTIME_ERROR_LOCAL_GAP,
-	XTIME_ERROR_LOCAL_FOLD,
-	XTIME_ERROR_LOCAL_UNSUPPORTED
-} xtimeerror;
-
-
-
-/* 分解后的 Gregorian 日期时间；Offset 为 UTC 以东秒数。 */
-typedef struct xdatetime {
-	int64 Year;
-	int Month;
-	int Day;
-	int Hour;
-	int Minute;
-	int Second;
-	int Microsecond;
-	int Offset;
-	int Weekday;
-	int YearDay;
-	int IsDST;
-} xdatetime;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XRT_FEATURE_TIME)
-
-/* 返回单调递增时钟的微秒计数，只能用于测量间隔和截止时间。 */
-XRT_API uint64 xrtClock(void);
-
-
-
-/* 返回单调时钟的浮点秒数，供短小的性能测量代码使用。 */
-XRT_API double xrtTimer(void);
-
-
-
-/* 返回当前 Unix Epoch 微秒。 */
-XRT_API xtime xrtNow(void);
-
-
-
-/* 至少睡眠指定毫秒；零表示让出当前执行时间片。 */
-XRT_API void xrtSleep(uint32 iMilliseconds);
-
-
-
-/* 至少睡眠指定微秒。 */
-XRT_API void xrtSleepUs(uint64 iMicroseconds);
-
-
-
-/* 睡眠到单调时钟截止点；截止点已到时立即返回。 */
-XRT_API void xrtSleepUntil(uint64 iDeadline);
-
-
-
-/* 判断 Gregorian 年份是否为闰年，支持负年份和零年。 */
-XRT_API bool xrtIsLeapYear(int64 iYear);
-
-
-
-/* 返回指定月份的天数；月份无效时返回零并设置参数错误。 */
-XRT_API int xrtDaysInMonth(int64 iYear, int iMonth);
-
-
-
-/* 返回指定年份的天数。 */
-XRT_API int xrtDaysInYear(int64 iYear);
-
-
-
-/* 构造 UTC 零点日期。 */
-XRT_API bool xrtDate(int64 iYear, int iMonth, int iDay, xtime* pTime);
-
-
-
-/* 构造 UTC 日期时间。 */
-XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
-	int iHour, int iMinute, int iSecond, int iMicrosecond, xtime* pTime);
-
-
-
-/* 按结构中的显式 UTC 偏移构造绝对时间。 */
-XRT_API bool xrtTimeMake(const xdatetime* pDateTime, xtime* pTime);
-
-
-
-/* 把绝对时间按 UTC 分解为日期时间。 */
-XRT_API bool xrtTimeSplit(xtime iTime, xdatetime* pDateTime);
-
-
-
-/* 把绝对时间按固定 UTC 偏移分解，偏移范围为 -23:59:59 到 +23:59:59。 */
-XRT_API bool xrtTimeSplitAt(xtime iTime, int iOffset, xdatetime* pDateTime);
-
-
-
-/* 从 Unix 秒安全构造 xtime。 */
-XRT_API bool xrtTimeFromUnix(int64 iSeconds, xtime* pTime);
-
-
-
-/* 从 Unix 毫秒安全构造 xtime。 */
-XRT_API bool xrtTimeFromUnixMs(int64 iMilliseconds, xtime* pTime);
-
-
-
-/* 返回向负无穷取整的 Unix 秒。 */
-XRT_API int64 xrtTimeUnix(xtime iTime);
-
-
-
-/* 返回向负无穷取整的 Unix 毫秒。 */
-XRT_API int64 xrtTimeUnixMs(xtime iTime);
-
-
-
-/* 提取 UTC 年份。 */
-XRT_API int64 xrtYear(xtime iTime);
-
-
-
-/* 提取 UTC 月份。 */
-XRT_API int xrtMonth(xtime iTime);
-
-
-
-/* 提取 UTC 月内日期。 */
-XRT_API int xrtDay(xtime iTime);
-
-
-
-/* 提取 UTC 小时。 */
-XRT_API int xrtHour(xtime iTime);
-
-
-
-/* 提取 UTC 分钟。 */
-XRT_API int xrtMinute(xtime iTime);
-
-
-
-/* 提取 UTC 秒。 */
-XRT_API int xrtSecond(xtime iTime);
-
-
-
-/* 提取秒内微秒。 */
-XRT_API int xrtMicrosecond(xtime iTime);
-
-
-
-/* 提取星期，范围为 XTIME_SUNDAY 到 XTIME_SATURDAY。 */
-XRT_API int xrtWeekday(xtime iTime);
-
-
-
-/* 提取年内日期，范围为 1 到 366。 */
-XRT_API int xrtDayOfYear(xtime iTime);
-
-
-
-/* 提取季度，范围为 1 到 4。 */
-XRT_API int xrtQuarter(xtime iTime);
-
-
-
-/* 返回 UTC 当日零点。 */
-XRT_API xtime xrtDatePart(xtime iTime);
-
-
-
-/* 返回 UTC 当日已经经过的微秒，范围为 [0, XRT_TIME_DAY)。 */
-XRT_API xtime xrtTimePart(xtime iTime);
-
-
-
-/* 使用显式微秒容差比较两个时间，计算覆盖完整 int64 域。 */
-XRT_API bool xrtTimeNear(xtime iLeft, xtime iRight, uint64 iTolerance);
-
-
-
-/* 判断两个 UTC 时间是否位于同一个 Gregorian 日期。 */
-XRT_API bool xrtTimeSameDay(xtime iLeft, xtime iRight);
-
-
-
-/* 判断两个 UTC 时间是否位于同一个 Gregorian 月份。 */
-XRT_API bool xrtTimeSameMonth(xtime iLeft, xtime iRight);
-
-
-
-/* 判断两个 UTC 时间是否位于同一个 Gregorian 年份。 */
-XRT_API bool xrtTimeSameYear(xtime iLeft, xtime iRight);
-
-
-
-/* 判断时间是否位于闭区间；反向区间返回 false。 */
-XRT_API bool xrtTimeIn(xtime iTime, xtime iStart, xtime iEnd);
-
-
-
-/* 判断两个闭区间是否重叠；任一反向区间返回 false。 */
-XRT_API bool xrtTimeOverlap(xtime iStart1, xtime iEnd1,
-	xtime iStart2, xtime iEnd2);
-
-
-
-/* 增加固定时长或 Gregorian 日历单位，月末会钳制到目标月最后一天。 */
-XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResult);
-
-
-
-/* 计算从起点到终点经过的完整单位数量。 */
-XRT_API bool xrtTimeDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult);
-
-
-
-/* 返回包含给定时间的半开月份区间 [start, end)。 */
-XRT_API bool xrtMonthRange(xtime iTime, xtime* pStart, xtime* pEnd);
-
-
-
-/* 返回包含给定时间的半开年份区间 [start, end)。 */
-XRT_API bool xrtYearRange(xtime iTime, xtime* pStart, xtime* pEnd);
-
-
-
-/* 返回包含给定时间的半开星期区间 [start, end)。 */
-XRT_API bool xrtWeekRange(xtime iTime, int iFirstWeekday, xtime* pStart, xtime* pEnd);
-
-
-
-/* 返回 ISO 8601 周年、周数和星期值，其中星期一为 1，星期日为 7。 */
-XRT_API bool xrtISOWeek(xtime iTime, int64* pWeekYear, int* pWeek, int* pWeekday);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_TIME_LOCAL)
-
-/* 使用操作系统当前时区规则分解绝对时间。 */
-XRT_API bool xrtTimeLocal(xtime iTime, xdatetime* pDateTime);
-
-
-
-/* 使用操作系统时区规则构造本地时间，并显式处理 DST 重复区间。 */
-XRT_API bool xrtTimeFromLocal(const xdatetime* pDateTime, xtimefold Fold, xtime* pTime);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_TIME_TEXT)
-
-/* 按 % 占位符写入并返回所需字节数；%-m 等数字占位符取消填充，输出缓冲不得与 Format 重叠。 */
-XRT_API size_t xrtDateTimeWrite(char* sBuffer, size_t iCapacity,
-	const xdatetime* pDateTime, xstrview Format);
-
-
-
-/* 按 % 占位符创建时间文本；%p 输出大写午别，%P 输出小写午别，返回值由 xrtFree 释放。 */
-XRT_API str xrtDateTimeFormat(const xdatetime* pDateTime, xstrview Format);
-
-
-
-/* 严格解析完整格式；%-m 等字段接受一到两位数字，格式非法与文本不匹配使用不同错误码。 */
-XRT_API bool xrtDateTimeParse(xstrview Text, xstrview Format, xdatetime* pDateTime);
-
-
-
-/* 按固定 UTC 偏移和上述占位符写入；输出缓冲不得与 Format 重叠。 */
-XRT_API size_t xrtTimeWrite(char* sBuffer, size_t iCapacity,
-	xtime iTime, int iOffset, xstrview Format);
-
-
-
-/* 按固定 UTC 偏移和上述占位符创建时间文本，返回值由 xrtFree 释放。 */
-XRT_API str xrtTimeFormat(xtime iTime, int iOffset, xstrview Format);
-
-
-
-/* 严格按上述完整格式解析绝对时间。 */
-XRT_API bool xrtTimeParse(xstrview Text, xstrview Format, xtime* pTime);
-
-
-
-/* 写入 RFC 3339 文本；零偏移使用 Z，微秒末尾的零会被删除。 */
-XRT_API size_t xrtTimeWriteRFC3339(char* sBuffer, size_t iCapacity,
-	xtime iTime, int iOffset);
-
-
-
-/* 创建 RFC 3339 文本，返回值由 xrtFree 释放。 */
-XRT_API str xrtTimeRFC3339(xtime iTime, int iOffset);
-
-
-
-/* 严格解析 RFC 3339；超过微秒精度的尾数会向零截断。 */
-XRT_API bool xrtTimeParseRFC3339(xstrview Text, xtime* pTime);
-
-
-
-/* 写入 HTTP IMF-fixdate，时间始终转换为 GMT 并丢弃秒以下部分。 */
-XRT_API size_t xrtTimeWriteHTTPDate(char* sBuffer, size_t iCapacity, xtime iTime);
-
-
-
-/* 创建 HTTP IMF-fixdate，返回值由 xrtFree 释放。 */
-XRT_API str xrtTimeHTTPDate(xtime iTime);
-
-
-
-/* 解析 IMF-fixdate、RFC 850 和 ANSI C asctime 三种 HTTP 日期格式。 */
-XRT_API bool xrtTimeParseHTTPDate(xstrview Text, xtime* pTime);
-
-
-
-/* 尝试解析三种 HTTP 日期格式；失败不修改输出和线程错误。 */
-XRT_API bool xrtTimeTryParseHTTPDate(xstrview Text, xtime* pTime);
-
-
-
-/* 解析 RFC 3339、HTTP-date 和常见数字日期时间。 */
-XRT_API bool xrtTimeParseAny(xstrview Text, xtime* pTime);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
 /* public: include/xrt/file.h */
 /* ========================================================================== */
 
@@ -15173,253 +16934,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/atomic.h */
-/* ========================================================================== */
-
-#ifndef XRT_ATOMIC_H
-#define XRT_ATOMIC_H
-
-
-
-
-#if defined(XRT_FEATURE_ATOMIC)
-
-/* 原子操作的内存顺序与 C11 语义一致。 */
-typedef enum xmemoryorder {
-	XMEMORY_RELAXED = 0,
-	XMEMORY_ACQUIRE = 1,
-	XMEMORY_RELEASE = 2,
-	XMEMORY_ACQ_REL = 3,
-	XMEMORY_SEQ_CST = 4
-} xmemoryorder;
-
-
-
-#if defined(_MSC_VER) || \
-	(defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64)))
-	#define XRT_ATOMIC_ALIGN(iAlignment) __declspec(align(iAlignment))
-#elif defined(__GNUC__) || defined(__clang__)
-	#define XRT_ATOMIC_ALIGN(iAlignment) __attribute__((aligned(iAlignment)))
-#else
-	#define XRT_ATOMIC_ALIGN(iAlignment)
-#endif
-
-#if UINTPTR_MAX == UINT64_MAX
-	#define XRT_ATOMIC_PTR_ALIGNMENT 8
-#else
-	#define XRT_ATOMIC_PTR_ALIGNMENT 4
-#endif
-
-
-
-/* 32 位原子整数只允许通过 Atomic API 并发访问 Value。 */
-typedef struct XRT_ATOMIC_ALIGN(4) xatomic32 {
-	volatile uint32 Value;
-} xatomic32;
-
-
-
-/* 64 位原子整数显式保证 8 字节对齐。 */
-typedef struct XRT_ATOMIC_ALIGN(8) xatomic64 {
-	volatile uint64 Value;
-} xatomic64;
-
-
-
-/* 原子指针只保存指针值，不拥有指针目标。 */
-typedef struct XRT_ATOMIC_ALIGN(XRT_ATOMIC_PTR_ALIGNMENT) xatomicptr {
-	ptr volatile Value;
-} xatomicptr;
-
-
-
-#undef XRT_ATOMIC_ALIGN
-#undef XRT_ATOMIC_PTR_ALIGNMENT
-
-
-
-/* 静态原子对象初始化器只能用于对象定义。 */
-#define XRT_ATOMIC32_INIT(iValue) { (uint32)(iValue) }
-#define XRT_ATOMIC64_INIT(iValue) { (uint64)(iValue) }
-#define XRT_ATOMICPTR_INIT(pValue) { (ptr)(pValue) }
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 判断自然对齐的指定宽度是否由当前目标无锁实现。 */
-XRT_API bool xrtAtomicIsLockFree(size_t iSize);
-
-
-
-/* 在对象发布给其他线程前初始化 32 位原子值。 */
-XRT_API void xrtAtomic32Init(xatomic32* pAtomic, uint32 iValue);
-
-
-
-/* 按指定内存顺序读取 32 位原子值。 */
-XRT_API uint32 xrtAtomic32Load(const xatomic32* pAtomic, xmemoryorder iOrder);
-
-
-
-/* 按指定内存顺序写入 32 位原子值。 */
-XRT_API void xrtAtomic32Store(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子交换 32 位值并返回旧值。 */
-XRT_API uint32 xrtAtomic32Exchange(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 强比较交换 32 位值，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomic32CompareExchange(
-	xatomic32* pAtomic,
-	uint32* pExpected,
-	uint32 iDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-);
-
-
-
-/* 原子加 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchAdd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子减 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchSub(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位与 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchAnd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位或 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchOr(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位异或 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchXor(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 在对象发布给其他线程前初始化 64 位原子值。 */
-XRT_API void xrtAtomic64Init(xatomic64* pAtomic, uint64 iValue);
-
-
-
-/* 按指定内存顺序读取 64 位原子值。 */
-XRT_API uint64 xrtAtomic64Load(const xatomic64* pAtomic, xmemoryorder iOrder);
-
-
-
-/* 按指定内存顺序写入 64 位原子值。 */
-XRT_API void xrtAtomic64Store(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子交换 64 位值并返回旧值。 */
-XRT_API uint64 xrtAtomic64Exchange(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 强比较交换 64 位值，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomic64CompareExchange(
-	xatomic64* pAtomic,
-	uint64* pExpected,
-	uint64 iDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-);
-
-
-
-/* 原子加 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchAdd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子减 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchSub(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位与 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchAnd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位或 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchOr(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位异或 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchXor(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 在对象发布给其他线程前初始化原子指针。 */
-XRT_API void xrtAtomicPtrInit(xatomicptr* pAtomic, ptr pValue);
-
-
-
-/* 按指定内存顺序读取原子指针。 */
-XRT_API ptr xrtAtomicPtrLoad(const xatomicptr* pAtomic, xmemoryorder iOrder);
-
-
-
-/* 按指定内存顺序写入原子指针。 */
-XRT_API void xrtAtomicPtrStore(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
-
-
-
-/* 原子交换指针并返回旧值。 */
-XRT_API ptr xrtAtomicPtrExchange(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
-
-
-
-/* 强比较交换指针，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomicPtrCompareExchange(
-	xatomicptr* pAtomic,
-	ptr* pExpected,
-	ptr pDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-);
-
-
-
-/* 建立线程间内存栅栏。 */
-XRT_API void xrtAtomicThreadFence(xmemoryorder iOrder);
-
-
-
-/* 建立当前线程与信号处理器之间的编译器栅栏。 */
-XRT_API void xrtAtomicSignalFence(xmemoryorder iOrder);
-
-
-
-/* 向处理器提示当前线程处于短自旋等待。 */
-XRT_API void xrtAtomicPause(void);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-#endif
-
-
-/* ========================================================================== */
 /* public: include/xrt/hash.h */
 /* ========================================================================== */
 
@@ -15509,431 +17023,6 @@ XRT_API bool xrtSipHashUpdate(xsiphash* pState, const void* pData, size_t iSize)
 /* 计算当前状态的哈希值，不修改状态，可重复调用或继续追加。 */
 XRT_API uint64 xrtSipHashFinal(const xsiphash* pState);
 
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/wait.h */
-/* ========================================================================== */
-
-#ifndef XRT_WAIT_H
-#define XRT_WAIT_H
-
-
-
-
-#if defined(XRT_FEATURE_WAIT) && !defined(XRT_FEATURE_TIME)
-	#error "XRT_FEATURE_WAIT requires XRT_FEATURE_TIME"
-#endif
-
-
-
-#if defined(XRT_FEATURE_WAIT)
-
-/* 截止时间使用 xrtClock 的单调微秒刻度。 */
-typedef uint64 xdeadline;
-
-
-
-/* 永不超时的截止时间。 */
-#define XRT_DEADLINE_NEVER UINT64_MAX
-
-
-
-/* 等待结果把正常控制流与真正错误分开表达。 */
-typedef enum xwaitresult {
-	XWAIT_ERROR = -1,
-	XWAIT_OK = 0,
-	XWAIT_TIMEOUT = 1,
-	XWAIT_CANCELLED = 2,
-	XWAIT_CLOSED = 3
-} xwaitresult;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 从当前单调时钟和相对微秒数构造截止时间，溢出时返回 NEVER。 */
-XRT_API xdeadline xrtDeadlineAfter(uint64 iTimeout);
-
-
-
-/* 判断截止时间是否已经到达；NEVER 永远不会到达。 */
-XRT_API bool xrtDeadlineExpired(xdeadline iDeadline);
-
-
-
-/* 返回截止时间前剩余微秒数；已到达返回零，NEVER 返回 UINT64_MAX。 */
-XRT_API uint64 xrtDeadlineRemaining(xdeadline iDeadline);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/sync.h */
-/* ========================================================================== */
-
-#ifndef XRT_SYNC_H
-#define XRT_SYNC_H
-
-
-
-
-#if \
-	(defined(XRT_FEATURE_MUTEX) || defined(XRT_FEATURE_COND) || \
-	 defined(XRT_FEATURE_SEM) || defined(XRT_FEATURE_RWLOCK) || \
-	 defined(XRT_FEATURE_EVENT)) && \
-	!defined(XRT_FEATURE_SYNC)
-	#error "XRT synchronization features require XRT_FEATURE_SYNC"
-#endif
-
-#if defined(XRT_FEATURE_COND) && !defined(XRT_FEATURE_MUTEX)
-	#error "XRT_FEATURE_COND requires XRT_FEATURE_MUTEX"
-#endif
-
-#if \
-	(defined(XRT_FEATURE_COND) || defined(XRT_FEATURE_SEM) || \
-	 defined(XRT_FEATURE_EVENT)) && \
-	!defined(XRT_FEATURE_WAIT)
-	#error "timed synchronization features require XRT_FEATURE_WAIT"
-#endif
-
-
-
-#if defined(_WIN32) || defined(_WIN64)
-	#define XRT_MUTEX_STORAGE_SIZE 24u
-	#define XRT_COND_STORAGE_SIZE 16u
-	#define XRT_SEM_STORAGE_SIZE 24u
-	#define XRT_RWLOCK_STORAGE_SIZE 96u
-	#define XRT_EVENT_STORAGE_SIZE 24u
-#else
-	#define XRT_MUTEX_STORAGE_SIZE 96u
-	#define XRT_COND_STORAGE_SIZE 80u
-	#define XRT_SEM_STORAGE_SIZE 176u
-	#define XRT_RWLOCK_STORAGE_SIZE 256u
-	#define XRT_EVENT_STORAGE_SIZE 176u
-#endif
-
-
-
-#if defined(XRT_FEATURE_MUTEX)
-/* Mutex 使用固定对齐存储，允许嵌入用户结构且不暴露平台头。 */
-typedef union xmutex {
-	uint64 Alignment;
-	uint8 Storage[XRT_MUTEX_STORAGE_SIZE];
-} xmutex;
-#endif
-
-
-
-#if defined(XRT_FEATURE_COND)
-/* 条件变量必须和 XRT mutex 配合使用。 */
-typedef union xcond {
-	uint64 Alignment;
-	uint8 Storage[XRT_COND_STORAGE_SIZE];
-} xcond;
-#endif
-
-
-
-#if defined(XRT_FEATURE_SEM)
-/* 信号量的计数范围在所有平台统一为 [0, INT32_MAX]。 */
-typedef union xsem {
-	uint64 Alignment;
-	uint8 Storage[XRT_SEM_STORAGE_SIZE];
-} xsem;
-#endif
-
-
-
-#if defined(XRT_FEATURE_RWLOCK)
-/* 读写锁采用写者优先策略并支持升级和降级。 */
-typedef union xrwlock {
-	uint64 Alignment;
-	uint8 Storage[XRT_RWLOCK_STORAGE_SIZE];
-} xrwlock;
-#endif
-
-
-
-#if defined(XRT_FEATURE_EVENT)
-/* 事件保存显式信号状态，可选择自动或手动复位。 */
-typedef union xevent {
-	uint64 Alignment;
-	uint8 Storage[XRT_EVENT_STORAGE_SIZE];
-} xevent;
-#endif
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XRT_FEATURE_MUTEX)
-/* 初始化调用方存储中的非递归互斥锁。 */
-XRT_API bool xrtMutexInit(xmutex* pMutex);
-
-
-
-/* 释放互斥锁平台资源；仍被持有时失败且保持对象有效。 */
-XRT_API bool xrtMutexUnit(xmutex* pMutex);
-
-
-
-/* 创建一个非递归互斥锁。 */
-XRT_API xmutex* xrtMutexCreate(void);
-
-
-
-/* 释放 Create 返回的互斥锁；仍被持有时失败且不释放对象。 */
-XRT_API bool xrtMutexDestroy(xmutex* pMutex);
-
-
-
-/* 阻塞到获得互斥锁；同线程递归加锁返回错误。 */
-XRT_API bool xrtMutexLock(xmutex* pMutex);
-
-
-
-/* 尝试获得互斥锁；锁正忙时返回 false 且不设置错误。 */
-XRT_API bool xrtMutexTryLock(xmutex* pMutex);
-
-
-
-/* 释放当前线程持有的互斥锁。 */
-XRT_API bool xrtMutexUnlock(xmutex* pMutex);
-#endif
-
-
-
-#if defined(XRT_FEATURE_COND)
-/* 初始化调用方存储中的条件变量。 */
-XRT_API bool xrtCondInit(xcond* pCond);
-
-
-
-/* 释放条件变量平台资源。 */
-XRT_API bool xrtCondUnit(xcond* pCond);
-
-
-
-/* 创建条件变量。 */
-XRT_API xcond* xrtCondCreate(void);
-
-
-
-/* 释放 Create 返回的条件变量。 */
-XRT_API bool xrtCondDestroy(xcond* pCond);
-
-
-
-/* 当前线程持有 mutex 时原子释放并等待；允许虚假唤醒，必须在谓词循环中调用。 */
-XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex);
-
-
-
-/* 在相对微秒数内等待；允许虚假唤醒，超时和成功后都重新持有 mutex。 */
-XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout);
-
-
-
-/* 等待到单调时钟截止时间；允许虚假唤醒，应循环检查受 mutex 保护的谓词。 */
-XRT_API xwaitresult xrtCondWaitUntil(
-	xcond* pCond,
-	xmutex* pMutex,
-	xdeadline iDeadline
-);
-
-
-
-/* 唤醒一个等待者；通知本身不保存状态。 */
-XRT_API bool xrtCondSignal(xcond* pCond);
-
-
-
-/* 唤醒全部当前等待者；通知本身不保存状态。 */
-XRT_API bool xrtCondBroadcast(xcond* pCond);
-#endif
-
-
-
-#if defined(XRT_FEATURE_SEM)
-/* 初始化计数信号量。 */
-XRT_API bool xrtSemInit(xsem* pSem, uint32 iInitial, uint32 iMaximum);
-
-
-
-/* 释放信号量平台资源。 */
-XRT_API bool xrtSemUnit(xsem* pSem);
-
-
-
-/* 创建计数信号量。 */
-XRT_API xsem* xrtSemCreate(uint32 iInitial, uint32 iMaximum);
-
-
-
-/* 释放 Create 返回的信号量。 */
-XRT_API bool xrtSemDestroy(xsem* pSem);
-
-
-
-/* 等待并消费一个信号。 */
-XRT_API xwaitresult xrtSemWait(xsem* pSem);
-
-
-
-/* 非阻塞地尝试消费一个信号。 */
-XRT_API xwaitresult xrtSemTryWait(xsem* pSem);
-
-
-
-/* 在相对微秒数内等待并消费一个信号。 */
-XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout);
-
-
-
-/* 等待并消费一个信号到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline);
-
-
-
-/* 发布一个信号；达到上限时失败且计数不变。 */
-XRT_API bool xrtSemPost(xsem* pSem);
-
-
-
-/* 原子发布多个信号；超过上限时失败且不部分发布。 */
-XRT_API bool xrtSemPostMany(xsem* pSem, uint32 iCount);
-#endif
-
-
-
-#if defined(XRT_FEATURE_RWLOCK)
-/* 初始化写者优先的读写锁。 */
-XRT_API bool xrtRWLockInit(xrwlock* pLock);
-
-
-
-/* 释放读写锁平台资源；仍被持有或等待时失败。 */
-XRT_API bool xrtRWLockUnit(xrwlock* pLock);
-
-
-
-/* 创建写者优先的读写锁。 */
-XRT_API xrwlock* xrtRWLockCreate(void);
-
-
-
-/* 释放 Create 返回的读写锁。 */
-XRT_API bool xrtRWLockDestroy(xrwlock* pLock);
-
-
-
-/* 获得非递归共享读锁；读锁所有权由调用方保证。 */
-XRT_API bool xrtRWLockRead(xrwlock* pLock);
-
-
-
-/* 尝试获得共享读锁；写者存在或等待时返回 false。 */
-XRT_API bool xrtRWLockTryRead(xrwlock* pLock);
-
-
-
-/* 释放当前线程持有的一个读锁。 */
-XRT_API bool xrtRWLockReadUnlock(xrwlock* pLock);
-
-
-
-/* 获得独占写锁。 */
-XRT_API bool xrtRWLockWrite(xrwlock* pLock);
-
-
-
-/* 尝试获得独占写锁。 */
-XRT_API bool xrtRWLockTryWrite(xrwlock* pLock);
-
-
-
-/* 释放当前线程持有的写锁。 */
-XRT_API bool xrtRWLockWriteUnlock(xrwlock* pLock);
-
-
-
-/* 原子地把当前线程的写锁降级为一个读锁。 */
-XRT_API bool xrtRWLockDowngrade(xrwlock* pLock);
-
-
-
-/* 当前线程只持有一个读锁时，释放它并排队获得写锁。 */
-XRT_API bool xrtRWLockUpgrade(xrwlock* pLock);
-#endif
-
-
-
-#if defined(XRT_FEATURE_EVENT)
-/* 初始化自动或手动复位事件。 */
-XRT_API bool xrtEventInit(xevent* pEvent, bool bManualReset, bool bSignaled);
-
-
-
-/* 释放事件平台资源。 */
-XRT_API bool xrtEventUnit(xevent* pEvent);
-
-
-
-/* 创建自动或手动复位事件。 */
-XRT_API xevent* xrtEventCreate(bool bManualReset, bool bSignaled);
-
-
-
-/* 释放 Create 返回的事件。 */
-XRT_API bool xrtEventDestroy(xevent* pEvent);
-
-
-
-/* 等待事件进入信号态。 */
-XRT_API xwaitresult xrtEventWait(xevent* pEvent);
-
-
-
-/* 非阻塞地检查并消费自动复位事件。 */
-XRT_API xwaitresult xrtEventTryWait(xevent* pEvent);
-
-
-
-/* 在相对微秒数内等待事件。 */
-XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, uint64 iTimeout);
-
-
-
-/* 等待事件到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtEventWaitUntil(xevent* pEvent, xdeadline iDeadline);
-
-
-
-/* 设置事件；手动复位唤醒全部等待者，自动复位唤醒一个等待者。 */
-XRT_API bool xrtEventSet(xevent* pEvent);
-
-
-
-/* 清除事件信号态。 */
-XRT_API bool xrtEventReset(xevent* pEvent);
 #endif
 
 
@@ -16143,763 +17232,6 @@ XRT_API xthread* xrtThreadCurrent(void);
 
 /* 主动让出当前线程的处理器时间片。 */
 XRT_API void xrtThreadYield(void);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/cancel.h */
-/* ========================================================================== */
-
-#ifndef XRT_CANCEL_H
-#define XRT_CANCEL_H
-
-
-
-
-#if defined(XRT_FEATURE_CANCEL) && !defined(XRT_FEATURE_MUTEX)
-	#error "XRT_FEATURE_CANCEL requires XRT_FEATURE_MUTEX"
-#endif
-
-#if defined(XRT_FEATURE_CANCEL) && !defined(XRT_FEATURE_COND)
-	#error "XRT_FEATURE_CANCEL requires XRT_FEATURE_COND"
-#endif
-
-
-
-#if defined(XRT_FEATURE_CANCEL)
-/* 取消令牌保存一次性取消状态，并可通过不可变父链继承取消。 */
-typedef struct xcancel xcancel;
-
-
-
-/* 取消监听保存一次回调注册及其并发生命周期。 */
-typedef struct xcancelwatch xcancelwatch;
-
-
-
-/* 取消回调由命中的取消请求线程或迟注册线程同步执行。 */
-typedef void (*xcancelproc)(ptr pData);
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 创建一个独立的取消令牌。 */
-XRT_API xcancel* xrtCancelCreate(void);
-
-
-
-/* 创建一个继承父令牌取消状态的子令牌；父令牌可为空。 */
-XRT_API xcancel* xrtCancelChild(xcancel* pParent);
-
-
-
-/* 增加取消令牌引用并返回原指针。 */
-XRT_API xcancel* xrtCancelRef(xcancel* pCancel);
-
-
-
-/* 释放取消令牌引用；空指针视为空操作。 */
-XRT_API void xrtCancelDestroy(xcancel* pCancel);
-
-/* Borrowed physical ownership view; the retained parent is one owning edge.
- * Watch-list links borrow registration storage and are not strong references.
- * Caller provides whole-graph quiescence and code residency. */
-XRT_API xrtownershipref xrtCancelOwnership(const xcancel* pCancel);
-
-/* Explicit native adapter, queried under whole-graph freeze. Registered
- * observers are refused before Trace, not treated as empty owning slots.
- * The immutable parent tail remains owned through Finish and final Drop;
- * each parent must independently be admitted. No CancelWatch certification. */
-XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference);
-
-
-
-/* 请求取消；仅首次请求返回 true 并触发监听。 */
-XRT_API bool xrtCancelRequest(xcancel* pCancel);
-
-
-
-/* 查询令牌或任一祖先是否已请求取消；空指针表示未取消。 */
-XRT_API bool xrtCancelRequested(const xcancel* pCancel);
-
-
-
-/* 监听令牌及其不可变父链；回调至多同步执行一次。 */
-XRT_API xcancelwatch* xrtCancelWatch(
-	xcancel* pCancel,
-	xcancelproc pProc,
-	ptr pData
-);
-
-
-
-/* 查询监听是否已命中取消。 */
-XRT_API bool xrtCancelTriggered(const xcancelwatch* pWatch);
-
-
-
-/* Borrowed physical view: Unwatch owns this registration; it retains its
- * Cancel (and thereby its parents). Proc/Data and linked cancellation nodes
- * are borrowed, not additional owning slots. Active/destroying callbacks
- * reject inspection. Whole-graph quiescence and code residency are required. */
-XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch);
-
-
-
-/* 注销并释放监听；从其他线程调用时等待正在执行的回调返回。 */
-XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch);
-
-
-
-XRT_EXTERN_C_END
-#endif
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/future.h */
-/* ========================================================================== */
-
-#ifndef XRT_FUTURE_H
-#define XRT_FUTURE_H
-
-
-
-
-#if defined(XRT_FEATURE_FUTURE) && !defined(XRT_FEATURE_CANCEL)
-	#error "XRT_FEATURE_FUTURE requires XRT_FEATURE_CANCEL"
-#endif
-
-#if defined(XRT_FEATURE_FUTURE_COROUTINE) && !defined(XRT_FEATURE_FUTURE)
-	#error "XRT_FEATURE_FUTURE_COROUTINE requires XRT_FEATURE_FUTURE"
-#endif
-
-#if defined(XRT_FEATURE_FUTURE_COROUTINE) && !defined(XRT_FEATURE_COROUTINE_SCHEDULER)
-	#error "XRT_FEATURE_FUTURE_COROUTINE requires XRT_FEATURE_COROUTINE_SCHEDULER"
-#endif
-
-#if defined(XRT_FEATURE_FUTURE_COMBINE) && !defined(XRT_FEATURE_FUTURE)
-	#error "XRT_FEATURE_FUTURE_COMBINE requires XRT_FEATURE_FUTURE"
-#endif
-
-#if defined(XRT_FEATURE_FUTURE_CONTINUE) && !defined(XRT_FEATURE_FUTURE)
-	#error "XRT_FEATURE_FUTURE_CONTINUE requires XRT_FEATURE_FUTURE"
-#endif
-
-
-
-#if defined(XRT_FEATURE_FUTURE)
-
-/* Future 是只读共享结果，Promise 是唯一终态写入端。 */
-typedef struct xfuture xfuture;
-typedef struct xpromise xpromise;
-
-
-
-/* Future 终态明确区分成功、失败、协作取消和生产端关闭。 */
-typedef enum xfuturestate {
-	XFUTURE_PENDING = 0,
-	XFUTURE_RESOLVED = 1,
-	XFUTURE_FAILED = 2,
-	XFUTURE_CANCELLED = 3,
-	XFUTURE_CLOSED = 4
-} xfuturestate;
-
-
-
-/* Future 结果只借用值和错误，其生命周期由 Future 引用保护。 */
-typedef struct xfutureresult {
-	xfuturestate State;
-	ptr Value;
-	const xerror* Error;
-} xfutureresult;
-
-
-
-/* Future Watch 使用调用方存储提供无分配终态通知。 */
-#define XRT_FUTURE_WATCH_STORAGE_SIZE 64u
-
-
-
-/* Watch 回调在线程安全的 Future 完成路径中执行，不得重入同一个 Watch。 */
-typedef void (*xfuturewatchproc)(ptr pData);
-
-
-
-/* Watch 释放过程在线性化完成通知或成功摘除后执行一次。 */
-typedef void (*xfuturewatchreleaseproc)(ptr pData);
-
-
-
-/* Watch 的内部链表和并发状态保持不透明。 */
-typedef union xfuturewatch {
-	uint64 Alignment;
-	uint8 Storage[XRT_FUTURE_WATCH_STORAGE_SIZE];
-} xfuturewatch;
-
-
-
-/* 注册结果区分错误、Future 已完成和成功进入等待链。 */
-typedef enum xfuturewatchresult {
-	XFUTURE_WATCH_ERROR = -1,
-	XFUTURE_WATCH_READY = 0,
-	XFUTURE_WATCH_PENDING = 1
-} xfuturewatchresult;
-
-
-
-/* 成功值析构过程接收创建者提供的值和上下文。 */
-typedef void (*xfuturefreeproc)(ptr pValue, ptr pData);
-
-/* Describe exactly the owning slots released by an owned result's destructor,
- * including its context. Unique boxes are folded into this Future's edges;
- * shared reference-counted boxes must be reported as physical nodes. */
-typedef bool (*xfutureownershiptrace)(const void* pValue, const void* pData,
-	xrtownershipvisitor pVisit, ptr pContext);
-
-/* Explicit lifecycle certification, separate from an inspection-only trace.
- * Immutable policy/code outlives the Future. Drop consumes a unique result
- * box and exactly the owning slots described by Trace; context is NULL.
- * Drop coordinates its own graph transitions, runs no new semantic finalizer
- * after child finalization, and may execute outside XRT's mutation scope.
- * Trace is allocation/callback-free apart from the supplied visitor. */
-typedef struct xfuturepayloadownershipv1 {
-	size_t size;
-	xfuturefreeproc Drop;
-	xfutureownershiptrace Trace;
-} xfuturepayloadownershipv1;
-
-/* One ACTUAL producer reference owned by a pending result, separate from
- * PromiseRefs and from the terminal payload. The immutable resident Drop
- * releases that reference outside this Future's lock/mutation; it coordinates
- * its own transitions and code lifetime. It must not cancel accepted work or
- * substitute for its semantic callback/finally. Completion preserves its own
- * diagnostic across this mechanical release. The physical child is still
- * independently admitted by the collector, never certified by this policy. */
-typedef struct xfutureproducerownershipv1 {
-	size_t size;
-	void (*Drop)(const void* pProducer);
-} xfutureproducerownershipv1;
-
-/* A registered Watch owns exactly ONE Data node reference, returned by Release.
- * Immutable resident callbacks coordinate their own activity and code lifetime;
- * Ops describes that same physical node, not a synthetic watch leaf. The core
- * traces this actual slot, but a collector independently admits Data and all
- * of its captures. Legacy traced/phased watches are not silently certified. */
-typedef struct xfuturewatchownershipv1 {
-	size_t size;
-	xfuturewatchproc Notify;
-	xfuturewatchreleaseproc Release;
-	const xrtownershipops* Ops;
-} xfuturewatchownershipv1;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 创建一对 Future/Promise；父取消令牌为空时使用独立取消源。 */
-XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
-
-/* Bind once to a private, pending, newly created Future/Promise pair (one
- * reference per endpoint, no waiters). No allocation or user callback.
- * Success consumes ONE existing Producer reference; failure consumes nothing.
- * The result traces that real edge until terminal publication detaches it;
- * completion releases it exactly once outside lock/mutation before notifying
- * the result's waiters. Merely dropping a Future observer does not cancel work.
- * The caller keeps an independent activation/registration reference until
- * its own callback and release tails finish. An enclosing caller-owned scope
- * is never suspended. A trace-only or unknown policy is not collection proof. */
-XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
-	const xfutureproducerownershipv1* pPolicy);
-
-
-
-/* 增加 Promise 生产端引用并返回原指针。 */
-XRT_API xpromise* xrtPromiseRef(xpromise* pPromise);
-
-
-
-/* 释放生产端引用；最后一个未完成生产端会关闭 Future 并请求取消。 */
-XRT_API void xrtPromiseDestroy(xpromise* pPromise);
-
-
-
-/* 增加 Future 消费端引用并返回原指针。 */
-XRT_API xfuture* xrtFutureRef(xfuture* pFuture);
-
-
-
-/* 释放 Future 消费端引用；空指针视为空操作。 */
-XRT_API void xrtFutureDestroy(xfuture* pFuture);
-
-/* Borrowed views of the SAME physical control block: every FutureRef and
- * PromiseRef owns one reference. Do not invent a second Promise node.
- * Trace includes cancellation parents, error causes, forwarded source and
- * explicitly described owned payload/context. Unknown owned payloads and
- * registered waiters fail closed unless their complete adapters are supplied.
- * Pending with no waiters is inspectable; producer references remain roots.
- * Whole-graph quiescence through any later commit and callback code residency
- * remain the caller's responsibility; this API does not establish either. */
-XRT_API xrtownershipref xrtFutureOwnership(const xfuture* pFuture);
-XRT_API xrtownershipref xrtPromiseOwnership(const xpromise* pPromise);
-
-/* Publish an explicitly certified owned result atomically. Failure does not
- * consume the box. This does not authorize collection by itself: a resolver
- * must recognize the exact policy identity and independently admit children. */
-XRT_API bool xrtPromiseResolveOwnedPolicyV1(xpromise* pPromise, ptr pValue,
-	const xfuturepayloadownershipv1* pPolicy);
-
-/* Query under whole-graph freeze before Count/Trace. Pending, forwarded and
- * terminal control blocks share one physical adapter. Completing operations,
- * all registered waiters, unrecognized owned policies and observed cancel
- * tokens are refused without invoking any payload/waiter trace. An empty
- * allowlist admits only results without an owned payload. Pending retirement
- * preserves last-producer CLOSED/cancellation semantics at Clear, without
- * notification. Finish releases actual retired slots outside freeze. */
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount);
-/* Add an explicit producer-policy allowlist. V1 continues to refuse any live
- * producer edge. Neither entry admits registered waiters or an unknown child;
- * identity is matched before reading a policy or invoking any child callback. */
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
-	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount);
-/* V3 additionally admits exact Watch policies and returns mandatory semantic
- * preparation alongside the SAME lifecycle adapter. Before object Finalize,
- * prepare producerless pending sources through normal CLOSED notification,
- * then rebuild the whole graph. Produced results defer to their real producer;
- * never close an intermediate result before its source's catch/finally runs.
- * Closed dependency cycles may require a further explicit shutdown protocol;
- * BUSY does not authorize clearing a live Watch or skipping accepted work.
- * Output is unchanged on refusal. Use both descriptors, never V1-only planning. */
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
-	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
-	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
-	const xrtownershippreparationv1** ppPreparation);
-/* Preserve 64-byte Watch storage and READY/PENDING/ERROR ownership rules.
- * Initialization alone does not consume Data; registration commits the same
- * caller-owned reference that Release returns. READY is still caller-driven. */
-XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
-	const xfuturewatchownershipv1* pPolicy);
-
-/* Atomically publish value, destructor, context and non-NULL ownership trace.
- * Success transfers the same ownership as ResolveOwned. Failure (including
- * duplicate completion) transfers nothing and never calls Destroy/Trace.
- * The immutable trace and destructor remain resident for the result lifetime;
- * trace follows the read-only xrtOwnershipInspect callback contract. */
-XRT_API bool xrtPromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
-	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
-
-
-
-/* 返回 Future 状态快照；参数无效时返回 CLOSED 并设置错误。 */
-XRT_API xfuturestate xrtFutureState(const xfuture* pFuture);
-
-
-
-/* 判断 Future 是否已经进入任一不可变终态。 */
-XRT_API bool xrtFutureDone(const xfuture* pFuture);
-
-
-
-/* 复制借用结果；尚未完成时返回 false 并设置 AGAIN。 */
-XRT_API bool xrtFutureResult(const xfuture* pFuture, xfutureresult* pResult);
-
-
-
-/* 返回成功值；非成功终态会把对应错误设置到当前执行上下文。 */
-XRT_API ptr xrtFutureValue(const xfuture* pFuture);
-
-
-
-/* 返回失败终态借用的结构化错误，其他状态返回空指针。 */
-XRT_API const xerror* xrtFutureError(const xfuture* pFuture);
-
-
-
-/* 请求生产过程协作取消；请求本身不伪造 Future 终态。 */
-XRT_API bool xrtFutureCancel(xfuture* pFuture);
-
-
-
-/* 返回增加引用后的取消令牌，调用方使用完毕后必须释放。 */
-XRT_API xcancel* xrtFutureCancelToken(const xfuture* pFuture);
-
-
-
-/* 返回增加引用后的生产端取消令牌。 */
-XRT_API xcancel* xrtPromiseCancelToken(const xpromise* pPromise);
-
-
-
-/* 初始化一个尚未注册的无分配 Future Watch。 */
-XRT_API bool xrtFutureWatchInit(
-	xfuturewatch* pWatch,
-	xfuturewatchproc pNotify,
-	xfuturewatchreleaseproc pRelease,
-	ptr pData
-);
-
-
-
-/* Initialize with an immutable description of the strong slots released by
- * pRelease(pData). Both callbacks are required. Unique context storage is
- * folded into the Future's edges; shared state is a physical node. Init is
- * allocation-free and consumes nothing; only WatchAdd(PENDING) transfers the
- * registration/release right. READY and ERROR keep it with the caller.
- * Storage size and old Init semantics are unchanged. A linked adapter may be
- * inspected only at a whole-graph quiescent point with callback code resident;
- * this does not establish a safepoint or permit concurrent frame inspection. */
-XRT_API bool xrtFutureWatchInitTraced(xfuturewatch* pWatch,
-    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
-    xrtownershiptrace pTrace);
-
-/* Explicit cooperative callback admission, not inferred from a Trace callback.
- * Like InitTraced, but Notify/Release run outside the Future mutation domain.
- * The resident callbacks must coordinate every count/edge/storage transition,
- * reject inspection of active/private data, and independently pin their code.
- * Detached notification/release callers retain their real ownership until the
- * callback returns. No mutation scope may span a wait or arbitrary callback.
- * Unphased Watch, internal waiters and payload finalizers keep conservative
- * mutation scopes. Storage size, READY/PENDING/ERROR and release rules match
- * InitTraced; READY still leaves Notify/Release to the registering caller. */
-XRT_API bool xrtFutureWatchInitPhased(xfuturewatch* pWatch,
-    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
-    xrtownershiptrace pTrace);
-
-
-
-/* Future 未完成时注册 Watch；READY 时 Watch 未被接管且不执行 Release。 */
-XRT_API xfuturewatchresult xrtFutureWatchAdd(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-);
-
-
-
-/* 尝试摘除尚未开始通知的 Watch；成功时同步执行 Release。 */
-XRT_API bool xrtFutureWatchDetach(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-);
-
-
-
-/* 摘除 Watch 并等待已经开始的通知结束；禁止从自身通知中调用。 */
-XRT_API void xrtFutureWatchRemove(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-);
-
-
-
-/* 等待 Future 进入任一终态。 */
-XRT_API xwaitresult xrtFutureWait(xfuture* pFuture);
-
-
-
-/* 在相对微秒数内等待 Future 进入任一终态。 */
-XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
-
-
-
-/* 等待 Future 到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
-
-
-
-/* 等待首个线性化事件；取消先取得等待锁后不会被迟到终态覆盖。 */
-XRT_API xwaitresult xrtFutureWaitUntilCancel(
-	xfuture* pFuture,
-	xdeadline iDeadline,
-	xcancel* pCancel
-);
-
-
-
-/* 以借用方式完成成功结果，值的生命周期由调用方保证。 */
-XRT_API bool xrtPromiseResolve(xpromise* pPromise, ptr pValue);
-
-
-
-/* 转移成功值所有权；完成失败时所有权仍归调用方。 */
-XRT_API bool xrtPromiseResolveOwned(
-	xpromise* pPromise,
-	ptr pValue,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/* 以增加引用方式完成失败结果。 */
-XRT_API bool xrtPromiseReject(xpromise* pPromise, const xerror* pError);
-
-
-
-/* 把已进入终态的源 Future 结果安全透传到 Promise。 */
-XRT_API bool xrtPromiseForward(xpromise* pPromise, xfuture* pSource);
-
-
-
-/* 完成取消终态；令牌请求通知结束后才向等待者发布取消终态。 */
-XRT_API bool xrtPromiseCancel(xpromise* pPromise);
-
-
-
-/* 请求生产过程停止，并在令牌通知结束后发布关闭终态。 */
-XRT_API bool xrtPromiseClose(xpromise* pPromise);
-
-
-
-/* 判断 Promise 对应的 Future 是否已经完成。 */
-XRT_API bool xrtPromiseDone(const xpromise* pPromise);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FUTURE_COMBINE)
-
-/* Any 与 Race 的结果借用胜出源 Future；组合 Future 负责保留该引用。 */
-typedef struct xfuturepick {
-	size_t Index;
-	xfuture* Future;
-} xfuturepick;
-
-
-
-/* All 的结果按输入顺序借用全部源 Future；组合 Future 负责保留这些引用。 */
-typedef struct xfutureall {
-	size_t Count;
-	xfuture* const* Futures;
-} xfutureall;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 在任一源进入终态后，以 xfuturepick 成功完成；不改变其余源。 */
-XRT_API xfuture* xrtFutureAny(xfuture* const* pFutures, size_t iCount);
-
-
-
-/* 在全部源进入终态后，以保序的 xfutureall 成功完成；空集合立即完成。 */
-XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
-
-
-
-/* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。 */
-XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
-
-/* Synchronous result mapping is part of the aggregate's activation, not a
- * separately allocated continuation attached after the sources start.
- * Inputs and output Promise are borrowed for the call. The mapper must
- * complete/forward the output before returning; an uncompleted output closes.
- * It must not retain the input descriptors or defer work on this Promise. */
-typedef void (*xfutureallmapproc)(const xfutureall* pInput, xpromise* pOutput, ptr pData);
-typedef void (*xfuturepickmapproc)(const xfuturepick* pInput, xpromise* pOutput, ptr pData);
-
-/* All preparation succeeds before source notification/cancellation is possible.
- * NULL return does not consume data, invoke map/destroy/trace, or cancel inputs.
- * Non-NULL accepts data even if synchronous mapping fails: that failure is the
- * returned Future's outcome. Destroy(data, destroyData) runs exactly once after
- * mapping or cancellation and after the last source callback returns.
- * Trace(data, destroyData) describes the exact strong slots Destroy releases;
- * callbacks/code and borrowed pointers are not fictitious owning edges.
- * Destroy and Trace are required, including for an empty context. The caller
- * still supplies whole-graph quiescence and callback/code residency.
- * Any/All/Race retain their existing selection/order/cancellation contracts. */
-XRT_API xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfutureallmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace);
-XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace);
-XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FUTURE_CONTINUE)
-
-/* 延续过程借用源结果和输出 Promise；保留 Promise 时必须先增加引用。 */
-typedef void (*xfuturecontinueproc)(
-	const xfutureresult* pInput,
-	xpromise* pOutput,
-	ptr pData
-);
-
-
-
-/* Finally 过程只观察源结果，输出 Future 自动安全透传源终态。 */
-typedef void (*xfuturefinallyproc)(const xfutureresult* pInput, ptr pData);
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 对源的任意终态执行延续过程；过程负责完成或保留输出 Promise。 */
-XRT_API xfuture* xrtFutureContinue(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData
-);
-
-
-
-/* 执行任意终态延续，并在执行、跳过或取消后释放受理的数据。 */
-XRT_API xfuture* xrtFutureContinueOwned(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/*
-	对独占源的任意终态执行延续；取消输出时同时请求取消源。
-	该入口只适用于调用方拥有完整生产链、不与其他消费者共享源的组合层。
-*/
-XRT_API xfuture* xrtFutureContinueOwnedCancelSource(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/* 仅在源成功时执行延续；其他终态自动透传。 */
-XRT_API xfuture* xrtFutureThen(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData
-);
-
-
-
-/* 仅在源成功时执行延续，并负责释放受理的数据。 */
-XRT_API xfuture* xrtFutureThenOwned(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/*
-	仅在独占源成功时执行延续；取消输出时同时请求取消源。
-	源的失败、取消和关闭仍按 Then 契约自动透传。
-*/
-XRT_API xfuture* xrtFutureThenOwnedCancelSource(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/* 仅在源失败时执行延续；成功、取消和关闭终态自动透传。 */
-XRT_API xfuture* xrtFutureCatch(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData
-);
-
-
-
-/* 仅在源失败时执行延续，并负责释放受理的数据。 */
-XRT_API xfuture* xrtFutureCatchOwned(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/* 观察源的任意终态，再把原结果安全透传到输出 Future。 */
-XRT_API xfuture* xrtFutureFinally(
-	xfuture* pSource,
-	xfuturefinallyproc pProc,
-	ptr pData
-);
-
-
-
-/* 观察源的任意终态、透传结果，并负责释放受理的数据。 */
-XRT_API xfuture* xrtFutureFinallyOwned(
-	xfuture* pSource,
-	xfuturefinallyproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FUTURE_COROUTINE)
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 挂起当前调度协程，直到 Future 进入终态或协程被取消。 */
-XRT_API xwaitresult xrtFutureAwait(xfuture* pFuture);
-
-
-
-/* 在相对微秒数内挂起当前调度协程等待 Future。 */
-XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
-
-
-
-/* 挂起当前调度协程等待 Future 到指定截止时间。 */
-XRT_API xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline);
 
 
 
@@ -30200,6 +30532,27 @@ XRT_EXTERN_C_BEGIN
 /* 创建有界工作线程池；配置为空或字段为零时使用对应默认值。 */
 XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig);
 
+/* A borrowed view of the real pool owner slot. Create contributes one actual
+ * reference; successful Destroy consumes it once. Collector Hold/Release pins
+ * keep the terminal shell alive after joined worker resources are retired.
+ * Native entries, executing workers and opaque finalizers refuse inspection.
+ * Accepted opaque resources hold real pool references until their finalizers
+ * return; these remain external roots, even when the pool is otherwise idle.
+ * Parked worker/control storage is uniquely contained until join, not a fake
+ * RC node or a guessed subtraction from a live reference count. */
+XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool);
+
+/* Query under the caller's exclusive ownership freeze. Trace reports each
+ * accepted queued Job reference exactly once; each Job still needs independent
+ * admission through xrtTaskOwnershipAdapterV1 with explicit Data policies.
+ * Prepare is called only for an authorized unreachable claim, outside freeze:
+ * close new admission, let accepted work/cleanup finish, then nonblocking join.
+ * It never cancels, steals or skips work. Active native stacks remain roots.
+ * Clear requires completed joins; Finish retires worker resources, not the
+ * caller's owner reference. ppPreparation changes only on success. */
+XRT_API const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(
+    xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+
 
 
 /* 提交任务并返回其 Future；失败时任务数据所有权仍属于调用方。 */
@@ -30466,113 +30819,118 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/memory_debug.h */
+/* public: include/xrt/file_async.h */
 /* ========================================================================== */
 
-#ifndef XRT_MEMORY_DEBUG_H
-#define XRT_MEMORY_DEBUG_H
+#ifndef XRT_FILE_ASYNC_H
+#define XRT_FILE_ASYNC_H
 
 
 
 
-#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT) && !defined(XRT_FEATURE_MEMORY_DEBUG)
-	#error "XRT_FEATURE_MEMORY_DEBUG_REPORT requires XRT_FEATURE_MEMORY_DEBUG"
+#if defined(XRT_FEATURE_FILE_ASYNC_COMMON) && \
+	!defined(XRT_FEATURE_TASK_POOL)
+	#error "XRT async file common support requires task-pool support"
+#endif
+
+#if defined(XRT_FEATURE_FILE_ASYNC) && \
+	(!defined(XRT_FEATURE_FILE) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async file support requires file and async-file-common support"
+#endif
+
+#if defined(XRT_FEATURE_FILE_ASYNC_WHOLE) && \
+	(!defined(XRT_FEATURE_FILE_WHOLE) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async whole-file support requires whole-file and async-file-common support"
+#endif
+
+#if defined(XRT_FEATURE_FILE_ASYNC_MANAGE) && \
+	(!defined(XRT_FEATURE_FILE_WHOLE) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async file management requires whole-file and async-file-common support"
+#endif
+
+#if defined(XRT_FEATURE_DIR_ASYNC) && \
+	(!defined(XRT_FEATURE_DIR) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async directory support requires directory and async-file-common support"
+#endif
+
+#if defined(XRT_FEATURE_FILE_TREE_ASYNC) && \
+	(!defined(XRT_FEATURE_FILE_TREE) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async file-tree support requires file-tree and async-file-common support"
 #endif
 
 
 
-#if defined(XRT_FEATURE_MEMORY_DEBUG)
+#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
 
-/* 调试器固定保留最近 512 条事件。 */
-#define XRT_MEMDEBUG_EVENT_LIMIT 512u
-
-
-
-/* 内存调试事件类型。 */
-typedef enum xmemdebugeventkind {
-	XMEMDEBUG_ALLOC = 1,
-	XMEMDEBUG_FREE,
-	XMEMDEBUG_REALLOC,
-	XMEMDEBUG_DOUBLE_FREE,
-	XMEMDEBUG_INVALID_FREE,
-	XMEMDEBUG_OVERFLOW,
-	XMEMDEBUG_UNDERFLOW,
-	XMEMDEBUG_USE_AFTER_FREE,
-	XMEMDEBUG_TEMP_ALLOC,
-	XMEMDEBUG_TEMP_REWIND,
-	XMEMDEBUG_TEMP_RESET
-} xmemdebugeventkind;
+/* 异步文件对象绑定一个有界任务池，并在关闭前保留全部已受理操作。 */
+typedef struct xasyncfile xasyncfile;
 
 
 
-/* 内存调试事件是只包含借用信息的值对象。 */
-typedef struct xmemdebugevent {
-	xmemdebugeventkind Kind;
-	uint64 Sequence;
-	ptr Address;
+/* 读取结果及其 Data 都由 Future 拥有，Future 释放前保持有效。 */
+typedef struct xfiledata {
+	bytes Data;
 	size_t Size;
-	cstr File;
-	uint32 Line;
-} xmemdebugevent;
+	uint64 Offset;
+	bool End;
+} xfiledata;
 
 
 
-/* 内存调试快照用于测试、诊断和外部报告。 */
-typedef struct xmemdebugsnapshot {
-	bool Enabled;
-	size_t LiveCount;
-	size_t LiveBytes;
-	size_t PeakCount;
-	size_t PeakBytes;
-	size_t QuarantineCount;
-	size_t QuarantineBytes;
-	uint64 AllocCount;
-	uint64 FreeCount;
-	uint64 ReallocCount;
-	uint64 DoubleFreeCount;
-	uint64 InvalidFreeCount;
-	uint64 OverflowCount;
-	uint64 UnderflowCount;
-	uint64 UseAfterFreeCount;
-	size_t TempCurrentBytes;
-	size_t TempPeakBytes;
-	uint64 TempResetCount;
-	size_t EventCount;
-} xmemdebugsnapshot;
+/* 写入、查询大小和修改大小统一返回偏移与字节数。 */
+typedef struct xfilechange {
+	uint64 Offset;
+	uint64 Size;
+} xfilechange;
 
 
 
-/* 事件访问器返回 false 时停止遍历。 */
-typedef bool (*xmemdebugvisitor)(const xmemdebugevent* pEvent, ptr pUserData);
+/* 文件或目录树大小查询使用独立结果，避免混入写入偏移语义。 */
+typedef struct xfilesize {
+	uint64 Size;
+} xfilesize;
 
 
 
-/* 活动分配记录借用分配点字符串，不转移内存所有权。 */
-typedef struct xmemdebugallocation {
-	ptr Address;
-	size_t Size;
-	cstr File;
-	uint32 Line;
-} xmemdebugallocation;
+/* 目录属性查询结果由 Future 拥有。 */
+typedef struct xdirquery {
+	bool Empty;
+} xdirquery;
 
 
 
-/* 活动分配访问器返回 false 时停止遍历。 */
-typedef bool (*xmemdebugallocationvisitor)(const xmemdebugallocation* pAllocation, ptr pUserData);
+/* 零复制写入受理后，在数据不再被任务使用时执行一次释放过程。 */
+typedef void (*xfileasyncreleaseproc)(
+	ptr pContext,
+	cbytes pData,
+	size_t iSize
+);
 
 
 
-#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
-/* 报告格式与具体输出目标解耦。 */
-typedef enum xmemdebugreportformat {
-	XMEMDEBUG_REPORT_TEXT = 1,
-	XMEMDEBUG_REPORT_JSON
-} xmemdebugreportformat;
+/* 异步文件错误保留外层操作，并通过 cause 保留文件或任务池错误。 */
+typedef enum xfileasyncerror {
+	XFILE_ASYNC_ERROR_OPEN = 1,
+	XFILE_ASYNC_ERROR_SUBMIT,
+	XFILE_ASYNC_ERROR_READ,
+	XFILE_ASYNC_ERROR_WRITE,
+	XFILE_ASYNC_ERROR_FLUSH,
+	XFILE_ASYNC_ERROR_SIZE,
+	XFILE_ASYNC_ERROR_RESIZE,
+	XFILE_ASYNC_ERROR_CLOSE,
+	XFILE_ASYNC_ERROR_COPY,
+	XFILE_ASYNC_ERROR_MOVE,
+	XFILE_ASYNC_ERROR_DELETE,
+	XFILE_ASYNC_ERROR_CREATE,
+	XFILE_ASYNC_ERROR_TREE,
+	XFILE_ASYNC_ERROR_QUERY
+} xfileasyncerror;
 
-
-
-/* 报告写入器成功消费全部数据时返回 true。 */
-typedef bool (*xmemdebugwriteproc)(xbytesview Data, ptr pUserData);
 #endif
 
 
@@ -30581,70 +30939,336 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 返回稳定的事件名称，未知事件返回 unknown。 */
-XRT_API cstr xrtMemDebugEventName(xmemdebugeventkind Kind);
+#if defined(XRT_FEATURE_FILE_ASYNC)
 
-
-
-/* 在没有活动分配时开启或关闭运行时内存调试记录。 */
-XRT_API bool xrtMemDebugEnable(bool bEnable);
-
-
-
-/* 返回运行时内存调试是否开启。 */
-XRT_API bool xrtMemDebugEnabled(void);
-
-
-
-/* 当前线程允许指定次数成功分配后，让下一次逻辑分配失败一次。 */
-XRT_API bool xrtMemDebugFailAfter(uint64 iSuccessfulAllocations);
-
-
-
-/* 清除当前线程尚未触发的分配故障。 */
-XRT_API void xrtMemDebugFailClear(void);
-
-
-
-/* 返回当前线程最近配置的分配故障是否已经触发。 */
-XRT_API bool xrtMemDebugFailTriggered(void);
-
-
-
-/* 在没有活动分配时清空统计、事件和隔离队列。 */
-XRT_API bool xrtMemDebugReset(void);
-
-
-
-/* 获取一致的内存调试统计快照。 */
-XRT_API void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot);
-
-
-
-/* 按时间顺序访问当前保留的调试事件。 */
-XRT_API size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData);
-
-
-
-/* 访问内部锁线性化点捕获的完整活动分配快照。 */
-XRT_API size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData);
-
-
-
-#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
-/* 把当前调试快照流式写为文本或 JSON。 */
-XRT_API bool xrtMemDebugReport(
-	xmemdebugreportformat Format,
-	xmemdebugwriteproc pWriter,
-	ptr pUserData
+/*
+	同步打开异步文件对象。
+	任务池由调用方拥有，并且必须存活到 xrtAsyncFileClose 返回的 Future 完成。
+*/
+XRT_API xasyncfile* xrtAsyncFileOpen(
+	xtaskpool* pPool,
+	cstr sPath,
+	const xfileoptions* pOptions
 );
+
+
+
+/*
+	采用已经打开的文件，并把唯一关闭责任转交给异步文件对象。
+	失败时调用方仍然拥有 File；成功后只能通过 xrtAsyncFileClose 关闭。
+*/
+XRT_API xasyncfile* xrtAsyncFileAdopt(
+	xtaskpool* pPool,
+	xfile File
+);
+
+
+
+/* 返回异步文件采用时保存的打开标志；失败返回 0。 */
+XRT_API uint32 xrtAsyncFileFlags(const xasyncfile* pFile);
+
+
+
+/*
+	停止接收新操作并释放调用方的对象所有权。
+	返回的 Future 在全部已受理操作结束且原生文件关闭后完成。
+	关闭过程通过任务池资源回收通道执行，不在调用线程执行文件系统操作。
+*/
+XRT_API xfuture* xrtAsyncFileClose(xasyncfile* pFile);
+
+
+
+/*
+	从绝对偏移读取最多 iSize 字节。
+	成功 Future 的值为借用的 xfiledata；非零请求发生短读时以 End 标记 EOF。
+*/
+XRT_API xfuture* xrtAsyncFileReadAt(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	size_t iSize
+);
+
+
+
+/*
+	从绝对偏移完整写入 Data。
+	提交前复制数据，函数返回后调用方可以立即释放或修改源缓冲。
+*/
+XRT_API xfuture* xrtAsyncFileWriteAt(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	xbytesview Data
+);
+
+
+
+/*
+	零复制受理外部数据；成功后释放责任转移，失败时仍归调用方。
+	非空数据必须提供释放过程；零长度不转移所有权。
+*/
+XRT_API xfuture* xrtAsyncFileWriteAtRef(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	xbytesview Data,
+	xfileasyncreleaseproc pRelease,
+	ptr pContext
+);
+
+
+
+/*
+	零复制接管由 xrtMalloc 家族分配的非空数据。
+	提交失败时所有权仍归调用方；NULL,0 表示空写入。
+*/
+XRT_API xfuture* xrtAsyncFileWriteAtTake(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	bytes pData,
+	size_t iSize
+);
+
+
+
+/* 把已受理写入提交到稳定存储；只读文件直接成功。 */
+XRT_API xfuture* xrtAsyncFileFlush(xasyncfile* pFile);
+
+
+
+/* 查询当前文件大小；成功 Future 的值为借用的 xfilesize。 */
+XRT_API xfuture* xrtAsyncFileSize(xasyncfile* pFile);
+
+
+
+/* 修改文件大小；成功 Future 的值记录新大小。 */
+XRT_API xfuture* xrtAsyncFileResize(
+	xasyncfile* pFile,
+	uint64 iSize
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_DIR_ASYNC)
+
+/* 在任务池线程中使用平台默认模式创建一个目录。 */
+XRT_API xfuture* xrtDirCreateAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 在任务池线程中使用显式 POSIX 模式创建一个目录。 */
+XRT_API xfuture* xrtDirCreateModeAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	uint32 iMode
+);
+
+
+
+/* 在任务池线程中使用平台默认模式创建全部缺失目录。 */
+XRT_API xfuture* xrtDirCreateAllAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 在任务池线程中使用显式 POSIX 模式创建全部缺失目录。 */
+XRT_API xfuture* xrtDirCreateAllModeAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	uint32 iMode
+);
+
+
+
+/* 在任务池线程中删除一个空目录。 */
+XRT_API xfuture* xrtDirRemoveAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 查询目录是否为空；成功 Future 的值为借用的 xdirquery。 */
+XRT_API xfuture* xrtDirEmptyAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FILE_TREE_ASYNC)
+
+/* 使用高级选项异步复制目录树；成功值为源树的 xwalkstats。 */
+XRT_API xfuture* xrtFileTreeCopyAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	const xtreecopyoptions* pOptions
+);
+
+
+
+/* 常用目录复制；成功值为源树的 xwalkstats。 */
+XRT_API xfuture* xrtDirCopyAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	bool bReplace
+);
+
+
+
+/* 后序异步删除目录树；成功值为处理结果 xwalkstats。 */
+XRT_API xfuture* xrtFileTreeRemoveAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	bool bKeepRoot
+);
+
+
+
+/* 递归删除目录及全部内容；成功值为处理结果 xwalkstats。 */
+XRT_API xfuture* xrtDirRemoveAllAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 删除目录全部内容并保留根；成功值为处理结果 xwalkstats。 */
+XRT_API xfuture* xrtDirCleanAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 异步移动目录树；成功 Future 没有值。 */
+XRT_API xfuture* xrtDirMoveAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	bool bReplace
+);
+
+
+
+/* 异步统计目录树；成功值为 xwalkstats。 */
+XRT_API xfuture* xrtDirStatsAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	bool bRecursive
+);
+
+
+
+/* 异步计算普通文件总字节数；成功值为 xfilesize。 */
+XRT_API xfuture* xrtDirSizeAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	bool bRecursive
+);
+
+
+
+/* 异步创建缺失目录，或清空已有目录并保留根。 */
+XRT_API xfuture* xrtDirEnsureEmptyAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FILE_ASYNC_WHOLE)
+
+/* 在任务池线程中读取整个文件；成功值为 Future 拥有的 xfiledata。 */
+XRT_API xfuture* xrtFileReadAllAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 在硬上限内读取整个文件；文件超限时 Future 失败。 */
+XRT_API xfuture* xrtFileReadAllLimitAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	size_t iLimit
+);
+
+
+
+/* 复制输入并在任务池线程中完整覆盖文件。 */
+XRT_API xfuture* xrtFileWriteAllAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	xbytesview Data
+);
+
+
+
+/* 复制输入并使用操作系统追加语义完整写入。 */
+XRT_API xfuture* xrtFileAppendAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	xbytesview Data
+);
+
+
+
+/* 复制输入并通过同目录临时文件原子发布。 */
+XRT_API xfuture* xrtFileWriteAtomicAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	xbytesview Data
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FILE_ASYNC_MANAGE)
+
+/* 在任务池线程中复制文件；成功 Future 没有值。 */
+XRT_API xfuture* xrtFileCopyAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	bool bReplace
+);
+
+
+
+/* 在任务池线程中移动文件；成功 Future 没有值。 */
+XRT_API xfuture* xrtFileMoveAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	bool bReplace
+);
+
+
+
+/* 在任务池线程中删除文件；成功 Future 没有值。 */
+XRT_API xfuture* xrtFileDeleteAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
 #endif
 
 
 
 XRT_EXTERN_C_END
-
-#endif
 
 #endif
 
@@ -37421,461 +38045,6 @@ XRT_API xnetudpbatch* xrtNetUdpReceiveBatchWait(
 XRT_EXTERN_C_END
 
 #endif
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/file_async.h */
-/* ========================================================================== */
-
-#ifndef XRT_FILE_ASYNC_H
-#define XRT_FILE_ASYNC_H
-
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_COMMON) && \
-	!defined(XRT_FEATURE_TASK_POOL)
-	#error "XRT async file common support requires task-pool support"
-#endif
-
-#if defined(XRT_FEATURE_FILE_ASYNC) && \
-	(!defined(XRT_FEATURE_FILE) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async file support requires file and async-file-common support"
-#endif
-
-#if defined(XRT_FEATURE_FILE_ASYNC_WHOLE) && \
-	(!defined(XRT_FEATURE_FILE_WHOLE) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async whole-file support requires whole-file and async-file-common support"
-#endif
-
-#if defined(XRT_FEATURE_FILE_ASYNC_MANAGE) && \
-	(!defined(XRT_FEATURE_FILE_WHOLE) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async file management requires whole-file and async-file-common support"
-#endif
-
-#if defined(XRT_FEATURE_DIR_ASYNC) && \
-	(!defined(XRT_FEATURE_DIR) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async directory support requires directory and async-file-common support"
-#endif
-
-#if defined(XRT_FEATURE_FILE_TREE_ASYNC) && \
-	(!defined(XRT_FEATURE_FILE_TREE) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async file-tree support requires file-tree and async-file-common support"
-#endif
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
-
-/* 异步文件对象绑定一个有界任务池，并在关闭前保留全部已受理操作。 */
-typedef struct xasyncfile xasyncfile;
-
-
-
-/* 读取结果及其 Data 都由 Future 拥有，Future 释放前保持有效。 */
-typedef struct xfiledata {
-	bytes Data;
-	size_t Size;
-	uint64 Offset;
-	bool End;
-} xfiledata;
-
-
-
-/* 写入、查询大小和修改大小统一返回偏移与字节数。 */
-typedef struct xfilechange {
-	uint64 Offset;
-	uint64 Size;
-} xfilechange;
-
-
-
-/* 文件或目录树大小查询使用独立结果，避免混入写入偏移语义。 */
-typedef struct xfilesize {
-	uint64 Size;
-} xfilesize;
-
-
-
-/* 目录属性查询结果由 Future 拥有。 */
-typedef struct xdirquery {
-	bool Empty;
-} xdirquery;
-
-
-
-/* 零复制写入受理后，在数据不再被任务使用时执行一次释放过程。 */
-typedef void (*xfileasyncreleaseproc)(
-	ptr pContext,
-	cbytes pData,
-	size_t iSize
-);
-
-
-
-/* 异步文件错误保留外层操作，并通过 cause 保留文件或任务池错误。 */
-typedef enum xfileasyncerror {
-	XFILE_ASYNC_ERROR_OPEN = 1,
-	XFILE_ASYNC_ERROR_SUBMIT,
-	XFILE_ASYNC_ERROR_READ,
-	XFILE_ASYNC_ERROR_WRITE,
-	XFILE_ASYNC_ERROR_FLUSH,
-	XFILE_ASYNC_ERROR_SIZE,
-	XFILE_ASYNC_ERROR_RESIZE,
-	XFILE_ASYNC_ERROR_CLOSE,
-	XFILE_ASYNC_ERROR_COPY,
-	XFILE_ASYNC_ERROR_MOVE,
-	XFILE_ASYNC_ERROR_DELETE,
-	XFILE_ASYNC_ERROR_CREATE,
-	XFILE_ASYNC_ERROR_TREE,
-	XFILE_ASYNC_ERROR_QUERY
-} xfileasyncerror;
-
-#endif
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC)
-
-/*
-	同步打开异步文件对象。
-	任务池由调用方拥有，并且必须存活到 xrtAsyncFileClose 返回的 Future 完成。
-*/
-XRT_API xasyncfile* xrtAsyncFileOpen(
-	xtaskpool* pPool,
-	cstr sPath,
-	const xfileoptions* pOptions
-);
-
-
-
-/*
-	采用已经打开的文件，并把唯一关闭责任转交给异步文件对象。
-	失败时调用方仍然拥有 File；成功后只能通过 xrtAsyncFileClose 关闭。
-*/
-XRT_API xasyncfile* xrtAsyncFileAdopt(
-	xtaskpool* pPool,
-	xfile File
-);
-
-
-
-/* 返回异步文件采用时保存的打开标志；失败返回 0。 */
-XRT_API uint32 xrtAsyncFileFlags(const xasyncfile* pFile);
-
-
-
-/*
-	停止接收新操作并释放调用方的对象所有权。
-	返回的 Future 在全部已受理操作结束且原生文件关闭后完成。
-	关闭过程通过任务池资源回收通道执行，不在调用线程执行文件系统操作。
-*/
-XRT_API xfuture* xrtAsyncFileClose(xasyncfile* pFile);
-
-
-
-/*
-	从绝对偏移读取最多 iSize 字节。
-	成功 Future 的值为借用的 xfiledata；非零请求发生短读时以 End 标记 EOF。
-*/
-XRT_API xfuture* xrtAsyncFileReadAt(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	size_t iSize
-);
-
-
-
-/*
-	从绝对偏移完整写入 Data。
-	提交前复制数据，函数返回后调用方可以立即释放或修改源缓冲。
-*/
-XRT_API xfuture* xrtAsyncFileWriteAt(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	xbytesview Data
-);
-
-
-
-/*
-	零复制受理外部数据；成功后释放责任转移，失败时仍归调用方。
-	非空数据必须提供释放过程；零长度不转移所有权。
-*/
-XRT_API xfuture* xrtAsyncFileWriteAtRef(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	xbytesview Data,
-	xfileasyncreleaseproc pRelease,
-	ptr pContext
-);
-
-
-
-/*
-	零复制接管由 xrtMalloc 家族分配的非空数据。
-	提交失败时所有权仍归调用方；NULL,0 表示空写入。
-*/
-XRT_API xfuture* xrtAsyncFileWriteAtTake(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	bytes pData,
-	size_t iSize
-);
-
-
-
-/* 把已受理写入提交到稳定存储；只读文件直接成功。 */
-XRT_API xfuture* xrtAsyncFileFlush(xasyncfile* pFile);
-
-
-
-/* 查询当前文件大小；成功 Future 的值为借用的 xfilesize。 */
-XRT_API xfuture* xrtAsyncFileSize(xasyncfile* pFile);
-
-
-
-/* 修改文件大小；成功 Future 的值记录新大小。 */
-XRT_API xfuture* xrtAsyncFileResize(
-	xasyncfile* pFile,
-	uint64 iSize
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_DIR_ASYNC)
-
-/* 在任务池线程中使用平台默认模式创建一个目录。 */
-XRT_API xfuture* xrtDirCreateAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 在任务池线程中使用显式 POSIX 模式创建一个目录。 */
-XRT_API xfuture* xrtDirCreateModeAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	uint32 iMode
-);
-
-
-
-/* 在任务池线程中使用平台默认模式创建全部缺失目录。 */
-XRT_API xfuture* xrtDirCreateAllAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 在任务池线程中使用显式 POSIX 模式创建全部缺失目录。 */
-XRT_API xfuture* xrtDirCreateAllModeAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	uint32 iMode
-);
-
-
-
-/* 在任务池线程中删除一个空目录。 */
-XRT_API xfuture* xrtDirRemoveAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 查询目录是否为空；成功 Future 的值为借用的 xdirquery。 */
-XRT_API xfuture* xrtDirEmptyAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FILE_TREE_ASYNC)
-
-/* 使用高级选项异步复制目录树；成功值为源树的 xwalkstats。 */
-XRT_API xfuture* xrtFileTreeCopyAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	const xtreecopyoptions* pOptions
-);
-
-
-
-/* 常用目录复制；成功值为源树的 xwalkstats。 */
-XRT_API xfuture* xrtDirCopyAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	bool bReplace
-);
-
-
-
-/* 后序异步删除目录树；成功值为处理结果 xwalkstats。 */
-XRT_API xfuture* xrtFileTreeRemoveAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	bool bKeepRoot
-);
-
-
-
-/* 递归删除目录及全部内容；成功值为处理结果 xwalkstats。 */
-XRT_API xfuture* xrtDirRemoveAllAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 删除目录全部内容并保留根；成功值为处理结果 xwalkstats。 */
-XRT_API xfuture* xrtDirCleanAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 异步移动目录树；成功 Future 没有值。 */
-XRT_API xfuture* xrtDirMoveAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	bool bReplace
-);
-
-
-
-/* 异步统计目录树；成功值为 xwalkstats。 */
-XRT_API xfuture* xrtDirStatsAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	bool bRecursive
-);
-
-
-
-/* 异步计算普通文件总字节数；成功值为 xfilesize。 */
-XRT_API xfuture* xrtDirSizeAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	bool bRecursive
-);
-
-
-
-/* 异步创建缺失目录，或清空已有目录并保留根。 */
-XRT_API xfuture* xrtDirEnsureEmptyAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_WHOLE)
-
-/* 在任务池线程中读取整个文件；成功值为 Future 拥有的 xfiledata。 */
-XRT_API xfuture* xrtFileReadAllAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 在硬上限内读取整个文件；文件超限时 Future 失败。 */
-XRT_API xfuture* xrtFileReadAllLimitAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	size_t iLimit
-);
-
-
-
-/* 复制输入并在任务池线程中完整覆盖文件。 */
-XRT_API xfuture* xrtFileWriteAllAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	xbytesview Data
-);
-
-
-
-/* 复制输入并使用操作系统追加语义完整写入。 */
-XRT_API xfuture* xrtFileAppendAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	xbytesview Data
-);
-
-
-
-/* 复制输入并通过同目录临时文件原子发布。 */
-XRT_API xfuture* xrtFileWriteAtomicAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	xbytesview Data
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_MANAGE)
-
-/* 在任务池线程中复制文件；成功 Future 没有值。 */
-XRT_API xfuture* xrtFileCopyAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	bool bReplace
-);
-
-
-
-/* 在任务池线程中移动文件；成功 Future 没有值。 */
-XRT_API xfuture* xrtFileMoveAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	bool bReplace
-);
-
-
-
-/* 在任务池线程中删除文件；成功 Future 没有值。 */
-XRT_API xfuture* xrtFileDeleteAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
 
 #endif
 

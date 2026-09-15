@@ -1091,29 +1091,6 @@
 #endif
 #endif
 
-/* file_async 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC)
-#ifndef XRT_FEATURE_FILE_ASYNC
-#define XRT_FEATURE_FILE_ASYNC
-#endif
-#ifndef XRT_MODULE_FILE
-#define XRT_MODULE_FILE
-#endif
-#ifndef XRT_MODULE_FILE_ASYNC_COMMON
-#define XRT_MODULE_FILE_ASYNC_COMMON
-#endif
-#endif
-
-/* file_async_common 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC_COMMON)
-#ifndef XRT_FEATURE_FILE_ASYNC_COMMON
-#define XRT_FEATURE_FILE_ASYNC_COMMON
-#endif
-#ifndef XRT_MODULE_TASK_POOL
-#define XRT_MODULE_TASK_POOL
-#endif
-#endif
-
 /* file_map 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_MAP)
 #ifndef XRT_FEATURE_FILE_MAP
@@ -2730,6 +2707,29 @@
 #endif
 #endif
 
+/* file_async 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC)
+#ifndef XRT_FEATURE_FILE_ASYNC
+#define XRT_FEATURE_FILE_ASYNC
+#endif
+#ifndef XRT_MODULE_FILE
+#define XRT_MODULE_FILE
+#endif
+#ifndef XRT_MODULE_FILE_ASYNC_COMMON
+#define XRT_MODULE_FILE_ASYNC_COMMON
+#endif
+#endif
+
+/* file_async_common 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ASYNC_COMMON)
+#ifndef XRT_FEATURE_FILE_ASYNC_COMMON
+#define XRT_FEATURE_FILE_ASYNC_COMMON
+#endif
+#ifndef XRT_MODULE_TASK_POOL
+#define XRT_MODULE_TASK_POOL
+#endif
+#endif
+
 /* value_collection 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_COLLECTION)
 #ifndef XRT_FEATURE_VALUE_COLLECTION
@@ -2747,34 +2747,6 @@
 #endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
-#endif
-#endif
-
-/* future_combine 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE_COMBINE)
-#ifndef XRT_FEATURE_FUTURE_COMBINE
-#define XRT_FEATURE_FUTURE_COMBINE
-#endif
-#ifndef XRT_MODULE_FUTURE
-#define XRT_MODULE_FUTURE
-#endif
-#endif
-
-/* value_graph 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_GRAPH)
-#ifndef XRT_FEATURE_VALUE_GRAPH
-#define XRT_FEATURE_VALUE_GRAPH
-#endif
-#ifndef XRT_MODULE_VALUE_CONTAINER
-#define XRT_MODULE_VALUE_CONTAINER
-#endif
-#endif
-
-/* memory_debug 及其直接依赖。 */
-#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
-	defined(XRT_MODULE_MEMORY_DEBUG)
-#ifndef XRT_FEATURE_MEMORY_DEBUG
-#define XRT_FEATURE_MEMORY_DEBUG
 #endif
 #endif
 
@@ -4117,29 +4089,6 @@
 #endif
 #endif
 
-/* future 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE)
-#ifndef XRT_FEATURE_FUTURE
-#define XRT_FEATURE_FUTURE
-#endif
-#ifndef XRT_MODULE_CANCEL
-#define XRT_MODULE_CANCEL
-#endif
-#endif
-
-/* cancel 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CANCEL)
-#ifndef XRT_FEATURE_CANCEL
-#define XRT_FEATURE_CANCEL
-#endif
-#ifndef XRT_MODULE_MUTEX
-#define XRT_MODULE_MUTEX
-#endif
-#ifndef XRT_MODULE_COND
-#define XRT_MODULE_COND
-#endif
-#endif
-
 /* net_tcp_dial 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_DIAL)
 #ifndef XRT_FEATURE_NET_TCP_DIAL
@@ -4172,19 +4121,6 @@
 #endif
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
-#endif
-#endif
-
-/* cond 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_COND)
-#ifndef XRT_FEATURE_COND
-#define XRT_FEATURE_COND
-#endif
-#ifndef XRT_MODULE_MUTEX
-#define XRT_MODULE_MUTEX
-#endif
-#ifndef XRT_MODULE_WAIT
-#define XRT_MODULE_WAIT
 #endif
 #endif
 
@@ -4371,40 +4307,6 @@
 #endif
 #endif
 
-/* mutex 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MUTEX)
-#ifndef XRT_FEATURE_MUTEX
-#define XRT_FEATURE_MUTEX
-#endif
-#ifndef XRT_MODULE_SYNC
-#define XRT_MODULE_SYNC
-#endif
-#endif
-
-/* sync 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_SYNC)
-#ifndef XRT_FEATURE_SYNC
-#define XRT_FEATURE_SYNC
-#endif
-#endif
-
-/* wait 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WAIT)
-#ifndef XRT_FEATURE_WAIT
-#define XRT_FEATURE_WAIT
-#endif
-#ifndef XRT_MODULE_TIME
-#define XRT_MODULE_TIME
-#endif
-#endif
-
-/* atomic 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ATOMIC)
-#ifndef XRT_FEATURE_ATOMIC
-#define XRT_FEATURE_ATOMIC
-#endif
-#endif
-
 /* net_socket 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_SOCKET)
 #ifndef XRT_FEATURE_NET_SOCKET
@@ -4482,13 +4384,6 @@
 #endif
 #endif
 
-/* time 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TIME)
-#ifndef XRT_FEATURE_TIME
-#define XRT_FEATURE_TIME
-#endif
-#endif
-
 /* path_system 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PATH_SYSTEM)
 #ifndef XRT_FEATURE_PATH_SYSTEM
@@ -4538,6 +4433,69 @@
 #endif
 #ifndef XRT_MODULE_UNICODE
 #define XRT_MODULE_UNICODE
+#endif
+#ifndef XRT_MODULE_VALUE_CONTAINER
+#define XRT_MODULE_VALUE_CONTAINER
+#endif
+#endif
+
+/* unicode 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_UNICODE)
+#ifndef XRT_FEATURE_UNICODE
+#define XRT_FEATURE_UNICODE
+#endif
+#endif
+
+/* number_float 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_FLOAT)
+#ifndef XRT_FEATURE_NUMBER_FLOAT
+#define XRT_FEATURE_NUMBER_FLOAT
+#endif
+#endif
+
+/* number_integer 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_INTEGER)
+#ifndef XRT_FEATURE_NUMBER_INTEGER
+#define XRT_FEATURE_NUMBER_INTEGER
+#endif
+#endif
+
+/* buffer 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_BUFFER)
+#ifndef XRT_FEATURE_BUFFER
+#define XRT_FEATURE_BUFFER
+#endif
+#ifndef XRT_MODULE_ARRAY
+#define XRT_MODULE_ARRAY
+#endif
+#endif
+
+/* json_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_JSON_CORE)
+#ifndef XRT_FEATURE_JSON_CORE
+#define XRT_FEATURE_JSON_CORE
+#endif
+#endif
+
+/* atomic 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ATOMIC)
+#ifndef XRT_FEATURE_ATOMIC
+#define XRT_FEATURE_ATOMIC
+#endif
+#endif
+
+/* memory_debug 及其直接依赖。 */
+#if (defined(XRT_MODULE_ALL) && !defined(XRT_EXCLUDE_MEMORY_DEBUG)) || \
+	defined(XRT_MODULE_MEMORY_DEBUG)
+#ifndef XRT_FEATURE_MEMORY_DEBUG
+#define XRT_FEATURE_MEMORY_DEBUG
+#endif
+#endif
+
+/* value_graph 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE_GRAPH)
+#ifndef XRT_FEATURE_VALUE_GRAPH
+#define XRT_FEATURE_VALUE_GRAPH
 #endif
 #ifndef XRT_MODULE_VALUE_CONTAINER
 #define XRT_MODULE_VALUE_CONTAINER
@@ -4643,6 +4601,13 @@
 #endif
 #endif
 
+/* array 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ARRAY)
+#ifndef XRT_FEATURE_ARRAY
+#define XRT_FEATURE_ARRAY
+#endif
+#endif
+
 /* value 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VALUE)
 #ifndef XRT_FEATURE_VALUE
@@ -4660,48 +4625,83 @@
 #endif
 #endif
 
-/* unicode 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_UNICODE)
-#ifndef XRT_FEATURE_UNICODE
-#define XRT_FEATURE_UNICODE
+/* future_combine 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE_COMBINE)
+#ifndef XRT_FEATURE_FUTURE_COMBINE
+#define XRT_FEATURE_FUTURE_COMBINE
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
 #endif
 #endif
 
-/* number_float 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_FLOAT)
-#ifndef XRT_FEATURE_NUMBER_FLOAT
-#define XRT_FEATURE_NUMBER_FLOAT
+/* future 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FUTURE)
+#ifndef XRT_FEATURE_FUTURE
+#define XRT_FEATURE_FUTURE
+#endif
+#ifndef XRT_MODULE_CANCEL
+#define XRT_MODULE_CANCEL
 #endif
 #endif
 
-/* number_integer 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NUMBER_INTEGER)
-#ifndef XRT_FEATURE_NUMBER_INTEGER
-#define XRT_FEATURE_NUMBER_INTEGER
+/* cancel 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CANCEL)
+#ifndef XRT_FEATURE_CANCEL
+#define XRT_FEATURE_CANCEL
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
 #endif
 #endif
 
-/* buffer 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_BUFFER)
-#ifndef XRT_FEATURE_BUFFER
-#define XRT_FEATURE_BUFFER
+/* cond 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_COND)
+#ifndef XRT_FEATURE_COND
+#define XRT_FEATURE_COND
 #endif
-#ifndef XRT_MODULE_ARRAY
-#define XRT_MODULE_ARRAY
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
 #endif
-#endif
-
-/* array 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_ARRAY)
-#ifndef XRT_FEATURE_ARRAY
-#define XRT_FEATURE_ARRAY
+#ifndef XRT_MODULE_WAIT
+#define XRT_MODULE_WAIT
 #endif
 #endif
 
-/* json_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_JSON_CORE)
-#ifndef XRT_FEATURE_JSON_CORE
-#define XRT_FEATURE_JSON_CORE
+/* wait 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WAIT)
+#ifndef XRT_FEATURE_WAIT
+#define XRT_FEATURE_WAIT
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
+
+/* time 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TIME)
+#ifndef XRT_FEATURE_TIME
+#define XRT_FEATURE_TIME
+#endif
+#endif
+
+/* mutex 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_MUTEX)
+#ifndef XRT_FEATURE_MUTEX
+#define XRT_FEATURE_MUTEX
+#endif
+#ifndef XRT_MODULE_SYNC
+#define XRT_MODULE_SYNC
+#endif
+#endif
+
+/* sync 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_SYNC)
+#ifndef XRT_FEATURE_SYNC
+#define XRT_FEATURE_SYNC
 #endif
 #endif
 
@@ -5500,6 +5500,1724 @@ XRT_EXTERN_C_END
 	#define xrtRealloc(pMemory, iSize) xrtReallocAt((pMemory), (iSize), __FILE__, (uint32)__LINE__)
 	#define xrtFree(pMemory) xrtFreeAt((pMemory), __FILE__, (uint32)__LINE__)
 	#define xrtMemDup(pData, iSize) xrtMemDupAt((pData), (iSize), __FILE__, (uint32)__LINE__)
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/wait.h */
+/* ========================================================================== */
+
+#ifndef XRT_WAIT_H
+#define XRT_WAIT_H
+
+
+
+
+#if defined(XRT_FEATURE_WAIT) && !defined(XRT_FEATURE_TIME)
+	#error "XRT_FEATURE_WAIT requires XRT_FEATURE_TIME"
+#endif
+
+
+
+#if defined(XRT_FEATURE_WAIT)
+
+/* 截止时间使用 xrtClock 的单调微秒刻度。 */
+typedef uint64 xdeadline;
+
+
+
+/* 永不超时的截止时间。 */
+#define XRT_DEADLINE_NEVER UINT64_MAX
+
+
+
+/* 等待结果把正常控制流与真正错误分开表达。 */
+typedef enum xwaitresult {
+	XWAIT_ERROR = -1,
+	XWAIT_OK = 0,
+	XWAIT_TIMEOUT = 1,
+	XWAIT_CANCELLED = 2,
+	XWAIT_CLOSED = 3
+} xwaitresult;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 从当前单调时钟和相对微秒数构造截止时间，溢出时返回 NEVER。 */
+XRT_API xdeadline xrtDeadlineAfter(uint64 iTimeout);
+
+
+
+/* 判断截止时间是否已经到达；NEVER 永远不会到达。 */
+XRT_API bool xrtDeadlineExpired(xdeadline iDeadline);
+
+
+
+/* 返回截止时间前剩余微秒数；已到达返回零，NEVER 返回 UINT64_MAX。 */
+XRT_API uint64 xrtDeadlineRemaining(xdeadline iDeadline);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/sync.h */
+/* ========================================================================== */
+
+#ifndef XRT_SYNC_H
+#define XRT_SYNC_H
+
+
+
+
+#if \
+	(defined(XRT_FEATURE_MUTEX) || defined(XRT_FEATURE_COND) || \
+	 defined(XRT_FEATURE_SEM) || defined(XRT_FEATURE_RWLOCK) || \
+	 defined(XRT_FEATURE_EVENT)) && \
+	!defined(XRT_FEATURE_SYNC)
+	#error "XRT synchronization features require XRT_FEATURE_SYNC"
+#endif
+
+#if defined(XRT_FEATURE_COND) && !defined(XRT_FEATURE_MUTEX)
+	#error "XRT_FEATURE_COND requires XRT_FEATURE_MUTEX"
+#endif
+
+#if \
+	(defined(XRT_FEATURE_COND) || defined(XRT_FEATURE_SEM) || \
+	 defined(XRT_FEATURE_EVENT)) && \
+	!defined(XRT_FEATURE_WAIT)
+	#error "timed synchronization features require XRT_FEATURE_WAIT"
+#endif
+
+
+
+#if defined(_WIN32) || defined(_WIN64)
+	#define XRT_MUTEX_STORAGE_SIZE 24u
+	#define XRT_COND_STORAGE_SIZE 16u
+	#define XRT_SEM_STORAGE_SIZE 24u
+	#define XRT_RWLOCK_STORAGE_SIZE 96u
+	#define XRT_EVENT_STORAGE_SIZE 24u
+#else
+	#define XRT_MUTEX_STORAGE_SIZE 96u
+	#define XRT_COND_STORAGE_SIZE 80u
+	#define XRT_SEM_STORAGE_SIZE 176u
+	#define XRT_RWLOCK_STORAGE_SIZE 256u
+	#define XRT_EVENT_STORAGE_SIZE 176u
+#endif
+
+
+
+#if defined(XRT_FEATURE_MUTEX)
+/* Mutex 使用固定对齐存储，允许嵌入用户结构且不暴露平台头。 */
+typedef union xmutex {
+	uint64 Alignment;
+	uint8 Storage[XRT_MUTEX_STORAGE_SIZE];
+} xmutex;
+#endif
+
+
+
+#if defined(XRT_FEATURE_COND)
+/* 条件变量必须和 XRT mutex 配合使用。 */
+typedef union xcond {
+	uint64 Alignment;
+	uint8 Storage[XRT_COND_STORAGE_SIZE];
+} xcond;
+#endif
+
+
+
+#if defined(XRT_FEATURE_SEM)
+/* 信号量的计数范围在所有平台统一为 [0, INT32_MAX]。 */
+typedef union xsem {
+	uint64 Alignment;
+	uint8 Storage[XRT_SEM_STORAGE_SIZE];
+} xsem;
+#endif
+
+
+
+#if defined(XRT_FEATURE_RWLOCK)
+/* 读写锁采用写者优先策略并支持升级和降级。 */
+typedef union xrwlock {
+	uint64 Alignment;
+	uint8 Storage[XRT_RWLOCK_STORAGE_SIZE];
+} xrwlock;
+#endif
+
+
+
+#if defined(XRT_FEATURE_EVENT)
+/* 事件保存显式信号状态，可选择自动或手动复位。 */
+typedef union xevent {
+	uint64 Alignment;
+	uint8 Storage[XRT_EVENT_STORAGE_SIZE];
+} xevent;
+#endif
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+#if defined(XRT_FEATURE_MUTEX)
+/* 初始化调用方存储中的非递归互斥锁。 */
+XRT_API bool xrtMutexInit(xmutex* pMutex);
+
+
+
+/* 释放互斥锁平台资源；仍被持有时失败且保持对象有效。 */
+XRT_API bool xrtMutexUnit(xmutex* pMutex);
+
+
+
+/* 创建一个非递归互斥锁。 */
+XRT_API xmutex* xrtMutexCreate(void);
+
+
+
+/* 释放 Create 返回的互斥锁；仍被持有时失败且不释放对象。 */
+XRT_API bool xrtMutexDestroy(xmutex* pMutex);
+
+
+
+/* 阻塞到获得互斥锁；同线程递归加锁返回错误。 */
+XRT_API bool xrtMutexLock(xmutex* pMutex);
+
+
+
+/* 尝试获得互斥锁；锁正忙时返回 false 且不设置错误。 */
+XRT_API bool xrtMutexTryLock(xmutex* pMutex);
+
+
+
+/* 释放当前线程持有的互斥锁。 */
+XRT_API bool xrtMutexUnlock(xmutex* pMutex);
+#endif
+
+
+
+#if defined(XRT_FEATURE_COND)
+/* 初始化调用方存储中的条件变量。 */
+XRT_API bool xrtCondInit(xcond* pCond);
+
+
+
+/* 释放条件变量平台资源。 */
+XRT_API bool xrtCondUnit(xcond* pCond);
+
+
+
+/* 创建条件变量。 */
+XRT_API xcond* xrtCondCreate(void);
+
+
+
+/* 释放 Create 返回的条件变量。 */
+XRT_API bool xrtCondDestroy(xcond* pCond);
+
+
+
+/* 当前线程持有 mutex 时原子释放并等待；允许虚假唤醒，必须在谓词循环中调用。 */
+XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex);
+
+
+
+/* 在相对微秒数内等待；允许虚假唤醒，超时和成功后都重新持有 mutex。 */
+XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout);
+
+
+
+/* 等待到单调时钟截止时间；允许虚假唤醒，应循环检查受 mutex 保护的谓词。 */
+XRT_API xwaitresult xrtCondWaitUntil(
+	xcond* pCond,
+	xmutex* pMutex,
+	xdeadline iDeadline
+);
+
+
+
+/* 唤醒一个等待者；通知本身不保存状态。 */
+XRT_API bool xrtCondSignal(xcond* pCond);
+
+
+
+/* 唤醒全部当前等待者；通知本身不保存状态。 */
+XRT_API bool xrtCondBroadcast(xcond* pCond);
+#endif
+
+
+
+#if defined(XRT_FEATURE_SEM)
+/* 初始化计数信号量。 */
+XRT_API bool xrtSemInit(xsem* pSem, uint32 iInitial, uint32 iMaximum);
+
+
+
+/* 释放信号量平台资源。 */
+XRT_API bool xrtSemUnit(xsem* pSem);
+
+
+
+/* 创建计数信号量。 */
+XRT_API xsem* xrtSemCreate(uint32 iInitial, uint32 iMaximum);
+
+
+
+/* 释放 Create 返回的信号量。 */
+XRT_API bool xrtSemDestroy(xsem* pSem);
+
+
+
+/* 等待并消费一个信号。 */
+XRT_API xwaitresult xrtSemWait(xsem* pSem);
+
+
+
+/* 非阻塞地尝试消费一个信号。 */
+XRT_API xwaitresult xrtSemTryWait(xsem* pSem);
+
+
+
+/* 在相对微秒数内等待并消费一个信号。 */
+XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout);
+
+
+
+/* 等待并消费一个信号到指定单调时钟截止时间。 */
+XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline);
+
+
+
+/* 发布一个信号；达到上限时失败且计数不变。 */
+XRT_API bool xrtSemPost(xsem* pSem);
+
+
+
+/* 原子发布多个信号；超过上限时失败且不部分发布。 */
+XRT_API bool xrtSemPostMany(xsem* pSem, uint32 iCount);
+#endif
+
+
+
+#if defined(XRT_FEATURE_RWLOCK)
+/* 初始化写者优先的读写锁。 */
+XRT_API bool xrtRWLockInit(xrwlock* pLock);
+
+
+
+/* 释放读写锁平台资源；仍被持有或等待时失败。 */
+XRT_API bool xrtRWLockUnit(xrwlock* pLock);
+
+
+
+/* 创建写者优先的读写锁。 */
+XRT_API xrwlock* xrtRWLockCreate(void);
+
+
+
+/* 释放 Create 返回的读写锁。 */
+XRT_API bool xrtRWLockDestroy(xrwlock* pLock);
+
+
+
+/* 获得非递归共享读锁；读锁所有权由调用方保证。 */
+XRT_API bool xrtRWLockRead(xrwlock* pLock);
+
+
+
+/* 尝试获得共享读锁；写者存在或等待时返回 false。 */
+XRT_API bool xrtRWLockTryRead(xrwlock* pLock);
+
+
+
+/* 释放当前线程持有的一个读锁。 */
+XRT_API bool xrtRWLockReadUnlock(xrwlock* pLock);
+
+
+
+/* 获得独占写锁。 */
+XRT_API bool xrtRWLockWrite(xrwlock* pLock);
+
+
+
+/* 尝试获得独占写锁。 */
+XRT_API bool xrtRWLockTryWrite(xrwlock* pLock);
+
+
+
+/* 释放当前线程持有的写锁。 */
+XRT_API bool xrtRWLockWriteUnlock(xrwlock* pLock);
+
+
+
+/* 原子地把当前线程的写锁降级为一个读锁。 */
+XRT_API bool xrtRWLockDowngrade(xrwlock* pLock);
+
+
+
+/* 当前线程只持有一个读锁时，释放它并排队获得写锁。 */
+XRT_API bool xrtRWLockUpgrade(xrwlock* pLock);
+#endif
+
+
+
+#if defined(XRT_FEATURE_EVENT)
+/* 初始化自动或手动复位事件。 */
+XRT_API bool xrtEventInit(xevent* pEvent, bool bManualReset, bool bSignaled);
+
+
+
+/* 释放事件平台资源。 */
+XRT_API bool xrtEventUnit(xevent* pEvent);
+
+
+
+/* 创建自动或手动复位事件。 */
+XRT_API xevent* xrtEventCreate(bool bManualReset, bool bSignaled);
+
+
+
+/* 释放 Create 返回的事件。 */
+XRT_API bool xrtEventDestroy(xevent* pEvent);
+
+
+
+/* 等待事件进入信号态。 */
+XRT_API xwaitresult xrtEventWait(xevent* pEvent);
+
+
+
+/* 非阻塞地检查并消费自动复位事件。 */
+XRT_API xwaitresult xrtEventTryWait(xevent* pEvent);
+
+
+
+/* 在相对微秒数内等待事件。 */
+XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, uint64 iTimeout);
+
+
+
+/* 等待事件到指定单调时钟截止时间。 */
+XRT_API xwaitresult xrtEventWaitUntil(xevent* pEvent, xdeadline iDeadline);
+
+
+
+/* 设置事件；手动复位唤醒全部等待者，自动复位唤醒一个等待者。 */
+XRT_API bool xrtEventSet(xevent* pEvent);
+
+
+
+/* 清除事件信号态。 */
+XRT_API bool xrtEventReset(xevent* pEvent);
+#endif
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/time.h */
+/* ========================================================================== */
+
+#ifndef XRT_TIME_H
+#define XRT_TIME_H
+
+
+
+
+#if (defined(XRT_FEATURE_TIME_LOCAL) || defined(XRT_FEATURE_TIME_TEXT)) && !defined(XRT_FEATURE_TIME)
+	#error "XRT local time and time text features require XRT_FEATURE_TIME"
+#endif
+
+
+
+/* xtime 和固定时长统一使用微秒，避免浮点计时和隐式单位换算。 */
+#define XRT_TIME_MICROSECOND	INT64_C(1)
+#define XRT_TIME_MILLISECOND	INT64_C(1000)
+#define XRT_TIME_SECOND		INT64_C(1000000)
+#define XRT_TIME_MINUTE		INT64_C(60000000)
+#define XRT_TIME_HOUR		INT64_C(3600000000)
+#define XRT_TIME_DAY			INT64_C(86400000000)
+#define XRT_TIME_WEEK		INT64_C(604800000000)
+
+
+
+/* 星期值固定从星期日零开始，便于和 C/POSIX 及 HTTP-date 对接。 */
+typedef enum xtimeweekday {
+	XTIME_SUNDAY = 0,
+	XTIME_MONDAY,
+	XTIME_TUESDAY,
+	XTIME_WEDNESDAY,
+	XTIME_THURSDAY,
+	XTIME_FRIDAY,
+	XTIME_SATURDAY
+} xtimeweekday;
+
+
+
+/* 日期计算单位；月、季度和年使用日历语义，其余单位使用固定时长。 */
+typedef enum xtimeunit {
+	XTIME_UNIT_MICROSECOND = 0,
+	XTIME_UNIT_MILLISECOND,
+	XTIME_UNIT_SECOND,
+	XTIME_UNIT_MINUTE,
+	XTIME_UNIT_HOUR,
+	XTIME_UNIT_DAY,
+	XTIME_UNIT_WEEK,
+	XTIME_UNIT_MONTH,
+	XTIME_UNIT_QUARTER,
+	XTIME_UNIT_YEAR
+} xtimeunit;
+
+
+
+/* 本地时间在夏令时回拨区间出现两个候选值时的选择规则。 */
+typedef enum xtimefold {
+	XTIME_FOLD_REJECT = 0,
+	XTIME_FOLD_EARLIER,
+	XTIME_FOLD_LATER
+} xtimefold;
+
+
+
+/* 时间模块稳定错误代码。 */
+typedef enum xtimeerror {
+	XTIME_ERROR_RANGE = 1,
+	XTIME_ERROR_OVERFLOW,
+	XTIME_ERROR_FORMAT,
+	XTIME_ERROR_PARSE,
+	XTIME_ERROR_LOCAL_GAP,
+	XTIME_ERROR_LOCAL_FOLD,
+	XTIME_ERROR_LOCAL_UNSUPPORTED
+} xtimeerror;
+
+
+
+/* 分解后的 Gregorian 日期时间；Offset 为 UTC 以东秒数。 */
+typedef struct xdatetime {
+	int64 Year;
+	int Month;
+	int Day;
+	int Hour;
+	int Minute;
+	int Second;
+	int Microsecond;
+	int Offset;
+	int Weekday;
+	int YearDay;
+	int IsDST;
+} xdatetime;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+#if defined(XRT_FEATURE_TIME)
+
+/* 返回单调递增时钟的微秒计数，只能用于测量间隔和截止时间。 */
+XRT_API uint64 xrtClock(void);
+
+
+
+/* 返回单调时钟的浮点秒数，供短小的性能测量代码使用。 */
+XRT_API double xrtTimer(void);
+
+
+
+/* 返回当前 Unix Epoch 微秒。 */
+XRT_API xtime xrtNow(void);
+
+
+
+/* 至少睡眠指定毫秒；零表示让出当前执行时间片。 */
+XRT_API void xrtSleep(uint32 iMilliseconds);
+
+
+
+/* 至少睡眠指定微秒。 */
+XRT_API void xrtSleepUs(uint64 iMicroseconds);
+
+
+
+/* 睡眠到单调时钟截止点；截止点已到时立即返回。 */
+XRT_API void xrtSleepUntil(uint64 iDeadline);
+
+
+
+/* 判断 Gregorian 年份是否为闰年，支持负年份和零年。 */
+XRT_API bool xrtIsLeapYear(int64 iYear);
+
+
+
+/* 返回指定月份的天数；月份无效时返回零并设置参数错误。 */
+XRT_API int xrtDaysInMonth(int64 iYear, int iMonth);
+
+
+
+/* 返回指定年份的天数。 */
+XRT_API int xrtDaysInYear(int64 iYear);
+
+
+
+/* 构造 UTC 零点日期。 */
+XRT_API bool xrtDate(int64 iYear, int iMonth, int iDay, xtime* pTime);
+
+
+
+/* 构造 UTC 日期时间。 */
+XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
+	int iHour, int iMinute, int iSecond, int iMicrosecond, xtime* pTime);
+
+
+
+/* 按结构中的显式 UTC 偏移构造绝对时间。 */
+XRT_API bool xrtTimeMake(const xdatetime* pDateTime, xtime* pTime);
+
+
+
+/* 把绝对时间按 UTC 分解为日期时间。 */
+XRT_API bool xrtTimeSplit(xtime iTime, xdatetime* pDateTime);
+
+
+
+/* 把绝对时间按固定 UTC 偏移分解，偏移范围为 -23:59:59 到 +23:59:59。 */
+XRT_API bool xrtTimeSplitAt(xtime iTime, int iOffset, xdatetime* pDateTime);
+
+
+
+/* 从 Unix 秒安全构造 xtime。 */
+XRT_API bool xrtTimeFromUnix(int64 iSeconds, xtime* pTime);
+
+
+
+/* 从 Unix 毫秒安全构造 xtime。 */
+XRT_API bool xrtTimeFromUnixMs(int64 iMilliseconds, xtime* pTime);
+
+
+
+/* 返回向负无穷取整的 Unix 秒。 */
+XRT_API int64 xrtTimeUnix(xtime iTime);
+
+
+
+/* 返回向负无穷取整的 Unix 毫秒。 */
+XRT_API int64 xrtTimeUnixMs(xtime iTime);
+
+
+
+/* 提取 UTC 年份。 */
+XRT_API int64 xrtYear(xtime iTime);
+
+
+
+/* 提取 UTC 月份。 */
+XRT_API int xrtMonth(xtime iTime);
+
+
+
+/* 提取 UTC 月内日期。 */
+XRT_API int xrtDay(xtime iTime);
+
+
+
+/* 提取 UTC 小时。 */
+XRT_API int xrtHour(xtime iTime);
+
+
+
+/* 提取 UTC 分钟。 */
+XRT_API int xrtMinute(xtime iTime);
+
+
+
+/* 提取 UTC 秒。 */
+XRT_API int xrtSecond(xtime iTime);
+
+
+
+/* 提取秒内微秒。 */
+XRT_API int xrtMicrosecond(xtime iTime);
+
+
+
+/* 提取星期，范围为 XTIME_SUNDAY 到 XTIME_SATURDAY。 */
+XRT_API int xrtWeekday(xtime iTime);
+
+
+
+/* 提取年内日期，范围为 1 到 366。 */
+XRT_API int xrtDayOfYear(xtime iTime);
+
+
+
+/* 提取季度，范围为 1 到 4。 */
+XRT_API int xrtQuarter(xtime iTime);
+
+
+
+/* 返回 UTC 当日零点。 */
+XRT_API xtime xrtDatePart(xtime iTime);
+
+
+
+/* 返回 UTC 当日已经经过的微秒，范围为 [0, XRT_TIME_DAY)。 */
+XRT_API xtime xrtTimePart(xtime iTime);
+
+
+
+/* 使用显式微秒容差比较两个时间，计算覆盖完整 int64 域。 */
+XRT_API bool xrtTimeNear(xtime iLeft, xtime iRight, uint64 iTolerance);
+
+
+
+/* 判断两个 UTC 时间是否位于同一个 Gregorian 日期。 */
+XRT_API bool xrtTimeSameDay(xtime iLeft, xtime iRight);
+
+
+
+/* 判断两个 UTC 时间是否位于同一个 Gregorian 月份。 */
+XRT_API bool xrtTimeSameMonth(xtime iLeft, xtime iRight);
+
+
+
+/* 判断两个 UTC 时间是否位于同一个 Gregorian 年份。 */
+XRT_API bool xrtTimeSameYear(xtime iLeft, xtime iRight);
+
+
+
+/* 判断时间是否位于闭区间；反向区间返回 false。 */
+XRT_API bool xrtTimeIn(xtime iTime, xtime iStart, xtime iEnd);
+
+
+
+/* 判断两个闭区间是否重叠；任一反向区间返回 false。 */
+XRT_API bool xrtTimeOverlap(xtime iStart1, xtime iEnd1,
+	xtime iStart2, xtime iEnd2);
+
+
+
+/* 增加固定时长或 Gregorian 日历单位，月末会钳制到目标月最后一天。 */
+XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResult);
+
+
+
+/* 计算从起点到终点经过的完整单位数量。 */
+XRT_API bool xrtTimeDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult);
+
+
+
+/* 返回包含给定时间的半开月份区间 [start, end)。 */
+XRT_API bool xrtMonthRange(xtime iTime, xtime* pStart, xtime* pEnd);
+
+
+
+/* 返回包含给定时间的半开年份区间 [start, end)。 */
+XRT_API bool xrtYearRange(xtime iTime, xtime* pStart, xtime* pEnd);
+
+
+
+/* 返回包含给定时间的半开星期区间 [start, end)。 */
+XRT_API bool xrtWeekRange(xtime iTime, int iFirstWeekday, xtime* pStart, xtime* pEnd);
+
+
+
+/* 返回 ISO 8601 周年、周数和星期值，其中星期一为 1，星期日为 7。 */
+XRT_API bool xrtISOWeek(xtime iTime, int64* pWeekYear, int* pWeek, int* pWeekday);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_TIME_LOCAL)
+
+/* 使用操作系统当前时区规则分解绝对时间。 */
+XRT_API bool xrtTimeLocal(xtime iTime, xdatetime* pDateTime);
+
+
+
+/* 使用操作系统时区规则构造本地时间，并显式处理 DST 重复区间。 */
+XRT_API bool xrtTimeFromLocal(const xdatetime* pDateTime, xtimefold Fold, xtime* pTime);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_TIME_TEXT)
+
+/* 按 % 占位符写入并返回所需字节数；%-m 等数字占位符取消填充，输出缓冲不得与 Format 重叠。 */
+XRT_API size_t xrtDateTimeWrite(char* sBuffer, size_t iCapacity,
+	const xdatetime* pDateTime, xstrview Format);
+
+
+
+/* 按 % 占位符创建时间文本；%p 输出大写午别，%P 输出小写午别，返回值由 xrtFree 释放。 */
+XRT_API str xrtDateTimeFormat(const xdatetime* pDateTime, xstrview Format);
+
+
+
+/* 严格解析完整格式；%-m 等字段接受一到两位数字，格式非法与文本不匹配使用不同错误码。 */
+XRT_API bool xrtDateTimeParse(xstrview Text, xstrview Format, xdatetime* pDateTime);
+
+
+
+/* 按固定 UTC 偏移和上述占位符写入；输出缓冲不得与 Format 重叠。 */
+XRT_API size_t xrtTimeWrite(char* sBuffer, size_t iCapacity,
+	xtime iTime, int iOffset, xstrview Format);
+
+
+
+/* 按固定 UTC 偏移和上述占位符创建时间文本，返回值由 xrtFree 释放。 */
+XRT_API str xrtTimeFormat(xtime iTime, int iOffset, xstrview Format);
+
+
+
+/* 严格按上述完整格式解析绝对时间。 */
+XRT_API bool xrtTimeParse(xstrview Text, xstrview Format, xtime* pTime);
+
+
+
+/* 写入 RFC 3339 文本；零偏移使用 Z，微秒末尾的零会被删除。 */
+XRT_API size_t xrtTimeWriteRFC3339(char* sBuffer, size_t iCapacity,
+	xtime iTime, int iOffset);
+
+
+
+/* 创建 RFC 3339 文本，返回值由 xrtFree 释放。 */
+XRT_API str xrtTimeRFC3339(xtime iTime, int iOffset);
+
+
+
+/* 严格解析 RFC 3339；超过微秒精度的尾数会向零截断。 */
+XRT_API bool xrtTimeParseRFC3339(xstrview Text, xtime* pTime);
+
+
+
+/* 写入 HTTP IMF-fixdate，时间始终转换为 GMT 并丢弃秒以下部分。 */
+XRT_API size_t xrtTimeWriteHTTPDate(char* sBuffer, size_t iCapacity, xtime iTime);
+
+
+
+/* 创建 HTTP IMF-fixdate，返回值由 xrtFree 释放。 */
+XRT_API str xrtTimeHTTPDate(xtime iTime);
+
+
+
+/* 解析 IMF-fixdate、RFC 850 和 ANSI C asctime 三种 HTTP 日期格式。 */
+XRT_API bool xrtTimeParseHTTPDate(xstrview Text, xtime* pTime);
+
+
+
+/* 尝试解析三种 HTTP 日期格式；失败不修改输出和线程错误。 */
+XRT_API bool xrtTimeTryParseHTTPDate(xstrview Text, xtime* pTime);
+
+
+
+/* 解析 RFC 3339、HTTP-date 和常见数字日期时间。 */
+XRT_API bool xrtTimeParseAny(xstrview Text, xtime* pTime);
+
+#endif
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/cancel.h */
+/* ========================================================================== */
+
+#ifndef XRT_CANCEL_H
+#define XRT_CANCEL_H
+
+
+
+
+#if defined(XRT_FEATURE_CANCEL) && !defined(XRT_FEATURE_MUTEX)
+	#error "XRT_FEATURE_CANCEL requires XRT_FEATURE_MUTEX"
+#endif
+
+#if defined(XRT_FEATURE_CANCEL) && !defined(XRT_FEATURE_COND)
+	#error "XRT_FEATURE_CANCEL requires XRT_FEATURE_COND"
+#endif
+
+
+
+#if defined(XRT_FEATURE_CANCEL)
+/* 取消令牌保存一次性取消状态，并可通过不可变父链继承取消。 */
+typedef struct xcancel xcancel;
+
+
+
+/* 取消监听保存一次回调注册及其并发生命周期。 */
+typedef struct xcancelwatch xcancelwatch;
+
+
+
+/* 取消回调由命中的取消请求线程或迟注册线程同步执行。 */
+typedef void (*xcancelproc)(ptr pData);
+
+/* Certified resident observer. A successful registration consumes ONE real
+ * Data reference described by Ops. Notify borrows it; Drop returns it once
+ * after Unwatch and every dispatch/plan pin have finished. Both callbacks
+ * coordinate their own graph transitions and code lifetime. They run outside
+ * this API's mutation scope, never by suspending a caller-owned outer scope.
+ * Policy identity is immutable and outlives the registration. A trace alone
+ * is not certification, nor permission to cancel or skip accepted work. */
+typedef struct xcancelwatchownershipv1 {
+	size_t size;
+	xcancelproc Notify;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xcancelwatchownershipv1;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 创建一个独立的取消令牌。 */
+XRT_API xcancel* xrtCancelCreate(void);
+
+
+
+/* 创建一个继承父令牌取消状态的子令牌；父令牌可为空。 */
+XRT_API xcancel* xrtCancelChild(xcancel* pParent);
+
+
+
+/* 增加取消令牌引用并返回原指针。 */
+XRT_API xcancel* xrtCancelRef(xcancel* pCancel);
+
+
+
+/* 释放取消令牌引用；空指针视为空操作。 */
+XRT_API void xrtCancelDestroy(xcancel* pCancel);
+
+/* Borrowed physical ownership view; the retained parent is one owning edge.
+ * Watch-list links borrow registration storage and are not strong references.
+ * Caller provides whole-graph quiescence and code residency. */
+XRT_API xrtownershipref xrtCancelOwnership(const xcancel* pCancel);
+
+/* Explicit native adapter, queried under whole-graph freeze. Registered
+ * observers are refused before Trace, not treated as empty owning slots.
+ * The immutable parent tail remains owned through Finish and final Drop;
+ * each parent must independently be admitted. No CancelWatch certification. */
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference);
+
+
+
+/* 请求取消；仅首次请求返回 true 并触发监听。 */
+XRT_API bool xrtCancelRequest(xcancel* pCancel);
+
+
+
+/* 查询令牌或任一祖先是否已请求取消；空指针表示未取消。 */
+XRT_API bool xrtCancelRequested(const xcancel* pCancel);
+
+
+
+/* 监听令牌及其不可变父链；回调至多同步执行一次。 */
+XRT_API xcancelwatch* xrtCancelWatch(
+	xcancel* pCancel,
+	xcancelproc pProc,
+	ptr pData
+);
+
+/* Failure consumes nothing. Success may notify synchronously if an ancestor
+ * is already cancelled, but retains Data until registration release. Legacy
+ * Watch remains borrowed/opaque and keeps its conservative callback scope. */
+XRT_API xcancelwatch* xrtCancelWatchOwnedV1(xcancel* pCancel, ptr pData,
+	const xcancelwatchownershipv1* pPolicy);
+
+/* Whole-graph freeze queries, matching policy identity before dereferencing
+ * it or tracing Data. Both lifecycle AND semantic preparation are required.
+ * Token list nodes borrow Watch storage: V2 does not invent token->Watch RC
+ * edges. Watch owns its Cancel and its certified Data reference independently.
+ * Active dispatch, publication/unlink, legacy/unknown observers are refused.
+ * Prepare only waits for the owner's actual Unwatch; it never requests
+ * cancellation or silently removes an accepted callback. Output preparation
+ * remains unchanged on refusal. Data/parents must be independently admitted. */
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV2(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV1(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+
+
+
+/* 查询监听是否已命中取消。 */
+XRT_API bool xrtCancelTriggered(const xcancelwatch* pWatch);
+
+
+
+/* Borrowed physical view: Unwatch owns this registration; it retains its
+ * Cancel (and thereby its parents). Proc/Data and linked cancellation nodes
+ * are borrowed, not additional owning slots. Active/destroying callbacks
+ * reject inspection. Whole-graph quiescence and code residency are required. */
+XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch);
+
+
+
+/* 注销并释放监听；从其他线程调用时等待正在执行的回调返回。 */
+XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch);
+
+
+
+XRT_EXTERN_C_END
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/future.h */
+/* ========================================================================== */
+
+#ifndef XRT_FUTURE_H
+#define XRT_FUTURE_H
+
+
+
+
+#if defined(XRT_FEATURE_FUTURE) && !defined(XRT_FEATURE_CANCEL)
+	#error "XRT_FEATURE_FUTURE requires XRT_FEATURE_CANCEL"
+#endif
+
+#if defined(XRT_FEATURE_FUTURE_COROUTINE) && !defined(XRT_FEATURE_FUTURE)
+	#error "XRT_FEATURE_FUTURE_COROUTINE requires XRT_FEATURE_FUTURE"
+#endif
+
+#if defined(XRT_FEATURE_FUTURE_COROUTINE) && !defined(XRT_FEATURE_COROUTINE_SCHEDULER)
+	#error "XRT_FEATURE_FUTURE_COROUTINE requires XRT_FEATURE_COROUTINE_SCHEDULER"
+#endif
+
+#if defined(XRT_FEATURE_FUTURE_COMBINE) && !defined(XRT_FEATURE_FUTURE)
+	#error "XRT_FEATURE_FUTURE_COMBINE requires XRT_FEATURE_FUTURE"
+#endif
+
+#if defined(XRT_FEATURE_FUTURE_CONTINUE) && !defined(XRT_FEATURE_FUTURE)
+	#error "XRT_FEATURE_FUTURE_CONTINUE requires XRT_FEATURE_FUTURE"
+#endif
+
+
+
+#if defined(XRT_FEATURE_FUTURE)
+
+/* Future 是只读共享结果，Promise 是唯一终态写入端。 */
+typedef struct xfuture xfuture;
+typedef struct xpromise xpromise;
+
+
+
+/* Future 终态明确区分成功、失败、协作取消和生产端关闭。 */
+typedef enum xfuturestate {
+	XFUTURE_PENDING = 0,
+	XFUTURE_RESOLVED = 1,
+	XFUTURE_FAILED = 2,
+	XFUTURE_CANCELLED = 3,
+	XFUTURE_CLOSED = 4
+} xfuturestate;
+
+
+
+/* Future 结果只借用值和错误，其生命周期由 Future 引用保护。 */
+typedef struct xfutureresult {
+	xfuturestate State;
+	ptr Value;
+	const xerror* Error;
+} xfutureresult;
+
+
+
+/* Future Watch 使用调用方存储提供无分配终态通知。 */
+#define XRT_FUTURE_WATCH_STORAGE_SIZE 64u
+
+
+
+/* Watch 回调在线程安全的 Future 完成路径中执行，不得重入同一个 Watch。 */
+typedef void (*xfuturewatchproc)(ptr pData);
+
+
+
+/* Watch 释放过程在线性化完成通知或成功摘除后执行一次。 */
+typedef void (*xfuturewatchreleaseproc)(ptr pData);
+
+
+
+/* Watch 的内部链表和并发状态保持不透明。 */
+typedef union xfuturewatch {
+	uint64 Alignment;
+	uint8 Storage[XRT_FUTURE_WATCH_STORAGE_SIZE];
+} xfuturewatch;
+
+
+
+/* 注册结果区分错误、Future 已完成和成功进入等待链。 */
+typedef enum xfuturewatchresult {
+	XFUTURE_WATCH_ERROR = -1,
+	XFUTURE_WATCH_READY = 0,
+	XFUTURE_WATCH_PENDING = 1
+} xfuturewatchresult;
+
+
+
+/* 成功值析构过程接收创建者提供的值和上下文。 */
+typedef void (*xfuturefreeproc)(ptr pValue, ptr pData);
+
+/* Describe exactly the owning slots released by an owned result's destructor,
+ * including its context. Unique boxes are folded into this Future's edges;
+ * shared reference-counted boxes must be reported as physical nodes. */
+typedef bool (*xfutureownershiptrace)(const void* pValue, const void* pData,
+	xrtownershipvisitor pVisit, ptr pContext);
+
+/* Explicit lifecycle certification, separate from an inspection-only trace.
+ * Immutable policy/code outlives the Future. Drop consumes a unique result
+ * box and exactly the owning slots described by Trace; context is NULL.
+ * Drop coordinates its own graph transitions, runs no new semantic finalizer
+ * after child finalization, and may execute outside XRT's mutation scope.
+ * Trace is allocation/callback-free apart from the supplied visitor. */
+typedef struct xfuturepayloadownershipv1 {
+	size_t size;
+	xfuturefreeproc Drop;
+	xfutureownershiptrace Trace;
+} xfuturepayloadownershipv1;
+
+/* One ACTUAL producer reference owned by a pending result, separate from
+ * PromiseRefs and from the terminal payload. The immutable resident Drop
+ * releases that reference outside this Future's lock/mutation; it coordinates
+ * its own transitions and code lifetime. It must not cancel accepted work or
+ * substitute for its semantic callback/finally. Completion preserves its own
+ * diagnostic across this mechanical release. The physical child is still
+ * independently admitted by the collector, never certified by this policy. */
+typedef struct xfutureproducerownershipv1 {
+	size_t size;
+	void (*Drop)(const void* pProducer);
+} xfutureproducerownershipv1;
+
+/* A registered Watch owns exactly ONE Data node reference, returned by Release.
+ * Immutable resident callbacks coordinate their own activity and code lifetime;
+ * Ops describes that same physical node, not a synthetic watch leaf. The core
+ * traces this actual slot, but a collector independently admits Data and all
+ * of its captures. Legacy traced/phased watches are not silently certified. */
+typedef struct xfuturewatchownershipv1 {
+	size_t size;
+	xfuturewatchproc Notify;
+	xfuturewatchreleaseproc Release;
+	const xrtownershipops* Ops;
+} xfuturewatchownershipv1;
+
+/* The callback address may point inside the physical owner (for example an
+ * aggregate input slot). Reference projects that address to the ONE actual
+ * reference returned by Release; it neither acquires a reference nor traces
+ * captures. The projection is immutable, resident, allocation/lock/callback
+ * free and remains valid through the Release tail. It must not invent an
+ * alias RC node. Admission matches policy identity before invoking it. */
+typedef struct xfuturewatchownershipv2 {
+	size_t size;
+	xfuturewatchproc Notify;
+	xfuturewatchreleaseproc Release;
+	xrtownershipref (*Reference)(const void* pData);
+} xfuturewatchownershipv2;
+
+/* Closed policy sets for one collector domain. This is admission, not a
+ * registry granting unknown Data/code lifecycle authority. Children remain
+ * independently admitted. V1-V3 retain their original refusal boundaries. */
+typedef struct xfutureownershipadmissionv1 {
+	size_t size;
+	const xfuturepayloadownershipv1* const* PayloadPolicies;
+	size_t PayloadPolicyCount;
+	const xfutureproducerownershipv1* const* ProducerPolicies;
+	size_t ProducerPolicyCount;
+	const xfuturewatchownershipv1* const* WatchPolicies;
+	size_t WatchPolicyCount;
+	const xfuturewatchownershipv2* const* ProjectedWatchPolicies;
+	size_t ProjectedWatchPolicyCount;
+	const xcancelwatchownershipv1* const* CancelWatchPolicies;
+	size_t CancelWatchPolicyCount;
+} xfutureownershipadmissionv1;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 创建一对 Future/Promise；父取消令牌为空时使用独立取消源。 */
+XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
+
+/* Bind once to a private, pending, newly created Future/Promise pair (one
+ * reference per endpoint, no waiters). No allocation or user callback.
+ * Success consumes ONE existing Producer reference; failure consumes nothing.
+ * The result traces that real edge until terminal publication detaches it;
+ * completion releases it exactly once outside lock/mutation before notifying
+ * the result's waiters. Merely dropping a Future observer does not cancel work.
+ * The caller keeps an independent activation/registration reference until
+ * its own callback and release tails finish. An enclosing caller-owned scope
+ * is never suspended. A trace-only or unknown policy is not collection proof. */
+XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy);
+
+
+
+/* 增加 Promise 生产端引用并返回原指针。 */
+XRT_API xpromise* xrtPromiseRef(xpromise* pPromise);
+
+
+
+/* 释放生产端引用；最后一个未完成生产端会关闭 Future 并请求取消。 */
+XRT_API void xrtPromiseDestroy(xpromise* pPromise);
+
+
+
+/* 增加 Future 消费端引用并返回原指针。 */
+XRT_API xfuture* xrtFutureRef(xfuture* pFuture);
+
+
+
+/* 释放 Future 消费端引用；空指针视为空操作。 */
+XRT_API void xrtFutureDestroy(xfuture* pFuture);
+
+/* Borrowed views of the SAME physical control block: every FutureRef and
+ * PromiseRef owns one reference. Do not invent a second Promise node.
+ * Trace includes cancellation parents, error causes, forwarded source and
+ * explicitly described owned payload/context. Unknown owned payloads and
+ * registered waiters fail closed unless their complete adapters are supplied.
+ * Pending with no waiters is inspectable; producer references remain roots.
+ * Whole-graph quiescence through any later commit and callback code residency
+ * remain the caller's responsibility; this API does not establish either. */
+XRT_API xrtownershipref xrtFutureOwnership(const xfuture* pFuture);
+XRT_API xrtownershipref xrtPromiseOwnership(const xpromise* pPromise);
+
+/* Publish an explicitly certified owned result atomically. Failure does not
+ * consume the box. This does not authorize collection by itself: a resolver
+ * must recognize the exact policy identity and independently admit children. */
+XRT_API bool xrtPromiseResolveOwnedPolicyV1(xpromise* pPromise, ptr pValue,
+	const xfuturepayloadownershipv1* pPolicy);
+
+/* Query under whole-graph freeze before Count/Trace. Pending, forwarded and
+ * terminal control blocks share one physical adapter. Completing operations,
+ * all registered waiters, unrecognized owned policies and observed cancel
+ * tokens are refused without invoking any payload/waiter trace. An empty
+ * allowlist admits only results without an owned payload. Pending retirement
+ * preserves last-producer CLOSED/cancellation semantics at Clear, without
+ * notification. Finish releases actual retired slots outside freeze. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount);
+/* Add an explicit producer-policy allowlist. V1 continues to refuse any live
+ * producer edge. Neither entry admits registered waiters or an unknown child;
+ * identity is matched before reading a policy or invoking any child callback. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount);
+/* V3 additionally admits exact Watch policies and returns mandatory semantic
+ * preparation alongside the SAME lifecycle adapter. Before object Finalize,
+ * prepare producerless pending sources through normal CLOSED notification,
+ * then rebuild the whole graph. Produced results defer to their real producer;
+ * never close an intermediate result before its source's catch/finally runs.
+ * Closed dependency cycles may require a further explicit shutdown protocol;
+ * BUSY does not authorize clearing a live Watch or skipping accepted work.
+ * Output is unchanged on refusal. Use both descriptors, never V1-only planning. */
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
+	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+/* Preserve 64-byte Watch storage and READY/PENDING/ERROR ownership rules.
+ * Initialization alone does not consume Data; registration commits the same
+ * caller-owned reference that Release returns. READY is still caller-driven. */
+XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv1* pPolicy);
+/* Same 64-byte storage and ERROR/READY/PENDING transfer rules as V1. No
+ * projection is invoked by initialization or adapter admission. */
+XRT_API bool xrtFutureWatchInitOwnershipV2(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv2* pPolicy);
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV4(xrtownershipref Reference,
+	const xfutureownershipadmissionv1* pAdmission,
+	const xrtownershippreparationv1** ppPreparation);
+
+/* Atomically publish value, destructor, context and non-NULL ownership trace.
+ * Success transfers the same ownership as ResolveOwned. Failure (including
+ * duplicate completion) transfers nothing and never calls Destroy/Trace.
+ * The immutable trace and destructor remain resident for the result lifetime;
+ * trace follows the read-only xrtOwnershipInspect callback contract. */
+XRT_API bool xrtPromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
+	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
+
+
+
+/* 返回 Future 状态快照；参数无效时返回 CLOSED 并设置错误。 */
+XRT_API xfuturestate xrtFutureState(const xfuture* pFuture);
+
+
+
+/* 判断 Future 是否已经进入任一不可变终态。 */
+XRT_API bool xrtFutureDone(const xfuture* pFuture);
+
+
+
+/* 复制借用结果；尚未完成时返回 false 并设置 AGAIN。 */
+XRT_API bool xrtFutureResult(const xfuture* pFuture, xfutureresult* pResult);
+
+
+
+/* 返回成功值；非成功终态会把对应错误设置到当前执行上下文。 */
+XRT_API ptr xrtFutureValue(const xfuture* pFuture);
+
+
+
+/* 返回失败终态借用的结构化错误，其他状态返回空指针。 */
+XRT_API const xerror* xrtFutureError(const xfuture* pFuture);
+
+
+
+/* 请求生产过程协作取消；请求本身不伪造 Future 终态。 */
+XRT_API bool xrtFutureCancel(xfuture* pFuture);
+
+
+
+/* 返回增加引用后的取消令牌，调用方使用完毕后必须释放。 */
+XRT_API xcancel* xrtFutureCancelToken(const xfuture* pFuture);
+
+
+
+/* 返回增加引用后的生产端取消令牌。 */
+XRT_API xcancel* xrtPromiseCancelToken(const xpromise* pPromise);
+
+
+
+/* 初始化一个尚未注册的无分配 Future Watch。 */
+XRT_API bool xrtFutureWatchInit(
+	xfuturewatch* pWatch,
+	xfuturewatchproc pNotify,
+	xfuturewatchreleaseproc pRelease,
+	ptr pData
+);
+
+
+
+/* Initialize with an immutable description of the strong slots released by
+ * pRelease(pData). Both callbacks are required. Unique context storage is
+ * folded into the Future's edges; shared state is a physical node. Init is
+ * allocation-free and consumes nothing; only WatchAdd(PENDING) transfers the
+ * registration/release right. READY and ERROR keep it with the caller.
+ * Storage size and old Init semantics are unchanged. A linked adapter may be
+ * inspected only at a whole-graph quiescent point with callback code resident;
+ * this does not establish a safepoint or permit concurrent frame inspection. */
+XRT_API bool xrtFutureWatchInitTraced(xfuturewatch* pWatch,
+    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+    xrtownershiptrace pTrace);
+
+/* Explicit cooperative callback admission, not inferred from a Trace callback.
+ * Like InitTraced, but Notify/Release run outside the Future mutation domain.
+ * The resident callbacks must coordinate every count/edge/storage transition,
+ * reject inspection of active/private data, and independently pin their code.
+ * Detached notification/release callers retain their real ownership until the
+ * callback returns. No mutation scope may span a wait or arbitrary callback.
+ * Unphased Watch, internal waiters and payload finalizers keep conservative
+ * mutation scopes. Storage size, READY/PENDING/ERROR and release rules match
+ * InitTraced; READY still leaves Notify/Release to the registering caller. */
+XRT_API bool xrtFutureWatchInitPhased(xfuturewatch* pWatch,
+    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+    xrtownershiptrace pTrace);
+
+
+
+/* Future 未完成时注册 Watch；READY 时 Watch 未被接管且不执行 Release。 */
+XRT_API xfuturewatchresult xrtFutureWatchAdd(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+);
+
+
+
+/* 尝试摘除尚未开始通知的 Watch；成功时同步执行 Release。 */
+XRT_API bool xrtFutureWatchDetach(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+);
+
+
+
+/* 摘除 Watch 并等待已经开始的通知结束；禁止从自身通知中调用。 */
+XRT_API void xrtFutureWatchRemove(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+);
+
+
+
+/* 等待 Future 进入任一终态。 */
+XRT_API xwaitresult xrtFutureWait(xfuture* pFuture);
+
+
+
+/* 在相对微秒数内等待 Future 进入任一终态。 */
+XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
+
+
+
+/* 等待 Future 到指定单调时钟截止时间。 */
+XRT_API xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
+
+
+
+/* 等待首个线性化事件；取消先取得等待锁后不会被迟到终态覆盖。 */
+XRT_API xwaitresult xrtFutureWaitUntilCancel(
+	xfuture* pFuture,
+	xdeadline iDeadline,
+	xcancel* pCancel
+);
+
+
+
+/* 以借用方式完成成功结果，值的生命周期由调用方保证。 */
+XRT_API bool xrtPromiseResolve(xpromise* pPromise, ptr pValue);
+
+
+
+/* 转移成功值所有权；完成失败时所有权仍归调用方。 */
+XRT_API bool xrtPromiseResolveOwned(
+	xpromise* pPromise,
+	ptr pValue,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/* 以增加引用方式完成失败结果。 */
+XRT_API bool xrtPromiseReject(xpromise* pPromise, const xerror* pError);
+
+
+
+/* 把已进入终态的源 Future 结果安全透传到 Promise。 */
+XRT_API bool xrtPromiseForward(xpromise* pPromise, xfuture* pSource);
+
+
+
+/* 完成取消终态；令牌请求通知结束后才向等待者发布取消终态。 */
+XRT_API bool xrtPromiseCancel(xpromise* pPromise);
+
+
+
+/* 请求生产过程停止，并在令牌通知结束后发布关闭终态。 */
+XRT_API bool xrtPromiseClose(xpromise* pPromise);
+
+
+
+/* 判断 Promise 对应的 Future 是否已经完成。 */
+XRT_API bool xrtPromiseDone(const xpromise* pPromise);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FUTURE_COMBINE)
+
+/* Any 与 Race 的结果借用胜出源 Future；组合 Future 负责保留该引用。 */
+typedef struct xfuturepick {
+	size_t Index;
+	xfuture* Future;
+} xfuturepick;
+
+
+
+/* All 的结果按输入顺序借用全部源 Future；组合 Future 负责保留这些引用。 */
+typedef struct xfutureall {
+	size_t Count;
+	xfuture* const* Futures;
+} xfutureall;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 在任一源进入终态后，以 xfuturepick 成功完成；不改变其余源。 */
+XRT_API xfuture* xrtFutureAny(xfuture* const* pFutures, size_t iCount);
+
+
+
+/* 在全部源进入终态后，以保序的 xfutureall 成功完成；空集合立即完成。 */
+XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
+
+
+
+/* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。 */
+XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
+
+/* Synchronous result mapping is part of the aggregate's activation, not a
+ * separately allocated continuation attached after the sources start.
+ * Inputs and output Promise are borrowed for the call. The mapper must
+ * complete/forward the output before returning; an uncompleted output closes.
+ * It must not retain the input descriptors or defer work on this Promise. */
+typedef void (*xfutureallmapproc)(const xfutureall* pInput, xpromise* pOutput, ptr pData);
+typedef void (*xfuturepickmapproc)(const xfuturepick* pInput, xpromise* pOutput, ptr pData);
+
+/* All preparation succeeds before source notification/cancellation is possible.
+ * NULL return does not consume data, invoke map/destroy/trace, or cancel inputs.
+ * Non-NULL accepts data even if synchronous mapping fails: that failure is the
+ * returned Future's outcome. Destroy(data, destroyData) runs exactly once after
+ * mapping or cancellation and after the last source callback returns.
+ * Trace(data, destroyData) describes the exact strong slots Destroy releases;
+ * callbacks/code and borrowed pointers are not fictitious owning edges.
+ * Destroy and Trace are required, including for an empty context. The caller
+ * still supplies whole-graph quiescence and callback/code residency.
+ * Any/All/Race retain their existing selection/order/cancellation contracts. */
+XRT_API xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfutureallmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
+XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
+XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
+    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
+    ptr pDestroyData, xfutureownershiptrace pTrace);
+
+/* A certified mapper owns one independently admitted physical Data reference.
+ * AllMap/PickMap borrow it and must synchronously finish the output. Drop
+ * returns that reference, never substitutes for Data's semantic preparation.
+ * Policy and callbacks are immutable/resident, and callbacks coordinate their
+ * own graph transitions and code lifetime outside API-owned scopes. */
+typedef struct xfuturecombineownershipv1 {
+	size_t size;
+	xfutureallmapproc AllMap;
+	xfuturepickmapproc PickMap;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xfuturecombineownershipv1;
+XRT_API xfuture* xrtFutureAllMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+XRT_API xfuture* xrtFutureAnyMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+XRT_API xfuture* xrtFutureRaceMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount,
+	ptr pData, const xfuturecombineownershipv1* pPolicy);
+
+/* These exact resident policies describe real producer, source-registration,
+ * cancellation and raw-result references. Their presence does not admit the
+ * group or its Data: the collector independently resolves every node. */
+XRT_API const xfutureproducerownershipv1* xrtFutureCombineProducerPolicyV1Get(void);
+XRT_API const xfuturewatchownershipv2* xrtFutureCombineWatchPolicyV2Get(void);
+XRT_API const xcancelwatchownershipv1* xrtFutureCombineCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtFutureCombineAllPayloadPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtFutureCombinePickPayloadPolicyV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtFutureCombineOwnershipAdapterV1(xrtownershipref Reference,
+	const xfuturecombineownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+
+typedef enum xfuturewaitrulev1 {
+	XFUTURE_WAIT_ALL_TERMINAL = 1,
+	XFUTURE_WAIT_ANY_TERMINAL = 2
+} xfuturewaitrulev1;
+typedef struct xfuturecombinewaitv1 {
+	size_t size;
+	xpromise* Output;
+	xfuture* const* Sources;
+	size_t Count;
+	xfuturewaitrulev1 Rule;
+	bool CancelRemaining;
+} xfuturecombinewaitv1;
+/* Borrowed semantic input slots, not arbitrary capture edges. The complete
+ * physical graph must be frozen and claimed unreachable by the same token.
+ * Only a stable pending group with real pending registrations is described;
+ * all completed slots are retained in order, including duplicates. ALL needs
+ * every input terminal; ANY/RACE need one, with Race alone cancelling losers.
+ * Output stays unchanged on refusal. This read-only fact is not cancellation
+ * authority, a deadlock proof, or permission to skip normal callbacks. */
+XRT_API bool xrtFutureCombineWaitV1(xrtownershipref Reference, const void* pToken,
+	xfuturecombinewaitv1* pWait);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FUTURE_CONTINUE)
+
+/* 延续过程借用源结果和输出 Promise；保留 Promise 时必须先增加引用。 */
+typedef void (*xfuturecontinueproc)(
+	const xfutureresult* pInput,
+	xpromise* pOutput,
+	ptr pData
+);
+
+
+
+/* Finally 过程只观察源结果，输出 Future 自动安全透传源终态。 */
+typedef void (*xfuturefinallyproc)(const xfutureresult* pInput, ptr pData);
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 对源的任意终态执行延续过程；过程负责完成或保留输出 Promise。 */
+XRT_API xfuture* xrtFutureContinue(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData
+);
+
+
+
+/* 执行任意终态延续，并在执行、跳过或取消后释放受理的数据。 */
+XRT_API xfuture* xrtFutureContinueOwned(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/*
+	对独占源的任意终态执行延续；取消输出时同时请求取消源。
+	该入口只适用于调用方拥有完整生产链、不与其他消费者共享源的组合层。
+*/
+XRT_API xfuture* xrtFutureContinueOwnedCancelSource(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/* 仅在源成功时执行延续；其他终态自动透传。 */
+XRT_API xfuture* xrtFutureThen(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData
+);
+
+
+
+/* 仅在源成功时执行延续，并负责释放受理的数据。 */
+XRT_API xfuture* xrtFutureThenOwned(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/*
+	仅在独占源成功时执行延续；取消输出时同时请求取消源。
+	源的失败、取消和关闭仍按 Then 契约自动透传。
+*/
+XRT_API xfuture* xrtFutureThenOwnedCancelSource(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/* 仅在源失败时执行延续；成功、取消和关闭终态自动透传。 */
+XRT_API xfuture* xrtFutureCatch(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData
+);
+
+
+
+/* 仅在源失败时执行延续，并负责释放受理的数据。 */
+XRT_API xfuture* xrtFutureCatchOwned(
+	xfuture* pSource,
+	xfuturecontinueproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+/* 观察源的任意终态，再把原结果安全透传到输出 Future。 */
+XRT_API xfuture* xrtFutureFinally(
+	xfuture* pSource,
+	xfuturefinallyproc pProc,
+	ptr pData
+);
+
+
+
+/* 观察源的任意终态、透传结果，并负责释放受理的数据。 */
+XRT_API xfuture* xrtFutureFinallyOwned(
+	xfuture* pSource,
+	xfuturefinallyproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FUTURE_COROUTINE)
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 挂起当前调度协程，直到 Future 进入终态或协程被取消。 */
+XRT_API xwaitresult xrtFutureAwait(xfuture* pFuture);
+
+
+
+/* 在相对微秒数内挂起当前调度协程等待 Future。 */
+XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
+
+
+
+/* 挂起当前调度协程等待 Future 到指定截止时间。 */
+XRT_API xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline);
+
+
+
+XRT_EXTERN_C_END
+
 #endif
 
 #endif
@@ -8086,6 +9804,11 @@ typedef enum xvalueiterresult {
 	XVALUE_ITER_ITEM = 1
 } xvalueiterresult;
 
+/* Opaque, reference-owned snapshot cursor. Unlike the stack-compatible
+ * xvalueiter, its storage and physical references can be pinned independently
+ * by an ownership plan. The inline iteration state is not a second owner. */
+typedef struct xvaluecursor xvaluecursor;
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -8501,6 +10224,24 @@ XRT_API void xrtValueIterDestroy(xvalueiter* pIterator);
  * concurrent advance/end/destroy and concurrent mutation are not supported. */
 XRT_API xrtownershipref xrtValueIterOwnership(const xvalueiter* pIterator);
 
+/* Managed snapshot cursors retain backing and, for finalizer-backed identity
+ * objects, the actual source shell. An ordinary COW source is not retained.
+ * Existing stack/unique-heap iterator ABI and lifecycle remain unchanged. */
+XRT_API xvaluecursor* xrtValueCursorCreate(const xvalue* pValue);
+XRT_API xvaluecursor* xrtValueCursorRCreate(const xvalue* pValue);
+XRT_API xvaluecursor* xrtValueCursorRetain(xvaluecursor* pCursor);
+XRT_API void xrtValueCursorRelease(xvaluecursor* pCursor);
+/* Caller owns a reference through the call and serializes advances. Item and
+ * key outputs borrow the snapshot, valid until next advance or last release.
+ * Count/Trace/admission refuse an in-flight advance, including its error tail. */
+XRT_API xvalueiterresult xrtValueCursorAdvance(xvaluecursor* pCursor,
+	xvaluekey* pKey, xvalue** ppValue);
+XRT_API xrtownershipref xrtValueCursorOwnership(const xvaluecursor* pCursor);
+/* Exact Ops identity is checked before data. Hold/Drop are actual references;
+ * Clear detaches only, Finish releases outside freeze. Children, including a
+ * finalizer-backed shell, still require independent lifecycle admission. */
+XRT_API const xrtownershipadapterv1* xrtValueCursorOwnershipAdapterV1(xrtownershipref Reference);
+
 
 
 XRT_EXTERN_C_END
@@ -8657,6 +10398,437 @@ XRT_API xvalue* xrtValueDeepClone(const xvalue* pValue);
 	两个不同 Handle 只有在同一策略域提供 Equal 时才可比较。
 */
 XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight);
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/memory_debug.h */
+/* ========================================================================== */
+
+#ifndef XRT_MEMORY_DEBUG_H
+#define XRT_MEMORY_DEBUG_H
+
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT) && !defined(XRT_FEATURE_MEMORY_DEBUG)
+	#error "XRT_FEATURE_MEMORY_DEBUG_REPORT requires XRT_FEATURE_MEMORY_DEBUG"
+#endif
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG)
+
+/* 调试器固定保留最近 512 条事件。 */
+#define XRT_MEMDEBUG_EVENT_LIMIT 512u
+
+
+
+/* 内存调试事件类型。 */
+typedef enum xmemdebugeventkind {
+	XMEMDEBUG_ALLOC = 1,
+	XMEMDEBUG_FREE,
+	XMEMDEBUG_REALLOC,
+	XMEMDEBUG_DOUBLE_FREE,
+	XMEMDEBUG_INVALID_FREE,
+	XMEMDEBUG_OVERFLOW,
+	XMEMDEBUG_UNDERFLOW,
+	XMEMDEBUG_USE_AFTER_FREE,
+	XMEMDEBUG_TEMP_ALLOC,
+	XMEMDEBUG_TEMP_REWIND,
+	XMEMDEBUG_TEMP_RESET
+} xmemdebugeventkind;
+
+
+
+/* 内存调试事件是只包含借用信息的值对象。 */
+typedef struct xmemdebugevent {
+	xmemdebugeventkind Kind;
+	uint64 Sequence;
+	ptr Address;
+	size_t Size;
+	cstr File;
+	uint32 Line;
+} xmemdebugevent;
+
+
+
+/* 内存调试快照用于测试、诊断和外部报告。 */
+typedef struct xmemdebugsnapshot {
+	bool Enabled;
+	size_t LiveCount;
+	size_t LiveBytes;
+	size_t PeakCount;
+	size_t PeakBytes;
+	size_t QuarantineCount;
+	size_t QuarantineBytes;
+	uint64 AllocCount;
+	uint64 FreeCount;
+	uint64 ReallocCount;
+	uint64 DoubleFreeCount;
+	uint64 InvalidFreeCount;
+	uint64 OverflowCount;
+	uint64 UnderflowCount;
+	uint64 UseAfterFreeCount;
+	size_t TempCurrentBytes;
+	size_t TempPeakBytes;
+	uint64 TempResetCount;
+	size_t EventCount;
+} xmemdebugsnapshot;
+
+
+
+/* 事件访问器返回 false 时停止遍历。 */
+typedef bool (*xmemdebugvisitor)(const xmemdebugevent* pEvent, ptr pUserData);
+
+
+
+/* 活动分配记录借用分配点字符串，不转移内存所有权。 */
+typedef struct xmemdebugallocation {
+	ptr Address;
+	size_t Size;
+	cstr File;
+	uint32 Line;
+} xmemdebugallocation;
+
+
+
+/* 活动分配访问器返回 false 时停止遍历。 */
+typedef bool (*xmemdebugallocationvisitor)(const xmemdebugallocation* pAllocation, ptr pUserData);
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
+/* 报告格式与具体输出目标解耦。 */
+typedef enum xmemdebugreportformat {
+	XMEMDEBUG_REPORT_TEXT = 1,
+	XMEMDEBUG_REPORT_JSON
+} xmemdebugreportformat;
+
+
+
+/* 报告写入器成功消费全部数据时返回 true。 */
+typedef bool (*xmemdebugwriteproc)(xbytesview Data, ptr pUserData);
+#endif
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 返回稳定的事件名称，未知事件返回 unknown。 */
+XRT_API cstr xrtMemDebugEventName(xmemdebugeventkind Kind);
+
+
+
+/* 在没有活动分配时开启或关闭运行时内存调试记录。 */
+XRT_API bool xrtMemDebugEnable(bool bEnable);
+
+
+
+/* 返回运行时内存调试是否开启。 */
+XRT_API bool xrtMemDebugEnabled(void);
+
+
+
+/* 当前线程允许指定次数成功分配后，让下一次逻辑分配失败一次。 */
+XRT_API bool xrtMemDebugFailAfter(uint64 iSuccessfulAllocations);
+
+
+
+/* 清除当前线程尚未触发的分配故障。 */
+XRT_API void xrtMemDebugFailClear(void);
+
+
+
+/* 返回当前线程最近配置的分配故障是否已经触发。 */
+XRT_API bool xrtMemDebugFailTriggered(void);
+
+
+
+/* 在没有活动分配时清空统计、事件和隔离队列。 */
+XRT_API bool xrtMemDebugReset(void);
+
+
+
+/* 获取一致的内存调试统计快照。 */
+XRT_API void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot);
+
+
+
+/* 按时间顺序访问当前保留的调试事件。 */
+XRT_API size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData);
+
+
+
+/* 访问内部锁线性化点捕获的完整活动分配快照。 */
+XRT_API size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData);
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
+/* 把当前调试快照流式写为文本或 JSON。 */
+XRT_API bool xrtMemDebugReport(
+	xmemdebugreportformat Format,
+	xmemdebugwriteproc pWriter,
+	ptr pUserData
+);
+#endif
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/atomic.h */
+/* ========================================================================== */
+
+#ifndef XRT_ATOMIC_H
+#define XRT_ATOMIC_H
+
+
+
+
+#if defined(XRT_FEATURE_ATOMIC)
+
+/* 原子操作的内存顺序与 C11 语义一致。 */
+typedef enum xmemoryorder {
+	XMEMORY_RELAXED = 0,
+	XMEMORY_ACQUIRE = 1,
+	XMEMORY_RELEASE = 2,
+	XMEMORY_ACQ_REL = 3,
+	XMEMORY_SEQ_CST = 4
+} xmemoryorder;
+
+
+
+#if defined(_MSC_VER) || \
+	(defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64)))
+	#define XRT_ATOMIC_ALIGN(iAlignment) __declspec(align(iAlignment))
+#elif defined(__GNUC__) || defined(__clang__)
+	#define XRT_ATOMIC_ALIGN(iAlignment) __attribute__((aligned(iAlignment)))
+#else
+	#define XRT_ATOMIC_ALIGN(iAlignment)
+#endif
+
+#if UINTPTR_MAX == UINT64_MAX
+	#define XRT_ATOMIC_PTR_ALIGNMENT 8
+#else
+	#define XRT_ATOMIC_PTR_ALIGNMENT 4
+#endif
+
+
+
+/* 32 位原子整数只允许通过 Atomic API 并发访问 Value。 */
+typedef struct XRT_ATOMIC_ALIGN(4) xatomic32 {
+	volatile uint32 Value;
+} xatomic32;
+
+
+
+/* 64 位原子整数显式保证 8 字节对齐。 */
+typedef struct XRT_ATOMIC_ALIGN(8) xatomic64 {
+	volatile uint64 Value;
+} xatomic64;
+
+
+
+/* 原子指针只保存指针值，不拥有指针目标。 */
+typedef struct XRT_ATOMIC_ALIGN(XRT_ATOMIC_PTR_ALIGNMENT) xatomicptr {
+	ptr volatile Value;
+} xatomicptr;
+
+
+
+#undef XRT_ATOMIC_ALIGN
+#undef XRT_ATOMIC_PTR_ALIGNMENT
+
+
+
+/* 静态原子对象初始化器只能用于对象定义。 */
+#define XRT_ATOMIC32_INIT(iValue) { (uint32)(iValue) }
+#define XRT_ATOMIC64_INIT(iValue) { (uint64)(iValue) }
+#define XRT_ATOMICPTR_INIT(pValue) { (ptr)(pValue) }
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+/* 判断自然对齐的指定宽度是否由当前目标无锁实现。 */
+XRT_API bool xrtAtomicIsLockFree(size_t iSize);
+
+
+
+/* 在对象发布给其他线程前初始化 32 位原子值。 */
+XRT_API void xrtAtomic32Init(xatomic32* pAtomic, uint32 iValue);
+
+
+
+/* 按指定内存顺序读取 32 位原子值。 */
+XRT_API uint32 xrtAtomic32Load(const xatomic32* pAtomic, xmemoryorder iOrder);
+
+
+
+/* 按指定内存顺序写入 32 位原子值。 */
+XRT_API void xrtAtomic32Store(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子交换 32 位值并返回旧值。 */
+XRT_API uint32 xrtAtomic32Exchange(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 强比较交换 32 位值，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomic32CompareExchange(
+	xatomic32* pAtomic,
+	uint32* pExpected,
+	uint32 iDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+);
+
+
+
+/* 原子加 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchAdd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子减 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchSub(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位与 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchAnd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位或 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchOr(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位异或 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchXor(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
+
+
+
+/* 在对象发布给其他线程前初始化 64 位原子值。 */
+XRT_API void xrtAtomic64Init(xatomic64* pAtomic, uint64 iValue);
+
+
+
+/* 按指定内存顺序读取 64 位原子值。 */
+XRT_API uint64 xrtAtomic64Load(const xatomic64* pAtomic, xmemoryorder iOrder);
+
+
+
+/* 按指定内存顺序写入 64 位原子值。 */
+XRT_API void xrtAtomic64Store(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子交换 64 位值并返回旧值。 */
+XRT_API uint64 xrtAtomic64Exchange(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 强比较交换 64 位值，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomic64CompareExchange(
+	xatomic64* pAtomic,
+	uint64* pExpected,
+	uint64 iDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+);
+
+
+
+/* 原子加 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchAdd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子减 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchSub(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位与 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchAnd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位或 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchOr(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 原子按位异或 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchXor(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
+
+
+
+/* 在对象发布给其他线程前初始化原子指针。 */
+XRT_API void xrtAtomicPtrInit(xatomicptr* pAtomic, ptr pValue);
+
+
+
+/* 按指定内存顺序读取原子指针。 */
+XRT_API ptr xrtAtomicPtrLoad(const xatomicptr* pAtomic, xmemoryorder iOrder);
+
+
+
+/* 按指定内存顺序写入原子指针。 */
+XRT_API void xrtAtomicPtrStore(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
+
+
+
+/* 原子交换指针并返回旧值。 */
+XRT_API ptr xrtAtomicPtrExchange(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
+
+
+
+/* 强比较交换指针，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomicPtrCompareExchange(
+	xatomicptr* pAtomic,
+	ptr* pExpected,
+	ptr pDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+);
+
+
+
+/* 建立线程间内存栅栏。 */
+XRT_API void xrtAtomicThreadFence(xmemoryorder iOrder);
+
+
+
+/* 建立当前线程与信号处理器之间的编译器栅栏。 */
+XRT_API void xrtAtomicSignalFence(xmemoryorder iOrder);
+
+
+
+/* 向处理器提示当前线程处于短自旋等待。 */
+XRT_API void xrtAtomicPause(void);
 
 
 
@@ -11454,417 +13626,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/time.h */
-/* ========================================================================== */
-
-#ifndef XRT_TIME_H
-#define XRT_TIME_H
-
-
-
-
-#if (defined(XRT_FEATURE_TIME_LOCAL) || defined(XRT_FEATURE_TIME_TEXT)) && !defined(XRT_FEATURE_TIME)
-	#error "XRT local time and time text features require XRT_FEATURE_TIME"
-#endif
-
-
-
-/* xtime 和固定时长统一使用微秒，避免浮点计时和隐式单位换算。 */
-#define XRT_TIME_MICROSECOND	INT64_C(1)
-#define XRT_TIME_MILLISECOND	INT64_C(1000)
-#define XRT_TIME_SECOND		INT64_C(1000000)
-#define XRT_TIME_MINUTE		INT64_C(60000000)
-#define XRT_TIME_HOUR		INT64_C(3600000000)
-#define XRT_TIME_DAY			INT64_C(86400000000)
-#define XRT_TIME_WEEK		INT64_C(604800000000)
-
-
-
-/* 星期值固定从星期日零开始，便于和 C/POSIX 及 HTTP-date 对接。 */
-typedef enum xtimeweekday {
-	XTIME_SUNDAY = 0,
-	XTIME_MONDAY,
-	XTIME_TUESDAY,
-	XTIME_WEDNESDAY,
-	XTIME_THURSDAY,
-	XTIME_FRIDAY,
-	XTIME_SATURDAY
-} xtimeweekday;
-
-
-
-/* 日期计算单位；月、季度和年使用日历语义，其余单位使用固定时长。 */
-typedef enum xtimeunit {
-	XTIME_UNIT_MICROSECOND = 0,
-	XTIME_UNIT_MILLISECOND,
-	XTIME_UNIT_SECOND,
-	XTIME_UNIT_MINUTE,
-	XTIME_UNIT_HOUR,
-	XTIME_UNIT_DAY,
-	XTIME_UNIT_WEEK,
-	XTIME_UNIT_MONTH,
-	XTIME_UNIT_QUARTER,
-	XTIME_UNIT_YEAR
-} xtimeunit;
-
-
-
-/* 本地时间在夏令时回拨区间出现两个候选值时的选择规则。 */
-typedef enum xtimefold {
-	XTIME_FOLD_REJECT = 0,
-	XTIME_FOLD_EARLIER,
-	XTIME_FOLD_LATER
-} xtimefold;
-
-
-
-/* 时间模块稳定错误代码。 */
-typedef enum xtimeerror {
-	XTIME_ERROR_RANGE = 1,
-	XTIME_ERROR_OVERFLOW,
-	XTIME_ERROR_FORMAT,
-	XTIME_ERROR_PARSE,
-	XTIME_ERROR_LOCAL_GAP,
-	XTIME_ERROR_LOCAL_FOLD,
-	XTIME_ERROR_LOCAL_UNSUPPORTED
-} xtimeerror;
-
-
-
-/* 分解后的 Gregorian 日期时间；Offset 为 UTC 以东秒数。 */
-typedef struct xdatetime {
-	int64 Year;
-	int Month;
-	int Day;
-	int Hour;
-	int Minute;
-	int Second;
-	int Microsecond;
-	int Offset;
-	int Weekday;
-	int YearDay;
-	int IsDST;
-} xdatetime;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XRT_FEATURE_TIME)
-
-/* 返回单调递增时钟的微秒计数，只能用于测量间隔和截止时间。 */
-XRT_API uint64 xrtClock(void);
-
-
-
-/* 返回单调时钟的浮点秒数，供短小的性能测量代码使用。 */
-XRT_API double xrtTimer(void);
-
-
-
-/* 返回当前 Unix Epoch 微秒。 */
-XRT_API xtime xrtNow(void);
-
-
-
-/* 至少睡眠指定毫秒；零表示让出当前执行时间片。 */
-XRT_API void xrtSleep(uint32 iMilliseconds);
-
-
-
-/* 至少睡眠指定微秒。 */
-XRT_API void xrtSleepUs(uint64 iMicroseconds);
-
-
-
-/* 睡眠到单调时钟截止点；截止点已到时立即返回。 */
-XRT_API void xrtSleepUntil(uint64 iDeadline);
-
-
-
-/* 判断 Gregorian 年份是否为闰年，支持负年份和零年。 */
-XRT_API bool xrtIsLeapYear(int64 iYear);
-
-
-
-/* 返回指定月份的天数；月份无效时返回零并设置参数错误。 */
-XRT_API int xrtDaysInMonth(int64 iYear, int iMonth);
-
-
-
-/* 返回指定年份的天数。 */
-XRT_API int xrtDaysInYear(int64 iYear);
-
-
-
-/* 构造 UTC 零点日期。 */
-XRT_API bool xrtDate(int64 iYear, int iMonth, int iDay, xtime* pTime);
-
-
-
-/* 构造 UTC 日期时间。 */
-XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
-	int iHour, int iMinute, int iSecond, int iMicrosecond, xtime* pTime);
-
-
-
-/* 按结构中的显式 UTC 偏移构造绝对时间。 */
-XRT_API bool xrtTimeMake(const xdatetime* pDateTime, xtime* pTime);
-
-
-
-/* 把绝对时间按 UTC 分解为日期时间。 */
-XRT_API bool xrtTimeSplit(xtime iTime, xdatetime* pDateTime);
-
-
-
-/* 把绝对时间按固定 UTC 偏移分解，偏移范围为 -23:59:59 到 +23:59:59。 */
-XRT_API bool xrtTimeSplitAt(xtime iTime, int iOffset, xdatetime* pDateTime);
-
-
-
-/* 从 Unix 秒安全构造 xtime。 */
-XRT_API bool xrtTimeFromUnix(int64 iSeconds, xtime* pTime);
-
-
-
-/* 从 Unix 毫秒安全构造 xtime。 */
-XRT_API bool xrtTimeFromUnixMs(int64 iMilliseconds, xtime* pTime);
-
-
-
-/* 返回向负无穷取整的 Unix 秒。 */
-XRT_API int64 xrtTimeUnix(xtime iTime);
-
-
-
-/* 返回向负无穷取整的 Unix 毫秒。 */
-XRT_API int64 xrtTimeUnixMs(xtime iTime);
-
-
-
-/* 提取 UTC 年份。 */
-XRT_API int64 xrtYear(xtime iTime);
-
-
-
-/* 提取 UTC 月份。 */
-XRT_API int xrtMonth(xtime iTime);
-
-
-
-/* 提取 UTC 月内日期。 */
-XRT_API int xrtDay(xtime iTime);
-
-
-
-/* 提取 UTC 小时。 */
-XRT_API int xrtHour(xtime iTime);
-
-
-
-/* 提取 UTC 分钟。 */
-XRT_API int xrtMinute(xtime iTime);
-
-
-
-/* 提取 UTC 秒。 */
-XRT_API int xrtSecond(xtime iTime);
-
-
-
-/* 提取秒内微秒。 */
-XRT_API int xrtMicrosecond(xtime iTime);
-
-
-
-/* 提取星期，范围为 XTIME_SUNDAY 到 XTIME_SATURDAY。 */
-XRT_API int xrtWeekday(xtime iTime);
-
-
-
-/* 提取年内日期，范围为 1 到 366。 */
-XRT_API int xrtDayOfYear(xtime iTime);
-
-
-
-/* 提取季度，范围为 1 到 4。 */
-XRT_API int xrtQuarter(xtime iTime);
-
-
-
-/* 返回 UTC 当日零点。 */
-XRT_API xtime xrtDatePart(xtime iTime);
-
-
-
-/* 返回 UTC 当日已经经过的微秒，范围为 [0, XRT_TIME_DAY)。 */
-XRT_API xtime xrtTimePart(xtime iTime);
-
-
-
-/* 使用显式微秒容差比较两个时间，计算覆盖完整 int64 域。 */
-XRT_API bool xrtTimeNear(xtime iLeft, xtime iRight, uint64 iTolerance);
-
-
-
-/* 判断两个 UTC 时间是否位于同一个 Gregorian 日期。 */
-XRT_API bool xrtTimeSameDay(xtime iLeft, xtime iRight);
-
-
-
-/* 判断两个 UTC 时间是否位于同一个 Gregorian 月份。 */
-XRT_API bool xrtTimeSameMonth(xtime iLeft, xtime iRight);
-
-
-
-/* 判断两个 UTC 时间是否位于同一个 Gregorian 年份。 */
-XRT_API bool xrtTimeSameYear(xtime iLeft, xtime iRight);
-
-
-
-/* 判断时间是否位于闭区间；反向区间返回 false。 */
-XRT_API bool xrtTimeIn(xtime iTime, xtime iStart, xtime iEnd);
-
-
-
-/* 判断两个闭区间是否重叠；任一反向区间返回 false。 */
-XRT_API bool xrtTimeOverlap(xtime iStart1, xtime iEnd1,
-	xtime iStart2, xtime iEnd2);
-
-
-
-/* 增加固定时长或 Gregorian 日历单位，月末会钳制到目标月最后一天。 */
-XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResult);
-
-
-
-/* 计算从起点到终点经过的完整单位数量。 */
-XRT_API bool xrtTimeDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult);
-
-
-
-/* 返回包含给定时间的半开月份区间 [start, end)。 */
-XRT_API bool xrtMonthRange(xtime iTime, xtime* pStart, xtime* pEnd);
-
-
-
-/* 返回包含给定时间的半开年份区间 [start, end)。 */
-XRT_API bool xrtYearRange(xtime iTime, xtime* pStart, xtime* pEnd);
-
-
-
-/* 返回包含给定时间的半开星期区间 [start, end)。 */
-XRT_API bool xrtWeekRange(xtime iTime, int iFirstWeekday, xtime* pStart, xtime* pEnd);
-
-
-
-/* 返回 ISO 8601 周年、周数和星期值，其中星期一为 1，星期日为 7。 */
-XRT_API bool xrtISOWeek(xtime iTime, int64* pWeekYear, int* pWeek, int* pWeekday);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_TIME_LOCAL)
-
-/* 使用操作系统当前时区规则分解绝对时间。 */
-XRT_API bool xrtTimeLocal(xtime iTime, xdatetime* pDateTime);
-
-
-
-/* 使用操作系统时区规则构造本地时间，并显式处理 DST 重复区间。 */
-XRT_API bool xrtTimeFromLocal(const xdatetime* pDateTime, xtimefold Fold, xtime* pTime);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_TIME_TEXT)
-
-/* 按 % 占位符写入并返回所需字节数；%-m 等数字占位符取消填充，输出缓冲不得与 Format 重叠。 */
-XRT_API size_t xrtDateTimeWrite(char* sBuffer, size_t iCapacity,
-	const xdatetime* pDateTime, xstrview Format);
-
-
-
-/* 按 % 占位符创建时间文本；%p 输出大写午别，%P 输出小写午别，返回值由 xrtFree 释放。 */
-XRT_API str xrtDateTimeFormat(const xdatetime* pDateTime, xstrview Format);
-
-
-
-/* 严格解析完整格式；%-m 等字段接受一到两位数字，格式非法与文本不匹配使用不同错误码。 */
-XRT_API bool xrtDateTimeParse(xstrview Text, xstrview Format, xdatetime* pDateTime);
-
-
-
-/* 按固定 UTC 偏移和上述占位符写入；输出缓冲不得与 Format 重叠。 */
-XRT_API size_t xrtTimeWrite(char* sBuffer, size_t iCapacity,
-	xtime iTime, int iOffset, xstrview Format);
-
-
-
-/* 按固定 UTC 偏移和上述占位符创建时间文本，返回值由 xrtFree 释放。 */
-XRT_API str xrtTimeFormat(xtime iTime, int iOffset, xstrview Format);
-
-
-
-/* 严格按上述完整格式解析绝对时间。 */
-XRT_API bool xrtTimeParse(xstrview Text, xstrview Format, xtime* pTime);
-
-
-
-/* 写入 RFC 3339 文本；零偏移使用 Z，微秒末尾的零会被删除。 */
-XRT_API size_t xrtTimeWriteRFC3339(char* sBuffer, size_t iCapacity,
-	xtime iTime, int iOffset);
-
-
-
-/* 创建 RFC 3339 文本，返回值由 xrtFree 释放。 */
-XRT_API str xrtTimeRFC3339(xtime iTime, int iOffset);
-
-
-
-/* 严格解析 RFC 3339；超过微秒精度的尾数会向零截断。 */
-XRT_API bool xrtTimeParseRFC3339(xstrview Text, xtime* pTime);
-
-
-
-/* 写入 HTTP IMF-fixdate，时间始终转换为 GMT 并丢弃秒以下部分。 */
-XRT_API size_t xrtTimeWriteHTTPDate(char* sBuffer, size_t iCapacity, xtime iTime);
-
-
-
-/* 创建 HTTP IMF-fixdate，返回值由 xrtFree 释放。 */
-XRT_API str xrtTimeHTTPDate(xtime iTime);
-
-
-
-/* 解析 IMF-fixdate、RFC 850 和 ANSI C asctime 三种 HTTP 日期格式。 */
-XRT_API bool xrtTimeParseHTTPDate(xstrview Text, xtime* pTime);
-
-
-
-/* 尝试解析三种 HTTP 日期格式；失败不修改输出和线程错误。 */
-XRT_API bool xrtTimeTryParseHTTPDate(xstrview Text, xtime* pTime);
-
-
-
-/* 解析 RFC 3339、HTTP-date 和常见数字日期时间。 */
-XRT_API bool xrtTimeParseAny(xstrview Text, xtime* pTime);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
 /* public: include/xrt/file.h */
 /* ========================================================================== */
 
@@ -12920,253 +14681,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/atomic.h */
-/* ========================================================================== */
-
-#ifndef XRT_ATOMIC_H
-#define XRT_ATOMIC_H
-
-
-
-
-#if defined(XRT_FEATURE_ATOMIC)
-
-/* 原子操作的内存顺序与 C11 语义一致。 */
-typedef enum xmemoryorder {
-	XMEMORY_RELAXED = 0,
-	XMEMORY_ACQUIRE = 1,
-	XMEMORY_RELEASE = 2,
-	XMEMORY_ACQ_REL = 3,
-	XMEMORY_SEQ_CST = 4
-} xmemoryorder;
-
-
-
-#if defined(_MSC_VER) || \
-	(defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64)))
-	#define XRT_ATOMIC_ALIGN(iAlignment) __declspec(align(iAlignment))
-#elif defined(__GNUC__) || defined(__clang__)
-	#define XRT_ATOMIC_ALIGN(iAlignment) __attribute__((aligned(iAlignment)))
-#else
-	#define XRT_ATOMIC_ALIGN(iAlignment)
-#endif
-
-#if UINTPTR_MAX == UINT64_MAX
-	#define XRT_ATOMIC_PTR_ALIGNMENT 8
-#else
-	#define XRT_ATOMIC_PTR_ALIGNMENT 4
-#endif
-
-
-
-/* 32 位原子整数只允许通过 Atomic API 并发访问 Value。 */
-typedef struct XRT_ATOMIC_ALIGN(4) xatomic32 {
-	volatile uint32 Value;
-} xatomic32;
-
-
-
-/* 64 位原子整数显式保证 8 字节对齐。 */
-typedef struct XRT_ATOMIC_ALIGN(8) xatomic64 {
-	volatile uint64 Value;
-} xatomic64;
-
-
-
-/* 原子指针只保存指针值，不拥有指针目标。 */
-typedef struct XRT_ATOMIC_ALIGN(XRT_ATOMIC_PTR_ALIGNMENT) xatomicptr {
-	ptr volatile Value;
-} xatomicptr;
-
-
-
-#undef XRT_ATOMIC_ALIGN
-#undef XRT_ATOMIC_PTR_ALIGNMENT
-
-
-
-/* 静态原子对象初始化器只能用于对象定义。 */
-#define XRT_ATOMIC32_INIT(iValue) { (uint32)(iValue) }
-#define XRT_ATOMIC64_INIT(iValue) { (uint64)(iValue) }
-#define XRT_ATOMICPTR_INIT(pValue) { (ptr)(pValue) }
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 判断自然对齐的指定宽度是否由当前目标无锁实现。 */
-XRT_API bool xrtAtomicIsLockFree(size_t iSize);
-
-
-
-/* 在对象发布给其他线程前初始化 32 位原子值。 */
-XRT_API void xrtAtomic32Init(xatomic32* pAtomic, uint32 iValue);
-
-
-
-/* 按指定内存顺序读取 32 位原子值。 */
-XRT_API uint32 xrtAtomic32Load(const xatomic32* pAtomic, xmemoryorder iOrder);
-
-
-
-/* 按指定内存顺序写入 32 位原子值。 */
-XRT_API void xrtAtomic32Store(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子交换 32 位值并返回旧值。 */
-XRT_API uint32 xrtAtomic32Exchange(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 强比较交换 32 位值，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomic32CompareExchange(
-	xatomic32* pAtomic,
-	uint32* pExpected,
-	uint32 iDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-);
-
-
-
-/* 原子加 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchAdd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子减 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchSub(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位与 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchAnd(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位或 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchOr(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位异或 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchXor(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
-
-
-
-/* 在对象发布给其他线程前初始化 64 位原子值。 */
-XRT_API void xrtAtomic64Init(xatomic64* pAtomic, uint64 iValue);
-
-
-
-/* 按指定内存顺序读取 64 位原子值。 */
-XRT_API uint64 xrtAtomic64Load(const xatomic64* pAtomic, xmemoryorder iOrder);
-
-
-
-/* 按指定内存顺序写入 64 位原子值。 */
-XRT_API void xrtAtomic64Store(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子交换 64 位值并返回旧值。 */
-XRT_API uint64 xrtAtomic64Exchange(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 强比较交换 64 位值，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomic64CompareExchange(
-	xatomic64* pAtomic,
-	uint64* pExpected,
-	uint64 iDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-);
-
-
-
-/* 原子加 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchAdd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子减 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchSub(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位与 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchAnd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位或 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchOr(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 原子按位异或 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchXor(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
-
-
-
-/* 在对象发布给其他线程前初始化原子指针。 */
-XRT_API void xrtAtomicPtrInit(xatomicptr* pAtomic, ptr pValue);
-
-
-
-/* 按指定内存顺序读取原子指针。 */
-XRT_API ptr xrtAtomicPtrLoad(const xatomicptr* pAtomic, xmemoryorder iOrder);
-
-
-
-/* 按指定内存顺序写入原子指针。 */
-XRT_API void xrtAtomicPtrStore(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
-
-
-
-/* 原子交换指针并返回旧值。 */
-XRT_API ptr xrtAtomicPtrExchange(xatomicptr* pAtomic, ptr pValue, xmemoryorder iOrder);
-
-
-
-/* 强比较交换指针，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomicPtrCompareExchange(
-	xatomicptr* pAtomic,
-	ptr* pExpected,
-	ptr pDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-);
-
-
-
-/* 建立线程间内存栅栏。 */
-XRT_API void xrtAtomicThreadFence(xmemoryorder iOrder);
-
-
-
-/* 建立当前线程与信号处理器之间的编译器栅栏。 */
-XRT_API void xrtAtomicSignalFence(xmemoryorder iOrder);
-
-
-
-/* 向处理器提示当前线程处于短自旋等待。 */
-XRT_API void xrtAtomicPause(void);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-#endif
-
-
-/* ========================================================================== */
 /* public: include/xrt/hash.h */
 /* ========================================================================== */
 
@@ -13256,431 +14770,6 @@ XRT_API bool xrtSipHashUpdate(xsiphash* pState, const void* pData, size_t iSize)
 /* 计算当前状态的哈希值，不修改状态，可重复调用或继续追加。 */
 XRT_API uint64 xrtSipHashFinal(const xsiphash* pState);
 
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/wait.h */
-/* ========================================================================== */
-
-#ifndef XRT_WAIT_H
-#define XRT_WAIT_H
-
-
-
-
-#if defined(XRT_FEATURE_WAIT) && !defined(XRT_FEATURE_TIME)
-	#error "XRT_FEATURE_WAIT requires XRT_FEATURE_TIME"
-#endif
-
-
-
-#if defined(XRT_FEATURE_WAIT)
-
-/* 截止时间使用 xrtClock 的单调微秒刻度。 */
-typedef uint64 xdeadline;
-
-
-
-/* 永不超时的截止时间。 */
-#define XRT_DEADLINE_NEVER UINT64_MAX
-
-
-
-/* 等待结果把正常控制流与真正错误分开表达。 */
-typedef enum xwaitresult {
-	XWAIT_ERROR = -1,
-	XWAIT_OK = 0,
-	XWAIT_TIMEOUT = 1,
-	XWAIT_CANCELLED = 2,
-	XWAIT_CLOSED = 3
-} xwaitresult;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 从当前单调时钟和相对微秒数构造截止时间，溢出时返回 NEVER。 */
-XRT_API xdeadline xrtDeadlineAfter(uint64 iTimeout);
-
-
-
-/* 判断截止时间是否已经到达；NEVER 永远不会到达。 */
-XRT_API bool xrtDeadlineExpired(xdeadline iDeadline);
-
-
-
-/* 返回截止时间前剩余微秒数；已到达返回零，NEVER 返回 UINT64_MAX。 */
-XRT_API uint64 xrtDeadlineRemaining(xdeadline iDeadline);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/sync.h */
-/* ========================================================================== */
-
-#ifndef XRT_SYNC_H
-#define XRT_SYNC_H
-
-
-
-
-#if \
-	(defined(XRT_FEATURE_MUTEX) || defined(XRT_FEATURE_COND) || \
-	 defined(XRT_FEATURE_SEM) || defined(XRT_FEATURE_RWLOCK) || \
-	 defined(XRT_FEATURE_EVENT)) && \
-	!defined(XRT_FEATURE_SYNC)
-	#error "XRT synchronization features require XRT_FEATURE_SYNC"
-#endif
-
-#if defined(XRT_FEATURE_COND) && !defined(XRT_FEATURE_MUTEX)
-	#error "XRT_FEATURE_COND requires XRT_FEATURE_MUTEX"
-#endif
-
-#if \
-	(defined(XRT_FEATURE_COND) || defined(XRT_FEATURE_SEM) || \
-	 defined(XRT_FEATURE_EVENT)) && \
-	!defined(XRT_FEATURE_WAIT)
-	#error "timed synchronization features require XRT_FEATURE_WAIT"
-#endif
-
-
-
-#if defined(_WIN32) || defined(_WIN64)
-	#define XRT_MUTEX_STORAGE_SIZE 24u
-	#define XRT_COND_STORAGE_SIZE 16u
-	#define XRT_SEM_STORAGE_SIZE 24u
-	#define XRT_RWLOCK_STORAGE_SIZE 96u
-	#define XRT_EVENT_STORAGE_SIZE 24u
-#else
-	#define XRT_MUTEX_STORAGE_SIZE 96u
-	#define XRT_COND_STORAGE_SIZE 80u
-	#define XRT_SEM_STORAGE_SIZE 176u
-	#define XRT_RWLOCK_STORAGE_SIZE 256u
-	#define XRT_EVENT_STORAGE_SIZE 176u
-#endif
-
-
-
-#if defined(XRT_FEATURE_MUTEX)
-/* Mutex 使用固定对齐存储，允许嵌入用户结构且不暴露平台头。 */
-typedef union xmutex {
-	uint64 Alignment;
-	uint8 Storage[XRT_MUTEX_STORAGE_SIZE];
-} xmutex;
-#endif
-
-
-
-#if defined(XRT_FEATURE_COND)
-/* 条件变量必须和 XRT mutex 配合使用。 */
-typedef union xcond {
-	uint64 Alignment;
-	uint8 Storage[XRT_COND_STORAGE_SIZE];
-} xcond;
-#endif
-
-
-
-#if defined(XRT_FEATURE_SEM)
-/* 信号量的计数范围在所有平台统一为 [0, INT32_MAX]。 */
-typedef union xsem {
-	uint64 Alignment;
-	uint8 Storage[XRT_SEM_STORAGE_SIZE];
-} xsem;
-#endif
-
-
-
-#if defined(XRT_FEATURE_RWLOCK)
-/* 读写锁采用写者优先策略并支持升级和降级。 */
-typedef union xrwlock {
-	uint64 Alignment;
-	uint8 Storage[XRT_RWLOCK_STORAGE_SIZE];
-} xrwlock;
-#endif
-
-
-
-#if defined(XRT_FEATURE_EVENT)
-/* 事件保存显式信号状态，可选择自动或手动复位。 */
-typedef union xevent {
-	uint64 Alignment;
-	uint8 Storage[XRT_EVENT_STORAGE_SIZE];
-} xevent;
-#endif
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XRT_FEATURE_MUTEX)
-/* 初始化调用方存储中的非递归互斥锁。 */
-XRT_API bool xrtMutexInit(xmutex* pMutex);
-
-
-
-/* 释放互斥锁平台资源；仍被持有时失败且保持对象有效。 */
-XRT_API bool xrtMutexUnit(xmutex* pMutex);
-
-
-
-/* 创建一个非递归互斥锁。 */
-XRT_API xmutex* xrtMutexCreate(void);
-
-
-
-/* 释放 Create 返回的互斥锁；仍被持有时失败且不释放对象。 */
-XRT_API bool xrtMutexDestroy(xmutex* pMutex);
-
-
-
-/* 阻塞到获得互斥锁；同线程递归加锁返回错误。 */
-XRT_API bool xrtMutexLock(xmutex* pMutex);
-
-
-
-/* 尝试获得互斥锁；锁正忙时返回 false 且不设置错误。 */
-XRT_API bool xrtMutexTryLock(xmutex* pMutex);
-
-
-
-/* 释放当前线程持有的互斥锁。 */
-XRT_API bool xrtMutexUnlock(xmutex* pMutex);
-#endif
-
-
-
-#if defined(XRT_FEATURE_COND)
-/* 初始化调用方存储中的条件变量。 */
-XRT_API bool xrtCondInit(xcond* pCond);
-
-
-
-/* 释放条件变量平台资源。 */
-XRT_API bool xrtCondUnit(xcond* pCond);
-
-
-
-/* 创建条件变量。 */
-XRT_API xcond* xrtCondCreate(void);
-
-
-
-/* 释放 Create 返回的条件变量。 */
-XRT_API bool xrtCondDestroy(xcond* pCond);
-
-
-
-/* 当前线程持有 mutex 时原子释放并等待；允许虚假唤醒，必须在谓词循环中调用。 */
-XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex);
-
-
-
-/* 在相对微秒数内等待；允许虚假唤醒，超时和成功后都重新持有 mutex。 */
-XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout);
-
-
-
-/* 等待到单调时钟截止时间；允许虚假唤醒，应循环检查受 mutex 保护的谓词。 */
-XRT_API xwaitresult xrtCondWaitUntil(
-	xcond* pCond,
-	xmutex* pMutex,
-	xdeadline iDeadline
-);
-
-
-
-/* 唤醒一个等待者；通知本身不保存状态。 */
-XRT_API bool xrtCondSignal(xcond* pCond);
-
-
-
-/* 唤醒全部当前等待者；通知本身不保存状态。 */
-XRT_API bool xrtCondBroadcast(xcond* pCond);
-#endif
-
-
-
-#if defined(XRT_FEATURE_SEM)
-/* 初始化计数信号量。 */
-XRT_API bool xrtSemInit(xsem* pSem, uint32 iInitial, uint32 iMaximum);
-
-
-
-/* 释放信号量平台资源。 */
-XRT_API bool xrtSemUnit(xsem* pSem);
-
-
-
-/* 创建计数信号量。 */
-XRT_API xsem* xrtSemCreate(uint32 iInitial, uint32 iMaximum);
-
-
-
-/* 释放 Create 返回的信号量。 */
-XRT_API bool xrtSemDestroy(xsem* pSem);
-
-
-
-/* 等待并消费一个信号。 */
-XRT_API xwaitresult xrtSemWait(xsem* pSem);
-
-
-
-/* 非阻塞地尝试消费一个信号。 */
-XRT_API xwaitresult xrtSemTryWait(xsem* pSem);
-
-
-
-/* 在相对微秒数内等待并消费一个信号。 */
-XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout);
-
-
-
-/* 等待并消费一个信号到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline);
-
-
-
-/* 发布一个信号；达到上限时失败且计数不变。 */
-XRT_API bool xrtSemPost(xsem* pSem);
-
-
-
-/* 原子发布多个信号；超过上限时失败且不部分发布。 */
-XRT_API bool xrtSemPostMany(xsem* pSem, uint32 iCount);
-#endif
-
-
-
-#if defined(XRT_FEATURE_RWLOCK)
-/* 初始化写者优先的读写锁。 */
-XRT_API bool xrtRWLockInit(xrwlock* pLock);
-
-
-
-/* 释放读写锁平台资源；仍被持有或等待时失败。 */
-XRT_API bool xrtRWLockUnit(xrwlock* pLock);
-
-
-
-/* 创建写者优先的读写锁。 */
-XRT_API xrwlock* xrtRWLockCreate(void);
-
-
-
-/* 释放 Create 返回的读写锁。 */
-XRT_API bool xrtRWLockDestroy(xrwlock* pLock);
-
-
-
-/* 获得非递归共享读锁；读锁所有权由调用方保证。 */
-XRT_API bool xrtRWLockRead(xrwlock* pLock);
-
-
-
-/* 尝试获得共享读锁；写者存在或等待时返回 false。 */
-XRT_API bool xrtRWLockTryRead(xrwlock* pLock);
-
-
-
-/* 释放当前线程持有的一个读锁。 */
-XRT_API bool xrtRWLockReadUnlock(xrwlock* pLock);
-
-
-
-/* 获得独占写锁。 */
-XRT_API bool xrtRWLockWrite(xrwlock* pLock);
-
-
-
-/* 尝试获得独占写锁。 */
-XRT_API bool xrtRWLockTryWrite(xrwlock* pLock);
-
-
-
-/* 释放当前线程持有的写锁。 */
-XRT_API bool xrtRWLockWriteUnlock(xrwlock* pLock);
-
-
-
-/* 原子地把当前线程的写锁降级为一个读锁。 */
-XRT_API bool xrtRWLockDowngrade(xrwlock* pLock);
-
-
-
-/* 当前线程只持有一个读锁时，释放它并排队获得写锁。 */
-XRT_API bool xrtRWLockUpgrade(xrwlock* pLock);
-#endif
-
-
-
-#if defined(XRT_FEATURE_EVENT)
-/* 初始化自动或手动复位事件。 */
-XRT_API bool xrtEventInit(xevent* pEvent, bool bManualReset, bool bSignaled);
-
-
-
-/* 释放事件平台资源。 */
-XRT_API bool xrtEventUnit(xevent* pEvent);
-
-
-
-/* 创建自动或手动复位事件。 */
-XRT_API xevent* xrtEventCreate(bool bManualReset, bool bSignaled);
-
-
-
-/* 释放 Create 返回的事件。 */
-XRT_API bool xrtEventDestroy(xevent* pEvent);
-
-
-
-/* 等待事件进入信号态。 */
-XRT_API xwaitresult xrtEventWait(xevent* pEvent);
-
-
-
-/* 非阻塞地检查并消费自动复位事件。 */
-XRT_API xwaitresult xrtEventTryWait(xevent* pEvent);
-
-
-
-/* 在相对微秒数内等待事件。 */
-XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, uint64 iTimeout);
-
-
-
-/* 等待事件到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtEventWaitUntil(xevent* pEvent, xdeadline iDeadline);
-
-
-
-/* 设置事件；手动复位唤醒全部等待者，自动复位唤醒一个等待者。 */
-XRT_API bool xrtEventSet(xevent* pEvent);
-
-
-
-/* 清除事件信号态。 */
-XRT_API bool xrtEventReset(xevent* pEvent);
 #endif
 
 
@@ -13890,763 +14979,6 @@ XRT_API xthread* xrtThreadCurrent(void);
 
 /* 主动让出当前线程的处理器时间片。 */
 XRT_API void xrtThreadYield(void);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/cancel.h */
-/* ========================================================================== */
-
-#ifndef XRT_CANCEL_H
-#define XRT_CANCEL_H
-
-
-
-
-#if defined(XRT_FEATURE_CANCEL) && !defined(XRT_FEATURE_MUTEX)
-	#error "XRT_FEATURE_CANCEL requires XRT_FEATURE_MUTEX"
-#endif
-
-#if defined(XRT_FEATURE_CANCEL) && !defined(XRT_FEATURE_COND)
-	#error "XRT_FEATURE_CANCEL requires XRT_FEATURE_COND"
-#endif
-
-
-
-#if defined(XRT_FEATURE_CANCEL)
-/* 取消令牌保存一次性取消状态，并可通过不可变父链继承取消。 */
-typedef struct xcancel xcancel;
-
-
-
-/* 取消监听保存一次回调注册及其并发生命周期。 */
-typedef struct xcancelwatch xcancelwatch;
-
-
-
-/* 取消回调由命中的取消请求线程或迟注册线程同步执行。 */
-typedef void (*xcancelproc)(ptr pData);
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 创建一个独立的取消令牌。 */
-XRT_API xcancel* xrtCancelCreate(void);
-
-
-
-/* 创建一个继承父令牌取消状态的子令牌；父令牌可为空。 */
-XRT_API xcancel* xrtCancelChild(xcancel* pParent);
-
-
-
-/* 增加取消令牌引用并返回原指针。 */
-XRT_API xcancel* xrtCancelRef(xcancel* pCancel);
-
-
-
-/* 释放取消令牌引用；空指针视为空操作。 */
-XRT_API void xrtCancelDestroy(xcancel* pCancel);
-
-/* Borrowed physical ownership view; the retained parent is one owning edge.
- * Watch-list links borrow registration storage and are not strong references.
- * Caller provides whole-graph quiescence and code residency. */
-XRT_API xrtownershipref xrtCancelOwnership(const xcancel* pCancel);
-
-/* Explicit native adapter, queried under whole-graph freeze. Registered
- * observers are refused before Trace, not treated as empty owning slots.
- * The immutable parent tail remains owned through Finish and final Drop;
- * each parent must independently be admitted. No CancelWatch certification. */
-XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference);
-
-
-
-/* 请求取消；仅首次请求返回 true 并触发监听。 */
-XRT_API bool xrtCancelRequest(xcancel* pCancel);
-
-
-
-/* 查询令牌或任一祖先是否已请求取消；空指针表示未取消。 */
-XRT_API bool xrtCancelRequested(const xcancel* pCancel);
-
-
-
-/* 监听令牌及其不可变父链；回调至多同步执行一次。 */
-XRT_API xcancelwatch* xrtCancelWatch(
-	xcancel* pCancel,
-	xcancelproc pProc,
-	ptr pData
-);
-
-
-
-/* 查询监听是否已命中取消。 */
-XRT_API bool xrtCancelTriggered(const xcancelwatch* pWatch);
-
-
-
-/* Borrowed physical view: Unwatch owns this registration; it retains its
- * Cancel (and thereby its parents). Proc/Data and linked cancellation nodes
- * are borrowed, not additional owning slots. Active/destroying callbacks
- * reject inspection. Whole-graph quiescence and code residency are required. */
-XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch);
-
-
-
-/* 注销并释放监听；从其他线程调用时等待正在执行的回调返回。 */
-XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch);
-
-
-
-XRT_EXTERN_C_END
-#endif
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/future.h */
-/* ========================================================================== */
-
-#ifndef XRT_FUTURE_H
-#define XRT_FUTURE_H
-
-
-
-
-#if defined(XRT_FEATURE_FUTURE) && !defined(XRT_FEATURE_CANCEL)
-	#error "XRT_FEATURE_FUTURE requires XRT_FEATURE_CANCEL"
-#endif
-
-#if defined(XRT_FEATURE_FUTURE_COROUTINE) && !defined(XRT_FEATURE_FUTURE)
-	#error "XRT_FEATURE_FUTURE_COROUTINE requires XRT_FEATURE_FUTURE"
-#endif
-
-#if defined(XRT_FEATURE_FUTURE_COROUTINE) && !defined(XRT_FEATURE_COROUTINE_SCHEDULER)
-	#error "XRT_FEATURE_FUTURE_COROUTINE requires XRT_FEATURE_COROUTINE_SCHEDULER"
-#endif
-
-#if defined(XRT_FEATURE_FUTURE_COMBINE) && !defined(XRT_FEATURE_FUTURE)
-	#error "XRT_FEATURE_FUTURE_COMBINE requires XRT_FEATURE_FUTURE"
-#endif
-
-#if defined(XRT_FEATURE_FUTURE_CONTINUE) && !defined(XRT_FEATURE_FUTURE)
-	#error "XRT_FEATURE_FUTURE_CONTINUE requires XRT_FEATURE_FUTURE"
-#endif
-
-
-
-#if defined(XRT_FEATURE_FUTURE)
-
-/* Future 是只读共享结果，Promise 是唯一终态写入端。 */
-typedef struct xfuture xfuture;
-typedef struct xpromise xpromise;
-
-
-
-/* Future 终态明确区分成功、失败、协作取消和生产端关闭。 */
-typedef enum xfuturestate {
-	XFUTURE_PENDING = 0,
-	XFUTURE_RESOLVED = 1,
-	XFUTURE_FAILED = 2,
-	XFUTURE_CANCELLED = 3,
-	XFUTURE_CLOSED = 4
-} xfuturestate;
-
-
-
-/* Future 结果只借用值和错误，其生命周期由 Future 引用保护。 */
-typedef struct xfutureresult {
-	xfuturestate State;
-	ptr Value;
-	const xerror* Error;
-} xfutureresult;
-
-
-
-/* Future Watch 使用调用方存储提供无分配终态通知。 */
-#define XRT_FUTURE_WATCH_STORAGE_SIZE 64u
-
-
-
-/* Watch 回调在线程安全的 Future 完成路径中执行，不得重入同一个 Watch。 */
-typedef void (*xfuturewatchproc)(ptr pData);
-
-
-
-/* Watch 释放过程在线性化完成通知或成功摘除后执行一次。 */
-typedef void (*xfuturewatchreleaseproc)(ptr pData);
-
-
-
-/* Watch 的内部链表和并发状态保持不透明。 */
-typedef union xfuturewatch {
-	uint64 Alignment;
-	uint8 Storage[XRT_FUTURE_WATCH_STORAGE_SIZE];
-} xfuturewatch;
-
-
-
-/* 注册结果区分错误、Future 已完成和成功进入等待链。 */
-typedef enum xfuturewatchresult {
-	XFUTURE_WATCH_ERROR = -1,
-	XFUTURE_WATCH_READY = 0,
-	XFUTURE_WATCH_PENDING = 1
-} xfuturewatchresult;
-
-
-
-/* 成功值析构过程接收创建者提供的值和上下文。 */
-typedef void (*xfuturefreeproc)(ptr pValue, ptr pData);
-
-/* Describe exactly the owning slots released by an owned result's destructor,
- * including its context. Unique boxes are folded into this Future's edges;
- * shared reference-counted boxes must be reported as physical nodes. */
-typedef bool (*xfutureownershiptrace)(const void* pValue, const void* pData,
-	xrtownershipvisitor pVisit, ptr pContext);
-
-/* Explicit lifecycle certification, separate from an inspection-only trace.
- * Immutable policy/code outlives the Future. Drop consumes a unique result
- * box and exactly the owning slots described by Trace; context is NULL.
- * Drop coordinates its own graph transitions, runs no new semantic finalizer
- * after child finalization, and may execute outside XRT's mutation scope.
- * Trace is allocation/callback-free apart from the supplied visitor. */
-typedef struct xfuturepayloadownershipv1 {
-	size_t size;
-	xfuturefreeproc Drop;
-	xfutureownershiptrace Trace;
-} xfuturepayloadownershipv1;
-
-/* One ACTUAL producer reference owned by a pending result, separate from
- * PromiseRefs and from the terminal payload. The immutable resident Drop
- * releases that reference outside this Future's lock/mutation; it coordinates
- * its own transitions and code lifetime. It must not cancel accepted work or
- * substitute for its semantic callback/finally. Completion preserves its own
- * diagnostic across this mechanical release. The physical child is still
- * independently admitted by the collector, never certified by this policy. */
-typedef struct xfutureproducerownershipv1 {
-	size_t size;
-	void (*Drop)(const void* pProducer);
-} xfutureproducerownershipv1;
-
-/* A registered Watch owns exactly ONE Data node reference, returned by Release.
- * Immutable resident callbacks coordinate their own activity and code lifetime;
- * Ops describes that same physical node, not a synthetic watch leaf. The core
- * traces this actual slot, but a collector independently admits Data and all
- * of its captures. Legacy traced/phased watches are not silently certified. */
-typedef struct xfuturewatchownershipv1 {
-	size_t size;
-	xfuturewatchproc Notify;
-	xfuturewatchreleaseproc Release;
-	const xrtownershipops* Ops;
-} xfuturewatchownershipv1;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 创建一对 Future/Promise；父取消令牌为空时使用独立取消源。 */
-XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
-
-/* Bind once to a private, pending, newly created Future/Promise pair (one
- * reference per endpoint, no waiters). No allocation or user callback.
- * Success consumes ONE existing Producer reference; failure consumes nothing.
- * The result traces that real edge until terminal publication detaches it;
- * completion releases it exactly once outside lock/mutation before notifying
- * the result's waiters. Merely dropping a Future observer does not cancel work.
- * The caller keeps an independent activation/registration reference until
- * its own callback and release tails finish. An enclosing caller-owned scope
- * is never suspended. A trace-only or unknown policy is not collection proof. */
-XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
-	const xfutureproducerownershipv1* pPolicy);
-
-
-
-/* 增加 Promise 生产端引用并返回原指针。 */
-XRT_API xpromise* xrtPromiseRef(xpromise* pPromise);
-
-
-
-/* 释放生产端引用；最后一个未完成生产端会关闭 Future 并请求取消。 */
-XRT_API void xrtPromiseDestroy(xpromise* pPromise);
-
-
-
-/* 增加 Future 消费端引用并返回原指针。 */
-XRT_API xfuture* xrtFutureRef(xfuture* pFuture);
-
-
-
-/* 释放 Future 消费端引用；空指针视为空操作。 */
-XRT_API void xrtFutureDestroy(xfuture* pFuture);
-
-/* Borrowed views of the SAME physical control block: every FutureRef and
- * PromiseRef owns one reference. Do not invent a second Promise node.
- * Trace includes cancellation parents, error causes, forwarded source and
- * explicitly described owned payload/context. Unknown owned payloads and
- * registered waiters fail closed unless their complete adapters are supplied.
- * Pending with no waiters is inspectable; producer references remain roots.
- * Whole-graph quiescence through any later commit and callback code residency
- * remain the caller's responsibility; this API does not establish either. */
-XRT_API xrtownershipref xrtFutureOwnership(const xfuture* pFuture);
-XRT_API xrtownershipref xrtPromiseOwnership(const xpromise* pPromise);
-
-/* Publish an explicitly certified owned result atomically. Failure does not
- * consume the box. This does not authorize collection by itself: a resolver
- * must recognize the exact policy identity and independently admit children. */
-XRT_API bool xrtPromiseResolveOwnedPolicyV1(xpromise* pPromise, ptr pValue,
-	const xfuturepayloadownershipv1* pPolicy);
-
-/* Query under whole-graph freeze before Count/Trace. Pending, forwarded and
- * terminal control blocks share one physical adapter. Completing operations,
- * all registered waiters, unrecognized owned policies and observed cancel
- * tokens are refused without invoking any payload/waiter trace. An empty
- * allowlist admits only results without an owned payload. Pending retirement
- * preserves last-producer CLOSED/cancellation semantics at Clear, without
- * notification. Finish releases actual retired slots outside freeze. */
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount);
-/* Add an explicit producer-policy allowlist. V1 continues to refuse any live
- * producer edge. Neither entry admits registered waiters or an unknown child;
- * identity is matched before reading a policy or invoking any child callback. */
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
-	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount);
-/* V3 additionally admits exact Watch policies and returns mandatory semantic
- * preparation alongside the SAME lifecycle adapter. Before object Finalize,
- * prepare producerless pending sources through normal CLOSED notification,
- * then rebuild the whole graph. Produced results defer to their real producer;
- * never close an intermediate result before its source's catch/finally runs.
- * Closed dependency cycles may require a further explicit shutdown protocol;
- * BUSY does not authorize clearing a live Watch or skipping accepted work.
- * Output is unchanged on refusal. Use both descriptors, never V1-only planning. */
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
-	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
-	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
-	const xrtownershippreparationv1** ppPreparation);
-/* Preserve 64-byte Watch storage and READY/PENDING/ERROR ownership rules.
- * Initialization alone does not consume Data; registration commits the same
- * caller-owned reference that Release returns. READY is still caller-driven. */
-XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
-	const xfuturewatchownershipv1* pPolicy);
-
-/* Atomically publish value, destructor, context and non-NULL ownership trace.
- * Success transfers the same ownership as ResolveOwned. Failure (including
- * duplicate completion) transfers nothing and never calls Destroy/Trace.
- * The immutable trace and destructor remain resident for the result lifetime;
- * trace follows the read-only xrtOwnershipInspect callback contract. */
-XRT_API bool xrtPromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
-	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
-
-
-
-/* 返回 Future 状态快照；参数无效时返回 CLOSED 并设置错误。 */
-XRT_API xfuturestate xrtFutureState(const xfuture* pFuture);
-
-
-
-/* 判断 Future 是否已经进入任一不可变终态。 */
-XRT_API bool xrtFutureDone(const xfuture* pFuture);
-
-
-
-/* 复制借用结果；尚未完成时返回 false 并设置 AGAIN。 */
-XRT_API bool xrtFutureResult(const xfuture* pFuture, xfutureresult* pResult);
-
-
-
-/* 返回成功值；非成功终态会把对应错误设置到当前执行上下文。 */
-XRT_API ptr xrtFutureValue(const xfuture* pFuture);
-
-
-
-/* 返回失败终态借用的结构化错误，其他状态返回空指针。 */
-XRT_API const xerror* xrtFutureError(const xfuture* pFuture);
-
-
-
-/* 请求生产过程协作取消；请求本身不伪造 Future 终态。 */
-XRT_API bool xrtFutureCancel(xfuture* pFuture);
-
-
-
-/* 返回增加引用后的取消令牌，调用方使用完毕后必须释放。 */
-XRT_API xcancel* xrtFutureCancelToken(const xfuture* pFuture);
-
-
-
-/* 返回增加引用后的生产端取消令牌。 */
-XRT_API xcancel* xrtPromiseCancelToken(const xpromise* pPromise);
-
-
-
-/* 初始化一个尚未注册的无分配 Future Watch。 */
-XRT_API bool xrtFutureWatchInit(
-	xfuturewatch* pWatch,
-	xfuturewatchproc pNotify,
-	xfuturewatchreleaseproc pRelease,
-	ptr pData
-);
-
-
-
-/* Initialize with an immutable description of the strong slots released by
- * pRelease(pData). Both callbacks are required. Unique context storage is
- * folded into the Future's edges; shared state is a physical node. Init is
- * allocation-free and consumes nothing; only WatchAdd(PENDING) transfers the
- * registration/release right. READY and ERROR keep it with the caller.
- * Storage size and old Init semantics are unchanged. A linked adapter may be
- * inspected only at a whole-graph quiescent point with callback code resident;
- * this does not establish a safepoint or permit concurrent frame inspection. */
-XRT_API bool xrtFutureWatchInitTraced(xfuturewatch* pWatch,
-    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
-    xrtownershiptrace pTrace);
-
-/* Explicit cooperative callback admission, not inferred from a Trace callback.
- * Like InitTraced, but Notify/Release run outside the Future mutation domain.
- * The resident callbacks must coordinate every count/edge/storage transition,
- * reject inspection of active/private data, and independently pin their code.
- * Detached notification/release callers retain their real ownership until the
- * callback returns. No mutation scope may span a wait or arbitrary callback.
- * Unphased Watch, internal waiters and payload finalizers keep conservative
- * mutation scopes. Storage size, READY/PENDING/ERROR and release rules match
- * InitTraced; READY still leaves Notify/Release to the registering caller. */
-XRT_API bool xrtFutureWatchInitPhased(xfuturewatch* pWatch,
-    xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
-    xrtownershiptrace pTrace);
-
-
-
-/* Future 未完成时注册 Watch；READY 时 Watch 未被接管且不执行 Release。 */
-XRT_API xfuturewatchresult xrtFutureWatchAdd(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-);
-
-
-
-/* 尝试摘除尚未开始通知的 Watch；成功时同步执行 Release。 */
-XRT_API bool xrtFutureWatchDetach(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-);
-
-
-
-/* 摘除 Watch 并等待已经开始的通知结束；禁止从自身通知中调用。 */
-XRT_API void xrtFutureWatchRemove(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-);
-
-
-
-/* 等待 Future 进入任一终态。 */
-XRT_API xwaitresult xrtFutureWait(xfuture* pFuture);
-
-
-
-/* 在相对微秒数内等待 Future 进入任一终态。 */
-XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
-
-
-
-/* 等待 Future 到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
-
-
-
-/* 等待首个线性化事件；取消先取得等待锁后不会被迟到终态覆盖。 */
-XRT_API xwaitresult xrtFutureWaitUntilCancel(
-	xfuture* pFuture,
-	xdeadline iDeadline,
-	xcancel* pCancel
-);
-
-
-
-/* 以借用方式完成成功结果，值的生命周期由调用方保证。 */
-XRT_API bool xrtPromiseResolve(xpromise* pPromise, ptr pValue);
-
-
-
-/* 转移成功值所有权；完成失败时所有权仍归调用方。 */
-XRT_API bool xrtPromiseResolveOwned(
-	xpromise* pPromise,
-	ptr pValue,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/* 以增加引用方式完成失败结果。 */
-XRT_API bool xrtPromiseReject(xpromise* pPromise, const xerror* pError);
-
-
-
-/* 把已进入终态的源 Future 结果安全透传到 Promise。 */
-XRT_API bool xrtPromiseForward(xpromise* pPromise, xfuture* pSource);
-
-
-
-/* 完成取消终态；令牌请求通知结束后才向等待者发布取消终态。 */
-XRT_API bool xrtPromiseCancel(xpromise* pPromise);
-
-
-
-/* 请求生产过程停止，并在令牌通知结束后发布关闭终态。 */
-XRT_API bool xrtPromiseClose(xpromise* pPromise);
-
-
-
-/* 判断 Promise 对应的 Future 是否已经完成。 */
-XRT_API bool xrtPromiseDone(const xpromise* pPromise);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FUTURE_COMBINE)
-
-/* Any 与 Race 的结果借用胜出源 Future；组合 Future 负责保留该引用。 */
-typedef struct xfuturepick {
-	size_t Index;
-	xfuture* Future;
-} xfuturepick;
-
-
-
-/* All 的结果按输入顺序借用全部源 Future；组合 Future 负责保留这些引用。 */
-typedef struct xfutureall {
-	size_t Count;
-	xfuture* const* Futures;
-} xfutureall;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 在任一源进入终态后，以 xfuturepick 成功完成；不改变其余源。 */
-XRT_API xfuture* xrtFutureAny(xfuture* const* pFutures, size_t iCount);
-
-
-
-/* 在全部源进入终态后，以保序的 xfutureall 成功完成；空集合立即完成。 */
-XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
-
-
-
-/* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。 */
-XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
-
-/* Synchronous result mapping is part of the aggregate's activation, not a
- * separately allocated continuation attached after the sources start.
- * Inputs and output Promise are borrowed for the call. The mapper must
- * complete/forward the output before returning; an uncompleted output closes.
- * It must not retain the input descriptors or defer work on this Promise. */
-typedef void (*xfutureallmapproc)(const xfutureall* pInput, xpromise* pOutput, ptr pData);
-typedef void (*xfuturepickmapproc)(const xfuturepick* pInput, xpromise* pOutput, ptr pData);
-
-/* All preparation succeeds before source notification/cancellation is possible.
- * NULL return does not consume data, invoke map/destroy/trace, or cancel inputs.
- * Non-NULL accepts data even if synchronous mapping fails: that failure is the
- * returned Future's outcome. Destroy(data, destroyData) runs exactly once after
- * mapping or cancellation and after the last source callback returns.
- * Trace(data, destroyData) describes the exact strong slots Destroy releases;
- * callbacks/code and borrowed pointers are not fictitious owning edges.
- * Destroy and Trace are required, including for an empty context. The caller
- * still supplies whole-graph quiescence and callback/code residency.
- * Any/All/Race retain their existing selection/order/cancellation contracts. */
-XRT_API xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfutureallmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace);
-XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace);
-XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FUTURE_CONTINUE)
-
-/* 延续过程借用源结果和输出 Promise；保留 Promise 时必须先增加引用。 */
-typedef void (*xfuturecontinueproc)(
-	const xfutureresult* pInput,
-	xpromise* pOutput,
-	ptr pData
-);
-
-
-
-/* Finally 过程只观察源结果，输出 Future 自动安全透传源终态。 */
-typedef void (*xfuturefinallyproc)(const xfutureresult* pInput, ptr pData);
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 对源的任意终态执行延续过程；过程负责完成或保留输出 Promise。 */
-XRT_API xfuture* xrtFutureContinue(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData
-);
-
-
-
-/* 执行任意终态延续，并在执行、跳过或取消后释放受理的数据。 */
-XRT_API xfuture* xrtFutureContinueOwned(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/*
-	对独占源的任意终态执行延续；取消输出时同时请求取消源。
-	该入口只适用于调用方拥有完整生产链、不与其他消费者共享源的组合层。
-*/
-XRT_API xfuture* xrtFutureContinueOwnedCancelSource(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/* 仅在源成功时执行延续；其他终态自动透传。 */
-XRT_API xfuture* xrtFutureThen(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData
-);
-
-
-
-/* 仅在源成功时执行延续，并负责释放受理的数据。 */
-XRT_API xfuture* xrtFutureThenOwned(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/*
-	仅在独占源成功时执行延续；取消输出时同时请求取消源。
-	源的失败、取消和关闭仍按 Then 契约自动透传。
-*/
-XRT_API xfuture* xrtFutureThenOwnedCancelSource(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/* 仅在源失败时执行延续；成功、取消和关闭终态自动透传。 */
-XRT_API xfuture* xrtFutureCatch(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData
-);
-
-
-
-/* 仅在源失败时执行延续，并负责释放受理的数据。 */
-XRT_API xfuture* xrtFutureCatchOwned(
-	xfuture* pSource,
-	xfuturecontinueproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-/* 观察源的任意终态，再把原结果安全透传到输出 Future。 */
-XRT_API xfuture* xrtFutureFinally(
-	xfuture* pSource,
-	xfuturefinallyproc pProc,
-	ptr pData
-);
-
-
-
-/* 观察源的任意终态、透传结果，并负责释放受理的数据。 */
-XRT_API xfuture* xrtFutureFinallyOwned(
-	xfuture* pSource,
-	xfuturefinallyproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FUTURE_COROUTINE)
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 挂起当前调度协程，直到 Future 进入终态或协程被取消。 */
-XRT_API xwaitresult xrtFutureAwait(xfuture* pFuture);
-
-
-
-/* 在相对微秒数内挂起当前调度协程等待 Future。 */
-XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
-
-
-
-/* 挂起当前调度协程等待 Future 到指定截止时间。 */
-XRT_API xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline);
 
 
 
@@ -27947,6 +28279,27 @@ XRT_EXTERN_C_BEGIN
 /* 创建有界工作线程池；配置为空或字段为零时使用对应默认值。 */
 XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig);
 
+/* A borrowed view of the real pool owner slot. Create contributes one actual
+ * reference; successful Destroy consumes it once. Collector Hold/Release pins
+ * keep the terminal shell alive after joined worker resources are retired.
+ * Native entries, executing workers and opaque finalizers refuse inspection.
+ * Accepted opaque resources hold real pool references until their finalizers
+ * return; these remain external roots, even when the pool is otherwise idle.
+ * Parked worker/control storage is uniquely contained until join, not a fake
+ * RC node or a guessed subtraction from a live reference count. */
+XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool);
+
+/* Query under the caller's exclusive ownership freeze. Trace reports each
+ * accepted queued Job reference exactly once; each Job still needs independent
+ * admission through xrtTaskOwnershipAdapterV1 with explicit Data policies.
+ * Prepare is called only for an authorized unreachable claim, outside freeze:
+ * close new admission, let accepted work/cleanup finish, then nonblocking join.
+ * It never cancels, steals or skips work. Active native stacks remain roots.
+ * Clear requires completed joins; Finish retires worker resources, not the
+ * caller's owner reference. ppPreparation changes only on success. */
+XRT_API const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(
+    xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+
 
 
 /* 提交任务并返回其 Future；失败时任务数据所有权仍属于调用方。 */
@@ -28213,113 +28566,118 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/memory_debug.h */
+/* public: include/xrt/file_async.h */
 /* ========================================================================== */
 
-#ifndef XRT_MEMORY_DEBUG_H
-#define XRT_MEMORY_DEBUG_H
+#ifndef XRT_FILE_ASYNC_H
+#define XRT_FILE_ASYNC_H
 
 
 
 
-#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT) && !defined(XRT_FEATURE_MEMORY_DEBUG)
-	#error "XRT_FEATURE_MEMORY_DEBUG_REPORT requires XRT_FEATURE_MEMORY_DEBUG"
+#if defined(XRT_FEATURE_FILE_ASYNC_COMMON) && \
+	!defined(XRT_FEATURE_TASK_POOL)
+	#error "XRT async file common support requires task-pool support"
+#endif
+
+#if defined(XRT_FEATURE_FILE_ASYNC) && \
+	(!defined(XRT_FEATURE_FILE) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async file support requires file and async-file-common support"
+#endif
+
+#if defined(XRT_FEATURE_FILE_ASYNC_WHOLE) && \
+	(!defined(XRT_FEATURE_FILE_WHOLE) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async whole-file support requires whole-file and async-file-common support"
+#endif
+
+#if defined(XRT_FEATURE_FILE_ASYNC_MANAGE) && \
+	(!defined(XRT_FEATURE_FILE_WHOLE) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async file management requires whole-file and async-file-common support"
+#endif
+
+#if defined(XRT_FEATURE_DIR_ASYNC) && \
+	(!defined(XRT_FEATURE_DIR) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async directory support requires directory and async-file-common support"
+#endif
+
+#if defined(XRT_FEATURE_FILE_TREE_ASYNC) && \
+	(!defined(XRT_FEATURE_FILE_TREE) || \
+	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
+	#error "XRT async file-tree support requires file-tree and async-file-common support"
 #endif
 
 
 
-#if defined(XRT_FEATURE_MEMORY_DEBUG)
+#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
 
-/* 调试器固定保留最近 512 条事件。 */
-#define XRT_MEMDEBUG_EVENT_LIMIT 512u
-
-
-
-/* 内存调试事件类型。 */
-typedef enum xmemdebugeventkind {
-	XMEMDEBUG_ALLOC = 1,
-	XMEMDEBUG_FREE,
-	XMEMDEBUG_REALLOC,
-	XMEMDEBUG_DOUBLE_FREE,
-	XMEMDEBUG_INVALID_FREE,
-	XMEMDEBUG_OVERFLOW,
-	XMEMDEBUG_UNDERFLOW,
-	XMEMDEBUG_USE_AFTER_FREE,
-	XMEMDEBUG_TEMP_ALLOC,
-	XMEMDEBUG_TEMP_REWIND,
-	XMEMDEBUG_TEMP_RESET
-} xmemdebugeventkind;
+/* 异步文件对象绑定一个有界任务池，并在关闭前保留全部已受理操作。 */
+typedef struct xasyncfile xasyncfile;
 
 
 
-/* 内存调试事件是只包含借用信息的值对象。 */
-typedef struct xmemdebugevent {
-	xmemdebugeventkind Kind;
-	uint64 Sequence;
-	ptr Address;
+/* 读取结果及其 Data 都由 Future 拥有，Future 释放前保持有效。 */
+typedef struct xfiledata {
+	bytes Data;
 	size_t Size;
-	cstr File;
-	uint32 Line;
-} xmemdebugevent;
+	uint64 Offset;
+	bool End;
+} xfiledata;
 
 
 
-/* 内存调试快照用于测试、诊断和外部报告。 */
-typedef struct xmemdebugsnapshot {
-	bool Enabled;
-	size_t LiveCount;
-	size_t LiveBytes;
-	size_t PeakCount;
-	size_t PeakBytes;
-	size_t QuarantineCount;
-	size_t QuarantineBytes;
-	uint64 AllocCount;
-	uint64 FreeCount;
-	uint64 ReallocCount;
-	uint64 DoubleFreeCount;
-	uint64 InvalidFreeCount;
-	uint64 OverflowCount;
-	uint64 UnderflowCount;
-	uint64 UseAfterFreeCount;
-	size_t TempCurrentBytes;
-	size_t TempPeakBytes;
-	uint64 TempResetCount;
-	size_t EventCount;
-} xmemdebugsnapshot;
+/* 写入、查询大小和修改大小统一返回偏移与字节数。 */
+typedef struct xfilechange {
+	uint64 Offset;
+	uint64 Size;
+} xfilechange;
 
 
 
-/* 事件访问器返回 false 时停止遍历。 */
-typedef bool (*xmemdebugvisitor)(const xmemdebugevent* pEvent, ptr pUserData);
+/* 文件或目录树大小查询使用独立结果，避免混入写入偏移语义。 */
+typedef struct xfilesize {
+	uint64 Size;
+} xfilesize;
 
 
 
-/* 活动分配记录借用分配点字符串，不转移内存所有权。 */
-typedef struct xmemdebugallocation {
-	ptr Address;
-	size_t Size;
-	cstr File;
-	uint32 Line;
-} xmemdebugallocation;
+/* 目录属性查询结果由 Future 拥有。 */
+typedef struct xdirquery {
+	bool Empty;
+} xdirquery;
 
 
 
-/* 活动分配访问器返回 false 时停止遍历。 */
-typedef bool (*xmemdebugallocationvisitor)(const xmemdebugallocation* pAllocation, ptr pUserData);
+/* 零复制写入受理后，在数据不再被任务使用时执行一次释放过程。 */
+typedef void (*xfileasyncreleaseproc)(
+	ptr pContext,
+	cbytes pData,
+	size_t iSize
+);
 
 
 
-#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
-/* 报告格式与具体输出目标解耦。 */
-typedef enum xmemdebugreportformat {
-	XMEMDEBUG_REPORT_TEXT = 1,
-	XMEMDEBUG_REPORT_JSON
-} xmemdebugreportformat;
+/* 异步文件错误保留外层操作，并通过 cause 保留文件或任务池错误。 */
+typedef enum xfileasyncerror {
+	XFILE_ASYNC_ERROR_OPEN = 1,
+	XFILE_ASYNC_ERROR_SUBMIT,
+	XFILE_ASYNC_ERROR_READ,
+	XFILE_ASYNC_ERROR_WRITE,
+	XFILE_ASYNC_ERROR_FLUSH,
+	XFILE_ASYNC_ERROR_SIZE,
+	XFILE_ASYNC_ERROR_RESIZE,
+	XFILE_ASYNC_ERROR_CLOSE,
+	XFILE_ASYNC_ERROR_COPY,
+	XFILE_ASYNC_ERROR_MOVE,
+	XFILE_ASYNC_ERROR_DELETE,
+	XFILE_ASYNC_ERROR_CREATE,
+	XFILE_ASYNC_ERROR_TREE,
+	XFILE_ASYNC_ERROR_QUERY
+} xfileasyncerror;
 
-
-
-/* 报告写入器成功消费全部数据时返回 true。 */
-typedef bool (*xmemdebugwriteproc)(xbytesview Data, ptr pUserData);
 #endif
 
 
@@ -28328,70 +28686,336 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 返回稳定的事件名称，未知事件返回 unknown。 */
-XRT_API cstr xrtMemDebugEventName(xmemdebugeventkind Kind);
+#if defined(XRT_FEATURE_FILE_ASYNC)
 
-
-
-/* 在没有活动分配时开启或关闭运行时内存调试记录。 */
-XRT_API bool xrtMemDebugEnable(bool bEnable);
-
-
-
-/* 返回运行时内存调试是否开启。 */
-XRT_API bool xrtMemDebugEnabled(void);
-
-
-
-/* 当前线程允许指定次数成功分配后，让下一次逻辑分配失败一次。 */
-XRT_API bool xrtMemDebugFailAfter(uint64 iSuccessfulAllocations);
-
-
-
-/* 清除当前线程尚未触发的分配故障。 */
-XRT_API void xrtMemDebugFailClear(void);
-
-
-
-/* 返回当前线程最近配置的分配故障是否已经触发。 */
-XRT_API bool xrtMemDebugFailTriggered(void);
-
-
-
-/* 在没有活动分配时清空统计、事件和隔离队列。 */
-XRT_API bool xrtMemDebugReset(void);
-
-
-
-/* 获取一致的内存调试统计快照。 */
-XRT_API void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot);
-
-
-
-/* 按时间顺序访问当前保留的调试事件。 */
-XRT_API size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData);
-
-
-
-/* 访问内部锁线性化点捕获的完整活动分配快照。 */
-XRT_API size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData);
-
-
-
-#if defined(XRT_FEATURE_MEMORY_DEBUG_REPORT)
-/* 把当前调试快照流式写为文本或 JSON。 */
-XRT_API bool xrtMemDebugReport(
-	xmemdebugreportformat Format,
-	xmemdebugwriteproc pWriter,
-	ptr pUserData
+/*
+	同步打开异步文件对象。
+	任务池由调用方拥有，并且必须存活到 xrtAsyncFileClose 返回的 Future 完成。
+*/
+XRT_API xasyncfile* xrtAsyncFileOpen(
+	xtaskpool* pPool,
+	cstr sPath,
+	const xfileoptions* pOptions
 );
+
+
+
+/*
+	采用已经打开的文件，并把唯一关闭责任转交给异步文件对象。
+	失败时调用方仍然拥有 File；成功后只能通过 xrtAsyncFileClose 关闭。
+*/
+XRT_API xasyncfile* xrtAsyncFileAdopt(
+	xtaskpool* pPool,
+	xfile File
+);
+
+
+
+/* 返回异步文件采用时保存的打开标志；失败返回 0。 */
+XRT_API uint32 xrtAsyncFileFlags(const xasyncfile* pFile);
+
+
+
+/*
+	停止接收新操作并释放调用方的对象所有权。
+	返回的 Future 在全部已受理操作结束且原生文件关闭后完成。
+	关闭过程通过任务池资源回收通道执行，不在调用线程执行文件系统操作。
+*/
+XRT_API xfuture* xrtAsyncFileClose(xasyncfile* pFile);
+
+
+
+/*
+	从绝对偏移读取最多 iSize 字节。
+	成功 Future 的值为借用的 xfiledata；非零请求发生短读时以 End 标记 EOF。
+*/
+XRT_API xfuture* xrtAsyncFileReadAt(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	size_t iSize
+);
+
+
+
+/*
+	从绝对偏移完整写入 Data。
+	提交前复制数据，函数返回后调用方可以立即释放或修改源缓冲。
+*/
+XRT_API xfuture* xrtAsyncFileWriteAt(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	xbytesview Data
+);
+
+
+
+/*
+	零复制受理外部数据；成功后释放责任转移，失败时仍归调用方。
+	非空数据必须提供释放过程；零长度不转移所有权。
+*/
+XRT_API xfuture* xrtAsyncFileWriteAtRef(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	xbytesview Data,
+	xfileasyncreleaseproc pRelease,
+	ptr pContext
+);
+
+
+
+/*
+	零复制接管由 xrtMalloc 家族分配的非空数据。
+	提交失败时所有权仍归调用方；NULL,0 表示空写入。
+*/
+XRT_API xfuture* xrtAsyncFileWriteAtTake(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	bytes pData,
+	size_t iSize
+);
+
+
+
+/* 把已受理写入提交到稳定存储；只读文件直接成功。 */
+XRT_API xfuture* xrtAsyncFileFlush(xasyncfile* pFile);
+
+
+
+/* 查询当前文件大小；成功 Future 的值为借用的 xfilesize。 */
+XRT_API xfuture* xrtAsyncFileSize(xasyncfile* pFile);
+
+
+
+/* 修改文件大小；成功 Future 的值记录新大小。 */
+XRT_API xfuture* xrtAsyncFileResize(
+	xasyncfile* pFile,
+	uint64 iSize
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_DIR_ASYNC)
+
+/* 在任务池线程中使用平台默认模式创建一个目录。 */
+XRT_API xfuture* xrtDirCreateAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 在任务池线程中使用显式 POSIX 模式创建一个目录。 */
+XRT_API xfuture* xrtDirCreateModeAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	uint32 iMode
+);
+
+
+
+/* 在任务池线程中使用平台默认模式创建全部缺失目录。 */
+XRT_API xfuture* xrtDirCreateAllAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 在任务池线程中使用显式 POSIX 模式创建全部缺失目录。 */
+XRT_API xfuture* xrtDirCreateAllModeAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	uint32 iMode
+);
+
+
+
+/* 在任务池线程中删除一个空目录。 */
+XRT_API xfuture* xrtDirRemoveAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 查询目录是否为空；成功 Future 的值为借用的 xdirquery。 */
+XRT_API xfuture* xrtDirEmptyAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FILE_TREE_ASYNC)
+
+/* 使用高级选项异步复制目录树；成功值为源树的 xwalkstats。 */
+XRT_API xfuture* xrtFileTreeCopyAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	const xtreecopyoptions* pOptions
+);
+
+
+
+/* 常用目录复制；成功值为源树的 xwalkstats。 */
+XRT_API xfuture* xrtDirCopyAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	bool bReplace
+);
+
+
+
+/* 后序异步删除目录树；成功值为处理结果 xwalkstats。 */
+XRT_API xfuture* xrtFileTreeRemoveAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	bool bKeepRoot
+);
+
+
+
+/* 递归删除目录及全部内容；成功值为处理结果 xwalkstats。 */
+XRT_API xfuture* xrtDirRemoveAllAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 删除目录全部内容并保留根；成功值为处理结果 xwalkstats。 */
+XRT_API xfuture* xrtDirCleanAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 异步移动目录树；成功 Future 没有值。 */
+XRT_API xfuture* xrtDirMoveAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	bool bReplace
+);
+
+
+
+/* 异步统计目录树；成功值为 xwalkstats。 */
+XRT_API xfuture* xrtDirStatsAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	bool bRecursive
+);
+
+
+
+/* 异步计算普通文件总字节数；成功值为 xfilesize。 */
+XRT_API xfuture* xrtDirSizeAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	bool bRecursive
+);
+
+
+
+/* 异步创建缺失目录，或清空已有目录并保留根。 */
+XRT_API xfuture* xrtDirEnsureEmptyAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FILE_ASYNC_WHOLE)
+
+/* 在任务池线程中读取整个文件；成功值为 Future 拥有的 xfiledata。 */
+XRT_API xfuture* xrtFileReadAllAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
+
+
+/* 在硬上限内读取整个文件；文件超限时 Future 失败。 */
+XRT_API xfuture* xrtFileReadAllLimitAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	size_t iLimit
+);
+
+
+
+/* 复制输入并在任务池线程中完整覆盖文件。 */
+XRT_API xfuture* xrtFileWriteAllAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	xbytesview Data
+);
+
+
+
+/* 复制输入并使用操作系统追加语义完整写入。 */
+XRT_API xfuture* xrtFileAppendAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	xbytesview Data
+);
+
+
+
+/* 复制输入并通过同目录临时文件原子发布。 */
+XRT_API xfuture* xrtFileWriteAtomicAsync(
+	xtaskpool* pPool,
+	cstr sPath,
+	xbytesview Data
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_FILE_ASYNC_MANAGE)
+
+/* 在任务池线程中复制文件；成功 Future 没有值。 */
+XRT_API xfuture* xrtFileCopyAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	bool bReplace
+);
+
+
+
+/* 在任务池线程中移动文件；成功 Future 没有值。 */
+XRT_API xfuture* xrtFileMoveAsync(
+	xtaskpool* pPool,
+	cstr sSource,
+	cstr sTarget,
+	bool bReplace
+);
+
+
+
+/* 在任务池线程中删除文件；成功 Future 没有值。 */
+XRT_API xfuture* xrtFileDeleteAsync(
+	xtaskpool* pPool,
+	cstr sPath
+);
+
 #endif
 
 
 
 XRT_EXTERN_C_END
-
-#endif
 
 #endif
 
@@ -35173,461 +35797,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/file_async.h */
-/* ========================================================================== */
-
-#ifndef XRT_FILE_ASYNC_H
-#define XRT_FILE_ASYNC_H
-
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_COMMON) && \
-	!defined(XRT_FEATURE_TASK_POOL)
-	#error "XRT async file common support requires task-pool support"
-#endif
-
-#if defined(XRT_FEATURE_FILE_ASYNC) && \
-	(!defined(XRT_FEATURE_FILE) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async file support requires file and async-file-common support"
-#endif
-
-#if defined(XRT_FEATURE_FILE_ASYNC_WHOLE) && \
-	(!defined(XRT_FEATURE_FILE_WHOLE) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async whole-file support requires whole-file and async-file-common support"
-#endif
-
-#if defined(XRT_FEATURE_FILE_ASYNC_MANAGE) && \
-	(!defined(XRT_FEATURE_FILE_WHOLE) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async file management requires whole-file and async-file-common support"
-#endif
-
-#if defined(XRT_FEATURE_DIR_ASYNC) && \
-	(!defined(XRT_FEATURE_DIR) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async directory support requires directory and async-file-common support"
-#endif
-
-#if defined(XRT_FEATURE_FILE_TREE_ASYNC) && \
-	(!defined(XRT_FEATURE_FILE_TREE) || \
-	 !defined(XRT_FEATURE_FILE_ASYNC_COMMON))
-	#error "XRT async file-tree support requires file-tree and async-file-common support"
-#endif
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
-
-/* 异步文件对象绑定一个有界任务池，并在关闭前保留全部已受理操作。 */
-typedef struct xasyncfile xasyncfile;
-
-
-
-/* 读取结果及其 Data 都由 Future 拥有，Future 释放前保持有效。 */
-typedef struct xfiledata {
-	bytes Data;
-	size_t Size;
-	uint64 Offset;
-	bool End;
-} xfiledata;
-
-
-
-/* 写入、查询大小和修改大小统一返回偏移与字节数。 */
-typedef struct xfilechange {
-	uint64 Offset;
-	uint64 Size;
-} xfilechange;
-
-
-
-/* 文件或目录树大小查询使用独立结果，避免混入写入偏移语义。 */
-typedef struct xfilesize {
-	uint64 Size;
-} xfilesize;
-
-
-
-/* 目录属性查询结果由 Future 拥有。 */
-typedef struct xdirquery {
-	bool Empty;
-} xdirquery;
-
-
-
-/* 零复制写入受理后，在数据不再被任务使用时执行一次释放过程。 */
-typedef void (*xfileasyncreleaseproc)(
-	ptr pContext,
-	cbytes pData,
-	size_t iSize
-);
-
-
-
-/* 异步文件错误保留外层操作，并通过 cause 保留文件或任务池错误。 */
-typedef enum xfileasyncerror {
-	XFILE_ASYNC_ERROR_OPEN = 1,
-	XFILE_ASYNC_ERROR_SUBMIT,
-	XFILE_ASYNC_ERROR_READ,
-	XFILE_ASYNC_ERROR_WRITE,
-	XFILE_ASYNC_ERROR_FLUSH,
-	XFILE_ASYNC_ERROR_SIZE,
-	XFILE_ASYNC_ERROR_RESIZE,
-	XFILE_ASYNC_ERROR_CLOSE,
-	XFILE_ASYNC_ERROR_COPY,
-	XFILE_ASYNC_ERROR_MOVE,
-	XFILE_ASYNC_ERROR_DELETE,
-	XFILE_ASYNC_ERROR_CREATE,
-	XFILE_ASYNC_ERROR_TREE,
-	XFILE_ASYNC_ERROR_QUERY
-} xfileasyncerror;
-
-#endif
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC)
-
-/*
-	同步打开异步文件对象。
-	任务池由调用方拥有，并且必须存活到 xrtAsyncFileClose 返回的 Future 完成。
-*/
-XRT_API xasyncfile* xrtAsyncFileOpen(
-	xtaskpool* pPool,
-	cstr sPath,
-	const xfileoptions* pOptions
-);
-
-
-
-/*
-	采用已经打开的文件，并把唯一关闭责任转交给异步文件对象。
-	失败时调用方仍然拥有 File；成功后只能通过 xrtAsyncFileClose 关闭。
-*/
-XRT_API xasyncfile* xrtAsyncFileAdopt(
-	xtaskpool* pPool,
-	xfile File
-);
-
-
-
-/* 返回异步文件采用时保存的打开标志；失败返回 0。 */
-XRT_API uint32 xrtAsyncFileFlags(const xasyncfile* pFile);
-
-
-
-/*
-	停止接收新操作并释放调用方的对象所有权。
-	返回的 Future 在全部已受理操作结束且原生文件关闭后完成。
-	关闭过程通过任务池资源回收通道执行，不在调用线程执行文件系统操作。
-*/
-XRT_API xfuture* xrtAsyncFileClose(xasyncfile* pFile);
-
-
-
-/*
-	从绝对偏移读取最多 iSize 字节。
-	成功 Future 的值为借用的 xfiledata；非零请求发生短读时以 End 标记 EOF。
-*/
-XRT_API xfuture* xrtAsyncFileReadAt(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	size_t iSize
-);
-
-
-
-/*
-	从绝对偏移完整写入 Data。
-	提交前复制数据，函数返回后调用方可以立即释放或修改源缓冲。
-*/
-XRT_API xfuture* xrtAsyncFileWriteAt(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	xbytesview Data
-);
-
-
-
-/*
-	零复制受理外部数据；成功后释放责任转移，失败时仍归调用方。
-	非空数据必须提供释放过程；零长度不转移所有权。
-*/
-XRT_API xfuture* xrtAsyncFileWriteAtRef(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	xbytesview Data,
-	xfileasyncreleaseproc pRelease,
-	ptr pContext
-);
-
-
-
-/*
-	零复制接管由 xrtMalloc 家族分配的非空数据。
-	提交失败时所有权仍归调用方；NULL,0 表示空写入。
-*/
-XRT_API xfuture* xrtAsyncFileWriteAtTake(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	bytes pData,
-	size_t iSize
-);
-
-
-
-/* 把已受理写入提交到稳定存储；只读文件直接成功。 */
-XRT_API xfuture* xrtAsyncFileFlush(xasyncfile* pFile);
-
-
-
-/* 查询当前文件大小；成功 Future 的值为借用的 xfilesize。 */
-XRT_API xfuture* xrtAsyncFileSize(xasyncfile* pFile);
-
-
-
-/* 修改文件大小；成功 Future 的值记录新大小。 */
-XRT_API xfuture* xrtAsyncFileResize(
-	xasyncfile* pFile,
-	uint64 iSize
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_DIR_ASYNC)
-
-/* 在任务池线程中使用平台默认模式创建一个目录。 */
-XRT_API xfuture* xrtDirCreateAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 在任务池线程中使用显式 POSIX 模式创建一个目录。 */
-XRT_API xfuture* xrtDirCreateModeAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	uint32 iMode
-);
-
-
-
-/* 在任务池线程中使用平台默认模式创建全部缺失目录。 */
-XRT_API xfuture* xrtDirCreateAllAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 在任务池线程中使用显式 POSIX 模式创建全部缺失目录。 */
-XRT_API xfuture* xrtDirCreateAllModeAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	uint32 iMode
-);
-
-
-
-/* 在任务池线程中删除一个空目录。 */
-XRT_API xfuture* xrtDirRemoveAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 查询目录是否为空；成功 Future 的值为借用的 xdirquery。 */
-XRT_API xfuture* xrtDirEmptyAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FILE_TREE_ASYNC)
-
-/* 使用高级选项异步复制目录树；成功值为源树的 xwalkstats。 */
-XRT_API xfuture* xrtFileTreeCopyAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	const xtreecopyoptions* pOptions
-);
-
-
-
-/* 常用目录复制；成功值为源树的 xwalkstats。 */
-XRT_API xfuture* xrtDirCopyAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	bool bReplace
-);
-
-
-
-/* 后序异步删除目录树；成功值为处理结果 xwalkstats。 */
-XRT_API xfuture* xrtFileTreeRemoveAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	bool bKeepRoot
-);
-
-
-
-/* 递归删除目录及全部内容；成功值为处理结果 xwalkstats。 */
-XRT_API xfuture* xrtDirRemoveAllAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 删除目录全部内容并保留根；成功值为处理结果 xwalkstats。 */
-XRT_API xfuture* xrtDirCleanAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 异步移动目录树；成功 Future 没有值。 */
-XRT_API xfuture* xrtDirMoveAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	bool bReplace
-);
-
-
-
-/* 异步统计目录树；成功值为 xwalkstats。 */
-XRT_API xfuture* xrtDirStatsAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	bool bRecursive
-);
-
-
-
-/* 异步计算普通文件总字节数；成功值为 xfilesize。 */
-XRT_API xfuture* xrtDirSizeAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	bool bRecursive
-);
-
-
-
-/* 异步创建缺失目录，或清空已有目录并保留根。 */
-XRT_API xfuture* xrtDirEnsureEmptyAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_WHOLE)
-
-/* 在任务池线程中读取整个文件；成功值为 Future 拥有的 xfiledata。 */
-XRT_API xfuture* xrtFileReadAllAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-
-
-/* 在硬上限内读取整个文件；文件超限时 Future 失败。 */
-XRT_API xfuture* xrtFileReadAllLimitAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	size_t iLimit
-);
-
-
-
-/* 复制输入并在任务池线程中完整覆盖文件。 */
-XRT_API xfuture* xrtFileWriteAllAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	xbytesview Data
-);
-
-
-
-/* 复制输入并使用操作系统追加语义完整写入。 */
-XRT_API xfuture* xrtFileAppendAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	xbytesview Data
-);
-
-
-
-/* 复制输入并通过同目录临时文件原子发布。 */
-XRT_API xfuture* xrtFileWriteAtomicAsync(
-	xtaskpool* pPool,
-	cstr sPath,
-	xbytesview Data
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_MANAGE)
-
-/* 在任务池线程中复制文件；成功 Future 没有值。 */
-XRT_API xfuture* xrtFileCopyAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	bool bReplace
-);
-
-
-
-/* 在任务池线程中移动文件；成功 Future 没有值。 */
-XRT_API xfuture* xrtFileMoveAsync(
-	xtaskpool* pPool,
-	cstr sSource,
-	cstr sTarget,
-	bool bReplace
-);
-
-
-
-/* 在任务池线程中删除文件；成功 Future 没有值。 */
-XRT_API xfuture* xrtFileDeleteAsync(
-	xtaskpool* pPool,
-	cstr sPath
-);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
 /* public: include/xrt/list.h */
 /* ========================================================================== */
 
@@ -42402,6 +42571,454 @@ void __xrtMemStatsTemp(size_t iSize);
 
 
 /* ========================================================================== */
+/* internal: src/internal/xrt_wait.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_WAIT)
+#ifndef XRT_INTERNAL_WAIT_H
+#define XRT_INTERNAL_WAIT_H
+
+
+
+
+#if defined(XRT_FEATURE_WAIT)
+
+/* 把剩余微秒向上取整为平台等待使用的毫秒。 */
+static inline uint32 __xrtWaitMilliseconds(uint64 iRemaining)
+{
+	uint64 iMilliseconds;
+
+	if ( iRemaining == UINT64_MAX ) {
+		return UINT32_MAX;
+	}
+	iMilliseconds = (iRemaining / UINT64_C(1000)) +
+		((iRemaining % UINT64_C(1000)) != 0 ? 1u : 0u);
+	if ( iMilliseconds >= UINT32_MAX ) {
+		return UINT32_MAX - 1u;
+	}
+	return (uint32)iMilliseconds;
+}
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_sync.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_SYNC)
+#ifndef XRT_INTERNAL_SYNC_H
+#define XRT_INTERNAL_SYNC_H
+
+
+#if !defined(_WIN32) && !defined(_WIN64)
+	#include <pthread.h>
+#endif
+
+
+
+#if defined(XRT_FEATURE_SYNC)
+
+#define XRT_MUTEX_MAGIC UINT32_C(0x58544D58)
+#define XRT_COND_MAGIC UINT32_C(0x58544344)
+#define XRT_SEM_MAGIC UINT32_C(0x5854534D)
+#define XRT_RWLOCK_MAGIC UINT32_C(0x58545257)
+#define XRT_EVENT_MAGIC UINT32_C(0x58544556)
+
+
+
+#if defined(XRT_FEATURE_MUTEX)
+/* Mutex 的平台内部布局。 */
+typedef struct xrt_mutex_impl {
+	uint32 Magic;
+	#if defined(_WIN32) || defined(_WIN64)
+		SRWLOCK Lock;
+		volatile LONG Owner;
+	#else
+		pthread_mutex_t Lock;
+		uint64 Owner;
+	#endif
+} xrt_mutex_impl;
+
+typedef char xrt_mutex_storage_check[
+	(sizeof(xrt_mutex_impl) <= XRT_MUTEX_STORAGE_SIZE) ? 1 : -1
+];
+
+
+
+/* 读取互斥锁内部布局。 */
+static inline xrt_mutex_impl* __xrtMutexImpl(xmutex* pMutex)
+{
+	return (xrt_mutex_impl*)pMutex;
+}
+
+
+
+/* 原子读取互斥锁当前所有者。 */
+static inline uint64 __xrtMutexOwnerLoad(const xrt_mutex_impl* pImpl)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64)(uint32)InterlockedCompareExchange(
+			(volatile LONG*)&pImpl->Owner,
+			0,
+			0
+		);
+	#elif defined(__GNUC__) || defined(__clang__)
+		return __atomic_load_n(&pImpl->Owner, __ATOMIC_ACQUIRE);
+	#else
+		return pImpl->Owner;
+	#endif
+}
+
+
+
+/* 原子发布互斥锁当前所有者。 */
+static inline void __xrtMutexOwnerStore(xrt_mutex_impl* pImpl, uint64 iOwner)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		(void)InterlockedExchange(&pImpl->Owner, (LONG)iOwner);
+	#elif defined(__GNUC__) || defined(__clang__)
+		__atomic_store_n(&pImpl->Owner, iOwner, __ATOMIC_RELEASE);
+	#else
+		pImpl->Owner = iOwner;
+	#endif
+}
+#endif
+
+
+
+#if defined(XRT_FEATURE_COND)
+/* 条件变量的平台内部布局。 */
+typedef struct xrt_cond_impl {
+	uint32 Magic;
+	#if defined(_WIN32) || defined(_WIN64)
+		CONDITION_VARIABLE Condition;
+	#else
+		pthread_cond_t Condition;
+		bool Monotonic;
+	#endif
+} xrt_cond_impl;
+
+typedef char xrt_cond_storage_check[
+	(sizeof(xrt_cond_impl) <= XRT_COND_STORAGE_SIZE) ? 1 : -1
+];
+
+
+
+/* 读取条件变量内部布局。 */
+static inline xrt_cond_impl* __xrtCondImpl(xcond* pCond)
+{
+	return (xrt_cond_impl*)pCond;
+}
+#endif
+
+
+
+#if defined(XRT_FEATURE_SEM)
+/* 信号量的平台内部布局。 */
+typedef struct xrt_sem_impl {
+	uint32 Magic;
+	uint32 Maximum;
+	#if defined(_WIN32) || defined(_WIN64)
+		HANDLE Handle;
+	#else
+		pthread_mutex_t Lock;
+		pthread_cond_t Condition;
+		uint32 Value;
+		bool Monotonic;
+	#endif
+} xrt_sem_impl;
+
+typedef char xrt_sem_storage_check[
+	(sizeof(xrt_sem_impl) <= XRT_SEM_STORAGE_SIZE) ? 1 : -1
+];
+
+
+
+/* 读取信号量内部布局。 */
+static inline xrt_sem_impl* __xrtSemImpl(xsem* pSem)
+{
+	return (xrt_sem_impl*)pSem;
+}
+#endif
+
+
+
+#if defined(XRT_FEATURE_RWLOCK)
+/* 写者优先读写锁的平台内部布局。 */
+typedef struct xrt_rwlock_impl {
+	uint32 Magic;
+	uint32 Readers;
+	uint32 WaitingReaders;
+	uint32 WaitingWriters;
+	uint64 WriterId;
+	bool Writer;
+	#if defined(_WIN32) || defined(_WIN64)
+		CRITICAL_SECTION Lock;
+		CONDITION_VARIABLE ReadCondition;
+		CONDITION_VARIABLE WriteCondition;
+	#else
+		pthread_mutex_t Lock;
+		pthread_cond_t ReadCondition;
+		pthread_cond_t WriteCondition;
+	#endif
+} xrt_rwlock_impl;
+
+typedef char xrt_rwlock_storage_check[
+	(sizeof(xrt_rwlock_impl) <= XRT_RWLOCK_STORAGE_SIZE) ? 1 : -1
+];
+
+
+
+/* 读取读写锁内部布局。 */
+static inline xrt_rwlock_impl* __xrtRWLockImpl(xrwlock* pLock)
+{
+	return (xrt_rwlock_impl*)pLock;
+}
+#endif
+
+
+
+#if defined(XRT_FEATURE_EVENT)
+/* 事件的平台内部布局。 */
+typedef struct xrt_event_impl {
+	uint32 Magic;
+	bool ManualReset;
+	#if defined(_WIN32) || defined(_WIN64)
+		HANDLE Handle;
+	#else
+		pthread_mutex_t Lock;
+		pthread_cond_t Condition;
+		bool Signaled;
+		bool Monotonic;
+	#endif
+} xrt_event_impl;
+
+typedef char xrt_event_storage_check[
+	(sizeof(xrt_event_impl) <= XRT_EVENT_STORAGE_SIZE) ? 1 : -1
+];
+
+
+
+/* 读取事件内部布局。 */
+static inline xrt_event_impl* __xrtEventImpl(xevent* pEvent)
+{
+	return (xrt_event_impl*)pEvent;
+}
+#endif
+
+
+
+/* 设置同步原语的平台错误。 */
+void __xrtSyncSetSystemError(cstr sOperation, int iCode, cstr sMessage);
+
+
+
+#if !defined(_WIN32) && !defined(_WIN64) && defined(XRT_FEATURE_WAIT)
+/* 把 XRT 截止时间转换为条件变量实际使用的绝对时钟。 */
+bool __xrtSyncDeadlineTime(
+	xdeadline iDeadline,
+	bool bMonotonic,
+	struct timespec* pTime
+);
+#endif
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_time.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_TIME)
+#ifndef XRT_INTERNAL_TIME_H
+#define XRT_INTERNAL_TIME_H
+
+
+
+
+#if defined(XRT_FEATURE_TIME)
+
+/* 内部日期构造结果用于让解析器延迟到公共边界再报告一次错误。 */
+typedef enum __xrt_time_make_status {
+	__XRT_TIME_MAKE_OK = 0,
+	__XRT_TIME_MAKE_OFFSET,
+	__XRT_TIME_MAKE_COMPONENT,
+	__XRT_TIME_MAKE_OVERFLOW
+} __xrt_time_make_status;
+
+
+
+/* 无错误副作用地按显式 UTC 偏移构造绝对时间。 */
+__xrt_time_make_status __xrtTimeMakeValue(
+	const xdatetime* pDateTime, xtime* pTime);
+
+/* 设置时间模块的结构化错误。 */
+void __xrtTimeSetError(xerrkind Kind, xtimeerror Code,
+	cstr sOperation, cstr sMessage, int iSystemCode);
+
+
+
+/* 检查 int64 加法，失败时不修改输出。 */
+bool __xrtTimeAddChecked(int64 iLeft, int64 iRight, int64* pResult);
+
+
+
+/* 检查 int64 减法，失败时不修改输出。 */
+bool __xrtTimeSubChecked(int64 iLeft, int64 iRight, int64* pResult);
+
+
+
+/* 检查 int64 乘法，失败时不修改输出。 */
+bool __xrtTimeMulChecked(int64 iLeft, int64 iRight, int64* pResult);
+
+
+
+/* 执行向负无穷取整的有符号除法，除数必须为正数。 */
+int64 __xrtTimeFloorDiv(int64 iValue, int64 iDivisor);
+
+
+
+/* 把 Unix 微秒拆成天数和当日微秒。 */
+void __xrtTimeSplitDay(xtime iTime, int64* pDays, int64* pDayTime);
+
+
+
+/* 把 Unix Epoch 天数转换为 Gregorian 日期。 */
+void __xrtTimeCivilFromDays(int64 iDays, int64* pYear, int* pMonth, int* pDay);
+
+
+
+/* 把 Gregorian 日期转换为 Unix Epoch 天数。 */
+bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays);
+
+
+
+/* 无错误副作用地按系统本地时区分解时间。 */
+bool __xrtTimeLocalParts(xtime iTime, xdatetime* pDateTime, int* pSystemCode);
+
+#endif
+
+
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_cancel.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_CANCEL)
+#ifndef XRT_INTERNAL_CANCEL_H
+#define XRT_INTERNAL_CANCEL_H
+#if defined(XRT_FEATURE_CANCEL)
+/* Collector-only: the same exclusive freeze has admitted this observer-free
+ * token. Publish last-producer cancellation without locks, allocation or user
+ * notification. Never use this for an ordinary cancellation request. */
+void __xrtCancelOwnershipCloseUnobserved(xcancel* pCancel);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_future.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_FUTURE)
+#ifndef XRT_INTERNAL_FUTURE_H
+#define XRT_INTERNAL_FUTURE_H
+
+
+
+
+#if defined(XRT_FEATURE_FUTURE)
+
+/* 内部等待节点由注册方保存，回调不得重新进入同一个 Future。 */
+typedef struct xrt_future_waiter {
+	struct xrt_future_waiter* Next;
+	void (*Proc)(ptr pData);
+	void (*Release)(ptr pData);
+	ptr Data;
+	xfuture* NotifyFuture;
+	bool Linked;
+	bool Calling;
+	bool NotifyRelease;
+	/* Explicit opt-in: the resident callbacks coordinate their own graph
+	 * transitions and activity/refusal states. A trace alone does not prove it. */
+	bool Phased;
+	uint8 Certified; /* 0=opaque/traced, 1=direct Data owner, 2=projected owner. */
+	/* Exact ownership released by Release(Data); NULL keeps old opaque nodes
+	 * fail-closed. Fits the existing 64-byte public Watch storage on x64. */
+	union {
+		xrtownershiptrace OwnershipTrace;
+		const xfuturewatchownershipv1* OwnershipPolicy;
+		const xfuturewatchownershipv2* ProjectedOwnershipPolicy;
+	};
+} xrt_future_waiter;
+
+
+
+#define XRT_FUTURE_WATCH_MAGIC UINT32_C(0x58574657)
+
+
+
+/* 公开固定存储在内部等待节点后保存初始化标记。 */
+typedef struct xrt_future_watch_impl {
+	xrt_future_waiter Waiter;
+	uint32 Magic;
+} xrt_future_watch_impl;
+
+
+
+typedef char xrt_future_watch_storage_check[
+	(sizeof(xrt_future_watch_impl) <= XRT_FUTURE_WATCH_STORAGE_SIZE) ? 1 : -1
+];
+
+
+
+/* 读取公开 Watch 的内部布局。 */
+static inline xrt_future_watch_impl* __xrtFutureWatchImpl(
+	xfuturewatch* pWatch
+)
+{
+	return (xrt_future_watch_impl*)pWatch;
+}
+
+
+
+/* Future 尚未完成时挂入等待节点，已完成时返回 false 且不设置错误。
+ * Add/Detach/Remove 自己在 Future 锁外进入拥有转换 scope；Remove 的等待不占
+ * mutation。默认回调仍以完整 scope 保守隔离；只有显式 Phased 注册的
+ * 协作回调在 scope 外分发，并负责自身的计数、边转换和在途拒绝。 */
+bool __xrtFutureWaiterAdd(xfuture* pFuture, xrt_future_waiter* pWaiter);
+
+
+
+/* 只摘除仍挂接的等待节点，不等待已经开始的回调；返回是否实际摘除。 */
+bool __xrtFutureWaiterDetach(xfuture* pFuture, xrt_future_waiter* pWaiter);
+
+
+
+/* 移除仍然挂接的等待节点；返回时并发完成回调已经结束。 */
+void __xrtFutureWaiterRemove(xfuture* pFuture, xrt_future_waiter* pWaiter);
+
+
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* internal: src/internal/xrt_value.h */
 /* ========================================================================== */
 
@@ -42564,6 +43181,1132 @@ xvalue* __xrtValueSetAdopt(xset* pItems);
 #endif
 
 #endif
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_array.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_ARRAY)
+#ifndef XRT_INTERNAL_ARRAY_H
+#define XRT_INTERNAL_ARRAY_H
+
+
+
+
+#if defined(XRT_FEATURE_ARRAY)
+
+/* 检查数组公开状态是否自洽，供数组类型薄封装复用。 */
+bool __xrtArrayValid(const xarray* pArray);
+
+
+
+/* 在调用方已经验证数组后保证最低容量。 */
+bool __xrtArrayReserveValid(xarray* pArray, size_t iCapacity);
+
+
+
+/* 在调用方已经验证数组后增加未初始化尾部元素。 */
+ptr __xrtArrayAddValid(xarray* pArray, size_t iCount);
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_pool.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_POOL_PAGE)
+#ifndef XRT_INTERNAL_POOL_H
+#define XRT_INTERNAL_POOL_H
+
+
+
+
+#define XRT_POOL_PAGE_FLAG_READY		0x0001u
+#define XRT_POOL_PAGE_FLAG_VISITING	0x0002u
+#define XRT_POOL_FLAG_READY			0x0001u
+#define XRT_POOL_FLAG_VISITING		0x0002u
+#define XRT_MEMPOOL_FLAG_READY		0x0001u
+#define XRT_MEMPOOL_FLAG_VISITING	0x0002u
+#define XRT_MEMPOOL_FLAG_PAGE_PENDING_SHIFT 26u
+#define XRT_MEMPOOL_FLAG_PAGE_PENDING_MASK \
+	(UINT32_C(0x3F) << XRT_MEMPOOL_FLAG_PAGE_PENDING_SHIFT)
+
+
+
+/* 计算始终能把用户地址移出底层分配起点的对齐分配大小。 */
+static inline bool __xrtPoolAlignedAllocationSize(
+	size_t iPayloadSize,
+	size_t iAlignment,
+	size_t* pAllocationSize
+)
+{
+	if ( iPayloadSize > (SIZE_MAX - iAlignment) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	*pAllocationSize = iPayloadSize + iAlignment;
+	return true;
+}
+
+
+
+/* 返回底层分配起点之后的第一个对齐地址，避免池对象冒充全局堆对象。 */
+static inline bool __xrtPoolAlignAfter(
+	ptr pAllocation,
+	size_t iAlignment,
+	ptr* pMemory
+)
+{
+	uintptr_t iAddress = (uintptr_t)pAllocation;
+
+	if ( iAddress > (UINTPTR_MAX - iAlignment) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	*pMemory = (ptr)((iAddress + iAlignment) & ~((uintptr_t)iAlignment - 1u));
+	return true;
+}
+
+
+
+#if defined(XRT_FEATURE_POOL_PAGE)
+/* 设置带稳定域、操作和错误代码的内存池错误。 */
+void __xrtPoolSetError(xerrkind Kind, int32 iCode, cstr sOperation, cstr sMessage);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_POOL)
+
+/* pool.c 与 memory_pool.c 共用的页查找入口。 */
+xpoolpage* __xrtPoolFindPage(const xpool* pPool, const void* pMemory);
+
+
+
+/* 分配对象并返回所属页，供变长池同步全局页索引。 */
+ptr __xrtPoolAllocObject(xpool* pPool, bool bZero, xpoolpage** ppPage);
+
+
+
+/* 同步固定池和全部现有页的访问保护状态。 */
+void __xrtPoolSetVisiting(xpool* pPool, bool bVisiting);
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_avl.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_AVL)
+#ifndef XRT_INTERNAL_AVL_H
+#define XRT_INTERNAL_AVL_H
+
+
+
+
+#if defined(XRT_FEATURE_AVL_TREE)
+
+
+
+	/* 新对象初始化器失败时自行清理部分状态，成功后可由回滚器撤销。 */
+	typedef bool (*xavltreeinit)(ptr pItem, const void* pKey, ptr pUserData);
+	typedef void (*xavltreerollback)(ptr pItem, ptr pUserData);
+
+
+
+	/* 检查拥有式树的公开状态是否自洽。 */
+	bool __xrtAVLTreeValid(const xavltree* pTree);
+
+
+
+	/* 检查拥有式树当前是否允许修改结构和生命周期。 */
+	bool __xrtAVLTreeCanMutate(const xavltree* pTree);
+
+
+
+	/* 判断调用方字节区间是否触及树结构或固定池内部存储。 */
+	bool __xrtAVLTreeOwnsRange(
+		const xavltree* pTree,
+		const void* pMemory,
+		size_t iSize
+	);
+
+
+
+	/* 在受保护状态下调用对象释放器。 */
+	void __xrtAVLTreeDropItem(xavltree* pTree, ptr pItem);
+
+
+
+	/* 命中时直接返回已有对象，缺失时原地分配、清零并初始化新对象。 */
+	ptr __xrtAVLTreeGetOrAdd(
+		xavltree* pTree,
+		const void* pKey,
+		xavltreeinit pInit,
+		ptr pInitUserData,
+		xavltreerollback pRollback,
+		ptr pRollbackUserData,
+		bool* pNew
+	);
+
+
+
+	/* 删除对象并移交指定字节区间，不调用对象释放器。 */
+	bool __xrtAVLTreeTakePart(
+		xavltree* pTree,
+		const void* pKey,
+		size_t iOffset,
+		size_t iSize,
+		ptr pOutput
+	);
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_int_map.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_INT_MAP)
+#ifndef XRT_INTERNAL_INT_MAP_H
+#define XRT_INTERNAL_INT_MAP_H
+
+
+
+
+#if defined(XRT_FEATURE_INT_MAP)
+	/* 检查整数映射公开状态是否自洽。 */
+	bool __xrtIntMapValid(const xintmap* pMap);
+
+
+
+	/* 检查整数映射当前是否允许修改结构和生命周期。 */
+	bool __xrtIntMapCanMutate(const xintmap* pMap);
+
+
+
+	/* 判断调用方字节区间是否触及映射结构或节点池存储。 */
+	bool __xrtIntMapOwnsRange(
+		const xintmap* pMap,
+		const void* pMemory,
+		size_t iSize
+	);
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_map.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_MAP)
+#ifndef XRT_INTERNAL_MAP_H
+#define XRT_INTERNAL_MAP_H
+
+
+
+
+#if defined(XRT_FEATURE_MAP)
+
+/* 类型封装使用该回调把映射值失败原子地移到调用方存储。 */
+typedef bool (*xrtmapmoveproc)(ptr pTarget, ptr pSource, ptr pUserData);
+
+
+
+/* 类型封装使用该回调失败原子地替换一个完整初始化值。 */
+typedef bool (*xrtmapreplaceproc)(
+	ptr pTarget,
+	const void* pSource,
+	ptr pUserData
+);
+
+
+
+/* 检查字节键映射公开状态是否自洽。 */
+bool __xrtMapValid(const xmap* pMap);
+
+
+
+/* 检查字节键映射当前是否允许查询和推进迭代器。 */
+bool __xrtMapCanRead(const xmap* pMap);
+
+
+
+/* 检查字节键映射当前是否允许修改结构和生命周期。 */
+bool __xrtMapCanMutate(xmap* pMap);
+
+
+
+/* 仅供拥有型封装配置最终值释放顺序；键迭代顺序不变。 */
+bool __xrtMapSetDropReverse(xmap* pMap, bool bReverse);
+bool __xrtMapDropsReverse(const xmap* pMap);
+
+
+
+/* 判断调用方字节区间是否触及映射结构、桶数组或条目。 */
+bool __xrtMapOwnsRange(
+	const xmap* pMap,
+	const void* pMemory,
+	size_t iSize
+);
+
+
+
+/* 判断映射是否仍使用精确二进制默认键策略。 */
+bool __xrtMapUsesDefaultKeyPolicy(const xmap* pMap);
+
+
+
+/* 在多步只读操作期间阻止回调修改映射结构。 */
+bool __xrtMapProtectRead(const xmap* pMap, bool* pAcquired);
+void __xrtMapUnprotectRead(const xmap* pMap, bool bAcquired);
+
+
+
+/* 在用户回调期间拒绝当前映射的全部 API 重入。 */
+bool __xrtMapCallbackBegin(const xmap* pMap);
+void __xrtMapCallbackEnd(const xmap* pMap);
+
+
+
+/* 一次查询完成已有值替换或缺失值初始化，并报告是否新建。 */
+ptr __xrtMapSetOrInit(
+	xmap* pMap,
+	xbytesview Key,
+	const void* pValue,
+	xrtmapreplaceproc pReplace,
+	ptr pReplaceData,
+	xmapinit pInit,
+	ptr pInitData,
+	bool* pNew
+);
+
+
+
+/* 使用类型移动器移出指定键的值，成功后删除映射条目。 */
+bool __xrtMapMoveOut(
+	xmap* pMap,
+	xbytesview Key,
+	ptr pValue,
+	xrtmapmoveproc pMove,
+	ptr pUserData
+);
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_set.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_SET)
+#ifndef XRT_INTERNAL_SET_H
+#define XRT_INTERNAL_SET_H
+
+
+
+
+#if defined(XRT_FEATURE_SET)
+
+/* 类型封装使用该回调把规范元素失败原子地移到调用方存储。 */
+typedef bool (*xrtsetmoveproc)(ptr pTarget, ptr pSource, ptr pUserData);
+
+
+
+/* 检查集合公开状态是否自洽，供集合类型薄封装复用。 */
+bool __xrtSetValid(const xset* pSet);
+
+
+
+/* 检查集合当前是否允许查询或推进外置迭代器。 */
+bool __xrtSetCanRead(const xset* pSet);
+
+
+
+/* 检查集合当前是否允许修改结构和生命周期。 */
+bool __xrtSetCanMutate(xset* pSet);
+
+
+
+/* 判断调用方字节区间是否触及集合结构、桶数组或元素条目。 */
+bool __xrtSetOwnsRange(
+	const xset* pSet,
+	const void* pMemory,
+	size_t iSize
+);
+
+
+
+/* 在用户回调期间拒绝当前集合的全部 API 重入。 */
+bool __xrtSetCallbackBegin(const xset* pSet);
+void __xrtSetCallbackEnd(const xset* pSet);
+
+
+
+/* 使用类型移动器移出规范元素，成功后删除集合条目。 */
+bool __xrtSetMoveOut(
+	xset* pSet,
+	const void* pItem,
+	ptr pValue,
+	xrtsetmoveproc pMove,
+	ptr pUserData
+);
+
+
+
+/* 接管堆集合的全部存储并释放其外层结构。 */
+bool __xrtSetAdoptHeap(xset* pTarget, xset* pSource);
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_atomic.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_ATOMIC) || \
+	defined(XRT_FEATURE_NET_PORT_URING)
+#ifndef XRT_INTERNAL_ATOMIC_H
+#define XRT_INTERNAL_ATOMIC_H
+
+
+
+
+#if defined(XRT_FEATURE_ATOMIC)
+
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+/* 内建 64 位原子类型在 32 位目标上也必须保持 8 字节静态对齐。 */
+typedef uint64 __xrt_atomic64_value __attribute__((aligned(8)));
+
+
+
+/* 把公开内存顺序转换为 GCC/Clang 内建常量。 */
+static inline int __xrtAtomicOrder(xmemoryorder iOrder)
+{
+	switch ( iOrder ) {
+		case XMEMORY_RELAXED:
+			return __ATOMIC_RELAXED;
+		case XMEMORY_ACQUIRE:
+			return __ATOMIC_ACQUIRE;
+		case XMEMORY_RELEASE:
+			return __ATOMIC_RELEASE;
+		case XMEMORY_ACQ_REL:
+			return __ATOMIC_ACQ_REL;
+		case XMEMORY_SEQ_CST:
+		default:
+			return __ATOMIC_SEQ_CST;
+	}
+}
+
+
+
+/* 公共入口已验证 8 字节对齐；把这一事实传递给 32 位目标的内建原子。 */
+static inline volatile __xrt_atomic64_value* __xrtAtomic64Aligned(
+	volatile uint64* pValue
+)
+{
+	return (volatile __xrt_atomic64_value*)__builtin_assume_aligned(
+		(void*)pValue,
+		8u
+	);
+}
+
+
+
+/* 只读路径保留限定符并传递相同的 8 字节对齐前置条件。 */
+static inline const volatile __xrt_atomic64_value* __xrtAtomic64AlignedConst(
+	const volatile uint64* pValue
+)
+{
+	return (const volatile __xrt_atomic64_value*)__builtin_assume_aligned(
+		(const void*)pValue,
+		8u
+	);
+}
+#endif
+
+
+
+/* 比较交换 32 位原始值并返回修改前的值。 */
+static inline uint32 __xrtAtomic32CompareValue(
+	volatile uint32* pValue,
+	uint32 iExpected,
+	uint32 iDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		uint32 iActual = iExpected;
+
+		(void)__atomic_compare_exchange_n(
+			pValue,
+			&iActual,
+			iDesired,
+			false,
+			__xrtAtomicOrder(iSuccess),
+			__xrtAtomicOrder(iFailure)
+		);
+		return iActual;
+	#elif defined(_MSC_VER)
+		(void)iSuccess;
+		(void)iFailure;
+		return (uint32)_InterlockedCompareExchange(
+			(volatile long*)pValue,
+			(long)iDesired,
+			(long)iExpected
+		);
+	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		(void)iSuccess;
+		(void)iFailure;
+		return (uint32)InterlockedCompareExchange(
+			(volatile LONG*)pValue,
+			(LONG)iDesired,
+			(LONG)iExpected
+		);
+	#elif defined(__TINYC__) && (defined(__x86_64__) || defined(_M_X64))
+		uint32 iActual;
+
+		(void)iSuccess;
+		(void)iFailure;
+		__asm__ volatile (
+			"lock; cmpxchgl %2, %1"
+			: "=a"(iActual), "+m"(*pValue)
+			: "r"(iDesired), "0"(iExpected)
+			: "cc", "memory"
+		);
+		return iActual;
+	#else
+		(void)iSuccess;
+		(void)iFailure;
+		return __sync_val_compare_and_swap(pValue, iExpected, iDesired);
+	#endif
+}
+
+
+
+/* 读取 32 位原始原子值。 */
+static inline uint32 __xrtAtomic32LoadValue(
+	const volatile uint32* pValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		return __atomic_load_n(pValue, __xrtAtomicOrder(iOrder));
+	#else
+		return __xrtAtomic32CompareValue(
+			(volatile uint32*)pValue,
+			0u,
+			0u,
+			iOrder,
+			iOrder
+		);
+	#endif
+}
+
+
+
+/* 交换 32 位原始原子值并返回旧值。 */
+static inline uint32 __xrtAtomic32ExchangeValue(
+	volatile uint32* pValue,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		return __atomic_exchange_n(pValue, iValue, __xrtAtomicOrder(iOrder));
+	#elif defined(_MSC_VER)
+		(void)iOrder;
+		return (uint32)_InterlockedExchange((volatile long*)pValue, (long)iValue);
+	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		(void)iOrder;
+		return (uint32)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
+	#else
+		uint32 iOld = __xrtAtomic32LoadValue(pValue, XMEMORY_RELAXED);
+		uint32 iActual;
+
+		for ( ;; ) {
+			iActual = __xrtAtomic32CompareValue(
+				pValue,
+				iOld,
+				iValue,
+				iOrder,
+				XMEMORY_RELAXED
+			);
+			if ( iActual == iOld ) {
+				return iOld;
+			}
+			iOld = iActual;
+		}
+	#endif
+}
+
+
+
+/* 写入 32 位原始原子值。 */
+static inline void __xrtAtomic32StoreValue(
+	volatile uint32* pValue,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		__atomic_store_n(pValue, iValue, __xrtAtomicOrder(iOrder));
+	#else
+		(void)__xrtAtomic32ExchangeValue(pValue, iValue, iOrder);
+	#endif
+}
+
+
+
+/* 原子加 32 位原始值并返回旧值。 */
+static inline uint32 __xrtAtomic32FetchAddValue(
+	volatile uint32* pValue,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		return __atomic_fetch_add(pValue, iValue, __xrtAtomicOrder(iOrder));
+	#elif defined(_MSC_VER)
+		(void)iOrder;
+		return (uint32)_InterlockedExchangeAdd((volatile long*)pValue, (long)iValue);
+	#elif defined(__TINYC__)
+		uint32 iOld = __xrtAtomic32LoadValue(pValue, XMEMORY_RELAXED);
+		uint32 iActual;
+
+		for ( ;; ) {
+			iActual = __xrtAtomic32CompareValue(
+				pValue,
+				iOld,
+				iOld + iValue,
+				iOrder,
+				XMEMORY_RELAXED
+			);
+			if ( iActual == iOld ) {
+				return iOld;
+			}
+			iOld = iActual;
+		}
+	#else
+		(void)iOrder;
+		return __sync_fetch_and_add(pValue, iValue);
+	#endif
+}
+
+
+
+/* 用比较交换循环更新 32 位原始值并返回旧值。 */
+static inline uint32 __xrtAtomic32FetchBitsValue(
+	volatile uint32* pValue,
+	uint32 iValue,
+	uint32 iOperation,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		switch ( iOperation ) {
+			case 0u:
+				return __atomic_fetch_and(
+					pValue,
+					iValue,
+					__xrtAtomicOrder(iOrder)
+				);
+			case 1u:
+				return __atomic_fetch_or(
+					pValue,
+					iValue,
+					__xrtAtomicOrder(iOrder)
+				);
+			default:
+				return __atomic_fetch_xor(
+					pValue,
+					iValue,
+					__xrtAtomicOrder(iOrder)
+				);
+		}
+	#else
+		uint32 iOld = __xrtAtomic32LoadValue(pValue, XMEMORY_RELAXED);
+		uint32 iNew;
+		uint32 iActual;
+
+		for ( ;; ) {
+			switch ( iOperation ) {
+				case 0u:
+					iNew = iOld & iValue;
+					break;
+				case 1u:
+					iNew = iOld | iValue;
+					break;
+				default:
+					iNew = iOld ^ iValue;
+					break;
+			}
+			iActual = __xrtAtomic32CompareValue(
+				pValue,
+				iOld,
+				iNew,
+				iOrder,
+				XMEMORY_RELAXED
+			);
+			if ( iActual == iOld ) {
+				return iOld;
+			}
+			iOld = iActual;
+		}
+	#endif
+}
+
+
+
+/* 比较交换 64 位原始值并返回修改前的值。 */
+static inline uint64 __xrtAtomic64CompareValue(
+	volatile uint64* pValue,
+	uint64 iExpected,
+	uint64 iDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		uint64 iActual = iExpected;
+
+		(void)__atomic_compare_exchange_n(
+			__xrtAtomic64Aligned(pValue),
+			&iActual,
+			iDesired,
+			false,
+			__xrtAtomicOrder(iSuccess),
+			__xrtAtomicOrder(iFailure)
+		);
+		return iActual;
+	#elif defined(_MSC_VER)
+		(void)iSuccess;
+		(void)iFailure;
+		return (uint64)_InterlockedCompareExchange64(
+			(volatile __int64*)pValue,
+			(__int64)iDesired,
+			(__int64)iExpected
+		);
+	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		(void)iSuccess;
+		(void)iFailure;
+		return (uint64)InterlockedCompareExchange64(
+			(volatile LONG64*)pValue,
+			(LONG64)iDesired,
+			(LONG64)iExpected
+		);
+	#elif defined(__TINYC__) && (defined(__x86_64__) || defined(_M_X64))
+		uint64 iActual;
+
+		(void)iSuccess;
+		(void)iFailure;
+		__asm__ volatile (
+			"lock; cmpxchgq %2, %1"
+			: "=a"(iActual), "+m"(*pValue)
+			: "r"(iDesired), "0"(iExpected)
+			: "cc", "memory"
+		);
+		return iActual;
+	#else
+		(void)iSuccess;
+		(void)iFailure;
+		return __sync_val_compare_and_swap(pValue, iExpected, iDesired);
+	#endif
+}
+
+
+
+/* 读取 64 位原始原子值。 */
+static inline uint64 __xrtAtomic64LoadValue(
+	const volatile uint64* pValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		return __atomic_load_n(
+			__xrtAtomic64AlignedConst(pValue),
+			__xrtAtomicOrder(iOrder)
+		);
+	#else
+		return __xrtAtomic64CompareValue(
+			(volatile uint64*)pValue,
+			0u,
+			0u,
+			iOrder,
+			iOrder
+		);
+	#endif
+}
+
+
+
+/* 交换 64 位原始原子值并返回旧值。 */
+static inline uint64 __xrtAtomic64ExchangeValue(
+	volatile uint64* pValue,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		return __atomic_exchange_n(
+			__xrtAtomic64Aligned(pValue),
+			iValue,
+			__xrtAtomicOrder(iOrder)
+		);
+	#else
+		uint64 iOld = __xrtAtomic64LoadValue(pValue, XMEMORY_RELAXED);
+		uint64 iActual;
+
+		for ( ;; ) {
+			iActual = __xrtAtomic64CompareValue(
+				pValue,
+				iOld,
+				iValue,
+				iOrder,
+				XMEMORY_RELAXED
+			);
+			if ( iActual == iOld ) {
+				return iOld;
+			}
+			iOld = iActual;
+		}
+	#endif
+}
+
+
+
+/* 写入 64 位原始原子值。 */
+static inline void __xrtAtomic64StoreValue(
+	volatile uint64* pValue,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		__atomic_store_n(
+			__xrtAtomic64Aligned(pValue),
+			iValue,
+			__xrtAtomicOrder(iOrder)
+		);
+	#else
+		(void)__xrtAtomic64ExchangeValue(pValue, iValue, iOrder);
+	#endif
+}
+
+
+
+/* 原子加 64 位原始值并返回旧值。 */
+static inline uint64 __xrtAtomic64FetchAddValue(
+	volatile uint64* pValue,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		return __atomic_fetch_add(
+			__xrtAtomic64Aligned(pValue),
+			iValue,
+			__xrtAtomicOrder(iOrder)
+		);
+	#elif defined(_MSC_VER) || defined(__TINYC__)
+		uint64 iOld = __xrtAtomic64LoadValue(pValue, XMEMORY_RELAXED);
+		uint64 iActual;
+
+		for ( ;; ) {
+			iActual = __xrtAtomic64CompareValue(
+				pValue,
+				iOld,
+				iOld + iValue,
+				iOrder,
+				XMEMORY_RELAXED
+			);
+			if ( iActual == iOld ) {
+				return iOld;
+			}
+			iOld = iActual;
+		}
+	#else
+		(void)iOrder;
+		return __sync_fetch_and_add(pValue, iValue);
+	#endif
+}
+
+
+
+/* 用比较交换循环更新 64 位原始值并返回旧值。 */
+static inline uint64 __xrtAtomic64FetchBitsValue(
+	volatile uint64* pValue,
+	uint64 iValue,
+	uint32 iOperation,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		switch ( iOperation ) {
+			case 0u:
+				return __atomic_fetch_and(
+					__xrtAtomic64Aligned(pValue),
+					iValue,
+					__xrtAtomicOrder(iOrder)
+				);
+			case 1u:
+				return __atomic_fetch_or(
+					__xrtAtomic64Aligned(pValue),
+					iValue,
+					__xrtAtomicOrder(iOrder)
+				);
+			default:
+				return __atomic_fetch_xor(
+					__xrtAtomic64Aligned(pValue),
+					iValue,
+					__xrtAtomicOrder(iOrder)
+				);
+		}
+	#else
+		uint64 iOld = __xrtAtomic64LoadValue(pValue, XMEMORY_RELAXED);
+		uint64 iNew;
+		uint64 iActual;
+
+		for ( ;; ) {
+			switch ( iOperation ) {
+				case 0u:
+					iNew = iOld & iValue;
+					break;
+				case 1u:
+					iNew = iOld | iValue;
+					break;
+				default:
+					iNew = iOld ^ iValue;
+					break;
+			}
+			iActual = __xrtAtomic64CompareValue(
+				pValue,
+				iOld,
+				iNew,
+				iOrder,
+				XMEMORY_RELAXED
+			);
+			if ( iActual == iOld ) {
+				return iOld;
+			}
+			iOld = iActual;
+		}
+	#endif
+}
+
+
+
+/* 比较交换原始指针并返回修改前的值。 */
+static inline ptr __xrtAtomicPtrCompareValue(
+	ptr volatile* pValue,
+	ptr pExpected,
+	ptr pDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		ptr pActual = pExpected;
+
+		(void)__atomic_compare_exchange_n(
+			pValue,
+			&pActual,
+			pDesired,
+			false,
+			__xrtAtomicOrder(iSuccess),
+			__xrtAtomicOrder(iFailure)
+		);
+		return pActual;
+	#elif defined(_MSC_VER)
+		(void)iSuccess;
+		(void)iFailure;
+		return _InterlockedCompareExchangePointer(
+			(void* volatile*)pValue,
+			pDesired,
+			pExpected
+		);
+	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		(void)iSuccess;
+		(void)iFailure;
+		return InterlockedCompareExchangePointer(
+			(PVOID volatile*)pValue,
+			pDesired,
+			pExpected
+		);
+	#elif UINTPTR_MAX == UINT64_MAX
+		return (ptr)(uintptr_t)__xrtAtomic64CompareValue(
+			(volatile uint64*)pValue,
+			(uint64)(uintptr_t)pExpected,
+			(uint64)(uintptr_t)pDesired,
+			iSuccess,
+			iFailure
+		);
+	#else
+		return (ptr)(uintptr_t)__xrtAtomic32CompareValue(
+			(volatile uint32*)pValue,
+			(uint32)(uintptr_t)pExpected,
+			(uint32)(uintptr_t)pDesired,
+			iSuccess,
+			iFailure
+		);
+	#endif
+}
+
+
+
+/* 读取原始原子指针。 */
+static inline ptr __xrtAtomicPtrLoadValue(
+	ptr const volatile* pValue,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		return __atomic_load_n(pValue, __xrtAtomicOrder(iOrder));
+	#else
+		return __xrtAtomicPtrCompareValue(
+			(ptr volatile*)pValue,
+			NULL,
+			NULL,
+			iOrder,
+			iOrder
+		);
+	#endif
+}
+
+
+
+/* 交换原始原子指针并返回旧值。 */
+static inline ptr __xrtAtomicPtrExchangeValue(
+	ptr volatile* pValue,
+	ptr pNew,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		return __atomic_exchange_n(pValue, pNew, __xrtAtomicOrder(iOrder));
+	#elif defined(_MSC_VER)
+		(void)iOrder;
+		return _InterlockedExchangePointer((void* volatile*)pValue, pNew);
+	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		(void)iOrder;
+		return InterlockedExchangePointer((PVOID volatile*)pValue, pNew);
+	#else
+		ptr pOld = __xrtAtomicPtrLoadValue(pValue, XMEMORY_RELAXED);
+		ptr pActual;
+
+		for ( ;; ) {
+			pActual = __xrtAtomicPtrCompareValue(
+				pValue,
+				pOld,
+				pNew,
+				iOrder,
+				XMEMORY_RELAXED
+			);
+			if ( pActual == pOld ) {
+				return pOld;
+			}
+			pOld = pActual;
+		}
+	#endif
+}
+
+
+
+/* 写入原始原子指针。 */
+static inline void __xrtAtomicPtrStoreValue(
+	ptr volatile* pValue,
+	ptr pNew,
+	xmemoryorder iOrder
+)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		__atomic_store_n(pValue, pNew, __xrtAtomicOrder(iOrder));
+	#else
+		(void)__xrtAtomicPtrExchangeValue(pValue, pNew, iOrder);
+	#endif
+}
+
+
+
+/* 建立线程间内存栅栏。 */
+static inline void __xrtAtomicThreadFence(xmemoryorder iOrder)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		__atomic_thread_fence(__xrtAtomicOrder(iOrder));
+	#elif defined(_WIN32) || defined(_WIN64)
+		(void)iOrder;
+		MemoryBarrier();
+	#elif defined(__TINYC__) && \
+		(defined(__i386__) || defined(__x86_64__) || \
+		 defined(_M_IX86) || defined(_M_X64))
+		(void)iOrder;
+		__asm__ volatile ("mfence" ::: "memory");
+	#elif defined(__TINYC__) && (defined(__aarch64__) || defined(__arm__))
+		(void)iOrder;
+		__asm__ volatile ("dmb ish" ::: "memory");
+	#else
+		(void)iOrder;
+		__sync_synchronize();
+	#endif
+}
+
+
+
+/* 建立当前线程与信号处理器之间的编译器栅栏。 */
+static inline void __xrtAtomicSignalFence(xmemoryorder iOrder)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		__atomic_signal_fence(__xrtAtomicOrder(iOrder));
+	#elif defined(_MSC_VER)
+		(void)iOrder;
+		_ReadWriteBarrier();
+	#else
+		(void)iOrder;
+		__asm__ volatile ("" ::: "memory");
+	#endif
+}
+
+
+
+/* 向处理器提示当前执行流处于短自旋等待。 */
+static inline void __xrtAtomicPause(void)
+{
+	#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
+		_mm_pause();
+	#elif defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+		__asm__ volatile ("pause");
+	#elif defined(__aarch64__) || defined(__arm__)
+		__asm__ volatile ("yield");
+	#else
+		__xrtAtomicSignalFence(XMEMORY_SEQ_CST);
+	#endif
+}
 
 #endif
 
@@ -43017,38 +44760,6 @@ xvalue* __xrtJsonReadBudget(
 
 #if defined(XRT_FEATURE_JSON_WRITE)
 bool __xrtJsonWriteConfigValid(const xjsonwriteconfig* pConfig);
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_array.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_ARRAY)
-#ifndef XRT_INTERNAL_ARRAY_H
-#define XRT_INTERNAL_ARRAY_H
-
-
-
-
-#if defined(XRT_FEATURE_ARRAY)
-
-/* 检查数组公开状态是否自洽，供数组类型薄封装复用。 */
-bool __xrtArrayValid(const xarray* pArray);
-
-
-
-/* 在调用方已经验证数组后保证最低容量。 */
-bool __xrtArrayReserveValid(xarray* pArray, size_t iCapacity);
-
-
-
-/* 在调用方已经验证数组后增加未初始化尾部元素。 */
-ptr __xrtArrayAddValid(xarray* pArray, size_t iCount);
-
 #endif
 
 #endif
@@ -43958,371 +45669,6 @@ static inline uint32 __xrtCharsetRead32(
 
 
 /* ========================================================================== */
-/* internal: src/internal/xrt_pool.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_POOL_PAGE)
-#ifndef XRT_INTERNAL_POOL_H
-#define XRT_INTERNAL_POOL_H
-
-
-
-
-#define XRT_POOL_PAGE_FLAG_READY		0x0001u
-#define XRT_POOL_PAGE_FLAG_VISITING	0x0002u
-#define XRT_POOL_FLAG_READY			0x0001u
-#define XRT_POOL_FLAG_VISITING		0x0002u
-#define XRT_MEMPOOL_FLAG_READY		0x0001u
-#define XRT_MEMPOOL_FLAG_VISITING	0x0002u
-#define XRT_MEMPOOL_FLAG_PAGE_PENDING_SHIFT 26u
-#define XRT_MEMPOOL_FLAG_PAGE_PENDING_MASK \
-	(UINT32_C(0x3F) << XRT_MEMPOOL_FLAG_PAGE_PENDING_SHIFT)
-
-
-
-/* 计算始终能把用户地址移出底层分配起点的对齐分配大小。 */
-static inline bool __xrtPoolAlignedAllocationSize(
-	size_t iPayloadSize,
-	size_t iAlignment,
-	size_t* pAllocationSize
-)
-{
-	if ( iPayloadSize > (SIZE_MAX - iAlignment) ) {
-		__xrtErrorSetSizeOverflow();
-		return false;
-	}
-	*pAllocationSize = iPayloadSize + iAlignment;
-	return true;
-}
-
-
-
-/* 返回底层分配起点之后的第一个对齐地址，避免池对象冒充全局堆对象。 */
-static inline bool __xrtPoolAlignAfter(
-	ptr pAllocation,
-	size_t iAlignment,
-	ptr* pMemory
-)
-{
-	uintptr_t iAddress = (uintptr_t)pAllocation;
-
-	if ( iAddress > (UINTPTR_MAX - iAlignment) ) {
-		__xrtErrorSetSizeOverflow();
-		return false;
-	}
-	*pMemory = (ptr)((iAddress + iAlignment) & ~((uintptr_t)iAlignment - 1u));
-	return true;
-}
-
-
-
-#if defined(XRT_FEATURE_POOL_PAGE)
-/* 设置带稳定域、操作和错误代码的内存池错误。 */
-void __xrtPoolSetError(xerrkind Kind, int32 iCode, cstr sOperation, cstr sMessage);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_POOL)
-
-/* pool.c 与 memory_pool.c 共用的页查找入口。 */
-xpoolpage* __xrtPoolFindPage(const xpool* pPool, const void* pMemory);
-
-
-
-/* 分配对象并返回所属页，供变长池同步全局页索引。 */
-ptr __xrtPoolAllocObject(xpool* pPool, bool bZero, xpoolpage** ppPage);
-
-
-
-/* 同步固定池和全部现有页的访问保护状态。 */
-void __xrtPoolSetVisiting(xpool* pPool, bool bVisiting);
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_avl.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_AVL)
-#ifndef XRT_INTERNAL_AVL_H
-#define XRT_INTERNAL_AVL_H
-
-
-
-
-#if defined(XRT_FEATURE_AVL_TREE)
-
-
-
-	/* 新对象初始化器失败时自行清理部分状态，成功后可由回滚器撤销。 */
-	typedef bool (*xavltreeinit)(ptr pItem, const void* pKey, ptr pUserData);
-	typedef void (*xavltreerollback)(ptr pItem, ptr pUserData);
-
-
-
-	/* 检查拥有式树的公开状态是否自洽。 */
-	bool __xrtAVLTreeValid(const xavltree* pTree);
-
-
-
-	/* 检查拥有式树当前是否允许修改结构和生命周期。 */
-	bool __xrtAVLTreeCanMutate(const xavltree* pTree);
-
-
-
-	/* 判断调用方字节区间是否触及树结构或固定池内部存储。 */
-	bool __xrtAVLTreeOwnsRange(
-		const xavltree* pTree,
-		const void* pMemory,
-		size_t iSize
-	);
-
-
-
-	/* 在受保护状态下调用对象释放器。 */
-	void __xrtAVLTreeDropItem(xavltree* pTree, ptr pItem);
-
-
-
-	/* 命中时直接返回已有对象，缺失时原地分配、清零并初始化新对象。 */
-	ptr __xrtAVLTreeGetOrAdd(
-		xavltree* pTree,
-		const void* pKey,
-		xavltreeinit pInit,
-		ptr pInitUserData,
-		xavltreerollback pRollback,
-		ptr pRollbackUserData,
-		bool* pNew
-	);
-
-
-
-	/* 删除对象并移交指定字节区间，不调用对象释放器。 */
-	bool __xrtAVLTreeTakePart(
-		xavltree* pTree,
-		const void* pKey,
-		size_t iOffset,
-		size_t iSize,
-		ptr pOutput
-	);
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_int_map.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_INT_MAP)
-#ifndef XRT_INTERNAL_INT_MAP_H
-#define XRT_INTERNAL_INT_MAP_H
-
-
-
-
-#if defined(XRT_FEATURE_INT_MAP)
-	/* 检查整数映射公开状态是否自洽。 */
-	bool __xrtIntMapValid(const xintmap* pMap);
-
-
-
-	/* 检查整数映射当前是否允许修改结构和生命周期。 */
-	bool __xrtIntMapCanMutate(const xintmap* pMap);
-
-
-
-	/* 判断调用方字节区间是否触及映射结构或节点池存储。 */
-	bool __xrtIntMapOwnsRange(
-		const xintmap* pMap,
-		const void* pMemory,
-		size_t iSize
-	);
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_map.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_MAP)
-#ifndef XRT_INTERNAL_MAP_H
-#define XRT_INTERNAL_MAP_H
-
-
-
-
-#if defined(XRT_FEATURE_MAP)
-
-/* 类型封装使用该回调把映射值失败原子地移到调用方存储。 */
-typedef bool (*xrtmapmoveproc)(ptr pTarget, ptr pSource, ptr pUserData);
-
-
-
-/* 类型封装使用该回调失败原子地替换一个完整初始化值。 */
-typedef bool (*xrtmapreplaceproc)(
-	ptr pTarget,
-	const void* pSource,
-	ptr pUserData
-);
-
-
-
-/* 检查字节键映射公开状态是否自洽。 */
-bool __xrtMapValid(const xmap* pMap);
-
-
-
-/* 检查字节键映射当前是否允许查询和推进迭代器。 */
-bool __xrtMapCanRead(const xmap* pMap);
-
-
-
-/* 检查字节键映射当前是否允许修改结构和生命周期。 */
-bool __xrtMapCanMutate(xmap* pMap);
-
-
-
-/* 仅供拥有型封装配置最终值释放顺序；键迭代顺序不变。 */
-bool __xrtMapSetDropReverse(xmap* pMap, bool bReverse);
-bool __xrtMapDropsReverse(const xmap* pMap);
-
-
-
-/* 判断调用方字节区间是否触及映射结构、桶数组或条目。 */
-bool __xrtMapOwnsRange(
-	const xmap* pMap,
-	const void* pMemory,
-	size_t iSize
-);
-
-
-
-/* 判断映射是否仍使用精确二进制默认键策略。 */
-bool __xrtMapUsesDefaultKeyPolicy(const xmap* pMap);
-
-
-
-/* 在多步只读操作期间阻止回调修改映射结构。 */
-bool __xrtMapProtectRead(const xmap* pMap, bool* pAcquired);
-void __xrtMapUnprotectRead(const xmap* pMap, bool bAcquired);
-
-
-
-/* 在用户回调期间拒绝当前映射的全部 API 重入。 */
-bool __xrtMapCallbackBegin(const xmap* pMap);
-void __xrtMapCallbackEnd(const xmap* pMap);
-
-
-
-/* 一次查询完成已有值替换或缺失值初始化，并报告是否新建。 */
-ptr __xrtMapSetOrInit(
-	xmap* pMap,
-	xbytesview Key,
-	const void* pValue,
-	xrtmapreplaceproc pReplace,
-	ptr pReplaceData,
-	xmapinit pInit,
-	ptr pInitData,
-	bool* pNew
-);
-
-
-
-/* 使用类型移动器移出指定键的值，成功后删除映射条目。 */
-bool __xrtMapMoveOut(
-	xmap* pMap,
-	xbytesview Key,
-	ptr pValue,
-	xrtmapmoveproc pMove,
-	ptr pUserData
-);
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_set.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_SET)
-#ifndef XRT_INTERNAL_SET_H
-#define XRT_INTERNAL_SET_H
-
-
-
-
-#if defined(XRT_FEATURE_SET)
-
-/* 类型封装使用该回调把规范元素失败原子地移到调用方存储。 */
-typedef bool (*xrtsetmoveproc)(ptr pTarget, ptr pSource, ptr pUserData);
-
-
-
-/* 检查集合公开状态是否自洽，供集合类型薄封装复用。 */
-bool __xrtSetValid(const xset* pSet);
-
-
-
-/* 检查集合当前是否允许查询或推进外置迭代器。 */
-bool __xrtSetCanRead(const xset* pSet);
-
-
-
-/* 检查集合当前是否允许修改结构和生命周期。 */
-bool __xrtSetCanMutate(xset* pSet);
-
-
-
-/* 判断调用方字节区间是否触及集合结构、桶数组或元素条目。 */
-bool __xrtSetOwnsRange(
-	const xset* pSet,
-	const void* pMemory,
-	size_t iSize
-);
-
-
-
-/* 在用户回调期间拒绝当前集合的全部 API 重入。 */
-bool __xrtSetCallbackBegin(const xset* pSet);
-void __xrtSetCallbackEnd(const xset* pSet);
-
-
-
-/* 使用类型移动器移出规范元素，成功后删除集合条目。 */
-bool __xrtSetMoveOut(
-	xset* pSet,
-	const void* pItem,
-	ptr pValue,
-	xrtsetmoveproc pMove,
-	ptr pUserData
-);
-
-
-
-/* 接管堆集合的全部存储并释放其外层结构。 */
-bool __xrtSetAdoptHeap(xset* pTarget, xset* pSource);
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* internal: src/internal/xrt_string.h */
 /* ========================================================================== */
 
@@ -44463,814 +45809,6 @@ uint16* __xrtPathToWide(cstr sPath, size_t* pSize);
 
 /* 严格把 Windows UTF-16 路径转换为 UTF-8。 */
 str __xrtPathFromWide(const wchar_t* sPath, size_t iSize);
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_time.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_TIME)
-#ifndef XRT_INTERNAL_TIME_H
-#define XRT_INTERNAL_TIME_H
-
-
-
-
-#if defined(XRT_FEATURE_TIME)
-
-/* 内部日期构造结果用于让解析器延迟到公共边界再报告一次错误。 */
-typedef enum __xrt_time_make_status {
-	__XRT_TIME_MAKE_OK = 0,
-	__XRT_TIME_MAKE_OFFSET,
-	__XRT_TIME_MAKE_COMPONENT,
-	__XRT_TIME_MAKE_OVERFLOW
-} __xrt_time_make_status;
-
-
-
-/* 无错误副作用地按显式 UTC 偏移构造绝对时间。 */
-__xrt_time_make_status __xrtTimeMakeValue(
-	const xdatetime* pDateTime, xtime* pTime);
-
-/* 设置时间模块的结构化错误。 */
-void __xrtTimeSetError(xerrkind Kind, xtimeerror Code,
-	cstr sOperation, cstr sMessage, int iSystemCode);
-
-
-
-/* 检查 int64 加法，失败时不修改输出。 */
-bool __xrtTimeAddChecked(int64 iLeft, int64 iRight, int64* pResult);
-
-
-
-/* 检查 int64 减法，失败时不修改输出。 */
-bool __xrtTimeSubChecked(int64 iLeft, int64 iRight, int64* pResult);
-
-
-
-/* 检查 int64 乘法，失败时不修改输出。 */
-bool __xrtTimeMulChecked(int64 iLeft, int64 iRight, int64* pResult);
-
-
-
-/* 执行向负无穷取整的有符号除法，除数必须为正数。 */
-int64 __xrtTimeFloorDiv(int64 iValue, int64 iDivisor);
-
-
-
-/* 把 Unix 微秒拆成天数和当日微秒。 */
-void __xrtTimeSplitDay(xtime iTime, int64* pDays, int64* pDayTime);
-
-
-
-/* 把 Unix Epoch 天数转换为 Gregorian 日期。 */
-void __xrtTimeCivilFromDays(int64 iDays, int64* pYear, int* pMonth, int* pDay);
-
-
-
-/* 把 Gregorian 日期转换为 Unix Epoch 天数。 */
-bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays);
-
-
-
-/* 无错误副作用地按系统本地时区分解时间。 */
-bool __xrtTimeLocalParts(xtime iTime, xdatetime* pDateTime, int* pSystemCode);
-
-#endif
-
-
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_atomic.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_ATOMIC) || \
-	defined(XRT_FEATURE_NET_PORT_URING)
-#ifndef XRT_INTERNAL_ATOMIC_H
-#define XRT_INTERNAL_ATOMIC_H
-
-
-
-
-#if defined(XRT_FEATURE_ATOMIC)
-
-#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-/* 内建 64 位原子类型在 32 位目标上也必须保持 8 字节静态对齐。 */
-typedef uint64 __xrt_atomic64_value __attribute__((aligned(8)));
-
-
-
-/* 把公开内存顺序转换为 GCC/Clang 内建常量。 */
-static inline int __xrtAtomicOrder(xmemoryorder iOrder)
-{
-	switch ( iOrder ) {
-		case XMEMORY_RELAXED:
-			return __ATOMIC_RELAXED;
-		case XMEMORY_ACQUIRE:
-			return __ATOMIC_ACQUIRE;
-		case XMEMORY_RELEASE:
-			return __ATOMIC_RELEASE;
-		case XMEMORY_ACQ_REL:
-			return __ATOMIC_ACQ_REL;
-		case XMEMORY_SEQ_CST:
-		default:
-			return __ATOMIC_SEQ_CST;
-	}
-}
-
-
-
-/* 公共入口已验证 8 字节对齐；把这一事实传递给 32 位目标的内建原子。 */
-static inline volatile __xrt_atomic64_value* __xrtAtomic64Aligned(
-	volatile uint64* pValue
-)
-{
-	return (volatile __xrt_atomic64_value*)__builtin_assume_aligned(
-		(void*)pValue,
-		8u
-	);
-}
-
-
-
-/* 只读路径保留限定符并传递相同的 8 字节对齐前置条件。 */
-static inline const volatile __xrt_atomic64_value* __xrtAtomic64AlignedConst(
-	const volatile uint64* pValue
-)
-{
-	return (const volatile __xrt_atomic64_value*)__builtin_assume_aligned(
-		(const void*)pValue,
-		8u
-	);
-}
-#endif
-
-
-
-/* 比较交换 32 位原始值并返回修改前的值。 */
-static inline uint32 __xrtAtomic32CompareValue(
-	volatile uint32* pValue,
-	uint32 iExpected,
-	uint32 iDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		uint32 iActual = iExpected;
-
-		(void)__atomic_compare_exchange_n(
-			pValue,
-			&iActual,
-			iDesired,
-			false,
-			__xrtAtomicOrder(iSuccess),
-			__xrtAtomicOrder(iFailure)
-		);
-		return iActual;
-	#elif defined(_MSC_VER)
-		(void)iSuccess;
-		(void)iFailure;
-		return (uint32)_InterlockedCompareExchange(
-			(volatile long*)pValue,
-			(long)iDesired,
-			(long)iExpected
-		);
-	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-		(void)iSuccess;
-		(void)iFailure;
-		return (uint32)InterlockedCompareExchange(
-			(volatile LONG*)pValue,
-			(LONG)iDesired,
-			(LONG)iExpected
-		);
-	#elif defined(__TINYC__) && (defined(__x86_64__) || defined(_M_X64))
-		uint32 iActual;
-
-		(void)iSuccess;
-		(void)iFailure;
-		__asm__ volatile (
-			"lock; cmpxchgl %2, %1"
-			: "=a"(iActual), "+m"(*pValue)
-			: "r"(iDesired), "0"(iExpected)
-			: "cc", "memory"
-		);
-		return iActual;
-	#else
-		(void)iSuccess;
-		(void)iFailure;
-		return __sync_val_compare_and_swap(pValue, iExpected, iDesired);
-	#endif
-}
-
-
-
-/* 读取 32 位原始原子值。 */
-static inline uint32 __xrtAtomic32LoadValue(
-	const volatile uint32* pValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		return __atomic_load_n(pValue, __xrtAtomicOrder(iOrder));
-	#else
-		return __xrtAtomic32CompareValue(
-			(volatile uint32*)pValue,
-			0u,
-			0u,
-			iOrder,
-			iOrder
-		);
-	#endif
-}
-
-
-
-/* 交换 32 位原始原子值并返回旧值。 */
-static inline uint32 __xrtAtomic32ExchangeValue(
-	volatile uint32* pValue,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		return __atomic_exchange_n(pValue, iValue, __xrtAtomicOrder(iOrder));
-	#elif defined(_MSC_VER)
-		(void)iOrder;
-		return (uint32)_InterlockedExchange((volatile long*)pValue, (long)iValue);
-	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-		(void)iOrder;
-		return (uint32)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
-	#else
-		uint32 iOld = __xrtAtomic32LoadValue(pValue, XMEMORY_RELAXED);
-		uint32 iActual;
-
-		for ( ;; ) {
-			iActual = __xrtAtomic32CompareValue(
-				pValue,
-				iOld,
-				iValue,
-				iOrder,
-				XMEMORY_RELAXED
-			);
-			if ( iActual == iOld ) {
-				return iOld;
-			}
-			iOld = iActual;
-		}
-	#endif
-}
-
-
-
-/* 写入 32 位原始原子值。 */
-static inline void __xrtAtomic32StoreValue(
-	volatile uint32* pValue,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		__atomic_store_n(pValue, iValue, __xrtAtomicOrder(iOrder));
-	#else
-		(void)__xrtAtomic32ExchangeValue(pValue, iValue, iOrder);
-	#endif
-}
-
-
-
-/* 原子加 32 位原始值并返回旧值。 */
-static inline uint32 __xrtAtomic32FetchAddValue(
-	volatile uint32* pValue,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		return __atomic_fetch_add(pValue, iValue, __xrtAtomicOrder(iOrder));
-	#elif defined(_MSC_VER)
-		(void)iOrder;
-		return (uint32)_InterlockedExchangeAdd((volatile long*)pValue, (long)iValue);
-	#elif defined(__TINYC__)
-		uint32 iOld = __xrtAtomic32LoadValue(pValue, XMEMORY_RELAXED);
-		uint32 iActual;
-
-		for ( ;; ) {
-			iActual = __xrtAtomic32CompareValue(
-				pValue,
-				iOld,
-				iOld + iValue,
-				iOrder,
-				XMEMORY_RELAXED
-			);
-			if ( iActual == iOld ) {
-				return iOld;
-			}
-			iOld = iActual;
-		}
-	#else
-		(void)iOrder;
-		return __sync_fetch_and_add(pValue, iValue);
-	#endif
-}
-
-
-
-/* 用比较交换循环更新 32 位原始值并返回旧值。 */
-static inline uint32 __xrtAtomic32FetchBitsValue(
-	volatile uint32* pValue,
-	uint32 iValue,
-	uint32 iOperation,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		switch ( iOperation ) {
-			case 0u:
-				return __atomic_fetch_and(
-					pValue,
-					iValue,
-					__xrtAtomicOrder(iOrder)
-				);
-			case 1u:
-				return __atomic_fetch_or(
-					pValue,
-					iValue,
-					__xrtAtomicOrder(iOrder)
-				);
-			default:
-				return __atomic_fetch_xor(
-					pValue,
-					iValue,
-					__xrtAtomicOrder(iOrder)
-				);
-		}
-	#else
-		uint32 iOld = __xrtAtomic32LoadValue(pValue, XMEMORY_RELAXED);
-		uint32 iNew;
-		uint32 iActual;
-
-		for ( ;; ) {
-			switch ( iOperation ) {
-				case 0u:
-					iNew = iOld & iValue;
-					break;
-				case 1u:
-					iNew = iOld | iValue;
-					break;
-				default:
-					iNew = iOld ^ iValue;
-					break;
-			}
-			iActual = __xrtAtomic32CompareValue(
-				pValue,
-				iOld,
-				iNew,
-				iOrder,
-				XMEMORY_RELAXED
-			);
-			if ( iActual == iOld ) {
-				return iOld;
-			}
-			iOld = iActual;
-		}
-	#endif
-}
-
-
-
-/* 比较交换 64 位原始值并返回修改前的值。 */
-static inline uint64 __xrtAtomic64CompareValue(
-	volatile uint64* pValue,
-	uint64 iExpected,
-	uint64 iDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		uint64 iActual = iExpected;
-
-		(void)__atomic_compare_exchange_n(
-			__xrtAtomic64Aligned(pValue),
-			&iActual,
-			iDesired,
-			false,
-			__xrtAtomicOrder(iSuccess),
-			__xrtAtomicOrder(iFailure)
-		);
-		return iActual;
-	#elif defined(_MSC_VER)
-		(void)iSuccess;
-		(void)iFailure;
-		return (uint64)_InterlockedCompareExchange64(
-			(volatile __int64*)pValue,
-			(__int64)iDesired,
-			(__int64)iExpected
-		);
-	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-		(void)iSuccess;
-		(void)iFailure;
-		return (uint64)InterlockedCompareExchange64(
-			(volatile LONG64*)pValue,
-			(LONG64)iDesired,
-			(LONG64)iExpected
-		);
-	#elif defined(__TINYC__) && (defined(__x86_64__) || defined(_M_X64))
-		uint64 iActual;
-
-		(void)iSuccess;
-		(void)iFailure;
-		__asm__ volatile (
-			"lock; cmpxchgq %2, %1"
-			: "=a"(iActual), "+m"(*pValue)
-			: "r"(iDesired), "0"(iExpected)
-			: "cc", "memory"
-		);
-		return iActual;
-	#else
-		(void)iSuccess;
-		(void)iFailure;
-		return __sync_val_compare_and_swap(pValue, iExpected, iDesired);
-	#endif
-}
-
-
-
-/* 读取 64 位原始原子值。 */
-static inline uint64 __xrtAtomic64LoadValue(
-	const volatile uint64* pValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		return __atomic_load_n(
-			__xrtAtomic64AlignedConst(pValue),
-			__xrtAtomicOrder(iOrder)
-		);
-	#else
-		return __xrtAtomic64CompareValue(
-			(volatile uint64*)pValue,
-			0u,
-			0u,
-			iOrder,
-			iOrder
-		);
-	#endif
-}
-
-
-
-/* 交换 64 位原始原子值并返回旧值。 */
-static inline uint64 __xrtAtomic64ExchangeValue(
-	volatile uint64* pValue,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		return __atomic_exchange_n(
-			__xrtAtomic64Aligned(pValue),
-			iValue,
-			__xrtAtomicOrder(iOrder)
-		);
-	#else
-		uint64 iOld = __xrtAtomic64LoadValue(pValue, XMEMORY_RELAXED);
-		uint64 iActual;
-
-		for ( ;; ) {
-			iActual = __xrtAtomic64CompareValue(
-				pValue,
-				iOld,
-				iValue,
-				iOrder,
-				XMEMORY_RELAXED
-			);
-			if ( iActual == iOld ) {
-				return iOld;
-			}
-			iOld = iActual;
-		}
-	#endif
-}
-
-
-
-/* 写入 64 位原始原子值。 */
-static inline void __xrtAtomic64StoreValue(
-	volatile uint64* pValue,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		__atomic_store_n(
-			__xrtAtomic64Aligned(pValue),
-			iValue,
-			__xrtAtomicOrder(iOrder)
-		);
-	#else
-		(void)__xrtAtomic64ExchangeValue(pValue, iValue, iOrder);
-	#endif
-}
-
-
-
-/* 原子加 64 位原始值并返回旧值。 */
-static inline uint64 __xrtAtomic64FetchAddValue(
-	volatile uint64* pValue,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		return __atomic_fetch_add(
-			__xrtAtomic64Aligned(pValue),
-			iValue,
-			__xrtAtomicOrder(iOrder)
-		);
-	#elif defined(_MSC_VER) || defined(__TINYC__)
-		uint64 iOld = __xrtAtomic64LoadValue(pValue, XMEMORY_RELAXED);
-		uint64 iActual;
-
-		for ( ;; ) {
-			iActual = __xrtAtomic64CompareValue(
-				pValue,
-				iOld,
-				iOld + iValue,
-				iOrder,
-				XMEMORY_RELAXED
-			);
-			if ( iActual == iOld ) {
-				return iOld;
-			}
-			iOld = iActual;
-		}
-	#else
-		(void)iOrder;
-		return __sync_fetch_and_add(pValue, iValue);
-	#endif
-}
-
-
-
-/* 用比较交换循环更新 64 位原始值并返回旧值。 */
-static inline uint64 __xrtAtomic64FetchBitsValue(
-	volatile uint64* pValue,
-	uint64 iValue,
-	uint32 iOperation,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		switch ( iOperation ) {
-			case 0u:
-				return __atomic_fetch_and(
-					__xrtAtomic64Aligned(pValue),
-					iValue,
-					__xrtAtomicOrder(iOrder)
-				);
-			case 1u:
-				return __atomic_fetch_or(
-					__xrtAtomic64Aligned(pValue),
-					iValue,
-					__xrtAtomicOrder(iOrder)
-				);
-			default:
-				return __atomic_fetch_xor(
-					__xrtAtomic64Aligned(pValue),
-					iValue,
-					__xrtAtomicOrder(iOrder)
-				);
-		}
-	#else
-		uint64 iOld = __xrtAtomic64LoadValue(pValue, XMEMORY_RELAXED);
-		uint64 iNew;
-		uint64 iActual;
-
-		for ( ;; ) {
-			switch ( iOperation ) {
-				case 0u:
-					iNew = iOld & iValue;
-					break;
-				case 1u:
-					iNew = iOld | iValue;
-					break;
-				default:
-					iNew = iOld ^ iValue;
-					break;
-			}
-			iActual = __xrtAtomic64CompareValue(
-				pValue,
-				iOld,
-				iNew,
-				iOrder,
-				XMEMORY_RELAXED
-			);
-			if ( iActual == iOld ) {
-				return iOld;
-			}
-			iOld = iActual;
-		}
-	#endif
-}
-
-
-
-/* 比较交换原始指针并返回修改前的值。 */
-static inline ptr __xrtAtomicPtrCompareValue(
-	ptr volatile* pValue,
-	ptr pExpected,
-	ptr pDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		ptr pActual = pExpected;
-
-		(void)__atomic_compare_exchange_n(
-			pValue,
-			&pActual,
-			pDesired,
-			false,
-			__xrtAtomicOrder(iSuccess),
-			__xrtAtomicOrder(iFailure)
-		);
-		return pActual;
-	#elif defined(_MSC_VER)
-		(void)iSuccess;
-		(void)iFailure;
-		return _InterlockedCompareExchangePointer(
-			(void* volatile*)pValue,
-			pDesired,
-			pExpected
-		);
-	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-		(void)iSuccess;
-		(void)iFailure;
-		return InterlockedCompareExchangePointer(
-			(PVOID volatile*)pValue,
-			pDesired,
-			pExpected
-		);
-	#elif UINTPTR_MAX == UINT64_MAX
-		return (ptr)(uintptr_t)__xrtAtomic64CompareValue(
-			(volatile uint64*)pValue,
-			(uint64)(uintptr_t)pExpected,
-			(uint64)(uintptr_t)pDesired,
-			iSuccess,
-			iFailure
-		);
-	#else
-		return (ptr)(uintptr_t)__xrtAtomic32CompareValue(
-			(volatile uint32*)pValue,
-			(uint32)(uintptr_t)pExpected,
-			(uint32)(uintptr_t)pDesired,
-			iSuccess,
-			iFailure
-		);
-	#endif
-}
-
-
-
-/* 读取原始原子指针。 */
-static inline ptr __xrtAtomicPtrLoadValue(
-	ptr const volatile* pValue,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		return __atomic_load_n(pValue, __xrtAtomicOrder(iOrder));
-	#else
-		return __xrtAtomicPtrCompareValue(
-			(ptr volatile*)pValue,
-			NULL,
-			NULL,
-			iOrder,
-			iOrder
-		);
-	#endif
-}
-
-
-
-/* 交换原始原子指针并返回旧值。 */
-static inline ptr __xrtAtomicPtrExchangeValue(
-	ptr volatile* pValue,
-	ptr pNew,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		return __atomic_exchange_n(pValue, pNew, __xrtAtomicOrder(iOrder));
-	#elif defined(_MSC_VER)
-		(void)iOrder;
-		return _InterlockedExchangePointer((void* volatile*)pValue, pNew);
-	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-		(void)iOrder;
-		return InterlockedExchangePointer((PVOID volatile*)pValue, pNew);
-	#else
-		ptr pOld = __xrtAtomicPtrLoadValue(pValue, XMEMORY_RELAXED);
-		ptr pActual;
-
-		for ( ;; ) {
-			pActual = __xrtAtomicPtrCompareValue(
-				pValue,
-				pOld,
-				pNew,
-				iOrder,
-				XMEMORY_RELAXED
-			);
-			if ( pActual == pOld ) {
-				return pOld;
-			}
-			pOld = pActual;
-		}
-	#endif
-}
-
-
-
-/* 写入原始原子指针。 */
-static inline void __xrtAtomicPtrStoreValue(
-	ptr volatile* pValue,
-	ptr pNew,
-	xmemoryorder iOrder
-)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		__atomic_store_n(pValue, pNew, __xrtAtomicOrder(iOrder));
-	#else
-		(void)__xrtAtomicPtrExchangeValue(pValue, pNew, iOrder);
-	#endif
-}
-
-
-
-/* 建立线程间内存栅栏。 */
-static inline void __xrtAtomicThreadFence(xmemoryorder iOrder)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		__atomic_thread_fence(__xrtAtomicOrder(iOrder));
-	#elif defined(_WIN32) || defined(_WIN64)
-		(void)iOrder;
-		MemoryBarrier();
-	#elif defined(__TINYC__) && \
-		(defined(__i386__) || defined(__x86_64__) || \
-		 defined(_M_IX86) || defined(_M_X64))
-		(void)iOrder;
-		__asm__ volatile ("mfence" ::: "memory");
-	#elif defined(__TINYC__) && (defined(__aarch64__) || defined(__arm__))
-		(void)iOrder;
-		__asm__ volatile ("dmb ish" ::: "memory");
-	#else
-		(void)iOrder;
-		__sync_synchronize();
-	#endif
-}
-
-
-
-/* 建立当前线程与信号处理器之间的编译器栅栏。 */
-static inline void __xrtAtomicSignalFence(xmemoryorder iOrder)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		__atomic_signal_fence(__xrtAtomicOrder(iOrder));
-	#elif defined(_MSC_VER)
-		(void)iOrder;
-		_ReadWriteBarrier();
-	#else
-		(void)iOrder;
-		__asm__ volatile ("" ::: "memory");
-	#endif
-}
-
-
-
-/* 向处理器提示当前执行流处于短自旋等待。 */
-static inline void __xrtAtomicPause(void)
-{
-	#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
-		_mm_pause();
-	#elif defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-		__asm__ volatile ("pause");
-	#elif defined(__aarch64__) || defined(__arm__)
-		__asm__ volatile ("yield");
-	#else
-		__xrtAtomicSignalFence(XMEMORY_SEQ_CST);
-	#endif
-}
 
 #endif
 
@@ -45932,268 +46470,6 @@ bool __xrtNetSocketDgramControlBuild(
 	xneterror Code,
 	cstr sOperation
 );
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_wait.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_WAIT)
-#ifndef XRT_INTERNAL_WAIT_H
-#define XRT_INTERNAL_WAIT_H
-
-
-
-
-#if defined(XRT_FEATURE_WAIT)
-
-/* 把剩余微秒向上取整为平台等待使用的毫秒。 */
-static inline uint32 __xrtWaitMilliseconds(uint64 iRemaining)
-{
-	uint64 iMilliseconds;
-
-	if ( iRemaining == UINT64_MAX ) {
-		return UINT32_MAX;
-	}
-	iMilliseconds = (iRemaining / UINT64_C(1000)) +
-		((iRemaining % UINT64_C(1000)) != 0 ? 1u : 0u);
-	if ( iMilliseconds >= UINT32_MAX ) {
-		return UINT32_MAX - 1u;
-	}
-	return (uint32)iMilliseconds;
-}
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_sync.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_SYNC)
-#ifndef XRT_INTERNAL_SYNC_H
-#define XRT_INTERNAL_SYNC_H
-
-
-#if !defined(_WIN32) && !defined(_WIN64)
-	#include <pthread.h>
-#endif
-
-
-
-#if defined(XRT_FEATURE_SYNC)
-
-#define XRT_MUTEX_MAGIC UINT32_C(0x58544D58)
-#define XRT_COND_MAGIC UINT32_C(0x58544344)
-#define XRT_SEM_MAGIC UINT32_C(0x5854534D)
-#define XRT_RWLOCK_MAGIC UINT32_C(0x58545257)
-#define XRT_EVENT_MAGIC UINT32_C(0x58544556)
-
-
-
-#if defined(XRT_FEATURE_MUTEX)
-/* Mutex 的平台内部布局。 */
-typedef struct xrt_mutex_impl {
-	uint32 Magic;
-	#if defined(_WIN32) || defined(_WIN64)
-		SRWLOCK Lock;
-		volatile LONG Owner;
-	#else
-		pthread_mutex_t Lock;
-		uint64 Owner;
-	#endif
-} xrt_mutex_impl;
-
-typedef char xrt_mutex_storage_check[
-	(sizeof(xrt_mutex_impl) <= XRT_MUTEX_STORAGE_SIZE) ? 1 : -1
-];
-
-
-
-/* 读取互斥锁内部布局。 */
-static inline xrt_mutex_impl* __xrtMutexImpl(xmutex* pMutex)
-{
-	return (xrt_mutex_impl*)pMutex;
-}
-
-
-
-/* 原子读取互斥锁当前所有者。 */
-static inline uint64 __xrtMutexOwnerLoad(const xrt_mutex_impl* pImpl)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		return (uint64)(uint32)InterlockedCompareExchange(
-			(volatile LONG*)&pImpl->Owner,
-			0,
-			0
-		);
-	#elif defined(__GNUC__) || defined(__clang__)
-		return __atomic_load_n(&pImpl->Owner, __ATOMIC_ACQUIRE);
-	#else
-		return pImpl->Owner;
-	#endif
-}
-
-
-
-/* 原子发布互斥锁当前所有者。 */
-static inline void __xrtMutexOwnerStore(xrt_mutex_impl* pImpl, uint64 iOwner)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		(void)InterlockedExchange(&pImpl->Owner, (LONG)iOwner);
-	#elif defined(__GNUC__) || defined(__clang__)
-		__atomic_store_n(&pImpl->Owner, iOwner, __ATOMIC_RELEASE);
-	#else
-		pImpl->Owner = iOwner;
-	#endif
-}
-#endif
-
-
-
-#if defined(XRT_FEATURE_COND)
-/* 条件变量的平台内部布局。 */
-typedef struct xrt_cond_impl {
-	uint32 Magic;
-	#if defined(_WIN32) || defined(_WIN64)
-		CONDITION_VARIABLE Condition;
-	#else
-		pthread_cond_t Condition;
-		bool Monotonic;
-	#endif
-} xrt_cond_impl;
-
-typedef char xrt_cond_storage_check[
-	(sizeof(xrt_cond_impl) <= XRT_COND_STORAGE_SIZE) ? 1 : -1
-];
-
-
-
-/* 读取条件变量内部布局。 */
-static inline xrt_cond_impl* __xrtCondImpl(xcond* pCond)
-{
-	return (xrt_cond_impl*)pCond;
-}
-#endif
-
-
-
-#if defined(XRT_FEATURE_SEM)
-/* 信号量的平台内部布局。 */
-typedef struct xrt_sem_impl {
-	uint32 Magic;
-	uint32 Maximum;
-	#if defined(_WIN32) || defined(_WIN64)
-		HANDLE Handle;
-	#else
-		pthread_mutex_t Lock;
-		pthread_cond_t Condition;
-		uint32 Value;
-		bool Monotonic;
-	#endif
-} xrt_sem_impl;
-
-typedef char xrt_sem_storage_check[
-	(sizeof(xrt_sem_impl) <= XRT_SEM_STORAGE_SIZE) ? 1 : -1
-];
-
-
-
-/* 读取信号量内部布局。 */
-static inline xrt_sem_impl* __xrtSemImpl(xsem* pSem)
-{
-	return (xrt_sem_impl*)pSem;
-}
-#endif
-
-
-
-#if defined(XRT_FEATURE_RWLOCK)
-/* 写者优先读写锁的平台内部布局。 */
-typedef struct xrt_rwlock_impl {
-	uint32 Magic;
-	uint32 Readers;
-	uint32 WaitingReaders;
-	uint32 WaitingWriters;
-	uint64 WriterId;
-	bool Writer;
-	#if defined(_WIN32) || defined(_WIN64)
-		CRITICAL_SECTION Lock;
-		CONDITION_VARIABLE ReadCondition;
-		CONDITION_VARIABLE WriteCondition;
-	#else
-		pthread_mutex_t Lock;
-		pthread_cond_t ReadCondition;
-		pthread_cond_t WriteCondition;
-	#endif
-} xrt_rwlock_impl;
-
-typedef char xrt_rwlock_storage_check[
-	(sizeof(xrt_rwlock_impl) <= XRT_RWLOCK_STORAGE_SIZE) ? 1 : -1
-];
-
-
-
-/* 读取读写锁内部布局。 */
-static inline xrt_rwlock_impl* __xrtRWLockImpl(xrwlock* pLock)
-{
-	return (xrt_rwlock_impl*)pLock;
-}
-#endif
-
-
-
-#if defined(XRT_FEATURE_EVENT)
-/* 事件的平台内部布局。 */
-typedef struct xrt_event_impl {
-	uint32 Magic;
-	bool ManualReset;
-	#if defined(_WIN32) || defined(_WIN64)
-		HANDLE Handle;
-	#else
-		pthread_mutex_t Lock;
-		pthread_cond_t Condition;
-		bool Signaled;
-		bool Monotonic;
-	#endif
-} xrt_event_impl;
-
-typedef char xrt_event_storage_check[
-	(sizeof(xrt_event_impl) <= XRT_EVENT_STORAGE_SIZE) ? 1 : -1
-];
-
-
-
-/* 读取事件内部布局。 */
-static inline xrt_event_impl* __xrtEventImpl(xevent* pEvent)
-{
-	return (xrt_event_impl*)pEvent;
-}
-#endif
-
-
-
-/* 设置同步原语的平台错误。 */
-void __xrtSyncSetSystemError(cstr sOperation, int iCode, cstr sMessage);
-
-
-
-#if !defined(_WIN32) && !defined(_WIN64) && defined(XRT_FEATURE_WAIT)
-/* 把 XRT 截止时间转换为条件变量实际使用的绝对时钟。 */
-bool __xrtSyncDeadlineTime(
-	xdeadline iDeadline,
-	bool bMonotonic,
-	struct timespec* pTime
-);
-#endif
 
 #endif
 
@@ -47550,112 +47826,6 @@ struct xnetresolver {
 	uint64 Failed;
 	uint64 Cancelled;
 };
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_cancel.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_CANCEL)
-#ifndef XRT_INTERNAL_CANCEL_H
-#define XRT_INTERNAL_CANCEL_H
-#if defined(XRT_FEATURE_CANCEL)
-/* Collector-only: the same exclusive freeze has admitted this observer-free
- * token. Publish last-producer cancellation without locks, allocation or user
- * notification. Never use this for an ordinary cancellation request. */
-void __xrtCancelOwnershipCloseUnobserved(xcancel* pCancel);
-#endif
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_future.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_FUTURE)
-#ifndef XRT_INTERNAL_FUTURE_H
-#define XRT_INTERNAL_FUTURE_H
-
-
-
-
-#if defined(XRT_FEATURE_FUTURE)
-
-/* 内部等待节点由注册方保存，回调不得重新进入同一个 Future。 */
-typedef struct xrt_future_waiter {
-	struct xrt_future_waiter* Next;
-	void (*Proc)(ptr pData);
-	void (*Release)(ptr pData);
-	ptr Data;
-	xfuture* NotifyFuture;
-	bool Linked;
-	bool Calling;
-	bool NotifyRelease;
-	/* Explicit opt-in: the resident callbacks coordinate their own graph
-	 * transitions and activity/refusal states. A trace alone does not prove it. */
-	bool Phased;
-	bool Certified;
-	/* Exact ownership released by Release(Data); NULL keeps old opaque nodes
-	 * fail-closed. Fits the existing 64-byte public Watch storage on x64. */
-	union {
-		xrtownershiptrace OwnershipTrace;
-		const xfuturewatchownershipv1* OwnershipPolicy;
-	};
-} xrt_future_waiter;
-
-
-
-#define XRT_FUTURE_WATCH_MAGIC UINT32_C(0x58574657)
-
-
-
-/* 公开固定存储在内部等待节点后保存初始化标记。 */
-typedef struct xrt_future_watch_impl {
-	xrt_future_waiter Waiter;
-	uint32 Magic;
-} xrt_future_watch_impl;
-
-
-
-typedef char xrt_future_watch_storage_check[
-	(sizeof(xrt_future_watch_impl) <= XRT_FUTURE_WATCH_STORAGE_SIZE) ? 1 : -1
-];
-
-
-
-/* 读取公开 Watch 的内部布局。 */
-static inline xrt_future_watch_impl* __xrtFutureWatchImpl(
-	xfuturewatch* pWatch
-)
-{
-	return (xrt_future_watch_impl*)pWatch;
-}
-
-
-
-/* Future 尚未完成时挂入等待节点，已完成时返回 false 且不设置错误。
- * Add/Detach/Remove 自己在 Future 锁外进入拥有转换 scope；Remove 的等待不占
- * mutation。默认回调仍以完整 scope 保守隔离；只有显式 Phased 注册的
- * 协作回调在 scope 外分发，并负责自身的计数、边转换和在途拒绝。 */
-bool __xrtFutureWaiterAdd(xfuture* pFuture, xrt_future_waiter* pWaiter);
-
-
-
-/* 只摘除仍挂接的等待节点，不等待已经开始的回调；返回是否实际摘除。 */
-bool __xrtFutureWaiterDetach(xfuture* pFuture, xrt_future_waiter* pWaiter);
-
-
-
-/* 移除仍然挂接的等待节点；返回时并发完成回调已经结束。 */
-void __xrtFutureWaiterRemove(xfuture* pFuture, xrt_future_waiter* pWaiter);
-
-
 
 #endif
 
@@ -54908,6 +55078,8 @@ xrt_task_job* __xrtTaskCreate(
 xrt_task_job* __xrtTaskCreateOwned(xtaskproc pProc, ptr pData, const xtaskargs* pArgs,
 	const xtaskdataownershipv1* pDataPolicy, xfuture** ppFuture);
 void __xrtTaskAccept(xrt_task_job* pJob);
+/* The executor's existing physical Job reference, not a new wrapper/hold. */
+xrtownershipref __xrtTaskOwnership(const xrt_task_job* pJob);
 
 
 
@@ -54940,6 +55112,12 @@ void __xrtTaskDestroy(xrt_task_job* pJob, bool bDestroyData);
 
 #if defined(XRT_FEATURE_TASK_POOL)
 
+/* One real pool reference for an accepted native resource whose finalizer may
+ * be posted later. The resource is not graph-admitted: its credit remains an
+ * external pool root until physical resource cleanup returns. */
+bool __xrtTaskPoolAcquireResource(xtaskpool* pPool);
+void __xrtTaskPoolReleaseResource(xtaskpool* pPool);
+
 /* 资源回收节点嵌入资源对象，投递过程不分配内存，也不占用普通任务队列。 */
 typedef void (*xrt_task_finalizer_proc)(ptr pData);
 
@@ -54962,6 +55140,63 @@ void __xrtTaskPoolFinalize(
 	xrt_task_finalizer* pFinalizer,
 	xrt_task_finalizer_proc pProc,
 	ptr pData
+);
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/internal/xrt_file_async.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_FILE_ASYNC_COMMON) || \
+	defined(XRT_FEATURE_FILE_ASYNC) || \
+	defined(XRT_FEATURE_FILE_ASYNC_WHOLE) || \
+	defined(XRT_FEATURE_FILE_ASYNC_MANAGE) || \
+	defined(XRT_FEATURE_DIR_ASYNC) || \
+	defined(XRT_FEATURE_FILE_TREE_ASYNC)
+#ifndef XRT_INTERNAL_FILE_ASYNC_H
+#define XRT_INTERNAL_FILE_ASYNC_H
+
+
+
+
+#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
+
+/* 统一包装异步文件操作的同步底座错误。 */
+void __xrtFileAsyncError(
+	xfileasyncerror Code,
+	cstr sOperation,
+	cstr sMessage
+);
+
+
+
+/* 提交拥有型任务；拒绝时同步析构数据并保留外层错误。 */
+xfuture* __xrtFileAsyncSubmit(
+	xtaskpool* pPool,
+	xtaskproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy
+);
+
+
+
+/* 释放单次分配的 Future 值。 */
+void __xrtFileAsyncValueFree(ptr pValue, ptr pData);
+
+
+
+/* 连续分配任务头和一至两条路径，并返回任务拥有的路径快照。 */
+ptr __xrtFileAsyncPathTaskCreate(
+	size_t iTaskSize,
+	cstr sSource,
+	cstr sTarget,
+	cstr* pSource,
+	cstr* pTarget
 );
 
 #endif
@@ -57319,63 +57554,6 @@ void __xrtNetUdpFutureNotify(xnetudp* pUdp);
 
 /* 调用方持有 ReceiveLock 时取走一个错误包并同步队列统计。 */
 xnetudperrorpacket* __xrtNetUdpTakeErrorLocked(xnetudp* pUdp);
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: src/internal/xrt_file_async.h */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_FILE_ASYNC_COMMON) || \
-	defined(XRT_FEATURE_FILE_ASYNC) || \
-	defined(XRT_FEATURE_FILE_ASYNC_WHOLE) || \
-	defined(XRT_FEATURE_FILE_ASYNC_MANAGE) || \
-	defined(XRT_FEATURE_DIR_ASYNC) || \
-	defined(XRT_FEATURE_FILE_TREE_ASYNC)
-#ifndef XRT_INTERNAL_FILE_ASYNC_H
-#define XRT_INTERNAL_FILE_ASYNC_H
-
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
-
-/* 统一包装异步文件操作的同步底座错误。 */
-void __xrtFileAsyncError(
-	xfileasyncerror Code,
-	cstr sOperation,
-	cstr sMessage
-);
-
-
-
-/* 提交拥有型任务；拒绝时同步析构数据并保留外层错误。 */
-xfuture* __xrtFileAsyncSubmit(
-	xtaskpool* pPool,
-	xtaskproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy
-);
-
-
-
-/* 释放单次分配的 Future 值。 */
-void __xrtFileAsyncValueFree(ptr pValue, ptr pData);
-
-
-
-/* 连续分配任务头和一至两条路径，并返回任务拥有的路径快照。 */
-ptr __xrtFileAsyncPathTaskCreate(
-	size_t iTaskSize,
-	cstr sSource,
-	cstr sTarget,
-	cstr* pSource,
-	cstr* pTarget
-);
 
 #endif
 
@@ -63137,53 +63315,31 @@ XRT_API void xrtSetErrorHandler(xerrorhandler pHandler, ptr pUserData)
 
 
 /* ========================================================================== */
-/* source: src/data/text_value_common.c */
+/* source: src/concurrency/sync.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_JSON_CORE) || \
-	defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_SYNC)
 
-#include <stdio.h>
-
+#include <errno.h>
 
 
-#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XSON_CORE)
 
-/* 建立稳定错误域、代码和可选文本位置。 */
-void __xrtTextValueError(
-	xerrkind Kind,
-	int32 iCode,
-	cstr sDomain,
-	cstr sOperation,
-	cstr sMessage,
-	bool bLocation,
-	size_t iOffset,
-	size_t iLine,
-	size_t iColumn
-)
+#if defined(XRT_FEATURE_SYNC)
+
+/* 设置同步原语的平台错误。 */
+void __xrtSyncSetSystemError(cstr sOperation, int iCode, cstr sMessage)
 {
-	char Data[128];
-	xerrordesc Desc;
+	xerrordesc tDesc;
 	xerror* pError;
 
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = Kind;
-	Desc.Code = iCode;
-	Desc.Domain = sDomain;
-	Desc.Operation = sOperation;
-	Desc.Message = sMessage;
-	if ( bLocation ) {
-		(void)snprintf(
-			Data,
-			sizeof(Data),
-			"offset=%llu;line=%llu;column=%llu",
-			(unsigned long long)iOffset,
-			(unsigned long long)iLine,
-			(unsigned long long)iColumn
-		);
-		Desc.Data = Data;
-	}
-	pError = xrtErrorBuild(&Desc);
+	memset(&tDesc, 0, sizeof(tDesc));
+	tDesc.Kind = __xrtSystemErrorKind(iCode);
+	tDesc.Code = 1;
+	tDesc.SystemCode = iCode;
+	tDesc.Domain = "xrt.sync";
+	tDesc.Operation = sOperation;
+	tDesc.Message = sMessage;
+	pError = xrtErrorBuild(&tDesc);
 	if ( pError != NULL ) {
 		__xrtErrorSetOwned(pError);
 	}
@@ -63191,3980 +63347,1851 @@ void __xrtTextValueError(
 
 
 
-/* 严格读取指定格式错误域中的文本位置机器数据。 */
-bool __xrtTextValueErrorLocation(
-	const xerror* pError,
-	cstr sDomain,
-	size_t* pOffset,
-	size_t* pLine,
-	size_t* pColumn
+#if !defined(_WIN32) && !defined(_WIN64) && defined(XRT_FEATURE_WAIT)
+/* 把单调截止时间转换为条件变量配置的绝对时钟。 */
+bool __xrtSyncDeadlineTime(
+	xdeadline iDeadline,
+	bool bMonotonic,
+	struct timespec* pTime
 )
 {
-	cstr sData;
-	unsigned long long iOffset;
-	unsigned long long iLine;
-	unsigned long long iColumn;
+	uint64 iRemaining;
+	uint64 iNanoseconds;
 
-	if (
-		(pError == NULL) || (sDomain == NULL) ||
-		(pOffset == NULL) || (pLine == NULL) || (pColumn == NULL)
-	) {
+	if ( pTime == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if (
-		(xrtErrorDomain(pError) == NULL) ||
-		(strcmp(xrtErrorDomain(pError), sDomain) != 0)
-	) {
+	if ( bMonotonic ) {
+		pTime->tv_sec = (time_t)(iDeadline / UINT64_C(1000000));
+		pTime->tv_nsec = (long)((iDeadline % UINT64_C(1000000)) * UINT64_C(1000));
+		return true;
+	}
+	iRemaining = xrtDeadlineRemaining(iDeadline);
+	if ( clock_gettime(CLOCK_REALTIME, pTime) != 0 ) {
+		__xrtSyncSetSystemError("clock", errno, "realtime clock is unavailable");
 		return false;
 	}
-	sData = xrtErrorData(pError);
-	if (
-		(sData == NULL) ||
-		(sscanf(
-			sData,
-			"offset=%llu;line=%llu;column=%llu",
-			&iOffset,
-			&iLine,
-			&iColumn
-		) != 3)
-	) {
-		return false;
-	}
-	if (
-		(iOffset > (unsigned long long)SIZE_MAX) ||
-		(iLine > (unsigned long long)SIZE_MAX) ||
-		(iColumn > (unsigned long long)SIZE_MAX)
-	) {
-		return false;
-	}
-	*pOffset = (size_t)iOffset;
-	*pLine = (size_t)iLine;
-	*pColumn = (size_t)iColumn;
+	iNanoseconds = (uint64)pTime->tv_nsec +
+		((iRemaining % UINT64_C(1000000)) * UINT64_C(1000));
+	pTime->tv_sec += (time_t)(iRemaining / UINT64_C(1000000));
+	pTime->tv_sec += (time_t)(iNanoseconds / UINT64_C(1000000000));
+	pTime->tv_nsec = (long)(iNanoseconds % UINT64_C(1000000000));
 	return true;
 }
+#endif
 
 #endif
 #endif
 
 
 /* ========================================================================== */
-/* source: src/data/json_common.c */
+/* source: src/concurrency/mutex.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_JSON_CORE)
+#if defined(XRT_FEATURE_MUTEX)
+
+#include <errno.h>
 
 
 
-#if defined(XRT_FEATURE_JSON_CORE)
+#if defined(XRT_FEATURE_MUTEX)
 
-/* 设置带稳定域、代码和可选文本位置的 JSON 错误。 */
-void __xrtJsonError(
-	xerrkind Kind,
-	xjsonerror Code,
-	cstr sOperation,
-	cstr sMessage,
-	const xjsonlocation* pLocation
-)
+/* 检查互斥锁已经初始化。 */
+static xrt_mutex_impl* __xrtMutexRequire(xmutex* pMutex)
 {
-	__xrtTextValueError(
-		Kind,
-		(int32)Code,
-		"xrt.json",
-		sOperation,
-		sMessage,
-		pLocation != NULL,
-		pLocation != NULL ? pLocation->Offset : 0,
-		pLocation != NULL ? pLocation->Line : 0,
-		pLocation != NULL ? pLocation->Column : 0
-	);
-}
+	xrt_mutex_impl* pImpl;
 
-
-
-/* 从 JSON 错误机器数据中读取完整文本位置。 */
-XRT_API bool xrtJsonErrorLocation(
-	const xerror* pError,
-	xjsonlocation* pLocation
-)
-{
-	if ( pLocation == NULL ) {
+	if ( pMutex == NULL ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return NULL;
 	}
-	return __xrtTextValueErrorLocation(
-		pError,
-		"xrt.json",
-		&pLocation->Offset,
-		&pLocation->Line,
-		&pLocation->Column
-	);
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/containers/array.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_ARRAY)
-
-
-
-#if defined(XRT_FEATURE_ARRAY)
-
-/* 检查数组公开状态是否自洽。 */
-bool __xrtArrayValid(const xarray* pArray)
-{
-	size_t iCapacityBytes;
-	size_t iAllocationBytes;
-	uintptr_t iAllocation;
-	uintptr_t iAllocationEnd;
-	uintptr_t iData;
-	uintptr_t iDataEnd;
-
-	if ( pArray == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if (
-		(pArray->ItemSize == 0) ||
-		(pArray->Count > pArray->Capacity) ||
-		(pArray->Alignment == 0) ||
-		((pArray->Alignment & (pArray->Alignment - 1u)) != 0) ||
-		((pArray->Capacity == 0) && ((pArray->Data != NULL) || (pArray->Allocation != NULL))) ||
-		((pArray->Capacity != 0) && ((pArray->Data == NULL) || (pArray->Allocation == NULL)))
-	) {
+	pImpl = __xrtMutexImpl(pMutex);
+	if ( pImpl->Magic != XRT_MUTEX_MAGIC ) {
 		__xrtErrorSetInvalidState();
-		return false;
+		return NULL;
 	}
-	if ( pArray->Capacity > (SIZE_MAX / pArray->ItemSize) ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	if (
-		(pArray->Data != NULL) &&
-		(((uintptr_t)pArray->Data & (pArray->Alignment - 1u)) != 0)
-	) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	if ( pArray->Capacity == 0 ) {
-		return true;
-	}
-
-	/* 验证公开结构描述的完整分配区间和活动数据区间。 */
-	iCapacityBytes = pArray->Capacity * pArray->ItemSize;
-	iAllocationBytes = iCapacityBytes;
-	if ( pArray->Alignment > XRT_ARRAY_ALIGNMENT_DEFAULT ) {
-		if ( iAllocationBytes > (SIZE_MAX - (pArray->Alignment - 1u)) ) {
-			__xrtErrorSetInvalidState();
-			return false;
-		}
-		iAllocationBytes += pArray->Alignment - 1u;
-	} else if ( pArray->Data != (bytes)pArray->Allocation ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-
-	iAllocation = (uintptr_t)pArray->Allocation;
-	iData = (uintptr_t)pArray->Data;
-	if (
-		(iAllocation > (UINTPTR_MAX - iAllocationBytes)) ||
-		(iData > (UINTPTR_MAX - iCapacityBytes))
-	) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	iAllocationEnd = iAllocation + iAllocationBytes;
-	iDataEnd = iData + iCapacityBytes;
-	if (
-		(iData < iAllocation) ||
-		(iDataEnd > iAllocationEnd) ||
-		((iData - iAllocation) >= pArray->Alignment)
-	) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-
-	return true;
+	return pImpl;
 }
 
 
 
-/* 检查对齐参数是否可用于每一个连续元素。 */
-static bool __xrtArrayAlignmentValid(size_t iItemSize, size_t iAlignment)
+/* 初始化调用方存储中的非递归互斥锁。 */
+XRT_API bool xrtMutexInit(xmutex* pMutex)
 {
-	if (
-		(iItemSize == 0) ||
-		(iAlignment == 0) ||
-		((iAlignment & (iAlignment - 1u)) != 0) ||
-		((iItemSize % iAlignment) != 0)
-	) {
+	xrt_mutex_impl* pImpl;
+
+	if ( pMutex == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-
-	return true;
-}
-
-
-
-/* 计算指定容量对应的字节数。 */
-static bool __xrtArrayBytes(const xarray* pArray, size_t iCapacity, size_t* pBytes)
-{
-	if ( iCapacity > (SIZE_MAX / pArray->ItemSize) ) {
-		__xrtErrorSetSizeOverflow();
-		return false;
-	}
-
-	*pBytes = iCapacity * pArray->ItemSize;
-	return true;
-}
-
-
-
-/* 计算满足需求且不过度浪费小数组空间的几何容量。 */
-static bool __xrtArrayGrowth(const xarray* pArray, size_t iNeed, size_t* pCapacity)
-{
-	size_t iCapacity = pArray->Capacity >= 8u ? pArray->Capacity : 8u;
-	size_t iBytes;
-
-	while ( iCapacity < iNeed ) {
-		size_t iGrowth = (iCapacity / 2u) + 8u;
-
-		/* 接近上限时直接使用精确需求，避免增长计算回绕。 */
-		if ( iGrowth > (SIZE_MAX - iCapacity) ) {
-			iCapacity = iNeed;
-			break;
-		}
-		iCapacity += iGrowth;
-	}
-	if ( !__xrtArrayBytes(pArray, iCapacity, &iBytes) ) {
-		return false;
-	}
-
-	(void)iBytes;
-	*pCapacity = iCapacity;
-	return true;
-}
-
-
-
-/* 为过对齐数组分配原始块并计算对齐数据地址。 */
-static bool __xrtArrayAlignedAlloc(
-	const xarray* pArray,
-	size_t iBytes,
-	ptr* pAllocation,
-	bytes* pData
-)
-{
-	size_t iExtra = pArray->Alignment - 1u;
-	uintptr_t iAddress;
-	ptr pMemory;
-
-	if ( iBytes > (SIZE_MAX - iExtra) ) {
-		__xrtErrorSetSizeOverflow();
-		return false;
-	}
-	pMemory = xrtMalloc(iBytes + iExtra);
-	if ( pMemory == NULL ) {
-		return false;
-	}
-	if ( (uintptr_t)pMemory > (UINTPTR_MAX - iExtra) ) {
-		xrtFree(pMemory);
-		__xrtErrorSetSizeOverflow();
-		return false;
-	}
-	iAddress = ((uintptr_t)pMemory + iExtra) & ~((uintptr_t)pArray->Alignment - 1u);
-
-	*pAllocation = pMemory;
-	*pData = (bytes)iAddress;
-	return true;
-}
-
-
-
-/* 精确设置容量，失败时保留数组原有数据和状态。 */
-static bool __xrtArraySetCapacity(xarray* pArray, size_t iCapacity)
-{
-	size_t iBytes;
-	ptr pAllocation;
-	bytes pData;
-
-	if ( iCapacity == pArray->Capacity ) {
-		return true;
-	}
-	if ( iCapacity < pArray->Count ) {
-		__xrtErrorSetRange();
-		return false;
-	}
-	if ( iCapacity == 0 ) {
-		xrtFree(pArray->Allocation);
-		pArray->Data = NULL;
-		pArray->Allocation = NULL;
-		pArray->Capacity = 0;
-		return true;
-	}
-	if ( !__xrtArrayBytes(pArray, iCapacity, &iBytes) ) {
-		return false;
-	}
-
-	/* 默认对齐块可以直接使用全局堆的重分配快路径。 */
-	if (
-		(pArray->Alignment <= XRT_ARRAY_ALIGNMENT_DEFAULT) &&
-		((pArray->Data == NULL) || (pArray->Data == (bytes)pArray->Allocation))
-	) {
-		pAllocation = xrtRealloc(pArray->Allocation, iBytes);
-		if ( pAllocation == NULL ) {
-			return false;
-		}
-		pArray->Allocation = pAllocation;
-		pArray->Data = (bytes)pAllocation;
-		pArray->Capacity = iCapacity;
-		return true;
-	}
-
-	/* 过对齐块先成功取得新内存，再替换旧块。 */
-	if ( !__xrtArrayAlignedAlloc(pArray, iBytes, &pAllocation, &pData) ) {
-		return false;
-	}
-	if ( pArray->Count != 0 ) {
-		memcpy(pData, pArray->Data, pArray->Count * pArray->ItemSize);
-	}
-	xrtFree(pArray->Allocation);
-	pArray->Allocation = pAllocation;
-	pArray->Data = pData;
-	pArray->Capacity = iCapacity;
-	return true;
-}
-
-
-
-/* 判断复制来源是否与数组存储重叠，并返回有效来源偏移。 */
-static bool __xrtArraySource(
-	const xarray* pArray,
-	const void* pItems,
-	size_t iCount,
-	bool* pAlias,
-	size_t* pOffset
-)
-{
-	size_t iCopyBytes;
-	size_t iLiveBytes;
-	size_t iCapacityBytes;
-	size_t iAllocationBytes;
-	uintptr_t iAllocation;
-	uintptr_t iAllocationEnd;
-	uintptr_t iData;
-	uintptr_t iLiveEnd;
-	uintptr_t iSource;
-	uintptr_t iSourceEnd;
-
-	*pAlias = false;
-	*pOffset = 0;
-	if ( pItems == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if (
-		!__xrtArrayBytes(pArray, iCount, &iCopyBytes) ||
-		!__xrtArrayBytes(pArray, pArray->Count, &iLiveBytes) ||
-		!__xrtArrayBytes(pArray, pArray->Capacity, &iCapacityBytes)
-	) {
-		return false;
-	}
-	if ( pArray->Data == NULL ) {
-		return true;
-	}
-
-	/* 计算完整原始块，连同过对齐产生的前后填充区一起检查。 */
-	iAllocationBytes = iCapacityBytes;
-	if ( pArray->Alignment > XRT_ARRAY_ALIGNMENT_DEFAULT ) {
-		if ( iAllocationBytes > (SIZE_MAX - (pArray->Alignment - 1u)) ) {
-			__xrtErrorSetInvalidState();
-			return false;
-		}
-		iAllocationBytes += pArray->Alignment - 1u;
-	}
-	iAllocation = (uintptr_t)pArray->Allocation;
-	if ( iAllocation > (UINTPTR_MAX - iAllocationBytes) ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	iAllocationEnd = iAllocation + iAllocationBytes;
-
-	/* 使用整数区间判断，避免比较无关 C 指针产生未定义行为。 */
-	iData = (uintptr_t)pArray->Data;
-	if ( iData > (UINTPTR_MAX - iLiveBytes) ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	iLiveEnd = iData + iLiveBytes;
-	iSource = (uintptr_t)pItems;
-	if ( iSource > (UINTPTR_MAX - iCopyBytes) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	iSourceEnd = iSource + iCopyBytes;
-
-	/* 任何触及原始分配块的来源都必须完整位于当前活动元素区。 */
-	if ( (iSource < iAllocationEnd) && (iSourceEnd > iAllocation) ) {
-		if (
-			(iSource < iData) ||
-			(iSourceEnd > iLiveEnd) ||
-			(((size_t)(iSource - iData) % pArray->ItemSize) != 0)
-		) {
-			__xrtErrorSetInvalidArgument();
-			return false;
-		}
-		*pAlias = true;
-		*pOffset = (size_t)(iSource - iData);
-	}
-
-	return true;
-}
-
-
-
-/* 交换两个已验证且不重叠的元素。 */
-static void __xrtArraySwapItems(xarray* pArray, size_t iLeft, size_t iRight)
-{
-	unsigned char pTemp[256];
-	bytes pLeft = pArray->Data + (iLeft * pArray->ItemSize);
-	bytes pRight = pArray->Data + (iRight * pArray->ItemSize);
-	size_t iOffset = 0;
-
-	while ( iOffset < pArray->ItemSize ) {
-		size_t iRemain = pArray->ItemSize - iOffset;
-		size_t iChunk = iRemain < sizeof(pTemp) ? iRemain : sizeof(pTemp);
-
-		memcpy(pTemp, pLeft + iOffset, iChunk);
-		memcpy(pLeft + iOffset, pRight + iOffset, iChunk);
-		memcpy(pRight + iOffset, pTemp, iChunk);
-		iOffset += iChunk;
-	}
-}
-
-
-
-/* 使用全局堆的默认对齐初始化空数组。 */
-XRT_API bool xrtArrayInit(xarray* pArray, size_t iItemSize)
-{
-	if ( (pArray == NULL) || (iItemSize == 0) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	memset(pArray, 0, sizeof(xarray));
-	pArray->ItemSize = iItemSize;
-	pArray->Alignment = XRT_ARRAY_ALIGNMENT_DEFAULT;
-	return true;
-}
-
-
-
-/* 初始化显式过对齐数组，元素大小必须是对齐值的倍数。 */
-XRT_API bool xrtArrayInitAligned(xarray* pArray, size_t iItemSize, size_t iAlignment)
-{
-	if ( (pArray == NULL) || !__xrtArrayAlignmentValid(iItemSize, iAlignment) ) {
-		if ( pArray == NULL ) {
-			__xrtErrorSetInvalidArgument();
-		}
-		return false;
-	}
-
-	memset(pArray, 0, sizeof(xarray));
-	pArray->ItemSize = iItemSize;
-	pArray->Alignment = iAlignment;
-	return true;
-}
-
-
-
-/* 创建使用全局堆默认对齐的空数组。 */
-XRT_API xarray* xrtArrayCreate(size_t iItemSize)
-{
-	xarray* pArray;
-
-	if ( iItemSize == 0 ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	pArray = (xarray*)xrtMalloc(sizeof(xarray));
-	if ( pArray == NULL ) {
-		return NULL;
-	}
-	if ( !xrtArrayInit(pArray, iItemSize) ) {
-		xrtFree(pArray);
-		return NULL;
-	}
-
-	return pArray;
-}
-
-
-
-/* 创建显式过对齐的空数组。 */
-XRT_API xarray* xrtArrayCreateAligned(size_t iItemSize, size_t iAlignment)
-{
-	xarray* pArray;
-
-	if ( !__xrtArrayAlignmentValid(iItemSize, iAlignment) ) {
-		return NULL;
-	}
-	pArray = (xarray*)xrtMalloc(sizeof(xarray));
-	if ( pArray == NULL ) {
-		return NULL;
-	}
-	if ( !xrtArrayInitAligned(pArray, iItemSize, iAlignment) ) {
-		xrtFree(pArray);
-		return NULL;
-	}
-
-	return pArray;
-}
-
-
-
-/* 释放数组持有的元素内存，但不释放数组结构。 */
-XRT_API void xrtArrayUnit(xarray* pArray)
-{
-	if ( pArray == NULL ) {
-		return;
-	}
-
-	xrtFree(pArray->Allocation);
-	memset(pArray, 0, sizeof(xarray));
-}
-
-
-
-/* 释放数组持有的全部资源和数组结构。 */
-XRT_API void xrtArrayDestroy(xarray* pArray)
-{
-	if ( pArray == NULL ) {
-		return;
-	}
-
-	xrtArrayUnit(pArray);
-	xrtFree(pArray);
-}
-
-
-
-/* 清空元素但保留已有容量。 */
-XRT_API void xrtArrayClear(xarray* pArray)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return;
-	}
-
-	pArray->Count = 0;
-}
-
-
-
-/* 在状态已经验证后保证数组至少具有指定元素容量。 */
-bool __xrtArrayReserveValid(xarray* pArray, size_t iCapacity)
-{
-	size_t iNewCapacity;
-
-	if ( iCapacity <= pArray->Capacity ) {
-		return true;
-	}
-	if ( !__xrtArrayGrowth(pArray, iCapacity, &iNewCapacity) ) {
-		return false;
-	}
-
-	return __xrtArraySetCapacity(pArray, iNewCapacity);
-}
-
-
-
-/* 保证数组至少具有指定元素容量。 */
-XRT_API bool xrtArrayReserve(xarray* pArray, size_t iCapacity)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-
-	return __xrtArrayReserveValid(pArray, iCapacity);
-}
-
-
-
-/* 调整元素数量，新增元素全部清零，缩小时保留容量。 */
-XRT_API bool xrtArrayResize(xarray* pArray, size_t iCount)
-{
-	size_t iOldCount;
-
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	iOldCount = pArray->Count;
-	if ( iCount <= iOldCount ) {
-		pArray->Count = iCount;
-		return true;
-	}
-	if ( !__xrtArrayReserveValid(pArray, iCount) ) {
-		return false;
-	}
-
-	/* 安全扩展路径保证所有新元素都有确定的零值。 */
-	memset(
-		pArray->Data + (iOldCount * pArray->ItemSize),
-		0,
-		(iCount - iOldCount) * pArray->ItemSize
-	);
-	pArray->Count = iCount;
-	return true;
-}
-
-
-
-/* 将容量裁剪到当前元素数量。 */
-XRT_API bool xrtArrayTrim(xarray* pArray)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-
-	return __xrtArraySetCapacity(pArray, pArray->Count);
-}
-
-
-
-/* 返回指定 0 基索引处的可写元素，越界时返回空指针。 */
-XRT_API ptr xrtArrayGet(xarray* pArray, size_t iIndex)
-{
-	return (ptr)xrtArrayConstGet(pArray, iIndex);
-}
-
-
-
-/* 返回指定 0 基索引处的只读元素，越界时返回空指针。 */
-XRT_API const void* xrtArrayConstGet(const xarray* pArray, size_t iIndex)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return NULL;
-	}
-	if ( iIndex >= pArray->Count ) {
-		__xrtErrorSetRange();
-		return NULL;
-	}
-
-	return pArray->Data + (iIndex * pArray->ItemSize);
-}
-
-
-
-/* 在状态已经验证后增加未初始化尾部元素。 */
-ptr __xrtArrayAddValid(xarray* pArray, size_t iCount)
-{
-	ptr pItems;
-
-	if ( iCount == 0 ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( iCount > (SIZE_MAX - pArray->Count) ) {
-		__xrtErrorSetSizeOverflow();
-		return NULL;
-	}
-	if ( !__xrtArrayReserveValid(pArray, pArray->Count + iCount) ) {
-		return NULL;
-	}
-
-	pItems = pArray->Data + (pArray->Count * pArray->ItemSize);
-	pArray->Count += iCount;
-	return pItems;
-}
-
-
-
-/* 在末尾增加未初始化元素，并返回第一个新增元素。 */
-XRT_API ptr xrtArrayAdd(xarray* pArray, size_t iCount)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return NULL;
-	}
-
-	return __xrtArrayAddValid(pArray, iCount);
-}
-
-
-
-/* 在状态已经验证后插入未初始化元素。 */
-static ptr __xrtArrayInsertSpaceValid(
-	xarray* pArray,
-	size_t iIndex,
-	size_t iCount
-)
-{
-	bytes pInsert;
-
-	if ( iCount == 0 ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( iIndex > pArray->Count ) {
-		__xrtErrorSetRange();
-		return NULL;
-	}
-	if ( iCount > (SIZE_MAX - pArray->Count) ) {
-		__xrtErrorSetSizeOverflow();
-		return NULL;
-	}
-	if ( !__xrtArrayReserveValid(pArray, pArray->Count + iCount) ) {
-		return NULL;
-	}
-
-	pInsert = pArray->Data + (iIndex * pArray->ItemSize);
-	if ( iIndex < pArray->Count ) {
-		memmove(
-			pInsert + (iCount * pArray->ItemSize),
-			pInsert,
-			(pArray->Count - iIndex) * pArray->ItemSize
-		);
-	}
-	pArray->Count += iCount;
-	return pInsert;
-}
-
-
-
-/* 在指定 0 基位点插入未初始化元素，并返回第一个新增元素。 */
-XRT_API ptr xrtArrayInsertSpace(xarray* pArray, size_t iIndex, size_t iCount)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return NULL;
-	}
-
-	return __xrtArrayInsertSpaceValid(pArray, iIndex, iCount);
-}
-
-
-
-/* 复制一个元素到数组末尾。 */
-XRT_API bool xrtArrayPush(xarray* pArray, const void* pItem)
-{
-	return xrtArrayAppend(pArray, pItem, 1);
-}
-
-
-
-/* 复制一段连续元素到数组末尾，允许来源是数组自身的有效区间。 */
-XRT_API bool xrtArrayAppend(xarray* pArray, const void* pItems, size_t iCount)
-{
-	bool bAlias;
-	size_t iOffset;
-	size_t iCopyBytes;
-	ptr pTarget;
-	const void* pSource;
-
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	if ( iCount == 0 ) {
-		return true;
-	}
-	if (
-		!__xrtArraySource(pArray, pItems, iCount, &bAlias, &iOffset) ||
-		!__xrtArrayBytes(pArray, iCount, &iCopyBytes)
-	) {
-		return false;
-	}
-	pTarget = __xrtArrayAddValid(pArray, iCount);
-	if ( pTarget == NULL ) {
-		return false;
-	}
-	pSource = bAlias ? pArray->Data + iOffset : pItems;
-	memmove(pTarget, pSource, iCopyBytes);
-	return true;
-}
-
-
-
-/* 在指定 0 基位点复制插入连续元素，允许来源是数组自身的有效区间。 */
-XRT_API bool xrtArrayInsert(xarray* pArray, size_t iIndex, const void* pItems, size_t iCount)
-{
-	bool bAlias;
-	size_t iOffset;
-	size_t iCopyBytes;
-	size_t iInsertOffset;
-	size_t iSourceEnd;
-	size_t iPrefixBytes;
-	ptr pTarget;
-
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	if ( iIndex > pArray->Count ) {
-		__xrtErrorSetRange();
-		return false;
-	}
-	if ( iCount == 0 ) {
-		return true;
-	}
-	if (
-		!__xrtArraySource(pArray, pItems, iCount, &bAlias, &iOffset) ||
-		!__xrtArrayBytes(pArray, iCount, &iCopyBytes)
-	) {
-		return false;
-	}
-
-	iInsertOffset = iIndex * pArray->ItemSize;
-	iSourceEnd = iOffset + iCopyBytes;
-	pTarget = __xrtArrayInsertSpaceValid(pArray, iIndex, iCount);
-	if ( pTarget == NULL ) {
-		return false;
-	}
-
-	/* 外部来源与数组分配区不重叠，可以直接复制。 */
-	if ( !bAlias ) {
-		memcpy(pTarget, pItems, iCopyBytes);
-		return true;
-	}
-
-	/* 插入点后的来源已经随尾部整体右移。 */
-	if ( iOffset >= iInsertOffset ) {
-		memmove(
-			pTarget,
-			pArray->Data + iOffset + iCopyBytes,
-			iCopyBytes
-		);
-		return true;
-	}
-
-	/* 插入点前的完整来源仍保留在原偏移。 */
-	if ( iSourceEnd <= iInsertOffset ) {
-		memmove(pTarget, pArray->Data + iOffset, iCopyBytes);
-		return true;
-	}
-
-	/* 跨越插入点的来源在移动后分为相邻的前后两段。 */
-	iPrefixBytes = iInsertOffset - iOffset;
-	memmove(pTarget, pArray->Data + iOffset, iPrefixBytes);
-	memmove(
-		(bytes)pTarget + iPrefixBytes,
-		pArray->Data + iInsertOffset + iCopyBytes,
-		iCopyBytes - iPrefixBytes
-	);
-	return true;
-}
-
-
-
-/* 覆盖指定 0 基索引处的一个元素。 */
-XRT_API bool xrtArraySet(xarray* pArray, size_t iIndex, const void* pItem)
-{
-	bool bAlias;
-	size_t iOffset;
-	const void* pSource;
-
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	if ( iIndex >= pArray->Count ) {
-		__xrtErrorSetRange();
-		return false;
-	}
-	if ( !__xrtArraySource(pArray, pItem, 1, &bAlias, &iOffset) ) {
-		return false;
-	}
-
-	pSource = bAlias ? pArray->Data + iOffset : pItem;
-	memmove(pArray->Data + (iIndex * pArray->ItemSize), pSource, pArray->ItemSize);
-	return true;
-}
-
-
-
-/* 删除指定 0 基索引开始的精确元素区间。 */
-XRT_API bool xrtArrayRemove(xarray* pArray, size_t iIndex, size_t iCount)
-{
-	size_t iRemain;
-
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	if (
-		(iCount == 0) ||
-		(iIndex >= pArray->Count) ||
-		(iCount > (pArray->Count - iIndex))
-	) {
-		__xrtErrorSetRange();
-		return false;
-	}
-
-	iRemain = pArray->Count - iIndex - iCount;
-	if ( iRemain != 0 ) {
-		memmove(
-			pArray->Data + (iIndex * pArray->ItemSize),
-			pArray->Data + ((iIndex + iCount) * pArray->ItemSize),
-			iRemain * pArray->ItemSize
-		);
-	}
-	pArray->Count -= iCount;
-	return true;
-}
-
-
-
-/* 使用末尾元素覆盖指定元素并删除末尾，元素顺序不会保留。 */
-XRT_API bool xrtArrayRemoveSwap(xarray* pArray, size_t iIndex)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	if ( iIndex >= pArray->Count ) {
-		__xrtErrorSetRange();
-		return false;
-	}
-
-	if ( iIndex != (pArray->Count - 1u) ) {
-		memcpy(
-			pArray->Data + (iIndex * pArray->ItemSize),
-			pArray->Data + ((pArray->Count - 1u) * pArray->ItemSize),
-			pArray->ItemSize
-		);
-	}
-	pArray->Count--;
-	return true;
-}
-
-
-
-/* 删除末尾元素，并可将元素内容复制到输出地址。 */
-XRT_API bool xrtArrayPop(xarray* pArray, ptr pItem)
-{
-	bool bAlias;
-	size_t iOffset;
-
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	if ( pArray->Count == 0 ) {
-		__xrtErrorSetRange();
-		return false;
-	}
-
-	if ( pItem != NULL ) {
-		if ( !__xrtArraySource(pArray, pItem, 1, &bAlias, &iOffset) ) {
-			return false;
-		}
-		if ( bAlias ) {
-			__xrtErrorSetInvalidArgument();
-			return false;
-		}
-		memmove(
-			pItem,
-			pArray->Data + ((pArray->Count - 1u) * pArray->ItemSize),
-			pArray->ItemSize
-		);
-	}
-	pArray->Count--;
-	return true;
-}
-
-
-
-/* 交换两个 0 基索引处的元素，不进行动态分配。 */
-XRT_API bool xrtArraySwap(xarray* pArray, size_t iLeft, size_t iRight)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	if ( (iLeft >= pArray->Count) || (iRight >= pArray->Count) ) {
-		__xrtErrorSetRange();
-		return false;
-	}
-	if ( iLeft != iRight ) {
-		__xrtArraySwapItems(pArray, iLeft, iRight);
-	}
-
-	return true;
-}
-
-
-
-/* 原地反转元素顺序。 */
-XRT_API bool xrtArrayReverse(xarray* pArray)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-
-	for ( size_t i = 0; i < (pArray->Count / 2u); i++ ) {
-		__xrtArraySwapItems(pArray, i, pArray->Count - i - 1u);
-	}
-	return true;
-}
-
-
-
-/* 使用不稳定快速排序原地排列元素。 */
-XRT_API bool xrtArraySort(xarray* pArray, xarraycompare pCompare)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return false;
-	}
-	if ( pCompare == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( pArray->Count < 2u ) {
-		return true;
-	}
-
-	qsort(pArray->Data, pArray->Count, pArray->ItemSize, pCompare);
-	return true;
-}
-
-
-
-/* 按元素字节查找第一个完全相同的元素。 */
-XRT_API size_t xrtArrayFind(const xarray* pArray, const void* pItem)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return XRT_NPOS;
-	}
-	if ( pItem == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return XRT_NPOS;
-	}
-
-	for ( size_t i = 0; i < pArray->Count; i++ ) {
-		if ( memcmp(pArray->Data + (i * pArray->ItemSize), pItem, pArray->ItemSize) == 0 ) {
-			return i;
-		}
-	}
-	return XRT_NPOS;
-}
-
-
-
-/* 使用比较器线性查找第一个匹配元素，比较器接收 key 和元素。 */
-XRT_API size_t xrtArrayFindBy(const xarray* pArray, const void* pKey, xarraycompare pCompare)
-{
-	if ( !__xrtArrayValid(pArray) ) {
-		return XRT_NPOS;
-	}
-	if ( (pKey == NULL) || (pCompare == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return XRT_NPOS;
-	}
-
-	for ( size_t i = 0; i < pArray->Count; i++ ) {
-		if ( pCompare(pKey, pArray->Data + (i * pArray->ItemSize)) == 0 ) {
-			return i;
-		}
-	}
-	return XRT_NPOS;
-}
-
-
-
-/* 在已按同一比较器排序的数组中二分查找元素。 */
-XRT_API size_t xrtArrayBSearch(const xarray* pArray, const void* pKey, xarraycompare pCompare)
-{
-	const void* pItem;
-
-	if ( !__xrtArrayValid(pArray) ) {
-		return XRT_NPOS;
-	}
-	if ( (pKey == NULL) || (pCompare == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return XRT_NPOS;
-	}
-	if ( pArray->Count == 0 ) {
-		return XRT_NPOS;
-	}
-
-	pItem = bsearch(pKey, pArray->Data, pArray->Count, pArray->ItemSize, pCompare);
-	if ( pItem == NULL ) {
-		return XRT_NPOS;
-	}
-	return (size_t)(((cbytes)pItem - pArray->Data) / pArray->ItemSize);
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/containers/buffer.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_BUFFER)
-
-
-
-#if defined(XRT_FEATURE_BUFFER)
-
-/* 把轻量缓冲布局映射为数组字节存储，并验证公开状态。 */
-static bool __xrtBufferArray(const xbuffer* pBuffer, xarray* pArray)
-{
-	if ( (pBuffer == NULL) || (pArray == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	pArray->Data = pBuffer->Data;
-	pArray->Allocation = pBuffer->Data;
-	pArray->ItemSize = 1u;
-	pArray->Count = pBuffer->Size;
-	pArray->Capacity = pBuffer->Capacity;
-	pArray->Alignment = XRT_ARRAY_ALIGNMENT_DEFAULT;
-	return __xrtArrayValid(pArray);
-}
-
-
-
-/* 把数组存储变更同步回公开缓冲布局。 */
-static void __xrtBufferSync(xbuffer* pBuffer, const xarray* pArray)
-{
-	pBuffer->Data = pArray->Data;
-	pBuffer->Size = pArray->Count;
-	pBuffer->Capacity = pArray->Capacity;
-}
-
-
-
-/* 验证字节视图及其与缓冲分配区的关系，并返回有效区偏移。 */
-static bool __xrtBufferSource(
-	const xbuffer* pBuffer,
-	xbytesview Data,
-	bool* pAlias,
-	size_t* pOffset
-)
-{
-	uintptr_t iBuffer;
-	uintptr_t iSource;
-
-	*pAlias = false;
-	*pOffset = 0;
-	if ( (Data.Data == NULL) && (Data.Size != 0) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( (Data.Size == 0) || (pBuffer->Data == NULL) ) {
-		return true;
-	}
-	if ( !__xrtRangesOverlap(
-		pBuffer->Data,
-		pBuffer->Capacity,
-		Data.Data,
-		Data.Size
-	) ) {
-		return true;
-	}
-
-	iBuffer = (uintptr_t)pBuffer->Data;
-	iSource = (uintptr_t)Data.Data;
-	if (
-		(iSource < iBuffer) ||
-		((iSource - iBuffer) > pBuffer->Size) ||
-		(Data.Size > (pBuffer->Size - (size_t)(iSource - iBuffer)))
-	) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	*pAlias = true;
-	*pOffset = (size_t)(iSource - iBuffer);
-	return true;
-}
-
-
-
-/* 验证所有权槽没有位于任一被释放或接管的内存中。 */
-static bool __xrtBufferTakeSlotValid(
-	const xbuffer* pBuffer,
-	const bytes* pData,
-	bytes pOwned,
-	size_t iCapacity
-)
-{
-	if (
-		__xrtRangesOverlap(
-			pData,
-			sizeof(*pData),
-			pBuffer->Data,
-			pBuffer->Capacity
-		) ||
-		__xrtRangesOverlap(
-			pData,
-			sizeof(*pData),
-			pOwned,
-			iCapacity
-		) ||
-		__xrtRangesOverlap(
-			pBuffer->Data,
-			pBuffer->Capacity,
-			pOwned,
-			iCapacity
-		)
-	) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	return true;
-}
-
-
-
-/* 初始化调用方持有的空缓冲。 */
-XRT_API bool xrtBufferInit(xbuffer* pBuffer)
-{
-	if ( pBuffer == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	memset(pBuffer, 0, sizeof(xbuffer));
-	return true;
-}
-
-
-
-/* 创建空缓冲。 */
-XRT_API xbuffer* xrtBufferCreate(void)
-{
-	xbuffer* pBuffer = (xbuffer*)xrtMalloc(sizeof(xbuffer));
-
-	if ( pBuffer == NULL ) {
-		return NULL;
-	}
-	(void)xrtBufferInit(pBuffer);
-	return pBuffer;
-}
-
-
-
-/* 释放缓冲持有的连续内存，但不释放缓冲结构。 */
-XRT_API void xrtBufferUnit(xbuffer* pBuffer)
-{
-	if ( pBuffer == NULL ) {
-		return;
-	}
-
-	xrtFree(pBuffer->Data);
-	memset(pBuffer, 0, sizeof(xbuffer));
-}
-
-
-
-/* 释放缓冲持有的连续内存和缓冲结构。 */
-XRT_API void xrtBufferDestroy(xbuffer* pBuffer)
-{
-	if ( pBuffer == NULL ) {
-		return;
-	}
-
-	xrtBufferUnit(pBuffer);
-	xrtFree(pBuffer);
-}
-
-
-
-/* 清空有效内容但保留容量。 */
-XRT_API void xrtBufferClear(xbuffer* pBuffer)
-{
-	xarray tArray;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
-		return;
-	}
-	pBuffer->Size = 0;
-}
-
-
-
-/* 返回当前有效内容的借用视图。 */
-XRT_API xbytesview xrtBufferView(const xbuffer* pBuffer)
-{
-	xarray tArray;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
-		return (xbytesview){ NULL, 0 };
-	}
-	return (xbytesview){ pBuffer->Data, pBuffer->Size };
-}
-
-
-
-/* 保证缓冲至少具有指定容量，实际容量可以按几何策略增长。 */
-XRT_API bool xrtBufferReserve(xbuffer* pBuffer, size_t iCapacity)
-{
-	xarray tArray;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ||
-		 !__xrtArrayReserveValid(&tArray, iCapacity) ) {
-		return false;
-	}
-	__xrtBufferSync(pBuffer, &tArray);
-	return true;
-}
-
-
-
-/* 调整有效长度，扩展区域全部填零，缩小时保留容量。 */
-XRT_API bool xrtBufferResize(xbuffer* pBuffer, size_t iSize)
-{
-	xarray tArray;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ||
-		 !xrtArrayResize(&tArray, iSize) ) {
-		return false;
-	}
-	__xrtBufferSync(pBuffer, &tArray);
-	return true;
-}
-
-
-
-/* 把容量精确裁剪到有效长度，空缓冲会释放存储。 */
-XRT_API bool xrtBufferTrim(xbuffer* pBuffer)
-{
-	xarray tArray;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ||
-		 !xrtArrayTrim(&tArray) ) {
-		return false;
-	}
-	__xrtBufferSync(pBuffer, &tArray);
-	return true;
-}
-
-
-
-/* 在末尾增加未初始化字节并返回首地址。 */
-XRT_API bytes xrtBufferAdd(xbuffer* pBuffer, size_t iSize)
-{
-	xarray tArray;
-	bytes pData;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
-		return NULL;
-	}
-	pData = (bytes)__xrtArrayAddValid(&tArray, iSize);
-	if ( pData == NULL ) {
-		return NULL;
-	}
-	__xrtBufferSync(pBuffer, &tArray);
-	return pData;
-}
-
-
-
-/* 在指定位点插入未初始化字节并返回首地址。 */
-XRT_API bytes xrtBufferInsertSpace(
-	xbuffer* pBuffer,
-	size_t iOffset,
-	size_t iSize
-)
-{
-	xarray tArray;
-	bytes pData;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
-		return NULL;
-	}
-	pData = (bytes)xrtArrayInsertSpace(&tArray, iOffset, iSize);
-	if ( pData == NULL ) {
-		return NULL;
-	}
-	__xrtBufferSync(pBuffer, &tArray);
-	return pData;
-}
-
-
-
-/* 用字节视图替换全部有效内容，失败时保留原缓冲。 */
-XRT_API bool xrtBufferAssign(xbuffer* pBuffer, xbytesview Data)
-{
-	xarray tArray;
-	bool bAlias;
-	size_t iOffset;
-	cbytes pSource;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ||
-		 !__xrtBufferSource(pBuffer, Data, &bAlias, &iOffset) ) {
-		return false;
-	}
-	if ( Data.Size == 0 ) {
-		pBuffer->Size = 0;
-		return true;
-	}
-	if ( !__xrtArrayReserveValid(&tArray, Data.Size) ) {
-		return false;
-	}
-	pSource = bAlias ? tArray.Data + iOffset : Data.Data;
-	memmove(tArray.Data, pSource, Data.Size);
-	tArray.Count = Data.Size;
-	__xrtBufferSync(pBuffer, &tArray);
-	return true;
-}
-
-
-
-/* 复制追加字节视图，允许来源是缓冲自身的有效子视图。 */
-XRT_API bool xrtBufferAppend(xbuffer* pBuffer, xbytesview Data)
-{
-	xarray tArray;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ||
-		 !xrtArrayAppend(&tArray, Data.Data, Data.Size) ) {
-		return false;
-	}
-	__xrtBufferSync(pBuffer, &tArray);
-	return true;
-}
-
-
-
-/* 追加一个字节。 */
-XRT_API bool xrtBufferAppendByte(xbuffer* pBuffer, uint8 iByte)
-{
-	return xrtBufferAppend(
-		pBuffer,
-		(xbytesview){ (const unsigned char*)&iByte, 1u }
-	);
-}
-
-
-
-/* 在指定位点复制插入字节，允许来源是缓冲自身的有效子视图。 */
-XRT_API bool xrtBufferInsert(
-	xbuffer* pBuffer,
-	size_t iOffset,
-	xbytesview Data
-)
-{
-	xarray tArray;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ||
-		 !xrtArrayInsert(&tArray, iOffset, Data.Data, Data.Size) ) {
-		return false;
-	}
-	__xrtBufferSync(pBuffer, &tArray);
-	return true;
-}
-
-
-
-/* 覆盖或稀疏扩展字节，扩展产生的空洞全部填零。 */
-XRT_API bool xrtBufferWrite(
-	xbuffer* pBuffer,
-	size_t iOffset,
-	xbytesview Data
-)
-{
-	xarray tArray;
-	bool bAlias;
-	size_t iSourceOffset;
-	size_t iEnd;
-	cbytes pSource;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ||
-		 !__xrtBufferSource(pBuffer, Data, &bAlias, &iSourceOffset) ) {
-		return false;
-	}
-	if ( Data.Size == 0 ) {
-		return true;
-	}
-	if ( Data.Size > (SIZE_MAX - iOffset) ) {
-		__xrtErrorSetSizeOverflow();
-		return false;
-	}
-	iEnd = iOffset + Data.Size;
-	if ( (iEnd > tArray.Count) && !xrtArrayResize(&tArray, iEnd) ) {
-		return false;
-	}
-	pSource = bAlias ? tArray.Data + iSourceOffset : Data.Data;
-	memmove(tArray.Data + iOffset, pSource, Data.Size);
-	__xrtBufferSync(pBuffer, &tArray);
-	return true;
-}
-
-
-
-/* 删除完整有效区间，不会静默截断到末尾。 */
-XRT_API bool xrtBufferRemove(
-	xbuffer* pBuffer,
-	size_t iOffset,
-	size_t iSize
-)
-{
-	xarray tArray;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ||
-		 !xrtArrayRemove(&tArray, iOffset, iSize) ) {
-		return false;
-	}
-	__xrtBufferSync(pBuffer, &tArray);
-	return true;
-}
-
-
-
-/* 接管由 xrtMalloc 家族分配的连续内存。 */
-XRT_API bool xrtBufferSetTake(
-	xbuffer* pBuffer,
-	bytes* pData,
-	size_t iSize,
-	size_t iCapacity
-)
-{
-	xarray tArray;
-	bytes pOwned;
-	bytes pOld;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
-		return false;
-	}
-	if ( pData == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	pOwned = *pData;
-	if (
-		(iSize > iCapacity) ||
-		((iCapacity == 0) && (pOwned != NULL)) ||
-		((iCapacity != 0) && (pOwned == NULL)) ||
-		((pOwned != NULL) &&
-		 (((uintptr_t)pOwned & (XRT_ARRAY_ALIGNMENT_DEFAULT - 1u)) != 0))
-	) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtBufferTakeSlotValid(pBuffer, pData, pOwned, iCapacity) ) {
-		return false;
-	}
-
-	pOld = pBuffer->Data;
-	pBuffer->Data = pOwned;
-	pBuffer->Size = iSize;
-	pBuffer->Capacity = iCapacity;
-	*pData = NULL;
-	xrtFree(pOld);
-	return true;
-}
-
-
-
-/* 取走连续内存并把缓冲重置为空。 */
-XRT_API bytes xrtBufferTake(
-	xbuffer* pBuffer,
-	size_t* pSize,
-	size_t* pCapacity
-)
-{
-	xarray tArray;
-	bytes pData;
-
-	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
-		return NULL;
-	}
-	if (
-		((pSize != NULL) &&
-		 (__xrtRangesOverlap(
-			pSize,
-			sizeof(*pSize),
-			pBuffer,
-			sizeof(*pBuffer)
-		 ) || __xrtRangesOverlap(
-			pSize,
-			sizeof(*pSize),
-			pBuffer->Data,
-			pBuffer->Capacity
-		 ))) ||
-		((pCapacity != NULL) &&
-		 (__xrtRangesOverlap(
-			pCapacity,
-			sizeof(*pCapacity),
-			pBuffer,
-			sizeof(*pBuffer)
-		 ) || __xrtRangesOverlap(
-			pCapacity,
-			sizeof(*pCapacity),
-			pBuffer->Data,
-			pBuffer->Capacity
-		 ))) ||
-		((pSize != NULL) && (pCapacity != NULL) &&
-		 __xrtRangesOverlap(
-			pSize,
-			sizeof(*pSize),
-			pCapacity,
-			sizeof(*pCapacity)
-		))
-	) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-
-	pData = pBuffer->Data;
-	if ( pSize != NULL ) {
-		*pSize = pBuffer->Size;
-	}
-	if ( pCapacity != NULL ) {
-		*pCapacity = pBuffer->Capacity;
-	}
-	memset(pBuffer, 0, sizeof(xbuffer));
-	return pData;
-}
-
-
-
-/* 创建字节视图的独立副本。 */
-XRT_API xbuffer* xrtBufferFrom(xbytesview Data)
-{
-	xbuffer* pBuffer = xrtBufferCreate();
-
-	if ( pBuffer == NULL ) {
-		return NULL;
-	}
-	if ( !xrtBufferAssign(pBuffer, Data) ) {
-		xrtBufferDestroy(pBuffer);
-		return NULL;
-	}
-	return pBuffer;
-}
-
-
-
-/* 创建缓冲并接管来源槽。 */
-XRT_API xbuffer* xrtBufferCreateTake(
-	bytes* pData,
-	size_t iSize,
-	size_t iCapacity
-)
-{
-	xbuffer* pBuffer = xrtBufferCreate();
-
-	if ( pBuffer == NULL ) {
-		return NULL;
-	}
-	if ( !xrtBufferSetTake(pBuffer, pData, iSize, iCapacity) ) {
-		xrtBufferDestroy(pBuffer);
-		return NULL;
-	}
-	return pBuffer;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/text/number_integer.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_NUMBER_INTEGER)
-
-
-
-#if defined(XRT_FEATURE_NUMBER_INTEGER)
-
-#define XRT_NUMBER_WRITE_FLAGS \
-	((uint32)XNUMBER_UPPER | (uint32)XNUMBER_PREFIX | (uint32)XNUMBER_PLUS)
-#define XRT_NUMBER_PARSE_FLAGS \
-	((uint32)XNUMBER_PARSE_SPACE | (uint32)XNUMBER_PARSE_PREFIX | \
-	(uint32)XNUMBER_PARSE_SEPARATOR)
-
-
-
-/*
-	两位数字表继承旧 jnum 的快速十进制思路。
-	新实现只对无符号幅值运算，避免 INT64_MIN 取负产生未定义行为。
-*/
-static const char __xrtNumberDigits100[200] = {
-	'0', '0', '0', '1', '0', '2', '0', '3', '0', '4',
-	'0', '5', '0', '6', '0', '7', '0', '8', '0', '9',
-	'1', '0', '1', '1', '1', '2', '1', '3', '1', '4',
-	'1', '5', '1', '6', '1', '7', '1', '8', '1', '9',
-	'2', '0', '2', '1', '2', '2', '2', '3', '2', '4',
-	'2', '5', '2', '6', '2', '7', '2', '8', '2', '9',
-	'3', '0', '3', '1', '3', '2', '3', '3', '3', '4',
-	'3', '5', '3', '6', '3', '7', '3', '8', '3', '9',
-	'4', '0', '4', '1', '4', '2', '4', '3', '4', '4',
-	'4', '5', '4', '6', '4', '7', '4', '8', '4', '9',
-	'5', '0', '5', '1', '5', '2', '5', '3', '5', '4',
-	'5', '5', '5', '6', '5', '7', '5', '8', '5', '9',
-	'6', '0', '6', '1', '6', '2', '6', '3', '6', '4',
-	'6', '5', '6', '6', '6', '7', '6', '8', '6', '9',
-	'7', '0', '7', '1', '7', '2', '7', '3', '7', '4',
-	'7', '5', '7', '6', '7', '7', '7', '8', '7', '9',
-	'8', '0', '8', '1', '8', '2', '8', '3', '8', '4',
-	'8', '5', '8', '6', '8', '7', '8', '8', '8', '9',
-	'9', '0', '9', '1', '9', '2', '9', '3', '9', '4',
-	'9', '5', '9', '6', '9', '7', '9', '8', '9', '9'
-};
-
-
-
-/* 校验输出基数和标志，并计算可选前缀长度。 */
-static bool __xrtNumberWriteConfig(
-	uint32 iBase,
-	uint32 iFlags,
-	size_t* pPrefixSize,
-	cstr sOperation
-)
-{
-	if ( (iFlags & ~XRT_NUMBER_WRITE_FLAGS) != 0 ) {
-		__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
-			sOperation, "invalid integer write flags");
-		return false;
-	}
-	if ( (iBase < 2u) || (iBase > 36u) ) {
-		__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
-			sOperation, "integer output base must be between 2 and 36");
-		return false;
-	}
-	*pPrefixSize = 0;
-	if ( (iFlags & (uint32)XNUMBER_PREFIX) != 0 ) {
-		if ( (iBase != 2u) && (iBase != 8u) && (iBase != 16u) ) {
-			__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
-				sOperation, "integer prefix is only defined for base 2, 8 or 16");
-			return false;
-		}
-		*pPrefixSize = 2;
-	}
-	return true;
-}
-
-
-
-/* 使用两位数字表把无符号十进制幅值写到临时缓冲尾部。 */
-static char* __xrtNumberDecimal(uint64 iValue, char* sEnd)
-{
-	while ( iValue >= UINT64_C(100) ) {
-		uint64 iQuotient = iValue / UINT64_C(100);
-		uint32 iRemainder = (uint32)(iValue - (iQuotient * UINT64_C(100)));
-
-		sEnd -= 2;
-		memcpy(sEnd, &__xrtNumberDigits100[iRemainder * 2u], 2);
-		iValue = iQuotient;
-	}
-	if ( iValue < UINT64_C(10) ) {
-		*--sEnd = (char)('0' + (char)iValue);
-	} else {
-		sEnd -= 2;
-		memcpy(sEnd, &__xrtNumberDigits100[(size_t)iValue * 2u], 2);
-	}
-	return sEnd;
-}
-
-
-
-/* 按任意支持基数把无符号幅值写到临时缓冲尾部。 */
-static char* __xrtNumberBase(
-	uint64 iValue,
-	uint32 iBase,
-	bool bUpper,
-	char* sEnd
-)
-{
-	static const char sLower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-	static const char sUpper[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	const char* sDigits = bUpper ? sUpper : sLower;
-
-	if ( iBase == 10u ) {
-		return __xrtNumberDecimal(iValue, sEnd);
-	}
-	do {
-		uint64 iQuotient = iValue / (uint64)iBase;
-		uint32 iRemainder = (uint32)(iValue - (iQuotient * (uint64)iBase));
-
-		*--sEnd = sDigits[iRemainder];
-		iValue = iQuotient;
-	} while ( iValue != 0 );
-	return sEnd;
-}
-
-
-
-/* 在临时缓冲里构造完整整数文本，并返回起点和长度。 */
-static bool __xrtNumberBuild(
-	uint64 iMagnitude,
-	bool bNegative,
-	uint32 iBase,
-	uint32 iFlags,
-	char* sBuffer,
-	const char** pText,
-	size_t* pSize,
-	cstr sOperation
-)
-{
-	char* sEnd = sBuffer + 68;
-	char* sText;
-	size_t iPrefixSize;
-	bool bUpper;
-
-	if ( !__xrtNumberWriteConfig(iBase, iFlags, &iPrefixSize, sOperation) ) {
-		return false;
-	}
-	bUpper = (iFlags & (uint32)XNUMBER_UPPER) != 0;
-	sText = __xrtNumberBase(iMagnitude, iBase, bUpper, sEnd);
-	if ( iPrefixSize != 0 ) {
-		char iPrefix;
-
-		if ( iBase == 2u ) {
-			iPrefix = bUpper ? 'B' : 'b';
-		} else if ( iBase == 8u ) {
-			iPrefix = bUpper ? 'O' : 'o';
-		} else {
-			iPrefix = bUpper ? 'X' : 'x';
-		}
-		*--sText = iPrefix;
-		*--sText = '0';
-	}
-	if ( bNegative ) {
-		*--sText = '-';
-	} else if ( (iFlags & (uint32)XNUMBER_PLUS) != 0 ) {
-		*--sText = '+';
-	}
-	*pText = sText;
-	*pSize = (size_t)(sEnd - sText);
-	return true;
-}
-
-
-
-/* 按指定基数写出无符号整数。 */
-XRT_API bool xrtUIntWrite(uint64 iValue, uint32 iBase,
-	char* sOutput, size_t iCapacity, size_t* pOutputSize, uint32 iFlags)
-{
-	char sBuffer[68];
-	const char* sText;
-	size_t iSize;
-
-	if ( (pOutputSize == NULL) ||
-		 ((sOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( (sOutput != NULL) && __xrtRangesOverlap(
-		pOutputSize, sizeof(*pOutputSize), sOutput, iCapacity) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtNumberBuild(iValue, false, iBase, iFlags,
-		sBuffer, &sText, &iSize, "uint-write") ) {
-		return false;
-	}
-	return __xrtNumberWriteResult(
-		sText, iSize, sOutput, iCapacity, pOutputSize);
-}
-
-
-
-/* 按指定基数写出有符号整数。 */
-XRT_API bool xrtIntWrite(int64 iValue, uint32 iBase,
-	char* sOutput, size_t iCapacity, size_t* pOutputSize, uint32 iFlags)
-{
-	char sBuffer[68];
-	const char* sText;
-	size_t iSize;
-	uint64 iMagnitude;
-	bool bNegative;
-
-	if ( (pOutputSize == NULL) ||
-		 ((sOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( (sOutput != NULL) && __xrtRangesOverlap(
-		pOutputSize, sizeof(*pOutputSize), sOutput, iCapacity) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	bNegative = iValue < 0;
-	if ( bNegative ) {
-		iMagnitude = (uint64)(-(iValue + 1)) + UINT64_C(1);
-	} else {
-		iMagnitude = (uint64)iValue;
-	}
-	if ( !__xrtNumberBuild(iMagnitude, bNegative, iBase, iFlags,
-		sBuffer, &sText, &iSize, "int-write") ) {
-		return false;
-	}
-	return __xrtNumberWriteResult(
-		sText, iSize, sOutput, iCapacity, pOutputSize);
-}
-
-
-
-/* 分配并写出无符号整数文本。 */
-XRT_API str xrtUIntString(uint64 iValue, uint32 iBase, uint32 iFlags)
-{
-	size_t iSize;
-	str sOutput;
-
-	if ( !xrtUIntWrite(iValue, iBase, NULL, 0, &iSize, iFlags) ) {
-		return NULL;
-	}
-	sOutput = (str)xrtMalloc(iSize + 1u);
-	if ( sOutput == NULL ) {
-		return NULL;
-	}
-	if ( !xrtUIntWrite(
-		iValue, iBase, sOutput, iSize + 1u, &iSize, iFlags) ) {
-		xrtFree(sOutput);
-		return NULL;
-	}
-	return sOutput;
-}
-
-
-
-/* 分配并写出有符号整数文本。 */
-XRT_API str xrtIntString(int64 iValue, uint32 iBase, uint32 iFlags)
-{
-	size_t iSize;
-	str sOutput;
-
-	if ( !xrtIntWrite(iValue, iBase, NULL, 0, &iSize, iFlags) ) {
-		return NULL;
-	}
-	sOutput = (str)xrtMalloc(iSize + 1u);
-	if ( sOutput == NULL ) {
-		return NULL;
-	}
-	if ( !xrtIntWrite(
-		iValue, iBase, sOutput, iSize + 1u, &iSize, iFlags) ) {
-		xrtFree(sOutput);
-		return NULL;
-	}
-	return sOutput;
-}
-
-
-
-/* 把 ASCII 数字转换为 0 到 35 的值。 */
-static bool __xrtNumberDigit(uint8 iByte, uint32* pValue)
-{
-	if ( (iByte >= (uint8)'0') && (iByte <= (uint8)'9') ) {
-		*pValue = (uint32)(iByte - (uint8)'0');
-		return true;
-	}
-	if ( (iByte >= (uint8)'A') && (iByte <= (uint8)'Z') ) {
-		*pValue = (uint32)(iByte - (uint8)'A') + 10u;
-		return true;
-	}
-	if ( (iByte >= (uint8)'a') && (iByte <= (uint8)'z') ) {
-		*pValue = (uint32)(iByte - (uint8)'a') + 10u;
-		return true;
-	}
-	return false;
-}
-
-
-
-/* 根据解析标志裁剪两端 ASCII 空白。 */
-static bool __xrtNumberTrim(
-	xstrview Text,
-	uint32 iFlags,
-	xstrview* pTrimmed,
-	cstr sOperation
-)
-{
-	size_t iStart = 0;
-	size_t iEnd = Text.Size;
-
-	if ( ((Text.Data == NULL) && (Text.Size != 0)) ||
-		 ((iFlags & ~XRT_NUMBER_PARSE_FLAGS) != 0) ) {
-		if ( (Text.Data == NULL) && (Text.Size != 0) ) {
-			__xrtErrorSetInvalidArgument();
-		} else {
-			__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
-				sOperation, "invalid integer parse flags");
-		}
-		return false;
-	}
-	if ( (iFlags & (uint32)XNUMBER_PARSE_SPACE) != 0 ) {
-		while ( (iStart < iEnd) &&
-			__xrtNumberAsciiSpace((uint8)Text.Data[iStart]) ) {
-			iStart++;
-		}
-		while ( (iEnd > iStart) &&
-			__xrtNumberAsciiSpace((uint8)Text.Data[iEnd - 1u]) ) {
-			iEnd--;
-		}
-	}
-	pTrimmed->Data = (Text.Data == NULL) ? NULL : Text.Data + iStart;
-	pTrimmed->Size = iEnd - iStart;
-	return true;
-}
-
-
-
-/* 识别可选进制前缀，并完成自动基数选择。 */
-static bool __xrtNumberBasePrefix(
-	xstrview Text,
-	size_t* pPosition,
-	uint32* pBase,
-	uint32 iFlags,
-	cstr sOperation
-)
-{
-	size_t iPosition = *pPosition;
-	uint32 iBase = *pBase;
-	uint32 iPrefixBase = 0;
-
-	if ( (iBase != 0) && ((iBase < 2u) || (iBase > 36u)) ) {
-		__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
-			sOperation, "integer parse base must be zero or between 2 and 36");
-		return false;
-	}
-	if ( ((iFlags & (uint32)XNUMBER_PARSE_PREFIX) != 0) &&
-		 ((Text.Size - iPosition) >= 2u) &&
-		 (Text.Data[iPosition] == '0') ) {
-		uint8 iByte = (uint8)Text.Data[iPosition + 1u];
-
-		if ( (iByte == (uint8)'b') || (iByte == (uint8)'B') ) {
-			iPrefixBase = 2u;
-		} else if ( (iByte == (uint8)'o') || (iByte == (uint8)'O') ) {
-			iPrefixBase = 8u;
-		} else if ( (iByte == (uint8)'x') || (iByte == (uint8)'X') ) {
-			iPrefixBase = 16u;
-		}
-	}
-	if ( iPrefixBase != 0 ) {
-		if ( (iBase != 0) && (iBase != iPrefixBase) ) {
-			__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
-				sOperation, "integer prefix does not match the requested base");
-			return false;
-		}
-		iBase = iPrefixBase;
-		iPosition += 2u;
-	}
-	if ( iBase == 0 ) {
-		iBase = 10u;
-	}
-	*pPosition = iPosition;
-	*pBase = iBase;
-	return true;
-}
-
-
-
-/* 解析已经处理符号和前缀的无符号幅值。 */
-static bool __xrtNumberMagnitude(
-	xstrview Text,
-	size_t iPosition,
-	uint32 iBase,
-	uint32 iFlags,
-	uint64 iLimit,
-	uint64* pValue,
-	cstr sOperation
-)
-{
-	uint64 iValue = 0;
-	size_t iDigits = 0;
-	bool bSeparator = false;
-
-	for ( ; iPosition < Text.Size; iPosition++ ) {
-		uint8 iByte = (uint8)Text.Data[iPosition];
-		uint32 iDigit;
-
-		if ( (iByte == (uint8)'_') &&
-			((iFlags & (uint32)XNUMBER_PARSE_SEPARATOR) != 0) ) {
-			if ( (iDigits == 0) || bSeparator ) {
-				__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
-					sOperation, "integer separator must appear between digits");
+	memset(pMutex, 0, sizeof(xmutex));
+	pImpl = __xrtMutexImpl(pMutex);
+	#if defined(_WIN32) || defined(_WIN64)
+		InitializeSRWLock(&pImpl->Lock);
+	#else
+		{
+			pthread_mutexattr_t tAttr;
+			int iResult = pthread_mutexattr_init(&tAttr);
+
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("mutex.init", iResult, "mutex attribute initialization failed");
 				return false;
 			}
-			bSeparator = true;
-			continue;
+			iResult = pthread_mutexattr_settype(&tAttr, PTHREAD_MUTEX_ERRORCHECK);
+			if ( iResult != 0 ) {
+				(void)pthread_mutexattr_destroy(&tAttr);
+				__xrtSyncSetSystemError(
+					"mutex.init",
+					iResult,
+					"mutex error-check configuration failed"
+				);
+				return false;
+			}
+			iResult = pthread_mutex_init(&pImpl->Lock, &tAttr);
+			(void)pthread_mutexattr_destroy(&tAttr);
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("mutex.init", iResult, "mutex initialization failed");
+				return false;
+			}
 		}
-		if ( !__xrtNumberDigit(iByte, &iDigit) || (iDigit >= iBase) ) {
-			__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
-				sOperation, "integer text contains a digit outside its base");
-			return false;
-		}
-		if ( iValue > ((iLimit - (uint64)iDigit) / (uint64)iBase) ) {
-			__xrtNumberError(XERR_RANGE, XNUMBER_ERROR_RANGE,
-				sOperation, "integer text is outside the destination range");
-			return false;
-		}
-		iValue = (iValue * (uint64)iBase) + (uint64)iDigit;
-		iDigits++;
-		bSeparator = false;
-	}
-	if ( (iDigits == 0) || bSeparator ) {
-		__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
-			sOperation, "integer text does not end with a digit");
-		return false;
-	}
-	*pValue = iValue;
+	#endif
+	pImpl->Magic = XRT_MUTEX_MAGIC;
 	return true;
 }
 
 
 
-/* 严格解析无符号整数。 */
-XRT_API bool xrtUIntParse(xstrview Text, uint32 iBase,
-	uint32 iFlags, uint64* pValue)
+/* 释放互斥锁平台资源。 */
+XRT_API bool xrtMutexUnit(xmutex* pMutex)
 {
-	xstrview Trimmed;
-	size_t iPosition = 0;
-	uint64 iValue;
+	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
 
-	if ( pValue == NULL ) {
-		__xrtErrorSetInvalidArgument();
+	if ( pImpl == NULL ) {
 		return false;
 	}
-	if ( !__xrtNumberTrim(
-		Text, iFlags, &Trimmed, "uint-parse") ) {
+	if ( __xrtMutexOwnerLoad(pImpl) != 0 ) {
+		__xrtErrorSetInvalidState();
 		return false;
 	}
-	if ( Trimmed.Size == 0 ) {
-		__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
-			"uint-parse", "unsigned integer text is empty");
-		return false;
-	}
-	if ( (Trimmed.Data[0] == '+') || (Trimmed.Data[0] == '-') ) {
-		__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
-			"uint-parse", "unsigned integer text cannot contain a sign");
-		return false;
-	}
-	if ( !__xrtNumberBasePrefix(
-		Trimmed, &iPosition, &iBase, iFlags, "uint-parse") ||
-		 !__xrtNumberMagnitude(Trimmed, iPosition, iBase, iFlags,
-		UINT64_MAX, &iValue, "uint-parse") ) {
-		return false;
-	}
-	*pValue = iValue;
+	#if defined(_WIN32) || defined(_WIN64)
+	#else
+		{
+			int iResult = pthread_mutex_destroy(&pImpl->Lock);
+
+			if ( iResult != 0 ) {
+				if ( iResult == EBUSY ) {
+					__xrtErrorSetInvalidState();
+				} else {
+					__xrtSyncSetSystemError("mutex.unit", iResult, "mutex destruction failed");
+				}
+				return false;
+			}
+		}
+	#endif
+	memset(pMutex, 0, sizeof(xmutex));
 	return true;
 }
 
 
 
-/* 严格解析有符号整数。 */
-XRT_API bool xrtIntParse(xstrview Text, uint32 iBase,
-	uint32 iFlags, int64* pValue)
+/* 创建一个非递归互斥锁。 */
+XRT_API xmutex* xrtMutexCreate(void)
 {
-	xstrview Trimmed;
-	size_t iPosition = 0;
-	uint64 iMagnitude;
-	uint64 iLimit;
-	int64 iValue;
-	bool bNegative = false;
+	xmutex* pMutex = (xmutex*)xrtMalloc(sizeof(xmutex));
 
-	if ( pValue == NULL ) {
-		__xrtErrorSetInvalidArgument();
+	if ( pMutex == NULL ) {
+		return NULL;
+	}
+	if ( !xrtMutexInit(pMutex) ) {
+		xrtFree(pMutex);
+		return NULL;
+	}
+	return pMutex;
+}
+
+
+
+/* 释放 Create 返回的互斥锁。 */
+XRT_API bool xrtMutexDestroy(xmutex* pMutex)
+{
+	if ( pMutex == NULL ) {
+		return true;
+	}
+	if ( !xrtMutexUnit(pMutex) ) {
 		return false;
 	}
-	if ( !__xrtNumberTrim(
-		Text, iFlags, &Trimmed, "int-parse") ) {
+	xrtFree(pMutex);
+	return true;
+}
+
+
+
+/* 阻塞到获得互斥锁。 */
+XRT_API bool xrtMutexLock(xmutex* pMutex)
+{
+	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
+	uint64 iCurrent;
+
+	if ( pImpl == NULL ) {
 		return false;
 	}
-	if ( Trimmed.Size == 0 ) {
-		__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
-			"int-parse", "signed integer text is empty");
+	iCurrent = __xrtCurrentThreadId();
+	if ( __xrtMutexOwnerLoad(pImpl) == iCurrent ) {
+		__xrtErrorSetInvalidState();
 		return false;
 	}
-	if ( (Trimmed.Data[0] == '+') || (Trimmed.Data[0] == '-') ) {
-		bNegative = Trimmed.Data[0] == '-';
-		iPosition++;
-	}
-	if ( !__xrtNumberBasePrefix(
-		Trimmed, &iPosition, &iBase, iFlags, "int-parse") ) {
+	#if defined(_WIN32) || defined(_WIN64)
+		AcquireSRWLockExclusive(&pImpl->Lock);
+	#else
+		{
+			int iResult = pthread_mutex_lock(&pImpl->Lock);
+
+			if ( iResult != 0 ) {
+				if ( iResult == EDEADLK ) {
+					__xrtErrorSetInvalidState();
+				} else {
+					__xrtSyncSetSystemError("mutex.lock", iResult, "mutex lock failed");
+				}
+				return false;
+			}
+		}
+	#endif
+	__xrtMutexOwnerStore(pImpl, iCurrent);
+	return true;
+}
+
+
+
+/* 尝试获得互斥锁。 */
+XRT_API bool xrtMutexTryLock(xmutex* pMutex)
+{
+	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
+	uint64 iCurrent;
+
+	if ( pImpl == NULL ) {
 		return false;
 	}
-	iLimit = bNegative ?
-		((uint64)INT64_MAX + UINT64_C(1)) : (uint64)INT64_MAX;
-	if ( !__xrtNumberMagnitude(Trimmed, iPosition, iBase, iFlags,
-		iLimit, &iMagnitude, "int-parse") ) {
+	iCurrent = __xrtCurrentThreadId();
+	if ( __xrtMutexOwnerLoad(pImpl) == iCurrent ) {
 		return false;
 	}
-	if ( bNegative ) {
-		if ( iMagnitude == ((uint64)INT64_MAX + UINT64_C(1)) ) {
-			iValue = INT64_MIN;
-		} else {
-			iValue = -(int64)iMagnitude;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( !TryAcquireSRWLockExclusive(&pImpl->Lock) ) {
+			return false;
+		}
+	#else
+		{
+			int iResult = pthread_mutex_trylock(&pImpl->Lock);
+
+			if ( iResult == EBUSY ) {
+				return false;
+			}
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("mutex.try", iResult, "mutex try-lock failed");
+				return false;
+			}
+		}
+	#endif
+	__xrtMutexOwnerStore(pImpl, iCurrent);
+	return true;
+}
+
+
+
+/* 释放当前线程持有的互斥锁。 */
+XRT_API bool xrtMutexUnlock(xmutex* pMutex)
+{
+	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
+	uint64 iCurrent;
+
+	if ( pImpl == NULL ) {
+		return false;
+	}
+	iCurrent = __xrtCurrentThreadId();
+	if ( __xrtMutexOwnerLoad(pImpl) != iCurrent ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	__xrtMutexOwnerStore(pImpl, 0);
+	#if defined(_WIN32) || defined(_WIN64)
+		ReleaseSRWLockExclusive(&pImpl->Lock);
+	#else
+		{
+			int iResult = pthread_mutex_unlock(&pImpl->Lock);
+
+			if ( iResult != 0 ) {
+				__xrtMutexOwnerStore(pImpl, iCurrent);
+				if ( iResult == EPERM ) {
+					__xrtErrorSetInvalidState();
+				} else {
+					__xrtSyncSetSystemError("mutex.unlock", iResult, "mutex unlock failed");
+				}
+				return false;
+			}
+		}
+	#endif
+	return true;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/system/time.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_TIME)
+
+#include <errno.h>
+#include <time.h>
+
+
+
+#if defined(XRT_FEATURE_TIME)
+
+/* Unix Epoch 与 Windows FILETIME Epoch 之间相差的 100 纳秒计数。 */
+#define XRT_FILETIME_EPOCH_TICKS UINT64_C(116444736000000000)
+
+
+
+/* 设置带操作名和系统代码的时间模块错误。 */
+void __xrtTimeSetError(xerrkind Kind, xtimeerror Code,
+	cstr sOperation, cstr sMessage, int iSystemCode)
+{
+	xerrordesc tDesc;
+	xerror* pError;
+
+	memset(&tDesc, 0, sizeof(tDesc));
+	tDesc.Kind = Kind;
+	tDesc.Domain = "xrt.time";
+	tDesc.Code = (int32)Code;
+	tDesc.SystemCode = (int32)iSystemCode;
+	tDesc.Operation = sOperation;
+	tDesc.Message = sMessage;
+	pError = xrtErrorBuild(&tDesc);
+	if ( pError != NULL ) {
+		__xrtErrorSetOwned(pError);
+	}
+}
+
+
+
+/* 检查 int64 加法，失败时不修改输出。 */
+bool __xrtTimeAddChecked(int64 iLeft, int64 iRight, int64* pResult)
+{
+	if ( ((iRight > 0) && (iLeft > (INT64_MAX - iRight))) ||
+		 ((iRight < 0) && (iLeft < (INT64_MIN - iRight))) ) {
+		return false;
+	}
+	*pResult = iLeft + iRight;
+	return true;
+}
+
+
+
+/* 检查 int64 减法，不先对 INT64_MIN 取负。 */
+bool __xrtTimeSubChecked(int64 iLeft, int64 iRight, int64* pResult)
+{
+	if ( ((iRight > 0) && (iLeft < (INT64_MIN + iRight))) ||
+		 ((iRight < 0) && (iLeft > (INT64_MAX + iRight))) ) {
+		return false;
+	}
+	*pResult = iLeft - iRight;
+	return true;
+}
+
+
+
+/* 检查 int64 乘法，覆盖 INT64_MIN 与 -1 的特殊边界。 */
+bool __xrtTimeMulChecked(int64 iLeft, int64 iRight, int64* pResult)
+{
+	if ( (iLeft == 0) || (iRight == 0) ) {
+		*pResult = 0;
+		return true;
+	}
+	if ( ((iLeft == -1) && (iRight == INT64_MIN)) ||
+		 ((iRight == -1) && (iLeft == INT64_MIN)) ) {
+		return false;
+	}
+	if ( iLeft > 0 ) {
+		if ( ((iRight > 0) && (iLeft > (INT64_MAX / iRight))) ||
+			 ((iRight < 0) && (iRight < (INT64_MIN / iLeft))) ) {
+			return false;
 		}
 	} else {
-		iValue = (int64)iMagnitude;
+		if ( ((iRight > 0) && (iLeft < (INT64_MIN / iRight))) ||
+			 ((iRight < 0) && (iLeft < (INT64_MAX / iRight))) ) {
+			return false;
+		}
 	}
-	*pValue = iValue;
+	*pResult = iLeft * iRight;
 	return true;
 }
 
-#undef XRT_NUMBER_WRITE_FLAGS
-#undef XRT_NUMBER_PARSE_FLAGS
-
-#endif
-#endif
 
 
-/* ========================================================================== */
-/* source: src/text/number_float_core.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_NUMBER_FLOAT)
-/*
-	浮点转换核心精炼自 yyjson 0.12.0 的数值读取与写出实现。
-	Copyright (c) 2020 YaoYuan <ibireme@gmail.com>
-	SPDX-License-Identifier: MIT
-
-	XRT 只保留整数运算、BigInt 后备、Schubfach 和共用十进制幂表。
-	公开语法、显式长度、错误和内存契约由 number_float.c 负责。
-*/
-
-
-
-#if defined(XRT_FEATURE_NUMBER_FLOAT)
-
-#define XRT_NUMBER_F64_BITS			64
-#define XRT_NUMBER_F64_EXP_BITS		11
-#define XRT_NUMBER_F64_SIG_BITS		52
-#define XRT_NUMBER_F64_FULL_BITS	53
-#define XRT_NUMBER_F64_EXP_BIAS		1023
-#define XRT_NUMBER_F64_MAX_BIN_EXP	1024
-#define XRT_NUMBER_F64_MIN_BIN_EXP	(-1021)
-#define XRT_NUMBER_POWER10_MIN		(-343)
-#define XRT_NUMBER_POWER10_MAX		324
-#define XRT_NUMBER_U64_MAX			UINT64_MAX
-#define XRT_NUMBER_F64_INF			UINT64_C(0x7FF0000000000000)
-#define XRT_NUMBER_F64_SIG_MASK		UINT64_C(0x000FFFFFFFFFFFFF)
-#define XRT_NUMBER_F64_EXP_MASK		UINT64_C(0x7FF0000000000000)
-
-
-
-/* BigInt 只服务 double 精确舍入；当前上限最多使用 58 个字。 */
-typedef struct xrt_number_bigint {
-	uint32 Used;
-	uint64 Bits[64];
-} xrt_number_bigint;
-
-
-
-/* 二进制近似数用于精确路径的候选值计算。 */
-typedef struct xrt_number_diy {
-	uint64 Significand;
-	int32 Exponent;
-} xrt_number_diy;
-
-
-
-/* double 解析与写出共用的小十进制幂。 */
-static const uint64 __xrtNumberUIntPower10[20] = {
-	UINT64_C(1),
-	UINT64_C(10),
-	UINT64_C(100),
-	UINT64_C(1000),
-	UINT64_C(10000),
-	UINT64_C(100000),
-	UINT64_C(1000000),
-	UINT64_C(10000000),
-	UINT64_C(100000000),
-	UINT64_C(1000000000),
-	UINT64_C(10000000000),
-	UINT64_C(100000000000),
-	UINT64_C(1000000000000),
-	UINT64_C(10000000000000),
-	UINT64_C(100000000000000),
-	UINT64_C(1000000000000000),
-	UINT64_C(10000000000000000),
-	UINT64_C(100000000000000000),
-	UINT64_C(1000000000000000000),
-	UINT64_C(10000000000000000000)
-};
-
-
-
-/* 在不违反别名规则的情况下取得 double 位模式。 */
-static uint64 __xrtNumberFloatBits(double fValue)
+/* 设置统一的时间范围溢出错误。 */
+static void __xrtTimeSetOverflow(cstr sOperation)
 {
-	uint64 iBits;
-
-	memcpy(&iBits, &fValue, sizeof(iBits));
-	return iBits;
+	__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_OVERFLOW, sOperation,
+		"time value is outside the representable range", 0);
 }
 
 
 
-/* 返回非零 64 位整数的前导零位数。 */
-static uint32 __xrtNumberLeadingZeros(uint64 iValue)
+/* 执行向负无穷取整的有符号除法。 */
+int64 __xrtTimeFloorDiv(int64 iValue, int64 iDivisor)
 {
-#if defined(__GNUC__) || defined(__clang__)
-	return (uint32)__builtin_clzll((unsigned long long)iValue);
-#else
-	uint32 iCount = 0;
+	int64 iQuotient = iValue / iDivisor;
+	int64 iRemainder = iValue % iDivisor;
 
-	if ( iValue <= UINT64_C(0x00000000FFFFFFFF) ) {
-		iCount += 32u;
-		iValue <<= 32u;
+	if ( iRemainder < 0 ) {
+		iQuotient--;
 	}
-	if ( iValue <= UINT64_C(0x0000FFFFFFFFFFFF) ) {
-		iCount += 16u;
-		iValue <<= 16u;
-	}
-	if ( iValue <= UINT64_C(0x00FFFFFFFFFFFFFF) ) {
-		iCount += 8u;
-		iValue <<= 8u;
-	}
-	if ( iValue <= UINT64_C(0x0FFFFFFFFFFFFFFF) ) {
-		iCount += 4u;
-		iValue <<= 4u;
-	}
-	if ( iValue <= UINT64_C(0x3FFFFFFFFFFFFFFF) ) {
-		iCount += 2u;
-		iValue <<= 2u;
-	}
-	if ( iValue <= UINT64_C(0x7FFFFFFFFFFFFFFF) ) {
-		iCount++;
-	}
-	return iCount;
-#endif
+	return iQuotient;
 }
 
 
 
-/* 返回非零 64 位整数的尾随零位数。 */
-static uint32 __xrtNumberTrailingZeros(uint64 iValue)
+/* 把 Unix 微秒拆成天数和非负当日微秒。 */
+void __xrtTimeSplitDay(xtime iTime, int64* pDays, int64* pDayTime)
 {
-#if defined(__GNUC__) || defined(__clang__)
-	return (uint32)__builtin_ctzll((unsigned long long)iValue);
-#else
-	uint32 iCount = 0;
+	int64 iDays = iTime / XRT_TIME_DAY;
+	int64 iDayTime = iTime % XRT_TIME_DAY;
 
-	if ( (iValue & UINT64_C(0x00000000FFFFFFFF)) == 0 ) {
-		iCount += 32u;
-		iValue >>= 32u;
+	if ( iDayTime < 0 ) {
+		iDays--;
+		iDayTime += XRT_TIME_DAY;
 	}
-	if ( (iValue & UINT64_C(0x000000000000FFFF)) == 0 ) {
-		iCount += 16u;
-		iValue >>= 16u;
-	}
-	if ( (iValue & UINT64_C(0x00000000000000FF)) == 0 ) {
-		iCount += 8u;
-		iValue >>= 8u;
-	}
-	if ( (iValue & UINT64_C(0x000000000000000F)) == 0 ) {
-		iCount += 4u;
-		iValue >>= 4u;
-	}
-	if ( (iValue & UINT64_C(0x0000000000000003)) == 0 ) {
-		iCount += 2u;
-		iValue >>= 2u;
-	}
-	if ( (iValue & UINT64_C(0x0000000000000001)) == 0 ) {
-		iCount++;
-	}
-	return iCount;
-#endif
+	*pDays = iDays;
+	*pDayTime = iDayTime;
 }
 
 
 
-/* 计算两个 64 位无符号整数的完整 128 位乘积。 */
-static void __xrtNumberMultiply128(
-	uint64 iLeft,
-	uint64 iRight,
-	uint64* pHigh,
-	uint64* pLow
-)
+/* 判断 Gregorian 年份是否为闰年。 */
+XRT_API bool xrtIsLeapYear(int64 iYear)
 {
-#if defined(__SIZEOF_INT128__)
-	__uint128_t iResult = (__uint128_t)iLeft * (__uint128_t)iRight;
-
-	*pHigh = (uint64)(iResult >> 64u);
-	*pLow = (uint64)iResult;
-#else
-	uint32 iLeftLow = (uint32)iLeft;
-	uint32 iLeftHigh = (uint32)(iLeft >> 32u);
-	uint32 iRightLow = (uint32)iRight;
-	uint32 iRightHigh = (uint32)(iRight >> 32u);
-	uint64 iProduct00 = (uint64)iLeftLow * (uint64)iRightLow;
-	uint64 iProduct01 = (uint64)iLeftLow * (uint64)iRightHigh;
-	uint64 iProduct10 = (uint64)iLeftHigh * (uint64)iRightLow;
-	uint64 iProduct11 = (uint64)iLeftHigh * (uint64)iRightHigh;
-	uint64 iMiddle0 = iProduct01 + (iProduct00 >> 32u);
-	uint32 iMiddle00 = (uint32)iMiddle0;
-	uint32 iMiddle01 = (uint32)(iMiddle0 >> 32u);
-	uint64 iMiddle1 = iProduct10 + (uint64)iMiddle00;
-	uint32 iMiddle10 = (uint32)iMiddle1;
-	uint32 iMiddle11 = (uint32)(iMiddle1 >> 32u);
-
-	*pHigh = iProduct11 + (uint64)iMiddle01 + (uint64)iMiddle11;
-	*pLow = ((uint64)iMiddle10 << 32u) | (uint64)(uint32)iProduct00;
-#endif
+	return ((iYear % 4) == 0) && (((iYear % 100) != 0) || ((iYear % 400) == 0));
 }
 
 
 
-/* 计算两个 64 位整数的乘积并向完整 128 位结果加一个 64 位值。 */
-static void __xrtNumberMultiplyAdd128(
-	uint64 iLeft,
-	uint64 iRight,
-	uint64 iAdd,
-	uint64* pHigh,
-	uint64* pLow
-)
+/* 返回指定月份的天数。 */
+XRT_API int xrtDaysInMonth(int64 iYear, int iMonth)
 {
-#if defined(__SIZEOF_INT128__)
-	__uint128_t iResult = ((__uint128_t)iLeft * (__uint128_t)iRight) +
-		(__uint128_t)iAdd;
+	static const unsigned char arrDays[12] = {
+		31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+	};
 
-	*pHigh = (uint64)(iResult >> 64u);
-	*pLow = (uint64)iResult;
-#else
-	uint64 iHigh;
-	uint64 iLow;
-	uint64 iSum;
-
-	__xrtNumberMultiply128(iLeft, iRight, &iHigh, &iLow);
-	iSum = iLow + iAdd;
-	iHigh += (uint64)((iSum < iLow) || (iSum < iAdd));
-	*pHigh = iHigh;
-	*pLow = iSum;
-#endif
-}
-
-
-
-/* 从共用表读取 10 的指定幂所对应的高低 64 位有效数。 */
-static void __xrtNumberPower10(
-	int32 iExponent,
-	uint64* pHigh,
-	uint64* pLow
-)
-{
-	int32 iIndex = iExponent - XRT_NUMBER_POWER10_MIN;
-
-	*pHigh = __xrtNumberPower10Table[iIndex * 2];
-	*pLow = __xrtNumberPower10Table[(iIndex * 2) + 1];
-}
-
-
-
-/* 计算共用十进制幂表高 64 位有效数对应的二进制指数。 */
-static int32 __xrtNumberPower10Exponent(int32 iExponent)
-{
-	return ((iExponent * 217706) - 4128768) >> 16;
-}
-
-
-
-/* BigInt 加一个 64 位无符号整数。 */
-static void __xrtNumberBigAdd(xrt_number_bigint* pBig, uint64 iValue)
-{
-	uint32 iIndex;
-	uint32 iMaximum;
-	uint64 iNumber = pBig->Bits[0];
-	uint64 iSum = iNumber + iValue;
-
-	pBig->Bits[0] = iSum;
-	if ( (iSum >= iNumber) || (iSum >= iValue) ) {
-		return;
-	}
-	iMaximum = pBig->Used;
-	for ( iIndex = 1; iIndex < iMaximum; iIndex++ ) {
-		if ( pBig->Bits[iIndex] != XRT_NUMBER_U64_MAX ) {
-			pBig->Bits[iIndex]++;
-			return;
-		}
-		pBig->Bits[iIndex] = 0;
-	}
-	pBig->Bits[pBig->Used++] = 1;
-}
-
-
-
-/* BigInt 乘一个非零 64 位无符号整数。 */
-static void __xrtNumberBigMultiply(xrt_number_bigint* pBig, uint64 iValue)
-{
-	uint32 iIndex = 0;
-	uint32 iMaximum = pBig->Used;
-	uint64 iCarry = 0;
-
-	while ( (iIndex < iMaximum) && (pBig->Bits[iIndex] == 0) ) {
-		iIndex++;
-	}
-	while ( iIndex < iMaximum ) {
-		uint64 iHigh;
-		uint64 iLow;
-
-		__xrtNumberMultiplyAdd128(
-			pBig->Bits[iIndex], iValue, iCarry, &iHigh, &iLow);
-		pBig->Bits[iIndex] = iLow;
-		iCarry = iHigh;
-		iIndex++;
-	}
-	if ( iCarry != 0 ) {
-		pBig->Bits[pBig->Used++] = iCarry;
-	}
-}
-
-
-
-/* BigInt 左移指定二进制位数。 */
-static void __xrtNumberBigMultiplyPower2(
-	xrt_number_bigint* pBig,
-	uint32 iExponent
-)
-{
-	uint32 iShift = iExponent % 64u;
-	uint32 iMove = iExponent / 64u;
-	uint32 iIndex = pBig->Used;
-
-	if ( iShift == 0 ) {
-		while ( iIndex > 0 ) {
-			pBig->Bits[iIndex + iMove - 1] = pBig->Bits[iIndex - 1];
-			iIndex--;
-		}
-		pBig->Used += iMove;
-		while ( iMove > 0 ) {
-			pBig->Bits[--iMove] = 0;
-		}
-		return;
-	}
-
-	pBig->Bits[iIndex] = 0;
-	while ( iIndex > 0 ) {
-		uint64 iNumber = pBig->Bits[iIndex] << iShift;
-
-		iNumber |= pBig->Bits[iIndex - 1] >> (64u - iShift);
-		pBig->Bits[iIndex + iMove] = iNumber;
-		iIndex--;
-	}
-	pBig->Bits[iMove] = pBig->Bits[0] << iShift;
-	pBig->Used += iMove + (pBig->Bits[pBig->Used + iMove] > 0);
-	while ( iMove > 0 ) {
-		pBig->Bits[--iMove] = 0;
-	}
-}
-
-
-
-/* BigInt 乘 10 的非负整数幂。 */
-static void __xrtNumberBigMultiplyPower10(
-	xrt_number_bigint* pBig,
-	int32 iExponent
-)
-{
-	while ( iExponent >= 19 ) {
-		__xrtNumberBigMultiply(pBig, __xrtNumberUIntPower10[19]);
-		iExponent -= 19;
-	}
-	if ( iExponent != 0 ) {
-		__xrtNumberBigMultiply(
-			pBig, __xrtNumberUIntPower10[iExponent]);
-	}
-}
-
-
-
-/* 比较两个非负 BigInt。 */
-static int32 __xrtNumberBigCompare(
-	const xrt_number_bigint* pLeft,
-	const xrt_number_bigint* pRight
-)
-{
-	uint32 iIndex = pLeft->Used;
-
-	if ( pLeft->Used < pRight->Used ) {
-		return -1;
-	}
-	if ( pLeft->Used > pRight->Used ) {
-		return 1;
-	}
-	while ( iIndex > 0 ) {
-		uint64 iLeft;
-		uint64 iRight;
-
-		iIndex--;
-		iLeft = pLeft->Bits[iIndex];
-		iRight = pRight->Bits[iIndex];
-		if ( iLeft < iRight ) {
-			return -1;
-		}
-		if ( iLeft > iRight ) {
-			return 1;
-		}
-	}
-	return 0;
-}
-
-
-
-/* 用一个 64 位值初始化 BigInt。 */
-static void __xrtNumberBigSet(xrt_number_bigint* pBig, uint64 iValue)
-{
-	pBig->Used = 1;
-	pBig->Bits[0] = iValue;
-}
-
-
-
-/* 从最多 769 个十进制有效数字构造精确比较所需的 BigInt。 */
-static void __xrtNumberBigSetDigits(
-	xrt_number_bigint* pBig,
-	const uint8* pDigits,
-	uint32 iDigitCount
-)
-{
-	uint32 iIndex = 0;
-	uint32 iChunkSize = 0;
-	uint64 iChunk = 0;
-
-	__xrtNumberBigSet(pBig, 0);
-	while ( iIndex < iDigitCount ) {
-		iChunk = (iChunk * UINT64_C(10)) +
-			(uint64)(pDigits[iIndex] - (uint8)'0');
-		iChunkSize++;
-		iIndex++;
-		if ( (iChunkSize == 19u) || (iIndex == iDigitCount) ) {
-			__xrtNumberBigMultiplyPower10(pBig, (int32)iChunkSize);
-			__xrtNumberBigAdd(pBig, iChunk);
-			iChunk = 0;
-			iChunkSize = 0;
-		}
-	}
-}
-
-
-
-/* 从共用表取得已舍入的 10 的幂近似数。 */
-static xrt_number_diy __xrtNumberDiyPower10(int32 iExponent)
-{
-	xrt_number_diy Result;
-	uint64 iLow;
-
-	__xrtNumberPower10(iExponent, &Result.Significand, &iLow);
-	Result.Exponent = __xrtNumberPower10Exponent(iExponent);
-	Result.Significand += iLow >> 63u;
-	return Result;
-}
-
-
-
-/* 乘两个 DIY 浮点数并保留经过舍入的高 64 位。 */
-static xrt_number_diy __xrtNumberDiyMultiply(
-	xrt_number_diy Left,
-	xrt_number_diy Right
-)
-{
-	uint64 iHigh;
-	uint64 iLow;
-
-	__xrtNumberMultiply128(
-		Left.Significand, Right.Significand, &iHigh, &iLow);
-	Left.Significand = iHigh + (iLow >> 63u);
-	Left.Exponent += Right.Exponent + 64;
-	return Left;
-}
-
-
-
-/* 把 DIY 候选值编码为 IEEE-754 double 正数位模式。 */
-static uint64 __xrtNumberDiyBits(xrt_number_diy Value)
-{
-	uint64 iSignificand = Value.Significand;
-	int32 iExponent = Value.Exponent;
-	uint32 iLeading;
-
-	if ( iSignificand == 0 ) {
+	if ( (iMonth < 1) || (iMonth > 12) ) {
+		__xrtErrorSetInvalidArgument();
 		return 0;
 	}
-	iLeading = __xrtNumberLeadingZeros(iSignificand);
-	iSignificand <<= iLeading;
-	iSignificand >>= XRT_NUMBER_F64_BITS - XRT_NUMBER_F64_FULL_BITS;
-	iExponent -= (int32)iLeading;
-	iExponent += XRT_NUMBER_F64_BITS - XRT_NUMBER_F64_FULL_BITS;
-	iExponent += XRT_NUMBER_F64_SIG_BITS;
-
-	if ( iExponent >= XRT_NUMBER_F64_MAX_BIN_EXP ) {
-		return XRT_NUMBER_F64_INF;
+	if ( (iMonth == 2) && xrtIsLeapYear(iYear) ) {
+		return 29;
 	}
-	if ( iExponent >= (XRT_NUMBER_F64_MIN_BIN_EXP - 1) ) {
-		iExponent += XRT_NUMBER_F64_EXP_BIAS;
-		return ((uint64)iExponent << XRT_NUMBER_F64_SIG_BITS) |
-			(iSignificand & XRT_NUMBER_F64_SIG_MASK);
-	}
-	if ( iExponent >=
-		(XRT_NUMBER_F64_MIN_BIN_EXP - XRT_NUMBER_F64_FULL_BITS) ) {
-		return iSignificand >>
-			(XRT_NUMBER_F64_MIN_BIN_EXP - iExponent - 1);
-	}
-	return 0;
+	return (int)arrDays[iMonth - 1];
 }
 
 
 
-/*
-	尝试 Eisel-Lemire 风格的纯整数快速路径。
-	只有舍入方向能够由已知高位唯一确定时才发布结果。
-*/
-static bool __xrtNumberFloatFast(
-	uint64 iSignificand,
-	int32 iExponent,
-	uint64* pBits
-)
+/* 返回指定年份的天数。 */
+XRT_API int xrtDaysInYear(int64 iYear)
 {
-	uint64 iPowerHigh;
-	uint64 iPowerLow;
-	uint64 iInput;
-	uint64 iHigh;
-	uint64 iLow;
-	uint64 iHigh2;
-	uint64 iLow2;
-	uint64 iAdd;
-	uint64 iKnown;
-	int32 iBinaryExponent;
-	uint32 iLeading;
-	bool bExact = false;
-	bool bCarry;
-	bool bRoundUp;
+	return xrtIsLeapYear(iYear) ? 366 : 365;
+}
 
-	__xrtNumberPower10(iExponent, &iPowerHigh, &iPowerLow);
-	iBinaryExponent = __xrtNumberPower10Exponent(iExponent);
-	iLeading = __xrtNumberLeadingZeros(iSignificand);
-	iInput = iSignificand << iLeading;
-	iBinaryExponent -= (int32)iLeading;
-	__xrtNumberMultiply128(iInput, iPowerHigh, &iHigh, &iLow);
 
-	iKnown = iHigh & ((UINT64_C(1) << 9u) - UINT64_C(1));
-	if ( (iKnown - UINT64_C(1)) <
-		((UINT64_C(1) << 9u) - UINT64_C(2)) ) {
-		bExact = true;
-	} else {
-		__xrtNumberMultiply128(iInput, iPowerLow, &iHigh2, &iLow2);
-		iAdd = iLow + iHigh2;
-		if ( (iAdd + UINT64_C(1)) > UINT64_C(1) ) {
-			bCarry = (iAdd < iLow) || (iAdd < iHigh2);
-			iHigh += (uint64)bCarry;
-			bExact = true;
-		}
+
+/* 把 Gregorian 日期转换为 Unix Epoch 天数。 */
+bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays)
+{
+	int64 iEra;
+	int64 iEraDays;
+	int64 iYearOfEra;
+	int64 iDayOfYear;
+	int64 iDayOfEra;
+	int iMarchMonth;
+	int iMonthDays;
+
+	if ( pDays == NULL ) {
+		return false;
 	}
-	if ( !bExact ) {
+	if ( (iMonth < 1) || (iMonth > 12) ) {
+		return false;
+	}
+	iMonthDays = (iMonth == 2) ? (xrtIsLeapYear(iYear) ? 29 : 28) :
+		(int)((const unsigned char[12]){ 31, 28, 31, 30, 31, 30,
+			31, 31, 30, 31, 30, 31 }[iMonth - 1]);
+	if ( (iDay < 1) || (iDay > iMonthDays) ) {
 		return false;
 	}
 
-	iLeading = iHigh < (UINT64_C(1) << 63u);
-	iHigh <<= iLeading;
-	iBinaryExponent -= (int32)iLeading;
-	iBinaryExponent += 64;
-	bRoundUp = (iHigh & (UINT64_C(1) << 10u)) != 0;
-	if ( bRoundUp ) {
-		iHigh += UINT64_C(1) << 10u;
-	}
-	if ( iHigh < (UINT64_C(1) << 10u) ) {
-		iHigh = UINT64_C(1) << 63u;
-		iBinaryExponent++;
-	}
-
-	iHigh >>= XRT_NUMBER_F64_BITS - XRT_NUMBER_F64_FULL_BITS;
-	iBinaryExponent +=
-		XRT_NUMBER_F64_BITS - XRT_NUMBER_F64_FULL_BITS +
-		XRT_NUMBER_F64_SIG_BITS + XRT_NUMBER_F64_EXP_BIAS;
-	*pBits = ((uint64)iBinaryExponent << XRT_NUMBER_F64_SIG_BITS) |
-		(iHigh & XRT_NUMBER_F64_SIG_MASK);
-	return true;
-}
-
-
-
-/* 用 BigInt 比较候选值上边界，完成罕见的精确舍入判定。 */
-static bool __xrtNumberFloatExact(
-	const uint8* pDigits,
-	uint32 iDigitCount,
-	int32 iDigitExponent,
-	uint64 iSignificand,
-	int32 iSignificandExponent,
-	uint64* pBits
-)
-{
-	const int32 iErrorLog = 3;
-	const uint64 iErrorUnit = UINT64_C(1) << 3u;
-	uint64 iError;
-	uint32 iLeading;
-	int32 iOrder;
-	int32 iEffectiveBits;
-	int32 iPrecisionCount;
-	uint64 iPrecision;
-	uint64 iHalf;
-	uint64 iRaw;
-	xrt_number_diy Value;
-	xrt_number_diy Upper;
-	xrt_number_bigint Full;
-	xrt_number_bigint Compare;
-	int32 iComparison;
-
-	Value.Significand = iSignificand;
-	Value.Exponent = 0;
-	iError = (iDigitCount > 19u) ? (iErrorUnit / 2u) : 0;
-
-	iLeading = __xrtNumberLeadingZeros(Value.Significand);
-	Value.Significand <<= iLeading;
-	Value.Exponent -= (int32)iLeading;
-	iError <<= iLeading;
-
-	Value = __xrtNumberDiyMultiply(
-		Value, __xrtNumberDiyPower10(iSignificandExponent));
-	iError += (iErrorUnit / 2u) + (iError != 0) + (iErrorUnit / 2u);
-
-	iLeading = __xrtNumberLeadingZeros(Value.Significand);
-	Value.Significand <<= iLeading;
-	Value.Exponent -= (int32)iLeading;
-	iError <<= iLeading;
-
-	iOrder = 64 + Value.Exponent;
-	if ( iOrder >=
-		(-1074 + XRT_NUMBER_F64_FULL_BITS) ) {
-		iEffectiveBits = XRT_NUMBER_F64_FULL_BITS;
-	} else if ( iOrder <= -1074 ) {
-		iEffectiveBits = 0;
-	} else {
-		iEffectiveBits = iOrder + 1074;
-	}
-
-	iPrecisionCount = 64 - iEffectiveBits;
-	if ( (iPrecisionCount + iErrorLog) >= 64 ) {
-		int32 iShift =
-			(iPrecisionCount + iErrorLog) - 64 + 1;
-
-		Value.Significand >>= iShift;
-		Value.Exponent += iShift;
-		iError = (iError >> iShift) + UINT64_C(1) + iErrorUnit;
-		iPrecisionCount -= iShift;
-	}
-
-	iPrecision = Value.Significand &
-		((UINT64_C(1) << iPrecisionCount) - UINT64_C(1));
-	iPrecision *= iErrorUnit;
-	iHalf = (UINT64_C(1) << (iPrecisionCount - 1)) * iErrorUnit;
-
-	Value.Significand >>= iPrecisionCount;
-	Value.Significand += (iPrecision >= (iHalf + iError));
-	Value.Exponent += iPrecisionCount;
-	iRaw = __xrtNumberDiyBits(Value);
-	if ( iRaw == XRT_NUMBER_F64_INF ) {
-		return false;
-	}
-	if ( (iPrecision <= (iHalf - iError)) ||
-		(iPrecision >= (iHalf + iError)) ) {
-		*pBits = iRaw;
-		return true;
-	}
-
-	if ( (iRaw & XRT_NUMBER_F64_EXP_MASK) != 0 ) {
-		Upper.Significand =
-			(iRaw & XRT_NUMBER_F64_SIG_MASK) +
-			(UINT64_C(1) << XRT_NUMBER_F64_SIG_BITS);
-		Upper.Exponent = (int32)(
-			(iRaw & XRT_NUMBER_F64_EXP_MASK) >>
-			XRT_NUMBER_F64_SIG_BITS);
-	} else {
-		Upper.Significand = iRaw & XRT_NUMBER_F64_SIG_MASK;
-		Upper.Exponent = 1;
-	}
-	Upper.Exponent -=
-		XRT_NUMBER_F64_EXP_BIAS + XRT_NUMBER_F64_SIG_BITS;
-	Upper.Significand <<= 1u;
-	Upper.Exponent--;
-	Upper.Significand++;
-
-	__xrtNumberBigSetDigits(&Full, pDigits, iDigitCount);
-	__xrtNumberBigSet(&Compare, Upper.Significand);
-	if ( iDigitExponent >= 0 ) {
-		__xrtNumberBigMultiplyPower10(&Full, iDigitExponent);
-	} else {
-		__xrtNumberBigMultiplyPower10(&Compare, -iDigitExponent);
-	}
-	if ( Upper.Exponent > 0 ) {
-		__xrtNumberBigMultiplyPower2(
-			&Compare, (uint32)Upper.Exponent);
-	} else {
-		__xrtNumberBigMultiplyPower2(
-			&Full, (uint32)-Upper.Exponent);
-	}
-	iComparison = __xrtNumberBigCompare(&Full, &Compare);
-	if ( iComparison != 0 ) {
-		iRaw += (iComparison > 0);
-	} else {
-		iRaw += iRaw & UINT64_C(1);
-	}
-	if ( iRaw == XRT_NUMBER_F64_INF ) {
-		return false;
-	}
-	*pBits = iRaw;
-	return true;
-}
-
-
-
-/* 把归一化十进制有效数字转换成正确舍入的正 double 位模式。 */
-bool __xrtNumberFloatConvert(
-	const uint8* pDigits,
-	uint32 iDigitCount,
-	int32 iDigitExponent,
-	uint64 iSignificand,
-	int32 iSignificandExponent,
-	uint64* pBits
-)
-{
-	if ( (pDigits == NULL) || (pBits == NULL) ||
-		(iDigitCount == 0) || (iDigitCount > 769u) ||
-		(iSignificand == 0) ||
-		(iSignificandExponent < XRT_NUMBER_POWER10_MIN) ||
-		(iSignificandExponent > XRT_NUMBER_POWER10_MAX) ) {
-		return false;
-	}
-	if ( (iDigitCount <= 19u) &&
-		(iSignificandExponent > -307) &&
-		(iSignificandExponent < 288) &&
-		__xrtNumberFloatFast(
-			iSignificand, iSignificandExponent, pBits) ) {
-		return true;
-	}
-	return __xrtNumberFloatExact(
-		pDigits,
-		iDigitCount,
-		iDigitExponent,
-		iSignificand,
-		iSignificandExponent,
-		pBits
-	);
-}
-
-
-
-/* 64 位乘法后取最高 64 位，并把被丢弃部分合并为奇数舍入位。 */
-static uint64 __xrtNumberRoundOdd128(
-	uint64 iHigh,
-	uint64 iLow,
-	uint64 iMultiplier
-)
-{
-	uint64 iXHigh;
-	uint64 iXLow;
-	uint64 iYHigh;
-	uint64 iYLow;
-
-	__xrtNumberMultiply128(iMultiplier, iLow, &iXHigh, &iXLow);
-	__xrtNumberMultiplyAdd128(
-		iMultiplier, iHigh, iXHigh, &iYHigh, &iYLow);
-	return iYHigh | (uint64)(iYLow > UINT64_C(1));
-}
-
-
-
-/*
-	用 Schubfach 把非零有限 double 转成最短十进制有效数和指数。
-	结果可能带尾随零，调用方在排版前统一裁掉。
-*/
-static void __xrtNumberBinaryToDecimal(
-	uint64 iRawSignificand,
-	uint32 iRawExponent,
-	uint64 iBinarySignificand,
-	int32 iBinaryExponent,
-	uint64* pDecimalSignificand,
-	int32* pDecimalExponent
-)
-{
-	bool bEven;
-	bool bIrregular;
-	bool bRoundUp;
-	bool bTrim;
-	bool bU0Inside;
-	bool bU1Inside;
-	bool bW0Inside;
-	bool bW1Inside;
-	uint64 iValue;
-	uint64 iShort;
-	uint64 iCenter;
-	uint64 iLeft;
-	uint64 iRight;
-	uint64 iScaled;
-	uint64 iScaledLeft;
-	uint64 iScaledRight;
-	uint64 iPowerHigh;
-	uint64 iPowerLow;
-	uint64 iUpper;
-	uint64 iLower;
-	uint64 iMiddle;
-	int32 iDecimalExponent;
-	int32 iShift;
-
-	while ( iRawSignificand != 0 ) {
-		uint64 iRemainder;
-		uint64 iDecimal;
-		uint64 iAddOne;
-		uint64 iAddTen;
-		uint64 iScaledHigh;
-		uint64 iScaledLow;
-		uint64 iFraction;
-		uint64 iHalfUlp;
-		uint64 iTen;
-		uint64 iSum;
-
-		iDecimalExponent = (iBinaryExponent * 315653) >> 20;
-		iShift = iBinaryExponent +
-			((-iDecimalExponent * 217707) >> 16);
-		__xrtNumberPower10(
-			-iDecimalExponent, &iPowerHigh, &iPowerLow);
-
-		iCenter = iBinarySignificand << (iShift + 1);
-		__xrtNumberMultiply128(
-			iCenter, iPowerLow, &iScaledHigh, &iScaledLow);
-		__xrtNumberMultiplyAdd128(
-			iCenter, iPowerHigh, iScaledHigh,
-			&iScaledHigh, &iScaledLow);
-		iRemainder = iScaledHigh % UINT64_C(10);
-		iDecimal = iScaledHigh - iRemainder;
-
-		iFraction = (iRemainder << 60u) | (iScaledLow >> 4u);
-		iHalfUlp = iPowerHigh >> (4 - iShift);
-		bW1Inside = iScaledLow >= (UINT64_C(1) << 63u);
-		if ( iScaledLow == (UINT64_C(1) << 63u) ) {
-			break;
-		}
-		bU0Inside = iHalfUlp >= iFraction;
-		if ( iHalfUlp == iFraction ) {
-			break;
-		}
-		iTen = UINT64_C(10) << 60u;
-		iSum = iFraction + iHalfUlp;
-		bW0Inside = iSum >= iTen;
-		if ( (iTen - iSum) <= UINT64_C(1) ) {
-			break;
-		}
-
-		bTrim = bU0Inside || bW0Inside;
-		iAddTen = bW0Inside ? UINT64_C(10) : 0;
-		iAddOne = iRemainder + (uint64)bW1Inside;
-		*pDecimalSignificand =
-			iDecimal + (bTrim ? iAddTen : iAddOne);
-		*pDecimalExponent = iDecimalExponent;
-		return;
-	}
-
-	bIrregular =
-		(iRawSignificand == 0) && (iRawExponent > 1u);
-	bEven = (iBinarySignificand & UINT64_C(1)) == 0;
-	iLeft = (UINT64_C(4) * iBinarySignificand) -
-		UINT64_C(2) + (uint64)bIrregular;
-	iCenter = UINT64_C(4) * iBinarySignificand;
-	iRight = (UINT64_C(4) * iBinarySignificand) + UINT64_C(2);
-
-	iDecimalExponent =
-		((iBinaryExponent * 315653) -
-		(bIrregular ? 131237 : 0)) >> 20;
-	iShift = iBinaryExponent +
-		((-iDecimalExponent * 217707) >> 16) + 1;
-	__xrtNumberPower10(
-		-iDecimalExponent, &iPowerHigh, &iPowerLow);
-	iPowerLow++;
-
-	iScaledLeft = __xrtNumberRoundOdd128(
-		iPowerHigh, iPowerLow, iLeft << iShift);
-	iScaled = __xrtNumberRoundOdd128(
-		iPowerHigh, iPowerLow, iCenter << iShift);
-	iScaledRight = __xrtNumberRoundOdd128(
-		iPowerHigh, iPowerLow, iRight << iShift);
-	iLower = iScaledLeft + (uint64)!bEven;
-	iUpper = iScaledRight - (uint64)!bEven;
-
-	iValue = iScaled / UINT64_C(4);
-	if ( iValue >= UINT64_C(10) ) {
-		iShort = iValue / UINT64_C(10);
-		bU0Inside = iLower <= (UINT64_C(40) * iShort);
-		bW0Inside =
-			iUpper >= ((UINT64_C(40) * iShort) + UINT64_C(40));
-		if ( bU0Inside != bW0Inside ) {
-			*pDecimalSignificand =
-				(iShort * UINT64_C(10)) +
-				(bW0Inside ? UINT64_C(10) : 0);
-			*pDecimalExponent = iDecimalExponent;
-			return;
-		}
-	}
-	bU1Inside = iLower <= (UINT64_C(4) * iValue);
-	bW1Inside =
-		iUpper >= ((UINT64_C(4) * iValue) + UINT64_C(4));
-	iMiddle = (UINT64_C(4) * iValue) + UINT64_C(2);
-	bRoundUp = (iScaled > iMiddle) ||
-		((iScaled == iMiddle) && ((iValue & UINT64_C(1)) != 0));
-	*pDecimalSignificand = iValue +
-		(uint64)((bU1Inside != bW1Inside) ? bW1Inside : bRoundUp);
-	*pDecimalExponent = iDecimalExponent;
-}
-
-
-
-/* 把一个非零无符号整数写入临时十进制数字区并返回起点。 */
-static char* __xrtNumberFloatDigits(uint64 iValue, char* sEnd)
-{
-	do {
-		*--sEnd = (char)('0' + (char)(iValue % UINT64_C(10)));
-		iValue /= UINT64_C(10);
-	} while ( iValue != 0 );
-	return sEnd;
-}
-
-
-
-/* 写出范围在 -324 到 308 之间的科学计数法指数。 */
-static char* __xrtNumberFloatExponent(int32 iExponent, char* sOutput)
-{
-	char sDigits[4];
-	char* sEnd = sDigits + sizeof(sDigits);
-	char* sStart;
-	uint32 iMagnitude;
-
-	*sOutput++ = 'e';
-	if ( iExponent < 0 ) {
-		*sOutput++ = '-';
-		iMagnitude = (uint32)-iExponent;
-	} else {
-		*sOutput++ = '+';
-		iMagnitude = (uint32)iExponent;
-	}
-	sStart = __xrtNumberFloatDigits((uint64)iMagnitude, sEnd);
-	memcpy(sOutput, sStart, (size_t)(sEnd - sStart));
-	return sOutput + (sEnd - sStart);
-}
-
-
-
-/* 根据固定或科学计数法阈值排版已经裁掉尾零的十进制有效数。 */
-static size_t __xrtNumberFloatLayout(
-	uint64 iSignificand,
-	int32 iExponent,
-	char* sOutput,
-	bool bCompact
-)
-{
-	char sDigits[20];
-	char* sEnd = sDigits + sizeof(sDigits);
-	char* sStart = __xrtNumberFloatDigits(iSignificand, sEnd);
-	int32 iDigitCount = (int32)(sEnd - sStart);
-	int32 iDot = iDigitCount + iExponent;
-	char* sCursor = sOutput;
-
-	if ( (iDot > -6) && (iDot <= 21) ) {
-		if ( iDot <= 0 ) {
-			*sCursor++ = '0';
-			*sCursor++ = '.';
-			memset(sCursor, '0', (size_t)-iDot);
-			sCursor += -iDot;
-			memcpy(sCursor, sStart, (size_t)iDigitCount);
-			sCursor += iDigitCount;
-		} else if ( iDot >= iDigitCount ) {
-			memcpy(sCursor, sStart, (size_t)iDigitCount);
-			sCursor += iDigitCount;
-			memset(sCursor, '0', (size_t)(iDot - iDigitCount));
-			sCursor += iDot - iDigitCount;
-			if ( !bCompact ) {
-				*sCursor++ = '.';
-				*sCursor++ = '0';
-			}
-		} else {
-			memcpy(sCursor, sStart, (size_t)iDot);
-			sCursor += iDot;
-			*sCursor++ = '.';
-			memcpy(sCursor, sStart + iDot,
-				(size_t)(iDigitCount - iDot));
-			sCursor += iDigitCount - iDot;
-		}
-		return (size_t)(sCursor - sOutput);
-	}
-
-	*sCursor++ = *sStart++;
-	iDigitCount--;
-	if ( iDigitCount > 0 ) {
-		*sCursor++ = '.';
-		memcpy(sCursor, sStart, (size_t)iDigitCount);
-		sCursor += iDigitCount;
-	}
-	sCursor = __xrtNumberFloatExponent(
-		iDot - 1, sCursor);
-	return (size_t)(sCursor - sOutput);
-}
-
-
-
-/* 把 double 写成稳定、最短且能够精确往返的文本。 */
-size_t __xrtNumberFloatFormat(
-	double fValue,
-	char* sOutput,
-	bool bCompact
-)
-{
-	uint64 iRaw = __xrtNumberFloatBits(fValue);
-	bool bNegative = (iRaw >> 63u) != 0;
-	uint64 iRawSignificand = iRaw & XRT_NUMBER_F64_SIG_MASK;
-	uint32 iRawExponent = (uint32)(
-		(iRaw & XRT_NUMBER_F64_EXP_MASK) >>
-		XRT_NUMBER_F64_SIG_BITS);
-	char* sCursor = sOutput;
-	uint64 iBinarySignificand;
-	int32 iBinaryExponent;
-	uint64 iDecimalSignificand;
-	int32 iDecimalExponent;
-	size_t iSize;
-
-	if ( iRawExponent == ((1u << XRT_NUMBER_F64_EXP_BITS) - 1u) ) {
-		if ( iRawSignificand != 0 ) {
-			memcpy(sCursor, "nan", 3);
-			return 3;
-		}
-		if ( bNegative ) {
-			*sCursor++ = '-';
-		}
-		memcpy(sCursor, "inf", 3);
-		return (size_t)(sCursor - sOutput) + 3u;
-	}
-	if ( bNegative ) {
-		*sCursor++ = '-';
-	}
-	if ( (iRaw << 1u) == 0 ) {
-		if ( bCompact ) {
-			*sCursor++ = '0';
-		} else {
-			memcpy(sCursor, "0.0", 3);
-			sCursor += 3;
-		}
-		return (size_t)(sCursor - sOutput);
-	}
-
-	if ( iRawExponent != 0 ) {
-		iBinarySignificand = iRawSignificand |
-			(UINT64_C(1) << XRT_NUMBER_F64_SIG_BITS);
-		iBinaryExponent = (int32)iRawExponent -
-			XRT_NUMBER_F64_EXP_BIAS - XRT_NUMBER_F64_SIG_BITS;
-		if ( (iBinaryExponent >= -XRT_NUMBER_F64_SIG_BITS) &&
-			(iBinaryExponent <= 0) &&
-			(__xrtNumberTrailingZeros(iBinarySignificand) >=
-			(uint32)-iBinaryExponent) ) {
-			iDecimalSignificand =
-				iBinarySignificand >> -iBinaryExponent;
-			iDecimalExponent = 0;
-			iSize = __xrtNumberFloatLayout(
-				iDecimalSignificand,
-				iDecimalExponent,
-				sCursor,
-				bCompact
-			);
-			return (size_t)(sCursor - sOutput) + iSize;
-		}
-	} else {
-		iBinarySignificand = iRawSignificand;
-		iBinaryExponent =
-			1 - XRT_NUMBER_F64_EXP_BIAS - XRT_NUMBER_F64_SIG_BITS;
-	}
-
-	__xrtNumberBinaryToDecimal(
-		iRawSignificand,
-		iRawExponent,
-		iBinarySignificand,
-		iBinaryExponent,
-		&iDecimalSignificand,
-		&iDecimalExponent
-	);
-	while ( (iDecimalSignificand % UINT64_C(10)) == 0 ) {
-		iDecimalSignificand /= UINT64_C(10);
-		iDecimalExponent++;
-	}
-	iSize = __xrtNumberFloatLayout(
-		iDecimalSignificand,
-		iDecimalExponent,
-		sCursor,
-		bCompact
-	);
-	return (size_t)(sCursor - sOutput) + iSize;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/text/number_float.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_NUMBER_FLOAT)
-
-
-
-#if defined(XRT_FEATURE_NUMBER_FLOAT)
-
-#define XRT_NUMBER_FLOAT_FLAGS \
-	((uint32)XNUMBER_FLOAT_COMPACT)
-#define XRT_NUMBER_FLOAT_PARSE_FLAGS \
-	((uint32)XNUMBER_PARSE_SPACE | (uint32)XNUMBER_PARSE_SEPARATOR | \
-	(uint32)XNUMBER_PARSE_SPECIAL)
-#define XRT_NUMBER_FLOAT_MAX_DIGITS	769u
-
-
-
-/* 浮点扫描只保存正确舍入所需的高 769 位，其他低位折叠为 sticky 位。 */
-typedef struct xrt_number_float_scan {
-	uint8 Digits[XRT_NUMBER_FLOAT_MAX_DIGITS];
-	size_t TotalDigits;
-	size_t FractionDigits;
-	size_t FirstNonzero;
-	size_t LastNonzero;
-	uint32 StoredDigits;
-	bool HasNonzero;
-} xrt_number_float_scan;
-
-
-
-/* 指数使用符号和无符号幅值表示，避免解析 INT64_MIN 一类边界。 */
-typedef struct xrt_number_float_exponent {
-	uint64 Magnitude;
-	bool Negative;
-	bool Overflow;
-} xrt_number_float_exponent;
-
-
-
-/* 判断一个字节是否为十进制数字。 */
-static bool __xrtNumberFloatDigit(uint8 iByte)
-{
-	return (iByte >= (uint8)'0') && (iByte <= (uint8)'9');
-}
-
-
-
-/* 把 ASCII 字母折叠为小写，非字母保持不变。 */
-static uint8 __xrtNumberFloatLower(uint8 iByte)
-{
-	if ( (iByte >= (uint8)'A') && (iByte <= (uint8)'Z') ) {
-		return iByte + ((uint8)'a' - (uint8)'A');
-	}
-	return iByte;
-}
-
-
-
-/* 按显式长度比较不区分 ASCII 大小写的字面量。 */
-static bool __xrtNumberFloatLiteral(
-	xstrview Text,
-	cstr sLiteral,
-	size_t iLiteralSize
-)
-{
-	if ( Text.Size != iLiteralSize ) {
-		return false;
-	}
-	for ( size_t i = 0; i < iLiteralSize; i++ ) {
-		if ( __xrtNumberFloatLower((uint8)Text.Data[i]) !=
-			(uint8)sLiteral[i] ) {
+	if ( iMonth <= 2 ) {
+		if ( iYear == INT64_MIN ) {
 			return false;
 		}
+		iYear--;
+	}
+	iEra = __xrtTimeFloorDiv(iYear, 400);
+	iYearOfEra = iYear - (iEra * 400);
+	iMarchMonth = iMonth + (iMonth > 2 ? -3 : 9);
+	iDayOfYear = ((153 * iMarchMonth) + 2) / 5 + iDay - 1;
+	iDayOfEra = (iYearOfEra * 365) + (iYearOfEra / 4) -
+		(iYearOfEra / 100) + iDayOfYear;
+	if ( !__xrtTimeMulChecked(iEra, 146097, &iEraDays) ||
+		 !__xrtTimeAddChecked(iEraDays, iDayOfEra - 719468, pDays) ) {
+		return false;
 	}
 	return true;
 }
 
 
 
-/* 统一报告浮点文本格式错误。 */
-static bool __xrtNumberFloatFormatError(cstr sMessage)
+/* 把 Unix Epoch 天数常数时间转换为 Gregorian 日期。 */
+void __xrtTimeCivilFromDays(int64 iDays, int64* pYear, int* pMonth, int* pDay)
 {
-	__xrtNumberError(
-		XERR_VALUE,
-		XNUMBER_ERROR_FORMAT,
-		"num-parse",
-		sMessage
-	);
+	int64 iShifted = iDays + 719468;
+	int64 iEra = __xrtTimeFloorDiv(iShifted, 146097);
+	int64 iDayOfEra = iShifted - (iEra * 146097);
+	int64 iYearOfEra = (iDayOfEra - (iDayOfEra / 1460) +
+		(iDayOfEra / 36524) - (iDayOfEra / 146096)) / 365;
+	int64 iYear = iYearOfEra + (iEra * 400);
+	int64 iDayOfYear = iDayOfEra - ((365 * iYearOfEra) +
+		(iYearOfEra / 4) - (iYearOfEra / 100));
+	int iMarchMonth = (int)(((5 * iDayOfYear) + 2) / 153);
+	int iDay = (int)(iDayOfYear - (((153 * iMarchMonth) + 2) / 5) + 1);
+	int iMonth = iMarchMonth + (iMarchMonth < 10 ? 3 : -9);
+
+	iYear += iMonth <= 2 ? 1 : 0;
+	*pYear = iYear;
+	*pMonth = iMonth;
+	*pDay = iDay;
+}
+
+
+
+/* 校验固定偏移，避免把时区和任意日期算术混为一谈。 */
+static bool __xrtTimeOffsetValid(int iOffset)
+{
+	return (iOffset > -86400) && (iOffset < 86400);
+}
+
+
+
+/* 从规范化的天数和当日微秒构造值，负极值不要求日期零点可表示。 */
+static bool __xrtTimeComposeDay(int64 iDays, int64 iDayTime, xtime* pTime)
+{
+	int64 iDate;
+	int64 iTail;
+
+	if ( iDays >= 0 ) {
+		return __xrtTimeMulChecked(iDays, XRT_TIME_DAY, &iDate) &&
+			__xrtTimeAddChecked(iDate, iDayTime, pTime);
+	}
+	if ( !__xrtTimeMulChecked(iDays + 1, XRT_TIME_DAY, &iDate) ) {
+		return false;
+	}
+	iTail = iDayTime - XRT_TIME_DAY;
+	return __xrtTimeAddChecked(iDate, iTail, pTime);
+}
+
+
+
+/* 无错误副作用地按显式 UTC 偏移构造绝对时间。 */
+__xrt_time_make_status __xrtTimeMakeValue(
+	const xdatetime* pDateTime, xtime* pTime)
+{
+	int64 iDays;
+	int64 iDayTime;
+	int64 iOffset;
+	int64 iAdjusted;
+	int64 iCarry;
+	int iMonthDays;
+
+	if ( !__xrtTimeOffsetValid(pDateTime->Offset) ) {
+		return __XRT_TIME_MAKE_OFFSET;
+	}
+	if ( (pDateTime->Month < 1) || (pDateTime->Month > 12) ) {
+		return __XRT_TIME_MAKE_COMPONENT;
+	}
+	iMonthDays = xrtDaysInMonth(pDateTime->Year, pDateTime->Month);
+	if ( (pDateTime->Day < 1) || (pDateTime->Day > iMonthDays) ||
+		 (pDateTime->Hour < 0) || (pDateTime->Hour > 23) ||
+		 (pDateTime->Minute < 0) || (pDateTime->Minute > 59) ||
+		 (pDateTime->Second < 0) || (pDateTime->Second > 59) ||
+		 (pDateTime->Microsecond < 0) || (pDateTime->Microsecond > 999999) ) {
+		return __XRT_TIME_MAKE_COMPONENT;
+	}
+	if ( !__xrtTimeDaysFromCivil(pDateTime->Year, pDateTime->Month,
+		pDateTime->Day, &iDays) ) {
+		return __XRT_TIME_MAKE_OVERFLOW;
+	}
+
+	iDayTime = ((int64)pDateTime->Hour * XRT_TIME_HOUR) +
+		((int64)pDateTime->Minute * XRT_TIME_MINUTE) +
+		((int64)pDateTime->Second * XRT_TIME_SECOND) + pDateTime->Microsecond;
+	iOffset = (int64)pDateTime->Offset * XRT_TIME_SECOND;
+	iAdjusted = iDayTime - iOffset;
+	iCarry = __xrtTimeFloorDiv(iAdjusted, XRT_TIME_DAY);
+	if ( !__xrtTimeAddChecked(iDays, iCarry, &iDays) ) {
+		return __XRT_TIME_MAKE_OVERFLOW;
+	}
+	iDayTime = iAdjusted - (iCarry * XRT_TIME_DAY);
+	if ( !__xrtTimeComposeDay(iDays, iDayTime, pTime) ) {
+		return __XRT_TIME_MAKE_OVERFLOW;
+	}
+	return __XRT_TIME_MAKE_OK;
+}
+
+
+
+/* 按显式 UTC 偏移构造绝对时间。 */
+XRT_API bool xrtTimeMake(const xdatetime* pDateTime, xtime* pTime)
+{
+	__xrt_time_make_status Status;
+
+	if ( (pDateTime == NULL) || (pTime == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	Status = __xrtTimeMakeValue(pDateTime, pTime);
+	if ( Status == __XRT_TIME_MAKE_OK ) {
+		return true;
+	}
+	if ( Status == __XRT_TIME_MAKE_OFFSET ) {
+		__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_RANGE, "make",
+			"UTC offset is outside the supported range", 0);
+	} else if ( Status == __XRT_TIME_MAKE_COMPONENT ) {
+		__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_RANGE, "make",
+			"date or time component is outside its valid range", 0);
+	} else {
+		__xrtTimeSetOverflow("make");
+	}
 	return false;
 }
 
 
 
-/* 校验标志并按需裁掉输入两端的 ASCII 空白。 */
-static bool __xrtNumberFloatTrim(
-	xstrview Text,
-	uint32 iFlags,
-	xstrview* pTrimmed
-)
+/* 构造 UTC 零点日期。 */
+XRT_API bool xrtDate(int64 iYear, int iMonth, int iDay, xtime* pTime)
 {
-	size_t iStart = 0;
-	size_t iEnd = Text.Size;
+	return xrtDateTime(iYear, iMonth, iDay, 0, 0, 0, 0, pTime);
+}
 
-	if ( (Text.Data == NULL) && (Text.Size != 0) ) {
+
+
+/* 构造 UTC 日期时间。 */
+XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
+	int iHour, int iMinute, int iSecond, int iMicrosecond, xtime* pTime)
+{
+	xdatetime tDateTime;
+
+	memset(&tDateTime, 0, sizeof(tDateTime));
+	tDateTime.Year = iYear;
+	tDateTime.Month = iMonth;
+	tDateTime.Day = iDay;
+	tDateTime.Hour = iHour;
+	tDateTime.Minute = iMinute;
+	tDateTime.Second = iSecond;
+	tDateTime.Microsecond = iMicrosecond;
+	return xrtTimeMake(&tDateTime, pTime);
+}
+
+
+
+/* 按固定偏移分解绝对时间，避免在极值处先执行可能溢出的整体加法。 */
+XRT_API bool xrtTimeSplitAt(xtime iTime, int iOffset, xdatetime* pDateTime)
+{
+	int64 iDays;
+	int64 iDayTime;
+	int64 iAdjusted;
+	int64 iCarry;
+	int64 iYearStart;
+	int64 iSecondOfDay;
+
+	if ( pDateTime == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( (iFlags & ~XRT_NUMBER_FLOAT_PARSE_FLAGS) != 0 ) {
-		__xrtNumberError(
-			XERR_VALUE,
-			XNUMBER_ERROR_CONFIG,
-			"num-parse",
-			"invalid floating-point parse flags"
-		);
+	if ( !__xrtTimeOffsetValid(iOffset) ) {
+		__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_RANGE, "split",
+			"UTC offset is outside the supported range", 0);
 		return false;
 	}
-	if ( (iFlags & (uint32)XNUMBER_PARSE_SPACE) != 0 ) {
-		while ( (iStart < iEnd) &&
-			__xrtNumberAsciiSpace((uint8)Text.Data[iStart]) ) {
-			iStart++;
-		}
-		while ( (iEnd > iStart) &&
-			__xrtNumberAsciiSpace((uint8)Text.Data[iEnd - 1u]) ) {
-			iEnd--;
-		}
+
+	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
+	iAdjusted = iDayTime + ((int64)iOffset * XRT_TIME_SECOND);
+	iCarry = __xrtTimeFloorDiv(iAdjusted, XRT_TIME_DAY);
+	iDays += iCarry;
+	iDayTime = iAdjusted - (iCarry * XRT_TIME_DAY);
+
+	memset(pDateTime, 0, sizeof(*pDateTime));
+	__xrtTimeCivilFromDays(iDays, &pDateTime->Year,
+		&pDateTime->Month, &pDateTime->Day);
+	iSecondOfDay = iDayTime / XRT_TIME_SECOND;
+	pDateTime->Hour = (int)(iSecondOfDay / 3600);
+	pDateTime->Minute = (int)((iSecondOfDay % 3600) / 60);
+	pDateTime->Second = (int)(iSecondOfDay % 60);
+	pDateTime->Microsecond = (int)(iDayTime % XRT_TIME_SECOND);
+	pDateTime->Offset = iOffset;
+	pDateTime->Weekday = (int)((iDays + 4) % 7);
+	if ( pDateTime->Weekday < 0 ) {
+		pDateTime->Weekday += 7;
 	}
-	pTrimmed->Data = (Text.Data == NULL) ? NULL : Text.Data + iStart;
-	pTrimmed->Size = iEnd - iStart;
+	if ( !__xrtTimeDaysFromCivil(
+		pDateTime->Year,
+		1,
+		1,
+		&iYearStart
+	) ) {
+		__xrtTimeSetOverflow("split");
+		return false;
+	}
+	pDateTime->YearDay = (int)(iDays - iYearStart) + 1;
+	pDateTime->IsDST = -1;
 	return true;
 }
 
 
 
-/* 记录尾数中的一个数字，同时维护首尾非零位置和有限高位缓存。 */
-static void __xrtNumberFloatRecord(
-	xrt_number_float_scan* pScan,
-	uint8 iDigit,
-	bool bFraction
-)
+/* 按 UTC 分解绝对时间。 */
+XRT_API bool xrtTimeSplit(xtime iTime, xdatetime* pDateTime)
 {
-	size_t iPosition = pScan->TotalDigits;
+	return xrtTimeSplitAt(iTime, 0, pDateTime);
+}
 
-	if ( iDigit != (uint8)'0' ) {
-		if ( !pScan->HasNonzero ) {
-			pScan->HasNonzero = true;
-			pScan->FirstNonzero = iPosition;
+
+
+/* 从 Unix 秒安全构造 xtime。 */
+XRT_API bool xrtTimeFromUnix(int64 iSeconds, xtime* pTime)
+{
+	if ( pTime == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtTimeMulChecked(iSeconds, XRT_TIME_SECOND, pTime) ) {
+		__xrtTimeSetOverflow("from-unix");
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 从 Unix 毫秒安全构造 xtime。 */
+XRT_API bool xrtTimeFromUnixMs(int64 iMilliseconds, xtime* pTime)
+{
+	if ( pTime == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtTimeMulChecked(iMilliseconds, XRT_TIME_MILLISECOND, pTime) ) {
+		__xrtTimeSetOverflow("from-unix-ms");
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 返回向负无穷取整的 Unix 秒。 */
+XRT_API int64 xrtTimeUnix(xtime iTime)
+{
+	return __xrtTimeFloorDiv(iTime, XRT_TIME_SECOND);
+}
+
+
+
+/* 返回向负无穷取整的 Unix 毫秒。 */
+XRT_API int64 xrtTimeUnixMs(xtime iTime)
+{
+	return __xrtTimeFloorDiv(iTime, XRT_TIME_MILLISECOND);
+}
+
+
+
+#if defined(_WIN32) || defined(_WIN64)
+
+typedef VOID (WINAPI* __xrt_precise_filetime_fn)(LPFILETIME);
+
+/* 动态解析精确墙钟，旧 Windows 自动回退到 GetSystemTimeAsFileTime。 */
+static void __xrtTimeSystemFileTime(FILETIME* pFileTime)
+{
+	static __xrt_precise_filetime_fn pPrecise = NULL;
+	static volatile LONG iState = 0;
+	LONG iCurrent = InterlockedCompareExchange(&iState, 1, 0);
+
+	if ( iCurrent == 0 ) {
+		HMODULE hKernel = GetModuleHandleA("kernel32.dll");
+
+		if ( hKernel != NULL ) {
+			pPrecise = (__xrt_precise_filetime_fn)(uintptr_t)
+				GetProcAddress(hKernel, "GetSystemTimePreciseAsFileTime");
 		}
-		pScan->LastNonzero = iPosition;
+		InterlockedExchange(&iState, 2);
+	} else {
+		while ( InterlockedCompareExchange(&iState, 0, 0) == 1 ) {
+			Sleep(0);
+		}
 	}
-	if ( pScan->HasNonzero &&
-		(pScan->StoredDigits < XRT_NUMBER_FLOAT_MAX_DIGITS) ) {
-		pScan->Digits[pScan->StoredDigits++] = iDigit;
-	}
-	pScan->TotalDigits++;
-	if ( bFraction ) {
-		pScan->FractionDigits++;
+	if ( pPrecise != NULL ) {
+		pPrecise(pFileTime);
+	} else {
+		GetSystemTimeAsFileTime(pFileTime);
 	}
 }
 
 
 
-/*
-	读取尾数的一段十进制数字。
-	下划线只允许出现在两个数字之间，因此不会形成隐式 token 边界。
-*/
-static bool __xrtNumberFloatMantissaSequence(
-	xstrview Text,
-	size_t* pPosition,
-	uint32 iFlags,
-	bool bFraction,
-	xrt_number_float_scan* pScan,
-	size_t* pDigitCount
+/* 缓存 QPC 频率，避免每次读取单调时钟都查询固定系统参数。 */
+static uint64 __xrtTimeQpcFrequency(void)
+{
+	static LARGE_INTEGER tFrequency;
+	static volatile LONG iState = 0;
+	LONG iCurrent = InterlockedCompareExchange(&iState, 1, 0);
+
+	if ( iCurrent == 0 ) {
+		if ( !QueryPerformanceFrequency(&tFrequency) || (tFrequency.QuadPart <= 0) ) {
+			tFrequency.QuadPart = 1;
+		}
+		InterlockedExchange(&iState, 2);
+	} else {
+		while ( InterlockedCompareExchange(&iState, 0, 0) == 1 ) {
+			Sleep(0);
+		}
+	}
+	return (uint64)tFrequency.QuadPart;
+}
+
+#endif
+
+
+
+/* 返回单调时钟微秒。 */
+XRT_API uint64 xrtClock(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER tCounter;
+		uint64 iFrequency = __xrtTimeQpcFrequency();
+		uint64 iCounter;
+
+		(void)QueryPerformanceCounter(&tCounter);
+		iCounter = (uint64)tCounter.QuadPart;
+		return ((iCounter / iFrequency) * UINT64_C(1000000)) +
+			(((iCounter % iFrequency) * UINT64_C(1000000)) / iFrequency);
+	#else
+		struct timespec tNow;
+
+		if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) {
+			__xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED,
+				"clock", "monotonic clock is unavailable", errno);
+			return 0;
+		}
+		return ((uint64)tNow.tv_sec * UINT64_C(1000000)) +
+			((uint64)tNow.tv_nsec / UINT64_C(1000));
+	#endif
+}
+
+
+
+/* 返回单调时钟浮点秒数。 */
+XRT_API double xrtTimer(void)
+{
+	return (double)xrtClock() / 1000000.0;
+}
+
+
+
+/* 返回当前 Unix Epoch 微秒。 */
+XRT_API xtime xrtNow(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		FILETIME tFileTime;
+		uint64 iDifference;
+		uint64 iTicks;
+
+		__xrtTimeSystemFileTime(&tFileTime);
+		iTicks = ((uint64)tFileTime.dwHighDateTime << 32) |
+			(uint64)tFileTime.dwLowDateTime;
+		if ( iTicks < XRT_FILETIME_EPOCH_TICKS ) {
+			/* 纪元前不足一微秒的 100ns 余数必须向负无穷取整。 */
+			iDifference = XRT_FILETIME_EPOCH_TICKS - iTicks;
+			return -(xtime)(iDifference / 10) -
+				((iDifference % 10) != 0 ? 1 : 0);
+		}
+		return (xtime)((iTicks - XRT_FILETIME_EPOCH_TICKS) / 10);
+	#else
+		struct timespec tNow;
+		int64 iSeconds;
+		int64 iResult;
+
+		if ( clock_gettime(CLOCK_REALTIME, &tNow) != 0 ) {
+			__xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED,
+				"now", "system clock is unavailable", errno);
+			return 0;
+		}
+		iSeconds = (int64)tNow.tv_sec;
+		if ( !__xrtTimeMulChecked(iSeconds, XRT_TIME_SECOND, &iResult) ||
+			 !__xrtTimeAddChecked(iResult, (int64)(tNow.tv_nsec / 1000), &iResult) ) {
+			__xrtTimeSetOverflow("now");
+			return 0;
+		}
+		return iResult;
+	#endif
+}
+
+
+
+/* 至少睡眠指定微秒，并在 POSIX 信号中断后继续剩余时长。 */
+XRT_API void xrtSleepUs(uint64 iMicroseconds)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		uint64 iMilliseconds;
+
+		if ( iMicroseconds == 0 ) {
+			Sleep(0);
+			return;
+		}
+		iMilliseconds = (iMicroseconds / 1000) +
+			((iMicroseconds % 1000) != 0 ? 1 : 0);
+		while ( iMilliseconds >= UINT32_MAX ) {
+			Sleep(UINT32_MAX - 1u);
+			iMilliseconds -= UINT32_MAX - 1u;
+		}
+		Sleep((DWORD)iMilliseconds);
+	#else
+		while ( iMicroseconds != 0 ) {
+			uint64 iChunk = iMicroseconds > UINT64_C(86400000000) ?
+				UINT64_C(86400000000) : iMicroseconds;
+			struct timespec tRequest;
+
+			tRequest.tv_sec = (time_t)(iChunk / UINT64_C(1000000));
+			tRequest.tv_nsec = (long)((iChunk % UINT64_C(1000000)) * 1000);
+			while ( (nanosleep(&tRequest, &tRequest) != 0) && (errno == EINTR) ) {
+			}
+			iMicroseconds -= iChunk;
+		}
+	#endif
+}
+
+
+
+/* 至少睡眠指定毫秒。 */
+XRT_API void xrtSleep(uint32 iMilliseconds)
+{
+	xrtSleepUs((uint64)iMilliseconds * UINT64_C(1000));
+}
+
+
+
+/* 睡眠到单调截止点，使用无符号差值并避免过期后回绕。 */
+XRT_API void xrtSleepUntil(uint64 iDeadline)
+{
+	for ( ;; ) {
+		uint64 iNow = xrtClock();
+
+		if ( iNow >= iDeadline ) {
+			return;
+		}
+		xrtSleepUs(iDeadline - iNow);
+	}
+}
+
+
+
+/* 提取 UTC 年份。 */
+XRT_API int64 xrtYear(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.Year;
+}
+
+
+
+/* 提取 UTC 月份。 */
+XRT_API int xrtMonth(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.Month;
+}
+
+
+
+/* 提取 UTC 月内日期。 */
+XRT_API int xrtDay(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.Day;
+}
+
+
+
+/* 提取 UTC 小时。 */
+XRT_API int xrtHour(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.Hour;
+}
+
+
+
+/* 提取 UTC 分钟。 */
+XRT_API int xrtMinute(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.Minute;
+}
+
+
+
+/* 提取 UTC 秒。 */
+XRT_API int xrtSecond(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.Second;
+}
+
+
+
+/* 提取秒内微秒。 */
+XRT_API int xrtMicrosecond(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.Microsecond;
+}
+
+
+
+/* 提取星期。 */
+XRT_API int xrtWeekday(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.Weekday;
+}
+
+
+
+/* 提取年内日期。 */
+XRT_API int xrtDayOfYear(xtime iTime)
+{
+	xdatetime tDateTime;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	return tDateTime.YearDay;
+}
+
+
+
+/* 提取季度。 */
+XRT_API int xrtQuarter(xtime iTime)
+{
+	return ((xrtMonth(iTime) - 1) / 3) + 1;
+}
+
+
+
+/* 返回 UTC 当日零点，极端负值所在日期无法表示零点时报告溢出。 */
+XRT_API xtime xrtDatePart(xtime iTime)
+{
+	int64 iDays;
+	int64 iDayTime;
+	int64 iResult;
+
+	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
+	if ( !__xrtTimeMulChecked(iDays, XRT_TIME_DAY, &iResult) ) {
+		__xrtTimeSetOverflow("date-part");
+		return 0;
+	}
+	return iResult;
+}
+
+
+
+/* 返回非负当日微秒。 */
+XRT_API xtime xrtTimePart(xtime iTime)
+{
+	int64 iDays;
+	int64 iDayTime;
+
+	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
+	return iDayTime;
+}
+
+
+
+/* 使用位模式无符号减法取得完整 int64 域差值。 */
+XRT_API bool xrtTimeNear(xtime iLeft, xtime iRight, uint64 iTolerance)
+{
+	uint64 iDifference = iLeft >= iRight ?
+		((uint64)iLeft - (uint64)iRight) : ((uint64)iRight - (uint64)iLeft);
+
+	return iDifference <= iTolerance;
+}
+
+
+
+/* 比较两个 UTC 时间所在的 Gregorian 日期。 */
+XRT_API bool xrtTimeSameDay(xtime iLeft, xtime iRight)
+{
+	int64 iLeftDays;
+	int64 iRightDays;
+	int64 iDayTime;
+
+	__xrtTimeSplitDay(iLeft, &iLeftDays, &iDayTime);
+	__xrtTimeSplitDay(iRight, &iRightDays, &iDayTime);
+	return iLeftDays == iRightDays;
+}
+
+
+
+/* 比较两个 UTC 时间所在的 Gregorian 月份。 */
+XRT_API bool xrtTimeSameMonth(xtime iLeft, xtime iRight)
+{
+	xdatetime tLeft;
+	xdatetime tRight;
+
+	(void)xrtTimeSplit(iLeft, &tLeft);
+	(void)xrtTimeSplit(iRight, &tRight);
+	return (tLeft.Year == tRight.Year) && (tLeft.Month == tRight.Month);
+}
+
+
+
+/* 比较两个 UTC 时间所在的 Gregorian 年份。 */
+XRT_API bool xrtTimeSameYear(xtime iLeft, xtime iRight)
+{
+	return xrtYear(iLeft) == xrtYear(iRight);
+}
+
+
+
+/* 判断时间是否位于合法闭区间。 */
+XRT_API bool xrtTimeIn(xtime iTime, xtime iStart, xtime iEnd)
+{
+	return (iStart <= iEnd) && (iTime >= iStart) && (iTime <= iEnd);
+}
+
+
+
+/* 判断两个合法闭区间是否重叠。 */
+XRT_API bool xrtTimeOverlap(xtime iStart1, xtime iEnd1,
+	xtime iStart2, xtime iEnd2)
+{
+	return (iStart1 <= iEnd1) && (iStart2 <= iEnd2) &&
+		(iStart1 <= iEnd2) && (iEnd1 >= iStart2);
+}
+
+
+
+/* 返回固定时长单位的微秒数。 */
+static bool __xrtTimeUnitDuration(xtimeunit Unit, int64* pDuration)
+{
+	switch ( Unit ) {
+		case XTIME_UNIT_MICROSECOND: *pDuration = XRT_TIME_MICROSECOND; return true;
+		case XTIME_UNIT_MILLISECOND: *pDuration = XRT_TIME_MILLISECOND; return true;
+		case XTIME_UNIT_SECOND: *pDuration = XRT_TIME_SECOND; return true;
+		case XTIME_UNIT_MINUTE: *pDuration = XRT_TIME_MINUTE; return true;
+		case XTIME_UNIT_HOUR: *pDuration = XRT_TIME_HOUR; return true;
+		case XTIME_UNIT_DAY: *pDuration = XRT_TIME_DAY; return true;
+		case XTIME_UNIT_WEEK: *pDuration = XRT_TIME_WEEK; return true;
+		default: return false;
+	}
+}
+
+
+
+/* 按月增加日期，所有月末日期统一钳制到目标月末。 */
+static bool __xrtTimeAddMonths(xtime iTime, int64 iMonths, xtime* pResult)
+{
+	xdatetime tDateTime;
+	int64 iMonthIndex;
+	int64 iTarget;
+	int64 iTargetYear;
+	int iTargetMonth;
+	int iTargetDays;
+
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	if ( !__xrtTimeMulChecked(tDateTime.Year, 12, &iMonthIndex) ||
+		 !__xrtTimeAddChecked(iMonthIndex, tDateTime.Month - 1, &iMonthIndex) ||
+		 !__xrtTimeAddChecked(iMonthIndex, iMonths, &iTarget) ) {
+		return false;
+	}
+	iTargetYear = __xrtTimeFloorDiv(iTarget, 12);
+	iTargetMonth = (int)(iTarget - (iTargetYear * 12)) + 1;
+	iTargetDays = xrtDaysInMonth(iTargetYear, iTargetMonth);
+	if ( tDateTime.Day > iTargetDays ) {
+		tDateTime.Day = iTargetDays;
+	}
+	tDateTime.Year = iTargetYear;
+	tDateTime.Month = iTargetMonth;
+	tDateTime.Offset = 0;
+	return xrtTimeMake(&tDateTime, pResult);
+}
+
+
+
+/* 增加固定时长或日历单位。 */
+XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResult)
+{
+	int64 iDuration;
+	int64 iDelta;
+	int64 iMonths;
+
+	if ( pResult == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( __xrtTimeUnitDuration(Unit, &iDuration) ) {
+		if ( !__xrtTimeMulChecked(iValue, iDuration, &iDelta) ||
+			 !__xrtTimeAddChecked(iTime, iDelta, pResult) ) {
+			__xrtTimeSetOverflow("add");
+			return false;
+		}
+		return true;
+	}
+	if ( Unit == XTIME_UNIT_MONTH ) {
+		iMonths = iValue;
+	} else if ( Unit == XTIME_UNIT_QUARTER ) {
+		if ( !__xrtTimeMulChecked(iValue, 3, &iMonths) ) {
+			__xrtTimeSetOverflow("add");
+			return false;
+		}
+	} else if ( Unit == XTIME_UNIT_YEAR ) {
+		if ( !__xrtTimeMulChecked(iValue, 12, &iMonths) ) {
+			__xrtTimeSetOverflow("add");
+			return false;
+		}
+	} else {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtTimeAddMonths(iTime, iMonths, pResult) ) {
+		__xrtTimeSetOverflow("add");
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 计算两个日期字段之间的粗略月份差。 */
+static bool __xrtTimeMonthDifference(xtime iStart, xtime iEnd, int64* pMonths)
+{
+	xdatetime tStart;
+	xdatetime tEnd;
+	int64 iYears;
+	int64 iMonths;
+
+	(void)xrtTimeSplit(iStart, &tStart);
+	(void)xrtTimeSplit(iEnd, &tEnd);
+	if ( !__xrtTimeAddChecked(tEnd.Year, -tStart.Year, &iYears) ||
+		 !__xrtTimeMulChecked(iYears, 12, &iMonths) ||
+		 !__xrtTimeAddChecked(iMonths, tEnd.Month - tStart.Month, pMonths) ) {
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 在完整 int64 时间域上计算固定单位差，不要求原始微秒差可由 int64 表示。 */
+static bool __xrtTimeFixedDifference(
+	xtime iStart,
+	xtime iEnd,
+	int64 iDuration,
+	int64* pResult
 )
 {
-	size_t iPosition = *pPosition;
-	size_t iCount = 0;
+	bool bNegative = iEnd < iStart;
+	uint64 iMagnitude = bNegative ?
+		((uint64)iStart - (uint64)iEnd) :
+		((uint64)iEnd - (uint64)iStart);
+	uint64 iUnits = iMagnitude / (uint64)iDuration;
 
-	while ( iPosition < Text.Size ) {
-		uint8 iByte = (uint8)Text.Data[iPosition];
-
-		if ( __xrtNumberFloatDigit(iByte) ) {
-			__xrtNumberFloatRecord(pScan, iByte, bFraction);
-			iCount++;
-			iPosition++;
-			continue;
+	if ( !bNegative ) {
+		if ( iUnits > (uint64)INT64_MAX ) {
+			return false;
 		}
-		if ( iByte == (uint8)'_' ) {
-			if ( ((iFlags & (uint32)XNUMBER_PARSE_SEPARATOR) == 0) ||
-				(iCount == 0) ||
-				((iPosition + 1u) >= Text.Size) ||
-				!__xrtNumberFloatDigit(
-					(uint8)Text.Data[iPosition + 1u]) ) {
+		*pResult = (int64)iUnits;
+		return true;
+	}
+	if ( iUnits > (UINT64_C(1) << 63u) ) {
+		return false;
+	}
+	*pResult = iUnits == (UINT64_C(1) << 63u) ?
+		INT64_MIN : -(int64)iUnits;
+	return true;
+}
+
+
+
+/* 计算从起点到终点经过的完整单位数量。 */
+XRT_API bool xrtTimeDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult)
+{
+	int64 iDuration;
+	int64 iGuess;
+	int64 iMonths;
+	xtime iCandidate;
+
+	if ( pResult == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( __xrtTimeUnitDuration(Unit, &iDuration) ) {
+		if ( !__xrtTimeFixedDifference(
+				iStart, iEnd, iDuration, pResult) ) {
+			__xrtTimeSetOverflow("diff");
+			return false;
+		}
+		return true;
+	}
+	if ( !__xrtTimeMonthDifference(iStart, iEnd, &iMonths) ) {
+		__xrtTimeSetOverflow("diff");
+		return false;
+	}
+	if ( Unit == XTIME_UNIT_MONTH ) {
+		iGuess = iMonths;
+	} else if ( Unit == XTIME_UNIT_QUARTER ) {
+		iGuess = iMonths / 3;
+	} else if ( Unit == XTIME_UNIT_YEAR ) {
+		iGuess = iMonths / 12;
+	} else {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !xrtTimeAdd(iStart, iGuess, Unit, &iCandidate) ) {
+		return false;
+	}
+	if ( (iEnd >= iStart) && (iCandidate > iEnd) ) {
+		iGuess--;
+	} else if ( (iEnd < iStart) && (iCandidate < iEnd) ) {
+		iGuess++;
+	}
+	*pResult = iGuess;
+	return true;
+}
+
+
+
+/* 返回包含给定时间的半开月份区间。 */
+XRT_API bool xrtMonthRange(xtime iTime, xtime* pStart, xtime* pEnd)
+{
+	xdatetime tDateTime;
+	xtime iStart;
+	xtime iEnd;
+
+	if ( (pStart == NULL) && (pEnd == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	(void)xrtTimeSplit(iTime, &tDateTime);
+	if ( !xrtDate(tDateTime.Year, tDateTime.Month, 1, &iStart) ||
+		 !xrtTimeAdd(iStart, 1, XTIME_UNIT_MONTH, &iEnd) ) {
+		return false;
+	}
+	if ( pStart != NULL ) {
+		*pStart = iStart;
+	}
+	if ( pEnd != NULL ) {
+		*pEnd = iEnd;
+	}
+	return true;
+}
+
+
+
+/* 返回包含给定时间的半开年份区间。 */
+XRT_API bool xrtYearRange(xtime iTime, xtime* pStart, xtime* pEnd)
+{
+	int64 iYear = xrtYear(iTime);
+	xtime iStart;
+	xtime iEnd;
+
+	if ( (pStart == NULL) && (pEnd == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !xrtDate(iYear, 1, 1, &iStart) ||
+		 !xrtTimeAdd(iStart, 1, XTIME_UNIT_YEAR, &iEnd) ) {
+		return false;
+	}
+	if ( pStart != NULL ) {
+		*pStart = iStart;
+	}
+	if ( pEnd != NULL ) {
+		*pEnd = iEnd;
+	}
+	return true;
+}
+
+
+
+/* 返回包含给定时间的半开星期区间。 */
+XRT_API bool xrtWeekRange(xtime iTime, int iFirstWeekday, xtime* pStart, xtime* pEnd)
+{
+	int64 iDays;
+	int64 iDayTime;
+	int64 iStartDays;
+	xtime iStart;
+	xtime iEnd;
+	int iWeekday;
+	int iDifference;
+
+	if ( ((pStart == NULL) && (pEnd == NULL)) ||
+		 (iFirstWeekday < XTIME_SUNDAY) || (iFirstWeekday > XTIME_SATURDAY) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
+	iWeekday = (int)((iDays + 4) % 7);
+	if ( iWeekday < 0 ) {
+		iWeekday += 7;
+	}
+	iDifference = iWeekday - iFirstWeekday;
+	if ( iDifference < 0 ) {
+		iDifference += 7;
+	}
+	iStartDays = iDays - iDifference;
+	if ( !__xrtTimeMulChecked(iStartDays, XRT_TIME_DAY, &iStart) ||
+		 !__xrtTimeAddChecked(iStart, XRT_TIME_WEEK, &iEnd) ) {
+		__xrtTimeSetOverflow("week-range");
+		return false;
+	}
+	if ( pStart != NULL ) {
+		*pStart = iStart;
+	}
+	if ( pEnd != NULL ) {
+		*pEnd = iEnd;
+	}
+	return true;
+}
+
+
+
+/* 计算符合 ISO 8601 的周年、周数和星期值。 */
+XRT_API bool xrtISOWeek(xtime iTime, int64* pWeekYear, int* pWeek, int* pWeekday)
+{
+	int64 iDays;
+	int64 iDayTime;
+	int64 iThursday;
+	int64 iWeekYear;
+	int64 iJanuary4;
+	int64 iWeek1Monday;
+	int iSundayWeekday;
+	int iISOWeekday;
+	int iJanuary4Weekday;
+
+	if ( (pWeekYear == NULL) && (pWeek == NULL) && (pWeekday == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
+	iSundayWeekday = (int)((iDays + 4) % 7);
+	if ( iSundayWeekday < 0 ) {
+		iSundayWeekday += 7;
+	}
+	iISOWeekday = ((iSundayWeekday + 6) % 7) + 1;
+	iThursday = iDays + (4 - iISOWeekday);
+	__xrtTimeCivilFromDays(iThursday, &iWeekYear,
+		&iJanuary4Weekday, &iSundayWeekday);
+	if ( !__xrtTimeDaysFromCivil(iWeekYear, 1, 4, &iJanuary4) ) {
+		__xrtTimeSetOverflow("iso-week");
+		return false;
+	}
+	iJanuary4Weekday = (int)((iJanuary4 + 4) % 7);
+	if ( iJanuary4Weekday < 0 ) {
+		iJanuary4Weekday += 7;
+	}
+	iJanuary4Weekday = ((iJanuary4Weekday + 6) % 7) + 1;
+	iWeek1Monday = iJanuary4 - (iJanuary4Weekday - 1);
+	if ( pWeekYear != NULL ) {
+		*pWeekYear = iWeekYear;
+	}
+	if ( pWeek != NULL ) {
+		*pWeek = (int)((iDays - iWeek1Monday) / 7) + 1;
+	}
+	if ( pWeekday != NULL ) {
+		*pWeekday = iISOWeekday;
+	}
+	return true;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/concurrency/wait.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_WAIT)
+
+
+
+#if defined(XRT_FEATURE_WAIT)
+
+/* 从当前单调时钟和相对微秒数构造截止时间。 */
+XRT_API xdeadline xrtDeadlineAfter(uint64 iTimeout)
+{
+	uint64 iNow;
+
+	if ( iTimeout == UINT64_MAX ) {
+		return XRT_DEADLINE_NEVER;
+	}
+	iNow = xrtClock();
+	if ( iTimeout > (UINT64_MAX - iNow) ) {
+		return XRT_DEADLINE_NEVER;
+	}
+	return iNow + iTimeout;
+}
+
+
+
+/* 判断截止时间是否已经到达。 */
+XRT_API bool xrtDeadlineExpired(xdeadline iDeadline)
+{
+	return (iDeadline != XRT_DEADLINE_NEVER) && (xrtClock() >= iDeadline);
+}
+
+
+
+/* 返回截止时间前剩余的微秒数。 */
+XRT_API uint64 xrtDeadlineRemaining(xdeadline iDeadline)
+{
+	uint64 iNow;
+
+	if ( iDeadline == XRT_DEADLINE_NEVER ) {
+		return UINT64_MAX;
+	}
+	iNow = xrtClock();
+	return iNow < iDeadline ? iDeadline - iNow : 0;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/concurrency/cond.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_COND)
+
+#include <errno.h>
+
+
+
+#if defined(XRT_FEATURE_COND)
+
+/* 检查条件变量已经初始化。 */
+static xrt_cond_impl* __xrtCondRequire(xcond* pCond)
+{
+	xrt_cond_impl* pImpl;
+
+	if ( pCond == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pImpl = __xrtCondImpl(pCond);
+	if ( pImpl->Magic != XRT_COND_MAGIC ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	return pImpl;
+}
+
+
+
+/* 检查条件等待使用的互斥锁已经初始化并由当前线程持有。 */
+static xrt_mutex_impl* __xrtCondMutexRequire(xmutex* pMutex)
+{
+	xrt_mutex_impl* pImpl;
+
+	if ( pMutex == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pImpl = __xrtMutexImpl(pMutex);
+	if ( pImpl->Magic != XRT_MUTEX_MAGIC ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	if ( __xrtMutexOwnerLoad(pImpl) != __xrtCurrentThreadId() ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	return pImpl;
+}
+
+
+
+/* 初始化调用方存储中的条件变量。 */
+XRT_API bool xrtCondInit(xcond* pCond)
+{
+	xrt_cond_impl* pImpl;
+
+	if ( pCond == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	memset(pCond, 0, sizeof(xcond));
+	pImpl = __xrtCondImpl(pCond);
+	#if defined(_WIN32) || defined(_WIN64)
+		InitializeConditionVariable(&pImpl->Condition);
+	#else
+		{
+			pthread_condattr_t tAttr;
+			int iResult = pthread_condattr_init(&tAttr);
+
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("cond.init", iResult, "condition attribute initialization failed");
 				return false;
 			}
-			iPosition++;
-			continue;
+			#if defined(CLOCK_MONOTONIC) && !defined(__APPLE__)
+				if ( pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC) == 0 ) {
+					pImpl->Monotonic = true;
+				}
+			#endif
+			iResult = pthread_cond_init(&pImpl->Condition, &tAttr);
+			(void)pthread_condattr_destroy(&tAttr);
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("cond.init", iResult, "condition initialization failed");
+				return false;
+			}
 		}
-		break;
-	}
-	*pPosition = iPosition;
-	*pDigitCount = iCount;
+	#endif
+	pImpl->Magic = XRT_COND_MAGIC;
 	return true;
 }
 
 
 
-/* 读取科学计数法指数并检测任意长度的十进制溢出。 */
-static bool __xrtNumberFloatExponentSequence(
-	xstrview Text,
-	size_t* pPosition,
-	uint32 iFlags,
-	xrt_number_float_exponent* pExponent
+/* 释放条件变量平台资源。 */
+XRT_API bool xrtCondUnit(xcond* pCond)
+{
+	xrt_cond_impl* pImpl = __xrtCondRequire(pCond);
+
+	if ( pImpl == NULL ) {
+		return false;
+	}
+	#if !defined(_WIN32) && !defined(_WIN64)
+		{
+			int iResult = pthread_cond_destroy(&pImpl->Condition);
+
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("cond.unit", iResult, "condition destruction failed");
+				return false;
+			}
+		}
+	#endif
+	memset(pCond, 0, sizeof(xcond));
+	return true;
+}
+
+
+
+/* 创建条件变量。 */
+XRT_API xcond* xrtCondCreate(void)
+{
+	xcond* pCond = (xcond*)xrtMalloc(sizeof(xcond));
+
+	if ( pCond == NULL ) {
+		return NULL;
+	}
+	if ( !xrtCondInit(pCond) ) {
+		xrtFree(pCond);
+		return NULL;
+	}
+	return pCond;
+}
+
+
+
+/* 释放 Create 返回的条件变量。 */
+XRT_API bool xrtCondDestroy(xcond* pCond)
+{
+	if ( pCond == NULL ) {
+		return true;
+	}
+	if ( !xrtCondUnit(pCond) ) {
+		return false;
+	}
+	xrtFree(pCond);
+	return true;
+}
+
+
+
+/* 原子释放 mutex 并等待通知。 */
+XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex)
+{
+	return xrtCondWaitUntil(pCond, pMutex, XRT_DEADLINE_NEVER);
+}
+
+
+
+/* 在相对微秒数内等待通知。 */
+XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout)
+{
+	return xrtCondWaitUntil(pCond, pMutex, xrtDeadlineAfter(iTimeout));
+}
+
+
+
+/* 等待通知到指定单调时钟截止时间。 */
+XRT_API xwaitresult xrtCondWaitUntil(
+	xcond* pCond,
+	xmutex* pMutex,
+	xdeadline iDeadline
 )
 {
-	size_t iPosition = *pPosition;
-	size_t iDigits = 0;
+	xrt_cond_impl* pCondImpl = __xrtCondRequire(pCond);
+	xrt_mutex_impl* pMutexImpl = __xrtCondMutexRequire(pMutex);
 
-	memset(pExponent, 0, sizeof(*pExponent));
-	if ( iPosition < Text.Size ) {
-		uint8 iByte = (uint8)Text.Data[iPosition];
-
-		if ( (iByte == (uint8)'+') || (iByte == (uint8)'-') ) {
-			pExponent->Negative = iByte == (uint8)'-';
-			iPosition++;
-		}
+	if ( (pCondImpl == NULL) || (pMutexImpl == NULL) ) {
+		return XWAIT_ERROR;
 	}
-	while ( iPosition < Text.Size ) {
-		uint8 iByte = (uint8)Text.Data[iPosition];
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			uint64 iRemaining = xrtDeadlineRemaining(iDeadline);
+			DWORD iMilliseconds;
+			BOOL bResult;
+			int iCode;
 
-		if ( __xrtNumberFloatDigit(iByte) ) {
-			uint64 iDigit = (uint64)(iByte - (uint8)'0');
+			if ( iRemaining == 0 ) {
+				return XWAIT_TIMEOUT;
+			}
+			iMilliseconds = iRemaining == UINT64_MAX ? INFINITE :
+				(DWORD)__xrtWaitMilliseconds(iRemaining);
+			__xrtMutexOwnerStore(pMutexImpl, 0);
+			bResult = SleepConditionVariableSRW(
+				&pCondImpl->Condition,
+				&pMutexImpl->Lock,
+				iMilliseconds,
+				0
+			);
+			iCode = bResult ? 0 : (int)GetLastError();
+			__xrtMutexOwnerStore(pMutexImpl, __xrtCurrentThreadId());
+			if ( bResult ) {
+				return XWAIT_OK;
+			}
+			if ( iCode == ERROR_TIMEOUT ) {
+				return XWAIT_TIMEOUT;
+			}
+			__xrtSyncSetSystemError("cond.wait", iCode, "condition wait failed");
+			return XWAIT_ERROR;
+		}
+	#else
+		{
+			struct timespec tDeadline;
+			int iResult;
 
-			if ( !pExponent->Overflow ) {
-				if ( (pExponent->Magnitude >
-					(UINT64_MAX / UINT64_C(10))) ||
-					((pExponent->Magnitude ==
-					(UINT64_MAX / UINT64_C(10))) &&
-					(iDigit > (UINT64_MAX % UINT64_C(10)))) ) {
-					pExponent->Overflow = true;
-				} else {
-					pExponent->Magnitude =
-						(pExponent->Magnitude * UINT64_C(10)) +
-						iDigit;
+			if ( iDeadline != XRT_DEADLINE_NEVER ) {
+				if ( xrtDeadlineExpired(iDeadline) ) {
+					return XWAIT_TIMEOUT;
+				}
+				if ( !__xrtSyncDeadlineTime(
+					iDeadline,
+					pCondImpl->Monotonic,
+					&tDeadline
+				) ) {
+					return XWAIT_ERROR;
 				}
 			}
-			iDigits++;
-			iPosition++;
-			continue;
+			__xrtMutexOwnerStore(pMutexImpl, 0);
+			if ( iDeadline == XRT_DEADLINE_NEVER ) {
+				iResult = pthread_cond_wait(&pCondImpl->Condition, &pMutexImpl->Lock);
+			} else {
+				iResult = pthread_cond_timedwait(
+					&pCondImpl->Condition,
+					&pMutexImpl->Lock,
+					&tDeadline
+				);
+			}
+			__xrtMutexOwnerStore(pMutexImpl, __xrtCurrentThreadId());
+			if ( iResult == 0 ) {
+				return XWAIT_OK;
+			}
+			if ( iResult == ETIMEDOUT ) {
+				return XWAIT_TIMEOUT;
+			}
+			if ( iResult == EPERM ) {
+				__xrtErrorSetInvalidState();
+			} else {
+				__xrtSyncSetSystemError("cond.wait", iResult, "condition wait failed");
+			}
+			return XWAIT_ERROR;
 		}
-		if ( iByte == (uint8)'_' ) {
-			if ( ((iFlags & (uint32)XNUMBER_PARSE_SEPARATOR) == 0) ||
-				(iDigits == 0) ||
-				((iPosition + 1u) >= Text.Size) ||
-				!__xrtNumberFloatDigit(
-					(uint8)Text.Data[iPosition + 1u]) ) {
+	#endif
+}
+
+
+
+/* 唤醒一个等待者。 */
+XRT_API bool xrtCondSignal(xcond* pCond)
+{
+	xrt_cond_impl* pImpl = __xrtCondRequire(pCond);
+
+	if ( pImpl == NULL ) {
+		return false;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		WakeConditionVariable(&pImpl->Condition);
+	#else
+		{
+			int iResult = pthread_cond_signal(&pImpl->Condition);
+
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("cond.signal", iResult, "condition signal failed");
 				return false;
 			}
-			iPosition++;
-			continue;
 		}
-		break;
-	}
-	if ( iDigits == 0 ) {
-		return false;
-	}
-	*pPosition = iPosition;
+	#endif
 	return true;
 }
 
 
 
-/* 合并两个带符号幅值；同号加法溢出时保留最终符号。 */
-static xrt_number_float_exponent __xrtNumberFloatExponentAdd(
-	xrt_number_float_exponent Left,
-	xrt_number_float_exponent Right
-)
+/* 唤醒全部当前等待者。 */
+XRT_API bool xrtCondBroadcast(xcond* pCond)
 {
-	xrt_number_float_exponent Result;
+	xrt_cond_impl* pImpl = __xrtCondRequire(pCond);
 
-	if ( Left.Overflow ) {
-		return Left;
+	if ( pImpl == NULL ) {
+		return false;
 	}
-	if ( Right.Overflow ) {
-		return Right;
-	}
-	if ( Left.Negative == Right.Negative ) {
-		Result.Negative = Left.Negative;
-		Result.Overflow =
-			Left.Magnitude > (UINT64_MAX - Right.Magnitude);
-		Result.Magnitude = Result.Overflow ?
-			UINT64_MAX : Left.Magnitude + Right.Magnitude;
-		return Result;
-	}
-	Result.Overflow = false;
-	if ( Left.Magnitude >= Right.Magnitude ) {
-		Result.Negative = Left.Negative;
-		Result.Magnitude = Left.Magnitude - Right.Magnitude;
-	} else {
-		Result.Negative = Right.Negative;
-		Result.Magnitude = Right.Magnitude - Left.Magnitude;
-	}
-	if ( Result.Magnitude == 0 ) {
-		Result.Negative = false;
-	}
-	return Result;
-}
+	#if defined(_WIN32) || defined(_WIN64)
+		WakeAllConditionVariable(&pImpl->Condition);
+	#else
+		{
+			int iResult = pthread_cond_broadcast(&pImpl->Condition);
 
-
-
-/* 把两个 size_t 计数之差转换为指数的符号幅值。 */
-static xrt_number_float_exponent __xrtNumberFloatCountDifference(
-	size_t iPositive,
-	size_t iNegative
-)
-{
-	xrt_number_float_exponent Result;
-
-	Result.Overflow = false;
-	if ( iPositive >= iNegative ) {
-		Result.Negative = false;
-		Result.Magnitude = (uint64)(iPositive - iNegative);
-	} else {
-		Result.Negative = true;
-		Result.Magnitude = (uint64)(iNegative - iPositive);
-	}
-	return Result;
-}
-
-
-
-/* 把扫描结果归一化为数值内核所需的有效数和两个十进制指数。 */
-static bool __xrtNumberFloatNormalize(
-	xrt_number_float_scan* pScan,
-	xrt_number_float_exponent LiteralExponent,
-	uint64* pSignificand,
-	int32* pSignificandExponent,
-	uint32* pDigitCount,
-	int32* pDigitExponent
-)
-{
-	size_t iSignificantCount =
-		(pScan->LastNonzero - pScan->FirstNonzero) + 1u;
-	size_t iTrailingZeros =
-		(pScan->TotalDigits - pScan->LastNonzero) - 1u;
-	size_t iHighScale =
-		(iSignificantCount > 19u) ?
-		(iSignificantCount - 19u) : 0;
-	xrt_number_float_exponent CountExponent;
-	xrt_number_float_exponent Combined;
-	uint32 iRetained = (iSignificantCount >
-		XRT_NUMBER_FLOAT_MAX_DIGITS) ?
-		XRT_NUMBER_FLOAT_MAX_DIGITS :
-		(uint32)iSignificantCount;
-	uint32 iHighDigits =
-		(iSignificantCount > 19u) ? 19u : (uint32)iSignificantCount;
-	uint64 iSignificand = 0;
-	int32 iExponent;
-
-	/*
-		尾随零和高位截断尺度都属于正指数，小数位数属于负指数；
-		三者的正计数总和不超过尾数实际长度。
-	*/
-	CountExponent = __xrtNumberFloatCountDifference(
-		iTrailingZeros + iHighScale,
-		pScan->FractionDigits
-	);
-	Combined = __xrtNumberFloatExponentAdd(
-		LiteralExponent, CountExponent);
-	if ( Combined.Overflow ) {
-		if ( Combined.Negative ) {
-			*pSignificandExponent = -344;
-			return true;
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("cond.broadcast", iResult, "condition broadcast failed");
+				return false;
+			}
 		}
-		__xrtNumberError(
-			XERR_RANGE,
-			XNUMBER_ERROR_RANGE,
-			"num-parse",
-			"floating-point value overflows double"
-		);
-		return false;
-	}
-	if ( Combined.Negative ) {
-		if ( Combined.Magnitude > UINT64_C(343) ) {
-			*pSignificandExponent = -344;
-			return true;
-		}
-		iExponent = -(int32)Combined.Magnitude;
-	} else {
-		if ( Combined.Magnitude > UINT64_C(308) ) {
-			__xrtNumberError(
-				XERR_RANGE,
-				XNUMBER_ERROR_RANGE,
-				"num-parse",
-				"floating-point value overflows double"
-			);
-			return false;
-		}
-		iExponent = (int32)Combined.Magnitude;
-	}
-
-	for ( uint32 i = 0; i < iHighDigits; i++ ) {
-		iSignificand = (iSignificand * UINT64_C(10)) +
-			(uint64)(pScan->Digits[i] - (uint8)'0');
-	}
-	if ( iSignificantCount > 19u ) {
-		iSignificand +=
-			pScan->Digits[19] >= (uint8)'5';
-	}
-	if ( iSignificantCount > XRT_NUMBER_FLOAT_MAX_DIGITS ) {
-		pScan->Digits[XRT_NUMBER_FLOAT_MAX_DIGITS - 1u] = (uint8)'1';
-	}
-
-	*pSignificand = iSignificand;
-	*pSignificandExponent = iExponent;
-	*pDigitCount = iRetained;
-	*pDigitExponent =
-		iExponent + (int32)iHighDigits - (int32)iRetained;
-	return true;
-}
-
-
-
-/* 解析显式允许的 inf、infinity 和 nan 特殊值。 */
-static bool __xrtNumberFloatSpecial(
-	xstrview Text,
-	bool bNegative,
-	uint64* pBits
-)
-{
-	if ( __xrtNumberFloatLiteral(Text, "inf", 3) ||
-		__xrtNumberFloatLiteral(Text, "infinity", 8) ) {
-		*pBits = UINT64_C(0x7FF0000000000000);
-	} else if ( __xrtNumberFloatLiteral(Text, "nan", 3) ) {
-		*pBits = UINT64_C(0x7FF8000000000000);
-	} else {
-		return false;
-	}
-	if ( bNegative ) {
-		*pBits |= UINT64_C(0x8000000000000000);
-	}
-	return true;
-}
-
-
-
-/* 完成浮点文本语法扫描、归一化和正确舍入转换。 */
-static bool __xrtNumberFloatParseText(
-	xstrview Text,
-	uint32 iFlags,
-	uint64* pBits
-)
-{
-	xrt_number_float_scan Scan;
-	xrt_number_float_exponent LiteralExponent;
-	size_t iPosition = 0;
-	size_t iIntegerDigits;
-	size_t iFractionDigits;
-	bool bNegative = false;
-	uint64 iSignificand;
-	int32 iSignificandExponent;
-	uint32 iDigitCount;
-	int32 iDigitExponent;
-	uint64 iBits;
-
-	memset(&Scan, 0, sizeof(Scan));
-	memset(&LiteralExponent, 0, sizeof(LiteralExponent));
-	if ( Text.Size == 0 ) {
-		return __xrtNumberFloatFormatError(
-			"floating-point text is empty");
-	}
-	if ( (Text.Data[iPosition] == '+') ||
-		(Text.Data[iPosition] == '-') ) {
-		bNegative = Text.Data[iPosition] == '-';
-		iPosition++;
-		if ( iPosition == Text.Size ) {
-			return __xrtNumberFloatFormatError(
-				"floating-point sign is not followed by a value");
-		}
-	}
-
-	if ( (iFlags & (uint32)XNUMBER_PARSE_SPECIAL) != 0 ) {
-		xstrview Special = {
-			Text.Data + iPosition,
-			Text.Size - iPosition
-		};
-
-		if ( __xrtNumberFloatSpecial(Special, bNegative, pBits) ) {
-			return true;
-		}
-	}
-
-	if ( !__xrtNumberFloatMantissaSequence(
-		Text,
-		&iPosition,
-		iFlags,
-		false,
-		&Scan,
-		&iIntegerDigits
-	) ) {
-		return __xrtNumberFloatFormatError(
-			"invalid separator in floating-point integer part");
-	}
-	iFractionDigits = 0;
-	if ( (iPosition < Text.Size) &&
-		(Text.Data[iPosition] == '.') ) {
-		iPosition++;
-		if ( !__xrtNumberFloatMantissaSequence(
-			Text,
-			&iPosition,
-			iFlags,
-			true,
-			&Scan,
-			&iFractionDigits
-		) ) {
-			return __xrtNumberFloatFormatError(
-				"invalid separator in floating-point fraction");
-		}
-	}
-	if ( (iIntegerDigits == 0) && (iFractionDigits == 0) ) {
-		return __xrtNumberFloatFormatError(
-			"floating-point text has no decimal digit");
-	}
-
-	if ( (iPosition < Text.Size) &&
-		((Text.Data[iPosition] == 'e') ||
-		(Text.Data[iPosition] == 'E')) ) {
-		iPosition++;
-		if ( !__xrtNumberFloatExponentSequence(
-			Text,
-			&iPosition,
-			iFlags,
-			&LiteralExponent
-		) ) {
-			return __xrtNumberFloatFormatError(
-				"floating-point exponent has no valid digit");
-		}
-	}
-	if ( iPosition != Text.Size ) {
-		return __xrtNumberFloatFormatError(
-			"unexpected character after floating-point value");
-	}
-
-	if ( !Scan.HasNonzero ) {
-		*pBits = bNegative ?
-			UINT64_C(0x8000000000000000) : 0;
-		return true;
-	}
-	if ( !__xrtNumberFloatNormalize(
-		&Scan,
-		LiteralExponent,
-		&iSignificand,
-		&iSignificandExponent,
-		&iDigitCount,
-		&iDigitExponent
-	) ) {
-		return false;
-	}
-	if ( iSignificandExponent < -343 ) {
-		*pBits = bNegative ?
-			UINT64_C(0x8000000000000000) : 0;
-		return true;
-	}
-	if ( !__xrtNumberFloatConvert(
-		Scan.Digits,
-		iDigitCount,
-		iDigitExponent,
-		iSignificand,
-		iSignificandExponent,
-		&iBits
-	) ) {
-		__xrtNumberError(
-			XERR_RANGE,
-			XNUMBER_ERROR_RANGE,
-			"num-parse",
-			"floating-point value overflows double"
-		);
-		return false;
-	}
-	if ( bNegative ) {
-		iBits |= UINT64_C(0x8000000000000000);
-	}
-	*pBits = iBits;
-	return true;
-}
-
-
-
-/* 写出 double 的最短往返文本。 */
-XRT_API bool xrtNumWrite(
-	double fValue,
-	char* sOutput,
-	size_t iCapacity,
-	size_t* pOutputSize,
-	uint32 iFlags
-)
-{
-	char sBuffer[40];
-	size_t iSize;
-
-	if ( (pOutputSize == NULL) ||
-		((sOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( (sOutput != NULL) && __xrtRangesOverlap(
-		pOutputSize, sizeof(*pOutputSize), sOutput, iCapacity) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( (iFlags & ~XRT_NUMBER_FLOAT_FLAGS) != 0 ) {
-		__xrtNumberError(
-			XERR_VALUE,
-			XNUMBER_ERROR_CONFIG,
-			"num-write",
-			"invalid floating-point write flags"
-		);
-		return false;
-	}
-	iSize = __xrtNumberFloatFormat(
-		fValue,
-		sBuffer,
-		(iFlags & (uint32)XNUMBER_FLOAT_COMPACT) != 0
-	);
-	return __xrtNumberWriteResult(
-		sBuffer, iSize, sOutput, iCapacity, pOutputSize);
-}
-
-
-
-/* 分配并写出 double 的最短往返文本。 */
-XRT_API str xrtNumString(double fValue, uint32 iFlags)
-{
-	size_t iSize;
-	str sText;
-
-	if ( !xrtNumWrite(fValue, NULL, 0, &iSize, iFlags) ) {
-		return NULL;
-	}
-	sText = (str)xrtMalloc(iSize + 1u);
-	if ( sText == NULL ) {
-		return NULL;
-	}
-	if ( !xrtNumWrite(
-		fValue, sText, iSize + 1u, &iSize, iFlags) ) {
-		xrtFree(sText);
-		return NULL;
-	}
-	return sText;
-}
-
-
-
-/* 严格解析完整十进制浮点文本并在成功后发布结果。 */
-XRT_API bool xrtNumParse(
-	xstrview Text,
-	uint32 iFlags,
-	double* pValue
-)
-{
-	xstrview Trimmed;
-	uint64 iBits;
-	double fValue;
-
-	if ( pValue == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtNumberFloatTrim(Text, iFlags, &Trimmed) ) {
-		return false;
-	}
-	if ( !__xrtNumberFloatParseText(Trimmed, iFlags, &iBits) ) {
-		return false;
-	}
-	memcpy(&fValue, &iBits, sizeof(fValue));
-	*pValue = fValue;
+	#endif
 	return true;
 }
 
@@ -67173,1388 +65200,3052 @@ XRT_API bool xrtNumParse(
 
 
 /* ========================================================================== */
-/* source: src/text/unicode.c */
+/* source: src/concurrency/cancel.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_UNICODE)
-
-#include <stdio.h>
+#if defined(XRT_FEATURE_CANCEL)
 
 
 
-#if defined(XRT_FEATURE_UNICODE)
+#if defined(XRT_FEATURE_CANCEL)
 
-/* 内部转换器使用统一的码元类型，避免维护六套近似循环。 */
-typedef enum xrt_utf_unit {
-	XRT_UTF_UNIT_8 = 1,
-	XRT_UTF_UNIT_16 = 2,
-	XRT_UTF_UNIT_32 = 4
-} xrt_utf_unit;
+/* 一个父链节点只挂入对应令牌的监听链表。 */
+typedef struct xcancelnode {
+	struct xcancelnode* Next;
+	struct xcancelwatch* Watch;
+	struct xcancel* Cancel;
+	bool Linked;
+} xcancelnode;
 
 
 
-/* 创建一个尚未读取和写入数据的转换结果。 */
-static xutfresult __xrtUtfResult(void)
+/* 取消令牌保留父令牌，并用互斥锁保护监听链表。 */
+struct xcancel {
+	volatile int32 RefCount;
+	volatile int32 Requested;
+	xmutex Lock;
+	struct xcancel* Parent;
+	xcancelnode* WatchHead;
+	size_t ActiveRequests;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+};
+
+
+
+static bool __xrtCancelOwnershipCount(const void* pData, size_t* pCount)
 {
-	xutfresult Result;
+	const xcancel* pCancel = (const xcancel*)pData;
+	int32 iCount;
+	if (pCancel == NULL || pCount == NULL || pCancel->ActiveRequests || pCancel->OwnershipCleared) return false;
+	iCount = __xrtAtomicRefLoad(&pCancel->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
 
-	Result.Status = XUTF_OK;
-	Result.Read = 0;
-	Result.Written = 0;
-	Result.Error = XRT_NPOS;
+static bool __xrtCancelOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xcancel* pCancel = (const xcancel*)pData;
+	if (pCancel == NULL || pVisit == NULL || pCancel->ActiveRequests || pCancel->OwnershipCleared) return false;
+	return pCancel->Parent == NULL || pVisit(xrtCancelOwnership(pCancel->Parent), pContext);
+}
+
+static const xrtownershipops __xrtCancelOwnershipOps = {
+	__xrtCancelOwnershipCount, __xrtCancelOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtCancelOwnership(const xcancel* pCancel)
+{
+	xrtownershipref Result = {pCancel, pCancel != NULL ? &__xrtCancelOwnershipOps : NULL};
+	return Result;
+}
+
+static bool __xrtCancelAdapterHold(const void* pData)
+{ return xrtCancelRef((xcancel*)pData) != NULL; }
+static void __xrtCancelAdapterDrop(const void* pData)
+{ xrtCancelDestroy((xcancel*)pData); }
+static bool __xrtCancelAdapterClaim(const void* pData, const void* pToken)
+{ return pData != NULL && pToken != NULL && ((const xcancel*)pData)->WatchHead == NULL; }
+static void __xrtCancelAdapterKeep(const void* pData, const void* pToken)
+{ (void)pData; (void)pToken; }
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter),
+		__xrtCancelAdapterHold, __xrtCancelAdapterDrop, __xrtCancelAdapterClaim,
+		__xrtCancelAdapterKeep, NULL, __xrtCancelAdapterKeep, NULL};
+	const xcancel* pCancel;
+	if (Reference.Ops != &__xrtCancelOwnershipOps || Reference.Data == NULL) return NULL;
+	pCancel = (const xcancel*)Reference.Data;
+	return pCancel->WatchHead == NULL && !pCancel->ActiveRequests && !pCancel->OwnershipCleared &&
+		__xrtAtomicRefLoad(&pCancel->RefCount) > 0 ? &Adapter : NULL;
+}
+void __xrtCancelOwnershipCloseUnobserved(xcancel* pCancel)
+{
+	if (pCancel == NULL || pCancel->WatchHead != NULL) abort();
+	(void)__xrtAtomicRefCompareExchange(&pCancel->Requested, 1, 0);
+}
+
+/* 监听对象集中保存回调状态和全部父链节点，避免逐节点分配。 */
+struct xcancelwatch {
+	volatile int32 RefCount;
+	volatile int32 Triggered;
+	xmutex Lock;
+	xcond Idle;
+	xcancel* Cancel;
+	xcancelproc Proc;
+	ptr Data;
+	uint32 NodeCount;
+	bool Armed;
+	bool CallbackStarted;
+	bool CallbackActive;
+	bool CallbackThreadValid;
+	bool Destroying;
+	bool DeferredRelease;
+	size_t Dispatching;
+	bool UnwatchDone;
+	const xcancelwatchownershipv1* OwnershipPolicy;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD CallbackThread;
+	#else
+		pthread_t CallbackThread;
+	#endif
+	xcancelnode Nodes[1];
+};
+
+static bool __xrtCancelWatchStable(const xcancelwatch* pWatch)
+{
+	return pWatch != NULL && pWatch->Armed && !pWatch->CallbackActive &&
+		!pWatch->Dispatching && !pWatch->DeferredRelease && !pWatch->OwnershipCleared &&
+		(!pWatch->Destroying || (pWatch->OwnershipPolicy != NULL && pWatch->UnwatchDone));
+}
+
+
+static bool __xrtCancelWatchOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xcancelwatch* pWatch = (const xcancelwatch*)pData;
+	int32 iCount;
+	if (pCount == NULL || !__xrtCancelWatchStable(pWatch)) return false;
+	iCount = __xrtAtomicRefLoad(&pWatch->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+
+static bool __xrtCancelWatchOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xcancelwatch* pWatch = (const xcancelwatch*)pData;
+	if (pVisit == NULL || !__xrtCancelWatchStable(pWatch)) return false;
+	return pVisit(xrtCancelOwnership(pWatch->Cancel), pContext) &&
+		(pWatch->OwnershipPolicy == NULL || pVisit((xrtownershipref){pWatch->Data,
+			pWatch->OwnershipPolicy->Ops}, pContext));
+}
+
+static const xrtownershipops __xrtCancelWatchOwnershipOps = {
+	__xrtCancelWatchOwnershipCount, __xrtCancelWatchOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch)
+{
+	xrtownershipref Result = {pWatch, pWatch != NULL ? &__xrtCancelWatchOwnershipOps : NULL};
 	return Result;
 }
 
 
 
-/* 检查借用视图的指针和长度组合。 */
-static bool __xrtUtfViewValid(const void* pData, size_t iSize)
+/* 释放监听对象的一个内部引用。 */
+static void __xrtCancelWatchRelease(xcancelwatch* pWatch)
 {
-	if ( (pData == NULL) && (iSize != 0) ) {
+	xcancel* pCancel; ptr pData; const xcancelwatchownershipv1* pPolicy;
+	xrtownershipscope Mutation = {0};
+
+	if (pWatch == NULL) return;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (xrtRefRelease(&pWatch->RefCount) != 0) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		return;
+	}
+	pCancel = pWatch->Cancel;
+	pData = pWatch->Data; pPolicy = pWatch->OwnershipPolicy;
+	(void)xrtCondUnit(&pWatch->Idle);
+	(void)xrtMutexUnit(&pWatch->Lock);
+	xrtFree(pWatch);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (pPolicy != NULL && pData != NULL) {
+		xerror* pPrevious = xrtTakeError(); pPolicy->Drop(pData);
+		xrtClearError(); xrtSetErrorTake(pPrevious);
+	}
+	xrtCancelDestroy(pCancel);
+}
+
+
+
+/* 判断当前线程是否正在执行指定监听的回调。 */
+static bool __xrtCancelWatchIsCallbackThread(const xcancelwatch* pWatch)
+{
+	if ( !pWatch->CallbackThreadValid ) {
+		return false;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		return pWatch->CallbackThread == GetCurrentThreadId();
+	#else
+		return pthread_equal(pWatch->CallbackThread, pthread_self()) != 0;
+	#endif
+}
+
+
+
+/* 在持有监听锁时记录回调启动，并返回待执行过程。 */
+static xcancelproc __xrtCancelWatchStart(xcancelwatch* pWatch, ptr* ppData)
+{
+	if (
+		pWatch->Destroying || !pWatch->Armed ||
+		(__xrtAtomicRefLoad(&pWatch->Triggered) == 0) ||
+		pWatch->CallbackStarted
+	) {
+		return NULL;
+	}
+	pWatch->CallbackStarted = true;
+	pWatch->CallbackActive = true;
+	pWatch->CallbackThreadValid = true;
+	#if defined(_WIN32) || defined(_WIN64)
+		pWatch->CallbackThread = GetCurrentThreadId();
+	#else
+		pWatch->CallbackThread = pthread_self();
+	#endif
+	*ppData = pWatch->Data;
+	return pWatch->Proc;
+}
+
+
+
+/* 执行回调并在返回后唤醒注销方或完成回调内延迟回收。 */
+static void __xrtCancelWatchRun(
+	xcancelwatch* pWatch,
+	xcancelproc pProc,
+	ptr pData
+)
+{
+	bool bRelease;
+	xrtownershipscope Mutation = {0}, Callback = {0};
+
+	if (pWatch->OwnershipPolicy == NULL && !xrtOwnershipMutationBegin(&Callback)) abort();
+	pProc(pData);
+	if (pWatch->OwnershipPolicy == NULL && !xrtOwnershipScopeEnd(&Callback)) abort();
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	(void)xrtMutexLock(&pWatch->Lock);
+	pWatch->CallbackActive = false;
+	pWatch->CallbackThreadValid = false;
+	bRelease = pWatch->DeferredRelease;
+	pWatch->DeferredRelease = false;
+	(void)xrtCondBroadcast(&pWatch->Idle);
+	(void)xrtMutexUnlock(&pWatch->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( bRelease ) {
+		__xrtCancelWatchRelease(pWatch);
+	}
+}
+
+
+
+/* 标记监听已触发，并在监听完成装配后同步执行一次回调。 */
+static void __xrtCancelWatchNotify(xcancelwatch* pWatch)
+{
+	xcancelproc pProc = NULL;
+	ptr pData = NULL;
+	xrtownershipscope Mutation = {0};
+
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	(void)xrtMutexLock(&pWatch->Lock);
+	if ( !pWatch->Destroying && (__xrtAtomicRefLoad(&pWatch->Triggered) == 0) ) {
+		(void)__xrtAtomicRefCompareExchange(&pWatch->Triggered, 1, 0);
+		pProc = __xrtCancelWatchStart(pWatch, &pData);
+	}
+	(void)xrtMutexUnlock(&pWatch->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( pProc != NULL ) {
+		__xrtCancelWatchRun(pWatch, pProc, pData);
+	}
+}
+
+
+
+/* 创建一个独立的取消令牌。 */
+static xcancel* __xrtOwnershipBody_CancelCreate(void)
+{
+	xcancel* pCancel = (xcancel*)xrtMalloc(sizeof(xcancel));
+
+	if ( pCancel == NULL ) {
+		return NULL;
+	}
+	memset(pCancel, 0, sizeof(xcancel));
+	pCancel->RefCount = 1;
+	if ( !xrtMutexInit(&pCancel->Lock) ) {
+		xrtFree(pCancel);
+		return NULL;
+	}
+	return pCancel;
+}
+
+XRT_API xcancel* xrtCancelCreate(void)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelCreate());
+}
+
+
+
+/* 创建一个继承不可变父链的子取消令牌。 */
+static xcancel* __xrtOwnershipBody_CancelChild(xcancel* pParent)
+{
+	xcancel* pCancel = xrtCancelCreate();
+
+	if ( pCancel == NULL ) {
+		return NULL;
+	}
+	if ( pParent != NULL ) {
+		pCancel->Parent = xrtCancelRef(pParent);
+		if ( pCancel->Parent == NULL ) {
+			xrtCancelDestroy(pCancel);
+			return NULL;
+		}
+	}
+	return pCancel;
+}
+
+XRT_API xcancel* xrtCancelChild(xcancel* pParent)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelChild(pParent));
+}
+
+
+
+/* 增加取消令牌引用。 */
+static xcancel* __xrtOwnershipBody_CancelRef(xcancel* pCancel)
+{
+	if ( (pCancel == NULL) || pCancel->OwnershipCleared || (xrtRefRetain(&pCancel->RefCount) < 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	return pCancel;
+}
+
+XRT_API xcancel* xrtCancelRef(xcancel* pCancel)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelRef(pCancel));
+}
+
+
+
+/* 释放取消令牌引用，并顺着唯一父引用迭代回收。 */
+static void __xrtOwnershipBody_CancelDestroy(xcancel* pCancel)
+{
+	while ( (pCancel != NULL) && (xrtRefRelease(&pCancel->RefCount) == 0) ) {
+		xcancel* pParent = pCancel->Parent;
+
+		(void)xrtMutexUnit(&pCancel->Lock);
+		xrtFree(pCancel);
+		pCancel = pParent;
+	}
+}
+
+XRT_API void xrtCancelDestroy(xcancel* pCancel)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN_VOID(__xrtOwnershipBody_CancelDestroy(pCancel));
+}
+
+
+
+/* 首次请求取消并在令牌锁外通知全部监听。 */
+XRT_API bool xrtCancelRequest(xcancel* pCancel)
+{
+	xcancelnode* pList;
+	xcancelnode* pNode;
+	xrtownershipscope Mutation = {0};
+
+	if ( pCancel == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	if (pCancel->OwnershipCleared) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtErrorSetInvalidState(); return false;
+	}
+	(void)xrtMutexLock(&pCancel->Lock);
+	if ( __xrtAtomicRefLoad(&pCancel->Requested) != 0 ) {
+		(void)xrtMutexUnlock(&pCancel->Lock);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		return false;
+	}
+	if (xrtRefRetain(&pCancel->RefCount) < 0) abort();
+	++pCancel->ActiveRequests;
+	(void)__xrtAtomicRefCompareExchange(&pCancel->Requested, 1, 0);
+	pList = pCancel->WatchHead;
+	pCancel->WatchHead = NULL;
+	for ( pNode = pList; pNode != NULL; pNode = pNode->Next ) {
+		pNode->Linked = false;
+		(void)xrtRefRetain(&pNode->Watch->RefCount);
+		(void)xrtMutexLock(&pNode->Watch->Lock);
+		++pNode->Watch->Dispatching;
+		(void)xrtMutexUnlock(&pNode->Watch->Lock);
+	}
+	(void)xrtMutexUnlock(&pCancel->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+
+	while ( pList != NULL ) {
+		if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+		pNode = pList;
+		pList = pNode->Next;
+		pNode->Next = NULL;
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtCancelWatchNotify(pNode->Watch);
+		if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+		(void)xrtMutexLock(&pNode->Watch->Lock);
+		if (!pNode->Watch->Dispatching) abort();
+		--pNode->Watch->Dispatching;
+		(void)xrtMutexUnlock(&pNode->Watch->Lock);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtCancelWatchRelease(pNode->Watch);
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	(void)xrtMutexLock(&pCancel->Lock);
+	--pCancel->ActiveRequests;
+	(void)xrtMutexUnlock(&pCancel->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	xrtCancelDestroy(pCancel);
 	return true;
 }
 
 
 
-/* 返回输入开头连续 ASCII 字节数，供常见纯 ASCII 路径跳过逐标量解码。 */
-static size_t __xrtUtf8AsciiPrefix(const unsigned char* pText, size_t iSize)
+/* 查询令牌及其不可变父链是否已取消。 */
+XRT_API bool xrtCancelRequested(const xcancel* pCancel)
 {
-	size_t i = 0;
-
-	while ( (i < iSize) && (pText[i] <= 0x7Fu) ) {
-		i++;
-	}
-	return i;
-}
-
-
-
-/* 根据源码元类型解码一个 Unicode 标量。 */
-static xrt_utf_decode __xrtUtfDecodeUnit(const void* pSource, size_t iSize,
-	xrt_utf_unit Unit)
-{
-	if ( Unit == XRT_UTF_UNIT_8 ) {
-		return __xrtUtf8Decode((const unsigned char*)pSource, iSize);
-	}
-	if ( Unit == XRT_UTF_UNIT_16 ) {
-		return __xrtUtf16Decode((const uint16*)pSource, iSize);
-	}
-	return __xrtUtf32Decode((const uint32*)pSource, iSize);
-}
-
-
-
-/* 根据目标码元类型返回编码长度并按需写出标量。 */
-static size_t __xrtUtfEncodeUnit(uint32 iScalar, void* pTarget, xrt_utf_unit Unit)
-{
-	if ( Unit == XRT_UTF_UNIT_8 ) {
-		return __xrtUtf8Encode(iScalar, (unsigned char*)pTarget);
-	}
-	if ( Unit == XRT_UTF_UNIT_16 ) {
-		return __xrtUtf16Encode(iScalar, (uint16*)pTarget);
-	}
-	if ( pTarget != NULL ) {
-		*(uint32*)pTarget = iScalar;
-	}
-	return 1;
-}
-
-
-
-/* 按目标码元宽度计算写入地址。 */
-static void* __xrtUtfTargetAt(void* pTarget, size_t iPosition, xrt_utf_unit Unit)
-{
-	if ( Unit == XRT_UTF_UNIT_8 ) {
-		return (unsigned char*)pTarget + iPosition;
-	}
-	if ( Unit == XRT_UTF_UNIT_16 ) {
-		return (uint16*)pTarget + iPosition;
-	}
-	return (uint32*)pTarget + iPosition;
-}
-
-
-
-/* 按源码元宽度计算读取地址。 */
-static const void* __xrtUtfSourceAt(const void* pSource, size_t iPosition,
-	xrt_utf_unit Unit)
-{
-	if ( Unit == XRT_UTF_UNIT_8 ) {
-		return (const unsigned char*)pSource + iPosition;
-	}
-	if ( Unit == XRT_UTF_UNIT_16 ) {
-		return (const uint16*)pSource + iPosition;
-	}
-	return (const uint32*)pSource + iPosition;
-}
-
-
-
-/* 用一条标量管线完成任意 UTF 码元宽度之间的转换。 */
-static xutfresult __xrtUtfConvert(const void* pSource, size_t iSourceSize,
-	void* pTarget, size_t iCapacity, xrt_utf_unit SourceUnit,
-	xrt_utf_unit TargetUnit, xutfpolicy Policy, cstr sOperation)
-{
-	xutfresult Result = __xrtUtfResult();
-	bool bMeasure = pTarget == NULL;
-	size_t iSourceBytes;
-	size_t iTargetBytes = 0;
-
-	if ( !__xrtUtfViewValid(pSource, iSourceSize) ||
-		 ((pTarget == NULL) && (iCapacity != 0)) ||
-		 ((Policy != XUTF_STRICT) && (Policy != XUTF_REPLACE)) ) {
-		if ( ((pTarget == NULL) && (iCapacity != 0)) ||
-			 ((Policy != XUTF_STRICT) && (Policy != XUTF_REPLACE)) ) {
-			__xrtErrorSetInvalidArgument();
+	while ( pCancel != NULL ) {
+		if ( __xrtAtomicRefLoad(&pCancel->Requested) != 0 ) {
+			return true;
 		}
-		Result.Status = XUTF_INVALID;
-		Result.Error = 0;
-		return Result;
+		pCancel = pCancel->Parent;
 	}
-	if ( (iSourceSize > (SIZE_MAX / (size_t)SourceUnit)) ||
-		(!bMeasure && (iCapacity > (SIZE_MAX / (size_t)TargetUnit))) ) {
-		Result.Status = XUTF_OVERFLOW;
-		__xrtUtfSetOverflow(sOperation);
-		return Result;
+	return false;
+}
+
+
+
+/* 为令牌及其全部祖先一次性装配监听节点。 */
+static xcancelwatch* __xrtOwnershipBody_CancelWatch(
+	xcancel* pCancel,
+	xcancelproc pProc,
+	ptr pData, const xcancelwatchownershipv1* pPolicy
+)
+{
+	xcancelwatch* pWatch;
+	xcancel* pCurrent;
+	uint32 iCount = 0;
+	size_t iBytes;
+
+	if ( (pCancel == NULL) || (pProc == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
 	}
-	iSourceBytes = iSourceSize * (size_t)SourceUnit;
-	if ( !bMeasure ) {
-		iTargetBytes = iCapacity * (size_t)TargetUnit;
-		if ( __xrtRangesOverlap(
-			pSource, iSourceBytes, pTarget, iTargetBytes
-		) ) {
-			Result.Status = XUTF_INVALID;
-			Result.Error = 0;
-			__xrtErrorSetInvalidArgument();
-			return Result;
+	pCancel = xrtCancelRef(pCancel);
+	if ( pCancel == NULL ) {
+		return NULL;
+	}
+	for ( pCurrent = pCancel; pCurrent != NULL; pCurrent = pCurrent->Parent ) {
+		if ( iCount == UINT32_MAX ) {
+			xrtCancelDestroy(pCancel);
+			__xrtErrorSetSizeOverflow();
+			return NULL;
 		}
+		iCount++;
+	}
+	#if SIZE_MAX <= UINT32_MAX
+		if (
+			(size_t)iCount >
+			((SIZE_MAX - offsetof(xcancelwatch, Nodes)) / sizeof(xcancelnode))
+		) {
+			xrtCancelDestroy(pCancel);
+			__xrtErrorSetSizeOverflow();
+			return NULL;
+		}
+	#endif
+	iBytes = offsetof(xcancelwatch, Nodes) + ((size_t)iCount * sizeof(xcancelnode));
+	pWatch = (xcancelwatch*)xrtMalloc(iBytes);
+	if ( pWatch == NULL ) {
+		xrtCancelDestroy(pCancel);
+		return NULL;
+	}
+	memset(pWatch, 0, iBytes);
+	pWatch->RefCount = 1;
+	pWatch->Cancel = pCancel;
+	pWatch->Proc = pProc;
+	pWatch->Data = pData;
+	pWatch->OwnershipPolicy = pPolicy;
+	pWatch->NodeCount = iCount;
+	if ( !xrtMutexInit(&pWatch->Lock) ) {
+		xrtFree(pWatch);
+		xrtCancelDestroy(pCancel);
+		return NULL;
+	}
+	if ( !xrtCondInit(&pWatch->Idle) ) {
+		(void)xrtMutexUnit(&pWatch->Lock);
+		xrtFree(pWatch);
+		xrtCancelDestroy(pCancel);
+		return NULL;
 	}
 
-	/* 每轮只处理一个标量，目标空间不足时保持源位置不变。 */
-	while ( Result.Read < iSourceSize ) {
-		xrt_utf_decode Decode;
-		uint32 iScalar;
-		size_t iNeed;
+	pCurrent = pCancel;
+	for ( uint32 i = 0; i < iCount; i++, pCurrent = pCurrent->Parent ) {
+		xcancelnode* pNode = &pWatch->Nodes[i];
 
-		if ( (SourceUnit == XRT_UTF_UNIT_8) &&
-			(((const unsigned char*)pSource)[Result.Read] <= 0x7Fu) ) {
-			Decode.Status = XUTF_OK;
-			Decode.Scalar = ((const unsigned char*)pSource)[Result.Read];
-			Decode.Read = 1;
+		pNode->Watch = pWatch;
+		pNode->Cancel = pCurrent;
+		(void)xrtMutexLock(&pCurrent->Lock);
+		if ( __xrtAtomicRefLoad(&pCurrent->Requested) != 0 ) {
+			(void)__xrtAtomicRefCompareExchange(&pWatch->Triggered, 1, 0);
 		} else {
-			Decode = __xrtUtfDecodeUnit(
-				__xrtUtfSourceAt(pSource, Result.Read, SourceUnit),
-				iSourceSize - Result.Read, SourceUnit);
+			pNode->Next = pCurrent->WatchHead;
+			pCurrent->WatchHead = pNode;
+			pNode->Linked = true;
 		}
-		iScalar = Decode.Scalar;
-
-		if ( Decode.Status != XUTF_OK ) {
-			if ( Policy == XUTF_STRICT ) {
-				Result.Status = XUTF_INVALID;
-				Result.Error = Result.Read;
-				__xrtUtfSetInvalid(sOperation, Result.Error);
-				return Result;
-			}
-			iScalar = 0xFFFDu;
-		}
-
-		iNeed = __xrtUtfEncodeUnit(iScalar, NULL, TargetUnit);
-		if ( iNeed > (SIZE_MAX - Result.Written) ) {
-			Result.Status = XUTF_OVERFLOW;
-			__xrtUtfSetOverflow(sOperation);
-			return Result;
-		}
-		if ( !bMeasure && (iNeed > (iCapacity - Result.Written)) ) {
-			Result.Status = XUTF_NO_SPACE;
-			return Result;
-		}
-		if ( !bMeasure ) {
-			(void)__xrtUtfEncodeUnit(iScalar,
-				__xrtUtfTargetAt(pTarget, Result.Written, TargetUnit), TargetUnit);
-		}
-		Result.Read += Decode.Read;
-		Result.Written += iNeed;
+		(void)xrtMutexUnlock(&pCurrent->Lock);
 	}
-	return Result;
+
+	return pWatch;
 }
 
-
-
-/* 分配目标字符串并复用缓冲区转换契约。 */
-static ptr __xrtUtfConvertAlloc(const void* pSource, size_t iSourceSize,
-	xrt_utf_unit SourceUnit, xrt_utf_unit TargetUnit, xutfpolicy Policy,
-	size_t* pSize, cstr sOperation)
+static xcancelwatch* __xrtCancelWatchCreate(xcancel* pCancel, xcancelproc pProc,
+	ptr pData, const xcancelwatchownershipv1* pPolicy)
 {
-	xutfresult Measure;
-	xutfresult Convert;
-	size_t iBytes;
-	size_t iSourceBytes;
-	ptr pOutput;
-
-	if ( iSourceSize > (SIZE_MAX / (size_t)SourceUnit) ) {
-		__xrtUtfSetOverflow(sOperation);
-		return NULL;
+	xrtownershipscope Mutation = {0}; xcancelwatch* pWatch;
+	xcancelproc pStart = NULL; ptr pStartData = NULL;
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	pWatch = __xrtOwnershipBody_CancelWatch(pCancel, pProc, pData, pPolicy);
+	if (pWatch != NULL) {
+		(void)xrtMutexLock(&pWatch->Lock);
+		pWatch->Armed = true; pStart = __xrtCancelWatchStart(pWatch, &pStartData);
+		(void)xrtMutexUnlock(&pWatch->Lock);
 	}
-	iSourceBytes = iSourceSize * (size_t)SourceUnit;
-	if ( (pSize != NULL) && __xrtRangesOverlap(
-		pSize, sizeof(*pSize), pSource, iSourceBytes
-	) ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( pSize != NULL ) {
-		*pSize = 0;
-	}
-	Measure = __xrtUtfConvert(pSource, iSourceSize, NULL, 0, SourceUnit,
-		TargetUnit, Policy, sOperation);
-	if ( Measure.Status != XUTF_OK ) {
-		return NULL;
-	}
-	if ( Measure.Written > ((SIZE_MAX / (size_t)TargetUnit) - 1u) ) {
-		__xrtUtfSetOverflow(sOperation);
-		return NULL;
-	}
-	iBytes = (Measure.Written + 1u) * (size_t)TargetUnit;
-	pOutput = xrtMalloc(iBytes);
-	if ( pOutput == NULL ) {
-		return NULL;
-	}
-
-	/* 第二遍写入已经精确计量的缓冲区，并补一个完整零码元。 */
-	Convert = __xrtUtfConvert(pSource, iSourceSize, pOutput, Measure.Written,
-		SourceUnit, TargetUnit, Policy, sOperation);
-	if ( Convert.Status != XUTF_OK ) {
-		xrtFree(pOutput);
-		return NULL;
-	}
-	memset(__xrtUtfTargetAt(pOutput, Convert.Written, TargetUnit), 0,
-		(size_t)TargetUnit);
-	if ( pSize != NULL ) {
-		*pSize = Convert.Written;
-	}
-	return pOutput;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (pStart != NULL) __xrtCancelWatchRun(pWatch, pStart, pStartData);
+	return pWatch;
 }
 
-
-
-/* 严格解码一个 UTF-8 标量，并给出最大子部件长度。 */
-xrt_utf_decode __xrtUtf8Decode(const unsigned char* pText, size_t iSize)
-{
-	xrt_utf_decode Decode;
-	unsigned char iLead;
-	size_t iNeed;
-	unsigned char iSecondMin = 0x80u;
-	unsigned char iSecondMax = 0xBFu;
-
-	Decode.Status = XUTF_MORE;
-	Decode.Scalar = 0;
-	Decode.Read = iSize;
-	if ( iSize == 0 ) {
-		return Decode;
-	}
-
-	/* ASCII 是唯一的单字节 UTF-8 形式。 */
-	iLead = pText[0];
-	if ( iLead <= 0x7Fu ) {
-		Decode.Status = XUTF_OK;
-		Decode.Scalar = iLead;
-		Decode.Read = 1;
-		return Decode;
-	}
-
-	/* 首字节同时确定长度和第二字节的收紧范围。 */
-	if ( (iLead >= 0xC2u) && (iLead <= 0xDFu) ) {
-		iNeed = 2;
-		Decode.Scalar = (uint32)(iLead & 0x1Fu);
-	} else if ( (iLead >= 0xE0u) && (iLead <= 0xEFu) ) {
-		iNeed = 3;
-		Decode.Scalar = (uint32)(iLead & 0x0Fu);
-		if ( iLead == 0xE0u ) {
-			iSecondMin = 0xA0u;
-		} else if ( iLead == 0xEDu ) {
-			iSecondMax = 0x9Fu;
-		}
-	} else if ( (iLead >= 0xF0u) && (iLead <= 0xF4u) ) {
-		iNeed = 4;
-		Decode.Scalar = (uint32)(iLead & 0x07u);
-		if ( iLead == 0xF0u ) {
-			iSecondMin = 0x90u;
-		} else if ( iLead == 0xF4u ) {
-			iSecondMax = 0x8Fu;
-		}
-	} else {
-		Decode.Status = XUTF_INVALID;
-		Decode.Read = 1;
-		return Decode;
-	}
-
-	/* 缺少第二字节时，现有内容仍可能是合法序列前缀。 */
-	if ( iSize < 2u ) {
-		Decode.Status = XUTF_MORE;
-		Decode.Read = iSize;
-		return Decode;
-	}
-	if ( (pText[1] < iSecondMin) || (pText[1] > iSecondMax) ) {
-		Decode.Status = XUTF_INVALID;
-		Decode.Read = 1;
-		return Decode;
-	}
-	Decode.Scalar = (Decode.Scalar << 6) | (uint32)(pText[1] & 0x3Fu);
-
-	/* 后续字节必须连续；错误前的合法前缀就是最大子部件。 */
-	for ( size_t i = 2; i < iNeed; i++ ) {
-		if ( i >= iSize ) {
-			Decode.Status = XUTF_MORE;
-			Decode.Read = iSize;
-			return Decode;
-		}
-		if ( (pText[i] < 0x80u) || (pText[i] > 0xBFu) ) {
-			Decode.Status = XUTF_INVALID;
-			Decode.Read = i;
-			return Decode;
-		}
-		Decode.Scalar = (Decode.Scalar << 6) | (uint32)(pText[i] & 0x3Fu);
-	}
-	Decode.Status = XUTF_OK;
-	Decode.Read = iNeed;
-	return Decode;
-}
-
-
-
-/* 严格解码一个 UTF-16 标量。 */
-xrt_utf_decode __xrtUtf16Decode(const uint16* pText, size_t iSize)
-{
-	xrt_utf_decode Decode;
-	uint32 iFirst;
-
-	Decode.Status = XUTF_MORE;
-	Decode.Scalar = 0;
-	Decode.Read = iSize;
-	if ( iSize == 0 ) {
-		return Decode;
-	}
-	iFirst = pText[0];
-	if ( (iFirst < 0xD800u) || (iFirst > 0xDFFFu) ) {
-		Decode.Status = XUTF_OK;
-		Decode.Scalar = iFirst;
-		Decode.Read = 1;
-		return Decode;
-	}
-	if ( iFirst >= 0xDC00u ) {
-		Decode.Status = XUTF_INVALID;
-		Decode.Read = 1;
-		return Decode;
-	}
-	if ( iSize < 2u ) {
-		Decode.Status = XUTF_MORE;
-		Decode.Read = 1;
-		return Decode;
-	}
-	if ( (pText[1] < 0xDC00u) || (pText[1] > 0xDFFFu) ) {
-		Decode.Status = XUTF_INVALID;
-		Decode.Read = 1;
-		return Decode;
-	}
-	Decode.Status = XUTF_OK;
-	Decode.Scalar = 0x10000u + ((iFirst - 0xD800u) << 10) +
-		((uint32)pText[1] - 0xDC00u);
-	Decode.Read = 2;
-	return Decode;
-}
-
-
-
-/* 严格解码一个 UTF-32 标量。 */
-xrt_utf_decode __xrtUtf32Decode(const uint32* pText, size_t iSize)
-{
-	xrt_utf_decode Decode;
-
-	Decode.Status = XUTF_MORE;
-	Decode.Scalar = 0;
-	Decode.Read = iSize;
-	if ( iSize == 0 ) {
-		return Decode;
-	}
-	Decode.Read = 1;
-	Decode.Scalar = pText[0];
-	Decode.Status = xrtUnicodeScalar(Decode.Scalar) ? XUTF_OK : XUTF_INVALID;
-	return Decode;
-}
-
-
-
-/* 无错误副作用地编码一个 UTF-8 标量。 */
-size_t __xrtUtf8Encode(uint32 iScalar, unsigned char* pOutput)
-{
-	if ( !xrtUnicodeScalar(iScalar) ) {
-		return 0;
-	}
-	if ( iScalar <= 0x7Fu ) {
-		if ( pOutput != NULL ) {
-			pOutput[0] = (unsigned char)iScalar;
-		}
-		return 1;
-	}
-	if ( iScalar <= 0x7FFu ) {
-		if ( pOutput != NULL ) {
-			pOutput[0] = (unsigned char)(0xC0u | (iScalar >> 6));
-			pOutput[1] = (unsigned char)(0x80u | (iScalar & 0x3Fu));
-		}
-		return 2;
-	}
-	if ( iScalar <= 0xFFFFu ) {
-		if ( pOutput != NULL ) {
-			pOutput[0] = (unsigned char)(0xE0u | (iScalar >> 12));
-			pOutput[1] = (unsigned char)(0x80u | ((iScalar >> 6) & 0x3Fu));
-			pOutput[2] = (unsigned char)(0x80u | (iScalar & 0x3Fu));
-		}
-		return 3;
-	}
-	if ( pOutput != NULL ) {
-		pOutput[0] = (unsigned char)(0xF0u | (iScalar >> 18));
-		pOutput[1] = (unsigned char)(0x80u | ((iScalar >> 12) & 0x3Fu));
-		pOutput[2] = (unsigned char)(0x80u | ((iScalar >> 6) & 0x3Fu));
-		pOutput[3] = (unsigned char)(0x80u | (iScalar & 0x3Fu));
-	}
-	return 4;
-}
-
-
-
-/* 无错误副作用地编码一个 UTF-16 标量。 */
-size_t __xrtUtf16Encode(uint32 iScalar, uint16* pOutput)
-{
-	if ( !xrtUnicodeScalar(iScalar) ) {
-		return 0;
-	}
-	if ( iScalar <= 0xFFFFu ) {
-		if ( pOutput != NULL ) {
-			pOutput[0] = (uint16)iScalar;
-		}
-		return 1;
-	}
-	iScalar -= 0x10000u;
-	if ( pOutput != NULL ) {
-		pOutput[0] = (uint16)(0xD800u + (iScalar >> 10));
-		pOutput[1] = (uint16)(0xDC00u + (iScalar & 0x3FFu));
-	}
-	return 2;
-}
-
-
-
-/* 设置带错误位置的 Unicode 值错误。 */
-void __xrtUtfSetInvalid(cstr sOperation, size_t iOffset)
-{
-	char sData[64];
-	xerrordesc Desc;
-	xerror* pError;
-
-	(void)snprintf(sData, sizeof(sData), "offset=%llu",
-		(unsigned long long)iOffset);
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = XERR_VALUE;
-	Desc.Domain = "xrt.unicode";
-	Desc.Code = XUTF_ERROR_INVALID;
-	Desc.Operation = sOperation;
-	Desc.Message = "invalid Unicode encoding";
-	Desc.Data = sData;
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		__xrtErrorSetOwned(pError);
-	}
-}
-
-
-
-/* 设置 Unicode 转换大小溢出错误。 */
-void __xrtUtfSetOverflow(cstr sOperation)
-{
-	xerrordesc Desc;
-	xerror* pError;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = XERR_RANGE;
-	Desc.Domain = "xrt.unicode";
-	Desc.Code = XUTF_ERROR_OVERFLOW;
-	Desc.Operation = sOperation;
-	Desc.Message = "Unicode conversion size overflow";
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		__xrtErrorSetOwned(pError);
-	}
-}
-
-
-
-/* 复制明确数量的宽码元并追加一个零码元。 */
-static ptr __xrtUtfDupUnits(
-	const void* pText,
-	size_t iSize,
-	size_t iUnitSize,
-	cstr sOperation
+XRT_API xcancelwatch* xrtCancelWatch(
+	xcancel* pCancel,
+	xcancelproc pProc,
+	ptr pData
 )
 {
-	size_t iBytes;
-	unsigned char* pCopy;
+	return __xrtCancelWatchCreate(pCancel, pProc, pData, NULL);
+}
 
-	if ( (pText == NULL) && (iSize != 0) ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
+XRT_API xcancelwatch* xrtCancelWatchOwnedV1(xcancel* pCancel, ptr pData,
+	const xcancelwatchownershipv1* pPolicy)
+{
+	if (pData == NULL || pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) ||
+		pPolicy->Notify == NULL || pPolicy->Drop == NULL || pPolicy->Ops == NULL ||
+		pPolicy->Ops->Count == NULL || pPolicy->Ops->Trace == NULL) {
+		__xrtErrorSetInvalidArgument(); return NULL;
 	}
-	if ( iSize > ((SIZE_MAX / iUnitSize) - 1u) ) {
-		__xrtUtfSetOverflow(sOperation);
-		return NULL;
-	}
-	iBytes = iSize * iUnitSize;
-	pCopy = (unsigned char*)xrtMalloc(iBytes + iUnitSize);
-	if ( pCopy == NULL ) {
-		return NULL;
-	}
-	if ( iBytes != 0 ) {
-		memcpy(pCopy, pText, iBytes);
-	}
-	memset(pCopy + iBytes, 0, iUnitSize);
-	return pCopy;
+	return __xrtCancelWatchCreate(pCancel, pPolicy->Notify, pData, pPolicy);
 }
 
 
 
-/* 从明确码元数创建 UTF-16 借用视图。 */
-XRT_API xutf16view xrtUtf16View(const uint16* pText, size_t iSize)
+/* 查询监听是否已经命中取消。 */
+XRT_API bool xrtCancelTriggered(const xcancelwatch* pWatch)
 {
-	xutf16view Text;
-
-	Text.Data = pText;
-	Text.Size = iSize;
-	return Text;
-}
-
-
-
-/* 从明确码元数创建 UTF-32 借用视图。 */
-XRT_API xutf32view xrtUtf32View(const uint32* pText, size_t iSize)
-{
-	xutf32view Text;
-
-	Text.Data = pText;
-	Text.Size = iSize;
-	return Text;
-}
-
-
-
-/* 返回零结尾 UTF-16 字符串的码元数。 */
-XRT_API size_t xrtUtf16Len(const uint16* pText)
-{
-	size_t iSize = 0;
-
-	if ( pText != NULL ) {
-		while ( pText[iSize] != 0 ) {
-			iSize++;
-		}
-	}
-	return iSize;
-}
-
-
-
-/* 返回零结尾 UTF-32 字符串的码元数。 */
-XRT_API size_t xrtUtf32Len(const uint32* pText)
-{
-	size_t iSize = 0;
-
-	if ( pText != NULL ) {
-		while ( pText[iSize] != 0 ) {
-			iSize++;
-		}
-	}
-	return iSize;
-}
-
-
-
-/* 复制零结尾 UTF-16 字符串。 */
-XRT_API uint16* xrtUtf16Dup(const uint16* pText)
-{
-	return xrtUtf16DupView(xrtUtf16View(pText, xrtUtf16Len(pText)));
-}
-
-
-
-/* 复制 UTF-16 视图并追加零码元。 */
-XRT_API uint16* xrtUtf16DupView(xutf16view Text)
-{
-	return (uint16*)__xrtUtfDupUnits(
-		Text.Data,
-		Text.Size,
-		sizeof(uint16),
-		"utf16-duplicate"
-	);
-}
-
-
-
-/* 复制零结尾 UTF-32 字符串。 */
-XRT_API uint32* xrtUtf32Dup(const uint32* pText)
-{
-	return xrtUtf32DupView(xrtUtf32View(pText, xrtUtf32Len(pText)));
-}
-
-
-
-/* 复制 UTF-32 视图并追加零码元。 */
-XRT_API uint32* xrtUtf32DupView(xutf32view Text)
-{
-	return (uint32*)__xrtUtfDupUnits(
-		Text.Data,
-		Text.Size,
-		sizeof(uint32),
-		"utf32-duplicate"
-	);
-}
-
-
-
-/* 判断数值是否是可编码的 Unicode 标量值。 */
-XRT_API bool xrtUnicodeScalar(uint32 iScalar)
-{
-	return (iScalar <= 0x10FFFFu) &&
-		((iScalar < 0xD800u) || (iScalar > 0xDFFFu));
-}
-
-
-
-/* 解码一个 UTF-8 标量。 */
-XRT_API xutfstatus xrtUtf8Decode(xstrview Text, uint32* pScalar, size_t* pRead)
-{
-	xrt_utf_decode Decode;
-
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) || (pScalar == NULL) ||
-		__xrtRangesOverlap(pScalar, sizeof(*pScalar), Text.Data, Text.Size) ||
-		((pRead != NULL) && (
-		 __xrtRangesOverlap(pRead, sizeof(*pRead), Text.Data, Text.Size) ||
-		 __xrtRangesOverlap(pRead, sizeof(*pRead), pScalar, sizeof(*pScalar))
-		)) ) {
-		__xrtErrorSetInvalidArgument();
-		return XUTF_INVALID;
-	}
-	if ( pRead != NULL ) {
-		*pRead = 0;
-	}
-	*pScalar = 0;
-	Decode = __xrtUtf8Decode((const unsigned char*)Text.Data, Text.Size);
-	*pScalar = Decode.Scalar;
-	if ( pRead != NULL ) {
-		*pRead = Decode.Read;
-	}
-	return Decode.Status;
-}
-
-
-
-/* 解码一个 UTF-16 标量。 */
-XRT_API xutfstatus xrtUtf16Decode(xutf16view Text, uint32* pScalar, size_t* pRead)
-{
-	xrt_utf_decode Decode;
-	size_t iTextBytes;
-
-	if ( (Text.Size > (SIZE_MAX / sizeof(uint16))) ||
-		!__xrtUtfViewValid(Text.Data, Text.Size) || (pScalar == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return XUTF_INVALID;
-	}
-	iTextBytes = Text.Size * sizeof(uint16);
-	if ( __xrtRangesOverlap(pScalar, sizeof(*pScalar), Text.Data, iTextBytes) ||
-		((pRead != NULL) && (
-		 __xrtRangesOverlap(pRead, sizeof(*pRead), Text.Data, iTextBytes) ||
-		 __xrtRangesOverlap(pRead, sizeof(*pRead), pScalar, sizeof(*pScalar))
-		)) ) {
-		__xrtErrorSetInvalidArgument();
-		return XUTF_INVALID;
-	}
-	if ( pRead != NULL ) {
-		*pRead = 0;
-	}
-	*pScalar = 0;
-	Decode = __xrtUtf16Decode(Text.Data, Text.Size);
-	*pScalar = Decode.Scalar;
-	if ( pRead != NULL ) {
-		*pRead = Decode.Read;
-	}
-	return Decode.Status;
-}
-
-
-
-/* 把一个 Unicode 标量编码为 UTF-8。 */
-XRT_API size_t xrtUtf8Encode(uint32 iScalar, char arrOutput[4])
-{
-	if ( arrOutput == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return 0;
-	}
-	if ( !xrtUnicodeScalar(iScalar) ) {
-		__xrtUtfSetInvalid("utf8_encode", 0);
-		return 0;
-	}
-	return __xrtUtf8Encode(iScalar, (unsigned char*)arrOutput);
-}
-
-
-
-/* 把一个 Unicode 标量编码为 UTF-16。 */
-XRT_API size_t xrtUtf16Encode(uint32 iScalar, uint16 arrOutput[2])
-{
-	if ( arrOutput == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return 0;
-	}
-	if ( !xrtUnicodeScalar(iScalar) ) {
-		__xrtUtfSetInvalid("utf16_encode", 0);
-		return 0;
-	}
-	return __xrtUtf16Encode(iScalar, arrOutput);
-}
-
-
-
-/* 严格校验 UTF-8。 */
-XRT_API bool xrtUtf8Valid(xstrview Text, size_t* pError)
-{
-	size_t iPosition = 0;
-
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
-		if ( pError != NULL ) {
-			*pError = 0;
-		}
-		return false;
-	}
-	if ( (pError != NULL) && __xrtRangesOverlap(
-		pError, sizeof(*pError), Text.Data, Text.Size
-	) ) {
+	if ( pWatch == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( pError != NULL ) {
-		*pError = XRT_NPOS;
-	}
-	while ( iPosition < Text.Size ) {
-		iPosition += __xrtUtf8AsciiPrefix(
-			(const unsigned char*)Text.Data + iPosition,
-			Text.Size - iPosition
-		);
-		if ( iPosition == Text.Size ) {
-			break;
-		}
-		xrt_utf_decode Decode = __xrtUtf8Decode(
-			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
-
-		if ( Decode.Status != XUTF_OK ) {
-			if ( pError != NULL ) {
-				*pError = iPosition;
-			}
-			return false;
-		}
-		iPosition += Decode.Read;
-	}
-	return true;
+	return __xrtAtomicRefLoad(&pWatch->Triggered) != 0;
 }
 
 
 
-/* 严格校验 UTF-16。 */
-XRT_API bool xrtUtf16Valid(xutf16view Text, size_t* pError)
+/* 从一个令牌链表中移除仍然挂接的监听节点。 */
+static void __xrtCancelUnlinkNode(xcancelnode* pNode)
 {
-	size_t iPosition = 0;
-	size_t iTextBytes;
+	xcancelnode** ppNode;
+	xcancel* pCancel = pNode->Cancel;
 
-	if ( Text.Size > (SIZE_MAX / sizeof(uint16)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
-		if ( pError != NULL ) {
-			*pError = 0;
+	(void)xrtMutexLock(&pCancel->Lock);
+	if ( pNode->Linked ) {
+		ppNode = &pCancel->WatchHead;
+		while ( (*ppNode != NULL) && (*ppNode != pNode) ) {
+			ppNode = &(*ppNode)->Next;
 		}
-		return false;
-	}
-	iTextBytes = Text.Size * sizeof(uint16);
-	if ( (pError != NULL) && __xrtRangesOverlap(
-		pError, sizeof(*pError), Text.Data, iTextBytes
-	) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( pError != NULL ) {
-		*pError = XRT_NPOS;
-	}
-	while ( iPosition < Text.Size ) {
-		xrt_utf_decode Decode = __xrtUtf16Decode(Text.Data + iPosition,
-			Text.Size - iPosition);
-
-		if ( Decode.Status != XUTF_OK ) {
-			if ( pError != NULL ) {
-				*pError = iPosition;
-			}
-			return false;
+		if ( *ppNode == pNode ) {
+			*ppNode = pNode->Next;
 		}
-		iPosition += Decode.Read;
+		pNode->Next = NULL;
+		pNode->Linked = false;
 	}
-	return true;
+	(void)xrtMutexUnlock(&pCancel->Lock);
 }
 
 
 
-/* 严格校验 UTF-32。 */
-XRT_API bool xrtUtf32Valid(xutf32view Text, size_t* pError)
+/* 注销监听，并针对回调自身注销采用返回后延迟回收。 */
+XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
 {
-	size_t iTextBytes;
+	bool bSelf, bFirst;
+	xrtownershipscope Mutation = {0};
 
-	if ( Text.Size > (SIZE_MAX / sizeof(uint32)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+	if ( pWatch == NULL ) {
+		return;
 	}
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
-		if ( pError != NULL ) {
-			*pError = 0;
-		}
-		return false;
-	}
-	iTextBytes = Text.Size * sizeof(uint32);
-	if ( (pError != NULL) && __xrtRangesOverlap(
-		pError, sizeof(*pError), Text.Data, iTextBytes
-	) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( pError != NULL ) {
-		*pError = XRT_NPOS;
-	}
-	for ( size_t i = 0; i < Text.Size; i++ ) {
-		if ( !xrtUnicodeScalar(Text.Data[i]) ) {
-			if ( pError != NULL ) {
-				*pError = i;
-			}
-			return false;
-		}
-	}
-	return true;
-}
-
-
-
-/* 统计 UTF-8 标量数。 */
-XRT_API size_t xrtUtf8Count(xstrview Text)
-{
-	size_t iPosition = 0;
-	size_t iCount = 0;
-
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
-		return XRT_NPOS;
-	}
-	while ( iPosition < Text.Size ) {
-		size_t iAscii = __xrtUtf8AsciiPrefix(
-			(const unsigned char*)Text.Data + iPosition,
-			Text.Size - iPosition
-		);
-
-		iPosition += iAscii;
-		iCount += iAscii;
-		if ( iPosition == Text.Size ) {
-			break;
-		}
-		xrt_utf_decode Decode = __xrtUtf8Decode(
-			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
-
-		if ( Decode.Status != XUTF_OK ) {
-			return XRT_NPOS;
-		}
-		iPosition += Decode.Read;
-		iCount++;
-	}
-	return iCount;
-}
-
-
-
-/* 严格走过指定数量的 UTF-8 标量并返回字节位置。 */
-static bool __xrtUtf8Seek(xstrview Text, size_t iIndex, size_t* pOffset,
-	cstr sOperation)
-{
-	size_t iPosition = 0;
-	size_t iCurrent = 0;
-
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
-		return false;
-	}
-	while ( iCurrent < iIndex ) {
-		xrt_utf_decode Decode;
-
-		if ( iPosition == Text.Size ) {
-			__xrtErrorSetRange();
-			return false;
-		}
-		Decode = __xrtUtf8Decode((const unsigned char*)Text.Data + iPosition,
-			Text.Size - iPosition);
-		if ( Decode.Status != XUTF_OK ) {
-			__xrtUtfSetInvalid(sOperation, iPosition);
-			return false;
-		}
-		iPosition += Decode.Read;
-		iCurrent++;
-	}
-	*pOffset = iPosition;
-	return true;
-}
-
-
-
-/* 把 UTF-8 标量索引转换为字节偏移。 */
-XRT_API size_t xrtUtf8Offset(xstrview Text, size_t iIndex)
-{
-	size_t iOffset;
-
-	if ( !__xrtUtf8Seek(Text, iIndex, &iOffset, "utf8-offset") ) {
-		return XRT_NPOS;
-	}
-	return iOffset;
-}
-
-
-
-/* 把 UTF-8 标量边界上的字节偏移转换为标量索引。 */
-XRT_API size_t xrtUtf8Index(xstrview Text, size_t iOffset)
-{
-	size_t iPosition = 0;
-	size_t iIndex = 0;
-
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
-		return XRT_NPOS;
-	}
-	if ( iOffset > Text.Size ) {
-		__xrtErrorSetRange();
-		return XRT_NPOS;
-	}
-	while ( iPosition < iOffset ) {
-		xrt_utf_decode Decode = __xrtUtf8Decode(
-			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
-
-		if ( Decode.Status != XUTF_OK ) {
-			__xrtUtfSetInvalid("utf8-index", iPosition);
-			return XRT_NPOS;
-		}
-		if ( Decode.Read > (iOffset - iPosition) ) {
-			__xrtErrorSetRange();
-			return XRT_NPOS;
-		}
-		iPosition += Decode.Read;
-		iIndex++;
-	}
-	return iIndex;
-}
-
-
-
-/* 读取指定 UTF-8 标量索引处的标量值。 */
-XRT_API bool xrtUtf8At(xstrview Text, size_t iIndex, uint32* pScalar)
-{
-	xrt_utf_decode Decode;
-	size_t iOffset;
-
-	if ( (pScalar == NULL) || !__xrtUtfViewValid(Text.Data, Text.Size) ||
-		__xrtRangesOverlap(pScalar, sizeof(*pScalar), Text.Data, Text.Size) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	*pScalar = 0;
-	if ( !__xrtUtf8Seek(Text, iIndex, &iOffset, "utf8-at") ) {
-		return false;
-	}
-	if ( iOffset == Text.Size ) {
-		__xrtErrorSetRange();
-		return false;
-	}
-	Decode = __xrtUtf8Decode((const unsigned char*)Text.Data + iOffset,
-		Text.Size - iOffset);
-	if ( Decode.Status != XUTF_OK ) {
-		__xrtUtfSetInvalid("utf8-at", iOffset);
-		return false;
-	}
-	*pScalar = Decode.Scalar;
-	return true;
-}
-
-
-
-/* 按 UTF-8 标量索引返回借用切片。 */
-XRT_API bool xrtUtf8Slice(xstrview Text, size_t iStart, size_t iCount,
-	xstrview* pSlice)
-{
-	size_t iPosition = 0;
-	size_t iIndex = 0;
-	size_t iBegin;
-	size_t iTaken = 0;
-
-	if ( (pSlice == NULL) || !__xrtUtfViewValid(Text.Data, Text.Size) ||
-		__xrtRangesOverlap(pSlice, sizeof(*pSlice), Text.Data, Text.Size) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	pSlice->Data = NULL;
-	pSlice->Size = 0;
-
-	/* 起点和末端都按切片语义钳制，但经过的字节必须是严格 UTF-8。 */
-	while ( (iIndex < iStart) && (iPosition < Text.Size) ) {
-		xrt_utf_decode Decode = __xrtUtf8Decode(
-			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
-
-		if ( Decode.Status != XUTF_OK ) {
-			__xrtUtfSetInvalid("utf8-slice", iPosition);
-			return false;
-		}
-		iPosition += Decode.Read;
-		iIndex++;
-	}
-	iBegin = iPosition;
-	while ( (iPosition < Text.Size) &&
-		((iCount == XRT_NPOS) || (iTaken < iCount)) ) {
-		xrt_utf_decode Decode = __xrtUtf8Decode(
-			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
-
-		if ( Decode.Status != XUTF_OK ) {
-			__xrtUtfSetInvalid("utf8-slice", iPosition);
-			return false;
-		}
-		iPosition += Decode.Read;
-		iTaken++;
-	}
-	pSlice->Data = Text.Data != NULL ? Text.Data + iBegin : NULL;
-	pSlice->Size = iPosition - iBegin;
-	return true;
-}
-
-
-
-/* 统计 UTF-16 标量数。 */
-XRT_API size_t xrtUtf16Count(xutf16view Text)
-{
-	size_t iPosition = 0;
-	size_t iCount = 0;
-
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
-		return XRT_NPOS;
-	}
-	while ( iPosition < Text.Size ) {
-		xrt_utf_decode Decode = __xrtUtf16Decode(Text.Data + iPosition,
-			Text.Size - iPosition);
-
-		if ( Decode.Status != XUTF_OK ) {
-			return XRT_NPOS;
-		}
-		iPosition += Decode.Read;
-		iCount++;
-	}
-	return iCount;
-}
-
-
-
-/* 初始化流式 UTF-8 校验状态。 */
-XRT_API void xrtUtf8StateInit(xutf8state* pState)
-{
-	if ( pState == NULL ) {
+	if (!xrtOwnershipMutationBegin(&Mutation)) return;
+	if ( xrtRefRetain(&pWatch->RefCount) < 0 ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
-	memset(pState, 0, sizeof(*pState));
-	pState->Error = XRT_NPOS;
-	pState->PendingOffset = XRT_NPOS;
+	(void)xrtMutexLock(&pWatch->Lock);
+	bFirst = !pWatch->Destroying;
+	pWatch->Destroying = true;
+	(void)xrtMutexUnlock(&pWatch->Lock);
+
+	for ( uint32 i = 0; bFirst && i < pWatch->NodeCount; i++ ) {
+		__xrtCancelUnlinkNode(&pWatch->Nodes[i]);
+	}
+
+	(void)xrtMutexLock(&pWatch->Lock);
+	if (bFirst) pWatch->UnwatchDone = true;
+	bSelf = pWatch->CallbackActive && __xrtCancelWatchIsCallbackThread(pWatch);
+	if ( bSelf && bFirst ) {
+		pWatch->DeferredRelease = true;
+		(void)xrtMutexUnlock(&pWatch->Lock);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtCancelWatchRelease(pWatch);
+		return;
+	}
+	(void)xrtMutexUnlock(&pWatch->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* No scope owned by this API is held while another callback is awaited. */
+	(void)xrtMutexLock(&pWatch->Lock);
+	while ( pWatch->CallbackActive && !bSelf ) {
+		(void)xrtCondWait(&pWatch->Idle, &pWatch->Lock);
+	}
+	(void)xrtMutexUnlock(&pWatch->Lock);
+	__xrtCancelWatchRelease(pWatch);
+	if (bFirst) __xrtCancelWatchRelease(pWatch);
 }
 
-
-
-/* 校验一个可能截断在任意字节位置的 UTF-8 分块。 */
-XRT_API xutfstatus xrtUtf8StateFeed(xutf8state* pState, xstrview Text, bool bFinal)
+/* Policy admission is deliberately separate from trace. Observers are not
+ * strong token slots: only their actual owners may make the Watch reachable. */
+static bool __xrtCancelWatchPolicyKnown(const xcancelwatch* pWatch,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount)
 {
-	size_t iBase;
-	size_t iPosition = 0;
+	const xcancelwatchownershipv1* pPolicy = pWatch->OwnershipPolicy;
+	bool bKnown = false;
+	for (size_t i = 0; i < iPolicyCount; ++i)
+		if (pPolicies[i] != NULL && pPolicies[i] == pPolicy) { bKnown = true; break; }
+	return bKnown && pPolicy->size == sizeof(*pPolicy) && pPolicy->Notify == pWatch->Proc &&
+		pPolicy->Drop != NULL && pPolicy->Ops != NULL && pPolicy->Ops->Count != NULL &&
+		pPolicy->Ops->Trace != NULL && pWatch->Data != NULL;
+}
+static bool __xrtCancelWatchAdapterHold(const void* pData)
+{
+	xcancelwatch* pWatch = (xcancelwatch*)pData; xrtownershipscope Mutation = {0}; bool bHeld;
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	bHeld = !pWatch->OwnershipCleared && xrtRefRetain(&pWatch->RefCount) > 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return bHeld;
+}
+static void __xrtCancelWatchAdapterDrop(const void* pData)
+{ __xrtCancelWatchRelease((xcancelwatch*)pData); }
+static bool __xrtCancelWatchAdapterClaim(const void* pData, const void* pToken)
+{
+	xcancelwatch* pWatch = (xcancelwatch*)pData;
+	if (!pToken || !__xrtCancelWatchStable(pWatch) ||
+		(pWatch->OwnershipClaim && pWatch->OwnershipClaim != pToken)) return false;
+	pWatch->OwnershipClaim = pToken; return true;
+}
+static void __xrtCancelWatchAdapterRestore(const void* pData, const void* pToken)
+{
+	xcancelwatch* pWatch = (xcancelwatch*)pData;
+	if (!pToken || pWatch->OwnershipClaim != pToken || pWatch->OwnershipCleared) abort();
+	pWatch->OwnershipClaim = NULL;
+}
+static bool __xrtCancelWatchPrepared(const void* pData)
+{
+	const xcancelwatch* pWatch = pData;
+	return pWatch->Destroying && pWatch->UnwatchDone && !pWatch->CallbackActive &&
+		!pWatch->Dispatching && !pWatch->DeferredRelease;
+}
+static xrtownershipprepareresult __xrtCancelWatchPrepare(const void* pData, const void* pToken)
+{
+	const xcancelwatch* pWatch = pData; bool bReady; xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return XRT_OWNERSHIP_PREPARE_BUSY;
+	if (!pToken || pWatch->OwnershipClaim != pToken || pWatch->OwnershipCleared) abort();
+	(void)xrtMutexLock((xmutex*)&pWatch->Lock); bReady = __xrtCancelWatchPrepared(pData);
+	(void)xrtMutexUnlock((xmutex*)&pWatch->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return bReady ? XRT_OWNERSHIP_PREPARE_READY : XRT_OWNERSHIP_PREPARE_BUSY;
+}
+static void __xrtCancelWatchAdapterClear(const void* pData, const void* pToken)
+{
+	xcancelwatch* pWatch = (xcancelwatch*)pData;
+	if (!pToken || pWatch->OwnershipClaim != pToken || pWatch->OwnershipCleared || !__xrtCancelWatchPrepared(pData)) abort();
+	pWatch->OwnershipCleared = true;
+}
+static bool __xrtCancelWatchAdapterFinish(const void* pData, const void* pToken)
+{
+	xcancelwatch* pWatch = (xcancelwatch*)pData; ptr pOwned; xcancel* pCancel;
+	const xcancelwatchownershipv1* pPolicy; xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (!pToken || pWatch->OwnershipClaim != pToken || !pWatch->OwnershipCleared || !__xrtCancelWatchPrepared(pData)) abort();
+	pOwned = pWatch->Data; pPolicy = pWatch->OwnershipPolicy; pCancel = pWatch->Cancel;
+	pWatch->Data = NULL; pWatch->Cancel = NULL;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (pOwned != NULL) {
+		xerror* pPrevious = xrtTakeError(); pPolicy->Drop(pOwned);
+		xrtClearError(); xrtSetErrorTake(pPrevious);
+	}
+	xrtCancelDestroy(pCancel); return true;
+}
+XRT_API const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV1(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtCancelWatchAdapterHold,
+		__xrtCancelWatchAdapterDrop, __xrtCancelWatchAdapterClaim, __xrtCancelWatchAdapterRestore,
+		NULL, __xrtCancelWatchAdapterClear, __xrtCancelWatchAdapterFinish};
+	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter,
+		__xrtCancelWatchPrepared, __xrtCancelWatchPrepare};
+	const xcancelwatch* pWatch;
+	if (Reference.Ops != &__xrtCancelWatchOwnershipOps || !Reference.Data || !ppPreparation ||
+		(iPolicyCount && !pPolicies)) return NULL;
+	pWatch = Reference.Data;
+	if (!__xrtCancelWatchStable(pWatch) || __xrtAtomicRefLoad(&pWatch->RefCount) <= 0 ||
+		!__xrtCancelWatchPolicyKnown(pWatch, pPolicies, iPolicyCount)) return NULL;
+	*ppPreparation = &Preparation; return &Adapter;
+}
 
-	if ( pState == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return XUTF_INVALID;
+static bool __xrtCancelAdapterClaimV2(const void* pData, const void* pToken)
+{
+	xcancel* pCancel = (xcancel*)pData;
+	if (!pToken || pCancel->OwnershipCleared || pCancel->ActiveRequests ||
+		(pCancel->OwnershipClaim && pCancel->OwnershipClaim != pToken)) return false;
+	pCancel->OwnershipClaim = pToken; return true;
+}
+static void __xrtCancelAdapterRestoreV2(const void* pData, const void* pToken)
+{
+	xcancel* pCancel = (xcancel*)pData;
+	if (!pToken || pCancel->OwnershipClaim != pToken || pCancel->OwnershipCleared) abort();
+	pCancel->OwnershipClaim = NULL;
+}
+static bool __xrtCancelPreparedV2(const void* pData)
+{
+	const xcancel* pCancel = pData;
+	return pCancel->WatchHead == NULL && !pCancel->ActiveRequests;
+}
+static xrtownershipprepareresult __xrtCancelPrepareV2(const void* pData, const void* pToken)
+{
+	const xcancel* pCancel = pData; bool bReady; xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return XRT_OWNERSHIP_PREPARE_BUSY;
+	if (!pToken || pCancel->OwnershipClaim != pToken || pCancel->OwnershipCleared) abort();
+	(void)xrtMutexLock((xmutex*)&pCancel->Lock); bReady = __xrtCancelPreparedV2(pData);
+	(void)xrtMutexUnlock((xmutex*)&pCancel->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return bReady ? XRT_OWNERSHIP_PREPARE_READY : XRT_OWNERSHIP_PREPARE_BUSY;
+}
+static void __xrtCancelAdapterClearV2(const void* pData, const void* pToken)
+{
+	xcancel* pCancel = (xcancel*)pData;
+	if (!pToken || pCancel->OwnershipClaim != pToken || pCancel->OwnershipCleared || !__xrtCancelPreparedV2(pData)) abort();
+	pCancel->OwnershipCleared = true;
+}
+static bool __xrtCancelAdapterFinishV2(const void* pData, const void* pToken)
+{
+	xcancel* pCancel = (xcancel*)pData; xcancel* pParent; xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (!pToken || pCancel->OwnershipClaim != pToken || !pCancel->OwnershipCleared) abort();
+	pParent = pCancel->Parent; pCancel->Parent = NULL;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	xrtCancelDestroy(pParent); return true;
+}
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV2(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtCancelAdapterHold,
+		__xrtCancelAdapterDrop, __xrtCancelAdapterClaimV2, __xrtCancelAdapterRestoreV2,
+		NULL, __xrtCancelAdapterClearV2, __xrtCancelAdapterFinishV2};
+	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter,
+		__xrtCancelPreparedV2, __xrtCancelPrepareV2};
+	const xcancel* pCancel;
+	if (Reference.Ops != &__xrtCancelOwnershipOps || !Reference.Data || !ppPreparation ||
+		(iPolicyCount && !pPolicies)) return NULL;
+	pCancel = Reference.Data;
+	if (pCancel->OwnershipCleared || pCancel->ActiveRequests || __xrtAtomicRefLoad(&pCancel->RefCount) <= 0) return NULL;
+	for (const xcancelnode* pNode = pCancel->WatchHead; pNode; pNode = pNode->Next) {
+		if (!pNode->Linked || pNode->Cancel != pCancel || !__xrtCancelWatchStable(pNode->Watch) ||
+			pNode->Watch->Destroying || !__xrtCancelWatchPolicyKnown(pNode->Watch, pPolicies, iPolicyCount)) return NULL;
 	}
-	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ||
-		__xrtRangesOverlap(pState, sizeof(*pState), Text.Data, Text.Size) ||
-		(pState->PendingSize > 3u) ||
-		((pState->PendingSize != 0) &&
-		 ((pState->PendingOffset == XRT_NPOS) ||
-		  (pState->PendingOffset > pState->Total))) ) {
-		__xrtErrorSetInvalidArgument();
-		return XUTF_INVALID;
-	}
-	if ( pState->Failed ) {
-		return XUTF_INVALID;
-	}
-	if ( Text.Size > (SIZE_MAX - pState->Total) ) {
-		pState->Failed = true;
-		pState->Error = pState->Total;
-		__xrtUtfSetOverflow("utf8_state_feed");
-		return XUTF_OVERFLOW;
-	}
-	iBase = pState->Total;
-	pState->Total += Text.Size;
+	*ppPreparation = &Preparation; return &Adapter;
+}
 
-	/* 先用新分块补齐上一分块保留的合法前缀。 */
-	while ( pState->PendingSize != 0 ) {
-		xrt_utf_decode Decode = __xrtUtf8Decode(pState->Pending,
-			pState->PendingSize);
+#endif
+#endif
 
-		if ( Decode.Status == XUTF_OK ) {
-			pState->PendingSize = 0;
-			pState->PendingOffset = XRT_NPOS;
-			break;
-		}
-		if ( Decode.Status == XUTF_INVALID ) {
-			pState->Failed = true;
-			pState->Error = pState->PendingOffset;
-			return XUTF_INVALID;
-		}
-		if ( iPosition == Text.Size ) {
-			if ( bFinal ) {
-				pState->Failed = true;
-				pState->Error = pState->PendingOffset;
-				return XUTF_INVALID;
-			}
-			return XUTF_MORE;
-		}
-		pState->Pending[pState->PendingSize++] =
-			(unsigned char)Text.Data[iPosition++];
+
+/* ========================================================================== */
+/* source: src/concurrency/future.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_FUTURE)
+
+
+
+#if defined(XRT_FEATURE_FUTURE)
+
+/* Promise 嵌入 Future 对象，创建一对端点只产生一次堆分配。 */
+struct xpromise {
+	struct xfuture* Future;
+};
+
+
+
+/* Future 用一个锁保护终态、结果、条件变量和内部等待链。 */
+struct xfuture {
+	volatile int32 RefCount;
+	volatile int32 PromiseRefs;
+	xmutex Lock;
+	xcond Ready;
+	xfuturestate State;
+	bool Completing;
+	ptr Value;
+	xfuturefreeproc Destroy;
+	ptr DestroyData;
+	xfutureownershiptrace OwnershipTrace;
+	const xfuturepayloadownershipv1* OwnershipPolicy;
+	xrtownershipref Producer;
+	const xfutureproducerownershipv1* ProducerPolicy;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+	struct xfuture* Owner;
+	xerror* Error;
+	xcancel* Cancel;
+	xrt_future_waiter* Waiters;
+	xrt_future_waiter* WaitersTail;
+	xpromise Promise;
+};
+
+
+
+static bool __xrtFutureOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xfuture* pFuture = (const xfuture*)pData;
+	int32 iCount;
+	if (pFuture == NULL || pCount == NULL || pFuture->OwnershipCleared) return false;
+	iCount = __xrtAtomicRefLoad(&pFuture->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+
+static bool __xrtFutureOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xfuture* pFuture = (const xfuture*)pData;
+	const xrt_future_waiter* pLast = NULL;
+	if (pFuture == NULL || pVisit == NULL || pFuture->Completing || pFuture->OwnershipCleared) return false;
+	/* Locks alone cannot stabilize the transitive graph. This entire traversal
+	 * uses the caller's quiescent point, exactly like Value/callable views. */
+	for (const xrt_future_waiter* pWaiter = pFuture->Waiters; pWaiter != NULL; pWaiter = pWaiter->Next) {
+		if (!pWaiter->Linked || pWaiter->Calling) return false;
+		if (pWaiter->Certified == 1) {
+			const xfuturewatchownershipv1* pPolicy = pWaiter->OwnershipPolicy;
+			if (pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Ops == NULL ||
+				!pVisit((xrtownershipref){pWaiter->Data, pPolicy->Ops}, pContext)) return false;
+		} else if (pWaiter->Certified == 2) {
+			const xfuturewatchownershipv2* pPolicy = pWaiter->ProjectedOwnershipPolicy;
+			xrtownershipref Owner;
+			if (pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Reference == NULL) return false;
+			Owner = pPolicy->Reference(pWaiter->Data);
+			if (Owner.Data == NULL || Owner.Ops == NULL || !pVisit(Owner, pContext)) return false;
+		} else if (pWaiter->Certified != 0 || pWaiter->OwnershipTrace == NULL ||
+			!pWaiter->OwnershipTrace(pWaiter->Data, pVisit, pContext)) return false;
+		pLast = pWaiter;
 	}
+	if (pLast != pFuture->WaitersTail) return false;
+	if (pFuture->Producer.Data != NULL && !pVisit(pFuture->Producer, pContext)) return false;
+	if (!pVisit(xrtCancelOwnership(pFuture->Cancel), pContext)) return false;
+	if (pFuture->Error != NULL && !pVisit(xrtErrorOwnership(pFuture->Error), pContext)) return false;
+	if (pFuture->Owner != NULL && !pVisit(xrtFutureOwnership(pFuture->Owner), pContext)) return false;
+	if (pFuture->Destroy != NULL) {
+		if (pFuture->OwnershipTrace == NULL) return false;
+		return pFuture->OwnershipTrace(pFuture->Value, pFuture->DestroyData, pVisit, pContext);
+	}
+	return true;
+}
 
-	/* 完整标量直接跨过，只在分块尾保存最多三个前缀字节。 */
-	while ( iPosition < Text.Size ) {
-		iPosition += __xrtUtf8AsciiPrefix(
-			(const unsigned char*)Text.Data + iPosition,
-			Text.Size - iPosition
+static const xrtownershipops __xrtFutureOwnershipOps = {
+	__xrtFutureOwnershipCount, __xrtFutureOwnershipTrace
+};
+
+XRT_API xrtownershipref xrtFutureOwnership(const xfuture* pFuture)
+{
+	xrtownershipref Result = {pFuture, pFuture != NULL ? &__xrtFutureOwnershipOps : NULL};
+	return Result;
+}
+
+XRT_API xrtownershipref xrtPromiseOwnership(const xpromise* pPromise)
+{
+	return xrtFutureOwnership(pPromise != NULL ? pPromise->Future : NULL);
+}
+
+static void __xrtFutureProducerDrop(xrtownershipref Producer, const xfutureproducerownershipv1* pPolicy)
+{
+	xerror* pPrevious;
+	if (Producer.Data == NULL) { if (pPolicy != NULL) abort(); return; }
+	if (pPolicy == NULL) abort();
+	pPrevious = xrtTakeError();
+	pPolicy->Drop(Producer.Data);
+	xrtClearError(); xrtSetErrorTake(pPrevious);
+}
+
+XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy)
+{
+	xrtownershipscope Mutation = {0}; xfuture* pFuture; bool bBound = false;
+	if (pPromise == NULL || Producer.Data == NULL || Producer.Ops == NULL ||
+		Producer.Ops->Count == NULL || Producer.Ops->Trace == NULL ||
+		pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Drop == NULL) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	pFuture = pPromise->Future;
+	if (!xrtMutexLock(&pFuture->Lock)) { if (!xrtOwnershipScopeEnd(&Mutation)) abort(); return false; }
+	if (pFuture->State == XFUTURE_PENDING && !pFuture->Completing && !pFuture->OwnershipCleared &&
+		pFuture->OwnershipClaim == NULL && pFuture->Producer.Data == NULL &&
+		pFuture->Waiters == NULL && pFuture->WaitersTail == NULL &&
+		__xrtAtomicRefLoad(&pFuture->RefCount) == 2 && __xrtAtomicRefLoad(&pFuture->PromiseRefs) == 1) {
+		pFuture->Producer = Producer; pFuture->ProducerPolicy = pPolicy; bBound = true;
+	}
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (!bBound) __xrtErrorSetInvalidState();
+	return bBound;
+}
+
+static bool __xrtFutureAdapterHold(const void* pData)
+{ return xrtFutureRef((xfuture*)pData) != NULL; }
+static void __xrtFutureAdapterDrop(const void* pData)
+{ xrtFutureDestroy((xfuture*)pData); }
+static bool __xrtFutureAdapterClaim(const void* pData, const void* pToken)
+{
+	xfuture* pFuture = (xfuture*)pData;
+	if (pToken == NULL || pFuture->OwnershipCleared ||
+		(pFuture->OwnershipClaim != NULL && pFuture->OwnershipClaim != pToken)) return false;
+	pFuture->OwnershipClaim = pToken; return true;
+}
+static void __xrtFutureAdapterRestore(const void* pData, const void* pToken)
+{
+	xfuture* pFuture = (xfuture*)pData;
+	if (pToken == NULL || pFuture->OwnershipClaim != pToken || pFuture->OwnershipCleared) abort();
+	pFuture->OwnershipClaim = NULL;
+}
+static void __xrtFutureAdapterClear(const void* pData, const void* pToken)
+{
+	xfuture* pFuture = (xfuture*)pData;
+	if (pToken == NULL || pFuture->OwnershipClaim != pToken || pFuture->OwnershipCleared ||
+		pFuture->Completing || pFuture->Waiters != NULL || pFuture->WaitersTail != NULL) abort();
+	/* Revalidation and Clear share the exclusive freeze. No observer can be
+	 * registered in between, so closing the last producer cannot notify code. */
+	if (pFuture->State == XFUTURE_PENDING) __xrtCancelOwnershipCloseUnobserved(pFuture->Cancel);
+	pFuture->State = XFUTURE_CLOSED;
+	pFuture->OwnershipCleared = true;
+	/* Actual slots remain owned and all targets stay pinned until Finish. */
+}
+static bool __xrtFutureAdapterFinish(const void* pData, const void* pToken)
+{
+	xfuture* pFuture = (xfuture*)pData;
+	xrtownershipscope Mutation = {0};
+	ptr pValue; xfuturefreeproc pDestroy; xfuture* pOwner; xerror* pError; xcancel* pCancel;
+	xrtownershipref Producer; const xfutureproducerownershipv1* pProducerPolicy;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pToken == NULL || pFuture->OwnershipClaim != pToken || !pFuture->OwnershipCleared) abort();
+	pValue = pFuture->Value; pDestroy = pFuture->Destroy; pOwner = pFuture->Owner;
+	pError = pFuture->Error; pCancel = pFuture->Cancel;
+	Producer = pFuture->Producer; pProducerPolicy = pFuture->ProducerPolicy;
+	pFuture->Value = NULL; pFuture->Destroy = NULL; pFuture->DestroyData = NULL;
+	pFuture->OwnershipTrace = NULL; pFuture->OwnershipPolicy = NULL;
+	pFuture->Owner = NULL; pFuture->Error = NULL; pFuture->Cancel = NULL;
+	pFuture->Producer = (xrtownershipref){0}; pFuture->ProducerPolicy = NULL;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (pDestroy != NULL) pDestroy(pValue, NULL);
+	xrtFutureDestroy(pOwner); xrtErrorFree(pError); xrtCancelDestroy(pCancel);
+	__xrtFutureProducerDrop(Producer, pProducerPolicy);
+	return true;
+}
+static bool __xrtFuturePreparationReady(const void* pData)
+{
+	const xfuture* pFuture = pData;
+	return pFuture->State != XFUTURE_PENDING ||
+		(pFuture->Waiters == NULL && pFuture->Producer.Data == NULL);
+}
+static xrtownershipprepareresult __xrtFuturePrepare(const void* pData, const void* pToken)
+{
+	xfuture* pFuture = (xfuture*)pData; xrtownershipscope Mutation = {0}; bool bReady, bProduced;
+	if (!xrtOwnershipMutationBegin(&Mutation)) return XRT_OWNERSHIP_PREPARE_FAILED;
+	if (!xrtMutexLock(&pFuture->Lock)) { if (!xrtOwnershipScopeEnd(&Mutation)) abort(); return XRT_OWNERSHIP_PREPARE_FAILED; }
+	if (pToken == NULL || pFuture->OwnershipClaim != pToken || pFuture->OwnershipCleared) abort();
+	bReady = __xrtFuturePreparationReady(pFuture); bProduced = pFuture->Producer.Data != NULL;
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (bReady) return XRT_OWNERSHIP_PREPARE_READY;
+	if (bProduced) return XRT_OWNERSHIP_PREPARE_BUSY;
+	/* The plan's actual hold retains this endpoint and all callback code. Normal
+	 * publication invokes every accepted callback; Clear must never do that. */
+	if (xrtPromiseClose(&pFuture->Promise) || xrtFutureDone(pFuture)) return XRT_OWNERSHIP_PREPARE_READY;
+	return XRT_OWNERSHIP_PREPARE_FAILED;
+}
+static const xrtownershipadapterv1 __xrtFutureAdapter = {sizeof(__xrtFutureAdapter),
+	__xrtFutureAdapterHold, __xrtFutureAdapterDrop, __xrtFutureAdapterClaim,
+	__xrtFutureAdapterRestore, NULL, __xrtFutureAdapterClear, __xrtFutureAdapterFinish};
+static const xrtownershippreparationv1 __xrtFuturePreparation = {sizeof(__xrtFuturePreparation),
+	&__xrtFutureAdapter, __xrtFuturePreparationReady, __xrtFuturePrepare};
+static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
+	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
+	const xfutureownershipadmissionv1* pAdmission)
+{
+	const xfuture* pFuture;
+	if (Reference.Ops != &__xrtFutureOwnershipOps || Reference.Data == NULL ||
+		(iPolicyCount != 0 && pPolicies == NULL) ||
+		(iProducerPolicyCount != 0 && pProducerPolicies == NULL) ||
+		(iWatchPolicyCount != 0 && pWatchPolicies == NULL) || (pAdmission &&
+		(pAdmission->size != sizeof(*pAdmission) ||
+		(pAdmission->ProjectedWatchPolicyCount && !pAdmission->ProjectedWatchPolicies) ||
+		(pAdmission->CancelWatchPolicyCount && !pAdmission->CancelWatchPolicies)))) return NULL;
+	pFuture = (const xfuture*)Reference.Data;
+	if (pFuture->Completing || pFuture->OwnershipCleared || __xrtAtomicRefLoad(&pFuture->RefCount) <= 0) return NULL;
+	if (pAdmission) {
+		const xrtownershippreparationv1* pPreparation = NULL;
+		if (!xrtCancelOwnershipAdapterV2(xrtCancelOwnership(pFuture->Cancel), pAdmission->CancelWatchPolicies,
+			pAdmission->CancelWatchPolicyCount, &pPreparation)) return NULL;
+	} else if (!xrtCancelOwnershipAdapterV1(xrtCancelOwnership(pFuture->Cancel))) return NULL;
+	const xrt_future_waiter* pLast = NULL;
+	for (const xrt_future_waiter* pWaiter = pFuture->Waiters; pWaiter != NULL; pWaiter = pWaiter->Next) {
+		bool bKnown = false;
+		if (!pWaiter->Certified || !pWaiter->Phased || !pWaiter->Linked || pWaiter->Calling || pWaiter->Data == NULL) return NULL;
+		if (pWaiter->Certified == 1) {
+			for (size_t i = 0; i < iWatchPolicyCount; ++i)
+				if (pWatchPolicies[i] != NULL && pWaiter->OwnershipPolicy == pWatchPolicies[i]) { bKnown = true; break; }
+			if (!bKnown) return NULL;
+			const xfuturewatchownershipv1* pPolicy = pWaiter->OwnershipPolicy;
+			if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Notify != pWaiter->Proc ||
+				pPolicy->Release != pWaiter->Release || pPolicy->Ops == NULL ||
+				pPolicy->Ops->Count == NULL || pPolicy->Ops->Trace == NULL) return NULL;
+		} else if (pWaiter->Certified == 2 && pAdmission) {
+			for (size_t i = 0; i < pAdmission->ProjectedWatchPolicyCount; ++i)
+				if (pAdmission->ProjectedWatchPolicies[i] != NULL &&
+					pWaiter->ProjectedOwnershipPolicy == pAdmission->ProjectedWatchPolicies[i]) { bKnown = true; break; }
+			if (!bKnown) return NULL; /* Never project an unknown policy. */
+			const xfuturewatchownershipv2* pPolicy = pWaiter->ProjectedOwnershipPolicy;
+			if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Notify != pWaiter->Proc ||
+				pPolicy->Release != pWaiter->Release || pPolicy->Reference == NULL) return NULL;
+		} else return NULL;
+		pLast = pWaiter;
+	}
+	if (pLast != pFuture->WaitersTail) return NULL;
+	if (pFuture->Producer.Data != NULL) {
+		bool bKnown = false;
+		for (size_t i = 0; i < iProducerPolicyCount; ++i)
+			if (pProducerPolicies[i] != NULL && pFuture->ProducerPolicy == pProducerPolicies[i]) { bKnown = true; break; }
+		if (!bKnown || pFuture->ProducerPolicy->size != sizeof(xfutureproducerownershipv1) ||
+			pFuture->ProducerPolicy->Drop == NULL || pFuture->Producer.Ops == NULL ||
+			pFuture->Producer.Ops->Count == NULL || pFuture->Producer.Ops->Trace == NULL) return NULL;
+	} else if (pFuture->ProducerPolicy != NULL) return NULL;
+	if (pFuture->Destroy != NULL) {
+		bool bKnown = false;
+		/* Match identity BEFORE dereferencing a producer's descriptor. */
+		for (size_t i = 0; i < iPolicyCount; ++i)
+			if (pPolicies[i] != NULL && pFuture->OwnershipPolicy == pPolicies[i]) { bKnown = true; break; }
+		if (!bKnown || pFuture->OwnershipPolicy->size != sizeof(xfuturepayloadownershipv1) ||
+			pFuture->OwnershipPolicy->Drop != pFuture->Destroy ||
+			pFuture->OwnershipPolicy->Trace != pFuture->OwnershipTrace || pFuture->DestroyData != NULL) return NULL;
+	}
+	return &__xrtFutureAdapter;
+}
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount)
+{ return __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount, pProducerPolicies, iProducerPolicyCount, NULL, 0, NULL); }
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
+	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
+	const xrtownershippreparationv1** ppPreparation)
+{
+	const xrtownershipadapterv1* pAdapter;
+	if (ppPreparation == NULL) return NULL;
+	pAdapter = __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount,
+		pProducerPolicies, iProducerPolicyCount, pWatchPolicies, iWatchPolicyCount, NULL);
+	if (pAdapter != NULL) *ppPreparation = &__xrtFuturePreparation;
+	return pAdapter;
+}
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV4(xrtownershipref Reference,
+	const xfutureownershipadmissionv1* pAdmission, const xrtownershippreparationv1** ppPreparation)
+{
+	const xrtownershipadapterv1* pAdapter;
+	if (!pAdmission || pAdmission->size != sizeof(*pAdmission) || !ppPreparation) return NULL;
+	pAdapter = __xrtFutureAdapterQuery(Reference, pAdmission->PayloadPolicies, pAdmission->PayloadPolicyCount,
+		pAdmission->ProducerPolicies, pAdmission->ProducerPolicyCount,
+		pAdmission->WatchPolicies, pAdmission->WatchPolicyCount, pAdmission);
+	if (pAdapter) *ppPreparation = &__xrtFuturePreparation;
+	return pAdapter;
+}
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference,
+	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount)
+{
+	return xrtFutureOwnershipAdapterV2(Reference, pPolicies, iPolicyCount, NULL, 0);
+}
+
+/* 同一执行上下文中的完成通知使用迭代队列，避免 Future 链递归耗尽线程栈。 */
+typedef struct xrt_future_notify_context {
+	xrt_future_waiter* Head;
+	xrt_future_waiter* Tail;
+} xrt_future_notify_context;
+
+
+
+#if defined(_WIN32) || defined(_WIN64)
+
+static DWORD __xrtFutureNotifyKey = FLS_OUT_OF_INDEXES;
+static volatile LONG __xrtFutureNotifyKeyState;
+static xrt_local_slot __xrtFutureNotifySlot;
+
+
+
+/* 进程内只创建一次 Fiber 本地通知槽，使 Windows 协程切换不会混用派发队列。 */
+static bool __xrtFutureNotifyKeyEnsure(void)
+{
+	LONG iState = InterlockedCompareExchange(&__xrtFutureNotifyKeyState, 1, 0);
+
+	if ( iState == 0 ) {
+		__xrtFutureNotifyKey = __xrtLocalSlotAlloc(&__xrtFutureNotifySlot,
+			NULL, XRT_LOCAL_BORROWED, true);
+		InterlockedExchange(
+			&__xrtFutureNotifyKeyState,
+			__xrtFutureNotifyKey != FLS_OUT_OF_INDEXES ? 2 : 3
 		);
-		if ( iPosition == Text.Size ) {
-			break;
-		}
-		xrt_utf_decode Decode = __xrtUtf8Decode(
-			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
-
-		if ( Decode.Status == XUTF_OK ) {
-			iPosition += Decode.Read;
-			continue;
-		}
-		if ( Decode.Status == XUTF_INVALID ) {
-			pState->Failed = true;
-			pState->Error = iBase + iPosition;
-			return XUTF_INVALID;
-		}
-		pState->PendingOffset = iBase + iPosition;
-		pState->PendingSize = (uint8)(Text.Size - iPosition);
-		memcpy(pState->Pending, Text.Data + iPosition, pState->PendingSize);
-		iPosition = Text.Size;
+		return __xrtFutureNotifyKey != FLS_OUT_OF_INDEXES;
 	}
-	if ( pState->PendingSize != 0 ) {
-		if ( bFinal ) {
-			pState->Failed = true;
-			pState->Error = pState->PendingOffset;
-			return XUTF_INVALID;
-		}
-		return XUTF_MORE;
+	while ( (iState = InterlockedCompareExchange(
+		&__xrtFutureNotifyKeyState, 0, 0
+	)) == 1 ) {
+		Sleep(0);
 	}
-	return XUTF_OK;
+	return iState == 2;
 }
 
 
 
-/* 返回流式校验器记录的绝对错误位置。 */
-XRT_API size_t xrtUtf8StateError(const xutf8state* pState)
+/* 返回当前 Fiber 正在使用的通知队列。 */
+static xrt_future_notify_context* __xrtFutureNotifyContextGet(void)
 {
-	return pState != NULL ? pState->Error : XRT_NPOS;
+	return __xrtFutureNotifyKeyEnsure() ?
+		(xrt_future_notify_context*)FlsGetValue(__xrtFutureNotifyKey) : NULL;
 }
 
 
 
-/* UTF-8 转 UTF-16。 */
-XRT_API xutfresult xrtUtf8To16Buffer(xstrview Source, uint16* pTarget,
-	size_t iCapacity, xutfpolicy Policy)
+/* 切换当前 Fiber 的通知队列；失败时调用方退回直接派发。 */
+static bool __xrtFutureNotifyContextSet(xrt_future_notify_context* pContext)
 {
-	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
-		XRT_UTF_UNIT_8, XRT_UTF_UNIT_16, Policy, "utf8_to_utf16");
+	return __xrtFutureNotifyKeyEnsure() &&
+		(FlsSetValue(__xrtFutureNotifyKey, pContext) != 0);
 }
 
+#elif defined(__TINYC__)
+
+static pthread_key_t __xrtFutureNotifyKey;
+static pthread_once_t __xrtFutureNotifyKeyOnce = PTHREAD_ONCE_INIT;
+static bool __xrtFutureNotifyKeyReady;
 
 
-/* UTF-8 转 UTF-32。 */
-XRT_API xutfresult xrtUtf8To32Buffer(xstrview Source, uint32* pTarget,
-	size_t iCapacity, xutfpolicy Policy)
+
+/* 为 TinyCC POSIX 构建创建不带析构器的通知上下文槽。 */
+static void __xrtFutureNotifyKeyInit(void)
 {
-	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
-		XRT_UTF_UNIT_8, XRT_UTF_UNIT_32, Policy, "utf8_to_utf32");
+	__xrtFutureNotifyKeyReady =
+		pthread_key_create(&__xrtFutureNotifyKey, NULL) == 0;
 }
 
 
 
-/* UTF-16 转 UTF-8。 */
-XRT_API xutfresult xrtUtf16To8Buffer(xutf16view Source, char* pTarget,
-	size_t iCapacity, xutfpolicy Policy)
+/* 返回当前线程正在使用的通知队列。 */
+static xrt_future_notify_context* __xrtFutureNotifyContextGet(void)
 {
-	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
-		XRT_UTF_UNIT_16, XRT_UTF_UNIT_8, Policy, "utf16_to_utf8");
+	(void)pthread_once(&__xrtFutureNotifyKeyOnce, __xrtFutureNotifyKeyInit);
+	return __xrtFutureNotifyKeyReady ?
+		(xrt_future_notify_context*)pthread_getspecific(__xrtFutureNotifyKey) :
+		NULL;
 }
 
 
 
-/* UTF-16 转 UTF-32。 */
-XRT_API xutfresult xrtUtf16To32Buffer(xutf16view Source, uint32* pTarget,
-	size_t iCapacity, xutfpolicy Policy)
+/* 切换当前线程的通知队列；失败时调用方退回直接派发。 */
+static bool __xrtFutureNotifyContextSet(xrt_future_notify_context* pContext)
 {
-	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
-		XRT_UTF_UNIT_16, XRT_UTF_UNIT_32, Policy, "utf16_to_utf32");
+	(void)pthread_once(&__xrtFutureNotifyKeyOnce, __xrtFutureNotifyKeyInit);
+	return __xrtFutureNotifyKeyReady &&
+		(pthread_setspecific(__xrtFutureNotifyKey, pContext) == 0);
 }
 
+#else
+
+static XRT_THREAD_LOCAL xrt_future_notify_context*
+	__xrtFutureNotifyContext;
 
 
-/* UTF-32 转 UTF-8。 */
-XRT_API xutfresult xrtUtf32To8Buffer(xutf32view Source, char* pTarget,
-	size_t iCapacity, xutfpolicy Policy)
+
+/* 返回当前线程正在使用的通知队列。 */
+static xrt_future_notify_context* __xrtFutureNotifyContextGet(void)
 {
-	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
-		XRT_UTF_UNIT_32, XRT_UTF_UNIT_8, Policy, "utf32_to_utf8");
+	return __xrtFutureNotifyContext;
 }
 
 
 
-/* UTF-32 转 UTF-16。 */
-XRT_API xutfresult xrtUtf32To16Buffer(xutf32view Source, uint16* pTarget,
-	size_t iCapacity, xutfpolicy Policy)
+/* 切换当前线程的通知队列。 */
+static bool __xrtFutureNotifyContextSet(xrt_future_notify_context* pContext)
 {
-	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
-		XRT_UTF_UNIT_32, XRT_UTF_UNIT_16, Policy, "utf32_to_utf16");
+	__xrtFutureNotifyContext = pContext;
+	return true;
 }
 
+#endif
 
 
-/* 严格转换零结尾 UTF-8。 */
-XRT_API uint16* xrtUtf8To16(cstr sText, size_t* pSize)
+
+/* 释放当前 Future，并返回需要继续释放的透传结果所有者。 */
+static xfuture* __xrtFutureFree(xfuture* pFuture, xrtownershipscope* pMutation)
 {
-	xstrview Source;
+	ptr pValue = pFuture->Value;
+	xfuturefreeproc pDestroy = pFuture->Destroy;
+	ptr pDestroyData = pFuture->DestroyData;
+	xfuture* pOwner = pFuture->Owner;
+	xerror* pError = pFuture->Error;
+	xcancel* pCancel = pFuture->Cancel;
+	bool bPhased = pFuture->OwnershipPolicy != NULL;
+	/* Last PromiseDestroy closes before returning its physical reference;
+	 * terminal publication or graph Finish has already returned this owner. */
+	if (pFuture->Producer.Data != NULL || pFuture->ProducerPolicy != NULL) abort();
 
-	Source.Data = sText;
-	Source.Size = sText != NULL ? strlen(sText) : 0;
-	return xrtUtf8ViewTo16(Source, XUTF_STRICT, pSize);
+	(void)xrtCondUnit(&pFuture->Ready);
+	(void)xrtMutexUnit(&pFuture->Lock);
+	xrtFree(pFuture);
+	/* Only explicit payload policies certify cooperative destruction. Legacy
+	 * trace-only callbacks retain their conservative mutation exclusion. */
+	if (bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
+	if ( pDestroy != NULL ) {
+		pDestroy(pValue, pDestroyData);
+	}
+	xrtErrorFree(pError);
+	xrtCancelDestroy(pCancel);
+	if (!bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
+	return pOwner;
 }
 
 
 
-/* 严格转换零结尾 UTF-8。 */
-XRT_API uint32* xrtUtf8To32(cstr sText, size_t* pSize)
+/* 迭代释放 Future 及透传所有者链，避免深延续链递归耗尽线程栈。 */
+static void __xrtFutureRelease(xfuture* pFuture)
 {
-	xstrview Source;
-
-	Source.Data = sText;
-	Source.Size = sText != NULL ? strlen(sText) : 0;
-	return xrtUtf8ViewTo32(Source, XUTF_STRICT, pSize);
+	while (pFuture != NULL) {
+		xrtownershipscope Mutation = {0};
+		if (!xrtOwnershipMutationBegin(&Mutation)) return;
+		if (xrtRefRelease(&pFuture->RefCount) != 0) {
+			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+			return;
+		}
+		pFuture = __xrtFutureFree(pFuture, &Mutation);
+	}
 }
 
 
 
-/* 严格转换零结尾 UTF-16。 */
-XRT_API str xrtUtf16To8(const uint16* pText, size_t* pSize)
+static void __xrtFutureInvoke(void (*pProc)(ptr), ptr pData, bool bPhased)
 {
-	return xrtUtf16ViewTo8(xrtUtf16View(pText, xrtUtf16Len(pText)),
-		XUTF_STRICT, pSize);
+	xrtownershipscope Mutation = {0};
+	if (pProc == NULL) return;
+	if (!bPhased && !xrtOwnershipMutationBegin(&Mutation)) abort();
+	pProc(pData);
+	if (!bPhased && !xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
-
-
-/* 严格转换零结尾 UTF-16。 */
-XRT_API uint32* xrtUtf16To32(const uint16* pText, size_t* pSize)
+/* 执行一个完成通知，并在回调返回后发布节点可移除状态。 */
+static void __xrtFutureNotifyOne(xrt_future_waiter* pWaiter)
 {
-	return xrtUtf16ViewTo32(xrtUtf16View(pText, xrtUtf16Len(pText)),
-		XUTF_STRICT, pSize);
+	xrtownershipscope Mutation = {0};
+	xfuture* pFuture = pWaiter->NotifyFuture;
+	void (*pRelease)(ptr pData) = pWaiter->Release;
+	ptr pData = pWaiter->Data;
+	bool bReleaseFuture = pWaiter->NotifyRelease;
+	bool bPhased = pWaiter->Phased;
+
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	pWaiter->Next = NULL;
+	pWaiter->NotifyFuture = NULL;
+	pWaiter->NotifyRelease = false;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	__xrtFutureInvoke(pWaiter->Proc, pData, bPhased);
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	(void)xrtMutexLock(&pFuture->Lock);
+	pWaiter->Calling = false;
+	(void)xrtCondBroadcast(&pFuture->Ready);
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( pRelease != NULL ) {
+		__xrtFutureInvoke(pRelease, pData, bPhased);
+	}
+	if ( bReleaseFuture ) {
+		xrtFutureDestroy(pFuture);
+	}
 }
 
 
 
-/* 严格转换零结尾 UTF-32。 */
-XRT_API str xrtUtf32To8(const uint32* pText, size_t* pSize)
+/* 在 Future 锁外把完成批次加入当前执行上下文，并由最外层调用迭代排空。 */
+static void __xrtFutureNotify(
+	xrt_future_waiter* pHead,
+	xrt_future_waiter* pTail
+)
 {
-	return xrtUtf32ViewTo8(xrtUtf32View(pText, xrtUtf32Len(pText)),
-		XUTF_STRICT, pSize);
+	xrt_future_notify_context tContext;
+	xrt_future_notify_context* pContext = __xrtFutureNotifyContextGet();
+
+	if ( pHead == NULL ) {
+		return;
+	}
+	if ( pContext != NULL ) {
+		if ( pContext->Tail != NULL ) {
+			pContext->Tail->Next = pHead;
+		} else {
+			pContext->Head = pHead;
+		}
+		pContext->Tail = pTail;
+		return;
+	}
+	memset(&tContext, 0, sizeof(tContext));
+	if ( !__xrtFutureNotifyContextSet(&tContext) ) {
+		while ( pHead != NULL ) {
+			xrt_future_waiter* pNext = pHead->Next;
+
+			__xrtFutureNotifyOne(pHead);
+			pHead = pNext;
+		}
+		return;
+	}
+	tContext.Head = pHead;
+	tContext.Tail = pTail;
+	while ( tContext.Head != NULL ) {
+		xrt_future_waiter* pWaiter = tContext.Head;
+
+		tContext.Head = pWaiter->Next;
+		if ( tContext.Head == NULL ) {
+			tContext.Tail = NULL;
+		}
+		__xrtFutureNotifyOne(pWaiter);
+	}
+	(void)__xrtFutureNotifyContextSet(NULL);
 }
 
 
 
-/* 严格转换零结尾 UTF-32。 */
-XRT_API uint16* xrtUtf32To16(const uint32* pText, size_t* pSize)
+/* 在持锁状态下发布唯一终态，并摘取全部等待节点。 */
+static void __xrtFuturePublishLocked(
+	xfuture* pFuture,
+	xfuturestate State,
+	ptr pValue,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData,
+	xfuture* pOwner,
+	xerror* pError,
+	xrt_future_waiter** ppWaiter,
+	xrt_future_waiter** ppWaiterTail,
+	xrtownershipref* pProducer,
+	const xfutureproducerownershipv1** ppProducerPolicy,
+	xfutureownershiptrace pTrace,
+	const xfuturepayloadownershipv1* pPolicy
+)
 {
-	return xrtUtf32ViewTo16(xrtUtf32View(pText, xrtUtf32Len(pText)),
-		XUTF_STRICT, pSize);
+	xrt_future_waiter* pWaiterTail = NULL;
+
+	pFuture->State = State;
+	pFuture->Completing = false;
+	pFuture->Value = pValue;
+	pFuture->Destroy = pDestroy;
+	pFuture->DestroyData = pDestroyData;
+	pFuture->OwnershipTrace = pTrace;
+	pFuture->OwnershipPolicy = pPolicy;
+	pFuture->Owner = pOwner;
+	pFuture->Error = pError;
+	*pProducer = pFuture->Producer; *ppProducerPolicy = pFuture->ProducerPolicy;
+	pFuture->Producer = (xrtownershipref){0}; pFuture->ProducerPolicy = NULL;
+	*ppWaiter = pFuture->Waiters;
+	pFuture->Waiters = NULL;
+	pFuture->WaitersTail = NULL;
+	for ( xrt_future_waiter* pCurrent = *ppWaiter;
+		pCurrent != NULL; pCurrent = pCurrent->Next ) {
+		pCurrent->Linked = false;
+		pCurrent->Calling = true;
+		pCurrent->NotifyFuture = pFuture;
+		pCurrent->NotifyRelease = false;
+		pWaiterTail = pCurrent;
+	}
+	if ( pWaiterTail != NULL ) {
+		pWaiterTail->NotifyRelease = true;
+		(void)xrtFutureRef(pFuture);
+	}
+	*ppWaiterTail = pWaiterTail;
+	(void)xrtCondBroadcast(&pFuture->Ready);
 }
 
 
 
-/* 分配零结尾 UTF-16 字符串。 */
-XRT_API uint16* xrtUtf8ViewTo16(xstrview Source, xutfpolicy Policy, size_t* pSize)
+/* 把 Pending 原子转换为唯一终态，并按成功与失败保存结果。 */
+static bool __xrtFutureCompleteTraced(
+	xfuture* pFuture,
+	xfuturestate State,
+	ptr pValue,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData,
+	xfuture* pOwner,
+	xerror* pError,
+	bool bRequestCancel,
+	bool bReportDuplicate,
+	xfutureownershiptrace pTrace,
+	const xfuturepayloadownershipv1* pPolicy
+)
 {
-	return (uint16*)__xrtUtfConvertAlloc(Source.Data, Source.Size,
-		XRT_UTF_UNIT_8, XRT_UTF_UNIT_16, Policy, pSize, "utf8_to_utf16");
+	bool bCompleted = false;
+	bool bReserved = false;
+	xrtownershipscope Mutation = {0};
+	xrt_future_waiter* pWaiter = NULL;
+	xrt_future_waiter* pWaiterTail = NULL;
+	xrtownershipref Producer = {0};
+	const xfutureproducerownershipv1* pProducerPolicy = NULL;
+
+	if ( pFuture == NULL ) {
+		if ( bReportDuplicate ) {
+			__xrtErrorSetInvalidArgument();
+		}
+		return false;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	if ( !xrtMutexLock(&pFuture->Lock) ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		return false;
+	}
+	if ( (pFuture->State == XFUTURE_PENDING) && !pFuture->Completing && !pFuture->OwnershipCleared ) {
+		if ( bRequestCancel ) {
+			pFuture->Completing = true;
+			bReserved = true;
+		} else {
+			__xrtFuturePublishLocked(
+				pFuture,
+				State,
+				pValue,
+				pDestroy,
+				pDestroyData,
+				pOwner,
+				pError,
+				&pWaiter,
+				&pWaiterTail,
+				&Producer, &pProducerPolicy,
+				pTrace, pPolicy
+			);
+			bCompleted = true;
+		}
+	}
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+
+	if ( bReserved ) {
+		(void)xrtCancelRequest(pFuture->Cancel);
+		if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+		if ( !xrtMutexLock(&pFuture->Lock) ) {
+			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+			return false;
+		}
+		__xrtFuturePublishLocked(
+			pFuture,
+			State,
+			pValue,
+			pDestroy,
+			pDestroyData,
+			pOwner,
+			pError,
+			&pWaiter,
+			&pWaiterTail,
+			&Producer, &pProducerPolicy,
+			pTrace, pPolicy
+		);
+		bCompleted = true;
+		(void)xrtMutexUnlock(&pFuture->Lock);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	}
+	if ( bCompleted ) {
+		__xrtFutureProducerDrop(Producer, pProducerPolicy);
+		__xrtFutureNotify(pWaiter, pWaiterTail);
+	} else if ( bReportDuplicate ) {
+		__xrtErrorSetInvalidState();
+	}
+	return bCompleted;
 }
 
 
 
-/* 分配零结尾 UTF-32 字符串。 */
-XRT_API uint32* xrtUtf8ViewTo32(xstrview Source, xutfpolicy Policy, size_t* pSize)
+static bool __xrtFutureComplete(xfuture* pFuture, xfuturestate State, ptr pValue,
+	xfuturefreeproc pDestroy, ptr pDestroyData, xfuture* pOwner, xerror* pError,
+	bool bRequestCancel, bool bReportDuplicate)
 {
-	return (uint32*)__xrtUtfConvertAlloc(Source.Data, Source.Size,
-		XRT_UTF_UNIT_8, XRT_UTF_UNIT_32, Policy, pSize, "utf8_to_utf32");
+	return __xrtFutureCompleteTraced(pFuture, State, pValue, pDestroy, pDestroyData,
+		pOwner, pError, bRequestCancel, bReportDuplicate, NULL, NULL);
 }
 
-
-
-/* 分配零结尾 UTF-8 字符串。 */
-XRT_API str xrtUtf16ViewTo8(xutf16view Source, xutfpolicy Policy, size_t* pSize)
+static bool __xrtOwnershipBody_PromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
+	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace)
 {
-	return (str)__xrtUtfConvertAlloc(Source.Data, Source.Size,
-		XRT_UTF_UNIT_16, XRT_UTF_UNIT_8, Policy, pSize, "utf16_to_utf8");
+	if (pPromise == NULL || pDestroy == NULL || pTrace == NULL) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	return __xrtFutureCompleteTraced(pPromise->Future, XFUTURE_RESOLVED, pValue,
+		pDestroy, pDestroyData, NULL, NULL, false, true, pTrace, NULL);
 }
 
-
-
-/* 分配零结尾 UTF-32 字符串。 */
-XRT_API uint32* xrtUtf16ViewTo32(xutf16view Source, xutfpolicy Policy, size_t* pSize)
+XRT_API bool xrtPromiseResolveOwnedPolicyV1(xpromise* pPromise, ptr pValue,
+	const xfuturepayloadownershipv1* pPolicy)
 {
-	return (uint32*)__xrtUtfConvertAlloc(Source.Data, Source.Size,
-		XRT_UTF_UNIT_16, XRT_UTF_UNIT_32, Policy, pSize, "utf16_to_utf32");
+	if (pPromise == NULL || pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) ||
+		pPolicy->Drop == NULL || pPolicy->Trace == NULL) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	return __xrtFutureCompleteTraced(pPromise->Future, XFUTURE_RESOLVED, pValue,
+		pPolicy->Drop, NULL, NULL, NULL, false, true, pPolicy->Trace, pPolicy);
 }
 
-
-
-/* 分配零结尾 UTF-8 字符串。 */
-XRT_API str xrtUtf32ViewTo8(xutf32view Source, xutfpolicy Policy, size_t* pSize)
+XRT_API bool xrtPromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
+	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace)
 {
-	return (str)__xrtUtfConvertAlloc(Source.Data, Source.Size,
-		XRT_UTF_UNIT_32, XRT_UTF_UNIT_8, Policy, pSize, "utf32_to_utf8");
+	return __xrtOwnershipBody_PromiseResolveOwnedTraced(pPromise, pValue, pDestroy, pDestroyData, pTrace);
 }
 
+/* 可取消等待在 Future 锁下记录终态竞争结果。 */
+typedef struct xrt_future_cancel_wait {
+	xfuture* Future;
+	bool Cancelled;
+} xrt_future_cancel_wait;
 
 
-/* 分配零结尾 UTF-16 字符串。 */
-XRT_API uint16* xrtUtf32ViewTo16(xutf32view Source, xutfpolicy Policy, size_t* pSize)
+
+/* 取消与 Future 完成共用一把锁，先取得锁的一方确定等待结果。 */
+static void __xrtFutureWaitCancelled(ptr pData)
 {
-	return (uint16*)__xrtUtfConvertAlloc(Source.Data, Source.Size,
-		XRT_UTF_UNIT_32, XRT_UTF_UNIT_16, Policy, pSize, "utf32_to_utf16");
+	xrt_future_cancel_wait* pWait = (xrt_future_cancel_wait*)pData;
+	xfuture* pFuture = pWait->Future;
+
+	if ( xrtMutexLock(&pFuture->Lock) ) {
+		if ( pFuture->State == XFUTURE_PENDING ) {
+			pWait->Cancelled = true;
+			(void)xrtCondBroadcast(&pFuture->Ready);
+		}
+		(void)xrtMutexUnlock(&pFuture->Lock);
+	}
 }
 
+
+
+/* Future 尚未完成时挂入一个不分配内存的内部等待节点。 */
+static bool __xrtOwnershipBody_FutureWaiterAdd(xfuture* pFuture, xrt_future_waiter* pWaiter)
+{
+	bool bLinked = false;
+
+	if ( (pFuture == NULL) || (pWaiter == NULL) || (pWaiter->Proc == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !xrtMutexLock(&pFuture->Lock) ) {
+		return false;
+	}
+	if ( pWaiter->Linked || pWaiter->Calling ) {
+		(void)xrtMutexUnlock(&pFuture->Lock);
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( pFuture->State == XFUTURE_PENDING ) {
+		pWaiter->Next = NULL;
+		pWaiter->Linked = true;
+		if ( pFuture->WaitersTail != NULL ) {
+			pFuture->WaitersTail->Next = pWaiter;
+		} else {
+			pFuture->Waiters = pWaiter;
+		}
+		pFuture->WaitersTail = pWaiter;
+		bLinked = true;
+	}
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	return bLinked;
+}
+
+bool __xrtFutureWaiterAdd(xfuture* pFuture, xrt_future_waiter* pWaiter)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_FutureWaiterAdd(pFuture, pWaiter));
+}
+
+
+
+/* 摘除尚未进入完成批次的等待节点，但不等待已经开始的回调。 */
+static bool __xrtOwnershipBody_FutureWaiterDetach(xfuture* pFuture, xrt_future_waiter* pWaiter)
+{
+	xrtownershipscope Mutation = {0};
+	xrt_future_waiter** ppWaiter;
+	xrt_future_waiter* pPrevious = NULL;
+	void (*pRelease)(ptr pData) = NULL;
+	ptr pData = NULL;
+	bool bDetached = false;
+	bool bPhased = false;
+
+	if ( (pFuture == NULL) || (pWaiter == NULL) ) {
+		return false;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	if ( !xrtMutexLock(&pFuture->Lock) ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		return false;
+	}
+	if ( pWaiter->Linked ) {
+		ppWaiter = &pFuture->Waiters;
+		while ( (*ppWaiter != NULL) && (*ppWaiter != pWaiter) ) {
+			pPrevious = *ppWaiter;
+			ppWaiter = &(*ppWaiter)->Next;
+		}
+		if ( *ppWaiter == pWaiter ) {
+			*ppWaiter = pWaiter->Next;
+			if ( pFuture->WaitersTail == pWaiter ) {
+				pFuture->WaitersTail = pPrevious;
+			}
+			pWaiter->Next = NULL;
+			pWaiter->Linked = false;
+			pRelease = pWaiter->Release;
+			pData = pWaiter->Data;
+			bPhased = pWaiter->Phased;
+			bDetached = true;
+		}
+	}
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( pRelease != NULL ) {
+		__xrtFutureInvoke(pRelease, pData, bPhased);
+	}
+	return bDetached;
+}
+
+bool __xrtFutureWaiterDetach(xfuture* pFuture, xrt_future_waiter* pWaiter)
+{
+	return __xrtOwnershipBody_FutureWaiterDetach(pFuture, pWaiter);
+}
+
+
+
+/* 从等待链移除仍然挂接的内部节点。 */
+static void __xrtOwnershipBody_FutureWaiterRemove(xfuture* pFuture, xrt_future_waiter* pWaiter)
+{
+	xrtownershipscope Mutation = {0};
+	xrt_future_waiter** ppWaiter;
+	xrt_future_waiter* pPrevious = NULL;
+	void (*pRelease)(ptr pData) = NULL;
+	ptr pData = NULL;
+	bool bPhased = false;
+
+	if ( (pFuture == NULL) || (pWaiter == NULL) ) {
+		return;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return;
+	if ( !xrtMutexLock(&pFuture->Lock) ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		return;
+	}
+	if ( pWaiter->Linked ) {
+		ppWaiter = &pFuture->Waiters;
+		while ( (*ppWaiter != NULL) && (*ppWaiter != pWaiter) ) {
+			pPrevious = *ppWaiter;
+			ppWaiter = &(*ppWaiter)->Next;
+		}
+		if ( *ppWaiter == pWaiter ) {
+			*ppWaiter = pWaiter->Next;
+			if ( pFuture->WaitersTail == pWaiter ) {
+				pFuture->WaitersTail = pPrevious;
+			}
+		}
+		pWaiter->Next = NULL;
+		pWaiter->Linked = false;
+		pRelease = pWaiter->Release;
+		pData = pWaiter->Data;
+		bPhased = pWaiter->Phased;
+	}
+	/* No graph mutation is needed to wait for the already detached callback.
+	 * End admission before reacquiring the condition lock, so callback writes
+	 * can enter their own mutation even while a graph inspector is active. */
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (!xrtMutexLock(&pFuture->Lock)) abort();
+	while ( pWaiter->Calling ) {
+		(void)xrtCondWait(&pFuture->Ready, &pFuture->Lock);
+	}
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if ( pRelease != NULL ) {
+		__xrtFutureInvoke(pRelease, pData, bPhased);
+	}
+}
+
+void __xrtFutureWaiterRemove(xfuture* pFuture, xrt_future_waiter* pWaiter)
+{
+	__xrtOwnershipBody_FutureWaiterRemove(pFuture, pWaiter);
+}
+
+
+
+/* 初始化调用方持有的无分配 Future Watch。 */
+static bool __xrtOwnershipBody_FutureWatchInit(
+	xfuturewatch* pWatch,
+	xfuturewatchproc pNotify,
+	xfuturewatchreleaseproc pRelease,
+	ptr pData
+)
+{
+	xrt_future_watch_impl* pImpl;
+
+	if ( !__xrtRangeValid(pWatch, sizeof(*pWatch)) ||
+		(pNotify == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	memset(pWatch, 0, sizeof(*pWatch));
+	pImpl = __xrtFutureWatchImpl(pWatch);
+	pImpl->Waiter.Proc = pNotify;
+	pImpl->Waiter.Release = pRelease;
+	pImpl->Waiter.Data = pData;
+	pImpl->Magic = XRT_FUTURE_WATCH_MAGIC;
+	return true;
+}
+
+XRT_API bool xrtFutureWatchInit(
+	xfuturewatch* pWatch,
+	xfuturewatchproc pNotify,
+	xfuturewatchreleaseproc pRelease,
+	ptr pData
+)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_FutureWatchInit(pWatch, pNotify, pRelease, pData));
+}
+
+
+
+static bool __xrtOwnershipBody_FutureWatchInitTraced(xfuturewatch* pWatch,
+	xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+	xrtownershiptrace pTrace)
+{
+	if (pRelease == NULL || pTrace == NULL) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (!xrtFutureWatchInit(pWatch, pNotify, pRelease, pData)) return false;
+	__xrtFutureWatchImpl(pWatch)->Waiter.OwnershipTrace = pTrace;
+	return true;
+}
+
+XRT_API bool xrtFutureWatchInitTraced(xfuturewatch* pWatch,
+	xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+	xrtownershiptrace pTrace)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_FutureWatchInitTraced(pWatch, pNotify, pRelease, pData, pTrace));
+}
+
+static bool __xrtFutureWatchInitPhased(xfuturewatch* pWatch,
+	xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+	xrtownershiptrace pTrace)
+{
+	if (!xrtFutureWatchInitTraced(pWatch, pNotify, pRelease, pData, pTrace)) return false;
+	__xrtFutureWatchImpl(pWatch)->Waiter.Phased = true;
+	return true;
+}
+XRT_API bool xrtFutureWatchInitPhased(xfuturewatch* pWatch,
+	xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
+	xrtownershiptrace pTrace)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtFutureWatchInitPhased(pWatch, pNotify, pRelease, pData, pTrace));
+}
+XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv1* pPolicy)
+{
+	xrtownershipscope Mutation = {0};
+	if (pData == NULL || pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) ||
+		pPolicy->Notify == NULL || pPolicy->Release == NULL || pPolicy->Ops == NULL ||
+		pPolicy->Ops->Count == NULL || pPolicy->Ops->Trace == NULL) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	bool bOk = __xrtOwnershipBody_FutureWatchInit(pWatch, pPolicy->Notify, pPolicy->Release, pData);
+	if (bOk) {
+		xrt_future_waiter* pWaiter = &__xrtFutureWatchImpl(pWatch)->Waiter;
+		pWaiter->Phased = true; pWaiter->Certified = true; pWaiter->OwnershipPolicy = pPolicy;
+	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return bOk;
+}
+
+XRT_API bool xrtFutureWatchInitOwnershipV2(xfuturewatch* pWatch, ptr pData,
+	const xfuturewatchownershipv2* pPolicy)
+{
+	xrtownershipscope Mutation = {0};
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) ||
+		!pPolicy->Notify || !pPolicy->Release || !pPolicy->Reference) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	bool bOk = __xrtOwnershipBody_FutureWatchInit(pWatch, pPolicy->Notify, pPolicy->Release, pData);
+	if (bOk) {
+		xrt_future_waiter* pWaiter = &__xrtFutureWatchImpl(pWatch)->Waiter;
+		pWaiter->Phased = true; pWaiter->Certified = 2; pWaiter->ProjectedOwnershipPolicy = pPolicy;
+	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return bOk;
+}
+
+
+/* 把 Watch 挂入仍为 Pending 的 Future。 */
+static xfuturewatchresult __xrtOwnershipBody_FutureWatchAdd(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+)
+{
+	xrt_future_watch_impl* pImpl;
+	xerror* pPrevious;
+	xerror* pCurrent;
+	bool bAdded;
+
+	if ( (pFuture == NULL) ||
+		!__xrtRangeValid(pWatch, sizeof(*pWatch)) ) {
+		__xrtErrorSetInvalidArgument();
+		return XFUTURE_WATCH_ERROR;
+	}
+	pImpl = __xrtFutureWatchImpl(pWatch);
+	if ( (pImpl->Magic != XRT_FUTURE_WATCH_MAGIC) ||
+		(pImpl->Waiter.Proc == NULL) ) {
+		__xrtErrorSetInvalidState();
+		return XFUTURE_WATCH_ERROR;
+	}
+	pPrevious = __xrtErrorSwapOwned(NULL);
+	bAdded = __xrtFutureWaiterAdd(pFuture, &pImpl->Waiter);
+	pCurrent = __xrtErrorSwapOwned(pPrevious);
+	if ( bAdded ) {
+		return XFUTURE_WATCH_PENDING;
+	}
+	if ( pCurrent != NULL ) {
+		xrtSetError(pCurrent);
+		xrtErrorFree(pCurrent);
+		return XFUTURE_WATCH_ERROR;
+	}
+	return XFUTURE_WATCH_READY;
+}
+
+XRT_API xfuturewatchresult xrtFutureWatchAdd(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xfuturewatchresult, XFUTURE_WATCH_ERROR, __xrtOwnershipBody_FutureWatchAdd(pFuture, pWatch));
+}
+
+
+
+/* 摘除尚未开始回调的 Future Watch。 */
+static bool __xrtOwnershipBody_FutureWatchDetach(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+)
+{
+	xrt_future_watch_impl* pImpl;
+
+	if ( (pFuture == NULL) ||
+		!__xrtRangeValid(pWatch, sizeof(*pWatch)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pImpl = __xrtFutureWatchImpl(pWatch);
+	if ( pImpl->Magic != XRT_FUTURE_WATCH_MAGIC ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	return __xrtFutureWaiterDetach(pFuture, &pImpl->Waiter);
+}
+
+XRT_API bool xrtFutureWatchDetach(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+)
+{
+	return __xrtOwnershipBody_FutureWatchDetach(pFuture, pWatch);
+}
+
+
+
+/* 移除 Future Watch，并与并发中的通知回调汇合。 */
+static void __xrtOwnershipBody_FutureWatchRemove(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+)
+{
+	xrt_future_watch_impl* pImpl;
+
+	if ( (pFuture == NULL) ||
+		!__xrtRangeValid(pWatch, sizeof(*pWatch)) ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	pImpl = __xrtFutureWatchImpl(pWatch);
+	if ( pImpl->Magic != XRT_FUTURE_WATCH_MAGIC ) {
+		__xrtErrorSetInvalidState();
+		return;
+	}
+	__xrtFutureWaiterRemove(pFuture, &pImpl->Waiter);
+}
+
+XRT_API void xrtFutureWatchRemove(
+	xfuture* pFuture,
+	xfuturewatch* pWatch
+)
+{
+	__xrtOwnershipBody_FutureWatchRemove(pFuture, pWatch);
+}
+
+
+
+/* 创建共享 Future 与嵌入式 Promise 端点。 */
+static xpromise* __xrtOwnershipBody_PromiseCreate(xfuture** ppFuture, xcancel* pParentCancel)
+{
+	xfuture* pFuture;
+
+	if ( ppFuture == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	*ppFuture = NULL;
+	pFuture = (xfuture*)xrtCalloc(1, sizeof(xfuture));
+	if ( pFuture == NULL ) {
+		return NULL;
+	}
+	pFuture->RefCount = 2;
+	pFuture->PromiseRefs = 1;
+	pFuture->State = XFUTURE_PENDING;
+	pFuture->Promise.Future = pFuture;
+	if ( !xrtMutexInit(&pFuture->Lock) ) {
+		xrtFree(pFuture);
+		return NULL;
+	}
+	if ( !xrtCondInit(&pFuture->Ready) ) {
+		(void)xrtMutexUnit(&pFuture->Lock);
+		xrtFree(pFuture);
+		return NULL;
+	}
+	pFuture->Cancel = xrtCancelChild(pParentCancel);
+	if ( pFuture->Cancel == NULL ) {
+		(void)xrtCondUnit(&pFuture->Ready);
+		(void)xrtMutexUnit(&pFuture->Lock);
+		xrtFree(pFuture);
+		return NULL;
+	}
+	*ppFuture = pFuture;
+	return &pFuture->Promise;
+}
+
+XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xpromise*, NULL, __xrtOwnershipBody_PromiseCreate(ppFuture, pParentCancel));
+}
+
+
+
+/* 增加 Promise 生产端引用。 */
+static xpromise* __xrtOwnershipBody_PromiseRef(xpromise* pPromise)
+{
+	xfuture* pFuture;
+
+	if ( pPromise == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pFuture = pPromise->Future;
+	if (pFuture->OwnershipCleared) { __xrtErrorSetInvalidState(); return NULL; }
+	if ( xrtRefRetain(&pFuture->PromiseRefs) < 0 ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	if ( xrtRefRetain(&pFuture->RefCount) < 0 ) {
+		(void)xrtRefRelease(&pFuture->PromiseRefs);
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	return pPromise;
+}
+
+XRT_API xpromise* xrtPromiseRef(xpromise* pPromise)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xpromise*, NULL, __xrtOwnershipBody_PromiseRef(pPromise));
+}
+
+
+
+/* 释放 Promise，并在最后一个生产端离开时关闭未完成结果。 */
+static void __xrtOwnershipBody_PromiseDestroy(xpromise* pPromise)
+{
+	xrtownershipscope Mutation = {0};
+	xfuture* pFuture;
+	int32 iRefs;
+
+	if ( pPromise == NULL ) {
+		return;
+	}
+	pFuture = pPromise->Future;
+	if (!xrtOwnershipMutationBegin(&Mutation)) return;
+	iRefs = xrtRefRelease(&pFuture->PromiseRefs);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( iRefs < 0 ) {
+		__xrtErrorSetInvalidState();
+		return;
+	}
+	if ( iRefs == 0 ) {
+		(void)__xrtFutureComplete(
+			pFuture,
+			XFUTURE_CLOSED,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			true,
+			false
+		);
+	}
+	__xrtFutureRelease(pFuture);
+}
+
+XRT_API void xrtPromiseDestroy(xpromise* pPromise)
+{
+	__xrtOwnershipBody_PromiseDestroy(pPromise);
+}
+
+
+
+/* 增加 Future 消费端引用。 */
+static xfuture* __xrtOwnershipBody_FutureRef(xfuture* pFuture)
+{
+	if ( pFuture == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if (pFuture->OwnershipCleared || xrtRefRetain(&pFuture->RefCount) < 0) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	return pFuture;
+}
+
+XRT_API xfuture* xrtFutureRef(xfuture* pFuture)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xfuture*, NULL, __xrtOwnershipBody_FutureRef(pFuture));
+}
+
+
+
+/* 释放 Future 消费端引用。 */
+static void __xrtOwnershipBody_FutureDestroy(xfuture* pFuture)
+{
+	__xrtFutureRelease(pFuture);
+}
+
+XRT_API void xrtFutureDestroy(xfuture* pFuture)
+{
+	__xrtOwnershipBody_FutureDestroy(pFuture);
+}
+
+
+
+/* 返回 Future 状态快照。 */
+XRT_API xfuturestate xrtFutureState(const xfuture* pFuture)
+{
+	xfuturestate State;
+
+	if ( pFuture == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return XFUTURE_CLOSED;
+	}
+	if ( !xrtMutexLock((xmutex*)&pFuture->Lock) ) {
+		return XFUTURE_CLOSED;
+	}
+	State = pFuture->State;
+	(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
+	return State;
+}
+
+
+
+/* 判断 Future 是否已经进入终态。 */
+XRT_API bool xrtFutureDone(const xfuture* pFuture)
+{
+	return xrtFutureState(pFuture) != XFUTURE_PENDING;
+}
+
+
+
+/* 复制借用的 Future 结果。 */
+XRT_API bool xrtFutureResult(const xfuture* pFuture, xfutureresult* pResult)
+{
+	if ( (pFuture == NULL) || (pResult == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !xrtMutexLock((xmutex*)&pFuture->Lock) ) {
+		return false;
+	}
+	if (pFuture->OwnershipCleared) {
+		(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
+		__xrtErrorSetClosed(); return false;
+	}
+	if ( pFuture->State == XFUTURE_PENDING ) {
+		(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
+		__xrtErrorSetAgain();
+		return false;
+	}
+	pResult->State = pFuture->State;
+	pResult->Value = pFuture->Value;
+	pResult->Error = pFuture->Error;
+	(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
+	return true;
+}
+
+
+
+/* 返回成功值，并把非成功状态映射到当前错误上下文。 */
+static ptr __xrtOwnershipBody_FutureValue(const xfuture* pFuture)
+{
+	xfuturestate State;
+	ptr pValue;
+	xerror* pError = NULL;
+
+	if ( pFuture == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( !xrtMutexLock((xmutex*)&pFuture->Lock) ) {
+		return NULL;
+	}
+	State = pFuture->State;
+	pValue = pFuture->Value;
+	if ( State == XFUTURE_FAILED ) {
+		pError = xrtErrorRef(pFuture->Error);
+	}
+	(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
+	if ( State == XFUTURE_RESOLVED ) {
+		return pValue;
+	}
+	if ( State == XFUTURE_FAILED ) {
+		xrtSetError(pError);
+		xrtErrorFree(pError);
+	} else if ( State == XFUTURE_CANCELLED ) {
+		__xrtErrorSetCancelled();
+	} else if ( State == XFUTURE_CLOSED ) {
+		__xrtErrorSetClosed();
+	} else {
+		__xrtErrorSetAgain();
+	}
+	return NULL;
+}
+
+XRT_API ptr xrtFutureValue(const xfuture* pFuture)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(ptr, NULL, __xrtOwnershipBody_FutureValue(pFuture));
+}
+
+
+
+/* 返回失败终态借用的结构化错误。 */
+XRT_API const xerror* xrtFutureError(const xfuture* pFuture)
+{
+	const xerror* pError;
+
+	if ( pFuture == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( !xrtMutexLock((xmutex*)&pFuture->Lock) ) {
+		return NULL;
+	}
+	pError = pFuture->State == XFUTURE_FAILED ? pFuture->Error : NULL;
+	(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
+	return pError;
+}
+
+
+
+/* 请求 Future 的生产过程协作取消。 */
+XRT_API bool xrtFutureCancel(xfuture* pFuture)
+{
+	xrtownershipscope Mutation = {0}; xcancel* pCancel; bool bRequested;
+
+	if ( pFuture == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	if ( !xrtMutexLock(&pFuture->Lock) ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		return false;
+	}
+	/* The real local Cancel reference protects callback/release tails after
+	 * leaving the Future transition. Certified observers must not inherit an
+	 * API-owned scope; a caller-owned outer scope remains untouched. */
+	pCancel = pFuture->State == XFUTURE_PENDING && !pFuture->OwnershipCleared ?
+		xrtCancelRef(pFuture->Cancel) : NULL;
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	bRequested = pCancel != NULL && xrtCancelRequest(pCancel);
+	xrtCancelDestroy(pCancel); return bRequested;
+}
+
+
+
+/* 返回 Future 取消令牌的新增引用。 */
+static xcancel* __xrtOwnershipBody_FutureCancelToken(const xfuture* pFuture)
+{
+	if ( pFuture == NULL || pFuture->OwnershipCleared ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	return xrtCancelRef(pFuture->Cancel);
+}
+
+XRT_API xcancel* xrtFutureCancelToken(const xfuture* pFuture)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_FutureCancelToken(pFuture));
+}
+
+
+
+/* 返回 Promise 取消令牌的新增引用。 */
+static xcancel* __xrtOwnershipBody_PromiseCancelToken(const xpromise* pPromise)
+{
+	if ( pPromise == NULL || pPromise->Future->OwnershipCleared ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	return xrtCancelRef(pPromise->Future->Cancel);
+}
+
+XRT_API xcancel* xrtPromiseCancelToken(const xpromise* pPromise)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_PromiseCancelToken(pPromise));
+}
+
+
+
+/* 永久等待 Future 进入任一终态。 */
+XRT_API xwaitresult xrtFutureWait(xfuture* pFuture)
+{
+	return xrtFutureWaitUntilCancel(pFuture, XRT_DEADLINE_NEVER, NULL);
+}
+
+
+
+/* 在相对微秒数内等待 Future。 */
+XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout)
+{
+	return xrtFutureWaitUntilCancel(pFuture, xrtDeadlineAfter(iTimeout), NULL);
+}
+
+
+
+/* 等待 Future 到指定截止时间。 */
+XRT_API xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline)
+{
+	return xrtFutureWaitUntilCancel(pFuture, iDeadline, NULL);
+}
+
+
+
+/* 等待 Future、截止时间或外部取消令牌中的首个事件。 */
+XRT_API xwaitresult xrtFutureWaitUntilCancel(
+	xfuture* pFuture,
+	xdeadline iDeadline,
+	xcancel* pCancel
+)
+{
+	xcancelwatch* pWatch = NULL;
+	xrt_future_cancel_wait CancelWait;
+	xwaitresult Result = XWAIT_OK;
+
+	pFuture = xrtFutureRef(pFuture);
+	if ( pFuture == NULL ) {
+		return XWAIT_ERROR;
+	}
+	memset(&CancelWait, 0, sizeof(CancelWait));
+	CancelWait.Future = pFuture;
+	if ( pCancel != NULL ) {
+		pWatch = xrtCancelWatch(
+			pCancel,
+			__xrtFutureWaitCancelled,
+			&CancelWait
+		);
+		if ( pWatch == NULL ) {
+			xrtFutureDestroy(pFuture);
+			return XWAIT_ERROR;
+		}
+	}
+	if ( !xrtMutexLock(&pFuture->Lock) ) {
+		Result = XWAIT_ERROR;
+	} else {
+		while ( (pFuture->State == XFUTURE_PENDING) &&
+				 !CancelWait.Cancelled ) {
+			if ( xrtDeadlineExpired(iDeadline) ) {
+				Result = XWAIT_TIMEOUT;
+				break;
+			}
+			Result = xrtCondWaitUntil(&pFuture->Ready, &pFuture->Lock, iDeadline);
+			if ( Result == XWAIT_ERROR ) {
+				break;
+			}
+			if ( Result == XWAIT_TIMEOUT ) {
+				if ( CancelWait.Cancelled ) {
+					Result = XWAIT_CANCELLED;
+				} else if ( pFuture->State != XFUTURE_PENDING ) {
+					Result = XWAIT_OK;
+				}
+				break;
+			}
+		}
+		if ( CancelWait.Cancelled ) {
+			Result = XWAIT_CANCELLED;
+		} else if ( pFuture->State != XFUTURE_PENDING ) {
+			Result = XWAIT_OK;
+		}
+		(void)xrtMutexUnlock(&pFuture->Lock);
+	}
+	if ( pWatch != NULL ) {
+		xrtCancelUnwatch(pWatch);
+	}
+	xrtFutureDestroy(pFuture);
+	return Result;
+}
+
+
+
+/* 以借用值完成 Promise。 */
+static bool __xrtOwnershipBody_PromiseResolve(xpromise* pPromise, ptr pValue)
+{
+	if ( pPromise == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return __xrtFutureComplete(
+		pPromise->Future,
+		XFUTURE_RESOLVED,
+		pValue,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		false,
+		true
+	);
+}
+
+XRT_API bool xrtPromiseResolve(xpromise* pPromise, ptr pValue)
+{
+	return __xrtOwnershipBody_PromiseResolve(pPromise, pValue);
+}
+
+
+
+/* 以转移所有权的值完成 Promise。 */
+static bool __xrtOwnershipBody_PromiseResolveOwned(
+	xpromise* pPromise,
+	ptr pValue,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+)
+{
+	if ( (pPromise == NULL) || (pDestroy == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return __xrtFutureComplete(
+		pPromise->Future,
+		XFUTURE_RESOLVED,
+		pValue,
+		pDestroy,
+		pDestroyData,
+		NULL,
+		NULL,
+		false,
+		true
+	);
+}
+
+XRT_API bool xrtPromiseResolveOwned(
+	xpromise* pPromise,
+	ptr pValue,
+	xfuturefreeproc pDestroy,
+	ptr pDestroyData
+)
+{
+	return __xrtOwnershipBody_PromiseResolveOwned(pPromise, pValue, pDestroy, pDestroyData);
+}
+
+
+
+/* 以增加引用的结构化错误完成 Promise。 */
+static bool __xrtOwnershipBody_PromiseReject(xpromise* pPromise, const xerror* pError)
+{
+	xerror* pHeldError;
+	bool bCompleted;
+
+	if ( (pPromise == NULL) || (pError == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pHeldError = xrtErrorRef(pError);
+	if ( pHeldError == NULL ) {
+		return false;
+	}
+	bCompleted = __xrtFutureComplete(
+		pPromise->Future,
+		XFUTURE_FAILED,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		pHeldError,
+		false,
+		true
+	);
+	if ( !bCompleted ) {
+		xrtErrorFree(pHeldError);
+	}
+	return bCompleted;
+}
+
+XRT_API bool xrtPromiseReject(xpromise* pPromise, const xerror* pError)
+{
+	return __xrtOwnershipBody_PromiseReject(pPromise, pError);
+}
+
+
+
+/* 把源终态透传到 Promise，并在成功值借用期间保留源 Future。 */
+static bool __xrtOwnershipBody_PromiseForward(xpromise* pPromise, xfuture* pSource)
+{
+	xfutureresult tResult;
+	bool bCompleted;
+
+	if ( (pPromise == NULL) || (pSource == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( pPromise->Future == pSource ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pSource = xrtFutureRef(pSource);
+	if ( pSource == NULL ) {
+		return false;
+	}
+	if ( !xrtFutureResult(pSource, &tResult) ) {
+		xrtFutureDestroy(pSource);
+		return false;
+	}
+	if ( tResult.State == XFUTURE_RESOLVED ) {
+		bCompleted = __xrtFutureComplete(
+			pPromise->Future,
+			XFUTURE_RESOLVED,
+			tResult.Value,
+			NULL,
+			NULL,
+			pSource,
+			NULL,
+			false,
+			true
+		);
+		if ( !bCompleted ) {
+			xrtFutureDestroy(pSource);
+		}
+		return bCompleted;
+	}
+	if ( tResult.State == XFUTURE_FAILED ) {
+		bCompleted = xrtPromiseReject(pPromise, tResult.Error);
+	} else if ( tResult.State == XFUTURE_CANCELLED ) {
+		bCompleted = xrtPromiseCancel(pPromise);
+	} else {
+		bCompleted = xrtPromiseClose(pPromise);
+	}
+	xrtFutureDestroy(pSource);
+	return bCompleted;
+}
+
+XRT_API bool xrtPromiseForward(xpromise* pPromise, xfuture* pSource)
+{
+	return __xrtOwnershipBody_PromiseForward(pPromise, pSource);
+}
+
+
+
+/* 完成取消终态并同步发出协作取消请求。 */
+static bool __xrtOwnershipBody_PromiseCancel(xpromise* pPromise)
+{
+	bool bCompleted;
+
+	if ( pPromise == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	bCompleted = __xrtFutureComplete(
+		pPromise->Future,
+		XFUTURE_CANCELLED,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		true,
+		true
+	);
+	return bCompleted;
+}
+
+XRT_API bool xrtPromiseCancel(xpromise* pPromise)
+{
+	return __xrtOwnershipBody_PromiseCancel(pPromise);
+}
+
+
+
+/* 完成关闭终态并同步发出协作取消请求。 */
+static bool __xrtOwnershipBody_PromiseClose(xpromise* pPromise)
+{
+	bool bCompleted;
+
+	if ( pPromise == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	bCompleted = __xrtFutureComplete(
+		pPromise->Future,
+		XFUTURE_CLOSED,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		true,
+		true
+	);
+	return bCompleted;
+}
+
+XRT_API bool xrtPromiseClose(xpromise* pPromise)
+{
+	return __xrtOwnershipBody_PromiseClose(pPromise);
+}
+
+
+
+/* 判断 Promise 对应的 Future 是否已经完成。 */
+XRT_API bool xrtPromiseDone(const xpromise* pPromise)
+{
+	if ( pPromise == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return true;
+	}
+	return xrtFutureDone(pPromise->Future);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/concurrency/future_combine.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_FUTURE_COMBINE)
+
+#if defined(XRT_FEATURE_FUTURE_COMBINE)
+typedef enum xrt_future_combine_mode {
+    XRT_FUTURE_COMBINE_ANY = 1,
+    XRT_FUTURE_COMBINE_ALL = 2,
+    XRT_FUTURE_COMBINE_RACE = 3
+} xrt_future_combine_mode;
+typedef struct xrt_future_combine xrt_future_combine;
+/* One allocation still contains every callback address. Each registration
+ * owns the GROUP itself, projected from this borrowed embedded item. */
+typedef struct xrt_future_combine_item {
+    xfuturewatch Watch;
+    xrt_future_combine* Group;
+    size_t Index;
+    bool Owned;
+} xrt_future_combine_item;
+struct xrt_future_combine {
+    volatile int32 RefCount;
+    xmutex Lock;
+    xrt_future_combine_mode Mode;
+    size_t Count, Remaining, Active;
+    bool Publishing, Completed, Cleared, MapAccepted, MapLive;
+    const void* Claim;
+    xpromise* Promise;
+    xcancelwatch* Watch;
+    xfuture** Sources;
+    xrt_future_combine_item* Items;
+    xfuturepick Pick;
+    xfutureall All;
+    xfutureallmapproc AllMap;
+    xfuturepickmapproc PickMap;
+    ptr MapData, MapDestroyData;
+    xfuturefreeproc MapDestroy;
+    xfutureownershiptrace MapTrace;
+    const xfuturecombineownershipv1* MapPolicy;
+};
+static void __xrtFutureCombineBegin(xrt_future_combine* group, xrtownershipscope* scope)
+{
+    if (!xrtOwnershipMutationBegin(scope)) abort();
+    if (!xrtMutexLock(&group->Lock)) abort();
+}
+static void __xrtFutureCombineEnd(xrt_future_combine* group, xrtownershipscope* scope)
+{
+    if (!xrtMutexUnlock(&group->Lock) || !xrtOwnershipScopeEnd(scope)) abort();
+}
+static bool __xrtFutureCombineOwnershipCount(const void* data, size_t* count)
+{
+    const xrt_future_combine* group = data; int32 references;
+    if (!group || !count || group->Publishing || group->Active || group->Cleared) return false;
+    references = __xrtAtomicRefLoad(&group->RefCount);
+    if (references <= 0) return false;
+    for (size_t i = 0; i < group->Count; ++i)
+        if (__xrtFutureWatchImpl((xfuturewatch*)&group->Items[i].Watch)->Waiter.Calling) return false;
+    *count = (size_t)references; return true;
+}
+static bool __xrtFutureCombineOwnershipTrace(const void* data, xrtownershipvisitor visit, ptr context)
+{
+    const xrt_future_combine* group = data; size_t count;
+    if (!visit || !__xrtFutureCombineOwnershipCount(data, &count)) return false;
+    if (group->Promise && !visit(xrtPromiseOwnership(group->Promise), context)) return false;
+    if (group->Watch && !visit(xrtCancelWatchOwnership(group->Watch), context)) return false;
+    for (size_t i = 0; i < group->Count; ++i)
+        if (!visit(xrtFutureOwnership(group->Sources[i]), context)) return false;
+    if (!group->MapLive) return true;
+    return group->MapPolicy ? visit((xrtownershipref){group->MapData, group->MapPolicy->Ops}, context) :
+        group->MapTrace(group->MapData, group->MapDestroyData, visit, context);
+}
+static const xrtownershipops __xrtFutureCombineOwnershipOps = {
+    __xrtFutureCombineOwnershipCount, __xrtFutureCombineOwnershipTrace
+};
+static xrtownershipref __xrtFutureCombineOwnership(const xrt_future_combine* group)
+{ return (xrtownershipref){group, group ? &__xrtFutureCombineOwnershipOps : NULL}; }
+static xrtownershipref __xrtFutureCombineItemOwner(const void* data)
+{ return __xrtFutureCombineOwnership(((const xrt_future_combine_item*)data)->Group); }
+static void __xrtFutureCombineDropContext(xrt_future_combine* group, ptr data, ptr other, bool live)
+{
+    if (!live) return;
+    if (group->MapPolicy) {
+        xerror* previous = xrtTakeError(); group->MapPolicy->Drop(data);
+        xrtClearError(); xrtSetErrorTake(previous);
+    } else {
+        xrtownershipscope scope = {0};
+        if (!xrtOwnershipMutationBegin(&scope)) abort();
+        group->MapDestroy(data, other);
+        if (!xrtOwnershipScopeEnd(&scope)) abort();
+    }
+}
+/* Logical slots are cleared before their releases. A plan pin protects this
+ * allocation through every Finish order; ordinary disposal has RefCount=0. */
+static void __xrtFutureCombineDisposeSlots(xrt_future_combine* group)
+{
+    xrtownershipscope scope = {0}; ptr data, other; bool live;
+    __xrtFutureCombineBegin(group, &scope);
+    data = group->MapData; other = group->MapDestroyData; live = group->MapLive;
+    group->MapData = NULL; group->MapDestroyData = NULL; group->MapLive = false;
+    __xrtFutureCombineEnd(group, &scope);
+    __xrtFutureCombineDropContext(group, data, other, live);
+    for (size_t i = 0; i < group->Count; ++i) {
+        xfuture* source;
+        __xrtFutureCombineBegin(group, &scope); source = group->Sources[i]; group->Sources[i] = NULL;
+        __xrtFutureCombineEnd(group, &scope); xrtFutureDestroy(source);
+    }
+}
+static void __xrtFutureCombineFree(xrt_future_combine* group)
+{
+    xrtownershipscope scope = {0};
+    if (group->Promise || group->Watch || group->Active) abort();
+    __xrtFutureCombineDisposeSlots(group);
+    if (!xrtOwnershipMutationBegin(&scope)) abort();
+    (void)xrtMutexUnit(&group->Lock); xrtFree(group);
+    if (!xrtOwnershipScopeEnd(&scope)) abort();
+}
+static void __xrtFutureCombineRelease(xrt_future_combine* group)
+{
+    xrtownershipscope scope = {0}; int32 left;
+    __xrtFutureCombineBegin(group, &scope); left = xrtRefRelease(&group->RefCount);
+    __xrtFutureCombineEnd(group, &scope);
+    if (left < 0) abort();
+    if (!left) __xrtFutureCombineFree(group);
+}
+static void __xrtFutureCombineProducerDrop(const void* data)
+{ __xrtFutureCombineRelease((xrt_future_combine*)data); }
+static bool __xrtFutureCombineHold(const void* data)
+{
+    xrt_future_combine* group = (xrt_future_combine*)data; xrtownershipscope scope = {0}; bool held;
+    __xrtFutureCombineBegin(group, &scope);
+    held = !group->Cleared && xrtRefRetain(&group->RefCount) > 0;
+    __xrtFutureCombineEnd(group, &scope); return held;
+}
+static const xfutureproducerownershipv1 __xrtFutureCombineProducerPolicy = {
+    sizeof(xfutureproducerownershipv1), __xrtFutureCombineProducerDrop
+};
+XRT_API const xfutureproducerownershipv1* xrtFutureCombineProducerPolicyV1Get(void)
+{ return &__xrtFutureCombineProducerPolicy; }
+static void __xrtFutureCombineWaiterRelease(ptr data)
+{
+    xrt_future_combine_item* item = data; xrt_future_combine* group = item->Group;
+    xrtownershipscope scope = {0}; int32 left;
+    __xrtFutureCombineBegin(group, &scope);
+    if (!item->Owned) abort();
+    item->Owned = false; left = xrtRefRelease(&group->RefCount);
+    __xrtFutureCombineEnd(group, &scope);
+    if (left < 0) abort();
+    if (!left) __xrtFutureCombineFree(group);
+}
+static void __xrtFutureCombineSourceDone(ptr data);
+static void __xrtFutureCombineCancelled(ptr data);
+static const xfuturewatchownershipv2 __xrtFutureCombineWatchPolicy = {
+    sizeof(xfuturewatchownershipv2), __xrtFutureCombineSourceDone,
+    __xrtFutureCombineWaiterRelease, __xrtFutureCombineItemOwner
+};
+static const xcancelwatchownershipv1 __xrtFutureCombineCancelPolicy = {
+    sizeof(xcancelwatchownershipv1), __xrtFutureCombineCancelled,
+    __xrtFutureCombineProducerDrop, &__xrtFutureCombineOwnershipOps
+};
+XRT_API const xfuturewatchownershipv2* xrtFutureCombineWatchPolicyV2Get(void)
+{ return &__xrtFutureCombineWatchPolicy; }
+XRT_API const xcancelwatchownershipv1* xrtFutureCombineCancelPolicyV1Get(void)
+{ return &__xrtFutureCombineCancelPolicy; }
+static xrt_future_combine* __xrtFutureCombineAllGroup(const void* value)
+{ return (xrt_future_combine*)((unsigned char*)value - offsetof(xrt_future_combine, All)); }
+static xrt_future_combine* __xrtFutureCombinePickGroup(const void* value)
+{ return (xrt_future_combine*)((unsigned char*)value - offsetof(xrt_future_combine, Pick)); }
+static void __xrtFutureCombineAllDrop(ptr value, ptr data)
+{ if (data) abort(); __xrtFutureCombineRelease(__xrtFutureCombineAllGroup(value)); }
+static void __xrtFutureCombinePickDrop(ptr value, ptr data)
+{ if (data) abort(); __xrtFutureCombineRelease(__xrtFutureCombinePickGroup(value)); }
+static bool __xrtFutureCombineAllTrace(const void* value, const void* data, xrtownershipvisitor visit, ptr context)
+{ return value && !data && visit && visit(__xrtFutureCombineOwnership(__xrtFutureCombineAllGroup(value)), context); }
+static bool __xrtFutureCombinePickTrace(const void* value, const void* data, xrtownershipvisitor visit, ptr context)
+{ return value && !data && visit && visit(__xrtFutureCombineOwnership(__xrtFutureCombinePickGroup(value)), context); }
+static const xfuturepayloadownershipv1 __xrtFutureCombineAllPolicy = {
+    sizeof(xfuturepayloadownershipv1), __xrtFutureCombineAllDrop, __xrtFutureCombineAllTrace
+};
+static const xfuturepayloadownershipv1 __xrtFutureCombinePickPolicy = {
+    sizeof(xfuturepayloadownershipv1), __xrtFutureCombinePickDrop, __xrtFutureCombinePickTrace
+};
+XRT_API const xfuturepayloadownershipv1* xrtFutureCombineAllPayloadPolicyV1Get(void)
+{ return &__xrtFutureCombineAllPolicy; }
+XRT_API const xfuturepayloadownershipv1* xrtFutureCombinePickPayloadPolicyV1Get(void)
+{ return &__xrtFutureCombinePickPolicy; }
+static void __xrtFutureCombineDetach(xrt_future_combine* group, xrt_future_combine_item* current)
+{
+    for (size_t i = 0; i < group->Count; ++i)
+        if (&group->Items[i] != current) (void)xrtFutureWatchDetach(group->Sources[i], &group->Items[i].Watch);
+}
+static void __xrtFutureCombineUnwatch(xrt_future_combine* group)
+{
+    xrtownershipscope scope = {0}; xcancelwatch* watch;
+    __xrtFutureCombineBegin(group, &scope); watch = group->Watch; group->Watch = NULL;
+    __xrtFutureCombineEnd(group, &scope); xrtCancelUnwatch(watch);
+}
+static void __xrtFutureCombineCancelSources(xrt_future_combine* group, size_t except)
+{
+    for (size_t i = 0; i < group->Count; ++i) if (i != except) (void)xrtFutureCancel(group->Sources[i]);
+}
+static void __xrtFutureCombineComplete(xrt_future_combine* group, xpromise* promise)
+{
+    if (group->MapAccepted) {
+        xrtownershipscope callback = {0};
+        if (!group->MapPolicy && !xrtOwnershipMutationBegin(&callback)) abort();
+        if (group->AllMap) group->AllMap(&group->All, promise, group->MapData);
+        else group->PickMap(&group->Pick, promise, group->MapData);
+        if (!group->MapPolicy && !xrtOwnershipScopeEnd(&callback)) abort();
+        if (!xrtPromiseDone(promise)) (void)xrtPromiseClose(promise);
+    } else {
+        const xfuturepayloadownershipv1* policy = group->Mode == XRT_FUTURE_COMBINE_ALL ?
+            &__xrtFutureCombineAllPolicy : &__xrtFutureCombinePickPolicy;
+        ptr value = group->Mode == XRT_FUTURE_COMBINE_ALL ? (ptr)&group->All : (ptr)&group->Pick;
+        if (!__xrtFutureCombineHold(group)) abort();
+        if (!xrtPromiseResolveOwnedPolicyV1(promise, value, policy)) __xrtFutureCombineRelease(group);
+    }
+    xrtPromiseDestroy(promise);
+    __xrtFutureCombineUnwatch(group);
+}
+static void __xrtFutureCombineCancelled(ptr data)
+{
+    xrt_future_combine* group = data; xrtownershipscope scope = {0}; xpromise* promise;
+    __xrtFutureCombineBegin(group, &scope);
+    if (group->Completed) { __xrtFutureCombineEnd(group, &scope); return; }
+    ++group->Active; group->Completed = true; promise = group->Promise; group->Promise = NULL;
+    __xrtFutureCombineEnd(group, &scope);
+    __xrtFutureCombineDetach(group, NULL);
+    (void)xrtPromiseCancel(promise); xrtPromiseDestroy(promise);
+    __xrtFutureCombineCancelSources(group, SIZE_MAX); __xrtFutureCombineUnwatch(group);
+    __xrtFutureCombineBegin(group, &scope); --group->Active; __xrtFutureCombineEnd(group, &scope);
+}
+static void __xrtFutureCombineSourceDone(ptr data)
+{
+    xrt_future_combine_item* item = data; xrt_future_combine* group = item->Group;
+    xrtownershipscope scope = {0}; xpromise* promise = NULL; bool race = false;
+    __xrtFutureCombineBegin(group, &scope); ++group->Active;
+    if (!group->Completed) {
+        if (group->Mode == XRT_FUTURE_COMBINE_ALL) {
+            if (!group->Remaining) abort();
+            if (--group->Remaining == 0) group->Completed = true;
+        } else {
+            group->Completed = true; group->Pick.Index = item->Index;
+            group->Pick.Future = group->Sources[item->Index]; race = group->Mode == XRT_FUTURE_COMBINE_RACE;
+        }
+        if (group->Completed) { promise = group->Promise; group->Promise = NULL; }
+    }
+    __xrtFutureCombineEnd(group, &scope);
+    if (promise) {
+        __xrtFutureCombineDetach(group, item); __xrtFutureCombineComplete(group, promise);
+        if (race) __xrtFutureCombineCancelSources(group, item->Index);
+    }
+    __xrtFutureCombineBegin(group, &scope); --group->Active; __xrtFutureCombineEnd(group, &scope);
+}
+static bool __xrtFutureCombineDone(xrt_future_combine* group)
+{
+    xrtownershipscope scope = {0}; bool done;
+    __xrtFutureCombineBegin(group, &scope); done = group->Completed; __xrtFutureCombineEnd(group, &scope); return done;
+}
+static void __xrtFutureCombineAttach(xrt_future_combine* group, size_t index)
+{
+    xrt_future_combine_item* item = &group->Items[index]; xrtownershipscope scope = {0}; xfuturewatchresult added;
+    __xrtFutureCombineBegin(group, &scope);
+    if (group->Completed) { __xrtFutureCombineEnd(group, &scope); return; }
+    if (item->Owned || xrtRefRetain(&group->RefCount) < 0) abort();
+    item->Owned = true; __xrtFutureCombineEnd(group, &scope);
+    added = xrtFutureWatchAdd(group->Sources[index], &item->Watch);
+    if (added == XFUTURE_WATCH_READY) {
+        __xrtFutureCombineSourceDone(item); __xrtFutureCombineWaiterRelease(item);
+    } else if (added == XFUTURE_WATCH_PENDING) {
+        if (__xrtFutureCombineDone(group)) (void)xrtFutureWatchDetach(group->Sources[index], &item->Watch);
+    } else abort(); /* Valid preinitialized private storage and retained source; no fallible allocation. */
+}
+static xfuture* __xrtFutureCombineCreate(xfuture* const* futures, size_t count, xrt_future_combine_mode mode,
+    xfutureallmapproc allMap, xfuturepickmapproc pickMap, ptr data, xfuturefreeproc destroy, ptr other,
+    xfutureownershiptrace trace, const xfuturecombineownershipv1* policy)
+{
+    xrt_future_combine* group; xfuture* future = NULL; xcancel* cancel; xrtownershipscope scope = {0};
+    xpromise* promise; xcancelwatch* watch; size_t bytes;
+    if ((mode != XRT_FUTURE_COMBINE_ALL && !count) || (count && !futures)) { __xrtErrorSetInvalidArgument(); return NULL; }
+    if (count > (size_t)(INT32_MAX - 3) ||
+        count > (SIZE_MAX - sizeof(*group)) / (sizeof(xfuture*) + sizeof(xrt_future_combine_item))) {
+        __xrtErrorSetSizeOverflow(); return NULL;
+    }
+    bytes = sizeof(*group) + count * (sizeof(xfuture*) + sizeof(xrt_future_combine_item));
+    if (!xrtOwnershipMutationBegin(&scope)) return NULL;
+    group = xrtCalloc(1, bytes);
+    if (!group) { if (!xrtOwnershipScopeEnd(&scope)) abort(); return NULL; }
+    group->RefCount = 1; group->Publishing = true; group->Mode = mode; group->Count = count; group->Remaining = count;
+    group->Sources = count ? (xfuture**)(group + 1) : NULL;
+    group->Items = count ? (xrt_future_combine_item*)(group->Sources + count) : NULL;
+    group->All.Count = count; group->All.Futures = group->Sources;
+    group->AllMap = allMap; group->PickMap = pickMap; group->MapData = data;
+    group->MapDestroy = destroy; group->MapDestroyData = other; group->MapTrace = trace; group->MapPolicy = policy;
+    if (!xrtMutexInit(&group->Lock)) {
+        xrtFree(group); if (!xrtOwnershipScopeEnd(&scope)) abort(); return NULL;
+    }
+    if (!xrtOwnershipScopeEnd(&scope)) abort();
+    for (size_t i = 0; i < count; ++i) {
+        xfuture* source = xrtFutureRef(futures[i]);
+        if (!source) goto failed;
+        __xrtFutureCombineBegin(group, &scope); group->Sources[i] = source;
+        group->Items[i].Group = group; group->Items[i].Index = i;
+        __xrtFutureCombineEnd(group, &scope);
+        if (!xrtFutureWatchInitOwnershipV2(&group->Items[i].Watch, &group->Items[i], &__xrtFutureCombineWatchPolicy)) goto failed;
+    }
+    promise = xrtPromiseCreate(&future, NULL);
+    if (!promise) goto failed;
+    __xrtFutureCombineBegin(group, &scope); group->Promise = promise; __xrtFutureCombineEnd(group, &scope);
+    if (!__xrtFutureCombineHold(group)) abort();
+    if (!xrtPromiseProducerBindTakeV1(group->Promise, __xrtFutureCombineOwnership(group), &__xrtFutureCombineProducerPolicy)) {
+        __xrtFutureCombineRelease(group); goto failed;
+    }
+    if (count) {
+        cancel = xrtPromiseCancelToken(group->Promise);
+        if (!cancel) goto failed;
+        if (!__xrtFutureCombineHold(group)) abort();
+        watch = xrtCancelWatchOwnedV1(cancel, group, &__xrtFutureCombineCancelPolicy);
+        xrtCancelDestroy(cancel);
+        if (!watch) { __xrtFutureCombineRelease(group); goto failed; }
+        __xrtFutureCombineBegin(group, &scope); group->Watch = watch; __xrtFutureCombineEnd(group, &scope);
+    }
+    /* All fallible preparation is finished before accepting context or
+     * observing any source. Private publication remains an inspection refusal. */
+    __xrtFutureCombineBegin(group, &scope);
+    group->MapLive = group->MapAccepted = allMap != NULL || pickMap != NULL;
+    if (!count) { group->Completed = true; ++group->Active; promise = group->Promise; group->Promise = NULL; }
+    else promise = NULL;
+    __xrtFutureCombineEnd(group, &scope);
+    if (!count) {
+        __xrtFutureCombineComplete(group, promise);
+        __xrtFutureCombineBegin(group, &scope); --group->Active; __xrtFutureCombineEnd(group, &scope);
+    } else {
+        if (mode != XRT_FUTURE_COMBINE_ALL)
+            for (size_t i = 0; i < count; ++i) if (xrtFutureDone(group->Sources[i])) { __xrtFutureCombineAttach(group, i); break; }
+        for (size_t i = 0; i < count && !__xrtFutureCombineDone(group); ++i) __xrtFutureCombineAttach(group, i);
+    }
+    __xrtFutureCombineBegin(group, &scope); group->Publishing = false; __xrtFutureCombineEnd(group, &scope);
+    __xrtFutureCombineRelease(group); return future;
+failed:
+    __xrtFutureCombineUnwatch(group);
+    __xrtFutureCombineBegin(group, &scope); promise = group->Promise; group->Promise = NULL; __xrtFutureCombineEnd(group, &scope);
+    xrtPromiseDestroy(promise); xrtFutureDestroy(future); __xrtFutureCombineRelease(group); return NULL;
+}
+XRT_API xfuture* xrtFutureAll(xfuture* const* futures, size_t count)
+{ return __xrtFutureCombineCreate(futures, count, XRT_FUTURE_COMBINE_ALL, NULL, NULL, NULL, NULL, NULL, NULL, NULL); }
+XRT_API xfuture* xrtFutureAny(xfuture* const* futures, size_t count)
+{ return __xrtFutureCombineCreate(futures, count, XRT_FUTURE_COMBINE_ANY, NULL, NULL, NULL, NULL, NULL, NULL, NULL); }
+XRT_API xfuture* xrtFutureRace(xfuture* const* futures, size_t count)
+{ return __xrtFutureCombineCreate(futures, count, XRT_FUTURE_COMBINE_RACE, NULL, NULL, NULL, NULL, NULL, NULL, NULL); }
+static xfuture* __xrtFutureCombineMapped(xfuture* const* futures, size_t count, xrt_future_combine_mode mode,
+    xfutureallmapproc allMap, xfuturepickmapproc pickMap, ptr data, xfuturefreeproc destroy, ptr other, xfutureownershiptrace trace)
+{
+    if ((!allMap && !pickMap) || !destroy || !trace) { __xrtErrorSetInvalidArgument(); return NULL; }
+    return __xrtFutureCombineCreate(futures, count, mode, allMap, pickMap, data, destroy, other, trace, NULL);
+}
+XRT_API xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* futures, size_t count,
+    xfutureallmapproc map, ptr data, xfuturefreeproc destroy, ptr other, xfutureownershiptrace trace)
+{ return __xrtFutureCombineMapped(futures, count, XRT_FUTURE_COMBINE_ALL, map, NULL, data, destroy, other, trace); }
+XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* futures, size_t count,
+    xfuturepickmapproc map, ptr data, xfuturefreeproc destroy, ptr other, xfutureownershiptrace trace)
+{ return __xrtFutureCombineMapped(futures, count, XRT_FUTURE_COMBINE_ANY, NULL, map, data, destroy, other, trace); }
+XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* futures, size_t count,
+    xfuturepickmapproc map, ptr data, xfuturefreeproc destroy, ptr other, xfutureownershiptrace trace)
+{ return __xrtFutureCombineMapped(futures, count, XRT_FUTURE_COMBINE_RACE, NULL, map, data, destroy, other, trace); }
+static xfuture* __xrtFutureCombinePolicy(xfuture* const* futures, size_t count, xrt_future_combine_mode mode,
+    ptr data, const xfuturecombineownershipv1* policy)
+{
+    if (!data || !policy || policy->size != sizeof(*policy) || !policy->Drop || !policy->Ops ||
+        !policy->Ops->Count || !policy->Ops->Trace || (mode == XRT_FUTURE_COMBINE_ALL ? !policy->AllMap : !policy->PickMap)) {
+        __xrtErrorSetInvalidArgument(); return NULL;
+    }
+    return __xrtFutureCombineCreate(futures, count, mode, mode == XRT_FUTURE_COMBINE_ALL ? policy->AllMap : NULL,
+        mode == XRT_FUTURE_COMBINE_ALL ? NULL : policy->PickMap, data, NULL, NULL, NULL, policy);
+}
+XRT_API xfuture* xrtFutureAllMapOwnedPolicyV1(xfuture* const* futures, size_t count, ptr data, const xfuturecombineownershipv1* policy)
+{ return __xrtFutureCombinePolicy(futures, count, XRT_FUTURE_COMBINE_ALL, data, policy); }
+XRT_API xfuture* xrtFutureAnyMapOwnedPolicyV1(xfuture* const* futures, size_t count, ptr data, const xfuturecombineownershipv1* policy)
+{ return __xrtFutureCombinePolicy(futures, count, XRT_FUTURE_COMBINE_ANY, data, policy); }
+XRT_API xfuture* xrtFutureRaceMapOwnedPolicyV1(xfuture* const* futures, size_t count, ptr data, const xfuturecombineownershipv1* policy)
+{ return __xrtFutureCombinePolicy(futures, count, XRT_FUTURE_COMBINE_RACE, data, policy); }
+
+static bool __xrtFutureCombineClaim(const void* data, const void* token)
+{
+    xrt_future_combine* group = (xrt_future_combine*)data; size_t count;
+    if (!token || !__xrtFutureCombineOwnershipCount(group, &count) || (group->Claim && group->Claim != token)) return false;
+    group->Claim = token; return true;
+}
+static void __xrtFutureCombineRestore(const void* data, const void* token)
+{
+    xrt_future_combine* group = (xrt_future_combine*)data;
+    if (!token || group->Claim != token || group->Cleared) abort();
+    group->Claim = NULL;
+}
+static bool __xrtFutureCombinePrepared(const void* data)
+{
+    const xrt_future_combine* group = data; size_t count;
+    if (!__xrtFutureCombineOwnershipCount(data, &count) || !group->Completed || group->Promise || group->Watch) return false;
+    for (size_t i = 0; i < group->Count; ++i) if (group->Items[i].Owned) return false;
+    return true;
+}
+static xrtownershipprepareresult __xrtFutureCombinePrepare(const void* data, const void* token)
+{
+    xrt_future_combine* group = (xrt_future_combine*)data; xrtownershipscope freeze = {0}; bool ready;
+    if (!xrtOwnershipFreezeTryBegin(&freeze)) return XRT_OWNERSHIP_PREPARE_BUSY;
+    if (!token || group->Claim != token || group->Cleared) abort();
+    ready = __xrtFutureCombinePrepared(data);
+    if (!xrtOwnershipScopeEnd(&freeze)) abort();
+    return ready ? XRT_OWNERSHIP_PREPARE_READY : XRT_OWNERSHIP_PREPARE_BUSY;
+}
+static void __xrtFutureCombineClear(const void* data, const void* token)
+{
+    xrt_future_combine* group = (xrt_future_combine*)data;
+    if (!token || group->Claim != token || group->Cleared || !__xrtFutureCombinePrepared(data)) abort();
+    group->Cleared = true;
+}
+static bool __xrtFutureCombineFinish(const void* data, const void* token)
+{
+    xrt_future_combine* group = (xrt_future_combine*)data;
+    if (!token || group->Claim != token || !group->Cleared) abort();
+    __xrtFutureCombineDisposeSlots(group); return true;
+}
+XRT_API const xrtownershipadapterv1* xrtFutureCombineOwnershipAdapterV1(xrtownershipref ref,
+    const xfuturecombineownershipv1* const* policies, size_t policyCount, const xrtownershippreparationv1** preparation)
+{
+    static const xrtownershipadapterv1 adapter = {sizeof(adapter), __xrtFutureCombineHold, __xrtFutureCombineProducerDrop,
+        __xrtFutureCombineClaim, __xrtFutureCombineRestore, NULL, __xrtFutureCombineClear, __xrtFutureCombineFinish};
+    static const xrtownershippreparationv1 prepare = {sizeof(prepare), &adapter, __xrtFutureCombinePrepared, __xrtFutureCombinePrepare};
+    const xrt_future_combine* group; size_t count; bool known = false;
+    if (ref.Ops != &__xrtFutureCombineOwnershipOps || !ref.Data || !preparation || (policyCount && !policies)) return NULL;
+    group = ref.Data;
+    if (!__xrtFutureCombineOwnershipCount(group, &count)) return NULL;
+    if (group->MapAccepted) {
+        for (size_t i = 0; i < policyCount; ++i) if (policies[i] && policies[i] == group->MapPolicy) { known = true; break; }
+        if (!known || group->MapPolicy->size != sizeof(xfuturecombineownershipv1) || !group->MapPolicy->Drop ||
+            !group->MapPolicy->Ops || !group->MapPolicy->Ops->Count || !group->MapPolicy->Ops->Trace ||
+            (group->Mode == XRT_FUTURE_COMBINE_ALL ? group->AllMap != group->MapPolicy->AllMap : group->PickMap != group->MapPolicy->PickMap)) return NULL;
+    }
+    *preparation = &prepare; return &adapter;
+}
+XRT_API bool xrtFutureCombineWaitV1(xrtownershipref ref, const void* token, xfuturecombinewaitv1* wait)
+{
+    const xrt_future_combine* group; size_t references, pending = 0;
+    const xcancelwatchownershipv1* policy = &__xrtFutureCombineCancelPolicy;
+    const xrtownershippreparationv1* preparation = NULL;
+    if (ref.Ops != &__xrtFutureCombineOwnershipOps || !ref.Data || !token || !wait) return false;
+    group = ref.Data;
+    if (group->Claim != token || !__xrtFutureCombineOwnershipCount(group, &references) || group->Completed ||
+        !group->Promise || !group->Watch || (group->MapAccepted && !group->MapPolicy) ||
+        xrtPromiseDone(group->Promise) || xrtCancelTriggered(group->Watch) ||
+        !xrtCancelWatchOwnershipAdapterV1(xrtCancelWatchOwnership(group->Watch), &policy, 1, &preparation)) return false;
+    for (size_t i = 0; i < group->Count; ++i) {
+        const xrt_future_combine_item* item = &group->Items[i];
+        const xrt_future_waiter* watcher = &__xrtFutureWatchImpl((xfuturewatch*)&item->Watch)->Waiter;
+        if (xrtFutureState(group->Sources[i]) == XFUTURE_PENDING) {
+            if (!item->Owned || !watcher->Linked || watcher->Calling) return false;
+            ++pending;
+        } else if (item->Owned || watcher->Linked || watcher->Calling) return false;
+    }
+    if (!pending || (group->Mode == XRT_FUTURE_COMBINE_ALL && pending != group->Remaining) ||
+        (group->Mode != XRT_FUTURE_COMBINE_ALL && pending != group->Count)) return false;
+    *wait = (xfuturecombinewaitv1){sizeof(*wait), group->Promise, group->Sources, group->Count,
+        group->Mode == XRT_FUTURE_COMBINE_ALL ? XFUTURE_WAIT_ALL_TERMINAL : XFUTURE_WAIT_ANY_TERMINAL,
+        group->Mode == XRT_FUTURE_COMBINE_RACE};
+    return true;
+}
 #endif
 #endif
 
@@ -70646,6 +70337,996 @@ static bool __xrtOwnershipBody_ValueScalarEqual(
 XRT_API bool xrtValueScalarEqual(const xvalue* pLeft, const xvalue* pRight)
 {
 	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueScalarEqual(pLeft, pRight));
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/containers/array.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_ARRAY)
+
+
+
+#if defined(XRT_FEATURE_ARRAY)
+
+/* 检查数组公开状态是否自洽。 */
+bool __xrtArrayValid(const xarray* pArray)
+{
+	size_t iCapacityBytes;
+	size_t iAllocationBytes;
+	uintptr_t iAllocation;
+	uintptr_t iAllocationEnd;
+	uintptr_t iData;
+	uintptr_t iDataEnd;
+
+	if ( pArray == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if (
+		(pArray->ItemSize == 0) ||
+		(pArray->Count > pArray->Capacity) ||
+		(pArray->Alignment == 0) ||
+		((pArray->Alignment & (pArray->Alignment - 1u)) != 0) ||
+		((pArray->Capacity == 0) && ((pArray->Data != NULL) || (pArray->Allocation != NULL))) ||
+		((pArray->Capacity != 0) && ((pArray->Data == NULL) || (pArray->Allocation == NULL)))
+	) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( pArray->Capacity > (SIZE_MAX / pArray->ItemSize) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if (
+		(pArray->Data != NULL) &&
+		(((uintptr_t)pArray->Data & (pArray->Alignment - 1u)) != 0)
+	) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( pArray->Capacity == 0 ) {
+		return true;
+	}
+
+	/* 验证公开结构描述的完整分配区间和活动数据区间。 */
+	iCapacityBytes = pArray->Capacity * pArray->ItemSize;
+	iAllocationBytes = iCapacityBytes;
+	if ( pArray->Alignment > XRT_ARRAY_ALIGNMENT_DEFAULT ) {
+		if ( iAllocationBytes > (SIZE_MAX - (pArray->Alignment - 1u)) ) {
+			__xrtErrorSetInvalidState();
+			return false;
+		}
+		iAllocationBytes += pArray->Alignment - 1u;
+	} else if ( pArray->Data != (bytes)pArray->Allocation ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+
+	iAllocation = (uintptr_t)pArray->Allocation;
+	iData = (uintptr_t)pArray->Data;
+	if (
+		(iAllocation > (UINTPTR_MAX - iAllocationBytes)) ||
+		(iData > (UINTPTR_MAX - iCapacityBytes))
+	) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	iAllocationEnd = iAllocation + iAllocationBytes;
+	iDataEnd = iData + iCapacityBytes;
+	if (
+		(iData < iAllocation) ||
+		(iDataEnd > iAllocationEnd) ||
+		((iData - iAllocation) >= pArray->Alignment)
+	) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+
+	return true;
+}
+
+
+
+/* 检查对齐参数是否可用于每一个连续元素。 */
+static bool __xrtArrayAlignmentValid(size_t iItemSize, size_t iAlignment)
+{
+	if (
+		(iItemSize == 0) ||
+		(iAlignment == 0) ||
+		((iAlignment & (iAlignment - 1u)) != 0) ||
+		((iItemSize % iAlignment) != 0)
+	) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	return true;
+}
+
+
+
+/* 计算指定容量对应的字节数。 */
+static bool __xrtArrayBytes(const xarray* pArray, size_t iCapacity, size_t* pBytes)
+{
+	if ( iCapacity > (SIZE_MAX / pArray->ItemSize) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+
+	*pBytes = iCapacity * pArray->ItemSize;
+	return true;
+}
+
+
+
+/* 计算满足需求且不过度浪费小数组空间的几何容量。 */
+static bool __xrtArrayGrowth(const xarray* pArray, size_t iNeed, size_t* pCapacity)
+{
+	size_t iCapacity = pArray->Capacity >= 8u ? pArray->Capacity : 8u;
+	size_t iBytes;
+
+	while ( iCapacity < iNeed ) {
+		size_t iGrowth = (iCapacity / 2u) + 8u;
+
+		/* 接近上限时直接使用精确需求，避免增长计算回绕。 */
+		if ( iGrowth > (SIZE_MAX - iCapacity) ) {
+			iCapacity = iNeed;
+			break;
+		}
+		iCapacity += iGrowth;
+	}
+	if ( !__xrtArrayBytes(pArray, iCapacity, &iBytes) ) {
+		return false;
+	}
+
+	(void)iBytes;
+	*pCapacity = iCapacity;
+	return true;
+}
+
+
+
+/* 为过对齐数组分配原始块并计算对齐数据地址。 */
+static bool __xrtArrayAlignedAlloc(
+	const xarray* pArray,
+	size_t iBytes,
+	ptr* pAllocation,
+	bytes* pData
+)
+{
+	size_t iExtra = pArray->Alignment - 1u;
+	uintptr_t iAddress;
+	ptr pMemory;
+
+	if ( iBytes > (SIZE_MAX - iExtra) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	pMemory = xrtMalloc(iBytes + iExtra);
+	if ( pMemory == NULL ) {
+		return false;
+	}
+	if ( (uintptr_t)pMemory > (UINTPTR_MAX - iExtra) ) {
+		xrtFree(pMemory);
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	iAddress = ((uintptr_t)pMemory + iExtra) & ~((uintptr_t)pArray->Alignment - 1u);
+
+	*pAllocation = pMemory;
+	*pData = (bytes)iAddress;
+	return true;
+}
+
+
+
+/* 精确设置容量，失败时保留数组原有数据和状态。 */
+static bool __xrtArraySetCapacity(xarray* pArray, size_t iCapacity)
+{
+	size_t iBytes;
+	ptr pAllocation;
+	bytes pData;
+
+	if ( iCapacity == pArray->Capacity ) {
+		return true;
+	}
+	if ( iCapacity < pArray->Count ) {
+		__xrtErrorSetRange();
+		return false;
+	}
+	if ( iCapacity == 0 ) {
+		xrtFree(pArray->Allocation);
+		pArray->Data = NULL;
+		pArray->Allocation = NULL;
+		pArray->Capacity = 0;
+		return true;
+	}
+	if ( !__xrtArrayBytes(pArray, iCapacity, &iBytes) ) {
+		return false;
+	}
+
+	/* 默认对齐块可以直接使用全局堆的重分配快路径。 */
+	if (
+		(pArray->Alignment <= XRT_ARRAY_ALIGNMENT_DEFAULT) &&
+		((pArray->Data == NULL) || (pArray->Data == (bytes)pArray->Allocation))
+	) {
+		pAllocation = xrtRealloc(pArray->Allocation, iBytes);
+		if ( pAllocation == NULL ) {
+			return false;
+		}
+		pArray->Allocation = pAllocation;
+		pArray->Data = (bytes)pAllocation;
+		pArray->Capacity = iCapacity;
+		return true;
+	}
+
+	/* 过对齐块先成功取得新内存，再替换旧块。 */
+	if ( !__xrtArrayAlignedAlloc(pArray, iBytes, &pAllocation, &pData) ) {
+		return false;
+	}
+	if ( pArray->Count != 0 ) {
+		memcpy(pData, pArray->Data, pArray->Count * pArray->ItemSize);
+	}
+	xrtFree(pArray->Allocation);
+	pArray->Allocation = pAllocation;
+	pArray->Data = pData;
+	pArray->Capacity = iCapacity;
+	return true;
+}
+
+
+
+/* 判断复制来源是否与数组存储重叠，并返回有效来源偏移。 */
+static bool __xrtArraySource(
+	const xarray* pArray,
+	const void* pItems,
+	size_t iCount,
+	bool* pAlias,
+	size_t* pOffset
+)
+{
+	size_t iCopyBytes;
+	size_t iLiveBytes;
+	size_t iCapacityBytes;
+	size_t iAllocationBytes;
+	uintptr_t iAllocation;
+	uintptr_t iAllocationEnd;
+	uintptr_t iData;
+	uintptr_t iLiveEnd;
+	uintptr_t iSource;
+	uintptr_t iSourceEnd;
+
+	*pAlias = false;
+	*pOffset = 0;
+	if ( pItems == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if (
+		!__xrtArrayBytes(pArray, iCount, &iCopyBytes) ||
+		!__xrtArrayBytes(pArray, pArray->Count, &iLiveBytes) ||
+		!__xrtArrayBytes(pArray, pArray->Capacity, &iCapacityBytes)
+	) {
+		return false;
+	}
+	if ( pArray->Data == NULL ) {
+		return true;
+	}
+
+	/* 计算完整原始块，连同过对齐产生的前后填充区一起检查。 */
+	iAllocationBytes = iCapacityBytes;
+	if ( pArray->Alignment > XRT_ARRAY_ALIGNMENT_DEFAULT ) {
+		if ( iAllocationBytes > (SIZE_MAX - (pArray->Alignment - 1u)) ) {
+			__xrtErrorSetInvalidState();
+			return false;
+		}
+		iAllocationBytes += pArray->Alignment - 1u;
+	}
+	iAllocation = (uintptr_t)pArray->Allocation;
+	if ( iAllocation > (UINTPTR_MAX - iAllocationBytes) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	iAllocationEnd = iAllocation + iAllocationBytes;
+
+	/* 使用整数区间判断，避免比较无关 C 指针产生未定义行为。 */
+	iData = (uintptr_t)pArray->Data;
+	if ( iData > (UINTPTR_MAX - iLiveBytes) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	iLiveEnd = iData + iLiveBytes;
+	iSource = (uintptr_t)pItems;
+	if ( iSource > (UINTPTR_MAX - iCopyBytes) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	iSourceEnd = iSource + iCopyBytes;
+
+	/* 任何触及原始分配块的来源都必须完整位于当前活动元素区。 */
+	if ( (iSource < iAllocationEnd) && (iSourceEnd > iAllocation) ) {
+		if (
+			(iSource < iData) ||
+			(iSourceEnd > iLiveEnd) ||
+			(((size_t)(iSource - iData) % pArray->ItemSize) != 0)
+		) {
+			__xrtErrorSetInvalidArgument();
+			return false;
+		}
+		*pAlias = true;
+		*pOffset = (size_t)(iSource - iData);
+	}
+
+	return true;
+}
+
+
+
+/* 交换两个已验证且不重叠的元素。 */
+static void __xrtArraySwapItems(xarray* pArray, size_t iLeft, size_t iRight)
+{
+	unsigned char pTemp[256];
+	bytes pLeft = pArray->Data + (iLeft * pArray->ItemSize);
+	bytes pRight = pArray->Data + (iRight * pArray->ItemSize);
+	size_t iOffset = 0;
+
+	while ( iOffset < pArray->ItemSize ) {
+		size_t iRemain = pArray->ItemSize - iOffset;
+		size_t iChunk = iRemain < sizeof(pTemp) ? iRemain : sizeof(pTemp);
+
+		memcpy(pTemp, pLeft + iOffset, iChunk);
+		memcpy(pLeft + iOffset, pRight + iOffset, iChunk);
+		memcpy(pRight + iOffset, pTemp, iChunk);
+		iOffset += iChunk;
+	}
+}
+
+
+
+/* 使用全局堆的默认对齐初始化空数组。 */
+XRT_API bool xrtArrayInit(xarray* pArray, size_t iItemSize)
+{
+	if ( (pArray == NULL) || (iItemSize == 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	memset(pArray, 0, sizeof(xarray));
+	pArray->ItemSize = iItemSize;
+	pArray->Alignment = XRT_ARRAY_ALIGNMENT_DEFAULT;
+	return true;
+}
+
+
+
+/* 初始化显式过对齐数组，元素大小必须是对齐值的倍数。 */
+XRT_API bool xrtArrayInitAligned(xarray* pArray, size_t iItemSize, size_t iAlignment)
+{
+	if ( (pArray == NULL) || !__xrtArrayAlignmentValid(iItemSize, iAlignment) ) {
+		if ( pArray == NULL ) {
+			__xrtErrorSetInvalidArgument();
+		}
+		return false;
+	}
+
+	memset(pArray, 0, sizeof(xarray));
+	pArray->ItemSize = iItemSize;
+	pArray->Alignment = iAlignment;
+	return true;
+}
+
+
+
+/* 创建使用全局堆默认对齐的空数组。 */
+XRT_API xarray* xrtArrayCreate(size_t iItemSize)
+{
+	xarray* pArray;
+
+	if ( iItemSize == 0 ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pArray = (xarray*)xrtMalloc(sizeof(xarray));
+	if ( pArray == NULL ) {
+		return NULL;
+	}
+	if ( !xrtArrayInit(pArray, iItemSize) ) {
+		xrtFree(pArray);
+		return NULL;
+	}
+
+	return pArray;
+}
+
+
+
+/* 创建显式过对齐的空数组。 */
+XRT_API xarray* xrtArrayCreateAligned(size_t iItemSize, size_t iAlignment)
+{
+	xarray* pArray;
+
+	if ( !__xrtArrayAlignmentValid(iItemSize, iAlignment) ) {
+		return NULL;
+	}
+	pArray = (xarray*)xrtMalloc(sizeof(xarray));
+	if ( pArray == NULL ) {
+		return NULL;
+	}
+	if ( !xrtArrayInitAligned(pArray, iItemSize, iAlignment) ) {
+		xrtFree(pArray);
+		return NULL;
+	}
+
+	return pArray;
+}
+
+
+
+/* 释放数组持有的元素内存，但不释放数组结构。 */
+XRT_API void xrtArrayUnit(xarray* pArray)
+{
+	if ( pArray == NULL ) {
+		return;
+	}
+
+	xrtFree(pArray->Allocation);
+	memset(pArray, 0, sizeof(xarray));
+}
+
+
+
+/* 释放数组持有的全部资源和数组结构。 */
+XRT_API void xrtArrayDestroy(xarray* pArray)
+{
+	if ( pArray == NULL ) {
+		return;
+	}
+
+	xrtArrayUnit(pArray);
+	xrtFree(pArray);
+}
+
+
+
+/* 清空元素但保留已有容量。 */
+XRT_API void xrtArrayClear(xarray* pArray)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return;
+	}
+
+	pArray->Count = 0;
+}
+
+
+
+/* 在状态已经验证后保证数组至少具有指定元素容量。 */
+bool __xrtArrayReserveValid(xarray* pArray, size_t iCapacity)
+{
+	size_t iNewCapacity;
+
+	if ( iCapacity <= pArray->Capacity ) {
+		return true;
+	}
+	if ( !__xrtArrayGrowth(pArray, iCapacity, &iNewCapacity) ) {
+		return false;
+	}
+
+	return __xrtArraySetCapacity(pArray, iNewCapacity);
+}
+
+
+
+/* 保证数组至少具有指定元素容量。 */
+XRT_API bool xrtArrayReserve(xarray* pArray, size_t iCapacity)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+
+	return __xrtArrayReserveValid(pArray, iCapacity);
+}
+
+
+
+/* 调整元素数量，新增元素全部清零，缩小时保留容量。 */
+XRT_API bool xrtArrayResize(xarray* pArray, size_t iCount)
+{
+	size_t iOldCount;
+
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	iOldCount = pArray->Count;
+	if ( iCount <= iOldCount ) {
+		pArray->Count = iCount;
+		return true;
+	}
+	if ( !__xrtArrayReserveValid(pArray, iCount) ) {
+		return false;
+	}
+
+	/* 安全扩展路径保证所有新元素都有确定的零值。 */
+	memset(
+		pArray->Data + (iOldCount * pArray->ItemSize),
+		0,
+		(iCount - iOldCount) * pArray->ItemSize
+	);
+	pArray->Count = iCount;
+	return true;
+}
+
+
+
+/* 将容量裁剪到当前元素数量。 */
+XRT_API bool xrtArrayTrim(xarray* pArray)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+
+	return __xrtArraySetCapacity(pArray, pArray->Count);
+}
+
+
+
+/* 返回指定 0 基索引处的可写元素，越界时返回空指针。 */
+XRT_API ptr xrtArrayGet(xarray* pArray, size_t iIndex)
+{
+	return (ptr)xrtArrayConstGet(pArray, iIndex);
+}
+
+
+
+/* 返回指定 0 基索引处的只读元素，越界时返回空指针。 */
+XRT_API const void* xrtArrayConstGet(const xarray* pArray, size_t iIndex)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return NULL;
+	}
+	if ( iIndex >= pArray->Count ) {
+		__xrtErrorSetRange();
+		return NULL;
+	}
+
+	return pArray->Data + (iIndex * pArray->ItemSize);
+}
+
+
+
+/* 在状态已经验证后增加未初始化尾部元素。 */
+ptr __xrtArrayAddValid(xarray* pArray, size_t iCount)
+{
+	ptr pItems;
+
+	if ( iCount == 0 ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( iCount > (SIZE_MAX - pArray->Count) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	if ( !__xrtArrayReserveValid(pArray, pArray->Count + iCount) ) {
+		return NULL;
+	}
+
+	pItems = pArray->Data + (pArray->Count * pArray->ItemSize);
+	pArray->Count += iCount;
+	return pItems;
+}
+
+
+
+/* 在末尾增加未初始化元素，并返回第一个新增元素。 */
+XRT_API ptr xrtArrayAdd(xarray* pArray, size_t iCount)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return NULL;
+	}
+
+	return __xrtArrayAddValid(pArray, iCount);
+}
+
+
+
+/* 在状态已经验证后插入未初始化元素。 */
+static ptr __xrtArrayInsertSpaceValid(
+	xarray* pArray,
+	size_t iIndex,
+	size_t iCount
+)
+{
+	bytes pInsert;
+
+	if ( iCount == 0 ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( iIndex > pArray->Count ) {
+		__xrtErrorSetRange();
+		return NULL;
+	}
+	if ( iCount > (SIZE_MAX - pArray->Count) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	if ( !__xrtArrayReserveValid(pArray, pArray->Count + iCount) ) {
+		return NULL;
+	}
+
+	pInsert = pArray->Data + (iIndex * pArray->ItemSize);
+	if ( iIndex < pArray->Count ) {
+		memmove(
+			pInsert + (iCount * pArray->ItemSize),
+			pInsert,
+			(pArray->Count - iIndex) * pArray->ItemSize
+		);
+	}
+	pArray->Count += iCount;
+	return pInsert;
+}
+
+
+
+/* 在指定 0 基位点插入未初始化元素，并返回第一个新增元素。 */
+XRT_API ptr xrtArrayInsertSpace(xarray* pArray, size_t iIndex, size_t iCount)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return NULL;
+	}
+
+	return __xrtArrayInsertSpaceValid(pArray, iIndex, iCount);
+}
+
+
+
+/* 复制一个元素到数组末尾。 */
+XRT_API bool xrtArrayPush(xarray* pArray, const void* pItem)
+{
+	return xrtArrayAppend(pArray, pItem, 1);
+}
+
+
+
+/* 复制一段连续元素到数组末尾，允许来源是数组自身的有效区间。 */
+XRT_API bool xrtArrayAppend(xarray* pArray, const void* pItems, size_t iCount)
+{
+	bool bAlias;
+	size_t iOffset;
+	size_t iCopyBytes;
+	ptr pTarget;
+	const void* pSource;
+
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	if ( iCount == 0 ) {
+		return true;
+	}
+	if (
+		!__xrtArraySource(pArray, pItems, iCount, &bAlias, &iOffset) ||
+		!__xrtArrayBytes(pArray, iCount, &iCopyBytes)
+	) {
+		return false;
+	}
+	pTarget = __xrtArrayAddValid(pArray, iCount);
+	if ( pTarget == NULL ) {
+		return false;
+	}
+	pSource = bAlias ? pArray->Data + iOffset : pItems;
+	memmove(pTarget, pSource, iCopyBytes);
+	return true;
+}
+
+
+
+/* 在指定 0 基位点复制插入连续元素，允许来源是数组自身的有效区间。 */
+XRT_API bool xrtArrayInsert(xarray* pArray, size_t iIndex, const void* pItems, size_t iCount)
+{
+	bool bAlias;
+	size_t iOffset;
+	size_t iCopyBytes;
+	size_t iInsertOffset;
+	size_t iSourceEnd;
+	size_t iPrefixBytes;
+	ptr pTarget;
+
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	if ( iIndex > pArray->Count ) {
+		__xrtErrorSetRange();
+		return false;
+	}
+	if ( iCount == 0 ) {
+		return true;
+	}
+	if (
+		!__xrtArraySource(pArray, pItems, iCount, &bAlias, &iOffset) ||
+		!__xrtArrayBytes(pArray, iCount, &iCopyBytes)
+	) {
+		return false;
+	}
+
+	iInsertOffset = iIndex * pArray->ItemSize;
+	iSourceEnd = iOffset + iCopyBytes;
+	pTarget = __xrtArrayInsertSpaceValid(pArray, iIndex, iCount);
+	if ( pTarget == NULL ) {
+		return false;
+	}
+
+	/* 外部来源与数组分配区不重叠，可以直接复制。 */
+	if ( !bAlias ) {
+		memcpy(pTarget, pItems, iCopyBytes);
+		return true;
+	}
+
+	/* 插入点后的来源已经随尾部整体右移。 */
+	if ( iOffset >= iInsertOffset ) {
+		memmove(
+			pTarget,
+			pArray->Data + iOffset + iCopyBytes,
+			iCopyBytes
+		);
+		return true;
+	}
+
+	/* 插入点前的完整来源仍保留在原偏移。 */
+	if ( iSourceEnd <= iInsertOffset ) {
+		memmove(pTarget, pArray->Data + iOffset, iCopyBytes);
+		return true;
+	}
+
+	/* 跨越插入点的来源在移动后分为相邻的前后两段。 */
+	iPrefixBytes = iInsertOffset - iOffset;
+	memmove(pTarget, pArray->Data + iOffset, iPrefixBytes);
+	memmove(
+		(bytes)pTarget + iPrefixBytes,
+		pArray->Data + iInsertOffset + iCopyBytes,
+		iCopyBytes - iPrefixBytes
+	);
+	return true;
+}
+
+
+
+/* 覆盖指定 0 基索引处的一个元素。 */
+XRT_API bool xrtArraySet(xarray* pArray, size_t iIndex, const void* pItem)
+{
+	bool bAlias;
+	size_t iOffset;
+	const void* pSource;
+
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	if ( iIndex >= pArray->Count ) {
+		__xrtErrorSetRange();
+		return false;
+	}
+	if ( !__xrtArraySource(pArray, pItem, 1, &bAlias, &iOffset) ) {
+		return false;
+	}
+
+	pSource = bAlias ? pArray->Data + iOffset : pItem;
+	memmove(pArray->Data + (iIndex * pArray->ItemSize), pSource, pArray->ItemSize);
+	return true;
+}
+
+
+
+/* 删除指定 0 基索引开始的精确元素区间。 */
+XRT_API bool xrtArrayRemove(xarray* pArray, size_t iIndex, size_t iCount)
+{
+	size_t iRemain;
+
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	if (
+		(iCount == 0) ||
+		(iIndex >= pArray->Count) ||
+		(iCount > (pArray->Count - iIndex))
+	) {
+		__xrtErrorSetRange();
+		return false;
+	}
+
+	iRemain = pArray->Count - iIndex - iCount;
+	if ( iRemain != 0 ) {
+		memmove(
+			pArray->Data + (iIndex * pArray->ItemSize),
+			pArray->Data + ((iIndex + iCount) * pArray->ItemSize),
+			iRemain * pArray->ItemSize
+		);
+	}
+	pArray->Count -= iCount;
+	return true;
+}
+
+
+
+/* 使用末尾元素覆盖指定元素并删除末尾，元素顺序不会保留。 */
+XRT_API bool xrtArrayRemoveSwap(xarray* pArray, size_t iIndex)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	if ( iIndex >= pArray->Count ) {
+		__xrtErrorSetRange();
+		return false;
+	}
+
+	if ( iIndex != (pArray->Count - 1u) ) {
+		memcpy(
+			pArray->Data + (iIndex * pArray->ItemSize),
+			pArray->Data + ((pArray->Count - 1u) * pArray->ItemSize),
+			pArray->ItemSize
+		);
+	}
+	pArray->Count--;
+	return true;
+}
+
+
+
+/* 删除末尾元素，并可将元素内容复制到输出地址。 */
+XRT_API bool xrtArrayPop(xarray* pArray, ptr pItem)
+{
+	bool bAlias;
+	size_t iOffset;
+
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	if ( pArray->Count == 0 ) {
+		__xrtErrorSetRange();
+		return false;
+	}
+
+	if ( pItem != NULL ) {
+		if ( !__xrtArraySource(pArray, pItem, 1, &bAlias, &iOffset) ) {
+			return false;
+		}
+		if ( bAlias ) {
+			__xrtErrorSetInvalidArgument();
+			return false;
+		}
+		memmove(
+			pItem,
+			pArray->Data + ((pArray->Count - 1u) * pArray->ItemSize),
+			pArray->ItemSize
+		);
+	}
+	pArray->Count--;
+	return true;
+}
+
+
+
+/* 交换两个 0 基索引处的元素，不进行动态分配。 */
+XRT_API bool xrtArraySwap(xarray* pArray, size_t iLeft, size_t iRight)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	if ( (iLeft >= pArray->Count) || (iRight >= pArray->Count) ) {
+		__xrtErrorSetRange();
+		return false;
+	}
+	if ( iLeft != iRight ) {
+		__xrtArraySwapItems(pArray, iLeft, iRight);
+	}
+
+	return true;
+}
+
+
+
+/* 原地反转元素顺序。 */
+XRT_API bool xrtArrayReverse(xarray* pArray)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+
+	for ( size_t i = 0; i < (pArray->Count / 2u); i++ ) {
+		__xrtArraySwapItems(pArray, i, pArray->Count - i - 1u);
+	}
+	return true;
+}
+
+
+
+/* 使用不稳定快速排序原地排列元素。 */
+XRT_API bool xrtArraySort(xarray* pArray, xarraycompare pCompare)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return false;
+	}
+	if ( pCompare == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( pArray->Count < 2u ) {
+		return true;
+	}
+
+	qsort(pArray->Data, pArray->Count, pArray->ItemSize, pCompare);
+	return true;
+}
+
+
+
+/* 按元素字节查找第一个完全相同的元素。 */
+XRT_API size_t xrtArrayFind(const xarray* pArray, const void* pItem)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return XRT_NPOS;
+	}
+	if ( pItem == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return XRT_NPOS;
+	}
+
+	for ( size_t i = 0; i < pArray->Count; i++ ) {
+		if ( memcmp(pArray->Data + (i * pArray->ItemSize), pItem, pArray->ItemSize) == 0 ) {
+			return i;
+		}
+	}
+	return XRT_NPOS;
+}
+
+
+
+/* 使用比较器线性查找第一个匹配元素，比较器接收 key 和元素。 */
+XRT_API size_t xrtArrayFindBy(const xarray* pArray, const void* pKey, xarraycompare pCompare)
+{
+	if ( !__xrtArrayValid(pArray) ) {
+		return XRT_NPOS;
+	}
+	if ( (pKey == NULL) || (pCompare == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return XRT_NPOS;
+	}
+
+	for ( size_t i = 0; i < pArray->Count; i++ ) {
+		if ( pCompare(pKey, pArray->Data + (i * pArray->ItemSize)) == 0 ) {
+			return i;
+		}
+	}
+	return XRT_NPOS;
+}
+
+
+
+/* 在已按同一比较器排序的数组中二分查找元素。 */
+XRT_API size_t xrtArrayBSearch(const xarray* pArray, const void* pKey, xarraycompare pCompare)
+{
+	const void* pItem;
+
+	if ( !__xrtArrayValid(pArray) ) {
+		return XRT_NPOS;
+	}
+	if ( (pKey == NULL) || (pCompare == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return XRT_NPOS;
+	}
+	if ( pArray->Count == 0 ) {
+		return XRT_NPOS;
+	}
+
+	pItem = bsearch(pKey, pArray->Data, pArray->Count, pArray->ItemSize, pCompare);
+	if ( pItem == NULL ) {
+		return XRT_NPOS;
+	}
+	return (size_t)(((cbytes)pItem - pArray->Data) / pArray->ItemSize);
 }
 
 #endif
@@ -82404,6 +83085,7738 @@ XRT_API xrtownershipref xrtValueIterOwnership(const xvalueiter* pIterator)
 	return (xrtownershipref){pIterator, pIterator != NULL ? &__xrtValueIterOwnershipOps : NULL};
 }
 
+/* The managed heap identity owns the inline snapshot's actual backing/shell
+ * slots. Legacy xvalueiter remains stack-compatible and uniquely owned. No
+ * address registry, borrowed-key edge or inferred collector reference exists. */
+struct xvaluecursor {
+	volatile int32 RefCount;
+	xvalueiter Iterator;
+	xvalueiter Retired;
+	const void* OwnershipClaim;
+	bool Active;
+	bool Cleared;
+};
+static xvaluecursor* __xrtValueCursorCreate(const xvalue* pValue, int iDirection)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)xrtMalloc(sizeof(*pCursor));
+	if (pCursor == NULL) return NULL;
+	memset(pCursor, 0, sizeof(*pCursor)); pCursor->RefCount = 1;
+	if (!(iDirection > 0 ? xrtValueIterBegin(pValue, &pCursor->Iterator)
+		: xrtValueIterRBegin(pValue, &pCursor->Iterator))) {
+		xrtFree(pCursor); return NULL;
+	}
+	return pCursor;
+}
+XRT_API xvaluecursor* xrtValueCursorCreate(const xvalue* pValue)
+{
+	return __xrtValueCursorCreate(pValue, 1);
+}
+XRT_API xvaluecursor* xrtValueCursorRCreate(const xvalue* pValue)
+{
+	return __xrtValueCursorCreate(pValue, -1);
+}
+XRT_API xvaluecursor* xrtValueCursorRetain(xvaluecursor* pCursor)
+{
+	xrtownershipscope Mutation = {0};
+	xvaluecursor* pResult = NULL;
+	if (pCursor == NULL) return NULL;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pCursor->Cleared || __xrtAtomicRefLoad(&pCursor->RefCount) <= 0) __xrtErrorSetInvalidState();
+	else if (xrtRefRetain(&pCursor->RefCount) > 0) pResult = pCursor;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return pResult;
+}
+XRT_API void xrtValueCursorRelease(xvaluecursor* pCursor)
+{
+	xrtownershipscope Mutation = {0}; xvalueiter Retired; int32 iCount;
+	if (pCursor == NULL) return;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	iCount = xrtRefRelease(&pCursor->RefCount);
+	if (iCount < 0) abort();
+	if (iCount != 0) { if (!xrtOwnershipScopeEnd(&Mutation)) abort(); return; }
+	if (pCursor->Active || pCursor->Retired.Backing != NULL) abort();
+	Retired = pCursor->Iterator;
+	memset(&pCursor->Iterator, 0, sizeof(pCursor->Iterator)); pCursor->Cleared = true;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* End detaches backing before shell release can enter a user finalizer. */
+	xrtValueIterEnd(&Retired); xrtFree(pCursor);
+}
+XRT_API xvalueiterresult xrtValueCursorAdvance(xvaluecursor* pCursor,
+	xvaluekey* pKey, xvalue** ppValue)
+{
+	xrtownershipscope Mutation = {0}; xvalueiterresult Result;
+	if (pCursor == NULL || ppValue == NULL) { __xrtErrorSetInvalidArgument(); return XVALUE_ITER_ERROR; }
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (pCursor->Active || pCursor->Cleared || __xrtAtomicRefLoad(&pCursor->RefCount) <= 0) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtErrorSetInvalidState(); return XVALUE_ITER_ERROR;
+	}
+	pCursor->Active = true;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	Result = xrtValueIterAdvance(&pCursor->Iterator, pKey, ppValue);
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	pCursor->Active = false;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return Result;
+}
+static bool __xrtValueCursorOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xvaluecursor* pCursor = (const xvaluecursor*)pData; int32 iCount; size_t iUnique;
+	if (pCursor == NULL || pCount == NULL || pCursor->Active || pCursor->Cleared) return false;
+	iCount = __xrtAtomicRefLoad(&pCursor->RefCount);
+	if (iCount <= 0 || !__xrtValueIterOwnershipCount(&pCursor->Iterator, &iUnique) || pCursor->Iterator.Backing == NULL) return false;
+	*pCount = (size_t)iCount; return true;
+}
+static bool __xrtValueCursorOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xvaluecursor* pCursor = (const xvaluecursor*)pData; size_t iCount;
+	if (!__xrtValueCursorOwnershipCount(pData, &iCount) || pVisit == NULL) return false;
+	/* Delegate the inline state's actual slots, not its unique-owner Count. */
+	return __xrtValueIterOwnershipTrace(&pCursor->Iterator, pVisit, pContext);
+}
+static const xrtownershipops __xrtValueCursorOwnershipOps = {
+	__xrtValueCursorOwnershipCount, __xrtValueCursorOwnershipTrace
+};
+XRT_API xrtownershipref xrtValueCursorOwnership(const xvaluecursor* pCursor)
+{
+	return (xrtownershipref){pCursor, pCursor != NULL ? &__xrtValueCursorOwnershipOps : NULL};
+}
+static bool __xrtValueCursorHold(const void* pData)
+{
+	size_t iCount;
+	return __xrtValueCursorOwnershipCount(pData, &iCount) && iCount < INT32_MAX &&
+		xrtRefRetain(&((xvaluecursor*)pData)->RefCount) > 0;
+}
+static void __xrtValueCursorDrop(const void* pData)
+{
+	xrtValueCursorRelease((xvaluecursor*)pData);
+}
+static bool __xrtValueCursorClaim(const void* pData, const void* pToken)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)pData;
+	if (pToken == NULL || pCursor->Active || pCursor->Cleared ||
+		(pCursor->OwnershipClaim != NULL && pCursor->OwnershipClaim != pToken)) return false;
+	pCursor->OwnershipClaim = pToken; return true;
+}
+static void __xrtValueCursorRestore(const void* pData, const void* pToken)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)pData;
+	if (pToken == NULL || pCursor->OwnershipClaim != pToken || pCursor->Cleared) abort();
+	pCursor->OwnershipClaim = NULL;
+}
+static void __xrtValueCursorClear(const void* pData, const void* pToken)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)pData;
+	if (pToken == NULL || pCursor->OwnershipClaim != pToken || pCursor->Cleared || pCursor->Active) abort();
+	pCursor->Retired = pCursor->Iterator;
+	memset(&pCursor->Iterator, 0, sizeof(pCursor->Iterator)); pCursor->Cleared = true;
+}
+static bool __xrtValueCursorFinish(const void* pData, const void* pToken)
+{
+	xvaluecursor* pCursor = (xvaluecursor*)pData;
+	if (pToken == NULL || pCursor->OwnershipClaim != pToken || !pCursor->Cleared) abort();
+	xrtValueIterEnd(&pCursor->Retired); return true;
+}
+XRT_API const xrtownershipadapterv1* xrtValueCursorOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtValueCursorHold,
+		__xrtValueCursorDrop, __xrtValueCursorClaim, __xrtValueCursorRestore,
+		NULL, __xrtValueCursorClear, __xrtValueCursorFinish};
+	size_t iCount;
+	return Reference.Ops == &__xrtValueCursorOwnershipOps &&
+		__xrtValueCursorOwnershipCount(Reference.Data, &iCount) ? &Adapter : NULL;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/value/value_graph.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VALUE_GRAPH)
+
+
+
+#if defined(XRT_FEATURE_VALUE_GRAPH)
+
+#define XRT_VALUE_GRAPH_INLINE 32u
+#define XRT_VALUE_GRAPH_GUARD_MAX ((XRT_VALUE_DEPTH_MAX * 2u) + 2u)
+
+
+
+/* 已复制表记录目标值和递归构造状态。 */
+typedef struct xvalueclonestate {
+	xvalue* Target;
+	bool Active;
+} xvalueclonestate;
+
+
+
+/* 小图直接在栈内记录源值与复制状态。 */
+typedef struct xvaluecloneentry {
+	const xvalue* Source;
+	xvalueclonestate State;
+} xvaluecloneentry;
+
+
+
+/* 一次深拷贝共用栈内身份表、按需溢出表和活动源路径。 */
+typedef struct xvalueclonecontext {
+	xvaluecloneentry Inline[XRT_VALUE_GRAPH_INLINE];
+	size_t InlineCount;
+	xmap Overflow;
+	bool OverflowReady;
+	const xvalue* Active[XRT_VALUE_DEPTH_MAX + 1u];
+	size_t ActiveCount;
+} xvalueclonecontext;
+
+
+
+/* 结构相等的映射键由一对有方向的值身份组成。 */
+typedef struct xvalueequalkey {
+	const xvalue* Left;
+	const xvalue* Right;
+} xvalueequalkey;
+
+
+
+/* 已比较值对只需记录当前仍在递归还是已经相等。 */
+typedef struct xvalueequalstate {
+	bool Active;
+} xvalueequalstate;
+
+
+
+/* 小图直接在栈内记录比较值对。 */
+typedef struct xvalueequalentry {
+	xvalueequalkey Key;
+	xvalueequalstate State;
+} xvalueequalentry;
+
+
+
+/* 一次结构比较共用值对记忆表和回调活动祖先。 */
+typedef struct xvalueequalcontext {
+	xvalueequalentry Inline[XRT_VALUE_GRAPH_INLINE];
+	size_t InlineCount;
+	xmap Overflow;
+	bool OverflowReady;
+	const xvalue* Guards[XRT_VALUE_GRAPH_GUARD_MAX];
+	size_t GuardCount;
+} xvalueequalcontext;
+
+
+
+/* 把调用者持有的值地址变量转换为 Map 键。 */
+static xbytesview __xrtValueGraphPointerKey(
+	const xvalue* const* pValue
+)
+{
+	xbytesview Key;
+
+	Key.Data = (cbytes)pValue;
+	Key.Size = sizeof(*pValue);
+	return Key;
+}
+
+
+
+/* 把结构相等值对转换为 Map 键。 */
+static xbytesview __xrtValueGraphEqualKey(
+	const xvalueequalkey* pKey
+)
+{
+	xbytesview Key;
+
+	Key.Data = (cbytes)pKey;
+	Key.Size = sizeof(*pKey);
+	return Key;
+}
+
+
+
+/* 查找源值已经登记的复制状态。 */
+static xvalueclonestate* __xrtValueCloneState(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource
+)
+{
+	for ( size_t i = 0; i < pContext->InlineCount; i++ ) {
+		if ( pContext->Inline[i].Source == pSource ) {
+			return &pContext->Inline[i].State;
+		}
+	}
+	if ( !pContext->OverflowReady ) {
+		return NULL;
+	}
+	return (xvalueclonestate*)xrtMapGet(
+		&pContext->Overflow,
+		__xrtValueGraphPointerKey(&pSource)
+	);
+}
+
+
+
+/* 查找已完成的目标值，返回负数表示源图含环。 */
+static int __xrtValueCloneFind(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource,
+	xvalue** pTarget
+)
+{
+	xvalueclonestate* pState = __xrtValueCloneState(
+		pContext,
+		pSource
+	);
+
+	*pTarget = NULL;
+	if ( pState == NULL ) {
+		return 0;
+	}
+	if ( pState->Active ) {
+		__xrtErrorSetValue();
+		return -1;
+	}
+	*pTarget = xrtValueRetain(pState->Target);
+	return *pTarget != NULL ? 1 : -1;
+}
+
+
+
+/* 登记一个正在构造的目标值，小图不分配身份表。 */
+static bool __xrtValueCloneStart(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource,
+	xvalue* pTarget
+)
+{
+	xvalueclonestate State;
+
+	State.Target = pTarget;
+	State.Active = true;
+	if ( pContext->InlineCount < XRT_VALUE_GRAPH_INLINE ) {
+		xvaluecloneentry* pEntry =
+			&pContext->Inline[pContext->InlineCount++];
+
+		pEntry->Source = pSource;
+		pEntry->State = State;
+		return true;
+	}
+	if ( !pContext->OverflowReady ) {
+		if ( !xrtMapInit(
+			&pContext->Overflow,
+			sizeof(xvalueclonestate)
+		) ) {
+			return false;
+		}
+		pContext->OverflowReady = true;
+	}
+	return xrtMapSet(
+		&pContext->Overflow,
+		__xrtValueGraphPointerKey(&pSource),
+		&State
+	);
+}
+
+
+
+/* 将已登记目标标记为完整可复用。 */
+static bool __xrtValueCloneFinish(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource
+)
+{
+	xvalueclonestate* pState = __xrtValueCloneState(
+		pContext,
+		pSource
+	);
+
+	if ( pState == NULL ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pState->Active = false;
+	return true;
+}
+
+
+
+/* 释放深拷贝按需创建的溢出身份表。 */
+static void __xrtValueCloneUnit(xvalueclonecontext* pContext)
+{
+	if ( pContext->OverflowReady ) {
+		xrtMapUnit(&pContext->Overflow);
+		pContext->OverflowReady = false;
+	}
+}
+
+
+
+/* 把当前源值压入活动路径。 */
+static bool __xrtValueClonePush(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource
+)
+{
+	if ( pContext->ActiveCount >= (XRT_VALUE_DEPTH_MAX + 1u) ) {
+		__xrtErrorSetValue();
+		return false;
+	}
+	pContext->Active[pContext->ActiveCount++] = pSource;
+	return true;
+}
+
+
+
+/* 弹出当前源值。 */
+static void __xrtValueClonePop(xvalueclonecontext* pContext)
+{
+	if ( pContext->ActiveCount != 0 ) {
+		pContext->ActiveCount--;
+		pContext->Active[pContext->ActiveCount] = NULL;
+	}
+}
+
+
+
+/* 保护完整活动源路径并执行一次句柄释放。 */
+static void __xrtValueCloneDropHandle(
+	xvalueclonecontext* pContext,
+	const xvaluehandleops* pOps,
+	ptr pHandle,
+	ptr pUserData
+)
+{
+	bool bProtected = __xrtValueCallbackProtect(
+		pContext->Active,
+		pContext->ActiveCount
+	);
+
+	pOps->Drop(pHandle, pUserData);
+	if ( bProtected ) {
+		__xrtValueCallbackUnprotect(
+			pContext->Active,
+			pContext->ActiveCount
+		);
+	}
+}
+
+
+
+/* 保护完整活动源路径并释放部分构造的目标图。 */
+static void __xrtValueCloneRelease(
+	xvalueclonecontext* pContext,
+	xvalue* pTarget
+)
+{
+	bool bProtected = __xrtValueCallbackProtect(
+		pContext->Active,
+		pContext->ActiveCount
+	);
+
+	xrtValueRelease(pTarget);
+	if ( bProtected ) {
+		__xrtValueCallbackUnprotect(
+			pContext->Active,
+			pContext->ActiveCount
+		);
+	}
+}
+
+
+
+/* 按源容器类型创建空目标容器。 */
+static xvalue* __xrtValueCloneContainer(const xvalue* pSource)
+{
+	switch ( (xvaluetype)pSource->Type ) {
+		case XVALUE_ARRAY:
+			return xrtValueArray();
+		case XVALUE_INT_MAP:
+			return xrtValueIntMap();
+		case XVALUE_SET:
+			return xrtValueSet();
+		case XVALUE_OBJECT:
+			return __xrtValueObjectDropsReverse(pSource)
+				? xrtValueObjectLifo()
+				: xrtValueObject();
+		default:
+			__xrtErrorSetType();
+			return NULL;
+	}
+}
+
+
+
+/* 深度复制句柄，禁止把不可克隆拥有资源伪装成独立副本。 */
+static xvalue* __xrtValueCloneHandle(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource
+)
+{
+	const xvaluehandleops* pOps = pSource->Data.Handle.Ops;
+	ptr pUserData = pSource->Data.Handle.UserData;
+	ptr pClone = NULL;
+	xvalue* pTarget;
+	const xerror* pErrorBefore;
+	bool bCloned;
+	int iFound;
+
+	iFound = __xrtValueCloneFind(pContext, pSource, &pTarget);
+	if ( iFound > 0 ) {
+		return pTarget;
+	}
+	if ( iFound < 0 ) {
+		return NULL;
+	}
+	if ( pOps->Clone == NULL ) {
+		__xrtErrorSetUnsupported();
+		return NULL;
+	}
+	if ( !__xrtValueClonePush(pContext, pSource) ) {
+		return NULL;
+	}
+	if ( !__xrtValueCallbackProtect(
+			pContext->Active,
+			pContext->ActiveCount
+	) ) {
+		__xrtValueClonePop(pContext);
+		return NULL;
+	}
+	pErrorBefore = xrtGetError();
+	bCloned = pOps->Clone(
+		pSource->Data.Handle.Data,
+		&pClone,
+		pUserData
+	);
+	if ( !bCloned && (pClone != NULL) ) {
+		pOps->Drop(pClone, pUserData);
+		pClone = NULL;
+	}
+	__xrtValueCallbackUnprotect(
+		pContext->Active,
+		pContext->ActiveCount
+	);
+	if ( !bCloned ) {
+		__xrtValueClonePop(pContext);
+		if ( xrtGetError() == pErrorBefore ) {
+			__xrtErrorSetInvalidState();
+		}
+		return NULL;
+	}
+	pTarget = xrtValueHandleTake(&pClone, pOps, pUserData);
+	if (pTarget != NULL) {
+		pTarget->OwnershipTrace = pSource->OwnershipTrace;
+		pTarget->Flags |= pSource->Flags & XRT_VALUE_FLAG_PHASED_DROP;
+	}
+	if ( pTarget == NULL ) {
+		__xrtValueCloneDropHandle(
+			pContext,
+			pOps,
+			pClone,
+			pUserData
+		);
+		__xrtValueClonePop(pContext);
+		return NULL;
+	}
+	pTarget->TypeId = pSource->TypeId;
+	pTarget->IdentityHash = pSource->IdentityHash;
+	pTarget->IdentityEqual = pSource->IdentityEqual;
+	pTarget->IdentityUserData = pSource->IdentityUserData;
+	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ||
+		 !__xrtValueCloneFinish(pContext, pSource) ) {
+		__xrtValueCloneRelease(pContext, pTarget);
+		__xrtValueClonePop(pContext);
+		return NULL;
+	}
+	__xrtValueClonePop(pContext);
+	return pTarget;
+}
+
+
+
+/* 前置声明供容器递归复制。 */
+static xvalue* __xrtValueDeepClone(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource,
+	uint32 iDepth
+);
+
+
+
+/* 把一个已复制值按源键类型移交到目标容器。 */
+static bool __xrtValueCloneInsert(
+	xvalueclonecontext* pContext,
+	xvalue* pTarget,
+	xvaluekey Key,
+	xvalue** pCopy
+)
+{
+	bool bResult;
+
+	if ( Key.Type == XVALUE_KEY_INDEX ) {
+		return xrtValueArrayAppendTake(pTarget, pCopy);
+	}
+	if ( Key.Type == XVALUE_KEY_INT ) {
+		return xrtValueIntMapSetTake(
+			pTarget,
+			Key.Integer,
+			pCopy
+		);
+	}
+	if ( Key.Type == XVALUE_KEY_STRING ) {
+		return xrtValueObjectSetTake(
+			pTarget,
+			Key.String,
+			pCopy
+		);
+	}
+	if ( !__xrtValueCallbackProtect(
+		pContext->Active,
+		pContext->ActiveCount
+	) ) {
+		return false;
+	}
+	bResult = xrtValueSetAddTake(pTarget, pCopy);
+	__xrtValueCallbackUnprotect(
+		pContext->Active,
+		pContext->ActiveCount
+	);
+	return bResult;
+}
+
+
+
+/* 深度复制一个已经登记的容器内容。 */
+static bool __xrtValueCloneContainerItems(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource,
+	xvalue* pTarget,
+	uint32 iDepth
+)
+{
+	xvalueiter tIterator;
+	xvaluekey Key;
+	xvalue* pItem;
+	bool bResult = true;
+
+	if ( (pTarget->Type != XVALUE_INT_MAP) &&
+		 !xrtValueReserve(
+			pTarget,
+			__xrtValueContainerCount(pSource)
+		 ) ) {
+		return false;
+	}
+	if ( !xrtValueIterBegin(pSource, &tIterator) ) {
+		return false;
+	}
+	while ( (pItem = xrtValueIterNext(&tIterator, &Key)) != NULL ) {
+		xvalue* pCopy = __xrtValueDeepClone(
+			pContext,
+			pItem,
+			iDepth + 1u
+		);
+
+		if ( pCopy == NULL ) {
+			bResult = false;
+			break;
+		}
+		bResult = __xrtValueCloneInsert(
+			pContext,
+			pTarget,
+			Key,
+			&pCopy
+		);
+		if ( !bResult ) {
+			xrtValueRelease(pCopy);
+			break;
+		}
+	}
+	xrtValueIterEnd(&tIterator);
+	return bResult;
+}
+
+
+
+/* 深度复制标量、句柄或容器。 */
+static xvalue* __xrtValueDeepClone(
+	xvalueclonecontext* pContext,
+	const xvalue* pSource,
+	uint32 iDepth
+)
+{
+	xvaluetype Type;
+	xvalue* pTarget;
+	bool bReady;
+	int iFound;
+
+	if ( pSource == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( (pSource->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	if ( iDepth >= XRT_VALUE_DEPTH_MAX ) {
+		__xrtErrorSetValue();
+		return NULL;
+	}
+	Type = (xvaluetype)pSource->Type;
+	if ( Type == XVALUE_HANDLE ) {
+		return __xrtValueCloneHandle(pContext, pSource);
+	}
+	if ( !__xrtValueContainerType(Type) ) {
+		return xrtValueRetain(pSource);
+	}
+	iFound = __xrtValueCloneFind(pContext, pSource, &pTarget);
+	if ( iFound > 0 ) {
+		return pTarget;
+	}
+	if ( iFound < 0 ) {
+		return NULL;
+	}
+	pTarget = __xrtValueCloneContainer(pSource);
+	if ( pTarget == NULL ) {
+		return NULL;
+	}
+	if (!__xrtValueObjectLifetimeCopy(pTarget, pSource)) {
+		xrtValueRelease(pTarget); return NULL;
+	}
+	pTarget->TypeId = pSource->TypeId;
+	pTarget->IdentityHash = pSource->IdentityHash;
+	pTarget->IdentityEqual = pSource->IdentityEqual;
+	pTarget->IdentityUserData = pSource->IdentityUserData;
+	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ) {
+		xrtValueRelease(pTarget);
+		return NULL;
+	}
+	if ( !__xrtValueClonePush(pContext, pSource) ) {
+		xrtValueRelease(pTarget);
+		return NULL;
+	}
+	bReady = __xrtValueCloneContainerItems(
+		pContext,
+		pSource,
+		pTarget,
+		iDepth
+	) && __xrtValueCloneFinish(pContext, pSource);
+	if ( !bReady ) {
+		__xrtValueCloneRelease(pContext, pTarget);
+		__xrtValueClonePop(pContext);
+		return NULL;
+	}
+	__xrtValueClonePop(pContext);
+	return pTarget;
+}
+
+
+
+/* 深度复制完整无环值图，并保留重复子值的共享身份。 */
+static xvalue* __xrtOwnershipBody_ValueDeepClone(const xvalue* pValue)
+{
+	xvalueclonecontext Context;
+	xvalue* pResult;
+
+	if ( pValue == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( (pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	memset(&Context, 0, sizeof(Context));
+	pResult = __xrtValueDeepClone(&Context, pValue, 0);
+	__xrtValueCloneUnit(&Context);
+	return pResult;
+}
+
+XRT_API xvalue* xrtValueDeepClone(const xvalue* pValue)
+{
+	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueDeepClone(pValue));
+}
+
+
+
+/* 查找已经登记的结构比较状态。 */
+static xvalueequalstate* __xrtValueEqualState(
+	xvalueequalcontext* pContext,
+	xvalueequalkey Key
+)
+{
+	for ( size_t i = 0; i < pContext->InlineCount; i++ ) {
+		xvalueequalentry* pEntry = &pContext->Inline[i];
+
+		if ( (pEntry->Key.Left == Key.Left) &&
+			 (pEntry->Key.Right == Key.Right) ) {
+			return &pEntry->State;
+		}
+	}
+	if ( !pContext->OverflowReady ) {
+		return NULL;
+	}
+	return (xvalueequalstate*)xrtMapGet(
+		&pContext->Overflow,
+		__xrtValueGraphEqualKey(&Key)
+	);
+}
+
+
+
+/* 查找已完成值对，返回负数表示两侧活动路径形成递归环。 */
+static int __xrtValueEqualFind(
+	xvalueequalcontext* pContext,
+	xvalueequalkey Key
+)
+{
+	xvalueequalstate* pState = __xrtValueEqualState(pContext, Key);
+
+	if ( pState == NULL ) {
+		return 0;
+	}
+	if ( pState->Active ) {
+		__xrtErrorSetValue();
+		return -1;
+	}
+	return 1;
+}
+
+
+
+/* 登记一个正在递归比较的值对，小图不分配记忆表。 */
+static bool __xrtValueEqualStart(
+	xvalueequalcontext* pContext,
+	xvalueequalkey Key
+)
+{
+	xvalueequalstate State;
+
+	State.Active = true;
+	if ( pContext->InlineCount < XRT_VALUE_GRAPH_INLINE ) {
+		xvalueequalentry* pEntry =
+			&pContext->Inline[pContext->InlineCount++];
+
+		pEntry->Key = Key;
+		pEntry->State = State;
+		return true;
+	}
+	if ( !pContext->OverflowReady ) {
+		if ( !xrtMapInit(
+			&pContext->Overflow,
+			sizeof(xvalueequalstate)
+		) ) {
+			return false;
+		}
+		pContext->OverflowReady = true;
+	}
+	return xrtMapSet(
+		&pContext->Overflow,
+		__xrtValueGraphEqualKey(&Key),
+		&State
+	);
+}
+
+
+
+/* 将已经登记的值对标记为结构相等。 */
+static bool __xrtValueEqualFinish(
+	xvalueequalcontext* pContext,
+	xvalueequalkey Key
+)
+{
+	xvalueequalstate* pState = __xrtValueEqualState(pContext, Key);
+
+	if ( pState == NULL ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pState->Active = false;
+	return true;
+}
+
+
+
+/* 释放结构相等按需创建的溢出记忆表。 */
+static void __xrtValueEqualUnit(xvalueequalcontext* pContext)
+{
+	if ( pContext->OverflowReady ) {
+		xrtMapUnit(&pContext->Overflow);
+		pContext->OverflowReady = false;
+	}
+}
+
+
+
+/* 把当前比较值对加入回调活动祖先。 */
+static bool __xrtValueEqualPush(
+	xvalueequalcontext* pContext,
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	if ( pContext->GuardCount > (XRT_VALUE_GRAPH_GUARD_MAX - 2u) ) {
+		__xrtErrorSetValue();
+		return false;
+	}
+	pContext->Guards[pContext->GuardCount++] = pLeft;
+	pContext->Guards[pContext->GuardCount++] = pRight;
+	return true;
+}
+
+
+
+/* 弹出当前比较值对。 */
+static void __xrtValueEqualPop(xvalueequalcontext* pContext)
+{
+	if ( pContext->GuardCount >= 2u ) {
+		pContext->GuardCount -= 2u;
+		pContext->Guards[pContext->GuardCount] = NULL;
+		pContext->Guards[pContext->GuardCount + 1u] = NULL;
+	}
+}
+
+
+
+/* 前置声明供容器结构相等递归。 */
+static bool __xrtValueEqual(
+	xvalueequalcontext* pContext,
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	uint32 iDepth
+);
+
+
+
+/* 比较数组的每个有序元素。 */
+static bool __xrtValueArrayEqual(
+	xvalueequalcontext* pContext,
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	uint32 iDepth
+)
+{
+	size_t iCount = __xrtValueContainerCount(pLeft);
+
+	for ( size_t i = 0; i < iCount; i++ ) {
+		if ( !__xrtValueEqual(
+			pContext,
+			xrtValueArrayGet(pLeft, i),
+			xrtValueArrayGet(pRight, i),
+			iDepth + 1u
+		) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+
+/* 比较 IntMap 的键集合和对应值。 */
+static bool __xrtValueIntMapEqual(
+	xvalueequalcontext* pContext,
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	uint32 iDepth
+)
+{
+	xvalueiter tIterator;
+	xvaluekey Key;
+	xvalue* pItem;
+	bool bEqual = true;
+
+	if ( !xrtValueIterBegin(pLeft, &tIterator) ) {
+		return false;
+	}
+	while ( (pItem = xrtValueIterNext(&tIterator, &Key)) != NULL ) {
+		xvalue* pOther = xrtValueIntMapGet(pRight, Key.Integer);
+
+		if ( (pOther == NULL) ||
+			 !__xrtValueEqual(
+				pContext,
+				pItem,
+				pOther,
+				iDepth + 1u
+			 ) ) {
+			bEqual = false;
+			break;
+		}
+	}
+	xrtValueIterEnd(&tIterator);
+	return bEqual;
+}
+
+
+
+/* 比较 Object 的键集合和对应值，插入顺序不影响相等性。 */
+static bool __xrtValueObjectEqual(
+	xvalueequalcontext* pContext,
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	uint32 iDepth
+)
+{
+	xvalueiter tIterator;
+	xvaluekey Key;
+	xvalue* pItem;
+	bool bEqual = true;
+
+	if ( !xrtValueIterBegin(pLeft, &tIterator) ) {
+		return false;
+	}
+	while ( (pItem = xrtValueIterNext(&tIterator, &Key)) != NULL ) {
+		xvalue* pOther = xrtValueObjectGet(pRight, Key.String);
+
+		if ( (pOther == NULL) ||
+			 !__xrtValueEqual(
+				pContext,
+				pItem,
+				pOther,
+				iDepth + 1u
+			 ) ) {
+			bEqual = false;
+			break;
+		}
+	}
+	xrtValueIterEnd(&tIterator);
+	return bEqual;
+}
+
+
+
+/* 复用通用 Set 关系实现比较等价元素集合。 */
+static bool __xrtValueSetStructuralEqual(
+	xvalueequalcontext* pContext,
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	const xset* pLeftItems = __xrtValueSetItems(pLeft);
+	const xset* pRightItems = __xrtValueSetItems(pRight);
+	bool bEqual;
+
+	if ( (pLeftItems == NULL) || (pRightItems == NULL) ||
+		 !__xrtValueCallbackProtect(
+			pContext->Guards,
+			pContext->GuardCount
+		 ) ) {
+		return false;
+	}
+	bEqual = xrtSetEqual(pLeftItems, pRightItems);
+	__xrtValueCallbackUnprotect(
+		pContext->Guards,
+		pContext->GuardCount
+	);
+	return bEqual;
+}
+
+
+
+/* 比较两个具有同一策略域的拥有句柄。 */
+static bool __xrtValueHandleEqual(
+	xvalueequalcontext* pContext,
+	const xvalue* pLeft,
+	const xvalue* pRight
+)
+{
+	xvalueequalkey Key;
+	bool bEqual;
+	int iFound;
+
+	if ( (pLeft->Data.Handle.Ops != pRight->Data.Handle.Ops) ||
+		 (pLeft->Data.Handle.UserData !=
+		  pRight->Data.Handle.UserData) ) {
+		return false;
+	}
+	if ( pLeft->Data.Handle.Ops->Equal == NULL ) {
+		__xrtErrorSetType();
+		return false;
+	}
+	Key.Left = pLeft;
+	Key.Right = pRight;
+	iFound = __xrtValueEqualFind(pContext, Key);
+	if ( iFound != 0 ) {
+		return iFound > 0;
+	}
+	if ( !__xrtValueEqualStart(pContext, Key) ) {
+		return false;
+	}
+	if ( !__xrtValueEqualPush(pContext, pLeft, pRight) ) {
+		return false;
+	}
+	if ( !__xrtValueCallbackProtect(
+			pContext->Guards,
+			pContext->GuardCount
+	) ) {
+		__xrtValueEqualPop(pContext);
+		return false;
+	}
+	bEqual = pLeft->Data.Handle.Ops->Equal(
+		pLeft->Data.Handle.Data,
+		pRight->Data.Handle.Data,
+		pLeft->Data.Handle.UserData
+	);
+	__xrtValueCallbackUnprotect(
+		pContext->Guards,
+		pContext->GuardCount
+	);
+	__xrtValueEqualPop(pContext);
+	return bEqual ? __xrtValueEqualFinish(pContext, Key) : false;
+}
+
+
+
+/* 递归判断标量或容器结构相等。 */
+static bool __xrtValueEqual(
+	xvalueequalcontext* pContext,
+	const xvalue* pLeft,
+	const xvalue* pRight,
+	uint32 iDepth
+)
+{
+	xvalueequalkey Key;
+	xvaluetype Type;
+	bool bEqual;
+	int iFound;
+
+	if ( (pLeft == NULL) || (pRight == NULL) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( ((pLeft->Flags & XRT_VALUE_FLAG_BUSY) != 0) ||
+		 ((pRight->Flags & XRT_VALUE_FLAG_BUSY) != 0) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	if ( pLeft == pRight ) {
+		return true;
+	}
+	if ( (pLeft->IdentityEqual != NULL) || (pRight->IdentityEqual != NULL) ) {
+		return __xrtValueEqualKnown(pLeft, pRight);
+	}
+	if ( iDepth >= XRT_VALUE_DEPTH_MAX ) {
+		__xrtErrorSetValue();
+		return false;
+	}
+	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
+		  (pLeft->Type == XVALUE_FLOAT)) &&
+		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
+		  (pRight->Type == XVALUE_FLOAT)) ) {
+		return __xrtValueEqualKnown(pLeft, pRight);
+	}
+	Type = (xvaluetype)pLeft->Type;
+	if ( Type != (xvaluetype)pRight->Type ) {
+		return false;
+	}
+	if ( Type == XVALUE_HANDLE ) {
+		return __xrtValueHandleEqual(pContext, pLeft, pRight);
+	}
+	if ( !__xrtValueContainerType(Type) ) {
+		return __xrtValueEqualKnown(pLeft, pRight);
+	}
+	if ( pLeft->Data.Backing == pRight->Data.Backing ) {
+		return true;
+	}
+	if ( __xrtValueContainerCount(pLeft) !=
+		 __xrtValueContainerCount(pRight) ) {
+		return false;
+	}
+	Key.Left = pLeft;
+	Key.Right = pRight;
+	iFound = __xrtValueEqualFind(pContext, Key);
+	if ( iFound != 0 ) {
+		return iFound > 0;
+	}
+	if ( !__xrtValueEqualStart(pContext, Key) ||
+		 !__xrtValueEqualPush(pContext, pLeft, pRight) ) {
+		return false;
+	}
+	if ( Type == XVALUE_ARRAY ) {
+		bEqual = __xrtValueArrayEqual(
+			pContext,
+			pLeft,
+			pRight,
+			iDepth
+		);
+	} else if ( Type == XVALUE_INT_MAP ) {
+		bEqual = __xrtValueIntMapEqual(
+			pContext,
+			pLeft,
+			pRight,
+			iDepth
+		);
+	} else if ( Type == XVALUE_SET ) {
+		bEqual = __xrtValueSetStructuralEqual(
+			pContext,
+			pLeft,
+			pRight
+		);
+	} else {
+		bEqual = __xrtValueObjectEqual(
+			pContext,
+			pLeft,
+			pRight,
+			iDepth
+		);
+	}
+	__xrtValueEqualPop(pContext);
+	return bEqual ? __xrtValueEqualFinish(pContext, Key) : false;
+}
+
+
+
+/* 按数值和容器内容递归判断结构相等。 */
+static bool __xrtOwnershipBody_ValueEqual(const xvalue* pLeft, const xvalue* pRight)
+{
+	xvalueequalcontext Context;
+	bool bEqual;
+
+	if ( (pLeft == NULL) || (pRight == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( ((pLeft->Flags & XRT_VALUE_FLAG_BUSY) != 0) ||
+		 ((pRight->Flags & XRT_VALUE_FLAG_BUSY) != 0) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	memset(&Context, 0, sizeof(Context));
+	bEqual = __xrtValueEqual(&Context, pLeft, pRight, 0);
+	__xrtValueEqualUnit(&Context);
+	return bEqual;
+}
+
+XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
+{
+	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueEqual(pLeft, pRight));
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/memory/debug.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG)
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG)
+
+/* 调试块状态同时记录生命周期和是否进入统计体系。 */
+#define XRT_MEMDEBUG_STATE_MASK			0x00FFu
+#define XRT_MEMDEBUG_STATE_LIVE			0x0001u
+#define XRT_MEMDEBUG_STATE_FREED		0x0002u
+#define XRT_MEMDEBUG_STATE_QUARANTINE	0x0003u
+#define XRT_MEMDEBUG_STATE_TRACKED		0x0100u
+
+
+
+/* 有界历史避免调试功能自身无限占用内存。 */
+#define XRT_MEMDEBUG_QUARANTINE_LIMIT	256u
+
+
+
+/* 活动分配按地址散列，避免批量释放退化为平方复杂度。 */
+#define XRT_MEMDEBUG_LIVE_BUCKET_COUNT	4096u
+
+
+
+/* 边界值混入地址和大小，降低固定字节被误判为有效的概率。 */
+#define XRT_MEMDEBUG_FRONT_CANARY	0xC35A91E7u
+#define XRT_MEMDEBUG_TAIL_CANARY		0x7E19A53Cu
+#define XRT_MEMDEBUG_ALLOC_FILL		0xCD
+#define XRT_MEMDEBUG_FREE_FILL		0xDD
+
+
+
+/* 内存调试状态只依赖底层分配器和内部短锁。 */
+typedef struct xrt_memdebug_state {
+	volatile int32 InitState;
+	xrt_spinlock Lock;
+	bool Enabled;
+	size_t ActiveCount;
+	xrt_heap_header* LiveBuckets[XRT_MEMDEBUG_LIVE_BUCKET_COUNT];
+	xrt_heap_header* QuarantineHead;
+	xrt_heap_header* QuarantineTail;
+	size_t LiveCount;
+	size_t LiveBytes;
+	size_t PeakCount;
+	size_t PeakBytes;
+	size_t QuarantineCount;
+	size_t QuarantineBytes;
+	uint64 AllocCount;
+	uint64 FreeCount;
+	uint64 ReallocCount;
+	uint64 DoubleFreeCount;
+	uint64 InvalidFreeCount;
+	uint64 OverflowCount;
+	uint64 UnderflowCount;
+	uint64 UseAfterFreeCount;
+	size_t TempActiveBytes;
+	size_t TempCurrentBytes;
+	size_t TempPeakBytes;
+	uint64 TempResetCount;
+	uint64 NextSequence;
+	xmemdebugevent Events[XRT_MEMDEBUG_EVENT_LIMIT];
+	size_t EventStart;
+	size_t EventCount;
+} xrt_memdebug_state;
+
+
+
+static xrt_memdebug_state __xrtMemDebug;
+
+
+
+/* 故障注入只影响当前线程，避免并发测试互相污染。 */
+typedef struct xrt_memdebug_fail_state {
+	uint64 Remaining;
+	bool Armed;
+	bool Triggered;
+} xrt_memdebug_fail_state;
+
+
+
+#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+
+static DWORD __xrtMemDebugFailFls = FLS_OUT_OF_INDEXES;
+static volatile LONG __xrtMemDebugFailFlsState;
+static xrt_local_slot __xrtMemDebugFailSlot;
+
+
+
+/* 在线程或 fiber 退出时释放 TinyCC 故障状态。 */
+static void NTAPI __xrtMemDebugFailLocalFree(PVOID pData)
+{
+	free(pData);
+}
+
+
+
+/* 线程安全地创建 TinyCC Windows 故障状态槽。 */
+static bool __xrtMemDebugFailFlsEnsure(void)
+{
+	LONG iState = InterlockedCompareExchange(
+		&__xrtMemDebugFailFlsState,
+		1,
+		0
+	);
+
+	if ( iState == 0 ) {
+		__xrtMemDebugFailFls = __xrtLocalSlotAlloc(
+			&__xrtMemDebugFailSlot, __xrtMemDebugFailLocalFree,
+			XRT_LOCAL_PAYLOAD, true
+		);
+		(void)InterlockedExchange(
+			&__xrtMemDebugFailFlsState,
+			__xrtMemDebugFailFls == FLS_OUT_OF_INDEXES ? 3 : 2
+		);
+		return __xrtMemDebugFailFls != FLS_OUT_OF_INDEXES;
+	}
+	while ( (iState = InterlockedCompareExchange(
+		&__xrtMemDebugFailFlsState,
+		0,
+		0
+	)) == 1 ) {
+		(void)SwitchToThread();
+	}
+	return iState == 2;
+}
+
+
+
+/* 取得或按需创建 TinyCC Windows 当前线程的故障状态。 */
+static xrt_memdebug_fail_state* __xrtMemDebugFailStateGet(
+	bool bCreate
+)
+{
+	xrt_memdebug_fail_state* pState;
+
+	if ( !__xrtMemDebugFailFlsEnsure() ) {
+		if ( bCreate ) {
+			__xrtErrorSetInvalidState();
+		}
+		return NULL;
+	}
+	pState = (xrt_memdebug_fail_state*)FlsGetValue(
+		__xrtMemDebugFailFls
+	);
+	if ( (pState != NULL) || !bCreate ) {
+		return pState;
+	}
+	pState = (xrt_memdebug_fail_state*)calloc(
+		1,
+		sizeof(*pState)
+	);
+	if ( pState == NULL ) {
+		__xrtErrorSetOutOfMemory();
+		return NULL;
+	}
+	if ( !FlsSetValue(__xrtMemDebugFailFls, pState) ) {
+		free(pState);
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	return pState;
+}
+
+#elif defined(__TINYC__)
+
+static pthread_key_t __xrtMemDebugFailKey;
+static pthread_once_t __xrtMemDebugFailKeyOnce =
+	PTHREAD_ONCE_INIT;
+static int __xrtMemDebugFailKeyError;
+
+
+
+/* 在线程退出时释放 TinyCC POSIX 故障状态。 */
+static void __xrtMemDebugFailLocalFree(void* pData)
+{
+	free(pData);
+}
+
+
+
+/* 创建 TinyCC POSIX 故障状态 key。 */
+static void __xrtMemDebugFailKeyInit(void)
+{
+	__xrtMemDebugFailKeyError = pthread_key_create(
+		&__xrtMemDebugFailKey,
+		__xrtMemDebugFailLocalFree
+	);
+}
+
+
+
+/* 取得或按需创建 TinyCC POSIX 当前线程的故障状态。 */
+static xrt_memdebug_fail_state* __xrtMemDebugFailStateGet(
+	bool bCreate
+)
+{
+	xrt_memdebug_fail_state* pState;
+
+	(void)pthread_once(
+		&__xrtMemDebugFailKeyOnce,
+		__xrtMemDebugFailKeyInit
+	);
+	if ( __xrtMemDebugFailKeyError != 0 ) {
+		if ( bCreate ) {
+			__xrtErrorSetInvalidState();
+		}
+		return NULL;
+	}
+	pState = (xrt_memdebug_fail_state*)pthread_getspecific(
+		__xrtMemDebugFailKey
+	);
+	if ( (pState != NULL) || !bCreate ) {
+		return pState;
+	}
+	pState = (xrt_memdebug_fail_state*)calloc(
+		1,
+		sizeof(*pState)
+	);
+	if ( pState == NULL ) {
+		__xrtErrorSetOutOfMemory();
+		return NULL;
+	}
+	if ( pthread_setspecific(
+		__xrtMemDebugFailKey,
+		pState
+	) != 0 ) {
+		free(pState);
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	return pState;
+}
+
+#else
+
+static XRT_THREAD_LOCAL xrt_memdebug_fail_state
+	__xrtMemDebugFailState;
+
+
+
+/* 返回编译器 TLS 中的当前线程故障状态。 */
+static xrt_memdebug_fail_state* __xrtMemDebugFailStateGet(
+	bool bCreate
+)
+{
+	(void)bCreate;
+	return &__xrtMemDebugFailState;
+}
+
+#endif
+
+#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64)
+static pthread_once_t __xrtMemDebugOnce = PTHREAD_ONCE_INIT;
+#endif
+
+
+
+/* 初始化调试锁并默认开启调试记录。 */
+static void __xrtMemDebugInit(void)
+{
+	__xrtSpinInit(&__xrtMemDebug.Lock);
+	__xrtMemDebug.Enabled = true;
+}
+
+
+
+/* 线程安全地完成内存调试状态初始化。 */
+static void __xrtMemDebugEnsure(void)
+{
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64)
+		(void)pthread_once(&__xrtMemDebugOnce, __xrtMemDebugInit);
+	#else
+		int32 iState;
+
+		#if defined(_MSC_VER)
+			iState = (int32)_InterlockedCompareExchange((volatile long*)&__xrtMemDebug.InitState, 1, 0);
+		#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+			iState = (int32)InterlockedCompareExchange((volatile LONG*)&__xrtMemDebug.InitState, 1, 0);
+		#else
+			iState = (int32)__sync_val_compare_and_swap(&__xrtMemDebug.InitState, 0, 1);
+		#endif
+
+		if ( iState == 0 ) {
+			__xrtMemDebugInit();
+			#if defined(_MSC_VER)
+				(void)_InterlockedExchange((volatile long*)&__xrtMemDebug.InitState, 2);
+			#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+				(void)InterlockedExchange((volatile LONG*)&__xrtMemDebug.InitState, 2);
+			#else
+				(void)__sync_lock_test_and_set(&__xrtMemDebug.InitState, 2);
+			#endif
+			return;
+		}
+
+		while ( __xrtAtomicRefLoad(&__xrtMemDebug.InitState) != 2 ) {
+			#if defined(_WIN32) || defined(_WIN64)
+				(void)SwitchToThread();
+			#else
+				(void)sched_yield();
+			#endif
+		}
+	#endif
+}
+
+
+
+/* 在当前线程的逻辑分配边界消费一次故障计数。 */
+bool __xrtMemDebugShouldFailAlloc(void)
+{
+	xrt_memdebug_fail_state* pState =
+		__xrtMemDebugFailStateGet(false);
+
+	if ( (pState == NULL) || !pState->Armed ) {
+		return false;
+	}
+	if ( pState->Remaining != 0 ) {
+		pState->Remaining--;
+		return false;
+	}
+	pState->Armed = false;
+	pState->Triggered = true;
+	__xrtErrorSetOutOfMemory();
+	return true;
+}
+
+
+
+/* 返回紧邻用户内存之前的前边界值位置。 */
+static uint32* __xrtMemDebugFrontPtr(ptr pMemory)
+{
+	return (uint32*)((unsigned char*)pMemory - sizeof(uint32));
+}
+
+
+
+/* 计算与当前地址关联的前边界值。 */
+static uint32 __xrtMemDebugFrontValue(ptr pMemory)
+{
+	uint64 iAddress = (uint64)(uintptr_t)pMemory;
+
+	return XRT_MEMDEBUG_FRONT_CANARY ^ (uint32)iAddress ^ (uint32)(iAddress >> 32);
+}
+
+
+
+/* 计算与当前地址和请求大小关联的尾边界值。 */
+static uint32 __xrtMemDebugTailValue(ptr pMemory, size_t iSize)
+{
+	uint64 iAddress = (uint64)(uintptr_t)pMemory;
+	uint64 iLength = (uint64)iSize;
+
+	return XRT_MEMDEBUG_TAIL_CANARY ^ (uint32)iAddress ^ (uint32)(iAddress >> 32) ^
+		(uint32)iLength ^ (uint32)(iLength >> 32);
+}
+
+
+
+/* 写入可能未对齐的前后边界值。 */
+static void __xrtMemDebugWriteCanary(xrt_heap_header* pHeader, ptr pMemory)
+{
+	uint32 iFront = __xrtMemDebugFrontValue(pMemory);
+	uint32 iTail = __xrtMemDebugTailValue(pMemory, pHeader->Size);
+
+	memcpy(__xrtMemDebugFrontPtr(pMemory), &iFront, sizeof(iFront));
+	memcpy((unsigned char*)pMemory + pHeader->Size, &iTail, sizeof(iTail));
+}
+
+
+
+/* 检查前边界值是否仍然完整。 */
+static bool __xrtMemDebugFrontValid(ptr pMemory)
+{
+	uint32 iStored;
+
+	memcpy(&iStored, __xrtMemDebugFrontPtr(pMemory), sizeof(iStored));
+	return iStored == __xrtMemDebugFrontValue(pMemory);
+}
+
+
+
+/* 检查尾边界值是否仍然完整。 */
+static bool __xrtMemDebugTailValid(const xrt_heap_header* pHeader, ptr pMemory)
+{
+	uint32 iStored;
+
+	memcpy(&iStored, (unsigned char*)pMemory + pHeader->Size, sizeof(iStored));
+	return iStored == __xrtMemDebugTailValue(pMemory, pHeader->Size);
+}
+
+
+
+/* 在持锁状态下追加一个有界事件。 */
+static void __xrtMemDebugRecord(xmemdebugeventkind Kind, ptr pAddress, size_t iSize, cstr sFile, uint32 iLine)
+{
+	size_t iIndex;
+	xmemdebugevent* pEvent;
+
+	if ( __xrtMemDebug.EventCount < XRT_MEMDEBUG_EVENT_LIMIT ) {
+		iIndex = (__xrtMemDebug.EventStart + __xrtMemDebug.EventCount) % XRT_MEMDEBUG_EVENT_LIMIT;
+		__xrtMemDebug.EventCount++;
+	} else {
+		iIndex = __xrtMemDebug.EventStart;
+		__xrtMemDebug.EventStart = (__xrtMemDebug.EventStart + 1) % XRT_MEMDEBUG_EVENT_LIMIT;
+	}
+
+	pEvent = &__xrtMemDebug.Events[iIndex];
+	pEvent->Kind = Kind;
+	pEvent->Sequence = ++__xrtMemDebug.NextSequence;
+	pEvent->Address = pAddress;
+	pEvent->Size = iSize;
+	pEvent->File = sFile;
+	pEvent->Line = iLine;
+}
+
+
+
+/* 返回公开事件类型的稳定诊断名称。 */
+XRT_API cstr xrtMemDebugEventName(xmemdebugeventkind Kind)
+{
+	switch ( Kind ) {
+		case XMEMDEBUG_ALLOC:
+			return "alloc";
+		case XMEMDEBUG_FREE:
+			return "free";
+		case XMEMDEBUG_REALLOC:
+			return "realloc";
+		case XMEMDEBUG_DOUBLE_FREE:
+			return "double_free";
+		case XMEMDEBUG_INVALID_FREE:
+			return "invalid_free";
+		case XMEMDEBUG_OVERFLOW:
+			return "overflow";
+		case XMEMDEBUG_UNDERFLOW:
+			return "underflow";
+		case XMEMDEBUG_USE_AFTER_FREE:
+			return "use_after_free";
+		case XMEMDEBUG_TEMP_ALLOC:
+			return "temp_alloc";
+		case XMEMDEBUG_TEMP_REWIND:
+			return "temp_rewind";
+		case XMEMDEBUG_TEMP_RESET:
+			return "temp_reset";
+		default:
+			return "unknown";
+	}
+}
+
+
+
+/* 返回活动分配所在的固定哈希桶。 */
+static size_t __xrtMemDebugLiveBucket(ptr pMemory)
+{
+	uintptr_t iValue = (uintptr_t)pMemory;
+
+	iValue >>= 4;
+	iValue ^= iValue >> 11;
+	iValue *= (uintptr_t)0x9E3779B1u;
+	iValue ^= iValue >> 16;
+	return (size_t)iValue & (XRT_MEMDEBUG_LIVE_BUCKET_COUNT - 1u);
+}
+
+
+
+/* 在持锁状态下将分配块接入活动哈希桶。 */
+static void __xrtMemDebugAttachLive(xrt_heap_header* pHeader)
+{
+	ptr pMemory = (unsigned char*)pHeader + __xrtHeapHeaderSize();
+	size_t iBucket = __xrtMemDebugLiveBucket(pMemory);
+
+	pHeader->DebugPrev = NULL;
+	pHeader->DebugNext = __xrtMemDebug.LiveBuckets[iBucket];
+	if ( __xrtMemDebug.LiveBuckets[iBucket] != NULL ) {
+		__xrtMemDebug.LiveBuckets[iBucket]->DebugPrev = pHeader;
+	}
+	__xrtMemDebug.LiveBuckets[iBucket] = pHeader;
+}
+
+
+
+/* 在持锁状态下将分配块移出活动哈希桶。 */
+static void __xrtMemDebugDetachLive(xrt_heap_header* pHeader)
+{
+	ptr pMemory = (unsigned char*)pHeader + __xrtHeapHeaderSize();
+	size_t iBucket = __xrtMemDebugLiveBucket(pMemory);
+
+	if ( pHeader->DebugPrev != NULL ) {
+		pHeader->DebugPrev->DebugNext = pHeader->DebugNext;
+	} else {
+		__xrtMemDebug.LiveBuckets[iBucket] = pHeader->DebugNext;
+	}
+	if ( pHeader->DebugNext != NULL ) {
+		pHeader->DebugNext->DebugPrev = pHeader->DebugPrev;
+	}
+	pHeader->DebugPrev = NULL;
+	pHeader->DebugNext = NULL;
+}
+
+
+
+/* 在持锁状态下记录边界损坏。 */
+static bool __xrtMemDebugCheckCanary(xrt_heap_header* pHeader, ptr pMemory, cstr sFile, uint32 iLine)
+{
+	bool bValid = true;
+
+	if ( !__xrtMemDebugFrontValid(pMemory) ) {
+		__xrtMemDebug.UnderflowCount++;
+		__xrtMemDebugRecord(XMEMDEBUG_UNDERFLOW, pMemory, pHeader->Size, sFile, iLine);
+		bValid = false;
+	}
+	if ( !__xrtMemDebugTailValid(pHeader, pMemory) ) {
+		__xrtMemDebug.OverflowCount++;
+		__xrtMemDebugRecord(XMEMDEBUG_OVERFLOW, pMemory, pHeader->Size, sFile, iLine);
+		bValid = false;
+	}
+
+	return bValid;
+}
+
+
+
+/* 清空统计字段，调用者必须持有调试锁。 */
+static void __xrtMemDebugClearStats(void)
+{
+	__xrtMemDebug.LiveCount = 0;
+	__xrtMemDebug.LiveBytes = 0;
+	__xrtMemDebug.PeakCount = 0;
+	__xrtMemDebug.PeakBytes = 0;
+	__xrtMemDebug.QuarantineCount = 0;
+	__xrtMemDebug.QuarantineBytes = 0;
+	__xrtMemDebug.AllocCount = 0;
+	__xrtMemDebug.FreeCount = 0;
+	__xrtMemDebug.ReallocCount = 0;
+	__xrtMemDebug.DoubleFreeCount = 0;
+	__xrtMemDebug.InvalidFreeCount = 0;
+	__xrtMemDebug.OverflowCount = 0;
+	__xrtMemDebug.UnderflowCount = 0;
+	__xrtMemDebug.UseAfterFreeCount = 0;
+	__xrtMemDebug.TempCurrentBytes = 0;
+	__xrtMemDebug.TempPeakBytes = 0;
+	__xrtMemDebug.TempResetCount = 0;
+	__xrtMemDebug.NextSequence = 0;
+	__xrtMemDebug.EventStart = 0;
+	__xrtMemDebug.EventCount = 0;
+	memset(__xrtMemDebug.Events, 0, sizeof(__xrtMemDebug.Events));
+}
+
+
+
+/* 返回调试尾部边界需要的额外字节。 */
+size_t __xrtMemDebugTailSize(void)
+{
+	return sizeof(uint32);
+}
+
+
+
+/* 写入边界并登记一个新分配。 */
+void __xrtMemDebugAlloc(xrt_heap_header* pHeader, ptr pMemory, size_t iCapacity, cstr sFile, uint32 iLine)
+{
+	bool bTracked;
+
+	(void)iCapacity;
+	__xrtMemDebugEnsure();
+	__xrtMemDebugWriteCanary(pHeader, pMemory);
+
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	bTracked = __xrtMemDebug.Enabled;
+	pHeader->DebugState = XRT_MEMDEBUG_STATE_LIVE | (bTracked ? XRT_MEMDEBUG_STATE_TRACKED : 0);
+	pHeader->AllocFile = sFile;
+	pHeader->AllocLine = iLine;
+	__xrtMemDebug.ActiveCount++;
+	__xrtMemDebugAttachLive(pHeader);
+	if ( bTracked ) {
+		__xrtMemDebug.LiveCount++;
+		__xrtMemDebug.LiveBytes += pHeader->Size;
+		__xrtMemDebug.AllocCount++;
+		if ( __xrtMemDebug.LiveCount > __xrtMemDebug.PeakCount ) {
+			__xrtMemDebug.PeakCount = __xrtMemDebug.LiveCount;
+		}
+		if ( __xrtMemDebug.LiveBytes > __xrtMemDebug.PeakBytes ) {
+			__xrtMemDebug.PeakBytes = __xrtMemDebug.LiveBytes;
+		}
+		__xrtMemDebugRecord(XMEMDEBUG_ALLOC, pMemory, pHeader->Size, sFile, iLine);
+	}
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+}
+
+
+
+/* 在池化块复用前检查释放后的填充值。 */
+void __xrtMemDebugReuse(xrt_heap_header* pHeader, ptr pMemory, size_t iCapacity, cstr sFile, uint32 iLine)
+{
+	unsigned char* pBytes = (unsigned char*)pMemory;
+	bool bChanged = false;
+
+	__xrtMemDebugEnsure();
+	if ( ((pHeader->DebugState & XRT_MEMDEBUG_STATE_MASK) != XRT_MEMDEBUG_STATE_FREED) ||
+		 ((pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) == 0) ) {
+		return;
+	}
+	for ( size_t i = sizeof(ptr); i < iCapacity; i++ ) {
+		if ( pBytes[i] != XRT_MEMDEBUG_FREE_FILL ) {
+			bChanged = true;
+			break;
+		}
+	}
+	if ( !bChanged ) {
+		return;
+	}
+
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	__xrtMemDebug.UseAfterFreeCount++;
+	__xrtMemDebugRecord(XMEMDEBUG_USE_AFTER_FREE, pMemory, pHeader->Size, sFile, iLine);
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+}
+
+
+
+/* 验证释放并按块来源选择池化回收或隔离。 */
+int __xrtMemDebugFree(xrt_heap_header* pHeader, ptr pMemory, size_t iCapacity, cstr sFile, uint32 iLine)
+{
+	uint32 iState;
+	bool bTracked;
+	bool bCanaryValid = true;
+	xrt_heap_header* pRelease = NULL;
+
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	iState = pHeader->DebugState & XRT_MEMDEBUG_STATE_MASK;
+	bTracked = (pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) != 0;
+	if ( iState != XRT_MEMDEBUG_STATE_LIVE ) {
+		if ( bTracked || __xrtMemDebug.Enabled ) {
+			__xrtMemDebug.DoubleFreeCount++;
+			__xrtMemDebugRecord(XMEMDEBUG_DOUBLE_FREE, pMemory, pHeader->Size, sFile, iLine);
+		}
+		__xrtSpinUnlock(&__xrtMemDebug.Lock);
+		__xrtErrorSetInvalidState();
+		return XRT_MEMDEBUG_FREE_INVALID;
+	}
+
+	if ( bTracked ) {
+		bCanaryValid = __xrtMemDebugCheckCanary(pHeader, pMemory, sFile, iLine);
+		if ( __xrtMemDebug.LiveCount != 0 ) {
+			__xrtMemDebug.LiveCount--;
+		}
+		if ( __xrtMemDebug.LiveBytes >= pHeader->Size ) {
+			__xrtMemDebug.LiveBytes -= pHeader->Size;
+		} else {
+			__xrtMemDebug.LiveBytes = 0;
+		}
+		__xrtMemDebug.FreeCount++;
+		__xrtMemDebugRecord(XMEMDEBUG_FREE, pMemory, pHeader->Size, sFile, iLine);
+	}
+	__xrtMemDebugDetachLive(pHeader);
+	if ( __xrtMemDebug.ActiveCount != 0 ) {
+		__xrtMemDebug.ActiveCount--;
+	}
+	pHeader->FreeFile = sFile;
+	pHeader->FreeLine = iLine;
+	memset(pMemory, XRT_MEMDEBUG_FREE_FILL, iCapacity);
+
+	if ( (pHeader->Flags == XRT_HEAP_FLAG_BACKING) && bTracked ) {
+		pHeader->DebugState = XRT_MEMDEBUG_STATE_QUARANTINE | XRT_MEMDEBUG_STATE_TRACKED;
+		pHeader->DebugPrev = __xrtMemDebug.QuarantineTail;
+		pHeader->DebugNext = NULL;
+		if ( __xrtMemDebug.QuarantineTail != NULL ) {
+			__xrtMemDebug.QuarantineTail->DebugNext = pHeader;
+		} else {
+			__xrtMemDebug.QuarantineHead = pHeader;
+		}
+		__xrtMemDebug.QuarantineTail = pHeader;
+		__xrtMemDebug.QuarantineCount++;
+		__xrtMemDebug.QuarantineBytes += pHeader->Size;
+
+		if ( __xrtMemDebug.QuarantineCount > XRT_MEMDEBUG_QUARANTINE_LIMIT ) {
+			pRelease = __xrtMemDebug.QuarantineHead;
+			__xrtMemDebug.QuarantineHead = pRelease->DebugNext;
+			if ( __xrtMemDebug.QuarantineHead != NULL ) {
+				__xrtMemDebug.QuarantineHead->DebugPrev = NULL;
+			} else {
+				__xrtMemDebug.QuarantineTail = NULL;
+			}
+			__xrtMemDebug.QuarantineCount--;
+			__xrtMemDebug.QuarantineBytes -= pRelease->Size;
+			pRelease->DebugPrev = NULL;
+			pRelease->DebugNext = NULL;
+		}
+		__xrtSpinUnlock(&__xrtMemDebug.Lock);
+
+		if ( pRelease != NULL ) {
+			ptr pAllocation = pRelease->Allocation;
+
+			pRelease->Magic = 0;
+			__xrtBackingFree(pAllocation);
+		}
+		if ( !bCanaryValid ) {
+			__xrtErrorSetInvalidState();
+		}
+		return XRT_MEMDEBUG_FREE_CONSUMED;
+	}
+
+	pHeader->DebugState = XRT_MEMDEBUG_STATE_FREED | (bTracked ? XRT_MEMDEBUG_STATE_TRACKED : 0);
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+	if ( !bCanaryValid ) {
+		__xrtErrorSetInvalidState();
+	}
+	return XRT_MEMDEBUG_FREE_RECLAIM;
+}
+
+
+
+/* 验证重分配前的生命周期和边界。 */
+bool __xrtMemDebugCheck(xrt_heap_header* pHeader, ptr pMemory, cstr sFile, uint32 iLine)
+{
+	bool bTracked;
+	bool bValid;
+
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	bTracked = (pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) != 0;
+	if ( (pHeader->DebugState & XRT_MEMDEBUG_STATE_MASK) != XRT_MEMDEBUG_STATE_LIVE ) {
+		if ( bTracked || __xrtMemDebug.Enabled ) {
+			__xrtMemDebug.UseAfterFreeCount++;
+			__xrtMemDebugRecord(XMEMDEBUG_USE_AFTER_FREE, pMemory, pHeader->Size, sFile, iLine);
+		}
+		__xrtSpinUnlock(&__xrtMemDebug.Lock);
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	bValid = !bTracked || __xrtMemDebugCheckCanary(pHeader, pMemory, sFile, iLine);
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+	if ( !bValid ) {
+		__xrtErrorSetInvalidState();
+	}
+
+	return bValid;
+}
+
+
+
+/* 记录同一块内存上的重分配并重写尾边界。 */
+void __xrtMemDebugResize(xrt_heap_header* pHeader, ptr pMemory, size_t iOldSize, cstr sFile, uint32 iLine)
+{
+	bool bTracked;
+
+	__xrtMemDebugEnsure();
+	__xrtMemDebugWriteCanary(pHeader, pMemory);
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	bTracked = (pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) != 0;
+	if ( bTracked ) {
+		if ( __xrtMemDebug.LiveBytes >= iOldSize ) {
+			__xrtMemDebug.LiveBytes -= iOldSize;
+		} else {
+			__xrtMemDebug.LiveBytes = 0;
+		}
+		__xrtMemDebug.LiveBytes += pHeader->Size;
+		if ( __xrtMemDebug.LiveBytes > __xrtMemDebug.PeakBytes ) {
+			__xrtMemDebug.PeakBytes = __xrtMemDebug.LiveBytes;
+		}
+		__xrtMemDebug.ReallocCount++;
+		__xrtMemDebugRecord(XMEMDEBUG_REALLOC, pMemory, pHeader->Size, sFile, iLine);
+		pHeader->AllocFile = sFile;
+		pHeader->AllocLine = iLine;
+	}
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+}
+
+
+
+/* 记录已经完成的跨块重分配。 */
+void __xrtMemDebugRealloc(ptr pMemory, size_t iSize, cstr sFile, uint32 iLine)
+{
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	if ( __xrtMemDebug.Enabled ) {
+		__xrtMemDebug.ReallocCount++;
+		__xrtMemDebugRecord(XMEMDEBUG_REALLOC, pMemory, iSize, sFile, iLine);
+	}
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+}
+
+
+
+/* 记录无法识别的释放请求。 */
+void __xrtMemDebugInvalidFree(ptr pMemory, cstr sFile, uint32 iLine)
+{
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	if ( __xrtMemDebug.Enabled ) {
+		__xrtMemDebug.InvalidFreeCount++;
+		__xrtMemDebugRecord(XMEMDEBUG_INVALID_FREE, pMemory, 0, sFile, iLine);
+	}
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+}
+
+
+
+/* 从活动哈希桶和大块隔离队列中安全查找块头。 */
+bool __xrtMemDebugFindHeader(ptr pMemory, xrt_heap_header** ppHeader)
+{
+	xrt_heap_header* pHeader;
+	size_t iBucket;
+	bool bFound = false;
+
+	if ( (pMemory == NULL) || (ppHeader == NULL) ) {
+		return false;
+	}
+
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	iBucket = __xrtMemDebugLiveBucket(pMemory);
+	pHeader = __xrtMemDebug.LiveBuckets[iBucket];
+	while ( pHeader != NULL ) {
+		ptr pUser = (unsigned char*)pHeader + __xrtHeapHeaderSize();
+
+		if ( pUser == pMemory ) {
+			*ppHeader = pHeader;
+			bFound = true;
+			break;
+		}
+		pHeader = pHeader->DebugNext;
+	}
+	if ( !bFound ) {
+		pHeader = __xrtMemDebug.QuarantineHead;
+		while ( pHeader != NULL ) {
+			ptr pUser = (unsigned char*)pHeader + __xrtHeapHeaderSize();
+
+			if ( pUser == pMemory ) {
+				*ppHeader = pHeader;
+				bFound = true;
+				break;
+			}
+			pHeader = pHeader->DebugNext;
+		}
+	}
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+	return bFound;
+}
+
+
+
+/* 记录临时 arena 的一次成功分配。 */
+void __xrtMemDebugTempAlloc(size_t iSize, cstr sFile, uint32 iLine)
+{
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	if ( iSize <= (SIZE_MAX - __xrtMemDebug.TempActiveBytes) ) {
+		__xrtMemDebug.TempActiveBytes += iSize;
+	} else {
+		__xrtMemDebug.TempActiveBytes = SIZE_MAX;
+	}
+	if ( __xrtMemDebug.Enabled ) {
+		if ( iSize <= (SIZE_MAX - __xrtMemDebug.TempCurrentBytes) ) {
+			__xrtMemDebug.TempCurrentBytes += iSize;
+		} else {
+			__xrtMemDebug.TempCurrentBytes = SIZE_MAX;
+		}
+		if ( __xrtMemDebug.TempCurrentBytes > __xrtMemDebug.TempPeakBytes ) {
+			__xrtMemDebug.TempPeakBytes = __xrtMemDebug.TempCurrentBytes;
+		}
+		__xrtMemDebugRecord(XMEMDEBUG_TEMP_ALLOC, NULL, iSize, sFile, iLine);
+	}
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+}
+
+
+
+/* 记录临时 arena 的作用域回退或整体重置。 */
+void __xrtMemDebugTempRelease(size_t iSize, xmemdebugeventkind Kind, cstr sFile, uint32 iLine)
+{
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	if ( __xrtMemDebug.TempActiveBytes >= iSize ) {
+		__xrtMemDebug.TempActiveBytes -= iSize;
+	} else {
+		__xrtMemDebug.TempActiveBytes = 0;
+	}
+	if ( __xrtMemDebug.Enabled ) {
+		if ( __xrtMemDebug.TempCurrentBytes >= iSize ) {
+			__xrtMemDebug.TempCurrentBytes -= iSize;
+		} else {
+			__xrtMemDebug.TempCurrentBytes = 0;
+		}
+		if ( Kind == XMEMDEBUG_TEMP_RESET ) {
+			__xrtMemDebug.TempResetCount++;
+		}
+		__xrtMemDebugRecord(Kind, NULL, iSize, sFile, iLine);
+	}
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+}
+
+
+
+/* 在没有活动分配时切换运行时调试记录。 */
+XRT_API bool xrtMemDebugEnable(bool bEnable)
+{
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	if ( (__xrtMemDebug.ActiveCount != 0) || (__xrtMemDebug.TempActiveBytes != 0) ) {
+		__xrtSpinUnlock(&__xrtMemDebug.Lock);
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	__xrtMemDebug.Enabled = bEnable;
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+	return true;
+}
+
+
+
+/* 返回运行时调试记录开关。 */
+XRT_API bool xrtMemDebugEnabled(void)
+{
+	bool bEnabled;
+
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	bEnabled = __xrtMemDebug.Enabled;
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+	return bEnabled;
+}
+
+
+
+/* 配置当前线程的一次性逻辑分配故障。 */
+XRT_API bool xrtMemDebugFailAfter(uint64 iSuccessfulAllocations)
+{
+	xrt_memdebug_fail_state* pState =
+		__xrtMemDebugFailStateGet(true);
+
+	if ( pState == NULL ) {
+		return false;
+	}
+	pState->Remaining = iSuccessfulAllocations;
+	pState->Armed = true;
+	pState->Triggered = false;
+	return true;
+}
+
+
+
+/* 清除当前线程的一次性逻辑分配故障。 */
+XRT_API void xrtMemDebugFailClear(void)
+{
+	xrt_memdebug_fail_state* pState =
+		__xrtMemDebugFailStateGet(false);
+
+	if ( pState != NULL ) {
+		memset(pState, 0, sizeof(*pState));
+	}
+}
+
+
+
+/* 查询当前线程最近一次故障配置是否已经触发。 */
+XRT_API bool xrtMemDebugFailTriggered(void)
+{
+	xrt_memdebug_fail_state* pState =
+		__xrtMemDebugFailStateGet(false);
+
+	return (pState != NULL) && pState->Triggered;
+}
+
+
+
+/* 清空统计并释放大块隔离队列。 */
+XRT_API bool xrtMemDebugReset(void)
+{
+	xrt_heap_header* pRelease;
+
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	if ( (__xrtMemDebug.ActiveCount != 0) || (__xrtMemDebug.TempActiveBytes != 0) ) {
+		__xrtSpinUnlock(&__xrtMemDebug.Lock);
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	pRelease = __xrtMemDebug.QuarantineHead;
+	memset(
+		__xrtMemDebug.LiveBuckets,
+		0,
+		sizeof(__xrtMemDebug.LiveBuckets)
+	);
+	__xrtMemDebug.QuarantineHead = NULL;
+	__xrtMemDebug.QuarantineTail = NULL;
+	__xrtMemDebugClearStats();
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+
+	while ( pRelease != NULL ) {
+		xrt_heap_header* pNext = pRelease->DebugNext;
+		ptr pAllocation = pRelease->Allocation;
+
+		pRelease->Magic = 0;
+		__xrtBackingFree(pAllocation);
+		pRelease = pNext;
+	}
+	return true;
+}
+
+
+
+/* 复制一份一致的统计快照。 */
+XRT_API void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot)
+{
+	if ( pSnapshot == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	pSnapshot->Enabled = __xrtMemDebug.Enabled;
+	pSnapshot->LiveCount = __xrtMemDebug.LiveCount;
+	pSnapshot->LiveBytes = __xrtMemDebug.LiveBytes;
+	pSnapshot->PeakCount = __xrtMemDebug.PeakCount;
+	pSnapshot->PeakBytes = __xrtMemDebug.PeakBytes;
+	pSnapshot->QuarantineCount = __xrtMemDebug.QuarantineCount;
+	pSnapshot->QuarantineBytes = __xrtMemDebug.QuarantineBytes;
+	pSnapshot->AllocCount = __xrtMemDebug.AllocCount;
+	pSnapshot->FreeCount = __xrtMemDebug.FreeCount;
+	pSnapshot->ReallocCount = __xrtMemDebug.ReallocCount;
+	pSnapshot->DoubleFreeCount = __xrtMemDebug.DoubleFreeCount;
+	pSnapshot->InvalidFreeCount = __xrtMemDebug.InvalidFreeCount;
+	pSnapshot->OverflowCount = __xrtMemDebug.OverflowCount;
+	pSnapshot->UnderflowCount = __xrtMemDebug.UnderflowCount;
+	pSnapshot->UseAfterFreeCount = __xrtMemDebug.UseAfterFreeCount;
+	pSnapshot->TempCurrentBytes = __xrtMemDebug.TempCurrentBytes;
+	pSnapshot->TempPeakBytes = __xrtMemDebug.TempPeakBytes;
+	pSnapshot->TempResetCount = __xrtMemDebug.TempResetCount;
+	pSnapshot->EventCount = __xrtMemDebug.EventCount;
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+}
+
+
+
+/* 复制有界事件后在锁外调用用户访问器。 */
+XRT_API size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData)
+{
+	xmemdebugevent* pEvents;
+	size_t iCount;
+	size_t iVisited = 0;
+
+	if ( pVisitor == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	pEvents = (xmemdebugevent*)__xrtBackingAlloc(
+		sizeof(xmemdebugevent) * XRT_MEMDEBUG_EVENT_LIMIT
+	);
+	if ( pEvents == NULL ) {
+		__xrtErrorSetOutOfMemory();
+		return 0;
+	}
+
+	__xrtMemDebugEnsure();
+	__xrtSpinLock(&__xrtMemDebug.Lock);
+	iCount = __xrtMemDebug.EventCount;
+	for ( size_t i = 0; i < iCount; i++ ) {
+		size_t iIndex = (__xrtMemDebug.EventStart + i) % XRT_MEMDEBUG_EVENT_LIMIT;
+
+		pEvents[i] = __xrtMemDebug.Events[iIndex];
+	}
+	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+
+	for ( size_t i = 0; i < iCount; i++ ) {
+		iVisited++;
+		if ( !pVisitor(&pEvents[i], pUserData) ) {
+			break;
+		}
+	}
+	__xrtBackingFree(pEvents);
+	return iVisited;
+}
+
+
+
+/* 捕获一份完整活动分配快照。 */
+bool __xrtMemDebugCaptureLive(xmemdebugallocation** ppAllocations, size_t* pCount)
+{
+	xmemdebugallocation* pAllocations = NULL;
+	xrt_heap_header* pHeader;
+	size_t iCapacity = 0;
+	size_t iCount = 0;
+	size_t iBucket;
+
+	if ( (ppAllocations == NULL) || (pCount == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	*ppAllocations = NULL;
+	*pCount = 0;
+
+	__xrtMemDebugEnsure();
+	for ( ;; ) {
+		size_t iRequired;
+
+		__xrtSpinLock(&__xrtMemDebug.Lock);
+		iRequired = __xrtMemDebug.LiveCount;
+		__xrtSpinUnlock(&__xrtMemDebug.Lock);
+		if ( iRequired == 0 ) {
+			__xrtBackingFree(pAllocations);
+			return true;
+		}
+		if ( iRequired > iCapacity ) {
+			if ( iRequired > (SIZE_MAX / sizeof(xmemdebugallocation)) ) {
+				__xrtBackingFree(pAllocations);
+				__xrtErrorSetSizeOverflow();
+				return false;
+			}
+			__xrtBackingFree(pAllocations);
+			pAllocations = (xmemdebugallocation*)__xrtBackingAlloc(
+				iRequired * sizeof(xmemdebugallocation)
+			);
+			if ( pAllocations == NULL ) {
+				__xrtErrorSetOutOfMemory();
+				return false;
+			}
+			iCapacity = iRequired;
+		}
+
+		__xrtSpinLock(&__xrtMemDebug.Lock);
+		if ( __xrtMemDebug.LiveCount > iCapacity ) {
+			__xrtSpinUnlock(&__xrtMemDebug.Lock);
+			continue;
+		}
+		iCount = 0;
+		for ( iBucket = 0; iBucket < XRT_MEMDEBUG_LIVE_BUCKET_COUNT; iBucket++ ) {
+			pHeader = __xrtMemDebug.LiveBuckets[iBucket];
+			while ( pHeader != NULL ) {
+				if ( (pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) != 0 ) {
+					if ( iCount == iCapacity ) {
+						__xrtSpinUnlock(&__xrtMemDebug.Lock);
+						__xrtBackingFree(pAllocations);
+						__xrtErrorSetInvalidState();
+						return false;
+					}
+					pAllocations[iCount].Address =
+						(unsigned char*)pHeader + __xrtHeapHeaderSize();
+					pAllocations[iCount].Size = pHeader->Size;
+					pAllocations[iCount].File = pHeader->AllocFile;
+					pAllocations[iCount].Line = pHeader->AllocLine;
+					iCount++;
+				}
+				pHeader = pHeader->DebugNext;
+			}
+		}
+		__xrtSpinUnlock(&__xrtMemDebug.Lock);
+		break;
+	}
+
+	*ppAllocations = pAllocations;
+	*pCount = iCount;
+	return true;
+}
+
+
+
+/* 复制活动分配后在锁外调用用户访问器。 */
+XRT_API size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData)
+{
+	xmemdebugallocation* pAllocations;
+	size_t iCount;
+	size_t iVisited = 0;
+
+	if ( pVisitor == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	if ( !__xrtMemDebugCaptureLive(&pAllocations, &iCount) ) {
+		return 0;
+	}
+
+	for ( size_t i = 0; i < iCount; i++ ) {
+		iVisited++;
+		if ( !pVisitor(&pAllocations[i], pUserData) ) {
+			break;
+		}
+	}
+	__xrtBackingFree(pAllocations);
+	return iVisited;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/core/atomic.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_ATOMIC)
+
+
+
+#if defined(XRT_FEATURE_ATOMIC)
+
+/* 检查原子对象地址满足操作宽度的自然对齐。 */
+static bool __xrtAtomicAddressValid(const void* pAtomic, size_t iAlignment)
+{
+	if (
+		(pAtomic == NULL) ||
+		(((uintptr_t)pAtomic & (iAlignment - 1u)) != 0)
+	) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	return true;
+}
+
+
+
+#if defined(__TINYC__) && defined(_WIN32) && \
+	(UINTPTR_MAX == UINT32_MAX)
+
+#define XRT_ATOMIC64_FALLBACK_LOCKS 64u
+
+/* TinyCC x86 不会把成员的 8 字节对齐传播给栈上外层结构，使用分片锁保护退化路径。 */
+static volatile LONG __xrtAtomic64FallbackLocks[
+	XRT_ATOMIC64_FALLBACK_LOCKS
+];
+
+
+
+/* 返回未对齐 64 位原子对象使用的稳定分片锁。 */
+static volatile LONG* __xrtAtomic64FallbackLock(const xatomic64* pAtomic)
+{
+	uintptr_t iIndex = ((uintptr_t)pAtomic >> 2u) &
+		(XRT_ATOMIC64_FALLBACK_LOCKS - 1u);
+
+	return &__xrtAtomic64FallbackLocks[iIndex];
+}
+
+
+
+/* 获取 TinyCC x86 未对齐 64 位原子对象的分片锁。 */
+static void __xrtAtomic64FallbackAcquire(volatile LONG* pLock)
+{
+	while ( InterlockedCompareExchange(pLock, 1, 0) != 0 ) {
+		__xrtAtomicPause();
+	}
+}
+
+
+
+/* 释放 TinyCC x86 未对齐 64 位原子对象的分片锁。 */
+static void __xrtAtomic64FallbackRelease(volatile LONG* pLock)
+{
+	(void)InterlockedExchange(pLock, 0);
+}
+
+
+
+/* 在分片锁内读取可能仅有 4 字节对齐的 64 位值。 */
+static uint64 __xrtAtomic64FallbackRead(const xatomic64* pAtomic)
+{
+	uint64 iValue;
+
+	memcpy(&iValue, (const void*)&pAtomic->Value, sizeof(iValue));
+	return iValue;
+}
+
+
+
+/* 在分片锁内写入可能仅有 4 字节对齐的 64 位值。 */
+static void __xrtAtomic64FallbackWrite(xatomic64* pAtomic, uint64 iValue)
+{
+	memcpy((void*)&pAtomic->Value, &iValue, sizeof(iValue));
+}
+
+
+
+/* 使用强于请求顺序的分片锁读取未对齐 64 位原子值。 */
+static uint64 __xrtAtomic64FallbackLoad(const xatomic64* pAtomic)
+{
+	volatile LONG* pLock = __xrtAtomic64FallbackLock(pAtomic);
+	uint64 iValue;
+
+	__xrtAtomic64FallbackAcquire(pLock);
+	iValue = __xrtAtomic64FallbackRead(pAtomic);
+	__xrtAtomic64FallbackRelease(pLock);
+	return iValue;
+}
+
+
+
+/* 使用强于请求顺序的分片锁写入未对齐 64 位原子值。 */
+static void __xrtAtomic64FallbackStore(xatomic64* pAtomic, uint64 iValue)
+{
+	volatile LONG* pLock = __xrtAtomic64FallbackLock(pAtomic);
+
+	__xrtAtomic64FallbackAcquire(pLock);
+	__xrtAtomic64FallbackWrite(pAtomic, iValue);
+	__xrtAtomic64FallbackRelease(pLock);
+}
+
+
+
+/* 比较交换未对齐 64 位原子值并返回修改前的值。 */
+static uint64 __xrtAtomic64FallbackCompare(
+	xatomic64* pAtomic,
+	uint64 iExpected,
+	uint64 iDesired
+)
+{
+	volatile LONG* pLock = __xrtAtomic64FallbackLock(pAtomic);
+	uint64 iActual;
+
+	__xrtAtomic64FallbackAcquire(pLock);
+	iActual = __xrtAtomic64FallbackRead(pAtomic);
+	if ( iActual == iExpected ) {
+		__xrtAtomic64FallbackWrite(pAtomic, iDesired);
+	}
+	__xrtAtomic64FallbackRelease(pLock);
+	return iActual;
+}
+
+
+
+/* 更新未对齐 64 位原子值并返回修改前的值。 */
+static uint64 __xrtAtomic64FallbackUpdate(
+	xatomic64* pAtomic,
+	uint64 iValue,
+	uint32 iOperation
+)
+{
+	volatile LONG* pLock = __xrtAtomic64FallbackLock(pAtomic);
+	uint64 iOld;
+	uint64 iNew;
+
+	__xrtAtomic64FallbackAcquire(pLock);
+	iOld = __xrtAtomic64FallbackRead(pAtomic);
+	switch ( iOperation ) {
+		case 0u:
+			iNew = iValue;
+			break;
+		case 1u:
+			iNew = iOld + iValue;
+			break;
+		case 2u:
+			iNew = iOld & iValue;
+			break;
+		case 3u:
+			iNew = iOld | iValue;
+			break;
+		default:
+			iNew = iOld ^ iValue;
+			break;
+	}
+	__xrtAtomic64FallbackWrite(pAtomic, iNew);
+	__xrtAtomic64FallbackRelease(pLock);
+	return iOld;
+}
+
+
+
+
+/* 判断 64 位原子对象是否需要 TinyCC x86 分片锁退化路径。 */
+static bool __xrtAtomic64NeedsFallback(const xatomic64* pAtomic)
+{
+	return (((uintptr_t)pAtomic & 7u) != 0u);
+}
+
+#endif
+
+
+
+/* 检查 64 位原子对象满足当前编译器后端的最低安全对齐。 */
+static bool __xrtAtomic64AddressValid(const xatomic64* pAtomic)
+{
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		return __xrtAtomicAddressValid(pAtomic, 4u);
+	#else
+		return __xrtAtomicAddressValid(pAtomic, 8u);
+	#endif
+}
+
+
+
+/* 检查加载操作使用合法内存顺序。 */
+static bool __xrtAtomicLoadOrderValid(xmemoryorder iOrder)
+{
+	if (
+		(iOrder != XMEMORY_RELAXED) &&
+		(iOrder != XMEMORY_ACQUIRE) &&
+		(iOrder != XMEMORY_SEQ_CST)
+	) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	return true;
+}
+
+
+
+/* 检查存储操作使用合法内存顺序。 */
+static bool __xrtAtomicStoreOrderValid(xmemoryorder iOrder)
+{
+	if (
+		(iOrder != XMEMORY_RELAXED) &&
+		(iOrder != XMEMORY_RELEASE) &&
+		(iOrder != XMEMORY_SEQ_CST)
+	) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	return true;
+}
+
+
+
+/* 检查读改写操作使用已定义内存顺序。 */
+static bool __xrtAtomicRMWOrderValid(xmemoryorder iOrder)
+{
+	if ( (iOrder < XMEMORY_RELAXED) || (iOrder > XMEMORY_SEQ_CST) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	return true;
+}
+
+
+
+/* 检查比较交换成功和失败顺序满足 C11 约束。 */
+static bool __xrtAtomicCASOrderValid(
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+)
+{
+	bool bValid = false;
+
+	if ( !__xrtAtomicRMWOrderValid(iSuccess) ) {
+		return false;
+	}
+	switch ( iSuccess ) {
+		case XMEMORY_RELAXED:
+			bValid = iFailure == XMEMORY_RELAXED;
+			break;
+		case XMEMORY_ACQUIRE:
+			bValid =
+				(iFailure == XMEMORY_RELAXED) ||
+				(iFailure == XMEMORY_ACQUIRE);
+			break;
+		case XMEMORY_RELEASE:
+			bValid = iFailure == XMEMORY_RELAXED;
+			break;
+		case XMEMORY_ACQ_REL:
+			bValid =
+				(iFailure == XMEMORY_RELAXED) ||
+				(iFailure == XMEMORY_ACQUIRE);
+			break;
+		case XMEMORY_SEQ_CST:
+			bValid =
+				(iFailure == XMEMORY_RELAXED) ||
+				(iFailure == XMEMORY_ACQUIRE) ||
+				(iFailure == XMEMORY_SEQ_CST);
+			break;
+		default:
+			break;
+	}
+	if ( !bValid ) {
+		__xrtErrorSetInvalidArgument();
+	}
+
+	return bValid;
+}
+
+
+
+/* 判断自然对齐的指定宽度是否由当前目标无锁实现。 */
+XRT_API bool xrtAtomicIsLockFree(size_t iSize)
+{
+	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+		if ( iSize == 4u ) {
+			return __atomic_always_lock_free(4u, NULL);
+		}
+		if ( iSize == 8u ) {
+			return __atomic_always_lock_free(8u, NULL);
+		}
+		return false;
+	#elif defined(_WIN32) || defined(_WIN64)
+		return (iSize == 4u) || (iSize == 8u);
+	#elif defined(__x86_64__) || defined(_M_X64)
+		return (iSize == 4u) || (iSize == 8u);
+	#elif defined(__i386__) || defined(_M_IX86)
+		return iSize == 4u;
+	#else
+		return false;
+	#endif
+}
+
+
+
+/* 在对象发布给其他线程前初始化 32 位原子值。 */
+XRT_API void xrtAtomic32Init(xatomic32* pAtomic, uint32 iValue)
+{
+	if ( !__xrtAtomicAddressValid(pAtomic, 4u) ) {
+		return;
+	}
+
+	pAtomic->Value = iValue;
+}
+
+
+
+/* 按指定内存顺序读取 32 位原子值。 */
+XRT_API uint32 xrtAtomic32Load(const xatomic32* pAtomic, xmemoryorder iOrder)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, 4u) ||
+		!__xrtAtomicLoadOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	return __xrtAtomic32LoadValue(&pAtomic->Value, iOrder);
+}
+
+
+
+/* 按指定内存顺序写入 32 位原子值。 */
+XRT_API void xrtAtomic32Store(
+	xatomic32* pAtomic,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, 4u) ||
+		!__xrtAtomicStoreOrderValid(iOrder)
+	) {
+		return;
+	}
+
+	__xrtAtomic32StoreValue(&pAtomic->Value, iValue, iOrder);
+}
+
+
+
+/* 原子交换 32 位值并返回旧值。 */
+XRT_API uint32 xrtAtomic32Exchange(
+	xatomic32* pAtomic,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, 4u) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	return __xrtAtomic32ExchangeValue(&pAtomic->Value, iValue, iOrder);
+}
+
+
+
+/* 强比较交换 32 位值，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomic32CompareExchange(
+	xatomic32* pAtomic,
+	uint32* pExpected,
+	uint32 iDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+)
+{
+	uint32 iActual;
+
+	if (
+		!__xrtAtomicAddressValid(pAtomic, 4u) ||
+		(pExpected == NULL) ||
+		!__xrtAtomicCASOrderValid(iSuccess, iFailure)
+	) {
+		if ( pExpected == NULL ) {
+			__xrtErrorSetInvalidArgument();
+		}
+		return false;
+	}
+
+	iActual = __xrtAtomic32CompareValue(
+		&pAtomic->Value,
+		*pExpected,
+		iDesired,
+		iSuccess,
+		iFailure
+	);
+	if ( iActual == *pExpected ) {
+		return true;
+	}
+	*pExpected = iActual;
+	return false;
+}
+
+
+
+/* 原子加 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchAdd(
+	xatomic32* pAtomic,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, 4u) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	return __xrtAtomic32FetchAddValue(&pAtomic->Value, iValue, iOrder);
+}
+
+
+
+/* 原子减 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchSub(
+	xatomic32* pAtomic,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	return xrtAtomic32FetchAdd(pAtomic, 0u - iValue, iOrder);
+}
+
+
+
+/* 原子按位与 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchAnd(
+	xatomic32* pAtomic,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, 4u) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	return __xrtAtomic32FetchBitsValue(&pAtomic->Value, iValue, 0u, iOrder);
+}
+
+
+
+/* 原子按位或 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchOr(
+	xatomic32* pAtomic,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, 4u) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	return __xrtAtomic32FetchBitsValue(&pAtomic->Value, iValue, 1u, iOrder);
+}
+
+
+
+/* 原子按位异或 32 位值并返回修改前的值。 */
+XRT_API uint32 xrtAtomic32FetchXor(
+	xatomic32* pAtomic,
+	uint32 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, 4u) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	return __xrtAtomic32FetchBitsValue(&pAtomic->Value, iValue, 2u, iOrder);
+}
+
+
+
+/* 在对象发布给其他线程前初始化 64 位原子值。 */
+XRT_API void xrtAtomic64Init(xatomic64* pAtomic, uint64 iValue)
+{
+	if ( !__xrtAtomic64AddressValid(pAtomic) ) {
+		return;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			__xrtAtomic64FallbackWrite(pAtomic, iValue);
+			return;
+		}
+	#endif
+
+	pAtomic->Value = iValue;
+}
+
+
+
+/* 按指定内存顺序读取 64 位原子值。 */
+XRT_API uint64 xrtAtomic64Load(const xatomic64* pAtomic, xmemoryorder iOrder)
+{
+	if (
+		!__xrtAtomic64AddressValid(pAtomic) ||
+		!__xrtAtomicLoadOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			return __xrtAtomic64FallbackLoad(pAtomic);
+		}
+	#endif
+
+	return __xrtAtomic64LoadValue(&pAtomic->Value, iOrder);
+}
+
+
+
+/* 按指定内存顺序写入 64 位原子值。 */
+XRT_API void xrtAtomic64Store(
+	xatomic64* pAtomic,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomic64AddressValid(pAtomic) ||
+		!__xrtAtomicStoreOrderValid(iOrder)
+	) {
+		return;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			__xrtAtomic64FallbackStore(pAtomic, iValue);
+			return;
+		}
+	#endif
+
+	__xrtAtomic64StoreValue(&pAtomic->Value, iValue, iOrder);
+}
+
+
+
+/* 原子交换 64 位值并返回旧值。 */
+XRT_API uint64 xrtAtomic64Exchange(
+	xatomic64* pAtomic,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomic64AddressValid(pAtomic) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 0u);
+		}
+	#endif
+
+	return __xrtAtomic64ExchangeValue(&pAtomic->Value, iValue, iOrder);
+}
+
+
+
+/* 强比较交换 64 位值，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomic64CompareExchange(
+	xatomic64* pAtomic,
+	uint64* pExpected,
+	uint64 iDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+)
+{
+	uint64 iActual;
+
+	if (
+		!__xrtAtomic64AddressValid(pAtomic) ||
+		(pExpected == NULL) ||
+		!__xrtAtomicCASOrderValid(iSuccess, iFailure)
+	) {
+		if ( pExpected == NULL ) {
+			__xrtErrorSetInvalidArgument();
+		}
+		return false;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			iActual = __xrtAtomic64FallbackCompare(
+				pAtomic,
+				*pExpected,
+				iDesired
+			);
+		} else
+	#endif
+	{
+		iActual = __xrtAtomic64CompareValue(
+			&pAtomic->Value,
+			*pExpected,
+			iDesired,
+			iSuccess,
+			iFailure
+		);
+	}
+	if ( iActual == *pExpected ) {
+		return true;
+	}
+	*pExpected = iActual;
+	return false;
+}
+
+
+
+/* 原子加 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchAdd(
+	xatomic64* pAtomic,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomic64AddressValid(pAtomic) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 1u);
+		}
+	#endif
+
+	return __xrtAtomic64FetchAddValue(&pAtomic->Value, iValue, iOrder);
+}
+
+
+
+/* 原子减 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchSub(
+	xatomic64* pAtomic,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	return xrtAtomic64FetchAdd(pAtomic, 0u - iValue, iOrder);
+}
+
+
+
+/* 原子按位与 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchAnd(
+	xatomic64* pAtomic,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomic64AddressValid(pAtomic) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 2u);
+		}
+	#endif
+
+	return __xrtAtomic64FetchBitsValue(&pAtomic->Value, iValue, 0u, iOrder);
+}
+
+
+
+/* 原子按位或 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchOr(
+	xatomic64* pAtomic,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomic64AddressValid(pAtomic) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 3u);
+		}
+	#endif
+
+	return __xrtAtomic64FetchBitsValue(&pAtomic->Value, iValue, 1u, iOrder);
+}
+
+
+
+/* 原子按位异或 64 位值并返回修改前的值。 */
+XRT_API uint64 xrtAtomic64FetchXor(
+	xatomic64* pAtomic,
+	uint64 iValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomic64AddressValid(pAtomic) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return 0u;
+	}
+
+	#if defined(__TINYC__) && defined(_WIN32) && \
+		(UINTPTR_MAX == UINT32_MAX)
+		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
+			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 4u);
+		}
+	#endif
+
+	return __xrtAtomic64FetchBitsValue(&pAtomic->Value, iValue, 2u, iOrder);
+}
+
+
+
+/* 在对象发布给其他线程前初始化原子指针。 */
+XRT_API void xrtAtomicPtrInit(xatomicptr* pAtomic, ptr pValue)
+{
+	if ( !__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ) {
+		return;
+	}
+
+	pAtomic->Value = pValue;
+}
+
+
+
+/* 按指定内存顺序读取原子指针。 */
+XRT_API ptr xrtAtomicPtrLoad(const xatomicptr* pAtomic, xmemoryorder iOrder)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ||
+		!__xrtAtomicLoadOrderValid(iOrder)
+	) {
+		return NULL;
+	}
+
+	return __xrtAtomicPtrLoadValue(&pAtomic->Value, iOrder);
+}
+
+
+
+/* 按指定内存顺序写入原子指针。 */
+XRT_API void xrtAtomicPtrStore(
+	xatomicptr* pAtomic,
+	ptr pValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ||
+		!__xrtAtomicStoreOrderValid(iOrder)
+	) {
+		return;
+	}
+
+	__xrtAtomicPtrStoreValue(&pAtomic->Value, pValue, iOrder);
+}
+
+
+
+/* 原子交换指针并返回旧值。 */
+XRT_API ptr xrtAtomicPtrExchange(
+	xatomicptr* pAtomic,
+	ptr pValue,
+	xmemoryorder iOrder
+)
+{
+	if (
+		!__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ||
+		!__xrtAtomicRMWOrderValid(iOrder)
+	) {
+		return NULL;
+	}
+
+	return __xrtAtomicPtrExchangeValue(&pAtomic->Value, pValue, iOrder);
+}
+
+
+
+/* 强比较交换指针，失败时把实际值写回 Expected。 */
+XRT_API bool xrtAtomicPtrCompareExchange(
+	xatomicptr* pAtomic,
+	ptr* pExpected,
+	ptr pDesired,
+	xmemoryorder iSuccess,
+	xmemoryorder iFailure
+)
+{
+	ptr pActual;
+
+	if (
+		!__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ||
+		(pExpected == NULL) ||
+		!__xrtAtomicCASOrderValid(iSuccess, iFailure)
+	) {
+		if ( pExpected == NULL ) {
+			__xrtErrorSetInvalidArgument();
+		}
+		return false;
+	}
+
+	pActual = __xrtAtomicPtrCompareValue(
+		&pAtomic->Value,
+		*pExpected,
+		pDesired,
+		iSuccess,
+		iFailure
+	);
+	if ( pActual == *pExpected ) {
+		return true;
+	}
+	*pExpected = pActual;
+	return false;
+}
+
+
+
+/* 建立线程间内存栅栏。 */
+XRT_API void xrtAtomicThreadFence(xmemoryorder iOrder)
+{
+	if ( !__xrtAtomicRMWOrderValid(iOrder) ) {
+		return;
+	}
+
+	__xrtAtomicThreadFence(iOrder);
+}
+
+
+
+/* 建立当前线程与信号处理器之间的编译器栅栏。 */
+XRT_API void xrtAtomicSignalFence(xmemoryorder iOrder)
+{
+	if ( !__xrtAtomicRMWOrderValid(iOrder) ) {
+		return;
+	}
+
+	__xrtAtomicSignalFence(iOrder);
+}
+
+
+
+/* 向处理器提示当前线程处于短自旋等待。 */
+XRT_API void xrtAtomicPause(void)
+{
+	__xrtAtomicPause();
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/data/text_value_common.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_JSON_CORE) || \
+	defined(XRT_FEATURE_XSON_CORE)
+
+#include <stdio.h>
+
+
+
+#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XSON_CORE)
+
+/* 建立稳定错误域、代码和可选文本位置。 */
+void __xrtTextValueError(
+	xerrkind Kind,
+	int32 iCode,
+	cstr sDomain,
+	cstr sOperation,
+	cstr sMessage,
+	bool bLocation,
+	size_t iOffset,
+	size_t iLine,
+	size_t iColumn
+)
+{
+	char Data[128];
+	xerrordesc Desc;
+	xerror* pError;
+
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = Kind;
+	Desc.Code = iCode;
+	Desc.Domain = sDomain;
+	Desc.Operation = sOperation;
+	Desc.Message = sMessage;
+	if ( bLocation ) {
+		(void)snprintf(
+			Data,
+			sizeof(Data),
+			"offset=%llu;line=%llu;column=%llu",
+			(unsigned long long)iOffset,
+			(unsigned long long)iLine,
+			(unsigned long long)iColumn
+		);
+		Desc.Data = Data;
+	}
+	pError = xrtErrorBuild(&Desc);
+	if ( pError != NULL ) {
+		__xrtErrorSetOwned(pError);
+	}
+}
+
+
+
+/* 严格读取指定格式错误域中的文本位置机器数据。 */
+bool __xrtTextValueErrorLocation(
+	const xerror* pError,
+	cstr sDomain,
+	size_t* pOffset,
+	size_t* pLine,
+	size_t* pColumn
+)
+{
+	cstr sData;
+	unsigned long long iOffset;
+	unsigned long long iLine;
+	unsigned long long iColumn;
+
+	if (
+		(pError == NULL) || (sDomain == NULL) ||
+		(pOffset == NULL) || (pLine == NULL) || (pColumn == NULL)
+	) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if (
+		(xrtErrorDomain(pError) == NULL) ||
+		(strcmp(xrtErrorDomain(pError), sDomain) != 0)
+	) {
+		return false;
+	}
+	sData = xrtErrorData(pError);
+	if (
+		(sData == NULL) ||
+		(sscanf(
+			sData,
+			"offset=%llu;line=%llu;column=%llu",
+			&iOffset,
+			&iLine,
+			&iColumn
+		) != 3)
+	) {
+		return false;
+	}
+	if (
+		(iOffset > (unsigned long long)SIZE_MAX) ||
+		(iLine > (unsigned long long)SIZE_MAX) ||
+		(iColumn > (unsigned long long)SIZE_MAX)
+	) {
+		return false;
+	}
+	*pOffset = (size_t)iOffset;
+	*pLine = (size_t)iLine;
+	*pColumn = (size_t)iColumn;
+	return true;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/data/json_common.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_JSON_CORE)
+
+
+
+#if defined(XRT_FEATURE_JSON_CORE)
+
+/* 设置带稳定域、代码和可选文本位置的 JSON 错误。 */
+void __xrtJsonError(
+	xerrkind Kind,
+	xjsonerror Code,
+	cstr sOperation,
+	cstr sMessage,
+	const xjsonlocation* pLocation
+)
+{
+	__xrtTextValueError(
+		Kind,
+		(int32)Code,
+		"xrt.json",
+		sOperation,
+		sMessage,
+		pLocation != NULL,
+		pLocation != NULL ? pLocation->Offset : 0,
+		pLocation != NULL ? pLocation->Line : 0,
+		pLocation != NULL ? pLocation->Column : 0
+	);
+}
+
+
+
+/* 从 JSON 错误机器数据中读取完整文本位置。 */
+XRT_API bool xrtJsonErrorLocation(
+	const xerror* pError,
+	xjsonlocation* pLocation
+)
+{
+	if ( pLocation == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return __xrtTextValueErrorLocation(
+		pError,
+		"xrt.json",
+		&pLocation->Offset,
+		&pLocation->Line,
+		&pLocation->Column
+	);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/containers/buffer.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_BUFFER)
+
+
+
+#if defined(XRT_FEATURE_BUFFER)
+
+/* 把轻量缓冲布局映射为数组字节存储，并验证公开状态。 */
+static bool __xrtBufferArray(const xbuffer* pBuffer, xarray* pArray)
+{
+	if ( (pBuffer == NULL) || (pArray == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	pArray->Data = pBuffer->Data;
+	pArray->Allocation = pBuffer->Data;
+	pArray->ItemSize = 1u;
+	pArray->Count = pBuffer->Size;
+	pArray->Capacity = pBuffer->Capacity;
+	pArray->Alignment = XRT_ARRAY_ALIGNMENT_DEFAULT;
+	return __xrtArrayValid(pArray);
+}
+
+
+
+/* 把数组存储变更同步回公开缓冲布局。 */
+static void __xrtBufferSync(xbuffer* pBuffer, const xarray* pArray)
+{
+	pBuffer->Data = pArray->Data;
+	pBuffer->Size = pArray->Count;
+	pBuffer->Capacity = pArray->Capacity;
+}
+
+
+
+/* 验证字节视图及其与缓冲分配区的关系，并返回有效区偏移。 */
+static bool __xrtBufferSource(
+	const xbuffer* pBuffer,
+	xbytesview Data,
+	bool* pAlias,
+	size_t* pOffset
+)
+{
+	uintptr_t iBuffer;
+	uintptr_t iSource;
+
+	*pAlias = false;
+	*pOffset = 0;
+	if ( (Data.Data == NULL) && (Data.Size != 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (Data.Size == 0) || (pBuffer->Data == NULL) ) {
+		return true;
+	}
+	if ( !__xrtRangesOverlap(
+		pBuffer->Data,
+		pBuffer->Capacity,
+		Data.Data,
+		Data.Size
+	) ) {
+		return true;
+	}
+
+	iBuffer = (uintptr_t)pBuffer->Data;
+	iSource = (uintptr_t)Data.Data;
+	if (
+		(iSource < iBuffer) ||
+		((iSource - iBuffer) > pBuffer->Size) ||
+		(Data.Size > (pBuffer->Size - (size_t)(iSource - iBuffer)))
+	) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	*pAlias = true;
+	*pOffset = (size_t)(iSource - iBuffer);
+	return true;
+}
+
+
+
+/* 验证所有权槽没有位于任一被释放或接管的内存中。 */
+static bool __xrtBufferTakeSlotValid(
+	const xbuffer* pBuffer,
+	const bytes* pData,
+	bytes pOwned,
+	size_t iCapacity
+)
+{
+	if (
+		__xrtRangesOverlap(
+			pData,
+			sizeof(*pData),
+			pBuffer->Data,
+			pBuffer->Capacity
+		) ||
+		__xrtRangesOverlap(
+			pData,
+			sizeof(*pData),
+			pOwned,
+			iCapacity
+		) ||
+		__xrtRangesOverlap(
+			pBuffer->Data,
+			pBuffer->Capacity,
+			pOwned,
+			iCapacity
+		)
+	) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	return true;
+}
+
+
+
+/* 初始化调用方持有的空缓冲。 */
+XRT_API bool xrtBufferInit(xbuffer* pBuffer)
+{
+	if ( pBuffer == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+
+	memset(pBuffer, 0, sizeof(xbuffer));
+	return true;
+}
+
+
+
+/* 创建空缓冲。 */
+XRT_API xbuffer* xrtBufferCreate(void)
+{
+	xbuffer* pBuffer = (xbuffer*)xrtMalloc(sizeof(xbuffer));
+
+	if ( pBuffer == NULL ) {
+		return NULL;
+	}
+	(void)xrtBufferInit(pBuffer);
+	return pBuffer;
+}
+
+
+
+/* 释放缓冲持有的连续内存，但不释放缓冲结构。 */
+XRT_API void xrtBufferUnit(xbuffer* pBuffer)
+{
+	if ( pBuffer == NULL ) {
+		return;
+	}
+
+	xrtFree(pBuffer->Data);
+	memset(pBuffer, 0, sizeof(xbuffer));
+}
+
+
+
+/* 释放缓冲持有的连续内存和缓冲结构。 */
+XRT_API void xrtBufferDestroy(xbuffer* pBuffer)
+{
+	if ( pBuffer == NULL ) {
+		return;
+	}
+
+	xrtBufferUnit(pBuffer);
+	xrtFree(pBuffer);
+}
+
+
+
+/* 清空有效内容但保留容量。 */
+XRT_API void xrtBufferClear(xbuffer* pBuffer)
+{
+	xarray tArray;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
+		return;
+	}
+	pBuffer->Size = 0;
+}
+
+
+
+/* 返回当前有效内容的借用视图。 */
+XRT_API xbytesview xrtBufferView(const xbuffer* pBuffer)
+{
+	xarray tArray;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
+		return (xbytesview){ NULL, 0 };
+	}
+	return (xbytesview){ pBuffer->Data, pBuffer->Size };
+}
+
+
+
+/* 保证缓冲至少具有指定容量，实际容量可以按几何策略增长。 */
+XRT_API bool xrtBufferReserve(xbuffer* pBuffer, size_t iCapacity)
+{
+	xarray tArray;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ||
+		 !__xrtArrayReserveValid(&tArray, iCapacity) ) {
+		return false;
+	}
+	__xrtBufferSync(pBuffer, &tArray);
+	return true;
+}
+
+
+
+/* 调整有效长度，扩展区域全部填零，缩小时保留容量。 */
+XRT_API bool xrtBufferResize(xbuffer* pBuffer, size_t iSize)
+{
+	xarray tArray;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ||
+		 !xrtArrayResize(&tArray, iSize) ) {
+		return false;
+	}
+	__xrtBufferSync(pBuffer, &tArray);
+	return true;
+}
+
+
+
+/* 把容量精确裁剪到有效长度，空缓冲会释放存储。 */
+XRT_API bool xrtBufferTrim(xbuffer* pBuffer)
+{
+	xarray tArray;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ||
+		 !xrtArrayTrim(&tArray) ) {
+		return false;
+	}
+	__xrtBufferSync(pBuffer, &tArray);
+	return true;
+}
+
+
+
+/* 在末尾增加未初始化字节并返回首地址。 */
+XRT_API bytes xrtBufferAdd(xbuffer* pBuffer, size_t iSize)
+{
+	xarray tArray;
+	bytes pData;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
+		return NULL;
+	}
+	pData = (bytes)__xrtArrayAddValid(&tArray, iSize);
+	if ( pData == NULL ) {
+		return NULL;
+	}
+	__xrtBufferSync(pBuffer, &tArray);
+	return pData;
+}
+
+
+
+/* 在指定位点插入未初始化字节并返回首地址。 */
+XRT_API bytes xrtBufferInsertSpace(
+	xbuffer* pBuffer,
+	size_t iOffset,
+	size_t iSize
+)
+{
+	xarray tArray;
+	bytes pData;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
+		return NULL;
+	}
+	pData = (bytes)xrtArrayInsertSpace(&tArray, iOffset, iSize);
+	if ( pData == NULL ) {
+		return NULL;
+	}
+	__xrtBufferSync(pBuffer, &tArray);
+	return pData;
+}
+
+
+
+/* 用字节视图替换全部有效内容，失败时保留原缓冲。 */
+XRT_API bool xrtBufferAssign(xbuffer* pBuffer, xbytesview Data)
+{
+	xarray tArray;
+	bool bAlias;
+	size_t iOffset;
+	cbytes pSource;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ||
+		 !__xrtBufferSource(pBuffer, Data, &bAlias, &iOffset) ) {
+		return false;
+	}
+	if ( Data.Size == 0 ) {
+		pBuffer->Size = 0;
+		return true;
+	}
+	if ( !__xrtArrayReserveValid(&tArray, Data.Size) ) {
+		return false;
+	}
+	pSource = bAlias ? tArray.Data + iOffset : Data.Data;
+	memmove(tArray.Data, pSource, Data.Size);
+	tArray.Count = Data.Size;
+	__xrtBufferSync(pBuffer, &tArray);
+	return true;
+}
+
+
+
+/* 复制追加字节视图，允许来源是缓冲自身的有效子视图。 */
+XRT_API bool xrtBufferAppend(xbuffer* pBuffer, xbytesview Data)
+{
+	xarray tArray;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ||
+		 !xrtArrayAppend(&tArray, Data.Data, Data.Size) ) {
+		return false;
+	}
+	__xrtBufferSync(pBuffer, &tArray);
+	return true;
+}
+
+
+
+/* 追加一个字节。 */
+XRT_API bool xrtBufferAppendByte(xbuffer* pBuffer, uint8 iByte)
+{
+	return xrtBufferAppend(
+		pBuffer,
+		(xbytesview){ (const unsigned char*)&iByte, 1u }
+	);
+}
+
+
+
+/* 在指定位点复制插入字节，允许来源是缓冲自身的有效子视图。 */
+XRT_API bool xrtBufferInsert(
+	xbuffer* pBuffer,
+	size_t iOffset,
+	xbytesview Data
+)
+{
+	xarray tArray;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ||
+		 !xrtArrayInsert(&tArray, iOffset, Data.Data, Data.Size) ) {
+		return false;
+	}
+	__xrtBufferSync(pBuffer, &tArray);
+	return true;
+}
+
+
+
+/* 覆盖或稀疏扩展字节，扩展产生的空洞全部填零。 */
+XRT_API bool xrtBufferWrite(
+	xbuffer* pBuffer,
+	size_t iOffset,
+	xbytesview Data
+)
+{
+	xarray tArray;
+	bool bAlias;
+	size_t iSourceOffset;
+	size_t iEnd;
+	cbytes pSource;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ||
+		 !__xrtBufferSource(pBuffer, Data, &bAlias, &iSourceOffset) ) {
+		return false;
+	}
+	if ( Data.Size == 0 ) {
+		return true;
+	}
+	if ( Data.Size > (SIZE_MAX - iOffset) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	iEnd = iOffset + Data.Size;
+	if ( (iEnd > tArray.Count) && !xrtArrayResize(&tArray, iEnd) ) {
+		return false;
+	}
+	pSource = bAlias ? tArray.Data + iSourceOffset : Data.Data;
+	memmove(tArray.Data + iOffset, pSource, Data.Size);
+	__xrtBufferSync(pBuffer, &tArray);
+	return true;
+}
+
+
+
+/* 删除完整有效区间，不会静默截断到末尾。 */
+XRT_API bool xrtBufferRemove(
+	xbuffer* pBuffer,
+	size_t iOffset,
+	size_t iSize
+)
+{
+	xarray tArray;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ||
+		 !xrtArrayRemove(&tArray, iOffset, iSize) ) {
+		return false;
+	}
+	__xrtBufferSync(pBuffer, &tArray);
+	return true;
+}
+
+
+
+/* 接管由 xrtMalloc 家族分配的连续内存。 */
+XRT_API bool xrtBufferSetTake(
+	xbuffer* pBuffer,
+	bytes* pData,
+	size_t iSize,
+	size_t iCapacity
+)
+{
+	xarray tArray;
+	bytes pOwned;
+	bytes pOld;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
+		return false;
+	}
+	if ( pData == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pOwned = *pData;
+	if (
+		(iSize > iCapacity) ||
+		((iCapacity == 0) && (pOwned != NULL)) ||
+		((iCapacity != 0) && (pOwned == NULL)) ||
+		((pOwned != NULL) &&
+		 (((uintptr_t)pOwned & (XRT_ARRAY_ALIGNMENT_DEFAULT - 1u)) != 0))
+	) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtBufferTakeSlotValid(pBuffer, pData, pOwned, iCapacity) ) {
+		return false;
+	}
+
+	pOld = pBuffer->Data;
+	pBuffer->Data = pOwned;
+	pBuffer->Size = iSize;
+	pBuffer->Capacity = iCapacity;
+	*pData = NULL;
+	xrtFree(pOld);
+	return true;
+}
+
+
+
+/* 取走连续内存并把缓冲重置为空。 */
+XRT_API bytes xrtBufferTake(
+	xbuffer* pBuffer,
+	size_t* pSize,
+	size_t* pCapacity
+)
+{
+	xarray tArray;
+	bytes pData;
+
+	if ( !__xrtBufferArray(pBuffer, &tArray) ) {
+		return NULL;
+	}
+	if (
+		((pSize != NULL) &&
+		 (__xrtRangesOverlap(
+			pSize,
+			sizeof(*pSize),
+			pBuffer,
+			sizeof(*pBuffer)
+		 ) || __xrtRangesOverlap(
+			pSize,
+			sizeof(*pSize),
+			pBuffer->Data,
+			pBuffer->Capacity
+		 ))) ||
+		((pCapacity != NULL) &&
+		 (__xrtRangesOverlap(
+			pCapacity,
+			sizeof(*pCapacity),
+			pBuffer,
+			sizeof(*pBuffer)
+		 ) || __xrtRangesOverlap(
+			pCapacity,
+			sizeof(*pCapacity),
+			pBuffer->Data,
+			pBuffer->Capacity
+		 ))) ||
+		((pSize != NULL) && (pCapacity != NULL) &&
+		 __xrtRangesOverlap(
+			pSize,
+			sizeof(*pSize),
+			pCapacity,
+			sizeof(*pCapacity)
+		))
+	) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+
+	pData = pBuffer->Data;
+	if ( pSize != NULL ) {
+		*pSize = pBuffer->Size;
+	}
+	if ( pCapacity != NULL ) {
+		*pCapacity = pBuffer->Capacity;
+	}
+	memset(pBuffer, 0, sizeof(xbuffer));
+	return pData;
+}
+
+
+
+/* 创建字节视图的独立副本。 */
+XRT_API xbuffer* xrtBufferFrom(xbytesview Data)
+{
+	xbuffer* pBuffer = xrtBufferCreate();
+
+	if ( pBuffer == NULL ) {
+		return NULL;
+	}
+	if ( !xrtBufferAssign(pBuffer, Data) ) {
+		xrtBufferDestroy(pBuffer);
+		return NULL;
+	}
+	return pBuffer;
+}
+
+
+
+/* 创建缓冲并接管来源槽。 */
+XRT_API xbuffer* xrtBufferCreateTake(
+	bytes* pData,
+	size_t iSize,
+	size_t iCapacity
+)
+{
+	xbuffer* pBuffer = xrtBufferCreate();
+
+	if ( pBuffer == NULL ) {
+		return NULL;
+	}
+	if ( !xrtBufferSetTake(pBuffer, pData, iSize, iCapacity) ) {
+		xrtBufferDestroy(pBuffer);
+		return NULL;
+	}
+	return pBuffer;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/text/number_integer.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_NUMBER_INTEGER)
+
+
+
+#if defined(XRT_FEATURE_NUMBER_INTEGER)
+
+#define XRT_NUMBER_WRITE_FLAGS \
+	((uint32)XNUMBER_UPPER | (uint32)XNUMBER_PREFIX | (uint32)XNUMBER_PLUS)
+#define XRT_NUMBER_PARSE_FLAGS \
+	((uint32)XNUMBER_PARSE_SPACE | (uint32)XNUMBER_PARSE_PREFIX | \
+	(uint32)XNUMBER_PARSE_SEPARATOR)
+
+
+
+/*
+	两位数字表继承旧 jnum 的快速十进制思路。
+	新实现只对无符号幅值运算，避免 INT64_MIN 取负产生未定义行为。
+*/
+static const char __xrtNumberDigits100[200] = {
+	'0', '0', '0', '1', '0', '2', '0', '3', '0', '4',
+	'0', '5', '0', '6', '0', '7', '0', '8', '0', '9',
+	'1', '0', '1', '1', '1', '2', '1', '3', '1', '4',
+	'1', '5', '1', '6', '1', '7', '1', '8', '1', '9',
+	'2', '0', '2', '1', '2', '2', '2', '3', '2', '4',
+	'2', '5', '2', '6', '2', '7', '2', '8', '2', '9',
+	'3', '0', '3', '1', '3', '2', '3', '3', '3', '4',
+	'3', '5', '3', '6', '3', '7', '3', '8', '3', '9',
+	'4', '0', '4', '1', '4', '2', '4', '3', '4', '4',
+	'4', '5', '4', '6', '4', '7', '4', '8', '4', '9',
+	'5', '0', '5', '1', '5', '2', '5', '3', '5', '4',
+	'5', '5', '5', '6', '5', '7', '5', '8', '5', '9',
+	'6', '0', '6', '1', '6', '2', '6', '3', '6', '4',
+	'6', '5', '6', '6', '6', '7', '6', '8', '6', '9',
+	'7', '0', '7', '1', '7', '2', '7', '3', '7', '4',
+	'7', '5', '7', '6', '7', '7', '7', '8', '7', '9',
+	'8', '0', '8', '1', '8', '2', '8', '3', '8', '4',
+	'8', '5', '8', '6', '8', '7', '8', '8', '8', '9',
+	'9', '0', '9', '1', '9', '2', '9', '3', '9', '4',
+	'9', '5', '9', '6', '9', '7', '9', '8', '9', '9'
+};
+
+
+
+/* 校验输出基数和标志，并计算可选前缀长度。 */
+static bool __xrtNumberWriteConfig(
+	uint32 iBase,
+	uint32 iFlags,
+	size_t* pPrefixSize,
+	cstr sOperation
+)
+{
+	if ( (iFlags & ~XRT_NUMBER_WRITE_FLAGS) != 0 ) {
+		__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
+			sOperation, "invalid integer write flags");
+		return false;
+	}
+	if ( (iBase < 2u) || (iBase > 36u) ) {
+		__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
+			sOperation, "integer output base must be between 2 and 36");
+		return false;
+	}
+	*pPrefixSize = 0;
+	if ( (iFlags & (uint32)XNUMBER_PREFIX) != 0 ) {
+		if ( (iBase != 2u) && (iBase != 8u) && (iBase != 16u) ) {
+			__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
+				sOperation, "integer prefix is only defined for base 2, 8 or 16");
+			return false;
+		}
+		*pPrefixSize = 2;
+	}
+	return true;
+}
+
+
+
+/* 使用两位数字表把无符号十进制幅值写到临时缓冲尾部。 */
+static char* __xrtNumberDecimal(uint64 iValue, char* sEnd)
+{
+	while ( iValue >= UINT64_C(100) ) {
+		uint64 iQuotient = iValue / UINT64_C(100);
+		uint32 iRemainder = (uint32)(iValue - (iQuotient * UINT64_C(100)));
+
+		sEnd -= 2;
+		memcpy(sEnd, &__xrtNumberDigits100[iRemainder * 2u], 2);
+		iValue = iQuotient;
+	}
+	if ( iValue < UINT64_C(10) ) {
+		*--sEnd = (char)('0' + (char)iValue);
+	} else {
+		sEnd -= 2;
+		memcpy(sEnd, &__xrtNumberDigits100[(size_t)iValue * 2u], 2);
+	}
+	return sEnd;
+}
+
+
+
+/* 按任意支持基数把无符号幅值写到临时缓冲尾部。 */
+static char* __xrtNumberBase(
+	uint64 iValue,
+	uint32 iBase,
+	bool bUpper,
+	char* sEnd
+)
+{
+	static const char sLower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+	static const char sUpper[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	const char* sDigits = bUpper ? sUpper : sLower;
+
+	if ( iBase == 10u ) {
+		return __xrtNumberDecimal(iValue, sEnd);
+	}
+	do {
+		uint64 iQuotient = iValue / (uint64)iBase;
+		uint32 iRemainder = (uint32)(iValue - (iQuotient * (uint64)iBase));
+
+		*--sEnd = sDigits[iRemainder];
+		iValue = iQuotient;
+	} while ( iValue != 0 );
+	return sEnd;
+}
+
+
+
+/* 在临时缓冲里构造完整整数文本，并返回起点和长度。 */
+static bool __xrtNumberBuild(
+	uint64 iMagnitude,
+	bool bNegative,
+	uint32 iBase,
+	uint32 iFlags,
+	char* sBuffer,
+	const char** pText,
+	size_t* pSize,
+	cstr sOperation
+)
+{
+	char* sEnd = sBuffer + 68;
+	char* sText;
+	size_t iPrefixSize;
+	bool bUpper;
+
+	if ( !__xrtNumberWriteConfig(iBase, iFlags, &iPrefixSize, sOperation) ) {
+		return false;
+	}
+	bUpper = (iFlags & (uint32)XNUMBER_UPPER) != 0;
+	sText = __xrtNumberBase(iMagnitude, iBase, bUpper, sEnd);
+	if ( iPrefixSize != 0 ) {
+		char iPrefix;
+
+		if ( iBase == 2u ) {
+			iPrefix = bUpper ? 'B' : 'b';
+		} else if ( iBase == 8u ) {
+			iPrefix = bUpper ? 'O' : 'o';
+		} else {
+			iPrefix = bUpper ? 'X' : 'x';
+		}
+		*--sText = iPrefix;
+		*--sText = '0';
+	}
+	if ( bNegative ) {
+		*--sText = '-';
+	} else if ( (iFlags & (uint32)XNUMBER_PLUS) != 0 ) {
+		*--sText = '+';
+	}
+	*pText = sText;
+	*pSize = (size_t)(sEnd - sText);
+	return true;
+}
+
+
+
+/* 按指定基数写出无符号整数。 */
+XRT_API bool xrtUIntWrite(uint64 iValue, uint32 iBase,
+	char* sOutput, size_t iCapacity, size_t* pOutputSize, uint32 iFlags)
+{
+	char sBuffer[68];
+	const char* sText;
+	size_t iSize;
+
+	if ( (pOutputSize == NULL) ||
+		 ((sOutput == NULL) && (iCapacity != 0)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (sOutput != NULL) && __xrtRangesOverlap(
+		pOutputSize, sizeof(*pOutputSize), sOutput, iCapacity) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtNumberBuild(iValue, false, iBase, iFlags,
+		sBuffer, &sText, &iSize, "uint-write") ) {
+		return false;
+	}
+	return __xrtNumberWriteResult(
+		sText, iSize, sOutput, iCapacity, pOutputSize);
+}
+
+
+
+/* 按指定基数写出有符号整数。 */
+XRT_API bool xrtIntWrite(int64 iValue, uint32 iBase,
+	char* sOutput, size_t iCapacity, size_t* pOutputSize, uint32 iFlags)
+{
+	char sBuffer[68];
+	const char* sText;
+	size_t iSize;
+	uint64 iMagnitude;
+	bool bNegative;
+
+	if ( (pOutputSize == NULL) ||
+		 ((sOutput == NULL) && (iCapacity != 0)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (sOutput != NULL) && __xrtRangesOverlap(
+		pOutputSize, sizeof(*pOutputSize), sOutput, iCapacity) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	bNegative = iValue < 0;
+	if ( bNegative ) {
+		iMagnitude = (uint64)(-(iValue + 1)) + UINT64_C(1);
+	} else {
+		iMagnitude = (uint64)iValue;
+	}
+	if ( !__xrtNumberBuild(iMagnitude, bNegative, iBase, iFlags,
+		sBuffer, &sText, &iSize, "int-write") ) {
+		return false;
+	}
+	return __xrtNumberWriteResult(
+		sText, iSize, sOutput, iCapacity, pOutputSize);
+}
+
+
+
+/* 分配并写出无符号整数文本。 */
+XRT_API str xrtUIntString(uint64 iValue, uint32 iBase, uint32 iFlags)
+{
+	size_t iSize;
+	str sOutput;
+
+	if ( !xrtUIntWrite(iValue, iBase, NULL, 0, &iSize, iFlags) ) {
+		return NULL;
+	}
+	sOutput = (str)xrtMalloc(iSize + 1u);
+	if ( sOutput == NULL ) {
+		return NULL;
+	}
+	if ( !xrtUIntWrite(
+		iValue, iBase, sOutput, iSize + 1u, &iSize, iFlags) ) {
+		xrtFree(sOutput);
+		return NULL;
+	}
+	return sOutput;
+}
+
+
+
+/* 分配并写出有符号整数文本。 */
+XRT_API str xrtIntString(int64 iValue, uint32 iBase, uint32 iFlags)
+{
+	size_t iSize;
+	str sOutput;
+
+	if ( !xrtIntWrite(iValue, iBase, NULL, 0, &iSize, iFlags) ) {
+		return NULL;
+	}
+	sOutput = (str)xrtMalloc(iSize + 1u);
+	if ( sOutput == NULL ) {
+		return NULL;
+	}
+	if ( !xrtIntWrite(
+		iValue, iBase, sOutput, iSize + 1u, &iSize, iFlags) ) {
+		xrtFree(sOutput);
+		return NULL;
+	}
+	return sOutput;
+}
+
+
+
+/* 把 ASCII 数字转换为 0 到 35 的值。 */
+static bool __xrtNumberDigit(uint8 iByte, uint32* pValue)
+{
+	if ( (iByte >= (uint8)'0') && (iByte <= (uint8)'9') ) {
+		*pValue = (uint32)(iByte - (uint8)'0');
+		return true;
+	}
+	if ( (iByte >= (uint8)'A') && (iByte <= (uint8)'Z') ) {
+		*pValue = (uint32)(iByte - (uint8)'A') + 10u;
+		return true;
+	}
+	if ( (iByte >= (uint8)'a') && (iByte <= (uint8)'z') ) {
+		*pValue = (uint32)(iByte - (uint8)'a') + 10u;
+		return true;
+	}
+	return false;
+}
+
+
+
+/* 根据解析标志裁剪两端 ASCII 空白。 */
+static bool __xrtNumberTrim(
+	xstrview Text,
+	uint32 iFlags,
+	xstrview* pTrimmed,
+	cstr sOperation
+)
+{
+	size_t iStart = 0;
+	size_t iEnd = Text.Size;
+
+	if ( ((Text.Data == NULL) && (Text.Size != 0)) ||
+		 ((iFlags & ~XRT_NUMBER_PARSE_FLAGS) != 0) ) {
+		if ( (Text.Data == NULL) && (Text.Size != 0) ) {
+			__xrtErrorSetInvalidArgument();
+		} else {
+			__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
+				sOperation, "invalid integer parse flags");
+		}
+		return false;
+	}
+	if ( (iFlags & (uint32)XNUMBER_PARSE_SPACE) != 0 ) {
+		while ( (iStart < iEnd) &&
+			__xrtNumberAsciiSpace((uint8)Text.Data[iStart]) ) {
+			iStart++;
+		}
+		while ( (iEnd > iStart) &&
+			__xrtNumberAsciiSpace((uint8)Text.Data[iEnd - 1u]) ) {
+			iEnd--;
+		}
+	}
+	pTrimmed->Data = (Text.Data == NULL) ? NULL : Text.Data + iStart;
+	pTrimmed->Size = iEnd - iStart;
+	return true;
+}
+
+
+
+/* 识别可选进制前缀，并完成自动基数选择。 */
+static bool __xrtNumberBasePrefix(
+	xstrview Text,
+	size_t* pPosition,
+	uint32* pBase,
+	uint32 iFlags,
+	cstr sOperation
+)
+{
+	size_t iPosition = *pPosition;
+	uint32 iBase = *pBase;
+	uint32 iPrefixBase = 0;
+
+	if ( (iBase != 0) && ((iBase < 2u) || (iBase > 36u)) ) {
+		__xrtNumberError(XERR_VALUE, XNUMBER_ERROR_CONFIG,
+			sOperation, "integer parse base must be zero or between 2 and 36");
+		return false;
+	}
+	if ( ((iFlags & (uint32)XNUMBER_PARSE_PREFIX) != 0) &&
+		 ((Text.Size - iPosition) >= 2u) &&
+		 (Text.Data[iPosition] == '0') ) {
+		uint8 iByte = (uint8)Text.Data[iPosition + 1u];
+
+		if ( (iByte == (uint8)'b') || (iByte == (uint8)'B') ) {
+			iPrefixBase = 2u;
+		} else if ( (iByte == (uint8)'o') || (iByte == (uint8)'O') ) {
+			iPrefixBase = 8u;
+		} else if ( (iByte == (uint8)'x') || (iByte == (uint8)'X') ) {
+			iPrefixBase = 16u;
+		}
+	}
+	if ( iPrefixBase != 0 ) {
+		if ( (iBase != 0) && (iBase != iPrefixBase) ) {
+			__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
+				sOperation, "integer prefix does not match the requested base");
+			return false;
+		}
+		iBase = iPrefixBase;
+		iPosition += 2u;
+	}
+	if ( iBase == 0 ) {
+		iBase = 10u;
+	}
+	*pPosition = iPosition;
+	*pBase = iBase;
+	return true;
+}
+
+
+
+/* 解析已经处理符号和前缀的无符号幅值。 */
+static bool __xrtNumberMagnitude(
+	xstrview Text,
+	size_t iPosition,
+	uint32 iBase,
+	uint32 iFlags,
+	uint64 iLimit,
+	uint64* pValue,
+	cstr sOperation
+)
+{
+	uint64 iValue = 0;
+	size_t iDigits = 0;
+	bool bSeparator = false;
+
+	for ( ; iPosition < Text.Size; iPosition++ ) {
+		uint8 iByte = (uint8)Text.Data[iPosition];
+		uint32 iDigit;
+
+		if ( (iByte == (uint8)'_') &&
+			((iFlags & (uint32)XNUMBER_PARSE_SEPARATOR) != 0) ) {
+			if ( (iDigits == 0) || bSeparator ) {
+				__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
+					sOperation, "integer separator must appear between digits");
+				return false;
+			}
+			bSeparator = true;
+			continue;
+		}
+		if ( !__xrtNumberDigit(iByte, &iDigit) || (iDigit >= iBase) ) {
+			__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
+				sOperation, "integer text contains a digit outside its base");
+			return false;
+		}
+		if ( iValue > ((iLimit - (uint64)iDigit) / (uint64)iBase) ) {
+			__xrtNumberError(XERR_RANGE, XNUMBER_ERROR_RANGE,
+				sOperation, "integer text is outside the destination range");
+			return false;
+		}
+		iValue = (iValue * (uint64)iBase) + (uint64)iDigit;
+		iDigits++;
+		bSeparator = false;
+	}
+	if ( (iDigits == 0) || bSeparator ) {
+		__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
+			sOperation, "integer text does not end with a digit");
+		return false;
+	}
+	*pValue = iValue;
+	return true;
+}
+
+
+
+/* 严格解析无符号整数。 */
+XRT_API bool xrtUIntParse(xstrview Text, uint32 iBase,
+	uint32 iFlags, uint64* pValue)
+{
+	xstrview Trimmed;
+	size_t iPosition = 0;
+	uint64 iValue;
+
+	if ( pValue == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtNumberTrim(
+		Text, iFlags, &Trimmed, "uint-parse") ) {
+		return false;
+	}
+	if ( Trimmed.Size == 0 ) {
+		__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
+			"uint-parse", "unsigned integer text is empty");
+		return false;
+	}
+	if ( (Trimmed.Data[0] == '+') || (Trimmed.Data[0] == '-') ) {
+		__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
+			"uint-parse", "unsigned integer text cannot contain a sign");
+		return false;
+	}
+	if ( !__xrtNumberBasePrefix(
+		Trimmed, &iPosition, &iBase, iFlags, "uint-parse") ||
+		 !__xrtNumberMagnitude(Trimmed, iPosition, iBase, iFlags,
+		UINT64_MAX, &iValue, "uint-parse") ) {
+		return false;
+	}
+	*pValue = iValue;
+	return true;
+}
+
+
+
+/* 严格解析有符号整数。 */
+XRT_API bool xrtIntParse(xstrview Text, uint32 iBase,
+	uint32 iFlags, int64* pValue)
+{
+	xstrview Trimmed;
+	size_t iPosition = 0;
+	uint64 iMagnitude;
+	uint64 iLimit;
+	int64 iValue;
+	bool bNegative = false;
+
+	if ( pValue == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtNumberTrim(
+		Text, iFlags, &Trimmed, "int-parse") ) {
+		return false;
+	}
+	if ( Trimmed.Size == 0 ) {
+		__xrtNumberError(XERR_PROTOCOL, XNUMBER_ERROR_FORMAT,
+			"int-parse", "signed integer text is empty");
+		return false;
+	}
+	if ( (Trimmed.Data[0] == '+') || (Trimmed.Data[0] == '-') ) {
+		bNegative = Trimmed.Data[0] == '-';
+		iPosition++;
+	}
+	if ( !__xrtNumberBasePrefix(
+		Trimmed, &iPosition, &iBase, iFlags, "int-parse") ) {
+		return false;
+	}
+	iLimit = bNegative ?
+		((uint64)INT64_MAX + UINT64_C(1)) : (uint64)INT64_MAX;
+	if ( !__xrtNumberMagnitude(Trimmed, iPosition, iBase, iFlags,
+		iLimit, &iMagnitude, "int-parse") ) {
+		return false;
+	}
+	if ( bNegative ) {
+		if ( iMagnitude == ((uint64)INT64_MAX + UINT64_C(1)) ) {
+			iValue = INT64_MIN;
+		} else {
+			iValue = -(int64)iMagnitude;
+		}
+	} else {
+		iValue = (int64)iMagnitude;
+	}
+	*pValue = iValue;
+	return true;
+}
+
+#undef XRT_NUMBER_WRITE_FLAGS
+#undef XRT_NUMBER_PARSE_FLAGS
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/text/number_float_core.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_NUMBER_FLOAT)
+/*
+	浮点转换核心精炼自 yyjson 0.12.0 的数值读取与写出实现。
+	Copyright (c) 2020 YaoYuan <ibireme@gmail.com>
+	SPDX-License-Identifier: MIT
+
+	XRT 只保留整数运算、BigInt 后备、Schubfach 和共用十进制幂表。
+	公开语法、显式长度、错误和内存契约由 number_float.c 负责。
+*/
+
+
+
+#if defined(XRT_FEATURE_NUMBER_FLOAT)
+
+#define XRT_NUMBER_F64_BITS			64
+#define XRT_NUMBER_F64_EXP_BITS		11
+#define XRT_NUMBER_F64_SIG_BITS		52
+#define XRT_NUMBER_F64_FULL_BITS	53
+#define XRT_NUMBER_F64_EXP_BIAS		1023
+#define XRT_NUMBER_F64_MAX_BIN_EXP	1024
+#define XRT_NUMBER_F64_MIN_BIN_EXP	(-1021)
+#define XRT_NUMBER_POWER10_MIN		(-343)
+#define XRT_NUMBER_POWER10_MAX		324
+#define XRT_NUMBER_U64_MAX			UINT64_MAX
+#define XRT_NUMBER_F64_INF			UINT64_C(0x7FF0000000000000)
+#define XRT_NUMBER_F64_SIG_MASK		UINT64_C(0x000FFFFFFFFFFFFF)
+#define XRT_NUMBER_F64_EXP_MASK		UINT64_C(0x7FF0000000000000)
+
+
+
+/* BigInt 只服务 double 精确舍入；当前上限最多使用 58 个字。 */
+typedef struct xrt_number_bigint {
+	uint32 Used;
+	uint64 Bits[64];
+} xrt_number_bigint;
+
+
+
+/* 二进制近似数用于精确路径的候选值计算。 */
+typedef struct xrt_number_diy {
+	uint64 Significand;
+	int32 Exponent;
+} xrt_number_diy;
+
+
+
+/* double 解析与写出共用的小十进制幂。 */
+static const uint64 __xrtNumberUIntPower10[20] = {
+	UINT64_C(1),
+	UINT64_C(10),
+	UINT64_C(100),
+	UINT64_C(1000),
+	UINT64_C(10000),
+	UINT64_C(100000),
+	UINT64_C(1000000),
+	UINT64_C(10000000),
+	UINT64_C(100000000),
+	UINT64_C(1000000000),
+	UINT64_C(10000000000),
+	UINT64_C(100000000000),
+	UINT64_C(1000000000000),
+	UINT64_C(10000000000000),
+	UINT64_C(100000000000000),
+	UINT64_C(1000000000000000),
+	UINT64_C(10000000000000000),
+	UINT64_C(100000000000000000),
+	UINT64_C(1000000000000000000),
+	UINT64_C(10000000000000000000)
+};
+
+
+
+/* 在不违反别名规则的情况下取得 double 位模式。 */
+static uint64 __xrtNumberFloatBits(double fValue)
+{
+	uint64 iBits;
+
+	memcpy(&iBits, &fValue, sizeof(iBits));
+	return iBits;
+}
+
+
+
+/* 返回非零 64 位整数的前导零位数。 */
+static uint32 __xrtNumberLeadingZeros(uint64 iValue)
+{
+#if defined(__GNUC__) || defined(__clang__)
+	return (uint32)__builtin_clzll((unsigned long long)iValue);
+#else
+	uint32 iCount = 0;
+
+	if ( iValue <= UINT64_C(0x00000000FFFFFFFF) ) {
+		iCount += 32u;
+		iValue <<= 32u;
+	}
+	if ( iValue <= UINT64_C(0x0000FFFFFFFFFFFF) ) {
+		iCount += 16u;
+		iValue <<= 16u;
+	}
+	if ( iValue <= UINT64_C(0x00FFFFFFFFFFFFFF) ) {
+		iCount += 8u;
+		iValue <<= 8u;
+	}
+	if ( iValue <= UINT64_C(0x0FFFFFFFFFFFFFFF) ) {
+		iCount += 4u;
+		iValue <<= 4u;
+	}
+	if ( iValue <= UINT64_C(0x3FFFFFFFFFFFFFFF) ) {
+		iCount += 2u;
+		iValue <<= 2u;
+	}
+	if ( iValue <= UINT64_C(0x7FFFFFFFFFFFFFFF) ) {
+		iCount++;
+	}
+	return iCount;
+#endif
+}
+
+
+
+/* 返回非零 64 位整数的尾随零位数。 */
+static uint32 __xrtNumberTrailingZeros(uint64 iValue)
+{
+#if defined(__GNUC__) || defined(__clang__)
+	return (uint32)__builtin_ctzll((unsigned long long)iValue);
+#else
+	uint32 iCount = 0;
+
+	if ( (iValue & UINT64_C(0x00000000FFFFFFFF)) == 0 ) {
+		iCount += 32u;
+		iValue >>= 32u;
+	}
+	if ( (iValue & UINT64_C(0x000000000000FFFF)) == 0 ) {
+		iCount += 16u;
+		iValue >>= 16u;
+	}
+	if ( (iValue & UINT64_C(0x00000000000000FF)) == 0 ) {
+		iCount += 8u;
+		iValue >>= 8u;
+	}
+	if ( (iValue & UINT64_C(0x000000000000000F)) == 0 ) {
+		iCount += 4u;
+		iValue >>= 4u;
+	}
+	if ( (iValue & UINT64_C(0x0000000000000003)) == 0 ) {
+		iCount += 2u;
+		iValue >>= 2u;
+	}
+	if ( (iValue & UINT64_C(0x0000000000000001)) == 0 ) {
+		iCount++;
+	}
+	return iCount;
+#endif
+}
+
+
+
+/* 计算两个 64 位无符号整数的完整 128 位乘积。 */
+static void __xrtNumberMultiply128(
+	uint64 iLeft,
+	uint64 iRight,
+	uint64* pHigh,
+	uint64* pLow
+)
+{
+#if defined(__SIZEOF_INT128__)
+	__uint128_t iResult = (__uint128_t)iLeft * (__uint128_t)iRight;
+
+	*pHigh = (uint64)(iResult >> 64u);
+	*pLow = (uint64)iResult;
+#else
+	uint32 iLeftLow = (uint32)iLeft;
+	uint32 iLeftHigh = (uint32)(iLeft >> 32u);
+	uint32 iRightLow = (uint32)iRight;
+	uint32 iRightHigh = (uint32)(iRight >> 32u);
+	uint64 iProduct00 = (uint64)iLeftLow * (uint64)iRightLow;
+	uint64 iProduct01 = (uint64)iLeftLow * (uint64)iRightHigh;
+	uint64 iProduct10 = (uint64)iLeftHigh * (uint64)iRightLow;
+	uint64 iProduct11 = (uint64)iLeftHigh * (uint64)iRightHigh;
+	uint64 iMiddle0 = iProduct01 + (iProduct00 >> 32u);
+	uint32 iMiddle00 = (uint32)iMiddle0;
+	uint32 iMiddle01 = (uint32)(iMiddle0 >> 32u);
+	uint64 iMiddle1 = iProduct10 + (uint64)iMiddle00;
+	uint32 iMiddle10 = (uint32)iMiddle1;
+	uint32 iMiddle11 = (uint32)(iMiddle1 >> 32u);
+
+	*pHigh = iProduct11 + (uint64)iMiddle01 + (uint64)iMiddle11;
+	*pLow = ((uint64)iMiddle10 << 32u) | (uint64)(uint32)iProduct00;
+#endif
+}
+
+
+
+/* 计算两个 64 位整数的乘积并向完整 128 位结果加一个 64 位值。 */
+static void __xrtNumberMultiplyAdd128(
+	uint64 iLeft,
+	uint64 iRight,
+	uint64 iAdd,
+	uint64* pHigh,
+	uint64* pLow
+)
+{
+#if defined(__SIZEOF_INT128__)
+	__uint128_t iResult = ((__uint128_t)iLeft * (__uint128_t)iRight) +
+		(__uint128_t)iAdd;
+
+	*pHigh = (uint64)(iResult >> 64u);
+	*pLow = (uint64)iResult;
+#else
+	uint64 iHigh;
+	uint64 iLow;
+	uint64 iSum;
+
+	__xrtNumberMultiply128(iLeft, iRight, &iHigh, &iLow);
+	iSum = iLow + iAdd;
+	iHigh += (uint64)((iSum < iLow) || (iSum < iAdd));
+	*pHigh = iHigh;
+	*pLow = iSum;
+#endif
+}
+
+
+
+/* 从共用表读取 10 的指定幂所对应的高低 64 位有效数。 */
+static void __xrtNumberPower10(
+	int32 iExponent,
+	uint64* pHigh,
+	uint64* pLow
+)
+{
+	int32 iIndex = iExponent - XRT_NUMBER_POWER10_MIN;
+
+	*pHigh = __xrtNumberPower10Table[iIndex * 2];
+	*pLow = __xrtNumberPower10Table[(iIndex * 2) + 1];
+}
+
+
+
+/* 计算共用十进制幂表高 64 位有效数对应的二进制指数。 */
+static int32 __xrtNumberPower10Exponent(int32 iExponent)
+{
+	return ((iExponent * 217706) - 4128768) >> 16;
+}
+
+
+
+/* BigInt 加一个 64 位无符号整数。 */
+static void __xrtNumberBigAdd(xrt_number_bigint* pBig, uint64 iValue)
+{
+	uint32 iIndex;
+	uint32 iMaximum;
+	uint64 iNumber = pBig->Bits[0];
+	uint64 iSum = iNumber + iValue;
+
+	pBig->Bits[0] = iSum;
+	if ( (iSum >= iNumber) || (iSum >= iValue) ) {
+		return;
+	}
+	iMaximum = pBig->Used;
+	for ( iIndex = 1; iIndex < iMaximum; iIndex++ ) {
+		if ( pBig->Bits[iIndex] != XRT_NUMBER_U64_MAX ) {
+			pBig->Bits[iIndex]++;
+			return;
+		}
+		pBig->Bits[iIndex] = 0;
+	}
+	pBig->Bits[pBig->Used++] = 1;
+}
+
+
+
+/* BigInt 乘一个非零 64 位无符号整数。 */
+static void __xrtNumberBigMultiply(xrt_number_bigint* pBig, uint64 iValue)
+{
+	uint32 iIndex = 0;
+	uint32 iMaximum = pBig->Used;
+	uint64 iCarry = 0;
+
+	while ( (iIndex < iMaximum) && (pBig->Bits[iIndex] == 0) ) {
+		iIndex++;
+	}
+	while ( iIndex < iMaximum ) {
+		uint64 iHigh;
+		uint64 iLow;
+
+		__xrtNumberMultiplyAdd128(
+			pBig->Bits[iIndex], iValue, iCarry, &iHigh, &iLow);
+		pBig->Bits[iIndex] = iLow;
+		iCarry = iHigh;
+		iIndex++;
+	}
+	if ( iCarry != 0 ) {
+		pBig->Bits[pBig->Used++] = iCarry;
+	}
+}
+
+
+
+/* BigInt 左移指定二进制位数。 */
+static void __xrtNumberBigMultiplyPower2(
+	xrt_number_bigint* pBig,
+	uint32 iExponent
+)
+{
+	uint32 iShift = iExponent % 64u;
+	uint32 iMove = iExponent / 64u;
+	uint32 iIndex = pBig->Used;
+
+	if ( iShift == 0 ) {
+		while ( iIndex > 0 ) {
+			pBig->Bits[iIndex + iMove - 1] = pBig->Bits[iIndex - 1];
+			iIndex--;
+		}
+		pBig->Used += iMove;
+		while ( iMove > 0 ) {
+			pBig->Bits[--iMove] = 0;
+		}
+		return;
+	}
+
+	pBig->Bits[iIndex] = 0;
+	while ( iIndex > 0 ) {
+		uint64 iNumber = pBig->Bits[iIndex] << iShift;
+
+		iNumber |= pBig->Bits[iIndex - 1] >> (64u - iShift);
+		pBig->Bits[iIndex + iMove] = iNumber;
+		iIndex--;
+	}
+	pBig->Bits[iMove] = pBig->Bits[0] << iShift;
+	pBig->Used += iMove + (pBig->Bits[pBig->Used + iMove] > 0);
+	while ( iMove > 0 ) {
+		pBig->Bits[--iMove] = 0;
+	}
+}
+
+
+
+/* BigInt 乘 10 的非负整数幂。 */
+static void __xrtNumberBigMultiplyPower10(
+	xrt_number_bigint* pBig,
+	int32 iExponent
+)
+{
+	while ( iExponent >= 19 ) {
+		__xrtNumberBigMultiply(pBig, __xrtNumberUIntPower10[19]);
+		iExponent -= 19;
+	}
+	if ( iExponent != 0 ) {
+		__xrtNumberBigMultiply(
+			pBig, __xrtNumberUIntPower10[iExponent]);
+	}
+}
+
+
+
+/* 比较两个非负 BigInt。 */
+static int32 __xrtNumberBigCompare(
+	const xrt_number_bigint* pLeft,
+	const xrt_number_bigint* pRight
+)
+{
+	uint32 iIndex = pLeft->Used;
+
+	if ( pLeft->Used < pRight->Used ) {
+		return -1;
+	}
+	if ( pLeft->Used > pRight->Used ) {
+		return 1;
+	}
+	while ( iIndex > 0 ) {
+		uint64 iLeft;
+		uint64 iRight;
+
+		iIndex--;
+		iLeft = pLeft->Bits[iIndex];
+		iRight = pRight->Bits[iIndex];
+		if ( iLeft < iRight ) {
+			return -1;
+		}
+		if ( iLeft > iRight ) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+
+/* 用一个 64 位值初始化 BigInt。 */
+static void __xrtNumberBigSet(xrt_number_bigint* pBig, uint64 iValue)
+{
+	pBig->Used = 1;
+	pBig->Bits[0] = iValue;
+}
+
+
+
+/* 从最多 769 个十进制有效数字构造精确比较所需的 BigInt。 */
+static void __xrtNumberBigSetDigits(
+	xrt_number_bigint* pBig,
+	const uint8* pDigits,
+	uint32 iDigitCount
+)
+{
+	uint32 iIndex = 0;
+	uint32 iChunkSize = 0;
+	uint64 iChunk = 0;
+
+	__xrtNumberBigSet(pBig, 0);
+	while ( iIndex < iDigitCount ) {
+		iChunk = (iChunk * UINT64_C(10)) +
+			(uint64)(pDigits[iIndex] - (uint8)'0');
+		iChunkSize++;
+		iIndex++;
+		if ( (iChunkSize == 19u) || (iIndex == iDigitCount) ) {
+			__xrtNumberBigMultiplyPower10(pBig, (int32)iChunkSize);
+			__xrtNumberBigAdd(pBig, iChunk);
+			iChunk = 0;
+			iChunkSize = 0;
+		}
+	}
+}
+
+
+
+/* 从共用表取得已舍入的 10 的幂近似数。 */
+static xrt_number_diy __xrtNumberDiyPower10(int32 iExponent)
+{
+	xrt_number_diy Result;
+	uint64 iLow;
+
+	__xrtNumberPower10(iExponent, &Result.Significand, &iLow);
+	Result.Exponent = __xrtNumberPower10Exponent(iExponent);
+	Result.Significand += iLow >> 63u;
+	return Result;
+}
+
+
+
+/* 乘两个 DIY 浮点数并保留经过舍入的高 64 位。 */
+static xrt_number_diy __xrtNumberDiyMultiply(
+	xrt_number_diy Left,
+	xrt_number_diy Right
+)
+{
+	uint64 iHigh;
+	uint64 iLow;
+
+	__xrtNumberMultiply128(
+		Left.Significand, Right.Significand, &iHigh, &iLow);
+	Left.Significand = iHigh + (iLow >> 63u);
+	Left.Exponent += Right.Exponent + 64;
+	return Left;
+}
+
+
+
+/* 把 DIY 候选值编码为 IEEE-754 double 正数位模式。 */
+static uint64 __xrtNumberDiyBits(xrt_number_diy Value)
+{
+	uint64 iSignificand = Value.Significand;
+	int32 iExponent = Value.Exponent;
+	uint32 iLeading;
+
+	if ( iSignificand == 0 ) {
+		return 0;
+	}
+	iLeading = __xrtNumberLeadingZeros(iSignificand);
+	iSignificand <<= iLeading;
+	iSignificand >>= XRT_NUMBER_F64_BITS - XRT_NUMBER_F64_FULL_BITS;
+	iExponent -= (int32)iLeading;
+	iExponent += XRT_NUMBER_F64_BITS - XRT_NUMBER_F64_FULL_BITS;
+	iExponent += XRT_NUMBER_F64_SIG_BITS;
+
+	if ( iExponent >= XRT_NUMBER_F64_MAX_BIN_EXP ) {
+		return XRT_NUMBER_F64_INF;
+	}
+	if ( iExponent >= (XRT_NUMBER_F64_MIN_BIN_EXP - 1) ) {
+		iExponent += XRT_NUMBER_F64_EXP_BIAS;
+		return ((uint64)iExponent << XRT_NUMBER_F64_SIG_BITS) |
+			(iSignificand & XRT_NUMBER_F64_SIG_MASK);
+	}
+	if ( iExponent >=
+		(XRT_NUMBER_F64_MIN_BIN_EXP - XRT_NUMBER_F64_FULL_BITS) ) {
+		return iSignificand >>
+			(XRT_NUMBER_F64_MIN_BIN_EXP - iExponent - 1);
+	}
+	return 0;
+}
+
+
+
+/*
+	尝试 Eisel-Lemire 风格的纯整数快速路径。
+	只有舍入方向能够由已知高位唯一确定时才发布结果。
+*/
+static bool __xrtNumberFloatFast(
+	uint64 iSignificand,
+	int32 iExponent,
+	uint64* pBits
+)
+{
+	uint64 iPowerHigh;
+	uint64 iPowerLow;
+	uint64 iInput;
+	uint64 iHigh;
+	uint64 iLow;
+	uint64 iHigh2;
+	uint64 iLow2;
+	uint64 iAdd;
+	uint64 iKnown;
+	int32 iBinaryExponent;
+	uint32 iLeading;
+	bool bExact = false;
+	bool bCarry;
+	bool bRoundUp;
+
+	__xrtNumberPower10(iExponent, &iPowerHigh, &iPowerLow);
+	iBinaryExponent = __xrtNumberPower10Exponent(iExponent);
+	iLeading = __xrtNumberLeadingZeros(iSignificand);
+	iInput = iSignificand << iLeading;
+	iBinaryExponent -= (int32)iLeading;
+	__xrtNumberMultiply128(iInput, iPowerHigh, &iHigh, &iLow);
+
+	iKnown = iHigh & ((UINT64_C(1) << 9u) - UINT64_C(1));
+	if ( (iKnown - UINT64_C(1)) <
+		((UINT64_C(1) << 9u) - UINT64_C(2)) ) {
+		bExact = true;
+	} else {
+		__xrtNumberMultiply128(iInput, iPowerLow, &iHigh2, &iLow2);
+		iAdd = iLow + iHigh2;
+		if ( (iAdd + UINT64_C(1)) > UINT64_C(1) ) {
+			bCarry = (iAdd < iLow) || (iAdd < iHigh2);
+			iHigh += (uint64)bCarry;
+			bExact = true;
+		}
+	}
+	if ( !bExact ) {
+		return false;
+	}
+
+	iLeading = iHigh < (UINT64_C(1) << 63u);
+	iHigh <<= iLeading;
+	iBinaryExponent -= (int32)iLeading;
+	iBinaryExponent += 64;
+	bRoundUp = (iHigh & (UINT64_C(1) << 10u)) != 0;
+	if ( bRoundUp ) {
+		iHigh += UINT64_C(1) << 10u;
+	}
+	if ( iHigh < (UINT64_C(1) << 10u) ) {
+		iHigh = UINT64_C(1) << 63u;
+		iBinaryExponent++;
+	}
+
+	iHigh >>= XRT_NUMBER_F64_BITS - XRT_NUMBER_F64_FULL_BITS;
+	iBinaryExponent +=
+		XRT_NUMBER_F64_BITS - XRT_NUMBER_F64_FULL_BITS +
+		XRT_NUMBER_F64_SIG_BITS + XRT_NUMBER_F64_EXP_BIAS;
+	*pBits = ((uint64)iBinaryExponent << XRT_NUMBER_F64_SIG_BITS) |
+		(iHigh & XRT_NUMBER_F64_SIG_MASK);
+	return true;
+}
+
+
+
+/* 用 BigInt 比较候选值上边界，完成罕见的精确舍入判定。 */
+static bool __xrtNumberFloatExact(
+	const uint8* pDigits,
+	uint32 iDigitCount,
+	int32 iDigitExponent,
+	uint64 iSignificand,
+	int32 iSignificandExponent,
+	uint64* pBits
+)
+{
+	const int32 iErrorLog = 3;
+	const uint64 iErrorUnit = UINT64_C(1) << 3u;
+	uint64 iError;
+	uint32 iLeading;
+	int32 iOrder;
+	int32 iEffectiveBits;
+	int32 iPrecisionCount;
+	uint64 iPrecision;
+	uint64 iHalf;
+	uint64 iRaw;
+	xrt_number_diy Value;
+	xrt_number_diy Upper;
+	xrt_number_bigint Full;
+	xrt_number_bigint Compare;
+	int32 iComparison;
+
+	Value.Significand = iSignificand;
+	Value.Exponent = 0;
+	iError = (iDigitCount > 19u) ? (iErrorUnit / 2u) : 0;
+
+	iLeading = __xrtNumberLeadingZeros(Value.Significand);
+	Value.Significand <<= iLeading;
+	Value.Exponent -= (int32)iLeading;
+	iError <<= iLeading;
+
+	Value = __xrtNumberDiyMultiply(
+		Value, __xrtNumberDiyPower10(iSignificandExponent));
+	iError += (iErrorUnit / 2u) + (iError != 0) + (iErrorUnit / 2u);
+
+	iLeading = __xrtNumberLeadingZeros(Value.Significand);
+	Value.Significand <<= iLeading;
+	Value.Exponent -= (int32)iLeading;
+	iError <<= iLeading;
+
+	iOrder = 64 + Value.Exponent;
+	if ( iOrder >=
+		(-1074 + XRT_NUMBER_F64_FULL_BITS) ) {
+		iEffectiveBits = XRT_NUMBER_F64_FULL_BITS;
+	} else if ( iOrder <= -1074 ) {
+		iEffectiveBits = 0;
+	} else {
+		iEffectiveBits = iOrder + 1074;
+	}
+
+	iPrecisionCount = 64 - iEffectiveBits;
+	if ( (iPrecisionCount + iErrorLog) >= 64 ) {
+		int32 iShift =
+			(iPrecisionCount + iErrorLog) - 64 + 1;
+
+		Value.Significand >>= iShift;
+		Value.Exponent += iShift;
+		iError = (iError >> iShift) + UINT64_C(1) + iErrorUnit;
+		iPrecisionCount -= iShift;
+	}
+
+	iPrecision = Value.Significand &
+		((UINT64_C(1) << iPrecisionCount) - UINT64_C(1));
+	iPrecision *= iErrorUnit;
+	iHalf = (UINT64_C(1) << (iPrecisionCount - 1)) * iErrorUnit;
+
+	Value.Significand >>= iPrecisionCount;
+	Value.Significand += (iPrecision >= (iHalf + iError));
+	Value.Exponent += iPrecisionCount;
+	iRaw = __xrtNumberDiyBits(Value);
+	if ( iRaw == XRT_NUMBER_F64_INF ) {
+		return false;
+	}
+	if ( (iPrecision <= (iHalf - iError)) ||
+		(iPrecision >= (iHalf + iError)) ) {
+		*pBits = iRaw;
+		return true;
+	}
+
+	if ( (iRaw & XRT_NUMBER_F64_EXP_MASK) != 0 ) {
+		Upper.Significand =
+			(iRaw & XRT_NUMBER_F64_SIG_MASK) +
+			(UINT64_C(1) << XRT_NUMBER_F64_SIG_BITS);
+		Upper.Exponent = (int32)(
+			(iRaw & XRT_NUMBER_F64_EXP_MASK) >>
+			XRT_NUMBER_F64_SIG_BITS);
+	} else {
+		Upper.Significand = iRaw & XRT_NUMBER_F64_SIG_MASK;
+		Upper.Exponent = 1;
+	}
+	Upper.Exponent -=
+		XRT_NUMBER_F64_EXP_BIAS + XRT_NUMBER_F64_SIG_BITS;
+	Upper.Significand <<= 1u;
+	Upper.Exponent--;
+	Upper.Significand++;
+
+	__xrtNumberBigSetDigits(&Full, pDigits, iDigitCount);
+	__xrtNumberBigSet(&Compare, Upper.Significand);
+	if ( iDigitExponent >= 0 ) {
+		__xrtNumberBigMultiplyPower10(&Full, iDigitExponent);
+	} else {
+		__xrtNumberBigMultiplyPower10(&Compare, -iDigitExponent);
+	}
+	if ( Upper.Exponent > 0 ) {
+		__xrtNumberBigMultiplyPower2(
+			&Compare, (uint32)Upper.Exponent);
+	} else {
+		__xrtNumberBigMultiplyPower2(
+			&Full, (uint32)-Upper.Exponent);
+	}
+	iComparison = __xrtNumberBigCompare(&Full, &Compare);
+	if ( iComparison != 0 ) {
+		iRaw += (iComparison > 0);
+	} else {
+		iRaw += iRaw & UINT64_C(1);
+	}
+	if ( iRaw == XRT_NUMBER_F64_INF ) {
+		return false;
+	}
+	*pBits = iRaw;
+	return true;
+}
+
+
+
+/* 把归一化十进制有效数字转换成正确舍入的正 double 位模式。 */
+bool __xrtNumberFloatConvert(
+	const uint8* pDigits,
+	uint32 iDigitCount,
+	int32 iDigitExponent,
+	uint64 iSignificand,
+	int32 iSignificandExponent,
+	uint64* pBits
+)
+{
+	if ( (pDigits == NULL) || (pBits == NULL) ||
+		(iDigitCount == 0) || (iDigitCount > 769u) ||
+		(iSignificand == 0) ||
+		(iSignificandExponent < XRT_NUMBER_POWER10_MIN) ||
+		(iSignificandExponent > XRT_NUMBER_POWER10_MAX) ) {
+		return false;
+	}
+	if ( (iDigitCount <= 19u) &&
+		(iSignificandExponent > -307) &&
+		(iSignificandExponent < 288) &&
+		__xrtNumberFloatFast(
+			iSignificand, iSignificandExponent, pBits) ) {
+		return true;
+	}
+	return __xrtNumberFloatExact(
+		pDigits,
+		iDigitCount,
+		iDigitExponent,
+		iSignificand,
+		iSignificandExponent,
+		pBits
+	);
+}
+
+
+
+/* 64 位乘法后取最高 64 位，并把被丢弃部分合并为奇数舍入位。 */
+static uint64 __xrtNumberRoundOdd128(
+	uint64 iHigh,
+	uint64 iLow,
+	uint64 iMultiplier
+)
+{
+	uint64 iXHigh;
+	uint64 iXLow;
+	uint64 iYHigh;
+	uint64 iYLow;
+
+	__xrtNumberMultiply128(iMultiplier, iLow, &iXHigh, &iXLow);
+	__xrtNumberMultiplyAdd128(
+		iMultiplier, iHigh, iXHigh, &iYHigh, &iYLow);
+	return iYHigh | (uint64)(iYLow > UINT64_C(1));
+}
+
+
+
+/*
+	用 Schubfach 把非零有限 double 转成最短十进制有效数和指数。
+	结果可能带尾随零，调用方在排版前统一裁掉。
+*/
+static void __xrtNumberBinaryToDecimal(
+	uint64 iRawSignificand,
+	uint32 iRawExponent,
+	uint64 iBinarySignificand,
+	int32 iBinaryExponent,
+	uint64* pDecimalSignificand,
+	int32* pDecimalExponent
+)
+{
+	bool bEven;
+	bool bIrregular;
+	bool bRoundUp;
+	bool bTrim;
+	bool bU0Inside;
+	bool bU1Inside;
+	bool bW0Inside;
+	bool bW1Inside;
+	uint64 iValue;
+	uint64 iShort;
+	uint64 iCenter;
+	uint64 iLeft;
+	uint64 iRight;
+	uint64 iScaled;
+	uint64 iScaledLeft;
+	uint64 iScaledRight;
+	uint64 iPowerHigh;
+	uint64 iPowerLow;
+	uint64 iUpper;
+	uint64 iLower;
+	uint64 iMiddle;
+	int32 iDecimalExponent;
+	int32 iShift;
+
+	while ( iRawSignificand != 0 ) {
+		uint64 iRemainder;
+		uint64 iDecimal;
+		uint64 iAddOne;
+		uint64 iAddTen;
+		uint64 iScaledHigh;
+		uint64 iScaledLow;
+		uint64 iFraction;
+		uint64 iHalfUlp;
+		uint64 iTen;
+		uint64 iSum;
+
+		iDecimalExponent = (iBinaryExponent * 315653) >> 20;
+		iShift = iBinaryExponent +
+			((-iDecimalExponent * 217707) >> 16);
+		__xrtNumberPower10(
+			-iDecimalExponent, &iPowerHigh, &iPowerLow);
+
+		iCenter = iBinarySignificand << (iShift + 1);
+		__xrtNumberMultiply128(
+			iCenter, iPowerLow, &iScaledHigh, &iScaledLow);
+		__xrtNumberMultiplyAdd128(
+			iCenter, iPowerHigh, iScaledHigh,
+			&iScaledHigh, &iScaledLow);
+		iRemainder = iScaledHigh % UINT64_C(10);
+		iDecimal = iScaledHigh - iRemainder;
+
+		iFraction = (iRemainder << 60u) | (iScaledLow >> 4u);
+		iHalfUlp = iPowerHigh >> (4 - iShift);
+		bW1Inside = iScaledLow >= (UINT64_C(1) << 63u);
+		if ( iScaledLow == (UINT64_C(1) << 63u) ) {
+			break;
+		}
+		bU0Inside = iHalfUlp >= iFraction;
+		if ( iHalfUlp == iFraction ) {
+			break;
+		}
+		iTen = UINT64_C(10) << 60u;
+		iSum = iFraction + iHalfUlp;
+		bW0Inside = iSum >= iTen;
+		if ( (iTen - iSum) <= UINT64_C(1) ) {
+			break;
+		}
+
+		bTrim = bU0Inside || bW0Inside;
+		iAddTen = bW0Inside ? UINT64_C(10) : 0;
+		iAddOne = iRemainder + (uint64)bW1Inside;
+		*pDecimalSignificand =
+			iDecimal + (bTrim ? iAddTen : iAddOne);
+		*pDecimalExponent = iDecimalExponent;
+		return;
+	}
+
+	bIrregular =
+		(iRawSignificand == 0) && (iRawExponent > 1u);
+	bEven = (iBinarySignificand & UINT64_C(1)) == 0;
+	iLeft = (UINT64_C(4) * iBinarySignificand) -
+		UINT64_C(2) + (uint64)bIrregular;
+	iCenter = UINT64_C(4) * iBinarySignificand;
+	iRight = (UINT64_C(4) * iBinarySignificand) + UINT64_C(2);
+
+	iDecimalExponent =
+		((iBinaryExponent * 315653) -
+		(bIrregular ? 131237 : 0)) >> 20;
+	iShift = iBinaryExponent +
+		((-iDecimalExponent * 217707) >> 16) + 1;
+	__xrtNumberPower10(
+		-iDecimalExponent, &iPowerHigh, &iPowerLow);
+	iPowerLow++;
+
+	iScaledLeft = __xrtNumberRoundOdd128(
+		iPowerHigh, iPowerLow, iLeft << iShift);
+	iScaled = __xrtNumberRoundOdd128(
+		iPowerHigh, iPowerLow, iCenter << iShift);
+	iScaledRight = __xrtNumberRoundOdd128(
+		iPowerHigh, iPowerLow, iRight << iShift);
+	iLower = iScaledLeft + (uint64)!bEven;
+	iUpper = iScaledRight - (uint64)!bEven;
+
+	iValue = iScaled / UINT64_C(4);
+	if ( iValue >= UINT64_C(10) ) {
+		iShort = iValue / UINT64_C(10);
+		bU0Inside = iLower <= (UINT64_C(40) * iShort);
+		bW0Inside =
+			iUpper >= ((UINT64_C(40) * iShort) + UINT64_C(40));
+		if ( bU0Inside != bW0Inside ) {
+			*pDecimalSignificand =
+				(iShort * UINT64_C(10)) +
+				(bW0Inside ? UINT64_C(10) : 0);
+			*pDecimalExponent = iDecimalExponent;
+			return;
+		}
+	}
+	bU1Inside = iLower <= (UINT64_C(4) * iValue);
+	bW1Inside =
+		iUpper >= ((UINT64_C(4) * iValue) + UINT64_C(4));
+	iMiddle = (UINT64_C(4) * iValue) + UINT64_C(2);
+	bRoundUp = (iScaled > iMiddle) ||
+		((iScaled == iMiddle) && ((iValue & UINT64_C(1)) != 0));
+	*pDecimalSignificand = iValue +
+		(uint64)((bU1Inside != bW1Inside) ? bW1Inside : bRoundUp);
+	*pDecimalExponent = iDecimalExponent;
+}
+
+
+
+/* 把一个非零无符号整数写入临时十进制数字区并返回起点。 */
+static char* __xrtNumberFloatDigits(uint64 iValue, char* sEnd)
+{
+	do {
+		*--sEnd = (char)('0' + (char)(iValue % UINT64_C(10)));
+		iValue /= UINT64_C(10);
+	} while ( iValue != 0 );
+	return sEnd;
+}
+
+
+
+/* 写出范围在 -324 到 308 之间的科学计数法指数。 */
+static char* __xrtNumberFloatExponent(int32 iExponent, char* sOutput)
+{
+	char sDigits[4];
+	char* sEnd = sDigits + sizeof(sDigits);
+	char* sStart;
+	uint32 iMagnitude;
+
+	*sOutput++ = 'e';
+	if ( iExponent < 0 ) {
+		*sOutput++ = '-';
+		iMagnitude = (uint32)-iExponent;
+	} else {
+		*sOutput++ = '+';
+		iMagnitude = (uint32)iExponent;
+	}
+	sStart = __xrtNumberFloatDigits((uint64)iMagnitude, sEnd);
+	memcpy(sOutput, sStart, (size_t)(sEnd - sStart));
+	return sOutput + (sEnd - sStart);
+}
+
+
+
+/* 根据固定或科学计数法阈值排版已经裁掉尾零的十进制有效数。 */
+static size_t __xrtNumberFloatLayout(
+	uint64 iSignificand,
+	int32 iExponent,
+	char* sOutput,
+	bool bCompact
+)
+{
+	char sDigits[20];
+	char* sEnd = sDigits + sizeof(sDigits);
+	char* sStart = __xrtNumberFloatDigits(iSignificand, sEnd);
+	int32 iDigitCount = (int32)(sEnd - sStart);
+	int32 iDot = iDigitCount + iExponent;
+	char* sCursor = sOutput;
+
+	if ( (iDot > -6) && (iDot <= 21) ) {
+		if ( iDot <= 0 ) {
+			*sCursor++ = '0';
+			*sCursor++ = '.';
+			memset(sCursor, '0', (size_t)-iDot);
+			sCursor += -iDot;
+			memcpy(sCursor, sStart, (size_t)iDigitCount);
+			sCursor += iDigitCount;
+		} else if ( iDot >= iDigitCount ) {
+			memcpy(sCursor, sStart, (size_t)iDigitCount);
+			sCursor += iDigitCount;
+			memset(sCursor, '0', (size_t)(iDot - iDigitCount));
+			sCursor += iDot - iDigitCount;
+			if ( !bCompact ) {
+				*sCursor++ = '.';
+				*sCursor++ = '0';
+			}
+		} else {
+			memcpy(sCursor, sStart, (size_t)iDot);
+			sCursor += iDot;
+			*sCursor++ = '.';
+			memcpy(sCursor, sStart + iDot,
+				(size_t)(iDigitCount - iDot));
+			sCursor += iDigitCount - iDot;
+		}
+		return (size_t)(sCursor - sOutput);
+	}
+
+	*sCursor++ = *sStart++;
+	iDigitCount--;
+	if ( iDigitCount > 0 ) {
+		*sCursor++ = '.';
+		memcpy(sCursor, sStart, (size_t)iDigitCount);
+		sCursor += iDigitCount;
+	}
+	sCursor = __xrtNumberFloatExponent(
+		iDot - 1, sCursor);
+	return (size_t)(sCursor - sOutput);
+}
+
+
+
+/* 把 double 写成稳定、最短且能够精确往返的文本。 */
+size_t __xrtNumberFloatFormat(
+	double fValue,
+	char* sOutput,
+	bool bCompact
+)
+{
+	uint64 iRaw = __xrtNumberFloatBits(fValue);
+	bool bNegative = (iRaw >> 63u) != 0;
+	uint64 iRawSignificand = iRaw & XRT_NUMBER_F64_SIG_MASK;
+	uint32 iRawExponent = (uint32)(
+		(iRaw & XRT_NUMBER_F64_EXP_MASK) >>
+		XRT_NUMBER_F64_SIG_BITS);
+	char* sCursor = sOutput;
+	uint64 iBinarySignificand;
+	int32 iBinaryExponent;
+	uint64 iDecimalSignificand;
+	int32 iDecimalExponent;
+	size_t iSize;
+
+	if ( iRawExponent == ((1u << XRT_NUMBER_F64_EXP_BITS) - 1u) ) {
+		if ( iRawSignificand != 0 ) {
+			memcpy(sCursor, "nan", 3);
+			return 3;
+		}
+		if ( bNegative ) {
+			*sCursor++ = '-';
+		}
+		memcpy(sCursor, "inf", 3);
+		return (size_t)(sCursor - sOutput) + 3u;
+	}
+	if ( bNegative ) {
+		*sCursor++ = '-';
+	}
+	if ( (iRaw << 1u) == 0 ) {
+		if ( bCompact ) {
+			*sCursor++ = '0';
+		} else {
+			memcpy(sCursor, "0.0", 3);
+			sCursor += 3;
+		}
+		return (size_t)(sCursor - sOutput);
+	}
+
+	if ( iRawExponent != 0 ) {
+		iBinarySignificand = iRawSignificand |
+			(UINT64_C(1) << XRT_NUMBER_F64_SIG_BITS);
+		iBinaryExponent = (int32)iRawExponent -
+			XRT_NUMBER_F64_EXP_BIAS - XRT_NUMBER_F64_SIG_BITS;
+		if ( (iBinaryExponent >= -XRT_NUMBER_F64_SIG_BITS) &&
+			(iBinaryExponent <= 0) &&
+			(__xrtNumberTrailingZeros(iBinarySignificand) >=
+			(uint32)-iBinaryExponent) ) {
+			iDecimalSignificand =
+				iBinarySignificand >> -iBinaryExponent;
+			iDecimalExponent = 0;
+			iSize = __xrtNumberFloatLayout(
+				iDecimalSignificand,
+				iDecimalExponent,
+				sCursor,
+				bCompact
+			);
+			return (size_t)(sCursor - sOutput) + iSize;
+		}
+	} else {
+		iBinarySignificand = iRawSignificand;
+		iBinaryExponent =
+			1 - XRT_NUMBER_F64_EXP_BIAS - XRT_NUMBER_F64_SIG_BITS;
+	}
+
+	__xrtNumberBinaryToDecimal(
+		iRawSignificand,
+		iRawExponent,
+		iBinarySignificand,
+		iBinaryExponent,
+		&iDecimalSignificand,
+		&iDecimalExponent
+	);
+	while ( (iDecimalSignificand % UINT64_C(10)) == 0 ) {
+		iDecimalSignificand /= UINT64_C(10);
+		iDecimalExponent++;
+	}
+	iSize = __xrtNumberFloatLayout(
+		iDecimalSignificand,
+		iDecimalExponent,
+		sCursor,
+		bCompact
+	);
+	return (size_t)(sCursor - sOutput) + iSize;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/text/number_float.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_NUMBER_FLOAT)
+
+
+
+#if defined(XRT_FEATURE_NUMBER_FLOAT)
+
+#define XRT_NUMBER_FLOAT_FLAGS \
+	((uint32)XNUMBER_FLOAT_COMPACT)
+#define XRT_NUMBER_FLOAT_PARSE_FLAGS \
+	((uint32)XNUMBER_PARSE_SPACE | (uint32)XNUMBER_PARSE_SEPARATOR | \
+	(uint32)XNUMBER_PARSE_SPECIAL)
+#define XRT_NUMBER_FLOAT_MAX_DIGITS	769u
+
+
+
+/* 浮点扫描只保存正确舍入所需的高 769 位，其他低位折叠为 sticky 位。 */
+typedef struct xrt_number_float_scan {
+	uint8 Digits[XRT_NUMBER_FLOAT_MAX_DIGITS];
+	size_t TotalDigits;
+	size_t FractionDigits;
+	size_t FirstNonzero;
+	size_t LastNonzero;
+	uint32 StoredDigits;
+	bool HasNonzero;
+} xrt_number_float_scan;
+
+
+
+/* 指数使用符号和无符号幅值表示，避免解析 INT64_MIN 一类边界。 */
+typedef struct xrt_number_float_exponent {
+	uint64 Magnitude;
+	bool Negative;
+	bool Overflow;
+} xrt_number_float_exponent;
+
+
+
+/* 判断一个字节是否为十进制数字。 */
+static bool __xrtNumberFloatDigit(uint8 iByte)
+{
+	return (iByte >= (uint8)'0') && (iByte <= (uint8)'9');
+}
+
+
+
+/* 把 ASCII 字母折叠为小写，非字母保持不变。 */
+static uint8 __xrtNumberFloatLower(uint8 iByte)
+{
+	if ( (iByte >= (uint8)'A') && (iByte <= (uint8)'Z') ) {
+		return iByte + ((uint8)'a' - (uint8)'A');
+	}
+	return iByte;
+}
+
+
+
+/* 按显式长度比较不区分 ASCII 大小写的字面量。 */
+static bool __xrtNumberFloatLiteral(
+	xstrview Text,
+	cstr sLiteral,
+	size_t iLiteralSize
+)
+{
+	if ( Text.Size != iLiteralSize ) {
+		return false;
+	}
+	for ( size_t i = 0; i < iLiteralSize; i++ ) {
+		if ( __xrtNumberFloatLower((uint8)Text.Data[i]) !=
+			(uint8)sLiteral[i] ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+
+/* 统一报告浮点文本格式错误。 */
+static bool __xrtNumberFloatFormatError(cstr sMessage)
+{
+	__xrtNumberError(
+		XERR_VALUE,
+		XNUMBER_ERROR_FORMAT,
+		"num-parse",
+		sMessage
+	);
+	return false;
+}
+
+
+
+/* 校验标志并按需裁掉输入两端的 ASCII 空白。 */
+static bool __xrtNumberFloatTrim(
+	xstrview Text,
+	uint32 iFlags,
+	xstrview* pTrimmed
+)
+{
+	size_t iStart = 0;
+	size_t iEnd = Text.Size;
+
+	if ( (Text.Data == NULL) && (Text.Size != 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (iFlags & ~XRT_NUMBER_FLOAT_PARSE_FLAGS) != 0 ) {
+		__xrtNumberError(
+			XERR_VALUE,
+			XNUMBER_ERROR_CONFIG,
+			"num-parse",
+			"invalid floating-point parse flags"
+		);
+		return false;
+	}
+	if ( (iFlags & (uint32)XNUMBER_PARSE_SPACE) != 0 ) {
+		while ( (iStart < iEnd) &&
+			__xrtNumberAsciiSpace((uint8)Text.Data[iStart]) ) {
+			iStart++;
+		}
+		while ( (iEnd > iStart) &&
+			__xrtNumberAsciiSpace((uint8)Text.Data[iEnd - 1u]) ) {
+			iEnd--;
+		}
+	}
+	pTrimmed->Data = (Text.Data == NULL) ? NULL : Text.Data + iStart;
+	pTrimmed->Size = iEnd - iStart;
+	return true;
+}
+
+
+
+/* 记录尾数中的一个数字，同时维护首尾非零位置和有限高位缓存。 */
+static void __xrtNumberFloatRecord(
+	xrt_number_float_scan* pScan,
+	uint8 iDigit,
+	bool bFraction
+)
+{
+	size_t iPosition = pScan->TotalDigits;
+
+	if ( iDigit != (uint8)'0' ) {
+		if ( !pScan->HasNonzero ) {
+			pScan->HasNonzero = true;
+			pScan->FirstNonzero = iPosition;
+		}
+		pScan->LastNonzero = iPosition;
+	}
+	if ( pScan->HasNonzero &&
+		(pScan->StoredDigits < XRT_NUMBER_FLOAT_MAX_DIGITS) ) {
+		pScan->Digits[pScan->StoredDigits++] = iDigit;
+	}
+	pScan->TotalDigits++;
+	if ( bFraction ) {
+		pScan->FractionDigits++;
+	}
+}
+
+
+
+/*
+	读取尾数的一段十进制数字。
+	下划线只允许出现在两个数字之间，因此不会形成隐式 token 边界。
+*/
+static bool __xrtNumberFloatMantissaSequence(
+	xstrview Text,
+	size_t* pPosition,
+	uint32 iFlags,
+	bool bFraction,
+	xrt_number_float_scan* pScan,
+	size_t* pDigitCount
+)
+{
+	size_t iPosition = *pPosition;
+	size_t iCount = 0;
+
+	while ( iPosition < Text.Size ) {
+		uint8 iByte = (uint8)Text.Data[iPosition];
+
+		if ( __xrtNumberFloatDigit(iByte) ) {
+			__xrtNumberFloatRecord(pScan, iByte, bFraction);
+			iCount++;
+			iPosition++;
+			continue;
+		}
+		if ( iByte == (uint8)'_' ) {
+			if ( ((iFlags & (uint32)XNUMBER_PARSE_SEPARATOR) == 0) ||
+				(iCount == 0) ||
+				((iPosition + 1u) >= Text.Size) ||
+				!__xrtNumberFloatDigit(
+					(uint8)Text.Data[iPosition + 1u]) ) {
+				return false;
+			}
+			iPosition++;
+			continue;
+		}
+		break;
+	}
+	*pPosition = iPosition;
+	*pDigitCount = iCount;
+	return true;
+}
+
+
+
+/* 读取科学计数法指数并检测任意长度的十进制溢出。 */
+static bool __xrtNumberFloatExponentSequence(
+	xstrview Text,
+	size_t* pPosition,
+	uint32 iFlags,
+	xrt_number_float_exponent* pExponent
+)
+{
+	size_t iPosition = *pPosition;
+	size_t iDigits = 0;
+
+	memset(pExponent, 0, sizeof(*pExponent));
+	if ( iPosition < Text.Size ) {
+		uint8 iByte = (uint8)Text.Data[iPosition];
+
+		if ( (iByte == (uint8)'+') || (iByte == (uint8)'-') ) {
+			pExponent->Negative = iByte == (uint8)'-';
+			iPosition++;
+		}
+	}
+	while ( iPosition < Text.Size ) {
+		uint8 iByte = (uint8)Text.Data[iPosition];
+
+		if ( __xrtNumberFloatDigit(iByte) ) {
+			uint64 iDigit = (uint64)(iByte - (uint8)'0');
+
+			if ( !pExponent->Overflow ) {
+				if ( (pExponent->Magnitude >
+					(UINT64_MAX / UINT64_C(10))) ||
+					((pExponent->Magnitude ==
+					(UINT64_MAX / UINT64_C(10))) &&
+					(iDigit > (UINT64_MAX % UINT64_C(10)))) ) {
+					pExponent->Overflow = true;
+				} else {
+					pExponent->Magnitude =
+						(pExponent->Magnitude * UINT64_C(10)) +
+						iDigit;
+				}
+			}
+			iDigits++;
+			iPosition++;
+			continue;
+		}
+		if ( iByte == (uint8)'_' ) {
+			if ( ((iFlags & (uint32)XNUMBER_PARSE_SEPARATOR) == 0) ||
+				(iDigits == 0) ||
+				((iPosition + 1u) >= Text.Size) ||
+				!__xrtNumberFloatDigit(
+					(uint8)Text.Data[iPosition + 1u]) ) {
+				return false;
+			}
+			iPosition++;
+			continue;
+		}
+		break;
+	}
+	if ( iDigits == 0 ) {
+		return false;
+	}
+	*pPosition = iPosition;
+	return true;
+}
+
+
+
+/* 合并两个带符号幅值；同号加法溢出时保留最终符号。 */
+static xrt_number_float_exponent __xrtNumberFloatExponentAdd(
+	xrt_number_float_exponent Left,
+	xrt_number_float_exponent Right
+)
+{
+	xrt_number_float_exponent Result;
+
+	if ( Left.Overflow ) {
+		return Left;
+	}
+	if ( Right.Overflow ) {
+		return Right;
+	}
+	if ( Left.Negative == Right.Negative ) {
+		Result.Negative = Left.Negative;
+		Result.Overflow =
+			Left.Magnitude > (UINT64_MAX - Right.Magnitude);
+		Result.Magnitude = Result.Overflow ?
+			UINT64_MAX : Left.Magnitude + Right.Magnitude;
+		return Result;
+	}
+	Result.Overflow = false;
+	if ( Left.Magnitude >= Right.Magnitude ) {
+		Result.Negative = Left.Negative;
+		Result.Magnitude = Left.Magnitude - Right.Magnitude;
+	} else {
+		Result.Negative = Right.Negative;
+		Result.Magnitude = Right.Magnitude - Left.Magnitude;
+	}
+	if ( Result.Magnitude == 0 ) {
+		Result.Negative = false;
+	}
+	return Result;
+}
+
+
+
+/* 把两个 size_t 计数之差转换为指数的符号幅值。 */
+static xrt_number_float_exponent __xrtNumberFloatCountDifference(
+	size_t iPositive,
+	size_t iNegative
+)
+{
+	xrt_number_float_exponent Result;
+
+	Result.Overflow = false;
+	if ( iPositive >= iNegative ) {
+		Result.Negative = false;
+		Result.Magnitude = (uint64)(iPositive - iNegative);
+	} else {
+		Result.Negative = true;
+		Result.Magnitude = (uint64)(iNegative - iPositive);
+	}
+	return Result;
+}
+
+
+
+/* 把扫描结果归一化为数值内核所需的有效数和两个十进制指数。 */
+static bool __xrtNumberFloatNormalize(
+	xrt_number_float_scan* pScan,
+	xrt_number_float_exponent LiteralExponent,
+	uint64* pSignificand,
+	int32* pSignificandExponent,
+	uint32* pDigitCount,
+	int32* pDigitExponent
+)
+{
+	size_t iSignificantCount =
+		(pScan->LastNonzero - pScan->FirstNonzero) + 1u;
+	size_t iTrailingZeros =
+		(pScan->TotalDigits - pScan->LastNonzero) - 1u;
+	size_t iHighScale =
+		(iSignificantCount > 19u) ?
+		(iSignificantCount - 19u) : 0;
+	xrt_number_float_exponent CountExponent;
+	xrt_number_float_exponent Combined;
+	uint32 iRetained = (iSignificantCount >
+		XRT_NUMBER_FLOAT_MAX_DIGITS) ?
+		XRT_NUMBER_FLOAT_MAX_DIGITS :
+		(uint32)iSignificantCount;
+	uint32 iHighDigits =
+		(iSignificantCount > 19u) ? 19u : (uint32)iSignificantCount;
+	uint64 iSignificand = 0;
+	int32 iExponent;
+
+	/*
+		尾随零和高位截断尺度都属于正指数，小数位数属于负指数；
+		三者的正计数总和不超过尾数实际长度。
+	*/
+	CountExponent = __xrtNumberFloatCountDifference(
+		iTrailingZeros + iHighScale,
+		pScan->FractionDigits
+	);
+	Combined = __xrtNumberFloatExponentAdd(
+		LiteralExponent, CountExponent);
+	if ( Combined.Overflow ) {
+		if ( Combined.Negative ) {
+			*pSignificandExponent = -344;
+			return true;
+		}
+		__xrtNumberError(
+			XERR_RANGE,
+			XNUMBER_ERROR_RANGE,
+			"num-parse",
+			"floating-point value overflows double"
+		);
+		return false;
+	}
+	if ( Combined.Negative ) {
+		if ( Combined.Magnitude > UINT64_C(343) ) {
+			*pSignificandExponent = -344;
+			return true;
+		}
+		iExponent = -(int32)Combined.Magnitude;
+	} else {
+		if ( Combined.Magnitude > UINT64_C(308) ) {
+			__xrtNumberError(
+				XERR_RANGE,
+				XNUMBER_ERROR_RANGE,
+				"num-parse",
+				"floating-point value overflows double"
+			);
+			return false;
+		}
+		iExponent = (int32)Combined.Magnitude;
+	}
+
+	for ( uint32 i = 0; i < iHighDigits; i++ ) {
+		iSignificand = (iSignificand * UINT64_C(10)) +
+			(uint64)(pScan->Digits[i] - (uint8)'0');
+	}
+	if ( iSignificantCount > 19u ) {
+		iSignificand +=
+			pScan->Digits[19] >= (uint8)'5';
+	}
+	if ( iSignificantCount > XRT_NUMBER_FLOAT_MAX_DIGITS ) {
+		pScan->Digits[XRT_NUMBER_FLOAT_MAX_DIGITS - 1u] = (uint8)'1';
+	}
+
+	*pSignificand = iSignificand;
+	*pSignificandExponent = iExponent;
+	*pDigitCount = iRetained;
+	*pDigitExponent =
+		iExponent + (int32)iHighDigits - (int32)iRetained;
+	return true;
+}
+
+
+
+/* 解析显式允许的 inf、infinity 和 nan 特殊值。 */
+static bool __xrtNumberFloatSpecial(
+	xstrview Text,
+	bool bNegative,
+	uint64* pBits
+)
+{
+	if ( __xrtNumberFloatLiteral(Text, "inf", 3) ||
+		__xrtNumberFloatLiteral(Text, "infinity", 8) ) {
+		*pBits = UINT64_C(0x7FF0000000000000);
+	} else if ( __xrtNumberFloatLiteral(Text, "nan", 3) ) {
+		*pBits = UINT64_C(0x7FF8000000000000);
+	} else {
+		return false;
+	}
+	if ( bNegative ) {
+		*pBits |= UINT64_C(0x8000000000000000);
+	}
+	return true;
+}
+
+
+
+/* 完成浮点文本语法扫描、归一化和正确舍入转换。 */
+static bool __xrtNumberFloatParseText(
+	xstrview Text,
+	uint32 iFlags,
+	uint64* pBits
+)
+{
+	xrt_number_float_scan Scan;
+	xrt_number_float_exponent LiteralExponent;
+	size_t iPosition = 0;
+	size_t iIntegerDigits;
+	size_t iFractionDigits;
+	bool bNegative = false;
+	uint64 iSignificand;
+	int32 iSignificandExponent;
+	uint32 iDigitCount;
+	int32 iDigitExponent;
+	uint64 iBits;
+
+	memset(&Scan, 0, sizeof(Scan));
+	memset(&LiteralExponent, 0, sizeof(LiteralExponent));
+	if ( Text.Size == 0 ) {
+		return __xrtNumberFloatFormatError(
+			"floating-point text is empty");
+	}
+	if ( (Text.Data[iPosition] == '+') ||
+		(Text.Data[iPosition] == '-') ) {
+		bNegative = Text.Data[iPosition] == '-';
+		iPosition++;
+		if ( iPosition == Text.Size ) {
+			return __xrtNumberFloatFormatError(
+				"floating-point sign is not followed by a value");
+		}
+	}
+
+	if ( (iFlags & (uint32)XNUMBER_PARSE_SPECIAL) != 0 ) {
+		xstrview Special = {
+			Text.Data + iPosition,
+			Text.Size - iPosition
+		};
+
+		if ( __xrtNumberFloatSpecial(Special, bNegative, pBits) ) {
+			return true;
+		}
+	}
+
+	if ( !__xrtNumberFloatMantissaSequence(
+		Text,
+		&iPosition,
+		iFlags,
+		false,
+		&Scan,
+		&iIntegerDigits
+	) ) {
+		return __xrtNumberFloatFormatError(
+			"invalid separator in floating-point integer part");
+	}
+	iFractionDigits = 0;
+	if ( (iPosition < Text.Size) &&
+		(Text.Data[iPosition] == '.') ) {
+		iPosition++;
+		if ( !__xrtNumberFloatMantissaSequence(
+			Text,
+			&iPosition,
+			iFlags,
+			true,
+			&Scan,
+			&iFractionDigits
+		) ) {
+			return __xrtNumberFloatFormatError(
+				"invalid separator in floating-point fraction");
+		}
+	}
+	if ( (iIntegerDigits == 0) && (iFractionDigits == 0) ) {
+		return __xrtNumberFloatFormatError(
+			"floating-point text has no decimal digit");
+	}
+
+	if ( (iPosition < Text.Size) &&
+		((Text.Data[iPosition] == 'e') ||
+		(Text.Data[iPosition] == 'E')) ) {
+		iPosition++;
+		if ( !__xrtNumberFloatExponentSequence(
+			Text,
+			&iPosition,
+			iFlags,
+			&LiteralExponent
+		) ) {
+			return __xrtNumberFloatFormatError(
+				"floating-point exponent has no valid digit");
+		}
+	}
+	if ( iPosition != Text.Size ) {
+		return __xrtNumberFloatFormatError(
+			"unexpected character after floating-point value");
+	}
+
+	if ( !Scan.HasNonzero ) {
+		*pBits = bNegative ?
+			UINT64_C(0x8000000000000000) : 0;
+		return true;
+	}
+	if ( !__xrtNumberFloatNormalize(
+		&Scan,
+		LiteralExponent,
+		&iSignificand,
+		&iSignificandExponent,
+		&iDigitCount,
+		&iDigitExponent
+	) ) {
+		return false;
+	}
+	if ( iSignificandExponent < -343 ) {
+		*pBits = bNegative ?
+			UINT64_C(0x8000000000000000) : 0;
+		return true;
+	}
+	if ( !__xrtNumberFloatConvert(
+		Scan.Digits,
+		iDigitCount,
+		iDigitExponent,
+		iSignificand,
+		iSignificandExponent,
+		&iBits
+	) ) {
+		__xrtNumberError(
+			XERR_RANGE,
+			XNUMBER_ERROR_RANGE,
+			"num-parse",
+			"floating-point value overflows double"
+		);
+		return false;
+	}
+	if ( bNegative ) {
+		iBits |= UINT64_C(0x8000000000000000);
+	}
+	*pBits = iBits;
+	return true;
+}
+
+
+
+/* 写出 double 的最短往返文本。 */
+XRT_API bool xrtNumWrite(
+	double fValue,
+	char* sOutput,
+	size_t iCapacity,
+	size_t* pOutputSize,
+	uint32 iFlags
+)
+{
+	char sBuffer[40];
+	size_t iSize;
+
+	if ( (pOutputSize == NULL) ||
+		((sOutput == NULL) && (iCapacity != 0)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (sOutput != NULL) && __xrtRangesOverlap(
+		pOutputSize, sizeof(*pOutputSize), sOutput, iCapacity) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (iFlags & ~XRT_NUMBER_FLOAT_FLAGS) != 0 ) {
+		__xrtNumberError(
+			XERR_VALUE,
+			XNUMBER_ERROR_CONFIG,
+			"num-write",
+			"invalid floating-point write flags"
+		);
+		return false;
+	}
+	iSize = __xrtNumberFloatFormat(
+		fValue,
+		sBuffer,
+		(iFlags & (uint32)XNUMBER_FLOAT_COMPACT) != 0
+	);
+	return __xrtNumberWriteResult(
+		sBuffer, iSize, sOutput, iCapacity, pOutputSize);
+}
+
+
+
+/* 分配并写出 double 的最短往返文本。 */
+XRT_API str xrtNumString(double fValue, uint32 iFlags)
+{
+	size_t iSize;
+	str sText;
+
+	if ( !xrtNumWrite(fValue, NULL, 0, &iSize, iFlags) ) {
+		return NULL;
+	}
+	sText = (str)xrtMalloc(iSize + 1u);
+	if ( sText == NULL ) {
+		return NULL;
+	}
+	if ( !xrtNumWrite(
+		fValue, sText, iSize + 1u, &iSize, iFlags) ) {
+		xrtFree(sText);
+		return NULL;
+	}
+	return sText;
+}
+
+
+
+/* 严格解析完整十进制浮点文本并在成功后发布结果。 */
+XRT_API bool xrtNumParse(
+	xstrview Text,
+	uint32 iFlags,
+	double* pValue
+)
+{
+	xstrview Trimmed;
+	uint64 iBits;
+	double fValue;
+
+	if ( pValue == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtNumberFloatTrim(Text, iFlags, &Trimmed) ) {
+		return false;
+	}
+	if ( !__xrtNumberFloatParseText(Trimmed, iFlags, &iBits) ) {
+		return false;
+	}
+	memcpy(&fValue, &iBits, sizeof(fValue));
+	*pValue = fValue;
+	return true;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/text/unicode.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_UNICODE)
+
+#include <stdio.h>
+
+
+
+#if defined(XRT_FEATURE_UNICODE)
+
+/* 内部转换器使用统一的码元类型，避免维护六套近似循环。 */
+typedef enum xrt_utf_unit {
+	XRT_UTF_UNIT_8 = 1,
+	XRT_UTF_UNIT_16 = 2,
+	XRT_UTF_UNIT_32 = 4
+} xrt_utf_unit;
+
+
+
+/* 创建一个尚未读取和写入数据的转换结果。 */
+static xutfresult __xrtUtfResult(void)
+{
+	xutfresult Result;
+
+	Result.Status = XUTF_OK;
+	Result.Read = 0;
+	Result.Written = 0;
+	Result.Error = XRT_NPOS;
+	return Result;
+}
+
+
+
+/* 检查借用视图的指针和长度组合。 */
+static bool __xrtUtfViewValid(const void* pData, size_t iSize)
+{
+	if ( (pData == NULL) && (iSize != 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 返回输入开头连续 ASCII 字节数，供常见纯 ASCII 路径跳过逐标量解码。 */
+static size_t __xrtUtf8AsciiPrefix(const unsigned char* pText, size_t iSize)
+{
+	size_t i = 0;
+
+	while ( (i < iSize) && (pText[i] <= 0x7Fu) ) {
+		i++;
+	}
+	return i;
+}
+
+
+
+/* 根据源码元类型解码一个 Unicode 标量。 */
+static xrt_utf_decode __xrtUtfDecodeUnit(const void* pSource, size_t iSize,
+	xrt_utf_unit Unit)
+{
+	if ( Unit == XRT_UTF_UNIT_8 ) {
+		return __xrtUtf8Decode((const unsigned char*)pSource, iSize);
+	}
+	if ( Unit == XRT_UTF_UNIT_16 ) {
+		return __xrtUtf16Decode((const uint16*)pSource, iSize);
+	}
+	return __xrtUtf32Decode((const uint32*)pSource, iSize);
+}
+
+
+
+/* 根据目标码元类型返回编码长度并按需写出标量。 */
+static size_t __xrtUtfEncodeUnit(uint32 iScalar, void* pTarget, xrt_utf_unit Unit)
+{
+	if ( Unit == XRT_UTF_UNIT_8 ) {
+		return __xrtUtf8Encode(iScalar, (unsigned char*)pTarget);
+	}
+	if ( Unit == XRT_UTF_UNIT_16 ) {
+		return __xrtUtf16Encode(iScalar, (uint16*)pTarget);
+	}
+	if ( pTarget != NULL ) {
+		*(uint32*)pTarget = iScalar;
+	}
+	return 1;
+}
+
+
+
+/* 按目标码元宽度计算写入地址。 */
+static void* __xrtUtfTargetAt(void* pTarget, size_t iPosition, xrt_utf_unit Unit)
+{
+	if ( Unit == XRT_UTF_UNIT_8 ) {
+		return (unsigned char*)pTarget + iPosition;
+	}
+	if ( Unit == XRT_UTF_UNIT_16 ) {
+		return (uint16*)pTarget + iPosition;
+	}
+	return (uint32*)pTarget + iPosition;
+}
+
+
+
+/* 按源码元宽度计算读取地址。 */
+static const void* __xrtUtfSourceAt(const void* pSource, size_t iPosition,
+	xrt_utf_unit Unit)
+{
+	if ( Unit == XRT_UTF_UNIT_8 ) {
+		return (const unsigned char*)pSource + iPosition;
+	}
+	if ( Unit == XRT_UTF_UNIT_16 ) {
+		return (const uint16*)pSource + iPosition;
+	}
+	return (const uint32*)pSource + iPosition;
+}
+
+
+
+/* 用一条标量管线完成任意 UTF 码元宽度之间的转换。 */
+static xutfresult __xrtUtfConvert(const void* pSource, size_t iSourceSize,
+	void* pTarget, size_t iCapacity, xrt_utf_unit SourceUnit,
+	xrt_utf_unit TargetUnit, xutfpolicy Policy, cstr sOperation)
+{
+	xutfresult Result = __xrtUtfResult();
+	bool bMeasure = pTarget == NULL;
+	size_t iSourceBytes;
+	size_t iTargetBytes = 0;
+
+	if ( !__xrtUtfViewValid(pSource, iSourceSize) ||
+		 ((pTarget == NULL) && (iCapacity != 0)) ||
+		 ((Policy != XUTF_STRICT) && (Policy != XUTF_REPLACE)) ) {
+		if ( ((pTarget == NULL) && (iCapacity != 0)) ||
+			 ((Policy != XUTF_STRICT) && (Policy != XUTF_REPLACE)) ) {
+			__xrtErrorSetInvalidArgument();
+		}
+		Result.Status = XUTF_INVALID;
+		Result.Error = 0;
+		return Result;
+	}
+	if ( (iSourceSize > (SIZE_MAX / (size_t)SourceUnit)) ||
+		(!bMeasure && (iCapacity > (SIZE_MAX / (size_t)TargetUnit))) ) {
+		Result.Status = XUTF_OVERFLOW;
+		__xrtUtfSetOverflow(sOperation);
+		return Result;
+	}
+	iSourceBytes = iSourceSize * (size_t)SourceUnit;
+	if ( !bMeasure ) {
+		iTargetBytes = iCapacity * (size_t)TargetUnit;
+		if ( __xrtRangesOverlap(
+			pSource, iSourceBytes, pTarget, iTargetBytes
+		) ) {
+			Result.Status = XUTF_INVALID;
+			Result.Error = 0;
+			__xrtErrorSetInvalidArgument();
+			return Result;
+		}
+	}
+
+	/* 每轮只处理一个标量，目标空间不足时保持源位置不变。 */
+	while ( Result.Read < iSourceSize ) {
+		xrt_utf_decode Decode;
+		uint32 iScalar;
+		size_t iNeed;
+
+		if ( (SourceUnit == XRT_UTF_UNIT_8) &&
+			(((const unsigned char*)pSource)[Result.Read] <= 0x7Fu) ) {
+			Decode.Status = XUTF_OK;
+			Decode.Scalar = ((const unsigned char*)pSource)[Result.Read];
+			Decode.Read = 1;
+		} else {
+			Decode = __xrtUtfDecodeUnit(
+				__xrtUtfSourceAt(pSource, Result.Read, SourceUnit),
+				iSourceSize - Result.Read, SourceUnit);
+		}
+		iScalar = Decode.Scalar;
+
+		if ( Decode.Status != XUTF_OK ) {
+			if ( Policy == XUTF_STRICT ) {
+				Result.Status = XUTF_INVALID;
+				Result.Error = Result.Read;
+				__xrtUtfSetInvalid(sOperation, Result.Error);
+				return Result;
+			}
+			iScalar = 0xFFFDu;
+		}
+
+		iNeed = __xrtUtfEncodeUnit(iScalar, NULL, TargetUnit);
+		if ( iNeed > (SIZE_MAX - Result.Written) ) {
+			Result.Status = XUTF_OVERFLOW;
+			__xrtUtfSetOverflow(sOperation);
+			return Result;
+		}
+		if ( !bMeasure && (iNeed > (iCapacity - Result.Written)) ) {
+			Result.Status = XUTF_NO_SPACE;
+			return Result;
+		}
+		if ( !bMeasure ) {
+			(void)__xrtUtfEncodeUnit(iScalar,
+				__xrtUtfTargetAt(pTarget, Result.Written, TargetUnit), TargetUnit);
+		}
+		Result.Read += Decode.Read;
+		Result.Written += iNeed;
+	}
+	return Result;
+}
+
+
+
+/* 分配目标字符串并复用缓冲区转换契约。 */
+static ptr __xrtUtfConvertAlloc(const void* pSource, size_t iSourceSize,
+	xrt_utf_unit SourceUnit, xrt_utf_unit TargetUnit, xutfpolicy Policy,
+	size_t* pSize, cstr sOperation)
+{
+	xutfresult Measure;
+	xutfresult Convert;
+	size_t iBytes;
+	size_t iSourceBytes;
+	ptr pOutput;
+
+	if ( iSourceSize > (SIZE_MAX / (size_t)SourceUnit) ) {
+		__xrtUtfSetOverflow(sOperation);
+		return NULL;
+	}
+	iSourceBytes = iSourceSize * (size_t)SourceUnit;
+	if ( (pSize != NULL) && __xrtRangesOverlap(
+		pSize, sizeof(*pSize), pSource, iSourceBytes
+	) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( pSize != NULL ) {
+		*pSize = 0;
+	}
+	Measure = __xrtUtfConvert(pSource, iSourceSize, NULL, 0, SourceUnit,
+		TargetUnit, Policy, sOperation);
+	if ( Measure.Status != XUTF_OK ) {
+		return NULL;
+	}
+	if ( Measure.Written > ((SIZE_MAX / (size_t)TargetUnit) - 1u) ) {
+		__xrtUtfSetOverflow(sOperation);
+		return NULL;
+	}
+	iBytes = (Measure.Written + 1u) * (size_t)TargetUnit;
+	pOutput = xrtMalloc(iBytes);
+	if ( pOutput == NULL ) {
+		return NULL;
+	}
+
+	/* 第二遍写入已经精确计量的缓冲区，并补一个完整零码元。 */
+	Convert = __xrtUtfConvert(pSource, iSourceSize, pOutput, Measure.Written,
+		SourceUnit, TargetUnit, Policy, sOperation);
+	if ( Convert.Status != XUTF_OK ) {
+		xrtFree(pOutput);
+		return NULL;
+	}
+	memset(__xrtUtfTargetAt(pOutput, Convert.Written, TargetUnit), 0,
+		(size_t)TargetUnit);
+	if ( pSize != NULL ) {
+		*pSize = Convert.Written;
+	}
+	return pOutput;
+}
+
+
+
+/* 严格解码一个 UTF-8 标量，并给出最大子部件长度。 */
+xrt_utf_decode __xrtUtf8Decode(const unsigned char* pText, size_t iSize)
+{
+	xrt_utf_decode Decode;
+	unsigned char iLead;
+	size_t iNeed;
+	unsigned char iSecondMin = 0x80u;
+	unsigned char iSecondMax = 0xBFu;
+
+	Decode.Status = XUTF_MORE;
+	Decode.Scalar = 0;
+	Decode.Read = iSize;
+	if ( iSize == 0 ) {
+		return Decode;
+	}
+
+	/* ASCII 是唯一的单字节 UTF-8 形式。 */
+	iLead = pText[0];
+	if ( iLead <= 0x7Fu ) {
+		Decode.Status = XUTF_OK;
+		Decode.Scalar = iLead;
+		Decode.Read = 1;
+		return Decode;
+	}
+
+	/* 首字节同时确定长度和第二字节的收紧范围。 */
+	if ( (iLead >= 0xC2u) && (iLead <= 0xDFu) ) {
+		iNeed = 2;
+		Decode.Scalar = (uint32)(iLead & 0x1Fu);
+	} else if ( (iLead >= 0xE0u) && (iLead <= 0xEFu) ) {
+		iNeed = 3;
+		Decode.Scalar = (uint32)(iLead & 0x0Fu);
+		if ( iLead == 0xE0u ) {
+			iSecondMin = 0xA0u;
+		} else if ( iLead == 0xEDu ) {
+			iSecondMax = 0x9Fu;
+		}
+	} else if ( (iLead >= 0xF0u) && (iLead <= 0xF4u) ) {
+		iNeed = 4;
+		Decode.Scalar = (uint32)(iLead & 0x07u);
+		if ( iLead == 0xF0u ) {
+			iSecondMin = 0x90u;
+		} else if ( iLead == 0xF4u ) {
+			iSecondMax = 0x8Fu;
+		}
+	} else {
+		Decode.Status = XUTF_INVALID;
+		Decode.Read = 1;
+		return Decode;
+	}
+
+	/* 缺少第二字节时，现有内容仍可能是合法序列前缀。 */
+	if ( iSize < 2u ) {
+		Decode.Status = XUTF_MORE;
+		Decode.Read = iSize;
+		return Decode;
+	}
+	if ( (pText[1] < iSecondMin) || (pText[1] > iSecondMax) ) {
+		Decode.Status = XUTF_INVALID;
+		Decode.Read = 1;
+		return Decode;
+	}
+	Decode.Scalar = (Decode.Scalar << 6) | (uint32)(pText[1] & 0x3Fu);
+
+	/* 后续字节必须连续；错误前的合法前缀就是最大子部件。 */
+	for ( size_t i = 2; i < iNeed; i++ ) {
+		if ( i >= iSize ) {
+			Decode.Status = XUTF_MORE;
+			Decode.Read = iSize;
+			return Decode;
+		}
+		if ( (pText[i] < 0x80u) || (pText[i] > 0xBFu) ) {
+			Decode.Status = XUTF_INVALID;
+			Decode.Read = i;
+			return Decode;
+		}
+		Decode.Scalar = (Decode.Scalar << 6) | (uint32)(pText[i] & 0x3Fu);
+	}
+	Decode.Status = XUTF_OK;
+	Decode.Read = iNeed;
+	return Decode;
+}
+
+
+
+/* 严格解码一个 UTF-16 标量。 */
+xrt_utf_decode __xrtUtf16Decode(const uint16* pText, size_t iSize)
+{
+	xrt_utf_decode Decode;
+	uint32 iFirst;
+
+	Decode.Status = XUTF_MORE;
+	Decode.Scalar = 0;
+	Decode.Read = iSize;
+	if ( iSize == 0 ) {
+		return Decode;
+	}
+	iFirst = pText[0];
+	if ( (iFirst < 0xD800u) || (iFirst > 0xDFFFu) ) {
+		Decode.Status = XUTF_OK;
+		Decode.Scalar = iFirst;
+		Decode.Read = 1;
+		return Decode;
+	}
+	if ( iFirst >= 0xDC00u ) {
+		Decode.Status = XUTF_INVALID;
+		Decode.Read = 1;
+		return Decode;
+	}
+	if ( iSize < 2u ) {
+		Decode.Status = XUTF_MORE;
+		Decode.Read = 1;
+		return Decode;
+	}
+	if ( (pText[1] < 0xDC00u) || (pText[1] > 0xDFFFu) ) {
+		Decode.Status = XUTF_INVALID;
+		Decode.Read = 1;
+		return Decode;
+	}
+	Decode.Status = XUTF_OK;
+	Decode.Scalar = 0x10000u + ((iFirst - 0xD800u) << 10) +
+		((uint32)pText[1] - 0xDC00u);
+	Decode.Read = 2;
+	return Decode;
+}
+
+
+
+/* 严格解码一个 UTF-32 标量。 */
+xrt_utf_decode __xrtUtf32Decode(const uint32* pText, size_t iSize)
+{
+	xrt_utf_decode Decode;
+
+	Decode.Status = XUTF_MORE;
+	Decode.Scalar = 0;
+	Decode.Read = iSize;
+	if ( iSize == 0 ) {
+		return Decode;
+	}
+	Decode.Read = 1;
+	Decode.Scalar = pText[0];
+	Decode.Status = xrtUnicodeScalar(Decode.Scalar) ? XUTF_OK : XUTF_INVALID;
+	return Decode;
+}
+
+
+
+/* 无错误副作用地编码一个 UTF-8 标量。 */
+size_t __xrtUtf8Encode(uint32 iScalar, unsigned char* pOutput)
+{
+	if ( !xrtUnicodeScalar(iScalar) ) {
+		return 0;
+	}
+	if ( iScalar <= 0x7Fu ) {
+		if ( pOutput != NULL ) {
+			pOutput[0] = (unsigned char)iScalar;
+		}
+		return 1;
+	}
+	if ( iScalar <= 0x7FFu ) {
+		if ( pOutput != NULL ) {
+			pOutput[0] = (unsigned char)(0xC0u | (iScalar >> 6));
+			pOutput[1] = (unsigned char)(0x80u | (iScalar & 0x3Fu));
+		}
+		return 2;
+	}
+	if ( iScalar <= 0xFFFFu ) {
+		if ( pOutput != NULL ) {
+			pOutput[0] = (unsigned char)(0xE0u | (iScalar >> 12));
+			pOutput[1] = (unsigned char)(0x80u | ((iScalar >> 6) & 0x3Fu));
+			pOutput[2] = (unsigned char)(0x80u | (iScalar & 0x3Fu));
+		}
+		return 3;
+	}
+	if ( pOutput != NULL ) {
+		pOutput[0] = (unsigned char)(0xF0u | (iScalar >> 18));
+		pOutput[1] = (unsigned char)(0x80u | ((iScalar >> 12) & 0x3Fu));
+		pOutput[2] = (unsigned char)(0x80u | ((iScalar >> 6) & 0x3Fu));
+		pOutput[3] = (unsigned char)(0x80u | (iScalar & 0x3Fu));
+	}
+	return 4;
+}
+
+
+
+/* 无错误副作用地编码一个 UTF-16 标量。 */
+size_t __xrtUtf16Encode(uint32 iScalar, uint16* pOutput)
+{
+	if ( !xrtUnicodeScalar(iScalar) ) {
+		return 0;
+	}
+	if ( iScalar <= 0xFFFFu ) {
+		if ( pOutput != NULL ) {
+			pOutput[0] = (uint16)iScalar;
+		}
+		return 1;
+	}
+	iScalar -= 0x10000u;
+	if ( pOutput != NULL ) {
+		pOutput[0] = (uint16)(0xD800u + (iScalar >> 10));
+		pOutput[1] = (uint16)(0xDC00u + (iScalar & 0x3FFu));
+	}
+	return 2;
+}
+
+
+
+/* 设置带错误位置的 Unicode 值错误。 */
+void __xrtUtfSetInvalid(cstr sOperation, size_t iOffset)
+{
+	char sData[64];
+	xerrordesc Desc;
+	xerror* pError;
+
+	(void)snprintf(sData, sizeof(sData), "offset=%llu",
+		(unsigned long long)iOffset);
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = XERR_VALUE;
+	Desc.Domain = "xrt.unicode";
+	Desc.Code = XUTF_ERROR_INVALID;
+	Desc.Operation = sOperation;
+	Desc.Message = "invalid Unicode encoding";
+	Desc.Data = sData;
+	pError = xrtErrorBuild(&Desc);
+	if ( pError != NULL ) {
+		__xrtErrorSetOwned(pError);
+	}
+}
+
+
+
+/* 设置 Unicode 转换大小溢出错误。 */
+void __xrtUtfSetOverflow(cstr sOperation)
+{
+	xerrordesc Desc;
+	xerror* pError;
+
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = XERR_RANGE;
+	Desc.Domain = "xrt.unicode";
+	Desc.Code = XUTF_ERROR_OVERFLOW;
+	Desc.Operation = sOperation;
+	Desc.Message = "Unicode conversion size overflow";
+	pError = xrtErrorBuild(&Desc);
+	if ( pError != NULL ) {
+		__xrtErrorSetOwned(pError);
+	}
+}
+
+
+
+/* 复制明确数量的宽码元并追加一个零码元。 */
+static ptr __xrtUtfDupUnits(
+	const void* pText,
+	size_t iSize,
+	size_t iUnitSize,
+	cstr sOperation
+)
+{
+	size_t iBytes;
+	unsigned char* pCopy;
+
+	if ( (pText == NULL) && (iSize != 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( iSize > ((SIZE_MAX / iUnitSize) - 1u) ) {
+		__xrtUtfSetOverflow(sOperation);
+		return NULL;
+	}
+	iBytes = iSize * iUnitSize;
+	pCopy = (unsigned char*)xrtMalloc(iBytes + iUnitSize);
+	if ( pCopy == NULL ) {
+		return NULL;
+	}
+	if ( iBytes != 0 ) {
+		memcpy(pCopy, pText, iBytes);
+	}
+	memset(pCopy + iBytes, 0, iUnitSize);
+	return pCopy;
+}
+
+
+
+/* 从明确码元数创建 UTF-16 借用视图。 */
+XRT_API xutf16view xrtUtf16View(const uint16* pText, size_t iSize)
+{
+	xutf16view Text;
+
+	Text.Data = pText;
+	Text.Size = iSize;
+	return Text;
+}
+
+
+
+/* 从明确码元数创建 UTF-32 借用视图。 */
+XRT_API xutf32view xrtUtf32View(const uint32* pText, size_t iSize)
+{
+	xutf32view Text;
+
+	Text.Data = pText;
+	Text.Size = iSize;
+	return Text;
+}
+
+
+
+/* 返回零结尾 UTF-16 字符串的码元数。 */
+XRT_API size_t xrtUtf16Len(const uint16* pText)
+{
+	size_t iSize = 0;
+
+	if ( pText != NULL ) {
+		while ( pText[iSize] != 0 ) {
+			iSize++;
+		}
+	}
+	return iSize;
+}
+
+
+
+/* 返回零结尾 UTF-32 字符串的码元数。 */
+XRT_API size_t xrtUtf32Len(const uint32* pText)
+{
+	size_t iSize = 0;
+
+	if ( pText != NULL ) {
+		while ( pText[iSize] != 0 ) {
+			iSize++;
+		}
+	}
+	return iSize;
+}
+
+
+
+/* 复制零结尾 UTF-16 字符串。 */
+XRT_API uint16* xrtUtf16Dup(const uint16* pText)
+{
+	return xrtUtf16DupView(xrtUtf16View(pText, xrtUtf16Len(pText)));
+}
+
+
+
+/* 复制 UTF-16 视图并追加零码元。 */
+XRT_API uint16* xrtUtf16DupView(xutf16view Text)
+{
+	return (uint16*)__xrtUtfDupUnits(
+		Text.Data,
+		Text.Size,
+		sizeof(uint16),
+		"utf16-duplicate"
+	);
+}
+
+
+
+/* 复制零结尾 UTF-32 字符串。 */
+XRT_API uint32* xrtUtf32Dup(const uint32* pText)
+{
+	return xrtUtf32DupView(xrtUtf32View(pText, xrtUtf32Len(pText)));
+}
+
+
+
+/* 复制 UTF-32 视图并追加零码元。 */
+XRT_API uint32* xrtUtf32DupView(xutf32view Text)
+{
+	return (uint32*)__xrtUtfDupUnits(
+		Text.Data,
+		Text.Size,
+		sizeof(uint32),
+		"utf32-duplicate"
+	);
+}
+
+
+
+/* 判断数值是否是可编码的 Unicode 标量值。 */
+XRT_API bool xrtUnicodeScalar(uint32 iScalar)
+{
+	return (iScalar <= 0x10FFFFu) &&
+		((iScalar < 0xD800u) || (iScalar > 0xDFFFu));
+}
+
+
+
+/* 解码一个 UTF-8 标量。 */
+XRT_API xutfstatus xrtUtf8Decode(xstrview Text, uint32* pScalar, size_t* pRead)
+{
+	xrt_utf_decode Decode;
+
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) || (pScalar == NULL) ||
+		__xrtRangesOverlap(pScalar, sizeof(*pScalar), Text.Data, Text.Size) ||
+		((pRead != NULL) && (
+		 __xrtRangesOverlap(pRead, sizeof(*pRead), Text.Data, Text.Size) ||
+		 __xrtRangesOverlap(pRead, sizeof(*pRead), pScalar, sizeof(*pScalar))
+		)) ) {
+		__xrtErrorSetInvalidArgument();
+		return XUTF_INVALID;
+	}
+	if ( pRead != NULL ) {
+		*pRead = 0;
+	}
+	*pScalar = 0;
+	Decode = __xrtUtf8Decode((const unsigned char*)Text.Data, Text.Size);
+	*pScalar = Decode.Scalar;
+	if ( pRead != NULL ) {
+		*pRead = Decode.Read;
+	}
+	return Decode.Status;
+}
+
+
+
+/* 解码一个 UTF-16 标量。 */
+XRT_API xutfstatus xrtUtf16Decode(xutf16view Text, uint32* pScalar, size_t* pRead)
+{
+	xrt_utf_decode Decode;
+	size_t iTextBytes;
+
+	if ( (Text.Size > (SIZE_MAX / sizeof(uint16))) ||
+		!__xrtUtfViewValid(Text.Data, Text.Size) || (pScalar == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return XUTF_INVALID;
+	}
+	iTextBytes = Text.Size * sizeof(uint16);
+	if ( __xrtRangesOverlap(pScalar, sizeof(*pScalar), Text.Data, iTextBytes) ||
+		((pRead != NULL) && (
+		 __xrtRangesOverlap(pRead, sizeof(*pRead), Text.Data, iTextBytes) ||
+		 __xrtRangesOverlap(pRead, sizeof(*pRead), pScalar, sizeof(*pScalar))
+		)) ) {
+		__xrtErrorSetInvalidArgument();
+		return XUTF_INVALID;
+	}
+	if ( pRead != NULL ) {
+		*pRead = 0;
+	}
+	*pScalar = 0;
+	Decode = __xrtUtf16Decode(Text.Data, Text.Size);
+	*pScalar = Decode.Scalar;
+	if ( pRead != NULL ) {
+		*pRead = Decode.Read;
+	}
+	return Decode.Status;
+}
+
+
+
+/* 把一个 Unicode 标量编码为 UTF-8。 */
+XRT_API size_t xrtUtf8Encode(uint32 iScalar, char arrOutput[4])
+{
+	if ( arrOutput == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	if ( !xrtUnicodeScalar(iScalar) ) {
+		__xrtUtfSetInvalid("utf8_encode", 0);
+		return 0;
+	}
+	return __xrtUtf8Encode(iScalar, (unsigned char*)arrOutput);
+}
+
+
+
+/* 把一个 Unicode 标量编码为 UTF-16。 */
+XRT_API size_t xrtUtf16Encode(uint32 iScalar, uint16 arrOutput[2])
+{
+	if ( arrOutput == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	if ( !xrtUnicodeScalar(iScalar) ) {
+		__xrtUtfSetInvalid("utf16_encode", 0);
+		return 0;
+	}
+	return __xrtUtf16Encode(iScalar, arrOutput);
+}
+
+
+
+/* 严格校验 UTF-8。 */
+XRT_API bool xrtUtf8Valid(xstrview Text, size_t* pError)
+{
+	size_t iPosition = 0;
+
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
+		if ( pError != NULL ) {
+			*pError = 0;
+		}
+		return false;
+	}
+	if ( (pError != NULL) && __xrtRangesOverlap(
+		pError, sizeof(*pError), Text.Data, Text.Size
+	) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( pError != NULL ) {
+		*pError = XRT_NPOS;
+	}
+	while ( iPosition < Text.Size ) {
+		iPosition += __xrtUtf8AsciiPrefix(
+			(const unsigned char*)Text.Data + iPosition,
+			Text.Size - iPosition
+		);
+		if ( iPosition == Text.Size ) {
+			break;
+		}
+		xrt_utf_decode Decode = __xrtUtf8Decode(
+			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
+
+		if ( Decode.Status != XUTF_OK ) {
+			if ( pError != NULL ) {
+				*pError = iPosition;
+			}
+			return false;
+		}
+		iPosition += Decode.Read;
+	}
+	return true;
+}
+
+
+
+/* 严格校验 UTF-16。 */
+XRT_API bool xrtUtf16Valid(xutf16view Text, size_t* pError)
+{
+	size_t iPosition = 0;
+	size_t iTextBytes;
+
+	if ( Text.Size > (SIZE_MAX / sizeof(uint16)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
+		if ( pError != NULL ) {
+			*pError = 0;
+		}
+		return false;
+	}
+	iTextBytes = Text.Size * sizeof(uint16);
+	if ( (pError != NULL) && __xrtRangesOverlap(
+		pError, sizeof(*pError), Text.Data, iTextBytes
+	) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( pError != NULL ) {
+		*pError = XRT_NPOS;
+	}
+	while ( iPosition < Text.Size ) {
+		xrt_utf_decode Decode = __xrtUtf16Decode(Text.Data + iPosition,
+			Text.Size - iPosition);
+
+		if ( Decode.Status != XUTF_OK ) {
+			if ( pError != NULL ) {
+				*pError = iPosition;
+			}
+			return false;
+		}
+		iPosition += Decode.Read;
+	}
+	return true;
+}
+
+
+
+/* 严格校验 UTF-32。 */
+XRT_API bool xrtUtf32Valid(xutf32view Text, size_t* pError)
+{
+	size_t iTextBytes;
+
+	if ( Text.Size > (SIZE_MAX / sizeof(uint32)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
+		if ( pError != NULL ) {
+			*pError = 0;
+		}
+		return false;
+	}
+	iTextBytes = Text.Size * sizeof(uint32);
+	if ( (pError != NULL) && __xrtRangesOverlap(
+		pError, sizeof(*pError), Text.Data, iTextBytes
+	) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( pError != NULL ) {
+		*pError = XRT_NPOS;
+	}
+	for ( size_t i = 0; i < Text.Size; i++ ) {
+		if ( !xrtUnicodeScalar(Text.Data[i]) ) {
+			if ( pError != NULL ) {
+				*pError = i;
+			}
+			return false;
+		}
+	}
+	return true;
+}
+
+
+
+/* 统计 UTF-8 标量数。 */
+XRT_API size_t xrtUtf8Count(xstrview Text)
+{
+	size_t iPosition = 0;
+	size_t iCount = 0;
+
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
+		return XRT_NPOS;
+	}
+	while ( iPosition < Text.Size ) {
+		size_t iAscii = __xrtUtf8AsciiPrefix(
+			(const unsigned char*)Text.Data + iPosition,
+			Text.Size - iPosition
+		);
+
+		iPosition += iAscii;
+		iCount += iAscii;
+		if ( iPosition == Text.Size ) {
+			break;
+		}
+		xrt_utf_decode Decode = __xrtUtf8Decode(
+			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
+
+		if ( Decode.Status != XUTF_OK ) {
+			return XRT_NPOS;
+		}
+		iPosition += Decode.Read;
+		iCount++;
+	}
+	return iCount;
+}
+
+
+
+/* 严格走过指定数量的 UTF-8 标量并返回字节位置。 */
+static bool __xrtUtf8Seek(xstrview Text, size_t iIndex, size_t* pOffset,
+	cstr sOperation)
+{
+	size_t iPosition = 0;
+	size_t iCurrent = 0;
+
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
+		return false;
+	}
+	while ( iCurrent < iIndex ) {
+		xrt_utf_decode Decode;
+
+		if ( iPosition == Text.Size ) {
+			__xrtErrorSetRange();
+			return false;
+		}
+		Decode = __xrtUtf8Decode((const unsigned char*)Text.Data + iPosition,
+			Text.Size - iPosition);
+		if ( Decode.Status != XUTF_OK ) {
+			__xrtUtfSetInvalid(sOperation, iPosition);
+			return false;
+		}
+		iPosition += Decode.Read;
+		iCurrent++;
+	}
+	*pOffset = iPosition;
+	return true;
+}
+
+
+
+/* 把 UTF-8 标量索引转换为字节偏移。 */
+XRT_API size_t xrtUtf8Offset(xstrview Text, size_t iIndex)
+{
+	size_t iOffset;
+
+	if ( !__xrtUtf8Seek(Text, iIndex, &iOffset, "utf8-offset") ) {
+		return XRT_NPOS;
+	}
+	return iOffset;
+}
+
+
+
+/* 把 UTF-8 标量边界上的字节偏移转换为标量索引。 */
+XRT_API size_t xrtUtf8Index(xstrview Text, size_t iOffset)
+{
+	size_t iPosition = 0;
+	size_t iIndex = 0;
+
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
+		return XRT_NPOS;
+	}
+	if ( iOffset > Text.Size ) {
+		__xrtErrorSetRange();
+		return XRT_NPOS;
+	}
+	while ( iPosition < iOffset ) {
+		xrt_utf_decode Decode = __xrtUtf8Decode(
+			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
+
+		if ( Decode.Status != XUTF_OK ) {
+			__xrtUtfSetInvalid("utf8-index", iPosition);
+			return XRT_NPOS;
+		}
+		if ( Decode.Read > (iOffset - iPosition) ) {
+			__xrtErrorSetRange();
+			return XRT_NPOS;
+		}
+		iPosition += Decode.Read;
+		iIndex++;
+	}
+	return iIndex;
+}
+
+
+
+/* 读取指定 UTF-8 标量索引处的标量值。 */
+XRT_API bool xrtUtf8At(xstrview Text, size_t iIndex, uint32* pScalar)
+{
+	xrt_utf_decode Decode;
+	size_t iOffset;
+
+	if ( (pScalar == NULL) || !__xrtUtfViewValid(Text.Data, Text.Size) ||
+		__xrtRangesOverlap(pScalar, sizeof(*pScalar), Text.Data, Text.Size) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	*pScalar = 0;
+	if ( !__xrtUtf8Seek(Text, iIndex, &iOffset, "utf8-at") ) {
+		return false;
+	}
+	if ( iOffset == Text.Size ) {
+		__xrtErrorSetRange();
+		return false;
+	}
+	Decode = __xrtUtf8Decode((const unsigned char*)Text.Data + iOffset,
+		Text.Size - iOffset);
+	if ( Decode.Status != XUTF_OK ) {
+		__xrtUtfSetInvalid("utf8-at", iOffset);
+		return false;
+	}
+	*pScalar = Decode.Scalar;
+	return true;
+}
+
+
+
+/* 按 UTF-8 标量索引返回借用切片。 */
+XRT_API bool xrtUtf8Slice(xstrview Text, size_t iStart, size_t iCount,
+	xstrview* pSlice)
+{
+	size_t iPosition = 0;
+	size_t iIndex = 0;
+	size_t iBegin;
+	size_t iTaken = 0;
+
+	if ( (pSlice == NULL) || !__xrtUtfViewValid(Text.Data, Text.Size) ||
+		__xrtRangesOverlap(pSlice, sizeof(*pSlice), Text.Data, Text.Size) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pSlice->Data = NULL;
+	pSlice->Size = 0;
+
+	/* 起点和末端都按切片语义钳制，但经过的字节必须是严格 UTF-8。 */
+	while ( (iIndex < iStart) && (iPosition < Text.Size) ) {
+		xrt_utf_decode Decode = __xrtUtf8Decode(
+			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
+
+		if ( Decode.Status != XUTF_OK ) {
+			__xrtUtfSetInvalid("utf8-slice", iPosition);
+			return false;
+		}
+		iPosition += Decode.Read;
+		iIndex++;
+	}
+	iBegin = iPosition;
+	while ( (iPosition < Text.Size) &&
+		((iCount == XRT_NPOS) || (iTaken < iCount)) ) {
+		xrt_utf_decode Decode = __xrtUtf8Decode(
+			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
+
+		if ( Decode.Status != XUTF_OK ) {
+			__xrtUtfSetInvalid("utf8-slice", iPosition);
+			return false;
+		}
+		iPosition += Decode.Read;
+		iTaken++;
+	}
+	pSlice->Data = Text.Data != NULL ? Text.Data + iBegin : NULL;
+	pSlice->Size = iPosition - iBegin;
+	return true;
+}
+
+
+
+/* 统计 UTF-16 标量数。 */
+XRT_API size_t xrtUtf16Count(xutf16view Text)
+{
+	size_t iPosition = 0;
+	size_t iCount = 0;
+
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ) {
+		return XRT_NPOS;
+	}
+	while ( iPosition < Text.Size ) {
+		xrt_utf_decode Decode = __xrtUtf16Decode(Text.Data + iPosition,
+			Text.Size - iPosition);
+
+		if ( Decode.Status != XUTF_OK ) {
+			return XRT_NPOS;
+		}
+		iPosition += Decode.Read;
+		iCount++;
+	}
+	return iCount;
+}
+
+
+
+/* 初始化流式 UTF-8 校验状态。 */
+XRT_API void xrtUtf8StateInit(xutf8state* pState)
+{
+	if ( pState == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	memset(pState, 0, sizeof(*pState));
+	pState->Error = XRT_NPOS;
+	pState->PendingOffset = XRT_NPOS;
+}
+
+
+
+/* 校验一个可能截断在任意字节位置的 UTF-8 分块。 */
+XRT_API xutfstatus xrtUtf8StateFeed(xutf8state* pState, xstrview Text, bool bFinal)
+{
+	size_t iBase;
+	size_t iPosition = 0;
+
+	if ( pState == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return XUTF_INVALID;
+	}
+	if ( !__xrtUtfViewValid(Text.Data, Text.Size) ||
+		__xrtRangesOverlap(pState, sizeof(*pState), Text.Data, Text.Size) ||
+		(pState->PendingSize > 3u) ||
+		((pState->PendingSize != 0) &&
+		 ((pState->PendingOffset == XRT_NPOS) ||
+		  (pState->PendingOffset > pState->Total))) ) {
+		__xrtErrorSetInvalidArgument();
+		return XUTF_INVALID;
+	}
+	if ( pState->Failed ) {
+		return XUTF_INVALID;
+	}
+	if ( Text.Size > (SIZE_MAX - pState->Total) ) {
+		pState->Failed = true;
+		pState->Error = pState->Total;
+		__xrtUtfSetOverflow("utf8_state_feed");
+		return XUTF_OVERFLOW;
+	}
+	iBase = pState->Total;
+	pState->Total += Text.Size;
+
+	/* 先用新分块补齐上一分块保留的合法前缀。 */
+	while ( pState->PendingSize != 0 ) {
+		xrt_utf_decode Decode = __xrtUtf8Decode(pState->Pending,
+			pState->PendingSize);
+
+		if ( Decode.Status == XUTF_OK ) {
+			pState->PendingSize = 0;
+			pState->PendingOffset = XRT_NPOS;
+			break;
+		}
+		if ( Decode.Status == XUTF_INVALID ) {
+			pState->Failed = true;
+			pState->Error = pState->PendingOffset;
+			return XUTF_INVALID;
+		}
+		if ( iPosition == Text.Size ) {
+			if ( bFinal ) {
+				pState->Failed = true;
+				pState->Error = pState->PendingOffset;
+				return XUTF_INVALID;
+			}
+			return XUTF_MORE;
+		}
+		pState->Pending[pState->PendingSize++] =
+			(unsigned char)Text.Data[iPosition++];
+	}
+
+	/* 完整标量直接跨过，只在分块尾保存最多三个前缀字节。 */
+	while ( iPosition < Text.Size ) {
+		iPosition += __xrtUtf8AsciiPrefix(
+			(const unsigned char*)Text.Data + iPosition,
+			Text.Size - iPosition
+		);
+		if ( iPosition == Text.Size ) {
+			break;
+		}
+		xrt_utf_decode Decode = __xrtUtf8Decode(
+			(const unsigned char*)Text.Data + iPosition, Text.Size - iPosition);
+
+		if ( Decode.Status == XUTF_OK ) {
+			iPosition += Decode.Read;
+			continue;
+		}
+		if ( Decode.Status == XUTF_INVALID ) {
+			pState->Failed = true;
+			pState->Error = iBase + iPosition;
+			return XUTF_INVALID;
+		}
+		pState->PendingOffset = iBase + iPosition;
+		pState->PendingSize = (uint8)(Text.Size - iPosition);
+		memcpy(pState->Pending, Text.Data + iPosition, pState->PendingSize);
+		iPosition = Text.Size;
+	}
+	if ( pState->PendingSize != 0 ) {
+		if ( bFinal ) {
+			pState->Failed = true;
+			pState->Error = pState->PendingOffset;
+			return XUTF_INVALID;
+		}
+		return XUTF_MORE;
+	}
+	return XUTF_OK;
+}
+
+
+
+/* 返回流式校验器记录的绝对错误位置。 */
+XRT_API size_t xrtUtf8StateError(const xutf8state* pState)
+{
+	return pState != NULL ? pState->Error : XRT_NPOS;
+}
+
+
+
+/* UTF-8 转 UTF-16。 */
+XRT_API xutfresult xrtUtf8To16Buffer(xstrview Source, uint16* pTarget,
+	size_t iCapacity, xutfpolicy Policy)
+{
+	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
+		XRT_UTF_UNIT_8, XRT_UTF_UNIT_16, Policy, "utf8_to_utf16");
+}
+
+
+
+/* UTF-8 转 UTF-32。 */
+XRT_API xutfresult xrtUtf8To32Buffer(xstrview Source, uint32* pTarget,
+	size_t iCapacity, xutfpolicy Policy)
+{
+	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
+		XRT_UTF_UNIT_8, XRT_UTF_UNIT_32, Policy, "utf8_to_utf32");
+}
+
+
+
+/* UTF-16 转 UTF-8。 */
+XRT_API xutfresult xrtUtf16To8Buffer(xutf16view Source, char* pTarget,
+	size_t iCapacity, xutfpolicy Policy)
+{
+	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
+		XRT_UTF_UNIT_16, XRT_UTF_UNIT_8, Policy, "utf16_to_utf8");
+}
+
+
+
+/* UTF-16 转 UTF-32。 */
+XRT_API xutfresult xrtUtf16To32Buffer(xutf16view Source, uint32* pTarget,
+	size_t iCapacity, xutfpolicy Policy)
+{
+	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
+		XRT_UTF_UNIT_16, XRT_UTF_UNIT_32, Policy, "utf16_to_utf32");
+}
+
+
+
+/* UTF-32 转 UTF-8。 */
+XRT_API xutfresult xrtUtf32To8Buffer(xutf32view Source, char* pTarget,
+	size_t iCapacity, xutfpolicy Policy)
+{
+	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
+		XRT_UTF_UNIT_32, XRT_UTF_UNIT_8, Policy, "utf32_to_utf8");
+}
+
+
+
+/* UTF-32 转 UTF-16。 */
+XRT_API xutfresult xrtUtf32To16Buffer(xutf32view Source, uint16* pTarget,
+	size_t iCapacity, xutfpolicy Policy)
+{
+	return __xrtUtfConvert(Source.Data, Source.Size, pTarget, iCapacity,
+		XRT_UTF_UNIT_32, XRT_UTF_UNIT_16, Policy, "utf32_to_utf16");
+}
+
+
+
+/* 严格转换零结尾 UTF-8。 */
+XRT_API uint16* xrtUtf8To16(cstr sText, size_t* pSize)
+{
+	xstrview Source;
+
+	Source.Data = sText;
+	Source.Size = sText != NULL ? strlen(sText) : 0;
+	return xrtUtf8ViewTo16(Source, XUTF_STRICT, pSize);
+}
+
+
+
+/* 严格转换零结尾 UTF-8。 */
+XRT_API uint32* xrtUtf8To32(cstr sText, size_t* pSize)
+{
+	xstrview Source;
+
+	Source.Data = sText;
+	Source.Size = sText != NULL ? strlen(sText) : 0;
+	return xrtUtf8ViewTo32(Source, XUTF_STRICT, pSize);
+}
+
+
+
+/* 严格转换零结尾 UTF-16。 */
+XRT_API str xrtUtf16To8(const uint16* pText, size_t* pSize)
+{
+	return xrtUtf16ViewTo8(xrtUtf16View(pText, xrtUtf16Len(pText)),
+		XUTF_STRICT, pSize);
+}
+
+
+
+/* 严格转换零结尾 UTF-16。 */
+XRT_API uint32* xrtUtf16To32(const uint16* pText, size_t* pSize)
+{
+	return xrtUtf16ViewTo32(xrtUtf16View(pText, xrtUtf16Len(pText)),
+		XUTF_STRICT, pSize);
+}
+
+
+
+/* 严格转换零结尾 UTF-32。 */
+XRT_API str xrtUtf32To8(const uint32* pText, size_t* pSize)
+{
+	return xrtUtf32ViewTo8(xrtUtf32View(pText, xrtUtf32Len(pText)),
+		XUTF_STRICT, pSize);
+}
+
+
+
+/* 严格转换零结尾 UTF-32。 */
+XRT_API uint16* xrtUtf32To16(const uint32* pText, size_t* pSize)
+{
+	return xrtUtf32ViewTo16(xrtUtf32View(pText, xrtUtf32Len(pText)),
+		XUTF_STRICT, pSize);
+}
+
+
+
+/* 分配零结尾 UTF-16 字符串。 */
+XRT_API uint16* xrtUtf8ViewTo16(xstrview Source, xutfpolicy Policy, size_t* pSize)
+{
+	return (uint16*)__xrtUtfConvertAlloc(Source.Data, Source.Size,
+		XRT_UTF_UNIT_8, XRT_UTF_UNIT_16, Policy, pSize, "utf8_to_utf16");
+}
+
+
+
+/* 分配零结尾 UTF-32 字符串。 */
+XRT_API uint32* xrtUtf8ViewTo32(xstrview Source, xutfpolicy Policy, size_t* pSize)
+{
+	return (uint32*)__xrtUtfConvertAlloc(Source.Data, Source.Size,
+		XRT_UTF_UNIT_8, XRT_UTF_UNIT_32, Policy, pSize, "utf8_to_utf32");
+}
+
+
+
+/* 分配零结尾 UTF-8 字符串。 */
+XRT_API str xrtUtf16ViewTo8(xutf16view Source, xutfpolicy Policy, size_t* pSize)
+{
+	return (str)__xrtUtfConvertAlloc(Source.Data, Source.Size,
+		XRT_UTF_UNIT_16, XRT_UTF_UNIT_8, Policy, pSize, "utf16_to_utf8");
+}
+
+
+
+/* 分配零结尾 UTF-32 字符串。 */
+XRT_API uint32* xrtUtf16ViewTo32(xutf16view Source, xutfpolicy Policy, size_t* pSize)
+{
+	return (uint32*)__xrtUtfConvertAlloc(Source.Data, Source.Size,
+		XRT_UTF_UNIT_16, XRT_UTF_UNIT_32, Policy, pSize, "utf16_to_utf32");
+}
+
+
+
+/* 分配零结尾 UTF-8 字符串。 */
+XRT_API str xrtUtf32ViewTo8(xutf32view Source, xutfpolicy Policy, size_t* pSize)
+{
+	return (str)__xrtUtfConvertAlloc(Source.Data, Source.Size,
+		XRT_UTF_UNIT_32, XRT_UTF_UNIT_8, Policy, pSize, "utf32_to_utf8");
+}
+
+
+
+/* 分配零结尾 UTF-16 字符串。 */
+XRT_API uint16* xrtUtf32ViewTo16(xutf32view Source, xutfpolicy Policy, size_t* pSize)
+{
+	return (uint16*)__xrtUtfConvertAlloc(Source.Data, Source.Size,
+		XRT_UTF_UNIT_32, XRT_UTF_UNIT_16, Policy, pSize, "utf32_to_utf16");
+}
+
 #endif
 #endif
 
@@ -88382,1208 +96795,6 @@ XRT_API str xrtPathAppDir(void)
 		return NULL;
 	}
 	return sResult;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/system/time.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_TIME)
-
-#include <errno.h>
-#include <time.h>
-
-
-
-#if defined(XRT_FEATURE_TIME)
-
-/* Unix Epoch 与 Windows FILETIME Epoch 之间相差的 100 纳秒计数。 */
-#define XRT_FILETIME_EPOCH_TICKS UINT64_C(116444736000000000)
-
-
-
-/* 设置带操作名和系统代码的时间模块错误。 */
-void __xrtTimeSetError(xerrkind Kind, xtimeerror Code,
-	cstr sOperation, cstr sMessage, int iSystemCode)
-{
-	xerrordesc tDesc;
-	xerror* pError;
-
-	memset(&tDesc, 0, sizeof(tDesc));
-	tDesc.Kind = Kind;
-	tDesc.Domain = "xrt.time";
-	tDesc.Code = (int32)Code;
-	tDesc.SystemCode = (int32)iSystemCode;
-	tDesc.Operation = sOperation;
-	tDesc.Message = sMessage;
-	pError = xrtErrorBuild(&tDesc);
-	if ( pError != NULL ) {
-		__xrtErrorSetOwned(pError);
-	}
-}
-
-
-
-/* 检查 int64 加法，失败时不修改输出。 */
-bool __xrtTimeAddChecked(int64 iLeft, int64 iRight, int64* pResult)
-{
-	if ( ((iRight > 0) && (iLeft > (INT64_MAX - iRight))) ||
-		 ((iRight < 0) && (iLeft < (INT64_MIN - iRight))) ) {
-		return false;
-	}
-	*pResult = iLeft + iRight;
-	return true;
-}
-
-
-
-/* 检查 int64 减法，不先对 INT64_MIN 取负。 */
-bool __xrtTimeSubChecked(int64 iLeft, int64 iRight, int64* pResult)
-{
-	if ( ((iRight > 0) && (iLeft < (INT64_MIN + iRight))) ||
-		 ((iRight < 0) && (iLeft > (INT64_MAX + iRight))) ) {
-		return false;
-	}
-	*pResult = iLeft - iRight;
-	return true;
-}
-
-
-
-/* 检查 int64 乘法，覆盖 INT64_MIN 与 -1 的特殊边界。 */
-bool __xrtTimeMulChecked(int64 iLeft, int64 iRight, int64* pResult)
-{
-	if ( (iLeft == 0) || (iRight == 0) ) {
-		*pResult = 0;
-		return true;
-	}
-	if ( ((iLeft == -1) && (iRight == INT64_MIN)) ||
-		 ((iRight == -1) && (iLeft == INT64_MIN)) ) {
-		return false;
-	}
-	if ( iLeft > 0 ) {
-		if ( ((iRight > 0) && (iLeft > (INT64_MAX / iRight))) ||
-			 ((iRight < 0) && (iRight < (INT64_MIN / iLeft))) ) {
-			return false;
-		}
-	} else {
-		if ( ((iRight > 0) && (iLeft < (INT64_MIN / iRight))) ||
-			 ((iRight < 0) && (iLeft < (INT64_MAX / iRight))) ) {
-			return false;
-		}
-	}
-	*pResult = iLeft * iRight;
-	return true;
-}
-
-
-
-/* 设置统一的时间范围溢出错误。 */
-static void __xrtTimeSetOverflow(cstr sOperation)
-{
-	__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_OVERFLOW, sOperation,
-		"time value is outside the representable range", 0);
-}
-
-
-
-/* 执行向负无穷取整的有符号除法。 */
-int64 __xrtTimeFloorDiv(int64 iValue, int64 iDivisor)
-{
-	int64 iQuotient = iValue / iDivisor;
-	int64 iRemainder = iValue % iDivisor;
-
-	if ( iRemainder < 0 ) {
-		iQuotient--;
-	}
-	return iQuotient;
-}
-
-
-
-/* 把 Unix 微秒拆成天数和非负当日微秒。 */
-void __xrtTimeSplitDay(xtime iTime, int64* pDays, int64* pDayTime)
-{
-	int64 iDays = iTime / XRT_TIME_DAY;
-	int64 iDayTime = iTime % XRT_TIME_DAY;
-
-	if ( iDayTime < 0 ) {
-		iDays--;
-		iDayTime += XRT_TIME_DAY;
-	}
-	*pDays = iDays;
-	*pDayTime = iDayTime;
-}
-
-
-
-/* 判断 Gregorian 年份是否为闰年。 */
-XRT_API bool xrtIsLeapYear(int64 iYear)
-{
-	return ((iYear % 4) == 0) && (((iYear % 100) != 0) || ((iYear % 400) == 0));
-}
-
-
-
-/* 返回指定月份的天数。 */
-XRT_API int xrtDaysInMonth(int64 iYear, int iMonth)
-{
-	static const unsigned char arrDays[12] = {
-		31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-	};
-
-	if ( (iMonth < 1) || (iMonth > 12) ) {
-		__xrtErrorSetInvalidArgument();
-		return 0;
-	}
-	if ( (iMonth == 2) && xrtIsLeapYear(iYear) ) {
-		return 29;
-	}
-	return (int)arrDays[iMonth - 1];
-}
-
-
-
-/* 返回指定年份的天数。 */
-XRT_API int xrtDaysInYear(int64 iYear)
-{
-	return xrtIsLeapYear(iYear) ? 366 : 365;
-}
-
-
-
-/* 把 Gregorian 日期转换为 Unix Epoch 天数。 */
-bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays)
-{
-	int64 iEra;
-	int64 iEraDays;
-	int64 iYearOfEra;
-	int64 iDayOfYear;
-	int64 iDayOfEra;
-	int iMarchMonth;
-	int iMonthDays;
-
-	if ( pDays == NULL ) {
-		return false;
-	}
-	if ( (iMonth < 1) || (iMonth > 12) ) {
-		return false;
-	}
-	iMonthDays = (iMonth == 2) ? (xrtIsLeapYear(iYear) ? 29 : 28) :
-		(int)((const unsigned char[12]){ 31, 28, 31, 30, 31, 30,
-			31, 31, 30, 31, 30, 31 }[iMonth - 1]);
-	if ( (iDay < 1) || (iDay > iMonthDays) ) {
-		return false;
-	}
-
-	if ( iMonth <= 2 ) {
-		if ( iYear == INT64_MIN ) {
-			return false;
-		}
-		iYear--;
-	}
-	iEra = __xrtTimeFloorDiv(iYear, 400);
-	iYearOfEra = iYear - (iEra * 400);
-	iMarchMonth = iMonth + (iMonth > 2 ? -3 : 9);
-	iDayOfYear = ((153 * iMarchMonth) + 2) / 5 + iDay - 1;
-	iDayOfEra = (iYearOfEra * 365) + (iYearOfEra / 4) -
-		(iYearOfEra / 100) + iDayOfYear;
-	if ( !__xrtTimeMulChecked(iEra, 146097, &iEraDays) ||
-		 !__xrtTimeAddChecked(iEraDays, iDayOfEra - 719468, pDays) ) {
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 把 Unix Epoch 天数常数时间转换为 Gregorian 日期。 */
-void __xrtTimeCivilFromDays(int64 iDays, int64* pYear, int* pMonth, int* pDay)
-{
-	int64 iShifted = iDays + 719468;
-	int64 iEra = __xrtTimeFloorDiv(iShifted, 146097);
-	int64 iDayOfEra = iShifted - (iEra * 146097);
-	int64 iYearOfEra = (iDayOfEra - (iDayOfEra / 1460) +
-		(iDayOfEra / 36524) - (iDayOfEra / 146096)) / 365;
-	int64 iYear = iYearOfEra + (iEra * 400);
-	int64 iDayOfYear = iDayOfEra - ((365 * iYearOfEra) +
-		(iYearOfEra / 4) - (iYearOfEra / 100));
-	int iMarchMonth = (int)(((5 * iDayOfYear) + 2) / 153);
-	int iDay = (int)(iDayOfYear - (((153 * iMarchMonth) + 2) / 5) + 1);
-	int iMonth = iMarchMonth + (iMarchMonth < 10 ? 3 : -9);
-
-	iYear += iMonth <= 2 ? 1 : 0;
-	*pYear = iYear;
-	*pMonth = iMonth;
-	*pDay = iDay;
-}
-
-
-
-/* 校验固定偏移，避免把时区和任意日期算术混为一谈。 */
-static bool __xrtTimeOffsetValid(int iOffset)
-{
-	return (iOffset > -86400) && (iOffset < 86400);
-}
-
-
-
-/* 从规范化的天数和当日微秒构造值，负极值不要求日期零点可表示。 */
-static bool __xrtTimeComposeDay(int64 iDays, int64 iDayTime, xtime* pTime)
-{
-	int64 iDate;
-	int64 iTail;
-
-	if ( iDays >= 0 ) {
-		return __xrtTimeMulChecked(iDays, XRT_TIME_DAY, &iDate) &&
-			__xrtTimeAddChecked(iDate, iDayTime, pTime);
-	}
-	if ( !__xrtTimeMulChecked(iDays + 1, XRT_TIME_DAY, &iDate) ) {
-		return false;
-	}
-	iTail = iDayTime - XRT_TIME_DAY;
-	return __xrtTimeAddChecked(iDate, iTail, pTime);
-}
-
-
-
-/* 无错误副作用地按显式 UTC 偏移构造绝对时间。 */
-__xrt_time_make_status __xrtTimeMakeValue(
-	const xdatetime* pDateTime, xtime* pTime)
-{
-	int64 iDays;
-	int64 iDayTime;
-	int64 iOffset;
-	int64 iAdjusted;
-	int64 iCarry;
-	int iMonthDays;
-
-	if ( !__xrtTimeOffsetValid(pDateTime->Offset) ) {
-		return __XRT_TIME_MAKE_OFFSET;
-	}
-	if ( (pDateTime->Month < 1) || (pDateTime->Month > 12) ) {
-		return __XRT_TIME_MAKE_COMPONENT;
-	}
-	iMonthDays = xrtDaysInMonth(pDateTime->Year, pDateTime->Month);
-	if ( (pDateTime->Day < 1) || (pDateTime->Day > iMonthDays) ||
-		 (pDateTime->Hour < 0) || (pDateTime->Hour > 23) ||
-		 (pDateTime->Minute < 0) || (pDateTime->Minute > 59) ||
-		 (pDateTime->Second < 0) || (pDateTime->Second > 59) ||
-		 (pDateTime->Microsecond < 0) || (pDateTime->Microsecond > 999999) ) {
-		return __XRT_TIME_MAKE_COMPONENT;
-	}
-	if ( !__xrtTimeDaysFromCivil(pDateTime->Year, pDateTime->Month,
-		pDateTime->Day, &iDays) ) {
-		return __XRT_TIME_MAKE_OVERFLOW;
-	}
-
-	iDayTime = ((int64)pDateTime->Hour * XRT_TIME_HOUR) +
-		((int64)pDateTime->Minute * XRT_TIME_MINUTE) +
-		((int64)pDateTime->Second * XRT_TIME_SECOND) + pDateTime->Microsecond;
-	iOffset = (int64)pDateTime->Offset * XRT_TIME_SECOND;
-	iAdjusted = iDayTime - iOffset;
-	iCarry = __xrtTimeFloorDiv(iAdjusted, XRT_TIME_DAY);
-	if ( !__xrtTimeAddChecked(iDays, iCarry, &iDays) ) {
-		return __XRT_TIME_MAKE_OVERFLOW;
-	}
-	iDayTime = iAdjusted - (iCarry * XRT_TIME_DAY);
-	if ( !__xrtTimeComposeDay(iDays, iDayTime, pTime) ) {
-		return __XRT_TIME_MAKE_OVERFLOW;
-	}
-	return __XRT_TIME_MAKE_OK;
-}
-
-
-
-/* 按显式 UTC 偏移构造绝对时间。 */
-XRT_API bool xrtTimeMake(const xdatetime* pDateTime, xtime* pTime)
-{
-	__xrt_time_make_status Status;
-
-	if ( (pDateTime == NULL) || (pTime == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	Status = __xrtTimeMakeValue(pDateTime, pTime);
-	if ( Status == __XRT_TIME_MAKE_OK ) {
-		return true;
-	}
-	if ( Status == __XRT_TIME_MAKE_OFFSET ) {
-		__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_RANGE, "make",
-			"UTC offset is outside the supported range", 0);
-	} else if ( Status == __XRT_TIME_MAKE_COMPONENT ) {
-		__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_RANGE, "make",
-			"date or time component is outside its valid range", 0);
-	} else {
-		__xrtTimeSetOverflow("make");
-	}
-	return false;
-}
-
-
-
-/* 构造 UTC 零点日期。 */
-XRT_API bool xrtDate(int64 iYear, int iMonth, int iDay, xtime* pTime)
-{
-	return xrtDateTime(iYear, iMonth, iDay, 0, 0, 0, 0, pTime);
-}
-
-
-
-/* 构造 UTC 日期时间。 */
-XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
-	int iHour, int iMinute, int iSecond, int iMicrosecond, xtime* pTime)
-{
-	xdatetime tDateTime;
-
-	memset(&tDateTime, 0, sizeof(tDateTime));
-	tDateTime.Year = iYear;
-	tDateTime.Month = iMonth;
-	tDateTime.Day = iDay;
-	tDateTime.Hour = iHour;
-	tDateTime.Minute = iMinute;
-	tDateTime.Second = iSecond;
-	tDateTime.Microsecond = iMicrosecond;
-	return xrtTimeMake(&tDateTime, pTime);
-}
-
-
-
-/* 按固定偏移分解绝对时间，避免在极值处先执行可能溢出的整体加法。 */
-XRT_API bool xrtTimeSplitAt(xtime iTime, int iOffset, xdatetime* pDateTime)
-{
-	int64 iDays;
-	int64 iDayTime;
-	int64 iAdjusted;
-	int64 iCarry;
-	int64 iYearStart;
-	int64 iSecondOfDay;
-
-	if ( pDateTime == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtTimeOffsetValid(iOffset) ) {
-		__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_RANGE, "split",
-			"UTC offset is outside the supported range", 0);
-		return false;
-	}
-
-	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
-	iAdjusted = iDayTime + ((int64)iOffset * XRT_TIME_SECOND);
-	iCarry = __xrtTimeFloorDiv(iAdjusted, XRT_TIME_DAY);
-	iDays += iCarry;
-	iDayTime = iAdjusted - (iCarry * XRT_TIME_DAY);
-
-	memset(pDateTime, 0, sizeof(*pDateTime));
-	__xrtTimeCivilFromDays(iDays, &pDateTime->Year,
-		&pDateTime->Month, &pDateTime->Day);
-	iSecondOfDay = iDayTime / XRT_TIME_SECOND;
-	pDateTime->Hour = (int)(iSecondOfDay / 3600);
-	pDateTime->Minute = (int)((iSecondOfDay % 3600) / 60);
-	pDateTime->Second = (int)(iSecondOfDay % 60);
-	pDateTime->Microsecond = (int)(iDayTime % XRT_TIME_SECOND);
-	pDateTime->Offset = iOffset;
-	pDateTime->Weekday = (int)((iDays + 4) % 7);
-	if ( pDateTime->Weekday < 0 ) {
-		pDateTime->Weekday += 7;
-	}
-	if ( !__xrtTimeDaysFromCivil(
-		pDateTime->Year,
-		1,
-		1,
-		&iYearStart
-	) ) {
-		__xrtTimeSetOverflow("split");
-		return false;
-	}
-	pDateTime->YearDay = (int)(iDays - iYearStart) + 1;
-	pDateTime->IsDST = -1;
-	return true;
-}
-
-
-
-/* 按 UTC 分解绝对时间。 */
-XRT_API bool xrtTimeSplit(xtime iTime, xdatetime* pDateTime)
-{
-	return xrtTimeSplitAt(iTime, 0, pDateTime);
-}
-
-
-
-/* 从 Unix 秒安全构造 xtime。 */
-XRT_API bool xrtTimeFromUnix(int64 iSeconds, xtime* pTime)
-{
-	if ( pTime == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtTimeMulChecked(iSeconds, XRT_TIME_SECOND, pTime) ) {
-		__xrtTimeSetOverflow("from-unix");
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 从 Unix 毫秒安全构造 xtime。 */
-XRT_API bool xrtTimeFromUnixMs(int64 iMilliseconds, xtime* pTime)
-{
-	if ( pTime == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtTimeMulChecked(iMilliseconds, XRT_TIME_MILLISECOND, pTime) ) {
-		__xrtTimeSetOverflow("from-unix-ms");
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 返回向负无穷取整的 Unix 秒。 */
-XRT_API int64 xrtTimeUnix(xtime iTime)
-{
-	return __xrtTimeFloorDiv(iTime, XRT_TIME_SECOND);
-}
-
-
-
-/* 返回向负无穷取整的 Unix 毫秒。 */
-XRT_API int64 xrtTimeUnixMs(xtime iTime)
-{
-	return __xrtTimeFloorDiv(iTime, XRT_TIME_MILLISECOND);
-}
-
-
-
-#if defined(_WIN32) || defined(_WIN64)
-
-typedef VOID (WINAPI* __xrt_precise_filetime_fn)(LPFILETIME);
-
-/* 动态解析精确墙钟，旧 Windows 自动回退到 GetSystemTimeAsFileTime。 */
-static void __xrtTimeSystemFileTime(FILETIME* pFileTime)
-{
-	static __xrt_precise_filetime_fn pPrecise = NULL;
-	static volatile LONG iState = 0;
-	LONG iCurrent = InterlockedCompareExchange(&iState, 1, 0);
-
-	if ( iCurrent == 0 ) {
-		HMODULE hKernel = GetModuleHandleA("kernel32.dll");
-
-		if ( hKernel != NULL ) {
-			pPrecise = (__xrt_precise_filetime_fn)(uintptr_t)
-				GetProcAddress(hKernel, "GetSystemTimePreciseAsFileTime");
-		}
-		InterlockedExchange(&iState, 2);
-	} else {
-		while ( InterlockedCompareExchange(&iState, 0, 0) == 1 ) {
-			Sleep(0);
-		}
-	}
-	if ( pPrecise != NULL ) {
-		pPrecise(pFileTime);
-	} else {
-		GetSystemTimeAsFileTime(pFileTime);
-	}
-}
-
-
-
-/* 缓存 QPC 频率，避免每次读取单调时钟都查询固定系统参数。 */
-static uint64 __xrtTimeQpcFrequency(void)
-{
-	static LARGE_INTEGER tFrequency;
-	static volatile LONG iState = 0;
-	LONG iCurrent = InterlockedCompareExchange(&iState, 1, 0);
-
-	if ( iCurrent == 0 ) {
-		if ( !QueryPerformanceFrequency(&tFrequency) || (tFrequency.QuadPart <= 0) ) {
-			tFrequency.QuadPart = 1;
-		}
-		InterlockedExchange(&iState, 2);
-	} else {
-		while ( InterlockedCompareExchange(&iState, 0, 0) == 1 ) {
-			Sleep(0);
-		}
-	}
-	return (uint64)tFrequency.QuadPart;
-}
-
-#endif
-
-
-
-/* 返回单调时钟微秒。 */
-XRT_API uint64 xrtClock(void)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		LARGE_INTEGER tCounter;
-		uint64 iFrequency = __xrtTimeQpcFrequency();
-		uint64 iCounter;
-
-		(void)QueryPerformanceCounter(&tCounter);
-		iCounter = (uint64)tCounter.QuadPart;
-		return ((iCounter / iFrequency) * UINT64_C(1000000)) +
-			(((iCounter % iFrequency) * UINT64_C(1000000)) / iFrequency);
-	#else
-		struct timespec tNow;
-
-		if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) {
-			__xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED,
-				"clock", "monotonic clock is unavailable", errno);
-			return 0;
-		}
-		return ((uint64)tNow.tv_sec * UINT64_C(1000000)) +
-			((uint64)tNow.tv_nsec / UINT64_C(1000));
-	#endif
-}
-
-
-
-/* 返回单调时钟浮点秒数。 */
-XRT_API double xrtTimer(void)
-{
-	return (double)xrtClock() / 1000000.0;
-}
-
-
-
-/* 返回当前 Unix Epoch 微秒。 */
-XRT_API xtime xrtNow(void)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		FILETIME tFileTime;
-		uint64 iDifference;
-		uint64 iTicks;
-
-		__xrtTimeSystemFileTime(&tFileTime);
-		iTicks = ((uint64)tFileTime.dwHighDateTime << 32) |
-			(uint64)tFileTime.dwLowDateTime;
-		if ( iTicks < XRT_FILETIME_EPOCH_TICKS ) {
-			/* 纪元前不足一微秒的 100ns 余数必须向负无穷取整。 */
-			iDifference = XRT_FILETIME_EPOCH_TICKS - iTicks;
-			return -(xtime)(iDifference / 10) -
-				((iDifference % 10) != 0 ? 1 : 0);
-		}
-		return (xtime)((iTicks - XRT_FILETIME_EPOCH_TICKS) / 10);
-	#else
-		struct timespec tNow;
-		int64 iSeconds;
-		int64 iResult;
-
-		if ( clock_gettime(CLOCK_REALTIME, &tNow) != 0 ) {
-			__xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED,
-				"now", "system clock is unavailable", errno);
-			return 0;
-		}
-		iSeconds = (int64)tNow.tv_sec;
-		if ( !__xrtTimeMulChecked(iSeconds, XRT_TIME_SECOND, &iResult) ||
-			 !__xrtTimeAddChecked(iResult, (int64)(tNow.tv_nsec / 1000), &iResult) ) {
-			__xrtTimeSetOverflow("now");
-			return 0;
-		}
-		return iResult;
-	#endif
-}
-
-
-
-/* 至少睡眠指定微秒，并在 POSIX 信号中断后继续剩余时长。 */
-XRT_API void xrtSleepUs(uint64 iMicroseconds)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		uint64 iMilliseconds;
-
-		if ( iMicroseconds == 0 ) {
-			Sleep(0);
-			return;
-		}
-		iMilliseconds = (iMicroseconds / 1000) +
-			((iMicroseconds % 1000) != 0 ? 1 : 0);
-		while ( iMilliseconds >= UINT32_MAX ) {
-			Sleep(UINT32_MAX - 1u);
-			iMilliseconds -= UINT32_MAX - 1u;
-		}
-		Sleep((DWORD)iMilliseconds);
-	#else
-		while ( iMicroseconds != 0 ) {
-			uint64 iChunk = iMicroseconds > UINT64_C(86400000000) ?
-				UINT64_C(86400000000) : iMicroseconds;
-			struct timespec tRequest;
-
-			tRequest.tv_sec = (time_t)(iChunk / UINT64_C(1000000));
-			tRequest.tv_nsec = (long)((iChunk % UINT64_C(1000000)) * 1000);
-			while ( (nanosleep(&tRequest, &tRequest) != 0) && (errno == EINTR) ) {
-			}
-			iMicroseconds -= iChunk;
-		}
-	#endif
-}
-
-
-
-/* 至少睡眠指定毫秒。 */
-XRT_API void xrtSleep(uint32 iMilliseconds)
-{
-	xrtSleepUs((uint64)iMilliseconds * UINT64_C(1000));
-}
-
-
-
-/* 睡眠到单调截止点，使用无符号差值并避免过期后回绕。 */
-XRT_API void xrtSleepUntil(uint64 iDeadline)
-{
-	for ( ;; ) {
-		uint64 iNow = xrtClock();
-
-		if ( iNow >= iDeadline ) {
-			return;
-		}
-		xrtSleepUs(iDeadline - iNow);
-	}
-}
-
-
-
-/* 提取 UTC 年份。 */
-XRT_API int64 xrtYear(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Year;
-}
-
-
-
-/* 提取 UTC 月份。 */
-XRT_API int xrtMonth(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Month;
-}
-
-
-
-/* 提取 UTC 月内日期。 */
-XRT_API int xrtDay(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Day;
-}
-
-
-
-/* 提取 UTC 小时。 */
-XRT_API int xrtHour(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Hour;
-}
-
-
-
-/* 提取 UTC 分钟。 */
-XRT_API int xrtMinute(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Minute;
-}
-
-
-
-/* 提取 UTC 秒。 */
-XRT_API int xrtSecond(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Second;
-}
-
-
-
-/* 提取秒内微秒。 */
-XRT_API int xrtMicrosecond(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Microsecond;
-}
-
-
-
-/* 提取星期。 */
-XRT_API int xrtWeekday(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Weekday;
-}
-
-
-
-/* 提取年内日期。 */
-XRT_API int xrtDayOfYear(xtime iTime)
-{
-	xdatetime tDateTime;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.YearDay;
-}
-
-
-
-/* 提取季度。 */
-XRT_API int xrtQuarter(xtime iTime)
-{
-	return ((xrtMonth(iTime) - 1) / 3) + 1;
-}
-
-
-
-/* 返回 UTC 当日零点，极端负值所在日期无法表示零点时报告溢出。 */
-XRT_API xtime xrtDatePart(xtime iTime)
-{
-	int64 iDays;
-	int64 iDayTime;
-	int64 iResult;
-
-	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
-	if ( !__xrtTimeMulChecked(iDays, XRT_TIME_DAY, &iResult) ) {
-		__xrtTimeSetOverflow("date-part");
-		return 0;
-	}
-	return iResult;
-}
-
-
-
-/* 返回非负当日微秒。 */
-XRT_API xtime xrtTimePart(xtime iTime)
-{
-	int64 iDays;
-	int64 iDayTime;
-
-	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
-	return iDayTime;
-}
-
-
-
-/* 使用位模式无符号减法取得完整 int64 域差值。 */
-XRT_API bool xrtTimeNear(xtime iLeft, xtime iRight, uint64 iTolerance)
-{
-	uint64 iDifference = iLeft >= iRight ?
-		((uint64)iLeft - (uint64)iRight) : ((uint64)iRight - (uint64)iLeft);
-
-	return iDifference <= iTolerance;
-}
-
-
-
-/* 比较两个 UTC 时间所在的 Gregorian 日期。 */
-XRT_API bool xrtTimeSameDay(xtime iLeft, xtime iRight)
-{
-	int64 iLeftDays;
-	int64 iRightDays;
-	int64 iDayTime;
-
-	__xrtTimeSplitDay(iLeft, &iLeftDays, &iDayTime);
-	__xrtTimeSplitDay(iRight, &iRightDays, &iDayTime);
-	return iLeftDays == iRightDays;
-}
-
-
-
-/* 比较两个 UTC 时间所在的 Gregorian 月份。 */
-XRT_API bool xrtTimeSameMonth(xtime iLeft, xtime iRight)
-{
-	xdatetime tLeft;
-	xdatetime tRight;
-
-	(void)xrtTimeSplit(iLeft, &tLeft);
-	(void)xrtTimeSplit(iRight, &tRight);
-	return (tLeft.Year == tRight.Year) && (tLeft.Month == tRight.Month);
-}
-
-
-
-/* 比较两个 UTC 时间所在的 Gregorian 年份。 */
-XRT_API bool xrtTimeSameYear(xtime iLeft, xtime iRight)
-{
-	return xrtYear(iLeft) == xrtYear(iRight);
-}
-
-
-
-/* 判断时间是否位于合法闭区间。 */
-XRT_API bool xrtTimeIn(xtime iTime, xtime iStart, xtime iEnd)
-{
-	return (iStart <= iEnd) && (iTime >= iStart) && (iTime <= iEnd);
-}
-
-
-
-/* 判断两个合法闭区间是否重叠。 */
-XRT_API bool xrtTimeOverlap(xtime iStart1, xtime iEnd1,
-	xtime iStart2, xtime iEnd2)
-{
-	return (iStart1 <= iEnd1) && (iStart2 <= iEnd2) &&
-		(iStart1 <= iEnd2) && (iEnd1 >= iStart2);
-}
-
-
-
-/* 返回固定时长单位的微秒数。 */
-static bool __xrtTimeUnitDuration(xtimeunit Unit, int64* pDuration)
-{
-	switch ( Unit ) {
-		case XTIME_UNIT_MICROSECOND: *pDuration = XRT_TIME_MICROSECOND; return true;
-		case XTIME_UNIT_MILLISECOND: *pDuration = XRT_TIME_MILLISECOND; return true;
-		case XTIME_UNIT_SECOND: *pDuration = XRT_TIME_SECOND; return true;
-		case XTIME_UNIT_MINUTE: *pDuration = XRT_TIME_MINUTE; return true;
-		case XTIME_UNIT_HOUR: *pDuration = XRT_TIME_HOUR; return true;
-		case XTIME_UNIT_DAY: *pDuration = XRT_TIME_DAY; return true;
-		case XTIME_UNIT_WEEK: *pDuration = XRT_TIME_WEEK; return true;
-		default: return false;
-	}
-}
-
-
-
-/* 按月增加日期，所有月末日期统一钳制到目标月末。 */
-static bool __xrtTimeAddMonths(xtime iTime, int64 iMonths, xtime* pResult)
-{
-	xdatetime tDateTime;
-	int64 iMonthIndex;
-	int64 iTarget;
-	int64 iTargetYear;
-	int iTargetMonth;
-	int iTargetDays;
-
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	if ( !__xrtTimeMulChecked(tDateTime.Year, 12, &iMonthIndex) ||
-		 !__xrtTimeAddChecked(iMonthIndex, tDateTime.Month - 1, &iMonthIndex) ||
-		 !__xrtTimeAddChecked(iMonthIndex, iMonths, &iTarget) ) {
-		return false;
-	}
-	iTargetYear = __xrtTimeFloorDiv(iTarget, 12);
-	iTargetMonth = (int)(iTarget - (iTargetYear * 12)) + 1;
-	iTargetDays = xrtDaysInMonth(iTargetYear, iTargetMonth);
-	if ( tDateTime.Day > iTargetDays ) {
-		tDateTime.Day = iTargetDays;
-	}
-	tDateTime.Year = iTargetYear;
-	tDateTime.Month = iTargetMonth;
-	tDateTime.Offset = 0;
-	return xrtTimeMake(&tDateTime, pResult);
-}
-
-
-
-/* 增加固定时长或日历单位。 */
-XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResult)
-{
-	int64 iDuration;
-	int64 iDelta;
-	int64 iMonths;
-
-	if ( pResult == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( __xrtTimeUnitDuration(Unit, &iDuration) ) {
-		if ( !__xrtTimeMulChecked(iValue, iDuration, &iDelta) ||
-			 !__xrtTimeAddChecked(iTime, iDelta, pResult) ) {
-			__xrtTimeSetOverflow("add");
-			return false;
-		}
-		return true;
-	}
-	if ( Unit == XTIME_UNIT_MONTH ) {
-		iMonths = iValue;
-	} else if ( Unit == XTIME_UNIT_QUARTER ) {
-		if ( !__xrtTimeMulChecked(iValue, 3, &iMonths) ) {
-			__xrtTimeSetOverflow("add");
-			return false;
-		}
-	} else if ( Unit == XTIME_UNIT_YEAR ) {
-		if ( !__xrtTimeMulChecked(iValue, 12, &iMonths) ) {
-			__xrtTimeSetOverflow("add");
-			return false;
-		}
-	} else {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtTimeAddMonths(iTime, iMonths, pResult) ) {
-		__xrtTimeSetOverflow("add");
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 计算两个日期字段之间的粗略月份差。 */
-static bool __xrtTimeMonthDifference(xtime iStart, xtime iEnd, int64* pMonths)
-{
-	xdatetime tStart;
-	xdatetime tEnd;
-	int64 iYears;
-	int64 iMonths;
-
-	(void)xrtTimeSplit(iStart, &tStart);
-	(void)xrtTimeSplit(iEnd, &tEnd);
-	if ( !__xrtTimeAddChecked(tEnd.Year, -tStart.Year, &iYears) ||
-		 !__xrtTimeMulChecked(iYears, 12, &iMonths) ||
-		 !__xrtTimeAddChecked(iMonths, tEnd.Month - tStart.Month, pMonths) ) {
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 在完整 int64 时间域上计算固定单位差，不要求原始微秒差可由 int64 表示。 */
-static bool __xrtTimeFixedDifference(
-	xtime iStart,
-	xtime iEnd,
-	int64 iDuration,
-	int64* pResult
-)
-{
-	bool bNegative = iEnd < iStart;
-	uint64 iMagnitude = bNegative ?
-		((uint64)iStart - (uint64)iEnd) :
-		((uint64)iEnd - (uint64)iStart);
-	uint64 iUnits = iMagnitude / (uint64)iDuration;
-
-	if ( !bNegative ) {
-		if ( iUnits > (uint64)INT64_MAX ) {
-			return false;
-		}
-		*pResult = (int64)iUnits;
-		return true;
-	}
-	if ( iUnits > (UINT64_C(1) << 63u) ) {
-		return false;
-	}
-	*pResult = iUnits == (UINT64_C(1) << 63u) ?
-		INT64_MIN : -(int64)iUnits;
-	return true;
-}
-
-
-
-/* 计算从起点到终点经过的完整单位数量。 */
-XRT_API bool xrtTimeDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult)
-{
-	int64 iDuration;
-	int64 iGuess;
-	int64 iMonths;
-	xtime iCandidate;
-
-	if ( pResult == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( __xrtTimeUnitDuration(Unit, &iDuration) ) {
-		if ( !__xrtTimeFixedDifference(
-				iStart, iEnd, iDuration, pResult) ) {
-			__xrtTimeSetOverflow("diff");
-			return false;
-		}
-		return true;
-	}
-	if ( !__xrtTimeMonthDifference(iStart, iEnd, &iMonths) ) {
-		__xrtTimeSetOverflow("diff");
-		return false;
-	}
-	if ( Unit == XTIME_UNIT_MONTH ) {
-		iGuess = iMonths;
-	} else if ( Unit == XTIME_UNIT_QUARTER ) {
-		iGuess = iMonths / 3;
-	} else if ( Unit == XTIME_UNIT_YEAR ) {
-		iGuess = iMonths / 12;
-	} else {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !xrtTimeAdd(iStart, iGuess, Unit, &iCandidate) ) {
-		return false;
-	}
-	if ( (iEnd >= iStart) && (iCandidate > iEnd) ) {
-		iGuess--;
-	} else if ( (iEnd < iStart) && (iCandidate < iEnd) ) {
-		iGuess++;
-	}
-	*pResult = iGuess;
-	return true;
-}
-
-
-
-/* 返回包含给定时间的半开月份区间。 */
-XRT_API bool xrtMonthRange(xtime iTime, xtime* pStart, xtime* pEnd)
-{
-	xdatetime tDateTime;
-	xtime iStart;
-	xtime iEnd;
-
-	if ( (pStart == NULL) && (pEnd == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	(void)xrtTimeSplit(iTime, &tDateTime);
-	if ( !xrtDate(tDateTime.Year, tDateTime.Month, 1, &iStart) ||
-		 !xrtTimeAdd(iStart, 1, XTIME_UNIT_MONTH, &iEnd) ) {
-		return false;
-	}
-	if ( pStart != NULL ) {
-		*pStart = iStart;
-	}
-	if ( pEnd != NULL ) {
-		*pEnd = iEnd;
-	}
-	return true;
-}
-
-
-
-/* 返回包含给定时间的半开年份区间。 */
-XRT_API bool xrtYearRange(xtime iTime, xtime* pStart, xtime* pEnd)
-{
-	int64 iYear = xrtYear(iTime);
-	xtime iStart;
-	xtime iEnd;
-
-	if ( (pStart == NULL) && (pEnd == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !xrtDate(iYear, 1, 1, &iStart) ||
-		 !xrtTimeAdd(iStart, 1, XTIME_UNIT_YEAR, &iEnd) ) {
-		return false;
-	}
-	if ( pStart != NULL ) {
-		*pStart = iStart;
-	}
-	if ( pEnd != NULL ) {
-		*pEnd = iEnd;
-	}
-	return true;
-}
-
-
-
-/* 返回包含给定时间的半开星期区间。 */
-XRT_API bool xrtWeekRange(xtime iTime, int iFirstWeekday, xtime* pStart, xtime* pEnd)
-{
-	int64 iDays;
-	int64 iDayTime;
-	int64 iStartDays;
-	xtime iStart;
-	xtime iEnd;
-	int iWeekday;
-	int iDifference;
-
-	if ( ((pStart == NULL) && (pEnd == NULL)) ||
-		 (iFirstWeekday < XTIME_SUNDAY) || (iFirstWeekday > XTIME_SATURDAY) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
-	iWeekday = (int)((iDays + 4) % 7);
-	if ( iWeekday < 0 ) {
-		iWeekday += 7;
-	}
-	iDifference = iWeekday - iFirstWeekday;
-	if ( iDifference < 0 ) {
-		iDifference += 7;
-	}
-	iStartDays = iDays - iDifference;
-	if ( !__xrtTimeMulChecked(iStartDays, XRT_TIME_DAY, &iStart) ||
-		 !__xrtTimeAddChecked(iStart, XRT_TIME_WEEK, &iEnd) ) {
-		__xrtTimeSetOverflow("week-range");
-		return false;
-	}
-	if ( pStart != NULL ) {
-		*pStart = iStart;
-	}
-	if ( pEnd != NULL ) {
-		*pEnd = iEnd;
-	}
-	return true;
-}
-
-
-
-/* 计算符合 ISO 8601 的周年、周数和星期值。 */
-XRT_API bool xrtISOWeek(xtime iTime, int64* pWeekYear, int* pWeek, int* pWeekday)
-{
-	int64 iDays;
-	int64 iDayTime;
-	int64 iThursday;
-	int64 iWeekYear;
-	int64 iJanuary4;
-	int64 iWeek1Monday;
-	int iSundayWeekday;
-	int iISOWeekday;
-	int iJanuary4Weekday;
-
-	if ( (pWeekYear == NULL) && (pWeek == NULL) && (pWeekday == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
-	iSundayWeekday = (int)((iDays + 4) % 7);
-	if ( iSundayWeekday < 0 ) {
-		iSundayWeekday += 7;
-	}
-	iISOWeekday = ((iSundayWeekday + 6) % 7) + 1;
-	iThursday = iDays + (4 - iISOWeekday);
-	__xrtTimeCivilFromDays(iThursday, &iWeekYear,
-		&iJanuary4Weekday, &iSundayWeekday);
-	if ( !__xrtTimeDaysFromCivil(iWeekYear, 1, 4, &iJanuary4) ) {
-		__xrtTimeSetOverflow("iso-week");
-		return false;
-	}
-	iJanuary4Weekday = (int)((iJanuary4 + 4) % 7);
-	if ( iJanuary4Weekday < 0 ) {
-		iJanuary4Weekday += 7;
-	}
-	iJanuary4Weekday = ((iJanuary4Weekday + 6) % 7) + 1;
-	iWeek1Monday = iJanuary4 - (iJanuary4Weekday - 1);
-	if ( pWeekYear != NULL ) {
-		*pWeekYear = iWeekYear;
-	}
-	if ( pWeek != NULL ) {
-		*pWeek = (int)((iDays - iWeek1Monday) / 7) + 1;
-	}
-	if ( pWeekday != NULL ) {
-		*pWeekday = iISOWeekday;
-	}
-	return true;
 }
 
 #endif
@@ -100618,1281 +107829,6 @@ XRT_API xnetresult xrtNetSocketSendBatch(xnetsocket Socket,
 #if defined(XRT_NET_SOCKET_NATIVE_DGRAM_BATCH)
 	#undef XRT_NET_SOCKET_NATIVE_DGRAM_BATCH
 #endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/core/atomic.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_ATOMIC)
-
-
-
-#if defined(XRT_FEATURE_ATOMIC)
-
-/* 检查原子对象地址满足操作宽度的自然对齐。 */
-static bool __xrtAtomicAddressValid(const void* pAtomic, size_t iAlignment)
-{
-	if (
-		(pAtomic == NULL) ||
-		(((uintptr_t)pAtomic & (iAlignment - 1u)) != 0)
-	) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	return true;
-}
-
-
-
-#if defined(__TINYC__) && defined(_WIN32) && \
-	(UINTPTR_MAX == UINT32_MAX)
-
-#define XRT_ATOMIC64_FALLBACK_LOCKS 64u
-
-/* TinyCC x86 不会把成员的 8 字节对齐传播给栈上外层结构，使用分片锁保护退化路径。 */
-static volatile LONG __xrtAtomic64FallbackLocks[
-	XRT_ATOMIC64_FALLBACK_LOCKS
-];
-
-
-
-/* 返回未对齐 64 位原子对象使用的稳定分片锁。 */
-static volatile LONG* __xrtAtomic64FallbackLock(const xatomic64* pAtomic)
-{
-	uintptr_t iIndex = ((uintptr_t)pAtomic >> 2u) &
-		(XRT_ATOMIC64_FALLBACK_LOCKS - 1u);
-
-	return &__xrtAtomic64FallbackLocks[iIndex];
-}
-
-
-
-/* 获取 TinyCC x86 未对齐 64 位原子对象的分片锁。 */
-static void __xrtAtomic64FallbackAcquire(volatile LONG* pLock)
-{
-	while ( InterlockedCompareExchange(pLock, 1, 0) != 0 ) {
-		__xrtAtomicPause();
-	}
-}
-
-
-
-/* 释放 TinyCC x86 未对齐 64 位原子对象的分片锁。 */
-static void __xrtAtomic64FallbackRelease(volatile LONG* pLock)
-{
-	(void)InterlockedExchange(pLock, 0);
-}
-
-
-
-/* 在分片锁内读取可能仅有 4 字节对齐的 64 位值。 */
-static uint64 __xrtAtomic64FallbackRead(const xatomic64* pAtomic)
-{
-	uint64 iValue;
-
-	memcpy(&iValue, (const void*)&pAtomic->Value, sizeof(iValue));
-	return iValue;
-}
-
-
-
-/* 在分片锁内写入可能仅有 4 字节对齐的 64 位值。 */
-static void __xrtAtomic64FallbackWrite(xatomic64* pAtomic, uint64 iValue)
-{
-	memcpy((void*)&pAtomic->Value, &iValue, sizeof(iValue));
-}
-
-
-
-/* 使用强于请求顺序的分片锁读取未对齐 64 位原子值。 */
-static uint64 __xrtAtomic64FallbackLoad(const xatomic64* pAtomic)
-{
-	volatile LONG* pLock = __xrtAtomic64FallbackLock(pAtomic);
-	uint64 iValue;
-
-	__xrtAtomic64FallbackAcquire(pLock);
-	iValue = __xrtAtomic64FallbackRead(pAtomic);
-	__xrtAtomic64FallbackRelease(pLock);
-	return iValue;
-}
-
-
-
-/* 使用强于请求顺序的分片锁写入未对齐 64 位原子值。 */
-static void __xrtAtomic64FallbackStore(xatomic64* pAtomic, uint64 iValue)
-{
-	volatile LONG* pLock = __xrtAtomic64FallbackLock(pAtomic);
-
-	__xrtAtomic64FallbackAcquire(pLock);
-	__xrtAtomic64FallbackWrite(pAtomic, iValue);
-	__xrtAtomic64FallbackRelease(pLock);
-}
-
-
-
-/* 比较交换未对齐 64 位原子值并返回修改前的值。 */
-static uint64 __xrtAtomic64FallbackCompare(
-	xatomic64* pAtomic,
-	uint64 iExpected,
-	uint64 iDesired
-)
-{
-	volatile LONG* pLock = __xrtAtomic64FallbackLock(pAtomic);
-	uint64 iActual;
-
-	__xrtAtomic64FallbackAcquire(pLock);
-	iActual = __xrtAtomic64FallbackRead(pAtomic);
-	if ( iActual == iExpected ) {
-		__xrtAtomic64FallbackWrite(pAtomic, iDesired);
-	}
-	__xrtAtomic64FallbackRelease(pLock);
-	return iActual;
-}
-
-
-
-/* 更新未对齐 64 位原子值并返回修改前的值。 */
-static uint64 __xrtAtomic64FallbackUpdate(
-	xatomic64* pAtomic,
-	uint64 iValue,
-	uint32 iOperation
-)
-{
-	volatile LONG* pLock = __xrtAtomic64FallbackLock(pAtomic);
-	uint64 iOld;
-	uint64 iNew;
-
-	__xrtAtomic64FallbackAcquire(pLock);
-	iOld = __xrtAtomic64FallbackRead(pAtomic);
-	switch ( iOperation ) {
-		case 0u:
-			iNew = iValue;
-			break;
-		case 1u:
-			iNew = iOld + iValue;
-			break;
-		case 2u:
-			iNew = iOld & iValue;
-			break;
-		case 3u:
-			iNew = iOld | iValue;
-			break;
-		default:
-			iNew = iOld ^ iValue;
-			break;
-	}
-	__xrtAtomic64FallbackWrite(pAtomic, iNew);
-	__xrtAtomic64FallbackRelease(pLock);
-	return iOld;
-}
-
-
-
-
-/* 判断 64 位原子对象是否需要 TinyCC x86 分片锁退化路径。 */
-static bool __xrtAtomic64NeedsFallback(const xatomic64* pAtomic)
-{
-	return (((uintptr_t)pAtomic & 7u) != 0u);
-}
-
-#endif
-
-
-
-/* 检查 64 位原子对象满足当前编译器后端的最低安全对齐。 */
-static bool __xrtAtomic64AddressValid(const xatomic64* pAtomic)
-{
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		return __xrtAtomicAddressValid(pAtomic, 4u);
-	#else
-		return __xrtAtomicAddressValid(pAtomic, 8u);
-	#endif
-}
-
-
-
-/* 检查加载操作使用合法内存顺序。 */
-static bool __xrtAtomicLoadOrderValid(xmemoryorder iOrder)
-{
-	if (
-		(iOrder != XMEMORY_RELAXED) &&
-		(iOrder != XMEMORY_ACQUIRE) &&
-		(iOrder != XMEMORY_SEQ_CST)
-	) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	return true;
-}
-
-
-
-/* 检查存储操作使用合法内存顺序。 */
-static bool __xrtAtomicStoreOrderValid(xmemoryorder iOrder)
-{
-	if (
-		(iOrder != XMEMORY_RELAXED) &&
-		(iOrder != XMEMORY_RELEASE) &&
-		(iOrder != XMEMORY_SEQ_CST)
-	) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	return true;
-}
-
-
-
-/* 检查读改写操作使用已定义内存顺序。 */
-static bool __xrtAtomicRMWOrderValid(xmemoryorder iOrder)
-{
-	if ( (iOrder < XMEMORY_RELAXED) || (iOrder > XMEMORY_SEQ_CST) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-
-	return true;
-}
-
-
-
-/* 检查比较交换成功和失败顺序满足 C11 约束。 */
-static bool __xrtAtomicCASOrderValid(
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-)
-{
-	bool bValid = false;
-
-	if ( !__xrtAtomicRMWOrderValid(iSuccess) ) {
-		return false;
-	}
-	switch ( iSuccess ) {
-		case XMEMORY_RELAXED:
-			bValid = iFailure == XMEMORY_RELAXED;
-			break;
-		case XMEMORY_ACQUIRE:
-			bValid =
-				(iFailure == XMEMORY_RELAXED) ||
-				(iFailure == XMEMORY_ACQUIRE);
-			break;
-		case XMEMORY_RELEASE:
-			bValid = iFailure == XMEMORY_RELAXED;
-			break;
-		case XMEMORY_ACQ_REL:
-			bValid =
-				(iFailure == XMEMORY_RELAXED) ||
-				(iFailure == XMEMORY_ACQUIRE);
-			break;
-		case XMEMORY_SEQ_CST:
-			bValid =
-				(iFailure == XMEMORY_RELAXED) ||
-				(iFailure == XMEMORY_ACQUIRE) ||
-				(iFailure == XMEMORY_SEQ_CST);
-			break;
-		default:
-			break;
-	}
-	if ( !bValid ) {
-		__xrtErrorSetInvalidArgument();
-	}
-
-	return bValid;
-}
-
-
-
-/* 判断自然对齐的指定宽度是否由当前目标无锁实现。 */
-XRT_API bool xrtAtomicIsLockFree(size_t iSize)
-{
-	#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-		if ( iSize == 4u ) {
-			return __atomic_always_lock_free(4u, NULL);
-		}
-		if ( iSize == 8u ) {
-			return __atomic_always_lock_free(8u, NULL);
-		}
-		return false;
-	#elif defined(_WIN32) || defined(_WIN64)
-		return (iSize == 4u) || (iSize == 8u);
-	#elif defined(__x86_64__) || defined(_M_X64)
-		return (iSize == 4u) || (iSize == 8u);
-	#elif defined(__i386__) || defined(_M_IX86)
-		return iSize == 4u;
-	#else
-		return false;
-	#endif
-}
-
-
-
-/* 在对象发布给其他线程前初始化 32 位原子值。 */
-XRT_API void xrtAtomic32Init(xatomic32* pAtomic, uint32 iValue)
-{
-	if ( !__xrtAtomicAddressValid(pAtomic, 4u) ) {
-		return;
-	}
-
-	pAtomic->Value = iValue;
-}
-
-
-
-/* 按指定内存顺序读取 32 位原子值。 */
-XRT_API uint32 xrtAtomic32Load(const xatomic32* pAtomic, xmemoryorder iOrder)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, 4u) ||
-		!__xrtAtomicLoadOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	return __xrtAtomic32LoadValue(&pAtomic->Value, iOrder);
-}
-
-
-
-/* 按指定内存顺序写入 32 位原子值。 */
-XRT_API void xrtAtomic32Store(
-	xatomic32* pAtomic,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, 4u) ||
-		!__xrtAtomicStoreOrderValid(iOrder)
-	) {
-		return;
-	}
-
-	__xrtAtomic32StoreValue(&pAtomic->Value, iValue, iOrder);
-}
-
-
-
-/* 原子交换 32 位值并返回旧值。 */
-XRT_API uint32 xrtAtomic32Exchange(
-	xatomic32* pAtomic,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, 4u) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	return __xrtAtomic32ExchangeValue(&pAtomic->Value, iValue, iOrder);
-}
-
-
-
-/* 强比较交换 32 位值，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomic32CompareExchange(
-	xatomic32* pAtomic,
-	uint32* pExpected,
-	uint32 iDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-)
-{
-	uint32 iActual;
-
-	if (
-		!__xrtAtomicAddressValid(pAtomic, 4u) ||
-		(pExpected == NULL) ||
-		!__xrtAtomicCASOrderValid(iSuccess, iFailure)
-	) {
-		if ( pExpected == NULL ) {
-			__xrtErrorSetInvalidArgument();
-		}
-		return false;
-	}
-
-	iActual = __xrtAtomic32CompareValue(
-		&pAtomic->Value,
-		*pExpected,
-		iDesired,
-		iSuccess,
-		iFailure
-	);
-	if ( iActual == *pExpected ) {
-		return true;
-	}
-	*pExpected = iActual;
-	return false;
-}
-
-
-
-/* 原子加 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchAdd(
-	xatomic32* pAtomic,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, 4u) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	return __xrtAtomic32FetchAddValue(&pAtomic->Value, iValue, iOrder);
-}
-
-
-
-/* 原子减 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchSub(
-	xatomic32* pAtomic,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	return xrtAtomic32FetchAdd(pAtomic, 0u - iValue, iOrder);
-}
-
-
-
-/* 原子按位与 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchAnd(
-	xatomic32* pAtomic,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, 4u) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	return __xrtAtomic32FetchBitsValue(&pAtomic->Value, iValue, 0u, iOrder);
-}
-
-
-
-/* 原子按位或 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchOr(
-	xatomic32* pAtomic,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, 4u) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	return __xrtAtomic32FetchBitsValue(&pAtomic->Value, iValue, 1u, iOrder);
-}
-
-
-
-/* 原子按位异或 32 位值并返回修改前的值。 */
-XRT_API uint32 xrtAtomic32FetchXor(
-	xatomic32* pAtomic,
-	uint32 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, 4u) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	return __xrtAtomic32FetchBitsValue(&pAtomic->Value, iValue, 2u, iOrder);
-}
-
-
-
-/* 在对象发布给其他线程前初始化 64 位原子值。 */
-XRT_API void xrtAtomic64Init(xatomic64* pAtomic, uint64 iValue)
-{
-	if ( !__xrtAtomic64AddressValid(pAtomic) ) {
-		return;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			__xrtAtomic64FallbackWrite(pAtomic, iValue);
-			return;
-		}
-	#endif
-
-	pAtomic->Value = iValue;
-}
-
-
-
-/* 按指定内存顺序读取 64 位原子值。 */
-XRT_API uint64 xrtAtomic64Load(const xatomic64* pAtomic, xmemoryorder iOrder)
-{
-	if (
-		!__xrtAtomic64AddressValid(pAtomic) ||
-		!__xrtAtomicLoadOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			return __xrtAtomic64FallbackLoad(pAtomic);
-		}
-	#endif
-
-	return __xrtAtomic64LoadValue(&pAtomic->Value, iOrder);
-}
-
-
-
-/* 按指定内存顺序写入 64 位原子值。 */
-XRT_API void xrtAtomic64Store(
-	xatomic64* pAtomic,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomic64AddressValid(pAtomic) ||
-		!__xrtAtomicStoreOrderValid(iOrder)
-	) {
-		return;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			__xrtAtomic64FallbackStore(pAtomic, iValue);
-			return;
-		}
-	#endif
-
-	__xrtAtomic64StoreValue(&pAtomic->Value, iValue, iOrder);
-}
-
-
-
-/* 原子交换 64 位值并返回旧值。 */
-XRT_API uint64 xrtAtomic64Exchange(
-	xatomic64* pAtomic,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomic64AddressValid(pAtomic) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 0u);
-		}
-	#endif
-
-	return __xrtAtomic64ExchangeValue(&pAtomic->Value, iValue, iOrder);
-}
-
-
-
-/* 强比较交换 64 位值，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomic64CompareExchange(
-	xatomic64* pAtomic,
-	uint64* pExpected,
-	uint64 iDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-)
-{
-	uint64 iActual;
-
-	if (
-		!__xrtAtomic64AddressValid(pAtomic) ||
-		(pExpected == NULL) ||
-		!__xrtAtomicCASOrderValid(iSuccess, iFailure)
-	) {
-		if ( pExpected == NULL ) {
-			__xrtErrorSetInvalidArgument();
-		}
-		return false;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			iActual = __xrtAtomic64FallbackCompare(
-				pAtomic,
-				*pExpected,
-				iDesired
-			);
-		} else
-	#endif
-	{
-		iActual = __xrtAtomic64CompareValue(
-			&pAtomic->Value,
-			*pExpected,
-			iDesired,
-			iSuccess,
-			iFailure
-		);
-	}
-	if ( iActual == *pExpected ) {
-		return true;
-	}
-	*pExpected = iActual;
-	return false;
-}
-
-
-
-/* 原子加 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchAdd(
-	xatomic64* pAtomic,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomic64AddressValid(pAtomic) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 1u);
-		}
-	#endif
-
-	return __xrtAtomic64FetchAddValue(&pAtomic->Value, iValue, iOrder);
-}
-
-
-
-/* 原子减 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchSub(
-	xatomic64* pAtomic,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	return xrtAtomic64FetchAdd(pAtomic, 0u - iValue, iOrder);
-}
-
-
-
-/* 原子按位与 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchAnd(
-	xatomic64* pAtomic,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomic64AddressValid(pAtomic) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 2u);
-		}
-	#endif
-
-	return __xrtAtomic64FetchBitsValue(&pAtomic->Value, iValue, 0u, iOrder);
-}
-
-
-
-/* 原子按位或 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchOr(
-	xatomic64* pAtomic,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomic64AddressValid(pAtomic) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 3u);
-		}
-	#endif
-
-	return __xrtAtomic64FetchBitsValue(&pAtomic->Value, iValue, 1u, iOrder);
-}
-
-
-
-/* 原子按位异或 64 位值并返回修改前的值。 */
-XRT_API uint64 xrtAtomic64FetchXor(
-	xatomic64* pAtomic,
-	uint64 iValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomic64AddressValid(pAtomic) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return 0u;
-	}
-
-	#if defined(__TINYC__) && defined(_WIN32) && \
-		(UINTPTR_MAX == UINT32_MAX)
-		if ( __xrtAtomic64NeedsFallback(pAtomic) ) {
-			return __xrtAtomic64FallbackUpdate(pAtomic, iValue, 4u);
-		}
-	#endif
-
-	return __xrtAtomic64FetchBitsValue(&pAtomic->Value, iValue, 2u, iOrder);
-}
-
-
-
-/* 在对象发布给其他线程前初始化原子指针。 */
-XRT_API void xrtAtomicPtrInit(xatomicptr* pAtomic, ptr pValue)
-{
-	if ( !__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ) {
-		return;
-	}
-
-	pAtomic->Value = pValue;
-}
-
-
-
-/* 按指定内存顺序读取原子指针。 */
-XRT_API ptr xrtAtomicPtrLoad(const xatomicptr* pAtomic, xmemoryorder iOrder)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ||
-		!__xrtAtomicLoadOrderValid(iOrder)
-	) {
-		return NULL;
-	}
-
-	return __xrtAtomicPtrLoadValue(&pAtomic->Value, iOrder);
-}
-
-
-
-/* 按指定内存顺序写入原子指针。 */
-XRT_API void xrtAtomicPtrStore(
-	xatomicptr* pAtomic,
-	ptr pValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ||
-		!__xrtAtomicStoreOrderValid(iOrder)
-	) {
-		return;
-	}
-
-	__xrtAtomicPtrStoreValue(&pAtomic->Value, pValue, iOrder);
-}
-
-
-
-/* 原子交换指针并返回旧值。 */
-XRT_API ptr xrtAtomicPtrExchange(
-	xatomicptr* pAtomic,
-	ptr pValue,
-	xmemoryorder iOrder
-)
-{
-	if (
-		!__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ||
-		!__xrtAtomicRMWOrderValid(iOrder)
-	) {
-		return NULL;
-	}
-
-	return __xrtAtomicPtrExchangeValue(&pAtomic->Value, pValue, iOrder);
-}
-
-
-
-/* 强比较交换指针，失败时把实际值写回 Expected。 */
-XRT_API bool xrtAtomicPtrCompareExchange(
-	xatomicptr* pAtomic,
-	ptr* pExpected,
-	ptr pDesired,
-	xmemoryorder iSuccess,
-	xmemoryorder iFailure
-)
-{
-	ptr pActual;
-
-	if (
-		!__xrtAtomicAddressValid(pAtomic, sizeof(ptr)) ||
-		(pExpected == NULL) ||
-		!__xrtAtomicCASOrderValid(iSuccess, iFailure)
-	) {
-		if ( pExpected == NULL ) {
-			__xrtErrorSetInvalidArgument();
-		}
-		return false;
-	}
-
-	pActual = __xrtAtomicPtrCompareValue(
-		&pAtomic->Value,
-		*pExpected,
-		pDesired,
-		iSuccess,
-		iFailure
-	);
-	if ( pActual == *pExpected ) {
-		return true;
-	}
-	*pExpected = pActual;
-	return false;
-}
-
-
-
-/* 建立线程间内存栅栏。 */
-XRT_API void xrtAtomicThreadFence(xmemoryorder iOrder)
-{
-	if ( !__xrtAtomicRMWOrderValid(iOrder) ) {
-		return;
-	}
-
-	__xrtAtomicThreadFence(iOrder);
-}
-
-
-
-/* 建立当前线程与信号处理器之间的编译器栅栏。 */
-XRT_API void xrtAtomicSignalFence(xmemoryorder iOrder)
-{
-	if ( !__xrtAtomicRMWOrderValid(iOrder) ) {
-		return;
-	}
-
-	__xrtAtomicSignalFence(iOrder);
-}
-
-
-
-/* 向处理器提示当前线程处于短自旋等待。 */
-XRT_API void xrtAtomicPause(void)
-{
-	__xrtAtomicPause();
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/concurrency/wait.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_WAIT)
-
-
-
-#if defined(XRT_FEATURE_WAIT)
-
-/* 从当前单调时钟和相对微秒数构造截止时间。 */
-XRT_API xdeadline xrtDeadlineAfter(uint64 iTimeout)
-{
-	uint64 iNow;
-
-	if ( iTimeout == UINT64_MAX ) {
-		return XRT_DEADLINE_NEVER;
-	}
-	iNow = xrtClock();
-	if ( iTimeout > (UINT64_MAX - iNow) ) {
-		return XRT_DEADLINE_NEVER;
-	}
-	return iNow + iTimeout;
-}
-
-
-
-/* 判断截止时间是否已经到达。 */
-XRT_API bool xrtDeadlineExpired(xdeadline iDeadline)
-{
-	return (iDeadline != XRT_DEADLINE_NEVER) && (xrtClock() >= iDeadline);
-}
-
-
-
-/* 返回截止时间前剩余的微秒数。 */
-XRT_API uint64 xrtDeadlineRemaining(xdeadline iDeadline)
-{
-	uint64 iNow;
-
-	if ( iDeadline == XRT_DEADLINE_NEVER ) {
-		return UINT64_MAX;
-	}
-	iNow = xrtClock();
-	return iNow < iDeadline ? iDeadline - iNow : 0;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/concurrency/sync.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_SYNC)
-
-#include <errno.h>
-
-
-
-#if defined(XRT_FEATURE_SYNC)
-
-/* 设置同步原语的平台错误。 */
-void __xrtSyncSetSystemError(cstr sOperation, int iCode, cstr sMessage)
-{
-	xerrordesc tDesc;
-	xerror* pError;
-
-	memset(&tDesc, 0, sizeof(tDesc));
-	tDesc.Kind = __xrtSystemErrorKind(iCode);
-	tDesc.Code = 1;
-	tDesc.SystemCode = iCode;
-	tDesc.Domain = "xrt.sync";
-	tDesc.Operation = sOperation;
-	tDesc.Message = sMessage;
-	pError = xrtErrorBuild(&tDesc);
-	if ( pError != NULL ) {
-		__xrtErrorSetOwned(pError);
-	}
-}
-
-
-
-#if !defined(_WIN32) && !defined(_WIN64) && defined(XRT_FEATURE_WAIT)
-/* 把单调截止时间转换为条件变量配置的绝对时钟。 */
-bool __xrtSyncDeadlineTime(
-	xdeadline iDeadline,
-	bool bMonotonic,
-	struct timespec* pTime
-)
-{
-	uint64 iRemaining;
-	uint64 iNanoseconds;
-
-	if ( pTime == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( bMonotonic ) {
-		pTime->tv_sec = (time_t)(iDeadline / UINT64_C(1000000));
-		pTime->tv_nsec = (long)((iDeadline % UINT64_C(1000000)) * UINT64_C(1000));
-		return true;
-	}
-	iRemaining = xrtDeadlineRemaining(iDeadline);
-	if ( clock_gettime(CLOCK_REALTIME, pTime) != 0 ) {
-		__xrtSyncSetSystemError("clock", errno, "realtime clock is unavailable");
-		return false;
-	}
-	iNanoseconds = (uint64)pTime->tv_nsec +
-		((iRemaining % UINT64_C(1000000)) * UINT64_C(1000));
-	pTime->tv_sec += (time_t)(iRemaining / UINT64_C(1000000));
-	pTime->tv_sec += (time_t)(iNanoseconds / UINT64_C(1000000000));
-	pTime->tv_nsec = (long)(iNanoseconds % UINT64_C(1000000000));
-	return true;
-}
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/concurrency/mutex.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_MUTEX)
-
-#include <errno.h>
-
-
-
-#if defined(XRT_FEATURE_MUTEX)
-
-/* 检查互斥锁已经初始化。 */
-static xrt_mutex_impl* __xrtMutexRequire(xmutex* pMutex)
-{
-	xrt_mutex_impl* pImpl;
-
-	if ( pMutex == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	pImpl = __xrtMutexImpl(pMutex);
-	if ( pImpl->Magic != XRT_MUTEX_MAGIC ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	return pImpl;
-}
-
-
-
-/* 初始化调用方存储中的非递归互斥锁。 */
-XRT_API bool xrtMutexInit(xmutex* pMutex)
-{
-	xrt_mutex_impl* pImpl;
-
-	if ( pMutex == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	memset(pMutex, 0, sizeof(xmutex));
-	pImpl = __xrtMutexImpl(pMutex);
-	#if defined(_WIN32) || defined(_WIN64)
-		InitializeSRWLock(&pImpl->Lock);
-	#else
-		{
-			pthread_mutexattr_t tAttr;
-			int iResult = pthread_mutexattr_init(&tAttr);
-
-			if ( iResult != 0 ) {
-				__xrtSyncSetSystemError("mutex.init", iResult, "mutex attribute initialization failed");
-				return false;
-			}
-			iResult = pthread_mutexattr_settype(&tAttr, PTHREAD_MUTEX_ERRORCHECK);
-			if ( iResult != 0 ) {
-				(void)pthread_mutexattr_destroy(&tAttr);
-				__xrtSyncSetSystemError(
-					"mutex.init",
-					iResult,
-					"mutex error-check configuration failed"
-				);
-				return false;
-			}
-			iResult = pthread_mutex_init(&pImpl->Lock, &tAttr);
-			(void)pthread_mutexattr_destroy(&tAttr);
-			if ( iResult != 0 ) {
-				__xrtSyncSetSystemError("mutex.init", iResult, "mutex initialization failed");
-				return false;
-			}
-		}
-	#endif
-	pImpl->Magic = XRT_MUTEX_MAGIC;
-	return true;
-}
-
-
-
-/* 释放互斥锁平台资源。 */
-XRT_API bool xrtMutexUnit(xmutex* pMutex)
-{
-	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
-
-	if ( pImpl == NULL ) {
-		return false;
-	}
-	if ( __xrtMutexOwnerLoad(pImpl) != 0 ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-	#else
-		{
-			int iResult = pthread_mutex_destroy(&pImpl->Lock);
-
-			if ( iResult != 0 ) {
-				if ( iResult == EBUSY ) {
-					__xrtErrorSetInvalidState();
-				} else {
-					__xrtSyncSetSystemError("mutex.unit", iResult, "mutex destruction failed");
-				}
-				return false;
-			}
-		}
-	#endif
-	memset(pMutex, 0, sizeof(xmutex));
-	return true;
-}
-
-
-
-/* 创建一个非递归互斥锁。 */
-XRT_API xmutex* xrtMutexCreate(void)
-{
-	xmutex* pMutex = (xmutex*)xrtMalloc(sizeof(xmutex));
-
-	if ( pMutex == NULL ) {
-		return NULL;
-	}
-	if ( !xrtMutexInit(pMutex) ) {
-		xrtFree(pMutex);
-		return NULL;
-	}
-	return pMutex;
-}
-
-
-
-/* 释放 Create 返回的互斥锁。 */
-XRT_API bool xrtMutexDestroy(xmutex* pMutex)
-{
-	if ( pMutex == NULL ) {
-		return true;
-	}
-	if ( !xrtMutexUnit(pMutex) ) {
-		return false;
-	}
-	xrtFree(pMutex);
-	return true;
-}
-
-
-
-/* 阻塞到获得互斥锁。 */
-XRT_API bool xrtMutexLock(xmutex* pMutex)
-{
-	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
-	uint64 iCurrent;
-
-	if ( pImpl == NULL ) {
-		return false;
-	}
-	iCurrent = __xrtCurrentThreadId();
-	if ( __xrtMutexOwnerLoad(pImpl) == iCurrent ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-		AcquireSRWLockExclusive(&pImpl->Lock);
-	#else
-		{
-			int iResult = pthread_mutex_lock(&pImpl->Lock);
-
-			if ( iResult != 0 ) {
-				if ( iResult == EDEADLK ) {
-					__xrtErrorSetInvalidState();
-				} else {
-					__xrtSyncSetSystemError("mutex.lock", iResult, "mutex lock failed");
-				}
-				return false;
-			}
-		}
-	#endif
-	__xrtMutexOwnerStore(pImpl, iCurrent);
-	return true;
-}
-
-
-
-/* 尝试获得互斥锁。 */
-XRT_API bool xrtMutexTryLock(xmutex* pMutex)
-{
-	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
-	uint64 iCurrent;
-
-	if ( pImpl == NULL ) {
-		return false;
-	}
-	iCurrent = __xrtCurrentThreadId();
-	if ( __xrtMutexOwnerLoad(pImpl) == iCurrent ) {
-		return false;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( !TryAcquireSRWLockExclusive(&pImpl->Lock) ) {
-			return false;
-		}
-	#else
-		{
-			int iResult = pthread_mutex_trylock(&pImpl->Lock);
-
-			if ( iResult == EBUSY ) {
-				return false;
-			}
-			if ( iResult != 0 ) {
-				__xrtSyncSetSystemError("mutex.try", iResult, "mutex try-lock failed");
-				return false;
-			}
-		}
-	#endif
-	__xrtMutexOwnerStore(pImpl, iCurrent);
-	return true;
-}
-
-
-
-/* 释放当前线程持有的互斥锁。 */
-XRT_API bool xrtMutexUnlock(xmutex* pMutex)
-{
-	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
-	uint64 iCurrent;
-
-	if ( pImpl == NULL ) {
-		return false;
-	}
-	iCurrent = __xrtCurrentThreadId();
-	if ( __xrtMutexOwnerLoad(pImpl) != iCurrent ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	__xrtMutexOwnerStore(pImpl, 0);
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockExclusive(&pImpl->Lock);
-	#else
-		{
-			int iResult = pthread_mutex_unlock(&pImpl->Lock);
-
-			if ( iResult != 0 ) {
-				__xrtMutexOwnerStore(pImpl, iCurrent);
-				if ( iResult == EPERM ) {
-					__xrtErrorSetInvalidState();
-				} else {
-					__xrtSyncSetSystemError("mutex.unlock", iResult, "mutex unlock failed");
-				}
-				return false;
-			}
-		}
-	#endif
-	return true;
-}
 
 #endif
 #endif
@@ -120008,314 +125944,6 @@ XRT_API const xnetaddr* xrtNetAddrListGet(
 
 
 /* ========================================================================== */
-/* source: src/concurrency/cond.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_COND)
-
-#include <errno.h>
-
-
-
-#if defined(XRT_FEATURE_COND)
-
-/* 检查条件变量已经初始化。 */
-static xrt_cond_impl* __xrtCondRequire(xcond* pCond)
-{
-	xrt_cond_impl* pImpl;
-
-	if ( pCond == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	pImpl = __xrtCondImpl(pCond);
-	if ( pImpl->Magic != XRT_COND_MAGIC ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	return pImpl;
-}
-
-
-
-/* 检查条件等待使用的互斥锁已经初始化并由当前线程持有。 */
-static xrt_mutex_impl* __xrtCondMutexRequire(xmutex* pMutex)
-{
-	xrt_mutex_impl* pImpl;
-
-	if ( pMutex == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	pImpl = __xrtMutexImpl(pMutex);
-	if ( pImpl->Magic != XRT_MUTEX_MAGIC ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	if ( __xrtMutexOwnerLoad(pImpl) != __xrtCurrentThreadId() ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	return pImpl;
-}
-
-
-
-/* 初始化调用方存储中的条件变量。 */
-XRT_API bool xrtCondInit(xcond* pCond)
-{
-	xrt_cond_impl* pImpl;
-
-	if ( pCond == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	memset(pCond, 0, sizeof(xcond));
-	pImpl = __xrtCondImpl(pCond);
-	#if defined(_WIN32) || defined(_WIN64)
-		InitializeConditionVariable(&pImpl->Condition);
-	#else
-		{
-			pthread_condattr_t tAttr;
-			int iResult = pthread_condattr_init(&tAttr);
-
-			if ( iResult != 0 ) {
-				__xrtSyncSetSystemError("cond.init", iResult, "condition attribute initialization failed");
-				return false;
-			}
-			#if defined(CLOCK_MONOTONIC) && !defined(__APPLE__)
-				if ( pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC) == 0 ) {
-					pImpl->Monotonic = true;
-				}
-			#endif
-			iResult = pthread_cond_init(&pImpl->Condition, &tAttr);
-			(void)pthread_condattr_destroy(&tAttr);
-			if ( iResult != 0 ) {
-				__xrtSyncSetSystemError("cond.init", iResult, "condition initialization failed");
-				return false;
-			}
-		}
-	#endif
-	pImpl->Magic = XRT_COND_MAGIC;
-	return true;
-}
-
-
-
-/* 释放条件变量平台资源。 */
-XRT_API bool xrtCondUnit(xcond* pCond)
-{
-	xrt_cond_impl* pImpl = __xrtCondRequire(pCond);
-
-	if ( pImpl == NULL ) {
-		return false;
-	}
-	#if !defined(_WIN32) && !defined(_WIN64)
-		{
-			int iResult = pthread_cond_destroy(&pImpl->Condition);
-
-			if ( iResult != 0 ) {
-				__xrtSyncSetSystemError("cond.unit", iResult, "condition destruction failed");
-				return false;
-			}
-		}
-	#endif
-	memset(pCond, 0, sizeof(xcond));
-	return true;
-}
-
-
-
-/* 创建条件变量。 */
-XRT_API xcond* xrtCondCreate(void)
-{
-	xcond* pCond = (xcond*)xrtMalloc(sizeof(xcond));
-
-	if ( pCond == NULL ) {
-		return NULL;
-	}
-	if ( !xrtCondInit(pCond) ) {
-		xrtFree(pCond);
-		return NULL;
-	}
-	return pCond;
-}
-
-
-
-/* 释放 Create 返回的条件变量。 */
-XRT_API bool xrtCondDestroy(xcond* pCond)
-{
-	if ( pCond == NULL ) {
-		return true;
-	}
-	if ( !xrtCondUnit(pCond) ) {
-		return false;
-	}
-	xrtFree(pCond);
-	return true;
-}
-
-
-
-/* 原子释放 mutex 并等待通知。 */
-XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex)
-{
-	return xrtCondWaitUntil(pCond, pMutex, XRT_DEADLINE_NEVER);
-}
-
-
-
-/* 在相对微秒数内等待通知。 */
-XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout)
-{
-	return xrtCondWaitUntil(pCond, pMutex, xrtDeadlineAfter(iTimeout));
-}
-
-
-
-/* 等待通知到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtCondWaitUntil(
-	xcond* pCond,
-	xmutex* pMutex,
-	xdeadline iDeadline
-)
-{
-	xrt_cond_impl* pCondImpl = __xrtCondRequire(pCond);
-	xrt_mutex_impl* pMutexImpl = __xrtCondMutexRequire(pMutex);
-
-	if ( (pCondImpl == NULL) || (pMutexImpl == NULL) ) {
-		return XWAIT_ERROR;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			uint64 iRemaining = xrtDeadlineRemaining(iDeadline);
-			DWORD iMilliseconds;
-			BOOL bResult;
-			int iCode;
-
-			if ( iRemaining == 0 ) {
-				return XWAIT_TIMEOUT;
-			}
-			iMilliseconds = iRemaining == UINT64_MAX ? INFINITE :
-				(DWORD)__xrtWaitMilliseconds(iRemaining);
-			__xrtMutexOwnerStore(pMutexImpl, 0);
-			bResult = SleepConditionVariableSRW(
-				&pCondImpl->Condition,
-				&pMutexImpl->Lock,
-				iMilliseconds,
-				0
-			);
-			iCode = bResult ? 0 : (int)GetLastError();
-			__xrtMutexOwnerStore(pMutexImpl, __xrtCurrentThreadId());
-			if ( bResult ) {
-				return XWAIT_OK;
-			}
-			if ( iCode == ERROR_TIMEOUT ) {
-				return XWAIT_TIMEOUT;
-			}
-			__xrtSyncSetSystemError("cond.wait", iCode, "condition wait failed");
-			return XWAIT_ERROR;
-		}
-	#else
-		{
-			struct timespec tDeadline;
-			int iResult;
-
-			if ( iDeadline != XRT_DEADLINE_NEVER ) {
-				if ( xrtDeadlineExpired(iDeadline) ) {
-					return XWAIT_TIMEOUT;
-				}
-				if ( !__xrtSyncDeadlineTime(
-					iDeadline,
-					pCondImpl->Monotonic,
-					&tDeadline
-				) ) {
-					return XWAIT_ERROR;
-				}
-			}
-			__xrtMutexOwnerStore(pMutexImpl, 0);
-			if ( iDeadline == XRT_DEADLINE_NEVER ) {
-				iResult = pthread_cond_wait(&pCondImpl->Condition, &pMutexImpl->Lock);
-			} else {
-				iResult = pthread_cond_timedwait(
-					&pCondImpl->Condition,
-					&pMutexImpl->Lock,
-					&tDeadline
-				);
-			}
-			__xrtMutexOwnerStore(pMutexImpl, __xrtCurrentThreadId());
-			if ( iResult == 0 ) {
-				return XWAIT_OK;
-			}
-			if ( iResult == ETIMEDOUT ) {
-				return XWAIT_TIMEOUT;
-			}
-			if ( iResult == EPERM ) {
-				__xrtErrorSetInvalidState();
-			} else {
-				__xrtSyncSetSystemError("cond.wait", iResult, "condition wait failed");
-			}
-			return XWAIT_ERROR;
-		}
-	#endif
-}
-
-
-
-/* 唤醒一个等待者。 */
-XRT_API bool xrtCondSignal(xcond* pCond)
-{
-	xrt_cond_impl* pImpl = __xrtCondRequire(pCond);
-
-	if ( pImpl == NULL ) {
-		return false;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-		WakeConditionVariable(&pImpl->Condition);
-	#else
-		{
-			int iResult = pthread_cond_signal(&pImpl->Condition);
-
-			if ( iResult != 0 ) {
-				__xrtSyncSetSystemError("cond.signal", iResult, "condition signal failed");
-				return false;
-			}
-		}
-	#endif
-	return true;
-}
-
-
-
-/* 唤醒全部当前等待者。 */
-XRT_API bool xrtCondBroadcast(xcond* pCond)
-{
-	xrt_cond_impl* pImpl = __xrtCondRequire(pCond);
-
-	if ( pImpl == NULL ) {
-		return false;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-		WakeAllConditionVariable(&pImpl->Condition);
-	#else
-		{
-			int iResult = pthread_cond_broadcast(&pImpl->Condition);
-
-			if ( iResult != 0 ) {
-				__xrtSyncSetSystemError("cond.broadcast", iResult, "condition broadcast failed");
-				return false;
-			}
-		}
-	#endif
-	return true;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* source: src/network/resolver.c */
 /* ========================================================================== */
 
@@ -123196,2303 +128824,6 @@ XRT_API bool xrtNetDialStats(
 		pStats->HasWinner = true;
 	}
 	return true;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/concurrency/cancel.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_CANCEL)
-
-
-
-#if defined(XRT_FEATURE_CANCEL)
-
-/* 一个父链节点只挂入对应令牌的监听链表。 */
-typedef struct xcancelnode {
-	struct xcancelnode* Next;
-	struct xcancelwatch* Watch;
-	struct xcancel* Cancel;
-	bool Linked;
-} xcancelnode;
-
-
-
-/* 取消令牌保留父令牌，并用互斥锁保护监听链表。 */
-struct xcancel {
-	volatile int32 RefCount;
-	volatile int32 Requested;
-	xmutex Lock;
-	struct xcancel* Parent;
-	xcancelnode* WatchHead;
-};
-
-
-
-static bool __xrtCancelOwnershipCount(const void* pData, size_t* pCount)
-{
-	const xcancel* pCancel = (const xcancel*)pData;
-	int32 iCount;
-	if (pCancel == NULL || pCount == NULL) return false;
-	iCount = __xrtAtomicRefLoad(&pCancel->RefCount);
-	if (iCount <= 0) return false;
-	*pCount = (size_t)iCount; return true;
-}
-
-static bool __xrtCancelOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
-{
-	const xcancel* pCancel = (const xcancel*)pData;
-	if (pCancel == NULL || pVisit == NULL) return false;
-	return pCancel->Parent == NULL || pVisit(xrtCancelOwnership(pCancel->Parent), pContext);
-}
-
-static const xrtownershipops __xrtCancelOwnershipOps = {
-	__xrtCancelOwnershipCount, __xrtCancelOwnershipTrace
-};
-
-XRT_API xrtownershipref xrtCancelOwnership(const xcancel* pCancel)
-{
-	xrtownershipref Result = {pCancel, pCancel != NULL ? &__xrtCancelOwnershipOps : NULL};
-	return Result;
-}
-
-static bool __xrtCancelAdapterHold(const void* pData)
-{ return xrtCancelRef((xcancel*)pData) != NULL; }
-static void __xrtCancelAdapterDrop(const void* pData)
-{ xrtCancelDestroy((xcancel*)pData); }
-static bool __xrtCancelAdapterClaim(const void* pData, const void* pToken)
-{ return pData != NULL && pToken != NULL && ((const xcancel*)pData)->WatchHead == NULL; }
-static void __xrtCancelAdapterKeep(const void* pData, const void* pToken)
-{ (void)pData; (void)pToken; }
-XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference)
-{
-	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter),
-		__xrtCancelAdapterHold, __xrtCancelAdapterDrop, __xrtCancelAdapterClaim,
-		__xrtCancelAdapterKeep, NULL, __xrtCancelAdapterKeep, NULL};
-	const xcancel* pCancel;
-	if (Reference.Ops != &__xrtCancelOwnershipOps || Reference.Data == NULL) return NULL;
-	pCancel = (const xcancel*)Reference.Data;
-	return pCancel->WatchHead == NULL && __xrtAtomicRefLoad(&pCancel->RefCount) > 0 ? &Adapter : NULL;
-}
-void __xrtCancelOwnershipCloseUnobserved(xcancel* pCancel)
-{
-	if (pCancel == NULL || pCancel->WatchHead != NULL) abort();
-	(void)__xrtAtomicRefCompareExchange(&pCancel->Requested, 1, 0);
-}
-
-/* 监听对象集中保存回调状态和全部父链节点，避免逐节点分配。 */
-struct xcancelwatch {
-	volatile int32 RefCount;
-	volatile int32 Triggered;
-	xmutex Lock;
-	xcond Idle;
-	xcancel* Cancel;
-	xcancelproc Proc;
-	ptr Data;
-	uint32 NodeCount;
-	bool Armed;
-	bool CallbackStarted;
-	bool CallbackActive;
-	bool CallbackThreadValid;
-	bool Destroying;
-	bool DeferredRelease;
-	#if defined(_WIN32) || defined(_WIN64)
-		DWORD CallbackThread;
-	#else
-		pthread_t CallbackThread;
-	#endif
-	xcancelnode Nodes[1];
-};
-
-
-
-static bool __xrtCancelWatchOwnershipCount(const void* pData, size_t* pCount)
-{
-	const xcancelwatch* pWatch = (const xcancelwatch*)pData;
-	int32 iCount;
-	if (pWatch == NULL || pCount == NULL || pWatch->CallbackActive || pWatch->Destroying) return false;
-	iCount = __xrtAtomicRefLoad(&pWatch->RefCount);
-	if (iCount <= 0) return false;
-	*pCount = (size_t)iCount; return true;
-}
-
-static bool __xrtCancelWatchOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
-{
-	const xcancelwatch* pWatch = (const xcancelwatch*)pData;
-	if (pWatch == NULL || pVisit == NULL || pWatch->CallbackActive || pWatch->Destroying) return false;
-	return pVisit(xrtCancelOwnership(pWatch->Cancel), pContext);
-}
-
-static const xrtownershipops __xrtCancelWatchOwnershipOps = {
-	__xrtCancelWatchOwnershipCount, __xrtCancelWatchOwnershipTrace
-};
-
-XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch)
-{
-	xrtownershipref Result = {pWatch, pWatch != NULL ? &__xrtCancelWatchOwnershipOps : NULL};
-	return Result;
-}
-
-
-
-/* 释放监听对象的一个内部引用。 */
-static void __xrtCancelWatchRelease(xcancelwatch* pWatch)
-{
-	xcancel* pCancel;
-
-	if ( (pWatch == NULL) || (xrtRefRelease(&pWatch->RefCount) != 0) ) {
-		return;
-	}
-	pCancel = pWatch->Cancel;
-	(void)xrtCondUnit(&pWatch->Idle);
-	(void)xrtMutexUnit(&pWatch->Lock);
-	xrtFree(pWatch);
-	xrtCancelDestroy(pCancel);
-}
-
-
-
-/* 判断当前线程是否正在执行指定监听的回调。 */
-static bool __xrtCancelWatchIsCallbackThread(const xcancelwatch* pWatch)
-{
-	if ( !pWatch->CallbackThreadValid ) {
-		return false;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return pWatch->CallbackThread == GetCurrentThreadId();
-	#else
-		return pthread_equal(pWatch->CallbackThread, pthread_self()) != 0;
-	#endif
-}
-
-
-
-/* 在持有监听锁时记录回调启动，并返回待执行过程。 */
-static xcancelproc __xrtCancelWatchStart(xcancelwatch* pWatch, ptr* ppData)
-{
-	if (
-		pWatch->Destroying || !pWatch->Armed ||
-		(__xrtAtomicRefLoad(&pWatch->Triggered) == 0) ||
-		pWatch->CallbackStarted
-	) {
-		return NULL;
-	}
-	pWatch->CallbackStarted = true;
-	pWatch->CallbackActive = true;
-	pWatch->CallbackThreadValid = true;
-	#if defined(_WIN32) || defined(_WIN64)
-		pWatch->CallbackThread = GetCurrentThreadId();
-	#else
-		pWatch->CallbackThread = pthread_self();
-	#endif
-	*ppData = pWatch->Data;
-	return pWatch->Proc;
-}
-
-
-
-/* 执行回调并在返回后唤醒注销方或完成回调内延迟回收。 */
-static void __xrtCancelWatchRun(
-	xcancelwatch* pWatch,
-	xcancelproc pProc,
-	ptr pData
-)
-{
-	bool bRelease;
-
-	pProc(pData);
-	(void)xrtMutexLock(&pWatch->Lock);
-	pWatch->CallbackActive = false;
-	pWatch->CallbackThreadValid = false;
-	bRelease = pWatch->DeferredRelease;
-	(void)xrtCondBroadcast(&pWatch->Idle);
-	(void)xrtMutexUnlock(&pWatch->Lock);
-	if ( bRelease ) {
-		__xrtCancelWatchRelease(pWatch);
-	}
-}
-
-
-
-/* 标记监听已触发，并在监听完成装配后同步执行一次回调。 */
-static void __xrtCancelWatchNotify(xcancelwatch* pWatch)
-{
-	xcancelproc pProc = NULL;
-	ptr pData = NULL;
-
-	(void)xrtMutexLock(&pWatch->Lock);
-	if ( !pWatch->Destroying && (__xrtAtomicRefLoad(&pWatch->Triggered) == 0) ) {
-		(void)__xrtAtomicRefCompareExchange(&pWatch->Triggered, 1, 0);
-		pProc = __xrtCancelWatchStart(pWatch, &pData);
-	}
-	(void)xrtMutexUnlock(&pWatch->Lock);
-	if ( pProc != NULL ) {
-		__xrtCancelWatchRun(pWatch, pProc, pData);
-	}
-}
-
-
-
-/* 创建一个独立的取消令牌。 */
-static xcancel* __xrtOwnershipBody_CancelCreate(void)
-{
-	xcancel* pCancel = (xcancel*)xrtMalloc(sizeof(xcancel));
-
-	if ( pCancel == NULL ) {
-		return NULL;
-	}
-	memset(pCancel, 0, sizeof(xcancel));
-	pCancel->RefCount = 1;
-	if ( !xrtMutexInit(&pCancel->Lock) ) {
-		xrtFree(pCancel);
-		return NULL;
-	}
-	return pCancel;
-}
-
-XRT_API xcancel* xrtCancelCreate(void)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelCreate());
-}
-
-
-
-/* 创建一个继承不可变父链的子取消令牌。 */
-static xcancel* __xrtOwnershipBody_CancelChild(xcancel* pParent)
-{
-	xcancel* pCancel = xrtCancelCreate();
-
-	if ( pCancel == NULL ) {
-		return NULL;
-	}
-	if ( pParent != NULL ) {
-		pCancel->Parent = xrtCancelRef(pParent);
-		if ( pCancel->Parent == NULL ) {
-			xrtCancelDestroy(pCancel);
-			return NULL;
-		}
-	}
-	return pCancel;
-}
-
-XRT_API xcancel* xrtCancelChild(xcancel* pParent)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelChild(pParent));
-}
-
-
-
-/* 增加取消令牌引用。 */
-static xcancel* __xrtOwnershipBody_CancelRef(xcancel* pCancel)
-{
-	if ( (pCancel == NULL) || (xrtRefRetain(&pCancel->RefCount) < 0) ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	return pCancel;
-}
-
-XRT_API xcancel* xrtCancelRef(xcancel* pCancel)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_CancelRef(pCancel));
-}
-
-
-
-/* 释放取消令牌引用，并顺着唯一父引用迭代回收。 */
-static void __xrtOwnershipBody_CancelDestroy(xcancel* pCancel)
-{
-	while ( (pCancel != NULL) && (xrtRefRelease(&pCancel->RefCount) == 0) ) {
-		xcancel* pParent = pCancel->Parent;
-
-		(void)xrtMutexUnit(&pCancel->Lock);
-		xrtFree(pCancel);
-		pCancel = pParent;
-	}
-}
-
-XRT_API void xrtCancelDestroy(xcancel* pCancel)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN_VOID(__xrtOwnershipBody_CancelDestroy(pCancel));
-}
-
-
-
-/* 首次请求取消并在令牌锁外通知全部监听。 */
-static bool __xrtOwnershipBody_CancelRequest(xcancel* pCancel)
-{
-	xcancelnode* pList;
-	xcancelnode* pNode;
-
-	if ( pCancel == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	(void)xrtMutexLock(&pCancel->Lock);
-	if ( __xrtAtomicRefLoad(&pCancel->Requested) != 0 ) {
-		(void)xrtMutexUnlock(&pCancel->Lock);
-		return false;
-	}
-	(void)__xrtAtomicRefCompareExchange(&pCancel->Requested, 1, 0);
-	pList = pCancel->WatchHead;
-	pCancel->WatchHead = NULL;
-	for ( pNode = pList; pNode != NULL; pNode = pNode->Next ) {
-		pNode->Linked = false;
-		(void)xrtRefRetain(&pNode->Watch->RefCount);
-	}
-	(void)xrtMutexUnlock(&pCancel->Lock);
-
-	while ( pList != NULL ) {
-		pNode = pList;
-		pList = pNode->Next;
-		pNode->Next = NULL;
-		__xrtCancelWatchNotify(pNode->Watch);
-		__xrtCancelWatchRelease(pNode->Watch);
-	}
-	return true;
-}
-
-XRT_API bool xrtCancelRequest(xcancel* pCancel)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_CancelRequest(pCancel));
-}
-
-
-
-/* 查询令牌及其不可变父链是否已取消。 */
-XRT_API bool xrtCancelRequested(const xcancel* pCancel)
-{
-	while ( pCancel != NULL ) {
-		if ( __xrtAtomicRefLoad(&pCancel->Requested) != 0 ) {
-			return true;
-		}
-		pCancel = pCancel->Parent;
-	}
-	return false;
-}
-
-
-
-/* 为令牌及其全部祖先一次性装配监听节点。 */
-static xcancelwatch* __xrtOwnershipBody_CancelWatch(
-	xcancel* pCancel,
-	xcancelproc pProc,
-	ptr pData
-)
-{
-	xcancelwatch* pWatch;
-	xcancel* pCurrent;
-	xcancelproc pStart = NULL;
-	ptr pStartData = NULL;
-	uint32 iCount = 0;
-	size_t iBytes;
-
-	if ( (pCancel == NULL) || (pProc == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	pCancel = xrtCancelRef(pCancel);
-	if ( pCancel == NULL ) {
-		return NULL;
-	}
-	for ( pCurrent = pCancel; pCurrent != NULL; pCurrent = pCurrent->Parent ) {
-		if ( iCount == UINT32_MAX ) {
-			xrtCancelDestroy(pCancel);
-			__xrtErrorSetSizeOverflow();
-			return NULL;
-		}
-		iCount++;
-	}
-	#if SIZE_MAX <= UINT32_MAX
-		if (
-			(size_t)iCount >
-			((SIZE_MAX - offsetof(xcancelwatch, Nodes)) / sizeof(xcancelnode))
-		) {
-			xrtCancelDestroy(pCancel);
-			__xrtErrorSetSizeOverflow();
-			return NULL;
-		}
-	#endif
-	iBytes = offsetof(xcancelwatch, Nodes) + ((size_t)iCount * sizeof(xcancelnode));
-	pWatch = (xcancelwatch*)xrtMalloc(iBytes);
-	if ( pWatch == NULL ) {
-		xrtCancelDestroy(pCancel);
-		return NULL;
-	}
-	memset(pWatch, 0, iBytes);
-	pWatch->RefCount = 1;
-	pWatch->Cancel = pCancel;
-	pWatch->Proc = pProc;
-	pWatch->Data = pData;
-	pWatch->NodeCount = iCount;
-	if ( !xrtMutexInit(&pWatch->Lock) ) {
-		xrtFree(pWatch);
-		xrtCancelDestroy(pCancel);
-		return NULL;
-	}
-	if ( !xrtCondInit(&pWatch->Idle) ) {
-		(void)xrtMutexUnit(&pWatch->Lock);
-		xrtFree(pWatch);
-		xrtCancelDestroy(pCancel);
-		return NULL;
-	}
-
-	pCurrent = pCancel;
-	for ( uint32 i = 0; i < iCount; i++, pCurrent = pCurrent->Parent ) {
-		xcancelnode* pNode = &pWatch->Nodes[i];
-
-		pNode->Watch = pWatch;
-		pNode->Cancel = pCurrent;
-		(void)xrtMutexLock(&pCurrent->Lock);
-		if ( __xrtAtomicRefLoad(&pCurrent->Requested) != 0 ) {
-			(void)__xrtAtomicRefCompareExchange(&pWatch->Triggered, 1, 0);
-		} else {
-			pNode->Next = pCurrent->WatchHead;
-			pCurrent->WatchHead = pNode;
-			pNode->Linked = true;
-		}
-		(void)xrtMutexUnlock(&pCurrent->Lock);
-	}
-
-	(void)xrtMutexLock(&pWatch->Lock);
-	pWatch->Armed = true;
-	pStart = __xrtCancelWatchStart(pWatch, &pStartData);
-	(void)xrtMutexUnlock(&pWatch->Lock);
-	if ( pStart != NULL ) {
-		__xrtCancelWatchRun(pWatch, pStart, pStartData);
-	}
-	return pWatch;
-}
-
-XRT_API xcancelwatch* xrtCancelWatch(
-	xcancel* pCancel,
-	xcancelproc pProc,
-	ptr pData
-)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xcancelwatch*, NULL, __xrtOwnershipBody_CancelWatch(pCancel, pProc, pData));
-}
-
-
-
-/* 查询监听是否已经命中取消。 */
-XRT_API bool xrtCancelTriggered(const xcancelwatch* pWatch)
-{
-	if ( pWatch == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	return __xrtAtomicRefLoad(&pWatch->Triggered) != 0;
-}
-
-
-
-/* 从一个令牌链表中移除仍然挂接的监听节点。 */
-static void __xrtCancelUnlinkNode(xcancelnode* pNode)
-{
-	xcancelnode** ppNode;
-	xcancel* pCancel = pNode->Cancel;
-
-	(void)xrtMutexLock(&pCancel->Lock);
-	if ( pNode->Linked ) {
-		ppNode = &pCancel->WatchHead;
-		while ( (*ppNode != NULL) && (*ppNode != pNode) ) {
-			ppNode = &(*ppNode)->Next;
-		}
-		if ( *ppNode == pNode ) {
-			*ppNode = pNode->Next;
-		}
-		pNode->Next = NULL;
-		pNode->Linked = false;
-	}
-	(void)xrtMutexUnlock(&pCancel->Lock);
-}
-
-
-
-/* 注销监听，并针对回调自身注销采用返回后延迟回收。 */
-static void __xrtOwnershipBody_CancelUnwatch(xcancelwatch* pWatch)
-{
-	bool bSelf;
-
-	if ( pWatch == NULL ) {
-		return;
-	}
-	if ( xrtRefRetain(&pWatch->RefCount) < 0 ) {
-		__xrtErrorSetInvalidArgument();
-		return;
-	}
-	(void)xrtMutexLock(&pWatch->Lock);
-	if ( pWatch->Destroying ) {
-		bSelf = pWatch->CallbackActive && __xrtCancelWatchIsCallbackThread(pWatch);
-		while ( pWatch->CallbackActive && !bSelf ) {
-			(void)xrtCondWait(&pWatch->Idle, &pWatch->Lock);
-		}
-		(void)xrtMutexUnlock(&pWatch->Lock);
-		__xrtCancelWatchRelease(pWatch);
-		return;
-	}
-	pWatch->Destroying = true;
-	(void)xrtMutexUnlock(&pWatch->Lock);
-
-	for ( uint32 i = 0; i < pWatch->NodeCount; i++ ) {
-		__xrtCancelUnlinkNode(&pWatch->Nodes[i]);
-	}
-
-	(void)xrtMutexLock(&pWatch->Lock);
-	bSelf = pWatch->CallbackActive && __xrtCancelWatchIsCallbackThread(pWatch);
-	if ( bSelf ) {
-		pWatch->DeferredRelease = true;
-		(void)xrtMutexUnlock(&pWatch->Lock);
-		__xrtCancelWatchRelease(pWatch);
-		return;
-	}
-	while ( pWatch->CallbackActive ) {
-		(void)xrtCondWait(&pWatch->Idle, &pWatch->Lock);
-	}
-	(void)xrtMutexUnlock(&pWatch->Lock);
-	__xrtCancelWatchRelease(pWatch);
-	__xrtCancelWatchRelease(pWatch);
-}
-
-XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN_VOID(__xrtOwnershipBody_CancelUnwatch(pWatch));
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/concurrency/future.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_FUTURE)
-
-
-
-#if defined(XRT_FEATURE_FUTURE)
-
-/* Promise 嵌入 Future 对象，创建一对端点只产生一次堆分配。 */
-struct xpromise {
-	struct xfuture* Future;
-};
-
-
-
-/* Future 用一个锁保护终态、结果、条件变量和内部等待链。 */
-struct xfuture {
-	volatile int32 RefCount;
-	volatile int32 PromiseRefs;
-	xmutex Lock;
-	xcond Ready;
-	xfuturestate State;
-	bool Completing;
-	ptr Value;
-	xfuturefreeproc Destroy;
-	ptr DestroyData;
-	xfutureownershiptrace OwnershipTrace;
-	const xfuturepayloadownershipv1* OwnershipPolicy;
-	xrtownershipref Producer;
-	const xfutureproducerownershipv1* ProducerPolicy;
-	const void* OwnershipClaim;
-	bool OwnershipCleared;
-	struct xfuture* Owner;
-	xerror* Error;
-	xcancel* Cancel;
-	xrt_future_waiter* Waiters;
-	xrt_future_waiter* WaitersTail;
-	xpromise Promise;
-};
-
-
-
-static bool __xrtFutureOwnershipCount(const void* pData, size_t* pCount)
-{
-	const xfuture* pFuture = (const xfuture*)pData;
-	int32 iCount;
-	if (pFuture == NULL || pCount == NULL || pFuture->OwnershipCleared) return false;
-	iCount = __xrtAtomicRefLoad(&pFuture->RefCount);
-	if (iCount <= 0) return false;
-	*pCount = (size_t)iCount; return true;
-}
-
-static bool __xrtFutureOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
-{
-	const xfuture* pFuture = (const xfuture*)pData;
-	const xrt_future_waiter* pLast = NULL;
-	if (pFuture == NULL || pVisit == NULL || pFuture->Completing || pFuture->OwnershipCleared) return false;
-	/* Locks alone cannot stabilize the transitive graph. This entire traversal
-	 * uses the caller's quiescent point, exactly like Value/callable views. */
-	for (const xrt_future_waiter* pWaiter = pFuture->Waiters; pWaiter != NULL; pWaiter = pWaiter->Next) {
-		if (!pWaiter->Linked || pWaiter->Calling) return false;
-		if (pWaiter->Certified) {
-			const xfuturewatchownershipv1* pPolicy = pWaiter->OwnershipPolicy;
-			if (pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Ops == NULL ||
-				!pVisit((xrtownershipref){pWaiter->Data, pPolicy->Ops}, pContext)) return false;
-		} else if (pWaiter->OwnershipTrace == NULL ||
-			!pWaiter->OwnershipTrace(pWaiter->Data, pVisit, pContext)) return false;
-		pLast = pWaiter;
-	}
-	if (pLast != pFuture->WaitersTail) return false;
-	if (pFuture->Producer.Data != NULL && !pVisit(pFuture->Producer, pContext)) return false;
-	if (!pVisit(xrtCancelOwnership(pFuture->Cancel), pContext)) return false;
-	if (pFuture->Error != NULL && !pVisit(xrtErrorOwnership(pFuture->Error), pContext)) return false;
-	if (pFuture->Owner != NULL && !pVisit(xrtFutureOwnership(pFuture->Owner), pContext)) return false;
-	if (pFuture->Destroy != NULL) {
-		if (pFuture->OwnershipTrace == NULL) return false;
-		return pFuture->OwnershipTrace(pFuture->Value, pFuture->DestroyData, pVisit, pContext);
-	}
-	return true;
-}
-
-static const xrtownershipops __xrtFutureOwnershipOps = {
-	__xrtFutureOwnershipCount, __xrtFutureOwnershipTrace
-};
-
-XRT_API xrtownershipref xrtFutureOwnership(const xfuture* pFuture)
-{
-	xrtownershipref Result = {pFuture, pFuture != NULL ? &__xrtFutureOwnershipOps : NULL};
-	return Result;
-}
-
-XRT_API xrtownershipref xrtPromiseOwnership(const xpromise* pPromise)
-{
-	return xrtFutureOwnership(pPromise != NULL ? pPromise->Future : NULL);
-}
-
-static void __xrtFutureProducerDrop(xrtownershipref Producer, const xfutureproducerownershipv1* pPolicy)
-{
-	xerror* pPrevious;
-	if (Producer.Data == NULL) { if (pPolicy != NULL) abort(); return; }
-	if (pPolicy == NULL) abort();
-	pPrevious = xrtTakeError();
-	pPolicy->Drop(Producer.Data);
-	xrtClearError(); xrtSetErrorTake(pPrevious);
-}
-
-XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
-	const xfutureproducerownershipv1* pPolicy)
-{
-	xrtownershipscope Mutation = {0}; xfuture* pFuture; bool bBound = false;
-	if (pPromise == NULL || Producer.Data == NULL || Producer.Ops == NULL ||
-		Producer.Ops->Count == NULL || Producer.Ops->Trace == NULL ||
-		pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Drop == NULL) {
-		__xrtErrorSetInvalidArgument(); return false;
-	}
-	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
-	pFuture = pPromise->Future;
-	if (!xrtMutexLock(&pFuture->Lock)) { if (!xrtOwnershipScopeEnd(&Mutation)) abort(); return false; }
-	if (pFuture->State == XFUTURE_PENDING && !pFuture->Completing && !pFuture->OwnershipCleared &&
-		pFuture->OwnershipClaim == NULL && pFuture->Producer.Data == NULL &&
-		pFuture->Waiters == NULL && pFuture->WaitersTail == NULL &&
-		__xrtAtomicRefLoad(&pFuture->RefCount) == 2 && __xrtAtomicRefLoad(&pFuture->PromiseRefs) == 1) {
-		pFuture->Producer = Producer; pFuture->ProducerPolicy = pPolicy; bBound = true;
-	}
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	if (!bBound) __xrtErrorSetInvalidState();
-	return bBound;
-}
-
-static bool __xrtFutureAdapterHold(const void* pData)
-{ return xrtFutureRef((xfuture*)pData) != NULL; }
-static void __xrtFutureAdapterDrop(const void* pData)
-{ xrtFutureDestroy((xfuture*)pData); }
-static bool __xrtFutureAdapterClaim(const void* pData, const void* pToken)
-{
-	xfuture* pFuture = (xfuture*)pData;
-	if (pToken == NULL || pFuture->OwnershipCleared ||
-		(pFuture->OwnershipClaim != NULL && pFuture->OwnershipClaim != pToken)) return false;
-	pFuture->OwnershipClaim = pToken; return true;
-}
-static void __xrtFutureAdapterRestore(const void* pData, const void* pToken)
-{
-	xfuture* pFuture = (xfuture*)pData;
-	if (pToken == NULL || pFuture->OwnershipClaim != pToken || pFuture->OwnershipCleared) abort();
-	pFuture->OwnershipClaim = NULL;
-}
-static void __xrtFutureAdapterClear(const void* pData, const void* pToken)
-{
-	xfuture* pFuture = (xfuture*)pData;
-	if (pToken == NULL || pFuture->OwnershipClaim != pToken || pFuture->OwnershipCleared ||
-		pFuture->Completing || pFuture->Waiters != NULL || pFuture->WaitersTail != NULL) abort();
-	/* Revalidation and Clear share the exclusive freeze. No observer can be
-	 * registered in between, so closing the last producer cannot notify code. */
-	if (pFuture->State == XFUTURE_PENDING) __xrtCancelOwnershipCloseUnobserved(pFuture->Cancel);
-	pFuture->State = XFUTURE_CLOSED;
-	pFuture->OwnershipCleared = true;
-	/* Actual slots remain owned and all targets stay pinned until Finish. */
-}
-static bool __xrtFutureAdapterFinish(const void* pData, const void* pToken)
-{
-	xfuture* pFuture = (xfuture*)pData;
-	xrtownershipscope Mutation = {0};
-	ptr pValue; xfuturefreeproc pDestroy; xfuture* pOwner; xerror* pError; xcancel* pCancel;
-	xrtownershipref Producer; const xfutureproducerownershipv1* pProducerPolicy;
-	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
-	if (pToken == NULL || pFuture->OwnershipClaim != pToken || !pFuture->OwnershipCleared) abort();
-	pValue = pFuture->Value; pDestroy = pFuture->Destroy; pOwner = pFuture->Owner;
-	pError = pFuture->Error; pCancel = pFuture->Cancel;
-	Producer = pFuture->Producer; pProducerPolicy = pFuture->ProducerPolicy;
-	pFuture->Value = NULL; pFuture->Destroy = NULL; pFuture->DestroyData = NULL;
-	pFuture->OwnershipTrace = NULL; pFuture->OwnershipPolicy = NULL;
-	pFuture->Owner = NULL; pFuture->Error = NULL; pFuture->Cancel = NULL;
-	pFuture->Producer = (xrtownershipref){0}; pFuture->ProducerPolicy = NULL;
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	if (pDestroy != NULL) pDestroy(pValue, NULL);
-	xrtFutureDestroy(pOwner); xrtErrorFree(pError); xrtCancelDestroy(pCancel);
-	__xrtFutureProducerDrop(Producer, pProducerPolicy);
-	return true;
-}
-static bool __xrtFuturePreparationReady(const void* pData)
-{
-	const xfuture* pFuture = pData;
-	return pFuture->State != XFUTURE_PENDING ||
-		(pFuture->Waiters == NULL && pFuture->Producer.Data == NULL);
-}
-static xrtownershipprepareresult __xrtFuturePrepare(const void* pData, const void* pToken)
-{
-	xfuture* pFuture = (xfuture*)pData; xrtownershipscope Mutation = {0}; bool bReady, bProduced;
-	if (!xrtOwnershipMutationBegin(&Mutation)) return XRT_OWNERSHIP_PREPARE_FAILED;
-	if (!xrtMutexLock(&pFuture->Lock)) { if (!xrtOwnershipScopeEnd(&Mutation)) abort(); return XRT_OWNERSHIP_PREPARE_FAILED; }
-	if (pToken == NULL || pFuture->OwnershipClaim != pToken || pFuture->OwnershipCleared) abort();
-	bReady = __xrtFuturePreparationReady(pFuture); bProduced = pFuture->Producer.Data != NULL;
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	if (bReady) return XRT_OWNERSHIP_PREPARE_READY;
-	if (bProduced) return XRT_OWNERSHIP_PREPARE_BUSY;
-	/* The plan's actual hold retains this endpoint and all callback code. Normal
-	 * publication invokes every accepted callback; Clear must never do that. */
-	if (xrtPromiseClose(&pFuture->Promise) || xrtFutureDone(pFuture)) return XRT_OWNERSHIP_PREPARE_READY;
-	return XRT_OWNERSHIP_PREPARE_FAILED;
-}
-static const xrtownershipadapterv1 __xrtFutureAdapter = {sizeof(__xrtFutureAdapter),
-	__xrtFutureAdapterHold, __xrtFutureAdapterDrop, __xrtFutureAdapterClaim,
-	__xrtFutureAdapterRestore, NULL, __xrtFutureAdapterClear, __xrtFutureAdapterFinish};
-static const xrtownershippreparationv1 __xrtFuturePreparation = {sizeof(__xrtFuturePreparation),
-	&__xrtFutureAdapter, __xrtFuturePreparationReady, __xrtFuturePrepare};
-static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
-	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
-	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount)
-{
-	const xfuture* pFuture;
-	if (Reference.Ops != &__xrtFutureOwnershipOps || Reference.Data == NULL ||
-		(iPolicyCount != 0 && pPolicies == NULL) ||
-		(iProducerPolicyCount != 0 && pProducerPolicies == NULL) ||
-		(iWatchPolicyCount != 0 && pWatchPolicies == NULL)) return NULL;
-	pFuture = (const xfuture*)Reference.Data;
-	if (pFuture->Completing || pFuture->OwnershipCleared || __xrtAtomicRefLoad(&pFuture->RefCount) <= 0 ||
-		xrtCancelOwnershipAdapterV1(xrtCancelOwnership(pFuture->Cancel)) == NULL) return NULL;
-	const xrt_future_waiter* pLast = NULL;
-	for (const xrt_future_waiter* pWaiter = pFuture->Waiters; pWaiter != NULL; pWaiter = pWaiter->Next) {
-		bool bKnown = false;
-		if (!pWaiter->Certified || !pWaiter->Phased || !pWaiter->Linked || pWaiter->Calling || pWaiter->Data == NULL) return NULL;
-		for (size_t i = 0; i < iWatchPolicyCount; ++i)
-			if (pWatchPolicies[i] != NULL && pWaiter->OwnershipPolicy == pWatchPolicies[i]) { bKnown = true; break; }
-		if (!bKnown) return NULL; /* No descriptor dereference or child trace yet. */
-		const xfuturewatchownershipv1* pPolicy = pWaiter->OwnershipPolicy;
-		if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Notify != pWaiter->Proc ||
-			pPolicy->Release != pWaiter->Release || pPolicy->Ops == NULL ||
-			pPolicy->Ops->Count == NULL || pPolicy->Ops->Trace == NULL) return NULL;
-		pLast = pWaiter;
-	}
-	if (pLast != pFuture->WaitersTail) return NULL;
-	if (pFuture->Producer.Data != NULL) {
-		bool bKnown = false;
-		for (size_t i = 0; i < iProducerPolicyCount; ++i)
-			if (pProducerPolicies[i] != NULL && pFuture->ProducerPolicy == pProducerPolicies[i]) { bKnown = true; break; }
-		if (!bKnown || pFuture->ProducerPolicy->size != sizeof(xfutureproducerownershipv1) ||
-			pFuture->ProducerPolicy->Drop == NULL || pFuture->Producer.Ops == NULL ||
-			pFuture->Producer.Ops->Count == NULL || pFuture->Producer.Ops->Trace == NULL) return NULL;
-	} else if (pFuture->ProducerPolicy != NULL) return NULL;
-	if (pFuture->Destroy != NULL) {
-		bool bKnown = false;
-		/* Match identity BEFORE dereferencing a producer's descriptor. */
-		for (size_t i = 0; i < iPolicyCount; ++i)
-			if (pPolicies[i] != NULL && pFuture->OwnershipPolicy == pPolicies[i]) { bKnown = true; break; }
-		if (!bKnown || pFuture->OwnershipPolicy->size != sizeof(xfuturepayloadownershipv1) ||
-			pFuture->OwnershipPolicy->Drop != pFuture->Destroy ||
-			pFuture->OwnershipPolicy->Trace != pFuture->OwnershipTrace || pFuture->DestroyData != NULL) return NULL;
-	}
-	return &__xrtFutureAdapter;
-}
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
-	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount)
-{ return __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount, pProducerPolicies, iProducerPolicyCount, NULL, 0); }
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
-	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
-	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
-	const xrtownershippreparationv1** ppPreparation)
-{
-	const xrtownershipadapterv1* pAdapter;
-	if (ppPreparation == NULL) return NULL;
-	pAdapter = __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount,
-		pProducerPolicies, iProducerPolicyCount, pWatchPolicies, iWatchPolicyCount);
-	if (pAdapter != NULL) *ppPreparation = &__xrtFuturePreparation;
-	return pAdapter;
-}
-XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference,
-	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount)
-{
-	return xrtFutureOwnershipAdapterV2(Reference, pPolicies, iPolicyCount, NULL, 0);
-}
-
-/* 同一执行上下文中的完成通知使用迭代队列，避免 Future 链递归耗尽线程栈。 */
-typedef struct xrt_future_notify_context {
-	xrt_future_waiter* Head;
-	xrt_future_waiter* Tail;
-} xrt_future_notify_context;
-
-
-
-#if defined(_WIN32) || defined(_WIN64)
-
-static DWORD __xrtFutureNotifyKey = FLS_OUT_OF_INDEXES;
-static volatile LONG __xrtFutureNotifyKeyState;
-static xrt_local_slot __xrtFutureNotifySlot;
-
-
-
-/* 进程内只创建一次 Fiber 本地通知槽，使 Windows 协程切换不会混用派发队列。 */
-static bool __xrtFutureNotifyKeyEnsure(void)
-{
-	LONG iState = InterlockedCompareExchange(&__xrtFutureNotifyKeyState, 1, 0);
-
-	if ( iState == 0 ) {
-		__xrtFutureNotifyKey = __xrtLocalSlotAlloc(&__xrtFutureNotifySlot,
-			NULL, XRT_LOCAL_BORROWED, true);
-		InterlockedExchange(
-			&__xrtFutureNotifyKeyState,
-			__xrtFutureNotifyKey != FLS_OUT_OF_INDEXES ? 2 : 3
-		);
-		return __xrtFutureNotifyKey != FLS_OUT_OF_INDEXES;
-	}
-	while ( (iState = InterlockedCompareExchange(
-		&__xrtFutureNotifyKeyState, 0, 0
-	)) == 1 ) {
-		Sleep(0);
-	}
-	return iState == 2;
-}
-
-
-
-/* 返回当前 Fiber 正在使用的通知队列。 */
-static xrt_future_notify_context* __xrtFutureNotifyContextGet(void)
-{
-	return __xrtFutureNotifyKeyEnsure() ?
-		(xrt_future_notify_context*)FlsGetValue(__xrtFutureNotifyKey) : NULL;
-}
-
-
-
-/* 切换当前 Fiber 的通知队列；失败时调用方退回直接派发。 */
-static bool __xrtFutureNotifyContextSet(xrt_future_notify_context* pContext)
-{
-	return __xrtFutureNotifyKeyEnsure() &&
-		(FlsSetValue(__xrtFutureNotifyKey, pContext) != 0);
-}
-
-#elif defined(__TINYC__)
-
-static pthread_key_t __xrtFutureNotifyKey;
-static pthread_once_t __xrtFutureNotifyKeyOnce = PTHREAD_ONCE_INIT;
-static bool __xrtFutureNotifyKeyReady;
-
-
-
-/* 为 TinyCC POSIX 构建创建不带析构器的通知上下文槽。 */
-static void __xrtFutureNotifyKeyInit(void)
-{
-	__xrtFutureNotifyKeyReady =
-		pthread_key_create(&__xrtFutureNotifyKey, NULL) == 0;
-}
-
-
-
-/* 返回当前线程正在使用的通知队列。 */
-static xrt_future_notify_context* __xrtFutureNotifyContextGet(void)
-{
-	(void)pthread_once(&__xrtFutureNotifyKeyOnce, __xrtFutureNotifyKeyInit);
-	return __xrtFutureNotifyKeyReady ?
-		(xrt_future_notify_context*)pthread_getspecific(__xrtFutureNotifyKey) :
-		NULL;
-}
-
-
-
-/* 切换当前线程的通知队列；失败时调用方退回直接派发。 */
-static bool __xrtFutureNotifyContextSet(xrt_future_notify_context* pContext)
-{
-	(void)pthread_once(&__xrtFutureNotifyKeyOnce, __xrtFutureNotifyKeyInit);
-	return __xrtFutureNotifyKeyReady &&
-		(pthread_setspecific(__xrtFutureNotifyKey, pContext) == 0);
-}
-
-#else
-
-static XRT_THREAD_LOCAL xrt_future_notify_context*
-	__xrtFutureNotifyContext;
-
-
-
-/* 返回当前线程正在使用的通知队列。 */
-static xrt_future_notify_context* __xrtFutureNotifyContextGet(void)
-{
-	return __xrtFutureNotifyContext;
-}
-
-
-
-/* 切换当前线程的通知队列。 */
-static bool __xrtFutureNotifyContextSet(xrt_future_notify_context* pContext)
-{
-	__xrtFutureNotifyContext = pContext;
-	return true;
-}
-
-#endif
-
-
-
-/* 释放当前 Future，并返回需要继续释放的透传结果所有者。 */
-static xfuture* __xrtFutureFree(xfuture* pFuture, xrtownershipscope* pMutation)
-{
-	ptr pValue = pFuture->Value;
-	xfuturefreeproc pDestroy = pFuture->Destroy;
-	ptr pDestroyData = pFuture->DestroyData;
-	xfuture* pOwner = pFuture->Owner;
-	xerror* pError = pFuture->Error;
-	xcancel* pCancel = pFuture->Cancel;
-	bool bPhased = pFuture->OwnershipPolicy != NULL;
-	/* Last PromiseDestroy closes before returning its physical reference;
-	 * terminal publication or graph Finish has already returned this owner. */
-	if (pFuture->Producer.Data != NULL || pFuture->ProducerPolicy != NULL) abort();
-
-	(void)xrtCondUnit(&pFuture->Ready);
-	(void)xrtMutexUnit(&pFuture->Lock);
-	xrtFree(pFuture);
-	/* Only explicit payload policies certify cooperative destruction. Legacy
-	 * trace-only callbacks retain their conservative mutation exclusion. */
-	if (bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
-	if ( pDestroy != NULL ) {
-		pDestroy(pValue, pDestroyData);
-	}
-	xrtErrorFree(pError);
-	xrtCancelDestroy(pCancel);
-	if (!bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
-	return pOwner;
-}
-
-
-
-/* 迭代释放 Future 及透传所有者链，避免深延续链递归耗尽线程栈。 */
-static void __xrtFutureRelease(xfuture* pFuture)
-{
-	while (pFuture != NULL) {
-		xrtownershipscope Mutation = {0};
-		if (!xrtOwnershipMutationBegin(&Mutation)) return;
-		if (xrtRefRelease(&pFuture->RefCount) != 0) {
-			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-			return;
-		}
-		pFuture = __xrtFutureFree(pFuture, &Mutation);
-	}
-}
-
-
-
-static void __xrtFutureInvoke(void (*pProc)(ptr), ptr pData, bool bPhased)
-{
-	xrtownershipscope Mutation = {0};
-	if (pProc == NULL) return;
-	if (!bPhased && !xrtOwnershipMutationBegin(&Mutation)) abort();
-	pProc(pData);
-	if (!bPhased && !xrtOwnershipScopeEnd(&Mutation)) abort();
-}
-
-/* 执行一个完成通知，并在回调返回后发布节点可移除状态。 */
-static void __xrtFutureNotifyOne(xrt_future_waiter* pWaiter)
-{
-	xrtownershipscope Mutation = {0};
-	xfuture* pFuture = pWaiter->NotifyFuture;
-	void (*pRelease)(ptr pData) = pWaiter->Release;
-	ptr pData = pWaiter->Data;
-	bool bReleaseFuture = pWaiter->NotifyRelease;
-	bool bPhased = pWaiter->Phased;
-
-	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
-	pWaiter->Next = NULL;
-	pWaiter->NotifyFuture = NULL;
-	pWaiter->NotifyRelease = false;
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	__xrtFutureInvoke(pWaiter->Proc, pData, bPhased);
-	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
-	(void)xrtMutexLock(&pFuture->Lock);
-	pWaiter->Calling = false;
-	(void)xrtCondBroadcast(&pFuture->Ready);
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	if ( pRelease != NULL ) {
-		__xrtFutureInvoke(pRelease, pData, bPhased);
-	}
-	if ( bReleaseFuture ) {
-		xrtFutureDestroy(pFuture);
-	}
-}
-
-
-
-/* 在 Future 锁外把完成批次加入当前执行上下文，并由最外层调用迭代排空。 */
-static void __xrtFutureNotify(
-	xrt_future_waiter* pHead,
-	xrt_future_waiter* pTail
-)
-{
-	xrt_future_notify_context tContext;
-	xrt_future_notify_context* pContext = __xrtFutureNotifyContextGet();
-
-	if ( pHead == NULL ) {
-		return;
-	}
-	if ( pContext != NULL ) {
-		if ( pContext->Tail != NULL ) {
-			pContext->Tail->Next = pHead;
-		} else {
-			pContext->Head = pHead;
-		}
-		pContext->Tail = pTail;
-		return;
-	}
-	memset(&tContext, 0, sizeof(tContext));
-	if ( !__xrtFutureNotifyContextSet(&tContext) ) {
-		while ( pHead != NULL ) {
-			xrt_future_waiter* pNext = pHead->Next;
-
-			__xrtFutureNotifyOne(pHead);
-			pHead = pNext;
-		}
-		return;
-	}
-	tContext.Head = pHead;
-	tContext.Tail = pTail;
-	while ( tContext.Head != NULL ) {
-		xrt_future_waiter* pWaiter = tContext.Head;
-
-		tContext.Head = pWaiter->Next;
-		if ( tContext.Head == NULL ) {
-			tContext.Tail = NULL;
-		}
-		__xrtFutureNotifyOne(pWaiter);
-	}
-	(void)__xrtFutureNotifyContextSet(NULL);
-}
-
-
-
-/* 在持锁状态下发布唯一终态，并摘取全部等待节点。 */
-static void __xrtFuturePublishLocked(
-	xfuture* pFuture,
-	xfuturestate State,
-	ptr pValue,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData,
-	xfuture* pOwner,
-	xerror* pError,
-	xrt_future_waiter** ppWaiter,
-	xrt_future_waiter** ppWaiterTail,
-	xrtownershipref* pProducer,
-	const xfutureproducerownershipv1** ppProducerPolicy,
-	xfutureownershiptrace pTrace,
-	const xfuturepayloadownershipv1* pPolicy
-)
-{
-	xrt_future_waiter* pWaiterTail = NULL;
-
-	pFuture->State = State;
-	pFuture->Completing = false;
-	pFuture->Value = pValue;
-	pFuture->Destroy = pDestroy;
-	pFuture->DestroyData = pDestroyData;
-	pFuture->OwnershipTrace = pTrace;
-	pFuture->OwnershipPolicy = pPolicy;
-	pFuture->Owner = pOwner;
-	pFuture->Error = pError;
-	*pProducer = pFuture->Producer; *ppProducerPolicy = pFuture->ProducerPolicy;
-	pFuture->Producer = (xrtownershipref){0}; pFuture->ProducerPolicy = NULL;
-	*ppWaiter = pFuture->Waiters;
-	pFuture->Waiters = NULL;
-	pFuture->WaitersTail = NULL;
-	for ( xrt_future_waiter* pCurrent = *ppWaiter;
-		pCurrent != NULL; pCurrent = pCurrent->Next ) {
-		pCurrent->Linked = false;
-		pCurrent->Calling = true;
-		pCurrent->NotifyFuture = pFuture;
-		pCurrent->NotifyRelease = false;
-		pWaiterTail = pCurrent;
-	}
-	if ( pWaiterTail != NULL ) {
-		pWaiterTail->NotifyRelease = true;
-		(void)xrtFutureRef(pFuture);
-	}
-	*ppWaiterTail = pWaiterTail;
-	(void)xrtCondBroadcast(&pFuture->Ready);
-}
-
-
-
-/* 把 Pending 原子转换为唯一终态，并按成功与失败保存结果。 */
-static bool __xrtFutureCompleteTraced(
-	xfuture* pFuture,
-	xfuturestate State,
-	ptr pValue,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData,
-	xfuture* pOwner,
-	xerror* pError,
-	bool bRequestCancel,
-	bool bReportDuplicate,
-	xfutureownershiptrace pTrace,
-	const xfuturepayloadownershipv1* pPolicy
-)
-{
-	bool bCompleted = false;
-	bool bReserved = false;
-	xrtownershipscope Mutation = {0};
-	xrt_future_waiter* pWaiter = NULL;
-	xrt_future_waiter* pWaiterTail = NULL;
-	xrtownershipref Producer = {0};
-	const xfutureproducerownershipv1* pProducerPolicy = NULL;
-
-	if ( pFuture == NULL ) {
-		if ( bReportDuplicate ) {
-			__xrtErrorSetInvalidArgument();
-		}
-		return false;
-	}
-	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
-	if ( !xrtMutexLock(&pFuture->Lock) ) {
-		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-		return false;
-	}
-	if ( (pFuture->State == XFUTURE_PENDING) && !pFuture->Completing && !pFuture->OwnershipCleared ) {
-		if ( bRequestCancel ) {
-			pFuture->Completing = true;
-			bReserved = true;
-		} else {
-			__xrtFuturePublishLocked(
-				pFuture,
-				State,
-				pValue,
-				pDestroy,
-				pDestroyData,
-				pOwner,
-				pError,
-				&pWaiter,
-				&pWaiterTail,
-				&Producer, &pProducerPolicy,
-				pTrace, pPolicy
-			);
-			bCompleted = true;
-		}
-	}
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-
-	if ( bReserved ) {
-		(void)xrtCancelRequest(pFuture->Cancel);
-		if (!xrtOwnershipMutationBegin(&Mutation)) abort();
-		if ( !xrtMutexLock(&pFuture->Lock) ) {
-			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-			return false;
-		}
-		__xrtFuturePublishLocked(
-			pFuture,
-			State,
-			pValue,
-			pDestroy,
-			pDestroyData,
-			pOwner,
-			pError,
-			&pWaiter,
-			&pWaiterTail,
-			&Producer, &pProducerPolicy,
-			pTrace, pPolicy
-		);
-		bCompleted = true;
-		(void)xrtMutexUnlock(&pFuture->Lock);
-		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	}
-	if ( bCompleted ) {
-		__xrtFutureProducerDrop(Producer, pProducerPolicy);
-		__xrtFutureNotify(pWaiter, pWaiterTail);
-	} else if ( bReportDuplicate ) {
-		__xrtErrorSetInvalidState();
-	}
-	return bCompleted;
-}
-
-
-
-static bool __xrtFutureComplete(xfuture* pFuture, xfuturestate State, ptr pValue,
-	xfuturefreeproc pDestroy, ptr pDestroyData, xfuture* pOwner, xerror* pError,
-	bool bRequestCancel, bool bReportDuplicate)
-{
-	return __xrtFutureCompleteTraced(pFuture, State, pValue, pDestroy, pDestroyData,
-		pOwner, pError, bRequestCancel, bReportDuplicate, NULL, NULL);
-}
-
-static bool __xrtOwnershipBody_PromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
-	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace)
-{
-	if (pPromise == NULL || pDestroy == NULL || pTrace == NULL) {
-		__xrtErrorSetInvalidArgument(); return false;
-	}
-	return __xrtFutureCompleteTraced(pPromise->Future, XFUTURE_RESOLVED, pValue,
-		pDestroy, pDestroyData, NULL, NULL, false, true, pTrace, NULL);
-}
-
-XRT_API bool xrtPromiseResolveOwnedPolicyV1(xpromise* pPromise, ptr pValue,
-	const xfuturepayloadownershipv1* pPolicy)
-{
-	if (pPromise == NULL || pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) ||
-		pPolicy->Drop == NULL || pPolicy->Trace == NULL) {
-		__xrtErrorSetInvalidArgument(); return false;
-	}
-	return __xrtFutureCompleteTraced(pPromise->Future, XFUTURE_RESOLVED, pValue,
-		pPolicy->Drop, NULL, NULL, NULL, false, true, pPolicy->Trace, pPolicy);
-}
-
-XRT_API bool xrtPromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue,
-	xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace)
-{
-	return __xrtOwnershipBody_PromiseResolveOwnedTraced(pPromise, pValue, pDestroy, pDestroyData, pTrace);
-}
-
-/* 可取消等待在 Future 锁下记录终态竞争结果。 */
-typedef struct xrt_future_cancel_wait {
-	xfuture* Future;
-	bool Cancelled;
-} xrt_future_cancel_wait;
-
-
-
-/* 取消与 Future 完成共用一把锁，先取得锁的一方确定等待结果。 */
-static void __xrtFutureWaitCancelled(ptr pData)
-{
-	xrt_future_cancel_wait* pWait = (xrt_future_cancel_wait*)pData;
-	xfuture* pFuture = pWait->Future;
-
-	if ( xrtMutexLock(&pFuture->Lock) ) {
-		if ( pFuture->State == XFUTURE_PENDING ) {
-			pWait->Cancelled = true;
-			(void)xrtCondBroadcast(&pFuture->Ready);
-		}
-		(void)xrtMutexUnlock(&pFuture->Lock);
-	}
-}
-
-
-
-/* Future 尚未完成时挂入一个不分配内存的内部等待节点。 */
-static bool __xrtOwnershipBody_FutureWaiterAdd(xfuture* pFuture, xrt_future_waiter* pWaiter)
-{
-	bool bLinked = false;
-
-	if ( (pFuture == NULL) || (pWaiter == NULL) || (pWaiter->Proc == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !xrtMutexLock(&pFuture->Lock) ) {
-		return false;
-	}
-	if ( pWaiter->Linked || pWaiter->Calling ) {
-		(void)xrtMutexUnlock(&pFuture->Lock);
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	if ( pFuture->State == XFUTURE_PENDING ) {
-		pWaiter->Next = NULL;
-		pWaiter->Linked = true;
-		if ( pFuture->WaitersTail != NULL ) {
-			pFuture->WaitersTail->Next = pWaiter;
-		} else {
-			pFuture->Waiters = pWaiter;
-		}
-		pFuture->WaitersTail = pWaiter;
-		bLinked = true;
-	}
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	return bLinked;
-}
-
-bool __xrtFutureWaiterAdd(xfuture* pFuture, xrt_future_waiter* pWaiter)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_FutureWaiterAdd(pFuture, pWaiter));
-}
-
-
-
-/* 摘除尚未进入完成批次的等待节点，但不等待已经开始的回调。 */
-static bool __xrtOwnershipBody_FutureWaiterDetach(xfuture* pFuture, xrt_future_waiter* pWaiter)
-{
-	xrtownershipscope Mutation = {0};
-	xrt_future_waiter** ppWaiter;
-	xrt_future_waiter* pPrevious = NULL;
-	void (*pRelease)(ptr pData) = NULL;
-	ptr pData = NULL;
-	bool bDetached = false;
-	bool bPhased = false;
-
-	if ( (pFuture == NULL) || (pWaiter == NULL) ) {
-		return false;
-	}
-	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
-	if ( !xrtMutexLock(&pFuture->Lock) ) {
-		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-		return false;
-	}
-	if ( pWaiter->Linked ) {
-		ppWaiter = &pFuture->Waiters;
-		while ( (*ppWaiter != NULL) && (*ppWaiter != pWaiter) ) {
-			pPrevious = *ppWaiter;
-			ppWaiter = &(*ppWaiter)->Next;
-		}
-		if ( *ppWaiter == pWaiter ) {
-			*ppWaiter = pWaiter->Next;
-			if ( pFuture->WaitersTail == pWaiter ) {
-				pFuture->WaitersTail = pPrevious;
-			}
-			pWaiter->Next = NULL;
-			pWaiter->Linked = false;
-			pRelease = pWaiter->Release;
-			pData = pWaiter->Data;
-			bPhased = pWaiter->Phased;
-			bDetached = true;
-		}
-	}
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	if ( pRelease != NULL ) {
-		__xrtFutureInvoke(pRelease, pData, bPhased);
-	}
-	return bDetached;
-}
-
-bool __xrtFutureWaiterDetach(xfuture* pFuture, xrt_future_waiter* pWaiter)
-{
-	return __xrtOwnershipBody_FutureWaiterDetach(pFuture, pWaiter);
-}
-
-
-
-/* 从等待链移除仍然挂接的内部节点。 */
-static void __xrtOwnershipBody_FutureWaiterRemove(xfuture* pFuture, xrt_future_waiter* pWaiter)
-{
-	xrtownershipscope Mutation = {0};
-	xrt_future_waiter** ppWaiter;
-	xrt_future_waiter* pPrevious = NULL;
-	void (*pRelease)(ptr pData) = NULL;
-	ptr pData = NULL;
-	bool bPhased = false;
-
-	if ( (pFuture == NULL) || (pWaiter == NULL) ) {
-		return;
-	}
-	if (!xrtOwnershipMutationBegin(&Mutation)) return;
-	if ( !xrtMutexLock(&pFuture->Lock) ) {
-		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-		return;
-	}
-	if ( pWaiter->Linked ) {
-		ppWaiter = &pFuture->Waiters;
-		while ( (*ppWaiter != NULL) && (*ppWaiter != pWaiter) ) {
-			pPrevious = *ppWaiter;
-			ppWaiter = &(*ppWaiter)->Next;
-		}
-		if ( *ppWaiter == pWaiter ) {
-			*ppWaiter = pWaiter->Next;
-			if ( pFuture->WaitersTail == pWaiter ) {
-				pFuture->WaitersTail = pPrevious;
-			}
-		}
-		pWaiter->Next = NULL;
-		pWaiter->Linked = false;
-		pRelease = pWaiter->Release;
-		pData = pWaiter->Data;
-		bPhased = pWaiter->Phased;
-	}
-	/* No graph mutation is needed to wait for the already detached callback.
-	 * End admission before reacquiring the condition lock, so callback writes
-	 * can enter their own mutation even while a graph inspector is active. */
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	if (!xrtMutexLock(&pFuture->Lock)) abort();
-	while ( pWaiter->Calling ) {
-		(void)xrtCondWait(&pFuture->Ready, &pFuture->Lock);
-	}
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	if ( pRelease != NULL ) {
-		__xrtFutureInvoke(pRelease, pData, bPhased);
-	}
-}
-
-void __xrtFutureWaiterRemove(xfuture* pFuture, xrt_future_waiter* pWaiter)
-{
-	__xrtOwnershipBody_FutureWaiterRemove(pFuture, pWaiter);
-}
-
-
-
-/* 初始化调用方持有的无分配 Future Watch。 */
-static bool __xrtOwnershipBody_FutureWatchInit(
-	xfuturewatch* pWatch,
-	xfuturewatchproc pNotify,
-	xfuturewatchreleaseproc pRelease,
-	ptr pData
-)
-{
-	xrt_future_watch_impl* pImpl;
-
-	if ( !__xrtRangeValid(pWatch, sizeof(*pWatch)) ||
-		(pNotify == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	memset(pWatch, 0, sizeof(*pWatch));
-	pImpl = __xrtFutureWatchImpl(pWatch);
-	pImpl->Waiter.Proc = pNotify;
-	pImpl->Waiter.Release = pRelease;
-	pImpl->Waiter.Data = pData;
-	pImpl->Magic = XRT_FUTURE_WATCH_MAGIC;
-	return true;
-}
-
-XRT_API bool xrtFutureWatchInit(
-	xfuturewatch* pWatch,
-	xfuturewatchproc pNotify,
-	xfuturewatchreleaseproc pRelease,
-	ptr pData
-)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_FutureWatchInit(pWatch, pNotify, pRelease, pData));
-}
-
-
-
-static bool __xrtOwnershipBody_FutureWatchInitTraced(xfuturewatch* pWatch,
-	xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
-	xrtownershiptrace pTrace)
-{
-	if (pRelease == NULL || pTrace == NULL) {
-		__xrtErrorSetInvalidArgument(); return false;
-	}
-	if (!xrtFutureWatchInit(pWatch, pNotify, pRelease, pData)) return false;
-	__xrtFutureWatchImpl(pWatch)->Waiter.OwnershipTrace = pTrace;
-	return true;
-}
-
-XRT_API bool xrtFutureWatchInitTraced(xfuturewatch* pWatch,
-	xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
-	xrtownershiptrace pTrace)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_FutureWatchInitTraced(pWatch, pNotify, pRelease, pData, pTrace));
-}
-
-static bool __xrtFutureWatchInitPhased(xfuturewatch* pWatch,
-	xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
-	xrtownershiptrace pTrace)
-{
-	if (!xrtFutureWatchInitTraced(pWatch, pNotify, pRelease, pData, pTrace)) return false;
-	__xrtFutureWatchImpl(pWatch)->Waiter.Phased = true;
-	return true;
-}
-XRT_API bool xrtFutureWatchInitPhased(xfuturewatch* pWatch,
-	xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData,
-	xrtownershiptrace pTrace)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtFutureWatchInitPhased(pWatch, pNotify, pRelease, pData, pTrace));
-}
-XRT_API bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData,
-	const xfuturewatchownershipv1* pPolicy)
-{
-	xrtownershipscope Mutation = {0};
-	if (pData == NULL || pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) ||
-		pPolicy->Notify == NULL || pPolicy->Release == NULL || pPolicy->Ops == NULL ||
-		pPolicy->Ops->Count == NULL || pPolicy->Ops->Trace == NULL) {
-		__xrtErrorSetInvalidArgument(); return false;
-	}
-	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
-	bool bOk = __xrtOwnershipBody_FutureWatchInit(pWatch, pPolicy->Notify, pPolicy->Release, pData);
-	if (bOk) {
-		xrt_future_waiter* pWaiter = &__xrtFutureWatchImpl(pWatch)->Waiter;
-		pWaiter->Phased = true; pWaiter->Certified = true; pWaiter->OwnershipPolicy = pPolicy;
-	}
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	return bOk;
-}
-
-
-
-/* 把 Watch 挂入仍为 Pending 的 Future。 */
-static xfuturewatchresult __xrtOwnershipBody_FutureWatchAdd(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-)
-{
-	xrt_future_watch_impl* pImpl;
-	xerror* pPrevious;
-	xerror* pCurrent;
-	bool bAdded;
-
-	if ( (pFuture == NULL) ||
-		!__xrtRangeValid(pWatch, sizeof(*pWatch)) ) {
-		__xrtErrorSetInvalidArgument();
-		return XFUTURE_WATCH_ERROR;
-	}
-	pImpl = __xrtFutureWatchImpl(pWatch);
-	if ( (pImpl->Magic != XRT_FUTURE_WATCH_MAGIC) ||
-		(pImpl->Waiter.Proc == NULL) ) {
-		__xrtErrorSetInvalidState();
-		return XFUTURE_WATCH_ERROR;
-	}
-	pPrevious = __xrtErrorSwapOwned(NULL);
-	bAdded = __xrtFutureWaiterAdd(pFuture, &pImpl->Waiter);
-	pCurrent = __xrtErrorSwapOwned(pPrevious);
-	if ( bAdded ) {
-		return XFUTURE_WATCH_PENDING;
-	}
-	if ( pCurrent != NULL ) {
-		xrtSetError(pCurrent);
-		xrtErrorFree(pCurrent);
-		return XFUTURE_WATCH_ERROR;
-	}
-	return XFUTURE_WATCH_READY;
-}
-
-XRT_API xfuturewatchresult xrtFutureWatchAdd(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xfuturewatchresult, XFUTURE_WATCH_ERROR, __xrtOwnershipBody_FutureWatchAdd(pFuture, pWatch));
-}
-
-
-
-/* 摘除尚未开始回调的 Future Watch。 */
-static bool __xrtOwnershipBody_FutureWatchDetach(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-)
-{
-	xrt_future_watch_impl* pImpl;
-
-	if ( (pFuture == NULL) ||
-		!__xrtRangeValid(pWatch, sizeof(*pWatch)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	pImpl = __xrtFutureWatchImpl(pWatch);
-	if ( pImpl->Magic != XRT_FUTURE_WATCH_MAGIC ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	return __xrtFutureWaiterDetach(pFuture, &pImpl->Waiter);
-}
-
-XRT_API bool xrtFutureWatchDetach(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-)
-{
-	return __xrtOwnershipBody_FutureWatchDetach(pFuture, pWatch);
-}
-
-
-
-/* 移除 Future Watch，并与并发中的通知回调汇合。 */
-static void __xrtOwnershipBody_FutureWatchRemove(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-)
-{
-	xrt_future_watch_impl* pImpl;
-
-	if ( (pFuture == NULL) ||
-		!__xrtRangeValid(pWatch, sizeof(*pWatch)) ) {
-		__xrtErrorSetInvalidArgument();
-		return;
-	}
-	pImpl = __xrtFutureWatchImpl(pWatch);
-	if ( pImpl->Magic != XRT_FUTURE_WATCH_MAGIC ) {
-		__xrtErrorSetInvalidState();
-		return;
-	}
-	__xrtFutureWaiterRemove(pFuture, &pImpl->Waiter);
-}
-
-XRT_API void xrtFutureWatchRemove(
-	xfuture* pFuture,
-	xfuturewatch* pWatch
-)
-{
-	__xrtOwnershipBody_FutureWatchRemove(pFuture, pWatch);
-}
-
-
-
-/* 创建共享 Future 与嵌入式 Promise 端点。 */
-static xpromise* __xrtOwnershipBody_PromiseCreate(xfuture** ppFuture, xcancel* pParentCancel)
-{
-	xfuture* pFuture;
-
-	if ( ppFuture == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	*ppFuture = NULL;
-	pFuture = (xfuture*)xrtCalloc(1, sizeof(xfuture));
-	if ( pFuture == NULL ) {
-		return NULL;
-	}
-	pFuture->RefCount = 2;
-	pFuture->PromiseRefs = 1;
-	pFuture->State = XFUTURE_PENDING;
-	pFuture->Promise.Future = pFuture;
-	if ( !xrtMutexInit(&pFuture->Lock) ) {
-		xrtFree(pFuture);
-		return NULL;
-	}
-	if ( !xrtCondInit(&pFuture->Ready) ) {
-		(void)xrtMutexUnit(&pFuture->Lock);
-		xrtFree(pFuture);
-		return NULL;
-	}
-	pFuture->Cancel = xrtCancelChild(pParentCancel);
-	if ( pFuture->Cancel == NULL ) {
-		(void)xrtCondUnit(&pFuture->Ready);
-		(void)xrtMutexUnit(&pFuture->Lock);
-		xrtFree(pFuture);
-		return NULL;
-	}
-	*ppFuture = pFuture;
-	return &pFuture->Promise;
-}
-
-XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xpromise*, NULL, __xrtOwnershipBody_PromiseCreate(ppFuture, pParentCancel));
-}
-
-
-
-/* 增加 Promise 生产端引用。 */
-static xpromise* __xrtOwnershipBody_PromiseRef(xpromise* pPromise)
-{
-	xfuture* pFuture;
-
-	if ( pPromise == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	pFuture = pPromise->Future;
-	if (pFuture->OwnershipCleared) { __xrtErrorSetInvalidState(); return NULL; }
-	if ( xrtRefRetain(&pFuture->PromiseRefs) < 0 ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	if ( xrtRefRetain(&pFuture->RefCount) < 0 ) {
-		(void)xrtRefRelease(&pFuture->PromiseRefs);
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	return pPromise;
-}
-
-XRT_API xpromise* xrtPromiseRef(xpromise* pPromise)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xpromise*, NULL, __xrtOwnershipBody_PromiseRef(pPromise));
-}
-
-
-
-/* 释放 Promise，并在最后一个生产端离开时关闭未完成结果。 */
-static void __xrtOwnershipBody_PromiseDestroy(xpromise* pPromise)
-{
-	xrtownershipscope Mutation = {0};
-	xfuture* pFuture;
-	int32 iRefs;
-
-	if ( pPromise == NULL ) {
-		return;
-	}
-	pFuture = pPromise->Future;
-	if (!xrtOwnershipMutationBegin(&Mutation)) return;
-	iRefs = xrtRefRelease(&pFuture->PromiseRefs);
-	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
-	if ( iRefs < 0 ) {
-		__xrtErrorSetInvalidState();
-		return;
-	}
-	if ( iRefs == 0 ) {
-		(void)__xrtFutureComplete(
-			pFuture,
-			XFUTURE_CLOSED,
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			true,
-			false
-		);
-	}
-	__xrtFutureRelease(pFuture);
-}
-
-XRT_API void xrtPromiseDestroy(xpromise* pPromise)
-{
-	__xrtOwnershipBody_PromiseDestroy(pPromise);
-}
-
-
-
-/* 增加 Future 消费端引用。 */
-static xfuture* __xrtOwnershipBody_FutureRef(xfuture* pFuture)
-{
-	if ( pFuture == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if (pFuture->OwnershipCleared || xrtRefRetain(&pFuture->RefCount) < 0) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	return pFuture;
-}
-
-XRT_API xfuture* xrtFutureRef(xfuture* pFuture)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xfuture*, NULL, __xrtOwnershipBody_FutureRef(pFuture));
-}
-
-
-
-/* 释放 Future 消费端引用。 */
-static void __xrtOwnershipBody_FutureDestroy(xfuture* pFuture)
-{
-	__xrtFutureRelease(pFuture);
-}
-
-XRT_API void xrtFutureDestroy(xfuture* pFuture)
-{
-	__xrtOwnershipBody_FutureDestroy(pFuture);
-}
-
-
-
-/* 返回 Future 状态快照。 */
-XRT_API xfuturestate xrtFutureState(const xfuture* pFuture)
-{
-	xfuturestate State;
-
-	if ( pFuture == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return XFUTURE_CLOSED;
-	}
-	if ( !xrtMutexLock((xmutex*)&pFuture->Lock) ) {
-		return XFUTURE_CLOSED;
-	}
-	State = pFuture->State;
-	(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
-	return State;
-}
-
-
-
-/* 判断 Future 是否已经进入终态。 */
-XRT_API bool xrtFutureDone(const xfuture* pFuture)
-{
-	return xrtFutureState(pFuture) != XFUTURE_PENDING;
-}
-
-
-
-/* 复制借用的 Future 结果。 */
-XRT_API bool xrtFutureResult(const xfuture* pFuture, xfutureresult* pResult)
-{
-	if ( (pFuture == NULL) || (pResult == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !xrtMutexLock((xmutex*)&pFuture->Lock) ) {
-		return false;
-	}
-	if (pFuture->OwnershipCleared) {
-		(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
-		__xrtErrorSetClosed(); return false;
-	}
-	if ( pFuture->State == XFUTURE_PENDING ) {
-		(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
-		__xrtErrorSetAgain();
-		return false;
-	}
-	pResult->State = pFuture->State;
-	pResult->Value = pFuture->Value;
-	pResult->Error = pFuture->Error;
-	(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
-	return true;
-}
-
-
-
-/* 返回成功值，并把非成功状态映射到当前错误上下文。 */
-static ptr __xrtOwnershipBody_FutureValue(const xfuture* pFuture)
-{
-	xfuturestate State;
-	ptr pValue;
-	xerror* pError = NULL;
-
-	if ( pFuture == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( !xrtMutexLock((xmutex*)&pFuture->Lock) ) {
-		return NULL;
-	}
-	State = pFuture->State;
-	pValue = pFuture->Value;
-	if ( State == XFUTURE_FAILED ) {
-		pError = xrtErrorRef(pFuture->Error);
-	}
-	(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
-	if ( State == XFUTURE_RESOLVED ) {
-		return pValue;
-	}
-	if ( State == XFUTURE_FAILED ) {
-		xrtSetError(pError);
-		xrtErrorFree(pError);
-	} else if ( State == XFUTURE_CANCELLED ) {
-		__xrtErrorSetCancelled();
-	} else if ( State == XFUTURE_CLOSED ) {
-		__xrtErrorSetClosed();
-	} else {
-		__xrtErrorSetAgain();
-	}
-	return NULL;
-}
-
-XRT_API ptr xrtFutureValue(const xfuture* pFuture)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(ptr, NULL, __xrtOwnershipBody_FutureValue(pFuture));
-}
-
-
-
-/* 返回失败终态借用的结构化错误。 */
-XRT_API const xerror* xrtFutureError(const xfuture* pFuture)
-{
-	const xerror* pError;
-
-	if ( pFuture == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( !xrtMutexLock((xmutex*)&pFuture->Lock) ) {
-		return NULL;
-	}
-	pError = pFuture->State == XFUTURE_FAILED ? pFuture->Error : NULL;
-	(void)xrtMutexUnlock((xmutex*)&pFuture->Lock);
-	return pError;
-}
-
-
-
-/* 请求 Future 的生产过程协作取消。 */
-static bool __xrtOwnershipBody_FutureCancel(xfuture* pFuture)
-{
-	bool bPending;
-
-	if ( pFuture == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !xrtMutexLock(&pFuture->Lock) ) {
-		return false;
-	}
-	bPending = pFuture->State == XFUTURE_PENDING;
-	(void)xrtMutexUnlock(&pFuture->Lock);
-	return bPending && xrtCancelRequest(pFuture->Cancel);
-}
-
-XRT_API bool xrtFutureCancel(xfuture* pFuture)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtOwnershipBody_FutureCancel(pFuture));
-}
-
-
-
-/* 返回 Future 取消令牌的新增引用。 */
-static xcancel* __xrtOwnershipBody_FutureCancelToken(const xfuture* pFuture)
-{
-	if ( pFuture == NULL || pFuture->OwnershipCleared ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	return xrtCancelRef(pFuture->Cancel);
-}
-
-XRT_API xcancel* xrtFutureCancelToken(const xfuture* pFuture)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_FutureCancelToken(pFuture));
-}
-
-
-
-/* 返回 Promise 取消令牌的新增引用。 */
-static xcancel* __xrtOwnershipBody_PromiseCancelToken(const xpromise* pPromise)
-{
-	if ( pPromise == NULL || pPromise->Future->OwnershipCleared ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	return xrtCancelRef(pPromise->Future->Cancel);
-}
-
-XRT_API xcancel* xrtPromiseCancelToken(const xpromise* pPromise)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xcancel*, NULL, __xrtOwnershipBody_PromiseCancelToken(pPromise));
-}
-
-
-
-/* 永久等待 Future 进入任一终态。 */
-XRT_API xwaitresult xrtFutureWait(xfuture* pFuture)
-{
-	return xrtFutureWaitUntilCancel(pFuture, XRT_DEADLINE_NEVER, NULL);
-}
-
-
-
-/* 在相对微秒数内等待 Future。 */
-XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout)
-{
-	return xrtFutureWaitUntilCancel(pFuture, xrtDeadlineAfter(iTimeout), NULL);
-}
-
-
-
-/* 等待 Future 到指定截止时间。 */
-XRT_API xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline)
-{
-	return xrtFutureWaitUntilCancel(pFuture, iDeadline, NULL);
-}
-
-
-
-/* 等待 Future、截止时间或外部取消令牌中的首个事件。 */
-XRT_API xwaitresult xrtFutureWaitUntilCancel(
-	xfuture* pFuture,
-	xdeadline iDeadline,
-	xcancel* pCancel
-)
-{
-	xcancelwatch* pWatch = NULL;
-	xrt_future_cancel_wait CancelWait;
-	xwaitresult Result = XWAIT_OK;
-
-	pFuture = xrtFutureRef(pFuture);
-	if ( pFuture == NULL ) {
-		return XWAIT_ERROR;
-	}
-	memset(&CancelWait, 0, sizeof(CancelWait));
-	CancelWait.Future = pFuture;
-	if ( pCancel != NULL ) {
-		pWatch = xrtCancelWatch(
-			pCancel,
-			__xrtFutureWaitCancelled,
-			&CancelWait
-		);
-		if ( pWatch == NULL ) {
-			xrtFutureDestroy(pFuture);
-			return XWAIT_ERROR;
-		}
-	}
-	if ( !xrtMutexLock(&pFuture->Lock) ) {
-		Result = XWAIT_ERROR;
-	} else {
-		while ( (pFuture->State == XFUTURE_PENDING) &&
-				 !CancelWait.Cancelled ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
-				Result = XWAIT_TIMEOUT;
-				break;
-			}
-			Result = xrtCondWaitUntil(&pFuture->Ready, &pFuture->Lock, iDeadline);
-			if ( Result == XWAIT_ERROR ) {
-				break;
-			}
-			if ( Result == XWAIT_TIMEOUT ) {
-				if ( CancelWait.Cancelled ) {
-					Result = XWAIT_CANCELLED;
-				} else if ( pFuture->State != XFUTURE_PENDING ) {
-					Result = XWAIT_OK;
-				}
-				break;
-			}
-		}
-		if ( CancelWait.Cancelled ) {
-			Result = XWAIT_CANCELLED;
-		} else if ( pFuture->State != XFUTURE_PENDING ) {
-			Result = XWAIT_OK;
-		}
-		(void)xrtMutexUnlock(&pFuture->Lock);
-	}
-	if ( pWatch != NULL ) {
-		xrtCancelUnwatch(pWatch);
-	}
-	xrtFutureDestroy(pFuture);
-	return Result;
-}
-
-
-
-/* 以借用值完成 Promise。 */
-static bool __xrtOwnershipBody_PromiseResolve(xpromise* pPromise, ptr pValue)
-{
-	if ( pPromise == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	return __xrtFutureComplete(
-		pPromise->Future,
-		XFUTURE_RESOLVED,
-		pValue,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		false,
-		true
-	);
-}
-
-XRT_API bool xrtPromiseResolve(xpromise* pPromise, ptr pValue)
-{
-	return __xrtOwnershipBody_PromiseResolve(pPromise, pValue);
-}
-
-
-
-/* 以转移所有权的值完成 Promise。 */
-static bool __xrtOwnershipBody_PromiseResolveOwned(
-	xpromise* pPromise,
-	ptr pValue,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-)
-{
-	if ( (pPromise == NULL) || (pDestroy == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	return __xrtFutureComplete(
-		pPromise->Future,
-		XFUTURE_RESOLVED,
-		pValue,
-		pDestroy,
-		pDestroyData,
-		NULL,
-		NULL,
-		false,
-		true
-	);
-}
-
-XRT_API bool xrtPromiseResolveOwned(
-	xpromise* pPromise,
-	ptr pValue,
-	xfuturefreeproc pDestroy,
-	ptr pDestroyData
-)
-{
-	return __xrtOwnershipBody_PromiseResolveOwned(pPromise, pValue, pDestroy, pDestroyData);
-}
-
-
-
-/* 以增加引用的结构化错误完成 Promise。 */
-static bool __xrtOwnershipBody_PromiseReject(xpromise* pPromise, const xerror* pError)
-{
-	xerror* pHeldError;
-	bool bCompleted;
-
-	if ( (pPromise == NULL) || (pError == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	pHeldError = xrtErrorRef(pError);
-	if ( pHeldError == NULL ) {
-		return false;
-	}
-	bCompleted = __xrtFutureComplete(
-		pPromise->Future,
-		XFUTURE_FAILED,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		pHeldError,
-		false,
-		true
-	);
-	if ( !bCompleted ) {
-		xrtErrorFree(pHeldError);
-	}
-	return bCompleted;
-}
-
-XRT_API bool xrtPromiseReject(xpromise* pPromise, const xerror* pError)
-{
-	return __xrtOwnershipBody_PromiseReject(pPromise, pError);
-}
-
-
-
-/* 把源终态透传到 Promise，并在成功值借用期间保留源 Future。 */
-static bool __xrtOwnershipBody_PromiseForward(xpromise* pPromise, xfuture* pSource)
-{
-	xfutureresult tResult;
-	bool bCompleted;
-
-	if ( (pPromise == NULL) || (pSource == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( pPromise->Future == pSource ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	pSource = xrtFutureRef(pSource);
-	if ( pSource == NULL ) {
-		return false;
-	}
-	if ( !xrtFutureResult(pSource, &tResult) ) {
-		xrtFutureDestroy(pSource);
-		return false;
-	}
-	if ( tResult.State == XFUTURE_RESOLVED ) {
-		bCompleted = __xrtFutureComplete(
-			pPromise->Future,
-			XFUTURE_RESOLVED,
-			tResult.Value,
-			NULL,
-			NULL,
-			pSource,
-			NULL,
-			false,
-			true
-		);
-		if ( !bCompleted ) {
-			xrtFutureDestroy(pSource);
-		}
-		return bCompleted;
-	}
-	if ( tResult.State == XFUTURE_FAILED ) {
-		bCompleted = xrtPromiseReject(pPromise, tResult.Error);
-	} else if ( tResult.State == XFUTURE_CANCELLED ) {
-		bCompleted = xrtPromiseCancel(pPromise);
-	} else {
-		bCompleted = xrtPromiseClose(pPromise);
-	}
-	xrtFutureDestroy(pSource);
-	return bCompleted;
-}
-
-XRT_API bool xrtPromiseForward(xpromise* pPromise, xfuture* pSource)
-{
-	return __xrtOwnershipBody_PromiseForward(pPromise, pSource);
-}
-
-
-
-/* 完成取消终态并同步发出协作取消请求。 */
-static bool __xrtOwnershipBody_PromiseCancel(xpromise* pPromise)
-{
-	bool bCompleted;
-
-	if ( pPromise == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	bCompleted = __xrtFutureComplete(
-		pPromise->Future,
-		XFUTURE_CANCELLED,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		true,
-		true
-	);
-	return bCompleted;
-}
-
-XRT_API bool xrtPromiseCancel(xpromise* pPromise)
-{
-	return __xrtOwnershipBody_PromiseCancel(pPromise);
-}
-
-
-
-/* 完成关闭终态并同步发出协作取消请求。 */
-static bool __xrtOwnershipBody_PromiseClose(xpromise* pPromise)
-{
-	bool bCompleted;
-
-	if ( pPromise == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	bCompleted = __xrtFutureComplete(
-		pPromise->Future,
-		XFUTURE_CLOSED,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		true,
-		true
-	);
-	return bCompleted;
-}
-
-XRT_API bool xrtPromiseClose(xpromise* pPromise)
-{
-	return __xrtOwnershipBody_PromiseClose(pPromise);
-}
-
-
-
-/* 判断 Promise 对应的 Future 是否已经完成。 */
-XRT_API bool xrtPromiseDone(const xpromise* pPromise)
-{
-	if ( pPromise == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return true;
-	}
-	return xrtFutureDone(pPromise->Future);
 }
 
 #endif
@@ -185649,6 +188980,8 @@ static bool __xrtTaskOwnershipTrace(const void* pData, xrtownershipvisitor pVisi
 		(pJob->Data == NULL || pVisit((xrtownershipref){pJob->Data, pJob->DataPolicy->Ops}, pContext));
 }
 static const xrtownershipops __xrtTaskOwnershipOps = {__xrtTaskOwnershipCount, __xrtTaskOwnershipTrace};
+xrtownershipref __xrtTaskOwnership(const xrt_task_job* pJob)
+{ return (xrtownershipref){pJob, pJob != NULL ? &__xrtTaskOwnershipOps : NULL}; }
 static bool __xrtTaskHold(const void* pData)
 {
 	xrt_task_job* pJob = (xrt_task_job*)pData; xrtownershipscope Mutation = {0}; bool bHeld;
@@ -186019,6 +189352,8 @@ void __xrtTaskDestroy(xrt_task_job* pJob, bool bDestroyData)
 typedef struct xrt_task_worker {
 	struct xtaskpool* Pool;
 	xthread* Thread;
+	bool Parked;
+	bool Exited;
 } xrt_task_worker;
 
 
@@ -186026,6 +189361,7 @@ typedef struct xrt_task_worker {
 /* 任务池用一把锁统一保护队列、运行链、统计和生命周期状态。 */
 struct xtaskpool {
 	xmutex Lock;
+	xmutex OwnershipLock;
 	xcond Work;
 	xcond Idle;
 	xcond Space;
@@ -186053,7 +189389,99 @@ struct xtaskpool {
 	xrt_task_job* RunningHead;
 	xrt_task_finalizer* FinalizerHead;
 	xrt_task_finalizer* FinalizerTail;
+	size_t References;
+	size_t Entries;
+	size_t Resources;
+	const void* OwnershipClaim;
+	bool Initialized;
+	bool OwnerHeld;
+	bool Destroying;
+	bool Joining;
+	bool Joined;
+	bool Retiring;
+	bool Retired;
+	bool OwnershipCleared;
 };
+
+/* OwnershipLock never encloses a queue lock, a wait, or a user callback. Native
+ * bodies keep an actual reference/entry while their old queue-lock protocol is
+ * in use. Count refuses that whole interval, including detached cancellation
+ * lists, cancel-watch removal and user cleanup tails. */
+static void __xrtTaskPoolOwnershipBegin(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!xrtOwnershipMutationBegin(pScope) || !xrtMutexLock(&pPool->OwnershipLock)) abort();
+}
+static void __xrtTaskPoolOwnershipEnd(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!xrtMutexUnlock(&pPool->OwnershipLock) || !xrtOwnershipScopeEnd(pScope)) abort();
+}
+static bool __xrtTaskPoolEnter(xtaskpool* pPool, bool bTerminal)
+{
+	xrtownershipscope Mutation = {0}; bool bEntered = false;
+	if (pPool == NULL) { __xrtErrorSetInvalidArgument(); return false; }
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (pPool->References && pPool->References < SIZE_MAX && pPool->Entries < SIZE_MAX &&
+		!pPool->Retiring && !pPool->Joining && (!pPool->Retired || bTerminal)) {
+		++pPool->References; ++pPool->Entries; bEntered = true;
+	}
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	if (!bEntered) __xrtErrorSetInvalidState();
+	return bEntered;
+}
+static void __xrtTaskPoolDropLocked(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!pPool->References) abort();
+	bool bLast = --pPool->References == 0;
+	if (bLast && (!pPool->Retired || pPool->OwnerHeld || pPool->Entries || pPool->Resources || pPool->Workers)) abort();
+	if (!xrtMutexUnlock(&pPool->OwnershipLock)) abort();
+	if (bLast) {
+		if (!xrtCondUnit(&pPool->Space) || !xrtCondUnit(&pPool->Idle) || !xrtCondUnit(&pPool->Work) ||
+			!xrtMutexUnit(&pPool->Lock) || !xrtMutexUnit(&pPool->OwnershipLock)) abort();
+		xrtFree(pPool);
+	}
+	if (!xrtOwnershipScopeEnd(pScope)) abort();
+}
+static void __xrtTaskPoolRelease(const void* pData)
+{
+	xtaskpool* pPool = (xtaskpool*)pData; xrtownershipscope Mutation = {0};
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation); __xrtTaskPoolDropLocked(pPool, &Mutation);
+}
+static void __xrtTaskPoolLeave(xtaskpool* pPool)
+{
+	xrtownershipscope Mutation = {0}; __xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (!pPool->Entries) abort();
+	--pPool->Entries; __xrtTaskPoolDropLocked(pPool, &Mutation);
+}
+bool __xrtTaskPoolAcquireResource(xtaskpool* pPool)
+{
+	xrtownershipscope Mutation = {0}; bool bHeld = false;
+	if (!pPool) { __xrtErrorSetInvalidArgument(); return false; }
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (pPool->Initialized && pPool->References && pPool->References < SIZE_MAX && pPool->Resources < SIZE_MAX &&
+		!pPool->Retired && !pPool->Retiring && !pPool->Joining && !pPool->OwnershipCleared) {
+		/* Destroy may be draining an already accepted task that still creates
+		 * and closes a native resource. Preserve that original work; its real
+		 * resource credit prevents join until cleanup actually finishes. */
+		++pPool->References; ++pPool->Resources; bHeld = true;
+	}
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	if (!bHeld) __xrtErrorSetInvalidState();
+	return bHeld;
+}
+void __xrtTaskPoolReleaseResource(xtaskpool* pPool)
+{
+	xrtownershipscope Mutation = {0}; __xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (!pPool->Resources) abort();
+	--pPool->Resources; __xrtTaskPoolDropLocked(pPool, &Mutation);
+}
+static void __xrtTaskPoolWorkerBegin(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!xrtOwnershipMutationBegin(pScope) || !xrtMutexLock(&pPool->Lock)) abort();
+}
+static void __xrtTaskPoolWorkerEnd(xtaskpool* pPool, xrtownershipscope* pScope)
+{
+	if (!xrtMutexUnlock(&pPool->Lock) || !xrtOwnershipScopeEnd(pScope)) abort();
+}
 
 
 
@@ -186181,6 +189609,7 @@ static void __xrtTaskPoolFinishCancelled(
 		pList = pJob->Next;
 		pJob->Next = NULL;
 		__xrtTaskCancel(pJob);
+		__xrtTaskDestroy(pJob, true);
 		(void)xrtMutexLock(&pPool->Lock);
 		pPool->Queued--;
 		__xrtTaskPoolRecordLocked(pPool, XFUTURE_CANCELLED);
@@ -186188,7 +189617,6 @@ static void __xrtTaskPoolFinishCancelled(
 			(void)xrtCondBroadcast(&pPool->Idle);
 		}
 		(void)xrtMutexUnlock(&pPool->Lock);
-		__xrtTaskDestroy(pJob, true);
 	}
 }
 
@@ -186204,14 +189632,23 @@ static int32 __xrtTaskPoolWorker(ptr pData)
 		xrt_task_job* pJob;
 		xrt_task_finalizer* pFinalizer;
 		xfuturestate State;
+		xrtownershipscope Mutation = {0};
 
-		(void)xrtMutexLock(&pPool->Lock);
+		__xrtTaskPoolWorkerBegin(pPool, &Mutation);
 		while (
 			(pPool->Head == NULL) &&
 			(pPool->FinalizerHead == NULL) &&
 			!pPool->Shutdown
 		) {
+			/* Publish the real worker state before sleeping. CondWait may return
+			 * with the queue lock held while a collector owns freeze: release
+			 * that lock BEFORE reacquiring mutation to avoid lock inversion. */
+			pWorker->Parked = true;
+			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 			(void)xrtCondWait(&pPool->Work, &pPool->Lock);
+			(void)xrtMutexUnlock(&pPool->Lock);
+			__xrtTaskPoolWorkerBegin(pPool, &Mutation);
+			pWorker->Parked = false;
 		}
 
 		/*
@@ -186226,20 +189663,21 @@ static int32 __xrtTaskPoolWorker(ptr pData)
 			}
 			pPool->FinalizerQueued--;
 			pPool->FinalizerRunning++;
-			(void)xrtMutexUnlock(&pPool->Lock);
+			__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 
 			pFinalizer->Proc(pFinalizer->Data);
 
-			(void)xrtMutexLock(&pPool->Lock);
+			__xrtTaskPoolWorkerBegin(pPool, &Mutation);
 			pPool->FinalizerRunning--;
 			if ( __xrtTaskPoolIdleLocked(pPool) ) {
 				(void)xrtCondBroadcast(&pPool->Idle);
 			}
-			(void)xrtMutexUnlock(&pPool->Lock);
+			__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 			continue;
 		}
 		if ( pPool->Head == NULL ) {
-			(void)xrtMutexUnlock(&pPool->Lock);
+			pWorker->Exited = true;
+			__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 			break;
 		}
 		pJob = pPool->Head;
@@ -186258,21 +189696,25 @@ static int32 __xrtTaskPoolWorker(ptr pData)
 		pPool->Queued--;
 		pPool->Running++;
 		(void)xrtCondSignal(&pPool->Space);
-		(void)xrtMutexUnlock(&pPool->Lock);
+		__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 
 		/* Future 取消只请求协作；在真正执行前再次检查即可跳过过程。 */
 		__xrtTaskRun(pJob);
 		State = __xrtTaskState(pJob);
 
-		(void)xrtMutexLock(&pPool->Lock);
+		__xrtTaskPoolWorkerBegin(pPool, &Mutation);
 		__xrtTaskPoolRunningRemoveLocked(pPool, pJob);
+		__xrtTaskPoolWorkerEnd(pPool, &Mutation);
+		/* The worker's physical Job reference and cleanup tail remain active
+		 * until Destroy returns. Wait/retirement must not observe false idle. */
+		__xrtTaskDestroy(pJob, true);
+		__xrtTaskPoolWorkerBegin(pPool, &Mutation);
 		pPool->Running--;
 		__xrtTaskPoolRecordLocked(pPool, State);
 		if ( __xrtTaskPoolIdleLocked(pPool) ) {
 			(void)xrtCondBroadcast(&pPool->Idle);
 		}
-		(void)xrtMutexUnlock(&pPool->Lock);
-		__xrtTaskDestroy(pJob, true);
+		__xrtTaskPoolWorkerEnd(pPool, &Mutation);
 	}
 	return 0;
 }
@@ -186295,6 +189737,7 @@ static void __xrtTaskPoolCreateCleanup(xtaskpool* pPool)
 	(void)xrtCondUnit(&pPool->Idle);
 	(void)xrtCondUnit(&pPool->Work);
 	(void)xrtMutexUnit(&pPool->Lock);
+	(void)xrtMutexUnit(&pPool->OwnershipLock);
 	xrtFree(pPool->Workers);
 	xrtFree(pPool);
 }
@@ -186332,24 +189775,34 @@ XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig)
 		return NULL;
 	}
 	pPool->ThreadCount = tConfig.Threads;
+	pPool->References = 1;
+	pPool->OwnerHeld = true;
 	pPool->QueueLimit = tConfig.QueueLimit;
 	pPool->StackSize = tConfig.StackSize;
 	if ( !xrtMutexInit(&pPool->Lock) ) {
 		xrtFree(pPool);
 		return NULL;
 	}
+	if ( !xrtMutexInit(&pPool->OwnershipLock) ) {
+		(void)xrtMutexUnit(&pPool->Lock);
+		xrtFree(pPool);
+		return NULL;
+	}
 	if ( !xrtCondInit(&pPool->Work) ) {
+		(void)xrtMutexUnit(&pPool->OwnershipLock);
 		(void)xrtMutexUnit(&pPool->Lock);
 		xrtFree(pPool);
 		return NULL;
 	}
 	if ( !xrtCondInit(&pPool->Idle) ) {
+		(void)xrtMutexUnit(&pPool->OwnershipLock);
 		(void)xrtCondUnit(&pPool->Work);
 		(void)xrtMutexUnit(&pPool->Lock);
 		xrtFree(pPool);
 		return NULL;
 	}
 	if ( !xrtCondInit(&pPool->Space) ) {
+		(void)xrtMutexUnit(&pPool->OwnershipLock);
 		(void)xrtCondUnit(&pPool->Idle);
 		(void)xrtCondUnit(&pPool->Work);
 		(void)xrtMutexUnit(&pPool->Lock);
@@ -186361,6 +189814,7 @@ XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig)
 		sizeof(xrt_task_worker)
 	);
 	if ( pPool->Workers == NULL ) {
+		(void)xrtMutexUnit(&pPool->OwnershipLock);
 		(void)xrtCondUnit(&pPool->Space);
 		(void)xrtCondUnit(&pPool->Idle);
 		(void)xrtCondUnit(&pPool->Work);
@@ -186396,6 +189850,10 @@ XRT_API xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig)
 			return NULL;
 		}
 	}
+	xrtownershipscope Mutation = {0};
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	pPool->Initialized = true;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
 	return pPool;
 }
 
@@ -186414,7 +189872,7 @@ typedef enum xrt_task_submit_stop {
 
 
 /* 按立即或可等待模式提交，并且只在受理成功后取得任务数据所有权。 */
-static xfuture* __xrtTaskPoolSubmit(
+static xfuture* __xrtTaskPoolSubmitBody(
 	xtaskpool* pPool,
 	xtaskproc pProc,
 	ptr pData,
@@ -186575,14 +190033,25 @@ static xfuture* __xrtTaskPoolSubmit(
 
 	/* 已经取消的父上下文仍返回一个有效且立即完成的任务 Future。 */
 	__xrtTaskCancel(pJob);
+	__xrtTaskDestroy(pJob, true);
 	(void)xrtMutexLock(&pPool->Lock);
 	__xrtTaskPoolRecordLocked(pPool, XFUTURE_CANCELLED);
 	if ( __xrtTaskPoolIdleLocked(pPool) ) {
 		(void)xrtCondBroadcast(&pPool->Idle);
 	}
 	(void)xrtMutexUnlock(&pPool->Lock);
-	__xrtTaskDestroy(pJob, true);
 	return pFuture;
+}
+
+static xfuture* __xrtTaskPoolSubmit(xtaskpool* pPool, xtaskproc pProc, ptr pData,
+	const xtaskargs* pArgs, xfutureownershiptrace pResultTrace,
+	const xfuturepayloadownershipv1* pResultPolicy, const xtaskdataownershipv1* pDataPolicy,
+	bool bWait, xdeadline iDeadline, xcancel* pWaitCancel)
+{
+	if (!__xrtTaskPoolEnter(pPool, false)) return NULL;
+	xfuture* pFuture = __xrtTaskPoolSubmitBody(pPool, pProc, pData, pArgs,
+		pResultTrace, pResultPolicy, pDataPolicy, bWait, iDeadline, pWaitCancel);
+	__xrtTaskPoolLeave(pPool); return pFuture;
 }
 
 
@@ -186746,7 +190215,7 @@ XRT_API xfuture* xrtTaskSubmitUntilCancel(
 	投递一个无分配资源回收过程。
 	该内部通道不受普通队列上限和 Closed 状态影响，但调用方必须保证池仍存活。
 */
-void __xrtTaskPoolFinalize(
+static void __xrtTaskPoolFinalizeBody(
 	xtaskpool* pPool,
 	xrt_task_finalizer* pFinalizer,
 	xrt_task_finalizer_proc pProc,
@@ -186784,7 +190253,7 @@ void __xrtTaskPoolFinalize(
 
 
 /* 停止接收普通任务；工作线程保留到 Destroy，以便回收已受理资源。 */
-XRT_API bool xrtTaskPoolClose(xtaskpool* pPool)
+static bool __xrtTaskPoolCloseBody(xtaskpool* pPool)
 {
 	if ( pPool == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -186798,6 +190267,27 @@ XRT_API bool xrtTaskPoolClose(xtaskpool* pPool)
 	}
 	(void)xrtMutexUnlock(&pPool->Lock);
 	return true;
+}
+
+void __xrtTaskPoolFinalize(xtaskpool* pPool, xrt_task_finalizer* pFinalizer,
+	xrt_task_finalizer_proc pProc, ptr pData)
+{
+	if (!pPool || !pFinalizer || !pProc) {
+		__xrtTaskPoolFinalizeBody(pPool, pFinalizer, pProc, pData); return;
+	}
+	/* Internal submitters already own accepted resource-lifetime credit. A
+	 * joined/retired pool is a violated caller lifetime, not permission to run
+	 * its resource destructor on an arbitrary thread. */
+	if (!__xrtTaskPoolEnter(pPool, false)) abort();
+	__xrtTaskPoolFinalizeBody(pPool, pFinalizer, pProc, pData);
+	__xrtTaskPoolLeave(pPool);
+}
+
+XRT_API bool xrtTaskPoolClose(xtaskpool* pPool)
+{
+	if (!__xrtTaskPoolEnter(pPool, false)) return false;
+	bool bClosed = __xrtTaskPoolCloseBody(pPool);
+	__xrtTaskPoolLeave(pPool); return bClosed;
 }
 
 
@@ -186823,7 +190313,7 @@ static xcancel* __xrtTaskPoolNextRunningCancel(xtaskpool* pPool)
 
 
 /* 取消排队任务，并在池锁外逐个通知运行任务。 */
-XRT_API bool xrtTaskPoolCancel(xtaskpool* pPool)
+static bool __xrtTaskPoolCancelBody(xtaskpool* pPool)
 {
 	xrt_task_job* pList;
 
@@ -186855,6 +190345,13 @@ XRT_API bool xrtTaskPoolCancel(xtaskpool* pPool)
 		xrtCancelDestroy(pCancel);
 	}
 	return true;
+}
+
+XRT_API bool xrtTaskPoolCancel(xtaskpool* pPool)
+{
+	if (!__xrtTaskPoolEnter(pPool, false)) return false;
+	bool bCancelled = __xrtTaskPoolCancelBody(pPool);
+	__xrtTaskPoolLeave(pPool); return bCancelled;
 }
 
 
@@ -186892,7 +190389,7 @@ XRT_API xwaitresult xrtTaskPoolWaitUntil(xtaskpool* pPool, xdeadline iDeadline)
 
 
 /* 等待排空、截止时间或调用方取消；已经排空时完成优先。 */
-XRT_API xwaitresult xrtTaskPoolWaitUntilCancel(
+static xwaitresult __xrtTaskPoolWaitUntilCancelBody(
 	xtaskpool* pPool,
 	xdeadline iDeadline,
 	xcancel* pCancel
@@ -186959,10 +190456,17 @@ XRT_API xwaitresult xrtTaskPoolWaitUntilCancel(
 	return Result;
 }
 
+XRT_API xwaitresult xrtTaskPoolWaitUntilCancel(xtaskpool* pPool, xdeadline iDeadline, xcancel* pCancel)
+{
+	if (!__xrtTaskPoolEnter(pPool, false)) return XWAIT_ERROR;
+	xwaitresult Result = __xrtTaskPoolWaitUntilCancelBody(pPool, iDeadline, pCancel);
+	__xrtTaskPoolLeave(pPool); return Result;
+}
+
 
 
 /* 复制任务池统计快照。 */
-XRT_API bool xrtTaskPoolGet(const xtaskpool* pPool, xtaskpoolstats* pStats)
+static bool __xrtTaskPoolGetBody(const xtaskpool* pPool, xtaskpoolstats* pStats)
 {
 	if ( (pPool == NULL) || (pStats == NULL) ) {
 		__xrtErrorSetInvalidArgument();
@@ -186985,2864 +190489,204 @@ XRT_API bool xrtTaskPoolGet(const xtaskpool* pPool, xtaskpoolstats* pStats)
 	return true;
 }
 
+XRT_API bool xrtTaskPoolGet(const xtaskpool* pPool, xtaskpoolstats* pStats)
+{
+	if (!__xrtTaskPoolEnter((xtaskpool*)pPool, false)) return false;
+	bool bGot = __xrtTaskPoolGetBody(pPool, pStats);
+	__xrtTaskPoolLeave((xtaskpool*)pPool); return bGot;
+}
 
 
-/* 关闭、排空、终止工作线程并释放任务池。 */
+
+/* Joined control/thread allocations are uniquely contained resources. Keep
+ * the locks/conditions with the shell until the last actual reference drops. */
+static bool __xrtTaskPoolRetire(xtaskpool* pPool, size_t iEntries)
+{
+	xrtownershipscope Mutation = {0};
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (pPool->Retired) { __xrtTaskPoolOwnershipEnd(pPool, &Mutation); return true; }
+	if (!pPool->Joined || pPool->Joining || pPool->Retiring || pPool->Resources || pPool->Entries != iEntries) {
+		__xrtTaskPoolOwnershipEnd(pPool, &Mutation); return false;
+	}
+	pPool->Retiring = true;
+	xrt_task_worker* pWorkers = pPool->Workers; uint32 iCount = pPool->StartedThreads;
+	pPool->Workers = NULL; pPool->StartedThreads = 0;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	for (uint32 i = 0; i < iCount; ++i) {
+		if (!pWorkers[i].Exited || pWorkers[i].Parked) abort();
+		xrtThreadDestroy(pWorkers[i].Thread);
+	}
+	xrtFree(pWorkers);
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	pPool->Retired = true; pPool->Retiring = false;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation); return true;
+}
+
+/* Close and drain with every accepted cleanup tail still accounted for. The
+ * caller must stop other concurrent access (the existing public contract).
+ * A reentrant Destroy refuses before closing or freeing an outer entry's pool. */
 XRT_API bool xrtTaskPoolDestroy(xtaskpool* pPool)
 {
-	if ( pPool == NULL ) {
-		return true;
-	}
-	if ( __xrtTaskPoolIsWorker(pPool) ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	if ( !xrtTaskPoolClose(pPool) ) {
-		return false;
-	}
-
-	/*
-		Shutdown 只控制空闲线程退出。
-		已经运行的任务仍可在析构阶段投递嵌入式 finalizer。
-	*/
-	(void)xrtMutexLock(&pPool->Lock);
-	pPool->Shutdown = true;
-	(void)xrtCondBroadcast(&pPool->Work);
-	(void)xrtMutexUnlock(&pPool->Lock);
-	if ( xrtTaskPoolWait(pPool) != XWAIT_OK ) {
-		return false;
-	}
-	for ( uint32 i = 0; i < pPool->StartedThreads; i++ ) {
-		if ( xrtThreadWait(pPool->Workers[i].Thread) != XWAIT_OK ) {
-			return false;
+	if (!pPool) return true;
+	if (!__xrtTaskPoolEnter(pPool, true)) return false;
+	xrtownershipscope Mutation = {0}; __xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	bool bReady = pPool->Entries == 1 && !pPool->Destroying && !pPool->Joining && !pPool->Retiring &&
+		(!pPool->OwnershipClaim || pPool->OwnershipCleared) && !__xrtTaskPoolIsWorker(pPool);
+	bool bRetired = pPool->Retired;
+	if (bReady) pPool->Destroying = true;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	if (!bReady) { __xrtTaskPoolLeave(pPool); __xrtErrorSetInvalidState(); return false; }
+	if (!bRetired) {
+		bReady = __xrtTaskPoolCloseBody(pPool) &&
+			__xrtTaskPoolWaitUntilCancelBody(pPool, XRT_DEADLINE_NEVER, NULL) == XWAIT_OK;
+		__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+		bReady = bReady && pPool->Entries == 1 && !pPool->Resources;
+		if (bReady) pPool->Joining = true;
+		__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+		if (bReady) {
+			__xrtTaskPoolWorkerBegin(pPool, &Mutation);
+			pPool->Shutdown = true; (void)xrtCondBroadcast(&pPool->Work);
+			__xrtTaskPoolWorkerEnd(pPool, &Mutation);
+			for (uint32 i = 0; i < pPool->StartedThreads; ++i)
+				if (xrtThreadWait(pPool->Workers[i].Thread) != XWAIT_OK) bReady = false;
+			__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+			pPool->Joining = false; pPool->Joined = bReady;
+			__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+			if (bReady) bReady = __xrtTaskPoolRetire(pPool, 1);
 		}
 	}
-	for ( uint32 i = 0; i < pPool->StartedThreads; i++ ) {
-		xrtThreadDestroy(pPool->Workers[i].Thread);
-	}
-	(void)xrtCondUnit(&pPool->Space);
-	(void)xrtCondUnit(&pPool->Idle);
-	(void)xrtCondUnit(&pPool->Work);
-	(void)xrtMutexUnit(&pPool->Lock);
-	xrtFree(pPool->Workers);
-	xrtFree(pPool);
-	return true;
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	bool bOwner = bReady && pPool->OwnerHeld;
+	if (bOwner) pPool->OwnerHeld = false;
+	pPool->Destroying = false;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	if (bOwner) __xrtTaskPoolRelease(pPool);
+	__xrtTaskPoolLeave(pPool); return bReady;
 }
 
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/memory/debug.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_MEMORY_DEBUG)
-
-
-
-#if defined(XRT_FEATURE_MEMORY_DEBUG)
-
-/* 调试块状态同时记录生命周期和是否进入统计体系。 */
-#define XRT_MEMDEBUG_STATE_MASK			0x00FFu
-#define XRT_MEMDEBUG_STATE_LIVE			0x0001u
-#define XRT_MEMDEBUG_STATE_FREED		0x0002u
-#define XRT_MEMDEBUG_STATE_QUARANTINE	0x0003u
-#define XRT_MEMDEBUG_STATE_TRACKED		0x0100u
-
-
-
-/* 有界历史避免调试功能自身无限占用内存。 */
-#define XRT_MEMDEBUG_QUARANTINE_LIMIT	256u
-
-
-
-/* 活动分配按地址散列，避免批量释放退化为平方复杂度。 */
-#define XRT_MEMDEBUG_LIVE_BUCKET_COUNT	4096u
-
-
-
-/* 边界值混入地址和大小，降低固定字节被误判为有效的概率。 */
-#define XRT_MEMDEBUG_FRONT_CANARY	0xC35A91E7u
-#define XRT_MEMDEBUG_TAIL_CANARY		0x7E19A53Cu
-#define XRT_MEMDEBUG_ALLOC_FILL		0xCD
-#define XRT_MEMDEBUG_FREE_FILL		0xDD
-
-
-
-/* 内存调试状态只依赖底层分配器和内部短锁。 */
-typedef struct xrt_memdebug_state {
-	volatile int32 InitState;
-	xrt_spinlock Lock;
-	bool Enabled;
-	size_t ActiveCount;
-	xrt_heap_header* LiveBuckets[XRT_MEMDEBUG_LIVE_BUCKET_COUNT];
-	xrt_heap_header* QuarantineHead;
-	xrt_heap_header* QuarantineTail;
-	size_t LiveCount;
-	size_t LiveBytes;
-	size_t PeakCount;
-	size_t PeakBytes;
-	size_t QuarantineCount;
-	size_t QuarantineBytes;
-	uint64 AllocCount;
-	uint64 FreeCount;
-	uint64 ReallocCount;
-	uint64 DoubleFreeCount;
-	uint64 InvalidFreeCount;
-	uint64 OverflowCount;
-	uint64 UnderflowCount;
-	uint64 UseAfterFreeCount;
-	size_t TempActiveBytes;
-	size_t TempCurrentBytes;
-	size_t TempPeakBytes;
-	uint64 TempResetCount;
-	uint64 NextSequence;
-	xmemdebugevent Events[XRT_MEMDEBUG_EVENT_LIMIT];
-	size_t EventStart;
-	size_t EventCount;
-} xrt_memdebug_state;
-
-
-
-static xrt_memdebug_state __xrtMemDebug;
-
-
-
-/* 故障注入只影响当前线程，避免并发测试互相污染。 */
-typedef struct xrt_memdebug_fail_state {
-	uint64 Remaining;
-	bool Armed;
-	bool Triggered;
-} xrt_memdebug_fail_state;
-
-
-
-#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-
-static DWORD __xrtMemDebugFailFls = FLS_OUT_OF_INDEXES;
-static volatile LONG __xrtMemDebugFailFlsState;
-static xrt_local_slot __xrtMemDebugFailSlot;
-
-
-
-/* 在线程或 fiber 退出时释放 TinyCC 故障状态。 */
-static void NTAPI __xrtMemDebugFailLocalFree(PVOID pData)
+static bool __xrtTaskPoolOwnershipCount(const void* pData, size_t* pCount)
 {
-	free(pData);
-}
-
-
-
-/* 线程安全地创建 TinyCC Windows 故障状态槽。 */
-static bool __xrtMemDebugFailFlsEnsure(void)
-{
-	LONG iState = InterlockedCompareExchange(
-		&__xrtMemDebugFailFlsState,
-		1,
-		0
-	);
-
-	if ( iState == 0 ) {
-		__xrtMemDebugFailFls = __xrtLocalSlotAlloc(
-			&__xrtMemDebugFailSlot, __xrtMemDebugFailLocalFree,
-			XRT_LOCAL_PAYLOAD, true
-		);
-		(void)InterlockedExchange(
-			&__xrtMemDebugFailFlsState,
-			__xrtMemDebugFailFls == FLS_OUT_OF_INDEXES ? 3 : 2
-		);
-		return __xrtMemDebugFailFls != FLS_OUT_OF_INDEXES;
-	}
-	while ( (iState = InterlockedCompareExchange(
-		&__xrtMemDebugFailFlsState,
-		0,
-		0
-	)) == 1 ) {
-		(void)SwitchToThread();
-	}
-	return iState == 2;
-}
-
-
-
-/* 取得或按需创建 TinyCC Windows 当前线程的故障状态。 */
-static xrt_memdebug_fail_state* __xrtMemDebugFailStateGet(
-	bool bCreate
-)
-{
-	xrt_memdebug_fail_state* pState;
-
-	if ( !__xrtMemDebugFailFlsEnsure() ) {
-		if ( bCreate ) {
-			__xrtErrorSetInvalidState();
-		}
-		return NULL;
-	}
-	pState = (xrt_memdebug_fail_state*)FlsGetValue(
-		__xrtMemDebugFailFls
-	);
-	if ( (pState != NULL) || !bCreate ) {
-		return pState;
-	}
-	pState = (xrt_memdebug_fail_state*)calloc(
-		1,
-		sizeof(*pState)
-	);
-	if ( pState == NULL ) {
-		__xrtErrorSetOutOfMemory();
-		return NULL;
-	}
-	if ( !FlsSetValue(__xrtMemDebugFailFls, pState) ) {
-		free(pState);
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	return pState;
-}
-
-#elif defined(__TINYC__)
-
-static pthread_key_t __xrtMemDebugFailKey;
-static pthread_once_t __xrtMemDebugFailKeyOnce =
-	PTHREAD_ONCE_INIT;
-static int __xrtMemDebugFailKeyError;
-
-
-
-/* 在线程退出时释放 TinyCC POSIX 故障状态。 */
-static void __xrtMemDebugFailLocalFree(void* pData)
-{
-	free(pData);
-}
-
-
-
-/* 创建 TinyCC POSIX 故障状态 key。 */
-static void __xrtMemDebugFailKeyInit(void)
-{
-	__xrtMemDebugFailKeyError = pthread_key_create(
-		&__xrtMemDebugFailKey,
-		__xrtMemDebugFailLocalFree
-	);
-}
-
-
-
-/* 取得或按需创建 TinyCC POSIX 当前线程的故障状态。 */
-static xrt_memdebug_fail_state* __xrtMemDebugFailStateGet(
-	bool bCreate
-)
-{
-	xrt_memdebug_fail_state* pState;
-
-	(void)pthread_once(
-		&__xrtMemDebugFailKeyOnce,
-		__xrtMemDebugFailKeyInit
-	);
-	if ( __xrtMemDebugFailKeyError != 0 ) {
-		if ( bCreate ) {
-			__xrtErrorSetInvalidState();
-		}
-		return NULL;
-	}
-	pState = (xrt_memdebug_fail_state*)pthread_getspecific(
-		__xrtMemDebugFailKey
-	);
-	if ( (pState != NULL) || !bCreate ) {
-		return pState;
-	}
-	pState = (xrt_memdebug_fail_state*)calloc(
-		1,
-		sizeof(*pState)
-	);
-	if ( pState == NULL ) {
-		__xrtErrorSetOutOfMemory();
-		return NULL;
-	}
-	if ( pthread_setspecific(
-		__xrtMemDebugFailKey,
-		pState
-	) != 0 ) {
-		free(pState);
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	return pState;
-}
-
-#else
-
-static XRT_THREAD_LOCAL xrt_memdebug_fail_state
-	__xrtMemDebugFailState;
-
-
-
-/* 返回编译器 TLS 中的当前线程故障状态。 */
-static xrt_memdebug_fail_state* __xrtMemDebugFailStateGet(
-	bool bCreate
-)
-{
-	(void)bCreate;
-	return &__xrtMemDebugFailState;
-}
-
-#endif
-
-#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64)
-static pthread_once_t __xrtMemDebugOnce = PTHREAD_ONCE_INIT;
-#endif
-
-
-
-/* 初始化调试锁并默认开启调试记录。 */
-static void __xrtMemDebugInit(void)
-{
-	__xrtSpinInit(&__xrtMemDebug.Lock);
-	__xrtMemDebug.Enabled = true;
-}
-
-
-
-/* 线程安全地完成内存调试状态初始化。 */
-static void __xrtMemDebugEnsure(void)
-{
-	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64)
-		(void)pthread_once(&__xrtMemDebugOnce, __xrtMemDebugInit);
-	#else
-		int32 iState;
-
-		#if defined(_MSC_VER)
-			iState = (int32)_InterlockedCompareExchange((volatile long*)&__xrtMemDebug.InitState, 1, 0);
-		#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-			iState = (int32)InterlockedCompareExchange((volatile LONG*)&__xrtMemDebug.InitState, 1, 0);
-		#else
-			iState = (int32)__sync_val_compare_and_swap(&__xrtMemDebug.InitState, 0, 1);
-		#endif
-
-		if ( iState == 0 ) {
-			__xrtMemDebugInit();
-			#if defined(_MSC_VER)
-				(void)_InterlockedExchange((volatile long*)&__xrtMemDebug.InitState, 2);
-			#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-				(void)InterlockedExchange((volatile LONG*)&__xrtMemDebug.InitState, 2);
-			#else
-				(void)__sync_lock_test_and_set(&__xrtMemDebug.InitState, 2);
-			#endif
-			return;
-		}
-
-		while ( __xrtAtomicRefLoad(&__xrtMemDebug.InitState) != 2 ) {
-			#if defined(_WIN32) || defined(_WIN64)
-				(void)SwitchToThread();
-			#else
-				(void)sched_yield();
-			#endif
-		}
-	#endif
-}
-
-
-
-/* 在当前线程的逻辑分配边界消费一次故障计数。 */
-bool __xrtMemDebugShouldFailAlloc(void)
-{
-	xrt_memdebug_fail_state* pState =
-		__xrtMemDebugFailStateGet(false);
-
-	if ( (pState == NULL) || !pState->Armed ) {
-		return false;
-	}
-	if ( pState->Remaining != 0 ) {
-		pState->Remaining--;
-		return false;
-	}
-	pState->Armed = false;
-	pState->Triggered = true;
-	__xrtErrorSetOutOfMemory();
-	return true;
-}
-
-
-
-/* 返回紧邻用户内存之前的前边界值位置。 */
-static uint32* __xrtMemDebugFrontPtr(ptr pMemory)
-{
-	return (uint32*)((unsigned char*)pMemory - sizeof(uint32));
-}
-
-
-
-/* 计算与当前地址关联的前边界值。 */
-static uint32 __xrtMemDebugFrontValue(ptr pMemory)
-{
-	uint64 iAddress = (uint64)(uintptr_t)pMemory;
-
-	return XRT_MEMDEBUG_FRONT_CANARY ^ (uint32)iAddress ^ (uint32)(iAddress >> 32);
-}
-
-
-
-/* 计算与当前地址和请求大小关联的尾边界值。 */
-static uint32 __xrtMemDebugTailValue(ptr pMemory, size_t iSize)
-{
-	uint64 iAddress = (uint64)(uintptr_t)pMemory;
-	uint64 iLength = (uint64)iSize;
-
-	return XRT_MEMDEBUG_TAIL_CANARY ^ (uint32)iAddress ^ (uint32)(iAddress >> 32) ^
-		(uint32)iLength ^ (uint32)(iLength >> 32);
-}
-
-
-
-/* 写入可能未对齐的前后边界值。 */
-static void __xrtMemDebugWriteCanary(xrt_heap_header* pHeader, ptr pMemory)
-{
-	uint32 iFront = __xrtMemDebugFrontValue(pMemory);
-	uint32 iTail = __xrtMemDebugTailValue(pMemory, pHeader->Size);
-
-	memcpy(__xrtMemDebugFrontPtr(pMemory), &iFront, sizeof(iFront));
-	memcpy((unsigned char*)pMemory + pHeader->Size, &iTail, sizeof(iTail));
-}
-
-
-
-/* 检查前边界值是否仍然完整。 */
-static bool __xrtMemDebugFrontValid(ptr pMemory)
-{
-	uint32 iStored;
-
-	memcpy(&iStored, __xrtMemDebugFrontPtr(pMemory), sizeof(iStored));
-	return iStored == __xrtMemDebugFrontValue(pMemory);
-}
-
-
-
-/* 检查尾边界值是否仍然完整。 */
-static bool __xrtMemDebugTailValid(const xrt_heap_header* pHeader, ptr pMemory)
-{
-	uint32 iStored;
-
-	memcpy(&iStored, (unsigned char*)pMemory + pHeader->Size, sizeof(iStored));
-	return iStored == __xrtMemDebugTailValue(pMemory, pHeader->Size);
-}
-
-
-
-/* 在持锁状态下追加一个有界事件。 */
-static void __xrtMemDebugRecord(xmemdebugeventkind Kind, ptr pAddress, size_t iSize, cstr sFile, uint32 iLine)
-{
-	size_t iIndex;
-	xmemdebugevent* pEvent;
-
-	if ( __xrtMemDebug.EventCount < XRT_MEMDEBUG_EVENT_LIMIT ) {
-		iIndex = (__xrtMemDebug.EventStart + __xrtMemDebug.EventCount) % XRT_MEMDEBUG_EVENT_LIMIT;
-		__xrtMemDebug.EventCount++;
+	const xtaskpool* pPool = pData;
+	if (!pPool || !pCount || !pPool->Initialized || !pPool->References || pPool->Entries ||
+		pPool->Joining || pPool->Destroying || pPool->Retiring || pPool->OwnershipCleared) return false;
+	if (pPool->Running || pPool->RunningHead || pPool->FinalizerQueued || pPool->FinalizerRunning ||
+		pPool->FinalizerHead || pPool->FinalizerTail || pPool->Queued != pPool->QueueDepth) return false;
+	if (pPool->Retired) {
+		if (!pPool->Joined || !pPool->Closed || pPool->Workers || pPool->StartedThreads) return false;
 	} else {
-		iIndex = __xrtMemDebug.EventStart;
-		__xrtMemDebug.EventStart = (__xrtMemDebug.EventStart + 1) % XRT_MEMDEBUG_EVENT_LIMIT;
+		if (!pPool->Workers || pPool->StartedThreads != pPool->ThreadCount) return false;
+		for (uint32 i = 0; i < pPool->StartedThreads; ++i) {
+			const xrt_task_worker* pWorker = &pPool->Workers[i];
+			if (pWorker->Pool != pPool || !pWorker->Thread ||
+				(pWorker->Exited ? pWorker->Parked : (!pWorker->Parked || pPool->Joined))) return false;
+		}
 	}
-
-	pEvent = &__xrtMemDebug.Events[iIndex];
-	pEvent->Kind = Kind;
-	pEvent->Sequence = ++__xrtMemDebug.NextSequence;
-	pEvent->Address = pAddress;
-	pEvent->Size = iSize;
-	pEvent->File = sFile;
-	pEvent->Line = iLine;
+	size_t iJobs = 0; const xrt_task_job* pTail = NULL;
+	for (const xrt_task_job* pJob = pPool->Head; pJob; pJob = pJob->Next) {
+		if (iJobs++ == pPool->Queued || !pJob->Accepted || pJob->Active || pJob->Destroyed ||
+			pJob->RunningPrevious || pJob->RunningNext) return false;
+		pTail = pJob;
+	}
+	if (iJobs != pPool->Queued || pTail != pPool->Tail) return false;
+	*pCount = pPool->References; return true;
 }
-
-
-
-/* 返回公开事件类型的稳定诊断名称。 */
-XRT_API cstr xrtMemDebugEventName(xmemdebugeventkind Kind)
+static bool __xrtTaskPoolOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
 {
-	switch ( Kind ) {
-		case XMEMDEBUG_ALLOC:
-			return "alloc";
-		case XMEMDEBUG_FREE:
-			return "free";
-		case XMEMDEBUG_REALLOC:
-			return "realloc";
-		case XMEMDEBUG_DOUBLE_FREE:
-			return "double_free";
-		case XMEMDEBUG_INVALID_FREE:
-			return "invalid_free";
-		case XMEMDEBUG_OVERFLOW:
-			return "overflow";
-		case XMEMDEBUG_UNDERFLOW:
-			return "underflow";
-		case XMEMDEBUG_USE_AFTER_FREE:
-			return "use_after_free";
-		case XMEMDEBUG_TEMP_ALLOC:
-			return "temp_alloc";
-		case XMEMDEBUG_TEMP_REWIND:
-			return "temp_rewind";
-		case XMEMDEBUG_TEMP_RESET:
-			return "temp_reset";
-		default:
-			return "unknown";
-	}
-}
-
-
-
-/* 返回活动分配所在的固定哈希桶。 */
-static size_t __xrtMemDebugLiveBucket(ptr pMemory)
-{
-	uintptr_t iValue = (uintptr_t)pMemory;
-
-	iValue >>= 4;
-	iValue ^= iValue >> 11;
-	iValue *= (uintptr_t)0x9E3779B1u;
-	iValue ^= iValue >> 16;
-	return (size_t)iValue & (XRT_MEMDEBUG_LIVE_BUCKET_COUNT - 1u);
-}
-
-
-
-/* 在持锁状态下将分配块接入活动哈希桶。 */
-static void __xrtMemDebugAttachLive(xrt_heap_header* pHeader)
-{
-	ptr pMemory = (unsigned char*)pHeader + __xrtHeapHeaderSize();
-	size_t iBucket = __xrtMemDebugLiveBucket(pMemory);
-
-	pHeader->DebugPrev = NULL;
-	pHeader->DebugNext = __xrtMemDebug.LiveBuckets[iBucket];
-	if ( __xrtMemDebug.LiveBuckets[iBucket] != NULL ) {
-		__xrtMemDebug.LiveBuckets[iBucket]->DebugPrev = pHeader;
-	}
-	__xrtMemDebug.LiveBuckets[iBucket] = pHeader;
-}
-
-
-
-/* 在持锁状态下将分配块移出活动哈希桶。 */
-static void __xrtMemDebugDetachLive(xrt_heap_header* pHeader)
-{
-	ptr pMemory = (unsigned char*)pHeader + __xrtHeapHeaderSize();
-	size_t iBucket = __xrtMemDebugLiveBucket(pMemory);
-
-	if ( pHeader->DebugPrev != NULL ) {
-		pHeader->DebugPrev->DebugNext = pHeader->DebugNext;
-	} else {
-		__xrtMemDebug.LiveBuckets[iBucket] = pHeader->DebugNext;
-	}
-	if ( pHeader->DebugNext != NULL ) {
-		pHeader->DebugNext->DebugPrev = pHeader->DebugPrev;
-	}
-	pHeader->DebugPrev = NULL;
-	pHeader->DebugNext = NULL;
-}
-
-
-
-/* 在持锁状态下记录边界损坏。 */
-static bool __xrtMemDebugCheckCanary(xrt_heap_header* pHeader, ptr pMemory, cstr sFile, uint32 iLine)
-{
-	bool bValid = true;
-
-	if ( !__xrtMemDebugFrontValid(pMemory) ) {
-		__xrtMemDebug.UnderflowCount++;
-		__xrtMemDebugRecord(XMEMDEBUG_UNDERFLOW, pMemory, pHeader->Size, sFile, iLine);
-		bValid = false;
-	}
-	if ( !__xrtMemDebugTailValid(pHeader, pMemory) ) {
-		__xrtMemDebug.OverflowCount++;
-		__xrtMemDebugRecord(XMEMDEBUG_OVERFLOW, pMemory, pHeader->Size, sFile, iLine);
-		bValid = false;
-	}
-
-	return bValid;
-}
-
-
-
-/* 清空统计字段，调用者必须持有调试锁。 */
-static void __xrtMemDebugClearStats(void)
-{
-	__xrtMemDebug.LiveCount = 0;
-	__xrtMemDebug.LiveBytes = 0;
-	__xrtMemDebug.PeakCount = 0;
-	__xrtMemDebug.PeakBytes = 0;
-	__xrtMemDebug.QuarantineCount = 0;
-	__xrtMemDebug.QuarantineBytes = 0;
-	__xrtMemDebug.AllocCount = 0;
-	__xrtMemDebug.FreeCount = 0;
-	__xrtMemDebug.ReallocCount = 0;
-	__xrtMemDebug.DoubleFreeCount = 0;
-	__xrtMemDebug.InvalidFreeCount = 0;
-	__xrtMemDebug.OverflowCount = 0;
-	__xrtMemDebug.UnderflowCount = 0;
-	__xrtMemDebug.UseAfterFreeCount = 0;
-	__xrtMemDebug.TempCurrentBytes = 0;
-	__xrtMemDebug.TempPeakBytes = 0;
-	__xrtMemDebug.TempResetCount = 0;
-	__xrtMemDebug.NextSequence = 0;
-	__xrtMemDebug.EventStart = 0;
-	__xrtMemDebug.EventCount = 0;
-	memset(__xrtMemDebug.Events, 0, sizeof(__xrtMemDebug.Events));
-}
-
-
-
-/* 返回调试尾部边界需要的额外字节。 */
-size_t __xrtMemDebugTailSize(void)
-{
-	return sizeof(uint32);
-}
-
-
-
-/* 写入边界并登记一个新分配。 */
-void __xrtMemDebugAlloc(xrt_heap_header* pHeader, ptr pMemory, size_t iCapacity, cstr sFile, uint32 iLine)
-{
-	bool bTracked;
-
-	(void)iCapacity;
-	__xrtMemDebugEnsure();
-	__xrtMemDebugWriteCanary(pHeader, pMemory);
-
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	bTracked = __xrtMemDebug.Enabled;
-	pHeader->DebugState = XRT_MEMDEBUG_STATE_LIVE | (bTracked ? XRT_MEMDEBUG_STATE_TRACKED : 0);
-	pHeader->AllocFile = sFile;
-	pHeader->AllocLine = iLine;
-	__xrtMemDebug.ActiveCount++;
-	__xrtMemDebugAttachLive(pHeader);
-	if ( bTracked ) {
-		__xrtMemDebug.LiveCount++;
-		__xrtMemDebug.LiveBytes += pHeader->Size;
-		__xrtMemDebug.AllocCount++;
-		if ( __xrtMemDebug.LiveCount > __xrtMemDebug.PeakCount ) {
-			__xrtMemDebug.PeakCount = __xrtMemDebug.LiveCount;
-		}
-		if ( __xrtMemDebug.LiveBytes > __xrtMemDebug.PeakBytes ) {
-			__xrtMemDebug.PeakBytes = __xrtMemDebug.LiveBytes;
-		}
-		__xrtMemDebugRecord(XMEMDEBUG_ALLOC, pMemory, pHeader->Size, sFile, iLine);
-	}
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-}
-
-
-
-/* 在池化块复用前检查释放后的填充值。 */
-void __xrtMemDebugReuse(xrt_heap_header* pHeader, ptr pMemory, size_t iCapacity, cstr sFile, uint32 iLine)
-{
-	unsigned char* pBytes = (unsigned char*)pMemory;
-	bool bChanged = false;
-
-	__xrtMemDebugEnsure();
-	if ( ((pHeader->DebugState & XRT_MEMDEBUG_STATE_MASK) != XRT_MEMDEBUG_STATE_FREED) ||
-		 ((pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) == 0) ) {
-		return;
-	}
-	for ( size_t i = sizeof(ptr); i < iCapacity; i++ ) {
-		if ( pBytes[i] != XRT_MEMDEBUG_FREE_FILL ) {
-			bChanged = true;
-			break;
-		}
-	}
-	if ( !bChanged ) {
-		return;
-	}
-
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	__xrtMemDebug.UseAfterFreeCount++;
-	__xrtMemDebugRecord(XMEMDEBUG_USE_AFTER_FREE, pMemory, pHeader->Size, sFile, iLine);
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-}
-
-
-
-/* 验证释放并按块来源选择池化回收或隔离。 */
-int __xrtMemDebugFree(xrt_heap_header* pHeader, ptr pMemory, size_t iCapacity, cstr sFile, uint32 iLine)
-{
-	uint32 iState;
-	bool bTracked;
-	bool bCanaryValid = true;
-	xrt_heap_header* pRelease = NULL;
-
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	iState = pHeader->DebugState & XRT_MEMDEBUG_STATE_MASK;
-	bTracked = (pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) != 0;
-	if ( iState != XRT_MEMDEBUG_STATE_LIVE ) {
-		if ( bTracked || __xrtMemDebug.Enabled ) {
-			__xrtMemDebug.DoubleFreeCount++;
-			__xrtMemDebugRecord(XMEMDEBUG_DOUBLE_FREE, pMemory, pHeader->Size, sFile, iLine);
-		}
-		__xrtSpinUnlock(&__xrtMemDebug.Lock);
-		__xrtErrorSetInvalidState();
-		return XRT_MEMDEBUG_FREE_INVALID;
-	}
-
-	if ( bTracked ) {
-		bCanaryValid = __xrtMemDebugCheckCanary(pHeader, pMemory, sFile, iLine);
-		if ( __xrtMemDebug.LiveCount != 0 ) {
-			__xrtMemDebug.LiveCount--;
-		}
-		if ( __xrtMemDebug.LiveBytes >= pHeader->Size ) {
-			__xrtMemDebug.LiveBytes -= pHeader->Size;
-		} else {
-			__xrtMemDebug.LiveBytes = 0;
-		}
-		__xrtMemDebug.FreeCount++;
-		__xrtMemDebugRecord(XMEMDEBUG_FREE, pMemory, pHeader->Size, sFile, iLine);
-	}
-	__xrtMemDebugDetachLive(pHeader);
-	if ( __xrtMemDebug.ActiveCount != 0 ) {
-		__xrtMemDebug.ActiveCount--;
-	}
-	pHeader->FreeFile = sFile;
-	pHeader->FreeLine = iLine;
-	memset(pMemory, XRT_MEMDEBUG_FREE_FILL, iCapacity);
-
-	if ( (pHeader->Flags == XRT_HEAP_FLAG_BACKING) && bTracked ) {
-		pHeader->DebugState = XRT_MEMDEBUG_STATE_QUARANTINE | XRT_MEMDEBUG_STATE_TRACKED;
-		pHeader->DebugPrev = __xrtMemDebug.QuarantineTail;
-		pHeader->DebugNext = NULL;
-		if ( __xrtMemDebug.QuarantineTail != NULL ) {
-			__xrtMemDebug.QuarantineTail->DebugNext = pHeader;
-		} else {
-			__xrtMemDebug.QuarantineHead = pHeader;
-		}
-		__xrtMemDebug.QuarantineTail = pHeader;
-		__xrtMemDebug.QuarantineCount++;
-		__xrtMemDebug.QuarantineBytes += pHeader->Size;
-
-		if ( __xrtMemDebug.QuarantineCount > XRT_MEMDEBUG_QUARANTINE_LIMIT ) {
-			pRelease = __xrtMemDebug.QuarantineHead;
-			__xrtMemDebug.QuarantineHead = pRelease->DebugNext;
-			if ( __xrtMemDebug.QuarantineHead != NULL ) {
-				__xrtMemDebug.QuarantineHead->DebugPrev = NULL;
-			} else {
-				__xrtMemDebug.QuarantineTail = NULL;
-			}
-			__xrtMemDebug.QuarantineCount--;
-			__xrtMemDebug.QuarantineBytes -= pRelease->Size;
-			pRelease->DebugPrev = NULL;
-			pRelease->DebugNext = NULL;
-		}
-		__xrtSpinUnlock(&__xrtMemDebug.Lock);
-
-		if ( pRelease != NULL ) {
-			ptr pAllocation = pRelease->Allocation;
-
-			pRelease->Magic = 0;
-			__xrtBackingFree(pAllocation);
-		}
-		if ( !bCanaryValid ) {
-			__xrtErrorSetInvalidState();
-		}
-		return XRT_MEMDEBUG_FREE_CONSUMED;
-	}
-
-	pHeader->DebugState = XRT_MEMDEBUG_STATE_FREED | (bTracked ? XRT_MEMDEBUG_STATE_TRACKED : 0);
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-	if ( !bCanaryValid ) {
-		__xrtErrorSetInvalidState();
-	}
-	return XRT_MEMDEBUG_FREE_RECLAIM;
-}
-
-
-
-/* 验证重分配前的生命周期和边界。 */
-bool __xrtMemDebugCheck(xrt_heap_header* pHeader, ptr pMemory, cstr sFile, uint32 iLine)
-{
-	bool bTracked;
-	bool bValid;
-
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	bTracked = (pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) != 0;
-	if ( (pHeader->DebugState & XRT_MEMDEBUG_STATE_MASK) != XRT_MEMDEBUG_STATE_LIVE ) {
-		if ( bTracked || __xrtMemDebug.Enabled ) {
-			__xrtMemDebug.UseAfterFreeCount++;
-			__xrtMemDebugRecord(XMEMDEBUG_USE_AFTER_FREE, pMemory, pHeader->Size, sFile, iLine);
-		}
-		__xrtSpinUnlock(&__xrtMemDebug.Lock);
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	bValid = !bTracked || __xrtMemDebugCheckCanary(pHeader, pMemory, sFile, iLine);
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-	if ( !bValid ) {
-		__xrtErrorSetInvalidState();
-	}
-
-	return bValid;
-}
-
-
-
-/* 记录同一块内存上的重分配并重写尾边界。 */
-void __xrtMemDebugResize(xrt_heap_header* pHeader, ptr pMemory, size_t iOldSize, cstr sFile, uint32 iLine)
-{
-	bool bTracked;
-
-	__xrtMemDebugEnsure();
-	__xrtMemDebugWriteCanary(pHeader, pMemory);
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	bTracked = (pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) != 0;
-	if ( bTracked ) {
-		if ( __xrtMemDebug.LiveBytes >= iOldSize ) {
-			__xrtMemDebug.LiveBytes -= iOldSize;
-		} else {
-			__xrtMemDebug.LiveBytes = 0;
-		}
-		__xrtMemDebug.LiveBytes += pHeader->Size;
-		if ( __xrtMemDebug.LiveBytes > __xrtMemDebug.PeakBytes ) {
-			__xrtMemDebug.PeakBytes = __xrtMemDebug.LiveBytes;
-		}
-		__xrtMemDebug.ReallocCount++;
-		__xrtMemDebugRecord(XMEMDEBUG_REALLOC, pMemory, pHeader->Size, sFile, iLine);
-		pHeader->AllocFile = sFile;
-		pHeader->AllocLine = iLine;
-	}
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-}
-
-
-
-/* 记录已经完成的跨块重分配。 */
-void __xrtMemDebugRealloc(ptr pMemory, size_t iSize, cstr sFile, uint32 iLine)
-{
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	if ( __xrtMemDebug.Enabled ) {
-		__xrtMemDebug.ReallocCount++;
-		__xrtMemDebugRecord(XMEMDEBUG_REALLOC, pMemory, iSize, sFile, iLine);
-	}
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-}
-
-
-
-/* 记录无法识别的释放请求。 */
-void __xrtMemDebugInvalidFree(ptr pMemory, cstr sFile, uint32 iLine)
-{
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	if ( __xrtMemDebug.Enabled ) {
-		__xrtMemDebug.InvalidFreeCount++;
-		__xrtMemDebugRecord(XMEMDEBUG_INVALID_FREE, pMemory, 0, sFile, iLine);
-	}
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-}
-
-
-
-/* 从活动哈希桶和大块隔离队列中安全查找块头。 */
-bool __xrtMemDebugFindHeader(ptr pMemory, xrt_heap_header** ppHeader)
-{
-	xrt_heap_header* pHeader;
-	size_t iBucket;
-	bool bFound = false;
-
-	if ( (pMemory == NULL) || (ppHeader == NULL) ) {
-		return false;
-	}
-
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	iBucket = __xrtMemDebugLiveBucket(pMemory);
-	pHeader = __xrtMemDebug.LiveBuckets[iBucket];
-	while ( pHeader != NULL ) {
-		ptr pUser = (unsigned char*)pHeader + __xrtHeapHeaderSize();
-
-		if ( pUser == pMemory ) {
-			*ppHeader = pHeader;
-			bFound = true;
-			break;
-		}
-		pHeader = pHeader->DebugNext;
-	}
-	if ( !bFound ) {
-		pHeader = __xrtMemDebug.QuarantineHead;
-		while ( pHeader != NULL ) {
-			ptr pUser = (unsigned char*)pHeader + __xrtHeapHeaderSize();
-
-			if ( pUser == pMemory ) {
-				*ppHeader = pHeader;
-				bFound = true;
-				break;
-			}
-			pHeader = pHeader->DebugNext;
-		}
-	}
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-	return bFound;
-}
-
-
-
-/* 记录临时 arena 的一次成功分配。 */
-void __xrtMemDebugTempAlloc(size_t iSize, cstr sFile, uint32 iLine)
-{
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	if ( iSize <= (SIZE_MAX - __xrtMemDebug.TempActiveBytes) ) {
-		__xrtMemDebug.TempActiveBytes += iSize;
-	} else {
-		__xrtMemDebug.TempActiveBytes = SIZE_MAX;
-	}
-	if ( __xrtMemDebug.Enabled ) {
-		if ( iSize <= (SIZE_MAX - __xrtMemDebug.TempCurrentBytes) ) {
-			__xrtMemDebug.TempCurrentBytes += iSize;
-		} else {
-			__xrtMemDebug.TempCurrentBytes = SIZE_MAX;
-		}
-		if ( __xrtMemDebug.TempCurrentBytes > __xrtMemDebug.TempPeakBytes ) {
-			__xrtMemDebug.TempPeakBytes = __xrtMemDebug.TempCurrentBytes;
-		}
-		__xrtMemDebugRecord(XMEMDEBUG_TEMP_ALLOC, NULL, iSize, sFile, iLine);
-	}
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-}
-
-
-
-/* 记录临时 arena 的作用域回退或整体重置。 */
-void __xrtMemDebugTempRelease(size_t iSize, xmemdebugeventkind Kind, cstr sFile, uint32 iLine)
-{
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	if ( __xrtMemDebug.TempActiveBytes >= iSize ) {
-		__xrtMemDebug.TempActiveBytes -= iSize;
-	} else {
-		__xrtMemDebug.TempActiveBytes = 0;
-	}
-	if ( __xrtMemDebug.Enabled ) {
-		if ( __xrtMemDebug.TempCurrentBytes >= iSize ) {
-			__xrtMemDebug.TempCurrentBytes -= iSize;
-		} else {
-			__xrtMemDebug.TempCurrentBytes = 0;
-		}
-		if ( Kind == XMEMDEBUG_TEMP_RESET ) {
-			__xrtMemDebug.TempResetCount++;
-		}
-		__xrtMemDebugRecord(Kind, NULL, iSize, sFile, iLine);
-	}
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-}
-
-
-
-/* 在没有活动分配时切换运行时调试记录。 */
-XRT_API bool xrtMemDebugEnable(bool bEnable)
-{
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	if ( (__xrtMemDebug.ActiveCount != 0) || (__xrtMemDebug.TempActiveBytes != 0) ) {
-		__xrtSpinUnlock(&__xrtMemDebug.Lock);
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	__xrtMemDebug.Enabled = bEnable;
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
+	const xtaskpool* pPool = pData; size_t iCount;
+	if (!pVisit || !__xrtTaskPoolOwnershipCount(pData, &iCount)) return false;
+	/* One actual accepted executor reference per queued Job. Tail/Next are
+	 * non-owning links; do not report duplicates or invent worker RC nodes. */
+	for (const xrt_task_job* pJob = pPool->Head; pJob; pJob = pJob->Next)
+		if (!pVisit(__xrtTaskOwnership(pJob), pContext)) return false;
 	return true;
 }
-
-
-
-/* 返回运行时调试记录开关。 */
-XRT_API bool xrtMemDebugEnabled(void)
-{
-	bool bEnabled;
-
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	bEnabled = __xrtMemDebug.Enabled;
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-	return bEnabled;
-}
-
-
-
-/* 配置当前线程的一次性逻辑分配故障。 */
-XRT_API bool xrtMemDebugFailAfter(uint64 iSuccessfulAllocations)
-{
-	xrt_memdebug_fail_state* pState =
-		__xrtMemDebugFailStateGet(true);
-
-	if ( pState == NULL ) {
-		return false;
-	}
-	pState->Remaining = iSuccessfulAllocations;
-	pState->Armed = true;
-	pState->Triggered = false;
-	return true;
-}
-
-
-
-/* 清除当前线程的一次性逻辑分配故障。 */
-XRT_API void xrtMemDebugFailClear(void)
-{
-	xrt_memdebug_fail_state* pState =
-		__xrtMemDebugFailStateGet(false);
-
-	if ( pState != NULL ) {
-		memset(pState, 0, sizeof(*pState));
-	}
-}
-
-
-
-/* 查询当前线程最近一次故障配置是否已经触发。 */
-XRT_API bool xrtMemDebugFailTriggered(void)
-{
-	xrt_memdebug_fail_state* pState =
-		__xrtMemDebugFailStateGet(false);
-
-	return (pState != NULL) && pState->Triggered;
-}
-
-
-
-/* 清空统计并释放大块隔离队列。 */
-XRT_API bool xrtMemDebugReset(void)
-{
-	xrt_heap_header* pRelease;
-
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	if ( (__xrtMemDebug.ActiveCount != 0) || (__xrtMemDebug.TempActiveBytes != 0) ) {
-		__xrtSpinUnlock(&__xrtMemDebug.Lock);
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	pRelease = __xrtMemDebug.QuarantineHead;
-	memset(
-		__xrtMemDebug.LiveBuckets,
-		0,
-		sizeof(__xrtMemDebug.LiveBuckets)
-	);
-	__xrtMemDebug.QuarantineHead = NULL;
-	__xrtMemDebug.QuarantineTail = NULL;
-	__xrtMemDebugClearStats();
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-
-	while ( pRelease != NULL ) {
-		xrt_heap_header* pNext = pRelease->DebugNext;
-		ptr pAllocation = pRelease->Allocation;
-
-		pRelease->Magic = 0;
-		__xrtBackingFree(pAllocation);
-		pRelease = pNext;
-	}
-	return true;
-}
-
-
-
-/* 复制一份一致的统计快照。 */
-XRT_API void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot)
-{
-	if ( pSnapshot == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return;
-	}
-
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	pSnapshot->Enabled = __xrtMemDebug.Enabled;
-	pSnapshot->LiveCount = __xrtMemDebug.LiveCount;
-	pSnapshot->LiveBytes = __xrtMemDebug.LiveBytes;
-	pSnapshot->PeakCount = __xrtMemDebug.PeakCount;
-	pSnapshot->PeakBytes = __xrtMemDebug.PeakBytes;
-	pSnapshot->QuarantineCount = __xrtMemDebug.QuarantineCount;
-	pSnapshot->QuarantineBytes = __xrtMemDebug.QuarantineBytes;
-	pSnapshot->AllocCount = __xrtMemDebug.AllocCount;
-	pSnapshot->FreeCount = __xrtMemDebug.FreeCount;
-	pSnapshot->ReallocCount = __xrtMemDebug.ReallocCount;
-	pSnapshot->DoubleFreeCount = __xrtMemDebug.DoubleFreeCount;
-	pSnapshot->InvalidFreeCount = __xrtMemDebug.InvalidFreeCount;
-	pSnapshot->OverflowCount = __xrtMemDebug.OverflowCount;
-	pSnapshot->UnderflowCount = __xrtMemDebug.UnderflowCount;
-	pSnapshot->UseAfterFreeCount = __xrtMemDebug.UseAfterFreeCount;
-	pSnapshot->TempCurrentBytes = __xrtMemDebug.TempCurrentBytes;
-	pSnapshot->TempPeakBytes = __xrtMemDebug.TempPeakBytes;
-	pSnapshot->TempResetCount = __xrtMemDebug.TempResetCount;
-	pSnapshot->EventCount = __xrtMemDebug.EventCount;
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-}
-
-
-
-/* 复制有界事件后在锁外调用用户访问器。 */
-XRT_API size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData)
-{
-	xmemdebugevent* pEvents;
-	size_t iCount;
-	size_t iVisited = 0;
-
-	if ( pVisitor == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return 0;
-	}
-	pEvents = (xmemdebugevent*)__xrtBackingAlloc(
-		sizeof(xmemdebugevent) * XRT_MEMDEBUG_EVENT_LIMIT
-	);
-	if ( pEvents == NULL ) {
-		__xrtErrorSetOutOfMemory();
-		return 0;
-	}
-
-	__xrtMemDebugEnsure();
-	__xrtSpinLock(&__xrtMemDebug.Lock);
-	iCount = __xrtMemDebug.EventCount;
-	for ( size_t i = 0; i < iCount; i++ ) {
-		size_t iIndex = (__xrtMemDebug.EventStart + i) % XRT_MEMDEBUG_EVENT_LIMIT;
-
-		pEvents[i] = __xrtMemDebug.Events[iIndex];
-	}
-	__xrtSpinUnlock(&__xrtMemDebug.Lock);
-
-	for ( size_t i = 0; i < iCount; i++ ) {
-		iVisited++;
-		if ( !pVisitor(&pEvents[i], pUserData) ) {
-			break;
-		}
-	}
-	__xrtBackingFree(pEvents);
-	return iVisited;
-}
-
-
-
-/* 捕获一份完整活动分配快照。 */
-bool __xrtMemDebugCaptureLive(xmemdebugallocation** ppAllocations, size_t* pCount)
-{
-	xmemdebugallocation* pAllocations = NULL;
-	xrt_heap_header* pHeader;
-	size_t iCapacity = 0;
-	size_t iCount = 0;
-	size_t iBucket;
-
-	if ( (ppAllocations == NULL) || (pCount == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	*ppAllocations = NULL;
-	*pCount = 0;
-
-	__xrtMemDebugEnsure();
-	for ( ;; ) {
-		size_t iRequired;
-
-		__xrtSpinLock(&__xrtMemDebug.Lock);
-		iRequired = __xrtMemDebug.LiveCount;
-		__xrtSpinUnlock(&__xrtMemDebug.Lock);
-		if ( iRequired == 0 ) {
-			__xrtBackingFree(pAllocations);
-			return true;
-		}
-		if ( iRequired > iCapacity ) {
-			if ( iRequired > (SIZE_MAX / sizeof(xmemdebugallocation)) ) {
-				__xrtBackingFree(pAllocations);
-				__xrtErrorSetSizeOverflow();
-				return false;
-			}
-			__xrtBackingFree(pAllocations);
-			pAllocations = (xmemdebugallocation*)__xrtBackingAlloc(
-				iRequired * sizeof(xmemdebugallocation)
-			);
-			if ( pAllocations == NULL ) {
-				__xrtErrorSetOutOfMemory();
-				return false;
-			}
-			iCapacity = iRequired;
-		}
-
-		__xrtSpinLock(&__xrtMemDebug.Lock);
-		if ( __xrtMemDebug.LiveCount > iCapacity ) {
-			__xrtSpinUnlock(&__xrtMemDebug.Lock);
-			continue;
-		}
-		iCount = 0;
-		for ( iBucket = 0; iBucket < XRT_MEMDEBUG_LIVE_BUCKET_COUNT; iBucket++ ) {
-			pHeader = __xrtMemDebug.LiveBuckets[iBucket];
-			while ( pHeader != NULL ) {
-				if ( (pHeader->DebugState & XRT_MEMDEBUG_STATE_TRACKED) != 0 ) {
-					if ( iCount == iCapacity ) {
-						__xrtSpinUnlock(&__xrtMemDebug.Lock);
-						__xrtBackingFree(pAllocations);
-						__xrtErrorSetInvalidState();
-						return false;
-					}
-					pAllocations[iCount].Address =
-						(unsigned char*)pHeader + __xrtHeapHeaderSize();
-					pAllocations[iCount].Size = pHeader->Size;
-					pAllocations[iCount].File = pHeader->AllocFile;
-					pAllocations[iCount].Line = pHeader->AllocLine;
-					iCount++;
-				}
-				pHeader = pHeader->DebugNext;
-			}
-		}
-		__xrtSpinUnlock(&__xrtMemDebug.Lock);
-		break;
-	}
-
-	*ppAllocations = pAllocations;
-	*pCount = iCount;
-	return true;
-}
-
-
-
-/* 复制活动分配后在锁外调用用户访问器。 */
-XRT_API size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData)
-{
-	xmemdebugallocation* pAllocations;
-	size_t iCount;
-	size_t iVisited = 0;
-
-	if ( pVisitor == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return 0;
-	}
-	if ( !__xrtMemDebugCaptureLive(&pAllocations, &iCount) ) {
-		return 0;
-	}
-
-	for ( size_t i = 0; i < iCount; i++ ) {
-		iVisited++;
-		if ( !pVisitor(&pAllocations[i], pUserData) ) {
-			break;
-		}
-	}
-	__xrtBackingFree(pAllocations);
-	return iVisited;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/value/value_graph.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_VALUE_GRAPH)
-
-
-
-#if defined(XRT_FEATURE_VALUE_GRAPH)
-
-#define XRT_VALUE_GRAPH_INLINE 32u
-#define XRT_VALUE_GRAPH_GUARD_MAX ((XRT_VALUE_DEPTH_MAX * 2u) + 2u)
-
-
-
-/* 已复制表记录目标值和递归构造状态。 */
-typedef struct xvalueclonestate {
-	xvalue* Target;
-	bool Active;
-} xvalueclonestate;
-
-
-
-/* 小图直接在栈内记录源值与复制状态。 */
-typedef struct xvaluecloneentry {
-	const xvalue* Source;
-	xvalueclonestate State;
-} xvaluecloneentry;
-
-
-
-/* 一次深拷贝共用栈内身份表、按需溢出表和活动源路径。 */
-typedef struct xvalueclonecontext {
-	xvaluecloneentry Inline[XRT_VALUE_GRAPH_INLINE];
-	size_t InlineCount;
-	xmap Overflow;
-	bool OverflowReady;
-	const xvalue* Active[XRT_VALUE_DEPTH_MAX + 1u];
-	size_t ActiveCount;
-} xvalueclonecontext;
-
-
-
-/* 结构相等的映射键由一对有方向的值身份组成。 */
-typedef struct xvalueequalkey {
-	const xvalue* Left;
-	const xvalue* Right;
-} xvalueequalkey;
-
-
-
-/* 已比较值对只需记录当前仍在递归还是已经相等。 */
-typedef struct xvalueequalstate {
-	bool Active;
-} xvalueequalstate;
-
-
-
-/* 小图直接在栈内记录比较值对。 */
-typedef struct xvalueequalentry {
-	xvalueequalkey Key;
-	xvalueequalstate State;
-} xvalueequalentry;
-
-
-
-/* 一次结构比较共用值对记忆表和回调活动祖先。 */
-typedef struct xvalueequalcontext {
-	xvalueequalentry Inline[XRT_VALUE_GRAPH_INLINE];
-	size_t InlineCount;
-	xmap Overflow;
-	bool OverflowReady;
-	const xvalue* Guards[XRT_VALUE_GRAPH_GUARD_MAX];
-	size_t GuardCount;
-} xvalueequalcontext;
-
-
-
-/* 把调用者持有的值地址变量转换为 Map 键。 */
-static xbytesview __xrtValueGraphPointerKey(
-	const xvalue* const* pValue
-)
-{
-	xbytesview Key;
-
-	Key.Data = (cbytes)pValue;
-	Key.Size = sizeof(*pValue);
-	return Key;
-}
-
-
-
-/* 把结构相等值对转换为 Map 键。 */
-static xbytesview __xrtValueGraphEqualKey(
-	const xvalueequalkey* pKey
-)
-{
-	xbytesview Key;
-
-	Key.Data = (cbytes)pKey;
-	Key.Size = sizeof(*pKey);
-	return Key;
-}
-
-
-
-/* 查找源值已经登记的复制状态。 */
-static xvalueclonestate* __xrtValueCloneState(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource
-)
-{
-	for ( size_t i = 0; i < pContext->InlineCount; i++ ) {
-		if ( pContext->Inline[i].Source == pSource ) {
-			return &pContext->Inline[i].State;
-		}
-	}
-	if ( !pContext->OverflowReady ) {
-		return NULL;
-	}
-	return (xvalueclonestate*)xrtMapGet(
-		&pContext->Overflow,
-		__xrtValueGraphPointerKey(&pSource)
-	);
-}
-
-
-
-/* 查找已完成的目标值，返回负数表示源图含环。 */
-static int __xrtValueCloneFind(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource,
-	xvalue** pTarget
-)
-{
-	xvalueclonestate* pState = __xrtValueCloneState(
-		pContext,
-		pSource
-	);
-
-	*pTarget = NULL;
-	if ( pState == NULL ) {
-		return 0;
-	}
-	if ( pState->Active ) {
-		__xrtErrorSetValue();
-		return -1;
-	}
-	*pTarget = xrtValueRetain(pState->Target);
-	return *pTarget != NULL ? 1 : -1;
-}
-
-
-
-/* 登记一个正在构造的目标值，小图不分配身份表。 */
-static bool __xrtValueCloneStart(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource,
-	xvalue* pTarget
-)
-{
-	xvalueclonestate State;
-
-	State.Target = pTarget;
-	State.Active = true;
-	if ( pContext->InlineCount < XRT_VALUE_GRAPH_INLINE ) {
-		xvaluecloneentry* pEntry =
-			&pContext->Inline[pContext->InlineCount++];
-
-		pEntry->Source = pSource;
-		pEntry->State = State;
-		return true;
-	}
-	if ( !pContext->OverflowReady ) {
-		if ( !xrtMapInit(
-			&pContext->Overflow,
-			sizeof(xvalueclonestate)
-		) ) {
-			return false;
-		}
-		pContext->OverflowReady = true;
-	}
-	return xrtMapSet(
-		&pContext->Overflow,
-		__xrtValueGraphPointerKey(&pSource),
-		&State
-	);
-}
-
-
-
-/* 将已登记目标标记为完整可复用。 */
-static bool __xrtValueCloneFinish(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource
-)
-{
-	xvalueclonestate* pState = __xrtValueCloneState(
-		pContext,
-		pSource
-	);
-
-	if ( pState == NULL ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	pState->Active = false;
-	return true;
-}
-
-
-
-/* 释放深拷贝按需创建的溢出身份表。 */
-static void __xrtValueCloneUnit(xvalueclonecontext* pContext)
-{
-	if ( pContext->OverflowReady ) {
-		xrtMapUnit(&pContext->Overflow);
-		pContext->OverflowReady = false;
-	}
-}
-
-
-
-/* 把当前源值压入活动路径。 */
-static bool __xrtValueClonePush(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource
-)
-{
-	if ( pContext->ActiveCount >= (XRT_VALUE_DEPTH_MAX + 1u) ) {
-		__xrtErrorSetValue();
-		return false;
-	}
-	pContext->Active[pContext->ActiveCount++] = pSource;
-	return true;
-}
-
-
-
-/* 弹出当前源值。 */
-static void __xrtValueClonePop(xvalueclonecontext* pContext)
-{
-	if ( pContext->ActiveCount != 0 ) {
-		pContext->ActiveCount--;
-		pContext->Active[pContext->ActiveCount] = NULL;
-	}
-}
-
-
-
-/* 保护完整活动源路径并执行一次句柄释放。 */
-static void __xrtValueCloneDropHandle(
-	xvalueclonecontext* pContext,
-	const xvaluehandleops* pOps,
-	ptr pHandle,
-	ptr pUserData
-)
-{
-	bool bProtected = __xrtValueCallbackProtect(
-		pContext->Active,
-		pContext->ActiveCount
-	);
-
-	pOps->Drop(pHandle, pUserData);
-	if ( bProtected ) {
-		__xrtValueCallbackUnprotect(
-			pContext->Active,
-			pContext->ActiveCount
-		);
-	}
-}
-
-
-
-/* 保护完整活动源路径并释放部分构造的目标图。 */
-static void __xrtValueCloneRelease(
-	xvalueclonecontext* pContext,
-	xvalue* pTarget
-)
-{
-	bool bProtected = __xrtValueCallbackProtect(
-		pContext->Active,
-		pContext->ActiveCount
-	);
-
-	xrtValueRelease(pTarget);
-	if ( bProtected ) {
-		__xrtValueCallbackUnprotect(
-			pContext->Active,
-			pContext->ActiveCount
-		);
-	}
-}
-
-
-
-/* 按源容器类型创建空目标容器。 */
-static xvalue* __xrtValueCloneContainer(const xvalue* pSource)
-{
-	switch ( (xvaluetype)pSource->Type ) {
-		case XVALUE_ARRAY:
-			return xrtValueArray();
-		case XVALUE_INT_MAP:
-			return xrtValueIntMap();
-		case XVALUE_SET:
-			return xrtValueSet();
-		case XVALUE_OBJECT:
-			return __xrtValueObjectDropsReverse(pSource)
-				? xrtValueObjectLifo()
-				: xrtValueObject();
-		default:
-			__xrtErrorSetType();
-			return NULL;
-	}
-}
-
-
-
-/* 深度复制句柄，禁止把不可克隆拥有资源伪装成独立副本。 */
-static xvalue* __xrtValueCloneHandle(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource
-)
-{
-	const xvaluehandleops* pOps = pSource->Data.Handle.Ops;
-	ptr pUserData = pSource->Data.Handle.UserData;
-	ptr pClone = NULL;
-	xvalue* pTarget;
-	const xerror* pErrorBefore;
-	bool bCloned;
-	int iFound;
-
-	iFound = __xrtValueCloneFind(pContext, pSource, &pTarget);
-	if ( iFound > 0 ) {
-		return pTarget;
-	}
-	if ( iFound < 0 ) {
-		return NULL;
-	}
-	if ( pOps->Clone == NULL ) {
-		__xrtErrorSetUnsupported();
-		return NULL;
-	}
-	if ( !__xrtValueClonePush(pContext, pSource) ) {
-		return NULL;
-	}
-	if ( !__xrtValueCallbackProtect(
-			pContext->Active,
-			pContext->ActiveCount
-	) ) {
-		__xrtValueClonePop(pContext);
-		return NULL;
-	}
-	pErrorBefore = xrtGetError();
-	bCloned = pOps->Clone(
-		pSource->Data.Handle.Data,
-		&pClone,
-		pUserData
-	);
-	if ( !bCloned && (pClone != NULL) ) {
-		pOps->Drop(pClone, pUserData);
-		pClone = NULL;
-	}
-	__xrtValueCallbackUnprotect(
-		pContext->Active,
-		pContext->ActiveCount
-	);
-	if ( !bCloned ) {
-		__xrtValueClonePop(pContext);
-		if ( xrtGetError() == pErrorBefore ) {
-			__xrtErrorSetInvalidState();
-		}
-		return NULL;
-	}
-	pTarget = xrtValueHandleTake(&pClone, pOps, pUserData);
-	if (pTarget != NULL) {
-		pTarget->OwnershipTrace = pSource->OwnershipTrace;
-		pTarget->Flags |= pSource->Flags & XRT_VALUE_FLAG_PHASED_DROP;
-	}
-	if ( pTarget == NULL ) {
-		__xrtValueCloneDropHandle(
-			pContext,
-			pOps,
-			pClone,
-			pUserData
-		);
-		__xrtValueClonePop(pContext);
-		return NULL;
-	}
-	pTarget->TypeId = pSource->TypeId;
-	pTarget->IdentityHash = pSource->IdentityHash;
-	pTarget->IdentityEqual = pSource->IdentityEqual;
-	pTarget->IdentityUserData = pSource->IdentityUserData;
-	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ||
-		 !__xrtValueCloneFinish(pContext, pSource) ) {
-		__xrtValueCloneRelease(pContext, pTarget);
-		__xrtValueClonePop(pContext);
-		return NULL;
-	}
-	__xrtValueClonePop(pContext);
-	return pTarget;
-}
-
-
-
-/* 前置声明供容器递归复制。 */
-static xvalue* __xrtValueDeepClone(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource,
-	uint32 iDepth
-);
-
-
-
-/* 把一个已复制值按源键类型移交到目标容器。 */
-static bool __xrtValueCloneInsert(
-	xvalueclonecontext* pContext,
-	xvalue* pTarget,
-	xvaluekey Key,
-	xvalue** pCopy
-)
-{
-	bool bResult;
-
-	if ( Key.Type == XVALUE_KEY_INDEX ) {
-		return xrtValueArrayAppendTake(pTarget, pCopy);
-	}
-	if ( Key.Type == XVALUE_KEY_INT ) {
-		return xrtValueIntMapSetTake(
-			pTarget,
-			Key.Integer,
-			pCopy
-		);
-	}
-	if ( Key.Type == XVALUE_KEY_STRING ) {
-		return xrtValueObjectSetTake(
-			pTarget,
-			Key.String,
-			pCopy
-		);
-	}
-	if ( !__xrtValueCallbackProtect(
-		pContext->Active,
-		pContext->ActiveCount
-	) ) {
-		return false;
-	}
-	bResult = xrtValueSetAddTake(pTarget, pCopy);
-	__xrtValueCallbackUnprotect(
-		pContext->Active,
-		pContext->ActiveCount
-	);
-	return bResult;
-}
-
-
-
-/* 深度复制一个已经登记的容器内容。 */
-static bool __xrtValueCloneContainerItems(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource,
-	xvalue* pTarget,
-	uint32 iDepth
-)
-{
-	xvalueiter tIterator;
-	xvaluekey Key;
-	xvalue* pItem;
-	bool bResult = true;
-
-	if ( (pTarget->Type != XVALUE_INT_MAP) &&
-		 !xrtValueReserve(
-			pTarget,
-			__xrtValueContainerCount(pSource)
-		 ) ) {
-		return false;
-	}
-	if ( !xrtValueIterBegin(pSource, &tIterator) ) {
-		return false;
-	}
-	while ( (pItem = xrtValueIterNext(&tIterator, &Key)) != NULL ) {
-		xvalue* pCopy = __xrtValueDeepClone(
-			pContext,
-			pItem,
-			iDepth + 1u
-		);
-
-		if ( pCopy == NULL ) {
-			bResult = false;
-			break;
-		}
-		bResult = __xrtValueCloneInsert(
-			pContext,
-			pTarget,
-			Key,
-			&pCopy
-		);
-		if ( !bResult ) {
-			xrtValueRelease(pCopy);
-			break;
-		}
-	}
-	xrtValueIterEnd(&tIterator);
-	return bResult;
-}
-
-
-
-/* 深度复制标量、句柄或容器。 */
-static xvalue* __xrtValueDeepClone(
-	xvalueclonecontext* pContext,
-	const xvalue* pSource,
-	uint32 iDepth
-)
-{
-	xvaluetype Type;
-	xvalue* pTarget;
-	bool bReady;
-	int iFound;
-
-	if ( pSource == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( (pSource->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	if ( iDepth >= XRT_VALUE_DEPTH_MAX ) {
-		__xrtErrorSetValue();
-		return NULL;
-	}
-	Type = (xvaluetype)pSource->Type;
-	if ( Type == XVALUE_HANDLE ) {
-		return __xrtValueCloneHandle(pContext, pSource);
-	}
-	if ( !__xrtValueContainerType(Type) ) {
-		return xrtValueRetain(pSource);
-	}
-	iFound = __xrtValueCloneFind(pContext, pSource, &pTarget);
-	if ( iFound > 0 ) {
-		return pTarget;
-	}
-	if ( iFound < 0 ) {
-		return NULL;
-	}
-	pTarget = __xrtValueCloneContainer(pSource);
-	if ( pTarget == NULL ) {
-		return NULL;
-	}
-	if (!__xrtValueObjectLifetimeCopy(pTarget, pSource)) {
-		xrtValueRelease(pTarget); return NULL;
-	}
-	pTarget->TypeId = pSource->TypeId;
-	pTarget->IdentityHash = pSource->IdentityHash;
-	pTarget->IdentityEqual = pSource->IdentityEqual;
-	pTarget->IdentityUserData = pSource->IdentityUserData;
-	if ( !__xrtValueCloneStart(pContext, pSource, pTarget) ) {
-		xrtValueRelease(pTarget);
-		return NULL;
-	}
-	if ( !__xrtValueClonePush(pContext, pSource) ) {
-		xrtValueRelease(pTarget);
-		return NULL;
-	}
-	bReady = __xrtValueCloneContainerItems(
-		pContext,
-		pSource,
-		pTarget,
-		iDepth
-	) && __xrtValueCloneFinish(pContext, pSource);
-	if ( !bReady ) {
-		__xrtValueCloneRelease(pContext, pTarget);
-		__xrtValueClonePop(pContext);
-		return NULL;
-	}
-	__xrtValueClonePop(pContext);
-	return pTarget;
-}
-
-
-
-/* 深度复制完整无环值图，并保留重复子值的共享身份。 */
-static xvalue* __xrtOwnershipBody_ValueDeepClone(const xvalue* pValue)
-{
-	xvalueclonecontext Context;
-	xvalue* pResult;
-
-	if ( pValue == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( (pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0 ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
-	memset(&Context, 0, sizeof(Context));
-	pResult = __xrtValueDeepClone(&Context, pValue, 0);
-	__xrtValueCloneUnit(&Context);
-	return pResult;
-}
-
-XRT_API xvalue* xrtValueDeepClone(const xvalue* pValue)
-{
-	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtOwnershipBody_ValueDeepClone(pValue));
-}
-
-
-
-/* 查找已经登记的结构比较状态。 */
-static xvalueequalstate* __xrtValueEqualState(
-	xvalueequalcontext* pContext,
-	xvalueequalkey Key
-)
-{
-	for ( size_t i = 0; i < pContext->InlineCount; i++ ) {
-		xvalueequalentry* pEntry = &pContext->Inline[i];
-
-		if ( (pEntry->Key.Left == Key.Left) &&
-			 (pEntry->Key.Right == Key.Right) ) {
-			return &pEntry->State;
-		}
-	}
-	if ( !pContext->OverflowReady ) {
-		return NULL;
-	}
-	return (xvalueequalstate*)xrtMapGet(
-		&pContext->Overflow,
-		__xrtValueGraphEqualKey(&Key)
-	);
-}
-
-
-
-/* 查找已完成值对，返回负数表示两侧活动路径形成递归环。 */
-static int __xrtValueEqualFind(
-	xvalueequalcontext* pContext,
-	xvalueequalkey Key
-)
-{
-	xvalueequalstate* pState = __xrtValueEqualState(pContext, Key);
-
-	if ( pState == NULL ) {
-		return 0;
-	}
-	if ( pState->Active ) {
-		__xrtErrorSetValue();
-		return -1;
-	}
-	return 1;
-}
-
-
-
-/* 登记一个正在递归比较的值对，小图不分配记忆表。 */
-static bool __xrtValueEqualStart(
-	xvalueequalcontext* pContext,
-	xvalueequalkey Key
-)
-{
-	xvalueequalstate State;
-
-	State.Active = true;
-	if ( pContext->InlineCount < XRT_VALUE_GRAPH_INLINE ) {
-		xvalueequalentry* pEntry =
-			&pContext->Inline[pContext->InlineCount++];
-
-		pEntry->Key = Key;
-		pEntry->State = State;
-		return true;
-	}
-	if ( !pContext->OverflowReady ) {
-		if ( !xrtMapInit(
-			&pContext->Overflow,
-			sizeof(xvalueequalstate)
-		) ) {
-			return false;
-		}
-		pContext->OverflowReady = true;
-	}
-	return xrtMapSet(
-		&pContext->Overflow,
-		__xrtValueGraphEqualKey(&Key),
-		&State
-	);
-}
-
-
-
-/* 将已经登记的值对标记为结构相等。 */
-static bool __xrtValueEqualFinish(
-	xvalueequalcontext* pContext,
-	xvalueequalkey Key
-)
-{
-	xvalueequalstate* pState = __xrtValueEqualState(pContext, Key);
-
-	if ( pState == NULL ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	pState->Active = false;
-	return true;
-}
-
-
-
-/* 释放结构相等按需创建的溢出记忆表。 */
-static void __xrtValueEqualUnit(xvalueequalcontext* pContext)
-{
-	if ( pContext->OverflowReady ) {
-		xrtMapUnit(&pContext->Overflow);
-		pContext->OverflowReady = false;
-	}
-}
-
-
-
-/* 把当前比较值对加入回调活动祖先。 */
-static bool __xrtValueEqualPush(
-	xvalueequalcontext* pContext,
-	const xvalue* pLeft,
-	const xvalue* pRight
-)
-{
-	if ( pContext->GuardCount > (XRT_VALUE_GRAPH_GUARD_MAX - 2u) ) {
-		__xrtErrorSetValue();
-		return false;
-	}
-	pContext->Guards[pContext->GuardCount++] = pLeft;
-	pContext->Guards[pContext->GuardCount++] = pRight;
-	return true;
-}
-
-
-
-/* 弹出当前比较值对。 */
-static void __xrtValueEqualPop(xvalueequalcontext* pContext)
-{
-	if ( pContext->GuardCount >= 2u ) {
-		pContext->GuardCount -= 2u;
-		pContext->Guards[pContext->GuardCount] = NULL;
-		pContext->Guards[pContext->GuardCount + 1u] = NULL;
-	}
-}
-
-
-
-/* 前置声明供容器结构相等递归。 */
-static bool __xrtValueEqual(
-	xvalueequalcontext* pContext,
-	const xvalue* pLeft,
-	const xvalue* pRight,
-	uint32 iDepth
-);
-
-
-
-/* 比较数组的每个有序元素。 */
-static bool __xrtValueArrayEqual(
-	xvalueequalcontext* pContext,
-	const xvalue* pLeft,
-	const xvalue* pRight,
-	uint32 iDepth
-)
-{
-	size_t iCount = __xrtValueContainerCount(pLeft);
-
-	for ( size_t i = 0; i < iCount; i++ ) {
-		if ( !__xrtValueEqual(
-			pContext,
-			xrtValueArrayGet(pLeft, i),
-			xrtValueArrayGet(pRight, i),
-			iDepth + 1u
-		) ) {
-			return false;
-		}
-	}
-	return true;
-}
-
-
-
-/* 比较 IntMap 的键集合和对应值。 */
-static bool __xrtValueIntMapEqual(
-	xvalueequalcontext* pContext,
-	const xvalue* pLeft,
-	const xvalue* pRight,
-	uint32 iDepth
-)
-{
-	xvalueiter tIterator;
-	xvaluekey Key;
-	xvalue* pItem;
-	bool bEqual = true;
-
-	if ( !xrtValueIterBegin(pLeft, &tIterator) ) {
-		return false;
-	}
-	while ( (pItem = xrtValueIterNext(&tIterator, &Key)) != NULL ) {
-		xvalue* pOther = xrtValueIntMapGet(pRight, Key.Integer);
-
-		if ( (pOther == NULL) ||
-			 !__xrtValueEqual(
-				pContext,
-				pItem,
-				pOther,
-				iDepth + 1u
-			 ) ) {
-			bEqual = false;
-			break;
-		}
-	}
-	xrtValueIterEnd(&tIterator);
-	return bEqual;
-}
-
-
-
-/* 比较 Object 的键集合和对应值，插入顺序不影响相等性。 */
-static bool __xrtValueObjectEqual(
-	xvalueequalcontext* pContext,
-	const xvalue* pLeft,
-	const xvalue* pRight,
-	uint32 iDepth
-)
-{
-	xvalueiter tIterator;
-	xvaluekey Key;
-	xvalue* pItem;
-	bool bEqual = true;
-
-	if ( !xrtValueIterBegin(pLeft, &tIterator) ) {
-		return false;
-	}
-	while ( (pItem = xrtValueIterNext(&tIterator, &Key)) != NULL ) {
-		xvalue* pOther = xrtValueObjectGet(pRight, Key.String);
-
-		if ( (pOther == NULL) ||
-			 !__xrtValueEqual(
-				pContext,
-				pItem,
-				pOther,
-				iDepth + 1u
-			 ) ) {
-			bEqual = false;
-			break;
-		}
-	}
-	xrtValueIterEnd(&tIterator);
-	return bEqual;
-}
-
-
-
-/* 复用通用 Set 关系实现比较等价元素集合。 */
-static bool __xrtValueSetStructuralEqual(
-	xvalueequalcontext* pContext,
-	const xvalue* pLeft,
-	const xvalue* pRight
-)
-{
-	const xset* pLeftItems = __xrtValueSetItems(pLeft);
-	const xset* pRightItems = __xrtValueSetItems(pRight);
-	bool bEqual;
-
-	if ( (pLeftItems == NULL) || (pRightItems == NULL) ||
-		 !__xrtValueCallbackProtect(
-			pContext->Guards,
-			pContext->GuardCount
-		 ) ) {
-		return false;
-	}
-	bEqual = xrtSetEqual(pLeftItems, pRightItems);
-	__xrtValueCallbackUnprotect(
-		pContext->Guards,
-		pContext->GuardCount
-	);
-	return bEqual;
-}
-
-
-
-/* 比较两个具有同一策略域的拥有句柄。 */
-static bool __xrtValueHandleEqual(
-	xvalueequalcontext* pContext,
-	const xvalue* pLeft,
-	const xvalue* pRight
-)
-{
-	xvalueequalkey Key;
-	bool bEqual;
-	int iFound;
-
-	if ( (pLeft->Data.Handle.Ops != pRight->Data.Handle.Ops) ||
-		 (pLeft->Data.Handle.UserData !=
-		  pRight->Data.Handle.UserData) ) {
-		return false;
-	}
-	if ( pLeft->Data.Handle.Ops->Equal == NULL ) {
-		__xrtErrorSetType();
-		return false;
-	}
-	Key.Left = pLeft;
-	Key.Right = pRight;
-	iFound = __xrtValueEqualFind(pContext, Key);
-	if ( iFound != 0 ) {
-		return iFound > 0;
-	}
-	if ( !__xrtValueEqualStart(pContext, Key) ) {
-		return false;
-	}
-	if ( !__xrtValueEqualPush(pContext, pLeft, pRight) ) {
-		return false;
-	}
-	if ( !__xrtValueCallbackProtect(
-			pContext->Guards,
-			pContext->GuardCount
-	) ) {
-		__xrtValueEqualPop(pContext);
-		return false;
-	}
-	bEqual = pLeft->Data.Handle.Ops->Equal(
-		pLeft->Data.Handle.Data,
-		pRight->Data.Handle.Data,
-		pLeft->Data.Handle.UserData
-	);
-	__xrtValueCallbackUnprotect(
-		pContext->Guards,
-		pContext->GuardCount
-	);
-	__xrtValueEqualPop(pContext);
-	return bEqual ? __xrtValueEqualFinish(pContext, Key) : false;
-}
-
-
-
-/* 递归判断标量或容器结构相等。 */
-static bool __xrtValueEqual(
-	xvalueequalcontext* pContext,
-	const xvalue* pLeft,
-	const xvalue* pRight,
-	uint32 iDepth
-)
-{
-	xvalueequalkey Key;
-	xvaluetype Type;
-	bool bEqual;
-	int iFound;
-
-	if ( (pLeft == NULL) || (pRight == NULL) ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	if ( ((pLeft->Flags & XRT_VALUE_FLAG_BUSY) != 0) ||
-		 ((pRight->Flags & XRT_VALUE_FLAG_BUSY) != 0) ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	if ( pLeft == pRight ) {
-		return true;
-	}
-	if ( (pLeft->IdentityEqual != NULL) || (pRight->IdentityEqual != NULL) ) {
-		return __xrtValueEqualKnown(pLeft, pRight);
-	}
-	if ( iDepth >= XRT_VALUE_DEPTH_MAX ) {
-		__xrtErrorSetValue();
-		return false;
-	}
-	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
-		  (pLeft->Type == XVALUE_FLOAT)) &&
-		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
-		  (pRight->Type == XVALUE_FLOAT)) ) {
-		return __xrtValueEqualKnown(pLeft, pRight);
-	}
-	Type = (xvaluetype)pLeft->Type;
-	if ( Type != (xvaluetype)pRight->Type ) {
-		return false;
-	}
-	if ( Type == XVALUE_HANDLE ) {
-		return __xrtValueHandleEqual(pContext, pLeft, pRight);
-	}
-	if ( !__xrtValueContainerType(Type) ) {
-		return __xrtValueEqualKnown(pLeft, pRight);
-	}
-	if ( pLeft->Data.Backing == pRight->Data.Backing ) {
-		return true;
-	}
-	if ( __xrtValueContainerCount(pLeft) !=
-		 __xrtValueContainerCount(pRight) ) {
-		return false;
-	}
-	Key.Left = pLeft;
-	Key.Right = pRight;
-	iFound = __xrtValueEqualFind(pContext, Key);
-	if ( iFound != 0 ) {
-		return iFound > 0;
-	}
-	if ( !__xrtValueEqualStart(pContext, Key) ||
-		 !__xrtValueEqualPush(pContext, pLeft, pRight) ) {
-		return false;
-	}
-	if ( Type == XVALUE_ARRAY ) {
-		bEqual = __xrtValueArrayEqual(
-			pContext,
-			pLeft,
-			pRight,
-			iDepth
-		);
-	} else if ( Type == XVALUE_INT_MAP ) {
-		bEqual = __xrtValueIntMapEqual(
-			pContext,
-			pLeft,
-			pRight,
-			iDepth
-		);
-	} else if ( Type == XVALUE_SET ) {
-		bEqual = __xrtValueSetStructuralEqual(
-			pContext,
-			pLeft,
-			pRight
-		);
-	} else {
-		bEqual = __xrtValueObjectEqual(
-			pContext,
-			pLeft,
-			pRight,
-			iDepth
-		);
-	}
-	__xrtValueEqualPop(pContext);
-	return bEqual ? __xrtValueEqualFinish(pContext, Key) : false;
-}
-
-
-
-/* 按数值和容器内容递归判断结构相等。 */
-static bool __xrtOwnershipBody_ValueEqual(const xvalue* pLeft, const xvalue* pRight)
-{
-	xvalueequalcontext Context;
-	bool bEqual;
-
-	if ( (pLeft == NULL) || (pRight == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( ((pLeft->Flags & XRT_VALUE_FLAG_BUSY) != 0) ||
-		 ((pRight->Flags & XRT_VALUE_FLAG_BUSY) != 0) ) {
-		__xrtErrorSetInvalidState();
-		return false;
-	}
-	memset(&Context, 0, sizeof(Context));
-	bEqual = __xrtValueEqual(&Context, pLeft, pRight, 0);
-	__xrtValueEqualUnit(&Context);
-	return bEqual;
-}
-
-XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
-{
-	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueEqual(pLeft, pRight));
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/concurrency/future_combine.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_FUTURE_COMBINE)
-
-
-
-#if defined(XRT_FEATURE_FUTURE_COMBINE)
-
-/* 组合模式只决定完成时机以及是否向败者传播取消请求。 */
-typedef enum xrt_future_combine_mode {
-	XRT_FUTURE_COMBINE_ANY = 1,
-	XRT_FUTURE_COMBINE_ALL = 2,
-	XRT_FUTURE_COMBINE_RACE = 3
-} xrt_future_combine_mode;
-
-
-
-typedef struct xrt_future_combine xrt_future_combine;
-
-
-
-/* 每个输入槽位保存一个无需额外分配的 Future 完成监听。 */
-typedef struct xrt_future_combine_item {
-	xrt_future_waiter Waiter;
-	xrt_future_combine* Group;
-	size_t Index;
-} xrt_future_combine_item;
-
-
-
-/* 组合上下文、源引用和监听槽位由一次连续分配保存。 */
-struct xrt_future_combine {
-	volatile int32 RefCount;
-	xmutex Lock;
-	xrt_future_combine_mode Mode;
-	size_t Count;
-	size_t Remaining;
-	bool Completed;
-	xpromise* Promise;
-	xcancelwatch* Watch;
-	xfuture** Sources;
-	xrt_future_combine_item* Items;
-	xfuturepick Pick;
-	xfutureall All;
-	xfutureallmapproc AllMap;
-	xfuturepickmapproc PickMap;
-	ptr MapData;
-	xfuturefreeproc MapDestroy;
-	ptr MapDestroyData;
-	xfutureownershiptrace MapTrace;
-	bool MapAccepted;
+static const xrtownershipops __xrtTaskPoolOwnershipOps = {
+	__xrtTaskPoolOwnershipCount, __xrtTaskPoolOwnershipTrace
 };
-
-
-
-/* A shared group is one physical RC node. Each source slot is a real retain,
- * including duplicates. Pick/All borrow those slots rather than owning a
- * second set. The pending operation's base reference remains an external
- * operation root until it transfers into the terminal result or cancellation. */
-static bool __xrtFutureCombineOwnershipCount(const void* pData, size_t* pCount)
+XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool)
+{ return (xrtownershipref){pPool, pPool ? &__xrtTaskPoolOwnershipOps : NULL}; }
+static bool __xrtTaskPoolHold(const void* pData)
 {
-	const xrt_future_combine* pGroup = (const xrt_future_combine*)pData;
-	int32 iCount;
-	if (pGroup == NULL || pCount == NULL) return false;
-	iCount = __xrtAtomicRefLoad(&pGroup->RefCount);
-	if (iCount <= 0) return false;
-	*pCount = (size_t)iCount; return true;
+	xtaskpool* pPool = (xtaskpool*)pData; xrtownershipscope Mutation = {0}; bool bHeld = false;
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	if (pPool->References && pPool->References < SIZE_MAX && !pPool->OwnershipCleared) {
+		++pPool->References; bHeld = true;
+	}
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation); return bHeld;
 }
-static bool __xrtFutureCombineOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+static bool __xrtTaskPoolClaim(const void* pData, const void* pToken)
 {
-	const xrt_future_combine* pGroup = (const xrt_future_combine*)pData;
-	if (pGroup == NULL || pVisit == NULL) return false;
-	if (pGroup->Promise != NULL && !pVisit(xrtPromiseOwnership(pGroup->Promise), pContext)) return false;
-	if (pGroup->Watch != NULL && !pVisit(xrtCancelWatchOwnership(pGroup->Watch), pContext)) return false;
-	for (size_t i = 0; i < pGroup->Count; ++i)
-		if (!pVisit(xrtFutureOwnership(pGroup->Sources[i]), pContext)) return false;
-	if (pGroup->MapAccepted && !pGroup->MapTrace(
-		pGroup->MapData, pGroup->MapDestroyData, pVisit, pContext)) return false;
-	return true;
+	xtaskpool* pPool = (xtaskpool*)pData;
+	if (!pToken || pPool->Resources || pPool->OwnershipCleared || (pPool->OwnershipClaim && pPool->OwnershipClaim != pToken)) return false;
+	pPool->OwnershipClaim = pToken; return true;
 }
-static const xrtownershipops __xrtFutureCombineOwnershipOps = {
-	__xrtFutureCombineOwnershipCount, __xrtFutureCombineOwnershipTrace
-};
-static bool __xrtFutureCombineTraceGroup(const xrt_future_combine* pGroup, xrtownershipvisitor pVisit, ptr pContext)
+static void __xrtTaskPoolRestore(const void* pData, const void* pToken)
 {
-	xrtownershipref Ref = {pGroup, pGroup != NULL ? &__xrtFutureCombineOwnershipOps : NULL};
-	return pGroup != NULL && pVisit != NULL && pVisit(Ref, pContext);
+	xtaskpool* pPool = (xtaskpool*)pData;
+	if (!pToken || pPool->OwnershipClaim != pToken || pPool->OwnershipCleared) abort();
+	pPool->OwnershipClaim = NULL;
 }
-static bool __xrtFutureCombineTraceWaiter(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+static bool __xrtTaskPoolPreparationReady(const void* pData)
 {
-	const xrt_future_combine_item* pItem = (const xrt_future_combine_item*)pData;
-	return pItem != NULL && __xrtFutureCombineTraceGroup(pItem->Group, pVisit, pContext);
+	const xtaskpool* pPool = pData;
+	return pPool->Closed && pPool->Joined && !pPool->Joining && !pPool->Destroying &&
+		!pPool->Retiring && !pPool->Entries && !pPool->Resources && __xrtTaskPoolIdleLocked(pPool);
 }
-static bool __xrtFutureCombineTraceResult(const void* pValue, const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+static xrtownershipprepareresult __xrtTaskPoolPrepare(const void* pData, const void* pToken)
 {
-	const xrt_future_combine* pGroup = (const xrt_future_combine*)pData;
-	if (pGroup == NULL || !pGroup->Completed ||
-		pValue != (pGroup->Mode == XRT_FUTURE_COMBINE_ALL ? (const void*)&pGroup->All : (const void*)&pGroup->Pick)) return false;
-	return __xrtFutureCombineTraceGroup(pGroup, pVisit, pContext);
+	xtaskpool* pPool = (xtaskpool*)pData; xrtownershipscope Freeze = {0}, Mutation = {0};
+	if (!xrtOwnershipFreezeTryBegin(&Freeze)) return XRT_OWNERSHIP_PREPARE_BUSY;
+	if (!pToken || pPool->OwnershipClaim != pToken || pPool->OwnershipCleared) abort();
+	bool bReady = __xrtTaskPoolPreparationReady(pData);
+	bool bJoin = !pPool->Entries && !pPool->Resources && !pPool->Joining && !pPool->Destroying && !pPool->Retiring;
+	if (!bReady && bJoin) {
+		/* No native body can hold Lock while waiting for mutation: Entries is
+		 * zero. Worker wakeups release Lock before requesting mutation. */
+		(void)xrtMutexLock(&pPool->Lock);
+		pPool->Closed = true; (void)xrtCondBroadcast(&pPool->Space);
+		bJoin = __xrtTaskPoolIdleLocked(pPool);
+		if (bJoin) { pPool->Shutdown = true; (void)xrtCondBroadcast(&pPool->Work); }
+		for (uint32 i = 0; i < pPool->StartedThreads; ++i)
+			if (!pPool->Workers[i].Exited || pPool->Workers[i].Parked) bJoin = false;
+		if (bJoin) pPool->Joining = true;
+		(void)xrtMutexUnlock(&pPool->Lock);
+	}
+	if (!xrtOwnershipScopeEnd(&Freeze)) abort();
+	if (bReady) return XRT_OWNERSHIP_PREPARE_READY;
+	if (!bJoin) return XRT_OWNERSHIP_PREPARE_BUSY;
+	bool bJoined = true, bFailed = false;
+	for (uint32 i = 0; i < pPool->StartedThreads; ++i) {
+		xwaitresult Result = xrtThreadWaitFor(pPool->Workers[i].Thread, 0);
+		if (Result != XWAIT_OK) { bJoined = false; if (Result != XWAIT_TIMEOUT) bFailed = true; }
+	}
+	__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
+	pPool->Joining = false; pPool->Joined = bJoined;
+	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
+	return bFailed ? XRT_OWNERSHIP_PREPARE_FAILED : bJoined ? XRT_OWNERSHIP_PREPARE_READY : XRT_OWNERSHIP_PREPARE_BUSY;
 }
-
-
-
-/* 增加组合上下文的内部引用。 */
-static void __xrtFutureCombineRef(xrt_future_combine* pGroup)
+static void __xrtTaskPoolClear(const void* pData, const void* pToken)
 {
-	(void)xrtRefRetain(&pGroup->RefCount);
+	xtaskpool* pPool = (xtaskpool*)pData;
+	if (!pToken || pPool->OwnershipClaim != pToken || pPool->OwnershipCleared || !__xrtTaskPoolPreparationReady(pData)) abort();
+	pPool->OwnershipCleared = true;
 }
-
-
-
-/* 回收已没有结果、创建者和监听持有者的组合上下文。 */
-static void __xrtFutureCombineFree(xrt_future_combine* pGroup)
+static bool __xrtTaskPoolFinish(const void* pData, const void* pToken)
 {
-	if (pGroup->MapAccepted)
-		pGroup->MapDestroy(pGroup->MapData, pGroup->MapDestroyData);
-	for ( size_t i = 0; i < pGroup->Count; i++ ) {
-		xrtFutureDestroy(pGroup->Sources[i]);
-	}
-	(void)xrtMutexUnit(&pGroup->Lock);
-	xrtFree(pGroup);
+	xtaskpool* pPool = (xtaskpool*)pData;
+	if (!pToken || pPool->OwnershipClaim != pToken || !pPool->OwnershipCleared) abort();
+	return __xrtTaskPoolRetire(pPool, 0);
 }
-
-
-
-/* 释放组合上下文的一个内部引用。 */
-static void __xrtFutureCombineRelease(xrt_future_combine* pGroup)
+XRT_API const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation)
 {
-	if ( xrtRefRelease(&pGroup->RefCount) == 0 ) {
-		__xrtFutureCombineFree(pGroup);
-	}
-}
-
-
-
-/* Future 监听离开源链表后释放它持有的组合上下文引用。 */
-static void __xrtFutureCombineWaiterRelease(ptr pData)
-{
-	xrt_future_combine_item* pItem = (xrt_future_combine_item*)pData;
-
-	__xrtFutureCombineRelease(pItem->Group);
-}
-
-
-
-/* 摘除全部仍挂接的源监听；当前回调槽位由 Future 完成路径自行收尾。 */
-static void __xrtFutureCombineDetach(
-	xrt_future_combine* pGroup,
-	xrt_future_combine_item* pCurrent
-)
-{
-	for ( size_t i = 0; i < pGroup->Count; i++ ) {
-		xrt_future_combine_item* pItem = &pGroup->Items[i];
-
-		if ( pItem != pCurrent ) {
-			(void)__xrtFutureWaiterDetach(
-				pGroup->Sources[i],
-				&pItem->Waiter
-			);
-		}
-	}
-}
-
-
-
-/* 向指定槽位以外的源发送协作取消请求，不伪造源 Future 终态。 */
-static void __xrtFutureCombineCancelSources(
-	xrt_future_combine* pGroup,
-	size_t iExcept
-)
-{
-	for ( size_t i = 0; i < pGroup->Count; i++ ) {
-		if ( i != iExcept ) {
-			(void)xrtFutureCancel(pGroup->Sources[i]);
-		}
-	}
-}
-
-
-
-/* 组合结果释放时注销取消监听，再交还结果持有的上下文引用。 */
-static void __xrtFutureCombineDestroyValue(ptr pValue, ptr pData)
-{
-	xrt_future_combine* pGroup = (xrt_future_combine*)pData;
-	xcancelwatch* pWatch;
-
-	(void)pValue;
-	(void)xrtMutexLock(&pGroup->Lock);
-	pWatch = pGroup->Watch;
-	pGroup->Watch = NULL;
-	(void)xrtMutexUnlock(&pGroup->Lock);
-	if ( pWatch != NULL ) {
-		xrtCancelUnwatch(pWatch);
-	}
-	__xrtFutureCombineRelease(pGroup);
-}
-
-
-
-/* The operation reference either transfers to the raw result or is released
- * after synchronous mapping. The creator/current waiter keeps the group alive
- * until this function and any following Race cancellation have returned. */
-static void __xrtFutureCombineComplete(xrt_future_combine* pGroup,
-	xpromise* pPromise, ptr pResult)
-{
-	if (pGroup->MapAccepted) {
-		if (pGroup->AllMap != NULL)
-			pGroup->AllMap(&pGroup->All, pPromise, pGroup->MapData);
-		else
-			pGroup->PickMap(&pGroup->Pick, pPromise, pGroup->MapData);
-		if (!xrtPromiseDone(pPromise)) (void)xrtPromiseClose(pPromise);
-		__xrtFutureCombineDestroyValue(NULL, pGroup);
-	} else if (!xrtPromiseResolveOwnedTraced(pPromise, pResult,
-		__xrtFutureCombineDestroyValue, pGroup, __xrtFutureCombineTraceResult)) {
-		__xrtFutureCombineDestroyValue(NULL, pGroup);
-	}
-	xrtPromiseDestroy(pPromise);
-}
-
-/* 输出 Future 被请求取消时，结束组合监听并把请求传播给全部源。 */
-static void __xrtFutureCombineCancelled(ptr pData)
-{
-	xrt_future_combine* pGroup = (xrt_future_combine*)pData;
-	xpromise* pPromise;
-	xcancelwatch* pWatch;
-
-	(void)xrtMutexLock(&pGroup->Lock);
-	if ( pGroup->Completed ) {
-		(void)xrtMutexUnlock(&pGroup->Lock);
-		return;
-	}
-	pGroup->Completed = true;
-	pPromise = pGroup->Promise;
-	pGroup->Promise = NULL;
-	pWatch = pGroup->Watch;
-	pGroup->Watch = NULL;
-	(void)xrtMutexUnlock(&pGroup->Lock);
-
-	__xrtFutureCombineDetach(pGroup, NULL);
-	(void)xrtPromiseCancel(pPromise);
-	xrtPromiseDestroy(pPromise);
-	__xrtFutureCombineCancelSources(pGroup, SIZE_MAX);
-	if ( pWatch != NULL ) {
-		xrtCancelUnwatch(pWatch);
-	}
-	__xrtFutureCombineRelease(pGroup);
-}
-
-
-
-/* 一个源进入终态后更新组合计数，并由唯一胜出者完成输出 Future。 */
-static void __xrtFutureCombineSourceDone(ptr pData)
-{
-	xrt_future_combine_item* pItem = (xrt_future_combine_item*)pData;
-	xrt_future_combine* pGroup = pItem->Group;
-	xpromise* pPromise = NULL;
-	ptr pResult = NULL;
-	bool bRace = false;
-
-	(void)xrtMutexLock(&pGroup->Lock);
-	if ( !pGroup->Completed ) {
-		if ( pGroup->Mode == XRT_FUTURE_COMBINE_ALL ) {
-			pGroup->Remaining--;
-			if ( pGroup->Remaining == 0 ) {
-				pGroup->Completed = true;
-				pResult = &pGroup->All;
-			}
-		} else {
-			pGroup->Completed = true;
-			pGroup->Pick.Index = pItem->Index;
-			pGroup->Pick.Future = pGroup->Sources[pItem->Index];
-			pResult = &pGroup->Pick;
-			bRace = pGroup->Mode == XRT_FUTURE_COMBINE_RACE;
-		}
-		if ( pGroup->Completed ) {
-			pPromise = pGroup->Promise;
-			pGroup->Promise = NULL;
-		}
-	}
-	(void)xrtMutexUnlock(&pGroup->Lock);
-	if ( pPromise == NULL ) {
-		return;
-	}
-
-	__xrtFutureCombineDetach(pGroup, pItem);
-	__xrtFutureCombineComplete(pGroup, pPromise, pResult);
-	if ( bRace ) {
-		__xrtFutureCombineCancelSources(pGroup, pItem->Index);
-	}
-}
-
-
-
-/* 判断组合是否已由更早完成的源占据终态。 */
-static bool __xrtFutureCombineDone(xrt_future_combine* pGroup)
-{
-	bool bDone;
-
-	(void)xrtMutexLock(&pGroup->Lock);
-	bDone = pGroup->Completed;
-	(void)xrtMutexUnlock(&pGroup->Lock);
-	return bDone;
-}
-
-
-
-/* 为一个输入槽位注册完成监听，并补偿注册前已经完成的竞争窗口。 */
-static void __xrtFutureCombineAttach(
-	xrt_future_combine* pGroup,
-	size_t iIndex
-)
-{
-	xrt_future_combine_item* pItem = &pGroup->Items[iIndex];
-
-	__xrtFutureCombineRef(pGroup);
-	if ( !__xrtFutureWaiterAdd(pGroup->Sources[iIndex], &pItem->Waiter) ) {
-		__xrtFutureCombineSourceDone(pItem);
-		__xrtFutureCombineRelease(pGroup);
-	} else if (__xrtFutureCombineDone(pGroup)) {
-		/* Completion can win between the creator's done check and insertion.
-		 * Do not leave a late waiter attached to an otherwise finished group. */
-		(void)__xrtFutureWaiterDetach(pGroup->Sources[iIndex], &pItem->Waiter);
-	}
-}
-
-
-
-/* 回收尚未暴露给调用方的创建失败上下文。 */
-static void __xrtFutureCombineCreateFailed(
-	xrt_future_combine* pGroup,
-	xfuture* pFuture
-)
-{
-	if ( pGroup->Watch != NULL ) {
-		xrtCancelUnwatch(pGroup->Watch);
-		pGroup->Watch = NULL;
-	}
-	if ( pGroup->Promise != NULL ) {
-		xrtPromiseDestroy(pGroup->Promise);
-		pGroup->Promise = NULL;
-	}
-	xrtFutureDestroy(pFuture);
-	__xrtFutureCombineRelease(pGroup);
-	__xrtFutureCombineRelease(pGroup);
-}
-
-
-
-/* 创建并装配一种 Future 组合器。 */
-static xfuture* __xrtOwnershipBody_FutureCombineCreate(
-	xfuture* const* pFutures,
-	size_t iCount,
-	xrt_future_combine_mode Mode,
-	xfutureallmapproc pAllMap, xfuturepickmapproc pPickMap,
-	ptr pData, xfuturefreeproc pDestroy, ptr pDestroyData,
-	xfutureownershiptrace pTrace
-)
-{
-	xrt_future_combine* pGroup;
-	xfuture* pFuture = NULL;
-	xcancel* pCancel;
-	size_t iBytes;
-
-	if (
-		((Mode != XRT_FUTURE_COMBINE_ALL) && (iCount == 0)) ||
-		((iCount != 0) && (pFutures == NULL))
-	) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if (
-		(iCount > (size_t)(INT32_MAX - 2)) ||
-		iCount >
-		((SIZE_MAX - sizeof(xrt_future_combine)) /
-		(sizeof(xfuture*) + sizeof(xrt_future_combine_item)))
-	) {
-		__xrtErrorSetSizeOverflow();
-		return NULL;
-	}
-	iBytes = sizeof(xrt_future_combine) +
-		(iCount * (sizeof(xfuture*) + sizeof(xrt_future_combine_item)));
-	pGroup = (xrt_future_combine*)xrtCalloc(1, iBytes);
-	if ( pGroup == NULL ) {
-		return NULL;
-	}
-	pGroup->RefCount = 2;
-	pGroup->Mode = Mode;
-	pGroup->Count = iCount;
-	pGroup->Remaining = iCount;
-	pGroup->Sources = iCount == 0 ? NULL : (xfuture**)(pGroup + 1);
-	pGroup->Items = iCount == 0 ? NULL :
-		(xrt_future_combine_item*)(pGroup->Sources + iCount);
-	pGroup->All.Count = iCount;
-	pGroup->All.Futures = pGroup->Sources;
-	pGroup->AllMap = pAllMap;
-	pGroup->PickMap = pPickMap;
-	pGroup->MapData = pData;
-	pGroup->MapDestroy = pDestroy;
-	pGroup->MapDestroyData = pDestroyData;
-	pGroup->MapTrace = pTrace;
-	if ( !xrtMutexInit(&pGroup->Lock) ) {
-		xrtFree(pGroup);
-		return NULL;
-	}
-
-	for ( size_t i = 0; i < iCount; i++ ) {
-		pGroup->Sources[i] = xrtFutureRef(pFutures[i]);
-		if ( pGroup->Sources[i] == NULL ) {
-			__xrtFutureCombineRelease(pGroup);
-			__xrtFutureCombineRelease(pGroup);
-			return NULL;
-		}
-		pGroup->Items[i].Group = pGroup;
-		pGroup->Items[i].Index = i;
-		pGroup->Items[i].Waiter.Proc = __xrtFutureCombineSourceDone;
-		pGroup->Items[i].Waiter.Release = __xrtFutureCombineWaiterRelease;
-		pGroup->Items[i].Waiter.Data = &pGroup->Items[i];
-		pGroup->Items[i].Waiter.OwnershipTrace = __xrtFutureCombineTraceWaiter;
-	}
-
-	pGroup->Promise = xrtPromiseCreate(&pFuture, NULL);
-	if ( pGroup->Promise == NULL ) {
-		__xrtFutureCombineRelease(pGroup);
-		__xrtFutureCombineRelease(pGroup);
-		return NULL;
-	}
-	if ( iCount == 0 ) {
-		xpromise* pPromise = pGroup->Promise;
-		pGroup->Promise = NULL;
-		pGroup->MapAccepted = pAllMap != NULL;
-		pGroup->Completed = true;
-		__xrtFutureCombineComplete(pGroup, pPromise, &pGroup->All);
-		__xrtFutureCombineRelease(pGroup);
-		return pFuture;
-	}
-
-	pCancel = xrtPromiseCancelToken(pGroup->Promise);
-	if ( pCancel == NULL ) {
-		__xrtFutureCombineCreateFailed(pGroup, pFuture);
-		return NULL;
-	}
-	pGroup->Watch = xrtCancelWatch(pCancel, __xrtFutureCombineCancelled, pGroup);
-	xrtCancelDestroy(pCancel);
-	if ( pGroup->Watch == NULL ) {
-		__xrtFutureCombineCreateFailed(pGroup, pFuture);
-		return NULL;
-	}
-
-	/* No fallible transport preparation remains beyond this commit point. */
-	pGroup->MapAccepted = pAllMap != NULL || pPickMap != NULL;
-	if ( Mode == XRT_FUTURE_COMBINE_ALL ) {
-		for ( size_t i = 0; i < iCount; i++ ) {
-			__xrtFutureCombineAttach(pGroup, i);
-		}
-	} else {
-		for ( size_t i = 0; i < iCount; i++ ) {
-			if ( xrtFutureDone(pGroup->Sources[i]) ) {
-				__xrtFutureCombineAttach(pGroup, i);
-				break;
-			}
-		}
-		if ( !__xrtFutureCombineDone(pGroup) ) {
-			for ( size_t i = 0; i < iCount; i++ ) {
-				if ( __xrtFutureCombineDone(pGroup) ) {
-					break;
-				}
-				__xrtFutureCombineAttach(pGroup, i);
-			}
-		}
-	}
-	__xrtFutureCombineRelease(pGroup);
-	return pFuture;
-}
-
-static xfuture* __xrtFutureCombineCreate(
-	xfuture* const* pFutures,
-	size_t iCount,
-	xrt_future_combine_mode Mode,
-	xfutureallmapproc pAllMap, xfuturepickmapproc pPickMap,
-	ptr pData, xfuturefreeproc pDestroy, ptr pDestroyData,
-	xfutureownershiptrace pTrace
-)
-{
-	XRT_OWNERSHIP_MUTATION_RETURN(xfuture*, NULL, __xrtOwnershipBody_FutureCombineCreate(pFutures, iCount, Mode, pAllMap, pPickMap, pData, pDestroy, pDestroyData, pTrace));
-}
-
-
-
-/* 创建第一个源终态选择器。 */
-XRT_API xfuture* xrtFutureAny(xfuture* const* pFutures, size_t iCount)
-{
-	return __xrtFutureCombineCreate(
-		pFutures,
-		iCount,
-		XRT_FUTURE_COMBINE_ANY, NULL, NULL, NULL, NULL, NULL, NULL
-	);
-}
-
-
-
-/* 创建等待全部源终态的保序组合器。 */
-XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount)
-{
-	return __xrtFutureCombineCreate(
-		pFutures,
-		iCount,
-		XRT_FUTURE_COMBINE_ALL, NULL, NULL, NULL, NULL, NULL, NULL
-	);
-}
-
-
-
-/* 创建首个终态胜出并取消其余源的竞争组合器。 */
-XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount)
-{
-	return __xrtFutureCombineCreate(
-		pFutures,
-		iCount,
-		XRT_FUTURE_COMBINE_RACE, NULL, NULL, NULL, NULL, NULL, NULL
-	);
-}
-
-XRT_API xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfutureallmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace)
-{
-	if (pMap == NULL || pDestroy == NULL || pTrace == NULL) {
-		__xrtErrorSetInvalidArgument(); return NULL;
-	}
-	return __xrtFutureCombineCreate(pFutures, iCount, XRT_FUTURE_COMBINE_ALL,
-		pMap, NULL, pData, pDestroy, pDestroyData, pTrace);
-}
-XRT_API xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace)
-{
-	if (pMap == NULL || pDestroy == NULL || pTrace == NULL) {
-		__xrtErrorSetInvalidArgument(); return NULL;
-	}
-	return __xrtFutureCombineCreate(pFutures, iCount, XRT_FUTURE_COMBINE_ANY,
-		NULL, pMap, pData, pDestroy, pDestroyData, pTrace);
-}
-XRT_API xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount,
-    xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy,
-    ptr pDestroyData, xfutureownershiptrace pTrace)
-{
-	if (pMap == NULL || pDestroy == NULL || pTrace == NULL) {
-		__xrtErrorSetInvalidArgument(); return NULL;
-	}
-	return __xrtFutureCombineCreate(pFutures, iCount, XRT_FUTURE_COMBINE_RACE,
-		NULL, pMap, pData, pDestroy, pDestroyData, pTrace);
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtTaskPoolHold, __xrtTaskPoolRelease,
+		__xrtTaskPoolClaim, __xrtTaskPoolRestore, NULL, __xrtTaskPoolClear, __xrtTaskPoolFinish};
+	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter,
+		__xrtTaskPoolPreparationReady, __xrtTaskPoolPrepare};
+	size_t iCount;
+	if (!ppPreparation || Reference.Ops != &__xrtTaskPoolOwnershipOps ||
+		!__xrtTaskPoolOwnershipCount(Reference.Data, &iCount)) return NULL;
+	*ppPreparation = &Preparation; return &Adapter;
 }
 
 #endif
@@ -191121,6 +191965,1075 @@ XRT_API bool xrtValueSetEqual(
 )
 {
 	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueSetEqual(pLeft, pRight));
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/file_async_common.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
+
+
+
+#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
+
+/* 把同步文件或任务池错误包装为稳定的异步文件错误。 */
+void __xrtFileAsyncError(
+	xfileasyncerror Code,
+	cstr sOperation,
+	cstr sMessage
+)
+{
+	xerror* pCause = xrtTakeError();
+	xerrordesc Desc;
+	xerror* pError;
+
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = pCause != NULL ?
+		xrtErrorKind(pCause) : XERR_IO;
+	Desc.Domain = "xrt.file.async";
+	Desc.Code = (int32)Code;
+	Desc.Operation = sOperation;
+	Desc.Message = sMessage;
+	Desc.Cause = pCause;
+	pError = xrtErrorBuild(&Desc);
+	if ( pError != NULL ) {
+		xrtSetError(pError);
+		xrtErrorFree(pError);
+	} else if ( pCause != NULL ) {
+		xrtSetError(pCause);
+	}
+	xrtErrorFree(pCause);
+}
+
+
+
+/* 提交拥有型任务，并在受理失败时完整回收调用参数。 */
+xfuture* __xrtFileAsyncSubmit(
+	xtaskpool* pPool,
+	xtaskproc pProc,
+	ptr pData,
+	xfuturefreeproc pDestroy
+)
+{
+	xtaskargs Args;
+	xfuture* pFuture;
+
+	memset(&Args, 0, sizeof(Args));
+	Args.Destroy = pDestroy;
+	pFuture = xrtTaskSubmit(pPool, pProc, pData, &Args);
+	if ( pFuture != NULL ) {
+		return pFuture;
+	}
+	__xrtFileAsyncError(
+		XFILE_ASYNC_ERROR_SUBMIT,
+		"submit-file-operation",
+		"failed to submit the asynchronous file operation"
+	);
+	if ( pDestroy != NULL ) {
+		pDestroy(pData, NULL);
+	}
+	return NULL;
+}
+
+
+
+/* 释放单次分配的 Future 值。 */
+void __xrtFileAsyncValueFree(ptr pValue, ptr pData)
+{
+	(void)pData;
+	xrtFree(pValue);
+}
+
+
+
+/* 连续分配任务头和路径，避免每个高层异步操作重复多次分配。 */
+ptr __xrtFileAsyncPathTaskCreate(
+	size_t iTaskSize,
+	cstr sSource,
+	cstr sTarget,
+	cstr* pSource,
+	cstr* pTarget
+)
+{
+	size_t iSource;
+	size_t iTarget = 0;
+	size_t iTotal;
+	bytes pTask;
+	str sStorage;
+
+	if ( (iTaskSize == 0) ||
+		(sSource == NULL) || (sSource[0] == '\0') ||
+		(pSource == NULL) || (pTarget == NULL) ||
+		((sTarget != NULL) && (sTarget[0] == '\0')) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	iSource = strlen(sSource);
+	if ( sTarget != NULL ) {
+		iTarget = strlen(sTarget);
+	}
+	if ( (iTaskSize > (SIZE_MAX - 2u)) ||
+		(iSource > (SIZE_MAX - iTaskSize - 2u)) ||
+		(iTarget > (SIZE_MAX - iTaskSize - iSource - 2u)) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	iTotal = iTaskSize + iSource + iTarget + 2u;
+	pTask = (bytes)xrtMalloc(iTotal);
+	if ( pTask == NULL ) {
+		return NULL;
+	}
+	memset(pTask, 0, iTaskSize);
+	sStorage = (str)(pTask + iTaskSize);
+	memcpy(sStorage, sSource, iSource + 1u);
+	*pSource = sStorage;
+	*pTarget = NULL;
+	if ( sTarget != NULL ) {
+		*pTarget = sStorage + iSource + 1u;
+		memcpy((str)*pTarget, sTarget, iTarget + 1u);
+	}
+	return pTask;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/file_async.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_FILE_ASYNC)
+
+
+
+#if defined(XRT_FEATURE_FILE_ASYNC)
+
+/* 每个已受理任务持有一个对象引用，关闭只在最后一个任务结束后发生。 */
+struct xasyncfile {
+	xmutex Lock;
+	xfile File;
+	xtaskpool* Pool;
+	xpromise* ClosePromise;
+	xfuture* CloseFuture;
+	xrt_task_finalizer Finalizer;
+	size_t References;
+	uint32 Flags;
+	bool Closing;
+};
+
+
+
+/* 五种文件操作共享同一份紧凑任务参数。 */
+typedef enum xrt_async_file_operation {
+	XRT_ASYNC_FILE_READ = 1,
+	XRT_ASYNC_FILE_WRITE,
+	XRT_ASYNC_FILE_FLUSH,
+	XRT_ASYNC_FILE_SIZE,
+	XRT_ASYNC_FILE_RESIZE
+} xrt_async_file_operation;
+
+
+
+/* 写任务额外拥有 Data，其他任务只使用标量参数。 */
+typedef struct xrt_async_file_task {
+	xasyncfile* File;
+	xrt_async_file_operation Operation;
+	uint64 Offset;
+	uint64 Size;
+	cbytes Data;
+	xfileasyncreleaseproc Release;
+	ptr ReleaseContext;
+} xrt_async_file_task;
+
+
+
+/* 在任务池资源回收通道关闭原生文件并完成 Close Future。 */
+static void __xrtAsyncFileFinalize(ptr pData)
+{
+	xasyncfile* pFile = (xasyncfile*)pData;
+	xerror* pError = NULL;
+
+	xrtClearError();
+	if ( !xrtClose(pFile->File) ) {
+		__xrtFileAsyncError(
+			XFILE_ASYNC_ERROR_CLOSE,
+			"close-file",
+			"failed to close the asynchronous file"
+		);
+		pError = xrtTakeError();
+	}
+	if ( pError != NULL ) {
+		(void)xrtPromiseReject(
+			pFile->ClosePromise,
+			pError
+		);
+	} else {
+		(void)xrtPromiseResolve(
+			pFile->ClosePromise,
+			NULL
+		);
+	}
+	xrtErrorFree(pError);
+	xrtPromiseDestroy(pFile->ClosePromise);
+	xrtFutureDestroy(pFile->CloseFuture);
+	xtaskpool* pPool = pFile->Pool;
+	(void)xrtMutexUnit(&pFile->Lock);
+	xrtFree(pFile);
+	__xrtTaskPoolReleaseResource(pPool);
+}
+
+
+
+/*
+	释放一个对象引用。
+	最后一个引用只投递无分配回收过程，不在调用线程执行文件系统操作。
+*/
+static void __xrtAsyncFileRelease(xasyncfile* pFile)
+{
+	bool bFinalize = false;
+
+	if ( pFile == NULL ) {
+		return;
+	}
+	(void)xrtMutexLock(&pFile->Lock);
+	if ( pFile->References != 0 ) {
+		pFile->References--;
+	}
+	if ( pFile->Closing && (pFile->References == 0) ) {
+		bFinalize = true;
+	}
+	(void)xrtMutexUnlock(&pFile->Lock);
+	if ( bFinalize ) {
+		__xrtTaskPoolFinalize(
+			pFile->Pool,
+			&pFile->Finalizer,
+			__xrtAsyncFileFinalize,
+			pFile
+		);
+	}
+}
+
+
+
+/* 在对象仍接收操作时增加任务引用。 */
+static bool __xrtAsyncFileAcquire(xasyncfile* pFile)
+{
+	bool bResult = false;
+
+	if ( pFile == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	(void)xrtMutexLock(&pFile->Lock);
+	if ( !pFile->Closing ) {
+		pFile->References++;
+		bResult = true;
+	}
+	(void)xrtMutexUnlock(&pFile->Lock);
+	if ( !bResult ) {
+		__xrtErrorSetClosed();
+	}
+	return bResult;
+}
+
+
+
+/* 释放任务数据、写入副本和任务持有的文件引用。 */
+static void __xrtAsyncFileTaskFree(
+	ptr pValue,
+	ptr pData
+)
+{
+	xrt_async_file_task* pTask =
+		(xrt_async_file_task*)pValue;
+
+	(void)pData;
+	if ( pTask == NULL ) {
+		return;
+	}
+	if ( pTask->Release != NULL ) {
+		pTask->Release(
+			pTask->ReleaseContext,
+			pTask->Data,
+			(size_t)pTask->Size
+		);
+	}
+	__xrtAsyncFileRelease(pTask->File);
+	xrtFree(pTask);
+}
+
+
+
+/* 创建由 Future 一次拥有的读取结果及其连续数据区。 */
+static xfiledata* __xrtAsyncFileDataCreate(
+	uint64 iOffset,
+	size_t iSize
+)
+{
+	xfiledata* pData;
+
+	if ( iSize > (SIZE_MAX - sizeof(xfiledata) - 1) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	pData = (xfiledata*)xrtMalloc(
+		sizeof(xfiledata) + iSize + 1
+	);
+	if ( pData == NULL ) {
+		return NULL;
+	}
+	pData->Data = (bytes)(pData + 1);
+	pData->Size = 0;
+	pData->Offset = iOffset;
+	pData->End = false;
+	pData->Data[0] = 0;
+	return pData;
+}
+
+
+
+/* 创建写入、大小查询或修改大小的轻量结果。 */
+static xfilechange* __xrtAsyncFileChangeCreate(
+	uint64 iOffset,
+	uint64 iSize
+)
+{
+	xfilechange* pChange =
+		(xfilechange*)xrtMalloc(sizeof(xfilechange));
+
+	if ( pChange != NULL ) {
+		pChange->Offset = iOffset;
+		pChange->Size = iSize;
+	}
+	return pChange;
+}
+
+
+
+/* 创建不带写入偏移语义的文件大小查询结果。 */
+static xfilesize* __xrtAsyncFileSizeCreate(uint64 iSize)
+{
+	xfilesize* pSize = (xfilesize*)xrtMalloc(sizeof(xfilesize));
+
+	if ( pSize != NULL ) {
+		pSize->Size = iSize;
+	}
+	return pSize;
+}
+
+
+
+/* 使用原生 positioned I/O 执行读取，不修改共享文件游标。 */
+static xtaskoutcome __xrtAsyncFileReadTask(
+	xcancel* pCancel,
+	xrt_async_file_task* pTask,
+	xtaskvalue* pResult
+)
+{
+	xfiledata* pData;
+	size_t iDone = 0;
+
+	pData = __xrtAsyncFileDataCreate(
+		pTask->Offset,
+		(size_t)pTask->Size
+	);
+	if ( pData == NULL ) {
+		return XTASK_FAILED;
+	}
+	if ( xrtCancelRequested(pCancel) ) {
+		xrtFree(pData);
+		return XTASK_CANCELLED;
+	}
+	if ( !xrtReadAt(
+		pTask->File->File,
+		pTask->Offset,
+		pData->Data,
+		(size_t)pTask->Size,
+		&iDone
+	) ) {
+		xrtFree(pData);
+		__xrtFileAsyncError(
+			XFILE_ASYNC_ERROR_READ,
+			"read-file",
+			"failed to read the asynchronous file"
+		);
+		return XTASK_FAILED;
+	}
+	pData->Size = iDone;
+	pData->End = iDone < (size_t)pTask->Size;
+	pData->Data[iDone] = 0;
+	pResult->Value = pData;
+	pResult->Destroy = __xrtFileAsyncValueFree;
+	return XTASK_SUCCESS;
+}
+
+
+
+/* 使用原生 positioned I/O 完整写入，不修改共享文件游标。 */
+static xtaskoutcome __xrtAsyncFileWriteTask(
+	xcancel* pCancel,
+	xrt_async_file_task* pTask,
+	xtaskvalue* pResult
+)
+{
+	xfilechange* pChange = __xrtAsyncFileChangeCreate(
+		pTask->Offset,
+		pTask->Size
+	);
+	size_t iDone = 0;
+
+	if ( pChange == NULL ) {
+		return XTASK_FAILED;
+	}
+	if ( xrtCancelRequested(pCancel) ) {
+		xrtFree(pChange);
+		return XTASK_CANCELLED;
+	}
+	if ( !xrtWriteAtFull(
+		pTask->File->File,
+		pTask->Offset,
+		pTask->Data,
+		(size_t)pTask->Size,
+		&iDone
+	) ) {
+		xrtFree(pChange);
+		__xrtFileAsyncError(
+			XFILE_ASYNC_ERROR_WRITE,
+			"write-file",
+			"failed to write the asynchronous file"
+		);
+		return XTASK_FAILED;
+	}
+	pChange->Size = iDone;
+	pResult->Value = pChange;
+	pResult->Destroy = __xrtFileAsyncValueFree;
+	return XTASK_SUCCESS;
+}
+
+
+
+/* 刷新文件；只读对象沿用同步文件层的成功空操作语义。 */
+static xtaskoutcome __xrtAsyncFileFlushTask(
+	xcancel* pCancel,
+	xrt_async_file_task* pTask
+)
+{
+	if ( xrtCancelRequested(pCancel) ) {
+		return XTASK_CANCELLED;
+	}
+	if ( ((pTask->File->Flags & XFILE_WRITE) != 0u) &&
+		!xrtFlush(pTask->File->File) ) {
+		__xrtFileAsyncError(
+			XFILE_ASYNC_ERROR_FLUSH,
+			"flush-file",
+			"failed to flush the asynchronous file"
+		);
+		return XTASK_FAILED;
+	}
+	return XTASK_SUCCESS;
+}
+
+
+
+/* 查询文件大小并返回拥有型标量结果。 */
+static xtaskoutcome __xrtAsyncFileSizeTask(
+	xcancel* pCancel,
+	xrt_async_file_task* pTask,
+	xtaskvalue* pResult
+)
+{
+	xfilesize* pSize = __xrtAsyncFileSizeCreate(0);
+	uint64 iSize = 0;
+
+	if ( pSize == NULL ) {
+		return XTASK_FAILED;
+	}
+	if ( xrtCancelRequested(pCancel) ) {
+		xrtFree(pSize);
+		return XTASK_CANCELLED;
+	}
+	if ( !xrtFileSize(pTask->File->File, &iSize) ) {
+		xrtFree(pSize);
+		__xrtFileAsyncError(
+			XFILE_ASYNC_ERROR_SIZE,
+			"size-file",
+			"failed to query the asynchronous file size"
+		);
+		return XTASK_FAILED;
+	}
+	pSize->Size = iSize;
+	pResult->Value = pSize;
+	pResult->Destroy = __xrtFileAsyncValueFree;
+	return XTASK_SUCCESS;
+}
+
+
+
+/* 修改文件大小并返回新大小。 */
+static xtaskoutcome __xrtAsyncFileResizeTask(
+	xcancel* pCancel,
+	xrt_async_file_task* pTask,
+	xtaskvalue* pResult
+)
+{
+	xfilechange* pChange = __xrtAsyncFileChangeCreate(
+		0,
+		pTask->Size
+	);
+
+	if ( pChange == NULL ) {
+		return XTASK_FAILED;
+	}
+	if ( xrtCancelRequested(pCancel) ) {
+		xrtFree(pChange);
+		return XTASK_CANCELLED;
+	}
+	if ( !xrtFileResize(
+		pTask->File->File,
+		pTask->Size
+	) ) {
+		xrtFree(pChange);
+		__xrtFileAsyncError(
+			XFILE_ASYNC_ERROR_RESIZE,
+			"resize-file",
+			"failed to resize the asynchronous file"
+		);
+		return XTASK_FAILED;
+	}
+	pResult->Value = pChange;
+	pResult->Destroy = __xrtFileAsyncValueFree;
+	return XTASK_SUCCESS;
+}
+
+
+
+/* 把统一任务参数分派到单一文件操作。 */
+static xtaskoutcome __xrtAsyncFileTask(
+	xcancel* pCancel,
+	ptr pData,
+	xtaskvalue* pResult
+)
+{
+	xrt_async_file_task* pTask =
+		(xrt_async_file_task*)pData;
+
+	switch ( pTask->Operation ) {
+		case XRT_ASYNC_FILE_READ:
+			return __xrtAsyncFileReadTask(
+				pCancel,
+				pTask,
+				pResult
+			);
+
+		case XRT_ASYNC_FILE_WRITE:
+			return __xrtAsyncFileWriteTask(
+				pCancel,
+				pTask,
+				pResult
+			);
+
+		case XRT_ASYNC_FILE_FLUSH:
+			return __xrtAsyncFileFlushTask(
+				pCancel,
+				pTask
+			);
+
+		case XRT_ASYNC_FILE_SIZE:
+			return __xrtAsyncFileSizeTask(
+				pCancel,
+				pTask,
+				pResult
+			);
+
+		case XRT_ASYNC_FILE_RESIZE:
+			return __xrtAsyncFileResizeTask(
+				pCancel,
+				pTask,
+				pResult
+			);
+	}
+	__xrtErrorSetInternal();
+	return XTASK_FAILED;
+}
+
+
+
+/* 校验绝对偏移和操作范围能够由跨平台文件层表达。 */
+static bool __xrtAsyncFileRange(
+	uint64 iOffset,
+	uint64 iSize
+)
+{
+	if ( (iOffset > (uint64)INT64_MAX) ||
+		(iSize > ((uint64)INT64_MAX - iOffset)) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 创建任务参数并取得一个文件引用。 */
+static xrt_async_file_task* __xrtAsyncFileTaskCreate(
+	xasyncfile* pFile,
+	xrt_async_file_operation Operation,
+	uint64 iOffset,
+	uint64 iSize,
+	size_t iExtra
+)
+{
+	xrt_async_file_task* pTask;
+
+	if ( !__xrtAsyncFileAcquire(pFile) ) {
+		return NULL;
+	}
+	if ( iExtra > (SIZE_MAX - sizeof(xrt_async_file_task)) ) {
+		__xrtAsyncFileRelease(pFile);
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	pTask = (xrt_async_file_task*)xrtCalloc(
+		1,
+		sizeof(xrt_async_file_task) + iExtra
+	);
+	if ( pTask == NULL ) {
+		__xrtAsyncFileRelease(pFile);
+		return NULL;
+	}
+	pTask->File = pFile;
+	pTask->Operation = Operation;
+	pTask->Offset = iOffset;
+	pTask->Size = iSize;
+	return pTask;
+}
+
+
+
+/* 提交任务，并在任务池拒绝时完整回滚调用方尚未转移的资源。 */
+static xfuture* __xrtAsyncFileSubmit(
+	xrt_async_file_task* pTask,
+	bool bExternalData
+)
+{
+	xtaskargs Args;
+	xfuture* pFuture;
+
+	memset(&Args, 0, sizeof(Args));
+	Args.Destroy = __xrtAsyncFileTaskFree;
+	pFuture = xrtTaskSubmit(
+		pTask->File->Pool,
+		__xrtAsyncFileTask,
+		pTask,
+		&Args
+	);
+	if ( pFuture == NULL ) {
+		__xrtFileAsyncError(
+			XFILE_ASYNC_ERROR_SUBMIT,
+			"submit-file-operation",
+			"failed to submit the asynchronous file operation"
+		);
+		if ( bExternalData ) {
+			pTask->Data = NULL;
+			pTask->Release = NULL;
+			pTask->ReleaseContext = NULL;
+		}
+		__xrtAsyncFileTaskFree(pTask, NULL);
+	}
+	return pFuture;
+}
+
+
+
+/* 建立尚未采用原生文件的异步对象；失败时不接管任何文件。 */
+static xasyncfile* __xrtAsyncFileCreate(
+	xtaskpool* pPool,
+	uint32 iFlags
+)
+{
+	xasyncfile* pFile;
+
+	if ( pPool == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pFile = (xasyncfile*)xrtCalloc(
+		1,
+		sizeof(xasyncfile)
+	);
+	if ( pFile == NULL ) {
+		return NULL;
+	}
+	if ( !xrtMutexInit(&pFile->Lock) ) {
+		xrtFree(pFile);
+		return NULL;
+	}
+	pFile->ClosePromise = xrtPromiseCreate(
+		&pFile->CloseFuture,
+		NULL
+	);
+	if ( pFile->ClosePromise == NULL ) {
+		(void)xrtMutexUnit(&pFile->Lock);
+		xrtFree(pFile);
+		return NULL;
+	}
+	if (!__xrtTaskPoolAcquireResource(pPool)) {
+		xerror* pError = xrtTakeError();
+		xrtPromiseDestroy(pFile->ClosePromise);
+		xrtFutureDestroy(pFile->CloseFuture);
+		(void)xrtMutexUnit(&pFile->Lock);
+		xrtFree(pFile);
+		xrtSetErrorTake(pError);
+		return NULL;
+	}
+	pFile->Pool = pPool;
+	pFile->References = 1;
+	pFile->Flags = iFlags;
+	return pFile;
+}
+
+
+
+/* 销毁尚未接管原生文件的异步对象。 */
+static void __xrtAsyncFileCreateFree(xasyncfile* pFile)
+{
+	if ( pFile == NULL ) {
+		return;
+	}
+	xrtPromiseDestroy(pFile->ClosePromise);
+	xrtFutureDestroy(pFile->CloseFuture);
+	xtaskpool* pPool = pFile->Pool;
+	(void)xrtMutexUnit(&pFile->Lock);
+	xrtFree(pFile);
+	__xrtTaskPoolReleaseResource(pPool);
+}
+
+
+
+/* 打开文件并建立可等待关闭的对象生命周期。 */
+XRT_API xasyncfile* xrtAsyncFileOpen(
+	xtaskpool* pPool,
+	cstr sPath,
+	const xfileoptions* pOptions
+)
+{
+	xasyncfile* pFile;
+	uint32 iFlags = XFILE_READ;
+
+	if ( (pPool == NULL) ||
+		(sPath == NULL) ||
+		(sPath[0] == '\0') ||
+		((pOptions != NULL) &&
+		 ((pOptions->Flags & XFILE_APPEND) != 0u)) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( pOptions != NULL ) {
+		iFlags = pOptions->Flags;
+	}
+	pFile = __xrtAsyncFileCreate(pPool, iFlags);
+	if ( pFile == NULL ) {
+		return NULL;
+	}
+	pFile->File = xrtFileOpen(sPath, pOptions);
+	if ( pFile->File == NULL ) {
+		__xrtFileAsyncError(
+			XFILE_ASYNC_ERROR_OPEN,
+			"open-file",
+			"failed to open the asynchronous file"
+		);
+		__xrtAsyncFileCreateFree(pFile);
+		return NULL;
+	}
+	return pFile;
+}
+
+
+
+/* 采用已打开文件，并在成功后独占其关闭责任。 */
+XRT_API xasyncfile* xrtAsyncFileAdopt(
+	xtaskpool* pPool,
+	xfile File
+)
+{
+	xasyncfile* pFile;
+	uint32 iFlags;
+
+	if ( (pPool == NULL) || (File == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	iFlags = xrtFileFlags(File);
+	if ( iFlags == 0u ) {
+		return NULL;
+	}
+	if ( (iFlags & XFILE_APPEND) != 0u ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pFile = __xrtAsyncFileCreate(pPool, iFlags);
+	if ( pFile == NULL ) {
+		return NULL;
+	}
+	pFile->File = File;
+	return pFile;
+}
+
+
+
+/* 返回异步文件采用时保存的不可变打开标志。 */
+XRT_API uint32 xrtAsyncFileFlags(const xasyncfile* pFile)
+{
+	if ( pFile == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	return pFile->Flags;
+}
+
+
+
+/* 请求关闭并返回独立的完成 Future。 */
+XRT_API xfuture* xrtAsyncFileClose(xasyncfile* pFile)
+{
+	xfuture* pFuture;
+
+	if ( pFile == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	(void)xrtMutexLock(&pFile->Lock);
+	if ( pFile->Closing ) {
+		(void)xrtMutexUnlock(&pFile->Lock);
+		__xrtErrorSetClosed();
+		return NULL;
+	}
+	pFile->Closing = true;
+	pFuture = xrtFutureRef(pFile->CloseFuture);
+	if ( pFuture == NULL ) {
+		pFile->Closing = false;
+		(void)xrtMutexUnlock(&pFile->Lock);
+		return NULL;
+	}
+	(void)xrtMutexUnlock(&pFile->Lock);
+	__xrtAsyncFileRelease(pFile);
+	return pFuture;
+}
+
+
+
+/* 提交一次拥有型异步读取。 */
+XRT_API xfuture* xrtAsyncFileReadAt(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	size_t iSize
+)
+{
+	xrt_async_file_task* pTask;
+
+	if ( !__xrtAsyncFileRange(
+		iOffset,
+		(uint64)iSize
+	) ) {
+		return NULL;
+	}
+	pTask = __xrtAsyncFileTaskCreate(
+		pFile,
+		XRT_ASYNC_FILE_READ,
+		iOffset,
+		(uint64)iSize,
+		0
+	);
+	return pTask != NULL ?
+		__xrtAsyncFileSubmit(pTask, false) : NULL;
+}
+
+
+
+/* 复制源数据并提交一次完整异步写入。 */
+XRT_API xfuture* xrtAsyncFileWriteAt(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	xbytesview Data
+)
+{
+	xrt_async_file_task* pTask;
+
+	if ( ((Data.Size != 0) && (Data.Data == NULL)) ||
+		!__xrtAsyncFileRange(
+			iOffset,
+			(uint64)Data.Size
+		) ) {
+		if ( (Data.Size != 0) &&
+			(Data.Data == NULL) ) {
+			__xrtErrorSetInvalidArgument();
+		}
+		return NULL;
+	}
+	pTask = __xrtAsyncFileTaskCreate(
+		pFile,
+		XRT_ASYNC_FILE_WRITE,
+		iOffset,
+		(uint64)Data.Size,
+		Data.Size
+	);
+	if ( pTask == NULL ) {
+		return NULL;
+	}
+	if ( Data.Size != 0 ) {
+		pTask->Data = (cbytes)(pTask + 1);
+		memcpy(
+			(bytes)pTask->Data,
+			Data.Data,
+			Data.Size
+		);
+	}
+	return __xrtAsyncFileSubmit(pTask, false);
+}
+
+
+
+/* 受理外部写入所有权；任务终态恰好释放一次。 */
+XRT_API xfuture* xrtAsyncFileWriteAtRef(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	xbytesview Data,
+	xfileasyncreleaseproc pRelease,
+	ptr pContext
+)
+{
+	xrt_async_file_task* pTask;
+
+	if ( ((Data.Size != 0) &&
+		 ((Data.Data == NULL) || (pRelease == NULL))) ||
+		!__xrtAsyncFileRange(iOffset, (uint64)Data.Size) ) {
+		if ( (Data.Size != 0) &&
+			((Data.Data == NULL) || (pRelease == NULL)) ) {
+			__xrtErrorSetInvalidArgument();
+		}
+		return NULL;
+	}
+	pTask = __xrtAsyncFileTaskCreate(
+		pFile,
+		XRT_ASYNC_FILE_WRITE,
+		iOffset,
+		(uint64)Data.Size,
+		0
+	);
+	if ( pTask == NULL ) {
+		return NULL;
+	}
+	if ( Data.Size != 0 ) {
+		pTask->Data = Data.Data;
+		pTask->Release = pRelease;
+		pTask->ReleaseContext = pContext;
+	}
+	return __xrtAsyncFileSubmit(pTask, true);
+}
+
+
+
+/* 释放由 Take 成功转移给任务的数据。 */
+static void __xrtAsyncFileTakeFree(
+	ptr pContext,
+	cbytes pData,
+	size_t iSize
+)
+{
+	(void)pContext;
+	(void)iSize;
+	xrtFree((ptr)pData);
+}
+
+
+
+/* 受理由 xrtMalloc 家族分配的数据，失败时不消费所有权。 */
+XRT_API xfuture* xrtAsyncFileWriteAtTake(
+	xasyncfile* pFile,
+	uint64 iOffset,
+	bytes pData,
+	size_t iSize
+)
+{
+	if ( ((pData == NULL) && (iSize != 0)) ||
+		((pData != NULL) && (iSize == 0)) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	return xrtAsyncFileWriteAtRef(
+		pFile,
+		iOffset,
+		(xbytesview) { pData, iSize },
+		iSize == 0 ? NULL : __xrtAsyncFileTakeFree,
+		NULL
+	);
+}
+
+
+
+/* 提交文件刷新。 */
+XRT_API xfuture* xrtAsyncFileFlush(xasyncfile* pFile)
+{
+	xrt_async_file_task* pTask =
+		__xrtAsyncFileTaskCreate(
+			pFile,
+			XRT_ASYNC_FILE_FLUSH,
+			0,
+			0,
+			0
+		);
+
+	return pTask != NULL ?
+		__xrtAsyncFileSubmit(pTask, false) : NULL;
+}
+
+
+
+/* 提交文件大小查询。 */
+XRT_API xfuture* xrtAsyncFileSize(xasyncfile* pFile)
+{
+	xrt_async_file_task* pTask =
+		__xrtAsyncFileTaskCreate(
+			pFile,
+			XRT_ASYNC_FILE_SIZE,
+			0,
+			0,
+			0
+		);
+
+	return pTask != NULL ?
+		__xrtAsyncFileSubmit(pTask, false) : NULL;
+}
+
+
+
+/* 提交文件大小修改。 */
+XRT_API xfuture* xrtAsyncFileResize(
+	xasyncfile* pFile,
+	uint64 iSize
+)
+{
+	xrt_async_file_task* pTask;
+
+	if ( iSize > (uint64)INT64_MAX ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	pTask = __xrtAsyncFileTaskCreate(
+		pFile,
+		XRT_ASYNC_FILE_RESIZE,
+		0,
+		iSize,
+		0
+	);
+	return pTask != NULL ?
+		__xrtAsyncFileSubmit(pTask, false) : NULL;
 }
 
 #endif
@@ -260750,1062 +262663,6 @@ XRT_API bool xrtFileUnmap(xfilemap Map)
 			"failed to unmap the file view", iCode);
 	}
 	return bResult;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/fs/file_async_common.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC_COMMON)
-
-/* 把同步文件或任务池错误包装为稳定的异步文件错误。 */
-void __xrtFileAsyncError(
-	xfileasyncerror Code,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	xerror* pCause = xrtTakeError();
-	xerrordesc Desc;
-	xerror* pError;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = pCause != NULL ?
-		xrtErrorKind(pCause) : XERR_IO;
-	Desc.Domain = "xrt.file.async";
-	Desc.Code = (int32)Code;
-	Desc.Operation = sOperation;
-	Desc.Message = sMessage;
-	Desc.Cause = pCause;
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		xrtSetError(pError);
-		xrtErrorFree(pError);
-	} else if ( pCause != NULL ) {
-		xrtSetError(pCause);
-	}
-	xrtErrorFree(pCause);
-}
-
-
-
-/* 提交拥有型任务，并在受理失败时完整回收调用参数。 */
-xfuture* __xrtFileAsyncSubmit(
-	xtaskpool* pPool,
-	xtaskproc pProc,
-	ptr pData,
-	xfuturefreeproc pDestroy
-)
-{
-	xtaskargs Args;
-	xfuture* pFuture;
-
-	memset(&Args, 0, sizeof(Args));
-	Args.Destroy = pDestroy;
-	pFuture = xrtTaskSubmit(pPool, pProc, pData, &Args);
-	if ( pFuture != NULL ) {
-		return pFuture;
-	}
-	__xrtFileAsyncError(
-		XFILE_ASYNC_ERROR_SUBMIT,
-		"submit-file-operation",
-		"failed to submit the asynchronous file operation"
-	);
-	if ( pDestroy != NULL ) {
-		pDestroy(pData, NULL);
-	}
-	return NULL;
-}
-
-
-
-/* 释放单次分配的 Future 值。 */
-void __xrtFileAsyncValueFree(ptr pValue, ptr pData)
-{
-	(void)pData;
-	xrtFree(pValue);
-}
-
-
-
-/* 连续分配任务头和路径，避免每个高层异步操作重复多次分配。 */
-ptr __xrtFileAsyncPathTaskCreate(
-	size_t iTaskSize,
-	cstr sSource,
-	cstr sTarget,
-	cstr* pSource,
-	cstr* pTarget
-)
-{
-	size_t iSource;
-	size_t iTarget = 0;
-	size_t iTotal;
-	bytes pTask;
-	str sStorage;
-
-	if ( (iTaskSize == 0) ||
-		(sSource == NULL) || (sSource[0] == '\0') ||
-		(pSource == NULL) || (pTarget == NULL) ||
-		((sTarget != NULL) && (sTarget[0] == '\0')) ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	iSource = strlen(sSource);
-	if ( sTarget != NULL ) {
-		iTarget = strlen(sTarget);
-	}
-	if ( (iTaskSize > (SIZE_MAX - 2u)) ||
-		(iSource > (SIZE_MAX - iTaskSize - 2u)) ||
-		(iTarget > (SIZE_MAX - iTaskSize - iSource - 2u)) ) {
-		__xrtErrorSetSizeOverflow();
-		return NULL;
-	}
-	iTotal = iTaskSize + iSource + iTarget + 2u;
-	pTask = (bytes)xrtMalloc(iTotal);
-	if ( pTask == NULL ) {
-		return NULL;
-	}
-	memset(pTask, 0, iTaskSize);
-	sStorage = (str)(pTask + iTaskSize);
-	memcpy(sStorage, sSource, iSource + 1u);
-	*pSource = sStorage;
-	*pTarget = NULL;
-	if ( sTarget != NULL ) {
-		*pTarget = sStorage + iSource + 1u;
-		memcpy((str)*pTarget, sTarget, iTarget + 1u);
-	}
-	return pTask;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/fs/file_async.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_FILE_ASYNC)
-
-
-
-#if defined(XRT_FEATURE_FILE_ASYNC)
-
-/* 每个已受理任务持有一个对象引用，关闭只在最后一个任务结束后发生。 */
-struct xasyncfile {
-	xmutex Lock;
-	xfile File;
-	xtaskpool* Pool;
-	xpromise* ClosePromise;
-	xfuture* CloseFuture;
-	xrt_task_finalizer Finalizer;
-	size_t References;
-	uint32 Flags;
-	bool Closing;
-};
-
-
-
-/* 五种文件操作共享同一份紧凑任务参数。 */
-typedef enum xrt_async_file_operation {
-	XRT_ASYNC_FILE_READ = 1,
-	XRT_ASYNC_FILE_WRITE,
-	XRT_ASYNC_FILE_FLUSH,
-	XRT_ASYNC_FILE_SIZE,
-	XRT_ASYNC_FILE_RESIZE
-} xrt_async_file_operation;
-
-
-
-/* 写任务额外拥有 Data，其他任务只使用标量参数。 */
-typedef struct xrt_async_file_task {
-	xasyncfile* File;
-	xrt_async_file_operation Operation;
-	uint64 Offset;
-	uint64 Size;
-	cbytes Data;
-	xfileasyncreleaseproc Release;
-	ptr ReleaseContext;
-} xrt_async_file_task;
-
-
-
-/* 在任务池资源回收通道关闭原生文件并完成 Close Future。 */
-static void __xrtAsyncFileFinalize(ptr pData)
-{
-	xasyncfile* pFile = (xasyncfile*)pData;
-	xerror* pError = NULL;
-
-	xrtClearError();
-	if ( !xrtClose(pFile->File) ) {
-		__xrtFileAsyncError(
-			XFILE_ASYNC_ERROR_CLOSE,
-			"close-file",
-			"failed to close the asynchronous file"
-		);
-		pError = xrtTakeError();
-	}
-	if ( pError != NULL ) {
-		(void)xrtPromiseReject(
-			pFile->ClosePromise,
-			pError
-		);
-	} else {
-		(void)xrtPromiseResolve(
-			pFile->ClosePromise,
-			NULL
-		);
-	}
-	xrtErrorFree(pError);
-	xrtPromiseDestroy(pFile->ClosePromise);
-	xrtFutureDestroy(pFile->CloseFuture);
-	(void)xrtMutexUnit(&pFile->Lock);
-	xrtFree(pFile);
-}
-
-
-
-/*
-	释放一个对象引用。
-	最后一个引用只投递无分配回收过程，不在调用线程执行文件系统操作。
-*/
-static void __xrtAsyncFileRelease(xasyncfile* pFile)
-{
-	bool bFinalize = false;
-
-	if ( pFile == NULL ) {
-		return;
-	}
-	(void)xrtMutexLock(&pFile->Lock);
-	if ( pFile->References != 0 ) {
-		pFile->References--;
-	}
-	if ( pFile->Closing && (pFile->References == 0) ) {
-		bFinalize = true;
-	}
-	(void)xrtMutexUnlock(&pFile->Lock);
-	if ( bFinalize ) {
-		__xrtTaskPoolFinalize(
-			pFile->Pool,
-			&pFile->Finalizer,
-			__xrtAsyncFileFinalize,
-			pFile
-		);
-	}
-}
-
-
-
-/* 在对象仍接收操作时增加任务引用。 */
-static bool __xrtAsyncFileAcquire(xasyncfile* pFile)
-{
-	bool bResult = false;
-
-	if ( pFile == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	(void)xrtMutexLock(&pFile->Lock);
-	if ( !pFile->Closing ) {
-		pFile->References++;
-		bResult = true;
-	}
-	(void)xrtMutexUnlock(&pFile->Lock);
-	if ( !bResult ) {
-		__xrtErrorSetClosed();
-	}
-	return bResult;
-}
-
-
-
-/* 释放任务数据、写入副本和任务持有的文件引用。 */
-static void __xrtAsyncFileTaskFree(
-	ptr pValue,
-	ptr pData
-)
-{
-	xrt_async_file_task* pTask =
-		(xrt_async_file_task*)pValue;
-
-	(void)pData;
-	if ( pTask == NULL ) {
-		return;
-	}
-	if ( pTask->Release != NULL ) {
-		pTask->Release(
-			pTask->ReleaseContext,
-			pTask->Data,
-			(size_t)pTask->Size
-		);
-	}
-	__xrtAsyncFileRelease(pTask->File);
-	xrtFree(pTask);
-}
-
-
-
-/* 创建由 Future 一次拥有的读取结果及其连续数据区。 */
-static xfiledata* __xrtAsyncFileDataCreate(
-	uint64 iOffset,
-	size_t iSize
-)
-{
-	xfiledata* pData;
-
-	if ( iSize > (SIZE_MAX - sizeof(xfiledata) - 1) ) {
-		__xrtErrorSetSizeOverflow();
-		return NULL;
-	}
-	pData = (xfiledata*)xrtMalloc(
-		sizeof(xfiledata) + iSize + 1
-	);
-	if ( pData == NULL ) {
-		return NULL;
-	}
-	pData->Data = (bytes)(pData + 1);
-	pData->Size = 0;
-	pData->Offset = iOffset;
-	pData->End = false;
-	pData->Data[0] = 0;
-	return pData;
-}
-
-
-
-/* 创建写入、大小查询或修改大小的轻量结果。 */
-static xfilechange* __xrtAsyncFileChangeCreate(
-	uint64 iOffset,
-	uint64 iSize
-)
-{
-	xfilechange* pChange =
-		(xfilechange*)xrtMalloc(sizeof(xfilechange));
-
-	if ( pChange != NULL ) {
-		pChange->Offset = iOffset;
-		pChange->Size = iSize;
-	}
-	return pChange;
-}
-
-
-
-/* 创建不带写入偏移语义的文件大小查询结果。 */
-static xfilesize* __xrtAsyncFileSizeCreate(uint64 iSize)
-{
-	xfilesize* pSize = (xfilesize*)xrtMalloc(sizeof(xfilesize));
-
-	if ( pSize != NULL ) {
-		pSize->Size = iSize;
-	}
-	return pSize;
-}
-
-
-
-/* 使用原生 positioned I/O 执行读取，不修改共享文件游标。 */
-static xtaskoutcome __xrtAsyncFileReadTask(
-	xcancel* pCancel,
-	xrt_async_file_task* pTask,
-	xtaskvalue* pResult
-)
-{
-	xfiledata* pData;
-	size_t iDone = 0;
-
-	pData = __xrtAsyncFileDataCreate(
-		pTask->Offset,
-		(size_t)pTask->Size
-	);
-	if ( pData == NULL ) {
-		return XTASK_FAILED;
-	}
-	if ( xrtCancelRequested(pCancel) ) {
-		xrtFree(pData);
-		return XTASK_CANCELLED;
-	}
-	if ( !xrtReadAt(
-		pTask->File->File,
-		pTask->Offset,
-		pData->Data,
-		(size_t)pTask->Size,
-		&iDone
-	) ) {
-		xrtFree(pData);
-		__xrtFileAsyncError(
-			XFILE_ASYNC_ERROR_READ,
-			"read-file",
-			"failed to read the asynchronous file"
-		);
-		return XTASK_FAILED;
-	}
-	pData->Size = iDone;
-	pData->End = iDone < (size_t)pTask->Size;
-	pData->Data[iDone] = 0;
-	pResult->Value = pData;
-	pResult->Destroy = __xrtFileAsyncValueFree;
-	return XTASK_SUCCESS;
-}
-
-
-
-/* 使用原生 positioned I/O 完整写入，不修改共享文件游标。 */
-static xtaskoutcome __xrtAsyncFileWriteTask(
-	xcancel* pCancel,
-	xrt_async_file_task* pTask,
-	xtaskvalue* pResult
-)
-{
-	xfilechange* pChange = __xrtAsyncFileChangeCreate(
-		pTask->Offset,
-		pTask->Size
-	);
-	size_t iDone = 0;
-
-	if ( pChange == NULL ) {
-		return XTASK_FAILED;
-	}
-	if ( xrtCancelRequested(pCancel) ) {
-		xrtFree(pChange);
-		return XTASK_CANCELLED;
-	}
-	if ( !xrtWriteAtFull(
-		pTask->File->File,
-		pTask->Offset,
-		pTask->Data,
-		(size_t)pTask->Size,
-		&iDone
-	) ) {
-		xrtFree(pChange);
-		__xrtFileAsyncError(
-			XFILE_ASYNC_ERROR_WRITE,
-			"write-file",
-			"failed to write the asynchronous file"
-		);
-		return XTASK_FAILED;
-	}
-	pChange->Size = iDone;
-	pResult->Value = pChange;
-	pResult->Destroy = __xrtFileAsyncValueFree;
-	return XTASK_SUCCESS;
-}
-
-
-
-/* 刷新文件；只读对象沿用同步文件层的成功空操作语义。 */
-static xtaskoutcome __xrtAsyncFileFlushTask(
-	xcancel* pCancel,
-	xrt_async_file_task* pTask
-)
-{
-	if ( xrtCancelRequested(pCancel) ) {
-		return XTASK_CANCELLED;
-	}
-	if ( ((pTask->File->Flags & XFILE_WRITE) != 0u) &&
-		!xrtFlush(pTask->File->File) ) {
-		__xrtFileAsyncError(
-			XFILE_ASYNC_ERROR_FLUSH,
-			"flush-file",
-			"failed to flush the asynchronous file"
-		);
-		return XTASK_FAILED;
-	}
-	return XTASK_SUCCESS;
-}
-
-
-
-/* 查询文件大小并返回拥有型标量结果。 */
-static xtaskoutcome __xrtAsyncFileSizeTask(
-	xcancel* pCancel,
-	xrt_async_file_task* pTask,
-	xtaskvalue* pResult
-)
-{
-	xfilesize* pSize = __xrtAsyncFileSizeCreate(0);
-	uint64 iSize = 0;
-
-	if ( pSize == NULL ) {
-		return XTASK_FAILED;
-	}
-	if ( xrtCancelRequested(pCancel) ) {
-		xrtFree(pSize);
-		return XTASK_CANCELLED;
-	}
-	if ( !xrtFileSize(pTask->File->File, &iSize) ) {
-		xrtFree(pSize);
-		__xrtFileAsyncError(
-			XFILE_ASYNC_ERROR_SIZE,
-			"size-file",
-			"failed to query the asynchronous file size"
-		);
-		return XTASK_FAILED;
-	}
-	pSize->Size = iSize;
-	pResult->Value = pSize;
-	pResult->Destroy = __xrtFileAsyncValueFree;
-	return XTASK_SUCCESS;
-}
-
-
-
-/* 修改文件大小并返回新大小。 */
-static xtaskoutcome __xrtAsyncFileResizeTask(
-	xcancel* pCancel,
-	xrt_async_file_task* pTask,
-	xtaskvalue* pResult
-)
-{
-	xfilechange* pChange = __xrtAsyncFileChangeCreate(
-		0,
-		pTask->Size
-	);
-
-	if ( pChange == NULL ) {
-		return XTASK_FAILED;
-	}
-	if ( xrtCancelRequested(pCancel) ) {
-		xrtFree(pChange);
-		return XTASK_CANCELLED;
-	}
-	if ( !xrtFileResize(
-		pTask->File->File,
-		pTask->Size
-	) ) {
-		xrtFree(pChange);
-		__xrtFileAsyncError(
-			XFILE_ASYNC_ERROR_RESIZE,
-			"resize-file",
-			"failed to resize the asynchronous file"
-		);
-		return XTASK_FAILED;
-	}
-	pResult->Value = pChange;
-	pResult->Destroy = __xrtFileAsyncValueFree;
-	return XTASK_SUCCESS;
-}
-
-
-
-/* 把统一任务参数分派到单一文件操作。 */
-static xtaskoutcome __xrtAsyncFileTask(
-	xcancel* pCancel,
-	ptr pData,
-	xtaskvalue* pResult
-)
-{
-	xrt_async_file_task* pTask =
-		(xrt_async_file_task*)pData;
-
-	switch ( pTask->Operation ) {
-		case XRT_ASYNC_FILE_READ:
-			return __xrtAsyncFileReadTask(
-				pCancel,
-				pTask,
-				pResult
-			);
-
-		case XRT_ASYNC_FILE_WRITE:
-			return __xrtAsyncFileWriteTask(
-				pCancel,
-				pTask,
-				pResult
-			);
-
-		case XRT_ASYNC_FILE_FLUSH:
-			return __xrtAsyncFileFlushTask(
-				pCancel,
-				pTask
-			);
-
-		case XRT_ASYNC_FILE_SIZE:
-			return __xrtAsyncFileSizeTask(
-				pCancel,
-				pTask,
-				pResult
-			);
-
-		case XRT_ASYNC_FILE_RESIZE:
-			return __xrtAsyncFileResizeTask(
-				pCancel,
-				pTask,
-				pResult
-			);
-	}
-	__xrtErrorSetInternal();
-	return XTASK_FAILED;
-}
-
-
-
-/* 校验绝对偏移和操作范围能够由跨平台文件层表达。 */
-static bool __xrtAsyncFileRange(
-	uint64 iOffset,
-	uint64 iSize
-)
-{
-	if ( (iOffset > (uint64)INT64_MAX) ||
-		(iSize > ((uint64)INT64_MAX - iOffset)) ) {
-		__xrtErrorSetSizeOverflow();
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 创建任务参数并取得一个文件引用。 */
-static xrt_async_file_task* __xrtAsyncFileTaskCreate(
-	xasyncfile* pFile,
-	xrt_async_file_operation Operation,
-	uint64 iOffset,
-	uint64 iSize,
-	size_t iExtra
-)
-{
-	xrt_async_file_task* pTask;
-
-	if ( !__xrtAsyncFileAcquire(pFile) ) {
-		return NULL;
-	}
-	if ( iExtra > (SIZE_MAX - sizeof(xrt_async_file_task)) ) {
-		__xrtAsyncFileRelease(pFile);
-		__xrtErrorSetSizeOverflow();
-		return NULL;
-	}
-	pTask = (xrt_async_file_task*)xrtCalloc(
-		1,
-		sizeof(xrt_async_file_task) + iExtra
-	);
-	if ( pTask == NULL ) {
-		__xrtAsyncFileRelease(pFile);
-		return NULL;
-	}
-	pTask->File = pFile;
-	pTask->Operation = Operation;
-	pTask->Offset = iOffset;
-	pTask->Size = iSize;
-	return pTask;
-}
-
-
-
-/* 提交任务，并在任务池拒绝时完整回滚调用方尚未转移的资源。 */
-static xfuture* __xrtAsyncFileSubmit(
-	xrt_async_file_task* pTask,
-	bool bExternalData
-)
-{
-	xtaskargs Args;
-	xfuture* pFuture;
-
-	memset(&Args, 0, sizeof(Args));
-	Args.Destroy = __xrtAsyncFileTaskFree;
-	pFuture = xrtTaskSubmit(
-		pTask->File->Pool,
-		__xrtAsyncFileTask,
-		pTask,
-		&Args
-	);
-	if ( pFuture == NULL ) {
-		__xrtFileAsyncError(
-			XFILE_ASYNC_ERROR_SUBMIT,
-			"submit-file-operation",
-			"failed to submit the asynchronous file operation"
-		);
-		if ( bExternalData ) {
-			pTask->Data = NULL;
-			pTask->Release = NULL;
-			pTask->ReleaseContext = NULL;
-		}
-		__xrtAsyncFileTaskFree(pTask, NULL);
-	}
-	return pFuture;
-}
-
-
-
-/* 建立尚未采用原生文件的异步对象；失败时不接管任何文件。 */
-static xasyncfile* __xrtAsyncFileCreate(
-	xtaskpool* pPool,
-	uint32 iFlags
-)
-{
-	xasyncfile* pFile;
-
-	if ( pPool == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	pFile = (xasyncfile*)xrtCalloc(
-		1,
-		sizeof(xasyncfile)
-	);
-	if ( pFile == NULL ) {
-		return NULL;
-	}
-	if ( !xrtMutexInit(&pFile->Lock) ) {
-		xrtFree(pFile);
-		return NULL;
-	}
-	pFile->ClosePromise = xrtPromiseCreate(
-		&pFile->CloseFuture,
-		NULL
-	);
-	if ( pFile->ClosePromise == NULL ) {
-		(void)xrtMutexUnit(&pFile->Lock);
-		xrtFree(pFile);
-		return NULL;
-	}
-	pFile->Pool = pPool;
-	pFile->References = 1;
-	pFile->Flags = iFlags;
-	return pFile;
-}
-
-
-
-/* 销毁尚未接管原生文件的异步对象。 */
-static void __xrtAsyncFileCreateFree(xasyncfile* pFile)
-{
-	if ( pFile == NULL ) {
-		return;
-	}
-	xrtPromiseDestroy(pFile->ClosePromise);
-	xrtFutureDestroy(pFile->CloseFuture);
-	(void)xrtMutexUnit(&pFile->Lock);
-	xrtFree(pFile);
-}
-
-
-
-/* 打开文件并建立可等待关闭的对象生命周期。 */
-XRT_API xasyncfile* xrtAsyncFileOpen(
-	xtaskpool* pPool,
-	cstr sPath,
-	const xfileoptions* pOptions
-)
-{
-	xasyncfile* pFile;
-	uint32 iFlags = XFILE_READ;
-
-	if ( (pPool == NULL) ||
-		(sPath == NULL) ||
-		(sPath[0] == '\0') ||
-		((pOptions != NULL) &&
-		 ((pOptions->Flags & XFILE_APPEND) != 0u)) ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( pOptions != NULL ) {
-		iFlags = pOptions->Flags;
-	}
-	pFile = __xrtAsyncFileCreate(pPool, iFlags);
-	if ( pFile == NULL ) {
-		return NULL;
-	}
-	pFile->File = xrtFileOpen(sPath, pOptions);
-	if ( pFile->File == NULL ) {
-		__xrtFileAsyncError(
-			XFILE_ASYNC_ERROR_OPEN,
-			"open-file",
-			"failed to open the asynchronous file"
-		);
-		__xrtAsyncFileCreateFree(pFile);
-		return NULL;
-	}
-	return pFile;
-}
-
-
-
-/* 采用已打开文件，并在成功后独占其关闭责任。 */
-XRT_API xasyncfile* xrtAsyncFileAdopt(
-	xtaskpool* pPool,
-	xfile File
-)
-{
-	xasyncfile* pFile;
-	uint32 iFlags;
-
-	if ( (pPool == NULL) || (File == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	iFlags = xrtFileFlags(File);
-	if ( iFlags == 0u ) {
-		return NULL;
-	}
-	if ( (iFlags & XFILE_APPEND) != 0u ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	pFile = __xrtAsyncFileCreate(pPool, iFlags);
-	if ( pFile == NULL ) {
-		return NULL;
-	}
-	pFile->File = File;
-	return pFile;
-}
-
-
-
-/* 返回异步文件采用时保存的不可变打开标志。 */
-XRT_API uint32 xrtAsyncFileFlags(const xasyncfile* pFile)
-{
-	if ( pFile == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return 0;
-	}
-	return pFile->Flags;
-}
-
-
-
-/* 请求关闭并返回独立的完成 Future。 */
-XRT_API xfuture* xrtAsyncFileClose(xasyncfile* pFile)
-{
-	xfuture* pFuture;
-
-	if ( pFile == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	(void)xrtMutexLock(&pFile->Lock);
-	if ( pFile->Closing ) {
-		(void)xrtMutexUnlock(&pFile->Lock);
-		__xrtErrorSetClosed();
-		return NULL;
-	}
-	pFile->Closing = true;
-	pFuture = xrtFutureRef(pFile->CloseFuture);
-	if ( pFuture == NULL ) {
-		pFile->Closing = false;
-		(void)xrtMutexUnlock(&pFile->Lock);
-		return NULL;
-	}
-	(void)xrtMutexUnlock(&pFile->Lock);
-	__xrtAsyncFileRelease(pFile);
-	return pFuture;
-}
-
-
-
-/* 提交一次拥有型异步读取。 */
-XRT_API xfuture* xrtAsyncFileReadAt(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	size_t iSize
-)
-{
-	xrt_async_file_task* pTask;
-
-	if ( !__xrtAsyncFileRange(
-		iOffset,
-		(uint64)iSize
-	) ) {
-		return NULL;
-	}
-	pTask = __xrtAsyncFileTaskCreate(
-		pFile,
-		XRT_ASYNC_FILE_READ,
-		iOffset,
-		(uint64)iSize,
-		0
-	);
-	return pTask != NULL ?
-		__xrtAsyncFileSubmit(pTask, false) : NULL;
-}
-
-
-
-/* 复制源数据并提交一次完整异步写入。 */
-XRT_API xfuture* xrtAsyncFileWriteAt(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	xbytesview Data
-)
-{
-	xrt_async_file_task* pTask;
-
-	if ( ((Data.Size != 0) && (Data.Data == NULL)) ||
-		!__xrtAsyncFileRange(
-			iOffset,
-			(uint64)Data.Size
-		) ) {
-		if ( (Data.Size != 0) &&
-			(Data.Data == NULL) ) {
-			__xrtErrorSetInvalidArgument();
-		}
-		return NULL;
-	}
-	pTask = __xrtAsyncFileTaskCreate(
-		pFile,
-		XRT_ASYNC_FILE_WRITE,
-		iOffset,
-		(uint64)Data.Size,
-		Data.Size
-	);
-	if ( pTask == NULL ) {
-		return NULL;
-	}
-	if ( Data.Size != 0 ) {
-		pTask->Data = (cbytes)(pTask + 1);
-		memcpy(
-			(bytes)pTask->Data,
-			Data.Data,
-			Data.Size
-		);
-	}
-	return __xrtAsyncFileSubmit(pTask, false);
-}
-
-
-
-/* 受理外部写入所有权；任务终态恰好释放一次。 */
-XRT_API xfuture* xrtAsyncFileWriteAtRef(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	xbytesview Data,
-	xfileasyncreleaseproc pRelease,
-	ptr pContext
-)
-{
-	xrt_async_file_task* pTask;
-
-	if ( ((Data.Size != 0) &&
-		 ((Data.Data == NULL) || (pRelease == NULL))) ||
-		!__xrtAsyncFileRange(iOffset, (uint64)Data.Size) ) {
-		if ( (Data.Size != 0) &&
-			((Data.Data == NULL) || (pRelease == NULL)) ) {
-			__xrtErrorSetInvalidArgument();
-		}
-		return NULL;
-	}
-	pTask = __xrtAsyncFileTaskCreate(
-		pFile,
-		XRT_ASYNC_FILE_WRITE,
-		iOffset,
-		(uint64)Data.Size,
-		0
-	);
-	if ( pTask == NULL ) {
-		return NULL;
-	}
-	if ( Data.Size != 0 ) {
-		pTask->Data = Data.Data;
-		pTask->Release = pRelease;
-		pTask->ReleaseContext = pContext;
-	}
-	return __xrtAsyncFileSubmit(pTask, true);
-}
-
-
-
-/* 释放由 Take 成功转移给任务的数据。 */
-static void __xrtAsyncFileTakeFree(
-	ptr pContext,
-	cbytes pData,
-	size_t iSize
-)
-{
-	(void)pContext;
-	(void)iSize;
-	xrtFree((ptr)pData);
-}
-
-
-
-/* 受理由 xrtMalloc 家族分配的数据，失败时不消费所有权。 */
-XRT_API xfuture* xrtAsyncFileWriteAtTake(
-	xasyncfile* pFile,
-	uint64 iOffset,
-	bytes pData,
-	size_t iSize
-)
-{
-	if ( ((pData == NULL) && (iSize != 0)) ||
-		((pData != NULL) && (iSize == 0)) ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	return xrtAsyncFileWriteAtRef(
-		pFile,
-		iOffset,
-		(xbytesview) { pData, iSize },
-		iSize == 0 ? NULL : __xrtAsyncFileTakeFree,
-		NULL
-	);
-}
-
-
-
-/* 提交文件刷新。 */
-XRT_API xfuture* xrtAsyncFileFlush(xasyncfile* pFile)
-{
-	xrt_async_file_task* pTask =
-		__xrtAsyncFileTaskCreate(
-			pFile,
-			XRT_ASYNC_FILE_FLUSH,
-			0,
-			0,
-			0
-		);
-
-	return pTask != NULL ?
-		__xrtAsyncFileSubmit(pTask, false) : NULL;
-}
-
-
-
-/* 提交文件大小查询。 */
-XRT_API xfuture* xrtAsyncFileSize(xasyncfile* pFile)
-{
-	xrt_async_file_task* pTask =
-		__xrtAsyncFileTaskCreate(
-			pFile,
-			XRT_ASYNC_FILE_SIZE,
-			0,
-			0,
-			0
-		);
-
-	return pTask != NULL ?
-		__xrtAsyncFileSubmit(pTask, false) : NULL;
-}
-
-
-
-/* 提交文件大小修改。 */
-XRT_API xfuture* xrtAsyncFileResize(
-	xasyncfile* pFile,
-	uint64 iSize
-)
-{
-	xrt_async_file_task* pTask;
-
-	if ( iSize > (uint64)INT64_MAX ) {
-		__xrtErrorSetSizeOverflow();
-		return NULL;
-	}
-	pTask = __xrtAsyncFileTaskCreate(
-		pFile,
-		XRT_ASYNC_FILE_RESIZE,
-		0,
-		iSize,
-		0
-	);
-	return pTask != NULL ?
-		__xrtAsyncFileSubmit(pTask, false) : NULL;
 }
 
 #endif
