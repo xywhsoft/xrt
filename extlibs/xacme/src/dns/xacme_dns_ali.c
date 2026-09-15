@@ -400,7 +400,8 @@ void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig)
 }
 
 bool xrtAcmeDnsAli(
-	const xacmednaliconfig* pConfig, xacmednsprovider* pProvider)
+	const xacmednaliconfig* pConfig,
+	struct xnetengine* pBorrowedEngine, xacmednsprovider* pProvider)
 {
 	xacmednsalicontext* pCtx;
 	if((pConfig == NULL) || (pProvider == NULL) ||
@@ -427,7 +428,7 @@ bool xrtAcmeDnsAli(
 	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
 		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
 			"alidns.aliyuncs.com");
-	if(!xacmeHttpInit(&pCtx->Http, NULL, NULL, 0u))
+	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
 	{
 		xacmeHttpUnit(&pCtx->Http);
 		xrtFree(pCtx);

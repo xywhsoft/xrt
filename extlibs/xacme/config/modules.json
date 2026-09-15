@@ -265,6 +265,10 @@
     "acme_jose",
     "acme_csr",
     "dns_ali",
+    "dns_cf",
+    "dns_tencent",
+    "dns_aws",
+    "dns_huawei",
     "acme_http",
     "acme_flow",
     "dns_txt",
@@ -300,6 +304,10 @@
     "extlibs/xacme/tests/acme/test_csr.c",
     "extlibs/xacme/tests/acme/test_dns_provider.c",
     "extlibs/xacme/tests/acme/test_dnsali.c",
+    "extlibs/xacme/tests/acme/test_dnsaws.c",
+    "extlibs/xacme/tests/acme/test_dnscf.c",
+    "extlibs/xacme/tests/acme/test_dnshuawei.c",
+    "extlibs/xacme/tests/acme/test_dnstencent.c",
     "extlibs/xacme/tests/acme/test_dnstxt.c",
     "extlibs/xacme/tests/acme/test_flow.c",
     "extlibs/xacme/tests/acme/test_flow_live.c",
@@ -309,6 +317,129 @@
     "extlibs/xacme/tests/acme/test_store.c",
     "extlibs/xacme/tests/acme/test_tlsdbg.c",
     "extlibs/xacme/tests/package/test_consumer.c"
+   ],
+   "single_tests": [],
+   "examples": [],
+   "docs": [],
+   "legacy": []
+  },
+  {
+   "name": "dns_cf",
+   "state": "implemented",
+   "feature": "XACME_FEATURE_DNS_CF",
+   "depends": [
+    "core",
+    "acme_dns",
+    "acme_http",
+    "json",
+    "buffer"
+   ],
+   "internal_headers": [
+    "extlibs/xacme/src/internal/xacme_dnscommon.h"
+   ],
+   "public_headers": [
+    "extlibs/xacme/include/xrt/acme_dns_cf.h"
+   ],
+   "sources": [
+    "extlibs/xacme/src/dns/xacme_dns_cf.c"
+   ],
+   "tests": [
+    "extlibs/xacme/tests/acme/test_dnscf.c"
+   ],
+   "single_tests": [],
+   "examples": [],
+   "docs": [],
+   "legacy": []
+  },
+  {
+   "name": "dns_tencent",
+   "state": "implemented",
+   "feature": "XACME_FEATURE_DNS_TENCENT",
+   "depends": [
+    "core",
+    "acme_dns",
+    "acme_http",
+    "json",
+    "crypto_sha256",
+    "crypto_hmac_sha256",
+    "time",
+    "buffer"
+   ],
+   "internal_headers": [
+    "extlibs/xacme/src/internal/xacme_dnscommon.h",
+    "extlibs/xacme/src/internal/xacme_sigv4.h"
+   ],
+   "public_headers": [
+    "extlibs/xacme/include/xrt/acme_dns_tencent.h"
+   ],
+   "sources": [
+    "extlibs/xacme/src/dns/xacme_dns_tencent.c"
+   ],
+   "tests": [
+    "extlibs/xacme/tests/acme/test_dnstencent.c"
+   ],
+   "single_tests": [],
+   "examples": [],
+   "docs": [],
+   "legacy": []
+  },
+  {
+   "name": "dns_aws",
+   "state": "implemented",
+   "feature": "XACME_FEATURE_DNS_AWS",
+   "depends": [
+    "core",
+    "acme_dns",
+    "acme_http",
+    "crypto_sha256",
+    "crypto_hmac_sha256",
+    "time",
+    "buffer"
+   ],
+   "internal_headers": [
+    "extlibs/xacme/src/internal/xacme_dnscommon.h",
+    "extlibs/xacme/src/internal/xacme_sigv4.h"
+   ],
+   "public_headers": [
+    "extlibs/xacme/include/xrt/acme_dns_aws.h"
+   ],
+   "sources": [
+    "extlibs/xacme/src/dns/xacme_dns_aws.c"
+   ],
+   "tests": [
+    "extlibs/xacme/tests/acme/test_dnsaws.c"
+   ],
+   "single_tests": [],
+   "examples": [],
+   "docs": [],
+   "legacy": []
+  },
+  {
+   "name": "dns_huawei",
+   "state": "implemented",
+   "feature": "XACME_FEATURE_DNS_HUAWEI",
+   "depends": [
+    "core",
+    "acme_dns",
+    "acme_http",
+    "json",
+    "crypto_sha256",
+    "crypto_hmac_sha256",
+    "time",
+    "buffer"
+   ],
+   "internal_headers": [
+    "extlibs/xacme/src/internal/xacme_dnscommon.h",
+    "extlibs/xacme/src/internal/xacme_sigv4.h"
+   ],
+   "public_headers": [
+    "extlibs/xacme/include/xrt/acme_dns_huawei.h"
+   ],
+   "sources": [
+    "extlibs/xacme/src/dns/xacme_dns_huawei.c"
+   ],
+   "tests": [
+    "extlibs/xacme/tests/acme/test_dnshuawei.c"
    ],
    "single_tests": [],
    "examples": [],

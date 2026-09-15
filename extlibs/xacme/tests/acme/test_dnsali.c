@@ -35,7 +35,7 @@ int main(void)
 	Config.sAccessKeyId = sKey;
 	Config.sAccessKeySecret = sSecret;
 	testRequire(
-		xrtAcmeDnsAli(&Config, &Provider),
+		xrtAcmeDnsAli(&Config, NULL, &Provider),
 		"acme dns_ali construct failed"
 	);
 

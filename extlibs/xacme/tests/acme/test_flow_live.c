@@ -37,7 +37,7 @@ int main(void)
 	AliConfig.sAccessKeyId = sKey;
 	AliConfig.sAccessKeySecret = sSecret;
 	testRequire(
-		xrtAcmeDnsAli(&AliConfig, &Ali),
+		xrtAcmeDnsAli(&AliConfig, NULL, &Ali),
 		"acme live ali construct failed"
 	);
 

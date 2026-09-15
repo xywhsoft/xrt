@@ -27,4 +27,20 @@
 	#include <xrt/acme_dns_ali.h>
 #endif
 
+#if defined(XACME_FEATURE_DNS_CF)
+	#include <xrt/acme_dns_cf.h>
+#endif
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+	#include <xrt/acme_dns_tencent.h>
+#endif
+
+#if defined(XACME_FEATURE_DNS_AWS)
+	#include <xrt/acme_dns_aws.h>
+#endif
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+	#include <xrt/acme_dns_huawei.h>
+#endif
+
 #endif

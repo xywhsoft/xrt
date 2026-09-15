@@ -30,6 +30,12 @@ typedef struct xacmednaliconfig {
 
 
 
+#if defined(XACME_FEATURE_DNS_ALI)
+
+struct xnetengine;
+
+#endif
+
 XRT_EXTERN_C_BEGIN
 
 
@@ -42,9 +48,11 @@ XRT_API void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig);
 /*
 	构造阿里云 DNS provider。内部上下文由 xrtMalloc 分配，
 	宿主用 xrtAcmeDnsAliProviderUnit 归还；凭据缺失返回 false。
+	pBorrowedEngine 为空时自建网络引擎。
 */
 XRT_API bool xrtAcmeDnsAli(
 	const xacmednaliconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
 	xacmednsprovider* pProvider
 );
 
