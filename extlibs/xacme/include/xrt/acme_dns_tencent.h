@@ -6,8 +6,15 @@
 
 #include <xrt/acme_dns.h>
 
-#if defined(XACME_FEATURE_DNS_TENCENT) && !defined(XACME_FEATURE_ACME_DNS)
-	#error "XRT acme dns_tencent requires XACME_FEATURE_ACME_DNS"
+#if defined(XACME_FEATURE_DNS_TENCENT) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_TENCENT requires acme dns, acme http transport and signing primitives"
 #endif
 
 #if defined(XACME_FEATURE_DNS_TENCENT)

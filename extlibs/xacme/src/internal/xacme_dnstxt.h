@@ -6,7 +6,7 @@
 
 struct xnetengine;
 
-#if defined(XACME_FEATURE_DNS_TXT)
+#if defined(XACME_FEATURE_ACME_DNS)
 
 /* dns_txt 模块稳定错误码（错误域 "xrt.acme.dns.txt"）。 */
 typedef enum xacmednstxterror {
@@ -29,7 +29,7 @@ typedef struct xacmedns {
 
 XRT_EXTERN_C_BEGIN
 
-#if defined(XACME_FEATURE_DNS_TXT)
+#if defined(XACME_FEATURE_ACME_DNS)
 
 /* pBorrowedEngine 为空时自建引擎。 */
 bool xacmeDnsInit(xacmedns* pDns, struct xnetengine* pBorrowedEngine);

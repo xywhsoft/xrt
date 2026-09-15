@@ -6,6 +6,7 @@
 #include <xrt/codec.h>
 #include <xrt/json.h>
 #include <xrt/memory.h>
+#include <xrt/pem.h>
 #include <xrt/time.h>
 #include <xrt/value.h>
 
@@ -526,6 +527,16 @@ bool xacmeClientInit(
 			XERR_PROTOCOL, XACME_FLOW_ERROR_DIRECTORY,
 			"acme client directory url too long");
 		goto Done;
+	}
+	/* revokeCert 可选：没有它的 CA 不支持吊销路径。 */
+	{
+		xacmeflowurl RevokeCert;
+		if(xacmeJsonValueText(pRoot, "revokeCert", &RevokeCert))
+		{
+			(void)xacmeFlowCopyText(
+				pClient->sRevokeCert, sizeof(pClient->sRevokeCert),
+				RevokeCert.sData);
+		}
 	}
 
 	/* 注册或复用账户：201=新建，200=已存在。载荷按需携带
@@ -1266,6 +1277,98 @@ bool xacmeClientIssueStored(
 }
 #endif
 
+#if defined(XACME_FEATURE_ACME_FLOW)
+bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
+{
+	xacmehttpresponse R;
+	xpemblock Block;
+	size_t iDerSize = 0u;
+	bytes pDer = NULL;
+	str sCertB64 = NULL;
+	xbuffer Payload;
+	static const xbase64config B64Url = {
+		NULL, XBASE64_URL | XBASE64_NO_PADDING };
+	bool bOk = false;
+
+	if((pClient == NULL) || (sCertPem == NULL) || (sCertPem[0] == '\0'))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme revoke requires client and certificate");
+		return false;
+	}
+	if(pClient->sRevokeCert[0] == '\0')
+	{
+		xacmeFlowError(
+			XERR_UNSUPPORTED, XACME_FLOW_ERROR_PROTOCOL,
+			"acme revoke requires directory revokeCert endpoint");
+		return false;
+	}
+	if(!xrtPemFind(sCertPem, strlen(sCertPem), "CERTIFICATE", &Block) ||
+		((pDer = xrtPemDecodeNew(&Block, &iDerSize)) == NULL))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme revoke certificate pem invalid");
+		return false;
+	}
+	sCertB64 = xrtBase64EncodeNew(pDer, iDerSize, &B64Url);
+	xrtFree(pDer);
+	if(sCertB64 == NULL)
+	{
+		return false;
+	}
+	xrtBufferInit(&Payload);
+	bOk = xrtBufferAppend(&Payload, XRT_BYTES_LITERAL("{\"certificate\":\"")) &&
+		xrtBufferAppend(&Payload,
+			(xbytesview){ (const uint8*)sCertB64, strlen(sCertB64) }) &&
+		xrtBufferAppend(&Payload, XRT_BYTES_LITERAL("\""));
+	if(bOk && (iReason >= 0))
+	{
+		char sReason[24];
+		snprintf(sReason, sizeof(sReason), ",\"reason\":%d", iReason);
+		bOk = xrtBufferAppend(&Payload,
+			(xbytesview){ (const uint8*)sReason, strlen(sReason) });
+	}
+	if(bOk)
+	{
+		bOk = xrtBufferAppendByte(&Payload, (uint8)'}');
+	}
+	if(bOk)
+	{
+		bOk = xacmeFlowPost(pClient, pClient->sRevokeCert,
+			(xstrview){ (cstr)Payload.Data, Payload.Size }, true, &R, 0u);
+	}
+	xrtBufferUnit(&Payload);
+	xrtFree(sCertB64);
+	if(!bOk)
+	{
+		return false;
+	}
+	/* 200 = 已吊销；400 + alreadyRevoked 视为幂等成功。 */
+	if(R.iStatus == 200u)
+	{
+		xacmeHttpResponseUnit(&R);
+		return true;
+	}
+	if((R.iStatus == 400u) && (R.sBody != NULL) &&
+		(strstr(R.sBody, "alreadyRevoked") != NULL))
+	{
+		xacmeHttpResponseUnit(&R);
+		return true;
+	}
+	{
+		char sDetail[240];
+		snprintf(sDetail, sizeof(sDetail),
+			"acme revoke status=%u body=%.160s", (unsigned)R.iStatus,
+			(R.sBody != NULL) ? R.sBody : "");
+		xacmeHttpResponseUnit(&R);
+		xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_PROTOCOL, sDetail);
+	}
+	return false;
+}
+#endif
+
 /* ---------------- 公开客户端 API（xrt/acme_client.h） ---------------- */
 
 #if defined(XACME_FEATURE_ACME_FLOW)
@@ -1366,6 +1469,12 @@ bool xrtAcmeClientIssue(
 	xacmeissuegrant* pOut)
 {
 	return xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut);
+}
+
+bool xrtAcmeClientRevoke(
+	struct xacmeclient* pClient, cstr sCertPem, int iReason)
+{
+	return xacmeClientRevoke(pClient, sCertPem, iReason);
 }
 
 #endif

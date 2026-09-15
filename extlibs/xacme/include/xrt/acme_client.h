@@ -6,13 +6,17 @@
 
 #include <xrt/acme.h>
 #include <xrt/acme_dns.h>
-
-#if defined(XACME_FEATURE_ACME_FLOW) && !defined(XACME_FEATURE_ACME_CORE)
-	#error "XRT acme client requires XACME_FEATURE_ACME_CORE"
-#endif
-
-#if defined(XACME_FEATURE_ACME_FLOW) && !defined(XACME_FEATURE_ACME_DNS)
-	#error "XRT acme client requires XACME_FEATURE_ACME_DNS"
+#include <xrt/acme_http.h>
+#if defined(XACME_FEATURE_ACME_FLOW) && \
+	!defined(XACME_FEATURE_ACME_CORE) || \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XACME_FEATURE_ACME_JOSE) || \
+	!defined(XACME_FEATURE_ACME_CSR) || \
+	!defined(XACME_FEATURE_DNS_ALI) || \
+	!defined(XACME_FEATURE_ACME_STORE) || \
+	!defined(XRT_FEATURE_JSON)
+	#error "XACME_FEATURE_ACME_FLOW requires core, dns, http, jose, csr, dns_ali, store and json"
 #endif
 
 struct xnetengine;
@@ -71,6 +75,17 @@ XRT_API bool xrtAcmeClientIssue(
 	size_t iDomainCount,
 	const xacmednsprovider* pDns,
 	xacmeissuegrant* pOut
+);
+
+/*
+	吊销证书（RFC 8555 §7.6，账户钥签名）：sCertPem 为单张证书
+	（取首个 PEM 块）；iReason 0-9（RFC 5280 CRLReason），<0 省略。
+	已被吊销视为幂等成功。要求 directory 提供 revokeCert 端点。
+*/
+XRT_API bool xrtAcmeClientRevoke(
+	struct xacmeclient* pClient,
+	cstr sCertPem,
+	int iReason
 );
 
 #endif

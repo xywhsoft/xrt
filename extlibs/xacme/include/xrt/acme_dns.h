@@ -7,6 +7,19 @@
 
 
 
+
+#if defined(XACME_FEATURE_ACME_DNS) && \
+	!defined(XRT_FEATURE_NET_ENGINE) || \
+	!defined(XRT_FEATURE_NET_UDP) || \
+	!defined(XRT_FEATURE_NET_UDP_SYNC) || \
+	!defined(XRT_FEATURE_RANDOM) || \
+	!defined(XRT_FEATURE_RANDOM_DEFAULT) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_ARRAY)
+	#error "XACME_FEATURE_ACME_DNS requires net engine, UDP, random, time, buffer and array"
+#endif
+
 /* DNS provider 模块稳定错误码（错误域 "xrt.acme.dns"）。 */
 typedef enum xacmednserror {
 	XACME_DNS_ERROR_ARGUMENT = 1,

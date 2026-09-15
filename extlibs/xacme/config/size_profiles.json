@@ -1,0 +1,24 @@
+{
+ "schema": 1,
+ "manifest": "extlibs/xacme/config/modules.json",
+ "profiles": [
+  {
+   "name": "acme_jose",
+   "system": "acme_extension",
+   "suite": "acme_jose",
+   "description": "JOSE 签名与密钥序列化最小闭包"
+  },
+  {
+   "name": "xacme",
+   "system": "acme_extension",
+   "suite": "xacme",
+   "description": "xacme 当前完整扩展闭包"
+  }
+ ],
+ "default_growth": {
+  "text": 0.1,
+  "data": 0.2,
+  "bss": 0.2,
+  "file": 0.15
+ }
+}

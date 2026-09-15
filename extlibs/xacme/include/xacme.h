@@ -9,7 +9,7 @@
 
 #include <xacme/features.h>
 
-#include <xrt/core.h>
+#include <xrt.h>
 
 #if defined(XACME_FEATURE_ACME_DNS)
 	#include <xrt/acme_dns.h>
@@ -19,8 +19,28 @@
 	#include <xrt/acme.h>
 #endif
 
+#if defined(XACME_FEATURE_ACME_JOSE)
+	#include <xrt/acme_jose.h>
+#endif
+
+#if defined(XACME_FEATURE_ACME_CSR)
+	#include <xrt/acme_csr.h>
+#endif
+
+#if defined(XACME_FEATURE_ACME_HTTP)
+	#include <xrt/acme_http.h>
+#endif
+
 #if defined(XACME_FEATURE_ACME_FLOW)
 	#include <xrt/acme_client.h>
+#endif
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+	#include <xrt/acme_obtain.h>
+#endif
+
+#if defined(XACME_FEATURE_ACME_STORE)
+	#include <xrt/acme_store.h>
 #endif
 
 #if defined(XACME_FEATURE_DNS_ALI)

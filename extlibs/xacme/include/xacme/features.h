@@ -2,6 +2,164 @@
 #ifndef XACME_FEATURES_H
 #define XACME_FEATURES_H
 
+/* acme_obtain 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_OBTAIN)
+#ifndef XACME_FEATURE_ACME_OBTAIN
+#define XACME_FEATURE_ACME_OBTAIN
+#endif
+#ifndef XACME_MODULE_ACME_CORE
+#define XACME_MODULE_ACME_CORE
+#endif
+#ifndef XACME_MODULE_ACME_FLOW
+#define XACME_MODULE_ACME_FLOW
+#endif
+#ifndef XACME_MODULE_ACME_STORE
+#define XACME_MODULE_ACME_STORE
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XACME_MODULE_ACME_JOSE
+#define XACME_MODULE_ACME_JOSE
+#endif
+#ifndef XACME_MODULE_ACME_CSR
+#define XACME_MODULE_ACME_CSR
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_DNS_ALI
+#define XACME_MODULE_DNS_ALI
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_FILE_WHOLE
+#define XRT_MODULE_FILE_WHOLE
+#endif
+#ifndef XRT_MODULE_X509_PARSE
+#define XRT_MODULE_X509_PARSE
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_PEM
+#define XRT_MODULE_PEM
+#endif
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#endif
+
+/* dns_huawei 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_HUAWEI)
+#ifndef XACME_FEATURE_DNS_HUAWEI
+#define XACME_FEATURE_DNS_HUAWEI
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_aws 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_AWS)
+#ifndef XACME_FEATURE_DNS_AWS
+#define XACME_FEATURE_DNS_AWS
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_tencent 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_TENCENT)
+#ifndef XACME_FEATURE_DNS_TENCENT
+#define XACME_FEATURE_DNS_TENCENT
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_cf 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_CF)
+#ifndef XACME_FEATURE_DNS_CF
+#define XACME_FEATURE_DNS_CF
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* acme_flow 及其直接依赖。 */
 #if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_FLOW)
 #ifndef XACME_FEATURE_ACME_FLOW
@@ -37,6 +195,9 @@
 #if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_STORE)
 #ifndef XACME_FEATURE_ACME_STORE
 #define XACME_FEATURE_ACME_STORE
+#endif
+#ifndef XACME_MODULE_ACME_CORE
+#define XACME_MODULE_ACME_CORE
 #endif
 #ifndef XRT_MODULE_FILE
 #define XRT_MODULE_FILE
@@ -88,9 +249,6 @@
 #ifndef XACME_MODULE_ACME_HTTP
 #define XACME_MODULE_ACME_HTTP
 #endif
-#ifndef XACME_MODULE_DNS_TXT
-#define XACME_MODULE_DNS_TXT
-#endif
 #ifndef XRT_MODULE_JSON
 #define XRT_MODULE_JSON
 #endif
@@ -111,10 +269,10 @@
 #endif
 #endif
 
-/* dns_txt 及其直接依赖。 */
-#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_TXT)
-#ifndef XACME_FEATURE_DNS_TXT
-#define XACME_FEATURE_DNS_TXT
+/* acme_dns 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_DNS)
+#ifndef XACME_FEATURE_ACME_DNS
+#define XACME_FEATURE_ACME_DNS
 #endif
 #ifndef XRT_MODULE_NET_ENGINE
 #define XRT_MODULE_NET_ENGINE
@@ -139,13 +297,6 @@
 #endif
 #ifndef XRT_MODULE_ARRAY
 #define XRT_MODULE_ARRAY
-#endif
-#endif
-
-/* acme_dns 及其直接依赖。 */
-#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_DNS)
-#ifndef XACME_FEATURE_ACME_DNS
-#define XACME_FEATURE_ACME_DNS
 #endif
 #endif
 

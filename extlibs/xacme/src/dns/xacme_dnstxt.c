@@ -1,6 +1,6 @@
 #include "../internal/xacme_dnstxt.h"
 
-#if defined(XACME_FEATURE_DNS_TXT)
+#if defined(XACME_FEATURE_ACME_DNS)
 
 #include <xrt/buffer.h>
 #include <xrt/net.h>

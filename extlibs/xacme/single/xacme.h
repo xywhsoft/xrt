@@ -56,6 +56,164 @@
 #ifndef XACME_FEATURES_H
 #define XACME_FEATURES_H
 
+/* acme_obtain 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_OBTAIN)
+#ifndef XACME_FEATURE_ACME_OBTAIN
+#define XACME_FEATURE_ACME_OBTAIN
+#endif
+#ifndef XACME_MODULE_ACME_CORE
+#define XACME_MODULE_ACME_CORE
+#endif
+#ifndef XACME_MODULE_ACME_FLOW
+#define XACME_MODULE_ACME_FLOW
+#endif
+#ifndef XACME_MODULE_ACME_STORE
+#define XACME_MODULE_ACME_STORE
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XACME_MODULE_ACME_JOSE
+#define XACME_MODULE_ACME_JOSE
+#endif
+#ifndef XACME_MODULE_ACME_CSR
+#define XACME_MODULE_ACME_CSR
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_DNS_ALI
+#define XACME_MODULE_DNS_ALI
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_FILE_WHOLE
+#define XRT_MODULE_FILE_WHOLE
+#endif
+#ifndef XRT_MODULE_X509_PARSE
+#define XRT_MODULE_X509_PARSE
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_PEM
+#define XRT_MODULE_PEM
+#endif
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#endif
+
+/* dns_huawei 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_HUAWEI)
+#ifndef XACME_FEATURE_DNS_HUAWEI
+#define XACME_FEATURE_DNS_HUAWEI
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_aws 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_AWS)
+#ifndef XACME_FEATURE_DNS_AWS
+#define XACME_FEATURE_DNS_AWS
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_tencent 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_TENCENT)
+#ifndef XACME_FEATURE_DNS_TENCENT
+#define XACME_FEATURE_DNS_TENCENT
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_cf 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_CF)
+#ifndef XACME_FEATURE_DNS_CF
+#define XACME_FEATURE_DNS_CF
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* acme_flow 及其直接依赖。 */
 #if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_FLOW)
 #ifndef XACME_FEATURE_ACME_FLOW
@@ -91,6 +249,9 @@
 #if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_STORE)
 #ifndef XACME_FEATURE_ACME_STORE
 #define XACME_FEATURE_ACME_STORE
+#endif
+#ifndef XACME_MODULE_ACME_CORE
+#define XACME_MODULE_ACME_CORE
 #endif
 #ifndef XRT_MODULE_FILE
 #define XRT_MODULE_FILE
@@ -142,9 +303,6 @@
 #ifndef XACME_MODULE_ACME_HTTP
 #define XACME_MODULE_ACME_HTTP
 #endif
-#ifndef XACME_MODULE_DNS_TXT
-#define XACME_MODULE_DNS_TXT
-#endif
 #ifndef XRT_MODULE_JSON
 #define XRT_MODULE_JSON
 #endif
@@ -165,10 +323,10 @@
 #endif
 #endif
 
-/* dns_txt 及其直接依赖。 */
-#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_TXT)
-#ifndef XACME_FEATURE_DNS_TXT
-#define XACME_FEATURE_DNS_TXT
+/* acme_dns 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_DNS)
+#ifndef XACME_FEATURE_ACME_DNS
+#define XACME_FEATURE_ACME_DNS
 #endif
 #ifndef XRT_MODULE_NET_ENGINE
 #define XRT_MODULE_NET_ENGINE
@@ -193,13 +351,6 @@
 #endif
 #ifndef XRT_MODULE_ARRAY
 #define XRT_MODULE_ARRAY
-#endif
-#endif
-
-/* acme_dns 及其直接依赖。 */
-#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_DNS)
-#ifndef XACME_FEATURE_ACME_DNS
-#define XACME_FEATURE_ACME_DNS
 #endif
 #endif
 
@@ -42083,6 +42234,128 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_http.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_HTTP_H
+#define XRT_ACME_HTTP_H
+
+/*
+	xacme HTTPS 传输层的裁剪闭包契约：ACME 端点访问建立在 xrt 的
+	自研 TLS/网络/HTTP 栈上（一次性连接，系统或自定义信任库）。
+	传输对象为内部实现细节，宿主经 xrt/acme_client.h 使用；
+	本头只固化依赖闭包，供构建器做负向裁剪门禁。
+*/
+
+
+#if defined(XACME_FEATURE_ACME_HTTP)
+
+#if !defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_HTTP) || \
+	!defined(XRT_FEATURE_HTTP1_HEAD) || \
+	!defined(XRT_FEATURE_HTTP1_BODY) || \
+	!defined(XRT_FEATURE_HTTP1_NET) || \
+	!defined(XRT_FEATURE_NET_ENGINE) || \
+	!defined(XRT_FEATURE_NET_RESOLVER) || \
+	!defined(XRT_FEATURE_NET_TCP) || \
+	!defined(XRT_FEATURE_NET_TCP_DIAL) || \
+	!defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) || \
+	!defined(XRT_FEATURE_NET_TCP_FUTURE) || \
+	!defined(XRT_FEATURE_TLS_STREAM) || \
+	!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
+	!defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) || \
+	!defined(XRT_FEATURE_TLS_STREAM_FUTURE) || \
+	!defined(XRT_FEATURE_TLS_CLIENT) || \
+	!defined(XRT_FEATURE_TLS_CLIENT_VERIFY) || \
+	!defined(XRT_FEATURE_TLS_VERIFY) || \
+	!defined(XRT_FEATURE_TLS_NEGOTIATE) || \
+	!defined(XRT_FEATURE_TLS_POLICY) || \
+	!defined(XRT_FEATURE_TLS_CONTEXT) || \
+	!defined(XRT_FEATURE_TLS_RECORD) || \
+	!defined(XRT_FEATURE_TLS_RECORD_AES) || \
+	!defined(XRT_FEATURE_TLS_SCHEDULE_SHA256) || \
+	!defined(XRT_FEATURE_TLS_SCHEDULE_SHA384) || \
+	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_X25519) || \
+	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P256) || \
+	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P384) || \
+	!defined(XRT_FEATURE_X509_STORE) || \
+	!defined(XRT_FEATURE_X509_STORE_SYSTEM) || \
+	!defined(XRT_FEATURE_FUTURE) || \
+	!defined(XRT_FEATURE_FUTURE_BRIDGE) || \
+	!defined(XRT_FEATURE_CANCEL) || \
+	!defined(XRT_FEATURE_THREAD) || \
+	!defined(XRT_FEATURE_TIME)
+	#error "XACME_FEATURE_ACME_HTTP requires the xrt TLS/net/HTTP stack"
+#endif
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_jose.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_JOSE_H
+#define XRT_ACME_JOSE_H
+
+/*
+	xacme JOSE 层的裁剪闭包契约：ES256 账户密钥与 JWS 组装建立在
+	xrt 的 P-256 与 SHA-256 原语上。JOSE 对象为内部实现细节，
+	宿主经 xrt/acme_client.h 使用；本头只固化依赖闭包，
+	供构建器做负向裁剪门禁。
+*/
+
+
+#if defined(XACME_FEATURE_ACME_JOSE)
+
+#if !defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_P256_KEYPAIR) || \
+	!defined(XRT_FEATURE_CRYPTO_ECDSA_P256_SIGN)
+	#error "XACME_FEATURE_ACME_JOSE requires base64, SHA-256 and P-256 signing"
+#endif
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_csr.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_CSR_H
+#define XRT_ACME_CSR_H
+
+/*
+	xacme CSR/密钥序列化层的裁剪闭包契约：PKCS#10 组装与 PKCS#8/SEC1
+	PEM 读写建立在 xrt 的 ASN.1/PEM/P-256 原语上，并复用 JOSE 密钥
+	类型。CSR 对象为内部实现细节，宿主经 xrt/acme_client.h 使用；
+	本头只固化依赖闭包，供构建器做负向裁剪门禁。
+*/
+
+
+#if defined(XACME_FEATURE_ACME_CSR)
+
+#if !defined(XACME_FEATURE_ACME_JOSE) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_ASN1_DER) || \
+	!defined(XRT_FEATURE_PEM) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_CRYPTO_P256) || \
+	!defined(XRT_FEATURE_CRYPTO_ECDSA_P256_SIGN_DER)
+	#error "XACME_FEATURE_ACME_CSR requires JOSE, DER, PEM and P-256 DER signing"
+#endif
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xacme/include/xrt/acme_dns.h */
 /* ========================================================================== */
 
@@ -42092,6 +42365,19 @@ XRT_EXTERN_C_END
 
 
 
+
+
+#if defined(XACME_FEATURE_ACME_DNS) && \
+	!defined(XRT_FEATURE_NET_ENGINE) || \
+	!defined(XRT_FEATURE_NET_UDP) || \
+	!defined(XRT_FEATURE_NET_UDP_SYNC) || \
+	!defined(XRT_FEATURE_RANDOM) || \
+	!defined(XRT_FEATURE_RANDOM_DEFAULT) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_ARRAY)
+	#error "XACME_FEATURE_ACME_DNS requires net engine, UDP, random, time, buffer and array"
+#endif
 
 /* DNS provider 模块稳定错误码（错误域 "xrt.acme.dns"）。 */
 typedef enum xacmednserror {
@@ -42194,8 +42480,16 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XACME_FEATURE_DNS_ALI) && !defined(XACME_FEATURE_ACME_DNS)
-	#error "XRT acme dns_ali requires XACME_FEATURE_ACME_DNS"
+#if defined(XACME_FEATURE_DNS_ALI) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_ALI requires acme dns, acme http transport and signing primitives"
 #endif
 
 
@@ -42205,19 +42499,24 @@ XRT_EXTERN_C_END
 /*
 	阿里云 DNS（alidns）provider，走 V3 签名（ACS3-HMAC-SHA256）。
 	Endpoint 默认 alidns.aliyuncs.com；凭据与 Endpoint 均为借用视图，
-	宿主保证存活至 Remove 完成。
+	宿主保证存活至 Remove 完成。传播确认由签发流程层统一负责
+	（provider 只做 Add/Remove）。
 */
 typedef struct xacmednaliconfig {
 	cstr sAccessKeyId;
 	cstr sAccessKeySecret;
 	cstr sEndpoint;
-	/* TXT 传播确认用的解析器；空则不自动确认。 */
-	cstr sVerifyResolver;
 } xacmednaliconfig;
 
 #endif
 
 
+
+#if defined(XACME_FEATURE_DNS_ALI)
+
+struct xnetengine;
+
+#endif
 
 XRT_EXTERN_C_BEGIN
 
@@ -42231,9 +42530,11 @@ XRT_API void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig);
 /*
 	构造阿里云 DNS provider。内部上下文由 xrtMalloc 分配，
 	宿主用 xrtAcmeDnsAliProviderUnit 归还；凭据缺失返回 false。
+	pBorrowedEngine 为空时自建网络引擎。
 */
 XRT_API bool xrtAcmeDnsAli(
 	const xacmednaliconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
 	xacmednsprovider* pProvider
 );
 
@@ -42322,6 +42623,18 @@ typedef struct xacmeaccountconfig {
 	cstr sContactEmail;
 } xacmeaccountconfig;
 
+/*
+	签发产物：证书链 + 配对私钥，两段文本均由 xrtFree 释放。
+	私钥为 PKCS#8 PEM（ES256），与链中叶证书配对；没有它证书不可用。
+*/
+typedef struct xacmeissuegrant {
+	str sFullchainPem;
+	str sKeyPem;
+} xacmeissuegrant;
+
+/* 释放一段签发产物（成员非空即释放并清零）。 */
+XRT_API void xrtAcmeGrantUnit(xacmeissuegrant* pGrant);
+
 #endif
 
 
@@ -42334,6 +42647,15 @@ XRT_EXTERN_C_BEGIN
 
 /* 全零初始化；指针字段为空表示未设置。 */
 XRT_API void xrtAcmeAccountConfigInit(xacmeaccountconfig* pConfig);
+
+#endif
+
+
+
+#if defined(XACME_FEATURE_ACME_CORE)
+
+/* 释放一段签发产物（成员非空即释放并清零）；入参可为空。 */
+XRT_API void xrtAcmeGrantUnit(xacmeissuegrant* pGrant);
 
 #endif
 
@@ -42352,12 +42674,19 @@ XRT_EXTERN_C_END
 #define XRT_ACME_STORE_H
 
 
-#if defined(XACME_FEATURE_ACME_STORE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XRT acme store requires whole-file support"
-#endif
 
-#if defined(XACME_FEATURE_ACME_STORE) && !defined(XRT_FEATURE_X509_PARSE)
-	#error "XRT acme store requires X.509 parsing"
+#if defined(XACME_FEATURE_ACME_STORE) && \
+	!defined(XACME_FEATURE_ACME_CORE) || \
+	!defined(XRT_FEATURE_FILE) || \
+	!defined(XRT_FEATURE_FILE_WHOLE) || \
+	!defined(XRT_FEATURE_X509_PARSE) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_PEM) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_DIR)
+	#error "XACME_FEATURE_ACME_STORE requires acme core, file, x509, pem, base64, time, buffer and dir"
 #endif
 
 /* store 模块稳定错误码（错误域 "xrt.acme.store"）。 */
@@ -42371,9 +42700,11 @@ typedef enum xacmestoreerror {
 /*
 	磁盘布局（root 由宿主显式指定，库不猜家目录）：
 	  <root>/accounts/<ca16>/account.pem   账户密钥（PKCS#8 PEM）
+	  <root>/certs/<domain>/key.pem        证书私钥（PKCS#8 PEM）
 	  <root>/certs/<domain>/fullchain.pem  证书链
 	  <root>/certs/<domain>/meta.txt       "directory=<CA directory URL>"
 	<ca16> 为 directory URL 的 SHA-256 hex 前 16 字符，多 CA 并存互不污染。
+	宿主负责 root 目录本身的访问权限（key.pem 属敏感数据）。
 */
 
 XRT_EXTERN_C_BEGIN
@@ -42399,11 +42730,475 @@ XRT_API str xrtAcmeStoreLoadCert(cstr sRoot, cstr sPrimaryDomain);
 XRT_API str xrtAcmeStoreLoadCertCa(cstr sRoot, cstr sPrimaryDomain);
 
 /*
+	签发产物整体落盘（key.pem + fullchain.pem + meta，原子写）。
+	pGrant 借用；sDirectoryUrl 可为空（meta 溯源留空）。
+*/
+XRT_API bool xrtAcmeStoreSaveGrant(
+	cstr sRoot, cstr sPrimaryDomain,
+	const xacmeissuegrant* pGrant, cstr sDirectoryUrl);
+
+/*
+	读取签发产物；key.pem 或 fullchain.pem 缺失即失败
+	（XERR_NOT_FOUND），输出清零。两段均 xrtFree。
+*/
+XRT_API bool xrtAcmeStoreLoadGrant(
+	cstr sRoot, cstr sPrimaryDomain, xacmeissuegrant* pOut);
+
+/*
+	枚举 <root>/certs/ 下的域名目录名（续签守护遍历用）。
+	每元素 256 字节；容量不足时返回 false 并置 XERR_RANGE。
+*/
+XRT_API bool xrtAcmeStoreListDomains(
+	cstr sRoot, char (*sOutDomains)[256],
+	size_t iCapacity, size_t* pOutCount);
+
+/*
 	续签判定：解析本地链叶证书的 notAfter，剩余寿命不足
 	iRenewalDays 天时 *pbNeed=true。本地证书缺失同样 *pbNeed=true。
 */
 XRT_API bool xrtAcmeStoreNeedRenew(
 	cstr sRoot, cstr sPrimaryDomain, int iRenewalDays, bool* pbNeed);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_client.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_CLIENT_H
+#define XRT_ACME_CLIENT_H
+
+
+#if defined(XACME_FEATURE_ACME_FLOW) && \
+	!defined(XACME_FEATURE_ACME_CORE) || \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XACME_FEATURE_ACME_JOSE) || \
+	!defined(XACME_FEATURE_ACME_CSR) || \
+	!defined(XACME_FEATURE_DNS_ALI) || \
+	!defined(XACME_FEATURE_ACME_STORE) || \
+	!defined(XRT_FEATURE_JSON)
+	#error "XACME_FEATURE_ACME_FLOW requires core, dns, http, jose, csr, dns_ali, store and json"
+#endif
+
+struct xnetengine;
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+
+/*
+	客户端配置：全部借用视图，宿主保证存活至 Create 返回。
+	pAccount 必填；sPropagateResolvers 为空时使用内置默认组
+	（223.5.5.5 / 119.29.29.29 / 8.8.8.8，任一可见即通过），
+	uPropagateTimeoutMs 为 0 时默认 120 秒。
+*/
+typedef struct xacmeclientconfig {
+	const xacmeaccountconfig* pAccount;
+	cstr sCaPem;
+	struct xnetengine* pBorrowedEngine;
+	uint64 uTimeoutUs;
+	const cstr* sPropagateResolvers;
+	size_t iPropagateResolverCount;
+	uint32 uPropagateTimeoutMs;
+} xacmeclientconfig;
+
+#endif
+
+/* 不透明客户端；定义在内部头，宿主只经指针使用。 */
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+
+/* 全零初始化；指针字段为空表示未设置。 */
+XRT_API void xrtAcmeClientConfigInit(xacmeclientconfig* pConfig);
+
+/*
+	创建客户端：建传输、解析 directory、注册或复用账户（含
+	EAB/contact）。失败返回 NULL 并设置线程错误。
+*/
+XRT_API struct xacmeclient* xrtAcmeClientCreate(
+	const xacmeclientconfig* pConfig);
+
+/* 销毁并释放；入参可为空。 */
+XRT_API void xrtAcmeClientDestroy(struct xacmeclient* pClient);
+
+/* 账户密钥 PKCS#8 PEM 导出（xrtFree 释放），宿主可持久化复用。 */
+XRT_API str xrtAcmeClientAccountPem(const struct xacmeclient* pClient);
+
+/*
+	一次 dns-01 签发：域名可含通配符（*. 前缀）；产物含证书链与
+	配对私钥（pOut 两段均 xrtFree，或经 xrtAcmeGrantUnit 统一释放）。
+	provider 的 Add 在 TXT 铺设后、挑战触发前调用；传播确认通过后
+	才触发挑战；Remove 在结束后尽力调用。
+*/
+XRT_API bool xrtAcmeClientIssue(
+	struct xacmeclient* pClient,
+	const xstrview* pDomains,
+	size_t iDomainCount,
+	const xacmednsprovider* pDns,
+	xacmeissuegrant* pOut
+);
+
+/*
+	吊销证书（RFC 8555 §7.6，账户钥签名）：sCertPem 为单张证书
+	（取首个 PEM 块）；iReason 0-9（RFC 5280 CRLReason），<0 省略。
+	已被吊销视为幂等成功。要求 directory 提供 revokeCert 端点。
+*/
+XRT_API bool xrtAcmeClientRevoke(
+	struct xacmeclient* pClient,
+	cstr sCertPem,
+	int iReason
+);
+
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW) && defined(XACME_FEATURE_ACME_STORE)
+
+/*
+	一站式续签（组合 store）：本地证书剩余寿命不少于 iRenewalDays
+	天时 *pbRenewed=false 并直接返回现有链与私钥；否则签发、落盘
+	（key.pem + fullchain.pem + CA 溯源）并返回新产物。
+	pDomains[0] 同时是 store 的主域名键。
+*/
+XRT_API bool xrtAcmeClientIssueStored(
+	struct xacmeclient* pClient,
+	const xstrview* pDomains,
+	size_t iDomainCount,
+	const xacmednsprovider* pDns,
+	cstr sStoreRoot,
+	int iRenewalDays,
+	xacmeissuegrant* pOut,
+	bool* pbRenewed
+);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_dns_cf.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_DNS_CF_H
+#define XRT_ACME_DNS_CF_H
+
+
+
+#if defined(XACME_FEATURE_DNS_CF) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_CF requires acme dns, acme http transport and signing primitives"
+#endif
+
+#if defined(XACME_FEATURE_DNS_CF)
+
+/*
+	Cloudflare DNS provider（API v4，Bearer API Token）。
+	Token 建议只授予目标 zone 的 Zone.DNS Edit 权限；均为借用视图。
+*/
+typedef struct xacmednscfconfig {
+	cstr sApiToken;
+	cstr sEndpoint;
+} xacmednscfconfig;
+
+#endif
+
+struct xnetengine;
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_DNS_CF)
+
+/* 全零初始化；ApiToken 必填。 */
+XRT_API void xrtAcmeDnsCfConfigInit(xacmednscfconfig* pConfig);
+
+/* 构造 provider；内部上下文由 xrtMalloc 分配，宿主用 Unit 归还。 */
+XRT_API bool xrtAcmeDnsCf(
+	const xacmednscfconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider
+);
+
+/* 释放构造时分配的内部上下文。 */
+XRT_API void xrtAcmeDnsCfProviderUnit(xacmednsprovider* pProvider);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_dns_tencent.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_DNS_TENCENT_H
+#define XRT_ACME_DNS_TENCENT_H
+
+
+
+#if defined(XACME_FEATURE_DNS_TENCENT) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_TENCENT requires acme dns, acme http transport and signing primitives"
+#endif
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+
+/*
+	腾讯云 DNSPod provider（API 3.0，TC3-HMAC-SHA256 签名）。
+	凭据为 SecretId/SecretKey；Endpoint 默认 dnspod.tencentcloudapi.com。
+*/
+typedef struct xacmednstencentconfig {
+	cstr sSecretId;
+	cstr sSecretKey;
+	cstr sEndpoint;
+} xacmednstencentconfig;
+
+#endif
+
+struct xnetengine;
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+
+/* 全零初始化；SecretId/SecretKey 必填。 */
+XRT_API void xrtAcmeDnsTencentConfigInit(xacmednstencentconfig* pConfig);
+
+/* 构造 provider；内部上下文由 xrtMalloc 分配，宿主用 Unit 归还。 */
+XRT_API bool xrtAcmeDnsTencent(
+	const xacmednstencentconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider
+);
+
+/* 释放构造时分配的内部上下文。 */
+XRT_API void xrtAcmeDnsTencentProviderUnit(xacmednsprovider* pProvider);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_dns_aws.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_DNS_AWS_H
+#define XRT_ACME_DNS_AWS_H
+
+
+
+#if defined(XACME_FEATURE_DNS_AWS) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_AWS requires acme dns, acme http transport and signing primitives"
+#endif
+
+#if defined(XACME_FEATURE_DNS_AWS)
+
+/*
+	AWS Route53 provider（SigV4，XML API 2013-03-01）。
+	Region 可空（Route53 为全局服务，默认 us-east-1）；
+	凭据建议为仅限 Route53 的 IAM 用户/角色。
+*/
+typedef struct xacmednsawsconfig {
+	cstr sAccessKeyId;
+	cstr sSecretAccessKey;
+	cstr sRegion;
+	cstr sEndpoint;
+} xacmednsawsconfig;
+
+#endif
+
+struct xnetengine;
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_DNS_AWS)
+
+/* 全零初始化；AccessKeyId/SecretAccessKey 必填。 */
+XRT_API void xrtAcmeDnsAwsConfigInit(xacmednsawsconfig* pConfig);
+
+/* 构造 provider；内部上下文由 xrtMalloc 分配，宿主用 Unit 归还。 */
+XRT_API bool xrtAcmeDnsAws(
+	const xacmednsawsconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider
+);
+
+/* 释放构造时分配的内部上下文。 */
+XRT_API void xrtAcmeDnsAwsProviderUnit(xacmednsprovider* pProvider);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_dns_huawei.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_DNS_HUAWEI_H
+#define XRT_ACME_DNS_HUAWEI_H
+
+
+
+#if defined(XACME_FEATURE_DNS_HUAWEI) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_HUAWEI requires acme dns, acme http transport and signing primitives"
+#endif
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+
+/*
+	华为云 DNS provider（API v2，SDK-HMAC-SHA256 签名）。
+	凭据为 AK/SK；Endpoint 默认 dns.myhuaweicloud.com。
+	注意 recordset 的 name 带尾点、records 值需内嵌双引号。
+*/
+typedef struct xacmednshuaaweiconfig {
+	cstr sAccessKey;
+	cstr sSecretKey;
+	cstr sEndpoint;
+} xacmednshuaaweiconfig;
+
+#endif
+
+struct xnetengine;
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+
+/* 全零初始化；AccessKey/SecretKey 必填。 */
+XRT_API void xrtAcmeDnsHuaweiConfigInit(xacmednshuaaweiconfig* pConfig);
+
+/* 构造 provider；内部上下文由 xrtMalloc 分配，宿主用 Unit 归还。 */
+XRT_API bool xrtAcmeDnsHuawei(
+	const xacmednshuaaweiconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider
+);
+
+/* 释放构造时分配的内部上下文。 */
+XRT_API void xrtAcmeDnsHuaweiProviderUnit(xacmednsprovider* pProvider);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_obtain.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_OBTAIN_H
+#define XRT_ACME_OBTAIN_H
+
+
+
+#if defined(XACME_FEATURE_ACME_OBTAIN) && \
+	!defined(XACME_FEATURE_ACME_FLOW) || \
+	!defined(XACME_FEATURE_ACME_STORE) || \
+	!defined(XACME_FEATURE_ACME_CORE) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XACME_FEATURE_ACME_JOSE) || \
+	!defined(XACME_FEATURE_ACME_CSR) || \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_DNS_ALI) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_FILE_WHOLE) || \
+	!defined(XRT_FEATURE_X509_PARSE) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_PEM) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_DIR)
+	#error "XACME_FEATURE_ACME_OBTAIN requires flow and store closures"
+#endif
+
+struct xnetengine;
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+
+/*
+	一站式配置：账户层 + 客户端层 + 续签层，全部借用视图，
+	宿主保证存活至 Obtain 返回。sStoreRoot 必填；iRenewalDays
+	为 0 时默认 30（剩余寿命不足该天数即续签）。
+*/
+typedef struct xacmeobtainconfig {
+	const xacmeaccountconfig* pAccount;
+	cstr sCaPem;
+	struct xnetengine* pBorrowedEngine;
+	uint64 uTimeoutUs;
+	const cstr* sPropagateResolvers;
+	size_t iPropagateResolverCount;
+	uint32 uPropagateTimeoutMs;
+	cstr sStoreRoot;
+	int iRenewalDays;
+} xacmeobtainconfig;
+
+#endif
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+
+/* 全零初始化；指针字段为空表示未设置。 */
+XRT_API void xrtAcmeObtainConfigInit(xacmeobtainconfig* pConfig);
+
+/*
+	一次调用取得可用证书（链 + 配对私钥）：
+	  1. store 无账户则注册并持久化（accounts/<ca16>/account.pem），
+	     有则复用（同一 CA 稳定账户，不反复开户）；
+	  2. 本地证书剩余寿命充足时直接返回（*pbRenewed=false）；
+	  3. 不足则完整 dns-01 签发并落盘
+	     （certs/<主域名>/{key.pem,fullchain.pem,meta_txt}）。
+	pOut 两段文本均 xrtFree（或 xrtAcmeGrantUnit 统一释放）。
+	失败返回 false 并设置线程错误。
+*/
+XRT_API bool xrtAcmeObtain(
+	const xacmeobtainconfig* pConfig,
+	const xstrview* pDomains,
+	size_t iDomainCount,
+	const xacmednsprovider* pDns,
+	xacmeissuegrant* pOut,
+	bool* pbRenewed
+);
 
 #endif
 
@@ -42419,8 +43214,8 @@ XRT_EXTERN_C_END
 /*
 	xacme —— 构建在 xrt 核心之上的 ACME (RFC 8555) 客户端扩展库。
 
-	模块选择见 <xacme/features.h>：默认全量内建 DNS provider，
-	XACME_NO_DNS_<厂> 排除个别，或点名 XACME_MODULE_DNS_<厂> 白名单。
+	模块选择见 <xacme/features.h>（由 tools/generate_extension_features.py
+	按清单生成）：定义 XACME_MODULE_<名> 点名模块，或不定义任何宏取全量。
 */
 #ifndef XACME_H
 #define XACME_H
@@ -42433,7 +43228,37 @@ XRT_EXTERN_C_END
 #if defined(XACME_FEATURE_ACME_CORE)
 #endif
 
+#if defined(XACME_FEATURE_ACME_JOSE)
+#endif
+
+#if defined(XACME_FEATURE_ACME_CSR)
+#endif
+
+#if defined(XACME_FEATURE_ACME_HTTP)
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+#endif
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+#endif
+
+#if defined(XACME_FEATURE_ACME_STORE)
+#endif
+
 #if defined(XACME_FEATURE_DNS_ALI)
+#endif
+
+#if defined(XACME_FEATURE_DNS_CF)
+#endif
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+#endif
+
+#if defined(XACME_FEATURE_DNS_AWS)
+#endif
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
 #endif
 
 #endif
@@ -61053,14 +61878,14 @@ XRT_EXTERN_C_END
 /* internal: extlibs/xacme/src/internal/xacme_dnstxt.h */
 /* ========================================================================== */
 
-#if defined(XACME_FEATURE_DNS_TXT)
+#if defined(XACME_FEATURE_ACME_DNS)
 #ifndef XACME_DNSTXT_H
 #define XACME_DNSTXT_H
 
 
 struct xnetengine;
 
-#if defined(XACME_FEATURE_DNS_TXT)
+#if defined(XACME_FEATURE_ACME_DNS)
 
 /* dns_txt 模块稳定错误码（错误域 "xrt.acme.dns.txt"）。 */
 typedef enum xacmednstxterror {
@@ -61083,7 +61908,7 @@ typedef struct xacmedns {
 
 XRT_EXTERN_C_BEGIN
 
-#if defined(XACME_FEATURE_DNS_TXT)
+#if defined(XACME_FEATURE_ACME_DNS)
 
 /* pBorrowedEngine 为空时自建引擎。 */
 bool xacmeDnsInit(xacmedns* pDns, struct xnetengine* pBorrowedEngine);
@@ -61135,6 +61960,10 @@ XRT_EXTERN_C_END
 
 struct xacmednsprovider;
 
+/* 传播确认内置默认 resolver 组（任一可见即通过）。 */
+#define XACME_FLOW_RESOLVER_MAX 4u
+#define XACME_FLOW_PROPAGATE_TIMEOUT_MS 120000u
+
 #if defined(XACME_FEATURE_ACME_FLOW)
 
 /* flow 模块稳定错误码（错误域 "xrt.acme.flow"）。 */
@@ -61163,7 +61992,12 @@ typedef struct xacmeclient {
 	char sNewNonce[512];
 	char sNewAccount[512];
 	char sNewOrder[512];
+	char sRevokeCert[512];
 	char sNonce[512];
+	/* 传播确认 resolver（IP 字面量）与预算；空组走默认组。 */
+	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
+	size_t iPropagateResolverCount;
+	uint32 uPropagateTimeoutMs;
 } xacmeclient;
 
 #endif
@@ -61173,16 +62007,17 @@ XRT_EXTERN_C_BEGIN
 #if defined(XACME_FEATURE_ACME_FLOW)
 
 /*
-	初始化：建传输（pBorrowedHttp 为空则自建）、解析 directory、
+	初始化：建传输（pBorrowedEngine 为空则自建）、解析 directory、
 	注册或复用账户（kid 来自 Location 头）。pAccount 携带 directory、
 	账户密钥、EAB 与联系方式（借用视图，宿主保证存活至返回）。
-	失败设置线程错误。
+	uTimeoutUs 为 0 时取传输默认（30 秒）。失败设置线程错误。
 */
 bool xacmeClientInit(
 	xacmeclient* pClient,
 	struct xnetengine* pBorrowedEngine,
 	cstr sCaPem,
-	const xacmeaccountconfig* pAccount
+	const xacmeaccountconfig* pAccount,
+	uint64 uTimeoutUs
 );
 
 void xacmeClientUnit(xacmeclient* pClient);
@@ -61191,36 +62026,303 @@ void xacmeClientUnit(xacmeclient* pClient);
 str xacmeClientAccountPem(const xacmeclient* pClient);
 
 /*
-	一次 dns-01 签发：域名可含通配符（*. 前缀）；返回证书链 PEM
-	（xrtFree 释放）。失败返回 NULL 并设置线程错误；provider 的
-	Add 在挑战触发前调用、Remove 在结束后尽力调用。
+	一次 dns-01 签发：域名可含通配符（*. 前缀）；产物含证书链与
+	配对私钥（均 xrtFree）。失败返回 false 并设置线程错误；
+	provider 的 Add 在挑战触发前调用、Remove 在结束后尽力调用。
 */
-str xacmeClientIssue(
+bool xacmeClientIssue(
 	xacmeclient* pClient,
 	const xstrview* pDomains,
 	size_t iDomainCount,
-	const struct xacmednsprovider* pDns
+	const struct xacmednsprovider* pDns,
+	xacmeissuegrant* pOut
 );
 
 /*
 	一站式续签（组合 store）：
 	本地证书剩余寿命不少于 iRenewalDays 天时 *pbRenewed=false 并
-	直接返回现有链；否则签发、落盘（fullchain + CA 溯源）并返回
-	新链。pDomains[0] 同时是 store 的主域名键。
+	直接返回现有链与私钥；否则签发、落盘（key.pem + fullchain.pem
+	+ CA 溯源）并返回新产物。pDomains[0] 同时是 store 的主域名键。
 */
-str xacmeClientIssueStored(
+bool xacmeClientIssueStored(
 	xacmeclient* pClient,
 	const xstrview* pDomains,
 	size_t iDomainCount,
 	const struct xacmednsprovider* pDns,
 	cstr sStoreRoot,
 	int iRenewalDays,
+	xacmeissuegrant* pOut,
 	bool* pbRenewed
+);
+
+/*
+	吊销证书（RFC 8555 §7.6，账户钥签名）：sCertPem 为单张证书
+	（取首个 PEM 块）；iReason 0-9（RFC 5280 CRLReason），<0 省略。
+	已被吊销视为成功。要求 directory 提供 revokeCert 端点。
+*/
+bool xacmeClientRevoke(
+	xacmeclient* pClient,
+	cstr sCertPem,
+	int iReason
 );
 
 #endif
 
 XRT_EXTERN_C_END
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xacme/src/internal/xacme_dnscommon.h */
+/* ========================================================================== */
+
+#if defined(XACME_FEATURE_DNS_CF) || \
+	defined(XACME_FEATURE_DNS_TENCENT) || \
+	defined(XACME_FEATURE_DNS_AWS) || \
+	defined(XACME_FEATURE_DNS_HUAWEI)
+#ifndef XACME_DNSCOMMON_H
+#define XACME_DNSCOMMON_H
+
+/*
+	DNS provider 公共助手：FQDN 拆分、多 zone 缓存、记录句柄登记、
+	JSON 文本追加/取值。全部 static 实现，供各家 provider 内部复用，
+	不进入公开 API。
+*/
+
+
+
+#include <stdio.h>
+#include <string.h>
+
+#define XACME_DNS_ZONE_MAX 4u
+#define XACME_DNS_RECORD_MAX 8u
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsSplit(
+	cstr sFqdn, char* sRr, size_t iRrCap, char* sZone, size_t iZoneCap)
+{
+	const char* sDot;
+	size_t iLen = strlen(sFqdn);
+	if((iLen == 0u) || (iLen >= 512u))
+	{
+		return false;
+	}
+	sDot = strchr(sFqdn, '.');
+	if((sDot == NULL) || (sDot == sFqdn) ||
+		((size_t)(sDot - sFqdn) >= iRrCap))
+	{
+		return false;
+	}
+	memcpy(sRr, sFqdn, (size_t)(sDot - sFqdn));
+	sRr[sDot - sFqdn] = '\0';
+	if((iLen - (size_t)(sDot - sFqdn) - 1u) >= iZoneCap)
+	{
+		return false;
+	}
+	strcpy(sZone, sDot + 1);
+	return true;
+}
+
+/* 多 zone 缓存：后缀命中返回借用指针，未命中返回 NULL。 */
+typedef struct xacmednszonecache {
+	char sZones[XACME_DNS_ZONE_MAX][256];
+	size_t iCount;
+} xacmednszonecache;
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static const char* xacmeDnsZoneMatch(
+	xacmednszonecache* pCache, cstr sFqdn)
+{
+	size_t i;
+	size_t iLen = strlen(sFqdn);
+	for(i = 0; i < pCache->iCount; i++)
+	{
+		size_t iZoneLen = strlen(pCache->sZones[i]);
+		if((iLen > iZoneLen + 1u) &&
+			(sFqdn[iLen - iZoneLen - 1u] == '.') &&
+			(strcmp(sFqdn + iLen - iZoneLen, pCache->sZones[i]) == 0))
+		{
+			return pCache->sZones[i];
+		}
+	}
+	return NULL;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static void xacmeDnsZoneRemember(xacmednszonecache* pCache, cstr sZone)
+{
+	if((pCache->iCount < XACME_DNS_ZONE_MAX) &&
+		(xacmeDnsZoneMatch(pCache, sZone) == NULL))
+	{
+		snprintf(pCache->sZones[pCache->iCount],
+			sizeof(pCache->sZones[pCache->iCount]), "%s", sZone);
+		pCache->iCount++;
+	}
+}
+
+/* 本 provider 生命周期内添加的记录句柄（RecordId 或 FQDN 值对）。 */
+typedef struct xacmednsrecords {
+	char sIds[XACME_DNS_RECORD_MAX][64];
+	size_t iCount;
+} xacmednsrecords;
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static void xacmeDnsRecordRemember(
+	xacmednsrecords* pRecords, cstr sId)
+{
+	if((pRecords->iCount < XACME_DNS_RECORD_MAX) && (strlen(sId) < 64u))
+	{
+		strcpy(pRecords->sIds[pRecords->iCount], sId);
+		pRecords->iCount++;
+	}
+}
+
+/* 把借用文本按 JSON 字符串 token（含引号）转义追加。 */
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsJsonQuote(xbuffer* pOut, xstrview sText)
+{
+	size_t i;
+	if(!xrtBufferAppendByte(pOut, (uint8)'"'))
+	{
+		return false;
+	}
+	for(i = 0; i < sText.Size; i++)
+	{
+		char c = sText.Data[i];
+		bool bOk;
+		if((c == '"') || (c == '\\'))
+		{
+			bOk = xrtBufferAppendByte(pOut, (uint8)'\\') &&
+				xrtBufferAppendByte(pOut, (uint8)c);
+		}
+		else
+		{
+			/* 域名与 base64url 值不含控制字符；其余原样透传。 */
+			bOk = xrtBufferAppendByte(pOut, (uint8)c);
+		}
+		if(!bOk)
+		{
+			return false;
+		}
+	}
+	return xrtBufferAppendByte(pOut, (uint8)'"');
+}
+
+/* 取 JSON 对象字符串成员到固定缓冲（含末尾零）；失败返回 false。 */
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsJsonText(
+	const xvalue* pObject, cstr sKey, char* sOut, size_t iCapacity)
+{
+	xvalue* pMember = xrtValueObjectGet(
+		pObject, (xstrview){ sKey, strlen(sKey) });
+	xstrview Text;
+	if((pMember == NULL) || !xrtValueGetString(pMember, &Text) ||
+		(Text.Size >= iCapacity))
+	{
+		return false;
+	}
+	memcpy(sOut, Text.Data, Text.Size);
+	sOut[Text.Size] = '\0';
+	return true;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xacme/src/internal/xacme_sigv4.h */
+/* ========================================================================== */
+
+#if defined(XACME_FEATURE_DNS_TENCENT) || \
+	defined(XACME_FEATURE_DNS_AWS) || \
+	defined(XACME_FEATURE_DNS_HUAWEI)
+#ifndef XACME_SIGV4_H
+#define XACME_SIGV4_H
+
+/*
+	AWS SigV4 家族签名公共件（TC3 / AWS4 / SDK-HMAC-SHA256 共用骨架）：
+	三方差异只在 StringToSign 前缀与派生密钥链长度，canonical request
+	形状一致（method\nuri\nquery\nheaders\nsignedheaders\npayloadhash）。
+	全部 static 实现，仅内部使用。
+*/
+
+
+#include <stdio.h>
+#include <string.h>
+
+#define XACME_SIG_HASH_TEXT 65u
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static void xacmeSigHex(const uint8* pData, size_t iSize, char* sOut)
+{
+	size_t i;
+	for(i = 0; i < iSize; i++)
+	{
+		sprintf(sOut + i * 2u, "%02x", pData[i]);
+	}
+	sOut[iSize * 2u] = '\0';
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeSigSha256Hex(
+	const void* pData, size_t iSize, char* sOut)
+{
+	uint8 Digest[XRT_SHA256_SIZE];
+	if(!xrtSha256(pData, iSize, Digest))
+	{
+		return false;
+	}
+	xacmeSigHex(Digest, sizeof(Digest), sOut);
+	return true;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeSigHmac(
+	const uint8* pKey, size_t iKeySize, const void* pData, size_t iSize,
+	uint8 pOut[XRT_SHA256_SIZE])
+{
+	return xrtHmacSha256(pKey, iKeySize, pData, iSize, pOut);
+}
+
+/*
+	组装 canonical request。canonHeaders 形如
+	"content-type:v\nhost:h\n"（键小写、按字典序、值裁剪首尾空白），
+	sSignedHeaders 形如 "content-type;host"。
+*/
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeSigCanonical(
+	char* sOut, size_t iCapacity, cstr sMethod, cstr sUri, cstr sQuery,
+	cstr sCanonHeaders, cstr sSignedHeaders, cstr sPayloadHashHex)
+{
+	int iWritten = snprintf(
+		sOut, iCapacity, "%s\n%s\n%s\n%s\n%s\n%s", sMethod, sUri,
+		((sQuery != NULL) ? sQuery : ""), sCanonHeaders, sSignedHeaders,
+		sPayloadHashHex);
+	return (iWritten > 0) && ((size_t)iWritten < iCapacity);
+}
 
 #endif
 #endif
@@ -320610,9 +321712,9 @@ const char* xrtAcmeDnsProviderId(size_t iIndex)
 /* source: extlibs/xacme/src/dns/xacme_dnstxt.c */
 /* ========================================================================== */
 
-#if defined(XACME_FEATURE_DNS_TXT)
+#if defined(XACME_FEATURE_ACME_DNS)
 
-#if defined(XACME_FEATURE_DNS_TXT)
+#if defined(XACME_FEATURE_ACME_DNS)
 
 
 #include <string.h>
@@ -321021,11 +322123,9 @@ bool xacmeDnsTxtWait(
 
 typedef struct xacmednsalicontext {
 	xacmehttp Http;
-	xacmedns Verify;
 	char sKeyId[160];
 	char sSecret[160];
 	char sEndpoint[160];
-	char sVerifyResolver[64];
 	/* 已确认的 zone（首次 Add 时试探得到；多域名跨 zone 各自缓存）。 */
 	char sZones[XACME_ALI_ZONE_MAX][256];
 	size_t iZoneCount;
@@ -321355,17 +322455,6 @@ static bool xacmeAliAdd(
 	}
 	xacmeAliSaveRecordId(pCtx, sResp);
 	xrtFree(sResp);
-	/* 可选传播确认（公共 resolver 视角）。 */
-	if(pCtx->sVerifyResolver[0] != '\0')
-	{
-			xrtSleep(20000u); /* 权威集群同步窗口 */
-		char sTxtText[208];
-		memcpy(sTxtText, sTxt.Data, sTxt.Size);
-		sTxtText[sTxt.Size] = '\0';
-		(void)xacmeDnsTxtWait(
-			&pCtx->Verify, pCtx->sVerifyResolver, 53u, sFqdnText,
-			sTxtText, 60000u);
-	}
 	return true;
 }
 
@@ -321411,11 +322500,11 @@ void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig)
 	pConfig->sAccessKeyId = NULL;
 	pConfig->sAccessKeySecret = NULL;
 	pConfig->sEndpoint = NULL;
-	pConfig->sVerifyResolver = NULL;
 }
 
 bool xrtAcmeDnsAli(
-	const xacmednaliconfig* pConfig, xacmednsprovider* pProvider)
+	const xacmednaliconfig* pConfig,
+	struct xnetengine* pBorrowedEngine, xacmednsprovider* pProvider)
 {
 	xacmednsalicontext* pCtx;
 	if((pConfig == NULL) || (pProvider == NULL) ||
@@ -321442,17 +322531,9 @@ bool xrtAcmeDnsAli(
 	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
 		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
 			"alidns.aliyuncs.com");
-	if((pConfig->sVerifyResolver != NULL) &&
-		(pConfig->sVerifyResolver[0] != '\0'))
-	{
-		snprintf(pCtx->sVerifyResolver, sizeof(pCtx->sVerifyResolver),
-			"%s", pConfig->sVerifyResolver);
-	}
-	if(!xacmeHttpInit(&pCtx->Http, NULL, NULL, 0u) ||
-		!xacmeDnsInit(&pCtx->Verify, NULL))
+	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
 	{
 		xacmeHttpUnit(&pCtx->Http);
-		xacmeDnsUnit(&pCtx->Verify);
 		xrtFree(pCtx);
 		return false;
 	}
@@ -321472,7 +322553,6 @@ void xrtAcmeDnsAliProviderUnit(xacmednsprovider* pProvider)
 		xacmednsalicontext* pCtx =
 			(xacmednsalicontext*)pProvider->pContext;
 		xacmeHttpUnit(&pCtx->Http);
-		xacmeDnsUnit(&pCtx->Verify);
 		xrtFree(pCtx);
 		pProvider->pContext = NULL;
 	}
@@ -321487,6 +322567,8 @@ void xrtAcmeDnsAliProviderUnit(xacmednsprovider* pProvider)
 /* ========================================================================== */
 
 #if defined(XACME_FEATURE_ACME_CORE)
+
+#include <string.h>
 
 #if defined(XACME_FEATURE_ACME_CORE)
 
@@ -321507,6 +322589,17 @@ void xrtAcmeAccountConfigInit(xacmeaccountconfig* pConfig)
 	pConfig->Eab.sKid = NULL;
 	pConfig->Eab.sHmac = NULL;
 	pConfig->sContactEmail = NULL;
+}
+
+void xrtAcmeGrantUnit(xacmeissuegrant* pGrant)
+{
+	if(pGrant == NULL)
+	{
+		return;
+	}
+	xrtFree(pGrant->sFullchainPem);
+	xrtFree(pGrant->sKeyPem);
+	memset(pGrant, 0, sizeof(*pGrant));
 }
 
 #endif
@@ -321739,6 +322832,141 @@ str xrtAcmeStoreLoadCertCa(cstr sRoot, cstr sPrimaryDomain)
 	return sCa;
 }
 
+bool xrtAcmeStoreSaveGrant(
+	cstr sRoot, cstr sPrimaryDomain, const xacmeissuegrant* pGrant,
+	cstr sDirectoryUrl)
+{
+	char sPath[1024];
+	if((sRoot == NULL) || (sPrimaryDomain == NULL) || (pGrant == NULL) ||
+		(pGrant->sFullchainPem == NULL) || (pGrant->sKeyPem == NULL))
+	{
+		xacmeStoreError(
+			XERR_ARGUMENT, XACME_STORE_ERROR_ARGUMENT,
+			"acme store save grant requires root, domain, chain and key");
+		return false;
+	}
+	/* 链与 meta 先落（含建目录），再写 key.pem。 */
+	if(!xrtAcmeStoreSaveCert(
+			sRoot, sPrimaryDomain, pGrant->sFullchainPem, sDirectoryUrl))
+	{
+		return false;
+	}
+	snprintf(
+		sPath, sizeof(sPath), "%s/certs/%s/key.pem", sRoot, sPrimaryDomain);
+	if(!xacmeStoreWriteAtomicText(sPath, pGrant->sKeyPem))
+	{
+		xacmeStoreError(
+			XERR_IO, XACME_STORE_ERROR_IO,
+			"acme store write key failed");
+		return false;
+	}
+	return true;
+}
+
+bool xrtAcmeStoreLoadGrant(
+	cstr sRoot, cstr sPrimaryDomain, xacmeissuegrant* pOut)
+{
+	char sPath[1024];
+	size_t iSize = 0u;
+	bytes pBytes;
+	if((sRoot == NULL) || (sPrimaryDomain == NULL) || (pOut == NULL))
+	{
+		xacmeStoreError(
+			XERR_ARGUMENT, XACME_STORE_ERROR_ARGUMENT,
+			"acme store load grant requires root, domain and output");
+		return false;
+	}
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->sFullchainPem = xrtAcmeStoreLoadCert(sRoot, sPrimaryDomain);
+	if(pOut->sFullchainPem == NULL)
+	{
+		return false;
+	}
+	snprintf(
+		sPath, sizeof(sPath), "%s/certs/%s/key.pem", sRoot, sPrimaryDomain);
+	pBytes = xrtFileReadAll(sPath, &iSize);
+	if(pBytes == NULL)
+	{
+		xacmeStoreError(
+			XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
+			"acme store key not found");
+		xrtAcmeGrantUnit(pOut);
+		return false;
+	}
+	pOut->sKeyPem = (str)xrtMalloc(iSize + 1u);
+	if(pOut->sKeyPem == NULL)
+	{
+		xrtFree(pBytes);
+		xrtAcmeGrantUnit(pOut);
+		return false;
+	}
+	memcpy(pOut->sKeyPem, pBytes, iSize);
+	pOut->sKeyPem[iSize] = '\0';
+	xrtFree(pBytes);
+	return true;
+}
+
+bool xrtAcmeStoreListDomains(
+	cstr sRoot, char (*sOutDomains)[256],
+	size_t iCapacity, size_t* pOutCount)
+{
+	char sPath[1024];
+	xdir Dir;
+	if((sRoot == NULL) || (sOutDomains == NULL) || (pOutCount == NULL) ||
+		(iCapacity == 0u))
+	{
+		xacmeStoreError(
+			XERR_ARGUMENT, XACME_STORE_ERROR_ARGUMENT,
+			"acme store list requires root, output and capacity");
+		return false;
+	}
+	*pOutCount = 0u;
+	snprintf(sPath, sizeof(sPath), "%s/certs", sRoot);
+	Dir = xrtDirOpen(sPath, 0u);
+	if(!Dir)
+	{
+		/* 目录不存在视为空清单（首次运行前）。 */
+		xacmeStoreError(
+			XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
+			"acme store certs dir not found");
+		return false;
+	}
+	for(;;)
+	{
+		xdirentry Entry;
+		xdirnext eNext = xrtDirNext(Dir, &Entry);
+		if(eNext == XDIR_NEXT_END)
+		{
+			break;
+		}
+		if(eNext != XDIR_NEXT_ITEM)
+		{
+			xrtDirClose(Dir);
+			xacmeStoreError(
+				XERR_IO, XACME_STORE_ERROR_IO,
+				"acme store list iterate failed");
+			return false;
+		}
+		if((Entry.Name.Size == 0u) || (Entry.Name.Size >= 256u))
+		{
+			continue;
+		}
+		if(*pOutCount >= iCapacity)
+		{
+			xrtDirClose(Dir);
+			xacmeStoreError(
+				XERR_RANGE, XACME_STORE_ERROR_ARGUMENT,
+				"acme store list capacity exhausted");
+			return false;
+		}
+		memcpy(sOutDomains[*pOutCount], Entry.Name.Data, Entry.Name.Size);
+		sOutDomains[*pOutCount][Entry.Name.Size] = '\0';
+		(*pOutCount)++;
+	}
+	xrtDirClose(Dir);
+	return true;
+}
+
 bool xrtAcmeStoreNeedRenew(
 	cstr sRoot, cstr sPrimaryDomain, int iRenewalDays, bool* pbNeed)
 {
@@ -321818,6 +323046,7 @@ Done:
 #if defined(XACME_FEATURE_ACME_FLOW)
 
 #if defined(XACME_FEATURE_ACME_FLOW)
+
 
 
 #include <stdio.h>
@@ -322109,6 +323338,79 @@ static str xacmeFlowWaitStatus(
 	return NULL;
 }
 
+/* ---------------- 传播确认 ---------------- */
+
+/* 任一配置 resolver 已返回期望 TXT 值即视为可见。 */
+static bool xacmeFlowTxtVisible(
+	xacmedns* pDns, const xacmeclient* pClient,
+	cstr sFqdn, cstr sExpected)
+{
+	size_t i;
+	for(i = 0; i < pClient->iPropagateResolverCount; i++)
+	{
+		char sRecords[4][XACME_TXT_RECORD_MAX];
+		size_t iCount = 0u;
+		size_t j;
+		if(!xacmeDnsTxtQuery(
+				pDns, pClient->sPropagateResolvers[i], 53u, sFqdn,
+				sRecords, 4u, &iCount))
+		{
+			continue; /* 单个 resolver 不可达不算失败。 */
+		}
+		for(j = 0; j < iCount; j++)
+		{
+			if(strcmp(sRecords[j], sExpected) == 0)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+/*
+	挑战触发前的传播确认门（尽力而为）：
+	- provider 带 XACME_DNS_CAP_PROPAGATE 时委托 provider 自证；
+	- 否则对公共 resolver 组轮询 TXT（任一可见即通过）；
+	- 超时不阻断签发——CA 只查权威侧，公共递归滞后不必然失败，
+	  仅在 XACME_DEBUG 下输出提示。
+*/
+static void xacmeFlowWaitPropagate(
+	xacmeclient* pClient, const xacmednsprovider* pDns,
+	cstr sFqdn, cstr sTxt)
+{
+	xacmedns Probe;
+	uint64 uDeadline;
+	if(((pDns->iCaps & XACME_DNS_CAP_PROPAGATE) != 0u) &&
+		(pDns->Propagate != NULL))
+	{
+		(void)pDns->Propagate((xacmednsprovider*)pDns,
+			(xstrview){ sFqdn, strlen(sFqdn) },
+			(xstrview){ sTxt, strlen(sTxt) });
+		return;
+	}
+	if(!xacmeDnsInit(&Probe, pClient->Http.pEngine))
+	{
+		return;
+	}
+	uDeadline = xrtClock() +
+		(uint64)pClient->uPropagateTimeoutMs * UINT64_C(1000);
+	while(xrtClock() < uDeadline)
+	{
+		if(xacmeFlowTxtVisible(&Probe, pClient, sFqdn, sTxt))
+		{
+			xacmeDnsUnit(&Probe);
+			return;
+		}
+		xrtSleep(2000u);
+	}
+	xacmeDnsUnit(&Probe);
+	if(getenv("XACME_DEBUG"))
+	{
+		printf("[dbg] propagate confirm timeout fqdn=%s\n", sFqdn);
+	}
+}
+
 /* ---------------- 初始化与签发 ---------------- */
 
 /*
@@ -322169,7 +323471,7 @@ static void xacmeFlowChallengeDetail(
 
 bool xacmeClientInit(
 	xacmeclient* pClient, struct xnetengine* pBorrowedEngine,
-	cstr sCaPem, const xacmeaccountconfig* pAccount)
+	cstr sCaPem, const xacmeaccountconfig* pAccount, uint64 uTimeoutUs)
 {
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
@@ -322198,7 +323500,7 @@ bool xacmeClientInit(
 			"acme client directory url too long");
 		return false;
 	}
-	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, 0u))
+	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, uTimeoutUs))
 	{
 		goto Done;
 	}
@@ -322262,6 +323564,16 @@ bool xacmeClientInit(
 			XERR_PROTOCOL, XACME_FLOW_ERROR_DIRECTORY,
 			"acme client directory url too long");
 		goto Done;
+	}
+	/* revokeCert 可选：没有它的 CA 不支持吊销路径。 */
+	{
+		xacmeflowurl RevokeCert;
+		if(xacmeJsonValueText(pRoot, "revokeCert", &RevokeCert))
+		{
+			(void)xacmeFlowCopyText(
+				pClient->sRevokeCert, sizeof(pClient->sRevokeCert),
+				RevokeCert.sData);
+		}
 	}
 
 	/* 注册或复用账户：201=新建，200=已存在。载荷按需携带
@@ -322423,14 +323735,14 @@ str xacmeClientAccountPem(const xacmeclient* pClient)
 	return xacmeKeyPemWrite(&pClient->AccountKey);
 }
 
-str xacmeClientIssue(
+bool xacmeClientIssue(
 	xacmeclient* pClient, const xstrview* pDomains, size_t iDomainCount,
-	const struct xacmednsprovider* pDns)
+	const struct xacmednsprovider* pDns, xacmeissuegrant* pOut)
 {
 	xbuffer Payload;
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
-	str sResult = NULL;
+	bool bResult = false;
 	xacmeflowurl Finalize;
 	xacmeflowurl OrderUrl;
 	Finalize.sData[0] = 0;
@@ -322440,13 +323752,15 @@ str xacmeClientIssue(
 
 	if((pClient == NULL) || (pDomains == NULL) || (iDomainCount == 0u) ||
 		(pDns == NULL) || (pDns->Add == NULL) || (pDns->Remove == NULL) ||
+		(pOut == NULL) ||
 		!xrtAcmeDnsProviderValidate(pDns))
 	{
 		xacmeFlowError(
 			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
-			"acme issue requires client, domains and dns provider");
-		return NULL;
+			"acme issue requires client, domains, dns provider and output");
+		return false;
 	}
+	memset(pOut, 0, sizeof(*pOut));
 
 	/* 1. 新订单；identifier 用去 *.\ 后的基础域并去重（通配符与
 	   裸域共用一次授权；通配符语义由 CSR 的 SAN 表达）。 */
@@ -322713,6 +324027,9 @@ str xacmeClientIssue(
 							xrtFree(sTxt);
 							continue;
 						}
+						/* 传播确认通过后再触发挑战。 */
+						xacmeFlowWaitPropagate(
+							pClient, pDns, sFqdn, sTxt);
 						/* 触发挑战并轮询授权至 valid。 */
 						if(xacmeFlowPost(
 							pClient, ChallengeUrl.sData,
@@ -322812,6 +324129,14 @@ str xacmeClientIssue(
 		/* 证书密钥独立于账户密钥（CA 普遍拒绝复用账户钥）。 */
 		bCsrOk = xacmeEs256Generate(&CertKey) &&
 			xacmeCsrEc(&CertKey, &Csr, &CsrDer);
+		if(bCsrOk)
+		{
+			/* 私钥随产物导出（没有它证书不可用）。 */
+			pOut->sKeyPem = xacmeKeyPemWrite(&CertKey);
+			bCsrOk = (pOut->sKeyPem != NULL);
+		}
+		/* 栈上密钥副本立即擦除。 */
+		xrtSecureZero(&CertKey, sizeof(CertKey));
 		sCsrB64 = bCsrOk ? xrtBase64EncodeNew(
 			CsrDer.Data, CsrDer.Size, &B64Url) : NULL;
 		xrtBufferUnit(&CsrDer);
@@ -322915,10 +324240,10 @@ str xacmeClientIssue(
 			"acme issue certificate response invalid");
 		goto Done;
 	}
-	sResult = R.sBody;
+	pOut->sFullchainPem = R.sBody;
 	R.sBody = NULL;
 	xacmeHttpResponseUnit(&R);
-	bOk = true;
+	bResult = true;
 
 Done:
 	if(pRoot != NULL)
@@ -322926,28 +324251,35 @@ Done:
 		xrtValueRelease(pRoot);
 	}
 	xrtBufferUnit(&Payload);
-	return sResult;
+	if(!bResult)
+	{
+		xrtFree(pOut->sFullchainPem);
+		xrtFree(pOut->sKeyPem);
+		memset(pOut, 0, sizeof(*pOut));
+	}
+	return bResult;
 }
 
 #endif
 
 #if defined(XACME_FEATURE_ACME_STORE)
-str xacmeClientIssueStored(
+bool xacmeClientIssueStored(
 	xacmeclient* pClient, const xstrview* pDomains, size_t iDomainCount,
 	const struct xacmednsprovider* pDns, cstr sStoreRoot,
-	int iRenewalDays, bool* pbRenewed)
+	int iRenewalDays, xacmeissuegrant* pOut, bool* pbRenewed)
 {
 	bool bNeed = true;
-	str sChain;
 	char sPrimary[256];
 	if((pClient == NULL) || (pDomains == NULL) || (iDomainCount == 0u) ||
-		(pbRenewed == NULL) || (pDomains[0].Size >= sizeof(sPrimary)))
+		(pbRenewed == NULL) || (pOut == NULL) ||
+		(pDomains[0].Size == 0u) || (pDomains[0].Size >= sizeof(sPrimary)))
 	{
 		xacmeFlowError(
 			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
 			"acme issue stored requires client, domains and outputs");
-		return NULL;
+		return false;
 	}
+	memset(pOut, 0, sizeof(*pOut));
 	*pbRenewed = false;
 	memcpy(sPrimary, pDomains[0].Data, pDomains[0].Size);
 	sPrimary[pDomains[0].Size] = 0;
@@ -322958,29 +324290,1920 @@ str xacmeClientIssueStored(
 	if(!xrtAcmeStoreNeedRenew(
 			sStoreRoot, sPrimary, iRenewalDays, &bNeed))
 	{
-		return NULL;
+		return false;
 	}
 	if(!bNeed)
 	{
-		return xrtAcmeStoreLoadCert(sStoreRoot, sPrimary);
+		return xrtAcmeStoreLoadGrant(sStoreRoot, sPrimary, pOut);
 	}
-	sChain = xacmeClientIssue(pClient, pDomains, iDomainCount, pDns);
-	if(sChain == NULL)
+	if(!xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut))
 	{
-		return NULL;
+		return false;
 	}
-	if(!xrtAcmeStoreSaveCert(
-			sStoreRoot, sPrimary, sChain, pClient->sDirectoryUrl))
+	if(!xrtAcmeStoreSaveGrant(
+			sStoreRoot, sPrimary, pOut, pClient->sDirectoryUrl))
 	{
 		/* 落盘失败不作废已签证书；报告错误由调用方权衡。 */
 		xacmeFlowError(
 			XERR_IO, XACME_FLOW_ERROR_STORE, "acme issue stored save failed");
-		xrtFree(sChain);
-		return NULL;
+		xrtAcmeGrantUnit(pOut);
+		return false;
 	}
 	*pbRenewed = true;
-	return sChain;
+	return true;
 }
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
+{
+	xacmehttpresponse R;
+	xpemblock Block;
+	size_t iDerSize = 0u;
+	bytes pDer = NULL;
+	str sCertB64 = NULL;
+	xbuffer Payload;
+	static const xbase64config B64Url = {
+		NULL, XBASE64_URL | XBASE64_NO_PADDING };
+	bool bOk = false;
+
+	if((pClient == NULL) || (sCertPem == NULL) || (sCertPem[0] == '\0'))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme revoke requires client and certificate");
+		return false;
+	}
+	if(pClient->sRevokeCert[0] == '\0')
+	{
+		xacmeFlowError(
+			XERR_UNSUPPORTED, XACME_FLOW_ERROR_PROTOCOL,
+			"acme revoke requires directory revokeCert endpoint");
+		return false;
+	}
+	if(!xrtPemFind(sCertPem, strlen(sCertPem), "CERTIFICATE", &Block) ||
+		((pDer = xrtPemDecodeNew(&Block, &iDerSize)) == NULL))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme revoke certificate pem invalid");
+		return false;
+	}
+	sCertB64 = xrtBase64EncodeNew(pDer, iDerSize, &B64Url);
+	xrtFree(pDer);
+	if(sCertB64 == NULL)
+	{
+		return false;
+	}
+	xrtBufferInit(&Payload);
+	bOk = xrtBufferAppend(&Payload, XRT_BYTES_LITERAL("{\"certificate\":\"")) &&
+		xrtBufferAppend(&Payload,
+			(xbytesview){ (const uint8*)sCertB64, strlen(sCertB64) }) &&
+		xrtBufferAppend(&Payload, XRT_BYTES_LITERAL("\""));
+	if(bOk && (iReason >= 0))
+	{
+		char sReason[24];
+		snprintf(sReason, sizeof(sReason), ",\"reason\":%d", iReason);
+		bOk = xrtBufferAppend(&Payload,
+			(xbytesview){ (const uint8*)sReason, strlen(sReason) });
+	}
+	if(bOk)
+	{
+		bOk = xrtBufferAppendByte(&Payload, (uint8)'}');
+	}
+	if(bOk)
+	{
+		bOk = xacmeFlowPost(pClient, pClient->sRevokeCert,
+			(xstrview){ (cstr)Payload.Data, Payload.Size }, true, &R, 0u);
+	}
+	xrtBufferUnit(&Payload);
+	xrtFree(sCertB64);
+	if(!bOk)
+	{
+		return false;
+	}
+	/* 200 = 已吊销；400 + alreadyRevoked 视为幂等成功。 */
+	if(R.iStatus == 200u)
+	{
+		xacmeHttpResponseUnit(&R);
+		return true;
+	}
+	if((R.iStatus == 400u) && (R.sBody != NULL) &&
+		(strstr(R.sBody, "alreadyRevoked") != NULL))
+	{
+		xacmeHttpResponseUnit(&R);
+		return true;
+	}
+	{
+		char sDetail[240];
+		snprintf(sDetail, sizeof(sDetail),
+			"acme revoke status=%u body=%.160s", (unsigned)R.iStatus,
+			(R.sBody != NULL) ? R.sBody : "");
+		xacmeHttpResponseUnit(&R);
+		xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_PROTOCOL, sDetail);
+	}
+	return false;
+}
+#endif
+
+/* ---------------- 公开客户端 API（xrt/acme_client.h） ---------------- */
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+
+void xrtAcmeClientConfigInit(xacmeclientconfig* pConfig)
+{
+	if(pConfig == NULL)
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme client config init requires config");
+		return;
+	}
+	memset(pConfig, 0, sizeof(*pConfig));
+}
+
+struct xacmeclient* xrtAcmeClientCreate(
+	const xacmeclientconfig* pConfig)
+{
+	static const char* sDefaults[XACME_FLOW_RESOLVER_MAX] = {
+		"223.5.5.5", "119.29.29.29", "8.8.8.8", NULL
+	};
+	const cstr* sResolvers = NULL;
+	size_t iResolverCount = 0u;
+	xacmeclient* pClient;
+	size_t i;
+
+	if((pConfig == NULL) || (pConfig->pAccount == NULL))
+	{
+		xacmeFlowError(
+			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme client create requires config with account");
+		return NULL;
+	}
+	if((pConfig->sPropagateResolvers != NULL) &&
+		(pConfig->iPropagateResolverCount != 0u))
+	{
+		sResolvers = pConfig->sPropagateResolvers;
+		iResolverCount = pConfig->iPropagateResolverCount;
+	}
+	else
+	{
+		sResolvers = sDefaults;
+		iResolverCount = 3u;
+	}
+	pClient = (xacmeclient*)xrtMalloc(sizeof(*pClient));
+	if(pClient == NULL)
+	{
+		return NULL;
+	}
+	if(!xacmeClientInit(
+			pClient, pConfig->pBorrowedEngine, pConfig->sCaPem,
+			pConfig->pAccount, pConfig->uTimeoutUs))
+	{
+		xrtFree(pClient);
+		return NULL;
+	}
+	for(i = 0; i < iResolverCount; i++)
+	{
+		if((sResolvers[i] == NULL) ||
+			(strlen(sResolvers[i]) >=
+				sizeof(pClient->sPropagateResolvers[0])))
+		{
+			continue;
+		}
+		strcpy(pClient->sPropagateResolvers[
+			pClient->iPropagateResolverCount], sResolvers[i]);
+		pClient->iPropagateResolverCount++;
+		if(pClient->iPropagateResolverCount >=
+			XACME_FLOW_RESOLVER_MAX)
+		{
+			break;
+		}
+	}
+	pClient->uPropagateTimeoutMs = (pConfig->uPropagateTimeoutMs != 0u) ?
+		pConfig->uPropagateTimeoutMs : XACME_FLOW_PROPAGATE_TIMEOUT_MS;
+	return pClient;
+}
+
+void xrtAcmeClientDestroy(struct xacmeclient* pClient)
+{
+	if(pClient == NULL)
+	{
+		return;
+	}
+	xacmeClientUnit(pClient);
+	xrtFree(pClient);
+}
+
+str xrtAcmeClientAccountPem(const struct xacmeclient* pClient)
+{
+	return xacmeClientAccountPem(pClient);
+}
+
+bool xrtAcmeClientIssue(
+	struct xacmeclient* pClient, const xstrview* pDomains,
+	size_t iDomainCount, const xacmednsprovider* pDns,
+	xacmeissuegrant* pOut)
+{
+	return xacmeClientIssue(pClient, pDomains, iDomainCount, pDns, pOut);
+}
+
+bool xrtAcmeClientRevoke(
+	struct xacmeclient* pClient, cstr sCertPem, int iReason)
+{
+	return xacmeClientRevoke(pClient, sCertPem, iReason);
+}
+
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW) && defined(XACME_FEATURE_ACME_STORE)
+
+bool xrtAcmeClientIssueStored(
+	struct xacmeclient* pClient, const xstrview* pDomains,
+	size_t iDomainCount, const xacmednsprovider* pDns, cstr sStoreRoot,
+	int iRenewalDays, xacmeissuegrant* pOut, bool* pbRenewed)
+{
+	return xacmeClientIssueStored(
+		pClient, pDomains, iDomainCount, pDns, sStoreRoot, iRenewalDays,
+		pOut, pbRenewed);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xacme/src/dns/xacme_dns_cf.c */
+/* ========================================================================== */
+
+#if defined(XACME_FEATURE_DNS_CF)
+
+#if defined(XACME_FEATURE_DNS_CF)
+
+
+
+#include <stdlib.h>
+
+/*
+	Cloudflare DNS provider（API v4）：
+	  - 认证：Authorization: Bearer <API Token>；
+	  - zone 发现：GET /zones?name=<候选>（精确匹配，逐级上探）；
+	  - 加 TXT：POST /zones/<id>/dns_records（content 不带引号）；
+	  - 删 TXT：DELETE /zones/<id>/dns_records/<record id>。
+*/
+
+typedef struct xacmednscfcontext {
+	xacmehttp Http;
+	char sToken[200];
+	char sEndpoint[160];
+	xacmednszonecache Zones;
+	xacmednsrecords Records;
+} xacmednscfcontext;
+
+static void xacmeCfError(xerrkind Kind, cstr sMessage)
+{
+	xrtSetErrorInfo(Kind, "xrt.acme.dns", XACME_DNS_ERROR_PROTOCOL,
+		sMessage);
+}
+
+/* 执行一次 API 调用；pBody 为空表示无请求体。 */
+static bool xacmeCfCall(
+	xacmednscfcontext* pCtx, cstr sMethod, cstr sPathAndQuery,
+	cstr sBody, uint16* pOutStatus, str* pOutBody)
+{
+	char sAuth[240];
+	char sUrl[400];
+	xacmehttpheader Extra[1];
+	xacmehttpresponse R;
+
+	snprintf(sAuth, sizeof(sAuth), "Bearer %s", pCtx->sToken);
+	snprintf(sUrl, sizeof(sUrl), "https://%s%s", pCtx->sEndpoint,
+		sPathAndQuery);
+	Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
+	if(!xacmeHttpExchangeV(
+			&pCtx->Http, sMethod, sUrl, "application/json",
+			(xstrview){ sBody, (sBody != NULL) ? strlen(sBody) : 0u },
+			Extra, 1u, &R))
+	{
+		return false;
+	}
+	*pOutStatus = R.iStatus;
+	*pOutBody = R.sBody;
+	R.sBody = NULL;
+	xacmeHttpResponseUnit(&R);
+	return true;
+}
+
+/* 在 zones 列表里按 name 精确查 zone id。 */
+static bool xacmeCfZoneId(
+	xacmednscfcontext* pCtx, cstr sZone, char* sOutId, size_t iIdCap)
+{
+	char sPath[300];
+	uint16 iStatus = 0u;
+	str sBody = NULL;
+	xvalue* pRoot = NULL;
+	xvalue* pResult = NULL;
+	bool bOk = false;
+	size_t i;
+
+	snprintf(sPath, sizeof(sPath),
+		"/client/v4/zones?name=%s&per_page=5", sZone);
+	if(!xacmeCfCall(pCtx, "GET", sPath, NULL, &iStatus, &sBody))
+	{
+		return false;
+	}
+	if(sBody != NULL)
+	{
+		pRoot = xrtJsonParse((xstrview){ sBody, strlen(sBody) });
+	}
+	if((pRoot != NULL) &&
+		((pResult = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("result"))) !=
+			NULL) &&
+		xrtValueIs(pResult, XVALUE_ARRAY))
+	{
+		for(i = 0; i < xrtValueCount(pResult); i++)
+		{
+			xvalue* pItem = xrtValueArrayGet(pResult, i);
+			char sName[256];
+			if((pItem != NULL) && xrtValueIs(pItem, XVALUE_OBJECT) &&
+				xacmeDnsJsonText(pItem, "name", sName, sizeof(sName)) &&
+				(strcmp(sName, sZone) == 0) &&
+				xacmeDnsJsonText(pItem, "id", sOutId, iIdCap))
+			{
+				bOk = true;
+				break;
+			}
+		}
+	}
+	xrtValueRelease(pRoot);
+	xrtFree(sBody);
+	if((iStatus < 200u) || (iStatus >= 300u))
+	{
+		xacmeCfError(XERR_PROTOCOL, "acme dns_cf zones response invalid");
+		return false;
+	}
+	return bOk;
+}
+
+/* zone 逐级上探发现并缓存；返回 zone id。 */
+static bool xacmeCfFindZone(
+	xacmednscfcontext* pCtx, cstr sFqdn, char* sOutZone, size_t iZoneCap,
+	char* sOutId, size_t iIdCap)
+{
+	char sCandidate[256];
+	const char* sCached = xacmeDnsZoneMatch(&pCtx->Zones, sFqdn);
+	if(sCached != NULL)
+	{
+		snprintf(sOutZone, iZoneCap, "%s", sCached);
+		return xacmeCfZoneId(pCtx, sCached, sOutId, iIdCap);
+	}
+	snprintf(sCandidate, sizeof(sCandidate), "%s", sFqdn);
+	for(;;)
+	{
+		char sRr[200];
+		char sZone[256];
+		if(!xacmeDnsSplit(sCandidate, sRr, sizeof(sRr), sZone,
+				sizeof(sZone)))
+		{
+			return false;
+		}
+		if(xacmeCfZoneId(pCtx, sZone, sOutId, iIdCap))
+		{
+			snprintf(sOutZone, iZoneCap, "%s", sZone);
+			xacmeDnsZoneRemember(&pCtx->Zones, sZone);
+			return true;
+		}
+		{
+			char* sDot = strchr(sZone, '.');
+			if((sDot == NULL) || (strchr(sDot + 1, '.') == NULL))
+			{
+				return false; /* 剩两段仍失败：放弃 */
+			}
+			snprintf(sCandidate, sizeof(sCandidate), "%s", sZone);
+		}
+	}
+}
+
+static bool xacmeCfAdd(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednscfcontext* pCtx = (xacmednscfcontext*)pProvider->pContext;
+	char sFqdnText[256];
+	char sTxtText[208];
+	char sZone[256];
+	char sZoneId[64];
+	xbuffer Body;
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	xvalue* pRoot = NULL;
+	char sRecordId[64];
+	bool bOk = false;
+
+	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
+	{
+		return false;
+	}
+	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
+	sFqdnText[sFqdn.Size] = '\0';
+	memcpy(sTxtText, sTxt.Data, sTxt.Size);
+	sTxtText[sTxt.Size] = '\0';
+
+	if(!xacmeCfFindZone(pCtx, sFqdnText, sZone, sizeof(sZone), sZoneId,
+			sizeof(sZoneId)))
+	{
+		return false;
+	}
+
+	xrtBufferInit(&Body);
+	if(xrtBufferAppend(&Body, XRT_BYTES_LITERAL("{\"type\":\"TXT\",\"name\":")) &&
+		xacmeDnsJsonQuote(&Body, sFqdn) &&
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"content\":")) &&
+		xacmeDnsJsonQuote(&Body, sTxt) &&
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"ttl\":60}")))
+	{
+		char sPath[128];
+		snprintf(sPath, sizeof(sPath), "/client/v4/zones/%s/dns_records",
+			sZoneId);
+		bOk = xacmeCfCall(pCtx, "POST", sPath, (cstr)Body.Data, &iStatus,
+			&sResp);
+	}
+	xrtBufferUnit(&Body);
+	if(!bOk || (iStatus < 200u) || (iStatus >= 300u))
+	{
+		xrtFree(sResp);
+		return false;
+	}
+	/* 提取 result.id 供 Remove（记录句柄 = "zoneid/recordid"）。 */
+	if(sResp != NULL)
+	{
+		pRoot = xrtJsonParse((xstrview){ sResp, strlen(sResp) });
+	}
+	if(pRoot != NULL)
+	{
+		xvalue* pResult = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("result"));
+		if((pResult != NULL) && xrtValueIs(pResult, XVALUE_OBJECT) &&
+			xacmeDnsJsonText(pResult, "id", sRecordId, sizeof(sRecordId)))
+		{
+			char sHandle[64];
+			snprintf(sHandle, sizeof(sHandle), "%.31s/%.30s", sZoneId,
+				sRecordId);
+			xacmeDnsRecordRemember(&pCtx->Records, sHandle);
+		}
+	}
+	xrtValueRelease(pRoot);
+	xrtFree(sResp);
+	return true;
+}
+
+static bool xacmeCfRemove(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednscfcontext* pCtx = (xacmednscfcontext*)pProvider->pContext;
+	size_t i;
+	bool bAnyOk = false;
+	(void)sFqdn;
+	(void)sTxt;
+	for(i = 0; i < pCtx->Records.iCount; i++)
+	{
+		char sZoneId[32];
+		char sRecordId[32];
+		char sPath[128];
+		uint16 iStatus = 0u;
+		str sResp = NULL;
+		const char* sSlash;
+		if(pCtx->Records.sIds[i][0] == '\0')
+		{
+			continue;
+		}
+		sSlash = strchr(pCtx->Records.sIds[i], '/');
+		if((sSlash == NULL) ||
+			((size_t)(sSlash - pCtx->Records.sIds[i]) >= sizeof(sZoneId)) ||
+			(strlen(sSlash + 1) >= sizeof(sRecordId)))
+		{
+			continue;
+		}
+		memcpy(sZoneId, pCtx->Records.sIds[i],
+			(size_t)(sSlash - pCtx->Records.sIds[i]));
+		sZoneId[sSlash - pCtx->Records.sIds[i]] = '\0';
+		{
+			size_t iRecordLen = strlen(sSlash + 1);
+			if(iRecordLen >= sizeof(sRecordId))
+			{
+				continue;
+			}
+			memcpy(sRecordId, sSlash + 1, iRecordLen);
+			sRecordId[iRecordLen] = '\0';
+		}
+		snprintf(sPath, sizeof(sPath),
+			"/client/v4/zones/%.32s/dns_records/%.31s", sZoneId,
+			sRecordId);
+		if(!xacmeCfCall(pCtx, "DELETE", sPath, NULL, &iStatus, &sResp))
+		{
+			continue;
+		}
+		xrtFree(sResp);
+		if(((iStatus >= 200u) && (iStatus < 300u)) || (iStatus == 404u))
+		{
+			bAnyOk = true;
+			pCtx->Records.sIds[i][0] = '\0';
+		}
+	}
+	return bAnyOk || (pCtx->Records.iCount == 0u);
+}
+
+void xrtAcmeDnsCfConfigInit(xacmednscfconfig* pConfig)
+{
+	if(pConfig == NULL)
+	{
+		return;
+	}
+	pConfig->sApiToken = NULL;
+	pConfig->sEndpoint = NULL;
+}
+
+bool xrtAcmeDnsCf(
+	const xacmednscfconfig* pConfig, struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider)
+{
+	xacmednscfcontext* pCtx;
+	if((pConfig == NULL) || (pProvider == NULL) ||
+		(pConfig->sApiToken == NULL) || (pConfig->sApiToken[0] == '\0'))
+	{
+		xrtSetErrorInfo(
+			XERR_ARGUMENT, "xrt.acme.dns", XACME_DNS_ERROR_CREDENTIAL,
+			"acme dns_cf requires api token");
+		return false;
+	}
+	pCtx = (xacmednscfcontext*)xrtCalloc(1, sizeof(*pCtx));
+	if(pCtx == NULL)
+	{
+		return false;
+	}
+	snprintf(pCtx->sToken, sizeof(pCtx->sToken), "%s", pConfig->sApiToken);
+	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
+		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
+			"api.cloudflare.com");
+	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
+	{
+		xacmeHttpUnit(&pCtx->Http);
+		xrtFree(pCtx);
+		return false;
+	}
+	pProvider->sId = "cf";
+	pProvider->iCaps = 0u;
+	pProvider->pContext = pCtx;
+	pProvider->Add = xacmeCfAdd;
+	pProvider->Remove = xacmeCfRemove;
+	pProvider->Propagate = NULL;
+	return true;
+}
+
+void xrtAcmeDnsCfProviderUnit(xacmednsprovider* pProvider)
+{
+	if((pProvider != NULL) && (pProvider->pContext != NULL))
+	{
+		xacmednscfcontext* pCtx = (xacmednscfcontext*)pProvider->pContext;
+		xacmeHttpUnit(&pCtx->Http);
+		xrtFree(pCtx);
+		pProvider->pContext = NULL;
+	}
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xacme/src/dns/xacme_dns_tencent.c */
+/* ========================================================================== */
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+
+
+
+#include <stdlib.h>
+
+/*
+	腾讯云 DNSPod provider（API 3.0，TC3-HMAC-SHA256）：
+	  - canonical：content-type/host/x-tc-action 三头（小写字典序）；
+	  - StringToSign = "TC3-HMAC-SHA256\n<ts>\n<date>/dnspod/tc3_request\n"
+	    "\n" 后接 sha256hex(canonical)；
+	  - 密钥链：HMAC("TC3"+SK, date) → "dnspod" → "tc3_request"；
+	  - zone 发现：DescribeRecordList（Domain=候选）2xx 即定；
+	  - 加 TXT：CreateRecord（RecordLine 必填 "默认"）；
+	  - 删 TXT：DeleteRecord（Domain + RecordId）。
+	RecordLine 的 "默认" 是 API 要求的 UTF-8 字面值。
+*/
+
+#define XACME_TENCENT_SERVICE "dnspod"
+#define XACME_TENCENT_VERSION "2021-03-23"
+
+typedef struct xacmednstencentcontext {
+	xacmehttp Http;
+	char sId[160];
+	char sKey[160];
+	char sEndpoint[160];
+	xacmednszonecache Zones;
+	xacmednsrecords Records;
+} xacmednstencentcontext;
+
+/* 执行一次 TC3 调用（POST + JSON body）。 */
+static bool xacmeTencentCall(
+	xacmednstencentcontext* pCtx, cstr sAction, cstr sBody,
+	uint16* pOutStatus, str* pOutBody)
+{
+	static const char* sSignedHeaders = "content-type;host;x-tc-action";
+	char sDateText[24];      /* YYYY-MM-DD */
+	char sStampText[24];     /* YYYY-MM-DDTHH:MM:SSZ */
+	char sPayloadHash[XACME_SIG_HASH_TEXT];
+	char sCanonical[1600];
+	char sHeaders[320];
+	char sStringToSign[200];
+	char sHex[XACME_SIG_HASH_TEXT];
+	char sAuth[640];
+	char sUrl[240];
+	xacmehttpheader Extra[5];
+	xacmehttpresponse R;
+	xdatetime Now;
+	uint8 kService[XRT_SHA256_SIZE];
+	uint8 kSigning[XRT_SHA256_SIZE];
+	uint8 Signature[XRT_SHA256_SIZE];
+
+	if(!xrtTimeSplitAt(xrtNow(), 0, &Now))
+	{
+		return false;
+	}
+	snprintf(sDateText, sizeof(sDateText), "%04ld-%02d-%02d",
+		(long)Now.Year, Now.Month, Now.Day);
+	snprintf(sStampText, sizeof(sStampText),
+		"%04ld-%02d-%02dT%02d:%02d:%02dZ", (long)Now.Year, Now.Month,
+		Now.Day, Now.Hour, Now.Minute, Now.Second);
+	if(!xacmeSigSha256Hex(sBody, strlen(sBody), sPayloadHash))
+	{
+		return false;
+	}
+	snprintf(sHeaders, sizeof(sHeaders),
+		"content-type:application/json; charset=utf-8\nhost:%s\n"
+		"x-tc-action:%s\n",
+		pCtx->sEndpoint, sAction);
+	if(!xacmeSigCanonical(sCanonical, sizeof(sCanonical), "POST", "/",
+			"", sHeaders, sSignedHeaders, sPayloadHash))
+	{
+		return false;
+	}
+	if(!xacmeSigSha256Hex(sCanonical, strlen(sCanonical), sHex))
+	{
+		return false;
+	}
+	snprintf(sStringToSign, sizeof(sStringToSign),
+		"TC3-HMAC-SHA256\n%s\n%s/" XACME_TENCENT_SERVICE
+		"/tc3_request\n%s",
+		sStampText, sDateText, sHex);
+	{
+		char sKeySeed[180];
+		snprintf(sKeySeed, sizeof(sKeySeed), "TC3%s", pCtx->sKey);
+		if(!xacmeSigHmac((const uint8*)sKeySeed, strlen(sKeySeed),
+				sDateText, strlen(sDateText), kService) ||
+			!xacmeSigHmac(kService, sizeof(kService),
+				XACME_TENCENT_SERVICE, strlen(XACME_TENCENT_SERVICE),
+				kService) ||
+			!xacmeSigHmac(kService, sizeof(kService), "tc3_request",
+				12u, kSigning) ||
+			!xacmeSigHmac(kSigning, sizeof(kSigning), sStringToSign,
+				strlen(sStringToSign), Signature))
+		{
+			return false;
+		}
+	}
+	xacmeSigHex(Signature, sizeof(Signature), sHex);
+	snprintf(sAuth, sizeof(sAuth),
+		"TC3-HMAC-SHA256 Credential=%s/%s/" XACME_TENCENT_SERVICE
+		"/tc3_request, SignedHeaders=%s, Signature=%s",
+		pCtx->sId, sDateText, sSignedHeaders, sHex);
+	snprintf(sUrl, sizeof(sUrl), "https://%s/", pCtx->sEndpoint);
+
+	Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
+	Extra[1] = (xacmehttpheader){ "X-TC-Action", sAction };
+	Extra[2] = (xacmehttpheader){ "X-TC-Version", XACME_TENCENT_VERSION };
+	{
+		char sTimestamp[24];
+		snprintf(sTimestamp, sizeof(sTimestamp), "%llu",
+			(unsigned long long)(xrtNow() / UINT64_C(1000000)));
+		Extra[3] = (xacmehttpheader){ "X-TC-Timestamp", sTimestamp };
+	}
+	if(!xacmeHttpExchangeV(
+			&pCtx->Http, "POST", sUrl, "application/json; charset=utf-8",
+			(xstrview){ sBody, strlen(sBody) }, Extra, 4u, &R))
+	{
+		return false;
+	}
+	*pOutStatus = R.iStatus;
+	*pOutBody = R.sBody;
+	R.sBody = NULL;
+	xacmeHttpResponseUnit(&R);
+	return true;
+}
+
+/* 取响应 JSON 的 Response 成员（对象）。 */
+static xvalue* xacmeTencentResponse(str sBody)
+{
+	xvalue* pRoot = (sBody != NULL) ?
+		xrtJsonParse((xstrview){ sBody, strlen(sBody) }) : NULL;
+	xvalue* pResponse = (pRoot != NULL) ?
+		xrtValueObjectGet(pRoot, XRT_STR_LITERAL("Response")) : NULL;
+	if((pResponse == NULL) || !xrtValueIs(pResponse, XVALUE_OBJECT))
+	{
+		xrtValueRelease(pRoot);
+		return NULL;
+	}
+	return pRoot; /* 调用方经 Root 再取 Response 并释放 Root。 */
+}
+
+static bool xacmeTencentAdd(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednstencentcontext* pCtx =
+		(xacmednstencentcontext*)pProvider->pContext;
+	char sFqdnText[256];
+	char sTxtText[208];
+	char sRr[200];
+	char sZone[256];
+	char sZoneStart[256];
+	xbuffer Body;
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	xvalue* pRoot;
+	xvalue* pResponse;
+	bool bOk = false;
+
+	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u) ||
+		!xacmeDnsSplit((cstr)sFqdn.Data, sRr, sizeof(sRr), sZoneStart,
+			sizeof(sZoneStart)))
+	{
+		return false;
+	}
+	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
+	sFqdnText[sFqdn.Size] = '\0';
+	memcpy(sTxtText, sTxt.Data, sTxt.Size);
+	sTxtText[sTxt.Size] = '\0';
+
+	/* zone 逐级上探：DescribeRecordList 2xx 即该 zone 存在。 */
+	{
+		const char* sCached = xacmeDnsZoneMatch(&pCtx->Zones, sFqdnText);
+		if(sCached != NULL)
+		{
+			snprintf(sZone, sizeof(sZone), "%s", sCached);
+		}
+		else
+		{
+			snprintf(sZone, sizeof(sZone), "%s", sZoneStart);
+			for(;;)
+			{
+				xbuffer Probe;
+				xrtBufferInit(&Probe);
+				bOk = xrtBufferAppend(
+					&Probe, XRT_BYTES_LITERAL("{\"Domain\":")) &&
+					xacmeDnsJsonQuote(&Probe,
+						(xstrview){ sZone, strlen(sZone) }) &&
+					xrtBufferAppend(&Probe, XRT_BYTES_LITERAL("}"));
+				if(bOk)
+				{
+					bOk = xacmeTencentCall(pCtx, "DescribeRecordList",
+						(cstr)Probe.Data, &iStatus, &sResp);
+				}
+				xrtBufferUnit(&Probe);
+				if(!bOk)
+				{
+					return false;
+				}
+				xrtFree(sResp);
+				sResp = NULL;
+				if((iStatus >= 200u) && (iStatus < 300u))
+				{
+					xacmeDnsZoneRemember(&pCtx->Zones, sZone);
+					break;
+				}
+				{
+					char* sDot = strchr(sZone, '.');
+					if((sDot == NULL) ||
+						(strchr(sDot + 1, '.') == NULL))
+					{
+						return false; /* 剩两段仍失败：放弃 */
+					}
+					memmove(sZone, sDot + 1, strlen(sDot + 1) + 1u);
+				}
+			}
+		}
+	}
+
+	/* CreateRecord；RR = FQDN 去 ".zone"。 */
+	{
+		size_t iZoneLen = strlen(sZone);
+		size_t iFqdnLen = strlen(sFqdnText);
+		size_t iRrLen;
+		if((iFqdnLen <= iZoneLen + 1u) ||
+			(strcmp(sFqdnText + iFqdnLen - iZoneLen, sZone) != 0) ||
+			(sFqdnText[iFqdnLen - iZoneLen - 1u] != '.'))
+		{
+			return false;
+		}
+		iRrLen = iFqdnLen - iZoneLen - 1u;
+		if(iRrLen >= sizeof(sRr))
+		{
+			return false;
+		}
+		memcpy(sRr, sFqdnText, iRrLen);
+		sRr[iRrLen] = '\0';
+	}
+	xrtBufferInit(&Body);
+	bOk = xrtBufferAppend(&Body, XRT_BYTES_LITERAL("{\"Domain\":")) &&
+		xacmeDnsJsonQuote(&Body, (xstrview){ sZone, strlen(sZone) }) &&
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"SubDomain\":")) &&
+		xacmeDnsJsonQuote(&Body, (xstrview){ sRr, strlen(sRr) }) &&
+		xrtBufferAppend(&Body,
+			XRT_BYTES_LITERAL(",\"RecordType\":\"TXT\","
+				"\"RecordLine\":\"默认\",\"Value\":")) &&
+		xacmeDnsJsonQuote(&Body, (xstrview){ sTxtText, strlen(sTxtText) }) &&
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL("}"));
+	if(bOk)
+	{
+		bOk = xacmeTencentCall(pCtx, "CreateRecord", (cstr)Body.Data,
+			&iStatus, &sResp);
+	}
+	xrtBufferUnit(&Body);
+	if(!bOk || (iStatus < 200u) || (iStatus >= 300u))
+	{
+		xrtFree(sResp);
+		return false;
+	}
+	/* RecordId 记档（可能为数值，按文本取）。 */
+	pRoot = xacmeTencentResponse(sResp);
+	if(pRoot != NULL)
+	{
+		xvalue* pMember;
+		pResponse = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("Response"));
+		pMember = (pResponse != NULL) ?
+			xrtValueObjectGet(pResponse, XRT_STR_LITERAL("RecordId")) : NULL;
+		if(pMember != NULL)
+		{
+			int64 iId = 0;
+			if(xrtValueGetInt(pMember, &iId))
+			{
+				char sHandle[64];
+				snprintf(sHandle, sizeof(sHandle), "%.20s|%lld", sZone,
+					(long long)iId);
+				xacmeDnsRecordRemember(&pCtx->Records, sHandle);
+			}
+		}
+		xrtValueRelease(pRoot);
+	}
+	xrtFree(sResp);
+	return true;
+}
+
+static bool xacmeTencentRemove(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednstencentcontext* pCtx =
+		(xacmednstencentcontext*)pProvider->pContext;
+	size_t i;
+	bool bAnyOk = false;
+	(void)sTxt;
+	for(i = 0; i < pCtx->Records.iCount; i++)
+	{
+		char sZone[256];
+		char sRecordId[32];
+		xbuffer Body;
+		uint16 iStatus = 0u;
+		str sResp = NULL;
+		const char* sBar;
+		if(pCtx->Records.sIds[i][0] == '\0')
+		{
+			continue;
+		}
+		sBar = strchr(pCtx->Records.sIds[i], '|');
+		if((sBar == NULL) ||
+			((size_t)(sBar - pCtx->Records.sIds[i]) >= sizeof(sZone)) ||
+			(strlen(sBar + 1) >= sizeof(sRecordId)))
+		{
+			continue;
+		}
+		memcpy(sZone, pCtx->Records.sIds[i],
+			(size_t)(sBar - pCtx->Records.sIds[i]));
+		sZone[sBar - pCtx->Records.sIds[i]] = '\0';
+		snprintf(sRecordId, sizeof(sRecordId), "%s", sBar + 1);
+		xrtBufferInit(&Body);
+		if(xrtBufferAppend(&Body, XRT_BYTES_LITERAL("{\"Domain\":")) &&
+			xacmeDnsJsonQuote(&Body, (xstrview){ sZone, strlen(sZone) }) &&
+			xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"RecordId\":")) &&
+			xrtBufferAppend(&Body,
+				(xbytesview){ (const uint8*)sRecordId,
+					strlen(sRecordId) }) &&
+			xrtBufferAppend(&Body, XRT_BYTES_LITERAL("}")))
+		{
+			if(xacmeTencentCall(pCtx, "DeleteRecord", (cstr)Body.Data,
+					&iStatus, &sResp) &&
+				(((iStatus >= 200u) && (iStatus < 300u)) ||
+					(iStatus == 400u)))
+			{
+				bAnyOk = true;
+				pCtx->Records.sIds[i][0] = '\0';
+			}
+		}
+		xrtBufferUnit(&Body);
+		xrtFree(sResp);
+	}
+	(void)sFqdn;
+	return bAnyOk || (pCtx->Records.iCount == 0u);
+}
+
+void xrtAcmeDnsTencentConfigInit(xacmednstencentconfig* pConfig)
+{
+	if(pConfig == NULL)
+	{
+		return;
+	}
+	pConfig->sSecretId = NULL;
+	pConfig->sSecretKey = NULL;
+	pConfig->sEndpoint = NULL;
+}
+
+bool xrtAcmeDnsTencent(
+	const xacmednstencentconfig* pConfig,
+	struct xnetengine* pBorrowedEngine, xacmednsprovider* pProvider)
+{
+	xacmednstencentcontext* pCtx;
+	if((pConfig == NULL) || (pProvider == NULL) ||
+		(pConfig->sSecretId == NULL) || (pConfig->sSecretKey == NULL) ||
+		(pConfig->sSecretId[0] == '\0') ||
+		(pConfig->sSecretKey[0] == '\0'))
+	{
+		xrtSetErrorInfo(
+			XERR_ARGUMENT, "xrt.acme.dns", XACME_DNS_ERROR_CREDENTIAL,
+			"acme dns_tencent requires secret id and key");
+		return false;
+	}
+	pCtx = (xacmednstencentcontext*)xrtCalloc(1, sizeof(*pCtx));
+	if(pCtx == NULL)
+	{
+		return false;
+	}
+	snprintf(pCtx->sId, sizeof(pCtx->sId), "%s", pConfig->sSecretId);
+	snprintf(pCtx->sKey, sizeof(pCtx->sKey), "%s", pConfig->sSecretKey);
+	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
+		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
+			"dnspod.tencentcloudapi.com");
+	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
+	{
+		xacmeHttpUnit(&pCtx->Http);
+		xrtFree(pCtx);
+		return false;
+	}
+	pProvider->sId = "tencent";
+	pProvider->iCaps = 0u;
+	pProvider->pContext = pCtx;
+	pProvider->Add = xacmeTencentAdd;
+	pProvider->Remove = xacmeTencentRemove;
+	pProvider->Propagate = NULL;
+	return true;
+}
+
+void xrtAcmeDnsTencentProviderUnit(xacmednsprovider* pProvider)
+{
+	if((pProvider != NULL) && (pProvider->pContext != NULL))
+	{
+		xacmednstencentcontext* pCtx =
+			(xacmednstencentcontext*)pProvider->pContext;
+		xacmeHttpUnit(&pCtx->Http);
+		xrtFree(pCtx);
+		pProvider->pContext = NULL;
+	}
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xacme/src/dns/xacme_dns_aws.c */
+/* ========================================================================== */
+
+#if defined(XACME_FEATURE_DNS_AWS)
+
+#if defined(XACME_FEATURE_DNS_AWS)
+
+
+
+#include <stdlib.h>
+
+/*
+	AWS Route53 provider（SigV4 + XML API 2013-03-01）：
+	  - canonical：host/x-amz-content-sha256/x-amz-date 三头（字典序）；
+	  - StringToSign = "AWS4-HMAC-SHA256\n<x-amz-date>\n"
+	    "<date>/<region>/route53/aws4_request\n<sha256hex(canonical)>"；
+	  - 密钥链：HMAC("AWS4"+SK, date) → region → "route53" →
+	    "aws4_request"；payload hash 走 x-amz-content-sha256 头；
+	  - zone 发现：GET /hostedzonesbyname?dnsname=<候选>（逐级上探）；
+	  - 加 TXT：ChangeResourceRecordSets UPSERT（Value 必须带双引号）；
+	  - 删 TXT：同 API 的 DELETE Action（携带与创建相同的值集）；
+	  - Change 异步但权威侧近即时，不轮询 INSYNC。
+	记录句柄无服务端 id，Remove 用 "zoneid|fqdn|value" 三元组回放删除。
+*/
+
+#define XACME_AWS_SERVICE "route53"
+#define XACME_AWS_API "2013-04-01"
+
+typedef struct xacmednsawscontext {
+	xacmehttp Http;
+	char sId[160];
+	char sKey[160];
+	char sRegion[32];
+	char sEndpoint[160];
+	xacmednszonecache Zones;
+	/* 记录句柄：zone id + fqdn + 值（删除需完整回放）。 */
+	struct
+	{
+		char sZoneId[64];
+		char sFqdn[256];
+		char sValue[64];
+	} Records[XACME_DNS_RECORD_MAX];
+	size_t iRecordCount;
+} xacmednsawscontext;
+
+/* 执行一次 SigV4 调用（sBody 为 XML 或 NULL）。 */
+static bool xacmeAwsCall(
+	xacmednsawscontext* pCtx, cstr sMethod, cstr sPathAndQuery,
+	cstr sContentType, cstr sBody, uint16* pOutStatus, str* pOutBody)
+{
+	static const char* sSignedHeaders =
+		"host;x-amz-content-sha256;x-amz-date";
+	char sDateText[16];      /* YYYYMMDD */
+	char sStampText[24];     /* YYYYMMDDTHHMMSSZ */
+	char sPayloadHash[XACME_SIG_HASH_TEXT];
+	char sCanonical[2048];
+	char sHeaders[360];
+	char sStringToSign[240];
+	char sHex[XACME_SIG_HASH_TEXT];
+	char sAuth[640];
+	char sUrl[400];
+	xacmehttpheader Extra[3];
+	xacmehttpresponse R;
+	xdatetime Now;
+	uint8 kDate[XRT_SHA256_SIZE];
+	uint8 kRegion[XRT_SHA256_SIZE];
+	uint8 kService[XRT_SHA256_SIZE];
+	uint8 kSigning[XRT_SHA256_SIZE];
+	uint8 Signature[XRT_SHA256_SIZE];
+
+	if(!xrtTimeSplitAt(xrtNow(), 0, &Now))
+	{
+		return false;
+	}
+	snprintf(sDateText, sizeof(sDateText), "%04ld%02d%02d", (long)Now.Year,
+		Now.Month, Now.Day);
+	snprintf(sStampText, sizeof(sStampText),
+		"%04ld%02d%02dT%02d%02d%02dZ", (long)Now.Year, Now.Month, Now.Day,
+		Now.Hour, Now.Minute, Now.Second);
+	if(!xacmeSigSha256Hex(
+			(sBody != NULL) ? sBody : "",
+			(sBody != NULL) ? strlen(sBody) : 0u, sPayloadHash))
+	{
+		return false;
+	}
+	snprintf(sHeaders, sizeof(sHeaders),
+		"host:%s\nx-amz-content-sha256:%s\nx-amz-date:%s\n",
+		pCtx->sEndpoint, sPayloadHash, sStampText);
+	if(!xacmeSigCanonical(sCanonical, sizeof(sCanonical), sMethod,
+			sPathAndQuery, "", sHeaders, sSignedHeaders, sPayloadHash))
+	{
+		return false;
+	}
+	if(!xacmeSigSha256Hex(sCanonical, strlen(sCanonical), sHex))
+	{
+		return false;
+	}
+	snprintf(sStringToSign, sizeof(sStringToSign),
+		"AWS4-HMAC-SHA256\n%s\n%s/%s/" XACME_AWS_SERVICE
+		"/aws4_request\n%s",
+		sStampText, sDateText, pCtx->sRegion, sHex);
+	{
+		char sKeySeed[180];
+		snprintf(sKeySeed, sizeof(sKeySeed), "AWS4%s", pCtx->sKey);
+		if(!xacmeSigHmac((const uint8*)sKeySeed, strlen(sKeySeed),
+				sDateText, strlen(sDateText), kDate) ||
+			!xacmeSigHmac(kDate, sizeof(kDate), pCtx->sRegion,
+				strlen(pCtx->sRegion), kRegion) ||
+			!xacmeSigHmac(kRegion, sizeof(kRegion), XACME_AWS_SERVICE,
+				strlen(XACME_AWS_SERVICE), kService) ||
+			!xacmeSigHmac(kService, sizeof(kService), "aws4_request",
+				13u, kSigning) ||
+			!xacmeSigHmac(kSigning, sizeof(kSigning), sStringToSign,
+				strlen(sStringToSign), Signature))
+		{
+			return false;
+		}
+	}
+	xacmeSigHex(Signature, sizeof(Signature), sHex);
+	snprintf(sAuth, sizeof(sAuth),
+		"AWS4-HMAC-SHA256 Credential=%s/%s/%s/" XACME_AWS_SERVICE
+		"/aws4_request, SignedHeaders=%s, Signature=%s",
+		pCtx->sId, sDateText, pCtx->sRegion, sSignedHeaders, sHex);
+	snprintf(sUrl, sizeof(sUrl), "https://%s%s", pCtx->sEndpoint,
+		sPathAndQuery);
+
+	Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
+	Extra[1] = (xacmehttpheader){ "x-amz-content-sha256", sPayloadHash };
+	Extra[2] = (xacmehttpheader){ "x-amz-date", sStampText };
+	if(!xacmeHttpExchangeV(
+			&pCtx->Http, sMethod, sUrl,
+			(sContentType != NULL) ? sContentType : "application/xml",
+			(xstrview){ sBody, (sBody != NULL) ? strlen(sBody) : 0u },
+			Extra, 3u, &R))
+	{
+		return false;
+	}
+	*pOutStatus = R.iStatus;
+	*pOutBody = R.sBody;
+	R.sBody = NULL;
+	xacmeHttpResponseUnit(&R);
+	return true;
+}
+
+/* 从 XML 文本提取首个 <Tag>…</Tag> 内容到固定缓冲。 */
+static bool xacmeAwsXmlText(
+	cstr sBody, cstr sTag, char* sOut, size_t iCapacity)
+{
+	char sOpen[64];
+	char sClose[64];
+	const char* pBegin;
+	const char* pEnd;
+	snprintf(sOpen, sizeof(sOpen), "<%s>", sTag);
+	snprintf(sClose, sizeof(sClose), "</%s>", sTag);
+	pBegin = (sBody != NULL) ? strstr(sBody, sOpen) : NULL;
+	if(pBegin == NULL)
+	{
+		return false;
+	}
+	pBegin += strlen(sOpen);
+	pEnd = strstr(pBegin, sClose);
+	if((pEnd == NULL) || ((size_t)(pEnd - pBegin) >= iCapacity))
+	{
+		return false;
+	}
+	memcpy(sOut, pBegin, (size_t)(pEnd - pBegin));
+	sOut[pEnd - pBegin] = '\0';
+	return true;
+}
+
+/* hostedzonesbyname 精确匹配候选 zone（返回 hostedzone id）。 */
+static bool xacmeAwsZoneId(
+	xacmednsawscontext* pCtx, cstr sZone, char* sOutId, size_t iIdCap)
+{
+	char sPath[300];
+	char sZoneName[300];
+	uint16 iStatus = 0u;
+	str sBody = NULL;
+	bool bOk = false;
+
+	/* Zone 名在 Route53 中带尾点。 */
+	snprintf(sZoneName, sizeof(sZoneName), "%s.", sZone);
+	snprintf(sPath, sizeof(sPath), "/" XACME_AWS_API
+		"/hostedzonesbyname?dnsname=%.250s&maxitems=1", sZoneName);
+	if(!xacmeAwsCall(pCtx, "GET", sPath, NULL, NULL, &iStatus, &sBody))
+	{
+		return false;
+	}
+	if((iStatus >= 200u) && (iStatus < 300u) && (sBody != NULL))
+	{
+		char sName[300];
+		if(xacmeAwsXmlText(sBody, "Name", sName, sizeof(sName)) &&
+			(strcmp(sName, sZoneName) == 0) &&
+			xacmeAwsXmlText(sBody, "Id", sOutId, iIdCap))
+		{
+			/* Id 形如 /hostedzone/Z1234；API 调用用裸 Z id。 */
+			const char* pSlash = strrchr(sOutId, '/');
+			if(pSlash != NULL)
+			{
+				memmove(sOutId, pSlash + 1, strlen(pSlash + 1) + 1u);
+			}
+			bOk = true;
+		}
+	}
+	xrtFree(sBody);
+	return bOk;
+}
+
+static bool xacmeAwsFindZone(
+	xacmednsawscontext* pCtx, cstr sFqdn, char* sOutZone, size_t iZoneCap,
+	char* sOutId, size_t iIdCap)
+{
+	char sCandidate[256];
+	const char* sCached = xacmeDnsZoneMatch(&pCtx->Zones, sFqdn);
+	if(sCached != NULL)
+	{
+		snprintf(sOutZone, iZoneCap, "%s", sCached);
+		return xacmeAwsZoneId(pCtx, sCached, sOutId, iIdCap);
+	}
+	snprintf(sCandidate, sizeof(sCandidate), "%s", sFqdn);
+	for(;;)
+	{
+		char sRr[200];
+		char sZone[256];
+		if(!xacmeDnsSplit(sCandidate, sRr, sizeof(sRr), sZone,
+				sizeof(sZone)))
+		{
+			return false;
+		}
+		if(xacmeAwsZoneId(pCtx, sZone, sOutId, iIdCap))
+		{
+			snprintf(sOutZone, iZoneCap, "%s", sZone);
+			xacmeDnsZoneRemember(&pCtx->Zones, sZone);
+			return true;
+		}
+		snprintf(sCandidate, sizeof(sCandidate), "%s", sZone);
+	}
+}
+
+/* ChangeResourceRecordSets（UPSERT 或 DELETE）。 */
+static bool xacmeAwsChange(
+	xacmednsawscontext* pCtx, cstr sAction, cstr sZoneId, cstr sFqdn,
+	cstr sValue)
+{
+	char sBody[640];
+	char sPath[128];
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	bool bOk;
+	snprintf(sBody, sizeof(sBody),
+		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+		"<ChangeResourceRecordSetsRequest xmlns=\"https://route53."
+		"amazonaws.com/doc/" XACME_AWS_API "/\">"
+		"<ChangeBatch><Changes><Change><Action>%s</Action>"
+		"<ResourceRecordSet><Name>%s.</Name><Type>TXT</Type>"
+		"<TTL>60</TTL><ResourceRecords><ResourceRecord>"
+		"<Value>\"%s\"</Value></ResourceRecord></ResourceRecords>"
+		"</ResourceRecordSet></Change></Changes></ChangeBatch>"
+		"</ChangeResourceRecordSetsRequest>",
+		sAction, sFqdn, sValue);
+	snprintf(sPath, sizeof(sPath), "/" XACME_AWS_API "/hostedzone/%s/rrset/",
+		sZoneId);
+	bOk = xacmeAwsCall(pCtx, "POST", sPath, "application/xml", sBody,
+		&iStatus, &sResp);
+	xrtFree(sResp);
+	return bOk && (iStatus >= 200u) && (iStatus < 300u);
+}
+
+static bool xacmeAwsAdd(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednsawscontext* pCtx = (xacmednsawscontext*)pProvider->pContext;
+	char sFqdnText[256];
+	char sTxtText[208];
+	char sZone[256];
+	char sZoneId[64];
+	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
+	{
+		return false;
+	}
+	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
+	sFqdnText[sFqdn.Size] = '\0';
+	memcpy(sTxtText, sTxt.Data, sTxt.Size);
+	sTxtText[sTxt.Size] = '\0';
+
+	if(!xacmeAwsFindZone(pCtx, sFqdnText, sZone, sizeof(sZone), sZoneId,
+			sizeof(sZoneId)))
+	{
+		return false;
+	}
+	if(!xacmeAwsChange(pCtx, "UPSERT", sZoneId, sFqdnText, sTxtText))
+	{
+		return false;
+	}
+	if(pCtx->iRecordCount < XACME_DNS_RECORD_MAX)
+	{
+		snprintf(pCtx->Records[pCtx->iRecordCount].sZoneId,
+			sizeof(pCtx->Records[pCtx->iRecordCount].sZoneId), "%.60s",
+			sZoneId);
+		snprintf(pCtx->Records[pCtx->iRecordCount].sFqdn,
+			sizeof(pCtx->Records[pCtx->iRecordCount].sFqdn), "%s",
+			sFqdnText);
+		snprintf(pCtx->Records[pCtx->iRecordCount].sValue,
+			sizeof(pCtx->Records[pCtx->iRecordCount].sValue), "%.63s",
+			sTxtText);
+		pCtx->iRecordCount++;
+	}
+	return true;
+}
+
+static bool xacmeAwsRemove(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednsawscontext* pCtx = (xacmednsawscontext*)pProvider->pContext;
+	size_t i;
+	bool bAnyOk = false;
+	(void)sFqdn;
+	(void)sTxt;
+	for(i = 0; i < pCtx->iRecordCount; i++)
+	{
+		if(pCtx->Records[i].sFqdn[0] == '\0')
+		{
+			continue;
+		}
+		if(xacmeAwsChange(pCtx, "DELETE", pCtx->Records[i].sZoneId,
+				pCtx->Records[i].sFqdn, pCtx->Records[i].sValue))
+		{
+			bAnyOk = true;
+			pCtx->Records[i].sFqdn[0] = '\0';
+		}
+	}
+	return bAnyOk || (pCtx->iRecordCount == 0u);
+}
+
+void xrtAcmeDnsAwsConfigInit(xacmednsawsconfig* pConfig)
+{
+	if(pConfig == NULL)
+	{
+		return;
+	}
+	pConfig->sAccessKeyId = NULL;
+	pConfig->sSecretAccessKey = NULL;
+	pConfig->sRegion = NULL;
+	pConfig->sEndpoint = NULL;
+}
+
+bool xrtAcmeDnsAws(
+	const xacmednsawsconfig* pConfig, struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider)
+{
+	xacmednsawscontext* pCtx;
+	if((pConfig == NULL) || (pProvider == NULL) ||
+		(pConfig->sAccessKeyId == NULL) ||
+		(pConfig->sSecretAccessKey == NULL) ||
+		(pConfig->sAccessKeyId[0] == '\0') ||
+		(pConfig->sSecretAccessKey[0] == '\0'))
+	{
+		xrtSetErrorInfo(
+			XERR_ARGUMENT, "xrt.acme.dns", XACME_DNS_ERROR_CREDENTIAL,
+			"acme dns_aws requires access key id and secret");
+		return false;
+	}
+	pCtx = (xacmednsawscontext*)xrtCalloc(1, sizeof(*pCtx));
+	if(pCtx == NULL)
+	{
+		return false;
+	}
+	snprintf(pCtx->sId, sizeof(pCtx->sId), "%s", pConfig->sAccessKeyId);
+	snprintf(pCtx->sKey, sizeof(pCtx->sKey), "%s",
+		pConfig->sSecretAccessKey);
+	snprintf(pCtx->sRegion, sizeof(pCtx->sRegion), "%s",
+		((pConfig->sRegion != NULL) && (pConfig->sRegion[0] != '\0')) ?
+			pConfig->sRegion : "us-east-1");
+	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
+		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
+			"route53.amazonaws.com");
+	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
+	{
+		xacmeHttpUnit(&pCtx->Http);
+		xrtFree(pCtx);
+		return false;
+	}
+	pProvider->sId = "aws";
+	pProvider->iCaps = 0u;
+	pProvider->pContext = pCtx;
+	pProvider->Add = xacmeAwsAdd;
+	pProvider->Remove = xacmeAwsRemove;
+	pProvider->Propagate = NULL;
+	return true;
+}
+
+void xrtAcmeDnsAwsProviderUnit(xacmednsprovider* pProvider)
+{
+	if((pProvider != NULL) && (pProvider->pContext != NULL))
+	{
+		xacmednsawscontext* pCtx = (xacmednsawscontext*)pProvider->pContext;
+		xacmeHttpUnit(&pCtx->Http);
+		xrtFree(pCtx);
+		pProvider->pContext = NULL;
+	}
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xacme/src/dns/xacme_dns_huawei.c */
+/* ========================================================================== */
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+
+
+
+#include <stdlib.h>
+
+/*
+	华为云 DNS provider（API v2，SDK-HMAC-SHA256）：
+	  - canonical：content-type/host/x-sdk-date 三头（小写字典序）；
+	  - StringToSign = "SDK-HMAC-SHA256\n<X-Sdk-Date>\n"
+	    "<sha256hex(canonical)>"（无凭据范围）；
+	  - 密钥链：单级 HMAC(SK, YYYYMMDD)；
+	  - zone 发现：GET /v2/zones?name=<候选>&search_mode=equal；
+	  - 加 TXT：POST /v2/zones/<id>/recordsets
+	    （name 带尾点，records 值内嵌双引号）；
+	  - 删 TXT：DELETE /v2/zones/<id>/recordsets/<recordset id>。
+*/
+
+typedef struct xacmednshuaaweicontext {
+	xacmehttp Http;
+	char sAk[160];
+	char sSk[160];
+	char sEndpoint[160];
+	xacmednszonecache Zones;
+	xacmednsrecords Records;
+} xacmednshuaaweicontext;
+
+static void xacmeHuaweiError(xerrkind Kind, cstr sMessage)
+{
+	xrtSetErrorInfo(Kind, "xrt.acme.dns", XACME_DNS_ERROR_PROTOCOL,
+		sMessage);
+}
+
+static bool xacmeHuaweiCall(
+	xacmednshuaaweicontext* pCtx, cstr sMethod, cstr sPathAndQuery,
+	cstr sBody, uint16* pOutStatus, str* pOutBody)
+{
+	static const char* sSignedHeaders = "content-type;host;x-sdk-date";
+	char sStampText[24];     /* YYYYMMDDTHHMMSSZ */
+	char sDateText[16];      /* YYYYMMDD */
+	char sPayloadHash[XACME_SIG_HASH_TEXT];
+	char sCanonical[1600];
+	char sHeaders[360];
+	char sStringToSign[160];
+	char sHex[XACME_SIG_HASH_TEXT];
+	char sAuth[560];
+	char sUrl[400];
+	xacmehttpheader Extra[3];
+	xacmehttpresponse R;
+	xdatetime Now;
+	uint8 Signature[XRT_SHA256_SIZE];
+
+	if(!xrtTimeSplitAt(xrtNow(), 0, &Now))
+	{
+		return false;
+	}
+	snprintf(sStampText, sizeof(sStampText),
+		"%04ld%02d%02dT%02d%02d%02dZ", (long)Now.Year, Now.Month, Now.Day,
+		Now.Hour, Now.Minute, Now.Second);
+	snprintf(sDateText, sizeof(sDateText), "%04ld%02d%02d", (long)Now.Year,
+		Now.Month, Now.Day);
+	if(!xacmeSigSha256Hex(
+			(sBody != NULL) ? sBody : "",
+			(sBody != NULL) ? strlen(sBody) : 0u, sPayloadHash))
+	{
+		return false;
+	}
+	snprintf(sHeaders, sizeof(sHeaders),
+		"content-type:application/json\nhost:%s\nx-sdk-date:%s\n",
+		pCtx->sEndpoint, sStampText);
+	if(!xacmeSigCanonical(sCanonical, sizeof(sCanonical), sMethod,
+			sPathAndQuery, "", sHeaders, sSignedHeaders, sPayloadHash))
+	{
+		return false;
+	}
+	if(!xacmeSigSha256Hex(sCanonical, strlen(sCanonical), sHex))
+	{
+		return false;
+	}
+	snprintf(sStringToSign, sizeof(sStringToSign),
+		"SDK-HMAC-SHA256\n%s\n%s", sStampText, sHex);
+	if(!xacmeSigHmac((const uint8*)pCtx->sSk, strlen(pCtx->sSk), sDateText,
+			strlen(sDateText), Signature) ||
+		!xacmeSigHmac(Signature, XRT_SHA256_SIZE, sStringToSign,
+			strlen(sStringToSign), Signature))
+	{
+		return false;
+	}
+	xacmeSigHex(Signature, sizeof(Signature), sHex);
+	snprintf(sAuth, sizeof(sAuth),
+		"SDK-HMAC-SHA256 Access=%s, SignedHeaders=%s, Signature=%s",
+		pCtx->sAk, sSignedHeaders, sHex);
+	snprintf(sUrl, sizeof(sUrl), "https://%s%s", pCtx->sEndpoint,
+		sPathAndQuery);
+
+	Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
+	Extra[1] = (xacmehttpheader){ "X-Sdk-Date", sStampText };
+	if(!xacmeHttpExchangeV(
+			&pCtx->Http, sMethod, sUrl, "application/json",
+			(xstrview){ sBody, (sBody != NULL) ? strlen(sBody) : 0u },
+			Extra, 2u, &R))
+	{
+		return false;
+	}
+	*pOutStatus = R.iStatus;
+	*pOutBody = R.sBody;
+	R.sBody = NULL;
+	xacmeHttpResponseUnit(&R);
+	return true;
+}
+
+/* zones?name= 精确匹配候选（zone 名带尾点，比较时剥除）。 */
+static bool xacmeHuaweiZoneId(
+	xacmednshuaaweicontext* pCtx, cstr sZone, char* sOutId, size_t iIdCap)
+{
+	char sPath[300];
+	uint16 iStatus = 0u;
+	str sBody = NULL;
+	xvalue* pRoot = NULL;
+	xvalue* pZones = NULL;
+	bool bOk = false;
+	size_t i;
+
+	snprintf(sPath, sizeof(sPath), "/v2/zones?name=%s.&limit=1", sZone);
+	if(!xacmeHuaweiCall(pCtx, "GET", sPath, NULL, &iStatus, &sBody))
+	{
+		return false;
+	}
+	if(sBody != NULL)
+	{
+		pRoot = xrtJsonParse((xstrview){ sBody, strlen(sBody) });
+	}
+	if((pRoot != NULL) &&
+		((pZones = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("zones"))) !=
+			NULL) &&
+		xrtValueIs(pZones, XVALUE_ARRAY))
+	{
+		char sWantDot[280];
+		snprintf(sWantDot, sizeof(sWantDot), "%s.", sZone);
+		for(i = 0; i < xrtValueCount(pZones); i++)
+		{
+			xvalue* pItem = xrtValueArrayGet(pZones, i);
+			char sName[280];
+			if((pItem != NULL) && xrtValueIs(pItem, XVALUE_OBJECT) &&
+				xacmeDnsJsonText(pItem, "name", sName, sizeof(sName)) &&
+				(strcmp(sName, sWantDot) == 0) &&
+				xacmeDnsJsonText(pItem, "id", sOutId, iIdCap))
+			{
+				bOk = true;
+				break;
+			}
+		}
+	}
+	xrtValueRelease(pRoot);
+	xrtFree(sBody);
+	if((iStatus < 200u) || (iStatus >= 300u))
+	{
+		xacmeHuaweiError(
+			XERR_PROTOCOL, "acme dns_huawei zones response invalid");
+		return false;
+	}
+	return bOk;
+}
+
+static bool xacmeHuaweiFindZone(
+	xacmednshuaaweicontext* pCtx, cstr sFqdn, char* sOutZone,
+	size_t iZoneCap, char* sOutId, size_t iIdCap)
+{
+	char sCandidate[256];
+	const char* sCached = xacmeDnsZoneMatch(&pCtx->Zones, sFqdn);
+	if(sCached != NULL)
+	{
+		snprintf(sOutZone, iZoneCap, "%s", sCached);
+		return xacmeHuaweiZoneId(pCtx, sCached, sOutId, iIdCap);
+	}
+	snprintf(sCandidate, sizeof(sCandidate), "%s", sFqdn);
+	for(;;)
+	{
+		char sRr[200];
+		char sZone[256];
+		if(!xacmeDnsSplit(sCandidate, sRr, sizeof(sRr), sZone,
+				sizeof(sZone)))
+		{
+			return false;
+		}
+		if(xacmeHuaweiZoneId(pCtx, sZone, sOutId, iIdCap))
+		{
+			snprintf(sOutZone, iZoneCap, "%s", sZone);
+			xacmeDnsZoneRemember(&pCtx->Zones, sZone);
+			return true;
+		}
+		snprintf(sCandidate, sizeof(sCandidate), "%s", sZone);
+	}
+}
+
+static bool xacmeHuaweiAdd(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednshuaaweicontext* pCtx = (xacmednshuaaweicontext*)pProvider->pContext;
+	char sFqdnText[256];
+	char sTxtText[208];
+	char sZone[256];
+	char sZoneId[80];
+	xbuffer Body;
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	xvalue* pRoot = NULL;
+	char sRecordId[80];
+	bool bOk = false;
+
+	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
+	{
+		return false;
+	}
+	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
+	sFqdnText[sFqdn.Size] = '\0';
+	memcpy(sTxtText, sTxt.Data, sTxt.Size);
+	sTxtText[sTxt.Size] = '\0';
+
+	if(!xacmeHuaweiFindZone(pCtx, sFqdnText, sZone, sizeof(sZone), sZoneId,
+			sizeof(sZoneId)))
+	{
+		return false;
+	}
+
+	/* name 带尾点；records 值必须内嵌双引号。 */
+	xrtBufferInit(&Body);
+	if(xrtBufferAppend(&Body, XRT_BYTES_LITERAL("{\"name\":")) &&
+		xacmeDnsJsonQuote(&Body, sFqdn) &&
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(".\",\"type\":\"TXT\","
+			"\"ttl\":60,\"records\":[\"\\\"")) &&
+		xrtBufferAppend(&Body,
+			(xbytesview){ (const uint8*)sTxtText, strlen(sTxtText) }) &&
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL("\\\"\"]}")))
+	{
+		char sPath[128];
+		snprintf(sPath, sizeof(sPath), "/v2/zones/%s/recordsets",
+			sZoneId);
+		bOk = xacmeHuaweiCall(pCtx, "POST", sPath, (cstr)Body.Data,
+			&iStatus, &sResp);
+	}
+	xrtBufferUnit(&Body);
+	if(!bOk || (iStatus < 200u) || (iStatus >= 300u))
+	{
+		xrtFree(sResp);
+		return false;
+	}
+	if(sResp != NULL)
+	{
+		pRoot = xrtJsonParse((xstrview){ sResp, strlen(sResp) });
+	}
+	if((pRoot != NULL) && xrtValueIs(pRoot, XVALUE_OBJECT) &&
+		xacmeDnsJsonText(pRoot, "id", sRecordId, sizeof(sRecordId)))
+	{
+		char sHandle[160];
+		snprintf(sHandle, sizeof(sHandle), "%.75s|%.75s", sZoneId,
+			sRecordId);
+		xacmeDnsRecordRemember(&pCtx->Records, sHandle);
+	}
+	xrtValueRelease(pRoot);
+	xrtFree(sResp);
+	return true;
+}
+
+static bool xacmeHuaweiRemove(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednshuaaweicontext* pCtx =
+		(xacmednshuaaweicontext*)pProvider->pContext;
+	size_t i;
+	bool bAnyOk = false;
+	(void)sFqdn;
+	(void)sTxt;
+	for(i = 0; i < pCtx->Records.iCount; i++)
+	{
+		char sZoneId[80];
+		char sRecordId[80];
+		char sPath[200];
+		uint16 iStatus = 0u;
+		str sResp = NULL;
+		const char* sBar;
+		if(pCtx->Records.sIds[i][0] == '\0')
+		{
+			continue;
+		}
+		sBar = strchr(pCtx->Records.sIds[i], '|');
+		if((sBar == NULL) ||
+			((size_t)(sBar - pCtx->Records.sIds[i]) >= sizeof(sZoneId)) ||
+			(strlen(sBar + 1) >= sizeof(sRecordId)))
+		{
+			continue;
+		}
+		memcpy(sZoneId, pCtx->Records.sIds[i],
+			(size_t)(sBar - pCtx->Records.sIds[i]));
+		sZoneId[sBar - pCtx->Records.sIds[i]] = '\0';
+		snprintf(sRecordId, sizeof(sRecordId), "%s", sBar + 1);
+		snprintf(sPath, sizeof(sPath), "/v2/zones/%s/recordsets/%s",
+			sZoneId, sRecordId);
+		if(xacmeHuaweiCall(pCtx, "DELETE", sPath, NULL, &iStatus, &sResp))
+		{
+			xrtFree(sResp);
+			if(((iStatus >= 200u) && (iStatus < 300u)) ||
+				(iStatus == 404u) || (iStatus == 400u))
+			{
+				bAnyOk = true;
+				pCtx->Records.sIds[i][0] = '\0';
+			}
+		}
+	}
+	return bAnyOk || (pCtx->Records.iCount == 0u);
+}
+
+void xrtAcmeDnsHuaweiConfigInit(xacmednshuaaweiconfig* pConfig)
+{
+	if(pConfig == NULL)
+	{
+		return;
+	}
+	pConfig->sAccessKey = NULL;
+	pConfig->sSecretKey = NULL;
+	pConfig->sEndpoint = NULL;
+}
+
+bool xrtAcmeDnsHuawei(
+	const xacmednshuaaweiconfig* pConfig,
+	struct xnetengine* pBorrowedEngine, xacmednsprovider* pProvider)
+{
+	xacmednshuaaweicontext* pCtx;
+	if((pConfig == NULL) || (pProvider == NULL) ||
+		(pConfig->sAccessKey == NULL) || (pConfig->sSecretKey == NULL) ||
+		(pConfig->sAccessKey[0] == '\0') ||
+		(pConfig->sSecretKey[0] == '\0'))
+	{
+		xrtSetErrorInfo(
+			XERR_ARGUMENT, "xrt.acme.dns", XACME_DNS_ERROR_CREDENTIAL,
+			"acme dns_huawei requires access key and secret");
+		return false;
+	}
+	pCtx = (xacmednshuaaweicontext*)xrtCalloc(1, sizeof(*pCtx));
+	if(pCtx == NULL)
+	{
+		return false;
+	}
+	snprintf(pCtx->sAk, sizeof(pCtx->sAk), "%s", pConfig->sAccessKey);
+	snprintf(pCtx->sSk, sizeof(pCtx->sSk), "%s", pConfig->sSecretKey);
+	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
+		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
+			"dns.myhuaweicloud.com");
+	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
+	{
+		xacmeHttpUnit(&pCtx->Http);
+		xrtFree(pCtx);
+		return false;
+	}
+	pProvider->sId = "huawei";
+	pProvider->iCaps = 0u;
+	pProvider->pContext = pCtx;
+	pProvider->Add = xacmeHuaweiAdd;
+	pProvider->Remove = xacmeHuaweiRemove;
+	pProvider->Propagate = NULL;
+	return true;
+}
+
+void xrtAcmeDnsHuaweiProviderUnit(xacmednsprovider* pProvider)
+{
+	if((pProvider != NULL) && (pProvider->pContext != NULL))
+	{
+		xacmednshuaaweicontext* pCtx =
+			(xacmednshuaaweicontext*)pProvider->pContext;
+		xacmeHttpUnit(&pCtx->Http);
+		xrtFree(pCtx);
+		pProvider->pContext = NULL;
+	}
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xacme/src/acme/xacme_obtain.c */
+/* ========================================================================== */
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+
+
+
+#include <string.h>
+
+/*
+	一站式组合：账户持久化复用 + IssueStored。
+	账户钥从 store 读出为 xrtMalloc 文本，账户配置借用它完成
+	客户端构建后由本函数释放。
+*/
+
+static void xacmeObtainError(xerrkind Kind, cstr sMessage)
+{
+	xrtSetErrorInfo(Kind, "xrt.acme.obtain", 1, sMessage);
+}
+
+void xrtAcmeObtainConfigInit(xacmeobtainconfig* pConfig)
+{
+	if(pConfig == NULL)
+	{
+		xacmeObtainError(
+			XERR_ARGUMENT, "acme obtain config init requires config");
+		return;
+	}
+	memset(pConfig, 0, sizeof(*pConfig));
+}
+
+bool xrtAcmeObtain(
+	const xacmeobtainconfig* pConfig, const xstrview* pDomains,
+	size_t iDomainCount, const xacmednsprovider* pDns,
+	xacmeissuegrant* pOut, bool* pbRenewed)
+{
+	xacmeaccountconfig Account;
+	xacmeclientconfig ClientConfig;
+	struct xacmeclient* pClient = NULL;
+	str sStoredAccountPem = NULL;
+	str sFreshAccountPem = NULL;
+	bool bResult = false;
+
+	if((pConfig == NULL) || (pConfig->pAccount == NULL) ||
+		(pDomains == NULL) || (iDomainCount == 0u) || (pDns == NULL) ||
+		(pOut == NULL) || (pbRenewed == NULL) ||
+		(pConfig->sStoreRoot == NULL) || (pConfig->sStoreRoot[0] == '\0'))
+	{
+		xacmeObtainError(
+			XERR_ARGUMENT,
+			"acme obtain requires config with account, store root, "
+				"domains, dns provider and outputs");
+		return false;
+	}
+	memset(pOut, 0, sizeof(*pOut));
+	*pbRenewed = false;
+
+	/* 账户层：store 有则复用，无则开户后持久化。 */
+	Account = *pConfig->pAccount;
+	sStoredAccountPem = xrtAcmeStoreLoadAccount(
+		pConfig->sStoreRoot, Account.sDirectoryUrl);
+	if(sStoredAccountPem != NULL)
+	{
+		Account.sAccountKeyPem = sStoredAccountPem;
+		Account.Eab.sKid = NULL; /* 复用账户无需再绑定。 */
+		Account.Eab.sHmac = NULL;
+	}
+
+	xrtAcmeClientConfigInit(&ClientConfig);
+	ClientConfig.pAccount = &Account;
+	ClientConfig.sCaPem = pConfig->sCaPem;
+	ClientConfig.pBorrowedEngine = pConfig->pBorrowedEngine;
+	ClientConfig.uTimeoutUs = pConfig->uTimeoutUs;
+	ClientConfig.sPropagateResolvers = pConfig->sPropagateResolvers;
+	ClientConfig.iPropagateResolverCount =
+		pConfig->iPropagateResolverCount;
+	ClientConfig.uPropagateTimeoutMs = pConfig->uPropagateTimeoutMs;
+
+	pClient = xrtAcmeClientCreate(&ClientConfig);
+	if(pClient == NULL)
+	{
+		goto Done;
+	}
+	if(sStoredAccountPem == NULL)
+	{
+		sFreshAccountPem = xrtAcmeClientAccountPem(pClient);
+		if((sFreshAccountPem != NULL) &&
+			!xrtAcmeStoreSaveAccount(
+				pConfig->sStoreRoot, Account.sDirectoryUrl,
+				sFreshAccountPem))
+		{
+			/* 账户落盘失败不作废本次签发；续期时会再开新账户。 */
+			xacmeObtainError(
+				XERR_IO, "acme obtain save account failed");
+			goto Done;
+		}
+	}
+
+	if(!xrtAcmeClientIssueStored(
+			pClient, pDomains, iDomainCount, pDns, pConfig->sStoreRoot,
+			(pConfig->iRenewalDays != 0) ? pConfig->iRenewalDays : 30,
+			pOut, pbRenewed))
+	{
+		goto Done;
+	}
+	bResult = true;
+
+Done:
+	xrtFree(sFreshAccountPem);
+	xrtFree(sStoredAccountPem);
+	if(pClient != NULL)
+	{
+		xrtAcmeClientDestroy(pClient);
+	}
+	if(!bResult)
+	{
+		xrtFree(pOut->sFullchainPem);
+		xrtFree(pOut->sKeyPem);
+		memset(pOut, 0, sizeof(*pOut));
+	}
+	return bResult;
+}
+
 #endif
 #endif
 

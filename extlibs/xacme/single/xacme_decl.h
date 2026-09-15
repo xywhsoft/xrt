@@ -45,14 +45,26 @@
 #if !defined(XACME_FEATURE_ACME_JOSE)
 #define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_ACME_JOSE 1
 #endif
+#if !defined(XACME_FEATURE_ACME_OBTAIN)
+#define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_ACME_OBTAIN 1
+#endif
 #if !defined(XACME_FEATURE_ACME_STORE)
 #define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_ACME_STORE 1
 #endif
 #if !defined(XACME_FEATURE_DNS_ALI)
 #define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_ALI 1
 #endif
-#if !defined(XACME_FEATURE_DNS_TXT)
-#define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_TXT 1
+#if !defined(XACME_FEATURE_DNS_AWS)
+#define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_AWS 1
+#endif
+#if !defined(XACME_FEATURE_DNS_CF)
+#define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_CF 1
+#endif
+#if !defined(XACME_FEATURE_DNS_HUAWEI)
+#define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_HUAWEI 1
+#endif
+#if !defined(XACME_FEATURE_DNS_TENCENT)
+#define XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_TENCENT 1
 #endif
 #if !defined(XACME_MODULE_ACME_CORE)
 #define XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_CORE 1
@@ -72,20 +84,29 @@
 #if !defined(XACME_MODULE_ACME_JOSE)
 #define XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_JOSE 1
 #endif
+#if !defined(XACME_MODULE_ACME_OBTAIN)
+#define XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_OBTAIN 1
+#endif
 #if !defined(XACME_MODULE_ACME_STORE)
 #define XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_STORE 1
 #endif
 #if !defined(XACME_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XACME_MODULE_ALL 1
 #endif
-#if !defined(XACME_MODULE_DNS_)
-#define XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_ 1
-#endif
 #if !defined(XACME_MODULE_DNS_ALI)
 #define XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_ALI 1
 #endif
-#if !defined(XACME_MODULE_DNS_TXT)
-#define XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_TXT 1
+#if !defined(XACME_MODULE_DNS_AWS)
+#define XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_AWS 1
+#endif
+#if !defined(XACME_MODULE_DNS_CF)
+#define XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_CF 1
+#endif
+#if !defined(XACME_MODULE_DNS_HUAWEI)
+#define XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_HUAWEI 1
+#endif
+#if !defined(XACME_MODULE_DNS_TENCENT)
+#define XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_TENCENT 1
 #endif
 #if !defined(XRT_FEATURE_ARRAY)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY 1
@@ -2372,6 +2393,164 @@
 #ifndef XACME_FEATURES_H
 #define XACME_FEATURES_H
 
+/* acme_obtain 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_OBTAIN)
+#ifndef XACME_FEATURE_ACME_OBTAIN
+#define XACME_FEATURE_ACME_OBTAIN
+#endif
+#ifndef XACME_MODULE_ACME_CORE
+#define XACME_MODULE_ACME_CORE
+#endif
+#ifndef XACME_MODULE_ACME_FLOW
+#define XACME_MODULE_ACME_FLOW
+#endif
+#ifndef XACME_MODULE_ACME_STORE
+#define XACME_MODULE_ACME_STORE
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XACME_MODULE_ACME_JOSE
+#define XACME_MODULE_ACME_JOSE
+#endif
+#ifndef XACME_MODULE_ACME_CSR
+#define XACME_MODULE_ACME_CSR
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_DNS_ALI
+#define XACME_MODULE_DNS_ALI
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_FILE_WHOLE
+#define XRT_MODULE_FILE_WHOLE
+#endif
+#ifndef XRT_MODULE_X509_PARSE
+#define XRT_MODULE_X509_PARSE
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_PEM
+#define XRT_MODULE_PEM
+#endif
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#endif
+
+/* dns_huawei 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_HUAWEI)
+#ifndef XACME_FEATURE_DNS_HUAWEI
+#define XACME_FEATURE_DNS_HUAWEI
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_aws 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_AWS)
+#ifndef XACME_FEATURE_DNS_AWS
+#define XACME_FEATURE_DNS_AWS
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_tencent 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_TENCENT)
+#ifndef XACME_FEATURE_DNS_TENCENT
+#define XACME_FEATURE_DNS_TENCENT
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
+/* dns_cf 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_CF)
+#ifndef XACME_FEATURE_DNS_CF
+#define XACME_FEATURE_DNS_CF
+#endif
+#ifndef XACME_MODULE_ACME_DNS
+#define XACME_MODULE_ACME_DNS
+#endif
+#ifndef XACME_MODULE_ACME_HTTP
+#define XACME_MODULE_ACME_HTTP
+#endif
+#ifndef XRT_MODULE_JSON
+#define XRT_MODULE_JSON
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* acme_flow 及其直接依赖。 */
 #if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_FLOW)
 #ifndef XACME_FEATURE_ACME_FLOW
@@ -2407,6 +2586,9 @@
 #if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_STORE)
 #ifndef XACME_FEATURE_ACME_STORE
 #define XACME_FEATURE_ACME_STORE
+#endif
+#ifndef XACME_MODULE_ACME_CORE
+#define XACME_MODULE_ACME_CORE
 #endif
 #ifndef XRT_MODULE_FILE
 #define XRT_MODULE_FILE
@@ -2458,9 +2640,6 @@
 #ifndef XACME_MODULE_ACME_HTTP
 #define XACME_MODULE_ACME_HTTP
 #endif
-#ifndef XACME_MODULE_DNS_TXT
-#define XACME_MODULE_DNS_TXT
-#endif
 #ifndef XRT_MODULE_JSON
 #define XRT_MODULE_JSON
 #endif
@@ -2481,10 +2660,10 @@
 #endif
 #endif
 
-/* dns_txt 及其直接依赖。 */
-#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_DNS_TXT)
-#ifndef XACME_FEATURE_DNS_TXT
-#define XACME_FEATURE_DNS_TXT
+/* acme_dns 及其直接依赖。 */
+#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_DNS)
+#ifndef XACME_FEATURE_ACME_DNS
+#define XACME_FEATURE_ACME_DNS
 #endif
 #ifndef XRT_MODULE_NET_ENGINE
 #define XRT_MODULE_NET_ENGINE
@@ -2509,13 +2688,6 @@
 #endif
 #ifndef XRT_MODULE_ARRAY
 #define XRT_MODULE_ARRAY
-#endif
-#endif
-
-/* acme_dns 及其直接依赖。 */
-#if defined(XACME_MODULE_ALL) || defined(XACME_MODULE_ACME_DNS)
-#ifndef XACME_FEATURE_ACME_DNS
-#define XACME_FEATURE_ACME_DNS
 #endif
 #endif
 
@@ -44399,6 +44571,128 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_http.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_HTTP_H
+#define XRT_ACME_HTTP_H
+
+/*
+	xacme HTTPS 传输层的裁剪闭包契约：ACME 端点访问建立在 xrt 的
+	自研 TLS/网络/HTTP 栈上（一次性连接，系统或自定义信任库）。
+	传输对象为内部实现细节，宿主经 xrt/acme_client.h 使用；
+	本头只固化依赖闭包，供构建器做负向裁剪门禁。
+*/
+
+
+#if defined(XACME_FEATURE_ACME_HTTP)
+
+#if !defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_HTTP) || \
+	!defined(XRT_FEATURE_HTTP1_HEAD) || \
+	!defined(XRT_FEATURE_HTTP1_BODY) || \
+	!defined(XRT_FEATURE_HTTP1_NET) || \
+	!defined(XRT_FEATURE_NET_ENGINE) || \
+	!defined(XRT_FEATURE_NET_RESOLVER) || \
+	!defined(XRT_FEATURE_NET_TCP) || \
+	!defined(XRT_FEATURE_NET_TCP_DIAL) || \
+	!defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) || \
+	!defined(XRT_FEATURE_NET_TCP_FUTURE) || \
+	!defined(XRT_FEATURE_TLS_STREAM) || \
+	!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
+	!defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) || \
+	!defined(XRT_FEATURE_TLS_STREAM_FUTURE) || \
+	!defined(XRT_FEATURE_TLS_CLIENT) || \
+	!defined(XRT_FEATURE_TLS_CLIENT_VERIFY) || \
+	!defined(XRT_FEATURE_TLS_VERIFY) || \
+	!defined(XRT_FEATURE_TLS_NEGOTIATE) || \
+	!defined(XRT_FEATURE_TLS_POLICY) || \
+	!defined(XRT_FEATURE_TLS_CONTEXT) || \
+	!defined(XRT_FEATURE_TLS_RECORD) || \
+	!defined(XRT_FEATURE_TLS_RECORD_AES) || \
+	!defined(XRT_FEATURE_TLS_SCHEDULE_SHA256) || \
+	!defined(XRT_FEATURE_TLS_SCHEDULE_SHA384) || \
+	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_X25519) || \
+	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P256) || \
+	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P384) || \
+	!defined(XRT_FEATURE_X509_STORE) || \
+	!defined(XRT_FEATURE_X509_STORE_SYSTEM) || \
+	!defined(XRT_FEATURE_FUTURE) || \
+	!defined(XRT_FEATURE_FUTURE_BRIDGE) || \
+	!defined(XRT_FEATURE_CANCEL) || \
+	!defined(XRT_FEATURE_THREAD) || \
+	!defined(XRT_FEATURE_TIME)
+	#error "XACME_FEATURE_ACME_HTTP requires the xrt TLS/net/HTTP stack"
+#endif
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_jose.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_JOSE_H
+#define XRT_ACME_JOSE_H
+
+/*
+	xacme JOSE 层的裁剪闭包契约：ES256 账户密钥与 JWS 组装建立在
+	xrt 的 P-256 与 SHA-256 原语上。JOSE 对象为内部实现细节，
+	宿主经 xrt/acme_client.h 使用；本头只固化依赖闭包，
+	供构建器做负向裁剪门禁。
+*/
+
+
+#if defined(XACME_FEATURE_ACME_JOSE)
+
+#if !defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_P256_KEYPAIR) || \
+	!defined(XRT_FEATURE_CRYPTO_ECDSA_P256_SIGN)
+	#error "XACME_FEATURE_ACME_JOSE requires base64, SHA-256 and P-256 signing"
+#endif
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_csr.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_CSR_H
+#define XRT_ACME_CSR_H
+
+/*
+	xacme CSR/密钥序列化层的裁剪闭包契约：PKCS#10 组装与 PKCS#8/SEC1
+	PEM 读写建立在 xrt 的 ASN.1/PEM/P-256 原语上，并复用 JOSE 密钥
+	类型。CSR 对象为内部实现细节，宿主经 xrt/acme_client.h 使用；
+	本头只固化依赖闭包，供构建器做负向裁剪门禁。
+*/
+
+
+#if defined(XACME_FEATURE_ACME_CSR)
+
+#if !defined(XACME_FEATURE_ACME_JOSE) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_ASN1_DER) || \
+	!defined(XRT_FEATURE_PEM) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_CRYPTO_P256) || \
+	!defined(XRT_FEATURE_CRYPTO_ECDSA_P256_SIGN_DER)
+	#error "XACME_FEATURE_ACME_CSR requires JOSE, DER, PEM and P-256 DER signing"
+#endif
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xacme/include/xrt/acme_dns.h */
 /* ========================================================================== */
 
@@ -44408,6 +44702,19 @@ XRT_EXTERN_C_END
 
 
 
+
+
+#if defined(XACME_FEATURE_ACME_DNS) && \
+	!defined(XRT_FEATURE_NET_ENGINE) || \
+	!defined(XRT_FEATURE_NET_UDP) || \
+	!defined(XRT_FEATURE_NET_UDP_SYNC) || \
+	!defined(XRT_FEATURE_RANDOM) || \
+	!defined(XRT_FEATURE_RANDOM_DEFAULT) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_ARRAY)
+	#error "XACME_FEATURE_ACME_DNS requires net engine, UDP, random, time, buffer and array"
+#endif
 
 /* DNS provider 模块稳定错误码（错误域 "xrt.acme.dns"）。 */
 typedef enum xacmednserror {
@@ -44510,8 +44817,16 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XACME_FEATURE_DNS_ALI) && !defined(XACME_FEATURE_ACME_DNS)
-	#error "XRT acme dns_ali requires XACME_FEATURE_ACME_DNS"
+#if defined(XACME_FEATURE_DNS_ALI) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_ALI requires acme dns, acme http transport and signing primitives"
 #endif
 
 
@@ -44521,19 +44836,24 @@ XRT_EXTERN_C_END
 /*
 	阿里云 DNS（alidns）provider，走 V3 签名（ACS3-HMAC-SHA256）。
 	Endpoint 默认 alidns.aliyuncs.com；凭据与 Endpoint 均为借用视图，
-	宿主保证存活至 Remove 完成。
+	宿主保证存活至 Remove 完成。传播确认由签发流程层统一负责
+	（provider 只做 Add/Remove）。
 */
 typedef struct xacmednaliconfig {
 	cstr sAccessKeyId;
 	cstr sAccessKeySecret;
 	cstr sEndpoint;
-	/* TXT 传播确认用的解析器；空则不自动确认。 */
-	cstr sVerifyResolver;
 } xacmednaliconfig;
 
 #endif
 
 
+
+#if defined(XACME_FEATURE_DNS_ALI)
+
+struct xnetengine;
+
+#endif
 
 XRT_EXTERN_C_BEGIN
 
@@ -44547,9 +44867,11 @@ XRT_API void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig);
 /*
 	构造阿里云 DNS provider。内部上下文由 xrtMalloc 分配，
 	宿主用 xrtAcmeDnsAliProviderUnit 归还；凭据缺失返回 false。
+	pBorrowedEngine 为空时自建网络引擎。
 */
 XRT_API bool xrtAcmeDnsAli(
 	const xacmednaliconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
 	xacmednsprovider* pProvider
 );
 
@@ -44638,6 +44960,18 @@ typedef struct xacmeaccountconfig {
 	cstr sContactEmail;
 } xacmeaccountconfig;
 
+/*
+	签发产物：证书链 + 配对私钥，两段文本均由 xrtFree 释放。
+	私钥为 PKCS#8 PEM（ES256），与链中叶证书配对；没有它证书不可用。
+*/
+typedef struct xacmeissuegrant {
+	str sFullchainPem;
+	str sKeyPem;
+} xacmeissuegrant;
+
+/* 释放一段签发产物（成员非空即释放并清零）。 */
+XRT_API void xrtAcmeGrantUnit(xacmeissuegrant* pGrant);
+
 #endif
 
 
@@ -44650,6 +44984,15 @@ XRT_EXTERN_C_BEGIN
 
 /* 全零初始化；指针字段为空表示未设置。 */
 XRT_API void xrtAcmeAccountConfigInit(xacmeaccountconfig* pConfig);
+
+#endif
+
+
+
+#if defined(XACME_FEATURE_ACME_CORE)
+
+/* 释放一段签发产物（成员非空即释放并清零）；入参可为空。 */
+XRT_API void xrtAcmeGrantUnit(xacmeissuegrant* pGrant);
 
 #endif
 
@@ -44668,12 +45011,19 @@ XRT_EXTERN_C_END
 #define XRT_ACME_STORE_H
 
 
-#if defined(XACME_FEATURE_ACME_STORE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XRT acme store requires whole-file support"
-#endif
 
-#if defined(XACME_FEATURE_ACME_STORE) && !defined(XRT_FEATURE_X509_PARSE)
-	#error "XRT acme store requires X.509 parsing"
+#if defined(XACME_FEATURE_ACME_STORE) && \
+	!defined(XACME_FEATURE_ACME_CORE) || \
+	!defined(XRT_FEATURE_FILE) || \
+	!defined(XRT_FEATURE_FILE_WHOLE) || \
+	!defined(XRT_FEATURE_X509_PARSE) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_PEM) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_DIR)
+	#error "XACME_FEATURE_ACME_STORE requires acme core, file, x509, pem, base64, time, buffer and dir"
 #endif
 
 /* store 模块稳定错误码（错误域 "xrt.acme.store"）。 */
@@ -44687,9 +45037,11 @@ typedef enum xacmestoreerror {
 /*
 	磁盘布局（root 由宿主显式指定，库不猜家目录）：
 	  <root>/accounts/<ca16>/account.pem   账户密钥（PKCS#8 PEM）
+	  <root>/certs/<domain>/key.pem        证书私钥（PKCS#8 PEM）
 	  <root>/certs/<domain>/fullchain.pem  证书链
 	  <root>/certs/<domain>/meta.txt       "directory=<CA directory URL>"
 	<ca16> 为 directory URL 的 SHA-256 hex 前 16 字符，多 CA 并存互不污染。
+	宿主负责 root 目录本身的访问权限（key.pem 属敏感数据）。
 */
 
 XRT_EXTERN_C_BEGIN
@@ -44715,11 +45067,475 @@ XRT_API str xrtAcmeStoreLoadCert(cstr sRoot, cstr sPrimaryDomain);
 XRT_API str xrtAcmeStoreLoadCertCa(cstr sRoot, cstr sPrimaryDomain);
 
 /*
+	签发产物整体落盘（key.pem + fullchain.pem + meta，原子写）。
+	pGrant 借用；sDirectoryUrl 可为空（meta 溯源留空）。
+*/
+XRT_API bool xrtAcmeStoreSaveGrant(
+	cstr sRoot, cstr sPrimaryDomain,
+	const xacmeissuegrant* pGrant, cstr sDirectoryUrl);
+
+/*
+	读取签发产物；key.pem 或 fullchain.pem 缺失即失败
+	（XERR_NOT_FOUND），输出清零。两段均 xrtFree。
+*/
+XRT_API bool xrtAcmeStoreLoadGrant(
+	cstr sRoot, cstr sPrimaryDomain, xacmeissuegrant* pOut);
+
+/*
+	枚举 <root>/certs/ 下的域名目录名（续签守护遍历用）。
+	每元素 256 字节；容量不足时返回 false 并置 XERR_RANGE。
+*/
+XRT_API bool xrtAcmeStoreListDomains(
+	cstr sRoot, char (*sOutDomains)[256],
+	size_t iCapacity, size_t* pOutCount);
+
+/*
 	续签判定：解析本地链叶证书的 notAfter，剩余寿命不足
 	iRenewalDays 天时 *pbNeed=true。本地证书缺失同样 *pbNeed=true。
 */
 XRT_API bool xrtAcmeStoreNeedRenew(
 	cstr sRoot, cstr sPrimaryDomain, int iRenewalDays, bool* pbNeed);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_client.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_CLIENT_H
+#define XRT_ACME_CLIENT_H
+
+
+#if defined(XACME_FEATURE_ACME_FLOW) && \
+	!defined(XACME_FEATURE_ACME_CORE) || \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XACME_FEATURE_ACME_JOSE) || \
+	!defined(XACME_FEATURE_ACME_CSR) || \
+	!defined(XACME_FEATURE_DNS_ALI) || \
+	!defined(XACME_FEATURE_ACME_STORE) || \
+	!defined(XRT_FEATURE_JSON)
+	#error "XACME_FEATURE_ACME_FLOW requires core, dns, http, jose, csr, dns_ali, store and json"
+#endif
+
+struct xnetengine;
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+
+/*
+	客户端配置：全部借用视图，宿主保证存活至 Create 返回。
+	pAccount 必填；sPropagateResolvers 为空时使用内置默认组
+	（223.5.5.5 / 119.29.29.29 / 8.8.8.8，任一可见即通过），
+	uPropagateTimeoutMs 为 0 时默认 120 秒。
+*/
+typedef struct xacmeclientconfig {
+	const xacmeaccountconfig* pAccount;
+	cstr sCaPem;
+	struct xnetengine* pBorrowedEngine;
+	uint64 uTimeoutUs;
+	const cstr* sPropagateResolvers;
+	size_t iPropagateResolverCount;
+	uint32 uPropagateTimeoutMs;
+} xacmeclientconfig;
+
+#endif
+
+/* 不透明客户端；定义在内部头，宿主只经指针使用。 */
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+
+/* 全零初始化；指针字段为空表示未设置。 */
+XRT_API void xrtAcmeClientConfigInit(xacmeclientconfig* pConfig);
+
+/*
+	创建客户端：建传输、解析 directory、注册或复用账户（含
+	EAB/contact）。失败返回 NULL 并设置线程错误。
+*/
+XRT_API struct xacmeclient* xrtAcmeClientCreate(
+	const xacmeclientconfig* pConfig);
+
+/* 销毁并释放；入参可为空。 */
+XRT_API void xrtAcmeClientDestroy(struct xacmeclient* pClient);
+
+/* 账户密钥 PKCS#8 PEM 导出（xrtFree 释放），宿主可持久化复用。 */
+XRT_API str xrtAcmeClientAccountPem(const struct xacmeclient* pClient);
+
+/*
+	一次 dns-01 签发：域名可含通配符（*. 前缀）；产物含证书链与
+	配对私钥（pOut 两段均 xrtFree，或经 xrtAcmeGrantUnit 统一释放）。
+	provider 的 Add 在 TXT 铺设后、挑战触发前调用；传播确认通过后
+	才触发挑战；Remove 在结束后尽力调用。
+*/
+XRT_API bool xrtAcmeClientIssue(
+	struct xacmeclient* pClient,
+	const xstrview* pDomains,
+	size_t iDomainCount,
+	const xacmednsprovider* pDns,
+	xacmeissuegrant* pOut
+);
+
+/*
+	吊销证书（RFC 8555 §7.6，账户钥签名）：sCertPem 为单张证书
+	（取首个 PEM 块）；iReason 0-9（RFC 5280 CRLReason），<0 省略。
+	已被吊销视为幂等成功。要求 directory 提供 revokeCert 端点。
+*/
+XRT_API bool xrtAcmeClientRevoke(
+	struct xacmeclient* pClient,
+	cstr sCertPem,
+	int iReason
+);
+
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW) && defined(XACME_FEATURE_ACME_STORE)
+
+/*
+	一站式续签（组合 store）：本地证书剩余寿命不少于 iRenewalDays
+	天时 *pbRenewed=false 并直接返回现有链与私钥；否则签发、落盘
+	（key.pem + fullchain.pem + CA 溯源）并返回新产物。
+	pDomains[0] 同时是 store 的主域名键。
+*/
+XRT_API bool xrtAcmeClientIssueStored(
+	struct xacmeclient* pClient,
+	const xstrview* pDomains,
+	size_t iDomainCount,
+	const xacmednsprovider* pDns,
+	cstr sStoreRoot,
+	int iRenewalDays,
+	xacmeissuegrant* pOut,
+	bool* pbRenewed
+);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_dns_cf.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_DNS_CF_H
+#define XRT_ACME_DNS_CF_H
+
+
+
+#if defined(XACME_FEATURE_DNS_CF) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_CF requires acme dns, acme http transport and signing primitives"
+#endif
+
+#if defined(XACME_FEATURE_DNS_CF)
+
+/*
+	Cloudflare DNS provider（API v4，Bearer API Token）。
+	Token 建议只授予目标 zone 的 Zone.DNS Edit 权限；均为借用视图。
+*/
+typedef struct xacmednscfconfig {
+	cstr sApiToken;
+	cstr sEndpoint;
+} xacmednscfconfig;
+
+#endif
+
+struct xnetengine;
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_DNS_CF)
+
+/* 全零初始化；ApiToken 必填。 */
+XRT_API void xrtAcmeDnsCfConfigInit(xacmednscfconfig* pConfig);
+
+/* 构造 provider；内部上下文由 xrtMalloc 分配，宿主用 Unit 归还。 */
+XRT_API bool xrtAcmeDnsCf(
+	const xacmednscfconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider
+);
+
+/* 释放构造时分配的内部上下文。 */
+XRT_API void xrtAcmeDnsCfProviderUnit(xacmednsprovider* pProvider);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_dns_tencent.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_DNS_TENCENT_H
+#define XRT_ACME_DNS_TENCENT_H
+
+
+
+#if defined(XACME_FEATURE_DNS_TENCENT) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_TENCENT requires acme dns, acme http transport and signing primitives"
+#endif
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+
+/*
+	腾讯云 DNSPod provider（API 3.0，TC3-HMAC-SHA256 签名）。
+	凭据为 SecretId/SecretKey；Endpoint 默认 dnspod.tencentcloudapi.com。
+*/
+typedef struct xacmednstencentconfig {
+	cstr sSecretId;
+	cstr sSecretKey;
+	cstr sEndpoint;
+} xacmednstencentconfig;
+
+#endif
+
+struct xnetengine;
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+
+/* 全零初始化；SecretId/SecretKey 必填。 */
+XRT_API void xrtAcmeDnsTencentConfigInit(xacmednstencentconfig* pConfig);
+
+/* 构造 provider；内部上下文由 xrtMalloc 分配，宿主用 Unit 归还。 */
+XRT_API bool xrtAcmeDnsTencent(
+	const xacmednstencentconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider
+);
+
+/* 释放构造时分配的内部上下文。 */
+XRT_API void xrtAcmeDnsTencentProviderUnit(xacmednsprovider* pProvider);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_dns_aws.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_DNS_AWS_H
+#define XRT_ACME_DNS_AWS_H
+
+
+
+#if defined(XACME_FEATURE_DNS_AWS) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_AWS requires acme dns, acme http transport and signing primitives"
+#endif
+
+#if defined(XACME_FEATURE_DNS_AWS)
+
+/*
+	AWS Route53 provider（SigV4，XML API 2013-03-01）。
+	Region 可空（Route53 为全局服务，默认 us-east-1）；
+	凭据建议为仅限 Route53 的 IAM 用户/角色。
+*/
+typedef struct xacmednsawsconfig {
+	cstr sAccessKeyId;
+	cstr sSecretAccessKey;
+	cstr sRegion;
+	cstr sEndpoint;
+} xacmednsawsconfig;
+
+#endif
+
+struct xnetengine;
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_DNS_AWS)
+
+/* 全零初始化；AccessKeyId/SecretAccessKey 必填。 */
+XRT_API void xrtAcmeDnsAwsConfigInit(xacmednsawsconfig* pConfig);
+
+/* 构造 provider；内部上下文由 xrtMalloc 分配，宿主用 Unit 归还。 */
+XRT_API bool xrtAcmeDnsAws(
+	const xacmednsawsconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider
+);
+
+/* 释放构造时分配的内部上下文。 */
+XRT_API void xrtAcmeDnsAwsProviderUnit(xacmednsprovider* pProvider);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_dns_huawei.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_DNS_HUAWEI_H
+#define XRT_ACME_DNS_HUAWEI_H
+
+
+
+#if defined(XACME_FEATURE_DNS_HUAWEI) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_HUAWEI requires acme dns, acme http transport and signing primitives"
+#endif
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+
+/*
+	华为云 DNS provider（API v2，SDK-HMAC-SHA256 签名）。
+	凭据为 AK/SK；Endpoint 默认 dns.myhuaweicloud.com。
+	注意 recordset 的 name 带尾点、records 值需内嵌双引号。
+*/
+typedef struct xacmednshuaaweiconfig {
+	cstr sAccessKey;
+	cstr sSecretKey;
+	cstr sEndpoint;
+} xacmednshuaaweiconfig;
+
+#endif
+
+struct xnetengine;
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+
+/* 全零初始化；AccessKey/SecretKey 必填。 */
+XRT_API void xrtAcmeDnsHuaweiConfigInit(xacmednshuaaweiconfig* pConfig);
+
+/* 构造 provider；内部上下文由 xrtMalloc 分配，宿主用 Unit 归还。 */
+XRT_API bool xrtAcmeDnsHuawei(
+	const xacmednshuaaweiconfig* pConfig,
+	struct xnetengine* pBorrowedEngine,
+	xacmednsprovider* pProvider
+);
+
+/* 释放构造时分配的内部上下文。 */
+XRT_API void xrtAcmeDnsHuaweiProviderUnit(xacmednsprovider* pProvider);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xacme/include/xrt/acme_obtain.h */
+/* ========================================================================== */
+
+#ifndef XRT_ACME_OBTAIN_H
+#define XRT_ACME_OBTAIN_H
+
+
+
+#if defined(XACME_FEATURE_ACME_OBTAIN) && \
+	!defined(XACME_FEATURE_ACME_FLOW) || \
+	!defined(XACME_FEATURE_ACME_STORE) || \
+	!defined(XACME_FEATURE_ACME_CORE) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XACME_FEATURE_ACME_JOSE) || \
+	!defined(XACME_FEATURE_ACME_CSR) || \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_DNS_ALI) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_FILE_WHOLE) || \
+	!defined(XRT_FEATURE_X509_PARSE) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_PEM) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_DIR)
+	#error "XACME_FEATURE_ACME_OBTAIN requires flow and store closures"
+#endif
+
+struct xnetengine;
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+
+/*
+	一站式配置：账户层 + 客户端层 + 续签层，全部借用视图，
+	宿主保证存活至 Obtain 返回。sStoreRoot 必填；iRenewalDays
+	为 0 时默认 30（剩余寿命不足该天数即续签）。
+*/
+typedef struct xacmeobtainconfig {
+	const xacmeaccountconfig* pAccount;
+	cstr sCaPem;
+	struct xnetengine* pBorrowedEngine;
+	uint64 uTimeoutUs;
+	const cstr* sPropagateResolvers;
+	size_t iPropagateResolverCount;
+	uint32 uPropagateTimeoutMs;
+	cstr sStoreRoot;
+	int iRenewalDays;
+} xacmeobtainconfig;
+
+#endif
+
+XRT_EXTERN_C_BEGIN
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+
+/* 全零初始化；指针字段为空表示未设置。 */
+XRT_API void xrtAcmeObtainConfigInit(xacmeobtainconfig* pConfig);
+
+/*
+	一次调用取得可用证书（链 + 配对私钥）：
+	  1. store 无账户则注册并持久化（accounts/<ca16>/account.pem），
+	     有则复用（同一 CA 稳定账户，不反复开户）；
+	  2. 本地证书剩余寿命充足时直接返回（*pbRenewed=false）；
+	  3. 不足则完整 dns-01 签发并落盘
+	     （certs/<主域名>/{key.pem,fullchain.pem,meta_txt}）。
+	pOut 两段文本均 xrtFree（或 xrtAcmeGrantUnit 统一释放）。
+	失败返回 false 并设置线程错误。
+*/
+XRT_API bool xrtAcmeObtain(
+	const xacmeobtainconfig* pConfig,
+	const xstrview* pDomains,
+	size_t iDomainCount,
+	const xacmednsprovider* pDns,
+	xacmeissuegrant* pOut,
+	bool* pbRenewed
+);
 
 #endif
 
@@ -44735,8 +45551,8 @@ XRT_EXTERN_C_END
 /*
 	xacme —— 构建在 xrt 核心之上的 ACME (RFC 8555) 客户端扩展库。
 
-	模块选择见 <xacme/features.h>：默认全量内建 DNS provider，
-	XACME_NO_DNS_<厂> 排除个别，或点名 XACME_MODULE_DNS_<厂> 白名单。
+	模块选择见 <xacme/features.h>（由 tools/generate_extension_features.py
+	按清单生成）：定义 XACME_MODULE_<名> 点名模块，或不定义任何宏取全量。
 */
 #ifndef XACME_H
 #define XACME_H
@@ -44749,7 +45565,37 @@ XRT_EXTERN_C_END
 #if defined(XACME_FEATURE_ACME_CORE)
 #endif
 
+#if defined(XACME_FEATURE_ACME_JOSE)
+#endif
+
+#if defined(XACME_FEATURE_ACME_CSR)
+#endif
+
+#if defined(XACME_FEATURE_ACME_HTTP)
+#endif
+
+#if defined(XACME_FEATURE_ACME_FLOW)
+#endif
+
+#if defined(XACME_FEATURE_ACME_OBTAIN)
+#endif
+
+#if defined(XACME_FEATURE_ACME_STORE)
+#endif
+
 #if defined(XACME_FEATURE_DNS_ALI)
+#endif
+
+#if defined(XACME_FEATURE_DNS_CF)
+#endif
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+#endif
+
+#if defined(XACME_FEATURE_DNS_AWS)
+#endif
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
 #endif
 
 #endif
@@ -44777,6 +45623,10 @@ XRT_EXTERN_C_END
 #undef XACME_FEATURE_ACME_JOSE
 #undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_ACME_JOSE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_FEATURE_ACME_OBTAIN)
+#undef XACME_FEATURE_ACME_OBTAIN
+#undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_ACME_OBTAIN
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XACME_FEATURE_ACME_STORE)
 #undef XACME_FEATURE_ACME_STORE
 #undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_ACME_STORE
@@ -44785,9 +45635,21 @@ XRT_EXTERN_C_END
 #undef XACME_FEATURE_DNS_ALI
 #undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_ALI
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_TXT)
-#undef XACME_FEATURE_DNS_TXT
-#undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_TXT
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_AWS)
+#undef XACME_FEATURE_DNS_AWS
+#undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_AWS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_CF)
+#undef XACME_FEATURE_DNS_CF
+#undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_CF
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_HUAWEI)
+#undef XACME_FEATURE_DNS_HUAWEI
+#undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_HUAWEI
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_TENCENT)
+#undef XACME_FEATURE_DNS_TENCENT
+#undef XRT_DECLARATIONS_RESTORE_XACME_FEATURE_DNS_TENCENT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_CORE)
 #undef XACME_MODULE_ACME_CORE
@@ -44813,6 +45675,10 @@ XRT_EXTERN_C_END
 #undef XACME_MODULE_ACME_JOSE
 #undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_JOSE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_OBTAIN)
+#undef XACME_MODULE_ACME_OBTAIN
+#undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_OBTAIN
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_STORE)
 #undef XACME_MODULE_ACME_STORE
 #undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_ACME_STORE
@@ -44821,17 +45687,25 @@ XRT_EXTERN_C_END
 #undef XACME_MODULE_ALL
 #undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_ALL
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_)
-#undef XACME_MODULE_DNS_
-#undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_
-#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_ALI)
 #undef XACME_MODULE_DNS_ALI
 #undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_ALI
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_TXT)
-#undef XACME_MODULE_DNS_TXT
-#undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_TXT
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_AWS)
+#undef XACME_MODULE_DNS_AWS
+#undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_AWS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_CF)
+#undef XACME_MODULE_DNS_CF
+#undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_CF
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_HUAWEI)
+#undef XACME_MODULE_DNS_HUAWEI
+#undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_HUAWEI
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_TENCENT)
+#undef XACME_MODULE_DNS_TENCENT
+#undef XRT_DECLARATIONS_RESTORE_XACME_MODULE_DNS_TENCENT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY)
 #undef XRT_FEATURE_ARRAY

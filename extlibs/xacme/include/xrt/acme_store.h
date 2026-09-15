@@ -6,16 +6,18 @@
 
 #include <xrt/acme.h>
 
-#if defined(XACME_FEATURE_ACME_STORE) && !defined(XACME_FEATURE_ACME_CORE)
-	#error "XRT acme store requires XACME_FEATURE_ACME_CORE"
-#endif
-
-#if defined(XACME_FEATURE_ACME_STORE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XRT acme store requires whole-file support"
-#endif
-
-#if defined(XACME_FEATURE_ACME_STORE) && !defined(XRT_FEATURE_X509_PARSE)
-	#error "XRT acme store requires X.509 parsing"
+#if defined(XACME_FEATURE_ACME_STORE) && \
+	!defined(XACME_FEATURE_ACME_CORE) || \
+	!defined(XRT_FEATURE_FILE) || \
+	!defined(XRT_FEATURE_FILE_WHOLE) || \
+	!defined(XRT_FEATURE_X509_PARSE) || \
+	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
+	!defined(XRT_FEATURE_PEM) || \
+	!defined(XRT_FEATURE_CODEC_BASE64) || \
+	!defined(XRT_FEATURE_TIME) || \
+	!defined(XRT_FEATURE_BUFFER) || \
+	!defined(XRT_FEATURE_DIR)
+	#error "XACME_FEATURE_ACME_STORE requires acme core, file, x509, pem, base64, time, buffer and dir"
 #endif
 
 /* store 模块稳定错误码（错误域 "xrt.acme.store"）。 */

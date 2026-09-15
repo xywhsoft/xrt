@@ -46,6 +46,7 @@ typedef struct xacmeclient {
 	char sNewNonce[512];
 	char sNewAccount[512];
 	char sNewOrder[512];
+	char sRevokeCert[512];
 	char sNonce[512];
 	/* 传播确认 resolver（IP 字面量）与预算；空组走默认组。 */
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
@@ -106,6 +107,17 @@ bool xacmeClientIssueStored(
 	int iRenewalDays,
 	xacmeissuegrant* pOut,
 	bool* pbRenewed
+);
+
+/*
+	吊销证书（RFC 8555 §7.6，账户钥签名）：sCertPem 为单张证书
+	（取首个 PEM 块）；iReason 0-9（RFC 5280 CRLReason），<0 省略。
+	已被吊销视为成功。要求 directory 提供 revokeCert 端点。
+*/
+bool xacmeClientRevoke(
+	xacmeclient* pClient,
+	cstr sCertPem,
+	int iReason
 );
 
 #endif

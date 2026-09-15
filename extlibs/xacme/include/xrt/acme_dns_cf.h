@@ -6,8 +6,12 @@
 
 #include <xrt/acme_dns.h>
 
-#if defined(XACME_FEATURE_DNS_CF) && !defined(XACME_FEATURE_ACME_DNS)
-	#error "XRT acme dns_cf requires XACME_FEATURE_ACME_DNS"
+#if defined(XACME_FEATURE_DNS_CF) && \
+	!defined(XACME_FEATURE_ACME_DNS) || \
+	!defined(XACME_FEATURE_ACME_HTTP) || \
+	!defined(XRT_FEATURE_JSON) || \
+	!defined(XRT_FEATURE_BUFFER)
+	#error "XACME_FEATURE_DNS_CF requires acme dns, acme http transport and signing primitives"
 #endif
 
 #if defined(XACME_FEATURE_DNS_CF)
