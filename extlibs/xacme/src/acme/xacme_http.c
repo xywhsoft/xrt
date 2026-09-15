@@ -108,9 +108,14 @@ bool xacmeHttpInit(
 		xnetengineconfig Engine;
 		xrtNetEngineConfigInit(&Engine);
 		pHttp->pEngine = xrtNetEngineCreate(&Engine);
-		if((pHttp->pEngine == NULL) ||
-			!xrtNetEngineStart(pHttp->pEngine))
+		if(pHttp->pEngine == NULL)
 		{
+			goto Failure;
+		}
+		if(!xrtNetEngineStart(pHttp->pEngine))
+		{
+			/* start 失败：destroy 后再置空，避免泄漏未启动的 engine */
+			xrtNetEngineDestroy(pHttp->pEngine);
 			pHttp->pEngine = NULL;
 			goto Failure;
 		}
