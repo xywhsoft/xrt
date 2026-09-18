@@ -338,6 +338,10 @@ bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, 
 void xllmSessionDisableJournal(xllm_session* pSession);
 const char* xllmSessionJournalPath(const xllm_session* pSession);
 bool xllmSessionCheckpoint(xllm_session* pSession, const char* sSnapshotPath, xllm_error* pError);
+/* Both paths are required and must be non-empty; a snapshot FILE that does
+ * not exist yet selects the journal-only replay: the session is created from
+ * pConfigIfNew (defaults when NULL) and every entry is replayed from the
+ * journal. Recovery always re-attaches the journal for continued append. */
 xllm_session* xllmSessionRecover(const char* sSnapshotPath, const char* sJournalPath,
     const xllm_session_config* pConfigIfNew, xllm_error* pError);
 

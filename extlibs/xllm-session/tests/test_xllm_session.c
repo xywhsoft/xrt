@@ -1415,6 +1415,170 @@ static void test_bind_identity_and_cancel(void)
     xllmSessionDestroy(pSession);
 }
 
+/* ------------------------------------------------------------------ */
+/* JSONL persistence round-trip: adversarial content through the       */
+/* hand-rolled journal writer and the xrt JSONL reader must agree.     */
+/* The writer lives here (session) and the parser in xrt, so this      */
+/* property test is the guardrail pinning both encoders together.      */
+/* ------------------------------------------------------------------ */
+
+static uint32_t s_uRoundTripSeed = 0x9E3779B9u;
+static uint32_t round_trip_rand(void)
+{
+    s_uRoundTripSeed ^= s_uRoundTripSeed << 13;
+    s_uRoundTripSeed ^= s_uRoundTripSeed >> 17;
+    s_uRoundTripSeed ^= s_uRoundTripSeed << 5;
+    return s_uRoundTripSeed;
+}
+
+/* Random adversarial text: valid UTF-8 only (the message API rejects
+ * anything else); control bytes skip NUL because the C-string contract
+ * has no embedded-NUL channel. */
+static const char* round_trip_adversarial(void)
+{
+    static char sText[384];
+    static const char* sPieces[] = {
+        "\"", "\\", "/", "\b", "\f", "\n", "\r", "\t", "\x01\x02\x1f", "\x7f",
+        "中文与标点，。！", "\xF0\x9F\x98\x80", "mixed \" \\ \n end",
+    };
+    unsigned iPieces = 4u + (round_trip_rand() % 16u);
+    unsigned i;
+    size_t iLen = 0u;
+    for ( i = 0u; i < iPieces; ++i ) {
+        const char* sPiece = sPieces[round_trip_rand() %
+            (sizeof(sPieces) / sizeof(sPieces[0]))];
+        size_t iPiece = strlen(sPiece);
+        if ( iLen + iPiece + 1u >= sizeof(sText) ) { break; }
+        memcpy(sText + iLen, sPiece, iPiece);
+        iLen += iPiece;
+    }
+    sText[iLen] = '\0';
+    return sText;
+}
+
+static bool round_trip_requests_equal(const xllm_request* pA, const xllm_request* pB)
+{
+    size_t i, j;
+    if ( pA->iMessageCount != pB->iMessageCount ) { return false; }
+    for ( i = 0u; i < pA->iMessageCount; ++i ) {
+        const xllm_message* pMA = &pA->pMessages[i];
+        const xllm_message* pMB = &pB->pMessages[i];
+        if ( pMA->eRole != pMB->eRole ) { return false; }
+        if ( (pMA->sContent == NULL) != (pMB->sContent == NULL) ) { return false; }
+        if ( pMA->sContent && strcmp(pMA->sContent, pMB->sContent) != 0 ) { return false; }
+        if ( (pMA->sReasoningContent == NULL) != (pMB->sReasoningContent == NULL) ) { return false; }
+        if ( pMA->sReasoningContent && strcmp(pMA->sReasoningContent, pMB->sReasoningContent) != 0 ) { return false; }
+        if ( pMA->iToolCallCount != pMB->iToolCallCount ) { return false; }
+        for ( j = 0u; j < pMA->iToolCallCount; ++j ) {
+            const xllm_tool_call* pCA = &pMA->pToolCalls[j];
+            const xllm_tool_call* pCB = &pMB->pToolCalls[j];
+            if ( strcmp(pCA->sId, pCB->sId) != 0 ||
+                 strcmp(pCA->sName, pCB->sName) != 0 ||
+                 strcmp(pCA->sArgumentsJson, pCB->sArgumentsJson) != 0 ) { return false; }
+        }
+    }
+    return true;
+}
+
+static void test_journal_roundtrip_property(void)
+{
+    static const char sJournal[] = "build/rt_journal.jsonl";
+    static const char sSnapshot[] = "build/rt_snapshot.json";
+    static const char* sCorpus[] = {
+        "plain text",
+        "",
+        "quote\"inside",
+        "back\\slash",
+        "b\bf\fn\nr\rt\tt",
+        "del\x7f byte",
+        "中文内容与标点，。！",
+        "emoji \xF0\x9F\x98\x80 four-byte scalar",
+        "mixed \" \\ \n \x01\x02\x1f 中文 \xF0\x9F\x98\x80 end",
+    };
+    xllm_session_config tConfig;
+    xllm_session* pOriginal = NULL;
+    xllm_session* pFromJournal = NULL;
+    xllm_session* pFromSnapshot = NULL;
+    xllm_request tWant, tGot;
+    xllm_error tError;
+    xllm_tool_call tCall;
+    xllm_response tResponse;
+    uint64_t uTurn;
+    size_t i;
+    size_t iAdded = 0u;
+
+    (void)xrtFileDelete(sJournal);
+    (void)xrtFileDelete(sSnapshot);
+
+    xllmSessionConfigInit(&tConfig);
+    pOriginal = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pOriginal != NULL, "round-trip fixture session creates");
+    SESSION_CHECK(pOriginal && !xllmSessionAddText(pOriginal, 1u, XLLM_ROLE_USER, "\xFF\xFE", 0u),
+        "invalid UTF-8 is rejected at the message boundary (writer passthrough stays safe)");
+    if ( !pOriginal ) { return; }
+    SESSION_CHECK(xllmSessionEnableJournal(pOriginal, sJournal, &tError),
+        "journal attaches before any adversarial entry");
+
+    uTurn = xllmSessionBeginTurn(pOriginal);
+    for ( i = 0u; i < sizeof(sCorpus) / sizeof(sCorpus[0]); ++i ) {
+        if ( xllmSessionAddText(pOriginal, uTurn, XLLM_ROLE_USER, sCorpus[i], 0u) ) { ++iAdded; }
+    }
+    for ( i = 0u; i < 32u; ++i ) {
+        if ( xllmSessionAddText(pOriginal, uTurn, XLLM_ROLE_USER, round_trip_adversarial(), 0u) ) { ++iAdded; }
+    }
+    /* Adversarial tool call arguments and a tool result body. */
+    memset(&tCall, 0, sizeof(tCall));
+    tCall.sId = (char*)"rt-\"1\"";
+    tCall.sName = (char*)"probe\\tool";
+    tCall.sArgumentsJson = (char*)"{\"path\":\"a\\\"b\\\\c\\n\x01\"}";
+    memset(&tResponse, 0, sizeof(tResponse));
+    tResponse.sContent = (char*)"assistant \"quoted\" \\body\\ \n";
+    tResponse.pToolCalls = &tCall;
+    tResponse.iToolCallCount = 1u;
+    SESSION_CHECK(xllmSessionAddAssistantResponse(pOriginal, uTurn, &tResponse) &&
+        xllmSessionAddToolResult(pOriginal, uTurn, "rt-\"1\"",
+            "status: success\ntool: \"quoted\" name\nbody \\ \n \x1f end"),
+        "adversarial tool call and result recorded");
+    iAdded += 2u;
+    SESSION_CHECK(iAdded >= sizeof(sCorpus) / sizeof(sCorpus[0]) + 32u,
+        "every adversarial entry was accepted");
+
+    xllmRequestInit(&tWant);
+    SESSION_CHECK(xllmSessionBuildRequest(pOriginal, &tWant, &tError),
+        "original renders for comparison");
+
+    /* Scenario A: journal-only recovery — the pure JSONL replay path
+     * (the snapshot path names a file that does not exist, so the session
+     * is created fresh and every entry comes back from the journal). */
+    pFromJournal = xllmSessionRecover("build/rt_absent.json", sJournal, NULL, &tError);
+    SESSION_CHECK(pFromJournal != NULL, "journal-only recovery replays adversarial records");
+    xllmRequestInit(&tGot);
+    if ( pFromJournal && xllmSessionBuildRequest(pFromJournal, &tGot, &tError) ) {
+        SESSION_CHECK(round_trip_requests_equal(&tWant, &tGot),
+            "journal-only round trip is byte-equal for adversarial content");
+        xllmRequestUnit(&tGot);
+    }
+
+    /* Scenario B: snapshot + journal recovery. */
+    SESSION_CHECK(xllmSessionSave(pOriginal, sSnapshot, &tError),
+        "snapshot saves the adversarial state");
+    pFromSnapshot = xllmSessionRecover(sSnapshot, sJournal, NULL, &tError);
+    SESSION_CHECK(pFromSnapshot != NULL, "snapshot+journal recovery succeeds");
+    xllmRequestInit(&tGot);
+    if ( pFromSnapshot && xllmSessionBuildRequest(pFromSnapshot, &tGot, &tError) ) {
+        SESSION_CHECK(round_trip_requests_equal(&tWant, &tGot),
+            "snapshot round trip is byte-equal for adversarial content");
+        xllmRequestUnit(&tGot);
+    }
+
+    xllmRequestUnit(&tWant);
+    xllmSessionDestroy(pFromJournal);
+    xllmSessionDestroy(pFromSnapshot);
+    xllmSessionDestroy(pOriginal);
+    (void)xrtFileDelete(sJournal);
+    (void)xrtFileDelete(sSnapshot);
+}
+
 int main(void)
 {
     printf("xllm-session v3 tests\n");
@@ -1430,6 +1594,7 @@ int main(void)
     test_easy_send();
     test_run_with_tools();
     test_bind_identity_and_cancel();
+    test_journal_roundtrip_property();
     printf("xllm-session v3: %s (%d failures)\n", g_iSessionFailures ? "FAIL" : "PASS", g_iSessionFailures);
     return g_iSessionFailures ? 1 : 0;
 }
