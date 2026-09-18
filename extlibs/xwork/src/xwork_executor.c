@@ -12,21 +12,45 @@ struct xwork_executor_state {
     unsigned char* pLastImage;   /* rolling image payload, same lifetime */
     size_t iLastImageSize;
     char sLastImageMime[32];
+    /* Tool-table cache (改造 B): owned xllm_tool copies rebuilt only when
+     * the registry generation changes; requests borrow it as a view. */
+    xllm_tool* pToolCache;
+    size_t iToolCacheCount;
+    uint64_t uToolCacheGeneration;
 };
+
+static bool xwork__executor_rebuild_tool_cache(xwork_executor_state* pState)
+{
+    size_t i;
+    xllm_tool* pNew;
+    if ( pState->pAgent->iToolCount != pState->iToolCacheCount ) {
+        pNew = (xllm_tool*)realloc(pState->pToolCache,
+            pState->pAgent->iToolCount * sizeof(*pNew));
+        if ( !pNew && pState->pAgent->iToolCount ) { return false; }
+        pState->pToolCache = pNew;
+    }
+    if ( !pState->pToolCache && pState->pAgent->iToolCount ) { return false; }
+    for ( i = 0u; i < pState->pAgent->iToolCount; ++i ) {
+        const xwork_tool_entry* pTool = &pState->pAgent->pTools[i];
+        pState->pToolCache[i].sName = pTool->sName;
+        pState->pToolCache[i].sDescription = pTool->sDescription;
+        pState->pToolCache[i].sParametersJson = pTool->sParametersJson;
+        pState->pToolCache[i].bStrict = pTool->bStrict;
+    }
+    pState->iToolCacheCount = pState->pAgent->iToolCount;
+    pState->uToolCacheGeneration = pState->pAgent->uToolRegistryGeneration;
+    return true;
+}
 
 static bool xwork__executor_list(void* pUserData, xllm_request* pRequest)
 {
     xwork_executor_state* pState = (xwork_executor_state*)pUserData;
-    size_t i;
     if ( !pState || !pState->pAgent || !pRequest ) { return false; }
-    for ( i = 0u; i < pState->pAgent->iToolCount; ++i ) {
-        const xwork_tool_entry* pTool = &pState->pAgent->pTools[i];
-        if ( !xllmRequestAddTool(pRequest, pTool->sName, pTool->sDescription,
-                pTool->sParametersJson, pTool->bStrict) ) {
-            return false;
-        }
+    if ( pState->uToolCacheGeneration != pState->pAgent->uToolRegistryGeneration ) {
+        if ( !xwork__executor_rebuild_tool_cache(pState) ) { return false; }
     }
-    return true;
+    if ( pState->iToolCacheCount == 0u ) { return true; }
+    return xllmRequestSetToolsView(pRequest, pState->pToolCache, pState->iToolCacheCount);
 }
 
 static bool xwork__executor_execute(void* pUserData, const xllm_tool_call* pCall,
@@ -115,6 +139,7 @@ void xworkExecutorUnbind(xllm_executor* pExecutor)
     if ( pState ) {
         free(pState->sLastResult);
         free(pState->pLastImage);
+        free(pState->pToolCache);
         free(pState);
     }
     memset(pExecutor, 0, sizeof(*pExecutor));

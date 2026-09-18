@@ -324,6 +324,11 @@ bool xllmSessionPendingToolCallAt(const xllm_session* pSession, size_t iIndex, x
 
 bool xllmSessionGetStats(const xllm_session* pSession, xllm_session_stats* pStats);
 bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError);
+/* Borrowed-view variant (改造 A): plain ledger entries enter the request as
+ * shallow copies pointing into the ledger — zero per-message allocations.
+ * Hooks, pruned tool output, and the summary bridge still take owned clones.
+ * The request must not outlive the session or span a session mutation. */
+bool xllmSessionBuildRequestView(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError);
 bool xllmSessionGetSummary(const xllm_session* pSession, xllm_session_summary* pSummary);
 
 /*

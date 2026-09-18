@@ -108,7 +108,7 @@ static bool xllm_session__summary_message(const xllm_session* pSession, xllm_mes
     return bOk;
 }
 
-bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError)
+static bool xllm_session__build_request_impl(const xllm_session* pSession, xllm_request* pRequest, bool bView, xllm_error* pError)
 {
     xllm_session_stats tStats;
     bool* pbKept = NULL;
@@ -187,7 +187,8 @@ bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pReques
                     XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
                 }
                 xllmMessageUnit(&tWork);
-            } else if ( !xllmRequestAddMessage(pRequest, &pEntry->tMessage) ) {
+            } else if ( !(bView ? xllmRequestAddMessageView(pRequest, &pEntry->tMessage)
+                                : xllmRequestAddMessage(pRequest, &pEntry->tMessage)) ) {
                 XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
             }
         }
@@ -265,7 +266,8 @@ bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pReques
             if ( !bAdd ) {
                 XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
             }
-        } else if ( !xllmRequestAddMessage(pRequest, &pEntry->tMessage) ) {
+        } else if ( !(bView ? xllmRequestAddMessageView(pRequest, &pEntry->tMessage)
+                            : xllmRequestAddMessage(pRequest, &pEntry->tMessage)) ) {
             XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
         }
     }
@@ -289,4 +291,14 @@ bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pReques
 done:
     free(pbKept);
     return bOk;
+}
+
+bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError)
+{
+    return xllm_session__build_request_impl(pSession, pRequest, false, pError);
+}
+
+bool xllmSessionBuildRequestView(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError)
+{
+    return xllm_session__build_request_impl(pSession, pRequest, true, pError);
 }

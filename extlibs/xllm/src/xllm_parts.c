@@ -313,10 +313,18 @@ void xllmRequestUnit(xllm_request* pRequest)
 {
     size_t i;
     if ( !pRequest ) { return; }
-    for ( i = 0u; i < pRequest->iMessageCount; ++i ) { xllmMessageUnit(&pRequest->pMessages[i]); }
-    for ( i = 0u; i < pRequest->iToolCount; ++i ) { xllm__tool_unit(&pRequest->pTools[i]); }
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        if ( pRequest->pbMessageBorrowed && pRequest->pbMessageBorrowed[i] ) continue;
+        xllmMessageUnit(&pRequest->pMessages[i]);
+    }
+    for ( i = 0u; i < pRequest->iToolCount; ++i ) {
+        if ( pRequest->pbToolBorrowed && pRequest->pbToolBorrowed[i] ) continue;
+        xllm__tool_unit(&pRequest->pTools[i]);
+    }
     xllm__free(pRequest->pMessages);
     xllm__free(pRequest->pTools);
+    xllm__free(pRequest->pbMessageBorrowed);
+    xllm__free(pRequest->pbToolBorrowed);
     xllm__free(pRequest->sModel);
     xllm__free(pRequest->sReasoningEffort);
     xllm__free(pRequest->sNamedTool);
@@ -372,6 +380,7 @@ bool xllmRequestSetToolChoice(xllm_request* pRequest, xllm_tool_choice eChoice, 
 bool xllmRequestAddMessage(xllm_request* pRequest, const xllm_message* pMessage)
 {
     xllm_message* pNew;
+    bool* pbNew;
     size_t iCap;
     if ( !pRequest || !pMessage ) { return false; }
     if ( pRequest->iMessageCount == pRequest->iMessageCap ) {
@@ -381,9 +390,83 @@ bool xllmRequestAddMessage(xllm_request* pRequest, const xllm_message* pMessage)
         memset(pNew + pRequest->iMessageCap, 0, sizeof(*pNew) * (iCap - pRequest->iMessageCap));
         pRequest->pMessages = pNew;
         pRequest->iMessageCap = iCap;
+        if ( pRequest->pbMessageBorrowed ) {
+            pbNew = (bool*)xllm__realloc(pRequest->pbMessageBorrowed, sizeof(bool) * iCap);
+            if ( !pbNew ) { return false; }
+            pRequest->pbMessageBorrowed = pbNew;
+        }
+    }
+    if ( pRequest->pbMessageBorrowed ) {
+        pRequest->pbMessageBorrowed[pRequest->iMessageCount] = false;
     }
     if ( !xllm__message_clone(&pRequest->pMessages[pRequest->iMessageCount], pMessage) ) { return false; }
     ++pRequest->iMessageCount;
+    return true;
+}
+
+bool xllmRequestAddMessageView(xllm_request* pRequest, const xllm_message* pMessage)
+{
+    xllm_message* pNew;
+    bool* pbNew;
+    size_t iCap;
+    if ( !pRequest || !pMessage ) { return false; }
+    if ( pRequest->iMessageCount == pRequest->iMessageCap ) {
+        iCap = pRequest->iMessageCap ? pRequest->iMessageCap * 2u : 8u;
+        pNew = (xllm_message*)xllm__realloc(pRequest->pMessages, sizeof(*pNew) * iCap);
+        if ( !pNew ) { return false; }
+        memset(pNew + pRequest->iMessageCap, 0, sizeof(*pNew) * (iCap - pRequest->iMessageCap));
+        pRequest->pMessages = pNew;
+        if ( pRequest->pbMessageBorrowed ) {
+            /* The bitmap must track the array capacity exactly. */
+            pbNew = (bool*)xllm__realloc(pRequest->pbMessageBorrowed, sizeof(bool) * iCap);
+            if ( !pbNew ) { return false; }
+            pRequest->pbMessageBorrowed = pbNew;
+        }
+        pRequest->iMessageCap = iCap;
+    }
+    if ( !pRequest->pbMessageBorrowed ) {
+        /* Lazy parallel bitmap; existing entries are all owned. */
+        pbNew = (bool*)xllm__calloc(1u, sizeof(bool) * pRequest->iMessageCap);
+        if ( !pbNew ) { return false; }
+        memset(pbNew, 0, sizeof(bool) * pRequest->iMessageCap);
+        pRequest->pbMessageBorrowed = pbNew;
+    }
+    pRequest->pMessages[pRequest->iMessageCount] = *pMessage;   /* shallow */
+    pRequest->pbMessageBorrowed[pRequest->iMessageCount] = true;
+    ++pRequest->iMessageCount;
+    return true;
+}
+
+bool xllmRequestSetToolsView(xllm_request* pRequest, const xllm_tool* pTools, size_t iCount)
+{
+    xllm_tool* pNew;
+    bool* pbNew;
+    size_t i;
+    if ( !pRequest || (!pTools && iCount) ) { return false; }
+    /* Free whatever tools the request currently owns. */
+    for ( i = 0u; i < pRequest->iToolCount; ++i ) {
+        if ( pRequest->pbToolBorrowed && pRequest->pbToolBorrowed[i] ) continue;
+        xllm__tool_unit(&pRequest->pTools[i]);
+    }
+    xllm__free(pRequest->pbToolBorrowed);
+    pRequest->pbToolBorrowed = NULL;
+    if ( iCount == 0u ) {
+        pRequest->iToolCount = 0u;
+        return true;   /* keep the array allocation; count zeroed */
+    }
+    if ( iCount > pRequest->iToolCap ) {
+        pNew = (xllm_tool*)xllm__realloc(pRequest->pTools, sizeof(*pNew) * iCount);
+        if ( !pNew ) { return false; }
+        memset(pNew + pRequest->iToolCap, 0, sizeof(*pNew) * (iCount - pRequest->iToolCap));
+        pRequest->pTools = pNew;
+        pRequest->iToolCap = iCount;
+    }
+    pbNew = (bool*)xllm__calloc(1u, sizeof(bool) * iCount);
+    if ( !pbNew ) { return false; }
+    memcpy(pRequest->pTools, pTools, sizeof(*pTools) * iCount);   /* shallow */
+    for ( i = 0u; i < iCount; ++i ) pbNew[i] = true;
+    pRequest->pbToolBorrowed = pbNew;
+    pRequest->iToolCount = iCount;
     return true;
 }
 

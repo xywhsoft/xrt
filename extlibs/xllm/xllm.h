@@ -417,6 +417,12 @@ typedef struct xllm_request {
     xllm_tool* pTools;
     size_t iToolCount;
     size_t iToolCap;
+    /* Borrowed-view bookkeeping (allocation discipline 改造 A/B): entries
+     * flagged true are shallow struct copies whose strings point into the
+     * lender's storage — xllmRequestUnit skips their deep teardown. NULL
+     * means "everything owned" (the default AddMessage/AddTool path). */
+    bool* pbMessageBorrowed;           /* parallel to pMessages; may be NULL */
+    bool* pbToolBorrowed;              /* parallel to pTools; may be NULL */
     char* sModel;
     char* sReasoningEffort;
     char* sNamedTool;
@@ -444,6 +450,13 @@ typedef struct xllm_request {
 
 void xllmRequestInit(xllm_request* pRequest);
 void xllmRequestUnit(xllm_request* pRequest);
+/* Shallow-append a message whose strings the lender owns (ledger entries,
+ * cached tool tables). The request must not outlive the lender; the lender
+ * must not mutate the message while the request holds it. */
+bool xllmRequestAddMessageView(xllm_request* pRequest, const xllm_message* pMessage);
+/* Attach a whole borrowed tool table (replaces any existing owned tools;
+ * frees what it replaces). Same lifetime contract as AddMessageView. */
+bool xllmRequestSetToolsView(xllm_request* pRequest, const xllm_tool* pTools, size_t iCount);
 bool xllmRequestSetModel(xllm_request* pRequest, const char* sModel);
 bool xllmRequestSetReasoningEffort(xllm_request* pRequest, const char* sEffort);
 bool xllmRequestSetStop(xllm_request* pRequest, const char* sStop);

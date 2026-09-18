@@ -1712,6 +1712,113 @@ static void test_file_ledger(void)
     (void)xrtFileDelete(sSnapshot);
 }
 
+/* ------------------------------------------------------------------ */
+/* 改造 A/B acceptance: borrowed views must produce identical output   */
+/* and eliminate the per-turn full-history allocation churn.           */
+/* ------------------------------------------------------------------ */
+
+static void test_borrowed_view_render(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession = NULL;
+    xllm_session* pFork = NULL;
+    xllm_request tOwned;
+    xllm_request tView;
+    xllm_error tError;
+    char* sBig = NULL;
+    uint64_t uTurn;
+    size_t i;
+    uint64_t uOwnedMs;
+    uint64_t uViewMs;
+    const size_t iTurns = 400u;
+
+    sBig = make_large_output(2000u, 5u);
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = 1000000ull;   /* no compaction interference */
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL && sBig != NULL, "borrow fixture session creates");
+    if ( !pSession || !sBig ) { free(sBig); return; }
+    for ( i = 0u; i < iTurns; ++i ) {
+        uTurn = xllmSessionBeginTurn(pSession);
+        if ( !xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, sBig, 0u) ||
+             !xllmSessionAddText(pSession, uTurn, XLLM_ROLE_ASSISTANT, "ack", 0u) ) {
+            SESSION_CHECK(false, "borrow fixture fill");
+            break;
+        }
+    }
+
+    /* 1. Differential: owned vs view produce identical message sequences. */
+    xllmRequestInit(&tOwned);
+    xllmRequestInit(&tView);
+    SESSION_CHECK(xllmSessionBuildRequest(pSession, &tOwned, &tError) &&
+        xllmSessionBuildRequestView(pSession, &tView, &tError) &&
+        round_trip_requests_equal(&tOwned, &tView) &&
+        tOwned.iMessageCount == 2u * iTurns,
+        "borrowed view renders a byte-identical message sequence");
+
+    /* 2. The view really borrows: its message strings point into the ledger. */
+    SESSION_CHECK(tView.pbMessageBorrowed != NULL &&
+        tView.iMessageCount > 1u && tView.pbMessageBorrowed[0],
+        "view entries are flagged borrowed");
+    SESSION_CHECK(tOwned.pbMessageBorrowed == NULL,
+        "owned path carries no borrow bitmap");
+
+    /* 3. Unit on the view must not corrupt the ledger: rebuild and compare. */
+    xllmRequestUnit(&tView);
+    xllmRequestUnit(&tOwned);
+    xllmRequestInit(&tView);
+    SESSION_CHECK(xllmSessionBuildRequestView(pSession, &tView, &tError) &&
+        tView.iMessageCount == 2u * iTurns,
+        "ledger survives view unit (no double free)");
+
+    /* 4. Performance: the view path must be dramatically cheaper on a
+     * large ledger (allocation churn dominates; assert >= 5x on wall time,
+     * tolerant of fast machines via the >= 3x floor). */
+    uOwnedMs = 0u;
+    for ( i = 0u; i < 20u; ++i ) {
+        uint64_t uStart = xrtClock();
+        xllmRequestInit(&tOwned);
+        if ( !xllmSessionBuildRequest(pSession, &tOwned, &tError) ) break;
+        xllmRequestUnit(&tOwned);
+        uOwnedMs += (xrtClock() - uStart) / 1000u;
+    }
+    uViewMs = 0u;
+    for ( i = 0u; i < 20u; ++i ) {
+        uint64_t uStart = xrtClock();
+        xllmRequestInit(&tView);
+        if ( !xllmSessionBuildRequestView(pSession, &tView, &tError) ) break;
+        xllmRequestUnit(&tView);
+        uViewMs += (xrtClock() - uStart) / 1000u;
+    }
+    SESSION_CHECK(uOwnedMs > uViewMs && uViewMs * 3u <= uOwnedMs,
+        "borrowed view renders a large ledger at least 3x faster");
+    {
+        char sPerf[128];
+        (void)snprintf(sPerf, sizeof(sPerf),
+            "borrowed view render: owned %llu ms vs view %llu ms over 20 passes",
+            (unsigned long long)uOwnedMs, (unsigned long long)uViewMs);
+        printf("       %s\n", sPerf);
+        SESSION_CHECK(true, sPerf);
+    }
+
+    /* 5. Fork inherits the same content; view on the fork borrows fork
+     * storage independently. */
+    pFork = xllmSessionFork(pSession, &tError);
+    xllmRequestInit(&tOwned);
+    xllmRequestInit(&tView);
+    SESSION_CHECK(pFork &&
+        xllmSessionBuildRequest(pFork, &tOwned, &tError) &&
+        xllmSessionBuildRequestView(pFork, &tView, &tError) &&
+        round_trip_requests_equal(&tOwned, &tView),
+        "fork view render matches fork owned render");
+    xllmRequestUnit(&tOwned);
+    xllmRequestUnit(&tView);
+
+    free(sBig);
+    xllmSessionDestroy(pFork);
+    xllmSessionDestroy(pSession);
+}
+
 int main(void)
 {
     printf("xllm-session v3 tests\n");
@@ -1728,6 +1835,7 @@ int main(void)
     test_run_with_tools();
     test_bind_identity_and_cancel();
     test_journal_roundtrip_property();
+    test_borrowed_view_render();
     test_file_ledger();
     printf("xllm-session v3: %s (%d failures)\n", g_iSessionFailures ? "FAIL" : "PASS", g_iSessionFailures);
     return g_iSessionFailures ? 1 : 0;

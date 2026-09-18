@@ -129,7 +129,7 @@ xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* sPrompt,
             goto done;
         }
         xllmRequestInit(&tRequest);
-        if ( !xllmSessionBuildRequest(pSession, &tRequest, pError) ) {
+        if ( !xllmSessionBuildRequestView(pSession, &tRequest, pError) ) {
             xllmRequestUnit(&tRequest);
             goto done;
         }
