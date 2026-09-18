@@ -839,6 +839,341 @@ static void test_wire_store_flags(void)
     }
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Lifecycle hooks: six mutable seams around one model call           */
+/* ------------------------------------------------------------------ */
+
+typedef struct {
+    int iRequestFires;
+    int iBodyFires;
+    int iRawFires;
+    int iToolFires[2];
+    int iResponseFires;
+    int iRetryFires;
+    bool bRejectRequest;
+    bool bDropSecondTool;
+    const char* sMarker;        /* appended as a system message */
+    const char* sBodySeen;      /* captured request body */
+    const char* sRawReplace;    /* canned replacement for the response body */
+    const char* sRawPre;        /* canned body injected before send (offline) */
+    const char* sContentSeen;   /* captured response content */
+    const char* sVetoRetry;
+} test_hook_state;
+
+static bool test_hook_on_request(xllm_client* pClient, xllm_request* pRequest, void* pUserData)
+{
+    test_hook_state* pState = (test_hook_state*)pUserData;
+    (void)pClient;
+    ++pState->iRequestFires;
+    if ( pState->bRejectRequest ) { return false; }
+    if ( pState->sMarker ) {
+        return xllmRequestAddTextMessage(pRequest, XLLM_ROLE_SYSTEM, pState->sMarker);
+    }
+    return true;
+}
+
+static bool test_hook_on_body(xllm_client* pClient, xllm_wire* pWire, void* pUserData)
+{
+    test_hook_state* pState = (test_hook_state*)pUserData;
+    (void)pClient;
+    ++pState->iBodyFires;
+    if ( !pState->sBodySeen ) {
+        pState->sBodySeen = pWire->sBody; /* borrowed capture for assertion */
+    }
+    return true;
+}
+
+static bool test_hook_on_retry(xllm_client* pClient, const xllm_diagnostics* pDiagnostics,
+    uint32_t uNextAttempt, void* pUserData)
+{
+    test_hook_state* pState = (test_hook_state*)pUserData;
+    (void)pClient; (void)pDiagnostics; (void)uNextAttempt;
+    ++pState->iRetryFires;
+    return pState->sVetoRetry == NULL;
+}
+
+static bool test_hook_on_raw(xllm_client* pClient, xllm_wire* pWire, void* pUserData)
+{
+    test_hook_state* pState = (test_hook_state*)pUserData;
+    (void)pClient;
+    if ( pWire->sBody == NULL ) {
+        /* pre-send probe: assigning here replays offline (no dial) */
+        if ( pState->sRawPre ) {
+            size_t iLen = strlen(pState->sRawPre);
+            pWire->sBody = xllm__strdup(pState->sRawPre);
+            pWire->iBodySize = pWire->sBody ? iLen : 0u;
+            return pWire->sBody != NULL;
+        }
+        return true;
+    }
+    ++pState->iRawFires;
+    if ( pState->sRawReplace ) {
+        /* contract: the library frees the old buffer when adopting */
+        size_t iLen = strlen(pState->sRawReplace);
+        char* sNew = xllm__strdup(pState->sRawReplace);
+        if ( !sNew ) { return false; }
+        pWire->sBody = sNew;
+        pWire->iBodySize = iLen;
+    }
+    return true;
+}
+
+static bool test_hook_on_tool(xllm_client* pClient, xllm_tool_call* pCall,
+    uint32_t uIndex, void* pUserData)
+{
+    test_hook_state* pState = (test_hook_state*)pUserData;
+    (void)pClient;
+    if ( uIndex < 2u ) { ++pState->iToolFires[uIndex]; }
+    if ( uIndex == 1u && pState->bDropSecondTool ) { return false; }
+    if ( uIndex == 0u ) {
+        return xllm__replace(&pCall->sArgumentsJson, "{\"path\":\"hooked.c\"}");
+    }
+    return true;
+}
+
+static bool test_hook_on_response(xllm_client* pClient, xllm_response* pResponse, void* pUserData)
+{
+    test_hook_state* pState = (test_hook_state*)pUserData;
+    (void)pClient;
+    ++pState->iResponseFires;
+    pState->sContentSeen = pResponse->sContent;
+    if ( pResponse->sContent && strcmp(pResponse->sContent, "fallback") == 0 ) {
+        return xllm__replace(&pResponse->sContent, "rewritten-by-hook");
+    }
+    return true;
+}
+
+static void test_lifecycle_hooks(void)
+{
+    test_server_ctx tServerCtx = {0};
+    char sJsonUrl[256];
+    char sSseUrl[256];
+    char sTransientUrl[256];
+    xllm_client* pClient = NULL;
+    xllm_request tRequest;
+    xllm_response* pResponse = NULL;
+    xllm_error tError;
+    xllm_hooks tHooks;
+    test_hook_state tState;
+    CHECK(test_server_start(&tServerCtx), "hooks test server starts");
+    if ( !tServerCtx.pListener ) goto cleanup;
+    (void)snprintf(sJsonUrl, sizeof(sJsonUrl), "http://127.0.0.1:%u/json/v1", (unsigned)tServerCtx.uPort);
+    (void)snprintf(sSseUrl, sizeof(sSseUrl), "http://127.0.0.1:%u/v1", (unsigned)tServerCtx.uPort);
+    (void)snprintf(sTransientUrl, sizeof(sTransientUrl), "http://127.0.0.1:%u/transient/v1", (unsigned)tServerCtx.uPort);
+    pClient = test_make_client(sJsonUrl, XLLM_PROVIDER_OPENAI_COMPAT);
+    CHECK(pClient != NULL, "hooks client created");
+
+    memset(&tState, 0, sizeof(tState));
+    tState.sMarker = "you are modou";
+    memset(&tHooks, 0, sizeof(tHooks));
+    tHooks.pOnRequest = test_hook_on_request;
+    tHooks.pOnRequestBody = test_hook_on_body;
+    tHooks.pOnResponse = test_hook_on_response;
+    tHooks.pUserData = &tState;
+    xllmClientSetHooks(pClient, &tHooks);
+
+    /* 1) request mutation flows to the wire; response seam rewrites */
+    xllmRequestInit(&tRequest);
+    tRequest.bStream = false;
+    (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+    pResponse = NULL;
+    CHECK(xllmClientComplete(pClient, &tRequest, NULL, &pResponse, &tError) == XLLM_RESULT_OK &&
+        pResponse && strcmp(pResponse->sContent, "rewritten-by-hook") == 0,
+        "onResponse rewrites the delivered content");
+    xllmResponseDestroy(pResponse);
+    pResponse = NULL;
+    CHECK(tState.iRequestFires == 1 && tState.iBodyFires == 1 && tState.iResponseFires == 1 &&
+        tState.sBodySeen && strstr(tState.sBodySeen, "you are modou") != NULL &&
+        strstr(tState.sBodySeen, "\"store\":false") != NULL,
+        "onRequest mutation reaches the serialized wire body");
+    xllmRequestUnit(&tRequest);
+
+    /* 2) request rejection aborts with the hook error */
+    tState.bRejectRequest = true;
+    xllmRequestInit(&tRequest);
+    tRequest.bStream = false;
+    (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+    pResponse = NULL;
+    CHECK(xllmClientComplete(pClient, &tRequest, NULL, &pResponse, &tError) != XLLM_RESULT_OK &&
+        pResponse == NULL && tError.eCode == XLLM_ERROR_HOOK,
+        "onRequest rejection aborts the call");
+    xllmRequestUnit(&tRequest);
+    tState.bRejectRequest = false;
+
+    /* 3) per-request hooks replace the client-level set */
+    {
+        xllm_hooks tOwn;
+        memset(&tOwn, 0, sizeof(tOwn));
+        tOwn.pOnRequest = test_hook_on_request;
+        tOwn.pUserData = &tState;
+        xllmRequestInit(&tRequest);
+        tRequest.bStream = false;
+        tRequest.pHooks = &tOwn;
+        (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+        {
+            int iBeforeBody = tState.iBodyFires;
+            int iBeforeResponse = tState.iResponseFires;
+            pResponse = NULL;
+            CHECK(xllmClientComplete(pClient, &tRequest, NULL, &pResponse, &tError) == XLLM_RESULT_OK,
+                "request-level hooks call succeeds");
+            xllmResponseDestroy(pResponse);
+            pResponse = NULL;
+            CHECK(tState.iBodyFires == iBeforeBody && tState.iResponseFires == iBeforeResponse,
+                "request-level hooks replace the client set for that call");
+        }
+        xllmRequestUnit(&tRequest);
+    }
+
+    /* 4) response-body replacement on a non-streaming call (replay) */
+    tHooks.pOnResponseBody = test_hook_on_raw;
+    tState.sRawReplace =
+        "{\"id\":\"r\",\"model\":\"m\",\"choices\":[{\"index\":0,\"message\":"
+        "{\"role\":\"assistant\",\"content\":\"replayed-body\"},\"finish_reason\":\"stop\"}],"
+        "\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}";
+    xllmRequestInit(&tRequest);
+    tRequest.bStream = false;
+    (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+    pResponse = NULL;
+    CHECK(xllmClientComplete(pClient, &tRequest, NULL, &pResponse, &tError) == XLLM_RESULT_OK &&
+        pResponse && strcmp(pResponse->sContent, "replayed-body") == 0 && tState.iRawFires == 1,
+        "response-body replacement rewrites the parsed result");
+    xllmResponseDestroy(pResponse);
+    pResponse = NULL;
+    tState.sRawReplace = NULL;
+    xllmRequestUnit(&tRequest);
+
+    /* 5) streaming: armed body seam defers parsing; replacement replays SSE */
+    {
+        xllm_client* pSseClient = test_make_client(sSseUrl, XLLM_PROVIDER_OPENAI_COMPAT);
+        tHooks.pOnRequest = NULL;
+        tHooks.pOnResponse = NULL;
+        xllmClientSetHooks(pSseClient, &tHooks);
+        tState.sRawPre =
+            "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"replayed-sse\"},\"finish_reason\":null}]}\n\n"
+            "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":2,\"total_tokens\":4}}\n\n"
+            "data: [DONE]\n\n";
+        xllmRequestInit(&tRequest);
+        (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+        pResponse = NULL;
+        CHECK(pSseClient && xllmClientComplete(pSseClient, &tRequest, NULL, &pResponse, &tError) == XLLM_RESULT_OK &&
+            pResponse && strcmp(pResponse->sContent, "replayed-sse") == 0,
+            "offline pre-send injection replays canned SSE without a dial");
+        if ( pSseClient ) {
+            xllmResponseDestroy(pResponse);
+            pResponse = NULL;
+            xllmRequestUnit(&tRequest);
+            xllmClientDestroy(pSseClient);
+        } else {
+            xllmRequestUnit(&tRequest);
+        }
+        tState.sRawPre = NULL;
+    }
+
+    /* 6) tool seams on the interleaved SSE route: rewrite args, drop #2 */
+    {
+        xllm_client* pSseClient = test_make_client(sSseUrl, XLLM_PROVIDER_OPENAI_COMPAT);
+        tHooks.pOnRequest = NULL;
+        tHooks.pOnResponseBody = NULL;
+        tHooks.pOnToolCall = test_hook_on_tool;
+        xllmClientSetHooks(pSseClient, &tHooks);
+        tState.bDropSecondTool = true;
+        xllmRequestInit(&tRequest);
+        (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+        pResponse = NULL;
+        CHECK(pSseClient && xllmClientComplete(pSseClient, &tRequest, NULL, &pResponse, &tError) == XLLM_RESULT_OK &&
+            pResponse && pResponse->iToolCallCount == 1 &&
+            strcmp(pResponse->pToolCalls[0].sArgumentsJson, "{\"path\":\"hooked.c\"}") == 0 &&
+            strcmp(pResponse->pToolCalls[0].sName, "read_file") == 0 &&
+            pResponse->tDiagnostics.bToolCallDropped,
+            "tool seam rewrites arguments and drops the second call");
+        if ( pSseClient ) {
+            xllmResponseDestroy(pResponse);
+            pResponse = NULL;
+            xllmRequestUnit(&tRequest);
+            xllmClientDestroy(pSseClient);
+        } else {
+            xllmRequestUnit(&tRequest);
+        }
+        tState.bDropSecondTool = false;
+    }
+
+    /* 7) retry veto on the transient route: one attempt only */
+    {
+        xllm_client* pTransient = test_make_client(sTransientUrl, XLLM_PROVIDER_OPENAI_COMPAT);
+        tHooks.pOnToolCall = NULL;
+        tHooks.pOnRetry = test_hook_on_retry;
+        xllmClientSetHooks(pTransient, &tHooks);
+        tState.sVetoRetry = "yes";
+        xllmRequestInit(&tRequest);
+        tRequest.bStream = false;
+        (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "ping");
+        pResponse = NULL;
+        CHECK(pTransient && xllmClientComplete(pTransient, &tRequest, NULL, &pResponse, &tError) != XLLM_RESULT_OK &&
+            pResponse == NULL && tState.iRetryFires == 1 &&
+            tServerCtx.iTransientRequests == 1,
+            "retry veto stops after the first failed attempt");
+        if ( pTransient ) {
+            xllmRequestUnit(&tRequest);
+            xllmClientDestroy(pTransient);
+        } else {
+            xllmRequestUnit(&tRequest);
+        }
+        tState.sVetoRetry = NULL;
+    }
+
+cleanup:
+    xllmClientDestroy(pClient);
+    test_server_stop(&tServerCtx);
+}
+
+/* ------------------------------------------------------------------ */
+/* History container                                                   */
+/* ------------------------------------------------------------------ */
+
+static void test_history_container(void)
+{
+    xllm_history* pHistory = xllmHistoryCreate();
+    xllm_request tRequest;
+    xllm_response tResponse;
+    xllm_tool_call tCall;
+    char* sOwned;
+    CHECK(pHistory != NULL, "history creates");
+    CHECK(xllmHistoryAddText(pHistory, XLLM_ROLE_USER, "hello agent"), "history add text");
+    sOwned = xllm__strdup("assistant says");
+    CHECK(sOwned && xllmHistoryAddText(pHistory, XLLM_ROLE_ASSISTANT, sOwned), "history add owned text");
+    xllm__free(sOwned);
+    CHECK(strcmp(xllmHistoryAt(pHistory, 1u)->sContent, "assistant says") == 0,
+        "history deep-copies its messages");
+
+    memset(&tCall, 0, sizeof(tCall));
+    tCall.sId = (char*)"call_hist";
+    tCall.sName = (char*)"read_file";
+    tCall.sArgumentsJson = (char*)"{\"path\":\"x.c\"}";
+    memset(&tResponse, 0, sizeof(tResponse));
+    tResponse.sContent = (char*)"reading";
+    tResponse.pToolCalls = &tCall;
+    tResponse.iToolCallCount = 1u;
+    CHECK(xllmHistoryAddFromResponse(pHistory, &tResponse), "history add from response");
+    CHECK(xllmHistoryAddToolResult(pHistory, "call_hist", "file bytes"), "history add tool result");
+    CHECK(xllmHistoryCount(pHistory) == 4u &&
+        xllmHistoryAt(pHistory, 2u)->iToolCallCount == 1u &&
+        xllmHistoryAt(pHistory, 3u)->eRole == XLLM_ROLE_TOOL,
+        "history keeps the tool pair shape");
+
+    xllmRequestInit(&tRequest);
+    CHECK(xllmHistoryAppendInto(pHistory, &tRequest) && tRequest.iMessageCount == 4u &&
+        strcmp(tRequest.pMessages[1].sContent, "assistant says") == 0,
+        "history appends into a request");
+    xllmRequestUnit(&tRequest);
+
+    CHECK(xllmHistoryRemove(pHistory, 0u, 2u) && xllmHistoryCount(pHistory) == 2u,
+        "history remove range");
+    CHECK(!xllmHistoryRemove(pHistory, 5u, 1u), "history remove out of range rejected");
+    xllmHistoryDestroy(pHistory);
+    printf("  history container ok\n");
+}
+
 static long g_iFailAt = -1;
 static size_t g_iTestAllocs;
 static bool g_bSawOomError;
@@ -1646,6 +1981,8 @@ int main(void)
     test_oom_injection();
     test_audit_hardening();
     test_wire_store_flags();
+    test_lifecycle_hooks();
+    test_history_container();
     test_tls_transport();
     test_tls_private_ca();
     test_fragmented_parser();

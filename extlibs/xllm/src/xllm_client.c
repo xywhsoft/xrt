@@ -55,6 +55,7 @@ static void xllm__capture_diagnostics(xllm_call* pCall, xllm_diagnostics* pOut)
     pOut->bResponseStarted = pCall->uHttpStatus != 0u;
     pOut->bModelDataDelivered = pCall->bSawEvent || pCall->pResponse != NULL || pCall->bResponseTaken;
     pOut->bReusedConnection = pHttp->bReusedConnection;
+    pOut->bToolCallDropped = pHttp->bToolCallDropped;
     pOut->bContextAttached = pCall->bScopeAttached;
     pOut->iTransportStatus = (int32_t)pHttp->eResult;
     pOut->iSystemError = pHttp->iSystemError;
@@ -273,6 +274,12 @@ oom:
     return NULL;
 }
 
+void xllmClientSetHooks(xllm_client* pClient, const xllm_hooks* pHooks)
+{
+    if ( !pClient ) { return; }
+    pClient->pHooks = pHooks;
+}
+
 void xllmClientDestroy(xllm_client* pClient)
 {
     size_t i;
@@ -357,7 +364,7 @@ bool xllm__transport_body(xllm_call* pCall, const void* pData, size_t iLen)
 {
     bool bOk = true;
     if ( !xllm__call_enter(pCall) ) { return false; }
-    if ( pCall->bSse ) {
+    if ( pCall->bSse && !pCall->bDeferParse ) {
         bOk = xllm__sse_feed(pCall, pData, iLen);
     } else {
         if ( pCall->tRawBody.iLen > XLLM_MAX_FALLBACK_BODY || iLen > XLLM_MAX_FALLBACK_BODY - pCall->tRawBody.iLen ) {
@@ -367,12 +374,15 @@ bool xllm__transport_body(xllm_call* pCall, const void* pData, size_t iLen)
             bOk = xllm__buf_append(&pCall->tRawBody, pData, iLen);
             if ( !bOk ) {
                 xllm__error_set(&pCall->tError, XLLM_ERROR_OUT_OF_MEMORY, "failed to buffer provider response");
-            } else if ( pCall->uHttpStatus >= 200u && pCall->uHttpStatus < 300u &&
+            } else if ( !pCall->bSse &&
+                        pCall->uHttpStatus >= 200u && pCall->uHttpStatus < 300u &&
                         pCall->bStreamWanted &&
                         pCall->tRawBody.iLen >= 5u && memcmp(pCall->tRawBody.pData, "data:", 5u) == 0 ) {
                 pCall->bSse = true;
-                bOk = xllm__sse_feed(pCall, pCall->tRawBody.pData, pCall->tRawBody.iLen);
-                xllm__buf_reset(&pCall->tRawBody);
+                if ( !pCall->bDeferParse ) {
+                    bOk = xllm__sse_feed(pCall, pCall->tRawBody.pData, pCall->tRawBody.iLen);
+                    xllm__buf_reset(&pCall->tRawBody);
+                }
             }
         }
     }
@@ -421,6 +431,59 @@ static bool xllm__call_copy_extra_headers(xllm_call* pCall, const xllm_request* 
     return true;
 }
 
+/* Deep request copy for the pOnRequest seam: every owned field is
+ * duplicated; borrowed storage (headers, cancel, deadline, hooks) rides
+ * along as borrowed. Freed on call destroy. */
+bool xllm__request_clone(xllm_request* pDst, const xllm_request* pSrc)
+{
+    size_t i;
+    if ( !pDst || !pSrc ) { return false; }
+    xllmRequestInit(pDst);
+    pDst->uReasoningBudgetTokens = pSrc->uReasoningBudgetTokens;
+    pDst->uMaxOutputTokens = pSrc->uMaxOutputTokens;
+    pDst->fTemperature = pSrc->fTemperature;
+    pDst->bHasTemperature = pSrc->bHasTemperature;
+    pDst->fTopP = pSrc->fTopP;
+    pDst->bHasTopP = pSrc->bHasTopP;
+    pDst->bParallelToolCalls = pSrc->bParallelToolCalls;
+    pDst->eToolChoice = pSrc->eToolChoice;
+    pDst->eJsonMode = pSrc->eJsonMode;
+    pDst->bStream = pSrc->bStream;
+    pDst->pExtraHeaders = pSrc->pExtraHeaders;
+    pDst->iExtraHeaderCount = pSrc->iExtraHeaderCount;
+    pDst->pCancel = pSrc->pCancel;
+    pDst->uDeadline = pSrc->uDeadline;
+    pDst->pHooks = pSrc->pHooks;
+    if ( (pSrc->sModel && !(pDst->sModel = xllm__strdup(pSrc->sModel))) ||
+         (pSrc->sReasoningEffort && !(pDst->sReasoningEffort = xllm__strdup(pSrc->sReasoningEffort))) ||
+         (pSrc->sNamedTool && !(pDst->sNamedTool = xllm__strdup(pSrc->sNamedTool))) ||
+         (pSrc->sStop && !(pDst->sStop = xllm__strdup(pSrc->sStop))) ||
+         (pSrc->sExtraBodyJson && !(pDst->sExtraBodyJson = xllm__strdup(pSrc->sExtraBodyJson))) ) {
+        xllmRequestUnit(pDst);
+        return false;
+    }
+    for ( i = 0u; i < pSrc->iMessageCount; ++i ) {
+        if ( !xllmRequestAddMessage(pDst, &pSrc->pMessages[i]) ) { xllmRequestUnit(pDst); return false; }
+    }
+    for ( i = 0u; i < pSrc->iToolCount; ++i ) {
+        const xllm_tool* pTool = &pSrc->pTools[i];
+        if ( !xllmRequestAddTool(pDst, pTool->sName, pTool->sDescription,
+                pTool->sParametersJson, pTool->bStrict) ) { xllmRequestUnit(pDst); return false; }
+    }
+    return true;
+}
+
+/* Wire replacement contract: NUL-terminated, no embedded NUL. */
+static bool xllm__wire_valid(const xllm_wire* pWire)
+{
+    return pWire->sBody != NULL && pWire->iBodySize == strlen(pWire->sBody) &&
+        pWire->sBody[pWire->iBodySize] == '\0';
+}
+
+static xllm_call* xllm__client_start(xllm_client* pClient,
+    const xllm_request* pRequest, const xllm_stream_callbacks* pCallbacks,
+    uint32_t uAttempt, xllm_error* pError);
+
 xllm_call* xllmClientStart(
     xllm_client* pClient,
     const xllm_request* pRequest,
@@ -428,39 +491,97 @@ xllm_call* xllmClientStart(
     xllm_error* pError
 )
 {
+    return xllm__client_start(pClient, pRequest, pCallbacks, 1u, pError);
+}
+
+static xllm_call* xllm__client_start(
+    xllm_client* pClient, const xllm_request* pRequest,
+    const xllm_stream_callbacks* pCallbacks, uint32_t uAttempt, xllm_error* pError
+)
+{
     xllm_call* pCall = NULL;
     char* sBody = NULL;
     const char* sModel;
     xdeadline tTimeout = XRT_DEADLINE_NEVER;
+    const xllm_hooks* pHooks = pRequest && pRequest->pHooks ? pRequest->pHooks : pClient->pHooks;
+    xllm_request* pClone = NULL;
+    const xllm_request* pEffective = pRequest;
     if ( pError ) { xllmErrorInit(pError); }
     if ( !pClient || !pRequest ) {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client and request are required");
         return NULL;
     }
+    if ( pHooks && pHooks->pOnRequest ) {
+        pClone = (xllm_request*)xllm__calloc(1u, sizeof(*pClone));
+        if ( !pClone ||
+             !xllm__request_clone(pClone, pRequest) ) {
+            xllm__free(pClone);
+            xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to clone the request for the pOnRequest hook");
+            return NULL;
+        }
+        if ( !pHooks->pOnRequest(pClient, pClone, pHooks->pUserData) ) {
+            xllmRequestUnit(pClone);
+            xllm__free(pClone);
+            xllm__error_set(pError, XLLM_ERROR_HOOK, "request rejected by the pOnRequest hook");
+            return NULL;
+        }
+        pEffective = pClone;
+    }
     if ( pClient->bHasModelProfile &&
-         !xllmModelProfileValidateRequest(&pClient->tModelProfile, pRequest, pError) ) return NULL;
-    sBody = pClient->pDialect->BuildRequest(pClient, pRequest, pError);
-    if ( !sBody ) { return NULL; }
+         !xllmModelProfileValidateRequest(&pClient->tModelProfile, pEffective, pError) ) {
+        if ( pClone ) { xllmRequestUnit(pClone); xllm__free(pClone); }
+        return NULL;
+    }
+    sBody = pClient->pDialect->BuildRequest(pClient, pEffective, pError);
+    if ( !sBody ) {
+        if ( pClone ) { xllmRequestUnit(pClone); xllm__free(pClone); }
+        return NULL;
+    }
+    if ( pHooks && pHooks->pOnRequestBody ) {
+        xllm_wire tWire;
+        memset(&tWire, 0, sizeof(tWire));
+        tWire.uAttempt = uAttempt;
+        tWire.sBody = sBody;
+        tWire.iBodySize = strlen(sBody);
+        tWire.iBodyCapacity = tWire.iBodySize + 1u;
+        if ( !pHooks->pOnRequestBody(pClient, &tWire, pHooks->pUserData) ||
+             !xllm__wire_valid(&tWire) ) {
+            if ( tWire.sBody && tWire.sBody != sBody ) { xllm__free(tWire.sBody); }
+            else if ( tWire.sBody == sBody && !xllm__wire_valid(&tWire) ) { /* in-place corruption: keep old */ }
+            xllm__error_set(pError, XLLM_ERROR_HOOK,
+                "request body rejected or malformed after the pOnRequestBody hook");
+            if ( pClone ) { xllmRequestUnit(pClone); xllm__free(pClone); }
+            return NULL;
+        }
+        if ( tWire.sBody != sBody ) {
+            xllm__free(sBody);
+            sBody = tWire.sBody;
+        }
+    }
     pCall = (xllm_call*)xllm__calloc(1u, sizeof(*pCall));
     if ( !pCall ) goto oom;
     pCall->pClient = pClient;
     pCall->pDialect = pClient->pDialect;
-    pCall->uAttempt = 1u;
-    pCall->bStreamWanted = pRequest->bStream;
+    pCall->uAttempt = uAttempt;
+    pCall->bStreamWanted = pEffective->bStream;
+    pCall->pHooks = pHooks;
+    pCall->pClonedRequest = pClone;
+    pCall->bDeferParse = pHooks && pHooks->pOnResponseBody != NULL;
+    pClone = NULL;
     if ( pCallbacks ) { pCall->tCallbacks = *pCallbacks; }
     xllmErrorInit(&pCall->tError);
-    sModel = (pRequest->sModel && pRequest->sModel[0]) ? pRequest->sModel : pClient->sModel;
+    sModel = (pEffective->sModel && pEffective->sModel[0]) ? pEffective->sModel : pClient->sModel;
     pCall->sSelectedModel = xllm__strdup(sModel);
     pCall->sRequestBody = sBody;
     sBody = NULL;
-    pCall->uScopeDeadline = pRequest->uDeadline;
-    pCall->bScopeAttached = pRequest->pCancel != NULL ||
-        pRequest->uDeadline != XRT_DEADLINE_NEVER;
-    pCall->pCancel = xrtCancelChild(pRequest->pCancel);
+    pCall->uScopeDeadline = pEffective->uDeadline;
+    pCall->bScopeAttached = pEffective->pCancel != NULL ||
+        pEffective->uDeadline != XRT_DEADLINE_NEVER;
+    pCall->pCancel = xrtCancelChild(pEffective->pCancel);
     if ( pClient->uTimeoutMs ) {
         tTimeout = xrtDeadlineAfter((uint64)pClient->uTimeoutMs * UINT64_C(1000));
     }
-    pCall->uDeadline = pRequest->uDeadline;
+    pCall->uDeadline = pEffective->uDeadline;
     if ( tTimeout != XRT_DEADLINE_NEVER &&
          (pCall->uDeadline == XRT_DEADLINE_NEVER || tTimeout < pCall->uDeadline) ) {
         pCall->uDeadline = tTimeout;
@@ -469,10 +590,44 @@ xllm_call* xllmClientStart(
         pCall->tHttpDiagnostics.uEffectiveTimeoutMs = xrtDeadlineRemaining(pCall->uDeadline) / UINT64_C(1000);
     }
     if ( !pCall->sSelectedModel || !pCall->pCancel ||
-         !xllm__call_copy_extra_headers(pCall, pRequest) ) goto oom;
+         !xllm__call_copy_extra_headers(pCall, pEffective) ) goto oom;
     pCall->pPromise = xrtPromiseCreate(&pCall->pFuture, pCall->pCancel);
     if ( !pCall->pPromise ) goto oom;
     xllm__free(sBody);
+    sBody = NULL;
+    if ( pHooks && pHooks->pOnResponseBody ) {
+        /* Pre-send probe: sBody arrives NULL. Assigning a body short-
+         * circuits the network entirely (offline replay); leaving it NULL
+         * lets the call proceed and the hook fires again post-receive. */
+        xllm_wire tProbe;
+        memset(&tProbe, 0, sizeof(tProbe));
+        tProbe.uAttempt = uAttempt;
+        if ( !pHooks->pOnResponseBody(pClient, &tProbe, pHooks->pUserData) ) {
+            if ( tProbe.sBody ) { xllm__free(tProbe.sBody); }
+            xllm__error_set(pError, XLLM_ERROR_HOOK,
+                "response body rejected before send by the pOnResponseBody hook");
+            xllmCallDestroy(pCall);
+            return NULL;
+        }
+        if ( tProbe.sBody && xllm__wire_valid(&tProbe) ) {
+            pCall->tRawBody.pData = tProbe.sBody;
+            pCall->tRawBody.iLen = tProbe.iBodySize;
+            pCall->tRawBody.iCap = tProbe.iBodySize + 1u;
+            pCall->uHttpStatus = 200u;
+            pCall->bOfflineBody = true;
+            pCall->tHttpDiagnostics.eResult = XLLM_TRANSPORT_OK;
+        } else if ( tProbe.sBody ) {
+            xllm__free(tProbe.sBody);
+            xllm__error_set(pError, XLLM_ERROR_HOOK,
+                "offline response body is malformed after the pOnResponseBody hook");
+            xllmCallDestroy(pCall);
+            return NULL;
+        }
+    }
+    if ( pCall->bOfflineBody ) {
+        (void)xrtPromiseResolve(pCall->pPromise, NULL);
+        return pCall;
+    }
     xllm__transport_begin(pCall);
     return pCall;
 oom:
@@ -564,8 +719,40 @@ xllm_result xllmCallWait(xllm_call* pCall, xllm_response** ppResponse, xllm_erro
         xllm__map_http_error(pCall);
         goto done;
     }
+    if ( pCall->bOfflineBody && pCall->bStreamWanted &&
+         pCall->tRawBody.iLen >= 5u && memcmp(pCall->tRawBody.pData, "data:", 5u) == 0 ) {
+        pCall->bSse = true; /* canned SSE replay parses through the same path */
+    }
+    if ( pCall->pHooks && pCall->pHooks->pOnResponseBody && !pCall->bOfflineBody ) {
+        xllm_wire tWire;
+        char* sOld = pCall->tRawBody.pData;
+        memset(&tWire, 0, sizeof(tWire));
+        tWire.uAttempt = pCall->uAttempt;
+        tWire.uHttpStatus = pCall->uHttpStatus;
+        tWire.sBody = sOld ? sOld : (char*)"";
+        tWire.iBodySize = pCall->tRawBody.iLen;
+        if ( !pCall->pHooks->pOnResponseBody(pCall->pClient, &tWire,
+                pCall->pHooks->pUserData) || !xllm__wire_valid(&tWire) ) {
+            if ( tWire.sBody && tWire.sBody != sOld ) { xllm__free(tWire.sBody); }
+            xllm__error_set(&pCall->tError, XLLM_ERROR_HOOK,
+                "response body rejected or malformed after the pOnResponseBody hook");
+            goto done;
+        }
+        if ( tWire.sBody != sOld ) {
+            xllm__free(sOld);
+            pCall->tRawBody.pData = tWire.sBody;
+            pCall->tRawBody.iLen = tWire.iBodySize;
+            pCall->tRawBody.iCap = tWire.iBodySize + 1u;
+        }
+    }
     if ( pCall->bSse ) {
-        bParsed = xllm__sse_finish(pCall) && (pCall->bSawEvent || pCall->bDone || pCall->pResponse != NULL);
+        if ( pCall->bDeferParse && pCall->tRawBody.iLen &&
+             !xllm__sse_feed(pCall, pCall->tRawBody.pData, pCall->tRawBody.iLen) ) {
+            bParsed = false;
+        } else {
+            bParsed = xllm__sse_finish(pCall) &&
+                (pCall->bSawEvent || pCall->bDone || pCall->pResponse != NULL);
+        }
     } else if ( pCall->tRawBody.iLen ) {
         bParsed = pCall->pDialect->DecodeJsonBody(pCall,
             (xstrview){ pCall->tRawBody.pData, pCall->tRawBody.iLen });
@@ -578,6 +765,14 @@ xllm_result xllmCallWait(xllm_call* pCall, xllm_response** ppResponse, xllm_erro
     }
     if ( !xllm__assemble_finalize(pCall) ) {
         eResult = pCall->bCallbackCancelled ? XLLM_RESULT_CANCELLED : XLLM_RESULT_ERROR;
+        goto done;
+    }
+    if ( pCall->pHooks && pCall->pHooks->pOnResponse && pCall->pResponse &&
+         !pCall->pHooks->pOnResponse(pCall->pClient, pCall->pResponse,
+             pCall->pHooks->pUserData) ) {
+        xllm__error_set(&pCall->tError, XLLM_ERROR_HOOK,
+            "response rejected by the pOnResponse hook");
+        eResult = XLLM_RESULT_ERROR;
         goto done;
     }
     *ppResponse = pCall->pResponse;
@@ -626,6 +821,10 @@ void xllmCallDestroy(xllm_call* pCall)
     while ( xllm__atomic_load(&pCall->iTransportActive) != 0 ||
             xllm__atomic_load(&pCall->iCallbackActive) != 0 ||
             xllm__atomic_load(&pCall->iTimerRefs) != 0 ) { xrtSleep(1u); }
+    if ( pCall->pClonedRequest ) {
+        xllmRequestUnit(pCall->pClonedRequest);
+        xllm__free(pCall->pClonedRequest);
+    }
     xllmResponseDestroy(pCall->pResponse);
     xllm__buf_reset(&pCall->tLine);
     xllm__buf_reset(&pCall->tEventData);
@@ -689,7 +888,7 @@ xllm_result xllmClientComplete(
             xllm__error_copy(pError, &tAttemptError);
             return tAttemptError.eCode == XLLM_ERROR_CANCELLED ? XLLM_RESULT_CANCELLED : XLLM_RESULT_TIMEOUT;
         }
-        pCall = xllmClientStart(pClient, pRequest, pCallbacks, &tAttemptError);
+        pCall = xllm__client_start(pClient, pRequest, pCallbacks, uAttempt, &tAttemptError);
         if ( !pCall ) {
             xllm__error_copy(pError, &tAttemptError);
             return XLLM_RESULT_ERROR;
@@ -720,6 +919,16 @@ xllm_result xllmClientComplete(
             (pClient->pDialect->IsRetryableProviderError &&
              pClient->pDialect->IsRetryableProviderError(&tAttemptError));
         bWillRetry = bCanRetry && uAttempt < uMaxAttempts;
+        if ( bWillRetry ) {
+            const xllm_hooks* pHooks = pRequest->pHooks ? pRequest->pHooks : pClient->pHooks;
+            if ( pHooks && pHooks->pOnRetry &&
+                 !pHooks->pOnRetry(pClient, &tAttemptError.tDiagnostics,
+                     uAttempt + 1u, pHooks->pUserData) ) {
+                tAttemptError.tDiagnostics.bRetryable = false;
+                xllm__error_copy(pError, &tAttemptError);
+                return eResult;
+            }
+        }
         tAttemptError.tDiagnostics.bRetryable = bWillRetry;
         tAttemptError.tDiagnostics.bRetryExhausted = bCanRetry && !bWillRetry && uAttempt >= uMaxAttempts;
         if ( !bWillRetry ) {

@@ -470,6 +470,17 @@ bool xllm__assemble_finalize(xllm_call* pCall)
         if ( !pTool->sArgumentsJson || !pTool->sArgumentsJson[0] ) {
             if ( !xllm__replace(&pTool->sArgumentsJson, "{}") ) goto oom;
         }
+        if ( pCall->pHooks && pCall->pHooks->pOnToolCall ) {
+            if ( !pCall->pHooks->pOnToolCall(pCall->pClient, pTool, (uint32_t)i,
+                    pCall->pHooks->pUserData) ) {
+                pCall->tHttpDiagnostics.bToolCallDropped = true;
+                xllm__free(pTool->sId);
+                xllm__free(pTool->sName);
+                xllm__free(pTool->sArgumentsJson);
+                memset(pTool, 0, sizeof(*pTool));
+                continue; /* dropped: no block, compacted below */
+            }
+        }
         if ( !xrtJsonValid((xstrview){ pTool->sArgumentsJson, strlen(pTool->sArgumentsJson) }) ) {
             xllm__error_set(&pCall->tError, XLLM_ERROR_PARSE, "provider returned invalid tool-call arguments JSON");
             return false;
@@ -487,6 +498,43 @@ bool xllm__assemble_finalize(xllm_call* pCall)
         pResponse->pBlocks[pResponse->iBlockCount].eKind = XLLM_BLOCK_TOOL_CALL;
         pResponse->pBlocks[pResponse->iBlockCount].iToolIndex = i;
         ++pResponse->iBlockCount;
+    }
+    {   /* compaction pass: hooks may have dropped tool calls (sName NULL).
+         * Block staleness consults the ORIGINAL tool array before any move;
+         * prefix sums remap surviving TOOL_CALL block indexes. */
+        size_t iKept = 0u;
+        size_t iBlockKept = 0u;
+        size_t j;
+        for ( j = 0u; j < pResponse->iBlockCount; ++j ) {
+            xllm_block* pBlock = &pResponse->pBlocks[j];
+            size_t iBefore = 0u;
+            bool bStale = false;
+            if ( pBlock->eKind == XLLM_BLOCK_TOOL_CALL ) {
+                if ( !pResponse->pToolCalls[pBlock->iToolIndex].sName ) {
+                    bStale = true;
+                } else {
+                    for ( i = 0u; i < pBlock->iToolIndex; ++i ) {
+                        if ( pResponse->pToolCalls[i].sName ) { ++iBefore; }
+                    }
+                }
+            }
+            if ( bStale ) {
+                xllm__free(pBlock->sText);
+                xllm__free(pBlock->sNative);
+                continue;
+            }
+            if ( pBlock->eKind == XLLM_BLOCK_TOOL_CALL ) { pBlock->iToolIndex = iBefore; }
+            if ( iBlockKept != j ) { pResponse->pBlocks[iBlockKept] = *pBlock; }
+            ++iBlockKept;
+        }
+        pResponse->iBlockCount = iBlockKept;
+        for ( i = 0u; i < pResponse->iToolCallCount; ++i ) {
+            xllm_tool_call* pTool = &pResponse->pToolCalls[i];
+            if ( !pTool->sName ) { continue; }
+            if ( iKept != i ) { pResponse->pToolCalls[iKept] = *pTool; }
+            ++iKept;
+        }
+        pResponse->iToolCallCount = iKept;
     }
     if ( pResponse->sRefusal && pResponse->sRefusal[0] ) {
         pResponse->eFinish = XLLM_FINISH_REFUSAL;

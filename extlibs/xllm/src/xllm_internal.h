@@ -55,6 +55,7 @@ typedef struct xllm_transport_diagnostics {
     uint64_t uResponseBodyBytes;
     uint64_t uEffectiveTimeoutMs;
     bool bReusedConnection;
+    bool bToolCallDropped;
     char sError[32];
     char sPhase[32];
 } xllm_transport_diagnostics;
@@ -110,6 +111,7 @@ struct xllm_client {
     xnetresolver* pResolver;
     xtlsverifier* pVerifier;
     xmutex* pConnectionMutex;
+    const xllm_hooks* pHooks;   /* borrowed client-level lifecycle hooks */
     xllm_connection* pIdleConnections[XLLM_MAX_IDLE_CONNECTIONS];
     uint32_t uIdleConnectionCount;
     uint32_t uMaxIdleConnections;
@@ -153,6 +155,10 @@ struct xllm_call {
     size_t iSendOffset;
     size_t iSendPending;   /* bytes in the in-flight TLS send chunk */
     size_t iWireOffset;
+    const xllm_hooks* pHooks;      /* resolved for this call (request over client) */
+    xllm_request* pClonedRequest;   /* deep copy when pOnRequest rewrote it */
+    bool bDeferParse;               /* pOnResponseBody armed: buffer, parse at wait */
+    bool bOfflineBody;               /* pre-send injection: canned response, no dial */
     xllm_connection* pConnection;
     xllm_buf tWire;
     xhttpfield tHeadFields[XLLM_HTTP_FIELD_LIMIT];
@@ -279,6 +285,7 @@ bool xllm__append_tracked(char** ppText, size_t* piLen, const char* sDelta, size
 bool xllm__tool_call_clone(xllm_tool_call* pDst, const xllm_tool_call* pSrc);
 void xllm__tool_call_unit(xllm_tool_call* pCall);
 bool xllm__message_clone(xllm_message* pDst, const xllm_message* pSrc);
+bool xllm__request_clone(xllm_request* pDst, const xllm_request* pSrc);
 bool xllm__part_clone(xllm_part* pDst, const xllm_part* pSrc);
 void xllm__part_unit(xllm_part* pPart);
 void xllm__tool_unit(xllm_tool* pTool);

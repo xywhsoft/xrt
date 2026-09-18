@@ -25,6 +25,7 @@ extern "C" {
 
 typedef struct xllm_client xllm_client;
 typedef struct xllm_call xllm_call;
+typedef struct xllm_hooks xllm_hooks;
 typedef struct xcancel xcancel;
 typedef struct xllm_request xllm_request;
 /* Borrowed XRT runtime handles; only meaningful when building against XRT. */
@@ -67,6 +68,7 @@ typedef struct xllm_diagnostics {
     bool bModelDataDelivered;
     bool bReusedConnection;
     bool bContextAttached;
+    bool bToolCallDropped;  /* a lifecycle hook removed a tool call */
     int32_t iTransportStatus;
     int32_t iSystemError;
     uint64_t uStartedMs;
@@ -434,6 +436,8 @@ typedef struct xllm_request {
     xcancel* pCancel;
     /* Absolute xrtClock() deadline in microseconds; UINT64_MAX disables it. */
     uint64_t uDeadline;
+    /* Borrowed per-call lifecycle hooks; replaces the client-level set. */
+    const xllm_hooks* pHooks;
 } xllm_request;
 
 void xllmRequestInit(xllm_request* pRequest);
@@ -455,6 +459,66 @@ void xllmResponseDestroy(xllm_response* pResponse);
 /* Deterministic lexical token estimates used by budget governance. */
 uint64_t xllmEstimateTextTokens(const char* sText);
 uint64_t xllmEstimateMessageTokens(const xllm_message* pMessage);
+
+/* ------------------------------------------------------------------ */
+/* Lifecycle hooks: mutable data seams around one model call          */
+/* ------------------------------------------------------------------ */
+
+/* Wire-level body handed to the byte seams. The buffer is NUL-terminated;
+ * hooks may edit in place (OUT bounded by iBodyCapacity) or replace the
+ * pointer wholesale (the library frees the old buffer; the replacement
+ * must be xllmFree-compatible and NUL-terminated with iBodySize equal to
+ * strlen). Embedded NUL bytes are rejected. */
+typedef struct xllm_wire {
+    uint32_t uAttempt;        /* retry ordinal, from 1 */
+    uint32_t uHttpStatus;     /* response seam only */
+    char* sBody;
+    size_t iBodySize;
+    size_t iBodyCapacity;     /* request seam only */
+    uint32_t uReserved[4];
+} xllm_wire;
+
+/* Every seam is optional (NULL). Returning false aborts the call with
+ * XLLM_ERROR_HOOK. All pointers are mutable in place; borrowed storage a
+ * hook attaches (e.g. extra headers) must outlive the call. */
+struct xllm_hooks {
+    bool (*pOnRequest)(xllm_client* pClient, xllm_request* pRequest, void* pUserData);
+    bool (*pOnRequestBody)(xllm_client* pClient, xllm_wire* pWire, void* pUserData);
+    bool (*pOnRetry)(xllm_client* pClient, const xllm_diagnostics* pDiagnostics,
+        uint32_t uNextAttempt, void* pUserData);
+    bool (*pOnResponseBody)(xllm_client* pClient, xllm_wire* pWire, void* pUserData);
+    bool (*pOnToolCall)(xllm_client* pClient, xllm_tool_call* pCall,
+        uint32_t uIndex, void* pUserData);
+    bool (*pOnResponse)(xllm_client* pClient, xllm_response* pResponse, void* pUserData);
+    void* pUserData;
+    uint32_t uReserved[4];
+};
+
+/* Client-level default hooks (borrowed struct; NULL removes). A request may
+ * carry its own pHooks which replaces the whole set for that call. */
+void xllmClientSetHooks(xllm_client* pClient, const xllm_hooks* pHooks);
+
+/* ------------------------------------------------------------------ */
+/* History: a deep-copying message ledger for hand-written agents      */
+/* ------------------------------------------------------------------ */
+
+typedef struct xllm_history xllm_history;
+
+xllm_history* xllmHistoryCreate(void);
+void xllmHistoryDestroy(xllm_history* pHistory);
+size_t xllmHistoryCount(const xllm_history* pHistory);
+/* Borrowed view of one stored message; valid until the next mutation. */
+const xllm_message* xllmHistoryAt(const xllm_history* pHistory, size_t iIndex);
+
+bool xllmHistoryAdd(xllm_history* pHistory, const xllm_message* pMessage);
+bool xllmHistoryAddText(xllm_history* pHistory, xllm_role eRole, const char* sContent);
+/* Text + reasoning + tool calls from a completed response. */
+bool xllmHistoryAddFromResponse(xllm_history* pHistory, const xllm_response* pResponse);
+bool xllmHistoryAddToolResult(xllm_history* pHistory, const char* sCallId,
+    const char* sContent);
+bool xllmHistoryRemove(xllm_history* pHistory, size_t iIndex, size_t iCount);
+/* Appends every stored message into a request (deep copy again). */
+bool xllmHistoryAppendInto(const xllm_history* pHistory, xllm_request* pRequest);
 
 /* ------------------------------------------------------------------ */
 /* Client lifecycle                                                    */
@@ -489,6 +553,7 @@ typedef struct xllm_client_config {
 
 void xllmClientConfigInit(xllm_client_config* pConfig);
 xllm_client* xllmClientCreate(const xllm_client_config* pConfig, xllm_error* pError);
+void xllmClientSetHooks(xllm_client* pClient, const xllm_hooks* pHooks);
 void xllmClientDestroy(xllm_client* pClient);
 bool xllmClientGetModelProfile(const xllm_client* pClient, xllm_model_profile* pProfile);
 

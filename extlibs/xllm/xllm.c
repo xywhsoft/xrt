@@ -1,6 +1,7 @@
 #include "src/xllm_core.c"
 #include "src/xllm_profile.c"
 #include "src/xllm_parts.c"
+#include "src/xllm_history.c"
 #include "src/xllm_sse.c"
 #include "src/xllm_assemble.c"
 #include "src/xllm_dialect.c"
