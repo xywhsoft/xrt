@@ -109,6 +109,23 @@ bool xllm_session__journal_append_truncate(xllm_session* pSession, uint64_t uFro
     return bOk;
 }
 
+bool xllm_session__journal_append_ledger(xllm_session* pSession, const char* sKind, const char* sPath)
+{
+    xllm_session_buf tRecord = {0};
+    bool bOk;
+    if ( !pSession || !sKind || !sPath || !pSession->sJournalPath ) {
+        return pSession != NULL && sKind != NULL && sPath != NULL;
+    }
+    bOk = xllm_session__journal_prefix(&tRecord, pSession, "ledger") &&
+        xllm_session__buf_cstr(&tRecord, ",\"kind\":") &&
+        xllm_session__json_string(&tRecord, sKind) &&
+        xllm_session__buf_cstr(&tRecord, ",\"path\":") &&
+        xllm_session__json_string(&tRecord, sPath) &&
+        xllm_session__journal_write(pSession, &tRecord);
+    xllm_session__buf_unit(&tRecord);
+    return bOk;
+}
+
 static bool xllm_session__replay_message(xllm_session* pSession, xvalue* pRoot)
 {
     xvalue* pEntry = xllm_session__json_get(pRoot, "entry");
@@ -211,6 +228,17 @@ static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, x
         bOk = xllm_session__replay_message(pSession, pRoot);
     } else if ( strcmp(sOperation, "compact") == 0 ) {
         bOk = xllm_session__replay_compaction(pSession, pRoot);
+    } else if ( strcmp(sOperation, "ledger") == 0 ) {
+        const char* sKind = xllm_session__json_text(pRoot, "kind");
+        const char* sPath = xllm_session__json_text(pRoot, "path");
+        /* Replay applies through the internal note (no re-journaling). */
+        bOk = sPath && sPath[0] &&
+            ( (sKind && strcmp(sKind, "read") == 0)
+                ? xllm_session__note_file(&pSession->psReadFiles, &pSession->iReadFileCount,
+                    &pSession->iReadFileCap, sPath, NULL)
+                : (sKind && strcmp(sKind, "modified") == 0 &&
+                    xllm_session__note_file(&pSession->psModifiedFiles, &pSession->iModifiedFileCount,
+                    &pSession->iModifiedFileCap, sPath, NULL)) );
     } else if ( strcmp(sOperation, "truncate") == 0 ) {
         bOk = xllm_session__replay_truncate(pSession, pRoot);
     }

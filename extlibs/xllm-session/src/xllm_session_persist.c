@@ -18,6 +18,20 @@ static bool xllm_session__write_tool_call(xllm_session_buf* pJson, const xllm_to
         xllm_session__buf_char(pJson, '}');
 }
 
+static bool xllm_session__write_string_array(xllm_session_buf* pJson,
+    const char* sKey, char* const* psItems, size_t iCount)
+{
+    size_t i;
+    if ( !xllm_session__buf_cstr(pJson, ",\"") ||
+         !xllm_session__buf_cstr(pJson, sKey) ||
+         !xllm_session__buf_cstr(pJson, "\":[") ) { return false; }
+    for ( i = 0u; i < iCount; ++i ) {
+        if ( (i && !xllm_session__buf_char(pJson, ',')) ||
+             !xllm_session__json_string(pJson, psItems[i]) ) { return false; }
+    }
+    return xllm_session__buf_char(pJson, ']');
+}
+
 bool xllm_session__write_entry(xllm_session_buf* pJson, const xllm_session_entry* pEntry)
 {
     size_t i;
@@ -122,6 +136,10 @@ bool xllmSessionSave(const xllm_session* pSession, const char* sPath, xllm_error
     if ( pSession->sSummary ) {
         if ( !xllm_session__json_string(&tJson, pSession->sSummary) ) goto oom;
     } else if ( !xllm_session__buf_cstr(&tJson, "null") ) goto oom;
+    if ( !xllm_session__write_string_array(&tJson, "read_files",
+            pSession->psReadFiles, pSession->iReadFileCount) ||
+         !xllm_session__write_string_array(&tJson, "modified_files",
+            pSession->psModifiedFiles, pSession->iModifiedFileCount) ) goto oom;
     if ( !xllm_session__buf_cstr(&tJson, ",\"entries\":[") ) goto oom;
     for ( i = 0u; i < pSession->iEntryCount; ++i ) {
         if ( i && !xllm_session__buf_char(&tJson, ',') ) goto oom;
@@ -320,6 +338,32 @@ xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError)
     }
     pSession->bFillSeen = xllm_session__json_u64(pRoot, "fill_seen", 0u) != 0u;
     pSession->bFillExactValid = false;
+    {   /* Asset ledger: absent in old snapshots (both lists stay empty). */
+        xvalue* pLedger;
+        size_t n, iCount;
+        pLedger = xllm_session__json_get(pRoot, "read_files");
+        if ( pLedger && xrtValueIs(pLedger, XVALUE_ARRAY) ) {
+            iCount = xrtValueCount(pLedger);
+            for ( n = 0u; n < iCount; ++n ) {
+                xstrview tText;
+                xvalue* pItem = xrtValueArrayGet(pLedger, n);
+                if ( !xrtValueGetString(pItem, &tText) || !tText.Data || !tText.Size ||
+                     !xllm_session__note_file(&pSession->psReadFiles, &pSession->iReadFileCount,
+                        &pSession->iReadFileCap, tText.Data, NULL) ) { goto fail; }
+            }
+        }
+        pLedger = xllm_session__json_get(pRoot, "modified_files");
+        if ( pLedger && xrtValueIs(pLedger, XVALUE_ARRAY) ) {
+            iCount = xrtValueCount(pLedger);
+            for ( n = 0u; n < iCount; ++n ) {
+                xstrview tText;
+                xvalue* pItem = xrtValueArrayGet(pLedger, n);
+                if ( !xrtValueGetString(pItem, &tText) || !tText.Data || !tText.Size ||
+                     !xllm_session__note_file(&pSession->psModifiedFiles, &pSession->iModifiedFileCount,
+                        &pSession->iModifiedFileCap, tText.Data, NULL) ) { goto fail; }
+            }
+        }
+    }
     xrtValueRelease(pRoot);
     return pSession;
 fail:

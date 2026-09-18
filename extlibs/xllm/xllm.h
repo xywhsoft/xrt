@@ -556,6 +556,11 @@ xllm_client* xllmClientCreate(const xllm_client_config* pConfig, xllm_error* pEr
 void xllmClientSetHooks(xllm_client* pClient, const xllm_hooks* pHooks);
 void xllmClientDestroy(xllm_client* pClient);
 bool xllmClientGetModelProfile(const xllm_client* pClient, xllm_model_profile* pProfile);
+/* Replace the client's capability profile on an existing client (custom
+ * endpoints such as self-hosted models; config.pModelProfile covers the
+ * create-time path). The profile is validated first; the wire model stays
+ * the client's configured sModel. */
+bool xllmClientSetModelProfile(xllm_client* pClient, const xllm_model_profile* pProfile, xllm_error* pError);
 
 xllm_call* xllmClientStart(
     xllm_client* pClient,

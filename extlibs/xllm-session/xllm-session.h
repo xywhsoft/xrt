@@ -145,6 +145,26 @@ typedef struct xllm_session_summary {
 } xllm_session_summary;
 
 /* ------------------------------------------------------------------ */
+/* Asset ledger (pi: the conversation compacts, the ledger does not).   */
+/*                                                                      */
+/* Hosts note files as tools touch them; entries dedup by exact path.   */
+/* The ledger survives compaction, rides the compaction prompt as       */
+/* context, renders appended to the summary bridge, and persists in     */
+/* the snapshot and journal.                                            */
+/* ------------------------------------------------------------------ */
+
+typedef struct xllm_file_ledger {
+    const char* const* psReadFiles;     /* borrowed until the next note */
+    size_t iReadFileCount;
+    const char* const* psModifiedFiles; /* borrowed until the next note */
+    size_t iModifiedFileCount;
+} xllm_file_ledger;
+
+bool xllmSessionNoteFileRead(xllm_session* pSession, const char* sPath);
+bool xllmSessionNoteFileModified(xllm_session* pSession, const char* sPath);
+bool xllmSessionGetFileLedger(const xllm_session* pSession, xllm_file_ledger* pLedger);
+
+/* ------------------------------------------------------------------ */
 /* Compaction strategy table (D10): per-stage NULL = built-in default. */
 /* ------------------------------------------------------------------ */
 
@@ -388,7 +408,8 @@ bool xllmSessionSetTestCall(xllm_session* pSession, xllm_test_call_proc pCall, v
 /* ------------------------------------------------------------------ */
 
 typedef struct xllm_run_policy {
-    /* Model-round budget; 0 selects the default (32). */
+    /* Model-round budget; 0 selects the default (32); UINT32_MAX disables
+     * the round bound entirely (mdo-style hosts guard via pOnRound instead). */
     uint32_t uMaxRounds;
     /* Borrowed cooperative cancel token and absolute deadline (microseconds;
      * 0 and UINT64_MAX mean none). Applied to every model request and

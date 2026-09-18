@@ -84,6 +84,38 @@ static void test_model_profiles(void)
         strcmp(tSnapshot.sModel, "glm-5.2") == 0,
         "client retains an owned model-profile snapshot");
     xllmClientDestroy(pClient);
+
+    /* Post-create replacement: custom self-hosted endpoints. */
+    xllmClientConfigInit(&tClientConfig);
+    tClientConfig.sBaseUrl = "http://127.0.0.1:1/v1/chat/completions";
+    tClientConfig.sModel = "ornith-35b";
+    tClientConfig.bVerifyPeer = false;
+    pClient = xllmClientCreate(&tClientConfig, &tError);
+    CHECK(pClient != NULL && !xllmClientGetModelProfile(pClient, &tSnapshot),
+        "unknown models start without a profile");
+    if ( pClient ) {
+        xllm_model_profile tCustom;
+        xllmModelProfileInit(&tCustom);
+        tCustom.sId = "ornith-35b-local";
+        tCustom.sModel = "ornith-35b";
+        tCustom.eWindowMode = XLLM_WINDOW_SHARED_CONTEXT;
+        tCustom.uCapabilities = XLLM_CAP_TEXT_IN | XLLM_CAP_TEXT_OUT | XLLM_CAP_STREAM |
+            XLLM_CAP_TOOL_CALL_OUT;
+        tCustom.uContextWindowTokens = 131072ull;
+        tCustom.uMaxInputTokens = 131072ull;
+        tCustom.uMaxOutputTokens = 8192u;
+        CHECK(xllmClientSetModelProfile(pClient, &tCustom, &tError) &&
+            xllmClientGetModelProfile(pClient, &tSnapshot) &&
+            tSnapshot.uContextWindowTokens == 131072ull &&
+            strcmp(tSnapshot.sId, "ornith-35b-local") == 0 &&
+            strcmp(tSnapshot.sModel, "ornith-35b") == 0,
+            "post-create custom profile installs (wire model stays client config)");
+        tCustom.uContextWindowTokens = 0u;
+        CHECK(!xllmClientSetModelProfile(pClient, &tCustom, &tError) &&
+            tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+            "invalid replacement profile is rejected");
+    }
+    xllmClientDestroy(pClient);
 }
 
 static bool test_on_event(void* pUserData, const xllm_event* pEvent)

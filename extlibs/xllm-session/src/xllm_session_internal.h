@@ -37,6 +37,13 @@ struct xllm_session {
     char* sSummary;
     char* sJournalPath;
     char* sStyleStorage;           /* owned copy of the loaded summary style */
+    /* --- asset ledger (survives compaction by design) --- */
+    char** psReadFiles;
+    size_t iReadFileCount;
+    size_t iReadFileCap;
+    char** psModifiedFiles;
+    size_t iModifiedFileCount;
+    size_t iModifiedFileCap;
     /* --- v3 governance (exact feedback loop) --- */
     uint32_t uSummaryGeneration;       /* +1 per compaction or L2 truncation */
     uint64_t uSummaryPromptAtBirth;    /* meta-call usage, exact */
@@ -127,5 +134,11 @@ bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
     char** psSummary, xllm_usage* pUsage, xllm_error* pError);
 xllm_result xllm_session__dispatch_call(xllm_session* pSession, const xllm_request* pRequest,
     const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError);
+
+/* asset ledger (core.c) */
+bool xllm_session__note_file(char*** ppsList, size_t* piCount, size_t* piCap,
+    const char* sPath, bool* pbAdded);
+bool xllm_session__append_ledger_blocks(xllm_session_buf* pBuf, const xllm_session* pSession);
+bool xllm_session__journal_append_ledger(xllm_session* pSession, const char* sKind, const char* sPath);
 
 #endif

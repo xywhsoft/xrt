@@ -102,6 +102,7 @@ static bool xllm_session__summary_message(const xllm_session* pSession, xllm_mes
         xllm_session__buf_u64(&tSummary, pSession->uCompactedThrough) &&
         xllm_session__buf_cstr(&tSummary, ":\n\n") &&
         xllm_session__buf_cstr(&tSummary, pSession->sSummary) &&
+        xllm_session__append_ledger_blocks(&tSummary, pSession) &&
         xllmMessageSetContent(pMessage, tSummary.pData);
     xllm_session__buf_unit(&tSummary);
     return bOk;

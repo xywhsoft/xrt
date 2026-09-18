@@ -285,6 +285,16 @@ xllm_session* xllmSessionFork(const xllm_session* pSession, xllm_error* pError)
     pFork->uCompactedThrough = pSession->uCompactedThrough;
     pFork->uCompactionCount = pSession->uCompactionCount;
     pFork->uJournalSequence = pSession->uJournalSequence;
+    /* The asset ledger rides the fork verbatim (it survives compaction by
+     * design, so a branch starts with the full parent ledger). */
+    for ( i = 0u; i < pSession->iReadFileCount; ++i ) {
+        if ( !xllm_session__note_file(&pFork->psReadFiles, &pFork->iReadFileCount,
+                &pFork->iReadFileCap, pSession->psReadFiles[i], NULL) ) { goto oom; }
+    }
+    for ( i = 0u; i < pSession->iModifiedFileCount; ++i ) {
+        if ( !xllm_session__note_file(&pFork->psModifiedFiles, &pFork->iModifiedFileCount,
+                &pFork->iModifiedFileCap, pSession->psModifiedFiles[i], NULL) ) { goto oom; }
+    }
     /* v3 inherited state: strategy/hooks/client are borrowed pointers; the
      * exact fill invalidates on fork (design §4.2) until the next real call. */
     pFork->pOps = pSession->pOps;
@@ -316,6 +326,10 @@ void xllmSessionDestroy(xllm_session* pSession)
     free(pSession->sSummary);
     free(pSession->sJournalPath);
     free(pSession->sStyleStorage);
+    for ( i = 0u; i < pSession->iReadFileCount; ++i ) { free(pSession->psReadFiles[i]); }
+    free(pSession->psReadFiles);
+    for ( i = 0u; i < pSession->iModifiedFileCount; ++i ) { free(pSession->psModifiedFiles[i]); }
+    free(pSession->psModifiedFiles);
     free(pSession);
 }
 
@@ -406,6 +420,84 @@ bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_role eRole,
         xllmSessionAddMessage(pSession, uTurn, &tMessage, uFlags);
     xllmMessageUnit(&tMessage);
     return bOk;
+}
+
+bool xllm_session__note_file(char*** ppsList, size_t* piCount, size_t* piCap,
+    const char* sPath, bool* pbAdded)
+{
+    size_t i;
+    if ( pbAdded ) { *pbAdded = false; }
+    for ( i = 0u; i < *piCount; ++i ) {
+        if ( strcmp((*ppsList)[i], sPath) == 0 ) { return true; }
+    }
+    if ( *piCount == *piCap ) {
+        size_t iCap = *piCap ? *piCap * 2u : 8u;
+        char** psNew = (char**)realloc(*ppsList, iCap * sizeof(char*));
+        if ( !psNew ) { return false; }
+        *ppsList = psNew;
+        *piCap = iCap;
+    }
+    (*ppsList)[*piCount] = xllm_session__strdup(sPath);
+    if ( !(*ppsList)[*piCount] ) { return false; }
+    ++*piCount;
+    if ( pbAdded ) { *pbAdded = true; }
+    return true;
+}
+
+bool xllm_session__append_ledger_blocks(xllm_session_buf* pBuf, const xllm_session* pSession)
+{
+    static const char* const sTags[2] = { "read-files", "modified-files" };
+    const char* const* psLists[2] = { (const char* const*)pSession->psReadFiles,
+        (const char* const*)pSession->psModifiedFiles };
+    const size_t iCounts[2] = { pSession->iReadFileCount, pSession->iModifiedFileCount };
+    size_t n, i;
+    for ( n = 0u; n < 2u; ++n ) {
+        if ( iCounts[n] == 0u ) { continue; }
+        if ( !xllm_session__buf_cstr(pBuf, "<") ||
+             !xllm_session__buf_cstr(pBuf, sTags[n]) ||
+             !xllm_session__buf_cstr(pBuf, ">\n") ) { return false; }
+        for ( i = 0u; i < iCounts[n]; ++i ) {
+            if ( !xllm_session__buf_cstr(pBuf, psLists[n][i]) ||
+                 !xllm_session__buf_char(pBuf, '\n') ) { return false; }
+        }
+        if ( !xllm_session__buf_cstr(pBuf, "</") ||
+             !xllm_session__buf_cstr(pBuf, sTags[n]) ||
+             !xllm_session__buf_char(pBuf, '>') ||
+             !xllm_session__buf_char(pBuf, '\n') ) { return false; }
+    }
+    return true;
+}
+
+bool xllmSessionNoteFileRead(xllm_session* pSession, const char* sPath)
+{
+    bool bAdded = false;
+    if ( !pSession || !sPath || !sPath[0] ) { return false; }
+    if ( !xllm_session__note_file(&pSession->psReadFiles, &pSession->iReadFileCount,
+            &pSession->iReadFileCap, sPath, &bAdded) ) {
+        return false;
+    }
+    return !bAdded || xllm_session__journal_append_ledger(pSession, "read", sPath);
+}
+
+bool xllmSessionNoteFileModified(xllm_session* pSession, const char* sPath)
+{
+    bool bAdded = false;
+    if ( !pSession || !sPath || !sPath[0] ) { return false; }
+    if ( !xllm_session__note_file(&pSession->psModifiedFiles, &pSession->iModifiedFileCount,
+            &pSession->iModifiedFileCap, sPath, &bAdded) ) {
+        return false;
+    }
+    return !bAdded || xllm_session__journal_append_ledger(pSession, "modified", sPath);
+}
+
+bool xllmSessionGetFileLedger(const xllm_session* pSession, xllm_file_ledger* pLedger)
+{
+    if ( !pSession || !pLedger ) { return false; }
+    pLedger->psReadFiles = (const char* const*)pSession->psReadFiles;
+    pLedger->iReadFileCount = pSession->iReadFileCount;
+    pLedger->psModifiedFiles = (const char* const*)pSession->psModifiedFiles;
+    pLedger->iModifiedFileCount = pSession->iModifiedFileCount;
+    return true;
 }
 
 bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_error* pError)

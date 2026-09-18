@@ -1300,6 +1300,22 @@ static void test_run_with_tools(void)
     xllmRunSummaryUnit(&tSummary);
     xllmSessionDestroy(pSession);
 
+    /* Round sentinel: UINT32_MAX disables the round bound (guard-driven hosts). */
+    memset(&tScript, 0, sizeof(tScript));
+    tScript.iToolRounds = 3u;
+    memset(&tExecutorState, 0, sizeof(tExecutorState));
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreateForTest(&tConfig, test_run_script_call, &tScript, &tError);
+    xllmRunPolicyInit(&tPolicy);
+    tPolicy.uMaxRounds = UINT32_MAX;
+    memset(&tSummary, 0, sizeof(tSummary));
+    SESSION_CHECK(pSession && xllmSessionRunWithTools(pSession, "keep going", &tExecutor,
+        NULL, &tPolicy, &tSummary, &tError) == XLLM_RESULT_OK &&
+        tSummary.uRounds == 4u && tSummary.uToolCalls == 3u,
+        "UINT32_MAX round bound lets a long tool run finish");
+    xllmRunSummaryUnit(&tSummary);
+    xllmSessionDestroy(pSession);
+
     /* Contract enforcement: incomplete executor is rejected. */
     xllmSessionConfigInit(&tConfig);
     pSession = xllmSessionCreateForTest(&tConfig, test_run_script_call, &tScript, &tError);
@@ -1579,6 +1595,123 @@ static void test_journal_roundtrip_property(void)
     (void)xrtFileDelete(sSnapshot);
 }
 
+/* ------------------------------------------------------------------ */
+/* Asset ledger: note/dedup, compaction prompt + summary render,        */
+/* persistence (snapshot + journal replay), fork.                       */
+/* ------------------------------------------------------------------ */
+
+static void test_file_ledger(void)
+{
+    static const char sJournal[] = "build/ledger_journal.jsonl";
+    static const char sSnapshot[] = "build/ledger_snapshot.json";
+    xllm_session_config tConfig;
+    xllm_session* pSession = NULL;
+    xllm_session* pLoaded = NULL;
+    xllm_session* pForked = NULL;
+    xllm_session* pReplayed = NULL;
+    xllm_compaction* pCompaction = NULL;
+    xllm_file_ledger tLedger;
+    xllm_request tRequest;
+    xllm_error tError;
+    test_script tScript;
+    uint64_t uTurn;
+
+    (void)xrtFileDelete(sJournal);
+    (void)xrtFileDelete(sSnapshot);
+    memset(&tScript, 0, sizeof(tScript));
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uKeepRecentTokens = 8u;   /* the single fixture turn must be compactable */
+    pSession = xllmSessionCreateForTest(&tConfig, test_script_call, &tScript, &tError);
+    SESSION_CHECK(pSession != NULL, "ledger fixture session creates");
+    SESSION_CHECK(pSession && xllmSessionEnableJournal(pSession, sJournal, &tError),
+        "ledger journal attaches");
+
+    SESSION_CHECK(pSession && xllmSessionNoteFileRead(pSession, "src/main.c") &&
+        xllmSessionNoteFileRead(pSession, "src/main.c") &&
+        xllmSessionNoteFileRead(pSession, "docs/README.md") &&
+        xllmSessionNoteFileModified(pSession, "src/main.c"),
+        "ledger notes succeed");
+    SESSION_CHECK(pSession && xllmSessionGetFileLedger(pSession, &tLedger) &&
+        tLedger.iReadFileCount == 2u && tLedger.iModifiedFileCount == 1u,
+        "ledger dedups by exact path");
+    SESSION_CHECK(pSession && !xllmSessionNoteFileRead(pSession, ""),
+        "empty ledger path is rejected");
+
+    /* Two complete turns: the large old one falls outside the keep-recent
+     * window and becomes the compactable candidate; the small one stays. */
+    {
+        char* sLarge = make_large_output(2000u, 3u);
+        uTurn = pSession ? xllmSessionBeginTurn(pSession) : 0u;
+        SESSION_CHECK(pSession && uTurn && sLarge &&
+            xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, sLarge, 0u) &&
+            xllmSessionAddText(pSession, uTurn, XLLM_ROLE_ASSISTANT, "done inspecting", 0u),
+            "ledger fixture turn recorded");
+        free(sLarge);
+        uTurn = pSession ? xllmSessionBeginTurn(pSession) : 0u;
+        SESSION_CHECK(pSession && uTurn &&
+            xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, "recent follow-up", 0u) &&
+            xllmSessionAddText(pSession, uTurn, XLLM_ROLE_ASSISTANT, "ok", 0u),
+            "ledger fixture recent turn recorded");
+    }
+
+    /* The compaction prompt carries the harness ledger. */
+    pCompaction = pSession ? xllmSessionPrepareCompaction(pSession, true, &tError) : NULL;
+    SESSION_CHECK(pCompaction != NULL &&
+        strstr(xllmCompactionPrompt(pCompaction), "<read-files>") != NULL &&
+        strstr(xllmCompactionPrompt(pCompaction), "src/main.c") != NULL &&
+        strstr(xllmCompactionPrompt(pCompaction), "<modified-files>") != NULL,
+        "compaction prompt carries the asset ledger");
+
+    /* Commit; the summary bridge renders the ledger back to the model. */
+    SESSION_CHECK(pSession && pCompaction &&
+        xllmSessionCommitCompaction(pSession, pCompaction,
+            test_pi_summary("ledger survives compaction"), &tError),
+        "compaction commits with the ledger present");
+    pCompaction = NULL;
+    xllmRequestInit(&tRequest);
+    if ( pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) ) {
+        size_t i;
+        bool bSawLedger = false;
+        for ( i = 0u; i < tRequest.iMessageCount; ++i ) {
+            const xllm_message* pMessage = &tRequest.pMessages[i];
+            if ( pMessage->eRole == XLLM_ROLE_USER && pMessage->sContent &&
+                 strstr(pMessage->sContent, "<read-files>") &&
+                 strstr(pMessage->sContent, "src/main.c") &&
+                 strstr(pMessage->sContent, "<modified-files>") ) { bSawLedger = true; }
+        }
+        SESSION_CHECK(bSawLedger, "summary bridge renders the asset ledger");
+        xllmRequestUnit(&tRequest);
+    }
+
+    /* Snapshot round trip keeps the ledger. */
+    SESSION_CHECK(pSession && xllmSessionSave(pSession, sSnapshot, &tError),
+        "ledger snapshot saves");
+    pLoaded = xllmSessionLoad(sSnapshot, &tError);
+    SESSION_CHECK(pLoaded && xllmSessionGetFileLedger(pLoaded, &tLedger) &&
+        tLedger.iReadFileCount == 2u && tLedger.iModifiedFileCount == 1u &&
+        strcmp(tLedger.psModifiedFiles[0], "src/main.c") == 0,
+        "snapshot round trip preserves the ledger");
+
+    /* Fork copies the ledger verbatim. */
+    pForked = pSession ? xllmSessionFork(pSession, &tError) : NULL;
+    SESSION_CHECK(pForked && xllmSessionGetFileLedger(pForked, &tLedger) &&
+        tLedger.iReadFileCount == 2u && tLedger.iModifiedFileCount == 1u,
+        "fork carries the parent ledger");
+
+    /* Journal-only replay restores the ledger (ledger records replay). */
+    pReplayed = xllmSessionRecover("build/ledger_absent.json", sJournal, NULL, &tError);
+    SESSION_CHECK(pReplayed && xllmSessionGetFileLedger(pReplayed, &tLedger) &&
+        tLedger.iReadFileCount == 2u && tLedger.iModifiedFileCount == 1u,
+        "journal-only replay restores the ledger");
+
+    xllmSessionDestroy(pReplayed);
+    xllmSessionDestroy(pForked);
+    xllmSessionDestroy(pLoaded);
+    xllmSessionDestroy(pSession);
+    (void)xrtFileDelete(sJournal);
+    (void)xrtFileDelete(sSnapshot);
+}
+
 int main(void)
 {
     printf("xllm-session v3 tests\n");
@@ -1595,6 +1728,7 @@ int main(void)
     test_run_with_tools();
     test_bind_identity_and_cancel();
     test_journal_roundtrip_property();
+    test_file_ledger();
     printf("xllm-session v3: %s (%d failures)\n", g_iSessionFailures ? "FAIL" : "PASS", g_iSessionFailures);
     return g_iSessionFailures ? 1 : 0;
 }

@@ -387,6 +387,9 @@ static bool xllm_session__default_build_prompt(xllm_session* pSession, const cha
              !xllm_session__buf_cstr(&tBuf, sPrevSummary) ||
              !xllm_session__buf_cstr(&tBuf, "\n</previous_summary>\n\n") ) goto fail;
     }
+    /* The asset ledger is harness truth (it survives compaction); hand it to
+     * the summarizer so file coverage stays exact across generations. */
+    if ( !xllm_session__append_ledger_blocks(&tBuf, pSession) ) goto fail;
     if ( !xllm_session__buf_cstr(&tBuf, "<conversation>\n") ||
          !xllm_session__buf_cstr(&tBuf, sCandidates ? sCandidates : "") ||
          !xllm_session__buf_cstr(&tBuf, "</conversation>\n") ) goto fail;

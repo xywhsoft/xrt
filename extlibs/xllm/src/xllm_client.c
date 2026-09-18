@@ -310,6 +310,33 @@ bool xllmClientGetModelProfile(const xllm_client* pClient, xllm_model_profile* p
     return true;
 }
 
+bool xllmClientSetModelProfile(xllm_client* pClient, const xllm_model_profile* pProfile, xllm_error* pError)
+{
+    char* sId;
+    if ( pError ) { xllmErrorInit(pError); }
+    if ( !pClient || !pProfile ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client and profile are required");
+        return false;
+    }
+    if ( !xllmModelProfileValidate(pProfile, pError) ) { return false; }
+    sId = xllm__strdup(pProfile->sId);
+    if ( !sId ) {
+        xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to store the profile id");
+        return false;
+    }
+    /* Mirror the create-time convention: the id becomes client-owned storage
+     * and the wire model stays the client's sModel (URLs and credentials are
+     * client configuration, never profile business). */
+    xllm__free(pClient->sProfileId);
+    pClient->sProfileId = sId;
+    pClient->tModelProfile = *pProfile;
+    pClient->tModelProfile.sId = sId;
+    pClient->tModelProfile.sModel = pClient->sModel;
+    pClient->eProvider = pProfile->eProvider;
+    pClient->bHasModelProfile = true;
+    return true;
+}
+
 static bool xllm__call_enter(xllm_call* pCall)
 {
     if ( !pCall ) { return false; }
