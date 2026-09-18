@@ -300,6 +300,11 @@ bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_role eRole,
 bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_error* pError);
 bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse);
 bool xllmSessionAddToolResult(xllm_session* pSession, uint64_t uTurn, const char* sToolCallId, const char* sContent);
+/* Tool result with an image attachment (read passthrough): the text stays
+ * the tool message content, the image rides as an IMAGE part. */
+bool xllmSessionAddToolResultWithImage(xllm_session* pSession, uint64_t uTurn,
+    const char* sToolCallId, const char* sContent,
+    const unsigned char* pImageBytes, size_t iImageSize, const char* sImageMime);
 
 /* Append retrieved reference material (search results, notes, fetched docs)
  * as a synthetic user entry wrapped in the untrusted-reference frame, so

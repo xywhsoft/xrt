@@ -107,6 +107,29 @@ static bool xwork__looks_binary(const unsigned char* pData, size_t iSize)
     return false;
 }
 
+/* Image passthrough: magic sniff decides; the extension is not trusted. */
+static const char* xwork__image_mime(const unsigned char* pData, size_t iSize)
+{
+    if ( iSize >= 3u && pData[0] == 0xFF && pData[1] == 0xD8 && pData[2] == 0xFF ) {
+        return "image/jpeg";
+    }
+    if ( iSize >= 8u && pData[0] == 0x89 && pData[1] == 'P' && pData[2] == 'N' && pData[3] == 'G' && pData[4] == 0x0D && pData[5] == 0x0A && pData[6] == 0x1A && pData[7] == 0x0A ) {
+        return "image/png";
+    }
+    if ( iSize >= 6u && (memcmp(pData, "GIF87a", 6u) == 0 ||
+                         memcmp(pData, "GIF89a", 6u) == 0) ) {
+        return "image/gif";
+    }
+    if ( iSize >= 12u && memcmp(pData, "RIFF", 4u) == 0 &&
+         memcmp(pData + 8u, "WEBP", 4u) == 0 ) {
+        return "image/webp";
+    }
+    if ( iSize >= 2u && pData[0] == 'B' && pData[1] == 'M' ) {
+        return "image/bmp";
+    }
+    return NULL;
+}
+
 static bool xwork__walk_directory(xwork_walk_context* pContext, const char* sDirectory, uint32_t uDepth)
 {
 #if defined(_WIN32)
@@ -254,6 +277,17 @@ static xwork_result xwork__tool_read_file(
     }
     pData = (unsigned char*)xrtFileReadAll(sResolved, &iSize);
     if ( !pData && iSize ) { eResult = xwork__tool_fail(pOutput, "failed to read file"); goto cleanup; }
+    {
+        const char* sMime = xwork__image_mime(pData, iSize);
+        if ( sMime ) {
+            if ( !xwork__buf_appendf(&tOutput, "image: %s\nsize: %zu bytes\nmime: %s\nattached for viewing",
+                    sPath, iSize, sMime) ||
+                 !xworkToolOutputSet(pOutput, true, tOutput.pData) ||
+                 !xworkToolOutputSetImage(pOutput, pData, iSize, sMime) ) goto oom;
+            eResult = XWORK_RESULT_OK;
+            goto cleanup;
+        }
+    }
     if ( xwork__looks_binary(pData, iSize) ) { eResult = xwork__tool_fail(pOutput, "file appears to be binary"); goto cleanup; }
     if ( !xwork__buf_appendf(&tOutput, "file: %s (%zu bytes)\n", sPath, iSize) ) goto oom;
     while ( i < iSize && uEmitted < uMaxLines ) {
@@ -1955,7 +1989,7 @@ bool xworkAgentRegisterBuiltinReadOnlyTools(xwork_agent* pAgent, xwork_error* pE
     static const xwork_tool_definition arrTools[] = {
         {
             "read_file",
-            "Read a UTF-8 text file from the workspace with stable line numbers. Use start_line to continue large files.",
+            "Read workspace files. Text returns numbered lines with pagination; images (jpg/png/gif/webp/bmp) are attached for viewing. Oversized text output is truncated with the full copy spilled to an artifact.",
             "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"start_line\":{\"type\":\"integer\",\"minimum\":1},\"max_lines\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10000}},\"required\":[\"path\"],\"additionalProperties\":false}",
             true, XWORK_TOOL_EFFECT_READ_ONLY, xwork__tool_read_file, NULL, NULL
         },

@@ -194,6 +194,9 @@ xwork_result xwork__execute_tool(
     char** ppSessionContent,
     bool* pbSuccess,
     bool* pbEffectApplied,
+    unsigned char** ppImageBytes,
+    size_t* piImageSize,
+    char* psImageMime,
     xwork_error* pError
 );
 

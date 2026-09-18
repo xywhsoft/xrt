@@ -96,7 +96,23 @@ void xworkToolOutputUnit(xwork_tool_output* pOutput)
 {
     if ( !pOutput ) return;
     free(pOutput->sContent);
+    free(pOutput->pImageBytes);
     memset(pOutput, 0, sizeof(*pOutput));
+}
+
+bool xworkToolOutputSetImage(xwork_tool_output* pOutput,
+    const unsigned char* pData, size_t iSize, const char* sMime)
+{
+    unsigned char* pCopy;
+    if ( !pOutput || !pData || !iSize || !sMime || !sMime[0] ) return false;
+    pCopy = (unsigned char*)malloc(iSize);
+    if ( !pCopy ) return false;
+    memcpy(pCopy, pData, iSize);
+    free(pOutput->pImageBytes);
+    pOutput->pImageBytes = pCopy;
+    pOutput->iImageSize = iSize;
+    (void)snprintf(pOutput->sImageMime, sizeof(pOutput->sImageMime), "%s", sMime);
+    return true;
 }
 
 bool xworkToolOutputSet(xwork_tool_output* pOutput, bool bSuccess, const char* sContent)

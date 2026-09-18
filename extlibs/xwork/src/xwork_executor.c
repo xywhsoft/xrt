@@ -9,6 +9,9 @@
 struct xwork_executor_state {
     xwork_agent* pAgent;
     char* sLastResult;   /* rolling storage: freed on the next execute or unbind */
+    unsigned char* pLastImage;   /* rolling image payload, same lifetime */
+    size_t iLastImageSize;
+    char sLastImageMime[32];
 };
 
 static bool xwork__executor_list(void* pUserData, xllm_request* pRequest)
@@ -52,16 +55,30 @@ static bool xwork__executor_execute(void* pUserData, const xllm_tool_call* pCall
         }
     }
     xworkErrorInit(&tError);
-    eResult = xwork__execute_tool(pState->pAgent, pCall, pCtx ? pCtx->uTurn : 0u,
-        &sContent, &bSuccess, NULL, &tError);
-    if ( eResult != XWORK_RESULT_OK ) {
-        free(sContent);
-        return false;   /* infrastructure failure: run aborts */
+    {
+        unsigned char* pImage = NULL;
+        size_t iImageSize = 0u;
+        char sMime[32];
+        memset(sMime, 0, sizeof(sMime));
+        eResult = xwork__execute_tool(pState->pAgent, pCall, pCtx ? pCtx->uTurn : 0u,
+            &sContent, &bSuccess, NULL, &pImage, &iImageSize, sMime, &tError);
+        if ( eResult != XWORK_RESULT_OK ) {
+            free(sContent);
+            free(pImage);
+            return false;   /* infrastructure failure: run aborts */
+        }
+        free(pState->sLastResult);
+        pState->sLastResult = sContent;
+        free(pState->pLastImage);
+        pState->pLastImage = pImage;
+        pState->iLastImageSize = iImageSize;
+        memcpy(pState->sLastImageMime, sMime, sizeof(pState->sLastImageMime));
     }
-    free(pState->sLastResult);
-    pState->sLastResult = sContent;
     pResult->sContent = sContent;
     pResult->bSuccess = bSuccess;
+    pResult->pImageBytes = pState->pLastImage;
+    pResult->iImageSize = pState->iLastImageSize;
+    pResult->sImageMime = pState->sLastImageMime[0] ? pState->sLastImageMime : NULL;
     return true;
 }
 
@@ -97,6 +114,7 @@ void xworkExecutorUnbind(xllm_executor* pExecutor)
     }
     if ( pState ) {
         free(pState->sLastResult);
+        free(pState->pLastImage);
         free(pState);
     }
     memset(pExecutor, 0, sizeof(*pExecutor));

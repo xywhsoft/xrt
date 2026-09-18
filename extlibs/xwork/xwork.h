@@ -141,6 +141,11 @@ typedef struct xwork_tool_context {
 typedef struct xwork_tool_output {
     char* sContent;
     bool bSuccess;
+    /* Image passthrough (read): owned bytes + mime; a text summary rides
+     * sContent. Images bypass the text truncation/spill path. */
+    unsigned char* pImageBytes;   /* owned */
+    size_t iImageSize;
+    char sImageMime[32];          /* "image/png" etc.; empty when no image */
 } xwork_tool_output;
 
 typedef xwork_result (*xwork_tool_execute_fn)(
@@ -329,6 +334,10 @@ const char* xworkErrorCodeName(xwork_error_code eCode);
 void xworkToolOutputInit(xwork_tool_output* pOutput);
 void xworkToolOutputUnit(xwork_tool_output* pOutput);
 bool xworkToolOutputSet(xwork_tool_output* pOutput, bool bSuccess, const char* sContent);
+/* Attach an image payload (copies); the text summary should already be in
+ * sContent via xworkToolOutputSet. */
+bool xworkToolOutputSetImage(xwork_tool_output* pOutput,
+    const unsigned char* pData, size_t iSize, const char* sMime);
 
 void xworkAgentConfigInit(xwork_agent_config* pConfig);
 void xworkReadOnlySubagentConfigInit(xwork_readonly_subagent_config* pConfig);

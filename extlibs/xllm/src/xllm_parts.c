@@ -88,6 +88,11 @@ bool xllmPartSetNative(xllm_part* pPart, const char* sNativeType, const char* sJ
     return true;
 }
 
+void xllmPartUnit(xllm_part* pPart)
+{
+    xllm__part_unit(pPart);
+}
+
 void xllm__part_unit(xllm_part* pPart)
 {
     if ( !pPart ) { return; }

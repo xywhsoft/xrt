@@ -293,6 +293,9 @@ xwork_result xwork__execute_tool(
     char** ppSessionContent,
     bool* pbSuccess,
     bool* pbEffectApplied,
+    unsigned char** ppImageBytes,      /* optional out: ownership moves to caller */
+    size_t* piImageSize,
+    char* psImageMime,                 /* optional out: >=32 bytes */
     xwork_error* pError
 )
 {
@@ -412,6 +415,14 @@ tool_ready:
     *ppSessionContent = xwork__buf_detach(&tSession);
     if ( !*ppSessionContent ) goto oom;
     if ( pbSuccess ) *pbSuccess = tOutput.bSuccess;
+    if ( ppImageBytes && tOutput.pImageBytes ) {
+        *ppImageBytes = tOutput.pImageBytes;
+        tOutput.pImageBytes = NULL;    /* ownership moves to the caller */
+        if ( piImageSize ) *piImageSize = tOutput.iImageSize;
+        if ( psImageMime ) {
+            memcpy(psImageMime, tOutput.sImageMime, sizeof(tOutput.sImageMime));
+        }
+    }
 
     memset(&tEvent, 0, sizeof(tEvent));
     tEvent.eKind = XWORK_EVENT_TOOL_DONE;
@@ -799,7 +810,7 @@ static xwork_result xwork__agent_run(
                 uTurn = tPending.uTurn;
                 pExecutedTool = xwork__find_tool(pAgent, tCall.sName ? tCall.sName : "");
                 eResult = xwork__execute_tool(pAgent, &tCall, uTurn, &sToolResult,
-                    &bToolSuccess, &bToolEffectApplied, pError);
+                    &bToolSuccess, &bToolEffectApplied, NULL, NULL, NULL, pError);
                 if ( eResult != XWORK_RESULT_OK ) { free(sToolResult); goto cleanup; }
                 if ( !tCall.sId || !tCall.sId[0] ||
                      !xllmSessionAddToolResult(pAgent->pSession, uTurn, tCall.sId, sToolResult) ) {
@@ -1010,7 +1021,7 @@ static xwork_result xwork__agent_run(
             const xwork_tool_entry* pExecutedTool = xwork__find_tool(pAgent,
                 pResponse->pToolCalls[i].sName ? pResponse->pToolCalls[i].sName : "");
             eResult = xwork__execute_tool(pAgent, &pResponse->pToolCalls[i], uTurn, &sToolResult,
-                &bToolSuccess, &bToolEffectApplied, pError);
+                &bToolSuccess, &bToolEffectApplied, NULL, NULL, NULL, pError);
             if ( eResult != XWORK_RESULT_OK ) { free(sToolResult); xllmResponseDestroy(pResponse); goto cleanup; }
             if ( !sCallId || !sCallId[0] || !xllmSessionAddToolResult(pAgent->pSession, uTurn, sCallId, sToolResult) ) {
                 free(sToolResult);

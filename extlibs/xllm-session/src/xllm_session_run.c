@@ -205,7 +205,17 @@ xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* sPrompt,
                     eResult = XLLM_RESULT_ERROR;
                     goto done;
                 }
-                if ( !xllmSessionAddToolResult(pSession, uTurn, pCall->sId, tOut.sContent) ) {
+                if ( tOut.pImageBytes && tOut.iImageSize && tOut.sImageMime ) {
+                    if ( !xllmSessionAddToolResultWithImage(pSession, uTurn, pCall->sId,
+                            tOut.sContent, tOut.pImageBytes, tOut.iImageSize,
+                            tOut.sImageMime) ) {
+                        xllmResponseDestroy(pResponse);
+                        xllm_session__error(pError, XLLM_ERROR_UPSTREAM,
+                            "failed to record an image tool result");
+                        eResult = XLLM_RESULT_ERROR;
+                        goto done;
+                    }
+                } else if ( !xllmSessionAddToolResult(pSession, uTurn, pCall->sId, tOut.sContent) ) {
                     xllmResponseDestroy(pResponse);
                     xllm_session__error(pError, XLLM_ERROR_UPSTREAM,
                         "failed to record a tool result");

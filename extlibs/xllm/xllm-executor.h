@@ -49,11 +49,16 @@ typedef struct xllm_executor_ctx {
  * success/failure presentation (status framing, truncation notices) is the
  * executor's responsibility. Strings are owned by the executor and remain
  * valid until the next pExecute call on the same executor (rolling storage
- * is acceptable); the driving loop copies them into the session. */
+ * is acceptable); the driving loop copies them into the session.
+ * Images (read passthrough): pImageBytes/sImageMime are borrowed the same
+ * way; the driver attaches them as an IMAGE part beside the text. */
 typedef struct xllm_executor_result {
     char* sContent;
     bool bSuccess;
-    uint32_t uReserved[4];
+    const unsigned char* pImageBytes;   /* NULL when no image */
+    size_t iImageSize;
+    const char* sImageMime;             /* "image/png" etc. */
+    uint32_t uReserved[2];
 } xllm_executor_result;
 
 struct xllm_executor {

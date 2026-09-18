@@ -1402,6 +1402,115 @@ static xllm_result delegate_model_call(void* pUserData, const xllm_request* pReq
     return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
 }
 
+/* ------------------------------------------------------------------ */
+/* Image passthrough: read detects an image, the executor forwards the  */
+/* payload, the session records it as an IMAGE part on the tool result. */
+/* ------------------------------------------------------------------ */
+
+static void test_image_passthrough(void)
+{
+    static const char sWorkspace[] = "tests/tmp_xwork_image";
+    static const unsigned char sPng[] = {
+        0x89u, 'P', 'N', 'G', 0x0Du, 0x0Au, 0x1Au, 0x0Au,
+        0x00u, 0x00u, 0x00u, 0x0Du, 'I', 'H', 'D', 'R',
+        0x00u, 0x00u, 0x00u, 0x01u, 0x00u, 0x00u, 0x00u, 0x01u,
+        0x08u, 0x06u, 0x00u, 0x00u, 0x00u
+    };
+    xllm_session_config tSessionConfig;
+    xllm_session* pSession = NULL;
+    xwork_agent_config tAgentConfig;
+    xwork_agent* pAgent = NULL;
+    xwork_error tError;
+    const xwork_tool_entry* pReadTool;
+    xwork_tool_context tCtx;
+    xwork_tool_output tOut;
+    xllm_executor tExecutor;
+    size_t i;
+
+    (void)xrtDirRemoveAll(sWorkspace);
+    CHECK(xrtDirCreateAll((str)sWorkspace), "image workspace created");
+    CHECK(xrtFileWriteAtomic("tests/tmp_xwork_image/pic.dat",
+            (xbytesview){ sPng, sizeof(sPng) }), "png fixture written");
+
+    xllmSessionConfigInit(&tSessionConfig);
+    pSession = xllmSessionCreate(&tSessionConfig, NULL);
+    xworkAgentConfigInit(&tAgentConfig);
+    tAgentConfig.pSession = pSession;
+    tAgentConfig.sWorkspaceRoot = sWorkspace;
+    pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+    pReadTool = pAgent ? xwork__find_tool(pAgent, "read_file") : NULL;
+    memset(&tCtx, 0, sizeof(tCtx));
+    tCtx.pAgent = pAgent;
+    tCtx.sWorkspaceRoot = sWorkspace;
+
+    /* read detects the image by magic and returns the payload. */
+    xworkToolOutputInit(&tOut);
+    CHECK(pReadTool && pReadTool->OnExecute(pReadTool->pUserData, &tCtx,
+        "{\"path\":\"pic.dat\"}", &tOut, &tError) == XWORK_RESULT_OK &&
+        tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "image/png") &&
+        tOut.pImageBytes && tOut.iImageSize == sizeof(sPng) &&
+        memcmp(tOut.pImageBytes, sPng, sizeof(sPng)) == 0,
+        "read detects the png magic and attaches the payload");
+    xworkToolOutputUnit(&tOut);
+    /* Extension lies: a text file named .png stays text. */
+    CHECK(xrtFileWriteAtomic("tests/tmp_xwork_image/fake.png",
+            (xbytesview){ (const uint8*)"plain text", 10u }), "fake png written");
+    xworkToolOutputInit(&tOut);
+    CHECK(pReadTool && pReadTool->OnExecute(pReadTool->pUserData, &tCtx,
+        "{\"path\":\"fake.png\"}", &tOut, &tError) == XWORK_RESULT_OK &&
+        tOut.bSuccess && !tOut.pImageBytes && strstr(tOut.sContent, "plain text"),
+        "a lying extension does not trigger passthrough");
+    xworkToolOutputUnit(&tOut);
+
+    /* Full chain: executor forwards the image; the session tool message
+     * carries it as an IMAGE part. */
+    if ( pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError) ) {
+        xllm_tool_call tCall;
+        xllm_executor_ctx tECtx;
+        xllm_executor_result tEResult;
+        memset(&tCall, 0, sizeof(tCall));
+        tCall.sId = (char*)"img-1";
+        tCall.sName = (char*)"read_file";
+        tCall.sArgumentsJson = (char*)"{\"path\":\"pic.dat\"}";
+        memset(&tECtx, 0, sizeof(tECtx));
+        memset(&tEResult, 0, sizeof(tEResult));
+        CHECK(tExecutor.pExecute(tExecutor.pUserData, &tCall, &tECtx, &tEResult) &&
+            tEResult.pImageBytes && tEResult.iImageSize == sizeof(sPng) &&
+            tEResult.sImageMime && strcmp(tEResult.sImageMime, "image/png") == 0,
+            "executor forwards the image payload with mime");
+        {
+            uint64_t uTurn = xllmSessionBeginTurn(pSession);
+            xllm_tool_call tPair;
+            xllm_response tPairResponse;
+            memset(&tPair, 0, sizeof(tPair));
+            tPair.sId = (char*)"img-1";
+            tPair.sName = (char*)"read_file";
+            tPair.sArgumentsJson = (char*)"{\"path\":\"pic.dat\"}";
+            memset(&tPairResponse, 0, sizeof(tPairResponse));
+            tPairResponse.sContent = (char*)"";
+            tPairResponse.pToolCalls = &tPair;
+            tPairResponse.iToolCallCount = 1u;
+            CHECK(xllmSessionAddAssistantResponse(pSession, uTurn, &tPairResponse) &&
+                xllmSessionPendingToolCallCount(pSession) == 1u,
+                "image fixture call is pending before the result");
+            CHECK(xllmSessionAddToolResultWithImage(pSession, uTurn, "img-1",
+                tEResult.sContent, tEResult.pImageBytes, tEResult.iImageSize,
+                tEResult.sImageMime), "image tool result enters the ledger");
+            CHECK(xllmSessionPendingToolCallCount(pSession) == 0u,
+                "the image result resolves its pending call");
+        }
+        xworkExecutorUnbind(&tExecutor);
+    }
+    else {
+        CHECK(false, "executor binding for image chain");
+    }
+
+    (void)i;
+    xworkAgentDestroy(pAgent);
+    xllmSessionDestroy(pSession);
+    (void)xrtDirRemoveAll(sWorkspace);
+}
+
 static void test_subagent_delegation(void)
 {
     static const char sWorkspace[] = "tests/tmp_xwork_delegation";
@@ -1736,6 +1845,7 @@ int main(int argc, char** argv)
     test_command_context_deadline();
     test_edit_eol_write();
     test_task_system();
+    test_image_passthrough();
     test_subagent_delegation();
     test_executor_bind();
     test_readonly_subagent();

@@ -565,6 +565,31 @@ bool xllmSessionAddToolResult(xllm_session* pSession, uint64_t uTurn, const char
     return bOk;
 }
 
+bool xllmSessionAddToolResultWithImage(xllm_session* pSession, uint64_t uTurn,
+    const char* sToolCallId, const char* sContent,
+    const unsigned char* pImageBytes, size_t iImageSize, const char* sImageMime)
+{
+    xllm_message tMessage;
+    xllm_part tPart;
+    bool bOk;
+    if ( !pSession || !sToolCallId || !sToolCallId[0] ||
+         !pImageBytes || !iImageSize || !sImageMime ) { return false; }
+    xllmMessageInit(&tMessage, XLLM_ROLE_TOOL);
+    memset(&tPart, 0, sizeof(tPart));
+    if ( !xllmPartSetImageData(&tPart, pImageBytes, iImageSize, sImageMime) ) {
+        xllmPartUnit(&tPart);
+        xllmMessageUnit(&tMessage);
+        return false;
+    }
+    bOk = xllmMessageSetToolCallId(&tMessage, sToolCallId) &&
+        xllmMessageSetContent(&tMessage, sContent ? sContent : "") &&
+        xllmMessageAddPart(&tMessage, &tPart) &&
+        xllmSessionAddMessage(pSession, uTurn, &tMessage, 0u);
+    xllmPartUnit(&tPart);
+    xllmMessageUnit(&tMessage);
+    return bOk;
+}
+
 bool xllmSessionAddReference(xllm_session* pSession, uint64_t uTurn,
     const char* sSource, const char* sContent)
 {

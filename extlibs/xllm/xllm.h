@@ -143,6 +143,8 @@ typedef struct xllm_part {
 } xllm_part;
 
 void xllmPartInit(xllm_part* pPart, xllm_part_kind eKind);
+/* Release a part constructed with the xllmPartSet* helpers (deep frees). */
+void xllmPartUnit(xllm_part* pPart);
 bool xllmPartSetText(xllm_part* pPart, const char* sText);
 bool xllmPartSetImageData(xllm_part* pPart, const void* pData, size_t iSize, const char* sMediaType);
 bool xllmPartSetImageUrl(xllm_part* pPart, const char* sUrl, const char* sMediaType);
