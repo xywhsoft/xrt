@@ -446,6 +446,13 @@ typedef struct xllm_request {
     uint64_t uDeadline;
     /* Borrowed per-call lifecycle hooks; replaces the client-level set. */
     const xllm_hooks* pHooks;
+    /* Wire-prefix cache stamp (set by borrowed-view renders only): the
+     * client's serialization cache reuses bytes for [0..iStableMessages)
+     * while (pStablePrefixOwner, uStablePrefixStamp) match. Cleared on
+     * request clones because hook mutations invalidate the prefix. */
+    void* pStablePrefixOwner;
+    uint64_t uStablePrefixStamp;
+    size_t iStableMessages;
 } xllm_request;
 
 void xllmRequestInit(xllm_request* pRequest);

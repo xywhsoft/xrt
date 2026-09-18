@@ -54,6 +54,15 @@ struct xllm_session {
     uint64_t uCachedInputTokens;
     uint64_t uIncrementMax;            /* worst-case next-turn growth envelope */
     uint32_t uAutoCompactStreak;
+    /* --- performance caches (尾账 #1/#3) ---
+     * bStatsDirty: any mutation that stats reads (entries, watermarks,
+     * summary, governance fill) sets it; GetStats rebuilds lazily. The
+     * const API keeps its promise — the cache is lazy evaluation, not
+     * observable state. uRenderGeneration: bumped by the same mutators;
+     * wire-prefix caches key on it (owner pointer + generation). */
+    bool bStatsDirty;
+    xllm_session_stats tStatsCache;
+    uint64_t uRenderGeneration;
     uint64_t uLastUserSequence;        /* newest user entry at the last auto compaction */
     uint64_t uTailFloor;               /* L2: entries <= floor leave the rendered tail */
     xllm_session_pressure eLastPressure;

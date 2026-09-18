@@ -49,6 +49,7 @@ void xllm_session__record_usage(xllm_session* pSession, const xllm_usage* pUsage
     pSession->uFillExact = pUsage->uInputTokens + pUsage->uOutputTokens;
     pSession->uCachedInputTokens = pUsage->uCachedInputTokens;
     pSession->uIncrementMax = xllm_session__compute_increment(pSession);
+    pSession->bStatsDirty = true;
     xllm_session__event(pSession, XLLM_SESSION_EVENT_FILL_UPDATED, 0u, pSession->uFillExact, NULL);
     xllm_session__pressure_event(pSession);
 }
@@ -57,6 +58,7 @@ void xllm_session__invalidate_fill(xllm_session* pSession)
 {
     if ( !pSession || pSession->bFillExactValid == false ) { return; }
     pSession->bFillExactValid = false;
+    pSession->bStatsDirty = true;
     xllm_session__pressure_event(pSession);
 }
 

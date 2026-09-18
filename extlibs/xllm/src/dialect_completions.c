@@ -309,7 +309,23 @@ static bool xllm__append_tools(xllm_buf* pBuf, const xllm_completions_dialect* p
         pRequest->bParallelToolCalls ? ",\"parallel_tool_calls\":true" : ",\"parallel_tool_calls\":false");
 }
 
+static char* xllm__completions_build_request_cached(xllm_client* pClient,
+    const xllm_request* pRequest, xllm_buf* pInner, size_t iPrefixCount, xllm_error* pError);
+
 static char* xllm__completions_build_request(xllm_client* pClient, const xllm_request* pRequest, xllm_error* pError)
+{
+    xllm_buf tInner = {0};
+    char* sResult = xllm__completions_build_request_cached(pClient, pRequest, &tInner, 0u, pError);
+    xllm__free(tInner.pData);   /* the classic path does not keep the accumulator */
+    return sResult;
+}
+
+/* Incremental core: appends messages [iPrefixCount..N) into pInner (which
+ * already holds the cached prefix bytes for earlier messages) and assembles
+ * the full body around it. Per-message serialization here is stateless, so
+ * any message boundary is a valid prefix cut. */
+static char* xllm__completions_build_request_cached(xllm_client* pClient,
+    const xllm_request* pRequest, xllm_buf* pInner, size_t iPrefixCount, xllm_error* pError)
 {
     xllm_buf tBody = {0};
     xllm_completions_dialect tFlags;
@@ -329,18 +345,25 @@ static char* xllm__completions_build_request(xllm_client* pClient, const xllm_re
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "request has no messages");
         return NULL;
     }
+    if ( iPrefixCount > pRequest->iMessageCount ) {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "prefix count exceeds the message count");
+        return NULL;
+    }
     if ( pRequest->sExtraBodyJson && pRequest->sExtraBodyJson[0] &&
          !xrtJsonValid((xstrview){ pRequest->sExtraBodyJson, strlen(pRequest->sExtraBodyJson) }) ) {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "extra body JSON is not a valid JSON object");
         return NULL;
     }
-    if ( !xllm__buf_append_cstr(&tBody, "{\"model\":") || !xllm__json_string(&tBody, sModel) ||
-         !xllm__buf_append_cstr(&tBody, ",\"messages\":[") ) goto oom;
-    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
-        if ( i && !xllm__buf_append_char(&tBody, ',') ) goto oom;
-        if ( !xllm__append_message(&tBody, &pRequest->pMessages[i], &tFlags, pError) ) goto fail;
+    /* 1. Serialize the delta into the accumulator (prefix bytes ride along). */
+    for ( i = iPrefixCount; i < pRequest->iMessageCount; ++i ) {
+        if ( pInner->iLen && !xllm__buf_append_char(pInner, ',') ) goto oom;
+        if ( !xllm__append_message(pInner, &pRequest->pMessages[i], &tFlags, pError) ) goto fail;
     }
-    if ( !xllm__buf_append_char(&tBody, ']') ) goto oom;
+    /* 2. Assemble the body: header + accumulator + footer. */
+    if ( !xllm__buf_append_cstr(&tBody, "{\"model\":") || !xllm__json_string(&tBody, sModel) ||
+         !xllm__buf_append_cstr(&tBody, ",\"messages\":[") ||
+         !xllm__buf_append(&tBody, pInner->pData, pInner->iLen) ||
+         !xllm__buf_append_char(&tBody, ']') ) goto oom;
     /* Wire alignment (pi behavior): never persist this exchange server-side.
      * store governs data retention, not prompt caching. A caller-provided
      * extraBody "store" key wins to avoid duplicate keys in the merge. */
@@ -647,6 +670,7 @@ static const xllm_dialect_ops XLLM_COMPLETIONS_DIALECT = {
     "/chat/completions",
     xllm__completions_build_auth,
     xllm__completions_build_request,
+    xllm__completions_build_request_cached,
     xllm__completions_decode_sse,
     xllm__completions_decode_json,
     xllm__completions_fill_error_body,

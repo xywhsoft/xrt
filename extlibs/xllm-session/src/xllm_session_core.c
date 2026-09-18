@@ -247,6 +247,7 @@ xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* 
         xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to allocate session");
         return NULL;
     }
+    pSession->bStatsDirty = true;   /* zeroed cache must not pose as valid */
     pSession->tConfig = tConfig;
     pSession->uNextSequence = 1u;
     pSession->uFillExact = 0u;
@@ -308,6 +309,7 @@ xllm_session* xllmSessionFork(const xllm_session* pSession, xllm_error* pError)
     pFork->uTailFloor = pSession->uTailFloor;
     pFork->bFillSeen = pSession->bFillSeen;
     pFork->bFillExactValid = false;
+    pFork->bStatsDirty = true;
     pFork->uLastUserSequence = pSession->uLastUserSequence;
     xllm_session__event(pFork, XLLM_SESSION_EVENT_SESSION_FORKED, 0u, 0u, NULL);
     return pFork;
@@ -352,6 +354,7 @@ uint64_t xllmSessionBeginTurn(xllm_session* pSession)
             pSession->uCurrentTurn, 0u, NULL);
     }
     pSession->uCurrentTurn = uTurn;
+    pSession->bStatsDirty = true;
     xllm_session__event(pSession, XLLM_SESSION_EVENT_TURN_BEGIN, uTurn, 0u, NULL);
     return uTurn;
 }
@@ -406,6 +409,9 @@ bool xllmSessionAddMessage(xllm_session* pSession, uint64_t uTurn, const xllm_me
     }
     ++pSession->uNextSequence;
     ++pSession->iEntryCount;
+    pSession->bStatsDirty = true;
+    /* No prefix-generation bump: append-only growth is the cache HIT path;
+     * only mid-sequence mutations (compaction, truncation) invalidate. */
     xllm_session__event(pSession, XLLM_SESSION_EVENT_ENTRY_ADDED, pEntry->uSequence, uTurn, NULL);
     return true;
 }
@@ -526,6 +532,7 @@ bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_
         xllm_session__error(pError, XLLM_ERROR_UPSTREAM, "failed to record the system prompt");
         return false;
     }
+    ++pSession->uRenderGeneration;   /* PINNED renders at the array front */
     return true;
 }
 
@@ -740,6 +747,14 @@ bool xllmSessionGetStats(const xllm_session* pSession, xllm_session_stats* pStat
     size_t i;
     bool bPrune;
     if ( !pSession || !pStats ) { return false; }
+    /* Lazy stats cache (尾账 #1): events fire on every mutation, and each
+     * used to rescan the whole ledger — an O(N²) total. Every mutator sets
+     * bStatsDirty; the const API is kept because the cache is lazy
+     * evaluation of the same input, never observable state. */
+    if ( !pSession->bStatsDirty ) {
+        *pStats = pSession->tStatsCache;
+        return true;
+    }
     memset(pStats, 0, sizeof(*pStats));
     uInputBudget = xllm_session__input_budget(pSession);
     if ( pSession->sSummary ) { uSummaryTokens = 24u + xllmEstimateTextTokens(pSession->sSummary); }
@@ -801,6 +816,10 @@ bool xllmSessionGetStats(const xllm_session* pSession, xllm_session_stats* pStat
     pStats->uSummaryTokensExact = pSession->uSummaryOutputAtBirth;
     pStats->uSummaryGeneration = pSession->uSummaryGeneration;
     pStats->uAutoCompactStreak = pSession->uAutoCompactStreak;
+    /* Publish the cache (single writer: this thread; mutators only flip
+     * the dirty bit before any of these fields change hands). */
+    ((xllm_session*)pSession)->tStatsCache = *pStats;
+    ((xllm_session*)pSession)->bStatsDirty = false;
     return true;
 }
 

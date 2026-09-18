@@ -562,6 +562,7 @@ static const xllm_dialect_ops XLLM_RESPONSES_DIALECT = {
     "/responses",
     xllm__responses_build_auth,
     xllm__responses_build_request,
+    NULL,
     xllm__responses_decode_sse,
     xllm__responses_decode_json,
     xllm__responses_fill_error,

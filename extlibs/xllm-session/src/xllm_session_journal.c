@@ -175,6 +175,8 @@ static bool xllm_session__replay_compaction(xllm_session* pSession, xvalue* pRoo
     free(pSession->sSummary);
     pSession->sSummary = sCopy;
     pSession->uCompactedThrough = uThrough;
+    pSession->bStatsDirty = true;
+    ++pSession->uRenderGeneration;
     pSession->uCompactionCount = uCount;
     if ( uGeneration > pSession->uSummaryGeneration ) {
         pSession->uSummaryGeneration = (uint32_t)uGeneration;
@@ -195,6 +197,8 @@ static bool xllm_session__replay_truncate(xllm_session* pSession, xvalue* pRoot)
         return false;
     }
     pSession->uTailFloor = uTo;
+        pSession->bStatsDirty = true;
+        ++pSession->uRenderGeneration;
     ++pSession->uSummaryGeneration;
     return true;
 }

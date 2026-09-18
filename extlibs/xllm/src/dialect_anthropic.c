@@ -644,6 +644,7 @@ static const xllm_dialect_ops XLLM_ANTHROPIC_DIALECT = {
     "/v1/messages",
     xllm__anthropic_build_auth,
     xllm__anthropic_build_request,
+    NULL,
     xllm__anthropic_decode_sse,
     xllm__anthropic_decode_json,
     xllm__anthropic_fill_error,

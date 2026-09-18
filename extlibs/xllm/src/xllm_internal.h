@@ -115,6 +115,15 @@ struct xllm_client {
     xllm_connection* pIdleConnections[XLLM_MAX_IDLE_CONNECTIONS];
     uint32_t uIdleConnectionCount;
     uint32_t uMaxIdleConnections;
+    /* --- wire-prefix cache (尾账 #3): inner bytes of the serialized
+     * messages array for [0..iPrefixCacheMessages). Keyed by the
+     * view-render stamp; the accumulator only grows between misses. */
+    void* pPrefixCacheOwner;
+    uint64_t uPrefixCacheStamp;
+    size_t iPrefixCacheMessages;
+    char* sPrefixCacheInner;
+    size_t iPrefixCacheLen;
+    size_t iPrefixCacheCap;
 };
 
 /* Assembly bookkeeping parallel to the response arrays so appends stay O(n). */
@@ -230,6 +239,13 @@ typedef struct xllm_dialect_ops {
     size_t (*BuildAuth)(const xllm_client* pClient, xllm_auth_header* pOut, size_t iCap);
     /* Serialize the unified request into a provider JSON body (owned). */
     char* (*BuildRequest)(xllm_client* pClient, const xllm_request* pRequest, xllm_error* pError);
+    /* Incremental serialization (尾账 #3): append messages
+     * [iPrefixCount..iMessageCount) into pInner (which already holds the
+     * cached prefix bytes) and assemble the full body around it. Only
+     * dialects whose per-message serialization is stateless implement
+     * this; others leave it NULL and the client falls back. */
+    char* (*BuildRequestCached)(xllm_client* pClient, const xllm_request* pRequest,
+        xllm_buf* pInner, size_t iPrefixCount, xllm_error* pError);
     /* Decode one assembled SSE event into unified events/response. */
     bool (*DecodeSseEvent)(xllm_call* pCall, const xllm_sse_fields* pFields);
     /* Decode a complete non-streaming JSON body. */

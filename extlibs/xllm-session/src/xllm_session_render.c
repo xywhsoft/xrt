@@ -44,48 +44,112 @@ static bool xllm_session__render_entry(const xllm_session* pSession, const xllm_
 
 /* Pair-safety of SKIP decisions: a rendered tool result whose call was
  * skipped, or a rendered assistant call whose only result was skipped,
- * would produce a provider-invalid request. */
+ * would produce a provider-invalid request. One pass builds an id table
+ * (FNV-1a, linear probing) aggregating kept flags per tool_call id; the
+ * checks are then O(1) lookups — O(N) total instead of the old nested
+ * O(N^2 x calls) rescan. */
+typedef struct xllm_session_pair_slot {
+    const char* sId;          /* borrowed from the ledger */
+    bool bCallExists;
+    bool bCallKept;
+    bool bResultExists;
+    bool bResultKept;
+} xllm_session_pair_slot;
+
+static size_t xllm_session__pair_hash(const char* sId, size_t iMask)
+{
+    size_t u = 1469598103934665603ull;   /* FNV-1a offset */
+    while ( *sId ) {
+        u ^= (unsigned char)*sId++;
+        u *= 1099511628211ull;
+    }
+    return u & iMask;
+}
+
+static xllm_session_pair_slot* xllm_session__pair_slot_find(
+    xllm_session_pair_slot* pTable, size_t iCap, const char* sId, bool bInsert)
+{
+    size_t u = xllm_session__pair_hash(sId, iCap - 1u);
+    for ( ; ; ) {
+        xllm_session_pair_slot* pSlot = &pTable[u];
+        if ( !pSlot->sId ) {
+            return bInsert ? pSlot : NULL;
+        }
+        if ( strcmp(pSlot->sId, sId) == 0 ) { return pSlot; }
+        u = (u + 1u) & (iCap - 1u);
+    }
+}
+
 static bool xllm_session__skip_pair_safe(const xllm_session* pSession, const bool* pbKept)
 {
     size_t i;
+    size_t iIds = 0u;
+    size_t iCap = 16u;
+    xllm_session_pair_slot* pTable;
+
+    /* Size the table from the id population first. */
+    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
+        const xllm_session_entry* pEntry = &pSession->pEntries[i];
+        if ( pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT ) {
+            iIds += pEntry->tMessage.iToolCallCount;
+        } else if ( pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId ) {
+            ++iIds;
+        }
+    }
+    while ( iCap < iIds * 2u + 1u ) iCap <<= 1;
+    pTable = (xllm_session_pair_slot*)calloc(iCap, sizeof(*pTable));
+    if ( !pTable ) {
+        return false;   /* allocation failure: fail closed (render aborts) */
+    }
+
+    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
+        const xllm_session_entry* pEntry = &pSession->pEntries[i];
+        if ( pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT ) {
+            size_t m;
+            for ( m = 0u; m < pEntry->tMessage.iToolCallCount; ++m ) {
+                xllm_session_pair_slot* pSlot = xllm_session__pair_slot_find(pTable, iCap,
+                    pEntry->tMessage.pToolCalls[m].sId, true);
+                if ( !pSlot->sId ) {
+                    pSlot->sId = pEntry->tMessage.pToolCalls[m].sId;
+                }
+                pSlot->bCallExists = true;
+                if ( pbKept[i] ) { pSlot->bCallKept = true; }
+            }
+        } else if ( pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId ) {
+            xllm_session_pair_slot* pSlot = xllm_session__pair_slot_find(pTable, iCap,
+                pEntry->tMessage.sToolCallId, true);
+            if ( !pSlot->sId ) {
+                pSlot->sId = pEntry->tMessage.sToolCallId;
+            }
+            pSlot->bResultExists = true;
+            if ( pbKept[i] ) { pSlot->bResultKept = true; }
+        }
+    }
+
     for ( i = 0u; i < pSession->iEntryCount; ++i ) {
         const xllm_session_entry* pEntry = &pSession->pEntries[i];
         if ( !pbKept[i] ) continue;
         if ( pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId ) {
-            const char* sId = pEntry->tMessage.sToolCallId;
-            size_t k;
-            bool bCallExists = false;
-            bool bCallKept = false;
-            for ( k = 0u; k < pSession->iEntryCount; ++k ) {
-                const xllm_session_entry* pCall = &pSession->pEntries[k];
-                size_t m;
-                if ( pCall->tMessage.eRole != XLLM_ROLE_ASSISTANT ) continue;
-                for ( m = 0u; m < pCall->tMessage.iToolCallCount; ++m ) {
-                    if ( strcmp(pCall->tMessage.pToolCalls[m].sId, sId) == 0 ) {
-                        bCallExists = true;
-                        if ( pbKept[k] ) { bCallKept = true; }
-                    }
-                }
+            const xllm_session_pair_slot* pSlot = xllm_session__pair_slot_find(pTable, iCap,
+                pEntry->tMessage.sToolCallId, false);
+            if ( pSlot && pSlot->bCallExists && !pSlot->bCallKept ) {
+                free(pTable);
+                return false;
             }
-            if ( bCallExists && !bCallKept ) { return false; }
-        } else if ( pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT ) {
-            size_t j;
-            for ( j = 0u; j < pEntry->tMessage.iToolCallCount; ++j ) {
-                const char* sId = pEntry->tMessage.pToolCalls[j].sId;
-                size_t k;
-                bool bResultExists = false;
-                bool bResultKept = false;
-                for ( k = 0u; k < pSession->iEntryCount; ++k ) {
-                    const xllm_session_entry* pTool = &pSession->pEntries[k];
-                    if ( pTool->tMessage.eRole != XLLM_ROLE_TOOL || !pTool->tMessage.sToolCallId ||
-                         strcmp(pTool->tMessage.sToolCallId, sId) != 0 ) continue;
-                    bResultExists = true;
-                    if ( pbKept[k] ) { bResultKept = true; }
+        } else if ( pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT &&
+                    pEntry->tMessage.iToolCallCount ) {
+            size_t m;
+            for ( m = 0u; m < pEntry->tMessage.iToolCallCount; ++m ) {
+                const xllm_session_pair_slot* pSlot = xllm_session__pair_slot_find(pTable, iCap,
+                    pEntry->tMessage.pToolCalls[m].sId, false);
+                if ( pSlot && pSlot->bResultExists && !pSlot->bResultKept ) {
+                    free(pTable);
+                    return false;
                 }
-                if ( bResultExists && !bResultKept ) { return false; }
             }
         }
     }
+    free(pTable);
     return true;
 }
 
@@ -290,6 +354,16 @@ static bool xllm_session__build_request_impl(const xllm_session* pSession, xllm_
     bOk = true;
 done:
     free(pbKept);
+    if ( bOk && bView ) {
+        /* Stamp the request for the client's wire-prefix cache. The stamp
+         * folds the prune flag: a prune flip rewrites old tool outputs and
+         * must invalidate cached bytes even though the generation is
+         * unchanged. Identity upgrades (new PINNED entries) render at the
+         * FRONT of the array — SetSystemProgress bumps the generation. */
+        pRequest->pStablePrefixOwner = (void*)pSession;
+        pRequest->uStablePrefixStamp = pSession->uRenderGeneration * 2u + (bPrune ? 1u : 0u);
+        pRequest->iStableMessages = pRequest->iMessageCount;
+    }
     return bOk;
 }
 

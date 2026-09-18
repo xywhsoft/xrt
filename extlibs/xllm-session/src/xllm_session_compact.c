@@ -779,6 +779,8 @@ bool xllmSessionCommitCompaction(xllm_session* pSession, xllm_compaction* pCompa
     pSession->uCompactedThrough = pCompaction->uThroughSequence;
     ++pSession->uCompactionCount;
     ++pSession->uSummaryGeneration;
+    pSession->bStatsDirty = true;
+    ++pSession->uRenderGeneration;
     pSession->uSummaryPromptAtBirth = pCompaction->uUsagePromptTokens;
     pSession->uSummaryOutputAtBirth = pCompaction->uUsageOutputTokens;
     /* Streak anchor: compactions from here need a new user entry to reset. */
@@ -932,6 +934,8 @@ bool xllmSessionOverflowLadder(xllm_session* pSession, xllm_error* pError)
         }
         pSession->uTailFloor = uCut;
         ++pSession->uSummaryGeneration;
+        pSession->bStatsDirty = true;
+        ++pSession->uRenderGeneration;
         xllm_session__invalidate_fill(pSession);
         xllm_session__event(pSession, XLLM_SESSION_EVENT_LADDER_TRUNCATE, uOldFloor, uCut, "overflow_l2");
         return true;

@@ -300,6 +300,7 @@ void xllmClientDestroy(xllm_client* pClient)
     xllm__free(pClient->sHost);
     xllm__free(pClient->sTarget);
     xllm__free(pClient->sHostHeader);
+    xllm__free(pClient->sPrefixCacheInner);
     xllm__free(pClient);
 }
 
@@ -466,6 +467,11 @@ bool xllm__request_clone(xllm_request* pDst, const xllm_request* pSrc)
     size_t i;
     if ( !pDst || !pSrc ) { return false; }
     xllmRequestInit(pDst);
+    /* The prefix stamp does not survive cloning: pOnRequest may mutate any
+     * message, and the cached prefix bytes would no longer match. */
+    pDst->pStablePrefixOwner = NULL;
+    pDst->uStablePrefixStamp = 0u;
+    pDst->iStableMessages = 0u;
     pDst->uReasoningBudgetTokens = pSrc->uReasoningBudgetTokens;
     pDst->uMaxOutputTokens = pSrc->uMaxOutputTokens;
     pDst->fTemperature = pSrc->fTemperature;
@@ -510,6 +516,46 @@ static bool xllm__wire_valid(const xllm_wire* pWire)
 static xllm_call* xllm__client_start(xllm_client* pClient,
     const xllm_request* pRequest, const xllm_stream_callbacks* pCallbacks,
     uint32_t uAttempt, xllm_error* pError);
+
+/* Wire-prefix serialization (尾账 #3): with a stamped view request and a
+ * prefix-safe dialect, the cached messages-array bytes are reused and only
+ * the delta is serialized; the accumulator persists across calls. Any miss
+ * (owner/stamp/monotonic-count) falls back to a full rebuild through the
+ * same incremental op with an empty prefix. */
+static char* xllm__client_serialize_body(xllm_client* pClient,
+    const xllm_request* pRequest, xllm_error* pError)
+{
+    char* sBody;
+    if ( pClient->pDialect->BuildRequestCached && pRequest->pStablePrefixOwner ) {
+        bool bHit = pClient->pPrefixCacheOwner == pRequest->pStablePrefixOwner &&
+            pClient->uPrefixCacheStamp == pRequest->uStablePrefixStamp &&
+            pClient->iPrefixCacheMessages <= pRequest->iStableMessages;
+        xllm_buf tInner;
+        if ( !bHit ) {
+            pClient->iPrefixCacheLen = 0u;   /* accumulator resets; buffer kept */
+            pClient->iPrefixCacheMessages = 0u;
+            pClient->pPrefixCacheOwner = pRequest->pStablePrefixOwner;
+            pClient->uPrefixCacheStamp = pRequest->uStablePrefixStamp;
+        }
+        tInner.pData = pClient->sPrefixCacheInner;
+        tInner.iLen = pClient->iPrefixCacheLen;
+        tInner.iCap = pClient->iPrefixCacheCap;
+        sBody = pClient->pDialect->BuildRequestCached(pClient, pRequest,
+            &tInner, pClient->iPrefixCacheMessages, pError);
+        /* The accumulator may have reallocated; take the final state back. */
+        pClient->sPrefixCacheInner = tInner.pData;
+        pClient->iPrefixCacheLen = tInner.iLen;
+        pClient->iPrefixCacheCap = tInner.iCap;
+        pClient->iPrefixCacheMessages = pRequest->iStableMessages;
+        return sBody;
+    }
+    if ( pClient->sPrefixCacheInner ) {
+        pClient->iPrefixCacheLen = 0u;
+        pClient->iPrefixCacheMessages = 0u;
+        pClient->pPrefixCacheOwner = NULL;
+    }
+    return pClient->pDialect->BuildRequest(pClient, pRequest, pError);
+}
 
 xllm_call* xllmClientStart(
     xllm_client* pClient,
@@ -559,7 +605,7 @@ static xllm_call* xllm__client_start(
         if ( pClone ) { xllmRequestUnit(pClone); xllm__free(pClone); }
         return NULL;
     }
-    sBody = pClient->pDialect->BuildRequest(pClient, pEffective, pError);
+    sBody = xllm__client_serialize_body(pClient, pEffective, pError);
     if ( !sBody ) {
         if ( pClone ) { xllmRequestUnit(pClone); xllm__free(pClone); }
         return NULL;
