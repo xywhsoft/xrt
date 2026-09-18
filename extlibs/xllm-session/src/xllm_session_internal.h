@@ -63,6 +63,8 @@ struct xllm_session {
     bool bStatsDirty;
     xllm_session_stats tStatsCache;
     uint64_t uRenderGeneration;
+    uint64_t uSessionNonce;        /* global unique-per-instance: prefix-cache
+                                    * owner identity survives address reuse */
     uint64_t uLastUserSequence;        /* newest user entry at the last auto compaction */
     uint64_t uTailFloor;               /* L2: entries <= floor leave the rendered tail */
     xllm_session_pressure eLastPressure;

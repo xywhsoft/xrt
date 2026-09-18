@@ -180,7 +180,7 @@ oom:
 cleanup:
     if ( tArgs ) xrtValueRelease(tArgs);
     free(sResolved);
-    if ( pData && iSize ) xrtFree(pData);
+    if ( pData ) xrtFree(pData);   /* xrt returns a freeable buffer even when empty */
     xwork__buf_unit(&tOutput);
     return eResult;
 }
@@ -353,6 +353,7 @@ static xwork_result xwork__tool_write(
         }
         if ( pAgent->eEolPolicy == XWORK_EOL_PRESERVE ) {
             sStored = xwork__strdup(sContent);
+            if ( sStored ) { iStoredLen = strlen(sStored); }
             if ( !sStored ) goto oom;
         } else {
             sLf = xwork__normalize_to_lf(sContent, strlen(sContent), NULL);
@@ -380,7 +381,7 @@ cleanup:
     if ( tArgs ) xrtValueRelease(tArgs);
     free(sResolved);
     free(sStored);
-    free(sExisting);
+    if ( sExisting ) xrtFree(sExisting);
     xwork__buf_unit(&tOutput);
     return eResult;
 }
@@ -470,6 +471,7 @@ static xwork_result xwork__tool_edit(
     const char* sPath;
     char* sResolved = NULL;
     char* sRaw = NULL;
+    bool bRawFromXrt = false;
     char* sLf = NULL;
     char* sStored = NULL;
     char** psNew = NULL;
@@ -518,8 +520,9 @@ static xwork_result xwork__tool_edit(
     if ( !xrtFileExists((str)sResolved) ) { eResult = xwork__tool_fail(pOutput, "file does not exist"); goto cleanup; }
     sRaw = (char*)xrtFileReadAll(sResolved, &iRaw);
     if ( !sRaw && iRaw ) { eResult = xwork__tool_fail(pOutput, "failed to read file"); goto cleanup; }
+    bRawFromXrt = sRaw != NULL;   /* xrt returns a freeable buffer even when empty */
     if ( !sRaw ) sRaw = xwork__strdup("");
-    if ( iRaw >= 8192u && memchr(sRaw, 0, 8192u) != NULL ) {
+    if ( memchr(sRaw, 0, iRaw) != NULL ) {
         eResult = xwork__tool_fail(pOutput, "binary file; edit supports UTF-8 text only");
         goto cleanup;
     }
@@ -620,8 +623,8 @@ oom:
 cleanup:
     if ( tArgs ) xrtValueRelease(tArgs);
     free(sResolved);
-    if ( sRaw && iRaw ) xrtFree(sRaw);
-    else free(sRaw);
+    if ( bRawFromXrt ) { if ( sRaw ) xrtFree(sRaw); }
+    else { free(sRaw); }
     free(sLf);
     free(sStored);
     if ( psNew ) { for ( i = 0u; i < iEditCount; ++i ) free(psNew[i]); free(psNew); }
@@ -773,8 +776,14 @@ static void xwork__process_entry_close(xwork_process_entry* pEntry)
             (void)xrtCancelRequest(pEntry->pChildCancel);
         }
         if ( pEntry->pThread ) {
-            (void)xrtThreadWaitFor(pEntry->pThread, UINT64_C(5000000));
+            /* The cancel propagates into the delegate's model calls and the
+             * loop-top checks; an unbounded join is safe because every wait
+             * in the composition honors the token or a deadline. */
+            (void)xrtThreadWait(pEntry->pThread);
             xrtThreadDestroy(pEntry->pThread);
+        }
+        if ( pEntry->pChildCancel ) {
+            xrtCancelDestroy(pEntry->pChildCancel);
         }
         if ( pEntry->pStateLock ) {
             (void)xrtMutexLock(pEntry->pStateLock);
@@ -783,8 +792,6 @@ static void xwork__process_entry_close(xwork_process_entry* pEntry)
             (void)xrtMutexUnlock(pEntry->pStateLock);
             (void)xrtMutexDestroy(pEntry->pStateLock);
         }
-        /* The delegate thread owns the child cancel and destroys it on exit;
-         * foreground paths never populate these fields. */
         free(pEntry->sCommand);
         free(pEntry->sNotify);
         memset(pEntry, 0, sizeof(*pEntry));
@@ -834,11 +841,12 @@ xwork_process_entry* xwork__task_add(xwork_agent* pAgent, xwork_task_kind eKind)
 }
 
 /* Wait up to uWaitMs for a task of either kind to finish. */
-static bool xwork__wait_task(xwork_process_entry* pEntry, uint64_t uWaitMs)
+static bool xwork__wait_task(xwork_agent* pAgent, xwork_process_entry* pEntry, uint64_t uWaitMs)
 {
     uint64_t uDeadline = xrtDeadlineAfter(uWaitMs * UINT64_C(1000));
     while ( xwork__task_entry_running(pEntry) ) {
         if ( xrtDeadlineExpired(uDeadline) ) return false;
+        if ( xwork__is_cancelled(pAgent) ) return false;
         xrtSleep(5u);
     }
     return true;
@@ -884,7 +892,12 @@ xwork_process_entry* xwork__process_add(xwork_agent* pAgent)
     size_t i;
     size_t iCap;
     for ( i = pAgent->iProcessCount; i > 0u && pAgent->iProcessCount >= pAgent->uMaxManagedProcesses; --i ) {
-        if ( !xwork__task_entry_running(&pAgent->pProcesses[i - 1u]) ) xwork__process_remove(pAgent, i - 1u);
+        xwork_process_entry* pCandidate = &pAgent->pProcesses[i - 1u];
+        /* Only reclaim finished tasks whose completion notice was consumed;
+         * an unclaimed notice is still owed to the host/model. */
+        if ( !xwork__task_entry_running(pCandidate) && pCandidate->bNoticeTaken ) {
+            xwork__process_remove(pAgent, i - 1u);
+        }
     }
     if ( pAgent->iProcessCount >= pAgent->uMaxManagedProcesses ) return NULL;
     if ( pAgent->iProcessCount == pAgent->iProcessCap ) {
@@ -937,6 +950,7 @@ fail:
 }
 
 static bool xwork__append_process_status(
+    xwork_agent* pAgent,
     xwork_buf* pOutput,
     xwork_process_entry* pEntry,
     uint32_t uWaitMs,
@@ -946,7 +960,7 @@ static bool xwork__append_process_status(
     bool bRunning;
     xprocessstatus tExit;
     if ( uWaitMs && xwork__task_entry_running(pEntry) ) {
-        (void)xwork__wait_task(pEntry, uWaitMs);
+        (void)xwork__wait_task(pAgent, pEntry, uWaitMs);
     }
     bRunning = xwork__task_entry_running(pEntry);
     if ( pEntry->eKind == XWORK_TASK_AGENT ) {
@@ -1110,6 +1124,7 @@ static bool xwork__process_wait_all_ready(xwork_agent* pAgent,
         }
         if ( bAll ? iReady == iCount : iReady >  0u ) return true;
         if ( xrtDeadlineExpired(uDeadline) ) return false;
+        if ( xwork__is_cancelled(pAgent) ) return false;
         xrtSleep(10u);
     }
 }
@@ -1339,14 +1354,14 @@ static xwork_result xwork__tool_poll(
     pEntry = xwork__process_find(pAgent, uId, &iIndex);
     if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released task_id"); goto cleanup; }
     if ( bRelease && xwork__task_entry_running(pEntry) ) {
-        if ( uWaitMs ) (void)xwork__wait_task(pEntry, uWaitMs);
+        if ( uWaitMs ) (void)xwork__wait_task(pAgent, pEntry, uWaitMs);
         uWaitMs = 0u;
         if ( xwork__task_entry_running(pEntry) ) {
             eResult = xwork__tool_fail(pOutput, "cannot release a running task; stop it first");
             goto cleanup;
         }
     }
-    if ( !xwork__append_process_status(&tOutput, pEntry, (uint32_t)uWaitMs, (size_t)uMaxBytes) ) goto oom;
+    if ( !xwork__append_process_status(pAgent, &tOutput, pEntry, (uint32_t)uWaitMs, (size_t)uMaxBytes) ) goto oom;
     if ( !xworkToolOutputSet(pOutput, true, tOutput.pData) ) goto oom;
     if ( bRelease ) xwork__process_remove(pAgent, iIndex);
     eResult = XWORK_RESULT_OK;
@@ -1467,9 +1482,9 @@ static xwork_result xwork__tool_stop(
         if ( !bRequested ) { eResult = xwork__tool_fail(pOutput, "task stop request failed"); goto cleanup; }
     }
     if ( uWaitMs && xwork__task_entry_running(pEntry) ) {
-        (void)xwork__wait_task(pEntry, uWaitMs);
+        (void)xwork__wait_task(pAgent, pEntry, uWaitMs);
     }
-    if ( !xwork__append_process_status(&tOutput, pEntry, (uint32_t)uWaitMs, 64u * 1024u) ) goto oom;
+    if ( !xwork__append_process_status(pAgent, &tOutput, pEntry, (uint32_t)uWaitMs, 64u * 1024u) ) goto oom;
     bRunning = xwork__task_entry_running(pEntry);
     if ( !xworkToolOutputSet(pOutput, !bRunning, tOutput.pData) ) goto oom;
     if ( bRelease && !bRunning ) xwork__process_remove(pAgent, iIndex);
@@ -1737,7 +1752,7 @@ static xwork_result xwork__tool_wait(
     for ( i = 0u; i < iIdCount; ++i ) {
         xwork_process_entry* pEntry = xwork__process_find(pAgent, puIds[i], NULL);
         if ( !pEntry ) continue;
-        if ( !xwork__append_process_status(&tOutput, pEntry, 0u, 4096u) ) goto oom;
+        if ( !xwork__append_process_status(pAgent, &tOutput, pEntry, 0u, 4096u) ) goto oom;
     }
     if ( !xworkToolOutputSet(pOutput, true, tOutput.pData ? tOutput.pData : "") ) goto oom;
     eResult = XWORK_RESULT_OK;

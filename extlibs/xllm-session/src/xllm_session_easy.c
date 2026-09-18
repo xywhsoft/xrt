@@ -212,6 +212,11 @@ xllm_result xllmSessionSend(xllm_session* pSession, const char* sUserText,
 bool xllmSessionSetHooks(xllm_session* pSession, const xllm_session_hooks* pHooks)
 {
     if ( !pSession ) { return false; }
+    if ( pSession->pHooks != pHooks ) {
+        /* Render hooks reshape request bytes; cached wire prefixes built
+         * under the previous hooks must not survive the swap. */
+        ++pSession->uRenderGeneration;
+    }
     pSession->pHooks = pHooks;
     return true;
 }

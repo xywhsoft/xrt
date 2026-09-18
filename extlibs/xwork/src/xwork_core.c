@@ -695,6 +695,12 @@ void xworkAgentDestroy(xwork_agent* pAgent)
     free(pAgent->sModel);
     free(pAgent->sReasoningEffort);
     xrtCancelDestroy(pAgent->pCancel);
+    if ( pAgent->pSubagentTypes ) {
+        for ( i = 0u; i < pAgent->iSubagentTypeCount; ++i ) {
+            xwork__subagent_type_unit(&pAgent->pSubagentTypes[i]);
+        }
+        free(pAgent->pSubagentTypes);
+    }
     free(pAgent);
 }
 

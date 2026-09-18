@@ -542,7 +542,17 @@ static char* xllm__client_serialize_body(xllm_client* pClient,
         tInner.iCap = pClient->iPrefixCacheCap;
         sBody = pClient->pDialect->BuildRequestCached(pClient, pRequest,
             &tInner, pClient->iPrefixCacheMessages, pError);
-        /* The accumulator may have reallocated; take the final state back. */
+        if ( !sBody ) {
+            /* Failure may have appended a partial delta to the accumulator;
+             * the byte length is no longer trustworthy. Invalidate the count
+             * so the next call rebuilds from scratch instead of sending a
+             * truncated body spliced onto half-written bytes. */
+            pClient->iPrefixCacheLen = 0u;
+            pClient->iPrefixCacheMessages = 0u;
+            pClient->sPrefixCacheInner = tInner.pData;
+            pClient->iPrefixCacheCap = tInner.iCap;
+            return NULL;
+        }
         pClient->sPrefixCacheInner = tInner.pData;
         pClient->iPrefixCacheLen = tInner.iLen;
         pClient->iPrefixCacheCap = tInner.iCap;

@@ -175,6 +175,18 @@ void xllmSessionConfigInit(xllm_session_config* pConfig)
     pConfig->sSummaryStyle = NULL; /* "coding" (Pi) */
 }
 
+static uint64_t xllm_session__next_nonce(void)
+{
+    static volatile uint64_t uCounter = 0u;
+#if defined(_MSC_VER)
+    return (uint64_t)_InterlockedExchangeAdd64((volatile LONG64*)&uCounter, 1) + 1u;
+#elif defined(__GNUC__) || defined(__clang__)
+    return __atomic_add_fetch(&uCounter, 1u, __ATOMIC_SEQ_CST);
+#else
+    return ++uCounter;
+#endif
+}
+
 xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* pError)
 {
     xllm_session_config tConfig;
@@ -248,6 +260,7 @@ xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* 
         return NULL;
     }
     pSession->bStatsDirty = true;   /* zeroed cache must not pose as valid */
+    pSession->uSessionNonce = xllm_session__next_nonce();
     pSession->tConfig = tConfig;
     pSession->uNextSequence = 1u;
     pSession->uFillExact = 0u;
@@ -410,8 +423,12 @@ bool xllmSessionAddMessage(xllm_session* pSession, uint64_t uTurn, const xllm_me
     ++pSession->uNextSequence;
     ++pSession->iEntryCount;
     pSession->bStatsDirty = true;
-    /* No prefix-generation bump: append-only growth is the cache HIT path;
-     * only mid-sequence mutations (compaction, truncation) invalidate. */
+    /* No prefix-generation bump for tail appends (the cache HIT path); but
+     * PINNED entries render at the FRONT of the request array — a direct
+     * PINNED AddMessage is a mid-sequence insertion and must invalidate. */
+    if ( uFlags & XLLM_SESSION_ENTRY_PINNED ) {
+        ++pSession->uRenderGeneration;
+    }
     xllm_session__event(pSession, XLLM_SESSION_EVENT_ENTRY_ADDED, pEntry->uSequence, uTurn, NULL);
     return true;
 }
@@ -482,6 +499,7 @@ bool xllmSessionNoteFileRead(xllm_session* pSession, const char* sPath)
             &pSession->iReadFileCap, sPath, &bAdded) ) {
         return false;
     }
+    if ( bAdded ) { ++pSession->uRenderGeneration; }
     return !bAdded || xllm_session__journal_append_ledger(pSession, "read", sPath);
 }
 
@@ -493,6 +511,7 @@ bool xllmSessionNoteFileModified(xllm_session* pSession, const char* sPath)
             &pSession->iModifiedFileCap, sPath, &bAdded) ) {
         return false;
     }
+    if ( bAdded ) { ++pSession->uRenderGeneration; }
     return !bAdded || xllm_session__journal_append_ledger(pSession, "modified", sPath);
 }
 
@@ -532,7 +551,7 @@ bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_
         xllm_session__error(pError, XLLM_ERROR_UPSTREAM, "failed to record the system prompt");
         return false;
     }
-    ++pSession->uRenderGeneration;   /* PINNED renders at the array front */
+    /* The PINNED AddMessage above already bumped the render generation. */
     return true;
 }
 

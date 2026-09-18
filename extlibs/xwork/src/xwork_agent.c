@@ -795,9 +795,13 @@ static xwork_result xwork__agent_run(
                 xllm_pending_tool_call tPending;
                 xllm_tool_call tCall;
                 char* sToolResult = NULL;
+                unsigned char* pToolImage = NULL;
+                size_t iToolImageSize = 0u;
+                char sToolImageMime[32];
                 bool bToolSuccess = false;
                 bool bToolEffectApplied = false;
                 const xwork_tool_entry* pExecutedTool;
+                memset(sToolImageMime, 0, sizeof(sToolImageMime));
                 if ( !xllmSessionPendingToolCallAt(pAgent->pSession, 0u, &tPending) ) {
                     xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to inspect a pending recovered tool call");
                     eResult = XWORK_RESULT_ERROR;
@@ -810,16 +814,30 @@ static xwork_result xwork__agent_run(
                 uTurn = tPending.uTurn;
                 pExecutedTool = xwork__find_tool(pAgent, tCall.sName ? tCall.sName : "");
                 eResult = xwork__execute_tool(pAgent, &tCall, uTurn, &sToolResult,
-                    &bToolSuccess, &bToolEffectApplied, NULL, NULL, NULL, pError);
-                if ( eResult != XWORK_RESULT_OK ) { free(sToolResult); goto cleanup; }
-                if ( !tCall.sId || !tCall.sId[0] ||
-                     !xllmSessionAddToolResult(pAgent->pSession, uTurn, tCall.sId, sToolResult) ) {
-                    free(sToolResult);
+                    &bToolSuccess, &bToolEffectApplied, &pToolImage, &iToolImageSize, sToolImageMime, pError);
+                if ( eResult != XWORK_RESULT_OK ) { free(sToolResult); free(pToolImage); goto cleanup; }
+                if ( !tCall.sId || !tCall.sId[0] ) {
+                    free(sToolResult); free(pToolImage);
+                    xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to append a recovered tool result to session");
+                    eResult = XWORK_RESULT_ERROR;
+                    goto cleanup;
+                }
+                if ( pToolImage && iToolImageSize && sToolImageMime[0] ) {
+                    if ( !xllmSessionAddToolResultWithImage(pAgent->pSession, uTurn, tCall.sId,
+                            sToolResult, pToolImage, iToolImageSize, sToolImageMime) ) {
+                        free(sToolResult); free(pToolImage);
+                        xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to append a recovered tool result to session");
+                        eResult = XWORK_RESULT_ERROR;
+                        goto cleanup;
+                    }
+                } else if ( !xllmSessionAddToolResult(pAgent->pSession, uTurn, tCall.sId, sToolResult) ) {
+                    free(sToolResult); free(pToolImage);
                     xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to append a recovered tool result to session");
                     eResult = XWORK_RESULT_ERROR;
                     goto cleanup;
                 }
                 free(sToolResult);
+                free(pToolImage);
                 ++tRun.uToolCalls;
                 if ( bToolEffectApplied && pExecutedTool && pExecutedTool->eEffect == XWORK_TOOL_EFFECT_WORKSPACE_WRITE ) {
                     bWorkspaceChanged = true;
@@ -1015,22 +1033,43 @@ static xwork_result xwork__agent_run(
         }
         for ( i = 0u; i < pResponse->iToolCallCount; ++i ) {
             char* sToolResult = NULL;
+            unsigned char* pToolImage = NULL;
+            size_t iToolImageSize = 0u;
+            char sToolImageMime[32];
             bool bToolSuccess = false;
             bool bToolEffectApplied = false;
             const char* sCallId = pResponse->pToolCalls[i].sId;
+            memset(sToolImageMime, 0, sizeof(sToolImageMime));
             const xwork_tool_entry* pExecutedTool = xwork__find_tool(pAgent,
                 pResponse->pToolCalls[i].sName ? pResponse->pToolCalls[i].sName : "");
             eResult = xwork__execute_tool(pAgent, &pResponse->pToolCalls[i], uTurn, &sToolResult,
-                &bToolSuccess, &bToolEffectApplied, NULL, NULL, NULL, pError);
-            if ( eResult != XWORK_RESULT_OK ) { free(sToolResult); xllmResponseDestroy(pResponse); goto cleanup; }
-            if ( !sCallId || !sCallId[0] || !xllmSessionAddToolResult(pAgent->pSession, uTurn, sCallId, sToolResult) ) {
-                free(sToolResult);
+                &bToolSuccess, &bToolEffectApplied, &pToolImage, &iToolImageSize, sToolImageMime, pError);
+            if ( eResult != XWORK_RESULT_OK ) { free(sToolResult); free(pToolImage); xllmResponseDestroy(pResponse); goto cleanup; }
+            if ( !sCallId || !sCallId[0] ) {
+                free(sToolResult); free(pToolImage);
+                xllmResponseDestroy(pResponse);
+                xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to append tool result to session");
+                eResult = XWORK_RESULT_ERROR;
+                goto cleanup;
+            }
+            if ( pToolImage && iToolImageSize && sToolImageMime[0] ) {
+                if ( !xllmSessionAddToolResultWithImage(pAgent->pSession, uTurn, sCallId,
+                        sToolResult, pToolImage, iToolImageSize, sToolImageMime) ) {
+                    free(sToolResult); free(pToolImage);
+                    xllmResponseDestroy(pResponse);
+                    xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to append tool result to session");
+                    eResult = XWORK_RESULT_ERROR;
+                    goto cleanup;
+                }
+            } else if ( !xllmSessionAddToolResult(pAgent->pSession, uTurn, sCallId, sToolResult) ) {
+                free(sToolResult); free(pToolImage);
                 xllmResponseDestroy(pResponse);
                 xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to append tool result to session");
                 eResult = XWORK_RESULT_ERROR;
                 goto cleanup;
             }
             free(sToolResult);
+            free(pToolImage);
             ++tRun.uToolCalls;
             if ( bToolEffectApplied && pExecutedTool && pExecutedTool->eEffect == XWORK_TOOL_EFFECT_WORKSPACE_WRITE ) {
                 bWorkspaceChanged = true;

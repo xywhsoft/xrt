@@ -389,12 +389,12 @@ bool xllmRequestAddMessage(xllm_request* pRequest, const xllm_message* pMessage)
         if ( !pNew ) { return false; }
         memset(pNew + pRequest->iMessageCap, 0, sizeof(*pNew) * (iCap - pRequest->iMessageCap));
         pRequest->pMessages = pNew;
-        pRequest->iMessageCap = iCap;
         if ( pRequest->pbMessageBorrowed ) {
             pbNew = (bool*)xllm__realloc(pRequest->pbMessageBorrowed, sizeof(bool) * iCap);
             if ( !pbNew ) { return false; }
             pRequest->pbMessageBorrowed = pbNew;
         }
+        pRequest->iMessageCap = iCap;
     }
     if ( pRequest->pbMessageBorrowed ) {
         pRequest->pbMessageBorrowed[pRequest->iMessageCount] = false;
@@ -507,7 +507,15 @@ bool xllmRequestAddTool(xllm_request* pRequest, const char* sName, const char* s
         if ( !pNew ) { return false; }
         memset(pNew + pRequest->iToolCap, 0, sizeof(*pNew) * (iCap - pRequest->iToolCap));
         pRequest->pTools = pNew;
+        if ( pRequest->pbToolBorrowed ) {
+            bool* pbNew = (bool*)xllm__realloc(pRequest->pbToolBorrowed, sizeof(bool) * iCap);
+            if ( !pbNew ) { return false; }
+            pRequest->pbToolBorrowed = pbNew;
+        }
         pRequest->iToolCap = iCap;
+    }
+    if ( pRequest->pbToolBorrowed ) {
+        pRequest->pbToolBorrowed[pRequest->iToolCount] = false;
     }
     pTool = &pRequest->pTools[pRequest->iToolCount];
     pTool->sName = xllm__strdup(sName);

@@ -335,6 +335,15 @@ static bool xllm_session__build_request_impl(const xllm_session* pSession, xllm_
             XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
         }
     }
+    /* Stamp snapshot BEFORE pRenderComplete: hook-appended tail messages
+     * stay outside the stable prefix (serialized fresh as delta each turn).
+     * No stamp when pRenderMessage is installed — its owned clones are only
+     * as stable as the host hook. No stamp while pruning — the prune window
+     * drifts with uCurrentTurn and old entries' bytes change without any
+     * generation bump. */
+    size_t iStableSnapshot =
+        ( bView && !(pHooks && pHooks->pRenderMessage) && !bPrune )
+        ? pRequest->iMessageCount : 0u;
     if ( pbKept && !xllm_session__skip_pair_safe(pSession, pbKept) ) {
         XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_PROTOCOL,
             "render hook skipped an entry and broke tool-call pairing");
@@ -354,15 +363,13 @@ static bool xllm_session__build_request_impl(const xllm_session* pSession, xllm_
     bOk = true;
 done:
     free(pbKept);
-    if ( bOk && bView ) {
-        /* Stamp the request for the client's wire-prefix cache. The stamp
-         * folds the prune flag: a prune flip rewrites old tool outputs and
-         * must invalidate cached bytes even though the generation is
-         * unchanged. Identity upgrades (new PINNED entries) render at the
-         * FRONT of the array — SetSystemProgress bumps the generation. */
+    if ( bOk && iStableSnapshot ) {
+        /* The stamp mixes the per-instance nonce (address-reuse proof) with
+         * the render generation; see xllm_session__next_nonce. */
         pRequest->pStablePrefixOwner = (void*)pSession;
-        pRequest->uStablePrefixStamp = pSession->uRenderGeneration * 2u + (bPrune ? 1u : 0u);
-        pRequest->iStableMessages = pRequest->iMessageCount;
+        pRequest->uStablePrefixStamp =
+            (pSession->uSessionNonce << 1) ^ pSession->uRenderGeneration;
+        pRequest->iStableMessages = iStableSnapshot;
     }
     return bOk;
 }

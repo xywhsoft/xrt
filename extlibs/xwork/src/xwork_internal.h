@@ -59,10 +59,8 @@ typedef struct xwork_process_entry {
     uint64_t uExitedUs;        /* first observed exit; 0 while running */
     bool bNoticeTaken;         /* completion notice consumed by the host */
     bool bNudged;              /* uncollected-notice nudge already sent */
-    /* Agent-task fields (eKind == XWORK_TASK_AGENT). */
-    struct xwork_agent* pChildAgent;
-    struct xllm_session* pChildSession;
-    struct xllm_executor* pChildExecutor;   /* heap copy for the thread */
+    /* Agent-task fields (eKind == XWORK_TASK_AGENT). The delegate thread
+     * owns its child objects; the entry owns the cancel token and result. */
     xcancel* pChildCancel;
     xthread* pThread;
     xmutex* pStateLock;
@@ -162,6 +160,7 @@ xwork_result xwork__tool_fail(xwork_tool_output* pOutput, const char* sMessage);
 bool xwork__task_running(xwork_process_entry* pEntry);   /* unified: process or agent */
 xwork_process_entry* xwork__task_add(xwork_agent* pAgent, xwork_task_kind eKind);
 xwork_process_entry* xwork__process_add(xwork_agent* pAgent);
+void xwork__subagent_type_unit(xwork_subagent_type* pType);
 void xwork__copy_model_error(xwork_error* pError, const xllm_error* pModelError);
 bool xwork__buf_reserve(xwork_buf* pBuf, size_t iNeed);
 bool xwork__buf_append(xwork_buf* pBuf, const void* pData, size_t iLen);
@@ -207,6 +206,18 @@ xllm_result xwork__model_complete(
     xllm_response** ppResponse,
     xllm_error* pError
 );
+
+static inline uint64_t xwork__atomic_add_u64(volatile uint64_t* pValue, uint64_t uAdd)
+{
+#if defined(_MSC_VER)
+    return (uint64_t)_InterlockedExchangeAdd64((volatile LONG64*)pValue, (LONG64)uAdd) + uAdd;
+#elif defined(__GNUC__) || defined(__clang__)
+    return __atomic_add_fetch(pValue, uAdd, __ATOMIC_SEQ_CST);
+#else
+    *pValue += uAdd;   /* best effort on unknown compilers */
+    return *pValue;
+#endif
+}
 
 static inline long xwork__atomic_load(volatile long* pValue)
 {

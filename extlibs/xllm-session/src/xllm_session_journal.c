@@ -343,6 +343,7 @@ static bool xllm_session__set_journal_path(xllm_session* pSession, const char* s
 
 bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, xllm_error* pError)
 {
+    pSession->bStatsDirty = true;
     if ( pError ) { xllmErrorInit(pError); }
     if ( sJournalPath && sJournalPath[0] && xrtFileExists(sJournalPath) &&
          xllm_session__path_size(sJournalPath) != 0u ) {
@@ -355,6 +356,7 @@ bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, 
 
 void xllmSessionDisableJournal(xllm_session* pSession)
 {
+    pSession->bStatsDirty = true;
     if ( !pSession ) { return; }
     free(pSession->sJournalPath);
     pSession->sJournalPath = NULL;

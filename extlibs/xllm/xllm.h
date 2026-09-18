@@ -606,6 +606,9 @@ xllm_result xllmClientComplete(
 );
 
 /* Builds the provider JSON body without credentials. Free with xllmFree(). */
+/* Full classic serialization for inspection/testing; it never reads or
+ * updates the client's wire-prefix cache (stamped view requests through
+ * this API also bypass it) and works on any dialect. */
 char* xllmClientBuildRequestJson(xllm_client* pClient, const xllm_request* pRequest, xllm_error* pError);
 void xllmFree(void* pMemory);
 

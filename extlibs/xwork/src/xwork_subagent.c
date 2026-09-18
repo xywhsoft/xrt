@@ -21,7 +21,7 @@ static const xwork_subagent_type* xwork__find_subagent_type(
     return NULL;
 }
 
-static void xwork__subagent_type_unit(xwork_subagent_type* pType)
+void xwork__subagent_type_unit(xwork_subagent_type* pType)
 {
     if ( !pType ) return;
     free((void*)pType->sName);
@@ -67,7 +67,9 @@ static bool xwork__truncate_text(char** psText, size_t iLimit)
 
 typedef struct xwork_delegate_args {
     xwork_agent* pParent;
-    const xwork_subagent_type* pType;   /* borrowed from the parent registry */
+    xwork_subagent_type tType;          /* deep copy: registry may mutate
+                                         * (unregister/realloc) while the
+                                         * delegation thread is in flight */
     char* sPrompt;                      /* owned */
     xcancel* pCancel;                   /* delegation cancel (child of parent) */
     uint64_t uDeadline;
@@ -76,6 +78,15 @@ typedef struct xwork_delegate_args {
     bool bSuccess;
     struct xwork_process_entry* pEntry; /* background target; NULL = foreground */
 } xwork_delegate_args;
+
+static void xwork__delegate_args_unit(xwork_delegate_args* pArgs)
+{
+    if ( !pArgs ) { return; }
+    xwork__subagent_type_unit(&pArgs->tType);
+    free(pArgs->sPrompt);
+    free(pArgs->sFinal);
+    free(pArgs);
+}
 
 static bool xwork__delegate_compose(xwork_delegate_args* pArgs, xwork_error* pError)
 {
@@ -93,8 +104,8 @@ static bool xwork__delegate_compose(xwork_delegate_args* pArgs, xwork_error* pEr
         xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to clone the session config");
         return false;
     }
-    if ( pArgs->pType->uMaxOutputTokens ) {
-        tSessionConfig.uMaxOutputTokens = pArgs->pType->uMaxOutputTokens;
+    if ( pArgs->tType.uMaxOutputTokens ) {
+        tSessionConfig.uMaxOutputTokens = pArgs->tType.uMaxOutputTokens;
     }
     pChildSession = xllmSessionCreate(&tSessionConfig, &tLlmError);
     if ( !pChildSession ) {
@@ -115,9 +126,9 @@ static bool xwork__delegate_compose(xwork_delegate_args* pArgs, xwork_error* pEr
         xworkAgentConfigInit(&tAgentConfig);
         tAgentConfig.pSession = pChildSession;
         tAgentConfig.sWorkspaceRoot = pArgs->pParent->sWorkspaceRoot;
-        tAgentConfig.sSystemPrompt = pArgs->pType->sSystemPrompt;
+        tAgentConfig.sSystemPrompt = pArgs->tType.sSystemPrompt;
         tAgentConfig.bInjectSystemPrompt = true;
-        tAgentConfig.eApprovalMode = pArgs->pType->bReadOnly
+        tAgentConfig.eApprovalMode = pArgs->tType.bReadOnly
             ? XWORK_APPROVAL_READ_ONLY : pArgs->pParent->eApprovalMode;
         tAgentConfig.OnApproval = pArgs->pParent->OnApproval;
         tAgentConfig.pApprovalUserData = pArgs->pParent->pApprovalUserData;
@@ -128,7 +139,7 @@ static bool xwork__delegate_compose(xwork_delegate_args* pArgs, xwork_error* pEr
         tAgentConfig.OnEvent = pArgs->pParent->OnEvent;
         tAgentConfig.pEventUserData = pArgs->pParent->pEventUserData;
         tAgentConfig.eEolPolicy = pArgs->pParent->eEolPolicy;
-        tAgentConfig.uMaxAgentTurns = pArgs->pType->uMaxTurns ? pArgs->pType->uMaxTurns : 8u;
+        tAgentConfig.uMaxAgentTurns = pArgs->tType.uMaxTurns ? pArgs->tType.uMaxTurns : 8u;
         tAgentConfig.uMaxManagedProcesses = 1u;
         tAgentConfig.iMaxInlineToolBytes = pArgs->pParent->iMaxInlineToolBytes;
         tAgentConfig.iMaxCapturedCommandBytes = pArgs->pParent->iMaxCapturedCommandBytes;
@@ -139,17 +150,17 @@ static bool xwork__delegate_compose(xwork_delegate_args* pArgs, xwork_error* pEr
         pChild = xworkAgentCreate(&tAgentConfig, pError);
         if ( !pChild ) goto cleanup;
         pChild->uAgentDepth = pArgs->pParent->uAgentDepth + 1u;
-        pChild->uDelegationId = ++pArgs->pParent->uSubagentSequence;
+        pChild->uDelegationId = xwork__atomic_add_u64(&pArgs->pParent->uSubagentSequence, 1u);
         pChild->uParentAgentTurn = pArgs->uParentTurn;
     }
     /* Whitelist copy (the `agent` tool never propagates: depth lock). */
     {
         size_t i;
-        size_t iCount = pArgs->pType->psTools ? pArgs->pType->iToolCount
+        size_t iCount = pArgs->tType.psTools ? pArgs->tType.iToolCount
             : pArgs->pParent->iToolCount;
         for ( i = 0u; i < iCount; ++i ) {
-            const xwork_tool_entry* pSource = pArgs->pType->psTools
-                ? xwork__find_tool(pArgs->pParent, pArgs->pType->psTools[i])
+            const xwork_tool_entry* pSource = pArgs->tType.psTools
+                ? xwork__find_tool(pArgs->pParent, pArgs->tType.psTools[i])
                 : &pArgs->pParent->pTools[i];
             xwork_tool_definition tDef;
             if ( !pSource || strcmp(pSource->sName, "agent") == 0 ) continue;
@@ -170,8 +181,8 @@ static bool xwork__delegate_compose(xwork_delegate_args* pArgs, xwork_error* pEr
     pExecutor = (xllm_executor*)malloc(sizeof(*pExecutor));
     if ( !pExecutor || !xworkExecutorBind(pExecutor, pChild, pError) ) goto oom;
     xllmRunPolicyInit(&tPolicy);
-    tPolicy.uMaxRounds = pArgs->pType->uMaxTurns ? pArgs->pType->uMaxTurns : 8u;
-    tPolicy.sModel = pArgs->pType->sModel;
+    tPolicy.uMaxRounds = pArgs->tType.uMaxTurns ? pArgs->tType.uMaxTurns : 8u;
+    tPolicy.sModel = pArgs->tType.sModel;
     tPolicy.pCancel = pArgs->pCancel;
     tPolicy.uDeadline = pArgs->uDeadline;
     memset(&tSummary, 0, sizeof(tSummary));
@@ -188,7 +199,7 @@ static bool xwork__delegate_compose(xwork_delegate_args* pArgs, xwork_error* pEr
         }
     }
     if ( !xwork__truncate_text(&pArgs->sFinal,
-            pArgs->pType->iMaxFinalBytes ? pArgs->pType->iMaxFinalBytes : 64u * 1024u) ) goto oom;
+            pArgs->tType.iMaxFinalBytes ? pArgs->tType.iMaxFinalBytes : 64u * 1024u) ) goto oom;
     bOk = true;
     goto cleanup;
 oom:
@@ -359,7 +370,7 @@ xwork_result xworkAgentRunReadOnlySubagent(
     pChild = xworkAgentCreate(&tAgentConfig, pError);
     if ( !pChild ) goto cleanup;
     pChild->uAgentDepth = 1u;
-    pChild->uDelegationId = ++pParent->uSubagentSequence;
+    pChild->uDelegationId = xwork__atomic_add_u64(&pParent->uSubagentSequence, 1u);
     pChild->uParentAgentTurn = pConfig->uParentAgentTurn;
     if ( !xworkAgentRegisterBuiltinReadOnlyTools(pChild, pError) ) goto cleanup;
     eResult = xworkAgentRun(pChild, sTask, pResult, pError);
@@ -397,6 +408,9 @@ static int32_t xwork__delegate_threadProc(ptr pData)
     xworkErrorInit(&tError);
     /* The entry outlives the thread: the closer cancels + waits first. */
     (void)xwork__delegate_compose(pArgs, &tError);
+    if ( !pArgs->sFinal && tError.sMessage[0] ) {
+        pArgs->sFinal = xwork__strdup(tError.sMessage);
+    }
     if ( pArgs->pEntry && pArgs->pEntry->pStateLock ) {
         (void)xrtMutexLock(pArgs->pEntry->pStateLock);
         free(pArgs->pEntry->sResult);
@@ -406,11 +420,9 @@ static int32_t xwork__delegate_threadProc(ptr pData)
         pArgs->pEntry->bDone = true;
         (void)xrtMutexUnlock(pArgs->pEntry->pStateLock);
     }
-    free(pArgs->sFinal);
-    free(pArgs->sPrompt);
-    /* The delegation cancel and entry borrowings are released by the closer. */
-    xrtCancelDestroy(pArgs->pCancel);
-    free(pArgs);
+    /* The entry owns the cancel token and destroys it after joining this
+     * thread; the foreground path destroys it in tool_agent cleanup. */
+    xwork__delegate_args_unit(pArgs);
     return 0;
 }
 
@@ -479,13 +491,39 @@ static xwork_result xwork__tool_agent(
     pDelegate = (xwork_delegate_args*)calloc(1u, sizeof(*pDelegate));
     if ( !pDelegate ) goto oom;
     pDelegate->pParent = pAgent;
-    pDelegate->pType = pType;
     pDelegate->sPrompt = xwork__strdup(sPrompt);
     pDelegate->pCancel = pCancel;
     pDelegate->uDeadline = uDeadline;
     pDelegate->uParentTurn = pContext ? pContext->uAgentTurn : 0u;
     pCancel = NULL;   /* ownership moved into the delegate args */
-    if ( !pDelegate->sPrompt ) goto oom;
+    /* Deep-copy the archetype so registry mutations cannot race the run. */
+    {
+        const char** psToolsCopy = NULL;
+        size_t t;
+        pDelegate->tType.sName = xwork__strdup(pType->sName);
+        pDelegate->tType.sDescription = xwork__strdup(pType->sDescription);
+        pDelegate->tType.sSystemPrompt = xwork__strdup(pType->sSystemPrompt);
+        pDelegate->tType.sModel = pType->sModel ? xwork__strdup(pType->sModel) : NULL;
+        pDelegate->tType.uMaxTurns = pType->uMaxTurns;
+        pDelegate->tType.uTimeoutMs = pType->uTimeoutMs;
+        pDelegate->tType.uMaxOutputTokens = pType->uMaxOutputTokens;
+        pDelegate->tType.iMaxFinalBytes = pType->iMaxFinalBytes;
+        pDelegate->tType.bReadOnly = pType->bReadOnly;
+        if ( pType->psTools && pType->iToolCount ) {
+            psToolsCopy = (const char**)calloc(pType->iToolCount, sizeof(char*));
+            if ( psToolsCopy ) {
+                for ( t = 0u; t < pType->iToolCount; ++t ) {
+                    psToolsCopy[t] = xwork__strdup(pType->psTools[t]);
+                }
+            }
+            pDelegate->tType.psTools = psToolsCopy;
+            pDelegate->tType.iToolCount = pType->iToolCount;
+        }
+        if ( !pDelegate->sPrompt || !pDelegate->tType.sName ||
+             !pDelegate->tType.sSystemPrompt ||
+             (pType->psTools && pType->iToolCount &&
+              (!psToolsCopy || !psToolsCopy[0])) ) goto oom;
+    }
 
     if ( !bBackground ) {
         if ( !xwork__delegate_compose(pDelegate, pError) ) {
@@ -512,13 +550,18 @@ static xwork_result xwork__tool_agent(
         pEntry->sCommand = xwork__strdup(sName);
         if ( sNotify && sNotify[0] ) {
             pEntry->sNotify = xwork__strdup(sNotify);
-            if ( !pEntry->sNotify ) { pEntry = NULL; goto oom; }
+            if ( !pEntry->sNotify ) goto entry_fail;
         }
         pEntry->uRemindAfterMs = uRemindMs;
-        if ( !pEntry->pStateLock || !pEntry->sCommand ) { pEntry = NULL; goto oom; }
+        /* The cancel token transfers to the entry: stop/destroy request it,
+         * the closer destroys it after joining the delegate thread. */
+        pEntry->pChildCancel = pDelegate->pCancel;
+        pDelegate->pCancel = NULL;
+        if ( !pEntry->pStateLock || !pEntry->sCommand ) goto entry_fail;
         pEntry->pThread = xrtThreadCreate(xwork__delegate_threadProc, (ptr)pDelegate, 0u);
-        if ( !pEntry->pThread ) { pEntry = NULL; goto oom; }
-        /* From here the thread owns the delegate args and the cancel. */
+        if ( !pEntry->pThread ) goto entry_fail;
+        /* From here the thread owns the delegate args; the entry owns the
+         * cancel token. */
         pDelegate = NULL;
         if ( !xwork__buf_appendf(&tOutput, "task_id: %llu\nstate: running\ndelegation: %s\n",
                 (unsigned long long)pEntry->uId, sName) ||
@@ -526,14 +569,23 @@ static xwork_result xwork__tool_agent(
         eResult = XWORK_RESULT_OK;
         goto cleanup;
     }
+entry_fail:
+    /* Roll the half-built entry back out of the table so it cannot linger
+     * as a permanent "running" zombie. */
+    if ( pDelegate && pDelegate->pEntry ) {
+        xwork__process_remove(pAgent,
+            (size_t)(pDelegate->pEntry - pAgent->pProcesses));
+        pDelegate->pEntry = NULL;
+        pDelegate->pCancel = NULL;   /* destroyed with the entry */
+    }
+    goto oom;
 oom:
     xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to prepare the delegation");
 cleanup:
     if ( pDelegate ) {
-        free(pDelegate->sPrompt);
-        free(pDelegate->sFinal);
         xrtCancelDestroy(pDelegate->pCancel);
-        free(pDelegate);
+        pDelegate->pCancel = NULL;
+        xwork__delegate_args_unit(pDelegate);
     }
     xrtCancelDestroy(pCancel);
     if ( tArgs ) xrtValueRelease(tArgs);

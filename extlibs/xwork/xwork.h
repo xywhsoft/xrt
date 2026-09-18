@@ -224,7 +224,11 @@ typedef struct xwork_event {
     xllm_session_stats tSessionStats;
 } xwork_event;
 
-/* Return false to request cooperative cancellation. */
+/* Return false to request cooperative cancellation. Callbacks may be invoked
+ * from a background delegation thread (agent tool, background=true): hosts
+ * must treat these callbacks as thread-safe and must not mutate the agent
+ * or its session inside them. The child's cancellation does not propagate
+ * to the parent agent. */
 typedef bool (*xwork_event_fn)(void* pUserData, const xwork_event* pEvent);
 
 /* Return true to approve the requested side effect. */
@@ -451,6 +455,9 @@ typedef struct xwork_watchdog_digest {
     size_t iUncollectedNotices;
 } xwork_watchdog_digest;
 
+/* Call from the thread that owns the agent (the same thread that drives
+ * runs); the notice payloads borrow entry storage and are not safe to read
+ * across a concurrent registry or task mutation. */
 size_t xworkAgentTakeTaskNotices(xwork_agent* pAgent,
     xwork_task_notice* pNotices, size_t iCapacity);
 bool xworkTaskWatchdog(xwork_agent* pAgent, xwork_watchdog_digest* pDigest);
