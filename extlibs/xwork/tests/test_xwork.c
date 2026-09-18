@@ -148,30 +148,29 @@ static xllm_result subagent_complete(
 {
     static const char sLongFinal[] =
         "Evidence report: the readable workspace file was inspected and the internal control directory was denied as required. "
-        "The child received only read_file, list_files, and search_text, performed no writes or process execution, and cannot delegate recursively. "
+        "The child received only the read tool, performed no writes or process execution, and cannot delegate recursively. "
         "Recommended next action: let the parent agent use this bounded evidence while retaining authority for every mutation. "
         "Additional padding verifies that the host byte budget truncates this final response deterministically without creating an artifact.";
     subagent_mock* pMock = (subagent_mock*)pUserData;
     xllm_response* pResponse;
     size_t i;
-    bool bNames = pRequest && pRequest->iToolCount == 3u;
+    bool bNames = pRequest && pRequest->iToolCount == 1u;
     (void)pCallbacks;
     (void)pError;
     *ppResponse = NULL;
     if ( !pRequest || !pMock ) return XLLM_RESULT_ERROR;
     for ( i = 0u; bNames && i < pRequest->iToolCount; ++i ) {
         const char* sName = pRequest->pTools[i].sName;
-        if ( strcmp(sName, "read_file") != 0 && strcmp(sName, "list_files") != 0 &&
-             strcmp(sName, "search_text") != 0 ) bNames = false;
+        if ( strcmp(sName, "read") != 0 ) bNames = false;
     }
     pMock->bReadOnlyToolSet = pMock->bReadOnlyToolSet || bNames;
     ++pMock->uModelCalls;
     if ( pMock->uModelCalls == 1u ) {
         pResponse = mock_response("", 2u);
         if ( !pResponse ||
-             !mock_set_call(pResponse, 0u, "sub_read", "read_file",
+             !mock_set_call(pResponse, 0u, "sub_read", "read",
                 "{\"path\":\"evidence.txt\",\"max_lines\":100}") ||
-             !mock_set_call(pResponse, 1u, "sub_internal", "read_file",
+             !mock_set_call(pResponse, 1u, "sub_internal", "read",
                 "{\"path\":\".xcode/secrets.local.json\",\"max_lines\":20}") ) {
             xllmResponseDestroy(pResponse);
             return XLLM_RESULT_ERROR;
@@ -237,11 +236,11 @@ static xllm_result mock_complete(
             xwork_error tRegistryError;
             xworkErrorInit(&tRegistryError);
             pMock->bRegistryMutationBlocked =
-                !xworkAgentUnregisterTool(pMock->pAgent, "read_file", &tRegistryError) &&
+                !xworkAgentUnregisterTool(pMock->pAgent, "read", &tRegistryError) &&
                 tRegistryError.eCode == XWORK_ERROR_CONTEXT;
         }
         ++pMock->uAgentCalls;
-        pMock->bSawTools = pRequest->iToolCount == 11u;
+        pMock->bSawTools = pRequest->iToolCount == 9u;
         pMock->bSawParallel = pRequest->bParallelToolCalls;
         if ( pMock->uAgentCalls > 1u && request_has_role(pRequest, XLLM_ROLE_TOOL, 1u) ) pMock->bSawToolResults = true;
         if ( request_has_text(pRequest, "Objective: test the xwork tool loop after compaction") ) pMock->bSawCompactionSummary = true;
@@ -255,11 +254,11 @@ static xllm_result mock_complete(
             if ( !xwork__buf_append_cstr(&tArgs, "note tail\",\"mode\":\"create\"}") ) goto oom;
             sLargeArgs = xwork__buf_detach(&tArgs);
             if ( !sLargeArgs ||
-                 !mock_set_call(pResponse, 0u, "call_write", "write_file", sLargeArgs) ||
-                 !mock_set_call(pResponse, 1u, "call_read", "read_file", "{\"path\":\"sandbox/note.txt\",\"max_lines\":20}") ||
-                 !mock_set_call(pResponse, 2u, "call_escape", "read_file", "{\"path\":\"../outside.txt\"}") ||
-                 !mock_set_call(pResponse, 3u, "call_list", "list_files", "{\"path\":\"sandbox\",\"recursive\":true}") ||
-                 !mock_set_call(pResponse, 4u, "call_search", "search_text", "{\"query\":\"hello-\",\"path\":\"sandbox\",\"pattern\":\"*.txt\"}") ||
+                 !mock_set_call(pResponse, 0u, "call_write", "write", sLargeArgs) ||
+                 !mock_set_call(pResponse, 1u, "call_read", "read", "{\"path\":\"sandbox/note.txt\",\"max_lines\":20}") ||
+                 !mock_set_call(pResponse, 2u, "call_escape", "read", "{\"path\":\"../outside.txt\"}") ||
+                 !mock_set_call(pResponse, 3u, "call_list", "read", "{\"path\":\"sandbox/note.txt\",\"max_lines\":5}") ||
+                 !mock_set_call(pResponse, 4u, "call_search", "read", "{\"path\":\"sandbox/note.txt\",\"start_line\":2,\"max_lines\":3}") ||
                  !mock_set_call(pResponse, 5u, "call_replace", "edit", "{\"path\":\"sandbox/note.txt\",\"edits\":[{\"old_text\":\"hello-\",\"new_text\":\"HELLO-\"}]}") ) goto oom;
         } else if ( pMock->uAgentCalls == 2u ) {
             pResponse = mock_response("", 1u);
@@ -309,7 +308,7 @@ static bool on_event(void* pUserData, const xwork_event* pEvent)
             ++pEvents->uModelStarts;
             if ( pEvent->sModel && strcmp(pEvent->sModel, "mock-model") == 0 &&
                  pEvent->sRequestFingerprint && strlen(pEvent->sRequestFingerprint) == 16u &&
-                 pEvent->iMessageCount > 0u && pEvent->iToolDefinitionCount == 11u &&
+                 pEvent->iMessageCount > 0u && pEvent->iToolDefinitionCount == 9u &&
                  pEvent->uMaxOutputTokens > 0u ) pEvents->bRequestMetadata = true;
             break;
         case XWORK_EVENT_MODEL_TEXT_DELTA: ++pEvents->uTextDeltas; break;
@@ -488,7 +487,7 @@ static void test_agent_loop(void)
     tAgentConfig.iMaxInlineToolBytes = 300u;
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
     CHECK(pAgent != NULL, "agent creates with injected model boundary");
-    CHECK(pAgent && xworkAgentToolCount(pAgent) == 11u, "eleven practical builtin tools registered");
+    CHECK(pAgent && xworkAgentToolCount(pAgent) == 9u, "nine practical builtin tools registered");
     if ( !pAgent ) goto cleanup;
     tMock.pAgent = pAgent;
 
@@ -510,12 +509,12 @@ static void test_agent_loop(void)
             strcmp(tInfo.sSource, "builtin") == 0,
             "tool registry enumeration exposes stable source metadata");
         CHECK(xworkAgentRegisterTool(pAgent, &tDynamic, &tError) &&
-            xworkAgentToolCount(pAgent) == 12u &&
+            xworkAgentToolCount(pAgent) == 10u &&
             xworkAgentToolRegistryGeneration(pAgent) == uGeneration + 1u,
             "dynamic tool registration advances the registry generation");
         xworkErrorInit(&tError);
         CHECK(xworkAgentUnregisterToolsBySource(pAgent, "test.dynamic", &iRemoved, &tError) &&
-            iRemoved == 1u && xworkAgentToolCount(pAgent) == 11u &&
+            iRemoved == 1u && xworkAgentToolCount(pAgent) == 9u &&
             xworkAgentToolRegistryGeneration(pAgent) == uGeneration + 2u,
             "bulk source removal atomically retires dynamic tools");
     }
@@ -538,7 +537,7 @@ static void test_agent_loop(void)
         CHECK(pMcpClient && xworkMcpClientConnect(pMcpClient, &tError),
             "MCP stdio client completes initialize and initialized handshake");
         CHECK(pMcpClient && xworkMcpClientRefreshTools(pMcpClient, pAgent, &tError) &&
-            xworkAgentToolCount(pAgent) == 12u,
+            xworkAgentToolCount(pAgent) == 10u,
             "MCP tools/list dynamically registers namespaced proxy tools");
         pMcpTool = xwork__find_tool(pAgent, "mcp__phase3__echo");
         memset(&tMcpToolContext, 0, sizeof(tMcpToolContext));
@@ -584,7 +583,7 @@ static void test_agent_loop(void)
         }
         CHECK(xworkAgentUnregisterToolsBySource(
                 pAgent, "mcp:phase3", &iRemoved, &tError) && iRemoved == 1u &&
-            xworkAgentToolCount(pAgent) == 11u,
+            xworkAgentToolCount(pAgent) == 9u,
             "MCP source can be detached without disturbing builtin tools");
         xworkMcpClientDestroy(pMcpClient);
         pMcpClient = NULL;
@@ -741,7 +740,7 @@ static void test_agent_loop(void)
         memset(arrInterruptedCalls, 0, sizeof(arrInterruptedCalls));
         memset(&tInterruptedResponse, 0, sizeof(tInterruptedResponse));
         arrInterruptedCalls[0].sId = "call_recovered_list";
-        arrInterruptedCalls[0].sName = "list_files";
+        arrInterruptedCalls[0].sName = "read";
         arrInterruptedCalls[0].sArgumentsJson = "{\"path\":\"sandbox\"}";
         arrInterruptedCalls[1].sId = "call_recovered_verify";
         arrInterruptedCalls[1].sName = "exec";
@@ -1138,8 +1137,8 @@ static void test_edit_eol_write(void)
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
     CHECK(pSession && pAgent, "edit fixture agent creates");
     pEditTool = pAgent ? xwork__find_tool(pAgent, "edit") : NULL;
-    pWriteTool = pAgent ? xwork__find_tool(pAgent, "write_file") : NULL;
-    pReadTool = pAgent ? xwork__find_tool(pAgent, "read_file") : NULL;
+    pWriteTool = pAgent ? xwork__find_tool(pAgent, "write") : NULL;
+    pReadTool = pAgent ? xwork__find_tool(pAgent, "read") : NULL;
     memset(&tCtx, 0, sizeof(tCtx));
     tCtx.pAgent = pAgent;
     tCtx.sWorkspaceRoot = sWorkspace;
@@ -1280,7 +1279,7 @@ static void test_executor_bind(void)
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     /* No client and no model callback: an executor-only agent must create. */
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
-    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 11u,
+    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 9u,
         "executor host agent carries the builtin registry");
     memset(&tExecutor, 0, sizeof(tExecutor));
     CHECK(pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
@@ -1288,13 +1287,13 @@ static void test_executor_bind(void)
 
     xllmRequestInit(&tRequest);
     CHECK(tExecutor.pListTools && tExecutor.pListTools(tExecutor.pUserData, &tRequest) &&
-        tRequest.iToolCount == 11u,
+        tRequest.iToolCount == 9u,
         "executor lists the builtin registry into a request");
     xllmRequestUnit(&tRequest);
 
     memset(&tCall, 0, sizeof(tCall));
     tCall.sId = (char*)"exec-1";
-    tCall.sName = (char*)"write_file";
+    tCall.sName = (char*)"write";
     tCall.sArgumentsJson = (char*)
         "{\"path\":\"note.txt\",\"content\":\"executor wrote this\",\"mode\":\"create\"}";
     memset(&tCtx, 0, sizeof(tCtx));
@@ -1342,7 +1341,7 @@ static xllm_response* t1_response_write(void)
     pResponse->pToolCalls = (xllm_tool_call*)calloc(1u, sizeof(*pResponse->pToolCalls));
     if ( !pResponse->pToolCalls ) { xllmResponseDestroy(pResponse); return NULL; }
     pResponse->pToolCalls[0].sId = test_strdup("t1-call-1");
-    pResponse->pToolCalls[0].sName = test_strdup("write_file");
+    pResponse->pToolCalls[0].sName = test_strdup("write");
     pResponse->pToolCalls[0].sArgumentsJson = test_strdup(
         "{\"path\":\"t1.txt\",\"content\":\"t1 chain worked\",\"mode\":\"create\"}");
     pResponse->iToolCallCount = 1u;
@@ -1438,7 +1437,7 @@ static void test_image_passthrough(void)
     tAgentConfig.pSession = pSession;
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
-    pReadTool = pAgent ? xwork__find_tool(pAgent, "read_file") : NULL;
+    pReadTool = pAgent ? xwork__find_tool(pAgent, "read") : NULL;
     memset(&tCtx, 0, sizeof(tCtx));
     tCtx.pAgent = pAgent;
     tCtx.sWorkspaceRoot = sWorkspace;
@@ -1470,7 +1469,7 @@ static void test_image_passthrough(void)
         xllm_executor_result tEResult;
         memset(&tCall, 0, sizeof(tCall));
         tCall.sId = (char*)"img-1";
-        tCall.sName = (char*)"read_file";
+        tCall.sName = (char*)"read";
         tCall.sArgumentsJson = (char*)"{\"path\":\"pic.dat\"}";
         memset(&tECtx, 0, sizeof(tECtx));
         memset(&tEResult, 0, sizeof(tEResult));
@@ -1484,7 +1483,7 @@ static void test_image_passthrough(void)
             xllm_response tPairResponse;
             memset(&tPair, 0, sizeof(tPair));
             tPair.sId = (char*)"img-1";
-            tPair.sName = (char*)"read_file";
+            tPair.sName = (char*)"read";
             tPair.sArgumentsJson = (char*)"{\"path\":\"pic.dat\"}";
             memset(&tPairResponse, 0, sizeof(tPairResponse));
             tPairResponse.sContent = (char*)"";
@@ -1546,10 +1545,9 @@ static void test_subagent_delegation(void)
     tType.sName = "probe";
     tType.sDescription = "fast read-only inspection; returns a short report";
     tType.sSystemPrompt = "You are a fast read-only inspector. Report findings only.";
-    sTools[0] = "read_file";
-    sTools[1] = "list_files";
+    sTools[0] = "read";
     tType.psTools = sTools;
-    tType.iToolCount = 2u;
+    tType.iToolCount = 1u;
     tType.sModel = "ornith-35b";
     tType.uMaxTurns = 4u;
     tType.uTimeoutMs = 10000u;
@@ -1651,7 +1649,7 @@ static xllm_result t1_script_call(void* pUserData, const xllm_request* pRequest,
     (void)pCallbacks;
     if ( pError ) { xllmErrorInit(pError); }
     ++pScript->iCalls;
-    if ( pRequest->iToolCount == 11u ) { pScript->bSawTools = true; }
+    if ( pRequest->iToolCount == 9u ) { pScript->bSawTools = true; }
     *ppResponse = ( pScript->iCalls == 1u && !pScript->bFinalOnly )
         ? t1_response_write() : t1_response_text("t1 finished");
     return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;

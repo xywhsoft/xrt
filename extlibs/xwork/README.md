@@ -54,17 +54,17 @@ Built-in tools:
 
 | Tool | Purpose |
 | --- | --- |
-| `read_file` | Read UTF-8 text with line numbers and pagination. |
-| `list_files` | Bounded directory listing with recursion and wildcard filtering. |
-| `search_text` | Literal text search with path, wildcard, depth, and result limits. |
-| `write_file` | Create, overwrite, or append files, optionally creating parents. |
-| `replace_text` | Exact conflict-detecting text replacement. |
-| `apply_patch` | Validate and transactionally apply multi-file create/replace/delete edits; each file is replaced atomically and earlier writes roll back on failure. |
-| `exec_command` | Run a non-interactive shell command with cwd, timeout, exit metadata, bounded capture, and optional `expected_exit_codes` for negative tests. |
-| `start_process` | Start a bounded-capture long-running process and return a stable process ID. |
-| `poll_process` | Wait briefly and consume incremental stdout/stderr plus exit status. |
-| `write_process` | Write text to process stdin or close stdin. |
-| `stop_process` | Interrupt, terminate, kill, or kill the tree and release completed processes. |
+| `read` | Read workspace files; text with line numbers and pagination, images (jpg/png/gif/webp/bmp) attached for viewing. |
+| `write` | Create, overwrite, or append files; parent directories are created automatically and reported. |
+| `edit` | Batch exact text edits in one atomic pass; 0 or ambiguous matches return candidate lines for self-correction. |
+| `exec` | Run one command to completion; argv direct (no shell), env overrides, expected_exit_codes contract. |
+| `spawn` | Start a background task (argv direct); bounded tail capture; completion announced at the next turn boundary. |
+| `poll` | Incrementally read new output from a task and report its state. |
+| `wait` | Block until any or all of the given tasks exit; timeout returns with still-running states. |
+| `stdin` | Write to a process task's stdin, optionally close it. |
+| `stop` | Stop a task: interrupt/terminate/kill/kill_tree for processes, cooperative cancel for subagents. |
+
+Search and file listing are not builtin tools: the host deploys `rg`/`fd` (Git for Windows does NOT ship them) and the model reaches them through `exec`/`spawn` argv.
 
 Filesystem tools reject paths outside the configured workspace. `exec_command` starts inside the workspace, but it is a real shell and is not an OS sandbox. Hosts that do not fully trust commands should use `XWORK_APPROVAL_CALLBACK` or `XWORK_APPROVAL_READ_ONLY`.
 
