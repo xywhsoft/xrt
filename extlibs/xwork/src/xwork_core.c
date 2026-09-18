@@ -331,6 +331,18 @@ bool xwork__ensure_parent(const char* sPath)
     return bOk;
 }
 
+bool xwork__parent_exists(const char* sPath)
+{
+    char* sDir;
+    bool bExists;
+    if ( !sPath ) return false;
+    sDir = xrtPathParent(sPath);
+    if ( !sDir || !sDir[0] ) { if ( sDir ) xrtFree(sDir); return true; }
+    bExists = xrtDirExists((str)sDir);
+    xrtFree(sDir);
+    return bExists;
+}
+
 bool xwork__emit(xwork_agent* pAgent, const xwork_event* pEvent)
 {
     xwork_event tEvent;
@@ -614,6 +626,7 @@ xwork_agent* xworkAgentCreate(const xwork_agent_config* pConfig, xwork_error* pE
     pAgent->OnPermission = pConfig->OnPermission;
     pAgent->pPermissionUserData = pConfig->pPermissionUserData;
     pAgent->OnHook = pConfig->OnHook;
+    pAgent->eEolPolicy = pConfig->eEolPolicy;
     pAgent->pHookUserData = pConfig->pHookUserData;
     pAgent->OnEvent = pConfig->OnEvent;
     pAgent->pEventUserData = pConfig->pEventUserData;

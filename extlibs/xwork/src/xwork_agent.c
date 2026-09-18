@@ -191,14 +191,11 @@ static char* xwork__permission_resource(
 )
 {
     xvalue* tArgs = NULL;
-    xvalue* tChanges;
     const char* sValue = NULL;
     char* sResource = NULL;
     xwork_buf tPaths = {0};
     uint64_t uProcessId;
     bool bValid;
-    uint32_t i;
-    uint32_t iCount;
     *peKind = XWORK_RESOURCE_NONE;
     if ( !pTool || !sArgumentsJson ) return NULL;
     tArgs = xwork__json_parse_object(sArgumentsJson);
@@ -229,18 +226,6 @@ static char* xwork__permission_resource(
         if ( bValid && uProcessId && xwork__buf_appendf(&tPaths, "%llu", (unsigned long long)uProcessId) ) {
             sResource = xwork__buf_detach(&tPaths);
         }
-    } else if ( strcmp(pTool->sName, "apply_patch") == 0 ) {
-        *peKind = XWORK_RESOURCE_PATH;
-        tChanges = xwork__json_get(tArgs, "changes");
-        iCount = tChanges && xrtValueType(tChanges) == XVALUE_ARRAY ? xrtValueCount(tChanges) : 0u;
-        for ( i = 0u; i < iCount; ++i ) {
-            const char* sPath = xwork__json_text(xrtValueArrayGet(tChanges, i), "path");
-            if ( !sPath ) continue;
-            if ( tPaths.iLen && !xwork__buf_append_cstr(&tPaths, ", ") ) break;
-            if ( !xwork__buf_append_cstr(&tPaths, sPath) ) break;
-            if ( tPaths.iLen > 2048u ) { (void)xwork__buf_append_cstr(&tPaths, ", ..."); break; }
-        }
-        sResource = xwork__buf_detach(&tPaths);
     } else {
         *peKind = XWORK_RESOURCE_PATH;
         sValue = xwork__json_text(tArgs, "path");
@@ -255,11 +240,9 @@ static char* xwork__permission_resource(
 
 static xwork_risk_level xwork__tool_risk(const xwork_tool_entry* pTool, const char* sArgumentsJson)
 {
+    (void)sArgumentsJson;
     if ( pTool->eEffect == XWORK_TOOL_EFFECT_PROCESS ) return XWORK_RISK_HIGH;
     if ( pTool->eEffect == XWORK_TOOL_EFFECT_WORKSPACE_WRITE ) {
-        if ( strcmp(pTool->sName, "apply_patch") == 0 && sArgumentsJson && strstr(sArgumentsJson, "\"operation\":\"delete\"") ) {
-            return XWORK_RISK_HIGH;
-        }
         return XWORK_RISK_MEDIUM;
     }
     return XWORK_RISK_LOW;

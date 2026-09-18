@@ -70,6 +70,16 @@ typedef enum xwork_approval_mode {
     XWORK_APPROVAL_READ_ONLY
 } xwork_approval_mode;
 
+/* Line-ending discipline for text tools. The model always works in LF
+ * space; storage converts per policy. AUTO keeps each file's dominant
+ * ending (new files LF), which heals mixed endings on first write-back. */
+typedef enum xwork_eol_policy {
+    XWORK_EOL_AUTO = 0,
+    XWORK_EOL_FORCE_LF,
+    XWORK_EOL_FORCE_CRLF,
+    XWORK_EOL_PRESERVE   /* legacy strict mode: raw bytes, exact matching */
+} xwork_eol_policy;
+
 typedef enum xwork_permission_decision {
     XWORK_PERMISSION_DEFAULT = 0,
     XWORK_PERMISSION_ALLOW,
@@ -260,6 +270,7 @@ typedef struct xwork_agent_config {
     void* pPermissionUserData;
     xwork_hook_fn OnHook;
     void* pHookUserData;
+    xwork_eol_policy eEolPolicy;
 
     xwork_event_fn OnEvent;
     void* pEventUserData;

@@ -103,6 +103,7 @@ struct xwork_agent {
     void* pPermissionUserData;
     xwork_hook_fn OnHook;
     void* pHookUserData;
+    xwork_eol_policy eEolPolicy;
     xwork_event_fn OnEvent;
     void* pEventUserData;
     xwork_model_complete_fn OnModelComplete;
@@ -162,6 +163,7 @@ uint64_t xwork__json_u64(xvalue* pObject, const char* sKey, uint64_t uDefault, b
 char* xwork__resolve_path(const xwork_agent* pAgent, const char* sPath, xwork_error* pError);
 char* xwork__relative_path(const xwork_agent* pAgent, const char* sPath);
 bool xwork__ensure_parent(const char* sPath);
+bool xwork__parent_exists(const char* sPath);
 bool xwork__emit(xwork_agent* pAgent, const xwork_event* pEvent);
 bool xwork__save(xwork_agent* pAgent, xwork_error* pError);
 const xwork_tool_entry* xwork__find_tool(const xwork_agent* pAgent, const char* sName);

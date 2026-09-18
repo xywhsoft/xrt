@@ -491,6 +491,98 @@ static bool xwork__write_atomic_bytes(const char* sPath, const char* sContent, s
         (xbytesview){ (const uint8*)sContent, iLen });
 }
 
+/* ------------------------------------------------------------------ */
+/* EOL discipline: the model works in LF space; storage converts per   */
+/* the agent policy. AUTO keeps each file's dominant ending.           */
+/* ------------------------------------------------------------------ */
+
+static bool xwork__file_prefers_crlf(const char* sData, size_t iSize)
+{
+    size_t iCrlf = 0u;
+    size_t iLf = 0u;
+    size_t i;
+    for ( i = 0u; i < iSize; ++i ) {
+        if ( sData[i] == '\n' ) {
+            if ( i > 0u && sData[i - 1u] == '\r' ) ++iCrlf;
+            else ++iLf;
+        }
+    }
+    return iCrlf > iLf;
+}
+
+/* Strip CR from CRLF pairs; returns a malloc'd LF-normalized copy. */
+static char* xwork__normalize_to_lf(const char* sData, size_t iSize, size_t* piOut)
+{
+    char* sOut = (char*)malloc(iSize + 1u);
+    size_t i;
+    size_t n = 0u;
+    if ( !sOut ) return NULL;
+    for ( i = 0u; i < iSize; ++i ) {
+        if ( sData[i] == '\r' && i + 1u < iSize && sData[i + 1u] == '\n' ) continue;
+        sOut[n++] = sData[i];
+    }
+    sOut[n] = '\0';
+    if ( piOut ) *piOut = n;
+    return sOut;
+}
+
+/* Convert LF to the storage ending; returns a malloc'd copy. */
+static char* xwork__apply_storage_eol(const char* sLf, size_t iLen,
+    const xwork_agent* pAgent, bool bExistingPrefersCrlf, size_t* piOut)
+{
+    bool bCrlf;
+    char* sOut;
+    size_t i;
+    size_t n = 0u;
+    if ( !pAgent || pAgent->eEolPolicy == XWORK_EOL_PRESERVE ) {
+        bCrlf = false;   /* PRESERVE callers pass already-raw text */
+    } else if ( pAgent->eEolPolicy == XWORK_EOL_FORCE_LF ) {
+        bCrlf = false;
+    } else if ( pAgent->eEolPolicy == XWORK_EOL_FORCE_CRLF ) {
+        bCrlf = true;
+    } else {
+        bCrlf = bExistingPrefersCrlf;
+    }
+    if ( !bCrlf ) {
+        sOut = (char*)malloc(iLen + 1u);
+        if ( !sOut ) return NULL;
+        memcpy(sOut, sLf, iLen);
+        sOut[iLen] = '\0';
+        if ( piOut ) *piOut = iLen;
+        return sOut;
+    }
+    {
+        size_t iLf = 0u;
+        for ( i = 0u; i < iLen; ++i ) {
+            if ( sLf[i] == '\n' ) ++iLf;
+        }
+        sOut = (char*)malloc(iLen + iLf + 1u);
+        if ( !sOut ) return NULL;
+        for ( i = 0u; i < iLen; ++i ) {
+            if ( sLf[i] == '\n' ) sOut[n++] = '\r';
+            sOut[n++] = sLf[i];
+        }
+        sOut[n] = '\0';
+        if ( piOut ) *piOut = n;
+        return sOut;
+    }
+}
+
+/* Find occurrences of a needle (memmem-free, Windows portable). */
+static const char* xwork__find_bytes(const char* sHay, size_t iHay,
+    const char* sNeedle, size_t iNeedle, size_t iFrom)
+{
+    if ( iNeedle == 0u || iHay < iNeedle ) return NULL;
+    for ( ; iFrom + iNeedle <= iHay; ++iFrom ) {
+        if ( sHay[iFrom] == sNeedle[0] &&
+             memcmp(sHay + iFrom, sNeedle, iNeedle) == 0 ) {
+            return sHay + iFrom;
+        }
+    }
+    return NULL;
+}
+
+
 static xwork_result xwork__tool_write_file(
     void* pUserData,
     const xwork_tool_context* pContext,
@@ -505,10 +597,12 @@ static xwork_result xwork__tool_write_file(
     const char* sContent;
     const char* sMode;
     char* sResolved = NULL;
-    bool bValid;
-    bool bCreateDirs;
+    char* sStored = NULL;
+    char* sExisting = NULL;
     bool bAppend = false;
     bool bCreate = false;
+    bool bCreatedDirs = false;
+    size_t iStoredLen = 0u;
     xwork_buf tOutput = {0};
     xwork_result eResult = XWORK_RESULT_ERROR;
     (void)pContext;
@@ -521,18 +615,41 @@ static xwork_result xwork__tool_write_file(
     if ( strcmp(sMode, "append") == 0 ) bAppend = true;
     else if ( strcmp(sMode, "create") == 0 ) bCreate = true;
     else if ( strcmp(sMode, "overwrite") != 0 ) { eResult = xwork__tool_fail(pOutput, "mode must be overwrite, append, or create"); goto cleanup; }
-    bCreateDirs = xwork__json_bool(tArgs, "create_dirs", true, &bValid);
-    if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "create_dirs must be boolean"); goto cleanup; }
     sResolved = xwork__resolve_path(pAgent, sPath, pError);
     if ( !sResolved ) { eResult = xwork__tool_fail(pOutput, pError && pError->sMessage[0] ? pError->sMessage : "path denied"); goto cleanup; }
     if ( bCreate && xrtPathExists((str)sResolved) ) { eResult = xwork__tool_fail(pOutput, "create conflict: target already exists"); goto cleanup; }
-    if ( bCreateDirs && !xwork__ensure_parent(sResolved) ) { eResult = xwork__tool_fail(pOutput, "failed to create parent directories"); goto cleanup; }
-    if ( !(bAppend ? xwork__write_bytes(sResolved, sContent, true)
-                  : xwork__write_atomic_bytes(sResolved, sContent, strlen(sContent))) ) {
+    /* Parents are always created; the success message reports it so the
+     * model notices when it invented structure. */
+    bCreatedDirs = !xwork__parent_exists(sResolved);
+    if ( !xwork__ensure_parent(sResolved) ) { eResult = xwork__tool_fail(pOutput, "failed to create parent directories"); goto cleanup; }
+    /* EOL discipline: the model's text is normalized to LF first, then
+     * storage converts per policy (AUTO keeps the file's dominant ending). */
+    {
+        size_t iExisting = 0u;
+        char* sLf = NULL;
+        if ( pAgent->eEolPolicy == XWORK_EOL_AUTO && (bAppend || !bCreate) ) {
+            sExisting = (char*)xrtFileReadAll(sResolved, &iExisting);
+        }
+        if ( pAgent->eEolPolicy == XWORK_EOL_PRESERVE ) {
+            sStored = xwork__strdup(sContent);
+            if ( !sStored ) goto oom;
+        } else {
+            sLf = xwork__normalize_to_lf(sContent, strlen(sContent), NULL);
+            if ( !sLf ) goto oom;
+            sStored = xwork__apply_storage_eol(sLf, strlen(sLf), pAgent,
+                sExisting ? xwork__file_prefers_crlf(sExisting, iExisting) : false, &iStoredLen);
+            free(sLf);
+            if ( !sStored ) goto oom;
+        }
+    }
+    if ( !(bAppend ? xwork__write_bytes(sResolved, sStored, true)
+                  : xwork__write_atomic_bytes(sResolved, sStored, iStoredLen)) ) {
         eResult = xwork__tool_fail(pOutput, "failed to write file");
         goto cleanup;
     }
-    if ( !xwork__buf_appendf(&tOutput, "wrote %zu bytes to %s (mode=%s)", strlen(sContent), sPath, sMode) ||
+    if ( !xwork__buf_appendf(&tOutput, "wrote %zu bytes to %s (mode=%s)%s",
+            iStoredLen, sPath, sMode,
+            bCreatedDirs ? " (created parent directories)" : "") ||
          !xworkToolOutputSet(pOutput, true, tOutput.pData) ) goto oom;
     eResult = XWORK_RESULT_OK;
     goto cleanup;
@@ -541,11 +658,85 @@ oom:
 cleanup:
     if ( tArgs ) xrtValueRelease(tArgs);
     free(sResolved);
+    free(sStored);
+    free(sExisting);
     xwork__buf_unit(&tOutput);
     return eResult;
 }
 
-static xwork_result xwork__tool_replace_text(
+/* pi-style batch edit: every old_text is matched against the original
+ * file (not against earlier edits' output); one atomic write applies the
+ * whole batch. 0 or ambiguous matches return candidate context lines for
+ * self-correction instead of a bare error. */
+#define XWORK_EDIT_MAX_EDITS 64u
+
+typedef struct xwork_edit_span {
+    size_t iStart;
+    size_t iLen;
+    size_t iNew;
+    size_t iNewLen;
+} xwork_edit_span;
+
+static int xwork__span_cmp(const void* pA, const void* pB)
+{
+    const xwork_edit_span* pSA = (const xwork_edit_span*)pA;
+    const xwork_edit_span* pSB = (const xwork_edit_span*)pB;
+    if ( pSA->iStart < pSB->iStart ) return -1;
+    if ( pSA->iStart > pSB->iStart ) return 1;
+    return 0;
+}
+
+/* Append numbered candidate lines around a byte offset (self-correction). */
+static bool xwork__append_edit_candidates(xwork_buf* pOut, const char* sLf,
+    size_t iLen, size_t iFrom, size_t iCount, const char* sNeedle)
+{
+    size_t iLine = 1u;
+    size_t i;
+    size_t iLastStart = 0u;
+    size_t iHits = 0u;
+    size_t iShown = 0u;
+    /* count lines and find candidate regions: lines containing sNeedle. */
+    if ( !xwork__buf_appendf(pOut, "candidates:\n") ) return false;
+    for ( i = 0u; i <= iLen && iShown < iCount; ++i ) {
+        bool bEnd = i == iLen;
+        if ( !bEnd && sLf[i] != '\n' ) continue;
+        if ( sNeedle ) {
+            size_t n = i - iLastStart + (bEnd ? 0u : 1u);
+            const char* pLine = sLf + iLastStart;
+            size_t iNeedle = strlen(sNeedle);
+            bool bHit = false;
+            size_t k;
+            for ( k = 0u; k + iNeedle <= n; ++k ) {
+                if ( pLine[k] == sNeedle[0] && memcmp(pLine + k, sNeedle, iNeedle) == 0 ) {
+                    bHit = true;
+                    break;
+                }
+            }
+            if ( bHit ) { ++iHits; }
+            if ( bHit && iHits >= iFrom ) {
+                if ( !xwork__buf_appendf(pOut, "%6zu | ", iLine) ) return false;
+                if ( !xwork__buf_append(pOut, pLine, n && pLine[n - 1u] == '\n' ? n - 1u : n) ||
+                     !xwork__buf_append_char(pOut, '\n') ) return false;
+                ++iShown;
+            }
+        } else if ( iLine <= iCount ) {
+            size_t n = i - iLastStart + (bEnd ? 0u : 1u);
+            const char* pLine = sLf + iLastStart;
+            if ( !xwork__buf_appendf(pOut, "%6zu | ", iLine) ) return false;
+            if ( !xwork__buf_append(pOut, pLine, n && pLine[n - 1u] == '\n' ? n - 1u : n) ||
+                 !xwork__buf_append_char(pOut, '\n') ) return false;
+            ++iShown;
+        }
+        ++iLine;
+        iLastStart = i + 1u;
+    }
+    if ( iShown == 0u ) {
+        if ( !xwork__buf_appendf(pOut, "(no candidate lines)\n") ) return false;
+    }
+    return true;
+}
+
+static xwork_result xwork__tool_edit(
     void* pUserData,
     const xwork_tool_context* pContext,
     const char* sArgumentsJson,
@@ -556,388 +747,170 @@ static xwork_result xwork__tool_replace_text(
     xwork_agent* pAgent = (xwork_agent*)pUserData;
     xvalue* tArgs = xwork__json_parse_object(sArgumentsJson);
     const char* sPath;
-    const char* sOld;
-    const char* sNew;
     char* sResolved = NULL;
-    char* sCurrent = NULL;
-    size_t iCurrent = 0u;
-    bool bValid;
-    bool bAll;
-    const char* pScan;
-    const char* pMatch;
-    size_t iOld;
-    size_t iNew;
-    uint64_t uMatches = 0u;
+    char* sRaw = NULL;
+    char* sLf = NULL;
+    char* sStored = NULL;
+    char** psNew = NULL;
+    bool* pbAll = NULL;
+    xwork_edit_span* pSpans = NULL;
+    size_t iSpanCount = 0u;
+    size_t iSpanCap = 0u;
+    size_t iRaw = 0u;
+    size_t iLf = 0u;
+    size_t iEditCount = 0u;
+    size_t i;
+    xvalue* tEdits;
+    bool bPrefersCrlf;
     xwork_buf tNext = {0};
     xwork_buf tOutput = {0};
     xwork_result eResult = XWORK_RESULT_ERROR;
     (void)pContext;
     if ( !tArgs ) return xwork__tool_fail(pOutput, "invalid arguments: expected a JSON object");
     sPath = xwork__json_text(tArgs, "path");
-    sOld = xwork__json_text(tArgs, "old_text");
-    sNew = xwork__json_text(tArgs, "new_text");
-    if ( !sPath || !sPath[0] || !sOld || !sOld[0] || !sNew ) { eResult = xwork__tool_fail(pOutput, "path, non-empty old_text, and new_text are required"); goto cleanup; }
-    bAll = xwork__json_bool(tArgs, "replace_all", false, &bValid);
-    if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "replace_all must be boolean"); goto cleanup; }
+    if ( !sPath || !sPath[0] ) { eResult = xwork__tool_fail(pOutput, "path is required"); goto cleanup; }
+    tEdits = xwork__json_get(tArgs, "edits");
+    if ( !tEdits || xrtValueType(tEdits) != XVALUE_ARRAY ||
+         (iEditCount = xrtValueCount(tEdits)) == 0u || iEditCount > XWORK_EDIT_MAX_EDITS ) {
+        eResult = xwork__tool_fail(pOutput, "edits must be an array of 1-64 objects");
+        goto cleanup;
+    }
+    psNew = (char**)calloc(iEditCount, sizeof(char*));
+    pbAll = (bool*)calloc(iEditCount, sizeof(bool));
+    if ( !psNew || !pbAll ) goto oom;
+    for ( i = 0u; i < iEditCount; ++i ) {
+        xvalue* tEdit = xrtValueArrayGet(tEdits, i);
+        const char* sNew = xwork__json_text(tEdit, "new_text");
+        bool bValid;
+        if ( !tEdit || !xwork__json_text(tEdit, "old_text") ||
+             !xwork__json_text(tEdit, "old_text")[0] || !sNew ) {
+            eResult = xwork__tool_fail(pOutput, "each edit needs non-empty old_text and new_text");
+            goto cleanup;
+        }
+        pbAll[i] = xwork__json_bool(tEdit, "replace_all", false, &bValid);
+        if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "replace_all must be boolean"); goto cleanup; }
+        psNew[i] = xwork__strdup(sNew);
+        if ( !psNew[i] ) goto oom;
+    }
     sResolved = xwork__resolve_path(pAgent, sPath, pError);
     if ( !sResolved ) { eResult = xwork__tool_fail(pOutput, pError && pError->sMessage[0] ? pError->sMessage : "path denied"); goto cleanup; }
     if ( !xrtFileExists((str)sResolved) ) { eResult = xwork__tool_fail(pOutput, "file does not exist"); goto cleanup; }
-    sCurrent = (char*)xrtFileReadAll(sResolved, &iCurrent);
-    if ( !sCurrent && iCurrent ) { eResult = xwork__tool_fail(pOutput, "failed to read file"); goto cleanup; }
-    iOld = strlen(sOld);
-    iNew = strlen(sNew);
-    pScan = sCurrent ? sCurrent : "";
-    while ( (pMatch = strstr(pScan, sOld)) != NULL ) {
-        if ( !xwork__buf_append(&tNext, pScan, (size_t)(pMatch - pScan)) ||
-             !xwork__buf_append(&tNext, sNew, iNew) ) goto oom;
-        ++uMatches;
-        pScan = pMatch + iOld;
-        if ( !bAll ) break;
+    sRaw = (char*)xrtFileReadAll(sResolved, &iRaw);
+    if ( !sRaw && iRaw ) { eResult = xwork__tool_fail(pOutput, "failed to read file"); goto cleanup; }
+    if ( !sRaw ) sRaw = xwork__strdup("");
+    if ( iRaw >= 8192u && memchr(sRaw, 0, 8192u) != NULL ) {
+        eResult = xwork__tool_fail(pOutput, "binary file; edit supports UTF-8 text only");
+        goto cleanup;
     }
-    if ( uMatches == 0u ) { eResult = xwork__tool_fail(pOutput, "replace conflict: old_text was not found"); goto cleanup; }
-    if ( !bAll && strstr(pScan, sOld) != NULL ) { eResult = xwork__tool_fail(pOutput, "replace conflict: old_text occurs more than once; add more context or set replace_all=true"); goto cleanup; }
-    if ( !xwork__buf_append_cstr(&tNext, pScan) ) goto oom;
-    if ( !xwork__write_atomic_bytes(sResolved, tNext.pData, tNext.iLen) ) { eResult = xwork__tool_fail(pOutput, "failed to write replaced file"); goto cleanup; }
-    if ( !xwork__buf_appendf(&tOutput, "replaced %llu occurrence%s in %s (%zu -> %zu bytes)",
-            (unsigned long long)uMatches, uMatches == 1u ? "" : "s", sPath, iCurrent, tNext.iLen) ||
+    bPrefersCrlf = xwork__file_prefers_crlf(sRaw, iRaw);
+    if ( pAgent->eEolPolicy == XWORK_EOL_PRESERVE ) {
+        sLf = xwork__strdup(sRaw);
+        iLf = iRaw;
+    } else {
+        sLf = xwork__normalize_to_lf(sRaw, iRaw, &iLf);
+    }
+    if ( !sLf ) goto oom;
+
+    /* Collect spans against the ORIGINAL LF text. */
+    iSpanCap = iEditCount * 2u;
+    pSpans = (xwork_edit_span*)malloc(iSpanCap * sizeof(*pSpans));
+    if ( !pSpans ) goto oom;
+    for ( i = 0u; i < iEditCount; ++i ) {
+        xvalue* tEdit = xrtValueArrayGet(tEdits, i);
+        const char* sOld = xwork__json_text(tEdit, "old_text");
+        size_t iOld = strlen(sOld);
+        size_t iFrom = 0u;
+        size_t iMatches = 0u;
+        const char* pMatch;
+        while ( (pMatch = xwork__find_bytes(sLf, iLf, sOld, iOld, iFrom)) != NULL ) {
+            /* replace_all keeps every span; single edits keep only the first
+             * (later matches still count toward the ambiguity report). */
+            if ( pbAll[i] || iMatches == 0u ) {
+                if ( iSpanCount == iSpanCap ) {
+                    xwork_edit_span* pNewSpans;
+                    iSpanCap *= 2u;
+                    pNewSpans = (xwork_edit_span*)realloc(pSpans, iSpanCap * sizeof(*pSpans));
+                    if ( !pNewSpans ) goto oom;
+                    pSpans = pNewSpans;
+                }
+                pSpans[iSpanCount].iStart = (size_t)(pMatch - sLf);
+                pSpans[iSpanCount].iLen = iOld;
+                pSpans[iSpanCount].iNew = i;
+                pSpans[iSpanCount].iNewLen = strlen(psNew[i]);
+                ++iSpanCount;
+            }
+            ++iMatches;
+            iFrom = (size_t)(pMatch - sLf) + iOld;
+        }
+        if ( iMatches == 0u ) {
+            if ( !xwork__buf_appendf(&tOutput,
+                    "edit %zu failed: old_text was not found (0 matches).\n", i) ||
+                 !xwork__append_edit_candidates(&tOutput, sLf, iLf, 1u, 15u, NULL) ) goto oom;
+            eResult = xwork__tool_fail(pOutput, tOutput.pData ? tOutput.pData : "old_text was not found");
+            goto cleanup;
+        }
+        if ( iMatches > 1u && !pbAll[i] ) {
+            if ( !xwork__buf_appendf(&tOutput,
+                    "edit %zu failed: old_text occurs %zu times; add context or set replace_all.\n",
+                    i, iMatches) ||
+                 !xwork__append_edit_candidates(&tOutput, sLf, iLf, 1u, 10u, sOld) ) goto oom;
+            eResult = xwork__tool_fail(pOutput, tOutput.pData ? tOutput.pData : "old_text is ambiguous");
+            goto cleanup;
+        }
+    }
+
+    /* Sort, reject overlaps, splice one atomic result. */
+    qsort(pSpans, iSpanCount, sizeof(*pSpans), xwork__span_cmp);
+    for ( i = 1u; i < iSpanCount; ++i ) {
+        if ( pSpans[i].iStart < pSpans[i - 1u].iStart + pSpans[i - 1u].iLen ) {
+            eResult = xwork__tool_fail(pOutput, "edits overlap; merge them into one edit");
+            goto cleanup;
+        }
+    }
+    {
+        size_t iCursor = 0u;
+        for ( i = 0u; i < iSpanCount; ++i ) {
+            if ( !xwork__buf_append(&tNext, sLf + iCursor, pSpans[i].iStart - iCursor) ||
+                 !xwork__buf_append(&tNext, psNew[pSpans[i].iNew], pSpans[i].iNewLen) ) goto oom;
+            iCursor = pSpans[i].iStart + pSpans[i].iLen;
+        }
+        if ( !xwork__buf_append(&tNext, sLf + iCursor, iLf - iCursor) ) goto oom;
+    }
+    if ( pAgent->eEolPolicy == XWORK_EOL_PRESERVE ) {
+        sStored = xwork__strdup(tNext.pData ? tNext.pData : "");
+    } else {
+        sStored = xwork__apply_storage_eol(tNext.pData ? tNext.pData : "", tNext.iLen,
+            pAgent, bPrefersCrlf, NULL);
+    }
+    if ( !sStored ) goto oom;
+    if ( !xwork__write_atomic_bytes(sResolved, sStored, strlen(sStored)) ) {
+        eResult = xwork__tool_fail(pOutput, "failed to write edited file");
+        goto cleanup;
+    }
+    if ( !xwork__buf_appendf(&tOutput, "applied %zu edit%s (%zu replacement%s) to %s (%zu -> %zu bytes)",
+            iEditCount, iEditCount == 1u ? "" : "s",
+            iSpanCount, iSpanCount == 1u ? "" : "s",
+            sPath, iRaw, strlen(sStored)) ||
          !xworkToolOutputSet(pOutput, true, tOutput.pData) ) goto oom;
     eResult = XWORK_RESULT_OK;
     goto cleanup;
 oom:
-    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to apply text replacement");
+    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to apply batch edit");
 cleanup:
     if ( tArgs ) xrtValueRelease(tArgs);
     free(sResolved);
-    if ( sCurrent && iCurrent ) xrtFree(sCurrent);
+    if ( sRaw && iRaw ) xrtFree(sRaw);
+    else free(sRaw);
+    free(sLf);
+    free(sStored);
+    if ( psNew ) { for ( i = 0u; i < iEditCount; ++i ) free(psNew[i]); free(psNew); }
+    free(pbAll);
+    free(pSpans);
     xwork__buf_unit(&tNext);
     xwork__buf_unit(&tOutput);
     return eResult;
 }
 
-#define XWORK_PATCH_MAX_CHANGES 64u
-#define XWORK_PATCH_MAX_FILE_BYTES (16u * 1024u * 1024u)
-
-typedef enum xwork_patch_operation {
-    XWORK_PATCH_CREATE = 1,
-    XWORK_PATCH_REPLACE,
-    XWORK_PATCH_DELETE
-} xwork_patch_operation;
-
-typedef struct xwork_patch_change {
-    xwork_patch_operation eOperation;
-    char* sPath;
-    char* sResolved;
-    char* sBefore;
-    size_t iBefore;
-    char* sAfter;
-    size_t iAfter;
-    uint64_t uMatches;
-    bool bExisted;
-    bool bApplied;
-} xwork_patch_change;
-
-static void xwork__patch_change_unit(xwork_patch_change* pChange)
-{
-    if ( !pChange ) return;
-    free(pChange->sPath);
-    free(pChange->sResolved);
-    free(pChange->sBefore);
-    free(pChange->sAfter);
-    memset(pChange, 0, sizeof(*pChange));
-}
-
-static bool xwork__same_path(const char* sLeft, const char* sRight)
-{
-#if defined(_WIN32)
-    return _stricmp(sLeft, sRight) == 0;
-#else
-    return strcmp(sLeft, sRight) == 0;
-#endif
-}
-
-static bool xwork__copy_bytes(const char* pData, size_t iLen, char** ppCopy)
-{
-    char* pCopy;
-    if ( !ppCopy || (!pData && iLen) ) return false;
-    pCopy = (char*)malloc(iLen + 1u);
-    if ( !pCopy ) return false;
-    if ( iLen ) memcpy(pCopy, pData, iLen);
-    pCopy[iLen] = '\0';
-    *ppCopy = pCopy;
-    return true;
-}
-
-/* Returns 1 on success, 0 for a deterministic replacement conflict, and -1
- * for allocation failure. The input is known UTF-8 text without embedded NUL. */
-static int xwork__make_replacement(
-    const char* sCurrent,
-    const char* sOld,
-    const char* sNew,
-    bool bReplaceAll,
-    char** ppNext,
-    size_t* piNext,
-    uint64_t* puMatches
-)
-{
-    const char* pScan = sCurrent;
-    const char* pMatch;
-    size_t iOld = strlen(sOld);
-    size_t iNew = strlen(sNew);
-    uint64_t uMatches = 0u;
-    xwork_buf tNext = {0};
-    while ( (pMatch = strstr(pScan, sOld)) != NULL ) {
-        if ( !xwork__buf_append(&tNext, pScan, (size_t)(pMatch - pScan)) ||
-             !xwork__buf_append(&tNext, sNew, iNew) ) {
-            xwork__buf_unit(&tNext);
-            return -1;
-        }
-        ++uMatches;
-        pScan = pMatch + iOld;
-        if ( !bReplaceAll ) break;
-    }
-    if ( uMatches == 0u || (!bReplaceAll && strstr(pScan, sOld) != NULL) ) {
-        xwork__buf_unit(&tNext);
-        return 0;
-    }
-    if ( !xwork__buf_append_cstr(&tNext, pScan) ) {
-        xwork__buf_unit(&tNext);
-        return -1;
-    }
-    *piNext = tNext.iLen;
-    *ppNext = xwork__buf_detach(&tNext);
-    *puMatches = uMatches;
-    return 1;
-}
-
-static bool xwork__patch_restore(xwork_patch_change* pChange)
-{
-    if ( !pChange->bApplied ) return true;
-    if ( pChange->bExisted ) {
-        if ( !xwork__ensure_parent(pChange->sResolved) ) return false;
-        return xwork__write_atomic_bytes(pChange->sResolved, pChange->sBefore, pChange->iBefore);
-    }
-    if ( !xrtPathExists((str)pChange->sResolved) ) return true;
-    return xrtFileDelete((str)pChange->sResolved);
-}
-
-static xwork_result xwork__tool_apply_patch(
-    void* pUserData,
-    const xwork_tool_context* pContext,
-    const char* sArgumentsJson,
-    xwork_tool_output* pOutput,
-    xwork_error* pError
-)
-{
-    xwork_agent* pAgent = (xwork_agent*)pUserData;
-    xvalue* tArgs = xwork__json_parse_object(sArgumentsJson);
-    xvalue* tChanges;
-    xwork_patch_change* pChanges = NULL;
-    uint32_t iCount = 0u;
-    uint32_t i;
-    uint32_t j;
-    uint32_t iApplied = 0u;
-    bool bRollbackOk = true;
-    xwork_buf tOutput = {0};
-    xwork_result eResult = XWORK_RESULT_ERROR;
-    (void)pContext;
-    if ( !tArgs ) return xwork__tool_fail(pOutput, "invalid arguments: expected a JSON object");
-    tChanges = xwork__json_get(tArgs, "changes");
-    if ( !tChanges || xrtValueType(tChanges) != XVALUE_ARRAY ) {
-        eResult = xwork__tool_fail(pOutput, "changes must be an array");
-        goto cleanup;
-    }
-    iCount = xrtValueCount(tChanges);
-    if ( iCount == 0u || iCount > XWORK_PATCH_MAX_CHANGES ) {
-        eResult = xwork__tool_fail(pOutput, "changes must contain between 1 and 64 entries");
-        goto cleanup;
-    }
-    pChanges = (xwork_patch_change*)calloc(iCount, sizeof(*pChanges));
-    if ( !pChanges ) goto oom;
-
-    /* Prepare the full transaction before touching the workspace. */
-    for ( i = 0u; i < iCount; ++i ) {
-        xvalue* tChange = xrtValueArrayGet(tChanges, i);
-        const char* sPath;
-        const char* sOperation;
-        const char* sContent;
-        const char* sOld;
-        const char* sNew;
-        bool bValid;
-        bool bAll;
-        void* pFile = NULL;
-        size_t iFile = 0u;
-        int iReplaceResult;
-        xwork_patch_change* pChange = &pChanges[i];
-        if ( !tChange || xrtValueType(tChange) != XVALUE_OBJECT ) {
-            if ( !xwork__buf_appendf(&tOutput, "change %u must be an object", (unsigned int)(i + 1u)) ) goto oom;
-            eResult = xwork__tool_fail(pOutput, tOutput.pData);
-            goto cleanup;
-        }
-        sPath = xwork__json_text(tChange, "path");
-        sOperation = xwork__json_text(tChange, "operation");
-        if ( !sPath || !sPath[0] || !sOperation || !sOperation[0] ) {
-            if ( !xwork__buf_appendf(&tOutput, "change %u requires path and operation", (unsigned int)(i + 1u)) ) goto oom;
-            eResult = xwork__tool_fail(pOutput, tOutput.pData);
-            goto cleanup;
-        }
-        pChange->sPath = xwork__strdup(sPath);
-        pChange->sResolved = xwork__resolve_path(pAgent, sPath, pError);
-        if ( !pChange->sPath || !pChange->sResolved ) {
-            if ( !pChange->sPath ) goto oom;
-            if ( !xwork__buf_appendf(&tOutput, "change %u (%s): %s", (unsigned int)(i + 1u), sPath,
-                    pError && pError->sMessage[0] ? pError->sMessage : "path denied") ) goto oom;
-            eResult = xwork__tool_fail(pOutput, tOutput.pData);
-            goto cleanup;
-        }
-        for ( j = 0u; j < i; ++j ) {
-            if ( xwork__same_path(pChange->sResolved, pChanges[j].sResolved) ) {
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): duplicate target in one transaction", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-        }
-        if ( strcmp(sOperation, "create") == 0 ) pChange->eOperation = XWORK_PATCH_CREATE;
-        else if ( strcmp(sOperation, "replace") == 0 ) pChange->eOperation = XWORK_PATCH_REPLACE;
-        else if ( strcmp(sOperation, "delete") == 0 ) pChange->eOperation = XWORK_PATCH_DELETE;
-        else {
-            if ( !xwork__buf_appendf(&tOutput, "change %u (%s): operation must be create, replace, or delete", (unsigned int)(i + 1u), sPath) ) goto oom;
-            eResult = xwork__tool_fail(pOutput, tOutput.pData);
-            goto cleanup;
-        }
-        pChange->bExisted = xrtPathExists((str)pChange->sResolved);
-        if ( pChange->bExisted && !xrtFileExists((str)pChange->sResolved) ) {
-            if ( !xwork__buf_appendf(&tOutput, "change %u (%s): target is not a regular file", (unsigned int)(i + 1u), sPath) ) goto oom;
-            eResult = xwork__tool_fail(pOutput, tOutput.pData);
-            goto cleanup;
-        }
-        if ( pChange->eOperation == XWORK_PATCH_CREATE && pChange->bExisted ) {
-            if ( !xwork__buf_appendf(&tOutput, "change %u (%s): create conflict, target already exists", (unsigned int)(i + 1u), sPath) ) goto oom;
-            eResult = xwork__tool_fail(pOutput, tOutput.pData);
-            goto cleanup;
-        }
-        if ( pChange->eOperation != XWORK_PATCH_CREATE && !pChange->bExisted ) {
-            if ( !xwork__buf_appendf(&tOutput, "change %u (%s): target does not exist", (unsigned int)(i + 1u), sPath) ) goto oom;
-            eResult = xwork__tool_fail(pOutput, tOutput.pData);
-            goto cleanup;
-        }
-        if ( pChange->bExisted ) {
-            uint64_t uFileSize = 0u;
-            if ( !xwork__path_size(pChange->sResolved, &uFileSize) ||
-                 uFileSize > XWORK_PATCH_MAX_FILE_BYTES ) {
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): file exceeds the 16 MiB patch limit", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-            pFile = xrtFileReadAll(pChange->sResolved, &iFile);
-            if ( !pFile && iFile ) {
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): failed to read current file", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-            if ( xwork__looks_binary((const unsigned char*)pFile, iFile) ||
-                 (iFile && !xrtUtf8Valid((xstrview){ (const char*)pFile, iFile }, NULL)) ) {
-                if ( pFile ) xrtFree(pFile);
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): target must be UTF-8 text", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-            if ( !xwork__copy_bytes((const char*)pFile, iFile, &pChange->sBefore) ) {
-                if ( pFile ) xrtFree(pFile);
-                goto oom;
-            }
-            if ( pFile ) xrtFree(pFile);
-            pChange->iBefore = iFile;
-        }
-        if ( pChange->eOperation == XWORK_PATCH_CREATE ) {
-            sContent = xwork__json_text(tChange, "content");
-            if ( !sContent ) {
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): create requires content", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-            pChange->iAfter = strlen(sContent);
-            if ( pChange->iAfter > XWORK_PATCH_MAX_FILE_BYTES ) {
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): content exceeds the 16 MiB patch limit", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-            if ( !xwork__copy_bytes(sContent, pChange->iAfter, &pChange->sAfter) ) goto oom;
-        } else if ( pChange->eOperation == XWORK_PATCH_REPLACE ) {
-            sOld = xwork__json_text(tChange, "old_text");
-            sNew = xwork__json_text(tChange, "new_text");
-            bAll = xwork__json_bool(tChange, "replace_all", false, &bValid);
-            if ( !sOld || !sOld[0] || !sNew || !bValid ) {
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): replace requires non-empty old_text, new_text, and optional boolean replace_all", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-            iReplaceResult = xwork__make_replacement(pChange->sBefore, sOld, sNew, bAll,
-                &pChange->sAfter, &pChange->iAfter, &pChange->uMatches);
-            if ( iReplaceResult < 0 ) goto oom;
-            if ( iReplaceResult == 0 ) {
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): replace conflict, old_text must occur exactly once unless replace_all=true", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-            if ( pChange->iAfter > XWORK_PATCH_MAX_FILE_BYTES ) {
-                if ( !xwork__buf_appendf(&tOutput, "change %u (%s): patched file exceeds the 16 MiB limit", (unsigned int)(i + 1u), sPath) ) goto oom;
-                eResult = xwork__tool_fail(pOutput, tOutput.pData);
-                goto cleanup;
-            }
-        }
-    }
-
-    for ( i = 0u; i < iCount; ++i ) {
-        xwork_patch_change* pChange = &pChanges[i];
-        bool bOk;
-        if ( pChange->eOperation == XWORK_PATCH_DELETE ) {
-            bOk = xrtFileDelete((str)pChange->sResolved);
-        } else {
-            bOk = xwork__ensure_parent(pChange->sResolved) &&
-                  xwork__write_atomic_bytes(pChange->sResolved, pChange->sAfter, pChange->iAfter);
-        }
-        if ( !bOk ) {
-            for ( j = i; j > 0u; --j ) {
-                if ( !xwork__patch_restore(&pChanges[j - 1u]) ) bRollbackOk = false;
-            }
-            xwork__buf_unit(&tOutput);
-            if ( !xwork__buf_appendf(&tOutput, "transaction failed at change %u (%s); rollback %s",
-                    (unsigned int)(i + 1u), pChange->sPath, bRollbackOk ? "completed" : "was incomplete") ) goto oom;
-            eResult = xwork__tool_fail(pOutput, tOutput.pData);
-            goto cleanup;
-        }
-        pChange->bApplied = true;
-        ++iApplied;
-    }
-
-    xwork__buf_unit(&tOutput);
-    if ( !xwork__buf_appendf(&tOutput, "applied %u change%s transactionally:\n",
-            (unsigned int)iApplied, iApplied == 1u ? "" : "s") ) goto oom;
-    for ( i = 0u; i < iCount; ++i ) {
-        const xwork_patch_change* pChange = &pChanges[i];
-        const char* sName = pChange->eOperation == XWORK_PATCH_CREATE ? "create" :
-                            pChange->eOperation == XWORK_PATCH_REPLACE ? "replace" : "delete";
-        if ( !xwork__buf_appendf(&tOutput, "- %s %s (%zu -> %zu bytes%s)\n", sName,
-                pChange->sPath, pChange->iBefore, pChange->iAfter,
-                pChange->eOperation == XWORK_PATCH_REPLACE && pChange->uMatches > 1u ? ", multiple replacements" : "") ) goto oom;
-    }
-    if ( !xworkToolOutputSet(pOutput, true, tOutput.pData) ) goto oom;
-    eResult = XWORK_RESULT_OK;
-    goto cleanup;
-oom:
-    if ( iApplied ) {
-        for ( j = iApplied; j > 0u; --j ) (void)xwork__patch_restore(&pChanges[j - 1u]);
-    }
-    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to prepare or report apply_patch transaction");
-cleanup:
-    if ( pChanges ) {
-        for ( i = 0u; i < iCount; ++i ) xwork__patch_change_unit(&pChanges[i]);
-        free(pChanges);
-    }
-    if ( tArgs ) xrtValueRelease(tArgs);
-    xwork__buf_unit(&tOutput);
-    return eResult;
-}
 
 static bool xwork__process_running(const xprocess* pProcess)
 {
@@ -2000,21 +1973,15 @@ bool xworkAgentRegisterBuiltinTools(xwork_agent* pAgent, xwork_error* pError)
     static const xwork_tool_definition arrTools[] = {
         {
             "write_file",
-            "Create, overwrite, or append a UTF-8 file inside the workspace. Prefer replace_text for small edits to existing files.",
-            "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"},\"mode\":{\"type\":\"string\",\"enum\":[\"overwrite\",\"create\",\"append\"]},\"create_dirs\":{\"type\":\"boolean\"}},\"required\":[\"path\",\"content\"],\"additionalProperties\":false}",
+            "Create, overwrite, or append a UTF-8 file inside the workspace. Parent directories are created automatically. Prefer edit for small changes to existing files.",
+            "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"},\"mode\":{\"type\":\"string\",\"enum\":[\"overwrite\",\"create\",\"append\"]}},\"required\":[\"path\",\"content\"],\"additionalProperties\":false}",
             true, XWORK_TOOL_EFFECT_WORKSPACE_WRITE, xwork__tool_write_file, NULL, NULL
         },
         {
-            "replace_text",
-            "Replace an exact text block in one workspace file. By default the old text must occur exactly once; include surrounding context for safe edits.",
-            "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"old_text\":{\"type\":\"string\"},\"new_text\":{\"type\":\"string\"},\"replace_all\":{\"type\":\"boolean\"}},\"required\":[\"path\",\"old_text\",\"new_text\"],\"additionalProperties\":false}",
-            true, XWORK_TOOL_EFFECT_WORKSPACE_WRITE, xwork__tool_replace_text, NULL, NULL
-        },
-        {
-            "apply_patch",
-            "Apply a validated multi-file UTF-8 text transaction. Every change is checked before writing; a failed write rolls back earlier changes.",
-            "{\"type\":\"object\",\"properties\":{\"changes\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":64,\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"operation\":{\"type\":\"string\",\"enum\":[\"create\",\"replace\",\"delete\"]},\"content\":{\"type\":\"string\"},\"old_text\":{\"type\":\"string\"},\"new_text\":{\"type\":\"string\"},\"replace_all\":{\"type\":\"boolean\"}},\"required\":[\"path\",\"operation\"],\"additionalProperties\":false}}},\"required\":[\"changes\"],\"additionalProperties\":false}",
-            true, XWORK_TOOL_EFFECT_WORKSPACE_WRITE, xwork__tool_apply_patch, NULL, NULL
+            "edit",
+            "Apply exact text edits to one file in a single atomic pass. Each old_text must match the original file uniquely (or set replace_all); 0 or multiple matches return candidate context lines for self-correction.",
+            "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"edits\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":64,\"items\":{\"type\":\"object\",\"properties\":{\"old_text\":{\"type\":\"string\"},\"new_text\":{\"type\":\"string\"},\"replace_all\":{\"type\":\"boolean\"}},\"required\":[\"old_text\",\"new_text\"],\"additionalProperties\":false}}},\"required\":[\"path\",\"edits\"],\"additionalProperties\":false}",
+            true, XWORK_TOOL_EFFECT_WORKSPACE_WRITE, xwork__tool_edit, NULL, NULL
         },
         {
             "spawn",

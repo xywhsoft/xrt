@@ -241,7 +241,7 @@ static xllm_result mock_complete(
                 tRegistryError.eCode == XWORK_ERROR_CONTEXT;
         }
         ++pMock->uAgentCalls;
-        pMock->bSawTools = pRequest->iToolCount == 12u;
+        pMock->bSawTools = pRequest->iToolCount == 11u;
         pMock->bSawParallel = pRequest->bParallelToolCalls;
         if ( pMock->uAgentCalls > 1u && request_has_role(pRequest, XLLM_ROLE_TOOL, 1u) ) pMock->bSawToolResults = true;
         if ( request_has_text(pRequest, "Objective: test the xwork tool loop after compaction") ) pMock->bSawCompactionSummary = true;
@@ -252,7 +252,7 @@ static xllm_result mock_complete(
             if ( !pResponse ) return XLLM_RESULT_ERROR;
             if ( !xwork__buf_append_cstr(&tArgs, "{\"path\":\"sandbox/note.txt\",\"content\":\"hello-") ) goto oom;
             for ( i = 0u; i < 1600u; ++i ) if ( !xwork__buf_append_char(&tArgs, (char)('a' + (i % 26u))) ) goto oom;
-            if ( !xwork__buf_append_cstr(&tArgs, "\",\"mode\":\"create\",\"create_dirs\":true}") ) goto oom;
+            if ( !xwork__buf_append_cstr(&tArgs, "note tail\",\"mode\":\"create\"}") ) goto oom;
             sLargeArgs = xwork__buf_detach(&tArgs);
             if ( !sLargeArgs ||
                  !mock_set_call(pResponse, 0u, "call_write", "write_file", sLargeArgs) ||
@@ -260,11 +260,11 @@ static xllm_result mock_complete(
                  !mock_set_call(pResponse, 2u, "call_escape", "read_file", "{\"path\":\"../outside.txt\"}") ||
                  !mock_set_call(pResponse, 3u, "call_list", "list_files", "{\"path\":\"sandbox\",\"recursive\":true}") ||
                  !mock_set_call(pResponse, 4u, "call_search", "search_text", "{\"query\":\"hello-\",\"path\":\"sandbox\",\"pattern\":\"*.txt\"}") ||
-                 !mock_set_call(pResponse, 5u, "call_replace", "replace_text", "{\"path\":\"sandbox/note.txt\",\"old_text\":\"hello-\",\"new_text\":\"HELLO-\"}") ) goto oom;
+                 !mock_set_call(pResponse, 5u, "call_replace", "edit", "{\"path\":\"sandbox/note.txt\",\"edits\":[{\"old_text\":\"hello-\",\"new_text\":\"HELLO-\"}]}") ) goto oom;
         } else if ( pMock->uAgentCalls == 2u ) {
             pResponse = mock_response("", 1u);
-            if ( !pResponse || !mock_set_call(pResponse, 0u, "call_patch", "apply_patch",
-                    "{\"changes\":[{\"path\":\"sandbox/note.txt\",\"operation\":\"replace\",\"old_text\":\"HELLO-\",\"new_text\":\"PATCHED-\"},{\"path\":\"sandbox/extra.txt\",\"operation\":\"create\",\"content\":\"transaction created this file\\n\"}]}") ) goto oom;
+            if ( !pResponse || !mock_set_call(pResponse, 0u, "call_patch", "edit",
+                    "{\"path\":\"sandbox/note.txt\",\"edits\":[{\"old_text\":\"HELLO-\",\"new_text\":\"PATCHED-\"},{\"old_text\":\"note tail\",\"new_text\":\"EDITED tail\"}]}") ) goto oom;
         } else if ( pMock->uAgentCalls == 3u ) {
             pResponse = mock_response("The requested edits are complete.", 0u);
         } else if ( pMock->uAgentCalls == 4u ) {
@@ -309,7 +309,7 @@ static bool on_event(void* pUserData, const xwork_event* pEvent)
             ++pEvents->uModelStarts;
             if ( pEvent->sModel && strcmp(pEvent->sModel, "mock-model") == 0 &&
                  pEvent->sRequestFingerprint && strlen(pEvent->sRequestFingerprint) == 16u &&
-                 pEvent->iMessageCount > 0u && pEvent->iToolDefinitionCount == 12u &&
+                 pEvent->iMessageCount > 0u && pEvent->iToolDefinitionCount == 11u &&
                  pEvent->uMaxOutputTokens > 0u ) pEvents->bRequestMetadata = true;
             break;
         case XWORK_EVENT_MODEL_TEXT_DELTA: ++pEvents->uTextDeltas; break;
@@ -488,7 +488,7 @@ static void test_agent_loop(void)
     tAgentConfig.iMaxInlineToolBytes = 300u;
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
     CHECK(pAgent != NULL, "agent creates with injected model boundary");
-    CHECK(pAgent && xworkAgentToolCount(pAgent) == 12u, "twelve practical builtin tools registered");
+    CHECK(pAgent && xworkAgentToolCount(pAgent) == 11u, "eleven practical builtin tools registered");
     if ( !pAgent ) goto cleanup;
     tMock.pAgent = pAgent;
 
@@ -510,12 +510,12 @@ static void test_agent_loop(void)
             strcmp(tInfo.sSource, "builtin") == 0,
             "tool registry enumeration exposes stable source metadata");
         CHECK(xworkAgentRegisterTool(pAgent, &tDynamic, &tError) &&
-            xworkAgentToolCount(pAgent) == 13u &&
+            xworkAgentToolCount(pAgent) == 12u &&
             xworkAgentToolRegistryGeneration(pAgent) == uGeneration + 1u,
             "dynamic tool registration advances the registry generation");
         xworkErrorInit(&tError);
         CHECK(xworkAgentUnregisterToolsBySource(pAgent, "test.dynamic", &iRemoved, &tError) &&
-            iRemoved == 1u && xworkAgentToolCount(pAgent) == 12u &&
+            iRemoved == 1u && xworkAgentToolCount(pAgent) == 11u &&
             xworkAgentToolRegistryGeneration(pAgent) == uGeneration + 2u,
             "bulk source removal atomically retires dynamic tools");
     }
@@ -538,7 +538,7 @@ static void test_agent_loop(void)
         CHECK(pMcpClient && xworkMcpClientConnect(pMcpClient, &tError),
             "MCP stdio client completes initialize and initialized handshake");
         CHECK(pMcpClient && xworkMcpClientRefreshTools(pMcpClient, pAgent, &tError) &&
-            xworkAgentToolCount(pAgent) == 13u,
+            xworkAgentToolCount(pAgent) == 12u,
             "MCP tools/list dynamically registers namespaced proxy tools");
         pMcpTool = xwork__find_tool(pAgent, "mcp__phase3__echo");
         memset(&tMcpToolContext, 0, sizeof(tMcpToolContext));
@@ -584,7 +584,7 @@ static void test_agent_loop(void)
         }
         CHECK(xworkAgentUnregisterToolsBySource(
                 pAgent, "mcp:phase3", &iRemoved, &tError) && iRemoved == 1u &&
-            xworkAgentToolCount(pAgent) == 12u,
+            xworkAgentToolCount(pAgent) == 11u,
             "MCP source can be detached without disturbing builtin tools");
         xworkMcpClientDestroy(pMcpClient);
         pMcpClient = NULL;
@@ -623,19 +623,28 @@ static void test_agent_loop(void)
 
     memset(&tPatchContext, 0, sizeof(tPatchContext));
     xworkToolOutputInit(&tPatchOutput);
-    pPatchTool = xwork__find_tool(pAgent, "apply_patch");
+    pPatchTool = xwork__find_tool(pAgent, "edit");
     tPatchContext.pAgent = pAgent;
+    /* 0-match edit returns candidate context lines (self-correction). */
     CHECK(pPatchTool && pPatchTool->OnExecute(pPatchTool->pUserData, &tPatchContext,
-        "{\"changes\":[{\"path\":\"sandbox/note.txt\",\"operation\":\"replace\",\"old_text\":\"PATCHED-\",\"new_text\":\"BROKEN-\"},{\"path\":\"sandbox/note.txt/child.txt\",\"operation\":\"create\",\"content\":\"must fail\"}]}",
-        &tPatchOutput, &tError) == XWORK_RESULT_OK && !tPatchOutput.bSuccess,
-        "failed multi-file transaction is reported as a tool-level failure");
-    CHECK(tPatchOutput.sContent && strstr(tPatchOutput.sContent, "rollback completed"), "failed transaction reports successful rollback");
+        "{\"path\":\"sandbox/note.txt\",\"edits\":[{\"old_text\":\"NOT-PRESENT-TEXT\",\"new_text\":\"X\"}]}",
+        &tPatchOutput, &tError) == XWORK_RESULT_OK && !tPatchOutput.bSuccess &&
+        tPatchOutput.sContent && strstr(tPatchOutput.sContent, "candidates:") &&
+        strstr(tPatchOutput.sContent, "0 matches"),
+        "0-match edit returns numbered candidate lines for self-correction");
+    xworkToolOutputUnit(&tPatchOutput);
+    xworkToolOutputInit(&tPatchOutput);
+    /* Ambiguous edit (no replace_all) lists the matching lines. */
+    CHECK(pPatchTool && pPatchTool->OnExecute(pPatchTool->pUserData, &tPatchContext,
+        "{\"path\":\"sandbox/note.txt\",\"edits\":[{\"old_text\":\"abc\",\"new_text\":\"X\"}]}",
+        &tPatchOutput, &tError) == XWORK_RESULT_OK && !tPatchOutput.bSuccess &&
+        tPatchOutput.sContent && strstr(tPatchOutput.sContent, "times"),
+        "ambiguous edit reports match count and candidates");
     xworkToolOutputUnit(&tPatchOutput);
 
     sFile = (char*)xrtFileReadAll("tests/tmp_xwork/sandbox/note.txt", &iFileSize);
     CHECK(sFile && iFileSize > 1600u && strncmp(sFile, "PATCHED-", 8u) == 0, "workspace file was created then edited by both edit tools");
-    CHECK(xrtFileExists((str)"tests/tmp_xwork/sandbox/extra.txt"), "multi-file patch transaction created its second target");
-    CHECK(!xrtFileExists((str)"tests/tmp_xwork/sandbox/note.txt/child.txt"), "failed transaction left no partial target behind");
+    CHECK(!xrtFileExists((str)"tests/tmp_xwork/sandbox/note.txt/child.txt"), "failed edit left no partial target behind");
 
     pStartTool = xwork__find_tool(pAgent, "spawn");
     pWriteProcessTool = xwork__find_tool(pAgent, "stdin");
@@ -1098,6 +1107,99 @@ static void test_task_system(void)
     (void)xrtDirRemoveAll(sWorkspace);
 }
 
+/* ------------------------------------------------------------------ */
+/* Edit/EOL/write batch: batch atomic edits, candidate lines, model-LF */
+/* discipline, auto parent creation.                                   */
+/* ------------------------------------------------------------------ */
+
+static void test_edit_eol_write(void)
+{
+    static const char sWorkspace[] = "tests/tmp_xwork_edit";
+    xllm_session_config tSessionConfig;
+    xllm_session* pSession = NULL;
+    xwork_agent_config tAgentConfig;
+    xwork_agent* pAgent = NULL;
+    xwork_error tError;
+    const xwork_tool_entry* pEditTool;
+    const xwork_tool_entry* pWriteTool;
+    const xwork_tool_entry* pReadTool;
+    xwork_tool_context tCtx;
+    xwork_tool_output tOut;
+    size_t iSize = 0u;
+    char* sFile = NULL;
+
+    (void)xrtDirRemoveAll(sWorkspace);
+    CHECK(xrtDirCreateAll((str)sWorkspace), "edit workspace created");
+    xllmSessionConfigInit(&tSessionConfig);
+    pSession = xllmSessionCreate(&tSessionConfig, NULL);
+    xworkAgentConfigInit(&tAgentConfig);
+    tAgentConfig.pSession = pSession;
+    tAgentConfig.sWorkspaceRoot = sWorkspace;
+    pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+    CHECK(pSession && pAgent, "edit fixture agent creates");
+    pEditTool = pAgent ? xwork__find_tool(pAgent, "edit") : NULL;
+    pWriteTool = pAgent ? xwork__find_tool(pAgent, "write_file") : NULL;
+    pReadTool = pAgent ? xwork__find_tool(pAgent, "read_file") : NULL;
+    memset(&tCtx, 0, sizeof(tCtx));
+    tCtx.pAgent = pAgent;
+    tCtx.sWorkspaceRoot = sWorkspace;
+
+    /* Write with CRLF content into a fresh file; AUTO stores LF (new file). */
+    xworkToolOutputInit(&tOut);
+    CHECK(pWriteTool && pWriteTool->OnExecute(pWriteTool->pUserData, &tCtx,
+        "{\"path\":\"a/b/c.txt\",\"content\":\"alpha\\r\\nbeta\\r\\n gamma delta\\r\\n\",\"mode\":\"create\"}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
+        tOut.sContent && strstr(tOut.sContent, "created parent directories"),
+        "write auto-creates parents and reports them");
+    xworkToolOutputUnit(&tOut);
+    sFile = (char*)xrtFileReadAll("tests/tmp_xwork_edit/a/b/c.txt", &iSize);
+    CHECK(sFile && memchr(sFile, '\r', iSize) == NULL, "AUTO stores new files in pure LF");
+    xrtFree(sFile); sFile = NULL;
+
+    /* Batch edit: two disjoint edits in one atomic call. */
+    xworkToolOutputInit(&tOut);
+    CHECK(pEditTool && pEditTool->OnExecute(pEditTool->pUserData, &tCtx,
+        "{\"path\":\"a/b/c.txt\",\"edits\":[{\"old_text\":\"alpha\",\"new_text\":\"ALPHA\"},{\"old_text\":\"gamma\",\"new_text\":\"GAMMA\"}]}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
+        tOut.sContent && strstr(tOut.sContent, "applied 2 edits"),
+        "edit applies a disjoint batch atomically");
+    xworkToolOutputUnit(&tOut);
+
+    /* replace_all replaces every occurrence in one edit. */
+    xworkToolOutputInit(&tOut);
+    CHECK(pEditTool && pEditTool->OnExecute(pEditTool->pUserData, &tCtx,
+        "{\"path\":\"a/b/c.txt\",\"edits\":[{\"old_text\":\"a\",\"new_text\":\"-\",\"replace_all\":true}]}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess,
+        "replace_all edits every occurrence");
+    xworkToolOutputUnit(&tOut);
+
+    /* FORCE_CRLF: the same file round-trips with CRLF storage while the
+     * model keeps editing in LF. */
+    if ( pAgent ) pAgent->eEolPolicy = XWORK_EOL_FORCE_CRLF;
+    xworkToolOutputInit(&tOut);
+    CHECK(pEditTool && pEditTool->OnExecute(pEditTool->pUserData, &tCtx,
+        "{\"path\":\"a/b/c.txt\",\"edits\":[{\"old_text\":\"ALPHA\",\"new_text\":\"FINAL\"}]}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess,
+        "FORCE_CRLF edit matches in LF space");
+    xworkToolOutputUnit(&tOut);
+    sFile = (char*)xrtFileReadAll("tests/tmp_xwork_edit/a/b/c.txt", &iSize);
+    CHECK(sFile && strstr(sFile, "\r\n") != NULL, "FORCE_CRLF stores CRLF");
+    xrtFree(sFile); sFile = NULL;
+    /* Read still shows LF to the model. */
+    xworkToolOutputInit(&tOut);
+    CHECK(pReadTool && pReadTool->OnExecute(pReadTool->pUserData, &tCtx,
+        "{\"path\":\"a/b/c.txt\"}", &tOut, &tError) == XWORK_RESULT_OK &&
+        tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "FINAL") &&
+        strstr(tOut.sContent, "\r\n") == NULL,
+        "read normalizes display to LF under any policy");
+    xworkToolOutputUnit(&tOut);
+    if ( pAgent ) pAgent->eEolPolicy = XWORK_EOL_AUTO;
+
+    xworkAgentDestroy(pAgent);
+    xllmSessionDestroy(pSession);
+    (void)xrtDirRemoveAll(sWorkspace);
+}
+
 static void test_command_context_deadline(void)
 {
     static const char sWorkspace[] = "tests/tmp_xwork_command_deadline";
@@ -1178,7 +1280,7 @@ static void test_executor_bind(void)
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     /* No client and no model callback: an executor-only agent must create. */
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
-    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 12u,
+    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 11u,
         "executor host agent carries the builtin registry");
     memset(&tExecutor, 0, sizeof(tExecutor));
     CHECK(pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
@@ -1186,7 +1288,7 @@ static void test_executor_bind(void)
 
     xllmRequestInit(&tRequest);
     CHECK(tExecutor.pListTools && tExecutor.pListTools(tExecutor.pUserData, &tRequest) &&
-        tRequest.iToolCount == 12u,
+        tRequest.iToolCount == 11u,
         "executor lists the builtin registry into a request");
     xllmRequestUnit(&tRequest);
 
@@ -1261,7 +1363,7 @@ static xllm_result t1_script_call(void* pUserData, const xllm_request* pRequest,
     (void)pCallbacks;
     if ( pError ) { xllmErrorInit(pError); }
     ++pScript->iCalls;
-    if ( pRequest->iToolCount == 12u ) { pScript->bSawTools = true; }
+    if ( pRequest->iToolCount == 11u ) { pScript->bSawTools = true; }
     *ppResponse = ( pScript->iCalls == 1u && !pScript->bFinalOnly )
         ? t1_response_write() : t1_response_text("t1 finished");
     return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
@@ -1453,6 +1555,7 @@ int main(int argc, char** argv)
     test_process_text_normalization();
     test_agent_context_deadline();
     test_command_context_deadline();
+    test_edit_eol_write();
     test_task_system();
     test_executor_bind();
     test_readonly_subagent();
