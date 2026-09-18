@@ -206,7 +206,7 @@ static bool xwork__walk(
     return xwork__walk_directory(&tContext, sRoot, 1u);
 }
 
-static xwork_result xwork__tool_fail(xwork_tool_output* pOutput, const char* sMessage)
+xwork_result xwork__tool_fail(xwork_tool_output* pOutput, const char* sMessage)
 {
     if ( !xworkToolOutputSet(pOutput, false, sMessage) ) return XWORK_RESULT_ERROR;
     return XWORK_RESULT_OK;
@@ -1047,6 +1047,28 @@ static void* xwork__process_capture_since(
 static void xwork__process_entry_close(xwork_process_entry* pEntry)
 {
     if ( !pEntry ) return;
+    if ( pEntry->eKind == XWORK_TASK_AGENT ) {
+        if ( pEntry->pChildCancel && !pEntry->bDone ) {
+            (void)xrtCancelRequest(pEntry->pChildCancel);
+        }
+        if ( pEntry->pThread ) {
+            (void)xrtThreadWaitFor(pEntry->pThread, UINT64_C(5000000));
+            xrtThreadDestroy(pEntry->pThread);
+        }
+        if ( pEntry->pStateLock ) {
+            (void)xrtMutexLock(pEntry->pStateLock);
+            free(pEntry->sResult);
+            pEntry->sResult = NULL;
+            (void)xrtMutexUnlock(pEntry->pStateLock);
+            (void)xrtMutexDestroy(pEntry->pStateLock);
+        }
+        /* The delegate thread owns the child cancel and destroys it on exit;
+         * foreground paths never populate these fields. */
+        free(pEntry->sCommand);
+        free(pEntry->sNotify);
+        memset(pEntry, 0, sizeof(*pEntry));
+        return;
+    }
     if ( pEntry->pProcess ) {
         if ( xwork__process_running(pEntry->pProcess) ) {
             (void)xrtProcessKillTree(pEntry->pProcess);
@@ -1061,6 +1083,44 @@ static void xwork__process_entry_close(xwork_process_entry* pEntry)
     free(pEntry->sCommand);
     free(pEntry->sNotify);
     memset(pEntry, 0, sizeof(*pEntry));
+}
+
+bool xwork__task_running(xwork_process_entry* pEntry)
+{
+    if ( !pEntry ) return false;
+    if ( pEntry->eKind == XWORK_TASK_AGENT ) {
+        bool bRunning = true;
+        if ( pEntry->pStateLock ) {
+            (void)xrtMutexLock(pEntry->pStateLock);
+            bRunning = !pEntry->bDone;
+            (void)xrtMutexUnlock(pEntry->pStateLock);
+        }
+        return bRunning;
+    }
+    return xwork__process_running(pEntry->pProcess);
+}
+
+static bool xwork__task_entry_running(xwork_process_entry* pEntry)
+{
+    return xwork__task_running(pEntry);
+}
+
+xwork_process_entry* xwork__task_add(xwork_agent* pAgent, xwork_task_kind eKind)
+{
+    xwork_process_entry* pEntry = xwork__process_add(pAgent);
+    if ( pEntry ) pEntry->eKind = eKind;
+    return pEntry;
+}
+
+/* Wait up to uWaitMs for a task of either kind to finish. */
+static bool xwork__wait_task(xwork_process_entry* pEntry, uint64_t uWaitMs)
+{
+    uint64_t uDeadline = xrtDeadlineAfter(uWaitMs * UINT64_C(1000));
+    while ( xwork__task_entry_running(pEntry) ) {
+        if ( xrtDeadlineExpired(uDeadline) ) return false;
+        xrtSleep(5u);
+    }
+    return true;
 }
 
 static void xwork__process_remove(xwork_agent* pAgent, size_t iIndex)
@@ -1097,13 +1157,13 @@ static xwork_process_entry* xwork__process_find(xwork_agent* pAgent, uint64_t uI
     return NULL;
 }
 
-static xwork_process_entry* xwork__process_add(xwork_agent* pAgent)
+xwork_process_entry* xwork__process_add(xwork_agent* pAgent)
 {
     xwork_process_entry* pNew;
     size_t i;
     size_t iCap;
     for ( i = pAgent->iProcessCount; i > 0u && pAgent->iProcessCount >= pAgent->uMaxManagedProcesses; --i ) {
-        if ( !xwork__process_running(pAgent->pProcesses[i - 1u].pProcess) ) xwork__process_remove(pAgent, i - 1u);
+        if ( !xwork__task_entry_running(&pAgent->pProcesses[i - 1u]) ) xwork__process_remove(pAgent, i - 1u);
     }
     if ( pAgent->iProcessCount >= pAgent->uMaxManagedProcesses ) return NULL;
     if ( pAgent->iProcessCount == pAgent->iProcessCap ) {
@@ -1164,10 +1224,33 @@ static bool xwork__append_process_status(
 {
     bool bRunning;
     xprocessstatus tExit;
-    if ( uWaitMs && xwork__process_running(pEntry->pProcess) ) {
-        (void)xrtProcessWaitFor(pEntry->pProcess, (uint64_t)uWaitMs * UINT64_C(1000));
+    if ( uWaitMs && xwork__task_entry_running(pEntry) ) {
+        (void)xwork__wait_task(pEntry, uWaitMs);
     }
-    bRunning = xwork__process_running(pEntry->pProcess);
+    bRunning = xwork__task_entry_running(pEntry);
+    if ( pEntry->eKind == XWORK_TASK_AGENT ) {
+        char* sResult = NULL;
+        bool bSuccess = false;
+        if ( pEntry->pStateLock ) {
+            (void)xrtMutexLock(pEntry->pStateLock);
+            sResult = pEntry->sResult ? xwork__strdup(pEntry->sResult) : NULL;
+            bSuccess = pEntry->bSuccess;
+            (void)xrtMutexUnlock(pEntry->pStateLock);
+        }
+        if ( !xwork__buf_appendf(pOutput, "task_id: %llu\nstate: %s\ndelegation: %s\nsuccess: %s\n",
+                (unsigned long long)pEntry->uId, bRunning ? "running" : "exited",
+                pEntry->sCommand ? pEntry->sCommand : "",
+                bRunning ? "-" : (bSuccess ? "true" : "false")) ) { free(sResult); return false; }
+        if ( sResult ) {
+            size_t iLen = strlen(sResult);
+            if ( iLen > iMaxBytes ) iLen = iMaxBytes;
+            if ( !xwork__buf_append_cstr(pOutput, "--- final report ---\n") ||
+                 !xwork__buf_append(pOutput, sResult, iLen) ||
+                 !xwork__buf_append_char(pOutput, '\n') ) { free(sResult); return false; }
+        }
+        free(sResult);
+        return true;
+    }
     if ( !xwork__buf_appendf(pOutput, "task_id: %llu\nstate: %s\ncommand: %s\n",
             (unsigned long long)pEntry->uId, bRunning ? "running" : "exited",
             pEntry->sCommand ? pEntry->sCommand : "") ) return false;
@@ -1302,7 +1385,7 @@ static bool xwork__process_wait_all_ready(xwork_agent* pAgent,
         size_t i;
         for ( i = 0u; i < iCount; ++i ) {
             pEntry = xwork__process_find(pAgent, puIds[i], NULL);
-            if ( pEntry && !xwork__process_running(pEntry->pProcess) ) ++iReady;
+            if ( pEntry && !xwork__task_entry_running(pEntry) ) ++iReady;
         }
         if ( bAll ? iReady == iCount : iReady >  0u ) return true;
         if ( xrtDeadlineExpired(uDeadline) ) return false;
@@ -1318,19 +1401,26 @@ size_t xworkAgentTakeTaskNotices(xwork_agent* pAgent,
     if ( !pAgent ) { return 0u; }
     for ( i = 0u; i < pAgent->iProcessCount && iTaken < iCapacity; ++i ) {
         xwork_process_entry* pEntry = &pAgent->pProcesses[i];
-        if ( pEntry->bNoticeTaken || xwork__process_running(pEntry->pProcess) ) continue;
+        if ( pEntry->bNoticeTaken || xwork__task_entry_running(pEntry) ) continue;
         if ( pEntry->uExitedUs == 0u ) pEntry->uExitedUs = xrtClock();
         pNotices[iTaken].uTaskId = pEntry->uId;
         pNotices[iTaken].eKind = pEntry->eKind;
-        {
+        if ( pEntry->eKind == XWORK_TASK_AGENT ) {
+            /* Agent tasks: success flag from the delegation thread; the
+             * final report rides the preview slot (borrowed). */
+            pNotices[iTaken].iExitCode = pEntry->bSuccess ? 0 : 1;
+            pNotices[iTaken].bExitedCleanly = pEntry->bSuccess;
+            pNotices[iTaken].sPreview = pEntry->sResult && pEntry->sResult[0]
+                ? pEntry->sResult : pEntry->sCommand;
+        } else {
             xprocessstatus tExit;
             memset(&tExit, 0, sizeof(tExit));
             (void)xrtProcessStatus(pEntry->pProcess, &tExit);
             pNotices[iTaken].iExitCode = tExit.Code;
             pNotices[iTaken].bExitedCleanly = tExit.Kind == XPROCESS_EXIT_CODE && tExit.Code == 0;
+            pNotices[iTaken].sPreview = pEntry->sCommand;
         }
         pNotices[iTaken].sNotify = pEntry->sNotify;     /* borrowed */
-        pNotices[iTaken].sPreview = pEntry->sCommand;   /* borrowed */
         pEntry->bNoticeTaken = true;
         ++iTaken;
     }
@@ -1348,7 +1438,7 @@ bool xworkTaskWatchdog(xwork_agent* pAgent, xwork_watchdog_digest* pDigest)
     if ( !pAgent ) { return false; }
     for ( i = 0u; i < pAgent->iProcessCount; ++i ) {
         xwork_process_entry* pEntry = &pAgent->pProcesses[i];
-        bool bRunning = xwork__process_running(pEntry->pProcess);
+        bool bRunning = xwork__task_entry_running(pEntry);
         if ( bRunning ) {
             ++pDigest->iRunningTasks;
             if ( pEntry->uRemindAfterMs != 0u ) {
@@ -1527,11 +1617,11 @@ static xwork_result xwork__tool_poll(
     if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "release must be boolean"); goto cleanup; }
     pEntry = xwork__process_find(pAgent, uId, &iIndex);
     if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released task_id"); goto cleanup; }
-    if ( bRelease && xwork__process_running(pEntry->pProcess) ) {
-        if ( uWaitMs ) (void)xrtProcessWaitFor(pEntry->pProcess, uWaitMs * UINT64_C(1000));
+    if ( bRelease && xwork__task_entry_running(pEntry) ) {
+        if ( uWaitMs ) (void)xwork__wait_task(pEntry, uWaitMs);
         uWaitMs = 0u;
-        if ( xwork__process_running(pEntry->pProcess) ) {
-            eResult = xwork__tool_fail(pOutput, "cannot release a running process; stop it first");
+        if ( xwork__task_entry_running(pEntry) ) {
+            eResult = xwork__tool_fail(pOutput, "cannot release a running task; stop it first");
             goto cleanup;
         }
     }
@@ -1580,6 +1670,7 @@ static xwork_result xwork__tool_stdin(
     if ( !sInput && !bClose ) { eResult = xwork__tool_fail(pOutput, "input or close_stdin=true is required"); goto cleanup; }
     pEntry = xwork__process_find(pAgent, uId, NULL);
     if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released task_id"); goto cleanup; }
+    if ( pEntry->eKind != XWORK_TASK_PROCESS ) { eResult = xwork__tool_fail(pOutput, "stdin applies to process tasks only"); goto cleanup; }
     if ( !xwork__process_running(pEntry->pProcess) ) { eResult = xwork__tool_fail(pOutput, "process has already exited"); goto cleanup; }
     if ( pEntry->bStdinClosed ) { eResult = xwork__tool_fail(pOutput, "process stdin is already closed"); goto cleanup; }
     if ( sInput && (sInput[0] || bNewline) ) {
@@ -1642,15 +1733,23 @@ static xwork_result xwork__tool_stop(
     if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "release must be boolean"); goto cleanup; }
     pEntry = xwork__process_find(pAgent, uId, &iIndex);
     if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released task_id"); goto cleanup; }
-    if ( xwork__process_running(pEntry->pProcess) ) {
-        if ( strcmp(sMode, "interrupt") == 0 ) bRequested = xrtProcessInterrupt(pEntry->pProcess);
-        else if ( strcmp(sMode, "terminate") == 0 ) bRequested = xrtProcessTerminate(pEntry->pProcess);
-        else if ( strcmp(sMode, "kill") == 0 ) bRequested = xrtProcessKill(pEntry->pProcess);
-        else bRequested = xrtProcessKillTree(pEntry->pProcess);
-        if ( !bRequested ) { eResult = xwork__tool_fail(pOutput, "process stop request failed"); goto cleanup; }
+    if ( xwork__task_entry_running(pEntry) ) {
+        if ( pEntry->eKind == XWORK_TASK_AGENT ) {
+            if ( pEntry->pChildCancel ) (void)xrtCancelRequest(pEntry->pChildCancel);
+            bRequested = true;
+        } else {
+            if ( strcmp(sMode, "interrupt") == 0 ) bRequested = xrtProcessInterrupt(pEntry->pProcess);
+            else if ( strcmp(sMode, "terminate") == 0 ) bRequested = xrtProcessTerminate(pEntry->pProcess);
+            else if ( strcmp(sMode, "kill") == 0 ) bRequested = xrtProcessKill(pEntry->pProcess);
+            else bRequested = xrtProcessKillTree(pEntry->pProcess);
+        }
+        if ( !bRequested ) { eResult = xwork__tool_fail(pOutput, "task stop request failed"); goto cleanup; }
+    }
+    if ( uWaitMs && xwork__task_entry_running(pEntry) ) {
+        (void)xwork__wait_task(pEntry, uWaitMs);
     }
     if ( !xwork__append_process_status(&tOutput, pEntry, (uint32_t)uWaitMs, 64u * 1024u) ) goto oom;
-    bRunning = xwork__process_running(pEntry->pProcess);
+    bRunning = xwork__task_entry_running(pEntry);
     if ( !xworkToolOutputSet(pOutput, !bRunning, tOutput.pData) ) goto oom;
     if ( bRelease && !bRunning ) xwork__process_remove(pAgent, iIndex);
     eResult = XWORK_RESULT_OK;

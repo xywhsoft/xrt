@@ -1356,6 +1356,185 @@ static xllm_response* t1_response_write(void)
     return pResponse;
 }
 
+/* ------------------------------------------------------------------ */
+/* Subagent delegation: archetype registry, foreground and background   */
+/* `agent` tool runs, depth lock, model override, notices.              */
+/* ------------------------------------------------------------------ */
+
+typedef struct {
+    unsigned iCalls;
+    char sLastModel[64];
+    bool bSawDelegationPrompt;
+} delegate_script;
+
+static xllm_response* delegate_response_text(const char* sText)
+{
+    return t1_response_text(sText);
+}
+
+static xllm_result delegate_model_call(void* pUserData, const xllm_request* pRequest,
+    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
+{
+    delegate_script* pScript = (delegate_script*)pUserData;
+    (void)pCallbacks;
+    if ( pError ) { xllmErrorInit(pError); }
+    ++pScript->iCalls;
+    if ( pRequest->sModel ) {
+        (void)snprintf(pScript->sLastModel, sizeof(pScript->sLastModel), "%s", pRequest->sModel);
+    } else {
+        pScript->sLastModel[0] = '\0';
+    }
+    {
+        size_t i;
+        for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+            const xllm_message* pMessage = &pRequest->pMessages[i];
+            if ( pMessage->eRole == XLLM_ROLE_USER && pMessage->sContent &&
+                 strstr(pMessage->sContent, "probe the workspace") ) {
+                pScript->bSawDelegationPrompt = true;
+            }
+            if ( pMessage->eRole == XLLM_ROLE_SYSTEM && pMessage->sContent &&
+                 strstr(pMessage->sContent, "You are a fast read-only inspector.") ) {
+                /* identity reached the child */
+            }
+        }
+    }
+    *ppResponse = delegate_response_text("probe complete: 3 files, no blockers");
+    return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
+}
+
+static void test_subagent_delegation(void)
+{
+    static const char sWorkspace[] = "tests/tmp_xwork_delegation";
+    xllm_session_config tSessionConfig;
+    xllm_session* pSession = NULL;
+    xwork_agent_config tAgentConfig;
+    xwork_agent* pAgent = NULL;
+    xwork_error tError;
+    xllm_error tLlmError;
+    const xwork_tool_entry* pAgentTool;
+    xwork_tool_context tCtx;
+    xwork_tool_output tOut;
+    delegate_script tScript;
+    xwork_subagent_type tType;
+    const char* sTools[2];
+    xwork_task_notice tNotices[2];
+
+    (void)xrtDirRemoveAll(sWorkspace);
+    CHECK(xrtDirCreateAll((str)sWorkspace), "delegation workspace created");
+    memset(&tScript, 0, sizeof(tScript));
+    xllmSessionConfigInit(&tSessionConfig);
+    pSession = xllmSessionCreateForTest(&tSessionConfig, delegate_model_call, &tScript, &tLlmError);
+    xworkAgentConfigInit(&tAgentConfig);
+    tAgentConfig.pSession = pSession;
+    tAgentConfig.sWorkspaceRoot = sWorkspace;
+    pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+    CHECK(pSession && pAgent, "delegation fixture agent creates");
+    CHECK(pAgent && xworkAgentSubagentTypeCount(pAgent) == 0u &&
+        xwork__find_tool(pAgent, "agent") == NULL,
+        "agent tool is absent before any type is registered");
+
+    memset(&tType, 0, sizeof(tType));
+    tType.sName = "probe";
+    tType.sDescription = "fast read-only inspection; returns a short report";
+    tType.sSystemPrompt = "You are a fast read-only inspector. Report findings only.";
+    sTools[0] = "read_file";
+    sTools[1] = "list_files";
+    tType.psTools = sTools;
+    tType.iToolCount = 2u;
+    tType.sModel = "ornith-35b";
+    tType.uMaxTurns = 4u;
+    tType.uTimeoutMs = 10000u;
+    tType.iMaxFinalBytes = 4096u;
+    tType.bReadOnly = true;
+    CHECK(pAgent && xworkAgentRegisterSubagentType(pAgent, &tType, &tError),
+        "subagent type registers");
+    pAgentTool = pAgent ? xwork__find_tool(pAgent, "agent") : NULL;
+    CHECK(pAgentTool && pAgentTool->sDescription &&
+        strstr(pAgentTool->sDescription, "probe") != NULL &&
+        strstr(pAgentTool->sDescription, "fast read-only inspection") != NULL,
+        "agent tool appears with the roster woven into its description");
+    CHECK(!xworkAgentRegisterSubagentType(pAgent, &tType, &tError),
+        "duplicate type names are rejected");
+
+    memset(&tCtx, 0, sizeof(tCtx));
+    tCtx.pAgent = pAgent;
+    tCtx.sWorkspaceRoot = sWorkspace;
+    tCtx.uAgentTurn = 7u;
+
+    /* Foreground delegation: blocking, returns the final report. */
+    xworkToolOutputInit(&tOut);
+    CHECK(pAgentTool && pAgentTool->OnExecute(pAgentTool->pUserData, &tCtx,
+        "{\"name\":\"probe\",\"prompt\":\"probe the workspace and report\"}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
+        tOut.sContent && strstr(tOut.sContent, "probe complete: 3 files") &&
+        strstr(tOut.sContent, "final report"),
+        "foreground delegation returns the child's final report");
+    CHECK(tScript.iCalls >= 1u && tScript.bSawDelegationPrompt,
+        "the child saw the delegation prompt in a fresh session");
+    CHECK(strcmp(tScript.sLastModel, "ornith-35b") == 0,
+        "the type's model override reaches every child request");
+    xworkToolOutputUnit(&tOut);
+
+    /* Unknown type: tool-level failure. */
+    xworkToolOutputInit(&tOut);
+    CHECK(pAgentTool && pAgentTool->OnExecute(pAgentTool->pUserData, &tCtx,
+        "{\"name\":\"nonexistent\",\"prompt\":\"x\"}", &tOut, &tError) == XWORK_RESULT_OK &&
+        !tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "unknown subagent type"),
+        "unknown roster names fail at tool level");
+    xworkToolOutputUnit(&tOut);
+
+    /* Background delegation: task table entry + notice delivery. */
+    xworkToolOutputInit(&tOut);
+    CHECK(pAgentTool && pAgentTool->OnExecute(pAgentTool->pUserData, &tCtx,
+        "{\"name\":\"probe\",\"prompt\":\"probe the workspace again\",\"background\":true,"
+        "\"notify\":\"probe done; fold the report in\"}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
+        tOut.sContent && strstr(tOut.sContent, "task_id:"),
+        "background delegation returns a task id");
+    xworkToolOutputUnit(&tOut);
+    {
+        xwork_process_entry* pEntry = pAgent ? xwork__process_find(pAgent, 1u, NULL) : NULL;
+        size_t i;
+        bool bDone = false;
+        for ( i = 0u; i < 2000u && pEntry && !bDone; ++i ) {
+            bDone = !xwork__task_running(pEntry);
+            if ( !bDone ) xrtSleep(5u);
+        }
+        CHECK(pEntry && bDone, "background delegation finishes");
+        CHECK(pAgent && xworkAgentTakeTaskNotices(pAgent, tNotices, 2u) == 1u &&
+            tNotices[0].eKind == XWORK_TASK_AGENT && tNotices[0].bExitedCleanly &&
+            tNotices[0].sNotify && strcmp(tNotices[0].sNotify, "probe done; fold the report in") == 0 &&
+            tNotices[0].sPreview && strstr(tNotices[0].sPreview, "probe complete"),
+            "agent-task notice delivers the notify message and report preview");
+    }
+
+    /* Depth lock: from inside a delegation the agent tool refuses. We
+     * simulate depth by running the tool through a child agent context —
+     * simplest proof: a registered child copy would carry uAgentDepth=1;
+     * here we verify the parent-level guard text via a manual depth set. */
+    if ( pAgent ) {
+        const xwork_tool_entry* pTool = xwork__find_tool(pAgent, "agent");
+        pAgent->uAgentDepth = 1u;
+        xworkToolOutputInit(&tOut);
+        CHECK(pTool && pTool->OnExecute(pTool->pUserData, &tCtx,
+            "{\"name\":\"probe\",\"prompt\":\"nested\"}", &tOut, &tError) == XWORK_RESULT_OK &&
+            !tOut.bSuccess && strstr(tOut.sContent, "depth lock"),
+            "depth lock refuses nested delegation");
+        xworkToolOutputUnit(&tOut);
+        pAgent->uAgentDepth = 0u;
+    }
+
+    /* Unregister: tool disappears when the roster empties. */
+    CHECK(pAgent && xworkAgentUnregisterSubagentType(pAgent, "probe", &tError) &&
+        xwork__find_tool(pAgent, "agent") == NULL &&
+        xworkAgentSubagentTypeCount(pAgent) == 0u,
+        "unregister removes the agent tool with the roster");
+
+    xworkAgentDestroy(pAgent);
+    xllmSessionDestroy(pSession);
+    (void)xrtDirRemoveAll(sWorkspace);
+}
+
 static xllm_result t1_script_call(void* pUserData, const xllm_request* pRequest,
     const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
 {
@@ -1557,6 +1736,7 @@ int main(int argc, char** argv)
     test_command_context_deadline();
     test_edit_eol_write();
     test_task_system();
+    test_subagent_delegation();
     test_executor_bind();
     test_readonly_subagent();
     test_agent_loop();

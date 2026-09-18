@@ -396,6 +396,9 @@ xllm_session* xllmSessionCreateForTest(const xllm_session_config* pConfig,
 bool xllmSessionBindClient(xllm_session* pSession, xllm_client* pClient /* borrowed */);
 /* Attach, replace, or remove (NULL) the test seam on an existing session. */
 bool xllmSessionSetTestCall(xllm_session* pSession, xllm_test_call_proc pCall, void* pUserData);
+/* Forward the source session's model driver (client or test seam) onto an
+ * existing destination session — the subagent composition path. */
+bool xllmSessionForwardDriver(xllm_session* pDst, const xllm_session* pSrc);
 
 /* ------------------------------------------------------------------ */
 /* Bounded tool round-trips: the loop as a library function.           */
@@ -411,6 +414,9 @@ typedef struct xllm_run_policy {
     /* Model-round budget; 0 selects the default (32); UINT32_MAX disables
      * the round bound entirely (mdo-style hosts guard via pOnRound instead). */
     uint32_t uMaxRounds;
+    /* Optional per-run model override (subagent archetypes on a lighter
+     * model); borrowed, applied to every request in this run. */
+    const char* sModel;
     /* Borrowed cooperative cancel token and absolute deadline (microseconds;
      * 0 and UINT64_MAX mean none). Applied to every model request and
      * forwarded to each executor context so one tree governs the run. */

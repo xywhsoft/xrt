@@ -230,3 +230,14 @@ bool xllmSessionSetTestCall(xllm_session* pSession, xllm_test_call_proc pCall, v
     pSession->pTestCallData = pCall ? pUserData : NULL;
     return true;
 }
+
+bool xllmSessionForwardDriver(xllm_session* pDst, const xllm_session* pSrc)
+{
+    if ( !pDst || !pSrc ) { return false; }
+    if ( pSrc->pClient ) { pDst->pClient = pSrc->pClient; }
+    if ( pSrc->pTestCall ) {
+        pDst->pTestCall = pSrc->pTestCall;
+        pDst->pTestCallData = pSrc->pTestCallData;
+    }
+    return true;
+}

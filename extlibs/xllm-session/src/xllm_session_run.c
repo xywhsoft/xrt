@@ -141,6 +141,12 @@ xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* sPrompt,
         }
         if ( pPolicy && pPolicy->pCancel ) { xllmRequestSetCancel(&tRequest, pPolicy->pCancel); }
         if ( pPolicy && pPolicy->uDeadline ) { xllmRequestSetDeadline(&tRequest, pPolicy->uDeadline); }
+        if ( pPolicy && pPolicy->sModel && !xllmRequestSetModel(&tRequest, pPolicy->sModel) ) {
+            xllmRequestUnit(&tRequest);
+            xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY,
+                "failed to apply the per-run model override");
+            goto done;
+        }
         eResult = xllm_session__dispatch_call(pSession, &tRequest, pCallbacks, &pResponse, pError);
         xllmRequestUnit(&tRequest);
         if ( eResult != XLLM_RESULT_OK ) { goto done; }

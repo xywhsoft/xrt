@@ -59,6 +59,17 @@ typedef struct xwork_process_entry {
     uint64_t uExitedUs;        /* first observed exit; 0 while running */
     bool bNoticeTaken;         /* completion notice consumed by the host */
     bool bNudged;              /* uncollected-notice nudge already sent */
+    /* Agent-task fields (eKind == XWORK_TASK_AGENT). */
+    struct xwork_agent* pChildAgent;
+    struct xllm_session* pChildSession;
+    struct xllm_executor* pChildExecutor;   /* heap copy for the thread */
+    xcancel* pChildCancel;
+    xthread* pThread;
+    xmutex* pStateLock;
+    char* sResult;             /* final report text (locked by pStateLock) */
+    bool bDone;                /* thread finished (locked by pStateLock) */
+    bool bSuccess;             /* run result (locked by pStateLock) */
+    bool bStopRequested;       /* cooperative stop asked */
 } xwork_process_entry;
 
 typedef struct xwork_process_capture_stream {
@@ -132,6 +143,9 @@ struct xwork_agent {
     size_t iProcessCount;
     size_t iProcessCap;
     uint64_t uNextProcessId;
+    xwork_subagent_type* pSubagentTypes;   /* owned deep copies */
+    size_t iSubagentTypeCount;
+    size_t iSubagentTypeCap;
     uint64_t uArtifactSequence;
     uint64_t uRunSequence;
     uint32_t uAgentDepth;
@@ -144,6 +158,10 @@ char* xwork__strdup(const char* sText);
 char* xwork__strndup(const char* sText, size_t iLen);
 bool xwork__replace(char** ppDst, const char* sText);
 void xwork__set_error(xwork_error* pError, xwork_error_code eCode, const char* sMessage);
+xwork_result xwork__tool_fail(xwork_tool_output* pOutput, const char* sMessage);
+bool xwork__task_running(xwork_process_entry* pEntry);   /* unified: process or agent */
+xwork_process_entry* xwork__task_add(xwork_agent* pAgent, xwork_task_kind eKind);
+xwork_process_entry* xwork__process_add(xwork_agent* pAgent);
 void xwork__copy_model_error(xwork_error* pError, const xllm_error* pModelError);
 bool xwork__buf_reserve(xwork_buf* pBuf, size_t iNeed);
 bool xwork__buf_append(xwork_buf* pBuf, const void* pData, size_t iLen);

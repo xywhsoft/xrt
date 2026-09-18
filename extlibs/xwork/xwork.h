@@ -445,6 +445,43 @@ typedef struct xwork_watchdog_digest {
 size_t xworkAgentTakeTaskNotices(xwork_agent* pAgent,
     xwork_task_notice* pNotices, size_t iCapacity);
 bool xworkTaskWatchdog(xwork_agent* pAgent, xwork_watchdog_digest* pDigest);
+
+/* ------------------------------------------------------------------ */
+/* Subagent delegation: the conditional `agent` tool.                   */
+/*                                                                     */
+/* Hosts register specialist archetypes; the model sees ONE `agent`    */
+/* tool whose description carries the roster (one affordance line per  */
+/* type). Execution composes the three-piece public APIs — a fresh      */
+/* session (cloned config, no parent history), a child agent with the   */
+/* archetype's tool whitelist, and xllmSessionRunWithTools under the   */
+/* archetype's budgets — so delegation breaks no layer boundary.       */
+/* Depth is locked at one: subagents cannot delegate further.          */
+/* Permissions inherit the parent chain; archetypes may only tighten.  */
+/* ------------------------------------------------------------------ */
+
+typedef struct xwork_subagent_type {
+    const char* sName;            /* roster key, e.g. "probe" */
+    const char* sDescription;     /* one line: when to choose me */
+    const char* sSystemPrompt;    /* identity injected into the child */
+    const char* const* psTools;   /* tool-name whitelist; NULL = all parent tools */
+    size_t iToolCount;
+    const char* sModel;           /* optional lighter model override */
+    uint32_t uMaxTurns;           /* 0 = 8 */
+    uint32_t uTimeoutMs;          /* 0 = 120000 */
+    uint32_t uMaxOutputTokens;    /* 0 = keep parent config */
+    size_t iMaxFinalBytes;        /* 0 = 64 KiB */
+    bool bReadOnly;               /* clamp approval to READ_ONLY (tighten only) */
+} xwork_subagent_type;
+
+/* Register an archetype (deep copy). The `agent` tool appears with the
+ * first registration and its roster description is rebuilt on every
+ * change. Returns false while a run is active (registry stability). */
+bool xworkAgentRegisterSubagentType(xwork_agent* pAgent,
+    const xwork_subagent_type* pType, xwork_error* pError);
+/* Remove one archetype by name (tool persists while others remain). */
+bool xworkAgentUnregisterSubagentType(xwork_agent* pAgent, const char* sName,
+    xwork_error* pError);
+size_t xworkAgentSubagentTypeCount(const xwork_agent* pAgent);
 xwork_result xworkAgentRunReadOnlySubagent(
     xwork_agent* pParent,
     const xwork_readonly_subagent_config* pConfig,
