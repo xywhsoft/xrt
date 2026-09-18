@@ -478,12 +478,43 @@ XRT_API xnetaddrlist* xrtNetAddrListRef(xnetaddrlist* pList)
 /* 释放不可变地址列表的最后一个引用。 */
 XRT_API void xrtNetAddrListDestroy(xnetaddrlist* pList)
 {
+	xrtownershipscope Mutation = {0};
 	if ( pList == NULL ) {
 		return;
 	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	if ( xrtRefRelease(&pList->References) == 0 ) {
 		xrtFree(pList);
 	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+}
+
+static bool __xrtNetAddrListOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xnetaddrlist* pList = pData;
+	if (!pList || !pCount) return false;
+	int32 iCount = __xrtAtomicRefLoad(&pList->References);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+static bool __xrtNetAddrListOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{ size_t iCount; (void)pContext; return pVisit && __xrtNetAddrListOwnershipCount(pData, &iCount); }
+static const xrtownershipops __xrtNetAddrListOwnershipOps = {
+	__xrtNetAddrListOwnershipCount, __xrtNetAddrListOwnershipTrace
+};
+XRT_API xrtownershipref xrtNetAddrListOwnership(const xnetaddrlist* pList)
+{ return (xrtownershipref){pList, pList ? &__xrtNetAddrListOwnershipOps : NULL}; }
+static bool __xrtNetAddrListHold(const void* pData) { return xrtNetAddrListRef((xnetaddrlist*)pData) != NULL; }
+static void __xrtNetAddrListDrop(const void* pData) { xrtNetAddrListDestroy((xnetaddrlist*)pData); }
+static bool __xrtNetAddrListClaim(const void* pData, const void* pToken) { return pData && pToken; }
+static void __xrtNetAddrListKeep(const void* pData, const void* pToken) { (void)pData; (void)pToken; }
+XRT_API const xrtownershipadapterv1* xrtNetAddrListOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetAddrListHold, __xrtNetAddrListDrop,
+		__xrtNetAddrListClaim, __xrtNetAddrListKeep, NULL, __xrtNetAddrListKeep, NULL};
+	size_t iCount;
+	return Reference.Ops == &__xrtNetAddrListOwnershipOps &&
+		__xrtNetAddrListOwnershipCount(Reference.Data, &iCount) ? &Adapter : NULL;
 }
 
 

@@ -26,6 +26,11 @@ struct xnetresolveop {
 	xerror* Error;
 	xnetresolveproc Done;
 	ptr Data;
+	const xnetresolveownershipv1* OwnershipPolicy;
+	const void* OwnershipClaim;
+	bool CallbackActive;
+	bool CallbackFinished;
+	bool OwnershipCleared;
 };
 
 
@@ -74,6 +79,17 @@ struct xnetresolver {
 	bool ConditionReady;
 	bool Closing;
 	bool Destroyed;
+	bool Initialized;
+	bool Joining;
+	bool Joined;
+	bool Retiring;
+	bool CreatorOwned;
+	bool OwnershipCleared;
+	const void* OwnershipClaim;
+	const xnetresolverlookupownershipv1* LookupPolicy;
+	uint32 ParkedWorkers;
+	uint32 ExitedWorkers;
+	size_t ActiveCallbacks;
 	xnetresolverconfig Config;
 	xthread** Threads;
 	uint32 StartedThreads;

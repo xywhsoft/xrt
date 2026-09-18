@@ -14,6 +14,21 @@
 #define XRT_NET_RESOLVER_DEFAULT_HOST_LIMIT 1024u
 #define XRT_NET_RESOLVER_INLINE_HOST 256u
 
+static void __xrtNetResolverMutationBegin(xrtownershipscope* pScope)
+{ if (!xrtOwnershipMutationBegin(pScope)) abort(); }
+static void __xrtNetResolverMutationEnd(xrtownershipscope* pScope)
+{ if (!xrtOwnershipScopeEnd(pScope)) abort(); }
+static void __xrtNetResolverLock(xnetresolver* pResolver, xrtownershipscope* pScope)
+{
+	__xrtNetResolverMutationBegin(pScope);
+	if (!xrtMutexLock(&pResolver->Lock)) abort();
+}
+static void __xrtNetResolverUnlock(xnetresolver* pResolver, xrtownershipscope* pScope)
+{
+	if (!xrtMutexUnlock(&pResolver->Lock)) abort();
+	__xrtNetResolverMutationEnd(pScope);
+}
+
 
 
 /* 设置异步解析器的稳定网络错误。 */
@@ -118,8 +133,11 @@ static bool __xrtNetResolverRetain(xnetresolver* pResolver)
 /* 最后一个 Resolver 引用负责释放仍需供外部操作查询使用的同步外壳。 */
 static void __xrtNetResolverRelease(xnetresolver* pResolver)
 {
+	xrtownershipscope Mutation = {0};
+	__xrtNetResolverMutationBegin(&Mutation);
 	if ( (pResolver == NULL) ||
 		 (xrtRefRelease(&pResolver->RefCount) != 0) ) {
+		__xrtNetResolverMutationEnd(&Mutation);
 		return;
 	}
 	xrtErrorFree(pResolver->CancelError);
@@ -130,6 +148,7 @@ static void __xrtNetResolverRelease(xnetresolver* pResolver)
 		(void)xrtMutexUnit(&pResolver->Lock);
 	}
 	xrtFree(pResolver);
+	__xrtNetResolverMutationEnd(&Mutation);
 }
 
 
@@ -137,14 +156,20 @@ static void __xrtNetResolverRelease(xnetresolver* pResolver)
 /* 释放解析操作的最后一个引用以及它持有的不可变终态。 */
 static void __xrtNetResolveOpRelease(xnetresolveop* pOperation)
 {
+	xrtownershipscope Mutation = {0};
+	__xrtNetResolverMutationBegin(&Mutation);
 	if ( (pOperation == NULL) ||
 		 (xrtRefRelease(&pOperation->RefCount) != 0) ) {
+		__xrtNetResolverMutationEnd(&Mutation);
 		return;
 	}
+	/* Accepted callback data is retired by dispatch, never by a plan pin. */
+	if (pOperation->OwnershipPolicy) abort();
 	xrtNetAddrListDestroy(pOperation->Addresses);
 	xrtErrorFree(pOperation->Error);
 	__xrtNetResolverRelease(pOperation->Resolver);
 	xrtFree(pOperation);
+	__xrtNetResolverMutationEnd(&Mutation);
 }
 
 
@@ -153,14 +178,18 @@ static void __xrtNetResolveOpRelease(xnetresolveop* pOperation)
 bool __xrtNetResolveOpClaimCallback(xnetresolveop* pOperation)
 {
 	uint32 iExpected = 0;
+	xrtownershipscope Mutation = {0};
+	__xrtNetResolverMutationBegin(&Mutation);
 
-	return (pOperation != NULL) && xrtAtomic32CompareExchange(
+	bool bClaimed = (pOperation != NULL) && xrtAtomic32CompareExchange(
 		&pOperation->CallbackClaimed,
 		&iExpected,
 		1,
 		XMEMORY_ACQ_REL,
 		XMEMORY_ACQUIRE
 	);
+	__xrtNetResolverMutationEnd(&Mutation);
+	return bClaimed;
 }
 
 
@@ -365,6 +394,8 @@ static xnetresolveop* __xrtNetResolverReadyTake(xnetresolver* pResolver)
 	}
 	pOperation->ReadyNext = NULL;
 	pResolver->ReadyCallbacks--;
+	pOperation->CallbackActive = true;
+	pResolver->ActiveCallbacks++;
 	return pOperation;
 }
 
@@ -645,6 +676,7 @@ static void __xrtNetResolverRunQuery(
 	xnetaddrlist* pAddresses;
 	xerror* pError;
 	xnetresolveop* pOperation;
+	xrtownershipscope Mutation = {0};
 
 	xrtClearError();
 	pAddresses = pResolver->Config.Lookup(
@@ -669,7 +701,7 @@ static void __xrtNetResolverRunQuery(
 		pError = xrtTakeError();
 	}
 
-	(void)xrtMutexLock(&pResolver->Lock);
+	__xrtNetResolverLock(pResolver, &Mutation);
 	__xrtNetResolverQueryRemove(pResolver, pGroup);
 	pResolver->ActiveQueries--;
 	pResolver->RunningQueries--;
@@ -690,7 +722,7 @@ static void __xrtNetResolverRunQuery(
 		pOperation = pNext;
 	}
 	(void)xrtCondBroadcast(&pResolver->Condition);
-	(void)xrtMutexUnlock(&pResolver->Lock);
+	__xrtNetResolverUnlock(pResolver, &Mutation);
 
 	xrtNetAddrListDestroy(pAddresses);
 	xrtErrorFree(pError);
@@ -705,14 +737,28 @@ static void __xrtNetResolverDispatch(
 	xnetresolveop* pOperation
 )
 {
+	xrtownershipscope Mutation = {0};
+	const xnetresolveownershipv1* pPolicy;
+	ptr pData;
 	if ( __xrtNetResolveOpClaimCallback(pOperation) &&
 		 (pOperation->Done != NULL) ) {
 		pOperation->Done(pOperation, pOperation->Data);
 	}
-	(void)xrtMutexLock(&pResolver->Lock);
+	__xrtNetResolverLock(pResolver, &Mutation);
+	pPolicy = pOperation->OwnershipPolicy;
+	pData = pOperation->Data;
+	pOperation->OwnershipPolicy = NULL;
+	pOperation->Data = NULL;
+	pOperation->Done = NULL;
+	__xrtNetResolverUnlock(pResolver, &Mutation);
+	if (pPolicy) pPolicy->Drop(pData);
+	__xrtNetResolverLock(pResolver, &Mutation);
+	pOperation->CallbackActive = false;
+	pOperation->CallbackFinished = true;
+	pResolver->ActiveCallbacks--;
 	pResolver->Outstanding--;
 	(void)xrtCondBroadcast(&pResolver->Condition);
-	(void)xrtMutexUnlock(&pResolver->Lock);
+	__xrtNetResolverUnlock(pResolver, &Mutation);
 	__xrtNetResolveOpRelease(pOperation);
 }
 
@@ -726,12 +772,20 @@ static int32 __xrtNetResolverWorker(ptr pData)
 	for ( ;; ) {
 		xnetresolveop* pOperation;
 		xrt_net_resolve_group* pGroup;
+		xrtownershipscope Mutation = {0};
 
-		(void)xrtMutexLock(&pResolver->Lock);
+		__xrtNetResolverLock(pResolver, &Mutation);
 		while ( (pResolver->ReadyHead == NULL) &&
 			 (pResolver->QueryHead == NULL) && !pResolver->Closing ) {
-			if ( xrtCondWait(&pResolver->Condition, &pResolver->Lock) !=
-				 XWAIT_OK ) {
+			/* A condition wake owns Lock before mutation admission. Release
+			 * it first; otherwise freeze and this worker can deadlock. */
+			pResolver->ParkedWorkers++;
+			__xrtNetResolverMutationEnd(&Mutation);
+			xwaitresult Wait = xrtCondWait(&pResolver->Condition, &pResolver->Lock);
+			(void)xrtMutexUnlock(&pResolver->Lock);
+			__xrtNetResolverLock(pResolver, &Mutation);
+			pResolver->ParkedWorkers--;
+			if ( Wait != XWAIT_OK ) {
 				pResolver->Closing = true;
 				break;
 			}
@@ -741,10 +795,11 @@ static int32 __xrtNetResolverWorker(ptr pData)
 			__xrtNetResolverQueryTake(pResolver) : NULL;
 		if ( (pOperation == NULL) && (pGroup == NULL) &&
 			 pResolver->Closing ) {
-			(void)xrtMutexUnlock(&pResolver->Lock);
+			pResolver->ExitedWorkers++;
+			__xrtNetResolverUnlock(pResolver, &Mutation);
 			break;
 		}
-		(void)xrtMutexUnlock(&pResolver->Lock);
+		__xrtNetResolverUnlock(pResolver, &Mutation);
 
 		if ( pOperation != NULL ) {
 			__xrtNetResolverDispatch(pResolver, pOperation);
@@ -808,14 +863,15 @@ static bool __xrtNetResolverConfigValid(const xnetresolverconfig* pConfig)
 static xnetresolver* __xrtNetResolverCreateFail(xnetresolver* pResolver)
 {
 	xerror* pError = xrtTakeError();
+	xrtownershipscope Mutation = {0};
 
 	if ( pResolver->LockReady ) {
-		(void)xrtMutexLock(&pResolver->Lock);
+		__xrtNetResolverLock(pResolver, &Mutation);
 		pResolver->Closing = true;
 		if ( pResolver->ConditionReady ) {
 			(void)xrtCondBroadcast(&pResolver->Condition);
 		}
-		(void)xrtMutexUnlock(&pResolver->Lock);
+		__xrtNetResolverUnlock(pResolver, &Mutation);
 	}
 	for ( uint32 i = 0; i < pResolver->StartedThreads; i++ ) {
 		(void)xrtThreadWait(pResolver->Threads[i]);
@@ -835,8 +891,9 @@ static xnetresolver* __xrtNetResolverCreateFail(xnetresolver* pResolver)
 
 
 /* 创建并启动独立、受限、可裁剪的 DNS Resolver。 */
-XRT_API xnetresolver* xrtNetResolverCreate(
-	const xnetresolverconfig* pConfig
+static xnetresolver* __xrtNetResolverCreate(
+	const xnetresolverconfig* pConfig,
+	const xnetresolverlookupownershipv1* pPolicy
 )
 {
 	xnetresolverconfig Config;
@@ -915,7 +972,31 @@ XRT_API xnetresolver* xrtNetResolverCreate(
 		}
 		pResolver->StartedThreads++;
 	}
+	xrtownershipscope Mutation = {0};
+	__xrtNetResolverLock(pResolver, &Mutation);
+	pResolver->LookupPolicy = pPolicy;
+	pResolver->Initialized = true;
+	pResolver->CreatorOwned = true;
+	__xrtNetResolverUnlock(pResolver, &Mutation);
 	return pResolver;
+}
+
+XRT_API xnetresolver* xrtNetResolverCreate(const xnetresolverconfig* pConfig)
+{ return __xrtNetResolverCreate(pConfig, NULL); }
+
+XRT_API xnetresolver* xrtNetResolverCreateOwnedV1(const xnetresolverconfig* pConfig,
+	ptr pData, const xnetresolverlookupownershipv1* pPolicy)
+{
+	xnetresolverconfig Config;
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Lookup ||
+		!pPolicy->Drop || !pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace ||
+		(pConfig && (pConfig->Lookup || pConfig->LookupData))) {
+		__xrtErrorSetInvalidArgument(); return NULL;
+	}
+	xrtNetResolverConfigInit(&Config);
+	if (pConfig) Config = *pConfig;
+	Config.Lookup = pPolicy->Lookup; Config.LookupData = pData;
+	return __xrtNetResolverCreate(&Config, pPolicy);
 }
 
 
@@ -935,11 +1016,113 @@ static bool __xrtNetResolverIsWorker(const xnetresolver* pResolver)
 
 
 
+/* Joining closes admission but retains EVERY owning slot. Graph preparation
+ * and public retirement share this path; only a later commit consumes owners. */
+static xnetretireresult __xrtNetResolverJoin(xnetresolver* pResolver, bool bWait,
+	const void* pToken)
+{
+	xrtownershipscope Mutation = {0};
+	__xrtNetResolverLock(pResolver, &Mutation);
+	bool bWorker = __xrtNetResolverIsWorker(pResolver);
+	/* A worker can request closing, but can never join or consume the creator.
+	 * A collector's claim must not turn this cooperative BUSY into failure. */
+	if (!bWorker && pResolver->OwnershipClaim && !pResolver->OwnershipCleared && pResolver->OwnershipClaim != pToken) {
+		__xrtNetResolverUnlock(pResolver, &Mutation);
+		__xrtNetResolverError(XERR_STATE, XNET_ERROR_RESOLVER_CLOSED,
+			"destroy-resolver", "resolver is claimed by an ownership plan");
+		return XNET_RETIRE_ERROR;
+	}
+	if (pResolver->Joined) { __xrtNetResolverUnlock(pResolver, &Mutation); return XNET_RETIRE_READY; }
+	if (pResolver->Joining) { __xrtNetResolverUnlock(pResolver, &Mutation); return XNET_RETIRE_BUSY; }
+	pResolver->Closing = true;
+	if ( !xrtCondBroadcast(&pResolver->Condition) ) {
+		__xrtNetResolverUnlock(pResolver, &Mutation);
+		return XNET_RETIRE_ERROR;
+	}
+	if ( bWorker ) {
+		__xrtNetResolverUnlock(pResolver, &Mutation);
+		return XNET_RETIRE_BUSY;
+	}
+	pResolver->Joining = true;
+	__xrtNetResolverUnlock(pResolver, &Mutation);
+	xnetretireresult Result = XNET_RETIRE_READY;
+	/* 未证明所有线程及 TLS 清理结束前，不销毁任何线程句柄或共享存储。 */
+	for ( uint32 i = 0; i < pResolver->StartedThreads; i++ ) {
+		xwaitresult Wait = bWait ? xrtThreadWait(pResolver->Threads[i]) :
+			xrtThreadWaitFor(pResolver->Threads[i], 0);
+		if ( Wait != XWAIT_OK ) {
+			Result = Wait == XWAIT_TIMEOUT ? XNET_RETIRE_BUSY : XNET_RETIRE_ERROR;
+			break;
+		}
+	}
+	__xrtNetResolverLock(pResolver, &Mutation);
+	pResolver->Joining = false;
+	pResolver->Joined = Result == XNET_RETIRE_READY;
+	__xrtNetResolverUnlock(pResolver, &Mutation);
+	return Result;
+}
+
+/* Physical resources may be retired while real operation/plan owners keep the
+ * queryable shell alive. Drop of certified lookup data occurs after native TLS. */
+static void __xrtNetResolverRetireResources(xnetresolver* pResolver)
+{
+	xrtownershipscope Mutation = {0};
+	__xrtNetResolverLock(pResolver, &Mutation);
+	if (pResolver->Destroyed) { __xrtNetResolverUnlock(pResolver, &Mutation); return; }
+	if (!pResolver->Joined || pResolver->Retiring || pResolver->Outstanding || pResolver->ActiveQueries) abort();
+	pResolver->Retiring = true;
+	__xrtNetResolverCacheClearLocked(pResolver);
+	for ( uint32 i = 0; i < pResolver->StartedThreads; i++ ) {
+		xrtThreadDestroy(pResolver->Threads[i]);
+	}
+	pResolver->StartedThreads = 0;
+	pResolver->ExitedWorkers = 0;
+	xrtFree(pResolver->Threads);
+	xrtFree(pResolver->QueryBuckets);
+	xrtFree(pResolver->CacheBuckets);
+	pResolver->Threads = NULL;
+	pResolver->QueryBuckets = NULL;
+	pResolver->CacheBuckets = NULL;
+	pResolver->QueryBucketCount = 0;
+	pResolver->CacheBucketCount = 0;
+	const xnetresolverlookupownershipv1* pPolicy = pResolver->LookupPolicy;
+	ptr pData = pResolver->Config.LookupData;
+	pResolver->LookupPolicy = NULL;
+	pResolver->Config.LookupData = NULL;
+	pResolver->Config.Lookup = NULL;
+	__xrtNetResolverUnlock(pResolver, &Mutation);
+	if (pPolicy) pPolicy->Drop(pData);
+	__xrtNetResolverLock(pResolver, &Mutation);
+	pResolver->Destroyed = true;
+	pResolver->Retiring = false;
+	__xrtNetResolverUnlock(pResolver, &Mutation);
+}
+
+static xnetretireresult __xrtNetResolverRetire(xnetresolver* pResolver, bool bWait)
+{
+	if (!pResolver) return XNET_RETIRE_READY;
+	xrtownershipscope Mutation = {0};
+	__xrtNetResolverLock(pResolver, &Mutation);
+	bool bCreator = pResolver->CreatorOwned;
+	bool bRetiring = pResolver->Retiring;
+	__xrtNetResolverUnlock(pResolver, &Mutation);
+	if (!bCreator) { __xrtErrorSetInvalidState(); return XNET_RETIRE_ERROR; }
+	if (bRetiring) return XNET_RETIRE_BUSY;
+	xnetretireresult Result = __xrtNetResolverJoin(pResolver, bWait, NULL);
+	if (Result != XNET_RETIRE_READY) return Result;
+	__xrtNetResolverRetireResources(pResolver);
+	__xrtNetResolverLock(pResolver, &Mutation);
+	pResolver->CreatorOwned = false;
+	__xrtNetResolverUnlock(pResolver, &Mutation);
+	__xrtNetResolverRelease(pResolver);
+	return XNET_RETIRE_READY;
+}
+
+
+
 /* 停止接收、排空已受理查询与回调，再释放 Resolver 所有运行资源。 */
 XRT_API bool xrtNetResolverDestroy(xnetresolver* pResolver)
 {
-	bool bSuccess = true;
-
 	if ( pResolver == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -949,35 +1132,23 @@ XRT_API bool xrtNetResolverDestroy(xnetresolver* pResolver)
 			"destroy-resolver", "resolver cannot be destroyed by its own worker");
 		return false;
 	}
-	(void)xrtMutexLock(&pResolver->Lock);
-	if ( pResolver->Closing || pResolver->Destroyed ) {
-		(void)xrtMutexUnlock(&pResolver->Lock);
-		__xrtNetResolverError(XERR_STATE, XNET_ERROR_RESOLVER_CLOSED,
-			"destroy-resolver", "resolver is already closing or destroyed");
-		return false;
-	}
-	pResolver->Closing = true;
-	(void)xrtCondBroadcast(&pResolver->Condition);
-	(void)xrtMutexUnlock(&pResolver->Lock);
+	return __xrtNetResolverRetire(pResolver, true) == XNET_RETIRE_READY;
+}
 
-	for ( uint32 i = 0; i < pResolver->StartedThreads; i++ ) {
-		if ( xrtThreadWait(pResolver->Threads[i]) != XWAIT_OK ) {
-			bSuccess = false;
-		}
-		xrtThreadDestroy(pResolver->Threads[i]);
+
+
+/* 可重试的退休步骤；正常等待状态不替换调用方已有的错误。 */
+XRT_API xnetretireresult xrtNetResolverTryDestroy(xnetresolver* pResolver)
+{
+	xerror* pPrevious = __xrtErrorSwapOwned(NULL);
+	xnetretireresult Result = __xrtNetResolverRetire(pResolver, false);
+
+	if ( Result != XNET_RETIRE_ERROR ) {
+		xrtErrorFree(__xrtErrorSwapOwned(pPrevious));
+	} else {
+		xrtErrorFree(pPrevious);
 	}
-	(void)xrtMutexLock(&pResolver->Lock);
-	__xrtNetResolverCacheClearLocked(pResolver);
-	pResolver->Destroyed = true;
-	(void)xrtMutexUnlock(&pResolver->Lock);
-	xrtFree(pResolver->Threads);
-	xrtFree(pResolver->QueryBuckets);
-	xrtFree(pResolver->CacheBuckets);
-	pResolver->Threads = NULL;
-	pResolver->QueryBuckets = NULL;
-	pResolver->CacheBuckets = NULL;
-	__xrtNetResolverRelease(pResolver);
-	return bSuccess;
+	return Result;
 }
 
 
@@ -1007,12 +1178,13 @@ static xnetresolveop* __xrtNetResolveOpCreate(
 
 
 /* 提交可合并、可缓存、可取消的异步主机查询。 */
-XRT_API xnetresolveop* xrtNetResolverResolve(
+static xnetresolveop* __xrtNetResolverResolve(
 	xnetresolver* pResolver,
 	cstr sHost,
 	xnetfamily Family,
 	xnetresolveproc pDone,
-	ptr pData
+	ptr pData,
+	const xnetresolveownershipv1* pPolicy
 )
 {
 	xnetresolveop* pOperation;
@@ -1072,7 +1244,7 @@ XRT_API xnetresolveop* xrtNetResolverResolve(
 	iHash = __xrtNetResolverHash(sCanonical, iHostSize, Family);
 
 	(void)xrtMutexLock(&pResolver->Lock);
-	if ( pResolver->Closing || pResolver->Destroyed ) {
+	if ( pResolver->Closing || pResolver->Destroyed || pResolver->OwnershipClaim || pResolver->OwnershipCleared ) {
 		pResolver->Rejected++;
 		__xrtNetResolverError(XERR_CLOSED, XNET_ERROR_RESOLVER_CLOSED,
 			"submit-resolve", "resolver is closing");
@@ -1138,6 +1310,7 @@ XRT_API xnetresolveop* xrtNetResolverResolve(
 		}
 	}
 	if ( bAccepted ) {
+		pOperation->OwnershipPolicy = pPolicy;
 		(void)xrtCondSignal(&pResolver->Condition);
 	}
 	(void)xrtMutexUnlock(&pResolver->Lock);
@@ -1149,17 +1322,34 @@ XRT_API xnetresolveop* xrtNetResolverResolve(
 	return pOperation;
 }
 
+XRT_API xnetresolveop* xrtNetResolverResolve(xnetresolver* pResolver, cstr sHost,
+	xnetfamily Family, xnetresolveproc pDone, ptr pData)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xnetresolveop*, NULL,
+		__xrtNetResolverResolve(pResolver, sHost, Family, pDone, pData, NULL));
+}
+XRT_API xnetresolveop* xrtNetResolverResolveOwnedV1(xnetresolver* pResolver, cstr sHost,
+	xnetfamily Family, ptr pData, const xnetresolveownershipv1* pPolicy)
+{
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Done ||
+		!pPolicy->Drop || !pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
+		__xrtErrorSetInvalidArgument(); return NULL;
+	}
+	XRT_OWNERSHIP_MUTATION_RETURN(xnetresolveop*, NULL,
+		__xrtNetResolverResolve(pResolver, sHost, Family, pPolicy->Done, pData, pPolicy));
+}
+
 
 
 /* 清空缓存但不影响任何活动查询或已经交付的共享结果。 */
-XRT_API bool xrtNetResolverClear(xnetresolver* pResolver)
+static bool __xrtNetResolverClear(xnetresolver* pResolver)
 {
 	if ( pResolver == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
 	(void)xrtMutexLock(&pResolver->Lock);
-	if ( pResolver->Closing || pResolver->Destroyed ) {
+	if ( pResolver->Closing || pResolver->Destroyed || pResolver->OwnershipClaim || pResolver->OwnershipCleared ) {
 		(void)xrtMutexUnlock(&pResolver->Lock);
 		__xrtNetResolverError(XERR_CLOSED, XNET_ERROR_RESOLVER_CLOSED,
 			"clear-resolver", "resolver is closing or destroyed");
@@ -1169,6 +1359,9 @@ XRT_API bool xrtNetResolverClear(xnetresolver* pResolver)
 	(void)xrtMutexUnlock(&pResolver->Lock);
 	return true;
 }
+
+XRT_API bool xrtNetResolverClear(xnetresolver* pResolver)
+{ XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtNetResolverClear(pResolver)); }
 
 
 
@@ -1209,15 +1402,18 @@ XRT_API bool xrtNetResolverStats(
 
 
 /* 增加解析操作的调用方引用。 */
-XRT_API xnetresolveop* xrtNetResolveOpRef(xnetresolveop* pOperation)
+static xnetresolveop* __xrtNetResolveOpRef(xnetresolveop* pOperation)
 {
-	if ( (pOperation == NULL) ||
+	if ( (pOperation == NULL) || pOperation->OwnershipCleared ||
 		 (xrtRefRetain(&pOperation->RefCount) < 0) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
 	return pOperation;
 }
+
+XRT_API xnetresolveop* xrtNetResolveOpRef(xnetresolveop* pOperation)
+{ XRT_OWNERSHIP_MUTATION_RETURN(xnetresolveop*, NULL, __xrtNetResolveOpRef(pOperation)); }
 
 
 
@@ -1230,7 +1426,7 @@ XRT_API void xrtNetResolveOpDestroy(xnetresolveop* pOperation)
 
 
 /* 取消单个订阅者；无订阅者的排队查询会立即从工作队列移除。 */
-XRT_API bool xrtNetResolveOpCancel(xnetresolveop* pOperation)
+static bool __xrtNetResolveOpCancel(xnetresolveop* pOperation)
 {
 	xnetresolver* pResolver;
 	xrt_net_resolve_group* pGroup;
@@ -1284,6 +1480,9 @@ XRT_API bool xrtNetResolveOpCancel(xnetresolveop* pOperation)
 	__xrtNetResolverGroupFree(pDiscard);
 	return true;
 }
+
+XRT_API bool xrtNetResolveOpCancel(xnetresolveop* pOperation)
+{ XRT_OWNERSHIP_MUTATION_RETURN(bool, false, __xrtNetResolveOpCancel(pOperation)); }
 
 
 
@@ -1351,6 +1550,236 @@ XRT_API const xerror* xrtNetResolveOpError(
 	);
 	return (State == XNET_RESOLVE_FAILED) ||
 		(State == XNET_RESOLVE_CANCELLED) ? pOperation->Error : NULL;
+}
+
+/* No snapshots of executing native bodies: their temporary owners and borrowed
+ * callbacks are not durable queue slots. Parked workers are physical state,
+ * never invented strong references. All accepted queue transitions participate. */
+static bool __xrtNetResolverOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xnetresolver* pResolver = pData;
+	if (!pResolver || !pCount || !pResolver->Initialized || pResolver->Joining ||
+		pResolver->Retiring || pResolver->OwnershipCleared || pResolver->RunningQueries ||
+		pResolver->ActiveCallbacks ||
+		pResolver->ParkedWorkers + pResolver->ExitedWorkers != pResolver->StartedThreads ||
+		pResolver->ActiveQueries != pResolver->QueuedQueries ||
+		(pResolver->Config.Lookup && pResolver->Config.Lookup != __xrtNetResolverLookupDefault && !pResolver->LookupPolicy)) return false;
+	/* A prior nonblocking Prepare can have requested exit without observing
+	 * completion yet. Requiring Joined here forever prevents a graph planner
+	 * from revalidating and calling Prepare again. Observe the actual thread
+	 * completion read-only instead: cleanup in progress STILL refuses, and no
+	 * state mutex is waited for while frozen. Ready continues to require Join. */
+	if (pResolver->ExitedWorkers && !pResolver->Joined) {
+		if (pResolver->ExitedWorkers != pResolver->StartedThreads) return false;
+		for (uint32 i = 0; i < pResolver->StartedThreads; ++i) {
+			xthreadstate State;
+			if (!xrtThreadStateTry(pResolver->Threads[i], &State) || State != XTHREAD_FINISHED) return false;
+		}
+	}
+	int32 iReferences = __xrtAtomicRefLoad(&pResolver->RefCount);
+	if (iReferences <= 0) return false;
+	size_t iGroups = 0, iRequests = 0, iReady = 0, iCaches = 0;
+	const xrt_net_resolve_group* pPrevious = NULL;
+	for (const xrt_net_resolve_group* pGroup = pResolver->QueryHead; pGroup; pGroup = pGroup->QueueNext) {
+		if (iGroups++ == pResolver->QueuedQueries || pGroup->Running || pGroup->QueuePrevious != pPrevious) return false;
+		const xnetresolveop* pLast = NULL;
+		for (const xnetresolveop* pOperation = pGroup->RequestHead; pOperation; pOperation = pOperation->GroupNext) {
+			if (iRequests++ == pResolver->Outstanding || pOperation->Resolver != pResolver ||
+				pOperation->Group != pGroup || pOperation->GroupPrevious != pLast || pOperation->CallbackActive) return false;
+			pLast = pOperation;
+		}
+		if (!pLast || pLast != pGroup->RequestTail) return false;
+		pPrevious = pGroup;
+	}
+	if (iGroups != pResolver->QueuedQueries || pPrevious != pResolver->QueryTail) return false;
+	const xnetresolveop* pLast = NULL;
+	for (const xnetresolveop* pOperation = pResolver->ReadyHead; pOperation; pOperation = pOperation->ReadyNext) {
+		if (iReady++ == pResolver->ReadyCallbacks || iRequests++ == pResolver->Outstanding ||
+			pOperation->Resolver != pResolver || pOperation->Group || pOperation->CallbackActive) return false;
+		pLast = pOperation;
+	}
+	if (iReady != pResolver->ReadyCallbacks || pLast != pResolver->ReadyTail || iRequests != pResolver->Outstanding) return false;
+	const xrt_net_resolver_cache* pCachePrevious = NULL;
+	for (const xrt_net_resolver_cache* pCache = pResolver->LRUHead; pCache; pCache = pCache->LRUNext) {
+		if (iCaches++ == pResolver->CachedResults || pCache->LRUPrevious != pCachePrevious) return false;
+		pCachePrevious = pCache;
+	}
+	if (iCaches != pResolver->CachedResults || pCachePrevious != pResolver->LRUTail) return false;
+	*pCount = (size_t)iReferences; return true;
+}
+static bool __xrtNetResolverOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xnetresolver* pResolver = pData; size_t iCount;
+	if (!pVisit || !__xrtNetResolverOwnershipCount(pData, &iCount)) return false;
+	if (!pVisit(xrtErrorOwnership(pResolver->CancelError), pContext)) return false;
+	if (pResolver->LookupPolicy && !pVisit((xrtownershipref){pResolver->Config.LookupData, pResolver->LookupPolicy->Ops}, pContext)) return false;
+	for (const xrt_net_resolve_group* pGroup = pResolver->QueryHead; pGroup; pGroup = pGroup->QueueNext)
+		for (const xnetresolveop* pOperation = pGroup->RequestHead; pOperation; pOperation = pOperation->GroupNext)
+			if (!pVisit(xrtNetResolveOpOwnership(pOperation), pContext)) return false;
+	for (const xnetresolveop* pOperation = pResolver->ReadyHead; pOperation; pOperation = pOperation->ReadyNext)
+		if (!pVisit(xrtNetResolveOpOwnership(pOperation), pContext)) return false;
+	for (const xrt_net_resolver_cache* pCache = pResolver->LRUHead; pCache; pCache = pCache->LRUNext)
+		if (!pVisit(xrtNetAddrListOwnership(pCache->Addresses), pContext) || !pVisit(xrtErrorOwnership(pCache->Error), pContext)) return false;
+	return true;
+}
+static const xrtownershipops __xrtNetResolverOwnershipOps = {__xrtNetResolverOwnershipCount, __xrtNetResolverOwnershipTrace};
+XRT_API xrtownershipref xrtNetResolverOwnership(const xnetresolver* pResolver)
+{ return (xrtownershipref){pResolver, pResolver ? &__xrtNetResolverOwnershipOps : NULL}; }
+static bool __xrtNetResolverHold(const void* pData)
+{
+	xnetresolver* pResolver = (xnetresolver*)pData; xrtownershipscope Mutation = {0};
+	__xrtNetResolverLock(pResolver, &Mutation);
+	bool bHeld = !pResolver->OwnershipCleared && __xrtNetResolverRetain(pResolver);
+	__xrtNetResolverUnlock(pResolver, &Mutation); return bHeld;
+}
+static void __xrtNetResolverDrop(const void* pData) { __xrtNetResolverRelease((xnetresolver*)pData); }
+static bool __xrtNetResolverClaim(const void* pData, const void* pToken)
+{
+	xnetresolver* pResolver = (xnetresolver*)pData; size_t iCount;
+	if (!pToken || !__xrtNetResolverOwnershipCount(pData, &iCount) ||
+		(pResolver->OwnershipClaim && pResolver->OwnershipClaim != pToken)) return false;
+	pResolver->OwnershipClaim = pToken; return true;
+}
+static void __xrtNetResolverRestore(const void* pData, const void* pToken)
+{
+	xnetresolver* pResolver = (xnetresolver*)pData;
+	if (!pToken || pResolver->OwnershipClaim != pToken || pResolver->OwnershipCleared) abort();
+	pResolver->OwnershipClaim = NULL;
+}
+static bool __xrtNetResolverPrepared(const void* pData)
+{
+	const xnetresolver* pResolver = pData;
+	return pResolver->Joined && !pResolver->Joining && !pResolver->Retiring && !pResolver->Outstanding &&
+		!pResolver->ActiveQueries && !pResolver->ActiveCallbacks && !pResolver->ParkedWorkers;
+}
+static xrtownershipprepareresult __xrtNetResolverPrepare(const void* pData, const void* pToken)
+{
+	xnetresolver* pResolver = (xnetresolver*)pData; xrtownershipscope Mutation = {0};
+	__xrtNetResolverLock(pResolver, &Mutation);
+	if (!pToken || pResolver->OwnershipClaim != pToken || pResolver->OwnershipCleared) abort();
+	__xrtNetResolverUnlock(pResolver, &Mutation);
+	xnetretireresult Result = __xrtNetResolverJoin(pResolver, false, pToken);
+	return Result == XNET_RETIRE_READY ? XRT_OWNERSHIP_PREPARE_READY :
+		Result == XNET_RETIRE_BUSY ? XRT_OWNERSHIP_PREPARE_BUSY : XRT_OWNERSHIP_PREPARE_FAILED;
+}
+static void __xrtNetResolverClearOwnership(const void* pData, const void* pToken)
+{
+	xnetresolver* pResolver = (xnetresolver*)pData;
+	if (!pToken || pResolver->OwnershipClaim != pToken || pResolver->OwnershipCleared || !__xrtNetResolverPrepared(pData)) abort();
+	pResolver->OwnershipCleared = true;
+}
+static bool __xrtNetResolverFinish(const void* pData, const void* pToken)
+{
+	xnetresolver* pResolver = (xnetresolver*)pData;
+	if (!pToken || pResolver->OwnershipClaim != pToken || !pResolver->OwnershipCleared) abort();
+	__xrtNetResolverRetireResources(pResolver); return true;
+}
+XRT_API const xrtownershipadapterv1* xrtNetResolverOwnershipAdapterV1(xrtownershipref Reference,
+	const xnetresolverlookupownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetResolverHold, __xrtNetResolverDrop,
+		__xrtNetResolverClaim, __xrtNetResolverRestore, NULL, __xrtNetResolverClearOwnership, __xrtNetResolverFinish};
+	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter, __xrtNetResolverPrepared, __xrtNetResolverPrepare};
+	if (!ppPreparation || Reference.Ops != &__xrtNetResolverOwnershipOps || !Reference.Data || (iPolicyCount && !pPolicies)) return NULL;
+	const xnetresolver* pResolver = Reference.Data; size_t iCount;
+	if (pResolver->LookupPolicy) {
+		bool bKnown = false;
+		for (size_t i = 0; i < iPolicyCount; ++i) if (pPolicies[i] && pPolicies[i] == pResolver->LookupPolicy) { bKnown = true; break; }
+		if (!bKnown) return NULL;
+		const xnetresolverlookupownershipv1* pPolicy = pResolver->LookupPolicy;
+		if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Lookup != pResolver->Config.Lookup || !pPolicy->Drop ||
+			!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace || !pResolver->Config.LookupData) return NULL;
+	}
+	if (!__xrtNetResolverOwnershipCount(Reference.Data, &iCount)) return NULL;
+	*ppPreparation = &Preparation; return &Adapter;
+}
+
+static bool __xrtNetResolveOpOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xnetresolveop* pOperation = pData;
+	if (!pOperation || !pCount || pOperation->OwnershipCleared || pOperation->CallbackActive ||
+		(pOperation->Done && !pOperation->OwnershipPolicy) ||
+		(xrtAtomic32Load(&pOperation->CallbackClaimed, XMEMORY_ACQUIRE) && !pOperation->CallbackFinished)) return false;
+	int32 iCount = __xrtAtomicRefLoad(&pOperation->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+static bool __xrtNetResolveOpOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xnetresolveop* pOperation = pData; size_t iCount;
+	if (!pVisit || !__xrtNetResolveOpOwnershipCount(pData, &iCount)) return false;
+	return pVisit(xrtNetResolverOwnership(pOperation->Resolver), pContext) &&
+		pVisit(xrtNetAddrListOwnership(pOperation->Addresses), pContext) && pVisit(xrtErrorOwnership(pOperation->Error), pContext) &&
+		(!pOperation->OwnershipPolicy || pVisit((xrtownershipref){pOperation->Data, pOperation->OwnershipPolicy->Ops}, pContext));
+}
+static const xrtownershipops __xrtNetResolveOpOwnershipOps = {__xrtNetResolveOpOwnershipCount, __xrtNetResolveOpOwnershipTrace};
+XRT_API xrtownershipref xrtNetResolveOpOwnership(const xnetresolveop* pOperation)
+{ return (xrtownershipref){pOperation, pOperation ? &__xrtNetResolveOpOwnershipOps : NULL}; }
+static bool __xrtNetResolveOpHold(const void* pData) { return xrtNetResolveOpRef((xnetresolveop*)pData) != NULL; }
+static void __xrtNetResolveOpDrop(const void* pData) { xrtNetResolveOpDestroy((xnetresolveop*)pData); }
+static bool __xrtNetResolveOpClaim(const void* pData, const void* pToken)
+{
+	xnetresolveop* pOperation = (xnetresolveop*)pData; size_t iCount;
+	if (!pToken || !__xrtNetResolveOpOwnershipCount(pData, &iCount) ||
+		(pOperation->OwnershipClaim && pOperation->OwnershipClaim != pToken)) return false;
+	pOperation->OwnershipClaim = pToken; return true;
+}
+static void __xrtNetResolveOpRestore(const void* pData, const void* pToken)
+{
+	xnetresolveop* pOperation = (xnetresolveop*)pData;
+	if (!pToken || pOperation->OwnershipClaim != pToken || pOperation->OwnershipCleared) abort();
+	pOperation->OwnershipClaim = NULL;
+}
+static bool __xrtNetResolveOpPrepared(const void* pData)
+{
+	const xnetresolveop* pOperation = pData;
+	return pOperation->CallbackFinished && !pOperation->CallbackActive && !pOperation->OwnershipPolicy && !pOperation->Group;
+}
+static xrtownershipprepareresult __xrtNetResolveOpPrepare(const void* pData, const void* pToken)
+{
+	const xnetresolveop* pOperation = pData; xrtownershipscope Freeze = {0};
+	if (!xrtOwnershipFreezeTryBegin(&Freeze)) return XRT_OWNERSHIP_PREPARE_BUSY;
+	if (!pToken || pOperation->OwnershipClaim != pToken || pOperation->OwnershipCleared) abort();
+	bool bReady = __xrtNetResolveOpPrepared(pData);
+	__xrtNetResolverMutationEnd(&Freeze);
+	return bReady ? XRT_OWNERSHIP_PREPARE_READY : XRT_OWNERSHIP_PREPARE_BUSY;
+}
+static void __xrtNetResolveOpClearOwnership(const void* pData, const void* pToken)
+{
+	xnetresolveop* pOperation = (xnetresolveop*)pData;
+	if (!pToken || pOperation->OwnershipClaim != pToken || pOperation->OwnershipCleared || !__xrtNetResolveOpPrepared(pData)) abort();
+	pOperation->OwnershipCleared = true;
+}
+static bool __xrtNetResolveOpFinish(const void* pData, const void* pToken)
+{
+	xnetresolveop* pOperation = (xnetresolveop*)pData; xrtownershipscope Mutation = {0};
+	__xrtNetResolverMutationBegin(&Mutation);
+	if (!pToken || pOperation->OwnershipClaim != pToken || !pOperation->OwnershipCleared) abort();
+	xnetresolver* pResolver = pOperation->Resolver; xnetaddrlist* pAddresses = pOperation->Addresses; xerror* pError = pOperation->Error;
+	pOperation->Resolver = NULL; pOperation->Addresses = NULL; pOperation->Error = NULL;
+	__xrtNetResolverMutationEnd(&Mutation);
+	xrtNetAddrListDestroy(pAddresses); xrtErrorFree(pError); __xrtNetResolverRelease(pResolver); return true;
+}
+XRT_API const xrtownershipadapterv1* xrtNetResolveOpOwnershipAdapterV1(xrtownershipref Reference,
+	const xnetresolveownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetResolveOpHold, __xrtNetResolveOpDrop,
+		__xrtNetResolveOpClaim, __xrtNetResolveOpRestore, NULL, __xrtNetResolveOpClearOwnership, __xrtNetResolveOpFinish};
+	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter, __xrtNetResolveOpPrepared, __xrtNetResolveOpPrepare};
+	if (!ppPreparation || Reference.Ops != &__xrtNetResolveOpOwnershipOps || !Reference.Data || (iPolicyCount && !pPolicies)) return NULL;
+	const xnetresolveop* pOperation = Reference.Data; size_t iCount;
+	if (pOperation->OwnershipPolicy) {
+		bool bKnown = false;
+		for (size_t i = 0; i < iPolicyCount; ++i) if (pPolicies[i] && pPolicies[i] == pOperation->OwnershipPolicy) { bKnown = true; break; }
+		if (!bKnown) return NULL;
+		const xnetresolveownershipv1* pPolicy = pOperation->OwnershipPolicy;
+		if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Done != pOperation->Done || !pPolicy->Drop ||
+			!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace || !pOperation->Data) return NULL;
+	}
+	if (!__xrtNetResolveOpOwnershipCount(Reference.Data, &iCount)) return NULL;
+	*ppPreparation = &Preparation; return &Adapter;
 }
 
 #endif

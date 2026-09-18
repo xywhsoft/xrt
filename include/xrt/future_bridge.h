@@ -68,6 +68,24 @@ XRT_API bool xrtFutureBridgeWatch(
 	ptr pCancelData
 );
 
+/* Same bridge storage and setup protocol; success consumes one real Data
+ * reference under the explicit resident cancel policy, failure consumes none.
+ * Notify/Drop and Unwatch waits run outside bridge-owned mutation scopes.
+ * The embedding owner coordinates its own activity, RC and code residency.
+ * As with the legacy bridge, mutating calls are owner-serialized; only Wait
+ * observes setup concurrently. Reentrant installation/unlink is rejected. */
+XRT_API bool xrtFutureBridgeWatchOwnedV1(xfuturebridge* pBridge, ptr pData,
+	const xcancelwatchownershipv1* pPolicy);
+
+/* Read-only under whole-graph freeze: the ONE actual owned Watch, never the
+ * borrowed Promise or a synthetic bridge node. Installation, unlink, unpublished
+ * setup and a live legacy borrowed-data Watch refuse without modifying output
+ * or diagnostics. A successful empty reference means no owned registration.
+ * The owner must separately trace its real Promise and independently admit
+ * Watch/context policy identities; this view is not lifecycle certification. */
+XRT_API bool xrtFutureBridgeWatchOwnershipV1(const xfuturebridge* pBridge,
+	xrtownershipref* pReference);
+
 
 
 /* 发布装配成功，允许底层完成回调向 Promise 写入终态。 */

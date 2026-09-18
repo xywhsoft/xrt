@@ -172,6 +172,14 @@ XRT_API bool xrtThreadStopping(void);
 /* 返回线程状态快照。 */
 XRT_API xthreadstate xrtThreadState(const xthread* pThread);
 
+/* Nonblocking, read-only observation for frozen ownership graphs. It never
+ * waits for the state mutex (which a finishing thread may hold while entering
+ * the mutation domain), calls no callback and preserves the ambient error.
+ * False leaves output unchanged on contention or invalid input. FINISHED has
+ * the same body/XRT-context completion meaning as ThreadState/ThreadWait; this
+ * query does not consume a thread reference or itself authorize code unload. */
+XRT_API bool xrtThreadStateTry(const xthread* pThread, xthreadstate* pState);
+
 
 
 /* 返回完成线程的退出码；线程仍运行或参数无效时返回零并设置错误。 */

@@ -35,6 +35,40 @@ static const size_t __xrtNetEngineNodeSizes[
 
 static void __xrtNetEngineWake(xnetworker* pWorker);
 
+/* Enter the mutation domain BEFORE the lifecycle lock. Never carry either
+ * across worker waits, callback dispatch or certified context Drop. */
+static bool __xrtNetEngineLock(xnetengine* pEngine, xrtownershipscope* pScope)
+{
+	if (!xrtOwnershipMutationBegin(pScope)) return false;
+	if (xrtMutexLock(&pEngine->Lifecycle)) return true;
+	if (!xrtOwnershipScopeEnd(pScope)) abort();
+	return false;
+}
+static void __xrtNetEngineUnlock(xnetengine* pEngine, xrtownershipscope* pScope)
+{
+	if (!xrtMutexUnlock(&pEngine->Lifecycle) || !xrtOwnershipScopeEnd(pScope)) abort();
+}
+static void __xrtNetEngineRelease(xnetengine* pEngine)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (xrtRefRelease(&pEngine->RefCount) == 0) {
+		if (pEngine->CreatorOwned || !pEngine->ResourcesRetired ||
+			xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE)) abort();
+		if (!xrtMutexUnit(&pEngine->Lifecycle)) abort();
+		xrtFree(pEngine->Workers);
+		xrtFree(pEngine);
+	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+}
+static void __xrtNetEnginePark(xnetworker* pWorker, bool bParked)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	pWorker->OwnershipParked = bParked;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+}
+
 
 
 /* 设置 Engine 子系统的结构化错误。 */
@@ -614,6 +648,7 @@ static void __xrtNetEngineTimerFinish(
 	xnettimerproc pProc = pTimer->Proc;
 	ptr pData = pTimer->Data;
 	uint64 Id = pTimer->Id;
+	const xnettimerownershipv1* pPolicy = pTimer->OwnershipPolicy;
 
 	if ( Result == XNET_RESULT_OK ) {
 		__xrtNetEngineStatAdd(&pWorker->Stats.TimersFired, 1);
@@ -631,6 +666,7 @@ static void __xrtNetEngineTimerFinish(
 	);
 	__xrtNetEngineTimerRecycle(pWorker, pTimer);
 	pProc(pWorker, Id, Result, pData);
+	if (pPolicy) pPolicy->Drop(pData);
 }
 
 
@@ -859,6 +895,7 @@ static size_t __xrtNetEngineCommandsDrain(
 		}
 		if ( pCommand->Type == XRT_NET_ENGINE_COMMAND_TASK ) {
 			pCommand->Task(pWorker, pCommand->Data);
+			if (pCommand->OwnershipPolicy) pCommand->OwnershipPolicy->Drop(pCommand->Data);
 			__xrtNetEngineStatAdd(&pWorker->Stats.PostsExecuted, 1);
 		} else if ( pCommand->Type == XRT_NET_ENGINE_COMMAND_TIMER_ADD ) {
 			__xrtNetEngineTimerAdd(pWorker, pCommand->Timer);
@@ -971,13 +1008,16 @@ static int32 __xrtNetEngineWorkerMain(ptr pData)
 			XRT_NET_ENGINE_COMMAND_BUDGET
 		);
 		__xrtNetEngineTimersExpire(pWorker);
+		xdeadline Deadline = __xrtNetEngineNextDeadline(pWorker);
+		__xrtNetEnginePark(pWorker, true);
 		Result = xrtNetPortWait(
 			pWorker->Port,
 			pWorker->Events,
 			pWorker->Engine->Config.EventBatch,
-			__xrtNetEngineNextDeadline(pWorker),
+			Deadline,
 			&iEventCount
 		);
+		__xrtNetEnginePark(pWorker, false);
 		if ( Result == XNET_RESULT_OK ) {
 			__xrtNetEngineDispatch(
 				pWorker,
@@ -1070,6 +1110,7 @@ static void __xrtNetEngineCommandDiscard(ptr pItem, ptr pData)
 			XNET_RESULT_CLOSED
 		);
 	}
+	if (pCommand->OwnershipPolicy) pCommand->OwnershipPolicy->Drop(pCommand->Data);
 	__xrtNetEngineCommandRecycle(pWorker, pCommand);
 }
 
@@ -1152,6 +1193,8 @@ static bool __xrtNetEngineWorkerStart(xnetworker* pWorker)
 		return false;
 	}
 	xrtAtomic32Store(&pWorker->Stop, 0, XMEMORY_RELEASE);
+	pWorker->OwnershipParked = false;
+	pWorker->OwnershipPortExposed = false;
 	xrtAtomic32Store(&pWorker->Running, 0, XMEMORY_RELEASE);
 	xrtAtomic32Store(
 		&pWorker->ShutdownPhase,
@@ -1278,6 +1321,11 @@ static bool __xrtNetEngineWorkerStop(xnetworker* pWorker)
 	bool bShutdownFailed;
 
 	if ( pWorker->Thread == NULL ) {
+		/* A prior join may have failed to claim the port. Never discard that
+		 * still-owned slot by calling Destroy from the wrong thread on retry. */
+		if ( pWorker->Port != NULL && !__xrtNetPortThreadClaim(pWorker->Port) ) {
+			return false;
+		}
 		return __xrtNetEngineWorkerUnit(pWorker);
 	}
 	if ( xrtThreadWait(pWorker->Thread) != XWAIT_OK ) {
@@ -1308,10 +1356,12 @@ static bool __xrtNetEngineWorkerStop(xnetworker* pWorker)
 
 
 
-/* 停止一段已经成功启动的 Worker。 */
-static bool __xrtNetEngineWorkersStop(
+/* 同步停止与非等待退休共用提交关门、停机请求及真实线程 join。 */
+static xnetretireresult __xrtNetEngineWorkersRetire(
 	xnetengine* pEngine,
-	uint32 iCount
+	uint32 iCount,
+	bool bWait,
+	bool bReleaseResources
 )
 {
 	xerror* pError = NULL;
@@ -1330,11 +1380,45 @@ static bool __xrtNetEngineWorkersStop(
 			&pEngine->Workers[i].Submitters,
 			XMEMORY_ACQUIRE
 		) != XRT_NET_ENGINE_SUBMIT_CLOSED ) {
+			if ( !bWait ) {
+				return XNET_RETIRE_BUSY;
+			}
 			xrtThreadYield();
 		}
 	}
 	for ( uint32 i = 0; i < iCount; i++ ) {
 		__xrtNetEngineWorkerStopRequest(&pEngine->Workers[i]);
+	}
+	if ( !bWait ) {
+		if ( xrtNetEngineCurrent(pEngine) != NULL ) {
+			return XNET_RETIRE_BUSY;
+		}
+		for ( uint32 i = 0; i < iCount; i++ ) {
+			xthread* pThread = pEngine->Workers[i].Thread;
+			xwaitresult Result = pThread != NULL ?
+				xrtThreadWaitFor(pThread, 0) : XWAIT_OK;
+			if ( Result != XWAIT_OK ) {
+				return Result == XWAIT_TIMEOUT ? XNET_RETIRE_BUSY : XNET_RETIRE_ERROR;
+			}
+		}
+		/* 池的统计并非原子；只能在全部 Worker 真实退出后读取。 */
+		for ( uint32 i = 0; i < iCount; i++ ) {
+			xnetbufpoolinfo Info;
+			xrtNetBufPoolGet(pEngine->Workers[i].BufferPool, &Info);
+			if ( Info.LiveBlocks != 0 ) {
+				return XNET_RETIRE_BUSY;
+			}
+		}
+	}
+	if (!bReleaseResources) {
+		for (uint32 i = 0; i < iCount; ++i) {
+			if (xrtAtomic32Load(&pEngine->Workers[i].ShutdownFailed, XMEMORY_ACQUIRE)) {
+				__xrtNetEngineError(XERR_STATE, XNET_ERROR_ENGINE_STOP,
+					"prepare-engine", "network worker shutdown tasks did not converge");
+				return XNET_RETIRE_ERROR;
+			}
+		}
+		return XNET_RETIRE_READY;
 	}
 	for ( uint32 i = 0; i < iCount; i++ ) {
 		if ( !__xrtNetEngineWorkerStop(&pEngine->Workers[i]) ) {
@@ -1350,7 +1434,15 @@ static bool __xrtNetEngineWorkersStop(
 			"network worker shutdown failed"
 		);
 	}
-	return bResult;
+	return bResult ? XNET_RETIRE_READY : XNET_RETIRE_ERROR;
+}
+
+
+
+/* 保留原同步停止合同；失败时仍由调用方持有 Engine。 */
+static bool __xrtNetEngineWorkersStop(xnetengine* pEngine, uint32 iCount)
+{
+	return __xrtNetEngineWorkersRetire(pEngine, iCount, true, true) == XNET_RETIRE_READY;
 }
 
 
@@ -1358,6 +1450,8 @@ static bool __xrtNetEngineWorkersStop(
 /* 占用 Worker 提交侧，关门后不再允许新生产者进入。 */
 static bool __xrtNetEngineSubmitGateEnter(xnetworker* pWorker)
 {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
 	uint32 iGate = xrtAtomic32Load(
 		&pWorker->Submitters,
 		XMEMORY_ACQUIRE
@@ -1369,6 +1463,7 @@ static bool __xrtNetEngineSubmitGateEnter(xnetworker* pWorker)
 		if ( ((iGate & XRT_NET_ENGINE_SUBMIT_CLOSED) != 0) ||
 			 ((iGate & XRT_NET_ENGINE_SUBMIT_COUNT) ==
 			 XRT_NET_ENGINE_SUBMIT_COUNT) ) {
+			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 			return false;
 		}
 		if ( xrtAtomic32CompareExchange(
@@ -1382,12 +1477,14 @@ static bool __xrtNetEngineSubmitGateEnter(xnetworker* pWorker)
 		}
 		iGate = iExpected;
 	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	return true;
 }
 
 
 
 /* 在 Engine 仍运行时占用 Worker 提交侧，防止 Stop 提前释放队列。 */
+static void __xrtNetEngineSubmitLeave(xnetworker* pWorker);
 static bool __xrtNetEngineSubmitEnter(xnetworker* pWorker)
 {
 	if ( xrtNetEngineState(pWorker->Engine) != XNET_ENGINE_RUNNING ) {
@@ -1396,12 +1493,9 @@ static bool __xrtNetEngineSubmitEnter(xnetworker* pWorker)
 	if ( !__xrtNetEngineSubmitGateEnter(pWorker) ) {
 		return false;
 	}
-	if ( xrtNetEngineState(pWorker->Engine) != XNET_ENGINE_RUNNING ) {
-		(void)xrtAtomic32FetchSub(
-			&pWorker->Submitters,
-			1,
-			XMEMORY_ACQ_REL
-		);
+	if ( xrtNetEngineState(pWorker->Engine) != XNET_ENGINE_RUNNING ||
+		pWorker->Engine->OwnershipClaim || pWorker->Engine->OwnershipCleared ) {
+		__xrtNetEngineSubmitLeave(pWorker);
 		return false;
 	}
 	return true;
@@ -1412,11 +1506,14 @@ static bool __xrtNetEngineSubmitEnter(xnetworker* pWorker)
 /* 释放 Worker 提交侧占用。 */
 static void __xrtNetEngineSubmitLeave(xnetworker* pWorker)
 {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	(void)xrtAtomic32FetchSub(
 		&pWorker->Submitters,
 		1,
 		XMEMORY_ACQ_REL
 	);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
 
@@ -1593,6 +1690,8 @@ XRT_API xnetengine* xrtNetEngineCreate(const xnetengineconfig* pConfig)
 	pEngine->Config.BufferPool = NULL;
 	pEngine->BufferConfig = BufferConfig;
 	pEngine->WorkerCount = iWorkers;
+	pEngine->RefCount = 1;
+	pEngine->CreatorOwned = true;
 	xrtAtomic32Init(&pEngine->State, XNET_ENGINE_STOPPED);
 	xrtAtomic32Init(&pEngine->LiveObjects, 0);
 	xrtAtomic64Init(&pEngine->NextTimer, 0);
@@ -1629,82 +1728,38 @@ XRT_API xnetengine* xrtNetEngineCreate(const xnetengineconfig* pConfig)
 /* 建立全部 Worker、端口和线程。 */
 XRT_API bool xrtNetEngineStart(xnetengine* pEngine)
 {
-	uint32 iStarted = 0;
-	xnetenginestate State;
-
-	if ( pEngine == NULL ) {
-		__xrtErrorSetInvalidArgument();
+	xrtownershipscope Mutation = {0};
+	if (!pEngine) { __xrtErrorSetInvalidArgument(); return false; }
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) return false;
+	xnetenginestate State = xrtNetEngineState(pEngine);
+	if (!pEngine->CreatorOwned || pEngine->ResourcesRetired || pEngine->OwnershipClaim ||
+		pEngine->OwnershipCleared || (State != XNET_ENGINE_STOPPED && State != XNET_ENGINE_RUNNING)) {
+		__xrtNetEngineUnlock(pEngine, &Mutation);
+		__xrtNetEngineError(XERR_STATE, XNET_ERROR_ENGINE_START,
+			"start-engine", "network engine is changing state or claimed");
 		return false;
 	}
-	State = xrtNetEngineState(pEngine);
-	if ( State == XNET_ENGINE_RUNNING ) {
-		return true;
-	}
-	if ( State != XNET_ENGINE_STOPPED ) {
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_START,
-			"start-engine",
-			"network engine is changing state"
-		);
-		return false;
-	}
-	if ( !xrtMutexLock(&pEngine->Lifecycle) ) {
-		return false;
-	}
-	if ( xrtNetEngineState(pEngine) != XNET_ENGINE_STOPPED ) {
-		(void)xrtMutexUnlock(&pEngine->Lifecycle);
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_START,
-			"start-engine",
-			"network engine is no longer stopped"
-		);
-		return false;
-	}
-	xrtAtomic32Store(
-		&pEngine->State,
-		XNET_ENGINE_STARTING,
-		XMEMORY_RELEASE
-	);
-	for ( ; iStarted < pEngine->WorkerCount; iStarted++ ) {
-		if ( !__xrtNetEngineWorkerStart(&pEngine->Workers[iStarted]) ) {
+	if (State == XNET_ENGINE_RUNNING) { __xrtNetEngineUnlock(pEngine, &Mutation); return true; }
+	pEngine->Joined = false;
+	xrtAtomic32Store(&pEngine->State, XNET_ENGINE_STARTING, XMEMORY_RELEASE);
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	for (uint32 i = 0; i < pEngine->WorkerCount; ++i) {
+		if (!__xrtNetEngineWorkerStart(&pEngine->Workers[i])) {
 			xerror* pError = xrtTakeError();
-
-			(void)__xrtNetEngineWorkersStop(pEngine, iStarted);
-			xrtAtomic32Store(
-				&pEngine->State,
-				XNET_ENGINE_STOPPED,
-				XMEMORY_RELEASE
-			);
-			(void)xrtMutexUnlock(&pEngine->Lifecycle);
-			if ( pError != NULL ) {
-				xrtSetError(pError);
-				xrtErrorFree(pError);
-			} else {
-				__xrtNetEngineError(
-					XERR_INTERNAL,
-					XNET_ERROR_ENGINE_START,
-					"start-engine",
-					"network worker start failed"
-				);
-			}
+			(void)__xrtNetEngineWorkersStop(pEngine, i);
+			if (!__xrtNetEngineLock(pEngine, &Mutation)) abort();
+			xrtAtomic32Store(&pEngine->State, XNET_ENGINE_STOPPED, XMEMORY_RELEASE);
+			__xrtNetEngineUnlock(pEngine, &Mutation);
+			__xrtNetEngineErrorRestore(pError, XNET_ERROR_ENGINE_START,
+				"start-engine", "network worker start failed");
 			return false;
 		}
 	}
-	for ( uint32 i = 0; i < pEngine->WorkerCount; i++ ) {
-		xrtAtomic32Store(
-			&pEngine->Workers[i].Submitters,
-			0,
-			XMEMORY_RELEASE
-		);
-	}
-	xrtAtomic32Store(
-		&pEngine->State,
-		XNET_ENGINE_RUNNING,
-		XMEMORY_RELEASE
-	);
-	(void)xrtMutexUnlock(&pEngine->Lifecycle);
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) abort();
+	for (uint32 i = 0; i < pEngine->WorkerCount; ++i)
+		xrtAtomic32Store(&pEngine->Workers[i].Submitters, 0, XMEMORY_RELEASE);
+	xrtAtomic32Store(&pEngine->State, XNET_ENGINE_RUNNING, XMEMORY_RELEASE);
+	__xrtNetEngineUnlock(pEngine, &Mutation);
 	return true;
 }
 
@@ -1713,83 +1768,83 @@ XRT_API bool xrtNetEngineStart(xnetengine* pEngine)
 /* 停止全部 Worker，排空任务并关闭 Timer。 */
 XRT_API bool xrtNetEngineStop(xnetengine* pEngine)
 {
-	bool bResult;
-	xnetenginestate State;
-
-	if ( pEngine == NULL ) {
-		__xrtErrorSetInvalidArgument();
+	xrtownershipscope Mutation = {0};
+	if (!pEngine) { __xrtErrorSetInvalidArgument(); return false; }
+	if (xrtNetEngineCurrent(pEngine)) {
+		__xrtNetEngineError(XERR_STATE, XNET_ERROR_ENGINE_STOP,
+			"stop-engine", "a network worker cannot stop its own engine"); return false;
+	}
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) return false;
+	xnetenginestate State = xrtNetEngineState(pEngine);
+	if (!pEngine->CreatorOwned || pEngine->ResourcesRetired || pEngine->OwnershipClaim ||
+		pEngine->OwnershipCleared || (State != XNET_ENGINE_STOPPED && State != XNET_ENGINE_RUNNING) ||
+		xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE)) {
+		__xrtNetEngineUnlock(pEngine, &Mutation);
+		__xrtNetEngineError(XERR_STATE, XNET_ERROR_ENGINE_STOP,
+			"stop-engine", "network engine is changing state, claimed or has live objects");
 		return false;
 	}
-	if ( xrtNetEngineCurrent(pEngine) != NULL ) {
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_STOP,
-			"stop-engine",
-			"a network worker cannot stop its own engine"
-		);
-		return false;
-	}
-	State = xrtNetEngineState(pEngine);
-	if ( (State != XNET_ENGINE_STOPPED) &&
-		 (State != XNET_ENGINE_RUNNING) ) {
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_STOP,
-			"stop-engine",
-			"network engine is changing state"
-		);
-		return false;
-	}
-	if ( !xrtMutexLock(&pEngine->Lifecycle) ) {
-		return false;
-	}
-	State = xrtNetEngineState(pEngine);
-	if ( (State != XNET_ENGINE_STOPPED) &&
-		 (State != XNET_ENGINE_RUNNING) ) {
-		(void)xrtMutexUnlock(&pEngine->Lifecycle);
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_STOP,
-			"stop-engine",
-			"network engine is changing state"
-		);
-		return false;
-	}
-	xrtAtomic32Store(
-		&pEngine->State,
-		XNET_ENGINE_STOPPING,
-		XMEMORY_RELEASE
-	);
-	if ( (State == XNET_ENGINE_RUNNING) &&
-		 (xrtAtomic32Load(
-			&pEngine->LiveObjects,
-			XMEMORY_ACQUIRE
-		 ) != 0) ) {
-		xrtAtomic32Store(
-			&pEngine->State,
-			State,
-			XMEMORY_RELEASE
-		);
-		(void)xrtMutexUnlock(&pEngine->Lifecycle);
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_STOP,
-			"stop-engine",
-			"network engine still owns live network objects"
-		);
-		return false;
-	}
-	(void)xrtMutexUnlock(&pEngine->Lifecycle);
-	bResult = __xrtNetEngineWorkersStop(
-		pEngine,
-		pEngine->WorkerCount
-	);
-	xrtAtomic32Store(
-		&pEngine->State,
-		XNET_ENGINE_STOPPED,
-		XMEMORY_RELEASE
-	);
+	xrtAtomic32Store(&pEngine->State, XNET_ENGINE_STOPPING, XMEMORY_RELEASE);
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	bool bResult = __xrtNetEngineWorkersStop(pEngine, pEngine->WorkerCount);
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) abort();
+	xrtAtomic32Store(&pEngine->State, XNET_ENGINE_STOPPED, XMEMORY_RELEASE);
+	pEngine->Joined = false;
+	__xrtNetEngineUnlock(pEngine, &Mutation);
 	return bResult;
+}
+
+
+
+/* 创建者拥有权只在全部运行资源退休成功后消费。 */
+static xnetretireresult __xrtNetEngineRetire(xnetengine* pEngine, bool bWait)
+{
+	if (!pEngine) return XNET_RETIRE_READY;
+	xrtownershipscope Mutation = {0};
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) return XNET_RETIRE_ERROR;
+	xnetenginestate State = xrtNetEngineState(pEngine);
+	bool bWorker = xrtNetEngineCurrent(pEngine) != NULL;
+	if (pEngine->OwnershipClaim && !pEngine->OwnershipCleared) {
+		__xrtNetEngineUnlock(pEngine, &Mutation);
+		if (bWorker) return XNET_RETIRE_BUSY;
+		__xrtNetEngineError(XERR_STATE, XNET_ERROR_ENGINE_STOP,
+			"destroy-engine", "network engine is claimed by an ownership plan");
+		return XNET_RETIRE_ERROR;
+	}
+	if (!pEngine->CreatorOwned || (State != XNET_ENGINE_STOPPED &&
+		State != XNET_ENGINE_RUNNING && State != XNET_ENGINE_DESTROYING)) {
+		__xrtNetEngineUnlock(pEngine, &Mutation);
+		__xrtNetEngineError(XERR_STATE, XNET_ERROR_ENGINE_STOP,
+			"destroy-engine", "network engine is changing state or has no creator owner");
+		return XNET_RETIRE_ERROR;
+	}
+	if (pEngine->Retiring || pEngine->Joining) {
+		__xrtNetEngineUnlock(pEngine, &Mutation); return XNET_RETIRE_BUSY;
+	}
+	if (xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE)) {
+		__xrtNetEngineUnlock(pEngine, &Mutation);
+		if (!bWait) return XNET_RETIRE_BUSY;
+		__xrtNetEngineError(XERR_STATE, XNET_ERROR_ENGINE_STOP,
+			"destroy-engine", "network engine still has live network objects");
+		return XNET_RETIRE_ERROR;
+	}
+	xrtAtomic32Store(&pEngine->State, XNET_ENGINE_DESTROYING, XMEMORY_RELEASE);
+	pEngine->Retiring = true;
+	bool bRetired = pEngine->ResourcesRetired;
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	xnetretireresult Result = bRetired ? XNET_RETIRE_READY :
+		__xrtNetEngineWorkersRetire(pEngine, pEngine->WorkerCount, bWait, true);
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) abort();
+	pEngine->Retiring = false;
+	if (Result == XNET_RETIRE_READY) {
+		pEngine->ResourcesRetired = true; pEngine->Joined = true;
+		pEngine->CreatorOwned = false;
+	} else if (bWait && !pEngine->OwnershipCleared) {
+		xrtAtomic32Store(&pEngine->State, XNET_ENGINE_STOPPED, XMEMORY_RELEASE);
+	}
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	if (Result == XNET_RETIRE_READY) __xrtNetEngineRelease(pEngine);
+	return Result;
 }
 
 
@@ -1797,76 +1852,28 @@ XRT_API bool xrtNetEngineStop(xnetengine* pEngine)
 /* 停止并销毁 Engine；活动高层对象会阻止该操作。 */
 XRT_API bool xrtNetEngineDestroy(xnetengine* pEngine)
 {
-	bool bResult;
-	xnetenginestate State;
+	if ( (pEngine != NULL) && (xrtNetEngineCurrent(pEngine) != NULL) ) {
+		__xrtNetEngineError(XERR_STATE, XNET_ERROR_ENGINE_STOP,
+			"destroy-engine", "a network worker cannot destroy its own engine");
+		return false;
+	}
+	return __xrtNetEngineRetire(pEngine, true) == XNET_RETIRE_READY;
+}
 
-	if ( pEngine == NULL ) {
-		return true;
+
+
+/* BUSY 是无错误的真实等待状态，不提前释放创建者拥有权。 */
+XRT_API xnetretireresult xrtNetEngineTryDestroy(xnetengine* pEngine)
+{
+	xerror* pPrevious = __xrtErrorSwapOwned(NULL);
+	xnetretireresult Result = __xrtNetEngineRetire(pEngine, false);
+
+	if ( Result != XNET_RETIRE_ERROR ) {
+		xrtErrorFree(__xrtErrorSwapOwned(pPrevious));
+	} else {
+		xrtErrorFree(pPrevious);
 	}
-	if ( xrtNetEngineCurrent(pEngine) != NULL ) {
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_STOP,
-			"destroy-engine",
-			"a network worker cannot destroy its own engine"
-		);
-		return false;
-	}
-	if ( !xrtMutexLock(&pEngine->Lifecycle) ) {
-		return false;
-	}
-	State = xrtNetEngineState(pEngine);
-	if ( (State != XNET_ENGINE_STOPPED) &&
-		 (State != XNET_ENGINE_RUNNING) ) {
-		(void)xrtMutexUnlock(&pEngine->Lifecycle);
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_STOP,
-			"destroy-engine",
-			"network engine is changing state"
-		);
-		return false;
-	}
-	xrtAtomic32Store(
-		&pEngine->State,
-		XNET_ENGINE_DESTROYING,
-		XMEMORY_RELEASE
-	);
-	if ( xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE) != 0 ) {
-		xrtAtomic32Store(&pEngine->State, State, XMEMORY_RELEASE);
-		(void)xrtMutexUnlock(&pEngine->Lifecycle);
-		__xrtNetEngineError(
-			XERR_STATE,
-			XNET_ERROR_ENGINE_STOP,
-			"destroy-engine",
-			"network engine still owns live network objects"
-		);
-		return false;
-	}
-	(void)xrtMutexUnlock(&pEngine->Lifecycle);
-	bResult = __xrtNetEngineWorkersStop(
-		pEngine,
-		pEngine->WorkerCount
-	);
-	if ( !bResult ) {
-		xrtAtomic32Store(
-			&pEngine->State,
-			XNET_ENGINE_STOPPED,
-			XMEMORY_RELEASE
-		);
-		return false;
-	}
-	if ( !xrtMutexUnit(&pEngine->Lifecycle) ) {
-		xrtAtomic32Store(
-			&pEngine->State,
-			XNET_ENGINE_STOPPED,
-			XMEMORY_RELEASE
-		);
-		return false;
-	}
-	xrtFree(pEngine->Workers);
-	xrtFree(pEngine);
-	return true;
+	return Result;
 }
 
 
@@ -1979,7 +1986,12 @@ XRT_API xnetport* xrtNetWorkerPort(xnetworker* pWorker)
 		);
 		return NULL;
 	}
-	return pWorker->Port;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	pWorker->OwnershipPortExposed = true;
+	xnetport* pPort = pWorker->Port;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return pPort;
 }
 
 
@@ -2116,11 +2128,12 @@ static bool __xrtNetEngineCommandPush(
 
 
 /* 有界投递任务；受理后必在亲和 Worker 上执行一次。 */
-XRT_API bool xrtNetEnginePost(
+static bool __xrtNetEnginePost(
 	xnetengine* pEngine,
 	uint64 iAffinity,
 	xnettaskproc pProc,
-	ptr pData
+	ptr pData,
+	const xnettaskownershipv1* pPolicy
 )
 {
 	xnetworker* pWorker;
@@ -2150,6 +2163,7 @@ XRT_API bool xrtNetEnginePost(
 	pCommand->Type = XRT_NET_ENGINE_COMMAND_TASK;
 	pCommand->Task = pProc;
 	pCommand->Data = pData;
+	pCommand->OwnershipPolicy = pPolicy;
 	if ( !__xrtNetEngineCommandPush(
 		pWorker,
 		pCommand,
@@ -2163,6 +2177,21 @@ XRT_API bool xrtNetEnginePost(
 	__xrtNetEngineSubmitLeave(pWorker);
 	__xrtNetEngineStatAdd(&pWorker->Stats.PostsAccepted, 1);
 	return true;
+}
+
+XRT_API bool xrtNetEnginePost(xnetengine* pEngine, uint64 iAffinity,
+	xnettaskproc pProc, ptr pData)
+{
+	return __xrtNetEnginePost(pEngine, iAffinity, pProc, pData, NULL);
+}
+XRT_API bool xrtNetEnginePostOwnedV1(xnetengine* pEngine, uint64 iAffinity,
+	ptr pData, const xnettaskownershipv1* pPolicy)
+{
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Task ||
+		!pPolicy->Drop || !pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	return __xrtNetEnginePost(pEngine, iAffinity, pPolicy->Task, pData, pPolicy);
 }
 
 
@@ -2397,12 +2426,13 @@ XRT_API bool xrtNetPost(
 
 
 /* 按单调截止时间调度一个具有唯一终态的 Timer。 */
-XRT_API uint64 xrtNetEngineSchedule(
+static uint64 __xrtNetEngineSchedule(
 	xnetengine* pEngine,
 	uint64 iAffinity,
 	xdeadline iDeadline,
 	xnettimerproc pProc,
-	ptr pData
+	ptr pData,
+	const xnettimerownershipv1* pPolicy
 )
 {
 	xnetworker* pWorker;
@@ -2472,6 +2502,7 @@ XRT_API uint64 xrtNetEngineSchedule(
 	pTimer->Deadline = iDeadline;
 	pTimer->Proc = pProc;
 	pTimer->Data = pData;
+	pTimer->OwnershipPolicy = pPolicy;
 	pTimer->HeapIndex = SIZE_MAX;
 
 	/*
@@ -2539,6 +2570,21 @@ XRT_API uint64 xrtNetEngineSchedule(
 	__xrtNetEngineSubmitLeave(pWorker);
 	__xrtNetEngineStatAdd(&pWorker->Stats.TimersAccepted, 1);
 	return Id;
+}
+
+XRT_API uint64 xrtNetEngineSchedule(xnetengine* pEngine, uint64 iAffinity,
+	xdeadline iDeadline, xnettimerproc pProc, ptr pData)
+{
+	return __xrtNetEngineSchedule(pEngine, iAffinity, iDeadline, pProc, pData, NULL);
+}
+XRT_API uint64 xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity,
+	xdeadline iDeadline, ptr pData, const xnettimerownershipv1* pPolicy)
+{
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Proc ||
+		!pPolicy->Drop || !pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
+		__xrtErrorSetInvalidArgument(); return 0;
+	}
+	return __xrtNetEngineSchedule(pEngine, iAffinity, iDeadline, pPolicy->Proc, pData, pPolicy);
 }
 
 
@@ -2787,34 +2833,19 @@ XRT_API bool xrtNetEnginePin(xnetengine* pEngine)
 /* 安全释放一份由公开 Pin 取得的 Engine 生命周期占用。 */
 XRT_API bool xrtNetEngineUnpin(xnetengine* pEngine)
 {
-	uint32 iObjects;
-
-	if ( pEngine == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+	if (!pEngine) { __xrtErrorSetInvalidArgument(); return false; }
+	xrtownershipscope Mutation = {0};
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) return false;
+	uint32 iObjects = xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE);
+	if (!iObjects) {
+		__xrtNetEngineUnlock(pEngine, &Mutation);
+		__xrtErrorSetInvalidState(); return false;
 	}
-	iObjects = xrtAtomic32Load(
-		&pEngine->LiveObjects,
-		XMEMORY_ACQUIRE
-	);
-	for ( ;; ) {
-		uint32 iExpected = iObjects;
-
-		if ( iObjects == 0 ) {
-			__xrtErrorSetInvalidState();
-			return false;
-		}
-		if ( xrtAtomic32CompareExchange(
-			&pEngine->LiveObjects,
-			&iExpected,
-			iObjects - 1u,
-			XMEMORY_ACQ_REL,
-			XMEMORY_ACQUIRE
-		) ) {
-			return true;
-		}
-		iObjects = iExpected;
-	}
+	xrtAtomic32Store(&pEngine->LiveObjects, iObjects - 1u, XMEMORY_RELEASE);
+	/* Live object admission cannot outlive the creator's operational duty. */
+	__xrtNetEngineRelease(pEngine);
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	return true;
 }
 
 
@@ -2822,50 +2853,22 @@ XRT_API bool xrtNetEngineUnpin(xnetengine* pEngine)
 /* 高层网络对象占用 Engine 生命周期。 */
 bool __xrtNetEngineObjectHold(xnetengine* pEngine)
 {
-	uint32 iObjects;
-
-	if ( pEngine == NULL ) {
-		return false;
+	if (!pEngine) return false;
+	xrtownershipscope Mutation = {0};
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) return false;
+	if (xrtNetEngineState(pEngine) != XNET_ENGINE_RUNNING ||
+		pEngine->OwnershipClaim || pEngine->OwnershipCleared) {
+		__xrtNetEngineUnlock(pEngine, &Mutation);
+		__xrtNetEngineError(XERR_CLOSED, XNET_ERROR_ENGINE_POST,
+			"hold-engine", "network engine is not accepting object owners"); return false;
 	}
-	if ( !xrtMutexLock(&pEngine->Lifecycle) ) {
-		return false;
+	uint32 iObjects = xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE);
+	if (iObjects == UINT32_MAX || xrtRefRetain(&pEngine->RefCount) < 0) {
+		__xrtNetEngineUnlock(pEngine, &Mutation);
+		__xrtErrorSetSizeOverflow(); return false;
 	}
-	if ( xrtNetEngineState(pEngine) != XNET_ENGINE_RUNNING ) {
-		(void)xrtMutexUnlock(&pEngine->Lifecycle);
-		__xrtNetEngineError(
-			XERR_CLOSED,
-			XNET_ERROR_ENGINE_POST,
-			"hold-engine",
-			"network engine is not running"
-		);
-		return false;
-	}
-	iObjects = xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE);
-	for ( ;; ) {
-		uint32 iExpected = iObjects;
-
-		if ( iObjects == UINT32_MAX ) {
-			(void)xrtMutexUnlock(&pEngine->Lifecycle);
-			__xrtNetEngineError(
-				XERR_RANGE,
-				XNET_ERROR_ENGINE_POST,
-				"hold-engine",
-				"network engine live object limit reached"
-			);
-			return false;
-		}
-		if ( xrtAtomic32CompareExchange(
-			&pEngine->LiveObjects,
-			&iExpected,
-			iObjects + 1u,
-			XMEMORY_ACQ_REL,
-			XMEMORY_ACQUIRE
-		) ) {
-			break;
-		}
-		iObjects = iExpected;
-	}
-	(void)xrtMutexUnlock(&pEngine->Lifecycle);
+	xrtAtomic32Store(&pEngine->LiveObjects, iObjects + 1u, XMEMORY_RELEASE);
+	__xrtNetEngineUnlock(pEngine, &Mutation);
 	return true;
 }
 
@@ -2874,13 +2877,202 @@ bool __xrtNetEngineObjectHold(xnetengine* pEngine)
 /* 释放高层网络对象对 Engine 的生命周期占用。 */
 void __xrtNetEngineObjectRelease(xnetengine* pEngine)
 {
-	if ( pEngine != NULL ) {
-		(void)xrtAtomic32FetchSub(
-			&pEngine->LiveObjects,
-			1,
-			XMEMORY_ACQ_REL
-		);
+	if (pEngine && !xrtNetEngineUnpin(pEngine)) abort();
+}
+
+/* Under freeze, producers are outside submission and each worker is either
+ * parked in its callback-free port wait or has completed XRT thread cleanup.
+ * Inspect the real queue slots and heap. Do not introduce a shadow owning list,
+ * infer RC from counters, or count both timer heap and hash links as owners. */
+static bool __xrtNetEngineTimerView(const __xrt_net_engine_timer* pTimer,
+	const xnettimerownershipv1* const* pPolicies, size_t iPolicyCount, bool bAdmit,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	if (!pTimer || !pTimer->OwnershipPolicy || !pTimer->Data) return false;
+	const xnettimerownershipv1* pPolicy = pTimer->OwnershipPolicy;
+	if (bAdmit) {
+		bool bKnown = false;
+		for (size_t i = 0; i < iPolicyCount; ++i) if (pPolicies[i] == pPolicy) bKnown = true;
+		if (!bKnown) return false;
 	}
+	if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Proc != pTimer->Proc ||
+		!pPolicy->Drop || !pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) return false;
+	return !pVisit || pVisit((xrtownershipref){pTimer->Data, pPolicy->Ops}, pContext);
+}
+static bool __xrtNetEngineOwnershipWalk(const xnetengine* pEngine,
+	const xnettaskownershipv1* const* pTasks, size_t iTaskCount,
+	const xnettimerownershipv1* const* pTimers, size_t iTimerCount, bool bAdmit,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	if (!pEngine || pEngine->Joining || pEngine->Retiring || pEngine->OwnershipCleared) return false;
+	xnetenginestate State = xrtNetEngineState(pEngine);
+	if (State == XNET_ENGINE_STARTING || State == XNET_ENGINE_STOPPING) return false;
+	for (uint32 i = 0; i < pEngine->WorkerCount; ++i) {
+		const xnetworker* pWorker = &pEngine->Workers[i];
+		if ((xrtAtomic32Load(&pWorker->Submitters, XMEMORY_ACQUIRE) & XRT_NET_ENGINE_SUBMIT_COUNT) ||
+			xrtAtomic32Load(&pWorker->InternalPending, XMEMORY_ACQUIRE)) return false;
+		if (pWorker->Thread && !pWorker->OwnershipParked) {
+			xthreadstate ThreadState;
+			if (xrtAtomic32Load(&pWorker->Running, XMEMORY_ACQUIRE) ||
+				!xrtThreadStateTry(pWorker->Thread, &ThreadState) || ThreadState != XTHREAD_FINISHED) return false;
+		}
+		if (pWorker->Port && pWorker->OwnershipPortExposed) return false;
+		if (pWorker->BufferPool && pWorker->BufferPool->Info.LiveBlocks) return false;
+		size_t iQueued = 0, iReserved = pWorker->Timers.Count;
+		if (pWorker->CommandsReady) {
+			const xmpscqueue* pQueue = &pWorker->Commands;
+			uint32 iHead = xrtAtomic32Load(&pQueue->Head.Position, XMEMORY_ACQUIRE);
+			uint32 iTail = xrtAtomic32Load(&pQueue->Tail.Position, XMEMORY_ACQUIRE);
+			iQueued = (uint32)(iTail - iHead);
+			if (iQueued > pQueue->Capacity) return false;
+			for (size_t j = 0; j < iQueued; ++j) {
+				uint32 iPosition = iHead + (uint32)j;
+				const xqueueslot* pSlot = &pQueue->Slots[iPosition & pQueue->Mask];
+				if (xrtAtomic32Load(&pSlot->Sequence, XMEMORY_ACQUIRE) != iPosition + 1u) return false;
+				const __xrt_net_engine_command* pCommand = pSlot->Item;
+				if (!pCommand) return false;
+				if (pCommand->Type == XRT_NET_ENGINE_COMMAND_TASK) {
+					const xnettaskownershipv1* pPolicy = pCommand->OwnershipPolicy;
+					if (!pPolicy || !pCommand->Data) return false;
+					if (bAdmit) {
+						bool bKnown = false;
+						for (size_t k = 0; k < iTaskCount; ++k) if (pTasks[k] == pPolicy) bKnown = true;
+						if (!bKnown) return false;
+					}
+					if (pPolicy->size != sizeof(*pPolicy) || pPolicy->Task != pCommand->Task ||
+						!pPolicy->Drop || !pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) return false;
+					if (pVisit && !pVisit((xrtownershipref){pCommand->Data, pPolicy->Ops}, pContext)) return false;
+				} else if (pCommand->Type == XRT_NET_ENGINE_COMMAND_TIMER_ADD) {
+					if (!__xrtNetEngineTimerView(pCommand->Timer, pTimers, iTimerCount, bAdmit, pVisit, pContext)) return false;
+					++iReserved;
+				} else if (pCommand->Type != XRT_NET_ENGINE_COMMAND_TIMER_CANCEL || !pCommand->TimerId) return false;
+			}
+		}
+		if (iQueued != xrtAtomic32Load(&pWorker->CommandPending, XMEMORY_ACQUIRE) ||
+			iReserved != xrtAtomic32Load(&pWorker->TimerReserved, XMEMORY_ACQUIRE) ||
+			pWorker->Timers.Count > pWorker->Timers.Capacity) return false;
+		for (size_t j = 0; j < pWorker->Timers.Count; ++j) {
+			const __xrt_net_engine_timer* pTimer = pWorker->Timers.Heap[j];
+			if (!pTimer || pTimer->HeapIndex != j ||
+				!__xrtNetEngineTimerView(pTimer, pTimers, iTimerCount, bAdmit, pVisit, pContext)) return false;
+		}
+	}
+	return true;
+}
+static bool __xrtNetEngineOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xnetengine* pEngine = pData;
+	if (!pCount || !__xrtNetEngineOwnershipWalk(pEngine, NULL, 0, NULL, 0, false, NULL, NULL)) return false;
+	int32 iReferences = __xrtAtomicRefLoad(&pEngine->RefCount);
+	if (iReferences <= 0) return false;
+	*pCount = (size_t)iReferences; return true;
+}
+static bool __xrtNetEngineOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	size_t iCount;
+	return pVisit && __xrtNetEngineOwnershipCount(pData, &iCount) &&
+		__xrtNetEngineOwnershipWalk(pData, NULL, 0, NULL, 0, false, pVisit, pContext);
+}
+static const xrtownershipops __xrtNetEngineOwnershipOps = {__xrtNetEngineOwnershipCount, __xrtNetEngineOwnershipTrace};
+XRT_API xrtownershipref xrtNetEngineOwnership(const xnetengine* pEngine)
+{
+	return (xrtownershipref){pEngine, pEngine ? &__xrtNetEngineOwnershipOps : NULL};
+}
+static bool __xrtNetEngineHold(const void* pData)
+{
+	xnetengine* pEngine = (xnetengine*)pData; xrtownershipscope Mutation = {0};
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) return false;
+	bool bHeld = !pEngine->OwnershipCleared && xrtRefRetain(&pEngine->RefCount) >= 0;
+	__xrtNetEngineUnlock(pEngine, &Mutation); return bHeld;
+}
+static void __xrtNetEngineDrop(const void* pData) { __xrtNetEngineRelease((xnetengine*)pData); }
+static bool __xrtNetEngineClaim(const void* pData, const void* pToken)
+{
+	xnetengine* pEngine = (xnetengine*)pData; size_t iCount;
+	if (!pToken || !__xrtNetEngineOwnershipCount(pData, &iCount) ||
+		(pEngine->OwnershipClaim && pEngine->OwnershipClaim != pToken)) return false;
+	pEngine->OwnershipClaim = pToken; return true;
+}
+static void __xrtNetEngineRestore(const void* pData, const void* pToken)
+{
+	xnetengine* pEngine = (xnetengine*)pData;
+	if (!pToken || pEngine->OwnershipClaim != pToken || pEngine->OwnershipCleared) abort();
+	pEngine->OwnershipClaim = NULL;
+}
+static bool __xrtNetEnginePrepared(const void* pData)
+{
+	const xnetengine* pEngine = pData;
+	if (!pEngine->Joined || pEngine->Joining || pEngine->Retiring ||
+		xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE)) return false;
+	for (uint32 i = 0; i < pEngine->WorkerCount; ++i) {
+		const xnetworker* pWorker = &pEngine->Workers[i];
+		if (xrtAtomic32Load(&pWorker->Running, XMEMORY_ACQUIRE) ||
+			xrtAtomic32Load(&pWorker->TimerReserved, XMEMORY_ACQUIRE) ||
+			xrtAtomic32Load(&pWorker->CommandPending, XMEMORY_ACQUIRE) ||
+			xrtAtomic32Load(&pWorker->InternalPending, XMEMORY_ACQUIRE)) return false;
+	}
+	return true;
+}
+static xrtownershipprepareresult __xrtNetEnginePrepare(const void* pData, const void* pToken)
+{
+	xnetengine* pEngine = (xnetengine*)pData; xrtownershipscope Mutation = {0};
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) return XRT_OWNERSHIP_PREPARE_FAILED;
+	if (!pToken || pEngine->OwnershipClaim != pToken || pEngine->OwnershipCleared) abort();
+	if (__xrtNetEnginePrepared(pData)) { __xrtNetEngineUnlock(pEngine, &Mutation); return XRT_OWNERSHIP_PREPARE_READY; }
+	if (pEngine->Joining || pEngine->Retiring || xrtAtomic32Load(&pEngine->LiveObjects, XMEMORY_ACQUIRE)) {
+		__xrtNetEngineUnlock(pEngine, &Mutation); return XRT_OWNERSHIP_PREPARE_BUSY;
+	}
+	pEngine->Joining = true;
+	xrtAtomic32Store(&pEngine->State, XNET_ENGINE_DESTROYING, XMEMORY_RELEASE);
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	xerror* pPrevious = __xrtErrorSwapOwned(NULL);
+	xnetretireresult Result = __xrtNetEngineWorkersRetire(pEngine, pEngine->WorkerCount, false, false);
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) abort();
+	pEngine->Joining = false;
+	pEngine->Joined = Result == XNET_RETIRE_READY;
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	if (Result != XNET_RETIRE_ERROR) xrtErrorFree(__xrtErrorSwapOwned(pPrevious));
+	else xrtErrorFree(pPrevious);
+	return Result == XNET_RETIRE_READY ? XRT_OWNERSHIP_PREPARE_READY :
+		Result == XNET_RETIRE_BUSY ? XRT_OWNERSHIP_PREPARE_BUSY : XRT_OWNERSHIP_PREPARE_FAILED;
+}
+static void __xrtNetEngineClearOwnership(const void* pData, const void* pToken)
+{
+	xnetengine* pEngine = (xnetengine*)pData;
+	if (!pToken || pEngine->OwnershipClaim != pToken || pEngine->OwnershipCleared || !__xrtNetEnginePrepared(pData)) abort();
+	pEngine->OwnershipCleared = true;
+}
+static bool __xrtNetEngineFinish(const void* pData, const void* pToken)
+{
+	xnetengine* pEngine = (xnetengine*)pData; xrtownershipscope Mutation = {0};
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) return false;
+	if (!pToken || pEngine->OwnershipClaim != pToken || !pEngine->OwnershipCleared) abort();
+	if (pEngine->ResourcesRetired) { __xrtNetEngineUnlock(pEngine, &Mutation); return true; }
+	if (pEngine->Retiring) { __xrtNetEngineUnlock(pEngine, &Mutation); return false; }
+	pEngine->Retiring = true;
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	xnetretireresult Result = __xrtNetEngineWorkersRetire(pEngine, pEngine->WorkerCount, false, true);
+	if (!__xrtNetEngineLock(pEngine, &Mutation)) abort();
+	pEngine->Retiring = false;
+	pEngine->ResourcesRetired = Result == XNET_RETIRE_READY;
+	__xrtNetEngineUnlock(pEngine, &Mutation);
+	return Result == XNET_RETIRE_READY;
+}
+XRT_API const xrtownershipadapterv1* xrtNetEngineOwnershipAdapterV1(xrtownershipref Reference,
+	const xnettaskownershipv1* const* pTaskPolicies, size_t iTaskPolicyCount,
+	const xnettimerownershipv1* const* pTimerPolicies, size_t iTimerPolicyCount,
+	const xrtownershippreparationv1** ppPreparation)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetEngineHold, __xrtNetEngineDrop,
+		__xrtNetEngineClaim, __xrtNetEngineRestore, NULL, __xrtNetEngineClearOwnership, __xrtNetEngineFinish};
+	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter, __xrtNetEnginePrepared, __xrtNetEnginePrepare};
+	if (!ppPreparation || !Reference.Data || Reference.Ops != &__xrtNetEngineOwnershipOps ||
+		(iTaskPolicyCount && !pTaskPolicies) || (iTimerPolicyCount && !pTimerPolicies)) return NULL;
+	size_t iCount;
+	if (!__xrtNetEngineOwnershipCount(Reference.Data, &iCount) ||
+		!__xrtNetEngineOwnershipWalk(Reference.Data, pTaskPolicies, iTaskPolicyCount,
+			pTimerPolicies, iTimerPolicyCount, true, NULL, NULL)) return NULL;
+	*ppPreparation = &Preparation; return &Adapter;
 }
 
 #endif

@@ -281,6 +281,19 @@ typedef struct xnetaddrlist xnetaddrlist;
 
 
 
+#if defined(XRT_FEATURE_NET_ENGINE) || defined(XRT_FEATURE_NET_RESOLVER)
+
+/* 只有 READY 消费服务的创建者拥有权；BUSY 和 ERROR 均保留它。 */
+typedef enum xnetretireresult {
+	XNET_RETIRE_ERROR = -1,
+	XNET_RETIRE_BUSY = 0,
+	XNET_RETIRE_READY = 1
+} xnetretireresult;
+
+#endif
+
+
+
 #if defined(XRT_FEATURE_NET_RESOLVER)
 
 /* Resolver 与解析操作均保持不透明，解析操作可以独立于调用方引用继续执行。 */
@@ -311,6 +324,25 @@ typedef xnetaddrlist* (*xnetresolverlookup)(
 
 /* 完成回调借用操作对象；保留到回调之后时必须显式增加引用。 */
 typedef void (*xnetresolveproc)(xnetresolveop* pOperation, ptr pData);
+
+/* Certified resident callbacks. Success consumes one real Data reference;
+ * failure consumes none. Ops describes precisely that owner. Lookup data is
+ * retained through worker/TLS join; request data through its unique callback
+ * (including callback suppression), then Drop runs once outside mutation.
+ * Callbacks coordinate their own ownership transitions and code residency.
+ * Immutable policy identity must remain resident through the last release. */
+typedef struct xnetresolverlookupownershipv1 {
+	size_t size;
+	xnetresolverlookup Lookup;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetresolverlookupownershipv1;
+typedef struct xnetresolveownershipv1 {
+	size_t size;
+	xnetresolveproc Done;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetresolveownershipv1;
 
 
 
@@ -705,6 +737,24 @@ typedef union xnetpost {
 typedef void (*xnettimerproc)(xnetworker* pWorker,
 	uint64 Id, xnetresult Result, ptr pData);
 
+/* Immutable, resident descriptions of ONE transferred context reference.
+ * Owned submission consumes it only on success. Task/Proc runs once, followed
+ * by Drop exactly once, including callback/drop reentrancy. Ops describes the
+ * context's actual RC and every strong slot; its mutations must participate in
+ * the ownership domain. Borrowed Post/Schedule retain their existing contract. */
+typedef struct xnettaskownershipv1 {
+	size_t size;
+	xnettaskproc Task;
+	void (*Drop)(ptr pData);
+	const xrtownershipops* Ops;
+} xnettaskownershipv1;
+typedef struct xnettimerownershipv1 {
+	size_t size;
+	xnettimerproc Proc;
+	void (*Drop)(ptr pData);
+	const xrtownershipops* Ops;
+} xnettimerownershipv1;
+
 
 
 /* Engine 内的端口事件通过 Completion 回到所属 Worker。 */
@@ -962,6 +1012,11 @@ XRT_API xnetaddrlist* xrtNetAddrListRef(xnetaddrlist* pList);
 /* 释放地址列表引用；空指针视为空操作。 */
 XRT_API void xrtNetAddrListDestroy(xnetaddrlist* pList);
 
+/* Immutable leaf: exact physical RC, no outgoing ownership or user callbacks.
+ * Borrowed view and adapter query require whole-graph freeze/code residency. */
+XRT_API xrtownershipref xrtNetAddrListOwnership(const xnetaddrlist* pList);
+XRT_API const xrtownershipadapterv1* xrtNetAddrListOwnershipAdapterV1(xrtownershipref Reference);
+
 
 
 /* 返回地址数量；空列表返回零。 */
@@ -991,10 +1046,25 @@ XRT_API xnetresolver* xrtNetResolverCreate(
 	const xnetresolverconfig* pConfig
 );
 
+/* Config must leave Lookup/LookupData empty. The explicit policy supplies both.
+ * Ordinary Create remains borrowed/opaque for custom lookup callbacks. */
+XRT_API xnetresolver* xrtNetResolverCreateOwnedV1(const xnetresolverconfig* pConfig,
+	ptr pData, const xnetresolverlookupownershipv1* pPolicy);
 
 
-/* 排空已受理请求并等待全部回调；必须与其他 Resolver 所有者操作串行，返回后指针失效。 */
+
+/* 排空请求并等待回调；与其他所有者操作串行。仅成功时消费拥有权，失败可重试。 */
 XRT_API bool xrtNetResolverDestroy(xnetresolver* pResolver);
+
+
+
+/*
+	关闭接纳并推进销毁，不等待查询、回调或线程退出；自身 Worker 调用返回 BUSY。
+	与其他所有者操作串行。BUSY 不设置错误，保留指针并允许稍后重试（或 Destroy）。
+	READY 表示所有 Worker 及线程清理已结束并消费创建者拥有权；独立操作引用仍有效。
+	ERROR 同样保留拥有权。空指针为 READY，BUSY/READY 保留调用前诊断。
+*/
+XRT_API xnetretireresult xrtNetResolverTryDestroy(xnetresolver* pResolver);
 
 
 
@@ -1006,6 +1076,28 @@ XRT_API xnetresolveop* xrtNetResolverResolve(
 	xnetresolveproc pDone,
 	ptr pData
 );
+
+XRT_API xnetresolveop* xrtNetResolverResolveOwnedV1(xnetresolver* pResolver,
+	cstr sHost, xnetfamily Family, ptr pData, const xnetresolveownershipv1* pPolicy);
+
+/* Actual creator/operation/plan RC, not worker counts or inferred liveness.
+ * Each queued request is one service-owned edge; hash/queue links are borrowed.
+ * Operations own their service, result/error, and certified callback context.
+ * Running lookup/dispatch, joining and construction reject inspection. Parked
+ * workers own no fabricated RC nodes; preparation drains accepted work and
+ * proves native thread/TLS join before Clear. No cancellation is synthesized.
+ * Query adapters under freeze; unknown policy identities reject BEFORE context
+ * Count/Trace. Output preparation remains unchanged on rejection. Legacy custom
+ * lookup/request callbacks stay opaque until they have actually been retired.
+ * This certifies resolver nodes only, not the entire native network graph. */
+XRT_API xrtownershipref xrtNetResolverOwnership(const xnetresolver* pResolver);
+XRT_API xrtownershipref xrtNetResolveOpOwnership(const xnetresolveop* pOperation);
+XRT_API const xrtownershipadapterv1* xrtNetResolverOwnershipAdapterV1(xrtownershipref Reference,
+	const xnetresolverlookupownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipadapterv1* xrtNetResolveOpOwnershipAdapterV1(xrtownershipref Reference,
+	const xnetresolveownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
 
 
 
@@ -1068,6 +1160,21 @@ XRT_API xfuture* xrtNetResolveAsync(
 	cstr sHost,
 	xnetfamily Family
 );
+
+/* Resident identities for the actual ResolveAsync transport. The producer
+ * owns Promise, Operation and the bridge's certified cancellation Watch.
+ * Promise and Future identify the SAME physical node. The success payload
+ * owns one immutable AddrList. Independently admit each policy on its actual
+ * participant; these identities do not certify arbitrary native callbacks or
+ * the complete network graph. Prepare waits for accepted work, never cancels
+ * it or closes its Future to manufacture a collectible intermediate graph.
+ * Query under freeze; failure leaves the preparation output unchanged. */
+XRT_API const xfutureproducerownershipv1* xrtNetResolverFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtNetResolverFutureCancelPolicyV1Get(void);
+XRT_API const xnetresolveownershipv1* xrtNetResolverFutureRequestPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtNetResolverFuturePayloadPolicyV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtNetResolverFutureOwnershipAdapterV1(xrtownershipref Reference,
+	const xrtownershippreparationv1** ppPreparation);
 
 #endif
 
@@ -1535,6 +1642,40 @@ XRT_API xnetengine* xrtNetEngineCreate(const xnetengineconfig* pConfig);
 
 /* 停止并销毁 Engine；仍有高层对象或外借池块时失败并保留对象。 */
 XRT_API bool xrtNetEngineDestroy(xnetengine* pEngine);
+
+/* Whole-domain freeze is required for views/adapter resolution. The physical
+ * RC counts the creator, actual object/Pin owners and independent plan holds;
+ * LiveObjects and embedded workers are NOT invented references. Trace visits
+ * one owned context per accepted command/timer, not borrowed heap/hash links.
+ * Running callbacks, partial submissions, legacy pending work, exposed raw
+ * port duties and live pool blocks conservatively refuse inspection. This does
+ * not yet certify arbitrary transport objects or complete native service graphs.
+ * Exact policy identities must be admitted before inspecting context code.
+ * Prepare drains callbacks and joins XRT thread cleanup without consuming the
+ * creator or freeing worker resources; Clear/Finish keep counted shells alive.
+ * Native OS exit/code-unload proof remains a separate host responsibility.
+ * Rejection leaves the preparation output and ambient error unchanged. */
+XRT_API xrtownershipref xrtNetEngineOwnership(const xnetengine* pEngine);
+XRT_API const xrtownershipadapterv1* xrtNetEngineOwnershipAdapterV1(
+	xrtownershipref Reference,
+	const xnettaskownershipv1* const* pTaskPolicies, size_t iTaskPolicyCount,
+	const xnettimerownershipv1* const* pTimerPolicies, size_t iTimerPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+XRT_API bool xrtNetEnginePostOwnedV1(xnetengine* pEngine, uint64 iAffinity,
+	ptr pData, const xnettaskownershipv1* pPolicy);
+XRT_API uint64 xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity,
+	xdeadline iDeadline, ptr pData, const xnettimerownershipv1* pPolicy);
+
+
+
+/*
+	与 Start/Stop/Destroy 及其他 TryDestroy 串行，不等待提交者、Worker 或线程清理。
+	活动对象/Pin 保留运行态并返回 BUSY；否则关闭接纳并进入不可重启的 DESTROYING。
+	自身 Worker、尚未退出的线程或外借池块返回 BUSY，保留创建者拥有权供稍后重试。
+	只有 READY 消费拥有权；ERROR 保留指针。Destroy 也可完成已开始的退休。
+	空指针为 READY，BUSY/READY 保留调用前诊断；不表示完整对象拥有图已经可追踪。
+*/
+XRT_API xnetretireresult xrtNetEngineTryDestroy(xnetengine* pEngine);
 
 
 

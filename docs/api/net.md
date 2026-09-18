@@ -1,5 +1,8 @@
 # 网络地址基础 API
 
+Engine/Resolver 的可重试销毁接口与 READY/BUSY/ERROR 拥有权合同见
+[网络服务退休](../design/network-service-retirement.md)。
+
 `XRT_FEATURE_NET` 是网络体系最底层的独立裁剪单元，只依赖 `core`：稳定 IP 地址表示、数字地址与端点解析、规范输出、地址分类和平台 `sockaddr` 转换；不创建 Socket、不执行 DNS。缓冲、Socket、端口、Engine、DNS、接口等分层见后续各组。
 
 ## 类型与常量

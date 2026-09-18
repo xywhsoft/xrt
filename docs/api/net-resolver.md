@@ -1,5 +1,8 @@
 # 异步 DNS Resolver
 
+服务的可重试销毁接口与 READY/BUSY/ERROR 拥有权合同见
+[网络服务退休](../design/network-service-retirement.md)。
+
 `XRT_FEATURE_NET_RESOLVER` 在同步 DNS 原语之上提供独立的受限工作池。它不依赖网络 Engine，也不会创建隐藏 Engine；TCP、HTTP、WebSocket 和应用代码可以共享同一个 Resolver，纯 Socket 或 Engine 程序不需要携带该模块。
 
 ## 类型与常量
@@ -1437,7 +1440,7 @@ void xrtNetResolveOpDestroy(xnetresolveop* op);
 
 ## 销毁与统计
 
-`xrtNetResolverDestroy` 停止接收新请求，排空所有已经受理的查询和回调，然后等待 Worker 退出。它不能从 Resolver 自己的回调中调用；调用方必须把销毁与 `Resolve`、`Clear`、`Stats` 以及第二次销毁等 Resolver 所有者操作串行化。销毁返回后 Resolver 指针立即失效，不得再次传入任何 API。操作对象仍可继续保存和读取终态；内部 Resolver 外壳会由最后一个操作引用释放。
+`xrtNetResolverDestroy` 停止接收新请求，排空所有已经受理的查询和回调，然后等待 Worker 及线程清理退出。它不能从 Resolver 自己的回调中调用；调用方必须把销毁与 `Resolve`、`Clear`、`Stats` 以及第二次销毁等 Resolver 所有者操作串行化。仅成功时消费创建者拥有权；失败保留原指针供重试。成功后的创建者指针不得再次传入任何 API。操作对象仍可继续保存和读取终态；内部 Resolver 外壳会由最后一个操作引用释放。自身回调可使用 `xrtNetResolverTryDestroy` 请求退休并取得 BUSY，由外部所有者稍后重试。
 
 `xrtNetResolverClear` 清空成功与失败缓存，不影响活动查询和已经交付的共享结果。`xrtNetResolverStats` 返回提交、拒绝、命中、未命中、合并、底层查询、各终态以及当前队列深度的一致快照。
 
@@ -1527,7 +1530,7 @@ if ( (pResolver == NULL) ||
 ```
 
 ### `xrtNetResolverDestroy`
-排空已受理请求并等待全部回调；必须与其他 Resolver 所有者操作串行，返回后指针失效。
+排空已受理请求并等待全部回调；必须与其他 Resolver 所有者操作串行，仅成功时消费拥有权。
 
 ```c
 bool xrtNetResolverDestroy(xnetresolver* pResolver);
@@ -1548,7 +1551,7 @@ bool xrtNetResolverDestroy(xnetresolver* pResolver);
 
 #### 错误
 
-- `XERR_STATE` + `XNET_ERROR_RESOLVER_CLOSED` — 从 Resolver 自己的 Worker 回调内调用，或已在关闭/已销毁
+- `XERR_STATE` + `XNET_ERROR_RESOLVER_CLOSED` — 从 Resolver 自己的 Worker 回调内调用，或已销毁；已由 TryDestroy 开始关闭的服务允许外部所有者继续完成
 
 #### 范例
 

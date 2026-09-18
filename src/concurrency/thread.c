@@ -632,6 +632,23 @@ XRT_API xthreadstate xrtThreadState(const xthread* pThread)
 
 
 
+/* Freeze-safe observation: never invert thread Lock -> reference mutation
+ * against an ownership reader. A busy state lock is a refusal, not FINISHED. */
+XRT_API bool xrtThreadStateTry(const xthread* pThread, xthreadstate* pState)
+{
+    if (!pThread || !pState) return false;
+    #if defined(_WIN32) || defined(_WIN64)
+        if (!TryEnterCriticalSection((CRITICAL_SECTION*)&pThread->Lock)) return false;
+        xthreadstate State = pThread->State;
+        LeaveCriticalSection((CRITICAL_SECTION*)&pThread->Lock);
+    #else
+        if (pthread_mutex_trylock((pthread_mutex_t*)&pThread->Lock) != 0) return false;
+        xthreadstate State = pThread->State;
+        (void)pthread_mutex_unlock((pthread_mutex_t*)&pThread->Lock);
+    #endif
+    *pState = State; return true;
+}
+
 /* 返回完成线程的退出码。 */
 XRT_API int32 xrtThreadExitCode(const xthread* pThread)
 {

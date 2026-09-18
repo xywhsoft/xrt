@@ -71,6 +71,7 @@ struct __xrt_net_engine_command {
 	ptr Data;
 	__xrt_net_engine_timer* Timer;
 	uint64 TimerId;
+	const xnettaskownershipv1* OwnershipPolicy;
 };
 
 
@@ -83,6 +84,7 @@ struct __xrt_net_engine_timer {
 	xnettimerproc Proc;
 	ptr Data;
 	size_t HeapIndex;
+	const xnettimerownershipv1* OwnershipPolicy;
 };
 
 
@@ -151,12 +153,26 @@ struct xnetworker {
 	bool CommandsReady;
 	bool CacheLockReady;
 	bool TimersReady;
+	/* Published only at mutation-domain boundaries. Port wait calls no user
+	 * code; queue/timer/pool owners are stable while this flag is true. */
+	bool OwnershipParked;
+	/* Borrowing the raw port exposes uncertified completion/operation duties.
+	 * Admission remains closed until that run's port is physically retired. */
+	bool OwnershipPortExposed;
 };
 
 
 
 /* Engine 固定 Worker 数量，Start/Stop 可以重复建立和释放运行资源。 */
 struct xnetengine {
+	volatile int32 RefCount;
+	bool CreatorOwned;
+	bool Joining;
+	bool Joined;
+	bool Retiring;
+	bool ResourcesRetired;
+	bool OwnershipCleared;
+	const void* OwnershipClaim;
 	xnetengineconfig Config;
 	xnetbufpoolconfig BufferConfig;
 	xnetworker* Workers;
@@ -170,7 +186,7 @@ struct xnetengine {
 
 
 
-/* 高层网络对象借用 Engine 生命周期，阻止带活动对象的停止和销毁。 */
+/* 高层对象实际持有 Engine 强引用，同时阻止带活动对象的停止和销毁。 */
 bool __xrtNetEngineObjectHold(xnetengine* pEngine);
 
 

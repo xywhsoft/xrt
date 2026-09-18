@@ -18,6 +18,8 @@ typedef enum xrt_future_bridge_setup {
 
 
 #define XRT_FUTURE_BRIDGE_MAGIC 0x46544252u
+#define XRT_FUTURE_BRIDGE_WATCH_OWNED 1u
+#define XRT_FUTURE_BRIDGE_MUTATING 2u
 
 
 
@@ -27,6 +29,7 @@ typedef struct xrt_future_bridge_impl {
 	xpromise* Promise;
 	xcancelwatch* Watch;
 	uint32 Magic;
+	xatomic32 OwnershipState;
 } xrt_future_bridge_impl;
 
 
