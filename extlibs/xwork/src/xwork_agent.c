@@ -203,14 +203,29 @@ static char* xwork__permission_resource(
     if ( !pTool || !sArgumentsJson ) return NULL;
     tArgs = xwork__json_parse_object(sArgumentsJson);
     if ( !tArgs ) return NULL;
-    if ( strcmp(pTool->sName, "exec_command") == 0 || strcmp(pTool->sName, "start_process") == 0 ) {
+    if ( strcmp(pTool->sName, "exec") == 0 || strcmp(pTool->sName, "spawn") == 0 ) {
+        xvalue* tArgv = xwork__json_get(tArgs, "argv");
         *peKind = XWORK_RESOURCE_COMMAND;
-        sValue = xwork__json_text(tArgs, "command");
-    } else if ( strcmp(pTool->sName, "write_process") == 0 ||
-                strcmp(pTool->sName, "poll_process") == 0 ||
-                strcmp(pTool->sName, "stop_process") == 0 ) {
+        /* The full argv (space-joined, capped) — permission policies must
+         * see arguments, not just the program. */
+        if ( tArgv && xrtValueType(tArgv) == XVALUE_ARRAY ) {
+            size_t n = xrtValueCount(tArgv);
+            size_t k;
+            for ( k = 0u; k < n && tPaths.iLen < 256u; ++k ) {
+                xstrview tText;
+                xvalue* pItem = xrtValueArrayGet(tArgv, k);
+                if ( !pItem || !xrtValueGetString(pItem, &tText) || !tText.Data || !tText.Size ) continue;
+                if ( tPaths.iLen && !xwork__buf_append_char(&tPaths, ' ') ) break;
+                if ( !xwork__buf_append(&tPaths, tText.Data, tText.Size) ) break;
+            }
+            sResource = xwork__buf_detach(&tPaths);
+        }
+    } else if ( strcmp(pTool->sName, "stdin") == 0 ||
+                strcmp(pTool->sName, "poll") == 0 ||
+                strcmp(pTool->sName, "wait") == 0 ||
+                strcmp(pTool->sName, "stop") == 0 ) {
         *peKind = XWORK_RESOURCE_PROCESS;
-        uProcessId = xwork__json_u64(tArgs, "process_id", 0u, &bValid);
+        uProcessId = xwork__json_u64(tArgs, "task_id", 0u, &bValid);
         if ( bValid && uProcessId && xwork__buf_appendf(&tPaths, "%llu", (unsigned long long)uProcessId) ) {
             sResource = xwork__buf_detach(&tPaths);
         }
@@ -818,7 +833,7 @@ static xwork_result xwork__agent_run(
                 }
                 if ( bToolSuccess ) {
                     uConsecutiveToolFailures = 0u;
-                    if ( pExecutedTool && strcmp(pExecutedTool->sName, "exec_command") == 0 ) {
+                    if ( pExecutedTool && strcmp(pExecutedTool->sName, "exec") == 0 ) {
                         bVerifiedAfterChange = true;
                     }
                 } else {
@@ -1029,7 +1044,7 @@ static xwork_result xwork__agent_run(
             }
             if ( bToolSuccess ) {
                 uConsecutiveToolFailures = 0u;
-                if ( bWorkspaceChanged && pExecutedTool && strcmp(pExecutedTool->sName, "exec_command") == 0 ) {
+                if ( bWorkspaceChanged && pExecutedTool && strcmp(pExecutedTool->sName, "exec") == 0 ) {
                     bVerifiedAfterChange = true;
                 }
             }

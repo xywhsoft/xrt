@@ -241,7 +241,7 @@ static xllm_result mock_complete(
                 tRegistryError.eCode == XWORK_ERROR_CONTEXT;
         }
         ++pMock->uAgentCalls;
-        pMock->bSawTools = pRequest->iToolCount == 11u;
+        pMock->bSawTools = pRequest->iToolCount == 12u;
         pMock->bSawParallel = pRequest->bParallelToolCalls;
         if ( pMock->uAgentCalls > 1u && request_has_role(pRequest, XLLM_ROLE_TOOL, 1u) ) pMock->bSawToolResults = true;
         if ( request_has_text(pRequest, "Objective: test the xwork tool loop after compaction") ) pMock->bSawCompactionSummary = true;
@@ -269,12 +269,12 @@ static xllm_result mock_complete(
             pResponse = mock_response("The requested edits are complete.", 0u);
         } else if ( pMock->uAgentCalls == 4u ) {
             #if defined(_WIN32) || defined(_WIN64)
-                static const char sVerifyArgs[] = "{\"command\":\"type sandbox\\\\note.txt\",\"timeout_ms\":10000}";
+                static const char sVerifyArgs[] = "{\"argv\":[\"cmd\",\"/c\",\"type\",\"sandbox\\\\note.txt\"],\"timeout_ms\":10000}";
             #else
-                static const char sVerifyArgs[] = "{\"command\":\"cat sandbox/note.txt\",\"timeout_ms\":10000}";
+                static const char sVerifyArgs[] = "{\"argv\":[\"cat\",\"sandbox/note.txt\"],\"timeout_ms\":10000}";
             #endif
             pResponse = mock_response("", 1u);
-            if ( !pResponse || !mock_set_call(pResponse, 0u, "call_exec", "exec_command",
+            if ( !pResponse || !mock_set_call(pResponse, 0u, "call_exec", "exec",
                     sVerifyArgs) ) goto oom;
         } else {
             pResponse = mock_response("Implemented, inspected, edited, and verified the workspace file successfully.", 0u);
@@ -309,7 +309,7 @@ static bool on_event(void* pUserData, const xwork_event* pEvent)
             ++pEvents->uModelStarts;
             if ( pEvent->sModel && strcmp(pEvent->sModel, "mock-model") == 0 &&
                  pEvent->sRequestFingerprint && strlen(pEvent->sRequestFingerprint) == 16u &&
-                 pEvent->iMessageCount > 0u && pEvent->iToolDefinitionCount == 11u &&
+                 pEvent->iMessageCount > 0u && pEvent->iToolDefinitionCount == 12u &&
                  pEvent->uMaxOutputTokens > 0u ) pEvents->bRequestMetadata = true;
             break;
         case XWORK_EVENT_MODEL_TEXT_DELTA: ++pEvents->uTextDeltas; break;
@@ -488,7 +488,7 @@ static void test_agent_loop(void)
     tAgentConfig.iMaxInlineToolBytes = 300u;
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
     CHECK(pAgent != NULL, "agent creates with injected model boundary");
-    CHECK(pAgent && xworkAgentToolCount(pAgent) == 11u, "eleven practical builtin tools registered");
+    CHECK(pAgent && xworkAgentToolCount(pAgent) == 12u, "twelve practical builtin tools registered");
     if ( !pAgent ) goto cleanup;
     tMock.pAgent = pAgent;
 
@@ -510,12 +510,12 @@ static void test_agent_loop(void)
             strcmp(tInfo.sSource, "builtin") == 0,
             "tool registry enumeration exposes stable source metadata");
         CHECK(xworkAgentRegisterTool(pAgent, &tDynamic, &tError) &&
-            xworkAgentToolCount(pAgent) == 12u &&
+            xworkAgentToolCount(pAgent) == 13u &&
             xworkAgentToolRegistryGeneration(pAgent) == uGeneration + 1u,
             "dynamic tool registration advances the registry generation");
         xworkErrorInit(&tError);
         CHECK(xworkAgentUnregisterToolsBySource(pAgent, "test.dynamic", &iRemoved, &tError) &&
-            iRemoved == 1u && xworkAgentToolCount(pAgent) == 11u &&
+            iRemoved == 1u && xworkAgentToolCount(pAgent) == 12u &&
             xworkAgentToolRegistryGeneration(pAgent) == uGeneration + 2u,
             "bulk source removal atomically retires dynamic tools");
     }
@@ -538,7 +538,7 @@ static void test_agent_loop(void)
         CHECK(pMcpClient && xworkMcpClientConnect(pMcpClient, &tError),
             "MCP stdio client completes initialize and initialized handshake");
         CHECK(pMcpClient && xworkMcpClientRefreshTools(pMcpClient, pAgent, &tError) &&
-            xworkAgentToolCount(pAgent) == 12u,
+            xworkAgentToolCount(pAgent) == 13u,
             "MCP tools/list dynamically registers namespaced proxy tools");
         pMcpTool = xwork__find_tool(pAgent, "mcp__phase3__echo");
         memset(&tMcpToolContext, 0, sizeof(tMcpToolContext));
@@ -584,7 +584,7 @@ static void test_agent_loop(void)
         }
         CHECK(xworkAgentUnregisterToolsBySource(
                 pAgent, "mcp:phase3", &iRemoved, &tError) && iRemoved == 1u &&
-            xworkAgentToolCount(pAgent) == 11u,
+            xworkAgentToolCount(pAgent) == 12u,
             "MCP source can be detached without disturbing builtin tools");
         xworkMcpClientDestroy(pMcpClient);
         pMcpClient = NULL;
@@ -637,76 +637,76 @@ static void test_agent_loop(void)
     CHECK(xrtFileExists((str)"tests/tmp_xwork/sandbox/extra.txt"), "multi-file patch transaction created its second target");
     CHECK(!xrtFileExists((str)"tests/tmp_xwork/sandbox/note.txt/child.txt"), "failed transaction left no partial target behind");
 
-    pStartTool = xwork__find_tool(pAgent, "start_process");
-    pWriteProcessTool = xwork__find_tool(pAgent, "write_process");
-    pPollTool = xwork__find_tool(pAgent, "poll_process");
+    pStartTool = xwork__find_tool(pAgent, "spawn");
+    pWriteProcessTool = xwork__find_tool(pAgent, "stdin");
+    pPollTool = xwork__find_tool(pAgent, "poll");
     xworkToolOutputInit(&tProcessOutput);
 #if defined(_WIN32)
     CHECK(pStartTool && pStartTool->OnExecute(pStartTool->pUserData, &tPatchContext,
-        "{\"command\":\"findstr persistent\",\"wait_ms\":0}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
-        tProcessOutput.bSuccess && tProcessOutput.sContent && sscanf(tProcessOutput.sContent, "process_id: %llu", &uManagedId) == 1,
-        "managed process starts and returns a stable process id");
+        "{\"argv\":[\"findstr\",\"persistent\"]}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
+        tProcessOutput.bSuccess && tProcessOutput.sContent && sscanf(tProcessOutput.sContent, "task_id: %llu", &uManagedId) == 1,
+        "spawn starts and returns a stable task id");
 #else
     CHECK(pStartTool && pStartTool->OnExecute(pStartTool->pUserData, &tPatchContext,
-        "{\"command\":\"grep persistent\",\"wait_ms\":0}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
-        tProcessOutput.bSuccess && tProcessOutput.sContent && sscanf(tProcessOutput.sContent, "process_id: %llu", &uManagedId) == 1,
-        "managed process starts and returns a stable process id");
+        "{\"argv\":[\"grep\",\"persistent\"]}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
+        tProcessOutput.bSuccess && tProcessOutput.sContent && sscanf(tProcessOutput.sContent, "task_id: %llu", &uManagedId) == 1,
+        "spawn starts and returns a stable task id");
 #endif
     xworkToolOutputUnit(&tProcessOutput);
     xworkToolOutputInit(&tProcessOutput);
     if ( uManagedId ) {
         char sProcessArgs[512];
         snprintf(sProcessArgs, sizeof(sProcessArgs),
-            "{\"process_id\":%llu,\"input\":\"persistent hello\",\"append_newline\":true,\"close_stdin\":true}", uManagedId);
+            "{\"task_id\":%llu,\"input\":\"persistent hello\",\"append_newline\":true,\"close_stdin\":true}", uManagedId);
         CHECK(pWriteProcessTool && pWriteProcessTool->OnExecute(pWriteProcessTool->pUserData, &tPatchContext,
             sProcessArgs, &tProcessOutput, &tError) == XWORK_RESULT_OK && tProcessOutput.bSuccess,
-            "managed process accepts stdin and an explicit stdin close");
+            "stdin writes and an explicit stdin close work");
         xworkToolOutputUnit(&tProcessOutput);
         xworkToolOutputInit(&tProcessOutput);
         snprintf(sProcessArgs, sizeof(sProcessArgs),
-            "{\"process_id\":%llu,\"wait_ms\":5000,\"release\":true}", uManagedId);
+            "{\"task_id\":%llu,\"wait_ms\":5000,\"release\":true}", uManagedId);
         CHECK(pPollTool && pPollTool->OnExecute(pPollTool->pUserData, &tPatchContext,
             sProcessArgs, &tProcessOutput, &tError) == XWORK_RESULT_OK && tProcessOutput.bSuccess &&
             tProcessOutput.sContent && strstr(tProcessOutput.sContent, "persistent hello") && strstr(tProcessOutput.sContent, "state: exited"),
-            "managed process poll returns incremental output and final exit state");
-        CHECK(pAgent->iProcessCount == 0u, "released managed process leaves no live registry entry");
+            "poll returns incremental output and final exit state");
+        CHECK(pAgent->iProcessCount == 0u, "released task leaves no live registry entry");
     }
     xworkToolOutputUnit(&tProcessOutput);
 
-    pExecTool = xwork__find_tool(pAgent, "exec_command");
+    pExecTool = xwork__find_tool(pAgent, "exec");
     xworkToolOutputInit(&tProcessOutput);
 #if defined(_WIN32)
     CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
-        "{\"command\":\"cmd /c exit 7\",\"expected_exit_codes\":[7]}",
+        "{\"argv\":[\"cmd\",\"/c\",\"exit\",\"7\"],\"expected_exit_codes\":[7]}",
         &tProcessOutput, &tError) == XWORK_RESULT_OK && tProcessOutput.bSuccess &&
         tProcessOutput.sContent && strstr(tProcessOutput.sContent, "exit_code: 7") &&
         strstr(tProcessOutput.sContent, "exit_expected: true"),
-        "exec command accepts an explicitly expected nonzero exit code");
+        "exec accepts an explicitly expected nonzero exit code");
 #else
     CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
-        "{\"command\":\"sh -c 'exit 7'\",\"expected_exit_codes\":[7]}",
+        "{\"argv\":[\"sh\",\"-c\",\"exit 7\"],\"expected_exit_codes\":[7]}",
         &tProcessOutput, &tError) == XWORK_RESULT_OK && tProcessOutput.bSuccess &&
         tProcessOutput.sContent && strstr(tProcessOutput.sContent, "exit_code: 7") &&
         strstr(tProcessOutput.sContent, "exit_expected: true"),
-        "exec command accepts an explicitly expected nonzero exit code");
+        "exec accepts an explicitly expected nonzero exit code");
 #endif
     xworkToolOutputUnit(&tProcessOutput);
     xworkToolOutputInit(&tProcessOutput);
 #if defined(_WIN32)
     CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
-        "{\"command\":\"cmd /c exit 7\"}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
+        "{\"argv\":[\"cmd\",\"/c\",\"exit\",\"7\"]}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
         !tProcessOutput.bSuccess && tProcessOutput.sContent && strstr(tProcessOutput.sContent, "exit_expected: false"),
-        "exec command still rejects a nonzero exit code by default");
+        "exec still rejects a nonzero exit code by default");
 #else
     CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
-        "{\"command\":\"sh -c 'exit 7'\"}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
+        "{\"argv\":[\"sh\",\"-c\",\"exit 7\"]}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
         !tProcessOutput.bSuccess && tProcessOutput.sContent && strstr(tProcessOutput.sContent, "exit_expected: false"),
-        "exec command still rejects a nonzero exit code by default");
+        "exec still rejects a nonzero exit code by default");
 #endif
     xworkToolOutputUnit(&tProcessOutput);
     xworkToolOutputInit(&tProcessOutput);
     CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
-        "{\"command\":\"echo invalid\",\"expected_exit_codes\":[]}",
+        "{\"argv\":[\"echo\",\"invalid\"],\"expected_exit_codes\":[]}",
         &tProcessOutput, &tError) == XWORK_RESULT_OK && !tProcessOutput.bSuccess &&
         tProcessOutput.sContent && strstr(tProcessOutput.sContent, "between 1 and 32"),
         "exec command rejects an empty expected exit-code contract");
@@ -735,11 +735,11 @@ static void test_agent_loop(void)
         arrInterruptedCalls[0].sName = "list_files";
         arrInterruptedCalls[0].sArgumentsJson = "{\"path\":\"sandbox\"}";
         arrInterruptedCalls[1].sId = "call_recovered_verify";
-        arrInterruptedCalls[1].sName = "exec_command";
+        arrInterruptedCalls[1].sName = "exec";
 #if defined(_WIN32)
-        sVerifyArgs = "{\"command\":\"type sandbox\\\\note.txt\"}";
+        sVerifyArgs = "{\"argv\":[\"cmd\",\"/c\",\"type\",\"sandbox\\\\note.txt\"]}";
 #else
-        sVerifyArgs = "{\"command\":\"cat sandbox/note.txt\"}";
+        sVerifyArgs = "{\"argv\":[\"cat\",\"sandbox/note.txt\"]}";
 #endif
         arrInterruptedCalls[1].sArgumentsJson = (char*)sVerifyArgs;
         tInterruptedResponse.pToolCalls = arrInterruptedCalls;
@@ -903,6 +903,201 @@ static void test_agent_context_deadline(void)
     (void)xrtDirRemoveAll(sWorkspace);
 }
 
+/* ------------------------------------------------------------------ */
+/* Unified task system: argv exec, wait(any|all), notify delivery,     */
+/* and the model-clock watchdog.                                        */
+/* ------------------------------------------------------------------ */
+
+static void test_task_system(void)
+{
+    static const char sWorkspace[] = "tests/tmp_xwork_tasks";
+    xllm_session_config tSessionConfig;
+    xllm_session* pSession = NULL;
+    xwork_agent_config tAgentConfig;
+    xwork_agent* pAgent = NULL;
+    xwork_error tError;
+    const xwork_tool_entry* pExecTool;
+    const xwork_tool_entry* pSpawnTool;
+    const xwork_tool_entry* pWaitTool;
+    const xwork_tool_entry* pStopTool;
+    xwork_tool_context tCtx;
+    xwork_tool_output tOut;
+    xwork_task_notice tNotices[4];
+    xwork_watchdog_digest tDigest;
+    uint64_t uFast = 0u;
+    uint64_t uSlow = 0u;
+    char sWaitArgs[256];
+
+    (void)xrtDirRemoveAll(sWorkspace);
+    CHECK(xrtDirCreateAll((str)sWorkspace), "task system workspace created");
+    xllmSessionConfigInit(&tSessionConfig);
+    pSession = xllmSessionCreate(&tSessionConfig, NULL);
+    xworkAgentConfigInit(&tAgentConfig);
+    tAgentConfig.pSession = pSession;
+    tAgentConfig.sWorkspaceRoot = sWorkspace;
+    pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+    CHECK(pSession && pAgent, "task fixture agent creates");
+    pExecTool = pAgent ? xwork__find_tool(pAgent, "exec") : NULL;
+    pSpawnTool = pAgent ? xwork__find_tool(pAgent, "spawn") : NULL;
+    pWaitTool = pAgent ? xwork__find_tool(pAgent, "wait") : NULL;
+    pStopTool = pAgent ? xwork__find_tool(pAgent, "stop") : NULL;
+    memset(&tCtx, 0, sizeof(tCtx));
+    tCtx.pAgent = pAgent;
+    tCtx.sWorkspaceRoot = sWorkspace;
+
+    /* argv exec round trip. */
+    xworkToolOutputInit(&tOut);
+#if defined(_WIN32)
+    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tCtx,
+        "{\"argv\":[\"cmd\",\"/c\",\"echo\",\"task-ok\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
+        tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "task-ok"),
+        "exec runs argv directly and captures stdout");
+#else
+    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tCtx,
+        "{\"argv\":[\"echo\",\"task-ok\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
+        tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "task-ok"),
+        "exec runs argv directly and captures stdout");
+#endif
+    xworkToolOutputUnit(&tOut);
+
+    /* Two background tasks: fast with notify, slow with a remind clock. */
+    xworkToolOutputInit(&tOut);
+#if defined(_WIN32)
+    CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+        "{\"argv\":[\"ping\",\"-n\",\"1\",\"127.0.0.1\"],\"notify\":\"fast probe finished; collect its tail\"}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
+        tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uFast) == 1,
+        "spawn starts the fast task with a notify message");
+#else
+    CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+        "{\"argv\":[\"true\"],\"notify\":\"fast probe finished; collect its tail\"}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
+        tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uFast) == 1,
+        "spawn starts the fast task with a notify message");
+#endif
+    xworkToolOutputUnit(&tOut);
+    xworkToolOutputInit(&tOut);
+#if defined(_WIN32)
+    CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+        "{\"argv\":[\"ping\",\"-n\",\"30\",\"127.0.0.1\"],\"remind_after_ms\":100}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
+        tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uSlow) == 1,
+        "spawn starts the slow task with a model-set reminder");
+#else
+    CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+        "{\"argv\":[\"sleep\",\"30\"],\"remind_after_ms\":100}",
+        &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
+        tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uSlow) == 1,
+        "spawn starts the slow task with a model-set reminder");
+#endif
+    xworkToolOutputUnit(&tOut);
+
+    /* wait(any) returns with the fast task exited and the slow one running. */
+    if ( uFast && uSlow && pWaitTool ) {
+        xworkToolOutputInit(&tOut);
+        (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
+            "{\"task_ids\":[%llu,%llu],\"mode\":\"any\",\"timeout_ms\":15000}", uFast, uSlow);
+        CHECK(pWaitTool->OnExecute(pWaitTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
+            == XWORK_RESULT_OK && tOut.bSuccess && tOut.sContent &&
+            strstr(tOut.sContent, "state: exited") && strstr(tOut.sContent, "state: running"),
+            "wait(any) reports the finished task beside the running one");
+        xworkToolOutputUnit(&tOut);
+    }
+
+    /* The completion notice carries the model's notify message exactly once. */
+    if ( pAgent ) {
+        size_t iTaken = xworkAgentTakeTaskNotices(pAgent, tNotices, 4u);
+        CHECK(iTaken == 1u && tNotices[0].uTaskId == uFast &&
+            tNotices[0].eKind == XWORK_TASK_PROCESS && tNotices[0].bExitedCleanly &&
+            tNotices[0].sNotify && strcmp(tNotices[0].sNotify,
+                "fast probe finished; collect its tail") == 0,
+            "task notice delivers the model's notify message");
+        CHECK(xworkAgentTakeTaskNotices(pAgent, tNotices, 4u) == 0u,
+            "consumed notices are not redelivered");
+    }
+
+    /* The model-clock watchdog fires on the stalled reminder. */
+    if ( pAgent ) {
+        xrtSleep(200u);
+        CHECK(xworkTaskWatchdog(pAgent, &tDigest) &&
+            tDigest.bShouldWake && tDigest.iStalledTasks == 1u &&
+            tDigest.iRunningTasks >= 1u,
+            "watchdog wakes on the model-set remind deadline");
+    }
+
+    /* Stop and release both tasks. */
+    if ( uFast && pStopTool ) {
+        xworkToolOutputInit(&tOut);
+        (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
+            "{\"task_id\":%llu,\"release\":true}", uFast);
+        CHECK(pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
+            == XWORK_RESULT_OK, "fast task released after its notice");
+        xworkToolOutputUnit(&tOut);
+    }
+    if ( uSlow && pStopTool ) {
+        xworkToolOutputInit(&tOut);
+        (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
+            "{\"task_id\":%llu,\"mode\":\"kill_tree\",\"release\":true}", uSlow);
+        CHECK(pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
+            == XWORK_RESULT_OK && tOut.bSuccess,
+            "stop releases the stalled task");
+        xworkToolOutputUnit(&tOut);
+    }
+    CHECK(pAgent && pAgent->iProcessCount == 0u, "task table drains after release");
+
+    /* wait(all) on two quick tasks. */
+    if ( pSpawnTool && pWaitTool ) {
+        uint64_t uA = 0u;
+        uint64_t uB = 0u;
+        xworkToolOutputInit(&tOut);
+#if defined(_WIN32)
+        CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+            "{\"argv\":[\"ping\",\"-n\",\"1\",\"127.0.0.1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
+            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uA) == 1,
+            "wait-all fixture task A starts");
+#else
+        CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+            "{\"argv\":[\"true\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
+            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uA) == 1,
+            "wait-all fixture task A starts");
+#endif
+        xworkToolOutputUnit(&tOut);
+        xworkToolOutputInit(&tOut);
+#if defined(_WIN32)
+        CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+            "{\"argv\":[\"ping\",\"-n\",\"2\",\"127.0.0.1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
+            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uB) == 1,
+            "wait-all fixture task B starts");
+#else
+        CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+            "{\"argv\":[\"sleep\",\"1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
+            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uB) == 1,
+            "wait-all fixture task B starts");
+#endif
+        xworkToolOutputUnit(&tOut);
+        if ( uA && uB ) {
+            xworkToolOutputInit(&tOut);
+            (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
+                "{\"task_ids\":[%llu,%llu],\"mode\":\"all\",\"timeout_ms\":15000}", uA, uB);
+            CHECK(pWaitTool->OnExecute(pWaitTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
+                == XWORK_RESULT_OK && tOut.bSuccess && tOut.sContent &&
+                strstr(tOut.sContent, "state: exited"),
+                "wait(all) returns with both tasks exited");
+            xworkToolOutputUnit(&tOut);
+            (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
+                "{\"task_id\":%llu,\"release\":true}", uA);
+            if ( pStopTool ) (void)pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
+            (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
+                "{\"task_id\":%llu,\"release\":true}", uB);
+            if ( pStopTool ) (void)pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
+        }
+    }
+
+    xworkAgentDestroy(pAgent);
+    xllmSessionDestroy(pSession);
+    (void)xrtDirRemoveAll(sWorkspace);
+}
+
 static void test_command_context_deadline(void)
 {
     static const char sWorkspace[] = "tests/tmp_xwork_command_deadline";
@@ -932,17 +1127,17 @@ static void test_command_context_deadline(void)
     tAgentConfig.OnModelComplete = mock_complete;
     tAgentConfig.pModelUserData = &tMock;
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
-    pExecTool = pAgent ? xwork__find_tool(pAgent, "exec_command") : NULL;
+    pExecTool = pAgent ? xwork__find_tool(pAgent, "exec") : NULL;
     tToolContext.pAgent = pAgent;
     tToolContext.sWorkspaceRoot = sWorkspace;
     xworkToolOutputInit(&tOutput);
     uStartedMs = xrtClock() / UINT64_C(1000);
 #if defined(_WIN32)
     if ( pExecTool ) eResult = pExecTool->OnExecute(pExecTool->pUserData, &tToolContext,
-        "{\"command\":\"ping -n 6 127.0.0.1 >nul\",\"timeout_ms\":5000}", &tOutput, &tError);
+        "{\"argv\":[\"ping\",\"-n\",\"6\",\"127.0.0.1\"],\"timeout_ms\":5000}", &tOutput, &tError);
 #else
     if ( pExecTool ) eResult = pExecTool->OnExecute(pExecTool->pUserData, &tToolContext,
-        "{\"command\":\"sleep 5\",\"timeout_ms\":5000}", &tOutput, &tError);
+        "{\"argv\":[\"sleep\",\"5\"],\"timeout_ms\":5000}", &tOutput, &tError);
 #endif
     uElapsedMs = xrtClock() / UINT64_C(1000) - uStartedMs;
     CHECK(pAgent && pExecTool && eResult == XWORK_RESULT_TIMEOUT &&
@@ -983,7 +1178,7 @@ static void test_executor_bind(void)
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     /* No client and no model callback: an executor-only agent must create. */
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
-    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 11u,
+    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 12u,
         "executor host agent carries the builtin registry");
     memset(&tExecutor, 0, sizeof(tExecutor));
     CHECK(pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
@@ -991,7 +1186,7 @@ static void test_executor_bind(void)
 
     xllmRequestInit(&tRequest);
     CHECK(tExecutor.pListTools && tExecutor.pListTools(tExecutor.pUserData, &tRequest) &&
-        tRequest.iToolCount == 11u,
+        tRequest.iToolCount == 12u,
         "executor lists the builtin registry into a request");
     xllmRequestUnit(&tRequest);
 
@@ -1066,7 +1261,7 @@ static xllm_result t1_script_call(void* pUserData, const xllm_request* pRequest,
     (void)pCallbacks;
     if ( pError ) { xllmErrorInit(pError); }
     ++pScript->iCalls;
-    if ( pRequest->iToolCount == 11u ) { pScript->bSawTools = true; }
+    if ( pRequest->iToolCount == 12u ) { pScript->bSawTools = true; }
     *ppResponse = ( pScript->iCalls == 1u && !pScript->bFinalOnly )
         ? t1_response_write() : t1_response_text("t1 finished");
     return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
@@ -1258,6 +1453,7 @@ int main(int argc, char** argv)
     test_process_text_normalization();
     test_agent_context_deadline();
     test_command_context_deadline();
+    test_task_system();
     test_executor_bind();
     test_readonly_subagent();
     test_agent_loop();

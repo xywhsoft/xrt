@@ -1086,6 +1086,7 @@ static void xwork__process_entry_close(xwork_process_entry* pEntry)
         xrtProcessDestroy(pEntry->pProcess);
     }
     free(pEntry->sCommand);
+    free(pEntry->sNotify);
     memset(pEntry, 0, sizeof(*pEntry));
 }
 
@@ -1145,6 +1146,8 @@ static xwork_process_entry* xwork__process_add(xwork_agent* pAgent)
     memset(pNew, 0, sizeof(*pNew));
     pNew->uId = ++pAgent->uNextProcessId;
     if ( pNew->uId == 0u ) pNew->uId = ++pAgent->uNextProcessId;
+    pNew->eKind = XWORK_TASK_PROCESS;
+    pNew->uStartedUs = xrtClock();
     return pNew;
 }
 
@@ -1192,7 +1195,7 @@ static bool xwork__append_process_status(
         (void)xrtProcessWaitFor(pEntry->pProcess, (uint64_t)uWaitMs * UINT64_C(1000));
     }
     bRunning = xwork__process_running(pEntry->pProcess);
-    if ( !xwork__buf_appendf(pOutput, "process_id: %llu\nstate: %s\ncommand: %s\n",
+    if ( !xwork__buf_appendf(pOutput, "task_id: %llu\nstate: %s\ncommand: %s\n",
             (unsigned long long)pEntry->uId, bRunning ? "running" : "exited",
             pEntry->sCommand ? pEntry->sCommand : "") ) return false;
     if ( !xwork__append_process_stream(pOutput, pEntry, false, iMaxBytes) ||
@@ -1202,13 +1205,210 @@ static bool xwork__append_process_status(
         (void)xrtProcessStatus(pEntry->pProcess, &tExit);
         if ( !xwork__buf_appendf(pOutput, "exit_code: %d\nexit_kind: %d\nstop_reason: %d\n",
                 tExit.Code, tExit.Kind, tExit.Stop) ) return false;
-    } else if ( !xwork__buf_append_cstr(pOutput, "use poll_process to read more output\n") ) {
+    } else if ( !xwork__buf_append_cstr(pOutput, "use poll to read more output\n") ) {
         return false;
     }
     return true;
 }
 
-static xwork_result xwork__tool_start_process(
+/* ------------------------------------------------------------------ */
+/* Task-family helpers: argv/env parsing shared by exec and spawn.     */
+/* ------------------------------------------------------------------ */
+
+static void xwork__free_string_array(char** psItems, size_t iCount)
+{
+    size_t i;
+    if ( !psItems ) return;
+    for ( i = 0u; i < iCount; ++i ) free(psItems[i]);
+    free(psItems);
+}
+
+/* Duplicate a JSON string array into owned C strings; 1..iMax entries.
+ * Returns false for absent or malformed keys; nothing leaks on failure. */
+static bool xwork__parse_string_array(xvalue* tArgs, const char* sKey,
+    char*** ppsItems, size_t* piCount, size_t iMax)
+{
+    xvalue* tArray = xwork__json_get(tArgs, sKey);
+    size_t i;
+    *ppsItems = NULL;
+    *piCount = 0u;
+    if ( !tArray || xrtValueType(tArray) != XVALUE_ARRAY ) return false;
+    *piCount = xrtValueCount(tArray);
+    if ( *piCount == 0u || *piCount > iMax ) { *piCount = 0u; return false; }
+    *ppsItems = (char**)calloc(*piCount, sizeof(char*));
+    if ( !*ppsItems ) { *piCount = 0u; return false; }
+    for ( i = 0u; i < *piCount; ++i ) {
+        xstrview tText;
+        xvalue* pItem = xrtValueArrayGet(tArray, i);
+        if ( !pItem || !xrtValueGetString(pItem, &tText) || !tText.Data || !tText.Size ) {
+            xwork__free_string_array(*ppsItems, *piCount);
+            *ppsItems = NULL;
+            *piCount = 0u;
+            return false;
+        }
+        (*ppsItems)[i] = xwork__strndup(tText.Data, tText.Size);
+        if ( !(*ppsItems)[i] ) {
+            xwork__free_string_array(*ppsItems, *piCount);
+            *ppsItems = NULL;
+            *piCount = 0u;
+            return false;
+        }
+    }
+    return true;
+}
+
+/* Parse "K=V" entries and append the PAGER/TERM defaults; env storage is
+ * owned by the caller, the xprocessenv array borrows it plus literals. */
+static bool xwork__build_env(xvalue* tArgs, xprocessenv** ppEnv, size_t* piEnvCount,
+    char*** ppsEnvStorage, size_t* piStorageCount)
+{
+    size_t iModel = 0u;
+    size_t iTotal;
+    xprocessenv* pEnv = NULL;
+    char** psStorage = NULL;
+    *ppEnv = NULL;
+    *piEnvCount = 0u;
+    *ppsEnvStorage = NULL;
+    *piStorageCount = 0u;
+    if ( xwork__json_get(tArgs, "env") ) {
+        if ( !xwork__parse_string_array(tArgs, "env", &psStorage, &iModel, 128u) ) return false;
+    }
+    iTotal = iModel + 2u;
+    pEnv = (xprocessenv*)calloc(iTotal, sizeof(*pEnv));
+    if ( !pEnv ) { xwork__free_string_array(psStorage, iModel); return false; }
+    {
+        size_t n = 0u;
+        size_t i;
+        for ( i = 0u; i < iModel; ++i ) {
+            char* sEq = strchr(psStorage[i], '=');
+            if ( !sEq ) continue;   /* malformed entries are skipped */
+            *sEq = '\0';
+            pEnv[n].Name = psStorage[i];
+            pEnv[n].Value = sEq + 1;
+            ++n;
+        }
+        pEnv[n].Name = "PAGER"; pEnv[n].Value = "cat"; ++n;
+        pEnv[n].Name = "TERM";  pEnv[n].Value = "dumb"; ++n;
+        *piEnvCount = n;
+    }
+    *ppEnv = pEnv;
+    *ppsEnvStorage = psStorage;
+    *piStorageCount = iModel;
+    return true;
+}
+
+/* argv[0] is the program; xprocessconfig.Args excludes it. */
+static void xwork__apply_argv_config(xprocessconfig* pConfig, char** psArgv, size_t iArgvCount)
+{
+    pConfig->Target = XPROCESS_EXEC;
+    pConfig->Program = psArgv[0];
+    pConfig->Args = (const cstr*)(iArgvCount > 1u ? psArgv + 1 : NULL);
+    pConfig->ArgCount = iArgvCount - 1u;
+}
+
+/* Space-joined preview for status display. */
+static char* xwork__argv_preview(char** psArgv, size_t iArgvCount)
+{
+    xwork_buf tBuf = {0};
+    size_t i;
+    for ( i = 0u; i < iArgvCount; ++i ) {
+        if ( i && !xwork__buf_append_char(&tBuf, ' ') ) { xwork__buf_unit(&tBuf); return NULL; }
+        if ( !xwork__buf_append_cstr(&tBuf, psArgv[i]) ) { xwork__buf_unit(&tBuf); return NULL; }
+        if ( tBuf.iLen > 2048u ) break;
+    }
+    return xwork__buf_detach(&tBuf);
+}
+
+static bool xwork__process_wait_all_ready(xwork_agent* pAgent,
+    const uint64_t* puIds, size_t iCount, bool bAll, uint32_t uTimeoutMs)
+{
+    uint64_t uDeadline = xrtDeadlineAfter((uint64_t)uTimeoutMs * UINT64_C(1000));
+    for ( ; ; ) {
+        xwork_process_entry* pEntry;
+        size_t iReady = 0u;
+        size_t i;
+        for ( i = 0u; i < iCount; ++i ) {
+            pEntry = xwork__process_find(pAgent, puIds[i], NULL);
+            if ( pEntry && !xwork__process_running(pEntry->pProcess) ) ++iReady;
+        }
+        if ( bAll ? iReady == iCount : iReady >  0u ) return true;
+        if ( xrtDeadlineExpired(uDeadline) ) return false;
+        xrtSleep(10u);
+    }
+}
+
+size_t xworkAgentTakeTaskNotices(xwork_agent* pAgent,
+    xwork_task_notice* pNotices, size_t iCapacity)
+{
+    size_t iTaken = 0u;
+    size_t i;
+    if ( !pAgent ) { return 0u; }
+    for ( i = 0u; i < pAgent->iProcessCount && iTaken < iCapacity; ++i ) {
+        xwork_process_entry* pEntry = &pAgent->pProcesses[i];
+        if ( pEntry->bNoticeTaken || xwork__process_running(pEntry->pProcess) ) continue;
+        if ( pEntry->uExitedUs == 0u ) pEntry->uExitedUs = xrtClock();
+        pNotices[iTaken].uTaskId = pEntry->uId;
+        pNotices[iTaken].eKind = pEntry->eKind;
+        {
+            xprocessstatus tExit;
+            memset(&tExit, 0, sizeof(tExit));
+            (void)xrtProcessStatus(pEntry->pProcess, &tExit);
+            pNotices[iTaken].iExitCode = tExit.Code;
+            pNotices[iTaken].bExitedCleanly = tExit.Kind == XPROCESS_EXIT_CODE && tExit.Code == 0;
+        }
+        pNotices[iTaken].sNotify = pEntry->sNotify;     /* borrowed */
+        pNotices[iTaken].sPreview = pEntry->sCommand;   /* borrowed */
+        pEntry->bNoticeTaken = true;
+        ++iTaken;
+    }
+    return iTaken;
+}
+
+bool xworkTaskWatchdog(xwork_agent* pAgent, xwork_watchdog_digest* pDigest)
+{
+    static const uint64_t uUncollectedNudgeMs = 60000u;
+    uint64_t uNow = xrtClock();
+    uint64_t uNextWakeUs = 0u;
+    size_t i;
+    if ( !pDigest ) { return false; }
+    memset(pDigest, 0, sizeof(*pDigest));
+    if ( !pAgent ) { return false; }
+    for ( i = 0u; i < pAgent->iProcessCount; ++i ) {
+        xwork_process_entry* pEntry = &pAgent->pProcesses[i];
+        bool bRunning = xwork__process_running(pEntry->pProcess);
+        if ( bRunning ) {
+            ++pDigest->iRunningTasks;
+            if ( pEntry->uRemindAfterMs != 0u ) {
+                uint64_t uElapsedUs = uNow - pEntry->uStartedUs;
+                uint64_t uRemindUs = pEntry->uRemindAfterMs * UINT64_C(1000);
+                if ( uElapsedUs >= uRemindUs ) {
+                    ++pDigest->iStalledTasks;
+                    pDigest->bShouldWake = true;
+                } else {
+                    uint64_t uDue = uRemindUs - uElapsedUs;
+                    if ( uNextWakeUs == 0u || uDue < uNextWakeUs ) uNextWakeUs = uDue;
+                }
+            }
+        } else {
+            if ( pEntry->uExitedUs == 0u ) pEntry->uExitedUs = uNow;
+            if ( !pEntry->bNoticeTaken ) {
+                ++pDigest->iUncollectedNotices;
+                /* One gentle nudge per task; the model decides after that. */
+                if ( !pEntry->bNudged && uNow - pEntry->uExitedUs >= uUncollectedNudgeMs * UINT64_C(1000) ) {
+                    pEntry->bNudged = true;
+                    pDigest->bShouldWake = true;
+                } else if ( !pEntry->bNudged ) {
+                    uint64_t uDue = uUncollectedNudgeMs * UINT64_C(1000) - (uNow - pEntry->uExitedUs);
+                    if ( uNextWakeUs == 0u || uDue < uNextWakeUs ) uNextWakeUs = uDue;
+                }
+            }
+        }
+    }
+    pDigest->uNextWakeMs = uNextWakeUs != 0u ? (uNextWakeUs + 999u) / 1000u : 0u;
+    return true;
+}
+
+static xwork_result xwork__tool_spawn(
     void* pUserData,
     const xwork_tool_context* pContext,
     const char* sArgumentsJson,
@@ -1218,13 +1418,19 @@ static xwork_result xwork__tool_start_process(
 {
     xwork_agent* pAgent = (xwork_agent*)pUserData;
     xvalue* tArgs = xwork__json_parse_object(sArgumentsJson);
-    const char* sCommand;
     const char* sCwd;
+    const char* sNotify;
     char* sResolvedCwd = NULL;
+    char** psArgv = NULL;
+    char** psEnvStorage = NULL;
+    xprocessenv* pEnv = NULL;
+    size_t iArgvCount = 0u;
+    size_t iEnvCount = 0u;
+    size_t iEnvStorageCount = 0u;
     bool bValid;
     bool bMerge;
-    uint64_t uWaitMs;
     uint64_t uCapture;
+    uint64_t uRemindMs;
     xprocessconfig tConfig;
     xprocess* pProcess = NULL;
     xwork_process_entry* pEntry = NULL;
@@ -1232,30 +1438,45 @@ static xwork_result xwork__tool_start_process(
     xwork_result eResult = XWORK_RESULT_ERROR;
     (void)pContext;
     if ( !tArgs ) return xwork__tool_fail(pOutput, "invalid arguments: expected a JSON object");
-    sCommand = xwork__json_text(tArgs, "command");
     sCwd = xwork__json_text(tArgs, "cwd");
     if ( !sCwd || !sCwd[0] ) sCwd = ".";
-    if ( !sCommand || !sCommand[0] ) { eResult = xwork__tool_fail(pOutput, "command is required"); goto cleanup; }
-    uWaitMs = xwork__json_u64(tArgs, "wait_ms", 0u, &bValid);
-    if ( !bValid || uWaitMs > 30000u ) { eResult = xwork__tool_fail(pOutput, "wait_ms must be between 0 and 30000"); goto cleanup; }
-    uCapture = xwork__json_u64(tArgs, "max_capture_bytes", pAgent->iMaxCapturedCommandBytes, &bValid);
+    if ( !xwork__parse_string_array(tArgs, "argv", &psArgv, &iArgvCount, 256u) || !psArgv ) {
+        eResult = xwork__tool_fail(pOutput, "argv must be a non-empty array of 1-256 strings");
+        goto cleanup;
+    }
+    uCapture = xwork__json_u64(tArgs, "max_capture_bytes", 1048576u, &bValid);
     if ( !bValid || uCapture < 1024u || uCapture > 64u * 1024u * 1024u ) {
         eResult = xwork__tool_fail(pOutput, "max_capture_bytes must be between 1024 and 67108864"); goto cleanup;
     }
     bMerge = xwork__json_bool(tArgs, "merge_stderr", false, &bValid);
     if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "merge_stderr must be boolean"); goto cleanup; }
+    sNotify = xwork__json_text(tArgs, "notify");
+    if ( sNotify && strlen(sNotify) > 500u ) {
+        eResult = xwork__tool_fail(pOutput, "notify must be at most 500 characters"); goto cleanup;
+    }
+    uRemindMs = xwork__json_u64(tArgs, "remind_after_ms", 0u, &bValid);
+    if ( !bValid || uRemindMs > 3600000u ) {
+        eResult = xwork__tool_fail(pOutput, "remind_after_ms must be between 0 and 3600000"); goto cleanup;
+    }
     sResolvedCwd = xwork__resolve_path(pAgent, sCwd, pError);
     if ( !sResolvedCwd ) { eResult = xwork__tool_fail(pOutput, pError && pError->sMessage[0] ? pError->sMessage : "cwd denied"); goto cleanup; }
     if ( !xrtDirExists((str)sResolvedCwd) ) { eResult = xwork__tool_fail(pOutput, "cwd does not exist"); goto cleanup; }
+    if ( !xwork__build_env(tArgs, &pEnv, &iEnvCount, &psEnvStorage, &iEnvStorageCount) ) goto oom;
     pEntry = xwork__process_add(pAgent);
-    if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "managed process limit reached; stop or release an existing process"); goto cleanup; }
-    pEntry->sCommand = xwork__strdup(sCommand);
+    if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "managed task limit reached; stop or release an existing task"); goto cleanup; }
+    pEntry->sCommand = xwork__argv_preview(psArgv, iArgvCount);
     if ( !pEntry->sCommand ) goto oom;
+    if ( sNotify && sNotify[0] ) {
+        pEntry->sNotify = xwork__strdup(sNotify);
+        if ( !pEntry->sNotify ) goto oom;
+    }
+    pEntry->uRemindAfterMs = uRemindMs;
     xrtProcessConfigInit(&tConfig);
-    tConfig.Target = XPROCESS_SHELL;
-    tConfig.Command = sCommand;
+    xwork__apply_argv_config(&tConfig, psArgv, iArgvCount);
     tConfig.WorkDir = sResolvedCwd;
     tConfig.InheritEnv = true;
+    tConfig.Env = pEnv;
+    tConfig.EnvCount = iEnvCount;
     tConfig.NewGroup = true;
     tConfig.HideWindow = true;
     tConfig.Stdin.Mode = XPROCESS_IO_PIPE;
@@ -1265,7 +1486,7 @@ static xwork_result xwork__tool_start_process(
     if ( !pProcess ) {
         xwork__process_remove(pAgent, pAgent->iProcessCount - 1u);
         pEntry = NULL;
-        eResult = xwork__tool_fail(pOutput, "failed to start process");
+        eResult = xwork__tool_fail(pOutput, "failed to start task");
         goto cleanup;
     }
     pEntry->pProcess = pProcess;
@@ -1279,25 +1500,30 @@ static xwork_result xwork__tool_start_process(
         goto oom;
     }
     pProcess = NULL;
-    if ( !xwork__append_process_status(&tOutput, pEntry, (uint32_t)uWaitMs, 64u * 1024u) ||
+    if ( !xwork__buf_appendf(&tOutput, "task_id: %llu\nstate: running\ncommand: %s\n",
+            (unsigned long long)pEntry->uId, pEntry->sCommand) ||
+         !xwork__buf_append_cstr(&tOutput, "completion is announced at the next turn boundary\n") ||
          !xworkToolOutputSet(pOutput, true, tOutput.pData) ) goto oom;
     eResult = XWORK_RESULT_OK;
     goto cleanup;
 oom:
     if ( pEntry ) xwork__process_remove(pAgent, pAgent->iProcessCount - 1u);
-    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to create managed process");
+    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to create managed task");
 cleanup:
     if ( pProcess ) {
         if ( xwork__process_running(pProcess) ) { (void)xrtProcessKillTree(pProcess); (void)xrtProcessWait(pProcess); }
         xrtProcessDestroy(pProcess);
     }
+    xwork__free_string_array(psArgv, iArgvCount);
+    xwork__free_string_array(psEnvStorage, iEnvStorageCount);
+    free(pEnv);
     if ( tArgs ) xrtValueRelease(tArgs);
     free(sResolvedCwd);
     xwork__buf_unit(&tOutput);
     return eResult;
 }
 
-static xwork_result xwork__tool_poll_process(
+static xwork_result xwork__tool_poll(
     void* pUserData,
     const xwork_tool_context* pContext,
     const char* sArgumentsJson,
@@ -1318,8 +1544,8 @@ static xwork_result xwork__tool_poll_process(
     xwork_result eResult = XWORK_RESULT_ERROR;
     (void)pContext;
     if ( !tArgs ) return xwork__tool_fail(pOutput, "invalid arguments: expected a JSON object");
-    uId = xwork__json_u64(tArgs, "process_id", 0u, &bValid);
-    if ( !bValid || !uId ) { eResult = xwork__tool_fail(pOutput, "positive process_id is required"); goto cleanup; }
+    uId = xwork__json_u64(tArgs, "task_id", 0u, &bValid);
+    if ( !bValid || !uId ) { eResult = xwork__tool_fail(pOutput, "positive task_id is required"); goto cleanup; }
     uWaitMs = xwork__json_u64(tArgs, "wait_ms", 0u, &bValid);
     if ( !bValid || uWaitMs > 30000u ) { eResult = xwork__tool_fail(pOutput, "wait_ms must be between 0 and 30000"); goto cleanup; }
     uMaxBytes = xwork__json_u64(tArgs, "max_bytes", 64u * 1024u, &bValid);
@@ -1327,7 +1553,7 @@ static xwork_result xwork__tool_poll_process(
     bRelease = xwork__json_bool(tArgs, "release", false, &bValid);
     if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "release must be boolean"); goto cleanup; }
     pEntry = xwork__process_find(pAgent, uId, &iIndex);
-    if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released process_id"); goto cleanup; }
+    if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released task_id"); goto cleanup; }
     if ( bRelease && xwork__process_running(pEntry->pProcess) ) {
         if ( uWaitMs ) (void)xrtProcessWaitFor(pEntry->pProcess, uWaitMs * UINT64_C(1000));
         uWaitMs = 0u;
@@ -1349,7 +1575,7 @@ cleanup:
     return eResult;
 }
 
-static xwork_result xwork__tool_write_process(
+static xwork_result xwork__tool_stdin(
     void* pUserData,
     const xwork_tool_context* pContext,
     const char* sArgumentsJson,
@@ -1371,8 +1597,8 @@ static xwork_result xwork__tool_write_process(
     xwork_result eResult = XWORK_RESULT_ERROR;
     (void)pContext;
     if ( !tArgs ) return xwork__tool_fail(pOutput, "invalid arguments: expected a JSON object");
-    uId = xwork__json_u64(tArgs, "process_id", 0u, &bValid);
-    if ( !bValid || !uId ) { eResult = xwork__tool_fail(pOutput, "positive process_id is required"); goto cleanup; }
+    uId = xwork__json_u64(tArgs, "task_id", 0u, &bValid);
+    if ( !bValid || !uId ) { eResult = xwork__tool_fail(pOutput, "positive task_id is required"); goto cleanup; }
     sInput = xwork__json_text(tArgs, "input");
     bNewline = xwork__json_bool(tArgs, "append_newline", false, &bValid);
     if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "append_newline must be boolean"); goto cleanup; }
@@ -1380,7 +1606,7 @@ static xwork_result xwork__tool_write_process(
     if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "close_stdin must be boolean"); goto cleanup; }
     if ( !sInput && !bClose ) { eResult = xwork__tool_fail(pOutput, "input or close_stdin=true is required"); goto cleanup; }
     pEntry = xwork__process_find(pAgent, uId, NULL);
-    if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released process_id"); goto cleanup; }
+    if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released task_id"); goto cleanup; }
     if ( !xwork__process_running(pEntry->pProcess) ) { eResult = xwork__tool_fail(pOutput, "process has already exited"); goto cleanup; }
     if ( pEntry->bStdinClosed ) { eResult = xwork__tool_fail(pOutput, "process stdin is already closed"); goto cleanup; }
     if ( sInput && (sInput[0] || bNewline) ) {
@@ -1392,7 +1618,7 @@ static xwork_result xwork__tool_write_process(
         if ( !xrtProcessClose(pEntry->pProcess, XPROCESS_STDIN) ) { eResult = xwork__tool_fail(pOutput, "failed to close process stdin"); goto cleanup; }
         pEntry->bStdinClosed = true;
     }
-    if ( !xwork__buf_appendf(&tOutput, "process_id: %llu\nwrote: %lld bytes\nstdin: %s\n",
+    if ( !xwork__buf_appendf(&tOutput, "task_id: %llu\nwrote: %lld bytes\nstdin: %s\n",
             (unsigned long long)uId, (long long)iWritten, pEntry->bStdinClosed ? "closed" : "open") ||
          !xworkToolOutputSet(pOutput, true, tOutput.pData) ) goto oom;
     eResult = XWORK_RESULT_OK;
@@ -1406,7 +1632,7 @@ cleanup:
     return eResult;
 }
 
-static xwork_result xwork__tool_stop_process(
+static xwork_result xwork__tool_stop(
     void* pUserData,
     const xwork_tool_context* pContext,
     const char* sArgumentsJson,
@@ -1429,10 +1655,10 @@ static xwork_result xwork__tool_stop_process(
     xwork_result eResult = XWORK_RESULT_ERROR;
     (void)pContext;
     if ( !tArgs ) return xwork__tool_fail(pOutput, "invalid arguments: expected a JSON object");
-    uId = xwork__json_u64(tArgs, "process_id", 0u, &bValid);
-    if ( !bValid || !uId ) { eResult = xwork__tool_fail(pOutput, "positive process_id is required"); goto cleanup; }
+    uId = xwork__json_u64(tArgs, "task_id", 0u, &bValid);
+    if ( !bValid || !uId ) { eResult = xwork__tool_fail(pOutput, "positive task_id is required"); goto cleanup; }
     sMode = xwork__json_text(tArgs, "mode");
-    if ( !sMode || !sMode[0] ) sMode = "interrupt";
+    if ( !sMode || !sMode[0] ) sMode = "terminate";
     if ( strcmp(sMode, "interrupt") != 0 && strcmp(sMode, "terminate") != 0 &&
          strcmp(sMode, "kill") != 0 && strcmp(sMode, "kill_tree") != 0 ) {
         eResult = xwork__tool_fail(pOutput, "mode must be interrupt, terminate, kill, or kill_tree"); goto cleanup;
@@ -1442,7 +1668,7 @@ static xwork_result xwork__tool_stop_process(
     bRelease = xwork__json_bool(tArgs, "release", true, &bValid);
     if ( !bValid ) { eResult = xwork__tool_fail(pOutput, "release must be boolean"); goto cleanup; }
     pEntry = xwork__process_find(pAgent, uId, &iIndex);
-    if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released process_id"); goto cleanup; }
+    if ( !pEntry ) { eResult = xwork__tool_fail(pOutput, "unknown or released task_id"); goto cleanup; }
     if ( xwork__process_running(pEntry->pProcess) ) {
         if ( strcmp(sMode, "interrupt") == 0 ) bRequested = xrtProcessInterrupt(pEntry->pProcess);
         else if ( strcmp(sMode, "terminate") == 0 ) bRequested = xrtProcessTerminate(pEntry->pProcess);
@@ -1503,7 +1729,7 @@ static bool xwork__exec_capture_scoped(
     return true;
 }
 
-static xwork_result xwork__tool_exec_command(
+static xwork_result xwork__tool_exec(
     void* pUserData,
     const xwork_tool_context* pContext,
     const char* sArgumentsJson,
@@ -1513,9 +1739,14 @@ static xwork_result xwork__tool_exec_command(
 {
     xwork_agent* pAgent = (xwork_agent*)pUserData;
     xvalue* tArgs = xwork__json_parse_object(sArgumentsJson);
-    const char* sCommand;
     const char* sCwd;
     char* sResolvedCwd = NULL;
+    char** psArgv = NULL;
+    char** psEnvStorage = NULL;
+    xprocessenv* pEnv = NULL;
+    size_t iArgvCount = 0u;
+    size_t iEnvCount = 0u;
+    size_t iEnvStorageCount = 0u;
     bool bValid;
     bool bMerge;
     bool bExpectedExit;
@@ -1531,10 +1762,12 @@ static xwork_result xwork__tool_exec_command(
     (void)pContext;
     memset(&tProcess, 0, sizeof(tProcess));
     if ( !tArgs ) return xwork__tool_fail(pOutput, "invalid arguments: expected a JSON object");
-    sCommand = xwork__json_text(tArgs, "command");
     sCwd = xwork__json_text(tArgs, "cwd");
     if ( !sCwd || !sCwd[0] ) sCwd = ".";
-    if ( !sCommand || !sCommand[0] ) { eResult = xwork__tool_fail(pOutput, "command is required"); goto cleanup; }
+    if ( !xwork__parse_string_array(tArgs, "argv", &psArgv, &iArgvCount, 256u) || !psArgv ) {
+        eResult = xwork__tool_fail(pOutput, "argv must be a non-empty array of 1-256 strings");
+        goto cleanup;
+    }
     uTimeout = xwork__json_u64(tArgs, "timeout_ms", pAgent->uCommandTimeoutMs, &bValid);
     if ( !bValid || uTimeout == 0u || uTimeout > 3600000u ) { eResult = xwork__tool_fail(pOutput, "timeout_ms must be between 1 and 3600000"); goto cleanup; }
     bMerge = xwork__json_bool(tArgs, "merge_stderr", true, &bValid);
@@ -1562,11 +1795,13 @@ static xwork_result xwork__tool_exec_command(
     sResolvedCwd = xwork__resolve_path(pAgent, sCwd, pError);
     if ( !sResolvedCwd ) { eResult = xwork__tool_fail(pOutput, pError && pError->sMessage[0] ? pError->sMessage : "cwd denied"); goto cleanup; }
     if ( !xrtDirExists((str)sResolvedCwd) ) { eResult = xwork__tool_fail(pOutput, "cwd does not exist"); goto cleanup; }
+    if ( !xwork__build_env(tArgs, &pEnv, &iEnvCount, &psEnvStorage, &iEnvStorageCount) ) goto oom;
     xrtProcessConfigInit(&tConfig);
-    tConfig.Target = XPROCESS_SHELL;
-    tConfig.Command = sCommand;
+    xwork__apply_argv_config(&tConfig, psArgv, iArgvCount);
     tConfig.WorkDir = sResolvedCwd;
     tConfig.InheritEnv = true;
+    tConfig.Env = pEnv;
+    tConfig.EnvCount = iEnvCount;
     tConfig.NewGroup = true;
     tConfig.HideWindow = true;
     tConfig.Stdout.Mode = XPROCESS_IO_PIPE;
@@ -1602,12 +1837,18 @@ static xwork_result xwork__tool_exec_command(
             bExpectedExit = tProcess.Status.Code == 0;
         }
     }
-    if ( !xwork__buf_appendf(&tOutput, "$ %s\nexit_code: %d\nexit_expected: %s\nduration_ms: %llu%s\n",
-            sCommand,
-            tProcess.Status.Code,
-            bExpectedExit ? "true" : "false",
-            (unsigned long long)(tProcess.Duration / UINT64_C(1000)),
-            tProcess.Wait == XWAIT_TIMEOUT ? " (timed out)" : "") ) goto oom;
+    {
+        char* sPreview = xwork__argv_preview(psArgv, iArgvCount);
+        bool bAppendOk = sPreview &&
+            xwork__buf_appendf(&tOutput, "$ %s\nexit_code: %d\nexit_expected: %s\nduration_ms: %llu%s\n",
+                sPreview,
+                tProcess.Status.Code,
+                bExpectedExit ? "true" : "false",
+                (unsigned long long)(tProcess.Duration / UINT64_C(1000)),
+                tProcess.Wait == XWAIT_TIMEOUT ? " (timed out)" : "");
+        free(sPreview);
+        if ( !bAppendOk ) goto oom;
+    }
     if ( tProcess.StdoutSize ) {
         if ( !xwork__buf_append_cstr(&tOutput, "--- stdout ---\n") ||
              !xwork__buf_append_process_text(&tOutput, tProcess.Stdout, tProcess.StdoutSize) ||
@@ -1625,8 +1866,11 @@ static xwork_result xwork__tool_exec_command(
     eResult = XWORK_RESULT_OK;
     goto cleanup;
 oom:
-    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to build exec_command output");
+    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to build exec output");
 cleanup:
+    xwork__free_string_array(psArgv, iArgvCount);
+    xwork__free_string_array(psEnvStorage, iEnvStorageCount);
+    free(pEnv);
     if ( tArgs ) xrtValueRelease(tArgs);
     free(sResolvedCwd);
     xrtProcessResultUnit(&tProcess);
@@ -1671,6 +1915,86 @@ bool xworkAgentRegisterBuiltinReadOnlyTools(xwork_agent* pAgent, xwork_error* pE
     return true;
 }
 
+static xwork_result xwork__tool_wait(
+    void* pUserData,
+    const xwork_tool_context* pContext,
+    const char* sArgumentsJson,
+    xwork_tool_output* pOutput,
+    xwork_error* pError
+)
+{
+    xwork_agent* pAgent = (xwork_agent*)pUserData;
+    xvalue* tArgs = xwork__json_parse_object(sArgumentsJson);
+    const char* sMode;
+    xvalue* tIds;
+    bool bValid;
+    bool bAll;
+    uint64_t uTimeoutMs;
+    uint64_t* puIds = NULL;
+    size_t iIdCount = 0u;
+    size_t i;
+    xwork_buf tOutput = {0};
+    xwork_result eResult = XWORK_RESULT_ERROR;
+    (void)pContext;
+    if ( !tArgs ) return xwork__tool_fail(pOutput, "invalid arguments: expected a JSON object");
+    tIds = xwork__json_get(tArgs, "task_ids");
+    if ( !tIds || xrtValueType(tIds) != XVALUE_ARRAY ||
+         (iIdCount = xrtValueCount(tIds)) == 0u || iIdCount > 32u ) {
+        eResult = xwork__tool_fail(pOutput, "task_ids must be an array of 1-32 integers");
+        goto cleanup;
+    }
+    puIds = (uint64_t*)calloc(iIdCount, sizeof(*puIds));
+    if ( !puIds ) goto oom;
+    for ( i = 0u; i < iIdCount; ++i ) {
+        int64_t iId = 0;
+        xvalue* pItem = xrtValueArrayGet(tIds, i);
+        if ( !pItem || !xrtValueGetInt(pItem, &iId) || iId < 1 ) {
+            eResult = xwork__tool_fail(pOutput, "task_ids must contain positive integers");
+            goto cleanup;
+        }
+        puIds[i] = (uint64_t)iId;
+        if ( !xwork__process_find(pAgent, puIds[i], NULL) ) {
+            xwork_buf tBad = {0};
+            if ( xwork__buf_appendf(&tBad, "unknown or released task_id %llu",
+                    (unsigned long long)puIds[i]) && tBad.pData ) {
+                eResult = xwork__tool_fail(pOutput, tBad.pData);
+            } else {
+                eResult = xwork__tool_fail(pOutput, "unknown or released task_id");
+            }
+            xwork__buf_unit(&tBad);
+            goto cleanup;
+        }
+    }
+    sMode = xwork__json_text(tArgs, "mode");
+    if ( !sMode || !sMode[0] ) sMode = "any";
+    if ( strcmp(sMode, "any") != 0 && strcmp(sMode, "all") != 0 ) {
+        eResult = xwork__tool_fail(pOutput, "mode must be any or all");
+        goto cleanup;
+    }
+    bAll = strcmp(sMode, "all") == 0;
+    uTimeoutMs = xwork__json_u64(tArgs, "timeout_ms", 120000u, &bValid);
+    if ( !bValid || uTimeoutMs > 600000u ) {
+        eResult = xwork__tool_fail(pOutput, "timeout_ms must be between 0 and 600000");
+        goto cleanup;
+    }
+    (void)xwork__process_wait_all_ready(pAgent, puIds, iIdCount, bAll, (uint32_t)uTimeoutMs);
+    for ( i = 0u; i < iIdCount; ++i ) {
+        xwork_process_entry* pEntry = xwork__process_find(pAgent, puIds[i], NULL);
+        if ( !pEntry ) continue;
+        if ( !xwork__append_process_status(&tOutput, pEntry, 0u, 4096u) ) goto oom;
+    }
+    if ( !xworkToolOutputSet(pOutput, true, tOutput.pData ? tOutput.pData : "") ) goto oom;
+    eResult = XWORK_RESULT_OK;
+    goto cleanup;
+oom:
+    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to build wait output");
+cleanup:
+    free(puIds);
+    if ( tArgs ) xrtValueRelease(tArgs);
+    xwork__buf_unit(&tOutput);
+    return eResult;
+}
+
 bool xworkAgentRegisterBuiltinTools(xwork_agent* pAgent, xwork_error* pError)
 {
     static const xwork_tool_definition arrTools[] = {
@@ -1693,34 +2017,40 @@ bool xworkAgentRegisterBuiltinTools(xwork_agent* pAgent, xwork_error* pError)
             true, XWORK_TOOL_EFFECT_WORKSPACE_WRITE, xwork__tool_apply_patch, NULL, NULL
         },
         {
-            "start_process",
-            "Start a managed long-running shell process in the workspace. Returns a process_id for polling, stdin writes, and cleanup.",
-            "{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"},\"cwd\":{\"type\":\"string\"},\"wait_ms\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":30000},\"max_capture_bytes\":{\"type\":\"integer\",\"minimum\":1024,\"maximum\":67108864},\"merge_stderr\":{\"type\":\"boolean\"}},\"required\":[\"command\"],\"additionalProperties\":false}",
-            true, XWORK_TOOL_EFFECT_PROCESS, xwork__tool_start_process, NULL, NULL
+            "spawn",
+            "Start a background task and return task_id. argv is direct (no shell). Output lands in a bounded tail buffer; completion is announced at the next turn boundary.",
+            "{\"type\":\"object\",\"properties\":{\"argv\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":256,\"items\":{\"type\":\"string\"}},\"cwd\":{\"type\":\"string\"},\"env\":{\"type\":\"array\",\"maxItems\":128,\"items\":{\"type\":\"string\"}},\"max_capture_bytes\":{\"type\":\"integer\",\"minimum\":1024,\"maximum\":67108864},\"merge_stderr\":{\"type\":\"boolean\"},\"notify\":{\"type\":\"string\",\"maxLength\":500},\"remind_after_ms\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":3600000}},\"required\":[\"argv\"],\"additionalProperties\":false}",
+            true, XWORK_TOOL_EFFECT_PROCESS, xwork__tool_spawn, NULL, NULL
         },
         {
-            "poll_process",
-            "Incrementally read new stdout and stderr from a managed process and report its state. Set release=true only after it exits.",
-            "{\"type\":\"object\",\"properties\":{\"process_id\":{\"type\":\"integer\",\"minimum\":1},\"wait_ms\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":30000},\"max_bytes\":{\"type\":\"integer\",\"minimum\":256,\"maximum\":1048576},\"release\":{\"type\":\"boolean\"}},\"required\":[\"process_id\"],\"additionalProperties\":false}",
-            true, XWORK_TOOL_EFFECT_READ_ONLY, xwork__tool_poll_process, NULL, NULL
+            "poll",
+            "Read new incremental output from a task (process or subagent) and report its state. Set release=true only after it exits.",
+            "{\"type\":\"object\",\"properties\":{\"task_id\":{\"type\":\"integer\",\"minimum\":1},\"wait_ms\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":30000},\"max_bytes\":{\"type\":\"integer\",\"minimum\":256,\"maximum\":1048576},\"release\":{\"type\":\"boolean\"}},\"required\":[\"task_id\"],\"additionalProperties\":false}",
+            true, XWORK_TOOL_EFFECT_READ_ONLY, xwork__tool_poll, NULL, NULL
         },
         {
-            "write_process",
-            "Write UTF-8 text to a managed process stdin, optionally append a newline and/or close stdin.",
-            "{\"type\":\"object\",\"properties\":{\"process_id\":{\"type\":\"integer\",\"minimum\":1},\"input\":{\"type\":\"string\"},\"append_newline\":{\"type\":\"boolean\"},\"close_stdin\":{\"type\":\"boolean\"}},\"required\":[\"process_id\"],\"additionalProperties\":false}",
-            true, XWORK_TOOL_EFFECT_PROCESS, xwork__tool_write_process, NULL, NULL
+            "wait",
+            "Block until any (default) or all of the given tasks exit, returning their new output and exit status. An expired timeout returns early with still-running states.",
+            "{\"type\":\"object\",\"properties\":{\"task_ids\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":32,\"items\":{\"type\":\"integer\",\"minimum\":1}},\"mode\":{\"type\":\"string\",\"enum\":[\"any\",\"all\"]},\"timeout_ms\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":600000}},\"required\":[\"task_ids\"],\"additionalProperties\":false}",
+            true, XWORK_TOOL_EFFECT_READ_ONLY, xwork__tool_wait, NULL, NULL
         },
         {
-            "stop_process",
-            "Stop a managed process using interrupt, terminate, kill, or kill_tree; returns final incremental output when it exits.",
-            "{\"type\":\"object\",\"properties\":{\"process_id\":{\"type\":\"integer\",\"minimum\":1},\"mode\":{\"type\":\"string\",\"enum\":[\"interrupt\",\"terminate\",\"kill\",\"kill_tree\"]},\"wait_ms\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":30000},\"release\":{\"type\":\"boolean\"}},\"required\":[\"process_id\"],\"additionalProperties\":false}",
-            true, XWORK_TOOL_EFFECT_PROCESS, xwork__tool_stop_process, NULL, NULL
+            "stdin",
+            "Write text to a process task's stdin, optionally appending a newline and/or closing stdin.",
+            "{\"type\":\"object\",\"properties\":{\"task_id\":{\"type\":\"integer\",\"minimum\":1},\"input\":{\"type\":\"string\"},\"append_newline\":{\"type\":\"boolean\"},\"close_stdin\":{\"type\":\"boolean\"}},\"required\":[\"task_id\"],\"additionalProperties\":false}",
+            true, XWORK_TOOL_EFFECT_PROCESS, xwork__tool_stdin, NULL, NULL
         },
         {
-            "exec_command",
-            "Run a non-interactive command in a workspace directory and capture stdout, stderr, exit code, duration, and timeout state. For negative tests, pass expected_exit_codes so an intentional nonzero exit is treated as success; the default is [0].",
-            "{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"},\"cwd\":{\"type\":\"string\"},\"timeout_ms\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":3600000},\"merge_stderr\":{\"type\":\"boolean\"},\"expected_exit_codes\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":32,\"items\":{\"type\":\"integer\",\"minimum\":-2147483648,\"maximum\":2147483647}}},\"required\":[\"command\"],\"additionalProperties\":false}",
-            true, XWORK_TOOL_EFFECT_PROCESS, xwork__tool_exec_command, NULL, NULL
+            "stop",
+            "Stop a task. Modes interrupt/terminate/kill/kill_tree apply to processes; a subagent is cancelled cooperatively. Success means the task actually stopped.",
+            "{\"type\":\"object\",\"properties\":{\"task_id\":{\"type\":\"integer\",\"minimum\":1},\"mode\":{\"type\":\"string\",\"enum\":[\"interrupt\",\"terminate\",\"kill\",\"kill_tree\"]},\"wait_ms\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":30000},\"release\":{\"type\":\"boolean\"}},\"required\":[\"task_id\"],\"additionalProperties\":false}",
+            true, XWORK_TOOL_EFFECT_PROCESS, xwork__tool_stop, NULL, NULL
+        },
+        {
+            "exec",
+            "Run one command to completion. argv is passed directly with no shell — no pipes or globs; chain work in the command's own tooling or use spawn. Nonzero exit fails unless listed in expected_exit_codes.",
+            "{\"type\":\"object\",\"properties\":{\"argv\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":256,\"items\":{\"type\":\"string\"}},\"cwd\":{\"type\":\"string\"},\"env\":{\"type\":\"array\",\"maxItems\":128,\"items\":{\"type\":\"string\"}},\"timeout_ms\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":3600000},\"merge_stderr\":{\"type\":\"boolean\"},\"expected_exit_codes\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":32,\"items\":{\"type\":\"integer\",\"minimum\":-2147483648,\"maximum\":2147483647}}},\"required\":[\"argv\"],\"additionalProperties\":false}",
+            true, XWORK_TOOL_EFFECT_PROCESS, xwork__tool_exec, NULL, NULL
         }
     };
     size_t i;

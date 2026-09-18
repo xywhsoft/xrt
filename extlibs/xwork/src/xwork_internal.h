@@ -40,14 +40,25 @@ typedef struct xwork_tool_entry {
     void* pUserData;
 } xwork_tool_entry;
 
+/* Unified task kinds live in xwork.h (xwork_task_kind): one table, one id
+ * space, one tool family shared by processes and subagents. */
+
 typedef struct xwork_process_entry {
     uint64_t uId;
+    xwork_task_kind eKind;
     xprocess* pProcess;
     struct xwork_process_capture* pCapture;
-    char* sCommand;
+    char* sCommand;            /* argv preview for status display */
     uint64_t uStdoutOffset;
     uint64_t uStderrOffset;
     bool bStdinClosed;
+    /* Model-driven timing and notifications. */
+    char* sNotify;             /* message delivered with the completion notice */
+    uint64_t uRemindAfterMs;   /* model-set soft deadline; 0 = none */
+    uint64_t uStartedUs;       /* xrtClock() at start */
+    uint64_t uExitedUs;        /* first observed exit; 0 while running */
+    bool bNoticeTaken;         /* completion notice consumed by the host */
+    bool bNudged;              /* uncollected-notice nudge already sent */
 } xwork_process_entry;
 
 typedef struct xwork_process_capture_stream {
@@ -129,6 +140,7 @@ struct xwork_agent {
 };
 
 char* xwork__strdup(const char* sText);
+char* xwork__strndup(const char* sText, size_t iLen);
 bool xwork__replace(char** ppDst, const char* sText);
 void xwork__set_error(xwork_error* pError, xwork_error_code eCode, const char* sMessage);
 void xwork__copy_model_error(xwork_error* pError, const xllm_error* pModelError);

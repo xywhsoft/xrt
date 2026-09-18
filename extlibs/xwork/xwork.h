@@ -396,6 +396,44 @@ xwork_result xworkAgentRun(xwork_agent* pAgent, const char* sPrompt, xwork_run_r
  * in this pair so the tool registry stays stable for the whole run. */
 bool xworkAgentRunBegin(xwork_agent* pAgent, xwork_error* pError);
 void xworkAgentRunEnd(xwork_agent* pAgent);
+
+/* ------------------------------------------------------------------ */
+/* Unified task table: notices and the model-clock watchdog.           */
+/*                                                                     */
+/* Task completion is pushed at turn boundaries: TakeTaskNotices       */
+/* returns each finished, not-yet-consumed task (with the model's      */
+/* notify message, if any) and marks it consumed; the host injects     */
+/* the notices into the session as synthetic entries. The watchdog     */
+/* digest reports model-scheduled reminders (spawn remind_after_ms)    */
+/* and a one-shot uncollected-notice nudge — the harness executes the  */
+/* clocks the model set; it never invents its own schedule.            */
+/* ------------------------------------------------------------------ */
+
+typedef enum xwork_task_kind {
+    XWORK_TASK_PROCESS = 0,
+    XWORK_TASK_AGENT      /* reserved: subagent delegation batch */
+} xwork_task_kind;
+
+typedef struct xwork_task_notice {
+    uint64_t uTaskId;
+    xwork_task_kind eKind;
+    int32_t iExitCode;
+    bool bExitedCleanly;
+    const char* sNotify;    /* borrowed from the task entry */
+    const char* sPreview;   /* borrowed command preview */
+} xwork_task_notice;
+
+typedef struct xwork_watchdog_digest {
+    bool bShouldWake;
+    uint64_t uNextWakeMs;         /* 0 = no timer needed */
+    size_t iRunningTasks;
+    size_t iStalledTasks;         /* past their remind_after_ms */
+    size_t iUncollectedNotices;
+} xwork_watchdog_digest;
+
+size_t xworkAgentTakeTaskNotices(xwork_agent* pAgent,
+    xwork_task_notice* pNotices, size_t iCapacity);
+bool xworkTaskWatchdog(xwork_agent* pAgent, xwork_watchdog_digest* pDigest);
 xwork_result xworkAgentRunReadOnlySubagent(
     xwork_agent* pParent,
     const xwork_readonly_subagent_config* pConfig,

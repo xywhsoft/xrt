@@ -20,6 +20,18 @@ char* xwork__strdup(const char* sText)
     return sCopy;
 }
 
+char* xwork__strndup(const char* sText, size_t iLen)
+{
+    char* sCopy;
+    if ( !sText || !iLen ) return NULL;
+    sCopy = (char*)malloc(iLen + 1u);
+    if ( sCopy ) {
+        memcpy(sCopy, sText, iLen);
+        sCopy[iLen] = '\0';
+    }
+    return sCopy;
+}
+
 bool xwork__replace(char** ppDst, const char* sText)
 {
     char* sCopy = sText ? xwork__strdup(sText) : NULL;
