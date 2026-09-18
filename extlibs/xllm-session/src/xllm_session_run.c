@@ -28,7 +28,8 @@ void xllmRunSummaryUnit(xllm_run_summary* pSummary)
 }
 
 static xllm_result xllm_session__run_drain_pending(xllm_session* pSession,
-    const xllm_executor* pExecutor, xllm_run_summary* pSummary, xllm_error* pError)
+    const xllm_executor* pExecutor, const xllm_run_policy* pPolicy,
+    xllm_run_summary* pSummary, xllm_error* pError)
 {
     while ( xllmSessionPendingToolCallCount(pSession) != 0u ) {
         xllm_pending_tool_call tCall;
@@ -47,6 +48,8 @@ static xllm_result xllm_session__run_drain_pending(xllm_session* pSession,
         memset(&tCtx, 0, sizeof(tCtx));
         tCtx.uRound = pSummary->uRounds + 1u;
         tCtx.uTurn = tCall.uTurn;
+        tCtx.pCancel = pPolicy ? pPolicy->pCancel : NULL;
+        tCtx.uDeadline = (pPolicy && pPolicy->uDeadline) ? pPolicy->uDeadline : 0u;
         if ( !pExecutor->pExecute(pExecutor->pUserData, &tCallView, &tCtx, &tOut) ||
              !tOut.sContent ) {
             xllm_session__error(pError, XLLM_ERROR_UPSTREAM,
@@ -106,12 +109,25 @@ xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* sPrompt,
     }
 
     /* Interrupted-run recovery: finish unresolved tool calls first. */
-    eResult = xllm_session__run_drain_pending(pSession, pExecutor, &tLocal, pError);
+    eResult = xllm_session__run_drain_pending(pSession, pExecutor, pPolicy, &tLocal, pError);
     if ( eResult != XLLM_RESULT_OK ) { goto done; }
 
     while ( tLocal.uRounds < uMaxRounds ) {
         xllm_request tRequest;
         xllm_response* pResponse = NULL;
+        /* Early-out checks: the test seam does not inspect the request token,
+         * so the loop itself enforces the policy tree. */
+        if ( pPolicy && pPolicy->pCancel && xrtCancelRequested(pPolicy->pCancel) ) {
+            xllm_session__error(pError, XLLM_ERROR_CANCELLED, "run cancelled before a model round");
+            eResult = XLLM_RESULT_CANCELLED;
+            goto done;
+        }
+        if ( pPolicy && pPolicy->uDeadline && pPolicy->uDeadline != UINT64_MAX &&
+             xrtDeadlineExpired(pPolicy->uDeadline) ) {
+            xllm_session__error(pError, XLLM_ERROR_TIMEOUT, "run deadline expired before a model round");
+            eResult = XLLM_RESULT_TIMEOUT;
+            goto done;
+        }
         xllmRequestInit(&tRequest);
         if ( !xllmSessionBuildRequest(pSession, &tRequest, pError) ) {
             xllmRequestUnit(&tRequest);
@@ -123,6 +139,8 @@ xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* sPrompt,
                 "executor failed to list tools for the model request");
             goto done;
         }
+        if ( pPolicy && pPolicy->pCancel ) { xllmRequestSetCancel(&tRequest, pPolicy->pCancel); }
+        if ( pPolicy && pPolicy->uDeadline ) { xllmRequestSetDeadline(&tRequest, pPolicy->uDeadline); }
         eResult = xllm_session__dispatch_call(pSession, &tRequest, pCallbacks, &pResponse, pError);
         xllmRequestUnit(&tRequest);
         if ( eResult != XLLM_RESULT_OK ) { goto done; }
@@ -171,6 +189,8 @@ xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* sPrompt,
                 memset(&tCtx, 0, sizeof(tCtx));
                 tCtx.uRound = tLocal.uRounds;
                 tCtx.uTurn = uTurn;
+                tCtx.pCancel = pPolicy ? pPolicy->pCancel : NULL;
+                tCtx.uDeadline = (pPolicy && pPolicy->uDeadline) ? pPolicy->uDeadline : 0u;
                 if ( !pExecutor->pExecute(pExecutor->pUserData, pCall, &tCtx, &tOut) ||
                      !tOut.sContent ) {
                     xllmResponseDestroy(pResponse);

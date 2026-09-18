@@ -696,6 +696,12 @@ static xwork_result xwork__agent_run(
         xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "agent is already running");
         return XWORK_RESULT_ERROR;
     }
+    if ( !pAgent->pClient && !pAgent->OnModelComplete ) {
+        xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT,
+            "the built-in loop requires a bound client or a model callback; "
+            "executor-only agents drive the model through the session instead");
+        return XWORK_RESULT_ERROR;
+    }
     pAgent->bRunning = true;
     xwork__atomic_store(&pAgent->iCancelled, 0);
     if ( xwork__operation_status(pAgent) == XWORK_OPERATION_TIMED_OUT ) {
@@ -1086,6 +1092,11 @@ xwork_result xworkAgentCompact(xwork_agent* pAgent, xwork_error* pError)
     }
     if ( pAgent->bRunning ) {
         xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "agent is already running");
+        return XWORK_RESULT_ERROR;
+    }
+    if ( !pAgent->pClient && !pAgent->OnModelComplete ) {
+        xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT,
+            "forced compaction requires a bound client or a model callback");
         return XWORK_RESULT_ERROR;
     }
     memset(&tRun, 0, sizeof(tRun));

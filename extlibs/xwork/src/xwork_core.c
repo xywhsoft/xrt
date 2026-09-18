@@ -378,6 +378,31 @@ bool xworkPathIsProtected(const char* sPath)
     return false;
 }
 
+bool xworkAgentRunBegin(xwork_agent* pAgent, xwork_error* pError)
+{
+    if ( pError ) { xworkErrorInit(pError); }
+    if ( !pAgent ) {
+        xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "agent is null");
+        return false;
+    }
+    if ( pAgent->bRunning ) {
+        xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT,
+            "agent is already running");
+        return false;
+    }
+    /* Same window the built-in loop opens on its own: registry mutation and
+     * concurrent runs stay rejected while an external driver (for example
+     * xllmSessionRunWithTools) owns the loop. */
+    pAgent->bRunning = true;
+    return true;
+}
+
+void xworkAgentRunEnd(xwork_agent* pAgent)
+{
+    if ( !pAgent ) { return; }
+    pAgent->bRunning = false;
+}
+
 void xworkAgentConfigInit(xwork_agent_config* pConfig)
 {
     if ( !pConfig ) return;
@@ -535,9 +560,8 @@ xwork_agent* xworkAgentCreate(const xwork_agent_config* pConfig, xwork_error* pE
     char* sRoot;
     xllm_session_stats tStats;
     uint64_t uTurn;
-    if ( !pConfig || !pConfig->pSession || !pConfig->sWorkspaceRoot || !pConfig->sWorkspaceRoot[0] ||
-         (!pConfig->pClient && !pConfig->OnModelComplete) ) {
-        xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "agent requires a session, workspace, and model boundary");
+    if ( !pConfig || !pConfig->pSession || !pConfig->sWorkspaceRoot || !pConfig->sWorkspaceRoot[0] ) {
+        xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "agent requires a session and a workspace root");
         return NULL;
     }
     sRoot = xrtPathAbs(pConfig->sWorkspaceRoot);
@@ -601,7 +625,7 @@ xwork_agent* xworkAgentCreate(const xwork_agent_config* pConfig, xwork_error* pE
         xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to inspect session");
         return NULL;
     }
-    if ( tStats.uEntryCount == 0u ) {
+    if ( pConfig->bInjectSystemPrompt && tStats.uEntryCount == 0u ) {
         uTurn = xllmSessionBeginTurn(pAgent->pSession);
         if ( !uTurn || !xllmSessionAddText(pAgent->pSession, uTurn, XLLM_ROLE_SYSTEM, pAgent->sSystemPrompt, XLLM_SESSION_ENTRY_PINNED) ) {
             xworkAgentDestroy(pAgent);

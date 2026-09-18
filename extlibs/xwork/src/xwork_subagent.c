@@ -125,6 +125,7 @@ xwork_result xworkAgentRunReadOnlySubagent(
     tAgentConfig.pSession = pSession;
     tAgentConfig.sWorkspaceRoot = pParent->sWorkspaceRoot;
     tAgentConfig.sSystemPrompt = pConfig->sSystemPrompt ? pConfig->sSystemPrompt : sDefaultPrompt;
+    tAgentConfig.bInjectSystemPrompt = true;
     tAgentConfig.sArtifactDirectory = pParent->sArtifactDirectory;
     tAgentConfig.sModel = pParent->sModel;
     tAgentConfig.sReasoningEffort = pParent->sReasoningEffort;

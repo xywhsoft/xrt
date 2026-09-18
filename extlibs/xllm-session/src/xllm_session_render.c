@@ -144,36 +144,51 @@ bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pReques
     xllm_session__error(pError, (code), (msg)); \
     goto done; \
 } while (0)
-    /* PINNED entries first: the never-compacted cache anchor. */
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) == 0u ) { continue; }
-        if ( pHooks && pHooks->pRenderMessage ) {
-            xllm_message tWork;
-            xllm_render_action eAction;
-            if ( !xllm_session__render_entry(pSession, pEntry, &tWork, false) ) {
+    /* PINNED entries first: the never-compacted cache anchor. Identity is
+     * append-only: when several PINNED system entries exist (an identity
+     * upgrade), only the newest one renders. */
+    {
+        uint64_t uLastPinnedSystem = 0u;
+        size_t k;
+        for ( k = 0u; k < pSession->iEntryCount; ++k ) {
+            const xllm_session_entry* pScan = &pSession->pEntries[k];
+            if ( (pScan->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u &&
+                 pScan->tMessage.eRole == XLLM_ROLE_SYSTEM ) {
+                uLastPinnedSystem = pScan->uSequence;
+            }
+        }
+        for ( i = 0u; i < pSession->iEntryCount; ++i ) {
+            const xllm_session_entry* pEntry = &pSession->pEntries[i];
+            if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) == 0u ) { continue; }
+            if ( pEntry->tMessage.eRole == XLLM_ROLE_SYSTEM &&
+                 uLastPinnedSystem != 0u && pEntry->uSequence != uLastPinnedSystem ) { continue; }
+            if ( pHooks && pHooks->pRenderMessage ) {
+                xllm_message tWork;
+                xllm_render_action eAction;
+                if ( !xllm_session__render_entry(pSession, pEntry, &tWork, false) ) {
+                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+                }
+                if ( !xllm_session__hook_enter((xllm_session*)pSession, NULL, "render.message") ) {
+                    xllmMessageUnit(&tWork);
+                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_HOOK, "render hook re-entered a mutating API");
+                }
+                eAction = pHooks->pRenderMessage((xllm_session*)pSession,
+                    pEntry->uSequence, pEntry->uTurn, pEntry->uFlags, &tWork, pHooks->pUserData);
+                xllm_session__hook_leave((xllm_session*)pSession);
+                if ( eAction == XLLM_RENDER_SKIP ) {
+                    pbKept[i] = false;
+                    xllmMessageUnit(&tWork);
+                    continue;
+                }
+                pbKept[i] = true;
+                if ( !xllmRequestAddMessage(pRequest, &tWork) ) {
+                    xllmMessageUnit(&tWork);
+                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+                }
+                xllmMessageUnit(&tWork);
+            } else if ( !xllmRequestAddMessage(pRequest, &pEntry->tMessage) ) {
                 XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
             }
-            if ( !xllm_session__hook_enter((xllm_session*)pSession, NULL, "render.message") ) {
-                xllmMessageUnit(&tWork);
-                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_HOOK, "render hook re-entered a mutating API");
-            }
-            eAction = pHooks->pRenderMessage((xllm_session*)pSession,
-                pEntry->uSequence, pEntry->uTurn, pEntry->uFlags, &tWork, pHooks->pUserData);
-            xllm_session__hook_leave((xllm_session*)pSession);
-            if ( eAction == XLLM_RENDER_SKIP ) {
-                pbKept[i] = false;
-                xllmMessageUnit(&tWork);
-                continue;
-            }
-            pbKept[i] = true;
-            if ( !xllmRequestAddMessage(pRequest, &tWork) ) {
-                xllmMessageUnit(&tWork);
-                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
-            }
-            xllmMessageUnit(&tWork);
-        } else if ( !xllmRequestAddMessage(pRequest, &pEntry->tMessage) ) {
-            XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
         }
     }
     /* Rolling summary as the user bridge (design §6.6). */

@@ -1311,6 +1311,110 @@ static void test_run_with_tools(void)
     xllmSessionDestroy(pSession);
 }
 
+/* ------------------------------------------------------------------ */
+/* Engineering layer: rebinding, identity, policy cancellation.         */
+/* ------------------------------------------------------------------ */
+
+static size_t test_count_system_text(const xllm_request* pRequest, const char* sNeedle)
+{
+    size_t i;
+    size_t iHits = 0u;
+    for ( i = 0u; i < pRequest->iMessageCount; ++i ) {
+        const xllm_message* pMessage = &pRequest->pMessages[i];
+        if ( pMessage->eRole == XLLM_ROLE_SYSTEM && pMessage->sContent &&
+             strstr(pMessage->sContent, sNeedle) ) { ++iHits; }
+    }
+    return iHits;
+}
+
+static void test_bind_identity_and_cancel(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_request tRequest;
+    xllm_error tError;
+    xllm_run_policy tPolicy;
+    xllm_run_summary tSummary;
+    run_script tScript;
+    run_executor_state tExecutorState;
+    xllm_executor tExecutor;
+    xcancel* pCancel = NULL;
+
+    /* Identity: set, idempotent re-set, upgrade renders newest only. */
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession && xllmSessionSetSystemPrompt(pSession, "identity v1", &tError),
+        "system prompt pins on a fresh session");
+    xllmRequestInit(&tRequest);
+    SESSION_CHECK(pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+        test_count_system_text(&tRequest, "identity v1") == 1u,
+        "pinned identity renders exactly once");
+    xllmRequestUnit(&tRequest);
+    {
+        xllm_session_stats tBefore, tAfter;
+        SESSION_CHECK(pSession && xllmSessionGetStats(pSession, &tBefore) &&
+            xllmSessionSetSystemPrompt(pSession, "identity v1", &tError) &&
+            xllmSessionGetStats(pSession, &tAfter) &&
+            tBefore.uEntryCount == tAfter.uEntryCount,
+            "re-setting the same identity is a no-op");
+    }
+    SESSION_CHECK(pSession && xllmSessionSetSystemPrompt(pSession, "identity v2", &tError),
+        "identity upgrade appends");
+    xllmRequestInit(&tRequest);
+    SESSION_CHECK(pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+        test_count_system_text(&tRequest, "identity v2") == 1u &&
+        test_count_system_text(&tRequest, "identity v1") == 0u,
+        "render shows only the newest pinned identity");
+    xllmRequestUnit(&tRequest);
+    SESSION_CHECK(!xllmSessionSetSystemPrompt(pSession, "", &tError),
+        "empty system text is rejected");
+    xllmSessionDestroy(pSession);
+
+    /* Unbound session refuses the run; SetTestCall revives it. */
+    memset(&tScript, 0, sizeof(tScript));
+    tScript.iToolRounds = 0u;   /* first call answers with final text */
+    memset(&tExecutorState, 0, sizeof(tExecutorState));
+    tExecutor.pListTools = test_run_list;
+    tExecutor.pExecute = test_run_execute;
+    tExecutor.pUserData = &tExecutorState;
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession && xllmSessionRunWithTools(pSession, "x", &tExecutor,
+        NULL, NULL, NULL, &tError) == XLLM_RESULT_ERROR &&
+        tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+        "unbound session refuses RunWithTools");
+    SESSION_CHECK(pSession && xllmSessionSetTestCall(pSession, test_run_script_call, &tScript) &&
+        xllmSessionRunWithTools(pSession, "revive", &tExecutor,
+            NULL, NULL, &tSummary, &tError) == XLLM_RESULT_OK &&
+        tSummary.sFinalText && strcmp(tSummary.sFinalText, "all done") == 0,
+        "SetTestCall revives a plain session for the run loop");
+    xllmRunSummaryUnit(&tSummary);
+    xllmSessionDestroy(pSession);
+
+    /* BindClient validation. */
+    SESSION_CHECK(!xllmSessionBindClient(NULL, NULL) &&
+        (pSession = xllmSessionCreate(&tConfig, &tError)) != NULL &&
+        !xllmSessionBindClient(pSession, NULL),
+        "BindClient rejects null slots");
+    xllmSessionDestroy(pSession);
+
+    /* Policy cancellation stops the run before any model round. */
+    memset(&tScript, 0, sizeof(tScript));
+    memset(&tExecutorState, 0, sizeof(tExecutorState));
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreateForTest(&tConfig, test_run_script_call, &tScript, &tError);
+    pCancel = xrtCancelCreate();
+    xllmRunPolicyInit(&tPolicy);
+    tPolicy.pCancel = pCancel;
+    SESSION_CHECK(pCancel && xrtCancelRequest(pCancel) &&
+        pSession && xllmSessionRunWithTools(pSession, "never started", &tExecutor,
+            NULL, &tPolicy, NULL, &tError) == XLLM_RESULT_CANCELLED &&
+        tScript.iCalls == 0u,
+        "a pre-cancelled policy token stops the run before any model call");
+    xrtCancelDestroy(pCancel);
+    xllmSessionDestroy(pSession);
+}
+
 int main(void)
 {
     printf("xllm-session v3 tests\n");
@@ -1325,6 +1429,7 @@ int main(void)
     test_ladder_and_guard();
     test_easy_send();
     test_run_with_tools();
+    test_bind_identity_and_cancel();
     printf("xllm-session v3: %s (%d failures)\n", g_iSessionFailures ? "FAIL" : "PASS", g_iSessionFailures);
     return g_iSessionFailures ? 1 : 0;
 }

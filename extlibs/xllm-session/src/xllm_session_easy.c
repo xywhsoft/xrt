@@ -215,3 +215,18 @@ bool xllmSessionSetHooks(xllm_session* pSession, const xllm_session_hooks* pHook
     pSession->pHooks = pHooks;
     return true;
 }
+
+bool xllmSessionBindClient(xllm_session* pSession, xllm_client* pClient)
+{
+    if ( !pSession || !pClient ) { return false; }
+    pSession->pClient = pClient;
+    return true;
+}
+
+bool xllmSessionSetTestCall(xllm_session* pSession, xllm_test_call_proc pCall, void* pUserData)
+{
+    if ( !pSession ) { return false; }
+    pSession->pTestCall = pCall;
+    pSession->pTestCallData = pCall ? pUserData : NULL;
+    return true;
+}

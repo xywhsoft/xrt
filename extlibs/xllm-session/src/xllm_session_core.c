@@ -408,6 +408,35 @@ bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_role eRole,
     return bOk;
 }
 
+bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_error* pError)
+{
+    const char* sLast = NULL;
+    size_t i;
+    if ( pError ) { xllmErrorInit(pError); }
+    if ( !pSession || !sText || !sText[0] ) {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+            "session and a non-empty system text are required");
+        return false;
+    }
+    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
+        const xllm_session_entry* pEntry = &pSession->pEntries[i];
+        if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u &&
+             pEntry->tMessage.eRole == XLLM_ROLE_SYSTEM &&
+             pEntry->tMessage.sContent ) {
+            sLast = pEntry->tMessage.sContent;
+        }
+    }
+    if ( sLast && strcmp(sLast, sText) == 0 ) { return true; }
+    /* An identity upgrade appends a new pinned entry; rendering shows only
+     * the newest pinned system message, so the ledger stays append-only
+     * (the journal records the change) without stacking identity blocks. */
+    if ( !xllmSessionAddText(pSession, 0u, XLLM_ROLE_SYSTEM, sText, XLLM_SESSION_ENTRY_PINNED) ) {
+        xllm_session__error(pError, XLLM_ERROR_UPSTREAM, "failed to record the system prompt");
+        return false;
+    }
+    return true;
+}
+
 bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse)
 {
     xllm_message tMessage;

@@ -271,6 +271,13 @@ uint64_t xllmSessionBeginTurn(xllm_session* pSession);
 uint64_t xllmSessionCurrentTurn(const xllm_session* pSession);
 bool xllmSessionAddMessage(xllm_session* pSession, uint64_t uTurn, const xllm_message* pMessage, uint32_t uFlags);
 bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_role eRole, const char* sContent, uint32_t uFlags);
+
+/* Idempotent pinned identity: appends a PINNED system entry when none exists
+ * and no-ops when the newest pinned system text is unchanged. A changed text
+ * appends a new pinned entry; rendering shows only the newest pinned system
+ * message, so identity upgrades stay append-only (the journal records them)
+ * without stacking blocks. The host owns identity; nothing here injects one. */
+bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_error* pError);
 bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse);
 bool xllmSessionAddToolResult(xllm_session* pSession, uint64_t uTurn, const char* sToolCallId, const char* sContent);
 
@@ -360,6 +367,12 @@ typedef xllm_result (*xllm_test_call_proc)(void* pUserData, const xllm_request* 
 xllm_session* xllmSessionCreateForTest(const xllm_session_config* pConfig,
     xllm_test_call_proc pCall, void* pUserData, xllm_error* pError);
 
+/* Bind (or rebind) a client on an existing session: the durable-run path is
+ * Recover() -> BindClient() -> RunWithTools(NULL, ...). */
+bool xllmSessionBindClient(xllm_session* pSession, xllm_client* pClient /* borrowed */);
+/* Attach, replace, or remove (NULL) the test seam on an existing session. */
+bool xllmSessionSetTestCall(xllm_session* pSession, xllm_test_call_proc pCall, void* pUserData);
+
 /* ------------------------------------------------------------------ */
 /* Bounded tool round-trips: the loop as a library function.           */
 /*                                                                     */
@@ -373,6 +386,11 @@ xllm_session* xllmSessionCreateForTest(const xllm_session_config* pConfig,
 typedef struct xllm_run_policy {
     /* Model-round budget; 0 selects the default (32). */
     uint32_t uMaxRounds;
+    /* Borrowed cooperative cancel token and absolute deadline (microseconds;
+     * 0 and UINT64_MAX mean none). Applied to every model request and
+     * forwarded to each executor context so one tree governs the run. */
+    xcancel* pCancel;
+    uint64_t uDeadline;
     /* Guard seam: invoked after each assistant response is recorded and
      * before its tool calls execute. Return false to stop the run; the
      * unresolved tool calls stay pending in the ledger for a later resume. */
@@ -399,7 +417,18 @@ void xllmRunSummaryUnit(xllm_run_summary* pSummary);
  * the durable tail without appending another user prompt. The executor is
  * borrowed and must outlive the call. pCallbacks (optional) stream every
  * model round. On success with bStoppedByPolicy == false the run ended with
- * an assistant final answer. */
+ * an assistant final answer.
+ *
+ * Observer model — three channels, one run:
+ *   1. pCallbacks          model text/reasoning deltas (UI streaming);
+ *   2. session OnEvent     ledger lifecycle (entries, pressure, compaction);
+ *   3. executor/xwork OnEvent  tool start/done, artifact paths, permissions.
+ * They are deliberately separate seams; a host UI subscribes to each at its
+ * own granularity. Cancellation flows through the policy token.
+ *
+ * Pairing with xwork: while this loop drives an xwork executor, wrap the run
+ * in xworkAgentRunBegin()/xworkAgentRunEnd() so registry mutation stays
+ * rejected for the duration (the built-in loop does this on its own). */
 xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* sPrompt,
     const xllm_executor* pExecutor, const xllm_stream_callbacks* pCallbacks,
     const xllm_run_policy* pPolicy /* NULL = defaults */, xllm_run_summary* pSummary /* optional */,

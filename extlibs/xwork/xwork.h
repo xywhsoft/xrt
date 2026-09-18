@@ -280,6 +280,11 @@ typedef struct xwork_agent_config {
     bool bAutoSaveSession;
     bool bAllowArtifactWrites;
     bool bRequireVerificationAfterWrite;      /* Require successful exec_command after latest write. */
+    /* Opt-in identity injection: when true and the session is empty, creation
+     * pins sSystemPrompt as the system message. The host owns identity by
+     * default (see xllmSessionSetSystemPrompt); only loop-style hosts that
+     * want xwork's default persona enable this. */
+    bool bInjectSystemPrompt;
 } xwork_agent_config;
 
 typedef struct xwork_run_result {
@@ -384,6 +389,13 @@ const char* xworkAgentWorkspaceRoot(const xwork_agent* pAgent);
 bool xworkPathIsProtected(const char* sPath);
 
 xwork_result xworkAgentRun(xwork_agent* pAgent, const char* sPrompt, xwork_run_result* pResult, xwork_error* pError);
+/* Declare an externally driven run window: while open, registry mutation and
+ * every other run entry (built-in loop, compact, another window) are rejected
+ * — the same rule the built-in loop enforces on itself. Pair with RunEnd;
+ * hosts driving xllmSessionRunWithTools over an xwork executor wrap the call
+ * in this pair so the tool registry stays stable for the whole run. */
+bool xworkAgentRunBegin(xwork_agent* pAgent, xwork_error* pError);
+void xworkAgentRunEnd(xwork_agent* pAgent);
 xwork_result xworkAgentRunReadOnlySubagent(
     xwork_agent* pParent,
     const xwork_readonly_subagent_config* pConfig,

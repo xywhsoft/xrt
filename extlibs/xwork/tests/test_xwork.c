@@ -960,24 +960,6 @@ static void test_command_context_deadline(void)
 /* with the built-in xwork loop completely out of the picture.          */
 /* ------------------------------------------------------------------ */
 
-/* Placeholder model boundary: agent creation requires one, but the executor
- * tests never call the model through the agent. */
-static xllm_result noop_model_complete(void* pUserData, const xllm_request* pRequest,
-    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
-{
-    (void)pUserData;
-    (void)pRequest;
-    (void)pCallbacks;
-    if ( ppResponse ) { *ppResponse = NULL; }
-    if ( pError ) {
-        xllmErrorInit(pError);
-        (void)snprintf(pError->sMessage, sizeof(pError->sMessage),
-            "the agent model boundary is not used by this test");
-        pError->eCode = XLLM_ERROR_INVALID_ARGUMENT;
-    }
-    return XLLM_RESULT_ERROR;
-}
-
 static void test_executor_bind(void)
 {
     static const char sWorkspace[] = "tests/tmp_xwork_exec";
@@ -999,7 +981,7 @@ static void test_executor_bind(void)
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pSession = pSession;
     tAgentConfig.sWorkspaceRoot = sWorkspace;
-    tAgentConfig.OnModelComplete = noop_model_complete;
+    /* No client and no model callback: an executor-only agent must create. */
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
     CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 11u,
         "executor host agent carries the builtin registry");
@@ -1043,6 +1025,7 @@ static void test_executor_bind(void)
 typedef struct {
     unsigned iCalls;
     bool bSawTools;
+    bool bFinalOnly;
 } t1_script;
 
 static xllm_response* t1_response_text(const char* sText)
@@ -1084,8 +1067,17 @@ static xllm_result t1_script_call(void* pUserData, const xllm_request* pRequest,
     if ( pError ) { xllmErrorInit(pError); }
     ++pScript->iCalls;
     if ( pRequest->iToolCount == 11u ) { pScript->bSawTools = true; }
-    *ppResponse = ( pScript->iCalls == 1u ) ? t1_response_write() : t1_response_text("t1 finished");
+    *ppResponse = ( pScript->iCalls == 1u && !pScript->bFinalOnly )
+        ? t1_response_write() : t1_response_text("t1 finished");
     return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
+}
+
+static bool durable_stop_guard(xllm_session* pSession, uint32_t uRound,
+    const xllm_response* pResponse, size_t iPendingToolCalls, void* pUserData)
+{
+    (void)pSession; (void)uRound; (void)pResponse;
+    (void)iPendingToolCalls; (void)pUserData;
+    return false; /* simulate a crash right after the tool round */
 }
 
 static void test_session_run_with_tools_chain(void)
@@ -1109,7 +1101,6 @@ static void test_session_run_with_tools_chain(void)
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pSession = pSession;
     tAgentConfig.sWorkspaceRoot = sWorkspace;
-    tAgentConfig.OnModelComplete = noop_model_complete;
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
     CHECK(pSession && pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
         "t1 chain assembles: test session + agent + executor");
@@ -1125,6 +1116,109 @@ static void test_session_run_with_tools_chain(void)
         "t1 write_file side effect landed");
     CHECK(xllmSessionPendingToolCallCount(pSession) == 0u,
         "t1 chain leaves no pending calls");
+    xllmRunSummaryUnit(&tSummary);
+    xworkExecutorUnbind(&tExecutor);
+    xworkAgentDestroy(pAgent);
+    xllmSessionDestroy(pSession);
+    (void)xrtDirRemoveAll(sWorkspace);
+}
+
+static void test_run_window_and_durable_recovery(void)
+{
+    static const char sWorkspace[] = "tests/tmp_xwork_durable";
+    static const char sSnapshot[] = "tests/tmp_xwork_durable/state.json";
+    static const char sJournal[] = "tests/tmp_xwork_durable/journal.jsonl";
+    xllm_session_config tSessionConfig;
+    xllm_session* pSession = NULL;
+    xwork_agent_config tAgentConfig;
+    xwork_agent* pAgent = NULL;
+    xwork_error tError;
+    xllm_error tLlmError;
+    xllm_executor tExecutor;
+    xllm_run_policy tPolicy;
+    xllm_run_summary tSummary;
+    t1_script tScript;
+    xwork_tool_definition tDynamic;
+    xwork_run_result tResult;
+
+    (void)xrtDirRemoveAll(sWorkspace);
+    CHECK(xrtDirCreateAll((str)sWorkspace), "durable workspace created");
+
+    /* Run window: registry mutation and re-entry are rejected while open. */
+    memset(&tScript, 0, sizeof(tScript));
+    xllmSessionConfigInit(&tSessionConfig);
+    pSession = xllmSessionCreateForTest(&tSessionConfig, t1_script_call, &tScript, &tLlmError);
+    xworkAgentConfigInit(&tAgentConfig);
+    tAgentConfig.pSession = pSession;
+    tAgentConfig.sWorkspaceRoot = sWorkspace;
+    pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+    memset(&tExecutor, 0, sizeof(tExecutor));
+    CHECK(pSession && pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
+        "durable fixture assembles");
+    memset(&tDynamic, 0, sizeof(tDynamic));
+    tDynamic.sName = "window_probe";
+    tDynamic.sDescription = "mutation probe";
+    tDynamic.sParametersJson = "{\"type\":\"object\"}";
+    tDynamic.eEffect = XWORK_TOOL_EFFECT_READ_ONLY;
+    tDynamic.OnExecute = registry_probe_execute;
+    CHECK(pAgent && xworkAgentRunBegin(pAgent, &tError) &&
+        !xworkAgentRegisterTool(pAgent, &tDynamic, &tError) &&
+        tError.eCode == XWORK_ERROR_CONTEXT &&
+        !xworkAgentRunBegin(pAgent, &tError),
+        "run window rejects registry mutation and re-entry");
+    xworkAgentRunEnd(pAgent);
+    CHECK(pAgent && xworkAgentRegisterTool(pAgent, &tDynamic, &tError),
+        "registry mutation works after the window closes");
+    memset(&tResult, 0, sizeof(tResult));
+    CHECK(pAgent && xworkAgentRun(pAgent, "no boundary", &tResult, &tError) == XWORK_RESULT_ERROR &&
+        tError.eCode == XWORK_ERROR_INVALID_ARGUMENT,
+        "built-in loop refuses an executor-only agent without a boundary");
+    xworkAgentUnregisterTool(pAgent, "window_probe", &tError);
+
+    /* Durable chain: journal on -> run stopped mid-batch (pending tool call)
+     * -> Save (snapshot keeps the journal) -> destroy (crash) -> Recover ->
+     * SetTestCall -> RunWithTools(NULL) drains and finishes, no new prompt. */
+    CHECK(pSession && xllmSessionEnableJournal(pSession, sJournal, &tLlmError),
+        "journal attaches to the fixture session");
+    xllmRunPolicyInit(&tPolicy);
+    tPolicy.pOnRound = durable_stop_guard; /* stop after the tool round */
+    memset(&tSummary, 0, sizeof(tSummary));
+    CHECK(pSession && xllmSessionRunWithTools(pSession, "durable task", &tExecutor,
+        NULL, &tPolicy, &tSummary, &tLlmError) == XLLM_RESULT_OK &&
+        tSummary.bStoppedByPolicy,
+        "durable run stops with a pending tool call");
+    CHECK(pSession && xllmSessionPendingToolCallCount(pSession) == 1u,
+        "crash fixture leaves exactly one pending call");
+    CHECK(pSession && xllmSessionSave(pSession, sSnapshot, &tLlmError),
+        "snapshot saves before the simulated crash");
+    xworkExecutorUnbind(&tExecutor);
+    xworkAgentDestroy(pAgent);
+    pAgent = NULL;
+    xllmSessionDestroy(pSession);
+    pSession = NULL;   /* crash: everything above is gone */
+
+    memset(&tScript, 0, sizeof(tScript));
+    tScript.bFinalOnly = true;   /* the resumed model round answers directly */
+    pSession = xllmSessionRecover(sSnapshot, sJournal, NULL, &tLlmError);
+    CHECK(pSession != NULL, "session recovers from snapshot plus journal");
+    CHECK(pSession && xllmSessionSetTestCall(pSession, t1_script_call, &tScript),
+        "recovered session binds a fresh model driver");
+    xworkAgentConfigInit(&tAgentConfig);
+    tAgentConfig.pSession = pSession;
+    tAgentConfig.sWorkspaceRoot = sWorkspace;
+    pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+    memset(&tExecutor, 0, sizeof(tExecutor));
+    CHECK(pSession && pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
+        "post-crash fixture reassembles");
+    memset(&tSummary, 0, sizeof(tSummary));
+    CHECK(pSession && xllmSessionRunWithTools(pSession, NULL, &tExecutor,
+        NULL, NULL, &tSummary, &tLlmError) == XLLM_RESULT_OK &&
+        tSummary.sFinalText && strcmp(tSummary.sFinalText, "t1 finished") == 0,
+        "resumed run drains the pending call and finishes");
+    CHECK(xrtFileExists((str)"tests/tmp_xwork_durable/t1.txt"),
+        "the pending write landed after recovery");
+    CHECK(pSession && xllmSessionPendingToolCallCount(pSession) == 0u,
+        "recovery leaves no pending calls");
     xllmRunSummaryUnit(&tSummary);
     xworkExecutorUnbind(&tExecutor);
     xworkAgentDestroy(pAgent);
@@ -1168,6 +1262,7 @@ int main(int argc, char** argv)
     test_readonly_subagent();
     test_agent_loop();
     test_session_run_with_tools_chain();
+    test_run_window_and_durable_recovery();
     printf("xwork v2: %s (%d failures)\n", g_iFailures ? "FAIL" : "PASS", g_iFailures);
     return g_iFailures ? 1 : 0;
 }
