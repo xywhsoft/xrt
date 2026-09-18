@@ -954,6 +954,184 @@ static void test_command_context_deadline(void)
     (void)xrtDirRemoveAll(sWorkspace);
 }
 
+/* ------------------------------------------------------------------ */
+/* Executor adapter: the registry behind the xllm contract, and the    */
+/* flagship T1 chain (session test driver -> RunWithTools -> executor)  */
+/* with the built-in xwork loop completely out of the picture.          */
+/* ------------------------------------------------------------------ */
+
+/* Placeholder model boundary: agent creation requires one, but the executor
+ * tests never call the model through the agent. */
+static xllm_result noop_model_complete(void* pUserData, const xllm_request* pRequest,
+    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
+{
+    (void)pUserData;
+    (void)pRequest;
+    (void)pCallbacks;
+    if ( ppResponse ) { *ppResponse = NULL; }
+    if ( pError ) {
+        xllmErrorInit(pError);
+        (void)snprintf(pError->sMessage, sizeof(pError->sMessage),
+            "the agent model boundary is not used by this test");
+        pError->eCode = XLLM_ERROR_INVALID_ARGUMENT;
+    }
+    return XLLM_RESULT_ERROR;
+}
+
+static void test_executor_bind(void)
+{
+    static const char sWorkspace[] = "tests/tmp_xwork_exec";
+    xllm_session_config tSessionConfig;
+    xllm_session* pSession = NULL;
+    xwork_agent_config tAgentConfig;
+    xwork_agent* pAgent = NULL;
+    xwork_error tError;
+    xllm_executor tExecutor;
+    xllm_request tRequest;
+    xllm_tool_call tCall;
+    xllm_executor_ctx tCtx;
+    xllm_executor_result tOut;
+
+    (void)xrtDirRemoveAll(sWorkspace);
+    CHECK(xrtDirCreateAll((str)sWorkspace), "executor test workspace created");
+    xllmSessionConfigInit(&tSessionConfig);
+    pSession = xllmSessionCreate(&tSessionConfig, NULL);
+    xworkAgentConfigInit(&tAgentConfig);
+    tAgentConfig.pSession = pSession;
+    tAgentConfig.sWorkspaceRoot = sWorkspace;
+    tAgentConfig.OnModelComplete = noop_model_complete;
+    pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 11u,
+        "executor host agent carries the builtin registry");
+    memset(&tExecutor, 0, sizeof(tExecutor));
+    CHECK(pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
+        "executor binding attaches");
+
+    xllmRequestInit(&tRequest);
+    CHECK(tExecutor.pListTools && tExecutor.pListTools(tExecutor.pUserData, &tRequest) &&
+        tRequest.iToolCount == 11u,
+        "executor lists the builtin registry into a request");
+    xllmRequestUnit(&tRequest);
+
+    memset(&tCall, 0, sizeof(tCall));
+    tCall.sId = (char*)"exec-1";
+    tCall.sName = (char*)"write_file";
+    tCall.sArgumentsJson = (char*)
+        "{\"path\":\"note.txt\",\"content\":\"executor wrote this\",\"mode\":\"create\"}";
+    memset(&tCtx, 0, sizeof(tCtx));
+    tCtx.uRound = 1u;
+    tCtx.uDeadline = XRT_DEADLINE_NEVER;
+    memset(&tOut, 0, sizeof(tOut));
+    CHECK(tExecutor.pExecute && tExecutor.pExecute(tExecutor.pUserData, &tCall, &tCtx, &tOut) &&
+        tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "status: success"),
+        "executor runs write_file through the full policy path");
+
+    tCall.sName = (char*)"definitely_not_a_tool";
+    memset(&tOut, 0, sizeof(tOut));
+    CHECK(tExecutor.pExecute(tExecutor.pUserData, &tCall, &tCtx, &tOut) &&
+        !tOut.bSuccess && strstr(tOut.sContent, "unknown tool name"),
+        "unknown tools become tool-level failures, not run failures");
+
+    CHECK(xrtFileExists((str)"tests/tmp_xwork_exec/note.txt"),
+        "executor side effect landed in the workspace");
+    xworkExecutorUnbind(&tExecutor);
+    xworkAgentDestroy(pAgent);
+    xllmSessionDestroy(pSession);
+    (void)xrtDirRemoveAll(sWorkspace);
+}
+
+typedef struct {
+    unsigned iCalls;
+    bool bSawTools;
+} t1_script;
+
+static xllm_response* t1_response_text(const char* sText)
+{
+    xllm_response* pResponse = (xllm_response*)calloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) { return NULL; }
+    pResponse->sContent = test_strdup(sText);
+    pResponse->sFinishReason = test_strdup("stop");
+    if ( !pResponse->sContent ) { xllmResponseDestroy(pResponse); return NULL; }
+    return pResponse;
+}
+
+static xllm_response* t1_response_write(void)
+{
+    xllm_response* pResponse = t1_response_text("");
+    if ( !pResponse ) { return NULL; }
+    pResponse->pToolCalls = (xllm_tool_call*)calloc(1u, sizeof(*pResponse->pToolCalls));
+    if ( !pResponse->pToolCalls ) { xllmResponseDestroy(pResponse); return NULL; }
+    pResponse->pToolCalls[0].sId = test_strdup("t1-call-1");
+    pResponse->pToolCalls[0].sName = test_strdup("write_file");
+    pResponse->pToolCalls[0].sArgumentsJson = test_strdup(
+        "{\"path\":\"t1.txt\",\"content\":\"t1 chain worked\",\"mode\":\"create\"}");
+    pResponse->iToolCallCount = 1u;
+    free(pResponse->sFinishReason);
+    pResponse->sFinishReason = test_strdup("tool_calls");
+    if ( !pResponse->pToolCalls[0].sId || !pResponse->pToolCalls[0].sName ||
+         !pResponse->pToolCalls[0].sArgumentsJson || !pResponse->sFinishReason ) {
+        xllmResponseDestroy(pResponse);
+        return NULL;
+    }
+    return pResponse;
+}
+
+static xllm_result t1_script_call(void* pUserData, const xllm_request* pRequest,
+    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
+{
+    t1_script* pScript = (t1_script*)pUserData;
+    (void)pCallbacks;
+    if ( pError ) { xllmErrorInit(pError); }
+    ++pScript->iCalls;
+    if ( pRequest->iToolCount == 11u ) { pScript->bSawTools = true; }
+    *ppResponse = ( pScript->iCalls == 1u ) ? t1_response_write() : t1_response_text("t1 finished");
+    return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
+}
+
+static void test_session_run_with_tools_chain(void)
+{
+    static const char sWorkspace[] = "tests/tmp_xwork_t1";
+    xllm_session_config tSessionConfig;
+    xllm_session* pSession = NULL;
+    xwork_agent_config tAgentConfig;
+    xwork_agent* pAgent = NULL;
+    xwork_error tError;
+    xllm_error tLlmError;
+    xllm_executor tExecutor;
+    xllm_run_summary tSummary;
+    t1_script tScript;
+
+    (void)xrtDirRemoveAll(sWorkspace);
+    CHECK(xrtDirCreateAll((str)sWorkspace), "t1 workspace created");
+    memset(&tScript, 0, sizeof(tScript));
+    xllmSessionConfigInit(&tSessionConfig);
+    pSession = xllmSessionCreateForTest(&tSessionConfig, t1_script_call, &tScript, &tLlmError);
+    xworkAgentConfigInit(&tAgentConfig);
+    tAgentConfig.pSession = pSession;
+    tAgentConfig.sWorkspaceRoot = sWorkspace;
+    tAgentConfig.OnModelComplete = noop_model_complete;
+    pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+    CHECK(pSession && pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
+        "t1 chain assembles: test session + agent + executor");
+    memset(&tSummary, 0, sizeof(tSummary));
+    CHECK(pSession && xllmSessionRunWithTools(pSession, "create t1.txt",
+        &tExecutor, NULL, NULL, &tSummary, &tLlmError) == XLLM_RESULT_OK,
+        "t1 bounded run completes without the xwork loop");
+    CHECK(tScript.iCalls == 2u && tScript.bSawTools &&
+        tSummary.uRounds == 2u && tSummary.uToolCalls == 1u &&
+        tSummary.sFinalText && strcmp(tSummary.sFinalText, "t1 finished") == 0,
+        "t1 summary: two rounds, one executed tool, final text");
+    CHECK(xrtFileExists((str)"tests/tmp_xwork_t1/t1.txt"),
+        "t1 write_file side effect landed");
+    CHECK(xllmSessionPendingToolCallCount(pSession) == 0u,
+        "t1 chain leaves no pending calls");
+    xllmRunSummaryUnit(&tSummary);
+    xworkExecutorUnbind(&tExecutor);
+    xworkAgentDestroy(pAgent);
+    xllmSessionDestroy(pSession);
+    (void)xrtDirRemoveAll(sWorkspace);
+}
+
 static int run_mcp_test_server(void)
 {
     char sLine[65536];
@@ -980,13 +1158,16 @@ int main(int argc, char** argv)
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
         return run_mcp_test_server();
     }
+    setvbuf(stdout, NULL, _IONBF, 0);
     g_sSelfPath = argc > 0 ? argv[0] : NULL;
     printf("xwork v2 tests\n");
     test_process_text_normalization();
     test_agent_context_deadline();
     test_command_context_deadline();
+    test_executor_bind();
     test_readonly_subagent();
     test_agent_loop();
+    test_session_run_with_tools_chain();
     printf("xwork v2: %s (%d failures)\n", g_iFailures ? "FAIL" : "PASS", g_iFailures);
     return g_iFailures ? 1 : 0;
 }

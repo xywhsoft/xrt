@@ -9,6 +9,7 @@
  */
 
 #include "xllm.h"
+#include "xllm-executor.h"
 #include "xllm-session.h"
 
 #include <stdbool.h>
@@ -402,6 +403,22 @@ void xworkRunResultUnit(xwork_run_result* pResult);
 bool xworkAgentRegisterBuiltinTools(xwork_agent* pAgent, xwork_error* pError);
 /* Registers only filesystem inspection tools: read_file, list_files, and search_text. */
 bool xworkAgentRegisterBuiltinReadOnlyTools(xwork_agent* pAgent, xwork_error* pError);
+
+/* ------------------------------------------------------------------ */
+/* Executor adapter: expose an agent's tool machinery as xllm's hands.  */
+/*                                                                     */
+/* The binding serves the xllm_executor contract from the agent's       */
+/* registry (list), and its full execution path (execute): permission   */
+/* gate, hooks, executor, truncation and artifact spill — the same      */
+/* path the built-in loop uses. Hosts driving their own loop (or        */
+/* xllmSessionRunWithTools) consume this binding; the built-in          */
+/* xworkAgentRun stays available as a convenience.                      */
+/* ------------------------------------------------------------------ */
+
+typedef struct xwork_executor_state xwork_executor_state;
+
+bool xworkExecutorBind(xllm_executor* pOut, xwork_agent* pAgent, xwork_error* pError);
+void xworkExecutorUnbind(xllm_executor* pExecutor);
 
 #ifdef __cplusplus
 }

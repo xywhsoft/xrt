@@ -125,5 +125,7 @@ char* xllm_session__pruned_content(const xllm_session* pSession, const xllm_sess
 /* easy layer (easy.c) */
 bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
     char** psSummary, xllm_usage* pUsage, xllm_error* pError);
+xllm_result xllm_session__dispatch_call(xllm_session* pSession, const xllm_request* pRequest,
+    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError);
 
 #endif

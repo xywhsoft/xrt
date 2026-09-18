@@ -4,7 +4,7 @@
 /* Bound sessions and the default meta call                            */
 /* ------------------------------------------------------------------ */
 
-static xllm_result xllm_session__dispatch_call(xllm_session* pSession, const xllm_request* pRequest,
+xllm_result xllm_session__dispatch_call(xllm_session* pSession, const xllm_request* pRequest,
     const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
 {
     xllm_result eResult;

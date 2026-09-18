@@ -1136,6 +1136,181 @@ static void test_easy_send(void)
     xllmSessionDestroy(pSession);
 }
 
+/* ------------------------------------------------------------------ */
+/* v3: bounded tool round-trips (RunWithTools)                          */
+/* ------------------------------------------------------------------ */
+
+typedef struct {
+    unsigned iCalls;
+    unsigned iToolRounds;      /* rounds that answer with a tool call */
+    bool bSawToolsInRequest;
+} run_script;
+
+typedef struct {
+    unsigned iExecutes;
+} run_executor_state;
+
+static char g_sRunExecutorContent[] = "status: success\nprobe output";
+
+static xllm_response* test_make_tool_response(const char* sId, const char* sName, const char* sArgs)
+{
+    xllm_response* pResponse = (xllm_response*)calloc(1u, sizeof(*pResponse));
+    if ( !pResponse ) { return NULL; }
+    pResponse->sContent = xllm_session__strdup("");
+    pResponse->eFinish = XLLM_FINISH_TOOL_CALLS;
+    pResponse->pToolCalls = (xllm_tool_call*)calloc(1u, sizeof(*pResponse->pToolCalls));
+    if ( pResponse->pToolCalls ) {
+        pResponse->pToolCalls[0].sId = xllm_session__strdup(sId);
+        pResponse->pToolCalls[0].sName = xllm_session__strdup(sName);
+        pResponse->pToolCalls[0].sArgumentsJson = xllm_session__strdup(sArgs);
+        pResponse->iToolCallCount = 1u;
+    }
+    if ( !pResponse->sContent || !pResponse->pToolCalls || !pResponse->pToolCalls[0].sId ||
+         !pResponse->pToolCalls[0].sName || !pResponse->pToolCalls[0].sArgumentsJson ) {
+        xllmResponseDestroy(pResponse);
+        return NULL;
+    }
+    return pResponse;
+}
+
+static xllm_result test_run_script_call(void* pUserData, const xllm_request* pRequest,
+    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
+{
+    run_script* pScript = (run_script*)pUserData;
+    (void)pCallbacks;
+    if ( pError ) { xllmErrorInit(pError); }
+    ++pScript->iCalls;
+    if ( pRequest->iToolCount == 1u ) { pScript->bSawToolsInRequest = true; }
+    if ( pScript->iCalls <= pScript->iToolRounds ) {
+        *ppResponse = test_make_tool_response("call-1", "probe", "{}");
+    } else {
+        *ppResponse = test_make_response("all done", 10u, 5u);
+    }
+    return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
+}
+
+static bool test_run_list(void* pUserData, xllm_request* pRequest)
+{
+    (void)pUserData;
+    return xllmRequestAddTool(pRequest, "probe", "test probe tool",
+        "{\"type\":\"object\",\"properties\":{}}", false);
+}
+
+static bool test_run_execute(void* pUserData, const xllm_tool_call* pCall,
+    const xllm_executor_ctx* pCtx, xllm_executor_result* pResult)
+{
+    run_executor_state* pState = (run_executor_state*)pUserData;
+    (void)pCall;
+    (void)pCtx;
+    memset(pResult, 0, sizeof(*pResult));
+    ++pState->iExecutes;
+    pResult->sContent = g_sRunExecutorContent;
+    pResult->bSuccess = true;
+    return true;
+}
+
+static bool test_run_stop_guard(xllm_session* pSession, uint32_t uRound,
+    const xllm_response* pResponse, size_t iPendingToolCalls, void* pUserData)
+{
+    (void)pSession; (void)uRound; (void)pResponse;
+    (void)iPendingToolCalls; (void)pUserData;
+    return false; /* stop immediately, leaving the batch pending */
+}
+
+static void test_run_with_tools(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_run_policy tPolicy;
+    xllm_run_summary tSummary;
+    xllm_session_tail tTail;
+    xllm_error tError;
+    run_script tScript;
+    run_executor_state tExecutorState;
+    xllm_executor tExecutor;
+
+    /* Happy path: one tool round, then a final answer. */
+    memset(&tScript, 0, sizeof(tScript));
+    tScript.iToolRounds = 1u;
+    memset(&tExecutorState, 0, sizeof(tExecutorState));
+    tExecutor.pListTools = test_run_list;
+    tExecutor.pExecute = test_run_execute;
+    tExecutor.pUserData = &tExecutorState;
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreateForTest(&tConfig, test_run_script_call, &tScript, &tError);
+    SESSION_CHECK(pSession != NULL, "run test session creates");
+    memset(&tSummary, 0, sizeof(tSummary));
+    SESSION_CHECK(pSession && xllmSessionRunWithTools(pSession, "run the probe",
+        &tExecutor, NULL, NULL, &tSummary, &tError) == XLLM_RESULT_OK,
+        "bounded tool run completes");
+    SESSION_CHECK(tScript.iCalls == 2u && tExecutorState.iExecutes == 1u &&
+        tSummary.uRounds == 2u && tSummary.uToolCalls == 1u,
+        "run summary counts rounds and executor calls");
+    SESSION_CHECK(tSummary.sFinalText && strcmp(tSummary.sFinalText, "all done") == 0 &&
+        !tSummary.bStoppedByPolicy, "final assistant text captured");
+    SESSION_CHECK(tScript.bSawToolsInRequest, "executor tools reached the model request");
+    SESSION_CHECK(pSession && xllmSessionPendingToolCallCount(pSession) == 0u,
+        "no unresolved calls after a completed run");
+    SESSION_CHECK(pSession && xllmSessionGetTail(pSession, &tTail) &&
+        tTail.bHasMessage && tTail.eRole == XLLM_ROLE_ASSISTANT,
+        "run tail is the final assistant message");
+    xllmRunSummaryUnit(&tSummary);
+    xllmSessionDestroy(pSession);
+
+    /* Guard stop leaves the batch pending; resume drains it without a new prompt. */
+    memset(&tScript, 0, sizeof(tScript));
+    tScript.iToolRounds = 1u;
+    memset(&tExecutorState, 0, sizeof(tExecutorState));
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreateForTest(&tConfig, test_run_script_call, &tScript, &tError);
+    xllmRunPolicyInit(&tPolicy);
+    tPolicy.pOnRound = test_run_stop_guard;
+    memset(&tSummary, 0, sizeof(tSummary));
+    SESSION_CHECK(pSession && xllmSessionRunWithTools(pSession, "probe then get stopped",
+        &tExecutor, NULL, &tPolicy, &tSummary, &tError) == XLLM_RESULT_OK &&
+        tSummary.bStoppedByPolicy && tSummary.uToolCalls == 0u,
+        "guard seam stops the run before the tool batch executes");
+    SESSION_CHECK(pSession && xllmSessionPendingToolCallCount(pSession) == 1u,
+        "stopped run leaves its tool call pending");
+    xllmRunSummaryUnit(&tSummary);
+    memset(&tSummary, 0, sizeof(tSummary));
+    SESSION_CHECK(pSession && xllmSessionRunWithTools(pSession, NULL,
+        &tExecutor, NULL, NULL, &tSummary, &tError) == XLLM_RESULT_OK &&
+        tSummary.uToolCalls == 1u && tSummary.uRounds == 1u &&
+        tSummary.sFinalText && strcmp(tSummary.sFinalText, "all done") == 0,
+        "resume drains the pending call and finishes without a new prompt");
+    SESSION_CHECK(pSession && xllmSessionPendingToolCallCount(pSession) == 0u,
+        "resume resolved every pending call");
+    xllmRunSummaryUnit(&tSummary);
+    xllmSessionDestroy(pSession);
+
+    /* Round budget trips with LIMIT. */
+    memset(&tScript, 0, sizeof(tScript));
+    tScript.iToolRounds = 100u; /* every round wants a tool */
+    memset(&tExecutorState, 0, sizeof(tExecutorState));
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreateForTest(&tConfig, test_run_script_call, &tScript, &tError);
+    xllmRunPolicyInit(&tPolicy);
+    tPolicy.uMaxRounds = 2u;
+    memset(&tSummary, 0, sizeof(tSummary));
+    SESSION_CHECK(pSession && xllmSessionRunWithTools(pSession, "never settle",
+        &tExecutor, NULL, &tPolicy, &tSummary, &tError) == XLLM_RESULT_ERROR &&
+        tError.eCode == XLLM_ERROR_LIMIT && tSummary.uRounds == 2u,
+        "round budget trips with a limit error");
+    xllmRunSummaryUnit(&tSummary);
+    xllmSessionDestroy(pSession);
+
+    /* Contract enforcement: incomplete executor is rejected. */
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreateForTest(&tConfig, test_run_script_call, &tScript, &tError);
+    memset(&tExecutor, 0, sizeof(tExecutor));
+    SESSION_CHECK(pSession && xllmSessionRunWithTools(pSession, "x", &tExecutor,
+        NULL, NULL, NULL, &tError) == XLLM_RESULT_ERROR &&
+        tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+        "incomplete executor is rejected up front");
+    xllmSessionDestroy(pSession);
+}
+
 int main(void)
 {
     printf("xllm-session v3 tests\n");
@@ -1149,6 +1324,7 @@ int main(void)
     test_ops_and_hooks();
     test_ladder_and_guard();
     test_easy_send();
+    test_run_with_tools();
     printf("xllm-session v3: %s (%d failures)\n", g_iSessionFailures ? "FAIL" : "PASS", g_iSessionFailures);
     return g_iSessionFailures ? 1 : 0;
 }

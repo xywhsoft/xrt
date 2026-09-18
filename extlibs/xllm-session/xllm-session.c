@@ -3,5 +3,6 @@
 #include "src/xllm_session_compact.c"
 #include "src/xllm_session_render.c"
 #include "src/xllm_session_easy.c"
+#include "src/xllm_session_run.c"
 #include "src/xllm_session_persist.c"
 #include "src/xllm_session_journal.c"

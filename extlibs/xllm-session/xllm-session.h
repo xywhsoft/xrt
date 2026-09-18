@@ -9,6 +9,11 @@
 #else
 #include "../xllm/xllm.h"
 #endif
+#if defined(__TINYC__)
+#include <xllm-executor.h>
+#else
+#include "../xllm/xllm-executor.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -354,6 +359,51 @@ typedef xllm_result (*xllm_test_call_proc)(void* pUserData, const xllm_request* 
     const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError);
 xllm_session* xllmSessionCreateForTest(const xllm_session_config* pConfig,
     xllm_test_call_proc pCall, void* pUserData, xllm_error* pError);
+
+/* ------------------------------------------------------------------ */
+/* Bounded tool round-trips: the loop as a library function.           */
+/*                                                                     */
+/* One call runs prompt -> model rounds -> executor tool calls -> final */
+/* text, with every step recorded in the ledger. This is a convenience, */
+/* not a framework: hosts with their own policy (guards, gates, gates,  */
+/* prompts) drive BuildRequest/dispatch/AddAssistantResponse manually   */
+/* and use the same executor contract.                                  */
+/* ------------------------------------------------------------------ */
+
+typedef struct xllm_run_policy {
+    /* Model-round budget; 0 selects the default (32). */
+    uint32_t uMaxRounds;
+    /* Guard seam: invoked after each assistant response is recorded and
+     * before its tool calls execute. Return false to stop the run; the
+     * unresolved tool calls stay pending in the ledger for a later resume. */
+    bool (*pOnRound)(xllm_session* pSession, uint32_t uRound,
+        const xllm_response* pResponse, size_t iPendingToolCalls, void* pUserData);
+    void* pUserData;
+    uint32_t uReserved[4];
+} xllm_run_policy;
+
+typedef struct xllm_run_summary {
+    uint32_t uRounds;        /* model rounds consumed */
+    uint32_t uToolCalls;     /* executor calls completed (tool-level failures included) */
+    bool bStoppedByPolicy;   /* the guard seam stopped the run; calls left pending */
+    char* sFinalText;        /* final assistant text; NULL when the run stopped without one */
+    xllm_usage tLastUsage;
+    uint32_t uReserved[4];
+} xllm_run_summary;
+
+void xllmRunPolicyInit(xllm_run_policy* pPolicy);
+void xllmRunSummaryUnit(xllm_run_summary* pSummary);
+
+/* Run a bounded tool round-trip loop. sPrompt == NULL resumes an interrupted
+ * run: pending tool calls are completed first, then the loop continues from
+ * the durable tail without appending another user prompt. The executor is
+ * borrowed and must outlive the call. pCallbacks (optional) stream every
+ * model round. On success with bStoppedByPolicy == false the run ended with
+ * an assistant final answer. */
+xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* sPrompt,
+    const xllm_executor* pExecutor, const xllm_stream_callbacks* pCallbacks,
+    const xllm_run_policy* pPolicy /* NULL = defaults */, xllm_run_summary* pSummary /* optional */,
+    xllm_error* pError);
 
 #ifdef __cplusplus
 }
