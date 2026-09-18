@@ -2,31 +2,6 @@ typedef struct xwork_subagent_policy {
     const xwork_readonly_subagent_config* pConfig;
 } xwork_subagent_policy;
 
-static bool xwork__restricted_internal_component(const char* sPath)
-{
-    const char* p = sPath;
-    if ( !sPath ) return false;
-    while ( *p ) {
-        const char* sStart;
-        size_t iLen;
-        while ( *p == '/' || *p == '\\' ) ++p;
-        sStart = p;
-        while ( *p && *p != '/' && *p != '\\' ) ++p;
-        iLen = (size_t)(p - sStart);
-        if ( iLen == 4u && sStart[0] == '.' &&
-             tolower((unsigned char)sStart[1]) == 'g' &&
-             tolower((unsigned char)sStart[2]) == 'i' &&
-             tolower((unsigned char)sStart[3]) == 't' ) return true;
-        if ( iLen == 6u && sStart[0] == '.' &&
-             tolower((unsigned char)sStart[1]) == 'x' &&
-             tolower((unsigned char)sStart[2]) == 'c' &&
-             tolower((unsigned char)sStart[3]) == 'o' &&
-             tolower((unsigned char)sStart[4]) == 'd' &&
-             tolower((unsigned char)sStart[5]) == 'e' ) return true;
-    }
-    return false;
-}
-
 static xwork_permission_decision xwork__subagent_permission(
     void* pUserData,
     const xwork_permission_request* pRequest
@@ -38,7 +13,7 @@ static xwork_permission_decision xwork__subagent_permission(
         return XWORK_PERMISSION_DENY;
     }
     if ( pRequest->eResourceKind == XWORK_RESOURCE_PATH &&
-         xwork__restricted_internal_component(pRequest->sResource) ) {
+         xworkPathIsProtected(pRequest->sResource) ) {
         return XWORK_PERMISSION_DENY;
     }
     if ( pPolicy && pPolicy->pConfig && pPolicy->pConfig->OnPermission ) {
@@ -76,7 +51,6 @@ void xworkReadOnlySubagentConfigInit(xwork_readonly_subagent_config* pConfig)
     pConfig->uMaxAgentTurns = 8u;
     pConfig->uMaxOutputTokens = 16384u;
     pConfig->iMaxFinalBytes = 64u * 1024u;
-    pConfig->bRetrieveMemory = true;
 }
 
 xwork_result xworkAgentRunReadOnlySubagent(
@@ -149,7 +123,6 @@ xwork_result xworkAgentRunReadOnlySubagent(
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pClient = pParent->pClient;
     tAgentConfig.pSession = pSession;
-    tAgentConfig.pMemory = pConfig->bRetrieveMemory ? pParent->pMemory : NULL;
     tAgentConfig.sWorkspaceRoot = pParent->sWorkspaceRoot;
     tAgentConfig.sSystemPrompt = pConfig->sSystemPrompt ? pConfig->sSystemPrompt : sDefaultPrompt;
     tAgentConfig.sArtifactDirectory = pParent->sArtifactDirectory;
@@ -180,14 +153,10 @@ xwork_result xworkAgentRunReadOnlySubagent(
     tAgentConfig.uCompactionQualityRetries = pParent->uCompactionQualityRetries;
     tAgentConfig.iMaxInlineToolBytes = pParent->iMaxInlineToolBytes;
     tAgentConfig.iMaxCapturedCommandBytes = pParent->iMaxCapturedCommandBytes;
-    tAgentConfig.uMemoryMaxHitsPerLayer = pParent->uMemoryMaxHitsPerLayer;
-    tAgentConfig.iMemoryMaxContextBytesPerLayer = pParent->iMemoryMaxContextBytesPerLayer;
-    tAgentConfig.eMemoryMaximumSensitivity = pParent->eMemoryMaximumSensitivity;
     tAgentConfig.bRegisterBuiltinTools = false;
     tAgentConfig.bAutoSaveSession = false;
     tAgentConfig.bAllowArtifactWrites = false;
     tAgentConfig.bRequireVerificationAfterWrite = false;
-    tAgentConfig.bRetrieveMemory = pConfig->bRetrieveMemory;
     pChild = xworkAgentCreate(&tAgentConfig, pError);
     if ( !pChild ) goto cleanup;
     pChild->uAgentDepth = 1u;

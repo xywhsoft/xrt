@@ -351,6 +351,33 @@ bool xwork__save(xwork_agent* pAgent, xwork_error* pError)
     return true;
 }
 
+bool xworkPathIsProtected(const char* sPath)
+{
+    /* Generalized from the readonly-subagent internal-directory check; the
+     * component scan is case-insensitive and accepts both separators. */
+    const char* p = sPath;
+    if ( !p ) return false;
+    while ( *p ) {
+        const char* sStart;
+        size_t iLen;
+        while ( *p == '/' || *p == '\\' ) ++p;
+        sStart = p;
+        while ( *p && *p != '/' && *p != '\\' ) ++p;
+        iLen = (size_t)(p - sStart);
+        if ( iLen == 4u && sStart[0] == '.' &&
+             tolower((unsigned char)sStart[1]) == 'g' &&
+             tolower((unsigned char)sStart[2]) == 'i' &&
+             tolower((unsigned char)sStart[3]) == 't' ) return true;
+        if ( iLen == 6u && sStart[0] == '.' &&
+             tolower((unsigned char)sStart[1]) == 'x' &&
+             tolower((unsigned char)sStart[2]) == 'c' &&
+             tolower((unsigned char)sStart[3]) == 'o' &&
+             tolower((unsigned char)sStart[4]) == 'd' &&
+             tolower((unsigned char)sStart[5]) == 'e' ) return true;
+    }
+    return false;
+}
+
 void xworkAgentConfigInit(xwork_agent_config* pConfig)
 {
     if ( !pConfig ) return;
@@ -366,14 +393,10 @@ void xworkAgentConfigInit(xwork_agent_config* pConfig)
     pConfig->uCompactionQualityRetries = 1u;
     pConfig->iMaxInlineToolBytes = 64u * 1024u;
     pConfig->iMaxCapturedCommandBytes = 8u * 1024u * 1024u;
-    pConfig->uMemoryMaxHitsPerLayer = 8u;
-    pConfig->iMemoryMaxContextBytesPerLayer = 16u * 1024u;
-    pConfig->eMemoryMaximumSensitivity = XLLM_MEMORY_SENSITIVITY_INTERNAL;
     pConfig->bRegisterBuiltinTools = true;
     pConfig->bAutoSaveSession = true;
     pConfig->bAllowArtifactWrites = true;
     pConfig->bRequireVerificationAfterWrite = true;
-    pConfig->bRetrieveMemory = true;
 }
 
 static void xwork__tool_entry_unit(xwork_tool_entry* pTool)
@@ -531,7 +554,6 @@ xwork_agent* xworkAgentCreate(const xwork_agent_config* pConfig, xwork_error* pE
     }
     pAgent->pClient = pConfig->pClient;
     pAgent->pSession = pConfig->pSession;
-    pAgent->pMemory = pConfig->pMemory;
     pAgent->sWorkspaceRoot = xwork__strdup(sRoot);
     pAgent->sSystemPrompt = xwork__strdup(pConfig->sSystemPrompt ? pConfig->sSystemPrompt : "You are a careful coding agent. Inspect the workspace, use tools to make changes, run relevant tests, and continue until the user's task is complete.");
     pAgent->sSessionPath = pConfig->sSessionPath ? xwork__strdup(pConfig->sSessionPath) : NULL;
@@ -570,21 +592,9 @@ xwork_agent* xworkAgentCreate(const xwork_agent_config* pConfig, xwork_error* pE
     pAgent->uCompactionQualityRetries = pConfig->uCompactionQualityRetries;
     pAgent->iMaxInlineToolBytes = pConfig->iMaxInlineToolBytes ? pConfig->iMaxInlineToolBytes : 64u * 1024u;
     pAgent->iMaxCapturedCommandBytes = pConfig->iMaxCapturedCommandBytes ? pConfig->iMaxCapturedCommandBytes : 8u * 1024u * 1024u;
-    pAgent->uMemoryMaxHitsPerLayer = pConfig->uMemoryMaxHitsPerLayer ? pConfig->uMemoryMaxHitsPerLayer : 8u;
-    pAgent->iMemoryMaxContextBytesPerLayer = pConfig->iMemoryMaxContextBytesPerLayer
-        ? pConfig->iMemoryMaxContextBytesPerLayer : 16u * 1024u;
-    pAgent->eMemoryMaximumSensitivity = pConfig->eMemoryMaximumSensitivity;
     pAgent->bAutoSaveSession = pConfig->bAutoSaveSession;
     pAgent->bAllowArtifactWrites = pConfig->bAllowArtifactWrites;
     pAgent->bRequireVerificationAfterWrite = pConfig->bRequireVerificationAfterWrite;
-    pAgent->bRetrieveMemory = pConfig->bRetrieveMemory;
-    if ( pAgent->eMemoryMaximumSensitivity < XLLM_MEMORY_SENSITIVITY_PUBLIC ||
-         pAgent->eMemoryMaximumSensitivity > XLLM_MEMORY_SENSITIVITY_SECRET ||
-         pAgent->iMemoryMaxContextBytesPerLayer < 512u ) {
-        xworkAgentDestroy(pAgent);
-        xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "invalid memory retrieval policy");
-        return NULL;
-    }
 
     if ( !xllmSessionGetStats(pAgent->pSession, &tStats) ) {
         xworkAgentDestroy(pAgent);

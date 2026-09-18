@@ -79,8 +79,8 @@ Interrupted tool recovery is intentionally at-least-once: if a process stops aft
 `xworkAgentRunReadOnlySubagent()` creates a fresh, non-persistent child session
 from the parent session's token policy and clamps it to host-provided turn,
 timeout, maximum-output, and final-byte budgets. The child borrows the parent's
-model boundary, workspace, operation-context ancestry, and optional layered
-memory. It receives only `read_file`, `list_files`, and `search_text`; `.git`
+model boundary, workspace, and operation-context ancestry. It receives only
+`read_file`, `list_files`, and `search_text`; `.git`
 and `.xcode` path components are denied even through explicit reads.
 
 Delegation depth is fixed at one. Child agents cannot register a delegation
@@ -152,6 +152,29 @@ If startup inspection reports an interrupted durable run, call `xworkAgentResume
 For finer control, set `OnPermission` in `xwork_agent_config`. It receives an `xwork_permission_request` for every tool call permitted by the hard read-only ceiling and may return `XWORK_PERMISSION_ALLOW`, `XWORK_PERMISSION_DENY`, or `XWORK_PERMISSION_DEFAULT` to fall back to the approval mode. `OnHook` brackets permitted tool execution; before-tool denial prevents execution, while after-tool denial marks the result failed and explicitly warns that completed side effects are not reversible. Transactional file rollback remains the responsibility of `apply_patch`.
 
 `bRequireVerificationAfterWrite` is enabled by default. When a run mutates the workspace and then tries to finish without a successful `exec_command` after the latest edit, xwork appends a durable verification prompt and continues. `uCompletionVerificationRetries` bounds repeated premature completion attempts without imposing a general Agent turn limit.
+
+## Memory conventions
+
+xwork ships no memory subsystem. Agents that want persistent memory manage it
+themselves with the ordinary file tools, following the notes-file convention:
+
+- the agent keeps a `notes.md` (or a `.mdo/notes/` directory) in the workspace,
+  structured with headings derived from the retired record taxonomy —
+  tasks (in progress / blocked), facts, preferences, and task summaries;
+- notes are plain, greppable, human-editable files: writes go through
+  `write_file` / `replace_text` and land in the session journal like any other
+  tool call, so audit needs no second ledger;
+- retrieved notes, search results, and other externally sourced content should
+  enter the prompt only through `xllmSessionAddReference()`, which wraps the
+  material in an untrusted-reference frame so instructions hidden inside it
+  cannot override host policy;
+- secrets never go into notes; keep them in host-managed storage. Hosts can
+  deny sensitive locations with `xworkPathIsProtected()` in a permission
+  callback, the same check the readonly subagent applies to `.git`/`.xcode`.
+
+The former `xllm-memory` library (record store, lexical search, sensitivity
+gates) was removed from the tree; its framing text and protected-path check
+survive as the two APIs above. Archive tag: `pre-xllm-memory-removal`.
 
 ## Build and test
 

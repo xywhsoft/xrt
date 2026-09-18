@@ -76,7 +76,6 @@ typedef enum xwork_operation_status {
 struct xwork_agent {
     xllm_client* pClient;
     xllm_session* pSession;
-    xllm_memory* pMemory;
     char* sWorkspaceRoot;
     char* sSystemPrompt;
     char* sSessionPath;
@@ -107,13 +106,9 @@ struct xwork_agent {
     uint32_t uCompactionQualityRetries;
     size_t iMaxInlineToolBytes;
     size_t iMaxCapturedCommandBytes;
-    uint32_t uMemoryMaxHitsPerLayer;
-    size_t iMemoryMaxContextBytesPerLayer;
-    xllm_memory_sensitivity eMemoryMaximumSensitivity;
     bool bAutoSaveSession;
     bool bAllowArtifactWrites;
     bool bRequireVerificationAfterWrite;
-    bool bRetrieveMemory;
     volatile long iCancelled;
     bool bRunning;
 

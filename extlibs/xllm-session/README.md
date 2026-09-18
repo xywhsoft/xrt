@@ -30,7 +30,6 @@ Windows 运行 `build.bat`，POSIX shell 运行 `./build.sh`（可经 `XLLM_DIR`
 xcode CLI
     -> xwork             Agent 循环、工具执行、审批、循环保护
         -> xllm-session  本库：上下文账本、预算、裁剪、持久化、压缩
-        -> xllm-memory   长期记忆
         -> xllm          一次模型调用、SSE、provider 适配
             -> xrt       核心 HTTP/1.1 wire、TLS、future、网络运行时
 ```

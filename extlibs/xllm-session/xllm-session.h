@@ -269,6 +269,14 @@ bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_role eRole,
 bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse);
 bool xllmSessionAddToolResult(xllm_session* pSession, uint64_t uTurn, const char* sToolCallId, const char* sContent);
 
+/* Append retrieved reference material (search results, notes, fetched docs)
+ * as a synthetic user entry wrapped in the untrusted-reference frame, so
+ * instructions hidden inside the content cannot override host policy.
+ * sSource may be NULL; when present it is recorded as a provenance line.
+ * Heritage: xllm-memory RenderContext, retired with that library. */
+bool xllmSessionAddReference(xllm_session* pSession, uint64_t uTurn,
+    const char* sSource, const char* sContent);
+
 /* Exact-feedback channel: records server usage and refreshes governance.
  * xllmSessionAddAssistantResponse calls this automatically. */
 bool xllmSessionRecordUsage(xllm_session* pSession, const xllm_usage* pUsage);

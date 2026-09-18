@@ -1,7 +1,6 @@
 #include "../xwork.c"
 #include "xllm.c"
 #include "xllm-session.c"
-#include "xllm-memory.c"
 
 static int g_iFailures = 0;
 static const char* g_sSelfPath = NULL;
@@ -21,8 +20,6 @@ typedef struct mock_model {
     bool bSawCompactionSummary;
     bool bSawVerificationGate;
     bool bSawContext;
-    bool bSawRetrievedMemory;
-    bool bSawSecretMemory;
     uint32_t uPermissionCalls;
     bool bSawPathPermission;
     bool bSawCommandPermission;
@@ -41,8 +38,6 @@ typedef struct test_events {
     uint32_t uToolFailure;
     uint32_t uCompactions;
     uint32_t uRejectedCompactions;
-    uint32_t uMemoryRetrievals;
-    uint32_t uMemoryHits;
     uint32_t uErrors;
     uint32_t uModelStarts;
     uint32_t uModelDone;
@@ -248,9 +243,6 @@ static xllm_result mock_complete(
         ++pMock->uAgentCalls;
         pMock->bSawTools = pRequest->iToolCount == 11u;
         pMock->bSawParallel = pRequest->bParallelToolCalls;
-        if ( request_has_text(pRequest, "project-note-convention") &&
-             request_has_text(pRequest, "note-verification-command") ) pMock->bSawRetrievedMemory = true;
-        if ( request_has_text(pRequest, "never-inject-secret-memory") ) pMock->bSawSecretMemory = true;
         if ( pMock->uAgentCalls > 1u && request_has_role(pRequest, XLLM_ROLE_TOOL, 1u) ) pMock->bSawToolResults = true;
         if ( request_has_text(pRequest, "Objective: test the xwork tool loop after compaction") ) pMock->bSawCompactionSummary = true;
         if ( request_has_text(pRequest, "Completion verification gate") ) pMock->bSawVerificationGate = true;
@@ -346,10 +338,6 @@ static bool on_event(void* pUserData, const xwork_event* pEvent)
         case XWORK_EVENT_COMPACTION_DONE:
             ++pEvents->uCompactions;
             break;
-        case XWORK_EVENT_MEMORY_RETRIEVED:
-            ++pEvents->uMemoryRetrievals;
-            pEvents->uMemoryHits += (uint32_t)pEvent->iMemoryHitCount;
-            break;
         case XWORK_EVENT_ERROR: ++pEvents->uErrors; break;
         default: break;
     }
@@ -425,10 +413,6 @@ static void test_agent_loop(void)
     static const char sSessionPath[] = "tests/tmp_xwork/.xcode/session.json";
     xllm_session_config tSessionConfig;
     xllm_session* pSession;
-    xllm_memory* pMemory = NULL;
-    xllm_memory_config tMemoryConfig;
-    xllm_memory_record_input tMemoryRecord;
-    xllm_memory_receipt tMemoryReceipt;
     xllm_error tLlmError;
     xwork_agent_config tAgentConfig;
     xwork_agent* pAgent;
@@ -461,53 +445,11 @@ static void test_agent_loop(void)
     memset(&tResult, 0, sizeof(tResult));
     (void)xrtDirRemoveAll(sWorkspace);
     CHECK(xrtDirCreateAll((str)sWorkspace), "test workspace created");
-    xllmMemoryConfigInit(&tMemoryConfig);
-    tMemoryConfig.sPath = "tests/tmp_xwork/.xcode/memory.json";
-    tMemoryConfig.sNamespace = "xwork-test";
-    tMemoryConfig.bCreateIfMissing = true;
-    pMemory = xllmMemoryOpen(&tMemoryConfig, &tLlmError);
-    CHECK(pMemory != NULL, "layered memory store opens");
-    xllmMemoryRecordInputInit(&tMemoryRecord);
-    tMemoryRecord.eScope = XLLM_MEMORY_SCOPE_MEMORY;
-    tMemoryRecord.eKind = XLLM_MEMORY_KIND_PREFERENCE;
-    tMemoryRecord.eTrust = XLLM_MEMORY_TRUST_USER_APPROVED;
-    tMemoryRecord.eSensitivity = XLLM_MEMORY_SENSITIVITY_INTERNAL;
-    tMemoryRecord.sRecordId = "project-note-convention";
-    tMemoryRecord.sTitle = "note file convention";
-    tMemoryRecord.sText = "For requested note file work, use the sandbox directory and verify the final content.";
-    tMemoryRecord.sSourceUri = "user://test/convention";
-    tMemoryRecord.sActor = "test-user";
-    tMemoryRecord.sReason = "approved project convention";
-    CHECK(pMemory && xllmMemoryPut(pMemory, &tMemoryRecord, &tMemoryReceipt, &tLlmError),
-        "approved memory-layer record is stored");
-    xllmMemoryRecordInputInit(&tMemoryRecord);
-    tMemoryRecord.eScope = XLLM_MEMORY_SCOPE_KNOWLEDGE;
-    tMemoryRecord.eKind = XLLM_MEMORY_KIND_KNOWLEDGE;
-    tMemoryRecord.eTrust = XLLM_MEMORY_TRUST_LOCAL;
-    tMemoryRecord.eSensitivity = XLLM_MEMORY_SENSITIVITY_INTERNAL;
-    tMemoryRecord.sRecordId = "note-verification-command";
-    tMemoryRecord.sTitle = "note file verification";
-    tMemoryRecord.sText = "Verify a requested note file by reading it after the final write command succeeds.";
-    tMemoryRecord.sSourceUri = "repo://docs/testing";
-    tMemoryRecord.sActor = "workspace-indexer";
-    tMemoryRecord.sReason = "local project knowledge";
-    CHECK(pMemory && xllmMemoryPut(pMemory, &tMemoryRecord, &tMemoryReceipt, &tLlmError),
-        "knowledge-layer record is stored");
-    xllmMemoryRecordInputInit(&tMemoryRecord);
-    tMemoryRecord.eScope = XLLM_MEMORY_SCOPE_MEMORY;
-    tMemoryRecord.eKind = XLLM_MEMORY_KIND_FACT;
-    tMemoryRecord.eTrust = XLLM_MEMORY_TRUST_USER_APPROVED;
-    tMemoryRecord.eSensitivity = XLLM_MEMORY_SENSITIVITY_SECRET;
-    tMemoryRecord.sRecordId = "secret-note-record";
-    tMemoryRecord.sTitle = "requested note secret";
-    tMemoryRecord.sText = "never-inject-secret-memory";
-    tMemoryRecord.sSourceUri = "secret://test";
-    tMemoryRecord.sActor = "test-user";
-    tMemoryRecord.sReason = "sensitivity filter fixture";
-    CHECK(pMemory && xllmMemoryPut(pMemory, &tMemoryRecord, &tMemoryReceipt, &tLlmError),
-        "secret memory fixture is stored with an explicit label");
 
     xllmSessionConfigInit(&tSessionConfig);
+    /* The mock compaction script speaks the v2 durable 8-section format;
+     * session v3 defaults to the Pi coding style, so select durable here. */
+    tSessionConfig.sSummaryStyle = "durable";
     tSessionConfig.uContextWindowTokens = 8000u;
     tSessionConfig.uMaxOutputTokens = 600u;
     tSessionConfig.uSafetyReserveTokens = 100u;
@@ -529,7 +471,6 @@ static void test_agent_loop(void)
     xworkAgentConfigInit(&tAgentConfig);
     CHECK(tAgentConfig.uMaxAgentTurns == 0u, "agent turns are unlimited by default");
     tAgentConfig.pSession = pSession;
-    tAgentConfig.pMemory = pMemory;
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     tAgentConfig.sSessionPath = sSessionPath;
     tAgentConfig.sModel = "mock-model";
@@ -670,12 +611,6 @@ static void test_agent_loop(void)
         "model lifecycle events expose reproducible request and provider diagnostics");
     CHECK(tMock.bSawTools && tMock.bSawParallel && tMock.bSawToolResults && tMock.bSawContext,
         "tools, parallel flag, continuity, and operation context reach model");
-    CHECK(tResult.uMemoryHits == 2u && tResult.uMemoryContextBytes > 0u &&
-        tResult.uMemoryStoreRevision == 3u && tEvents.uMemoryRetrievals == 2u &&
-        tEvents.uMemoryHits == 2u,
-        "memory and knowledge layers are retrieved with auditable revision metrics");
-    CHECK(tMock.bSawRetrievedMemory && !tMock.bSawSecretMemory,
-        "retrieved memory reaches the model while secret records remain filtered");
     CHECK(tMock.bSawCompactionSummary, "post-compaction model turns receive the summary checkpoint");
     CHECK(tMock.bSawVerificationGate, "premature completion receives a durable verification-gate prompt");
     CHECK(tMock.uPermissionCalls == 8u && tMock.bSawPathPermission && tMock.bSawCommandPermission && tMock.bSawHighRiskPermission,
@@ -838,7 +773,6 @@ cleanup:
     if ( sFile && iFileSize ) xrtFree(sFile);
     if ( sArtifactAbsolute ) xrtFree(sArtifactAbsolute);
     free(sOld);
-    xllmMemoryClose(pMemory);
     xllmSessionDestroy(pSession);
     (void)xrtDirRemoveAll(sWorkspace);
 }

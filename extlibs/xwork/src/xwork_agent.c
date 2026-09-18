@@ -641,75 +641,6 @@ static void xwork__emit_error(xwork_agent* pAgent, uint64_t uTurn, const xwork_e
     (void)xwork__emit(pAgent, &tEvent);
 }
 
-static xwork_result xwork__retrieve_memory_layer(
-    xwork_agent* pAgent,
-    const char* sQuery,
-    uint64_t uTurn,
-    xllm_memory_scope eScope,
-    xwork_run_result* pRun,
-    xwork_error* pError
-)
-{
-    xllm_memory_search_options tOptions;
-    xllm_memory_search_result tSearch;
-    xllm_error tMemoryError;
-    xwork_event tEvent;
-    char* sContext = NULL;
-    size_t iContextBytes = 0u;
-    memset(&tSearch, 0, sizeof(tSearch));
-    xllmMemorySearchOptionsInit(&tOptions);
-    tOptions.sQuery = sQuery;
-    tOptions.eScope = eScope;
-    tOptions.eMaximumSensitivity = pAgent->eMemoryMaximumSensitivity;
-    tOptions.uMaxHits = pAgent->uMemoryMaxHitsPerLayer;
-    tOptions.iMaxTotalBytes = pAgent->iMemoryMaxContextBytesPerLayer;
-    xllmErrorInit(&tMemoryError);
-    if ( !xllmMemorySearch(pAgent->pMemory, &tOptions, &tSearch, &tMemoryError) ) {
-        xwork__set_error(pError, XWORK_ERROR_CONTEXT,
-            tMemoryError.sMessage[0] ? tMemoryError.sMessage : "failed to search agent memory");
-        return XWORK_RESULT_ERROR;
-    }
-    if ( tSearch.iHitCount != 0u ) {
-        if ( !xllmMemoryRenderContext(pAgent->pMemory, &tSearch,
-                pAgent->iMemoryMaxContextBytesPerLayer, &sContext, &tMemoryError) ) {
-            xllmMemorySearchResultUnit(&tSearch);
-            xwork__set_error(pError, XWORK_ERROR_CONTEXT,
-                tMemoryError.sMessage[0] ? tMemoryError.sMessage : "failed to render agent memory");
-            return XWORK_RESULT_ERROR;
-        }
-        iContextBytes = strlen(sContext);
-    }
-    memset(&tEvent, 0, sizeof(tEvent));
-    tEvent.eKind = XWORK_EVENT_MEMORY_RETRIEVED;
-    tEvent.uAgentTurn = uTurn;
-    tEvent.eMemoryScope = eScope;
-    tEvent.uMemoryStoreRevision = tSearch.uStoreRevision;
-    tEvent.iMemoryHitCount = tSearch.iHitCount;
-    tEvent.iMemoryContextBytes = iContextBytes;
-    tEvent.bSuccess = true;
-    if ( !xwork__emit(pAgent, &tEvent) ) {
-        xllmMemoryFree(sContext);
-        xllmMemorySearchResultUnit(&tSearch);
-        xwork__set_error(pError, XWORK_ERROR_CANCELLED, "agent was cancelled during memory retrieval");
-        return XWORK_RESULT_CANCELLED;
-    }
-    pRun->uMemoryHits += tSearch.iHitCount;
-    pRun->uMemoryContextBytes += iContextBytes;
-    if ( tSearch.uStoreRevision > pRun->uMemoryStoreRevision ) {
-        pRun->uMemoryStoreRevision = tSearch.uStoreRevision;
-    }
-    if ( sContext && !xllmSessionAddText(pAgent->pSession, uTurn, XLLM_ROLE_USER,
-            sContext, XLLM_SESSION_ENTRY_SYNTHETIC) ) {
-        xllmMemoryFree(sContext);
-        xllmMemorySearchResultUnit(&tSearch);
-        xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to attach retrieved memory to the session");
-        return XWORK_RESULT_ERROR;
-    }
-    xllmMemoryFree(sContext);
-    xllmMemorySearchResultUnit(&tSearch);
-    return XWORK_RESULT_OK;
-}
-
 typedef enum xwork_resume_state {
     XWORK_RESUME_ERROR = -1,
     XWORK_RESUME_IDLE = 0,
@@ -802,14 +733,6 @@ static xwork_result xwork__agent_run(
         if ( !uTurn ) {
             xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to begin user turn");
             goto cleanup;
-        }
-        if ( pAgent->pMemory && pAgent->bRetrieveMemory ) {
-            eResult = xwork__retrieve_memory_layer(pAgent, sPrompt, uTurn,
-                XLLM_MEMORY_SCOPE_MEMORY, &tRun, pError);
-            if ( eResult != XWORK_RESULT_OK ) goto cleanup;
-            eResult = xwork__retrieve_memory_layer(pAgent, sPrompt, uTurn,
-                XLLM_MEMORY_SCOPE_KNOWLEDGE, &tRun, pError);
-            if ( eResult != XWORK_RESULT_OK ) goto cleanup;
         }
         if ( !xllmSessionAddText(pAgent->pSession, uTurn, XLLM_ROLE_USER, sPrompt, 0u) ) {
             xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to add user prompt to session");

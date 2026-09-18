@@ -1,19 +1,12 @@
 #ifndef XWORK_XRT_H
 #define XWORK_XRT_H
 
-#define XRT_MODULE_JSON_READ
+/* xwork-specific roots beyond the xllm + xllm-session module surface. */
 #define XRT_MODULE_JSON_WRITE
-#define XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_TEMP
 #define XRT_MODULE_FILE_TREE
-#define XRT_MODULE_DIR
-#define XRT_MODULE_PATH
 #define XRT_MODULE_PROCESS_RUN
-#define XRT_MODULE_MUTEX
-#define XRT_MODULE_THREAD
-#define XRT_MODULE_CANCEL
-#define XRT_MODULE_TIME
 
-#include "../xllm/xllm-xrt.h"
+#include "../xllm-session/xllm-session-xrt.h"
 
 #endif

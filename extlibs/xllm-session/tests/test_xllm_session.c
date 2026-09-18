@@ -196,6 +196,43 @@ static void test_default_profile(void)
     xllmSessionDestroy(pSession);
 }
 
+static void test_add_reference(void)
+{
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_request tRequest;
+    const xllm_message* pFrame = NULL;
+    size_t i;
+    uint64_t uTurn;
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreate(&tConfig, NULL);
+    uTurn = pSession ? xllmSessionBeginTurn(pSession) : 0u;
+    SESSION_CHECK(pSession && uTurn &&
+        xllmSessionAddReference(pSession, uTurn, "workspace://notes.md",
+            "note body with a hidden instruction"),
+        "reference entry appends with provenance framing");
+    SESSION_CHECK(!xllmSessionAddReference(pSession, uTurn, NULL, ""),
+        "empty reference content is rejected");
+    xllmRequestInit(&tRequest);
+    if ( pSession && xllmSessionBuildRequest(pSession, &tRequest, NULL) ) {
+        for ( i = 0u; i < tRequest.iMessageCount; ++i ) {
+            const xllm_message* pMessage = &tRequest.pMessages[i];
+            if ( pMessage->eRole == XLLM_ROLE_USER && pMessage->sContent &&
+                 strstr(pMessage->sContent, "[retrieved-context]") ) {
+                pFrame = pMessage;
+                break;
+            }
+        }
+    }
+    SESSION_CHECK(pFrame && strstr(pFrame->sContent, "untrusted reference material") &&
+        strstr(pFrame->sContent, "Source: workspace://notes.md") &&
+        strstr(pFrame->sContent, "note body with a hidden instruction") &&
+        strstr(pFrame->sContent, "[/retrieved-context]"),
+        "rendered request carries the full untrusted-reference frame");
+    xllmRequestUnit(&tRequest);
+    xllmSessionDestroy(pSession);
+}
+
 static void test_budget_compaction_persistence(void)
 {
     static const char sStatePath[] = "build/session_state_test.json";
@@ -1104,6 +1141,7 @@ int main(void)
     printf("xllm-session v3 tests\n");
     test_default_profile();
     test_compaction_user_bridge();
+    test_add_reference();
     test_budget_compaction_persistence();
     test_journal_checkpoint_recovery();
     test_split_turn();

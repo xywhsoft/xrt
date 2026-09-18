@@ -38,26 +38,16 @@
 - 崩溃残尾自动截断、日志序号去重，以及完整损坏记录的显式拒绝
 - 会话深分叉，保留摘要、序号与压缩检查点，并隔离父子分支的后续状态
 
-`xllm-memory` 当前还提供：
-
-- 显式、可追溯的长期 fact / preference / task / summary / knowledge 记录
-- namespace、source URI、actor、reason、trust、sensitivity、record/store revision 与内容指纹
-- 每次写入、替换、无变化和删除的 mutation receipt
-- 原子本地 JSON 持久化、重启校验和 namespace 隔离
-- 不依赖模型的确定性词法检索与 UTF-8 精确短语检索
-- 默认过滤过期和 sensitive/secret 记录，并将有来源的结果渲染为不可信参考上下文
-
-详细边界和最小示例见 [docs/MEMORY.md](docs/MEMORY.md)。
+长期记忆不再作为独立库：`xllm-memory` 已移除，防注入的不可信参考框架由 `xllmSessionAddReference` 提供（归档 tag `pre-xllm-memory-removal`）。
 
 ## 模块边界
 
-`xllm` 是纯核心调用层。上下文治理与长期记忆已拆分为独立扩展库（兄弟目录）：
+`xllm` 是纯核心调用层。上下文治理已拆分为独立扩展库（兄弟目录）：
 
 ```text
 xcode CLI
     -> xwork             Agent 循环、工具执行、审批、循环保护（../xwork）
         -> xllm-session  上下文账本、预算、裁剪、持久化、压缩（../xllm-session）
-        -> xllm-memory   显式长期记录、来源、检索、审计回执（../xllm-memory）
         -> xllm          本库：一次模型调用、SSE、三方言 provider 适配
             -> xrt       核心 HTTP/1.1 wire、TLS、future、网络运行时
 ```

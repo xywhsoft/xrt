@@ -10,7 +10,6 @@
 
 #include "xllm.h"
 #include "xllm-session.h"
-#include "xllm-memory.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -174,7 +173,6 @@ typedef enum xwork_event_kind {
     XWORK_EVENT_COMPACTION_START,
     XWORK_EVENT_COMPACTION_REJECTED,
     XWORK_EVENT_COMPACTION_DONE,
-    XWORK_EVENT_MEMORY_RETRIEVED,
     XWORK_EVENT_AGENT_DONE,
     XWORK_EVENT_ERROR
 } xwork_event_kind;
@@ -205,10 +203,6 @@ typedef struct xwork_event {
     bool bSuccess;
     uint32_t uCompactionAttempt;
     xllm_compaction_quality tCompactionQuality;
-    xllm_memory_scope eMemoryScope;
-    uint64_t uMemoryStoreRevision;
-    size_t iMemoryHitCount;
-    size_t iMemoryContextBytes;
     xllm_usage tUsage;
     xllm_diagnostics tDiagnostics;
     xllm_session_stats tSessionStats;
@@ -248,7 +242,6 @@ typedef struct xwork_agent_config {
     /* Borrowed dependencies; they must outlive the agent. */
     xllm_client* pClient;
     xllm_session* pSession;
-    xllm_memory* pMemory;
 
     const char* sWorkspaceRoot;
     const char* sSystemPrompt;
@@ -282,14 +275,10 @@ typedef struct xwork_agent_config {
     uint32_t uCompactionQualityRetries;       /* Retries after a structurally rejected summary. */
     size_t iMaxInlineToolBytes;
     size_t iMaxCapturedCommandBytes;
-    uint32_t uMemoryMaxHitsPerLayer;
-    size_t iMemoryMaxContextBytesPerLayer;
-    xllm_memory_sensitivity eMemoryMaximumSensitivity;
     bool bRegisterBuiltinTools;
     bool bAutoSaveSession;
     bool bAllowArtifactWrites;
     bool bRequireVerificationAfterWrite;      /* Require successful exec_command after latest write. */
-    bool bRetrieveMemory;
 } xwork_agent_config;
 
 typedef struct xwork_run_result {
@@ -299,9 +288,6 @@ typedef struct xwork_run_result {
     uint64_t uToolCalls;
     uint64_t uCompactions;
     uint64_t uRejectedCompactionSummaries;
-    uint64_t uMemoryHits;
-    uint64_t uMemoryContextBytes;
-    uint64_t uMemoryStoreRevision;
     uint32_t uAgentDepth;
     uint64_t uDelegationId;
     xllm_usage tLastUsage;
@@ -319,7 +305,6 @@ typedef struct xwork_readonly_subagent_config {
     uint32_t uMaxAgentTurns;
     uint32_t uMaxOutputTokens;
     size_t iMaxFinalBytes;
-    bool bRetrieveMemory;
 } xwork_readonly_subagent_config;
 
 void xworkErrorInit(xwork_error* pError);
@@ -390,6 +375,12 @@ bool xworkMcpClientGetInfo(const xwork_mcp_client* pClient, xwork_mcp_info* pInf
 void xworkMcpClientDestroy(xwork_mcp_client* pClient);
 bool xworkAgentCancel(xwork_agent* pAgent);
 const char* xworkAgentWorkspaceRoot(const xwork_agent* pAgent);
+
+/* True when any path component is an internal control directory (.git,
+ * .xcode), compared case-insensitively across both separators. Hosts use it
+ * inside permission callbacks to keep internal state off-limits; the
+ * readonly subagent enforces it by default. */
+bool xworkPathIsProtected(const char* sPath);
 
 xwork_result xworkAgentRun(xwork_agent* pAgent, const char* sPrompt, xwork_run_result* pResult, xwork_error* pError);
 xwork_result xworkAgentRunReadOnlySubagent(
