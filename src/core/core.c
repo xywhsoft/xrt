@@ -343,11 +343,25 @@ static int32 __xrtRefReleaseUnfenced(volatile int32* pCount)
 	#endif
 }
 
-/* The existing CAS/count semantics are unchanged. This short participation
- * makes native strong retain/release and Value weak promotion linearize on
- * the same side of an admitted ownership freeze. Enclosing edge mutations
- * still need an outer scope; a single RC update is not a graph transaction. */
+/* Generic native reference counters stay independent from the optional
+ * ownership graph. Most XRT objects are not graph participants, and imposing
+ * freeze-domain admission on every retain/release makes their hottest path
+ * several times more expensive. Graph-aware code uses the explicit
+ * xrtOwnershipRef* pair or, for multi-field transitions, an outer scope. */
 XRT_API int32 xrtRefRetain(volatile int32* pCount)
+{
+	return __xrtRefRetainUnfenced(pCount);
+}
+
+XRT_API int32 xrtRefRelease(volatile int32* pCount)
+{
+	return __xrtRefReleaseUnfenced(pCount);
+}
+
+
+
+/* Explicitly fence a standalone graph-participating counter update. */
+XRT_API int32 xrtOwnershipRefRetain(volatile int32* pCount)
 {
 	xrtownershipscope Scope = {0};
 	int32 iResult;
@@ -358,7 +372,7 @@ XRT_API int32 xrtRefRetain(volatile int32* pCount)
 	return iResult;
 }
 
-XRT_API int32 xrtRefRelease(volatile int32* pCount)
+XRT_API int32 xrtOwnershipRefRelease(volatile int32* pCount)
 {
 	xrtownershipscope Scope = {0};
 	int32 iResult;

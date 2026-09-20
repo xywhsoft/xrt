@@ -20,6 +20,9 @@ struct xtlsdial {
 	xatomic32 TimerDone;
 	xatomic64 Timer;
 	xatomicptr TransportDial;
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	xatomicptr ProxyDial;
+#endif
 	xatomicptr Stream;
 	xnetengine* Engine;
 	xtlsstreamevents StreamEvents;
@@ -94,6 +97,9 @@ XRT_API xtlsdial* xrtTlsDialRef(xtlsdial* pDial)
 XRT_API void xrtTlsDialDestroy(xtlsdial* pDial)
 {
 	xnetdial* pTransportDial;
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	xnetproxydial* pProxyDial;
+#endif
 	xtlsstream* pStream;
 
 	if ( (pDial == NULL) ||
@@ -108,7 +114,18 @@ XRT_API void xrtTlsDialDestroy(xtlsdial* pDial)
 		&pDial->Stream,
 		XMEMORY_ACQUIRE
 	);
-	xrtNetDialDestroy(pTransportDial);
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
+		&pDial->ProxyDial,
+		XMEMORY_ACQUIRE
+	);
+	if ( pProxyDial != NULL ) {
+		xrtNetProxyDialDestroy(pProxyDial);
+	} else
+#endif
+	{
+		xrtNetDialDestroy(pTransportDial);
+	}
 	xrtTlsStreamDestroy(pStream);
 	xrtErrorFree(pDial->Error);
 	xrtFree(pDial);
@@ -311,9 +328,30 @@ static bool __xrtTlsDialStopping(const xtlsdial* pDial)
 
 
 
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+static void __xrtTlsDialTransportDoneBody(
+	xnetresult Result,
+	xnetstream* pTransport,
+	const xerror* pError,
+	ptr pData
+);
+
+/* 代理隧道完成：与 TCP 路径同一张事件表驱动 TLS，仅首参类型不同。 */
+static void __xrtTlsDialProxyDone(
+	xnetproxydial* pProxyDial,
+	xnetresult Result,
+	xnetstream* pTransport,
+	const xerror* pError,
+	ptr pData
+)
+{
+	(void)pProxyDial;
+	__xrtTlsDialTransportDoneBody(Result, pTransport, pError, pData);
+}
+#endif
+
 /* TCP Dial 完成后，失败进入组合终态，成功则把传输引用交给 TLS Stream。 */
-static void __xrtTlsDialTransportDone(
-	xnetdial* pTransportDial,
+static void __xrtTlsDialTransportDoneBody(
 	xnetresult Result,
 	xnetstream* pTransport,
 	const xerror* pError,
@@ -326,7 +364,6 @@ static void __xrtTlsDialTransportDone(
 		XMEMORY_ACQUIRE
 	);
 
-	(void)pTransportDial;
 	if ( Result != XNET_RESULT_OK ) {
 		__xrtTlsStreamTransportFailed(pStream, Result, pError);
 		return;
@@ -367,6 +404,18 @@ static void __xrtTlsDialTransportDone(
 	}
 }
 
+static void __xrtTlsDialTransportDone(
+	xnetdial* pTransportDial,
+	xnetresult Result,
+	xnetstream* pTransport,
+	const xerror* pError,
+	ptr pData
+)
+{
+	(void)pTransportDial;
+	__xrtTlsDialTransportDoneBody(Result, pTransport, pError, pData);
+}
+
 
 
 /* 取消当前活动的 TCP 或 TLS 阶段；调用方已经赢得终态门。 */
@@ -378,6 +427,19 @@ static void __xrtTlsDialCancelStage(xtlsdial* pDial)
 	);
 	xtlsstream* pStream;
 
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	{
+		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
+			&pDial->ProxyDial,
+			XMEMORY_ACQUIRE
+		);
+
+		if ( (pProxyDial != NULL) &&
+			xrtNetProxyDialCancel(pProxyDial) ) {
+			return;
+		}
+	}
+#endif
 	if ( (pTransportDial != NULL) &&
 		xrtNetDialCancel(pTransportDial) ) {
 		return;
@@ -449,10 +511,11 @@ XRT_API void xrtTlsDialConfigInit(xtlsdialconfig* pConfig)
 
 
 
-/* 复用 TCP Dial 的解析和地址竞速，TLS 层只负责安全握手发布。 */
-XRT_API xtlsdial* xrtTlsDial(
+/* 统一构造直接与代理 TLS Dial；公开入口只决定传输建立策略。 */
+static xtlsdial* __xrtTlsDialStart(
 	xnetengine* pEngine,
 	xnetresolver* pResolver,
+	const void* pProxy,
 	cstr sHost,
 	uint16 iPort,
 	const xtlsclientconfig* pTls,
@@ -472,6 +535,10 @@ XRT_API xtlsdial* xrtTlsDial(
 	xnetdial* pTransportDial;
 	xerror* pError;
 	uint64 Id;
+
+#if !defined(XRT_FEATURE_NET_PROXY_DIAL)
+	(void)pProxy;
+#endif
 
 	if ( (pEngine == NULL) || (pResolver == NULL) ||
 		(sHost == NULL) || (sHost[0] == 0) ||
@@ -534,6 +601,9 @@ XRT_API xtlsdial* xrtTlsDial(
 	xrtAtomic32Init(&pDial->TimerDone, 0);
 	xrtAtomic64Init(&pDial->Timer, 0);
 	xrtAtomicPtrInit(&pDial->TransportDial, NULL);
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	xrtAtomicPtrInit(&pDial->ProxyDial, NULL);
+#endif
 	xrtAtomicPtrInit(&pDial->Stream, NULL);
 	pDial->Engine = pEngine;
 	pDial->StreamData = pStreamData;
@@ -597,6 +667,61 @@ XRT_API xtlsdial* xrtTlsDial(
 			);
 		}
 	}
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	if ( pProxy != NULL ) {
+		xnetproxydialconfig tProxyCfg;
+		xnetproxydial* pProxyDial;
+
+		xrtNetProxyDialConfigInit(&tProxyCfg);
+		tProxyCfg.Transport = Config.Transport;
+		/* The enclosing TLS timer is the sole end-to-end deadline. A zero
+		 * proxy timeout preserves Transport's own per-stage limits. */
+		tProxyCfg.Timeout = 0;
+		pProxyDial = xrtNetProxyDial(
+			pEngine,
+			pResolver,
+			(const xnetproxy*)pProxy,
+			sHost,
+			iPort,
+			&tProxyCfg,
+			__xrtTlsStreamTransportEventTable(),
+			pStream,
+			__xrtTlsDialProxyDone,
+			pDial
+		);
+		if ( pProxyDial == NULL ) {
+			pError = xrtTakeError();
+			__xrtTlsDialCancelTimer(pDial);
+			(void)xrtAtomicPtrExchange(
+				&pDial->Stream,
+				NULL,
+				XMEMORY_ACQ_REL
+			);
+			__xrtTlsStreamDiscard(pStream);
+			pDial->RuntimeHeld = false;
+			xrtTlsDialDestroy(pDial);
+			xrtTlsDialDestroy(pDial);
+			__xrtNetEngineObjectRelease(pEngine);
+			xrtSetError(pError);
+			xrtErrorFree(pError);
+			return NULL;
+		}
+		xrtAtomicPtrStore(
+			&pDial->ProxyDial,
+			pProxyDial,
+			XMEMORY_RELEASE
+		);
+		if ( __xrtTlsDialStopping(pDial) ) {
+			/* Submission and its Worker may run concurrently.  If CONNECT
+			 * already won before the handle was published, proxy cancellation
+			 * correctly refuses; the shared stage canceller then falls through
+			 * to the attached TLS Stream instead of losing the terminal request. */
+			__xrtTlsDialCancelStage(pDial);
+		}
+		__xrtNetEngineObjectRelease(pEngine);
+		return pDial;
+	}
+#endif
 	pTransportDial = xrtNetDial(
 		pEngine,
 		pResolver,
@@ -631,11 +756,69 @@ XRT_API xtlsdial* xrtTlsDial(
 		XMEMORY_RELEASE
 	);
 	if ( __xrtTlsDialStopping(pDial) ) {
-		(void)xrtNetDialCancel(pTransportDial);
+		/* Cover the same submit/complete race for the direct transport. */
+		__xrtTlsDialCancelStage(pDial);
 	}
 	__xrtNetEngineObjectRelease(pEngine);
 	return pDial;
 }
+
+
+
+/* 复用 TCP Dial 的解析和地址竞速，TLS 层只负责安全握手发布。 */
+XRT_API xtlsdial* xrtTlsDial(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xtlsdialproc pDone,
+	ptr pDoneData
+)
+{
+	return __xrtTlsDialStart(
+		pEngine, pResolver, NULL, sHost, iPort, pTls, pConfig,
+		pStreamEvents, pStreamData, pDone, pDoneData
+	);
+}
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+/* 建立代理隧道后继续同一 TLS 状态机；不复制握手和终态逻辑。 */
+XRT_API xtlsdial* xrtTlsDialProxy(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xtlsdialproc pDone,
+	ptr pDoneData
+)
+{
+	if ( pProxy == NULL ) {
+		__xrtTlsDialSetError(
+			XERR_ARGUMENT,
+			XTLS_ERROR_ARGUMENT,
+			"dial-tls-proxy",
+			"TLS proxy is null",
+			NULL
+		);
+		return NULL;
+	}
+	return __xrtTlsDialStart(
+		pEngine, pResolver, pProxy, sHost, iPort, pTls, pConfig,
+		pStreamEvents, pStreamData, pDone, pDoneData
+	);
+}
+#endif
 
 
 
@@ -694,6 +877,27 @@ XRT_API xtlsdialstate xrtTlsDialState(const xtlsdial* pDial)
 		(State != XTLS_DIAL_CONNECTING) ) {
 		return State;
 	}
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	{
+		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
+			&pDial->ProxyDial,
+			XMEMORY_ACQUIRE
+		);
+
+		if ( pProxyDial != NULL ) {
+			xnetproxydialstate ProxyState = xrtNetProxyDialState(pProxyDial);
+
+			if ( ProxyState == XNET_PROXY_DIAL_CONNECTING
+				|| ProxyState == XNET_PROXY_DIAL_HANDSHAKE ) {
+				return XTLS_DIAL_CONNECTING;
+			}
+			if ( ProxyState == XNET_PROXY_DIAL_CONNECTED ) {
+				return XTLS_DIAL_HANDSHAKE;
+			}
+			return State;
+		}
+	}
+#endif
 	pTransportDial = (xnetdial*)xrtAtomicPtrLoad(
 		&pDial->TransportDial,
 		XMEMORY_ACQUIRE
@@ -753,6 +957,24 @@ XRT_API bool xrtTlsDialTransportStats(
 		);
 		return false;
 	}
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	{
+		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
+			&pDial->ProxyDial,
+			XMEMORY_ACQUIRE
+		);
+
+		if ( pProxyDial != NULL ) {
+			xnetproxydialstats tProxyStats;
+
+			if ( !xrtNetProxyDialStats(pProxyDial, &tProxyStats) ) {
+				return false;
+			}
+			*pStats = tProxyStats.Transport;
+			return true;
+		}
+	}
+#endif
 	pTransportDial = (xnetdial*)xrtAtomicPtrLoad(
 		&pDial->TransportDial,
 		XMEMORY_ACQUIRE

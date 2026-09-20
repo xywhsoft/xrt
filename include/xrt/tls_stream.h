@@ -2,6 +2,9 @@
 #define XRT_TLS_STREAM_H
 
 #include <xrt/tcp.h>
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	#include <xrt/proxy.h>
+#endif
 #include <xrt/tls_client.h>
 #include <xrt/tls_server.h>
 
@@ -357,6 +360,25 @@ XRT_API xtlsdial* xrtTlsDial(
 	xtlsdialproc pDone,
 	ptr pDoneData
 );
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+/* 经代理 CONNECT 隧道后对真实目标完成端到端 TLS；代理只在调用期间借用。 */
+XRT_API xtlsdial* xrtTlsDialProxy(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xtlsdialproc pDone,
+	ptr pDoneData
+);
+#endif
 
 
 

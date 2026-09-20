@@ -1,12 +1,44 @@
 #define XRT_MODULE_TLS_STREAM
 #define XRT_MODULE_WEBSOCKET_STREAM
 #define XRT_MODULE_WEBSOCKET_UPGRADE
+#define XRT_MODULE_VALUE_CONTAINER
 #include <xrt.h>
 
 #include "public_struct_abi.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+
+
+
+/* xvalueiter is caller-allocated and was already public before ownership
+ * tracing gained the finalizer-shell pin. Keep that bookkeeping inside its
+ * existing state union so binaries built with the legacy declaration remain
+ * safe. */
+typedef struct xrtlegacyvalueiter {
+	ptr Backing;
+	xvaluetype Type;
+	int Direction;
+	size_t Index;
+	union {
+		xmapiter Map;
+		xintmapiter IntMap;
+		xsetiter Set;
+	} State;
+} xrtlegacyvalueiter;
+
+
+
+static int __xrtAbiCheckLegacyValueIter(void)
+{
+	if (sizeof(xvalueiter) != sizeof(xrtlegacyvalueiter)) return 1;
+	if (offsetof(xvalueiter, Backing) != offsetof(xrtlegacyvalueiter, Backing)) return 2;
+	if (offsetof(xvalueiter, Type) != offsetof(xrtlegacyvalueiter, Type)) return 3;
+	if (offsetof(xvalueiter, Direction) != offsetof(xrtlegacyvalueiter, Direction)) return 4;
+	if (offsetof(xvalueiter, Index) != offsetof(xrtlegacyvalueiter, Index)) return 5;
+	if (offsetof(xvalueiter, State) != offsetof(xrtlegacyvalueiter, State)) return 6;
+	return 0;
+}
 
 
 
@@ -112,6 +144,7 @@ static size_t __xrtAbiTrimLayout(xrtabitesttype Type, size_t iField)
 /* 完整运行库与裁剪扩展库必须共享完全一致的公开数据 ABI。 */
 int main(void)
 {
+	if (__xrtAbiCheckLegacyValueIter() != 0) return 40;
 	XRT_ABI_CHECK(xtlsclientconfig, XRT_ABI_TLS_CLIENT_CONFIG, 4);
 	XRT_ABI_CHECK(xtlsserverconfig, XRT_ABI_TLS_SERVER_CONFIG, 4);
 	XRT_ABI_CHECK(xtlsstreamconfig, XRT_ABI_TLS_STREAM_CONFIG, 4);

@@ -23,6 +23,13 @@ int main(void)
 	testRequire(iMaximum == INT32_MAX, "failed retain changed maximum count");
 	testRequire(xrtRefRetain(NULL) == -1, "null retain must fail");
 	testRequire(xrtRefRelease(NULL) == -1, "null release must fail");
+	iCount = 1;
+	testRequire(xrtOwnershipRefRetain(&iCount) == 2, "ownership retain result mismatch");
+	testRequire(xrtOwnershipRefRelease(&iCount) == 1, "ownership release result mismatch");
+	testRequire(xrtOwnershipRefRelease(&iCount) == 0, "ownership final release mismatch");
+	testRequire(xrtOwnershipRefRetain(&iCount) == -1, "ownership reference must not revive");
+	testRequire(xrtOwnershipRefRetain(NULL) == -1, "null ownership retain must fail");
+	testRequire(xrtOwnershipRefRelease(NULL) == -1, "null ownership release must fail");
 	printf("[PASS] ref\n");
 	return 0;
 }

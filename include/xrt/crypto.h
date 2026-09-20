@@ -353,6 +353,8 @@ XRT_API size_t xrtCryptoHashSize(xcryptohash Hash);
 
 #define XRT_RSA_MODULUS_MIN_SIZE 128u
 #define XRT_RSA_MAX_MODULUS_SIZE 1024u
+/* Compatibility spelling retained for source compatibility with xrt <= 5.1. */
+#define XRT_RSA_MODULUS_MAX_SIZE XRT_RSA_MAX_MODULUS_SIZE
 
 /* RSA 公钥是对调用方持有的定宽大端模数和指数的只读视图。 */
 typedef struct xrsa_public_key {

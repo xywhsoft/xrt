@@ -971,6 +971,12 @@ pDial = xrtNetProxyDial(
 
 托管路径同时支持已经编译进依赖闭包的 SOCKS5 CONNECT 和 HTTP CONNECT。只编译其中一个协议时，另一个类型会明确返回 `XERR_UNSUPPORTED`；`XRT_FEATURE_NET_PROXY_DIAL` 本身不强制携带任何具体代理协议，保持裁剪边界清晰。
 
+需要端到端 TLS 时，同时启用 `XRT_FEATURE_TLS_STREAM_DIAL` 并调用
+`xrtTlsDialProxy()`。该入口复用本节的代理拨号器建立隧道，但由外层 TLS Dial
+统一拥有全过程期限、取消终态、错误链和传输统计。`xtlsdialconfig` 不嵌入代理
+指针；直连 `xrtTlsDial()` 与代理 `xrtTlsDialProxy()` 是两个显式入口，以保持配置
+ABI 不随功能宏改变，并避免裁剪构建静默退化为直连。
+
 托管代理层不识别端口后端。select、IOCP 与 io_uring 共用同一份 SOCKS5、HTTP CONNECT、并发取消、OOM 回收和单头拨号断言；后端测试入口只选择 `xnetportkind`。新增端口实现时，应先通过 TCP Dial 契约，再直接复用这些组合测试，不能在代理状态机中增加平台分支。
 
 ### `xrtNetProxyDialConfigInit`

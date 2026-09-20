@@ -465,7 +465,7 @@ XRT_API xnetaddrlist* xrtNetAddrListRef(xnetaddrlist* pList)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	if ( xrtRefRetain(&pList->References) < 0 ) {
+	if ( xrtOwnershipRefRetain(&pList->References) < 0 ) {
 		__xrtNetSetError(XERR_STATE, XNET_ERROR_DNS_RESULT,
 			"retain-addresses", "address list reference is invalid", 0);
 		return NULL;

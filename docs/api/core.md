@@ -529,9 +529,11 @@ xstrview Method = XRT_STR_LITERAL("GET");
 返回新值；返回零的线程负责析构对象。空指针、非正计数、复活已经归零的对象、
 释放非正计数及递增 `INT32_MAX` 都返回 `-1`，且不修改计数。
 
-这两个函数只保护计数，不发布对象字段，也不替代对象自己的并发契约。对象在
-交给其他线程前仍必须通过锁、原子发布或 XRT 已声明的线程安全 API 建立
-happens-before。
+这两个通用函数只保护计数，不发布对象字段、不加入 ownership freeze 域，也不
+替代对象自己的并发契约。对象在交给其他线程前仍必须通过锁、原子发布或 XRT
+已声明的线程安全 API 建立 happens-before。只有实际作为 ownership graph
+节点计数的独立原子更新才使用 `xrtOwnershipRefRetain/Release`；涉及字段、回调
+或析构的转换必须用一个外层 mutation scope 覆盖完整过程。
 
 ### `xrtRefRetain`
 
@@ -600,6 +602,80 @@ int32 xrtRefRelease(volatile int32* pCount);
 
 ```c
 if ( (pObject != NULL) && (xrtRefRelease(&pObject->RefCount) == 0) ) {
+```
+
+### `xrtOwnershipRefRetain`
+
+在 ownership mutation 域中原子增加一个图可见引用计数。它只覆盖这一条原子
+更新；如果引用变更还伴随 owning slot、状态位或链表变化，调用方必须改用覆盖
+完整转换的 `xrtOwnershipMutationBegin` / `xrtOwnershipScopeEnd`。
+
+```c
+int32 xrtOwnershipRefRetain(volatile int32* pCount);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCount` | 输入/输出 | 非空、正计数 | ownership graph 节点的计数字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `> 0` | 新计数值 | — |
+| `-1` | 空指针、非正计数、达到 `INT32_MAX` 或准入失败 | 计数不变 |
+
+#### 错误
+
+- 计数边界仍只通过 `-1` 报告；准入错误遵循 ownership scope 契约
+
+#### 范例
+
+[core/reference · 引用管理](../../examples/core/reference/main.c) · 图节点使用显式准入版本
+
+```c
+if ( xrtOwnershipRefRetain(&pLeaf->References) < 0 ) {
+	return NULL;
+}
+```
+
+### `xrtOwnershipRefRelease`
+
+在 ownership mutation 域中原子减少一个图可见引用计数。返回零只表示调用方
+取得最后引用；具有出边或析构回调的对象仍须把完整析构放入同一个外层 scope。
+
+```c
+int32 xrtOwnershipRefRelease(volatile int32* pCount);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCount` | 输入/输出 | 非空、正计数 | ownership graph 节点的计数字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `> 0` | 仍有其他持有者 | — |
+| `0` | 调用方取得最后引用 | — |
+| `-1` | 空指针、非正计数或准入失败 | 计数不变 |
+
+#### 错误
+
+- 计数边界仍只通过 `-1` 报告；准入错误遵循 ownership scope 契约
+
+#### 范例
+
+[core/reference · 析构判定](../../examples/core/reference/main.c) · 仅用于无其他图转换的计数更新
+
+```c
+if ( xrtOwnershipRefRelease(&pLeaf->References) == 0 ) {
+	xrtFree(pLeaf);
+}
 ```
 
 ## 内存
@@ -1918,9 +1994,10 @@ mutation，用于只读 Trace 的临时游标或已知的原子提交步骤。�
 scope、跨线程或重复退出被拒绝。scope 必须从参与对象自己的锁之外进入，覆盖
 整个状态转换，不能先持有对象锁再等待 freeze，否则会形成锁序反转。
 
-当前自动参与的生产路径：
+当前参与的生产路径：
 
-- `xrtRefRetain/Release` 的实际原子计数更新；原 CAS、死亡引用和溢出语义不变。
+- 显式 `xrtOwnershipRefRetain/Release` 的独立图计数更新；通用
+  `xrtRefRetain/Release` 保持纯原子 RC 热路径，不隐式加入全局冻结域。
 - Value 的强/弱保有、复制、拥有式接管、类型/identity/生命周期绑定、最后释放。
 - Value 容器的字段写入、COW、清空/取出、容量调整、游标生命周期和集合合并；
   DeepClone/Equal 及直接 Hash/ScalarEqual 回调也在其完整外层转换内。私有 body 配合统一返回

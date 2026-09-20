@@ -3613,8 +3613,8 @@ static bool __xrtValueIterStartInternal(
 	pIterator->Direction = iDirection;
 	if (bKeepFinalizerShell && pBacking->Type == XVALUE_OBJECT &&
 		((xvalueobjectbacking*)pBacking)->Finalizer != NULL) {
-		pIterator->FinalizerOwner = xrtValueRetain(pValue);
-		if (pIterator->FinalizerOwner == NULL) {
+		pIterator->State.Object.FinalizerOwner = xrtValueRetain(pValue);
+		if (pIterator->State.Object.FinalizerOwner == NULL) {
 			__xrtValueBackingRelease(pBacking);
 			memset(pIterator, 0, sizeof(*pIterator));
 			return false;
@@ -3657,7 +3657,9 @@ static bool __xrtValueIterStartInternal(
 	}
 	if ( !bReady ) {
 		__xrtValueBackingRelease(pBacking);
-		xrtValueRelease(pIterator->FinalizerOwner);
+		if (pIterator->Type == XVALUE_OBJECT) {
+			xrtValueRelease(pIterator->State.Object.FinalizerOwner);
+		}
 		memset(pIterator, 0, sizeof(xvalueiter));
 		return false;
 	}
@@ -3918,7 +3920,9 @@ XRT_API void xrtValueIterEnd(xvalueiter* pIterator)
 		xrtMapIterEnd(&pIterator->State.Map);
 	}
 	pBacking = (xvaluebacking*)pIterator->Backing;
-	pOwner = pIterator->FinalizerOwner;
+	pOwner = pIterator->Type == XVALUE_OBJECT
+		? pIterator->State.Object.FinalizerOwner
+		: NULL;
 	/* Re-entry observes an ended cursor before either release can call user
 	 * code. The backing slot must go first; the shell owns the final duty. */
 	memset(pIterator, 0, sizeof(xvalueiter));
@@ -3942,16 +3946,20 @@ XRT_API void xrtValueIterDestroy(xvalueiter* pIterator)
 static bool __xrtValueIterOwnershipCount(const void* pData, size_t* pCount)
 {
 	const xvalueiter* pIterator = (const xvalueiter*)pData;
+	xvalue* pOwner;
 	if (pIterator == NULL || pCount == NULL) return false;
 	if (pIterator->Backing == NULL) {
-		if (pIterator->Type != 0 || pIterator->Direction != 0 || pIterator->Index != 0 || pIterator->FinalizerOwner != NULL) return false;
+		if (pIterator->Type != 0 || pIterator->Direction != 0 || pIterator->Index != 0 ||
+			pIterator->State.Object.FinalizerOwner != NULL) return false;
 	} else if ((pIterator->Direction != 1 && pIterator->Direction != -1) ||
 		!__xrtValueContainerType(pIterator->Type) ||
 		((const xvaluebacking*)pIterator->Backing)->Type != (uint16)pIterator->Type ||
 		__xrtAtomicRefLoad(&((const xvaluebacking*)pIterator->Backing)->RefCount) <= 0) return false;
-	if (pIterator->FinalizerOwner != NULL && (pIterator->Type != XVALUE_OBJECT ||
-		pIterator->FinalizerOwner->Data.Backing != pIterator->Backing ||
-		__xrtAtomicRefLoad(&pIterator->FinalizerOwner->RefCount) <= 0)) return false;
+	pOwner = pIterator->Type == XVALUE_OBJECT
+		? pIterator->State.Object.FinalizerOwner
+		: NULL;
+	if (pOwner != NULL && (pOwner->Data.Backing != pIterator->Backing ||
+		__xrtAtomicRefLoad(&pOwner->RefCount) <= 0)) return false;
 	/* Unique End/Destroy ownership; borrowed cursor aliases acquire no refs. */
 	*pCount = 1;
 	return true;
@@ -3959,11 +3967,15 @@ static bool __xrtValueIterOwnershipCount(const void* pData, size_t* pCount)
 static bool __xrtValueIterOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
 {
 	const xvalueiter* pIterator = (const xvalueiter*)pData;
+	xvalue* pOwner;
 	size_t iCount;
 	if (pVisit == NULL || !__xrtValueIterOwnershipCount(pData, &iCount)) return false;
 	if (pIterator->Backing != NULL && !pVisit(
 		(xrtownershipref){pIterator->Backing, &__xrtValueBackingOwnershipOps}, pContext)) return false;
-	return pIterator->FinalizerOwner == NULL || pVisit(xrtValueOwnership(pIterator->FinalizerOwner), pContext);
+	pOwner = pIterator->Type == XVALUE_OBJECT
+		? pIterator->State.Object.FinalizerOwner
+		: NULL;
+	return pOwner == NULL || pVisit(xrtValueOwnership(pOwner), pContext);
 }
 static const xrtownershipops __xrtValueIterOwnershipOps = {
 	__xrtValueIterOwnershipCount, __xrtValueIterOwnershipTrace

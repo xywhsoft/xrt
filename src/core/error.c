@@ -827,7 +827,12 @@ XRT_API xerror* xrtErrorWrap(const xerror* pCause, xerrkind Kind, cstr sDomain, 
 XRT_API xerror* xrtErrorRef(const xerror* pError)
 {
 	if ( (pError != NULL) && ((pError->Flags & XRT_ERROR_STATIC) == 0) ) {
-		if ( xrtRefRetain((volatile int32*)&pError->RefCount) < 0 ) {
+		xrtownershipscope Mutation = {0};
+		int32 iReferences;
+		if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+		iReferences = xrtRefRetain((volatile int32*)&pError->RefCount);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		if ( iReferences < 0 ) {
 			return NULL;
 		}
 	}
@@ -840,6 +845,11 @@ XRT_API xerror* xrtErrorRef(const xerror* pError)
 /* 释放错误对象引用。 */
 XRT_API void xrtErrorFree(xerror* pError)
 {
+	xrtownershipscope Mutation = {0};
+	if ( (pError == NULL) || ((pError->Flags & XRT_ERROR_STATIC) != 0) ) {
+		return;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	while ( (pError != NULL) &&
 		 ((pError->Flags & XRT_ERROR_STATIC) == 0) &&
 		 (xrtRefRelease(&pError->RefCount) == 0) ) {
@@ -848,6 +858,7 @@ XRT_API void xrtErrorFree(xerror* pError)
 		xrtFree(pError);
 		pError = pCause;
 	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
 

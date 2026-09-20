@@ -864,6 +864,73 @@ int32 xrtRefRelease(volatile int32* pCount);
 if ( (pObject != NULL) && (xrtRefRelease(&pObject->RefCount) == 0) ) {
 ```
 
+### `xrtOwnershipRefRetain`
+
+在 ownership mutation 域中原子增加一个独立、图可见的引用计数更新。
+
+```c
+int32 xrtOwnershipRefRetain(volatile int32* pCount);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCount` | 输入/输出 | 非空、正计数 | 图节点计数字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `> 0` | 新计数 | — |
+| `-1` | 参数、边界或准入失败 | 计数不变 |
+
+#### 错误
+
+- 计数边界按 `-1` 报告；准入错误遵循 ownership scope 契约
+
+#### 范例
+
+[core/reference · 引用管理](../../examples/core/reference/main.c) · 图节点显式准入
+
+```c
+if ( xrtOwnershipRefRetain(&pLeaf->References) < 0 ) return NULL;
+```
+
+### `xrtOwnershipRefRelease`
+
+在 ownership mutation 域中原子减少一个独立、图可见的引用计数更新。
+
+```c
+int32 xrtOwnershipRefRelease(volatile int32* pCount);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pCount` | 输入/输出 | 非空、正计数 | 图节点计数字段 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `> 0` | 仍有其他持有者 | — |
+| `0` | 最后引用 | — |
+| `-1` | 参数、边界或准入失败 | 计数不变 |
+
+#### 错误
+
+- 计数边界按 `-1` 报告；准入错误遵循 ownership scope 契约
+
+#### 范例
+
+[core/reference · 析构判定](../../examples/core/reference/main.c) · 叶节点归零释放
+
+```c
+if ( xrtOwnershipRefRelease(&pLeaf->References) == 0 ) xrtFree(pLeaf);
+```
+
 ### `xrtVersion`
 
 返回当前 XRT 版本字符串。

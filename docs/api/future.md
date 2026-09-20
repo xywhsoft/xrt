@@ -3294,6 +3294,66 @@ xtlsdial* xrtTlsDial(
 ```
 
 
+### `xrtTlsDialProxy`
+
+经代理 CONNECT 隧道连接目标并继续同一个 TLS Dial 状态机；代理对象只在调用期间借用，成功提交后由组合拨号持有独立引用。
+
+```c
+xtlsdial* xrtTlsDialProxy(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xtlsdialproc pDone,
+	ptr pDoneData
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络引擎 |
+| `pResolver` | 输入 | 非空 | DNS 解析器 |
+| `pProxy` | 输入 | 非空、调用期间借用 | 代理配置 |
+| `sHost` | 输入 | 非空 | CONNECT 与 TLS 目标主机 |
+| `iPort` | 输入 | 非零 | 目标端口 |
+| `pTls` | 输入 | 允许空 | 客户端 TLS 配置 |
+| `pConfig` | 输入 | 允许空 | TCP、TLS 与全过程期限 |
+| `pStreamEvents` | 输入 | 允许空 | 成功 Stream 事件表 |
+| `pStreamData` | 输入 | 任意值 | Stream 用户数据 |
+| `pDone` | 输入 | 非空 | 唯一终态完成回调 |
+| `pDoneData` | 输入 | 任意值 | 回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | Dial 对象（终态后 Destroy 释放） | — |
+| `NULL` | 参数、配置、分配或提交失败 | `xrt.tls` 域错误 |
+
+#### 错误
+
+- `xrt.tls` 域错误 — 参数非法、代理协议未编译、Engine 关闭或提交失败
+
+#### 范例
+
+[tls/dial · TLS 状态机](../../examples/tls/dial/main.c) · [network/proxy_dial · 隧道](../../examples/network/proxy_dial/main.c)
+
+```c
+	pDial = xrtTlsDialProxy(
+		pEngine, pResolver, pProxy, sHost, (uint16)iPort,
+		&TlsConfig, &DialConfig, &Events, pStreamData,
+		onTlsDialDone, pDoneData
+	);
+```
+
+
 ### `xrtTlsDialAsync`
 
 以 Future 接收完成握手的 TLS Stream；`Open` 先于成功终态发布。Future 持有一个 Stream 引用，取消请求协作终止当前阶段。

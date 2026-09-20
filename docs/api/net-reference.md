@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [net.md](net.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `371` 个函数、`281` 个常量或宏、
-`123` 个公共类型。
+当前登记 `390` 个函数、`284` 个常量或宏、
+`128` 个公共类型。
 
 ## `include/xrt/net.h`
 
 [查看带契约注释的公共头](../../include/xrt/net.h)
 
-### 函数 (172)
+### 函数 (191)
 
 - `xrtNetAddrAny`
 - `xrtNetAddrCompare`
@@ -29,6 +29,8 @@
 - `xrtNetAddrListCreate`
 - `xrtNetAddrListDestroy`
 - `xrtNetAddrListGet`
+- `xrtNetAddrListOwnership`
+- `xrtNetAddrListOwnershipAdapterV1`
 - `xrtNetAddrListRef`
 - `xrtNetAddrListWithPort`
 - `xrtNetAddrLoopback`
@@ -74,15 +76,20 @@
 - `xrtNetEngineCreate`
 - `xrtNetEngineCurrent`
 - `xrtNetEngineDestroy`
+- `xrtNetEngineOwnership`
+- `xrtNetEngineOwnershipAdapterV1`
 - `xrtNetEnginePin`
 - `xrtNetEnginePost`
+- `xrtNetEnginePostOwnedV1`
 - `xrtNetEngineSchedule`
+- `xrtNetEngineScheduleOwnedV1`
 - `xrtNetEngineStart`
 - `xrtNetEngineState`
 - `xrtNetEngineStats`
 - `xrtNetEngineStop`
 - `xrtNetEngineTimerCancel`
 - `xrtNetEngineTimerCancelCurrent`
+- `xrtNetEngineTryDestroy`
 - `xrtNetEngineUnpin`
 - `xrtNetEngineWorker`
 - `xrtNetEngineWorkerCount`
@@ -125,15 +132,27 @@
 - `xrtNetResolveOpCancel`
 - `xrtNetResolveOpDestroy`
 - `xrtNetResolveOpError`
+- `xrtNetResolveOpOwnership`
+- `xrtNetResolveOpOwnershipAdapterV1`
 - `xrtNetResolveOpRef`
 - `xrtNetResolveOpResult`
 - `xrtNetResolveOpState`
 - `xrtNetResolverClear`
 - `xrtNetResolverConfigInit`
 - `xrtNetResolverCreate`
+- `xrtNetResolverCreateOwnedV1`
 - `xrtNetResolverDestroy`
+- `xrtNetResolverFutureCancelPolicyV1Get`
+- `xrtNetResolverFutureOwnershipAdapterV1`
+- `xrtNetResolverFuturePayloadPolicyV1Get`
+- `xrtNetResolverFutureProducerPolicyV1Get`
+- `xrtNetResolverFutureRequestPolicyV1Get`
+- `xrtNetResolverOwnership`
+- `xrtNetResolverOwnershipAdapterV1`
 - `xrtNetResolverResolve`
+- `xrtNetResolverResolveOwnedV1`
 - `xrtNetResolverStats`
+- `xrtNetResolverTryDestroy`
 - `xrtNetReverse`
 - `xrtNetSocketAccept`
 - `xrtNetSocketAvailable`
@@ -186,7 +205,7 @@
 - `xrtNetWorkerPort`
 - `xrtNetWorkerStats`
 
-### 常量与宏 (199)
+### 常量与宏 (202)
 
 - `XNET_BUFFER_CLASS_COUNT`
 - `XNET_DGRAM_BATCH_MAX`
@@ -378,6 +397,9 @@
 - `XNET_RESULT_OK`
 - `XNET_RESULT_TIMEOUT`
 - `XNET_RESULT_TRUNCATED`
+- `XNET_RETIRE_BUSY`
+- `XNET_RETIRE_ERROR`
+- `XNET_RETIRE_READY`
 - `XNET_SHUTDOWN_BOTH`
 - `XNET_SHUTDOWN_READ`
 - `XNET_SHUTDOWN_WRITE`
@@ -388,7 +410,7 @@
 - `XNET_STATS_FULL`
 - `XNET_STATS_OFF`
 
-### 类型 (59)
+### 类型 (64)
 
 - `xnetaddr`
 - `xnetaddrlist`
@@ -432,19 +454,24 @@
 - `xnetreleaseproc`
 - `xnetresolveop`
 - `xnetresolveopstate`
+- `xnetresolveownershipv1`
 - `xnetresolveproc`
 - `xnetresolver`
 - `xnetresolverconfig`
 - `xnetresolverlookup`
+- `xnetresolverlookupownershipv1`
 - `xnetresolverstats`
 - `xnetresult`
+- `xnetretireresult`
 - `xnetshutdown`
 - `xnetsocket`
 - `xnetsocket_impl`
 - `xnetsocketflag`
 - `xnetsockettype`
 - `xnetspan`
+- `xnettaskownershipv1`
 - `xnettaskproc`
+- `xnettimerownershipv1`
 - `xnettimerproc`
 - `xnetworker`
 - `xnetworkerstats`

@@ -3,6 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#if XRT_RSA_MODULUS_MAX_SIZE != XRT_RSA_MAX_MODULUS_SIZE
+#error "legacy RSA modulus limit spelling must remain compatible"
+#endif
+
 
 
 /* 验证 RSA 原始公钥运算、重叠和失败原子性。 */

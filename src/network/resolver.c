@@ -125,7 +125,7 @@ static uint64 __xrtNetResolverHash(
 static bool __xrtNetResolverRetain(xnetresolver* pResolver)
 {
 	return (pResolver != NULL) &&
-		(xrtRefRetain(&pResolver->RefCount) >= 0);
+		(xrtOwnershipRefRetain(&pResolver->RefCount) >= 0);
 }
 
 
@@ -1629,7 +1629,10 @@ static bool __xrtNetResolverHold(const void* pData)
 {
 	xnetresolver* pResolver = (xnetresolver*)pData; xrtownershipscope Mutation = {0};
 	__xrtNetResolverLock(pResolver, &Mutation);
-	bool bHeld = !pResolver->OwnershipCleared && __xrtNetResolverRetain(pResolver);
+	/* Freeze already owns the mutation domain; avoid opening a redundant
+	 * nested admission for the adapter's temporary hold. */
+	bool bHeld = !pResolver->OwnershipCleared &&
+		xrtRefRetain(&pResolver->RefCount) >= 0;
 	__xrtNetResolverUnlock(pResolver, &Mutation); return bHeld;
 }
 static void __xrtNetResolverDrop(const void* pData) { __xrtNetResolverRelease((xnetresolver*)pData); }

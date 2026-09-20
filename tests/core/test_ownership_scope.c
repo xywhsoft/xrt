@@ -63,8 +63,8 @@ static void admission(void)
 	  testRequire(!xrtOwnershipFreezeTryBegin(&Freeze) && empty(&Freeze) && xrtGetError() == pPrior,
 		"self upgrade is nonblocking and preserves primary diagnostic"); }
 	xrtClearError();
-	testRequire(xrtOwnershipMutationBegin(&Nested) && xrtRefRetain(&iCount) == 2 &&
-		xrtRefRelease(&iCount) == 1, "nested mutation makes progress without upgrade deadlock");
+	testRequire(xrtOwnershipMutationBegin(&Nested) && xrtOwnershipRefRetain(&iCount) == 2 &&
+		xrtOwnershipRefRelease(&iCount) == 1, "nested mutation makes progress without upgrade deadlock");
 	Work.Scope = &Mutation; Work.Kind = 2; Thread.Proc = worker; Thread.Data = &Work;
 	/* Only shared admission is held here: never join a worker under freeze. */
 	testThreadsStart(&Thread, 1); testThreadsJoin(&Thread, 1);
@@ -113,8 +113,8 @@ static int stress(ptr pData)
 {
 	stress_worker* pWork = pData;
 	for (unsigned i = 0; i < 20000; ++i) {
-		testRequire(xrtRefRetain(pWork->Count) >= 2, "concurrent retain");
-		testRequire(xrtRefRelease(pWork->Count) >= 1, "concurrent release");
+		testRequire(xrtOwnershipRefRetain(pWork->Count) >= 2, "concurrent retain");
+		testRequire(xrtOwnershipRefRelease(pWork->Count) >= 1, "concurrent release");
 	}
 	xrtAtomic32FetchAdd(pWork->Done, 1, XMEMORY_RELEASE); return 0;
 }
@@ -190,7 +190,7 @@ static int competing_freeze(ptr data)
 		if (xrtOwnershipFreezeTryBegin(&Freeze)) {
 			volatile int32 refs = 1;
 			testRequire(xrtAtomic32FetchAdd(member->Active, 1, XMEMORY_ACQ_REL) == 0, "at most one freeze owner");
-			testRequire(xrtRefRetain(&refs) == 2 && xrtRefRelease(&refs) == 1, "freeze owner can use nested cursor");
+			testRequire(xrtOwnershipRefRetain(&refs) == 2 && xrtOwnershipRefRelease(&refs) == 1, "freeze owner can use nested cursor");
 			testRequire(xrtAtomic32FetchSub(member->Active, 1, XMEMORY_ACQ_REL) == 1, "freeze remains exclusive");
 			testRequire(xrtOwnershipScopeEnd(&Freeze), "competing freeze returned"); ++member->Successes;
 		} else testRequire(empty(&Freeze) && xrtGetError() == NULL, "contended admission leaves no partial freeze");
@@ -219,7 +219,7 @@ static void no_allocation_and_inspection(void)
 	volatile int32 Count = 1;
 	testRequire(pValue != NULL && pAlias != NULL && xrtMemDebugFailAfter(0), "real OOM armed");
 	testRequire(xrtOwnershipMutationBegin(&Mutation) && !xrtOwnershipFreezeTryBegin(&Freeze) &&
-		xrtRefRetain(&Count) == 2 && xrtRefRelease(&Count) == 1 && xrtOwnershipScopeEnd(&Mutation) &&
+		xrtOwnershipRefRetain(&Count) == 2 && xrtOwnershipRefRelease(&Count) == 1 && xrtOwnershipScopeEnd(&Mutation) &&
 		xrtOwnershipFreezeTryBegin(&Freeze), "allocation-free admission and reference updates");
 	testRequire(!xrtMemDebugFailTriggered(), "scope needs no heap or TLS allocation");
 	testRequire(!xrtOwnershipInspect(&Anchor, 1, NULL, 0, &Result) && xrtMemDebugFailTriggered(),
@@ -326,7 +326,7 @@ static void in_flight_drop(xvalue* value, ptr data)
 	drop_worker* work = data; volatile int32 refs = 1; (void)value;
 	xrtAtomic32Store(&work->Entered, 1, XMEMORY_RELEASE);
 	while (!xrtAtomic32Load(&work->Continue, XMEMORY_ACQUIRE)) testThreadYield();
-	testRequire(xrtRefRetain(&refs) == 2 && xrtRefRelease(&refs) == 1,
+	testRequire(xrtOwnershipRefRetain(&refs) == 2 && xrtOwnershipRefRelease(&refs) == 1,
 		"nested mutation progresses after another thread's refused freeze");
 }
 static int clear_while_dropping(ptr data)

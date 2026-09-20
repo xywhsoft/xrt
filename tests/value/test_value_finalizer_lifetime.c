@@ -83,7 +83,7 @@ static void finalize_owned(xvalue* object, ptr data)
 	xrtValueRelease(object);
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_STATE, "borrowed release rejected without refcount underflow"); xrtClearError();
 	testRequire(!xrtValueObjectFinalizerBindOwned(object, finalize_owned, state, trace_context, end_context), "no rebind during finalize"); xrtClearError();
-	testRequire(xrtValueIterBegin(object, &local) && local.FinalizerOwner == NULL, "local enumeration inside finalizer");
+	testRequire(xrtValueIterBegin(object, &local) && local.State.Object.FinalizerOwner == NULL, "local enumeration inside finalizer");
 	view = xrtValueIterOwnership(&local);
 	testRequire(!xrtOwnershipInspect(&view, 1, &view, 1, &result) && !memcmp(&result, &initial, sizeof(result)), "running finalizer graph refuses atomically");
 	xrtClearError(); xrtValueIterEnd(&local);
@@ -145,11 +145,11 @@ static void scenario(unsigned mode)
 	if (mode & 1) { clone = xrtValueClone(object); testRequire(clone != NULL, "clone identity shell"); slots[count++] = xrtValueOwnership(clone); }
 	if (mode & 2) {
 		testRequire(reverse ? xrtValueIterRBegin(object, &stack) : xrtValueIterBegin(object, &stack), "stack cursor");
-		testRequire(stack.FinalizerOwner == object, "cursor pins actual finalizer shell"); slots[count++] = xrtValueIterOwnership(&stack); ++cursors;
+		testRequire(stack.State.Object.FinalizerOwner == object, "cursor pins actual finalizer shell"); slots[count++] = xrtValueIterOwnership(&stack); ++cursors;
 	}
 	if (mode & 4) {
 		heap = reverse ? xrtValueIterRCreate(object) : xrtValueIterCreate(object);
-		testRequire(heap && heap->FinalizerOwner == object, "heap cursor pins actual shell"); slots[count++] = xrtValueIterOwnership(heap); ++cursors;
+		testRequire(heap && heap->State.Object.FinalizerOwner == object, "heap cursor pins actual shell"); slots[count++] = xrtValueIterOwnership(heap); ++cursors;
 	}
 	testRequire(xrtOwnershipInspect(&anchor, 1, slots, count, &result) &&
 		result.NodeCount == 5 + (clone != NULL) + cursors &&
@@ -171,7 +171,7 @@ static void scenario(unsigned mode)
 	xrtValueIterEnd(&stack); xrtValueIterDestroy(heap);
 	testRequire(state.calls == 1, "one atomic finalization claimant");
 	if (state.deferred) {
-		testRequire(state.releases == 0 && state.drops == 0 && state.during.FinalizerOwner == NULL, "context survives callback-created snapshot");
+		testRequire(state.releases == 0 && state.drops == 0 && state.during.State.Object.FinalizerOwner == NULL, "context survives callback-created snapshot");
 		anchor = xrtValueIterOwnership(&state.during);
 		testRequire(xrtOwnershipInspect(&anchor, 1, &anchor, 1, &result) && !result.ExternalRootCount, "post-finalize context still described");
 		xrtValueIterEnd(&state.during); xrtValueIterEnd(&state.during);

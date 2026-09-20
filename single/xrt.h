@@ -4992,9 +4992,10 @@ typedef struct xrtownershipscope {
  * the complete mutation. Concurrent and nested mutations are allowed. Only a
  * currently frozen domain can delay entry; collectors never queue an upgrade
  * behind an active mutator. Scope entry/end allocate no memory or TLS slots.
- * xrtRefRetain/Release participate automatically for their atomic update, but
- * that alone does NOT cover an enclosing field update, callback, or destructor.
- * Callers adapting mutable state must guard that complete transition too. */
+ * xrtOwnershipRefRetain/Release can participate for one standalone atomic
+ * counter update. Generic xrtRefRetain/Release deliberately remain outside
+ * this domain. Neither pair covers an enclosing field update, callback, or
+ * destructor; graph adapters must guard each complete transition. */
 XRT_API bool xrtOwnershipMutationBegin(xrtownershipscope* pScope);
 
 /* Nonblocking exclusive admission. Busy returns false, leaves the zero scope
@@ -5105,13 +5106,23 @@ XRT_API void xrtResourceLimitsInit(xrtresourcelimits* pLimits);
 
 
 
-/* 原子增加有效引用计数，失败时返回 -1。 */
+/* 原子增加有效引用计数，失败时返回 -1；不加入 ownership freeze 域。 */
 XRT_API int32 xrtRefRetain(volatile int32* pCount);
 
 
 
-/* 原子减少有效引用计数，失败时返回 -1。 */
+/* 原子减少有效引用计数，失败时返回 -1；不加入 ownership freeze 域。 */
 XRT_API int32 xrtRefRelease(volatile int32* pCount);
+
+
+
+/* 对一个图可见引用计数执行受 ownership freeze 保护的原子增加。 */
+XRT_API int32 xrtOwnershipRefRetain(volatile int32* pCount);
+
+
+
+/* 对一个图可见引用计数执行受 ownership freeze 保护的原子减少。 */
+XRT_API int32 xrtOwnershipRefRelease(volatile int32* pCount);
 
 
 
@@ -13184,9 +13195,6 @@ typedef struct xvaluekey {
 /* 迭代器持有 backing 快照；活动迭代器必须先 End 才能再次 Begin。 */
 typedef struct xvalueiter {
 	ptr Backing;
-	/* Finalizer-backed identity objects additionally retain the actual source
-	 * shell. Ordinary COW snapshots still retain only Backing. Internal state. */
-	xvalue* FinalizerOwner;
 	xvaluetype Type;
 	int Direction;
 	size_t Index;
@@ -13194,6 +13202,14 @@ typedef struct xvalueiter {
 		xmapiter Map;
 		xintmapiter IntMap;
 		xsetiter Set;
+		/* Keep object-only bookkeeping in the pre-existing iterator-state
+		 * storage. xintmapiter remains the largest union member, so adding the
+		 * finalizer shell here does not change xvalueiter's public ABI. Map is
+		 * first so State.Map and State.Object.Map have identical addresses. */
+		struct {
+			xmapiter Map;
+			xvalue* FinalizerOwner;
+		} Object;
 	} State;
 } xvalueiter;
 
@@ -20880,6 +20896,8 @@ XRT_API size_t xrtCryptoHashSize(xcryptohash Hash);
 
 #define XRT_RSA_MODULUS_MIN_SIZE 128u
 #define XRT_RSA_MAX_MODULUS_SIZE 1024u
+/* Compatibility spelling retained for source compatibility with xrt <= 5.1. */
+#define XRT_RSA_MODULUS_MAX_SIZE XRT_RSA_MAX_MODULUS_SIZE
 
 /* RSA 公钥是对调用方持有的定宽大端模数和指数的只读视图。 */
 typedef struct xrsa_public_key {
@@ -25817,12 +25835,401 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: include/xrt/proxy.h */
+/* ========================================================================== */
+
+#ifndef XRT_PROXY_H
+#define XRT_PROXY_H
+
+
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#endif
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY) && !defined(XRT_FEATURE_NET)
+	#error "XRT proxy support requires XRT_FEATURE_NET"
+#endif
+
+#if defined(XRT_FEATURE_NET_PROXY_HANDSHAKE) && \
+	(!defined(XRT_FEATURE_NET_PROXY) || !defined(XRT_FEATURE_NET_BUFFER))
+	#error "XRT proxy handshake support requires proxy and network buffer support"
+#endif
+
+#if defined(XRT_FEATURE_NET_PROXY_SOCKS5) && \
+	!defined(XRT_FEATURE_NET_PROXY_HANDSHAKE)
+	#error "XRT SOCKS5 support requires proxy handshake support"
+#endif
+
+#if defined(XRT_FEATURE_NET_PROXY_HTTP_CONNECT) && \
+	(!defined(XRT_FEATURE_NET_PROXY_HANDSHAKE) || \
+	 !defined(XRT_FEATURE_HTTP1_HEAD) || \
+	 !defined(XRT_FEATURE_CODEC_BASE64))
+	#error "XRT HTTP CONNECT requires proxy handshake, HTTP/1 head and Base64 support"
+#endif
+
+#if defined(XRT_FEATURE_NET_PROXY_DIAL) && \
+	(!defined(XRT_FEATURE_NET_PROXY_HANDSHAKE) || \
+	 !defined(XRT_FEATURE_NET_TCP_DIAL))
+	#error "XRT proxy Dial support requires proxy handshake and TCP Dial support"
+#endif
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY)
+
+/* 代理类型只描述协议；TCP、TLS 和上层客户端决定如何承载协议。 */
+typedef enum xnetproxytype {
+	XNET_PROXY_SOCKS5 = 1,
+	XNET_PROXY_HTTP_CONNECT
+} xnetproxytype;
+
+
+
+/* AUTO 在存在凭据时要求认证，否则只允许匿名；OPTIONAL 显式允许降级为匿名。 */
+typedef enum xnetproxyauth {
+	XNET_PROXY_AUTH_AUTO = 0,
+	XNET_PROXY_AUTH_NONE,
+	XNET_PROXY_AUTH_REQUIRED,
+	XNET_PROXY_AUTH_OPTIONAL
+} xnetproxyauth;
+
+
+
+/* 代理对象持有配置深拷贝；主机不要求零结尾，凭据允许任意字节。 */
+typedef struct xnetproxyconfig {
+	xnetproxytype Type;
+	xstrview Host;
+	uint16 Port;
+	xnetproxyauth Auth;
+	xbytesview Username;
+	xbytesview Password;
+} xnetproxyconfig;
+
+
+
+/* 信息视图由代理对象持有，只能在至少一个对象引用存活时借用。 */
+typedef struct xnetproxyinfo {
+	xnetproxytype Type;
+	xstrview Host;
+	uint16 Port;
+	xnetproxyauth Auth;
+	xbytesview Username;
+	xbytesview Password;
+} xnetproxyinfo;
+
+
+
+/* 不可变代理端点可以跨请求和线程共享。 */
+typedef struct xnetproxy xnetproxy;
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_HANDSHAKE)
+
+/* 握手状态同时告诉传输层下一步应发送、接收还是发布隧道。 */
+typedef enum xnetproxyhandshakestate {
+	XNET_PROXY_HANDSHAKE_WRITE = 1,
+	XNET_PROXY_HANDSHAKE_READ,
+	XNET_PROXY_HANDSHAKE_READY,
+	XNET_PROXY_HANDSHAKE_ERROR
+} xnetproxyhandshakestate;
+
+
+
+/* 域名端点使用 Host；数字端点使用 Address，端口始终保存在 Address.Port。 */
+typedef struct xnetproxyendpoint {
+	xnetaddr Address;
+	xstrview Host;
+} xnetproxyendpoint;
+
+
+
+/* 输入缓冲池由调用方借用，并且必须比握手对象存活更久。 */
+typedef struct xnetproxyhandshakeconfig {
+	const xnetproxy* Proxy;
+	xstrview TargetHost;
+	uint16 TargetPort;
+	size_t ReceiveLimit;
+	xnetbufpool* Pool;
+} xnetproxyhandshakeconfig;
+
+
+
+/* 单个握手由一个传输执行上下文独占驱动。 */
+typedef struct xnetproxyhandshake xnetproxyhandshake;
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_SOCKS5)
+
+/* SOCKS5 CONNECT 回复码保留 RFC 1928 的线路值，便于日志和策略判断。 */
+typedef enum xnetsocks5reply {
+	XNET_SOCKS5_SUCCEEDED = 0,
+	XNET_SOCKS5_GENERAL_FAILURE = 1,
+	XNET_SOCKS5_RULESET_DENIED = 2,
+	XNET_SOCKS5_NETWORK_UNREACHABLE = 3,
+	XNET_SOCKS5_HOST_UNREACHABLE = 4,
+	XNET_SOCKS5_CONNECTION_REFUSED = 5,
+	XNET_SOCKS5_TTL_EXPIRED = 6,
+	XNET_SOCKS5_COMMAND_UNSUPPORTED = 7,
+	XNET_SOCKS5_ADDRESS_UNSUPPORTED = 8
+} xnetsocks5reply;
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+
+/* Proxy Dial 状态区分代理端点解析、TCP 连接和协议握手。 */
+typedef enum xnetproxydialstate {
+	XNET_PROXY_DIAL_RESOLVING = 0,
+	XNET_PROXY_DIAL_CONNECTING,
+	XNET_PROXY_DIAL_HANDSHAKE,
+	XNET_PROXY_DIAL_CONNECTED,
+	XNET_PROXY_DIAL_FAILED,
+	XNET_PROXY_DIAL_CANCELLED
+} xnetproxydialstate;
+
+
+
+/* Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时。 */
+typedef struct xnetproxydialconfig {
+	xnetdialconfig Transport;
+	uint64 Timeout;
+	size_t ReceiveLimit;
+} xnetproxydialconfig;
+
+
+
+/* Proxy Dial 保持底层 TCP Dial 统计，并补充当前协议阶段。 */
+typedef struct xnetproxydialstats {
+	xnetproxydialstate State;
+	xnetdialstats Transport;
+} xnetproxydialstats;
+
+
+
+typedef struct xnetproxydial xnetproxydial;
+
+
+
+/*
+	完成回调在代理传输 Worker 上至多执行一次，不会从提交调用栈重入。
+	pDial 和 Error 只在回调期间借用；成功回调接管隧道 Stream 引用。
+*/
+typedef void (*xnetproxydialproc)(
+	xnetproxydial* pDial,
+	xnetresult Result,
+	xnetstream* pStream,
+	const xerror* pError,
+	ptr pData
+);
+
+#endif
+
+
+
+XRT_EXTERN_C_BEGIN
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY)
+
+/* 初始化 SOCKS5、自动认证且没有固定容量字段的代理配置。 */
+XRT_API void xrtNetProxyConfigInit(xnetproxyconfig* pConfig);
+
+
+
+/* 深拷贝代理端点和凭据，创建可跨线程共享的不可变对象。 */
+XRT_API xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pConfig);
+
+
+
+/* 增加代理对象引用并返回原指针。 */
+XRT_API xnetproxy* xrtNetProxyRetain(const xnetproxy* pProxy);
+
+
+
+/* 释放代理对象引用；最后一个引用会清零整块配置存储。 */
+XRT_API void xrtNetProxyRelease(xnetproxy* pProxy);
+
+
+
+/* 复制代理对象的只读信息视图。 */
+XRT_API bool xrtNetProxyInfo(
+	const xnetproxy* pProxy,
+	xnetproxyinfo* pInfo
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_HANDSHAKE)
+
+/* 初始化握手配置；64 KiB 上限主要约束后续 HTTP CONNECT Header。 */
+XRT_API void xrtNetProxyHandshakeConfigInit(
+	xnetproxyhandshakeconfig* pConfig
+);
+
+
+
+/* 创建握手并立即生成首个协议报文；目标主机会被深拷贝。 */
+XRT_API xnetproxyhandshake* xrtNetProxyHandshakeCreate(
+	const xnetproxyhandshakeconfig* pConfig
+);
+
+
+
+/* 销毁握手，并清零尚未发送的认证报文和内部目标信息。 */
+XRT_API void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake);
+
+
+
+/* 返回当前握手状态；空指针返回 ERROR。 */
+XRT_API xnetproxyhandshakestate xrtNetProxyHandshakeState(
+	const xnetproxyhandshake* pHandshake
+);
+
+
+
+/*
+	处理输入链中的完整协议前缀；只消费代理回复，成功后的应用数据保持原位。
+	WRITE 状态必须先发送并确认全部输出，READ 状态才会继续解析输入。
+*/
+XRT_API xnetproxyhandshakestate xrtNetProxyHandshakeStep(
+	xnetproxyhandshake* pHandshake,
+	xnetbuf* pInput
+);
+
+
+
+/* 借用当前待发送的首段连续输出；失败时把非空输出规范化为空 Span。 */
+XRT_API bool xrtNetProxyHandshakeOutput(
+	const xnetproxyhandshake* pHandshake,
+	xnetspan* pOutput
+);
+
+
+
+/* 确认已经发送的输出前缀；支持 Socket 部分写入。 */
+XRT_API size_t xrtNetProxyHandshakeSent(
+	xnetproxyhandshake* pHandshake,
+	size_t iSize
+);
+
+
+
+/* READY 后复制可用的绑定端点；HTTP CONNECT 没有该信息并返回 NOT_FOUND。 */
+XRT_API bool xrtNetProxyHandshakeBound(
+	const xnetproxyhandshake* pHandshake,
+	xnetproxyendpoint* pEndpoint
+);
+
+
+
+/* 返回协议失败时捕获的不可变错误；对象所有权仍属于握手。 */
+XRT_API const xerror* xrtNetProxyHandshakeError(
+	const xnetproxyhandshake* pHandshake
+);
+
+
+
+/* 复制 SOCKS5 线路回复码或 HTTP 状态码；尚未收到回复时返回 false。 */
+XRT_API bool xrtNetProxyHandshakeCode(
+	const xnetproxyhandshake* pHandshake,
+	uint32* pCode
+);
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+
+/* 初始化 TCP 拨号、64 KiB 协议上限和 30 秒全过程超时。 */
+XRT_API void xrtNetProxyDialConfigInit(xnetproxydialconfig* pConfig);
+
+
+
+/*
+	连接代理端点并完成目标 CONNECT；成功 Stream 引用转移给完成回调。
+	非 Worker 提交者可能与完成回调并发，不能依赖返回值已经完成赋值。
+*/
+XRT_API xnetproxydial* xrtNetProxyDial(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sTargetHost,
+	uint16 iTargetPort,
+	const xnetproxydialconfig* pConfig,
+	const xnetstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xnetproxydialproc pDone,
+	ptr pDoneData
+);
+
+
+
+/* 增加 Proxy Dial 引用并返回原指针。 */
+XRT_API xnetproxydial* xrtNetProxyDialRef(xnetproxydial* pDial);
+
+
+
+/* 释放 Proxy Dial 引用；空指针视为空操作。 */
+XRT_API void xrtNetProxyDialDestroy(xnetproxydial* pDial);
+
+
+
+/* 协作取消名称解析、TCP 连接或代理握手。 */
+XRT_API bool xrtNetProxyDialCancel(xnetproxydial* pDial);
+
+
+
+/* 返回当前拨号阶段或不可变终态。 */
+XRT_API xnetproxydialstate xrtNetProxyDialState(
+	const xnetproxydial* pDial
+);
+
+
+
+/* 失败或取消后借用完整错误原因链。 */
+XRT_API const xerror* xrtNetProxyDialError(
+	const xnetproxydial* pDial
+);
+
+
+
+/* 复制代理阶段和底层 TCP 地址竞速统计。 */
+XRT_API bool xrtNetProxyDialStats(
+	const xnetproxydial* pDial,
+	xnetproxydialstats* pStats
+);
+
+#endif
+
+
+
+XRT_EXTERN_C_END
+
+#endif
+
+
+/* ========================================================================== */
 /* public: include/xrt/tls_stream.h */
 /* ========================================================================== */
 
 #ifndef XRT_TLS_STREAM_H
 #define XRT_TLS_STREAM_H
 
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#endif
 
 #if defined(XRT_FEATURE_TLS_STREAM_FUTURE) || \
 	defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) || \
@@ -26175,6 +26582,25 @@ XRT_API xtlsdial* xrtTlsDial(
 	xtlsdialproc pDone,
 	ptr pDoneData
 );
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+/* 经代理 CONNECT 隧道后对真实目标完成端到端 TLS；代理只在调用期间借用。 */
+XRT_API xtlsdial* xrtTlsDialProxy(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xtlsdialproc pDone,
+	ptr pDoneData
+);
+#endif
 
 
 
@@ -34433,393 +34859,6 @@ XRT_API xnetframestatus xrtNetLengthNext(
 	const xnetlengthframer* pFramer,
 	const xnetbuf* pInput,
 	xnetframe* pFrame
-);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
-/* public: include/xrt/proxy.h */
-/* ========================================================================== */
-
-#ifndef XRT_PROXY_H
-#define XRT_PROXY_H
-
-
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
-#endif
-
-
-
-#if defined(XRT_FEATURE_NET_PROXY) && !defined(XRT_FEATURE_NET)
-	#error "XRT proxy support requires XRT_FEATURE_NET"
-#endif
-
-#if defined(XRT_FEATURE_NET_PROXY_HANDSHAKE) && \
-	(!defined(XRT_FEATURE_NET_PROXY) || !defined(XRT_FEATURE_NET_BUFFER))
-	#error "XRT proxy handshake support requires proxy and network buffer support"
-#endif
-
-#if defined(XRT_FEATURE_NET_PROXY_SOCKS5) && \
-	!defined(XRT_FEATURE_NET_PROXY_HANDSHAKE)
-	#error "XRT SOCKS5 support requires proxy handshake support"
-#endif
-
-#if defined(XRT_FEATURE_NET_PROXY_HTTP_CONNECT) && \
-	(!defined(XRT_FEATURE_NET_PROXY_HANDSHAKE) || \
-	 !defined(XRT_FEATURE_HTTP1_HEAD) || \
-	 !defined(XRT_FEATURE_CODEC_BASE64))
-	#error "XRT HTTP CONNECT requires proxy handshake, HTTP/1 head and Base64 support"
-#endif
-
-#if defined(XRT_FEATURE_NET_PROXY_DIAL) && \
-	(!defined(XRT_FEATURE_NET_PROXY_HANDSHAKE) || \
-	 !defined(XRT_FEATURE_NET_TCP_DIAL))
-	#error "XRT proxy Dial support requires proxy handshake and TCP Dial support"
-#endif
-
-
-
-#if defined(XRT_FEATURE_NET_PROXY)
-
-/* 代理类型只描述协议；TCP、TLS 和上层客户端决定如何承载协议。 */
-typedef enum xnetproxytype {
-	XNET_PROXY_SOCKS5 = 1,
-	XNET_PROXY_HTTP_CONNECT
-} xnetproxytype;
-
-
-
-/* AUTO 在存在凭据时要求认证，否则只允许匿名；OPTIONAL 显式允许降级为匿名。 */
-typedef enum xnetproxyauth {
-	XNET_PROXY_AUTH_AUTO = 0,
-	XNET_PROXY_AUTH_NONE,
-	XNET_PROXY_AUTH_REQUIRED,
-	XNET_PROXY_AUTH_OPTIONAL
-} xnetproxyauth;
-
-
-
-/* 代理对象持有配置深拷贝；主机不要求零结尾，凭据允许任意字节。 */
-typedef struct xnetproxyconfig {
-	xnetproxytype Type;
-	xstrview Host;
-	uint16 Port;
-	xnetproxyauth Auth;
-	xbytesview Username;
-	xbytesview Password;
-} xnetproxyconfig;
-
-
-
-/* 信息视图由代理对象持有，只能在至少一个对象引用存活时借用。 */
-typedef struct xnetproxyinfo {
-	xnetproxytype Type;
-	xstrview Host;
-	uint16 Port;
-	xnetproxyauth Auth;
-	xbytesview Username;
-	xbytesview Password;
-} xnetproxyinfo;
-
-
-
-/* 不可变代理端点可以跨请求和线程共享。 */
-typedef struct xnetproxy xnetproxy;
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_NET_PROXY_HANDSHAKE)
-
-/* 握手状态同时告诉传输层下一步应发送、接收还是发布隧道。 */
-typedef enum xnetproxyhandshakestate {
-	XNET_PROXY_HANDSHAKE_WRITE = 1,
-	XNET_PROXY_HANDSHAKE_READ,
-	XNET_PROXY_HANDSHAKE_READY,
-	XNET_PROXY_HANDSHAKE_ERROR
-} xnetproxyhandshakestate;
-
-
-
-/* 域名端点使用 Host；数字端点使用 Address，端口始终保存在 Address.Port。 */
-typedef struct xnetproxyendpoint {
-	xnetaddr Address;
-	xstrview Host;
-} xnetproxyendpoint;
-
-
-
-/* 输入缓冲池由调用方借用，并且必须比握手对象存活更久。 */
-typedef struct xnetproxyhandshakeconfig {
-	const xnetproxy* Proxy;
-	xstrview TargetHost;
-	uint16 TargetPort;
-	size_t ReceiveLimit;
-	xnetbufpool* Pool;
-} xnetproxyhandshakeconfig;
-
-
-
-/* 单个握手由一个传输执行上下文独占驱动。 */
-typedef struct xnetproxyhandshake xnetproxyhandshake;
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_NET_PROXY_SOCKS5)
-
-/* SOCKS5 CONNECT 回复码保留 RFC 1928 的线路值，便于日志和策略判断。 */
-typedef enum xnetsocks5reply {
-	XNET_SOCKS5_SUCCEEDED = 0,
-	XNET_SOCKS5_GENERAL_FAILURE = 1,
-	XNET_SOCKS5_RULESET_DENIED = 2,
-	XNET_SOCKS5_NETWORK_UNREACHABLE = 3,
-	XNET_SOCKS5_HOST_UNREACHABLE = 4,
-	XNET_SOCKS5_CONNECTION_REFUSED = 5,
-	XNET_SOCKS5_TTL_EXPIRED = 6,
-	XNET_SOCKS5_COMMAND_UNSUPPORTED = 7,
-	XNET_SOCKS5_ADDRESS_UNSUPPORTED = 8
-} xnetsocks5reply;
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
-
-/* Proxy Dial 状态区分代理端点解析、TCP 连接和协议握手。 */
-typedef enum xnetproxydialstate {
-	XNET_PROXY_DIAL_RESOLVING = 0,
-	XNET_PROXY_DIAL_CONNECTING,
-	XNET_PROXY_DIAL_HANDSHAKE,
-	XNET_PROXY_DIAL_CONNECTED,
-	XNET_PROXY_DIAL_FAILED,
-	XNET_PROXY_DIAL_CANCELLED
-} xnetproxydialstate;
-
-
-
-/* Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时。 */
-typedef struct xnetproxydialconfig {
-	xnetdialconfig Transport;
-	uint64 Timeout;
-	size_t ReceiveLimit;
-} xnetproxydialconfig;
-
-
-
-/* Proxy Dial 保持底层 TCP Dial 统计，并补充当前协议阶段。 */
-typedef struct xnetproxydialstats {
-	xnetproxydialstate State;
-	xnetdialstats Transport;
-} xnetproxydialstats;
-
-
-
-typedef struct xnetproxydial xnetproxydial;
-
-
-
-/*
-	完成回调在代理传输 Worker 上至多执行一次，不会从提交调用栈重入。
-	pDial 和 Error 只在回调期间借用；成功回调接管隧道 Stream 引用。
-*/
-typedef void (*xnetproxydialproc)(
-	xnetproxydial* pDial,
-	xnetresult Result,
-	xnetstream* pStream,
-	const xerror* pError,
-	ptr pData
-);
-
-#endif
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XRT_FEATURE_NET_PROXY)
-
-/* 初始化 SOCKS5、自动认证且没有固定容量字段的代理配置。 */
-XRT_API void xrtNetProxyConfigInit(xnetproxyconfig* pConfig);
-
-
-
-/* 深拷贝代理端点和凭据，创建可跨线程共享的不可变对象。 */
-XRT_API xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pConfig);
-
-
-
-/* 增加代理对象引用并返回原指针。 */
-XRT_API xnetproxy* xrtNetProxyRetain(const xnetproxy* pProxy);
-
-
-
-/* 释放代理对象引用；最后一个引用会清零整块配置存储。 */
-XRT_API void xrtNetProxyRelease(xnetproxy* pProxy);
-
-
-
-/* 复制代理对象的只读信息视图。 */
-XRT_API bool xrtNetProxyInfo(
-	const xnetproxy* pProxy,
-	xnetproxyinfo* pInfo
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_NET_PROXY_HANDSHAKE)
-
-/* 初始化握手配置；64 KiB 上限主要约束后续 HTTP CONNECT Header。 */
-XRT_API void xrtNetProxyHandshakeConfigInit(
-	xnetproxyhandshakeconfig* pConfig
-);
-
-
-
-/* 创建握手并立即生成首个协议报文；目标主机会被深拷贝。 */
-XRT_API xnetproxyhandshake* xrtNetProxyHandshakeCreate(
-	const xnetproxyhandshakeconfig* pConfig
-);
-
-
-
-/* 销毁握手，并清零尚未发送的认证报文和内部目标信息。 */
-XRT_API void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake);
-
-
-
-/* 返回当前握手状态；空指针返回 ERROR。 */
-XRT_API xnetproxyhandshakestate xrtNetProxyHandshakeState(
-	const xnetproxyhandshake* pHandshake
-);
-
-
-
-/*
-	处理输入链中的完整协议前缀；只消费代理回复，成功后的应用数据保持原位。
-	WRITE 状态必须先发送并确认全部输出，READ 状态才会继续解析输入。
-*/
-XRT_API xnetproxyhandshakestate xrtNetProxyHandshakeStep(
-	xnetproxyhandshake* pHandshake,
-	xnetbuf* pInput
-);
-
-
-
-/* 借用当前待发送的首段连续输出；失败时把非空输出规范化为空 Span。 */
-XRT_API bool xrtNetProxyHandshakeOutput(
-	const xnetproxyhandshake* pHandshake,
-	xnetspan* pOutput
-);
-
-
-
-/* 确认已经发送的输出前缀；支持 Socket 部分写入。 */
-XRT_API size_t xrtNetProxyHandshakeSent(
-	xnetproxyhandshake* pHandshake,
-	size_t iSize
-);
-
-
-
-/* READY 后复制可用的绑定端点；HTTP CONNECT 没有该信息并返回 NOT_FOUND。 */
-XRT_API bool xrtNetProxyHandshakeBound(
-	const xnetproxyhandshake* pHandshake,
-	xnetproxyendpoint* pEndpoint
-);
-
-
-
-/* 返回协议失败时捕获的不可变错误；对象所有权仍属于握手。 */
-XRT_API const xerror* xrtNetProxyHandshakeError(
-	const xnetproxyhandshake* pHandshake
-);
-
-
-
-/* 复制 SOCKS5 线路回复码或 HTTP 状态码；尚未收到回复时返回 false。 */
-XRT_API bool xrtNetProxyHandshakeCode(
-	const xnetproxyhandshake* pHandshake,
-	uint32* pCode
-);
-
-#endif
-
-
-
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
-
-/* 初始化 TCP 拨号、64 KiB 协议上限和 30 秒全过程超时。 */
-XRT_API void xrtNetProxyDialConfigInit(xnetproxydialconfig* pConfig);
-
-
-
-/*
-	连接代理端点并完成目标 CONNECT；成功 Stream 引用转移给完成回调。
-	非 Worker 提交者可能与完成回调并发，不能依赖返回值已经完成赋值。
-*/
-XRT_API xnetproxydial* xrtNetProxyDial(
-	xnetengine* pEngine,
-	xnetresolver* pResolver,
-	const xnetproxy* pProxy,
-	cstr sTargetHost,
-	uint16 iTargetPort,
-	const xnetproxydialconfig* pConfig,
-	const xnetstreamevents* pStreamEvents,
-	ptr pStreamData,
-	xnetproxydialproc pDone,
-	ptr pDoneData
-);
-
-
-
-/* 增加 Proxy Dial 引用并返回原指针。 */
-XRT_API xnetproxydial* xrtNetProxyDialRef(xnetproxydial* pDial);
-
-
-
-/* 释放 Proxy Dial 引用；空指针视为空操作。 */
-XRT_API void xrtNetProxyDialDestroy(xnetproxydial* pDial);
-
-
-
-/* 协作取消名称解析、TCP 连接或代理握手。 */
-XRT_API bool xrtNetProxyDialCancel(xnetproxydial* pDial);
-
-
-
-/* 返回当前拨号阶段或不可变终态。 */
-XRT_API xnetproxydialstate xrtNetProxyDialState(
-	const xnetproxydial* pDial
-);
-
-
-
-/* 失败或取消后借用完整错误原因链。 */
-XRT_API const xerror* xrtNetProxyDialError(
-	const xnetproxydial* pDial
-);
-
-
-
-/* 复制代理阶段和底层 TCP 地址竞速统计。 */
-XRT_API bool xrtNetProxyDialStats(
-	const xnetproxydial* pDial,
-	xnetproxydialstats* pStats
 );
 
 #endif
@@ -60671,11 +60710,25 @@ static int32 __xrtRefReleaseUnfenced(volatile int32* pCount)
 	#endif
 }
 
-/* The existing CAS/count semantics are unchanged. This short participation
- * makes native strong retain/release and Value weak promotion linearize on
- * the same side of an admitted ownership freeze. Enclosing edge mutations
- * still need an outer scope; a single RC update is not a graph transaction. */
+/* Generic native reference counters stay independent from the optional
+ * ownership graph. Most XRT objects are not graph participants, and imposing
+ * freeze-domain admission on every retain/release makes their hottest path
+ * several times more expensive. Graph-aware code uses the explicit
+ * xrtOwnershipRef* pair or, for multi-field transitions, an outer scope. */
 XRT_API int32 xrtRefRetain(volatile int32* pCount)
+{
+	return __xrtRefRetainUnfenced(pCount);
+}
+
+XRT_API int32 xrtRefRelease(volatile int32* pCount)
+{
+	return __xrtRefReleaseUnfenced(pCount);
+}
+
+
+
+/* Explicitly fence a standalone graph-participating counter update. */
+XRT_API int32 xrtOwnershipRefRetain(volatile int32* pCount)
 {
 	xrtownershipscope Scope = {0};
 	int32 iResult;
@@ -60686,7 +60739,7 @@ XRT_API int32 xrtRefRetain(volatile int32* pCount)
 	return iResult;
 }
 
-XRT_API int32 xrtRefRelease(volatile int32* pCount)
+XRT_API int32 xrtOwnershipRefRelease(volatile int32* pCount)
 {
 	xrtownershipscope Scope = {0};
 	int32 iResult;
@@ -63234,7 +63287,12 @@ XRT_API xerror* xrtErrorWrap(const xerror* pCause, xerrkind Kind, cstr sDomain, 
 XRT_API xerror* xrtErrorRef(const xerror* pError)
 {
 	if ( (pError != NULL) && ((pError->Flags & XRT_ERROR_STATIC) == 0) ) {
-		if ( xrtRefRetain((volatile int32*)&pError->RefCount) < 0 ) {
+		xrtownershipscope Mutation = {0};
+		int32 iReferences;
+		if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+		iReferences = xrtRefRetain((volatile int32*)&pError->RefCount);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		if ( iReferences < 0 ) {
 			return NULL;
 		}
 	}
@@ -63247,6 +63305,11 @@ XRT_API xerror* xrtErrorRef(const xerror* pError)
 /* 释放错误对象引用。 */
 XRT_API void xrtErrorFree(xerror* pError)
 {
+	xrtownershipscope Mutation = {0};
+	if ( (pError == NULL) || ((pError->Flags & XRT_ERROR_STATIC) != 0) ) {
+		return;
+	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	while ( (pError != NULL) &&
 		 ((pError->Flags & XRT_ERROR_STATIC) == 0) &&
 		 (xrtRefRelease(&pError->RefCount) == 0) ) {
@@ -63255,6 +63318,7 @@ XRT_API void xrtErrorFree(xerror* pError)
 		xrtFree(pError);
 		pError = pCause;
 	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
 
@@ -86652,7 +86716,7 @@ XRT_API xnetaddrlist* xrtNetAddrListRef(xnetaddrlist* pList)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	if ( xrtRefRetain(&pList->References) < 0 ) {
+	if ( xrtOwnershipRefRetain(&pList->References) < 0 ) {
 		__xrtNetSetError(XERR_STATE, XNET_ERROR_DNS_RESULT,
 			"retain-addresses", "address list reference is invalid", 0);
 		return NULL;
@@ -87440,7 +87504,7 @@ static uint64 __xrtNetResolverHash(
 static bool __xrtNetResolverRetain(xnetresolver* pResolver)
 {
 	return (pResolver != NULL) &&
-		(xrtRefRetain(&pResolver->RefCount) >= 0);
+		(xrtOwnershipRefRetain(&pResolver->RefCount) >= 0);
 }
 
 
@@ -88944,7 +89008,10 @@ static bool __xrtNetResolverHold(const void* pData)
 {
 	xnetresolver* pResolver = (xnetresolver*)pData; xrtownershipscope Mutation = {0};
 	__xrtNetResolverLock(pResolver, &Mutation);
-	bool bHeld = !pResolver->OwnershipCleared && __xrtNetResolverRetain(pResolver);
+	/* Freeze already owns the mutation domain; avoid opening a redundant
+	 * nested admission for the adapter's temporary hold. */
+	bool bHeld = !pResolver->OwnershipCleared &&
+		xrtRefRetain(&pResolver->RefCount) >= 0;
 	__xrtNetResolverUnlock(pResolver, &Mutation); return bHeld;
 }
 static void __xrtNetResolverDrop(const void* pData) { __xrtNetResolverRelease((xnetresolver*)pData); }
@@ -106928,8 +106995,8 @@ static bool __xrtValueIterStartInternal(
 	pIterator->Direction = iDirection;
 	if (bKeepFinalizerShell && pBacking->Type == XVALUE_OBJECT &&
 		((xvalueobjectbacking*)pBacking)->Finalizer != NULL) {
-		pIterator->FinalizerOwner = xrtValueRetain(pValue);
-		if (pIterator->FinalizerOwner == NULL) {
+		pIterator->State.Object.FinalizerOwner = xrtValueRetain(pValue);
+		if (pIterator->State.Object.FinalizerOwner == NULL) {
 			__xrtValueBackingRelease(pBacking);
 			memset(pIterator, 0, sizeof(*pIterator));
 			return false;
@@ -106972,7 +107039,9 @@ static bool __xrtValueIterStartInternal(
 	}
 	if ( !bReady ) {
 		__xrtValueBackingRelease(pBacking);
-		xrtValueRelease(pIterator->FinalizerOwner);
+		if (pIterator->Type == XVALUE_OBJECT) {
+			xrtValueRelease(pIterator->State.Object.FinalizerOwner);
+		}
 		memset(pIterator, 0, sizeof(xvalueiter));
 		return false;
 	}
@@ -107233,7 +107302,9 @@ XRT_API void xrtValueIterEnd(xvalueiter* pIterator)
 		xrtMapIterEnd(&pIterator->State.Map);
 	}
 	pBacking = (xvaluebacking*)pIterator->Backing;
-	pOwner = pIterator->FinalizerOwner;
+	pOwner = pIterator->Type == XVALUE_OBJECT
+		? pIterator->State.Object.FinalizerOwner
+		: NULL;
 	/* Re-entry observes an ended cursor before either release can call user
 	 * code. The backing slot must go first; the shell owns the final duty. */
 	memset(pIterator, 0, sizeof(xvalueiter));
@@ -107257,16 +107328,20 @@ XRT_API void xrtValueIterDestroy(xvalueiter* pIterator)
 static bool __xrtValueIterOwnershipCount(const void* pData, size_t* pCount)
 {
 	const xvalueiter* pIterator = (const xvalueiter*)pData;
+	xvalue* pOwner;
 	if (pIterator == NULL || pCount == NULL) return false;
 	if (pIterator->Backing == NULL) {
-		if (pIterator->Type != 0 || pIterator->Direction != 0 || pIterator->Index != 0 || pIterator->FinalizerOwner != NULL) return false;
+		if (pIterator->Type != 0 || pIterator->Direction != 0 || pIterator->Index != 0 ||
+			pIterator->State.Object.FinalizerOwner != NULL) return false;
 	} else if ((pIterator->Direction != 1 && pIterator->Direction != -1) ||
 		!__xrtValueContainerType(pIterator->Type) ||
 		((const xvaluebacking*)pIterator->Backing)->Type != (uint16)pIterator->Type ||
 		__xrtAtomicRefLoad(&((const xvaluebacking*)pIterator->Backing)->RefCount) <= 0) return false;
-	if (pIterator->FinalizerOwner != NULL && (pIterator->Type != XVALUE_OBJECT ||
-		pIterator->FinalizerOwner->Data.Backing != pIterator->Backing ||
-		__xrtAtomicRefLoad(&pIterator->FinalizerOwner->RefCount) <= 0)) return false;
+	pOwner = pIterator->Type == XVALUE_OBJECT
+		? pIterator->State.Object.FinalizerOwner
+		: NULL;
+	if (pOwner != NULL && (pOwner->Data.Backing != pIterator->Backing ||
+		__xrtAtomicRefLoad(&pOwner->RefCount) <= 0)) return false;
 	/* Unique End/Destroy ownership; borrowed cursor aliases acquire no refs. */
 	*pCount = 1;
 	return true;
@@ -107274,11 +107349,15 @@ static bool __xrtValueIterOwnershipCount(const void* pData, size_t* pCount)
 static bool __xrtValueIterOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
 {
 	const xvalueiter* pIterator = (const xvalueiter*)pData;
+	xvalue* pOwner;
 	size_t iCount;
 	if (pVisit == NULL || !__xrtValueIterOwnershipCount(pData, &iCount)) return false;
 	if (pIterator->Backing != NULL && !pVisit(
 		(xrtownershipref){pIterator->Backing, &__xrtValueBackingOwnershipOps}, pContext)) return false;
-	return pIterator->FinalizerOwner == NULL || pVisit(xrtValueOwnership(pIterator->FinalizerOwner), pContext);
+	pOwner = pIterator->Type == XVALUE_OBJECT
+		? pIterator->State.Object.FinalizerOwner
+		: NULL;
+	return pOwner == NULL || pVisit(xrtValueOwnership(pOwner), pContext);
 }
 static const xrtownershipops __xrtValueIterOwnershipOps = {
 	__xrtValueIterOwnershipCount, __xrtValueIterOwnershipTrace
@@ -160413,6 +160492,9 @@ struct xtlsdial {
 	xatomic32 TimerDone;
 	xatomic64 Timer;
 	xatomicptr TransportDial;
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	xatomicptr ProxyDial;
+#endif
 	xatomicptr Stream;
 	xnetengine* Engine;
 	xtlsstreamevents StreamEvents;
@@ -160487,6 +160569,9 @@ XRT_API xtlsdial* xrtTlsDialRef(xtlsdial* pDial)
 XRT_API void xrtTlsDialDestroy(xtlsdial* pDial)
 {
 	xnetdial* pTransportDial;
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	xnetproxydial* pProxyDial;
+#endif
 	xtlsstream* pStream;
 
 	if ( (pDial == NULL) ||
@@ -160501,7 +160586,18 @@ XRT_API void xrtTlsDialDestroy(xtlsdial* pDial)
 		&pDial->Stream,
 		XMEMORY_ACQUIRE
 	);
-	xrtNetDialDestroy(pTransportDial);
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
+		&pDial->ProxyDial,
+		XMEMORY_ACQUIRE
+	);
+	if ( pProxyDial != NULL ) {
+		xrtNetProxyDialDestroy(pProxyDial);
+	} else
+#endif
+	{
+		xrtNetDialDestroy(pTransportDial);
+	}
 	xrtTlsStreamDestroy(pStream);
 	xrtErrorFree(pDial->Error);
 	xrtFree(pDial);
@@ -160704,9 +160800,30 @@ static bool __xrtTlsDialStopping(const xtlsdial* pDial)
 
 
 
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+static void __xrtTlsDialTransportDoneBody(
+	xnetresult Result,
+	xnetstream* pTransport,
+	const xerror* pError,
+	ptr pData
+);
+
+/* 代理隧道完成：与 TCP 路径同一张事件表驱动 TLS，仅首参类型不同。 */
+static void __xrtTlsDialProxyDone(
+	xnetproxydial* pProxyDial,
+	xnetresult Result,
+	xnetstream* pTransport,
+	const xerror* pError,
+	ptr pData
+)
+{
+	(void)pProxyDial;
+	__xrtTlsDialTransportDoneBody(Result, pTransport, pError, pData);
+}
+#endif
+
 /* TCP Dial 完成后，失败进入组合终态，成功则把传输引用交给 TLS Stream。 */
-static void __xrtTlsDialTransportDone(
-	xnetdial* pTransportDial,
+static void __xrtTlsDialTransportDoneBody(
 	xnetresult Result,
 	xnetstream* pTransport,
 	const xerror* pError,
@@ -160719,7 +160836,6 @@ static void __xrtTlsDialTransportDone(
 		XMEMORY_ACQUIRE
 	);
 
-	(void)pTransportDial;
 	if ( Result != XNET_RESULT_OK ) {
 		__xrtTlsStreamTransportFailed(pStream, Result, pError);
 		return;
@@ -160760,6 +160876,18 @@ static void __xrtTlsDialTransportDone(
 	}
 }
 
+static void __xrtTlsDialTransportDone(
+	xnetdial* pTransportDial,
+	xnetresult Result,
+	xnetstream* pTransport,
+	const xerror* pError,
+	ptr pData
+)
+{
+	(void)pTransportDial;
+	__xrtTlsDialTransportDoneBody(Result, pTransport, pError, pData);
+}
+
 
 
 /* 取消当前活动的 TCP 或 TLS 阶段；调用方已经赢得终态门。 */
@@ -160771,6 +160899,19 @@ static void __xrtTlsDialCancelStage(xtlsdial* pDial)
 	);
 	xtlsstream* pStream;
 
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	{
+		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
+			&pDial->ProxyDial,
+			XMEMORY_ACQUIRE
+		);
+
+		if ( (pProxyDial != NULL) &&
+			xrtNetProxyDialCancel(pProxyDial) ) {
+			return;
+		}
+	}
+#endif
 	if ( (pTransportDial != NULL) &&
 		xrtNetDialCancel(pTransportDial) ) {
 		return;
@@ -160842,10 +160983,11 @@ XRT_API void xrtTlsDialConfigInit(xtlsdialconfig* pConfig)
 
 
 
-/* 复用 TCP Dial 的解析和地址竞速，TLS 层只负责安全握手发布。 */
-XRT_API xtlsdial* xrtTlsDial(
+/* 统一构造直接与代理 TLS Dial；公开入口只决定传输建立策略。 */
+static xtlsdial* __xrtTlsDialStart(
 	xnetengine* pEngine,
 	xnetresolver* pResolver,
+	const void* pProxy,
 	cstr sHost,
 	uint16 iPort,
 	const xtlsclientconfig* pTls,
@@ -160865,6 +161007,10 @@ XRT_API xtlsdial* xrtTlsDial(
 	xnetdial* pTransportDial;
 	xerror* pError;
 	uint64 Id;
+
+#if !defined(XRT_FEATURE_NET_PROXY_DIAL)
+	(void)pProxy;
+#endif
 
 	if ( (pEngine == NULL) || (pResolver == NULL) ||
 		(sHost == NULL) || (sHost[0] == 0) ||
@@ -160927,6 +161073,9 @@ XRT_API xtlsdial* xrtTlsDial(
 	xrtAtomic32Init(&pDial->TimerDone, 0);
 	xrtAtomic64Init(&pDial->Timer, 0);
 	xrtAtomicPtrInit(&pDial->TransportDial, NULL);
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	xrtAtomicPtrInit(&pDial->ProxyDial, NULL);
+#endif
 	xrtAtomicPtrInit(&pDial->Stream, NULL);
 	pDial->Engine = pEngine;
 	pDial->StreamData = pStreamData;
@@ -160990,6 +161139,61 @@ XRT_API xtlsdial* xrtTlsDial(
 			);
 		}
 	}
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	if ( pProxy != NULL ) {
+		xnetproxydialconfig tProxyCfg;
+		xnetproxydial* pProxyDial;
+
+		xrtNetProxyDialConfigInit(&tProxyCfg);
+		tProxyCfg.Transport = Config.Transport;
+		/* The enclosing TLS timer is the sole end-to-end deadline. A zero
+		 * proxy timeout preserves Transport's own per-stage limits. */
+		tProxyCfg.Timeout = 0;
+		pProxyDial = xrtNetProxyDial(
+			pEngine,
+			pResolver,
+			(const xnetproxy*)pProxy,
+			sHost,
+			iPort,
+			&tProxyCfg,
+			__xrtTlsStreamTransportEventTable(),
+			pStream,
+			__xrtTlsDialProxyDone,
+			pDial
+		);
+		if ( pProxyDial == NULL ) {
+			pError = xrtTakeError();
+			__xrtTlsDialCancelTimer(pDial);
+			(void)xrtAtomicPtrExchange(
+				&pDial->Stream,
+				NULL,
+				XMEMORY_ACQ_REL
+			);
+			__xrtTlsStreamDiscard(pStream);
+			pDial->RuntimeHeld = false;
+			xrtTlsDialDestroy(pDial);
+			xrtTlsDialDestroy(pDial);
+			__xrtNetEngineObjectRelease(pEngine);
+			xrtSetError(pError);
+			xrtErrorFree(pError);
+			return NULL;
+		}
+		xrtAtomicPtrStore(
+			&pDial->ProxyDial,
+			pProxyDial,
+			XMEMORY_RELEASE
+		);
+		if ( __xrtTlsDialStopping(pDial) ) {
+			/* Submission and its Worker may run concurrently.  If CONNECT
+			 * already won before the handle was published, proxy cancellation
+			 * correctly refuses; the shared stage canceller then falls through
+			 * to the attached TLS Stream instead of losing the terminal request. */
+			__xrtTlsDialCancelStage(pDial);
+		}
+		__xrtNetEngineObjectRelease(pEngine);
+		return pDial;
+	}
+#endif
 	pTransportDial = xrtNetDial(
 		pEngine,
 		pResolver,
@@ -161024,11 +161228,69 @@ XRT_API xtlsdial* xrtTlsDial(
 		XMEMORY_RELEASE
 	);
 	if ( __xrtTlsDialStopping(pDial) ) {
-		(void)xrtNetDialCancel(pTransportDial);
+		/* Cover the same submit/complete race for the direct transport. */
+		__xrtTlsDialCancelStage(pDial);
 	}
 	__xrtNetEngineObjectRelease(pEngine);
 	return pDial;
 }
+
+
+
+/* 复用 TCP Dial 的解析和地址竞速，TLS 层只负责安全握手发布。 */
+XRT_API xtlsdial* xrtTlsDial(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xtlsdialproc pDone,
+	ptr pDoneData
+)
+{
+	return __xrtTlsDialStart(
+		pEngine, pResolver, NULL, sHost, iPort, pTls, pConfig,
+		pStreamEvents, pStreamData, pDone, pDoneData
+	);
+}
+
+
+
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+/* 建立代理隧道后继续同一 TLS 状态机；不复制握手和终态逻辑。 */
+XRT_API xtlsdial* xrtTlsDialProxy(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	const xnetproxy* pProxy,
+	cstr sHost,
+	uint16 iPort,
+	const xtlsclientconfig* pTls,
+	const xtlsdialconfig* pConfig,
+	const xtlsstreamevents* pStreamEvents,
+	ptr pStreamData,
+	xtlsdialproc pDone,
+	ptr pDoneData
+)
+{
+	if ( pProxy == NULL ) {
+		__xrtTlsDialSetError(
+			XERR_ARGUMENT,
+			XTLS_ERROR_ARGUMENT,
+			"dial-tls-proxy",
+			"TLS proxy is null",
+			NULL
+		);
+		return NULL;
+	}
+	return __xrtTlsDialStart(
+		pEngine, pResolver, pProxy, sHost, iPort, pTls, pConfig,
+		pStreamEvents, pStreamData, pDone, pDoneData
+	);
+}
+#endif
 
 
 
@@ -161087,6 +161349,27 @@ XRT_API xtlsdialstate xrtTlsDialState(const xtlsdial* pDial)
 		(State != XTLS_DIAL_CONNECTING) ) {
 		return State;
 	}
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	{
+		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
+			&pDial->ProxyDial,
+			XMEMORY_ACQUIRE
+		);
+
+		if ( pProxyDial != NULL ) {
+			xnetproxydialstate ProxyState = xrtNetProxyDialState(pProxyDial);
+
+			if ( ProxyState == XNET_PROXY_DIAL_CONNECTING
+				|| ProxyState == XNET_PROXY_DIAL_HANDSHAKE ) {
+				return XTLS_DIAL_CONNECTING;
+			}
+			if ( ProxyState == XNET_PROXY_DIAL_CONNECTED ) {
+				return XTLS_DIAL_HANDSHAKE;
+			}
+			return State;
+		}
+	}
+#endif
 	pTransportDial = (xnetdial*)xrtAtomicPtrLoad(
 		&pDial->TransportDial,
 		XMEMORY_ACQUIRE
@@ -161146,6 +161429,24 @@ XRT_API bool xrtTlsDialTransportStats(
 		);
 		return false;
 	}
+#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+	{
+		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
+			&pDial->ProxyDial,
+			XMEMORY_ACQUIRE
+		);
+
+		if ( pProxyDial != NULL ) {
+			xnetproxydialstats tProxyStats;
+
+			if ( !xrtNetProxyDialStats(pProxyDial, &tProxyStats) ) {
+				return false;
+			}
+			*pStats = tProxyStats.Transport;
+			return true;
+		}
+	}
+#endif
 	pTransportDial = (xnetdial*)xrtAtomicPtrLoad(
 		&pDial->TransportDial,
 		XMEMORY_ACQUIRE

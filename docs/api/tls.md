@@ -10898,6 +10898,61 @@ xtlsdial* xrtTlsDial(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, u
 		&Example
 ```
 
+### `xrtTlsDialProxy`
+
+经代理 CONNECT 隧道连接目标并继续同一个受管 TLS 状态机。代理对象只在调用期间借用；提交成功后，组合拨号持有其自己的代理引用。
+
+```c
+xtlsdial* xrtTlsDialProxy(xnetengine* pEngine, xnetresolver* pResolver, const xnetproxy* pProxy, cstr sHost, uint16 iPort, const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig, const xtlsstreamevents* pStreamEvents, ptr pStreamData, xtlsdialproc pDone, ptr pDoneData)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pEngine` | 输入 | 非空 | 网络 Engine |
+| `pResolver` | 输入 | 非空 | 名称解析器 |
+| `pProxy` | 输入 | 非空、调用期间借用 | 代理配置 |
+| `sHost` | 输入 | 非空 | CONNECT 目标主机；默认也用于 SNI 与证书名称 |
+| `iPort` | 输入 | 非零 | CONNECT 目标端口 |
+| `pTls` | 输入 | 允许空 | TLS 客户端配置 |
+| `pConfig` | 输入 | 允许空 | TCP、TLS 与全过程超时配置 |
+| `pStreamEvents` | 输入 | 允许空 | 成功 TLS Stream 的事件表 |
+| `pStreamData` | 输入 | — | Stream 用户数据 |
+| `pDone` | 输入 | 非空 | 唯一终态完成回调 |
+| `pDoneData` | 输入 | — | 完成回调数据 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | TLS Dial 调用方引用 | — |
+| `NULL` | 参数、配置、分配或提交失败 | 见当前线程错误 |
+
+#### 错误
+
+- `XERR_ARGUMENT` — Engine、Resolver、Proxy、目标或完成回调非法
+- `XERR_RANGE` — Stream 或代理握手硬上限与传输配置冲突
+- `XERR_UNSUPPORTED` — 代理类型对应的握手协议未编译
+- `XERR_CLOSED` — Engine 已停止接受新对象
+- `XERR_MEMORY` — 分配失败
+
+#### 范例
+
+[TLS 拨号](../../examples/tls/dial/main.c) · [代理拨号](../../examples/network/proxy_dial/main.c)
+
+```c
+pDial = xrtTlsDialProxy(
+	pEngine, pResolver, pProxy, sHost, iPort,
+	&TlsConfig, &DialConfig, &Events, pStreamData,
+	onTlsDialDone, pDoneData
+);
+```
+
+该入口仅在同时启用 `XRT_FEATURE_TLS_STREAM_DIAL` 与
+`XRT_FEATURE_NET_PROXY_DIAL` 时声明。`xtlsdialconfig` 不包含条件式代理字段，
+因此其公开布局不随代理功能宏改变；直连与代理拨号也不会因为裁剪组合而静默互换。
+
 ### `xrtTlsDialAsync`
 
 以 Future 接收完成握手的 TLS Stream；Open 先于成功终态发布。Future 持有一个 Stream 引用，取消请求协作终止 DNS、TCP 或 TLS 当前阶段。
@@ -12777,6 +12832,14 @@ Stream 的 Worker 上调用。调用方必须在升级点停止直接收发和�
 另一套 DNS 或 TCP 连接器。数字地址使用 `xrtTlsStreamConnect()`；已有 TCP
 Stream 使用 `xrtTlsStreamClient()` 或 `xrtTlsStreamAttach()`；服务端 Accept
 使用 `xrtTlsStreamAccept()`；完全自定义传输仍可直接使用会话层。
+
+同时启用 `XRT_FEATURE_NET_PROXY_DIAL` 时，使用 `xrtTlsDialProxy()` 明确选择代理
+路径。目标主机和端口先用于 CONNECT，隧道建立后再对同一目标执行 TLS；直连入口
+不会读取代理配置，代理入口也拒绝空代理。两条入口共享同一个 TLS Dial 状态机、
+终态门、错误链和统计接口。`Config.Timeout` 是覆盖代理端点解析、TCP、CONNECT 和
+TLS 握手的唯一全过程期限；代理组合层不会再启动一只竞争的总定时器，但
+`Config.Transport` 中的各阶段限制仍然生效。取消或总超时在 CONNECT 已完成后会
+继续中止 TLS Stream，不会停留在永久 `HANDSHAKE` 状态。
 
 ```c
 xtlsdialconfig Config;
