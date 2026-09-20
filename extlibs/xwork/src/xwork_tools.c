@@ -170,8 +170,9 @@ static xwork_result xwork__tool_read(
         if ( i < iSize ) ++i;
         ++uLine;
     }
-    if ( uEmitted == uMaxLines && i < iSize && !xwork__buf_appendf(&tOutput, "[more lines available; continue at start_line=%llu]\n", (unsigned long long)uLine) ) goto oom;
+    if ( uEmitted == uMaxLines && i < iSize && !xwork__buf_appendf(&tOutput, "[truncated: more lines remain; continue with start_line=%llu]\n", (unsigned long long)uLine) ) goto oom;
     if ( uStartLine >= uLine && i >= iSize && !xwork__buf_append_cstr(&tOutput, "[start_line is beyond end of file]\n") ) goto oom;
+    if ( i >= iSize && !xwork__buf_appendf(&tOutput, "[complete: end of file at line %llu]\n", (unsigned long long)(uLine - 1u)) ) goto oom;
     if ( !xworkToolOutputSet(pOutput, true, tOutput.pData ? tOutput.pData : "") ) goto oom;
     eResult = XWORK_RESULT_OK;
     goto cleanup;
@@ -1771,7 +1772,7 @@ bool xworkAgentRegisterBuiltinReadOnlyTools(xwork_agent* pAgent, xwork_error* pE
     static const xwork_tool_definition arrTools[] = {
         {
             "read",
-            "Read workspace files. Text returns numbered lines with pagination; images (jpg/png/gif/webp/bmp) are attached for viewing. Oversized text output is truncated with the full copy spilled to an artifact.",
+            "Read workspace files. Text returns numbered lines with pagination; images (jpg/png/gif/webp/bmp) are attached for viewing. A trailing marker states whether you saw the whole file ([complete: end of file at line N]) or only part of it ([truncated: ... continue with start_line=N]). Oversized text output is truncated with the full copy spilled to an artifact.",
             "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"start_line\":{\"type\":\"integer\",\"minimum\":1},\"max_lines\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10000}},\"required\":[\"path\"],\"additionalProperties\":false}",
             true, XWORK_TOOL_EFFECT_READ_ONLY, xwork__tool_read, NULL, NULL
         },

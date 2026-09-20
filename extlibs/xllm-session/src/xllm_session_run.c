@@ -32,6 +32,7 @@ static xllm_result xllm_session__run_drain_pending(xllm_session* pSession,
     xllm_run_summary* pSummary, xllm_error* pError)
 {
     while ( xllmSessionPendingToolCallCount(pSession) != 0u ) {
+        size_t iPendingBefore = xllmSessionPendingToolCallCount(pSession);
         xllm_pending_tool_call tCall;
         xllm_tool_call tCallView;
         xllm_executor_result tOut;
@@ -62,6 +63,13 @@ static xllm_result xllm_session__run_drain_pending(xllm_session* pSession,
             return XLLM_RESULT_ERROR;
         }
         ++pSummary->uToolCalls;
+        /* 防御闸：入账成功后 pending 必须减少，否则说明解析/匹配有缺陷——
+         * 宁可报错终止，也不能无限重执行一个有副作用的工具。 */
+        if ( xllmSessionPendingToolCallCount(pSession) >= iPendingBefore ) {
+            xllm_session__error(pError, XLLM_ERROR_UPSTREAM,
+                "pending tool call did not resolve after recording its result");
+            return XLLM_RESULT_ERROR;
+        }
     }
     return XLLM_RESULT_OK;
 }

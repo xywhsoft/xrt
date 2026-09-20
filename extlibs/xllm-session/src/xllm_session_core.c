@@ -686,12 +686,11 @@ static bool xllm_session__tool_resolved(const xllm_session* pSession, size_t iAs
     uint64_t uTurn;
     if ( !pSession || !sCallId ) { return false; }
     uTurn = pSession->pEntries[iAssistantEntry].uTurn;
+    /* 恢复路径会在更高回合的消息之后追加旧回合的工具结果（数组内回合非单调），
+     * 不能在遇到更大回合时提前退出——必须扫到末条。 */
     for ( i = iAssistantEntry + 1u; i < pSession->iEntryCount; ++i ) {
         const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( pEntry->uTurn != uTurn ) {
-            if ( pEntry->uTurn > uTurn ) { break; }
-            continue;
-        }
+        if ( pEntry->uTurn != uTurn ) { continue; }
         if ( pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId &&
              strcmp(pEntry->tMessage.sToolCallId, sCallId) == 0 ) return true;
     }
