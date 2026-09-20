@@ -246,7 +246,7 @@ static xnetudp* __xrtNetUdpCreate(
 	if ( !__xrtNetEngineObjectHold(pEngine) ) {
 		return NULL;
 	}
-	pPort = xrtNetWorkerPort(pWorker);
+	pPort = __xrtNetWorkerPortBorrow(pWorker);
 	if ( pPort == NULL ) {
 		__xrtNetEngineObjectRelease(pEngine);
 		return NULL;

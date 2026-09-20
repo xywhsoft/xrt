@@ -17,10 +17,15 @@ cleanup refuse inspection. Read-only thread completion permits revalidation afte
 exit without requiring another Prepare first. Prepare drains and joins; Clear and
 Finish never consume a creator reference or confuse worker occupancy with RC.
 
-Raw port exposure, embedded borrowed commands and live pool blocks remain
-uncertified and explicitly refuse graph admission. Transport/buffer ownership,
-complete native service graphs, generated module integration and OS-level code
-unload proofs are still required work, not waived by this Engine foundation.
+Calling the public xrtNetWorkerPort API exposes a raw external capability and
+therefore keeps graph admission conservatively refused until the port is
+retired. XRT's TCP, UDP and file transports use a private, immediate and
+non-escaping worker-port borrow instead; that borrow must never be returned to
+user code or stored beyond the operation that requested it. Embedded borrowed
+commands and live pool blocks remain uncertified and explicitly refuse graph
+admission. Transport/buffer ownership, complete native service graphs,
+generated module integration and OS-level code unload proofs are still required
+work, not waived by this Engine foundation.
 
 The creator and an operational Pin are different duties. Pin adds one physical
 reference AND one live-object admission; Unpin releases both. Plan Hold adds one

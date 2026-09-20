@@ -110,7 +110,7 @@ XRT_API uint64 xrtNetFileRead(
 	if ( !__xrtNetFileRange(iOffset, pData, iSize, "read-file") ) {
 		return 0;
 	}
-	pPort = xrtNetWorkerPort(pWorker);
+	pPort = __xrtNetWorkerPortBorrow(pWorker);
 	if ( (pPort == NULL) ||
 		((xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_FILE_IO) == 0u) ) {
 		__xrtNetSetError(XERR_UNSUPPORTED, XNET_ERROR_PORT_SUBMIT,
@@ -167,7 +167,7 @@ XRT_API uint64 xrtNetFileWrite(
 	if ( !__xrtNetFileRange(iOffset, pData, iSize, "write-file") ) {
 		return 0;
 	}
-	pPort = xrtNetWorkerPort(pWorker);
+	pPort = __xrtNetWorkerPortBorrow(pWorker);
 	if ( (pPort == NULL) ||
 		((xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_FILE_IO) == 0u) ) {
 		__xrtNetSetError(XERR_UNSUPPORTED, XNET_ERROR_PORT_SUBMIT,
@@ -213,7 +213,7 @@ XRT_API bool xrtNetFileCancel(
 		__xrtErrorSetInvalidState();
 		return false;
 	}
-	return xrtNetPortCancel(xrtNetWorkerPort(pWorker), Id);
+	return xrtNetPortCancel(__xrtNetWorkerPortBorrow(pWorker), Id);
 }
 
 #endif

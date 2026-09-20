@@ -2,7 +2,7 @@
 #define XRT_TLS_STREAM_H
 
 #include <xrt/tcp.h>
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	#include <xrt/proxy.h>
 #endif
 #include <xrt/tls_client.h>
@@ -28,6 +28,12 @@
 	(!defined(XRT_FEATURE_TLS_STREAM) || \
 	 !defined(XRT_FEATURE_NET_TCP_DIAL))
 	#error "XRT_FEATURE_TLS_STREAM_DIAL requires TLS Stream and TCP Dial"
+#endif
+
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY) && \
+	(!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
+	 !defined(XRT_FEATURE_NET_PROXY_DIAL))
+	#error "XRT_FEATURE_TLS_STREAM_DIAL_PROXY requires TLS Stream Dial and Proxy Dial"
 #endif
 
 #if defined(XRT_FEATURE_TLS_STREAM_FUTURE) && \
@@ -363,7 +369,7 @@ XRT_API xtlsdial* xrtTlsDial(
 
 
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 /* 经代理 CONNECT 隧道后对真实目标完成端到端 TLS；代理只在调用期间借用。 */
 XRT_API xtlsdial* xrtTlsDialProxy(
 	xnetengine* pEngine,

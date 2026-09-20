@@ -196,6 +196,13 @@ void __xrtNetEngineObjectRelease(xnetengine* pEngine);
 
 
 
+/* XRT transport internals borrow their own worker port without publishing a
+ * raw-port capability. The pointer must not escape the immediate internal
+ * operation. Public xrtNetWorkerPort remains the explicit exposure boundary. */
+xnetport* __xrtNetWorkerPortBorrow(xnetworker* pWorker);
+
+
+
 /* 从 Worker 的线程安全分级缓存分配并清零一个内部小节点。 */
 ptr __xrtNetWorkerNodeAlloc(xnetworker* pWorker, size_t iSize);
 

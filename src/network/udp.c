@@ -1147,7 +1147,7 @@ static bool __xrtNetUdpWatch(xnetudp* pUdp)
 	if ( iEvents == 0 ) {
 		if ( pUdp->WatchPending ) {
 			if ( !xrtNetPortUnwatch(
-				xrtNetWorkerPort(pUdp->Worker),
+				__xrtNetWorkerPortBorrow(pUdp->Worker),
 				pUdp->Socket
 			) ) {
 				pUdp->WatchPending = false;
@@ -1161,7 +1161,7 @@ static bool __xrtNetUdpWatch(xnetudp* pUdp)
 	}
 	Id = xrtNetWorkerOperationId(pUdp->Worker);
 	if ( (Id == 0) || !xrtNetPortWatch(
-		xrtNetWorkerPort(pUdp->Worker),
+		__xrtNetWorkerPortBorrow(pUdp->Worker),
 		pUdp->Socket,
 		Id,
 		iEvents,
@@ -1180,7 +1180,7 @@ static bool __xrtNetUdpWatch(xnetudp* pUdp)
 /* 取消全部接收以及异常关闭时的在途发送。 */
 static void __xrtNetUdpCancelOperations(xnetudp* pUdp)
 {
-	xnetport* pPort = xrtNetWorkerPort(pUdp->Worker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pUdp->Worker);
 
 	if ( pUdp->WatchPending ) {
 		if ( !xrtNetPortUnwatch(pPort, pUdp->Socket) ) {
@@ -1392,7 +1392,7 @@ static bool __xrtNetUdpArmReceive(__xrt_net_udp_receive* pReceive)
 	}
 	if ( pUdp->Config.ReceiveMeta != 0 ) {
 		if ( !xrtNetPortRecvMsg(
-			xrtNetWorkerPort(pUdp->Worker),
+			__xrtNetWorkerPortBorrow(pUdp->Worker),
 			pUdp->Socket,
 			Span.Data,
 			Span.Size,
@@ -1403,7 +1403,7 @@ static bool __xrtNetUdpArmReceive(__xrt_net_udp_receive* pReceive)
 			return false;
 		}
 	} else if ( !xrtNetPortRecvFrom(
-		xrtNetWorkerPort(pUdp->Worker),
+		__xrtNetWorkerPortBorrow(pUdp->Worker),
 		pUdp->Socket,
 		Span.Data,
 		Span.Size,
@@ -1444,7 +1444,7 @@ static bool __xrtNetUdpArmError(
 	}
 	pReceive->Id = xrtNetWorkerOperationId(pUdp->Worker);
 	if ( (pReceive->Id == 0) || !xrtNetPortRecvError(
-		xrtNetWorkerPort(pUdp->Worker),
+		__xrtNetWorkerPortBorrow(pUdp->Worker),
 		pUdp->Socket,
 		Span.Data,
 		Span.Size,
@@ -1821,7 +1821,7 @@ static bool __xrtNetUdpPortSend(
 	ptr pUser
 )
 {
-	xnetport* pPort = xrtNetWorkerPort(pUdp->Worker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pUdp->Worker);
 
 	if ( pSend->Controlled ) {
 		return xrtNetPortSendMsg(

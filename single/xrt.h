@@ -1203,6 +1203,19 @@
 #endif
 #endif
 
+/* tls_stream_dial_proxy 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_DIAL_PROXY)
+#ifndef XRT_FEATURE_TLS_STREAM_DIAL_PROXY
+#define XRT_FEATURE_TLS_STREAM_DIAL_PROXY
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_DIAL
+#define XRT_MODULE_TLS_STREAM_DIAL
+#endif
+#ifndef XRT_MODULE_NET_PROXY_DIAL
+#define XRT_MODULE_NET_PROXY_DIAL
+#endif
+#endif
+
 /* net_tcp_server_sync 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_SERVER_SYNC)
 #ifndef XRT_FEATURE_NET_TCP_SERVER_SYNC
@@ -26228,7 +26241,7 @@ XRT_EXTERN_C_END
 #ifndef XRT_TLS_STREAM_H
 #define XRT_TLS_STREAM_H
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 #endif
 
 #if defined(XRT_FEATURE_TLS_STREAM_FUTURE) || \
@@ -26250,6 +26263,12 @@ XRT_EXTERN_C_END
 	(!defined(XRT_FEATURE_TLS_STREAM) || \
 	 !defined(XRT_FEATURE_NET_TCP_DIAL))
 	#error "XRT_FEATURE_TLS_STREAM_DIAL requires TLS Stream and TCP Dial"
+#endif
+
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY) && \
+	(!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
+	 !defined(XRT_FEATURE_NET_PROXY_DIAL))
+	#error "XRT_FEATURE_TLS_STREAM_DIAL_PROXY requires TLS Stream Dial and Proxy Dial"
 #endif
 
 #if defined(XRT_FEATURE_TLS_STREAM_FUTURE) && \
@@ -26585,7 +26604,7 @@ XRT_API xtlsdial* xrtTlsDial(
 
 
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 /* 经代理 CONNECT 隧道后对真实目标完成端到端 TLS；代理只在调用期间借用。 */
 XRT_API xtlsdial* xrtTlsDialProxy(
 	xnetengine* pEngine,
@@ -44986,6 +45005,13 @@ void __xrtNetEngineObjectRelease(xnetengine* pEngine);
 
 
 
+/* XRT transport internals borrow their own worker port without publishing a
+ * raw-port capability. The pointer must not escape the immediate internal
+ * operation. Public xrtNetWorkerPort remains the explicit exposure boundary. */
+xnetport* __xrtNetWorkerPortBorrow(xnetworker* pWorker);
+
+
+
 /* 从 Worker 的线程安全分级缓存分配并清零一个内部小节点。 */
 ptr __xrtNetWorkerNodeAlloc(xnetworker* pWorker, size_t iSize);
 
@@ -50546,7 +50572,8 @@ bool __xrtTlsServerResumeSelect(
 	defined(XRT_FEATURE_TLS_STREAM_FUTURE) || \
 	defined(XRT_FEATURE_TLS_STREAM_LISTENER) || \
 	defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE) || \
-	defined(XRT_FEATURE_TLS_STREAM_LISTENER_SYNC)
+	defined(XRT_FEATURE_TLS_STREAM_LISTENER_SYNC) || \
+	defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 #ifndef XRT_INTERNAL_TLS_STREAM_H
 #define XRT_INTERNAL_TLS_STREAM_H
 
@@ -83298,8 +83325,9 @@ XRT_API bool xrtNetWorkerIsCurrent(const xnetworker* pWorker)
 
 
 
-/* 返回运行期间借用的 Worker 端口。 */
-XRT_API xnetport* xrtNetWorkerPort(xnetworker* pWorker)
+/* Internal transport borrow. Unlike the public capability boundary below,
+ * this pointer is consumed immediately by code in the same XRT product. */
+xnetport* __xrtNetWorkerPortBorrow(xnetworker* pWorker)
 {
 	if ( (pWorker == NULL) ||
 		 (xrtAtomic32Load(&pWorker->Running, XMEMORY_ACQUIRE) == 0) ) {
@@ -83311,10 +83339,19 @@ XRT_API xnetport* xrtNetWorkerPort(xnetworker* pWorker)
 		);
 		return NULL;
 	}
+	return pWorker->Port;
+}
+
+
+
+/* 返回运行期间借用的 Worker 端口。 */
+XRT_API xnetport* xrtNetWorkerPort(xnetworker* pWorker)
+{
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pWorker);
+	if (!pPort) return NULL;
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
 	pWorker->OwnershipPortExposed = true;
-	xnetport* pPort = pWorker->Port;
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	return pPort;
 }
@@ -124945,7 +124982,7 @@ static void __xrtNetStreamActiveLeave(xnetstream* pStream)
 static bool __xrtNetStreamCompletionPort(const xnetstream* pStream)
 {
 	return (xrtNetPortCapabilities(
-		xrtNetWorkerPort(pStream->Worker)
+		__xrtNetWorkerPortBorrow(pStream->Worker)
 	) & XNET_PORT_CAP_COMPLETION) != 0;
 }
 
@@ -124955,7 +124992,7 @@ static bool __xrtNetStreamCompletionPort(const xnetstream* pStream)
 static bool __xrtNetStreamReadProbeCapable(const xnetstream* pStream)
 {
 	return (xrtNetPortCapabilities(
-		xrtNetWorkerPort(pStream->Worker)
+		__xrtNetWorkerPortBorrow(pStream->Worker)
 	) & XNET_PORT_CAP_READ_PROBE) != 0;
 }
 
@@ -125026,7 +125063,7 @@ static bool __xrtNetStreamWatch(xnetstream* pStream)
 	if ( iEvents == 0 ) {
 		if ( pStream->WatchPending ) {
 			if ( !xrtNetPortUnwatch(
-				xrtNetWorkerPort(pStream->Worker),
+				__xrtNetWorkerPortBorrow(pStream->Worker),
 				pStream->Socket
 			) ) {
 				pStream->WatchPending = false;
@@ -125040,7 +125077,7 @@ static bool __xrtNetStreamWatch(xnetstream* pStream)
 	}
 	Id = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (Id == 0) || !xrtNetPortWatch(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		Id,
 		iEvents,
@@ -125058,7 +125095,7 @@ static bool __xrtNetStreamWatch(xnetstream* pStream)
 /* 取消 Stream 当前所有可取消的端口操作。 */
 static void __xrtNetStreamCancelOperations(xnetstream* pStream)
 {
-	xnetport* pPort = xrtNetWorkerPort(pStream->Worker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pStream->Worker);
 
 	if ( pStream->WatchPending ) {
 		if ( !xrtNetPortUnwatch(pPort, pStream->Socket) ) {
@@ -125395,7 +125432,7 @@ static bool __xrtNetStreamSubmitRead(xnetstream* pStream)
 	}
 	pStream->ReadId = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (pStream->ReadId == 0) || !xrtNetPortRecv(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		Span.Data,
 		Span.Size,
@@ -125418,7 +125455,7 @@ static bool __xrtNetStreamSubmitReadProbe(xnetstream* pStream)
 {
 	pStream->ReadId = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (pStream->ReadId == 0) || !xrtNetPortReadProbe(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		pStream->ReadId,
 		&pStream->Completion
@@ -125642,7 +125679,7 @@ static bool __xrtNetStreamSubmitWrite(
 {
 	pStream->WriteId = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (pStream->WriteId == 0) || !xrtNetPortSendVec(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		pSpans,
 		iCount,
@@ -125673,7 +125710,7 @@ static bool __xrtNetStreamSubmitFile(
 
 	pStream->WriteId = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (pStream->WriteId == 0) || !__xrtNetPortSendFile(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		pFile->Handle,
 		pFile->Offset + (uint64)iRelative,
@@ -126283,7 +126320,7 @@ static void __xrtNetStreamStartConnect(
 )
 {
 	xnetstream* pStream = (xnetstream*)pData;
-	xnetport* pPort = xrtNetWorkerPort(pWorker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pWorker);
 
 	pStream->StartPending = false;
 	if ( (xrtNetStreamState(pStream) != XNET_STREAM_CONNECTING) ||
@@ -128166,7 +128203,7 @@ static void __xrtNetListenerAcceptRetry(
 	if ( (Result == XNET_RESULT_OK) &&
 		(xrtNetListenerState(pListener) == XNET_LISTENER_OPEN) ) {
 		iCapabilities = xrtNetPortCapabilities(
-			xrtNetWorkerPort(pWorker)
+			__xrtNetWorkerPortBorrow(pWorker)
 		);
 		if ( (iCapabilities & XNET_PORT_CAP_COMPLETION) != 0 ) {
 			bResult = __xrtNetListenerArmAccepts(pListener);
@@ -128539,7 +128576,7 @@ static void __xrtNetListenerDispatch(
 /* 向 completion 端口补足预投递 Accept。 */
 static bool __xrtNetListenerArmAccepts(xnetlistener* pListener)
 {
-	xnetport* pPort = xrtNetWorkerPort(pListener->Worker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pListener->Worker);
 	bool bArmed = false;
 
 	for ( uint32 i = 0; i < pListener->Config.AcceptConcurrency; i++ ) {
@@ -128583,7 +128620,7 @@ static bool __xrtNetListenerWatch(xnetlistener* pListener)
 {
 	pListener->WatchId = xrtNetWorkerOperationId(pListener->Worker);
 	if ( (pListener->WatchId == 0) || !xrtNetPortWatch(
-		xrtNetWorkerPort(pListener->Worker),
+		__xrtNetWorkerPortBorrow(pListener->Worker),
 		pListener->Socket,
 		pListener->WatchId,
 		XNET_POLL_READ,
@@ -128762,7 +128799,7 @@ static void __xrtNetListenerStart(
 {
 	xnetlistener* pListener = (xnetlistener*)pData;
 	uint32 iCapabilities = xrtNetPortCapabilities(
-		xrtNetWorkerPort(pWorker)
+		__xrtNetWorkerPortBorrow(pWorker)
 	);
 	bool bResult;
 
@@ -128976,7 +129013,7 @@ static void __xrtNetListenerCloseTask(
 )
 {
 	xnetlistener* pListener = (xnetlistener*)pData;
-	xnetport* pPort = xrtNetWorkerPort(pWorker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pWorker);
 
 	if ( pListener->AcceptRetryTimer != 0 ) {
 		uint64 Id = pListener->AcceptRetryTimer;
@@ -160470,7 +160507,8 @@ XRT_API const xerror* xrtTlsStreamError(const xtlsstream* pStream)
 /* source: src/tls/stream_dial.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_TLS_STREAM_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
+	defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 
 
 
@@ -160492,7 +160530,7 @@ struct xtlsdial {
 	xatomic32 TimerDone;
 	xatomic64 Timer;
 	xatomicptr TransportDial;
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	xatomicptr ProxyDial;
 #endif
 	xatomicptr Stream;
@@ -160569,7 +160607,7 @@ XRT_API xtlsdial* xrtTlsDialRef(xtlsdial* pDial)
 XRT_API void xrtTlsDialDestroy(xtlsdial* pDial)
 {
 	xnetdial* pTransportDial;
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	xnetproxydial* pProxyDial;
 #endif
 	xtlsstream* pStream;
@@ -160586,7 +160624,7 @@ XRT_API void xrtTlsDialDestroy(xtlsdial* pDial)
 		&pDial->Stream,
 		XMEMORY_ACQUIRE
 	);
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
 		&pDial->ProxyDial,
 		XMEMORY_ACQUIRE
@@ -160800,7 +160838,7 @@ static bool __xrtTlsDialStopping(const xtlsdial* pDial)
 
 
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 static void __xrtTlsDialTransportDoneBody(
 	xnetresult Result,
 	xnetstream* pTransport,
@@ -160899,7 +160937,7 @@ static void __xrtTlsDialCancelStage(xtlsdial* pDial)
 	);
 	xtlsstream* pStream;
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	{
 		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
 			&pDial->ProxyDial,
@@ -161008,7 +161046,7 @@ static xtlsdial* __xrtTlsDialStart(
 	xerror* pError;
 	uint64 Id;
 
-#if !defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if !defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	(void)pProxy;
 #endif
 
@@ -161073,7 +161111,7 @@ static xtlsdial* __xrtTlsDialStart(
 	xrtAtomic32Init(&pDial->TimerDone, 0);
 	xrtAtomic64Init(&pDial->Timer, 0);
 	xrtAtomicPtrInit(&pDial->TransportDial, NULL);
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	xrtAtomicPtrInit(&pDial->ProxyDial, NULL);
 #endif
 	xrtAtomicPtrInit(&pDial->Stream, NULL);
@@ -161139,7 +161177,7 @@ static xtlsdial* __xrtTlsDialStart(
 			);
 		}
 	}
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	if ( pProxy != NULL ) {
 		xnetproxydialconfig tProxyCfg;
 		xnetproxydial* pProxyDial;
@@ -161259,7 +161297,7 @@ XRT_API xtlsdial* xrtTlsDial(
 
 
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 /* 建立代理隧道后继续同一 TLS 状态机；不复制握手和终态逻辑。 */
 XRT_API xtlsdial* xrtTlsDialProxy(
 	xnetengine* pEngine,
@@ -161349,7 +161387,7 @@ XRT_API xtlsdialstate xrtTlsDialState(const xtlsdial* pDial)
 		(State != XTLS_DIAL_CONNECTING) ) {
 		return State;
 	}
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	{
 		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
 			&pDial->ProxyDial,
@@ -161429,7 +161467,7 @@ XRT_API bool xrtTlsDialTransportStats(
 		);
 		return false;
 	}
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	{
 		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
 			&pDial->ProxyDial,
@@ -252573,7 +252611,7 @@ XRT_API uint64 xrtNetFileRead(
 	if ( !__xrtNetFileRange(iOffset, pData, iSize, "read-file") ) {
 		return 0;
 	}
-	pPort = xrtNetWorkerPort(pWorker);
+	pPort = __xrtNetWorkerPortBorrow(pWorker);
 	if ( (pPort == NULL) ||
 		((xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_FILE_IO) == 0u) ) {
 		__xrtNetSetError(XERR_UNSUPPORTED, XNET_ERROR_PORT_SUBMIT,
@@ -252630,7 +252668,7 @@ XRT_API uint64 xrtNetFileWrite(
 	if ( !__xrtNetFileRange(iOffset, pData, iSize, "write-file") ) {
 		return 0;
 	}
-	pPort = xrtNetWorkerPort(pWorker);
+	pPort = __xrtNetWorkerPortBorrow(pWorker);
 	if ( (pPort == NULL) ||
 		((xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_FILE_IO) == 0u) ) {
 		__xrtNetSetError(XERR_UNSUPPORTED, XNET_ERROR_PORT_SUBMIT,
@@ -252676,7 +252714,7 @@ XRT_API bool xrtNetFileCancel(
 		__xrtErrorSetInvalidState();
 		return false;
 	}
-	return xrtNetPortCancel(xrtNetWorkerPort(pWorker), Id);
+	return xrtNetPortCancel(__xrtNetWorkerPortBorrow(pWorker), Id);
 }
 
 #endif
@@ -255682,7 +255720,7 @@ static bool __xrtNetUdpWatch(xnetudp* pUdp)
 	if ( iEvents == 0 ) {
 		if ( pUdp->WatchPending ) {
 			if ( !xrtNetPortUnwatch(
-				xrtNetWorkerPort(pUdp->Worker),
+				__xrtNetWorkerPortBorrow(pUdp->Worker),
 				pUdp->Socket
 			) ) {
 				pUdp->WatchPending = false;
@@ -255696,7 +255734,7 @@ static bool __xrtNetUdpWatch(xnetudp* pUdp)
 	}
 	Id = xrtNetWorkerOperationId(pUdp->Worker);
 	if ( (Id == 0) || !xrtNetPortWatch(
-		xrtNetWorkerPort(pUdp->Worker),
+		__xrtNetWorkerPortBorrow(pUdp->Worker),
 		pUdp->Socket,
 		Id,
 		iEvents,
@@ -255715,7 +255753,7 @@ static bool __xrtNetUdpWatch(xnetudp* pUdp)
 /* 取消全部接收以及异常关闭时的在途发送。 */
 static void __xrtNetUdpCancelOperations(xnetudp* pUdp)
 {
-	xnetport* pPort = xrtNetWorkerPort(pUdp->Worker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pUdp->Worker);
 
 	if ( pUdp->WatchPending ) {
 		if ( !xrtNetPortUnwatch(pPort, pUdp->Socket) ) {
@@ -255927,7 +255965,7 @@ static bool __xrtNetUdpArmReceive(__xrt_net_udp_receive* pReceive)
 	}
 	if ( pUdp->Config.ReceiveMeta != 0 ) {
 		if ( !xrtNetPortRecvMsg(
-			xrtNetWorkerPort(pUdp->Worker),
+			__xrtNetWorkerPortBorrow(pUdp->Worker),
 			pUdp->Socket,
 			Span.Data,
 			Span.Size,
@@ -255938,7 +255976,7 @@ static bool __xrtNetUdpArmReceive(__xrt_net_udp_receive* pReceive)
 			return false;
 		}
 	} else if ( !xrtNetPortRecvFrom(
-		xrtNetWorkerPort(pUdp->Worker),
+		__xrtNetWorkerPortBorrow(pUdp->Worker),
 		pUdp->Socket,
 		Span.Data,
 		Span.Size,
@@ -255979,7 +256017,7 @@ static bool __xrtNetUdpArmError(
 	}
 	pReceive->Id = xrtNetWorkerOperationId(pUdp->Worker);
 	if ( (pReceive->Id == 0) || !xrtNetPortRecvError(
-		xrtNetWorkerPort(pUdp->Worker),
+		__xrtNetWorkerPortBorrow(pUdp->Worker),
 		pUdp->Socket,
 		Span.Data,
 		Span.Size,
@@ -256356,7 +256394,7 @@ static bool __xrtNetUdpPortSend(
 	ptr pUser
 )
 {
-	xnetport* pPort = xrtNetWorkerPort(pUdp->Worker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pUdp->Worker);
 
 	if ( pSend->Controlled ) {
 		return xrtNetPortSendMsg(
@@ -257391,7 +257429,7 @@ static xnetudp* __xrtNetUdpCreate(
 	if ( !__xrtNetEngineObjectHold(pEngine) ) {
 		return NULL;
 	}
-	pPort = xrtNetWorkerPort(pWorker);
+	pPort = __xrtNetWorkerPortBorrow(pWorker);
 	if ( pPort == NULL ) {
 		__xrtNetEngineObjectRelease(pEngine);
 		return NULL;

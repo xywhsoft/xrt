@@ -4,6 +4,9 @@
 #endif
 #include "../test.h"
 #include <assert.h>
+#ifndef NET_ENGINE_OWNERSHIP_SINGLE
+#include "../../src/internal/xrt_net_engine.h"
+#endif
 
 typedef struct EngineCase EngineCase;
 typedef struct EngineData {
@@ -20,7 +23,7 @@ struct EngineCase {
     unsigned counts, traces;
     bool wrong_task, wrong_timer, resurrect, escaped, probe, tail;
 };
-static unsigned idle_cases, queued_cases, opaque_cases, exit_cases, oom_budgets, oom_failures;
+static unsigned idle_cases, queued_cases, internal_port_cases, opaque_cases, exit_cases, oom_budgets, oom_failures;
 static void wait_one(xatomic32* value)
 {
     xdeadline deadline=xrtDeadlineAfter(5000000);
@@ -187,6 +190,20 @@ static void queued(bool resurrect,bool cancel)
 }
 static void borrowed_task(xnetworker* worker,ptr data)
 { EngineCase* test=data;if(test->tail)assert(xrtNetWorkerPort(worker));xrtAtomic32FetchAdd(&test->tasks,1,XMEMORY_ACQ_REL); }
+static void internal_port_task(xnetworker* worker,ptr data)
+{
+    EngineCase* test=data;
+    assert(__xrtNetWorkerPortBorrow(worker));
+    xrtAtomic32FetchAdd(&test->tasks,1,XMEMORY_ACQ_REL);
+}
+static void internal_port_borrow(void)
+{
+    xmemdebugsnapshot before;xrtClearError();xrtMemDebugSnapshot(&before);EngineCase test={0};setup(&test,1,8);
+    assert(xrtNetEnginePost(test.engine,0,internal_port_task,&test));wait_one(&test.tasks);
+    xrtownershipscope freeze={0};stable_freeze(test.engine,&freeze);xrtownershipref ref=xrtNetEngineOwnership(test.engine);
+    size_t count=0;assert(ref.Ops->Count(ref.Data,&count)&&count==1);assert(xrtOwnershipScopeEnd(&freeze));
+    assert(xrtNetEngineDestroy(test.engine));balanced(&before);++internal_port_cases;
+}
 static void borrowed_timer(xnetworker* worker,uint64 id,xnetresult result,ptr data)
 { (void)worker;(void)id;assert(result==XNET_RESULT_CLOSED);xrtAtomic32FetchAdd(&((EngineCase*)data)->timers,1,XMEMORY_ACQ_REL); }
 static void opaque(unsigned kind)
@@ -235,10 +252,10 @@ int main(void)
 {
     assert(xrtMemDebugEnable(true));
     for(unsigned i=0;i<6;++i){idle(1,false);idle(2,true);queued(false,false);queued(false,true);queued(true,false);
-        opaque(0);opaque(1);opaque(2);exit_window();}
+        internal_port_borrow();opaque(0);opaque(1);opaque(2);exit_window();}
     submit_oom(false);submit_oom(true);assert(oom_failures>0);
     testMemoryDebugDrain("engine ownership balance");
-    printf("engine graph: idle=%u queued=%u opaque=%u exit=%u allocation-budgets=%u failures=%u\n",
-        idle_cases,queued_cases,opaque_cases,exit_cases,oom_budgets,oom_failures);
+    printf("engine graph: idle=%u queued=%u internal-port=%u opaque=%u exit=%u allocation-budgets=%u failures=%u\n",
+        idle_cases,queued_cases,internal_port_cases,opaque_cases,exit_cases,oom_budgets,oom_failures);
     return 0;
 }

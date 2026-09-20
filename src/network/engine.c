@@ -1973,8 +1973,9 @@ XRT_API bool xrtNetWorkerIsCurrent(const xnetworker* pWorker)
 
 
 
-/* 返回运行期间借用的 Worker 端口。 */
-XRT_API xnetport* xrtNetWorkerPort(xnetworker* pWorker)
+/* Internal transport borrow. Unlike the public capability boundary below,
+ * this pointer is consumed immediately by code in the same XRT product. */
+xnetport* __xrtNetWorkerPortBorrow(xnetworker* pWorker)
 {
 	if ( (pWorker == NULL) ||
 		 (xrtAtomic32Load(&pWorker->Running, XMEMORY_ACQUIRE) == 0) ) {
@@ -1986,10 +1987,19 @@ XRT_API xnetport* xrtNetWorkerPort(xnetworker* pWorker)
 		);
 		return NULL;
 	}
+	return pWorker->Port;
+}
+
+
+
+/* 返回运行期间借用的 Worker 端口。 */
+XRT_API xnetport* xrtNetWorkerPort(xnetworker* pWorker)
+{
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pWorker);
+	if (!pPort) return NULL;
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
 	pWorker->OwnershipPortExposed = true;
-	xnetport* pPort = pWorker->Port;
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	return pPort;
 }

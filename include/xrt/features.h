@@ -1150,6 +1150,19 @@
 #endif
 #endif
 
+/* tls_stream_dial_proxy 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_DIAL_PROXY)
+#ifndef XRT_FEATURE_TLS_STREAM_DIAL_PROXY
+#define XRT_FEATURE_TLS_STREAM_DIAL_PROXY
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_DIAL
+#define XRT_MODULE_TLS_STREAM_DIAL
+#endif
+#ifndef XRT_MODULE_NET_PROXY_DIAL
+#define XRT_MODULE_NET_PROXY_DIAL
+#endif
+#endif
+
 /* net_tcp_server_sync 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_SERVER_SYNC)
 #ifndef XRT_FEATURE_NET_TCP_SERVER_SYNC

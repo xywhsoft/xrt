@@ -1103,7 +1103,7 @@ static void __xrtNetStreamActiveLeave(xnetstream* pStream)
 static bool __xrtNetStreamCompletionPort(const xnetstream* pStream)
 {
 	return (xrtNetPortCapabilities(
-		xrtNetWorkerPort(pStream->Worker)
+		__xrtNetWorkerPortBorrow(pStream->Worker)
 	) & XNET_PORT_CAP_COMPLETION) != 0;
 }
 
@@ -1113,7 +1113,7 @@ static bool __xrtNetStreamCompletionPort(const xnetstream* pStream)
 static bool __xrtNetStreamReadProbeCapable(const xnetstream* pStream)
 {
 	return (xrtNetPortCapabilities(
-		xrtNetWorkerPort(pStream->Worker)
+		__xrtNetWorkerPortBorrow(pStream->Worker)
 	) & XNET_PORT_CAP_READ_PROBE) != 0;
 }
 
@@ -1184,7 +1184,7 @@ static bool __xrtNetStreamWatch(xnetstream* pStream)
 	if ( iEvents == 0 ) {
 		if ( pStream->WatchPending ) {
 			if ( !xrtNetPortUnwatch(
-				xrtNetWorkerPort(pStream->Worker),
+				__xrtNetWorkerPortBorrow(pStream->Worker),
 				pStream->Socket
 			) ) {
 				pStream->WatchPending = false;
@@ -1198,7 +1198,7 @@ static bool __xrtNetStreamWatch(xnetstream* pStream)
 	}
 	Id = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (Id == 0) || !xrtNetPortWatch(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		Id,
 		iEvents,
@@ -1216,7 +1216,7 @@ static bool __xrtNetStreamWatch(xnetstream* pStream)
 /* 取消 Stream 当前所有可取消的端口操作。 */
 static void __xrtNetStreamCancelOperations(xnetstream* pStream)
 {
-	xnetport* pPort = xrtNetWorkerPort(pStream->Worker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pStream->Worker);
 
 	if ( pStream->WatchPending ) {
 		if ( !xrtNetPortUnwatch(pPort, pStream->Socket) ) {
@@ -1553,7 +1553,7 @@ static bool __xrtNetStreamSubmitRead(xnetstream* pStream)
 	}
 	pStream->ReadId = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (pStream->ReadId == 0) || !xrtNetPortRecv(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		Span.Data,
 		Span.Size,
@@ -1576,7 +1576,7 @@ static bool __xrtNetStreamSubmitReadProbe(xnetstream* pStream)
 {
 	pStream->ReadId = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (pStream->ReadId == 0) || !xrtNetPortReadProbe(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		pStream->ReadId,
 		&pStream->Completion
@@ -1800,7 +1800,7 @@ static bool __xrtNetStreamSubmitWrite(
 {
 	pStream->WriteId = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (pStream->WriteId == 0) || !xrtNetPortSendVec(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		pSpans,
 		iCount,
@@ -1831,7 +1831,7 @@ static bool __xrtNetStreamSubmitFile(
 
 	pStream->WriteId = xrtNetWorkerOperationId(pStream->Worker);
 	if ( (pStream->WriteId == 0) || !__xrtNetPortSendFile(
-		xrtNetWorkerPort(pStream->Worker),
+		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		pFile->Handle,
 		pFile->Offset + (uint64)iRelative,
@@ -2441,7 +2441,7 @@ static void __xrtNetStreamStartConnect(
 )
 {
 	xnetstream* pStream = (xnetstream*)pData;
-	xnetport* pPort = xrtNetWorkerPort(pWorker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pWorker);
 
 	pStream->StartPending = false;
 	if ( (xrtNetStreamState(pStream) != XNET_STREAM_CONNECTING) ||
@@ -4324,7 +4324,7 @@ static void __xrtNetListenerAcceptRetry(
 	if ( (Result == XNET_RESULT_OK) &&
 		(xrtNetListenerState(pListener) == XNET_LISTENER_OPEN) ) {
 		iCapabilities = xrtNetPortCapabilities(
-			xrtNetWorkerPort(pWorker)
+			__xrtNetWorkerPortBorrow(pWorker)
 		);
 		if ( (iCapabilities & XNET_PORT_CAP_COMPLETION) != 0 ) {
 			bResult = __xrtNetListenerArmAccepts(pListener);
@@ -4697,7 +4697,7 @@ static void __xrtNetListenerDispatch(
 /* 向 completion 端口补足预投递 Accept。 */
 static bool __xrtNetListenerArmAccepts(xnetlistener* pListener)
 {
-	xnetport* pPort = xrtNetWorkerPort(pListener->Worker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pListener->Worker);
 	bool bArmed = false;
 
 	for ( uint32 i = 0; i < pListener->Config.AcceptConcurrency; i++ ) {
@@ -4741,7 +4741,7 @@ static bool __xrtNetListenerWatch(xnetlistener* pListener)
 {
 	pListener->WatchId = xrtNetWorkerOperationId(pListener->Worker);
 	if ( (pListener->WatchId == 0) || !xrtNetPortWatch(
-		xrtNetWorkerPort(pListener->Worker),
+		__xrtNetWorkerPortBorrow(pListener->Worker),
 		pListener->Socket,
 		pListener->WatchId,
 		XNET_POLL_READ,
@@ -4920,7 +4920,7 @@ static void __xrtNetListenerStart(
 {
 	xnetlistener* pListener = (xnetlistener*)pData;
 	uint32 iCapabilities = xrtNetPortCapabilities(
-		xrtNetWorkerPort(pWorker)
+		__xrtNetWorkerPortBorrow(pWorker)
 	);
 	bool bResult;
 
@@ -5134,7 +5134,7 @@ static void __xrtNetListenerCloseTask(
 )
 {
 	xnetlistener* pListener = (xnetlistener*)pData;
-	xnetport* pPort = xrtNetWorkerPort(pWorker);
+	xnetport* pPort = __xrtNetWorkerPortBorrow(pWorker);
 
 	if ( pListener->AcceptRetryTimer != 0 ) {
 		uint64 Id = pListener->AcceptRetryTimer;

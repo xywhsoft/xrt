@@ -20,7 +20,7 @@ struct xtlsdial {
 	xatomic32 TimerDone;
 	xatomic64 Timer;
 	xatomicptr TransportDial;
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	xatomicptr ProxyDial;
 #endif
 	xatomicptr Stream;
@@ -97,7 +97,7 @@ XRT_API xtlsdial* xrtTlsDialRef(xtlsdial* pDial)
 XRT_API void xrtTlsDialDestroy(xtlsdial* pDial)
 {
 	xnetdial* pTransportDial;
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	xnetproxydial* pProxyDial;
 #endif
 	xtlsstream* pStream;
@@ -114,7 +114,7 @@ XRT_API void xrtTlsDialDestroy(xtlsdial* pDial)
 		&pDial->Stream,
 		XMEMORY_ACQUIRE
 	);
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
 		&pDial->ProxyDial,
 		XMEMORY_ACQUIRE
@@ -328,7 +328,7 @@ static bool __xrtTlsDialStopping(const xtlsdial* pDial)
 
 
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 static void __xrtTlsDialTransportDoneBody(
 	xnetresult Result,
 	xnetstream* pTransport,
@@ -427,7 +427,7 @@ static void __xrtTlsDialCancelStage(xtlsdial* pDial)
 	);
 	xtlsstream* pStream;
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	{
 		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
 			&pDial->ProxyDial,
@@ -536,7 +536,7 @@ static xtlsdial* __xrtTlsDialStart(
 	xerror* pError;
 	uint64 Id;
 
-#if !defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if !defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	(void)pProxy;
 #endif
 
@@ -601,7 +601,7 @@ static xtlsdial* __xrtTlsDialStart(
 	xrtAtomic32Init(&pDial->TimerDone, 0);
 	xrtAtomic64Init(&pDial->Timer, 0);
 	xrtAtomicPtrInit(&pDial->TransportDial, NULL);
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	xrtAtomicPtrInit(&pDial->ProxyDial, NULL);
 #endif
 	xrtAtomicPtrInit(&pDial->Stream, NULL);
@@ -667,7 +667,7 @@ static xtlsdial* __xrtTlsDialStart(
 			);
 		}
 	}
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	if ( pProxy != NULL ) {
 		xnetproxydialconfig tProxyCfg;
 		xnetproxydial* pProxyDial;
@@ -787,7 +787,7 @@ XRT_API xtlsdial* xrtTlsDial(
 
 
 
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 /* 建立代理隧道后继续同一 TLS 状态机；不复制握手和终态逻辑。 */
 XRT_API xtlsdial* xrtTlsDialProxy(
 	xnetengine* pEngine,
@@ -877,7 +877,7 @@ XRT_API xtlsdialstate xrtTlsDialState(const xtlsdial* pDial)
 		(State != XTLS_DIAL_CONNECTING) ) {
 		return State;
 	}
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	{
 		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
 			&pDial->ProxyDial,
@@ -957,7 +957,7 @@ XRT_API bool xrtTlsDialTransportStats(
 		);
 		return false;
 	}
-#if defined(XRT_FEATURE_NET_PROXY_DIAL)
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 	{
 		xnetproxydial* pProxyDial = (xnetproxydial*)xrtAtomicPtrLoad(
 			&pDial->ProxyDial,

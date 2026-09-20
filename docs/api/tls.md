@@ -10949,8 +10949,8 @@ pDial = xrtTlsDialProxy(
 );
 ```
 
-该入口仅在同时启用 `XRT_FEATURE_TLS_STREAM_DIAL` 与
-`XRT_FEATURE_NET_PROXY_DIAL` 时声明。`xtlsdialconfig` 不包含条件式代理字段，
+该入口仅在启用 `XRT_FEATURE_TLS_STREAM_DIAL_PROXY` 时声明；该模块闭包会显式
+启用 TLS Stream Dial 与 Proxy Dial。`xtlsdialconfig` 不包含条件式代理字段，
 因此其公开布局不随代理功能宏改变；直连与代理拨号也不会因为裁剪组合而静默互换。
 
 ### `xrtTlsDialAsync`
@@ -12833,7 +12833,7 @@ Stream 的 Worker 上调用。调用方必须在升级点停止直接收发和�
 Stream 使用 `xrtTlsStreamClient()` 或 `xrtTlsStreamAttach()`；服务端 Accept
 使用 `xrtTlsStreamAccept()`；完全自定义传输仍可直接使用会话层。
 
-同时启用 `XRT_FEATURE_NET_PROXY_DIAL` 时，使用 `xrtTlsDialProxy()` 明确选择代理
+启用 `XRT_FEATURE_TLS_STREAM_DIAL_PROXY` 时，使用 `xrtTlsDialProxy()` 明确选择代理
 路径。目标主机和端口先用于 CONNECT，隧道建立后再对同一目标执行 TLS；直连入口
 不会读取代理配置，代理入口也拒绝空代理。两条入口共享同一个 TLS Dial 状态机、
 终态门、错误链和统计接口。`Config.Timeout` 是覆盖代理端点解析、TCP、CONNECT 和
