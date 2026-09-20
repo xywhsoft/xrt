@@ -130,6 +130,13 @@ struct xwork_agent {
     bool bAutoSaveSession;
     bool bAllowArtifactWrites;
     bool bRequireVerificationAfterWrite;
+    bool bRegisterExploreTools;
+    bool bExploreExternal;
+    char sLsProgram[64];
+    char sGlobProgram[64];
+    char sGrepProgram[64];
+    bool bRegisterPythonTool;
+    char sPythonPath[280];
     volatile long iCancelled;
     bool bRunning;
 
@@ -150,6 +157,16 @@ struct xwork_agent {
     uint64_t uDelegationId;
     uint64_t uParentAgentTurn;
     uint64_t uSubagentSequence;
+    /* python persistent REPL (python tool; state lives for the agent's life) */
+    xprocess* pPyProc;
+    xmutex* pPyLock;
+    xcond* pPyCond;
+    xthread* pPyReader;
+    char* pPyBuf;              /* accumulated stdout (tail-capped) */
+    size_t iPyLen;
+    size_t iPyCap;
+    bool bPyEof;               /* reader saw EOF: interpreter exited */
+    uint32_t uPySeq;           /* sentinel sequence counter */
 };
 
 char* xwork__strdup(const char* sText);
@@ -185,6 +202,10 @@ bool xwork__emit(xwork_agent* pAgent, const xwork_event* pEvent);
 bool xwork__save(xwork_agent* pAgent, xwork_error* pError);
 const xwork_tool_entry* xwork__find_tool(const xwork_agent* pAgent, const char* sName);
 void xwork__processes_unit(xwork_agent* pAgent);
+void xwork__python_unit(xwork_agent* pAgent);   /* python REPL teardown (python tool) */
+bool xwork__register_explore_tools(xwork_agent* pAgent, xwork_error* pError);
+bool xwork__register_python_tool(xwork_agent* pAgent, xwork_error* pError);
+bool xwork__list_directory(const char* sDir, bool bLong, bool bAll, xwork_buf* pOut);
 
 xwork_result xwork__execute_tool(
     xwork_agent* pAgent,
