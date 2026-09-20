@@ -420,6 +420,13 @@ static wchar_t* __xrtProcessProgramResolve(cstr sProgram)
 				break;
 			}
 			if ( iLength < iCapacity ) {
+				/* SearchPathW 会匹配同名目录（如 PATH 首段里的 git/ 子目录）——
+				 * 目录不可执行，视为未命中，继续下一轮（带 .exe）搜索。 */
+				DWORD iAttributes = GetFileAttributesW(sOutput);
+				if ( iAttributes == INVALID_FILE_ATTRIBUTES ||
+					(iAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u ) {
+					break;
+				}
 				xrtFree(sInput);
 				return sOutput;
 			}
