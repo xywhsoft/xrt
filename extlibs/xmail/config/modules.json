@@ -619,9 +619,10 @@
 				"extlibs/xmail/src/transport/mail_net.c",
 				"extlibs/xmail/src/transport/mail_auth.c"
 			],
-			"tests": [
-				"extlibs/xmail/tests/mail/test_mail_net.c"
-			],
+   "tests": [
+    "extlibs/xmail/tests/mail/test_mail_net.c",
+    "extlibs/xmail/tests/mail/test_mail_auth.c"
+   ],
 			"single_tests": [
 				"extlibs/xmail/tests/single/test_single_mail_net.c"
 			],

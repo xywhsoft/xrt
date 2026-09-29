@@ -182,7 +182,7 @@ static bool __xrtXsonWriterSkipValue(
 static bool __xrtXsonReservedTag(xstrview Tag)
 {
 	static const cstr arrNames[] = {
-		"bytes", "time", "float", "set", "intmap"
+		"bytes", "char", "time", "float", "set", "intmap"
 	};
 
 	for ( size_t i = 0; i < (sizeof(arrNames) / sizeof(arrNames[0])); i++ ) {
@@ -237,6 +237,32 @@ static bool __xrtXsonWriterBytesValue(
 		pWriter->Core,
 		XRT_STR_LITERAL("bytes"),
 		Data
+	);
+}
+
+
+
+/* 写出只包含一个 Unicode 标量的显式字符标签。 */
+static bool __xrtXsonWriterCharValue(
+	xxsonwriter* pWriter,
+	uint32 iValue
+)
+{
+	char arrText[4];
+	size_t iSize = xrtUtf8Encode(iValue, arrText);
+
+	if ( iSize == 0 ) {
+		return __xrtTextValueWriterFail(
+			pWriter->Core,
+			XERR_VALUE,
+			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
+			"character is not a Unicode scalar"
+		);
+	}
+	return __xrtTextValueWriterTag(
+		pWriter->Core,
+		XRT_STR_LITERAL("char"),
+		(xstrview){ arrText, iSize }
 	);
 }
 
@@ -540,6 +566,15 @@ static bool __xrtXsonWriterTree(
 		}
 		return __xrtTextValueWriterUInt(pWriter->Core, iUnsigned);
 	}
+	if ( Type == XVALUE_CHAR ) {
+		uint32 iCharacter;
+
+		if ( !xrtValueGetChar(pValue, &iCharacter) ) {
+			__xrtTextValueWriterPoison(pWriter->Core);
+			return false;
+		}
+		return __xrtXsonWriterCharValue(pWriter, iCharacter);
+	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
 			__xrtTextValueWriterPoison(pWriter->Core);
@@ -816,6 +851,18 @@ XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
 		return false;
 	}
 	return __xrtTextValueWriterUInt(pWriter->Core, iValue);
+}
+
+
+
+/* 写入保留字符身份的 Unicode 标量。 */
+XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue)
+{
+	if ( pWriter == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return __xrtXsonWriterCharValue(pWriter, iValue);
 }
 
 

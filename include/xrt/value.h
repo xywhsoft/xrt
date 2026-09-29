@@ -61,7 +61,9 @@ typedef enum xvaluetype {
 	XVALUE_INT_MAP,
 	XVALUE_SET,
 	XVALUE_OBJECT,
-	XVALUE_UINT
+	XVALUE_UINT,
+	/* Unicode scalar value. Appended to preserve all published type ids. */
+	XVALUE_CHAR
 } xvaluetype;
 
 
@@ -230,6 +232,11 @@ XRT_API xvalue* xrtValueUInt(uint64 iValue);
 
 
 
+/* 创建不可变的 Unicode 标量值；代理项和超出 Unicode 范围的值失败。 */
+XRT_API xvalue* xrtValueChar(uint32 iValue);
+
+
+
 /* 创建不可变的双精度浮点值。 */
 XRT_API xvalue* xrtValueFloat(double fValue);
 
@@ -387,6 +394,11 @@ XRT_API bool xrtValueGetInt(const xvalue* pValue, int64* pResult);
 
 /* 精确读取无符号整数值，类型不匹配时失败。 */
 XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult);
+
+
+
+/* 精确读取 Unicode 标量值，类型不匹配时失败。 */
+XRT_API bool xrtValueGetChar(const xvalue* pValue, uint32* pResult);
 
 
 

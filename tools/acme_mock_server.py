@@ -99,6 +99,8 @@ class State:
 		self.eab_mac = eab_mac
 		self.require_contact = require_contact
 		self.flakiness = 0.0
+		self.flaky_every = 0
+		self.flaky_requests = 0
 		self.flaky_hits = 0
 		self.alt_served = 0
 		self.rollovers = 0
@@ -199,10 +201,16 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 	# ---------- 路由 ----------
 
 	def _flaky_drop(self) -> bool:
-		fl = self.state.flakiness
-		if (fl > 0.0) and (random.random() < fl):
-			with self.state.lock:
+		with self.state.lock:
+			if self.state.flaky_every > 0:
+				self.state.flaky_requests += 1
+				drop = self.state.flaky_requests % self.state.flaky_every == 0
+			else:
+				drop = (self.state.flakiness > 0.0) and (
+					random.random() < self.state.flakiness)
+			if drop:
 				self.state.flaky_hits += 1
+		if drop:
 			self.close_connection = True
 			return True
 		return False
@@ -731,6 +739,7 @@ def main() -> int:
 	parser.add_argument("--dns", type=int, default=0)
 	parser.add_argument("--eab", default="")
 	parser.add_argument("--flakiness", type=float, default=0.0)
+	parser.add_argument("--flaky-every", type=int, default=0)
 	parser.add_argument("--require-contact", action="store_true")
 	args = parser.parse_args()
 
@@ -741,6 +750,7 @@ def main() -> int:
 		eab_mac = b64u_decode(mac_text)
 	state = State(eab_kid, eab_mac, args.require_contact)
 	state.flakiness = max(0.0, min(0.9, args.flakiness))
+	state.flaky_every = max(0, args.flaky_every)
 	state.ca_key, state.ca_cert, ca_path = generate_ca(args.workdir)
 	state.alt_key, state.alt_cert, _ = generate_ca(
 		args.workdir, "xacme mock ALT CA")

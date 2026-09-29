@@ -724,6 +724,7 @@ double xrtMathHypot(double fX, double fY);
 ### `xrtMathNear`
 
 使用显式绝对与相对容差比较两个浮点数：`|L-R| <= max(abs, rel * max(|L|,|R|))`。
+有限数比较避免在求差或计算相对阈值时溢出为无穷。负值或 NaN 容差无效。
 
 ```c
 bool xrtMathNear(double fLeft, double fRight,
@@ -744,11 +745,11 @@ bool xrtMathNear(double fLeft, double fRight,
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 在容差内相等 | — |
-| `false` | 超出容差 | 纯谓词 |
+| `false` | 超出容差或容差无效 | 容差无效时设置 `XERR_ARGUMENT` |
 
 #### 错误
 
-- 无 — 纯谓词
+- 负值或 NaN 容差：`XERR_ARGUMENT`。正常的“不接近”返回 `false`，不设置新错误。
 
 #### 范例
 

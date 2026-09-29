@@ -168,7 +168,7 @@ static bool __xrtSmtpClientReceiveMode(
 		Line.Code,
 		Parser.Lines
 	) ) {
-		return false;
+		return __xrtSmtpClientFailed(pClient);
 	}
 	pReply->Code = pClient->ReplyCode;
 	pReply->Lines = pClient->ReplyLines;

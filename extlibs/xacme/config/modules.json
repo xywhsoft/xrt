@@ -150,6 +150,7 @@
     "net_udp_sync",
     "random",
     "random_default",
+    "random_secure",
     "time",
     "buffer",
     "array"
@@ -213,7 +214,9 @@
     "time",
     "buffer"
    ],
-   "internal_headers": [],
+   "internal_headers": [
+    "extlibs/xacme/src/internal/xacme_dnscommon.h"
+   ],
    "public_headers": [
     "extlibs/xacme/include/xrt/acme_dns_ali.h"
    ],
@@ -327,7 +330,8 @@
     "extlibs/xacme/config/performance_profiles.json"
    ],
    "docs": [
-    "extlibs/xacme/README.md"
+    "extlibs/xacme/README.md",
+    "extlibs/xacme/docs/api/reference.md"
    ],
    "legacy": []
   },
@@ -384,6 +388,10 @@
     "extlibs/xacme/tests/acme/test_obtain.c",
     "extlibs/xacme/tests/acme/test_registry.c",
     "extlibs/xacme/tests/acme/test_store.c",
+    "extlibs/xacme/tests/acme/test_store_concurrent.c",
+    "extlibs/xacme/tests/acme/test_store_io.c",
+    "extlibs/xacme/tests/acme/test_store_sync.c",
+    "extlibs/xacme/tests/acme/test_store_wildcard.c",
     "extlibs/xacme/tests/acme/test_store_oom.c",
     "extlibs/xacme/tests/acme/test_tlsdbg.c",
     "extlibs/xacme/tests/package/test_consumer.c"
@@ -437,6 +445,7 @@
    ],
    "internal_headers": [
     "extlibs/xacme/src/internal/xacme_dnscommon.h",
+    "extlibs/xacme/src/internal/xacme_dns_tencent_internal.h",
     "extlibs/xacme/src/internal/xacme_sigv4.h"
    ],
    "public_headers": [
@@ -464,17 +473,20 @@
     "crypto_sha256",
     "crypto_hmac_sha256",
     "time",
-    "buffer"
+    "buffer",
+    "mutex"
    ],
-   "internal_headers": [
-    "extlibs/xacme/src/internal/xacme_dnscommon.h",
-    "extlibs/xacme/src/internal/xacme_sigv4.h"
+  "internal_headers": [
+   "extlibs/xacme/src/internal/xacme_dnscommon.h",
+   "extlibs/xacme/src/internal/xacme_dns_aws_internal.h",
+   "extlibs/xacme/src/internal/xacme_sigv4.h"
    ],
    "public_headers": [
     "extlibs/xacme/include/xrt/acme_dns_aws.h"
    ],
-   "sources": [
-    "extlibs/xacme/src/dns/xacme_dns_aws.c"
+  "sources": [
+   "extlibs/xacme/src/dns/xacme_dns_aws.c",
+   "extlibs/xacme/src/dns/xacme_dns_aws_txt.c"
    ],
    "tests": [
     "extlibs/xacme/tests/acme/test_dnsaws.c"
@@ -500,6 +512,7 @@
    ],
    "internal_headers": [
     "extlibs/xacme/src/internal/xacme_dnscommon.h",
+    "extlibs/xacme/src/internal/xacme_dns_huawei_internal.h",
     "extlibs/xacme/src/internal/xacme_sigv4.h"
    ],
    "public_headers": [
@@ -564,6 +577,8 @@
     "acme_core",
     "file",
     "file_whole",
+    "file_lock",
+    "dir_temp",
     "x509_parse",
     "crypto_sha256",
     "pem",
@@ -580,7 +595,11 @@
     "extlibs/xacme/src/acme/xacme_store.c"
    ],
    "tests": [
-    "extlibs/xacme/tests/acme/test_store.c"
+    "extlibs/xacme/tests/acme/test_store.c",
+    "extlibs/xacme/tests/acme/test_store_concurrent.c",
+    "extlibs/xacme/tests/acme/test_store_io.c",
+    "extlibs/xacme/tests/acme/test_store_sync.c",
+    "extlibs/xacme/tests/acme/test_store_wildcard.c"
    ],
    "single_tests": [],
    "examples": [],

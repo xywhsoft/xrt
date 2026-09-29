@@ -471,12 +471,15 @@ XRT_API ximapclient* xrtImapClientOpen(
 	if ( (Event.Kind != XIMAP_EVENT_RESPONSE) || Event.HasLiteral ||
 		(Event.Response.Kind != XIMAP_RESPONSE_UNTAGGED) ||
 		((Event.Response.Status != XIMAP_STATUS_OK) &&
-		 (Event.Response.Status != XIMAP_STATUS_PREAUTH)) ||
-		!__xrtImapClientResponseSave(pClient, &Event.Response) ) {
+		 (Event.Response.Status != XIMAP_STATUS_PREAUTH)) ) {
 		(void)__xrtImapClientError(
 			XERR_PROTOCOL,
 			"invalid IMAP server greeting"
 		);
+		xrtImapClientDestroy(pClient);
+		return NULL;
+	}
+	if ( !__xrtImapClientResponseSave(pClient, &Event.Response) ) {
 		xrtImapClientDestroy(pClient);
 		return NULL;
 	}

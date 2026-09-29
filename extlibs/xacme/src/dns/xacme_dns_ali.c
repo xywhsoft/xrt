@@ -3,19 +3,21 @@
 #if defined(XACME_FEATURE_DNS_ALI)
 
 #include "../../src/internal/xacme_http.h"
+#include "../internal/xacme_dnscommon.h"
 
 #include <xrt/codec.h>
 #include <xrt/crypto.h>
 #include <xrt/json.h>
+#include <xrt/memory.h>
 #include <xrt/time.h>
 #include <xrt/value.h>
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define XACME_ALI_VERSION "2015-01-09"
-#define XACME_ALI_RECORD_MAX 8u
 #define XACME_ALI_ZONE_MAX 4u
 
 typedef struct xacmednsalicontext {
@@ -26,10 +28,50 @@ typedef struct xacmednsalicontext {
 	/* 已确认的 zone（首次 Add 时试探得到；多域名跨 zone 各自缓存）。 */
 	char sZones[XACME_ALI_ZONE_MAX][256];
 	size_t iZoneCount;
-	/* 本 provider 生命周期内添加的 RecordId。 */
-	char sRecordIds[XACME_ALI_RECORD_MAX][64];
-	size_t iRecordCount;
+	/* 本 provider 生命周期内添加的 RecordId 与 DNS-01 值。 */
+	xacmednsrecords Records;
 } xacmednsalicontext;
+
+static bool xacmeAliFormat(char* sOut, size_t iCapacity, cstr sFormat, ...)
+{
+	va_list Args;
+	int iWritten;
+	va_start(Args, sFormat);
+	iWritten = vsnprintf(sOut, iCapacity, sFormat, Args);
+	va_end(Args);
+	if((iWritten < 0) || ((size_t)iWritten >= iCapacity))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT, "alidns request exceeds buffer capacity");
+		return false;
+	}
+	return true;
+}
+
+/* DNS-01 的属主与摘要只进入已签名的 query，拒绝分隔符注入。 */
+static bool xacmeAliQueryInputValid(xstrview Fqdn, xstrview Txt)
+{
+	size_t i;
+	if((Fqdn.Data == NULL) || (Txt.Data == NULL) ||
+		(Fqdn.Size == 0u) || (Txt.Size == 0u) ||
+		(Fqdn.Size >= 256u) || (Txt.Size > 200u))
+		return false;
+	for(i = 0u; i < Fqdn.Size; i++)
+	{
+		unsigned char c = (unsigned char)Fqdn.Data[i];
+		if(!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_'))
+			return false;
+	}
+	for(i = 0u; i < Txt.Size; i++)
+	{
+		unsigned char c = (unsigned char)Txt.Data[i];
+		if(!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') || c == '-' || c == '_'))
+			return false;
+	}
+	return true;
+}
 
 static void xacmeAliHex(const uint8* pData, size_t iSize, char* sOut)
 {
@@ -50,11 +92,10 @@ static bool xacmeAliDate(char* sOut)
 	{
 		return false;
 	}
-	snprintf(
+	return xacmeAliFormat(
 		sOut, 21u, "%04ld-%02d-%02dT%02d:%02d:%02dZ",
 		(long)Now.Year, Now.Month, Now.Day, Now.Hour, Now.Minute,
 		Now.Second);
-	return true;
 }
 
 /* 从完整 FQDN 拆出 RR 与 zone 候选（去最左标签逐级）。 */
@@ -100,7 +141,7 @@ static bool xacmeAliCall(
 	uint8 Digest[XRT_SHA256_SIZE];
 	uint8 Mac[XRT_SHA256_SIZE];
 	char sAuth[640];
-	char sUrl[700];
+	char sUrl[1200];
 	xacmehttpheader Extra[5];
 	xacmehttpresponse R;
 	static const char* sSignedHeaders =
@@ -118,7 +159,7 @@ static bool xacmeAliCall(
 	}
 	xacmeAliHex(Digest, sizeof(Digest), sPayloadHash);
 
-	snprintf(
+	if(!xacmeAliFormat(
 		sCanonical, sizeof(sCanonical),
 		"POST\n/\n%s\n"
 		"content-type:application/json\n"
@@ -129,14 +170,16 @@ static bool xacmeAliCall(
 		"x-acs-version:%s\n"
 		"\n%s\n%s",
 		sQuery, pCtx->sEndpoint, sAction, sPayloadHash, sDate,
-		XACME_ALI_VERSION, sSignedHeaders, sPayloadHash);
+		XACME_ALI_VERSION, sSignedHeaders, sPayloadHash))
+		return false;
 	if(!xrtSha256(sCanonical, strlen(sCanonical), Digest))
 	{
 		return false;
 	}
 	xacmeAliHex(Digest, sizeof(Digest), sHex);
-	snprintf(sStringToSign, sizeof(sStringToSign),
-		"ACS3-HMAC-SHA256\n%s", sHex);
+	if(!xacmeAliFormat(sStringToSign, sizeof(sStringToSign),
+		"ACS3-HMAC-SHA256\n%s", sHex))
+		return false;
 	if(!xrtHmacSha256(
 			pCtx->sSecret, strlen(pCtx->sSecret),
 			sStringToSign, strlen(sStringToSign), Mac))
@@ -144,18 +187,22 @@ static bool xacmeAliCall(
 		return false;
 	}
 	xacmeAliHex(Mac, sizeof(Mac), sHex);
-	snprintf(sAuth, sizeof(sAuth),
+	if(!xacmeAliFormat(sAuth, sizeof(sAuth),
 		"ACS3-HMAC-SHA256 Credential=%s, SignedHeaders=%s, "
 		"Signature=%s",
-		pCtx->sKeyId, sSignedHeaders, sHex);
+		pCtx->sKeyId, sSignedHeaders, sHex))
+		return false;
 	if(sQuery[0] != 0u)
 	{
-		snprintf(sUrl, sizeof(sUrl), "https://%s/?%s", pCtx->sEndpoint,
-			sQuery);
+		if(!xacmeAliFormat(sUrl, sizeof(sUrl), "https://%s/?%s",
+			pCtx->sEndpoint, sQuery))
+			return false;
 	}
 	else
 	{
-		snprintf(sUrl, sizeof(sUrl), "https://%s/", pCtx->sEndpoint);
+		if(!xacmeAliFormat(sUrl, sizeof(sUrl), "https://%s/",
+			pCtx->sEndpoint))
+			return false;
 	}
 
 	Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
@@ -178,26 +225,30 @@ static bool xacmeAliCall(
 }
 
 /* 在响应 JSON 里取 RecordId 并存档。 */
-static void xacmeAliSaveRecordId(xacmednsalicontext* pCtx, cstr sBody)
+static bool xacmeAliSaveRecordId(xacmednsalicontext* pCtx, cstr sBody,
+	xstrview sFqdn, xstrview sTxt)
 {
 	xvalue* pRoot = (sBody != NULL) ?
 		xrtJsonParse((xstrview){ sBody, strlen(sBody) }) : NULL;
 	xvalue* pId = (pRoot != NULL) ?
 		xrtValueObjectGet(pRoot, XRT_STR_LITERAL("RecordId")) : NULL;
 	xstrview Text;
+	bool bTracked = false;
 	if((pId != NULL) && xrtValueGetString(pId, &Text) &&
-		(pCtx->iRecordCount < XACME_ALI_RECORD_MAX) &&
-		(Text.Size < 63u))
+		(Text.Size > 0u) && (Text.Size < XACME_DNS_RECORD_TEXT_CAP))
 	{
-		memcpy(
-			pCtx->sRecordIds[pCtx->iRecordCount], Text.Data, Text.Size);
-		pCtx->sRecordIds[pCtx->iRecordCount][Text.Size] = '\0';
-		pCtx->iRecordCount++;
+		char sId[XACME_DNS_RECORD_TEXT_CAP];
+		memcpy(sId, Text.Data, Text.Size);
+		sId[Text.Size] = '\0';
+		bTracked = xacmeDnsRecordRemember(&pCtx->Records,
+			sId, sFqdn, sTxt);
 	}
-	if(pRoot != NULL)
-	{
-		xrtValueRelease(pRoot);
-	}
+	xrtValueRelease(pRoot);
+	if(!bTracked)
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL,
+			"alidns create response lacks a usable record id");
+	return bTracked;
 }
 
 /*
@@ -229,7 +280,7 @@ static bool xacmeAliFindZone(
 	char sZone[256];
 	uint16 iStatus = 0u;
 	str sBody = NULL;
-	char sBodyText[320];
+	char sBodyText[512];
 	{
 		const char* sCached = xacmeAliZoneMatch(pCtx, sZoneStart);
 		if(sCached != NULL)
@@ -240,9 +291,10 @@ static bool xacmeAliFindZone(
 	strcpy(sZone, sZoneStart);
 	for(;;)
 	{
-		snprintf(
+		if(!xacmeAliFormat(
 			sBodyText, sizeof(sBodyText),
-			"DomainName=%s&RRKeyWord=%s", sZone, sRr);
+			"DomainName=%s&RRKeyWord=%s", sZone, sRr))
+			return false;
 		if(!xacmeAliCall(
 			pCtx, "DescribeDomainRecords", sBodyText, &iStatus, &sBody))
 		{
@@ -259,8 +311,7 @@ static bool xacmeAliFindZone(
 		{
 			if(pCtx->iZoneCount < XACME_ALI_ZONE_MAX)
 			{
-				snprintf(pCtx->sZones[pCtx->iZoneCount],
-					sizeof(pCtx->sZones[pCtx->iZoneCount]), "%s", sZone);
+				strcpy(pCtx->sZones[pCtx->iZoneCount], sZone);
 				pCtx->iZoneCount++;
 			}
 			return true;
@@ -284,7 +335,7 @@ static bool xacmeAliFindZone(
 static void xacmeAliPreClean(
 	xacmednsalicontext* pCtx, cstr sZone, cstr sRr, cstr sTxtText)
 {
-	char sQuery[320];
+	char sQuery[512];
 	uint16 iStatus = 0u;
 	str sBody = NULL;
 	xvalue* pRoot = NULL;
@@ -292,8 +343,12 @@ static void xacmeAliPreClean(
 	char sRecordId[64];
 	char sDelete[160];
 
-	snprintf(sQuery, sizeof(sQuery),
-		"DomainName=%s&RRKeyWord=%s", sZone, sRr);
+	if(!xacmeAliFormat(sQuery, sizeof(sQuery),
+		"DomainName=%s&RRKeyWord=%s", sZone, sRr))
+	{
+		xrtClearError();
+		return;
+	}
 	if(!xacmeAliCall(
 			pCtx, "DescribeDomainRecords", sQuery, &iStatus, &sBody))
 	{
@@ -356,8 +411,9 @@ static void xacmeAliPreClean(
 			}
 			memcpy(sRecordId, Text.Data, Text.Size);
 			sRecordId[Text.Size] = 0;
-			snprintf(sDelete, sizeof(sDelete), "RecordId=%s",
-				sRecordId);
+			if(!xacmeAliFormat(sDelete, sizeof(sDelete),
+				"RecordId=%s", sRecordId))
+				continue;
 			{
 				uint16 iDelStatus = 0u;
 				str sDelResp = NULL;
@@ -381,12 +437,22 @@ static bool xacmeAliAdd(
 	char sFqdnText[256];
 	char sRr[200];
 	char sZone[256];
-	char sBody[700];
+	char sBody[1024];
 	char sTxtText[208];
 	uint16 iStatus = 0u;
 	str sResp = NULL;
-	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
+	if(!xacmeAliQueryInputValid(sFqdn, sTxt))
 	{
+		xrtSetErrorInfo(XERR_ARGUMENT, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"alidns DNS-01 owner or digest contains invalid characters");
+		return false;
+	}
+	if(!xacmeDnsRecordCanAdd(&pCtx->Records))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"alidns record tracking capacity exhausted");
 		return false;
 	}
 	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
@@ -427,10 +493,11 @@ static bool xacmeAliAdd(
 		sRr[iRrLen] = '\0';
 		memcpy(sTxtText, sTxt.Data, sTxt.Size);
 		sTxtText[sTxt.Size] = '\0';
-		snprintf(
+		if(!xacmeAliFormat(
 			sBody, sizeof(sBody),
 			"DomainName=%s&RR=%s&Type=TXT&Value=%s",
-			sZone, sRr, sTxtText);
+			sZone, sRr, sTxtText))
+			return false;
 	}
 	xacmeAliPreClean(pCtx, sZone, sRr, sTxtText);
 	if(!xacmeAliCall(
@@ -448,9 +515,34 @@ static bool xacmeAliAdd(
 		xrtFree(sResp);
 		return false;
 	}
-	xacmeAliSaveRecordId(pCtx, sResp);
+	{
+		bool bTracked = xacmeAliSaveRecordId(pCtx, sResp, sFqdn, sTxt);
+		xrtFree(sResp);
+		return bTracked;
+	}
+}
+
+static bool xacmeAliDeleteRecord(void* pContext, cstr sId)
+{
+	xacmednsalicontext* pCtx = (xacmednsalicontext*)pContext;
+	char sBody[384];
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	bool bOk;
+	if(!xacmeAliFormat(sBody, sizeof(sBody), "RecordId=%s", sId))
+		return false;
+	if(!xacmeAliCall(pCtx, "DeleteDomainRecord", sBody,
+			&iStatus, &sResp))
+	{
+		xrtFree(sResp);
+		return false;
+	}
 	xrtFree(sResp);
-	return true;
+	bOk = ((iStatus >= 200u) && (iStatus < 300u)) || (iStatus == 404u);
+	if(!bOk)
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL, "alidns record deletion failed");
+	return bOk;
 }
 
 static bool xacmeAliRemove(
@@ -458,32 +550,8 @@ static bool xacmeAliRemove(
 {
 	xacmednsalicontext* pCtx =
 		(xacmednsalicontext*)pProvider->pContext;
-	size_t i;
-	bool bAnyOk = false;
-	(void)sFqdn;
-	(void)sTxt;
-	for(i = 0; i < pCtx->iRecordCount; i++)
-	{
-		char sBody[128];
-		uint16 iStatus = 0u;
-		str sResp = NULL;
-		snprintf(
-			sBody, sizeof(sBody), "RecordId=%s", pCtx->sRecordIds[i]);
-		if(!xacmeAliCall(
-			pCtx, "DeleteDomainRecord", sBody, &iStatus, &sResp))
-		{
-			continue;
-		}
-		xrtFree(sResp);
-		/* 2xx，或"记录不存在"类 4xx 都算删除成功（幂等）。 */
-		if(((iStatus >= 200u) && (iStatus < 300u)) ||
-			(iStatus == 400u) || (iStatus == 404u))
-		{
-			bAnyOk = true;
-			pCtx->sRecordIds[i][0] = '\0';
-		}
-	}
-	return bAnyOk || (pCtx->iRecordCount == 0u);
+	return xacmeDnsRecordRemoveMatching(&pCtx->Records, sFqdn, sTxt,
+		xacmeAliDeleteRecord, pCtx);
 }
 
 void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig)
@@ -514,21 +582,29 @@ bool xrtAcmeDnsAli(
 			"acme dns_ali requires access key id and secret");
 		return false;
 	}
+	if(strlen(pConfig->sAccessKeyId) >= sizeof(pCtx->sKeyId) ||
+		strlen(pConfig->sAccessKeySecret) >= sizeof(pCtx->sSecret) ||
+		((pConfig->sEndpoint != NULL) &&
+		 strlen(pConfig->sEndpoint) >= sizeof(pCtx->sEndpoint)))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_CREDENTIAL,
+			"alidns credentials or endpoint exceed capacity");
+		return false;
+	}
 	pCtx = (xacmednsalicontext*)xrtCalloc(1, sizeof(*pCtx));
 	if(pCtx == NULL)
 	{
 		return false;
 	}
-	snprintf(pCtx->sKeyId, sizeof(pCtx->sKeyId), "%s",
-		pConfig->sAccessKeyId);
-	snprintf(pCtx->sSecret, sizeof(pCtx->sSecret), "%s",
-		pConfig->sAccessKeySecret);
-	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
-		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
-			"alidns.aliyuncs.com");
+	strcpy(pCtx->sKeyId, pConfig->sAccessKeyId);
+	strcpy(pCtx->sSecret, pConfig->sAccessKeySecret);
+	strcpy(pCtx->sEndpoint, (pConfig->sEndpoint != NULL) ?
+		pConfig->sEndpoint : "alidns.aliyuncs.com");
 	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
 	{
 		xacmeHttpUnit(&pCtx->Http);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		return false;
 	}
@@ -548,6 +624,7 @@ void xrtAcmeDnsAliProviderUnit(xacmednsprovider* pProvider)
 		xacmednsalicontext* pCtx =
 			(xacmednsalicontext*)pProvider->pContext;
 		xacmeHttpUnit(&pCtx->Http);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		pProvider->pContext = NULL;
 	}

@@ -120,6 +120,11 @@ static xvalue* testXsonBuildValue(void)
 		) &&
 		xrtValueObjectSetNew(
 			pRoot,
+			XRT_STR_LITERAL("character"),
+			xrtValueChar(UINT32_C(0x4F60))
+		) &&
+		xrtValueObjectSetNew(
+			pRoot,
 			XRT_STR_LITERAL("time"),
 			xrtValueTime(Time)
 		) &&
@@ -162,6 +167,7 @@ static void testXsonStringify(void)
 		"\"map\":intmap{-5:\"n\",2:false},"
 		"\"set\":set[\"a\",2],"
 		"\"blob\":bytes(\"AAEC/w==\"),"
+		"\"character\":char(\"你\"),"
 		"\"time\":time(\"2026-07-31T04:34:56.12Z\"),"
 		"\"nan\":float(\"nan\"),"
 		"\"max\":18446744073709551615}",

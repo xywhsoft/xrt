@@ -117,6 +117,10 @@ char* xoauth2UrlEncode(const char* sText)
 	if ( sText == NULL ) return NULL;
 	size_t n = strlen(sText);
 	/* 最坏情况：每字符 3 字节 */
+	if ( n > ((size_t)-1 - 1u) / 3u ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "URL encoding input too long");
+		return NULL;
+	}
 	char* sOut = (char*)xrtMalloc(n * 3 + 1);
 	if ( sOut == NULL ) return NULL;
 	size_t j = 0;
@@ -135,8 +139,21 @@ char* xoauth2UrlEncode(const char* sText)
 /* 授权 URL 构造                                                        */
 /* ------------------------------------------------------------------ */
 
+static bool xoauth2__add_url_size(size_t* pSize, size_t iAdd)
+{
+	if ( iAdd > (size_t)-1 - *pSize ) return false;
+	*pSize += iAdd;
+	return true;
+}
+
 char* xoauth2BeginLogin(xoauth2client* pClient)
 {
+	char* sId = NULL;
+	char* sRedir = NULL;
+	char* sScope = NULL;
+	char* sUrl = NULL;
+	size_t nCap;
+	int n;
 	if ( pClient == NULL || pClient->Config.ClientId == NULL ||
 	     pClient->Config.AuthorizeUrl == NULL ) {
 		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "xoauth2BeginLogin: not configured");
@@ -145,14 +162,14 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 
 	/* 生成 state */
 	if ( !xoauth2StateGenerate(pClient->sState, sizeof(pClient->sState)) ) {
-		return NULL;
+		goto Fail;
 	}
 
 	/* 生成 PKCE（尊重预设：UsePkce=false 的 provider 不带 PKCE 参数） */
 	if ( pClient->Config.UsePkce ) {
 		if ( !xoauth2PkceGenerate(pClient->sVerifier, sizeof(pClient->sVerifier),
 		                          pClient->sChallenge, sizeof(pClient->sChallenge)) ) {
-			return NULL;
+			goto Fail;
 		}
 	}
 	else {
@@ -163,37 +180,49 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 	/* OIDC nonce（provider 原样回显进 id_token，NonceConsume 常时比对焚毁） */
 	if ( pClient->Config.UseNonce ) {
 		if ( !xoauth2StateGenerate(pClient->sNonce, sizeof(pClient->sNonce)) )
-			return NULL;
+			goto Fail;
 	}
 	else {
 		pClient->sNonce[0] = 0;
 	}
 
-	/* 拼授权 URL：动态算缓冲区（各编码后长度 + 固定参数开销） */
-	size_t nBase = strlen(pClient->Config.AuthorizeUrl) +
-	               strlen(pClient->Config.ClientId) +
-	               strlen(pClient->sState) + 128;
-	if ( pClient->Config.RedirectUri )
-		nBase += strlen(pClient->Config.RedirectUri) * 3;
+	/* 每个外部字段都编码；按编码后的实际长度分配。 */
+	sId = xoauth2UrlEncode(pClient->Config.ClientId);
+	sRedir = xoauth2UrlEncode(pClient->Config.RedirectUri ?
+		pClient->Config.RedirectUri : "");
 	if ( pClient->Config.Scope )
-		nBase += strlen(pClient->Config.Scope) * 3;
-	if ( pClient->Config.UsePkce )
-		nBase += 128;
-	size_t nCap = nBase + 64;
-	char* sUrl = (char*)xrtMalloc(nCap);
-	if ( sUrl == NULL ) return NULL;
+		sScope = xoauth2UrlEncode(pClient->Config.Scope);
+	if ( sId == NULL || sRedir == NULL ||
+		(pClient->Config.Scope != NULL && sScope == NULL) )
+		goto Fail;
+	nCap = 128u;
+	if ( !xoauth2__add_url_size(&nCap, strlen(pClient->Config.AuthorizeUrl)) ||
+		!xoauth2__add_url_size(&nCap, strlen(sId)) ||
+		!xoauth2__add_url_size(&nCap, strlen(sRedir)) ||
+		!xoauth2__add_url_size(&nCap, strlen(pClient->sState)) ||
+		!xoauth2__add_url_size(&nCap, sScope ? strlen(sScope) : 0u) ||
+		!xoauth2__add_url_size(&nCap,
+			pClient->Config.UsePkce ? strlen(pClient->sChallenge) : 0u) ||
+		!xoauth2__add_url_size(&nCap,
+			pClient->Config.UseNonce ? strlen(pClient->sNonce) : 0u) )
+	{
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "auth URL too long");
+		goto Fail;
+	}
+	sUrl = (char*)xrtMalloc(nCap);
+	if ( sUrl == NULL ) goto Fail;
 
-	char* sRedir = xoauth2UrlEncode(pClient->Config.RedirectUri);
-	char* sScope = pClient->Config.Scope ?
-		xoauth2UrlEncode(pClient->Config.Scope) : NULL;
+	if ( pClient->Wechat )
+		n = snprintf(sUrl, nCap,
+			"%s?appid=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s#wechat_redirect",
+			pClient->Config.AuthorizeUrl, sId, sRedir,
+			sScope ? sScope : "", pClient->sState);
+	else
+		n = snprintf(sUrl, nCap,
+			"%s?response_type=code&client_id=%s&redirect_uri=%s&state=%s",
+			pClient->Config.AuthorizeUrl, sId, sRedir, pClient->sState);
 
-	int n = snprintf(sUrl, nCap, "%s?response_type=code&client_id=%s&redirect_uri=%s&state=%s",
-		pClient->Config.AuthorizeUrl,
-		pClient->Config.ClientId,
-		sRedir ? sRedir : "",
-		pClient->sState);
-
-	if ( sScope != NULL && n > 0 && (size_t)n < nCap ) {
+	if ( !pClient->Wechat && sScope != NULL && n > 0 && (size_t)n < nCap ) {
 		n += snprintf(sUrl + n, nCap - n, "&scope=%s", sScope);
 	}
 	if ( pClient->Config.UsePkce && n > 0 && (size_t)n < nCap ) {
@@ -205,15 +234,25 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 		n += snprintf(sUrl + n, nCap - n, "&nonce=%s", pClient->sNonce);
 	}
 
-	if ( sRedir ) xrtFree(sRedir);
-	if ( sScope ) xrtFree(sScope);
-
 	if ( n <= 0 || (size_t)n >= nCap ) {
-		xrtFree(sUrl);
 		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "auth URL too long");
-		return NULL;
+		goto Fail;
 	}
+	xrtFree(sId);
+	xrtFree(sRedir);
+	xrtFree(sScope);
 	return sUrl;
+
+Fail:
+	xrtFree(sId);
+	xrtFree(sRedir);
+	xrtFree(sScope);
+	xrtFree(sUrl);
+	memset(pClient->sState, 0, sizeof(pClient->sState));
+	memset(pClient->sVerifier, 0, sizeof(pClient->sVerifier));
+	memset(pClient->sChallenge, 0, sizeof(pClient->sChallenge));
+	memset(pClient->sNonce, 0, sizeof(pClient->sNonce));
+	return NULL;
 }
 
 /* ------------------------------------------------------------------ */
@@ -295,6 +334,39 @@ void xoauth2UseWechat(xoauth2client* pClient, const char* appid, const char* app
 	pClient->Config.Scope = "snsapi_login";
 	pClient->Config.UsePkce = false;
 	pClient->Config.AuthStyle = XOAUTH2_AUTH_BODY;
+	pClient->Config.UserInfoUrl = "https://api.weixin.qq.com/sns/userinfo";
+	pClient->Wechat = true;
+}
+
+static bool xoauth2__microsoft_tenant_valid(const char* sTenant)
+{
+	size_t i, n = strlen(sTenant);
+	if(n == 0u || n > 256u)
+		return false;
+	for(i = 0u; i < n; i++)
+	{
+		char c = sTenant[i];
+		if(!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') || c == '-' ||
+			(c == '.' && i > 0u && i + 1u < n && sTenant[i - 1u] != '.')))
+			return false;
+	}
+	return true;
+}
+
+static char* xoauth2__microsoft_url(const char* sTenant, const char* sSuffix)
+{
+	static const char sBase[] = "https://login.microsoftonline.com/";
+	size_t iBase = sizeof(sBase) - 1u;
+	size_t iTenant = strlen(sTenant);
+	size_t iSuffix = strlen(sSuffix);
+	char* sUrl = (char*)xrtMalloc(iBase + iTenant + iSuffix + 1u);
+	if(sUrl == NULL)
+		return NULL;
+	memcpy(sUrl, sBase, iBase);
+	memcpy(sUrl + iBase, sTenant, iTenant);
+	memcpy(sUrl + iBase + iTenant, sSuffix, iSuffix + 1u);
+	return sUrl;
 }
 
 void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* secret,
@@ -306,27 +378,22 @@ void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* sec
 	xoauth2ConfigInit(&pClient->Config);
 	/* 按 tenant 动态生成端点；所有权归客户端（clear_owned/ClientUnit 释放） */
 	const char* sTenant = tenant ? tenant : "common";
-	if ( strlen(sTenant) > 256 ) {
+	if ( !xoauth2__microsoft_tenant_valid(sTenant) ) {
 		/* 预设是 void 返回：置错误并把端点留空，BeginLogin 会拒绝 */
-		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "tenant too long (max 256)");
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT,
+			"tenant must be 1-256 ASCII letters, digits, dots or hyphens");
 		pClient->Config.ClientId = id;
 		pClient->Config.ClientSecret = secret;
 		pClient->Config.RedirectUri = redirect;
 		return;
 	}
-	char* sAuth = (char*)xrtMalloc(256);
-	char* sToken = (char*)xrtMalloc(256);
-	char* sIssuer = (char*)xrtMalloc(256);
+	char* sAuth = xoauth2__microsoft_url(sTenant, "/oauth2/v2.0/authorize");
+	char* sToken = xoauth2__microsoft_url(sTenant, "/oauth2/v2.0/token");
+	char* sIssuer = xoauth2__microsoft_url(sTenant, "/v2.0");
 	if ( sAuth == NULL || sToken == NULL || sIssuer == NULL ) {
 		xrtFree(sAuth); xrtFree(sToken); xrtFree(sIssuer);
 		return;
 	}
-	snprintf(sAuth, 256,
-		"https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", sTenant);
-	snprintf(sToken, 256,
-		"https://login.microsoftonline.com/%s/oauth2/v2.0/token", sTenant);
-	snprintf(sIssuer, 256,
-		"https://login.microsoftonline.com/%s/v2.0", sTenant);
 	pClient->pOwnedAuthUrl = sAuth;
 	pClient->pOwnedTokenUrl = sToken;
 	pClient->pOwnedIssuerUrl = sIssuer;
@@ -362,6 +429,7 @@ void xoauth2ClientUnit(xoauth2client* pClient)
 	xoauth2__client_clear_owned(pClient);
 	/* 端点指针已失效；配置一并清零，调用方须重新预设 */
 	memset(&pClient->Config, 0, sizeof(pClient->Config));
+	pClient->Wechat = false;
 }
 
 void xoauth2TokenFree(xoauth2token* pToken)
@@ -380,6 +448,10 @@ void xoauth2TokenFree(xoauth2token* pToken)
 		memset(pToken->IdToken, 0, strlen(pToken->IdToken));
 		xrtFree(pToken->IdToken);
 	}
+	if ( pToken->OpenId ) {
+		memset(pToken->OpenId, 0, strlen(pToken->OpenId));
+		xrtFree(pToken->OpenId);
+	}
 	if ( pToken->TokenType ) xrtFree(pToken->TokenType);
 	if ( pToken->Scope ) xrtFree(pToken->Scope);
 	memset(pToken, 0, sizeof(*pToken));
@@ -396,7 +468,9 @@ bool xoauth2TokenExpiring(const xoauth2token* pToken, int leewaySeconds)
 	/* 剩余时间 = ExpiresAt - 当前；ExpiresIn 是签发时的总有效期，
 	 * 不反映流逝，必须用获取时刻换算 */
 	int64_t now = (int64_t)(xrtNow() / 1000000);
-	return pToken->ExpiresAt - now <= (int64_t)leewaySeconds;
+	int64_t leeway = leewaySeconds > 0 ? (int64_t)leewaySeconds : 0;
+	if ( now > INT64_MAX - leeway ) return true;
+	return pToken->ExpiresAt <= now + leeway;
 }
 
 /* ------------------------------------------------------------------ */

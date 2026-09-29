@@ -84,7 +84,7 @@ static char* sign_id_token(const char* sIssuer, const char* sAudience,
 
 int main(void)
 {
-	xoauth2client oauth;
+	xoauth2client oauth = {0};
 	xoauth2token* tok = NULL;
 	char* url = NULL;
 	char* jwksJson = NULL;

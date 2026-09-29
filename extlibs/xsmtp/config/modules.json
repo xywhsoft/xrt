@@ -169,9 +169,7 @@
 			"single_tests": [
 				"extlibs/xsmtp/tests/single/test_single_smtp_submit.c"
 			],
-			"examples": [
-				"extlibs/xsmtp/examples/submit/main.c"
-			],
+			"examples": [],
 			"docs": [
 				"extlibs/xsmtp/docs/api/smtp_submit.md"
 			],
@@ -236,6 +234,52 @@
 			"legacy": []
 		},
 		{
+			"name": "smtp_submit_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_submit",
+				"smtp_auth",
+				"smtp_client_tls",
+				"string",
+				"tls_context",
+				"tls_verify"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xsmtp/examples/submit/main.c"
+			],
+			"docs": [
+				"extlibs/xsmtp/docs/api/smtp_submit.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "smtp_offline_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_submit",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xsmtp/examples/offline/main.c"
+			],
+			"docs": [
+				"extlibs/xsmtp/README.md"
+			],
+			"legacy": []
+		},
+		{
 			"name": "smtp_client_tls_runtime_tests",
 			"state": "implemented",
 			"feature": null,
@@ -286,6 +330,7 @@
 				"smtp_submit",
 				"smtp_auth",
 				"smtp_client_example",
+				"smtp_offline_example",
 				"smtp_client_tls_runtime_tests"
 			],
 			"public_headers": [

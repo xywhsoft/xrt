@@ -451,6 +451,7 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 	HANDLE hFile;
 	HANDLE hControl;
 	NTSTATUS Status;
+	xfile File;
 
 	if ( strcmp(sName, ".") == 0 ) {
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE,
@@ -461,10 +462,15 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 	if ( (pOptions->Flags & XFILE_SYNC) != 0u ) {
 		iOptions |= FILE_WRITE_THROUGH;
 	}
+	File = __xrtFileAlloc();
+	if ( File == NULL ) {
+		return XROOT_STEP_ERROR;
+	}
 	if ( !__xrtRootNtCreate(Parent, sName, iAccess,
 		__xrtRootWindowsShare(pOptions->Share),
 		__xrtRootWindowsDisposition(pOptions->Flags),
 		iOptions, OBJ_DONT_REPARSE, &hFile, &Status) ) {
+		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
 	if ( __xrtRootNtSuccess(Status) ) {
@@ -473,15 +479,18 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			int iCode = (int)GetLastError();
 
 			(void)CloseHandle(hFile);
+			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to restrict the root-relative append handle",
 				iCode);
 			return XROOT_STEP_ERROR;
 		}
-		*pFile = __xrtFileTakeNativePair((intptr_t)hFile,
+		__xrtFileInitNativePair(File, (intptr_t)hFile,
 			(intptr_t)hControl, pOptions->Flags);
-		return *pFile != NULL ? XROOT_STEP_DONE : XROOT_STEP_ERROR;
+		*pFile = File;
+		return XROOT_STEP_DONE;
 	}
+	xrtFree(File);
 	if ( __xrtRootNtReparse(Status) &&
 		 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 		 ((pOptions->Flags &

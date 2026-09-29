@@ -23,6 +23,34 @@ int main(void)
 	const char* sValue = "xacme-live-probe-20260914";
 	xacmednaliconfig Config;
 	xacmednsprovider Provider;
+	char sLongKey[161];
+
+	/* 超长凭据必须在发起任何网络请求前拒绝，不能静默截断。 */
+	memset(sLongKey, 'A', sizeof(sLongKey) - 1u);
+	sLongKey[sizeof(sLongKey) - 1u] = '\0';
+	xrtAcmeDnsAliConfigInit(&Config);
+	Config.sAccessKeyId = sLongKey;
+	Config.sAccessKeySecret = "secret";
+	testRequire(!xrtAcmeDnsAli(&Config, NULL, &Provider) &&
+		xrtErrorKind(xrtGetError()) == XERR_RANGE,
+		"acme dns_ali overlong credential must be rejected");
+	xrtClearError();
+	Config.sAccessKeyId = "key";
+	Config.sEndpoint = sLongKey;
+	testRequire(!xrtAcmeDnsAli(&Config, NULL, &Provider) &&
+		xrtErrorKind(xrtGetError()) == XERR_RANGE,
+		"acme dns_ali overlong endpoint must be rejected");
+	xrtClearError();
+	Config.sEndpoint = NULL;
+	testRequire(xrtAcmeDnsAli(&Config, NULL, &Provider),
+		"acme dns_ali offline provider construct failed");
+	testRequire(!Provider.Add(&Provider,
+		XRT_STR_LITERAL("_acme-challenge.example.com"),
+		XRT_STR_LITERAL("unsafe&value")) &&
+		xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+		"acme dns_ali query delimiter must be rejected");
+	xrtAcmeDnsAliProviderUnit(&Provider);
+	xrtClearError();
 
 	if((sKey == NULL) || (sKey[0] == '\0') || (sSecret == NULL) ||
 		(sSecret[0] == '\0'))

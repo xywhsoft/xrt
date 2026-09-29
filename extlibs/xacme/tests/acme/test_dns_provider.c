@@ -1,4 +1,5 @@
 #include "../test.h"
+#include "../../src/internal/xacme_dnscommon.h"
 
 #include <string.h>
 
@@ -24,6 +25,14 @@ static bool testDnsStubRemove(
 int main(void)
 {
 	xacmednsprovider Provider;
+	xacmednszonecache Zones = { 0 };
+	xacmeDnsZoneRemember(&Zones, "example.com");
+	xacmeDnsZoneRemember(&Zones, "sub.example.com");
+	xacmeDnsZoneRemember(&Zones, "sub.example.com");
+	testRequire(Zones.iCount == 2u &&
+		(strcmp(xacmeDnsZoneMatch(&Zones,
+			"_acme-challenge.sub.example.com"), "sub.example.com") == 0),
+		"acme dns zone cache must choose the longest owner suffix");
 
 	xrtClearError();
 	testRequire(

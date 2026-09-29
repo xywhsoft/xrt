@@ -266,6 +266,8 @@ XRT_API double xrtMathHypot(double fX, double fY)
 XRT_API bool xrtMathNear(double fLeft, double fRight,
 	double fAbsoluteTolerance, double fRelativeTolerance)
 {
+	double fAbsoluteLeft;
+	double fAbsoluteRight;
 	double fDifference;
 	double fScale;
 
@@ -281,10 +283,29 @@ XRT_API bool xrtMathNear(double fLeft, double fRight,
 		return false;
 	}
 
+	fAbsoluteLeft = fabs(fLeft);
+	fAbsoluteRight = fabs(fRight);
+	fScale = xrtMathMax(fAbsoluteLeft, fAbsoluteRight);
+	/* Opposite signs can make both the difference and relative threshold
+	 * overflow to infinity, turning an out-of-range comparison into true. */
+	if ( signbit(fLeft) != signbit(fRight) ) {
+		if ( (fAbsoluteTolerance >= fAbsoluteLeft) &&
+			 (fAbsoluteTolerance - fAbsoluteLeft >= fAbsoluteRight) ) {
+			return true;
+		}
+		if ( fRelativeTolerance == 0.0 ) {
+			return false;
+		}
+		return (fAbsoluteLeft / fScale) + (fAbsoluteRight / fScale) <=
+			fRelativeTolerance;
+	}
+
 	fDifference = fabs(fLeft - fRight);
-	fScale = xrtMathMax(fabs(fLeft), fabs(fRight));
-	return (fDifference <= fAbsoluteTolerance) ||
-		(fDifference <= (fRelativeTolerance * fScale));
+	if ( fDifference <= fAbsoluteTolerance ) {
+		return true;
+	}
+	return (fRelativeTolerance != 0.0) &&
+		(fDifference / fScale <= fRelativeTolerance);
 }
 
 

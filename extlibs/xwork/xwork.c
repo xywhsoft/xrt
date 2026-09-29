@@ -7,3 +7,5 @@
 #include "src/xwork_agent.c"
 #include "src/xwork_executor.c"
 #include "src/xwork_subagent.c"
+#include "src/xwork_explore.c"
+#include "src/xwork_python.c"

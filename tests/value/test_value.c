@@ -87,6 +87,7 @@ static void testValueScalars(void)
 {
 	xvalue* pInt = xrtValueInt(-42);
 	xvalue* pUInt = xrtValueUInt(UINT64_MAX);
+	xvalue* pChar = xrtValueChar(UINT32_C(0x4F60));
 	xvalue* pFloat = xrtValueFloat(3.5);
 	xvalue* pTime = xrtValueTime((xtime)1234567);
 	xvalue* pZeroTime = xrtValueTime(0);
@@ -94,12 +95,14 @@ static void testValueScalars(void)
 	xvalue* pNullPointer = xrtValuePointer(NULL);
 	int64 iValue;
 	uint64 iUnsigned;
+	uint32 iCharacter;
 	double fValue;
 	xtime Time;
 	ptr pResult;
 
 	testRequire(
-		(pInt != NULL) && (pUInt != NULL) && (pFloat != NULL) && (pTime != NULL) &&
+		(pInt != NULL) && (pUInt != NULL) && (pChar != NULL) &&
+		(pFloat != NULL) && (pTime != NULL) &&
 		(pZeroTime != NULL) && (pPointer != NULL) && (pNullPointer != NULL),
 		"scalar creation failed"
 	);
@@ -108,11 +111,15 @@ static void testValueScalars(void)
 		xrtValueGetUInt(pUInt, &iUnsigned) && (iUnsigned == UINT64_MAX),
 		"unsigned integer getter mismatch"
 	);
+	testRequire(
+		xrtValueGetChar(pChar, &iCharacter) && (iCharacter == UINT32_C(0x4F60)),
+		"character getter mismatch"
+	);
 	testRequire(xrtValueGetFloat(pFloat, &fValue) && (fValue == 3.5), "float getter mismatch");
 	testRequire(xrtValueGetTime(pTime, &Time) && (Time == (xtime)1234567), "time getter mismatch");
 	testRequire(xrtValueGetPointer(pPointer, &pResult) && (pResult == (ptr)(uintptr_t)0x1234u), "pointer getter mismatch");
 	testRequire(
-		xrtValueTruthy(pInt) && xrtValueTruthy(pUInt) &&
+		xrtValueTruthy(pInt) && xrtValueTruthy(pUInt) && xrtValueTruthy(pChar) &&
 		xrtValueTruthy(pFloat) && xrtValueTruthy(pTime),
 		"scalar truth mismatch"
 	);
@@ -120,6 +127,23 @@ static void testValueScalars(void)
 		strcmp(xrtValueTypeName(XVALUE_UINT), "uint") == 0 &&
 		xrtValueIsNumber(pUInt),
 		"unsigned integer type identity mismatch"
+	);
+	testRequire(
+		strcmp(xrtValueTypeName(XVALUE_CHAR), "char") == 0 &&
+		xrtValueIsNumber(pChar),
+		"character type identity mismatch"
+	);
+	xrtClearError();
+	testRequire(
+		(xrtValueChar(UINT32_C(0xD800)) == NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_VALUE),
+		"Unicode surrogate was accepted as a character"
+	);
+	xrtClearError();
+	testRequire(
+		(xrtValueChar(UINT32_C(0x110000)) == NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_VALUE),
+		"out-of-range Unicode character was accepted"
 	);
 	testRequire(
 		xrtValueTruthy(pZeroTime) && xrtValueTruthy(pNullPointer),
@@ -136,6 +160,7 @@ static void testValueScalars(void)
 	xrtValueRelease(pZeroTime);
 	xrtValueRelease(pTime);
 	xrtValueRelease(pFloat);
+	xrtValueRelease(pChar);
 	xrtValueRelease(pUInt);
 	xrtValueRelease(pInt);
 }
@@ -337,6 +362,7 @@ static void testValueHashing(void)
 	xvalue* pInt = xrtValueInt(42);
 	xvalue* pFloat = xrtValueFloat(42.0);
 	xvalue* pUInt = xrtValueUInt(42u);
+	xvalue* pChar = xrtValueChar(42u);
 	xvalue* pUIntHigh = xrtValueUInt(UINT64_C(9223372036854775808));
 	xvalue* pFloatHigh = xrtValueFloat(9223372036854775808.0);
 	xvalue* pUIntMax = xrtValueUInt(UINT64_MAX);
@@ -354,6 +380,12 @@ static void testValueHashing(void)
 		xrtValueHash(pUInt, &iHashB) && (iHashA == iHashB) &&
 		xrtValueScalarEqual(pInt, pUInt),
 		"signed/unsigned numeric hash mismatch"
+	);
+	testRequire(
+		xrtValueHash(pChar, &iHashB) && (iHashA == iHashB) &&
+		xrtValueScalarEqual(pInt, pChar) &&
+		xrtValueScalarEqual(pUInt, pChar),
+		"character/integer numeric identity mismatch"
 	);
 	testRequire(
 		xrtValueHash(pUIntHigh, &iHashA) && xrtValueHash(pFloatHigh, &iHashB) &&
@@ -383,6 +415,7 @@ static void testValueHashing(void)
 	xrtValueRelease(pFloatHigh);
 	xrtValueRelease(pUIntHigh);
 	xrtValueRelease(pUInt);
+	xrtValueRelease(pChar);
 	xrtValueRelease(pFloat);
 	xrtValueRelease(pInt);
 }

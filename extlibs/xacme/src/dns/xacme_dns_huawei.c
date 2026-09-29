@@ -3,10 +3,12 @@
 #if defined(XACME_FEATURE_DNS_HUAWEI)
 
 #include "../internal/xacme_dnscommon.h"
+#include "../internal/xacme_dns_huawei_internal.h"
 #include "../internal/xacme_http.h"
 #include "../internal/xacme_sigv4.h"
 
 #include <xrt/buffer.h>
+#include <xrt/memory.h>
 #include <xrt/time.h>
 
 #include <stdlib.h>
@@ -200,12 +202,37 @@ static bool xacmeHuaweiFindZone(
 	}
 }
 
+bool xacmeDnsHuaweiBuildCreateBody(
+	xbuffer* pBody, xstrview sFqdn, xstrview sTxt)
+{
+	char sDotted[257];
+	char sQuotedTxt[203];
+	if((pBody == NULL) || (sFqdn.Data == NULL) || (sTxt.Data == NULL) ||
+		(sFqdn.Size == 0u) || (sFqdn.Size > 255u) ||
+		(sTxt.Size == 0u) || (sTxt.Size > 200u))
+		return false;
+	memcpy(sDotted, sFqdn.Data, sFqdn.Size);
+	sDotted[sFqdn.Size] = '.';
+	sDotted[sFqdn.Size + 1u] = '\0';
+	sQuotedTxt[0] = '"';
+	memcpy(sQuotedTxt + 1u, sTxt.Data, sTxt.Size);
+	sQuotedTxt[sTxt.Size + 1u] = '"';
+	sQuotedTxt[sTxt.Size + 2u] = '\0';
+	return xrtBufferAppend(pBody, XRT_BYTES_LITERAL("{\"name\":")) &&
+		xacmeDnsJsonQuote(pBody,
+			(xstrview){ sDotted, sFqdn.Size + 1u }) &&
+		xrtBufferAppend(pBody, XRT_BYTES_LITERAL(
+			",\"type\":\"TXT\",\"ttl\":60,\"records\":[")) &&
+		xacmeDnsJsonQuote(pBody,
+			(xstrview){ sQuotedTxt, sTxt.Size + 2u }) &&
+		xrtBufferAppend(pBody, XRT_BYTES_LITERAL("]}"));
+}
+
 static bool xacmeHuaweiAdd(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
 	xacmednshuaaweicontext* pCtx = (xacmednshuaaweicontext*)pProvider->pContext;
 	char sFqdnText[256];
-	char sTxtText[208];
 	char sZone[256];
 	char sZoneId[80];
 	xbuffer Body;
@@ -214,15 +241,24 @@ static bool xacmeHuaweiAdd(
 	xvalue* pRoot = NULL;
 	char sRecordId[80];
 	bool bOk = false;
+	bool bTracked = false;
 
-	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
+	if(!xacmeDnsChallengeValid(sFqdn, sTxt))
 	{
+		xrtSetErrorInfo(XERR_ARGUMENT, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"acme dns_huawei owner or digest is invalid");
+		return false;
+	}
+	if(!xacmeDnsRecordCanAdd(&pCtx->Records))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"acme dns_huawei record tracking capacity exhausted");
 		return false;
 	}
 	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
 	sFqdnText[sFqdn.Size] = '\0';
-	memcpy(sTxtText, sTxt.Data, sTxt.Size);
-	sTxtText[sTxt.Size] = '\0';
 
 	if(!xacmeHuaweiFindZone(pCtx, sFqdnText, sZone, sizeof(sZone), sZoneId,
 			sizeof(sZoneId)))
@@ -232,13 +268,7 @@ static bool xacmeHuaweiAdd(
 
 	/* name 带尾点；records 值必须内嵌双引号。 */
 	xrtBufferInit(&Body);
-	if(xrtBufferAppend(&Body, XRT_BYTES_LITERAL("{\"name\":")) &&
-		xacmeDnsJsonQuote(&Body, sFqdn) &&
-		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(".\",\"type\":\"TXT\","
-			"\"ttl\":60,\"records\":[\"\\\"")) &&
-		xrtBufferAppend(&Body,
-			(xbytesview){ (const uint8*)sTxtText, strlen(sTxtText) }) &&
-		xrtBufferAppend(&Body, XRT_BYTES_LITERAL("\\\"\"]}")))
+	if(xacmeDnsHuaweiBuildCreateBody(&Body, sFqdn, sTxt))
 	{
 		char sPath[128];
 		snprintf(sPath, sizeof(sPath), "/v2/zones/%s/recordsets",
@@ -259,14 +289,44 @@ static bool xacmeHuaweiAdd(
 	if((pRoot != NULL) && xrtValueIs(pRoot, XVALUE_OBJECT) &&
 		xacmeDnsJsonText(pRoot, "id", sRecordId, sizeof(sRecordId)))
 	{
-		char sHandle[160];
-		snprintf(sHandle, sizeof(sHandle), "%.75s|%.75s", sZoneId,
-			sRecordId);
-		xacmeDnsRecordRemember(&pCtx->Records, sHandle);
+		bTracked = xacmeDnsRecordRememberPair(&pCtx->Records,
+			sZoneId, '|', sRecordId, sFqdn, sTxt);
 	}
 	xrtValueRelease(pRoot);
 	xrtFree(sResp);
-	return true;
+	if(!bTracked)
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL,
+			"acme dns_huawei create response lacks a usable record id");
+	return bTracked;
+}
+
+static bool xacmeHuaweiDeleteRecord(void* pContext, cstr sId)
+{
+	xacmednshuaaweicontext* pCtx = (xacmednshuaaweicontext*)pContext;
+	char sZoneId[80];
+	char sRecordId[80];
+	char sPath[200];
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	bool bOk;
+	if(!xacmeDnsRecordSplit(sId, '|', sZoneId, sizeof(sZoneId),
+			sRecordId, sizeof(sRecordId)))
+		return false;
+	snprintf(sPath, sizeof(sPath), "/v2/zones/%s/recordsets/%s",
+		sZoneId, sRecordId);
+	if(!xacmeHuaweiCall(pCtx, "DELETE", sPath, NULL, &iStatus, &sResp))
+	{
+		xrtFree(sResp);
+		return false;
+	}
+	xrtFree(sResp);
+	bOk = ((iStatus >= 200u) && (iStatus < 300u)) || (iStatus == 404u);
+	if(!bOk)
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL,
+			"acme dns_huawei record deletion failed");
+	return bOk;
 }
 
 static bool xacmeHuaweiRemove(
@@ -274,47 +334,8 @@ static bool xacmeHuaweiRemove(
 {
 	xacmednshuaaweicontext* pCtx =
 		(xacmednshuaaweicontext*)pProvider->pContext;
-	size_t i;
-	bool bAnyOk = false;
-	(void)sFqdn;
-	(void)sTxt;
-	for(i = 0; i < pCtx->Records.iCount; i++)
-	{
-		char sZoneId[80];
-		char sRecordId[80];
-		char sPath[200];
-		uint16 iStatus = 0u;
-		str sResp = NULL;
-		const char* sBar;
-		if(pCtx->Records.sIds[i][0] == '\0')
-		{
-			continue;
-		}
-		sBar = strchr(pCtx->Records.sIds[i], '|');
-		if((sBar == NULL) ||
-			((size_t)(sBar - pCtx->Records.sIds[i]) >= sizeof(sZoneId)) ||
-			(strlen(sBar + 1) >= sizeof(sRecordId)))
-		{
-			continue;
-		}
-		memcpy(sZoneId, pCtx->Records.sIds[i],
-			(size_t)(sBar - pCtx->Records.sIds[i]));
-		sZoneId[sBar - pCtx->Records.sIds[i]] = '\0';
-		snprintf(sRecordId, sizeof(sRecordId), "%s", sBar + 1);
-		snprintf(sPath, sizeof(sPath), "/v2/zones/%s/recordsets/%s",
-			sZoneId, sRecordId);
-		if(xacmeHuaweiCall(pCtx, "DELETE", sPath, NULL, &iStatus, &sResp))
-		{
-			xrtFree(sResp);
-			if(((iStatus >= 200u) && (iStatus < 300u)) ||
-				(iStatus == 404u) || (iStatus == 400u))
-			{
-				bAnyOk = true;
-				pCtx->Records.sIds[i][0] = '\0';
-			}
-		}
-	}
-	return bAnyOk || (pCtx->Records.iCount == 0u);
+	return xacmeDnsRecordRemoveMatching(&pCtx->Records, sFqdn, sTxt,
+		xacmeHuaweiDeleteRecord, pCtx);
 }
 
 void xrtAcmeDnsHuaweiConfigInit(xacmednshuaaweiconfig* pConfig)
@@ -343,6 +364,16 @@ bool xrtAcmeDnsHuawei(
 			"acme dns_huawei requires access key and secret");
 		return false;
 	}
+	if(strlen(pConfig->sAccessKey) >= sizeof(pCtx->sAk) ||
+		strlen(pConfig->sSecretKey) >= sizeof(pCtx->sSk) ||
+		((pConfig->sEndpoint != NULL) &&
+		 strlen(pConfig->sEndpoint) >= sizeof(pCtx->sEndpoint)))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_CREDENTIAL,
+			"acme dns_huawei credentials or endpoint exceed capacity");
+		return false;
+	}
 	pCtx = (xacmednshuaaweicontext*)xrtCalloc(1, sizeof(*pCtx));
 	if(pCtx == NULL)
 	{
@@ -356,6 +387,7 @@ bool xrtAcmeDnsHuawei(
 	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
 	{
 		xacmeHttpUnit(&pCtx->Http);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		return false;
 	}
@@ -375,6 +407,7 @@ void xrtAcmeDnsHuaweiProviderUnit(xacmednsprovider* pProvider)
 		xacmednshuaaweicontext* pCtx =
 			(xacmednshuaaweicontext*)pProvider->pContext;
 		xacmeHttpUnit(&pCtx->Http);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		pProvider->pContext = NULL;
 	}

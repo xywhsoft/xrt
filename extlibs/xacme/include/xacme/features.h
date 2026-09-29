@@ -111,6 +111,9 @@
 #ifndef XRT_MODULE_BUFFER
 #define XRT_MODULE_BUFFER
 #endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
 #endif
 
 /* dns_tencent 及其直接依赖。 */
@@ -205,6 +208,12 @@
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
+#ifndef XRT_MODULE_FILE_LOCK
+#define XRT_MODULE_FILE_LOCK
+#endif
+#ifndef XRT_MODULE_DIR_TEMP
+#define XRT_MODULE_DIR_TEMP
+#endif
 #ifndef XRT_MODULE_X509_PARSE
 #define XRT_MODULE_X509_PARSE
 #endif
@@ -288,6 +297,9 @@
 #endif
 #ifndef XRT_MODULE_RANDOM_DEFAULT
 #define XRT_MODULE_RANDOM_DEFAULT
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
 #endif
 #ifndef XRT_MODULE_TIME
 #define XRT_MODULE_TIME

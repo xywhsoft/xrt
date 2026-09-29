@@ -363,15 +363,61 @@
 			"single_tests": [
 				"extlibs/ximap/tests/single/test_single_imap_compress.c"
 			],
-			"examples": [
-				"extlibs/ximap/examples/client/main.c"
-			],
+			"examples": [],
 			"docs": [
 				"extlibs/ximap/docs/api/imap_compress.md"
 			],
 			"legacy": [
 				"dev/archive/mail_legacy_20260816/ximap/ximap.h"
 			]
+		},
+		{
+			"name": "imap_client_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_compress",
+				"imap_auth",
+				"imap_client_tls",
+				"imap_command",
+				"string",
+				"tls_context",
+				"tls_verify"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/ximap/examples/client/main.c"
+			],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_compress.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "imap_offline_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_auth",
+				"imap_command",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/ximap/examples/offline/main.c"
+			],
+			"docs": [
+				"extlibs/ximap/README.md"
+			],
+			"legacy": []
 		},
 		{
 			"name": "imap_client_tls_runtime_tests",
@@ -452,6 +498,7 @@
 				"imap_message",
 				"imap_append",
 				"imap_compress",
+				"imap_offline_example",
 				"imap_client_tls_runtime_tests",
 				"imap_compress_tls_runtime_tests"
 			],

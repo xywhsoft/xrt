@@ -1,13 +1,35 @@
-/* xoauth2 token 交换 + 刷新。
- * 请求构造与响应解析为完整实现（离线可测）；
- * 网络发送为 Phase 2 —— 经传输回调注入（见 README 路线图）。 */
+/* xoauth2 token 交换 + 刷新；传输由回调注入。 */
 #include "xoauth2_internal.h"
 
 /* ------------------------------------------------------------------ */
 /* Token 响应 JSON 解析                                                  */
 /* ------------------------------------------------------------------ */
 
-xoauth2token* xoauth2__parse_token_response(const char* sJson, size_t iSize)
+static bool xoauth2__copy_token_field(const xvalue* p, const char* sKey,
+	char** ppOut, bool bLowercase)
+{
+	xvalue* pField = xrtValueObjectGet(p, xrtStrView(sKey));
+	xstrview Text;
+	size_t i;
+	if(pField == NULL)
+		return true;
+	if(!xrtValueGetString(pField, &Text) || Text.Size == SIZE_MAX)
+		return false;
+	*ppOut = (char*)xrtMalloc(Text.Size + 1u);
+	if(*ppOut == NULL)
+		return false;
+	for(i = 0u; i < Text.Size; i++)
+	{
+		char c = ((const char*)Text.Data)[i];
+		(*ppOut)[i] = (bLowercase && c >= 'A' && c <= 'Z') ?
+			(char)(c + 32) : c;
+	}
+	(*ppOut)[Text.Size] = 0;
+	return true;
+}
+
+static xoauth2token* xoauth2__parse_token_response_mode(
+	const char* sJson, size_t iSize, bool bWechat)
 {
 	if ( sJson == NULL || iSize == 0 ) {
 		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "empty token response");
@@ -28,52 +50,31 @@ xoauth2token* xoauth2__parse_token_response(const char* sJson, size_t iSize)
 			xrtValueRelease(p);
 			return NULL;
 		}
+		if ( bWechat && xrtValueObjectHas(p, xrtStrView("errcode")) ) {
+			xoauth2__error(XOAUTH2_ERROR_TOKEN_DENIED,
+				"WeChat returned an error code");
+			xrtValueRelease(p);
+			return NULL;
+		}
 	}
 
 	xoauth2token* pToken = (xoauth2token*)xrtMalloc(sizeof(xoauth2token));
 	if ( pToken == NULL ) { xrtValueRelease(p); return NULL; }
 	memset(pToken, 0, sizeof(*pToken));
 
-	/* 提取字段 */
-	xstrview sv;
-	if ( xrtValueGetString(xrtValueObjectGet(p, xrtStrView("access_token")), &sv) ) {
-		pToken->AccessToken = (char*)xrtMalloc(sv.Size + 1);
-		if ( pToken->AccessToken ) {
-			memcpy(pToken->AccessToken, sv.Data, sv.Size);
-			pToken->AccessToken[sv.Size] = 0;
-		}
-	}
-	if ( xrtValueGetString(xrtValueObjectGet(p, xrtStrView("refresh_token")), &sv) ) {
-		pToken->RefreshToken = (char*)xrtMalloc(sv.Size + 1);
-		if ( pToken->RefreshToken ) {
-			memcpy(pToken->RefreshToken, sv.Data, sv.Size);
-			pToken->RefreshToken[sv.Size] = 0;
-		}
-	}
-	if ( xrtValueGetString(xrtValueObjectGet(p, xrtStrView("id_token")), &sv) ) {
-		pToken->IdToken = (char*)xrtMalloc(sv.Size + 1);
-		if ( pToken->IdToken ) {
-			memcpy(pToken->IdToken, sv.Data, sv.Size);
-			pToken->IdToken[sv.Size] = 0;
-		}
-	}
-	if ( xrtValueGetString(xrtValueObjectGet(p, xrtStrView("token_type")), &sv) ) {
-		/* RFC 6749 §5.1：token_type 大小写不敏感；统一小写存储 */
-		pToken->TokenType = (char*)xrtMalloc(sv.Size + 1);
-		if ( pToken->TokenType ) {
-			for ( size_t i = 0; i < sv.Size; i++ ) {
-				char c = ((const char*)sv.Data)[i];
-				pToken->TokenType[i] = (c >= 'A' && c <= 'Z') ? (char)(c + 32) : c;
-			}
-			pToken->TokenType[sv.Size] = 0;
-		}
-	}
-	if ( xrtValueGetString(xrtValueObjectGet(p, xrtStrView("scope")), &sv) ) {
-		pToken->Scope = (char*)xrtMalloc(sv.Size + 1);
-		if ( pToken->Scope ) {
-			memcpy(pToken->Scope, sv.Data, sv.Size);
-			pToken->Scope[sv.Size] = 0;
-		}
+	/* 已出现的字段若类型错误或复制失败，整份响应必须失败。 */
+	if(!xoauth2__copy_token_field(p, "access_token", &pToken->AccessToken, false) ||
+		!xoauth2__copy_token_field(p, "refresh_token", &pToken->RefreshToken, false) ||
+		!xoauth2__copy_token_field(p, "id_token", &pToken->IdToken, false) ||
+		!xoauth2__copy_token_field(p, "openid", &pToken->OpenId, false) ||
+		!xoauth2__copy_token_field(p, "token_type", &pToken->TokenType, true) ||
+		!xoauth2__copy_token_field(p, "scope", &pToken->Scope, false))
+	{
+		xrtValueRelease(p);
+		xoauth2TokenFree(pToken);
+		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE,
+			"invalid or incomplete token response field");
+		return NULL;
 	}
 	{
 		xvalue* pExp = xrtValueObjectGet(p, xrtStrView("expires_in"));
@@ -93,16 +94,43 @@ xoauth2token* xoauth2__parse_token_response(const char* sJson, size_t iSize)
 	}
 	/* 时间戳：获取时刻 + 过期时刻（TokenExpiring 的依据） */
 	pToken->ObtainedAt = (int64_t)(xrtNow() / 1000000);
+	if((pToken->ExpiresIn > 0 &&
+		pToken->ObtainedAt > INT64_MAX - pToken->ExpiresIn) ||
+		(pToken->ExpiresIn < 0 &&
+		 pToken->ObtainedAt < INT64_MIN - pToken->ExpiresIn))
+	{
+		xrtValueRelease(p);
+		xoauth2TokenFree(pToken);
+		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE,
+			"expires_in overflows expiration timestamp");
+		return NULL;
+	}
 	pToken->ExpiresAt = pToken->ObtainedAt + pToken->ExpiresIn;
 
 	xrtValueRelease(p);
+	if ( bWechat && pToken->TokenType == NULL ) {
+		pToken->TokenType = (char*)xrtMalloc(sizeof("bearer"));
+		if ( pToken->TokenType == NULL ) {
+			xoauth2TokenFree(pToken);
+			return NULL;
+		}
+		memcpy(pToken->TokenType, "bearer", sizeof("bearer"));
+	}
 
-	if ( pToken->AccessToken == NULL ) {
-		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE, "no access_token in response");
+	if ( pToken->AccessToken == NULL || pToken->AccessToken[0] == 0 ||
+		 pToken->TokenType == NULL || pToken->TokenType[0] == 0 ||
+		 (bWechat && (pToken->OpenId == NULL || pToken->OpenId[0] == 0)) ) {
+		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE,
+			"token response is missing required fields");
 		xoauth2TokenFree(pToken);
 		return NULL;
 	}
 	return pToken;
+}
+
+xoauth2token* xoauth2__parse_token_response(const char* sJson, size_t iSize)
+{
+	return xoauth2__parse_token_response_mode(sJson, iSize, false);
 }
 
 /* ------------------------------------------------------------------ */
@@ -152,7 +180,17 @@ static char* build_form(const char* const* keys,
 	for ( int i = 0; i < nFields; i++ ) {
 		char* sEnc = xoauth2UrlEncode(values[i]);
 		if ( sEnc == NULL ) return NULL;
-		nNeed += strlen(keys[i]) + strlen(sEnc) + 2;  /* '=' + '&'/'\0' */
+		size_t nKey = strlen(keys[i]);
+		size_t nValue = strlen(sEnc);
+		if(nNeed > SIZE_MAX - 2u ||
+			nKey > SIZE_MAX - nNeed - 2u ||
+			nValue > SIZE_MAX - nNeed - nKey - 2u)
+		{
+			xrtFree(sEnc);
+			xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "token form too long");
+			return NULL;
+		}
+		nNeed += nKey + nValue + 2u;  /* '=' + '&'/'\0' */
 		xrtFree(sEnc);
 	}
 	char* sBody = (char*)xrtMalloc(nNeed);
@@ -173,7 +211,8 @@ char* xoauth2__build_token_request(xoauth2client* pClient, const char* sCode)
 {
 	if ( pClient == NULL || sCode == NULL ||
 	     pClient->Config.ClientId == NULL ||
-	     pClient->Config.RedirectUri == NULL ) {
+	     pClient->Config.RedirectUri == NULL ||
+	     (pClient->Wechat && pClient->Config.ClientSecret == NULL) ) {
 		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "token request: not configured");
 		return NULL;
 	}
@@ -184,6 +223,13 @@ char* xoauth2__build_token_request(xoauth2client* pClient, const char* sCode)
 	const char* keys[8];
 	const char* values[8];
 	int nFields = 0;
+	if ( pClient->Wechat ) {
+		keys[nFields] = "appid"; values[nFields++] = pClient->Config.ClientId;
+		keys[nFields] = "secret"; values[nFields++] = pClient->Config.ClientSecret;
+		keys[nFields] = "code"; values[nFields++] = sCode;
+		keys[nFields] = "grant_type"; values[nFields++] = "authorization_code";
+		return build_form(keys, values, nFields);
+	}
 	keys[nFields] = "grant_type"; values[nFields++] = "authorization_code";
 	keys[nFields] = "code"; values[nFields++] = sCode;
 	keys[nFields] = "redirect_uri"; values[nFields++] = pClient->Config.RedirectUri;
@@ -220,6 +266,12 @@ char* xoauth2__build_refresh_request(const xoauth2client* pClient,
 	const char* keys[8];
 	const char* values[8];
 	int nFields = 0;
+	if ( pClient->Wechat ) {
+		keys[nFields] = "appid"; values[nFields++] = pClient->Config.ClientId;
+		keys[nFields] = "grant_type"; values[nFields++] = "refresh_token";
+		keys[nFields] = "refresh_token"; values[nFields++] = sRefreshToken;
+		return build_form(keys, values, nFields);
+	}
 	keys[nFields] = "grant_type"; values[nFields++] = "refresh_token";
 	keys[nFields] = "refresh_token"; values[nFields++] = sRefreshToken;
 	if ( !bBasic ) {
@@ -276,31 +328,62 @@ static void verifier_burn(xoauth2client* pClient)
 	- 其他非 2xx → TOKEN_ENDPOINT
 */
 static xoauth2token* exchange(const xoauth2client* pClient,
-                              const char* sBody, const char* sAuth)
+	const char* sBody, const char* sAuth, bool bRefresh)
 {
 	xoauth2token* pToken = NULL;
 	char* sResp = NULL;
+	char* sRequestUrl = NULL;
+	const char* sUrl = pClient->Config.TokenUrl;
+	const char* sMethod = "POST";
+	const char* sRequestBody = sBody;
 	int iStatus = 0;
 
 	if ( pClient->Config.Http == NULL ) {
 		xoauth2__error(XOAUTH2_ERROR_NETWORK, "no transport configured");
 		return NULL;
 	}
-	if ( !pClient->Config.Http("POST", pClient->Config.TokenUrl, sBody, sAuth,
+	if ( pClient->Wechat ) {
+		static const char sWechatRefresh[] =
+			"https://api.weixin.qq.com/sns/oauth2/refresh_token";
+		size_t iBase;
+		size_t iQuery = strlen(sBody);
+		sUrl = bRefresh ? sWechatRefresh : pClient->Config.TokenUrl;
+		iBase = strlen(sUrl);
+		if ( iQuery > SIZE_MAX - 2u ||
+			iBase > SIZE_MAX - iQuery - 2u ) {
+			xoauth2__error(XOAUTH2_ERROR_ARGUMENT,
+				"WeChat token URL too long");
+			return NULL;
+		}
+		sRequestUrl = (char*)xrtMalloc(iBase + iQuery + 2u);
+		if ( sRequestUrl == NULL ) return NULL;
+		memcpy(sRequestUrl, sUrl, iBase);
+		sRequestUrl[iBase] = '?';
+		memcpy(sRequestUrl + iBase + 1u, sBody, iQuery + 1u);
+		sUrl = sRequestUrl;
+		sMethod = "GET";
+		sRequestBody = NULL;
+	}
+	if ( !pClient->Config.Http(sMethod, sUrl, sRequestBody, sAuth,
 	                           &sResp, &iStatus, pClient->Config.HttpContext) ) {
+		xrtFree(sRequestUrl);
+		xrtFree(sResp);
 		xoauth2__error(XOAUTH2_ERROR_NETWORK, "transport failed");
 		return NULL;
 	}
+	xrtFree(sRequestUrl);
 	if ( iStatus >= 200 && iStatus < 300 ) {
-		pToken = xoauth2__parse_token_response(
-			sResp ? sResp : "", sResp ? strlen(sResp) : 0);
+		pToken = xoauth2__parse_token_response_mode(
+			sResp ? sResp : "", sResp ? strlen(sResp) : 0,
+			pClient->Wechat);
 	}
 	else if ( sResp != NULL && sResp[0] != 0 ) {
 		/* 非 2xx：能提取 provider error 就报 DENIED。
 		 * 响应体可能同时含完整令牌结构（恶意端点）——探测结果必须释放 */
 		xoauth2token* pProbe;
 		xrtClearError();
-		pProbe = xoauth2__parse_token_response(sResp, strlen(sResp));
+		pProbe = xoauth2__parse_token_response_mode(
+			sResp, strlen(sResp), pClient->Wechat);
 		if ( pProbe != NULL )
 			xoauth2TokenFree(pProbe);
 		if ( xoauth2LastError() != XOAUTH2_ERROR_TOKEN_DENIED )
@@ -339,8 +422,13 @@ xoauth2token* xoauth2CompleteLogin(xoauth2client* pClient,
 	if ( sBody == NULL ) return NULL;
 	char* sAuth = xoauth2__build_auth_header(pClient);
 	verifier_burn(pClient);
+	if(pClient->Config.AuthStyle == XOAUTH2_AUTH_BASIC && sAuth == NULL)
+	{
+		xrtFree(sBody);
+		return NULL;
+	}
 
-	xoauth2token* pToken = exchange(pClient, sBody, sAuth);
+	xoauth2token* pToken = exchange(pClient, sBody, sAuth, false);
 	xrtFree(sAuth);
 	xrtFree(sBody);
 	return pToken;
@@ -359,8 +447,13 @@ xoauth2token* xoauth2Refresh(xoauth2client* pClient, const char* sRefreshToken)
 	char* sBody = xoauth2__build_refresh_request(pClient, sRefreshToken);
 	if ( sBody == NULL ) return NULL;
 	char* sAuth = xoauth2__build_auth_header(pClient);
+	if(pClient->Config.AuthStyle == XOAUTH2_AUTH_BASIC && sAuth == NULL)
+	{
+		xrtFree(sBody);
+		return NULL;
+	}
 
-	xoauth2token* pToken = exchange(pClient, sBody, sAuth);
+	xoauth2token* pToken = exchange(pClient, sBody, sAuth, true);
 	xrtFree(sAuth);
 	xrtFree(sBody);
 	return pToken;
@@ -387,6 +480,7 @@ char* xoauth2HttpGet(xoauth2client* pClient, const char* sUrl,
 	}
 	if ( !pClient->Config.Http("GET", sUrl, NULL, sAuthHeader,
 	                           &sResp, &iStatus, pClient->Config.HttpContext) ) {
+		xrtFree(sResp);
 		xoauth2__error(XOAUTH2_ERROR_NETWORK, "transport failed");
 		return NULL;
 	}
@@ -414,6 +508,11 @@ xvalue* xoauth2GetUserInfo(xoauth2client* pClient, const char* sAccessToken)
 
 	if ( pClient == NULL || sAccessToken == NULL ) {
 		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "xoauth2GetUserInfo: null argument");
+		return NULL;
+	}
+	if ( pClient->Wechat ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT,
+			"WeChat userinfo requires the token openid");
 		return NULL;
 	}
 	if ( pClient->Config.UserInfoUrl == NULL ) {
@@ -447,5 +546,76 @@ xvalue* xoauth2GetUserInfo(xoauth2client* pClient, const char* sAccessToken)
 			"user info must be a JSON object");
 		return NULL;
 	}
+	return pClaims;
+}
+
+xvalue* xoauth2GetWechatUserInfo(xoauth2client* pClient,
+	const xoauth2token* pToken)
+{
+	char* sAccess = NULL;
+	char* sOpenId = NULL;
+	char* sUrl = NULL;
+	char* sBody = NULL;
+	xvalue* pClaims = NULL;
+	int iStatus = 0;
+	size_t nCap, nExtra;
+	int nWritten;
+	if ( pClient == NULL || !pClient->Wechat ||
+		pClient->Config.UserInfoUrl == NULL || pToken == NULL ||
+		pToken->AccessToken == NULL || pToken->AccessToken[0] == 0 ||
+		pToken->OpenId == NULL || pToken->OpenId[0] == 0 ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT,
+			"WeChat userinfo requires a token with access_token and openid");
+		return NULL;
+	}
+	sAccess = xoauth2UrlEncode(pToken->AccessToken);
+	sOpenId = xoauth2UrlEncode(pToken->OpenId);
+	if ( sAccess == NULL || sOpenId == NULL ) goto Done;
+	nCap = strlen(pClient->Config.UserInfoUrl);
+	nExtra = sizeof("?access_token=&openid=");
+	if ( strlen(sAccess) > SIZE_MAX - nExtra ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT,
+			"WeChat userinfo URL too long");
+		goto Done;
+	}
+	nExtra += strlen(sAccess);
+	if ( strlen(sOpenId) > SIZE_MAX - nExtra ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT,
+			"WeChat userinfo URL too long");
+		goto Done;
+	}
+	nExtra += strlen(sOpenId);
+	if ( nCap > SIZE_MAX - nExtra ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT,
+			"WeChat userinfo URL too long");
+		goto Done;
+	}
+	nCap += nExtra;
+	sUrl = (char*)xrtMalloc(nCap);
+	if ( sUrl == NULL ) goto Done;
+	nWritten = snprintf(sUrl, nCap, "%s?access_token=%s&openid=%s",
+		pClient->Config.UserInfoUrl, sAccess, sOpenId);
+	if ( nWritten < 0 || (size_t)nWritten >= nCap )
+		goto Done;
+	sBody = xoauth2HttpGet(pClient, sUrl, NULL, &iStatus);
+	if ( sBody == NULL ) goto Done;
+	pClaims = xrtJsonParse(xrtStrView(sBody));
+	if ( pClaims == NULL || !xrtValueIs(pClaims, XVALUE_OBJECT) ) {
+		xrtValueRelease(pClaims);
+		pClaims = NULL;
+		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE,
+			"invalid WeChat userinfo response");
+	}
+	else if ( xrtValueObjectHas(pClaims, xrtStrView("errcode")) ) {
+		xrtValueRelease(pClaims);
+		pClaims = NULL;
+		xoauth2__error(XOAUTH2_ERROR_TOKEN_DENIED,
+			"WeChat userinfo was denied");
+	}
+Done:
+	xrtFree(sAccess);
+	xrtFree(sOpenId);
+	xrtFree(sUrl);
+	xrtFree(sBody);
 	return pClaims;
 }

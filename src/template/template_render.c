@@ -529,12 +529,22 @@ static bool __xrtTemplateWriteNumber(
 			iSize + 1u,
 			&iSize
 		);
-	} else if ( pValue->Type == XVALUE_UINT ) {
+	} else if ( (pValue->Type == XVALUE_UINT) ||
+			 (pValue->Type == XVALUE_CHAR) ) {
 		uint64 iValue;
 
 		if ( pValue->Value != NULL ) {
-			if ( !xrtValueGetUInt(pValue->Value, &iValue) ) {
-				goto format_error;
+			if ( pValue->Type == XVALUE_UINT ) {
+				if ( !xrtValueGetUInt(pValue->Value, &iValue) ) {
+					goto format_error;
+				}
+			} else {
+				uint32 iCharacter;
+
+				if ( !xrtValueGetChar(pValue->Value, &iCharacter) ) {
+					goto format_error;
+				}
+				iValue = iCharacter;
 			}
 		} else {
 			iValue = pValue->Data.Unsigned;
@@ -745,6 +755,29 @@ static bool __xrtTemplateWriteText(
 				pValue,
 				(xstrview){ NULL, 0 }
 			);
+		case XVALUE_CHAR:
+		{
+			char arrText[4];
+			uint32 iCharacter;
+			size_t iSize;
+
+			if ( pValue->Value != NULL ) {
+				if ( !xrtValueGetChar(pValue->Value, &iCharacter) ) {
+					break;
+				}
+			} else {
+				iCharacter = (uint32)pValue->Data.Unsigned;
+			}
+			iSize = xrtUtf8Encode(iCharacter, arrText);
+			if ( iSize != 0 ) {
+				return __xrtTemplateEmit(
+					pRender,
+					pNode,
+					(xstrview){ arrText, iSize }
+				);
+			}
+			break;
+		}
 		case XVALUE_STRING:
 			if ( pValue->Value == NULL ) {
 				return __xrtTemplateEmit(
@@ -852,6 +885,7 @@ static bool __xrtTemplateRenderOutput(
 	if ( pNode->Output == XTEMPLATE_OUTPUT_NUMBER ) {
 		if ( (Value.Type != XVALUE_INT) &&
 			 (Value.Type != XVALUE_UINT) &&
+			 (Value.Type != XVALUE_CHAR) &&
 			 (Value.Type != XVALUE_FLOAT) ) {
 			__xrtTemplateError(
 				XERR_TYPE,

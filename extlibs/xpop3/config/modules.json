@@ -188,7 +188,10 @@
 			"feature": null,
 			"depends": [
 				"pop3_auth",
-				"pop3_client_tls"
+				"pop3_client_tls",
+				"string",
+				"tls_context",
+				"tls_verify"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -200,6 +203,27 @@
 			],
 			"docs": [
 				"extlibs/xpop3/docs/api/pop3_client.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "pop3_offline_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_auth",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xpop3/examples/offline/main.c"
+			],
+			"docs": [
+				"extlibs/xpop3/README.md"
 			],
 			"legacy": []
 		},
@@ -309,6 +333,7 @@
 				"pop3_client_tls",
 				"pop3_auth",
 				"pop3_client_example",
+				"pop3_offline_example",
 				"pop3_message",
 				"pop3_message_runtime_tests",
 				"pop3_client_tls_runtime_tests"

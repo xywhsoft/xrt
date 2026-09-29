@@ -42,7 +42,7 @@ static bool xacmeFlowCopyText(char* sDest, size_t iCapacity, cstr sSource)
 
 /* ---------------- JSON 辅助 ---------------- */
 
-static bool xacmeJsonQuoteAppend(xbuffer* pOut, xstrview sText)
+static bool xacmeFlowJsonQuoteAppend(xbuffer* pOut, xstrview sText)
 {
 	size_t i;
 	if(!xrtBufferAppendByte(pOut, '"'))
@@ -721,7 +721,7 @@ bool xacmeClientInit(
 		snprintf(sMailto, sizeof(sMailto), "mailto:%s",
 			pAccount->sContactEmail);
 		if(!xrtBufferAppend(&Payload, XRT_BYTES_LITERAL(",\"contact\":[")) ||
-			!xacmeJsonQuoteAppend(
+			!xacmeFlowJsonQuoteAppend(
 				&Payload, (xstrview){ sMailto, strlen(sMailto) }) ||
 			!xrtBufferAppendByte(&Payload, (uint8)']'))
 		{
@@ -954,7 +954,7 @@ bool xacmeClientIssue(
 		}
 		if(!xrtBufferAppend(
 				&Payload, XRT_BYTES_LITERAL("{\"type\":\"dns\",\"value\":")) ||
-			!xacmeJsonQuoteAppend(
+			!xacmeFlowJsonQuoteAppend(
 				&Payload, (xstrview){ Bases[i].sData, Bases[i].iSize }) ||
 			!xrtBufferAppendByte(&Payload, (uint8)'}'))
 		{
@@ -1086,7 +1086,7 @@ bool xacmeClientIssue(
 				xacmeflowurl AuthzIdent;
 				xvalue* pDbgIdent = xrtValueObjectGet(
 					pAuthRoot, XRT_STR_LITERAL("identifier"));
-				printf("[dbg] authz[%u] status=%s ident=%s challenges=%u\n",
+				printf("[dbg] authz[%u] status=%s ident=%s challenges=%zu\n",
 					(unsigned)i,
 					(xacmeJsonValueText(pAuthRoot, "status", &AuthzStatus)) ?
 						AuthzStatus.sData : "?",
@@ -1094,7 +1094,7 @@ bool xacmeClientIssue(
 						xacmeJsonValueText(
 							pDbgIdent, "value", &AuthzIdent)) ?
 						AuthzIdent.sData : "?",
-					(unsigned)((pChallenges != NULL) &&
+					((pChallenges != NULL) &&
 							xrtValueIs(pChallenges, XVALUE_ARRAY)) ?
 							xrtValueCount(pChallenges) : 0u);
 			}
@@ -1714,7 +1714,7 @@ bool xacmeClientRollover(
 		xrtBufferInit(&Payload);
 		if(!xrtBufferAppend(
 				&Payload, XRT_BYTES_LITERAL("{\"account\":")) ||
-			!xacmeJsonQuoteAppend(
+			!xacmeFlowJsonQuoteAppend(
 				&Payload,
 				(xstrview){ pClient->sKid, strlen(pClient->sKid) }) ||
 			!xrtBufferAppend(

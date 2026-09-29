@@ -7,7 +7,7 @@
 #include <xrt/acme.h>
 #include <xrt/acme_dns.h>
 #include <xrt/acme_http.h>
-#if defined(XACME_FEATURE_ACME_FLOW) && \
+#if defined(XACME_FEATURE_ACME_FLOW) && (\
 	!defined(XACME_FEATURE_ACME_CORE) || \
 	!defined(XACME_FEATURE_ACME_DNS) || \
 	!defined(XACME_FEATURE_ACME_HTTP) || \
@@ -15,7 +15,7 @@
 	!defined(XACME_FEATURE_ACME_CSR) || \
 	!defined(XACME_FEATURE_DNS_ALI) || \
 	!defined(XACME_FEATURE_ACME_STORE) || \
-	!defined(XRT_FEATURE_JSON)
+	!defined(XRT_FEATURE_JSON))
 	#error "XACME_FEATURE_ACME_FLOW requires core, dns, http, jose, csr, dns_ali, store and json"
 #endif
 

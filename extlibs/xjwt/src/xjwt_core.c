@@ -11,6 +11,11 @@ static const char s_B64url_chars[] =
 char* xjwt__base64url_encode(const void* pData, size_t iSize)
 {
 	const unsigned char* p = (const unsigned char*)pData;
+	if ( iSize > SIZE_MAX - 2 ||
+		(iSize + 2) / 3 > (SIZE_MAX - 1) / 4 ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "base64url encode: input too large");
+		return NULL;
+	}
 	size_t iOutSize = (iSize + 2) / 3 * 4;
 	/* 去掉 padding：尾组 1 字节→2 字符，2 字节→3 字符 */
 	if ( iSize % 3 == 1 ) iOutSize -= 2;
@@ -66,6 +71,7 @@ unsigned char* xjwt__base64url_decode(const char* sText, size_t iTextSize, size_
 	for ( size_t i = 0; i < iTextSize; i += 4 ) {
 		uint32_t v = 0;
 		int n = 0;
+		int iLast = 0;
 		for ( int k = 0; k < 4 && i + k < iTextSize; k++ ) {
 			int d = b64url_val(sText[i+k]);
 			if ( d < 0 ) {
@@ -74,7 +80,16 @@ unsigned char* xjwt__base64url_decode(const char* sText, size_t iTextSize, size_
 				return NULL;
 			}
 			v = (v << 6) | (uint32_t)d;
+			iLast = d;
 			n++;
+		}
+		/* RFC 4648 §3.5：末组未使用位必须为零，避免同一签名有多个字符串。 */
+		if ( (n == 2 && (iLast & 15) != 0) ||
+			(n == 3 && (iLast & 3) != 0) ) {
+			xrtFree(pOut);
+			xjwt__error(XJWT_ERROR_MALFORMED,
+				"base64url decode: nonzero pad bits");
+			return NULL;
 		}
 		v <<= (4 - n) * 6;
 		if ( n >= 2 ) pOut[j++] = (unsigned char)(v >> 16);

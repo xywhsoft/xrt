@@ -31,6 +31,8 @@ void xrtAcmeGrantUnit(xacmeissuegrant* pGrant)
 		return;
 	}
 	xrtFree(pGrant->sFullchainPem);
+	if(pGrant->sKeyPem != NULL)
+		xrtSecureZero(pGrant->sKeyPem, strlen(pGrant->sKeyPem));
 	xrtFree(pGrant->sKeyPem);
 	memset(pGrant, 0, sizeof(*pGrant));
 }

@@ -964,8 +964,10 @@ static bool __xrtValueEqual(
 		return false;
 	}
 	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
+		  (pLeft->Type == XVALUE_CHAR) ||
 		  (pLeft->Type == XVALUE_FLOAT)) &&
 		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
+		  (pRight->Type == XVALUE_CHAR) ||
 		  (pRight->Type == XVALUE_FLOAT)) ) {
 		return __xrtValueEqualKnown(pLeft, pRight);
 	}

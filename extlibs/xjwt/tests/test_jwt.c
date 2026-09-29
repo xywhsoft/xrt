@@ -93,6 +93,57 @@ int main(void)
 		xrtValueRelease(claims);
 	}
 
+	/* ---- Base64url 末组必须规范化，签名串不可有等价别名 ---- */
+	{
+		static const char sAlphabet[] =
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+		unsigned char Zero = 0;
+		size_t iDecoded = 0;
+		unsigned char* pDecoded = xjwt__base64url_decode("AA", 2u, &iDecoded);
+		CHECK(pDecoded != NULL && iDecoded == 1u && pDecoded[0] == 0u,
+			"canonical two-character base64url accepted");
+		xrtFree(pDecoded);
+		CHECK(xjwt__base64url_decode("AB", 2u, &iDecoded) == NULL &&
+			xjwtLastError() == XJWT_ERROR_MALFORMED,
+			"nonzero four pad bits rejected");
+		pDecoded = xjwt__base64url_decode("AAA", 3u, &iDecoded);
+		CHECK(pDecoded != NULL && iDecoded == 2u &&
+			pDecoded[0] == 0u && pDecoded[1] == 0u,
+			"canonical three-character base64url accepted");
+		xrtFree(pDecoded);
+		CHECK(xjwt__base64url_decode("AAB", 3u, &iDecoded) == NULL &&
+			xjwtLastError() == XJWT_ERROR_MALFORMED,
+			"nonzero two pad bits rejected");
+		CHECK(xjwt__base64url_encode(&Zero, SIZE_MAX) == NULL &&
+			xjwtLastError() == XJWT_ERROR_ARGUMENT,
+			"base64url encode size overflow rejected");
+
+		xvalue* claims = xrtValueObject();
+		char* token = xjwtHs256(claims, "canonical-secret", 60);
+		CHECK(token != NULL, "canonical signature test token signed");
+		if ( token != NULL ) {
+			size_t iSize = strlen(token);
+			const char* pDigit = strchr(sAlphabet, token[iSize - 1u]);
+			CHECK(pDigit != NULL &&
+				((size_t)(pDigit - sAlphabet) % 4u) == 0u,
+				"HS256 signature has canonical final digit");
+			if ( pDigit != NULL &&
+				((size_t)(pDigit - sAlphabet) % 4u) == 0u ) {
+				char* sAlias = (char*)xrtMalloc(iSize + 1u);
+				if ( sAlias != NULL ) {
+					memcpy(sAlias, token, iSize + 1u);
+					sAlias[iSize - 1u] = pDigit[1];
+					CHECK(xjwtVerify(sAlias, "canonical-secret", NULL) == NULL &&
+						xjwtLastError() == XJWT_ERROR_MALFORMED,
+						"equivalent noncanonical signature rejected");
+					xrtFree(sAlias);
+				}
+			}
+			xrtFree(token);
+		}
+		xrtValueRelease(claims);
+	}
+
 	/* ---- HS384 / HS512 ---- */
 	{
 		xvalue* claims = xrtValueObject();
@@ -278,6 +329,12 @@ int main(void)
 		char* token = xjwtEs256(claims, K_EC_PRIV, 3600);
 		CHECK(token != NULL, "ES256 sign returns token");
 		if ( token != NULL ) {
+			const char *head, *body, *sig;
+			size_t head_size, body_size, sig_size;
+			CHECK(xjwt__split(token, &head, &head_size, &body, &body_size,
+				&sig, &sig_size) &&
+				xjwt__base64url_decode_size(sig, sig_size) == 64,
+				"ES256 JWS signature is fixed-width R||S");
 			xvalue* out = xjwtVerify(token, K_EC_PUB, NULL);
 			CHECK(out != NULL, "ES256 verify round-trip");
 			if ( out != NULL ) xrtValueRelease(out);
@@ -331,11 +388,27 @@ int main(void)
 		}
 	}
 
-	/* ---- openssl 签的 ES256 令牌 → xjwt 验证（DER 编码互认） ---- */
+	/* ---- OpenSSL DER 经 JWS R||S 转换后互认；原始 DER 拒绝 ---- */
 	{
 		xvalue* out = xjwtVerify(K_TOKEN_ES256_OPENSSL, K_EC_PUB, NULL);
-		CHECK(out != NULL, "openssl-signed ES256 verified by xjwt (DER)");
+		CHECK(out != NULL, "openssl-signed ES256 JWS verified by xjwt");
 		if ( out != NULL ) xrtValueRelease(out);
+		CHECK(xjwtVerify(K_TOKEN_ES256_DER_OPENSSL, K_EC_PUB, NULL) == NULL,
+			"non-JWS DER ES256 signature rejected");
+	}
+
+	/* ---- 签发时分配失败不得返回缺少 exp 的令牌 ---- */
+	{
+		xvalue* claims = xrtValueObject();
+		xjwtconfig cfg; xjwtConfigInit(&cfg);
+		cfg.KeyPem = "secret"; cfg.ExpireSeconds = 3600;
+		CHECK(xrtMemDebugFailAfter(0), "JWT allocation fault armed");
+		char* token = xjwtSign(&cfg, claims);
+		bool failed = xrtMemDebugFailTriggered();
+		xrtMemDebugFailClear();
+		CHECK(failed && token == NULL, "JWT signing fails closed on exp allocation");
+		xrtFree(token);
+		xrtValueRelease(claims);
 	}
 
 	/* ---- 密钥封装格式覆盖：PKCS#1 RSA / PKCS#8 EC ---- */
@@ -667,10 +740,10 @@ int main(void)
 		CHECK(!xjwt__sign(XJWT_ALG_RS256, "x", 1, K_RSA_PRIV,
 			aSmall, sizeof(aSmall), &sz),
 			"LOW2 RSA with 4-byte output rejected");
-		unsigned char aTiny[64];
+		unsigned char aTiny[63];
 		CHECK(!xjwt__sign(XJWT_ALG_ES256, "x", 1, K_EC_PRIV,
 			aTiny, sizeof(aTiny), &sz),
-			"LOW2 ES256 with 64-byte output rejected");
+			"LOW2 ES256 with 63-byte output rejected");
 	}
 
 	/* ---- LOW3：JWKS 超过 16 把密钥整体拒绝 ---- */

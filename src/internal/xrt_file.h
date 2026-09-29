@@ -17,13 +17,13 @@ bool __xrtFileOptions(const xfileoptions* pInput, xfileoptions* pOptions);
 
 
 
-/* 接管原生句柄并创建文件对象；无论成功失败，调用后句柄都归本函数处理。 */
-xfile __xrtFileTakeNative(intptr_t iHandle, uint32 iFlags);
+/* 系统打开前预分配对象；初始化前失败只需 xrtFree，不得调用 xrtClose。 */
+xfile __xrtFileAlloc(void);
 
 
 
-/* 接管数据句柄和可选控制句柄；两个句柄都在失败或关闭时释放。 */
-xfile __xrtFileTakeNativePair(intptr_t iHandle,
+/* 无分配地接管数据句柄及可选控制句柄，随后统一由 xrtClose 释放。 */
+void __xrtFileInitNativePair(xfile File, intptr_t iHandle,
 	intptr_t iControl, uint32 iFlags);
 
 

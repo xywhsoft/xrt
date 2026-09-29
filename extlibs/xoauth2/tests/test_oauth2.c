@@ -99,7 +99,7 @@ static bool leakcycle_http(const char* sMethod, const char* sUrl,
 	case 0:
 		*piStatus = 200;
 		*psBody = (char*)xrtMalloc(40);
-		strcpy(*psBody, "{\"access_token\":\"ok\",\"expires_in\":60}");
+		strcpy(*psBody, "{\"access_token\":\"ok\",\"token_type\":\"bearer\",\"expires_in\":60}");
 		return true;
 	case 1:   /* 非 2xx 但含完整令牌结构：exchange 探测后必须释放 */
 		*piStatus = 404;
@@ -225,7 +225,7 @@ int main(void)
 
 	/* ============ 预设 ============ */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2UseGithub(&c, "id1", "sec1", "https://app/cb");
 		CHECK(strcmp(c.Config.TokenUrl,
 			"https://github.com/login/oauth/access_token") == 0, "github preset");
@@ -263,11 +263,29 @@ int main(void)
 		CHECK(xoauth2LastError() == XOAUTH2_ERROR_ARGUMENT,
 			"oversized tenant error code");
 		xoauth2ClientUnit(&c);
+		/* 接近上限的合法 tenant 不得静默截断 URL。 */
+		{
+			char aTenant[241];
+			memset(aTenant, 't', sizeof(aTenant) - 1u);
+			aTenant[sizeof(aTenant) - 1u] = 0;
+			xoauth2UseMicrosoft(&c, "id1", "sec1", "https://app/cb", aTenant);
+			CHECK(c.Config.AuthorizeUrl != NULL &&
+				strlen(c.Config.AuthorizeUrl) ==
+				strlen("https://login.microsoftonline.com/") +
+				strlen(aTenant) + strlen("/oauth2/v2.0/authorize"),
+				"long Microsoft tenant URL is complete");
+			xoauth2ClientUnit(&c);
+		}
+		xoauth2UseMicrosoft(&c, "id1", "sec1", "https://app/cb", "common/../evil");
+		CHECK(c.Config.AuthorizeUrl == NULL &&
+			xoauth2LastError() == XOAUTH2_ERROR_ARGUMENT,
+			"Microsoft tenant path injection rejected");
+		xoauth2ClientUnit(&c);
 	}
 
 	/* ============ 授权 URL 构造 ============ */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2UseGithub(&c, "cid-1", "topsecret", "https://app/callback");
 		char* url = xoauth2BeginLogin(&c);
 		CHECK(url != NULL, "BeginLogin returns url");
@@ -318,18 +336,110 @@ int main(void)
 		url = xoauth2BeginLogin(&c);
 		if ( url != NULL ) {
 			CHECK(strstr(url, "code_challenge") == NULL,
-				"custom pkce off respected");
+			"custom pkce off respected");
 			xrtFree(url);
 		}
+		cfg.ClientId = "client&scope=admin#fragment";
+		xoauth2UseCustom(&c, &cfg);
+		url = xoauth2BeginLogin(&c);
+		CHECK(url != NULL &&
+			strstr(url, "client_id=client%26scope%3Dadmin%23fragment&") != NULL,
+			"client_id cannot inject authorization parameters");
+		xrtFree(url);
+		xoauth2ClientUnit(&c);
 		/* 未配置拒绝 */
-		xoauth2client empty;
-		memset(&empty, 0, sizeof(empty));
+		xoauth2client empty = {0};
 		CHECK(xoauth2BeginLogin(&empty) == NULL, "unconfigured rejected");
+	}
+	{
+		bool bClosed = true, bCompleted = false;
+		xoauth2client c = {0};
+		xoauth2config cfg;
+		xoauth2ConfigInit(&cfg);
+		cfg.AuthorizeUrl = "https://idp.example/auth";
+		cfg.ClientId = "client&one";
+		cfg.RedirectUri = "https://app.example/callback?x=1";
+		cfg.Scope = "read write";
+		for(size_t i = 0u; i < 256u; i++)
+		{
+			xoauth2UseCustom(&c, &cfg);
+			if(!xrtMemDebugFailAfter(i)) { bClosed = false; break; }
+			char* sUrl = xoauth2BeginLogin(&c);
+			bool bFailed = xrtMemDebugFailTriggered();
+			xrtMemDebugFailClear();
+			if(bFailed && (sUrl != NULL || c.sState[0] != 0 ||
+				c.sVerifier[0] != 0 || c.sNonce[0] != 0))
+				bClosed = false;
+			if(!bFailed) bCompleted = sUrl != NULL;
+			xrtFree(sUrl);
+			xrtClearError();
+			if(!bFailed) break;
+		}
+		xoauth2ClientUnit(&c);
+		CHECK(bClosed && bCompleted,
+			"authorization URL allocation sweep fails closed");
+	}
+
+	/* 微信预设使用 appid、GET token/refresh 与无 token_type 响应。 */
+	{
+		xoauth2client c = {0};
+		char aState[128];
+		xoauth2token* tok;
+		char* url;
+		xvalue* user;
+		xoauth2UseWechat(&c, "wx&app", "sec+ret", "https://app/cb?a=1");
+		c.Config.Http = mock_http;
+		url = xoauth2BeginLogin(&c);
+		CHECK(url != NULL &&
+			strstr(url, "?appid=wx%26app&redirect_uri=") != NULL &&
+			strstr(url, "&scope=snsapi_login&state=") != NULL &&
+			strstr(url, "#wechat_redirect") != NULL &&
+			strstr(url, "client_id=") == NULL,
+			"WeChat authorization URL follows provider parameter format");
+		xrtFree(url);
+		strcpy(aState, c.sState);
+		mock_setup(200, "{\"access_token\":\"wx-token\",\"refresh_token\":\"wx-refresh\","
+			"\"openid\":\"open/1\",\"expires_in\":7200}");
+		tok = xoauth2CompleteLogin(&c, "code/1", aState);
+		CHECK(tok != NULL && tok->TokenType != NULL &&
+			tok->OpenId != NULL && strcmp(tok->TokenType, "bearer") == 0 &&
+			strcmp(tok->OpenId, "open/1") == 0 &&
+			strcmp(g_MockMethod, "GET") == 0 && g_MockBody[0] == 0 &&
+			strstr(g_MockUrl, "appid=wx%26app&secret=sec%2Bret&code=code%2F1") != NULL,
+			"WeChat token GET and missing token_type normalization");
+		mock_setup(200, "{\"openid\":\"open/1\",\"nickname\":\"test\"}");
+		user = xoauth2GetWechatUserInfo(&c, tok);
+		CHECK(user != NULL && strcmp(g_MockMethod, "GET") == 0 &&
+			strstr(g_MockUrl, "access_token=wx-token&openid=open%2F1") != NULL,
+			"WeChat userinfo includes access token and openid");
+		xrtValueRelease(user);
+		mock_setup(200, "{\"errcode\":40003,\"errmsg\":\"invalid openid\"}");
+		CHECK(xoauth2GetWechatUserInfo(&c, tok) == NULL &&
+			xoauth2LastError() == XOAUTH2_ERROR_TOKEN_DENIED,
+			"WeChat userinfo errcode is a provider denial");
+		CHECK(xoauth2GetUserInfo(&c,
+			tok != NULL ? tok->AccessToken : "") == NULL,
+			"generic bearer userinfo rejects WeChat");
+		xoauth2TokenFree(tok);
+		mock_setup(200, "{\"access_token\":\"wx-new\",\"openid\":\"open/1\"}");
+		tok = xoauth2Refresh(&c, "refresh/1");
+		CHECK(tok != NULL && strcmp(g_MockMethod, "GET") == 0 &&
+			strstr(g_MockUrl, "/sns/oauth2/refresh_token?appid=wx%26app") != NULL &&
+			strstr(g_MockUrl, "refresh_token=refresh%2F1") != NULL,
+			"WeChat refresh GET uses provider endpoint");
+		xoauth2TokenFree(tok);
+		mock_setup(200, "{\"errcode\":40029,\"errmsg\":\"invalid code\"}");
+		tok = xoauth2Refresh(&c, "bad");
+		CHECK(tok == NULL && xoauth2LastError() == XOAUTH2_ERROR_TOKEN_DENIED,
+			"WeChat errcode is a provider denial");
+		xoauth2ClientUnit(&c);
+		CHECK(!c.Wechat && c.Config.TokenUrl == NULL,
+			"WeChat ClientUnit clears provider mode");
 	}
 
 	/* ============ 请求构造（H4/H5） ============ */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		/* BODY 风格 + 特殊字符 secret：必须全部编码 */
 		xoauth2config cfg;
 		xoauth2ConfigInit(&cfg);
@@ -417,7 +527,7 @@ int main(void)
 		}
 		/* 短有效期 → expiring */
 		{
-			const char* j = "{\"access_token\":\"x\",\"expires_in\":30}";
+			const char* j = "{\"access_token\":\"x\",\"token_type\":\"bearer\",\"expires_in\":30}";
 			xoauth2token* t2 = xoauth2__parse_token_response(j, strlen(j));
 			if ( t2 != NULL ) {
 				CHECK(xoauth2TokenExpiring(t2, 60), "M8 short token expiring");
@@ -426,12 +536,22 @@ int main(void)
 		}
 		/* 负有效期 → 立即过期 */
 		{
-			const char* j = "{\"access_token\":\"x\",\"expires_in\":-5}";
+			const char* j = "{\"access_token\":\"x\",\"token_type\":\"bearer\",\"expires_in\":-5}";
 			xoauth2token* t3 = xoauth2__parse_token_response(j, strlen(j));
 			if ( t3 != NULL ) {
 				CHECK(xoauth2TokenExpiring(t3, 0), "negative expires_in expiring");
 				xoauth2TokenFree(t3);
 			}
+		}
+		{
+			xoauth2token edge = {0};
+			edge.ExpiresIn = 1;
+			edge.ExpiresAt = INT64_MIN;
+			CHECK(xoauth2TokenExpiring(&edge, 0),
+				"expiration comparison handles INT64_MIN");
+			edge.ExpiresAt = INT64_MAX;
+			CHECK(!xoauth2TokenExpiring(&edge, 0),
+				"expiration comparison handles INT64_MAX");
 		}
 		/* error 响应拒绝 */
 		CHECK(xoauth2__parse_token_response(
@@ -439,15 +559,56 @@ int main(void)
 		/* 无 access_token 拒绝 */
 		CHECK(xoauth2__parse_token_response(
 			"{\"token_type\":\"bearer\"}", 24) == NULL, "no access_token rejected");
+		{
+			const char* noType = "{\"access_token\":\"x\"}";
+			const char* badRefresh =
+				"{\"access_token\":\"x\",\"token_type\":\"bearer\",\"refresh_token\":42}";
+			const char* overflow =
+				"{\"access_token\":\"x\",\"token_type\":\"bearer\","
+				"\"expires_in\":9223372036854775807}";
+			CHECK(xoauth2__parse_token_response(noType, strlen(noType)) == NULL,
+				"token_type is required");
+			CHECK(xoauth2__parse_token_response(badRefresh, strlen(badRefresh)) == NULL,
+				"present non-string refresh_token rejected");
+			CHECK(xoauth2__parse_token_response(overflow, strlen(overflow)) == NULL,
+				"expires_in overflow rejected");
+		}
 		/* 畸形 JSON 拒绝 */
 		CHECK(xoauth2__parse_token_response("not json", 8) == NULL,
 			"malformed json rejected");
 		CHECK(xoauth2__parse_token_response(NULL, 0) == NULL, "null rejected");
 	}
 
+	/* 任一分配失败都不得成功返回缺字段的 token。 */
+	{
+		bool bClosed = true;
+		bool bCompleted = false;
+		for(size_t i = 0u; i < 256u; i++)
+		{
+			if(!xrtMemDebugFailAfter(i))
+			{
+				bClosed = false;
+				break;
+			}
+			xoauth2token* pToken =
+				xoauth2__parse_token_response(T_JSON_OK, strlen(T_JSON_OK));
+			bool bFailed = xrtMemDebugFailTriggered();
+			xrtMemDebugFailClear();
+			if(bFailed && pToken != NULL)
+				bClosed = false;
+			if(!bFailed)
+				bCompleted = pToken != NULL;
+			xoauth2TokenFree(pToken);
+			xrtClearError();
+			if(!bFailed)
+				break;
+		}
+		CHECK(bClosed && bCompleted, "token parse allocation sweep fails closed");
+	}
+
 	/* ============ 登录回调（H2/H7/M12） ============ */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2config cfg;
 		xoauth2ConfigInit(&cfg);
 		cfg.AuthorizeUrl = "https://idp/a";
@@ -492,7 +653,7 @@ int main(void)
 			"refresh no-transport error code");
 
 		/* 空 state（未 BeginLogin）→ 拒绝 */
-		xoauth2client c2;
+		xoauth2client c2 = {0};
 		xoauth2UseCustom(&c2, &cfg);
 		CHECK(xoauth2CompleteLogin(&c2, "code", "") == NULL,
 			"empty state rejected");
@@ -511,13 +672,13 @@ int main(void)
 	{
 		/* xrt 分配器池化高水位滞留：预热到稳态后测净增长 */
 		for ( int i = 0; i < 300; i++ ) {
-			xoauth2client c;
+			xoauth2client c = {0};
 			xoauth2UseMicrosoft(&c, "id", "sec", "https://app/cb", "tenant-x");
 			xoauth2ClientUnit(&c);
 		}
 		long base = g_probeLiveBytes;
 		for ( int i = 0; i < 300; i++ ) {
-			xoauth2client c;
+			xoauth2client c = {0};
 			xoauth2UseMicrosoft(&c, "id", "sec", "https://app/cb", "tenant-x");
 			xoauth2ClientUnit(&c);
 		}
@@ -532,7 +693,7 @@ int main(void)
 		cfg.ClientSecret = "sec";
 		cfg.RedirectUri = "https://app/cb";
 		for ( int i = 0; i < 300; i++ ) {
-			xoauth2client c;
+			xoauth2client c = {0};
 			xoauth2UseCustom(&c, &cfg);
 			char* u = xoauth2BeginLogin(&c);
 			if ( u ) xrtFree(u);
@@ -544,7 +705,7 @@ int main(void)
 		}
 		base = g_probeLiveBytes;
 		for ( int i = 0; i < 100; i++ ) {
-			xoauth2client c;
+			xoauth2client c = {0};
 			xoauth2UseCustom(&c, &cfg);
 			char* u = xoauth2BeginLogin(&c);
 			if ( u ) xrtFree(u);
@@ -574,7 +735,7 @@ int main(void)
 	/* ============ Phase 4 审计修复回归 ============ */
 	/* ---- P4-M1/L2：exchange 全路径稳态零泄漏（含非 2xx 带令牌探测） ---- */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2config cfg;
 		xoauth2ConfigInit(&cfg);
 		cfg.AuthorizeUrl = "https://idp/a";
@@ -624,7 +785,7 @@ int main(void)
 
 	/* ---- P4-M2：超长 access_token 的 Bearer 头完整 ---- */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2config cfg;
 		xoauth2ConfigInit(&cfg);
 		cfg.AuthorizeUrl = "https://idp/a";
@@ -649,7 +810,7 @@ int main(void)
 
 	/* ---- 评审②：GitHub 预设带 UserInfoUrl ---- */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2UseGithub(&c, "i", "s", "https://app/cb");
 		CHECK(c.Config.UserInfoUrl != NULL &&
 			strcmp(c.Config.UserInfoUrl, "https://api.github.com/user") == 0,
@@ -659,7 +820,7 @@ int main(void)
 
 	/* ---- 评审③：未知有效期（ExpiresIn==0）不判过期 ---- */
 	{
-		const char* j = "{\"access_token\":\"gh-no-exp\"}";
+		const char* j = "{\"access_token\":\"gh-no-exp\",\"token_type\":\"bearer\"}";
 		xoauth2token* t = xoauth2__parse_token_response(j, strlen(j));
 		CHECK(t != NULL, "p4b no-expires_in token parses");
 		if ( t ) {
@@ -693,7 +854,7 @@ int main(void)
 			if ( t ) xoauth2TokenFree(t);
 			(void)xoauth2StateGenerate(aSmall, sizeof(aSmall));
 			(void)xoauth2PkceGenerate(aSmall, sizeof(aSmall), aChal, sizeof(aChal));
-			xoauth2client c;
+			xoauth2client c = {0};
 			xoauth2config cfg;
 			xoauth2ConfigInit(&cfg);
 			cfg.AuthorizeUrl = aBuf;
@@ -711,7 +872,7 @@ int main(void)
 			}
 			/* L-1：Phase 3 新 API 入 fuzz */
 			{
-				xoauth2client fc;
+				xoauth2client fc = {0};
 				xoauth2config fcfg;
 				int fst = 0;
 				xoauth2ConfigInit(&fcfg);
@@ -737,7 +898,7 @@ int main(void)
 
 	/* ---- mock 回调全路径 ---- */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2config cfg;
 		char* url;
 		xoauth2token* t;
@@ -774,7 +935,7 @@ int main(void)
 		CHECK(g_MockAuth[0] == 0, "p2 mock: body style no auth header");
 
 		/* BASIC 风格：Authorization 头透传到回调 */
-		mock_setup(200, "{\"access_token\":\"b2\"}");
+		mock_setup(200, "{\"access_token\":\"b2\",\"token_type\":\"bearer\"}");
 		cfg.AuthStyle = XOAUTH2_AUTH_BASIC;
 		xoauth2UseCustom(&c, &cfg);
 		url = xoauth2BeginLogin(&c);
@@ -848,7 +1009,7 @@ int main(void)
 
 		/* Refresh 全路径：成功 / DENIED */
 		cfg.Http = mock_http;
-		mock_setup(200, "{\"access_token\":\"rf_tok\",\"expires_in\":1800}");
+		mock_setup(200, "{\"access_token\":\"rf_tok\",\"token_type\":\"bearer\",\"expires_in\":1800}");
 		cfg.AuthStyle = XOAUTH2_AUTH_BODY;
 		xoauth2UseCustom(&c, &cfg);
 		t = xoauth2Refresh(&c, "old-rt");
@@ -868,7 +1029,7 @@ int main(void)
 	/* ---- 回环真实服务器 + xoauth2HttpXrt 端到端（http://） ---- */
 	{
 #ifdef _WIN32
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2config cfg;
 		char* url;
 		xoauth2token* t;
@@ -948,9 +1109,9 @@ int main(void)
 
 		/* Refresh 端到端 */
 		g_ServerReply =
-			"HTTP/1.1 200 OK\r\nContent-Length: 39\r\n"
+			"HTTP/1.1 200 OK\r\nContent-Length: 61\r\n"
 			"Connection: close\r\n\r\n"
-			"{\"access_token\":\"rf2\",\"expires_in\":600}";
+			"{\"access_token\":\"rf2\",\"token_type\":\"bearer\",\"expires_in\":600}";
 		xrtClearError();
 		t = xoauth2Refresh(&c, "rt-loop");
 		CHECK(t != NULL && strcmp(t->AccessToken, "rf2") == 0,
@@ -1000,14 +1161,14 @@ int main(void)
 			xoauth2httpxrt* pHeap = xoauth2HttpXrtCreate(NULL, NULL, 3000000);
 			CHECK(pHeap != NULL, "p4b HttpXrtCreate");
 			if ( pHeap != NULL ) {
-				xoauth2client hc;
+				xoauth2client hc = {0};
 				memcpy(&hc, &c, sizeof(hc));   /* 借用回环段的配置 */
 				hc.Config.Http = xoauth2HttpXrt;
 				hc.Config.HttpContext = pHeap;
 				g_ServerReply =
-					"HTTP/1.1 200 OK\r\nContent-Length: 43\r\n"
+					"HTTP/1.1 200 OK\r\nContent-Length: 65\r\n"
 					"Connection: close\r\n\r\n"
-					"{\"access_token\":\"heap-rt\",\"expires_in\":600}";
+					"{\"access_token\":\"heap-rt\",\"token_type\":\"bearer\",\"expires_in\":600}";
 				xrtClearError();
 				xoauth2token* ht = xoauth2Refresh(&hc, "rt");
 				CHECK(ht != NULL && strcmp(ht->AccessToken, "heap-rt") == 0,
@@ -1039,7 +1200,7 @@ int main(void)
 
 	/* ---- 预设 OIDC 字段 ---- */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2UseGoogle(&c, "g", "s", "https://app/cb");
 		CHECK(c.Config.Issuer != NULL &&
 			strcmp(c.Config.Issuer, "https://accounts.google.com") == 0,
@@ -1071,7 +1232,7 @@ int main(void)
 
 	/* ---- nonce 全链路 ---- */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2config cfg;
 		xoauth2ConfigInit(&cfg);
 		cfg.AuthorizeUrl = "https://idp/a";
@@ -1118,7 +1279,7 @@ int main(void)
 
 	/* ---- HttpGet / GetUserInfo（mock 传输） ---- */
 	{
-		xoauth2client c;
+		xoauth2client c = {0};
 		xoauth2config cfg;
 		xoauth2ConfigInit(&cfg);
 		cfg.AuthorizeUrl = "https://idp/a";

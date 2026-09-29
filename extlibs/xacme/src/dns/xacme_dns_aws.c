@@ -3,10 +3,13 @@
 #if defined(XACME_FEATURE_DNS_AWS)
 
 #include "../internal/xacme_dnscommon.h"
+#include "../internal/xacme_dns_aws_internal.h"
 #include "../internal/xacme_http.h"
 #include "../internal/xacme_sigv4.h"
 
 #include <xrt/buffer.h>
+#include <xrt/memory.h>
+#include <xrt/sync.h>
 #include <xrt/time.h>
 
 #include <stdlib.h>
@@ -19,10 +22,10 @@
 	  - 密钥链：HMAC("AWS4"+SK, date) → region → "route53" →
 	    "aws4_request"；payload hash 走 x-amz-content-sha256 头；
 	  - zone 发现：GET /hostedzonesbyname?dnsname=<候选>（逐级上探）；
-	  - 加 TXT：ChangeResourceRecordSets UPSERT（Value 必须带双引号）；
-	  - 删 TXT：同 API 的 DELETE Action（携带与创建相同的值集）；
+	  - 同名 TXT 使用 ListResourceRecordSets 读取后 DELETE/CREATE 原子替换；
+	  - 冲突时重新读取，保留原 TTL 与其他 TXT 值；
 	  - Change 异步但权威侧近即时，不轮询 INSYNC。
-	记录句柄无服务端 id，Remove 用 "zoneid|fqdn|value" 三元组回放删除。
+	记录句柄无服务端 id，Remove 根据保存的 zoneid、fqdn、value 读取并删值。
 */
 
 #define XACME_AWS_SERVICE "route53"
@@ -30,6 +33,7 @@
 
 typedef struct xacmednsawscontext {
 	xacmehttp Http;
+	xmutex Lock;
 	char sId[160];
 	char sKey[160];
 	char sRegion[32];
@@ -40,7 +44,7 @@ typedef struct xacmednsawscontext {
 	{
 		char sZoneId[64];
 		char sFqdn[256];
-		char sValue[64];
+		char sValue[208];
 	} Records[XACME_DNS_RECORD_MAX];
 	size_t iRecordCount;
 } xacmednsawscontext;
@@ -48,7 +52,8 @@ typedef struct xacmednsawscontext {
 /* 执行一次 SigV4 调用（sBody 为 XML 或 NULL）。 */
 static bool xacmeAwsCall(
 	xacmednsawscontext* pCtx, cstr sMethod, cstr sPathAndQuery,
-	cstr sContentType, cstr sBody, uint16* pOutStatus, str* pOutBody)
+	cstr sContentType, cstr sBody, uint16* pOutStatus,
+	str* pOutBody, size_t* pOutBodySize)
 {
 	static const char* sSignedHeaders =
 		"host;x-amz-content-sha256;x-amz-date";
@@ -60,7 +65,9 @@ static bool xacmeAwsCall(
 	char sStringToSign[240];
 	char sHex[XACME_SIG_HASH_TEXT];
 	char sAuth[640];
-	char sUrl[400];
+	char sUrl[640];
+	char sCanonicalPath[440];
+	cstr sQuery = "";
 	xacmehttpheader Extra[3];
 	xacmehttpresponse R;
 	xdatetime Now;
@@ -88,8 +95,18 @@ static bool xacmeAwsCall(
 	snprintf(sHeaders, sizeof(sHeaders),
 		"host:%s\nx-amz-content-sha256:%s\nx-amz-date:%s\n",
 		pCtx->sEndpoint, sPayloadHash, sStampText);
+	{
+		const char* pQuestion = strchr(sPathAndQuery, '?');
+		size_t iPathSize = (pQuestion != NULL) ?
+			(size_t)(pQuestion - sPathAndQuery) : strlen(sPathAndQuery);
+		if((iPathSize == 0u) || (iPathSize >= sizeof(sCanonicalPath)))
+			return false;
+		memcpy(sCanonicalPath, sPathAndQuery, iPathSize);
+		sCanonicalPath[iPathSize] = '\0';
+		if(pQuestion != NULL) sQuery = pQuestion + 1u;
+	}
 	if(!xacmeSigCanonical(sCanonical, sizeof(sCanonical), sMethod,
-			sPathAndQuery, "", sHeaders, sSignedHeaders, sPayloadHash))
+			sCanonicalPath, sQuery, sHeaders, sSignedHeaders, sPayloadHash))
 	{
 		return false;
 	}
@@ -123,8 +140,12 @@ static bool xacmeAwsCall(
 		"AWS4-HMAC-SHA256 Credential=%s/%s/%s/" XACME_AWS_SERVICE
 		"/aws4_request, SignedHeaders=%s, Signature=%s",
 		pCtx->sId, sDateText, pCtx->sRegion, sSignedHeaders, sHex);
-	snprintf(sUrl, sizeof(sUrl), "https://%s%s", pCtx->sEndpoint,
-		sPathAndQuery);
+	{
+		int iUrlSize = snprintf(sUrl, sizeof(sUrl), "https://%s%s",
+			pCtx->sEndpoint, sPathAndQuery);
+		if((iUrlSize < 0) || ((size_t)iUrlSize >= sizeof(sUrl)))
+			return false;
+	}
 
 	Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
 	Extra[1] = (xacmehttpheader){ "x-amz-content-sha256", sPayloadHash };
@@ -139,93 +160,42 @@ static bool xacmeAwsCall(
 	}
 	*pOutStatus = R.iStatus;
 	*pOutBody = R.sBody;
+	*pOutBodySize = R.iBodySize;
 	R.sBody = NULL;
 	xacmeHttpResponseUnit(&R);
 	return true;
 }
 
-/* 从 XML 文本提取首个 <Tag>…</Tag> 内容到固定缓冲。 */
-static bool xacmeAwsXmlText(
-	cstr sBody, cstr sTag, char* sOut, size_t iCapacity)
-{
-	char sOpen[64];
-	char sClose[64];
-	const char* pBegin;
-	const char* pEnd;
-	snprintf(sOpen, sizeof(sOpen), "<%s>", sTag);
-	snprintf(sClose, sizeof(sClose), "</%s>", sTag);
-	pBegin = (sBody != NULL) ? strstr(sBody, sOpen) : NULL;
-	if(pBegin == NULL)
-	{
-		return false;
-	}
-	pBegin += strlen(sOpen);
-	pEnd = strstr(pBegin, sClose);
-	if((pEnd == NULL) || ((size_t)(pEnd - pBegin) >= iCapacity))
-	{
-		return false;
-	}
-	memcpy(sOut, pBegin, (size_t)(pEnd - pBegin));
-	sOut[pEnd - pBegin] = '\0';
-	return true;
-}
-
 /* hostedzonesbyname 精确匹配候选 zone（返回 hostedzone id）。 */
-static bool xacmeAwsZoneId(
+static int xacmeAwsZoneId(
 	xacmednsawscontext* pCtx, cstr sZone, char* sOutId, size_t iIdCap)
 {
-	char sPath[300];
-	char sZoneName[300];
+	char sPath[400];
 	uint16 iStatus = 0u;
 	str sBody = NULL;
-	bool bOk = false;
+	size_t iBodySize = 0u;
+	int iResult;
+	int iPathSize;
 
 	/* Zone 名在 Route53 中带尾点。 */
-	snprintf(sZoneName, sizeof(sZoneName), "%s.", sZone);
-	snprintf(sPath, sizeof(sPath), "/" XACME_AWS_API
-		"/hostedzonesbyname?dnsname=%.250s&maxitems=1", sZoneName);
-	if(!xacmeAwsCall(pCtx, "GET", sPath, NULL, NULL, &iStatus, &sBody))
+	iPathSize = snprintf(sPath, sizeof(sPath), "/" XACME_AWS_API
+		"/hostedzonesbyname?dnsname=%s.&maxitems=100", sZone);
+	if((iPathSize < 0) || ((size_t)iPathSize >= sizeof(sPath)) ||
+		!xacmeAwsCall(pCtx, "GET", sPath, NULL, NULL,
+			&iStatus, &sBody, &iBodySize))
 	{
-		return false;
+		return -1;
 	}
-	if((iStatus >= 200u) && (iStatus < 300u) && (sBody != NULL))
-	{
-		/* 标签配对限定在首个 <HostedZone> 块内，避免后续
-		   块/分页残留的同名标签串扰。 */
-		const char* pBlock = strstr(sBody, "<HostedZone>");
-		const char* pBlockEnd = (pBlock != NULL) ?
-			strstr(pBlock, "</HostedZone>") : NULL;
-		char sScoped[1024];
-		cstr sScope = sBody;
-		if((pBlock != NULL) && (pBlockEnd != NULL))
-		{
-			size_t iLen = (size_t)(pBlockEnd - pBlock);
-			if(iLen >= sizeof(sScoped))
-			{
-				iLen = sizeof(sScoped) - 1u;
-			}
-			memcpy(sScoped, pBlock, iLen);
-			sScoped[iLen] = 0;
-			sScope = sScoped;
-		}
-		{
-			char sName[300];
-			if(xacmeAwsXmlText(sScope, "Name", sName, sizeof(sName)) &&
-				(strcmp(sName, sZoneName) == 0) &&
-				xacmeAwsXmlText(sScope, "Id", sOutId, iIdCap))
-			{
-				/* Id 形如 /hostedzone/Z1234；API 调用用裸 Z id。 */
-				const char* pSlash = strrchr(sOutId, '/');
-				if(pSlash != NULL)
-				{
-					memmove(sOutId, pSlash + 1, strlen(pSlash + 1) + 1u);
-				}
-				bOk = true;
-			}
-		}
-	}
+	iResult = ((iStatus >= 200u) && (iStatus < 300u) &&
+		(sBody != NULL) && (iBodySize <= 4u * 1024u * 1024u) &&
+		(strlen(sBody) == iBodySize)) ?
+		xacmeAwsSelectPublicZone(sBody, sZone, sOutId, iIdCap) : -1;
 	xrtFree(sBody);
-	return bOk;
+	if(iResult < 0)
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_ZONE,
+			"acme dns_aws hosted zone listing is invalid or ambiguous");
+	return iResult;
 }
 
 static bool xacmeAwsFindZone(
@@ -237,7 +207,7 @@ static bool xacmeAwsFindZone(
 	if(sCached != NULL)
 	{
 		snprintf(sOutZone, iZoneCap, "%s", sCached);
-		return xacmeAwsZoneId(pCtx, sCached, sOutId, iIdCap);
+		return xacmeAwsZoneId(pCtx, sCached, sOutId, iIdCap) == 1;
 	}
 	snprintf(sCandidate, sizeof(sCandidate), "%s", sFqdn);
 	for(;;)
@@ -249,7 +219,9 @@ static bool xacmeAwsFindZone(
 		{
 			return false;
 		}
-		if(xacmeAwsZoneId(pCtx, sZone, sOutId, iIdCap))
+		int iZoneResult = xacmeAwsZoneId(pCtx, sZone, sOutId, iIdCap);
+		if(iZoneResult < 0) return false;
+		if(iZoneResult == 1)
 		{
 			snprintf(sOutZone, iZoneCap, "%s", sZone);
 			xacmeDnsZoneRemember(&pCtx->Zones, sZone);
@@ -259,36 +231,120 @@ static bool xacmeAwsFindZone(
 	}
 }
 
-/* ChangeResourceRecordSets（UPSERT 或 DELETE）。 */
-static bool xacmeAwsChange(
-	xacmednsawscontext* pCtx, cstr sAction, cstr sZoneId, cstr sFqdn,
-	cstr sValue)
+/* 读取精确 TXT 记录集。最多请求一个结果，首项不匹配即记录不存在。 */
+static bool xacmeAwsReadTxt(xacmednsawscontext* pCtx,
+	cstr sZoneId, cstr sFqdn, xacmeawstxtset* pSet, str* pBody)
 {
-	char sBody[640];
+	char sPath[440];
+	uint16 iStatus = 0u;
+	size_t iBodySize = 0u;
+	int iPathSize = snprintf(sPath, sizeof(sPath),
+		"/" XACME_AWS_API "/hostedzone/%s/rrset?maxitems=1&name=%s.&type=TXT",
+		sZoneId, sFqdn);
+	*pBody = NULL;
+	if((iPathSize < 0) || ((size_t)iPathSize >= sizeof(sPath)) ||
+		!xacmeAwsCall(pCtx, "GET", sPath, NULL, NULL,
+			&iStatus, pBody, &iBodySize))
+		return false;
+	if((iStatus < 200u) || (iStatus >= 300u) ||
+		(iBodySize > 4u * 1024u * 1024u) ||
+		(strlen(*pBody) != iBodySize) ||
+		!xacmeAwsParseTxtSet(*pBody, sFqdn, pSet))
+	{
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL,
+			"acme dns_aws TXT listing was rejected or malformed");
+		xrtFree(*pBody);
+		*pBody = NULL;
+		return false;
+	}
+	return true;
+}
+
+/* 冲突或提交结果不确定时，调用方重新读取当前记录集。 */
+static bool xacmeAwsChangeTxt(xacmednsawscontext* pCtx,
+	cstr sZoneId, cstr sBody, bool* pConflict)
+{
 	char sPath[128];
 	uint16 iStatus = 0u;
 	str sResp = NULL;
+	size_t iRespSize = 0u;
 	bool bOk;
-	snprintf(sBody, sizeof(sBody),
-		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-		"<ChangeResourceRecordSetsRequest xmlns=\"https://route53."
-		"amazonaws.com/doc/" XACME_AWS_API "/\">"
-		"<ChangeBatch><Changes><Change><Action>%s</Action>"
-		"<ResourceRecordSet><Name>%s.</Name><Type>TXT</Type>"
-		"<TTL>60</TTL><ResourceRecords><ResourceRecord>"
-		"<Value>\"%s\"</Value></ResourceRecord></ResourceRecords>"
-		"</ResourceRecordSet></Change></Changes></ChangeBatch>"
-		"</ChangeResourceRecordSetsRequest>",
-		sAction, sFqdn, sValue);
-	snprintf(sPath, sizeof(sPath), "/" XACME_AWS_API "/hostedzone/%s/rrset/",
-		sZoneId);
+	int iPathSize = snprintf(sPath, sizeof(sPath),
+		"/" XACME_AWS_API "/hostedzone/%s/rrset/", sZoneId);
+	*pConflict = false;
+	if((iPathSize < 0) || ((size_t)iPathSize >= sizeof(sPath)))
+		return false;
 	bOk = xacmeAwsCall(pCtx, "POST", sPath, "application/xml", sBody,
-		&iStatus, &sResp);
+		&iStatus, &sResp, &iRespSize);
+	if(bOk && ((iRespSize > 4u * 1024u * 1024u) ||
+		(strlen(sResp) != iRespSize)))
+		bOk = false;
+	/* 响应丢失时提交结果不确定；下轮读取权威当前状态再判定。 */
+	if(!bOk) *pConflict = true;
+	if(bOk && (iStatus == 400u) && (sResp != NULL) &&
+		(strstr(sResp, "InvalidChangeBatch") != NULL))
+		*pConflict = true;
+	if(bOk && ((iStatus < 200u) || (iStatus >= 300u)))
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL,
+			"acme dns_aws TXT change was rejected");
 	xrtFree(sResp);
 	return bOk && (iStatus >= 200u) && (iStatus < 300u);
 }
 
-static bool xacmeAwsAdd(
+static bool xacmeAwsMutateTxt(xacmednsawscontext* pCtx,
+	cstr sZoneId, cstr sFqdn, cstr sValue, bool bAdd)
+{
+	unsigned iAttempt;
+	bool bRetried = false;
+	for(iAttempt = 0u; iAttempt < 4u; iAttempt++)
+	{
+		xacmeawstxtset Set;
+		xbuffer Request;
+		str sReadBody = NULL;
+		bool bChanged = false;
+		bool bConflict = false;
+		bool bOk;
+		if(!xacmeAwsReadTxt(pCtx, sZoneId, sFqdn, &Set, &sReadBody))
+			return false;
+		xrtBufferInit(&Request);
+		bOk = xacmeAwsBuildTxtChange(&Set, sFqdn, sValue, bAdd,
+			&Request, &bChanged);
+		xrtFree(sReadBody);
+		if(!bOk)
+		{
+			xrtBufferUnit(&Request);
+			if(xrtErrorKind(xrtGetError()) == XERR_NONE)
+				xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+					XACME_DNS_ERROR_PROTOCOL,
+					"acme dns_aws TXT change exceeds supported size");
+			return false;
+		}
+		if(!bChanged)
+		{
+			xrtBufferUnit(&Request);
+			if(bRetried) xrtClearError();
+			return true;
+		}
+		bOk = xacmeAwsChangeTxt(pCtx, sZoneId,
+			(const char*)Request.Data, &bConflict);
+		xrtBufferUnit(&Request);
+		if(bOk)
+		{
+			if(bRetried) xrtClearError();
+			return true;
+		}
+		if(!bConflict) return false;
+		bRetried = true;
+	}
+	xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+		XACME_DNS_ERROR_PROTOCOL,
+		"acme dns_aws TXT record set changed repeatedly");
+	return false;
+}
+
+static bool xacmeAwsAddLocked(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
 	xacmednsawscontext* pCtx = (xacmednsawscontext*)pProvider->pContext;
@@ -296,8 +352,22 @@ static bool xacmeAwsAdd(
 	char sTxtText[208];
 	char sZone[256];
 	char sZoneId[64];
-	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
+	size_t iSlot;
+	if(!xacmeDnsChallengeValid(sFqdn, sTxt))
 	{
+		xrtSetErrorInfo(XERR_ARGUMENT, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"acme DNS-01 owner or digest is invalid");
+		return false;
+	}
+	for(iSlot = 0u; iSlot < pCtx->iRecordCount; iSlot++)
+		if(pCtx->Records[iSlot].sFqdn[0] == '\0') break;
+	if((iSlot == pCtx->iRecordCount) &&
+		(pCtx->iRecordCount >= XACME_DNS_RECORD_MAX))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL,
+			"acme dns_aws record slots exhausted");
 		return false;
 	}
 	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
@@ -308,50 +378,80 @@ static bool xacmeAwsAdd(
 	if(!xacmeAwsFindZone(pCtx, sFqdnText, sZone, sizeof(sZone), sZoneId,
 			sizeof(sZoneId)))
 	{
+		if(xrtErrorKind(xrtGetError()) == XERR_NONE)
+			xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+				XACME_DNS_ERROR_ZONE,
+				"acme dns_aws hosted zone was not found");
 		return false;
 	}
-	if(!xacmeAwsChange(pCtx, "UPSERT", sZoneId, sFqdnText, sTxtText))
+	if(!xacmeAwsMutateTxt(pCtx, sZoneId, sFqdnText, sTxtText, true))
 	{
 		return false;
 	}
-	if(pCtx->iRecordCount < XACME_DNS_RECORD_MAX)
-	{
-		snprintf(pCtx->Records[pCtx->iRecordCount].sZoneId,
-			sizeof(pCtx->Records[pCtx->iRecordCount].sZoneId), "%.60s",
-			sZoneId);
-		snprintf(pCtx->Records[pCtx->iRecordCount].sFqdn,
-			sizeof(pCtx->Records[pCtx->iRecordCount].sFqdn), "%s",
-			sFqdnText);
-		snprintf(pCtx->Records[pCtx->iRecordCount].sValue,
-			sizeof(pCtx->Records[pCtx->iRecordCount].sValue), "%.63s",
-			sTxtText);
-		pCtx->iRecordCount++;
-	}
+	snprintf(pCtx->Records[iSlot].sZoneId,
+		sizeof(pCtx->Records[iSlot].sZoneId), "%s",
+		sZoneId);
+	snprintf(pCtx->Records[iSlot].sFqdn,
+		sizeof(pCtx->Records[iSlot].sFqdn), "%s",
+		sFqdnText);
+	snprintf(pCtx->Records[iSlot].sValue,
+		sizeof(pCtx->Records[iSlot].sValue), "%s",
+		sTxtText);
+	if(iSlot == pCtx->iRecordCount) pCtx->iRecordCount++;
 	return true;
 }
 
-static bool xacmeAwsRemove(
+static bool xacmeAwsRemoveLocked(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
 	xacmednsawscontext* pCtx = (xacmednsawscontext*)pProvider->pContext;
 	size_t i;
-	bool bAnyOk = false;
-	(void)sFqdn;
-	(void)sTxt;
+	if(!xacmeDnsChallengeValid(sFqdn, sTxt))
+	{
+		xrtSetErrorInfo(XERR_ARGUMENT, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"acme DNS-01 owner or digest is invalid");
+		return false;
+	}
 	for(i = 0; i < pCtx->iRecordCount; i++)
 	{
 		if(pCtx->Records[i].sFqdn[0] == '\0')
 		{
 			continue;
 		}
-		if(xacmeAwsChange(pCtx, "DELETE", pCtx->Records[i].sZoneId,
-				pCtx->Records[i].sFqdn, pCtx->Records[i].sValue))
-		{
-			bAnyOk = true;
-			pCtx->Records[i].sFqdn[0] = '\0';
-		}
+		if((strlen(pCtx->Records[i].sFqdn) != sFqdn.Size) ||
+			(memcmp(pCtx->Records[i].sFqdn, sFqdn.Data, sFqdn.Size) != 0) ||
+			(strlen(pCtx->Records[i].sValue) != sTxt.Size) ||
+			(memcmp(pCtx->Records[i].sValue, sTxt.Data, sTxt.Size) != 0))
+			continue;
+		if(!xacmeAwsMutateTxt(pCtx, pCtx->Records[i].sZoneId,
+				pCtx->Records[i].sFqdn, pCtx->Records[i].sValue, false))
+			return false;
+		pCtx->Records[i].sFqdn[0] = '\0';
 	}
-	return bAnyOk || (pCtx->iRecordCount == 0u);
+	return true;
+}
+
+static bool xacmeAwsAdd(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednsawscontext* pCtx = (xacmednsawscontext*)pProvider->pContext;
+	bool bOk;
+	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	bOk = xacmeAwsAddLocked(pProvider, sFqdn, sTxt);
+	(void)xrtMutexUnlock(&pCtx->Lock);
+	return bOk;
+}
+
+static bool xacmeAwsRemove(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednsawscontext* pCtx = (xacmednsawscontext*)pProvider->pContext;
+	bool bOk;
+	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	bOk = xacmeAwsRemoveLocked(pProvider, sFqdn, sTxt);
+	(void)xrtMutexUnlock(&pCtx->Lock);
+	return bOk;
 }
 
 void xrtAcmeDnsAwsConfigInit(xacmednsawsconfig* pConfig)
@@ -382,9 +482,26 @@ bool xrtAcmeDnsAws(
 			"acme dns_aws requires access key id and secret");
 		return false;
 	}
+	if(strlen(pConfig->sAccessKeyId) >= sizeof(pCtx->sId) ||
+		strlen(pConfig->sSecretAccessKey) >= sizeof(pCtx->sKey) ||
+		((pConfig->sRegion != NULL) &&
+		 strlen(pConfig->sRegion) >= sizeof(pCtx->sRegion)) ||
+		((pConfig->sEndpoint != NULL) &&
+		 strlen(pConfig->sEndpoint) >= sizeof(pCtx->sEndpoint)))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_CREDENTIAL,
+			"acme dns_aws credentials, region or endpoint exceed capacity");
+		return false;
+	}
 	pCtx = (xacmednsawscontext*)xrtCalloc(1, sizeof(*pCtx));
 	if(pCtx == NULL)
 	{
+		return false;
+	}
+	if(!xrtMutexInit(&pCtx->Lock))
+	{
+		xrtFree(pCtx);
 		return false;
 	}
 	snprintf(pCtx->sId, sizeof(pCtx->sId), "%s", pConfig->sAccessKeyId);
@@ -399,6 +516,8 @@ bool xrtAcmeDnsAws(
 	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
 	{
 		xacmeHttpUnit(&pCtx->Http);
+		(void)xrtMutexUnit(&pCtx->Lock);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		return false;
 	}
@@ -417,6 +536,8 @@ void xrtAcmeDnsAwsProviderUnit(xacmednsprovider* pProvider)
 	{
 		xacmednsawscontext* pCtx = (xacmednsawscontext*)pProvider->pContext;
 		xacmeHttpUnit(&pCtx->Http);
+		(void)xrtMutexUnit(&pCtx->Lock);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		pProvider->pContext = NULL;
 	}

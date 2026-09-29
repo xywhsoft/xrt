@@ -634,6 +634,7 @@ bool __xrtTemplateEvalTruthy(
 		case XVALUE_BOOL: *pResult = pValue->Data.Bool; break;
 		case XVALUE_INT: *pResult = pValue->Data.Integer != 0; break;
 		case XVALUE_UINT: *pResult = pValue->Data.Unsigned != 0; break;
+		case XVALUE_CHAR: *pResult = pValue->Data.Unsigned != 0; break;
 		case XVALUE_FLOAT: *pResult = pValue->Data.Float != 0.0; break;
 		case XVALUE_STRING:
 		case XVALUE_BYTES: *pResult = pValue->Data.String.Size != 0; break;
@@ -703,10 +704,20 @@ static bool __xrtTemplateEvalNumber(
 		pNumber->Value.Signed = pValue->Data.Integer;
 		return true;
 	}
-	if ( pValue->Type == XVALUE_UINT ) {
+	if ( (pValue->Type == XVALUE_UINT) || (pValue->Type == XVALUE_CHAR) ) {
 		pNumber->Kind = XRT_TEMPLATE_NUMBER_UNSIGNED;
 		if ( pValue->Value != NULL ) {
-			return xrtValueGetUInt(pValue->Value, &pNumber->Value.Unsigned);
+			if ( pValue->Type == XVALUE_UINT ) {
+				return xrtValueGetUInt(pValue->Value, &pNumber->Value.Unsigned);
+			} else {
+				uint32 iCharacter;
+
+				if ( !xrtValueGetChar(pValue->Value, &iCharacter) ) {
+					return false;
+				}
+				pNumber->Value.Unsigned = iCharacter;
+				return true;
+			}
 		}
 		pNumber->Value.Unsigned = pValue->Data.Unsigned;
 		return true;

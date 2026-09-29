@@ -104,6 +104,12 @@ static void testNear(void)
 		"finite and infinite values were near");
 	testRequire(!xrtMathNear(fNaN, fNaN, HUGE_VAL, HUGE_VAL),
 		"NaN values were near");
+	testRequire(!xrtMathNear(DBL_MAX, -DBL_MAX, 0.0, 1.5),
+		"opposite finite extremes were near after double overflow");
+	testRequire(xrtMathNear(DBL_MAX, -DBL_MAX, 0.0, 2.0),
+		"opposite finite extremes exceeded an exact relative boundary");
+	testRequire(!xrtMathNear(DBL_MAX, -DBL_MAX, DBL_MAX, 0.0),
+		"opposite finite extremes fit a finite absolute tolerance");
 
 	testRequire(xrtMathIntNear(INT64_MIN, INT64_MIN + 7, 7),
 		"integer near failed at INT64_MIN");

@@ -20,6 +20,45 @@
 
 #define XACME_DNS_ZONE_MAX 4u
 #define XACME_DNS_RECORD_MAX 8u
+#define XACME_DNS_RECORD_TEXT_CAP 320u
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsChallengeValid(xstrview sFqdn, xstrview sTxt)
+{
+	size_t i;
+	bool bDot = false;
+	if((sFqdn.Data == NULL) || (sTxt.Data == NULL) ||
+		(sFqdn.Size == 0u) || (sFqdn.Size >= 256u) ||
+		(sTxt.Size == 0u) || (sTxt.Size > 200u))
+		return false;
+	for(i = 0u; i < sFqdn.Size; i++)
+	{
+		unsigned char c = (unsigned char)sFqdn.Data[i];
+		if(c == '.')
+		{
+			if((i == 0u) || (i + 1u == sFqdn.Size) ||
+				(sFqdn.Data[i - 1u] == '.'))
+				return false;
+			bDot = true;
+		}
+		else if(!((c >= 'A' && c <= 'Z') ||
+			(c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+			(c == '-') || (c == '_')))
+			return false;
+	}
+	if(!bDot)
+		return false;
+	for(i = 0u; i < sTxt.Size; i++)
+	{
+		unsigned char c = (unsigned char)sTxt.Data[i];
+		if(!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') || (c == '-') || (c == '_')))
+			return false;
+	}
+	return true;
+}
 
 #if defined(__GNUC__)
 __attribute__((unused))
@@ -63,17 +102,20 @@ static const char* xacmeDnsZoneMatch(
 {
 	size_t i;
 	size_t iLen = strlen(sFqdn);
+	const char* sBest = NULL;
+	size_t iBestLen = 0u;
 	for(i = 0; i < pCache->iCount; i++)
 	{
 		size_t iZoneLen = strlen(pCache->sZones[i]);
-		if((iLen > iZoneLen + 1u) &&
+		if((iZoneLen > iBestLen) && (iLen > iZoneLen + 1u) &&
 			(sFqdn[iLen - iZoneLen - 1u] == '.') &&
 			(strcmp(sFqdn + iLen - iZoneLen, pCache->sZones[i]) == 0))
 		{
-			return pCache->sZones[i];
+			sBest = pCache->sZones[i];
+			iBestLen = iZoneLen;
 		}
 	}
-	return NULL;
+	return sBest;
 }
 
 #if defined(__GNUC__)
@@ -81,8 +123,10 @@ __attribute__((unused))
 #endif
 static void xacmeDnsZoneRemember(xacmednszonecache* pCache, cstr sZone)
 {
-	if((pCache->iCount < XACME_DNS_ZONE_MAX) &&
-		(xacmeDnsZoneMatch(pCache, sZone) == NULL))
+	size_t i;
+	for(i = 0u; i < pCache->iCount; i++)
+		if(strcmp(pCache->sZones[i], sZone) == 0) return;
+	if(pCache->iCount < XACME_DNS_ZONE_MAX)
 	{
 		snprintf(pCache->sZones[pCache->iCount],
 			sizeof(pCache->sZones[pCache->iCount]), "%s", sZone);
@@ -90,23 +134,134 @@ static void xacmeDnsZoneRemember(xacmednszonecache* pCache, cstr sZone)
 	}
 }
 
-/* 本 provider 生命周期内添加的记录句柄（RecordId 或 FQDN 值对）。 */
+/* 本 provider 生命周期内添加的记录句柄及其 DNS-01 属主/值。 */
 typedef struct xacmednsrecords {
-	char sIds[XACME_DNS_RECORD_MAX][64];
+	char sIds[XACME_DNS_RECORD_MAX][XACME_DNS_RECORD_TEXT_CAP];
+	char sFqdns[XACME_DNS_RECORD_MAX][256];
+	char sTxts[XACME_DNS_RECORD_MAX][201];
 	size_t iCount;
 } xacmednsrecords;
 
 #if defined(__GNUC__)
 __attribute__((unused))
 #endif
-static void xacmeDnsRecordRemember(
-	xacmednsrecords* pRecords, cstr sId)
+static bool xacmeDnsRecordCanAdd(const xacmednsrecords* pRecords)
 {
-	if((pRecords->iCount < XACME_DNS_RECORD_MAX) && (strlen(sId) < 64u))
-	{
-		strcpy(pRecords->sIds[pRecords->iCount], sId);
+	size_t i;
+	for(i = 0u; i < pRecords->iCount; i++)
+		if(pRecords->sIds[i][0] == '\0')
+			return true;
+	return pRecords->iCount < XACME_DNS_RECORD_MAX;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsRecordRemember(
+	xacmednsrecords* pRecords, cstr sId, xstrview sFqdn, xstrview sTxt)
+{
+	size_t iSize = strlen(sId);
+	size_t i;
+	if(!xacmeDnsRecordCanAdd(pRecords) ||
+		(iSize == 0u) || (iSize >= XACME_DNS_RECORD_TEXT_CAP) ||
+		!xacmeDnsChallengeValid(sFqdn, sTxt))
+		return false;
+	for(i = 0u; i < pRecords->iCount; i++)
+		if(pRecords->sIds[i][0] == '\0')
+			break;
+	if(i == pRecords->iCount)
 		pRecords->iCount++;
+	memcpy(pRecords->sIds[i], sId, iSize + 1u);
+	memcpy(pRecords->sFqdns[i], sFqdn.Data, sFqdn.Size);
+	pRecords->sFqdns[i][sFqdn.Size] = '\0';
+	memcpy(pRecords->sTxts[i], sTxt.Data, sTxt.Size);
+	pRecords->sTxts[i][sTxt.Size] = '\0';
+	return true;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsRecordRememberPair(xacmednsrecords* pRecords,
+	cstr sLeft, char cSeparator, cstr sRight,
+	xstrview sFqdn, xstrview sTxt)
+{
+	char sHandle[XACME_DNS_RECORD_TEXT_CAP];
+	size_t iLeft = strlen(sLeft);
+	size_t iRight = strlen(sRight);
+	if((iLeft == 0u) || (iRight == 0u) ||
+		(strchr(sLeft, cSeparator) != NULL) ||
+		(strchr(sRight, cSeparator) != NULL) ||
+		(iRight >= sizeof(sHandle) - 1u) ||
+		(iLeft >= sizeof(sHandle) - iRight - 1u))
+		return false;
+	memcpy(sHandle, sLeft, iLeft);
+	sHandle[iLeft] = cSeparator;
+	memcpy(sHandle + iLeft + 1u, sRight, iRight + 1u);
+	return xacmeDnsRecordRemember(pRecords, sHandle, sFqdn, sTxt);
+}
+
+typedef bool (*xacmednsrecorddeleteproc)(void* pContext, cstr sId);
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsRecordRemoveMatching(xacmednsrecords* pRecords,
+	xstrview sFqdn, xstrview sTxt, xacmednsrecorddeleteproc Delete,
+	void* pContext)
+{
+	size_t i;
+	if((Delete == NULL) || !xacmeDnsChallengeValid(sFqdn, sTxt))
+	{
+		xrtSetErrorInfo(XERR_ARGUMENT, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"acme DNS-01 owner or digest is invalid");
+		return false;
 	}
+	for(i = 0u; i < pRecords->iCount; i++)
+	{
+		if((pRecords->sIds[i][0] == '\0') ||
+			(strlen(pRecords->sFqdns[i]) != sFqdn.Size) ||
+			(memcmp(pRecords->sFqdns[i], sFqdn.Data, sFqdn.Size) != 0) ||
+			(strlen(pRecords->sTxts[i]) != sTxt.Size) ||
+			(memcmp(pRecords->sTxts[i], sTxt.Data, sTxt.Size) != 0))
+			continue;
+		if(!Delete(pContext, pRecords->sIds[i]))
+		{
+			if(xrtErrorKind(xrtGetError()) == XERR_NONE)
+				xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+					XACME_DNS_ERROR_PROTOCOL,
+					"acme DNS-01 record deletion failed");
+			return false;
+		}
+		pRecords->sIds[i][0] = '\0';
+		pRecords->sFqdns[i][0] = '\0';
+		pRecords->sTxts[i][0] = '\0';
+	}
+	return true;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsRecordSplit(cstr sHandle, char cSeparator,
+	char* sLeft, size_t iLeftCap, char* sRight, size_t iRightCap)
+{
+	const char* sSeparator = strchr(sHandle, cSeparator);
+	size_t iLeft;
+	size_t iRight;
+	if((sSeparator == NULL) || (sSeparator == sHandle) ||
+		(sSeparator[1] == '\0') ||
+		(strchr(sSeparator + 1u, cSeparator) != NULL))
+		return false;
+	iLeft = (size_t)(sSeparator - sHandle);
+	iRight = strlen(sSeparator + 1u);
+	if((iLeft >= iLeftCap) || (iRight >= iRightCap))
+		return false;
+	memcpy(sLeft, sHandle, iLeft);
+	sLeft[iLeft] = '\0';
+	memcpy(sRight, sSeparator + 1u, iRight + 1u);
+	return true;
 }
 
 /* 把借用文本按 JSON 字符串 token（含引号）转义追加。 */
@@ -143,6 +298,7 @@ static bool xacmeDnsJsonQuote(xbuffer* pOut, xstrview sText)
 }
 
 /* 取 JSON 对象字符串成员到固定缓冲（含末尾零）；失败返回 false。 */
+#if defined(XRT_FEATURE_VALUE_CONTAINER)
 #if defined(__GNUC__)
 __attribute__((unused))
 #endif
@@ -161,5 +317,6 @@ static bool xacmeDnsJsonText(
 	sOut[Text.Size] = '\0';
 	return true;
 }
+#endif
 
 #endif

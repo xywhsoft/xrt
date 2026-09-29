@@ -4,6 +4,19 @@
 
 
 static xnetaddr TestMailNetTlsAddress;
+static bool TestMailNetTlsRejectCalled;
+
+
+static xtlsverifydecision testMailNetTlsReject(
+	const xtlspeer* pPeer,
+	ptr pContext
+)
+{
+	(void)pPeer;
+	(void)pContext;
+	TestMailNetTlsRejectCalled = true;
+	return XTLS_VERIFY_REJECT;
+}
 
 
 
@@ -52,6 +65,7 @@ int main(void)
 	xtlscontext* pContext;
 	xtlsidentity* pIdentity;
 	xtlsverifier* pVerifier;
+	xtlsverifier* pRejectVerifier;
 	xnetengine* pEngine;
 	xnetresolver* pResolver;
 	xtlslistener* pListener;
@@ -171,6 +185,25 @@ int main(void)
 	xrtFutureDestroy(pFuture);
 	__xrtMailTransportDestroy(&Transport);
 	xrtTlsStreamDestroy(pServer);
+
+	/* 验证器拒绝时，隐式 TLS 拨号必须失败且不能留下活动传输。 */
+	xrtTlsVerifierConfigInit(&VerifierConfig);
+	VerifierConfig.Verify = testMailNetTlsReject;
+	pRejectVerifier = xrtTlsVerifierCreate(&VerifierConfig);
+	testRequire(pRejectVerifier != NULL,
+		"mail TLS runtime reject verifier creation failed");
+	Config.Tls.Verifier = pRejectVerifier;
+	TestMailNetTlsRejectCalled = false;
+	xrtClearError();
+	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	testRequire(!__xrtMailTransportOpen(
+		&Transport, &Config, Deadline, NULL
+	) && TestMailNetTlsRejectCalled &&
+		xrtGetError() != NULL && Transport.Tls == NULL &&
+		Transport.Tcp == NULL,
+		"mail TLS verification rejection left an active transport");
+	__xrtMailTransportDestroy(&Transport);
+	xrtTlsVerifierRelease(pRejectVerifier);
 
 	testRequire(xrtTlsListenerClose(pListener),
 		"mail TLS runtime listener close request failed");

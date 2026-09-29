@@ -49,6 +49,12 @@ class MockServer:
 			self.process.wait(timeout=5)
 		except subprocess.TimeoutExpired:
 			self.process.kill()
+			self.process.wait(timeout=5)
+		finally:
+			if self.process.stdout is not None:
+				self.process.stdout.close()
+			if self.process.stderr is not None:
+				self.process.stderr.close()
 
 
 def verify_grant_pairing(chain_pem: str, key_pem: str, domain: str,
@@ -67,6 +73,22 @@ def verify_grant_pairing(chain_pem: str, key_pem: str, domain: str,
 		for ca in x509.load_pem_x509_certificates(ca_pem.encode()):
 			issuer_names.add(ca.subject)
 	assert leaf.issuer in issuer_names, f"leaf issuer not mock CA"
+
+
+def read_stored_grant(store: Path, domain: str) -> tuple[str, str]:
+	"""Read one published generation, so the integration check matches the API."""
+	base = store / "certs" / domain
+	pointer = (base / "current").read_text(encoding="ascii")
+	assert pointer.endswith("\n") and pointer.count("\n") == 1
+	name = pointer[:-1]
+	assert len(name) == 23 and name.startswith(".grant-")
+	assert all(c in "0123456789abcdef" for c in name[7:])
+	generation = base / name
+	assert (generation / "meta.txt").is_file()
+	return (
+		(generation / "fullchain.pem").read_text(encoding="utf-8"),
+		(generation / "key.pem").read_text(encoding="utf-8"),
+	)
 
 
 def run_flow_case(test: unittest.TestCase, extra_server: list[str],
@@ -116,19 +138,13 @@ def run_flow_case(test: unittest.TestCase, extra_server: list[str],
 		# 独立核验：store 落盘配对 + 账户持久化。
 		store = workdir / "out/store_pebble"
 		verify_grant_pairing(
-			(store / "certs/test.xxrpa.com/fullchain.pem").read_text(
-				encoding="utf-8"),
-			(store / "certs/test.xxrpa.com/key.pem").read_text(
-				encoding="utf-8"),
+			*read_stored_grant(store, "test.xxrpa.com"),
 			"test.xxrpa.com",
 			Path(server.info["ca_pem"]).read_text(encoding="utf-8"))
 		# 独立核验：一站式 Obtain store（账户按 CA 隔离持久化）。
 		obtain = workdir / "out/store_obtain"
 		verify_grant_pairing(
-			(obtain / "certs/test.xxrpa.com/fullchain.pem").read_text(
-				encoding="utf-8"),
-			(obtain / "certs/test.xxrpa.com/key.pem").read_text(
-				encoding="utf-8"),
+			*read_stored_grant(obtain, "test.xxrpa.com"),
 			"test.xxrpa.com",
 			Path(server.info["ca_pem"]).read_text(encoding="utf-8"))
 		self_accounts = list((obtain / "accounts").glob("*/account.pem"))
@@ -173,10 +189,10 @@ class AcmeMockFlowTests(unittest.TestCase):
 		)
 
 	def test_transport_flakiness_retries(self):
-		"""25% 请求被掐断时全程仍须成功——重试韧性被真实证明。"""
+		"""每四次请求确定性地掐断一次，验证全程重试。"""
 		workdir = Path(tempfile.mkdtemp(prefix="xacme-mock-"))
 		os.makedirs(workdir / "out", exist_ok=True)
-		server = MockServer(workdir, ["--flakiness", "0.25"])
+		server = MockServer(workdir, ["--flaky-every", "4"])
 		try:
 			env = dict(os.environ)
 			env.update({

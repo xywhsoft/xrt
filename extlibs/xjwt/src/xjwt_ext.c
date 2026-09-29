@@ -334,14 +334,16 @@ bool es256_sign_impl(const void* pData, size_t iSize,
 	unsigned char aDigest[32];
 	if ( !xrtSha256(pData, iSize, aDigest) ) return false;
 
-	/* RFC 7518 §3.4：JWS 的 ES256 签名是 DER 编码（非 raw r||s，≤72 字节） */
-	if ( iCapacity < 72 ) {
+	/* RFC 7518 §3.4：JWS ES256 是定宽 32 字节 R + 32 字节 S。 */
+	if ( iCapacity < 64 ) {
 		xjwt__error(XJWT_ERROR_ARGUMENT,
 			"output buffer too small for ES256 signature");
 		return false;
 	}
-	return xrtEcdsaP256SignDer(XCRYPTO_HASH_SHA256, aDigest, aPrivate,
-	                           pOut, iCapacity, pOutSize);
+	if ( !xrtEcdsaP256Sign(XCRYPTO_HASH_SHA256, aDigest, aPrivate, pOut) )
+		return false;
+	*pOutSize = 64;
+	return true;
 }
 
 /* ------------------------------------------------------------------ */

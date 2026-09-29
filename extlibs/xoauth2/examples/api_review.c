@@ -48,7 +48,7 @@ static void mock_set(int iStatus, const char* sBody)
 /* ============ S1：GitHub 第三方登录（最常见场景） ============ */
 static void scenario_github(void)
 {
-	xoauth2client oauth;
+	xoauth2client oauth = {0};
 	char* url;
 	xoauth2token* tok;
 
@@ -91,7 +91,7 @@ static void scenario_github(void)
 /* ============ S2：Google OIDC（数据耦合组合，第二次手写验手感） ============ */
 static void scenario_oidc(void)
 {
-	xoauth2client oauth;
+	xoauth2client oauth = {0};
 	xoauth2token* tok;
 	char* jwksJson;
 	xjwtjwks* keys;
@@ -123,7 +123,7 @@ static void scenario_oidc(void)
 		xrtValueRelease(c);
 		static char buf[2048];
 		snprintf(buf, sizeof(buf),
-			"{\"access_token\":\"ya29.x\",\"id_token\":\"%s\","
+			"{\"access_token\":\"ya29.x\",\"token_type\":\"bearer\",\"id_token\":\"%s\","
 			"\"expires_in\":3599}", idTok);
 		xrtFree(idTok);
 		mock_set(200, buf);
@@ -158,7 +158,7 @@ static void scenario_oidc(void)
 /* ============ S3：token 生命周期（过期→刷新→替换） ============ */
 static void scenario_lifecycle(void)
 {
-	xoauth2client oauth;
+	xoauth2client oauth = {0};
 	xoauth2config cfg;
 	xoauth2token* tok;
 	xoauth2token* fresh;
@@ -173,7 +173,7 @@ static void scenario_lifecycle(void)
 	xoauth2UseCustom(&oauth, &cfg);
 
 	/* 拿到即将过期的 token（expires_in=30） */
-	mock_set(200, "{\"access_token\":\"old\",\"refresh_token\":\"rt-1\","
+	mock_set(200, "{\"access_token\":\"old\",\"token_type\":\"bearer\",\"refresh_token\":\"rt-1\","
 		"\"expires_in\":30}");
 	{
 		char* u = xoauth2BeginLogin(&oauth);
@@ -187,7 +187,7 @@ static void scenario_lifecycle(void)
 		printf("S3 token expiring in 30s (leeway 60) -> refresh\n");
 		/* 刷新（旧 token 调用方负责释放——文档明确） */
 		static const char* sRefreshReply =
-			"{\"access_token\":\"new\",\"refresh_token\":\"rt-2\","
+			"{\"access_token\":\"new\",\"token_type\":\"bearer\",\"refresh_token\":\"rt-2\","
 			"\"expires_in\":3600}";
 		g_RefreshBody = sRefreshReply;
 		mock_set(200, sRefreshReply);
@@ -219,7 +219,7 @@ static int http_of(int err)
 
 static void scenario_errors(void)
 {
-	xoauth2client oauth;
+	xoauth2client oauth = {0};
 	xoauth2config cfg;
 	xoauth2ConfigInit(&cfg);
 	cfg.AuthorizeUrl = "https://idp/a";
@@ -259,7 +259,7 @@ static void scenario_errors(void)
 /* ============ S5：会话重置（ClientUnit → 重新预设复用） ============ */
 static void scenario_reset(void)
 {
-	xoauth2client oauth;
+	xoauth2client oauth = {0};
 	xoauth2UseMicrosoft(&oauth, "ms-id", "ms-secret", "https://app/cb",
 		"contoso.onmicrosoft.com");
 	printf("S5 tenant issuer: %.44s...\n", oauth.Config.Issuer);

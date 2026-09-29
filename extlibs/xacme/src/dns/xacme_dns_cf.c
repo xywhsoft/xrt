@@ -6,6 +6,7 @@
 #include "../internal/xacme_http.h"
 
 #include <xrt/buffer.h>
+#include <xrt/memory.h>
 
 #include <stdlib.h>
 
@@ -163,9 +164,18 @@ static bool xacmeCfAdd(
 	xvalue* pRoot = NULL;
 	char sRecordId[64];
 	bool bOk = false;
+	bool bTracked = false;
 
-	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u))
+	if(!xacmeDnsChallengeValid(sFqdn, sTxt))
 	{
+		xacmeCfError(XERR_ARGUMENT,
+			"acme dns_cf owner or digest is invalid");
+		return false;
+	}
+	if(!xacmeDnsRecordCanAdd(&pCtx->Records))
+	{
+		xacmeCfError(XERR_RANGE,
+			"acme dns_cf record tracking capacity exhausted");
 		return false;
 	}
 	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
@@ -209,71 +219,53 @@ static bool xacmeCfAdd(
 		if((pResult != NULL) && xrtValueIs(pResult, XVALUE_OBJECT) &&
 			xacmeDnsJsonText(pResult, "id", sRecordId, sizeof(sRecordId)))
 		{
-			char sHandle[64];
-			snprintf(sHandle, sizeof(sHandle), "%.31s/%.30s", sZoneId,
-				sRecordId);
-			xacmeDnsRecordRemember(&pCtx->Records, sHandle);
+			bTracked = xacmeDnsRecordRememberPair(&pCtx->Records,
+				sZoneId, '/', sRecordId, sFqdn, sTxt);
 		}
 	}
 	xrtValueRelease(pRoot);
 	xrtFree(sResp);
-	return true;
+	if(!bTracked)
+		xacmeCfError(XERR_PROTOCOL,
+			"acme dns_cf create response lacks a usable record id");
+	return bTracked;
+}
+
+static bool xacmeCfDeleteRecord(void* pContext, cstr sId)
+{
+	xacmednscfcontext* pCtx = (xacmednscfcontext*)pContext;
+	char sZoneId[64];
+	char sRecordId[64];
+	char sPath[200];
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	bool bOk;
+	if(!xacmeDnsRecordSplit(sId, '/', sZoneId, sizeof(sZoneId),
+			sRecordId, sizeof(sRecordId)))
+	{
+		xacmeCfError(XERR_PROTOCOL, "acme dns_cf record handle is invalid");
+		return false;
+	}
+	snprintf(sPath, sizeof(sPath),
+		"/client/v4/zones/%s/dns_records/%s", sZoneId, sRecordId);
+	if(!xacmeCfCall(pCtx, "DELETE", sPath, NULL, &iStatus, &sResp))
+	{
+		xrtFree(sResp);
+		return false;
+	}
+	xrtFree(sResp);
+	bOk = ((iStatus >= 200u) && (iStatus < 300u)) || (iStatus == 404u);
+	if(!bOk)
+		xacmeCfError(XERR_PROTOCOL, "acme dns_cf record deletion failed");
+	return bOk;
 }
 
 static bool xacmeCfRemove(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
 	xacmednscfcontext* pCtx = (xacmednscfcontext*)pProvider->pContext;
-	size_t i;
-	bool bAnyOk = false;
-	(void)sFqdn;
-	(void)sTxt;
-	for(i = 0; i < pCtx->Records.iCount; i++)
-	{
-		char sZoneId[32];
-		char sRecordId[32];
-		char sPath[128];
-		uint16 iStatus = 0u;
-		str sResp = NULL;
-		const char* sSlash;
-		if(pCtx->Records.sIds[i][0] == '\0')
-		{
-			continue;
-		}
-		sSlash = strchr(pCtx->Records.sIds[i], '/');
-		if((sSlash == NULL) ||
-			((size_t)(sSlash - pCtx->Records.sIds[i]) >= sizeof(sZoneId)) ||
-			(strlen(sSlash + 1) >= sizeof(sRecordId)))
-		{
-			continue;
-		}
-		memcpy(sZoneId, pCtx->Records.sIds[i],
-			(size_t)(sSlash - pCtx->Records.sIds[i]));
-		sZoneId[sSlash - pCtx->Records.sIds[i]] = '\0';
-		{
-			size_t iRecordLen = strlen(sSlash + 1);
-			if(iRecordLen >= sizeof(sRecordId))
-			{
-				continue;
-			}
-			memcpy(sRecordId, sSlash + 1, iRecordLen);
-			sRecordId[iRecordLen] = '\0';
-		}
-		snprintf(sPath, sizeof(sPath),
-			"/client/v4/zones/%.32s/dns_records/%.31s", sZoneId,
-			sRecordId);
-		if(!xacmeCfCall(pCtx, "DELETE", sPath, NULL, &iStatus, &sResp))
-		{
-			continue;
-		}
-		xrtFree(sResp);
-		if(((iStatus >= 200u) && (iStatus < 300u)) || (iStatus == 404u))
-		{
-			bAnyOk = true;
-			pCtx->Records.sIds[i][0] = '\0';
-		}
-	}
-	return bAnyOk || (pCtx->Records.iCount == 0u);
+	return xacmeDnsRecordRemoveMatching(&pCtx->Records, sFqdn, sTxt,
+		xacmeCfDeleteRecord, pCtx);
 }
 
 void xrtAcmeDnsCfConfigInit(xacmednscfconfig* pConfig)
@@ -299,6 +291,15 @@ bool xrtAcmeDnsCf(
 			"acme dns_cf requires api token");
 		return false;
 	}
+	if(strlen(pConfig->sApiToken) >= sizeof(pCtx->sToken) ||
+		((pConfig->sEndpoint != NULL) &&
+		 strlen(pConfig->sEndpoint) >= sizeof(pCtx->sEndpoint)))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_CREDENTIAL,
+			"acme dns_cf token or endpoint exceeds capacity");
+		return false;
+	}
 	pCtx = (xacmednscfcontext*)xrtCalloc(1, sizeof(*pCtx));
 	if(pCtx == NULL)
 	{
@@ -311,6 +312,7 @@ bool xrtAcmeDnsCf(
 	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
 	{
 		xacmeHttpUnit(&pCtx->Http);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		return false;
 	}
@@ -329,6 +331,7 @@ void xrtAcmeDnsCfProviderUnit(xacmednsprovider* pProvider)
 	{
 		xacmednscfcontext* pCtx = (xacmednscfcontext*)pProvider->pContext;
 		xacmeHttpUnit(&pCtx->Http);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		pProvider->pContext = NULL;
 	}

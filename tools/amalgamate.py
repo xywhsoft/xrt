@@ -596,6 +596,11 @@ def _declaration_content(
 		path for path in dict.fromkeys(feature_headers)
 		if path in public_headers
 	]
+	feature_guards = [
+		manifest["features_guard"]
+		for manifest in reversed(manifests[1:])
+		if manifest.get("features_header") in feature_headers
+	] + ["XRT_FEATURES_H"]
 	public_headers = _topological_parts(public_headers, include_dirs)
 	selection_macros = _selection_macros(public_headers)
 	all_macros = [
@@ -639,6 +644,8 @@ def _declaration_content(
 		),
 	]
 	seen: set[str] = set()
+	# 声明区需要完整闭包，不能被先前包含的模块选择头跳过。
+	parts.extend(f"#undef {guard}\n" for guard in feature_guards)
 	_append_section(
 		parts,
 		"feature selection" if overlays else "public",
@@ -657,6 +664,18 @@ def _declaration_content(
 	)
 	parts.append(_declaration_selection_end(selection_macros, exclude_macros))
 	parts.append("\n#endif\n")
+	# 临时 ALL 只用于声明。恢复之后按调用方选择重新展开真实依赖，
+	# 并允许宿主预注入声明后，原生包再选择模块、重新包含声明头。
+	parts.append("\n/* 按当前模块选择展开依赖，不把完整声明误当作全部功能已启用。 */\n")
+	parts.extend(f"#undef {guard}\n" for guard in feature_guards)
+	_append_section(
+		parts,
+		"requested feature selection",
+		feature_headers,
+		set(),
+		known_headers,
+		include_dirs,
+	)
 
 	output = ROOT / _manifest_setting(
 		product,

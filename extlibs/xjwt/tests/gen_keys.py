@@ -109,6 +109,27 @@ def openssl_token(priv, pub, alg_hash, header, claims):
     return signing + "." + b64url(sig)
 
 
+def es256_jws_from_der(token):
+    """OpenSSL emits DER; RFC 7518 ES256 signs with fixed-width R||S."""
+    signing, encoded = token.rsplit(".", 1)
+    der = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+    if len(der) < 8 or der[0] != 0x30 or der[1] != len(der) - 2:
+        raise ValueError("invalid P-256 ECDSA DER signature")
+    offset, scalars = 2, []
+    for _ in range(2):
+        if offset + 2 > len(der) or der[offset] != 0x02:
+            raise ValueError("missing ECDSA scalar")
+        size = der[offset + 1]
+        offset += 2
+        if size == 0 or offset + size > len(der):
+            raise ValueError("invalid ECDSA scalar size")
+        scalars.append(int.from_bytes(der[offset:offset + size], "big").to_bytes(32, "big"))
+        offset += size
+    if offset != len(der):
+        raise ValueError("trailing ECDSA DER data")
+    return signing + "." + b64url(b"".join(scalars))
+
+
 def main():
     make_keys()
     n, e = parse_rsa_pub()
@@ -127,9 +148,10 @@ def main():
     tok_rs = openssl_token(RSA_PRIV, RSA_PUB, "-sha256",
                            '{"alg":"RS256","typ":"JWT","kid":"rsa-key-1"}',
                            '{"sub":"interop-rs","role":"peer","exp":4102444800}')
-    tok_es = openssl_token(EC_PRIV, EC_PUB, "-sha256",
+    tok_es_der = openssl_token(EC_PRIV, EC_PUB, "-sha256",
                            '{"alg":"ES256","typ":"JWT","kid":"ec-key-1"}',
                            '{"sub":"interop-es","role":"peer","exp":4102444800}')
+    tok_es = es256_jws_from_der(tok_es_der)
     tok_idp = openssl_token(RSA_PRIV, RSA_PUB, "-sha256",
                             '{"alg":"RS256","typ":"JWT","kid":"rsa-key-1"}',
                             '{"sub":"idp-alice","iss":"https://idp.example.com",'
@@ -172,6 +194,7 @@ def main():
            cstr(json.dumps(jwks_mixed), "K_JWKS_MIXED"),
            cstr(tok_rs, "K_TOKEN_RS256_OPENSSL"),
            cstr(tok_es, "K_TOKEN_ES256_OPENSSL"),
+           cstr(tok_es_der, "K_TOKEN_ES256_DER_OPENSSL"),
            cstr(tok_idp, "K_TOKEN_IDP_OPENSSL"),
            "",
            "#endif",

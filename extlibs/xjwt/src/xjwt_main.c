@@ -132,6 +132,14 @@ void xjwtConfigInit(xjwtconfig* pConfig)
 	pConfig->Alg = XJWT_ALG_HS256;
 }
 
+static bool xjwtSignSet(xvalue* pObject, const char* sKey, xvalue* pValue)
+{
+	if ( xrtValueObjectSetNew(pObject, xrtStrView(sKey), pValue) )
+		return true;
+	xjwt__error(XJWT_ERROR_PARSE, "JWT field allocation failed");
+	return false;
+}
+
 char* xjwtSign(const xjwtconfig* pConfig, xvalue* claims)
 {
 	if ( pConfig == NULL || claims == NULL || pConfig->KeyPem == NULL ) {
@@ -151,18 +159,24 @@ char* xjwtSign(const xjwtconfig* pConfig, xvalue* claims)
 	/* 自动注入标准 claims（就地修改传入对象） */
 	{
 		int64_t now = (int64_t)(xrtNow() / 1000000);
-		if ( pConfig->ExpireSeconds != 0 )
-			xrtValueObjectSetNew(claims, xrtStrView("exp"), xrtValueInt(now + pConfig->ExpireSeconds));
-		if ( pConfig->Issuer != NULL )
-			xrtValueObjectSetNew(claims, xrtStrView("iss"), xrtValueString(xrtStrView(pConfig->Issuer)));
-		if ( pConfig->Audience != NULL )
-			xrtValueObjectSetNew(claims, xrtStrView("aud"), xrtValueString(xrtStrView(pConfig->Audience)));
-		if ( pConfig->Subject != NULL )
-			xrtValueObjectSetNew(claims, xrtStrView("sub"), xrtValueString(xrtStrView(pConfig->Subject)));
-		if ( pConfig->Jti != NULL )
-			xrtValueObjectSetNew(claims, xrtStrView("jti"), xrtValueString(xrtStrView(pConfig->Jti)));
+		if ( pConfig->ExpireSeconds != 0 &&
+			 !xjwtSignSet(claims, "exp", xrtValueInt(now + pConfig->ExpireSeconds)) )
+			return NULL;
+		if ( pConfig->Issuer != NULL &&
+			 !xjwtSignSet(claims, "iss", xrtValueString(xrtStrView(pConfig->Issuer))) )
+			return NULL;
+		if ( pConfig->Audience != NULL &&
+			 !xjwtSignSet(claims, "aud", xrtValueString(xrtStrView(pConfig->Audience))) )
+			return NULL;
+		if ( pConfig->Subject != NULL &&
+			 !xjwtSignSet(claims, "sub", xrtValueString(xrtStrView(pConfig->Subject))) )
+			return NULL;
+		if ( pConfig->Jti != NULL &&
+			 !xjwtSignSet(claims, "jti", xrtValueString(xrtStrView(pConfig->Jti))) )
+			return NULL;
 		/* iat 始终注入 */
-		xrtValueObjectSetNew(claims, xrtStrView("iat"), xrtValueInt(now));
+		if ( !xjwtSignSet(claims, "iat", xrtValueInt(now)) )
+			return NULL;
 	}
 
 	/* header 经 JSON 序列化构造：kid 自动转义且不受定长缓冲限制 */
@@ -176,10 +190,13 @@ char* xjwtSign(const xjwtconfig* pConfig, xvalue* claims)
 		xjwt__error(XJWT_ERROR_PARSE, "header object alloc failed");
 		return NULL;
 	}
-	xrtValueObjectSetNew(pHead, xrtStrView("alg"), xrtValueString(xrtStrView(sAlg)));
-	xrtValueObjectSetNew(pHead, xrtStrView("typ"), xrtValueString(xrtStrView("JWT")));
-	if ( pConfig->KeyId != NULL )
-		xrtValueObjectSetNew(pHead, xrtStrView("kid"), xrtValueString(xrtStrView(pConfig->KeyId)));
+	if ( !xjwtSignSet(pHead, "alg", xrtValueString(xrtStrView(sAlg))) ||
+		 !xjwtSignSet(pHead, "typ", xrtValueString(xrtStrView("JWT"))) ||
+		 (pConfig->KeyId != NULL &&
+		  !xjwtSignSet(pHead, "kid", xrtValueString(xrtStrView(pConfig->KeyId)))) ) {
+		xrtValueRelease(pHead);
+		return NULL;
+	}
 	char* sHeadJson = xrtJsonStringify(pHead, false, NULL);
 	xrtValueRelease(pHead);
 	if ( sHeadJson == NULL ) {

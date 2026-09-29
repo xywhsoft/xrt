@@ -82,7 +82,7 @@ char g_Nonce[128];   /* BeginLogin 生成后、token 签发前由胶水保存 */
 
 int main(void)
 {
-	xoauth2client oauth;
+	xoauth2client oauth = {0};
 
 	/* ① 客户端配置（真实场景用 xoauth2UseGoogle/UseMicrosoft 预设） */
 	{

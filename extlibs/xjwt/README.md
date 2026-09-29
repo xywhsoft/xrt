@@ -16,26 +16,25 @@
 
 /* 签发 */
 xvalue* claims = xrtValueObject();
-xrtValueObjectSetNew(claims, xrtStrView("sub"), xrtValueString("user123"));
+xrtValueObjectSetNew(claims, xrtStrView("sub"),
+    xrtValueString(xrtStrView("user123")));
 char* token = xjwtHs256(claims, "secret", 3600);
 
 /* 验证 */
 xjwtcheck check;
 xjwtCheckInit(&check);
-check.Issuer = "myapp";
 xvalue* out = xjwtVerify(token, "secret", &check);
 if ( out != NULL ) {
-    /* claims 已验签、已校验 exp/iss/aud */
+    /* claims 已验签，且 exp/nbf 等标准时效字段已校验 */
     xrtValueRelease(out);
 }
-xrtValueRelease(claims);
 xrtFree(token);
-
-/* 高频验证：公钥解析一次，反复使用（线程安全，缓存只读） */
-xjwtkey* key = xjwtKeyParse(rsaPublicPem);
-out = xjwtVerifyKey(token, key, &check);
-xjwtKeyFree(key);
+xrtValueRelease(claims);
 ```
+
+RSA/EC 高频验证可先用 `xjwtKeyParse` 解析对应公钥，再用
+`xjwtVerifyKey` 验证同算法令牌；缓存密钥在最后一次验证后由 `xjwtKeyFree`
+释放。HS 系列使用 `xjwtVerify` 和共享密钥字符串。
 
 ## 构建
 
@@ -58,8 +57,8 @@ gcc -std=c11 -I<path-to-xjwt> -I<path-to-xrt>/single \
 
 - HS256/384/512：完整实现（签发 + 验签 + claims 校验）
 - RS256/384/512：完整实现（PKCS#8 与 PKCS#1 私钥签发 + 公钥验签）
-- ES256：完整实现（SEC1 与 PKCS#8 私钥签发 + 公钥验签；签名按 RFC 7518 §3.4
-  采用 DER 编码，与 OpenSSL/Jose 库互认）
+- ES256：完整实现（SEC1 与 PKCS#8 私钥签发 + 公钥验签；JWS 签名按 RFC 7518 §3.4
+  采用 64 字节定宽 R||S，OpenSSL 的 DER 签名在生成 JWT 时需先转换）
 - JWKS：完整实现（RSA n/e 与 EC x/y 解析、kid 严格匹配选钥验签；
   最多 16 把密钥，超出整体拒绝）
 - 公钥缓存：`xjwtKeyParse` 解析一次，`xjwtVerifyKey` 高频验证免重复 PEM 解析
@@ -75,7 +74,7 @@ cd tests
 python gen_keys.py   # 重新生成 openssl 参考密钥夹具（test_keys.h，含 RSA-8192）
 gcc -std=c11 -I.. -I../../single -o test_jwt test_jwt.c \
     -lws2_32 -lbcrypt -ladvapi32 -liphlpapi   # Windows；Linux 去掉 -l 参数
-./test_jwt           # 117 项全绿
+./test_jwt           # 当前 121 项全绿
 ```
 
 测试覆盖：HS/RS/ES 三族签发-验签往返、过期/iss/aud 校验、alg=none 与算法混淆

@@ -312,9 +312,8 @@ bool xjwt__verify_es256_raw(const void* pData, size_t iSize,
                             const void* pSig, size_t iSigSize,
                             const unsigned char* pPublic65)
 {
-	if ( iSigSize < 8 || iSigSize > 72 ) return false;
+	if ( iSigSize != 64 ) return false;
 	unsigned char aDigest[32];
 	if ( !xrtSha256(pData, iSize, aDigest) ) return false;
-	/* RFC 7518 §3.4：JWS 的 ES256 签名是 DER 编码（非 raw r||s） */
-	return xrtEcdsaP256VerifyDer(aDigest, 32, pSig, iSigSize, pPublic65);
+	return xrtEcdsaP256Verify(aDigest, 32, pSig, pPublic65);
 }

@@ -4,6 +4,9 @@
 支持授权码流程 + PKCE (RFC 7636) + token 刷新 + 常用 provider 预设 +
 OIDC 辅助（nonce / JWKS 拉取 / userinfo）。
 
+2.0 更新扩充了公开的 `xoauth2client` / `xoauth2token` 结构（微信适配标记与
+`OpenId`）；从 1.x 升级时必须重新编译所有使用方。
+
 实现是 `xoauth2.c` 单一编译单元：把它加入构建（包含目录指向本目录），
 或单 TU 场景直接 `#include "xoauth2.c"`。依赖的 xrt 模块闭包见
 `xoauth2-xrt.h`（含 net/tls/http1 全套，供便捷传输使用）。
@@ -32,6 +35,10 @@ xjwtClaimString(claims, "nonce", nonce, sizeof nonce);
 xoauth2NonceConsume(&oauth, nonce);                 /* 常时比对 + 一次性焚毁 */
 ```
 
+微信网站登录使用独立的 `appid`/GET 适配，响应缺少 `token_type` 时仅在
+微信预设下补为 `bearer`；userinfo 需额外提供 `openid`。可离线运行的
+流程见 `examples/wechat_login.c`。
+
 密钥轮换重试 = 应用层 6 行（`xjwtLastError()==XJWT_ERROR_KEY_NOT_FOUND`
 时重拉 JWKS，参见 xjwt 示例）。
 
@@ -40,7 +47,7 @@ xoauth2NonceConsume(&oauth, nonce);                 /* 常时比对 + 一次性�
 ```c
 #include "xoauth2.h"
 
-xoauth2client oauth;
+xoauth2client oauth = {0};  /* 首次 Use* 前必须零初始化 */
 xoauth2UseGithub(&oauth, client_id, client_secret, redirect_uri);
 
 /* 传输注入与预设分离：预设管 provider 知识，传输管宿主环境。
@@ -87,9 +94,9 @@ xoauth2HttpXrtDestroy(http);
   完整实现（全部字段 form 编码）
 - Token 响应 JSON 解析：完整实现（token_type 归一小写、时间戳换算）
 - Provider 预设（GitHub/Google/WeChat/Microsoft/Custom）：完整实现
-  （GitHub 含 api.github.com/user；Microsoft issuer 按 tenant 动态=第三块 owned URL，
- * ClientUnit 释放）
-  （Microsoft 按 tenant 动态端点，所有权归客户端，ClientUnit 释放）
+  （GitHub 含 api.github.com/user；Microsoft 的端点和 issuer 按 tenant 动态生成，
+  所有权归客户端，ClientUnit 释放；WeChat 按其 appid/GET/无 token_type
+  响应格式适配，并用 xoauth2GetWechatUserInfo 同时提交 access_token 与 openid）
 - **Token 交换与刷新：完整实现** —— 传输回调注入（mock 可测）+
   xoauth2HttpXrt 便捷实现（xrt net/tls/http1，回环服务器端到端验证）
 - **OIDC 辅助（数据耦合层）：完整实现** —— nonce 全链路（生成/URL
@@ -106,7 +113,7 @@ cd tests
 python gen_oidc_keys.py   # OIDC 组合测试夹具（EC 密钥 + JWKS，可提交后离线）
 gcc -std=c11 -I.. -I../../single -o test_oauth2 test_oauth2.c \
     -lws2_32 -lbcrypt -ladvapi32 -liphlpapi   # Windows；Linux 去掉 -l 参数
-./test_oauth2             # 160 项全绿（离线层 + 网络层 + OIDC 辅助 + 审计回归）
+./test_oauth2             # 当前 184 项全绿（离线层 + 网络层 + OIDC 辅助 + 审计回归）
 gcc -std=c11 -I. -I.. -I../../single -o test_oidc_compose test_oidc_compose.c \
     -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 ./test_oidc_compose       # 15 项全绿（xoauth2 + xjwt 数据耦合全链路）

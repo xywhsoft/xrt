@@ -108,7 +108,7 @@ XRT_API double xrtMathHypot(double fX, double fY);
 
 
 
-/* 使用显式绝对与相对容差比较两个浮点数。 */
+/* 使用显式绝对与相对容差比较两个浮点数；负值或 NaN 容差报参数错误。 */
 XRT_API bool xrtMathNear(double fLeft, double fRight,
 	double fAbsoluteTolerance, double fRelativeTolerance);
 

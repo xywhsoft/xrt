@@ -93,6 +93,7 @@ static void testXsonBuiltins(void)
 		"\"map\":intmap{-5:10,2:\"ok\"},"
 		"\"set\":set[1,2,3],"
 		"\"blob\":bytes(\"AQIDBA==\"),"
+		"\"character\":char(\"你\"),"
 		"\"when\":time(\"2000-01-02T03:04:05.123456+08:00\"),"
 		"\"nan\":float(\"nan\"),"
 		"\"inf\":float(\"-inf\"),"
@@ -106,6 +107,7 @@ static void testXsonBuiltins(void)
 	xtime Time;
 	xtime Expected;
 	double fValue;
+	uint32 iCharacter;
 
 	testRequire(pRoot != NULL, "XSON builtin parse failed");
 	pMap = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("map"));
@@ -122,6 +124,13 @@ static void testXsonBuiltins(void)
 		(Bytes.Size == sizeof(arrBytes)) &&
 		(memcmp(Bytes.Data, arrBytes, sizeof(arrBytes)) == 0),
 		"XSON bytes mismatch"
+	);
+	testRequire(
+		xrtValueGetChar(
+			xrtValueObjectGet(pRoot, XRT_STR_LITERAL("character")),
+			&iCharacter
+		) && (iCharacter == UINT32_C(0x4F60)),
+		"XSON character mismatch"
 	);
 	testRequire(
 		xrtTimeParseRFC3339(

@@ -143,6 +143,29 @@ int main(void)
 		"mail network graceful close failed");
 	__xrtMailTransportDestroy(&Transport);
 	xrtNetStreamDestroy(pServer);
+
+	/* 对端在 CRLF 前关闭，不能把未完成的回复当作完整线路。 */
+	Deadline = xrtDeadlineAfter(UINT64_C(3000000));
+	testRequire(__xrtMailTransportOpen(
+		&Transport, &Config, Deadline, NULL
+	), "mail network truncated-line transport open failed");
+	pServer = xrtNetListenerAcceptWait(pListener, Deadline, NULL);
+	testRequire(pServer != NULL,
+		"mail network truncated-line server accept failed");
+	testRequire(xrtNetStreamSend(pServer, "220 partial", 11u) ==
+		XNET_RESULT_OK && xrtNetStreamClose(pServer),
+		"mail network truncated-line fixture send failed");
+	xrtClearError();
+	testRequire(!__xrtMailTransportLine(
+		&Transport, &Line, Deadline, NULL
+	) && xrtErrorKind(xrtGetError()) == XERR_CLOSED,
+		"mail network accepted a truncated line after close");
+	(void)__xrtMailTransportAbort(&Transport);
+	__xrtMailTransportDestroy(&Transport);
+	testRequire(testMailNetClosed(pServer),
+		"mail network truncated-line server did not close");
+	xrtNetStreamDestroy(pServer);
+
 	testRequire(xrtNetListenerClose(pListener),
 		"mail network listener close request failed");
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {

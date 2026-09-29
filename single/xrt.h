@@ -977,19 +977,6 @@
 #endif
 #endif
 
-/* dir_temp 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_DIR_TEMP)
-#ifndef XRT_FEATURE_DIR_TEMP
-#define XRT_FEATURE_DIR_TEMP
-#endif
-#ifndef XRT_MODULE_DIR
-#define XRT_MODULE_DIR
-#endif
-#ifndef XRT_MODULE_FILE_TEMP
-#define XRT_MODULE_FILE_TEMP
-#endif
-#endif
-
 /* file_text 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_TEXT)
 #ifndef XRT_FEATURE_FILE_TEXT
@@ -1088,6 +1075,19 @@
 #endif
 #ifndef XRT_MODULE_FILE_ASYNC_COMMON
 #define XRT_MODULE_FILE_ASYNC_COMMON
+#endif
+#endif
+
+/* dir_temp 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_DIR_TEMP)
+#ifndef XRT_FEATURE_DIR_TEMP
+#define XRT_FEATURE_DIR_TEMP
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#ifndef XRT_MODULE_FILE_TEMP
+#define XRT_MODULE_FILE_TEMP
 #endif
 #endif
 
@@ -12790,7 +12790,9 @@ typedef enum xvaluetype {
 	XVALUE_INT_MAP,
 	XVALUE_SET,
 	XVALUE_OBJECT,
-	XVALUE_UINT
+	XVALUE_UINT,
+	/* Unicode scalar value. Appended to preserve all published type ids. */
+	XVALUE_CHAR
 } xvaluetype;
 
 
@@ -12959,6 +12961,11 @@ XRT_API xvalue* xrtValueUInt(uint64 iValue);
 
 
 
+/* 创建不可变的 Unicode 标量值；代理项和超出 Unicode 范围的值失败。 */
+XRT_API xvalue* xrtValueChar(uint32 iValue);
+
+
+
 /* 创建不可变的双精度浮点值。 */
 XRT_API xvalue* xrtValueFloat(double fValue);
 
@@ -13116,6 +13123,11 @@ XRT_API bool xrtValueGetInt(const xvalue* pValue, int64* pResult);
 
 /* 精确读取无符号整数值，类型不匹配时失败。 */
 XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult);
+
+
+
+/* 精确读取 Unicode 标量值，类型不匹配时失败。 */
+XRT_API bool xrtValueGetChar(const xvalue* pValue, uint32* pResult);
 
 
 
@@ -34323,7 +34335,7 @@ XRT_API double xrtMathHypot(double fX, double fY);
 
 
 
-/* 使用显式绝对与相对容差比较两个浮点数。 */
+/* 使用显式绝对与相对容差比较两个浮点数；负值或 NaN 容差报参数错误。 */
 XRT_API bool xrtMathNear(double fLeft, double fRight,
 	double fAbsoluteTolerance, double fRelativeTolerance);
 
@@ -37002,7 +37014,9 @@ typedef enum xxsoneventtype {
 	XXSON_EVENT_SET_END,
 	XXSON_EVENT_OBJECT_BEGIN,
 	XXSON_EVENT_OBJECT_END,
-	XXSON_EVENT_UINT
+	XXSON_EVENT_UINT,
+	/* Appended to preserve the numeric identity of published event kinds. */
+	XXSON_EVENT_CHAR
 } xxsoneventtype;
 
 
@@ -37044,6 +37058,7 @@ typedef struct xxsonevent {
 		bool Boolean;
 		int64 Integer;
 		uint64 Unsigned;
+		uint32 Character;
 		double Float;
 		xstrview String;
 		xbytesview Bytes;
@@ -37264,6 +37279,11 @@ XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
 
 /* 写入 uint64。 */
 XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
+
+
+
+/* 写入保留字符身份的 Unicode 标量标签。 */
+XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue);
 
 
 
@@ -47464,13 +47484,13 @@ bool __xrtFileOptions(const xfileoptions* pInput, xfileoptions* pOptions);
 
 
 
-/* 接管原生句柄并创建文件对象；无论成功失败，调用后句柄都归本函数处理。 */
-xfile __xrtFileTakeNative(intptr_t iHandle, uint32 iFlags);
+/* 系统打开前预分配对象；初始化前失败只需 xrtFree，不得调用 xrtClose。 */
+xfile __xrtFileAlloc(void);
 
 
 
-/* 接管数据句柄和可选控制句柄；两个句柄都在失败或关闭时释放。 */
-xfile __xrtFileTakeNativePair(intptr_t iHandle,
+/* 无分配地接管数据句柄及可选控制句柄，随后统一由 xrtClose 释放。 */
+void __xrtFileInitNativePair(xfile File, intptr_t iHandle,
 	intptr_t iControl, uint32 iFlags);
 
 
@@ -93256,7 +93276,7 @@ xvalue* __xrtValueCreate(xvaluetype Type)
 {
 	xvalue* pValue;
 
-	if ( (Type <= XVALUE_INVALID) || (Type > XVALUE_UINT) ) {
+	if ( (Type <= XVALUE_INVALID) || (Type > XVALUE_CHAR) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -93315,6 +93335,25 @@ XRT_API xvalue* xrtValueUInt(uint64 iValue)
 {
 	xvalue* pValue = __xrtValueCreate(XVALUE_UINT);
 
+	if ( pValue != NULL ) {
+		pValue->Data.UInt = iValue;
+	}
+	return pValue;
+}
+
+
+
+/* 创建经过标量范围验证的字符值。 */
+XRT_API xvalue* xrtValueChar(uint32 iValue)
+{
+	xvalue* pValue;
+
+	if ( (iValue > UINT32_C(0x10FFFF)) ||
+		 ((iValue >= UINT32_C(0xD800)) && (iValue <= UINT32_C(0xDFFF))) ) {
+		__xrtErrorSetValue();
+		return NULL;
+	}
+	pValue = __xrtValueCreate(XVALUE_CHAR);
 	if ( pValue != NULL ) {
 		pValue->Data.UInt = iValue;
 	}
@@ -94057,6 +94096,7 @@ XRT_API cstr xrtValueTypeName(xvaluetype Type)
 		case XVALUE_SET: return "set";
 		case XVALUE_OBJECT: return "object";
 		case XVALUE_UINT: return "uint";
+		case XVALUE_CHAR: return "char";
 		case XVALUE_INVALID:
 		default:
 			return "invalid";
@@ -94091,6 +94131,7 @@ XRT_API bool xrtValueIsNumber(const xvalue* pValue)
 		return false;
 	}
 	return (pValue->Type == XVALUE_INT) || (pValue->Type == XVALUE_UINT) ||
+		(pValue->Type == XVALUE_CHAR) ||
 		(pValue->Type == XVALUE_FLOAT);
 }
 
@@ -94127,6 +94168,7 @@ XRT_API bool xrtValueTruthy(const xvalue* pValue)
 		case XVALUE_INT:
 			return pValue->Data.Int != 0;
 		case XVALUE_UINT:
+		case XVALUE_CHAR:
 			return pValue->Data.UInt != 0;
 		case XVALUE_FLOAT:
 			return pValue->Data.Float != 0.0;
@@ -94201,6 +94243,23 @@ XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult)
 		return false;
 	}
 	*pResult = pValue->Data.UInt;
+	return true;
+}
+
+
+
+/* 精确读取字符标量。 */
+XRT_API bool xrtValueGetChar(const xvalue* pValue, uint32* pResult)
+{
+	if ( !__xrtValueGetValid(
+		pValue,
+		XVALUE_CHAR,
+		pResult,
+		sizeof(*pResult)
+	) ) {
+		return false;
+	}
+	*pResult = (uint32)pValue->Data.UInt;
 	return true;
 }
 
@@ -94407,6 +94466,9 @@ uint64 __xrtValueHashKnown(const xvalue* pValue)
 			return pValue->Data.UInt <= (uint64)INT64_MAX
 				? __xrtValueTaggedHash(XVALUE_INT, pValue->Data.UInt)
 				: __xrtValueTaggedHash(XVALUE_UINT, pValue->Data.UInt);
+		case XVALUE_CHAR:
+			/* Character/integer equality requires the same canonical hash. */
+			return __xrtValueTaggedHash(XVALUE_INT, pValue->Data.UInt);
 		case XVALUE_FLOAT:
 			if ( __xrtValueFloatToInt(pValue->Data.Float, &iInteger) ) {
 				return __xrtValueTaggedHash(XVALUE_INT, (uint64)iInteger);
@@ -94457,34 +94519,38 @@ static bool __xrtValueNumberEqual(const xvalue* pLeft, const xvalue* pRight)
 {
 	int64 iInteger;
 	uint64 iUnsigned;
+	bool bLeftUnsigned =
+		(pLeft->Type == XVALUE_UINT) || (pLeft->Type == XVALUE_CHAR);
+	bool bRightUnsigned =
+		(pRight->Type == XVALUE_UINT) || (pRight->Type == XVALUE_CHAR);
 
 	if ( (pLeft->Type == XVALUE_INT) && (pRight->Type == XVALUE_INT) ) {
 		return pLeft->Data.Int == pRight->Data.Int;
 	}
-	if ( (pLeft->Type == XVALUE_UINT) && (pRight->Type == XVALUE_UINT) ) {
+	if ( bLeftUnsigned && bRightUnsigned ) {
 		return pLeft->Data.UInt == pRight->Data.UInt;
 	}
 	if ( (pLeft->Type == XVALUE_FLOAT) && (pRight->Type == XVALUE_FLOAT) ) {
 		return (pLeft->Data.Float == pRight->Data.Float) ||
 			(isnan(pLeft->Data.Float) && isnan(pRight->Data.Float));
 	}
-	if ( (pLeft->Type == XVALUE_INT) && (pRight->Type == XVALUE_UINT) ) {
+	if ( (pLeft->Type == XVALUE_INT) && bRightUnsigned ) {
 		return pLeft->Data.Int >= 0 &&
 			(uint64)pLeft->Data.Int == pRight->Data.UInt;
 	}
-	if ( (pLeft->Type == XVALUE_UINT) && (pRight->Type == XVALUE_INT) ) {
+	if ( bLeftUnsigned && (pRight->Type == XVALUE_INT) ) {
 		return pRight->Data.Int >= 0 &&
 			pLeft->Data.UInt == (uint64)pRight->Data.Int;
 	}
 	if ( pLeft->Type == XVALUE_FLOAT ) {
-		if ( pRight->Type == XVALUE_UINT ) {
+		if ( bRightUnsigned ) {
 			return __xrtValueFloatToUInt(pLeft->Data.Float, &iUnsigned) &&
 				iUnsigned == pRight->Data.UInt;
 		}
 		return __xrtValueFloatToInt(pLeft->Data.Float, &iInteger) &&
 			iInteger == pRight->Data.Int;
 	}
-	if ( pLeft->Type == XVALUE_UINT ) {
+	if ( bLeftUnsigned ) {
 		return __xrtValueFloatToUInt(pRight->Data.Float, &iUnsigned) &&
 			pLeft->Data.UInt == iUnsigned;
 	}
@@ -94514,8 +94580,10 @@ bool __xrtValueEqualKnown(const xvalue* pLeft, const xvalue* pRight)
 			);
 	}
 	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
+		  (pLeft->Type == XVALUE_CHAR) ||
 		  (pLeft->Type == XVALUE_FLOAT)) &&
 		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
+		  (pRight->Type == XVALUE_CHAR) ||
 		  (pRight->Type == XVALUE_FLOAT)) ) {
 		return __xrtValueNumberEqual(pLeft, pRight);
 	}
@@ -108520,8 +108588,10 @@ static bool __xrtValueEqual(
 		return false;
 	}
 	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
+		  (pLeft->Type == XVALUE_CHAR) ||
 		  (pLeft->Type == XVALUE_FLOAT)) &&
 		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
+		  (pRight->Type == XVALUE_CHAR) ||
 		  (pRight->Type == XVALUE_FLOAT)) ) {
 		return __xrtValueEqualKnown(pLeft, pRight);
 	}
@@ -119083,6 +119153,35 @@ struct xfile_impl {
 
 
 
+/* 普通路径和根内路径都在系统创建/截断前准备对象。 */
+xfile __xrtFileAlloc(void)
+{
+	return (xfile)xrtMalloc(sizeof(struct xfile_impl));
+}
+
+
+
+/* 句柄接管本身不再分配，成功打开之后不能再因包装对象 OOM 返回失败。 */
+void __xrtFileInitNativePair(xfile File,
+	intptr_t iHandle, intptr_t iControl, uint32 iFlags)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		File->Handle = (HANDLE)iHandle;
+		File->Control = (HANDLE)iControl;
+		InitializeSRWLock(&File->CursorLock);
+	#else
+		File->Handle = (int)iHandle;
+		(void)iControl;
+	#endif
+	File->Flags = iFlags;
+	#if defined(XRT_FEATURE_NET_FILE)
+		xrtAtomic64Init(&File->AsyncOwner, 0);
+		File->AsyncAssociated = false;
+	#endif
+}
+
+
+
 /* 设置带显式错误类别和系统代码的文件错误。 */
 void __xrtFileSetKindError(xerrkind Kind, xfileerror Code,
 	cstr sOperation, cstr sMessage, int iSystemCode)
@@ -119271,6 +119370,11 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 	if ( pPath == NULL ) {
 		return NULL;
 	}
+	File = __xrtFileAlloc();
+	if ( File == NULL ) {
+		xrtFree(pPath);
+		return NULL;
+	}
 	if ( (pOptions->Share & XFILE_SHARE_READ) != 0u ) {
 		iShare |= FILE_SHARE_READ;
 	}
@@ -119295,6 +119399,7 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 	if ( hFile == INVALID_HANDLE_VALUE ) {
 		int iCode = (int)GetLastError();
 
+		xrtFree(File);
 		xrtFree(pPath);
 		__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 			"failed to open the file", iCode);
@@ -119305,13 +119410,14 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 		int iCode = (int)GetLastError();
 
 		(void)CloseHandle(hFile);
+		xrtFree(File);
 		xrtFree(pPath);
 		__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 			"failed to restrict the append file handle", iCode);
 		return NULL;
 	}
 	xrtFree(pPath);
-	File = __xrtFileTakeNativePair((intptr_t)hFile,
+	__xrtFileInitNativePair(File, (intptr_t)hFile,
 		(intptr_t)hControl, pOptions->Flags);
 	return File;
 }
@@ -119422,11 +119528,16 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 			return NULL;
 		}
 	#endif
+	File = __xrtFileAlloc();
+	if ( File == NULL ) {
+		return NULL;
+	}
 	hFile = __xrtFilePosixOpenAt(AT_FDCWD, sPath,
 		__xrtFilePosixFlags(pOptions->Flags), pOptions->Mode);
 	if ( hFile < 0 ) {
 		int iCode = errno;
 
+		xrtFree(File);
 		__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 			"failed to open the file", iCode);
 		return NULL;
@@ -119441,6 +119552,7 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 			int iCode = errno;
 
 			(void)close(hFile);
+			xrtFree(File);
 			__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 				"failed to inspect the opened file", iCode);
 			return NULL;
@@ -119448,58 +119560,17 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 	}
 	if ( S_ISDIR(Info.st_mode) ) {
 		(void)close(hFile);
+		xrtFree(File);
 		__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 			"the path is a directory", EISDIR);
 		return NULL;
 	}
-	File = __xrtFileTakeNative((intptr_t)hFile, pOptions->Flags);
+	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1,
+		pOptions->Flags);
 	return File;
 }
 
 #endif
-
-
-
-/* 接管数据句柄和可选控制句柄并创建文件对象。 */
-xfile __xrtFileTakeNativePair(intptr_t iHandle,
-	intptr_t iControl, uint32 iFlags)
-{
-	xfile File = (xfile)xrtMalloc(sizeof(*File));
-
-	if ( File == NULL ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			(void)CloseHandle((HANDLE)iHandle);
-			if ( (HANDLE)iControl != INVALID_HANDLE_VALUE ) {
-				(void)CloseHandle((HANDLE)iControl);
-			}
-		#else
-			(void)close((int)iHandle);
-			(void)iControl;
-		#endif
-		return NULL;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-		File->Handle = (HANDLE)iHandle;
-		File->Control = (HANDLE)iControl;
-		InitializeSRWLock(&File->CursorLock);
-	#else
-		File->Handle = (int)iHandle;
-	#endif
-	File->Flags = iFlags;
-	#if defined(XRT_FEATURE_NET_FILE)
-		xrtAtomic64Init(&File->AsyncOwner, 0);
-		File->AsyncAssociated = false;
-	#endif
-	return File;
-}
-
-
-
-/* 接管单个原生句柄并创建普通文件对象。 */
-xfile __xrtFileTakeNative(intptr_t iHandle, uint32 iFlags)
-{
-	return __xrtFileTakeNativePair(iHandle, (intptr_t)-1, iFlags);
-}
 
 
 
@@ -237692,6 +237763,8 @@ XRT_API double xrtMathHypot(double fX, double fY)
 XRT_API bool xrtMathNear(double fLeft, double fRight,
 	double fAbsoluteTolerance, double fRelativeTolerance)
 {
+	double fAbsoluteLeft;
+	double fAbsoluteRight;
 	double fDifference;
 	double fScale;
 
@@ -237707,10 +237780,29 @@ XRT_API bool xrtMathNear(double fLeft, double fRight,
 		return false;
 	}
 
+	fAbsoluteLeft = fabs(fLeft);
+	fAbsoluteRight = fabs(fRight);
+	fScale = xrtMathMax(fAbsoluteLeft, fAbsoluteRight);
+	/* Opposite signs can make both the difference and relative threshold
+	 * overflow to infinity, turning an out-of-range comparison into true. */
+	if ( signbit(fLeft) != signbit(fRight) ) {
+		if ( (fAbsoluteTolerance >= fAbsoluteLeft) &&
+			 (fAbsoluteTolerance - fAbsoluteLeft >= fAbsoluteRight) ) {
+			return true;
+		}
+		if ( fRelativeTolerance == 0.0 ) {
+			return false;
+		}
+		return (fAbsoluteLeft / fScale) + (fAbsoluteRight / fScale) <=
+			fRelativeTolerance;
+	}
+
 	fDifference = fabs(fLeft - fRight);
-	fScale = xrtMathMax(fabs(fLeft), fabs(fRight));
-	return (fDifference <= fAbsoluteTolerance) ||
-		(fDifference <= (fRelativeTolerance * fScale));
+	if ( fDifference <= fAbsoluteTolerance ) {
+		return true;
+	}
+	return (fRelativeTolerance != 0.0) &&
+		(fDifference / fScale <= fRelativeTolerance);
 }
 
 
@@ -264035,6 +264127,60 @@ XRT_API bool xrtFileUnmap(xfilemap Map)
 
 
 /* ========================================================================== */
+/* source: src/fs/dir_temp.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_DIR_TEMP)
+
+
+
+#if defined(XRT_FEATURE_DIR_TEMP)
+
+/* 排他创建临时目录并返回调用方拥有的路径。 */
+XRT_API str xrtDirTemp(cstr sDirectory, cstr sPrefix, cstr sSuffix)
+{
+	__xrttempname Name;
+	uint32 i;
+
+	if ( (sDirectory != NULL) && (sDirectory[0] == '\0') ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( !__xrtTempNameInit(&Name, sDirectory, sPrefix, sSuffix,
+		".xrt-dir-", "") ) {
+		return NULL;
+	}
+	for ( i = 0; i < XRT_TEMP_ATTEMPTS; i++ ) {
+		str sPath = __xrtTempNameNext(&Name);
+
+		if ( sPath == NULL ) {
+			__xrtTempNameFree(&Name);
+			return NULL;
+		}
+		if ( xrtDirCreateMode(sPath, 0700u) ) {
+			__xrtTempNameFree(&Name);
+			return sPath;
+		}
+		if ( (xrtGetError() == NULL) ||
+			 (xrtErrorKind(xrtGetError()) != XERR_EXISTS) ) {
+			xrtFree(sPath);
+			__xrtTempNameFree(&Name);
+			return NULL;
+		}
+		xrtFree(sPath);
+		xrtClearError();
+	}
+	__xrtTempNameFree(&Name);
+	__xrtDirError(XERR_AGAIN, XDIR_ERROR_TEMP, "temp",
+		"could not create a unique temporary directory");
+	return NULL;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* source: src/fs/file_async_whole.c */
 /* ========================================================================== */
 
@@ -267704,60 +267850,6 @@ XRT_API bool xrtFileWriteTextAtomic(cstr sPath, xstrview Text,
 
 
 /* ========================================================================== */
-/* source: src/fs/dir_temp.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_DIR_TEMP)
-
-
-
-#if defined(XRT_FEATURE_DIR_TEMP)
-
-/* 排他创建临时目录并返回调用方拥有的路径。 */
-XRT_API str xrtDirTemp(cstr sDirectory, cstr sPrefix, cstr sSuffix)
-{
-	__xrttempname Name;
-	uint32 i;
-
-	if ( (sDirectory != NULL) && (sDirectory[0] == '\0') ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( !__xrtTempNameInit(&Name, sDirectory, sPrefix, sSuffix,
-		".xrt-dir-", "") ) {
-		return NULL;
-	}
-	for ( i = 0; i < XRT_TEMP_ATTEMPTS; i++ ) {
-		str sPath = __xrtTempNameNext(&Name);
-
-		if ( sPath == NULL ) {
-			__xrtTempNameFree(&Name);
-			return NULL;
-		}
-		if ( xrtDirCreateMode(sPath, 0700u) ) {
-			__xrtTempNameFree(&Name);
-			return sPath;
-		}
-		if ( (xrtGetError() == NULL) ||
-			 (xrtErrorKind(xrtGetError()) != XERR_EXISTS) ) {
-			xrtFree(sPath);
-			__xrtTempNameFree(&Name);
-			return NULL;
-		}
-		xrtFree(sPath);
-		xrtClearError();
-	}
-	__xrtTempNameFree(&Name);
-	__xrtDirError(XERR_AGAIN, XDIR_ERROR_TEMP, "temp",
-		"could not create a unique temporary directory");
-	return NULL;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* source: src/fs/file_root.c */
 /* ========================================================================== */
 
@@ -268973,6 +269065,7 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 	int iFlags = __xrtFilePosixFlags(pOptions->Flags);
 	int hFile;
 	struct stat Info;
+	xfile File;
 
 	#if defined(O_NOFOLLOW)
 		iFlags |= O_NOFOLLOW;
@@ -268981,6 +269074,10 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			"open-file", "the platform cannot open files without following links");
 		return XROOT_STEP_ERROR;
 	#endif
+	File = __xrtFileAlloc();
+	if ( File == NULL ) {
+		return XROOT_STEP_ERROR;
+	}
 	hFile = __xrtFilePosixOpenAt(Parent, sName,
 		iFlags, pOptions->Mode);
 	if ( hFile < 0 ) {
@@ -268989,6 +269086,7 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			(XFILE_CREATE | XFILE_EXCLUSIVE)) ==
 			(XFILE_CREATE | XFILE_EXCLUSIVE);
 
+		xrtFree(File);
 		if ( ((iCode == ELOOP) || (iCode == ENOTDIR)) &&
 			 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 			 !bExclusive ) {
@@ -269010,6 +269108,7 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			int iCode = errno;
 
 			(void)close(hFile);
+			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to inspect the root-relative file", iCode);
 			return XROOT_STEP_ERROR;
@@ -269017,12 +269116,15 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 	}
 	if ( S_ISDIR(Info.st_mode) ) {
 		(void)close(hFile);
+		xrtFree(File);
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
 			"the root-relative path is a directory");
 		return XROOT_STEP_ERROR;
 	}
-	*pFile = __xrtFileTakeNative((intptr_t)hFile, pOptions->Flags);
-	return *pFile != NULL ? XROOT_STEP_DONE : XROOT_STEP_ERROR;
+	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1,
+		pOptions->Flags);
+	*pFile = File;
+	return XROOT_STEP_DONE;
 }
 
 
@@ -269727,6 +269829,7 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 	HANDLE hFile;
 	HANDLE hControl;
 	NTSTATUS Status;
+	xfile File;
 
 	if ( strcmp(sName, ".") == 0 ) {
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE,
@@ -269737,10 +269840,15 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 	if ( (pOptions->Flags & XFILE_SYNC) != 0u ) {
 		iOptions |= FILE_WRITE_THROUGH;
 	}
+	File = __xrtFileAlloc();
+	if ( File == NULL ) {
+		return XROOT_STEP_ERROR;
+	}
 	if ( !__xrtRootNtCreate(Parent, sName, iAccess,
 		__xrtRootWindowsShare(pOptions->Share),
 		__xrtRootWindowsDisposition(pOptions->Flags),
 		iOptions, OBJ_DONT_REPARSE, &hFile, &Status) ) {
+		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
 	if ( __xrtRootNtSuccess(Status) ) {
@@ -269749,15 +269857,18 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			int iCode = (int)GetLastError();
 
 			(void)CloseHandle(hFile);
+			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to restrict the root-relative append handle",
 				iCode);
 			return XROOT_STEP_ERROR;
 		}
-		*pFile = __xrtFileTakeNativePair((intptr_t)hFile,
+		__xrtFileInitNativePair(File, (intptr_t)hFile,
 			(intptr_t)hControl, pOptions->Flags);
-		return *pFile != NULL ? XROOT_STEP_DONE : XROOT_STEP_ERROR;
+		*pFile = File;
+		return XROOT_STEP_DONE;
 	}
+	xrtFree(File);
 	if ( __xrtRootNtReparse(Status) &&
 		 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 		 ((pOptions->Flags &
@@ -276622,6 +276733,7 @@ static bool __xrtJsonWriterSkipValue(
 	if (
 		(Type == XVALUE_NULL) || (Type == XVALUE_BOOL) ||
 		(Type == XVALUE_INT) || (Type == XVALUE_UINT) ||
+		(Type == XVALUE_CHAR) ||
 		(Type == XVALUE_FLOAT) ||
 		(Type == XVALUE_STRING) || (Type == XVALUE_ARRAY) ||
 		(Type == XVALUE_OBJECT)
@@ -276869,6 +276981,15 @@ static bool __xrtJsonWriterTree(
 			return false;
 		}
 		return __xrtTextValueWriterUInt(pWriter->Core, iUnsigned);
+	}
+	if ( Type == XVALUE_CHAR ) {
+		uint32 iChar;
+
+		if ( !xrtValueGetChar(pValue, &iChar) ) {
+			__xrtTextValueWriterPoison(pWriter->Core);
+			return false;
+		}
+		return __xrtTextValueWriterUInt(pWriter->Core, (uint64)iChar);
 	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
@@ -277770,6 +277891,23 @@ static bool __xrtXsonMakeEvent(
 		) ) {
 			return false;
 		}
+	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "char", 4u) ) {
+		size_t iRead = 0;
+
+		pEvent->Type = XXSON_EVENT_CHAR;
+		if ( (xrtUtf8Decode(
+			pSource->Value.Tag.Payload,
+			&pEvent->Value.Character,
+			&iRead
+		) != XUTF_OK) || (iRead != pSource->Value.Tag.Payload.Size) ) {
+			__xrtXsonEventError(
+				pSource,
+				XERR_VALUE,
+				XXSON_ERROR_TAG,
+				"char tag requires exactly one Unicode scalar"
+			);
+			return false;
+		}
 	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "time", 4u) ) {
 		pEvent->Type = XXSON_EVENT_TIME;
 		if ( !xrtTimeParseRFC3339(
@@ -278065,6 +278203,8 @@ static xvalue* __xrtXsonDomScalar(
 			return xrtValueInt(pEvent->Value.Integer);
 		case XXSON_EVENT_UINT:
 			return xrtValueUInt(pEvent->Value.Unsigned);
+		case XXSON_EVENT_CHAR:
+			return xrtValueChar(pEvent->Value.Character);
 		case XXSON_EVENT_FLOAT:
 			return xrtValueFloat(pEvent->Value.Float);
 		case XXSON_EVENT_STRING:
@@ -278557,7 +278697,7 @@ static bool __xrtXsonWriterSkipValue(
 static bool __xrtXsonReservedTag(xstrview Tag)
 {
 	static const cstr arrNames[] = {
-		"bytes", "time", "float", "set", "intmap"
+		"bytes", "char", "time", "float", "set", "intmap"
 	};
 
 	for ( size_t i = 0; i < (sizeof(arrNames) / sizeof(arrNames[0])); i++ ) {
@@ -278612,6 +278752,32 @@ static bool __xrtXsonWriterBytesValue(
 		pWriter->Core,
 		XRT_STR_LITERAL("bytes"),
 		Data
+	);
+}
+
+
+
+/* 写出只包含一个 Unicode 标量的显式字符标签。 */
+static bool __xrtXsonWriterCharValue(
+	xxsonwriter* pWriter,
+	uint32 iValue
+)
+{
+	char arrText[4];
+	size_t iSize = xrtUtf8Encode(iValue, arrText);
+
+	if ( iSize == 0 ) {
+		return __xrtTextValueWriterFail(
+			pWriter->Core,
+			XERR_VALUE,
+			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
+			"character is not a Unicode scalar"
+		);
+	}
+	return __xrtTextValueWriterTag(
+		pWriter->Core,
+		XRT_STR_LITERAL("char"),
+		(xstrview){ arrText, iSize }
 	);
 }
 
@@ -278915,6 +279081,15 @@ static bool __xrtXsonWriterTree(
 		}
 		return __xrtTextValueWriterUInt(pWriter->Core, iUnsigned);
 	}
+	if ( Type == XVALUE_CHAR ) {
+		uint32 iCharacter;
+
+		if ( !xrtValueGetChar(pValue, &iCharacter) ) {
+			__xrtTextValueWriterPoison(pWriter->Core);
+			return false;
+		}
+		return __xrtXsonWriterCharValue(pWriter, iCharacter);
+	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
 			__xrtTextValueWriterPoison(pWriter->Core);
@@ -279191,6 +279366,18 @@ XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
 		return false;
 	}
 	return __xrtTextValueWriterUInt(pWriter->Core, iValue);
+}
+
+
+
+/* 写入保留字符身份的 Unicode 标量。 */
+XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue)
+{
+	if ( pWriter == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return __xrtXsonWriterCharValue(pWriter, iValue);
 }
 
 
@@ -284071,12 +284258,22 @@ static bool __xrtTemplateWriteNumber(
 			iSize + 1u,
 			&iSize
 		);
-	} else if ( pValue->Type == XVALUE_UINT ) {
+	} else if ( (pValue->Type == XVALUE_UINT) ||
+			 (pValue->Type == XVALUE_CHAR) ) {
 		uint64 iValue;
 
 		if ( pValue->Value != NULL ) {
-			if ( !xrtValueGetUInt(pValue->Value, &iValue) ) {
-				goto format_error;
+			if ( pValue->Type == XVALUE_UINT ) {
+				if ( !xrtValueGetUInt(pValue->Value, &iValue) ) {
+					goto format_error;
+				}
+			} else {
+				uint32 iCharacter;
+
+				if ( !xrtValueGetChar(pValue->Value, &iCharacter) ) {
+					goto format_error;
+				}
+				iValue = iCharacter;
 			}
 		} else {
 			iValue = pValue->Data.Unsigned;
@@ -284287,6 +284484,29 @@ static bool __xrtTemplateWriteText(
 				pValue,
 				(xstrview){ NULL, 0 }
 			);
+		case XVALUE_CHAR:
+		{
+			char arrText[4];
+			uint32 iCharacter;
+			size_t iSize;
+
+			if ( pValue->Value != NULL ) {
+				if ( !xrtValueGetChar(pValue->Value, &iCharacter) ) {
+					break;
+				}
+			} else {
+				iCharacter = (uint32)pValue->Data.Unsigned;
+			}
+			iSize = xrtUtf8Encode(iCharacter, arrText);
+			if ( iSize != 0 ) {
+				return __xrtTemplateEmit(
+					pRender,
+					pNode,
+					(xstrview){ arrText, iSize }
+				);
+			}
+			break;
+		}
 		case XVALUE_STRING:
 			if ( pValue->Value == NULL ) {
 				return __xrtTemplateEmit(
@@ -284394,6 +284614,7 @@ static bool __xrtTemplateRenderOutput(
 	if ( pNode->Output == XTEMPLATE_OUTPUT_NUMBER ) {
 		if ( (Value.Type != XVALUE_INT) &&
 			 (Value.Type != XVALUE_UINT) &&
+			 (Value.Type != XVALUE_CHAR) &&
 			 (Value.Type != XVALUE_FLOAT) ) {
 			__xrtTemplateError(
 				XERR_TYPE,
@@ -285646,6 +285867,7 @@ bool __xrtTemplateEvalTruthy(
 		case XVALUE_BOOL: *pResult = pValue->Data.Bool; break;
 		case XVALUE_INT: *pResult = pValue->Data.Integer != 0; break;
 		case XVALUE_UINT: *pResult = pValue->Data.Unsigned != 0; break;
+		case XVALUE_CHAR: *pResult = pValue->Data.Unsigned != 0; break;
 		case XVALUE_FLOAT: *pResult = pValue->Data.Float != 0.0; break;
 		case XVALUE_STRING:
 		case XVALUE_BYTES: *pResult = pValue->Data.String.Size != 0; break;
@@ -285715,10 +285937,20 @@ static bool __xrtTemplateEvalNumber(
 		pNumber->Value.Signed = pValue->Data.Integer;
 		return true;
 	}
-	if ( pValue->Type == XVALUE_UINT ) {
+	if ( (pValue->Type == XVALUE_UINT) || (pValue->Type == XVALUE_CHAR) ) {
 		pNumber->Kind = XRT_TEMPLATE_NUMBER_UNSIGNED;
 		if ( pValue->Value != NULL ) {
-			return xrtValueGetUInt(pValue->Value, &pNumber->Value.Unsigned);
+			if ( pValue->Type == XVALUE_UINT ) {
+				return xrtValueGetUInt(pValue->Value, &pNumber->Value.Unsigned);
+			} else {
+				uint32 iCharacter;
+
+				if ( !xrtValueGetChar(pValue->Value, &iCharacter) ) {
+					return false;
+				}
+				pNumber->Value.Unsigned = iCharacter;
+				return true;
+			}
 		}
 		pNumber->Value.Unsigned = pValue->Data.Unsigned;
 		return true;
@@ -286898,6 +287130,7 @@ static bool __xrtTemplateCallValue(
 				case XVALUE_BOOL: pValue->Bool = pSource->Data.Bool; break;
 				case XVALUE_INT: pValue->Integer = pSource->Data.Integer; break;
 				case XVALUE_UINT: pValue->Unsigned = pSource->Data.Unsigned; break;
+				case XVALUE_CHAR: pValue->Unsigned = pSource->Data.Unsigned; break;
 				case XVALUE_FLOAT: pValue->Float = pSource->Data.Float; break;
 			case XVALUE_STRING:
 			case XVALUE_BYTES: pValue->Text = pSource->Data.String; break;
@@ -286913,6 +287146,16 @@ static bool __xrtTemplateCallValue(
 			return xrtValueGetInt(pSource->Value, &pValue->Integer);
 		case XVALUE_UINT:
 			return xrtValueGetUInt(pSource->Value, &pValue->Unsigned);
+		case XVALUE_CHAR:
+		{
+			uint32 iCharacter;
+
+			if ( !xrtValueGetChar(pSource->Value, &iCharacter) ) {
+				return false;
+			}
+			pValue->Unsigned = iCharacter;
+			return true;
+		}
 		case XVALUE_FLOAT:
 			return xrtValueGetFloat(pSource->Value, &pValue->Float);
 		case XVALUE_STRING:

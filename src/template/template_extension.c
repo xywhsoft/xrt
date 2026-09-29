@@ -373,6 +373,7 @@ static bool __xrtTemplateCallValue(
 				case XVALUE_BOOL: pValue->Bool = pSource->Data.Bool; break;
 				case XVALUE_INT: pValue->Integer = pSource->Data.Integer; break;
 				case XVALUE_UINT: pValue->Unsigned = pSource->Data.Unsigned; break;
+				case XVALUE_CHAR: pValue->Unsigned = pSource->Data.Unsigned; break;
 				case XVALUE_FLOAT: pValue->Float = pSource->Data.Float; break;
 			case XVALUE_STRING:
 			case XVALUE_BYTES: pValue->Text = pSource->Data.String; break;
@@ -388,6 +389,16 @@ static bool __xrtTemplateCallValue(
 			return xrtValueGetInt(pSource->Value, &pValue->Integer);
 		case XVALUE_UINT:
 			return xrtValueGetUInt(pSource->Value, &pValue->Unsigned);
+		case XVALUE_CHAR:
+		{
+			uint32 iCharacter;
+
+			if ( !xrtValueGetChar(pSource->Value, &iCharacter) ) {
+				return false;
+			}
+			pValue->Unsigned = iCharacter;
+			return true;
+		}
 		case XVALUE_FLOAT:
 			return xrtValueGetFloat(pSource->Value, &pValue->Float);
 		case XVALUE_STRING:

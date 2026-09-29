@@ -1,20 +1,66 @@
 #include <ximap.h>
+#include "../../../xmail/examples/mail_client_setup.h"
 
 
 
-/* 展示 IMAP COMPRESS 的显式配置；真实会话在认证后调用协商函数。 */
-int main(void)
+/* 设置 XIMAP_USER/XIMAP_PASSWORD，连接后认证、可选压缩并只读打开邮箱。 */
+int main(int argc, char** argv)
 {
+	mail_example_net Net;
+	ximapclientconfig Config;
+	ximapauthconfig Auth;
 	ximapcompressconfig Compress;
-
-	xrtImapCompressConfigInit(&Compress);
-	if ( !xrtImapCompressConfigValid(&Compress) ) {
+	ximapmailboxinfo Mailbox;
+	ximapclient* client;
+	const char* user = getenv("XIMAP_USER");
+	const char* secret = getenv("XIMAP_PASSWORD");
+	uint16 port;
+	xdeadline deadline;
+	bool ok;
+	if ( argc == 1 ) {
+		puts("usage: client host port ca.pem mailbox [tls|starttls] (set XIMAP_USER and XIMAP_PASSWORD)");
+		return 0;
+	}
+	if ( (argc != 5 && argc != 6) || user == NULL || secret == NULL ||
+		!mailExamplePort(argv[2], &port) ||
+		(argc == 6 && strcmp(argv[5], "tls") != 0 &&
+		 strcmp(argv[5], "starttls") != 0) ) return 2;
+	if ( !mailExampleNetInit(&Net, argv[3]) ) return 1;
+	deadline = xrtDeadlineAfter(UINT64_C(30000000));
+	xrtImapClientConfigInit(&Config);
+	Config.Net.Engine = Net.Engine;
+	Config.Net.Resolver = Net.Resolver;
+	Config.Net.Host = argv[1];
+	Config.Net.Port = port;
+	Config.Net.Security = argc == 6 && strcmp(argv[5], "tls") == 0 ?
+		XMAIL_SECURITY_TLS : XMAIL_SECURITY_STARTTLS;
+	Config.Net.Tls.Context = Net.Tls;
+	Config.Net.Tls.Verifier = Net.Verifier;
+	client = xrtImapClientOpen(&Config, deadline, NULL);
+	if ( client == NULL ) {
+		mailExampleNetUnit(&Net);
 		return 1;
 	}
+	xrtImapAuthConfigInit(&Auth);
+	Auth.Method = XIMAP_AUTH_PLAIN;
+	Auth.Username = xrtStrView(user);
+	Auth.Secret = xrtStrView(secret);
+	ok = xrtImapClientAuth(client, &Auth, deadline, NULL);
 
-	/*
-		认证后的客户端可直接执行：
-		xrtImapClientCompress(pClient, &Compress, iDeadline, pCancel);
-	*/
-	return 0;
+	xrtImapCompressConfigInit(&Compress);
+	if ( ok &&
+		(xrtImapClientCapabilities(client) & XIMAP_CAP_COMPRESS_DEFLATE) != 0u ) {
+		ok = xrtImapClientCompress(client, &Compress, deadline, NULL);
+	}
+	if ( ok ) {
+		xrtImapMailboxInfoInit(&Mailbox);
+		ok = xrtImapClientExamine(client, xrtStrView(argv[4]),
+			&Mailbox, deadline, NULL);
+		if ( ok ) printf("%s: %llu messages\n", argv[4],
+			(unsigned long long)Mailbox.Exists);
+	}
+	if ( ok ) ok = xrtImapClientLogout(client, deadline, NULL);
+	xrtImapClientDestroy(client);
+	mailExampleNetUnit(&Net);
+	return ok ? 0 : 1;
 }

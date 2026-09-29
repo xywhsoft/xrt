@@ -249,6 +249,23 @@ static bool __xrtXsonMakeEvent(
 		) ) {
 			return false;
 		}
+	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "char", 4u) ) {
+		size_t iRead = 0;
+
+		pEvent->Type = XXSON_EVENT_CHAR;
+		if ( (xrtUtf8Decode(
+			pSource->Value.Tag.Payload,
+			&pEvent->Value.Character,
+			&iRead
+		) != XUTF_OK) || (iRead != pSource->Value.Tag.Payload.Size) ) {
+			__xrtXsonEventError(
+				pSource,
+				XERR_VALUE,
+				XXSON_ERROR_TAG,
+				"char tag requires exactly one Unicode scalar"
+			);
+			return false;
+		}
 	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "time", 4u) ) {
 		pEvent->Type = XXSON_EVENT_TIME;
 		if ( !xrtTimeParseRFC3339(
@@ -544,6 +561,8 @@ static xvalue* __xrtXsonDomScalar(
 			return xrtValueInt(pEvent->Value.Integer);
 		case XXSON_EVENT_UINT:
 			return xrtValueUInt(pEvent->Value.Unsigned);
+		case XXSON_EVENT_CHAR:
+			return xrtValueChar(pEvent->Value.Character);
 		case XXSON_EVENT_FLOAT:
 			return xrtValueFloat(pEvent->Value.Float);
 		case XXSON_EVENT_STRING:

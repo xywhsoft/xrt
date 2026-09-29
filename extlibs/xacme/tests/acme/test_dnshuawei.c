@@ -1,7 +1,10 @@
 #include "../test.h"
 
 #include "../../src/internal/xacme_dnstxt.h"
+#include "../../src/internal/xacme_dns_huawei_internal.h"
 #include <xrt/acme_dns_huawei.h>
+#include <xrt/json.h>
+#include <xrt/value.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +19,37 @@
 
 int main(void)
 {
+	{
+		xbuffer Body;
+		xvalue* pRoot;
+		xvalue* pName;
+		xvalue* pRecords;
+		xvalue* pValue;
+		xstrview Text;
+		xrtBufferInit(&Body);
+		testRequire(xacmeDnsHuaweiBuildCreateBody(&Body,
+			XRT_STR_LITERAL("_acme-challenge.example.com"),
+			XRT_STR_LITERAL("abc-_123")),
+			"acme dns_huawei create body build failed");
+		pRoot = xrtJsonParse((xstrview){ (cstr)Body.Data, Body.Size });
+		testRequire(pRoot != NULL && xrtValueIs(pRoot, XVALUE_OBJECT),
+			"acme dns_huawei create body must be valid JSON");
+		pName = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("name"));
+		testRequire(pName != NULL && xrtValueGetString(pName, &Text) &&
+			Text.Size == strlen("_acme-challenge.example.com.") &&
+			memcmp(Text.Data, "_acme-challenge.example.com.", Text.Size) == 0,
+			"acme dns_huawei create name must include terminal dot");
+		pRecords = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("records"));
+		pValue = (pRecords != NULL && xrtValueIs(pRecords, XVALUE_ARRAY) &&
+			xrtValueCount(pRecords) == 1u) ?
+			xrtValueArrayGet(pRecords, 0u) : NULL;
+		testRequire(pValue != NULL && xrtValueGetString(pValue, &Text) &&
+			Text.Size == strlen("\"abc-_123\"") &&
+			memcmp(Text.Data, "\"abc-_123\"", Text.Size) == 0,
+			"acme dns_huawei create TXT must be quoted");
+		xrtValueRelease(pRoot);
+		xrtBufferUnit(&Body);
+	}
 	const char* sAk = getenv("XACME_HUAWEI_AK");
 	const char* sSk = getenv("XACME_HUAWEI_SK");
 	const char* sFqdnEnv = getenv("XACME_HUAWEI_FQDN");
@@ -37,6 +71,32 @@ int main(void)
 				(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
 			"acme dns_huawei missing secret mismatch"
 		);
+	}
+	{
+		char sTooLong[256];
+		xacmednshuaaweiconfig Bad;
+		xacmednsprovider BadProvider;
+		memset(sTooLong, 'x', sizeof(sTooLong) - 1u);
+		sTooLong[sizeof(sTooLong) - 1u] = '\0';
+		xrtAcmeDnsHuaweiConfigInit(&Bad);
+		Bad.sAccessKey = sTooLong;
+		Bad.sSecretKey = "key";
+		xrtClearError();
+		testRequire(!xrtAcmeDnsHuawei(&Bad, NULL, &BadProvider) &&
+			xrtErrorKind(xrtGetError()) == XERR_RANGE,
+			"acme dns_huawei must reject truncated access key");
+		Bad.sAccessKey = "ak";
+		Bad.sSecretKey = sTooLong;
+		xrtClearError();
+		testRequire(!xrtAcmeDnsHuawei(&Bad, NULL, &BadProvider) &&
+			xrtErrorKind(xrtGetError()) == XERR_RANGE,
+			"acme dns_huawei must reject truncated secret key");
+		Bad.sSecretKey = "key";
+		Bad.sEndpoint = sTooLong;
+		xrtClearError();
+		testRequire(!xrtAcmeDnsHuawei(&Bad, NULL, &BadProvider) &&
+			xrtErrorKind(xrtGetError()) == XERR_RANGE,
+			"acme dns_huawei must reject truncated endpoint");
 	}
 
 	if((sAk == NULL) || (sAk[0] == '\0') || (sSk == NULL) ||

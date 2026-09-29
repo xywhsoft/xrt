@@ -819,6 +819,11 @@ void xrtFileOptionsInit(xfileoptions* pOptions);
 xfile xrtFileOpen(cstr sPath, const xfileoptions* pOptions);
 ```
 
+路径转换和文件对象分配在系统打开调用前完成；这些内存分配失败时，不创建新文件，
+也不截断已有文件。该保证同样适用于 `xrtOpen`、`xrtFileTemp` 和
+`xrtRootFileOpen` 的对象分配路径。
+这不是任意系统错误的文件事务承诺；需保护已有内容的高层写入仍应采用临时文件提交。
+
 #### 参数
 
 | 参数 | 方向 | 约束 | 说明 |
@@ -4340,6 +4345,9 @@ intptr_t xrtRootNative(xroot Root);
 ### `xrtRootFileOpen`
 
 在根内使用完整文件选项打开普通文件。
+
+解析路径和预分配文件对象在最后的系统打开前完成；对象分配失败不会创建文件或
+截断已有目标。符号链接仍受根目录范围和打开标志约束，不回退到拼接绝对路径。
 
 ```c
 xfile xrtRootFileOpen(xroot Root, cstr sPath,

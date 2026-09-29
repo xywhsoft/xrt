@@ -6,7 +6,7 @@
 
 #include <xrt/acme_dns.h>
 
-#if defined(XACME_FEATURE_DNS_ALI) && \
+#if defined(XACME_FEATURE_DNS_ALI) && (\
 	!defined(XACME_FEATURE_ACME_DNS) || \
 	!defined(XACME_FEATURE_ACME_HTTP) || \
 	!defined(XRT_FEATURE_JSON) || \
@@ -14,7 +14,7 @@
 	!defined(XRT_FEATURE_CRYPTO_SHA256) || \
 	!defined(XRT_FEATURE_CRYPTO_HMAC_SHA256) || \
 	!defined(XRT_FEATURE_TIME) || \
-	!defined(XRT_FEATURE_BUFFER)
+	!defined(XRT_FEATURE_BUFFER))
 	#error "XACME_FEATURE_DNS_ALI requires acme dns, acme http transport and signing primitives"
 #endif
 
@@ -24,8 +24,9 @@
 
 /*
 	阿里云 DNS（alidns）provider，走 V3 签名（ACS3-HMAC-SHA256）。
-	Endpoint 默认 alidns.aliyuncs.com；凭据与 Endpoint 均为借用视图，
-	宿主保证存活至 Remove 完成。传播确认由签发流程层统一负责
+	Endpoint 默认 alidns.aliyuncs.com；构造时复制凭据和 Endpoint，
+	三者各自必须短于 160 字节，超长直接拒绝。Add 接受 ASCII DNS-01
+	属主和未填充的 base64url 摘要。传播确认由签发流程层统一负责
 	（provider 只做 Add/Remove）。
 */
 typedef struct xacmednaliconfig {

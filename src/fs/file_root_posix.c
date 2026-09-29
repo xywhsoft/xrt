@@ -148,6 +148,7 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 	int iFlags = __xrtFilePosixFlags(pOptions->Flags);
 	int hFile;
 	struct stat Info;
+	xfile File;
 
 	#if defined(O_NOFOLLOW)
 		iFlags |= O_NOFOLLOW;
@@ -156,6 +157,10 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			"open-file", "the platform cannot open files without following links");
 		return XROOT_STEP_ERROR;
 	#endif
+	File = __xrtFileAlloc();
+	if ( File == NULL ) {
+		return XROOT_STEP_ERROR;
+	}
 	hFile = __xrtFilePosixOpenAt(Parent, sName,
 		iFlags, pOptions->Mode);
 	if ( hFile < 0 ) {
@@ -164,6 +169,7 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			(XFILE_CREATE | XFILE_EXCLUSIVE)) ==
 			(XFILE_CREATE | XFILE_EXCLUSIVE);
 
+		xrtFree(File);
 		if ( ((iCode == ELOOP) || (iCode == ENOTDIR)) &&
 			 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 			 !bExclusive ) {
@@ -185,6 +191,7 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			int iCode = errno;
 
 			(void)close(hFile);
+			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to inspect the root-relative file", iCode);
 			return XROOT_STEP_ERROR;
@@ -192,12 +199,15 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 	}
 	if ( S_ISDIR(Info.st_mode) ) {
 		(void)close(hFile);
+		xrtFree(File);
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
 			"the root-relative path is a directory");
 		return XROOT_STEP_ERROR;
 	}
-	*pFile = __xrtFileTakeNative((intptr_t)hFile, pOptions->Flags);
-	return *pFile != NULL ? XROOT_STEP_DONE : XROOT_STEP_ERROR;
+	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1,
+		pOptions->Flags);
+	*pFile = File;
+	return XROOT_STEP_DONE;
 }
 
 

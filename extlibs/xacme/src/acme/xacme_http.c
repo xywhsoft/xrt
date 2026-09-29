@@ -29,6 +29,7 @@
 	全部尝试失败时保留首个根因。
 */
 #define XACME_HTTP_RETRY_MAX 3u
+#define XACME_HTTP_MAX_RESPONSE_BODY (4u * 1024u * 1024u)
 
 static bool xacmeHttpErrorRetryable(void)
 {
@@ -752,6 +753,7 @@ static bool xacmeHttpExchangeOnce(
 		goto Done;
 	}
 	xrtHttp1BodyLimitsInit(&BodyLimits);
+	BodyLimits.MaxBody = XACME_HTTP_MAX_RESPONSE_BODY;
 	if(!xrtHttp1BodyInit(&Body, &Plan, NULL, 0u, &BodyLimits))
 	{
 		goto Done;

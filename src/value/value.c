@@ -428,7 +428,7 @@ xvalue* __xrtValueCreate(xvaluetype Type)
 {
 	xvalue* pValue;
 
-	if ( (Type <= XVALUE_INVALID) || (Type > XVALUE_UINT) ) {
+	if ( (Type <= XVALUE_INVALID) || (Type > XVALUE_CHAR) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -487,6 +487,25 @@ XRT_API xvalue* xrtValueUInt(uint64 iValue)
 {
 	xvalue* pValue = __xrtValueCreate(XVALUE_UINT);
 
+	if ( pValue != NULL ) {
+		pValue->Data.UInt = iValue;
+	}
+	return pValue;
+}
+
+
+
+/* 创建经过标量范围验证的字符值。 */
+XRT_API xvalue* xrtValueChar(uint32 iValue)
+{
+	xvalue* pValue;
+
+	if ( (iValue > UINT32_C(0x10FFFF)) ||
+		 ((iValue >= UINT32_C(0xD800)) && (iValue <= UINT32_C(0xDFFF))) ) {
+		__xrtErrorSetValue();
+		return NULL;
+	}
+	pValue = __xrtValueCreate(XVALUE_CHAR);
 	if ( pValue != NULL ) {
 		pValue->Data.UInt = iValue;
 	}
@@ -1229,6 +1248,7 @@ XRT_API cstr xrtValueTypeName(xvaluetype Type)
 		case XVALUE_SET: return "set";
 		case XVALUE_OBJECT: return "object";
 		case XVALUE_UINT: return "uint";
+		case XVALUE_CHAR: return "char";
 		case XVALUE_INVALID:
 		default:
 			return "invalid";
@@ -1263,6 +1283,7 @@ XRT_API bool xrtValueIsNumber(const xvalue* pValue)
 		return false;
 	}
 	return (pValue->Type == XVALUE_INT) || (pValue->Type == XVALUE_UINT) ||
+		(pValue->Type == XVALUE_CHAR) ||
 		(pValue->Type == XVALUE_FLOAT);
 }
 
@@ -1299,6 +1320,7 @@ XRT_API bool xrtValueTruthy(const xvalue* pValue)
 		case XVALUE_INT:
 			return pValue->Data.Int != 0;
 		case XVALUE_UINT:
+		case XVALUE_CHAR:
 			return pValue->Data.UInt != 0;
 		case XVALUE_FLOAT:
 			return pValue->Data.Float != 0.0;
@@ -1373,6 +1395,23 @@ XRT_API bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult)
 		return false;
 	}
 	*pResult = pValue->Data.UInt;
+	return true;
+}
+
+
+
+/* 精确读取字符标量。 */
+XRT_API bool xrtValueGetChar(const xvalue* pValue, uint32* pResult)
+{
+	if ( !__xrtValueGetValid(
+		pValue,
+		XVALUE_CHAR,
+		pResult,
+		sizeof(*pResult)
+	) ) {
+		return false;
+	}
+	*pResult = (uint32)pValue->Data.UInt;
 	return true;
 }
 
@@ -1579,6 +1618,9 @@ uint64 __xrtValueHashKnown(const xvalue* pValue)
 			return pValue->Data.UInt <= (uint64)INT64_MAX
 				? __xrtValueTaggedHash(XVALUE_INT, pValue->Data.UInt)
 				: __xrtValueTaggedHash(XVALUE_UINT, pValue->Data.UInt);
+		case XVALUE_CHAR:
+			/* Character/integer equality requires the same canonical hash. */
+			return __xrtValueTaggedHash(XVALUE_INT, pValue->Data.UInt);
 		case XVALUE_FLOAT:
 			if ( __xrtValueFloatToInt(pValue->Data.Float, &iInteger) ) {
 				return __xrtValueTaggedHash(XVALUE_INT, (uint64)iInteger);
@@ -1629,34 +1671,38 @@ static bool __xrtValueNumberEqual(const xvalue* pLeft, const xvalue* pRight)
 {
 	int64 iInteger;
 	uint64 iUnsigned;
+	bool bLeftUnsigned =
+		(pLeft->Type == XVALUE_UINT) || (pLeft->Type == XVALUE_CHAR);
+	bool bRightUnsigned =
+		(pRight->Type == XVALUE_UINT) || (pRight->Type == XVALUE_CHAR);
 
 	if ( (pLeft->Type == XVALUE_INT) && (pRight->Type == XVALUE_INT) ) {
 		return pLeft->Data.Int == pRight->Data.Int;
 	}
-	if ( (pLeft->Type == XVALUE_UINT) && (pRight->Type == XVALUE_UINT) ) {
+	if ( bLeftUnsigned && bRightUnsigned ) {
 		return pLeft->Data.UInt == pRight->Data.UInt;
 	}
 	if ( (pLeft->Type == XVALUE_FLOAT) && (pRight->Type == XVALUE_FLOAT) ) {
 		return (pLeft->Data.Float == pRight->Data.Float) ||
 			(isnan(pLeft->Data.Float) && isnan(pRight->Data.Float));
 	}
-	if ( (pLeft->Type == XVALUE_INT) && (pRight->Type == XVALUE_UINT) ) {
+	if ( (pLeft->Type == XVALUE_INT) && bRightUnsigned ) {
 		return pLeft->Data.Int >= 0 &&
 			(uint64)pLeft->Data.Int == pRight->Data.UInt;
 	}
-	if ( (pLeft->Type == XVALUE_UINT) && (pRight->Type == XVALUE_INT) ) {
+	if ( bLeftUnsigned && (pRight->Type == XVALUE_INT) ) {
 		return pRight->Data.Int >= 0 &&
 			pLeft->Data.UInt == (uint64)pRight->Data.Int;
 	}
 	if ( pLeft->Type == XVALUE_FLOAT ) {
-		if ( pRight->Type == XVALUE_UINT ) {
+		if ( bRightUnsigned ) {
 			return __xrtValueFloatToUInt(pLeft->Data.Float, &iUnsigned) &&
 				iUnsigned == pRight->Data.UInt;
 		}
 		return __xrtValueFloatToInt(pLeft->Data.Float, &iInteger) &&
 			iInteger == pRight->Data.Int;
 	}
-	if ( pLeft->Type == XVALUE_UINT ) {
+	if ( bLeftUnsigned ) {
 		return __xrtValueFloatToUInt(pRight->Data.Float, &iUnsigned) &&
 			pLeft->Data.UInt == iUnsigned;
 	}
@@ -1686,8 +1732,10 @@ bool __xrtValueEqualKnown(const xvalue* pLeft, const xvalue* pRight)
 			);
 	}
 	if ( ((pLeft->Type == XVALUE_INT) || (pLeft->Type == XVALUE_UINT) ||
+		  (pLeft->Type == XVALUE_CHAR) ||
 		  (pLeft->Type == XVALUE_FLOAT)) &&
 		 ((pRight->Type == XVALUE_INT) || (pRight->Type == XVALUE_UINT) ||
+		  (pRight->Type == XVALUE_CHAR) ||
 		  (pRight->Type == XVALUE_FLOAT)) ) {
 		return __xrtValueNumberEqual(pLeft, pRight);
 	}

@@ -924,19 +924,6 @@
 #endif
 #endif
 
-/* dir_temp 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_DIR_TEMP)
-#ifndef XRT_FEATURE_DIR_TEMP
-#define XRT_FEATURE_DIR_TEMP
-#endif
-#ifndef XRT_MODULE_DIR
-#define XRT_MODULE_DIR
-#endif
-#ifndef XRT_MODULE_FILE_TEMP
-#define XRT_MODULE_FILE_TEMP
-#endif
-#endif
-
 /* file_text 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_TEXT)
 #ifndef XRT_FEATURE_FILE_TEXT
@@ -1035,6 +1022,19 @@
 #endif
 #ifndef XRT_MODULE_FILE_ASYNC_COMMON
 #define XRT_MODULE_FILE_ASYNC_COMMON
+#endif
+#endif
+
+/* dir_temp 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_DIR_TEMP)
+#ifndef XRT_FEATURE_DIR_TEMP
+#define XRT_FEATURE_DIR_TEMP
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#ifndef XRT_MODULE_FILE_TEMP
+#define XRT_MODULE_FILE_TEMP
 #endif
 #endif
 

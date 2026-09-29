@@ -48,6 +48,35 @@ struct xfile_impl {
 
 
 
+/* 普通路径和根内路径都在系统创建/截断前准备对象。 */
+xfile __xrtFileAlloc(void)
+{
+	return (xfile)xrtMalloc(sizeof(struct xfile_impl));
+}
+
+
+
+/* 句柄接管本身不再分配，成功打开之后不能再因包装对象 OOM 返回失败。 */
+void __xrtFileInitNativePair(xfile File,
+	intptr_t iHandle, intptr_t iControl, uint32 iFlags)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		File->Handle = (HANDLE)iHandle;
+		File->Control = (HANDLE)iControl;
+		InitializeSRWLock(&File->CursorLock);
+	#else
+		File->Handle = (int)iHandle;
+		(void)iControl;
+	#endif
+	File->Flags = iFlags;
+	#if defined(XRT_FEATURE_NET_FILE)
+		xrtAtomic64Init(&File->AsyncOwner, 0);
+		File->AsyncAssociated = false;
+	#endif
+}
+
+
+
 /* 设置带显式错误类别和系统代码的文件错误。 */
 void __xrtFileSetKindError(xerrkind Kind, xfileerror Code,
 	cstr sOperation, cstr sMessage, int iSystemCode)
@@ -236,6 +265,11 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 	if ( pPath == NULL ) {
 		return NULL;
 	}
+	File = __xrtFileAlloc();
+	if ( File == NULL ) {
+		xrtFree(pPath);
+		return NULL;
+	}
 	if ( (pOptions->Share & XFILE_SHARE_READ) != 0u ) {
 		iShare |= FILE_SHARE_READ;
 	}
@@ -260,6 +294,7 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 	if ( hFile == INVALID_HANDLE_VALUE ) {
 		int iCode = (int)GetLastError();
 
+		xrtFree(File);
 		xrtFree(pPath);
 		__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 			"failed to open the file", iCode);
@@ -270,13 +305,14 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 		int iCode = (int)GetLastError();
 
 		(void)CloseHandle(hFile);
+		xrtFree(File);
 		xrtFree(pPath);
 		__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 			"failed to restrict the append file handle", iCode);
 		return NULL;
 	}
 	xrtFree(pPath);
-	File = __xrtFileTakeNativePair((intptr_t)hFile,
+	__xrtFileInitNativePair(File, (intptr_t)hFile,
 		(intptr_t)hControl, pOptions->Flags);
 	return File;
 }
@@ -387,11 +423,16 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 			return NULL;
 		}
 	#endif
+	File = __xrtFileAlloc();
+	if ( File == NULL ) {
+		return NULL;
+	}
 	hFile = __xrtFilePosixOpenAt(AT_FDCWD, sPath,
 		__xrtFilePosixFlags(pOptions->Flags), pOptions->Mode);
 	if ( hFile < 0 ) {
 		int iCode = errno;
 
+		xrtFree(File);
 		__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 			"failed to open the file", iCode);
 		return NULL;
@@ -406,6 +447,7 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 			int iCode = errno;
 
 			(void)close(hFile);
+			xrtFree(File);
 			__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 				"failed to inspect the opened file", iCode);
 			return NULL;
@@ -413,58 +455,17 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 	}
 	if ( S_ISDIR(Info.st_mode) ) {
 		(void)close(hFile);
+		xrtFree(File);
 		__xrtFileSetError(XFILE_ERROR_OPEN, "open",
 			"the path is a directory", EISDIR);
 		return NULL;
 	}
-	File = __xrtFileTakeNative((intptr_t)hFile, pOptions->Flags);
+	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1,
+		pOptions->Flags);
 	return File;
 }
 
 #endif
-
-
-
-/* 接管数据句柄和可选控制句柄并创建文件对象。 */
-xfile __xrtFileTakeNativePair(intptr_t iHandle,
-	intptr_t iControl, uint32 iFlags)
-{
-	xfile File = (xfile)xrtMalloc(sizeof(*File));
-
-	if ( File == NULL ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			(void)CloseHandle((HANDLE)iHandle);
-			if ( (HANDLE)iControl != INVALID_HANDLE_VALUE ) {
-				(void)CloseHandle((HANDLE)iControl);
-			}
-		#else
-			(void)close((int)iHandle);
-			(void)iControl;
-		#endif
-		return NULL;
-	}
-	#if defined(_WIN32) || defined(_WIN64)
-		File->Handle = (HANDLE)iHandle;
-		File->Control = (HANDLE)iControl;
-		InitializeSRWLock(&File->CursorLock);
-	#else
-		File->Handle = (int)iHandle;
-	#endif
-	File->Flags = iFlags;
-	#if defined(XRT_FEATURE_NET_FILE)
-		xrtAtomic64Init(&File->AsyncOwner, 0);
-		File->AsyncAssociated = false;
-	#endif
-	return File;
-}
-
-
-
-/* 接管单个原生句柄并创建普通文件对象。 */
-xfile __xrtFileTakeNative(intptr_t iHandle, uint32 iFlags)
-{
-	return __xrtFileTakeNativePair(iHandle, (intptr_t)-1, iFlags);
-}
 
 
 

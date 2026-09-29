@@ -52,10 +52,11 @@ static __xpop3authnext __xrtPop3AuthNext(
 	if ( __xrtPop3AuthStatus(Line, XRT_STR_LITERAL("+OK")) ||
 		__xrtPop3AuthStatus(Line, XRT_STR_LITERAL("-ERR")) ) {
 		if ( !__xrtPop3ClientReplySave(pClient, Line, &Reply) ) {
-			(void)__xrtPop3AuthError(
-				XERR_PROTOCOL,
-				"invalid POP3 AUTH final response"
-			);
+			if ( xrtErrorKind(xrtGetError()) != XERR_MEMORY )
+				(void)__xrtPop3AuthError(
+					XERR_PROTOCOL,
+					"invalid POP3 AUTH final response"
+				);
 			(void)__xrtPop3ClientFail(pClient);
 			return __XPOP3_AUTH_ERROR;
 		}

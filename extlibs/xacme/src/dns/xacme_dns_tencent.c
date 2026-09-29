@@ -3,10 +3,12 @@
 #if defined(XACME_FEATURE_DNS_TENCENT)
 
 #include "../internal/xacme_dnscommon.h"
+#include "../internal/xacme_dns_tencent_internal.h"
 #include "../internal/xacme_http.h"
 #include "../internal/xacme_sigv4.h"
 
 #include <xrt/buffer.h>
+#include <xrt/memory.h>
 #include <xrt/time.h>
 
 #include <stdlib.h>
@@ -147,6 +149,22 @@ static xvalue* xacmeTencentResponse(str sBody)
 	return pRoot; /* 调用方经 Root 再取 Response 并释放 Root。 */
 }
 
+bool xacmeDnsTencentResponseSuccess(xstrview sBody)
+{
+	xvalue* pRoot;
+	xvalue* pResponse;
+	bool bOk;
+	if((sBody.Data == NULL) || (sBody.Size == 0u))
+		return false;
+	pRoot = xrtJsonParse(sBody);
+	pResponse = (pRoot != NULL) ?
+		xrtValueObjectGet(pRoot, XRT_STR_LITERAL("Response")) : NULL;
+	bOk = (pResponse != NULL) && xrtValueIs(pResponse, XVALUE_OBJECT) &&
+		(xrtValueObjectGet(pResponse, XRT_STR_LITERAL("Error")) == NULL);
+	xrtValueRelease(pRoot);
+	return bOk;
+}
+
 static bool xacmeTencentAdd(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
@@ -163,19 +181,31 @@ static bool xacmeTencentAdd(
 	xvalue* pRoot;
 	xvalue* pResponse;
 	bool bOk = false;
+	bool bTracked = false;
 
-	if((sFqdn.Size >= sizeof(sFqdnText)) || (sTxt.Size > 200u) ||
-		!xacmeDnsSplit((cstr)sFqdn.Data, sRr, sizeof(sRr), sZoneStart,
-			sizeof(sZoneStart)))
+	if(!xacmeDnsChallengeValid(sFqdn, sTxt))
 	{
+		xrtSetErrorInfo(XERR_ARGUMENT, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"acme dns_tencent owner or digest is invalid");
+		return false;
+	}
+	if(!xacmeDnsRecordCanAdd(&pCtx->Records))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_ARGUMENT,
+			"acme dns_tencent record tracking capacity exhausted");
 		return false;
 	}
 	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
 	sFqdnText[sFqdn.Size] = '\0';
 	memcpy(sTxtText, sTxt.Data, sTxt.Size);
 	sTxtText[sTxt.Size] = '\0';
+	if(!xacmeDnsSplit(sFqdnText, sRr, sizeof(sRr), sZoneStart,
+			sizeof(sZoneStart)))
+		return false;
 
-	/* zone 逐级上探：DescribeRecordList 2xx 即该 zone 存在。 */
+	/* zone 逐级上探：HTTP 2xx 且 Response 无 Error 才算存在。 */
 	{
 		const char* sCached = xacmeDnsZoneMatch(&pCtx->Zones, sFqdnText);
 		if(sCached != NULL)
@@ -204,12 +234,18 @@ static bool xacmeTencentAdd(
 				{
 					return false;
 				}
-				xrtFree(sResp);
-				sResp = NULL;
-				if((iStatus >= 200u) && (iStatus < 300u))
 				{
-					xacmeDnsZoneRemember(&pCtx->Zones, sZone);
-					break;
+					bool bZoneFound = (iStatus >= 200u) &&
+						(iStatus < 300u) && (sResp != NULL) &&
+						xacmeDnsTencentResponseSuccess((xstrview){
+							sResp, strlen(sResp) });
+					xrtFree(sResp);
+					sResp = NULL;
+					if(bZoneFound)
+					{
+						xacmeDnsZoneRemember(&pCtx->Zones, sZone);
+						break;
+					}
 				}
 				{
 					char* sDot = strchr(sZone, '.');
@@ -277,16 +313,58 @@ static bool xacmeTencentAdd(
 			int64 iId = 0;
 			if(xrtValueGetInt(pMember, &iId))
 			{
-				char sHandle[64];
-				snprintf(sHandle, sizeof(sHandle), "%.20s|%lld", sZone,
-					(long long)iId);
-				xacmeDnsRecordRemember(&pCtx->Records, sHandle);
+				char sIdText[32];
+				if(iId > 0)
+				{
+					snprintf(sIdText, sizeof(sIdText), "%lld",
+						(long long)iId);
+					bTracked = xacmeDnsRecordRememberPair(
+						&pCtx->Records, sZone, '|', sIdText,
+						sFqdn, sTxt);
+				}
 			}
 		}
 		xrtValueRelease(pRoot);
 	}
 	xrtFree(sResp);
-	return true;
+	if(!bTracked)
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL,
+			"acme dns_tencent create response lacks a usable record id");
+	return bTracked;
+}
+
+static bool xacmeTencentDeleteRecord(void* pContext, cstr sId)
+{
+	xacmednstencentcontext* pCtx = (xacmednstencentcontext*)pContext;
+	char sZone[256];
+	char sRecordId[32];
+	xbuffer Body;
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	bool bOk = false;
+	if(!xacmeDnsRecordSplit(sId, '|', sZone, sizeof(sZone),
+			sRecordId, sizeof(sRecordId)))
+		return false;
+	xrtBufferInit(&Body);
+	if(xrtBufferAppend(&Body, XRT_BYTES_LITERAL("{\"Domain\":")) &&
+		xacmeDnsJsonQuote(&Body, (xstrview){ sZone, strlen(sZone) }) &&
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"RecordId\":")) &&
+		xrtBufferAppend(&Body,
+			(xbytesview){ (const uint8*)sRecordId, strlen(sRecordId) }) &&
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL("}")))
+	{
+		bOk = xacmeTencentCall(pCtx, "DeleteRecord", (cstr)Body.Data,
+			&iStatus, &sResp) && (iStatus >= 200u) && (iStatus < 300u) &&
+			(sResp != NULL) && xacmeDnsTencentResponseSuccess(
+				(xstrview){ sResp, strlen(sResp) });
+	}
+	xrtBufferUnit(&Body);
+	xrtFree(sResp);
+	if(!bOk && xrtErrorKind(xrtGetError()) == XERR_NONE)
+		xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
+			XACME_DNS_ERROR_PROTOCOL, "acme dns_tencent record deletion failed");
+	return bOk;
 }
 
 static bool xacmeTencentRemove(
@@ -294,55 +372,8 @@ static bool xacmeTencentRemove(
 {
 	xacmednstencentcontext* pCtx =
 		(xacmednstencentcontext*)pProvider->pContext;
-	size_t i;
-	bool bAnyOk = false;
-	(void)sTxt;
-	for(i = 0; i < pCtx->Records.iCount; i++)
-	{
-		char sZone[256];
-		char sRecordId[32];
-		xbuffer Body;
-		uint16 iStatus = 0u;
-		str sResp = NULL;
-		const char* sBar;
-		if(pCtx->Records.sIds[i][0] == '\0')
-		{
-			continue;
-		}
-		sBar = strchr(pCtx->Records.sIds[i], '|');
-		if((sBar == NULL) ||
-			((size_t)(sBar - pCtx->Records.sIds[i]) >= sizeof(sZone)) ||
-			(strlen(sBar + 1) >= sizeof(sRecordId)))
-		{
-			continue;
-		}
-		memcpy(sZone, pCtx->Records.sIds[i],
-			(size_t)(sBar - pCtx->Records.sIds[i]));
-		sZone[sBar - pCtx->Records.sIds[i]] = '\0';
-		snprintf(sRecordId, sizeof(sRecordId), "%s", sBar + 1);
-		xrtBufferInit(&Body);
-		if(xrtBufferAppend(&Body, XRT_BYTES_LITERAL("{\"Domain\":")) &&
-			xacmeDnsJsonQuote(&Body, (xstrview){ sZone, strlen(sZone) }) &&
-			xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"RecordId\":")) &&
-			xrtBufferAppend(&Body,
-				(xbytesview){ (const uint8*)sRecordId,
-					strlen(sRecordId) }) &&
-			xrtBufferAppend(&Body, XRT_BYTES_LITERAL("}")))
-		{
-			if(xacmeTencentCall(pCtx, "DeleteRecord", (cstr)Body.Data,
-					&iStatus, &sResp) &&
-				(((iStatus >= 200u) && (iStatus < 300u)) ||
-					(iStatus == 400u)))
-			{
-				bAnyOk = true;
-				pCtx->Records.sIds[i][0] = '\0';
-			}
-		}
-		xrtBufferUnit(&Body);
-		xrtFree(sResp);
-	}
-	(void)sFqdn;
-	return bAnyOk || (pCtx->Records.iCount == 0u);
+	return xacmeDnsRecordRemoveMatching(&pCtx->Records, sFqdn, sTxt,
+		xacmeTencentDeleteRecord, pCtx);
 }
 
 void xrtAcmeDnsTencentConfigInit(xacmednstencentconfig* pConfig)
@@ -371,6 +402,16 @@ bool xrtAcmeDnsTencent(
 			"acme dns_tencent requires secret id and key");
 		return false;
 	}
+	if(strlen(pConfig->sSecretId) >= sizeof(pCtx->sId) ||
+		strlen(pConfig->sSecretKey) >= sizeof(pCtx->sKey) ||
+		((pConfig->sEndpoint != NULL) &&
+		 strlen(pConfig->sEndpoint) >= sizeof(pCtx->sEndpoint)))
+	{
+		xrtSetErrorInfo(XERR_RANGE, "xrt.acme.dns",
+			XACME_DNS_ERROR_CREDENTIAL,
+			"acme dns_tencent credentials or endpoint exceed capacity");
+		return false;
+	}
 	pCtx = (xacmednstencentcontext*)xrtCalloc(1, sizeof(*pCtx));
 	if(pCtx == NULL)
 	{
@@ -384,6 +425,7 @@ bool xrtAcmeDnsTencent(
 	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
 	{
 		xacmeHttpUnit(&pCtx->Http);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		return false;
 	}
@@ -403,6 +445,7 @@ void xrtAcmeDnsTencentProviderUnit(xacmednsprovider* pProvider)
 		xacmednstencentcontext* pCtx =
 			(xacmednstencentcontext*)pProvider->pContext;
 		xacmeHttpUnit(&pCtx->Http);
+		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		pProvider->pContext = NULL;
 	}

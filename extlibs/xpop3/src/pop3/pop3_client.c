@@ -753,8 +753,13 @@ XRT_API bool xrtPop3ClientStat(
 		) ) {
 		return false;
 	}
-	return Reply.Ok ? xrtPop3StatParse(Reply.Source, pStat) :
-		__xrtPop3ClientRejected();
+	if ( !Reply.Ok ) {
+		return __xrtPop3ClientRejected();
+	}
+	if ( !xrtPop3StatParse(Reply.Source, pStat) ) {
+		return __xrtPop3ClientFail(pClient);
+	}
+	return true;
 }
 
 
@@ -788,8 +793,13 @@ XRT_API bool xrtPop3ClientList(
 		) ) {
 		return false;
 	}
-	return Reply.Ok ? xrtPop3ListParse(Reply.Text, pItem) :
-		__xrtPop3ClientRejected();
+	if ( !Reply.Ok ) {
+		return __xrtPop3ClientRejected();
+	}
+	if ( !xrtPop3ListParse(Reply.Text, pItem) ) {
+		return __xrtPop3ClientFail(pClient);
+	}
+	return true;
 }
 
 
@@ -841,8 +851,13 @@ XRT_API bool xrtPop3ClientUidl(
 		) ) {
 		return false;
 	}
-	return Reply.Ok ? xrtPop3UidlParse(Reply.Text, pItem) :
-		__xrtPop3ClientRejected();
+	if ( !Reply.Ok ) {
+		return __xrtPop3ClientRejected();
+	}
+	if ( !xrtPop3UidlParse(Reply.Text, pItem) ) {
+		return __xrtPop3ClientFail(pClient);
+	}
+	return true;
 }
 
 

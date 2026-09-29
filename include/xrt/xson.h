@@ -212,7 +212,9 @@ typedef enum xxsoneventtype {
 	XXSON_EVENT_SET_END,
 	XXSON_EVENT_OBJECT_BEGIN,
 	XXSON_EVENT_OBJECT_END,
-	XXSON_EVENT_UINT
+	XXSON_EVENT_UINT,
+	/* Appended to preserve the numeric identity of published event kinds. */
+	XXSON_EVENT_CHAR
 } xxsoneventtype;
 
 
@@ -254,6 +256,7 @@ typedef struct xxsonevent {
 		bool Boolean;
 		int64 Integer;
 		uint64 Unsigned;
+		uint32 Character;
 		double Float;
 		xstrview String;
 		xbytesview Bytes;
@@ -474,6 +477,11 @@ XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
 
 /* 写入 uint64。 */
 XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
+
+
+
+/* 写入保留字符身份的 Unicode 标量标签。 */
+XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue);
 
 
 

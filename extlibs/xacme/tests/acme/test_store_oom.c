@@ -73,7 +73,8 @@ static bool testListRun(void)
 	return xrtAcmeStoreListDomains(g_sRoot, sDomains, 4u, &iCount);
 }
 
-static void testSweepStore(cstr sName, bool (*fn)(void))
+static void testSweepStore(cstr sName, bool (*fn)(void),
+	cstr sKeyBeforeCommit)
 {
 	uint64 i = 0u;
 	size_t iCovered = 0u;
@@ -95,6 +96,15 @@ static void testSweepStore(cstr sName, bool (*fn)(void))
 		}
 		xrtMemDebugFailClear();
 		xrtClearError();
+		if(!bRecovered && sKeyBeforeCommit != NULL)
+		{
+			xacmeissuegrant Current;
+			testRequire(xrtAcmeStoreLoadGrant(
+				g_sRoot, "oom.example.com", &Current) &&
+				strcmp(Current.sKeyPem, sKeyBeforeCommit) == 0,
+				"store oom published a partial grant");
+			xrtAcmeGrantUnit(&Current);
+		}
 		testStoreNoLive("store oom leaked storage");
 		if(bRecovered)
 		{
@@ -140,11 +150,12 @@ int main(void)
 	testRequire(testSaveGrantRun(), "store oom baseline grant failed");
 	testStoreNoLive("store oom baseline live");
 
-	testSweepStore("account save", testSaveAccountRun);
-	testSweepStore("grant save", testSaveGrantRun);
-	testSweepStore("grant load", testLoadGrantRun);
-	testSweepStore("need renew", testNeedRenewRun);
-	testSweepStore("list domains", testListRun);
+	testSweepStore("account save", testSaveAccountRun, NULL);
+	g_sKey = "-----BEGIN PRIVATE KEY-----\nreplacement\n-----END PRIVATE KEY-----\n";
+	testSweepStore("grant save", testSaveGrantRun, sPem);
+	testSweepStore("grant load", testLoadGrantRun, NULL);
+	testSweepStore("need renew", testNeedRenewRun, NULL);
+	testSweepStore("list domains", testListRun, NULL);
 
 	/* 恢复正常分配后读侧完整可用。 */
 	testRequire(testLoadGrantRun(), "store oom recovery load failed");

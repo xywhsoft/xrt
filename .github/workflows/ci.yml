@@ -26,6 +26,7 @@ jobs:
           python -m unittest
           tools/test_clean.py
           tools/test_build.py
+          tools/test_declaration_features.py
           tools/test_package.py
           tools/test_measure_size.py
           tools/test_measure_performance.py
@@ -176,15 +177,23 @@ jobs:
           - product: xmail
             test_suite: xmail_tests
             package_suite: xmail
+            min_line_coverage: 73
+            min_branch_coverage: 59
           - product: xsmtp
             test_suite: xsmtp_tests
             package_suite: xsmtp
+            min_line_coverage: 75
+            min_branch_coverage: 56
           - product: xpop3
             test_suite: xpop3_tests
             package_suite: xpop3
+            min_line_coverage: 72
+            min_branch_coverage: 55
           - product: ximap
             test_suite: ximap_tests
             package_suite: ximap
+            min_line_coverage: 74
+            min_branch_coverage: 55
           - product: xssh
             test_suite: xssh
             package_suite: xssh
@@ -223,6 +232,22 @@ jobs:
           --exclude-single-test *uring*
           --jobs 4
 
+      - name: Measure mail extension coverage
+        if: matrix.product == 'xmail' || matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
+        run: >-
+          python tools/measure_mail_coverage.py
+          --product ${{ matrix.product }}
+          --min-lines ${{ matrix.min_line_coverage }}
+          --min-branches ${{ matrix.min_branch_coverage }}
+
+      - name: Run xacme cross-process rotation
+        if: matrix.product == 'xacme'
+        run: python tools/test_acme_store_processes.py
+
+      - name: Check xacme offline pruning
+        if: matrix.product == 'xacme'
+        run: python -m unittest tools.test_prune_acme_store -v
+
       - name: Verify extension trimming
         run: >-
           python tools/build.py
@@ -230,6 +255,26 @@ jobs:
           --manifest extlibs/${{ matrix.product }}/config/modules.json
           --suite ${{ matrix.package_suite }}
           --trim-only
+
+      - name: Build and run mail client examples
+        if: matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
+        run: |
+          if [ "${{ matrix.product }}" = xpop3 ]; then suite=pop3_client_example; fi
+          if [ "${{ matrix.product }}" = xsmtp ]; then suite=smtp_submit_example; fi
+          if [ "${{ matrix.product }}" = ximap ]; then suite=imap_client_example; fi
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite "$suite" --no-single --exclude-test '*' --jobs 4
+
+      - name: Run offline POP3 client example
+        if: matrix.product == 'xpop3'
+        run: python tools/build.py --compiler gcc --manifest extlibs/xpop3/config/modules.json --suite pop3_offline_example --no-single --jobs 4
+
+      - name: Run offline SMTP submission example
+        if: matrix.product == 'xsmtp'
+        run: python tools/build.py --compiler gcc --manifest extlibs/xsmtp/config/modules.json --suite smtp_offline_example --no-single --jobs 4
+
+      - name: Run offline IMAP client example
+        if: matrix.product == 'ximap'
+        run: python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_offline_example --no-single --jobs 4
 
       - name: Run xacme mock CA end-to-end verification
         if: matrix.product == 'xacme'
@@ -241,6 +286,121 @@ jobs:
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.package_suite }} --kind shared --verify
+
+  auth-extensions:
+    name: JWT and OAuth2 / ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Setup MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Run JWT and OAuth2 tests and examples
+        if: runner.os != 'Windows'
+        run: python tools/test_auth_extensions.py
+
+      - name: Check JWT and OAuth2 line coverage baseline
+        if: runner.os != 'Windows'
+        run: python tools/measure_auth_coverage.py
+
+      - name: Run JWT and OAuth2 tests and examples on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: python tools/test_auth_extensions.py
+
+  mail-and-acme-windows:
+    name: Mail and ACME / Windows / ${{ matrix.product }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - product: xmail
+            test_suite: xmail_tests
+          - product: xpop3
+            test_suite: xpop3_tests
+          - product: xsmtp
+            test_suite: xsmtp_tests
+          - product: ximap
+            test_suite: ximap_tests
+          - product: xacme
+            test_suite: xacme_tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Run extension tests and examples
+        shell: msys2 {0}
+        run: >-
+          python tools/build.py --compiler gcc
+          --manifest extlibs/${{ matrix.product }}/config/modules.json
+          --suite ${{ matrix.test_suite }} --jobs 4
+
+      - name: Build and run mail client examples
+        if: matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
+        shell: msys2 {0}
+        run: |
+          if [ "${{ matrix.product }}" = xpop3 ]; then suite=pop3_client_example; fi
+          if [ "${{ matrix.product }}" = xsmtp ]; then suite=smtp_submit_example; fi
+          if [ "${{ matrix.product }}" = ximap ]; then suite=imap_client_example; fi
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite "$suite" --no-single --exclude-test '*' --jobs 4
+
+      - name: Run offline POP3 client example
+        if: matrix.product == 'xpop3'
+        shell: msys2 {0}
+        run: python tools/build.py --compiler gcc --manifest extlibs/xpop3/config/modules.json --suite pop3_offline_example --no-single --jobs 4
+
+      - name: Run offline SMTP submission example
+        if: matrix.product == 'xsmtp'
+        shell: msys2 {0}
+        run: python tools/build.py --compiler gcc --manifest extlibs/xsmtp/config/modules.json --suite smtp_offline_example --no-single --jobs 4
+
+      - name: Run offline IMAP client example
+        if: matrix.product == 'ximap'
+        shell: msys2 {0}
+        run: python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_offline_example --no-single --jobs 4
+
+      - name: Run xacme cross-process rotation
+        if: matrix.product == 'xacme'
+        shell: msys2 {0}
+        run: python tools/test_acme_store_processes.py
+
+      - name: Check xacme offline pruning
+        if: matrix.product == 'xacme'
+        shell: msys2 {0}
+        run: python -m unittest tools.test_prune_acme_store -v
 
   gcc-baseline:
     name: GCC 12 baseline

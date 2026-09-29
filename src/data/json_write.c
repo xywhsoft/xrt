@@ -185,6 +185,7 @@ static bool __xrtJsonWriterSkipValue(
 	if (
 		(Type == XVALUE_NULL) || (Type == XVALUE_BOOL) ||
 		(Type == XVALUE_INT) || (Type == XVALUE_UINT) ||
+		(Type == XVALUE_CHAR) ||
 		(Type == XVALUE_FLOAT) ||
 		(Type == XVALUE_STRING) || (Type == XVALUE_ARRAY) ||
 		(Type == XVALUE_OBJECT)
@@ -432,6 +433,15 @@ static bool __xrtJsonWriterTree(
 			return false;
 		}
 		return __xrtTextValueWriterUInt(pWriter->Core, iUnsigned);
+	}
+	if ( Type == XVALUE_CHAR ) {
+		uint32 iChar;
+
+		if ( !xrtValueGetChar(pValue, &iChar) ) {
+			__xrtTextValueWriterPoison(pWriter->Core);
+			return false;
+		}
+		return __xrtTextValueWriterUInt(pWriter->Core, (uint64)iChar);
 	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {

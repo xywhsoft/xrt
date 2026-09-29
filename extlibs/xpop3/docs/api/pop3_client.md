@@ -28,6 +28,10 @@ Client 借用调用方 Engine、Resolver、TLS Context 和 Verifier；销毁 Cli
 STAT、单项 LIST/UIDL、全量 LIST/UIDL、RETR、TOP、DELE、RSET、NOOP 和 QUIT 都建立在这些
 公开底层入口上。RETR/TOP 不分配整封邮件；每条返回行借用内部接收缓冲，只稳定到下一次
 线路读取。调用方可以直接流向文件、MIME 增量解析器或自己的消息存储。
+单项 STAT/LIST/UIDL 的 `+OK` 数据若格式错误，Client 进入 `FAILED`，最后状态行仍可用
+`LastReply` 检查；正常的 `-ERR` 命令拒绝保留事务状态，调用方可继续其他命令。
+命令已发出后等待回复超时或被取消时，Client 进入 `FAILED`，不再发送后续命令；
+调用方可读取原始 `XERR_TIMEOUT` 或 `XERR_CANCELLED`，并用 `Abort` 立即结束连接。
 
 可选 `pop3_message` 在同一状态机上增加有界 `RetrWrite/TopWrite`、owned 字节和 MIME 树入口；
 只需要底层逐行路径时不会携带 Buffer 或 MIME 树闭包。
@@ -37,10 +41,13 @@ STAT、单项 LIST/UIDL、全量 LIST/UIDL、RETR、TOP、DELE、RSET、NOOP 和
 `pop3_auth` 提供常用 USER/PASS。用户名、密码和临时命令副本只在调用期间存在，发送后立即
 清零释放。默认拒绝在明文传输发送凭据；`AllowPlaintext` 只用于调用方明确控制的兼容环境。
 服务器拒绝凭据后仍停留在 AUTHORIZATION，线路错误则进入 FAILED。
+认证命令发出后等待回复超时也会进入 `FAILED`，原始超时错误和最后完整响应保留，
+应调用 `Abort` 或销毁 Client，而不是在该连接上重试认证。
 
 其他 SASL 机制可以用 Send/Line 自定义；它们后续也可以作为独立裁剪模块增加，不需要改变
 POP3 Client 或网络底座。
 
 ## 示例
 
-见 `examples/pop3/client/main.c`。
+`examples/offline/main.c` 在进程内回环服务上执行认证、RETR 和 QUIT；
+`examples/client/main.c` 演示带证书验证的真实 TLS/STLS 服务。

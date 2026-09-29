@@ -2,10 +2,10 @@
 	xoauth2 —— OAuth 2.0 (RFC 6749) 客户端扩展库。
 
 	授权码流程 + PKCE (RFC 7636) + token 刷新 + provider 预设。
-	ID token 验签经 xjwt（OIDC 场景，Phase 3 规划，当前未实现）。
+	ID token 验签由应用层组合 xjwt 完成（见 examples/oidc_login.c）。
 
 	用法（GitHub 登录三步）：
-		xoauth2client oauth;
+		xoauth2client oauth = {0};
 		xoauth2UseGithub(&oauth, id, secret, redirect);
 		char* url = xoauth2BeginLogin(&oauth);          // → 重定向
 		xoauth2token* tok = xoauth2CompleteLogin(&oauth, code, state);
@@ -28,7 +28,7 @@ typedef struct xvalue xvalue;
 extern "C" {
 #endif
 
-#define XOAUTH2_VERSION_MAJOR 1
+#define XOAUTH2_VERSION_MAJOR 2
 #define XOAUTH2_VERSION_MINOR 0
 #define XOAUTH2_VERSION_PATCH 0
 
@@ -60,7 +60,7 @@ enum {
  * ------------------------------------------------------------------ */
 
 /*
-	传输回调：宿主提供 HTTP 能力（token 交换 POST、JWKS/userinfo GET
+	传输回调：宿主提供 HTTP 能力（通用 token 交换 POST、微信 GET、JWKS/userinfo GET
 	都经它）。请求 = method（"POST"/"GET"）+ url + form 编码 body
 	（GET 时为 NULL）+ 可选 Authorization 头（AuthStyle=BASIC 与
 	Bearer 场景非 NULL）。
@@ -94,6 +94,7 @@ void xoauth2ConfigInit(xoauth2config* pConfig);
 
 /* ------------------------------------------------------------------
  * 客户端（含运行时会话状态：state + PKCE verifier + nonce）
+ * 首次调用任何 Use* 预设前，必须以 `xoauth2client client = {0};` 初始化。
  * Microsoft 预设会按 tenant 动态生成端点 URL 与 issuer，由客户端持有
  * 所有权，重复预设与 xoauth2ClientUnit 时释放。
  * ------------------------------------------------------------------ */
@@ -106,6 +107,7 @@ typedef struct xoauth2client {
 	char* pOwnedAuthUrl;        /* 预设分配的 AuthorizeUrl（可 NULL） */
 	char* pOwnedTokenUrl;       /* 预设分配的 TokenUrl（可 NULL） */
 	char* pOwnedIssuerUrl;      /* 预设分配的 Issuer（可 NULL） */
+	bool Wechat;                /* 微信端点使用专有 GET 参数与响应格式 */
 } xoauth2client;
 
 /* Provider 预设（一行初始化）。tenant 超 256 字符时 Microsoft 预设
@@ -136,8 +138,8 @@ char* xoauth2BeginLogin(xoauth2client* pClient);
 /*
 	回调处理：用授权码换 token。
 	内部自动：验 state（常时比较，防 CSRF）→ 焚毁 state/verifier
-	（一次性，防重放）→ 构造 token 请求（按 AuthStyle 带 Basic 头或
-	body 认证）→ 网络交换（Phase 2）→ 解析响应 JSON。
+	（一次性，防重放）→ 构造 token 请求（通用端点按 AuthStyle 使用
+	Basic 头或 body，微信端点使用 GET 查询参数）→ 网络交换 → 解析响应 JSON。
 	成功返回 token（xoauth2TokenFree 释放），失败返回 NULL 并设 xerror。
 	state 校验通过即消费会话——失败后必须重新 BeginLogin。
 */
@@ -145,6 +147,7 @@ typedef struct xoauth2token {
 	char* AccessToken;
 	char* RefreshToken;         /* 可能为 NULL */
 	char* IdToken;              /* 可能为 NULL（OIDC） */
+	char* OpenId;               /* 微信响应的 openid；其他 provider 可为空 */
 	char* TokenType;            /* 通常 "bearer"（统一小写存储） */
 	int64_t ExpiresIn;            /* 秒 */
 	char* Scope;                /* 实际授权的 scope */
@@ -194,10 +197,14 @@ bool xoauth2NonceConsume(xoauth2client* pClient, const char* sNonce);
 /*
 	GET UserInfoUrl + Authorization: Bearer <accessToken>，
 	返回 claims 对象（xrtValueRelease；非对象 JSON 拒绝），失败 NULL。
-	对非 OIDC provider（如 WeChat /sns/userinfo）同样是取用户信息
-	的正路。
+	适用于 Bearer Authorization 头的 provider。微信 /sns/userinfo 需同时
+	传 access_token 和 openid 查询参数，使用 xoauth2GetWechatUserInfo。
 */
 xvalue* xoauth2GetUserInfo(xoauth2client* pClient, const char* sAccessToken);
+
+/* 微信专用 userinfo；pToken 必须来自微信授权或刷新响应且含 OpenId。 */
+xvalue* xoauth2GetWechatUserInfo(xoauth2client* pClient,
+	const xoauth2token* pToken);
 
 /* ------------------------------------------------------------------
  * 工具（离线可用，便于测试）
